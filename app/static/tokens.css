@@ -1,0 +1,109 @@
+/* ============================================================
+   FDC CAPITAL — Design Tokens
+   Paleta: Platinum + Electric Blue
+   Dark é o tema padrão; [data-theme="light"] inverte.
+   Inclua este arquivo e use as variáveis var(--token).
+   ============================================================ */
+
+:root {
+  /* ---- Marca (constantes, não mudam por tema) ---- */
+  --fdc-base:        #0A0D12;  /* Platinum Black */
+  --fdc-blue:        #2E8BFF;  /* Electric Blue  */
+  --fdc-blue-2:      #7FB2FF;  /* Blue Light     */
+  --fdc-steel:       #222831;
+  --fdc-platinum:    #AEB7C2;
+  --fdc-white:       #FFFFFF;
+
+  /* ---- Funcionais ---- */
+  --pos:  #2BC07E;  /* ROI/EV positivo */
+  --neg:  #E5524B;  /* perda           */
+  --warn: #E0A21A;
+
+  /* ---- Superfícies (dark, padrão) ---- */
+  --bg:        #0A0D12;
+  --surface:   #12161D;
+  --surface-2: #161B22;
+  --elevated:  #1A2029;
+  --line:      rgba(255, 255, 255, 0.08);
+  --line-2:    rgba(255, 255, 255, 0.05);
+
+  /* ---- Tinta ---- */
+  --ink:       #EEF2F7;
+  --ink-soft:  #95A1B0;
+  --ink-mute:  #5E6775;
+
+  /* ---- Acento (sinal) ---- */
+  --accent:    #2E8BFF;
+  --accent-2:  #7FB2FF;
+  --field:     #161B22;
+
+  /* ---- Tipografia ---- */
+  --font-sans: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  /* ---- Raio ---- */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+  --r-pill: 999px;
+
+  /* ---- Espaçamento (escala 4px) ---- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+  --sp-14: 56px; --sp-20: 80px;
+
+  /* ---- Sombras / brilho ---- */
+  --shadow-card: 0 40px 90px -40px rgba(0, 0, 0, 0.7);
+  --glow: 0 0 0 1px rgba(46, 139, 255, 0.35), 0 8px 40px -12px rgba(46, 139, 255, 0.45);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- Diagnóstico / camada de risco (--d-*) ---- */
+  --d-pos:         #4FC79A;
+  --d-neg:         #E5524B;
+  --d-proj:        #D6A45A;
+  --d-info:        #4DA3FF;
+  --d-pos-strong:  #2BC07E;
+  --d-proj-strong: #E0A21A;
+  --d-pos-soft:    rgba(79,199,154,.14);
+  --d-neg-soft:    rgba(229,82,75,.14);
+  --d-proj-soft:   rgba(214,164,90,.15);
+  --d-info-soft:   rgba(77,163,255,.14);
+  --risk-grad:     linear-gradient(90deg,var(--d-neg) 0%,var(--d-proj) 50%,var(--d-pos) 100%);
+}
+
+/* ============ Tema claro ============ */
+:root[data-theme="light"] {
+  --bg:        #F4F7FB;
+  --surface:   #FFFFFF;
+  --surface-2: #EDF2F7;
+  --elevated:  #FFFFFF;
+  --line:      rgba(10, 15, 25, 0.10);
+  --line-2:    rgba(10, 15, 25, 0.055);
+
+  --ink:       #0E1626;
+  --ink-soft:  #46586D;
+  --ink-mute:  #7C8BA0;
+
+  --accent:    #1E7CF0;
+  --accent-2:  #2E8BFF;
+  --field:     #FFFFFF;
+  --glow: 0 0 0 1px rgba(30,124,240,0.30), 0 10px 36px -14px rgba(30,124,240,0.40);
+}
+
+/* ============ Skin: Deep Navy ============ */
+/* Não aplicar ainda — definido para uso futuro via data-skin="navy" */
+[data-skin="navy"] {
+  --bg:        #081320;
+  --surface:   #0F1D2F;
+  --surface-2: #13243A;
+  --elevated:  #162943;
+  --line:      rgba(125,170,255,.10);
+  --line-2:    rgba(125,170,255,.055);
+  --ink:       #EAF1FA;
+  --ink-soft:  #8C9BB0;
+  --ink-mute:  #5C6B82;
+}
