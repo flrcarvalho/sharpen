@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
 from prompts import build_system
-from repository import list_bilhetes, marcar_copiada, parse_tsv, upsert_bilhetes
+from repository import list_bilhetes, marcar_copiada, marcar_pendente, parse_tsv, upsert_bilhetes
 
 
 @asynccontextmanager
@@ -142,15 +142,17 @@ async def salvar(body: SalvarRequest):
 async def listar_bilhetes(
     casa: Optional[str] = None,
     parceiro: Optional[str] = None,
-    copy_state: Optional[str] = "pendente",
+    copy_state: Optional[str] = None,
     extraction_state: Optional[str] = None,
+    order: str = "asc",
 ):
-    """Lista bilhetes. Por padrão retorna apenas os pendentes de cópia."""
+    """Lista bilhetes. Por padrão retorna todos, ordenados do mais antigo."""
     rows = await list_bilhetes(
-        casa=casa,
-        parceiro=parceiro,
-        copy_state=copy_state,
-        extraction_state=extraction_state,
+        casa=casa or None,
+        parceiro=parceiro or None,
+        copy_state=copy_state or None,
+        extraction_state=extraction_state or None,
+        order=order,
     )
     return {"bilhetes": rows, "total": len(rows)}
 
@@ -165,4 +167,13 @@ async def marcar_bilhetes_copiados(body: CopiarRequest):
     if not body.ids:
         raise HTTPException(400, "Lista de IDs vazia.")
     atualizados = await marcar_copiada(body.ids)
+    return {"atualizados": atualizados}
+
+
+@app.post("/bilhetes/desmarcar")
+async def desmarcar_bilhetes(body: CopiarRequest):
+    """Volta bilhetes para estado pendente."""
+    if not body.ids:
+        raise HTTPException(400, "Lista de IDs vazia.")
+    atualizados = await marcar_pendente(body.ids)
     return {"atualizados": atualizados}

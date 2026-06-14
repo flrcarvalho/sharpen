@@ -68,9 +68,10 @@ async def upsert_bilhetes(rows: list[dict], confianca: float | None = None) -> i
 async def list_bilhetes(
     casa: str | None = None,
     parceiro: str | None = None,
-    copy_state: str | None = "pendente",
+    copy_state: str | None = None,
     extraction_state: str | None = None,
-    limit: int = 200,
+    limit: int = 500,
+    order: str = "asc",
 ) -> list[dict]:
     pool = await get_pool()
     filters, params = [], []
@@ -82,11 +83,12 @@ async def list_bilhetes(
             filters.append(f"{col} = ${len(params)}")
 
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
+    order_sql = "ASC" if order == "asc" else "DESC"
     params.append(limit)
 
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            f"SELECT * FROM bilhetes {where} ORDER BY criado_em DESC LIMIT ${len(params)}",
+            f"SELECT * FROM bilhetes {where} ORDER BY criado_em {order_sql} LIMIT ${len(params)}",
             *params,
         )
     return [dict(r) for r in rows]
@@ -97,6 +99,16 @@ async def marcar_copiada(ids: list[int]) -> int:
     async with pool.acquire() as conn:
         result = await conn.execute(
             "UPDATE bilhetes SET copy_state = 'copiada', atualizado_em = NOW() WHERE id = ANY($1)",
+            ids,
+        )
+    return int(result.split()[-1])
+
+
+async def marcar_pendente(ids: list[int]) -> int:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE bilhetes SET copy_state = 'pendente', atualizado_em = NOW() WHERE id = ANY($1)",
             ids,
         )
     return int(result.split()[-1])
