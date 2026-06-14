@@ -1,19 +1,39 @@
 import base64
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
 from anthropic import Anthropic
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
+from database import init_db
 from prompts import build_system
+from repository import list_bilhetes, marcar_copiada, parse_tsv, upsert_bilhetes
 
-app = FastAPI(title="Scanner de Bets — FDC Capital")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await init_db()
+    yield
+
+
+app = FastAPI(title="Scanner de Bets — FDC Capital", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
-_client = Anthropic()  # lê ANTHROPIC_API_KEY do ambiente automaticamente
+
+@app.exception_handler(Exception)
+async def _unhandled(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
+
+
+_client = Anthropic()
 
 _INSTRUCAO = (
     "Extraia os bilhetes acima para TSV no padrão FDC Capital.\n"
@@ -22,6 +42,8 @@ _INSTRUCAO = (
     "com o motivo quando < 100%."
 )
 
+
+# ── Rotas existentes ──────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -97,3 +119,50 @@ async def extrair(
             "cache_write": getattr(u, "cache_creation_input_tokens", 0),
         },
     }
+
+
+# ── Fase 2: banco de dados ────────────────────────────────────────────────────
+
+class SalvarRequest(BaseModel):
+    tsv: str
+    confianca: Optional[float] = None
+
+
+@app.post("/salvar")
+async def salvar(body: SalvarRequest):
+    """Recebe TSV extraído, faz parse e upsert no banco."""
+    rows = parse_tsv(body.tsv)
+    if not rows:
+        raise HTTPException(400, "Nenhuma linha válida encontrada no TSV.")
+    count = await upsert_bilhetes(rows, confianca=body.confianca)
+    return {"salvos": count}
+
+
+@app.get("/bilhetes")
+async def listar_bilhetes(
+    casa: Optional[str] = None,
+    parceiro: Optional[str] = None,
+    copy_state: Optional[str] = "pendente",
+    extraction_state: Optional[str] = None,
+):
+    """Lista bilhetes. Por padrão retorna apenas os pendentes de cópia."""
+    rows = await list_bilhetes(
+        casa=casa,
+        parceiro=parceiro,
+        copy_state=copy_state,
+        extraction_state=extraction_state,
+    )
+    return {"bilhetes": rows, "total": len(rows)}
+
+
+class CopiarRequest(BaseModel):
+    ids: list[int]
+
+
+@app.post("/bilhetes/copiar")
+async def marcar_bilhetes_copiados(body: CopiarRequest):
+    """Marca bilhetes como copiados para a planilha."""
+    if not body.ids:
+        raise HTTPException(400, "Lista de IDs vazia.")
+    atualizados = await marcar_copiada(body.ids)
+    return {"atualizados": atualizados}
