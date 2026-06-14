@@ -112,3 +112,55 @@ async def marcar_pendente(ids: list[int]) -> int:
             ids,
         )
     return int(result.split()[-1])
+
+
+# ── Parceiros ─────────────────────────────────────────────────────────────────
+
+async def criar_parceiro(casa: str, nome: str) -> dict:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO parceiros (casa, nome)
+            VALUES ($1, $2)
+            ON CONFLICT (casa, nome) DO UPDATE SET arquivado = FALSE
+            RETURNING id, casa, nome, arquivado, criado_em
+            """,
+            casa, nome,
+        )
+    return dict(row)
+
+
+async def list_parceiros(casa: str | None = None, incluir_arquivados: bool = False) -> list[dict]:
+    pool = await get_pool()
+    filters, params = [], []
+    if casa is not None:
+        params.append(casa)
+        filters.append(f"casa = ${len(params)}")
+    if not incluir_arquivados:
+        filters.append("arquivado = FALSE")
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"SELECT id, casa, nome, arquivado, criado_em FROM parceiros {where} ORDER BY criado_em ASC",
+            *params,
+        )
+    return [dict(r) for r in rows]
+
+
+async def arquivar_parceiro(parceiro_id: int) -> bool:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE parceiros SET arquivado = TRUE WHERE id = $1", parceiro_id
+        )
+    return result.split()[-1] == "1"
+
+
+async def reativar_parceiro(parceiro_id: int) -> bool:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE parceiros SET arquivado = FALSE WHERE id = $1", parceiro_id
+        )
+    return result.split()[-1] == "1"

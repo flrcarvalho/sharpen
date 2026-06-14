@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-14 (sessão 10 — Fase 1 app/ construída e enviada para GitHub)_
+_Atualizado: 2026-06-14 (sessão 13 — Redesign parceiro-cêntrico)_
 
 ---
 
@@ -101,6 +101,13 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - `app/static/fdc-logo-horizontal-dark.svg` — logo horizontal do pack.
   - Padronização visual: `body::before` grid quadriculado 44×44px; wrapper `.app` z-index 1; logo FDC Capital na sidebar; chips de casa com favicon via Google API (`dominio.bet.br`); `btn-primary` hover com `var(--glow)`; badges com tokens `--d-*-soft`; letter-spacing títulos `-0.035em`.
 
+- **Redesign parceiro-cêntrico em 14/06/2026 (sessão 13):** sidebar e app reescritos para modelo parceiro-cêntrico.
+  - `app/database.py` — tabela `parceiros (id, casa, nome, arquivado, criado_em)` adicionada ao schema.
+  - `app/repository.py` — 4 funções: `criar_parceiro`, `list_parceiros`, `arquivar_parceiro`, `reativar_parceiro`.
+  - `app/main.py` — 4 rotas: `GET /parceiros`, `POST /parceiros`, `POST /parceiros/{id}/arquivar`, `POST /parceiros/{id}/reativar`.
+  - `app/static/index.html` — redesign completo: sidebar com casas colapsáveis + lista de parceiros persistida por casa + botão "+ Novo parceiro" + botão arquivar no hover; área principal com empty state → mini-página do parceiro com tabs Extrair/Exportar internas e filtradas; clipboard paste (Ctrl+V) para imagens; botão "+ Arquivo" explícito.
+  - Backup em `Planilhador/Backups/pre_parceiro_centric_2026-06-14/`.
+
 ---
 
 ## 5. Pendências (ordem)
@@ -130,10 +137,12 @@ uvicorn main:app --reload
 
 **Fases 1, 2 e 3 concluídas.** App em produção: `https://extrator-production.up.railway.app/`
 
-**Próximas etapas — Sessão 13:**
-1. Testar fluxo completo em produção: extrair bilhete, salvar na grade, exportar com checkbox.
-2. Pendências de amostra das casas (ver seção 5).
-3. Avaliar edição inline de células na grade (tipster, resultado).
+**Próximas etapas — Sessão 14:**
+1. Testar fluxo completo local: criar parceiro, extrair, salvar, exportar filtrado.
+2. Fazer push + aguardar deploy automático Railway.
+3. Testar em produção: `https://extrator-production.up.railway.app/`
+4. Pendências de amostra das casas (ver seção 5).
+5. Avaliar edição inline de células na grade (tipster, resultado).
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado

@@ -35,14 +35,14 @@ body::before {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 200px; height: 100vh; flex-shrink: 0;
+  width: 216px; height: 100vh; flex-shrink: 0;
   background: var(--surface); border-right: 1px solid var(--line);
-  padding: 20px 14px; display: flex; flex-direction: column; gap: 2px;
+  padding: 20px 10px; display: flex; flex-direction: column; gap: 0;
   overflow-y: auto;
 }
 .brand {
   display: block;
-  margin: 0 0 20px;
+  margin: 0 4px 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--line);
 }
@@ -53,46 +53,128 @@ body::before {
 .section-label {
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
   text-transform: uppercase; color: var(--ink-mute);
-  padding: 10px 8px 5px;
+  padding: 10px 10px 5px;
 }
-.casa-item {
+
+/* ── Casa item (colapsável) ── */
+.casa-group { display: flex; flex-direction: column; }
+.casa-header {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px; border-radius: var(--r-sm);
+  padding: 7px 10px; border-radius: var(--r-sm);
   cursor: pointer; font-size: 12px; color: var(--ink-soft);
-  transition: background .12s, color .12s;
+  transition: background .12s, color .12s; user-select: none;
 }
-.casa-item:hover { background: var(--surface-2); color: var(--ink); }
-.casa-item.active { background: rgba(46,139,255,.12); color: var(--accent-2); }
+.casa-header:hover { background: var(--surface-2); color: var(--ink); }
+.casa-header.expanded { color: var(--ink); }
 .casa-chip {
-  width: 24px; height: 24px; border-radius: var(--r-xs);
+  width: 22px; height: 22px; border-radius: var(--r-xs);
   background: var(--elevated); border: 1px solid var(--line);
   flex-shrink: 0; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  transition: border-color .12s;
 }
-.casa-chip img { width: 18px; height: 18px; object-fit: contain; display: block; }
-.casa-item.active .casa-chip { border-color: rgba(46,139,255,.35); }
-.parceiro-wrap { padding: 4px 4px 0; }
-.parceiro-input {
-  width: 100%; background: var(--bg); border: 1px solid var(--line);
-  border-radius: var(--r-sm); padding: 7px 10px;
-  font-size: 12px; color: var(--ink); font-family: var(--font-sans); outline: none;
-  transition: border-color .12s;
+.casa-chip img { width: 16px; height: 16px; object-fit: contain; display: block; }
+.casa-name { flex: 1; }
+.casa-arrow {
+  font-size: 9px; color: var(--ink-mute);
+  transition: transform .15s;
 }
-.parceiro-input:focus { border-color: var(--accent); box-shadow: var(--glow); }
-.parceiro-input::placeholder { color: var(--ink-mute); }
+.casa-header.expanded .casa-arrow { transform: rotate(90deg); }
+
+/* ── Parceiros sub-lista ── */
+.parceiros-list {
+  display: none; flex-direction: column; padding: 2px 0 4px 18px;
+}
+.parceiros-list.open { display: flex; }
+.parceiro-item {
+  display: flex; align-items: center; gap: 0;
+  padding: 5px 8px 5px 10px; border-radius: var(--r-sm);
+  cursor: pointer; font-size: 12px; color: var(--ink-soft);
+  transition: background .12s, color .12s; position: relative;
+}
+.parceiro-item:hover { background: var(--surface-2); color: var(--ink); }
+.parceiro-item.active {
+  background: rgba(46,139,255,.12); color: var(--accent-2); font-weight: 600;
+}
+.parceiro-nome { flex: 1; }
+.btn-arquivar {
+  display: none; background: none; border: none; cursor: pointer;
+  font-size: 10px; color: var(--ink-mute); padding: 2px 4px;
+  border-radius: 3px; line-height: 1; flex-shrink: 0;
+}
+.parceiro-item:hover .btn-arquivar { display: block; }
+.btn-arquivar:hover { color: var(--neg); background: rgba(229,82,75,.1); }
+
+/* ── Botão novo parceiro ── */
+.novo-parceiro-wrap { padding: 3px 10px 3px 10px; }
+.btn-novo-parceiro {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 8px; border-radius: var(--r-sm);
+  background: none; border: 1px dashed var(--line); cursor: pointer;
+  font-size: 11px; color: var(--ink-mute); font-family: var(--font-sans);
+  width: 100%; transition: all .12s;
+}
+.btn-novo-parceiro:hover { border-color: var(--accent); color: var(--accent-2); }
+.novo-parceiro-input-wrap {
+  display: none; padding: 3px 10px 3px 10px;
+}
+.novo-parceiro-input-wrap.open { display: block; }
+.novo-parceiro-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--accent);
+  border-radius: var(--r-sm); padding: 5px 8px;
+  font-size: 12px; color: var(--ink); font-family: var(--font-sans);
+  outline: none; box-shadow: var(--glow);
+}
 
 /* ── Layout principal ── */
 .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
-/* ── Tab bar ── */
-.tab-bar {
+/* ── Empty state ── */
+.empty-state {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px;
+  color: var(--ink-mute); font-size: 13px;
+}
+.empty-state-icon { font-size: 32px; opacity: .3; }
+
+/* ── Partner page ── */
+.partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Partner header ── */
+.partner-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px; border-bottom: 1px solid var(--line);
+  background: var(--surface); flex-shrink: 0;
+}
+.partner-title {
+  display: flex; align-items: center; gap: 10px;
+}
+.partner-favicon {
+  width: 22px; height: 22px; border-radius: var(--r-xs);
+  background: var(--elevated); border: 1px solid var(--line);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.partner-favicon img { width: 16px; height: 16px; object-fit: contain; display: block; }
+.partner-name {
+  font-size: 15px; font-weight: 800; letter-spacing: -.035em;
+}
+.partner-sub { font-size: 11px; color: var(--ink-mute); margin-top: 1px; }
+.model-select {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 7px 12px;
+  font-size: 12px; color: var(--ink-soft); font-family: var(--font-mono);
+  cursor: pointer; outline: none; transition: border-color .12s;
+}
+.model-select:focus { border-color: var(--accent); box-shadow: var(--glow); }
+
+/* ── Tab bar (interna ao parceiro) ── */
+.partner-tabs {
   display: flex; flex-shrink: 0;
   padding: 0 28px; border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
 .tab {
-  padding: 13px 16px; font-size: 13px; font-weight: 600;
+  padding: 11px 16px; font-size: 13px; font-weight: 600;
   color: var(--ink-soft); background: none; border: none;
   border-bottom: 2px solid transparent; cursor: pointer;
   transition: all .12s; margin-bottom: -1px;
@@ -114,24 +196,17 @@ body::before {
 #panel-extrair { overflow-y: auto; }
 
 /* ── Extrator ── */
-.main { padding: 28px 32px; display: flex; flex-direction: column; gap: 18px; max-width: 860px; width: 100%; }
-.topbar { display: flex; align-items: center; justify-content: space-between; }
-.topbar h1 { font-size: 17px; font-weight: 800; letter-spacing: -.035em; }
-.model-select {
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-sm); padding: 7px 12px;
-  font-size: 12px; color: var(--ink-soft); font-family: var(--font-mono);
-  cursor: pointer; outline: none; transition: border-color .12s;
-}
-.model-select:focus { border-color: var(--accent); box-shadow: var(--glow); }
+.main { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; max-width: 860px; width: 100%; }
+
 .upload-zone {
   border: 1.5px dashed var(--line); border-radius: var(--r-md);
-  padding: 24px 20px; text-align: center; cursor: pointer;
+  padding: 22px 20px; text-align: center; cursor: pointer;
   background: var(--surface); transition: border-color .15s, background .15s;
 }
 .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(46,139,255,.05); }
-.upload-label { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.upload-label { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
 .upload-label strong { color: var(--accent-2); }
+.upload-hint { font-size: 11px; color: var(--ink-mute); margin-top: 4px; }
 .upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
 .thumb { width: 56px; height: 56px; border-radius: var(--r-sm); object-fit: cover; border: 1px solid var(--line); }
 .thumb-rm { position: relative; cursor: pointer; }
@@ -200,13 +275,13 @@ body::before {
 #panel-exportar { overflow: hidden; }
 .exp-content {
   display: flex; flex-direction: column;
-  padding: 24px 32px; height: 100%; overflow: hidden; gap: 14px;
+  padding: 20px 28px; height: 100%; overflow: hidden; gap: 14px;
 }
 .exp-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   flex-shrink: 0; gap: 20px;
 }
-.exp-title { font-size: 20px; font-weight: 800; letter-spacing: -.035em; }
+.exp-title { font-size: 18px; font-weight: 800; letter-spacing: -.035em; }
 .exp-sub { font-size: 11px; color: var(--ink-mute); margin-top: 3px; font-family: var(--font-mono); }
 .exp-actions { display: flex; gap: 7px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
 .stats-bar {
@@ -256,7 +331,6 @@ body::before {
 .c-odd  { width: 72px; font-family: var(--font-mono); text-align: right; }
 .c-res  { width: 66px; text-align: center; }
 .c-chk  { width: 46px; text-align: center; }
-/* c-desc takes remaining space (no fixed width) */
 
 .badge-r {
   display: inline-block; padding: 2px 7px;
@@ -293,127 +367,152 @@ body::before {
   <div class="brand">
     <img src="/static/fdc-logo-horizontal-dark.svg" alt="FDC Capital" draggable="false">
   </div>
-  <div class="section-label">Casa</div>
+  <div class="section-label">Casas</div>
   <div id="casa-list">
     <div style="font-size:12px;color:var(--ink-mute);padding:8px 10px">Carregando…</div>
-  </div>
-  <div class="section-label" style="margin-top:14px">Parceiro</div>
-  <div class="parceiro-wrap">
-    <input id="parceiro" class="parceiro-input" type="text" placeholder="ex: João, Leonardo…">
   </div>
 </aside>
 
 <!-- Área principal -->
 <div class="content">
 
-  <!-- Tab bar -->
-  <div class="tab-bar">
-    <button class="tab active" id="tab-extrair" onclick="switchTab('extrair')">Extrair</button>
-    <button class="tab" id="tab-exportar" onclick="switchTab('exportar')">
-      Exportar
-      <span class="tab-badge" id="badge-pend" style="display:none">0</span>
-    </button>
+  <!-- Empty state (padrão) -->
+  <div class="empty-state" id="empty-state">
+    <div class="empty-state-icon">←</div>
+    <div>Selecione ou crie um parceiro</div>
   </div>
 
-  <!-- Panel: Extrair -->
-  <div class="panel active" id="panel-extrair">
-    <main class="main">
-      <div class="topbar">
-        <h1 id="workspace-title" style="color:var(--ink-mute);font-weight:600">Selecione uma casa →</h1>
-        <select id="modelo" class="model-select">
-          <option value="claude-haiku-4-5-20251001">Haiku 4.5 · rápido</option>
-          <option value="claude-sonnet-4-6">Sonnet 4.6 · equilibrado</option>
-          <option value="claude-opus-4-8">Opus 4.8 · preciso</option>
-        </select>
+  <!-- Mini-página do parceiro (oculta até selecionar) -->
+  <div class="partner-page" id="partner-page" style="display:none">
+
+    <!-- Header do parceiro -->
+    <div class="partner-header">
+      <div class="partner-title">
+        <div class="partner-favicon">
+          <img id="partner-favicon-img" src="" alt="">
+        </div>
+        <div>
+          <div class="partner-name" id="partner-name">—</div>
+          <div class="partner-sub" id="partner-sub">—</div>
+        </div>
       </div>
+      <select id="modelo" class="model-select">
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5 · rápido</option>
+        <option value="claude-sonnet-4-6">Sonnet 4.6 · equilibrado</option>
+        <option value="claude-opus-4-8">Opus 4.8 · preciso</option>
+      </select>
+    </div>
 
-      <div class="upload-zone" id="drop-zone">
-        <div class="upload-label"><strong>Clique ou arraste</strong> os prints dos bilhetes aqui</div>
-        <div class="upload-preview" id="preview"></div>
-      </div>
-      <input type="file" id="file-input" multiple accept="image/*">
+    <!-- Tab bar interna -->
+    <div class="partner-tabs">
+      <button class="tab active" id="tab-extrair" onclick="switchTab('extrair')">Extrair</button>
+      <button class="tab" id="tab-exportar" onclick="switchTab('exportar')">
+        Exportar
+        <span class="tab-badge" id="badge-pend" style="display:none">0</span>
+      </button>
+    </div>
 
-      <textarea class="text-area" id="texto"
-        placeholder="Ou cole o texto do bilhete aqui (opcional — pode usar junto com imagens)…"
-        rows="4"></textarea>
+    <!-- Panel: Extrair -->
+    <div class="panel active" id="panel-extrair">
+      <main class="main">
 
-      <div class="actions">
-        <button class="btn btn-primary" id="btn-extrair" disabled>Extrair TSV</button>
-        <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
-        <span class="status-msg" id="status-msg"></span>
-      </div>
+        <div class="upload-zone" id="drop-zone">
+          <div class="upload-label">
+            <strong>Clique ou arraste</strong> os prints dos bilhetes aqui
+          </div>
+          <div class="upload-hint">ou Cole (Ctrl+V) um print · ou use o botão abaixo para arquivo</div>
+          <div class="upload-preview" id="preview"></div>
+        </div>
+        <input type="file" id="file-input" multiple accept="image/*,application/pdf">
 
-      <div class="result-block" id="result-block" style="display:none">
-        <div class="result-header">
-          <span class="result-title">Resultado</span>
-          <div class="result-actions">
-            <button class="btn btn-ghost btn-sm" id="btn-salvar-grade">Salvar na Grade</button>
-            <button class="btn btn-ghost btn-sm" id="btn-copiar">Copiar TSV</button>
+        <textarea class="text-area" id="texto"
+          placeholder="Ou cole o texto do bilhete aqui (opcional — pode usar junto com imagens)…"
+          rows="4"></textarea>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="btn-extrair" disabled>Extrair TSV</button>
+          <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
+          <button class="btn btn-ghost btn-sm" id="btn-add-arquivo" title="Adicionar arquivo do sistema">+ Arquivo</button>
+          <span class="status-msg" id="status-msg"></span>
+        </div>
+
+        <div class="result-block" id="result-block" style="display:none">
+          <div class="result-header">
+            <span class="result-title">Resultado</span>
+            <div class="result-actions">
+              <button class="btn btn-ghost btn-sm" id="btn-salvar-grade">Salvar na Grade</button>
+              <button class="btn btn-ghost btn-sm" id="btn-copiar">Copiar TSV</button>
+            </div>
+          </div>
+          <div class="result-body" id="result-body"></div>
+          <div class="token-bar" id="token-bar"></div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- Panel: Exportar -->
+    <div class="panel" id="panel-exportar">
+      <div class="exp-content">
+
+        <div class="exp-header">
+          <div>
+            <div class="exp-title">Exportar TSV</div>
+            <div class="exp-sub" id="exp-sub-desc">separador TAB · ordem mais antiga → mais nova</div>
+          </div>
+          <div class="exp-actions">
+            <button class="btn btn-primary" id="btn-copiar-pend">⊕ Copiar pendentes</button>
+            <button class="btn btn-ghost btn-sm" id="btn-baixar-tsv">↓ Baixar .tsv</button>
+            <button class="btn btn-ghost btn-sm" id="btn-marcar-todas">✓ Marcar todas</button>
+            <button class="btn btn-ghost btn-sm btn-danger" id="btn-desmarcar-todas">✗ Desmarcar todas</button>
           </div>
         </div>
-        <div class="result-body" id="result-body"></div>
-        <div class="token-bar" id="token-bar"></div>
-      </div>
-    </main>
-  </div>
 
-  <!-- Panel: Exportar -->
-  <div class="panel" id="panel-exportar">
-    <div class="exp-content">
-
-      <div class="exp-header">
-        <div>
-          <div class="exp-title">Exportar TSV</div>
-          <div class="exp-sub">separador TAB · stake BRL · data da partida · ordem imutável (mais antiga → mais nova)</div>
+        <div class="stats-bar">
+          <span id="s-total" class="s-total">— total</span>
+          <span class="s-sep">·</span>
+          <span id="s-cop" class="s-cop">— copiadas</span>
+          <span class="s-sep">·</span>
+          <span id="s-pend" class="s-pend">— pendentes</span>
+          <span id="exp-status" class="exp-status"></span>
         </div>
-        <div class="exp-actions">
-          <button class="btn btn-primary" id="btn-copiar-pend">⊕ Copiar pendentes</button>
-          <button class="btn btn-ghost btn-sm" id="btn-baixar-tsv">↓ Baixar .tsv</button>
-          <button class="btn btn-ghost btn-sm" id="btn-marcar-todas">✓ Marcar todas</button>
-          <button class="btn btn-ghost btn-sm btn-danger" id="btn-desmarcar-todas">✗ Desmarcar todas</button>
+
+        <div class="grade-wrap">
+          <table class="grade">
+            <thead>
+              <tr>
+                <th class="c-data">Data</th>
+                <th class="c-esp">Esporte</th>
+                <th class="c-tip">Tipster</th>
+                <th class="c-casa">Casa</th>
+                <th class="c-parc">Parceiro</th>
+                <th class="c-apos">Aposta</th>
+                <th>Descrição</th>
+                <th class="c-stk">Stake</th>
+                <th class="c-odd">Odd</th>
+                <th class="c-res">Result.</th>
+                <th class="c-chk">☑</th>
+              </tr>
+            </thead>
+            <tbody id="grade-body">
+              <tr><td colspan="11" class="grade-empty">Carregando…</td></tr>
+            </tbody>
+          </table>
         </div>
-      </div>
 
-      <div class="stats-bar">
-        <span id="s-total" class="s-total">— total</span>
-        <span class="s-sep">·</span>
-        <span id="s-cop" class="s-cop">— copiadas</span>
-        <span class="s-sep">·</span>
-        <span id="s-pend" class="s-pend">— pendentes</span>
-        <span id="exp-status" class="exp-status"></span>
       </div>
-
-      <div class="grade-wrap">
-        <table class="grade">
-          <thead>
-            <tr>
-              <th class="c-data">Data</th>
-              <th class="c-esp">Esporte</th>
-              <th class="c-tip">Tipster</th>
-              <th class="c-casa">Casa</th>
-              <th class="c-parc">Parceiro</th>
-              <th class="c-apos">Aposta</th>
-              <th>Descrição</th>
-              <th class="c-stk">Stake</th>
-              <th class="c-odd">Odd</th>
-              <th class="c-res">Result.</th>
-              <th class="c-chk">☑</th>
-            </tr>
-          </thead>
-          <tbody id="grade-body">
-            <tr><td colspan="11" class="grade-empty">Carregando…</td></tr>
-          </tbody>
-        </table>
-      </div>
-
     </div>
-  </div>
+
+  </div><!-- .partner-page -->
 
 </div><!-- .content -->
 </div><!-- .app -->
 
 <script>
+// ── Estado global ─────────────────────────────────────────────────────────────
 let casaSelecionada = null;
+let parceiroSelecionado = null;   // { id, casa, nome }
+let parceirosCache = {};          // { 'BET365': [...] }
 let arquivos = [];
 let bilhetes = [];
 
@@ -421,15 +520,10 @@ const NOMES = {
   SUPERBET: 'Superbet', BET365: 'Bet365',
   BETANO: 'Betano', BETFAIR: 'Betfair', PINNACLE: 'Pinnacle'
 };
-
 const DOMINIOS = {
-  SUPERBET:  'superbet.bet.br',
-  BET365:    'bet365.bet.br',
-  BETANO:    'betano.bet.br',
-  BETFAIR:   'betfair.bet.br',
-  PINNACLE:  'pinnacle.bet.br'
+  SUPERBET: 'superbet.bet.br', BET365: 'bet365.bet.br',
+  BETANO: 'betano.bet.br', BETFAIR: 'betfair.bet.br', PINNACLE: 'pinnacle.bet.br'
 };
-
 function faviconUrl(casa) {
   const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
@@ -445,45 +539,210 @@ function switchTab(tab) {
   if (tab === 'exportar') carregarExportar();
 }
 
-// ── Casas ─────────────────────────────────────────────────────────────────────
+// ── Sidebar: renderizar casas ─────────────────────────────────────────────────
 async function carregarCasas() {
   try {
     const r = await fetch('/casas');
     const { casas } = await r.json();
+
+    // Carregar parceiros de todas as casas em paralelo
+    await Promise.all(casas.map(c => carregarParceiros(c)));
+
     const list = document.getElementById('casa-list');
     list.innerHTML = '';
-    casas.forEach(c => {
-      const el = document.createElement('div');
-      el.className = 'casa-item';
-      el.dataset.casa = c;
-      el.innerHTML = `<div class="casa-chip"><img src="${faviconUrl(c)}" alt="${NOMES[c] || c}" loading="lazy"></div>${NOMES[c] || c}`;
-      el.addEventListener('click', () => selecionarCasa(c, el));
-      list.appendChild(el);
-    });
+    casas.forEach(c => list.appendChild(buildCasaGroup(c)));
   } catch {
     document.getElementById('casa-list').innerHTML =
       '<div style="font-size:12px;color:var(--neg);padding:8px 10px">Erro ao carregar</div>';
   }
 }
 
-function selecionarCasa(casa, el) {
-  casaSelecionada = casa;
-  document.querySelectorAll('.casa-item').forEach(i => i.classList.remove('active'));
-  el.classList.add('active');
-  atualizarTitulo();
-  atualizarBotaoExtrair();
+function buildCasaGroup(casa) {
+  const group = document.createElement('div');
+  group.className = 'casa-group';
+  group.dataset.casa = casa;
+
+  // Header da casa
+  const header = document.createElement('div');
+  header.className = 'casa-header';
+  header.innerHTML = `
+    <div class="casa-chip"><img src="${faviconUrl(casa)}" alt="${NOMES[casa]||casa}" loading="lazy"></div>
+    <span class="casa-name">${NOMES[casa] || casa}</span>
+    <span class="casa-arrow">▶</span>
+  `;
+  header.addEventListener('click', () => toggleCasaGroup(casa, header, list, inputWrap));
+  group.appendChild(header);
+
+  // Lista de parceiros
+  const list = document.createElement('div');
+  list.className = 'parceiros-list';
+  list.id = `parceiros-${casa}`;
+  renderParceirosEmLista(casa, list);
+  group.appendChild(list);
+
+  // Input inline para novo parceiro
+  const inputWrap = document.createElement('div');
+  inputWrap.className = 'novo-parceiro-input-wrap';
+  inputWrap.id = `novo-input-${casa}`;
+  const inp = document.createElement('input');
+  inp.className = 'novo-parceiro-input';
+  inp.type = 'text';
+  inp.placeholder = 'Nome do parceiro…';
+  inp.addEventListener('keydown', async e => {
+    if (e.key === 'Enter') await confirmarNovoParceiro(casa, inp, list, inputWrap);
+    if (e.key === 'Escape') fecharInputNovoParceiro(casa, inputWrap);
+  });
+  inp.addEventListener('blur', () => {
+    if (!inp.value.trim()) fecharInputNovoParceiro(casa, inputWrap);
+  });
+  inputWrap.appendChild(inp);
+  group.appendChild(inputWrap);
+
+  // Botão "Novo parceiro" (dentro da lista mas só aparece quando expandido)
+  const btnNovo = document.createElement('div');
+  btnNovo.className = 'novo-parceiro-wrap';
+  btnNovo.id = `btn-novo-wrap-${casa}`;
+  btnNovo.style.display = 'none';
+  btnNovo.innerHTML = `<button class="btn-novo-parceiro">+ Novo parceiro</button>`;
+  btnNovo.querySelector('button').addEventListener('click', () => abrirInputNovoParceiro(casa, inputWrap, inp));
+  group.appendChild(btnNovo);
+
+  return group;
 }
 
-function atualizarTitulo() {
-  if (!casaSelecionada) return;
-  const nome = NOMES[casaSelecionada] || casaSelecionada;
-  const p = document.getElementById('parceiro').value.trim();
-  const h1 = document.getElementById('workspace-title');
-  h1.style.color = 'var(--ink)';
-  h1.style.fontWeight = '800';
-  h1.textContent = p ? `${nome} · ${p}` : nome;
+function renderParceirosEmLista(casa, listEl) {
+  listEl.innerHTML = '';
+  const parceiros = parceirosCache[casa] || [];
+  parceiros.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'parceiro-item';
+    item.dataset.id = p.id;
+    item.innerHTML = `
+      <span class="parceiro-nome">${esc(p.nome)}</span>
+      <button class="btn-arquivar" title="Arquivar parceiro">▣</button>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('btn-arquivar')) return;
+      selecionarParceiro(p);
+    });
+    item.querySelector('.btn-arquivar').addEventListener('click', e => {
+      e.stopPropagation();
+      arquivarParceiro(p.id, casa);
+    });
+    listEl.appendChild(item);
+  });
 }
-document.getElementById('parceiro').addEventListener('input', atualizarTitulo);
+
+function toggleCasaGroup(casa, header, listEl, inputWrap) {
+  const isOpen = listEl.classList.contains('open');
+  if (isOpen) {
+    listEl.classList.remove('open');
+    header.classList.remove('expanded');
+    document.getElementById(`btn-novo-wrap-${casa}`).style.display = 'none';
+    fecharInputNovoParceiro(casa, inputWrap);
+  } else {
+    listEl.classList.add('open');
+    header.classList.add('expanded');
+    document.getElementById(`btn-novo-wrap-${casa}`).style.display = 'block';
+  }
+}
+
+// ── Parceiros: CRUD ───────────────────────────────────────────────────────────
+async function carregarParceiros(casa) {
+  try {
+    const r = await fetch(`/parceiros?casa=${casa}`);
+    const { parceiros } = await r.json();
+    parceirosCache[casa] = parceiros;
+  } catch {
+    parceirosCache[casa] = [];
+  }
+}
+
+function abrirInputNovoParceiro(casa, inputWrap, inp) {
+  inputWrap.classList.add('open');
+  inp.value = '';
+  inp.focus();
+}
+
+function fecharInputNovoParceiro(casa, inputWrap) {
+  inputWrap.classList.remove('open');
+}
+
+async function confirmarNovoParceiro(casa, inp, listEl, inputWrap) {
+  const nome = inp.value.trim();
+  if (!nome) return;
+  try {
+    const r = await fetch('/parceiros', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ casa, nome }),
+    });
+    if (!r.ok) {
+      const d = await r.json();
+      alert(d.detail || 'Erro ao criar parceiro');
+      return;
+    }
+    const p = await r.json();
+    // Atualiza cache (evita duplicatas)
+    const idx = (parceirosCache[casa] || []).findIndex(x => x.id === p.id);
+    if (idx >= 0) parceirosCache[casa][idx] = p;
+    else parceirosCache[casa] = [...(parceirosCache[casa] || []), p];
+
+    fecharInputNovoParceiro(casa, inputWrap);
+    renderParceirosEmLista(casa, listEl);
+    selecionarParceiro(p);
+  } catch {
+    alert('Erro de rede ao criar parceiro.');
+  }
+}
+
+async function arquivarParceiro(id, casa) {
+  if (!confirm('Arquivar este parceiro? Ele some do menu, mas os bilhetes são mantidos.')) return;
+  try {
+    await fetch(`/parceiros/${id}/arquivar`, { method: 'POST' });
+    parceirosCache[casa] = (parceirosCache[casa] || []).filter(p => p.id !== id);
+    const listEl = document.getElementById(`parceiros-${casa}`);
+    if (listEl) renderParceirosEmLista(casa, listEl);
+    if (parceiroSelecionado && parceiroSelecionado.id === id) {
+      parceiroSelecionado = null;
+      mostrarEmptyState();
+    }
+  } catch {
+    alert('Erro ao arquivar parceiro.');
+  }
+}
+
+// ── Selecionar parceiro → abrir mini-página ───────────────────────────────────
+function selecionarParceiro(p) {
+  parceiroSelecionado = p;
+  casaSelecionada = p.casa;
+
+  // Highlight no sidebar
+  document.querySelectorAll('.parceiro-item').forEach(el => el.classList.remove('active'));
+  const el = document.querySelector(`.parceiro-item[data-id="${p.id}"]`);
+  if (el) el.classList.add('active');
+
+  // Preencher header
+  const nomeCasa = NOMES[p.casa] || p.casa;
+  document.getElementById('partner-favicon-img').src = faviconUrl(p.casa);
+  document.getElementById('partner-favicon-img').alt = nomeCasa;
+  document.getElementById('partner-name').textContent = `${nomeCasa} · ${p.nome}`;
+  document.getElementById('partner-sub').textContent = `Casa: ${nomeCasa} · Parceiro: ${p.nome}`;
+
+  // Mostrar partner page
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('partner-page').style.display = 'flex';
+
+  // Limpar extrator e ir para aba extrair
+  limparExtrator();
+  switchTab('extrair');
+  atualizarBadge();
+}
+
+function mostrarEmptyState() {
+  document.getElementById('empty-state').style.display = '';
+  document.getElementById('partner-page').style.display = 'none';
+}
 
 // ── Upload ────────────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('drop-zone');
@@ -498,6 +757,18 @@ dropZone.addEventListener('drop', e => {
 fileInput.addEventListener('change', () => {
   adicionarArquivos([...fileInput.files]); fileInput.value = '';
 });
+document.getElementById('btn-add-arquivo').addEventListener('click', () => fileInput.click());
+
+// Clipboard paste (Ctrl+V com imagem)
+document.addEventListener('paste', e => {
+  if (!parceiroSelecionado) return;
+  const imgs = [...e.clipboardData.files].filter(f => f.type.startsWith('image/'));
+  if (imgs.length) {
+    adicionarArquivos(imgs);
+    e.preventDefault();
+  }
+});
+
 function adicionarArquivos(novos) {
   arquivos = [...arquivos, ...novos.filter(f => f.type.startsWith('image/'))];
   renderPreviews(); atualizarBotaoExtrair();
@@ -517,15 +788,17 @@ function renderPreviews() {
 }
 function atualizarBotaoExtrair() {
   const ok = arquivos.length > 0 || document.getElementById('texto').value.trim();
-  document.getElementById('btn-extrair').disabled = !casaSelecionada || !ok;
+  document.getElementById('btn-extrair').disabled = !parceiroSelecionado || !ok;
 }
 document.getElementById('texto').addEventListener('input', atualizarBotaoExtrair);
-document.getElementById('btn-limpar').addEventListener('click', () => {
+
+function limparExtrator() {
   arquivos = []; renderPreviews();
   document.getElementById('texto').value = '';
   document.getElementById('result-block').style.display = 'none';
   setStatus('', ''); atualizarBotaoExtrair();
-});
+}
+document.getElementById('btn-limpar').addEventListener('click', limparExtrator);
 
 function setStatus(msg, tipo) {
   const el = document.getElementById('status-msg');
@@ -535,14 +808,14 @@ function setStatus(msg, tipo) {
 
 // ── Extrair ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-extrair').addEventListener('click', async () => {
-  if (!casaSelecionada) return;
+  if (!parceiroSelecionado) return;
   const btn = document.getElementById('btn-extrair');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   setStatus('Processando…', '');
 
   const form = new FormData();
-  form.append('casa', casaSelecionada);
-  form.append('parceiro', document.getElementById('parceiro').value.trim());
+  form.append('casa', parceiroSelecionado.casa);
+  form.append('parceiro', parceiroSelecionado.nome);
   form.append('modelo', document.getElementById('modelo').value);
   const txt = document.getElementById('texto').value.trim();
   if (txt) form.append('texto', txt);
@@ -616,10 +889,12 @@ document.getElementById('btn-salvar-grade').addEventListener('click', async () =
   }
 });
 
-// ── Badge (count pendentes) ───────────────────────────────────────────────────
+// ── Badge (count pendentes do parceiro atual) ─────────────────────────────────
 async function atualizarBadge() {
+  if (!parceiroSelecionado) return;
   try {
-    const r = await fetch('/bilhetes?copy_state=pendente');
+    const qs = `copy_state=pendente&casa=${parceiroSelecionado.casa}&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
+    const r = await fetch(`/bilhetes?${qs}`);
     const { total } = await r.json();
     const badge = document.getElementById('badge-pend');
     badge.textContent = total;
@@ -627,10 +902,12 @@ async function atualizarBadge() {
   } catch {}
 }
 
-// ── Exportar: carregar ────────────────────────────────────────────────────────
+// ── Exportar: carregar (filtrado por parceiro) ────────────────────────────────
 async function carregarExportar() {
+  if (!parceiroSelecionado) return;
   try {
-    const r = await fetch('/bilhetes?order=asc');
+    const qs = `order=asc&casa=${parceiroSelecionado.casa}&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
+    const r = await fetch(`/bilhetes?${qs}`);
     const data = await r.json();
     bilhetes = data.bilhetes;
     renderGrade();
@@ -652,7 +929,7 @@ function esc(s) {
 function renderGrade() {
   const tbody = document.getElementById('grade-body');
   if (!bilhetes.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="grade-empty">Nenhum bilhete encontrado. Extraia e salve na grade.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="grade-empty">Nenhum bilhete. Extraia e salve na grade.</td></tr>';
     return;
   }
   tbody.innerHTML = bilhetes.map(b => {
@@ -748,7 +1025,8 @@ document.getElementById('btn-baixar-tsv').addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `fdc_${new Date().toISOString().slice(0, 10)}.tsv`;
+  const nome = parceiroSelecionado ? `_${parceiroSelecionado.nome.replace(/\s+/g,'_')}` : '';
+  a.download = `fdc${nome}_${new Date().toISOString().slice(0, 10)}.tsv`;
   a.click(); URL.revokeObjectURL(url);
 });
 
@@ -779,7 +1057,6 @@ document.getElementById('btn-desmarcar-todas').addEventListener('click', async (
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 carregarCasas();
-atualizarBadge();
 </script>
 </body>
 </html>

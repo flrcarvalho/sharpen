@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS bilhetes (
     atualizado_em    TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (casa, parceiro, assinatura)
 );
+
+CREATE TABLE IF NOT EXISTS parceiros (
+    id        SERIAL PRIMARY KEY,
+    casa      TEXT NOT NULL,
+    nome      TEXT NOT NULL,
+    arquivado BOOLEAN NOT NULL DEFAULT FALSE,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (casa, nome)
+);
 """
 
 

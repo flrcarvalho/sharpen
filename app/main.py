@@ -12,7 +12,10 @@ from pydantic import BaseModel
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
 from prompts import build_system
-from repository import list_bilhetes, marcar_copiada, marcar_pendente, parse_tsv, upsert_bilhetes
+from repository import (
+    arquivar_parceiro, criar_parceiro, list_bilhetes, list_parceiros,
+    marcar_copiada, marcar_pendente, parse_tsv, reativar_parceiro, upsert_bilhetes,
+)
 
 
 @asynccontextmanager
@@ -177,3 +180,44 @@ async def desmarcar_bilhetes(body: CopiarRequest):
         raise HTTPException(400, "Lista de IDs vazia.")
     atualizados = await marcar_pendente(body.ids)
     return {"atualizados": atualizados}
+
+
+# ── Fase 4: parceiros persistidos ─────────────────────────────────────────────
+
+class ParceiroCriarRequest(BaseModel):
+    casa: str
+    nome: str
+
+
+@app.get("/parceiros")
+async def listar_parceiros(casa: Optional[str] = None, arquivados: bool = False):
+    rows = await list_parceiros(casa=casa or None, incluir_arquivados=arquivados)
+    return {"parceiros": rows}
+
+
+@app.post("/parceiros")
+async def criar_parceiro_route(body: ParceiroCriarRequest):
+    casa_key = body.casa.upper()
+    nome = body.nome.strip()
+    if not nome:
+        raise HTTPException(400, "Nome do parceiro não pode ser vazio.")
+    if not (CASAS_DIR / f"CASA_{casa_key}.md").exists():
+        raise HTTPException(400, f"Casa desconhecida: {body.casa}")
+    row = await criar_parceiro(casa_key, nome)
+    return row
+
+
+@app.post("/parceiros/{parceiro_id}/arquivar")
+async def arquivar_parceiro_route(parceiro_id: int):
+    ok = await arquivar_parceiro(parceiro_id)
+    if not ok:
+        raise HTTPException(404, "Parceiro não encontrado.")
+    return {"arquivado": True}
+
+
+@app.post("/parceiros/{parceiro_id}/reativar")
+async def reativar_parceiro_route(parceiro_id: int):
+    ok = await reativar_parceiro(parceiro_id)
+    if not ok:
+        raise HTTPException(404, "Parceiro não encontrado.")
+    return {"arquivado": False}
