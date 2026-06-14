@@ -119,7 +119,12 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Próximas etapas:** Fase 3 (Scanner UI — grade editável, copiar pendentes, arquivar) ou pendências de bilhete real.
+**Próximas etapas — Sessão 12 (Fase 3):**
+1. Definir layout da grade (colunas, ordem, ações por linha).
+2. Prototipar a UI no padrão visual FDC Capital (tokens de `pack/`).
+3. Implementar HTML/JS real da grade editável com botão "Copiar" e arquivamento.
+
+Decisão da sessão 11: trabalhar o visual antes de avançar para a Fase 3 técnica.
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
