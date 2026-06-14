@@ -41,8 +41,19 @@ _client = Anthropic()
 _INSTRUCAO = (
     "Extraia os bilhetes acima para TSV no padrão FDC Capital.\n"
     "Parceiro: {parceiro}\n\n"
-    "Retorne o TSV em bloco ```tsv e, após ele, a confiança (0–100%) de cada linha "
-    "com o motivo quando < 100%."
+    "Responda EXATAMENTE neste formato (sem variações de estrutura):\n\n"
+    "```tsv\n"
+    "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStake\tOdd\tResultado\n"
+    "[uma linha TSV por bilhete]\n"
+    "```\n\n"
+    "## Confiança\n"
+    "Para cada linha: `N. XX%` — motivo se < 100%\n\n"
+    "## Notas Críticas\n"
+    "Alertas sobre campos ambíguos, dados faltantes ou decisões não óbvias. "
+    "Se nenhum, escreva: Nenhuma.\n\n"
+    "## Recomendações\n"
+    "Sugestões para melhorar a qualidade da extração futura. "
+    "Se nenhuma, escreva: Nenhuma."
 )
 
 
