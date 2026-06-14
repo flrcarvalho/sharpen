@@ -1,0 +1,973 @@
+# MASTER_APOSTAS_2026
+## Padrão Oficial da Coluna `Aposta` — Extrações de Apostas (2026)
+
+Este documento define o padrão oficial da coluna:
+
+```text
+Aposta
+```
+
+Ele é a fonte única de verdade para:
+- classificação de mercados
+- taxonomia oficial de apostas
+- regras de prioridade
+- normalização de categorias
+- desambiguação entre mercados similares
+
+Todos os extratores devem obedecer exatamente este padrão.
+
+---
+
+# 1. Regras Gerais
+
+A coluna `Aposta` deve conter apenas categorias definidas neste documento.
+
+Nunca:
+- inventar categorias
+- alterar capitalização
+- criar aliases
+- misturar categorias semanticamente diferentes
+
+**Princípio fundamental:** a categoria registra o **objeto** da aposta — o que está sendo medido — não o tipo de mercado (linha, handicap, total, ML, comparativo).
+
+Dentro de qualquer categoria pode existir um mercado de handicap, total (over/under), resultado comparativo (ML) ou linha. A categoria não muda por causa disso.
+
+Exemplos:
+- `-3 cartões Time A` → `Cartões`
+- `0,5 escanteios` → `Escanteios`
+- `Time B handicap -3,5 finalizações` → `Chutes`
+- `Time A mais chutes` (comparativo) → `Chutes`
+- `Time B mais escanteios` (comparativo) → `Escanteios`
+- `Time A -1,5 impedimentos` → `Impedimentos`
+
+---
+
+# 2. Prioridade de Classificação
+
+A classificação deve seguir obrigatoriamente esta ordem:
+
+1. Categoria específica da tabela
+2. Regra específica por esporte
+3. `Player Props`
+4. `Outras`
+
+Nunca utilizar:
+```text
+Player Props
+```
+
+ou:
+```text
+Outras
+```
+
+quando existir categoria mais específica aplicável.
+
+---
+
+# 3. Tabela Oficial de Categorias
+
+| Categoria | Descrição Oficial |
+|---|---|
+| Ambas Marcam | Mercado de ambas equipes marcam |
+| Anytime | Jogador para marcar a qualquer momento |
+| Assistência | Assistência de jogador em Futebol |
+| Cartões | Mercados de cartões |
+| Chutes | Mercados de total de finalizações |
+| Chutes no Gol | Mercados de finalizações no alvo (shots on target) |
+| Corridas | Mercados de corridas e estatísticas de Baseball |
+| Desarmes | Mercados de tackles/desarmes |
+| DNB | Draw No Bet / Empate anula |
+| Dupla Chance | Mercado de resultado com duas alternativas cobertas |
+| Double-Double | Mercado específico de basquete |
+| E-Sports Props | Estatísticas específicas de E-Sports |
+| Escanteios | Mercados de escanteios |
+| Games | Mercados de games em Tênis |
+| Gols | Mercados de gols |
+| H2H | Mercado comparativo entre duas entidades |
+| Handicap | Handicap / Spread / Linha |
+| Impedimentos | Mercados de impedimentos em Futebol |
+| Jardas | Mercados de jardas em NFL |
+| Legs | Mercados de legs em Dardos |
+| ML | Resultado principal do evento |
+| Múltipla | Cupom com múltiplas seleções |
+| Outras | Último recurso |
+| Player Props | Estatísticas individuais de jogador |
+| Sets | Mercados de sets |
+| Team Props | Estatísticas de equipe |
+| Triplo-Duplo | Mercado específico de basquete |
+
+---
+
+# 4. Sinônimos Oficiais
+
+---
+
+## Ambas Marcam
+
+Sinônimos:
+- BTTS
+- Both Teams To Score
+- Ambas equipes marcam
+
+---
+
+## Anytime
+
+Sinônimos:
+- Anytime scorer
+- Marcar a qualquer momento
+- Para marcar
+- Anytime Goal Scorer
+
+---
+
+## Assistência
+
+Sinônimos:
+- Assists
+- Assistências
+- Passe para gol
+
+---
+
+## Cartões
+
+Sinônimos:
+- Cards
+- Cartão
+- Cartões totais
+- Mais cartões
+
+---
+
+## Chutes
+
+Sinônimos:
+- Shots
+- Finalizações
+- Total de chutes
+- Total de finalizações
+
+---
+
+## Chutes no Gol
+
+Sinônimos:
+- SOT
+- Shots on Target
+- Finalizações no Gol
+- Chutes no alvo
+- Chutes a gol
+
+---
+
+## Corridas
+
+Sinônimos:
+- Runs
+- RBIs
+- Bases
+- Home Runs
+
+---
+
+## Desarmes
+
+Sinônimos:
+- Tackles
+- Interceptions
+- Desarmes
+
+---
+
+## DNB
+
+Sinônimos:
+- Draw No Bet
+- Empate anula aposta
+
+---
+
+## Dupla Chance
+
+Sinônimos:
+- Double Chance
+- 1X
+- X2
+- 12
+
+---
+
+## Double-Double
+
+Sinônimos:
+- Double-Double
+- Duplo Duplo
+
+---
+
+## Escanteios
+
+Sinônimos:
+- Corners
+- Cantos
+- Escanteio
+
+---
+
+## Games
+
+Sinônimos:
+- Games
+- Mais/Menos games
+
+---
+
+## Gols
+
+Sinônimos:
+- Goals
+- Total de gols
+- Mais/Menos gols
+
+---
+
+## H2H
+
+Sinônimos:
+- Head to Head
+- Duelo
+- Match Bet
+- Matchup
+
+---
+
+## Handicap
+
+Sinônimos:
+- Handicap
+- Spread
+- Linha
+- Asian Handicap
+
+---
+
+## Impedimentos
+
+Sinônimos:
+- Offsides
+- Impedimento
+- Total de impedimentos
+
+---
+
+## Jardas
+
+Sinônimos:
+- Yards
+- Passing Yards
+- Rushing Yards
+- Receiving Yards
+
+---
+
+## Legs
+
+Sinônimos:
+- Legs
+- Mais/Menos legs
+
+---
+
+## ML
+
+Sinônimos:
+- Moneyline
+- Resultado final
+- Vencedor
+- Winner
+
+---
+
+## Múltipla
+
+Sinônimos:
+- Parlay
+- Acumulada
+- Dupla
+- Tripla
+
+---
+
+## Player Props
+
+Sinônimos:
+- Props
+- Player Specials
+- Aposta do jogador
+
+---
+
+## Sets
+
+Sinônimos:
+- Sets
+- Mais/Menos sets
+
+---
+
+## Team Props
+
+Sinônimos:
+- Team Totals
+- Total do time
+- Especial do time
+
+---
+
+## Triplo-Duplo
+
+Sinônimos:
+- Triple-Double
+- Triplo Duplo
+
+---
+
+# 5. Regras Oficiais por Categoria
+
+---
+
+## ML
+
+`ML` representa:
+
+```text
+Resultado principal do evento
+```
+
+Exemplos:
+- vencedor da partida
+- vencedor do confronto
+- vencedor do mapa
+- vencedor da luta
+
+---
+
+## H2H
+
+`H2H` representa:
+
+```text
+Mercado comparativo entre duas entidades específicas,
+independentemente do resultado principal do evento.
+```
+
+Exemplos:
+- piloto A vs piloto B
+- jogador A vs jogador B
+- mais rebotes
+- mais assistências
+- mais kills
+- mais jardas
+- mais pontos
+
+H2H não deve ser confundido com:
+- ML
+- Handicap
+- Player Props
+
+---
+
+## Player Props
+
+`Player Props` é uma categoria genérica para estatísticas individuais de jogador.
+
+Utilizar apenas quando:
+- não existir categoria mais específica
+- o mercado for estatístico individual
+
+---
+
+## Team Props
+
+`Team Props` representa:
+- totais de equipe
+- estatísticas coletivas
+- mercados específicos do time
+
+---
+
+## Múltipla
+
+Utilizar:
+
+```text
+Múltipla
+```
+
+quando houver:
+- múltiplas seleções independentes
+- parlay
+- acumulada
+- dupla
+- tripla
+
+A descrição deve utilizar:
+
+```text
+//
+```
+
+entre seleções.
+
+---
+
+## Bet Builder / Criar Aposta
+
+Bet Builder deve ser classificado como:
+
+```text
+Múltipla
+```
+
+mesmo quando todas as seleções forem do mesmo jogo.
+
+A distinção é apenas visual/operacional da casa.
+
+---
+
+## Impedimentos
+
+Mercado de total de impedimentos em partidas de Futebol.
+
+Aplicável exclusivamente ao Futebol.
+
+Não confundir com:
+- `Gols` (finalizações convertidas)
+- `Chutes` (finalizações totais)
+- `Team Props` (estatísticas coletivas genéricas)
+
+---
+
+## Desambiguação — Mercados Estatísticos de Futebol
+
+Categorias distintas que não devem ser confundidas:
+
+| Categoria     | O que mede                              |
+|---------------|-----------------------------------------|
+| Gols          | Finalizações convertidas (gols marcados) |
+| Chutes no Gol | Finalizações que acertaram o alvo (SOT) |
+| Chutes        | Total de finalizações (no alvo ou não)  |
+| Escanteios    | Escanteios                              |
+| Impedimentos  | Impedimentos                            |
+| Cartões       | Cartões amarelos e/ou vermelhos         |
+
+Cada uma dessas categorias pode conter mercados de handicap, total (over/under), resultado comparativo (time A vs time B) ou linha. O tipo de mercado não altera a categoria — apenas o objeto apostado define a classificação.
+
+---
+
+## Dupla Chance
+
+Mercado onde duas das três alternativas de resultado são cobertas:
+- 1X: Casa ou Empate
+- X2: Empate ou Visitante
+- 12: Casa ou Visitante
+
+Aplicável principalmente ao Futebol.
+
+Não confundir com:
+- `ML` (cobre apenas uma alternativa)
+- `DNB` (empate anula a aposta, não cobre duas alternativas)
+
+---
+
+# 6. Regras Específicas por Esporte
+
+---
+
+## Futebol
+
+---
+
+### Gol de jogador
+
+Classificar como:
+
+```text
+Anytime
+```
+
+Exemplos:
+- Harry Kane para marcar
+- Mbappé Anytime Scorer
+
+---
+
+### Assistência de jogador
+
+Classificar como:
+
+```text
+Assistência
+```
+
+Exemplos:
+- Kevin De Bruyne assistência
+- Lucas Moura dar assistência
+
+---
+
+### Resultado da partida
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+### Total de gols
+
+Classificar como:
+
+```text
+Gols
+```
+
+---
+
+### Chutes (total de finalizações)
+
+Classificar como:
+
+```text
+Chutes
+```
+
+Inclui: handicap de chutes, total de chutes, time com mais chutes.
+
+---
+
+### Chutes no Gol (finalizações no alvo / SOT)
+
+Classificar como:
+
+```text
+Chutes no Gol
+```
+
+Inclui: handicap de SOT, total de chutes no alvo, time com mais chutes no gol.
+
+---
+
+### Ambas marcam
+
+Classificar como:
+
+```text
+Ambas Marcam
+```
+
+---
+
+### Dupla Chance
+
+Classificar como:
+
+```text
+Dupla Chance
+```
+
+---
+
+### Impedimentos
+
+Classificar como:
+
+```text
+Impedimentos
+```
+
+---
+
+## NBA / Basquete
+
+Qualquer estatística individual de jogador deve ser classificada como:
+
+```text
+Player Props
+```
+
+Inclui:
+- pontos
+- rebotes
+- assistências
+- PRA
+- PR
+- PA
+- roubos
+- blocks
+- turnovers
+- estatísticas combinadas
+
+Mesmo quando existir equivalência matemática com outras categorias.
+
+---
+
+### Exceções
+
+Mercados específicos devem manter categoria própria:
+
+```text
+Double-Double
+Triplo-Duplo
+```
+
+---
+
+## NFL
+
+---
+
+### Jardas
+
+Classificar como:
+
+```text
+Jardas
+```
+
+---
+
+### Touchdown de jogador
+
+Classificar como:
+
+```text
+Anytime
+```
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+## Baseball
+
+---
+
+### Corridas e RBIs
+
+Classificar como:
+
+```text
+Corridas
+```
+
+---
+
+### Strikeouts e estatísticas individuais
+
+Classificar como:
+
+```text
+Player Props
+```
+
+---
+
+## Tênis
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+### Total de games
+
+Classificar como:
+
+```text
+Games
+```
+
+---
+
+### Total de sets
+
+Classificar como:
+
+```text
+Sets
+```
+
+---
+
+### Estatísticas individuais
+
+Classificar como:
+
+```text
+Player Props
+```
+
+Exemplos:
+- aces
+- double faults
+- break points
+
+---
+
+### Regras Críticas — Tênis
+
+Tênis utiliza:
+- games
+- sets
+
+Nunca utilizar:
+- legs
+- frames
+
+---
+
+## Dardos
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+### Total de legs
+
+Classificar como:
+
+```text
+Legs
+```
+
+---
+
+### Estatísticas individuais
+
+Classificar como:
+
+```text
+Player Props
+```
+
+Exemplos:
+- 180s
+- checkout
+- highest finish
+
+---
+
+### Regras Críticas — Dardos
+
+Dardos utiliza:
+- legs
+
+Nunca utilizar:
+- games
+- sets
+- frames
+
+---
+
+## Vôlei
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap (de sets):
+
+```text
+Handicap
+```
+
+---
+
+### Total de sets
+
+Classificar como:
+
+```text
+Sets
+```
+
+> Nota: a categoria `Sets` também aparece em Tênis. O discriminante é a entidade apostada:
+> - time / seleção + sets → Vôlei
+> - jogador individual / dupla + sets → Tênis
+
+---
+
+### Estatísticas individuais
+
+Classificar como:
+
+```text
+Player Props
+```
+
+---
+
+## E-Sports
+
+---
+
+### Resultado principal
+
+Classificar como:
+
+```text
+ML
+```
+
+---
+
+### Handicap de rounds/mapas
+
+Classificar como:
+
+```text
+Handicap
+```
+
+---
+
+### Estatísticas individuais
+
+Classificar como:
+
+```text
+E-Sports Props
+```
+
+Inclui: kills, deaths, assists, torres, dragões, inibidores, bombas plantadas e qualquer estatística específica do universo de e-sports.
+
+Nunca utilizar `Player Props` para estatísticas de E-Sports — `E-Sports Props` tem prioridade.
+
+---
+
+# 7. Regras de Prioridade Semântica
+
+Mercados específicos possuem prioridade sobre categorias genéricas.
+
+Exemplos:
+
+```text
+Games          > Player Props          (→ Tênis)
+Legs           > Player Props          (→ Dardos)
+Anytime        > Player Props
+Assistência    > Player Props
+E-Sports Props > Player Props
+Sets (time)    > Player Props          (→ Vôlei)
+Sets (jogador) > Player Props          (→ Tênis)
+```
+
+Desambiguação da categoria `Sets`:
+- `Sets` com **time / seleção** → Vôlei
+- `Sets` com **jogador individual / dupla** → Tênis
+
+Nunca utilizar:
+```text
+Player Props
+```
+
+por conveniência.
+
+---
+
+# 8. Uso de Outras
+
+`Outras` é exclusivamente o último recurso.
+
+Utilizar apenas quando:
+- nenhuma categoria do documento se aplicar
+- o mercado for genuinamente novo
+- não houver classificação semanticamente segura
+
+---
+
+# 9. Validação Final
+
+Antes de retornar a saída, o extrator deve validar:
+
+1. a categoria existe neste documento
+2. a capitalização está correta
+3. nenhuma categoria inventada foi criada
+4. `Games` não foi usado para Dardos
+5. `Legs` não foi usado para Tênis
+6. `Player Props` não foi utilizado quando havia categoria específica
+7. `E-Sports Props` foi utilizado para estatísticas de E-Sports (nunca `Player Props`)
+8. `Outras` foi utilizado apenas como último recurso
+9. `Bet Builder` foi classificado como `Múltipla`
+10. `Assistência` foi utilizado apenas para Futebol
+11. mercados comparativos foram corretamente classificados como `H2H`
+12. `Dupla Chance` foi utilizado apenas para mercados 1X / X2 / 12 (exclusivo do Futebol)
+13. `Impedimentos` foi utilizado apenas para Futebol
+14. `Chutes no Gol` foi utilizado apenas para finalizações no alvo (SOT) — nunca para total de finalizações (`Chutes`)
+15. `Sets` com nome de **time / seleção** = Vôlei (nunca Tênis, exceto Copa Davis explícita)
+16. `Sets` com nome de **jogador individual / dupla** = Tênis (nunca Vôlei)
+
+Se qualquer regra falhar, a linha deve ser considerada inválida.
+
+---
+
+VERSÃO: 2026  
+STATUS: ATIVO  
+USO: Extratores de apostas esportivas

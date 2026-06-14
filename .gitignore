@@ -1,0 +1,22 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# Backups (gerenciados manualmente — não entram no git)
+Backups/
+
+# OS
+.DS_Store
+Thumbs.db

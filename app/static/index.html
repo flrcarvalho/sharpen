@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanner de Bets — FDC Capital</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0A0D12;
+  --surface:   #12161D;
+  --surface-2: #161B22;
+  --elevated:  #1A2029;
+  --line:      rgba(255,255,255,0.08);
+  --line-2:    rgba(255,255,255,0.05);
+  --ink:       #EEF2F7;
+  --ink-soft:  #95A1B0;
+  --ink-mute:  #5E6775;
+  --accent:    #2E8BFF;
+  --accent-2:  #7FB2FF;
+  --pos:       #2BC07E;
+  --neg:       #E5524B;
+  --warn:      #E0A21A;
+  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --r-sm: 8px;
+  --r-md: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px; min-height: 100vh; flex-shrink: 0;
+  background: var(--surface); border-right: 1px solid var(--line);
+  padding: 20px 14px; display: flex; flex-direction: column; gap: 2px;
+}
+.brand {
+  font-size: 14px; font-weight: 800; letter-spacing: -.02em;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+}
+.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-mute);
+  padding: 10px 8px 5px;
+}
+.casa-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: var(--r-sm);
+  cursor: pointer; font-size: 13px; color: var(--ink-soft);
+  transition: background .12s, color .12s;
+}
+.casa-item:hover { background: var(--surface-2); color: var(--ink); }
+.casa-item.active { background: rgba(46,139,255,.12); color: var(--accent-2); }
+.casa-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--ink-mute); flex-shrink: 0; }
+.casa-item.active .casa-dot { background: var(--accent); }
+
+.parceiro-wrap { padding: 4px 4px 0; }
+.parceiro-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 8px 10px;
+  font-size: 13px; color: var(--ink); font-family: var(--font-sans); outline: none;
+  transition: border-color .12s;
+}
+.parceiro-input:focus { border-color: var(--accent); }
+.parceiro-input::placeholder { color: var(--ink-mute); }
+
+/* ── Main ── */
+.main { flex: 1; padding: 28px 32px; display: flex; flex-direction: column; gap: 18px; max-width: 860px; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; }
+.topbar h1 { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.model-select {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 7px 12px;
+  font-size: 12px; color: var(--ink-soft); font-family: var(--font-mono);
+  cursor: pointer; outline: none; transition: border-color .12s;
+}
+.model-select:focus { border-color: var(--accent); }
+
+/* ── Upload ── */
+.upload-zone {
+  border: 1.5px dashed var(--line); border-radius: var(--r-md);
+  padding: 28px 24px; text-align: center; cursor: pointer;
+  background: var(--surface); transition: border-color .15s, background .15s;
+}
+.upload-zone:hover, .upload-zone.drag {
+  border-color: var(--accent); background: rgba(46,139,255,.05);
+}
+.upload-label { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.upload-label strong { color: var(--accent-2); }
+.upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
+.thumb { width: 60px; height: 60px; border-radius: var(--r-sm); object-fit: cover; border: 1px solid var(--line); }
+.thumb-rm { position: relative; }
+.thumb-rm::after {
+  content: "✕"; position: absolute; top: -4px; right: -4px;
+  background: var(--neg); color: #fff; width: 14px; height: 14px;
+  border-radius: 50%; font-size: 9px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; line-height: 14px;
+}
+#file-input { display: none; }
+
+/* ── Textarea ── */
+.text-area {
+  width: 100%; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 14px 16px;
+  font-size: 13px; color: var(--ink); font-family: var(--font-mono);
+  resize: vertical; min-height: 90px; outline: none; line-height: 1.65;
+  transition: border-color .12s;
+}
+.text-area:focus { border-color: var(--accent); }
+.text-area::placeholder { color: var(--ink-mute); }
+
+/* ── Actions ── */
+.actions { display: flex; gap: 10px; align-items: center; }
+.btn {
+  padding: 10px 20px; border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 700; cursor: pointer; border: none;
+  font-family: var(--font-sans); transition: all .12s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-2); }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-ghost {
+  background: transparent; border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,.15); color: var(--ink); background: var(--surface-2); }
+.status-msg { font-size: 12px; color: var(--ink-mute); font-family: var(--font-mono); }
+.status-msg.ok  { color: var(--pos); }
+.status-msg.err { color: var(--neg); }
+
+/* ── Result ── */
+.result-block {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.result-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-bottom: 1px solid var(--line);
+}
+.result-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
+.result-body {
+  padding: 16px; font-family: var(--font-mono); font-size: 12px;
+  white-space: pre-wrap; line-height: 1.75; color: var(--ink);
+  overflow-x: auto; max-height: 480px; overflow-y: auto;
+}
+.token-bar {
+  padding: 8px 16px; border-top: 1px solid var(--line-2);
+  font-size: 11px; color: var(--ink-mute); font-family: var(--font-mono);
+  display: flex; gap: 16px;
+}
+.token-item span { color: var(--ink-soft); }
+.copy-btn { padding: 5px 12px; font-size: 11px; }
+
+/* ── Spinner ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 14px; height: 14px; border: 2px solid var(--line);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .7s linear infinite; display: inline-block;
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand"><div class="brand-dot"></div>Scanner de Bets</div>
+
+  <div class="section-label">Casa</div>
+  <div id="casa-list">
+    <div style="font-size:12px;color:var(--ink-mute);padding:8px 10px">Carregando…</div>
+  </div>
+
+  <div class="section-label" style="margin-top:14px">Parceiro</div>
+  <div class="parceiro-wrap">
+    <input id="parceiro" class="parceiro-input" type="text" placeholder="ex: João, Leonardo…">
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <h1 id="workspace-title" style="color:var(--ink-mute);font-weight:600">Selecione uma casa →</h1>
+    <select id="modelo" class="model-select">
+      <option value="claude-haiku-4-5-20251001">Haiku 4.5 · rápido</option>
+      <option value="claude-sonnet-4-6">Sonnet 4.6 · equilibrado</option>
+      <option value="claude-opus-4-8">Opus 4.8 · preciso</option>
+    </select>
+  </div>
+
+  <div class="upload-zone" id="drop-zone">
+    <div class="upload-label">
+      <strong>Clique ou arraste</strong> os prints dos bilhetes aqui
+    </div>
+    <div class="upload-preview" id="preview"></div>
+  </div>
+  <input type="file" id="file-input" multiple accept="image/*">
+
+  <textarea
+    class="text-area"
+    id="texto"
+    placeholder="Ou cole o texto do bilhete aqui (opcional — pode usar junto com imagens)…"
+    rows="4"
+  ></textarea>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btn-extrair" disabled>Extrair TSV</button>
+    <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
+    <span class="status-msg" id="status-msg"></span>
+  </div>
+
+  <div class="result-block" id="result-block" style="display:none">
+    <div class="result-header">
+      <span class="result-title">Resultado</span>
+      <button class="btn btn-ghost copy-btn" id="btn-copiar">Copiar TSV</button>
+    </div>
+    <div class="result-body" id="result-body"></div>
+    <div class="token-bar" id="token-bar"></div>
+  </div>
+</main>
+
+<script>
+  let casaSelecionada = null;
+  let arquivos = [];
+
+  const NOMES = {
+    SUPERBET: 'Superbet', BET365: 'Bet365',
+    BETANO: 'Betano', BETFAIR: 'Betfair', PINNACLE: 'Pinnacle'
+  };
+
+  // ── Casas ──
+  async function carregarCasas() {
+    try {
+      const r = await fetch('/casas');
+      const { casas } = await r.json();
+      const list = document.getElementById('casa-list');
+      list.innerHTML = '';
+      casas.forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'casa-item';
+        el.dataset.casa = c;
+        el.innerHTML = `<div class="casa-dot"></div>${NOMES[c] || c}`;
+        el.addEventListener('click', () => selecionarCasa(c, el));
+        list.appendChild(el);
+      });
+    } catch (e) {
+      document.getElementById('casa-list').innerHTML =
+        '<div style="font-size:12px;color:var(--neg);padding:8px 10px">Erro ao carregar</div>';
+    }
+  }
+
+  function selecionarCasa(casa, el) {
+    casaSelecionada = casa;
+    document.querySelectorAll('.casa-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    atualizarTitulo();
+    atualizarBotao();
+  }
+
+  function atualizarTitulo() {
+    if (!casaSelecionada) return;
+    const nome = NOMES[casaSelecionada] || casaSelecionada;
+    const p = document.getElementById('parceiro').value.trim();
+    const h1 = document.getElementById('workspace-title');
+    h1.style.color = 'var(--ink)';
+    h1.style.fontWeight = '800';
+    h1.textContent = p ? `${nome} · ${p}` : nome;
+  }
+
+  document.getElementById('parceiro').addEventListener('input', atualizarTitulo);
+
+  // ── Upload ──
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    adicionarArquivos([...e.dataTransfer.files]);
+  });
+  fileInput.addEventListener('change', () => {
+    adicionarArquivos([...fileInput.files]);
+    fileInput.value = '';
+  });
+
+  function adicionarArquivos(novos) {
+    arquivos = [...arquivos, ...novos.filter(f => f.type.startsWith('image/'))];
+    renderPreviews();
+    atualizarBotao();
+  }
+
+  function renderPreviews() {
+    const p = document.getElementById('preview');
+    p.innerHTML = '';
+    arquivos.forEach((f, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb-rm';
+      wrap.style.position = 'relative';
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.src = URL.createObjectURL(f);
+      wrap.appendChild(img);
+      wrap.querySelector('img').addEventListener('error', () => { img.style.display = 'none'; });
+      // remoção ao clicar no ✕
+      wrap.addEventListener('click', () => {
+        arquivos.splice(i, 1);
+        renderPreviews();
+        atualizarBotao();
+      });
+      p.appendChild(wrap);
+    });
+  }
+
+  // ── Botão ──
+  function atualizarBotao() {
+    const temConteudo = arquivos.length > 0 || document.getElementById('texto').value.trim();
+    document.getElementById('btn-extrair').disabled = !casaSelecionada || !temConteudo;
+  }
+  document.getElementById('texto').addEventListener('input', atualizarBotao);
+
+  document.getElementById('btn-limpar').addEventListener('click', () => {
+    arquivos = [];
+    renderPreviews();
+    document.getElementById('texto').value = '';
+    document.getElementById('result-block').style.display = 'none';
+    setStatus('', '');
+    atualizarBotao();
+  });
+
+  // ── Status ──
+  function setStatus(msg, tipo) {
+    const el = document.getElementById('status-msg');
+    el.textContent = msg;
+    el.className = 'status-msg' + (tipo ? ' ' + tipo : '');
+  }
+
+  // ── Extrair ──
+  document.getElementById('btn-extrair').addEventListener('click', async () => {
+    if (!casaSelecionada) return;
+    const btn = document.getElementById('btn-extrair');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+    setStatus('Processando…', '');
+
+    const form = new FormData();
+    form.append('casa', casaSelecionada);
+    form.append('parceiro', document.getElementById('parceiro').value.trim());
+    form.append('modelo', document.getElementById('modelo').value);
+    const txt = document.getElementById('texto').value.trim();
+    if (txt) form.append('texto', txt);
+    arquivos.forEach(f => form.append('imagens', f));
+
+    try {
+      const r = await fetch('/extrair', { method: 'POST', body: form });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+
+      document.getElementById('result-body').textContent = data.resultado;
+
+      const t = data.tokens;
+      const pct = t.cache_read > 0
+        ? ` · ${Math.round(t.cache_read / (t.input + t.cache_read) * 100)}% cache`
+        : '';
+      document.getElementById('token-bar').innerHTML =
+        `<span><span>in</span> ${t.input}</span>` +
+        `<span><span>out</span> ${t.output}</span>` +
+        `<span><span>cache_read</span> ${t.cache_read}</span>` +
+        `<span><span>cache_write</span> ${t.cache_write}</span>` +
+        (pct ? `<span style="color:var(--pos)">${pct.trim()}</span>` : '');
+
+      document.getElementById('result-block').style.display = '';
+      const modelLabel = data.modelo.split('-').slice(1, 3).join(' ');
+      setStatus(`✓ ${modelLabel}`, 'ok');
+    } catch (e) {
+      setStatus('✗ ' + e.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Extrair TSV';
+      atualizarBotao();
+    }
+  });
+
+  // ── Copiar TSV ──
+  document.getElementById('btn-copiar').addEventListener('click', () => {
+    const text = document.getElementById('result-body').textContent;
+    const match = text.match(/```tsv\n([\s\S]*?)```/);
+    const tsv = match ? match[1].trimEnd() : text.trim();
+    navigator.clipboard.writeText(tsv).then(() => {
+      const btn = document.getElementById('btn-copiar');
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => { btn.textContent = 'Copiar TSV'; }, 2000);
+    });
+  });
+
+  carregarCasas();
+</script>
+</body>
+</html>
