@@ -25,10 +25,15 @@ body {
   overflow-y: auto;
 }
 .brand {
-  font-size: 13px; font-weight: 800; letter-spacing: -.02em;
-  display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+  display: block;
+  margin: 0 0 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
 }
-.brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.brand img {
+  width: 100%; height: auto; display: block;
+  user-select: none; -webkit-user-drag: none;
+}
 .section-label {
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
   text-transform: uppercase; color: var(--ink-mute);
@@ -268,7 +273,9 @@ body {
 
 <!-- Sidebar -->
 <aside class="sidebar">
-  <div class="brand"><div class="brand-dot"></div>Scanner de Bets</div>
+  <div class="brand">
+    <img src="/static/fdc-logo-horizontal-dark.svg" alt="FDC Capital" draggable="false">
+  </div>
   <div class="section-label">Casa</div>
   <div id="casa-list">
     <div style="font-size:12px;color:var(--ink-mute);padding:8px 10px">Carregando…</div>
