@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scanner de Bets — FDC Capital</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/tokens.css">
 <style>
@@ -39,8 +42,15 @@ body {
 }
 .casa-item:hover { background: var(--surface-2); color: var(--ink); }
 .casa-item.active { background: rgba(46,139,255,.12); color: var(--accent-2); }
-.casa-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--ink-mute); flex-shrink: 0; }
-.casa-item.active .casa-dot { background: var(--accent); }
+.casa-chip {
+  width: 24px; height: 24px; border-radius: var(--r-xs);
+  background: var(--elevated); border: 1px solid var(--line);
+  flex-shrink: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .12s;
+}
+.casa-chip img { width: 18px; height: 18px; object-fit: contain; display: block; }
+.casa-item.active .casa-chip { border-color: rgba(46,139,255,.35); }
 .parceiro-wrap { padding: 4px 4px 0; }
 .parceiro-input {
   width: 100%; background: var(--bg); border: 1px solid var(--line);
@@ -386,6 +396,19 @@ const NOMES = {
   SUPERBET: 'Superbet', BET365: 'Bet365',
   BETANO: 'Betano', BETFAIR: 'Betfair', PINNACLE: 'Pinnacle'
 };
+
+const DOMINIOS = {
+  SUPERBET:  'superbet.com.br',
+  BET365:    'bet365.com',
+  BETANO:    'betano.com.br',
+  BETFAIR:   'betfair.com',
+  PINNACLE:  'pinnacle.com'
+};
+
+function faviconUrl(casa) {
+  const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+}
 const RES_CLASS = { W: 'r-W', L: 'r-L', V: 'r-V', HW: 'r-HW', HL: 'r-HL' };
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
@@ -408,7 +431,7 @@ async function carregarCasas() {
       const el = document.createElement('div');
       el.className = 'casa-item';
       el.dataset.casa = c;
-      el.innerHTML = `<div class="casa-dot"></div>${NOMES[c] || c}`;
+      el.innerHTML = `<div class="casa-chip"><img src="${faviconUrl(c)}" alt="${NOMES[c] || c}" loading="lazy"></div>${NOMES[c] || c}`;
       el.addEventListener('click', () => selecionarCasa(c, el));
       list.appendChild(el);
     });
