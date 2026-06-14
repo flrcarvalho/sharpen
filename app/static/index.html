@@ -324,10 +324,21 @@ body::before {
   line-height: 1.7; color: var(--ink); white-space: pre-wrap;
   overflow-y: auto; max-height: 220px;
 }
-.box-body.tsv-body {
-  max-height: 260px; color: var(--ink-soft);
-}
 .box-empty { color: var(--ink-mute); font-style: italic; }
+
+/* ── Células editáveis ── */
+.editable { cursor: text; }
+.editable:focus {
+  outline: 1px solid rgba(46,139,255,.45); outline-offset: -1px;
+  background: rgba(46,139,255,.06); overflow: visible; position: relative; z-index: 1;
+}
+/* Resultado colorido (sem badge) */
+td.c-res { font-weight: 700; font-family: var(--font-mono); font-size: 11px; }
+td.c-res.res-W  { color: var(--d-pos); }
+td.c-res.res-L  { color: var(--neg); }
+td.c-res.res-V  { color: var(--ink-mute); }
+td.c-res.res-HW { color: var(--accent-2); }
+td.c-res.res-HL { color: var(--warn); }
 .right-empty {
   flex: 1; display: flex; align-items: center; justify-content: center;
   flex-direction: column; gap: 8px; color: var(--ink-mute); font-size: 12px; text-align: center;
@@ -466,14 +477,7 @@ body::before {
             <div class="right-empty-icon">◎</div>
             <div>O resultado da extração<br>aparecerá aqui em 4 seções</div>
           </div>
-          <!-- 4 boxes (ocultas até primeira extração) -->
-          <div class="analysis-box" id="box-tsv" style="display:none">
-            <div class="box-header">
-              TSV
-              <span class="box-badge" id="badge-linhas">0 linhas</span>
-            </div>
-            <div class="box-body tsv-body" id="body-tsv"></div>
-          </div>
+          <!-- 3 boxes (ocultas até primeira extração) -->
           <div class="analysis-box" id="box-confianca" style="display:none">
             <div class="box-header">Confiança</div>
             <div class="box-body" id="body-confianca"></div>
@@ -729,7 +733,7 @@ function limparExtrator() {
   document.getElementById('texto').value = '';
   setStatus('', ''); atualizarBotaoExtrair();
   // Limpar painel de análise
-  ['box-tsv','box-confianca','box-notas','box-recs'].forEach(id => {
+  ['box-confianca','box-notas','box-recs'].forEach(id => {
     document.getElementById(id).style.display = 'none';
   });
   document.getElementById('right-empty').style.display = '';
@@ -766,12 +770,6 @@ function parseResposta(text) {
 function renderAnalysis(parsed) {
   // Ocultar empty state
   document.getElementById('right-empty').style.display = 'none';
-
-  // TSV
-  const linhas = parsed.tsv ? parsed.tsv.split('\n').filter(l => l.trim() && !l.startsWith('Data\t')).length : 0;
-  document.getElementById('badge-linhas').textContent = `${linhas} linha${linhas !== 1 ? 's' : ''}`;
-  document.getElementById('body-tsv').textContent = parsed.tsv || '—';
-  document.getElementById('box-tsv').style.display = '';
 
   // Confiança
   document.getElementById('body-confianca').innerHTML = parsed.confianca
@@ -874,6 +872,12 @@ function esc(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+const RES_COLOR = { W: 'res-W', L: 'res-L', V: 'res-V', HW: 'res-HW', HL: 'res-HL' };
+
+function ed(campo, val, cls = '') {
+  return `<td class="${cls} editable" contenteditable="true" data-campo="${campo}" spellcheck="false">${esc(val)}</td>`;
+}
+
 function renderGrade() {
   const tbody = document.getElementById('grade-body');
   if (!bilhetes.length) {
@@ -882,23 +886,58 @@ function renderGrade() {
   }
   tbody.innerHTML = bilhetes.map(b => {
     const cop = b.copy_state === 'copiada';
-    const rc = RES_CLASS[b.resultado] || '';
-    const badge = b.resultado ? `<span class="badge-r ${rc}">${esc(b.resultado)}</span>` : '';
+    const resClass = RES_COLOR[b.resultado] || '';
     return `<tr class="${cop ? 'row-cop' : ''}" data-id="${b.id}">
-      <td class="c-data" title="${esc(b.data)}">${esc(b.data)}</td>
-      <td class="c-esp"  title="${esc(b.esporte)}">${esc(b.esporte)}</td>
-      <td class="c-tip"  title="${esc(b.tipster)}">${esc(b.tipster)}</td>
-      <td class="c-casa" title="${esc(b.casa)}">${esc(b.casa)}</td>
-      <td class="c-parc" title="${esc(b.parceiro)}">${esc(b.parceiro)}</td>
-      <td class="c-apos" title="${esc(b.aposta)}">${esc(b.aposta)}</td>
-      <td title="${esc(b.descricao)}">${esc(b.descricao)}</td>
-      <td class="c-stk">${esc(b.stake)}</td>
-      <td class="c-odd">${esc(b.odd)}</td>
-      <td class="c-res">${badge}</td>
+      ${ed('data',      b.data,      'c-data')}
+      ${ed('esporte',   b.esporte,   'c-esp')}
+      ${ed('tipster',   b.tipster,   'c-tip')}
+      <td class="c-casa">${esc(b.casa)}</td>
+      <td class="c-parc">${esc(b.parceiro)}</td>
+      ${ed('aposta',    b.aposta,    'c-apos')}
+      ${ed('descricao', b.descricao, '')}
+      ${ed('stake',     b.stake,     'c-stk')}
+      ${ed('odd',       b.odd,       'c-odd')}
+      <td class="c-res editable ${resClass}" contenteditable="true" data-campo="resultado" spellcheck="false">${esc(b.resultado)}</td>
       <td class="c-chk"><button class="chk-btn ${cop ? 'checked' : ''}" onclick="toggleCopy(${b.id},this)">✓</button></td>
     </tr>`;
   }).join('');
 }
+
+// ── Edição inline de células ──────────────────────────────────────────────────
+document.getElementById('grade-body').addEventListener('focusout', async e => {
+  const td = e.target.closest('td[contenteditable]');
+  if (!td) return;
+  const id = parseInt(td.closest('tr').dataset.id);
+  const campo = td.dataset.campo;
+  const valor = td.textContent.trim();
+  const b = bilhetes.find(x => x.id === id);
+  if (!b || b[campo] === valor) return; // sem mudança
+  const anterior = b[campo];
+  b[campo] = valor;
+  // Cor imediata para resultado
+  if (campo === 'resultado') {
+    td.className = `c-res editable ${RES_COLOR[valor] || ''}`;
+  }
+  try {
+    const r = await fetch(`/bilhetes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [campo]: valor })
+    });
+    if (!r.ok) throw new Error();
+  } catch {
+    b[campo] = anterior;
+    td.textContent = anterior;
+    if (campo === 'resultado') td.className = `c-res editable ${RES_COLOR[anterior] || ''}`;
+    setExpStatus('Erro ao salvar célula', 'err');
+  }
+});
+
+document.getElementById('grade-body').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.closest('td[contenteditable]')) {
+    e.preventDefault(); e.target.blur();
+  }
+});
 
 function atualizarStats() {
   const total = bilhetes.length;

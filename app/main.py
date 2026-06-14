@@ -13,7 +13,7 @@ from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
 from prompts import build_system
 from repository import (
-    arquivar_parceiro, criar_parceiro, list_bilhetes, list_parceiros,
+    arquivar_parceiro, atualizar_bilhete, criar_parceiro, list_bilhetes, list_parceiros,
     marcar_copiada, marcar_pendente, parse_tsv, reativar_parceiro, upsert_bilhetes,
 )
 
@@ -224,6 +224,28 @@ async def arquivar_parceiro_route(parceiro_id: int):
     if not ok:
         raise HTTPException(404, "Parceiro não encontrado.")
     return {"arquivado": True}
+
+
+class AtualizarBilheteRequest(BaseModel):
+    data: Optional[str] = None
+    esporte: Optional[str] = None
+    tipster: Optional[str] = None
+    casa: Optional[str] = None
+    parceiro: Optional[str] = None
+    aposta: Optional[str] = None
+    descricao: Optional[str] = None
+    stake: Optional[str] = None
+    odd: Optional[str] = None
+    resultado: Optional[str] = None
+
+
+@app.patch("/bilhetes/{bilhete_id}")
+async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest):
+    campos = {k: v for k, v in body.model_dump().items() if v is not None}
+    ok = await atualizar_bilhete(bilhete_id, campos)
+    if not ok:
+        raise HTTPException(404, "Bilhete não encontrado ou sem campos válidos.")
+    return {"atualizado": True}
 
 
 @app.post("/parceiros/{parceiro_id}/reativar")

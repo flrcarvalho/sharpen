@@ -157,6 +157,28 @@ async def arquivar_parceiro(parceiro_id: int) -> bool:
     return result.split()[-1] == "1"
 
 
+async def atualizar_bilhete(bilhete_id: int, campos: dict) -> bool:
+    _EDITAVEIS = {"data", "esporte", "tipster", "casa", "parceiro",
+                  "aposta", "descricao", "stake", "odd", "resultado"}
+    safe = {k: v for k, v in campos.items() if k in _EDITAVEIS}
+    if not safe:
+        return False
+    sets, params = [], []
+    for col, val in safe.items():
+        params.append(val)
+        sets.append(f"{col} = ${len(params)}")
+    if "resultado" in safe:
+        es = "resolvida" if (safe["resultado"] or "").strip() in _RESULTADOS_VALIDOS else "aberta"
+        params.append(es)
+        sets.append(f"extraction_state = ${len(params)}")
+    params.append(bilhete_id)
+    sql = f"UPDATE bilhetes SET {', '.join(sets)}, atualizado_em = NOW() WHERE id = ${len(params)}"
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(sql, *params)
+    return result.split()[-1] == "1"
+
+
 async def reativar_parceiro(parceiro_id: int) -> bool:
     pool = await get_pool()
     async with pool.acquire() as conn:
