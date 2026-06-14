@@ -92,6 +92,15 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - URL pública: `https://extrator-production.up.railway.app/`
   - Todos os 4 endpoints testados e validados em produção.
 
+- **Fase 3 construída em 14/06/2026 (sessão 12):** interface completa com grade de bilhetes e padronização visual FDC Capital.
+  - `app/static/index.html` — aba [Extrair | Exportar]; grade com 10 colunas + checkbox de cópia (pendente/copiada); badges W/L/V/HW/HL; botões Copiar pendentes / Baixar .tsv / Marcar todas / Desmarcar todas; botão Salvar na Grade no extrator; badge de count no tab.
+  - `app/repository.py` — `marcar_pendente()`, parâmetro `order` em `list_bilhetes()`.
+  - `app/main.py` — `POST /bilhetes/desmarcar`; `GET /bilhetes` aceita `order=asc|desc`, `copy_state` padrão `None` (retorna tudo).
+  - `app/static/tokens.css` — cópia de `pack/tokens/tokens.css`; `--grid` dark/light adicionado.
+  - `app/static/favicon.svg/.png` — favicon FDC Capital do pack.
+  - `app/static/fdc-logo-horizontal-dark.svg` — logo horizontal do pack.
+  - Padronização visual: `body::before` grid quadriculado 44×44px; wrapper `.app` z-index 1; logo FDC Capital na sidebar; chips de casa com favicon via Google API (`dominio.bet.br`); `btn-primary` hover com `var(--glow)`; badges com tokens `--d-*-soft`; letter-spacing títulos `-0.035em`.
+
 ---
 
 ## 5. Pendências (ordem)
@@ -119,12 +128,12 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Próximas etapas — Sessão 12 (Fase 3):**
-1. Definir layout da grade (colunas, ordem, ações por linha).
-2. Prototipar a UI no padrão visual FDC Capital (tokens de `pack/`).
-3. Implementar HTML/JS real da grade editável com botão "Copiar" e arquivamento.
+**Fases 1, 2 e 3 concluídas.** App em produção: `https://extrator-production.up.railway.app/`
 
-Decisão da sessão 11: trabalhar o visual antes de avançar para a Fase 3 técnica.
+**Próximas etapas — Sessão 13:**
+1. Testar fluxo completo em produção: extrair bilhete, salvar na grade, exportar com checkbox.
+2. Pendências de amostra das casas (ver seção 5).
+3. Avaliar edição inline de células na grade (tipster, resultado).
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
@@ -141,4 +150,4 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 - Arquivos completos, nunca diffs parciais.
 - Uma mudança por etapa aprovada.
 - Atualizar este STATUS.md ao fim de cada etapa.
-- Projeto sem git — controle de versão é feito pelos backups em `Planilhador/Backups/`.
+- Projeto tem git + GitHub (`flrcarvalho/extrator`). Deploy automático via Railway conectado ao GitHub — push dispara deploy.
