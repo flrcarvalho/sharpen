@@ -165,6 +165,7 @@ body::before {
 .upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; justify-content: center; }
 .thumb { width: 48px; height: 48px; border-radius: var(--r-sm); object-fit: cover; border: 1px solid var(--line); cursor: zoom-in; }
 .thumb-rm { position: relative; }
+.csv-card { display:inline-flex; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); padding:4px 8px; font-size:11px; color:var(--ink-soft); max-width:140px; }
 .thumb-del {
   position: absolute; top: -4px; right: -4px;
   background: var(--neg); color: #fff; width: 14px; height: 14px;
@@ -429,11 +430,11 @@ td.c-res.res-HL { color: var(--warn); }
         <!-- Inputs -->
         <div class="input-section">
           <div class="upload-zone" id="drop-zone">
-            <div class="upload-label"><strong>Clique ou arraste</strong> os prints dos bilhetes aqui</div>
-            <div class="upload-hint">ou Cole (Ctrl+V) um print · ou "+ Arquivo" abaixo</div>
+            <div class="upload-label"><strong>Clique ou arraste</strong> os prints ou CSVs dos bilhetes aqui</div>
+            <div class="upload-hint">ou Cole (Ctrl+V) um print · ou "+ Arquivo" abaixo · aceita imagens e .csv</div>
             <div class="upload-preview" id="preview"></div>
           </div>
-          <input type="file" id="file-input" multiple accept="image/*,application/pdf">
+          <input type="file" id="file-input" multiple accept="image/*,application/pdf,.csv,text/csv">
 
           <textarea class="text-area" id="texto"
             placeholder="Ou cole o texto do bilhete aqui (opcional — pode usar junto com imagens)…"
@@ -548,6 +549,7 @@ let casaSelecionada = null;
 let parceiroSelecionado = null;   // { id, casa, nome }
 let parceirosCache = {};
 let arquivos = [];
+let csvFiles = [];
 let bilhetes = [];
 let ultimaAnaliseIds = [];
 
@@ -758,17 +760,23 @@ document.addEventListener('paste', e => {
 
 const IMG_MAX = 15;
 function adicionarArquivos(novos) {
-  const imgs = novos.filter(f => f.type.startsWith('image/'));
-  const disponivel = IMG_MAX - arquivos.length;
-  if (disponivel <= 0) {
-    setStatus(`Limite de ${IMG_MAX} imagens atingido. Use "Limpar" para começar novo lote.`, 'warn');
-    return;
+  const novosCsv = novos.filter(f => f.type === 'text/csv' || f.name.toLowerCase().endsWith('.csv'));
+  const novosImgs = novos.filter(f => f.type.startsWith('image/'));
+
+  csvFiles = [...csvFiles, ...novosCsv];
+
+  if (novosImgs.length > 0) {
+    const disponivel = IMG_MAX - arquivos.length;
+    if (disponivel <= 0) {
+      setStatus(`Limite de ${IMG_MAX} imagens atingido. Use "Limpar" para começar novo lote.`, 'warn');
+    } else {
+      const aceitos = novosImgs.slice(0, disponivel);
+      if (novosImgs.length > aceitos.length)
+        setStatus(`Limite de ${IMG_MAX} imagens: ${novosImgs.length - aceitos.length} ignorada(s).`, 'warn');
+      arquivos = [...arquivos, ...aceitos];
+      if (arquivos.length > 0) _bloquearHaikuSeImagens();
+    }
   }
-  const aceitos = imgs.slice(0, disponivel);
-  if (imgs.length > aceitos.length)
-    setStatus(`Limite de ${IMG_MAX} imagens: ${imgs.length - aceitos.length} ignorada(s).`, 'warn');
-  arquivos = [...arquivos, ...aceitos];
-  if (arquivos.length > 0) _bloquearHaikuSeImagens();
   renderPreviews(); atualizarBotaoExtrair();
 }
 
@@ -807,7 +815,25 @@ function renderPreviews() {
     wrap.appendChild(img); wrap.appendChild(btn);
     p.appendChild(wrap);
   });
-  document.getElementById('btn-limpar-imgs').style.display = arquivos.length > 0 ? '' : 'none';
+
+  csvFiles.forEach((f, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb-rm';
+
+    const card = document.createElement('div');
+    card.className = 'csv-card';
+    card.title = f.name;
+    card.textContent = '📄 ' + (f.name.length > 16 ? f.name.slice(0, 14) + '…' : f.name);
+
+    const btn = document.createElement('button');
+    btn.className = 'thumb-del'; btn.textContent = '✕';
+    btn.addEventListener('click', e => { e.stopPropagation(); csvFiles.splice(i, 1); renderPreviews(); atualizarBotaoExtrair(); });
+
+    wrap.appendChild(card); wrap.appendChild(btn);
+    p.appendChild(wrap);
+  });
+
+  document.getElementById('btn-limpar-imgs').style.display = (arquivos.length > 0 || csvFiles.length > 0) ? '' : 'none';
   const cnt = document.getElementById('img-count');
   if (arquivos.length > 0) {
     const n = arquivos.length;
@@ -830,13 +856,13 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('img-lightbox').style.display = 'none';
 });
 function atualizarBotaoExtrair() {
-  const ok = arquivos.length > 0 || document.getElementById('texto').value.trim();
+  const ok = arquivos.length > 0 || csvFiles.length > 0 || document.getElementById('texto').value.trim();
   document.getElementById('btn-extrair').disabled = !parceiroSelecionado || !ok;
 }
 document.getElementById('texto').addEventListener('input', atualizarBotaoExtrair);
 
 function limparExtrator() {
-  arquivos = []; renderPreviews();
+  arquivos = []; csvFiles = []; renderPreviews();
   document.getElementById('texto').value = '';
   setStatus('', ''); atualizarBotaoExtrair();
   // Limpar painel de análise
@@ -847,7 +873,7 @@ function limparExtrator() {
   document.getElementById('token-bar').innerHTML = '';
 }
 document.getElementById('btn-limpar').addEventListener('click', limparExtrator);
-document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; renderPreviews(); atualizarBotaoExtrair(); });
+document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; csvFiles = []; renderPreviews(); atualizarBotaoExtrair(); });
 
 function setStatus(msg, tipo) {
   const el = document.getElementById('status-msg');
@@ -914,6 +940,11 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   const txt = document.getElementById('texto').value.trim();
   if (txt) form.append('texto', txt);
   arquivos.forEach(f => form.append('imagens', f));
+  if (csvFiles.length > 0) {
+    const textos = await Promise.all(csvFiles.map(f => f.text()));
+    const csvContent = csvFiles.map((f, i) => `--- ${f.name} ---\n${textos[i]}`).join('\n\n');
+    form.append('csv_content', csvContent);
+  }
   const dataRefVal = document.getElementById('data-ref')?.value;
   if (dataRefVal) {
     const [y, m, d] = dataRefVal.split('-');

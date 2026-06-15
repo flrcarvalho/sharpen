@@ -137,6 +137,7 @@ async def extrair(
     parceiro: str = Form(""),
     modelo: str = Form(DEFAULT_MODEL),
     texto: Optional[str] = Form(None),
+    csv_content: Optional[str] = Form(None),
     imagens: list[UploadFile] = File(default=[]),
     data_referencia: Optional[str] = Form(None),
 ):
@@ -164,6 +165,9 @@ async def extrair(
 
     if texto:
         content.append({"type": "text", "text": texto})
+
+    if csv_content:
+        content.append({"type": "text", "text": f"DADOS CSV:\n{csv_content}"})
 
     if not content:
         raise HTTPException(400, "Envie pelo menos uma imagem ou texto.")
