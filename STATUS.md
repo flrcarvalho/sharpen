@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-14 (sessão 14 — Fix grade vazia + deletar + resizer + odd)_
+_Atualizado: 2026-06-14 (sessão 15 — Auditoria aliases e travamento de odd)_
 
 ---
 
@@ -134,6 +134,18 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
   - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
 
+- **Sessão 15 (14/06/2026) — Auditoria aliases e travamento de odd:**
+  - Auditoria completa em todos os `casas/CASA_*.md` e `global/MASTER_*.md` para dois tipos de ruido: grafia de casas e travamento de odd.
+  - `CASA_BET365.md §1`: linha `Aliases` removida + `Odds: 2-3 casas` removido do locale.
+  - `CASA_BETANO.md §1`: linha `Aliases` removida.
+  - `CASA_SUPERBET.md §1`: linha `Aliases` removida (incluindo variante `SuperBet`).
+  - `CASA_SUPERBET.md §11`: corrigido travamento "2 casas para odd do bilhete" — padrao agora e ate 12 casas decimais em qualquer fonte (calculada ou lida do bilhete).
+  - `CASA_PINNACLE.md §1`: linha `Aliases` removida.
+  - `CASA_PINNACLE.md §11`: "Preservar as 3 casas" corrigido para "preservar a precisao original do export — nao truncar nem preencher zeros".
+  - `CASA_PINNACLE.md §13`: "Odd: 3 casas, ponto" corrigido para "ponto → virgula, preservar precisao original".
+  - `MASTER_OUTPUT_2026.md §7`: nota da convencao de duas camadas adicionada (IA escreve `Superbet`; banco armazena `SUPERBET` via normalizacao do backend; IA nunca identifica a casa).
+  - Backup em `Planilhador/Backups/auditoria-aliases-odds-2026-06-14/`.
+
 ---
 
 ## 5. Pendências (ordem)
@@ -163,14 +175,14 @@ uvicorn main:app --reload
 
 **Fases 1, 2 e 3 concluídas.** App em produção: `https://extrator-production.up.railway.app/`
 
-**Sessão 14 concluída.** Deploy realizado. Aguardar Railway subir e testar fluxo completo em produção.
+**Sessão 15 concluída.** Deploy realizado. Aliases removidos e travamentos de odd eliminados em todas as casas.
 
-**Próximas etapas — Sessão 15:**
-1. Testar fluxo completo: processar bilhetes → grade preenche → deletar individual → deletar múltiplos → desfazer análise.
-2. Verificar odd de bilhete com SUPERMÚLTIPLA: deve ser PRÊMIO ÷ Stake (ex: 11,37606666666667), não ODDS TOTAIS (10,88).
+**Proximas etapas — Sessao 16:**
+1. Testar fluxo completo: processar bilhetes → grade preenche → deletar individual → deletar multiplos → desfazer analise.
+2. Verificar odd de bilhete com SUPERMULTIPLA: deve ser PREMIO / Stake (ex: 11,37606666666667), nao ODDS TOTAIS (10,88).
 3. Testar campo "Captura": processar print de ontem com data ajustada → verificar se "Hoje" resolve corretamente.
-4. Pendências de amostra das casas (ver seção 5).
-5. Avaliar arquivamento/reativação de parceiro via UI (botão reativar não exposto ainda).
+4. Pendencias de amostra das casas (ver secao 5).
+5. Avaliar arquivamento/reativacao de parceiro via UI (botao reativar nao exposto ainda).
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
