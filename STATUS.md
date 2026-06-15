@@ -195,7 +195,7 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 
 ## 6. Próxima sessão
 
-**Fases 1 e 2 concluídas.** App em produção: `https://extrator-production.up.railway.app/`
+**App em produção:** `https://extrator-production.up.railway.app/`
 
 Para rodar localmente:
 ```
@@ -206,17 +206,7 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Fases 1, 2 e 3 concluídas.** App em produção: `https://extrator-production.up.railway.app/`
-
-**Sessão 16 concluída.** Deploy realizado. UX de upload corrigida e deduplicacao por ID implementada.
-
-**Proximas etapas — Sessao 17:**
-1. Testar deduplicacao com ID: subir 2 bilhetes com mesmo conteudo mas IDs diferentes → ambos devem ser salvos.
-2. Testar alerta de sobreposicao: subir 2 prints com bilhete identico sem ID → deve aparecer aviso amarelo.
-3. Verificar exibicao de "Superbet" (display name) na grade apos migracao do banco.
-4. Testar lightbox: clicar em thumbnail → abre overlay; clicar fora ou Esc → fecha.
-5. Pendencias de amostra das casas (ver secao 5).
-6. Avaliar arquivamento/reativacao de parceiro via UI (botao reativar nao exposto ainda).
+**Estado após sessão 19:** DEFAULT_MODEL = Sonnet 4.6 (todas as casas). CASA_BET365 atualizada.
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
