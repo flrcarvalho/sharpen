@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-15 (sessão 18 — crise Superbet: fix colunas invertidas + Tiros de Meta → Team Props)_
+_Atualizado: 2026-06-15 (sessão 20 — fix AsyncAnthropic: segunda extração travava)_
 
 ---
 
@@ -134,6 +134,15 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
   - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
 
+- **Sessão 20 — Fix AsyncAnthropic: segunda extração travava (15/06/2026):**
+  - **Root cause:** `Anthropic()` (sync) bloqueava o event loop durante chamadas de 60–180s → conexões asyncpg morriam → DB operation falhava silenciosamente.
+  - **Fix crítico: `AsyncAnthropic()` em `main.py`** — chamada de IA é agora não-bloqueante.
+  - **Fix pool: `max_inactive_connection_lifetime=60`** em `database.py` — recicla conexões idle antes do Railway PostgreSQL fechá-las.
+  - **Fix frontend:** `if (!rs.ok) throw Error` após `/salvar` — erros de banco aparecem como `✗ ...` em vez de silencioso "0 bilhetes".
+  - **Fix frontend:** TSV vazio mostra aviso amarelo explícito ("nenhum bilhete extraído").
+  - **Fix frontend:** timer de progresso `Processando… (Xs)` durante spinner.
+  - Backup: `fix-async-client-2026-06-15-{main,database,index}.py/html`.
+
 - **Sessão 19 — Análise Bet365 + fix DEFAULT_MODEL (15/06/2026):**
   - Análise comparativa Haiku vs Sonnet em 29 bilhetes reais da Bet365: Haiku falhou em categorias, descrições e odds; Sonnet acertou 28/29.
   - **Fix crítico: DEFAULT_MODEL = Haiku → Sonnet 4.6** (`app/config.py`). Aplica a todas as casas (Superbet, Bet365, etc.).
@@ -206,7 +215,7 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 19:** DEFAULT_MODEL = Sonnet 4.6 (todas as casas). CASA_BET365 atualizada.
+**Estado após sessão 20:** AsyncAnthropic em produção. Segunda extração deve funcionar normalmente.
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
