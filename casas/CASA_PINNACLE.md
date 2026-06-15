@@ -13,7 +13,6 @@
 ## 1. Identidade
 
 - Casa canônica: `Pinnacle`
-- Aliases: Pinnacle, pinnacle.bet.br, sports2.pinnacle.bet.br
 - Locale: pt-BR (site BR) · Moeda: R$ (BRL)
 - **Decimal exibido: PONTO** (`1.609`, `400.00`) → normalizar para vírgula. *(particularidade — diferente das casas BR que já usam vírgula)*
 - `Parceiro` / `Tipster`: não preenchidos na extração (vêm da app). O workspace Pinnacle tem `Parceiro = Feca [Eu]` (conta própria) — mas quem preenche é a app, não o extrator. *(o prompt antigo cravava "Feca [Eu]" fixo; na arquitetura nova isso cascateia do workspace)*
@@ -157,7 +156,7 @@ Notas de reconstrução:
 
 ## 11. Odds
 
-- Origem: coluna `Probabilidades`. Formato **3 casas, ponto** (`1.609`, `18.060`) → vírgula (`1,609`, `18,060`). Preservar as 3 casas.
+- Origem: coluna `Probabilidades`. Formato ponto (`1.609`, `18.060`) → vírgula (`1,609`, `18,060`). Preservar a precisão original do export — não truncar nem preencher zeros.
 - **Sem boost e sem cashout** → a odd exibida é autoritativa para W/L/V/HW/HL. O `Retorno÷Stake` global daria o mesmo valor.
 - `Vitória/derrota` é **P&L líquido**, não retorno total. Se for reconciliar: `retorno total = Stake + Vitória/derrota`. Ex.: stake 400, V/d +243,6 → retorno 643,6 → 643,6÷400 = 1,609 ✓.
 
@@ -175,7 +174,7 @@ Coluna `Produto` (constante) · label `Decimal` e abreviação `D` na coluna de 
 - Placar ao vivo `[0-0]` pode aparecer colado à seleção → remover antes de montar a descrição.
 - Esporte = o esporte **genérico** do `Detalhe` (`Basquetebol`→Basquete, `Beisebol`→Baseball). **NÃO** promover para a liga: Esporte é sempre o esporte, nunca a liga (regra global). A liga na linha `@` é contexto, não vai na coluna Esporte. *(isso simplifica a Pinnacle — usa o esporte do Detalhe direto)*
 - Três datas — ver decisão global do §4.
-- Odd: 3 casas, ponto.
+- Odd: ponto → vírgula, preservar precisão original.
 - `Vitória/derrota` = P&L líquido, não retorno.
 - Sem boost, sem cashout.
 - Rótulos divergem entre web e export.

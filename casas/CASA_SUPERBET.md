@@ -13,7 +13,6 @@
 ## 1. Identidade
 
 - Casa canônica: `Superbet`
-- Aliases: Superbet, SuperBet, super.bet.br
 - Locale: pt-BR · Moeda: R$ (exibida como **sufixo**: `100,00 R$`) · Decimal: vírgula
 - `Parceiro` / `Tipster`: **não preenchidos na extração**. Vêm da camada de app (Parceiro = workspace; Tipster = Telegram). O extrator deixa vazios.
 
@@ -146,7 +145,7 @@ Notas:
   - `W` → `Odd = PRÊMIO ÷ Stake`
   - `L` em múltipla sem retorno → `ODDS TOTAIS` (estrutural)
   - `V` → `ODDS TOTAIS` (do bilhete)
-- **Precisão (candidata a regra global):** odd calculada (`PRÊMIO ÷ Stake`) preserva a precisão natural da divisão — não forçar 2 casas, não truncar. 2 casas só quando a odd vier direta do bilhete. Manter `Stake × Odd ≈ PRÊMIO`.
+- **Precisão:** preservar a precisão natural — não forçar, não truncar, não arredondar. Até 12 casas decimais, seja odd calculada (`PRÊMIO ÷ Stake`) ou lida diretamente do bilhete. Manter `Stake × Odd ≈ PRÊMIO`.
 
 ---
 

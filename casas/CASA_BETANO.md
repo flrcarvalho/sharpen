@@ -13,7 +13,6 @@
 ## 1. Identidade
 
 - Casa canônica: `Betano`
-- Aliases: Betano, betano.bet.br
 - Locale: pt-BR · Moeda: R$ (prefixo) · **Decimal vírgula, milhar com ponto** (`R$1.914,56` = mil novecentos e quatorze)
 - `Parceiro` / `Tipster`: não preenchidos na extração (vêm da app).
 

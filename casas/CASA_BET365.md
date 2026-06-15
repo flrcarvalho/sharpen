@@ -13,8 +13,7 @@
 ## 1. Identidade
 
 - Casa canônica: `Bet365`
-- Aliases: Bet365, bet365.bet.br
-- Locale: pt-BR · Moeda: R$ (prefixo: `R$250,00`) · Decimal: vírgula · Odds: 2–3 casas
+- Locale: pt-BR · Moeda: R$ (prefixo: `R$250,00`) · Decimal: vírgula
 - `Parceiro` / `Tipster`: não preenchidos na extração (vêm da app).
 
 ---
