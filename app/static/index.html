@@ -444,6 +444,7 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
             <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
             <button class="btn btn-ghost btn-sm" id="btn-add-arquivo">+ Arquivo</button>
+            <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
             <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
               <span>Captura</span>
               <input type="date" id="data-ref" class="data-ref-input">
@@ -779,6 +780,13 @@ function renderPreviews() {
     p.appendChild(wrap);
   });
   document.getElementById('btn-limpar-imgs').style.display = arquivos.length > 1 ? '' : 'none';
+  const cnt = document.getElementById('img-count');
+  if (arquivos.length > 0) {
+    cnt.textContent = `${arquivos.length} imagem${arquivos.length > 1 ? 'ns' : ''}`;
+    cnt.style.display = '';
+  } else {
+    cnt.style.display = 'none';
+  }
 }
 
 function abrirLightbox(url) {
