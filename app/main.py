@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
+import xlrd
+
 from anthropic import AsyncAnthropic
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -52,6 +54,40 @@ _CASA_DISPLAY: dict[str, str] = {
 
 def _casa_display(key: str) -> str:
     return _CASA_DISPLAY.get(key.upper(), key.title())
+
+
+def _parse_xls(raw: bytes) -> str:
+    wb = xlrd.open_workbook(file_contents=raw)
+    ws = wb.sheet_by_index(0)
+    if ws.nrows < 2:
+        return ""
+    header = [str(ws.cell_value(0, c)).strip() for c in range(ws.ncols)]
+    _SEL_LABELS = ["Seleção", "Confronto", "Mercado", "Competição"]
+    parts = ["ARQUIVO XLS PINNACLE:\n"]
+    for r in range(1, ws.nrows):
+        det = str(ws.cell_value(r, 1)).strip().split("\n")
+        sel = str(ws.cell_value(r, 2)).strip().split("\n")
+        odd_raw = str(ws.cell_value(r, 3)).split("\n")[0].strip()
+        stake_raw = str(ws.cell_value(r, 4)).split("\n")[0].replace("Risco:", "").strip()
+        vd = ws.cell_value(r, 5)
+        pl = f"{vd:+.2f}" if isinstance(vd, float) else str(vd)
+        status_raw = str(ws.cell_value(r, 6)).strip().replace("\n", " | ")
+
+        block = [f"=== Aposta ID {det[0].strip() if det else ''} ==="]
+        if len(det) > 1: block.append(f"Esporte: {det[1].strip()}")
+        if len(det) > 2: block.append(f"Colocada: {det[2].strip()}")
+        if len(det) > 3: block.append(f"Liquidada: {det[3].strip()}")
+        for i, line in enumerate(sel):
+            line = line.strip()
+            if line:
+                label = _SEL_LABELS[i] if i < len(_SEL_LABELS) else f"Info {i+1}"
+                block.append(f"{label}: {line}")
+        block.append(f"Odd: {odd_raw}")
+        block.append(f"Stake: {stake_raw}")
+        block.append(f"P&L: {pl}")
+        block.append(f"Status: {status_raw}")
+        parts.append("\n".join(block))
+    return "\n\n".join(parts)
 
 
 _INSTRUCAO = (
@@ -139,6 +175,7 @@ async def extrair(
     texto: Optional[str] = Form(None),
     csv_content: Optional[str] = Form(None),
     imagens: list[UploadFile] = File(default=[]),
+    xls_file: Optional[UploadFile] = File(default=None),
     data_referencia: Optional[str] = Form(None),
 ):
     if modelo not in ALLOWED_MODELS:
@@ -168,6 +205,12 @@ async def extrair(
 
     if csv_content:
         content.append({"type": "text", "text": f"DADOS CSV:\n{csv_content}"})
+
+    if xls_file:
+        raw = await xls_file.read()
+        xls_text = _parse_xls(raw)
+        if xls_text:
+            content.append({"type": "text", "text": xls_text})
 
     if not content:
         raise HTTPException(400, "Envie pelo menos uma imagem ou texto.")

@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-15 (sessão 23 — suporte a upload de CSV)_
+_Atualizado: 2026-06-15 (sessão 23 — suporte a upload de CSV e XLS Pinnacle)_
 
 ---
 
@@ -243,7 +243,7 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 23:** Upload de CSV habilitado — `index.html` aceita `.csv` no seletor de arquivos, exibe cards no preview, envia conteúdo como `csv_content` via FormData; `main.py` aceita `csv_content: Optional[str]` e injeta como bloco de texto no prompt antes da instrução. Betfair e Pinnacle (que exportam CSV) agora podem ser processados sem captura de tela. App em produção estável.
+**Estado após sessão 23:** Upload de CSV e XLS habilitado. CSV: envia texto via `csv_content`. XLS (Pinnacle): `main.py` usa `xlrd` para parsear o binário e formatar cada aposta em texto estruturado (ID, esporte, datas, seleção, confronto, mercado, competição, odd, stake, P&L, status) antes de enviar ao Claude; `requirements.txt` adicionado `xlrd>=2.0.1`. Frontend aceita `.xls/.xlsx`, exibe card 📊 no preview, envia como `xls_file` (upload binário). App em produção estável.
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado

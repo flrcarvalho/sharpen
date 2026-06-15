@@ -431,10 +431,10 @@ td.c-res.res-HL { color: var(--warn); }
         <div class="input-section">
           <div class="upload-zone" id="drop-zone">
             <div class="upload-label"><strong>Clique ou arraste</strong> os prints ou CSVs dos bilhetes aqui</div>
-            <div class="upload-hint">ou Cole (Ctrl+V) um print · ou "+ Arquivo" abaixo · aceita imagens e .csv</div>
+            <div class="upload-hint">ou Cole (Ctrl+V) um print · ou "+ Arquivo" abaixo · aceita imagens, .csv e .xls</div>
             <div class="upload-preview" id="preview"></div>
           </div>
-          <input type="file" id="file-input" multiple accept="image/*,application/pdf,.csv,text/csv">
+          <input type="file" id="file-input" multiple accept="image/*,application/pdf,.csv,text/csv,.xls,.xlsx">
 
           <textarea class="text-area" id="texto"
             placeholder="Ou cole o texto do bilhete aqui (opcional — pode usar junto com imagens)…"
@@ -550,6 +550,7 @@ let parceiroSelecionado = null;   // { id, casa, nome }
 let parceirosCache = {};
 let arquivos = [];
 let csvFiles = [];
+let xlsFiles = [];
 let bilhetes = [];
 let ultimaAnaliseIds = [];
 
@@ -761,9 +762,11 @@ document.addEventListener('paste', e => {
 const IMG_MAX = 15;
 function adicionarArquivos(novos) {
   const novosCsv = novos.filter(f => f.type === 'text/csv' || f.name.toLowerCase().endsWith('.csv'));
+  const novosXls = novos.filter(f => /\.(xls|xlsx)$/i.test(f.name));
   const novosImgs = novos.filter(f => f.type.startsWith('image/'));
 
   csvFiles = [...csvFiles, ...novosCsv];
+  xlsFiles = [...xlsFiles, ...novosXls];
 
   if (novosImgs.length > 0) {
     const disponivel = IMG_MAX - arquivos.length;
@@ -833,7 +836,24 @@ function renderPreviews() {
     p.appendChild(wrap);
   });
 
-  document.getElementById('btn-limpar-imgs').style.display = (arquivos.length > 0 || csvFiles.length > 0) ? '' : 'none';
+  xlsFiles.forEach((f, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb-rm';
+
+    const card = document.createElement('div');
+    card.className = 'csv-card';
+    card.title = f.name;
+    card.textContent = '📊 ' + (f.name.length > 16 ? f.name.slice(0, 14) + '…' : f.name);
+
+    const btn = document.createElement('button');
+    btn.className = 'thumb-del'; btn.textContent = '✕';
+    btn.addEventListener('click', e => { e.stopPropagation(); xlsFiles.splice(i, 1); renderPreviews(); atualizarBotaoExtrair(); });
+
+    wrap.appendChild(card); wrap.appendChild(btn);
+    p.appendChild(wrap);
+  });
+
+  document.getElementById('btn-limpar-imgs').style.display = (arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0) ? '' : 'none';
   const cnt = document.getElementById('img-count');
   if (arquivos.length > 0) {
     const n = arquivos.length;
@@ -856,13 +876,13 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('img-lightbox').style.display = 'none';
 });
 function atualizarBotaoExtrair() {
-  const ok = arquivos.length > 0 || csvFiles.length > 0 || document.getElementById('texto').value.trim();
+  const ok = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0 || document.getElementById('texto').value.trim();
   document.getElementById('btn-extrair').disabled = !parceiroSelecionado || !ok;
 }
 document.getElementById('texto').addEventListener('input', atualizarBotaoExtrair);
 
 function limparExtrator() {
-  arquivos = []; csvFiles = []; renderPreviews();
+  arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews();
   document.getElementById('texto').value = '';
   setStatus('', ''); atualizarBotaoExtrair();
   // Limpar painel de análise
@@ -873,7 +893,7 @@ function limparExtrator() {
   document.getElementById('token-bar').innerHTML = '';
 }
 document.getElementById('btn-limpar').addEventListener('click', limparExtrator);
-document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; csvFiles = []; renderPreviews(); atualizarBotaoExtrair(); });
+document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews(); atualizarBotaoExtrair(); });
 
 function setStatus(msg, tipo) {
   const el = document.getElementById('status-msg');
@@ -944,6 +964,9 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
     const textos = await Promise.all(csvFiles.map(f => f.text()));
     const csvContent = csvFiles.map((f, i) => `--- ${f.name} ---\n${textos[i]}`).join('\n\n');
     form.append('csv_content', csvContent);
+  }
+  if (xlsFiles.length > 0) {
+    form.append('xls_file', xlsFiles[0], xlsFiles[0].name);
   }
   const dataRefVal = document.getElementById('data-ref')?.value;
   if (dataRefVal) {
