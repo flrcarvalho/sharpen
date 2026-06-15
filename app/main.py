@@ -39,6 +39,20 @@ async def _unhandled(request: Request, exc: Exception):
 
 _client = Anthropic()
 
+# Nome de exibição canônico por casa (chave = uppercase do arquivo)
+_CASA_DISPLAY: dict[str, str] = {
+    "BET365":   "Bet365",
+    "BETANO":   "Betano",
+    "BETFAIR":  "Betfair",
+    "PINNACLE": "Pinnacle",
+    "SUPERBET": "Superbet",
+}
+
+
+def _casa_display(key: str) -> str:
+    return _CASA_DISPLAY.get(key.upper(), key.title())
+
+
 _INSTRUCAO = (
     "Extraia os bilhetes acima para TSV no padrão FDC Capital.\n"
     "Parceiro: {parceiro}\n"
@@ -85,7 +99,7 @@ async def root():
 @app.get("/casas")
 async def listar_casas():
     casas = sorted(
-        p.stem.removeprefix("CASA_")
+        _casa_display(p.stem.removeprefix("CASA_"))
         for p in CASAS_DIR.glob("CASA_*.md")
         if p.stem != "CASA_MODELO"
     )
@@ -174,7 +188,7 @@ async def salvar(body: SalvarRequest):
     casa_key = (body.casa or "").upper() or None
     for row in rows:
         if casa_key:
-            row["casa"] = casa_key
+            row["casa"] = _casa_display(casa_key)
         if body.parceiro:
             row["parceiro"] = body.parceiro
         row["tipster"] = ""  # sempre vazio; vem da camada de app, não do bilhete
@@ -264,7 +278,7 @@ async def criar_parceiro_route(body: ParceiroCriarRequest):
         raise HTTPException(400, "Nome do parceiro não pode ser vazio.")
     if not (CASAS_DIR / f"CASA_{casa_key}.md").exists():
         raise HTTPException(400, f"Casa desconhecida: {body.casa}")
-    row = await criar_parceiro(casa_key, nome)
+    row = await criar_parceiro(_casa_display(casa_key), nome)
     return row
 
 

@@ -32,6 +32,18 @@ CREATE TABLE IF NOT EXISTS bilhetes (
 -- Migração segura: adiciona coluna se ainda não existir
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS codigo_bilhete TEXT;
 
+-- Normalizar nomes de casas: UPPERCASE → display name
+UPDATE bilhetes  SET casa = 'Bet365'   WHERE casa = 'BET365';
+UPDATE bilhetes  SET casa = 'Betano'   WHERE casa = 'BETANO';
+UPDATE bilhetes  SET casa = 'Betfair'  WHERE casa = 'BETFAIR';
+UPDATE bilhetes  SET casa = 'Pinnacle' WHERE casa = 'PINNACLE';
+UPDATE bilhetes  SET casa = 'Superbet' WHERE casa = 'SUPERBET';
+UPDATE parceiros SET casa = 'Bet365'   WHERE casa = 'BET365';
+UPDATE parceiros SET casa = 'Betano'   WHERE casa = 'BETANO';
+UPDATE parceiros SET casa = 'Betfair'  WHERE casa = 'BETFAIR';
+UPDATE parceiros SET casa = 'Pinnacle' WHERE casa = 'PINNACLE';
+UPDATE parceiros SET casa = 'Superbet' WHERE casa = 'SUPERBET';
+
 CREATE TABLE IF NOT EXISTS parceiros (
     id        SERIAL PRIMARY KEY,
     casa      TEXT NOT NULL,
