@@ -198,6 +198,17 @@ body::before {
 .status-msg { font-size: 12px; color: var(--ink-mute); font-family: var(--font-mono); }
 .status-msg.ok  { color: var(--pos); }
 .status-msg.err { color: var(--neg); }
+.data-ref-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--ink-mute); cursor: default;
+}
+.data-ref-input {
+  font-size: 11px; font-family: var(--font-mono);
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--ink); border-radius: var(--r-xs); padding: 2px 6px;
+  cursor: pointer;
+}
+.data-ref-input:focus { outline: none; border-color: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner {
   width: 13px; height: 13px; border: 2px solid var(--line);
@@ -429,6 +440,10 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-primary" id="btn-extrair" disabled>Processar Bilhetes</button>
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
             <button class="btn btn-ghost btn-sm" id="btn-add-arquivo">+ Arquivo</button>
+            <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
+              <span>Captura</span>
+              <input type="date" id="data-ref" class="data-ref-input">
+            </label>
             <span class="status-msg" id="status-msg"></span>
           </div>
         </div>
@@ -528,6 +543,12 @@ let parceirosCache = {};
 let arquivos = [];
 let bilhetes = [];
 let ultimaAnaliseIds = [];
+
+// Inicializar campo de data de referência com hoje
+(function () {
+  const inp = document.getElementById('data-ref');
+  if (inp) inp.value = new Date().toISOString().slice(0, 10);
+})();
 
 const NOMES = {
   SUPERBET: 'Superbet', BET365: 'Bet365',
@@ -827,6 +848,11 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   const txt = document.getElementById('texto').value.trim();
   if (txt) form.append('texto', txt);
   arquivos.forEach(f => form.append('imagens', f));
+  const dataRefVal = document.getElementById('data-ref')?.value;
+  if (dataRefVal) {
+    const [y, m, d] = dataRefVal.split('-');
+    form.append('data_referencia', `${d}/${m}/${y}`);
+  }
 
   try {
     const r = await fetch('/extrair', { method: 'POST', body: form });

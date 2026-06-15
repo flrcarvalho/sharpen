@@ -462,21 +462,35 @@ Quando houver cashout parcial combinado com settlement posterior:
 
 # 6. Promoções e Odds Boost
 
-Casas podem aplicar:
-- Odds Boost
-- Bet Boost
-- Promoções
-- Ajustes de liquidação
+Regra universal:
 
-Nesses casos:
-
-Se houver retorno visível:
+> A casa exibe a odd **antes** do boost. O retorno (PRÊMIO/ganhos) já inclui o boost.
+> Portanto, sempre que houver retorno visível, a odd registrada **deve** ser recalculada:
 
 ```text
 Odd = Retorno ÷ Stake
 ```
 
-mesmo que a odd exibida seja diferente.
+mesmo que a odd exibida no bilhete seja diferente (menor, sem boost).
+
+Exemplos de boost:
+- SUPERMÚLTIPLA X% (Superbet)
+- Odds Boost (Bet365, Betano, etc.)
+- Bet Boost
+- Promoções com retorno aumentado
+
+Em todos esses casos: **a odd exibida é estrutural (sem boost), o retorno é real (com boost)**. Registrar sempre o retorno real ÷ stake.
+
+Exemplo prático:
+```
+ODDS TOTAIS exibido = 10,88  (sem boost)
+SUPERMÚLTIPLA 5%
+PRÊMIO = 1.706,41  (com boost)
+Stake = 150,00
+
+Odd registrada = 1.706,41 ÷ 150 = 11,37606666666667
+                 ↑ nunca registrar 10,88
+```
 
 ---
 

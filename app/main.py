@@ -41,7 +41,10 @@ _client = Anthropic()
 
 _INSTRUCAO = (
     "Extraia os bilhetes acima para TSV no padrão FDC Capital.\n"
-    "Parceiro: {parceiro}\n\n"
+    "Parceiro: {parceiro}\n"
+    "Data de referência da captura (quando os prints foram tirados): {data_referencia}\n"
+    "  → Hoje = {data_referencia} · Ontem = dia anterior · Amanhã = dia seguinte\n"
+    "  → NUNCA usar o horário de processamento para resolver Hoje/Ontem/Amanhã\n\n"
     "Responda EXATAMENTE neste formato (sem variações de estrutura):\n\n"
     "```tsv\n"
     "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStake\tOdd\tResultado\n"
@@ -90,6 +93,7 @@ async def extrair(
     modelo: str = Form(DEFAULT_MODEL),
     texto: Optional[str] = Form(None),
     imagens: list[UploadFile] = File(default=[]),
+    data_referencia: Optional[str] = Form(None),
 ):
     if modelo not in ALLOWED_MODELS:
         raise HTTPException(400, f"Modelo não permitido. Opções: {ALLOWED_MODELS}")
@@ -117,9 +121,11 @@ async def extrair(
     if not content:
         raise HTTPException(400, "Envie pelo menos uma imagem ou texto.")
 
+    from datetime import date as _date
+    ref = data_referencia or _date.today().strftime("%d/%m/%Y")
     content.append({
         "type": "text",
-        "text": _INSTRUCAO.format(parceiro=parceiro or "(não informado)"),
+        "text": _INSTRUCAO.format(parceiro=parceiro or "(não informado)", data_referencia=ref),
     })
 
     resp = _client.messages.create(

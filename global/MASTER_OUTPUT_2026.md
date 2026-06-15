@@ -129,6 +129,22 @@ Regras:
 
 ---
 
+## 4.1 Data de Referência (Hoje / Ontem / Amanhã)
+
+A camada de app fornece a **data de referência da captura** no campo `data_referencia`.
+
+Regra obrigatória:
+- `Hoje` → data de referência fornecida
+- `Ontem` → data de referência − 1 dia
+- `Amanhã` → data de referência + 1 dia
+
+**Nunca** resolver datas relativas contra o horário de processamento do modelo.
+**Nunca** usar o cabeçalho de criação do bilhete como referência de "Hoje".
+
+A data de referência viaja junto com as imagens na camada de app para suportar processamento assíncrono (captura ontem + processamento hoje = "Hoje" ainda é ontem).
+
+---
+
 # 5. Esporte
 
 A coluna Esporte deve seguir exatamente o padrão definido em:
