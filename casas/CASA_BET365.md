@@ -25,6 +25,10 @@
 - **Ordenação de output:** última aposta da última imagem = 1ª linha no TSV (mais antiga); 1ª aposta da 1ª imagem = última linha no TSV (mais recente). Processar de baixo para cima dentro de cada imagem, das imagens da última para a primeira.
 - Abas: `Em Aberto` · `Encerrar Aposta` (cashout) · `Ao Vivo` · `Resolvidas`.
 
+**Sinal visual de esporte:** A Bet365 exibe ícone de camisa colorida (jersey icon) ao lado de **times** e nenhum ícone (ou foto pequena) ao lado de **jogadores individuais**.
+- Jersey icon visível = esporte de equipe (Futebol, Basquete…)
+- Sem jersey icon, nomes de pessoa = esporte individual (Tênis, Dardos…)
+
 Anatomia de um bilhete:
 
 1. **Cabeçalho verde (sup. esq.):** `R$<stake> <Tipo>` (em sistema: `N x R$<stake-por-linha> <Tipo>`). Marca o início do bilhete **e** define a estrutura: `Simples` · `Dupla` · `Tripla` · `Triplas` · `Múltiplas` · `Criar Aposta` · `3 x Duplas` · `Trixie` · `Yankee`… O Tipo determina a categoria `Aposta` (Simples → categoria do mercado; o resto → `Múltipla`) e, em sistema, **qual fórmula de odd** usar (`MASTER_RESULTADO_2026 §7`).
@@ -120,6 +124,8 @@ A Bet365 tem boost/promo. Quando houver, o **Retorno Obtido já reflete o valor 
 | Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts | Player Props |
 | Pontos / Rebotes / Assistências / Cestas de 3 Convertidas / Pontuação Alta (NBA/WNBA) | Player Props |
 | Total de Kills / Total de Dragons / Total de Torres ("Mapa N - …") | E-Sports Props |
+| Partida - Vencedor | ML |
+| Para Sofrer Falta / Para Dar Passe / outros props estatísticos individuais de jogador (Futebol) | Player Props |
 | **Criar Aposta** (container) | **Múltipla** |
 
 Notas de reconstrução:

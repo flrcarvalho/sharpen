@@ -7,7 +7,7 @@ GLOBAL_DIR = ROOT / "global"
 CASAS_DIR  = ROOT / "casas"
 
 # Trocar modelo é decisão humana — altere aqui e reinicie o servidor
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
 ALLOWED_MODELS = [
     "claude-haiku-4-5-20251001",
