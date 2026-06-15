@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-14 (sessão 15 — Auditoria aliases e travamento de odd)_
+_Atualizado: 2026-06-14 (sessão 16 — UX upload de imagens + deduplicacao por ID)_
 
 ---
 
@@ -134,6 +134,19 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
   - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
 
+- **Sessão 16 (14/06/2026) — UX upload de imagens + deduplicacao por ID:**
+  - Fix: X vermelho do thumbnail abria file browser (event bubbling). Substituido pseudo-elemento ::after por `<button class="thumb-del">` real com `stopPropagation`.
+  - Feat: botao "Limpar imagens" aparece com 2+ imagens; remove so imagens sem apagar texto/status.
+  - Feat: lightbox — clique na imagem abre overlay em tela cheia (ate 90% da tela); fecha com clique no overlay ou Esc.
+  - Fix: div `#img-lightbox` estava apos o `</script>`, causando `TypeError: Cannot read properties of null`. Movida para antes do bloco script.
+  - Feat: contador de imagens na barra de acoes (`X imagem(ns)`); some ao limpar.
+  - Fix critico: deduplicacao agora usa ID/codigo do bilhete como chave primaria quando disponivel. A IA extrai o ID como 11a coluna interna no TSV (nao vai para a planilha do usuario). IDs diferentes = INSERT separado mesmo com conteudo identico. Sem ID no lote = alerta amarelo de possivel sobreposicao de prints.
+  - Fix: `odd` incluida no hash de assinatura — bilhetes com mesmos jogos mas odds diferentes nao sao mais colapsados.
+  - Fix: coluna `codigo_bilhete TEXT` adicionada ao banco com migracao idempotente (`ADD COLUMN IF NOT EXISTS`).
+  - Fix: nome de casa normalizado para display name (`Superbet`, nao `SUPERBET`). Migracao SQL atualiza registros existentes em `bilhetes` e `parceiros` no proximo boot.
+  - `CLAUDE.md` atualizado com 11a coluna interna e tabela de regras de deduplicacao.
+  - Backups em `Planilhador/Backups/fix-upload-bubbling-limpar-imgs/`, `fix-dedup-odd-lightbox/`, `feat-codigo-bilhete-dedup/`, `fix-casa-display-name/`.
+
 - **Sessão 15 (14/06/2026) — Auditoria aliases e travamento de odd:**
   - Auditoria completa em todos os `casas/CASA_*.md` e `global/MASTER_*.md` para dois tipos de ruido: grafia de casas e travamento de odd.
   - `CASA_BET365.md §1`: linha `Aliases` removida + `Odds: 2-3 casas` removido do locale.
@@ -175,14 +188,15 @@ uvicorn main:app --reload
 
 **Fases 1, 2 e 3 concluídas.** App em produção: `https://extrator-production.up.railway.app/`
 
-**Sessão 15 concluída.** Deploy realizado. Aliases removidos e travamentos de odd eliminados em todas as casas.
+**Sessão 16 concluída.** Deploy realizado. UX de upload corrigida e deduplicacao por ID implementada.
 
-**Proximas etapas — Sessao 16:**
-1. Testar fluxo completo: processar bilhetes → grade preenche → deletar individual → deletar multiplos → desfazer analise.
-2. Verificar odd de bilhete com SUPERMULTIPLA: deve ser PREMIO / Stake (ex: 11,37606666666667), nao ODDS TOTAIS (10,88).
-3. Testar campo "Captura": processar print de ontem com data ajustada → verificar se "Hoje" resolve corretamente.
-4. Pendencias de amostra das casas (ver secao 5).
-5. Avaliar arquivamento/reativacao de parceiro via UI (botao reativar nao exposto ainda).
+**Proximas etapas — Sessao 17:**
+1. Testar deduplicacao com ID: subir 2 bilhetes com mesmo conteudo mas IDs diferentes → ambos devem ser salvos.
+2. Testar alerta de sobreposicao: subir 2 prints com bilhete identico sem ID → deve aparecer aviso amarelo.
+3. Verificar exibicao de "Superbet" (display name) na grade apos migracao do banco.
+4. Testar lightbox: clicar em thumbnail → abre overlay; clicar fora ou Esc → fecha.
+5. Pendencias de amostra das casas (ver secao 5).
+6. Avaliar arquivamento/reativacao de parceiro via UI (botao reativar nao exposto ainda).
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
