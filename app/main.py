@@ -105,9 +105,10 @@ _INSTRUCAO = (
 
 # ── Rotas existentes ──────────────────────────────────────────────────────────
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def root():
-    return (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
+    content = (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/casas")
