@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-14 (sessão 17 — fix gravíssimo: múltiplas fragmentadas + Handicap-Finalizações)_
+_Atualizado: 2026-06-15 (sessão 17 — auditoria completa: leitura de imagem, ordenação por casa)_
 
 ---
 
@@ -134,13 +134,13 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
   - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
 
-- **Sessão 17 (14/06/2026) — Fix gravíssimo: múltiplas fragmentadas + Handicap-Finalizações:**
-  - Bug raiz: `_INSTRUCAO` em `app/main.py` não tinha regra explícita para múltiplas → IA gerava 1 linha por seleção (ex.: bilhete 890J-QD71FJ com 4 seleções → 4 linhas erradas).
-  - `app/main.py _INSTRUCAO`: bloco "MÚLTIPLA — REGRA ABSOLUTA" adicionado: N seleções = 1 linha, Aposta=Múltipla, Odd=ODDS TOTAIS (L/V) ou PRÊMIO÷Stake (W), Stake=valor total, Descrição=pernas com `//`.
-  - `MASTER_PIPELINE_2026 §3.1`: texto ambíguo ("preservar todas as seleções") substituído por regra clara: múltipla = 1 linha TSV.
-  - `CASA_SUPERBET §9`: mapeamentos adicionados — `Handicap - Finalizações → Chutes`, `Handicap - Desarmes → Desarmes`; nota de padrão geral `Handicap - [X] → mesma categoria de Total de [X]`.
-  - `CASA_SUPERBET §15`: goldens #6 (890J-QD71FJ — 4 seleções L) e #7 (890T-QKIS3M — 3 seleções Handicap-Chutes L) adicionados.
-  - Backup em `Planilhador/Backups/sessao17-fix-multiplas-2026-06-14/`.
+- **Sessão 17 — Auditoria completa (14–15/06/2026):**
+  - **Parte 1 (14/06):** Bug múltiplas fragmentadas — `_INSTRUCAO` adicionou regra MÚLTIPLA; `MASTER_PIPELINE §3.1` corrigido; `CASA_SUPERBET §9` + goldens #6/#7 adicionados.
+  - **Parte 2 (15/06):** 3 bugs adicionais identificados e corrigidos:
+    - Bug 1 (leitura incompleta): `_INSTRUCAO` reescrita — "leia a imagem inteiramente incluindo campos abaixo do ID (ODDS TOTAIS, APOSTA, STATUS)"; "L → ODDS TOTAIS lida diretamente, nunca calculada"; "TODAS as N seleções na Descrição".
+    - Bug 2 (imagens puladas): `_INSTRUCAO` — "para cada imagem extraia TODOS os bilhetes; não pule nenhuma imagem". `max_tokens` 4096 → 8192.
+    - Bug 3 (ordenação universal incorreta): `MASTER_OUTPUT §15` — regra universal removida, redirecionada para §2 de cada casa. Regras adicionadas individualmente: `CASA_SUPERBET §2` (manter ordem), `CASA_BET365 §2` (última aposta da última imagem = 1ª linha), `CASA_BETANO §2` (fim do texto = 1ª linha), `CASA_BETFAIR §2` (fim do texto = 1ª linha), `CASA_PINNACLE §2` (aposta #1 = mais nova = última linha).
+  - Backups em `sessao17-fix-multiplas-2026-06-14/` e `sessao17-auditoria-completa-2026-06-15/`.
 
 - **Sessão 16 (14/06/2026) — UX upload de imagens + deduplicacao por ID:**
   - Fix: X vermelho do thumbnail abria file browser (event bubbling). Substituido pseudo-elemento ::after por `<button class="thumb-del">` real com `stopPropagation`.

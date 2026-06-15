@@ -21,7 +21,8 @@
 ## 2. Modo de ingestão e layout
 
 - **Modo de ingestão: visão (screenshot). Sem export estruturado.**
-- **Feed contínuo:** múltiplos prints = mesmo scroll. 1º print = mais recente; dentro do print, topo = mais recente. Processar **baixo → cima**; output **antigo → recente** (inversão = global, `MASTER_OUTPUT_2026 §15`).
+- **Feed contínuo:** múltiplos prints = mesmo scroll. 1º print = mais recente; dentro do print, topo = mais recente.
+- **Ordenação de output:** última aposta da última imagem = 1ª linha no TSV (mais antiga); 1ª aposta da 1ª imagem = última linha no TSV (mais recente). Processar de baixo para cima dentro de cada imagem, das imagens da última para a primeira.
 - Abas: `Em Aberto` · `Encerrar Aposta` (cashout) · `Ao Vivo` · `Resolvidas`.
 
 Anatomia de um bilhete:

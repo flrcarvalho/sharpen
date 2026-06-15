@@ -36,6 +36,8 @@ Dois modos:
 
 **Tela de aberta:** tipo+stake · seleção+odd · mercado · confronto · **data do jogo** (`Esta noite 22:00` / `Amanhã 21:30`) · `Ganhos Potenciais` · botão `CASH OUT R$X`.
 
+**Ordenação de output (texto copiado):** fim do texto = 1ª linha no TSV (mais antiga); início do texto = última linha no TSV (mais recente). Processar do fim para o início do texto colado.
+
 ---
 
 ## 3. ID do bilhete

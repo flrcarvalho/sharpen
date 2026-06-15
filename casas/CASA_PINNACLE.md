@@ -49,6 +49,8 @@ Colunas do export e como ler cada célula (multilinha, separada por `\n`):
 
 Os **rótulos diferem entre a tabela web e o export** (ex.: web `Partida Handicap` vs export `Partida HDP`; web `E-sports` vs export `E Sports`). O §8 cobre os dois.
 
+**Ordenação de output (export .xls e screenshot):** aposta #1 = mais nova = última linha no TSV; aposta mais antiga = 1ª linha no TSV. Processar em ordem inversa à apresentada no arquivo ou na tela.
+
 ### 2.2 Print / Visão (screenshot da tabela web)
 
 Quando o export não estiver disponível, o extrator aceita screenshot da tabela web.

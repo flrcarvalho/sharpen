@@ -31,8 +31,9 @@ Cada aposta é um **bloco único**, de cima para baixo:
 7. `STATUS`
 8. Cabeçalho de **criação** do bilhete (`DD DE MMM. DE AAAA — HH:MM`) — fica junto ao ID, **não** é a data da aposta (ver §4)
 
-Regra de blocos: interpretar cada bloco até o ID; nunca misturar seleções de blocos diferentes.
-Ordem na tela: mais recente no topo → mais antiga embaixo. A inversão para o output é **global** (`MASTER_OUTPUT_2026 §15`).
+Regra de blocos: interpretar cada bloco completo (seleções + ID + ODDS TOTAIS + APOSTA + STATUS); nunca misturar seleções de blocos diferentes.
+
+**Ordenação de output:** manter a ordem das imagens enviadas. 1ª imagem colada = 1ª linha no TSV. NÃO inverter — o usuário controla a ordem ao colar os prints.
 
 ---
 

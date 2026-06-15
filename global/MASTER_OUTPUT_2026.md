@@ -362,43 +362,14 @@ Isso garante compatibilidade com a planilha.
 
 # 15. Ordem das Apostas
 
-Os bilhetes das casas normalmente aparecem:
+A ordenação do output **não é universal** — cada casa tem sua própria regra.
 
-```text
-mais recente → mais antigo
-```
+Consultar obrigatoriamente o **§2 do arquivo da casa** (`CASA_*.md`) para saber:
+- se a ordem das imagens/texto deve ser mantida ou invertida
+- qual ponta do input corresponde ao bilhete mais antigo
 
-Porém a planilha exige:
-
-```text
-mais antigo → mais recente
-```
-
-Portanto o extrator deve inverter a ordem das apostas antes de gerar o TSV.
-
-Regra obrigatória:
-
-```text
-Extrair apostas na ordem inversa do texto.
-```
-
-Exemplo:
-
-Texto da casa:
-
-```text
-Aposta 3 (mais recente)
-Aposta 2
-Aposta 1 (mais antiga)
-```
-
-TSV final:
-
-```text
-Aposta 1
-Aposta 2
-Aposta 3
-```
+A planilha exige sempre **mais antigo → mais recente** na saída final.
+A regra por casa define como chegar nessa ordem a partir do input recebido.
 
 ---
 
