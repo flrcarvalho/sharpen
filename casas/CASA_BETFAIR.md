@@ -144,7 +144,7 @@ Notas de reconstrução:
 
 ## 12. Ruído a ignorar
 
-Ícone de cash out / `Substituição Segura` · `Adicionar seleções restantes ao cupom` · `Retorno com bônus. Ver detalhes` · no extrato: linhas `Bet Placed` (só `Bet Settled`/`Voided Bet Refund` importam pro join) e o `Transaction ID: S/…`.
+Ícone de cash out · `Substituição Segura` (produto de seguro — não é substituição de jogador durante o jogo; ruído para categoria) · `Adicionar seleções restantes ao cupom` · `Retorno com bônus. Ver detalhes` · no extrato: linhas `Bet Placed` (só `Bet Settled`/`Voided Bet Refund` importam pro join) e o `Transaction ID: S/…` · se a Betfair exibir substituição durante o jogo com nome tachado: aplicar regra global — nome tachado = jogador original (usar), nome em destaque = substituto (ignorar).
 
 ---
 

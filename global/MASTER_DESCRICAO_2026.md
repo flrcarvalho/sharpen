@@ -293,6 +293,15 @@ Anthony Davis - Under 10.5 Rebotes [LAL Lakers v CHI Bulls]
 Ja Morant - Over 7.5 Assistências [MEM Grizzlies v PHI 76ers]
 ```
 
+**Substituição de jogador:** Quando o bilhete indica que o jogador original foi substituído, SEMPRE usar o nome do jogador ORIGINAL (aquele por quem a aposta foi feita). Ignore o nome do substituto.
+
+Sinal visual (varia por casa): nome original aparece riscado/tachado; substituto em destaque acima, frequentemente com um badge ("SUBSTITUIÇÃO+", "SUB", ou similar).
+
+```text
+✓ Correto:  Benjamin Nygren - Jogador a Dar Assistência [Suécia v Tunisia]
+✗ Errado:   Lucas Bergvall - Jogador a Dar Assistência [Suécia v Tunisia]
+```
+
 ---
 
 ## 12.4 Múltiplos Mercados do Mesmo Jogador

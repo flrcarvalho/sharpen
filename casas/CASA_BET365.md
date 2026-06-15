@@ -166,7 +166,7 @@ Precisão da odd calculada: preservar (global).
 
 ## 12. Ruído a ignorar
 
-Barras de progresso com número (stat ao vivo) · placares e scoreboards ao vivo · ícones de camisa/play · `Reutilizar Seleções` · `Líder por X` · prefixos de placar `(1-0)` · `Ao-Vivo` · tag promocional `SUBSTITUIÇÃO+`.
+Barras de progresso com número (stat ao vivo) · placares e scoreboards ao vivo · ícones de camisa/play · `Reutilizar Seleções` · `Líder por X` · prefixos de placar `(1-0)` · `Ao-Vivo` · badge `SUBSTITUIÇÃO+` (o badge em si é ruído — mas quando presente: o nome em **strikethrough/tachado** = jogador original → usar na Descrição; o nome acima em destaque = substituto → ignorar).
 (As tags `Anulado` / `½ Ganho` / `½ Perdido` / `½ Anulado` **não** são ruído — são sinais de resultado, ver §5.)
 
 ---

@@ -156,7 +156,7 @@ Notas:
 
 ## 12. Ruído a ignorar
 
-`Interaja com a comunidade` · `Entrar no Supersocial` · `Dicas` · `+ Adicionar` · banners promocionais · barras de progresso ao vivo com número (ex.: `16`, `8`, `13` — são o stat ao vivo da seleção, não fazem parte da aposta).
+`Interaja com a comunidade` · `Entrar no Supersocial` · `Dicas` · `+ Adicionar` · banners promocionais · barras de progresso ao vivo com número (ex.: `16`, `8`, `13` — são o stat ao vivo da seleção, não fazem parte da aposta) · quando houver badge ou indicação de substituição: o nome tachado/riscado = jogador original (usar), o nome em destaque acima = substituto (ignorar).
 
 ---
 

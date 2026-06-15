@@ -143,7 +143,7 @@ Notas de reconstrução:
 
 ## 12. Ruído a ignorar
 
-`sport-icon` · `copy icon` · `Pontuação: X-Y` (placar) · `Ganhos Potenciais` (tela aberta = potencial, não real) · botões `Reapostar`/`Compartilhar`/`CASH OUT` · `Anulado se o jogador não iniciar` (condição, não resultado).
+`sport-icon` · `copy icon` · `Pontuação: X-Y` (placar) · `Ganhos Potenciais` (tela aberta = potencial, não real) · botões `Reapostar`/`Compartilhar`/`CASH OUT` · `Anulado se o jogador não iniciar` (condição, não resultado) · quando houver badge ou indicação de substituição: o nome tachado/riscado = jogador original (usar), o nome em destaque acima = substituto (ignorar).
 
 ---
 

@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-15 (sessão 21 — fix completo extração acumulada: SSE streaming + âncora de casa)_
+_Atualizado: 2026-06-15 (sessão 22 — regra de substituição de jogador em Player Props)_
 
 ---
 
@@ -134,6 +134,16 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
   - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
 
+- **Sessão 22 — Regra de substituição de jogador em Player Props (15/06/2026):**
+  - **Bug:** quando um jogador era substituído, o sistema extraía o nome do substituto (em destaque no bilhete) em vez do jogador original (riscado/tachado). A aposta foi feita no original — ele deve aparecer na Descrição.
+  - **Causa raiz:** `SUBSTITUIÇÃO+` estava classificado como ruído (correto para o badge) mas sem instrução sobre qual nome usar quando há substituição. O modelo escolhia o mais visualmente proeminente = substituto.
+  - **Fix: `MASTER_DESCRICAO_2026 §12.3`** — nota de substituição adicionada globalmente: "nome tachado = jogador original (usar); nome em destaque acima = substituto (ignorar)". Exemplo concreto: Benjamin Nygren vs Lucas Bergvall.
+  - **Fix: `CASA_BET365 §12`** — badge `SUBSTITUIÇÃO+` diferenciado: badge = ruído, mas quando presente o nome tachado = original (usar), o nome acima = substituto (ignorar).
+  - **Fix: `CASA_SUPERBET §12`** — nota de substituição adicionada.
+  - **Fix: `CASA_BETANO §12`** — nota de substituição adicionada.
+  - **Fix: `CASA_BETFAIR §12`** — aclaração: "Substituição Segura" = produto de seguro (ruído); substituição de jogador durante jogo com nome tachado → regra global.
+  - Backup em `Planilhador/Backups/substituicao-player-props-2026-06-15/`.
+
 - **Sessão 21 — Fix completo: segunda extração + alucinação de casa (15/06/2026):**
   - **Root cause confirmado:** Railway proxy timeout (~60s) matava `/extrair` com 502. System prompt da Bet365 cresceu para ~26K tokens; com Sonnet 4.6 + 9 imagens a chamada levava 90-120s.
   - **Fix crítico: SSE streaming** — `/extrair` agora usa `_client.messages.stream()` + `StreamingResponse(media_type="text/event-stream")`. Chunks chegam ao browser em tempo real; Railway nunca fica idle; timeout eliminado.
@@ -226,7 +236,7 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 21:** App em produção estável. SSE streaming resolve timeout Railway. Acumulação de bets entre sessões funciona. Notas Críticas ancoradas na casa correta.
+**Estado após sessão 22:** Regra de substituição de jogador documentada globalmente (MASTER_DESCRICAO) e nas 4 casas afetadas (Bet365, Superbet, Betano, Betfair). App em produção estável.
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
