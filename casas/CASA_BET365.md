@@ -75,8 +75,11 @@ Resultado do bilhete (rótulo sup. dir. + bloco financeiro):
 | Bet365 exibe | Código |
 |---|---|
 | ✓ verde / sem "Perdida" + Retorno Obtido > 0 | W |
-| `Perdida` / Retorno Obtido `R$0,00` | L |
+| `Perdida` no cabeçalho (qualquer RO) | L |
+| Retorno Obtido `R$0,00` (qualquer rótulo) | L |
 | `Anulado` / `Anulada` / `Reembolso(Push)` / `Void` | V |
+
+> ⚠️ **Rótulo "Perdida" tem prioridade absoluta:** se o cabeçalho diz `Perdida`, o resultado é L MESMO QUE o campo `Retorno Obtido` pareça mostrar valor > R$0,00. Isso indica erro de leitura OCR (símbolo `$` confundido com o dígito `5`, e.g. "R$0,00" lido como "R50"). O valor real é sempre R$0,00 quando o bilhete está marcado como `Perdida`. Não calcule `RO ÷ Stake` neste caso.
 
 **Meia-liquidação (HW/HL) — gatilho confirmado:** a Bet365 não usa um rótulo "Half Win" inteiro; ela marca as **metades como tags na seleção**. O líquido é a soma:
 

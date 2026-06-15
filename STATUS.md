@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-15 (sessão 22 — regra de substituição de jogador em Player Props)_
+_Atualizado: 2026-06-15 (sessão 22 — fix prioridade rótulo "Perdida" vs RO)_
 
 ---
 
@@ -144,6 +144,13 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Fix: `CASA_BETFAIR §12`** — aclaração: "Substituição Segura" = produto de seguro (ruído); substituição de jogador durante jogo com nome tachado → regra global.
   - Backup em `Planilhador/Backups/substituicao-player-props-2026-06-15/`.
 
+- **Sessão 22 — Fix prioridade rótulo "Perdida" vs RO / OCR (15/06/2026):**
+  - **Bug:** bilhete "Criar Aposta" com rótulo `Perdida` e `Retorno Obtido R$0,00` foi extraído como W, Odd=0,50 (cashout).
+  - **Causa raiz:** o prompt de `main.py` instruía "W com retorno visível → Odd = Retorno ÷ Stake" sem verificar o rótulo primeiro. A IA inferia W a partir do RO (RO>0 → W). Quando OCR leu "R$0,00" como "R$50" (símbolo `$` confundido com dígito `5`), nenhum filtro bloqueou: RO=50 → W → Odd=0,50.
+  - **Fix 1: `app/main.py`** — adicionado bloco `RESULTADO — LEITURA OBRIGATÓRIA ANTES DA ODD` antes das regras de odd: instrui a IA a ler o rótulo do bilhete ANTES de qualquer campo financeiro. "Perdida" → L, encerrar sem calcular RO÷Stake. Alerta OCR explícito: "R$0,00 pode ser lido como R50 ($ confundido com 5)".
+  - **Fix 2: `casas/CASA_BET365.md §5`** — tabela de resultados clarificada: linha ambígua `Perdida / R$0,00 → L` separada em duas linhas (OR explícito). Nota de prioridade absoluta adicionada: rótulo "Perdida" prevalece mesmo se OCR retornar RO>0.
+  - Backup em `Planilhador/Backups/sessao22-fix-rotulo-perdida/`.
+
 - **Sessão 21 — Fix completo: segunda extração + alucinação de casa (15/06/2026):**
   - **Root cause confirmado:** Railway proxy timeout (~60s) matava `/extrair` com 502. System prompt da Bet365 cresceu para ~26K tokens; com Sonnet 4.6 + 9 imagens a chamada levava 90-120s.
   - **Fix crítico: SSE streaming** — `/extrair` agora usa `_client.messages.stream()` + `StreamingResponse(media_type="text/event-stream")`. Chunks chegam ao browser em tempo real; Railway nunca fica idle; timeout eliminado.
@@ -236,7 +243,7 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 22:** Regra de substituição de jogador documentada globalmente (MASTER_DESCRICAO) e nas 4 casas afetadas (Bet365, Superbet, Betano, Betfair). App em produção estável.
+**Estado após sessão 22:** Fix de prioridade de rótulo aplicado (`main.py` + `CASA_BET365.md §5`): IA agora lê o rótulo "Perdida" antes de qualquer campo financeiro e nunca calcula RO÷Stake quando rótulo=Perdida. Regra de substituição de jogador documentada globalmente (MASTER_DESCRICAO) e nas 4 casas afetadas (Bet365, Superbet, Betano, Betfair). App em produção estável.
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
