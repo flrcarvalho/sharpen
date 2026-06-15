@@ -26,8 +26,16 @@
 - Abas: `Em Aberto` · `Encerrar Aposta` (cashout) · `Ao Vivo` · `Resolvidas`.
 
 **Sinal visual de esporte:** A Bet365 exibe ícone de camisa colorida (jersey icon) ao lado de **times** e nenhum ícone (ou foto pequena) ao lado de **jogadores individuais**.
-- Jersey icon visível = esporte de equipe (Futebol, Basquete…)
-- Sem jersey icon, nomes de pessoa = esporte individual (Tênis, Dardos…)
+
+| Sinal visual | Participantes | Esporte provável |
+|---|---|---|
+| Jersey icon visível | Nomes de times/países | Futebol, Basquete… (esporte de equipe) |
+| Sem jersey icon | Nomes de **pessoa** | Tênis, Dardos… (esporte individual) |
+| **Sem jersey icon** | Nomes de **países/seleções** | **Vôlei** (ou outro esporte coletivo sem jersey na Bet365) |
+
+> **Futebol entre seleções → jersey icon presente.** Bélgica, Brasil, Alemanha em partidas de Futebol aparecem com o ícone de camisa colorida ao lado.
+>
+> **Vôlei entre seleções → sem jersey icon.** Canadá, Turquia, Bulgária, Sérvia em partidas de Vôlei aparecem apenas com o nome do país em texto, sem ícone. Confirme pelo placar: 2–3 ou 0–3 indica sets de Vôlei, não gols.
 
 > **Nota §12:** o jersey icon é ruído para extração de dados (mercado, seleção, odd), mas **não é ruído para classificação de esporte**. Leia a presença/ausência do ícone para determinar o esporte; ignore o ícone ao montar a Descrição. São usos distintos da mesma informação visual.
 

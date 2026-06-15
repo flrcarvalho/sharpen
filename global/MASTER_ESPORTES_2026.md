@@ -538,6 +538,24 @@ Exemplos:
 
 ---
 
+### Regra de Desambiguação — Vôlei vs Futebol (Bet365)
+
+Em mercados ML (`Partida - Vencedor`) com nomes de países/seleções, o sinal visual do jersey icon da Bet365 é o discriminante principal:
+
+| Sinal na Bet365 | Esporte |
+|---|---|
+| Jersey icon colorido ao lado do país | **Futebol** |
+| Sem jersey icon ao lado do país | **Vôlei** (ou outro esporte coletivo) |
+
+Confirme pelo placar quando disponível: `2–3` ou `0–3` indica **sets de Vôlei**, não gols.
+
+Exemplos reais:
+- `Bélgica v Egito` com jersey icon → **Futebol**
+- `Canadá v Turquia` sem jersey icon, placar 2–3 → **Vôlei**
+- `Bulgária v Sérvia` sem jersey icon, placar 0–3 → **Vôlei**
+
+---
+
 ### Regra Crítica — Futebol vs E-Sports
 
 E-Sports é **exclusivo de jogos eletrônicos** (League of Legends, CS2, VALORANT, Dota 2, etc.). Futebol real nunca deve ser classificado como E-Sports.
