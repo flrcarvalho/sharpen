@@ -163,14 +163,16 @@ body::before {
 .upload-label strong { color: var(--accent-2); }
 .upload-hint { font-size: 11px; color: var(--ink-mute); margin-top: 3px; }
 .upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; justify-content: center; }
-.thumb { width: 48px; height: 48px; border-radius: var(--r-sm); object-fit: cover; border: 1px solid var(--line); }
-.thumb-rm { position: relative; cursor: pointer; }
-.thumb-rm::after {
-  content: "✕"; position: absolute; top: -4px; right: -4px;
+.thumb { width: 48px; height: 48px; border-radius: var(--r-sm); object-fit: cover; border: 1px solid var(--line); cursor: zoom-in; }
+.thumb-rm { position: relative; }
+.thumb-del {
+  position: absolute; top: -4px; right: -4px;
   background: var(--neg); color: #fff; width: 14px; height: 14px;
-  border-radius: 50%; font-size: 8px; display: flex;
-  align-items: center; justify-content: center; line-height: 14px;
+  border-radius: 50%; font-size: 8px; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; line-height: 14px; padding: 0;
 }
+#img-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 9999; align-items: center; justify-content: center; cursor: zoom-out; }
+#img-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
 #file-input { display: none; }
 .text-area {
   width: 100%; background: var(--surface); border: 1px solid var(--line);
@@ -758,16 +760,34 @@ function renderPreviews() {
   const p = document.getElementById('preview');
   p.innerHTML = '';
   arquivos.forEach((f, i) => {
+    const url = URL.createObjectURL(f);
     const wrap = document.createElement('div');
     wrap.className = 'thumb-rm';
+
     const img = document.createElement('img');
-    img.className = 'thumb'; img.src = URL.createObjectURL(f);
-    wrap.appendChild(img);
-    wrap.addEventListener('click', e => { e.stopPropagation(); arquivos.splice(i, 1); renderPreviews(); atualizarBotaoExtrair(); });
+    img.className = 'thumb'; img.src = url; img.title = 'Clique para ampliar';
+    img.addEventListener('click', e => { e.stopPropagation(); abrirLightbox(url); });
+
+    const btn = document.createElement('button');
+    btn.className = 'thumb-del'; btn.textContent = '✕';
+    btn.addEventListener('click', e => { e.stopPropagation(); arquivos.splice(i, 1); renderPreviews(); atualizarBotaoExtrair(); });
+
+    wrap.appendChild(img); wrap.appendChild(btn);
     p.appendChild(wrap);
   });
   document.getElementById('btn-limpar-imgs').style.display = arquivos.length > 1 ? '' : 'none';
 }
+
+function abrirLightbox(url) {
+  document.getElementById('img-lightbox-img').src = url;
+  document.getElementById('img-lightbox').style.display = 'flex';
+}
+document.getElementById('img-lightbox').addEventListener('click', () => {
+  document.getElementById('img-lightbox').style.display = 'none';
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('img-lightbox').style.display = 'none';
+});
 function atualizarBotaoExtrair() {
   const ok = arquivos.length > 0 || document.getElementById('texto').value.trim();
   document.getElementById('btn-extrair').disabled = !parceiroSelecionado || !ok;
@@ -1208,5 +1228,6 @@ document.getElementById('btn-desfazer').addEventListener('click', async () => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 carregarCasas();
 </script>
+<div id="img-lightbox"><img id="img-lightbox-img" alt=""></div>
 </body>
 </html>

@@ -31,6 +31,7 @@ def _assinatura(row: dict) -> str:
     raw = "|".join([
         row.get("casa", ""), row.get("parceiro", ""),
         row.get("data", ""), row.get("aposta", ""), row.get("descricao", ""),
+        row.get("odd", ""),
     ])
     return hashlib.sha256(raw.encode()).hexdigest()[:20]
 
