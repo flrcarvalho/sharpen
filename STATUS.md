@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-14 (sessão 13 — Layout two-column + grade editável)_
+_Atualizado: 2026-06-14 (sessão 14 — Fix grade vazia + deletar + resizer + odd)_
 
 ---
 
@@ -118,6 +118,16 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - `CLAUDE.md` invariante 8 adicionada: commit e push sempre juntos.
   - Backups em `Planilhador/Backups/pre_layout_twocol_2026-06-14_*` e `pre_editable_grade_2026-06-14_*`.
 
+- **Sessão 14 (14/06/2026) — Fix grade vazia + deletar + resizer + odd:**
+  - **Fix crítico (root cause):** `/salvar` agora recebe `casa` e `parceiro` do app e sobrescreve os valores do TSV antes de salvar. A IA deixava `parceiro` vazio e escrevia `"Superbet"` (não `"SUPERBET"`), causando mismatch no filtro `WHERE casa=SUPERBET AND parceiro=...` → grade sempre 0 resultados.
+  - `upsert_bilhetes` alterado para retornar `list[int]` (IDs via `RETURNING id`). `/salvar` retorna `{"salvos": N, "ids": [...]}`.
+  - `DELETE /bilhetes` (lote) e `DELETE /bilhetes/{id}` (individual) adicionados. `deletar_bilhetes()` em `repository.py`.
+  - Grade: botão `✕` por linha; checkbox de seleção múltipla com "selecionar todos"; "Deletar Selecionados" (aparece dinamicamente); "Desfazer Análise" (apaga apenas os bilhetes da última extração).
+  - Botão renomeado: "Extrair TSV" → "Processar Bilhetes".
+  - Divisor redimensionável entre painel esquerdo e painel IA (arraste, mín 220px / máx 700px).
+  - `_INSTRUCAO` em `main.py`: regra inviolável de precisão de odd (até 12 casas decimais, sem arredondamento).
+  - Backup em `Planilhador/Backups/sessao14-grade-fix/`.
+
 ---
 
 ## 5. Pendências (ordem)
@@ -147,9 +157,11 @@ uvicorn main:app --reload
 
 **Fases 1, 2 e 3 concluídas.** App em produção: `https://extrator-production.up.railway.app/`
 
-**Próximas etapas — Sessão 14:**
-1. Testar em produção o fluxo completo: criar parceiro, extrair, verificar grade preenchida, editar célula, copiar pendentes.
-2. Avaliar se o tamanho do painel direito (400px) está adequado em diferentes resoluções.
+**Sessão 14 concluída.** Deploy realizado. Aguardar Railway subir e testar fluxo completo em produção.
+
+**Próximas etapas — Sessão 15:**
+1. Testar em produção: processar bilhetes → grade preenche → deletar individual → deletar múltiplos → desfazer análise.
+2. Verificar precisão da odd em bilhetes com cashout (ex: 473,46 ÷ 50 = 9,4692).
 3. Pendências de amostra das casas (ver seção 5).
 4. Avaliar arquivamento/reativação de parceiro via UI (botão reativar não exposto ainda).
 
