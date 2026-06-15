@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-14 (sessão 16 — UX upload de imagens + deduplicacao por ID)_
+_Atualizado: 2026-06-14 (sessão 17 — fix gravíssimo: múltiplas fragmentadas + Handicap-Finalizações)_
 
 ---
 
@@ -133,6 +133,14 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - Backup em `Planilhador/Backups/sessao14-odd-instrucao/`.
   - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
   - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
+
+- **Sessão 17 (14/06/2026) — Fix gravíssimo: múltiplas fragmentadas + Handicap-Finalizações:**
+  - Bug raiz: `_INSTRUCAO` em `app/main.py` não tinha regra explícita para múltiplas → IA gerava 1 linha por seleção (ex.: bilhete 890J-QD71FJ com 4 seleções → 4 linhas erradas).
+  - `app/main.py _INSTRUCAO`: bloco "MÚLTIPLA — REGRA ABSOLUTA" adicionado: N seleções = 1 linha, Aposta=Múltipla, Odd=ODDS TOTAIS (L/V) ou PRÊMIO÷Stake (W), Stake=valor total, Descrição=pernas com `//`.
+  - `MASTER_PIPELINE_2026 §3.1`: texto ambíguo ("preservar todas as seleções") substituído por regra clara: múltipla = 1 linha TSV.
+  - `CASA_SUPERBET §9`: mapeamentos adicionados — `Handicap - Finalizações → Chutes`, `Handicap - Desarmes → Desarmes`; nota de padrão geral `Handicap - [X] → mesma categoria de Total de [X]`.
+  - `CASA_SUPERBET §15`: goldens #6 (890J-QD71FJ — 4 seleções L) e #7 (890T-QKIS3M — 3 seleções Handicap-Chutes L) adicionados.
+  - Backup em `Planilhador/Backups/sessao17-fix-multiplas-2026-06-14/`.
 
 - **Sessão 16 (14/06/2026) — UX upload de imagens + deduplicacao por ID:**
   - Fix: X vermelho do thumbnail abria file browser (event bubbling). Substituido pseudo-elemento ::after por `<button class="thumb-del">` real com `stopPropagation`.

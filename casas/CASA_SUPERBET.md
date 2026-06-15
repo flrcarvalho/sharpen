@@ -116,8 +116,10 @@ Códigos válidos e regra de odd por código: `MASTER_RESULTADO_2026`.
 | Total de Escanteios | Escanteios |
 | Total de Cartões | Cartões |
 | Total de Finalizações | Chutes |
+| Handicap - Finalizações / Handicap de Finalizações | Chutes |
 | Chutes no Gol | Chutes no Gol |
 | Total de Desarmes | Desarmes |
+| Handicap - Desarmes | Desarmes |
 | Total de Games / Games Ímpar/Par | Games |
 | Total de Quebras (tênis) | Player Props |
 | Total de strikeouts do arremessador (MLB) | Player Props |
@@ -125,6 +127,7 @@ Códigos válidos e regra de odd por código: `MASTER_RESULTADO_2026`.
 | Empate ou 2 / Dupla Chance | Dupla Chance |
 
 Notas:
+- **Padrão geral `Handicap - [Estatística]`:** a categoria registra o objeto apostado (MASTER_APOSTAS §1), não o tipo de mercado. `Handicap - Finalizações` → `Chutes`; `Handicap - Escanteios` → `Escanteios`; `Handicap - Cartões` → `Cartões`. A linha de handicap fica na Descrição (ex.: `Catar (+10.5) Chutes [Catar v Suíça]`).
 - "Total de X" precedido de nome de time/jogador (`Tunísia - Total de Cartões`, `Brusque - Total de Escanteios`) = total **da entidade**; a entidade entra na descrição (`MASTER_DESCRICAO_2026 §12.3/12.5`), a categoria segue a mesma.
 - Nome de jogador em "Sobrenome, Nome" (`Valdez, Framber`) → normalizar para `Framber Valdez` na descrição.
 
@@ -207,6 +210,22 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 ```
 > ODDS TOTAIS exibido = 10,88 (sem boost). SUPERMÚLTIPLA 5% (+R$ 74,11). PRÊMIO = 1.706,41.
 > **Odd correta = 1.706,41 ÷ 150 = 11,37606666666667** — nunca registrar 10,88.
+
+**#6 — Múltipla L 4 seleções (`890J-QD71FJ`)** — 1 linha, Odd=ODDS TOTAIS, Stake=campo APOSTA inteiro:
+```
+12/06/2026	Futebol		Superbet		Múltipla	X2 [Ursus Warszawa v Wilga Garwolin] // X2 [Lech Rypin v Orleta Aleksandrow Kujawski] // Under 30.5 Desarmes [Canadá v Bósnia e Herzegovina] // Under 21.5 Chutes [EUA v Paraguai]	200,00	37,86	L	890J-QD71FJ
+```
+> 4 seleções (2× Dupla Chance + Desarmes + Chutes). ODDS TOTAIS = 37,86; APOSTA = 200,00 R$; STATUS = Perdido.
+> Esporte = Futebol (todas as pernas). Data = perna mais recente (Sex 12. Jun, 22:00 = 12/06/2026).
+> NUNCA gerar 4 linhas separadas — é 1 bilhete, 1 ID, 1 linha.
+
+**#7 — Múltipla L 3 seleções Handicap-Chutes (`890T-QKIS3M`)** — categoria Chutes (não Handicap):
+```
+13/06/2026	Futebol		Superbet		Múltipla	Catar (+10.5) Chutes [Catar v Suíça] // Brasil (-2.5) Chutes [Brasil v Marrocos] // Haiti (+6.5) Chutes [Haiti v Escócia]	200,00	5,40	L	890T-QKIS3M
+```
+> 3 seleções "Handicap - Finalizações" → Aposta=Chutes (objeto=Finalizações, tipo de mercado=Handicap).
+> ODDS TOTAIS = 5,40; APOSTA = 200,00 R$; STATUS = Perdido (Haiti ✓ mas bilhete geral = L).
+> Datas: "Ontem" com captura em 14/06/2026 → Ontem = 13/06/2026. Perna mais recente: 13/06/2026 22:00.
 
 ---
 

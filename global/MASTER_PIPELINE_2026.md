@@ -107,10 +107,14 @@ Objetivo:
 
 ## 3.1 Múltiplas
 
-Quando houver múltiplas seleções independentes:
-- preservar todas as seleções
-- preservar ordem original
-- nunca reordenar automaticamente
+Um bilhete com N seleções = **1 linha no TSV**.
+
+- `Aposta`: `Múltipla`
+- `Descrição`: seleções concatenadas com ` // ` na ordem original do bilhete
+- `Odd`: W com retorno visível → retorno ÷ stake; L ou V → ODDS TOTAIS do bilhete
+- `Stake`: valor total do bilhete — nunca dividir entre as seleções
+- **Nunca** gerar uma linha por seleção
+- **Nunca** reordenar as seleções
 
 ---
 
