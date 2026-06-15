@@ -127,6 +127,12 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - Divisor redimensionável entre painel esquerdo e painel IA (arraste, mín 220px / máx 700px).
   - `_INSTRUCAO` em `main.py`: regra inviolável de precisão de odd (até 12 casas decimais, sem arredondamento).
   - Backup em `Planilhador/Backups/sessao14-grade-fix/`.
+  - **Odd com boost (root fix):** `_INSTRUCAO` reescrita com regra em 2 passos — (1) W + PRÊMIO visível → PRÊMIO ÷ Stake sempre, ODDS TOTAIS ignorada; (2) precisão exata sem arredondamento. Exemplo concreto na instrução: SUPERMÚLTIPLA 5%, PRÊMIO 1.706,41, Stake 150 → 11,37606666666667 (não 10,88).
+  - `CASA_SUPERBET.md §15`: golden #5 (bilhete 890T-QKIRVD) adicionado com odd correta para caso SUPERMÚLTIPLA.
+  - `MASTER_RESULTADO_2026 §6`: reescrito com linguagem direta: "casa exibe odd SEM boost; retorno JÁ INCLUI boost; Odd = Retorno ÷ Stake". Exemplo prático incluído.
+  - Backup em `Planilhador/Backups/sessao14-odd-instrucao/`.
+  - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
+  - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
 
 ---
 
@@ -160,10 +166,11 @@ uvicorn main:app --reload
 **Sessão 14 concluída.** Deploy realizado. Aguardar Railway subir e testar fluxo completo em produção.
 
 **Próximas etapas — Sessão 15:**
-1. Testar em produção: processar bilhetes → grade preenche → deletar individual → deletar múltiplos → desfazer análise.
-2. Verificar precisão da odd em bilhetes com cashout (ex: 473,46 ÷ 50 = 9,4692).
-3. Pendências de amostra das casas (ver seção 5).
-4. Avaliar arquivamento/reativação de parceiro via UI (botão reativar não exposto ainda).
+1. Testar fluxo completo: processar bilhetes → grade preenche → deletar individual → deletar múltiplos → desfazer análise.
+2. Verificar odd de bilhete com SUPERMÚLTIPLA: deve ser PRÊMIO ÷ Stake (ex: 11,37606666666667), não ODDS TOTAIS (10,88).
+3. Testar campo "Captura": processar print de ontem com data ajustada → verificar se "Hoje" resolve corretamente.
+4. Pendências de amostra das casas (ver seção 5).
+5. Avaliar arquivamento/reativação de parceiro via UI (botão reativar não exposto ainda).
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
