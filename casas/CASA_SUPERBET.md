@@ -202,6 +202,13 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 02/06/2026	Múltiplos		Superbet		Múltipla	Voluntari - Over 4.5 Chutes [Voluntari v Hermannstadt] // Under 24.5 Chutes [Turquia v Macedônia do Norte] // Tunísia - Under 1.5 Cartões [Áustria v Tunísia] // Over 8.5 Escanteios [Maguary v Sousa PB] // Brusque - Under 4.5 Escanteios [Barra SC v Brusque] // Par Games [Filip Peliwo v Eliakim Coulibaly] // Mirra Andreeva - Under 4.5 Quebras [Mirra Andreeva v Sorana Cirstea] // Over 21.5 Games [Jack Pinnington Jones v Aleksandar Vukic]	20,00	283,67	L
 ```
 
+**#5 — Múltipla W com SUPERMÚLTIPLA 5% (`890T-QKIRVD`)** — odd = PRÊMIO÷Stake, NÃO ODDS TOTAIS:
+```
+14/06/2026	Futebol		Superbet		Múltipla	1º Tempo - Over 4.5 Faltas [Alemanha v Curaçao] // Total de Cartões Vermelhos [Universidad Católica v Universidad de Concepción] // Costa do Marfim - Total de Tiros de Meta [Costa do Marfim v Equador]	150,00	11,37606666666667	W
+```
+> ODDS TOTAIS exibido = 10,88 (sem boost). SUPERMÚLTIPLA 5% (+R$ 74,11). PRÊMIO = 1.706,41.
+> **Odd correta = 1.706,41 ÷ 150 = 11,37606666666667** — nunca registrar 10,88.
+
 ---
 
 ## Feedback para a camada global (registrar no track TSV)
