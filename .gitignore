@@ -20,3 +20,4 @@ Backups/
 # OS
 .DS_Store
 Thumbs.db
+_backups/
