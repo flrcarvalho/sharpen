@@ -44,7 +44,9 @@ _INSTRUCAO = (
     "Parceiro: {parceiro}\n"
     "Data de referência da captura (quando os prints foram tirados): {data_referencia}\n"
     "  → Hoje = {data_referencia} · Ontem = dia anterior · Amanhã = dia seguinte\n"
-    "  → NUNCA usar o horário de processamento para resolver Hoje/Ontem/Amanhã\n\n"
+    "  → NUNCA usar o horário de processamento para resolver Hoje/Ontem/Amanhã\n"
+    "Tipster: SEMPRE VAZIO no TSV. Nunca inferir do nome do Parceiro, do ID do bilhete\n"
+    "  ou de qualquer texto da tela. Campo vazio = duas TABs consecutivas na coluna.\n\n"
     "Responda EXATAMENTE neste formato (sem variações de estrutura):\n\n"
     "```tsv\n"
     "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStake\tOdd\tResultado\n"
@@ -171,6 +173,7 @@ async def salvar(body: SalvarRequest):
             row["casa"] = casa_key
         if body.parceiro:
             row["parceiro"] = body.parceiro
+        row["tipster"] = ""  # sempre vazio; vem da camada de app, não do bilhete
     count, ids = await upsert_bilhetes(rows, confianca=body.confianca)
     return {"salvos": count, "ids": ids}
 

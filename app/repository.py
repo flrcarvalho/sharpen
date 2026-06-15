@@ -51,6 +51,7 @@ async def upsert_bilhetes(rows: list[dict], confianca: float | None = None) -> t
                      extraction_state, confianca)
                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
                 ON CONFLICT (casa, parceiro, assinatura) DO UPDATE SET
+                    tipster          = EXCLUDED.tipster,
                     resultado        = EXCLUDED.resultado,
                     extraction_state = EXCLUDED.extraction_state,
                     atualizado_em    = NOW()
