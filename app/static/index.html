@@ -439,6 +439,7 @@ td.c-res.res-HL { color: var(--warn); }
           <div class="actions">
             <button class="btn btn-primary" id="btn-extrair" disabled>Processar Bilhetes</button>
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
+            <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
             <button class="btn btn-ghost btn-sm" id="btn-add-arquivo">+ Arquivo</button>
             <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
               <span>Captura</span>
@@ -762,9 +763,10 @@ function renderPreviews() {
     const img = document.createElement('img');
     img.className = 'thumb'; img.src = URL.createObjectURL(f);
     wrap.appendChild(img);
-    wrap.addEventListener('click', () => { arquivos.splice(i, 1); renderPreviews(); atualizarBotaoExtrair(); });
+    wrap.addEventListener('click', e => { e.stopPropagation(); arquivos.splice(i, 1); renderPreviews(); atualizarBotaoExtrair(); });
     p.appendChild(wrap);
   });
+  document.getElementById('btn-limpar-imgs').style.display = arquivos.length > 1 ? '' : 'none';
 }
 function atualizarBotaoExtrair() {
   const ok = arquivos.length > 0 || document.getElementById('texto').value.trim();
@@ -784,6 +786,7 @@ function limparExtrator() {
   document.getElementById('token-bar').innerHTML = '';
 }
 document.getElementById('btn-limpar').addEventListener('click', limparExtrator);
+document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; renderPreviews(); atualizarBotaoExtrair(); });
 
 function setStatus(msg, tipo) {
   const el = document.getElementById('status-msg');
