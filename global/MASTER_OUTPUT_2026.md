@@ -173,7 +173,7 @@ Nunca preencher automaticamente.
 
 # 7. Casa
 
-Deve conter o nome padronizado da casa.
+Deve conter o nome padronizado da casa — **primeira letra maiúscula, demais minúsculas**.
 
 Exemplos válidos:
 
@@ -185,6 +185,12 @@ Superbet
 Novibet
 Betfair
 ```
+
+> **Convenção de duas camadas:**
+> - **TSV (saída da IA):** grafia com primeira letra maiúscula — `Superbet`, `Bet365`, etc.
+> - **Banco de dados:** o backend normaliza automaticamente para ALL-CAPS — `SUPERBET`, `BET365`, etc.
+>
+> A IA **nunca** precisa identificar a casa: o usuário a seleciona antes da extração. O campo Casa no TSV apenas confirma o nome canônico para rastreabilidade.
 
 ---
 
