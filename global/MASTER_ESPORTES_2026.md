@@ -538,6 +538,32 @@ Exemplos:
 
 ---
 
+### Regra Crítica — Futebol vs E-Sports
+
+E-Sports é **exclusivo de jogos eletrônicos** (League of Legends, CS2, VALORANT, Dota 2, etc.). Futebol real nunca deve ser classificado como E-Sports.
+
+**Indicadores positivos de E-Sports** (ao menos um presente → E-Sports):
+- Nome de jogo: `LOL`, `CS2`, `CSGO`, `VALORANT`, `Dota`, `Rocket League`, `R6`, `Overwatch`
+- Termos de mercado exclusivos: `kills`, `deaths`, `assists`, `torres` (E-Sports), `dragões`, `inibidores`, `bombas plantadas`, `mapas`
+- Times de organização: Cloud9, Fnatic, NAVI, HEROIC, Liquid, Astralis, etc.
+
+**Indicadores que NUNCA são E-Sports** (qualquer um presente → Futebol ou outro esporte real):
+- Termos de mercado: `Chutes`, `Gols`, `Escanteios`, `Cartões`, `1º Tempo`, `2º Tempo`, `Handicap Asiático`
+- Times nacionais: Alemanha, Brasil, Curaçao, França, Argentina, etc.
+- Jersey icon visível ao lado dos participantes
+
+**Armadilha: "Time 1" / "Time da Casa" em subcaptions da Bet365**
+
+A Bet365 usa os rótulos `Time 1`, `Time 2` e `Time da Casa` nas subcaptions do **Criar Aposta** para identificar qual equipe o mercado se refere. Esses rótulos são nomenclatura de Futebol (e outros esportes coletivos) — **não são referências a equipes de E-Sports**. Quando aparecerem junto a mercados como `Chutes`, `Gols`, `Gols no 1º Tempo`, a classificação correta é **Futebol**.
+
+```text
+"Time 1 – Chutes"       → Futebol (não E-Sports)
+"Time da Casa – Gols"   → Futebol (não E-Sports)
+"Time 1 – Torres"       → E-Sports se contexto de jogo eletrônico
+```
+
+---
+
 ## MMA
 
 Valor oficial:
