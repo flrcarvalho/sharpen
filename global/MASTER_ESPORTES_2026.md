@@ -560,10 +560,14 @@ Exemplos reais:
 
 E-Sports é **exclusivo de jogos eletrônicos** (League of Legends, CS2, VALORANT, Dota 2, etc.). Futebol real nunca deve ser classificado como E-Sports.
 
-**Indicadores positivos de E-Sports** (ao menos um presente → E-Sports):
+**Invariante absoluta:** se a categoria for `E-Sports Props`, o Esporte é obrigatoriamente `E-Sports`. Não existe `E-Sports Props` com Esporte diferente de `E-Sports`.
+
+**Indicadores positivos de E-Sports — prioridade máxima sobre nomes de times** (ao menos um presente → E-Sports, independentemente do nome dos participantes):
+- Termos de mercado exclusivos: `Mapa N`, `inibidores`, `dragões`, `kills`, `deaths`, `assists`, `torres` (E-Sports), `bombas plantadas`
 - Nome de jogo: `LOL`, `CS2`, `CSGO`, `VALORANT`, `Dota`, `Rocket League`, `R6`, `Overwatch`
-- Termos de mercado exclusivos: `kills`, `deaths`, `assists`, `torres` (E-Sports), `dragões`, `inibidores`, `bombas plantadas`, `mapas`
-- Times de organização: Cloud9, Fnatic, NAVI, HEROIC, Liquid, Astralis, etc.
+- Times de organização: Cloud9, Fnatic, NAVI, HEROIC, Team Liquid, Astralis, LYON (E-Sports), etc.
+
+> **Armadilha — LYON:** "LYON" pode ser confundido com o clube de futebol francês Olympique Lyonnais. Quando "LYON" aparecer ao lado de `Mapa N`, `Inibidores`, `Dragões` ou qualquer termo de E-Sports → é o time de E-Sports LYON, não o clube de futebol. O Esporte é `E-Sports`.
 
 **Indicadores que NUNCA são E-Sports** (qualquer um presente → Futebol ou outro esporte real):
 - Termos de mercado: `Chutes`, `Gols`, `Escanteios`, `Cartões`, `1º Tempo`, `2º Tempo`, `Handicap Asiático`
@@ -575,9 +579,9 @@ E-Sports é **exclusivo de jogos eletrônicos** (League of Legends, CS2, VALORAN
 A Bet365 usa os rótulos `Time 1`, `Time 2` e `Time da Casa` nas subcaptions do **Criar Aposta** para identificar qual equipe o mercado se refere. Esses rótulos são nomenclatura de Futebol (e outros esportes coletivos) — **não são referências a equipes de E-Sports**. Quando aparecerem junto a mercados como `Chutes`, `Gols`, `Gols no 1º Tempo`, a classificação correta é **Futebol**.
 
 ```text
-"Time 1 – Chutes"       → Futebol (não E-Sports)
-"Time da Casa – Gols"   → Futebol (não E-Sports)
-"Time 1 – Torres"       → E-Sports se contexto de jogo eletrônico
+"Time 1 – Chutes"                     → Futebol (não E-Sports)
+"Time da Casa – Gols"                 → Futebol (não E-Sports)
+"LYON v Team Liquid — Mapa 2 Inibidores" → E-Sports (termos de mercado têm prioridade)
 ```
 
 ---
