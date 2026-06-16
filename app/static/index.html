@@ -415,9 +415,8 @@ td.c-res.res-HL { color: var(--warn); }
         </div>
       </div>
       <select id="modelo" class="model-select">
-        <option value="claude-haiku-4-5-20251001">Haiku 4.5 · rápido</option>
-        <option value="claude-sonnet-4-6">Sonnet 4.6 · equilibrado</option>
-        <option value="claude-opus-4-8">Opus 4.8 · preciso</option>
+        <option value="claude-sonnet-4-6" selected>Sonnet 4.6 · padrão</option>
+        <option value="claude-opus-4-8">Opus 4.8 · casos difíceis</option>
       </select>
     </div>
 
@@ -779,27 +778,10 @@ function adicionarArquivos(novos) {
       if (novosImgs.length > aceitos.length)
         setStatus(`Limite de ${IMG_MAX} imagens: ${novosImgs.length - aceitos.length} ignorada(s).`, 'warn');
       arquivos = [...arquivos, ...aceitos];
-      if (arquivos.length > 0) _bloquearHaikuSeImagens();
     }
   }
   renderPreviews(); atualizarBotaoExtrair();
 }
-
-const _HAIKU_VAL = 'claude-haiku-4-5-20251001';
-function _bloquearHaikuSeImagens() {
-  const sel = document.getElementById('modelo');
-  if (sel.value === _HAIKU_VAL) {
-    sel.value = 'claude-sonnet-4-6';
-    setStatus('Haiku não processa imagens — modelo trocado automaticamente para Sonnet.', 'warn');
-  }
-}
-document.getElementById('modelo').addEventListener('change', () => {
-  const sel = document.getElementById('modelo');
-  if (sel.value === _HAIKU_VAL && arquivos.length > 0) {
-    sel.value = 'claude-sonnet-4-6';
-    setStatus('Haiku não pode ser usado com imagens. Selecione Sonnet ou Opus.', 'warn');
-  }
-});
 
 function renderPreviews() {
   const p = document.getElementById('preview');
