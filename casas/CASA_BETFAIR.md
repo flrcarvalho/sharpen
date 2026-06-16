@@ -116,7 +116,7 @@ Notas de reconstrução:
 - **CORREÇÃO do esboço antigo:** "Registra X+ Assistências" em basquete (NBA/WNBA) é **Player Props**, **NÃO** `Assistência`. A categoria `Assistência` é exclusiva de Futebol (`MASTER_APOSTAS_2026`).
 - Confronto Betfair vem como `Time A x Time B` **ou** `Time A @ Time B` → `[Time A v Time B]`.
 - `Criar Aposta (xN)` = mesmo jogo; `Múltiplas do Criar Aposta` = vários jogos. Ambos → `Múltipla`, **uma linha**, juntando seleções com ` // `. Mesmo jogador, vários mercados → `Jogador - Mercado A / Mercado B [Confronto]`.
-- "Maioria de 180's": comparativo de quem faz mais 180s → `H2H` (mercado comparativo entre duas entidades, conforme `MASTER_APOSTAS_2026`).
+- "Maioria de 180's": comparativo de quem faz mais 180s → `H2H` (mercado comparativo entre duas entidades, conforme `MASTER_APOSTAS_2026`). Layout: dois nomes de jogadores exibidos sem `A v B` explícito; primeiro nome = apostado, segundo = adversário. Confronto: `[apostado v adversário]`. Descrição: `Jogador - Mais 180's [Jogador A v Jogador B]`.
 - "Substituição Segura" / ícone de cash out = feature, ruído pra categoria.
 
 ---

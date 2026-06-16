@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-15 (sessão 23 — upload CSV/XLS + ordem correta + dedup pré-extração XLS)_
+_Atualizado: 2026-06-15 (sessão 24 — H2H 180's Dardos + continuation automática + botão Cancelar)_
 
 ---
 
@@ -254,10 +254,16 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 23:** Upload CSV e XLS em produção. Dedup pré-extração por ID ativo para XLS Pinnacle. Labels de Props corrigidos. App estável.
+**Estado após sessão 24:** App estável. Continuation automática ativa (sem truncamento). Botão Cancelar disponível. Regra SUBSTITUIÇÃO+ reforçada (BET365 §12 + golden #9). H2H 180's mapeado em BET365, BETFAIR, MASTER_APOSTAS, MASTER_DESCRICAO.
 
 **Próximo passo imediato:**
 - Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair confirmado, fix proposto, não executado).
+
+**Sessão 24 (15/06/2026):**
+- **Continuation automática:** `max_tokens=64000`; quando `stop_reason == "max_tokens"` o backend reinicia com o texto acumulado como turno do assistente — o modelo continua sem regeração. Frontend exibe "Continuando… parte N".
+- **Botão Cancelar:** AbortController no frontend; aparece durante processamento; `AbortError` exibe "Análise cancelada." em amarelo.
+- **Fix SUBSTITUIÇÃO+:** `CASA_BET365 §12` reforçado com bloco visual explícito (▲=substituto IGNORAR / ▼=original USAR) e dois avisos ⚠️. Golden #9 adicionado (Bruno Guimarães vs Danilo dos Santos).
+- **H2H 180's Dardos:** novo mercado documentado em: `MASTER_APOSTAS §4` (sinônimos), `§5` (regra H2H), `§6 Dardos` (distinção Player Props individual vs H2H comparativo), `§7` (prioridade), `§9` (validação #17). `MASTER_DESCRICAO §13.2` (template + nota de reconstrução de confronto). `CASA_BET365 §9` (mapeamento + nota de layout). `CASA_BETFAIR §9` (nota de layout adicionada ao mapeamento existente).
 
 **Pendências que aguardam bilhete real:**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado

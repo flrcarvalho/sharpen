@@ -508,6 +508,26 @@ Luke Littler - Over 3.5 180s [Luke Littler v Luke Humphries]
 
 ---
 
+### H2H 180's
+
+Mercado comparativo de quem faz mais 180s no confronto. Usar `Aposta = H2H`.
+
+Formato:
+
+```text
+Jogador - Mais 180's [Jogador A v Jogador B]
+```
+
+Exemplo:
+
+```text
+Luke Littler - Mais 180's [Luke Littler v Luke Humphries]
+```
+
+**Reconstrução do confronto (Bet365 / Betfair):** o bilhete exibe dois nomes sem o formato `A v B` explícito. O jogador em negrito / primeira posição = apostado (entidade); o segundo nome = adversário. Confronto = `[apostado v adversário]`.
+
+---
+
 # 14. Múltiplas
 
 Múltiplas devem separar seleções utilizando:

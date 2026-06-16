@@ -245,6 +245,9 @@ Sinônimos:
 - Duelo
 - Match Bet
 - Matchup
+- Mais 180's (Dardos)
+- Maioria de 180's (Dardos)
+- 180s H2H (Dardos)
 
 ---
 
@@ -378,6 +381,7 @@ Exemplos:
 - mais kills
 - mais jardas
 - mais pontos
+- mais 180's (Dardos — quem faz mais 180s no confronto)
 
 H2H não deve ser confundido com:
 - ML
@@ -823,7 +827,7 @@ Legs
 
 ---
 
-### Estatísticas individuais
+### Estatísticas individuais (over/under de um jogador)
 
 Classificar como:
 
@@ -832,9 +836,25 @@ Player Props
 ```
 
 Exemplos:
-- 180s
+- Over 3.5 180s (de um jogador específico)
 - checkout
 - highest finish
+
+---
+
+### H2H de 180's (mercado comparativo)
+
+Quando o mercado compara qual dos dois jogadores fará **mais 180s** no confronto, classificar como:
+
+```text
+H2H
+```
+
+Sinalizadores: "Mais 180's" / "Maioria de 180's" / equivalente em inglês "Most 180s".
+
+⚠️ Não confundir com Player Props:
+- `Over 3.5 180s [Littler v Humphries]` → **Player Props** (total individual de um jogador)
+- `Luke Littler - Mais 180's [Littler v Humphries]` → **H2H** (comparativo entre os dois)
 
 ---
 
@@ -941,6 +961,7 @@ Exemplos:
 ```text
 Games          > Player Props          (→ Tênis)
 Legs           > Player Props          (→ Dardos)
+H2H            > Player Props          (→ Dardos 180s comparativo)
 Anytime        > Player Props
 Assistência    > Player Props
 E-Sports Props > Player Props
@@ -992,6 +1013,7 @@ Antes de retornar a saída, o extrator deve validar:
 14. `Chutes no Gol` foi utilizado apenas para finalizações no alvo (SOT) — nunca para total de finalizações (`Chutes`)
 15. `Sets` com nome de **time / seleção** = Vôlei (nunca Tênis, exceto Copa Davis explícita)
 16. `Sets` com nome de **jogador individual / dupla** = Tênis (nunca Vôlei)
+17. mercado "Mais 180's" / "Maioria de 180's" em Dardos foi classificado como `H2H` (nunca `Player Props` nem `Legs`)
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

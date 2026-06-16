@@ -139,9 +139,11 @@ A Bet365 tem boost/promo. Quando houver, o **Retorno Obtido já reflete o valor 
 | Total de Kills / Total de Dragons / Total de Torres ("Mapa N - …") | E-Sports Props |
 | Partida - Vencedor | ML |
 | Para Sofrer Falta / Para Dar Passe / outros props estatísticos individuais de jogador (Futebol) | Player Props |
+| **Mais 180's** (Dardos — comparativo entre dois jogadores) | **H2H** |
 | **Criar Aposta** (container) | **Múltipla** |
 
 Notas de reconstrução:
+- **Mais 180's (H2H Dardos):** o bilhete exibe dois nomes de jogadores sem o formato `A v B` explícito. O primeiro nome (em negrito / topo) = jogador apostado; o segundo nome (abaixo) = adversário. Reconstruir confronto: `[apostado v adversário]`. Descrição: `Jogador - Mais 180's [Jogador A v Jogador B]`.
 - **Criar Aposta** → sempre `Múltipla`, UMA linha por bilhete, mesmo com seleções do mesmo jogo e mesmo **cruzando vários confrontos** (junta tudo com ` // `).
 - Mesmo jogador, vários mercados → `Jogador - Mercado A / Mercado B [Confronto]` (`MASTER_DESCRICAO_2026 §12.4`).
 - `Mais de` / `Menos de` → Over / Under.
