@@ -197,15 +197,10 @@ _INSTRUCAO = (
     "```\n\n"
     "Código (11ª coluna, sempre presente): ID/código do bilhete (ex: '890J-QD71FJ').\n"
     "Se não houver ID visível: TAB extra ao final. Nunca omita a coluna.\n\n"
-    "## Confiança\n"
-    "Para cada linha: `N. XX%` — motivo se < 100%\n\n"
     "## Notas Críticas\n"
-    "Alertas sobre campos ambíguos, dados faltantes ou decisões não óbvias "
-    "observados NESTAS imagens de {casa}. Nunca mencione outras casas.\n"
-    "Se nenhum, escreva: Nenhuma.\n\n"
-    "## Recomendações\n"
-    "Sugestões específicas para {casa} com base no que foi visto nesta sessão.\n"
-    "Se nenhuma, escreva: Nenhuma."
+    "Somente se houver campo genuinamente ambíguo, dado faltante ou decisão não óbvia "
+    "nestes bilhetes de {casa}. Máximo 5 itens concisos.\n"
+    "Se nenhum: escreva apenas a palavra Nenhuma."
 )
 
 

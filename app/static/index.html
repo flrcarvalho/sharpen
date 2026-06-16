@@ -517,20 +517,12 @@ td.c-res.res-HL { color: var(--warn); }
           <!-- Estado vazio -->
           <div class="right-empty" id="right-empty">
             <div class="right-empty-icon">◎</div>
-            <div>O resultado da extração<br>aparecerá aqui em 4 seções</div>
+            <div>Notas críticas da extração<br>aparecerão aqui</div>
           </div>
-          <!-- 3 boxes (ocultas até primeira extração) -->
-          <div class="analysis-box" id="box-confianca" style="display:none">
-            <div class="box-header">Confiança</div>
-            <div class="box-body" id="body-confianca"></div>
-          </div>
+          <!-- Notas Críticas (única seção de análise restante) -->
           <div class="analysis-box" id="box-notas" style="display:none">
             <div class="box-header">Notas Críticas</div>
             <div class="box-body" id="body-notas"></div>
-          </div>
-          <div class="analysis-box" id="box-recs" style="display:none">
-            <div class="box-header">Recomendações</div>
-            <div class="box-body" id="body-recs"></div>
           </div>
         </div>
       </div><!-- .right-panel -->
@@ -870,9 +862,7 @@ function limparExtrator() {
   document.getElementById('texto').value = '';
   setStatus('', ''); atualizarBotaoExtrair();
   // Limpar painel de análise
-  ['box-confianca','box-notas','box-recs'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
+  document.getElementById('box-notas').style.display = 'none';
   document.getElementById('right-empty').style.display = '';
   document.getElementById('token-bar').innerHTML = '';
 }
@@ -900,33 +890,18 @@ function parseResposta(text) {
 
   return {
     tsv,
-    confianca:      extrairSecao('Confiança') || extrairSecao('Confianca'),
-    notas:          extrairSecao('Notas Críticas') || extrairSecao('Notas Criticas'),
-    recomendacoes:  extrairSecao('Recomendações') || extrairSecao('Recomendacoes'),
+    notas: extrairSecao('Notas Críticas') || extrairSecao('Notas Criticas'),
   };
 }
 
 function renderAnalysis(parsed) {
-  // Ocultar empty state
   document.getElementById('right-empty').style.display = 'none';
 
-  // Confiança
-  document.getElementById('body-confianca').innerHTML = parsed.confianca
-    ? esc(parsed.confianca).replace(/\n/g, '<br>')
-    : '<span class="box-empty">Não informado</span>';
-  document.getElementById('box-confianca').style.display = '';
-
-  // Notas Críticas
-  document.getElementById('body-notas').innerHTML = parsed.notas
-    ? esc(parsed.notas).replace(/\n/g, '<br>')
+  const notas = parsed.notas && parsed.notas !== 'Nenhuma' ? parsed.notas : '';
+  document.getElementById('body-notas').innerHTML = notas
+    ? esc(notas).replace(/\n/g, '<br>')
     : '<span class="box-empty">Nenhuma</span>';
   document.getElementById('box-notas').style.display = '';
-
-  // Recomendações
-  document.getElementById('body-recs').innerHTML = parsed.recomendacoes
-    ? esc(parsed.recomendacoes).replace(/\n/g, '<br>')
-    : '<span class="box-empty">Nenhuma</span>';
-  document.getElementById('box-recs').style.display = '';
 }
 
 // ── Extrair ───────────────────────────────────────────────────────────────────
