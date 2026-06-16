@@ -1003,7 +1003,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
 
     // Tokens
     const t = data.tokens;
-    const pct = t.cache_read > 0
+    const pct = (t.cache_read > 0 && (t.input + t.cache_read) > 0)
       ? ` · <span style="color:var(--pos)">${Math.round(t.cache_read / (t.input + t.cache_read) * 100)}% cache</span>`
       : '';
     document.getElementById('token-bar').innerHTML =
@@ -1019,6 +1019,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
 
     // Auto-salvar no banco
     const modelLabel = data.modelo.split('-').slice(1, 3).join(' ');
+    const skipInfo = (data.xls_skipped > 0) ? ` · ${data.xls_skipped} já salva(s) ignorada(s)` : '';
     if (parsed.tsv) {
       const rs = await fetch('/salvar', {
         method: 'POST',
@@ -1028,7 +1029,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar bilhetes (HTTP ${rs.status})`);
       ultimaAnaliseIds = ds.ids || [];
-      let statusTxt = `✓ ${modelLabel} · ${ds.salvos || 0} bilhete(s) salvo(s)`;
+      let statusTxt = `✓ ${modelLabel} · ${ds.salvos || 0} bilhete(s) salvo(s)${skipInfo}`;
       if (ds.alertas && ds.alertas.length) {
         statusTxt += ` · ⚠️ ${ds.alertas.length} alerta(s)`;
         const boxNotas = document.getElementById('box-notas');
@@ -1046,6 +1047,8 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
       setStatus(statusTxt, ds.alertas && ds.alertas.length ? 'warn' : 'ok');
       await carregarGrade();
       atualizarBotoesGrade();
+    } else if (data.xls_skipped > 0) {
+      setStatus(`✓ Todas as ${data.xls_skipped} apostas do XLS já estavam salvas. Nada novo.`, 'ok');
     } else {
       setStatus(`⚠️ ${modelLabel} — nenhum bilhete extraído. Veja Notas Críticas.`, 'warn');
     }

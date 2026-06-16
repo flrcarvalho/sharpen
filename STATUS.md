@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-15 (sessão 23 — suporte a upload de CSV e XLS Pinnacle)_
+_Atualizado: 2026-06-15 (sessão 23 — upload CSV/XLS + ordem correta + dedup pré-extração XLS)_
 
 ---
 
@@ -243,7 +243,12 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 23:** Upload de CSV e XLS habilitado. CSV: envia texto via `csv_content`. XLS (Pinnacle): `main.py` usa `xlrd` para parsear o binário e formatar cada aposta em texto estruturado (ID, esporte, datas, seleção, confronto, mercado, competição, odd, stake, P&L, status) antes de enviar ao Claude; `requirements.txt` adicionado `xlrd>=2.0.1`. Frontend aceita `.xls/.xlsx`, exibe card 📊 no preview, envia como `xls_file` (upload binário). App em produção estável.
+**Estado após sessão 23:** Upload CSV/XLS habilitado + dedup pré-extração XLS.
+- CSV: envia texto via `csv_content`.
+- XLS Pinnacle: `_parse_xls()` (async) filtra IDs já salvos consultando o banco ANTES de chamar o Claude — só novas apostas são enviadas; ordem invertida (mais antiga primeiro) conforme `CASA_PINNACLE §2.1`. Status mostra "N já salva(s) ignorada(s)". Se todas já estiverem salvas, retorna SSE sem chamar Claude.
+- `repository.py`: `get_codigos_existentes()` adicionada.
+- Frontend: `xls_skipped` exibido no status; caso 100% ignorado mostra mensagem específica.
+- App em produção estável.
 
 **Pendências que aguardam bilhete real (amostra do usuário):**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado

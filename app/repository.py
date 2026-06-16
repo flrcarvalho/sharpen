@@ -234,3 +234,16 @@ async def reativar_parceiro(parceiro_id: int) -> bool:
             "UPDATE parceiros SET arquivado = FALSE WHERE id = $1", parceiro_id
         )
     return result.split()[-1] == "1"
+
+
+async def get_codigos_existentes(codigos: list[str]) -> set[str]:
+    """Retorna subset de codigos que já existem no banco."""
+    if not codigos:
+        return set()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT codigo_bilhete FROM bilhetes WHERE codigo_bilhete = ANY($1::text[])",
+            codigos,
+        )
+    return {row["codigo_bilhete"] for row in rows}

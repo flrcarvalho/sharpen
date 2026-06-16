@@ -17,8 +17,8 @@ from database import init_db
 from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, criar_parceiro, deletar_bilhetes,
-    list_bilhetes, list_parceiros, marcar_copiada, marcar_pendente,
-    parse_tsv, reativar_parceiro, upsert_bilhetes,
+    get_codigos_existentes, list_bilhetes, list_parceiros, marcar_copiada,
+    marcar_pendente, parse_tsv, reativar_parceiro, upsert_bilhetes,
 )
 
 
@@ -56,14 +56,12 @@ def _casa_display(key: str) -> str:
     return _CASA_DISPLAY.get(key.upper(), key.title())
 
 
-def _parse_xls(raw: bytes) -> str:
+def _xls_parse_rows(raw: bytes) -> list[dict]:
+    """Extrai linhas do XLS como lista de dicts (ordem original do arquivo)."""
     wb = xlrd.open_workbook(file_contents=raw)
     ws = wb.sheet_by_index(0)
-    if ws.nrows < 2:
-        return ""
-    header = [str(ws.cell_value(0, c)).strip() for c in range(ws.ncols)]
     _SEL_LABELS = ["Seleção", "Confronto", "Mercado", "Competição"]
-    parts = ["ARQUIVO XLS PINNACLE:\n"]
+    rows = []
     for r in range(1, ws.nrows):
         det = str(ws.cell_value(r, 1)).strip().split("\n")
         sel = str(ws.cell_value(r, 2)).strip().split("\n")
@@ -72,22 +70,65 @@ def _parse_xls(raw: bytes) -> str:
         vd = ws.cell_value(r, 5)
         pl = f"{vd:+.2f}" if isinstance(vd, float) else str(vd)
         status_raw = str(ws.cell_value(r, 6)).strip().replace("\n", " | ")
+        bet_id = det[0].strip() if det else ""
+        rows.append({
+            "id": bet_id,
+            "det": det,
+            "sel": sel,
+            "sel_labels": _SEL_LABELS,
+            "odd": odd_raw,
+            "stake": stake_raw,
+            "pl": pl,
+            "status": status_raw,
+        })
+    return rows
 
-        block = [f"=== Aposta ID {det[0].strip() if det else ''} ==="]
+
+def _format_xls_rows(rows: list[dict]) -> str:
+    """Formata lista de dicts em texto estruturado para o Claude."""
+    parts = ["ARQUIVO XLS PINNACLE:\n"]
+    for row in rows:
+        det = row["det"]
+        block = [f"=== Aposta ID {row['id']} ==="]
         if len(det) > 1: block.append(f"Esporte: {det[1].strip()}")
         if len(det) > 2: block.append(f"Colocada: {det[2].strip()}")
         if len(det) > 3: block.append(f"Liquidada: {det[3].strip()}")
-        for i, line in enumerate(sel):
+        labels = row["sel_labels"]
+        for i, line in enumerate(row["sel"]):
             line = line.strip()
             if line:
-                label = _SEL_LABELS[i] if i < len(_SEL_LABELS) else f"Info {i+1}"
+                label = labels[i] if i < len(labels) else f"Info {i+1}"
                 block.append(f"{label}: {line}")
-        block.append(f"Odd: {odd_raw}")
-        block.append(f"Stake: {stake_raw}")
-        block.append(f"P&L: {pl}")
-        block.append(f"Status: {status_raw}")
+        block.append(f"Odd: {row['odd']}")
+        block.append(f"Stake: {row['stake']}")
+        block.append(f"P&L: {row['pl']}")
+        block.append(f"Status: {row['status']}")
         parts.append("\n".join(block))
     return "\n\n".join(parts)
+
+
+async def _parse_xls(raw: bytes) -> tuple[str, int]:
+    """Parse XLS, filtra IDs já salvos, retorna (texto_para_claude, n_ignorados).
+
+    Ordem de saída: mais antiga primeiro (inversão do arquivo original).
+    """
+    rows = _xls_parse_rows(raw)
+    if not rows:
+        return "", 0
+
+    all_ids = [r["id"] for r in rows if r["id"]]
+    known_ids = await get_codigos_existentes(all_ids)
+
+    new_rows = [r for r in rows if r["id"] not in known_ids]
+    skipped = len(rows) - len(new_rows)
+
+    # Inverte: XLS vem mais novo primeiro; saída deve ser mais antiga primeiro
+    new_rows_oldest_first = list(reversed(new_rows))
+
+    if not new_rows_oldest_first:
+        return "", skipped
+
+    return _format_xls_rows(new_rows_oldest_first), skipped
 
 
 _INSTRUCAO = (
@@ -206,13 +247,23 @@ async def extrair(
     if csv_content:
         content.append({"type": "text", "text": f"DADOS CSV:\n{csv_content}"})
 
+    xls_skipped = 0
     if xls_file:
         raw = await xls_file.read()
-        xls_text = _parse_xls(raw)
+        xls_text, xls_skipped = await _parse_xls(raw)
         if xls_text:
             content.append({"type": "text", "text": xls_text})
 
     if not content:
+        # XLS enviado mas todas as apostas já estavam no banco
+        if xls_skipped > 0:
+            _payload = json.dumps({"done": True, "resultado": "", "modelo": modelo,
+                                   "xls_skipped": xls_skipped,
+                                   "tokens": {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}})
+            async def _only_skipped():
+                yield f"data: {_payload}\n\n"
+            return StreamingResponse(_only_skipped(), media_type="text/event-stream",
+                                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
         raise HTTPException(400, "Envie pelo menos uma imagem ou texto.")
 
     tem_imagens = any(item.get("type") == "image" for item in content)
@@ -244,7 +295,7 @@ async def extrair(
                     yield f"data: {json.dumps({'t': chunk})}\n\n"
                 msg = await stream.get_final_message()
                 u = msg.usage
-                yield f"data: {json.dumps({'done': True, 'resultado': msg.content[0].text, 'modelo': modelo, 'tokens': {'input': u.input_tokens, 'output': u.output_tokens, 'cache_read': getattr(u, 'cache_read_input_tokens', 0), 'cache_write': getattr(u, 'cache_creation_input_tokens', 0)}})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'resultado': msg.content[0].text, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': {'input': u.input_tokens, 'output': u.output_tokens, 'cache_read': getattr(u, 'cache_read_input_tokens', 0), 'cache_write': getattr(u, 'cache_creation_input_tokens', 0)}})}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
 
