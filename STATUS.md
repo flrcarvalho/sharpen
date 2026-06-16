@@ -134,6 +134,17 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Data de referência de captura:** campo "Captura" (date input, default = hoje) adicionado na área de ações do extrator. Data enviada como `data_referencia` (DD/MM/AAAA) para `/extrair`. `_INSTRUCAO` resolve Hoje/Ontem/Amanhã contra esse valor, nunca contra horário de processamento. `MASTER_OUTPUT_2026 §4.1` documenta como regra global (vale para todas as casas). Fallback = data atual do servidor.
   - Backup em `Planilhador/Backups/sessao14-data-ref-boost/`.
 
+- **Sessão 23 — Upload CSV/XLS + dedup pré-extração + labels Props (15/06/2026):**
+  - Upload de `.csv` habilitado: JS lê como texto, envia via `csv_content`; frontend exibe card 📄.
+  - Upload de `.xls/.xlsx` habilitado: backend lê com `xlrd`, formata cada aposta em texto estruturado, envia via `xls_file`. Frontend exibe card 📊.
+  - `_xls_sel_labels()`: detecta tipo de aposta pelo padrão `-vs-` e aplica labels corretos por estrutura (padrão / Player Props / Team Props). Antes, "Jogador" ficava rotulado como "Confronto" em bets de Props.
+  - `_parse_xls()` (async): filtra IDs já no banco via `get_codigos_existentes()` antes de chamar o Claude. Inverte ordem das linhas (mais antiga primeiro, conforme `CASA_PINNACLE §2.1`). Caso 100% ignorado retorna SSE sem custo de tokens.
+  - `repository.py`: `get_codigos_existentes()` adicionada.
+  - `requirements.txt`: `xlrd>=2.0.1`.
+  - Frontend: status exibe "N já salva(s) ignorada(s)"; guarda contra divisão por zero no % cache.
+  - Bug reportado (pendente): Betfair ML Dardos `Oliver Mitchell [Steve Johnstone v Oliver Mitchell]` classificado como Futebol. Causa: nenhum dos dois está na lista de referência do `MASTER_ESPORTES_2026`. Fix proposto: adicionar ambos à lista. Aguardava confirmação quando sessão encerrou.
+  - Commits: `f30a3cc`, `3a6ca8f`, `6c1ca61`, `68856fd`.
+
 - **Sessão 22 — Regra de substituição de jogador em Player Props (15/06/2026):**
   - **Bug:** quando um jogador era substituído, o sistema extraía o nome do substituto (em destaque no bilhete) em vez do jogador original (riscado/tachado). A aposta foi feita no original — ele deve aparecer na Descrição.
   - **Causa raiz:** `SUBSTITUIÇÃO+` estava classificado como ruído (correto para o badge) mas sem instrução sobre qual nome usar quando há substituição. O modelo escolhia o mais visualmente proeminente = substituto.
@@ -243,14 +254,12 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 23:** Upload CSV/XLS habilitado + dedup pré-extração XLS.
-- CSV: envia texto via `csv_content`.
-- XLS Pinnacle: `_parse_xls()` (async) filtra IDs já salvos consultando o banco ANTES de chamar o Claude — só novas apostas são enviadas; ordem invertida (mais antiga primeiro) conforme `CASA_PINNACLE §2.1`. Status mostra "N já salva(s) ignorada(s)". Se todas já estiverem salvas, retorna SSE sem chamar Claude.
-- `repository.py`: `get_codigos_existentes()` adicionada.
-- Frontend: `xls_skipped` exibido no status; caso 100% ignorado mostra mensagem específica.
-- App em produção estável.
+**Estado após sessão 23:** Upload CSV e XLS em produção. Dedup pré-extração por ID ativo para XLS Pinnacle. Labels de Props corrigidos. App estável.
 
-**Pendências que aguardam bilhete real (amostra do usuário):**
+**Próximo passo imediato:**
+- Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair confirmado, fix proposto, não executado).
+
+**Pendências que aguardam bilhete real:**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
 - **Betano:** §5 rótulo de void/anulada · §6 boost (existe?)
 - **Pinnacle:** §5 rótulo exato de HW/HL no export (precisa de Asian Handicap de quarto liquidado)
