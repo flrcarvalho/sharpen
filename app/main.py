@@ -56,11 +56,29 @@ def _casa_display(key: str) -> str:
     return _CASA_DISPLAY.get(key.upper(), key.title())
 
 
+def _xls_sel_labels(sel: list[str]) -> list[str]:
+    """Detecta estrutura da aposta e retorna labels corretos para as linhas de Seleção.
+
+    Padrão:    linha[1] tem '-vs-' → Seleção / Confronto / Mercado / Competição
+    Props:     linha[2] tem '-vs-' → labels específicos por tipo de prop
+    Fallback:  labels genéricos
+    """
+    l1 = sel[1].strip() if len(sel) > 1 else ""
+    l2 = sel[2].strip() if len(sel) > 2 else ""
+    l3 = sel[3].strip() if len(sel) > 3 else ""
+    if "-vs-" in l1:
+        return ["Seleção", "Confronto", "Mercado", "Competição"]
+    if "-vs-" in l2:
+        if "Props de Jogadores" in l3:
+            return ["Mercado seleção", "Jogador", "Confronto", "Tipo de mercado"]
+        return ["Seleção", "Mercado específico", "Confronto", "Tipo de mercado"]
+    return ["Seleção", "Linha 2", "Mercado", "Competição"]
+
+
 def _xls_parse_rows(raw: bytes) -> list[dict]:
     """Extrai linhas do XLS como lista de dicts (ordem original do arquivo)."""
     wb = xlrd.open_workbook(file_contents=raw)
     ws = wb.sheet_by_index(0)
-    _SEL_LABELS = ["Seleção", "Confronto", "Mercado", "Competição"]
     rows = []
     for r in range(1, ws.nrows):
         det = str(ws.cell_value(r, 1)).strip().split("\n")
@@ -75,7 +93,6 @@ def _xls_parse_rows(raw: bytes) -> list[dict]:
             "id": bet_id,
             "det": det,
             "sel": sel,
-            "sel_labels": _SEL_LABELS,
             "odd": odd_raw,
             "stake": stake_raw,
             "pl": pl,
@@ -89,12 +106,13 @@ def _format_xls_rows(rows: list[dict]) -> str:
     parts = ["ARQUIVO XLS PINNACLE:\n"]
     for row in rows:
         det = row["det"]
+        sel = row["sel"]
+        labels = _xls_sel_labels(sel)
         block = [f"=== Aposta ID {row['id']} ==="]
         if len(det) > 1: block.append(f"Esporte: {det[1].strip()}")
         if len(det) > 2: block.append(f"Colocada: {det[2].strip()}")
         if len(det) > 3: block.append(f"Liquidada: {det[3].strip()}")
-        labels = row["sel_labels"]
-        for i, line in enumerate(row["sel"]):
+        for i, line in enumerate(sel):
             line = line.strip()
             if line:
                 label = labels[i] if i < len(labels) else f"Info {i+1}"
