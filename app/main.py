@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 from contextlib import asynccontextmanager
@@ -317,16 +318,52 @@ async def extrair(
                         {"role": "assistant", "content": accumulated},
                     ]
 
-                async with _client.messages.stream(
-                    model=modelo,
-                    max_tokens=64000,
-                    system=system,
-                    messages=messages,
-                ) as stream:
-                    async for chunk in stream.text_stream:
-                        accumulated += chunk
-                        yield f"data: {json.dumps({'t': chunk})}\n\n"
-                    msg = await stream.get_final_message()
+                # Roda a chamada Anthropic em task paralela; envia keepalive a cada 20s
+                # enquanto aguarda para evitar que o Railway mate a conexão por inatividade.
+                _msgs = messages
+                q: asyncio.Queue = asyncio.Queue()
+
+                async def _call(_m=_msgs):
+                    try:
+                        async with _client.messages.stream(
+                            model=modelo,
+                            max_tokens=64000,
+                            system=system,
+                            messages=_m,
+                        ) as stream:
+                            async for chunk in stream.text_stream:
+                                await q.put(("t", chunk))
+                            fin = await stream.get_final_message()
+                        await q.put(("done", fin))
+                    except Exception as e:
+                        await q.put(("err", e))
+
+                task = asyncio.create_task(_call())
+                msg = None
+                try:
+                    while True:
+                        try:
+                            kind, val = await asyncio.wait_for(q.get(), timeout=20)
+                        except asyncio.TimeoutError:
+                            yield ": keepalive\n\n"
+                            continue
+                        if kind == "t":
+                            accumulated += val
+                            yield f"data: {json.dumps({'t': val})}\n\n"
+                        elif kind == "done":
+                            msg = val
+                            break
+                        else:
+                            raise val
+                finally:
+                    if not task.done():
+                        task.cancel()
+                        try:
+                            await task
+                        except (asyncio.CancelledError, Exception):
+                            pass
+                    else:
+                        await task
 
                 u = msg.usage
                 total_tokens["input"]       += u.input_tokens
