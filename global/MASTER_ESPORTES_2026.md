@@ -459,6 +459,8 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Krzysztof Ratajski
 - Cameron Menzies
 - Madars Razma
+- Bradley O'Connor
+- Nico Plovier
 
 ---
 
