@@ -336,7 +336,7 @@ body::before {
 .analysis-boxes { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 .analysis-box {
   display: flex; flex-direction: column;
-  border-bottom: 1px solid var(--line); flex-shrink: 0;
+  border-bottom: 1px solid var(--line); flex: 1;
 }
 .box-header {
   padding: 7px 14px; font-size: 10px; font-weight: 700; letter-spacing: .06em;
@@ -352,7 +352,7 @@ body::before {
 .box-body {
   padding: 10px 14px; font-family: var(--font-mono); font-size: 11px;
   line-height: 1.7; color: var(--ink); white-space: pre-wrap;
-  overflow-y: auto; max-height: 220px;
+  overflow-y: auto; flex: 1;
 }
 .box-empty { color: var(--ink-mute); font-style: italic; }
 
