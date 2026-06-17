@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-17 (sessão 26 — notas críticas full-height + dardos O'Connor/Plovier)_
+_Atualizado: 2026-06-17 (sessão 27 — insert vs update counter + ordenação Betfair)_
 
 ---
 
@@ -254,10 +254,16 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 26:** App estável em produção. Painel de análise full-height. Lista de dardos com O'Connor e Plovier.
+**Estado após sessão 27:** App estável em produção. Status bar distingue novos vs atualizados. Regra de ordem Betfair reescrita com tabela explícita.
 
 **Próximo passo imediato:**
 - Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair ML, pendente desde sessão 23).
+
+**Sessão 27 (17/06/2026):**
+- **Contexto:** extração Betfair com bets já processadas gerava confusão — contador dizia "25 salvos" sem distinguir updates de inserts; regra de ordenação §2 usava "texto colado" como referência, ambígua quando havia imagens + CSV.
+- **Fix insert vs update:** `app/repository.py` — `upsert_bilhetes` usa `xmax = 0` para detectar INSERT real; retorna `(inseridos, atualizados, ids, alertas)`. `app/main.py` — `/salvar` retorna `inseridos`/`atualizados` separados. `app/static/index.html` — status bar mostra `"X novo(s) · Y atualizado(s)"`.
+- **Fix ordenação Betfair:** `casas/CASA_BETFAIR.md §2` — regra reescrita com tabela explícita: Fonte A (prints/imagens) é a autoridade de ordem; CSV apenas para join de data, nunca reordena.
+- Commit: `2d98ca1`.
 
 **Sessão 26 (17/06/2026):**
 - **Notas Críticas full-height:** `app/static/index.html` — `.analysis-box` `flex-shrink:0` → `flex:1`; `.box-body` `max-height:220px` removido, `flex:1` adicionado. Painel de análise agora é totalmente ocupado pelas notas. Commits `801c9e0`.
