@@ -997,7 +997,13 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar bilhetes (HTTP ${rs.status})`);
       ultimaAnaliseIds = ds.ids || [];
-      let statusTxt = `✓ ${modelLabel} · ${ds.salvos || 0} bilhete(s) salvo(s)${skipInfo}`;
+      const ins = ds.inseridos ?? ds.salvos ?? 0;
+      const upd = ds.atualizados ?? 0;
+      const partsCount = [];
+      if (ins > 0) partsCount.push(`${ins} novo(s)`);
+      if (upd > 0) partsCount.push(`${upd} atualizado(s)`);
+      if (!partsCount.length) partsCount.push('0 novos');
+      let statusTxt = `✓ ${modelLabel} · ${partsCount.join(' · ')}${skipInfo}`;
       if (ds.alertas && ds.alertas.length) {
         statusTxt += ` · ⚠️ ${ds.alertas.length} alerta(s)`;
         const boxNotas = document.getElementById('box-notas');

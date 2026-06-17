@@ -396,8 +396,9 @@ async def salvar(body: SalvarRequest):
         if body.parceiro:
             row["parceiro"] = body.parceiro
         row["tipster"] = ""  # sempre vazio; vem da camada de app, não do bilhete
-    count, ids, alertas = await upsert_bilhetes(rows, confianca=body.confianca)
-    return {"salvos": count, "ids": ids, "alertas": alertas}
+    inseridos, atualizados, ids, alertas = await upsert_bilhetes(rows, confianca=body.confianca)
+    return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
+            "ids": ids, "alertas": alertas}
 
 
 class DeletarRequest(BaseModel):

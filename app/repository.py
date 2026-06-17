@@ -48,10 +48,13 @@ def _assinatura(row: dict) -> str:
 
 async def upsert_bilhetes(
     rows: list[dict], confianca: float | None = None
-) -> tuple[int, list[int], list[str]]:
+) -> tuple[int, int, list[int], list[str]]:
+    """Retorna (inseridos, atualizados, ids, alertas)."""
     pool = await get_pool()
     ids: list[int] = []
     alertas: list[str] = []
+    inseridos = 0
+    atualizados = 0
     # Rastreia hashes sem ID no lote atual para detectar sobreposição de prints
     seen_no_id: dict[str, int] = {}  # hash → índice da primeira ocorrência
 
@@ -90,7 +93,7 @@ async def upsert_bilhetes(
                     resultado        = EXCLUDED.resultado,
                     extraction_state = EXCLUDED.extraction_state,
                     atualizado_em    = NOW()
-                RETURNING id
+                RETURNING id, (xmax = 0) AS was_inserted
                 """,
                 row.get("casa", ""), row.get("parceiro", ""), sig,
                 codigo or None,
@@ -101,7 +104,11 @@ async def upsert_bilhetes(
             )
             if rec:
                 ids.append(rec["id"])
-    return len(ids), ids, alertas
+                if rec["was_inserted"]:
+                    inseridos += 1
+                else:
+                    atualizados += 1
+    return inseridos, atualizados, ids, alertas
 
 
 async def deletar_bilhetes(ids: list[int]) -> int:

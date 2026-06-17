@@ -33,7 +33,16 @@ A Betfair precisa de **duas fontes casadas pelo ID** `O/25146258/XXXX`:
 
 **Join:** `ID da aposta` (A) = `Bet Ref O/…` (B). O extrato é estruturado/exportável (como a Pinnacle) → data e bônus saem dele de forma determinística.
 
-**Ordenação de output (texto/extrato):** fim do texto colado = 1ª linha no TSV (mais antiga); início do texto = última linha no TSV (mais recente). Processar do fim para o início.
+**Ordenação de output — REGRA ABSOLUTA (Fonte A manda):**
+A ordem do TSV segue **exclusivamente a Fonte A** (prints/imagens/texto dos bilhetes).
+O extrato (Fonte B / CSV) é usado **apenas para buscar data e dados financeiros** via join — **nunca para reordenar**.
+
+| Posição na Fonte A | Posição no TSV |
+|---|---|
+| 1ª aposta (topo do print / início do texto) | **última linha** (mais recente) |
+| Última aposta (fim do print / fim do texto) | **1ª linha** (mais antiga) |
+
+> Regra mnemônica: inverter a Fonte A → gerar TSV. Nunca ordenar por data do extrato.
 
 ---
 
