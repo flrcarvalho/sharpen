@@ -276,6 +276,13 @@ body::before {
 .c-chk  { width: 42px; text-align: center; }
 .c-sel  { width: 28px; text-align: center; padding: 0 4px; }
 .c-del  { width: 28px; text-align: center; padding: 0; }
+.c-dup  { width: 38px; text-align: center; padding: 0 4px; }
+.dup-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+  background: rgba(46,139,255,.18); color: var(--accent-2);
+  white-space: nowrap; cursor: default; letter-spacing: .02em; line-height: 1.5;
+}
 .del-btn {
   width: 20px; height: 20px; padding: 0; border: none;
   background: transparent; cursor: pointer; color: var(--ink-mute);
@@ -494,10 +501,11 @@ td.c-res.res-HL { color: var(--warn); }
                   <th class="c-res">Result.</th>
                   <th class="c-chk">☑</th>
                   <th class="c-del"></th>
+                  <th class="c-dup"></th>
                 </tr>
               </thead>
               <tbody id="grade-body">
-                <tr><td colspan="13" class="grade-empty">Selecione um parceiro para ver os bilhetes.</td></tr>
+                <tr><td colspan="14" class="grade-empty">Selecione um parceiro para ver os bilhetes.</td></tr>
               </tbody>
             </table>
           </div>
@@ -545,6 +553,7 @@ let csvFiles = [];
 let xlsFiles = [];
 let bilhetes = [];
 let ultimaAnaliseIds = [];
+let ultimaDuplicatas = {};  // {str(db_id): [occurrence, total]}
 let _abortCtrl = null;
 
 // Inicializar campo de data de referência com hoje
@@ -724,6 +733,7 @@ function selecionarParceiro(p) {
   document.getElementById('partner-page').style.display = 'flex';
 
   ultimaAnaliseIds = [];
+  ultimaDuplicatas = {};
   limparExtrator();
   carregarGrade();
 }
@@ -1004,6 +1014,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
       if (upd > 0) partsCount.push(`${upd} atualizado(s)`);
       if (!partsCount.length) partsCount.push('0 novos');
       let statusTxt = `✓ ${modelLabel} · ${partsCount.join(' · ')}${skipInfo}`;
+      if (ds.duplicatas) ultimaDuplicatas = ds.duplicatas;
       if (ds.alertas && ds.alertas.length) {
         statusTxt += ` · ⚠️ ${ds.alertas.length} alerta(s)`;
         const boxNotas = document.getElementById('box-notas');
@@ -1011,7 +1022,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
         if (notasEl) {
           const aviso = document.createElement('div');
           aviso.style.cssText = 'margin-top:8px;padding:6px 8px;background:rgba(255,180,0,.12);border-radius:4px;font-size:11px;color:var(--warn,#f5a623)';
-          aviso.innerHTML = '<strong>⚠️ Possíveis duplicatas detectadas:</strong><br>' +
+          aviso.innerHTML = '<strong>⚠️ Bilhetes idênticos detectados:</strong><br>' +
             ds.alertas.map(a => `• ${a}`).join('<br>');
           notasEl.appendChild(aviso);
           boxNotas.style.display = '';
@@ -1076,12 +1087,16 @@ function ed(campo, val, cls = '') {
 function renderGrade() {
   const tbody = document.getElementById('grade-body');
   if (!bilhetes.length) {
-    tbody.innerHTML = '<tr><td colspan="13" class="grade-empty">Nenhum bilhete salvo. Extraia para preencher.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="grade-empty">Nenhum bilhete salvo. Extraia para preencher.</td></tr>';
     return;
   }
   tbody.innerHTML = bilhetes.map(b => {
     const cop = b.copy_state === 'copiada';
     const resClass = RES_COLOR[b.resultado] || '';
+    const dupInfo = ultimaDuplicatas[String(b.id)];
+    const dupTd = dupInfo
+      ? `<td class="c-dup"><span class="dup-badge" title="Suspeita de duplicidade — verifique se é aposta distinta ou erro de scroll">${dupInfo[0]}/${dupInfo[1]}</span></td>`
+      : '<td class="c-dup"></td>';
     return `<tr class="${cop ? 'row-cop' : ''}" data-id="${b.id}">
       <td class="c-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></td>
       ${ed('data',      b.data,      'c-data')}
@@ -1096,6 +1111,7 @@ function renderGrade() {
       <td class="c-res editable ${resClass}" contenteditable="true" data-campo="resultado" spellcheck="false">${esc(b.resultado)}</td>
       <td class="c-chk"><button class="chk-btn ${cop ? 'checked' : ''}" onclick="toggleCopy(${b.id},this)">✓</button></td>
       <td class="c-del"><button class="del-btn" title="Deletar" onclick="deletarBilhete(${b.id})">✕</button></td>
+      ${dupTd}
     </tr>`;
   }).join('');
 }

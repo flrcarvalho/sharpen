@@ -31,53 +31,71 @@ def parse_tsv(tsv: str) -> list[dict]:
     return rows
 
 
-def _assinatura(row: dict) -> str:
+def _assinatura(row: dict, _counter: int = 1) -> str:
     codigo = row.get("codigo_bilhete", "").strip()
     if codigo:
-        # ID único do bilhete disponível: usa como chave primária de dedup
         raw = "|".join(["ID", row.get("casa", ""), row.get("parceiro", ""), codigo])
     else:
-        # Sem ID: usa conteúdo completo (casa + parceiro + data + aposta + descricao + odd)
         raw = "|".join([
             row.get("casa", ""), row.get("parceiro", ""),
             row.get("data", ""), row.get("aposta", ""), row.get("descricao", ""),
             row.get("odd", ""),
         ])
+        if _counter > 1:
+            raw += f"|{_counter}"
     return hashlib.sha256(raw.encode()).hexdigest()[:20]
 
 
 async def upsert_bilhetes(
     rows: list[dict], confianca: float | None = None
-) -> tuple[int, int, list[int], list[str]]:
-    """Retorna (inseridos, atualizados, ids, alertas)."""
+) -> tuple[int, int, list[int], list[str], dict]:
+    """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
+
+    duplicatas: {str(db_id): [occurrence, total]} — bets suspeitas de duplicidade no lote.
+    """
     pool = await get_pool()
     ids: list[int] = []
     alertas: list[str] = []
     inseridos = 0
     atualizados = 0
-    # Rastreia hashes sem ID no lote atual para detectar sobreposição de prints
-    seen_no_id: dict[str, int] = {}  # hash → índice da primeira ocorrência
+
+    # Pré-conta ocorrências de cada base_sig para bets sem ID
+    base_sig_totals: dict[str, int] = {}
+    for row in rows:
+        if not row.get("codigo_bilhete", "").strip():
+            bs = _assinatura(row)
+            base_sig_totals[bs] = base_sig_totals.get(bs, 0) + 1
+
+    batch_sig_counters: dict[str, int] = {}     # base_sig → contagem atual no lote
+    sig_to_first_row: dict[str, int] = {}       # base_sig → índice da 1ª ocorrência
+    dup_row_info: dict[int, tuple[int, int]] = {}   # row_idx → (occurrence, total)
+    id_per_row: list[int | None] = []           # db_id por posição de row
 
     async with pool.acquire() as conn:
         for i, row in enumerate(rows):
             codigo = row.get("codigo_bilhete", "").strip()
-            sig = _assinatura(row)
 
-            # Detecção de sobreposição de prints (apenas quando não há ID)
             if not codigo:
-                content_key = "|".join([
-                    row.get("casa", ""), row.get("parceiro", ""),
-                    row.get("data", ""), row.get("descricao", ""), row.get("odd", ""),
-                ])
-                ck_hash = hashlib.sha256(content_key.encode()).hexdigest()[:16]
-                if ck_hash in seen_no_id:
-                    primeiro = seen_no_id[ck_hash] + 1
-                    alertas.append(
-                        f"Bilhete {i + 1} idêntico ao bilhete {primeiro} (sem ID visível) — "
-                        "possível sobreposição de prints. Verifique e delete o duplicado se necessário."
-                    )
-                else:
-                    seen_no_id[ck_hash] = i
+                base_sig = _assinatura(row)
+                total = base_sig_totals.get(base_sig, 1)
+                cnt = batch_sig_counters.get(base_sig, 0) + 1
+                batch_sig_counters[base_sig] = cnt
+                sig = _assinatura(row, _counter=cnt)
+
+                if total > 1:
+                    dup_row_info[i] = (cnt, total)
+                    if cnt == 1:
+                        sig_to_first_row[base_sig] = i
+                    else:
+                        primeiro = sig_to_first_row[base_sig] + 1  # 1-indexado
+                        alertas.append(
+                            f"Bilhete {i + 1} idêntico ao bilhete {primeiro} (sem ID visível) — "
+                            "se da mesma imagem são apostas distintas (ok); "
+                            "se de imagens diferentes pode ser duplicata de scroll — "
+                            "verifique e delete se necessário."
+                        )
+            else:
+                sig = _assinatura(row)
 
             if codigo:
                 # Migração A: normaliza assinatura de linha existente com mesmo código
@@ -132,12 +150,24 @@ async def upsert_bilhetes(
                 extraction_state, confianca,
             )
             if rec:
-                ids.append(rec["id"])
+                db_id = rec["id"]
+                ids.append(db_id)
+                id_per_row.append(db_id)
                 if rec["was_inserted"]:
                     inseridos += 1
                 else:
                     atualizados += 1
-    return inseridos, atualizados, ids, alertas
+            else:
+                id_per_row.append(None)
+
+    # Monta mapa duplicatas: str(db_id) → [occurrence, total]
+    duplicatas: dict[str, list[int]] = {}
+    for row_idx, (occ, total) in dup_row_info.items():
+        db_id = id_per_row[row_idx] if row_idx < len(id_per_row) else None
+        if db_id is not None:
+            duplicatas[str(db_id)] = [occ, total]
+
+    return inseridos, atualizados, ids, alertas, duplicatas
 
 
 async def deletar_bilhetes(ids: list[int]) -> int:

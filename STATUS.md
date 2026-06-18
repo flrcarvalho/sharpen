@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-17 (sessão 28 — fix dedup: duplicatas Pinnacle XLS vs bets sem código)_
+_Atualizado: 2026-06-18 (sessão 28 — dedup: INSERT duplos + badge N/M na grade)_
 
 ---
 
