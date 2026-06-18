@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-17 (sessão 27 — insert vs update counter + ordenação Betfair)_
+_Atualizado: 2026-06-17 (sessão 28 — fix dedup: duplicatas Pinnacle XLS vs bets sem código)_
 
 ---
 
@@ -254,16 +254,27 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 27:** App estável em produção. Status bar distingue novos vs atualizados. Regra de ordem Betfair reescrita com tabela explícita.
+**Estado após sessão 28:** Fix de dedup aplicado. Re-upload de XLS Pinnacle não gera mais duplicatas.
 
 **Próximo passo imediato:**
 - Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair ML, pendente desde sessão 23).
+- Limpar duplicatas que já existem no banco (bets copiadas duas vezes — ver sessão 28).
 
 **Sessão 27 (17/06/2026):**
 - **Contexto:** extração Betfair com bets já processadas gerava confusão — contador dizia "25 salvos" sem distinguir updates de inserts; regra de ordenação §2 usava "texto colado" como referência, ambígua quando havia imagens + CSV.
 - **Fix insert vs update:** `app/repository.py` — `upsert_bilhetes` usa `xmax = 0` para detectar INSERT real; retorna `(inseridos, atualizados, ids, alertas)`. `app/main.py` — `/salvar` retorna `inseridos`/`atualizados` separados. `app/static/index.html` — status bar mostra `"X novo(s) · Y atualizado(s)"`.
 - **Fix ordenação Betfair:** `casas/CASA_BETFAIR.md §2` — regra reescrita com tabela explícita: Fonte A (prints/imagens) é a autoridade de ordem; CSV apenas para join de data, nunca reordena.
 - Commit: `2d98ca1`.
+
+**Sessão 28 (17/06/2026):**
+- **Bug:** re-upload de XLS Pinnacle gerava duplicatas — bets já copiadas voltavam como pendentes sem tick.
+- **Root cause:** `upsert_bilhetes()` deduplicava só por `assinatura` (SHA-256). Bets importadas sem código (via imagem ou extração anterior sem 11ª coluna) têm hash baseado em conteúdo. Nova extração via XLS gera hash baseado em ID → assinaturas diferentes → INSERT em vez de UPSERT → linha duplicada com `copy_state='pendente'`.
+- **Fix:** duas migrações antes do INSERT em `upsert_bilhetes()`:
+  - Migração A: se linha existente tem mesmo `codigo_bilhete` mas assinatura diferente → atualiza assinatura (normaliza formato antigo).
+  - Migração B: se linha existente tem `codigo_bilhete IS NULL` e bate em `data+aposta+stake+odd` → adopta: atribui assinatura e código à linha existente.
+- **Também:** `DO UPDATE SET` agora propaga `codigo_bilhete` via `COALESCE` se a linha existente não tinha código.
+- Backup: `Backups/repository_pre_dedup_fix_2026-06-17.py`.
+- Commit: (este).
 
 **Sessão 26 (17/06/2026):**
 - **Notas Críticas full-height:** `app/static/index.html` — `.analysis-box` `flex-shrink:0` → `flex:1`; `.box-body` `max-height:220px` removido, `flex:1` adicionado. Painel de análise agora é totalmente ocupado pelas notas. Commits `801c9e0`.

@@ -79,6 +79,34 @@ async def upsert_bilhetes(
                 else:
                     seen_no_id[ck_hash] = i
 
+            if codigo:
+                # Migração A: normaliza assinatura de linha existente com mesmo código
+                await conn.execute(
+                    """UPDATE bilhetes SET assinatura = $1
+                       WHERE casa = $2 AND parceiro = $3
+                         AND codigo_bilhete = $4 AND assinatura != $1""",
+                    sig, row.get("casa", ""), row.get("parceiro", ""), codigo,
+                )
+                # Migração B: adota linha sem código que bate em data+aposta+stake+odd
+                # (bets importadas via imagem antes do suporte a XLS)
+                await conn.execute(
+                    """
+                    WITH candidate AS (
+                        SELECT id FROM bilhetes
+                        WHERE casa = $2 AND parceiro = $3
+                          AND codigo_bilhete IS NULL
+                          AND data = $4 AND aposta = $5 AND stake = $6 AND odd = $7
+                        LIMIT 1
+                    )
+                    UPDATE bilhetes SET assinatura = $1, codigo_bilhete = $8
+                    FROM candidate
+                    WHERE bilhetes.id = candidate.id AND bilhetes.assinatura != $1
+                    """,
+                    sig, row.get("casa", ""), row.get("parceiro", ""),
+                    row.get("data", ""), row.get("aposta", ""),
+                    row.get("stake", ""), row.get("odd", ""), codigo,
+                )
+
             resultado = row.get("resultado", "").strip() or None
             extraction_state = "resolvida" if resultado in _RESULTADOS_VALIDOS else "aberta"
             rec = await conn.fetchrow(
@@ -90,6 +118,7 @@ async def upsert_bilhetes(
                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
                 ON CONFLICT (casa, parceiro, assinatura) DO UPDATE SET
                     tipster          = EXCLUDED.tipster,
+                    codigo_bilhete   = COALESCE(bilhetes.codigo_bilhete, EXCLUDED.codigo_bilhete),
                     resultado        = EXCLUDED.resultado,
                     extraction_state = EXCLUDED.extraction_state,
                     atualizado_em    = NOW()
