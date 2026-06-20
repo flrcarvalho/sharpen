@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-20 (sessão 29 — bugs CASA_BETANO + UI multi-cards de extração paralela)_
+_Atualizado: 2026-06-20 (sessão 31 — arquivamento automático de apostas antigas)_
 
 ---
 
@@ -270,6 +270,18 @@ uvicorn main:app --reload
 - **Avaliar Sonnet 4.5:** testar mesmo lote com Sonnet 4.5 e Sonnet 4.6 e comparar qualidade linha a linha.
 - ~~Adicionar `Steve Johnstone` e `Oliver Mitchell` a lista de Dardos em `MASTER_ESPORTES_2026.md`~~ — **feito** (commit `8bd99d6`).
 - ~~Limpar duplicatas no banco~~ — **cancelado** (sessao 30): duplicatas pontuais sao tratadas individualmente quando surgem; nao ha limpeza retroativa em batch.
+
+**Sessão 31 (20/06/2026) — Arquivamento automático de apostas antigas:**
+
+- **Feature:** após cada `/salvar`, o sistema arquiva automaticamente as apostas antigas de cada parceiro, mantendo visíveis apenas `max(tamanho_do_lote, 40)` apostas mais recentes.
+- **Regra:** apostas arquivadas (`archived=TRUE`) permanecem no banco e são acessíveis — nunca deletadas. A grade oculta arquivadas por padrão.
+- **UI:** chip "⊞ N arquivados" aparece na stats bar quando há arquivadas; clique alterna para mostrar tudo (arquivadas com estilo esmaecido `row-arc`); "Copiar pendentes" e "Baixar TSV" operam apenas sobre apostas ativas.
+- **Arquivos alterados:**
+  - `database.py`: coluna `archived BOOLEAN NOT NULL DEFAULT FALSE` + migração `ALTER TABLE IF NOT EXISTS`.
+  - `repository.py`: `auto_arquivar()`, `contar_arquivados()`, `list_bilhetes()` com parâmetro `archived`.
+  - `main.py`: `/salvar` chama `auto_arquivar` e retorna `arquivados`; `/bilhetes` aceita `?archived=false|true|all`.
+  - `index.html`: chip toggle, estilo `.row-arc`, filtros de cópia/download excluem arquivadas.
+- Backup: `Backups/pre_arquivamento_auto_2026-06-20/`. Commit: `7e4b76a`.
 
 **Sessão 29 (20/06/2026) — Bugs CASA_BETANO + UI multi-cards:**
 
