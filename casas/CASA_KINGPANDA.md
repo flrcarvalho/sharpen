@@ -188,28 +188,45 @@ Apostas abertas → `extraction_state = aberta`.
 
 ## 9. Mapa de mercados (KingPanda → `Aposta` global)
 
-| KingPanda exibe | Aposta global |
-|---|---|
-| `Jogador a Marcar um gol ou dar uma assistência` | Player Props |
-| `Jogador a Marcar um Gol` / `Marcar a qualquer momento` | Anytime |
-| `Ambas equipes Marcam` | Ambas Marcam |
-| `Chance Dupla` | Dupla Chance |
-| `Escanteios Mais/Menos (2-Vias)` / `Escanteios Mais/Menos` | Escanteios |
-| `Total de Gols Mais/Menos` | Gols |
-| `Equipe com Mais Cartões` | Cartões |
-| `Resultado do 1º Tempo` / `Resultado do 2º Tempo` | ML |
-| `Resultado Final` / `Vencedor da Partida` | ML |
-| `[Time]: Equipe Marca nos Dois Tempos` | Team Props |
-| `Resultado Correto` / `Resultado Correto - 1º Tempo` | Outras ⚠️ |
-| `Criador de apostas` (múltiplas seleções) | Múltipla |
-| mercado não mapeado | Outras ⚠️ |
+Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **todas** as categorias globais — confirmadas com amostra real e pendentes.
+
+| Aposta global | KingPanda exibe | Status |
+|---|---|---|
+| Ambas Marcam | `Ambas equipes Marcam` | ✓ confirmado |
+| Anytime | `Jogador a Marcar um Gol` · `Marcar a qualquer momento` | ✓ confirmado |
+| Assistência | `Assistência` · `Passe para Gol` | aguarda amostra |
+| Cartões | `Cartões` · `Equipe com Mais Cartões` · `Mais Cartões` | ✓ confirmado |
+| Chutes | `Finalizações` · `Total de Finalizações` | aguarda amostra |
+| Chutes no Gol | `Finalizações no Alvo` · `Chutes no Alvo` | aguarda amostra |
+| Corridas | (Baseball) | aguarda amostra |
+| Desarmes | `Desarmes` · `Tackles` | aguarda amostra |
+| DNB | `Empate Anula` · `DNB` | aguarda amostra |
+| Double-Double | (Basquete) | aguarda amostra |
+| Dupla Chance | `Chance Dupla` | ✓ confirmado |
+| E-Sports Props | (E-Sports) | aguarda amostra |
+| Escanteios | `Escanteios Mais/Menos (2-Vias)` · `Escanteios Mais/Menos` · `Escanteios` | ✓ confirmado |
+| Games | (Tênis) | aguarda amostra |
+| Gols | `Total de Gols Mais/Menos` · `Total de Gols` | ✓ confirmado |
+| H2H | mercado comparativo entre jogadores/times | aguarda amostra |
+| Handicap | `Handicap Asiático` · `AH` · `Handicap` | aguarda amostra |
+| Impedimentos | `Impedimentos` | aguarda amostra |
+| Jardas | (NFL — jardas) | aguarda amostra |
+| Legs | (Dardos — legs) | aguarda amostra |
+| ML | `Resultado Final` · `Resultado do 1º Tempo` · `Resultado do 2º Tempo` · `Vencedor da Partida` · `1X2` | ✓ confirmado |
+| Múltipla | `Criador de apostas` (bilhete com múltiplas seleções) | ✓ confirmado |
+| Outras | `Resultado Correto` · `Resultado Correto - 1º Tempo` · mercado não mapeado | ✓ fallback |
+| Player Props | `Jogador a Marcar um gol ou dar uma assistência` · qualquer ação individual de jogador | ✓ confirmado |
+| Sets | (Tênis — sets) | aguarda amostra |
+| Team Props | `[Time]: Equipe Marca nos Dois Tempos` · estatística coletiva de equipe | ✓ confirmado |
+| Triplo-Duplo | (Basquete) | aguarda amostra |
 
 **Notas de reconstrução:**
 - Confronto: `Time A vs Time B` → `[Time A v Time B]` (lowercase `v`, colchetes)
-- `Mais de X` / `Menos de X` → Over X / Under X. Decimal: ponto → vírgula (`2.5` → `2,5`)
-- Player Props: seleção = nome do jogador; mercado = ação genérica com prefixo "Jogador a". Na descrição: substituir "Jogador a" + ação pelo nome do jogador + ação — ex.: `"Jogador a Marcar..."` com jogador `"Viktor Gyokeres"` → `"Viktor Gyokeres a Marcar..."`
-- Criador de apostas: cada seleção = `[Seleção] [Mercado] [Confronto]`; concatenar com ` // `
-- Odds no texto: ponto decimal (en-US) → vírgula no output: `3.20` → `3,20`
+- `Mais de X` / `Menos de X` → Over X / Under X; decimal ponto → vírgula (`2.5` → `2,5`)
+- Player Props: seleção = nome do jogador; mercado usa prefixo "Jogador a". Na descrição: substituir "Jogador a [ação]" por "[Nome do Jogador] a [ação]" — ex.: `Viktor Gyokeres a Marcar um Gol ou dar uma Assistência`
+- Criador de apostas (Múltipla): cada seleção = `[Seleção] [Mercado] [Confronto]`; concatenar com ` // `
+- Odds: ponto decimal en-US → vírgula no output: `3.20` → `3,20`
+- Prioridade: usar sempre a categoria mais específica; `Player Props` e `Outras` são último recurso (`MASTER_APOSTAS_2026 §2`)
 
 ---
 
