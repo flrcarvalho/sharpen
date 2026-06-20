@@ -382,6 +382,41 @@ td.c-res.res-HL { color: var(--warn); }
   padding: 24px;
 }
 .right-empty-icon { font-size: 28px; opacity: .2; }
+
+/* ── Extraction cards ── */
+.extract-card { border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.ec-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 14px; background: var(--surface-2);
+}
+.ec-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
+.ec-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.ec-spin {
+  width: 10px; height: 10px; border: 1.5px solid var(--line);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+.extract-card--ok .ec-spin,
+.extract-card--err .ec-spin,
+.extract-card--warn .ec-spin { display: none; }
+.ec-label { font-size: 11px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ec-time { font-size: 10px; color: var(--ink-mute); font-family: var(--font-mono); flex-shrink: 0; }
+.ec-tok { font-size: 10px; color: var(--ink-mute); font-family: var(--font-mono); flex-shrink: 0; }
+.ec-cancel {
+  background: none; border: none; cursor: pointer;
+  font-size: 10px; color: var(--ink-mute); padding: 2px 5px;
+  border-radius: 3px; line-height: 1;
+}
+.ec-cancel:hover { color: var(--neg); background: rgba(229,82,75,.1); }
+.ec-body { padding: 8px 14px; }
+.ec-prog { font-size: 10px; font-family: var(--font-mono); color: var(--ink-mute); }
+.ec-prog.ok { color: var(--pos); }
+.ec-prog.warn { color: var(--warn,#f5a623); }
+.ec-prog.err { color: var(--neg); }
+.ec-notas { margin-top: 5px; font-size: 11px; color: var(--ink-soft); line-height: 1.6; }
+.extract-card--ok .ec-header { background: rgba(70,211,105,.07); }
+.extract-card--err .ec-header { background: rgba(229,82,75,.07); }
+.extract-card--warn .ec-header { background: rgba(245,166,35,.07); }
 </style>
 </head>
 <body>
@@ -554,7 +589,8 @@ let xlsFiles = [];
 let bilhetes = [];
 let ultimaAnaliseIds = [];
 let ultimaDuplicatas = {};  // {str(db_id): [occurrence, total]}
-let _abortCtrl = null;
+const _activeStreams = new Map(); // cardId → AbortController
+let _cardCounter = 0;
 
 // Inicializar campo de data de referência com hoje
 (function () {
@@ -735,6 +771,7 @@ function selecionarParceiro(p) {
   ultimaAnaliseIds = [];
   ultimaDuplicatas = {};
   limparExtrator();
+  limparPainelDireito();
   carregarGrade();
 }
 
@@ -871,14 +908,21 @@ function limparExtrator() {
   arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews();
   document.getElementById('texto').value = '';
   setStatus('', ''); atualizarBotaoExtrair();
-  // Limpar painel de análise
-  document.getElementById('box-notas').style.display = 'none';
+}
+
+function limparPainelDireito() {
+  const container = document.getElementById('analysis-boxes');
+  container.querySelectorAll('.extract-card').forEach(c => c.remove());
+  _activeStreams.forEach(ctrl => ctrl.abort());
+  _activeStreams.clear();
   document.getElementById('right-empty').style.display = '';
   document.getElementById('token-bar').innerHTML = '';
+  const boxNotas = document.getElementById('box-notas');
+  if (boxNotas) boxNotas.style.display = 'none';
 }
 document.getElementById('btn-limpar').addEventListener('click', limparExtrator);
 document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews(); atualizarBotaoExtrair(); });
-document.getElementById('btn-cancelar').addEventListener('click', () => { if (_abortCtrl) _abortCtrl.abort(); });
+document.getElementById('btn-cancelar').addEventListener('click', () => { _activeStreams.forEach(c => c.abort()); });
 
 function setStatus(msg, tipo) {
   const el = document.getElementById('status-msg');
@@ -914,21 +958,168 @@ function renderAnalysis(parsed) {
   document.getElementById('box-notas').style.display = '';
 }
 
+// ── Extraction cards (multi-paralelo) ─────────────────────────────────────────
+
+function createExtractionCard(parceiro, modelo) {
+  const id = ++_cardCounter;
+  const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const modelLabel = modelo.includes('opus') ? 'Opus 4.8' : 'Sonnet 4.6';
+  const label = `${esc(parceiro.casa)} · ${esc(parceiro.nome)}`;
+
+  const card = document.createElement('div');
+  card.className = 'extract-card extract-card--running';
+  card.innerHTML =
+    `<div class="ec-header">` +
+      `<div class="ec-left">` +
+        `<span class="ec-spin"></span>` +
+        `<span class="ec-label">${label}</span>` +
+        `<span class="ec-time">${now}</span>` +
+        `<span class="ec-tok"></span>` +
+      `</div>` +
+      `<div class="ec-right">` +
+        `<button class="ec-cancel" title="Cancelar">✕</button>` +
+      `</div>` +
+    `</div>` +
+    `<div class="ec-body">` +
+      `<div class="ec-prog">Processando… (0s)</div>` +
+      `<div class="ec-notas" style="display:none"></div>` +
+    `</div>`;
+
+  const container = document.getElementById('analysis-boxes');
+  document.getElementById('right-empty').style.display = 'none';
+  container.insertBefore(card, container.firstChild);
+
+  const ctrl = new AbortController();
+  _activeStreams.set(id, ctrl);
+
+  card.querySelector('.ec-cancel').addEventListener('click', () => ctrl.abort());
+
+  const progEl  = card.querySelector('.ec-prog');
+  const tokEl   = card.querySelector('.ec-tok');
+  const notasEl = card.querySelector('.ec-notas');
+
+  return {
+    id,
+    ctrl,
+    setProgress(msg) { progEl.textContent = msg; },
+    setTokens(t) {
+      const pct = t.cache_read > 0
+        ? ` ${Math.round(t.cache_read / (t.input + t.cache_read) * 100)}%↑`
+        : '';
+      tokEl.textContent = `in:${t.input} out:${t.output}${pct}`;
+    },
+    setNotas(notas) {
+      if (notas && notas !== 'Nenhuma') {
+        notasEl.innerHTML = '<strong>Notas:</strong> ' + esc(notas).replace(/\n/g, '<br>');
+        notasEl.style.display = '';
+      }
+    },
+    markDone(msg, tipo) {
+      card.classList.remove('extract-card--running');
+      card.classList.add(`extract-card--${tipo}`);
+      progEl.className = `ec-prog ${tipo}`;
+      progEl.textContent = msg;
+      card.querySelector('.ec-cancel').style.display = 'none';
+      _activeStreams.delete(id);
+    },
+  };
+}
+
+async function runExtractionCard(form, card, parceiro) {
+  const { ctrl, setProgress, setTokens, setNotas, markDone } = card;
+  let _elapsed = 0;
+  const _timer = setInterval(() => { _elapsed++; setProgress(`Processando… (${_elapsed}s)`); }, 1000);
+
+  try {
+    const r = await fetch('/extrair', { method: 'POST', body: form, signal: ctrl.signal });
+    if (!r.ok) throw new Error(await r.text());
+
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let sseBuf = '', data = null, streamChars = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sseBuf += dec.decode(value, { stream: true });
+      const events = sseBuf.split('\n\n');
+      sseBuf = events.pop();
+      for (const ev of events) {
+        if (!ev.startsWith('data: ')) continue;
+        const obj = JSON.parse(ev.slice(6));
+        if (obj.error) throw new Error(obj.error);
+        if (obj.t) { streamChars += obj.t.length; setProgress(`Processando… (${_elapsed}s · ${streamChars} chars)`); }
+        if (obj.continuation) setProgress(`Continuando… parte ${obj.continuation} (${_elapsed}s)`);
+        if (obj.done) data = obj;
+      }
+    }
+    if (!data) throw new Error('Resposta incompleta — sem evento "done"');
+
+    setTokens(data.tokens);
+    const parsed = parseResposta(data.resultado);
+    setNotas(parsed.notas);
+
+    if (data.stop_reason === 'max_tokens') {
+      markDone('✗ Truncado (limite de tokens) — reduza o lote', 'err');
+      return;
+    }
+
+    const skipInfo = data.xls_skipped > 0 ? ` · ${data.xls_skipped} ignorada(s)` : '';
+
+    if (parsed.tsv) {
+      const rs = await fetch('/salvar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome }),
+      });
+      const ds = await rs.json();
+      if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar (HTTP ${rs.status})`);
+
+      ultimaAnaliseIds = ds.ids || [];
+      if (ds.duplicatas) ultimaDuplicatas = ds.duplicatas;
+
+      const ins = ds.inseridos ?? ds.salvos ?? 0;
+      const upd = ds.atualizados ?? 0;
+      const parts = [];
+      if (ins > 0) parts.push(`${ins} novo(s)`);
+      if (upd > 0) parts.push(`${upd} atualizado(s)`);
+      if (!parts.length) parts.push('0 novos');
+      const alertMsg = ds.alertas && ds.alertas.length ? ` · ⚠️ ${ds.alertas.length} alerta(s)` : '';
+      const tipo = ds.alertas && ds.alertas.length ? 'warn' : 'ok';
+
+      markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}`, tipo);
+
+      if (parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
+        await carregarGrade();
+        atualizarBotoesGrade();
+      }
+    } else if (data.xls_skipped > 0) {
+      markDone(`✓ ${data.xls_skipped} apostas já salvas — nada novo${skipInfo}`, 'ok');
+    } else {
+      markDone('⚠️ Nenhum bilhete extraído — veja Notas acima', 'warn');
+    }
+
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      markDone('Cancelado', 'warn');
+    } else {
+      markDone('✗ ' + (e.message || 'Erro desconhecido'), 'err');
+    }
+  } finally {
+    clearInterval(_timer);
+  }
+}
+
 // ── Extrair ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-extrair').addEventListener('click', async () => {
   if (!parceiroSelecionado) return;
-  const btn = document.getElementById('btn-extrair');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  _abortCtrl = new AbortController();
-  document.getElementById('btn-cancelar').style.display = '';
-  let _elapsed = 0;
-  const _timer = setInterval(() => { _elapsed++; setStatus(`Processando… (${_elapsed}s)`, ''); }, 1000);
-  setStatus('Processando… (0s)', '');
 
+  // Captura dados do formulário ANTES de limpar
   const form = new FormData();
   form.append('casa', parceiroSelecionado.casa);
   form.append('parceiro', parceiroSelecionado.nome);
-  form.append('modelo', document.getElementById('modelo').value);
+  const modelo = document.getElementById('modelo').value;
+  form.append('modelo', modelo);
   const txt = document.getElementById('texto').value.trim();
   if (txt) form.append('texto', txt);
   arquivos.forEach(f => form.append('imagens', f));
@@ -946,112 +1137,15 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
     form.append('data_referencia', `${d}/${m}/${y}`);
   }
 
-  try {
-    // ── Streaming SSE — mantém conexão viva durante chamadas longas ───────────
-    const r = await fetch('/extrair', { method: 'POST', body: form, signal: _abortCtrl.signal });
-    if (!r.ok) throw new Error(await r.text());
+  // Snapshot do parceiro atual (pode mudar enquanto o card processa)
+  const parceiroSnapshot = { ...parceiroSelecionado };
 
-    const reader = r.body.getReader();
-    const dec = new TextDecoder();
-    let sseBuf = '';
-    let data = null;
-    let streamTokens = 0;
+  // Cria card → limpa formulário → re-habilita botão imediatamente
+  const card = createExtractionCard(parceiroSnapshot, modelo);
+  limparExtrator();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      sseBuf += dec.decode(value, { stream: true });
-      const events = sseBuf.split('\n\n');
-      sseBuf = events.pop();
-      for (const ev of events) {
-        if (!ev.startsWith('data: ')) continue;
-        const obj = JSON.parse(ev.slice(6));
-        if (obj.error) throw new Error(obj.error);
-        if (obj.continuation) { setStatus(`Continuando… parte ${obj.continuation} (${_elapsed}s)`, ''); }
-        if (obj.t) { streamTokens += obj.t.length; setStatus(`Processando… (${_elapsed}s · ${streamTokens} chars)`, ''); }
-        if (obj.done) data = obj;
-      }
-    }
-    if (!data) throw new Error('Resposta incompleta — sem evento "done"');
-
-    // Tokens
-    const t = data.tokens;
-    const pct = (t.cache_read > 0 && (t.input + t.cache_read) > 0)
-      ? ` · <span style="color:var(--pos)">${Math.round(t.cache_read / (t.input + t.cache_read) * 100)}% cache</span>`
-      : '';
-    document.getElementById('token-bar').innerHTML =
-      `<span><span>in</span> ${t.input}</span>` +
-      `<span><span>out</span> ${t.output}</span>` +
-      `<span><span>cr</span> ${t.cache_read}</span>` +
-      `<span><span>cw</span> ${t.cache_write}</span>` +
-      pct;
-
-    // Parsear e exibir análise
-    const parsed = parseResposta(data.resultado);
-    renderAnalysis(parsed);
-
-    // Auto-salvar no banco
-    const modelLabel = data.modelo.split('-').slice(1, 3).join(' ');
-    const skipInfo = (data.xls_skipped > 0) ? ` · ${data.xls_skipped} já salva(s) ignorada(s)` : '';
-    if (data.stop_reason === 'max_tokens') {
-      setStatus(`✗ Resposta truncada (limite de tokens atingido) — reduza o número de imagens por lote.`, 'err');
-      return;
-    }
-
-    if (parsed.tsv) {
-      const rs = await fetch('/salvar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tsv: parsed.tsv, casa: parceiroSelecionado.casa, parceiro: parceiroSelecionado.nome })
-      });
-      const ds = await rs.json();
-      if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar bilhetes (HTTP ${rs.status})`);
-      ultimaAnaliseIds = ds.ids || [];
-      const ins = ds.inseridos ?? ds.salvos ?? 0;
-      const upd = ds.atualizados ?? 0;
-      const partsCount = [];
-      if (ins > 0) partsCount.push(`${ins} novo(s)`);
-      if (upd > 0) partsCount.push(`${upd} atualizado(s)`);
-      if (!partsCount.length) partsCount.push('0 novos');
-      let statusTxt = `✓ ${modelLabel} · ${partsCount.join(' · ')}${skipInfo}`;
-      if (ds.duplicatas) ultimaDuplicatas = ds.duplicatas;
-      if (ds.alertas && ds.alertas.length) {
-        statusTxt += ` · ⚠️ ${ds.alertas.length} alerta(s)`;
-        const boxNotas = document.getElementById('box-notas');
-        const notasEl = boxNotas ? boxNotas.querySelector('.analysis-body') : null;
-        if (notasEl) {
-          const aviso = document.createElement('div');
-          aviso.style.cssText = 'margin-top:8px;padding:6px 8px;background:rgba(255,180,0,.12);border-radius:4px;font-size:11px;color:var(--warn,#f5a623)';
-          aviso.innerHTML = '<strong>⚠️ Bilhetes idênticos detectados:</strong><br>' +
-            ds.alertas.map(a => `• ${a}`).join('<br>');
-          notasEl.appendChild(aviso);
-          boxNotas.style.display = '';
-          document.getElementById('right-empty').style.display = 'none';
-        }
-      }
-      setStatus(statusTxt, ds.alertas && ds.alertas.length ? 'warn' : 'ok');
-      await carregarGrade();
-      atualizarBotoesGrade();
-    } else if (data.xls_skipped > 0) {
-      setStatus(`✓ Todas as ${data.xls_skipped} apostas do XLS já estavam salvas. Nada novo.`, 'ok');
-    } else {
-      setStatus(`⚠️ ${modelLabel} — nenhum bilhete extraído. Veja Notas Críticas.`, 'warn');
-    }
-
-  } catch (e) {
-    clearInterval(_timer);
-    if (e.name === 'AbortError') {
-      setStatus('Análise cancelada.', 'warn');
-    } else {
-      setStatus('✗ ' + (e.message || 'Erro desconhecido'), 'err');
-    }
-  } finally {
-    clearInterval(_timer);
-    document.getElementById('btn-cancelar').style.display = 'none';
-    _abortCtrl = null;
-    btn.disabled = false; btn.textContent = 'Processar Bilhetes';
-    atualizarBotaoExtrair();
-  }
+  // Roda extração em background (não bloqueia o formulário)
+  runExtractionCard(form, card, parceiroSnapshot);
 });
 
 // ── Grade ─────────────────────────────────────────────────────────────────────
