@@ -37,11 +37,12 @@ _MAX_CONCURRENT = 4
 _TSV_HEADER = "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStake\tOdd\tResultado\tCódigo"
 
 _CASA_DISPLAY: dict[str, str] = {
-    "BET365":   "Bet365",
-    "BETANO":   "Betano",
-    "BETFAIR":  "Betfair",
-    "PINNACLE": "Pinnacle",
-    "SUPERBET": "Superbet",
+    "BET365":    "Bet365",
+    "BETANO":    "Betano",
+    "BETFAIR":   "Betfair",
+    "KINGPANDA": "KingPanda",
+    "PINNACLE":  "Pinnacle",
+    "SUPERBET":  "Superbet",
 }
 
 
