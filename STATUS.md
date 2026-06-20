@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-20 (sessão 31 — arquivamento automático de apostas antigas)_
+_Atualizado: 2026-06-20 (sessão 32 — nova casa KingPanda)_
 
 ---
 
@@ -234,7 +234,7 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 1. ~~**Organizar repo**~~ — concluído em 12/06/2026.
 2. ~~**Propostas de regra global**~~ — todas concluídas em 13/06/2026.
 3. ~~**CASA_MODELO.md**~~ — **entregue em v2** (12/06/2026): 15 seções, consolida aprendizados das 5 casas. Novidades: §2 ingestão multi-modo + tipo declarado, §3 ID 3 casos, §4 cadeia de data completa, §5 disciplina de tradução + gatilho HW/HL, §8 Bônus (nova), §9 normalização de jogador, §10 alerta en-US, §11 campo financeiro único + sistemas.
-4. **Outras casas:** ~~Bet365~~ · ~~Betfair~~ · ~~Betano~~ — todas adicionadas. Pendências de amostra (aguardam bilhete real):
+4. **Outras casas:** ~~Bet365~~ · ~~Betfair~~ · ~~Betano~~ · ~~KingPanda~~ — todas adicionadas. Pendências de amostra (aguardam bilhete real):
    - Bet365: §6 rótulo boost, §7 rótulo cashout visual.
    - Betano: §5 rótulo void/anulada, §6 boost.
    - Pinnacle: §5 HW/HL — rótulo exato no export (precisa de bilhete com Asian Handicap de quarto).
@@ -270,6 +270,19 @@ uvicorn main:app --reload
 - **Avaliar Sonnet 4.5:** testar mesmo lote com Sonnet 4.5 e Sonnet 4.6 e comparar qualidade linha a linha.
 - ~~Adicionar `Steve Johnstone` e `Oliver Mitchell` a lista de Dardos em `MASTER_ESPORTES_2026.md`~~ — **feito** (commit `8bd99d6`).
 - ~~Limpar duplicatas no banco~~ — **cancelado** (sessao 30): duplicatas pontuais sao tratadas individualmente quando surgem; nao ha limpeza retroativa em batch.
+
+**Sessão 32 (20/06/2026) — Nova casa: KingPanda:**
+
+- **`casas/CASA_KINGPANDA.md` criada** — 15 seções, 5 goldens reais (Países Baixos vs Suécia, 20/06/2026).
+- **Modo de ingestão:** texto colado (primário) + screenshot (fallback).
+- **ID:** visível, numérico longo (18–19 dígitos), ex.: `856196311719649280`.
+- **Boost:** formato `[odd original] >> [odd final]` (texto: duas linhas consecutivas); usar sempre a segunda = `Total de Odds`.
+- **Ganho Potencial:** retorno bruto (stake × odd); locale en-US (ponto decimal) → converter para vírgula.
+- **Criador de apostas** = Bet Builder → `Múltipla`.
+- **Pendências documentadas:** rótulos V/HW/HL, cashout, bônus. Categoria `Resultado Correto` ausente do `MASTER_APOSTAS_2026` → flagged no §Feedback como proposta.
+- **`app/main.py`:** `KINGPANDA: 'KingPanda'` adicionado ao `_CASA_DISPLAY`.
+- **`app/static/index.html`:** `KingPanda` adicionado a `NOMES` e `DOMINIOS` (favicon via `kingpanda.bet.br`).
+- Backup: `Backups/pre_kingpanda_2026-06-20/`. Commit: `ed60f15`.
 
 **Sessão 31 (20/06/2026) — Arquivamento automático de apostas antigas:**
 
