@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-20 (sessão 32 — nova casa KingPanda)_
+_Atualizado: 2026-06-20 (sessão 33 — KingPanda consolidado + GUIA_NOVA_CASA)_
 
 ---
 
@@ -270,6 +270,18 @@ uvicorn main:app --reload
 - **Avaliar Sonnet 4.5:** testar mesmo lote com Sonnet 4.5 e Sonnet 4.6 e comparar qualidade linha a linha.
 - ~~Adicionar `Steve Johnstone` e `Oliver Mitchell` a lista de Dardos em `MASTER_ESPORTES_2026.md`~~ — **feito** (commit `8bd99d6`).
 - ~~Limpar duplicatas no banco~~ — **cancelado** (sessao 30): duplicatas pontuais sao tratadas individualmente quando surgem; nao ha limpeza retroativa em batch.
+
+**Sessão 33 (20/06/2026) — KingPanda consolidado + GUIA_NOVA_CASA:**
+
+- **KingPanda §4 (data):** tabela explícita evento vs colocação; regra: `Compartilhar` = delimitador; data após "Compartilhar" + antes de "ID:" = colocação (ignorar).
+- **KingPanda §9:** expandido para todas as 27 categorias do `MASTER_APOSTAS_2026 §3`. Colunas reordenadas para padrão do template: `KingPanda exibe | Aposta global | Status`.
+- **KingPanda §2.3 (ordem de output):** REGRA DEFINITIVA documentada — grid exibe esquerda→direita, cima→baixo; TSV sai na ordem inversa. Exemplo: Florian Wirtz (pos 1 no texto) = ultima linha TSV; Paises Baixos Resultado 1ºT (pos 8) = primeira linha.
+- **KingPanda §13/§14:** pegadinhas e validacoes atualizadas com regra de ordem e ID ausente no ultimo bilhete (normal).
+- **KingPanda §15:** 8 goldens reordenados em ordem de output (G1 = primeira linha TSV = pos 8 no texto). +3 novos goldens de Alemanha vs Costa do Marfim: Dupla Chance, Escanteios, Ambas Marcam, Resultado 2ºT, Team Props confirmados.
+- **`GUIA_NOVA_CASA.md` criado:** 6 etapas + checklist + referencia de padroes para cadastrar qualquer casa nova.
+- Backups: `Backups/pre_kingpanda_v2_2026-06-20/`. Commits: `051ae9b`, `2535a2f`, `b4e8a0f`, `9360882`.
+
+**Proximo passo: cadastrar novas casas usando `GUIA_NOVA_CASA.md`.**
 
 **Sessão 32 (20/06/2026) — Nova casa: KingPanda:**
 
