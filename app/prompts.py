@@ -1,9 +1,13 @@
 from pathlib import Path
 from config import CASAS_DIR, GLOBAL_DIR, GLOBAL_MASTERS
 
+_file_cache: dict[Path, str] = {}
+
 
 def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    if path not in _file_cache:
+        _file_cache[path] = path.read_text(encoding="utf-8")
+    return _file_cache[path]
 
 
 def build_system(casa: str) -> list[dict]:

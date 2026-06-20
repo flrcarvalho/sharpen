@@ -23,9 +23,26 @@ from repository import (
 )
 
 
+async def _cache_warmer():
+    """Mantém o cache ephemeral dos masters vivo enviando um ping a cada 4 min (TTL = 5 min)."""
+    await asyncio.sleep(30)  # aguarda startup completo
+    while True:
+        try:
+            await _client.messages.create(
+                model=DEFAULT_MODEL,
+                max_tokens=1,
+                system=build_system("SUPERBET"),
+                messages=[{"role": "user", "content": "ping"}],
+            )
+        except Exception:
+            pass
+        await asyncio.sleep(240)  # 4 minutos
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await init_db()
+    asyncio.create_task(_cache_warmer())
     yield
 
 

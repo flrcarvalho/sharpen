@@ -457,6 +457,7 @@ td.c-res.res-HL { color: var(--warn); }
         </div>
       </div>
       <select id="modelo" class="model-select">
+        <option value="claude-sonnet-4-5-20251001">Sonnet 4.5 · mais rápido</option>
         <option value="claude-sonnet-4-6" selected>Sonnet 4.6 · padrão</option>
         <option value="claude-opus-4-8">Opus 4.8 · casos difíceis</option>
       </select>
@@ -963,7 +964,7 @@ function renderAnalysis(parsed) {
 function createExtractionCard(parceiro, modelo) {
   const id = ++_cardCounter;
   const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const modelLabel = modelo.includes('opus') ? 'Opus 4.8' : 'Sonnet 4.6';
+  const modelLabel = modelo.includes('opus') ? 'Opus 4.8' : modelo.includes('4-5') ? 'Sonnet 4.5' : 'Sonnet 4.6';
   const label = `${esc(parceiro.casa)} · ${esc(parceiro.nome)}`;
 
   const card = document.createElement('div');

@@ -10,6 +10,7 @@ CASAS_DIR  = ROOT / "casas"
 DEFAULT_MODEL = "claude-sonnet-4-6"
 
 ALLOWED_MODELS = [
+    "claude-sonnet-4-5-20251001",
     "claude-sonnet-4-6",
     "claude-opus-4-8",
 ]
