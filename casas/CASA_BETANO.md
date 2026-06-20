@@ -110,6 +110,7 @@ Conferência financeira: `Ganhos = 0` → L · `Ganhos = Aposta` → V · `Ganho
 | Total de Faltas | **Outras** ⚠️ (nicho) |
 | Tie Breaks | **Outras** ⚠️ (nicho tênis) |
 | 1º Quarto - Total de pontos | **Outras** ⚠️ (total de período — avaliar Team Props) |
+| Total de 180s / Mais/Menos 180s / H2H 180s (Dardos) | **Legs** |
 | Criar Aposta / N-seleções / Dupla / Tripla | Múltipla |
 
 Notas de reconstrução:
@@ -144,6 +145,17 @@ Notas de reconstrução:
 ## 12. Ruído a ignorar
 
 `sport-icon` · `copy icon` · `Pontuação: X-Y` (placar) · `Ganhos Potenciais` (tela aberta = potencial, não real) · botões `Reapostar`/`Compartilhar`/`CASH OUT` · `Anulado se o jogador não iniciar` (condição, não resultado) · quando houver badge ou indicação de substituição: o nome tachado/riscado = jogador original (usar), o nome em destaque acima = substituto (ignorar).
+
+**Seleção repetida em bilhetes simples:** no texto copiado de um bilhete simples, a seleção aparece **duas vezes** — uma como linha de resumo (antes de `sport-icon`) e outra como linha de detalhe com odd, mercado e confronto. São a **mesma seleção do mesmo bilhete**, nunca dois bilhetes distintos. Exemplo:
+```
+REKONIX -1.5          ← linha de resumo (ignorar, é repetição)
+sport-icon
+REKONIX -1.5          ← linha de detalhe (usar esta)
+2.20
+Handicap do Jogo
+REKONIX - Grind Back
+```
+→ 1 bilhete, não 2.
 
 ---
 
@@ -210,5 +222,6 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 ---
 
 VERSÃO: 2026
+ATUALIZADO: 2026-06-20 (sessão 29) — §12 seleção dupla = 1 bilhete · §9 180s → Legs
 STATUS: QUASE COMPLETO (pendências: §5 rótulo void/anulada, §6 boost — aguardam amostra)
 CASA: Betano
