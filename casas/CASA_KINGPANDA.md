@@ -188,37 +188,37 @@ Apostas abertas → `extraction_state = aberta`.
 
 ## 9. Mapa de mercados (KingPanda → `Aposta` global)
 
-Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **todas** as categorias globais — confirmadas com amostra real e pendentes.
+Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **todas** as 27 categorias globais.
 
-| Aposta global | KingPanda exibe | Status |
+| KingPanda exibe | Aposta global | Status |
 |---|---|---|
-| Ambas Marcam | `Ambas equipes Marcam` | ✓ confirmado |
-| Anytime | `Jogador a Marcar um Gol` · `Marcar a qualquer momento` | ✓ confirmado |
-| Assistência | `Assistência` · `Passe para Gol` | aguarda amostra |
-| Cartões | `Cartões` · `Equipe com Mais Cartões` · `Mais Cartões` | ✓ confirmado |
-| Chutes | `Finalizações` · `Total de Finalizações` | aguarda amostra |
-| Chutes no Gol | `Finalizações no Alvo` · `Chutes no Alvo` | aguarda amostra |
-| Corridas | (Baseball) | aguarda amostra |
-| Desarmes | `Desarmes` · `Tackles` | aguarda amostra |
-| DNB | `Empate Anula` · `DNB` | aguarda amostra |
-| Double-Double | (Basquete) | aguarda amostra |
-| Dupla Chance | `Chance Dupla` | ✓ confirmado |
-| E-Sports Props | (E-Sports) | aguarda amostra |
-| Escanteios | `Escanteios Mais/Menos (2-Vias)` · `Escanteios Mais/Menos` · `Escanteios` | ✓ confirmado |
-| Games | (Tênis) | aguarda amostra |
-| Gols | `Total de Gols Mais/Menos` · `Total de Gols` | ✓ confirmado |
-| H2H | mercado comparativo entre jogadores/times | aguarda amostra |
-| Handicap | `Handicap Asiático` · `AH` · `Handicap` | aguarda amostra |
-| Impedimentos | `Impedimentos` | aguarda amostra |
-| Jardas | (NFL — jardas) | aguarda amostra |
-| Legs | (Dardos — legs) | aguarda amostra |
-| ML | `Resultado Final` · `Resultado do 1º Tempo` · `Resultado do 2º Tempo` · `Vencedor da Partida` · `1X2` | ✓ confirmado |
-| Múltipla | `Criador de apostas` (bilhete com múltiplas seleções) | ✓ confirmado |
-| Outras | `Resultado Correto` · `Resultado Correto - 1º Tempo` · mercado não mapeado | ✓ fallback |
-| Player Props | `Jogador a Marcar um gol ou dar uma assistência` · qualquer ação individual de jogador | ✓ confirmado |
-| Sets | (Tênis — sets) | aguarda amostra |
-| Team Props | `[Time]: Equipe Marca nos Dois Tempos` · estatística coletiva de equipe | ✓ confirmado |
-| Triplo-Duplo | (Basquete) | aguarda amostra |
+| `Ambas equipes Marcam` | Ambas Marcam | ✓ confirmado |
+| `Jogador a Marcar um Gol` · `Marcar a qualquer momento` | Anytime | ✓ confirmado |
+| (aguarda amostra) | Assistência | aguarda amostra |
+| `Cartões` · `Equipe com Mais Cartões` · `Mais Cartões` | Cartões | ✓ confirmado |
+| (aguarda amostra) | Chutes | aguarda amostra |
+| (aguarda amostra) | Chutes no Gol | aguarda amostra |
+| (aguarda amostra — Baseball) | Corridas | aguarda amostra |
+| (aguarda amostra) | Desarmes | aguarda amostra |
+| (aguarda amostra) | DNB | aguarda amostra |
+| (aguarda amostra — Basquete) | Double-Double | aguarda amostra |
+| `Chance Dupla` | Dupla Chance | ✓ confirmado |
+| (aguarda amostra — E-Sports) | E-Sports Props | aguarda amostra |
+| `Escanteios Mais/Menos (2-Vias)` · `Escanteios Mais/Menos` | Escanteios | ✓ confirmado |
+| (aguarda amostra — Tênis) | Games | aguarda amostra |
+| `Total de Gols Mais/Menos` · `Total de Gols` | Gols | ✓ confirmado |
+| (aguarda amostra — comparativo) | H2H | aguarda amostra |
+| (aguarda amostra) | Handicap | aguarda amostra |
+| (aguarda amostra) | Impedimentos | aguarda amostra |
+| (aguarda amostra — NFL) | Jardas | aguarda amostra |
+| (aguarda amostra — Dardos) | Legs | aguarda amostra |
+| `Resultado Final` · `Resultado do 1º Tempo` · `Resultado do 2º Tempo` · `Vencedor da Partida` · `1X2` | ML | ✓ confirmado |
+| `Criador de apostas` (múltiplas seleções) | Múltipla | ✓ confirmado |
+| `Resultado Correto` · `Resultado Correto - 1º Tempo` · mercado não mapeado | Outras | ✓ fallback |
+| `Jogador a Marcar um gol ou dar uma assistência` · ação individual de jogador | Player Props | ✓ confirmado |
+| (aguarda amostra — Tênis) | Sets | aguarda amostra |
+| `[Time]: Equipe Marca nos Dois Tempos` · estatística coletiva de equipe | Team Props | ✓ confirmado |
+| (aguarda amostra — Basquete) | Triplo-Duplo | aguarda amostra |
 
 **Notas de reconstrução:**
 - Confronto: `Time A vs Time B` → `[Time A v Time B]` (lowercase `v`, colchetes)
