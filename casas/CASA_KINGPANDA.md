@@ -89,8 +89,29 @@ Criador de apostas           ← rótulo do tipo — aparece APÓS todas as sele
 
 ## 4. Data
 
-- Fonte primária: **data do evento** — linha `[DD/MM • HH:MM]` imediatamente antes de "Total de Odds"
-- Fallback: data de colocação (após "Compartilhar") — usar só quando a data do evento não estiver disponível
+Cada bilhete contém **exatamente duas** ocorrências de `DD/MM • HH:MM`. São estruturalmente distintas:
+
+| Ocorrência | Posição no texto | Posição na imagem | Usar? |
+|---|---|---|---|
+| **Data do evento** | Dentro do bloco de apostas, antes dos times e de "Total de Odds" | Dentro do card (fundo branco/creme) | **Sim** |
+| **Data de colocação** | Imediatamente após "Compartilhar", imediatamente antes de "ID:" | Fora do card, rodapé cinza | **Não** |
+
+**Regra para texto colado:** se `DD/MM • HH:MM` é seguido pelo nome dos times → data do evento (usar). Se é seguido por `ID:` → data de colocação (ignorar).
+
+**Padrão inequívoco no texto:**
+```
+Compartilhar
+20/06 • 12:40     ← PLACEMENT — ignorar
+                  ← linha em branco
+ID: 856196861957820416
+```
+```
+20/06 • 17:00     ← EVENT — usar
+Alemanha
+Costa do Marfim
+Total de Odds
+```
+
 - Formato fonte: `DD/MM` sem ano → inferir ano de `data_referencia`; output: `DD/MM/AAAA`
 - Múltipla: data = evento da perna mais recente (regra global, `MASTER_OUTPUT_2026`)
 
@@ -156,10 +177,14 @@ Apostas abertas → `extraction_state = aberta`.
 |---|---|
 | `Jogador a Marcar um gol ou dar uma assistência` | Player Props |
 | `Jogador a Marcar um Gol` / `Marcar a qualquer momento` | Anytime |
+| `Ambas equipes Marcam` | Ambas Marcam |
+| `Chance Dupla` | Dupla Chance |
+| `Escanteios Mais/Menos (2-Vias)` / `Escanteios Mais/Menos` | Escanteios |
 | `Total de Gols Mais/Menos` | Gols |
 | `Equipe com Mais Cartões` | Cartões |
-| `Resultado do 1º Tempo` | ML |
+| `Resultado do 1º Tempo` / `Resultado do 2º Tempo` | ML |
 | `Resultado Final` / `Vencedor da Partida` | ML |
+| `[Time]: Equipe Marca nos Dois Tempos` | Team Props |
 | `Resultado Correto` / `Resultado Correto - 1º Tempo` | Outras ⚠️ |
 | `Criador de apostas` (múltiplas seleções) | Múltipla |
 | mercado não mapeado | Outras ⚠️ |
@@ -270,7 +295,25 @@ ID: 856170471199985664 · Ganho Potencial BRL 0.00
 ```
 20/06/2026	Futebol		KingPanda	[parceiro]	ML	Países Baixos [Resultado 1º Tempo] [Países Baixos v Suécia]	100,00	2,76	W
 ```
-ID: 856187092232609792 *(confirmar no print)* · Ganho Potencial BRL 276.00 · 276÷100=2,76 ✓
+ID: 856187092232609792 · Ganho Potencial BRL 276.00 · 276÷100=2,76 ✓
+
+**Golden 6 — L simples · Player Props · boost 1.81→2.30**
+```
+20/06/2026	Futebol		KingPanda	[parceiro]	Player Props	Florian Wirtz a Marcar um Gol ou dar uma Assistência [Alemanha v Costa do Marfim]	25,00	2,30	L
+```
+ID: 856196861957820416 · Ganho Potencial BRL 0.00 · data evento 20/06 • 17:00 (≠ colocação 20/06 • 12:40)
+
+**Golden 7 — L Múltipla · Criador de apostas · 2 seleções (Dupla Chance + Escanteios) · boost 4.74→6.61**
+```
+20/06/2026	Futebol		KingPanda	[parceiro]	Múltipla	Empate ou Costa do Marfim [Dupla Chance] [Alemanha v Costa do Marfim] // Mais de 9,5 [Escanteios] [Alemanha v Costa do Marfim]	50,00	6,61	L
+```
+ID: 856170236574720000 · Ganho Potencial BRL 0.00
+
+**Golden 8 — L Múltipla · Criador de apostas · 3 seleções (Ambas Marcam + ML + Team Props) · boost 5.47→7.00**
+```
+20/06/2026	Futebol		KingPanda	[parceiro]	Múltipla	Sim [Ambas Marcam] [Alemanha v Costa do Marfim] // Alemanha [Resultado 2º Tempo] [Alemanha v Costa do Marfim] // Sim [Alemanha: Equipe Marca nos Dois Tempos] [Alemanha v Costa do Marfim]	25,00	7,00	L
+```
+ID: 856170034874834944 · Ganho Potencial BRL 0.00
 
 ---
 
