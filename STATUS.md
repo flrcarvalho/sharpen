@@ -268,8 +268,8 @@ uvicorn main:app --reload
 **Proximos passos imediatos:**
 - **Testar paralelismo em producao:** submeter lote de 8+ imagens e confirmar que chunks coexistem, grade sai em ordem correta, dedup funciona.
 - **Avaliar Sonnet 4.5:** testar mesmo lote com Sonnet 4.5 e Sonnet 4.6 e comparar qualidade linha a linha.
-- Adicionar `Steve Johnstone` e `Oliver Mitchell` a lista de Dardos em `MASTER_ESPORTES_2026.md` (bug Betfair ML, pendente desde sessao 23).
-- Limpar duplicatas no banco (bets copiadas duas vezes — ver sessao 28).
+- ~~Adicionar `Steve Johnstone` e `Oliver Mitchell` a lista de Dardos em `MASTER_ESPORTES_2026.md`~~ — **feito** (commit `8bd99d6`).
+- ~~Limpar duplicatas no banco~~ — **cancelado** (sessao 30): duplicatas pontuais sao tratadas individualmente quando surgem; nao ha limpeza retroativa em batch.
 
 **Sessão 29 (20/06/2026) — Bugs CASA_BETANO + UI multi-cards:**
 
