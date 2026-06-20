@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-20 (sessão 28 continuação — MASTER_ESPORTES: conhecimento próprio do modelo + ITF/Challenger/MODUS + jogadores)_
+_Atualizado: 2026-06-20 (sessão 29 — bugs CASA_BETANO + UI multi-cards de extração paralela)_
 
 ---
 
@@ -254,6 +254,14 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
+**Sessão 29 (20/06/2026) — Bugs CASA_BETANO + UI multi-cards:**
+
+- **Auditoria de qualidade Betano:** comparação do output do sistema vs GPT-4o em 40+ bets reais (15/06–20/06). Sistema acertou mais que o GPT-com-masters: GPT perdeu 1 bet inteiro (Lyndon Dykes), classificou tripla multi-esporte como "Baseball" e usou nomes errados em Player Props. Sistema tinha apenas 2 bugs reais — ambos corrigidos.
+- **Bug 1 — REKONIX duplicado:** texto copiado de bilhete simples Betano repete a seleção duas vezes (linha-resumo antes do `sport-icon` + linha-detalhe com odd/mercado/confronto). O modelo interpretava como 2 bilhetes. **Fix:** `CASA_BETANO.md §12` — regra "Seleção repetida em bilhetes simples = 1 bilhete" adicionada com exemplo concreto.
+- **Bug 2 — 180s Dardos → Outras:** mercados `Total de 180s` / `Mais/Menos 180s` / `H2H 180s` caíam em `Outras` mesmo com a categoria `Legs` já definida no MASTER_APOSTAS. **Fix:** `CASA_BETANO.md §9` — mapeamento explícito `Total de 180s / Mais/Menos 180s / H2H 180s (Dardos) → Legs` adicionado à tabela.
+- Backup: `Backups/CASA_BETANO_pre_sessao29/`. Commit: `e755045`.
+- **Feature — UI multi-cards de extração paralela:** `app/static/index.html` — clicar em "Processar Bilhetes" cria um card independente no painel direito, limpa o formulário imediatamente e re-habilita o botão. Múltiplos cards processam em paralelo (backend já suportava; zero mudança em main.py). Cada card: header (casa·parceiro·horário·tokens+%cache), contador `Processando… (Xs · N chars)`, botão ✕ individual para cancelar, status final colorido (`✓ N novo(s)`, `⚠️`, `✗`). Troca de parceiro limpa o painel; "Limpar" só limpa o formulário. `_abortCtrl` → `_activeStreams Map`. Backup: `Backups/pre-multi-cards-sessao29.html`. Commit: `6795b63`.
+
 **Estado após sessão 28 (cont. 20/06/2026):** MASTER_ESPORTES_2026.md — 3 melhorias de identificação de esporte:
 - §5 nova regra (item 4): modelo deve usar **conhecimento próprio de treinamento** quando atleta não estiver nas listas auxiliares — só usar `Outro` quando genuinamente incerto após esgotar esse recurso.
 - §7 Tênis: sinônimos ITF/Challenger adicionados; sublistas `ATP Challenger / ITF` e `WTA / ITF` com jogadores identificados nesta sessão (Keshav Chopra, Kerem Yilmaz, Mate Valkusz, Pietro Orlando Fellin, Mickael Kaouk, Filiberto Fumagalli, Vignesh Gogineni, Bryce Nakashima, Tanguy Genier, Noah Karma, Gaeul Jang, Aishi Das, Marie Vogt, Mia Slama, Elsa Bonelli, Emily Seibold).
@@ -265,6 +273,7 @@ uvicorn main:app --reload
 **Próximo passo imediato:**
 - Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair ML, pendente desde sessão 23).
 - Limpar duplicatas que já existem no banco (bets copiadas duas vezes — ver sessão 28).
+- Testar UI multi-cards em produção: submeter 2–3 lotes da mesma casa em sequência rápida e confirmar que cards coexistem e salvam independentemente.
 
 **Sessão 27 (17/06/2026):**
 - **Contexto:** extração Betfair com bets já processadas gerava confusão — contador dizia "25 salvos" sem distinguir updates de inserts; regra de ordenação §2 usava "texto colado" como referência, ambígua quando havia imagens + CSV.
