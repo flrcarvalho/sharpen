@@ -80,6 +80,17 @@ Granularidade dos canais: por bloco de stake-sinalização.
 - Quais casas entram primeiro além da Superbet
 - Fórmula de score do matching tipster
 
+## 10. Decisões de performance (registradas em 20/06/2026)
+
+**UptimeRobot / ping externo — DESCARTADO.**
+O Serverless do Railway está desligado: o processo roda contínuo, não existe cold start por sleep. Mesmo com Serverless ligado, o Railway mede inatividade por tráfego de *saída* — ping externo chega como entrada e não impede o sleep. O evento de 12 min foi tempo de processamento (~40 bets sequenciais + leituras de disco), não cold start. Não reabrir este item.
+
+**Alavancas reais de velocidade (em ordem de impacto):**
+1. In-memory cache dos masters com mtime — elimina 7 leituras de disco por request ✓ (implementado)
+2. Logs de tempo por etapa — confirma causa real no próximo evento (implementado)
+3. Paralelismo de chunks — ~4x mais rápido para lotes grandes (próximo passo)
+4. Sonnet 4.5 — 30–50% mais rápido que 4.6 se qualidade equivalente (a testar)
+
 ## 10. Fase 1 — detalhamento técnico
 
 ### Arquivos planejados para `app/`

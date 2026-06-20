@@ -1,9 +1,14 @@
 import asyncio
 import base64
 import json
+import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger("scanner")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 import xlrd
 
@@ -307,6 +312,10 @@ async def extrair(
     })
 
     system = build_system(casa_key)
+    t_extrair_start = time.perf_counter()
+    n_imagens = len(imagens)
+    logger.info("extrair inicio: casa=%s modelo=%s imagens=%d texto=%s xls=%s",
+                casa_key, modelo, n_imagens, bool(texto or csv_content), bool(xls_file))
 
     async def _stream():
         try:
@@ -317,6 +326,7 @@ async def extrair(
 
             while True:
                 part += 1
+                t_chunk_start = time.perf_counter()
                 if part > 1:
                     yield f"data: {json.dumps({'continuation': part})}\n\n"
                     messages = [
@@ -377,9 +387,20 @@ async def extrair(
                 total_tokens["cache_read"]  += getattr(u, "cache_read_input_tokens", 0)
                 total_tokens["cache_write"] += getattr(u, "cache_creation_input_tokens", 0)
 
+                logger.info(
+                    "chunk %d: %.1fs | in=%d out=%d cache_read=%d cache_write=%d stop=%s",
+                    part, time.perf_counter() - t_chunk_start,
+                    u.input_tokens, u.output_tokens,
+                    getattr(u, "cache_read_input_tokens", 0),
+                    getattr(u, "cache_creation_input_tokens", 0),
+                    msg.stop_reason,
+                )
+
                 if msg.stop_reason != "max_tokens":
                     break
 
+            logger.info("extrair total: %.1fs | %d chunks | out_total=%d",
+                        time.perf_counter() - t_extrair_start, part, total_tokens["output"])
             yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens})}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
