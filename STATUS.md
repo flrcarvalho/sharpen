@@ -260,6 +260,8 @@ uvicorn main:app --reload
 - §7 Dardos: sinônimos MODUS/MODUS Super Series adicionados; sublista `MODUS Super Series` com Dylan Slevin, Sam Spivey.
 - Backup: `MASTER_ESPORTES_2026_pre-sessao28.md`.
 
+**Convencao de terminal (registrada em 20/06/2026):** PowerShell 5.1 ConstrainedLanguage. Proibido heredoc bash, New-Object .NET, Out-File -Encoding utf8 (gera BOM). Commits multilinha: multiplos `-m`. Regra documentada em `FDC Capital/CLAUDE.md` (fora do repo, sem versionamento git).
+
 **Próximo passo imediato:**
 - Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair ML, pendente desde sessão 23).
 - Limpar duplicatas que já existem no banco (bets copiadas duas vezes — ver sessão 28).
