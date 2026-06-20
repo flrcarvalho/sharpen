@@ -256,6 +256,15 @@ uvicorn main:app --reload
 
 **Sessão 29 (20/06/2026) — Bugs CASA_BETANO + UI multi-cards:**
 
+- **Auditoria de performance (investigado, sem fix estrutural possivel):**
+  - Evento: 40+ bets Betano em texto levou 12 min. GPT-4o fez o mesmo em 27s. Claude Web (Opus 4.8) fez em menos de 3 min.
+  - Causa raiz do evento de 12 min: Railway pod frio + lentidao pontual da API Anthropic simultaneos. Nao e o comportamento normal.
+  - Expectativa realista com arquitetura atual: **3–6 min (cache frio) / 1–2 min (cache quente)**. Cache TTL = 5 min; reinicio de pod zera o cache.
+  - `max_tokens=64000` NAO e o gargalo — e um teto, o modelo para quando termina. Nao reduzir (foi aumentado para resolver leitura incompleta de imagens).
+  - Gap vs GPT-4o e estrutural: GPT-4o e intrinsecamente mais rapido, sem overhead de Railway, sem TTL de cache. Fechar esse gap exigiria trocar de provider — nao planejado.
+  - **O que melhora o UX sem trocar provider:** multi-cards (implementado nesta sessao) — o usuario nao fica bloqueado enquanto espera.
+  - **Proxima alavanca possivel de velocidade:** Sonnet 4.5 (mais rapido que 4.6; nao testado ainda em extracao de bets) — avaliar em sessao futura.
+
 - **Auditoria de qualidade Betano:** comparação do output do sistema vs GPT-4o em 40+ bets reais (15/06–20/06). Sistema acertou mais que o GPT-com-masters: GPT perdeu 1 bet inteiro (Lyndon Dykes), classificou tripla multi-esporte como "Baseball" e usou nomes errados em Player Props. Sistema tinha apenas 2 bugs reais — ambos corrigidos.
 - **Bug 1 — REKONIX duplicado:** texto copiado de bilhete simples Betano repete a seleção duas vezes (linha-resumo antes do `sport-icon` + linha-detalhe com odd/mercado/confronto). O modelo interpretava como 2 bilhetes. **Fix:** `CASA_BETANO.md §12` — regra "Seleção repetida em bilhetes simples = 1 bilhete" adicionada com exemplo concreto.
 - **Bug 2 — 180s Dardos → Outras:** mercados `Total de 180s` / `Mais/Menos 180s` / `H2H 180s` caíam em `Outras` mesmo com a categoria `Legs` já definida no MASTER_APOSTAS. **Fix:** `CASA_BETANO.md §9` — mapeamento explícito `Total de 180s / Mais/Menos 180s / H2H 180s (Dardos) → Legs` adicionado à tabela.
@@ -274,6 +283,7 @@ uvicorn main:app --reload
 - Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair ML, pendente desde sessão 23).
 - Limpar duplicatas que já existem no banco (bets copiadas duas vezes — ver sessão 28).
 - Testar UI multi-cards em produção: submeter 2–3 lotes da mesma casa em sequência rápida e confirmar que cards coexistem e salvam independentemente.
+- Avaliar Sonnet 4.5 como alternativa mais rapida ao Sonnet 4.6 para extracao de bets (adicionar a `ALLOWED_MODELS` e testar qualidade em lote real antes de tornar padrao).
 
 **Sessão 27 (17/06/2026):**
 - **Contexto:** extração Betfair com bets já processadas gerava confusão — contador dizia "25 salvos" sem distinguir updates de inserts; regra de ordenação §2 usava "texto colado" como referência, ambígua quando havia imagens + CSV.
