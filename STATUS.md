@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-18 (sessão 28 — dedup: INSERT duplos + badge N/M na grade)_
+_Atualizado: 2026-06-20 (sessão 28 continuação — MASTER_ESPORTES: conhecimento próprio do modelo + ITF/Challenger/MODUS + jogadores)_
 
 ---
 
@@ -254,7 +254,11 @@ uvicorn main:app --reload
 # Abrir http://localhost:8000
 ```
 
-**Estado após sessão 28:** Fix de dedup aplicado. Re-upload de XLS Pinnacle não gera mais duplicatas.
+**Estado após sessão 28 (cont. 20/06/2026):** MASTER_ESPORTES_2026.md — 3 melhorias de identificação de esporte:
+- §5 nova regra (item 4): modelo deve usar **conhecimento próprio de treinamento** quando atleta não estiver nas listas auxiliares — só usar `Outro` quando genuinamente incerto após esgotar esse recurso.
+- §7 Tênis: sinônimos ITF/Challenger adicionados; sublistas `ATP Challenger / ITF` e `WTA / ITF` com jogadores identificados nesta sessão (Keshav Chopra, Kerem Yilmaz, Mate Valkusz, Pietro Orlando Fellin, Mickael Kaouk, Filiberto Fumagalli, Vignesh Gogineni, Bryce Nakashima, Tanguy Genier, Noah Karma, Gaeul Jang, Aishi Das, Marie Vogt, Mia Slama, Elsa Bonelli, Emily Seibold).
+- §7 Dardos: sinônimos MODUS/MODUS Super Series adicionados; sublista `MODUS Super Series` com Dylan Slevin, Sam Spivey.
+- Backup: `MASTER_ESPORTES_2026_pre-sessao28.md`.
 
 **Próximo passo imediato:**
 - Adicionar `Steve Johnstone` e `Oliver Mitchell` à lista de jogadores de Dardos em `MASTER_ESPORTES_2026.md` (bug de classificação Betfair ML, pendente desde sessão 23).

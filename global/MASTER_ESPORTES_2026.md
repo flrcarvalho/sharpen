@@ -123,7 +123,8 @@ Quando o esporte não estiver explicitamente informado, identificar seguindo est
 1. Mercado especializado
 2. Liga/Torneio — é pista de identificação; o valor final é sempre o esporte (ex.: NBA → Basquete, NFL → Futebol Americano)
 3. Nomes dos participantes
-4. Contexto geral do bilhete
+4. **Conhecimento próprio do modelo** — quando o participante não estiver nas listas auxiliares, usar o conhecimento de treinamento para identificar o esporte de carreira do atleta. Exemplos: um tenista do circuito ITF não listado ainda deve ser classificado como Tênis; um dardista do circuito MODUS não listado deve ser classificado como Dardos. Só usar `Outro` quando genuinamente incerto após esgotar esse recurso.
+5. Contexto geral do bilhete
 
 # 5.1 Prioridade Semântica — Confronto
 
@@ -333,6 +334,11 @@ Sinônimos:
 - TÊNIS
 - ATP
 - WTA
+- ITF
+- ITF Men's World Tennis Tour
+- ITF Women's World Tennis Tour
+- CHALLENGER
+- ATP CHALLENGER
 - GRAND SLAM
 - WIMBLEDON
 - ROLAND GARROS
@@ -343,7 +349,7 @@ Sinônimos:
 
 ### Referências auxiliares — Tênis
 
-Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lista não é exaustiva — complementar com sinais contextuais (ATP, WTA, torneio).
+Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lista não é exaustiva — **quando o atleta não estiver listado, usar conhecimento próprio do modelo para identificar o esporte** (ver §5 item 4). Complementar com sinais contextuais (ATP, WTA, ITF, Challenger, torneio).
 
 **ATP:**
 - Jannik Sinner
@@ -379,6 +385,18 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Aleksandar Vukic
 - Harry Wendelken
 
+**ATP Challenger / ITF (exemplos de sessões recentes):**
+- Keshav Chopra
+- Kerem Yilmaz
+- Mate Valkusz
+- Pietro Orlando Fellin
+- Mickael Kaouk
+- Filiberto Fumagalli
+- Vignesh Gogineni
+- Bryce Nakashima
+- Tanguy Genier
+- Noah Karma
+
 **WTA:**
 - Aryna Sabalenka
 - Iga Swiatek
@@ -402,6 +420,14 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Mary Stoiana
 - Tatiana Prozorova
 
+**WTA / ITF (exemplos de sessões recentes):**
+- Gaeul Jang
+- Aishi Das
+- Marie Vogt
+- Mia Slama
+- Elsa Bonelli
+- Emily Seibold
+
 ---
 
 ## Dardos
@@ -418,13 +444,16 @@ Sinônimos:
 - PDC
 - BDO
 - WDF
+- MODUS
+- MODUS Super Series
 
 ---
 
 ### Referências auxiliares — Dardos
 
-Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lista não é exaustiva — complementar com sinais contextuais (PDC, torneio, legs).
+Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lista não é exaustiva — **quando o atleta não estiver listado, usar conhecimento próprio do modelo para identificar o esporte** (ver §5 item 4). Complementar com sinais contextuais (PDC, MODUS, torneio, legs).
 
+**PDC:**
 - Luke Littler
 - Luke Humphries
 - Michael van Gerwen
@@ -462,6 +491,10 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Bradley O'Connor
 - Nico Plovier
 
+**MODUS Super Series (exemplos de sessões recentes):**
+- Dylan Slevin
+- Sam Spivey
+
 ---
 
 ### Contextos auxiliares — Dardos
@@ -481,6 +514,8 @@ Os seguintes termos fortalecem identificação como Dardos:
 - PDC
 - BDO
 - WDF
+- MODUS
+- MODUS Super Series
 - Premier League Darts
 - World Matchplay
 - World Grand Prix
