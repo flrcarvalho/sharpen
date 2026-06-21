@@ -551,6 +551,7 @@ td.c-res.res-HL { color: var(--warn); }
                   <th class="c-sel"><input type="checkbox" id="chk-todos" title="Selecionar todos"></th>
                   <th class="c-data">Data</th>
                   <th class="c-esp">Esporte</th>
+                  <th class="c-dup"></th>
                   <th class="c-tip">Tipster</th>
                   <th class="c-casa">Casa</th>
                   <th class="c-parc">Parceiro</th>
@@ -561,7 +562,6 @@ td.c-res.res-HL { color: var(--warn); }
                   <th class="c-res">Result.</th>
                   <th class="c-chk">☑</th>
                   <th class="c-del"></th>
-                  <th class="c-dup"></th>
                 </tr>
               </thead>
               <tbody id="grade-body">
@@ -1322,6 +1322,7 @@ function renderGrade() {
       <td class="c-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></td>
       ${ed('data',      b.data,      'c-data')}
       ${ed('esporte',   b.esporte,   'c-esp')}
+      ${dupTd}
       ${ed('tipster',   b.tipster,   'c-tip')}
       <td class="c-casa">${esc(b.casa)}</td>
       <td class="c-parc">${esc(b.parceiro)}</td>
@@ -1332,7 +1333,6 @@ function renderGrade() {
       <td class="c-res editable ${resClass}" contenteditable="true" data-campo="resultado" spellcheck="false">${esc(b.resultado)}</td>
       <td class="c-chk"><button class="chk-btn ${cop ? 'checked' : ''}" onclick="toggleCopy(${b.id},this)">✓</button></td>
       <td class="c-del"><button class="del-btn" title="Deletar" onclick="deletarBilhete(${b.id})">✕</button></td>
-      ${dupTd}
     </tr>`;
   }).join('');
 }
