@@ -771,6 +771,25 @@ async function arquivarParceiro(id, casa) {
 
 // ── Selecionar parceiro ───────────────────────────────────────────────────────
 function selecionarParceiro(p) {
+  // Se já está no mesmo parceiro, não faz nada
+  if (parceiroSelecionado && parceiroSelecionado.id === p.id) return;
+
+  // Avisa antes de descartar imagens ou extração em andamento
+  const temImagens = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0 || document.getElementById('texto').value.trim();
+  const temExtracao = _activeStreams.size > 0;
+  if (temImagens || temExtracao) {
+    const aviso = temExtracao
+      ? 'Há uma extração em andamento. Ao trocar de parceiro ela será cancelada e as imagens serão perdidas.\n\nDeseja continuar?'
+      : 'Há imagens carregadas que serão perdidas ao trocar de parceiro.\n\nDeseja continuar?';
+    if (!confirm(aviso)) {
+      // Restaura destaque do parceiro atual na sidebar
+      document.querySelectorAll('.parceiro-item').forEach(el => el.classList.remove('active'));
+      const elAtual = document.querySelector(`.parceiro-item[data-id="${parceiroSelecionado.id}"]`);
+      if (elAtual) elAtual.classList.add('active');
+      return;
+    }
+  }
+
   parceiroSelecionado = p;
   casaSelecionada = p.casa;
 
