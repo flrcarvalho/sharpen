@@ -623,6 +623,10 @@ const estadoExtrator = {}; // parceiroId → { arquivos, csvFiles, xlsFiles, tex
 
 function salvarEstadoExtrator() {
   if (!parceiroSelecionado) return;
+  const formTemConteudo = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0
+    || document.getElementById('texto').value.trim();
+  // Formulário vazio após submissão: preserva estado salvo (permite retry após falha)
+  if (!formTemConteudo && estadoExtrator[parceiroSelecionado.id]) return;
   estadoExtrator[parceiroSelecionado.id] = {
     arquivos: [...arquivos],
     csvFiles: [...csvFiles],
