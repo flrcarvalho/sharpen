@@ -273,6 +273,31 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]]) -> tuple[str
             if nota and nota.lower() != "nenhuma":
                 notes.append(f"[Chunk {idx + 1}] {nota}")
 
+    # Remove duplicatas de sobreposição de scroll (ficam adjacentes após sort reverso dos chunks)
+    # Chave: (data, casa, parceiro, stake, odd) — invariante mesmo se a IA descreve o texto diferente
+    def _scroll_key(row_str: str):
+        parts = row_str.split('\t')
+        if len(parts) < 9:
+            return None
+        return (parts[0], parts[3], parts[4], parts[7], parts[8])
+
+    deduped: list[str] = []
+    prev_key = None
+    overlap_removed = 0
+    for row in all_rows:
+        k = _scroll_key(row)
+        if k is not None and k == prev_key:
+            overlap_removed += 1
+        else:
+            deduped.append(row)
+            prev_key = k
+    if overlap_removed:
+        notes.insert(0,
+            f"⚠️ {overlap_removed} aposta(s) de sobreposição de scroll detectada(s) e removida(s) "
+            "(mesma data/casa/parceiro/stake/odd em imagens consecutivas — verifique se não é aposta distinta)."
+        )
+    all_rows = deduped
+
     tsv_block = f"```tsv\n{_TSV_HEADER}\n" + "\n".join(all_rows) + "\n```"
     notes_section = "\n\n## Notas Críticas\n" + ("\n".join(notes) if notes else "Nenhuma")
     return tsv_block + notes_section, total_tokens
@@ -421,7 +446,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         return
 
     await asyncio.gather(*tasks, return_exceptions=True)
-    completed.sort(key=lambda x: x[0])
+    completed.sort(key=lambda x: x[0], reverse=True)  # oldest chunk last in index = first chronologically
     resultado, total_tokens = _combine_parallel_results(completed)
 
     logger.info("par total: %.1fs | chunks=%d | out=%d",
