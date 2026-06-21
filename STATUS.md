@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-21 (sessão 37 — auditoria de ordem de extração + fix definitivo de chunks paralelos)_
+_Atualizado: 2026-06-21 (sessão 38 — fix copiar/baixar pendentes arquivados)_
 
 ---
 
