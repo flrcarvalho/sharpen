@@ -384,15 +384,32 @@ uvicorn main:app --reload
   - `app/static/index.html` — `salvarEstadoExtrator`: auto-save do texto em tempo real (listener `input`). `limparExtrator(explicit)`: quando chamada pela submissao, salva estado antes de limpar (permite retry via navegacao). `salvarEstadoExtrator`: nao sobrescreve estado existente com formulario vazio (impede navegacao apagar o estado salvo antes da submissao).
   - Commits: `8ef765d`, `d22b73a`, `5fb8b6d`, `06f1455`.
 
+**Sessão 36 (21/06/2026) — Nova casa: Bolsa de Aposta:**
+
+- **`casas/CASA_BOLSADEAPOSTA.md` criada** — 15 seções, 4 goldens reais (20/06/2026).
+- **Modo de ingestão:** texto colado (primário) + screenshot (fallback).
+- **Particularidade crítica:** L/P = lucro/prejuízo, **não** retorno total. Para W: odd = (Stake + L/P) ÷ Stake. Para L: odd lida diretamente do campo `@odd`.
+- **Odd campo:** `@odd` na linha de detalhe (ex.: `Sim @1.90 • R$100,00`) — autoritativo; usa ponto decimal (en-US) → converter para vírgula.
+- **ID:** `ID da Aposta: XXXXX` — numérico, ~8 dígitos, visível na linha de detalhe.
+- **Confronto:** em inglês com "vs" → normalizar para "v" no output: `[Time A v Time B]`.
+- **Seleção "Sim":** resposta booleana (BTTS, Over/Under) — não vai na descrição; usar padrão global.
+- **"BEST ODDS IN BRAZIL":** rótulo promocional no campo Descrição — ruído, ignorar.
+- **Goldens confirmados:** W Ambas Marcam (98223602) · W ML com boost label (98318394) · L Gols (98223547) · L Anytime/Enner Valencia (98293971).
+- **Pendências documentadas:** §5 V/HW/HL (sem amostra) · §6 boost real · §7 cashout · §8 bônus · apostas Lay (A contra) · comissão sobre ganhos · Resultado Correto (Correct Score) flagged no §Feedback.
+- **`app/main.py`:** `BOLSADEAPOSTA: "Bolsa de Aposta"` adicionado ao `_CASA_DISPLAY`.
+- **`app/static/index.html`:** `BOLSADEAPOSTA` adicionado a `NOMES`; `'Bolsa de Aposta'` adicionado a `DOMINIOS` com domínio `bolsadeaposta.bet.br`.
+- Backup: `Backups/pre_bolsadeaposta_2026-06-21/`. Commit: `2217206`.
+
 **Pendências que aguardam bilhete real:**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
 - **Betano:** §5 rótulo de void/anulada · §6 boost (existe?)
 - **Pinnacle:** §5 rótulo exato de HW/HL no export (precisa de Asian Handicap de quarto liquidado)
+- **Bolsa de Aposta:** §5 V/HW/HL · §6 boost · §7 cashout · §8 bônus · apostas Lay
 
 **Próximo passo:**
+- Testar extração Bolsa de Aposta com os 4 bilhetes do texto colado.
 - Testar extração Betfair com texto+CSV após os fixes de streaming e estado do extrator.
 - Testar extração Pinnacle XLS e validar que a ordem (oldest first) está correta após o fix de chunks.
-- Se ordem Pinnacle estiver certa, marcar pendência de HW/HL como próxima prioridade.
 
 Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher a pendência, rodar o checklist do `CLAUDE.md` se envolver categoria nova.
 
