@@ -279,7 +279,13 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]]) -> tuple[str
         parts = row_str.split('\t')
         if len(parts) < 9:
             return None
-        return (parts[0], parts[3], parts[4], parts[7], parts[8])  # data, casa, parceiro, stake, odd
+        # Normaliza odd para 2 casas decimais para absorver diferenças de precisão entre chunks
+        # (ex: um chunk lê "1,83" e outro calcula "1,8331168..." — mesma aposta, string diferente)
+        try:
+            odd_norm = round(float(parts[8].replace(',', '.')), 2)
+        except (ValueError, IndexError):
+            odd_norm = parts[8]
+        return (parts[0], parts[3], parts[4], parts[7], odd_norm)  # data, casa, parceiro, stake, odd(normalizado)
 
     scroll_overlap_indices: list[int] = []
     prev_key = None
