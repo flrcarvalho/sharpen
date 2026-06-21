@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-21 (sessão 38 — fix copiar/baixar pendentes arquivados)_
+_Atualizado: 2026-06-21 (sessão 39 — nova casa: Betnacional)_
 
 ---
 
@@ -420,14 +420,30 @@ uvicorn main:app --reload
 - **Validado em produção:** Betano texto ✅ · KingPanda ✅ · Betfair ✅ · Superbet (lógica confirmada pelo usuário).
 - Backup: `Backups/main_pre_fix_sort_order_21jun.py`. Commit: `cb5573c`.
 
+**Sessão 39 (21/06/2026) — Nova casa: Betnacional:**
+
+- **`casas/CASA_BETNACIONAL.md` criada** — 15 seções, 7 goldens reais (20/06/2026).
+- **Modo de ingestão:** texto colado — aba "Histórico de apostas" com filtro **"Liquidadas"** aplicado antes de copiar (primário). Screenshot da aba "Apostas" (últimas 24h) como fallback.
+- **ID:** ausente em ambos os views → dedup por assinatura de conteúdo (SHA-256).
+- **Data:** campo `DD/MM/AAAA, às HH:MM` no Histórico = data do evento/liquidação → usar DD/MM/AAAA (descartar horário).
+- **Resultado:** `Retorno = 0 → L` · `Retorno = Aposta → V` · `Retorno > Aposta → W`.
+- **Odd para W:** `Retorno ÷ Aposta` (confirmado em todos os 7 goldens). Para L/V: Odd exibida no campo `Odd` (ponto decimal → vírgula).
+- **Confronto:** separador `x` (ex.: "Holanda x Suécia") → normalizar para `[Time A v Time B]`. Abreviações expandidas: HOL→Holanda · SUE→Suécia · Ale→Alemanha · CdM→Costa do Marfim.
+- **Promoções:** "Super Odds" e "Turbinaço CazéTV" = rótulos de promoção; ignorar para classificação de categoria.
+- **Confronto ausente (Layout A):** algumas apostas Turbinaço não incluem confronto no Histórico → AI infere do contexto; documentado como pegadinha.
+- **Goldens confirmados:** V·ML (D S Stricker/A Hunziker) · L·Múltipla (3 condições Holanda×Suécia) · W·Player Props (Cody Gakpo) · W·Cartões (Tunísia×Japão) · W·Ambas Marcam 2ºT (Holanda×Suécia) · L·Player Props (Kai Havertz) · W·Player Props (Vozinha).
+- **`app/main.py`:** `"BETNACIONAL": "Betnacional"` adicionado a `_CASA_DISPLAY` (ordem alfabética, entre BETFAIR e BOLSADEAPOSTA).
+- **`app/static/index.html`:** `BETNACIONAL: 'Betnacional'` adicionado a `NOMES`; `Betnacional: 'betnacional.bet.br'` adicionado a `DOMINIOS`.
+- Backup: `Backups/pre_betnacional_2026-06-21/`. Commit: `c05ef80`.
+
 **Pendências que aguardam bilhete real:**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
 - **Betano:** §5 rótulo de void/anulada · §6 boost (existe?)
 - **Pinnacle:** §5 rótulo exato de HW/HL no export (precisa de Asian Handicap de quarto liquidado)
 - **Bolsa de Aposta:** §5 V/HW/HL · §6 boost · §7 cashout · §8 bônus · apostas Lay
+- **Betnacional:** §5 HW/HL · §5 V (rótulo visual de void) · §7 cashout · §8 bônus
 
 **Próximo passo:**
-- Cadastrar novas casas usando `GUIA_NOVA_CASA.md` quando houver bilhetes reais.
 - Preencher pendências das casas existentes assim que amostras reais chegarem (ver lista acima).
 
 Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher a pendência, rodar o checklist do `CLAUDE.md` se envolver categoria nova.
