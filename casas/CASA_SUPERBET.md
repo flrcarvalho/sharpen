@@ -132,6 +132,7 @@ Notas:
 - **Padrão geral `Handicap - [Estatística]`:** a categoria registra o objeto apostado (MASTER_APOSTAS §1), não o tipo de mercado. `Handicap - Finalizações` → `Chutes`; `Handicap - Escanteios` → `Escanteios`; `Handicap - Cartões` → `Cartões`. A linha de handicap fica na Descrição (ex.: `Catar (+10.5) Chutes [Catar v Suíça]`).
 - "Total de X" precedido de nome de time/jogador (`Tunísia - Total de Cartões`, `Brusque - Total de Escanteios`) = total **da entidade**; a entidade entra na descrição (`MASTER_DESCRICAO_2026 §12.3/12.5`), a categoria segue a mesma.
 - Nome de jogador em "Sobrenome, Nome" (`Valdez, Framber`) → normalizar para `Framber Valdez` na descrição.
+- **Esportes individuais (Dardos, Tênis):** a seleção exibe apenas o **nome do jogador** (ex.: `Alec Small`) — sem rótulo "Resultado Final" ou "Vencedor". Nome do jogador = seleção do vencedor do confronto → `ML`. Nunca classificar como `Outras`.
 
 ---
 
@@ -170,6 +171,7 @@ Notas:
 - Hoje/Ontem/Amanhã ancoram na **captura**, não no processamento.
 - Boost já embutido no `PRÊMIO`; `ODDS TOTAIS` é sem boost.
 - `REEMBOLSO` = void, não cashout.
+- **Dardos/Tênis individual:** seleção = nome do jogador (ex.: `Alec Small`) → `ML`. Nunca `Outras`.
 
 ---
 
@@ -231,6 +233,13 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 > 3 seleções "Handicap - Finalizações" → Aposta=Chutes (objeto=Finalizações, tipo de mercado=Handicap).
 > ODDS TOTAIS = 5,40; APOSTA = 200,00 R$; STATUS = Perdido (Haiti ✓ mas bilhete geral = L).
 > Datas: "Ontem" com captura em 14/06/2026 → Ontem = 13/06/2026. Perna mais recente: 13/06/2026 22:00.
+
+**#8 — Dardos ML simples** — seleção = nome do jogador, sem rótulo "Resultado Final":
+```
+18/06/2026	Dardos		Superbet		ML	Alec Small [Joe Croft v Alec Small]	303,00	1,78	L
+```
+> Seleção exibida na Superbet: `Alec Small` (apenas o nome do vencedor apostado). Sem rótulo "Resultado Final".
+> Aposta = `ML` (resultado principal do confronto). NUNCA classificar como `Outras`.
 
 ---
 
