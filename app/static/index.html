@@ -1436,8 +1436,14 @@ function _limparOdd(v) { return (v ?? '').replace(/\.{2,}$|…$/, ''); }
 
 // ── Copiar pendentes ──────────────────────────────────────────────────────────
 document.getElementById('btn-copiar-pend').addEventListener('click', async () => {
-  const pend = bilhetes.filter(b => b.copy_state === 'pendente' && !b.archived);
-  if (!pend.length) { setExpStatus('Nenhum pendente', 'err'); return; }
+  const pend = bilhetes.filter(b => b.copy_state === 'pendente');
+  if (!pend.length) {
+    if (!mostrarArquivados && totalArquivados > 0)
+      setExpStatus('Nenhum pendente visível — ative "arquivados" para copiar os arquivados', 'warn');
+    else
+      setExpStatus('Nenhum pendente', 'err');
+    return;
+  }
   const tsv = pend.map(b =>
     [b.data, b.esporte, b.tipster, b.casa, b.parceiro,
      b.aposta, b.descricao, b.stake, _limparOdd(b.odd), b.resultado]
@@ -1456,8 +1462,14 @@ document.getElementById('btn-copiar-pend').addEventListener('click', async () =>
 
 // ── Baixar .tsv ───────────────────────────────────────────────────────────────
 document.getElementById('btn-baixar-tsv').addEventListener('click', () => {
-  const pend = bilhetes.filter(b => b.copy_state === 'pendente' && !b.archived);
-  if (!pend.length) { setExpStatus('Nenhum pendente', 'err'); return; }
+  const pend = bilhetes.filter(b => b.copy_state === 'pendente');
+  if (!pend.length) {
+    if (!mostrarArquivados && totalArquivados > 0)
+      setExpStatus('Nenhum pendente visível — ative "arquivados" para baixar os arquivados', 'warn');
+    else
+      setExpStatus('Nenhum pendente', 'err');
+    return;
+  }
   const tsv = pend.map(b =>
     [b.data, b.esporte, b.tipster, b.casa, b.parceiro,
      b.aposta, b.descricao, b.stake, _limparOdd(b.odd), b.resultado]
