@@ -9,6 +9,20 @@ _COLS = ["data", "esporte", "tipster", "casa", "parceiro",
 _RESULTADOS_VALIDOS = {"W", "L", "V", "HW", "HL"}
 
 
+def _norm_odd(v: str) -> str:
+    """Normaliza odd para 2 casas decimais antes de gerar a assinatura.
+
+    Absorve variações de precisão entre chunks paralelos: o AI pode ler
+    a odd exibida no cabeçalho ("1,83") ou calcular RO/stake ("1,8331168...").
+    Ambas representam a mesma aposta; sem normalização viriam assinaturas
+    diferentes e o UPSERT falharia, inserindo duplicatas silenciosas.
+    """
+    try:
+        return f"{round(float(v.replace(',', '.')), 2):.2f}"
+    except (ValueError, AttributeError):
+        return v
+
+
 def parse_tsv(tsv: str) -> list[dict]:
     """Converte bloco TSV em lista de dicts. Ignora linhas vazias e cabeçalho."""
     rows = []
@@ -39,7 +53,7 @@ def _assinatura(row: dict, _counter: int = 1) -> str:
         raw = "|".join([
             row.get("casa", ""), row.get("parceiro", ""),
             row.get("data", ""), row.get("aposta", ""), row.get("descricao", ""),
-            row.get("odd", ""),
+            _norm_odd(row.get("odd", "")),
         ])
         if _counter > 1:
             raw += f"|{_counter}"

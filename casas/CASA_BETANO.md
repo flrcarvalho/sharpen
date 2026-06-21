@@ -132,6 +132,9 @@ Notas de reconstrução:
 `Ganhos` é a verdade financeira:
 
 - `W` (`Ganhou`) → `Odd = Ganhos ÷ Aposta`
+
+> ⚠️ **Para W: ignorar a odd exibida por seleção no bilhete** — pode não refletir boost/promoção. Usar SEMPRE `Ganhos ÷ Aposta` com precisão total; nunca a odd do texto da seleção.
+
 - `L` (`Perdida`) → **odd exibida** (single) / **odd estrutural** (múltipla); nunca derivar do Ganhos (= 0)
 - `V` / cashout = stake → odd exibida / estrutural
 - Cashout ≠ stake → resultado `W`, `Odd = Cash out ÷ Aposta`

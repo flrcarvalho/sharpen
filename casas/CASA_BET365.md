@@ -164,6 +164,9 @@ Notas de reconstrução:
 `Retorno Obtido` é a fonte do **valor** financeiro — não confundir com `Retorno Total` (potencial/bruto); usar sempre o **Obtido**. A odd só é **derivada** do RO quando há retorno positivo real:
 
 - `W` (e cashout / boost) → `Odd = Retorno Obtido ÷ Aposta`
+
+> ⚠️ **Para W: a odd exibida no cabeçalho do bilhete (ex: `1,83`) é a odd de colocação — IGNORAR.** Ela pode diferir do cálculo real por boost, arredondamento ou promoção. Usar SEMPRE `Retorno Obtido ÷ Aposta` com precisão total; nunca a odd do cabeçalho.
+
 - `L` → **odd EXIBIDA no bilhete** (RO = R$0,00). NUNCA derivar do RO — daria `0,00`.
 - `HL` → **odd EXIBIDA**. NUNCA usar metade nem derivar do RO.
 - `HW` → odd EXIBIDA.

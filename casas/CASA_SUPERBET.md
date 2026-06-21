@@ -148,6 +148,9 @@ Notas:
 - `ODDS TOTAIS` = odd estrutural (produto das seleções). Confirmado: bilhete `890C-QDPCUD` → 2,70 × 2,17 × 2,75 × 2,35 = 37,86 = ODDS TOTAIS.
 - Fonte e prioridade da odd: **global** (`MASTER_RESULTADO_2026`). Resumo da localização Superbet:
   - `W` → `Odd = PRÊMIO ÷ Stake`
+
+> ⚠️ **Para W: `ODDS TOTAIS` é a odd estrutural SEM boost — NUNCA usar para W.** Mesmo que o valor pareça razoável, `ODDS TOTAIS` não captura boost/promoção. Para W, usar SEMPRE `PRÊMIO ÷ Stake` com precisão total.
+
   - `L` em múltipla sem retorno → `ODDS TOTAIS` (estrutural)
   - `V` → `ODDS TOTAIS` (do bilhete)
 - **Precisão:** preservar a precisão natural — não forçar, não truncar, não arredondar. Até 12 casas decimais, seja odd calculada (`PRÊMIO ÷ Stake`) ou lida diretamente do bilhete. Manter `Stake × Odd ≈ PRÊMIO`.
