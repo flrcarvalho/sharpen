@@ -40,6 +40,7 @@ _CASA_DISPLAY: dict[str, str] = {
     "BET365":         "Bet365",
     "BETANO":         "Betano",
     "BETFAIR":        "Betfair",
+    "BETNACIONAL":    "Betnacional",
     "BOLSADEAPOSTA":  "Bolsa de Aposta",
     "KINGPANDA":      "KingPanda",
     "PINNACLE":       "Pinnacle",
