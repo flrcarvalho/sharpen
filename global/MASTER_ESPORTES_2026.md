@@ -491,11 +491,13 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Bradley O'Connor
 - Nico Plovier
 
-**MODUS Super Series (exemplos de sessões recentes):**
+**MODUS Super Series / outros circuitos (exemplos de sessões recentes):**
 - Dylan Slevin
 - Sam Spivey
 - Steve Johnstone
 - Oliver Mitchell
+- Joe Croft
+- Alec Small
 
 ---
 
