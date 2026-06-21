@@ -980,12 +980,25 @@ function atualizarBotaoExtrair() {
   const ok = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0 || document.getElementById('texto').value.trim();
   document.getElementById('btn-extrair').disabled = !parceiroSelecionado || !ok;
 }
-document.getElementById('texto').addEventListener('input', atualizarBotaoExtrair);
+document.getElementById('texto').addEventListener('input', () => {
+  atualizarBotaoExtrair();
+  if (!parceiroSelecionado) return;
+  if (!estadoExtrator[parceiroSelecionado.id])
+    estadoExtrator[parceiroSelecionado.id] = { arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], texto: '' };
+  estadoExtrator[parceiroSelecionado.id].texto = document.getElementById('texto').value;
+});
 
-function limparExtrator() {
+function limparExtrator(explicit = false) {
+  if (!explicit && parceiroSelecionado) {
+    // Salva estado antes de limpar: permite navegar e voltar para retry após falha
+    estadoExtrator[parceiroSelecionado.id] = {
+      arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles],
+      texto: document.getElementById('texto').value,
+    };
+  }
   arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews();
   document.getElementById('texto').value = '';
-  if (parceiroSelecionado) delete estadoExtrator[parceiroSelecionado.id];
+  if (explicit && parceiroSelecionado) delete estadoExtrator[parceiroSelecionado.id];
   setStatus('', ''); atualizarBotaoExtrair();
 }
 
@@ -998,7 +1011,7 @@ function limparPainelDireito() {
   const boxNotas = document.getElementById('box-notas');
   if (boxNotas) boxNotas.style.display = 'none';
 }
-document.getElementById('btn-limpar').addEventListener('click', limparExtrator);
+document.getElementById('btn-limpar').addEventListener('click', () => limparExtrator(true));
 document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews(); atualizarBotaoExtrair(); });
 document.getElementById('btn-cancelar').addEventListener('click', () => { _activeStreams.forEach(c => c.abort()); });
 
