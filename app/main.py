@@ -392,7 +392,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
 
 
-async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int):
+async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = ""):
     n_chunks = len(chunks)
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
@@ -457,10 +457,17 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         return
 
     await asyncio.gather(*tasks, return_exceptions=True)
-    # Texto (XLS/apostas): entrada já está oldest-first → chunk 0 = mais antigo → manter ordem (reverse=False)
-    # Imagens: regra das casas "última imagem primeiro" → chunk N = últimas imagens → vir antes (reverse=True)
-    is_image_mode = any(b.get("type") == "image" for b in chunks[0] if isinstance(b, dict))
-    completed.sort(key=lambda x: x[0], reverse=is_image_mode)
+    # Regras de ordenação por casa:
+    # - Pinnacle XLS: texto pré-invertido pelo parser → chunk 0 = mais antigo → reverse=False
+    # - Superbet: usuário cola uma aposta por imagem na ordem certa → chunk 0 = primeira bet → reverse=False
+    # - Todo o resto (Betano texto, BET365, Betano imgs, KingPanda, Betfair): scroll de cima p/ baixo =
+    #   mais recentes primeiro → chunk N = mais antigas → vir antes → reverse=True
+    is_xls_mode = any(
+        isinstance(b, dict) and b.get("type") == "text" and "=== Aposta ID" in b.get("text", "")
+        for b in chunks[0]
+    )
+    reverse_chunks = not (is_xls_mode or casa_key.upper() == "SUPERBET")
+    completed.sort(key=lambda x: x[0], reverse=reverse_chunks)
     try:
         resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed)
     except Exception as exc:
@@ -567,7 +574,7 @@ async def extrair(
                 len(chunks), use_parallel)
 
     if use_parallel:
-        generator = _stream_parallel(system, chunks, modelo, xls_skipped)
+        generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key)
     else:
         generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped)
 
