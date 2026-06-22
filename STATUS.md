@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-21 (sessão 40 — fix cadastro Bolsa de Aposta)_
+_Atualizado: 2026-06-21 (sessão 40 — fix MASTER_ESPORTES: tenistas ITF classificados como Dardos)_
 
 ---
 
@@ -419,6 +419,15 @@ uvicorn main:app --reload
   - `reverse=True`: Betano texto · Betfair texto · BET365 imgs · Betano imgs · KingPanda imgs
 - **Validado em produção:** Betano texto ✅ · KingPanda ✅ · Betfair ✅ · Superbet (lógica confirmada pelo usuário).
 - Backup: `Backups/main_pre_fix_sort_order_21jun.py`. Commit: `cb5573c`.
+
+**Sessão 40 (21/06/2026) — Fix MASTER_ESPORTES: tenistas ITF classificados como Dardos:**
+
+- **Bug:** 8 confrontos de Tênis (Bet365, ML) extraídos como Dardos. Causa: o modelo não reconhece jogadores de nicho do circuito ITF (M25/Juniors/WTA feminino de baixo escalão) e chutava Dardos por similaridade estrutural de mercado ML.
+- **Fix 1 — regra de desempate:** `MASTER_ESPORTES §Regra Crítica — Dardos vs Tênis` — novo bloco: atleta não identificado em ML/H2H sem sinal positivo de Dardos (`legs`, `PDC`, `BDO`, `MODUS`, etc.) → padrão **Tênis**, nunca Dardos. Nunca usar Dardos como desempate.
+- **Fix 2 — referências ampliadas:** 12 tenistas masculinos ITF adicionados (Jan Kluczynski, Zian Vanderstappen, Felix Romeo, Lucien Forrestier, Dennis Andre Dutine, Yoav Versloot, Nand Vandepoele, Melvin Vix, Maximo Nagele, Jorge Alonso-Cortes, Juan Bautista Otegui, Joao Victor Couto Loureiro).
+- **Fix 3 — referências femininas:** 4 tenistas adicionadas (Monika Ekstrand, Alina Shcherbinina, Andrea Palazon Lacasa, Min Liu).
+- **Fix 4 — desambiguação:** nota "Min Liu (tênis de quadra, chinesa) ≠ Ming Liu (tênis de mesa)" adicionada à lista WTA/ITF.
+- Backup: `Backups/MASTER_ESPORTES_2026_pre_regra_desempate_tenis.md`. Commit: `347fddd`.
 
 **Sessão 39 (21/06/2026) — Nova casa: Betnacional:**
 
