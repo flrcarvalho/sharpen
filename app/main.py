@@ -367,7 +367,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
                     try:
                         kind, val = await asyncio.wait_for(q.get(), timeout=20)
                     except asyncio.TimeoutError:
-                        yield ": keepalive\n\n"
+                        yield f"data: {json.dumps({'keepalive': True})}\n\n"
                         continue
                     if kind == "t":
                         accumulated += val
@@ -460,7 +460,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                     idx, text, tokens, err = await asyncio.wait_for(result_queue.get(), timeout=20)
                     break
                 except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
+                    yield f"data: {json.dumps({'keepalive': True})}\n\n"
             if err:
                 logger.error("par chunk %d falhou (continuando): %s", idx + 1, err)
                 completed.append((idx, "", tokens))
@@ -473,26 +473,24 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         return
 
     await asyncio.gather(*tasks, return_exceptions=True)
-    # Regras de ordenação por casa:
-    # - Pinnacle XLS: texto pré-invertido pelo parser → chunk 0 = mais antigo → reverse=False
-    # - Superbet: usuário cola uma aposta por imagem na ordem certa → chunk 0 = primeira bet → reverse=False
-    # - Todo o resto (Betano texto, BET365, Betano imgs, KingPanda, Betfair): scroll de cima p/ baixo =
-    #   mais recentes primeiro → chunk N = mais antigas → vir antes → reverse=True
-    is_xls_mode = any(
-        isinstance(b, dict) and b.get("type") == "text" and "=== Aposta ID" in b.get("text", "")
-        for b in chunks[0]
-    )
-    reverse_chunks = not (is_xls_mode or casa_key.upper() == "SUPERBET")
-    completed.sort(key=lambda x: x[0], reverse=reverse_chunks)
     try:
+        # Regras de ordenação por casa:
+        # - Pinnacle XLS: texto pré-invertido pelo parser → chunk 0 = mais antigo → reverse=False
+        # - Superbet: usuário cola na ordem certa → chunk 0 = primeira bet → reverse=False
+        # - Todo o resto: scroll de cima p/ baixo = mais recentes primeiro → reverse=True
+        is_xls_mode = any(
+            isinstance(b, dict) and b.get("type") == "text" and "=== Aposta ID" in b.get("text", "")
+            for b in chunks[0]
+        )
+        reverse_chunks = not (is_xls_mode or casa_key.upper() == "SUPERBET")
+        completed.sort(key=lambda x: x[0], reverse=reverse_chunks)
         resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed)
+        logger.info("par total: %.1fs | chunks=%d | out=%d",
+                    time.perf_counter() - t_start, n_chunks, total_tokens["output"])
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices})}\n\n"
     except Exception as exc:
-        yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
-        return
-
-    logger.info("par total: %.1fs | chunks=%d | out=%d",
-                time.perf_counter() - t_start, n_chunks, total_tokens["output"])
-    yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices})}\n\n"
+        logger.exception("par-final error: %s", exc)
+        yield f"data: {json.dumps({'error': f'par-final: {type(exc).__name__}: {exc}'})}\n\n"
 
 
 # ── Rotas ─────────────────────────────────────────────────────────────────────
