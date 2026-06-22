@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-22 (sessão 42 — fix Over/Under em golden sets + referências globais nas casas)_
+_Atualizado: 2026-06-22 (sessão 42 — fix lentidão Betano + Over/Under em golden sets + referências globais nas casas)_
 
 ---
 
@@ -476,6 +476,16 @@ uvicorn main:app --reload
 - **Causa raiz:** `body.casa.upper()` convertia `"Bolsa de Aposta"` → `"BOLSA DE APOSTA"`, e o sistema buscava `CASA_BOLSA DE APOSTA.md` (inexistente). O arquivo correto e `CASA_BOLSADEAPOSTA.md`.
 - **Fix:** `app/main.py` — funcao `_display_to_key()` adicionada. Faz reverse lookup no `_CASA_DISPLAY` antes de usar fallback `upper().replace(' ','')`. Corrigidos os 3 pontos: `/extrair`, `/salvar` e `/parceiros` (POST).
 - Backup: `Backups/pre_bolsadeaposta_fix_2026-06-21/`. Commit: `6636106`.
+
+**Sessão 42 (22/06/2026) — Fix lentidão da Betano (auditoria independente):**
+
+- **Sintoma:** Betano era a única casa lenta — extração de TEXTO de 30-50 bets levava 8-12 min (475s medidos em produção, print do usuário), enquanto Bet365 (15 imgs), Pinnacle (XLS) e Betfair (texto+CSV) eram rápidas.
+- **Causa raiz (provada com teste local):** `_build_chunks` (`app/main.py`), para texto puro, dividia por linha em branco (`split("\n\n")`). O colar da Betano vem **grudado** (sem linha em branco entre bilhetes) → caía em **1 bloco → 1 chunk → chamada 100% sequencial** com ~90 bilhetes. Era a única casa de alto volume sem separador de bilhete reconhecido pelo chunker (Pinnacle usa `=== Aposta ID`, Bet365 usa 1 chunk/imagem).
+- **Fix 1 — split por bilhete:** `_build_chunks` recebe `casa_key`; para Betano divide na linha-tipo (`Simples`/`Dupla`/`Tripla`/`N-seleções`) via `_BETANO_SPLIT_RE` — a fronteira real do bilhete (análogo ao `=== Aposta ID` da Pinnacle). ~90 bilhetes → 4 chunks equilibrados → paralelismo 4× real.
+- **Fix 2 — pré-dedup por ID:** `_dedup_betano_text` + `repository.get_codigos_resolvidos()` descartam, antes do modelo, bilhetes já **liquidados** no banco (`extraction_state='resolvida'`) + duplicatas de scroll dentro do colar. Mantém os salvos como `aberta` (transição aberta→liquidada ainda processa). No caso real: 90 lidos → 37 novos, corta >50% do trabalho.
+- **Validação:** teste local lado a lado confirmou — colar grudado: split atual = 1 chunk (sequencial); split novo = N blocos → chunks equilibrados, IDs detectados. Sintaxe OK (`py_compile`).
+- Backup: `Backups/betano_chunker_dedup_2026-06-22/`. Commit: `34b7cf1`.
+- ⚠️ **Nota de histórico:** a edição de `app/main.py` da tarefa Over/Under abaixo ("instrução layout horizontal") foi feita em paralelo e pegou carona neste commit `34b7cf1` (não no `abf8860`). Conteúdo correto; só a atribuição git ficou junta.
 
 **Sessão 42 (22/06/2026) — Fix Over/Under em golden sets + instrução layout horizontal:**
 
