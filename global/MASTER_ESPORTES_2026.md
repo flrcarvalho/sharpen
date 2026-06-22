@@ -396,6 +396,18 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Bryce Nakashima
 - Tanguy Genier
 - Noah Karma
+- Jan Kluczynski
+- Zian Vanderstappen
+- Felix Romeo
+- Lucien Forrestier
+- Dennis Andre Dutine
+- Yoav Versloot
+- Nand Vandepoele
+- Melvin Vix
+- Maximo Nagele
+- Jorge Alonso-Cortes
+- Juan Bautista Otegui
+- Joao Victor Couto Loureiro
 
 **WTA:**
 - Aryna Sabalenka
@@ -427,6 +439,10 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Mia Slama
 - Elsa Bonelli
 - Emily Seibold
+- Monika Ekstrand
+- Alina Shcherbinina
+- Andrea Palazon Lacasa
+- Min Liu (chinesa, ITF W50 — não confundir com "Ming Liu" do tênis de mesa)
 
 ---
 
@@ -548,6 +564,9 @@ Regras obrigatórias (em ordem de prioridade):
 4. Participantes da lista de Tênis → priorizar Tênis
 5. Termos como `180`, `checkout`, `PDC`, torneios PDC → Dardos
 6. Termos como `ATP`, `WTA`, `ace`, `break`, torneios Grand Slam → Tênis
+
+**Regra de desempate — atleta não identificado:**
+Quando o confronto for entre dois participantes individuais em mercado ML/H2H e nenhum deles puder ser identificado pelo conhecimento do modelo nem pelas listas auxiliares, e não houver nenhum sinal positivo de Dardos (`legs`, `checkout`, `PDC`, `BDO`, `WDF`, `MODUS`, torneios de dardos), o esporte padrão é **Tênis**. Nunca usar Dardos como padrão de desempate — o circuito ITF tem ordens de magnitude mais atletas de nicho do que os circuitos de Dardos.
 
 Quando houver conflito genuinamente insolúvel:
 
