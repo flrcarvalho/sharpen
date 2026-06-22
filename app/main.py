@@ -340,6 +340,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
                 messages = [
                     {"role": "user", "content": content},
                     {"role": "assistant", "content": accumulated},
+                    {"role": "user", "content": "Continue a extração de onde parou."},
                 ]
 
             q: asyncio.Queue = asyncio.Queue()
@@ -438,6 +439,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                     messages = [
                         {"role": "user", "content": chunk_content},
                         {"role": "assistant", "content": accumulated},
+                        {"role": "user", "content": "Continue a extração de onde parou."},
                     ]
 
                 logger.info("par chunk %d/%d: %.1fs | out=%d",
