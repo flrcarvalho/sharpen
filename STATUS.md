@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-21 (sessão 40 — fix MASTER_ESPORTES: tenistas ITF classificados como Dardos)_
+_Atualizado: 2026-06-21 (sessão 41 — nova casa: Lottu)_
 
 ---
 
@@ -419,6 +419,22 @@ uvicorn main:app --reload
   - `reverse=True`: Betano texto · Betfair texto · BET365 imgs · Betano imgs · KingPanda imgs
 - **Validado em produção:** Betano texto ✅ · KingPanda ✅ · Betfair ✅ · Superbet (lógica confirmada pelo usuário).
 - Backup: `Backups/main_pre_fix_sort_order_21jun.py`. Commit: `cb5573c`.
+
+**Sessão 41 (21/06/2026) — Nova casa: Lottu:**
+
+- **`casas/CASA_LOTTU.md` criada** — 15 seções, 5 goldens reais (19–21/06/2026).
+- **Modo de ingestão:** texto colado (primário) + screenshot (fallback).
+- **Particularidade crítica:** apostas em aberto ficam misturadas no histórico (sem filtro disponível). Badge amarelo `Aberto` identifica-as — **ignorar completamente**. Extrair apenas `Ganhou` e `Perdeu`.
+- **Produto Desafio:** a Lottu exibe como `Simples de X.XX` mas combina condições via `&` na Resposta = **Múltipla** (Bet Builder intra-jogo). Sinal discriminante: presença de `&` na Resposta.
+- **ID:** numérico ~7 dígitos (ex.: `4842688`), primeira linha do bilhete.
+- **Data:** usar `Resolvido em: DD/MM/AAAA` (descartar horário e data de início do jogo).
+- **Odd:** en-US (ponto decimal) → converter para vírgula. Para W: `Retorno ÷ Stake`. Para L: odd exibida em `Simples de X.XX`.
+- **Resultado:** `Ganhou` → W · `Perdeu` → L · `Aberto` → IGNORAR.
+- **Goldens confirmados:** W Múltipla (4842688 · Tunisia v Japão, 7,60) · L Player Props (4841836 · Vozinha Defesas, 2,20) · W Múltipla (4769545 · Tunisia v Japão, 4,20) · L Múltipla (4770248 · Alemanha v Costa do Marfim, 3,50) · L Múltipla multi-player (4680704 · Brasil v Haiti, 4,50).
+- **Pendências:** §5 V/HW/HL · §6 boost individual · §7 cashout · §8 bônus.
+- **`app/main.py`:** `"LOTTU": "Lottu"` adicionado ao `_CASA_DISPLAY` (entre KINGPANDA e PINNACLE).
+- **`app/static/index.html`:** `LOTTU: 'Lottu'` adicionado a `NOMES`; `Lottu: 'lottu.bet.br'` adicionado a `DOMINIOS`.
+- Backup: `Backups/pre_lottu_2026-06-21/`. Commit: `32d40d0`.
 
 **Sessão 40 (21/06/2026) — Fix MASTER_ESPORTES: tenistas ITF classificados como Dardos:**
 
