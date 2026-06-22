@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-21 (sessão 41 — nova casa: Lottu)_
+_Atualizado: 2026-06-22 (sessão 42 — fix Over/Under em golden sets + referências globais nas casas)_
 
 ---
 
@@ -476,6 +476,23 @@ uvicorn main:app --reload
 - **Causa raiz:** `body.casa.upper()` convertia `"Bolsa de Aposta"` → `"BOLSA DE APOSTA"`, e o sistema buscava `CASA_BOLSA DE APOSTA.md` (inexistente). O arquivo correto e `CASA_BOLSADEAPOSTA.md`.
 - **Fix:** `app/main.py` — funcao `_display_to_key()` adicionada. Faz reverse lookup no `_CASA_DISPLAY` antes de usar fallback `upper().replace(' ','')`. Corrigidos os 3 pontos: `/extrair`, `/salvar` e `/parceiros` (POST).
 - Backup: `Backups/pre_bolsadeaposta_fix_2026-06-21/`. Commit: `6636106`.
+
+**Sessão 42 (22/06/2026) — Fix Over/Under em golden sets + instrução layout horizontal:**
+
+- **Auditoria Over/Under:** varredura em todos os `casas/CASA_*.md`. Regra do `MASTER_DESCRICAO §11` é absoluta: "Mais de"/"Menos de" são inputs, nunca output válido. 4 ocorrências corrigidas:
+  - `CASA_KINGPANDA.md §15 G3`: `Mais de 2,5 [Total de Gols...]` → `Over 2,5 [Total de Gols...]`.
+  - `CASA_KINGPANDA.md §15 G7`: `Mais de 9,5 [Escanteios]` → `Over 9,5 [Escanteios]`.
+  - `CASA_LOTTU.md §15 G1`: `Mais de 4,5 Escanteios` → `Over 4,5 Escanteios`.
+  - `CASA_LOTTU.md §15 G2`: `Mais de 3,5 Defesas do Goleiro` → `Over 3,5 Defesas do Goleiro`.
+  - As outras 7 casas (Bet365, Betano, Betfair, Betnacional, Bolsa de Aposta, Pinnacle, Superbet) estão corretas.
+- **Fix instrução de extração (`app/main.py`):** regra 2 de "LEITURA DAS IMAGENS" reescrita — agora explica que bilhetes podem estar lado a lado (horizontal) e instrui o modelo a CONTAR todos os bilhetes visíveis antes de extrair. Corrige caso de terceiro bilhete não detectado quando layout é horizontal (3 tickets side-by-side).
+- **Auditoria de referências globais nas casas:** todas as casas verificadas quanto ao cabeçalho de autoridades e à regra Over/Under. Princípio arquitetural reforçado: arquivos de casa traduzem especificidades da casa; regras universais ficam nos masters globais e as casas **referenciam**, não redefinem.
+  - `CASA_LOTTU.md`: cabeçalho sem lista de autoridades globais → adicionado bloco `Autoridades globais: MASTER_OUTPUT_2026, ...` (padrão de todas as casas). Também adicionada referência a `MASTER_DESCRICAO_2026 §11` para conversão `Mais de → Over`.
+  - `CASA_BETFAIR.md §10`: sem regra Over/Under → adicionada referência a `MASTER_DESCRICAO_2026 §11` (inclui variante `N ou mais X` da Betfair).
+  - `CASA_BETNACIONAL.md §10`: sem regra Over/Under → adicionada referência a `MASTER_DESCRICAO_2026 §11`.
+  - `CASA_BOLSADEAPOSTA.md §9`: cobria apenas `Over X Goals` → generalizado para qualquer mercado + referência a `MASTER_DESCRICAO_2026 §11`.
+  - Casas corretas (sem alteração): Bet365, Betano, KingPanda, Pinnacle, Superbet.
+- Backups: `CASA_KINGPANDA_pre_over_under_*.md`, `CASA_LOTTU_pre_over_under_*.md`, `main_pre_instrucao_layout_horizontal_*.py`, `CASA_LOTTU_pre_refs_globais_*.md`, `CASA_BETFAIR_pre_refs_globais_*.md`, `CASA_BETNACIONAL_pre_refs_globais_*.md`, `CASA_BOLSADEAPOSTA_pre_refs_globais_*.md`.
 
 **Pendências que aguardam bilhete real:**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado

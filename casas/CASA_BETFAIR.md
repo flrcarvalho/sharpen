@@ -134,6 +134,7 @@ Notas de reconstrução:
 
 - Campo `Valor Apostado:` (ou `Total Apostado:` quando bônus).
 - **Formato en-US:** `R$1,050.00` → `1050,00` · `R$300.00` → `300,00`. Remover a vírgula de milhar e trocar ponto decimal por vírgula. (Cuidado: aqui a vírgula é milhar, não decimal.)
+- **`Mais de X` / `Menos de X` / `N ou mais X` → `Over X` / `Under X`**: padrão global — ver `MASTER_DESCRICAO_2026 §11`. A Betfair exibe em português; a saída TSV é sempre em inglês.
 
 ---
 

@@ -4,6 +4,9 @@
 > Este arquivo descreve **apenas** as particularidades da Lottu.
 > Estrutura, taxonomia, descrição, resultado e **cálculo** de odd vivem nos masters globais. Este arquivo **traduz**; não redefine.
 > **Cálculo é global, localização é da casa.**
+>
+> Autoridades globais: `MASTER_OUTPUT_2026`, `MASTER_ESPORTES_2026`, `MASTER_APOSTAS_2026`, `MASTER_DESCRICAO_2026`, `MASTER_RESULTADO_2026`, `MASTER_PIPELINE_2026`.
+> Saída final: **TSV** (ver `MASTER_OUTPUT_2026`).
 
 ---
 
@@ -161,6 +164,7 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 **Notas de reconstrução:**
 - Separador de times: `x` (ex.: `Uruguai x Cabo Verde`) → normalizar para `[Uruguai v Cabo Verde]`.
 - Odd em en-US com ponto decimal: `7.60` → converter para vírgula `7,60`.
+- **`Mais de X` / `Menos de X` → `Over X` / `Under X`**: padrão global — ver `MASTER_DESCRICAO_2026 §11`. A Lottu exibe em português; a saída TSV é sempre em inglês.
 - Tags de campanha (`Desafio`, `Odds Turbinadas`, `MEGA ODDS`, `Copa do Mundo 2026`, `Internacional`, `Brasil`) → ruído, ignorar para classificação de esporte e aposta.
 - Nome do jogador em Player Props aparece no início da Resposta em maiúsculas (`VOZINHA MAIS DE 3.5 DEFESAS`) → normalizar para `Nome Próprio`.
 - Conector `E` entre jogadores em Desafio multi-player (`VINICIUS JR. E RAPHINHA`) → tratar igual a `&`, bilhete é `Múltipla`.
@@ -263,7 +267,7 @@ Resolvido em: 21/06/2026 02:58
 
 **TSV esperado:**
 ```
-21/06/2026	Futebol		Lottu		Múltipla	Japão Ganhar Ambos os Tempos & Mais de 4,5 Escanteios [Tunisia v Japão]	29,00	7,60	W
+21/06/2026	Futebol		Lottu		Múltipla	Japão Ganhar Ambos os Tempos & Over 4,5 Escanteios [Tunisia v Japão]	29,00	7,60	W
 ```
 
 ---
@@ -292,7 +296,7 @@ Resolvido em: 21/06/2026 21:07
 
 **TSV esperado:**
 ```
-21/06/2026	Futebol		Lottu		Player Props	Vozinha - Mais de 3,5 Defesas do Goleiro [Uruguai v Cabo Verde]	100,00	2,20	L
+21/06/2026	Futebol		Lottu		Player Props	Vozinha - Over 3,5 Defesas do Goleiro [Uruguai v Cabo Verde]	100,00	2,20	L
 ```
 
 ---

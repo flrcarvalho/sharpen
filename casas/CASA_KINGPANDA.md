@@ -324,7 +324,7 @@ ID: 856170471199985664 · GP BRL 0.00 · boost 3.71→5.06
 
 **G3 (TSV linha 3) — W · Múltipla (2 sel.) · Países Baixos vs Suécia · posição 6 no texto**
 ```
-20/06/2026	Futebol		KingPanda	[parceiro]	Múltipla	Mais de 2,5 [Total de Gols Mais/Menos] [Países Baixos v Suécia] // Suécia [Equipe com Mais Cartões] [Países Baixos v Suécia]	30,00	4,90	W
+20/06/2026	Futebol		KingPanda	[parceiro]	Múltipla	Over 2,5 [Total de Gols Mais/Menos] [Países Baixos v Suécia] // Suécia [Equipe com Mais Cartões] [Países Baixos v Suécia]	30,00	4,90	W
 ```
 ID: 856170588514590720 · GP BRL 147.00 · 147÷30=4,90 ✓ · boost 3.60→4.90
 
@@ -348,7 +348,7 @@ ID: 856170034874834944 · GP BRL 0.00 · boost 5.47→7.00
 
 **G7 (TSV linha 7) — L · Múltipla (2 sel.) · Alemanha vs Costa do Marfim · posição 2 no texto**
 ```
-20/06/2026	Futebol		KingPanda	[parceiro]	Múltipla	Empate ou Costa do Marfim [Dupla Chance] [Alemanha v Costa do Marfim] // Mais de 9,5 [Escanteios] [Alemanha v Costa do Marfim]	50,00	6,61	L
+20/06/2026	Futebol		KingPanda	[parceiro]	Múltipla	Empate ou Costa do Marfim [Dupla Chance] [Alemanha v Costa do Marfim] // Over 9,5 [Escanteios] [Alemanha v Costa do Marfim]	50,00	6,61	L
 ```
 ID: 856170236574720000 · GP BRL 0.00 · boost 4.74→6.61
 

@@ -212,6 +212,7 @@ Apostas abertas → `extraction_state = aberta`.
 - Localização (cards): campo `Valor da Aposta: R$ XX,00`
 - Formato: pt-BR — `R$ 50,00` (espaço após R$, vírgula decimal, ponto de milhar)
 - Normalização: remover `R$ ` e espaços → manter valor com vírgula decimal
+- **`Mais de X` / `Menos de X` → `Over X` / `Under X`**: padrão global — ver `MASTER_DESCRICAO_2026 §11`. A Betnacional exibe em português; a saída TSV é sempre em inglês.
 
 ---
 

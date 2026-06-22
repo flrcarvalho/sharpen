@@ -174,7 +174,8 @@ Apostas abertas → `extraction_state = aberta`.
 - Seleção `Sim` = resultado booleano ("sim/não") — indica mercado de BTTS, Over/Under etc.; usar a categoria do mercado (não "Sim").
 - Seleção = nome de time → ML; usar nome como mostrado no bilhete (ex.: `Alemanha`).
 - `Enner Valencia: Ready to Score at Any Moment` → Anytime; jogador = `Enner Valencia`; descrição = `Enner Valencia [Confronto]`.
-- `Over X Goals` → Gols; descrição = `Over X,Y [Confronto]` (ponto → vírgula no número).
+- `Over X Goals` / `Under X Goals` → Gols; descrição = `Over X,Y [Confronto]` (ponto → vírgula no número).
+- **`Mais de X` / `Menos de X` em qualquer mercado → `Over X` / `Under X`**: padrão global — ver `MASTER_DESCRICAO_2026 §11`.
 - `"BEST ODDS IN BRAZIL"` no campo mercado = rótulo promocional; ignorar para classificação.
 - Mercado sem categoria global → `Outras ⚠️` + registrar no §Feedback.
 
