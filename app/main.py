@@ -22,7 +22,8 @@ from database import init_db
 from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    criar_parceiro, deletar_bilhetes, get_codigos_existentes, list_bilhetes,
+    criar_parceiro, deletar_bilhetes, get_codigos_existentes,
+    get_codigos_resolvidos, list_bilhetes,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
     reativar_parceiro, upsert_bilhetes,
 )
@@ -170,6 +171,53 @@ async def _parse_xls(raw: bytes) -> tuple[str, int]:
     return _format_xls_rows(new_rows_oldest_first), skipped
 
 
+# ── Betano: split por bilhete + pré-dedup por ID ───────────────────────────────
+
+# Cada bilhete Betano (texto copiado) começa com uma linha-tipo isolada
+# (Simples / Dupla / Tripla / N-seleções) e termina no rodapé ID:/data/Ganhos.
+# A linha-tipo é o separador confiável — equivalente ao "=== Aposta ID" da Pinnacle.
+_BETANO_SPLIT_RE = re.compile(r'(?m)(?=^(?:Simples|Dupla|Tripla|\d+-seleções)\s*$)')
+_BETANO_ID_RE = re.compile(r'^ID:\s*(\d+)', re.MULTILINE)
+
+
+def _split_betano_bilhetes(text: str) -> list[str]:
+    """Divide o texto colado da Betano em blocos de 1 bilhete cada."""
+    return [b.strip() for b in _BETANO_SPLIT_RE.split(text) if b.strip()]
+
+
+async def _dedup_betano_text(text: str) -> tuple[str, int]:
+    """Remove bilhetes já liquidados no banco + duplicatas de scroll dentro do colar.
+
+    Retorna (texto_filtrado, qtd_ignorada). Mantém a ordem original (mais recente no topo).
+    Bilhetes sem ID legível são sempre mantidos.
+    """
+    blocks = _split_betano_bilhetes(text)
+    if len(blocks) < 2:
+        return text, 0
+
+    ids = []
+    for b in blocks:
+        m = _BETANO_ID_RE.search(b)
+        ids.append(m.group(1) if m else None)
+
+    ja_resolvidos = await get_codigos_resolvidos([i for i in ids if i])
+
+    mantidos: list[str] = []
+    vistos: set[str] = set()
+    skipped = 0
+    for block, bid in zip(blocks, ids):
+        if bid:
+            if bid in vistos or bid in ja_resolvidos:
+                skipped += 1
+                continue
+            vistos.add(bid)
+        mantidos.append(block)
+
+    if not mantidos:
+        return "", skipped
+    return "\n\n".join(mantidos), skipped
+
+
 # ── Instrução ─────────────────────────────────────────────────────────────────
 
 _INSTRUCAO = (
@@ -184,7 +232,9 @@ _INSTRUCAO = (
     "  1. Leia cada imagem INTEIRAMENTE, de cima até o final. Os campos financeiros\n"
     "     aparecem APÓS as seleções — leia-os também.\n"
     "     Não gere output de uma imagem antes de terminar de lê-la por completo.\n"
-    "  2. Para cada imagem, extraia TODOS os bilhetes visíveis. Não pule nenhuma imagem.\n\n"
+    "  2. Bilhetes podem estar LADO A LADO (layout horizontal) OU empilhados. Em\n"
+    "     ambos os casos: CONTE todos os bilhetes distintos visíveis, depois extraia\n"
+    "     EXATAMENTE esse número de linhas TSV. Nenhum bilhete pode ser omitido.\n\n"
     "MÚLTIPLA — 1 bilhete = 1 linha no TSV:\n"
     "  • Aposta (col 6): 'Múltipla' — palavra-chave fixa, NUNCA o texto das seleções.\n"
     "  • Descrição (col 7): TODAS as N seleções concatenadas com ' // '.\n"
@@ -228,7 +278,7 @@ _INSTRUCAO = (
 
 # ── Helpers de paralelismo ────────────────────────────────────────────────────
 
-def _build_chunks(base_content: list[dict], instrucao_block: dict) -> list[list[dict]]:
+def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str = "") -> list[list[dict]]:
     """
     Divide base_content em chunks para processamento paralelo.
     Cada chunk recebe instrucao_block no final.
@@ -251,6 +301,9 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict) -> list[list[
             return [base_content + [instrucao_block]]
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
+        elif casa_key.upper() == "BETANO":
+            # Split na linha-tipo (Simples/Dupla/Tripla/N-seleções) = fronteira do bilhete
+            blocks = _BETANO_SPLIT_RE.split(full_text)
         else:
             blocks = full_text.split("\n\n")
         blocks = [b.strip() for b in blocks if b.strip()]
@@ -542,16 +595,24 @@ async def extrair(
             },
         })
 
+    xls_skipped = 0
+
     if texto:
-        base_content.append({"type": "text", "text": texto})
+        # Betano (texto): pré-dedup por ID antes de chamar o modelo — descarta
+        # bilhetes já liquidados no banco e duplicatas de scroll dentro do colar.
+        if casa_key.upper() == "BETANO":
+            texto, n_skip = await _dedup_betano_text(texto)
+            xls_skipped += n_skip
+        if texto:
+            base_content.append({"type": "text", "text": texto})
 
     if csv_content:
         base_content.append({"type": "text", "text": f"DADOS CSV:\n{csv_content}"})
 
-    xls_skipped = 0
     if xls_file:
         raw = await xls_file.read()
-        xls_text, xls_skipped = await _parse_xls(raw)
+        xls_text, n_skip = await _parse_xls(raw)
+        xls_skipped += n_skip
         if xls_text:
             base_content.append({"type": "text", "text": xls_text})
 
@@ -578,7 +639,7 @@ async def extrair(
     }
 
     system = build_system(casa_key)
-    chunks = _build_chunks(base_content, instrucao_block)
+    chunks = _build_chunks(base_content, instrucao_block, casa_key)
     use_parallel = len(chunks) > 1
 
     logger.info("extrair: casa=%s modelo=%s imgs=%d texts=%d chunks=%d parallel=%s",

@@ -372,3 +372,24 @@ async def get_codigos_existentes(codigos: list[str]) -> set[str]:
             codigos,
         )
     return {row["codigo_bilhete"] for row in rows}
+
+
+async def get_codigos_resolvidos(codigos: list[str]) -> set[str]:
+    """Retorna subset de codigos já salvos E liquidados (extraction_state = 'resolvida').
+
+    Usado no pré-dedup de texto (Betano): pula bilhetes que já estão no banco como
+    resolvidos, mas NÃO pula os salvos como 'aberta' — assim uma aposta que estava
+    em aberto (vinda de print) e agora aparece liquidada no texto ainda é processada
+    para atualizar o resultado.
+    """
+    if not codigos:
+        return set()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT codigo_bilhete FROM bilhetes
+               WHERE codigo_bilhete = ANY($1::text[])
+                 AND extraction_state = 'resolvida'""",
+            codigos,
+        )
+    return {row["codigo_bilhete"] for row in rows}
