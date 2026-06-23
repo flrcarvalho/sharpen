@@ -11,7 +11,9 @@ from typing import Optional
 
 import xlrd
 
-from anthropic import AsyncAnthropic
+from anthropic import (
+    APIConnectionError, APIStatusError, AsyncAnthropic, RateLimitError,
+)
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,6 +41,25 @@ _client = AsyncAnthropic()
 
 _MAX_CHUNKS = 4
 _MAX_CONCURRENT = 4
+
+# Retry com backoff exponencial para picos da API Anthropic (overloaded 529 / rate-limit 429).
+_RETRY_MAX = 4          # tentativas extras além da primeira
+_RETRY_BASE = 1.0       # segundos: espera = base * 2**(tentativa-1) → 1s, 2s, 4s, 8s
+
+
+def _is_retryable(exc: Exception) -> bool:
+    """True para erros transitórios que valem nova tentativa (sobrecarga/limite/conexão)."""
+    if isinstance(exc, (APIConnectionError, RateLimitError)):
+        return True
+    if isinstance(exc, APIStatusError):
+        if getattr(exc, "status_code", None) in (429, 500, 502, 503, 529):
+            return True
+        body = getattr(exc, "body", None)
+        if isinstance(body, dict):
+            tipo = (body.get("error") or {}).get("type")
+            if tipo in ("overloaded_error", "rate_limit_error", "api_error"):
+                return True
+    return False
 _TSV_HEADER = "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStake\tOdd\tResultado\tCódigo"
 
 _CASA_DISPLAY: dict[str, str] = {
@@ -406,17 +427,27 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
             _msgs = messages
 
             async def _call(_m=_msgs):
-                try:
-                    async with _client.messages.stream(
-                        model=modelo, max_tokens=64000,
-                        system=system, messages=_m,
-                    ) as stream:
-                        async for chunk in stream.text_stream:
-                            await q.put(("t", chunk))
-                        fin = await stream.get_final_message()
-                    await q.put(("done", fin))
-                except Exception as e:
-                    await q.put(("err", e))
+                emitted = False   # uma vez que um token foi enviado, não dá pra re-tentar sem duplicar
+                attempt = 0
+                while True:
+                    try:
+                        async with _client.messages.stream(
+                            model=modelo, max_tokens=64000,
+                            system=system, messages=_m,
+                        ) as stream:
+                            async for chunk in stream.text_stream:
+                                emitted = True
+                                await q.put(("t", chunk))
+                            fin = await stream.get_final_message()
+                        await q.put(("done", fin))
+                        return
+                    except Exception as e:
+                        if _is_retryable(e) and not emitted and attempt < _RETRY_MAX:
+                            attempt += 1
+                            await asyncio.sleep(_RETRY_BASE * (2 ** (attempt - 1)))
+                            continue
+                        await q.put(("err", e))
+                        return
 
             task = asyncio.create_task(_call())
             msg = None
@@ -479,13 +510,29 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             try:
                 messages = [{"role": "user", "content": chunk_content}]
                 while True:
-                    async with _client.messages.stream(
-                        model=modelo, max_tokens=64000,
-                        system=system, messages=messages,
-                    ) as stream:
-                        async for chunk in stream.text_stream:
-                            accumulated += chunk
-                        fin = await stream.get_final_message()
+                    # Retry com backoff por tentativa: acumula em buffer local e só
+                    # comita em `accumulated` no sucesso (evita duplicar em re-tentativa).
+                    attempt = 0
+                    while True:
+                        attempt_text = ""
+                        try:
+                            async with _client.messages.stream(
+                                model=modelo, max_tokens=64000,
+                                system=system, messages=messages,
+                            ) as stream:
+                                async for chunk in stream.text_stream:
+                                    attempt_text += chunk
+                                fin = await stream.get_final_message()
+                            break
+                        except Exception as e:
+                            if _is_retryable(e) and not attempt_text and attempt < _RETRY_MAX:
+                                attempt += 1
+                                logger.warning("par chunk %d/%d retry %d (%s)",
+                                               idx + 1, n_chunks, attempt, type(e).__name__)
+                                await asyncio.sleep(_RETRY_BASE * (2 ** (attempt - 1)))
+                                continue
+                            raise
+                    accumulated += attempt_text
 
                     u = fin.usage
                     tokens["input"]       += u.input_tokens

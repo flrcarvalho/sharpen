@@ -51,6 +51,12 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 
 ## 4. Estado atual
 
+- **Sessão 45 (23/06/2026) — Retry com backoff para sobrecarga da API:** o Diogo recebeu `overloaded_error` (HTTP 529 da Anthropic) durante teste. Não era bug do login — é pico de capacidade da API, e o app não tinha retry.
+  - **`app/main.py`:** helper `_is_retryable()` (cobre 429/500/502/503/529 e tipos `overloaded_error`/`rate_limit_error`/`api_error`) + retry com backoff exponencial (1s, 2s, 4s, 8s; `_RETRY_MAX=4`) nos dois pontos de chamada ao modelo.
+    - **Sequencial:** retry interno no task `_call`, só enquanto nenhum token foi emitido (evita duplicar saída).
+    - **Paralelo:** retry por tentativa em buffer local `attempt_text`; comita em `accumulated` só no sucesso.
+  - Picos da Anthropic agora são absorvidos de forma transparente. Backup: `Backups/pre_retry_backoff_2026-06-23/main.py`.
+
 - **Sessão 44 (23/06/2026) — Login multiusuário + isolamento por dono:** o app ganhou autenticação para um amigo (Diogo) testar sem misturar dados com os do dono do projeto (Feca).
   - **`app/auth.py` (novo):** login por cookie assinado (HMAC, stdlib — zero dependência nova). `USUARIOS` = dict usuário→hash SHA-256 (`Feca`, `Diogo`), sobrescrevível por env `SENHA_<USER>_HASH` e `SESSION_SECRET`. Cookie `httponly`, `samesite=lax`, `secure=True` (válido sob HTTPS do Railway). Dependency `usuario_atual` exige sessão; senão 401.
   - **`app/database.py`:** coluna `dono TEXT NOT NULL DEFAULT 'Feca'` em `bilhetes` e `parceiros` (migração idempotente; registros antigos viram do Feca). Constraints `UNIQUE` trocadas para `(dono, casa, parceiro, assinatura)` e `(dono, casa, nome)` via bloco `DO` idempotente — cada usuário tem seu próprio espaço.
