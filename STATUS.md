@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-22 (sessão 42 — fix lentidão Betano + Over/Under em golden sets + referências globais nas casas)_
+_Atualizado: 2026-06-22 (sessão 43 — nova casa Jogo de Ouro)_
 
 ---
 
@@ -504,12 +504,31 @@ uvicorn main:app --reload
   - Casas corretas (sem alteração): Bet365, Betano, KingPanda, Pinnacle, Superbet.
 - Backups: `CASA_KINGPANDA_pre_over_under_*.md`, `CASA_LOTTU_pre_over_under_*.md`, `main_pre_instrucao_layout_horizontal_*.py`, `CASA_LOTTU_pre_refs_globais_*.md`, `CASA_BETFAIR_pre_refs_globais_*.md`, `CASA_BETNACIONAL_pre_refs_globais_*.md`, `CASA_BOLSADEAPOSTA_pre_refs_globais_*.md`.
 
+**Sessão 43 (22/06/2026) — Nova casa: Jogo de Ouro:**
+
+- **`casas/CASA_JOGODEOURO.md` criada** — 15 seções, 2 goldens reais (22/06/2026).
+- **Modo de ingestão:** screenshot (primário — cards em grid de duas colunas); texto colado como fallback (aguarda confirmação). Abas de filtro `Aberto · Processado · Ganhou · Perdida · Cashout` — extrair só os resolvidos, ignorar `Aberto`.
+- **Formato numérico en-US:** dinheiro e odds com **ponto** decimal (`R$30.00`, `3.50`) → converter para vírgula.
+- **ID:** visível, numérico ~10 dígitos (ex.: `5093265488`), na linha do `ID:` (rodapé do card).
+- **Boost:** sim — formato `[orig] >> [final]` + badge verde `ODDS DE OURO`. `Cotações totais` = odd final (boosted). W: `Ganho total ÷ Stake`. L: `Cotações totais` direto.
+- **Criar Aposta (badge `CA`)** = Bet Builder intra-jogo → `Múltipla`.
+- **Status:** `GANHOU / VENCIDO` (header verde) → W · `PERDIDO` (header vermelho) → L · `Aberto` → IGNORAR.
+- **Data:** duas ocorrências `DD/MM • HH:MM` — evento (acima de `Cotações totais`, usar) vs colocação (linha do `ID:`, ignorar). Ano inferido de `data_referencia`.
+- **`Ganho total`:** retorno bruto (só em W); vazio em L. Stake = `Valor total de aposta`.
+- **Mapa §9 confirmado:** `Vencedor do encontro`→ML · `Total de gols`→Gols · `Total de escanteios` / `1º tempo - total de escanteios`→Escanteios · `Criar Aposta` (badge `CA`)→Múltipla. Demais 23 categorias aguardam amostra.
+- **Goldens confirmados:** L·Gols (`5093260948` · Noruega v Senegal · Under 3,5 · 1,70) · W·Múltipla Criar Aposta (`5093265488` · Noruega v Senegal · ML+Escanteios 1ºT · 3,50).
+- **Pendências:** §5 V/HW/HL · §5 rótulo do card na aba Cashout · §7 cashout (valor recebido) · §8 bônus.
+- **`app/main.py`:** `"JOGODEOURO": "Jogo de Ouro"` adicionado ao `_CASA_DISPLAY` (entre BOLSADEAPOSTA e KINGPANDA).
+- **`app/static/index.html`:** `JOGODEOURO: 'Jogo de Ouro'` adicionado a `NOMES`; `'Jogo de Ouro': 'jogodeouro.bet.br'` adicionado a `DOMINIOS`.
+- Backup: `Backups/pre_jogodeouro_2026-06-22/`. Commit: (este).
+
 **Pendências que aguardam bilhete real:**
 - **Bet365:** §6 rótulo visual do boost · §7 rótulo visual do cashout encerrado
 - **Betano:** §5 rótulo de void/anulada · §6 boost (existe?)
 - **Pinnacle:** §5 rótulo exato de HW/HL no export (precisa de Asian Handicap de quarto liquidado)
 - **Bolsa de Aposta:** §5 V/HW/HL · §6 boost · §7 cashout · §8 bônus · apostas Lay
 - **Betnacional:** §5 HW/HL · §5 V (rótulo visual de void) · §7 cashout · §8 bônus
+- **Jogo de Ouro:** §5 V/HW/HL · §5 rótulo do card na aba Cashout · §7 cashout · §8 bônus · §9 (23 categorias aguardam amostra)
 
 **Próximo passo:**
 - Preencher pendências das casas existentes assim que amostras reais chegarem (ver lista acima).
