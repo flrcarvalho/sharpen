@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-23 (sessão 44 — login multiusuário com isolamento por dono)_
+_Atualizado: 2026-06-24 (sessão 46 — Betnacional: dedup por timestamp, fim das duplicatas)_
 
 ---
 
@@ -50,6 +50,11 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 46 (24/06/2026) — Betnacional: dedup por timestamp (fim das duplicatas):** o Feca reportou que a Betnacional registrava o mesmo bilhete várias vezes (ex.: "Espanha 2+ gols 2ºT" gravado 3×, com categorias diferentes Team Props/Gols). Causa: a Betnacional não tem ID impresso, então a dedup caía na descrição — que a IA reescreve a cada rodada ("[Argentina v Áustria]" ↔ "[Argentina v ?]") → cada variação virava INSERT em vez de UPSERT.
+  - **Correção (`casas/CASA_BETNACIONAL.md`, sem tocar em código):** a Betnacional exibe o **horário de colocação** (`às HH:MM`) em todo bilhete — identificador estável entre reprocessamentos. Agora o extrator sintetiza a 11ª coluna `Código` = `BN-DD/MM/AAAA-HH:MM-<odd exibida>`. A dedup chaveia por esse `Código` (mecanismo de ID já existente em `repository.py`) → reprocessar o mesmo bilhete vira UPSERT limpo.
+  - **§3** reescrita (Código sintético obrigatório, odd exibida nunca calculada, nota de colisão mesmo-minuto+mesma-odd); **§4** ajustada (horário não é mais descartado por completo — vai para o Código); **§13** ganhou pegadinha; **7 goldens (§15)** atualizados com a coluna Código.
+  - **Limitação:** as duplicatas já gravadas antes desta correção não somem sozinhas — deletar pelo botão da grade. A correção previne as futuras. Backup: `Backups/sessao45-betnacional-dedup-timestamp/`.
 
 - **Sessão 45 (23/06/2026) — Retry com backoff para sobrecarga da API:** o Diogo recebeu `overloaded_error` (HTTP 529 da Anthropic) durante teste. Não era bug do login — é pico de capacidade da API, e o app não tinha retry.
   - **`app/main.py`:** helper `_is_retryable()` (cobre 429/500/502/503/529 e tipos `overloaded_error`/`rate_limit_error`/`api_error`) + retry com backoff exponencial (1s, 2s, 4s, 8s; `_RETRY_MAX=4`) nos dois pontos de chamada ao modelo.
@@ -466,8 +471,8 @@ uvicorn main:app --reload
 
 - **`casas/CASA_BETNACIONAL.md` criada** — 15 seções, 7 goldens reais (20/06/2026).
 - **Modo de ingestão:** texto colado — aba "Histórico de apostas" com filtro **"Liquidadas"** aplicado antes de copiar (primário). Screenshot da aba "Apostas" (últimas 24h) como fallback.
-- **ID:** ausente em ambos os views → dedup por assinatura de conteúdo (SHA-256).
-- **Data:** campo `DD/MM/AAAA, às HH:MM` no Histórico = data do evento/liquidação → usar DD/MM/AAAA (descartar horário).
+- **ID:** sem ID impresso → dedup por **Código sintético** = `BN-DD/MM/AAAA-HH:MM-<odd exibida>` a partir do horário de colocação (estável entre reprocessamentos). _Atualizado na sessão 46 — antes era assinatura de conteúdo, que duplicava._
+- **Data:** campo `DD/MM/AAAA, às HH:MM` no Histórico = data do evento/liquidação → coluna `Data` usa DD/MM/AAAA; o **horário** vai para o Código (não descartar por completo).
 - **Resultado:** `Retorno = 0 → L` · `Retorno = Aposta → V` · `Retorno > Aposta → W`.
 - **Odd para W:** `Retorno ÷ Aposta` (confirmado em todos os 7 goldens). Para L/V: Odd exibida no campo `Odd` (ponto decimal → vírgula).
 - **Confronto:** separador `x` (ex.: "Holanda x Suécia") → normalizar para `[Time A v Time B]`. Abreviações expandidas: HOL→Holanda · SUE→Suécia · Ale→Alemanha · CdM→Costa do Marfim.

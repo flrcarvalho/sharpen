@@ -83,16 +83,21 @@ R$ XX,00
 
 ## 3. ID do bilhete
 
-- Caso: **ausente** — a Betnacional não exibe IDs nos views de texto (Histórico e cards de 24h)
-- Dedup: por assinatura de conteúdo = `data + stake + retorno + descrição + odd`
-- Ao re-processar o mesmo lote: UPSERT silencioso pelo mecanismo existente em `repository.py`
+- Caso: **sem ID impresso** — a Betnacional não exibe códigos de bilhete nos views de texto (Histórico e cards de 24h)
+- **Código sintético (11ª coluna interna) — OBRIGATÓRIO:** a Betnacional exibe o **horário de colocação** (`DD/MM/AAAA, às HH:MM`) em todo bilhete. Esse timestamp é estável entre reprocessamentos e único por bilhete — use-o para montar o `Código`:
+  - **Formato:** `BN-DD/MM/AAAA-HH:MM-<odd exibida>` — ex.: `BN-22/06/2026-07:46-8.50`
+  - **Odd no Código:** sempre a **odd exibida** (`Odd: X.XX`, 2 casas), nunca a calculada (`Retorno ÷ Aposta`). A exibida é estável; a calculada oscila em precisão e quebraria a dedup.
+  - **Por quê:** sem ID, a dedup caía na descrição — que a IA reescreve a cada rodada ("[Argentina v Áustria]" ↔ "[Argentina v ?]", "Over 1,5 Gols" ↔ "Marca 2+ Gols") e às vezes muda a categoria. Cada variação virava uma duplicata. O timestamp não muda → UPSERT limpo ao reprocessar.
+- **Colisão (rara):** dois bilhetes **distintos** colocados no mesmo minuto E com a mesma odd colidiriam (um sobrescreveria o outro). A odd no Código já desempata o caso comum (mesmo minuto, odds diferentes — ex.: os dois bilhetes das 07:46 com odds 8,50 e 7,00).
+- Dedup: por `Código` (timestamp + odd) via `repository.py`. UPSERT silencioso ao re-processar o mesmo lote.
 
 ---
 
 ## 4. Data
 
 - Fonte: campo `DD/MM/AAAA, às HH:MM` no Histórico = data do evento / liquidação
-- Descartar horário → output: `DD/MM/AAAA`
+- **Coluna `Data`:** descartar horário → output: `DD/MM/AAAA`
+- **Horário:** NÃO descartar por completo — capturar para montar o `Código` (ver §3). O horário é o identificador estável do bilhete e é o que evita duplicatas no reprocessamento.
 - Múltipla: data = evento da **perna mais recente** (regra global, `MASTER_OUTPUT_2026`)
 
 > ⚠️ Usar SEMPRE a data do evento (campo visível no Histórico). Nunca usar data de colocação ou data de processamento.
@@ -259,6 +264,7 @@ Apostas abertas → `extraction_state = aberta`.
 - **Filtro "Liquidadas" é obrigatório antes de copiar:** sem filtro, `Retorno = 0` pode ser apostas em aberto (indistinguível de L no texto).
 - **Rótulo "Turbinaço CazéTV" e "Super Odds" não alteram categoria:** indicam promoção; a categoria vem do mercado descrito, não do rótulo.
 - **Múltipla via condições combinadas:** "Ambos Marcam + 2.5+ Escanteios + 1.5+ Cartões" em uma única aposta = `Múltipla`, não categorias separadas.
+- **Código sintético do timestamp é obrigatório (§3):** sem ID impresso, o horário de colocação (`às HH:MM`) é o que distingue/identifica o bilhete. Sempre montar `Código = BN-DD/MM/AAAA-HH:MM-<odd exibida>`. Esquecer o Código faz a dedup cair na descrição e gerar duplicatas ao reprocessar.
 
 ---
 
@@ -283,7 +289,9 @@ Apostas abertas → `extraction_state = aberta`.
 
 Lote de 20/06/2026 (View Histórico). Apostas filtradas com "Liquidadas".
 
-Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descrição \t Stake \t Odd \t Resultado`
+Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descrição \t Stake \t Odd \t Resultado \t Código`
+
+> O `Código` (11ª coluna interna) é sintetizado do timestamp + odd exibida (§3): `BN-DD/MM/AAAA-HH:MM-<odd>`.
 
 **Ordem de output:** texto do Histórico = mais recente primeiro. TSV: inverso (mais antiga primeiro).
 
@@ -308,7 +316,7 @@ R$ 250,00
 
 **TSV esperado:**
 ```
-20/06/2026	Padel		Betnacional		ML	L Wessels/K Wehnelt [D S Stricker/A Hunziker v L Wessels/K Wehnelt]	250,00	2,55	V
+20/06/2026	Padel		Betnacional		ML	L Wessels/K Wehnelt [D S Stricker/A Hunziker v L Wessels/K Wehnelt]	250,00	2,55	V	BN-20/06/2026-08:14-2.55
 ```
 
 ---
@@ -332,7 +340,7 @@ R$ 0,00
 
 **TSV esperado:**
 ```
-20/06/2026	Futebol		Betnacional		Múltipla	Ambas Marcam + Over 2,5 Escanteios/Time + Over 1,5 Cartões/Time [Holanda v Suécia]	50,00	14,00	L
+20/06/2026	Futebol		Betnacional		Múltipla	Ambas Marcam + Over 2,5 Escanteios/Time + Over 1,5 Cartões/Time [Holanda v Suécia]	50,00	14,00	L	BN-20/06/2026-08:32-14.00
 ```
 
 ---
@@ -356,7 +364,7 @@ R$ 110,00
 
 **TSV esperado:**
 ```
-20/06/2026	Futebol		Betnacional		Player Props	Cody Gakpo [Holanda v Suécia]	50,00	2,20	W
+20/06/2026	Futebol		Betnacional		Player Props	Cody Gakpo [Holanda v Suécia]	50,00	2,20	W	BN-20/06/2026-09:37-2.20
 ```
 
 ---
@@ -380,7 +388,7 @@ R$ 162,50
 
 **TSV esperado:**
 ```
-20/06/2026	Futebol		Betnacional		Cartões	Cartão Vermelho - Sim [Tunísia v Japão]	25,00	6,50	W
+20/06/2026	Futebol		Betnacional		Cartões	Cartão Vermelho - Sim [Tunísia v Japão]	25,00	6,50	W	BN-20/06/2026-13:11-6.50
 ```
 
 ---
@@ -404,7 +412,7 @@ R$ 205,00
 
 **TSV esperado:**
 ```
-20/06/2026	Futebol		Betnacional		Ambas Marcam	Ambas Marcam 2ºT [Holanda v Suécia]	50,00	4,10	W
+20/06/2026	Futebol		Betnacional		Ambas Marcam	Ambas Marcam 2ºT [Holanda v Suécia]	50,00	4,10	W	BN-20/06/2026-14:56-4.10
 ```
 
 ---
@@ -428,7 +436,7 @@ R$ 0,00
 
 **TSV esperado:**
 ```
-20/06/2026	Futebol		Betnacional		Player Props	Kai Havertz [Alemanha v Costa do Marfim]	50,00	4,50	L
+20/06/2026	Futebol		Betnacional		Player Props	Kai Havertz [Alemanha v Costa do Marfim]	50,00	4,50	L	BN-20/06/2026-17:53-4.50
 ```
 
 ---
@@ -452,7 +460,7 @@ R$ 350,00
 
 **TSV esperado:**
 ```
-20/06/2026	Futebol		Betnacional		Player Props	Vozinha [Uruguai v Cabo Verde]	50,00	7,00	W
+20/06/2026	Futebol		Betnacional		Player Props	Vozinha [Uruguai v Cabo Verde]	50,00	7,00	W	BN-20/06/2026-23:29-7.00
 ```
 
 ---
