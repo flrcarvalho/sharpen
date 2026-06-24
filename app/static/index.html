@@ -88,6 +88,16 @@ body::before {
 .casa-chip img { width: 16px; height: 16px; object-fit: contain; display: block; }
 .casa-name { flex: 1; }
 .casa-arrow { font-size: 9px; color: var(--ink-mute); transition: transform .15s; }
+/* Badge azul (FDC) com nº de bilhetes pendentes de cópia */
+.pend-badge {
+  display: none; flex-shrink: 0;
+  min-width: 17px; height: 17px; padding: 0 5px; margin-left: 6px;
+  border-radius: 9px; background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 17px; text-align: center;
+  box-shadow: 0 0 0 2px rgba(46,139,255,.18);
+}
+.pend-badge.show { display: inline-block; }
+.casa-header .pend-badge { margin-left: 0; }
 .casa-header.expanded .casa-arrow { transform: rotate(90deg); }
 .parceiros-list { display: none; flex-direction: column; padding: 2px 0 4px 18px; }
 .parceiros-list.open { display: flex; }
@@ -740,6 +750,7 @@ async function carregarCasas() {
     const list = document.getElementById('casa-list');
     list.innerHTML = '';
     casas.forEach(c => list.appendChild(buildCasaGroup(c)));
+    atualizarPendentes();
   } catch {
     document.getElementById('casa-list').innerHTML =
       '<div style="font-size:12px;color:var(--neg);padding:8px 10px">Erro ao carregar</div>';
@@ -756,6 +767,7 @@ function buildCasaGroup(casa) {
   header.innerHTML = `
     <div class="casa-chip"><img src="${faviconUrl(casa)}" alt="${NOMES[casa]||casa}" loading="lazy"></div>
     <span class="casa-name">${NOMES[casa] || casa}</span>
+    <span class="pend-badge" data-pend-casa></span>
     <span class="casa-arrow">▶</span>
   `;
   header.addEventListener('click', () => toggleCasaGroup(casa, header, listEl, inputWrap));
@@ -801,7 +813,8 @@ function renderParceirosEmLista(casa, listEl) {
     const item = document.createElement('div');
     item.className = 'parceiro-item';
     item.dataset.id = p.id;
-    item.innerHTML = `<span class="parceiro-nome">${esc(p.nome)}</span><button class="btn-arquivar" title="Arquivar">▣</button>`;
+    item.dataset.nome = p.nome;
+    item.innerHTML = `<span class="parceiro-nome">${esc(p.nome)}</span><span class="pend-badge" data-pend-parceiro></span><button class="btn-arquivar" title="Arquivar">▣</button>`;
     item.addEventListener('click', e => {
       if (e.target.classList.contains('btn-arquivar')) return;
       selecionarParceiro(p);
@@ -810,6 +823,42 @@ function renderParceirosEmLista(casa, listEl) {
       e.stopPropagation(); arquivarParceiro(p.id, casa);
     });
     listEl.appendChild(item);
+  });
+  aplicarBadgesPendentes();
+}
+
+// ── Badges de pendências (bilhetes não copiados para a planilha) ──────────────
+let pendentesPorParceiro = {};  // casa → { nomeParceiro: nº pendentes }
+let pendentesPorCasa = {};      // casa → total de pendentes
+
+async function atualizarPendentes() {
+  try {
+    const r = await fetch('/pendentes');
+    if (!r.ok) return;
+    const { por_parceiro, por_casa } = await r.json();
+    pendentesPorParceiro = {};
+    (por_parceiro || []).forEach(({ casa, parceiro, pendentes }) => {
+      (pendentesPorParceiro[casa] = pendentesPorParceiro[casa] || {})[parceiro] = pendentes;
+    });
+    pendentesPorCasa = por_casa || {};
+    aplicarBadgesPendentes();
+  } catch { /* badge é informativo — falha silenciosa */ }
+}
+
+function _setBadge(el, n) {
+  if (!el) return;
+  if (n > 0) { el.textContent = n > 99 ? '99+' : n; el.classList.add('show'); }
+  else { el.textContent = ''; el.classList.remove('show'); }
+}
+
+function aplicarBadgesPendentes() {
+  document.querySelectorAll('.casa-group').forEach(group => {
+    const casa = group.dataset.casa;
+    _setBadge(group.querySelector('.casa-header [data-pend-casa]'), pendentesPorCasa[casa] || 0);
+    const mapa = pendentesPorParceiro[casa] || {};
+    group.querySelectorAll('.parceiro-item').forEach(item => {
+      _setBadge(item.querySelector('[data-pend-parceiro]'), mapa[item.dataset.nome] || 0);
+    });
   });
 }
 
@@ -1273,6 +1322,7 @@ async function runExtractionCard(form, card, parceiro) {
         await carregarGrade();
         atualizarBotoesGrade();
       }
+      atualizarPendentes();
     } else if (data.xls_skipped > 0) {
       markDone(`✓ ${data.xls_skipped} apostas já salvas — nada novo${skipInfo}`, 'ok');
     } else {
@@ -1483,6 +1533,7 @@ async function toggleCopy(id, btn) {
       body: JSON.stringify({ ids: [id] })
     });
     if (!r.ok) throw new Error();
+    atualizarPendentes();
   } catch {
     b.copy_state = wasCop ? 'copiada' : 'pendente';
     btn.classList.toggle('checked', wasCop);
@@ -1517,7 +1568,7 @@ document.getElementById('btn-copiar-pend').addEventListener('click', async () =>
     body: JSON.stringify({ ids })
   });
   pend.forEach(b => { b.copy_state = 'copiada'; });
-  renderGrade(); atualizarStats();
+  renderGrade(); atualizarStats(); atualizarPendentes();
   setExpStatus(`✓ ${pend.length} copiados`, 'ok');
 });
 
@@ -1554,7 +1605,7 @@ document.getElementById('btn-marcar-todas').addEventListener('click', async () =
     body: JSON.stringify({ ids })
   });
   bilhetes.forEach(b => { b.copy_state = 'copiada'; });
-  renderGrade(); atualizarStats();
+  renderGrade(); atualizarStats(); atualizarPendentes();
   setExpStatus(`✓ ${ids.length} marcadas`, 'ok');
 });
 
@@ -1566,7 +1617,7 @@ document.getElementById('btn-desmarcar-todas').addEventListener('click', async (
     body: JSON.stringify({ ids })
   });
   bilhetes.forEach(b => { b.copy_state = 'pendente'; });
-  renderGrade(); atualizarStats();
+  renderGrade(); atualizarStats(); atualizarPendentes();
   setExpStatus(`${ids.length} desmarcadas`, '');
 });
 
@@ -1577,7 +1628,7 @@ async function deletarBilhete(id) {
     if (!r.ok) throw new Error();
     bilhetes = bilhetes.filter(b => b.id !== id);
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => x !== id);
-    renderGrade(); atualizarStats(); atualizarBotoesGrade();
+    renderGrade(); atualizarStats(); atualizarBotoesGrade(); atualizarPendentes();
     setExpStatus('Bilhete deletado', '');
   } catch {
     setExpStatus('Erro ao deletar', 'err');
@@ -1622,7 +1673,7 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
     if (!r.ok) throw new Error();
     bilhetes = bilhetes.filter(b => !ids.includes(b.id));
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => !ids.includes(x));
-    renderGrade(); atualizarStats(); atualizarBotoesGrade();
+    renderGrade(); atualizarStats(); atualizarBotoesGrade(); atualizarPendentes();
     setExpStatus(`${ids.length} deletado(s)`, '');
   } catch {
     setExpStatus('Erro ao deletar', 'err');

@@ -28,7 +28,7 @@ from database import init_db
 from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    criar_parceiro, deletar_bilhetes, get_codigos_existentes,
+    contar_pendentes, criar_parceiro, deletar_bilhetes, get_codigos_existentes,
     get_codigos_resolvidos, list_bilhetes,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
     reativar_parceiro, upsert_bilhetes,
@@ -812,6 +812,23 @@ async def deletar_bilhete_route(bilhete_id: int, dono: str = Depends(usuario_atu
     if not deletados:
         raise HTTPException(404, "Bilhete não encontrado.")
     return {"deletado": True}
+
+
+@app.get("/pendentes")
+async def listar_pendentes(dono: str = Depends(usuario_atual)):
+    """Contagem de bilhetes não copiados, por parceiro e por casa.
+
+    Alimenta os badges azuis da sidebar (bolinha com número de pendências).
+    """
+    linhas = await contar_pendentes(dono)
+    por_parceiro = [
+        {"casa": r["casa"], "parceiro": r["parceiro"], "pendentes": r["pendentes"]}
+        for r in linhas
+    ]
+    por_casa: dict[str, int] = {}
+    for r in linhas:
+        por_casa[r["casa"]] = por_casa.get(r["casa"], 0) + r["pendentes"]
+    return {"por_parceiro": por_parceiro, "por_casa": por_casa}
 
 
 @app.get("/bilhetes")

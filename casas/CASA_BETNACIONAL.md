@@ -312,11 +312,11 @@ Retorno
 R$ 250,00
 ```
 
-**Verificação:** Retorno = R$250 = Aposta → V. Odd exibida = 2,55 (preservar).
+**Verificação:** Retorno = R$250 = Aposta → V. Odd exibida = 2,55 (preservar). Confronto em notação de duplas (`X/Y x W/Z`) = tenistas em duplas (Stricker, Hunziker, Wessels, Wehnelt são do circuito de Tênis) → **Tênis**, nunca Padel. Ver "Regra Crítica — Tênis vs Padel" no `MASTER_ESPORTES_2026.md`.
 
 **TSV esperado:**
 ```
-20/06/2026	Padel		Betnacional		ML	L Wessels/K Wehnelt [D S Stricker/A Hunziker v L Wessels/K Wehnelt]	250,00	2,55	V	BN-20/06/2026-08:14-2.55
+20/06/2026	Tênis		Betnacional		ML	L Wessels/K Wehnelt [D S Stricker/A Hunziker v L Wessels/K Wehnelt]	250,00	2,55	V	BN-20/06/2026-08:14-2.55
 ```
 
 ---

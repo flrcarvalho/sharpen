@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-24 (sessão 46 — Betnacional: dedup por timestamp, fim das duplicatas)_
+_Atualizado: 2026-06-24 (sessão 47 — fix Tênis vs Padel: Padel deixa de existir, duplas = Tênis)_
 
 ---
 
@@ -50,6 +50,13 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 47 (24/06/2026) — Fix Tênis vs Padel (Betnacional classificava tênis como Padel):** o Feca reportou dois jogos de tênis da Betnacional rotulados como `Padel` (Máximo González/Santiago González v Burruchaga/Tirante; Johannus Monday v Braden Shick — todos tenistas). Já corrigidos na planilha; pedido = evoluir o sistema.
+  - **Causa raiz dupla:** (1) `Padel` nunca existiu na lista canônica do `MASTER_ESPORTES` (modelo inventou, violando §1) e não havia regra de desambiguação Tênis vs Padel; (2) um exemplo golden em `CASA_BETNACIONAL.md` (§15, G1) estava rotulado **errado** como `Padel` para uma dupla de tenistas (Stricker/Hunziker v Wessels/Wehnelt) — ensinava o modelo a chamar duplas de tênis de Padel.
+  - **Correção (sem tocar em código):** decisão do Feca = Padel nunca é válido, duplas/individuais sem sinal de outro esporte → **Tênis**.
+    - `casas/CASA_BETNACIONAL.md` G1: `Padel` → `Tênis` + nota de verificação.
+    - `global/MASTER_ESPORTES_2026.md`: nova "Regra Crítica — Tênis vs Padel" (Padel proibido; notação de duplas `X/Y v W/Z` = Tênis; lista de atletas-referência) + item 12 na validação §9.
+  - Backup: `Backups/sessao45-fix-tenis-padel/`.
 
 - **Sessão 46 (24/06/2026) — Betnacional: dedup por timestamp (fim das duplicatas):** o Feca reportou que a Betnacional registrava o mesmo bilhete várias vezes (ex.: "Espanha 2+ gols 2ºT" gravado 3×, com categorias diferentes Team Props/Gols). Causa: a Betnacional não tem ID impresso, então a dedup caía na descrição — que a IA reescreve a cada rodada ("[Argentina v Áustria]" ↔ "[Argentina v ?]") → cada variação virava INSERT em vez de UPSERT.
   - **Correção (`casas/CASA_BETNACIONAL.md`, sem tocar em código):** a Betnacional exibe o **horário de colocação** (`às HH:MM`) em todo bilhete — identificador estável entre reprocessamentos. Agora o extrator sintetiza a 11ª coluna `Código` = `BN-DD/MM/AAAA-HH:MM-<odd exibida>`. A dedup chaveia por esse `Código` (mecanismo de ID já existente em `repository.py`) → reprocessar o mesmo bilhete vira UPSERT limpo.

@@ -578,6 +578,25 @@ Nunca classificar Dardos como Tênis apenas por similaridade de mercado.
 
 ---
 
+### Regra Crítica — Tênis vs Padel
+
+**`Padel` NÃO é um esporte reconhecido neste documento.** Nunca emitir o valor `Padel` na coluna `Esporte` (viola §1 — "nunca inventar novos esportes").
+
+Confrontos de duplas em notação `X/Y v W/Z` (ou `X/Y x W/Z`) são sinal **forte de Tênis (duplas)**, não de Padel. O modelo tende a confundir duplas de tênis com padel por similaridade estrutural — isso é proibido.
+
+Regras obrigatórias (em ordem de prioridade):
+
+1. Notação de duplas `X/Y v W/Z` em mercado ML/H2H → **Tênis (duplas)** por padrão.
+2. Participantes da lista de Tênis (singles ou duplas) → **Tênis**.
+3. Atletas identificáveis pelo conhecimento do modelo como tenistas → **Tênis** (ex.: Máximo González, Santiago González, Román Burruchaga, Thiago Tirante, Dominic Stricker, Braden Shick, Johannus Monday).
+4. Termos como `games`, `set`, `tie-break`, `ace`, `break`, `ATP`, `WTA`, `ITF`, torneios Grand Slam/Challenger → **Tênis**.
+
+**Regra de desempate:** quando o confronto for entre duplas (ou indivíduos) em mercado ML/H2H e nenhum sinal positivo de outro esporte estiver presente, o esporte é **Tênis** — nunca Padel. Só usar `Outro` se houver dúvida genuína entre Tênis e outro esporte reconhecido.
+
+> **Motivo:** em 24/06/2026 a Betnacional classificou duas duplas/jogos de tênis (Máximo González/Santiago González v Burruchaga/Tirante; Johannus Monday v Braden Shick) como `Padel`. A causa foi um exemplo golden rotulado errado em `CASA_BETNACIONAL.md` (corrigido) somado à ausência desta regra.
+
+---
+
 ### Regra de Desambiguação — Sets (Vôlei vs Tênis)
 
 A categoria `Sets` aparece tanto em Vôlei quanto em Tênis. O discriminante é a entidade apostada:
@@ -833,6 +852,7 @@ Antes de retornar a saída, o extrator deve validar:
 9. `sets` com nome de **jogador individual** = Tênis (nunca Vôlei, exceto Copa Davis explícita)
 10. `sets` com nome de **time/seleção** = Vôlei (nunca Tênis, exceto Copa Davis explícita)
 11. times nacionais genéricos sem sinal de Vôlei → Futebol; com sinal de Vôlei (liga/sets) → Vôlei
+12. nenhum bilhete classificado como `Padel` (esporte inexistente); duplas em notação `X/Y v W/Z` = **Tênis**
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

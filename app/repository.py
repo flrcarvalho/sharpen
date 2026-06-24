@@ -233,6 +233,24 @@ async def contar_arquivados(casa: str, parceiro: str, dono: str) -> int:
     return row[0]
 
 
+async def contar_pendentes(dono: str) -> list[dict]:
+    """Conta bilhetes ainda não copiados (copy_state='pendente') por casa+parceiro.
+
+    Inclui arquivados — 'pendente' significa 'não copiado para a planilha',
+    independentemente de o bilhete estar visível na grade ou arquivado.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT casa, parceiro, COUNT(*) AS pendentes
+               FROM bilhetes
+               WHERE dono = $1 AND copy_state = 'pendente'
+               GROUP BY casa, parceiro""",
+            dono,
+        )
+    return [dict(r) for r in rows]
+
+
 async def list_bilhetes(
     dono: str,
     casa: str | None = None,
