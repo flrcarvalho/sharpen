@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-24 (sessão 47 — fix Tênis vs Padel: Padel deixa de existir, duplas = Tênis)_
+_Atualizado: 2026-06-24 (sessão 48 — badge de pendências: refresh faltante no "Desfazer")_
 
 ---
 
@@ -50,6 +50,10 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 48 (24/06/2026) — Badge de pendências: refresh faltante no "Desfazer":** o recurso de badge azul de pendências (bolinha FDC `--accent #2E8BFF` com nº de bilhetes não copiados, por parceiro e por casa) foi implementado e commitado junto do commit `34f09e9` (`contar_pendentes` em `repository.py`, `GET /pendentes` em `main.py`, `.pend-badge` + `atualizarPendentes()`/`aplicarBadgesPendentes()` em `index.html`; refresh em load, pós-salvar, copiar/desmarcar/marcar/toggle, deletar individual e seleção).
+  - **Gap corrigido nesta sessão (`app/static/index.html`):** o handler do botão **"Desfazer"** (apaga os bilhetes da última análise) não chamava `atualizarPendentes()` — a contagem ficava obsoleta até a próxima ação. Adicionado o refresh, alinhando com os demais handlers.
+  - **Limitação:** verificação manual local é difícil (cookie `secure=True` não persiste em http://localhost — caveat sessão 44); validar na URL Railway após deploy.
 
 - **Sessão 47 (24/06/2026) — Fix Tênis vs Padel (Betnacional classificava tênis como Padel):** o Feca reportou dois jogos de tênis da Betnacional rotulados como `Padel` (Máximo González/Santiago González v Burruchaga/Tirante; Johannus Monday v Braden Shick — todos tenistas). Já corrigidos na planilha; pedido = evoluir o sistema.
   - **Causa raiz dupla:** (1) `Padel` nunca existiu na lista canônica do `MASTER_ESPORTES` (modelo inventou, violando §1) e não havia regra de desambiguação Tênis vs Padel; (2) um exemplo golden em `CASA_BETNACIONAL.md` (§15, G1) estava rotulado **errado** como `Padel` para uma dupla de tenistas (Stricker/Hunziker v Wessels/Wehnelt) — ensinava o modelo a chamar duplas de tênis de Padel.

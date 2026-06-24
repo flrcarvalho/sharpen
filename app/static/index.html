@@ -1691,7 +1691,7 @@ document.getElementById('btn-desfazer').addEventListener('click', async () => {
     if (!r.ok) throw new Error();
     bilhetes = bilhetes.filter(b => !ids.includes(b.id));
     ultimaAnaliseIds = [];
-    renderGrade(); atualizarStats(); atualizarBotoesGrade();
+    renderGrade(); atualizarStats(); atualizarBotoesGrade(); atualizarPendentes();
     setExpStatus(`Análise desfeita (${ids.length} bilhetes)`, '');
   } catch {
     setExpStatus('Erro ao desfazer', 'err');
