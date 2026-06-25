@@ -172,9 +172,10 @@ Notas de reconstrução:
 
 ## 14. Validações específicas
 
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
+
 - Código traduzido (nunca o `V`/`P`/`N` visual cru no output).
 - Toda data veio do extrato (retorno/void) ou de interpolação (perda) — nunca de colocação.
-- `Assistência` só em Futebol.
 - Stake normalizada de en-US.
 - 1 `O/` ref = 1 linha; `Criar Aposta`/`Múltiplas do Criar Aposta` colapsados em 1 linha.
 

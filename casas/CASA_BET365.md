@@ -212,11 +212,11 @@ Barras de progresso com número (stat ao vivo) · placares e scoreboards ao vivo
 
 ## 14. Validações específicas
 
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
+
 - 1 cabeçalho verde = 1 bilhete = 1 linha.
 - `Retorno Obtido` usado, nunca `Retorno Total`.
-- Em L/HL/V a odd é a exibida (nunca 0,00 / metade / 1,00).
 - Todo `Criar Aposta` colapsado em 1 linha; pernas anuladas preservadas.
-- Liga (NBA/WNBA) não usada como Esporte.
 
 ---
 

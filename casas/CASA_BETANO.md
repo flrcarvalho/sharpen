@@ -176,10 +176,11 @@ REKONIX - Grind Back
 
 ## 14. Validações específicas
 
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
+
 - Resultado traduzido (Ganhou→W, Perdida→L, Cash out=stake→V).
 - Múltipla: odd estrutural = produto das seleções.
 - Jogador extraído dos `[colchetes]`.
-- Liga não usada como Esporte.
 - 1 ID = 1 linha; Tripla/N-seleções/Criar Aposta colapsados em 1 linha.
 
 ---

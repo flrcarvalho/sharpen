@@ -185,9 +185,9 @@ Coluna `Produto` (constante) · label `Decimal` e abreviação `D` na coluna de 
 
 ## 14. Validações específicas
 
-- Nº de linhas = nº de IDs detectados.
-- ID nunca aparece no output.
-- Esporte é o esporte, nunca a liga (`Basquetebol`→Basquete, nunca NBA).
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
+
+- `Basquetebol` (rótulo Pinnacle) → Basquete (localização da casa).
 - `AO VIVO` e linhas de placar removidos da descrição.
 - Confronto `-vs-` normalizado para `v`.
 - Placar ao vivo `[score]` removido da seleção.

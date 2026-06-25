@@ -177,13 +177,11 @@ Notas:
 
 ## 14. Validações específicas da Superbet
 
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes, data de múltipla = seleção mais recente). Não duplicar aqui.
+
 - Nenhuma aposta com "Hoje" recebeu a data do cabeçalho.
 - Hoje/Ontem/Amanhã convertidos pela data de referência da captura.
-- Data final = seleção mais recente.
-- Nº de linhas geradas = nº de IDs detectados.
 - Em W com boost, a odd usa `PRÊMIO`, nunca `ODDS TOTAIS`.
-
-(Validações estruturais gerais — 10 colunas, TSV, ordem cronológica — são globais: `MASTER_PIPELINE_2026` / `MASTER_OUTPUT_2026`.)
 
 ---
 
