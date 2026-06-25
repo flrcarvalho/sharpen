@@ -59,7 +59,7 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Goldens:** G1/G2 Quadruplas L (95,00 / 76,00, cartões); G3 ML L Dardos (1,80); G4 ML W Dardos (2,43 = 607,50÷250 ✓); G5/G6 Duplas L scorer (85,50 / 40,80); G7 Aberta Outras boost (4,50); G8 Aberta Player Props faltas (4,20). Cupom `Recusado` ID 12807217380 excluído de propósito.
   - **Pendências documentadas:** §5 V/HW/HL, §7 cashout, §8 bônus (aguardam amostra). §Feedback: combo "Resultado+Ambas Marcam" sem categoria própria; `Simples (N)` sem odd/resultado por perna no view de lista (limitação); categoria `Faltas` candidata.
   - **`app/main.py`:** `KTO: 'KTO'` adicionado ao `_CASA_DISPLAY` (ordem alfabética). **`app/static/index.html`:** `KTO` em `NOMES` e `DOMINIOS` (favicon `kto.bet.br`).
-  - Backup: `Backups/pre_kto_2026-06-24/`. Commit: `<hash após push>`.
+  - Backup: `Backups/pre_kto_2026-06-24/`. Commit: `377833a`.
 
 - **Sessão 48 (24/06/2026) — Badge de pendências: refresh faltante no "Desfazer":** o recurso de badge azul de pendências (bolinha FDC `--accent #2E8BFF` com nº de bilhetes não copiados, por parceiro e por casa) foi implementado e commitado junto do commit `34f09e9` (`contar_pendentes` em `repository.py`, `GET /pendentes` em `main.py`, `.pend-badge` + `atualizarPendentes()`/`aplicarBadgesPendentes()` em `index.html`; refresh em load, pós-salvar, copiar/desmarcar/marcar/toggle, deletar individual e seleção).
   - **Gap corrigido nesta sessão (`app/static/index.html`):** o handler do botão **"Desfazer"** (apaga os bilhetes da última análise) não chamava `atualizarPendentes()` — a contagem ficava obsoleta até a próxima ação. Adicionado o refresh, alinhando com os demais handlers.
