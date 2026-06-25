@@ -135,33 +135,12 @@ Conferência financeira (segunda linha de defesa): `Pagamento > Aposta` → W ·
 
 | KTO exibe | Aposta global | Status |
 |---|---|---|
-| (aguarda amostra) | Ambas Marcam | aguarda amostra |
 | `Para marcar: [Jogador] - Sim` (em cupom Simples) | Anytime | ✓ confirmado |
-| (aguarda amostra) | Assistência | aguarda amostra |
 | `Para receber um cartão: [Jogador] - Sim` · mercados de cartão | Cartões | ✓ confirmado |
-| (aguarda amostra) | Chutes | aguarda amostra |
-| (aguarda amostra) | Chutes no Gol | aguarda amostra |
-| (aguarda amostra — Baseball) | Corridas | aguarda amostra |
-| (aguarda amostra) | Desarmes | aguarda amostra |
-| (aguarda amostra) | DNB | aguarda amostra |
-| (aguarda amostra — Basquete) | Double-Double | aguarda amostra |
-| (aguarda amostra) | Dupla Chance | aguarda amostra |
-| (aguarda amostra — E-Sports) | E-Sports Props | aguarda amostra |
-| (aguarda amostra) | Escanteios | aguarda amostra |
-| (aguarda amostra — Tênis) | Games | aguarda amostra |
-| (aguarda amostra) | Gols | aguarda amostra |
-| (aguarda amostra — comparativo) | H2H | aguarda amostra |
-| (aguarda amostra) | Handicap | aguarda amostra |
-| (aguarda amostra) | Impedimentos | aguarda amostra |
-| (aguarda amostra — NFL) | Jardas | aguarda amostra |
-| (aguarda amostra — Dardos) | Legs | aguarda amostra |
 | `Vencedor da partida: [Time/Jogador]` | ML | ✓ confirmado |
 | `Dupla` · `Quadrupla` · `Simples (N)` · `Duplas (X), Triplas (Y)` (sistema) | Múltipla | ✓ confirmado |
 | `[Time] vence e ambos os times marcam` (resultado + BTTS combinados) · mercado sem categoria | Outras ⚠️ | fallback (ver §Feedback) |
 | `Faltas concedidas/cometidas pelo jogador` · estatística individual de jogador sem categoria própria | Player Props | ✓ confirmado |
-| (aguarda amostra — Tênis) | Sets | aguarda amostra |
-| (aguarda amostra) | Team Props | aguarda amostra |
-| (aguarda amostra — Basquete) | Triplo-Duplo | aguarda amostra |
 
 **Notas de reconstrução:**
 - Confronto: separador `-` (ex.: `Strasbourg - Mainz`, `Chéquia - México`) → normalizar para `v` com colchetes: `[Strasbourg v Mainz]`.
@@ -223,12 +202,7 @@ Conferência financeira (segunda linha de defesa): `Pagamento > Aposta` → W ·
 
 ## 14. Validações específicas
 
-**Transversais (todas as casas):**
-- Código de resultado é um dos oficiais (`W / L / V / HW / HL`) — nunca sinal visual cru.
-- Odd preservada em L/HL/V: nunca `0,00`, nunca metade, nunca `1,00`.
-- Coluna `Esporte` contém o esporte, nunca a liga.
-- Jogador normalizado: sem `Sobrenome, Nome`; sem `[colchetes]` residuais na descrição.
-- Nº de linhas = nº de cupons detectados (**exceto cupons `Recusado`, que não contam**).
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7 — Validação) + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
 
 **Específicas da KTO:**
 - Cupons `Recusado` não geram linha.

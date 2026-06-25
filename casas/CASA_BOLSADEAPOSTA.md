@@ -142,31 +142,8 @@ Apostas abertas → `extraction_state = aberta`.
 | Bolsa de Aposta exibe | Aposta global | Status |
 |---|---|---|
 | `Both Score` / `Both Teams to Score` | Ambas Marcam | ✓ confirmado |
-| (aguarda amostra) | Anytime | ✓ confirmado via "Ready to Score at Any Moment" |
 | `Over X Goals` / `Under X Goals` | Gols | ✓ confirmado |
 | Nome de time como seleção (ex.: `Alemanha`) + mercado de resultado | ML | ✓ confirmado |
-| (aguarda amostra) | Assistência | aguarda amostra |
-| (aguarda amostra) | Cartões | aguarda amostra |
-| (aguarda amostra) | Chutes | aguarda amostra |
-| (aguarda amostra) | Chutes no Gol | aguarda amostra |
-| (aguarda amostra) | Corridas | aguarda amostra |
-| (aguarda amostra) | Desarmes | aguarda amostra |
-| (aguarda amostra) | DNB | aguarda amostra |
-| (aguarda amostra) | Double-Double | aguarda amostra |
-| (aguarda amostra) | Dupla Chance | aguarda amostra |
-| (aguarda amostra) | E-Sports Props | aguarda amostra |
-| (aguarda amostra) | Escanteios | aguarda amostra |
-| (aguarda amostra) | Games | aguarda amostra |
-| (aguarda amostra) | H2H | aguarda amostra |
-| (aguarda amostra) | Handicap | aguarda amostra |
-| (aguarda amostra) | Impedimentos | aguarda amostra |
-| (aguarda amostra) | Jardas | aguarda amostra |
-| (aguarda amostra) | Legs | aguarda amostra |
-| (aguarda amostra) | Múltipla | aguarda amostra |
-| (aguarda amostra) | Player Props | aguarda amostra |
-| (aguarda amostra) | Sets | aguarda amostra |
-| (aguarda amostra) | Team Props | aguarda amostra |
-| (aguarda amostra) | Triplo-Duplo | aguarda amostra |
 | Outros mercados sem categoria específica | Outras ⚠️ | fallback |
 
 **Notas de reconstrução:**
@@ -236,12 +213,7 @@ Apostas abertas → `extraction_state = aberta`.
 
 ## 14. Validações específicas
 
-**Transversais (todas as casas):**
-- Código de resultado é um dos oficiais (`W / L / V / HW / HL`) — nunca sinal visual cru.
-- Odd preservada em L/HL/V: nunca `0,00`, nunca metade, nunca `1,00`.
-- Coluna `Esporte` contém o esporte, nunca a liga.
-- Jogador normalizado: sem `Sobrenome, Nome`; sem `[colchetes]` residuais.
-- Nº de linhas = nº de IDs detectados.
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7 — Validação) + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
 
 **Específicas da Bolsa de Aposta:**
 - L/P negativo → L; L/P positivo → W. Nunca invertir.

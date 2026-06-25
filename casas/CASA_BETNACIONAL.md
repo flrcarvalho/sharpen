@@ -172,32 +172,15 @@ Apostas abertas → `extraction_state = aberta`.
 | Betnacional exibe | Aposta global | Status |
 |---|---|---|
 | `Ambos times marcam` · `Ambas equipes marcam` (2ºT ou partida) | Ambas Marcam | ✓ confirmado |
-| `[Jogador] marca a qualquer momento` | Anytime | aguarda amostra |
-| (aguarda amostra) | Assistência | aguarda amostra |
 | `Cartão Vermelho Sim/Não - Sim` · `Cartão Amarelo Sim/Não - Sim` | Cartões | ✓ confirmado |
-| (aguarda amostra) | Chutes | aguarda amostra |
 | `[Jogador] X+ Chutes ao Gol na Partida` | Chutes no Gol | ✓ confirmado (via bets combinadas) |
-| (aguarda amostra — Baseball) | Corridas | aguarda amostra |
-| (aguarda amostra) | Desarmes | aguarda amostra |
-| (aguarda amostra) | DNB | aguarda amostra |
-| (aguarda amostra — Basquete) | Double-Double | aguarda amostra |
-| (aguarda amostra) | Dupla Chance | aguarda amostra |
-| (aguarda amostra — E-Sports) | E-Sports Props | aguarda amostra |
 | `X+ Escanteios Para Cada Time` · `Escanteios Mais/Menos` | Escanteios | ✓ confirmado (via bets combinadas) |
-| (aguarda amostra — Tênis) | Games | aguarda amostra |
 | `[Time] marca X+ gols` · `Total de gols Mais/Menos X` | Gols | ✓ confirmado |
-| (aguarda amostra — comparativo) | H2H | aguarda amostra |
-| (aguarda amostra) | Handicap | aguarda amostra |
-| (aguarda amostra) | Impedimentos | aguarda amostra |
-| (aguarda amostra — NFL) | Jardas | aguarda amostra |
-| (aguarda amostra — Dardos) | Legs | aguarda amostra |
 | `Vencedor - [Time/Jogador]` | ML | ✓ confirmado |
 | 2+ condições independentes combinadas numa aposta (Turbinaço · Bet Builder) | Múltipla | ✓ confirmado |
 | Outros mercados sem categoria específica | Outras ⚠️ | fallback |
 | `[Jogador] marca OU dá assistência` · `[Jogador] X+ Defesas na Partida` · `[Jogador] marca no [tempo]` | Player Props | ✓ confirmado |
-| (aguarda amostra — Tênis) | Sets | aguarda amostra |
 | `[Time] Marca em Ambos os Tempos` | Team Props | ✓ confirmado |
-| (aguarda amostra — Basquete) | Triplo-Duplo | aguarda amostra |
 
 **Notas de reconstrução:**
 - Confronto: separador `x` → normalizar para `v` (sem "s") com colchetes: `[Time A v Time B]`
@@ -270,12 +253,7 @@ Apostas abertas → `extraction_state = aberta`.
 
 ## 14. Validações específicas
 
-**Transversais (todas as casas):**
-- Código de resultado é um dos oficiais (`W / L / V / HW / HL`) — nunca sinal visual cru.
-- Odd preservada em L/HL/V: nunca `0,00`, nunca metade, nunca `1,00`.
-- Coluna `Esporte` contém o esporte, nunca a liga.
-- Jogador normalizado: sem `Sobrenome, Nome`; sem `[colchetes]` residuais na descrição.
-- Nº de linhas = nº de bets detectados.
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7 — Validação) + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
 
 **Específicas da Betnacional:**
 - Odd convertida de ponto para vírgula: `4.50` → `4,50`.

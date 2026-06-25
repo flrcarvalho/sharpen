@@ -162,33 +162,11 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **to
 
 | Jogo de Ouro exibe | Aposta global | Status |
 |---|---|---|
-| (aguarda amostra) | Ambas Marcam | aguarda amostra |
-| (aguarda amostra) | Anytime | aguarda amostra |
-| (aguarda amostra) | Assistência | aguarda amostra |
-| (aguarda amostra) | Cartões | aguarda amostra |
-| (aguarda amostra) | Chutes | aguarda amostra |
-| (aguarda amostra) | Chutes no Gol | aguarda amostra |
-| (aguarda amostra — Baseball) | Corridas | aguarda amostra |
-| (aguarda amostra) | Desarmes | aguarda amostra |
-| (aguarda amostra) | DNB | aguarda amostra |
-| (aguarda amostra) | Dupla Chance | aguarda amostra |
-| (aguarda amostra — Basquete) | Double-Double | aguarda amostra |
-| (aguarda amostra — E-Sports) | E-Sports Props | aguarda amostra |
 | `Total de escanteios` · `1º tempo - total de escanteios` | Escanteios | ✓ confirmado |
-| (aguarda amostra — Tênis) | Games | aguarda amostra |
 | `Total de gols` | Gols | ✓ confirmado |
-| (aguarda amostra — comparativo) | H2H | aguarda amostra |
-| (aguarda amostra) | Handicap | aguarda amostra |
-| (aguarda amostra) | Impedimentos | aguarda amostra |
-| (aguarda amostra — NFL) | Jardas | aguarda amostra |
-| (aguarda amostra — Dardos) | Legs | aguarda amostra |
 | `Vencedor do encontro` | ML | ✓ confirmado |
 | `Criar Aposta` (badge `CA`, 2+ seleções) | Múltipla | ✓ confirmado |
 | (mercado não mapeado) | Outras | ✓ fallback |
-| (aguarda amostra) | Player Props | aguarda amostra |
-| (aguarda amostra — Tênis) | Sets | aguarda amostra |
-| (aguarda amostra) | Team Props | aguarda amostra |
-| (aguarda amostra — Basquete) | Triplo-Duplo | aguarda amostra |
 
 **Notas de reconstrução:**
 - Separador de times: `vs.` (ex.: `Noruega vs. Senegal`) → normalizar para `[Noruega v Senegal]` (lowercase `v`, colchetes).
@@ -246,12 +224,7 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **to
 
 ## 14. Validações específicas
 
-**Transversais (todas as casas):**
-- Código de resultado é um dos oficiais (`W / L / V / HW / HL`) — nunca `GANHOU`, `PERDIDO`, `Aberto`.
-- Odd preservada em L/HL/V: nunca `0,00`, nunca metade, nunca `1,00`.
-- Coluna `Esporte` contém o esporte, nunca a liga ou torneio.
-- Jogador normalizado: sem maiúsculas cru; sem `[colchetes]` residuais.
-- Nº de linhas = nº de IDs detectados com status resolvido (excluindo `Aberto`).
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7 — Validação) + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
 
 **Específicas da Jogo de Ouro:**
 - Nenhum bilhete da aba `Aberto` deve aparecer no output.

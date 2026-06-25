@@ -133,33 +133,13 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 
 | Lottu exibe (campo `Resposta`) | Aposta global | Status |
 |---|---|---|
-| (aguarda amostra) | Ambas Marcam | aguarda amostra |
 | `X PARA MARCAR A QUALQUER MOMENTO` (simples) | Anytime | ✓ confirmado |
-| (aguarda amostra) | Assistência | aguarda amostra |
-| (aguarda amostra) | Cartões | aguarda amostra |
-| (aguarda amostra) | Chutes | aguarda amostra |
-| (aguarda amostra) | Chutes no Gol | aguarda amostra |
-| (aguarda amostra) | Corridas | aguarda amostra |
-| (aguarda amostra) | Desarmes | aguarda amostra |
-| (aguarda amostra) | DNB | aguarda amostra |
-| (aguarda amostra) | Dupla Chance | aguarda amostra |
-| (aguarda amostra) | Double-Double | aguarda amostra |
-| (aguarda amostra) | E-Sports Props | aguarda amostra |
 | `MAIS DE X ESCANTEIOS` · `MAIOR NÚMERO DE ESCANTEIOS` | Escanteios | ✓ confirmado |
-| (aguarda amostra) | Games | aguarda amostra |
 | `MAIS DE X GOLS` · `MAIS DE X GOLS NO Xº TEMPO` | Gols | ✓ confirmado |
-| (aguarda amostra) | H2H | aguarda amostra |
-| (aguarda amostra) | Handicap | aguarda amostra |
-| (aguarda amostra) | Impedimentos | aguarda amostra |
-| (aguarda amostra) | Jardas | aguarda amostra |
-| (aguarda amostra) | Legs | aguarda amostra |
 | `X PARA GANHAR` | ML | ✓ confirmado |
 | Desafio com `&` na Resposta (2+ condições) | Múltipla | ✓ confirmado |
-| (aguarda amostra) | Outras | aguarda amostra |
 | `MAIS DE X [stat] [jogador]` · `[JOGADOR] MAIS DE X [stat]` | Player Props | ✓ confirmado |
-| (aguarda amostra) | Sets | aguarda amostra |
 | `X PARA GANHAR AMBOS OS TEMPOS` · `X PARA MARCAR EM AMBOS OS TEMPOS` | Team Props | ✓ confirmado |
-| (aguarda amostra) | Triplo-Duplo | aguarda amostra |
 
 **Notas de reconstrução:**
 - Separador de times: `x` (ex.: `Uruguai x Cabo Verde`) → normalizar para `[Uruguai v Cabo Verde]`.
@@ -219,12 +199,7 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 
 ## 14. Validações específicas
 
-**Transversais (todas as casas):**
-- Código de resultado é um dos oficiais (`W / L / V / HW / HL`) — nunca `Ganhou`, `Perdeu`, `Aberto`.
-- Odd preservada em L/HL/V: nunca `0,00`, nunca metade, nunca `1,00`.
-- Coluna `Esporte` contém o esporte, nunca a liga ou torneio.
-- Jogador normalizado: sem maiúsculas cru da Resposta; sem `[colchetes]` residuais.
-- Nº de linhas = nº de IDs detectados com status resolvido (excluindo `Aberto`).
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7 — Validação) + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
 
 **Específicas da Lottu:**
 - Nenhum bilhete com badge `Aberto` deve aparecer no output.
