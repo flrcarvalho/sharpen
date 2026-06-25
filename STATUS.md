@@ -51,6 +51,16 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 
 ## 4. Estado atual
 
+- **Sessão 49 (24/06/2026) — Nova casa: KTO:**
+  - **`casas/CASA_KTO.md` criada** (15 seções, 8 goldens reais; lote 31/03–24/06/2026). Modo de ingestão: screenshot/visão "Minhas Apostas" (texto colado como fallback).
+  - **Decisão do dono:** a KTO exibe uma **única odd total por cupom** (trata até dupla como simples) → cada cupom = **uma linha**; usar a odd de visualização; se `Ganha`, `Odd = Pagamento ÷ Stake`.
+  - **Particularidades:** locale pt-BR na UI mas **dinheiro/odds em en-US (ponto decimal)** → converter p/ vírgula; ID visível `ID do Cupom:` (11 dígitos) → `Código`/dedup; `Recusado` = cupom ignorado por completo; `Aberta` → `extraction_state=aberta`; boost `ODDÃO+` (odd riscada = ruído, usar a final); `Pagamento` = retorno real (só em `Ganha`), `Ganho potencial` nunca usado p/ odd.
+  - **Categorias confirmadas (§9):** ML (`Vencedor da partida`), Cartões (`Para receber um cartão`, mesmo individual — §1 APOSTAS), Anytime (`Para marcar` em single), Player Props (`Faltas concedidas pelo jogador`), Múltipla (`Dupla`/`Quadrupla`/`Simples (N)`/sistema), Outras (`vence e ambos marcam` = combo result+BTTS). Dardos confirmado p/ `Vencedor da partida` entre indivíduos (Steve West/William Borland/Simon Stevenson, PDC).
+  - **Goldens:** G1/G2 Quadruplas L (95,00 / 76,00, cartões); G3 ML L Dardos (1,80); G4 ML W Dardos (2,43 = 607,50÷250 ✓); G5/G6 Duplas L scorer (85,50 / 40,80); G7 Aberta Outras boost (4,50); G8 Aberta Player Props faltas (4,20). Cupom `Recusado` ID 12807217380 excluído de propósito.
+  - **Pendências documentadas:** §5 V/HW/HL, §7 cashout, §8 bônus (aguardam amostra). §Feedback: combo "Resultado+Ambas Marcam" sem categoria própria; `Simples (N)` sem odd/resultado por perna no view de lista (limitação); categoria `Faltas` candidata.
+  - **`app/main.py`:** `KTO: 'KTO'` adicionado ao `_CASA_DISPLAY` (ordem alfabética). **`app/static/index.html`:** `KTO` em `NOMES` e `DOMINIOS` (favicon `kto.bet.br`).
+  - Backup: `Backups/pre_kto_2026-06-24/`. Commit: `<hash após push>`.
+
 - **Sessão 48 (24/06/2026) — Badge de pendências: refresh faltante no "Desfazer":** o recurso de badge azul de pendências (bolinha FDC `--accent #2E8BFF` com nº de bilhetes não copiados, por parceiro e por casa) foi implementado e commitado junto do commit `34f09e9` (`contar_pendentes` em `repository.py`, `GET /pendentes` em `main.py`, `.pend-badge` + `atualizarPendentes()`/`aplicarBadgesPendentes()` em `index.html`; refresh em load, pós-salvar, copiar/desmarcar/marcar/toggle, deletar individual e seleção).
   - **Gap corrigido nesta sessão (`app/static/index.html`):** o handler do botão **"Desfazer"** (apaga os bilhetes da última análise) não chamava `atualizarPendentes()` — a contagem ficava obsoleta até a próxima ação. Adicionado o refresh, alinhando com os demais handlers.
   - **Limitação:** verificação manual local é difícil (cookie `secure=True` não persiste em http://localhost — caveat sessão 44); validar na URL Railway após deploy.
