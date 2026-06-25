@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-24 (sessão 48 — badge de pendências: refresh faltante no "Desfazer")_
+_Atualizado: 2026-06-24 (sessão 49 — nova casa KTO + refactor camada fina + skills /audit-casas /nova-casa /propagar-categoria)_
 
 ---
 
@@ -50,6 +50,13 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 49 (24/06/2026) — Refactor "camada fina" + 3 skills (dívida de duplicação casa × global):**
+  - **Motivação (Feca):** os arquivos de casa estavam **copiando** conteúdo global (tabela das 27 categorias no §9, validações transversais no §14) → risco de drift/bug quando o global muda. Auditoria confirmou **151 linhas `aguarda amostra`** + bloco "Transversais" duplicado em 6 casas.
+  - **Padrão "camada fina" (commit `34dac4a`):** `CASA_MODELO §9` proíbe reescrever as 27 categorias / linhas "aguarda amostra" (só mercados confirmados); `CASA_MODELO §14` transversais viram ponteiro p/ `MASTER_PIPELINE §8` + `MASTER_OUTPUT §17–§18`; `GUIA_NOVA_CASA` (formato §9 enxuto, 4 pontos); `CLAUDE.md` regra de propagação encolhida para "só casas afetadas" (grep-driven). **Nenhum master global precisou mudar** — as transversais já viviam no pipeline.
+  - **Emagrecimento das 6 casas novas (commit `8202cde`, −149 linhas):** removidas 119 linhas placeholder do §9 + bloco transversal → ponteiro no §14, via scripts (`scratchpad/slim_s9.py`, `slim_s14.py`). Nuances específicas preservadas (KTO "Recusado", Jogo de Ouro/Lottu "Aberto"). As 5 casas antigas (Bet365/Betano/Betfair/Pinnacle/Superbet) já eram enxutas no §9; resíduo transversal menor no §14 fica como WARN (limpeza opcional). Backup: `Backups/pre_camada_fina_2026-06-24/`.
+  - **3 skills + checker (commit `b84159a`):** `tools/audit_casas.py` — auditoria determinística casa × global (categoria órfã no §9, placeholder `aguarda amostra`, bloco transversal cru, registro em main.py/index.html); **11/11 casas OK, exit 0**. Skills em `.claude/commands/`: `/audit-casas` (roda o checker + spot-check de goldens), `/nova-casa` (cadastro guiado camada fina, com o audit como gate), `/propagar-categoria` (checklist de propagação grep-driven). `.gitignore` ignora `.claude/settings.local.json`.
+  - **Pendência opcional:** limpar os bullets transversais soltos no §14 das 5 casas antigas (WARN, não bloqueia).
 
 - **Sessão 49 (24/06/2026) — Nova casa: KTO:**
   - **`casas/CASA_KTO.md` criada** (15 seções, 8 goldens reais; lote 31/03–24/06/2026). Modo de ingestão: screenshot/visão "Minhas Apostas" (texto colado como fallback).
