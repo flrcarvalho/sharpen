@@ -43,23 +43,23 @@ Planilhador/
 | Regras por categoria | `MASTER_APOSTAS_2026.md §5` | Documentar casos especiais |
 | Regras por esporte | `MASTER_APOSTAS_2026.md §6` | Atualizar se o esporte for afetado |
 | Validação final | `MASTER_APOSTAS_2026.md §9` | Adicionar checagem da nova categoria |
-| **Mapa de mercados de TODAS as casas** | `casas/CASA_*.md §9` | Atualizar cada casa que oferece o mercado |
+| **Mapa de mercados — só casas afetadas** | `casas/CASA_*.md §9` | **Apenas** as casas cujo §9 já referencia a categoria/rótulo afetado. Buscar com `grep -rl "<categoria>" casas/`. Sob a camada fina, o §9 lista só mercados confirmados — uma categoria nunca vista por uma casa **não** aparece lá e **não** precisa de update. |
 | Template de descrição | `MASTER_DESCRICAO_2026.md §12 ou §13` | Adicionar template se o formato for novo |
 | Prioridade semântica | `MASTER_APOSTAS_2026.md §7` | Atualizar se houver risco de confusão com Player Props / Outras |
 
-> **Motivo:** em 13/06/2026 as categorias `Dupla Chance`, `Impedimentos` e `Chutes no Gol` foram criadas no MASTER mas os mapas das casas ficaram desatualizados apontando para `Outras ⚠️`. Essa regra existe para evitar que isso se repita.
+> **Motivo:** em 13/06/2026 as categorias `Dupla Chance`, `Impedimentos` e `Chutes no Gol` foram criadas no MASTER mas os mapas das casas ficaram desatualizados apontando para `Outras ⚠️`. A **causa raiz** era a duplicação: cada casa reescrevia as 27 categorias. Desde a sessão 49 (camada fina), o §9 lista só o que a casa confirma → a superfície de propagação encolheu para as casas realmente afetadas.
 
 **Checklist rápido ao criar/renomear/remover uma categoria:**
 
-- [ ] `MASTER_APOSTAS §3` atualizado
+- [ ] `MASTER_APOSTAS §3` (tabela) atualizado
 - [ ] `MASTER_APOSTAS §4` (sinônimos) atualizado
 - [ ] `MASTER_APOSTAS §9` (validação) atualizado
-- [ ] `CASA_BET365 §9` verificado e atualizado se aplicável
-- [ ] `CASA_BETANO §9` verificado e atualizado se aplicável
-- [ ] `CASA_BETFAIR §9` verificado e atualizado se aplicável
-- [ ] `CASA_PINNACLE §9` verificado e atualizado se aplicável
-- [ ] `CASA_SUPERBET §9` verificado e atualizado se aplicável
+- [ ] `MASTER_APOSTAS §7` (prioridade semântica) atualizado se houver risco de confusão
 - [ ] `MASTER_DESCRICAO §12/§13` atualizado se o formato de descrição for novo
+- [ ] `grep -rl "<categoria afetada>" casas/` → atualizar **só** os §9 que aparecerem (renomear/remover); novo nome quase nunca exige update de casa
+- [ ] Rodar `/audit-casas` para confirmar que nenhum §9 ficou apontando para categoria inexistente
+
+> Dica: use `/propagar-categoria` para automatizar este checklist.
 
 ---
 

@@ -40,7 +40,7 @@ Copiar o template `casas/CASA_MODELO.md` e preencher as 15 seções:
 | §6 Boost | Tem ou não · localizador visual |
 | §7 Cashout | Tem ou não · localizador |
 | §8 Bônus | Tem ou não · política |
-| §9 Mapa de mercados | **Todas as 27 categorias do `MASTER_APOSTAS_2026 §3`** · confirmadas + aguarda amostra |
+| §9 Mapa de mercados | **Só os mercados confirmados** em bilhete real → categoria do `MASTER_APOSTAS_2026 §3`. **Não** listar as 27 categorias nem "aguarda amostra" (ver formato abaixo) |
 | §10 Stake | Campo · formato numérico (pt-BR vírgula vs en-US ponto) |
 | §11 Odds | Campo principal · regra por resultado (`W / L / V / HW / HL / cashout`) |
 | §12 Ruído | Elementos visuais a ignorar |
@@ -51,19 +51,20 @@ Copiar o template `casas/CASA_MODELO.md` e preencher as 15 seções:
 **Nome do arquivo:** `casas/CASA_<NOME_MAIÚSCULO>.md`
 Ex.: `CASA_BETANO.md`, `CASA_KINGPANDA.md`, `CASA_NOVAHOUSE.md`
 
-### Formato obrigatório do §9
+### Formato obrigatório do §9 (camada fina)
 
 ```markdown
-| <Casa> exibe | Aposta global | Status |
-|---|---|---|
-| `rótulo confirmado` | Ambas Marcam | ✓ confirmado |
-| (aguarda amostra) | Assistência | aguarda amostra |
+| <Casa> exibe (rótulo real) | Aposta global |
+|---|---|
+| `Ambos times marcam` | Ambas Marcam |
+| `Vencedor da partida` | ML |
 ```
 
-- Coluna 1: o que a casa exibe (texto exato); `(aguarda amostra)` quando não visto ainda
-- Coluna 2: categoria global do `MASTER_APOSTAS_2026 §3` — **sempre** uma das 27 oficiais
-- Coluna 3: status
-- Cobrir **todas as 27 categorias** — não só as que apareceram nos goldens
+- Coluna 1: o **rótulo exato** que a casa exibiu num bilhete real
+- Coluna 2: categoria global do `MASTER_APOSTAS_2026 §3` — sempre uma das 27 oficiais
+- **Listar APENAS mercados confirmados.** Não cobrir as 27 categorias; não usar linhas `(aguarda amostra)`.
+- **Por quê:** as 27 categorias já vivem no `MASTER_APOSTAS_2026 §3`, carregado no prompt em toda extração — repeti-las por casa é duplicação morta que gera drift quando o global muda. A casa só traduz o que ela fala.
+- Mercado sem categoria adequada → `Outras` ⚠️ + registrar no §Feedback.
 
 ### Regra de ordem do output (§2)
 
@@ -144,7 +145,7 @@ Adicionar entrada na sessão atual com:
 
 - [ ] Backup criado em `Backups/pre_<casa>_<data>/`
 - [ ] `casas/CASA_<NOME>.md` criado (15 seções preenchidas, goldens verificados)
-- [ ] §9 cobre todas as 27 categorias do MASTER_APOSTAS §3
+- [ ] §9 lista só mercados confirmados (sem 27 categorias, sem "aguarda amostra"); categorias ⊆ MASTER_APOSTAS §3
 - [ ] `app/main.py` → `_CASA_DISPLAY` atualizado (ordem alfabética)
 - [ ] `app/static/index.html` → `NOMES` + `DOMINIOS` atualizados
 - [ ] Commit + push realizados
@@ -161,7 +162,7 @@ Adicionar entrada na sessão atual com:
 | Chave `_CASA_DISPLAY` | `"MAIÚSCULO"` |
 | Chave `NOMES` (HTML) | `MAIÚSCULO` (sem aspas de objeto JS) |
 | Chave `DOMINIOS` (HTML) | `CamelCase` (igual ao nome canônico) |
-| §9 colunas | `Casa exibe \| Aposta global \| Status` |
+| §9 colunas | `Casa exibe (rótulo real) \| Aposta global` — só mercados confirmados |
 | Goldens: ordem | Último no texto/grid = primeira linha do TSV |
 | Goldens: separador | TAB real (U+0009) — nunca espaços |
 | Goldens: decimal | Vírgula (`2,76`) — nunca ponto |

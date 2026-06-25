@@ -146,13 +146,16 @@ Apostas abertas → `extraction_state = aberta` (fora da fila de cópia).
 
 ## 9. Mapa de mercados (`<Casa>` → `Aposta` global)
 
-*(como preencher: mapear cada mercado visível da casa para a categoria global do `MASTER_APOSTAS_2026`. Apenas categorias que existem no MASTER. Seguir a ordem de prioridade: categoria específica > Player Props > Outras. Se um mercado não tem categoria adequada, usar `Outras` ⚠️ e registrar no §Feedback com recomendação.)*
+*(como preencher: mapear **apenas** os mercados que esta casa realmente exibiu, traduzindo o rótulo da casa para a categoria global do `MASTER_APOSTAS_2026 §3`. Seguir a prioridade: categoria específica > Player Props > Outras.)*
 
-| `<Casa>` exibe | Aposta global |
+> ⚠️ **NÃO reescreva as 27 categorias nem use linhas "aguarda amostra".** A lista canônica de categorias vive no `MASTER_APOSTAS_2026 §3`, que é carregado no prompt em **toda** extração — a IA já a conhece. Restar categoria que esta casa nunca mostrou é duplicação morta: não ensina nada ao modelo e quebra quando o global muda (era a causa raiz do drift de propagação). Liste só o que foi **confirmado num bilhete real**; um mercado novo é classificado pelo `MASTER_APOSTAS` quando surgir.
+
+| `<Casa>` exibe (rótulo real) | Aposta global |
 |---|---|
-| `<mercado>` | `<categoria>` |
-| `<mercado>` | `<categoria>` |
-| … | … |
+| `<rótulo confirmado>` | `<categoria do §3>` |
+| `<rótulo confirmado>` | `<categoria do §3>` |
+
+> Mercado que apareça e **não** tenha categoria adequada no §3 → `Outras` ⚠️ + registrar no §Feedback com recomendação. Mercados ainda não vistos **não entram nesta tabela**.
 
 **Notas de reconstrução:**
 - Confronto: `<formato da casa>` → `[Time A v Time B]` (padrão global, `MASTER_DESCRICAO_2026`).
@@ -225,14 +228,9 @@ Apostas abertas → `extraction_state = aberta` (fora da fila de cópia).
 
 ## 14. Validações específicas
 
-*(como preencher: regras que o extrator deve checar antes de retornar o output. As transversais abaixo valem para todas as casas — não remover. Adicionar as específicas desta casa embaixo.)*
+*(como preencher: aqui vão **só** as validações próprias desta casa. As transversais valem para todas e vivem no global — não copiar.)*
 
-**Transversais (todas as casas):**
-- Código de resultado é um dos oficiais (`W / L / V / HW / HL`) — nunca o código visual cru da casa.
-- Odd preservada em L/HL/V: nunca `0,00`, nunca metade, nunca `1,00`.
-- Coluna `Esporte` contém o esporte, nunca a liga (`NBA`, `WNBA`, `NFL`, `NHL`, `EuroLeague` etc. são ligas → `MASTER_ESPORTES_2026`).
-- Jogador normalizado: sem `Sobrenome, Nome`; sem `[colchetes]` residuais na descrição.
-- Nº de linhas = nº de IDs (ou assinaturas) detectados.
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7 — Validação) + `MASTER_OUTPUT_2026 §17–§18`. Cobrem: resultado oficial (`W/L/V/HW/HL`), odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes. **Não duplicar aqui.**
 
 **Específicas desta casa:**
 - `<validação 1>`
