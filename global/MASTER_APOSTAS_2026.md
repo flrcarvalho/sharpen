@@ -39,6 +39,7 @@ Exemplos:
 - `Time A mais chutes` (comparativo) → `Chutes`
 - `Time B mais escanteios` (comparativo) → `Escanteios`
 - `Time A -1,5 impedimentos` → `Impedimentos`
+- `Primeiro a marcar 9 escanteios` (race / corrida) → `Escanteios`
 
 ---
 
@@ -218,6 +219,9 @@ Sinônimos:
 - Corners
 - Cantos
 - Escanteio
+- Primeiro a marcar X escanteios (race / corrida)
+- Race to X corners
+- Corrida de escanteios
 
 ---
 
@@ -480,6 +484,27 @@ Categorias distintas que não devem ser confundidas:
 | Cartões       | Cartões amarelos e/ou vermelhos         |
 
 Cada uma dessas categorias pode conter mercados de handicap, total (over/under), resultado comparativo (time A vs time B) ou linha. O tipo de mercado não altera a categoria — apenas o objeto apostado define a classificação.
+
+---
+
+## Race (Primeiro a marcar X)
+
+"Race" (corrida) é um **tipo de mercado**, não uma categoria. Aposta-se em qual entidade atinge **primeiro** um número inteiro de eventos (escanteios, gols, pontos, cartões…). Sinônimos da casa: `Primeiro a marcar X`, `Race to X`, `Corrida para X`.
+
+Como qualquer tipo de mercado, a categoria segue o **objeto** apostado (§1):
+
+| Mercado da casa | Categoria |
+|---|---|
+| Primeiro a marcar X escanteios | `Escanteios` |
+| Primeiro a marcar X gols | `Gols` |
+| Primeiro a marcar X pontos | `Pontos` → categoria do objeto no esporte |
+| Primeiro a receber X cartões | `Cartões` |
+
+A estrutura "Race" e o número X ficam na **Descrição** (`MASTER_DESCRICAO_2026 §10.3`), nunca na categoria.
+
+Não confundir com:
+- `ML` (vencedor da partida — Race tem descrição própria com `Race N`)
+- `Anytime` (marcar a qualquer momento, sem alvo numérico)
 
 ---
 

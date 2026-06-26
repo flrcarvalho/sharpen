@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-26 (sessão 51 — gravação resiliente: UniqueViolationError não aborta mais o lote)_
+_Atualizado: 2026-06-26 (sessão 53 — cadastro do mercado Race / "Primeiro a marcar X")_
 
 ---
 
@@ -50,6 +50,18 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 53 (26/06/2026) — cadastro do mercado Race ("Primeiro a marcar X"):**
+  - **Sintoma (Feca):** bilhete Bet365 "Suécia — Primeiro a marcar 9 Escanteios" (Japão v Suécia) saiu da extração como `Suécia [Japão v Suécia]` — idêntico a um ML, perdeu o "9 escanteios". O mercado é o que chamamos de **Race** (corrida).
+  - **Causa raiz:** "Race / Primeiro a marcar X" é uma **terceira estrutura de mercado** que não existia. `MASTER_DESCRICAO §10` só conhecia Contínuo (`Over/Under X.5`) e Discreto (`X+`); sem template, a extração descartava o alvo. Não há sinônimo nem regra em `MASTER_APOSTAS`.
+  - **Decisão:** Race é **tipo de mercado**, não categoria. Categoria segue o objeto (§1): escanteios → `Escanteios`, gols → `Gols`, etc. Nenhuma categoria nova criada (segue 27).
+  - **Fix global (descrição vem das regras globais — sem edição de casa, decisão do Feca):**
+    - `MASTER_DESCRICAO §10.3` — nova estrutura `Race N - Entidade [Confronto]` (ex.: `Race 9 - Suécia [Japão v Suécia]`).
+    - `MASTER_APOSTAS §1` — exemplo `Primeiro a marcar 9 escanteios → Escanteios`.
+    - `MASTER_APOSTAS §4` — sinônimos de Escanteios (`Primeiro a marcar X escanteios`, `Race to X corners`, `Corrida de escanteios`).
+    - `MASTER_APOSTAS §5` — nova regra "Race (Primeiro a marcar X)" com tabela objeto→categoria.
+  - **Linha correta:** `Futebol  Bet365  Escanteios  Race 9 - Suécia [Japão v Suécia]  99,00  3,40  L`.
+  - Auditoria: `python tools/audit_casas.py` → 11 OK, 0 FAIL. Backup: `Backups/cadastro-mercado-race-escanteios/`. Commit: (este).
 
 - **Sessão 52 (26/06/2026) — Tênis ITF classificado errado como Dardos:**
   - **Sintoma (Feca):** `Sebastian Sorger [Sebastian Sorger v Khumoyun Sultanov]` saiu como **Dardos**; o correto é **Tênis** (M25 Zagreb, circuito ITF/Challenger — confirmado: Sultanov é nº 2 da Uzbequistão, jogou Davis Cup).

@@ -223,6 +223,29 @@ Exemplos:
 
 ---
 
+## 10.3 Mercado Race (Primeiro a marcar X)
+
+Mercados "Race" (corrida / `Primeiro a marcar X`) apostam em qual entidade atinge **primeiro** um número inteiro de eventos. A entidade vencedora e o alvo `N` vão na descrição; a categoria segue o objeto (`MASTER_APOSTAS_2026 §5 — Race`).
+
+Formato oficial:
+
+```text
+Race N - Entidade [Confronto]
+```
+
+Exemplos:
+
+```text
+Race 9 - Suécia [Japão v Suécia]
+Race 3 - Brasil [Brasil v Argentina]
+Race 20 - Lakers [LAL Lakers v CHI Bulls]
+```
+
+- `N` é sempre inteiro (nunca `.5`).
+- `Race` é fixo em inglês (como Over / Under), seguido do objeto **apenas na coluna `Aposta`** (ex.: `Escanteios`), não repetido na descrição.
+
+---
+
 # 11. Normalização Over / Under
 
 Converter sempre para inglês.
