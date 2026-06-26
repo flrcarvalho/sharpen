@@ -51,6 +51,13 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 
 ## 4. Estado atual
 
+- **Sessão 52 (26/06/2026) — Tênis ITF classificado errado como Dardos:**
+  - **Sintoma (Feca):** `Sebastian Sorger [Sebastian Sorger v Khumoyun Sultanov]` saiu como **Dardos**; o correto é **Tênis** (M25 Zagreb, circuito ITF/Challenger — confirmado: Sultanov é nº 2 da Uzbequistão, jogou Davis Cup).
+  - **Verificação de contradição:** o usuário trouxe também `Fallon Sherrock v Scott Mitchell` como suposto tênis mal classificado, mas a verificação web mostrou que é **genuinamente Dardos** (PDC UK Q-School; Sherrock é PDC, Mitchell campeão BDO 2015). Esse bilhete estava **correto** — não foi tocado, para não quebrar bilhetes reais de dardos da Sherrock/Mitchell.
+  - **Causa raiz:** a regra de desempate (§568) já manda "atleta desconhecido + sem sinal de dardos → Tênis, nunca Dardos", mas o modelo usou "conhecimento próprio" (§5 item 4, prioridade sobre o desempate) e chutou Dardos para os nomes Sorger/Sultanov.
+  - **Fix (`global/MASTER_ESPORTES_2026.md` §388, bloco ATP Challenger / ITF):** adicionados `Sebastian Sorger` e `Khumoyun Sultanov` à lista auxiliar de Tênis → prioridade explícita (§561 item 4). Correção cirúrgica, mesmo padrão de "exemplos de sessões recentes".
+  - Backup: `Backups/s52-esportes-sorger-sultanov/`. Commit: (este).
+
 - **Sessão 51 (26/06/2026) — Lote inteiro perdido por bilhete duplicado (Betnacional):**
   - **Sintoma (Feca):** reprocesso do histórico da Betnacional retornou `0 exportadas`. A análise mostrou `UniqueViolationError: ... bilhetes_dono_casa_parceiro_assinatura_key already exists`.
   - **Causa raiz:** Betnacional não mostra ID no print, então a assinatura vem do conteúdo. O histórico já tinha sido salvo antes. No `upsert_bilhetes`, um bilhete colidiu com a linha existente, o `UniqueViolationError` escapou do `ON CONFLICT` (corrida entre dois `/salvar` do mesmo lote), subiu e abortou a função inteira. Os 34 outros bilhetes se perderam.

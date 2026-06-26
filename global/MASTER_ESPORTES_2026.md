@@ -408,6 +408,8 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Jorge Alonso-Cortes
 - Juan Bautista Otegui
 - Joao Victor Couto Loureiro
+- Sebastian Sorger (austríaco, ITF/Challenger — não confundir com dardista)
+- Khumoyun Sultanov (uzbeque, ATP/Challenger nº 2 do país, Davis Cup)
 
 **WTA:**
 - Aryna Sabalenka
