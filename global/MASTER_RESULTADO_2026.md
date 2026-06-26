@@ -265,6 +265,7 @@ Odd:     2,35
 Precisão: preservar o resultado completo da divisão — até 12 casas decimais se necessário.
 Nunca arredondar nem truncar para forçar 2 casas decimais.
 **NUNCA** usar reticências (`...` ou `…`) ao final de uma odd. Escreva todos os dígitos significativos e pare no último dígito real (ex: `1,90917218543046`, não `1,909106...`).
+**Separador decimal:** a divisão sai com **ponto** — converta para **vírgula** antes de escrever (`75,26066666666666`, nunca `75.26066666666666`). A planilha pt-BR lê o ponto como milhar e corrompe a odd. Ver `MASTER_OUTPUT_2026 §12.1`.
 
 ---
 
@@ -514,6 +515,11 @@ Odd registrada = 1.706,41 ÷ 150 = 11,37606666666667
 ## 7.2 Múltipla Comum
 
 A odd estrutural é calculada multiplicando as odds individuais.
+
+> ⚠️ **Separador decimal (inquebrável):** o produto sai do cálculo com **ponto**. Converta para
+> **vírgula** antes de escrever — `8,580978`, nunca `8.580978`. **Precisão total, sem arredondar
+> para 2 casas.** A planilha pt-BR lê o ponto como separador de milhar e corrompe a odd
+> (`8.580978` → `8.580.978`). Ver `MASTER_OUTPUT_2026 §12.1`.
 
 ### Dupla
 

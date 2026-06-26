@@ -1,5 +1,7 @@
 import hashlib
 
+import asyncpg
+
 from database import get_pool
 
 # Colunas do TSV (índices 0–9)
@@ -143,28 +145,50 @@ async def upsert_bilhetes(
 
             resultado = row.get("resultado", "").strip() or None
             extraction_state = "resolvida" if resultado in _RESULTADOS_VALIDOS else "aberta"
-            rec = await conn.fetchrow(
-                """
-                INSERT INTO bilhetes
-                    (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
-                     aposta, descricao, stake, odd, resultado,
-                     extraction_state, confianca)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-                ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
-                    tipster          = EXCLUDED.tipster,
-                    codigo_bilhete   = COALESCE(bilhetes.codigo_bilhete, EXCLUDED.codigo_bilhete),
-                    resultado        = EXCLUDED.resultado,
-                    extraction_state = EXCLUDED.extraction_state,
-                    atualizado_em    = NOW()
-                RETURNING id, (xmax = 0) AS was_inserted
-                """,
-                dono, row.get("casa", ""), row.get("parceiro", ""), sig,
-                codigo or None,
-                row.get("data"), row.get("esporte"), row.get("tipster"),
-                row.get("aposta"), row.get("descricao"),
-                row.get("stake"), row.get("odd"), resultado,
-                extraction_state, confianca,
-            )
+            try:
+                rec = await conn.fetchrow(
+                    """
+                    INSERT INTO bilhetes
+                        (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
+                         aposta, descricao, stake, odd, resultado,
+                         extraction_state, confianca)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+                    ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
+                        tipster          = EXCLUDED.tipster,
+                        codigo_bilhete   = COALESCE(bilhetes.codigo_bilhete, EXCLUDED.codigo_bilhete),
+                        resultado        = EXCLUDED.resultado,
+                        extraction_state = EXCLUDED.extraction_state,
+                        atualizado_em    = NOW()
+                    RETURNING id, (xmax = 0) AS was_inserted
+                    """,
+                    dono, row.get("casa", ""), row.get("parceiro", ""), sig,
+                    codigo or None,
+                    row.get("data"), row.get("esporte"), row.get("tipster"),
+                    row.get("aposta"), row.get("descricao"),
+                    row.get("stake"), row.get("odd"), resultado,
+                    extraction_state, confianca,
+                )
+            except asyncpg.UniqueViolationError:
+                # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
+                # casos, mas uma corrida entre dois /salvar do mesmo lote (ex.: reenvio
+                # durante a extração lenta) pode deixar escapar um unique_violation. Sem
+                # este fallback, UMA linha repetida abortaria o lote inteiro ("0 exportadas").
+                # Aqui aplicamos manualmente o mesmo UPDATE que o ON CONFLICT faria e
+                # seguimos o loop, contando a linha como atualizada.
+                rec = await conn.fetchrow(
+                    """
+                    UPDATE bilhetes SET
+                        tipster          = $5,
+                        codigo_bilhete   = COALESCE(codigo_bilhete, $6),
+                        resultado        = $7,
+                        extraction_state = $8,
+                        atualizado_em    = NOW()
+                    WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
+                    RETURNING id, FALSE AS was_inserted
+                    """,
+                    dono, row.get("casa", ""), row.get("parceiro", ""), sig,
+                    row.get("tipster"), codigo or None, resultado, extraction_state,
+                )
             if rec:
                 db_id = rec["id"]
                 ids.append(db_id)

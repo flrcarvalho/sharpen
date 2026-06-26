@@ -289,6 +289,29 @@ Exemplos:
 10,50
 ```
 
+## 12.1 Separador decimal — regra inquebrável
+
+A odd usa **SEMPRE vírgula**, **JAMAIS ponto**.
+
+Toda odd **calculada** (divisão `Retorno ÷ Stake` ou produto das pernas de uma múltipla) sai
+do cálculo com **ponto** decimal. Esse ponto **deve** ser convertido em vírgula **antes** de
+escrever a célula.
+
+```text
+CORRETO:  75,26066666666666   ·   8,580978   ·   127,672839
+ERRADO:   75.26066666666666   ·   8.580978   ·   127.672839
+```
+
+> **Motivo:** a planilha (locale pt-BR) interpreta o ponto como separador de **milhar**.
+> Uma odd `8.580978` é remontada como `8.580.978,00` e a aposta fica corrompida.
+
+## 12.2 Precisão — regra inquebrável
+
+Preservar a **precisão total**: nunca arredondar nem truncar para 2 casas. Usar quantas casas
+decimais forem necessárias (até 12). Nunca usar reticências (`...` / `…`) — escrever todos os
+dígitos significativos e parar no último dígito real. Vale tanto para odd lida quanto calculada
+(divisão ou produto). Ver `MASTER_RESULTADO_2026 §5.2.1` e `§7.2`.
+
 As regras oficiais de:
 - cashout
 - void

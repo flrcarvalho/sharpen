@@ -142,6 +142,7 @@ Notas de reconstrução:
 **Múltiplas:** a Betano **não mostra odd combinada** no texto resolvido — só as odds por seleção. Logo, em L/V a odd estrutural = **produto das odds das seleções** (`MASTER_RESULTADO_2026 §7`). Em W, `Ganhos ÷ Aposta`.
 
 > ⚠️ Em L/V a odd é preservada (nunca 0,00 / 1,00). `Ganhos ÷ Aposta` só p/ W e cashout. Precisão: preservar (global).
+> ⚠️ **Vírgula, nunca ponto:** o produto/divisão sai com ponto — converta para vírgula e preserve a precisão (`8,580978`, nunca `8.580978`, nunca arredondar p/ 2 casas). Ponto vira separador de milhar na planilha e corrompe a odd. Ver `MASTER_OUTPUT_2026 §12.1`.
 
 ---
 

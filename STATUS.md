@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-24 (sessão 49 — nova casa KTO + refactor camada fina + skills /audit-casas /nova-casa /propagar-categoria)_
+_Atualizado: 2026-06-25 (sessão 50 — regra inquebrável: odd com vírgula, nunca ponto; precisão total)_
 
 ---
 
@@ -50,6 +50,16 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 50 (25/06/2026) — Bug de odd corrompida (ponto → milhar na planilha):**
+  - **Sintoma (Feca):** extração da Betano gerou odds absurdas — `7.526.066.666.666.660,00`, `8.580.978,00`, `306.035.275,00`, `12.767.283.900,00`, `10.5777`.
+  - **Causa raiz:** a IA emitiu odds **calculadas** (W = `RO ÷ Stake`; L múltipla = **produto das pernas**, pois a Betano não exibe odd combinada) com **ponto** decimal e precisão longa. O Google Sheets em locale pt-BR lê o ponto como **separador de milhar** → `8.580978` vira `8.580.978,00`. O `12,07` escapou por dar 2 casas exatas.
+  - **Fix (sem arredondar — precisão é inquebrável):** reforçado em 4 pontos que odd usa **SEMPRE vírgula, JAMAIS ponto**, e que todo cálculo (÷ ou ×) sai com ponto e precisa ser convertido antes de escrever, preservando precisão total:
+    - `app/main.py` (prompt vivo): nova seção ODD com SEPARADOR DECIMAL + PRECISÃO inquebráveis; resolvida a contradição "L → nunca calcule o produto" (errada p/ Betano, que não exibe odd combinada).
+    - `MASTER_OUTPUT_2026 §12.1` (separador) + `§12.2` (precisão), novos.
+    - `MASTER_RESULTADO_2026 §5.2.1` (divisão) e `§7.2` (produto): nota vírgula-nunca-ponto.
+    - `CASA_BETANO §11`: nota vírgula + precisão.
+  - **Valores corrigidos das 5 células:** `75,26066666666666` · `8,580978` · `30,6035275` · `10,5777` · `127,672839`. Backup: `Backups/sessao50-regra-virgula-odd/`.
 
 - **Sessão 49 (24/06/2026) — Refactor "camada fina" + 3 skills (dívida de duplicação casa × global):**
   - **Motivação (Feca):** os arquivos de casa estavam **copiando** conteúdo global (tabela das 27 categorias no §9, validações transversais no §14) → risco de drift/bug quando o global muda. Auditoria confirmou **151 linhas `aguarda amostra`** + bloco "Transversais" duplicado em 6 casas.
