@@ -690,15 +690,22 @@ const estadoExtrator = {}; // parceiroId → { arquivos, csvFiles, xlsFiles, tex
 
 function salvarEstadoExtrator() {
   if (!parceiroSelecionado) return;
+  const id = parceiroSelecionado.id;
+  const dataRef = document.getElementById('data-ref').value;
   const formTemConteudo = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0
     || document.getElementById('texto').value.trim();
-  // Formulário vazio após submissão: preserva estado salvo (permite retry após falha)
-  if (!formTemConteudo && estadoExtrator[parceiroSelecionado.id]) return;
-  estadoExtrator[parceiroSelecionado.id] = {
+  // Formulário vazio após submissão: preserva estado salvo (permite retry após falha),
+  // mas ainda atualiza a data (pode ter sido alterada sem conteúdo no form).
+  if (!formTemConteudo && estadoExtrator[id]) {
+    estadoExtrator[id].dataRef = dataRef;
+    return;
+  }
+  estadoExtrator[id] = {
     arquivos: [...arquivos],
     csvFiles: [...csvFiles],
     xlsFiles: [...xlsFiles],
     texto: document.getElementById('texto').value,
+    dataRef,
   };
 }
 
@@ -708,17 +715,25 @@ function restaurarEstadoExtrator(id) {
   csvFiles = [...e.csvFiles];
   xlsFiles = [...e.xlsFiles];
   document.getElementById('texto').value = e.texto;
+  // Parceiro visto pela primeira vez cai em hoje real → "Ontem" = ontem real.
+  document.getElementById('data-ref').value = e.dataRef || hojeISO();
+}
+
+// Retorna a data de hoje (fuso local do usuário) no formato YYYY-MM-DD.
+// Usada como default de cada parceiro → "Ontem" sempre resolve para ontem real.
+function hojeISO() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 // Inicializar campo de data de referência com hoje (fuso local do usuário)
 (function () {
   const inp = document.getElementById('data-ref');
   if (!inp) return;
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  inp.value = `${y}-${m}-${d}`;
+  inp.value = hojeISO();
 })();
 
 const NOMES = {
@@ -1098,7 +1113,7 @@ document.getElementById('texto').addEventListener('input', () => {
   atualizarBotaoExtrair();
   if (!parceiroSelecionado) return;
   if (!estadoExtrator[parceiroSelecionado.id])
-    estadoExtrator[parceiroSelecionado.id] = { arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], texto: '' };
+    estadoExtrator[parceiroSelecionado.id] = { arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], texto: '', dataRef: document.getElementById('data-ref').value };
   estadoExtrator[parceiroSelecionado.id].texto = document.getElementById('texto').value;
 });
 
@@ -1108,6 +1123,7 @@ function limparExtrator(explicit = false) {
     estadoExtrator[parceiroSelecionado.id] = {
       arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles],
       texto: document.getElementById('texto').value,
+      dataRef: document.getElementById('data-ref').value,
     };
   }
   arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews();

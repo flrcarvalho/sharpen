@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-26 (sessão 53 — cadastro do mercado Race / "Primeiro a marcar X")_
+_Atualizado: 2026-06-26 (sessão 54 — data de captura isolada por parceiro)_
 
 ---
 
@@ -50,6 +50,16 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 54 (26/06/2026) — data de captura vazava entre parceiros:**
+  - **Sintoma (Feca):** ao mudar a data de captura num parceiro (ex.: setar "ontem" na Bet365 para um print que diz "Ontem"), o valor grudava e era usado em todos os outros parceiros. Na Superbet seguinte, "Ontem" resolvia para anteontem porque a data de referência ainda era a de ontem.
+  - **Causa raiz:** havia **um único** `<input id="data-ref">` global. O `estadoExtrator` (estado por parceiro) salvava `arquivos/csvFiles/xlsFiles/texto` mas **não a data** — então a data nunca era isolada por parceiro.
+  - **Decisão (Feca):** manter o campo, isolar por parceiro. Default de cada parceiro = **hoje real** (fuso local do navegador) → "Ontem" sempre = ontem real, que é como o print vem.
+  - **Fix (`app/static/index.html`, frontend apenas — backend já recebe `data_referencia` por requisição):**
+    - Helper `hojeISO()` (YYYY-MM-DD no fuso local).
+    - `dataRef` agora faz parte do `estadoExtrator` (salvo/restaurado por parceiro); guard de form vazio ainda atualiza só a data.
+    - `restaurarEstadoExtrator` aplica `e.dataRef || hojeISO()` → parceiro novo cai em hoje.
+  - **Comportamento:** trocar de parceiro não herda mais a data do anterior; recarregar a página zera tudo para hoje. Backup: `Backups/data-por-parceiro/`. Commit: (este).
 
 - **Sessão 53 (26/06/2026) — cadastro do mercado Race ("Primeiro a marcar X"):**
   - **Sintoma (Feca):** bilhete Bet365 "Suécia — Primeiro a marcar 9 Escanteios" (Japão v Suécia) saiu da extração como `Suécia [Japão v Suécia]` — idêntico a um ML, perdeu o "9 escanteios". O mercado é o que chamamos de **Race** (corrida).
