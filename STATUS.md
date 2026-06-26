@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-25 (sessão 50 — regra inquebrável: odd com vírgula, nunca ponto; precisão total)_
+_Atualizado: 2026-06-26 (sessão 51 — gravação resiliente: UniqueViolationError não aborta mais o lote)_
 
 ---
 
@@ -50,6 +50,13 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 51 (26/06/2026) — Lote inteiro perdido por bilhete duplicado (Betnacional):**
+  - **Sintoma (Feca):** reprocesso do histórico da Betnacional retornou `0 exportadas`. A análise mostrou `UniqueViolationError: ... bilhetes_dono_casa_parceiro_assinatura_key already exists`.
+  - **Causa raiz:** Betnacional não mostra ID no print, então a assinatura vem do conteúdo. O histórico já tinha sido salvo antes. No `upsert_bilhetes`, um bilhete colidiu com a linha existente, o `UniqueViolationError` escapou do `ON CONFLICT` (corrida entre dois `/salvar` do mesmo lote), subiu e abortou a função inteira. Os 34 outros bilhetes se perderam.
+  - **Fix (`app/repository.py`):** gravação resiliente por linha. A colisão agora cai num `UPDATE` explícito (o mesmo que o `ON CONFLICT` faria), conta como atualizada e o loop segue. Um bilhete duplicado nunca mais derruba o lote.
+  - **Commit:** `a7535bb`. Inclui edições pendentes de docs/casas que estavam no working tree.
+  - **Pendente:** nenhum. Próximo passo: na próxima reprocessada da Betnacional, confirmar que os repetidos aparecem como `atualizado(s)`.
 
 - **Sessão 50 (25/06/2026) — Bug de odd corrompida (ponto → milhar na planilha):**
   - **Sintoma (Feca):** extração da Betano gerou odds absurdas — `7.526.066.666.666.660,00`, `8.580.978,00`, `306.035.275,00`, `12.767.283.900,00`, `10.5777`.
