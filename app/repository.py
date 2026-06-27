@@ -154,7 +154,9 @@ async def upsert_bilhetes(
                          extraction_state, confianca)
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
-                        tipster          = EXCLUDED.tipster,
+                        -- preserva o tipster existente quando o lote vier sem tipster
+                        -- (extração/sync sempre mandam ''); só sobrescreve com valor real
+                        tipster          = COALESCE(NULLIF(EXCLUDED.tipster, ''), bilhetes.tipster),
                         codigo_bilhete   = COALESCE(bilhetes.codigo_bilhete, EXCLUDED.codigo_bilhete),
                         resultado        = EXCLUDED.resultado,
                         extraction_state = EXCLUDED.extraction_state,
@@ -178,7 +180,7 @@ async def upsert_bilhetes(
                 rec = await conn.fetchrow(
                     """
                     UPDATE bilhetes SET
-                        tipster          = $5,
+                        tipster          = COALESCE(NULLIF($5, ''), tipster),
                         codigo_bilhete   = COALESCE(codigo_bilhete, $6),
                         resultado        = $7,
                         extraction_state = $8,
