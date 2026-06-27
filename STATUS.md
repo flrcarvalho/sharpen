@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-27 (sessão 57 — UI: colunas redimensionáveis na grade e na tabela de Posições ativas, com larguras persistidas em localStorage e duplo-clique para restaurar)_
+_Atualizado: 2026-06-27 (sessão 57 — UI: colunas redimensionáveis na grade e na tabela de Posições ativas; larguras persistidas em localStorage, duplo-clique restaura. Largura da tabela travada na soma exata das colunas → encolher abaixo do conteúdo agora funciona, com reticências e scroll horizontal)_
 
 _Anterior: 2026-06-27 (sessão 56 ENCERRADA — Polymarket sob o guarda-chuva: ingestão por API + tipsters migrados + dashboard ao vivo, tudo confirmado pelo Feca e no ar)_
 

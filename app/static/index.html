@@ -248,7 +248,7 @@ body::before {
 .pm-ativas-wrap { background:var(--surface); border:1px solid var(--grid); border-radius:10px; margin-bottom:14px; overflow:hidden; }
 .pm-ativas-head { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-family:var(--font-mono); border-bottom:1px solid var(--grid); }
 .pm-ativas-scroll { max-height:300px; overflow:auto; }
-table.pm-ativas { width:max-content; min-width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
+table.pm-ativas { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
 table.pm-ativas th:nth-child(1){ width:320px; }
 table.pm-ativas th:nth-child(2){ width:130px; }
 table.pm-ativas th:nth-child(3){ width:110px; }
@@ -257,7 +257,7 @@ table.pm-ativas th:nth-child(5){ width:90px; }
 table.pm-ativas th:nth-child(6){ width:84px; }
 table.pm-ativas th:nth-child(7){ width:112px; }
 table.pm-ativas th:nth-child(8){ width:74px; }
-table.pm-ativas th { text-align:left; padding:7px 10px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); font-weight:600; position:sticky; top:0; background:var(--surface); z-index:1; }
+table.pm-ativas th { text-align:left; padding:7px 10px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); font-weight:600; position:sticky; top:0; background:var(--surface); z-index:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 table.pm-ativas th.num, table.pm-ativas td.num { text-align:right; font-family:var(--font-mono); }
 table.pm-ativas td { padding:6px 10px; border-top:1px solid var(--grid); color:var(--ink-soft); vertical-align:middle; }
 table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); }
@@ -314,7 +314,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   flex: 1; overflow: auto; min-height: 0;
 }
 .grade {
-  width: max-content; min-width: 100%; border-collapse: collapse;
+  width: 100%; border-collapse: collapse;
   font-size: 12px; table-layout: fixed;
 }
 .grade thead th {
@@ -324,6 +324,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   font-size: 10px; font-weight: 700; letter-spacing: .06em;
   text-transform: uppercase; color: var(--ink-mute);
   text-align: left; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
   border-bottom: 1px solid var(--line);
 }
 .grade tbody tr { border-bottom: 1px solid var(--line-2); }
@@ -2221,6 +2222,16 @@ function setupColResize(table, storageKey) {
   try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch {}
   ths.forEach((th, i) => { if (saved[i]) th.style.width = saved[i]; });
 
+  // Trava a largura da tabela na soma exata das colunas: com table-layout
+  // fixed isso faz cada coluna respeitar a largura definida (sem esticar de
+  // volta nem crescer para o maior conteúdo). Funciona oculta via getComputedStyle.
+  function applyTableWidth() {
+    let sum = 0;
+    ths.forEach(th => { sum += parseFloat(th.style.width || getComputedStyle(th).width) || 0; });
+    if (sum > 0) table.style.width = sum + 'px';
+  }
+  applyTableWidth();
+
   function persist() {
     const obj = {};
     ths.forEach((th, i) => { if (th.style.width) obj[i] = th.style.width; });
@@ -2244,6 +2255,7 @@ function setupColResize(table, storageKey) {
       const onMove = ev => {
         const w = Math.max(36, startW + (ev.clientX - startX));
         th.style.width = w + 'px';
+        applyTableWidth();
       };
       const onUp = () => {
         grip.classList.remove('dragging');
@@ -2260,6 +2272,7 @@ function setupColResize(table, storageKey) {
     grip.addEventListener('dblclick', e => {
       e.preventDefault(); e.stopPropagation();
       th.style.width = '';                       // volta ao padrão do CSS
+      applyTableWidth();
       persist();
     });
   });
