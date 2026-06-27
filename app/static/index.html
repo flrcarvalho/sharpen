@@ -574,14 +574,12 @@ td.c-res.res-HL { color: var(--warn); }
 
         <!-- Polymarket: sincronização via API (substitui o upload nesta casa) -->
         <div class="input-section" id="polymarket-section" style="display:none">
-          <div class="upload-zone" style="cursor:default">
-            <div class="upload-label"><strong>Sincronizar carteira Polymarket</strong></div>
-            <div class="upload-hint">Cole o endereço da carteira (0x…) e busque o histórico resolvido direto da API — converte USD→BRL pela cotação do dia e deduplica por bilhete automaticamente.</div>
-          </div>
-          <div class="actions">
+          <div class="actions" style="margin:0">
             <input type="text" id="poly-wallet" class="data-ref-input"
               style="flex:1;min-width:300px;font-family:var(--font-mono)"
-              placeholder="0x0000000000000000000000000000000000000000" spellcheck="false" autocomplete="off">
+              placeholder="Carteira Polymarket (0x…) — sincroniza o histórico, converte USD→BRL e deduplica"
+              title="Cole o endereço da carteira e clique Sincronizar"
+              spellcheck="false" autocomplete="off">
             <button class="btn btn-primary" id="btn-poly-sync">↻ Sincronizar</button>
             <span class="status-msg" id="poly-status"></span>
           </div>

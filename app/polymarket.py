@@ -401,7 +401,10 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
             if split_total > 1:
                 desc = f"{title} [{int(pos.get('_splitIndex', 0)) + 1}/{split_total}]"
             linhas.append({
-                "_sort": pos.get("_buyTimestamp") or 0,
+                # Ordena por (data, timestamp da compra). O timestamp só existe em
+                # compras múltiplas (splits); compra única cai na data → sem ele,
+                # todas as únicas empilhavam com chave 0 e a ordem saía embaralhada.
+                "_sort": (iso or "9999-12-31", int(pos.get("_buyTimestamp") or 0)),
                 "data": _iso_to_br(iso),
                 "esporte": _norm_esporte(raw_sport),
                 "tipster": "",
