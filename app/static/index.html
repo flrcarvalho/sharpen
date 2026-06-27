@@ -581,9 +581,6 @@ td.c-res.res-HL { color: var(--warn); }
               title="Cole o endereço da carteira e clique Sincronizar"
               spellcheck="false" autocomplete="off">
             <button class="btn btn-primary" id="btn-poly-sync">↻ Sincronizar</button>
-            <button class="btn btn-ghost btn-sm" id="btn-poly-imp-tip"
-              title="Importar a coluna Tipster de um .tsv exportado do app Polymarket antigo">⇪ Importar tipsters</button>
-            <input type="file" id="poly-tip-file" accept=".tsv,text/tab-separated-values,text/plain" style="display:none">
             <span class="status-msg" id="poly-status"></span>
           </div>
         </div>
@@ -1085,35 +1082,6 @@ async function sincronizarPolymarket() {
 document.getElementById('btn-poly-sync').addEventListener('click', sincronizarPolymarket);
 document.getElementById('poly-wallet').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); sincronizarPolymarket(); }
-});
-
-document.getElementById('btn-poly-imp-tip').addEventListener('click', () => {
-  if (!parceiroSelecionado) { setPolyStatus('Selecione o parceiro primeiro.', 'err'); return; }
-  document.getElementById('poly-tip-file').click();
-});
-document.getElementById('poly-tip-file').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';                       // permite reimportar o mesmo arquivo
-  if (!file || !parceiroSelecionado) return;
-  setPolyStatus('Importando tipsters…', '');
-  try {
-    const text = await file.text();
-    const rs = await fetch('/polymarket/importar-tipsters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parceiro: parceiroSelecionado.nome, tsv: text }),
-    });
-    if (!rs.ok) {
-      const er = await rs.json().catch(() => ({}));
-      throw new Error(er.detail || ('HTTP ' + rs.status));
-    }
-    const d = await rs.json();
-    setPolyStatus(`✓ ${d.atualizados} tipster(s) importado(s) (de ${d.tipsters_no_arquivo} no arquivo)`, 'ok');
-    await carregarGrade();
-    if (typeof carregarTipsters === 'function') carregarTipsters();
-  } catch (err) {
-    setPolyStatus('✗ ' + err.message, 'err');
-  }
 });
 
 // ── Upload ────────────────────────────────────────────────────────────────────

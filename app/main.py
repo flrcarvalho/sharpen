@@ -30,7 +30,7 @@ from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     contar_pendentes, criar_parceiro, deletar_bilhetes, get_codigos_existentes,
-    get_codigos_resolvidos, importar_tipsters_polymarket, list_bilhetes, list_tipsters,
+    get_codigos_resolvidos, list_bilhetes, list_tipsters,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
     reativar_parceiro, upsert_bilhetes,
 )
@@ -839,37 +839,6 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
             "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados,
             "coletados": len(rows)}
-
-
-class ImportarTipstersRequest(BaseModel):
-    parceiro: str
-    tsv: str
-
-
-@app.post("/polymarket/importar-tipsters")
-async def polymarket_importar_tipsters(body: ImportarTipstersRequest, dono: str = Depends(usuario_atual)):
-    """Migração one-shot: aplica a coluna Tipster de um TSV exportado do app Polymarket
-    antigo aos bilhetes já sincronizados, casando por descrição (chave exata)."""
-    parceiro = (body.parceiro or "").strip()
-    if not parceiro:
-        raise HTTPException(400, "Selecione o parceiro Polymarket antes de importar.")
-
-    # TSV do app antigo: col 2 = Tipster, col 6 = Descrição (10 colunas)
-    desc2tip: dict[str, str] = {}
-    for line in (body.tsv or "").splitlines():
-        parts = line.split("\t")
-        if len(parts) < 10:
-            continue
-        if parts[0].strip().lower() in ("data", "date"):
-            continue
-        desc, tip = parts[6].strip(), parts[2].strip()
-        if desc and tip:
-            desc2tip[desc] = tip
-    if not desc2tip:
-        raise HTTPException(400, "Nenhum tipster encontrado no arquivo (esperado o .tsv de 10 colunas do app antigo).")
-
-    atualizados = await importar_tipsters_polymarket(dono, parceiro, desc2tip)
-    return {"atualizados": atualizados, "tipsters_no_arquivo": len(desc2tip)}
 
 
 class DeletarRequest(BaseModel):
