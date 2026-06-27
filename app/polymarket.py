@@ -37,7 +37,12 @@ BCB_PTAX = (
 )
 BRT = timezone(timedelta(hours=-3))
 
-_PAGE = 500          # tamanho de página (API aceita até 1000; 500 é o usado pelo app)
+# Tamanho de página POR endpoint — espelha o app standalone (index_proxy.html).
+# /positions é limitado pela API a páginas pequenas → pedir 100 (igual ao app).
+# Pedir 500 aqui faria a 1ª página vir com ~100 itens e a parada `len < 500`
+# truncar o histórico em silêncio. /activity aceita páginas de 500.
+_PAGE_POSITIONS = 100
+_PAGE_ACTIVITY = 500
 _SIZE_THRESHOLD = ".1"
 
 
@@ -50,19 +55,20 @@ async def _get_json(client: httpx.AsyncClient, url: str, params: dict) -> list:
     return data if isinstance(data, list) else []
 
 
-async def _paginate(client: httpx.AsyncClient, path: str, wallet: str, extra: dict) -> list:
+async def _paginate(client: httpx.AsyncClient, path: str, wallet: str,
+                    extra: dict, page_size: int) -> list:
     """Busca todas as páginas de um endpoint da carteira até esgotar (sem teto)."""
     out: list = []
     offset = 0
     while True:
-        params = {"user": wallet, "limit": _PAGE, "offset": offset, **extra}
+        params = {"user": wallet, "limit": page_size, "offset": offset, **extra}
         page = await _get_json(client, f"{POLY_BASE}/{path}", params)
         if not page:
             break
         out.extend(page)
-        if len(page) < _PAGE:
+        if len(page) < page_size:
             break
-        offset += _PAGE
+        offset += page_size
     return out
 
 
@@ -219,7 +225,8 @@ def _categoria(title: str, raw_sport: str) -> str:
     if re.search(r"handicap|spread|\(-\d|\(\+\d|[-+]\d+\.5\s|game handicap|map handicap", t):
         return "Handicap"
     if re.search(r"over|under|mais de|menos de|total.*gol|total.*point|o/u", t):
-        return "Player Props"
+        # invariante global: estatística de E-Sports é E-Sports Props, nunca Player Props
+        return "E-Sports Props" if raw_sport == "E-Sports" else "Player Props"
     if raw_sport == "Tênis":
         if "games" in t:
             return "Games"
@@ -274,7 +281,8 @@ def _reconciliar_redeems(fechados: list, activity: list, active_cids: set) -> li
         if not redeems or cid in closed_ids or cid in active_cids:
             continue
         total_bought = sum(_f(b, "size") * _f(b, "price") for b in buys)
-        total_redeemed = sum(_f(r, "size", "usdcSize") for r in redeems)
+        # fallback alinhado ao app standalone (size ‖ amount); usdcSize não existe na activity
+        total_redeemed = sum(_f(r, "size", "amount") for r in redeems)
         total_shares = sum(_f(b, "size") for b in buys)
         avg_price = (sum(_f(b, "price") * _f(b, "size") for b in buys) / total_shares) if total_shares else 0.0
         meta = redeems[0] if redeems else (buys[0] if buys else {})
@@ -326,6 +334,11 @@ def _split_multibuys(fechados: list, activity: list) -> list:
             continue
 
         is_win = _f(pos, "cashPnl") > 0
+        # Distribui o valor de mercado da posição-mãe proporcional ao stake de cada
+        # compra (espelha o splitMultiBuys do app). Sem isto, cada split herdaria o
+        # currentValue cheio → o dashboard somava N× em posições ativas multi-compra.
+        total_stake = sum(_f(b, "size") * _f(b, "price") for b in match)
+        pos_cv = _f(pos, "currentValue")
         for i, buy in enumerate(match):
             price = _f(buy, "price")
             shares = _f(buy, "size")
@@ -340,6 +353,7 @@ def _split_multibuys(fechados: list, activity: list) -> list:
                 "initialValue": this_stake,
                 "avgPrice": price,
                 "cashPnl": this_pnl if is_win else -this_stake,
+                "currentValue": (pos_cv * this_stake / total_stake) if total_stake else pos_cv,
                 "conditionId": cid,
             })
             result.append(split)
@@ -374,8 +388,9 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
     da mais antiga para a mais nova (= ordem cronológica de inserção na grade)."""
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
-        positions = await _paginate(client, "positions", wallet, {"sizeThreshold": _SIZE_THRESHOLD})
-        activity = await _paginate(client, "activity", wallet, {})
+        positions = await _paginate(client, "positions", wallet,
+                                    {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
+        activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
 
         active_cids = {p.get("conditionId") for p in positions if p.get("conditionId")}
         fechados = [p for p in positions
@@ -384,7 +399,11 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
         fechados = _split_multibuys(fechados, activity)
 
         redeem_cache = _build_redeem_cache(activity)
-        hoje = await _ptax(client, datetime.now(BRT))
+        hoje = None
+        for _back in range(0, 6):   # PTAX não publica fim de semana/feriado → recua
+            hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
+            if hoje:
+                break
 
         linhas = []
         cot_cache: dict = {}
@@ -485,8 +504,9 @@ async def coletar_dashboard(wallet: str) -> dict:
     ativas (com colunas do dashboard). NÃO toca no banco; o tipster é mesclado pela rota."""
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
-        positions = await _paginate(client, "positions", wallet, {"sizeThreshold": _SIZE_THRESHOLD})
-        activity = await _paginate(client, "activity", wallet, {})
+        positions = await _paginate(client, "positions", wallet,
+                                    {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
+        activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
 
         # Carteira proxy real (pode diferir do endereço informado) para o saldo on-chain
         proxy = wallet

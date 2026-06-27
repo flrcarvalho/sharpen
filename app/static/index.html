@@ -261,10 +261,10 @@ table.pm-ativas th { text-align:left; padding:7px 10px; font-size:10px; text-tra
 table.pm-ativas th.num, table.pm-ativas td.num { text-align:right; font-family:var(--font-mono); }
 table.pm-ativas td { padding:6px 10px; border-top:1px solid var(--grid); color:var(--ink-soft); vertical-align:middle; }
 table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); }
-.pm-rel { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:4px; font-size:9px; font-family:var(--font-mono); background:rgba(229,162,26,.16); color:#E0A21A; }
-.pm-badge-ativa { padding:1px 7px; border-radius:4px; font-size:10px; font-family:var(--font-mono); background:rgba(229,162,26,.16); color:#E0A21A; }
+.pm-rel { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:4px; font-size:9px; font-family:var(--font-mono); background:rgba(229,162,26,.16); color:var(--warn); }
+.pm-badge-ativa { padding:1px 7px; border-radius:4px; font-size:10px; font-family:var(--font-mono); background:rgba(229,162,26,.16); color:var(--warn); }
 .pm-pos { color:var(--pos); } .pm-neg { color:var(--neg); }
-.pm-odd { color:#E0A21A; }
+.pm-odd { color:var(--warn); }
 .pm-tip-input { width:100%; min-width:88px; background:transparent; border:1px solid var(--grid); border-radius:5px; padding:3px 6px; color:var(--ink); font-size:11px; font-family:var(--font-mono); }
 .pm-tip-input:focus { outline:none; border-color:var(--accent); }
 .pm-empty { padding:16px; text-align:center; color:var(--ink-mute); }
@@ -1099,7 +1099,9 @@ function aplicarModoCasa(casa) {
     const w = document.getElementById('poly-wallet');
     if (w && !w.value) w.value = localStorage.getItem('poly-wallet') || '';
     setPolyStatus('', '');
-    carregarDashboardPoly();
+    iniciarPollPoly();
+  } else {
+    pararPollPoly();
   }
 }
 
@@ -1107,19 +1109,48 @@ function aplicarModoCasa(casa) {
 function fmtUSD(v) { return '$ ' + Number(v || 0).toFixed(2).replace('.', ','); }
 function fmtBRLsub(v, cot) { return cot ? '≈ R$ ' + (Number(v || 0) * cot).toFixed(2).replace('.', ',') : ''; }
 
+let polyActivosPrev = null;   // Set de códigos ativos no último poll (detecta resolução)
+
 async function carregarDashboardPoly() {
   if (casaSelecionada !== 'Polymarket') return;
   const wallet = (document.getElementById('poly-wallet').value || localStorage.getItem('poly-wallet') || '').trim();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) { renderDashPoly(null); return; }
   const st = document.getElementById('pm-ativas-status');
-  if (st) st.textContent = 'carregando…';
+  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
+    renderDashPoly(null);
+    polyActivosPrev = null;
+    if (wallet && st) st.textContent = '✗ carteira inválida (0x… 42 caracteres)';
+    return;
+  }
+  if (st && !st.textContent) st.textContent = 'carregando…';
   try {
     const rs = await fetch('/polymarket/dashboard?wallet=' + encodeURIComponent(wallet));
     if (!rs.ok) throw new Error('HTTP ' + rs.status);
-    renderDashPoly(await rs.json());
+    const d = await rs.json();
+    renderDashPoly(d);
+    // Modo online: se uma posição saiu das ativas entre dois polls, ela resolveu →
+    // puxa para o TSV automaticamente (sync silencioso).
+    const atual = new Set((d.ativas || []).map(a => a.codigo));
+    if (polyActivosPrev) {
+      const resolvidos = [...polyActivosPrev].filter(c => !atual.has(c));
+      if (resolvidos.length && !polySyncing) sincronizarPolymarket({ silencioso: true });
+    }
+    polyActivosPrev = atual;
   } catch (e) {
     if (st) st.textContent = '✗ ' + e.message;
   }
+}
+
+// ── Polymarket: polling do dashboard (mantém ativas/TSV ao vivo) ────────────────
+let polyPollTimer = null;
+function iniciarPollPoly() {
+  pararPollPoly();
+  polyActivosPrev = null;
+  carregarDashboardPoly();
+  polyPollTimer = setInterval(carregarDashboardPoly, 60000);   // 60s
+}
+function pararPollPoly() {
+  if (polyPollTimer) { clearInterval(polyPollTimer); polyPollTimer = null; }
+  polyActivosPrev = null;
 }
 
 function renderDashPoly(d) {
@@ -1142,7 +1173,7 @@ function renderDashPoly(d) {
     return;
   }
   body.innerHTML = d.ativas.map(a => {
-    const rel = a.data_rel ? `<span class="pm-rel">${a.data_rel}</span>` : '';
+    const rel = a.data_rel ? `<span class="pm-rel">${esc(a.data_rel)}</span>` : '';
     const pnlCls = a.pnl_pct >= 0 ? 'pm-pos' : 'pm-neg';
     const pnlTxt = (a.pnl_pct >= 0 ? '+' : '') + Number(a.pnl_pct).toFixed(1) + '%';
     return `<tr>
@@ -1157,20 +1188,30 @@ function renderDashPoly(d) {
     </tr>`;
   }).join('');
   body.querySelectorAll('.pm-tip-input').forEach(inp => {
-    inp.addEventListener('change', () => salvarTipsterAtivo(inp.dataset.codigo, inp.value.trim()));
+    inp.addEventListener('focus', () => { inp.dataset.prev = inp.value; });
+    inp.addEventListener('change', () => salvarTipsterAtivo(inp));
   });
 }
 
-async function salvarTipsterAtivo(codigo, tipster) {
+async function salvarTipsterAtivo(inp) {
+  const codigo = inp.dataset.codigo;
   if (!codigo) return;
+  const tipster = inp.value.trim();
+  const prev = inp.dataset.prev || '';
+  const st = document.getElementById('pm-ativas-status');
   try {
-    await fetch('/polymarket/ativo-tipster', {
+    const rs = await fetch('/polymarket/ativo-tipster', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ codigo, tipster }),
     });
+    if (!rs.ok) throw new Error('HTTP ' + rs.status);
+    inp.dataset.prev = tipster;
     if (tipster && typeof carregarTipsters === 'function') carregarTipsters();
-  } catch (e) { /* silencioso — o valor fica na tela */ }
+  } catch (e) {
+    inp.value = prev;                       // rollback igual à grade
+    if (st) st.textContent = '✗ não foi possível salvar o tipster';
+  }
 }
 
 function setPolyStatus(msg, kind) {
@@ -1180,18 +1221,22 @@ function setPolyStatus(msg, kind) {
   el.className = 'status-msg' + (kind ? ' ' + kind : '');
 }
 
-async function sincronizarPolymarket() {
+let polySyncing = false;
+async function sincronizarPolymarket(opts = {}) {
+  const silent = opts.silencioso === true;
+  if (polySyncing) return;                       // guard: clique + Enter + auto não se sobrepõem
   if (!parceiroSelecionado) return;
   const wallet = (document.getElementById('poly-wallet').value || '').trim();
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
-    setPolyStatus('Carteira inválida — endereço 0x… com 42 caracteres.', 'err');
+    if (!silent) setPolyStatus('Carteira inválida — endereço 0x… com 42 caracteres.', 'err');
     return;
   }
   localStorage.setItem('poly-wallet', wallet);
+  polySyncing = true;
   const btn = document.getElementById('btn-poly-sync');
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
   const t0 = Date.now();
-  const timer = setInterval(
+  const timer = silent ? null : setInterval(
     () => setPolyStatus(`Sincronizando… (${Math.round((Date.now() - t0) / 1000)}s)`, ''), 250);
   try {
     const rs = await fetch('/polymarket/sync', {
@@ -1199,29 +1244,34 @@ async function sincronizarPolymarket() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wallet, parceiro: parceiroSelecionado.nome }),
     });
-    clearInterval(timer);
+    if (timer) clearInterval(timer);
     if (!rs.ok) {
       const err = await rs.json().catch(() => ({}));
       throw new Error(err.detail || ('HTTP ' + rs.status));
     }
     const d = await rs.json();
-    const partes = [];
-    if (d.inseridos)   partes.push(`${d.inseridos} novo(s)`);
-    if (d.atualizados) partes.push(`${d.atualizados} atualizado(s)`);
-    setPolyStatus(`✓ ${partes.join(' · ') || 'nada novo'} · ${d.coletados || 0} coletados`, 'ok');
-    if ((d.alertas || []).length) setPolyStatus(`✓ ${d.coletados || 0} coletados · ${d.alertas[0]}`, 'warn');
+    if (silent) {
+      if (d.inseridos || d.atualizados) setPolyStatus('✓ posição resolvida → enviada ao TSV', 'ok');
+    } else {
+      const partes = [];
+      if (d.inseridos)   partes.push(`${d.inseridos} novo(s)`);
+      if (d.atualizados) partes.push(`${d.atualizados} atualizado(s)`);
+      setPolyStatus(`✓ ${partes.join(' · ') || 'nada novo'} · ${d.coletados || 0} coletados`, 'ok');
+      if ((d.alertas || []).length) setPolyStatus(`✓ ${d.coletados || 0} coletados · ${d.alertas[0]}`, 'warn');
+    }
     await carregarGrade();
     atualizarPendentes();
-    carregarDashboardPoly();
+    if (!silent) carregarDashboardPoly();        // no modo silencioso o poll já cuida do refresh
   } catch (e) {
-    clearInterval(timer);
-    setPolyStatus('✗ ' + e.message, 'err');
+    if (timer) clearInterval(timer);
+    if (!silent) setPolyStatus('✗ ' + e.message, 'err');
   } finally {
-    btn.disabled = false;
+    polySyncing = false;
+    if (btn) btn.disabled = false;
   }
 }
 
-document.getElementById('btn-poly-sync').addEventListener('click', sincronizarPolymarket);
+document.getElementById('btn-poly-sync').addEventListener('click', () => sincronizarPolymarket());
 document.getElementById('poly-wallet').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); sincronizarPolymarket(); }
 });

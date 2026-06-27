@@ -354,6 +354,22 @@ async def set_ativo_tipster(dono: str, codigo: str, tipster: str) -> None:
         )
 
 
+async def limpar_ativos_tipster(dono: str, codigos: list[str]) -> int:
+    """Apaga as linhas de tipster de ativas que já migraram para `bilhetes` (a aposta
+    resolveu). Sem isso, o carry-over reinjetaria o tipster antigo a cada re-sync,
+    sobrescrevendo uma edição feita na grade; e a tabela cresceria sem limite."""
+    if not codigos:
+        return 0
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM polymarket_ativos_tipster "
+            "WHERE dono = $1 AND codigo = ANY($2::text[])",
+            dono, codigos,
+        )
+    return int(result.split()[-1])
+
+
 async def marcar_copiada(ids: list[int], dono: str) -> int:
     pool = await get_pool()
     async with pool.acquire() as conn:

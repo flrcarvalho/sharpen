@@ -4,9 +4,9 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-27 (sessão 57 — UI: colunas redimensionáveis na grade e na tabela de Posições ativas; larguras persistidas em localStorage, duplo-clique restaura. Largura da tabela travada na soma exata das colunas → encolher abaixo do conteúdo agora funciona, com reticências e scroll horizontal)_
+_Atualizado: 2026-06-27 (sessão 58 — auditoria da integração Polymarket (3 auditores) + correções aplicadas + modo online: posição resolvida sai das ativas e entra no TSV sozinha)_
 
-_Anterior: 2026-06-27 (sessão 56 ENCERRADA — Polymarket sob o guarda-chuva: ingestão por API + tipsters migrados + dashboard ao vivo, tudo confirmado pelo Feca e no ar)_
+_Anterior: 2026-06-27 (sessão 57 — UI: colunas redimensionáveis na grade e na tabela de Posições ativas; larguras persistidas em localStorage, duplo-clique restaura. Largura da tabela travada na soma exata das colunas → encolher abaixo do conteúdo agora funciona, com reticências e scroll horizontal)_
 
 > Próxima sessão (candidatos, nenhum urgente): (1) Fase 5 — aposentar o app Polymarket standalone, só quando o Feca decidir (hoje fica como backup). (2) Cadastrar Snooker como esporte canônico no `MASTER_ESPORTES` (hoje cai em `Outro`). (3) Posições ativas hoje vivem só no dashboard; avaliar se entram na grade.
 
@@ -54,6 +54,20 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 58 (27/06/2026) — Auditoria da integração Polymarket + correções + modo online:**
+  - **Auditoria (3 auditores em paralelo + checagem própria):** port Python vs app standalone JS, integração backend (rotas/dono/COALESCE), frontend, e conexão casa↔masters. `audit_casas`: 12/12 OK; taxonomia 100% conectada (10 categorias e todos os esportes emitidos são canônicos). Veredito: integração sólida, nada quebrava produção.
+  - **Correções aplicadas (commit desta sessão):**
+    - **Paginação (`polymarket.py`):** `/positions` voltou a `limit=100` e `/activity` a `limit=500` (espelha o app standalone). O `limit=500` em positions podia truncar o histórico em silêncio (a parada `len < limit` quebrava na 1ª página). Dry-run pós-fix: 207 resolvidos.
+    - **Tipster sobrescrito no re-sync (`repository.limpar_ativos_tipster` + `main.py`):** a `polymarket_ativos_tipster` nunca era limpa após o carry-over → re-sync reinjetava o tipster antigo por cima de uma edição na grade. Agora, após o upsert, as linhas migradas são deletadas (resolve também o crescimento de órfãos).
+    - **Dashboard multi-compra (`_split_multibuys`):** `currentValue` agora é distribuído proporcional ao stake de cada split (espelha o JS) — antes cada split herdava o valor cheio e inflava portfólio/%P&L de ativas multi-compra.
+    - **reconciliarRedeems:** fallback do valor resgatado `size‖amount` (alinhado ao JS; era `size‖usdcSize`).
+    - **PTAX de hoje (`coletar_bilhetes`):** recua até 6 dias em fim de semana/feriado (igual ao dashboard) — evitava gravar stake em USD rotulado como BRL quando o sync caía num dia sem boletim.
+    - **E-Sports Props:** over/under de estatística de E-Sports agora vira `E-Sports Props` (invariante global), não `Player Props`.
+    - **Frontend:** `esc(data_rel)` (XSS), `salvarTipsterAtivo` checa `rs.ok` + rollback + aviso (paridade com a grade), guard de duplo-sync (clique+Enter+auto via flag `polySyncing`), âmbar `#E0A21A`→`var(--warn)`, feedback de carteira inválida no dashboard.
+  - **Modo online (`index.html`):** ao entrar na casa Polymarket, um poll de 60s atualiza o dashboard; quando uma posição **sai das ativas** entre dois polls (resolveu), dispara um **sync silencioso** que a puxa pro TSV automaticamente. Sem clique. Sync manual (botão) continua. Decisão: detecção por encolhimento do conjunto de ativas (eficiente) em vez de full-sync a cada tick.
+  - **Doc:** `CASA_POLYMARKET §2` (tamanho de página por endpoint) e `§13` (exceção arquitetural consciente: classificação esporte/categoria é em código, não herda as listas dos masters).
+  - Backup: `Backups/pre_auditoria_polymarket_2026-06-27/`.
 
 - **Sessão 56 (27/06/2026) — Polymarket vira fonte na grade unificada (branch `feat/polymarket-ingestao`, NÃO mergeado):**
   - **Pedido (Feca):** o projeto Polymarket (pasta-irmã, Node/Express+JS) faz a mesma coisa que o Planilhador — extrai apostas — só que via API com conversão USD→BRL. Não faz sentido serem separados; trazer a Polymarket como guarda-chuva do extrator. Escopo decidido: **só a ingestão** (o dashboard analítico da Poly fica fora). Mecanismo: **reescrita em Python** (um app só). Feca delegou decisão+execução.

@@ -24,6 +24,9 @@
   (a peça que destrava a API no Brasil; reusada intacta do app Polymarket standalone).
 - **Endpoints:** `/positions` (posições) e `/activity` (compras/resgates), ambos
   paginados **sem teto** até a página vir vazia → histórico desde a 1ª aposta.
+  Tamanho de página **por endpoint** (espelha o app standalone): `/positions` pede
+  `limit=100` (a API limita a página deste endpoint — pedir mais faria a parada
+  `len < limit` truncar o histórico em silêncio); `/activity` pede `limit=500`.
 - **Cotação USD→BRL:** `olinda.bcb.gov.br` (PTAX, `cotacaoVenda`), pela data da
   aposta, com fallback de até 4 dias (fim de semana/feriado) e, por fim, hoje.
 - **Sem upload:** o painel da casa troca o drag-and-drop por **carteira + Sincronizar**.
@@ -128,9 +131,19 @@
 - `type:"TRADE"` + `side:"BUY"` na activity — tratar `type` **ou** `side`.
 - `startDate`/`createdAt` **não existem** em `/positions`; a data vem do `REDEEM`
   (BRT) → `eventSlug` → `endDate`, nessa ordem.
-- E-Sports vem granular (CS2, LoL, Dota 2…) → **colapsa para `E-Sports`** no global.
+- E-Sports vem granular (CS2, LoL, Dota 2…) → **colapsa para `E-Sports`** no global;
+  over/under de estatística de E-Sports vira `E-Sports Props` (nunca `Player Props`).
 - **Snooker** não é esporte canônico → cai em `Outro` (candidato a cadastro futuro).
 - A API ordena resolvidas/`redeemable` primeiro — por isso a paginação é obrigatória.
+
+> **Exceção arquitetural consciente:** esta é a única casa que classifica
+> **esporte e categoria em código** (`app/polymarket.py`, regex determinístico),
+> e não pela IA guiada pelos masters. Os masters são markdown para a IA de visão —
+> o coletor Python não os consulta. Logo, a Polymarket **não** herda as listas
+> auxiliares do `MASTER_ESPORTES` (centenas de jogadores de Tênis/Dardos, armadilha
+> LYON, desambiguação Tênis vs Padel) nem a prioridade semântica do `MASTER_APOSTAS`.
+> A cobertura é deliberadamente um subconjunto: cauda longa sem liga/sinal no título
+> cai em `Outro`/`ML` e é ajustada na grade. Não esperar paridade com a IA aqui.
 
 ---
 

@@ -30,8 +30,8 @@ from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     contar_pendentes, criar_parceiro, deletar_bilhetes, get_ativos_tipster,
-    get_codigos_existentes, get_codigos_resolvidos, list_bilhetes, list_tipsters,
-    set_ativo_tipster,
+    get_codigos_existentes, get_codigos_resolvidos, limpar_ativos_tipster,
+    list_bilhetes, list_tipsters, set_ativo_tipster,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
     reativar_parceiro, upsert_bilhetes,
 )
@@ -844,6 +844,10 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
             r["tipster"] = t
 
     inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono)
+    # As posições que resolveram migraram o tipster para `bilhetes`: apaga as linhas
+    # de ativa correspondentes para não reinjetar (e sobrescrever) no próximo re-sync.
+    if salvos:
+        await limpar_ativos_tipster(dono, list(salvos.keys()))
     arquivados = await auto_arquivar("Polymarket", parceiro, len(ids), dono)
 
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
