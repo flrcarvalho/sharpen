@@ -4,7 +4,9 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-27 (sessão 56 ENCERRADA — Polymarket sob o guarda-chuva: ingestão por API + tipsters migrados + dashboard ao vivo, tudo confirmado pelo Feca e no ar)_
+_Atualizado: 2026-06-27 (sessão 57 — UI: colunas redimensionáveis na grade e na tabela de Posições ativas, com larguras persistidas em localStorage e duplo-clique para restaurar)_
+
+_Anterior: 2026-06-27 (sessão 56 ENCERRADA — Polymarket sob o guarda-chuva: ingestão por API + tipsters migrados + dashboard ao vivo, tudo confirmado pelo Feca e no ar)_
 
 > Próxima sessão (candidatos, nenhum urgente): (1) Fase 5 — aposentar o app Polymarket standalone, só quando o Feca decidir (hoje fica como backup). (2) Cadastrar Snooker como esporte canônico no `MASTER_ESPORTES` (hoje cai em `Outro`). (3) Posições ativas hoje vivem só no dashboard; avaliar se entram na grade.
 

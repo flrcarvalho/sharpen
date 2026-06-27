@@ -248,7 +248,15 @@ body::before {
 .pm-ativas-wrap { background:var(--surface); border:1px solid var(--grid); border-radius:10px; margin-bottom:14px; overflow:hidden; }
 .pm-ativas-head { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-family:var(--font-mono); border-bottom:1px solid var(--grid); }
 .pm-ativas-scroll { max-height:300px; overflow:auto; }
-table.pm-ativas { width:100%; border-collapse:collapse; font-size:12px; }
+table.pm-ativas { width:max-content; min-width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
+table.pm-ativas th:nth-child(1){ width:320px; }
+table.pm-ativas th:nth-child(2){ width:130px; }
+table.pm-ativas th:nth-child(3){ width:110px; }
+table.pm-ativas th:nth-child(4){ width:90px; }
+table.pm-ativas th:nth-child(5){ width:90px; }
+table.pm-ativas th:nth-child(6){ width:84px; }
+table.pm-ativas th:nth-child(7){ width:112px; }
+table.pm-ativas th:nth-child(8){ width:74px; }
 table.pm-ativas th { text-align:left; padding:7px 10px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); font-weight:600; position:sticky; top:0; background:var(--surface); z-index:1; }
 table.pm-ativas th.num, table.pm-ativas td.num { text-align:right; font-family:var(--font-mono); }
 table.pm-ativas td { padding:6px 10px; border-top:1px solid var(--grid); color:var(--ink-soft); vertical-align:middle; }
@@ -306,7 +314,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   flex: 1; overflow: auto; min-height: 0;
 }
 .grade {
-  width: 100%; border-collapse: collapse;
+  width: max-content; min-width: 100%; border-collapse: collapse;
   font-size: 12px; table-layout: fixed;
 }
 .grade thead th {
@@ -338,6 +346,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
 .c-casa { width: 80px; }
 .c-parc { width: 96px; }
 .c-apos { width: 76px; }
+.c-desc { width: 280px; }
 .c-stk  { width: 78px; font-family: var(--font-mono); text-align: right; }
 .c-odd  { width: 66px; font-family: var(--font-mono); text-align: right; }
 .c-res  { width: 60px; text-align: center; }
@@ -370,6 +379,18 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   background: var(--line); transition: background .15s;
 }
 .resizer:hover, .resizer.dragging { background: var(--accent); }
+/* Alça de redimensionamento de coluna (grade + posições ativas) */
+.col-resizer {
+  position: absolute; top: 0; right: 0; height: 100%;
+  width: 8px; cursor: col-resize; user-select: none;
+  z-index: 3;
+}
+.col-resizer::after {
+  content: ''; position: absolute; top: 18%; right: 2px;
+  height: 64%; width: 2px; border-radius: 2px;
+  background: transparent; transition: background .12s;
+}
+.col-resizer:hover::after, .col-resizer.dragging::after { background: var(--accent); }
 .badge-r {
   display: inline-block; padding: 2px 7px;
   border-radius: var(--r-xs); font-size: 10px; font-weight: 700;
@@ -670,7 +691,7 @@ td.c-res.res-HL { color: var(--warn); }
                   <th class="c-casa">Casa</th>
                   <th class="c-parc">Parceiro</th>
                   <th class="c-apos">Aposta</th>
-                  <th>Descrição</th>
+                  <th class="c-desc">Descrição</th>
                   <th class="c-stk">Stake</th>
                   <th class="c-odd">Odd</th>
                   <th class="c-res">Result.</th>
@@ -2190,8 +2211,64 @@ document.getElementById('s-arc').addEventListener('click', async () => {
   }
 })();
 
+// ── Colunas redimensionáveis (grade + posições ativas) ────────────────────────
+function setupColResize(table, storageKey) {
+  if (!table || !table.tHead || !table.tHead.rows.length) return;
+  const ths = Array.from(table.tHead.rows[0].cells);
+
+  // restaura larguras salvas (inline; funciona mesmo com a tabela oculta)
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch {}
+  ths.forEach((th, i) => { if (saved[i]) th.style.width = saved[i]; });
+
+  function persist() {
+    const obj = {};
+    ths.forEach((th, i) => { if (th.style.width) obj[i] = th.style.width; });
+    if (Object.keys(obj).length) localStorage.setItem(storageKey, JSON.stringify(obj));
+    else localStorage.removeItem(storageKey);
+  }
+
+  ths.forEach((th, i) => {
+    if (i === ths.length - 1) return;            // última coluna não tem alça
+    const grip = document.createElement('div');
+    grip.className = 'col-resizer';
+    grip.title = 'Arraste para redimensionar · duplo-clique restaura o padrão';
+    th.appendChild(grip);
+
+    grip.addEventListener('mousedown', e => {
+      e.preventDefault(); e.stopPropagation();
+      const startX = e.clientX, startW = th.offsetWidth;
+      grip.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      const onMove = ev => {
+        const w = Math.max(36, startW + (ev.clientX - startX));
+        th.style.width = w + 'px';
+      };
+      const onUp = () => {
+        grip.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        persist();
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    grip.addEventListener('dblclick', e => {
+      e.preventDefault(); e.stopPropagation();
+      th.style.width = '';                       // volta ao padrão do CSS
+      persist();
+    });
+  });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.getElementById('btn-logout').addEventListener('click', logout);
+setupColResize(document.querySelector('table.grade'), 'fdc-grade-cols');
+setupColResize(document.querySelector('table.pm-ativas'), 'fdc-pm-ativas-cols');
 carregarUsuario();
 carregarCasas();
 </script>
