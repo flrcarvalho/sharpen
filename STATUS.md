@@ -4,7 +4,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-26 (sessão 54 — data de captura isolada por parceiro)_
+_Atualizado: 2026-06-27 (sessão 56 — Polymarket sob o guarda-chuva do Planilhador; branch `feat/polymarket-ingestao`, aguardando merge→deploy)_
 
 ---
 
@@ -50,6 +50,15 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 ---
 
 ## 4. Estado atual
+
+- **Sessão 56 (27/06/2026) — Polymarket vira fonte na grade unificada (branch `feat/polymarket-ingestao`, NÃO mergeado):**
+  - **Pedido (Feca):** o projeto Polymarket (pasta-irmã, Node/Express+JS) faz a mesma coisa que o Planilhador — extrai apostas — só que via API com conversão USD→BRL. Não faz sentido serem separados; trazer a Polymarket como guarda-chuva do extrator. Escopo decidido: **só a ingestão** (o dashboard analítico da Poly fica fora). Mecanismo: **reescrita em Python** (um app só). Feca delegou decisão+execução.
+  - **Insight:** os dois apps já convergem no mesmo contrato — o `buildTSVRow` da Poly emite exatamente as 10 colunas do Planilhador. A Poly só reimplementava (pior, em localStorage) a grade/tipster/copiadas que o Planilhador já faz melhor (Postgres, multiusuário, dedup, teclado). A diferença é só a porta de entrada: screenshot+IA vs API.
+  - **Coletor (`app/polymarket.py`, novo, commit `96b2743`):** porta o pipeline do app standalone — busca `positions`+`activity` (paginação **sem teto** → histórico desde a 1ª aposta), reconcilia vitórias resgatadas (`reconciliarRedeems`), expande compras múltiplas (`splitMultiBuys`), converte USD→BRL via PTAX/BCB do dia. Detecção de esporte/categoria determinística normalizada p/ a taxonomia global (e-sports colapsa em `E-Sports`; Snooker→`Outro`). Código de dedup = `conditionId`/`__i`. **Reusa o Worker Cloudflare** `polymarket-proxy.flrcarvalho.workers.dev` (a peça que destrava a API no BR) — confirmado respondendo do Brasil (HTTP 200).
+  - **Validação real (dry-run, sem tocar banco):** carteira `0x2b3c…9f22` → **202 bilhetes resolvidos, 83 W / 119 L**, conversão BRL correta, odds em precisão cheia com vírgula. 33/202 caíram em `Outro` (cauda longa sem liga no título) — ajustável na grade.
+  - **Integração (commit `6bc9055`):** `CASA_POLYMARKET.md` (camada fina, 15 seções, passa o audit), `POLYMARKET` em `_CASA_DISPLAY`+`NOMES`/`DOMINIOS`, rota `POST /polymarket/sync` (espelha `/salvar`: upsert+auto-arquivar), painel **carteira+Sincronizar** que troca o upload quando a casa é Polymarket (`aplicarModoCasa`), reusa a grade inteira. `httpx` em requirements. **`audit_casas`: 12/12 OK.**
+  - **Decisões registradas:** ingere só posições RESOLVIDAS (W/L) — espelha o `getOrderedFechados` do app antigo e evita a borda de dedup aberta→resolvida em compras múltiplas; posições abertas ficam p/ fase futura. Snooker é candidato a esporte canônico no `MASTER_ESPORTES` (mudança separada, não feita aqui).
+  - **Pendente:** (1) **merge→deploy aguarda OK do Feca** — fluxo autenticado completo só dá pra testar na Railway (cookie `secure=True` não persiste em localhost, caveat sessão 44). (2) Aposentar/arquivar o app Polymarket standalone (Fase 5) **após** confirmar funcionamento em produção. Backup dos arquivos editados: `Backups/polymarket-ingestao-fase1-2/`.
 
 - **Sessão 55 (26/06/2026) — grade com teclado estilo planilha + autocomplete de tipster:**
   - **Pedido (Feca):** preencher tipster dentro do app (hoje exporta TSV pro Google Sheets só por causa da musculatura de teclado). Tipster é imprevisível bilhete a bilhete, mas os nomes se repetem → autocomplete pesa muito.
