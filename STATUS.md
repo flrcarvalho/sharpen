@@ -60,8 +60,12 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
     - Navegação por teclado: `Enter`/`Shift+Enter` desce/sobe na coluna · `Tab`/`Shift+Tab` anda lado a lado (estoura p/ próxima/linha anterior) · `↑`/`↓` movem entre linhas (exceto no input de tipster, onde controlam o dropdown).
     - Entrar numa célula via navegação seleciona todo o conteúdo → digitar substitui (igual Sheets).
     - Salvamento inline generalizado (`focusout`) atende tanto `contenteditable` quanto o input; novo tipster recarrega o autocomplete. `carregarTipsters()` dispara junto de `carregarGrade()`.
-  - **Fase 2 (só se a MVP não bastar):** seleção de intervalo `Shift+seta` + `Ctrl+D` (preencher p/ baixo) + colar coluna do clipboard.
-  - Backup: `Backups/pre_grade_teclado_autocomplete_2026-06-26/`. Commit: (este).
+  - Backup: `Backups/pre_grade_teclado_autocomplete_2026-06-26/`. Commit: `3d311a2`.
+  - **Fase 2 (mesmo dia, a pedido do Feca) — seleção retangular + copiar/colar:**
+    - Seleção de células sobre as 8 colunas editáveis (data, esporte, tipster, aposta, descrição, stake, odd, resultado): `Shift+setas` estende a partir da âncora; clique define âncora, `Shift+clique` estende. Destaque azul (`.cell-sel`).
+    - `Ctrl+C` copia o retângulo como TSV (com caret colapsado copia a célula ativa; com texto selecionado dentro de 1 célula deixa o copy nativo).
+    - `Ctrl+V`: 1 valor + faixa selecionada → preenche a faixa toda (caso clássico: mesmo tipster em N linhas); matriz NxM → cola a partir do canto superior-esquerdo. PATCH otimista por célula + `renderGrade`; reverte célula a célula em erro. Colar 1 valor numa célula isolada cai no paste nativo (não tira o foco).
+    - Backup: `Backups/pre_selecao_copiar_colar_2026-06-26/`. Commit: (este).
 
 - **Sessão 54 (26/06/2026) — data de captura vazava entre parceiros:**
   - **Sintoma (Feca):** ao mudar a data de captura num parceiro (ex.: setar "ontem" na Bet365 para um print que diz "Ontem"), o valor grudava e era usado em todos os outros parceiros. Na Superbet seguinte, "Ontem" resolvia para anteontem porque a data de referência ainda era a de ontem.

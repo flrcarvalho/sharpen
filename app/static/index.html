@@ -431,6 +431,8 @@ td.c-tip { padding: 0; }
   outline: 1px solid rgba(46,139,255,.45); outline-offset: -1px;
   background: rgba(46,139,255,.06);
 }
+/* Seleção retangular de células (copiar/colar) */
+.grade td.cell-sel, .cell-input.cell-sel { background: rgba(46,139,255,.18); }
 /* Resultado colorido (sem badge) */
 td.c-res { font-weight: 700; font-family: var(--font-mono); font-size: 11px; }
 td.c-res.res-W  { color: var(--d-pos); }
@@ -1502,6 +1504,41 @@ const CELL_SEL = 'td[contenteditable], input.cell-input';
 function cellValue(el) { return (el.tagName === 'INPUT' ? el.value : el.textContent).trim(); }
 function setCellValue(el, v) { if (el.tagName === 'INPUT') el.value = v; else el.textContent = v; }
 
+// ── Seleção retangular de células (coords sobre as células editáveis) ──────────
+let selAnchor = null, selFocus = null; // {r, c}
+
+function bilheteRows() { return Array.from(GRADE.querySelectorAll('tr[data-id]')); }
+function coordOf(el) {
+  const tr = el.closest('tr');
+  const r = bilheteRows().indexOf(tr);
+  const c = gradeCells(tr).indexOf(el);
+  return (r < 0 || c < 0) ? null : { r, c };
+}
+function cellAt(r, c) {
+  const rows = bilheteRows();
+  if (r < 0 || r >= rows.length) return null;
+  const cells = gradeCells(rows[r]);
+  return (c < 0 || c >= cells.length) ? null : cells[c];
+}
+function selRetangulo() {
+  if (!selAnchor || !selFocus) return null;
+  return {
+    r0: Math.min(selAnchor.r, selFocus.r), r1: Math.max(selAnchor.r, selFocus.r),
+    c0: Math.min(selAnchor.c, selFocus.c), c1: Math.max(selAnchor.c, selFocus.c),
+  };
+}
+function limparPintura() { GRADE.querySelectorAll('.cell-sel').forEach(el => el.classList.remove('cell-sel')); }
+function pintarSelecao() {
+  limparPintura();
+  const rect = selRetangulo();
+  if (!rect || (rect.r0 === rect.r1 && rect.c0 === rect.c1)) return; // célula única: sem destaque
+  for (let r = rect.r0; r <= rect.r1; r++)
+    for (let c = rect.c0; c <= rect.c1; c++) {
+      const el = cellAt(r, c);
+      if (el) el.classList.add('cell-sel');
+    }
+}
+
 GRADE.addEventListener('focusout', async e => {
   const el = e.target.closest(CELL_SEL);
   if (!el) return;
@@ -1549,6 +1586,9 @@ function focusCell(tr, colIdx) {
     const sel = window.getSelection();
     sel.removeAllRanges(); sel.addRange(range);
   }
+  const co = coordOf(el); // navegar colapsa a seleção na nova célula
+  if (co) { selAnchor = co; selFocus = co; }
+  limparPintura();
 }
 
 function linhaIrma(tr, dir) { // próxima/anterior <tr> que seja um bilhete
@@ -1572,10 +1612,28 @@ function moverCelula(el, dRow, dCol) {
   }
 }
 
+const SETAS = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+
 GRADE.addEventListener('keydown', e => {
   const el = e.target.closest(CELL_SEL);
   if (!el) return;
   const isInput = el.tagName === 'INPUT';
+
+  // Shift + setas → estende a seleção retangular (sobrepõe seleção de texto da célula)
+  if (e.shiftKey && SETAS[e.key]) {
+    e.preventDefault();
+    if (!selFocus) { const co = coordOf(el); selAnchor = co; selFocus = co; }
+    const [dr, dc] = SETAS[e.key];
+    const rows = bilheteRows();
+    const maxC = gradeCells(rows[selFocus.r]).length - 1;
+    selFocus = {
+      r: Math.max(0, Math.min(rows.length - 1, selFocus.r + dr)),
+      c: Math.max(0, Math.min(maxC, selFocus.c + dc)),
+    };
+    pintarSelecao();
+    return;
+  }
+
   if (e.key === 'Enter') {
     e.preventDefault();
     moverCelula(el, e.shiftKey ? -1 : 1, 0);
@@ -1588,6 +1646,105 @@ GRADE.addEventListener('keydown', e => {
     moverCelula(el, e.key === 'ArrowDown' ? 1 : -1, 0);
   }
 });
+
+// ── Seleção por mouse: clique define âncora; Shift+clique estende ──────────────
+GRADE.addEventListener('mousedown', e => {
+  const el = e.target.closest(CELL_SEL);
+  if (!el) return;
+  const co = coordOf(el);
+  if (!co) return;
+  if (e.shiftKey) {
+    e.preventDefault(); // não inicia seleção de texto
+    if (!selAnchor) selAnchor = co;
+    selFocus = co;
+    pintarSelecao();
+  } else {
+    selAnchor = co; selFocus = co; limparPintura();
+  }
+});
+
+// ── Copiar seleção como TSV (Ctrl+C) ──────────────────────────────────────────
+document.addEventListener('copy', e => {
+  const active = document.activeElement;
+  if (!active || !active.closest || !active.closest('#grade-body')) return;
+  const rect = selRetangulo();
+  if (!rect) return;
+  const multi = rect.r0 !== rect.r1 || rect.c0 !== rect.c1;
+  // Se há texto realmente selecionado numa única célula, deixa o copy nativo (texto parcial)
+  const txtInput = active.tagName === 'INPUT' && active.selectionStart !== active.selectionEnd;
+  const txtCE = active.tagName !== 'INPUT' && !window.getSelection().isCollapsed;
+  if (!multi && (txtInput || txtCE)) return;
+  const linhas = [];
+  for (let r = rect.r0; r <= rect.r1; r++) {
+    const cols = [];
+    for (let c = rect.c0; c <= rect.c1; c++) { const el = cellAt(r, c); cols.push(el ? cellValue(el) : ''); }
+    linhas.push(cols.join('\t'));
+  }
+  e.clipboardData.setData('text/plain', linhas.join('\n'));
+  e.preventDefault();
+});
+
+// ── Colar TSV na seleção (Ctrl+V) ─────────────────────────────────────────────
+document.addEventListener('paste', e => {
+  const active = document.activeElement;
+  if (!active || !active.closest || !active.closest('#grade-body')) return;
+  const startEl = active.closest(CELL_SEL);
+  if (!startEl) return;
+  const texto = (e.clipboardData || window.clipboardData).getData('text/plain');
+  if (!texto) return;
+  const matriz = texto.replace(/\r/g, '').replace(/\n+$/, '').split('\n').map(l => l.split('\t'));
+  const rect = selRetangulo();
+  const single = matriz.length === 1 && matriz[0].length === 1;
+  const rangeSel = rect && (rect.r0 !== rect.r1 || rect.c0 !== rect.c1);
+  if (single && !rangeSel) return; // 1 valor em 1 célula → deixa o paste nativo editar inline
+  e.preventDefault();
+  const ini = coordOf(startEl) || { r: rect ? rect.r0 : 0, c: rect ? rect.c0 : 0 };
+  const r0 = rect ? rect.r0 : ini.r, c0 = rect ? rect.c0 : ini.c;
+
+  const writes = [];
+  if (single && rangeSel) {
+    // 1 valor → preenche toda a seleção (caso clássico: mesmo tipster em N linhas)
+    const v = matriz[0][0];
+    for (let r = rect.r0; r <= rect.r1; r++)
+      for (let c = rect.c0; c <= rect.c1; c++) { const el = cellAt(r, c); if (el) writes.push({ el, valor: v }); }
+  } else {
+    // cola a matriz a partir do canto superior-esquerdo
+    for (let i = 0; i < matriz.length; i++)
+      for (let j = 0; j < matriz[i].length; j++) { const el = cellAt(r0 + i, c0 + j); if (el) writes.push({ el, valor: matriz[i][j] }); }
+  }
+  aplicarEscritas(writes);
+});
+
+async function aplicarEscritas(writes) {
+  const patches = [];
+  for (const w of writes) {
+    const id = parseInt(w.el.closest('tr').dataset.id);
+    const campo = w.el.dataset.campo;
+    const b = bilhetes.find(x => x.id === id);
+    if (!b) continue;
+    const valor = (w.valor ?? '').trim();
+    if (b[campo] === valor) continue;
+    patches.push({ id, campo, valor, anterior: b[campo], b });
+    b[campo] = valor; // otimista
+  }
+  if (!patches.length) return;
+  renderGrade();
+  let novoTipster = false, erros = 0;
+  await Promise.all(patches.map(async p => {
+    try {
+      const r = await fetch(`/bilhetes/${p.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [p.campo]: p.valor }),
+      });
+      if (!r.ok) throw new Error();
+      if (p.campo === 'tipster' && p.valor) novoTipster = true;
+    } catch { p.b[p.campo] = p.anterior; erros++; }
+  }));
+  selAnchor = selFocus = null;
+  renderGrade();
+  if (novoTipster) carregarTipsters();
+  setExpStatus(erros ? `${patches.length - erros} coladas · ${erros} com erro` : `✓ ${patches.length} célula(s) coladas`, erros ? 'warn' : 'ok');
+}
 
 // ── Autocomplete de tipster (datalist global) ─────────────────────────────────
 async function carregarTipsters() {
