@@ -325,6 +325,31 @@ async def list_tipsters(dono: str) -> list[str]:
     return [r["tipster"] for r in rows]
 
 
+async def importar_tipsters_polymarket(dono: str, parceiro: str, desc2tip: dict[str, str]) -> int:
+    """Aplica tipster aos bilhetes Polymarket do dono/parceiro, casando por DESCRIÇÃO.
+
+    A descrição é chave exata: vem do mesmo título da API tanto no app antigo
+    (que exportou o TSV) quanto no coletor novo. Migração one-shot dos tipsters
+    que viviam só no localStorage do app standalone. Retorna nº de linhas atualizadas.
+    """
+    pool = await get_pool()
+    atualizados = 0
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            for desc, tip in desc2tip.items():
+                tip = (tip or "").strip()
+                if not tip:
+                    continue
+                res = await conn.execute(
+                    """UPDATE bilhetes SET tipster = $1, atualizado_em = NOW()
+                       WHERE dono = $2 AND casa = 'Polymarket' AND parceiro = $3
+                         AND descricao = $4""",
+                    tip, dono, parceiro, desc,
+                )
+                atualizados += int(res.split()[-1])
+    return atualizados
+
+
 async def marcar_copiada(ids: list[int], dono: str) -> int:
     pool = await get_pool()
     async with pool.acquire() as conn:
