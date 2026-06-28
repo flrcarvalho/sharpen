@@ -182,8 +182,17 @@ body::before {
 /* Logos circulares com padding transparente: scale corta a margem e preenche o chip */
 .casa-group[data-casa="Novibet"] .casa-chip img,
 .casa-group[data-casa="Esportiva"] .casa-chip img,
+.casa-group[data-casa="PixBet"] .casa-chip img,
 .partner-favicon img[data-casa="Novibet"],
-.partner-favicon img[data-casa="Esportiva"] { transform: scale(1.3); }
+.partner-favicon img[data-casa="Esportiva"],
+.partner-favicon img[data-casa="PixBet"] { transform: scale(1.3); }
+/* BETesporte: fundo branco → invert + screen funde com o fundo escuro do chip
+   (tema escuro único; sem gate [data-theme] como no Dashboard) */
+.casa-group[data-casa="BETesporte"] .casa-chip img,
+.partner-favicon img[data-casa="BETesporte"] {
+  filter: grayscale(1) invert(1) brightness(1.4);
+  mix-blend-mode: screen;
+}
 .partner-name { font-size: 14px; font-weight: 800; letter-spacing: -.035em; }
 .partner-sub { font-size: 11px; color: var(--ink-mute); margin-top: 1px; }
 .model-select {
@@ -873,6 +882,7 @@ const DOMINIOS = {
   Betnacional: 'betnacional.bet.br', Lottu: 'lottu.bet.br',
   'Jogo de Ouro': 'jogodeouro.bet.br', KTO: 'kto.bet.br',
   Polymarket: 'polymarket.com',
+  BETesporte: 'betesporte.bet.br', PixBet: 'pixbet.com',
   // 14 casas importadas no lote de 28/06 (domínios oficiais .bet.br)
   Betfast: 'betfast.bet.br', BetMGM: 'betmgm.bet.br',
   Betpontobet: 'betpontobet.bet.br', 'Casa de Apostas': 'casadeapostas.bet.br',
