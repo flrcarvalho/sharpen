@@ -66,6 +66,13 @@ body::before {
   cursor: pointer; transition: background .12s, color .12s, border-color .12s;
 }
 .user-logout:hover { background: var(--elevated); color: var(--ink); border-color: var(--ink-mute); }
+.backup-link {
+  display: block; margin: 8px 0 2px; padding: 7px 10px; text-align: center;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  color: var(--ink-soft); font-size: 11px; font-weight: 600; text-decoration: none;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.backup-link:hover { background: var(--elevated); color: var(--ink); border-color: var(--accent); }
 .section-label {
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
   text-transform: uppercase; color: var(--ink-mute); padding: 10px 10px 5px;
@@ -548,6 +555,7 @@ td.c-res.res-HL { color: var(--warn); }
     </span>
     <button id="btn-logout" class="user-logout" title="Sair">Sair</button>
   </div>
+  <a href="/exportar.csv" class="backup-link" title="Baixar toda a base como CSV (backup)">⬇ Baixar base (CSV)</a>
   <div class="section-label">Casas</div>
   <div id="casa-list">
     <div style="font-size:12px;color:var(--ink-mute);padding:8px 10px">Carregando…</div>

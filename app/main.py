@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import csv
+import io
 import json
 import logging
 import math
@@ -29,9 +31,9 @@ from polymarket import coletar_bilhetes, coletar_dashboard
 from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    contar_pendentes, criar_parceiro, deletar_bilhetes, get_ativos_tipster,
-    get_codigos_existentes, get_codigos_resolvidos, limpar_ativos_tipster,
-    list_bilhetes, list_tipsters, set_ativo_tipster,
+    contar_pendentes, criar_parceiro, deletar_bilhetes, export_bilhetes,
+    get_ativos_tipster, get_codigos_existentes, get_codigos_resolvidos,
+    limpar_ativos_tipster, list_bilhetes, list_tipsters, set_ativo_tipster,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
     reativar_parceiro, upsert_bilhetes,
 )
@@ -887,6 +889,28 @@ async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depend
         raise HTTPException(400, "Código da posição ausente.")
     await set_ativo_tipster(dono, codigo, (body.tipster or "").strip())
     return {"ok": True}
+
+
+@app.get("/exportar.csv")
+async def exportar_csv(dono: str = Depends(usuario_atual)):
+    """Backup completo da base do dono: todas as linhas, todas as colunas, em CSV
+    (separador ';' + BOM → abre limpo no Excel pt-BR, decimal vírgula preservado)."""
+    rows = await export_bilhetes(dono)
+    buf = io.StringIO()
+    buf.write("﻿")  # BOM p/ Excel reconhecer UTF-8
+    if rows:
+        campos = list(rows[0].keys())
+        w = csv.DictWriter(buf, fieldnames=campos, delimiter=";", extrasaction="ignore")
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: ("" if v is None else str(v)) for k, v in r.items()})
+    from datetime import datetime as _dt
+    nome = f"planilhador_base_{dono}_{_dt.now().strftime('%Y-%m-%d_%H%M')}.csv"
+    return StreamingResponse(
+        iter([buf.getvalue().encode("utf-8")]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
 
 
 class DeletarRequest(BaseModel):

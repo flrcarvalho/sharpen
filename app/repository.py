@@ -314,6 +314,19 @@ async def list_bilhetes(
     return [dict(r) for r in rows]
 
 
+async def export_bilhetes(dono: str) -> list[dict]:
+    """Backup completo: TODAS as linhas do dono, TODAS as colunas, sem limite,
+    em ordem cronológica de inserção. Alimenta o export CSV (rede de segurança
+    antes de qualquer migração)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM bilhetes WHERE dono = $1 ORDER BY criado_em ASC, id ASC",
+            dono,
+        )
+    return [dict(r) for r in rows]
+
+
 async def list_tipsters(dono: str) -> list[str]:
     """Tipsters distintos já usados por este dono — alimenta o autocomplete da grade."""
     pool = await get_pool()
