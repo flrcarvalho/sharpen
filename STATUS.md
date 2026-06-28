@@ -55,6 +55,14 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
 
 ## 4. Estado atual
 
+- **Sessão 59 (28/06/2026) — Início da migração planilha → Postgres (unificação c/ Dashboard):**
+  - **Plano completo:** `PLANO_UNIFICACAO_2026.md`. Resumo da memória: [[migracao-planilha-dashboard]].
+  - **Decisões travadas:** era-split (NÃO apagar o banco — recentes têm Código→dedup intacta; importar só era pré-DB; Polymarket fora); **P/L vem da planilha** (coluna L), nunca recalculado (odd arredondada → −R$319 de erro, achado do harness); migração **em fatias por casa inativa**; coluna `origem` (extracao|sync|import); de-para completo já definido (esporte/casa/categoria); `Outras→Outros` já aplicado (commit `a9da64c`); arquivar parceiro inativo = >20 dias.
+  - **Acesso prod:** `DATABASE_URL` (proxy público Railway) no `.env` (gitignored). ⚠️ **ROTACIONAR a senha do Postgres quando a migração terminar** (saiu no chat).
+  - **Feito:** A1 = botão **Export base CSV** (backup, commit `77b2b5c`). **Coluna `origem`** + `/casas` une manuais+casas-com-dados (commit `dfdd8fa`). **PILOTO** (casas inativas **7K + Bateu**, linhas 2–68 da planilha = **67 bilhetes**) gravado na prod e **auditado**: stake R$ 13.061,83, P/L −231,07, 67/67 tipsters, 0 linhas pré-existentes alteradas. Validado pelo export do Feca (2.174→2.241, +67, só 7K/Bateu).
+  - **Próximo:** repetir o padrão (dry-run→confere→commit→audit) para as **~28 casas inativas restantes** (de uma vez), depois as **ativas** (com era-split/dedup). Ferramenta de import = script ETL local lendo `.env` + `app/repository.upsert_bilhetes`.
+  - **Pendente do plano (fases futuras):** endpoint `GET /dashboard/data` (replica contrato do `Code.gs`) + hospedar Dashboard same-origin + colunas numéricas `pl_num` p/ o dashboard.
+
 - **Sessão 58 (27/06/2026) — Auditoria da integração Polymarket + correções + modo online:**
   - **Auditoria (3 auditores em paralelo + checagem própria):** port Python vs app standalone JS, integração backend (rotas/dono/COALESCE), frontend, e conexão casa↔masters. `audit_casas`: 12/12 OK; taxonomia 100% conectada (10 categorias e todos os esportes emitidos são canônicos). Veredito: integração sólida, nada quebrava produção.
   - **Correções aplicadas (commit desta sessão):**
