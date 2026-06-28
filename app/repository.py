@@ -114,16 +114,29 @@ async def upsert_bilhetes(
                 sig = _assinatura(row)
 
             if codigo:
-                # Migração A: normaliza assinatura de linha existente com mesmo código
+                # Migração A: normaliza assinatura de linha existente com mesmo código.
+                # O guard NOT EXISTS impede mover a linha para uma assinatura que JÁ
+                # existe (dono,casa,parceiro,assinatura) — isso violaria a unique e,
+                # por estar FORA do try/except do INSERT, abortaria o lote inteiro
+                # ("0 exportadas"). Se o destino já existe, a linha antiga é uma
+                # duplicata inofensiva: pula a consolidação e deixa o ON CONFLICT
+                # abaixo atualizar a linha canônica.
                 await conn.execute(
                     """UPDATE bilhetes SET assinatura = $1
                        WHERE casa = $2 AND parceiro = $3
                          AND codigo_bilhete = $4 AND assinatura != $1
-                         AND dono = $5""",
+                         AND dono = $5
+                         AND NOT EXISTS (
+                             SELECT 1 FROM bilhetes b2
+                             WHERE b2.dono = $5 AND b2.casa = $2
+                               AND b2.parceiro = $3 AND b2.assinatura = $1
+                         )""",
                     sig, row.get("casa", ""), row.get("parceiro", ""), codigo, dono,
                 )
                 # Migração B: adota linha sem código que bate em data+aposta+stake+odd
-                # (bets importadas via imagem antes do suporte a XLS)
+                # (bets importadas via imagem antes do suporte a XLS). Mesmo guard
+                # NOT EXISTS da Migração A: só adota se a assinatura de destino estiver
+                # livre, evitando colisão não tratada que mataria o lote.
                 await conn.execute(
                     """
                     WITH candidate AS (
@@ -137,6 +150,11 @@ async def upsert_bilhetes(
                     UPDATE bilhetes SET assinatura = $1, codigo_bilhete = $8
                     FROM candidate
                     WHERE bilhetes.id = candidate.id AND bilhetes.assinatura != $1
+                      AND NOT EXISTS (
+                          SELECT 1 FROM bilhetes b2
+                          WHERE b2.dono = $9 AND b2.casa = $2
+                            AND b2.parceiro = $3 AND b2.assinatura = $1
+                      )
                     """,
                     sig, row.get("casa", ""), row.get("parceiro", ""),
                     row.get("data", ""), row.get("aposta", ""),
