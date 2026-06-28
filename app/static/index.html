@@ -86,13 +86,15 @@ body::before {
 }
 .casa-header:hover { background: var(--surface-2); color: var(--ink); }
 .casa-header.expanded { color: var(--ink); }
+/* Chip de casa — espec. de REFERENCIA_CHIPS_CASAS.md (idêntico ao Betting Dashboard):
+   24×24, raio 7px, fundo steel #222831, logo preenchendo o tile (cover 100%). */
 .casa-chip {
-  width: 22px; height: 22px; border-radius: var(--r-xs);
-  background: var(--elevated); border: 1px solid var(--line);
-  flex-shrink: 0; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 7px;
+  background: #222831; border: 1px solid rgba(255,255,255,0.08);
+  flex: none; overflow: hidden;
+  display: inline-grid; place-items: center;
 }
-.casa-chip img { width: 16px; height: 16px; object-fit: contain; display: block;
+.casa-chip img { width: 100%; height: 100%; object-fit: cover; display: block;
   filter: grayscale(1) contrast(0.5) brightness(1.25); }
 .casa-name { flex: 1; }
 .casa-arrow { font-size: 9px; color: var(--ink-mute); transition: transform .15s; }
@@ -164,11 +166,11 @@ body::before {
 }
 .partner-title { display: flex; align-items: center; gap: 10px; }
 .partner-favicon {
-  width: 22px; height: 22px; border-radius: var(--r-xs);
-  background: var(--elevated); border: 1px solid var(--line);
-  overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 24px; height: 24px; border-radius: 7px;
+  background: #222831; border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden; display: inline-grid; place-items: center; flex: none;
 }
-.partner-favicon img { width: 16px; height: 16px; object-fit: contain; display: block;
+.partner-favicon img { width: 100%; height: 100%; object-fit: cover; display: block;
   filter: grayscale(1) contrast(0.5) brightness(1.25); }
 
 /* ── Overrides de favicon por casa — mesmo padrão do Betting Dashboard ────────
@@ -193,6 +195,9 @@ body::before {
   filter: grayscale(1) invert(1) brightness(1.4);
   mix-blend-mode: screen;
 }
+/* Fallback quando o favicon não carrega: inicial da casa em mono (REFERENCIA §2) */
+.chip-initial { font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px; color: #95A1B0; line-height: 1; }
 .partner-name { font-size: 14px; font-weight: 800; letter-spacing: -.035em; }
 .partner-sub { font-size: 11px; color: var(--ink-mute); margin-top: 1px; }
 .model-select {
@@ -896,6 +901,20 @@ function faviconUrl(casa) {
   const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 }
+
+// Fallback de favicon (REFERENCIA_CHIPS_CASAS.md §2): se a imagem não carrega,
+// troca por <span class="chip-initial"> com a inicial da casa. Event delegation
+// na fase de captura (erro de <img> não borbulha).
+document.addEventListener('error', e => {
+  const chip = e.target.closest && e.target.closest('.casa-chip, .partner-favicon');
+  if (chip && e.target.tagName === 'IMG') {
+    const init = chip.dataset.initial || '?';
+    e.target.replaceWith(Object.assign(
+      document.createElement('span'),
+      { className: 'chip-initial', textContent: init }
+    ));
+  }
+}, true);
 const RES_CLASS = { W: 'r-W', L: 'r-L', V: 'r-V', HW: 'r-HW', HL: 'r-HL' };
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -922,7 +941,7 @@ function buildCasaGroup(casa) {
   const header = document.createElement('div');
   header.className = 'casa-header expanded';
   header.innerHTML = `
-    <div class="casa-chip"><img src="${faviconUrl(casa)}" alt="${NOMES[casa]||casa}" loading="lazy"></div>
+    <div class="casa-chip" data-initial="${(NOMES[casa]||casa).charAt(0).toUpperCase()}"><img src="${faviconUrl(casa)}" alt="${NOMES[casa]||casa}" loading="lazy"></div>
     <span class="casa-name">${NOMES[casa] || casa}</span>
     <span class="pend-badge" data-pend-casa></span>
     <span class="casa-arrow">▶</span>
@@ -1090,10 +1109,16 @@ function selecionarParceiro(p) {
   if (el) el.classList.add('active');
 
   const nomeCasa = NOMES[p.casa] || p.casa;
-  const favImg = document.getElementById('partner-favicon-img');
-  favImg.src = faviconUrl(p.casa);
-  favImg.alt = nomeCasa;
+  // Recria o <img> a cada seleção: se uma seleção anterior teve o favicon
+  // trocado pelo fallback (.chip-initial), aqui voltamos a um <img> limpo.
+  const favBox = document.querySelector('.partner-favicon');
+  favBox.dataset.initial = nomeCasa.charAt(0).toUpperCase();   // fallback
+  favBox.innerHTML = '';
+  const favImg = Object.assign(document.createElement('img'),
+    { id: 'partner-favicon-img', alt: nomeCasa });
   favImg.dataset.casa = p.casa;   // habilita os overrides greyscale por casa
+  favImg.src = faviconUrl(p.casa);
+  favBox.appendChild(favImg);
   document.getElementById('partner-name').textContent = `${nomeCasa} · ${p.nome}`;
   document.getElementById('partner-sub').textContent = p.nome;
 
