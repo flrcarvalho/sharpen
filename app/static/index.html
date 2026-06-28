@@ -880,22 +880,23 @@ const NOMES = {
 };
 // Chaveado pelo NOME DE EXIBIÇÃO (igual ao valor de `casa` que /casas devolve),
 // nunca pela chave UPPERCASE — faviconUrl() recebe sempre o display name.
+// Domínio = onde o Google S2 resolve o melhor favicon. Regra: padrão BR é
+// `.bet.br`; marcas globais usam `.com`; casas sem operação no BR (Polymarket)
+// idem `.com`. Espelha o CASA_ICONS do Betting Dashboard (mapa já testado).
 const DOMINIOS = {
-  Superbet: 'superbet.bet.br', Bet365: 'bet365.bet.br',
-  Betano: 'betano.bet.br', Betfair: 'betfair.bet.br', Pinnacle: 'pinnacle.bet.br',
-  KingPanda: 'kingpanda.bet.br', 'Bolsa de Aposta': 'bolsadeaposta.bet.br',
-  Betnacional: 'betnacional.bet.br', Lottu: 'lottu.bet.br',
-  'Jogo de Ouro': 'jogodeouro.bet.br', KTO: 'kto.bet.br',
-  Polymarket: 'polymarket.com',
-  BETesporte: 'betesporte.bet.br', PixBet: 'pixbet.com',
-  // 14 casas importadas no lote de 28/06 (domínios oficiais .bet.br)
-  Betfast: 'betfast.bet.br', BetMGM: 'betmgm.bet.br',
-  Betpontobet: 'betpontobet.bet.br', 'Casa de Apostas': 'casadeapostas.bet.br',
-  'Donald Bet': 'donald.bet.br', 'Esportes da Sorte': 'esportesdasorte.bet.br',
-  Esportiva: 'esportiva.bet.br', 'Estrela Bet': 'estrelabet.bet.br',
-  Faz1Bet: 'faz1.bet.br', Fulltbet: 'fulltbet.bet.br',
-  'Lance de Sorte': 'lancedesorte.bet.br', MatchBook: 'matchbook.bet.br',
-  MultiBet: 'multi.bet.br', Novibet: 'novibet.bet.br',
+  // globais / .com (favicon melhor no domínio internacional)
+  Bet365: 'bet365.com', Betano: 'betano.com', Betfair: 'betfair.com',
+  Pinnacle: 'pinnacle.com', Superbet: 'superbet.com', Betnacional: 'betnacional.com',
+  KTO: 'kto.com', 'Casa de Apostas': 'casadeapostas.com', 'Estrela Bet': 'estrelabet.com',
+  MatchBook: 'matchbook.com', Novibet: 'novibet.com', 'Esportes da Sorte': 'esportesdasorte.com',
+  Betpontobet: 'bet.com.br', PixBet: 'pixbet.com', Polymarket: 'polymarket.com',
+  // reguladas BR / .bet.br
+  'Bolsa de Aposta': 'bolsadeaposta.bet.br', BETesporte: 'betesporte.bet.br',
+  Betfast: 'betfast.bet.br', BetMGM: 'betmgm.bet.br', 'Donald Bet': 'donald.bet.br',
+  Esportiva: 'esportiva.bet.br', Faz1Bet: 'faz1.bet.br', Fulltbet: 'fulltbet.bet.br',
+  'Lance de Sorte': 'lancedesorte.bet.br', MultiBet: 'multi.bet.br',
+  // só no Planilhador (não estão no Dashboard) — reguladas BR
+  KingPanda: 'kingpanda.bet.br', Lottu: 'lottu.bet.br', 'Jogo de Ouro': 'jogodeouro.bet.br',
 };
 function faviconUrl(casa) {
   const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
