@@ -92,7 +92,8 @@ body::before {
   flex-shrink: 0; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
 }
-.casa-chip img { width: 16px; height: 16px; object-fit: contain; display: block; }
+.casa-chip img { width: 16px; height: 16px; object-fit: contain; display: block;
+  filter: grayscale(1) contrast(0.5) brightness(1.25); }
 .casa-name { flex: 1; }
 .casa-arrow { font-size: 9px; color: var(--ink-mute); transition: transform .15s; }
 /* Badge azul (FDC) com nº de bilhetes pendentes de cópia */
@@ -167,7 +168,22 @@ body::before {
   background: var(--elevated); border: 1px solid var(--line);
   overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.partner-favicon img { width: 16px; height: 16px; object-fit: contain; display: block; }
+.partner-favicon img { width: 16px; height: 16px; object-fit: contain; display: block;
+  filter: grayscale(1) contrast(0.5) brightness(1.25); }
+
+/* ── Overrides de favicon por casa — mesmo padrão do Betting Dashboard ────────
+   contrast(0.5)+brightness(1.25) levanta pretos para ~#50, normalizando logos de
+   fundo escuro. Casos especiais espelham o components.css do Dashboard. */
+/* KTO e BetMGM: logo claro sobre fundo escuro, sem redução de contraste */
+.casa-group[data-casa="KTO"] .casa-chip img,
+.casa-group[data-casa="BetMGM"] .casa-chip img,
+.partner-favicon img[data-casa="KTO"],
+.partner-favicon img[data-casa="BetMGM"] { filter: grayscale(1) brightness(1.8); }
+/* Logos circulares com padding transparente: scale corta a margem e preenche o chip */
+.casa-group[data-casa="Novibet"] .casa-chip img,
+.casa-group[data-casa="Esportiva"] .casa-chip img,
+.partner-favicon img[data-casa="Novibet"],
+.partner-favicon img[data-casa="Esportiva"] { transform: scale(1.3); }
 .partner-name { font-size: 14px; font-weight: 800; letter-spacing: -.035em; }
 .partner-sub { font-size: 11px; color: var(--ink-mute); margin-top: 1px; }
 .model-select {
@@ -1064,8 +1080,10 @@ function selecionarParceiro(p) {
   if (el) el.classList.add('active');
 
   const nomeCasa = NOMES[p.casa] || p.casa;
-  document.getElementById('partner-favicon-img').src = faviconUrl(p.casa);
-  document.getElementById('partner-favicon-img').alt = nomeCasa;
+  const favImg = document.getElementById('partner-favicon-img');
+  favImg.src = faviconUrl(p.casa);
+  favImg.alt = nomeCasa;
+  favImg.dataset.casa = p.casa;   // habilita os overrides greyscale por casa
   document.getElementById('partner-name').textContent = `${nomeCasa} · ${p.nome}`;
   document.getElementById('partner-sub').textContent = p.nome;
 
