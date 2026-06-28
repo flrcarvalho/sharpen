@@ -295,6 +295,23 @@ async def contar_pendentes(dono: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def _filtros_bilhetes(dono, casa, parceiro, copy_state, extraction_state, archived):
+    """Monta a cláusula WHERE compartilhada entre a listagem e a contagem."""
+    filters, params = [], []
+    for col, val in [("dono", dono), ("casa", casa), ("parceiro", parceiro),
+                     ("copy_state", copy_state), ("extraction_state", extraction_state)]:
+        if val is not None:
+            params.append(val)
+            filters.append(f"{col} = ${len(params)}")
+    if archived == "false":
+        filters.append("archived = FALSE")
+    elif archived == "true":
+        filters.append("archived = TRUE")
+    # "all" → sem filtro
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
+    return where, params
+
+
 async def list_bilhetes(
     dono: str,
     casa: str | None = None,
@@ -303,33 +320,40 @@ async def list_bilhetes(
     extraction_state: str | None = None,
     archived: str = "false",   # "false" | "true" | "all"
     limit: int = 500,
+    offset: int = 0,
     order: str = "asc",
 ) -> list[dict]:
     pool = await get_pool()
-    filters, params = [], []
-
-    for col, val in [("dono", dono), ("casa", casa), ("parceiro", parceiro),
-                     ("copy_state", copy_state), ("extraction_state", extraction_state)]:
-        if val is not None:
-            params.append(val)
-            filters.append(f"{col} = ${len(params)}")
-
-    if archived == "false":
-        filters.append("archived = FALSE")
-    elif archived == "true":
-        filters.append("archived = TRUE")
-    # "all" → sem filtro
-
-    where = ("WHERE " + " AND ".join(filters)) if filters else ""
+    where, params = _filtros_bilhetes(dono, casa, parceiro, copy_state, extraction_state, archived)
     order_sql = "ASC" if order == "asc" else "DESC"
     params.append(limit)
+    limit_ph = f"${len(params)}"
+    params.append(offset)
+    offset_ph = f"${len(params)}"
 
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            f"SELECT * FROM bilhetes {where} ORDER BY criado_em {order_sql} LIMIT ${len(params)}",
+            f"SELECT * FROM bilhetes {where} "
+            f"ORDER BY criado_em {order_sql} LIMIT {limit_ph} OFFSET {offset_ph}",
             *params,
         )
     return [dict(r) for r in rows]
+
+
+async def contar_bilhetes(
+    dono: str,
+    casa: str | None = None,
+    parceiro: str | None = None,
+    copy_state: str | None = None,
+    extraction_state: str | None = None,
+    archived: str = "false",
+) -> int:
+    """Total de bilhetes que casam o filtro (para paginação: "X de Y apostas")."""
+    pool = await get_pool()
+    where, params = _filtros_bilhetes(dono, casa, parceiro, copy_state, extraction_state, archived)
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(f"SELECT COUNT(*) FROM bilhetes {where}", *params)
+    return row[0]
 
 
 async def casas_com_parceiros(dono: str) -> list[str]:

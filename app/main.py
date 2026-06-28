@@ -31,7 +31,7 @@ from polymarket import coletar_bilhetes, coletar_dashboard
 from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    casas_com_parceiros, contar_pendentes, criar_parceiro, deletar_bilhetes,
+    casas_com_parceiros, contar_bilhetes, contar_pendentes, criar_parceiro, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_tipsters,
     set_ativo_tipster,
@@ -961,8 +961,12 @@ async def listar_bilhetes(
     extraction_state: Optional[str] = None,
     archived: str = "false",
     order: str = "asc",
+    limit: int = 500,
+    offset: int = 0,
     dono: str = Depends(usuario_atual),
 ):
+    limit = max(1, min(limit, 1000))
+    offset = max(0, offset)
     rows = await list_bilhetes(
         dono,
         casa=casa or None,
@@ -970,12 +974,25 @@ async def listar_bilhetes(
         copy_state=copy_state or None,
         extraction_state=extraction_state or None,
         archived=archived,
+        limit=limit,
+        offset=offset,
         order=order,
+    )
+    total = await contar_bilhetes(
+        dono,
+        casa=casa or None,
+        parceiro=parceiro or None,
+        copy_state=copy_state or None,
+        extraction_state=extraction_state or None,
+        archived=archived,
     )
     arquivados_count = 0
     if archived != "true" and (casa or parceiro):
         arquivados_count = await contar_arquivados(casa or "", parceiro or "", dono)
-    return {"bilhetes": rows, "total": len(rows), "arquivados": arquivados_count}
+    return {
+        "bilhetes": rows, "total": total, "arquivados": arquivados_count,
+        "limit": limit, "offset": offset,
+    }
 
 
 @app.get("/tipsters")
