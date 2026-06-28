@@ -51,7 +51,7 @@ def categorias_oficiais() -> set[str]:
 
 def norm_cat(s: str) -> str:
     """Reduz a célula de categoria ao(s) nome(s) canônico(s): tira ⚠️/markdown
-    e qualquer nota entre parênteses (ex.: 'Outras (nicho)' → 'Outras')."""
+    e qualquer nota entre parênteses (ex.: 'Outros (nicho)' → 'Outros')."""
     s = s.replace("⚠️", "").replace("`", "").replace("*", "")
     s = re.sub(r"\(.*?\)", "", s)  # remove notas entre parênteses
     return s.strip()

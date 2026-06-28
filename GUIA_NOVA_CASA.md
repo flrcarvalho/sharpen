@@ -64,7 +64,7 @@ Ex.: `CASA_BETANO.md`, `CASA_KINGPANDA.md`, `CASA_NOVAHOUSE.md`
 - Coluna 2: categoria global do `MASTER_APOSTAS_2026 §3` — sempre uma das 27 oficiais
 - **Listar APENAS mercados confirmados.** Não cobrir as 27 categorias; não usar linhas `(aguarda amostra)`.
 - **Por quê:** as 27 categorias já vivem no `MASTER_APOSTAS_2026 §3`, carregado no prompt em toda extração — repeti-las por casa é duplicação morta que gera drift quando o global muda. A casa só traduz o que ela fala.
-- Mercado sem categoria adequada → `Outras` ⚠️ + registrar no §Feedback.
+- Mercado sem categoria adequada → `Outros` ⚠️ + registrar no §Feedback.
 
 ### Regra de ordem do output (§2)
 

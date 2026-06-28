@@ -50,7 +50,7 @@ A classificação deve seguir obrigatoriamente esta ordem:
 1. Categoria específica da tabela
 2. Regra específica por esporte
 3. `Player Props`
-4. `Outras`
+4. `Outros`
 
 Nunca utilizar:
 ```text
@@ -59,7 +59,7 @@ Player Props
 
 ou:
 ```text
-Outras
+Outros
 ```
 
 quando existir categoria mais específica aplicável.
@@ -92,7 +92,7 @@ quando existir categoria mais específica aplicável.
 | Legs | Mercados de legs em Dardos |
 | ML | Resultado principal do evento |
 | Múltipla | Cupom com múltiplas seleções |
-| Outras | Último recurso |
+| Outros | Último recurso |
 | Player Props | Estatísticas individuais de jogador |
 | Sets | Mercados de sets |
 | Team Props | Estatísticas de equipe |
@@ -1007,9 +1007,9 @@ por conveniência.
 
 ---
 
-# 8. Uso de Outras
+# 8. Uso de Outros
 
-`Outras` é exclusivamente o último recurso.
+`Outros` é exclusivamente o último recurso.
 
 Utilizar apenas quando:
 - nenhuma categoria do documento se aplicar
@@ -1029,7 +1029,7 @@ Antes de retornar a saída, o extrator deve validar:
 5. `Legs` não foi usado para Tênis
 6. `Player Props` não foi utilizado quando havia categoria específica
 7. `E-Sports Props` foi utilizado para estatísticas de E-Sports (nunca `Player Props`)
-8. `Outras` foi utilizado apenas como último recurso
+8. `Outros` foi utilizado apenas como último recurso
 9. `Bet Builder` foi classificado como `Múltipla`
 10. `Assistência` foi utilizado apenas para Futebol
 11. mercados comparativos foram corretamente classificados como `H2H`

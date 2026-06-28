@@ -14,7 +14,7 @@ o §9 das casas lista so o que cada uma confirma. Uma etapa por vez.
 - **§3** tabela de categorias: adicionar / renomear / remover a linha.
 - **§4** sinonimos: adicionar/ajustar o bloco da categoria.
 - **§9** validacao final: adicionar/ajustar a checagem.
-- **§7** prioridade semantica: atualizar se houver risco de confusao com Player Props / Outras.
+- **§7** prioridade semantica: atualizar se houver risco de confusao com Player Props / Outros.
 - **§5 / §6** regras por categoria / por esporte: so se aplicavel.
 
 ## 2. MASTER_DESCRICAO_2026.md
@@ -24,7 +24,7 @@ o §9 das casas lista so o que cada uma confirma. Uma etapa por vez.
 - Rode `grep -rl "<Categoria>" casas/` (use o nome antigo em renomear/remover).
 - **criar:** quase nunca exige tocar casa (a IA classifica pelo §3 quando o mercado surgir).
 - **renomear:** trocar o nome nos §9 que apareceram no grep.
-- **remover:** reclassificar (provavel `Outras` ⚠️) nos §9 que apareceram; registrar no §Feedback da casa.
+- **remover:** reclassificar (provavel `Outros` ⚠️) nos §9 que apareceram; registrar no §Feedback da casa.
 - Nao adicionar a categoria a casas que nao a oferecem (isso recria a duplicacao).
 
 ## 4. Auditar + commit

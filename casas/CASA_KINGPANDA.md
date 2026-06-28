@@ -200,7 +200,7 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **to
 | `Total de Gols Mais/Menos` · `Total de Gols` | Gols | ✓ confirmado |
 | `Resultado Final` · `Resultado do 1º Tempo` · `Resultado do 2º Tempo` · `Vencedor da Partida` · `1X2` | ML | ✓ confirmado |
 | `Criador de apostas` (múltiplas seleções) | Múltipla | ✓ confirmado |
-| `Resultado Correto` · `Resultado Correto - 1º Tempo` · mercado não mapeado | Outras | ✓ fallback |
+| `Resultado Correto` · `Resultado Correto - 1º Tempo` · mercado não mapeado | Outros | ✓ fallback |
 | `Jogador a Marcar um gol ou dar uma assistência` · ação individual de jogador | Player Props | ✓ confirmado |
 | `[Time]: Equipe Marca nos Dois Tempos` · estatística coletiva de equipe | Team Props | ✓ confirmado |
 
@@ -210,7 +210,7 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **to
 - Player Props: seleção = nome do jogador; mercado usa prefixo "Jogador a". Na descrição: substituir "Jogador a [ação]" por "[Nome do Jogador] a [ação]" — ex.: `Viktor Gyokeres a Marcar um Gol ou dar uma Assistência`
 - Criador de apostas (Múltipla): cada seleção = `[Seleção] [Mercado] [Confronto]`; concatenar com ` // `
 - Odds: ponto decimal en-US → vírgula no output: `3.20` → `3,20`
-- Prioridade: usar sempre a categoria mais específica; `Player Props` e `Outras` são último recurso (`MASTER_APOSTAS_2026 §2`)
+- Prioridade: usar sempre a categoria mais específica; `Player Props` e `Outros` são último recurso (`MASTER_APOSTAS_2026 §2`)
 
 ---
 
@@ -295,9 +295,9 @@ TSV: linha 1 = último do grid · linha 8 = primeiro do grid
 ID: 856187092232609792 · GP BRL 276.00 · 276÷100=2,76 ✓ · boost 2.26→2.76
 ⚠️ ID ausente no texto colado (texto cortado) — ler da imagem.
 
-**G2 (TSV linha 2) — L · Outras · Países Baixos vs Suécia · posição 7 no texto**
+**G2 (TSV linha 2) — L · Outros · Países Baixos vs Suécia · posição 7 no texto**
 ```
-20/06/2026	Futebol		KingPanda	[parceiro]	Outras	1:0 [Resultado Correto 1º Tempo] [Países Baixos v Suécia]	20,00	5,06	L
+20/06/2026	Futebol		KingPanda	[parceiro]	Outros	1:0 [Resultado Correto 1º Tempo] [Países Baixos v Suécia]	20,00	5,06	L
 ```
 ID: 856170471199985664 · GP BRL 0.00 · boost 3.71→5.06
 
@@ -342,7 +342,7 @@ ID: 856196861957820416 · GP BRL 0.00 · boost 1.81→2.30
 
 ## Feedback para a camada global
 
-1. **`Resultado Correto` ausente do `MASTER_APOSTAS_2026`** — mercado de placar exato (`Resultado Correto`, `Resultado Correto - 1º Tempo`) aparece no KingPanda e provavelmente em outras casas. Não existe categoria global. Mapeado temporariamente como `Outras ⚠️`. **Proposta: criar categoria `Resultado Correto` no master global.**
+1. **`Resultado Correto` ausente do `MASTER_APOSTAS_2026`** — mercado de placar exato (`Resultado Correto`, `Resultado Correto - 1º Tempo`) aparece no KingPanda e provavelmente em outras casas. Não existe categoria global. Mapeado temporariamente como `Outros ⚠️`. **Proposta: criar categoria `Resultado Correto` no master global.**
 
 ---
 

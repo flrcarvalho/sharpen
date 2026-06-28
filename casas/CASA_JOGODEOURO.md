@@ -166,7 +166,7 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa cobre **to
 | `Total de gols` | Gols | ✓ confirmado |
 | `Vencedor do encontro` | ML | ✓ confirmado |
 | `Criar Aposta` (badge `CA`, 2+ seleções) | Múltipla | ✓ confirmado |
-| (mercado não mapeado) | Outras | ✓ fallback |
+| (mercado não mapeado) | Outros | ✓ fallback |
 
 **Notas de reconstrução:**
 - Separador de times: `vs.` (ex.: `Noruega vs. Senegal`) → normalizar para `[Noruega v Senegal]` (lowercase `v`, colchetes).

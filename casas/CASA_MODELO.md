@@ -146,7 +146,7 @@ Apostas abertas → `extraction_state = aberta` (fora da fila de cópia).
 
 ## 9. Mapa de mercados (`<Casa>` → `Aposta` global)
 
-*(como preencher: mapear **apenas** os mercados que esta casa realmente exibiu, traduzindo o rótulo da casa para a categoria global do `MASTER_APOSTAS_2026 §3`. Seguir a prioridade: categoria específica > Player Props > Outras.)*
+*(como preencher: mapear **apenas** os mercados que esta casa realmente exibiu, traduzindo o rótulo da casa para a categoria global do `MASTER_APOSTAS_2026 §3`. Seguir a prioridade: categoria específica > Player Props > Outros.)*
 
 > ⚠️ **NÃO reescreva as 27 categorias nem use linhas "aguarda amostra".** A lista canônica de categorias vive no `MASTER_APOSTAS_2026 §3`, que é carregado no prompt em **toda** extração — a IA já a conhece. Restar categoria que esta casa nunca mostrou é duplicação morta: não ensina nada ao modelo e quebra quando o global muda (era a causa raiz do drift de propagação). Liste só o que foi **confirmado num bilhete real**; um mercado novo é classificado pelo `MASTER_APOSTAS` quando surgir.
 
@@ -155,13 +155,13 @@ Apostas abertas → `extraction_state = aberta` (fora da fila de cópia).
 | `<rótulo confirmado>` | `<categoria do §3>` |
 | `<rótulo confirmado>` | `<categoria do §3>` |
 
-> Mercado que apareça e **não** tenha categoria adequada no §3 → `Outras` ⚠️ + registrar no §Feedback com recomendação. Mercados ainda não vistos **não entram nesta tabela**.
+> Mercado que apareça e **não** tenha categoria adequada no §3 → `Outros` ⚠️ + registrar no §Feedback com recomendação. Mercados ainda não vistos **não entram nesta tabela**.
 
 **Notas de reconstrução:**
 - Confronto: `<formato da casa>` → `[Time A v Time B]` (padrão global, `MASTER_DESCRICAO_2026`).
 - `Mais de` / `Menos de` → Over / Under.
 - **Normalização de jogador:** pode vir em `[colchetes]` no fim do mercado (ex.: Betano `Total de Pontos [Victor Wembanyama]`) → extrair e colocar no início da descrição; pode vir como `Sobrenome, Nome` (ex.: Pinnacle `Valdez, Framber`) → normalizar para `Nome Sobrenome`. Confirmar o padrão desta casa.
-- Mercado sem categoria global → `Outras` ⚠️ + registrar no §Feedback.
+- Mercado sem categoria global → `Outros` ⚠️ + registrar no §Feedback.
 - `<outros padrões específicos desta casa>`
 
 ---

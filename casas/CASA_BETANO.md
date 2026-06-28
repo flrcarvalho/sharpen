@@ -106,10 +106,10 @@ Conferência financeira: `Ganhos = 0` → L · `Ganhos = Aposta` → V · `Ganho
 | Total de Games no Set (Set N) | Games |
 | Total de Pontos e Rebotes / Arremessos de três pontos convertidos / Total de Rebotes e Assistências `[Jogador]` (NBA/EuroLeague) | Player Props |
 | Chance Dupla / `X2` | Dupla Chance |
-| Total de tiros de meta (goal kicks) | **Outras** ⚠️ (nicho) |
-| Total de Faltas | **Outras** ⚠️ (nicho) |
-| Tie Breaks | **Outras** ⚠️ (nicho tênis) |
-| 1º Quarto - Total de pontos | **Outras** ⚠️ (total de período — avaliar Team Props) |
+| Total de tiros de meta (goal kicks) | **Outros** ⚠️ (nicho) |
+| Total de Faltas | **Outros** ⚠️ (nicho) |
+| Tie Breaks | **Outros** ⚠️ (nicho tênis) |
+| 1º Quarto - Total de pontos | **Outros** ⚠️ (total de período — avaliar Team Props) |
 | Total de 180s / Mais/Menos 180s / H2H 180s (Dardos) | **Legs** |
 | Criar Aposta / N-seleções / Dupla / Tripla | Múltipla |
 
@@ -168,7 +168,7 @@ REKONIX - Grind Back
 - Data do resolvido é **colocação** (proxy do evento p/ mesmo-dia; off em jogo de outro dia) — ver §4.
 - Múltipla sem odd combinada → **produto** das seleções.
 - Jogador vem entre `[colchetes]` no fim do mercado.
-- `Chance Dupla`/`X2` → **Dupla Chance** (mapeado em §9; nunca usar `Outras`).
+- `Chance Dupla`/`X2` → **Dupla Chance** (mapeado em §9; nunca usar `Outros`).
 - NBA / EuroLeague → **Basquete** (regra liga≠esporte).
 - Números em pt-BR (`R$1.914,56`).
 - Abertas têm data do jogo; resolvidas não.
@@ -220,7 +220,7 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 ## Feedback para a camada global / MODELO
 
 1. **Múltipla sem odd combinada exibida** → calcular odd estrutural por produto (já no `MASTER_RESULTADO §7`); reforça que a casa pode não dar a odd total.
-2. **Mercados nicho sem categoria global:** Dupla Chance (recorrente — Superbet + Betano), Tiros de meta, Faltas, Tie Breaks, total de período. Decidir o que vira categoria nova vs fica em `Outras`.
+2. **Mercados nicho sem categoria global:** Dupla Chance (recorrente — Superbet + Betano), Tiros de meta, Faltas, Tie Breaks, total de período. Decidir o que vira categoria nova vs fica em `Outros`.
 3. **Esporte ausente no global:** apareceu polo aquático (CN Barceloneta v Ferencvaros) — hoje cai em `Outro`. Avaliar adicionar.
 4. **Data colocação-como-proxy:** mais um padrão pra cadeia de data do `MASTER_OUTPUT §4` (evento → informada → extrato/join → colocação-proxy → Brasília).
 

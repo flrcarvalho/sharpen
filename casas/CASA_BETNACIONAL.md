@@ -178,7 +178,7 @@ Apostas abertas → `extraction_state = aberta`.
 | `[Time] marca X+ gols` · `Total de gols Mais/Menos X` | Gols | ✓ confirmado |
 | `Vencedor - [Time/Jogador]` | ML | ✓ confirmado |
 | 2+ condições independentes combinadas numa aposta (Turbinaço · Bet Builder) | Múltipla | ✓ confirmado |
-| Outros mercados sem categoria específica | Outras ⚠️ | fallback |
+| Outros mercados sem categoria específica | Outros ⚠️ | fallback |
 | `[Jogador] marca OU dá assistência` · `[Jogador] X+ Defesas na Partida` · `[Jogador] marca no [tempo]` | Player Props | ✓ confirmado |
 | `[Time] Marca em Ambos os Tempos` | Team Props | ✓ confirmado |
 
@@ -190,7 +190,7 @@ Apostas abertas → `extraction_state = aberta`.
 - `[Jogador] marca no segundo tempo` = Player Props (tempo restrito — não é Anytime)
 - `[Time] Marca em Ambos os Tempos` = Team Props (padrão global confirmado em KingPanda)
 - Múltipla via Turbinaço/Bet Builder: descrever condições separadas por ` + ` no campo Descrição
-- Mercado sem categoria → `Outras ⚠️` + registrar no §Feedback
+- Mercado sem categoria → `Outros ⚠️` + registrar no §Feedback
 
 ---
 

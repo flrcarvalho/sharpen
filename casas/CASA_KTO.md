@@ -139,7 +139,7 @@ Conferência financeira (segunda linha de defesa): `Pagamento > Aposta` → W ·
 | `Para receber um cartão: [Jogador] - Sim` · mercados de cartão | Cartões | ✓ confirmado |
 | `Vencedor da partida: [Time/Jogador]` | ML | ✓ confirmado |
 | `Dupla` · `Quadrupla` · `Simples (N)` · `Duplas (X), Triplas (Y)` (sistema) | Múltipla | ✓ confirmado |
-| `[Time] vence e ambos os times marcam` (resultado + BTTS combinados) · mercado sem categoria | Outras ⚠️ | fallback (ver §Feedback) |
+| `[Time] vence e ambos os times marcam` (resultado + BTTS combinados) · mercado sem categoria | Outros ⚠️ | fallback (ver §Feedback) |
 | `Faltas concedidas/cometidas pelo jogador` · estatística individual de jogador sem categoria própria | Player Props | ✓ confirmado |
 
 **Notas de reconstrução:**
@@ -148,7 +148,7 @@ Conferência financeira (segunda linha de defesa): `Pagamento > Aposta` → W ·
 - `Para receber um cartão: [Jogador] - Sim` = `Cartões` mesmo sendo jogador individual (princípio §1 `MASTER_APOSTAS`; object = cartão, nunca Player Props).
 - `Faltas concedidas pelo jogador` = `Player Props` (estatística individual; não há categoria `Faltas`). `(Fechado usando dados Opta)` é ruído.
 - `Mais X` / `Menos X` → `Over X` / `Under X` (padrão global `MASTER_DESCRICAO_2026 §11`).
-- Mercado sem categoria → `Outras ⚠️` + registrar no §Feedback.
+- Mercado sem categoria → `Outros ⚠️` + registrar no §Feedback.
 
 ---
 
@@ -356,7 +356,7 @@ Aposta: R$44.19
 
 ---
 
-### G7 (TSV linha 7) — Aberta · Outras · resultado + BTTS (boost ODDÃO+)
+### G7 (TSV linha 7) — Aberta · Outros · resultado + BTTS (boost ODDÃO+)
 
 **Input (cupom):**
 ```
@@ -370,11 +370,11 @@ Aposta: R$20.00
 Ganho potencial: R$90.00
 ```
 
-**Verificação:** `Aberta` → não liquidada (`extraction_state = aberta`, Resultado vazio). Boost ODDÃO+: usar odd final 4,50 (3,60 riscada é ruído). Mercado "vence E ambos marcam" = combo sem categoria própria → `Outras ⚠️`. `Ganho potencial` ignorado para odd.
+**Verificação:** `Aberta` → não liquidada (`extraction_state = aberta`, Resultado vazio). Boost ODDÃO+: usar odd final 4,50 (3,60 riscada é ruído). Mercado "vence E ambos marcam" = combo sem categoria própria → `Outros ⚠️`. `Ganho potencial` ignorado para odd.
 
 **TSV esperado:**
 ```
-24/06/2026	Futebol		KTO		Outras	México vence e ambos marcam [Chéquia v México]	20,00	4,50		12806921824
+24/06/2026	Futebol		KTO		Outros	México vence e ambos marcam [Chéquia v México]	20,00	4,50		12806921824
 ```
 
 ---
@@ -405,7 +405,7 @@ Ganho potencial: R$947.98
 
 ## Feedback para a camada global / MODELO
 
-1. **Mercado combinado "Resultado + Ambas Marcam" (`[Time] vence e ambos marcam`):** não há categoria dedicada no `MASTER_APOSTAS_2026 §3`. Classificado provisoriamente como `Outras ⚠️`. Avaliar se merece categoria própria ou regra de prioridade (é um mercado comum em várias casas).
+1. **Mercado combinado "Resultado + Ambas Marcam" (`[Time] vence e ambos marcam`):** não há categoria dedicada no `MASTER_APOSTAS_2026 §3`. Classificado provisoriamente como `Outros ⚠️`. Avaliar se merece categoria própria ou regra de prioridade (é um mercado comum em várias casas).
 2. **`Simples (N)` (apostas simples agrupadas):** decisão FDC = tratar como uma linha `Múltipla` com a odd de visualização. Limitação: o view de lista não expõe odd/stake/resultado por perna; quando o cupom não traz odd nem `Ganha`/`Perdida`, os dados ficam incompletos. Avaliar ingestão pela tela de detalhe do cupom se o rastreio por perna for necessário.
 3. **`Faltas` (fouls) de jogador:** mapeado para `Player Props` por falta de categoria dedicada. Se recorrente em várias casas, avaliar categoria `Faltas`.
 4. **Formato en-US em casa pt-BR:** a KTO usa interface em português mas valores monetários/odds com ponto decimal. Reforça a regra global de normalização de locale por casa (`CASA_MODELO §10`).

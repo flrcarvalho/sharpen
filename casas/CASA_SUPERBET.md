@@ -132,7 +132,7 @@ Notas:
 - **Padrão geral `Handicap - [Estatística]`:** a categoria registra o objeto apostado (MASTER_APOSTAS §1), não o tipo de mercado. `Handicap - Finalizações` → `Chutes`; `Handicap - Escanteios` → `Escanteios`; `Handicap - Cartões` → `Cartões`. A linha de handicap fica na Descrição (ex.: `Catar (+10.5) Chutes [Catar v Suíça]`).
 - "Total de X" precedido de nome de time/jogador (`Tunísia - Total de Cartões`, `Brusque - Total de Escanteios`) = total **da entidade**; a entidade entra na descrição (`MASTER_DESCRICAO_2026 §12.3/12.5`), a categoria segue a mesma.
 - Nome de jogador em "Sobrenome, Nome" (`Valdez, Framber`) → normalizar para `Framber Valdez` na descrição.
-- **Esportes individuais (Dardos, Tênis):** a seleção exibe apenas o **nome do jogador** (ex.: `Alec Small`) — sem rótulo "Resultado Final" ou "Vencedor". Nome do jogador = seleção do vencedor do confronto → `ML`. Nunca classificar como `Outras`.
+- **Esportes individuais (Dardos, Tênis):** a seleção exibe apenas o **nome do jogador** (ex.: `Alec Small`) — sem rótulo "Resultado Final" ou "Vencedor". Nome do jogador = seleção do vencedor do confronto → `ML`. Nunca classificar como `Outros`.
 
 ---
 
@@ -171,7 +171,7 @@ Notas:
 - Hoje/Ontem/Amanhã ancoram na **captura**, não no processamento.
 - Boost já embutido no `PRÊMIO`; `ODDS TOTAIS` é sem boost.
 - `REEMBOLSO` = void, não cashout.
-- **Dardos/Tênis individual:** seleção = nome do jogador (ex.: `Alec Small`) → `ML`. Nunca `Outras`.
+- **Dardos/Tênis individual:** seleção = nome do jogador (ex.: `Alec Small`) → `ML`. Nunca `Outros`.
 
 ---
 
@@ -237,7 +237,7 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 18/06/2026	Dardos		Superbet		ML	Alec Small [Joe Croft v Alec Small]	303,00	1,78	L
 ```
 > Seleção exibida na Superbet: `Alec Small` (apenas o nome do vencedor apostado). Sem rótulo "Resultado Final".
-> Aposta = `ML` (resultado principal do confronto). NUNCA classificar como `Outras`.
+> Aposta = `ML` (resultado principal do confronto). NUNCA classificar como `Outros`.
 
 ---
 
@@ -245,8 +245,8 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 
 1. **Data = perna mais recente** em múltiplas → `MASTER_OUTPUT_2026` (hoje é lacuna).
 2. **Precisão da odd calculada** (não arredondar/truncar) → `MASTER_RESULTADO_2026`.
-3. **Categoria `Dupla Chance`** → `MASTER_APOSTAS_2026` (hoje cai em Outras).
-4. **Categoria `Impedimentos`** → `MASTER_APOSTAS_2026` (hoje cai em Outras).
+3. **Categoria `Dupla Chance`** → `MASTER_APOSTAS_2026` (hoje cai em Outros).
+4. **Categoria `Impedimentos`** → `MASTER_APOSTAS_2026` (hoje cai em Outros).
 
 ---
 

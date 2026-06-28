@@ -18,7 +18,7 @@ Se nao houver, pare e peca.
 ## 2. casas/CASA_<MAIUSCULO>.md (CAMADA FINA — nao redefinir o global)
 - Espelhar a estrutura de `casas/CASA_MODELO.md` (15 secoes).
 - **§9:** SO mercados confirmados num bilhete real -> categoria do `MASTER_APOSTAS_2026 §3`.
-  NAO listar as 27 categorias. NAO usar linhas `aguarda amostra`. Mercado sem categoria -> `Outras` ⚠️ + §Feedback.
+  NAO listar as 27 categorias. NAO usar linhas `aguarda amostra`. Mercado sem categoria -> `Outros` ⚠️ + §Feedback.
 - **§14:** ponteiro `> **Transversais ...**` (MASTER_PIPELINE §8 + MASTER_OUTPUT §17-18) + so validacoes especificas da casa.
 - **§5:** traduzir rotulos da casa para W/L/V/HW/HL (nunca copiar sinal visual cru).
 - **§15:** goldens reais em output order (ultimo no texto = 1a linha), TAB real entre colunas,

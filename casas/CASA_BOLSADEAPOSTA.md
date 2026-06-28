@@ -144,7 +144,7 @@ Apostas abertas → `extraction_state = aberta`.
 | `Both Score` / `Both Teams to Score` | Ambas Marcam | ✓ confirmado |
 | `Over X Goals` / `Under X Goals` | Gols | ✓ confirmado |
 | Nome de time como seleção (ex.: `Alemanha`) + mercado de resultado | ML | ✓ confirmado |
-| Outros mercados sem categoria específica | Outras ⚠️ | fallback |
+| Outros mercados sem categoria específica | Outros ⚠️ | fallback |
 
 **Notas de reconstrução:**
 - Confronto: a Bolsa exibe `Time A vs Time B` (inglês, com "s" em "vs") → normalizar para `[Time A v Time B]` (sem "s").
@@ -154,7 +154,7 @@ Apostas abertas → `extraction_state = aberta`.
 - `Over X Goals` / `Under X Goals` → Gols; descrição = `Over X,Y [Confronto]` (ponto → vírgula no número).
 - **`Mais de X` / `Menos de X` em qualquer mercado → `Over X` / `Under X`**: padrão global — ver `MASTER_DESCRICAO_2026 §11`.
 - `"BEST ODDS IN BRAZIL"` no campo mercado = rótulo promocional; ignorar para classificação.
-- Mercado sem categoria global → `Outras ⚠️` + registrar no §Feedback.
+- Mercado sem categoria global → `Outros ⚠️` + registrar no §Feedback.
 
 ---
 
