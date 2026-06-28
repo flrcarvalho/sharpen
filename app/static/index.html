@@ -524,11 +524,18 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
 }
 .btbl-cols {
   display: grid;
-  /* Template via variável (setada em .btbl-wrap) → header e linhas redimensionam juntos. */
-  grid-template-columns: var(--btbl-cols, 30px 74px minmax(0,1fr) 108px 126px 162px 88px 62px 74px 80px);
+  /* Template via variável (setada em .btbl-wrap) → header e linhas redimensionam juntos.
+     Todas px (redimensionáveis) + spacer 1fr final que preenche a sobra sem virar gap. */
+  grid-template-columns: var(--btbl-cols, 30px 74px 520px 108px 126px 162px 88px 62px 74px 80px 1fr);
   gap: 0 12px; padding: 0 18px; box-sizing: border-box; align-items: center;
 }
-.btbl-hdr-row { height: 36px; flex-shrink: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+/* Scroll: header+linhas rolam juntos na horizontal; header gruda no topo na vertical. */
+.btbl-scroll { flex: 1; min-height: 0; overflow: auto; }
+.btbl-inner { min-width: 100%; width: max-content; }
+.btbl-hdr-row {
+  height: 36px; position: sticky; top: 0; z-index: 2;
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+}
 .btbl-th {
   position: relative;
   font-family: var(--font-mono); font-size: 9px; text-transform: uppercase;
@@ -544,7 +551,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute);
   letter-spacing: .08em; text-align: right; padding: 7px 18px 5px; flex-shrink: 0;
 }
-.btbl-body { flex: 1; overflow-y: auto; min-height: 0; }
+.btbl-body { display: block; }
 .btbl-data-row {
   height: 64px; border-bottom: 1px solid rgba(255,255,255,.028);
   transition: background .1s;
@@ -931,21 +938,25 @@ td.c-res.res-HL { color: var(--warn); }
             </div>
           </div>
           <div class="btbl-wrap">
-            <div class="btbl-cols btbl-hdr-row">
-              <div class="btbl-th btbl-sel"><input type="checkbox" id="chk-todos" title="Selecionar todos"></div>
-              <div class="btbl-th">Data</div>
-              <div class="btbl-th">Aposta / Evento</div>
-              <div class="btbl-th">Esporte</div>
-              <div class="btbl-th">Tipster</div>
-              <div class="btbl-th">Casa · Parceiro</div>
-              <div class="btbl-th">Stake</div>
-              <div class="btbl-th">Odd</div>
-              <div class="btbl-th center">Resultado</div>
-              <div class="btbl-th right">Ações</div>
-            </div>
             <div class="btbl-counter" id="btbl-counter"></div>
-            <div class="btbl-body" id="grade-body">
-              <div class="grade-empty">Selecione um parceiro para ver os bilhetes.</div>
+            <div class="btbl-scroll">
+              <div class="btbl-inner">
+                <div class="btbl-cols btbl-hdr-row">
+                  <div class="btbl-th btbl-sel"><input type="checkbox" id="chk-todos" title="Selecionar todos"></div>
+                  <div class="btbl-th">Data</div>
+                  <div class="btbl-th">Aposta / Evento</div>
+                  <div class="btbl-th">Esporte</div>
+                  <div class="btbl-th">Tipster</div>
+                  <div class="btbl-th">Casa · Parceiro</div>
+                  <div class="btbl-th">Stake</div>
+                  <div class="btbl-th">Odd</div>
+                  <div class="btbl-th center">Resultado</div>
+                  <div class="btbl-th right">Ações</div>
+                </div>
+                <div class="btbl-body" id="grade-body">
+                  <div class="grade-empty">Selecione um parceiro para ver os bilhetes.</div>
+                </div>
+              </div>
             </div>
             <div class="btbl-pager" id="btbl-pager" style="display:none">
               <button id="pg-prev" type="button">‹ Anteriores</button>
@@ -2096,12 +2107,22 @@ async function carregarGrade() {
     if (paginaAtual > 0 && !bilhetes.length) { paginaAtual--; return carregarGrade(); }
     renderGrade();
     renderPager();
+    atualizarContador();
     carregarTipsters();
     atualizarStats();
     atualizarBotoesGrade();
   } catch (e) {
     body.innerHTML = `<div class="grade-empty" style="color:var(--neg)">Erro: ${e.message}</div>`;
   }
+}
+
+function atualizarContador() {
+  const el = document.getElementById('btbl-counter');
+  if (!el) return;
+  if (!totalBilhetes) { el.textContent = ''; return; }
+  const ini = paginaAtual * PAGE_SIZE + 1;
+  const fim = paginaAtual * PAGE_SIZE + bilhetes.length;
+  el.textContent = `${ini.toLocaleString('pt-BR')}–${fim.toLocaleString('pt-BR')} de ${totalBilhetes.toLocaleString('pt-BR')} apostas`;
 }
 
 function renderPager() {
@@ -2116,16 +2137,17 @@ function renderPager() {
 
 // ── Colunas redimensionáveis da lista (.btbl) ─────────────────────────────────
 // O template fica numa CSS var em .btbl-wrap → header e TODAS as linhas redimensionam juntos.
-const BTBL_COLS_KEY = 'fdc-btbl-cols';
-const BTBL_DEFAULT = ['30px','74px','minmax(0,1fr)','108px','126px','162px','88px','62px','74px','80px'];
-const BTBL_FIXAS = new Set([0, 2]);   // sel e Aposta/Evento (flexível) não redimensionam
+const BTBL_COLS_KEY = 'fdc-btbl-cols-v2';
+// 10 larguras px (incl. Aposta/Evento). Um spacer 1fr é anexado no fim p/ preencher a sobra.
+const BTBL_DEFAULT = ['30px','74px','520px','108px','126px','162px','88px','62px','74px','80px'];
+const BTBL_FIXAS = new Set([0]);   // só a coluna de seleção não redimensiona
 let btblCols = (function () {
   try { const s = JSON.parse(localStorage.getItem(BTBL_COLS_KEY)); if (Array.isArray(s) && s.length === BTBL_DEFAULT.length) return s; } catch {}
   return [...BTBL_DEFAULT];
 })();
 function aplicarBtblCols() {
   const wrap = document.querySelector('.btbl-wrap');
-  if (wrap) wrap.style.setProperty('--btbl-cols', btblCols.join(' '));
+  if (wrap) wrap.style.setProperty('--btbl-cols', btblCols.join(' ') + ' 1fr');
 }
 function setupBtblResize() {
   const header = document.querySelector('.btbl-hdr-row');
