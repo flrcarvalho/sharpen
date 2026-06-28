@@ -4,11 +4,11 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-27 (sessão 58 — auditoria da integração Polymarket (3 auditores) + correções aplicadas + modo online: posição resolvida sai das ativas e entra no TSV sozinha)_
+_Atualizado: 2026-06-28 (sessão 59 — MIGRAÇÃO DA BASE DO FECA da planilha → Postgres COMPLETA. ~22.451 bilhetes em 19 lotes auditados; check final reconciliado (planilha 22.394 vs DB 22.451, +57 DB-only reais/API explicados). Bug de data futura 19/07 eliminado. Bet365/Betano/Superbet/Pinnacle fechadas)_
 
-_Anterior: 2026-06-27 (sessão 57 — UI: colunas redimensionáveis na grade e na tabela de Posições ativas; larguras persistidas em localStorage, duplo-clique restaura. Largura da tabela travada na soma exata das colunas → encolher abaixo do conteúdo agora funciona, com reticências e scroll horizontal)_
+_Anterior: 2026-06-27 (sessão 58 — auditoria da integração Polymarket (3 auditores) + correções aplicadas + modo online: posição resolvida sai das ativas e entra no TSV sozinha)_
 
-> Próxima sessão (candidatos, nenhum urgente): (1) Fase 5 — aposentar o app Polymarket standalone, só quando o Feca decidir (hoje fica como backup). (2) Cadastrar Snooker como esporte canônico no `MASTER_ESPORTES` (hoje cai em `Outro`). (3) Posições ativas hoje vivem só no dashboard; avaliar se entram na grade.
+> Próxima sessão: (1) **Migrar a base do OPERADOR** (CSV separado que o Feca vai subir; mesmos padrões da migração do Feca — ver §4 lote 19). (2) **Rotacionar a senha do Postgres** no Railway (a DATABASE_URL trafegou no chat). (3) Fase C do PLANO_UNIFICACAO: endpoint `/dashboard/data` + dashboard same-origin. (4) Fase A2: colunas `pl_num`/`valor_num` (carregar P/L da planilha). (5) Candidatos antigos: aposentar app Polymarket standalone; cadastrar Snooker em `MASTER_ESPORTES`.
 
 ---
 
@@ -81,7 +81,8 @@ Os 6 MASTER_*.md estão em `/global/` (reorganização concluída em 12/06/2026)
   - **Lote 18 (Bet365 marloncezar01 + stragglers):** marloncezar01 importadas 2.867 antigas (19/03→14/06), 248 mantidas → 3.115 = sheet. valdilealrpb +2, João Pedro Invest +1 (stragglers CSV-5→CSV-7) → batem. Superbet "Parceiro1" (id=1, TesteTipster Flamengo x Vasco) DELETADO. **CHECK GERAL:** 35 casas reconciliadas; "+N" são DB-only reais (Betnacional/Bolsa/Pinnacle/Superbet/Polymarket); 0 datas futuras. Falta só gleicecacia01.
   - **Lote 19 (Bet365 gleicecacia01 + Taliacoelho01) — FECHA A BASE DO FECA:** gleice importadas 1.437 antigas + 39 correções de data → 1.657 (1.655 sheet + 2 DB-only reais: Bósnia v Qatar, tênis Dev/Sinha). Talia match perfeito (84=84). 
   - **🎉 MIGRAÇÃO DA BASE DO FECA COMPLETA (CHECK FINAL):** planilha 22.394 vs DB 22.451 (+57 = DB-only reais/API, todos explicados: Bet365 +2, Superbet +2, Bolsa +3, Pinnacle +30, Betnacional +11, Polymarket +9). 30 casas batem exato. 0 datas futuras. origem: import 20.215 / extracao 2.029 / sync 207.
-  - **Progresso prod:** Base do Feca migrada e reconciliada. **PRÓXIMO: base do OPERADOR (CSV separado, o Feca sobe depois).** Depois: Fase C (endpoint /dashboard/data + dashboard same-origin) + Fase A2 (pl_num) do PLANO_UNIFICACAO. **Lembrar: rotacionar senha do Postgres no fim.** (gleice/marlon/Talia) pendentes. Betnacional pendente (acima). Base do operador: CSV separado, depois. **Padrão: selecionar por (casa,parceiro), validar stake/PL+colisão, normalizar typos de parceiro ([ Eu]→[Eu]). Arquivo fonte atual: CSV(7).**
+  - **Progresso prod:** Base do Feca migrada e reconciliada. **PRÓXIMO: base do OPERADOR (CSV separado, o Feca sobe depois).** Depois: Fase C (endpoint /dashboard/data + dashboard same-origin) + Fase A2 (pl_num) do PLANO_UNIFICACAO. **Lembrar: rotacionar senha do Postgres no fim.**
+  - **Padrões da migração (referência p/ a base do operador):** importar por `executemany` em transação (não `upsert_bilhetes`, que estoura timeout em lote grande); selecionar sempre por (casa,parceiro), não por faixa de linha crua; conta inativa = import limpo; conta ativa = DB manda no overlap (preserva código), importa só era anterior por data, aplica correções reais de data com recálculo de assinatura; DB-only reais = manter; normalizar typos de parceiro (`[ Eu]`→`[Eu]`) e casa (`Faz1bet`→`Faz1Bet`). Acesso prod via `DATABASE_URL` no `.env` (gitignored). Arquivo fonte da base do Feca: `2026 Contas Pessoais - DB Apostas (7).csv`.
   - **Pendente do plano (fases futuras):** endpoint `GET /dashboard/data` (replica contrato do `Code.gs`) + hospedar Dashboard same-origin + colunas numéricas `pl_num` p/ o dashboard.
 
 - **Sessão 58 (27/06/2026) — Auditoria da integração Polymarket + correções + modo online:**
