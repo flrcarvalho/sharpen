@@ -564,7 +564,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   flex: none; font-size: 14px; line-height: 1; filter: grayscale(1);
 }
 .btbl-tip-input {
-  width: 100%; box-sizing: border-box; padding: 4px 6px; border: 1px solid transparent;
+  width: 100%; box-sizing: border-box; padding: 4px 6px 4px 0; border: 1px solid transparent;
   border-radius: var(--r-xs); background: transparent; color: var(--ink-soft);
   font: inherit; font-size: 11px; cursor: text;
 }
@@ -2102,6 +2102,51 @@ function renderPager() {
   document.getElementById('pg-next').disabled = paginaAtual >= pages - 1;
 }
 
+// ── Colunas redimensionáveis da lista (.btbl) ─────────────────────────────────
+// O template fica numa CSS var em .btbl-wrap → header e TODAS as linhas redimensionam juntos.
+const BTBL_COLS_KEY = 'fdc-btbl-cols';
+const BTBL_DEFAULT = ['30px','74px','minmax(0,1fr)','108px','126px','162px','88px','62px','74px','80px'];
+const BTBL_FIXAS = new Set([0, 2]);   // sel e Aposta/Evento (flexível) não redimensionam
+let btblCols = (function () {
+  try { const s = JSON.parse(localStorage.getItem(BTBL_COLS_KEY)); if (Array.isArray(s) && s.length === BTBL_DEFAULT.length) return s; } catch {}
+  return [...BTBL_DEFAULT];
+})();
+function aplicarBtblCols() {
+  const wrap = document.querySelector('.btbl-wrap');
+  if (wrap) wrap.style.setProperty('--btbl-cols', btblCols.join(' '));
+}
+function setupBtblResize() {
+  const header = document.querySelector('.btbl-hdr-row');
+  if (!header) return;
+  Array.from(header.children).forEach((th, i) => {
+    if (BTBL_FIXAS.has(i)) return;
+    const handle = document.createElement('div');
+    handle.className = 'btbl-resizer';
+    th.appendChild(handle);
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault(); e.stopPropagation();
+      const startX = e.clientX;
+      const startW = th.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      const move = ev => { btblCols[i] = Math.max(44, startW + (ev.clientX - startX)) + 'px'; aplicarBtblCols(); };
+      const up = () => {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        try { localStorage.setItem(BTBL_COLS_KEY, JSON.stringify(btblCols)); } catch {}
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+    handle.addEventListener('dblclick', e => {   // duplo-clique reseta a coluna
+      e.preventDefault(); e.stopPropagation();
+      btblCols[i] = BTBL_DEFAULT[i]; aplicarBtblCols();
+      try { localStorage.setItem(BTBL_COLS_KEY, JSON.stringify(btblCols)); } catch {}
+    });
+  });
+  aplicarBtblCols();
+}
+
 function esc(s) {
   if (s == null) return '';
   return String(s)
@@ -2195,7 +2240,6 @@ function renderGrade() {
       <div class="btbl-cell btbl-num">${esc(_limparOdd(b.odd))}</div>
       <div class="btbl-cell btbl-res">${resPill(b.resultado)}</div>
       <div class="btbl-cell btbl-acts">
-        <button class="act-btn chk ${cop ? 'checked' : ''}" title="Marcar como copiada" onclick="toggleCopy(${b.id},this)">✓</button>
         <button class="act-btn" title="Editar aposta" onclick="abrirEdicao(${b.id})">✎</button>
         <button class="act-btn del" title="Deletar" onclick="deletarBilhete(${b.id})">✕</button>
       </div>
@@ -2636,8 +2680,8 @@ document.querySelectorAll('#parceiro-tabs .tab').forEach(t =>
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.getElementById('btn-logout').addEventListener('click', logout);
-setupColResize(document.querySelector('table.grade'), 'fdc-grade-cols');
 setupColResize(document.querySelector('table.pm-ativas'), 'fdc-pm-ativas-cols');
+setupBtblResize();
 carregarUsuario();
 carregarCasas();
 </script>
