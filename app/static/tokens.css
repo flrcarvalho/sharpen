@@ -19,6 +19,12 @@
   --neg:  #E5524B;  /* perda           */
   --warn: #E0A21A;
 
+  /* ---- Triplets RGB (para rgba(var(--*-rgb), alpha)) ---- */
+  --accent-rgb: 46,139,255;
+  --pos-rgb:    43,192,126;
+  --neg-rgb:    229,82,75;
+  --warn-rgb:   224,162,26;
+
   /* ---- Superfícies (dark, padrão) ---- */
   --bg:        #0A0D12;
   --surface:   #12161D;

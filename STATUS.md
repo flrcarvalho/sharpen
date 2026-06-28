@@ -4,9 +4,9 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-06-28 (sessão 60 — ajustes visuais: sidebar (logo fixo, export na base, "Operador" suspenso, header sem repetição, abas Ativas/Inativas) + LISTA DE APOSTAS estilo Dashboard (paginação 100, mais novo→antigo, tipster inline + modal de edição). Pendentes: validação visual do Feca; modelo de login de operadores; P/L (Fase A2))_
+_Atualizado: 2026-06-28 (sessão 61 — ALINHAMENTO DE MARCA UI: `index.html` alinhado ao Betting Dashboard via 5 auditores. ~10 cores off-brand → tokens (`#36d399`, `#f5a623`, `#e53935`, 2º azul `#4A90E2`); triplets `--accent/pos/neg/warn-rgb` no `tokens.css`; scrollbar de marca; bordas/raio do bloco Polymarket (`--grid`→`--line`, `10px`→`--r-sm`); 9 labels ganharam `font-mono`; bug de tokens inexistentes `--surface2`/`--border` (cinza off-brand) corrigido. Doc `docs/UI_REFERENCE.md` criado. Pendentes: validação visual do Feca; `.btbl-num` à direita (depende dos headers da grade))_
 
-_Anterior: 2026-06-28 (sessão 59 — MIGRAÇÃO DA BASE DO FECA da planilha → Postgres COMPLETA. ~22.451 bilhetes em 19 lotes auditados; check final reconciliado (planilha 22.394 vs DB 22.451, +57 DB-only reais/API explicados). Bug de data futura 19/07 eliminado. Bet365/Betano/Superbet/Pinnacle fechadas)_
+_Anterior: 2026-06-28 (sessão 60 — ajustes visuais: sidebar (logo fixo, export na base, "Operador" suspenso, header sem repetição, abas Ativas/Inativas) + LISTA DE APOSTAS estilo Dashboard (paginação 100, mais novo→antigo, tipster inline + modal de edição). Pendentes: validação visual do Feca; modelo de login de operadores; P/L (Fase A2))_
 
 > Próxima sessão: (1) **Migrar a base do OPERADOR** (CSV separado que o Feca vai subir; mesmos padrões da migração do Feca — ver §4 lote 19). (2) **Rotacionar a senha do Postgres** no Railway (a DATABASE_URL trafegou no chat). (3) Fase C do PLANO_UNIFICACAO: endpoint `/dashboard/data` + dashboard same-origin. (4) Fase A2: colunas `pl_num`/`valor_num` (carregar P/L da planilha). (5) Candidatos antigos: aposentar app Polymarket standalone; cadastrar Snooker em `MASTER_ESPORTES`.
 
