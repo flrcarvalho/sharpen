@@ -314,6 +314,17 @@ async def list_bilhetes(
     return [dict(r) for r in rows]
 
 
+async def casas_com_parceiros(dono: str) -> list[str]:
+    """Casas que têm parceiros deste dono — inclui casas inativas importadas (sem
+    manual CASA_*.md). Une-se à lista de manuais para a sidebar mostrar tudo."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT DISTINCT casa FROM parceiros WHERE dono = $1", dono,
+        )
+    return [r["casa"] for r in rows]
+
+
 async def export_bilhetes(dono: str) -> list[dict]:
     """Backup completo: TODAS as linhas do dono, TODAS as colunas, sem limite,
     em ordem cronológica de inserção. Alimenta o export CSV (rede de segurança

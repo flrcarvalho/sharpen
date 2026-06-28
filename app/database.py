@@ -87,6 +87,9 @@ BEGIN
     END IF;
 END$$;
 
+-- Origem do registro: extracao (IA) | sync (Polymarket API) | import (migração da planilha).
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'extracao';
+
 -- Tipster atribuído a POSIÇÕES ATIVAS da Polymarket (dashboard ao vivo).
 -- Vive separado de `bilhetes` (que só guarda apostas resolvidas/exportáveis);
 -- chave = código do bilhete (conditionId/__i). Carregado p/ a grade quando resolve.

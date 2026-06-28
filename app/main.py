@@ -31,9 +31,10 @@ from polymarket import coletar_bilhetes, coletar_dashboard
 from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    contar_pendentes, criar_parceiro, deletar_bilhetes, export_bilhetes,
-    get_ativos_tipster, get_codigos_existentes, get_codigos_resolvidos,
-    limpar_ativos_tipster, list_bilhetes, list_tipsters, set_ativo_tipster,
+    casas_com_parceiros, contar_pendentes, criar_parceiro, deletar_bilhetes,
+    export_bilhetes, get_ativos_tipster, get_codigos_existentes,
+    get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_tipsters,
+    set_ativo_tipster,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
     reativar_parceiro, upsert_bilhetes,
 )
@@ -668,12 +669,14 @@ async def me(dono: str = Depends(usuario_atual)):
 
 @app.get("/casas")
 async def listar_casas(dono: str = Depends(usuario_atual)):
-    casas = sorted(
+    manuais = {
         _casa_display(p.stem.removeprefix("CASA_"))
         for p in CASAS_DIR.glob("CASA_*.md")
         if p.stem != "CASA_MODELO"
-    )
-    return {"casas": casas}
+    }
+    # inclui casas inativas importadas (têm parceiros/dados, mas não têm manual)
+    com_dados = set(await casas_com_parceiros(dono))
+    return {"casas": sorted(manuais | com_dados)}
 
 
 @app.post("/extrair")
