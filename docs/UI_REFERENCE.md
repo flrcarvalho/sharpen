@@ -92,6 +92,5 @@ Alinhamento aplicado ao `index.html` nesta sessão:
 - Bug corrigido: `var(--surface2,#2a2a2a)` / `var(--border,#333)` referenciavam tokens
   inexistentes (caíam em cinza off-brand) → `--surface-2` / `--line`.
 
-**Pendente (decisão visual):** `.btbl-num` está `text-align:left`; a regra de marca pede
-números à direita, mas depende do alinhamento dos headers da grade redimensionável — manter
-sob verificação visual antes de mudar.
+- `.btbl-num` (Stake/Odd da Lista de Apostas) → `text-align:right` + headers "Stake"/"Odd"
+  com `.right`, igualando a grade de extração (que já alinhava números à direita).
