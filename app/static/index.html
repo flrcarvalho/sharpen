@@ -1107,6 +1107,8 @@ const NOMES = {
   BETNACIONAL: 'Betnacional', LOTTU: 'Lottu',
   JOGODEOURO: 'Jogo de Ouro', KTO: 'KTO',
   POLYMARKET: 'Polymarket',
+  // "Rei do Pitaco" rebatizou para "Pitaco" — alias de exibição (DB ainda guarda o nome antigo)
+  'Rei do Pitaco': 'Pitaco',
 };
 // Chaveado pelo NOME DE EXIBIÇÃO (igual ao valor de `casa` que /casas devolve),
 // nunca pela chave UPPERCASE — faviconUrl() recebe sempre o display name.
@@ -1128,6 +1130,8 @@ const DOMINIOS = {
   'Lance de Sorte': 'lancedesorte.bet.br', MultiBet: 'multi.bet.br',
   // só no Planilhador (não estão no Dashboard) — reguladas BR
   KingPanda: 'kingpanda.bet.br', Lottu: 'lottu.bet.br', 'Jogo de Ouro': 'jogodeouro.bet.br',
+  // chaveado pelo valor do DB ("Rei do Pitaco"); marca rebatizada para Pitaco (pitaco.bet.br)
+  'Rei do Pitaco': 'pitaco.bet.br',
 };
 function faviconUrl(casa) {
   const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
