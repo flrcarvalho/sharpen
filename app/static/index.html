@@ -90,6 +90,21 @@ body::before {
   cursor: pointer; transition: background .12s, color .12s;
 }
 .operador-menu button:hover { background: var(--surface-2); color: var(--ink); }
+/* ── Abas Ativas / Inativas (parceiros) ── */
+.parceiro-tabs {
+  display: flex; gap: 4px; flex-shrink: 0;
+  margin: 0 4px 8px; padding: 3px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.parceiro-tabs .tab {
+  flex: 1; padding: 6px 8px; border: 0; border-radius: var(--r-xs);
+  background: transparent; color: var(--ink-mute);
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  font-family: inherit; cursor: pointer; transition: background .12s, color .12s;
+}
+.parceiro-tabs .tab:hover { color: var(--ink-soft); }
+.parceiro-tabs .tab.active { background: var(--accent); color: #fff; }
+.casa-list-empty { font-size: 12px; color: var(--ink-mute); padding: 16px 10px; text-align: center; }
 .backup-link {
   display: block; flex-shrink: 0; margin: 14px 4px 0; padding: 8px 10px; text-align: center;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
@@ -614,8 +629,11 @@ td.c-res.res-HL { color: var(--warn); }
       <button id="btn-logout">Sair</button>
     </div>
   </div>
+  <div class="parceiro-tabs" id="parceiro-tabs">
+    <button class="tab active" data-aba="ativas">Ativas</button>
+    <button class="tab" data-aba="inativas">Inativas</button>
+  </div>
   <div class="sidebar-scroll">
-    <div class="section-label">Casas</div>
     <div id="casa-list">
       <div style="font-size:12px;color:var(--ink-mute);padding:8px 10px">Carregando…</div>
     </div>
@@ -839,7 +857,10 @@ async function logout() {
 // ── Estado global ─────────────────────────────────────────────────────────────
 let casaSelecionada = null;
 let parceiroSelecionado = null;   // { id, casa, nome }
-let parceirosCache = {};
+let parceirosCache = {};            // casa → parceiros ATIVOS
+let parceirosArquivadosCache = {};  // casa → parceiros ARQUIVADOS (inativos)
+let casasCarregadas = [];           // ordem das casas (p/ re-render ao trocar de aba)
+let abaParceiros = 'ativas';        // 'ativas' | 'inativas'
 let arquivos = [];
 let csvFiles = [];
 let xlsFiles = [];
@@ -955,14 +976,54 @@ async function carregarCasas() {
     const r = await fetch('/casas');
     const { casas } = await r.json();
     await Promise.all(casas.map(c => carregarParceiros(c)));
-    const list = document.getElementById('casa-list');
-    list.innerHTML = '';
-    casas.forEach(c => list.appendChild(buildCasaGroup(c)));
+    casasCarregadas = casas;
+    renderCasaList();
     atualizarPendentes();
   } catch {
     document.getElementById('casa-list').innerHTML =
       '<div style="font-size:12px;color:var(--neg);padding:8px 10px">Erro ao carregar</div>';
   }
+}
+
+// Parceiros da aba atual de uma casa (ativos ou arquivados).
+function parceirosDaAba(casa) {
+  const fonte = abaParceiros === 'ativas' ? parceirosCache : parceirosArquivadosCache;
+  return fonte[casa] || [];
+}
+
+// Visibilidade da casa na aba atual.
+//  · Inativas: aparece só se tiver ≥1 parceiro arquivado.
+//  · Ativas: aparece com ≥1 ativo OU se estiver totalmente vazia (permite criar o
+//    1º parceiro). Esconde-se apenas quando tem SÓ arquivados (vive na aba Inativas).
+function casaVisivelNaAba(casa) {
+  const ativos = (parceirosCache[casa] || []).length;
+  const arquivados = (parceirosArquivadosCache[casa] || []).length;
+  if (abaParceiros === 'inativas') return arquivados > 0;
+  return ativos > 0 || arquivados === 0;
+}
+
+// Render do miolo: só mostra as casas visíveis na aba atual.
+function renderCasaList() {
+  const list = document.getElementById('casa-list');
+  list.innerHTML = '';
+  let alguma = false;
+  casasCarregadas.forEach(c => {
+    if (!casaVisivelNaAba(c)) return;
+    list.appendChild(buildCasaGroup(c));
+    alguma = true;
+  });
+  if (!alguma) {
+    list.innerHTML = `<div class="casa-list-empty">Nenhuma casa ${abaParceiros === 'ativas' ? 'ativa' : 'inativa'}.</div>`;
+  }
+  aplicarBadgesPendentes();
+}
+
+function trocarAbaParceiros(aba) {
+  if (aba === abaParceiros) return;
+  abaParceiros = aba;
+  document.querySelectorAll('#parceiro-tabs .tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.aba === aba));
+  renderCasaList();
 }
 
 function buildCasaGroup(casa) {
@@ -1002,33 +1063,42 @@ function buildCasaGroup(casa) {
   inputWrap.appendChild(inp);
   group.appendChild(inputWrap);
 
-  const btnNovoWrap = document.createElement('div');
-  btnNovoWrap.className = 'novo-parceiro-wrap';
-  btnNovoWrap.id = `btn-novo-wrap-${casa}`;
-  btnNovoWrap.style.display = 'block';
-  btnNovoWrap.innerHTML = `<button class="btn-novo-parceiro">+ Novo parceiro</button>`;
-  btnNovoWrap.querySelector('button').addEventListener('click', () => {
-    inputWrap.classList.add('open'); inp.value = ''; inp.focus();
-  });
-  group.appendChild(btnNovoWrap);
+  // "+ Novo parceiro" só na aba Ativas — parceiro novo nasce ativo.
+  if (abaParceiros === 'ativas') {
+    const btnNovoWrap = document.createElement('div');
+    btnNovoWrap.className = 'novo-parceiro-wrap';
+    btnNovoWrap.id = `btn-novo-wrap-${casa}`;
+    btnNovoWrap.style.display = 'block';
+    btnNovoWrap.innerHTML = `<button class="btn-novo-parceiro">+ Novo parceiro</button>`;
+    btnNovoWrap.querySelector('button').addEventListener('click', () => {
+      inputWrap.classList.add('open'); inp.value = ''; inp.focus();
+    });
+    group.appendChild(btnNovoWrap);
+  }
 
   return group;
 }
 
 function renderParceirosEmLista(casa, listEl) {
   listEl.innerHTML = '';
-  (parceirosCache[casa] || []).forEach(p => {
+  const inativa = abaParceiros === 'inativas';
+  parceirosDaAba(casa).forEach(p => {
     const item = document.createElement('div');
     item.className = 'parceiro-item';
     item.dataset.id = p.id;
     item.dataset.nome = p.nome;
-    item.innerHTML = `<span class="parceiro-nome">${esc(p.nome)}</span><span class="pend-badge" data-pend-parceiro></span><button class="btn-arquivar" title="Arquivar">▣</button>`;
+    const btn = inativa
+      ? `<button class="btn-arquivar" title="Reativar">↩</button>`
+      : `<button class="btn-arquivar" title="Arquivar">▣</button>`;
+    item.innerHTML = `<span class="parceiro-nome">${esc(p.nome)}</span><span class="pend-badge" data-pend-parceiro></span>${btn}`;
     item.addEventListener('click', e => {
       if (e.target.classList.contains('btn-arquivar')) return;
       selecionarParceiro(p);
     });
     item.querySelector('.btn-arquivar').addEventListener('click', e => {
-      e.stopPropagation(); arquivarParceiro(p.id, casa);
+      e.stopPropagation();
+      if (inativa) reativarParceiro(p.id, casa);
+      else arquivarParceiro(p.id, casa);
     });
     listEl.appendChild(item);
   });
@@ -1072,23 +1142,25 @@ function aplicarBadgesPendentes() {
 
 function toggleCasaGroup(casa, header, listEl, inputWrap) {
   const isOpen = listEl.classList.contains('open');
+  const btnNovo = document.getElementById(`btn-novo-wrap-${casa}`);  // ausente na aba Inativas
   if (isOpen) {
     listEl.classList.remove('open'); header.classList.remove('expanded');
-    document.getElementById(`btn-novo-wrap-${casa}`).style.display = 'none';
+    if (btnNovo) btnNovo.style.display = 'none';
     fecharInputNovoParceiro(inputWrap);
   } else {
     listEl.classList.add('open'); header.classList.add('expanded');
-    document.getElementById(`btn-novo-wrap-${casa}`).style.display = 'block';
+    if (btnNovo) btnNovo.style.display = 'block';
   }
 }
 
 // ── Parceiros CRUD ────────────────────────────────────────────────────────────
 async function carregarParceiros(casa) {
   try {
-    const r = await fetch(`/parceiros?casa=${casa}`);
+    const r = await fetch(`/parceiros?casa=${casa}&arquivados=true`);
     const { parceiros } = await r.json();
-    parceirosCache[casa] = parceiros;
-  } catch { parceirosCache[casa] = []; }
+    parceirosCache[casa] = parceiros.filter(p => !p.arquivado);
+    parceirosArquivadosCache[casa] = parceiros.filter(p => p.arquivado);
+  } catch { parceirosCache[casa] = []; parceirosArquivadosCache[casa] = []; }
 }
 
 function fecharInputNovoParceiro(inputWrap) { inputWrap.classList.remove('open'); }
@@ -1107,6 +1179,8 @@ async function confirmarNovoParceiro(casa, inp, listEl, inputWrap) {
     const idx = (parceirosCache[casa] || []).findIndex(x => x.id === p.id);
     if (idx >= 0) parceirosCache[casa][idx] = p;
     else parceirosCache[casa] = [...(parceirosCache[casa] || []), p];
+    // Reusar um nome arquivado reativa-o no backend (ON CONFLICT) — tira da aba Inativas.
+    parceirosArquivadosCache[casa] = (parceirosArquivadosCache[casa] || []).filter(x => x.id !== p.id);
     fecharInputNovoParceiro(inputWrap);
     renderParceirosEmLista(casa, listEl);
     selecionarParceiro(p);
@@ -1117,13 +1191,31 @@ async function arquivarParceiro(id, casa) {
   if (!confirm('Arquivar este parceiro? Os bilhetes são mantidos.')) return;
   try {
     await fetch(`/parceiros/${id}/arquivar`, { method: 'POST' });
-    parceirosCache[casa] = (parceirosCache[casa] || []).filter(p => p.id !== id);
-    const listEl = document.getElementById(`parceiros-${casa}`);
-    if (listEl) renderParceirosEmLista(casa, listEl);
+    const p = (parceirosCache[casa] || []).find(x => x.id === id);
+    parceirosCache[casa] = (parceirosCache[casa] || []).filter(x => x.id !== id);
+    if (p) {
+      p.arquivado = true;
+      parceirosArquivadosCache[casa] = [...(parceirosArquivadosCache[casa] || []), p];
+    }
+    renderCasaList();  // casa some da aba Ativas se ficou sem ativos
     if (parceiroSelecionado && parceiroSelecionado.id === id) {
       parceiroSelecionado = null; mostrarEmptyState();
     }
   } catch { alert('Erro ao arquivar.'); }
+}
+
+async function reativarParceiro(id, casa) {
+  try {
+    const r = await fetch(`/parceiros/${id}/reativar`, { method: 'POST' });
+    if (!r.ok) { alert('Erro ao reativar.'); return; }
+    const p = (parceirosArquivadosCache[casa] || []).find(x => x.id === id);
+    parceirosArquivadosCache[casa] = (parceirosArquivadosCache[casa] || []).filter(x => x.id !== id);
+    if (p) {
+      p.arquivado = false;
+      parceirosCache[casa] = [...(parceirosCache[casa] || []), p];
+    }
+    renderCasaList();  // casa some da aba Inativas se ficou sem arquivados
+  } catch { alert('Erro de rede.'); }
 }
 
 // ── Selecionar parceiro ───────────────────────────────────────────────────────
@@ -2446,6 +2538,10 @@ function setupColResize(table, storageKey) {
     if (e.key === 'Escape') bar.classList.remove('open');
   });
 })();
+
+// ── Abas Ativas / Inativas ─────────────────────────────────────────────────────
+document.querySelectorAll('#parceiro-tabs .tab').forEach(t =>
+  t.addEventListener('click', () => trocarAbaParceiros(t.dataset.aba)));
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.getElementById('btn-logout').addEventListener('click', logout);
