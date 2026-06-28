@@ -139,7 +139,7 @@ body::before {
 .casa-name {
   flex: 1;
   font-family: var(--font-sans);
-  font-size: 12px; font-weight: 700;
+  font-size: 13px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .05em;
   color: var(--ink-mute);
 }
@@ -517,16 +517,22 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
 }
 .btbl-cols {
   display: grid;
-  grid-template-columns: 30px 74px minmax(0,1fr) 108px 126px 162px 88px 62px 74px 80px;
+  /* Template via variável (setada em .btbl-wrap) → header e linhas redimensionam juntos. */
+  grid-template-columns: var(--btbl-cols, 30px 74px minmax(0,1fr) 108px 126px 162px 88px 62px 74px 80px);
   gap: 0 12px; padding: 0 18px; box-sizing: border-box; align-items: center;
 }
 .btbl-hdr-row { height: 36px; flex-shrink: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); }
 .btbl-th {
+  position: relative;
   font-family: var(--font-mono); font-size: 9px; text-transform: uppercase;
   letter-spacing: .12em; color: var(--ink-mute); white-space: nowrap; user-select: none;
 }
 .btbl-th.right { text-align: right; }
 .btbl-th.center { text-align: center; }
+/* Alça de redimensionamento (borda direita de cada cabeçalho redimensionável) */
+.btbl-resizer { position: absolute; top: 0; right: -1px; width: 9px; height: 100%; cursor: col-resize; user-select: none; z-index: 3; }
+.btbl-resizer::after { content: ''; position: absolute; top: 22%; right: 3px; height: 56%; width: 2px; border-radius: 2px; background: transparent; transition: background .12s; }
+.btbl-resizer:hover::after, .btbl-resizer.dragging::after { background: var(--accent); }
 .btbl-counter {
   font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute);
   letter-spacing: .08em; text-align: right; padding: 7px 18px 5px; flex-shrink: 0;
@@ -569,7 +575,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
 .btbl-casa-sub { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .btbl-casa-nome { font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .btbl-casa-conta { font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.btbl-num { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; text-align: right; }
+.btbl-num { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; text-align: left; }
 .btbl-res { display: flex; align-items: center; justify-content: center; }
 .bet-res-pill {
   display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
@@ -580,9 +586,9 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
 .bet-res-L  { background: var(--d-neg-soft); color: var(--neg);   border: 1px solid rgba(229,82,75,.25); }
 .bet-res-HL { background: var(--d-neg-soft); color: var(--neg);   border: 1px solid rgba(229,82,75,.25); }
 .bet-res-V  { background: rgba(255,255,255,.06); color: var(--ink-mute); border: 1px solid var(--line); }
-.money { display: inline-flex; justify-content: flex-end; gap: 4px; width: 100%; font-family: var(--font-mono); }
+.money { display: inline-flex; justify-content: flex-start; gap: 4px; width: 100%; font-family: var(--font-mono); }
 .money-sign { color: var(--ink-soft); font-size: .78em; flex-shrink: 0; }
-.money-val { text-align: right; font-variant-numeric: tabular-nums; }
+.money-val { font-variant-numeric: tabular-nums; }
 .btbl-acts { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .act-btn {
   width: 22px; height: 22px; padding: 0; border: none; background: transparent; cursor: pointer;
@@ -925,9 +931,9 @@ td.c-res.res-HL { color: var(--warn); }
               <div class="btbl-th">Esporte</div>
               <div class="btbl-th">Tipster</div>
               <div class="btbl-th">Casa · Parceiro</div>
-              <div class="btbl-th right">Stake</div>
-              <div class="btbl-th right">Odd</div>
-              <div class="btbl-th center">Result.</div>
+              <div class="btbl-th">Stake</div>
+              <div class="btbl-th">Odd</div>
+              <div class="btbl-th center">Resultado</div>
               <div class="btbl-th right">Ações</div>
             </div>
             <div class="btbl-counter" id="btbl-counter"></div>
