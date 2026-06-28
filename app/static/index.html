@@ -227,18 +227,24 @@ body::before {
 /* KTO e BetMGM: logo claro sobre fundo escuro, sem redução de contraste */
 .casa-group[data-casa="KTO"] .casa-chip img,
 .casa-group[data-casa="BetMGM"] .casa-chip img,
+.btbl-casa .casa-chip[data-casa="KTO"] img,
+.btbl-casa .casa-chip[data-casa="BetMGM"] img,
 .partner-favicon img[data-casa="KTO"],
 .partner-favicon img[data-casa="BetMGM"] { filter: grayscale(1) brightness(1.8); }
 /* Logos circulares com padding transparente: scale corta a margem e preenche o chip */
 .casa-group[data-casa="Novibet"] .casa-chip img,
 .casa-group[data-casa="Esportiva"] .casa-chip img,
 .casa-group[data-casa="PixBet"] .casa-chip img,
+.btbl-casa .casa-chip[data-casa="Novibet"] img,
+.btbl-casa .casa-chip[data-casa="Esportiva"] img,
+.btbl-casa .casa-chip[data-casa="PixBet"] img,
 .partner-favicon img[data-casa="Novibet"],
 .partner-favicon img[data-casa="Esportiva"],
 .partner-favicon img[data-casa="PixBet"] { transform: scale(1.3); }
 /* BETesporte: fundo branco → invert + screen funde com o fundo escuro do chip
    (tema escuro único; sem gate [data-theme] como no Dashboard) */
 .casa-group[data-casa="BETesporte"] .casa-chip img,
+.btbl-casa .casa-chip[data-casa="BETesporte"] img,
 .partner-favicon img[data-casa="BETesporte"] {
   filter: grayscale(1) invert(1) brightness(1.4);
   mix-blend-mode: screen;
@@ -502,6 +508,123 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   color: var(--ink-mute); font-size: 13px;
 }
 
+/* ── Lista de apostas estilo Dashboard (.btbl-*) ── */
+.btbl-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.btbl-cols {
+  display: grid;
+  grid-template-columns: 30px 74px minmax(0,1fr) 108px 126px 162px 88px 62px 74px 80px;
+  gap: 0 12px; padding: 0 18px; box-sizing: border-box; align-items: center;
+}
+.btbl-hdr-row { height: 36px; flex-shrink: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.btbl-th {
+  font-family: var(--font-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-mute); white-space: nowrap; user-select: none;
+}
+.btbl-th.right { text-align: right; }
+.btbl-th.center { text-align: center; }
+.btbl-counter {
+  font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute);
+  letter-spacing: .08em; text-align: right; padding: 7px 18px 5px; flex-shrink: 0;
+}
+.btbl-body { flex: 1; overflow-y: auto; min-height: 0; }
+.btbl-data-row {
+  height: 64px; border-bottom: 1px solid rgba(255,255,255,.028);
+  transition: background .1s;
+}
+.btbl-data-row:hover { background: rgba(46,139,255,.04); }
+.btbl-data-row.row-cop { opacity: .55; }
+.btbl-data-row.row-sel { background: rgba(46,139,255,.08); }
+.btbl-cell { min-width: 0; overflow: hidden; }
+.btbl-sel { display: flex; align-items: center; justify-content: center; }
+.btbl-date { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); white-space: nowrap; }
+.btbl-tipo {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--accent); margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.btbl-desc { font-size: 12px; color: var(--ink); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btbl-desc .dup-badge, .btbl-desc .so-badge { margin-left: 6px; vertical-align: middle; }
+.btbl-sport { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; }
+.sp-chip {
+  width: 20px; height: 20px; border-radius: 6px; background: #222831;
+  border: 1px solid rgba(255,255,255,.08); display: inline-grid; place-items: center;
+  flex: none; font-size: 11px; line-height: 1;
+}
+.btbl-tip-input {
+  width: 100%; box-sizing: border-box; padding: 4px 6px; border: 1px solid transparent;
+  border-radius: var(--r-xs); background: transparent; color: var(--ink-soft);
+  font: inherit; font-size: 11px; cursor: text;
+}
+.btbl-tip-input::placeholder { color: var(--ink-mute); }
+.btbl-tip-input:hover { border-color: var(--line); }
+.btbl-tip-input:focus { outline: none; border-color: var(--accent); background: rgba(46,139,255,.06); color: var(--ink); }
+.btbl-casa { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.btbl-casa-sub { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.btbl-casa-nome { font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btbl-casa-conta { font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btbl-num { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; text-align: right; }
+.btbl-res { display: flex; align-items: center; justify-content: center; }
+.bet-res-pill {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+}
+.bet-res-W  { background: var(--d-pos-soft); color: var(--d-pos); border: 1px solid rgba(43,192,126,.30); }
+.bet-res-HW { background: var(--d-pos-soft); color: var(--d-pos); border: 1px solid rgba(43,192,126,.25); }
+.bet-res-L  { background: var(--d-neg-soft); color: var(--neg);   border: 1px solid rgba(229,82,75,.25); }
+.bet-res-HL { background: var(--d-neg-soft); color: var(--neg);   border: 1px solid rgba(229,82,75,.25); }
+.bet-res-V  { background: rgba(255,255,255,.06); color: var(--ink-mute); border: 1px solid var(--line); }
+.money { display: inline-flex; justify-content: flex-end; gap: 4px; width: 100%; font-family: var(--font-mono); }
+.money-sign { color: var(--ink-soft); font-size: .78em; flex-shrink: 0; }
+.money-val { text-align: right; font-variant-numeric: tabular-nums; }
+.btbl-acts { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.act-btn {
+  width: 22px; height: 22px; padding: 0; border: none; background: transparent; cursor: pointer;
+  color: var(--ink-mute); display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; font-size: 12px; transition: all .1s;
+}
+.act-btn:hover { background: var(--surface-2); color: var(--ink); }
+.act-btn.checked { color: var(--pos); }
+.act-btn.del:hover { background: rgba(229,82,75,.15); color: var(--neg); }
+.btbl-pager {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 8px 18px; flex-shrink: 0; border-top: 1px solid var(--line);
+}
+.btbl-pager button {
+  padding: 4px 12px; border: 1px solid var(--line); border-radius: var(--r-xs);
+  background: var(--surface-2); color: var(--ink-soft); font: inherit; font-size: 12px;
+  cursor: pointer; transition: all .12s;
+}
+.btbl-pager button:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+.btbl-pager button:disabled { opacity: .4; cursor: default; }
+.btbl-pager .pg-info { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); }
+
+/* ── Modal de edição de aposta ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.6);
+  display: none; align-items: center; justify-content: center; padding: 24px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  width: 580px; max-width: 100%; max-height: 90vh; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.modal-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.modal-close { background: transparent; border: 0; color: var(--ink-mute); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.modal-close:hover { color: var(--ink); }
+.modal-body { padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-field { display: flex; flex-direction: column; gap: 4px; }
+.modal-field.full { grid-column: 1 / -1; }
+.modal-field label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute); }
+.modal-field input, .modal-field textarea {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  color: var(--ink); font: inherit; font-size: 13px; padding: 7px 10px;
+}
+.modal-field input:focus, .modal-field textarea:focus { outline: none; border-color: var(--accent); }
+.modal-field textarea { resize: vertical; min-height: 64px; font-family: var(--font-mono); font-size: 12px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); }
+
 /* ── Right panel: AI analysis ── */
 .right-panel {
   width: 400px; flex-shrink: 0;
@@ -761,10 +884,6 @@ td.c-res.res-HL { color: var(--warn); }
                 <span id="s-cop" class="s-cop">— copiadas</span>
                 <span class="s-sep">·</span>
                 <span id="s-pend" class="s-pend">— pendentes</span>
-                <span id="s-arc-wrap" style="display:none">
-                  <span class="s-sep">·</span>
-                  <span id="s-arc" class="arc-chip" title="Alternar visibilidade dos bilhetes arquivados">⊟ — arquivados</span>
-                </span>
                 <span id="exp-status" class="exp-status"></span>
               </div>
             </div>
@@ -777,30 +896,28 @@ td.c-res.res-HL { color: var(--warn); }
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-desfazer" style="display:none">↩ Desfazer análise</button>
             </div>
           </div>
-          <div class="grade-wrap">
-            <table class="grade">
-              <thead>
-                <tr>
-                  <th class="c-sel"><input type="checkbox" id="chk-todos" title="Selecionar todos"></th>
-                  <th class="c-data">Data</th>
-                  <th class="c-esp">Esporte</th>
-                  <th class="c-dup"></th>
-                  <th class="c-tip">Tipster</th>
-                  <th class="c-casa">Casa</th>
-                  <th class="c-parc">Parceiro</th>
-                  <th class="c-apos">Aposta</th>
-                  <th class="c-desc">Descrição</th>
-                  <th class="c-stk">Stake</th>
-                  <th class="c-odd">Odd</th>
-                  <th class="c-res">Result.</th>
-                  <th class="c-chk">☑</th>
-                  <th class="c-del"></th>
-                </tr>
-              </thead>
-              <tbody id="grade-body">
-                <tr><td colspan="14" class="grade-empty">Selecione um parceiro para ver os bilhetes.</td></tr>
-              </tbody>
-            </table>
+          <div class="btbl-wrap">
+            <div class="btbl-cols btbl-hdr-row">
+              <div class="btbl-th btbl-sel"><input type="checkbox" id="chk-todos" title="Selecionar todos"></div>
+              <div class="btbl-th">Data</div>
+              <div class="btbl-th">Aposta / Evento</div>
+              <div class="btbl-th">Esporte</div>
+              <div class="btbl-th">Tipster</div>
+              <div class="btbl-th">Casa · Parceiro</div>
+              <div class="btbl-th right">Stake</div>
+              <div class="btbl-th right">Odd</div>
+              <div class="btbl-th center">Result.</div>
+              <div class="btbl-th right">Ações</div>
+            </div>
+            <div class="btbl-counter" id="btbl-counter"></div>
+            <div class="btbl-body" id="grade-body">
+              <div class="grade-empty">Selecione um parceiro para ver os bilhetes.</div>
+            </div>
+            <div class="btbl-pager" id="btbl-pager" style="display:none">
+              <button id="pg-prev" type="button">‹ Anteriores</button>
+              <span class="pg-info" id="pg-info"></span>
+              <button id="pg-next" type="button">Próximas ›</button>
+            </div>
             <datalist id="tipster-options"></datalist>
           </div>
         </div>
@@ -836,6 +953,32 @@ td.c-res.res-HL { color: var(--warn); }
 </div><!-- .app -->
 
 <div id="img-lightbox"><img id="img-lightbox-img" alt=""></div>
+
+<!-- Modal de edição de aposta -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Editar aposta</span>
+      <button class="modal-close" id="edit-close" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field"><label>Data</label><input type="text" id="ed-data" spellcheck="false"></div>
+      <div class="modal-field"><label>Esporte</label><input type="text" id="ed-esporte" spellcheck="false"></div>
+      <div class="modal-field"><label>Casa</label><input type="text" id="ed-casa" spellcheck="false"></div>
+      <div class="modal-field"><label>Parceiro</label><input type="text" id="ed-parceiro" spellcheck="false"></div>
+      <div class="modal-field"><label>Tipster</label><input type="text" id="ed-tipster" list="tipster-options" spellcheck="false"></div>
+      <div class="modal-field"><label>Resultado</label><input type="text" id="ed-resultado" spellcheck="false" placeholder="W · L · V · HW · HL"></div>
+      <div class="modal-field"><label>Stake</label><input type="text" id="ed-stake" spellcheck="false"></div>
+      <div class="modal-field"><label>Odd</label><input type="text" id="ed-odd" spellcheck="false"></div>
+      <div class="modal-field full"><label>Aposta (tipo)</label><input type="text" id="ed-aposta" spellcheck="false"></div>
+      <div class="modal-field full"><label>Descrição</label><textarea id="ed-descricao" spellcheck="false"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="edit-cancel" type="button">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="edit-save" type="button">Salvar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── Sessão: redireciona para /login se o cookie expirar ───────────────────────
@@ -878,8 +1021,6 @@ let bilhetes = [];
 let ultimaAnaliseIds = [];
 let ultimaDuplicatas = {};    // {str(db_id): [occurrence, total]}
 let ultimaScrollOverlaps = new Set(); // db_ids com suspeita de sobreposição de scroll
-let mostrarArquivados = false;
-let totalArquivados = 0;
 const _activeStreams = new Map(); // cardId → AbortController
 let _cardCounter = 0;
 const estadoExtrator = {}; // parceiroId → { arquivos, csvFiles, xlsFiles, texto }
@@ -1131,6 +1272,7 @@ async function atualizarPendentes() {
     });
     pendentesPorCasa = por_casa || {};
     aplicarBadgesPendentes();
+    if (parceiroSelecionado) atualizarStats();  // copiadas/pendentes derivam deste mapa
   } catch { /* badge é informativo — falha silenciosa */ }
 }
 
@@ -1263,8 +1405,7 @@ function selecionarParceiro(p) {
   ultimaAnaliseIds = [];
   ultimaDuplicatas = {};
   ultimaScrollOverlaps = new Set();
-  mostrarArquivados = false;
-  totalArquivados = 0;
+  paginaAtual = 0;
 
   restaurarEstadoExtrator(p.id);
   renderPreviews();
@@ -1465,6 +1606,7 @@ async function sincronizarPolymarket(opts = {}) {
       setPolyStatus(`✓ ${partes.join(' · ') || 'nada novo'} · ${d.coletados || 0} coletados`, 'ok');
       if ((d.alertas || []).length) setPolyStatus(`✓ ${d.coletados || 0} coletados · ${d.alertas[0]}`, 'warn');
     }
+    paginaAtual = 0;   // posições recém-sincronizadas são as mais recentes → 1ª página
     await carregarGrade();
     atualizarPendentes();
     if (!silent) carregarDashboardPoly();        // no modo silencioso o poll já cuida do refresh
@@ -1830,6 +1972,7 @@ async function runExtractionCard(form, card, parceiro) {
       markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}`, tipo);
 
       if (parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
+        paginaAtual = 0;   // novos bilhetes são os mais recentes → 1ª página
         await carregarGrade();
         atualizarBotoesGrade();
       }
@@ -1894,38 +2037,42 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
 });
 
 // ── Grade ─────────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 100;
+let paginaAtual = 0;
+let totalBilhetes = 0;
+
 async function carregarGrade() {
   if (!parceiroSelecionado) return;
+  const body = document.getElementById('grade-body');
   try {
-    const arcParam = mostrarArquivados ? 'all' : 'false';
-    const qs = `order=asc&archived=${arcParam}&casa=${encodeURIComponent(parceiroSelecionado.casa)}&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
+    const off = paginaAtual * PAGE_SIZE;
+    const qs = `order=desc&archived=all&limit=${PAGE_SIZE}&offset=${off}`
+      + `&casa=${encodeURIComponent(parceiroSelecionado.casa)}`
+      + `&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
     const r = await fetch(`/bilhetes?${qs}`);
     const data = await r.json();
     bilhetes = data.bilhetes;
-    totalArquivados = data.arquivados || 0;
+    totalBilhetes = data.total || bilhetes.length;
+    // Página além do fim (ex.: depois de deletar a última da página) → recua.
+    if (paginaAtual > 0 && !bilhetes.length) { paginaAtual--; return carregarGrade(); }
     renderGrade();
+    renderPager();
     carregarTipsters();
     atualizarStats();
     atualizarBotoesGrade();
-    atualizarChipArquivados();
   } catch (e) {
-    document.getElementById('grade-body').innerHTML =
-      `<tr><td colspan="13" class="grade-empty" style="color:var(--neg)">Erro: ${e.message}</td></tr>`;
+    body.innerHTML = `<div class="grade-empty" style="color:var(--neg)">Erro: ${e.message}</div>`;
   }
 }
 
-function atualizarChipArquivados() {
-  const wrap = document.getElementById('s-arc-wrap');
-  const chip = document.getElementById('s-arc');
-  if (totalArquivados > 0) {
-    wrap.style.display = '';
-    chip.textContent = mostrarArquivados
-      ? `⊟ ${totalArquivados} arquivados`
-      : `⊞ ${totalArquivados} arquivados`;
-    chip.classList.toggle('active', mostrarArquivados);
-  } else {
-    wrap.style.display = 'none';
-  }
+function renderPager() {
+  const pager = document.getElementById('btbl-pager');
+  const pages = Math.max(1, Math.ceil(totalBilhetes / PAGE_SIZE));
+  if (totalBilhetes <= PAGE_SIZE) { pager.style.display = 'none'; return; }
+  pager.style.display = '';
+  document.getElementById('pg-info').textContent = `Página ${paginaAtual + 1} de ${pages}`;
+  document.getElementById('pg-prev').disabled = paginaAtual <= 0;
+  document.getElementById('pg-next').disabled = paginaAtual >= pages - 1;
 }
 
 function esc(s) {
@@ -1935,296 +2082,176 @@ function esc(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-const RES_COLOR = { W: 'res-W', L: 'res-L', V: 'res-V', HW: 'res-HW', HL: 'res-HL' };
+// Chip de esporte (emoji) — espelha o visual do Dashboard.
+const SPORT_EMOJI = {
+  'Futebol':'⚽','Basquete':'🏀','Tênis':'🎾','Tenis':'🎾','Vôlei':'🏐','Volei':'🏐',
+  'Futebol Americano':'🏈','Beisebol':'⚾','Hóquei':'🏒','Hoquei':'🏒','Boxe':'🥊',
+  'MMA':'🥊','UFC':'🥊','Tênis de Mesa':'🏓','E-Sports':'🎮','eSports':'🎮',
+  'Dardos':'🎯','Sinuca':'🎱','Snooker':'🎱','Fórmula 1':'🏎️','Golfe':'⛳',
+  'Handebol':'🤾','Críquete':'🏏','Cricket':'🏏','Rugby':'🏉','Ciclismo':'🚴',
+  'Múltiplos':'🔗','Multiplos':'🔗','Outro':'🎲','Outros':'🎲'
+};
+function sportEmoji(esp) { return SPORT_EMOJI[esp] || '🎲'; }
 
-function ed(campo, val, cls = '') {
-  return `<td class="${cls} editable" contenteditable="true" data-campo="${campo}" spellcheck="false">${esc(val)}</td>`;
+const RES_LABEL = { W:'W', HW:'½W', L:'L', HL:'½L', V:'V' };
+function resPill(res) {
+  const r = (res || '').toUpperCase();
+  if (!r) return '';
+  const cls = ['W','HW','L','HL','V'].includes(r) ? r : 'V';
+  return `<span class="bet-res-pill bet-res-${cls}">${esc(RES_LABEL[r] || res)}</span>`;
+}
+
+// Stake no componente money (R$ neutro + valor). Mostra a string como veio (vírgula/precisão preservadas).
+function moneyStake(v) {
+  const s = (v ?? '').toString().trim();
+  if (!s) return '';
+  return `<span class="money"><span class="money-sign">R$</span><span class="money-val">${esc(s)}</span></span>`;
 }
 
 function renderGrade() {
-  const tbody = document.getElementById('grade-body');
+  const body = document.getElementById('grade-body');
   if (!bilhetes.length) {
-    tbody.innerHTML = '<tr><td colspan="14" class="grade-empty">Nenhum bilhete salvo. Extraia para preencher.</td></tr>';
+    body.innerHTML = '<div class="grade-empty">Nenhum bilhete salvo. Extraia para preencher.</div>';
     return;
   }
-  tbody.innerHTML = bilhetes.map(b => {
+  body.innerHTML = bilhetes.map(b => {
     const cop = b.copy_state === 'copiada';
-    const arc = b.archived === true;
-    const resClass = RES_COLOR[b.resultado] || '';
     const dupInfo = ultimaDuplicatas[String(b.id)];
     const soSuspect = ultimaScrollOverlaps.has(b.id);
-    const dupBadges = [];
-    if (dupInfo) dupBadges.push(`<span class="dup-badge" title="Suspeita de duplicidade — verifique se é aposta distinta ou erro de scroll">${dupInfo[0]}/${dupInfo[1]}</span>`);
-    if (soSuspect) dupBadges.push(`<span class="so-badge" title="Suspeita de sobreposição de scroll — esta aposta apareceu em imagens consecutivas. Verifique e delete se for duplicata.">scroll</span>`);
-    const dupTd = `<td class="c-dup">${dupBadges.join(' ')}</td>`;
-    const rowClass = arc ? 'row-arc' : cop ? 'row-cop' : '';
-    return `<tr class="${rowClass}" data-id="${b.id}" title="${arc ? 'Arquivado automaticamente' : ''}">
-      <td class="c-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></td>
-      ${ed('data',      b.data,      'c-data')}
-      ${ed('esporte',   b.esporte,   'c-esp')}
-      ${dupTd}
-      <td class="c-tip"><input class="cell-input" type="text" list="tipster-options" data-campo="tipster" spellcheck="false" value="${esc(b.tipster)}"></td>
-      <td class="c-casa">${esc(b.casa)}</td>
-      <td class="c-parc">${esc(b.parceiro)}</td>
-      ${ed('aposta',    b.aposta,    'c-apos')}
-      ${ed('descricao', b.descricao, '')}
-      ${ed('stake',     b.stake,     'c-stk')}
-      ${ed('odd',       b.odd,       'c-odd')}
-      <td class="c-res editable ${resClass}" contenteditable="true" data-campo="resultado" spellcheck="false">${esc(b.resultado)}</td>
-      <td class="c-chk"><button class="chk-btn ${cop ? 'checked' : ''}" onclick="toggleCopy(${b.id},this)">✓</button></td>
-      <td class="c-del"><button class="del-btn" title="Deletar" onclick="deletarBilhete(${b.id})">✕</button></td>
-    </tr>`;
+    const badges = [];
+    if (dupInfo) badges.push(`<span class="dup-badge" title="Suspeita de duplicidade — verifique se é aposta distinta ou erro de scroll">${dupInfo[0]}/${dupInfo[1]}</span>`);
+    if (soSuspect) badges.push(`<span class="so-badge" title="Suspeita de sobreposição de scroll — esta aposta apareceu em imagens consecutivas. Verifique e delete se for duplicata.">scroll</span>`);
+    const nomeCasa = NOMES[b.casa] || b.casa;
+    const tipoHtml = b.aposta ? `<div class="btbl-tipo">${esc(b.aposta)}</div>` : '';
+    const contaHtml = b.parceiro ? `<span class="btbl-casa-conta">${esc(b.parceiro)}</span>` : '';
+    return `<div class="btbl-cols btbl-data-row ${cop ? 'row-cop' : ''}" data-id="${b.id}">
+      <div class="btbl-cell btbl-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></div>
+      <div class="btbl-cell btbl-date">${esc(b.data)}</div>
+      <div class="btbl-cell">${tipoHtml}<div class="btbl-desc">${esc(b.descricao)}${badges.join('')}</div></div>
+      <div class="btbl-cell btbl-sport"><span class="sp-chip">${sportEmoji(b.esporte)}</span><span>${esc(b.esporte)}</span></div>
+      <div class="btbl-cell"><input class="btbl-tip-input" type="text" list="tipster-options" data-tip-id="${b.id}" spellcheck="false" value="${esc(b.tipster)}" placeholder="— tipster —"></div>
+      <div class="btbl-cell btbl-casa">
+        <span class="casa-chip" data-casa="${esc(b.casa)}"><img src="${faviconUrl(b.casa)}" alt="${esc(nomeCasa)}" loading="lazy"></span>
+        <div class="btbl-casa-sub"><span class="btbl-casa-nome">${esc(nomeCasa)}</span>${contaHtml}</div>
+      </div>
+      <div class="btbl-cell btbl-num">${moneyStake(b.stake)}</div>
+      <div class="btbl-cell btbl-num">${esc(_limparOdd(b.odd))}</div>
+      <div class="btbl-cell btbl-res">${resPill(b.resultado)}</div>
+      <div class="btbl-cell btbl-acts">
+        <button class="act-btn chk ${cop ? 'checked' : ''}" title="Marcar como copiada" onclick="toggleCopy(${b.id},this)">✓</button>
+        <button class="act-btn" title="Editar aposta" onclick="abrirEdicao(${b.id})">✎</button>
+        <button class="act-btn del" title="Deletar" onclick="deletarBilhete(${b.id})">✕</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
-// ── Edição inline de células (contenteditable + input de tipster) ─────────────
-const GRADE = document.getElementById('grade-body');
-const CELL_SEL = 'td[contenteditable], input.cell-input';
-
-function cellValue(el) { return (el.tagName === 'INPUT' ? el.value : el.textContent).trim(); }
-function setCellValue(el, v) { if (el.tagName === 'INPUT') el.value = v; else el.textContent = v; }
-
-// ── Seleção retangular de células (coords sobre as células editáveis) ──────────
-let selAnchor = null, selFocus = null; // {r, c}
-
-function bilheteRows() { return Array.from(GRADE.querySelectorAll('tr[data-id]')); }
-function coordOf(el) {
-  const tr = el.closest('tr');
-  const r = bilheteRows().indexOf(tr);
-  const c = gradeCells(tr).indexOf(el);
-  return (r < 0 || c < 0) ? null : { r, c };
-}
-function cellAt(r, c) {
-  const rows = bilheteRows();
-  if (r < 0 || r >= rows.length) return null;
-  const cells = gradeCells(rows[r]);
-  return (c < 0 || c >= cells.length) ? null : cells[c];
-}
-function selRetangulo() {
-  if (!selAnchor || !selFocus) return null;
-  return {
-    r0: Math.min(selAnchor.r, selFocus.r), r1: Math.max(selAnchor.r, selFocus.r),
-    c0: Math.min(selAnchor.c, selFocus.c), c1: Math.max(selAnchor.c, selFocus.c),
-  };
-}
-function limparPintura() { GRADE.querySelectorAll('.cell-sel').forEach(el => el.classList.remove('cell-sel')); }
-function pintarSelecao() {
-  limparPintura();
-  const rect = selRetangulo();
-  if (!rect || (rect.r0 === rect.r1 && rect.c0 === rect.c1)) return; // célula única: sem destaque
-  for (let r = rect.r0; r <= rect.r1; r++)
-    for (let c = rect.c0; c <= rect.c1; c++) {
-      const el = cellAt(r, c);
-      if (el) el.classList.add('cell-sel');
-    }
-}
-
-GRADE.addEventListener('focusout', async e => {
-  const el = e.target.closest(CELL_SEL);
-  if (!el) return;
-  const id = parseInt(el.closest('tr').dataset.id);
-  const campo = el.dataset.campo;
-  const valor = cellValue(el);
-  const b = bilhetes.find(x => x.id === id);
-  if (!b || b[campo] === valor) return; // sem mudança
-  const anterior = b[campo];
-  b[campo] = valor;
-  // Cor imediata para resultado
-  if (campo === 'resultado') {
-    el.className = `c-res editable ${RES_COLOR[valor] || ''}`;
-  }
-  try {
-    const r = await fetch(`/bilhetes/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [campo]: valor })
-    });
-    if (!r.ok) throw new Error();
-    if (campo === 'tipster' && valor) carregarTipsters(); // novo nome entra no autocomplete
-  } catch {
-    b[campo] = anterior;
-    setCellValue(el, anterior);
-    if (campo === 'resultado') el.className = `c-res editable ${RES_COLOR[anterior] || ''}`;
-    setExpStatus('Erro ao salvar célula', 'err');
-  }
-});
-
-// ── Navegação por teclado estilo planilha ─────────────────────────────────────
-function gradeCells(tr) { return Array.from(tr.querySelectorAll(CELL_SEL)); }
-
-function focusCell(tr, colIdx) {
-  if (!tr) return;
-  const cells = gradeCells(tr);
-  const el = cells[Math.max(0, Math.min(colIdx, cells.length - 1))];
-  if (!el) return;
-  el.focus();
-  if (el.tagName === 'INPUT') {
-    el.select(); // digitar substitui
-  } else {
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    const sel = window.getSelection();
-    sel.removeAllRanges(); sel.addRange(range);
-  }
-  const co = coordOf(el); // navegar colapsa a seleção na nova célula
-  if (co) { selAnchor = co; selFocus = co; }
-  limparPintura();
-}
-
-function linhaIrma(tr, dir) { // próxima/anterior <tr> que seja um bilhete
-  const prop = dir > 0 ? 'nextElementSibling' : 'previousElementSibling';
-  let t = tr[prop];
-  while (t && !t.dataset.id) t = t[prop];
-  return t;
-}
-
-function moverCelula(el, dRow, dCol) {
-  const tr = el.closest('tr');
-  const col = gradeCells(tr).indexOf(el);
-  if (dRow) {
-    focusCell(linhaIrma(tr, dRow), col);
-  } else if (dCol) {
-    const cells = gradeCells(tr);
-    const nc = col + dCol;
-    if (nc >= cells.length)       focusCell(linhaIrma(tr, 1), 0);                          // estoura → próxima linha
-    else if (nc < 0) { const ant = linhaIrma(tr, -1); if (ant) focusCell(ant, gradeCells(ant).length - 1); }
-    else                          focusCell(tr, nc);
-  }
-}
-
-const SETAS = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
-
-GRADE.addEventListener('keydown', e => {
-  const el = e.target.closest(CELL_SEL);
-  if (!el) return;
-  const isInput = el.tagName === 'INPUT';
-
-  // Shift + setas → estende a seleção retangular (sobrepõe seleção de texto da célula)
-  if (e.shiftKey && SETAS[e.key]) {
-    e.preventDefault();
-    if (!selFocus) { const co = coordOf(el); selAnchor = co; selFocus = co; }
-    const [dr, dc] = SETAS[e.key];
-    const rows = bilheteRows();
-    const maxC = gradeCells(rows[selFocus.r]).length - 1;
-    selFocus = {
-      r: Math.max(0, Math.min(rows.length - 1, selFocus.r + dr)),
-      c: Math.max(0, Math.min(maxC, selFocus.c + dc)),
-    };
-    pintarSelecao();
-    return;
-  }
-
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    moverCelula(el, e.shiftKey ? -1 : 1, 0);
-  } else if (e.key === 'Tab') {
-    e.preventDefault();
-    moverCelula(el, 0, e.shiftKey ? -1 : 1);
-  } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isInput) {
-    // Em input (tipster) as setas controlam o dropdown de autocomplete — não sequestrar
-    e.preventDefault();
-    moverCelula(el, e.key === 'ArrowDown' ? 1 : -1, 0);
-  }
-});
-
-// ── Seleção por mouse: clique define âncora; Shift+clique estende ──────────────
-GRADE.addEventListener('mousedown', e => {
-  const el = e.target.closest(CELL_SEL);
-  if (!el) return;
-  const co = coordOf(el);
-  if (!co) return;
-  if (e.shiftKey) {
-    e.preventDefault(); // não inicia seleção de texto
-    if (!selAnchor) selAnchor = co;
-    selFocus = co;
-    pintarSelecao();
-  } else {
-    selAnchor = co; selFocus = co; limparPintura();
-  }
-});
-
-// ── Copiar seleção como TSV (Ctrl+C) ──────────────────────────────────────────
-document.addEventListener('copy', e => {
-  const active = document.activeElement;
-  if (!active || !active.closest || !active.closest('#grade-body')) return;
-  const rect = selRetangulo();
-  if (!rect) return;
-  const multi = rect.r0 !== rect.r1 || rect.c0 !== rect.c1;
-  // Se há texto realmente selecionado numa única célula, deixa o copy nativo (texto parcial)
-  const txtInput = active.tagName === 'INPUT' && active.selectionStart !== active.selectionEnd;
-  const txtCE = active.tagName !== 'INPUT' && !window.getSelection().isCollapsed;
-  if (!multi && (txtInput || txtCE)) return;
-  const linhas = [];
-  for (let r = rect.r0; r <= rect.r1; r++) {
-    const cols = [];
-    for (let c = rect.c0; c <= rect.c1; c++) { const el = cellAt(r, c); cols.push(el ? cellValue(el) : ''); }
-    linhas.push(cols.join('\t'));
-  }
-  e.clipboardData.setData('text/plain', linhas.join('\n'));
-  e.preventDefault();
-});
-
-// ── Colar TSV na seleção (Ctrl+V) ─────────────────────────────────────────────
-document.addEventListener('paste', e => {
-  const active = document.activeElement;
-  if (!active || !active.closest || !active.closest('#grade-body')) return;
-  const startEl = active.closest(CELL_SEL);
-  if (!startEl) return;
-  const texto = (e.clipboardData || window.clipboardData).getData('text/plain');
-  if (!texto) return;
-  const matriz = texto.replace(/\r/g, '').replace(/\n+$/, '').split('\n').map(l => l.split('\t'));
-  const rect = selRetangulo();
-  const single = matriz.length === 1 && matriz[0].length === 1;
-  const rangeSel = rect && (rect.r0 !== rect.r1 || rect.c0 !== rect.c1);
-  if (single && !rangeSel) return; // 1 valor em 1 célula → deixa o paste nativo editar inline
-  e.preventDefault();
-  const ini = coordOf(startEl) || { r: rect ? rect.r0 : 0, c: rect ? rect.c0 : 0 };
-  const r0 = rect ? rect.r0 : ini.r, c0 = rect ? rect.c0 : ini.c;
-
-  const writes = [];
-  if (single && rangeSel) {
-    // 1 valor → preenche toda a seleção (caso clássico: mesmo tipster em N linhas)
-    const v = matriz[0][0];
-    for (let r = rect.r0; r <= rect.r1; r++)
-      for (let c = rect.c0; c <= rect.c1; c++) { const el = cellAt(r, c); if (el) writes.push({ el, valor: v }); }
-  } else {
-    // cola a matriz a partir do canto superior-esquerdo
-    for (let i = 0; i < matriz.length; i++)
-      for (let j = 0; j < matriz[i].length; j++) { const el = cellAt(r0 + i, c0 + j); if (el) writes.push({ el, valor: matriz[i][j] }); }
-  }
-  aplicarEscritas(writes);
-});
-
-async function aplicarEscritas(writes) {
-  const patches = [];
-  for (const w of writes) {
-    const id = parseInt(w.el.closest('tr').dataset.id);
-    const campo = w.el.dataset.campo;
+// ── Tipster inline (PATCH ao sair / Enter) ────────────────────────────────────
+(function () {
+  const body = document.getElementById('grade-body');
+  async function salvarTipster(inp) {
+    const id = parseInt(inp.dataset.tipId);
     const b = bilhetes.find(x => x.id === id);
-    if (!b) continue;
-    const valor = (w.valor ?? '').trim();
-    if (b[campo] === valor) continue;
-    patches.push({ id, campo, valor, anterior: b[campo], b });
-    b[campo] = valor; // otimista
-  }
-  if (!patches.length) return;
-  renderGrade();
-  let novoTipster = false, erros = 0;
-  await Promise.all(patches.map(async p => {
+    if (!b) return;
+    const valor = inp.value.trim();
+    if ((b.tipster || '') === valor) return;
+    const anterior = b.tipster;
+    b.tipster = valor;
     try {
-      const r = await fetch(`/bilhetes/${p.id}`, {
+      const r = await fetch(`/bilhetes/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [p.campo]: p.valor }),
+        body: JSON.stringify({ tipster: valor }),
       });
       if (!r.ok) throw new Error();
-      if (p.campo === 'tipster' && p.valor) novoTipster = true;
-    } catch { p.b[p.campo] = p.anterior; erros++; }
-  }));
-  selAnchor = selFocus = null;
-  renderGrade();
-  if (novoTipster) carregarTipsters();
-  setExpStatus(erros ? `${patches.length - erros} coladas · ${erros} com erro` : `✓ ${patches.length} célula(s) coladas`, erros ? 'warn' : 'ok');
+      if (valor) carregarTipsters();
+    } catch {
+      b.tipster = anterior; inp.value = anterior || '';
+      setExpStatus('Erro ao salvar tipster', 'err');
+    }
+  }
+  body.addEventListener('focusout', e => {
+    const inp = e.target.closest('.btbl-tip-input');
+    if (inp) salvarTipster(inp);
+  });
+  body.addEventListener('keydown', e => {
+    const inp = e.target.closest('.btbl-tip-input');
+    if (inp && e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+  });
+})();
+
+// ── Modal de edição de aposta (qualquer campo) ────────────────────────────────
+const ED_CAMPOS = ['data','esporte','casa','parceiro','tipster','resultado','stake','odd','aposta','descricao'];
+let edBilheteId = null;
+
+function abrirEdicao(id) {
+  const b = bilhetes.find(x => x.id === id);
+  if (!b) return;
+  edBilheteId = id;
+  ED_CAMPOS.forEach(c => {
+    const el = document.getElementById('ed-' + c);
+    if (el) el.value = b[c] != null ? b[c] : '';
+  });
+  document.getElementById('edit-modal').classList.add('open');
 }
+
+function fecharEdicao() {
+  document.getElementById('edit-modal').classList.remove('open');
+  edBilheteId = null;
+}
+
+async function salvarEdicao() {
+  if (edBilheteId == null) return;
+  const b = bilhetes.find(x => x.id === edBilheteId);
+  if (!b) { fecharEdicao(); return; }
+  const patch = {};
+  ED_CAMPOS.forEach(c => {
+    const el = document.getElementById('ed-' + c);
+    if (!el) return;
+    const v = el.value.trim();
+    if ((b[c] != null ? String(b[c]) : '') !== v) patch[c] = v;
+  });
+  if (!Object.keys(patch).length) { fecharEdicao(); return; }
+  try {
+    const r = await fetch(`/bilhetes/${edBilheteId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) throw new Error();
+    Object.assign(b, patch);
+    const trocouParceiro = ('casa' in patch) || ('parceiro' in patch);
+    fecharEdicao();
+    if ('tipster' in patch) carregarTipsters();
+    if (trocouParceiro) {
+      // Mudou de casa/parceiro → sai da visão atual; recarrega grade + contadores.
+      await carregarGrade();
+    } else {
+      renderGrade(); atualizarStats();
+    }
+    atualizarPendentes();
+    setExpStatus('✓ Aposta atualizada', 'ok');
+  } catch {
+    setExpStatus('Erro ao salvar edição', 'err');
+  }
+}
+
+document.getElementById('edit-save').addEventListener('click', salvarEdicao);
+document.getElementById('edit-cancel').addEventListener('click', fecharEdicao);
+document.getElementById('edit-close').addEventListener('click', fecharEdicao);
+document.getElementById('edit-modal').addEventListener('click', e => {
+  if (e.target.id === 'edit-modal') fecharEdicao();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('edit-modal').classList.contains('open')) fecharEdicao();
+});
+
+// ── Paginação ─────────────────────────────────────────────────────────────────
+document.getElementById('pg-prev').addEventListener('click', () => {
+  if (paginaAtual > 0) { paginaAtual--; carregarGrade(); document.getElementById('grade-body').scrollTop = 0; }
+});
+document.getElementById('pg-next').addEventListener('click', () => {
+  const pages = Math.ceil(totalBilhetes / PAGE_SIZE);
+  if (paginaAtual < pages - 1) { paginaAtual++; carregarGrade(); document.getElementById('grade-body').scrollTop = 0; }
+});
 
 // ── Autocomplete de tipster (datalist global) ─────────────────────────────────
 async function carregarTipsters() {
@@ -2236,13 +2263,37 @@ async function carregarTipsters() {
   } catch {}
 }
 
+// Stats do PARCEIRO INTEIRO (não só da página): total = contagem; pendentes vêm
+// do mapa de /pendentes; copiadas = total − pendentes.
 function atualizarStats() {
-  const ativos = bilhetes.filter(b => !b.archived);
-  const total = ativos.length;
-  const copiadas = ativos.filter(b => b.copy_state === 'copiada').length;
+  if (!parceiroSelecionado) return;
+  const total = totalBilhetes;
+  const mapa = pendentesPorParceiro[parceiroSelecionado.casa] || {};
+  const pend = mapa[parceiroSelecionado.nome] || 0;
+  const cop = Math.max(0, total - pend);
   document.getElementById('s-total').textContent = `${total} total`;
-  document.getElementById('s-cop').textContent   = `${copiadas} copiadas`;
-  document.getElementById('s-pend').textContent  = `${total - copiadas} pendentes`;
+  document.getElementById('s-cop').textContent   = `${cop} copiadas`;
+  document.getElementById('s-pend').textContent  = `${pend} pendentes`;
+}
+
+// Busca TODOS os bilhetes do parceiro atual num dado estado (pagina em blocos de 1000).
+// Usado pelos botões de export, que operam sobre todas as páginas — não só a visível.
+async function bilhetesPorEstado(copyState) {
+  if (!parceiroSelecionado) return [];
+  const out = [];
+  let off = 0;
+  for (;;) {
+    const qs = `order=asc&archived=all&copy_state=${copyState}&limit=1000&offset=${off}`
+      + `&casa=${encodeURIComponent(parceiroSelecionado.casa)}`
+      + `&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
+    const r = await fetch(`/bilhetes?${qs}`);
+    if (!r.ok) break;
+    const d = await r.json();
+    out.push(...(d.bilhetes || []));
+    if (!d.bilhetes || d.bilhetes.length < 1000) break;
+    off += 1000;
+  }
+  return out;
 }
 
 function setExpStatus(msg, tipo) {
@@ -2260,8 +2311,7 @@ async function toggleCopy(id, btn) {
   const endpoint = wasCop ? '/bilhetes/desmarcar' : '/bilhetes/copiar';
   b.copy_state = wasCop ? 'pendente' : 'copiada';
   btn.classList.toggle('checked', !wasCop);
-  btn.closest('tr').classList.toggle('row-cop', !wasCop);
-  atualizarStats();
+  btn.closest('.btbl-data-row').classList.toggle('row-cop', !wasCop);
   try {
     const r = await fetch(endpoint, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2272,8 +2322,7 @@ async function toggleCopy(id, btn) {
   } catch {
     b.copy_state = wasCop ? 'copiada' : 'pendente';
     btn.classList.toggle('checked', wasCop);
-    btn.closest('tr').classList.toggle('row-cop', wasCop);
-    atualizarStats();
+    btn.closest('.btbl-data-row').classList.toggle('row-cop', wasCop);
     setExpStatus('Erro ao atualizar', 'err');
   }
 }
@@ -2281,48 +2330,33 @@ async function toggleCopy(id, btn) {
 // Remove reticências de valores numéricos copiados para a planilha
 function _limparOdd(v) { return (v ?? '').replace(/\.{2,}$|…$/, ''); }
 
-// ── Copiar pendentes ──────────────────────────────────────────────────────────
-document.getElementById('btn-copiar-pend').addEventListener('click', async () => {
-  const pend = bilhetes.filter(b => b.copy_state === 'pendente');
-  if (!pend.length) {
-    if (!mostrarArquivados && totalArquivados > 0)
-      setExpStatus('Nenhum pendente visível — ative "arquivados" para copiar os arquivados', 'warn');
-    else
-      setExpStatus('Nenhum pendente', 'err');
-    return;
-  }
-  const tsv = pend.map(b =>
+// Monta o TSV (10 colunas) de um conjunto de bilhetes, em ordem cronológica.
+function montarTSV(arr) {
+  return arr.map(b =>
     [b.data, b.esporte, b.tipster, b.casa, b.parceiro,
      b.aposta, b.descricao, b.stake, _limparOdd(b.odd), b.resultado]
     .map(v => v ?? '').join('\t')
   ).join('\n');
-  await navigator.clipboard.writeText(tsv);
-  const ids = pend.map(b => b.id);
+}
+
+// ── Copiar pendentes (todas as páginas) ───────────────────────────────────────
+document.getElementById('btn-copiar-pend').addEventListener('click', async () => {
+  const pend = await bilhetesPorEstado('pendente');
+  if (!pend.length) { setExpStatus('Nenhum pendente', 'err'); return; }
+  await navigator.clipboard.writeText(montarTSV(pend));
   await fetch('/bilhetes/copiar', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids })
+    body: JSON.stringify({ ids: pend.map(b => b.id) })
   });
-  pend.forEach(b => { b.copy_state = 'copiada'; });
-  renderGrade(); atualizarStats(); atualizarPendentes();
+  await carregarGrade(); atualizarPendentes();
   setExpStatus(`✓ ${pend.length} copiados`, 'ok');
 });
 
-// ── Baixar .tsv ───────────────────────────────────────────────────────────────
-document.getElementById('btn-baixar-tsv').addEventListener('click', () => {
-  const pend = bilhetes.filter(b => b.copy_state === 'pendente');
-  if (!pend.length) {
-    if (!mostrarArquivados && totalArquivados > 0)
-      setExpStatus('Nenhum pendente visível — ative "arquivados" para baixar os arquivados', 'warn');
-    else
-      setExpStatus('Nenhum pendente', 'err');
-    return;
-  }
-  const tsv = pend.map(b =>
-    [b.data, b.esporte, b.tipster, b.casa, b.parceiro,
-     b.aposta, b.descricao, b.stake, _limparOdd(b.odd), b.resultado]
-    .map(v => v ?? '').join('\t')
-  ).join('\n');
-  const blob = new Blob([tsv], { type: 'text/tab-separated-values' });
+// ── Baixar .tsv (todas as páginas) ────────────────────────────────────────────
+document.getElementById('btn-baixar-tsv').addEventListener('click', async () => {
+  const pend = await bilhetesPorEstado('pendente');
+  if (!pend.length) { setExpStatus('Nenhum pendente', 'err'); return; }
+  const blob = new Blob([montarTSV(pend)], { type: 'text/tab-separated-values' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -2331,29 +2365,27 @@ document.getElementById('btn-baixar-tsv').addEventListener('click', () => {
   a.click(); URL.revokeObjectURL(url);
 });
 
-// ── Marcar / Desmarcar ────────────────────────────────────────────────────────
+// ── Marcar / Desmarcar (todas as páginas) ─────────────────────────────────────
 document.getElementById('btn-marcar-todas').addEventListener('click', async () => {
-  const ids = bilhetes.filter(b => b.copy_state === 'pendente').map(b => b.id);
-  if (!ids.length) { setExpStatus('Todas marcadas', ''); return; }
+  const pend = await bilhetesPorEstado('pendente');
+  if (!pend.length) { setExpStatus('Todas marcadas', ''); return; }
   await fetch('/bilhetes/copiar', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids })
+    body: JSON.stringify({ ids: pend.map(b => b.id) })
   });
-  bilhetes.forEach(b => { b.copy_state = 'copiada'; });
-  renderGrade(); atualizarStats(); atualizarPendentes();
-  setExpStatus(`✓ ${ids.length} marcadas`, 'ok');
+  await carregarGrade(); atualizarPendentes();
+  setExpStatus(`✓ ${pend.length} marcadas`, 'ok');
 });
 
 document.getElementById('btn-desmarcar-todas').addEventListener('click', async () => {
-  const ids = bilhetes.filter(b => b.copy_state === 'copiada').map(b => b.id);
-  if (!ids.length) { setExpStatus('Nenhuma para desmarcar', ''); return; }
+  const cop = await bilhetesPorEstado('copiada');
+  if (!cop.length) { setExpStatus('Nenhuma para desmarcar', ''); return; }
   await fetch('/bilhetes/desmarcar', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids })
+    body: JSON.stringify({ ids: cop.map(b => b.id) })
   });
-  bilhetes.forEach(b => { b.copy_state = 'pendente'; });
-  renderGrade(); atualizarStats(); atualizarPendentes();
-  setExpStatus(`${ids.length} desmarcadas`, '');
+  await carregarGrade(); atualizarPendentes();
+  setExpStatus(`${cop.length} desmarcadas`, '');
 });
 
 // ── Deletar bilhete individual ────────────────────────────────────────────────
@@ -2361,9 +2393,8 @@ async function deletarBilhete(id) {
   try {
     const r = await fetch(`/bilhetes/${id}`, { method: 'DELETE' });
     if (!r.ok) throw new Error();
-    bilhetes = bilhetes.filter(b => b.id !== id);
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => x !== id);
-    renderGrade(); atualizarStats(); atualizarBotoesGrade(); atualizarPendentes();
+    await carregarGrade(); atualizarPendentes();
     setExpStatus('Bilhete deletado', '');
   } catch {
     setExpStatus('Erro ao deletar', 'err');
@@ -2377,14 +2408,14 @@ function onRowChkChange() {
   const marcados = todos.filter(c => c.checked);
   if (chkTodos) chkTodos.indeterminate = marcados.length > 0 && marcados.length < todos.length;
   if (chkTodos) chkTodos.checked = marcados.length === todos.length && todos.length > 0;
-  todos.forEach(c => c.closest('tr').classList.toggle('row-sel', c.checked));
+  todos.forEach(c => c.closest('.btbl-data-row').classList.toggle('row-sel', c.checked));
   atualizarBotoesGrade();
 }
 
 document.getElementById('chk-todos').addEventListener('change', function () {
   document.querySelectorAll('.row-chk').forEach(c => {
     c.checked = this.checked;
-    c.closest('tr').classList.toggle('row-sel', this.checked);
+    c.closest('.btbl-data-row').classList.toggle('row-sel', this.checked);
   });
   atualizarBotoesGrade();
 });
@@ -2406,9 +2437,8 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
       body: JSON.stringify({ ids })
     });
     if (!r.ok) throw new Error();
-    bilhetes = bilhetes.filter(b => !ids.includes(b.id));
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => !ids.includes(x));
-    renderGrade(); atualizarStats(); atualizarBotoesGrade(); atualizarPendentes();
+    await carregarGrade(); atualizarPendentes();
     setExpStatus(`${ids.length} deletado(s)`, '');
   } catch {
     setExpStatus('Erro ao deletar', 'err');
@@ -2424,19 +2454,12 @@ document.getElementById('btn-desfazer').addEventListener('click', async () => {
       body: JSON.stringify({ ids })
     });
     if (!r.ok) throw new Error();
-    bilhetes = bilhetes.filter(b => !ids.includes(b.id));
     ultimaAnaliseIds = [];
-    renderGrade(); atualizarStats(); atualizarBotoesGrade(); atualizarPendentes();
+    await carregarGrade(); atualizarPendentes();
     setExpStatus(`Análise desfeita (${ids.length} bilhetes)`, '');
   } catch {
     setExpStatus('Erro ao desfazer', 'err');
   }
-});
-
-// ── Toggle arquivados ─────────────────────────────────────────────────────────
-document.getElementById('s-arc').addEventListener('click', async () => {
-  mostrarArquivados = !mostrarArquivados;
-  await carregarGrade();
 });
 
 // ── Resizer (divisor entre painéis) ──────────────────────────────────────────
