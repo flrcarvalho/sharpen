@@ -70,7 +70,7 @@ está suja). Servindo 25k linhas do Postgres: query + transferência em **sub-se
 
 | # | Decisão | Racional | Precisa do Feca? |
 |---|---|---|---|
-| D1 | Import é **baseline one-shot**, tag `origem='import'`. **Clean-slate** dos bilhetes não-Polymarket do dono antes de importar; **Polymarket fica de fora do import** (já é gerida por API/sync). | A planilha é superset do que está no Planilhador (tudo foi copiado pra ela) → apagar e recarregar não perde nada e evita duplicatas. Polymarket tem dedup própria por `conditionId`; importar do CSV criaria duplicata. | **SIM** (confirmar o clean-slate) |
+| D1 | **NÃO apagar o banco.** Import **aditivo**, tag `origem='import'`: trazer da planilha **só a era anterior à cobertura do DB** (por casa: linhas com `data` < `MIN(data)` daquela casa no DB; casas que o DB nunca viu → tudo). Polymarket fora do import. | O **Código** (chave de dedup das casas com ID) nunca foi pra planilha — só vivia no DB. Linha importada seria **codeless** → assinatura por conteúdo; re-extração futura gera Código → assinatura por **ID** → **não casa → duplicata**. Importar só a era pré-DB (congelada, nunca re-extraída) preserva 100% a dedup e mantém os Códigos recentes que a planilha descartou. | **SIM** (confirmar a era-split) |
 | D2 | **Não armazenar colunas derivadas.** Adicionar `stake_num`/`odd_num` NUMERIC; `valor_num`/`pl_num` como **colunas geradas** (SQL `CASE`). Validar recálculo contra as colunas K/L da planilha. | NUMERIC é decimal exato (sem erro de float, preserva precisão da sessão 50) e deixa o dashboard agregar via SQL se um dia quisermos. Geradas nunca derivam. | não (eu decido) |
 | D3 | Dashboard **servido pela própria app** (mesma origem) + **um endpoint** que replica o contrato do `Code.gs`. **Zero reescrita de analytics.** | Mesma origem = o cookie de login funciona (GitHub Pages é cross-origin e o cookie não iria). A matemática é toda client-side; só falta a fonte de dados. | não |
 | D4 | Backup = **botão "Exportar base (CSV)"** + backups automáticos do Postgres no Railway. **NÃO** escrever de volta no Sheets. | Escrever no Google exige OAuth, é caminho de escrita frágil e reintroduz a planilha como dependência. CSV é pull, não corrompe. | não |
@@ -118,8 +118,11 @@ Um script Python, rodado **uma vez**, re-rodável:
    - data → ISO; stake/odd → NUMERIC (vírgula/ponto).
    - **recalcular `valor`/`pl` e dar diff contra as colunas K/L** → prova de correção;
      linhas divergentes entram num relatório pra revisão (pega lixo na fonte).
-3. **Load:** `DELETE FROM bilhetes WHERE dono='Feca' AND origem='import' AND casa<>'Polymarket'`
-   → `INSERT` em lote com `origem='import'`. Idempotente: re-rodar substitui limpo.
+3. **Load (era-split, roda contra prod — gatilho do Feca):** por casa, `MIN(data)` no DB
+   define o corte; inserir em lote só as linhas da planilha com `data < corte` (casas
+   ausentes do DB → todas), `origem='import'`, codeless. **Nunca tocar** em
+   `origem IN ('extracao','sync')` — os bilhetes recentes COM Código ficam intactos
+   (dedup preservada). Idempotente: re-run apaga só `origem='import'` e reinsere.
 4. **Saída:** relatório (linhas importadas, rejeitadas, diffs de P/L, valores não-mapeados).
 
 ---
@@ -178,7 +181,9 @@ e o `doGet` embrulha em `{ ok:true, data:[...], builtAt:ISO, count:N }`.
 
 ## 9. Riscos e rollback
 
-- **Clean-slate (D1):** antes, exportar a base atual (CSV/dump). Import idempotente.
+- **Sem apagar dados (D1):** import é **aditivo** (só a era pré-DB). Bilhetes com Código
+  (recentes) ficam intactos → **dedup preservada**. Antes de importar, comparar contagem
+  planilha vs DB na janela de sobreposição (pega bets digitadas direto na planilha).
 - **Cutover do dashboard:** manter Apps Script + planilha **vivos** até o dashboard
   same-origin ser validado lado a lado (mesmos números). Reverter = apontar o `loadData`
   de volta pra URL do Apps Script.
@@ -199,5 +204,6 @@ e o `doGet` embrulha em `{ ok:true, data:[...], builtAt:ISO, count:N }`.
 4. **Regra de "parceiro inativo"** para arquivar em massa: por data da última aposta
    (ex.: > 60 dias) ou você me passa a lista de ativos?
 5. **`Handebol`/`Handeball`** (2 linhas) — vira esporte canônico `Handebol` ou `Outro`?
-6. **Confirmar o clean-slate** (D1): apagar os bilhetes não-Polymarket atuais do Planilhador
-   e recarregar a partir da planilha. (Eles já estão todos na planilha.)
+6. **Confirmar a era-split** (D1): manter o banco (bilhetes recentes com Código) e importar
+   da planilha **só a era anterior à cobertura do DB** — preserva a dedup. (Substitui o
+   antigo clean-slate, que quebraria a dedup.)
