@@ -2396,6 +2396,10 @@ function renderGrade() {
       </div>
     </div>`;
   }).join('');
+  // Linhas reconstruídas (nova página/filtro) vêm desmarcadas → ressincroniza o
+  // "selecionar todos", que senão ficava marcado/indeterminado visualmente em falso.
+  const chkTodos = document.getElementById('chk-todos');
+  if (chkTodos) { chkTodos.checked = false; chkTodos.indeterminate = false; }
 }
 
 // (O preenchimento de tipster da lista é gerido pelo controlador "planilha" mais abaixo.)
@@ -2868,13 +2872,18 @@ function montarTSV(arr) {
 document.getElementById('btn-copiar-pend').addEventListener('click', async () => {
   const pend = await bilhetesPorEstado('pendente');
   if (!pend.length) { setExpStatus('Nenhum pendente', 'err'); return; }
-  await navigator.clipboard.writeText(montarTSV(pend));
-  await fetch('/bilhetes/copiar', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: pend.map(b => b.id) })
-  });
-  await carregarGrade(); atualizarPendentes();
-  setExpStatus(`✓ ${pend.length} copiados`, 'ok');
+  try {
+    await navigator.clipboard.writeText(montarTSV(pend));
+    const r = await fetch('/bilhetes/copiar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: pend.map(b => b.id) })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    await carregarGrade(); atualizarPendentes();
+    setExpStatus(`✓ ${pend.length} copiados`, 'ok');
+  } catch (e) {
+    setExpStatus('Erro ao copiar — nada foi marcado', 'err');
+  }
 });
 
 // ── Baixar .tsv (todas as páginas) ────────────────────────────────────────────
@@ -2894,23 +2903,33 @@ document.getElementById('btn-baixar-tsv').addEventListener('click', async () => 
 document.getElementById('btn-marcar-todas').addEventListener('click', async () => {
   const pend = await bilhetesPorEstado('pendente');
   if (!pend.length) { setExpStatus('Todas marcadas', ''); return; }
-  await fetch('/bilhetes/copiar', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: pend.map(b => b.id) })
-  });
-  await carregarGrade(); atualizarPendentes();
-  setExpStatus(`✓ ${pend.length} marcadas`, 'ok');
+  try {
+    const r = await fetch('/bilhetes/copiar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: pend.map(b => b.id) })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    await carregarGrade(); atualizarPendentes();
+    setExpStatus(`✓ ${pend.length} marcadas`, 'ok');
+  } catch (e) {
+    setExpStatus('Erro ao marcar', 'err');
+  }
 });
 
 document.getElementById('btn-desmarcar-todas').addEventListener('click', async () => {
   const cop = await bilhetesPorEstado('copiada');
   if (!cop.length) { setExpStatus('Nenhuma para desmarcar', ''); return; }
-  await fetch('/bilhetes/desmarcar', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: cop.map(b => b.id) })
-  });
-  await carregarGrade(); atualizarPendentes();
-  setExpStatus(`${cop.length} desmarcadas`, '');
+  try {
+    const r = await fetch('/bilhetes/desmarcar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: cop.map(b => b.id) })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    await carregarGrade(); atualizarPendentes();
+    setExpStatus(`${cop.length} desmarcadas`, '');
+  } catch (e) {
+    setExpStatus('Erro ao desmarcar', 'err');
+  }
 });
 
 // ── Deletar bilhete individual ────────────────────────────────────────────────
