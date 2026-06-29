@@ -497,7 +497,7 @@ Como qualquer tipo de mercado, a categoria segue o **objeto** apostado (§1):
 |---|---|
 | Primeiro a marcar X escanteios | `Escanteios` |
 | Primeiro a marcar X gols | `Gols` |
-| Primeiro a marcar X pontos | `Pontos` → categoria do objeto no esporte |
+| Primeiro a marcar X pontos | categoria do objeto no esporte (ex.: `Player Props` em NBA) — **não** existe categoria `Pontos` |
 | Primeiro a receber X cartões | `Cartões` |
 
 A estrutura "Race" e o número X ficam na **Descrição** (`MASTER_DESCRICAO_2026 §10.3`), nunca na categoria.
