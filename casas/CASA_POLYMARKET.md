@@ -52,11 +52,14 @@
 ## 5. Resultado (W / L / V / HW / HL)
 
 - **W** quando `cashPnl > 0` (a posição pagou mais que o stake).
-- **L** quando `cashPnl ≤ 0`.
+- **L** quando `cashPnl < 0` (a posição perdeu o stake).
+- **V** quando `cashPnl ≈ 0` (banda neutra `|cashPnl| ≤ 0,005`): a posição devolveu
+  o stake (P/L zero) → **anulada, não perda**. Sem essa banda, um P/L exatamente
+  zero cairia em `L` e marcaria −stake indevidamente.
 - Vitórias **já resgatadas** somem de `/positions` e são reconstruídas a partir da
   `activity` (eventos `REDEEM`) — classificam corretamente como **W**.
-- **V / HW / HL** não se aplicam ao modelo binário da Polymarket (sem cashout
-  parcial nem meia-aposta). Aguardam amostra caso algum mercado novo exija.
+- **HW / HL** não se aplicam ao modelo binário da Polymarket (sem meia-aposta).
+  Aguardam amostra caso algum mercado novo exija.
 
 ---
 
