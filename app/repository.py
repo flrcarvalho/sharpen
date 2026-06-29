@@ -26,12 +26,28 @@ def _norm_odd(v: str) -> str:
 
 
 def _num(v) -> float:
-    """Converte número no padrão BR ("1.234,50" / "1,81") para float.
-    Tolera ponto de milhar e vírgula decimal; devolve 0.0 se ilegível."""
+    """Converte número ("1.234,50" / "1,81" / "75.2606") para float.
+
+    Duas convenções coexistem no histórico:
+      - BR com vírgula decimal: "1.234,50" → ponto é milhar, vírgula é decimal.
+      - Odd calculada com ponto decimal: "75.26066..." (múltiplas Betano, s50),
+        sem vírgula nenhuma → o ponto JÁ é o separador decimal.
+
+    Regra: se há vírgula, ela manda (ponto = milhar). Sem vírgula, o ponto é
+    decimal e deve ser preservado — removê-lo transformava "75.26" em 7526...,
+    estourando o P/L derivado. Confirmado no banco: 5 odds nesse formato, 0 stakes.
+    Devolve 0.0 se ilegível.
+    """
     if v is None:
         return 0.0
+    s = str(v).strip().rstrip(".")  # remove reticências/ponto solto ao final
+    if not s:
+        return 0.0
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")  # padrão BR: ponto = milhar
+    # sem vírgula: o ponto (se houver) já é decimal — não mexe
     try:
-        return float(str(v).strip().replace(".", "").replace(",", "."))
+        return float(s)
     except ValueError:
         return 0.0
 
