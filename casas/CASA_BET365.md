@@ -128,7 +128,8 @@ A Bet365 tem boost/promo. Quando houver, o **Retorno Obtido já reflete o valor 
 | Bet365 exibe | Aposta global |
 |---|---|
 | Para Ganhar a Partida / Para Vencer a Partida | ML |
-| Handicap Asiático (incl. "- Cartões", "Ao-Vivo - …") | Handicap |
+| Handicap Asiático ("Ao-Vivo - …" = só ao vivo, ignorar p/ categoria) | Handicap |
+| Handicap Asiático - Cartões | Cartões |
 | Total de Escanteios (Asiáticos) / "Total de Escanteios - 3 Opções" | Escanteios |
 | Total de cartões asiáticos | Cartões |
 | Para o Jogador Receber Cartão | Cartões |
@@ -147,6 +148,7 @@ Notas de reconstrução:
 - **Criar Aposta** → sempre `Múltipla`, UMA linha por bilhete, mesmo com seleções do mesmo jogo e mesmo **cruzando vários confrontos** (junta tudo com ` // `).
 - Mesmo jogador, vários mercados → `Jogador - Mercado A / Mercado B [Confronto]` (`MASTER_DESCRICAO_2026 §12.4`).
 - `Mais de` / `Menos de` → Over / Under.
+- **Handicap de objeto estatístico:** a categoria segue o **objeto** (`MASTER_APOSTAS §1`). `Handicap Asiático - Cartões` → `Cartões`; a linha de handicap (`+/-N`) vai só na descrição. Handicap sobre o resultado/gols continua `Handicap`.
 - Handicap asiático **split** aparece como linha dupla (`-1.0,-1.5`, `0.0,+0.5`) → manter a linha como exibida; pode gerar HW/HL/V (ver §5).
 - "Mapa N - …" / "Time Visitante - …" são qualificadores de contexto; entram na descrição conforme o master, mas não mudam a categoria.
 
