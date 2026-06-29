@@ -355,7 +355,7 @@ async def list_bilhetes(
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"SELECT * FROM bilhetes {where} "
-            f"ORDER BY criado_em {order_sql} LIMIT {limit_ph} OFFSET {offset_ph}",
+            f"ORDER BY criado_em {order_sql}, id {order_sql} LIMIT {limit_ph} OFFSET {offset_ph}",
             *params,
         )
     return [dict(r) for r in rows]
