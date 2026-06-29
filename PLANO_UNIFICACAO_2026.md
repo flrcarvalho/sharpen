@@ -124,6 +124,12 @@ Um script Python, rodado **uma vez**, re-rodável:
    ausentes do DB → todas), `origem='import'`, codeless. **Nunca tocar** em
    `origem IN ('extracao','sync')` — os bilhetes recentes COM Código ficam intactos
    (dedup preservada). Idempotente: re-run apaga só `origem='import'` e reinsere.
+   - **`criado_em` do bloco import (lição da sessão 62):** a lista ordena por `criado_em DESC`.
+     Se o import deixar o default `NOW()`, todo o bloco sobe ao TOPO, na frente das extrações
+     reais. Carimbar `criado_em` abaixo do corte `T_min` (= `MIN(criado_em)` das linhas
+     `origem IN ('extracao','sync')` do mesmo dono), ordenado pela data real desc:
+     `criado_em = (T_min − 1min) − (data_max_import − data_da_linha)`. Assim o bloco vai pro
+     fim, ordenado cronologicamente por dentro, sem se intrometer nas extrações.
 4. **Saída:** relatório (linhas importadas, rejeitadas, diffs de P/L, valores não-mapeados).
 
 ---
