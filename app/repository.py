@@ -214,8 +214,8 @@ async def upsert_bilhetes(
                     INSERT INTO bilhetes
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                          aposta, descricao, stake, odd, resultado,
-                         extraction_state, confianca)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+                         extraction_state, confianca, stake_usd)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -223,6 +223,8 @@ async def upsert_bilhetes(
                         codigo_bilhete   = COALESCE(bilhetes.codigo_bilhete, EXCLUDED.codigo_bilhete),
                         resultado        = EXCLUDED.resultado,
                         extraction_state = EXCLUDED.extraction_state,
+                        -- backfill do USD em re-sync; nunca apaga um valor já gravado
+                        stake_usd        = COALESCE(EXCLUDED.stake_usd, bilhetes.stake_usd),
                         atualizado_em    = NOW()
                     RETURNING id, (xmax = 0) AS was_inserted
                     """,
@@ -231,7 +233,7 @@ async def upsert_bilhetes(
                     row.get("data"), row.get("esporte"), row.get("tipster"),
                     row.get("aposta"), row.get("descricao"),
                     row.get("stake"), row.get("odd"), resultado,
-                    extraction_state, confianca,
+                    extraction_state, confianca, row.get("stake_usd"),
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
@@ -463,6 +465,19 @@ async def list_tipsters(dono: str) -> list[str]:
             dono,
         )
     return [r["tipster"] for r in rows]
+
+
+async def list_esportes(dono: str) -> list[str]:
+    """Esportes distintos já usados por este dono — alimenta o autocomplete do editor."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT DISTINCT esporte FROM bilhetes "
+            "WHERE dono = $1 AND esporte IS NOT NULL AND esporte <> '' "
+            "ORDER BY esporte",
+            dono,
+        )
+    return [r["esporte"] for r in rows]
 
 
 async def get_ativos_tipster(dono: str, codigos: list[str]) -> dict[str, str]:

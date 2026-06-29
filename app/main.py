@@ -34,7 +34,7 @@ from repository import (
     casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendentes,
     criar_parceiro, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
-    get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_tipsters,
+    get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     set_ativo_tipster,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
     reativar_parceiro, upsert_bilhetes,
@@ -1021,6 +1021,11 @@ async def listar_bilhetes(
 @app.get("/tipsters")
 async def listar_tipsters(dono: str = Depends(usuario_atual)):
     return {"tipsters": await list_tipsters(dono)}
+
+
+@app.get("/esportes")
+async def listar_esportes(dono: str = Depends(usuario_atual)):
+    return {"esportes": await list_esportes(dono)}
 
 
 class CopiarRequest(BaseModel):
