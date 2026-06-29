@@ -48,6 +48,13 @@ _client = AsyncAnthropic()
 _MAX_CHUNKS = 4
 _MAX_CONCURRENT = 4
 
+# Limites de upload (validados no servidor — o teto do front é contornável).
+_MAX_IMGS = 15
+_MAX_IMG_BYTES = 12 * 1024 * 1024     # 12 MB por imagem
+_MAX_TOTAL_BYTES = 60 * 1024 * 1024   # 60 MB somando todas as imagens
+_MAX_XLS_BYTES = 20 * 1024 * 1024     # 20 MB para o XLS
+_ALLOWED_IMG_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+
 # Retry com backoff exponencial para picos da API Anthropic (overloaded 529 / rate-limit 429).
 _RETRY_MAX = 4          # tentativas extras além da primeira
 _RETRY_BASE = 1.0       # segundos: espera = base * 2**(tentativa-1) → 1s, 2s, 4s, 8s
@@ -706,13 +713,25 @@ async def extrair(
 
     base_content: list[dict] = []
 
+    if len(imagens) > _MAX_IMGS:
+        raise HTTPException(413, f"Máximo de {_MAX_IMGS} imagens por envio.")
+
+    total_bytes = 0
     for img in imagens:
+        ctype = (img.content_type or "").lower()
+        if ctype not in _ALLOWED_IMG_TYPES:
+            raise HTTPException(400, f"Tipo de imagem não suportado: {ctype or 'desconhecido'}.")
         raw = await img.read()
+        total_bytes += len(raw)
+        if len(raw) > _MAX_IMG_BYTES:
+            raise HTTPException(413, f"Imagem '{img.filename}' excede o limite de 12 MB.")
+        if total_bytes > _MAX_TOTAL_BYTES:
+            raise HTTPException(413, "Tamanho total das imagens excede 60 MB.")
         base_content.append({
             "type": "image",
             "source": {
                 "type": "base64",
-                "media_type": img.content_type or "image/jpeg",
+                "media_type": ctype,
                 "data": base64.standard_b64encode(raw).decode(),
             },
         })
@@ -733,6 +752,8 @@ async def extrair(
 
     if xls_file:
         raw = await xls_file.read()
+        if len(raw) > _MAX_XLS_BYTES:
+            raise HTTPException(413, "Arquivo XLS excede o limite de 20 MB.")
         xls_text, n_skip = await _parse_xls(raw, dono)
         xls_skipped += n_skip
         if xls_text:
