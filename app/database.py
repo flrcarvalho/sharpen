@@ -90,6 +90,10 @@ END$$;
 -- Origem do registro: extracao (IA) | sync (Polymarket API) | import (migração da planilha).
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'extracao';
 
+-- Stake original em USD (só Polymarket: o valor que saiu da conta, antes da conversão
+-- USD→BRL). NULL para casas em R$ nativo. Número cru; a máscara é responsabilidade da UI.
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS stake_usd REAL;
+
 -- Tipster atribuído a POSIÇÕES ATIVAS da Polymarket (dashboard ao vivo).
 -- Vive separado de `bilhetes` (que só guarda apostas resolvidas/exportáveis);
 -- chave = código do bilhete (conditionId/__i). Carregado p/ a grade quando resolve.

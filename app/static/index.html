@@ -664,6 +664,10 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
 .money.neg .money-val { color: var(--neg); }
 .btbl-pl .money { width: auto; }   /* encolhe p/ o cell text-align:right alinhar à direita */
 .btbl-pl-empty { color: var(--ink-mute); }
+/* Sub-linha do stake: valor original em USD (só Polymarket) sob o R$ convertido */
+.btbl-stake-usd { display: block; width: 100%; text-align: left; margin-top: 2px;
+  font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums;
+  color: var(--ink-mute); }
 .btbl-acts { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .act-btn {
   width: 22px; height: 22px; padding: 0; border: none; background: transparent; cursor: pointer;
@@ -2366,7 +2370,7 @@ function renderGrade() {
         <span class="casa-chip" data-casa="${esc(b.casa)}"><img src="${faviconUrl(b.casa)}" alt="${esc(nomeCasa)}" loading="lazy"></span>
         <div class="btbl-casa-sub"><span class="btbl-casa-nome">${esc(nomeCasa)}</span>${contaHtml}</div>
       </div>
-      <div class="btbl-cell btbl-num">${moneyStake(b.stake)}</div>
+      <div class="btbl-cell btbl-num">${moneyStake(b.stake)}${b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : ''}</div>
       <div class="btbl-cell btbl-num">${esc(_limparOdd(b.odd))}</div>
       <div class="btbl-cell btbl-res">${resPill(b.resultado)}</div>
       <div class="btbl-cell btbl-num btbl-pl">${fmtPL(b.pl)}</div>

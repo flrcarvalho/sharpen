@@ -432,6 +432,7 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
                 "aposta": _categoria(title, raw_sport),
                 "descricao": desc,
                 "stake": _fmt_money(stake_brl),
+                "stake_usd": round(stake_usd, 2),   # valor original (saiu da conta) p/ referência na grade
                 "odd": _fmt_odd(_calc_odd(pos)),
                 "resultado": "W" if pnl > 0 else "L",
                 "codigo_bilhete": pos.get("_splitId") or pos.get("conditionId") or "",
