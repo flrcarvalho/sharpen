@@ -134,6 +134,12 @@
 - `type:"TRADE"` + `side:"BUY"` na activity — tratar `type` **ou** `side`.
 - `startDate`/`createdAt` **não existem** em `/positions`; a data vem do `REDEEM`
   (BRT) → `eventSlug` → `endDate`, nessa ordem.
+- **Esporte detectado pelo prefixo do slug do evento** (`mlb-…`→Baseball,
+  `atp-`/`wta-`→Tênis, `nba-`/`wnba-`→Basquete, `ucl-`/`fifwc-`→Futebol,
+  `lol-`/`cs2-`/`val-`→E-Sports, `ufc-`→MMA, `nfl-`→Futebol Americano…). É o sinal
+  **primário e confiável**; o regex do título é só fallback quando o slug falta ou
+  tem prefixo desconhecido. Sem isso, mercados titulados por participante
+  (`Yankees vs Red Sox`, `Sinner vs Ruud`, `O/U 1.5 Rounds`) caíam em `Outro`.
 - E-Sports vem granular (CS2, LoL, Dota 2…) → **colapsa para `E-Sports`** no global;
   over/under de estatística de E-Sports vira `E-Sports Props` (nunca `Player Props`).
 - **Snooker** não é esporte canônico → cai em `Outro` (candidato a cadastro futuro).
@@ -145,8 +151,9 @@
 > o coletor Python não os consulta. Logo, a Polymarket **não** herda as listas
 > auxiliares do `MASTER_ESPORTES` (centenas de jogadores de Tênis/Dardos, armadilha
 > LYON, desambiguação Tênis vs Padel) nem a prioridade semântica do `MASTER_APOSTAS`.
-> A cobertura é deliberadamente um subconjunto: cauda longa sem liga/sinal no título
-> cai em `Outro`/`ML` e é ajustada na grade. Não esperar paridade com a IA aqui.
+> A cobertura é deliberadamente um subconjunto: cauda longa sem prefixo de liga
+> conhecido no slug nem sinal no título cai em `Outro`/`ML` e é ajustada na grade.
+> Não esperar paridade com a IA aqui.
 
 ---
 

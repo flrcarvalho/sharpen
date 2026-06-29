@@ -190,9 +190,61 @@ def _iso_to_br(iso: str) -> str:
 
 # ── Esporte / Categoria ─────────────────────────────────────────────────────
 
-def _detes_raw(title: str) -> str:
-    """Detecção de esporte a partir do título (en-US da Polymarket). Granular o
-    suficiente para a categoria; a coluna usa a versão normalizada (_norm_esporte)."""
+# Prefixo do slug do evento (ex.: "mlb-chc-stl-2026-05-31" → "mlb") → esporte
+# granular. O slug é MUITO mais confiável que o título: esportes tradicionais na
+# Polymarket são titulados por nome de time/jogador (ex.: "Yankees vs Red Sox",
+# "Sinner vs Ruud"), que o regex de título não pega; mas o slug é sempre prefixado
+# pela liga/esporte. Validado contra a carteira real: derruba os "Outro" a zero.
+_SLUG_SPORT = {
+    # e-sports (todos colapsam em "E-Sports" no _norm_esporte)
+    "lol": "E-Sports", "lpl": "E-Sports", "lck": "E-Sports", "lec": "E-Sports",
+    "lcs": "E-Sports", "cs2": "E-Sports", "csgo": "E-Sports", "cs": "E-Sports",
+    "val": "E-Sports", "valorant": "E-Sports", "vct": "E-Sports", "dota2": "E-Sports",
+    "dota": "E-Sports", "cod": "E-Sports", "codmw": "E-Sports", "cdl": "E-Sports",
+    "rl": "E-Sports", "rlcs": "E-Sports", "ow": "E-Sports", "ow2": "E-Sports",
+    "r6": "E-Sports", "pubg": "E-Sports", "sc2": "E-Sports", "apex": "E-Sports",
+    "mlbb": "E-Sports", "kog": "E-Sports", "honor": "E-Sports",
+    # tênis
+    "atp": "Tênis", "wta": "Tênis", "itf": "Tênis", "tennis": "Tênis",
+    # basquete
+    "nba": "Basquete", "wnba": "Basquete", "euroleague": "Basquete",
+    "ncaab": "Basquete", "basketball": "Basquete",
+    # baseball
+    "mlb": "Baseball", "npb": "Baseball", "kbo": "Baseball", "baseball": "Baseball",
+    # futebol americano
+    "nfl": "Futebol Americano", "ncaaf": "Futebol Americano", "cfb": "Futebol Americano",
+    # hóquei
+    "nhl": "Hóquei", "hockey": "Hóquei",
+    # futebol
+    "epl": "Futebol", "ucl": "Futebol", "uel": "Futebol", "uecl": "Futebol",
+    "uclq": "Futebol", "laliga": "Futebol", "seriea": "Futebol", "bundesliga": "Futebol",
+    "ligue1": "Futebol", "eredivisie": "Futebol", "mls": "Futebol", "fif": "Futebol",
+    "fifwc": "Futebol", "wc": "Futebol", "copa": "Futebol", "brasileirao": "Futebol",
+    "libertadores": "Futebol", "soccer": "Futebol",
+    # mma
+    "ufc": "MMA", "mma": "MMA", "bellator": "MMA", "pfl": "MMA",
+    # dardos / f1 / golf / vôlei / rugby / snooker (snooker → Outro no _norm_esporte)
+    "pdc": "Dardos", "darts": "Dardos", "f1": "F1", "formula1": "F1",
+    "pga": "Golf", "golf": "Golf", "liv": "Golf", "volleyball": "Vôlei",
+    "vnl": "Vôlei", "rugby": "Rugby", "snooker": "Snooker",
+}
+
+
+def _detes_from_slug(slug: str) -> str | None:
+    """Esporte a partir do prefixo do slug do evento. None se ausente/desconhecido."""
+    if not slug:
+        return None
+    return _SLUG_SPORT.get(slug.lower().split("-")[0])
+
+
+def _detes_raw(title: str, slug: str = "") -> str:
+    """Detecção de esporte. Tenta o prefixo do slug do evento primeiro (sinal forte
+    e confiável); só cai no regex do título (en-US) quando o slug está ausente ou
+    com prefixo desconhecido. Granular o suficiente para a categoria; a coluna usa
+    a versão normalizada (_norm_esporte)."""
+    by_slug = _detes_from_slug(slug)
+    if by_slug:
+        return by_slug
     if not title:
         return "Outro"
     s = title.lower()
@@ -446,7 +498,7 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
         for pos in fechados:
             title = pos.get("title") or ""
             iso = _data_iso(pos, redeem_cache)
-            raw_sport = _detes_raw(title)
+            raw_sport = _detes_raw(title, pos.get("eventSlug") or pos.get("slug") or "")
             stake_usd = _f(pos, "initialValue", "size")
             cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
             if not cotacao:
@@ -578,7 +630,7 @@ async def coletar_dashboard(wallet: str) -> dict:
     ativas = []
     for pos in ativas_raw:
         title = pos.get("title") or ""
-        raw_sport = _detes_raw(title)   # mesma detecção do coletar_bilhetes (linha = layout da grade)
+        raw_sport = _detes_raw(title, pos.get("eventSlug") or pos.get("slug") or "")  # mesma detecção do coletar_bilhetes
         split_total = int(pos.get("_splitTotal") or 1)
         mercado = title
         if split_total > 1:
