@@ -905,7 +905,7 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
         if t:
             r["tipster"] = t
 
-    inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono)
+    inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono, origem="sync")
     # As posições que resolveram migraram o tipster para `bilhetes`: apaga as linhas
     # de ativa correspondentes para não reinjetar (e sobrescrever) no próximo re-sync.
     if salvos:

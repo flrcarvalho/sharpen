@@ -124,7 +124,8 @@ def _assinatura(row: dict, _counter: int = 1) -> str:
 
 
 async def upsert_bilhetes(
-    rows: list[dict], dono: str, confianca: float | None = None
+    rows: list[dict], dono: str, confianca: float | None = None,
+    origem: str = "extracao",
 ) -> tuple[int, int, list[int], list[str], dict]:
     """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
 
@@ -230,8 +231,8 @@ async def upsert_bilhetes(
                     INSERT INTO bilhetes
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                          aposta, descricao, stake, odd, resultado,
-                         extraction_state, confianca, stake_usd)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                         extraction_state, confianca, stake_usd, origem)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -249,7 +250,7 @@ async def upsert_bilhetes(
                     row.get("data"), row.get("esporte"), row.get("tipster"),
                     row.get("aposta"), row.get("descricao"),
                     row.get("stake"), row.get("odd"), resultado,
-                    extraction_state, confianca, row.get("stake_usd"),
+                    extraction_state, confianca, row.get("stake_usd"), origem,
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
