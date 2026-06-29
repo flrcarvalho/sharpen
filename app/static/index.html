@@ -477,6 +477,7 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .c-desc { width: 280px; }
 .c-stk  { width: 78px; font-family: var(--font-mono); text-align: right; }
 .c-odd  { width: 66px; font-family: var(--font-mono); text-align: right; }
+.odd-trunc { border-bottom: 1px dotted var(--ink-mute); cursor: help; }
 .c-res  { width: 60px; text-align: center; }
 .c-chk  { width: 42px; text-align: center; }
 .c-sel  { width: 28px; text-align: center; padding: 0 4px; }
@@ -1679,7 +1680,7 @@ function renderDashPoly(d) {
       <td class="c-tip"><input class="pm-tip-input js-ac-tipster" value="${esc(a.tipster || '')}" data-codigo="${esc(a.codigo)}" spellcheck="false" autocomplete="off" placeholder="— tipster —"></td>
       <td class="c-casa"><span class="btbl-casa"><span class="casa-chip" data-casa="Polymarket"><img src="${faviconUrl('Polymarket')}" alt="Polymarket" loading="lazy"></span><span class="btbl-casa-sub"><span class="btbl-casa-nome">Polymarket</span>${contaHtml}</span></span></td>
       <td class="num">${fmtUSD(a.stake_usd)}</td>
-      <td class="num">${esc(a.odd)}</td>
+      <td class="num">${_fmtOddDisplay(a.odd)}</td>
       <td class="c-stat"><span class="pm-badge-ativa">ativa</span></td>
       <td class="num ${pnlCls}">${pnlTxt}</td>
       <td class="num">${fmtUSD(a.valor_atual)}</td>
@@ -2387,7 +2388,7 @@ function renderGrade() {
         <div class="btbl-casa-sub"><span class="btbl-casa-nome">${esc(nomeCasa)}</span>${contaHtml}</div>
       </div>
       <div class="btbl-cell btbl-num">${moneyStake(b.stake)}${b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : ''}</div>
-      <div class="btbl-cell btbl-num">${esc(_limparOdd(b.odd))}</div>
+      <div class="btbl-cell btbl-num">${_fmtOddDisplay(b.odd)}</div>
       <div class="btbl-cell btbl-res">${resPill(b.resultado)}</div>
       <div class="btbl-cell btbl-num btbl-pl">${fmtPL(b.pl)}</div>
       <div class="btbl-cell btbl-acts">
@@ -2858,6 +2859,20 @@ async function toggleCopy(id, btn) {
 
 // Remove reticências de valores numéricos copiados para a planilha
 function _limparOdd(v) { return (v ?? '').replace(/\.{2,}$|…$/, ''); }
+
+// Exibe a odd com 2 casas decimais (padrão visual). Quando o valor tem mais
+// precisão, mostra o completo no hover (title) com dica de sublinhado pontilhado.
+// O armazenamento/exportação continua usando o valor completo (_limparOdd).
+function _fmtOddDisplay(v) {
+  const full = _limparOdd(v);
+  if (!full) return '';
+  const n = Number(full.replace(',', '.'));
+  if (!isFinite(n)) return esc(full);
+  const curto = n.toFixed(2).replace('.', ',');
+  return Number(n.toFixed(2)) === n
+    ? esc(curto)
+    : `<span class="odd-trunc" title="Odd completa: ${esc(full)}">${esc(curto)}</span>`;
+}
 
 // Monta o TSV (10 colunas) de um conjunto de bilhetes, em ordem cronológica.
 function montarTSV(arr) {
