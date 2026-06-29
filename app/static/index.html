@@ -372,23 +372,25 @@ body::before {
 .pm-ativas-wrap { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); margin:0 18px 14px; overflow:hidden; }
 .pm-ativas-head { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-family:var(--font-mono); border-bottom:1px solid var(--line); }
 .pm-ativas-scroll { max-height:300px; overflow:auto; }
+/* Tabela de ativas espelha a LINHA da lista de apostas resolvidas (mesmos
+   componentes: badge de tipo, descrição, chip de esporte, Casa·Parceiro) +
+   colunas ao vivo (Status/P&L %/Valor atual). Larguras por coluna; Aposta/Evento
+   absorve a sobra. */
 table.pm-ativas { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
-table.pm-ativas th:nth-child(1){ width:320px; }
-table.pm-ativas th:nth-child(2){ width:130px; }
-table.pm-ativas th:nth-child(3){ width:110px; }
-table.pm-ativas th:nth-child(4){ width:90px; }
-table.pm-ativas th:nth-child(5){ width:90px; }
-table.pm-ativas th:nth-child(6){ width:84px; }
-table.pm-ativas th:nth-child(7){ width:112px; }
-table.pm-ativas th:nth-child(8){ width:74px; }
+table.pm-ativas th.c-data { width:90px; }
+table.pm-ativas th.c-esp  { width:120px; }
+table.pm-ativas th.c-tip  { width:120px; }
+table.pm-ativas th.c-casa { width:150px; }
+table.pm-ativas th.c-stat { width:72px; }
+table.pm-ativas th.num    { width:94px; }
+table.pm-ativas th.c-merc { width:auto; }   /* absorve a sobra */
 table.pm-ativas th { text-align:left; font-family:var(--font-mono); padding:7px 10px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); font-weight:600; position:sticky; top:0; background:var(--surface); z-index:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-table.pm-ativas th.num, table.pm-ativas td.num { text-align:right; font-family:var(--font-mono); }
-table.pm-ativas td { padding:6px 10px; border-top:1px solid var(--line); color:var(--ink-soft); vertical-align:middle; }
-table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); }
+table.pm-ativas th.num, table.pm-ativas td.num { text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+table.pm-ativas td { padding:9px 10px; border-top:1px solid var(--line); color:var(--ink-soft); vertical-align:middle; overflow:hidden; }
+table.pm-ativas td.c-merc { color:var(--ink); }
 .pm-rel { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:4px; font-size:9px; font-family:var(--font-mono); background:rgba(var(--warn-rgb),.16); color:var(--warn); }
 .pm-badge-ativa { padding:1px 7px; border-radius:4px; font-size:10px; font-family:var(--font-mono); background:rgba(var(--warn-rgb),.16); color:var(--warn); }
 .pm-pos { color:var(--pos); } .pm-neg { color:var(--neg); }
-.pm-odd { color:var(--warn); }
 .pm-tip-input { width:100%; min-width:88px; background:transparent; border:1px solid var(--line); border-radius:5px; padding:3px 6px; color:var(--ink); font-size:11px; font-family:var(--font-mono); }
 .pm-tip-input:focus { outline:none; border-color:var(--accent); }
 .pm-empty { padding:16px; text-align:center; color:var(--ink-mute); }
@@ -968,10 +970,12 @@ td.c-res.res-HL { color: var(--warn); }
             <div class="pm-ativas-scroll">
               <table class="pm-ativas">
                 <thead><tr>
-                  <th>Mercado</th><th>Data do evento</th><th>Tipster</th><th>Status</th>
-                  <th class="num">Stake</th><th class="num">P&amp;L %</th><th class="num">Valor atual</th><th class="num">Odd</th>
+                  <th class="c-data">Data</th><th class="c-merc">Aposta / Evento</th><th class="c-esp">Esporte</th>
+                  <th class="c-tip">Tipster</th><th class="c-casa">Casa · Parceiro</th>
+                  <th class="num">Stake</th><th class="num">Odd</th><th class="c-stat">Status</th>
+                  <th class="num">P&amp;L %</th><th class="num">Valor atual</th>
                 </tr></thead>
-                <tbody id="pm-ativas-body"><tr><td colspan="8" class="pm-empty">Cole a carteira e sincronize para ver as posições ativas.</td></tr></tbody>
+                <tbody id="pm-ativas-body"><tr><td colspan="10" class="pm-empty">Cole a carteira e sincronize para ver as posições ativas.</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -1642,7 +1646,7 @@ function renderDashPoly(d) {
   if (!d) {
     ['pm-k-count','pm-k-portfolio','pm-k-cash','pm-k-total'].forEach(i => setTxt(i, '—'));
     ['pm-k-portfolio-sub','pm-k-cash-sub','pm-k-total-sub','pm-ativas-status'].forEach(i => setTxt(i, ''));
-    if (body) body.innerHTML = '<tr><td colspan="8" class="pm-empty">Cole a carteira e sincronize para ver as posições ativas.</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="10" class="pm-empty">Cole a carteira e sincronize para ver as posições ativas.</td></tr>';
     return;
   }
   const cot = d.cotacao;
@@ -1652,22 +1656,27 @@ function renderDashPoly(d) {
   setTxt('pm-k-total', fmtUSD(d.total)); setTxt('pm-k-total-sub', fmtBRLsub(d.total, cot));
   setTxt('pm-ativas-status', d.ativas.length + (d.ativas.length === 1 ? ' ativa' : ' ativas'));
   if (!d.ativas.length) {
-    body.innerHTML = '<tr><td colspan="8" class="pm-empty">Nenhuma posição ativa.</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" class="pm-empty">Nenhuma posição ativa.</td></tr>';
     return;
   }
+  const parc = (parceiroSelecionado && parceiroSelecionado.nome) || '';
   body.innerHTML = d.ativas.map(a => {
     const rel = a.data_rel ? `<span class="pm-rel">${esc(a.data_rel)}</span>` : '';
     const pnlCls = a.pnl_pct >= 0 ? 'pm-pos' : 'pm-neg';
     const pnlTxt = (a.pnl_pct >= 0 ? '+' : '') + Number(a.pnl_pct).toFixed(1) + '%';
+    const tipoHtml = a.aposta ? `<div class="btbl-tipo">${esc(a.aposta)}</div>` : '';
+    const contaHtml = parc ? `<span class="btbl-casa-conta">${esc(parc)}</span>` : '';
     return `<tr>
-      <td class="merc" title="${esc(a.mercado)}">${esc(a.mercado)}</td>
-      <td>${esc(a.data)}${rel}</td>
-      <td><input class="pm-tip-input js-ac-tipster" value="${esc(a.tipster || '')}" data-codigo="${esc(a.codigo)}" spellcheck="false" autocomplete="off" placeholder="— tipster —"></td>
-      <td><span class="pm-badge-ativa">ativa</span></td>
+      <td class="c-data">${esc(a.data)}${rel}</td>
+      <td class="c-merc">${tipoHtml}<div class="btbl-desc" title="${esc(a.mercado)}">${esc(a.mercado)}</div></td>
+      <td class="c-esp"><span class="btbl-sport"><span class="sp-chip">${sportEmoji(a.esporte)}</span><span>${esc(a.esporte)}</span></span></td>
+      <td class="c-tip"><input class="pm-tip-input js-ac-tipster" value="${esc(a.tipster || '')}" data-codigo="${esc(a.codigo)}" spellcheck="false" autocomplete="off" placeholder="— tipster —"></td>
+      <td class="c-casa"><span class="btbl-casa"><span class="casa-chip" data-casa="Polymarket"><img src="${faviconUrl('Polymarket')}" alt="Polymarket" loading="lazy"></span><span class="btbl-casa-sub"><span class="btbl-casa-nome">Polymarket</span>${contaHtml}</span></span></td>
       <td class="num">${fmtUSD(a.stake_usd)}</td>
+      <td class="num">${esc(a.odd)}</td>
+      <td class="c-stat"><span class="pm-badge-ativa">ativa</span></td>
       <td class="num ${pnlCls}">${pnlTxt}</td>
       <td class="num">${fmtUSD(a.valor_atual)}</td>
-      <td class="num pm-odd">${esc(a.odd)}</td>
     </tr>`;
   }).join('');
   body.querySelectorAll('.pm-tip-input').forEach(inp => {

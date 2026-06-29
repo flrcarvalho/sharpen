@@ -535,6 +535,7 @@ async def coletar_dashboard(wallet: str) -> dict:
     ativas = []
     for pos in ativas_raw:
         title = pos.get("title") or ""
+        raw_sport = _detes_raw(title)   # mesma detecção do coletar_bilhetes (linha = layout da grade)
         split_total = int(pos.get("_splitTotal") or 1)
         mercado = title
         if split_total > 1:
@@ -555,6 +556,8 @@ async def coletar_dashboard(wallet: str) -> dict:
         ativas.append({
             "codigo": pos.get("_splitId") or pos.get("conditionId") or "",
             "mercado": mercado,
+            "esporte": _norm_esporte(raw_sport),
+            "aposta": _categoria(title, raw_sport),
             "data": _iso_to_br(end_iso),
             "data_rel": _rotulo_relativo(end_iso),
             "stake_usd": round(stake_usd, 2),
