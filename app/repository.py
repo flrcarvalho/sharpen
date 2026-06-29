@@ -25,6 +25,51 @@ def _norm_odd(v: str) -> str:
         return v
 
 
+def _num(v) -> float:
+    """Converte número no padrão BR ("1.234,50" / "1,81") para float.
+    Tolera ponto de milhar e vírgula decimal; devolve 0.0 se ilegível."""
+    if v is None:
+        return 0.0
+    try:
+        return float(str(v).strip().replace(".", "").replace(",", "."))
+    except ValueError:
+        return 0.0
+
+
+def calcular_pl(stake, odd, resultado) -> float | None:
+    """P/L líquido da aposta (= coluna L da planilha de origem).
+
+    Campo DERIVADO — calculado sob demanda na leitura, nunca persistido. Assim
+    edições de stake/odd/resultado refletem na hora e o app continua só lendo
+    o banco. Espelha o SWITCH da planilha:
+
+        Valor (retorno bruto)        P/L = Valor − stake
+        W  → stake × odd
+        L  → 0
+        V  → stake                   (void/cashout=stake → P/L = 0)
+        HW → (stake/2) × odd + stake/2
+        HL → stake/2
+
+    A odd já vem normalizada pelas regras de extração (W: RO÷stake com boost;
+    cashout≠stake: cashout÷stake), então `stake × odd` reproduz o retorno real
+    sem tratamento extra. Retorna None enquanto a aposta está aberta (sem
+    resultado), equivalente ao "-" da planilha.
+    """
+    res = (resultado or "").strip().upper()
+    if res not in _RESULTADOS_VALIDOS:
+        return None
+    s = _num(stake)
+    o = _num(odd)
+    valor = {
+        "W":  s * o,
+        "L":  0.0,
+        "V":  s,
+        "HW": (s / 2) * o + (s / 2),
+        "HL": s / 2,
+    }[res]
+    return round(valor - s, 2)
+
+
 def parse_tsv(tsv: str) -> list[dict]:
     """Converte bloco TSV em lista de dicts. Ignora linhas vazias e cabeçalho."""
     rows = []
@@ -358,7 +403,13 @@ async def list_bilhetes(
             f"ORDER BY criado_em {order_sql}, id {order_sql} LIMIT {limit_ph} OFFSET {offset_ph}",
             *params,
         )
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        # Campo derivado (não persistido): P/L líquido para o Dashboard.
+        d["pl"] = calcular_pl(d.get("stake"), d.get("odd"), d.get("resultado"))
+        out.append(d)
+    return out
 
 
 async def contar_bilhetes(

@@ -80,7 +80,30 @@
 
 ---
 
-## 5. Notas de migração (2026-06-28)
+## 5. Padrão monetário (R$ e P/L)
+
+> Fonte de verdade: helpers `fmt` / `fmtPL` do Betting Dashboard
+> (`assets/js/app.js`) e a classe `.money` em `assets/css/components.css`.
+> O Planilhador apenas espelha — não reinventa a máscara.
+
+- **Número:** `toLocaleString('pt-BR')`, sempre 2 casas → milhar `.`, decimal `,`
+  (ex.: `1.234,50`).
+- **P/L:** sinal **colado** ao símbolo (`+R$` / `−R$`), com **minus tipográfico
+  U+2212** — nunca o hífen `-`.
+- **Cor:** verde (`--pos`) / vermelho (`--neg`) **só no número** (`.money-val`);
+  `R$` e sinal ficam neutros (`--ink-soft`, `.money-sign`).
+- **`R$`:** menor — `0.76em`, `--ink-soft`, com mini-gap antes do número.
+- **Sempre** mono + `font-variant-numeric: tabular-nums`, alinhado à direita
+  (ver §2).
+- **Cabeçalho:** PT-BR — `"P/L"`, nunca `"PROFIT"`.
+- **Separação backend ↔ UI:** o backend entrega o valor como **número cru**
+  (ex.: `81.0`, `-100.0`); a máscara monetária é responsabilidade exclusiva da
+  UI. Nunca formatar moeda fora dos helpers (`.toFixed`/`.replace` proibidos no
+  display).
+
+---
+
+## 6. Notas de migração (2026-06-28)
 
 Alinhamento aplicado ao `index.html` nesta sessão:
 - ~10 cores fora da paleta → tokens (`#36d399`, `#f5a623`, `#e53935`, 2º azul `#4A90E2`, etc.).
