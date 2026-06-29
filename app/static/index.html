@@ -2338,8 +2338,9 @@ function fmtPL(v) {
   if (v == null || v === '') return '<span class="btbl-pl-empty">—</span>';
   const n = Number(v);
   if (!isFinite(n)) return '<span class="btbl-pl-empty">—</span>';
-  const cls = n >= 0 ? 'pos' : 'neg';
-  const sign = n >= 0 ? '+' : '−';
+  // Zero (Void/cashout=stake) é NEUTRO: sem cor pos/neg e sem sinal.
+  const cls = n > 0 ? 'pos' : (n < 0 ? 'neg' : '');
+  const sign = n > 0 ? '+' : (n < 0 ? '−' : '');
   const abs = Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `<span class="money ${cls}"><span class="money-sign">${sign}R$</span><span class="money-val">${abs}</span></span>`;
 }

@@ -92,6 +92,9 @@
   U+2212** — nunca o hífen `-`.
 - **Cor:** verde (`--pos`) / vermelho (`--neg`) **só no número** (`.money-val`);
   `R$` e sinal ficam neutros (`--ink-soft`, `.money-sign`).
+- **Zero é neutro:** P/L `= 0` (Void / cashout = stake) → `R$ 0,00` **sem sinal
+  e sem cor** (nem verde nem vermelho). Refinamento do Planilhador sobre o
+  `fmtPL` do Dashboard, que trata zero como positivo.
 - **`R$`:** menor — `0.76em`, `--ink-soft`, com mini-gap antes do número.
 - **Sempre** mono + `font-variant-numeric: tabular-nums`, alinhado à direita
   (ver §2).
