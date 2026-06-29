@@ -130,9 +130,12 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 
 @app.exception_handler(Exception)
 async def _unhandled(request: Request, exc: Exception):
+    # Loga o detalhe internamente; ao cliente vai só uma mensagem genérica
+    # (não vazar tipo/mensagem da exceção, que pode revelar schema/caminhos).
+    logger.exception("Erro não tratado em %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"detail": f"{type(exc).__name__}: {exc}"},
+        content={"detail": "Erro interno. Tente novamente."},
     )
 
 
@@ -506,8 +509,9 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         logger.info("seq total: %.1fs | parts=%d | out=%d",
                     time.perf_counter() - t_start, part, total_tokens["output"])
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens})}\n\n"
-    except Exception as exc:
-        yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
+    except Exception:
+        logger.exception("Erro no stream sequencial")
+        yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
 
 
 async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = ""):
@@ -586,9 +590,10 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             else:
                 completed.append((idx, text, tokens))
             yield f"data: {json.dumps({'chunk_progress': idx + 1, 'of': n_chunks})}\n\n"
-    except Exception as exc:
+    except Exception:
+        logger.exception("Erro no stream paralelo")
         await asyncio.gather(*tasks, return_exceptions=True)
-        yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
+        yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
         return
 
     await asyncio.gather(*tasks, return_exceptions=True)
@@ -607,9 +612,9 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         logger.info("par total: %.1fs | chunks=%d | out=%d",
                     time.perf_counter() - t_start, n_chunks, total_tokens["output"])
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices})}\n\n"
-    except Exception as exc:
-        logger.exception("par-final error: %s", exc)
-        yield f"data: {json.dumps({'error': f'par-final: {type(exc).__name__}: {exc}'})}\n\n"
+    except Exception:
+        logger.exception("par-final error")
+        yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
 
 
 # ── Rotas ─────────────────────────────────────────────────────────────────────
@@ -833,7 +838,7 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
         rows = await coletar_bilhetes(wallet, parceiro)
     except Exception as exc:
         logger.exception("Falha na coleta Polymarket")
-        raise HTTPException(502, f"Erro ao consultar a Polymarket: {exc}")
+        raise HTTPException(502, "Erro ao consultar a Polymarket. Tente novamente.")
 
     if not rows:
         return {"salvos": 0, "inseridos": 0, "atualizados": 0, "ids": [],
@@ -872,7 +877,7 @@ async def polymarket_dashboard(wallet: str, dono: str = Depends(usuario_atual)):
         dash = await coletar_dashboard(wallet)
     except Exception as exc:
         logger.exception("Falha no dashboard Polymarket")
-        raise HTTPException(502, f"Erro ao consultar a Polymarket: {exc}")
+        raise HTTPException(502, "Erro ao consultar a Polymarket. Tente novamente.")
     codigos = [a["codigo"] for a in dash["ativas"] if a.get("codigo")]
     salvos = await get_ativos_tipster(dono, codigos)
     for a in dash["ativas"]:
