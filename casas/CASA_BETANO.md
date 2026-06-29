@@ -98,7 +98,9 @@ Conferência financeira: `Ganhos = 0` → L · `Ganhos = Aposta` → V · `Ganho
 | Betano exibe | Aposta global |
 |---|---|
 | Vencedor | ML |
-| Handicap / Handicap - Resultado Final / Handicap de Games (Set N) / Handicap - Cartões / Handicap de sets / Tiros de meta Handicap 2-Way | Handicap |
+| Handicap / Handicap - Resultado Final / Handicap de Games (Set N) / Handicap de sets | Handicap |
+| Handicap - Cartões | Cartões |
+| Tiros de meta Handicap 2-Way | Team Props |
 | Receber um cartão | Cartões |
 | Total de Cartões / Asiático (Mais/Menos) Total de Cartões | Cartões |
 | Total de escanteios / Escanteios Mais/Menos / 1.º Tempo Escanteios | Escanteios |
@@ -106,7 +108,7 @@ Conferência financeira: `Ganhos = 0` → L · `Ganhos = Aposta` → V · `Ganho
 | Total de Games no Set (Set N) | Games |
 | Total de Pontos e Rebotes / Arremessos de três pontos convertidos / Total de Rebotes e Assistências `[Jogador]` (NBA/EuroLeague) | Player Props |
 | Chance Dupla / `X2` | Dupla Chance |
-| Total de tiros de meta (goal kicks) | **Outros** ⚠️ (nicho) |
+| Total de tiros de meta (goal kicks) | Team Props |
 | Total de Faltas | **Outros** ⚠️ (nicho) |
 | Tie Breaks | **Outros** ⚠️ (nicho tênis) |
 | 1º Quarto - Total de pontos | **Outros** ⚠️ (total de período — avaliar Team Props) |
@@ -118,6 +120,7 @@ Notas de reconstrução:
 - **Jogador vem entre `[colchetes]` no fim do mercado:** `Total de Pontos e Rebotes [Victor Wembanyama]` → descrição `Victor Wembanyama - Under 39.5 Pontos+Rebotes [confronto]`.
 - Confronto `A - B` → `[A v B]`.
 - `Mais de` / `Menos de` → Over / Under.
+- **Handicap de objeto estatístico:** a categoria segue o **objeto**, não o tipo de mercado (`MASTER_APOSTAS §1`). `Handicap - Cartões` → `Cartões`; `Tiros de meta Handicap` → `Team Props`. A linha de handicap (`+/-N`) vai só na **descrição**. Handicap sobre unidade de pontuação (gols/games/sets) continua `Handicap`.
 - `Tripla` / `Dupla` / `N-seleções` / `Criar Aposta` → `Múltipla`, uma linha, seleções com ` // `.
 - **Maioria de 180's / H2H 180's (Dardos):** comparativo de quem faz mais 180s → `H2H` (nunca `Legs`/`Player Props`). Layout com dois nomes sem `A v B` explícito: primeiro nome (topo) = apostado, segundo = adversário. Descrição: `Jogador - Maioria de 180's [Jogador A v Jogador B]` (espelha Bet365/Betfair · `MASTER_APOSTAS §6`).
 
@@ -197,7 +200,7 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 10/06/2026	Basquete		Betano		Player Props	Victor Wembanyama - Under 39.5 Pontos+Rebotes [New York Knicks v San Antonio Spurs]	301,00	1,83	W
 ```
 
-**#2 — W, Handicap em cartões, Futebol (`20366550663`):**
+**#2 — W, Handicap de resultado (+0,5 gols), Futebol (`20366550663`):**
 ```
 10/06/2026	Futebol		Betano		Handicap	Coréia do Sul +0.5 [Coréia do Sul v Tchéquia]	200,00	1,70	W
 ```
@@ -222,7 +225,7 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 ## Feedback para a camada global / MODELO
 
 1. **Múltipla sem odd combinada exibida** → calcular odd estrutural por produto (já no `MASTER_RESULTADO §7`); reforça que a casa pode não dar a odd total.
-2. **Mercados nicho sem categoria global:** Dupla Chance (recorrente — Superbet + Betano), Tiros de meta, Faltas, Tie Breaks, total de período. Decidir o que vira categoria nova vs fica em `Outros`.
+2. **Mercados nicho sem categoria global:** Faltas, Tie Breaks, total de período. Decidir o que vira categoria nova vs fica em `Outros`. (Dupla Chance → `Dupla Chance` e Tiros de meta → `Team Props` já foram resolvidos como categoria.)
 3. **Esporte ausente no global:** apareceu polo aquático (CN Barceloneta v Ferencvaros) — hoje cai em `Outro`. Avaliar adicionar.
 4. **Data colocação-como-proxy:** mais um padrão pra cadeia de data do `MASTER_OUTPUT §4` (evento → informada → extrato/join → colocação-proxy → Brasília).
 
