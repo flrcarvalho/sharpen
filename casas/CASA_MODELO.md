@@ -123,7 +123,7 @@ Apostas abertas → `extraction_state = aberta` (fora da fila de cópia).
 
 - Tem cashout: `<sim / não>`
 - Localizador: `<campo, aba ou rótulo onde o valor de cashout aparece — ex.: "Total de Cash Out: R$X", aba "Encerrar Aposta">`
-- Regra global: `Odd = Cashout ÷ Stake` (resultado = L); se `Cashout = Stake` → resultado `V`, preservar a odd exibida/estrutural.
+- Regra global: `Odd = Cashout ÷ Stake` (resultado = W); se `Cashout = Stake` → resultado `V`, preservar a odd exibida/estrutural.
 - **Distinção de meia-liquidação:** cashout produz retorno **arbitrário** (não casa com `Stake/2` nem `(Stake/2)×(odd+1)`); HW/HL casam **exato** — usar esta assinatura para desambiguar quando o rótulo for ambíguo.
 
 <!-- TODO se sem amostra: confirmar localizador e rótulo visual do cashout encerrado. -->
