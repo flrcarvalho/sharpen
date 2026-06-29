@@ -1,4 +1,6 @@
 import hashlib
+import re
+from datetime import datetime, timezone
 
 import asyncpg
 
@@ -84,6 +86,29 @@ def calcular_pl(stake, odd, resultado) -> float | None:
         "HL": s / 2,
     }[res]
     return round(valor - s, 2)
+
+
+# Parceiro no formato "Conta [Fornecedor]" → separa conta e fornecedor.
+# Mesmo regex do Code.gs (getData) para o dashboard bater com a planilha.
+_PARCEIRO_RE = re.compile(r"^(.+?)\s*\[(.+?)\]$")
+
+
+def _data_iso(v) -> str | None:
+    """Data do banco (DD/MM/YYYY) → ISO (YYYY-MM-DD), formato que o dashboard espera.
+
+    Passa direto se já estiver em ISO. Devolve None se ilegível (a linha é então
+    descartada do feed, espelhando o filtro de data do Code.gs).
+    """
+    s = (v or "").strip() if isinstance(v, str) else (str(v).strip() if v else "")
+    if not s:
+        return None
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", s):
+        return s
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", s)
+    if m:
+        d, mth, y = m.groups()
+        return f"{y}-{int(mth):02d}-{int(d):02d}"
+    return None
 
 
 def parse_tsv(tsv: str) -> list[dict]:
@@ -469,6 +494,56 @@ async def export_bilhetes(dono: str) -> list[dict]:
             dono,
         )
     return [dict(r) for r in rows]
+
+
+async def dashboard_rows(dono: str) -> list[dict]:
+    """Feed do Betting Dashboard no MESMO contrato do Code.gs/Apps Script.
+
+    Monta do Postgres (fonte única) o array que o dashboard client-side consome,
+    filtrado pelo dono logado. Espelha os filtros do getData() da planilha:
+      - resultado ∈ {W,L,V,HW,HL};
+      - stake > 0;
+      - P/L numérico (aposta aberta, P/L None, fica de fora);
+      - data conversível para ISO.
+    Inclui Polymarket (todas as linhas do banco). `conta`/`fornecedor` saem do
+    parceiro "Conta [Fornecedor]"; `lucro` = P/L derivado (calcular_pl).
+    """
+    rows = await export_bilhetes(dono)
+    out = []
+    for r in rows:
+        resultado = (r.get("resultado") or "").strip().upper()
+        if resultado not in _RESULTADOS_VALIDOS:
+            continue
+        stake = _num(r.get("stake"))
+        if stake <= 0:
+            continue
+        lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
+        if lucro is None:
+            continue
+        data_iso = _data_iso(r.get("data"))
+        if not data_iso:
+            continue
+        parceiro = (r.get("parceiro") or "").strip()
+        conta, fornecedor = parceiro, ""
+        m = _PARCEIRO_RE.match(parceiro)
+        if m:
+            conta, fornecedor = m.group(1).strip(), m.group(2).strip()
+        out.append({
+            "data": data_iso,
+            "esporte": (r.get("esporte") or "").strip(),
+            "tipster": (r.get("tipster") or "").strip(),
+            "casa": (r.get("casa") or "").strip(),
+            "parceiro": parceiro,
+            "conta": conta,
+            "fornecedor": fornecedor,
+            "aposta": (r.get("aposta") or "").strip(),
+            "descricao": (r.get("descricao") or "").strip(),
+            "stake": stake,
+            "odd": _num(r.get("odd")),
+            "resultado": resultado,
+            "lucro": lucro,
+        })
+    return out
 
 
 async def list_tipsters(dono: str) -> list[str]:

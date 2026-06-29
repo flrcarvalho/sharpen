@@ -8,6 +8,7 @@ import math
 import re
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -32,7 +33,7 @@ from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendentes,
-    criar_parceiro, deletar_bilhetes,
+    criar_parceiro, dashboard_rows, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     set_ativo_tipster,
@@ -954,6 +955,25 @@ async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depend
     return {"ok": True}
 
 
+@app.get("/dashboard/data")
+async def dashboard_data(dono: str = Depends(usuario_atual)):
+    """Fonte de dados do Betting Dashboard (mesmo contrato do Code.gs/Apps Script),
+    montada do Postgres e filtrada pelo dono logado — substitui a planilha. O
+    dashboard client-side faz toda a matemática; aqui só servimos o array cru.
+
+    NOTA: esta rota é registrada ANTES do StaticFiles montado em /dashboard (no fim
+    do arquivo), então o Starlette a resolve primeiro — /dashboard/data nunca cai
+    no servidor de estáticos.
+    """
+    rows = await dashboard_rows(dono)
+    return {
+        "ok": True,
+        "data": rows,
+        "builtAt": datetime.now(timezone.utc).isoformat(),
+        "count": len(rows),
+    }
+
+
 @app.get("/exportar.csv")
 async def exportar_csv(dono: str = Depends(usuario_atual)):
     """Backup completo da base do dono: todas as linhas, todas as colunas, em CSV
@@ -1170,4 +1190,19 @@ async def reativar_parceiro_route(parceiro_id: int, dono: str = Depends(usuario_
     if not ok:
         raise HTTPException(404, "Parceiro não encontrado.")
     return {"arquivado": False}
+
+
+# ── Betting Dashboard (mesma origem) ──────────────────────────────────────────
+# Serve o front do dashboard (cópia viva em static/dash/) que lê /dashboard/data,
+# filtrado pelo login. A planilha/Apps Script no GitHub Pages segue como backup
+# congelado. Montado por ÚLTIMO de propósito: o Starlette casa rotas na ordem de
+# registro, então /dashboard/data (definida acima) resolve antes deste StaticFiles;
+# só /dashboard/ e /dashboard/assets|brand/... caem aqui. O shell é estático e não
+# sensível (o dado é que exige cookie em /dashboard/data); abrir sem login carrega
+# a casca mas a chamada de dados retorna 401.
+app.mount(
+    "/dashboard",
+    StaticFiles(directory=str(Path(__file__).parent / "static" / "dash"), html=True),
+    name="dashboard",
+)
 

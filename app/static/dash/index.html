@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FDC Capital — Betting Dashboard</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="brand/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="brand/favicon-16.png">
+  <link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
+  <link rel="manifest" href="brand/site.webmanifest">
+  <meta name="theme-color" content="#0A0D12">
+
+  <!-- Manrope + JetBrains Mono (Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Design System CSS — ?v= força o navegador a recarregar após edições (cache-busting) -->
+  <link rel="stylesheet" href="assets/css/tokens.css?v=2">
+  <link rel="stylesheet" href="assets/css/layout.css?v=2">
+  <link rel="stylesheet" href="assets/css/components.css?v=4">
+
+  <!-- Aparência init: aplica tema antes do render para evitar flash -->
+  <script>
+    (function() {
+      var theme='dark';
+      try{var s=localStorage.getItem('aparencia_v1');if(s){var p=JSON.parse(s);if(p.theme)theme=p.theme;}}catch(e){}
+      // legacy fallback
+      if(!localStorage.getItem('aparencia_v1')){var t=localStorage.getItem('theme');if(t)theme=t;}
+      var h=document.documentElement;
+      h.setAttribute('data-theme',theme);
+      h.setAttribute('data-density','compact');
+      h.classList.add('t-page-gradient');
+      h.classList.add('kpi-azul');
+    })();
+  </script>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
+<!-- html2canvas (export popup) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+
+<!-- App — ordem de carregamento respeitada com defer. ?v= = cache-busting: bump ao editar -->
+<script src="assets/js/data.js?v=2"              defer></script>
+<script src="assets/js/filters.js?v=2"           defer></script>
+<script src="assets/js/charts/shared.js?v=2"     defer></script>
+<script src="assets/js/charts/gestao.js?v=2"     defer></script>
+<script src="assets/js/charts/overview.js?v=3"   defer></script>
+<script src="assets/js/charts/temporal.js?v=2"   defer></script>
+<script src="assets/js/charts/performance.js?v=3" defer></script>
+<script src="assets/js/charts/apostas.js?v=2"    defer></script>
+<script src="assets/js/app.js?v=4"               defer></script>
+
+</body>
+</html>

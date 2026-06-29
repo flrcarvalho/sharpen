@@ -1,0 +1,207 @@
+/* ============================================================
+   FDC CAPITAL — Design Tokens
+   Paleta: Platinum + Electric Blue
+   Dark é o tema padrão; [data-theme="light"] inverte.
+   ============================================================ */
+
+:root {
+  /* ---- Marca (constantes, não mudam por tema) ---- */
+  --fdc-base:        #0A0D12;
+  --fdc-blue:        #2E8BFF;
+  --fdc-blue-2:      #7FB2FF;
+  --fdc-steel:       #222831;
+  --fdc-platinum:    #AEB7C2;
+  --fdc-white:       #FFFFFF;
+
+  /* ---- Funcionais ---- */
+  --pos:  #2BC07E;
+  --neg:  #E5524B;
+  --warn: #E0A21A;
+
+  /* ---- Superfícies (dark, padrão) ---- */
+  --bg:        #0A0D12;
+  --surface:   #12161D;
+  --surface-2: #161B22;
+  --elevated:  #1A2029;
+  --field:     #161B22;
+  --line:      rgba(255, 255, 255, 0.08);
+  --line-2:    rgba(255, 255, 255, 0.05);
+
+  /* ---- Tinta ---- */
+  --ink:       #EEF2F7;
+  --ink-soft:  #95A1B0;
+  --ink-mute:  #5E6775;
+
+  /* ---- Acento ---- */
+  --accent:    #2E8BFF;
+  --accent-2:  #7FB2FF;
+
+  /* ---- Sombras / brilho ---- */
+  --shadow-card: 0 40px 90px -40px rgba(0, 0, 0, 0.7);
+  --glow: 0 0 0 1px rgba(46, 139, 255, 0.35), 0 8px 40px -12px rgba(46, 139, 255, 0.45);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- Aliases backward-compat (layout/components/charts/app) ---- */
+  --blue:     var(--accent);
+  --navy:     var(--bg);
+  --graphite: var(--fdc-steel);
+  --silver:   var(--fdc-platinum);
+  --text:     var(--ink);
+  --text2:    var(--ink-soft);
+  --text3:    var(--ink-mute);
+  --bg2:      var(--surface);
+  --bg3:      var(--surface-2);
+  --bg4:      var(--field);
+  --bg5:      var(--elevated);
+  --border:   var(--line-2);
+  --border2:  var(--line);
+  --border3:  rgba(255, 255, 255, 0.20);
+  --border-blue: rgba(46, 139, 255, 0.30);
+  --green:    var(--pos);
+  --red:      var(--neg);
+  --amber:    var(--warn);
+
+  /* ---- Específicos Betting Dashboard ---- */
+  --green-dim:  rgba(43, 192, 126, 0.12);
+  --red-dim:    rgba(229, 82, 75, 0.12);
+  --hw:         #2BC07E;
+  --hw-dim:     rgba(43, 192, 126, 0.12);
+  --hl:         #E5524B;
+  --hl-dim:     rgba(229, 82, 75, 0.12);
+  --grid:       rgba(255, 255, 255, 0.05);
+  --tick:       #5E6775;
+  --sb-track:       var(--surface);
+  --sb-thumb:       var(--fdc-steel);
+  --sb-thumb-hover: var(--elevated);
+  --shadow-sm:   0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md:   0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-blue: 0 0 24px rgba(46, 139, 255, 0.15);
+
+  /* ---- Tipografia ---- */
+  --font-sans: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  --text-nano: 9px;
+  --text-xxs:  10px;
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-md:   14px;
+  --text-base: 15px;
+  --text-lg:   18px;
+  --text-xl:   22px;
+  --text-2xl:  28px;
+  --text-3xl:  36px;
+
+  --weight-regular:   400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+  --weight-extrabold: 800;
+
+  /* ---- Espaçamento (escala 4px) — canônico: --sp-* ---- */
+  --sp-1: 4px;  --sp-2: 8px;   --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px;  --sp-8: 32px; --sp-10: 40px;
+  --sp-14: 56px; --sp-20: 80px;
+  /* deprecated — usar --sp-* em código novo */
+  --space-1:  4px;  --space-2:  8px;  --space-3: 12px; --space-4: 16px;
+  --space-6: 24px;  --space-8: 32px;  --space-12: 48px; --space-16: 64px;
+
+  /* ---- Raio — canônico: --r-* ---- */
+  --r-xs:  4px;
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  18px;
+  --r-xl:  26px;
+  --r-pill: 999px;
+  /* deprecated — usar --r-* em código novo */
+  --radius-sm:   4px;
+  --radius:      8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-pill: 100px;
+
+  /* ---- Diagnóstico / camada de risco (--d-*) ---- */
+  --d-pos:         #4FC79A;
+  --d-neg:         #E5524B;
+  --d-proj:        #D6A45A;
+  --d-info:        #4DA3FF;
+  --d-pos-strong:  #2BC07E;
+  --d-proj-strong: #E0A21A;
+  --d-pos-soft:    rgba(79,199,154,.14);
+  --d-neg-soft:    rgba(229,82,75,.14);
+  --d-proj-soft:   rgba(214,164,90,.15);
+  --d-info-soft:   rgba(77,163,255,.14);
+  --risk-grad:     linear-gradient(90deg,var(--d-neg) 0%,var(--d-proj) 50%,var(--d-pos) 100%);
+}
+
+/* ============ Tema claro ============ */
+:root[data-theme="light"] {
+  --bg:        #F4F7FB;
+  --surface:   #FFFFFF;
+  --surface-2: #EDF2F7;
+  --elevated:  #FFFFFF;
+  --field:     #FFFFFF;
+  --line:      rgba(10, 15, 25, 0.10);
+  --line-2:    rgba(10, 15, 25, 0.055);
+
+  --ink:       #0E1626;
+  --ink-soft:  #46586D;
+  --ink-mute:  #7C8BA0;
+
+  --accent:    #1E7CF0;
+  --accent-2:  #2E8BFF;
+  --glow: 0 0 0 1px rgba(30, 124, 240, 0.30), 0 10px 36px -14px rgba(30, 124, 240, 0.40);
+
+  /* ---- Aliases light ---- */
+  --blue:    var(--accent);
+  --text:    var(--ink);
+  --text2:   var(--ink-soft);
+  --text3:   var(--ink-mute);
+  --bg2:     var(--surface);
+  --bg3:     var(--surface-2);
+  --bg4:     var(--field);
+  --bg5:     #EDF2F7;
+  --border:  var(--line-2);
+  --border2: var(--line);
+  --border3: rgba(10, 15, 25, 0.20);
+  --border-blue: rgba(30, 124, 240, 0.30);
+  --green:   var(--pos);
+  --red:     var(--neg);
+  --amber:   var(--warn);
+
+  /* ---- Específicos light ---- */
+  --green-dim:  rgba(43, 192, 126, 0.08);
+  --red-dim:    rgba(229, 82, 75, 0.08);
+  --hw:         #2BC07E;
+  --hw-dim:     rgba(43, 192, 126, 0.08);
+  --hl:         #E5524B;
+  --hl-dim:     rgba(229, 82, 75, 0.08);
+  --grid:       rgba(0, 0, 0, 0.08);
+  --tick:       #7C8BA0;
+  --sb-track:       #EDF2F7;
+  --sb-thumb:       #AEB7C2;
+  --sb-thumb-hover: #7C8BA0;
+  --shadow-sm:   0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md:   0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-blue: 0 0 24px rgba(30, 124, 240, 0.1);
+
+  --pos:  #2BC07E;
+  --neg:  #E5524B;
+  --warn: #E0A21A;
+}
+
+/* ============ Skin: Deep Navy ============ */
+/* Não aplicar ainda — definido para uso futuro via data-skin="navy" */
+[data-skin="navy"] {
+  --bg:        #081320;
+  --surface:   #0F1D2F;
+  --surface-2: #13243A;
+  --elevated:  #162943;
+  --line:      rgba(125,170,255,.10);
+  --line-2:    rgba(125,170,255,.055);
+  --ink:       #EAF1FA;
+  --ink-soft:  #8C9BB0;
+  --ink-mute:  #5C6B82;
+}
