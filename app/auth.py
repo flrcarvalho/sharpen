@@ -18,6 +18,11 @@ import time
 
 from fastapi import HTTPException, Request
 
+try:
+    import bcrypt
+except ImportError:          # defensivo: se a lib faltar, o caminho legado ainda funciona
+    bcrypt = None
+
 logger = logging.getLogger("auth")
 
 COOKIE_NAME = "fdc_sessao"
@@ -37,11 +42,10 @@ if not os.environ.get("SESSION_SECRET"):
     )
 
 
-def _hash(senha: str) -> str:
-    return hashlib.sha256(senha.encode()).hexdigest()
-
-
 # usuário → hash da senha. Sobrescrevível por env (SENHA_<USER>_HASH) sem expor texto.
+# Aceita bcrypt (novo, com salt — hash começa com "$2") OU SHA-256 hex (legado).
+# Os defaults SHA-256 abaixo são de TRANSIÇÃO: assim que os hashes bcrypt forem
+# definidos nas env vars do Railway, removê-los daqui (ver STATUS "Hash de senha").
 USUARIOS: dict[str, str] = {
     "Feca": os.environ.get(
         "SENHA_FECA_HASH",
@@ -54,11 +58,23 @@ USUARIOS: dict[str, str] = {
 }
 
 
-def verificar_credenciais(usuario: str, senha: str) -> bool:
-    esperado = USUARIOS.get(usuario)
-    if not esperado:
+def _verifica_hash(senha: str, hash_guardado: str) -> bool:
+    """Compara a senha com o hash, detectando o formato automaticamente."""
+    if not hash_guardado:
         return False
-    return hmac.compare_digest(esperado, _hash(senha))
+    if hash_guardado.startswith("$2"):          # bcrypt (com salt + stretching)
+        if bcrypt is None:
+            return False
+        try:
+            return bcrypt.checkpw(senha.encode(), hash_guardado.encode())
+        except (ValueError, TypeError):
+            return False
+    # legado: SHA-256 hex, sem salt (comparação em tempo constante)
+    return hmac.compare_digest(hash_guardado, hashlib.sha256(senha.encode()).hexdigest())
+
+
+def verificar_credenciais(usuario: str, senha: str) -> bool:
+    return _verifica_hash(senha, USUARIOS.get(usuario) or "")
 
 
 def criar_token(usuario: str) -> str:
