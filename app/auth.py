@@ -42,35 +42,24 @@ if not os.environ.get("SESSION_SECRET"):
     )
 
 
-# usuário → hash da senha. Sobrescrevível por env (SENHA_<USER>_HASH) sem expor texto.
-# Aceita bcrypt (novo, com salt — hash começa com "$2") OU SHA-256 hex (legado).
-# Os defaults SHA-256 abaixo são de TRANSIÇÃO: assim que os hashes bcrypt forem
-# definidos nas env vars do Railway, removê-los daqui (ver STATUS "Hash de senha").
+# usuário → hash bcrypt da senha, vindo SEMPRE das env vars do Railway
+# (SENHA_<USER>_HASH). SEM default no código: se a env faltar, o login falha
+# (fail-closed) em vez de cair num hash hardcoded. Os hashes SHA-256 versionados
+# foram removidos na migração bcrypt (fase 2 — ver STATUS "Hash de senha").
 USUARIOS: dict[str, str] = {
-    "Feca": os.environ.get(
-        "SENHA_FECA_HASH",
-        "21a9201f1f1554b9647d573514007b0dd03870abf0c8e014d12dc961213dec31",
-    ),
-    "Diogo": os.environ.get(
-        "SENHA_DIOGO_HASH",
-        "4b7c2caf9b963b6530e3ff5245c84122fde9bb017a04e925b0516ed4c3e26266",
-    ),
+    "Feca": os.environ.get("SENHA_FECA_HASH", ""),
+    "Diogo": os.environ.get("SENHA_DIOGO_HASH", ""),
 }
 
 
 def _verifica_hash(senha: str, hash_guardado: str) -> bool:
-    """Compara a senha com o hash, detectando o formato automaticamente."""
-    if not hash_guardado:
+    """Compara a senha com o hash bcrypt guardado (com salt + stretching)."""
+    if not hash_guardado or bcrypt is None:
         return False
-    if hash_guardado.startswith("$2"):          # bcrypt (com salt + stretching)
-        if bcrypt is None:
-            return False
-        try:
-            return bcrypt.checkpw(senha.encode(), hash_guardado.encode())
-        except (ValueError, TypeError):
-            return False
-    # legado: SHA-256 hex, sem salt (comparação em tempo constante)
-    return hmac.compare_digest(hash_guardado, hashlib.sha256(senha.encode()).hexdigest())
+    try:
+        return bcrypt.checkpw(senha.encode(), hash_guardado.encode())
+    except (ValueError, TypeError):
+        return False
 
 
 def verificar_credenciais(usuario: str, senha: str) -> bool:
