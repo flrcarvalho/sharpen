@@ -553,7 +553,7 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
   display: grid;
   /* Template via variável (setada em .btbl-wrap) → header e linhas redimensionam juntos.
      Todas px (redimensionáveis) + spacer 1fr final que preenche a sobra sem virar gap. */
-  grid-template-columns: var(--btbl-cols, 30px 74px 520px 108px 126px 162px 88px 62px 74px 80px 1fr);
+  grid-template-columns: var(--btbl-cols, 30px 74px 520px 108px 126px 162px 88px 62px 74px 100px 80px 1fr);
   gap: 0 12px; padding: 0 18px; box-sizing: border-box; align-items: center;
 }
 /* Scroll: header+linhas rolam juntos na horizontal; header gruda no topo na vertical. */
@@ -659,6 +659,11 @@ table.pm-ativas td.merc { max-width:340px; overflow:hidden; text-overflow:ellips
 .money { display: inline-flex; justify-content: flex-start; gap: 4px; width: 100%; font-family: var(--font-mono); }
 .money-sign { color: var(--ink-soft); font-size: .78em; flex-shrink: 0; }
 .money-val { font-variant-numeric: tabular-nums; }
+/* P/L — cor pos/neg SÓ no número (UI_REFERENCE §5); sinal/R$ ficam neutros */
+.money.pos .money-val { color: var(--pos); }
+.money.neg .money-val { color: var(--neg); }
+.btbl-pl .money { width: auto; }   /* encolhe p/ o cell text-align:right alinhar à direita */
+.btbl-pl-empty { color: var(--ink-mute); }
 .btbl-acts { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .act-btn {
   width: 22px; height: 22px; padding: 0; border: none; background: transparent; cursor: pointer;
@@ -1005,6 +1010,7 @@ td.c-res.res-HL { color: var(--warn); }
                   <div class="btbl-th right">Stake</div>
                   <div class="btbl-th right">Odd</div>
                   <div class="btbl-th center">Resultado</div>
+                  <div class="btbl-th right">P/L</div>
                   <div class="btbl-th right">Ações</div>
                 </div>
                 <div class="btbl-body" id="grade-body">
@@ -2213,9 +2219,9 @@ function renderPager() {
 
 // ── Colunas redimensionáveis da lista (.btbl) ─────────────────────────────────
 // O template fica numa CSS var em .btbl-wrap → header e TODAS as linhas redimensionam juntos.
-const BTBL_COLS_KEY = 'fdc-btbl-cols-v2';
-// 10 larguras px (incl. Aposta/Evento). Um spacer 1fr é anexado no fim p/ preencher a sobra.
-const BTBL_DEFAULT = ['30px','74px','520px','108px','126px','162px','88px','62px','74px','80px'];
+const BTBL_COLS_KEY = 'fdc-btbl-cols-v3';   // v3: coluna P/L adicionada (entre Resultado e Ações)
+// 11 larguras px (incl. Aposta/Evento e P/L). Um spacer 1fr é anexado no fim p/ preencher a sobra.
+const BTBL_DEFAULT = ['30px','74px','520px','108px','126px','162px','88px','62px','74px','100px','80px'];
 const BTBL_FIXAS = new Set([0]);   // só a coluna de seleção não redimensiona
 let btblCols = (function () {
   try { const s = JSON.parse(localStorage.getItem(BTBL_COLS_KEY)); if (Array.isArray(s) && s.length === BTBL_DEFAULT.length) return s; } catch {}
@@ -2321,6 +2327,19 @@ function moneyStake(v) {
   return `<span class="money"><span class="money-sign">R$</span><span class="money-val">${esc(s)}</span></span>`;
 }
 
+// P/L no padrão monetário FDC (espelha fmtPL do Betting Dashboard / UI_REFERENCE §5):
+// sinal colado +R$/−R$ (minus tipográfico U+2212), pt-BR 2 casas, cor pos/neg só no número.
+// Backend entrega número cru (b.pl); aposta aberta vem null → travessão neutro.
+function fmtPL(v) {
+  if (v == null || v === '') return '<span class="btbl-pl-empty">—</span>';
+  const n = Number(v);
+  if (!isFinite(n)) return '<span class="btbl-pl-empty">—</span>';
+  const cls = n >= 0 ? 'pos' : 'neg';
+  const sign = n >= 0 ? '+' : '−';
+  const abs = Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `<span class="money ${cls}"><span class="money-sign">${sign}R$</span><span class="money-val">${abs}</span></span>`;
+}
+
 function renderGrade() {
   const body = document.getElementById('grade-body');
   if (!bilhetes.length) {
@@ -2350,6 +2369,7 @@ function renderGrade() {
       <div class="btbl-cell btbl-num">${moneyStake(b.stake)}</div>
       <div class="btbl-cell btbl-num">${esc(_limparOdd(b.odd))}</div>
       <div class="btbl-cell btbl-res">${resPill(b.resultado)}</div>
+      <div class="btbl-cell btbl-num btbl-pl">${fmtPL(b.pl)}</div>
       <div class="btbl-cell btbl-acts">
         <button class="act-btn" title="Editar aposta" onclick="abrirEdicao(${b.id})">✎</button>
         <button class="act-btn del" title="Deletar" onclick="deletarBilhete(${b.id})">✕</button>
