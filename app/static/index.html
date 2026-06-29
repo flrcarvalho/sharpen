@@ -71,8 +71,10 @@ body::before {
 .operador-id {
   display: flex; align-items: center; gap: 7px; min-width: 0;
   font-size: 12px; font-weight: 600; color: var(--ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: nowrap;
 }
+/* Só o nome trunca — o overflow fica aqui pra não cortar o brilho da bolinha. */
+.operador-id #user-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .operador-id .label {
   font-family: var(--font-mono);
   font-size: 9px; font-weight: 700; letter-spacing: .08em;
