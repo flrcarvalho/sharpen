@@ -295,6 +295,27 @@ async def contar_pendentes(dono: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+async def contar_incompletos(dono: str) -> list[dict]:
+    """Conta, por casa+parceiro, bilhetes 'incompletos': sem tipster (azul na sidebar)
+    e abertos/sem resultado (âmbar). Inclui arquivados — a pendência existe
+    independentemente de o bilhete estar visível na grade. Só retorna grupos com
+    pelo menos uma pendência (mantém o payload pequeno)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT casa, parceiro,
+                      COUNT(*) FILTER (WHERE tipster IS NULL OR tipster = '') AS sem_tipster,
+                      COUNT(*) FILTER (WHERE extraction_state = 'aberta')     AS abertas
+               FROM bilhetes
+               WHERE dono = $1
+               GROUP BY casa, parceiro
+               HAVING COUNT(*) FILTER (WHERE tipster IS NULL OR tipster = '') > 0
+                   OR COUNT(*) FILTER (WHERE extraction_state = 'aberta') > 0""",
+            dono,
+        )
+    return [dict(r) for r in rows]
+
+
 def _filtros_bilhetes(dono, casa, parceiro, copy_state, extraction_state, archived):
     """Monta a cláusula WHERE compartilhada entre a listagem e a contagem."""
     filters, params = [], []

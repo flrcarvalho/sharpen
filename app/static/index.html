@@ -156,17 +156,21 @@ body::before {
 }
 .casa-header.expanded .casa-name { color: var(--ink-soft); }
 .casa-arrow { font-size: 9px; color: var(--ink-mute); transition: transform .15s; }
-/* Badge azul (FDC) com nº de bilhetes pendentes de cópia */
-.pend-badge {
+/* Badges de sidebar — sinalizam bilhetes INCOMPLETOS no parceiro/casa.
+   Azul (FDC): sem tipster.  Âmbar (--warn): apostas abertas (sem resultado). */
+.pend-badge, .open-badge {
   display: none; flex-shrink: 0;
-  min-width: 17px; height: 17px; padding: 0 5px; margin-left: 6px;
-  border-radius: var(--r-pill); background: var(--accent); color: #fff;
+  min-width: 17px; height: 17px; padding: 0 5px; margin-left: 5px;
+  border-radius: var(--r-pill);
   font-family: var(--font-mono);
   font-size: 10px; font-weight: 700; line-height: 17px; text-align: center;
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb),.18);
 }
-.pend-badge.show { display: inline-block; }
-.casa-header .pend-badge { margin-left: 0; }
+.pend-badge { background: var(--accent); color: #fff;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb),.18); }
+.open-badge { background: var(--warn); color: #241a02;
+  box-shadow: 0 0 0 2px rgba(var(--warn-rgb),.18); }
+.pend-badge.show, .open-badge.show { display: inline-block; }
+.casa-header .pend-badge { margin-left: 6px; }
 .casa-header.expanded .casa-arrow { transform: rotate(90deg); }
 .parceiros-list { display: none; flex-direction: column; padding: 2px 0 4px 18px; }
 .parceiros-list.open { display: flex; }
@@ -1244,7 +1248,7 @@ function renderCasaList() {
   if (!alguma) {
     list.innerHTML = `<div class="casa-list-empty">Nenhuma casa ${abaParceiros === 'ativas' ? 'ativa' : 'inativa'}.</div>`;
   }
-  aplicarBadgesPendentes();
+  aplicarBadgesSidebar();
 }
 
 function trocarAbaParceiros(aba) {
@@ -1266,6 +1270,7 @@ function buildCasaGroup(casa) {
     <div class="casa-chip" data-initial="${(NOMES[casa]||casa).charAt(0).toUpperCase()}"><img src="${faviconUrl(casa)}" alt="${NOMES[casa]||casa}" loading="lazy"></div>
     <span class="casa-name">${NOMES[casa] || casa}</span>
     <span class="pend-badge" data-pend-casa></span>
+    <span class="open-badge" data-open-casa></span>
     <span class="casa-arrow">▶</span>
   `;
   header.addEventListener('click', () => toggleCasaGroup(casa, header, listEl, inputWrap));
@@ -1319,7 +1324,7 @@ function renderParceirosEmLista(casa, listEl) {
     const btn = inativa
       ? `<button class="btn-arquivar" title="Reativar">↩</button>`
       : `<button class="btn-arquivar" title="Arquivar">▣</button>`;
-    item.innerHTML = `<span class="parceiro-nome">${esc(p.nome)}</span><span class="pend-badge" data-pend-parceiro></span>${btn}`;
+    item.innerHTML = `<span class="parceiro-nome">${esc(p.nome)}</span><span class="pend-badge" data-pend-parceiro></span><span class="open-badge" data-open-parceiro></span>${btn}`;
     item.addEventListener('click', e => {
       if (e.target.classList.contains('btn-arquivar')) return;
       selecionarParceiro(p);
@@ -1331,25 +1336,42 @@ function renderParceirosEmLista(casa, listEl) {
     });
     listEl.appendChild(item);
   });
-  aplicarBadgesPendentes();
+  aplicarBadgesSidebar();
 }
 
-// ── Badges de pendências (bilhetes não copiados para a planilha) ──────────────
-let pendentesPorParceiro = {};  // casa → { nomeParceiro: nº pendentes }
-let pendentesPorCasa = {};      // casa → total de pendentes
+// ── Badges da sidebar (bilhetes INCOMPLETOS) + stats de cópia do rodapé ───────
+// Sidebar: azul = sem tipster (incompleto), âmbar = abertas (sem resultado).
+// Rodapé "Grade · Exportar": copiadas/pendentes — fluxo de export TSV, mantido.
+let pendentesPorParceiro = {};                       // casa → { parceiro: nº pendentes } (rodapé)
+let semTipsterPorCasa = {}, semTipsterPorParceiro = {};  // sidebar azul
+let abertasPorCasa = {},   abertasPorParceiro = {};      // sidebar âmbar
 
 async function atualizarPendentes() {
+  // Rodapé copiadas/pendentes (fluxo de export)
   try {
     const r = await fetch('/pendentes');
+    if (r.ok) {
+      const { por_parceiro } = await r.json();
+      pendentesPorParceiro = {};
+      (por_parceiro || []).forEach(({ casa, parceiro, pendentes }) => {
+        (pendentesPorParceiro[casa] = pendentesPorParceiro[casa] || {})[parceiro] = pendentes;
+      });
+      if (parceiroSelecionado) atualizarStats();
+    }
+  } catch { /* informativo */ }
+  // Badges da sidebar (incompletos: sem tipster + abertas)
+  try {
+    const r = await fetch('/incompletos');
     if (!r.ok) return;
-    const { por_parceiro, por_casa } = await r.json();
-    pendentesPorParceiro = {};
-    (por_parceiro || []).forEach(({ casa, parceiro, pendentes }) => {
-      (pendentesPorParceiro[casa] = pendentesPorParceiro[casa] || {})[parceiro] = pendentes;
+    const { por_parceiro, por_casa_tipster, por_casa_aberta } = await r.json();
+    semTipsterPorParceiro = {}; abertasPorParceiro = {};
+    (por_parceiro || []).forEach(({ casa, parceiro, sem_tipster, abertas }) => {
+      (semTipsterPorParceiro[casa] = semTipsterPorParceiro[casa] || {})[parceiro] = sem_tipster;
+      (abertasPorParceiro[casa]    = abertasPorParceiro[casa]    || {})[parceiro] = abertas;
     });
-    pendentesPorCasa = por_casa || {};
-    aplicarBadgesPendentes();
-    if (parceiroSelecionado) atualizarStats();  // copiadas/pendentes derivam deste mapa
+    semTipsterPorCasa = por_casa_tipster || {};
+    abertasPorCasa    = por_casa_aberta  || {};
+    aplicarBadgesSidebar();
   } catch { /* badge é informativo — falha silenciosa */ }
 }
 
@@ -1359,13 +1381,16 @@ function _setBadge(el, n) {
   else { el.textContent = ''; el.classList.remove('show'); }
 }
 
-function aplicarBadgesPendentes() {
+function aplicarBadgesSidebar() {
   document.querySelectorAll('.casa-group').forEach(group => {
     const casa = group.dataset.casa;
-    _setBadge(group.querySelector('.casa-header [data-pend-casa]'), pendentesPorCasa[casa] || 0);
-    const mapa = pendentesPorParceiro[casa] || {};
+    _setBadge(group.querySelector('.casa-header [data-pend-casa]'), semTipsterPorCasa[casa] || 0);
+    _setBadge(group.querySelector('.casa-header [data-open-casa]'), abertasPorCasa[casa] || 0);
+    const tip = semTipsterPorParceiro[casa] || {};
+    const abr = abertasPorParceiro[casa] || {};
     group.querySelectorAll('.parceiro-item').forEach(item => {
-      _setBadge(item.querySelector('[data-pend-parceiro]'), mapa[item.dataset.nome] || 0);
+      _setBadge(item.querySelector('[data-pend-parceiro]'), tip[item.dataset.nome] || 0);
+      _setBadge(item.querySelector('[data-open-parceiro]'), abr[item.dataset.nome] || 0);
     });
   });
 }

@@ -31,7 +31,8 @@ from polymarket import coletar_bilhetes, coletar_dashboard
 from prompts import build_system
 from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    casas_com_parceiros, contar_bilhetes, contar_pendentes, criar_parceiro, deletar_bilhetes,
+    casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendentes,
+    criar_parceiro, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_tipsters,
     set_ativo_tipster,
@@ -951,6 +952,28 @@ async def listar_pendentes(dono: str = Depends(usuario_atual)):
     for r in linhas:
         por_casa[r["casa"]] = por_casa.get(r["casa"], 0) + r["pendentes"]
     return {"por_parceiro": por_parceiro, "por_casa": por_casa}
+
+
+@app.get("/incompletos")
+async def listar_incompletos(dono: str = Depends(usuario_atual)):
+    """Contagem de bilhetes INCOMPLETOS por parceiro/casa, para os badges da sidebar:
+    azul = sem tipster; âmbar = abertos (sem resultado)."""
+    linhas = await contar_incompletos(dono)
+    por_parceiro = [
+        {"casa": r["casa"], "parceiro": r["parceiro"],
+         "sem_tipster": r["sem_tipster"], "abertas": r["abertas"]}
+        for r in linhas
+    ]
+    por_casa_tipster: dict[str, int] = {}
+    por_casa_aberta: dict[str, int] = {}
+    for r in linhas:
+        por_casa_tipster[r["casa"]] = por_casa_tipster.get(r["casa"], 0) + r["sem_tipster"]
+        por_casa_aberta[r["casa"]] = por_casa_aberta.get(r["casa"], 0) + r["abertas"]
+    return {
+        "por_parceiro": por_parceiro,
+        "por_casa_tipster": por_casa_tipster,
+        "por_casa_aberta": por_casa_aberta,
+    }
 
 
 @app.get("/bilhetes")
