@@ -380,6 +380,29 @@ body::before {
 .acct-row:hover { background: var(--surface-2); color: var(--ink); }
 .acct-row.sel { background: rgba(var(--accent-rgb),.10); color: var(--ink); }
 .acct-empty { font-size: 12px; color: var(--ink-mute); padding: 14px 10px; text-align: center; }
+/* 4.2.c — criar conta nova dentro do dropdown (substitui o "+ Novo parceiro" da árvore) */
+.acct-new { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+.acct-new-toggle {
+  width: 100%; padding: 8px 10px; border-radius: var(--r-sm);
+  background: var(--surface-2); border: 1px dashed var(--line);
+  color: var(--accent-2); font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  letter-spacing: .04em; cursor: pointer; transition: border-color .12s, color .12s, background .12s;
+}
+.acct-new-toggle:hover { border-color: rgba(var(--accent-rgb),.5); color: var(--accent); background: var(--elevated); }
+.acct-new-form { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.acct-new-form[hidden] { display: none; }
+.acct-new-casa, .acct-new-nome {
+  width: 100%; padding: 8px 10px; border-radius: var(--r-sm);
+  background: var(--field); border: 1px solid var(--line); color: var(--ink);
+  font-family: var(--font-mono); font-size: 12px; outline: none;
+}
+.acct-new-casa:focus, .acct-new-nome:focus { border-color: var(--accent); }
+.acct-new-confirm {
+  width: 100%; padding: 8px 10px; border-radius: var(--r-sm);
+  background: var(--accent); border: 1px solid transparent; color: #fff;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 700; cursor: pointer; transition: box-shadow .12s;
+}
+.acct-new-confirm:hover { box-shadow: var(--glow); }
 .model-select {
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--r-sm); padding: 6px 12px;
@@ -1026,6 +1049,15 @@ td.c-res.res-HL { color: var(--warn); }
           <div class="acct-srch"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="acct-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false"></div>
           <div class="acct-tabs"><button class="on" data-aba="ativas">Ativas</button><button data-aba="inativas">Inativas</button></div>
           <div id="acctTree"></div>
+          <!-- 4.2.c — criar conta nova (substitui o "+ Novo parceiro" da árvore antiga da sidebar) -->
+          <div class="acct-new">
+            <button type="button" class="acct-new-toggle" id="acctNewToggle">+ Nova conta</button>
+            <div class="acct-new-form" id="acctNewForm" hidden>
+              <select id="acctNewCasa" class="acct-new-casa" title="Casa"></select>
+              <input id="acctNewNome" class="acct-new-nome" type="text" placeholder="Nome do parceiro…" autocomplete="off" spellcheck="false">
+              <button type="button" class="acct-new-confirm" id="acctNewConfirm">Criar conta</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1803,8 +1835,58 @@ function renderAcctTree() {
 function abrirAcctPop(open) {
   const wrap = document.getElementById('acctSelWrap');
   if (!wrap) return;
-  if (open) { renderAcctTree(); wrap.classList.add('open'); const s = document.getElementById('acct-search'); if (s) { s.value = ''; s.focus(); } }
+  if (open) { renderAcctTree(); popularCasasNova(); fecharFormNovaConta(); wrap.classList.add('open'); const s = document.getElementById('acct-search'); if (s) { s.value = ''; s.focus(); } }
   else wrap.classList.remove('open');
+}
+
+// ── 4.2.c — criar conta nova pelo dropdown (reusa POST /parceiros; substitui o
+// "+ Novo parceiro" da árvore antiga da sidebar) ──
+function popularCasasNova() {
+  const sel = document.getElementById('acctNewCasa');
+  if (!sel) return;
+  const atual = sel.value;
+  sel.innerHTML = (casasCarregadas || []).map(c => `<option value="${esc(c)}">${esc(NOMES[c] || c)}</option>`).join('');
+  if (atual) sel.value = atual;
+}
+function fecharFormNovaConta() {
+  const form = document.getElementById('acctNewForm');
+  if (form) form.hidden = true;
+}
+function abrirFormNovaConta() {
+  const form = document.getElementById('acctNewForm');
+  if (!form) return;
+  form.hidden = false;
+  popularCasasNova();
+  const nome = document.getElementById('acctNewNome');
+  if (nome) { nome.value = ''; nome.focus(); }
+}
+async function criarContaNova() {
+  const casaSel = document.getElementById('acctNewCasa');
+  const nomeInp = document.getElementById('acctNewNome');
+  const casa = casaSel && casaSel.value;
+  const nome = ((nomeInp && nomeInp.value) || '').trim();
+  if (!casa) { alert('Selecione a casa.'); return; }
+  if (!nome) { if (nomeInp) nomeInp.focus(); return; }
+  try {
+    const r = await fetch('/parceiros', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ casa, nome }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar conta'); return; }
+    const p = await r.json();
+    // Mesma reconciliação de cache do fluxo antigo (reusar nome arquivado reativa via ON CONFLICT).
+    const idx = (parceirosCache[casa] || []).findIndex(x => x.id === p.id);
+    if (idx >= 0) parceirosCache[casa][idx] = p;
+    else parceirosCache[casa] = [...(parceirosCache[casa] || []), p];
+    parceirosArquivadosCache[casa] = (parceirosArquivadosCache[casa] || []).filter(x => x.id !== p.id);
+    if (nomeInp) nomeInp.value = '';
+    // Parceiro novo nasce ativo — garante a aba certa antes de selecionar.
+    acctPopAba = 'ativas';
+    document.querySelectorAll('.acct-tabs button').forEach(x => x.classList.toggle('on', x.dataset.aba === 'ativas'));
+    selecionarParceiro(p);
+    abrirAcctPop(false);
+  } catch { alert('Erro de rede.'); }
 }
 (function initAcctPop() {
   const wrap = document.getElementById('acctSelWrap');
@@ -1825,6 +1907,17 @@ function abrirAcctPop(open) {
     const p = (fonte[row.dataset.casa] || []).find(x => x.id === parseInt(row.dataset.id, 10));
     if (p) { selecionarParceiro(p); abrirAcctPop(false); }
   });
+  // 4.2.c — criar conta nova
+  const novoToggle = document.getElementById('acctNewToggle');
+  if (novoToggle) novoToggle.addEventListener('click', e => {
+    e.stopPropagation();
+    const form = document.getElementById('acctNewForm');
+    if (form && form.hidden) abrirFormNovaConta(); else fecharFormNovaConta();
+  });
+  const novoConfirm = document.getElementById('acctNewConfirm');
+  if (novoConfirm) novoConfirm.addEventListener('click', e => { e.stopPropagation(); criarContaNova(); });
+  const novoNome = document.getElementById('acctNewNome');
+  if (novoNome) novoNome.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criarContaNova(); } });
 })();
 
 function mostrarEmptyState() {

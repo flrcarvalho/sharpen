@@ -496,11 +496,14 @@ async def export_bilhetes(dono: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def dashboard_rows(dono: str) -> list[dict]:
+async def dashboard_rows(donos: list[str]) -> list[dict]:
     """Feed do Betting Dashboard no MESMO contrato do Code.gs/Apps Script.
 
-    Monta do Postgres (fonte única) o array que o dashboard client-side consome,
-    filtrado pelo dono logado. Espelha os filtros do getData() da planilha:
+    Monta do Postgres (fonte única) o array que o dashboard client-side consome.
+    Recebe uma LISTA de donos — para um DONO supervisor, é ele + os operadores
+    dele, consolidando as bases num só feed; cada linha leva o campo `operador`
+    (= o dono daquela linha) para o filtro de operador no front. Espelha os
+    filtros do getData() da planilha:
       - resultado ∈ {W,L,V,HW,HL};
       - stake > 0;
       - P/L numérico (aposta aberta, P/L None, fica de fora);
@@ -508,41 +511,43 @@ async def dashboard_rows(dono: str) -> list[dict]:
     Inclui Polymarket (todas as linhas do banco). `conta`/`fornecedor` saem do
     parceiro "Conta [Fornecedor]"; `lucro` = P/L derivado (calcular_pl).
     """
-    rows = await export_bilhetes(dono)
     out = []
-    for r in rows:
-        resultado = (r.get("resultado") or "").strip().upper()
-        if resultado not in _RESULTADOS_VALIDOS:
-            continue
-        stake = _num(r.get("stake"))
-        if stake <= 0:
-            continue
-        lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
-        if lucro is None:
-            continue
-        data_iso = _data_iso(r.get("data"))
-        if not data_iso:
-            continue
-        parceiro = (r.get("parceiro") or "").strip()
-        conta, fornecedor = parceiro, ""
-        m = _PARCEIRO_RE.match(parceiro)
-        if m:
-            conta, fornecedor = m.group(1).strip(), m.group(2).strip()
-        out.append({
-            "data": data_iso,
-            "esporte": (r.get("esporte") or "").strip(),
-            "tipster": (r.get("tipster") or "").strip(),
-            "casa": (r.get("casa") or "").strip(),
-            "parceiro": parceiro,
-            "conta": conta,
-            "fornecedor": fornecedor,
-            "aposta": (r.get("aposta") or "").strip(),
-            "descricao": (r.get("descricao") or "").strip(),
-            "stake": stake,
-            "odd": _num(r.get("odd")),
-            "resultado": resultado,
-            "lucro": lucro,
-        })
+    for dono in donos:
+        rows = await export_bilhetes(dono)
+        for r in rows:
+            resultado = (r.get("resultado") or "").strip().upper()
+            if resultado not in _RESULTADOS_VALIDOS:
+                continue
+            stake = _num(r.get("stake"))
+            if stake <= 0:
+                continue
+            lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
+            if lucro is None:
+                continue
+            data_iso = _data_iso(r.get("data"))
+            if not data_iso:
+                continue
+            parceiro = (r.get("parceiro") or "").strip()
+            conta, fornecedor = parceiro, ""
+            m = _PARCEIRO_RE.match(parceiro)
+            if m:
+                conta, fornecedor = m.group(1).strip(), m.group(2).strip()
+            out.append({
+                "data": data_iso,
+                "esporte": (r.get("esporte") or "").strip(),
+                "tipster": (r.get("tipster") or "").strip(),
+                "casa": (r.get("casa") or "").strip(),
+                "parceiro": parceiro,
+                "conta": conta,
+                "fornecedor": fornecedor,
+                "aposta": (r.get("aposta") or "").strip(),
+                "descricao": (r.get("descricao") or "").strip(),
+                "stake": stake,
+                "odd": _num(r.get("odd")),
+                "resultado": resultado,
+                "lucro": lucro,
+                "operador": dono,
+            })
     return out
 
 

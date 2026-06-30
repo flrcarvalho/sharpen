@@ -57,7 +57,7 @@ function navMonth(p,delta){
 function filtrarPagina(p){
   if(_filterCache[p])return _filterCache[p];
   const st=gfs(p);
-  const sp=msGet('sp_'+p),ca=msGet('ca_'+p),ti=msGet('ti_'+p);
+  const sp=msGet('sp_'+p),ca=msGet('ca_'+p),ti=msGet('ti_'+p),op=msGet('op_'+p);
   const lim=st.qd>0?new Date(Date.now()-st.qd*864e5).toISOString().slice(0,10):'';
   const res=DADOS.filter(r=>{
     if(st.df&&r.data<st.df)return false;
@@ -66,6 +66,7 @@ function filtrarPagina(p){
     if(sp.size>0&&!sp.has(r.esporte))return false;
     if(ca.size>0&&!ca.has(r.casa))return false;
     if(ti.size>0&&!ti.has(r.tipster))return false;
+    if(op.size>0&&!op.has(r.operador))return false;
     return true;
   });
   _filterCache[p]=res;
@@ -299,5 +300,6 @@ function buildFilters(p,sports,casas,tipsters){
     <div class="filter-group"><div class="filter-label">Esporte</div>${buildMS('sp_'+p,sports,'Todos os esportes',p)}</div>
     <div class="filter-group"><div class="filter-label">Casa</div>${buildMS('ca_'+p,casas,'Todas as casas',p,'',true)}</div>
     ${tipsters?`<div class="filter-group"><div class="filter-label">Tipster</div>${buildMS('ti_'+p,tipsters,'Todos os tipsters',p)}</div>`:''}
+    ${(()=>{const ops=[...new Set(DADOS.map(r=>r.operador).filter(Boolean))].sort();return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p)}</div>`:'';})()}
   </div>`;
 }

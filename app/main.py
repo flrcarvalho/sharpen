@@ -1003,16 +1003,22 @@ async def dashboard_data(dono: str = Depends(dono_efetivo)):
     montada do Postgres e filtrada pelo dono logado — substitui a planilha. O
     dashboard client-side faz toda a matemática; aqui só servimos o array cru.
 
+    Para um DONO supervisor, o feed é CONSOLIDADO: a base dele + a dos seus
+    operadores num só array (cada linha marcada com `operador`); o front soma
+    tudo e oferece um filtro por operador. Operador comum vê só a própria base.
+
     NOTA: esta rota é registrada ANTES do StaticFiles montado em /dashboard (no fim
     do arquivo), então o Starlette a resolve primeiro — /dashboard/data nunca cai
     no servidor de estáticos.
     """
-    rows = await dashboard_rows(dono)
+    escopo = [dono] + operadores_de(dono)   # dono + operadores dele (vazio p/ operador)
+    rows = await dashboard_rows(escopo)
     return {
         "ok": True,
         "data": rows,
         "builtAt": datetime.now(timezone.utc).isoformat(),
         "count": len(rows),
+        "operadores": escopo,
     }
 
 
