@@ -381,7 +381,7 @@ body::before {
 .acct-row.sel { background: rgba(var(--accent-rgb),.10); color: var(--ink); }
 .acct-empty { font-size: 12px; color: var(--ink-mute); padding: 14px 10px; text-align: center; }
 /* 4.2.c — criar conta nova dentro do dropdown (substitui o "+ Novo parceiro" da árvore) */
-.acct-new { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+.acct-new { border-bottom: 1px solid var(--line); margin-bottom: 6px; padding-bottom: 8px; }
 .acct-new-toggle {
   width: 100%; padding: 8px 10px; border-radius: var(--r-sm);
   background: var(--surface-2); border: 1px dashed var(--line);
@@ -1046,10 +1046,7 @@ td.c-res.res-HL { color: var(--warn); }
           <svg class="ctx-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </div>
         <div class="acctpop" id="acctPop">
-          <div class="acct-srch"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="acct-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false"></div>
-          <div class="acct-tabs"><button class="on" data-aba="ativas">Ativas</button><button data-aba="inativas">Inativas</button></div>
-          <div id="acctTree"></div>
-          <!-- 4.2.c — criar conta nova (substitui o "+ Novo parceiro" da árvore antiga da sidebar) -->
+          <!-- 4.2.c — criar conta nova no TOPO do dropdown (substitui o "+ Novo parceiro" da árvore antiga) -->
           <div class="acct-new">
             <button type="button" class="acct-new-toggle" id="acctNewToggle">+ Nova conta</button>
             <div class="acct-new-form" id="acctNewForm" hidden>
@@ -1058,6 +1055,9 @@ td.c-res.res-HL { color: var(--warn); }
               <button type="button" class="acct-new-confirm" id="acctNewConfirm">Criar conta</button>
             </div>
           </div>
+          <div class="acct-srch"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="acct-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false"></div>
+          <div class="acct-tabs"><button class="on" data-aba="ativas">Ativas</button><button data-aba="inativas">Inativas</button></div>
+          <div id="acctTree"></div>
         </div>
       </div>
     </div>
