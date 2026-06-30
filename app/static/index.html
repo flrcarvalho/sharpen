@@ -392,6 +392,16 @@ body::before {
 .acct-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); cursor: pointer; font-size: 13px; color: var(--ink-soft); }
 .acct-row:hover { background: var(--surface-2); color: var(--ink); }
 .acct-row.sel { background: rgba(var(--accent-rgb),.10); color: var(--ink); }
+.acct-row > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Badges de incompletos na árvore do dropdown (restaurados da antiga sidebar):
+   azul = sem tipster · âmbar = apostas abertas (sem resultado). */
+.acct-badges { display: flex; align-items: center; gap: 5px; flex: none; }
+.acct-badge {
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: var(--r-pill);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; line-height: 17px; text-align: center; flex: none;
+}
+.acct-badge.pend { background: var(--accent); color: #fff; }
+.acct-badge.open { background: var(--warn); color: #241a02; }
 .acct-empty { font-size: 12px; color: var(--ink-mute); padding: 14px 10px; text-align: center; }
 /* 4.2.c — criar conta nova dentro do dropdown (substitui o "+ Novo parceiro" da árvore) */
 .acct-new { border-bottom: 1px solid var(--line); margin-bottom: 6px; padding-bottom: 8px; }
@@ -506,15 +516,19 @@ body::before {
 }
 .poly-wallet-input:focus { border-color:var(--accent); box-shadow:var(--glow); }
 
-/* Polymarket — dashboard ao vivo */
-.pm-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:8px 18px 12px; }
-.pm-kpi { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-sm); padding:11px 14px; display:flex; flex-direction:column; gap:2px; }
-.pm-kpi-label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-mute); font-family:var(--font-mono); }
-.pm-kpi-val { font-size:22px; font-weight:700; font-family:var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
+/* Polymarket — dashboard ao vivo.
+   Cards no padrão de marca dos KPIs do Dashboard (.kpi): tarja azul antes do label,
+   label mono uppercase, valor grande mono à direita. Sem margem horizontal → alinham
+   flush com os cards de intake/grade da coluna. */
+.pm-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:0 0 16px; }
+.pm-kpi { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:16px 18px; display:flex; flex-direction:column; gap:5px; }
+.pm-kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-mute); font-family:var(--font-mono); display:flex; align-items:center; }
+.pm-kpi-label::before { content:""; width:4px; height:13px; background:var(--accent); border-radius:2px; margin-right:8px; flex:none; }
+.pm-kpi-val { font-size:22px; font-weight:800; font-family:var(--font-mono); letter-spacing:-.03em; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; text-align:right; margin-top:2px; }
 .pm-kpi-val.blue { color:var(--accent); }
 .pm-kpi-val.green { color:var(--pos); }
-.pm-kpi-sub { font-size:10px; color:var(--ink-mute); font-family:var(--font-mono); }
-.pm-ativas-wrap { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); margin:0 18px 14px; overflow:hidden; }
+.pm-kpi-sub { font-size:10px; color:var(--ink-mute); font-family:var(--font-mono); text-align:right; margin-top:2px; }
+.pm-ativas-wrap { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); margin:0; overflow:hidden; }
 .pm-ativas-head { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-family:var(--font-mono); border-bottom:1px solid var(--line); }
 .pm-ativas-scroll { max-height:300px; overflow:auto; }
 /* Tabela de ativas espelha a LINHA da lista de apostas resolvidas (mesmos
@@ -802,7 +816,9 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .bet-res-V  { background: rgba(255,255,255,.06); color: var(--ink-mute); border: 1px solid var(--line); }
 /* Sinal AMARELO: resultado não preenchido (aposta aberta) — fácil de achar */
 .bet-res-empty { background: rgba(var(--warn-rgb),.18); color: var(--warn); border: 1px solid rgba(var(--warn-rgb),.55); }
-.money { display: inline-flex; justify-content: flex-start; gap: 4px; width: 100%; font-family: var(--font-mono); }
+/* Moeda alinhada à DIREITA (padrão de marca): o grupo encolhe e o cell text-align:right
+   o cola na direita, sob o cabeçalho — igual à coluna P/L. */
+.money { display: inline-flex; justify-content: flex-end; align-items: baseline; gap: 4px; width: auto; font-family: var(--font-mono); }
 .money-sign { color: var(--ink-soft); font-size: .78em; flex-shrink: 0; }
 .money-val { font-variant-numeric: tabular-nums; }
 /* P/L — cor pos/neg SÓ no número (UI_REFERENCE §5); sinal/R$ ficam neutros */
@@ -811,7 +827,7 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .btbl-pl .money { width: auto; }   /* encolhe p/ o cell text-align:right alinhar à direita */
 .btbl-pl-empty { color: var(--ink-mute); }
 /* Sub-linha do stake: valor original em USD (só Polymarket) sob o R$ convertido */
-.btbl-stake-usd { display: block; width: 100%; text-align: left; margin-top: 2px;
+.btbl-stake-usd { display: block; width: 100%; text-align: right; margin-top: 2px;
   font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums;
   color: var(--ink-mute); }
 .btbl-acts { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
@@ -1664,6 +1680,7 @@ function _setBadge(el, n) {
 }
 
 function aplicarBadgesSidebar() {
+  // Sidebar antiga (sessão <78): se ainda existir, mantém os badges. Hoje é no-op.
   document.querySelectorAll('.casa-group').forEach(group => {
     const casa = group.dataset.casa;
     _setBadge(group.querySelector('.casa-header [data-pend-casa]'), semTipsterPorCasa[casa] || 0);
@@ -1675,6 +1692,10 @@ function aplicarBadgesSidebar() {
       _setBadge(item.querySelector('[data-open-parceiro]'), abr[item.dataset.nome] || 0);
     });
   });
+  // Casca atual: os badges vivem na árvore do dropdown "Conta ativa". Se estiver
+  // aberto, re-renderiza para refletir a atualização (poll de /incompletos).
+  const wrap = document.getElementById('acctSelWrap');
+  if (wrap && wrap.classList.contains('open')) renderAcctTree();
 }
 
 function toggleCasaGroup(casa, header, listEl, inputWrap) {
@@ -1833,7 +1854,17 @@ function renderAcctTree() {
     html += '<div class="acct-hgroup"><span class="ctx-hchip"><img data-casa="' + casa + '" src="' + faviconUrl(casa) + '" alt=""></span><span class="nm">' + nomeCasa + '</span></div>';
     parceiros.forEach(p => {
       const isSel = parceiroSelecionado && parceiroSelecionado.id === p.id;
-      html += '<div class="acct-row' + (isSel ? ' sel' : '') + '" data-casa="' + casa + '" data-id="' + p.id + '"><span>' + (p.nome || '—') + '</span></div>';
+      // Badges de incompletos (restaurados da sidebar antiga): azul=sem tipster, âmbar=abertas.
+      const semt = (semTipsterPorParceiro[casa] || {})[p.nome] || 0;
+      const abr  = (abertasPorParceiro[casa]    || {})[p.nome] || 0;
+      let badges = '';
+      if (semt > 0 || abr > 0) {
+        badges = '<span class="acct-badges">'
+          + (semt > 0 ? '<span class="acct-badge pend" title="Sem tipster">' + (semt > 99 ? '99+' : semt) + '</span>' : '')
+          + (abr  > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (abr > 99 ? '99+' : abr) + '</span>' : '')
+          + '</span>';
+      }
+      html += '<div class="acct-row' + (isSel ? ' sel' : '') + '" data-casa="' + casa + '" data-id="' + p.id + '"><span>' + (p.nome || '—') + '</span>' + badges + '</div>';
     });
   });
   tree.innerHTML = html || '<div class="acct-empty">Nenhuma conta nesta aba</div>';
