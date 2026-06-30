@@ -464,8 +464,8 @@ function buildHTML(){
   <div class="app">
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <svg width="30" height="30" viewBox="0 0 120 120" aria-label="FDC Capital"><defs><linearGradient id="fdcSb" x1="6" y1="10" x2="114" y2="110" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M6 110L60 80L114 110L96 110L60 90L24 110Z" fill="#333B45"/><path d="M6 75L60 45L114 75L96 75L60 55L24 75Z" fill="#9AA6B4"/><path d="M6 40L60 10L114 40L96 40L60 20L24 40Z" fill="url(#fdcSb)"/></svg>
-        <div class="sb-wm"><div class="w">FDC <span>Capital</span></div><div class="d">Data Intelligence</div></div>
+        <img src="brand/fdc-logo-horizontal-dark.svg" class="logo-dark" alt="FDC Capital" draggable="false">
+        <img src="brand/fdc-logo-horizontal-light.svg" class="logo-light" alt="FDC Capital" draggable="false">
       </div>
       <nav class="sidebar-nav">
         <div class="nav-group">Operação</div>

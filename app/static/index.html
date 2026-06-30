@@ -41,7 +41,7 @@ body::before {
    Layout em 3 faixas: topo fixo (logo + operador), miolo rolável (casas),
    rodapé fixo (export). Só o miolo rola — logo e export ficam ancorados. */
 .sidebar {
-  width: 220px; height: 100vh; flex-shrink: 0;
+  width: 264px; height: 100vh; flex-shrink: 0;
   background: var(--surface); border-right: 1px solid var(--line-2);
   padding: 18px 10px 12px; display: flex; flex-direction: column;
   overflow: hidden;
@@ -51,7 +51,7 @@ body::before {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   margin: 0 0 14px; padding: 2px 8px 16px; border-bottom: 1px solid var(--line-2);
 }
-.brand img { width: 100%; max-width: 150px; height: auto; display: block; margin: 0 auto; user-select: none; -webkit-user-drag: none; }
+.brand img { width: 100%; height: auto; display: block; margin: 0 auto; user-select: none; -webkit-user-drag: none; }
 /* Miolo rolável: tudo entre o operador e o export. min-height:0 é o que
    permite o flex-child rolar dentro do flex-column. */
 .sidebar-scroll {
@@ -873,7 +873,7 @@ td.c-res.res-HL { color: var(--warn); }
 <!-- Sidebar -->
 <aside class="sidebar">
   <div class="brand">
-    <img src="/static/fdc-logo-vertical-dark.svg" alt="FDC Capital" draggable="false">
+    <img src="/static/fdc-logo-horizontal-dark.svg" alt="FDC Capital" draggable="false">
   </div>
   <div class="operador-bar" id="operador-bar">
     <button class="operador-trigger" id="operador-trigger" title="Operador">

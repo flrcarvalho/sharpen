@@ -37,7 +37,7 @@ body::before {
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .sidebar {
-  width: 220px;
+  width: 264px;
   background: var(--bg2);
   border-right: 1px solid var(--line-2);
   display: flex;
@@ -50,15 +50,14 @@ body::before {
 }
 
 .sidebar-brand {
-  display: flex; align-items: center; gap: 11px;
-  padding: 2px 6px 14px; margin-bottom: 4px;
+  padding: 6px 8px 16px; margin-bottom: 4px;
   border-bottom: 1px solid var(--line-2);
 }
-.sidebar-brand svg { flex: none; }
-.sb-wm { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
-.sb-wm .w { font-weight: var(--weight-extrabold); font-size: 18px; letter-spacing: -0.04em; color: var(--ink); }
-.sb-wm .w span { font-weight: var(--weight-bold); color: var(--ink-soft); }
-.sb-wm .d { font-family: var(--font-mono); font-size: 7.5px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--ink-mute); }
+.sidebar-brand img { width: 100%; height: auto; display: block; }
+.logo-dark { display: block; }
+.logo-light { display: none; }
+[data-theme="light"] .logo-dark { display: none; }
+[data-theme="light"] .logo-light { display: block; }
 
 .logo-name {
   font-size: var(--text-sm);
@@ -181,7 +180,7 @@ body::before {
 /* ── Topbar ──────────────────────────────────────────────────────────────── */
 .topbar {
   position: fixed;
-  top: 0; right: 0; left: 220px;
+  top: 0; right: 0; left: 264px;
   height: 68px;
   background: var(--bg);
   border-bottom: 1px solid var(--line-2);
@@ -300,7 +299,7 @@ body::before {
 [data-theme="light"] .tog-thumb { left: 14px; background: var(--accent); }
 
 /* ── Main content ────────────────────────────────────────────────────────── */
-.main { margin-left: 220px; flex: 1; min-height: 100vh; }
+.main { margin-left: 264px; flex: 1; min-height: 100vh; }
 .main-content {
   padding: var(--space-6) 1.75rem;
   margin-top: 68px;
