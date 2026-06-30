@@ -718,6 +718,42 @@ async def reativar_parceiro(parceiro_id: int, dono: str) -> bool:
     return result.split()[-1] == "1"
 
 
+async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict:
+    """Renomeia a conta E propaga o novo nome aos bilhetes dela (os bilhetes referenciam
+    o parceiro por NOME — `bilhetes.casa + bilhetes.parceiro` —, então sem isto as apostas
+    ficariam órfãs). Tudo numa transação. Retorna {ok, motivo?, bilhetes_atualizados}."""
+    novo_nome = (novo_nome or "").strip()
+    if not novo_nome:
+        return {"ok": False, "motivo": "Nome vazio."}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT casa, nome FROM parceiros WHERE id = $1 AND dono = $2", parceiro_id, dono
+            )
+            if not row:
+                return {"ok": False, "motivo": "Conta não encontrada."}
+            casa, antigo = row["casa"], row["nome"]
+            if antigo == novo_nome:
+                return {"ok": True, "bilhetes_atualizados": 0}
+            # Colisão: já existe outra conta com esse nome nesta casa (viola UNIQUE).
+            existe = await conn.fetchval(
+                "SELECT 1 FROM parceiros WHERE dono = $1 AND casa = $2 AND nome = $3 AND id <> $4",
+                dono, casa, novo_nome, parceiro_id,
+            )
+            if existe:
+                return {"ok": False, "motivo": "Já existe uma conta com esse nome nesta casa."}
+            await conn.execute(
+                "UPDATE parceiros SET nome = $1 WHERE id = $2 AND dono = $3",
+                novo_nome, parceiro_id, dono,
+            )
+            res = await conn.execute(
+                "UPDATE bilhetes SET parceiro = $1 WHERE dono = $2 AND casa = $3 AND parceiro = $4",
+                novo_nome, dono, casa, antigo,
+            )
+    return {"ok": True, "bilhetes_atualizados": int(res.split()[-1])}
+
+
 async def get_codigos_existentes(codigos: list[str], dono: str) -> set[str]:
     """Retorna subset de codigos que já existem no banco (deste dono)."""
     if not codigos:

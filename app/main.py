@@ -39,7 +39,7 @@ from repository import (
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     set_ativo_tipster,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
-    reativar_parceiro, upsert_bilhetes,
+    reativar_parceiro, renomear_parceiro, upsert_bilhetes,
 )
 
 logger = logging.getLogger("scanner")
@@ -1238,6 +1238,19 @@ async def reativar_parceiro_route(parceiro_id: int, dono: str = Depends(dono_efe
     if not ok:
         raise HTTPException(404, "Parceiro não encontrado.")
     return {"arquivado": False}
+
+
+class ParceiroRenomearRequest(BaseModel):
+    nome: str
+
+
+@app.post("/parceiros/{parceiro_id}/renomear")
+async def renomear_parceiro_route(parceiro_id: int, body: ParceiroRenomearRequest,
+                                  dono: str = Depends(dono_efetivo)):
+    res = await renomear_parceiro(parceiro_id, body.nome, dono)
+    if not res.get("ok"):
+        raise HTTPException(400, res.get("motivo", "Não foi possível renomear."))
+    return res
 
 
 # ── Betting Dashboard (mesma origem) ──────────────────────────────────────────

@@ -1009,6 +1009,33 @@ td.c-res.res-HL { color: var(--warn); }
 .extract-card--ok .ec-header { background: rgba(var(--pos-rgb),.07); }
 .extract-card--err .ec-header { background: rgba(var(--neg-rgb),.07); }
 .extract-card--warn .ec-header { background: rgba(var(--warn-rgb),.07); }
+/* ── View: Contas & Parceiros (gestão) ── */
+#view-contas { padding-bottom: 24px; }
+.contas-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.contas-newform { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.contas-newform[hidden] { display: none; }
+.contas-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface); }
+.contas-tabs button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--ink-mute); background: transparent; border: 0; cursor: pointer; padding: 7px 14px; border-radius: var(--r-pill); transition: .15s; }
+.contas-tabs button.on { background: var(--accent); color: #fff; }
+.contas-search { display: flex; align-items: center; gap: 7px; margin-left: auto; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 12px; min-width: 240px; }
+.contas-search input { background: transparent; border: 0; outline: 0; color: var(--ink); font-size: 13px; width: 100%; font-family: var(--font-sans); }
+.contas-search input::placeholder { color: var(--ink-mute); }
+.contas-casa { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 14px; }
+.contas-casa-head { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
+.contas-casa-head .ctx-hchip { width: 24px; height: 24px; }
+.contas-casa-nome { font-size: 14px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+.contas-casa-count { margin-left: auto; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
+.conta-row { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line-2); }
+.conta-row:last-child { border-bottom: 0; }
+.conta-row:hover { background: rgba(var(--accent-rgb),.04); }
+.conta-nome { font-size: 13px; color: var(--ink); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conta-badges { display: flex; align-items: center; gap: 5px; }
+.conta-acoes { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.conta-act { font-family: var(--font-mono); font-size: 11px; padding: 6px 11px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer; transition: .15s; }
+.conta-act:hover { border-color: var(--accent); color: var(--ink); }
+.conta-act.danger { color: var(--neg); }
+.conta-act.danger:hover { border-color: var(--neg); background: rgba(var(--neg-rgb),.08); }
+.contas-empty { padding: 48px 24px; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); border: 1px dashed var(--line); border-radius: var(--r-lg); }
 </style>
 </head>
 <body>
@@ -1023,7 +1050,8 @@ td.c-res.res-HL { color: var(--warn); }
        Operação→Planilhador é a página atual (ativo); os demais grupos abrem o Dashboard. -->
   <nav class="sidebar-nav">
     <div class="nav-group">Operação</div>
-    <div class="nav-item active" title="Você está no Planilhador"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Planilhador</div>
+    <div class="nav-item active" id="nav-planilhador" onclick="mostrarView('extracao')" title="Extração de bilhetes"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Planilhador</div>
+    <div class="nav-item" id="nav-contas" onclick="mostrarView('contas')" title="Gestão de contas e parceiros"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 1.7l6 3-6 3-6-3z"/><path d="M2 4.7v6.6l6 3 6-3V4.7"/></svg>Contas &amp; Parceiros</div>
     <div class="nav-group">Análise</div>
     <a class="nav-item" href="/dashboard/"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>Visão Geral</a>
     <a class="nav-item" href="/dashboard/"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 5-6"/></svg>Esportes</a>
@@ -1053,6 +1081,9 @@ td.c-res.res-HL { color: var(--warn); }
     <h1 class="pagehead-title">Planilhador</h1>
     <div class="pagehead-eyebrow">Operação · extração de bilhetes</div>
   </div>
+
+  <!-- ══ VIEW: Extração (Planilhador) ══ -->
+  <div id="view-extracao">
 
   <!-- 4.2.c — context bar SEMPRE visível (Operador + seletor de conta + Modelo).
        Fica fora do partner-page para que o seletor de conta seja acessível também
@@ -1266,6 +1297,26 @@ td.c-res.res-HL { color: var(--warn); }
 
     </div><!-- .partner-body -->
   </div><!-- .partner-page -->
+  </div><!-- #view-extracao -->
+
+  <!-- ══ VIEW: Contas & Parceiros (gestão) ══ -->
+  <div id="view-contas" style="display:none">
+    <div class="contas-bar">
+      <button class="btn btn-primary btn-sm" id="contas-nova">+ Nova conta</button>
+      <div class="contas-newform" id="contas-newform" hidden>
+        <select id="contas-new-casa" class="acct-new-casa" title="Casa"></select>
+        <input id="contas-new-nome" class="acct-new-nome" type="text" placeholder="Nome do parceiro…" autocomplete="off" spellcheck="false">
+        <button class="btn btn-primary btn-sm" id="contas-new-ok">Criar</button>
+        <button class="btn btn-ghost btn-sm" id="contas-new-cancel">Cancelar</button>
+      </div>
+      <div class="contas-tabs" id="contas-tabs">
+        <button class="on" data-tab="ativas">Ativas</button>
+        <button data-tab="arquivadas">Arquivadas</button>
+      </div>
+      <div class="contas-search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="contas-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div id="contas-list"></div>
+  </div><!-- #view-contas -->
 
 </div><!-- .content -->
 </div><!-- .app -->
@@ -1690,6 +1741,9 @@ function aplicarBadgesSidebar() {
   // aberto, re-renderiza para refletir a atualização (poll de /incompletos).
   const wrap = document.getElementById('acctSelWrap');
   if (wrap && wrap.classList.contains('open')) renderAcctTree();
+  // E a view Contas & Parceiros, se estiver visível, reflete os badges atualizados.
+  const vc = document.getElementById('view-contas');
+  if (vc && vc.style.display !== 'none') renderContas();
 }
 
 function toggleCasaGroup(casa, header, listEl, inputWrap) {
@@ -1768,6 +1822,140 @@ async function reativarParceiro(id, casa) {
     }
     renderCasaList();  // casa some da aba Inativas se ficou sem arquivados
   } catch { alert('Erro de rede.'); }
+}
+
+// ── View: Contas & Parceiros (gestão) ────────────────────────────────────────
+// Reusa parceirosCache/parceirosArquivadosCache, casasCarregadas, NOMES, faviconUrl,
+// os badges (abertas/sem-tipster) e as funções arquivar/reativar/criar/selecionar.
+let contasTab = 'ativas';
+
+function mostrarView(v) {
+  const ext = document.getElementById('view-extracao');
+  const ct = document.getElementById('view-contas');
+  const title = document.querySelector('.pagehead-title');
+  const eyebrow = document.querySelector('.pagehead-eyebrow');
+  const navP = document.getElementById('nav-planilhador');
+  const navC = document.getElementById('nav-contas');
+  if (!ext || !ct) return;
+  if (v === 'contas') {
+    ext.style.display = 'none'; ct.style.display = '';
+    if (title) title.textContent = 'Contas & Parceiros';
+    if (eyebrow) eyebrow.textContent = 'Operação · gestão de contas';
+    navP && navP.classList.remove('active'); navC && navC.classList.add('active');
+    contasPopularCasas();
+    renderContas();
+  } else {
+    ct.style.display = 'none'; ext.style.display = '';
+    if (title) title.textContent = 'Planilhador';
+    if (eyebrow) eyebrow.textContent = 'Operação · extração de bilhetes';
+    navC && navC.classList.remove('active'); navP && navP.classList.add('active');
+  }
+}
+
+function renderContas() {
+  const host = document.getElementById('contas-list');
+  if (!host) return;
+  const q = (document.getElementById('contas-search')?.value || '').toLowerCase().trim();
+  const fonte = contasTab === 'ativas' ? parceirosCache : parceirosArquivadosCache;
+  let html = '';
+  (casasCarregadas || []).forEach(casa => {
+    const nomeCasa = NOMES[casa] || casa;
+    let ps = (fonte[casa] || []);
+    if (q) ps = ps.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
+    if (!ps.length) return;
+    html += '<div class="contas-casa"><div class="contas-casa-head"><span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span><span class="contas-casa-nome">' + esc(nomeCasa) + '</span><span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span></div>';
+    ps.forEach(p => {
+      const ab = (abertasPorParceiro[casa] || {})[p.nome] || 0;
+      const st = (semTipsterPorParceiro[casa] || {})[p.nome] || 0;
+      const badges = (ab > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (ab > 99 ? '99+' : ab) + '</span>' : '')
+                   + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '');
+      const acoes = contasTab === 'ativas'
+        ? '<button class="conta-act" onclick="contasAbrir(' + p.id + ',this.closest(\'.conta-row\').dataset.casa)">Abrir</button>'
+          + '<button class="conta-act" onclick="contasRenomear(' + p.id + ',this.closest(\'.conta-row\').dataset.casa,this.closest(\'.conta-row\').dataset.nome)">Renomear</button>'
+          + '<button class="conta-act danger" onclick="contasArquivar(' + p.id + ',this.closest(\'.conta-row\').dataset.casa)">Arquivar</button>'
+        : '<button class="conta-act" onclick="contasRenomear(' + p.id + ',this.closest(\'.conta-row\').dataset.casa,this.closest(\'.conta-row\').dataset.nome)">Renomear</button>'
+          + '<button class="conta-act" onclick="contasReativar(' + p.id + ',this.closest(\'.conta-row\').dataset.casa)">Reativar</button>';
+      html += '<div class="conta-row" data-casa="' + esc(casa) + '" data-nome="' + esc(p.nome || '') + '"><span class="conta-nome">' + esc(p.nome || '—') + '</span><span class="conta-badges">' + badges + '</span><span class="conta-acoes">' + acoes + '</span></div>';
+    });
+    html += '</div>';
+  });
+  host.innerHTML = html || '<div class="contas-empty">Nenhuma conta nesta aba' + (q ? ' para "' + esc(q) + '"' : '') + '.</div>';
+}
+
+function contasAbrir(id, casa) {
+  const p = (parceirosCache[casa] || []).find(x => x.id === id) || (parceirosArquivadosCache[casa] || []).find(x => x.id === id);
+  if (p) { selecionarParceiro(p); mostrarView('extracao'); }
+}
+
+async function contasRenomear(id, casa, nomeAtual) {
+  const novo = prompt('Novo nome da conta:', nomeAtual);
+  if (novo == null) return;
+  const nome = novo.trim();
+  if (!nome || nome === nomeAtual) return;
+  try {
+    const r = await fetch('/parceiros/' + id + '/renomear', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao renomear.'); return; }
+    await carregarParceiros(casa);   // recarrega o cache desta casa com o novo nome
+    if (parceiroSelecionado && parceiroSelecionado.id === id) {
+      parceiroSelecionado.nome = nome;
+      if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
+    }
+    renderContas();
+  } catch { alert('Erro de rede.'); }
+}
+
+async function contasArquivar(id, casa) { await arquivarParceiro(id, casa); renderContas(); }
+async function contasReativar(id, casa) { await reativarParceiro(id, casa); renderContas(); }
+
+function contasPopularCasas() {
+  const sel = document.getElementById('contas-new-casa');
+  if (!sel) return;
+  const atual = sel.value;
+  sel.innerHTML = (casasCarregadas || []).map(c => '<option value="' + esc(c) + '">' + esc(NOMES[c] || c) + '</option>').join('');
+  if (atual) sel.value = atual;
+}
+
+async function contasCriar() {
+  const casa = document.getElementById('contas-new-casa').value;
+  const nome = (document.getElementById('contas-new-nome').value || '').trim();
+  if (!casa || !nome) return;
+  try {
+    const r = await fetch('/parceiros', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa, nome }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar.'); return; }
+    const p = await r.json();
+    const idx = (parceirosCache[casa] || []).findIndex(x => x.id === p.id);
+    if (idx >= 0) parceirosCache[casa][idx] = p; else parceirosCache[casa] = [...(parceirosCache[casa] || []), p];
+    parceirosArquivadosCache[casa] = (parceirosArquivadosCache[casa] || []).filter(x => x.id !== p.id);
+    document.getElementById('contas-new-nome').value = '';
+    document.getElementById('contas-newform').hidden = true;
+    contasTab = 'ativas';
+    document.querySelectorAll('#contas-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === 'ativas'));
+    renderContas();
+  } catch { alert('Erro de rede.'); }
+}
+
+function initContas() {
+  const novaBtn = document.getElementById('contas-nova');
+  const form = document.getElementById('contas-newform');
+  if (novaBtn && form) {
+    novaBtn.addEventListener('click', () => { form.hidden = !form.hidden; if (!form.hidden) { contasPopularCasas(); document.getElementById('contas-new-nome').focus(); } });
+    document.getElementById('contas-new-ok').addEventListener('click', contasCriar);
+    document.getElementById('contas-new-cancel').addEventListener('click', () => { form.hidden = true; document.getElementById('contas-new-nome').value = ''; });
+    document.getElementById('contas-new-nome').addEventListener('keydown', e => { if (e.key === 'Enter') contasCriar(); });
+  }
+  const tabs = document.getElementById('contas-tabs');
+  if (tabs) tabs.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    contasTab = b.dataset.tab;
+    tabs.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    renderContas();
+  });
+  const search = document.getElementById('contas-search');
+  if (search) search.addEventListener('input', renderContas);
 }
 
 // ── Selecionar parceiro ───────────────────────────────────────────────────────
@@ -3526,6 +3714,7 @@ setupColResize(document.querySelector('table.pm-ativas'), 'fdc-pm-ativas-cols');
 setupBtblResize();
 carregarUsuario();
 carregarCasas();
+initContas();
 </script>
 </body>
 </html>
