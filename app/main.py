@@ -23,8 +23,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from auth import (
-    COOKIE_NAME, SESSION_MAX_AGE, criar_token, usuario_atual,
-    usuario_do_request, verificar_credenciais,
+    COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, criar_token, dono_efetivo,
+    operadores_de, pode_ver_como, usuario_atual, usuario_do_request,
+    verificar_credenciais,
 )
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
@@ -699,16 +700,57 @@ async def login(body: LoginRequest, request: Request):
 async def logout():
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(COOKIE_NAME)
+    resp.delete_cookie(VER_COMO_COOKIE)   # sai limpo: encerra também o "ver como"
     return resp
 
 
 @app.get("/me")
-async def me(dono: str = Depends(usuario_atual)):
-    return {"usuario": dono}
+async def me(request: Request):
+    """Identidade da sessão + estado de 'ver como'.
+
+    `usuario` = quem está logado (real). `dono_efetivo` = base sendo visualizada
+    (igual a `usuario`, ou um operador). `operadores` = operadores que este
+    usuário pode visualizar (vazio para quem não é dono)."""
+    real = usuario_atual(request)
+    return {
+        "usuario": real,
+        "dono_efetivo": dono_efetivo(request),
+        "operadores": operadores_de(real),
+    }
+
+
+class VerComoRequest(BaseModel):
+    alvo: str | None = None     # operador a visualizar; vazio/None = voltar a si
+
+
+@app.post("/ver-como")
+async def ver_como(body: VerComoRequest, request: Request):
+    """Define (ou limpa) o operador que o dono está visualizando.
+
+    Só donos podem assumir a visão dos próprios operadores (`pode_ver_como`).
+    Grava um cookie assinado; as rotas de dados leem o dono efetivo dele."""
+    real = usuario_atual(request)
+    alvo = (body.alvo or "").strip()
+    if not alvo or alvo == real:
+        resp = JSONResponse({"ok": True, "dono_efetivo": real})
+        resp.delete_cookie(VER_COMO_COOKIE)
+        return resp
+    if not pode_ver_como(real, alvo):
+        raise HTTPException(403, "Sem permissão para visualizar este operador.")
+    resp = JSONResponse({"ok": True, "dono_efetivo": alvo})
+    resp.set_cookie(
+        key=VER_COMO_COOKIE,
+        value=criar_token(alvo),
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=True,
+    )
+    return resp
 
 
 @app.get("/casas")
-async def listar_casas(dono: str = Depends(usuario_atual)):
+async def listar_casas(dono: str = Depends(dono_efetivo)):
     manuais = {
         _casa_display(p.stem.removeprefix("CASA_"))
         for p in CASAS_DIR.glob("CASA_*.md")
@@ -729,7 +771,7 @@ async def extrair(
     imagens: list[UploadFile] = File(default=[]),
     xls_file: Optional[UploadFile] = File(default=None),
     data_referencia: Optional[str] = Form(None),
-    dono: str = Depends(usuario_atual),
+    dono: str = Depends(dono_efetivo),
 ):
     if modelo not in ALLOWED_MODELS:
         raise HTTPException(400, f"Modelo não permitido. Opções: {ALLOWED_MODELS}")
@@ -840,7 +882,7 @@ class SalvarRequest(BaseModel):
 
 
 @app.post("/salvar")
-async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
+async def salvar(body: SalvarRequest, dono: str = Depends(dono_efetivo)):
     rows = parse_tsv(body.tsv)
     if not rows:
         raise HTTPException(400, "Nenhuma linha válida encontrada no TSV.")
@@ -876,7 +918,7 @@ _WALLET_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
 @app.post("/polymarket/sync")
-async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuario_atual)):
+async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(dono_efetivo)):
     """Coleta o histórico resolvido de uma carteira Polymarket via API e salva na
     grade (casa='Polymarket'). Reusa upsert/auto-arquivar — mesma resposta do /salvar."""
     wallet = (body.wallet or "").strip()
@@ -922,7 +964,7 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
 
 
 @app.get("/polymarket/dashboard")
-async def polymarket_dashboard(wallet: str, dono: str = Depends(usuario_atual)):
+async def polymarket_dashboard(wallet: str, dono: str = Depends(dono_efetivo)):
     """Estado ao vivo da carteira Polymarket: KPIs (posições ativas, portfólio, cash,
     total) + tabela de posições ativas, com o tipster salvo de cada uma mesclado."""
     wallet = (wallet or "").strip()
@@ -946,7 +988,7 @@ class AtivoTipsterRequest(BaseModel):
 
 
 @app.post("/polymarket/ativo-tipster")
-async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depends(usuario_atual)):
+async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depends(dono_efetivo)):
     """Salva o tipster de uma posição ativa (persistido até a aposta resolver e migrar)."""
     codigo = (body.codigo or "").strip()
     if not codigo:
@@ -956,7 +998,7 @@ async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depend
 
 
 @app.get("/dashboard/data")
-async def dashboard_data(dono: str = Depends(usuario_atual)):
+async def dashboard_data(dono: str = Depends(dono_efetivo)):
     """Fonte de dados do Betting Dashboard (mesmo contrato do Code.gs/Apps Script),
     montada do Postgres e filtrada pelo dono logado — substitui a planilha. O
     dashboard client-side faz toda a matemática; aqui só servimos o array cru.
@@ -975,7 +1017,7 @@ async def dashboard_data(dono: str = Depends(usuario_atual)):
 
 
 @app.get("/exportar.csv")
-async def exportar_csv(dono: str = Depends(usuario_atual)):
+async def exportar_csv(dono: str = Depends(dono_efetivo)):
     """Backup completo da base do dono: todas as linhas, todas as colunas, em CSV
     (separador ';' + BOM → abre limpo no Excel pt-BR, decimal vírgula preservado)."""
     rows = await export_bilhetes(dono)
@@ -1001,7 +1043,7 @@ class DeletarRequest(BaseModel):
 
 
 @app.delete("/bilhetes")
-async def deletar_bilhetes_route(body: DeletarRequest, dono: str = Depends(usuario_atual)):
+async def deletar_bilhetes_route(body: DeletarRequest, dono: str = Depends(dono_efetivo)):
     if not body.ids:
         raise HTTPException(400, "Lista de IDs vazia.")
     deletados = await deletar_bilhetes(body.ids, dono)
@@ -1009,7 +1051,7 @@ async def deletar_bilhetes_route(body: DeletarRequest, dono: str = Depends(usuar
 
 
 @app.delete("/bilhetes/{bilhete_id}")
-async def deletar_bilhete_route(bilhete_id: int, dono: str = Depends(usuario_atual)):
+async def deletar_bilhete_route(bilhete_id: int, dono: str = Depends(dono_efetivo)):
     deletados = await deletar_bilhetes([bilhete_id], dono)
     if not deletados:
         raise HTTPException(404, "Bilhete não encontrado.")
@@ -1017,7 +1059,7 @@ async def deletar_bilhete_route(bilhete_id: int, dono: str = Depends(usuario_atu
 
 
 @app.get("/pendentes")
-async def listar_pendentes(dono: str = Depends(usuario_atual)):
+async def listar_pendentes(dono: str = Depends(dono_efetivo)):
     """Contagem de bilhetes não copiados, por parceiro e por casa.
 
     Alimenta os badges azuis da sidebar (bolinha com número de pendências).
@@ -1034,7 +1076,7 @@ async def listar_pendentes(dono: str = Depends(usuario_atual)):
 
 
 @app.get("/incompletos")
-async def listar_incompletos(dono: str = Depends(usuario_atual)):
+async def listar_incompletos(dono: str = Depends(dono_efetivo)):
     """Contagem de bilhetes INCOMPLETOS por parceiro/casa, para os badges da sidebar:
     azul = sem tipster; âmbar = abertos (sem resultado)."""
     linhas = await contar_incompletos(dono)
@@ -1065,7 +1107,7 @@ async def listar_bilhetes(
     order: str = "asc",
     limit: int = 500,
     offset: int = 0,
-    dono: str = Depends(usuario_atual),
+    dono: str = Depends(dono_efetivo),
 ):
     limit = max(1, min(limit, 1000))
     offset = max(0, offset)
@@ -1098,12 +1140,12 @@ async def listar_bilhetes(
 
 
 @app.get("/tipsters")
-async def listar_tipsters(dono: str = Depends(usuario_atual)):
+async def listar_tipsters(dono: str = Depends(dono_efetivo)):
     return {"tipsters": await list_tipsters(dono)}
 
 
 @app.get("/esportes")
-async def listar_esportes(dono: str = Depends(usuario_atual)):
+async def listar_esportes(dono: str = Depends(dono_efetivo)):
     return {"esportes": await list_esportes(dono)}
 
 
@@ -1112,7 +1154,7 @@ class CopiarRequest(BaseModel):
 
 
 @app.post("/bilhetes/copiar")
-async def marcar_bilhetes_copiados(body: CopiarRequest, dono: str = Depends(usuario_atual)):
+async def marcar_bilhetes_copiados(body: CopiarRequest, dono: str = Depends(dono_efetivo)):
     if not body.ids:
         raise HTTPException(400, "Lista de IDs vazia.")
     atualizados = await marcar_copiada(body.ids, dono)
@@ -1120,7 +1162,7 @@ async def marcar_bilhetes_copiados(body: CopiarRequest, dono: str = Depends(usua
 
 
 @app.post("/bilhetes/desmarcar")
-async def desmarcar_bilhetes(body: CopiarRequest, dono: str = Depends(usuario_atual)):
+async def desmarcar_bilhetes(body: CopiarRequest, dono: str = Depends(dono_efetivo)):
     if not body.ids:
         raise HTTPException(400, "Lista de IDs vazia.")
     atualizados = await marcar_pendente(body.ids, dono)
@@ -1136,13 +1178,13 @@ class ParceiroCriarRequest(BaseModel):
 
 @app.get("/parceiros")
 async def listar_parceiros(casa: Optional[str] = None, arquivados: bool = False,
-                           dono: str = Depends(usuario_atual)):
+                           dono: str = Depends(dono_efetivo)):
     rows = await list_parceiros(dono, casa=casa or None, incluir_arquivados=arquivados)
     return {"parceiros": rows}
 
 
 @app.post("/parceiros")
-async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(usuario_atual)):
+async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(dono_efetivo)):
     casa_key = _display_to_key(body.casa)
     nome = body.nome.strip()
     if not nome:
@@ -1154,7 +1196,7 @@ async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(u
 
 
 @app.post("/parceiros/{parceiro_id}/arquivar")
-async def arquivar_parceiro_route(parceiro_id: int, dono: str = Depends(usuario_atual)):
+async def arquivar_parceiro_route(parceiro_id: int, dono: str = Depends(dono_efetivo)):
     ok = await arquivar_parceiro(parceiro_id, dono)
     if not ok:
         raise HTTPException(404, "Parceiro não encontrado.")
@@ -1176,7 +1218,7 @@ class AtualizarBilheteRequest(BaseModel):
 
 @app.patch("/bilhetes/{bilhete_id}")
 async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest,
-                                  dono: str = Depends(usuario_atual)):
+                                  dono: str = Depends(dono_efetivo)):
     campos = {k: v for k, v in body.model_dump().items() if v is not None}
     ok = await atualizar_bilhete(bilhete_id, campos, dono)
     if not ok:
@@ -1185,7 +1227,7 @@ async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest
 
 
 @app.post("/parceiros/{parceiro_id}/reativar")
-async def reativar_parceiro_route(parceiro_id: int, dono: str = Depends(usuario_atual)):
+async def reativar_parceiro_route(parceiro_id: int, dono: str = Depends(dono_efetivo)):
     ok = await reativar_parceiro(parceiro_id, dono)
     if not ok:
         raise HTTPException(404, "Parceiro não encontrado.")

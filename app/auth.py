@@ -26,6 +26,7 @@ except ImportError:          # defensivo: se a lib faltar, o caminho legado aind
 logger = logging.getLogger("auth")
 
 COOKIE_NAME = "fdc_sessao"
+VER_COMO_COOKIE = "fdc_ver_como"     # cookie do "ver como" (operador sendo visualizado)
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 dias
 
 # Segredo de assinatura do cookie.
@@ -51,6 +52,32 @@ USUARIOS: dict[str, str] = {
     "Diogo": os.environ.get("SENHA_DIOGO_HASH", ""),
     "Lava": os.environ.get("SENHA_LAVA_HASH", ""),
 }
+
+
+# Hierarquia dono → operadores. Cada DONO (conta completa, par dos outros donos)
+# pode "ver como" os próprios operadores — visualizar e operar a base deles sem
+# deslogar. Donos NÃO se veem entre si (Feca não vê Diogo). Operadores não veem
+# ninguém além de si mesmos (lista vazia). Lava é operador do Feca; o(s)
+# operador(es) do Diogo entram aqui quando forem cadastrados.
+OPERADORES: dict[str, list[str]] = {
+    "Feca": ["Lava"],
+    "Diogo": [],
+}
+
+
+def operadores_de(usuario: str) -> list[str]:
+    """Operadores que este usuário (dono) pode visualizar. Vazio = não é dono."""
+    return OPERADORES.get(usuario, [])
+
+
+def pode_ver_como(real: str, alvo: str) -> bool:
+    """O usuário logado `real` pode assumir a visão de `alvo`?
+
+    Verdadeiro se `alvo` é ele mesmo ou um operador seu. Toda decisão de
+    autorização passa por aqui, sempre contra o usuário REAL da sessão —
+    nunca contra o cookie de "ver como" (que é só uma preferência assinada).
+    """
+    return alvo == real or alvo in operadores_de(real)
 
 
 def _verifica_hash(senha: str, hash_guardado: str) -> bool:
@@ -104,8 +131,31 @@ def usuario_do_request(request: Request) -> str | None:
 
 
 def usuario_atual(request: Request) -> str:
-    """Dependency FastAPI: exige sessão válida; senão 401."""
+    """Dependency FastAPI: exige sessão válida; senão 401.
+
+    Retorna o usuário REAL da sessão (identidade) — usado por /me e /ver-como.
+    As rotas de DADOS usam `dono_efetivo` (que pode ser um operador visualizado).
+    """
     usuario = usuario_do_request(request)
     if not usuario:
         raise HTTPException(status_code=401, detail="Não autenticado")
     return usuario
+
+
+def dono_efetivo(request: Request) -> str:
+    """Dependency das rotas de DADOS: o dono cujos dados a requisição enxerga.
+
+    Em geral é o próprio usuário logado. Se houver um cookie de "ver como"
+    válido E o usuário real estiver autorizado a ver aquele operador
+    (`pode_ver_como`), retorna o operador — todas as queries (ler E escrever)
+    passam a operar sobre a base dele. A autorização é SEMPRE reavaliada aqui
+    contra a sessão real: um cookie de "ver como" forjado/obsoleto cai no
+    fallback para o próprio usuário, nunca escala privilégio.
+    """
+    real = usuario_do_request(request)
+    if not real:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    alvo = ler_token(request.cookies.get(VER_COMO_COOKIE))
+    if alvo and alvo != real and pode_ver_como(real, alvo):
+        return alvo
+    return real

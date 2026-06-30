@@ -101,6 +101,18 @@ body::before {
   cursor: pointer; transition: background .12s, color .12s;
 }
 .operador-menu button:hover { background: var(--surface-2); color: var(--ink); }
+/* Grupo do trocador de operador (só aparece para donos com operadores) */
+#operador-switch:not(:empty) { padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+#operador-switch .op-head {
+  padding: 5px 10px 3px; font-size: 9px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-mute); font-family: var(--font-mono, inherit);
+}
+#operador-switch button.ativo { color: var(--accent); }
+#operador-switch button.voltar { color: var(--ink-soft); }
+/* Estado "vendo como operador": destaque visual para não confundir as bases */
+.operador-bar.vendo .operador-trigger { border-color: var(--accent); }
+.operador-bar.vendo .user-dot { background: var(--accent); }
+.operador-bar.vendo #operador-label { color: var(--accent); }
 /* ── Abas Ativas / Inativas (parceiros) ── */
 .parceiro-tabs {
   display: flex; gap: 4px; flex-shrink: 0;
@@ -907,12 +919,13 @@ td.c-res.res-HL { color: var(--warn); }
     <button class="operador-trigger" id="operador-trigger" title="Operador">
       <span class="operador-id">
         <span class="user-dot"></span>
-        <span class="label">Operador</span>
+        <span class="label" id="operador-label">Operador</span>
         <span id="user-nome">…</span>
       </span>
       <span class="operador-caret">▾</span>
     </button>
     <div class="operador-menu">
+      <div id="operador-switch"></div>
       <button id="btn-logout">Sair</button>
     </div>
   </div>
@@ -1178,8 +1191,54 @@ async function carregarUsuario() {
     const r = await fetch('/me');
     if (!r.ok) return;
     const data = await r.json();
-    document.getElementById('user-nome').textContent = data.usuario || '';
+    const real = data.usuario || '';
+    const efetivo = data.dono_efetivo || real;
+    const operadores = data.operadores || [];
+    const vendo = efetivo !== real;
+
+    document.getElementById('user-nome').textContent = efetivo;
+    document.getElementById('operador-label').textContent = vendo ? 'Vendo' : 'Operador';
+    document.getElementById('operador-bar').classList.toggle('vendo', vendo);
+
+    // Trocador: só aparece para donos (com operadores). Lista os operadores +
+    // "voltar para mim" quando se está visualizando algum.
+    const box = document.getElementById('operador-switch');
+    box.innerHTML = '';
+    if (operadores.length) {
+      const head = document.createElement('div');
+      head.className = 'op-head';
+      head.textContent = 'Ver base de';
+      box.appendChild(head);
+      operadores.forEach(op => {
+        const b = document.createElement('button');
+        b.textContent = op;
+        if (op === efetivo) b.classList.add('ativo');
+        b.addEventListener('click', () => verComo(op));
+        box.appendChild(b);
+      });
+      if (vendo) {
+        const volta = document.createElement('button');
+        volta.className = 'voltar';
+        volta.textContent = '↩ Voltar para ' + real;
+        volta.addEventListener('click', () => verComo(''));
+        box.appendChild(volta);
+      }
+    }
   } catch (_) {}
+}
+
+async function verComo(alvo) {
+  try {
+    const r = await fetch('/ver-como', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alvo }),
+    });
+    if (!r.ok) return;
+  } catch (_) { return; }
+  // Recarrega a página inteira: todas as rotas de dados passam a usar o novo
+  // dono efetivo (casas, grade, dashboard) — recarga garante estado limpo.
+  window.location.reload();
 }
 
 async function logout() {
