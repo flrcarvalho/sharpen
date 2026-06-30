@@ -133,6 +133,95 @@ def parse_tsv(tsv: str) -> list[dict]:
     return rows
 
 
+# ── Análise de confiança da extração (heurística explicável) ──────────────────
+# Score de confiança = % médio de campos-chave preenchidos/válidos por bilhete.
+# NÃO mexe na IA: lê só as linhas já extraídas. Penaliza categoria incerta
+# (`Outros ⚠️`/sinal ⚠) e odd/stake ausentes. `resultado` vazio é bilhete ABERTO
+# (esperado) → não penaliza; só conta quando preenchido. Notas = SÓ problemas reais
+# (decisão do Feca, sessão 81): nada de parede de notas verdes — quando está tudo
+# limpo, devolve uma única nota "ok". Anomalia de stake foi descartada de propósito
+# (tipster sai vazio na extração e stakes variam por tipster → média por conta seria
+# ruído). A nota livre da IA é fundida no FRONTEND (vem do /extrair, não do /salvar).
+def _campo_preenchido(v) -> bool:
+    return bool((v or "").strip())
+
+
+def _aposta_incerta(aposta: str) -> bool:
+    a = (aposta or "").strip().lower()
+    return ("⚠" in aposta) or a.startswith("outros")
+
+
+def analisar_extracao(rows: list[dict], duplicatas: dict | None = None) -> dict:
+    """Resumo do rail "Análise IA": {confianca, itens, duplicadas, notas}.
+
+    confianca: 0..1 (ou None se lote vazio). notas: lista de
+    {tipo: 'info'|'warn'|'ok', n, titulo, texto} — só problemas reais.
+    """
+    n = len(rows)
+    if not n:
+        return {"confianca": None, "itens": 0, "duplicadas": 0, "notas": []}
+
+    total_aplic = 0          # campos aplicáveis somados em todos os bilhetes
+    total_ok = 0             # campos preenchidos/válidos
+    sem_odd = sem_stake = incertos = 0
+
+    for r in rows:
+        aposta = (r.get("aposta") or "").strip()
+        incerta = _aposta_incerta(aposta)
+        odd_ok = _num(r.get("odd")) > 0
+        stake_ok = _num(r.get("stake")) > 0
+        campos = [
+            _campo_preenchido(r.get("data")),
+            _campo_preenchido(r.get("esporte")),
+            _campo_preenchido(aposta) and not incerta,
+            odd_ok,
+            stake_ok,
+        ]
+        # resultado: só é aplicável quando preenchido (bilhete resolvido); vazio =
+        # aposta aberta, esperado, não entra no denominador.
+        resultado = (r.get("resultado") or "").strip().upper()
+        if resultado:
+            campos.append(resultado in _RESULTADOS_VALIDOS)
+        total_aplic += len(campos)
+        total_ok += sum(1 for c in campos if c)
+        if not odd_ok:
+            sem_odd += 1
+        if not stake_ok:
+            sem_stake += 1
+        if incerta:
+            incertos += 1
+
+    confianca = (total_ok / total_aplic) if total_aplic else None
+
+    # Cópias extras (occ>1) — a 1ª ocorrência não é "a duplicata".
+    dups = sum(1 for occ_total in (duplicatas or {}).values()
+               if isinstance(occ_total, (list, tuple)) and occ_total and occ_total[0] > 1)
+
+    notas = []
+    if incertos:
+        notas.append({"tipo": "warn", "n": "MERCADO",
+                      "titulo": f"{incertos} aposta(s) sem categoria definida",
+                      "texto": "Classificadas como <b>Outros ⚠️</b> — confira e ajuste a categoria na grade."})
+    if sem_odd:
+        notas.append({"tipo": "warn", "n": "ODD",
+                      "titulo": f"{sem_odd} bilhete(s) sem odd",
+                      "texto": "Odd ausente ou ilegível no print — preencha na grade antes de exportar."})
+    if sem_stake:
+        notas.append({"tipo": "warn", "n": "STAKE",
+                      "titulo": f"{sem_stake} bilhete(s) sem stake",
+                      "texto": "Stake ausente — confira o valor apostado no bilhete."})
+    if dups:
+        notas.append({"tipo": "info", "n": "DUPLICATA",
+                      "titulo": f"{dups} possível(is) duplicata(s) no lote",
+                      "texto": "Bilhetes idênticos sem ID visível — se vierem de imagens diferentes, confira e delete se necessário."})
+    if not notas:
+        notas.append({"tipo": "ok", "n": "OK",
+                      "titulo": "Extração limpa",
+                      "texto": f"{n} item(ns) sem pendências — datas, odds, stakes e categorias conferem."})
+
+    return {"confianca": confianca, "itens": n, "duplicadas": dups, "notas": notas}
+
+
 def _assinatura(row: dict, _counter: int = 1) -> str:
     codigo = row.get("codigo_bilhete", "").strip()
     if codigo:
