@@ -32,6 +32,7 @@ from database import init_db
 from polymarket import CambioIndisponivel, coletar_bilhetes, coletar_dashboard
 from prompts import build_system
 from repository import (
+    analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendentes,
     criar_parceiro, dashboard_rows, deletar_bilhetes,
@@ -905,8 +906,13 @@ async def salvar(body: SalvarRequest, dono: str = Depends(dono_efetivo)):
         parceiro_nome = body.parceiro or (rows[0].get("parceiro", "") if rows else "")
         arquivados = await auto_arquivar(casa_display, parceiro_nome, len(ids), dono)
 
+    # Resumo do rail "Análise IA": confiança (heurística sobre as linhas) + KPIs +
+    # notas estruturadas (só problemas reais). Não toca na IA de extração.
+    analise = analisar_extracao(rows, duplicatas)
+
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
-            "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados}
+            "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados,
+            "analise": analise}
 
 
 class PolymarketSyncRequest(BaseModel):
