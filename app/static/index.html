@@ -281,30 +281,37 @@ body::before {
 }
 
 /* ── Área principal ── */
-.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; padding: 22px 26px 0; }
 
-/* ── Empty state ── */
+/* ── Empty state (caixa de marca, igual ao modelo) ── */
 .empty-state {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 10px; color: var(--ink-mute); font-size: 13px;
+  flex-direction: column; gap: 16px; text-align: center; margin-bottom: 18px;
+  color: var(--ink-mute); font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+  border: 1px dashed var(--line); border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--surface), transparent 70%);
 }
-.empty-state-icon { font-size: 32px; opacity: .3; }
+.empty-state-icon {
+  width: 64px; height: 64px; border: 1px solid var(--line); border-radius: 18px;
+  display: grid; place-items: center; color: var(--accent-2); background: var(--surface);
+  font-size: 28px; opacity: 1;
+}
 
 /* ── Partner page ── */
 .partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-/* ── Pagehead (item A) — título de página fixo; identidade da conta fica na context bar ── */
-.pagehead {
-  padding: 13px 24px; border-bottom: 1px solid var(--line);
-  background: var(--surface); flex-shrink: 0;
+/* ── Pagehead padrão (igual ao Dashboard/modelo) — título azul gradiente + eyebrow ── */
+.pagehead { flex-shrink: 0; margin-bottom: 16px; }
+.pagehead-title {
+  font-size: clamp(24px, 2.6vw, 30px); font-weight: 800; letter-spacing: -.035em;
+  line-height: 1; margin: 0 0 7px;
+  background: linear-gradient(100deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
 }
 .pagehead-eyebrow {
-  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
-  letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute);
-}
-.pagehead-title {
-  font-size: 17px; font-weight: 800; letter-spacing: -.035em;
-  margin: 2px 0 0; color: var(--ink);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--ink-mute);
 }
 /* .partner-favicon: dead após o item A (header removido), mas o seletor é
    compartilhado com .casa-chip/.btbl-casa nos overrides de favicon por casa abaixo. */
@@ -420,28 +427,34 @@ body::before {
 /* ── Partner body: two columns ── */
 .partner-body {
   flex: 1; display: flex; overflow: hidden;
+  gap: 16px; padding-bottom: 18px;
 }
 
-/* ── Left panel: inputs + grade ── */
+/* ── Left panel: inputs + grade (cards empilhados) ── */
 .left-panel {
   flex: 1; display: flex; flex-direction: column; overflow: hidden;
-  min-width: 0;
-  border-right: 1px solid var(--line);
+  min-width: 0; gap: 16px;
 }
 .input-section {
-  flex-shrink: 0; padding: 18px 24px;
-  display: flex; flex-direction: column; gap: 12px;
-  border-bottom: 1px solid var(--line);
+  flex-shrink: 0; padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg);
 }
 .upload-zone {
   border: 1.5px dashed var(--line); border-radius: var(--r-md);
-  padding: 18px 16px; text-align: center; cursor: pointer;
-  background: var(--surface); transition: border-color .15s, background .15s;
+  padding: 26px 18px; text-align: center; cursor: pointer;
+  background: var(--surface-2); transition: border-color .15s, background .15s;
 }
-.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(var(--accent-rgb),.05); }
-.upload-label { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
-.upload-label strong { color: var(--accent-2); }
-.upload-hint { font-size: 11px; color: var(--ink-mute); margin-top: 3px; }
+.upload-zone:hover, .upload-zone.drag { border-color: rgba(var(--accent-rgb),.45); background: rgba(var(--accent-rgb),.04); }
+.upload-icon {
+  width: 38px; height: 38px; margin: 0 auto 13px;
+  border: 1px solid var(--line); border-radius: 11px;
+  display: grid; place-items: center; color: var(--accent-2);
+}
+.upload-label { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.4; }
+.upload-label strong { color: var(--accent-2); font-weight: 700; }
+.upload-hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); margin-top: 8px; line-height: 1.6; }
 .upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; justify-content: center; }
 .thumb { width: 48px; height: 48px; border-radius: var(--r-sm); object-fit: cover; border: 1px solid var(--line); cursor: zoom-in; }
 .thumb-rm { position: relative; }
@@ -456,25 +469,25 @@ body::before {
 #img-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
 #file-input { display: none; }
 .text-area {
-  width: 100%; background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-md); padding: 10px 12px;
-  font-size: 12px; color: var(--ink); font-family: var(--font-mono);
-  resize: vertical; min-height: 64px; outline: none; line-height: 1.65;
+  width: 100%; background: var(--field); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 12px 14px;
+  font-size: 13px; color: var(--ink); font-family: var(--font-mono);
+  resize: vertical; min-height: 70px; outline: none; line-height: 1.65;
   transition: border-color .12s;
 }
 .text-area:focus { border-color: var(--accent); box-shadow: var(--glow); }
 .text-area::placeholder { color: var(--ink-mute); }
-.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .btn {
-  padding: 8px 16px; border-radius: var(--r-sm);
-  font-size: 12px; font-weight: 700; cursor: pointer; border: none;
-  font-family: var(--font-sans); transition: all .12s;
+  padding: 10px 16px; border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid transparent;
+  font-family: var(--font-sans); transition: all .12s; letter-spacing: -.01em;
 }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover:not(:disabled) { box-shadow: var(--glow); }
 .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
 .btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-soft); }
-.btn-ghost:hover { border-color: rgba(255,255,255,.15); color: var(--ink); background: var(--surface-2); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--ink); background: var(--surface-2); }
 .btn-sm { padding: 5px 12px; font-size: 11px; }
 .btn-danger { color: var(--neg); border-color: rgba(var(--neg-rgb),.25); }
 .btn-danger:hover { background: rgba(var(--neg-rgb),.08); border-color: var(--neg); }
@@ -548,11 +561,13 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .grade-section {
   flex: 1; display: flex; flex-direction: column; overflow: hidden;
   min-height: 0;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg);
 }
 .grade-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  padding: 12px 24px 8px; flex-shrink: 0; gap: 12px;
-  border-bottom: 1px solid var(--line-2);
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 15px 20px; flex-shrink: 0; gap: 16px;
+  border-bottom: 1px solid var(--line);
 }
 .grade-title-row { display: flex; flex-direction: column; gap: 3px; }
 .grade-title { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute); }
@@ -635,11 +650,8 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 }
 .del-btn:hover { background: rgba(var(--neg-rgb),.15); color: var(--neg); }
 .row-sel { background: rgba(var(--accent-rgb),.08) !important; }
-.resizer {
-  width: 5px; flex-shrink: 0; cursor: col-resize;
-  background: var(--line); transition: background .15s;
-}
-.resizer:hover, .resizer.dragging { background: var(--accent); }
+/* Resizer entre painéis: aposentado no layout em cards (gap fixo). Oculto. */
+.resizer { display: none; }
 /* Alça de redimensionamento de coluna (grade + posições ativas) */
 .col-resizer {
   position: absolute; top: 0; right: 0; height: 100%;
@@ -680,9 +692,8 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 /* ── Lista de apostas estilo Dashboard (.btbl-*) ── */
 .btbl-wrap {
   flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
-  /* Card: descola do grid de fundo (radius da referência da Lista) */
-  margin: 4px 18px 16px; background: var(--surface);
-  border: 1px solid var(--line); border-radius: var(--r-lg);
+  /* Sem card próprio: o .grade-section já é o card (borda+raio). Aqui só o corpo rolável. */
+  background: var(--surface);
 }
 .btbl-cols {
   display: grid;
@@ -868,18 +879,19 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 
 /* ── Right panel: AI analysis ── */
 .right-panel {
-  width: 400px; flex-shrink: 0;
+  width: 340px; flex-shrink: 0;
   display: flex; flex-direction: column; overflow: hidden;
-  background: var(--surface);
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg);
 }
 .right-panel-header {
-  padding: 10px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
 }
 .right-panel-title {
   font-family: var(--font-mono);
-  font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--ink-mute);
+  font-size: 11px; font-weight: 600; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--accent-2);
 }
 .token-bar {
   font-size: 10px; color: var(--ink-mute); font-family: var(--font-mono);
@@ -888,14 +900,12 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .token-bar span span { color: var(--ink-soft); }
 .analysis-boxes { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 .analysis-box {
-  display: flex; flex-direction: column;
-  border-bottom: 1px solid var(--line); flex: 1;
+  display: flex; flex-direction: column; flex: 1;
 }
 .box-header {
   font-family: var(--font-mono);
-  padding: 7px 14px; font-size: 10px; font-weight: 700; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--ink-mute);
-  background: var(--surface-2); border-bottom: 1px solid var(--line);
+  padding: 13px 18px 9px; font-size: 10px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--accent-2);
   flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
 }
 .box-badge {
@@ -904,9 +914,12 @@ table.pm-ativas td.c-merc { color:var(--ink); }
   color: var(--accent-2); letter-spacing: 0;
 }
 .box-body {
-  padding: 10px 14px; font-family: var(--font-mono); font-size: 11px;
-  line-height: 1.7; color: var(--ink); white-space: pre-wrap;
+  margin: 0 18px 16px; padding: 13px 15px;
+  font-family: var(--font-mono); font-size: 12px;
+  line-height: 1.7; color: var(--ink-soft); white-space: pre-wrap;
   overflow-y: auto; flex: 1;
+  background: var(--surface-2); border-radius: var(--r-sm);
+  border-left: 2px solid var(--accent-2);
 }
 .box-empty { color: var(--ink-mute); font-style: italic; }
 
@@ -939,10 +952,14 @@ td.c-res.res-HW { color: var(--accent-2); }
 td.c-res.res-HL { color: var(--warn); }
 .right-empty {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 8px; color: var(--ink-mute); font-size: 12px; text-align: center;
-  padding: 24px;
+  flex-direction: column; gap: 14px; color: var(--ink-mute);
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.6; text-align: center;
+  padding: 40px 24px;
 }
-.right-empty-icon { font-size: 28px; opacity: .2; }
+.right-empty-icon {
+  width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 12px;
+  display: grid; place-items: center; color: var(--ink-mute);
+}
 
 /* ── Extraction cards ── */
 .extract-card { border-bottom: 1px solid var(--line); flex-shrink: 0; }
@@ -1020,6 +1037,13 @@ td.c-res.res-HL { color: var(--warn); }
 <!-- Área principal -->
 <div class="content">
 
+  <!-- Pagehead padrão (igual ao Dashboard/modelo): título azul em gradiente +
+       eyebrow mono. Sempre visível no topo do conteúdo. -->
+  <div class="pagehead">
+    <h1 class="pagehead-title">Planilhador</h1>
+    <div class="pagehead-eyebrow">Operação · extração de bilhetes</div>
+  </div>
+
   <!-- 4.2.c — context bar SEMPRE visível (Operador + seletor de conta + Modelo).
        Fica fora do partner-page para que o seletor de conta seja acessível também
        no estado vazio — sem ela aqui, sem árvore na sidebar, não há como fazer a 1ª seleção. -->
@@ -1094,13 +1118,6 @@ td.c-res.res-HL { color: var(--warn); }
   <!-- Partner page -->
   <div class="partner-page" id="partner-page" style="display:none">
 
-    <!-- Pagehead (item A): título de página fixo; a identidade da conta vive
-         só na context bar "Conta ativa" acima (sem duplicação). -->
-    <div class="pagehead">
-      <div class="pagehead-eyebrow">Operação · extração de bilhetes</div>
-      <h1 class="pagehead-title">Planilhador</h1>
-    </div>
-
     <!-- Body: two columns -->
     <div class="partner-body">
 
@@ -1110,6 +1127,7 @@ td.c-res.res-HL { color: var(--warn); }
         <!-- Inputs -->
         <div class="input-section" id="upload-section">
           <div class="upload-zone" id="drop-zone">
+            <div class="upload-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
             <div class="upload-label"><strong>Clique ou arraste</strong> os prints ou CSVs dos bilhetes aqui</div>
             <div class="upload-hint">ou Cole (Ctrl+V) um print · ou "+ Arquivo" abaixo · aceita imagens, .csv e .xls</div>
             <div class="upload-preview" id="preview"></div>
@@ -1225,8 +1243,8 @@ td.c-res.res-HL { color: var(--warn); }
         <div class="analysis-boxes" id="analysis-boxes">
           <!-- Estado vazio -->
           <div class="right-empty" id="right-empty">
-            <div class="right-empty-icon">◎</div>
-            <div>Notas críticas da extração<br>aparecerão aqui</div>
+            <div class="right-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 2 1 3 1.5 4.5L8 18h8l.5-4.5C17 12 18 11 18 9a6 6 0 0 0-6-6z"/><path d="M9 21h6"/></svg></div>
+            <div>As notas críticas da extração<br>aparecerão aqui após processar um bilhete.</div>
           </div>
           <!-- Notas Críticas (única seção de análise restante) -->
           <div class="analysis-box" id="box-notas" style="display:none">
