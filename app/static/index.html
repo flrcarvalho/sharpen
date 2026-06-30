@@ -3513,6 +3513,11 @@ async function salvarTipsterVal(id, valor) {
       return;   // demais teclas: digitação normal
     }
     // ----- modo seleção -----
+    // Só captura teclas se há uma seleção VIVA na grade (anchor>=0). Sem isto, ao
+    // clicar fora da grade (ex.: na zona de upload) o `inp` ficava preso na última
+    // célula e o Ctrl+V continuava sequestrado para colar célula, BLOQUEANDO o paste
+    // de imagem (Ctrl+V de print). Conflito vindo da seleção de células (4f5a8a5).
+    if (anchor < 0) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); move(1, e.shiftKey); return; }
     if (e.key === 'ArrowUp')   { e.preventDefault(); e.stopPropagation(); move(-1, e.shiftKey); return; }
     if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); move(e.shiftKey ? -1 : 1, false); return; }
