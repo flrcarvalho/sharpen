@@ -772,7 +772,12 @@ async def extrair(
     imagens: list[UploadFile] = File(default=[]),
     xls_file: Optional[UploadFile] = File(default=None),
     data_referencia: Optional[str] = Form(None),
-    dono: str = Depends(dono_efetivo),
+    # Criação de dado NOVO usa o dono REAL (usuario_atual), não dono_efetivo: em
+    # modo "ver como operador", uma extração nova vai para a base de quem está
+    # LOGADO, nunca para a do operador visualizado — evita poluir a base alheia por
+    # engano (o cookie de "ver como" dura 30 dias). Gestão de dado existente
+    # (deletar/editar/listar) segue em dono_efetivo. Decisão do Feca, sessão 82.
+    dono: str = Depends(usuario_atual),
 ):
     if modelo not in ALLOWED_MODELS:
         raise HTTPException(400, f"Modelo não permitido. Opções: {ALLOWED_MODELS}")
@@ -882,8 +887,10 @@ class SalvarRequest(BaseModel):
     parceiro: Optional[str] = None
 
 
+# Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
+# quem está logado, mesmo em modo "ver como operador". Decisão do Feca, sessão 82.
 @app.post("/salvar")
-async def salvar(body: SalvarRequest, dono: str = Depends(dono_efetivo)):
+async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
     rows = parse_tsv(body.tsv)
     if not rows:
         raise HTTPException(400, "Nenhuma linha válida encontrada no TSV.")
