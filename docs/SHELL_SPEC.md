@@ -102,9 +102,11 @@ Raio (`--r-*`): xs 4 · sm 8 · md 12 · lg 18 · xl 26 · pill 999.
 
 ## 6. Como isto é mantido (etapas B e A)
 
-- **B (guardrail):** `scripts/tokens/check-tokens.mjs` passa a sinalizar `font-size`/`letter-spacing`/
-  `padding` com **px literal** em selectors da casca no `index.html` — do mesmo jeito que já barra
-  cor literal. Off-scale vira drift bloqueante. *(a implementar)*
+- **B (guardrail): ✅ FEITO.** `scripts/tokens/check-tokens.mjs §(c)` trava os selectors-chave do
+  shell no `index.html`: o `font-size` DEVE ser o token do spec (`body`=--text-sm,
+  `.pagehead-title`=--text-xl, `.pagehead-eyebrow`/`.nav-group`=--text-nano, `.nav-item`=--text-sm),
+  nunca px literal. Off-scale → exit 1 (pre-commit barra). A tabela `SHELL_RULES` cresce conforme a
+  etapa A tokeniza mais selectors.
 - **A (shell compartilhado):** sidebar/pagehead/nav/cards saem do `index.html` inline e do
   `dash/layout.css` para **um CSS único** que os dois apps incluem → uma fonte só, drift impossível.
   *(a implementar, com revisão do Feca na branch)*

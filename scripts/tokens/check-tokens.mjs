@@ -5,6 +5,9 @@
 // (b) PALETA: as cores BANIDAS (cyan / azul off-paleta / Tailwind) são SEMPRE
 //     bloqueantes — foram erradicadas na Fase 2 e não podem voltar. O total de
 //     cores literais é só informativo (WARN); reduzi-lo é trabalho de polimento.
+// (c) SHELL  (BLOQUEANTE): os selectors-chave da casca no index.html DEVEM usar o
+//     token de tamanho do SHELL_SPEC.md (nunca px literal). Trava o drift da sessão
+//     80d (título 30px vs 22px). Etapa B da governança de UI; tabela cresce na A.
 // Skip gracioso se o canônico (../pack) não existir — não trava clones sem o pack.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
@@ -70,6 +73,41 @@ if (offHits.length) {
   blocking++;
 } else {
   console.log(`  ✓ nenhuma cor banida`);
+}
+
+// ── (c) CONFORMIDADE DO SHELL (docs/SHELL_SPEC.md) ───────────────────────────
+// O shell do Planilhador (index.html, CSS inline) deve usar os MESMOS tokens de
+// tamanho do Dashboard. Aqui travamos os selectors-chave: o `font-size` DEVE ser
+// o token do SHELL_SPEC, nunca um px literal (foi assim que o título virou 30px na
+// sessão 80d). Expandir a tabela conforme a etapa A tokeniza mais selectors.
+const SHELL_FILE = resolve(REPO_ROOT, 'app/static/index.html');
+const SHELL_RULES = [
+  { sel: 'body',              prop: 'font-size', expect: 'var(--text-sm)' },
+  { sel: '.pagehead-title',   prop: 'font-size', expect: 'var(--text-xl)' },
+  { sel: '.pagehead-eyebrow', prop: 'font-size', expect: 'var(--text-nano)' },
+  { sel: '.nav-group',        prop: 'font-size', expect: 'var(--text-nano)' },
+  { sel: '.nav-item',         prop: 'font-size', expect: 'var(--text-sm)' },
+];
+function ruleBody(css, sel) {
+  const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = css.match(new RegExp('(?:^|[\\n};])\\s*' + esc + '\\s*\\{([^}]*)\\}', 'm'));
+  return m ? m[1] : null;
+}
+console.log(`\n── Shell (index.html × SHELL_SPEC) ──`);
+{
+  const css = readFileSync(SHELL_FILE, 'utf8');
+  let okCount = 0;
+  for (const r of SHELL_RULES) {
+    const body = ruleBody(css, r.sel);
+    if (body == null) { console.error(`  ✗ regra ausente no shell: ${r.sel}`); blocking++; continue; }
+    const pm = body.match(new RegExp(r.prop + '\\s*:\\s*([^;]+);'));
+    const val = pm ? pm[1].trim() : null;
+    if (val !== r.expect) {
+      console.error(`  ✗ ${r.sel} { ${r.prop}: ${val ?? '(ausente)'} } — esperado ${r.expect} (ver docs/SHELL_SPEC.md)`);
+      blocking++;
+    } else okCount++;
+  }
+  if (okCount === SHELL_RULES.length) console.log(`  ✓ ${okCount}/${SHELL_RULES.length} selectors do shell em conformidade`);
 }
 
 // ── veredito ─────────────────────────────────────────────────────────────────
