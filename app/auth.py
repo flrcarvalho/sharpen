@@ -49,6 +49,7 @@ if not os.environ.get("SESSION_SECRET"):
 USUARIOS: dict[str, str] = {
     "Feca": os.environ.get("SENHA_FECA_HASH", ""),
     "Diogo": os.environ.get("SENHA_DIOGO_HASH", ""),
+    "Lava": os.environ.get("SENHA_LAVA_HASH", ""),
 }
 
 
