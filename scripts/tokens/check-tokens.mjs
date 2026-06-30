@@ -80,7 +80,12 @@ if (offHits.length) {
 // tamanho do Dashboard. Aqui travamos os selectors-chave: o `font-size` DEVE ser
 // o token do SHELL_SPEC, nunca um px literal (foi assim que o título virou 30px na
 // sessão 80d). Expandir a tabela conforme a etapa A tokeniza mais selectors.
-const SHELL_FILE = resolve(REPO_ROOT, 'app/static/index.html');
+// A casca vive em 2 lugares: o que é compartilhado migrou p/ shell.css (etapa A),
+// o resto segue no index.html. O check acha cada regra em QUALQUER um dos dois.
+const SHELL_FILES = [
+  resolve(REPO_ROOT, 'app/static/index.html'),
+  resolve(REPO_ROOT, 'app/static/shell.css'),
+];
 const SHELL_RULES = [
   { sel: 'body',              prop: 'font-size', expect: 'var(--text-sm)' },
   { sel: '.pagehead-title',   prop: 'font-size', expect: 'var(--text-xl)' },
@@ -88,17 +93,21 @@ const SHELL_RULES = [
   { sel: '.nav-group',        prop: 'font-size', expect: 'var(--text-nano)' },
   { sel: '.nav-item',         prop: 'font-size', expect: 'var(--text-sm)' },
 ];
-function ruleBody(css, sel) {
+function ruleBodyIn(files, sel) {
   const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const m = css.match(new RegExp('(?:^|[\\n};])\\s*' + esc + '\\s*\\{([^}]*)\\}', 'm'));
-  return m ? m[1] : null;
+  const re = new RegExp('(?:^|[\\n};])\\s*' + esc + '\\s*\\{([^}]*)\\}', 'm');
+  for (const f of files) {
+    let css; try { css = readFileSync(f, 'utf8'); } catch { continue; }
+    const m = css.match(re);
+    if (m) return m[1];
+  }
+  return null;
 }
-console.log(`\n── Shell (index.html × SHELL_SPEC) ──`);
+console.log(`\n── Shell (index.html + shell.css × SHELL_SPEC) ──`);
 {
-  const css = readFileSync(SHELL_FILE, 'utf8');
   let okCount = 0;
   for (const r of SHELL_RULES) {
-    const body = ruleBody(css, r.sel);
+    const body = ruleBodyIn(SHELL_FILES, r.sel);
     if (body == null) { console.error(`  ✗ regra ausente no shell: ${r.sel}`); blocking++; continue; }
     const pm = body.match(new RegExp(r.prop + '\\s*:\\s*([^;]+);'));
     const val = pm ? pm[1].trim() : null;

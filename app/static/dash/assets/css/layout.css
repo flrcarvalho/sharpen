@@ -77,42 +77,9 @@ body::before {
 
 .sidebar-nav { padding: var(--space-1) 0; flex: 1; }
 
-.nav-group {
-  padding: var(--space-4) var(--space-4) var(--space-1);
-  font-size: var(--text-nano);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-  font-family: var(--font-mono);
-  font-weight: var(--weight-bold);
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--ink-soft);
-  cursor: pointer;
-  transition: all 0.12s;
-  border-left: 2px solid transparent;
-  height: 34px;
-}
-.nav-item:hover {
-  color: var(--ink);
-  background: rgba(46,139,255,0.06);
-}
-.nav-item.active {
-  color: var(--accent);
-  font-weight: var(--weight-semibold);
-  border-left-color: var(--accent);
-  background: rgba(46,139,255,0.12);
-}
-.nav-icon { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-mute); }
-.nav-item:hover .nav-icon { color: var(--ink); }
-.nav-item.active .nav-icon { color: var(--accent); }
+/* ── Navegação: base (.nav-group/.nav-item/.nav-icon) EM /static/shell.css ──
+   casca compartilhada com o Planilhador (etapa A). Aqui ficam só os overrides
+   específicos do Dashboard (tema claro + densidade), que têm specificity maior. */
 
 /* Light mode sidebar overrides */
 [data-theme="light"] .sidebar { background: var(--surface-2); }

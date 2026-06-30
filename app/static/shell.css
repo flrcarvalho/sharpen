@@ -1,0 +1,38 @@
+/* ── shell.css — CASCA COMPARTILHADA (Planilhador + Betting Dashboard) ─────────
+   Fonte ÚNICA das regras de aparência da casca usadas pelos DOIS apps. Os dois dão
+   <link> neste arquivo (Planilhador: /static/shell.css · Dashboard: /static/shell.css).
+   Objetivo: matar o drift na raiz — uma regra, um lugar (etapa A da governança de UI).
+
+   Escopo (cresce por fatias, cada uma validada nos 2 apps):
+     • Fatia 1 — navegação da sidebar (.nav-group / .nav-item / .nav-icon).
+
+   Regras:
+     - Só entram aqui componentes com MESMO nome de classe e valores reconciliados nos 2.
+     - LAYOUT/posicionamento que difere entre os apps (ex.: .sidebar fixa vs flex) NÃO
+       entra aqui — fica no CSS de cada app.
+     - Overrides de tema claro e densidade do Dashboard ([data-theme=light], [data-density])
+       continuam no layout.css do Dashboard (têm specificity maior → vencem a base daqui).
+     - Tamanhos sempre via token (docs/SHELL_SPEC). Valores: pack/tokens/tokens.css.
+   Atualizado: 2026-06-30 (sessão 80e — etapa A, fatia 1). */
+
+/* ── Fatia 1 — navegação da sidebar (SHELL_SPEC §1) ──────────────────────────── */
+.nav-group {
+  font-family: var(--font-mono);
+  font-size: var(--text-nano); font-weight: var(--weight-bold);
+  letter-spacing: .2em; text-transform: uppercase; color: var(--ink-mute);
+  padding: var(--sp-4) var(--sp-4) var(--sp-1);
+}
+.nav-item {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-4);
+  height: 34px; box-sizing: border-box;
+  font-size: var(--text-sm); font-weight: var(--weight-semibold);
+  color: var(--ink-soft); text-decoration: none; cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background .12s, color .12s;
+}
+.nav-item:hover { color: var(--ink); background: rgba(var(--accent-rgb), .06); }
+.nav-item.active { color: var(--accent); background: rgba(var(--accent-rgb), .12); border-left-color: var(--accent); }
+.nav-icon { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-mute); }
+.nav-item:hover .nav-icon { color: var(--ink); }
+.nav-item.active .nav-icon { color: var(--accent); }
