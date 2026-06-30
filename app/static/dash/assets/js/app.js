@@ -455,7 +455,7 @@ function buildHTML(){
           <div class="ap-label">Tema</div>
           <div class="ap-btns">
             <button class="ap-btn" data-ap-key="theme" data-ap-val="dark"  onclick="setAparencia('theme','dark')">Escuro</button>
-            <button class="ap-btn" data-ap-key="theme" data-ap-val="light" onclick="setAparencia('theme','light')">Claro</button>
+            <button class="ap-btn" data-ap-key="theme" data-ap-val="light" disabled title="Em breve — finalizando o tema escuro primeiro" style="opacity:.4;cursor:not-allowed">Claro</button>
           </div>
         </div>
       </div>

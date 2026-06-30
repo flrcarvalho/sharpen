@@ -31,6 +31,9 @@
       try{var s=localStorage.getItem('aparencia_v1');if(s){var p=JSON.parse(s);if(p.theme)theme=p.theme;}}catch(e){}
       // legacy fallback
       if(!localStorage.getItem('aparencia_v1')){var t=localStorage.getItem('theme');if(t)theme=t;}
+      // Tema claro DESATIVADO por enquanto (finalizando o escuro): força dark e
+      // destrava quem ficou preso no claro de uma sessão anterior.
+      if(theme==='light')theme='dark';
       var h=document.documentElement;
       h.setAttribute('data-theme',theme);
       h.setAttribute('data-density','compact');
