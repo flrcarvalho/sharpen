@@ -2769,7 +2769,7 @@ function createExtractionCard(parceiro, modelo, thumbUrls = [], fileNames = []) 
   };
 }
 
-async function runExtractionCard(form, card, parceiro) {
+async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
   const { ctrl, setProgress, setTokens, setNotas, markDone, modelLabel } = card;
   let _elapsed = 0;
   const _timer = setInterval(() => { _elapsed++; setProgress(`Processando… (${_elapsed}s)`); }, 1000);
@@ -2861,6 +2861,23 @@ async function runExtractionCard(form, card, parceiro) {
     } else {
       markDone('✗ ' + (e.message || 'Erro desconhecido'), 'err');
     }
+    // Falha/cancelamento → devolve o lote enviado ao estado do parceiro para retry,
+    // a menos que o usuário já tenha começado a montar um novo lote para ele nesse
+    // meio-tempo (não sobrescreve trabalho novo). Em sucesso isto NÃO roda → o lote
+    // enviado some e não pode vazar para um envio seguinte.
+    if (estadoSnapshot) {
+      const vendoEste = parceiroSelecionado && parceiroSelecionado.id === parceiro.id;
+      const formVivoOcupado = vendoEste && (arquivos.length || csvFiles.length || xlsFiles.length
+        || document.getElementById('texto').value.trim());
+      const est = estadoExtrator[parceiro.id];
+      const estadoOcupado = est && ((est.arquivos && est.arquivos.length)
+        || (est.csvFiles && est.csvFiles.length) || (est.xlsFiles && est.xlsFiles.length)
+        || (est.texto && est.texto.trim()));
+      if (!formVivoOcupado && !estadoOcupado) {
+        estadoExtrator[parceiro.id] = estadoSnapshot;
+        if (vendoEste) { restaurarEstadoExtrator(parceiro.id); renderPreviews(); atualizarBotaoExtrair(); }
+      }
+    }
   } finally {
     clearInterval(_timer);
     // Sai do estado "analisando" se este lote não chegou a preencher o resumo
@@ -2904,16 +2921,27 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   // Snapshot do parceiro atual (pode mudar enquanto o card processa)
   const parceiroSnapshot = { ...parceiroSelecionado };
 
+  // Snapshot do formulário enviado — usado SÓ para restaurar em caso de FALHA (retry).
+  // Em sucesso é descartado: assim as imagens enviadas não ficam presas no estado do
+  // parceiro e não são reanexadas/reprocessadas num lote seguinte (bug de duplicação,
+  // onde o envio anterior reaparecia carimbado com a data do envio novo).
+  const estadoSnapshot = {
+    arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles],
+    texto: document.getElementById('texto').value,
+    dataRef: document.getElementById('data-ref').value,
+  };
+
   // Snapshot dos nomes de arquivo (CSV/XLS) para exibir no card
   const thumbUrls = arquivos.map(f => URL.createObjectURL(f));
   const fileNames = [...csvFiles.map(f => f.name), ...xlsFiles.map(f => f.name)];
 
-  // Cria card → limpa formulário → re-habilita botão imediatamente
+  // Cria card → limpa o formulário SEM persistir o lote enviado (explicit=true não
+  // grava em estadoExtrator) → re-habilita botão imediatamente.
   const card = createExtractionCard(parceiroSnapshot, modelo, thumbUrls, fileNames);
-  limparExtrator();
+  limparExtrator(true);
 
   // Roda extração em background (não bloqueia o formulário)
-  runExtractionCard(form, card, parceiroSnapshot);
+  runExtractionCard(form, card, parceiroSnapshot, estadoSnapshot);
 });
 
 // ── Grade ─────────────────────────────────────────────────────────────────────
