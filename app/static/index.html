@@ -41,16 +41,17 @@ body::before {
    Layout em 3 faixas: topo fixo (logo + operador), miolo rolável (casas),
    rodapé fixo (export). Só o miolo rola — logo e export ficam ancorados. */
 .sidebar {
-  width: 292px; height: 100vh; flex-shrink: 0;
-  background: var(--surface); border-right: 1px solid var(--line);
-  padding: 20px 14px 14px; display: flex; flex-direction: column;
+  width: 220px; height: 100vh; flex-shrink: 0;
+  background: var(--surface); border-right: 1px solid var(--line-2);
+  padding: 18px 10px 12px; display: flex; flex-direction: column;
   overflow: hidden;
 }
+/* Logo: tratamento igual ao Betting Dashboard — vertical, centralizado, capado */
 .brand {
-  display: block; flex-shrink: 0; margin: 0 4px 16px;
-  padding-bottom: 16px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  margin: 0 0 14px; padding: 2px 8px 16px; border-bottom: 1px solid var(--line-2);
 }
-.brand img { width: 100%; height: auto; display: block; user-select: none; -webkit-user-drag: none; }
+.brand img { width: 100%; max-width: 150px; height: auto; display: block; margin: 0 auto; user-select: none; -webkit-user-drag: none; }
 /* Miolo rolável: tudo entre o operador e o export. min-height:0 é o que
    permite o flex-child rolar dentro do flex-column. */
 .sidebar-scroll {
@@ -115,8 +116,22 @@ body::before {
 .parceiro-tabs .tab:hover { color: var(--ink-soft); }
 .parceiro-tabs .tab.active { background: var(--accent); color: #fff; }
 .casa-list-empty { font-size: 12px; color: var(--ink-mute); padding: 16px 10px; text-align: center; }
+/* Rodapé fixo da sidebar: App Switcher (travessia simétrica c/ o Dashboard) + utilitário */
+.sidebar-foot { flex-shrink: 0; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line-2); }
+.app-switcher { display: flex; flex-direction: column; gap: 3px; margin: 0 4px 8px; }
+.app-sw-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px; border-radius: var(--r-sm);
+  font-size: 12px; font-weight: 600; color: var(--ink-soft); text-decoration: none;
+  border-left: 2px solid transparent; transition: background .12s, color .12s;
+}
+.app-sw-item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-mute); }
+.app-sw-item:hover { color: var(--ink); background: var(--surface-2); }
+.app-sw-item:hover svg { color: var(--ink); }
+.app-sw-item.active { color: var(--accent); background: rgba(var(--accent-rgb),.12); border-left-color: var(--accent); }
+.app-sw-item.active svg { color: var(--accent); }
 .backup-link {
-  display: block; flex-shrink: 0; margin: 14px 4px 0; padding: 8px 10px; text-align: center;
+  display: block; flex-shrink: 0; margin: 0 4px; padding: 7px 10px; text-align: center;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
   color: var(--ink-soft); font-size: 11px; font-weight: 600; text-decoration: none;
 }
@@ -858,7 +873,7 @@ td.c-res.res-HL { color: var(--warn); }
 <!-- Sidebar -->
 <aside class="sidebar">
   <div class="brand">
-    <img src="/static/fdc-logo-horizontal-dark.svg" alt="FDC Capital" draggable="false">
+    <img src="/static/fdc-logo-vertical-dark.svg" alt="FDC Capital" draggable="false">
   </div>
   <div class="operador-bar" id="operador-bar">
     <button class="operador-trigger" id="operador-trigger" title="Operador">
@@ -882,8 +897,13 @@ td.c-res.res-HL { color: var(--warn); }
       <div style="font-size:12px;color:var(--ink-mute);padding:8px 10px">Carregando…</div>
     </div>
   </div>
-  <a href="/dashboard/" class="backup-link" title="Abrir o Betting Dashboard (análise e métricas)">📊 Dashboard</a>
-  <a href="/exportar.csv" class="backup-link" title="Baixar toda a base como CSV (backup)">⬇ Baixar base (CSV)</a>
+  <div class="sidebar-foot">
+    <div class="app-switcher">
+      <a class="app-sw-item active" href="/" title="Você está no Planilhador"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Planilhador</a>
+      <a class="app-sw-item" href="/dashboard/" title="Abrir o Betting Dashboard"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 5-6"/><path d="M1.5 14.5h13"/></svg>Betting Dashboard</a>
+    </div>
+    <a href="/exportar.csv" class="backup-link" title="Baixar toda a base como CSV (backup)">Baixar base (CSV)</a>
+  </div>
 </aside>
 
 <!-- Área principal -->

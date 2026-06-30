@@ -484,10 +484,12 @@ function buildHTML(){
           ['custos_tipster','Custo de Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12" cy="5" r="2"/><path d="M10 13.2c.6-.5 2-.7 2-.7"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="10" y1="10" x2="14" y2="10"/>'],
           ['metrics','Métricas','<path d="M8 2v2M8 12v2M2 8h2m8 0h2"/><circle cx="8" cy="8" r="3"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
-        <div class="nav-group">App</div>
-        <a class="nav-item" href="/" style="text-decoration:none" title="Abrir o Planilhador — extração e edição de bilhetes"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Planilhador</a>
       </nav>
       <div class="sidebar-bottom">
+        <div class="app-switcher">
+          <a class="app-sw-item" href="/" title="Abrir o Planilhador — extração e edição de bilhetes"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Planilhador</a>
+          <a class="app-sw-item active" href="/dashboard/" title="Você está no Betting Dashboard"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 5-6"/><path d="M1.5 14.5h13"/></svg>Betting Dashboard</a>
+        </div>
         <button class="update-btn" onclick="loadData(true)">↻ Atualizar dados</button>
         <div class="last-update" id="lastUpdate"><span class="pulse-dot"></span><span id="lastUpdateText">carregando…</span></div>
       </div>
