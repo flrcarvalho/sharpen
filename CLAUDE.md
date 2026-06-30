@@ -65,6 +65,8 @@ Planilhador/
 
 ## Convenções de output
 
+> **Fonte canônica:** `global/MASTER_OUTPUT_2026.md` (TAB, 10 colunas, 11ª coluna interna `Código`, decimal vírgula, códigos de resultado). O resumo abaixo é um **espelho operacional** — ao mudar o formato, mude no MASTER primeiro.
+
 - Separador: **TAB real** (U+0009) — nunca espaços, ponto-e-vírgula ou pipe
 - **10 colunas para a planilha do usuário**: `Data | Esporte | Tipster | Casa | Parceiro | Aposta | Descrição | Stake | Odd | Resultado`
 - **11ª coluna interna** (`Código`): ID/código do bilhete visível no print — nunca vai para a planilha do usuário, só para o banco de dados. A AI sempre retorna essa coluna; se não houver ID visível, a célula fica vazia.
@@ -88,17 +90,15 @@ O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem
 
 **Limitação:** Para casas onde o ID não é visível no print (ou a AI não consegue lê-lo), dois bilhetes 100% idênticos (mesmos jogos, odds, stake, casa) não têm como ser distinguidos. O sistema salva um e avisa. Use o botão de deletar e re-processe se necessário.
 
-**Onde está implementado:** `app/repository.py` — funções `_assinatura()` e `upsert_bilhetes()`.
+**Fonte canônica (implementação):** `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. Esta tabela documenta o comportamento do código; ao mudar a lógica de dedup, **o código é a verdade** (atualize a tabela depois).
 
 ---
 
 ## Regra de cashout (planilha-compatível)
 
-| Situação | Resultado | Odd |
-|---|---|---|
-| Cashout ≠ stake | **W** | Cashout ÷ Stake |
-| Cashout = stake | **V** | exibida no bilhete |
-| Void / Cancelada | **V** | exibida no bilhete |
+> **Fonte canônica:** `global/MASTER_RESULTADO_2026.md §5.1.2` (cashout = stake → V) e `§5.6` (cashout ≠ stake → W), com resumo em `MASTER_OUTPUT_2026.md §14`. **Mudou? Mude no MASTER, nunca aqui.**
+
+Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ Stake`. Cashout **=** stake, void ou cancelada → **V**, odd exibida no bilhete.
 
 ---
 
