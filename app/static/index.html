@@ -293,13 +293,21 @@ body::before {
 /* ── Partner page ── */
 .partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-/* ── Partner header ── */
-.partner-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 24px; border-bottom: 1px solid var(--line);
+/* ── Pagehead (item A) — título de página fixo; identidade da conta fica na context bar ── */
+.pagehead {
+  padding: 13px 24px; border-bottom: 1px solid var(--line);
   background: var(--surface); flex-shrink: 0;
 }
-.partner-title { display: flex; align-items: center; gap: 10px; }
+.pagehead-eyebrow {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute);
+}
+.pagehead-title {
+  font-size: 17px; font-weight: 800; letter-spacing: -.035em;
+  margin: 2px 0 0; color: var(--ink);
+}
+/* .partner-favicon: dead após o item A (header removido), mas o seletor é
+   compartilhado com .casa-chip/.btbl-casa nos overrides de favicon por casa abaixo. */
 .partner-favicon {
   width: 24px; height: 24px; border-radius: 7px;
   background: var(--fdc-steel); border: 1px solid rgba(255,255,255,0.08);
@@ -346,8 +354,6 @@ body::before {
 /* Fallback quando o favicon não carrega: inicial da casa em mono (REFERENCIA §2) */
 .chip-initial { font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 11px; color: var(--ink-soft); line-height: 1; }
-.partner-name { font-size: 14px; font-weight: 800; letter-spacing: -.035em; }
-.partner-sub { font-size: 11px; color: var(--ink-mute); margin-top: 1px; }
 
 /* ── 4.2.a — Conta ativa na barra de contexto (migração casca unificada) ── */
 .ctxbar { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px; margin-bottom: 16px; flex-wrap: wrap; }
@@ -1088,17 +1094,11 @@ td.c-res.res-HL { color: var(--warn); }
   <!-- Partner page -->
   <div class="partner-page" id="partner-page" style="display:none">
 
-    <!-- Header -->
-    <div class="partner-header">
-      <div class="partner-title">
-        <div class="partner-favicon">
-          <img id="partner-favicon-img" src="" alt="">
-        </div>
-        <div>
-          <div class="partner-name" id="partner-name">—</div>
-          <div class="partner-sub" id="partner-sub">—</div>
-        </div>
-      </div>
+    <!-- Pagehead (item A): título de página fixo; a identidade da conta vive
+         só na context bar "Conta ativa" acima (sem duplicação). -->
+    <div class="pagehead">
+      <div class="pagehead-eyebrow">Operação · extração de bilhetes</div>
+      <h1 class="pagehead-title">Planilhador</h1>
     </div>
 
     <!-- Body: two columns -->
@@ -1751,20 +1751,8 @@ function selecionarParceiro(p) {
   const el = document.querySelector(`.parceiro-item[data-id="${p.id}"]`);
   if (el) el.classList.add('active');
 
-  const nomeCasa = NOMES[p.casa] || p.casa;
-  // Recria o <img> a cada seleção: se uma seleção anterior teve o favicon
-  // trocado pelo fallback (.chip-initial), aqui voltamos a um <img> limpo.
-  const favBox = document.querySelector('.partner-favicon');
-  favBox.dataset.initial = nomeCasa.charAt(0).toUpperCase();   // fallback
-  favBox.innerHTML = '';
-  const favImg = Object.assign(document.createElement('img'),
-    { id: 'partner-favicon-img', alt: nomeCasa });
-  favImg.dataset.casa = p.casa;   // habilita os overrides greyscale por casa
-  favImg.src = faviconUrl(p.casa);
-  favBox.appendChild(favImg);
-  document.getElementById('partner-name').textContent = nomeCasa;
-  document.getElementById('partner-sub').textContent = p.nome;
-
+  // Item A: a identidade da conta (favicon + casa + parceiro) vive só na context
+  // bar "Conta ativa" — atualizada por atualizarBotaoConta() ao fim desta função.
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('partner-page').style.display = 'flex';
 
