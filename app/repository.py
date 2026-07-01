@@ -1,6 +1,6 @@
 import hashlib
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import asyncpg
 
@@ -583,6 +583,69 @@ async def export_bilhetes(dono: str) -> list[dict]:
             dono,
         )
     return [dict(r) for r in rows]
+
+
+async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
+    """Resumo agregado de UMA conta (casa+parceiro) para a faixa de KPIs no topo
+    do extrator. Espelha EXATAMENTE os filtros de dashboard_rows (resultado
+    válido, stake>0, P/L numérico, data ISO), escopado a uma só conta e incluindo
+    arquivados — assim os números batem com o card da casa no Betting Dashboard.
+
+    Devolve: apostas (settled), P/L, turnover (exclui Void), ROI, win rate,
+    duração (span 1ª→última aposta, em dias) e dias ativos (datas distintas).
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT stake, odd, resultado, data FROM bilhetes "
+            "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
+            dono, casa, parceiro,
+        )
+    pl = turn = 0.0
+    n = settled = wins = 0
+    datas: set[str] = set()
+    dmin = dmax = None
+    for r in rows:
+        resultado = (r["resultado"] or "").strip().upper()
+        if resultado not in _RESULTADOS_VALIDOS:
+            continue
+        stake = _num(r["stake"])
+        if stake <= 0:
+            continue
+        lucro = calcular_pl(r["stake"], r["odd"], resultado)
+        if lucro is None:
+            continue
+        data_iso = _data_iso(r["data"])
+        if not data_iso:
+            continue
+        pl += lucro
+        n += 1
+        if resultado != "V":
+            turn += stake
+            settled += 1
+            if resultado in ("W", "HW"):
+                wins += 1
+        datas.add(data_iso)
+        if dmin is None or data_iso < dmin:
+            dmin = data_iso
+        if dmax is None or data_iso > dmax:
+            dmax = data_iso
+    roi = (pl / turn * 100) if turn > 0 else 0.0
+    wr = (wins / settled * 100) if settled > 0 else 0.0
+    duracao = 0
+    if dmin and dmax:
+        duracao = (date.fromisoformat(dmax) - date.fromisoformat(dmin)).days + 1
+    return {
+        "apostas": n,
+        "pl": round(pl, 2),
+        "turnover": round(turn, 2),
+        "roi": round(roi, 2),
+        "win_rate": round(wr, 2),
+        "duracao_dias": duracao,
+        "dias_ativos": len(datas),
+        "primeira": dmin,
+        "ultima": dmax,
+    }
 
 
 async def dashboard_rows(donos: list[str]) -> list[dict]:

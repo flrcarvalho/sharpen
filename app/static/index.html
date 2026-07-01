@@ -66,7 +66,7 @@ body::before {
 .operador-bar { position: relative; margin: 0 4px 14px; flex-shrink: 0; }
 .operador-trigger {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; width: 100%; padding: 8px 10px; border-radius: var(--r-sm);
+  gap: 8px; width: 100%; padding: 6px 10px; border-radius: var(--r-sm);
   background: var(--surface-2); border: 1px solid var(--line);
   color: var(--ink); font-family: inherit; cursor: pointer; text-align: left;
   transition: background .12s, border-color .12s;
@@ -361,14 +361,27 @@ body::before {
   font-size: 11px; color: var(--ink-soft); line-height: 1; }
 
 /* ── 4.2.a — Conta ativa na barra de contexto (migração casca unificada) ── */
-.ctxbar { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px; margin-bottom: 16px; flex-wrap: wrap; }
-.ctx-lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 5px; }
+.ctxbar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 8px 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.ctx-lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 3px; }
 /* 4.2.c — Operador e Modelo movidos para a context bar */
 .ctx-divider { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
 .ctx-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Faixa de KPIs da conta ativa (item 3) — mesma linguagem visual da ctxbar,
+   células separadas por divisor fino. Custo é um input editável (grava no
+   localStorage dash_custos_v2, compartilhado com o Betting Dashboard). */
+.ctx-kpis { display: flex; align-items: stretch; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 6px; margin-bottom: 12px; }
+.ctx-kpi { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 9px 16px; min-width: 0; }
+.ctx-kpi + .ctx-kpi::before { content: ""; position: absolute; left: 0; top: 22%; height: 56%; width: 1px; background: var(--line); }
+.ctx-kpi-lbl { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); white-space: nowrap; }
+.ctx-kpi-val { font-family: var(--font-mono); font-size: 15px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.05; }
+.ctx-kpi-val.pos { color: var(--pos); }
+.ctx-kpi-val.neg { color: var(--neg); }
+.ctx-kpi-custo-input { width: 74px; background: var(--field); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; color: var(--ink); font-family: var(--font-mono); font-size: 13px; font-weight: 700; outline: none; transition: border-color .12s; }
+.ctx-kpi-custo-input:focus { border-color: var(--accent); box-shadow: var(--glow); }
 .ctxbar .operador-bar { margin: 0; min-width: 190px; }
 .acct-selwrap { position: relative; }
-.acct-sel { display: flex; align-items: center; gap: 10px; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 12px; cursor: pointer; transition: .2s; min-width: 240px; }
+.acct-sel { display: flex; align-items: center; gap: 10px; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 6px 10px; cursor: pointer; transition: .2s; min-width: 220px; }
 .acct-sel:hover { border-color: rgba(var(--accent-rgb),.4); }
 .ctx-hchip { width: 22px; height: 22px; border-radius: 6px; background: var(--fdc-steel); border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; filter: grayscale(1); flex: none; }
 .ctx-hchip img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -444,26 +457,30 @@ body::before {
   min-width: 0; gap: 16px;
 }
 .input-section {
-  flex-shrink: 0; padding: 20px 22px;
-  display: flex; flex-direction: column; gap: 14px;
+  flex-shrink: 0; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--r-lg);
 }
 .upload-zone {
   border: 1.5px dashed var(--line); border-radius: var(--r-md);
-  padding: 26px 18px; text-align: center; cursor: pointer;
+  padding: 12px 16px; text-align: center; cursor: pointer;
   background: var(--surface-2); transition: border-color .15s, background .15s;
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex-wrap: wrap;
 }
 .upload-zone:hover, .upload-zone.drag { border-color: rgba(var(--accent-rgb),.45); background: rgba(var(--accent-rgb),.04); }
 .upload-icon {
-  width: 38px; height: 38px; margin: 0 auto 13px;
-  border: 1px solid var(--line); border-radius: 11px;
-  display: grid; place-items: center; color: var(--accent-2);
+  width: 30px; height: 30px; margin: 0;
+  border: 1px solid var(--line); border-radius: 9px;
+  display: grid; place-items: center; color: var(--accent-2); flex: none;
 }
-.upload-label { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.4; }
+.upload-txt { text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.upload-label { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.3; }
 .upload-label strong { color: var(--accent-2); font-weight: 700; }
-.upload-hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); margin-top: 8px; line-height: 1.6; }
-.upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; justify-content: center; }
+.upload-hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); margin-top: 0; line-height: 1.5; }
+.upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0; justify-content: center; flex-basis: 100%; }
+.upload-preview:empty { display: none; }
 .thumb { width: 48px; height: 48px; border-radius: var(--r-sm); object-fit: cover; border: 1px solid var(--line); cursor: zoom-in; }
 .thumb-rm { position: relative; }
 .csv-card { display:inline-flex; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); padding:4px 8px; font-size:11px; color:var(--ink-soft); max-width:140px; }
@@ -480,7 +497,7 @@ body::before {
   width: 100%; background: var(--field); border: 1px solid var(--line);
   border-radius: var(--r-sm); padding: 12px 14px;
   font-size: 13px; color: var(--ink); font-family: var(--font-mono);
-  resize: vertical; min-height: 70px; outline: none; line-height: 1.65;
+  resize: vertical; min-height: 46px; outline: none; line-height: 1.55;
   transition: border-color .12s;
 }
 .text-area:focus { border-color: var(--accent); box-shadow: var(--glow); }
@@ -1222,6 +1239,11 @@ td.c-res.res-HL { color: var(--warn); }
     </div>
   </div>
 
+  <!-- Faixa de KPIs da conta ativa (item 3) — linha própria abaixo do seletor.
+       Preenchida por atualizarResumoConta() a cada carregarGrade(); custo lido do
+       Dashboard (localStorage dash_custos_v2, por fornecedor||casa). -->
+  <div class="ctx-kpis" id="ctxKpis" style="display:none"></div>
+
   <!-- Empty state -->
   <div class="empty-state" id="empty-state">
     <div class="empty-state-icon">↑</div>
@@ -1240,16 +1262,18 @@ td.c-res.res-HL { color: var(--warn); }
         <!-- Inputs -->
         <div class="input-section" id="upload-section">
           <div class="upload-zone" id="drop-zone">
-            <div class="upload-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
-            <div class="upload-label"><strong>Clique ou arraste</strong> os prints ou CSVs dos bilhetes aqui</div>
-            <div class="upload-hint">ou Cole (Ctrl+V) um print · ou "+ Arquivo" abaixo · aceita imagens, .csv e .xls</div>
+            <div class="upload-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+            <div class="upload-txt">
+              <div class="upload-label"><strong>Clique ou arraste</strong> os prints ou CSVs dos bilhetes aqui</div>
+              <div class="upload-hint">ou Cole (Ctrl+V) um print · ou "+ Arquivo" abaixo · aceita imagens, .csv e .xls</div>
+            </div>
             <div class="upload-preview" id="preview"></div>
           </div>
           <input type="file" id="file-input" multiple accept="image/*,application/pdf,.csv,text/csv,.xls,.xlsx">
 
           <textarea class="text-area" id="texto"
             placeholder="Ou cole o texto do bilhete aqui (opcional — pode usar junto com imagens)…"
-            rows="3"></textarea>
+            rows="2"></textarea>
 
           <div class="actions">
             <button class="btn btn-primary" id="btn-extrair" disabled>Processar Bilhetes</button>
@@ -2228,6 +2252,8 @@ async function criarContaNova() {
 function mostrarEmptyState() {
   document.getElementById('empty-state').style.display = '';
   document.getElementById('partner-page').style.display = 'none';
+  const kpis = document.getElementById('ctxKpis');
+  if (kpis) kpis.style.display = 'none';
 }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
@@ -2973,8 +2999,93 @@ async function carregarGrade() {
     carregarTipsters();
     atualizarStats();
     atualizarBotoesGrade();
+    atualizarResumoConta();
   } catch (e) {
     body.innerHTML = `<div class="grade-empty" style="color:var(--neg)">Erro: ${e.message}</div>`;
+  }
+}
+
+// ── Faixa de KPIs da conta ativa (item 3) ────────────────────────────────────
+// Busca o resumo agregado no backend (/conta/resumo) e o custo no localStorage
+// dash_custos_v2 (mesmo store do Betting Dashboard, chaveado por fornecedor||casa).
+// O fornecedor sai do sufixo "[Fornecedor]" do nome do parceiro.
+const DASH_COST_KEY = 'dash_custos_v2';
+let _resumoToken = 0;
+
+function _lerCusto(forn, casa) {
+  if (!forn) return 0;
+  try { const o = JSON.parse(localStorage.getItem(DASH_COST_KEY) || '{}'); return o[forn + '||' + casa] || 0; }
+  catch (e) { return 0; }
+}
+function _salvarCusto(forn, casa, val) {
+  try {
+    const o = JSON.parse(localStorage.getItem(DASH_COST_KEY) || '{}');
+    const n = parseFloat((val || '').toString().replace(/\./g, '').replace(',', '.'));
+    if (!isNaN(n) && n > 0) o[forn + '||' + casa] = n; else delete o[forn + '||' + casa];
+    localStorage.setItem(DASH_COST_KEY, JSON.stringify(o));
+  } catch (e) {}
+}
+// Números compactos para a faixa: milhares viram "k" (45k, 1,2k), pt-BR.
+function _kAbbr(n) {
+  n = Number(n) || 0;
+  if (Math.abs(n) >= 1000) {
+    const k = n / 1000;
+    return (Math.abs(k) >= 100 ? Math.round(k).toLocaleString('pt-BR')
+      : (Math.round(k * 10) / 10).toLocaleString('pt-BR')) + 'k';
+  }
+  return Math.round(n).toLocaleString('pt-BR');
+}
+function _pctK(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+function _plK(n) { n = Number(n) || 0; const s = n > 0 ? '+' : (n < 0 ? '−' : ''); return s + 'R$ ' + _kAbbr(Math.abs(n)); }
+
+async function atualizarResumoConta() {
+  const bar = document.getElementById('ctxKpis');
+  if (!bar || !parceiroSelecionado) { if (bar) bar.style.display = 'none'; return; }
+  const casa = parceiroSelecionado.casa, parceiro = parceiroSelecionado.nome;
+  const token = ++_resumoToken;
+  try {
+    const qs = `casa=${encodeURIComponent(casa)}&parceiro=${encodeURIComponent(parceiro)}`;
+    const r = await fetch(`/conta/resumo?${qs}`);
+    if (!r.ok) throw new Error('resumo');
+    const d = await r.json();
+    if (token !== _resumoToken) return;   // seleção mudou no meio do fetch
+    _renderCtxKpis(d, casa, parceiro);
+    bar.style.display = '';
+  } catch (e) {
+    if (token === _resumoToken) bar.style.display = 'none';
+  }
+}
+
+function _renderCtxKpis(d, casa, parceiro) {
+  const bar = document.getElementById('ctxKpis');
+  if (!bar) return;
+  const m = (parceiro || '').match(/\[(.+?)\]\s*$/);
+  const forn = m ? m[1].trim() : '';
+  const custo = _lerCusto(forn, casa);
+  const plCls = d.pl > 0 ? 'pos' : (d.pl < 0 ? 'neg' : '');
+  const roiCls = d.roi > 0 ? 'pos' : (d.roi < 0 ? 'neg' : '');
+  const cell = (lbl, val, cls) =>
+    `<div class="ctx-kpi"><div class="ctx-kpi-lbl">${lbl}</div><div class="ctx-kpi-val ${cls || ''}">${val}</div></div>`;
+  const custoCell = forn
+    ? `<div class="ctx-kpi"><div class="ctx-kpi-lbl">Custo · ${esc(forn)}</div>`
+      + `<input class="ctx-kpi-custo-input" id="ctxCustoInput" type="text" spellcheck="false" autocomplete="off"`
+      + ` value="${custo ? custo.toLocaleString('pt-BR') : ''}" placeholder="0"`
+      + ` data-forn="${esc(forn)}" data-casa="${esc(casa)}"`
+      + ` title="Custo de aquisição da conta (compartilhado com o Dashboard). Edite se diferir do padrão."></div>`
+    : `<div class="ctx-kpi"><div class="ctx-kpi-lbl">Custo</div><div class="ctx-kpi-val" style="color:var(--ink-mute)">—</div></div>`;
+  bar.innerHTML =
+    cell('P/L', _plK(d.pl), plCls)
+    + cell('Turnover', 'R$ ' + _kAbbr(d.turnover))
+    + cell('Apostas', (d.apostas || 0).toLocaleString('pt-BR'))
+    + cell('ROI', _pctK(d.roi), roiCls)
+    + cell('Win Rate', _pctK(d.win_rate))
+    + cell('Duração', (d.duracao_dias || 0) + 'd')
+    + cell('Dias Ativos', (d.dias_ativos || 0) + 'd')
+    + custoCell;
+  const inp = document.getElementById('ctxCustoInput');
+  if (inp) {
+    inp.addEventListener('blur', () => _salvarCusto(inp.dataset.forn, inp.dataset.casa, inp.value));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   }
 }
 

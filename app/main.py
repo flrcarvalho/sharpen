@@ -40,7 +40,7 @@ from repository import (
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     set_ativo_tipster,
     list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
-    reativar_parceiro, renomear_parceiro, upsert_bilhetes,
+    reativar_parceiro, renomear_parceiro, resumo_conta, upsert_bilhetes,
 )
 
 logger = logging.getLogger("scanner")
@@ -1108,6 +1108,16 @@ async def listar_pendentes(dono: str = Depends(dono_efetivo)):
     for r in linhas:
         por_casa[r["casa"]] = por_casa.get(r["casa"], 0) + r["pendentes"]
     return {"por_parceiro": por_parceiro, "por_casa": por_casa}
+
+
+@app.get("/conta/resumo")
+async def resumo_da_conta(
+    casa: str, parceiro: str, dono: str = Depends(dono_efetivo)
+):
+    """KPIs agregados de UMA conta (casa+parceiro), para a faixa no topo do
+    extrator: P/L, turnover, apostas, ROI, win rate, duração e dias ativos.
+    Números batem com o card da casa no Dashboard (mesmos filtros)."""
+    return await resumo_conta(dono, casa, parceiro)
 
 
 @app.get("/incompletos")
