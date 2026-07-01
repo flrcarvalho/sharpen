@@ -402,8 +402,17 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]]) -> tuple[str
         parts = row_str.split('\t')
         if len(parts) < 9:
             return None
-        # Normaliza odd para 2 casas decimais para absorver diferenças de precisão entre chunks
-        # (ex: um chunk lê "1,83" e outro calcula "1,8331168..." — mesma aposta, string diferente)
+        # Código (11ª coluna) presente e não-vazio → identidade única do bilhete: NUNCA é
+        # sobreposição de scroll. Espelha a regra de dedup do banco (código diferente →
+        # bilhetes distintos, sempre INSERT). Sem isto, dois bilhetes reais de conteúdo
+        # idêntico mas IDs diferentes (ex.: duas apostas iguais feitas com 1 min de
+        # diferença na Superbet) eram falsamente marcados como duplicata de scroll.
+        codigo = parts[10].strip() if len(parts) > 10 else ""
+        if codigo:
+            return ("COD", codigo)
+        # Sem ID visível (ex.: Bet365): heurística por conteúdo. Normaliza odd para 2
+        # casas decimais para absorver diferenças de precisão entre chunks (ex: um chunk lê
+        # "1,83" e outro calcula "1,8331168..." — mesma aposta, string diferente).
         try:
             odd_norm = round(float(parts[8].replace(',', '.')), 2)
         except (ValueError, IndexError):
