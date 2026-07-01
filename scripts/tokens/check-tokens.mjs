@@ -119,6 +119,37 @@ console.log(`\n── Shell (index.html + shell.css × SHELL_SPEC) ──`);
   if (okCount === SHELL_RULES.length) console.log(`  ✓ ${okCount}/${SHELL_RULES.length} selectors do shell em conformidade`);
 }
 
+// ── (d) MONETÁRIO — dinheiro nunca abreviado ("k"/"M"/"mil") ─────────────────
+// UI_REFERENCE §5: dinheiro é sempre valor INTEIRO (milhar '.', pela máscara —
+// .money/fmtPL nas tabelas, 'R$ '+fmt() nos cards de KPI do Dashboard). Abreviar
+// milhar para "k"/"M"/"mil" é PROIBIDO — foi o bug dos cards de KPI da sessão 83
+// (_kAbbr/_plK exibiam "1,4k"). Esta trava pega a concatenação/interpolação de um
+// sufixo de abreviação num número — o ÚNICO anti-padrão de dinheiro detectável sem
+// falso-positivo. (Banir '.toFixed'/"'R$ '+fmt" em bloco quebraria o Dashboard,
+// que os usa legitimamente — o código tem, de fato, duas convenções de máscara.)
+const MONEY_ABBR_RE = /\+\s*['"`](k|M|mil)['"`]|\}\s*(k|M|mil)(?=['"`])/g;
+console.log(`\n── Monetário (app/static — dinheiro sem abreviação) ──`);
+{
+  const abbrHits = [];
+  for (const f of walk(SCAN_ROOT)) {
+    if (!/\.(js|html)$/.test(f)) continue;
+    const txt = readFileSync(f, 'utf8');
+    const rel = f.slice(REPO_ROOT.length + 1).replace(/\\/g, '/');
+    let m; MONEY_ABBR_RE.lastIndex = 0;
+    while ((m = MONEY_ABBR_RE.exec(txt))) {
+      const ln = txt.slice(0, m.index).split('\n').length;
+      abbrHits.push({ rel, ln, s: m[0] });
+    }
+  }
+  if (abbrHits.length) {
+    console.error(`  ✗ ${abbrHits.length} abreviação(ões) de dinheiro (proibido — valor inteiro via fmtPL/.money/fmt):`);
+    for (const h of abbrHits) console.error(`     ${h.rel}:${h.ln}  ${h.s}`);
+    blocking++;
+  } else {
+    console.log(`  ✓ nenhuma abreviação de dinheiro`);
+  }
+}
+
 // ── veredito ─────────────────────────────────────────────────────────────────
 if (blocking) { console.error(`\n✗ check-tokens FALHOU (${blocking}).`); process.exit(1); }
 console.log(`\n✓ check-tokens OK.`);

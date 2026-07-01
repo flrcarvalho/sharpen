@@ -32,6 +32,21 @@ Planilhador/
 
 ---
 
+## ⚠️ REGRA DE UI / MARCA OBRIGATÓRIA (antes de criar QUALQUER visual novo)
+
+> **Motivo:** na sessão 83, cards de KPI foram criados com formatadores caseiros que abreviavam (`1,4k`) e coloriam o valor inteiro — violando 4 regras do padrão monetário. O Feca teve que voltar em detalhe já documentado. A causa: **regra escrita sem hábito de conferir = pulada.** Esta seção torna a conferência obrigatória.
+
+**Antes de escrever qualquer render de número, dinheiro, cor, tipografia ou componente visual, NESTA ordem:**
+
+1. **Ler** `docs/UI_REFERENCE.md` (§5 = padrão monetário) e, se tocar na casca, `docs/SHELL_SPEC.md`. A bíblia de marca é [`../pack/CLAUDE.md`](../pack/CLAUDE.md); tokens em [`../pack/tokens/tokens.css`](../pack/tokens/tokens.css).
+2. **Reusar helper existente, nunca criar formatador.** `grep` por `fmtPL`/`moneyStake`/`fmt`/`.money` no arquivo e reusar. Dinheiro em tabela → `fmtPL`/`.money` (2 casas, `R$` menor `--ink-soft`, cor SÓ no número, minus U+2212, zero neutro). Dinheiro em card de KPI → `'R$ '+fmt(v,0)` (inteiro), padrão do Dashboard. **Nunca abreviar milhar (`k`/`M`) — barrado pelo `check-tokens`.** `.toFixed`/`.replace` proibidos no display.
+3. **Cor sempre de token** (`var(--…)`), nunca literal. `.money-sign`/sinal ficam neutros.
+4. **Auto-auditar item a item contra §5 ANTES do commit** + rodar `node scripts/tokens/check-tokens.mjs`.
+
+> Dúvida de qual convenção (tabela vs card)? Pergunte ao Feca — não invente uma terceira. Use `/nova-ui` para rodar este checklist guiado.
+
+---
+
 ## ⚠️ REGRA DE PROPAGAÇÃO OBRIGATÓRIA
 
 **Toda vez que uma categoria for criada, renomeada ou removida do `MASTER_APOSTAS_2026.md`, os seguintes arquivos DEVEM ser atualizados na mesma sessão, sem exceção:**
