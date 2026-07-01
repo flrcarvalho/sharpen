@@ -377,7 +377,9 @@ body::before {
 .ctx-kpi-val { font-family: var(--font-mono); font-size: 15px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.05; }
 .ctx-kpi-val.pos { color: var(--pos); }
 .ctx-kpi-val.neg { color: var(--neg); }
-.ctx-kpi-custo-input { width: 74px; background: var(--field); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; color: var(--ink); font-family: var(--font-mono); font-size: 13px; font-weight: 700; outline: none; transition: border-color .12s; }
+.ctx-kpi-custo-wrap { display: flex; align-items: center; gap: 5px; }
+.ctx-kpi-custo-wrap .money-sign { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); flex: none; }
+.ctx-kpi-custo-input { width: 82px; background: var(--field); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; color: var(--ink); font-family: var(--font-mono); font-size: 13px; font-weight: 700; outline: none; transition: border-color .12s; font-variant-numeric: tabular-nums; }
 .ctx-kpi-custo-input:focus { border-color: var(--accent); box-shadow: var(--glow); }
 .ctxbar .operador-bar { margin: 0; min-width: 190px; }
 .acct-selwrap { position: relative; }
@@ -3027,18 +3029,15 @@ function _salvarCusto(forn, casa, val) {
     localStorage.setItem(DASH_COST_KEY, JSON.stringify(o));
   } catch (e) {}
 }
-// Números compactos para a faixa: milhares viram "k" (45k, 1,2k), pt-BR.
-function _kAbbr(n) {
-  n = Number(n) || 0;
-  if (Math.abs(n) >= 1000) {
-    const k = n / 1000;
-    return (Math.abs(k) >= 100 ? Math.round(k).toLocaleString('pt-BR')
-      : (Math.round(k * 10) / 10).toLocaleString('pt-BR')) + 'k';
-  }
-  return Math.round(n).toLocaleString('pt-BR');
+// Números da faixa no padrão de marca (UI_REFERENCE §5): dinheiro VALOR INTEIRO
+// (sem abreviação "k"), 2 casas pt-BR, via componente .money — R$ menor/neutro,
+// cor só no número. P/L usa o helper canônico fmtPL (sinal colado, U+2212, zero
+// neutro). Turnover é positivo sem sinal → _moneyFull. % com 1 casa.
+function _moneyFull(n) {
+  const abs = (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `<span class="money"><span class="money-sign">R$</span><span class="money-val">${abs}</span></span>`;
 }
 function _pctK(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
-function _plK(n) { n = Number(n) || 0; const s = n > 0 ? '+' : (n < 0 ? '−' : ''); return s + 'R$ ' + _kAbbr(Math.abs(n)); }
 
 async function atualizarResumoConta() {
   const bar = document.getElementById('ctxKpis');
@@ -3064,20 +3063,21 @@ function _renderCtxKpis(d, casa, parceiro) {
   const m = (parceiro || '').match(/\[(.+?)\]\s*$/);
   const forn = m ? m[1].trim() : '';
   const custo = _lerCusto(forn, casa);
-  const plCls = d.pl > 0 ? 'pos' : (d.pl < 0 ? 'neg' : '');
   const roiCls = d.roi > 0 ? 'pos' : (d.roi < 0 ? 'neg' : '');
   const cell = (lbl, val, cls) =>
     `<div class="ctx-kpi"><div class="ctx-kpi-lbl">${lbl}</div><div class="ctx-kpi-val ${cls || ''}">${val}</div></div>`;
+  const custoStr = custo ? custo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
   const custoCell = forn
     ? `<div class="ctx-kpi"><div class="ctx-kpi-lbl">Custo · ${esc(forn)}</div>`
+      + `<div class="ctx-kpi-custo-wrap"><span class="money-sign">R$</span>`
       + `<input class="ctx-kpi-custo-input" id="ctxCustoInput" type="text" spellcheck="false" autocomplete="off"`
-      + ` value="${custo ? custo.toLocaleString('pt-BR') : ''}" placeholder="0"`
+      + ` value="${custoStr}" placeholder="0,00"`
       + ` data-forn="${esc(forn)}" data-casa="${esc(casa)}"`
-      + ` title="Custo de aquisição da conta (compartilhado com o Dashboard). Edite se diferir do padrão."></div>`
+      + ` title="Custo de aquisição da conta (compartilhado com o Dashboard). Edite se diferir do padrão."></div></div>`
     : `<div class="ctx-kpi"><div class="ctx-kpi-lbl">Custo</div><div class="ctx-kpi-val" style="color:var(--ink-mute)">—</div></div>`;
   bar.innerHTML =
-    cell('P/L', _plK(d.pl), plCls)
-    + cell('Turnover', 'R$ ' + _kAbbr(d.turnover))
+    cell('P/L', fmtPL(d.pl))
+    + cell('Turnover', _moneyFull(d.turnover))
     + cell('Apostas', (d.apostas || 0).toLocaleString('pt-BR'))
     + cell('ROI', _pctK(d.roi), roiCls)
     + cell('Win Rate', _pctK(d.win_rate))
