@@ -708,7 +708,7 @@ function buildHTML(){
       <div class="analise-popup-modal" id="tipsterDrillModal" onclick="event.stopPropagation()">
         <div class="analise-popup-hdr" style="gap:12px;align-items:center">
           <div style="display:flex;align-items:center;flex-shrink:0">
-            <img src="brand/sharpen-lockup-dark.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
+            <img src="brand/sharpen-lockup-dark-tight.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
             <div style="width:1px;height:32px;background:var(--line);flex-shrink:0;margin-left:10px;margin-right:14px"></div>
             <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
               <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">TIPSTER</span>
@@ -739,7 +739,7 @@ function buildHTML(){
       <div class="analise-popup-modal" id="casaDrillModal" onclick="event.stopPropagation()">
         <div class="analise-popup-hdr" style="gap:12px;align-items:center">
           <div style="display:flex;align-items:center;flex-shrink:0">
-            <img src="brand/sharpen-lockup-dark.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
+            <img src="brand/sharpen-lockup-dark-tight.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
             <div style="width:1px;height:32px;background:var(--line);flex-shrink:0;margin-left:10px;margin-right:14px"></div>
             <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
               <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">BOOKIE</span>
@@ -773,7 +773,7 @@ function buildHTML(){
       <div class="analise-popup-modal" id="sportDrillModal" onclick="event.stopPropagation()">
         <div class="analise-popup-hdr" style="gap:12px;align-items:center">
           <div style="display:flex;align-items:center;flex-shrink:0">
-            <img src="brand/sharpen-lockup-dark.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
+            <img src="brand/sharpen-lockup-dark-tight.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
             <div style="width:1px;height:32px;background:var(--line);flex-shrink:0;margin-left:10px;margin-right:14px"></div>
             <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
               <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">ESPORTE</span>
