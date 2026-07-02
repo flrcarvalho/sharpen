@@ -336,6 +336,12 @@ body::before {
 .painel-hint { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-mute); }
 .painel-empty { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); padding: 6px 0; }
 
+/* Toolbar do hero (busca + abas + nova conta) e seção de gestão (lista) */
+.painel-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.painel-gestao-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.painel-gestao-titulo { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.painel-gestao-count { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
+
 /* ── Partner page ── */
 .partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
@@ -1145,15 +1151,9 @@ td.c-res.res-HL { color: var(--warn); }
 .extract-card--ok .ec-header { background: rgba(var(--pos-rgb),.07); }
 .extract-card--err .ec-header { background: rgba(var(--neg-rgb),.07); }
 .extract-card--warn .ec-header { background: rgba(var(--warn-rgb),.07); }
-/* ── View: Contas & Parceiros (gestão) ── */
-/* Mesma cadeia flex da view de extração: sem isto, a lista de contas estoura a
-   altura e é cortada sem rolar (a barra fica fixa, só #contas-list rola). */
-#view-contas { flex: 1; display: flex; flex-direction: column; min-height: 0; padding-bottom: 24px; }
-#view-contas .contas-bar { flex-shrink: 0; }
-#contas-list { flex: 1; min-height: 0; overflow-y: auto; }
-.contas-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-.contas-newform { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.contas-newform[hidden] { display: none; }
+/* ── Contas & Parceiros (gestão) — unificada no Painel de Contas (sessão 85b) ──
+   A view separada #view-contas foi aposentada; a lista de gestão vive dentro do
+   Painel de Contas (#painelContas). As classes .contas-* abaixo são reusadas lá. */
 .contas-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface); }
 .contas-tabs button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--ink-mute); background: transparent; border: 0; cursor: pointer; padding: 7px 14px; border-radius: var(--r-pill); transition: .15s; }
 .contas-tabs button.on { background: var(--accent); color: #fff; }
@@ -1451,25 +1451,8 @@ td.c-res.res-HL { color: var(--warn); }
     </div><!-- .partner-body -->
   </div><!-- .partner-page -->
   </div><!-- #view-extracao -->
-
-  <!-- ══ VIEW: Contas & Parceiros (gestão) ══ -->
-  <div id="view-contas" style="display:none">
-    <div class="contas-bar">
-      <button class="btn btn-primary btn-sm" id="contas-nova">+ Nova conta</button>
-      <div class="contas-newform" id="contas-newform" hidden>
-        <select id="contas-new-casa" class="acct-new-casa" title="Casa"></select>
-        <input id="contas-new-nome" class="acct-new-nome" type="text" placeholder="Nome do parceiro…" autocomplete="off" spellcheck="false">
-        <button class="btn btn-primary btn-sm" id="contas-new-ok">Criar</button>
-        <button class="btn btn-ghost btn-sm" id="contas-new-cancel">Cancelar</button>
-      </div>
-      <div class="contas-tabs" id="contas-tabs">
-        <button class="on" data-tab="ativas">Ativas</button>
-        <button data-tab="arquivadas">Arquivadas</button>
-      </div>
-      <div class="contas-search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="contas-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false"></div>
-    </div>
-    <div id="contas-list"></div>
-  </div><!-- #view-contas -->
+  <!-- Contas & Parceiros foi unificada no Painel de Contas (#painelContas), no
+       estado sem conta ativa. A view separada #view-contas foi removida (sessão 85b). -->
 
 </div><!-- .content -->
 </div><!-- .app -->
@@ -1905,9 +1888,9 @@ function aplicarBadgesSidebar() {
   // aberto, re-renderiza para refletir a atualização (poll de /incompletos).
   const wrap = document.getElementById('acctSelWrap');
   if (wrap && wrap.classList.contains('open')) renderAcctTree();
-  // E a view Contas & Parceiros, se estiver visível, reflete os badges atualizados.
-  const vc = document.getElementById('view-contas');
-  if (vc && vc.style.display !== 'none') renderContas();
+  // E o Painel de Contas, se estiver visível (sem conta ativa), reflete os badges.
+  const es = document.getElementById('empty-state');
+  if (es && es.style.display !== 'none') renderPainelLista();
 }
 
 function toggleCasaGroup(casa, header, listEl, inputWrap) {
@@ -1993,41 +1976,50 @@ async function reativarParceiro(id, casa) {
 // os badges (abertas/sem-tipster) e as funções arquivar/reativar/criar/selecionar.
 let contasTab = 'ativas';
 
+// Contas & Parceiros foi unificada no Painel de Contas: não há mais view separada.
+// 'contas' = abrir o hub (desmarca a conta ativa e mostra o Painel); 'extracao' =
+// extrator (mantém a conta ativa se houver, senão cai no hub).
 function mostrarView(v) {
   const ext = document.getElementById('view-extracao');
-  const ct = document.getElementById('view-contas');
   const title = document.querySelector('.pagehead-title');
   const eyebrow = document.querySelector('.pagehead-eyebrow');
   const navP = document.getElementById('nav-planilhador');
   const navC = document.getElementById('nav-contas');
-  if (!ext || !ct) return;
+  if (!ext) return;
+  ext.style.display = '';
   if (v === 'contas') {
-    ext.style.display = 'none'; ct.style.display = '';
+    if (parceiroSelecionado) salvarEstadoExtrator();   // preserva o lote em montagem
+    parceiroSelecionado = null; casaSelecionada = null;
+    document.querySelectorAll('.parceiro-item.active').forEach(el => el.classList.remove('active'));
+    if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
+    mostrarEmptyState();   // mostra o hub e renderiza o Painel de Contas
     if (title) title.textContent = 'Contas & Parceiros';
     if (eyebrow) eyebrow.textContent = 'Operação · gestão de contas';
     navP && navP.classList.remove('active'); navC && navC.classList.add('active');
-    contasPopularCasas();
-    renderContas();
   } else {
-    ct.style.display = 'none'; ext.style.display = '';
     if (title) title.textContent = 'Planilhador';
     if (eyebrow) eyebrow.textContent = 'Operação · extração de bilhetes';
     navC && navC.classList.remove('active'); navP && navP.classList.add('active');
-    if (!parceiroSelecionado) renderPainelContas();   // volta ao Painel de Contas se nada ativo
+    if (!parceiroSelecionado) mostrarEmptyState();   // sem conta ativa → hub
   }
 }
 
-function renderContas() {
-  const host = document.getElementById('contas-list');
+// Lista de gestão do hub (grupos por casa + badges + ações). Reusa as classes
+// .contas-* e as ações contas*(); é re-renderizada sozinha (preserva o foco da
+// busca no hero). Lê contasTab (aba) + painelBusca (state, não o DOM).
+let painelBusca = '';
+function renderPainelLista() {
+  const host = document.getElementById('painelGestaoList');
   if (!host) return;
-  const q = (document.getElementById('contas-search')?.value || '').toLowerCase().trim();
+  const q = (painelBusca || '').toLowerCase().trim();
   const fonte = contasTab === 'ativas' ? parceirosCache : parceirosArquivadosCache;
-  let html = '';
+  let html = '', total = 0;
   (casasCarregadas || []).forEach(casa => {
     const nomeCasa = NOMES[casa] || casa;
     let ps = (fonte[casa] || []);
     if (q) ps = ps.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
     if (!ps.length) return;
+    total += ps.length;
     html += '<div class="contas-casa"><div class="contas-casa-head"><span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span><span class="contas-casa-nome">' + esc(nomeCasa) + '</span><span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span></div>';
     ps.forEach(p => {
       const ab = abertasDe(casa, p.nome);
@@ -2044,7 +2036,17 @@ function renderContas() {
     });
     html += '</div>';
   });
-  host.innerHTML = html || '<div class="contas-empty">Nenhuma conta nesta aba' + (q ? ' para "' + esc(q) + '"' : '') + '.</div>';
+  host.innerHTML = html || '<div class="painel-empty">Nenhuma conta nesta aba' + (q ? ' para "' + esc(q) + '"' : '') + '.</div>';
+  const cnt = document.getElementById('painelGestaoCount');
+  if (cnt) cnt.textContent = total + (total === 1 ? ' conta' : ' contas');
+}
+
+// Troca de aba (Ativas/Arquivadas) — só re-renderiza a lista (mantém KPIs/busca).
+function painelSetTab(tab, btn) {
+  contasTab = tab;
+  const box = btn && btn.parentElement;
+  if (box) box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === btn));
+  renderPainelLista();
 }
 
 function contasAbrir(id, casa) {
@@ -2067,61 +2069,12 @@ async function contasRenomear(id, casa, nomeAtual) {
       parceiroSelecionado.nome = nome;
       if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
     }
-    renderContas();
+    renderPainelContas();   // nome/fornecedor podem mudar → re-render completo do hub
   } catch { alert('Erro de rede.'); }
 }
 
-async function contasArquivar(id, casa) { await arquivarParceiro(id, casa); renderContas(); }
-async function contasReativar(id, casa) { await reativarParceiro(id, casa); renderContas(); }
-
-function contasPopularCasas() {
-  const sel = document.getElementById('contas-new-casa');
-  if (!sel) return;
-  const atual = sel.value;
-  sel.innerHTML = (casasCarregadas || []).map(c => '<option value="' + esc(c) + '">' + esc(NOMES[c] || c) + '</option>').join('');
-  if (atual) sel.value = atual;
-}
-
-async function contasCriar() {
-  const casa = document.getElementById('contas-new-casa').value;
-  const nome = (document.getElementById('contas-new-nome').value || '').trim();
-  if (!casa || !nome) return;
-  try {
-    const r = await fetch('/parceiros', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa, nome }),
-    });
-    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar.'); return; }
-    const p = await r.json();
-    const idx = (parceirosCache[casa] || []).findIndex(x => x.id === p.id);
-    if (idx >= 0) parceirosCache[casa][idx] = p; else parceirosCache[casa] = [...(parceirosCache[casa] || []), p];
-    parceirosArquivadosCache[casa] = (parceirosArquivadosCache[casa] || []).filter(x => x.id !== p.id);
-    document.getElementById('contas-new-nome').value = '';
-    document.getElementById('contas-newform').hidden = true;
-    contasTab = 'ativas';
-    document.querySelectorAll('#contas-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === 'ativas'));
-    renderContas();
-  } catch { alert('Erro de rede.'); }
-}
-
-function initContas() {
-  const novaBtn = document.getElementById('contas-nova');
-  const form = document.getElementById('contas-newform');
-  if (novaBtn && form) {
-    novaBtn.addEventListener('click', () => { form.hidden = !form.hidden; if (!form.hidden) { contasPopularCasas(); document.getElementById('contas-new-nome').focus(); } });
-    document.getElementById('contas-new-ok').addEventListener('click', contasCriar);
-    document.getElementById('contas-new-cancel').addEventListener('click', () => { form.hidden = true; document.getElementById('contas-new-nome').value = ''; });
-    document.getElementById('contas-new-nome').addEventListener('keydown', e => { if (e.key === 'Enter') contasCriar(); });
-  }
-  const tabs = document.getElementById('contas-tabs');
-  if (tabs) tabs.addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    contasTab = b.dataset.tab;
-    tabs.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-    renderContas();
-  });
-  const search = document.getElementById('contas-search');
-  if (search) search.addEventListener('input', renderContas);
-}
+async function contasArquivar(id, casa) { await arquivarParceiro(id, casa); renderPainelContas(); }
+async function contasReativar(id, casa) { await reativarParceiro(id, casa); renderPainelContas(); }
 
 // ── Selecionar parceiro ───────────────────────────────────────────────────────
 function selecionarParceiro(p) {
@@ -2337,13 +2290,19 @@ function renderPainelContas() {
   const pctAtivas = totContas ? Math.round(totAtivas / totContas * 100) : 0;
 
   const casaOpts = casas.map(c => '<option value="' + esc(c) + '">' + esc(NOMES[c] || c) + '</option>').join('');
+  const tabAtiva = contasTab === 'ativas';
   const hero =
     '<div class="painel-hero">' +
-      '<div><div class="painel-hero-eyebrow">Visão geral · contas</div>' +
+      '<div><div class="painel-hero-eyebrow">Operação · gestão de contas</div>' +
       '<div class="painel-hero-titulo">Painel de contas</div></div>' +
-      '<div class="painel-actions">' +
+      '<div class="painel-toolbar">' +
+        '<div class="contas-search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
+        '<input id="painel-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
+        '<div class="contas-tabs">' +
+          '<button class="' + (tabAtiva ? 'on' : '') + '" type="button" onclick="painelSetTab(&quot;ativas&quot;,this)">Ativas</button>' +
+          '<button class="' + (tabAtiva ? '' : 'on') + '" type="button" onclick="painelSetTab(&quot;arquivadas&quot;,this)">Arquivadas</button>' +
+        '</div>' +
         '<button class="btn btn-primary btn-sm" type="button" onclick="painelToggleForm()">+ Nova conta</button>' +
-        '<span class="painel-hint">ou escolha uma conta em “Conta ativa” no topo para extrair</span>' +
       '</div>' +
     '</div>' +
     '<div class="painel-newform" id="painel-newform">' +
@@ -2405,7 +2364,12 @@ function renderPainelContas() {
       '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Contas por casa</span><span class="painel-card-count">' + nf(casasComConta) + ' casas</span></div><div class="painel-card-body">' + casaRows + '</div></div>' +
       '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Ativas × Inativas</span><span class="painel-card-count">' + pctAtivas + '% ativas</span></div><div class="painel-card-body">' + meter + '</div></div>' +
       '<div class="painel-card full"><div class="painel-card-head"><span class="painel-card-titulo">Contas por fornecedor</span><span class="painel-card-count">' + nf(forns.length) + ' fornecedores</span></div><div class="painel-card-body">' + fornRows + '</div></div>' +
+    '</div>' +
+    '<div class="painel-gestao">' +
+      '<div class="painel-gestao-head"><span class="painel-gestao-titulo">Contas</span><span class="painel-gestao-count" id="painelGestaoCount"></span></div>' +
+      '<div id="painelGestaoList"></div>' +
     '</div>';
+  renderPainelLista();   // preenche a lista de gestão (grupos por casa + ações)
 }
 
 function painelToggleForm(force) {
@@ -2527,8 +2491,8 @@ function renderDashPoly(d) {
     polyAtivasLive[parceiroSelecionado.nome] = d.count;
     const wrap = document.getElementById('acctSelWrap');
     if (wrap && wrap.classList.contains('open')) renderAcctTree();
-    const vc = document.getElementById('view-contas');
-    if (vc && vc.style.display !== 'none') renderContas();
+    const es = document.getElementById('empty-state');
+    if (es && es.style.display !== 'none') renderPainelLista();
   }
   setTxt('pm-k-portfolio', fmtUSD(d.portfolio)); setTxt('pm-k-portfolio-sub', fmtBRLsub(d.portfolio, cot));
   setTxt('pm-k-cash', fmtUSD(d.cash)); setTxt('pm-k-cash-sub', fmtBRLsub(d.cash, cot));
@@ -4200,7 +4164,6 @@ setupColResize(document.querySelector('table.pm-ativas'), 'fdc-pm-ativas-cols');
 setupBtblResize();
 carregarUsuario();
 carregarCasas();
-initContas();
 </script>
 </body>
 </html>
