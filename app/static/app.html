@@ -73,10 +73,24 @@ body::before {
 }
 .sb-csv svg { width: 13px; height: 13px; flex-shrink: 0; }
 .sb-csv:hover { border-color: rgba(var(--accent-rgb),.4); color: var(--ink); }
-/* Área de conteúdo: os 2 iframes empilhados, só o ativo visível. */
+/* Área de conteúdo: os 2 iframes empilhados. Crossfade curto ao trocar (reforça
+   "é um app só"); ambos ficam sempre montados (estado vivo), só muda opacidade/camada. */
 .host-main { flex: 1; position: relative; min-width: 0; }
-.app-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; background: var(--bg); }
-.app-frame.active { display: block; }
+.app-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg);
+  opacity: 0; z-index: 0; pointer-events: none; transition: opacity .18s ease; }
+.app-frame.active { opacity: 1; z-index: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .app-frame { transition: none; } }
+/* Atualizar dados (host): restaura o refresh do Dashboard que ficou escondido na
+   Fatia 2. Espelha o .update-btn do Dashboard (dash/layout.css). */
+.host-refresh {
+  width: 100%; margin-top: 8px; padding: 7px 9px;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+  background: transparent; color: var(--ink-soft);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; transition: border-color .12s, color .12s;
+}
+.host-refresh:hover { border-color: var(--accent-2); color: var(--accent-2); }
 </style>
 </head>
 <body>
@@ -108,6 +122,7 @@ body::before {
     <div class="sidebar-bottom">
       <div class="last-update"><span class="pulse-dot"></span>Dados sincronizados</div>
       <a href="/exportar.csv" class="sb-csv" title="Baixar toda a base como CSV (backup)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base (CSV)</a>
+      <button class="host-refresh" id="hostRefresh" title="Recarregar os dados do Dashboard">↻ Atualizar dados</button>
     </div>
   </aside>
 
@@ -171,6 +186,13 @@ body::before {
   // Deep-link a frio: reaplica o alvo quando o iframe termina de montar.
   frPlan.addEventListener('load', function(){ if (current.app === 'plan') setTimeout(function(){ callPlan(current.target); }, 0); });
   frDash.addEventListener('load', function(){ if (current.app === 'dash') setTimeout(function(){ callDash(current.target); }, 0); });
+
+  // Atualizar dados: recarrega a base do Dashboard (o iframe fica vivo → sem esse
+  // botão os dados envelheceriam numa sessão longa). Só age se o Dashboard já abriu.
+  var refreshBtn = document.getElementById('hostRefresh');
+  if (refreshBtn) refreshBtn.addEventListener('click', function(){
+    try { if (dashLoaded && frDash.contentWindow.loadData) { frDash.contentWindow.loadData(true); } } catch(e){}
+  });
 
   window.addEventListener('hashchange', route);
   route();
