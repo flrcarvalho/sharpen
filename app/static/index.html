@@ -342,6 +342,39 @@ body::before {
 .painel-gestao-titulo { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 .painel-gestao-count { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
 
+/* ── Layout unificado: topo (resumo | lista) + informativo abaixo ── */
+.painel-top { display: grid; grid-template-columns: 1.25fr 1fr; gap: 16px; align-items: start; }
+.painel-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.painel-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .painel-top, .painel-info { grid-template-columns: 1fr; } }
+
+/* Resumo consolidado (Ativas + Inativas + medidor + rodapé) */
+.painel-resumo-nums { display: flex; margin-bottom: 16px; }
+.painel-resumo-num { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.painel-resumo-num + .painel-resumo-num { border-left: 1px solid var(--line); padding-left: 18px; }
+.painel-resumo-num .l { display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-resumo-num .n { font-family: var(--font-mono); font-size: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.painel-resumo-foot { display: flex; gap: 26px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.painel-foot-stat { display: flex; flex-direction: column; gap: 4px; }
+.painel-foot-stat .n { font-family: var(--font-mono); font-size: 16px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.painel-foot-stat .l { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+
+/* Painel de lista (direita) — card único; as .contas-casa viram seções planas */
+.painel-lista-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.painel-lista-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.painel-lista-toolbar .contas-search { padding: 7px 11px; }
+.painel-lista-panel .contas-casa { background: transparent; border: 0; border-radius: 0; margin: 0; border-bottom: 1px solid var(--line); }
+.painel-lista-panel .contas-casa:last-child { border-bottom: 0; }
+
+/* Tabelas do informativo (custos, atividade) */
+.painel-tbl-wrap { overflow-x: auto; }
+.painel-tbl { width: 100%; border-collapse: collapse; }
+.painel-tbl th { font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.painel-tbl td { font-size: 12px; color: var(--ink); padding: 8px 10px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.painel-tbl tr:last-child td { border-bottom: 0; }
+.painel-tbl th.r, .painel-tbl td.r { text-align: right; }
+.painel-tbl td.mono, .painel-tbl th.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
 /* ── Partner page ── */
 .partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
@@ -2289,19 +2322,26 @@ function renderPainelContas() {
   porCasa.sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
   const pctAtivas = totContas ? Math.round(totAtivas / totContas * 100) : 0;
 
+  // Custo por fornecedor (localStorage dash_custos_v2, por fornecedor||casa) das
+  // contas ATIVAS — mesma fonte do card de custo por conta (não é métrica de aposta).
+  const custoForn = {};   // forn -> { contas, total }
+  casas.forEach(casa => {
+    (parceirosCache[casa] || []).forEach(p => {
+      const f = _painelParseForn(p.nome);
+      if (!f) return;
+      const a = custoForn[f] = custoForn[f] || { contas: 0, total: 0 };
+      a.contas++; a.total += _lerCusto(f, casa);
+    });
+  });
+  const custoRows = Object.entries(custoForn).sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]));
+
   const casaOpts = casas.map(c => '<option value="' + esc(c) + '">' + esc(NOMES[c] || c) + '</option>').join('');
   const tabAtiva = contasTab === 'ativas';
   const hero =
     '<div class="painel-hero">' +
       '<div><div class="painel-hero-eyebrow">Operação · gestão de contas</div>' +
       '<div class="painel-hero-titulo">Painel de contas</div></div>' +
-      '<div class="painel-toolbar">' +
-        '<div class="contas-search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
-        '<input id="painel-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
-        '<div class="contas-tabs">' +
-          '<button class="' + (tabAtiva ? 'on' : '') + '" type="button" onclick="painelSetTab(&quot;ativas&quot;,this)">Ativas</button>' +
-          '<button class="' + (tabAtiva ? '' : 'on') + '" type="button" onclick="painelSetTab(&quot;arquivadas&quot;,this)">Arquivadas</button>' +
-        '</div>' +
+      '<div class="painel-actions">' +
         '<button class="btn btn-primary btn-sm" type="button" onclick="painelToggleForm()">+ Nova conta</button>' +
       '</div>' +
     '</div>' +
@@ -2317,36 +2357,7 @@ function renderPainelContas() {
     return;
   }
 
-  const kpis = [
-    ['Contas ativas', nf(totAtivas), nf(totContas) + ' no total'],
-    ['Contas inativas', nf(totInativas), pctAtivas + '% ativas'],
-    ['Casas', nf(casasComConta), 'com pelo menos 1 conta'],
-    ['Fornecedores', nf(forns.length), semForn ? nf(semForn) + ' sem fornecedor' : 'todas identificadas'],
-  ].map(k =>
-    '<div class="painel-kpi"><div class="painel-kpi-lbl">' + k[0] + '</div>' +
-    '<div class="painel-kpi-val">' + k[1] + '</div>' +
-    '<div class="painel-kpi-sub">' + k[2] + '</div></div>'
-  ).join('');
-
-  const maxCasa = Math.max(1, ...porCasa.map(c => c.total));
-  const casaRows = porCasa.map(c =>
-    '<div class="painel-bar-row">' +
-      '<span class="painel-bar-chip"><img src="' + faviconUrl(c.casa) + '" alt="" loading="lazy"></span>' +
-      '<span class="painel-bar-main"><span class="painel-bar-nome">' + esc(c.nome) + '</span>' +
-      '<span class="painel-bar-track"><span class="painel-bar-fill" style="width:' + (c.total / maxCasa * 100).toFixed(1) + '%"></span></span></span>' +
-      '<span class="painel-bar-val">' + nf(c.total) + '</span>' +
-    '</div>'
-  ).join('');
-
-  const maxForn = Math.max(1, ...forns.map(f => f[1]));
-  const fornRows = forns.length ? forns.map(f =>
-    '<div class="painel-bar-row nochip">' +
-      '<span class="painel-bar-main"><span class="painel-bar-nome">' + esc(f[0]) + '</span>' +
-      '<span class="painel-bar-track"><span class="painel-bar-fill alt" style="width:' + (f[1] / maxForn * 100).toFixed(1) + '%"></span></span></span>' +
-      '<span class="painel-bar-val">' + nf(f[1]) + '</span>' +
-    '</div>'
-  ).join('') : '<div class="painel-empty">Nenhum fornecedor identificado (formato “Conta [Fornecedor]”).</div>';
-
+  // ── Card resumo consolidado (Ativas + Inativas + medidor + rodapé) ──
   const pctA = totContas ? (totAtivas / totContas * 100) : 0;
   const meter =
     '<div class="painel-meter">' +
@@ -2357,19 +2368,131 @@ function renderPainelContas() {
       '<span class="painel-legend-item"><span class="painel-legend-dot ativas"></span>Ativas <span class="painel-legend-val">' + nf(totAtivas) + '</span></span>' +
       '<span class="painel-legend-item"><span class="painel-legend-dot inativas"></span>Inativas <span class="painel-legend-val">' + nf(totInativas) + '</span></span>' +
     '</div>';
+  const resumo =
+    '<div class="painel-card">' +
+      '<div class="painel-card-head"><span class="painel-card-titulo">Contas</span><span class="painel-card-count">' + pctAtivas + '% ativas</span></div>' +
+      '<div class="painel-card-body">' +
+        '<div class="painel-resumo-nums">' +
+          '<div class="painel-resumo-num"><span class="l">Ativas</span><span class="n">' + nf(totAtivas) + '</span></div>' +
+          '<div class="painel-resumo-num"><span class="l">Inativas</span><span class="n">' + nf(totInativas) + '</span></div>' +
+        '</div>' + meter +
+        '<div class="painel-resumo-foot">' +
+          '<div class="painel-foot-stat"><span class="n">' + nf(totContas) + '</span><span class="l">Total de contas</span></div>' +
+          '<div class="painel-foot-stat"><span class="n">' + nf(casasComConta) + '</span><span class="l">Casas</span></div>' +
+          '<div class="painel-foot-stat"><span class="n">' + nf(forns.length) + '</span><span class="l">Fornecedores</span></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
 
-  host.innerHTML = hero +
-    '<div class="painel-kpis">' + kpis + '</div>' +
-    '<div class="painel-cards">' +
-      '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Contas por casa</span><span class="painel-card-count">' + nf(casasComConta) + ' casas</span></div><div class="painel-card-body">' + casaRows + '</div></div>' +
-      '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Ativas × Inativas</span><span class="painel-card-count">' + pctAtivas + '% ativas</span></div><div class="painel-card-body">' + meter + '</div></div>' +
-      '<div class="painel-card full"><div class="painel-card-head"><span class="painel-card-titulo">Contas por fornecedor</span><span class="painel-card-count">' + nf(forns.length) + ' fornecedores</span></div><div class="painel-card-body">' + fornRows + '</div></div>' +
-    '</div>' +
-    '<div class="painel-gestao">' +
-      '<div class="painel-gestao-head"><span class="painel-gestao-titulo">Contas</span><span class="painel-gestao-count" id="painelGestaoCount"></span></div>' +
+  // ── Painel de lista (direita, < metade da largura): abas + busca + lista ──
+  const listaPanel =
+    '<div class="painel-lista-panel">' +
+      '<div class="painel-lista-toolbar">' +
+        '<div class="contas-search" style="margin-left:0;min-width:150px;flex:1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
+        '<input id="painel-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
+        '<div class="contas-tabs">' +
+          '<button class="' + (tabAtiva ? 'on' : '') + '" type="button" onclick="painelSetTab(&quot;ativas&quot;,this)">Ativas</button>' +
+          '<button class="' + (tabAtiva ? '' : 'on') + '" type="button" onclick="painelSetTab(&quot;arquivadas&quot;,this)">Arquivadas</button>' +
+        '</div>' +
+        '<span class="painel-gestao-count" id="painelGestaoCount" style="margin-left:auto"></span>' +
+      '</div>' +
       '<div id="painelGestaoList"></div>' +
     '</div>';
-  renderPainelLista();   // preenche a lista de gestão (grupos por casa + ações)
+
+  // ── Informativo: contas por casa + custos por fornecedor + atividade ──
+  const maxCasa = Math.max(1, ...porCasa.map(c => c.total));
+  const casaRows = porCasa.map(c =>
+    '<div class="painel-bar-row">' +
+      '<span class="painel-bar-chip"><img src="' + faviconUrl(c.casa) + '" alt="" loading="lazy"></span>' +
+      '<span class="painel-bar-main"><span class="painel-bar-nome">' + esc(c.nome) + '</span>' +
+      '<span class="painel-bar-track"><span class="painel-bar-fill" style="width:' + (c.total / maxCasa * 100).toFixed(1) + '%"></span></span></span>' +
+      '<span class="painel-bar-val">' + nf(c.total) + '</span>' +
+    '</div>'
+  ).join('');
+
+  const dash = '<span style="color:var(--ink-mute)">—</span>';
+  const custoTbl = custoRows.length ? (
+    '<div class="painel-tbl-wrap"><table class="painel-tbl"><thead><tr>' +
+      '<th>Fornecedor</th><th class="r mono">Contas</th><th class="r mono">Custo/conta</th><th class="r mono">Total</th>' +
+    '</tr></thead><tbody>' +
+    custoRows.map(([f, a]) =>
+      '<tr><td>' + esc(f) + '</td>' +
+        '<td class="r mono">' + nf(a.contas) + '</td>' +
+        '<td class="r mono">' + (a.total > 0 ? _moneyInt(a.total / a.contas) : dash) + '</td>' +
+        '<td class="r mono">' + (a.total > 0 ? _moneyInt(a.total) : dash) + '</td></tr>'
+    ).join('') +
+    '</tbody></table></div>'
+  ) : '<div class="painel-empty">Nenhum fornecedor identificado (formato “Conta [Fornecedor]”).</div>';
+
+  const casaCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Contas por casa</span><span class="painel-card-count">' + nf(casasComConta) + ' casas</span></div><div class="painel-card-body">' + casaRows + '</div></div>';
+  const custoCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Custos por fornecedor</span><span class="painel-card-count">' + nf(custoRows.length) + ' fornecedores</span></div><div class="painel-card-body">' + custoTbl + '</div></div>';
+  const atividadeCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Atividade das contas</span><span class="painel-card-count" id="painelAtividadeCount"></span></div><div class="painel-card-body" id="painelAtividade"><div class="painel-empty">Carregando atividade…</div></div></div>';
+
+  // Topo: coluna esquerda (resumo + contas por casa) | painel de lista (direita).
+  // Abaixo (informativo de contas, sem métricas de aposta): custos + atividade.
+  host.innerHTML = hero +
+    '<div class="painel-top">' +
+      '<div class="painel-col">' + resumo + casaCard + '</div>' +
+      listaPanel +
+    '</div>' +
+    custoCard + atividadeCard;
+  renderPainelLista();       // preenche a lista de gestão (grupos por casa + ações)
+  renderPainelAtividade();   // preenche a tabela de atividade (duração/dias/apostas)
+}
+
+// Base de apostas resolvidas, buscada UMA vez e cacheada na sessão (feed do
+// Dashboard). Só usada para stats de atividade por conta (duração/dias/nº) — NÃO
+// traz P/L, ROI, turnover nem win rate (aqui é informativo de contas, não financeiro).
+let painelDashRows = null, _painelDashPromise = null;
+function ensureDashRows() {
+  if (painelDashRows) return Promise.resolve(painelDashRows);
+  if (_painelDashPromise) return _painelDashPromise;
+  _painelDashPromise = fetch('/dashboard/data')
+    .then(r => r.ok ? r.json() : { data: [] })
+    .then(j => { painelDashRows = (j && j.data) || []; return painelDashRows; })
+    .catch(() => { painelDashRows = []; return painelDashRows; });
+  return _painelDashPromise;
+}
+
+function _diasEntre(minISO, maxISO) {
+  const a = new Date(minISO), b = new Date(maxISO);
+  const d = Math.round((b - a) / 86400000) + 1;
+  return isFinite(d) && d > 0 ? d : 0;
+}
+
+async function renderPainelAtividade() {
+  const rows = await ensureDashRows();
+  const host = document.getElementById('painelAtividade');
+  if (!host) return;   // painel pode ter re-renderizado durante o fetch
+  const map = {};   // casa||parceiro -> agregado por conta
+  rows.forEach(r => {
+    if (!r || !r.casa || !r.data) return;
+    const key = r.casa + '||' + r.parceiro;
+    let a = map[key];
+    if (!a) a = map[key] = { casa: r.casa, parceiro: r.parceiro, conta: r.conta || r.parceiro, forn: r.fornecedor || '', n: 0, min: r.data, max: r.data, dias: new Set() };
+    a.n++; a.dias.add(r.data);
+    if (r.data < a.min) a.min = r.data;
+    if (r.data > a.max) a.max = r.data;
+  });
+  const ativos = new Set();
+  (casasCarregadas || []).forEach(c => (parceirosCache[c] || []).forEach(p => ativos.add(c + '||' + p.nome)));
+  const arr = Object.values(map).filter(a => ativos.has(a.casa + '||' + a.parceiro))
+    .sort((x, y) => y.n - x.n || y.dias.size - x.dias.size);
+  const cnt = document.getElementById('painelAtividadeCount');
+  if (cnt) cnt.textContent = arr.length + (arr.length === 1 ? ' conta com histórico' : ' contas com histórico');
+  if (!arr.length) { host.innerHTML = '<div class="painel-empty">Sem histórico de apostas resolvidas nas contas ativas.</div>'; return; }
+  const nf = n => (n || 0).toLocaleString('pt-BR');
+  host.innerHTML = '<div class="painel-tbl-wrap"><table class="painel-tbl"><thead><tr>' +
+    '<th>Conta</th><th>Casa</th><th class="r mono">Duração</th><th class="r mono">Dias ativos</th><th class="r mono">Apostas</th>' +
+    '</tr></thead><tbody>' +
+    arr.map(a =>
+      '<tr><td>' + esc(a.conta) + (a.forn ? ' <span style="color:var(--ink-mute)">[' + esc(a.forn) + ']</span>' : '') + '</td>' +
+      '<td>' + esc(NOMES[a.casa] || a.casa) + '</td>' +
+      '<td class="r mono">' + nf(_diasEntre(a.min, a.max)) + 'd</td>' +
+      '<td class="r mono">' + nf(a.dias.size) + '</td>' +
+      '<td class="r mono">' + nf(a.n) + '</td></tr>'
+    ).join('') +
+    '</tbody></table></div>';
 }
 
 function painelToggleForm(force) {
