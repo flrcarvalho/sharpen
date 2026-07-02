@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,9 +12,11 @@
 })();
 </script>
 <title>Sharpen — Planilhador</title>
+<meta name="theme-color" content="#0A0D12">
 <link rel="icon" type="image/svg+xml" href="/static/brand-sharpen/blade/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/tokens.css">
 <link rel="stylesheet" href="/static/shell.css"><!-- casca compartilhada c/ o Dashboard (etapa A) -->
@@ -70,8 +72,8 @@ body::before {
 .brand .wm { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
 .brand .w { font-weight: 800; font-size: 18px; letter-spacing: -.04em; color: var(--ink); }
 .brand .w .e { color: var(--accent-2); }
-.brand .d { font-family: var(--font-mono); font-size: 7.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-mute); }
-.brand .d b { color: var(--ink-soft); font-weight: 600; }
+/* Nota de endosso no rodapé da sidebar (Manual v1.1): discreta, mono/mute. */
+.sb-endorse { text-align: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-mute); padding-top: 2px; }
 /* Embedded no host /app: a sidebar vem do host → some a interna (o .content preenche). */
 html.embedded .sidebar { display: none; }
 /* Miolo rolável: tudo entre o operador e o export. min-height:0 é o que
@@ -1242,7 +1244,7 @@ td.c-res.res-HL { color: var(--warn); }
       <path d="M60 16 L60 90 L42 104 Z" fill="url(#sharpenBlade)"/>
       <path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/>
     </svg>
-    <div class="wm"><div class="w">Sharp<span class="e">en.</span></div><div class="d">by <b>FDC Capital</b></div></div>
+    <div class="wm"><div class="w">Sharp<span class="e">en.</span></div></div>
   </div>
   <!-- 4.2.c — casca unificada: navegação do shell (espelha a 4.1 do Dashboard).
        Operação→Planilhador é a página atual (ativo); os demais grupos abrem o Dashboard. -->
@@ -1267,6 +1269,7 @@ td.c-res.res-HL { color: var(--warn); }
   <div class="sidebar-bottom">
     <div class="last-update"><span class="pulse-dot"></span>Dados sincronizados</div>
     <a href="/exportar.csv" class="sb-csv" title="Baixar toda a base como CSV (backup)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base (CSV)</a>
+    <div class="sb-endorse">by FDC Capital</div>
   </div>
 </aside>
 
@@ -4081,7 +4084,7 @@ document.getElementById('btn-baixar-tsv').addEventListener('click', async () => 
   const a = document.createElement('a');
   a.href = url;
   const nome = parceiroSelecionado ? `_${parceiroSelecionado.nome.replace(/\s+/g,'_')}` : '';
-  a.download = `fdc${nome}_${new Date().toISOString().slice(0, 10)}.tsv`;
+  a.download = `sharpen${nome}_${new Date().toISOString().slice(0, 10)}.tsv`;
   a.click(); URL.revokeObjectURL(url);
 });
 
