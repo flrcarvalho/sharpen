@@ -276,18 +276,65 @@ body::before {
 #view-extracao { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
 /* ── Empty state (caixa de marca, igual ao modelo) ── */
-.empty-state {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px; text-align: center; margin-bottom: 18px;
-  color: var(--ink-mute); font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
-  border: 1px dashed var(--line); border-radius: var(--r-lg);
-  background: linear-gradient(180deg, var(--surface), transparent 70%);
-}
-.empty-state-icon {
-  width: 64px; height: 64px; border: 1px solid var(--line); border-radius: 18px;
-  display: grid; place-items: center; color: var(--accent-2); background: var(--surface);
-  font-size: 28px; opacity: 1;
-}
+/* Estado sem conta ativa = Painel de Contas (landing operacional). Rola por dentro. */
+.empty-state { flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 18px; padding-right: 4px; }
+
+/* ── Painel de Contas ─────────────────────────────────────────────────────────
+   Dashboard operacional (contagens, não financeiro). Cor só de token; números
+   mono + tabular-nums, sem abreviação (UI_REFERENCE §5). Azul = único acento. */
+.painel { display: flex; flex-direction: column; gap: 18px; }
+.painel-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.painel-hero-eyebrow { font-family: var(--font-mono); font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-hero-titulo { font-size: 18px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); margin-top: 4px; }
+
+/* KPI cards — tarja azul antes do label (SHELL_SPEC §3) */
+.painel-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.painel-kpi { display: flex; flex-direction: column; gap: 9px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 15px 18px; }
+.painel-kpi-lbl { display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-kpi-lbl::before { content: ""; width: 4px; height: 13px; background: var(--accent); border-radius: 2px; margin-right: 8px; flex: none; }
+.painel-kpi-val { font-family: var(--font-mono); font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.painel-kpi-sub { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-mute); }
+
+/* Cards de breakdown */
+.painel-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; align-items: start; }
+.painel-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.painel-card.full { grid-column: 1 / -1; }
+.painel-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
+.painel-card-titulo { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.painel-card-count { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-card-body { padding: 15px 18px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Barra de contagem horizontal */
+.painel-bar-row { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 11px; }
+.painel-bar-row.nochip { grid-template-columns: 1fr auto; }
+.painel-bar-chip { width: 22px; height: 22px; border-radius: 7px; background: var(--fdc-steel); display: grid; place-items: center; overflow: hidden; }
+.painel-bar-chip img { width: 15px; height: 15px; object-fit: contain; filter: grayscale(1) opacity(.85); }
+.painel-bar-main { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.painel-bar-nome { font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.painel-bar-track { height: 6px; border-radius: var(--r-pill); background: rgba(var(--accent-rgb),.10); overflow: hidden; }
+.painel-bar-fill { height: 100%; border-radius: var(--r-pill); background: var(--accent); transition: width .35s var(--ease); }
+.painel-bar-fill.alt { background: var(--accent-2); }
+.painel-bar-val { font-family: var(--font-mono); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; min-width: 30px; }
+
+/* Medidor Ativas × Inativas (segmentado). Azul = ativas; neutro = inativas
+   (verde/vermelho reservados p/ semântica de resultado, UI_REFERENCE §1). */
+.painel-meter { display: flex; height: 14px; border-radius: var(--r-pill); overflow: hidden; background: var(--surface-2); }
+.painel-meter-seg { height: 100%; }
+.painel-meter-seg.ativas { background: var(--accent); }
+.painel-meter-seg.inativas { background: var(--ink-mute); }
+.painel-legend { display: flex; gap: 22px; margin-top: 14px; flex-wrap: wrap; }
+.painel-legend-item { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
+.painel-legend-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.painel-legend-dot.ativas { background: var(--accent); }
+.painel-legend-dot.inativas { background: var(--ink-mute); }
+.painel-legend-val { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Criador de conta + ações */
+.painel-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.painel-newform { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
+.painel-newform.open { display: flex; }
+.painel-hint { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-mute); }
+.painel-empty { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); padding: 6px 0; }
 
 /* ── Partner page ── */
 .partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -1248,10 +1295,10 @@ td.c-res.res-HL { color: var(--warn); }
        Dashboard (localStorage dash_custos_v2, por fornecedor||casa). -->
   <div class="ctx-kpis" id="ctxKpis" style="display:none"></div>
 
-  <!-- Empty state -->
+  <!-- Estado sem conta ativa = Painel de Contas (dashboard operacional + criador).
+       Renderizado por renderPainelContas() a partir de parceirosCache/…Arquivados. -->
   <div class="empty-state" id="empty-state">
-    <div class="empty-state-icon">↑</div>
-    <div>Selecione uma conta em "Conta ativa" acima</div>
+    <div class="painel" id="painelContas"></div>
   </div>
 
   <!-- Partner page -->
@@ -1667,6 +1714,7 @@ async function carregarCasas() {
     casasCarregadas = casas;
     renderCasaList();
     atualizarPendentes();
+    renderPainelContas();   // popula o Painel de Contas (landing sem conta ativa)
   } catch {
     // 4.2.c — a árvore saiu da sidebar; o elemento pode não existir mais.
     const cl = document.getElementById('casa-list');
@@ -1965,6 +2013,7 @@ function mostrarView(v) {
     if (title) title.textContent = 'Planilhador';
     if (eyebrow) eyebrow.textContent = 'Operação · extração de bilhetes';
     navC && navC.classList.remove('active'); navP && navP.classList.add('active');
+    if (!parceiroSelecionado) renderPainelContas();   // volta ao Painel de Contas se nada ativo
   }
 }
 
@@ -2253,11 +2302,143 @@ async function criarContaNova() {
   if (novoNome) novoNome.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criarContaNova(); } });
 })();
 
+// ── Painel de Contas (landing quando não há conta ativa) ──────────────────────
+// Dashboard operacional (contagens, NÃO financeiro) montado a partir dos caches já
+// carregados: parceirosCache (ativas) / parceirosArquivadosCache (inativas), por casa.
+// Números mono + tabular-nums, sem abreviação; azul = único acento (UI_REFERENCE §1/§5).
+function _painelParseForn(nome) {
+  // Fornecedor vem embutido no nome no formato "Conta [Fornecedor]" (repository.py).
+  const m = /^(.+?)\s*\[(.+?)\]$/.exec(nome || '');
+  return m ? m[2].trim() : '';
+}
+
+function renderPainelContas() {
+  const host = document.getElementById('painelContas');
+  if (!host) return;
+  const casas = casasCarregadas || [];
+  const nf = n => (n || 0).toLocaleString('pt-BR');
+
+  let totAtivas = 0, totInativas = 0, semForn = 0;
+  const porCasa = [];
+  const fornMap = {};
+  casas.forEach(casa => {
+    const ativas = parceirosCache[casa] || [];
+    const inativas = parceirosArquivadosCache[casa] || [];
+    totAtivas += ativas.length;
+    totInativas += inativas.length;
+    if (ativas.length || inativas.length)
+      porCasa.push({ casa, nome: NOMES[casa] || casa, total: ativas.length + inativas.length });
+    ativas.forEach(p => { const f = _painelParseForn(p.nome); if (f) fornMap[f] = (fornMap[f] || 0) + 1; else semForn++; });
+  });
+  const totContas = totAtivas + totInativas;
+  const casasComConta = porCasa.length;
+  const forns = Object.entries(fornMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  porCasa.sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
+  const pctAtivas = totContas ? Math.round(totAtivas / totContas * 100) : 0;
+
+  const casaOpts = casas.map(c => '<option value="' + esc(c) + '">' + esc(NOMES[c] || c) + '</option>').join('');
+  const hero =
+    '<div class="painel-hero">' +
+      '<div><div class="painel-hero-eyebrow">Visão geral · contas</div>' +
+      '<div class="painel-hero-titulo">Painel de contas</div></div>' +
+      '<div class="painel-actions">' +
+        '<button class="btn btn-primary btn-sm" type="button" onclick="painelToggleForm()">+ Nova conta</button>' +
+        '<span class="painel-hint">ou escolha uma conta em “Conta ativa” no topo para extrair</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="painel-newform" id="painel-newform">' +
+      '<select id="painel-new-casa" class="acct-new-casa" title="Casa">' + casaOpts + '</select>' +
+      '<input id="painel-new-nome" class="acct-new-nome" type="text" placeholder="Nome do parceiro (ex.: João [Fornecedor])" autocomplete="off" spellcheck="false" onkeydown="if(event.key===&quot;Enter&quot;)painelCriarConta()">' +
+      '<button class="btn btn-primary btn-sm" type="button" onclick="painelCriarConta()">Criar</button>' +
+      '<button class="btn btn-ghost btn-sm" type="button" onclick="painelToggleForm(false)">Cancelar</button>' +
+    '</div>';
+
+  if (!totContas) {
+    host.innerHTML = hero + '<div class="painel-empty">Nenhuma conta cadastrada ainda. Clique em “+ Nova conta” para começar.</div>';
+    return;
+  }
+
+  const kpis = [
+    ['Contas ativas', nf(totAtivas), nf(totContas) + ' no total'],
+    ['Contas inativas', nf(totInativas), pctAtivas + '% ativas'],
+    ['Casas', nf(casasComConta), 'com pelo menos 1 conta'],
+    ['Fornecedores', nf(forns.length), semForn ? nf(semForn) + ' sem fornecedor' : 'todas identificadas'],
+  ].map(k =>
+    '<div class="painel-kpi"><div class="painel-kpi-lbl">' + k[0] + '</div>' +
+    '<div class="painel-kpi-val">' + k[1] + '</div>' +
+    '<div class="painel-kpi-sub">' + k[2] + '</div></div>'
+  ).join('');
+
+  const maxCasa = Math.max(1, ...porCasa.map(c => c.total));
+  const casaRows = porCasa.map(c =>
+    '<div class="painel-bar-row">' +
+      '<span class="painel-bar-chip"><img src="' + faviconUrl(c.casa) + '" alt="" loading="lazy"></span>' +
+      '<span class="painel-bar-main"><span class="painel-bar-nome">' + esc(c.nome) + '</span>' +
+      '<span class="painel-bar-track"><span class="painel-bar-fill" style="width:' + (c.total / maxCasa * 100).toFixed(1) + '%"></span></span></span>' +
+      '<span class="painel-bar-val">' + nf(c.total) + '</span>' +
+    '</div>'
+  ).join('');
+
+  const maxForn = Math.max(1, ...forns.map(f => f[1]));
+  const fornRows = forns.length ? forns.map(f =>
+    '<div class="painel-bar-row nochip">' +
+      '<span class="painel-bar-main"><span class="painel-bar-nome">' + esc(f[0]) + '</span>' +
+      '<span class="painel-bar-track"><span class="painel-bar-fill alt" style="width:' + (f[1] / maxForn * 100).toFixed(1) + '%"></span></span></span>' +
+      '<span class="painel-bar-val">' + nf(f[1]) + '</span>' +
+    '</div>'
+  ).join('') : '<div class="painel-empty">Nenhum fornecedor identificado (formato “Conta [Fornecedor]”).</div>';
+
+  const pctA = totContas ? (totAtivas / totContas * 100) : 0;
+  const meter =
+    '<div class="painel-meter">' +
+      (totAtivas ? '<span class="painel-meter-seg ativas" style="width:' + pctA.toFixed(1) + '%"></span>' : '') +
+      (totInativas ? '<span class="painel-meter-seg inativas" style="width:' + (100 - pctA).toFixed(1) + '%"></span>' : '') +
+    '</div>' +
+    '<div class="painel-legend">' +
+      '<span class="painel-legend-item"><span class="painel-legend-dot ativas"></span>Ativas <span class="painel-legend-val">' + nf(totAtivas) + '</span></span>' +
+      '<span class="painel-legend-item"><span class="painel-legend-dot inativas"></span>Inativas <span class="painel-legend-val">' + nf(totInativas) + '</span></span>' +
+    '</div>';
+
+  host.innerHTML = hero +
+    '<div class="painel-kpis">' + kpis + '</div>' +
+    '<div class="painel-cards">' +
+      '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Contas por casa</span><span class="painel-card-count">' + nf(casasComConta) + ' casas</span></div><div class="painel-card-body">' + casaRows + '</div></div>' +
+      '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Ativas × Inativas</span><span class="painel-card-count">' + pctAtivas + '% ativas</span></div><div class="painel-card-body">' + meter + '</div></div>' +
+      '<div class="painel-card full"><div class="painel-card-head"><span class="painel-card-titulo">Contas por fornecedor</span><span class="painel-card-count">' + nf(forns.length) + ' fornecedores</span></div><div class="painel-card-body">' + fornRows + '</div></div>' +
+    '</div>';
+}
+
+function painelToggleForm(force) {
+  const f = document.getElementById('painel-newform');
+  if (!f) return;
+  const open = force === undefined ? !f.classList.contains('open') : !!force;
+  f.classList.toggle('open', open);
+  if (open) { const n = document.getElementById('painel-new-nome'); if (n) n.focus(); }
+}
+
+async function painelCriarConta() {
+  const casaEl = document.getElementById('painel-new-casa');
+  const nomeEl = document.getElementById('painel-new-nome');
+  const casa = casaEl ? casaEl.value : '';
+  const nome = (nomeEl ? nomeEl.value : '').trim();
+  if (!casa || !nome) return;
+  try {
+    const r = await fetch('/parceiros', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa, nome }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar.'); return; }
+    await carregarParceiros(casa);   // recarrega o cache da casa (ativas + arquivadas)
+    renderCasaList();                // mantém a árvore/badges da sidebar em sincronia
+    renderPainelContas();            // re-renderiza o painel com o novo total
+  } catch { alert('Erro de rede.'); }
+}
+
 function mostrarEmptyState() {
   document.getElementById('empty-state').style.display = '';
   document.getElementById('partner-page').style.display = 'none';
   const kpis = document.getElementById('ctxKpis');
   if (kpis) kpis.style.display = 'none';
+  renderPainelContas();
 }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
