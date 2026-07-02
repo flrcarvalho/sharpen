@@ -110,3 +110,7 @@ Raio (`--r-*`): xs 4 · sm 8 · md 12 · lg 18 · xl 26 · pill 999.
 - **A (shell compartilhado):** sidebar/pagehead/nav/cards saem do `index.html` inline e do
   `dash/layout.css` para **um CSS único** que os dois apps incluem → uma fonte só, drift impossível.
   *(a implementar, com revisão do Feca na branch)*
+- **Shell runtime (`/app`):** feito na sessão 86 (Fatia 2). Host `app/static/app.html` com a
+  sidebar única + os 2 apps em iframes; navegar não recarrega a casca. Não substitui a etapa A
+  (o CSS ainda é duplicado nos 2 apps), mas é a unificação em runtime. Plano em
+  `PLANO_CASCA_UNIFICADA.md`.

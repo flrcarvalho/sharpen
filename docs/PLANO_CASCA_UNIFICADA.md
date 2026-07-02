@@ -33,6 +33,10 @@ andamento no Planilhador some ao ir no Dashboard e voltar). Matar isso = Fatias 
 
 ## Fatia 2 — Shell hospedeiro (a sidebar deixa de recarregar)
 
+> STATUS: FEITA (sessão 86, commit `74c7569`). Rota `/app` + `app.html` com host e 2 iframes,
+> modo embedded escondendo as sidebars internas, porta única por redirect. No ar, aguarda
+> validação do Feca no deploy.
+
 **Meta:** um contêiner único dono da sidebar; só a área de conteúdo troca. Sem flash, sem
 "pulo", sidebar sempre viva.
 
@@ -88,6 +92,11 @@ com a sidebar única sempre viva. Já resolve ~100% da queixa do Feca.
 ---
 
 ## Fatia 3 — Polimento da casca única
+
+> STATUS: PARCIAL (sessão 86, commit `a664dde`). Feito o aditivo: crossfade ao trocar de app +
+> botão "Atualizar dados" no host. Adiado o destrutivo (itens 1 e 5 abaixo: topbar compartilhada,
+> poda de CSS morto, aposentar links cross-app) até o Feca validar a Fatia 2 no deploy, para não
+> remover o fallback standalone antes da hora.
 
 Depois que o host existe, refinos que só fazem sentido com ele no ar:
 1. **Topbar/pagehead compartilhada** no host (hoje cada app tem a sua) — opcional, se quisermos
