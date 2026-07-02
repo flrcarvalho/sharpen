@@ -268,7 +268,7 @@ async def _dedup_betano_text(text: str, dono: str) -> tuple[str, int]:
 # ── Instrução ─────────────────────────────────────────────────────────────────
 
 _INSTRUCAO = (
-    "Extraia os bilhetes das imagens para TSV no padrão FDC Capital.\n"
+    "Extraia os bilhetes das imagens para TSV no padrão Sharpen.\n"
     "Casa analisada: {casa}\n"
     "Parceiro: {parceiro}\n"
     "Data de referência da captura: {data_referencia}\n"
