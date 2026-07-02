@@ -134,7 +134,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Scanner de Bets — FDC Capital", lifespan=lifespan)
+app = FastAPI(title="Sharpen — Scanner de Bets", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 
