@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Casca única (Fatia 2): dentro do host (/app) esconde a sidebar interna;
+     aberto direto (fora de iframe) redireciona pra casca. Roda antes do render. -->
+<script>
+(function(){
+  if (window.self !== window.top) { document.documentElement.classList.add('embedded'); }
+  else { location.replace('/app'); }
+})();
+</script>
 <title>Scanner de Bets — FDC Capital</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
@@ -58,6 +66,8 @@ body::before {
   margin: 0 0 4px; padding: 6px 8px 16px; border-bottom: 1px solid var(--line-2);
 }
 .brand img { width: 100%; height: auto; display: block; margin: 0 auto; user-select: none; -webkit-user-drag: none; }
+/* Embedded no host /app: a sidebar vem do host → some a interna (o .content preenche). */
+html.embedded .sidebar { display: none; }
 /* Miolo rolável: tudo entre o operador e o export. min-height:0 é o que
    permite o flex-child rolar dentro do flex-column. */
 .sidebar-scroll {

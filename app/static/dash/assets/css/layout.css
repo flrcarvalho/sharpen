@@ -269,6 +269,11 @@ body::before {
 
 /* ── Main content ────────────────────────────────────────────────────────── */
 .main { margin-left: 264px; flex: 1; min-height: 100vh; }
+/* Embedded no host /app (Fatia 2): sidebar/topbar vêm do host → some as internas
+   e o conteúdo cola na borda (sem a reserva de 264px do sidebar fixo). */
+html.embedded .sidebar { display: none; }
+html.embedded .main { margin-left: 0; }
+html.embedded .topbar { left: 0; }
 .main-content {
   padding: var(--space-6) 1.75rem;
   margin-top: 68px;

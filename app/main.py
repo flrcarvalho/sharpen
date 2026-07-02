@@ -654,13 +654,24 @@ async def root(request: Request):
     return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
+@app.get("/app")
+async def app_shell(request: Request):
+    # Casca única (Fatia 2): sidebar persistente + Planilhador e Dashboard em iframes.
+    # Porta de entrada padrão; '/' e '/dashboard/' redirecionam pra cá quando abertos
+    # fora de um iframe (ver os scripts de "embedded" nos dois apps).
+    if not usuario_do_request(request):
+        return RedirectResponse("/login", status_code=303)
+    content = (Path(__file__).parent / "static" / "app.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
 # ── Autenticação ──────────────────────────────────────────────────────────────
 
 @app.get("/login")
 async def login_page(request: Request):
-    # Já logado → vai direto para o app.
+    # Já logado → vai direto para a casca única.
     if usuario_do_request(request):
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/app", status_code=303)
     content = (Path(__file__).parent / "static" / "login.html").read_text(encoding="utf-8")
     return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 

@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Se a sessão expirar dentro de um iframe do host (/app), o /login cairia embutido.
+     Promove a tela de login para o topo → login sempre em página cheia. -->
+<script>
+  if (window.self !== window.top) { window.top.location.href = '/login'; }
+</script>
 <title>Entrar — Scanner de Bets · FDC Capital</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
@@ -110,7 +115,7 @@ form.addEventListener('submit', async (e) => {
       }),
     });
     if (r.ok) {
-      window.location.href = '/';
+      window.location.href = '/app';
       return;
     }
     const data = await r.json().catch(() => ({}));
