@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +8,12 @@
 <script>
   if (window.self !== window.top) { window.top.location.href = '/login'; }
 </script>
-<title>Entrar — Sharpen · by FDC Capital</title>
+<title>Entrar — Sharpen</title>
+<meta name="theme-color" content="#0A0D12">
 <link rel="icon" type="image/svg+xml" href="/static/brand-sharpen/blade/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/tokens.css">
 <style>
@@ -41,8 +44,14 @@ body::before {
   padding: 32px 28px 28px;
   box-shadow: 0 20px 60px rgba(0,0,0,.35);
 }
-.logo { display: block; width: 200px; margin: 0 auto 22px; }
+.logo { display: block; width: 180px; margin: 0 auto 22px; }
 .logo img { width: 100%; height: auto; display: block; }
+.foot {
+  position: fixed; left: 0; right: 0; bottom: 16px; z-index: 1;
+  text-align: center;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+  color: var(--ink-mute);
+}
 h1 {
   font-size: 16px; font-weight: 700; letter-spacing: -0.02em;
   text-align: center; margin-bottom: 4px;
@@ -83,7 +92,7 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
 </head>
 <body>
   <div class="card">
-    <div class="logo"><img src="/static/brand-sharpen/blade/lockup-endorsed.svg" alt="Sharpen — by FDC Capital"></div>
+    <div class="logo"><img src="/static/brand-sharpen/blade/lockup-dark.svg" alt="Sharpen"></div>
     <h1>Scanner de Bets</h1>
     <div class="sub">Entre para acessar seu espaço</div>
     <form id="form">
@@ -95,6 +104,7 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
       <div class="erro" id="erro"></div>
     </form>
   </div>
+  <div class="foot">by FDC Capital</div>
 <script>
 const form = document.getElementById('form');
 const btn = document.getElementById('btn');
