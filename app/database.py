@@ -20,8 +20,6 @@ CREATE TABLE IF NOT EXISTS bilhetes (
     resultado        TEXT,
     extraction_state TEXT NOT NULL DEFAULT 'aberta'
                          CHECK (extraction_state IN ('aberta', 'resolvida')),
-    copy_state       TEXT NOT NULL DEFAULT 'pendente'
-                         CHECK (copy_state IN ('pendente', 'copiada')),
     confianca        REAL,
     criado_em        TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em    TIMESTAMPTZ DEFAULT NOW(),
@@ -33,6 +31,11 @@ CREATE TABLE IF NOT EXISTS bilhetes (
 -- Migrações seguras: adicionam colunas se ainda não existirem
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS codigo_bilhete TEXT;
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Aposentado o fluxo de copiar/marcar para a planilha (sessão 89): a coluna
+-- copy_state ('pendente'|'copiada') não é mais usada por nenhum código. DROP é
+-- metadados no Postgres (rápido, não reescreve a tabela) e idempotente (IF EXISTS).
+ALTER TABLE bilhetes DROP COLUMN IF EXISTS copy_state;
 
 -- Multiusuário: coluna dono. Registros pré-existentes pertencem ao dono do projeto ('Feca').
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS dono TEXT NOT NULL DEFAULT 'Feca';
