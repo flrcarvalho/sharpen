@@ -42,7 +42,7 @@ from repository import (
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
-    reativar_parceiro, renomear_parceiro, resumo_conta, upsert_bilhetes,
+    reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
 )
 
@@ -1191,16 +1191,29 @@ class DeletarRequest(BaseModel):
 async def deletar_bilhetes_route(body: DeletarRequest, dono: str = Depends(dono_efetivo)):
     if not body.ids:
         raise HTTPException(400, "Lista de IDs vazia.")
-    deletados = await deletar_bilhetes(body.ids, dono)
-    return {"deletados": deletados}
+    linhas = await deletar_bilhetes(body.ids, dono)
+    # `linhas` volta ao cliente para o undo por toast (Desfazer → POST /bilhetes/restaurar).
+    return {"deletados": len(linhas), "linhas": linhas}
 
 
 @app.delete("/bilhetes/{bilhete_id}")
 async def deletar_bilhete_route(bilhete_id: int, dono: str = Depends(dono_efetivo)):
-    deletados = await deletar_bilhetes([bilhete_id], dono)
-    if not deletados:
+    linhas = await deletar_bilhetes([bilhete_id], dono)
+    if not linhas:
         raise HTTPException(404, "Bilhete não encontrado.")
-    return {"deletado": True}
+    return {"deletado": True, "linhas": linhas}
+
+
+class RestaurarRequest(BaseModel):
+    linhas: list[dict]
+
+
+@app.post("/bilhetes/restaurar")
+async def restaurar_bilhetes_route(body: RestaurarRequest, dono: str = Depends(dono_efetivo)):
+    """Undo da exclusão: re-insere as linhas capturadas no DELETE. `dono` vem da
+    sessão (o cliente não injeta), igual ao delete."""
+    restaurados = await restaurar_bilhetes(body.linhas, dono)
+    return {"restaurados": restaurados}
 
 
 @app.get("/conta/resumo")

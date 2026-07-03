@@ -710,6 +710,33 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .exp-status { font-size: 11px; color: var(--ink-mute); }
 .exp-status.ok  { color: var(--pos); }
 .exp-status.err { color: var(--neg); }
+/* Toast de undo (exclusão): fixo no rodapé-centro, some sozinho; ação Desfazer. */
+.undo-toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(8px);
+  z-index: 9999; display: flex; align-items: center; gap: 14px;
+  padding: 11px 8px 11px 15px; max-width: min(92vw, 460px);
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm); opacity: 0; pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.undo-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.undo-toast .ut-msg { flex: 1; min-width: 0; }
+.undo-toast .ut-undo {
+  flex-shrink: 0; background: transparent; border: 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 700;
+  color: var(--accent-2); padding: 4px 6px; border-radius: var(--r-sm);
+  transition: color .12s;
+}
+.undo-toast .ut-undo:hover { color: var(--ink); text-decoration: underline; }
+.undo-toast .ut-x {
+  flex-shrink: 0; background: transparent; border: 0; cursor: pointer;
+  color: var(--ink-mute); font-size: 16px; line-height: 1; padding: 2px 6px;
+  transition: color .12s;
+}
+.undo-toast .ut-x:hover { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .undo-toast { transition: none; } }
 /* Menu Exportar (item 5): botão + popover com TSV/CSV */
 .export-menu { position: relative; }
 .export-pop {
@@ -4087,6 +4114,44 @@ function setExpStatus(msg, tipo) {
   if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3500);
 }
 
+// ── Toast de undo (exclusão) ──────────────────────────────────────────────────
+// Segura as linhas apagadas e oferece "Desfazer" (POST /bilhetes/restaurar) por
+// alguns segundos. Some sozinho — depois disso não recupera (undo rápido).
+let _undoTimer = null;
+function showUndoToast(msg, linhas) {
+  let el = document.getElementById('undo-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'undo-toast';
+    el.className = 'undo-toast';
+    document.body.appendChild(el);
+  }
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  el.innerHTML = `<span class="ut-msg">${esc(msg)}</span>`
+    + `<button type="button" class="ut-undo">Desfazer</button>`
+    + `<button type="button" class="ut-x" title="Dispensar" aria-label="Dispensar">×</button>`;
+  const fechar = () => { el.classList.remove('show'); if (_undoTimer) { clearTimeout(_undoTimer); _undoTimer = null; } };
+  el.querySelector('.ut-x').onclick = fechar;
+  el.querySelector('.ut-undo').onclick = async () => {
+    fechar();
+    try {
+      const r = await fetch('/bilhetes/restaurar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ linhas })
+      });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      await carregarGrade(); atualizarIncompletos();
+      setExpStatus(`↩ ${d.restaurados ?? linhas.length} aposta(s) restaurada(s)`, 'ok');
+    } catch {
+      setExpStatus('Erro ao desfazer a exclusão', 'err');
+    }
+  };
+  el.classList.add('show');
+  if (_undoTimer) clearTimeout(_undoTimer);
+  _undoTimer = setTimeout(fechar, 7000);
+}
+
 // Remove reticências de valores numéricos copiados para a planilha
 function _limparOdd(v) { return (v ?? '').replace(/\.{2,}$|…$/, ''); }
 
@@ -4170,9 +4235,11 @@ async function deletarBilhete(id) {
   try {
     const r = await fetch(`/bilhetes/${id}`, { method: 'DELETE' });
     if (!r.ok) throw new Error();
+    const d = await r.json().catch(() => ({}));
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => x !== id);
     await carregarGrade(); atualizarIncompletos();
-    setExpStatus('Bilhete deletado', '');
+    if (d.linhas && d.linhas.length) showUndoToast('Aposta excluída.', d.linhas);
+    else setExpStatus('Bilhete deletado', '');
   } catch {
     setExpStatus('Erro ao deletar', 'err');
   }
@@ -4214,16 +4281,18 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
   const ids = [...document.querySelectorAll('.row-chk:checked')].map(c => +c.dataset.id);
   if (!ids.length) return;
   const n = ids.length;
-  if (!confirm(`Excluir ${n} aposta${n === 1 ? '' : 's'} selecionada${n === 1 ? '' : 's'}? Esta ação não pode ser desfeita.`)) return;
+  if (!confirm(`Excluir ${n} aposta${n === 1 ? '' : 's'} selecionada${n === 1 ? '' : 's'}?`)) return;
   try {
     const r = await fetch('/bilhetes', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids })
     });
     if (!r.ok) throw new Error();
+    const d = await r.json().catch(() => ({}));
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => !ids.includes(x));
     await carregarGrade(); atualizarIncompletos();
-    setExpStatus(`${n} excluída${n === 1 ? '' : 's'}`, '');
+    if (d.linhas && d.linhas.length) showUndoToast(`${n} aposta${n === 1 ? '' : 's'} excluída${n === 1 ? '' : 's'}.`, d.linhas);
+    else setExpStatus(`${n} excluída${n === 1 ? '' : 's'}`, '');
   } catch {
     setExpStatus('Erro ao excluir', 'err');
   }

@@ -488,13 +488,58 @@ async def upsert_bilhetes(
     return inseridos, atualizados, ids, alertas, duplicatas
 
 
-async def deletar_bilhetes(ids: list[int], dono: str) -> int:
+# Colunas capturadas na exclusão e re-inseridas na restauração (undo). Preservam a
+# identidade exata do bilhete — sobretudo `assinatura`, para não re-rodar a dedup.
+_COLS_RESTAURAR = (
+    "casa", "parceiro", "assinatura", "codigo_bilhete", "data", "esporte", "tipster",
+    "aposta", "descricao", "stake", "odd", "resultado", "extraction_state",
+    "confianca", "stake_usd", "origem",
+)
+
+
+async def deletar_bilhetes(ids: list[int], dono: str) -> list[dict]:
+    """Apaga os bilhetes e RETORNA as linhas apagadas (para o undo por toast).
+
+    Antes devolvia só a contagem; agora devolve os dicts com as colunas de
+    `_COLS_RESTAURAR`, que o cliente segura para oferecer 'Desfazer'."""
     pool = await get_pool()
+    cols = ", ".join(_COLS_RESTAURAR)
     async with pool.acquire() as conn:
-        result = await conn.execute(
-            "DELETE FROM bilhetes WHERE id = ANY($1) AND dono = $2", ids, dono
+        recs = await conn.fetch(
+            f"DELETE FROM bilhetes WHERE id = ANY($1) AND dono = $2 RETURNING {cols}",
+            ids, dono,
         )
-    return int(result.split()[-1])
+    return [dict(r) for r in recs]
+
+
+async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
+    """Re-insere bilhetes apagados (undo). Idempotente: se a linha ainda existir
+    (ou colidir na unique), o ON CONFLICT DO NOTHING a ignora. `dono` vem da sessão."""
+    if not linhas:
+        return 0
+    pool = await get_pool()
+    restaurados = 0
+    async with pool.acquire() as conn:
+        for l in linhas:
+            rec = await conn.fetchrow(
+                """
+                INSERT INTO bilhetes
+                    (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
+                     aposta, descricao, stake, odd, resultado, extraction_state, confianca,
+                     stake_usd, origem)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                ON CONFLICT (dono, casa, parceiro, assinatura) DO NOTHING
+                RETURNING id
+                """,
+                dono, l.get("casa", ""), l.get("parceiro", ""), l.get("assinatura"),
+                l.get("codigo_bilhete"), l.get("data"), l.get("esporte"), l.get("tipster"),
+                l.get("aposta"), l.get("descricao"), l.get("stake"), l.get("odd"),
+                l.get("resultado"), l.get("extraction_state") or "aberta",
+                l.get("confianca"), l.get("stake_usd"), l.get("origem") or "restauracao",
+            )
+            if rec:
+                restaurados += 1
+    return restaurados
 
 
 async def auto_arquivar(casa: str, parceiro: str, batch_size: int, dono: str) -> int:
