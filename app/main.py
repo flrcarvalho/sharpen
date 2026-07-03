@@ -38,7 +38,7 @@ from repository import (
     criar_parceiro, dashboard_rows, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
-    set_ativo_tipster,
+    set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, resumo_conta, upsert_bilhetes,
 )
@@ -1215,6 +1215,24 @@ async def inserir_bilhete_manual(body: BilheteManualRequest, dono: str = Depends
     if not ids:
         raise HTTPException(500, "Não foi possível inserir a aposta.")
     return {"id": ids[0], "inserido": inseridos > 0, "atualizado": atualizados > 0}
+
+
+class TipsterLoteRequest(BaseModel):
+    ids: list[int]
+    tipster: str
+
+
+# Edição de dado existente → dono EFETIVO (mesma regra do PATCH single): atua sobre
+# as apostas que estão sendo vistas na grade.
+@app.post("/bilhetes/tipster")
+async def informar_tipster_lote(body: TipsterLoteRequest, dono: str = Depends(dono_efetivo)):
+    if not body.ids:
+        raise HTTPException(400, "Nenhuma aposta selecionada.")
+    tip = (body.tipster or "").strip()
+    if not tip:
+        raise HTTPException(400, "Informe o tipster.")
+    atualizados = await set_tipster_bulk(body.ids, tip, dono)
+    return {"atualizados": atualizados}
 
 
 @app.get("/tipsters")

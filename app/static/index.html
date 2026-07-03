@@ -1001,6 +1001,7 @@ table.pm-ativas td.c-merc { color:var(--ink); }
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
   box-shadow: var(--shadow-card);
 }
+.modal.modal-narrow { width: 400px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); }
 .modal-title {
   display: inline-flex; align-items: center; gap: 9px;
@@ -1469,6 +1470,7 @@ td.c-res.res-HL { color: var(--warn); }
                   <button type="button" class="export-opt" data-fmt="csv">CSV <span>· abrir no Excel</span></button>
                 </div>
               </div>
+              <button class="btn btn-ghost btn-sm" id="btn-tipster-sel" style="display:none">👤 Informar tipster</button>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-deletar-sel" style="display:none">🗑 Excluir selecionadas</button>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-desfazer" style="display:none">↩ Desfazer análise</button>
             </div>
@@ -1566,6 +1568,27 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="edit-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="edit-save" type="button">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tipster em massa (item 8): aplica um tipster a todas as apostas selecionadas. -->
+<div class="modal-overlay" id="tipster-modal">
+  <div class="modal modal-narrow">
+    <div class="modal-head">
+      <span class="modal-title">Informar tipster</span>
+      <button class="modal-close" id="tipster-close" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field full">
+        <label>Tipster para <span id="tipster-count">as selecionadas</span></label>
+        <input type="text" id="tipster-input" list="tipster-datalist" spellcheck="false" autocomplete="off" placeholder="Digite ou escolha um tipster…">
+        <datalist id="tipster-datalist"></datalist>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="tipster-cancel" type="button">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="tipster-apply" type="button">Aplicar</button>
     </div>
   </div>
 </div>
@@ -4224,6 +4247,57 @@ document.getElementById('btn-desfazer').addEventListener('click', async () => {
   } catch {
     setExpStatus('Erro ao desfazer', 'err');
   }
+});
+
+// ── Informar tipster em massa (item 8) ────────────────────────────────────────
+function abrirTipsterLote() {
+  const ids = [...document.querySelectorAll('.row-chk:checked')].map(c => +c.dataset.id);
+  if (!ids.length) return;
+  const n = ids.length;
+  document.getElementById('tipster-count').textContent =
+    `${n} aposta${n === 1 ? '' : 's'} selecionada${n === 1 ? '' : 's'}`;
+  // Sugestões = tipsters já conhecidos (datalist nativo).
+  document.getElementById('tipster-datalist').innerHTML =
+    (tipstersList || []).map(t => `<option value="${esc(t)}"></option>`).join('');
+  const inp = document.getElementById('tipster-input');
+  inp.value = '';
+  document.getElementById('tipster-modal').classList.add('open');
+  inp.focus();
+}
+
+function fecharTipsterLote() {
+  document.getElementById('tipster-modal').classList.remove('open');
+}
+
+async function aplicarTipsterLote() {
+  const ids = [...document.querySelectorAll('.row-chk:checked')].map(c => +c.dataset.id);
+  const tip = document.getElementById('tipster-input').value.trim();
+  if (!ids.length) { fecharTipsterLote(); return; }
+  if (!tip) { document.getElementById('tipster-input').focus(); return; }
+  try {
+    const r = await fetch('/bilhetes/tipster', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, tipster: tip }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.detail || ''); }
+    fecharTipsterLote();
+    await carregarGrade(); carregarTipsters(); atualizarIncompletos();
+    setExpStatus(`✓ Tipster aplicado a ${ids.length} aposta${ids.length === 1 ? '' : 's'}`, 'ok');
+  } catch (e) {
+    setExpStatus(e.message ? ('Erro: ' + e.message) : 'Erro ao aplicar tipster', 'err');
+  }
+}
+
+document.getElementById('btn-tipster-sel').addEventListener('click', abrirTipsterLote);
+document.getElementById('tipster-apply').addEventListener('click', aplicarTipsterLote);
+document.getElementById('tipster-cancel').addEventListener('click', fecharTipsterLote);
+document.getElementById('tipster-close').addEventListener('click', fecharTipsterLote);
+document.getElementById('tipster-modal').addEventListener('click', e => {
+  if (e.target.id === 'tipster-modal') fecharTipsterLote();
+});
+document.getElementById('tipster-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); aplicarTipsterLote(); }
+  if (e.key === 'Escape') fecharTipsterLote();
 });
 
 // ── Resizer (divisor entre painéis) ──────────────────────────────────────────

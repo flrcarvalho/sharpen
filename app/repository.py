@@ -823,6 +823,21 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
     return result.split()[-1] == "1"
 
 
+async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:
+    """Atribui o mesmo tipster a várias apostas de uma vez (1 UPDATE atômico).
+    Só toca linhas do próprio dono. Retorna quantas foram atualizadas."""
+    if not ids:
+        return 0
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE bilhetes SET tipster = $1, atualizado_em = NOW() "
+            "WHERE id = ANY($2) AND dono = $3",
+            tipster, ids, dono,
+        )
+    return int(result.split()[-1])
+
+
 async def reativar_parceiro(parceiro_id: int, dono: str) -> bool:
     pool = await get_pool()
     async with pool.acquire() as conn:
