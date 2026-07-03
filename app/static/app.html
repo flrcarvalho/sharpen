@@ -101,6 +101,18 @@ body::before {
   cursor: pointer; transition: border-color .12s, color .12s;
 }
 .host-refresh:hover { border-color: var(--accent-2); color: var(--accent-2); }
+/* Sair: encerra a sessão (POST /logout → /login). Discreto; o hover sinaliza a saída
+   (mesmo padrão do "arquivar" — neutro em repouso, --neg só na intenção). */
+.sb-logout {
+  width: 100%; margin-top: 8px; padding: 7px 9px;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+  background: transparent; color: var(--ink-mute);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; transition: border-color .12s, color .12s;
+}
+.sb-logout svg { width: 13px; height: 13px; flex-shrink: 0; }
+.sb-logout:hover { border-color: var(--neg); color: var(--neg); }
 </style>
 </head>
 <body>
@@ -138,6 +150,7 @@ body::before {
       <div class="last-update"><span class="pulse-dot"></span>Dados sincronizados</div>
       <a href="/exportar.csv" class="sb-csv" title="Baixar toda a base como CSV (backup)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base (CSV)</a>
       <button class="host-refresh" id="hostRefresh" title="Recarregar os dados do Dashboard">↻ Atualizar dados</button>
+      <button class="sb-logout" id="hostLogout" title="Encerrar sessão"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair</button>
       <div class="sb-endorse">by FDC Capital</div>
     </div>
   </aside>
@@ -208,6 +221,14 @@ body::before {
   var refreshBtn = document.getElementById('hostRefresh');
   if (refreshBtn) refreshBtn.addEventListener('click', function(){
     try { if (dashLoaded && frDash.contentWindow.loadData) { frDash.contentWindow.loadData(true); } } catch(e){}
+  });
+
+  // Sair: confirma, encerra a sessão no servidor (apaga cookie) e volta pro login.
+  // O redirect roda sempre — mesmo se o POST falhar (fetch rejeitado), pra não prender o usuário.
+  var logoutBtn = document.getElementById('hostLogout');
+  if (logoutBtn) logoutBtn.addEventListener('click', function(){
+    if (!confirm('Encerrar a sessão e sair?')) return;
+    fetch('/logout', { method: 'POST' }).catch(function(){}).then(function(){ window.location.href = '/login'; });
   });
 
   window.addEventListener('hashchange', route);
