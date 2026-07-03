@@ -46,7 +46,7 @@ function renderApostas(){
       mkKA('P/L', fmtPL(pl), pl>=0?'pos':'neg', ''),
       mkKA('Turnover', fmtR(stake), 'neu', ''),
       mkKA('ROI', fmtPct(roi,2), roi>=0?'pos':'neg', ''),
-      mkKA('Tipsters Ativos', activeTips.length.toString(), 'neu', activeTips.slice(0,3).join(', ')+(activeTips.length>3?'...':'')),
+      mkKA('Tipsters Ativos', activeTips.length.toString(), 'neu', activeTips.slice(0,3).map(esc).join(', ')+(activeTips.length>3?'...':'')),
     ];
     const row2=[
       mkKA('Apostas', apostasFiltered.length.toLocaleString('pt-BR'), 'neu', betsBreak),
@@ -100,16 +100,16 @@ function renderApostasVirt(){
     return`<div class="btbl-cols btbl-data-row" style="height:${BTBL_ROW_H}px">
       <div class="btbl-cell btbl-date">${dateStr}</div>
       <div class="btbl-cell">
-        ${r.aposta?`<div class="btbl-tipo">${r.aposta}</div>`:''}
-        <div class="btbl-desc">${r.descricao||r.aposta||'—'}</div>
+        ${r.aposta?`<div class="btbl-tipo">${esc(r.aposta)}</div>`:''}
+        <div class="btbl-desc">${esc(r.descricao||r.aposta||'—')}</div>
       </div>
-      <div class="btbl-cell btbl-sport">${mkSpChip(r.esporte)}<span>${r.esporte||'—'}</span></div>
-      <div class="btbl-cell btbl-tipster">${r.tipster||'—'}</div>
+      <div class="btbl-cell btbl-sport">${mkSpChip(r.esporte)}<span>${esc(r.esporte||'—')}</span></div>
+      <div class="btbl-cell btbl-tipster">${esc(r.tipster||'—')}</div>
       <div class="btbl-cell btbl-casa">
         ${mkHouseChip(r.casa)}
         <div class="btbl-casa-sub">
-          <span class="btbl-casa-nome">${r.casa||'—'}</span>
-          ${parceiro?`<span class="btbl-casa-conta">${parceiro}</span>`:''}
+          <span class="btbl-casa-nome">${esc(r.casa||'—')}</span>
+          ${parceiro?`<span class="btbl-casa-conta">${esc(parceiro)}</span>`:''}
         </div>
       </div>
       <div class="btbl-cell btbl-num">${fmtR(r.stake)}</div>

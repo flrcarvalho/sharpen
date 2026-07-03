@@ -3,6 +3,21 @@
 // congelado no GitHub Pages). Mesmo contrato {ok,data,builtAt,count} do Code.gs.
 const APPS_SCRIPT_URL="/dashboard/data";
 const BASE_BANK=100000;
+// ── Escape HTML — segurança contra stored-XSS ────────────────────────────────
+// Todo dado textual vindo do feed/usuário (descrição, aposta, tipster, parceiro,
+// conta, fornecedor, casa, esporte, mercado, operador, nome…) DEVE passar por esc()
+// antes de entrar num template que vira innerHTML ou dentro de um atributo HTML.
+// Converte para string e escapa os 5 caracteres perigosos (& primeiro, senão duplica).
+// null/undefined viram string vazia. Números/markup estático NÃO precisam.
+function esc(v){
+  if(v==null)return'';
+  return String(v)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
 // Mapa de ícones das casas (favicon via Google S2)
 const CASA_ICONS={
   '7K':'https://www.google.com/s2/favicons?sz=128&domain=7k.bet.br',
@@ -154,7 +169,7 @@ function sportCell(nome){
   let key=SPORT_KEY[nome];
   if(!key){const k=Object.keys(SPORT_KEY).find(k=>k.toLowerCase()===nome?.toLowerCase());key=k?SPORT_KEY[k]:null;}
   const emoji=SPORT_EMOJI[key]||'🏅';
-  return`<span style="display:inline-flex;align-items:center;gap:6px"><span class="sp-chip">${emoji}</span>${nome||'—'}</span>`;
+  return`<span style="display:inline-flex;align-items:center;gap:6px"><span class="sp-chip">${emoji}</span>${nome?esc(nome):'—'}</span>`;
 }
 
 let DADOS=[], charts={};

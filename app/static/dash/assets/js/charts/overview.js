@@ -335,7 +335,7 @@ function renderOvCusto(){
     return`<div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 22px;display:flex;align-items:center;gap:12px;min-width:220px">
       <div style="flex-shrink:0;transform:scale(1.3)">${casaImg(c,16)||''}</div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px">${c}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px">${esc(c)}</div>
         <div style="font-size:10px;color:var(--ink-mute);font-family:'JetBrains Mono',monospace;margin-bottom:6px">${nContas} contas</div>
         <div style="display:flex;align-items:baseline;gap:10px">
           <span style="font-size:18px;font-weight:700;color:var(--warn);font-family:'JetBrains Mono',monospace">R$ ${fmt(casaTots[c],0)}</span>
@@ -368,7 +368,7 @@ function renderOvCusto(){
     return`<div style="background:var(--surface);border:1px solid var(--line);border-top:2px solid ${color};border-radius:var(--r-lg);padding:20px 22px;flex:1;min-width:200px;max-width:340px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <div style="font-size:13px;font-weight:700;color:var(--ink)">${f}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink)">${esc(f)}</div>
         <div style="margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink-mute)">${pct}% do total</div>
       </div>
       <div style="font-size:22px;font-weight:700;color:var(--warn);font-family:'JetBrains Mono',monospace;letter-spacing:-.02em;margin-bottom:2px">R$ ${fmt(tot,0)}</div>

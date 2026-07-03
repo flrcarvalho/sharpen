@@ -180,16 +180,16 @@ function renderCostPies(){
 function buildCostTable(allForns,allCasas,contaCount){
   _costState={allForns,allCasas,contaCount};
   // ── header ──
-  const nCols=allForns.map(f=>`<th style="text-align:center;min-width:70px">${f}<br><span style="font-size:9px;color:var(--accent);font-weight:400;font-family:'JetBrains Mono',monospace">Contas</span></th>`).join('');
-  const cCols=allForns.map(f=>`<th style="text-align:center;min-width:100px">${f}<br><span style="font-size:9px;color:var(--warn);font-weight:400;font-family:'JetBrains Mono',monospace">Custo/conta</span></th>`).join('');
-  const tCols=allForns.map(f=>`<th style="text-align:center;min-width:90px">${f}<br><span style="font-size:9px;color:var(--pos);font-weight:400;font-family:'JetBrains Mono',monospace">Total</span></th>`).join('');
+  const nCols=allForns.map(f=>`<th style="text-align:center;min-width:70px">${esc(f)}<br><span style="font-size:9px;color:var(--accent);font-weight:400;font-family:'JetBrains Mono',monospace">Contas</span></th>`).join('');
+  const cCols=allForns.map(f=>`<th style="text-align:center;min-width:100px">${esc(f)}<br><span style="font-size:9px;color:var(--warn);font-weight:400;font-family:'JetBrains Mono',monospace">Custo/conta</span></th>`).join('');
+  const tCols=allForns.map(f=>`<th style="text-align:center;min-width:90px">${esc(f)}<br><span style="font-size:9px;color:var(--pos);font-weight:400;font-family:'JetBrains Mono',monospace">Total</span></th>`).join('');
   const header=`<tr><th style="text-align:left;position:sticky;left:0;background:var(--field);z-index:2;min-width:140px">Casa</th>${nCols}${cCols}${tCols}<th style="text-align:center;border-left:1px solid var(--line);min-width:100px">Total Geral</th></tr>`;
 
   // ── total row (topo) ──
   const grandTot=allCasas.reduce((a,c)=>a+allForns.reduce((b,f)=>{const k=f+'||'+c;return b+(custoData[k]||0)*(contaCount[k]||0);},0),0);
   const totNcols=allForns.map(f=>{const n=allCasas.reduce((a,c)=>a+(contaCount[f+'||'+c]||0),0);return`<td style="text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px">${n||'—'}</td>`;}).join('');
   const totEmptyCols=allForns.map(()=>`<td></td>`).join('');
-  const totFornCols=allForns.map(f=>{const tot=allCasas.reduce((a,c)=>{const k=f+'||'+c;return a+(custoData[k]||0)*(contaCount[k]||0);},0);return`<td id="cost-col-tot-${f}" style="text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px">${tot>0?'R$ '+fmt(tot,0):'—'}</td>`;}).join('');
+  const totFornCols=allForns.map(f=>{const tot=allCasas.reduce((a,c)=>{const k=f+'||'+c;return a+(custoData[k]||0)*(contaCount[k]||0);},0);return`<td id="cost-col-tot-${esc(f)}" style="text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px">${tot>0?'R$ '+fmt(tot,0):'—'}</td>`;}).join('');
   const totalRow=`<tr class="total-row" style="border-bottom:2px solid var(--line)"><td style="position:sticky;left:0;background:var(--field);z-index:1;font-weight:700">Total</td>${totNcols}${totEmptyCols}${totFornCols}<td id="cost-grand-total" style="text-align:center;font-weight:700;border-left:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--warn)">${grandTot>0?'R$ '+fmt(grandTot,0):'—'}</td></tr>`;
 
   // ── body rows ──
@@ -197,12 +197,13 @@ function buildCostTable(allForns,allCasas,contaCount){
     const nCells=allForns.map(f=>{const n=contaCount[f+'||'+c]||0;return`<td style="text-align:center;font-weight:600;color:${n>0?'var(--ink)':'var(--ink-mute)'};font-family:'JetBrains Mono',monospace;font-size:11px">${n||'—'}</td>`;}).join('');
     const inputCells=allForns.map(f=>{
       const k=f+'||'+c;const saved=custoData[k]?custoData[k].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'';const n=contaCount[k]||0;
-      const safe_f=f.replace(/\\/g,'\\\\').replace(/'/g,"\\'");const safe_c=c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return`<td style="text-align:center;padding:3px 5px">${n>0?`<input type="text" value="${saved}" placeholder="0,00" style="width:84px;text-align:right;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCusto('${safe_f}','${safe_c}',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`:'<span style="color:var(--ink-mute);font-size:11px">—</span>'}</td>`;
+      // safe_*: JS-string escaping (\ e ') + HTML-escaping (esc) — entram em onclick/onblur="…'…'…"
+      const safe_f=esc(f.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));const safe_c=esc(c.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+      return`<td style="text-align:center;padding:3px 5px">${n>0?`<input type="text" value="${esc(saved)}" placeholder="0,00" style="width:84px;text-align:right;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCusto('${safe_f}','${safe_c}',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`:'<span style="color:var(--ink-mute);font-size:11px">—</span>'}</td>`;
     }).join('');
-    const totalCells=allForns.map(f=>{const k=f+'||'+c;const n=contaCount[k]||0;const custo=custoData[k]||0;const tot=custo*n;return`<td data-tot-forn="${f}" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-soft)">${tot>0?'R$ '+fmt(tot,0):'—'}</td>`;}).join('');
+    const totalCells=allForns.map(f=>{const k=f+'||'+c;const n=contaCount[k]||0;const custo=custoData[k]||0;const tot=custo*n;return`<td data-tot-forn="${esc(f)}" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-soft)">${tot>0?'R$ '+fmt(tot,0):'—'}</td>`;}).join('');
     const rowTot=allForns.reduce((a,f)=>{const k=f+'||'+c;return a+(custoData[k]||0)*(contaCount[k]||0);},0);
-    return`<tr data-casa="${c}"><td style="font-weight:600;color:var(--ink);position:sticky;left:0;background:var(--surface-2);z-index:1;padding:4px 8px">${casaCell(c)}</td>${nCells}${inputCells}${totalCells}<td class="cost-row-total" style="text-align:center;font-weight:700;border-left:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink)">${rowTot>0?'R$ '+fmt(rowTot,0):'—'}</td></tr>`;
+    return`<tr data-casa="${esc(c)}"><td style="font-weight:600;color:var(--ink);position:sticky;left:0;background:var(--surface-2);z-index:1;padding:4px 8px">${casaCell(c)}</td>${nCells}${inputCells}${totalCells}<td class="cost-row-total" style="text-align:center;font-weight:700;border-left:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink)">${rowTot>0?'R$ '+fmt(rowTot,0):'—'}</td></tr>`;
   }).join('');
 
   document.getElementById('costTableWrap').innerHTML=`
@@ -232,7 +233,7 @@ function renderParceiros(rows){
     const lc=d.l>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
     const cc=custo>0?'color:var(--warn)':'color:var(--ink-mute)';
-    return`<tr><td style="font-weight:700;color:var(--ink)">${f}</td><td>${d.contas.size}</td><td>${d.n}</td><td>${fmtR(d.s)}</td><td style="${lc}">${fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td style="${cc}">${custo>0?'R$ '+fmt(custo,0):'—'}</td></tr>`;
+    return`<tr><td style="font-weight:700;color:var(--ink)">${esc(f)}</td><td>${d.contas.size}</td><td>${d.n}</td><td>${fmtR(d.s)}</td><td style="${lc}">${fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td style="${cc}">${custo>0?'R$ '+fmt(custo,0):'—'}</td></tr>`;
   }).join('');
   const totFornPL=fornEnts.reduce((a,[,d])=>a+d.l,0);
   const totFornS=fornEnts.reduce((a,[,d])=>a+d.s,0);
@@ -247,7 +248,7 @@ function renderParceiros(rows){
   setTimeout(()=>makeSortable('tblForn',[1,2,3,4,5,6]),100);
   const grandTotal=allCasas.reduce((a,c)=>a+(casaTotal[c]||0),0);
   const totRowCross=`<tr class="total-row" style="border-bottom:2px solid var(--line)"><td style="position:sticky;left:0;background:var(--field);z-index:1;font-weight:700">Total</td>${allForns.map(f=>{const n=allCasas.reduce((a,c)=>a+(contaCount[f+'||'+c]||0),0);return`<td style="text-align:center;font-weight:700">${n||'—'}</td>`;}).join('')}<td style="text-align:center;font-weight:700;border-left:1px solid var(--line)">${grandTotal}</td></tr>`;
-  const crossHeader=`<tr><th style="text-align:left;position:sticky;left:0;background:var(--field);z-index:2">Casa</th>${allForns.map(f=>`<th style="text-align:center">${f}<span class="sort-icon"></span></th>`).join('')}<th style="text-align:center;border-left:1px solid var(--line)">Total<span class="sort-icon"></span></th></tr>`;
+  const crossHeader=`<tr><th style="text-align:left;position:sticky;left:0;background:var(--field);z-index:2">Casa</th>${allForns.map(f=>`<th style="text-align:center">${esc(f)}<span class="sort-icon"></span></th>`).join('')}<th style="text-align:center;border-left:1px solid var(--line)">Total<span class="sort-icon"></span></th></tr>`;
   const crossRows=allCasas.map(c=>{const cells=allForns.map(f=>{const n=contaCount[f+'||'+c]||0;return`<td style="text-align:center;color:${n>0?'var(--ink)':'var(--ink-mute)'}">${n||'—'}</td>`;}).join('');const tot=casaTotal[c];return`<tr><td style="font-weight:600;color:var(--ink);position:sticky;left:0;background:var(--surface-2);z-index:1;padding:4px 8px">${casaCell(c)}</td>${cells}<td style="text-align:center;font-weight:700;border-left:1px solid var(--line)">${tot||'—'}</td></tr>`;}).join('');
   document.getElementById('crossTable').innerHTML=`<div class="tbl-wrap"><table class="tbl" id="tblCross"><thead>${crossHeader}</thead><tbody>${totRowCross}${crossRows}</tbody></table></div>`;
   setTimeout(()=>{makeSortable('tblCross',[...Array(allForns.length+1).keys()].slice(1));},100);
@@ -259,7 +260,7 @@ function renderParceiros(rows){
   // ── Contas Individuais ──
   const map={};
   normRows.forEach(r=>{const key=r.fornecedor+'||'+r.conta+'||'+r.casa;if(!map[key])map[key]={conta:r.conta,forn:r.fornecedor,casa:r.casa,n:0,s:0,l:0,datas:[]};map[key].n++;if(r.resultado!=='V')map[key].s+=r.stake;map[key].l+=r.lucro;map[key].datas.push(r.data);});
-  const accRows=Object.values(map).sort((a,b)=>b.l-a.l).map(e=>{const roi=e.s>0?(e.l/e.s*100):0;const lc=e.l>=0?'color:var(--pos)':'color:var(--neg)';const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';const sorted=e.datas.slice().sort();const d1=sorted[0].slice(0,10).split('-'),d2=sorted[sorted.length-1].slice(0,10).split('-');const dias=Math.round((new Date(sorted[sorted.length-1])-new Date(sorted[0]))/864e5);return`<tr><td style="font-weight:700;color:var(--ink)">${e.forn}</td><td>${e.conta}</td><td>${casaCell(e.casa)}</td><td>${e.n}</td><td>${fmtR(e.s)}</td><td style="${lc}">${fmtPL(e.l)}</td><td style="${rc}">${fmtPct(roi,1)}</td><td>${d1[2]}/${d1[1]}/${d1[0].slice(2)}</td><td>${d2[2]}/${d2[1]}/${d2[0].slice(2)}</td><td>${dias}d</td></tr>`;}).join('');
+  const accRows=Object.values(map).sort((a,b)=>b.l-a.l).map(e=>{const roi=e.s>0?(e.l/e.s*100):0;const lc=e.l>=0?'color:var(--pos)':'color:var(--neg)';const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';const sorted=e.datas.slice().sort();const d1=sorted[0].slice(0,10).split('-'),d2=sorted[sorted.length-1].slice(0,10).split('-');const dias=Math.round((new Date(sorted[sorted.length-1])-new Date(sorted[0]))/864e5);return`<tr><td style="font-weight:700;color:var(--ink)">${esc(e.forn)}</td><td>${esc(e.conta)}</td><td>${casaCell(e.casa)}</td><td>${e.n}</td><td>${fmtR(e.s)}</td><td style="${lc}">${fmtPL(e.l)}</td><td style="${rc}">${fmtPct(roi,1)}</td><td>${d1[2]}/${d1[1]}/${d1[0].slice(2)}</td><td>${d2[2]}/${d2[1]}/${d2[0].slice(2)}</td><td>${dias}d</td></tr>`;}).join('');
   document.getElementById('parcTable').innerHTML=`<table class="tbl" id="tblParc"><thead><tr><th>Fornecedor<span class="sort-icon"></span></th><th>Conta<span class="sort-icon"></span></th><th>Casa<span class="sort-icon"></span></th><th>Bets<span class="sort-icon"></span></th><th>Turnover<span class="sort-icon"></span></th><th>Profit<span class="sort-icon"></span></th><th>ROI<span class="sort-icon"></span></th><th>1ª Aposta<span class="sort-icon"></span></th><th>Última<span class="sort-icon"></span></th><th>Período<span class="sort-icon"></span></th></tr></thead><tbody>${accRows}</tbody></table>`;
   setTimeout(()=>makeSortable('tblParc',[3,4,5,6,9]),100);
 }
@@ -316,7 +317,7 @@ function renderCustoCards(allForns,allCasas,contaCount){
     return`<div style="background:var(--surface);border:1px solid var(--line);border-top:2px solid ${color};border-radius:var(--r-lg);padding:20px 22px;flex:1;min-width:220px;max-width:340px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <div style="font-size:13px;font-weight:700;color:var(--ink)">${f}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink)">${esc(f)}</div>
         <div style="margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink-mute)">${pct}% do total</div>
       </div>
       <div style="font-size:24px;font-weight:700;color:var(--warn);font-family:'JetBrains Mono',monospace;letter-spacing:-.02em;margin-bottom:2px">R$ ${fmt(tot,0)}</div>
@@ -413,11 +414,11 @@ function renderCustoTipster(){
       const totalRow=months.reduce((a,m)=>a+(parseFloat((row.values[m]||'').toString().replace(',','.'))||0),0);
       const vals=months.map(m=>{
         const v=row.values[m]||'';
-        return`<td style="padding:3px 5px;text-align:center"><input type="text" value="${v}" placeholder="0,00" data-cgidx="${idx}" data-cgm="${m}" style="width:74px;text-align:right;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCG(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`;
+        return`<td style="padding:3px 5px;text-align:center"><input type="text" value="${esc(v)}" placeholder="0,00" data-cgidx="${idx}" data-cgm="${esc(m)}" style="width:74px;text-align:right;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCG(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`;
       }).join('');
       const tc2=totalRow>0?'color:var(--warn)':'color:var(--ink-mute)';
       return`<tr>
-        <td style="padding:4px 8px"><input type="text" value="${row.tipo||''}" placeholder="Descrição do custo" data-cgidx="${idx}" data-cgtipo="1" style="width:160px;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:var(--font-sans);font-size:12px;outline:none;font-weight:600" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCGTipo(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+        <td style="padding:4px 8px"><input type="text" value="${esc(row.tipo||'')}" placeholder="Descrição do custo" data-cgidx="${idx}" data-cgtipo="1" style="width:160px;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:var(--font-sans);font-size:12px;outline:none;font-weight:600" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCGTipo(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
         ${vals}
         <td style="text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px;border-left:1px solid var(--line);padding:0 8px;${tc2}">${totalRow>0?'R$ '+fmt(totalRow,0):'—'}</td>
         <td style="text-align:center;padding:0 6px"><button onclick="deleteCG(${idx})" style="background:none;border:none;cursor:pointer;color:var(--ink-mute);font-size:13px;line-height:1;padding:2px 4px;border-radius:3px" onmouseover="this.style.color='var(--neg)'" onmouseout="this.style.color='var(--ink-mute)'">✕</button></td>
@@ -439,10 +440,10 @@ function renderCustoTipster(){
       const totalT=months.reduce((a,m)=>a+(parseFloat((ctData[t][m]||'').toString().replace(',','.'))||0),0);
       const vals=months.map(m=>{
         const v=ctData[t][m]||'';
-        return`<td style="padding:3px 5px;text-align:center"><input type="text" value="${v}" placeholder="0,00" data-ct="${t}" data-ctm="${m}" style="width:74px;text-align:right;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCT(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`;
+        return`<td style="padding:3px 5px;text-align:center"><input type="text" value="${esc(v)}" placeholder="0,00" data-ct="${esc(t)}" data-ctm="${esc(m)}" style="width:74px;text-align:right;padding:3px 7px;background:var(--elevated);border:1px solid var(--line);color:var(--ink);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none" onfocus="this.style.borderColor='var(--pos)'" onblur="this.style.borderColor='var(--line)';saveCT(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`;
       }).join('');
       const tc2=totalT>0?'color:var(--warn)':'color:var(--ink-mute)';
-      return`<tr><td style="font-weight:700;color:var(--ink);padding:4px 8px">${t}</td>${vals}<td style="text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px;border-left:1px solid var(--line);padding:0 8px;${tc2}">${totalT>0?'R$ '+fmt(totalT,0):'—'}</td></tr>`;
+      return`<tr><td style="font-weight:700;color:var(--ink);padding:4px 8px">${esc(t)}</td>${vals}<td style="text-align:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px;border-left:1px solid var(--line);padding:0 8px;${tc2}">${totalT>0?'R$ '+fmt(totalT,0):'—'}</td></tr>`;
     }).join('');
   }
 

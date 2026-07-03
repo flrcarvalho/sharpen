@@ -9,8 +9,10 @@ língua global do Planilhador: as 10 colunas do TSV + a 11ª coluna interna
 Decisões (sessão Polymarket-1):
 - Reusa o Worker Cloudflare que já destrava a API no Brasil (mesma URL do app
   Polymarket standalone). Do lado do servidor não há CORS; a chamada é direta.
-- Converte USD→BRL pela PTAX (BCB) do dia da aposta; cai na cotação de hoje
-  quando o dia não tem boletim (fim de semana/feriado).
+- Converte USD→BRL pela PTAX (BCB) do dia da aposta, recuando até 10 dias para
+  atravessar feriados. Para aposta ANTIGA sem PTAX na janela, aborta o sync em vez
+  de usar a cotação de hoje (que corromperia o histórico em BRL); só aposta recente
+  (≤7 dias) usa hoje como proxy. Ver `_cotacao_para`.
 - Ingere apenas posições RESOLVIDAS (W/L) — espelha o `getOrderedFechados` do
   app antigo e cobre o pedido "migrar todo o histórico". Posições abertas
   (transitórias) ficam para uma fase futura, evitando a borda de dedup
@@ -123,20 +125,36 @@ async def _ptax(client: httpx.AsyncClient, dia: datetime) -> float | None:
         return None
 
 
+_COTACAO_FALLBACK_DIAS = 7   # aposta "recente": usar hoje como proxy é desprezível
+
+
 async def _cotacao_para(client: httpx.AsyncClient, iso: str, cache: dict, hoje: float | None) -> float | None:
-    """Cotação do dia da aposta, com fallback de até 4 dias atrás (fim de semana)
-    e, por fim, a cotação de hoje. Memoiza por data ISO."""
+    """Cotação PTAX do dia da aposta, recuando até 10 dias para atravessar feriados
+    longos. Memoiza por data ISO.
+
+    Fallback para a cotação de HOJE só quando a aposta é recente (≤ 7 dias): aí a
+    variação cambial é desprezível. Para uma aposta ANTIGA sem PTAX na janela,
+    devolve None em vez de usar o câmbio de hoje — usar a cotação atual num bilhete
+    de 1-2 anos atrás escalaria stake E P/L em BRL para um valor historicamente
+    errado (e não-determinístico entre re-syncs). O chamador então aborta o sync
+    com `CambioIndisponivel` — melhor recusar do que gravar histórico corrompido.
+    """
     if not iso:
         return hoje
     if iso in cache:
         return cache[iso]
     base = datetime.strptime(iso, "%Y-%m-%d")
     val = None
-    for back in range(0, 5):
+    for back in range(0, 10):   # janela ampla: PTAX tem décadas de histórico, achar a data é regra
         val = await _ptax(client, base - timedelta(days=back))
         if val:
             break
-    val = val or hoje
+    if not val:
+        # Sem PTAX na janela: só cai para "hoje" se a aposta for recente o bastante
+        # para a diferença ser irrelevante; senão devolve None (chamador aborta).
+        idade_dias = (datetime.now(BRT).date() - base.date()).days
+        if idade_dias <= _COTACAO_FALLBACK_DIAS:
+            val = hoje
     cache[iso] = val
     return val
 

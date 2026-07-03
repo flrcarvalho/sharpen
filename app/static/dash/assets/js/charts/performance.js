@@ -41,9 +41,9 @@ function _mkSportCard(sport,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const roiStr=fmtPct(roi,1);
   const wrStr=fmtPct(wr,1,false);
   const wrPct=Math.min(wr,100).toFixed(1);
-  const esc=sport.replace(/"/g,'&quot;');
-  return`<div class="tcard" data-sport="${esc}">`
-    +`<div class="tcard__top"><span class="tcard__casa-hdr">${mkSpChip(sport)}<span class="nametag__nm" title="${esc}">${sport}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
+  const escAttr=esc(sport);
+  return`<div class="tcard" data-sport="${escAttr}">`
+    +`<div class="tcard__top"><span class="tcard__casa-hdr">${mkSpChip(sport)}<span class="nametag__nm" title="${escAttr}">${esc(sport)}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
     +`<div class="tcard__hero"><span class="tcard__pl ${plCls}"><span class="tcard__cur">${plSign} R$</span>${plAmt}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
     +sparkSVG
     +`<div class="tcard__foot">`
@@ -223,9 +223,9 @@ function _mkCasaCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const roiStr=fmtPct(roi,1);
   const wrStr=fmtPct(wr,1,false);
   const wrPct=Math.min(wr,100).toFixed(1);
-  const esc=name.replace(/"/g,'&quot;');
-  return`<div class="tcard" data-casa="${esc}">`
-    +`<div class="tcard__top"><span class="tcard__casa-hdr">${mkHouseChip(name)}<span class="nametag__nm" title="${esc}">${name}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
+  const escAttr=esc(name);
+  return`<div class="tcard" data-casa="${escAttr}">`
+    +`<div class="tcard__top"><span class="tcard__casa-hdr">${mkHouseChip(name)}<span class="nametag__nm" title="${escAttr}">${esc(name)}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
     +`<div class="tcard__hero"><span class="tcard__pl ${plCls}"><span class="tcard__cur">${plSign} R$</span>${plAmt}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
     +sparkSVG
     +`<div class="tcard__foot">`
@@ -333,7 +333,7 @@ function _casaBreakdownTbl(rows,dimKey,labelFn,maxVisible=10,tableId=''){
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
     const trStyle=muted?' style="opacity:0.45"':'';
     const labelCell=isOutros
-      ?`<td><span class="outros-anchor" data-outros="${outrosNames.replace(/"/g,'&quot;')}" style="cursor:help;border-bottom:1px dashed var(--ink-mute);color:var(--ink-mute)">${outrosLabel} (${k})</span></td>`
+      ?`<td><span class="outros-anchor" data-outros="${esc(outrosNames)}" style="cursor:help;border-bottom:1px dashed var(--ink-mute);color:var(--ink-mute)">${esc(outrosLabel)} (${esc(k)})</span></td>`
       :`<td>${labelFn(k)}</td>`;
     return`<tr${trStyle}>${labelCell}<td class="td-num">${d.n.toLocaleString('pt-BR')}</td><td class="td-num" style="${lc}">${fmtPL(d.l)}</td><td class="td-num">${fmtR(d.s)}</td><td class="td-num" style="${rc}">${fmtPct(roi,2)}</td><td class="td-num">${mkWRC(wr)}</td><td class="td-num">${fmtR(avgStake)}</td><td class="td-num">${fmtOdd(avgOdd)}</td></tr>`;
   };
@@ -440,7 +440,7 @@ function renderCasaDrill(rows){
     `</div>`+
     `<div class="analise-popup-section">`+
       `<div class="analise-popup-section-title">Por Tipster</div>`+
-      `<div class="tbl-wrap drill-tbl">${_casaBreakdownTbl(rows,'tipster',t=>t,10,'casaDrillTblTipster')}</div>`+
+      `<div class="tbl-wrap drill-tbl">${_casaBreakdownTbl(rows,'tipster',t=>esc(t),10,'casaDrillTblTipster')}</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
       `<div class="analise-popup-section-title">Por Esporte</div>`+
@@ -678,7 +678,7 @@ function renderSportDrill(rows){
     `</div>`+
     `<div class="analise-popup-section">`+
       `<div class="analise-popup-section-title">Por Tipster</div>`+
-      `<div class="tbl-wrap drill-tbl">${_casaBreakdownTbl(rows,'tipster',t=>t,10,'sportDrillTblTipster')}</div>`+
+      `<div class="tbl-wrap drill-tbl">${_casaBreakdownTbl(rows,'tipster',t=>esc(t),10,'sportDrillTblTipster')}</div>`+
     `</div>`;
 
   // Gráfico Resultado Geral
@@ -839,9 +839,9 @@ function _mkTipCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const roiStr=fmtPct(roi,1);
   const wrStr=fmtPct(wr,1,false);
   const wrPct=Math.min(wr,100).toFixed(1);
-  const esc=name.replace(/"/g,'&quot;');
-  return`<div class="tcard" data-name="${esc}">`
-    +`<div class="tcard__top"><span class="nametag"><span class="nametag__nm" title="${esc}">${name}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
+  const escAttr=esc(name);
+  return`<div class="tcard" data-name="${escAttr}">`
+    +`<div class="tcard__top"><span class="nametag"><span class="nametag__nm" title="${escAttr}">${esc(name)}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
     +`<div class="tcard__hero"><span class="tcard__pl ${plCls}"><span class="tcard__cur">${plSign} R$</span>${plAmt}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
     +sparkSVG
     +`<div class="tcard__foot">`
@@ -1348,7 +1348,7 @@ function renderTipsters(){
     const avgOdd=d.stk>0?d.wt/d.stk:0,avgStake=d.t>0?d.s/d.t:0;
     const lc=d.l>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
-    return`<tr><td style="font-weight:700;color:var(--ink)">${t}</td><td>${d.n}</td><td class="td-num">${mkWRC(wr)}</td><td>${fmtR(d.s)}</td><td style="${lc}">${fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td>${fmtOdd(avgOdd)}</td><td>${fmtR(avgStake)}</td></tr>`;
+    return`<tr><td style="font-weight:700;color:var(--ink)">${esc(t)}</td><td>${d.n}</td><td class="td-num">${mkWRC(wr)}</td><td>${fmtR(d.s)}</td><td style="${lc}">${fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td>${fmtOdd(avgOdd)}</td><td>${fmtR(avgStake)}</td></tr>`;
   }).join('');
   document.getElementById('tipsterCompTable').innerHTML=`<table class="tbl" id="tblTipComp"><thead><tr>${mkTh('Tipster','','l')+mkTh('Bets','','r')+mkTh('Win Rate','','r')+mkTh('Turnover','','r')+mkTh('P/L','','r')+mkTh('ROI','','r')+_mkOddMediaTh('r')+mkTh('Stake média','','r')}</tr></thead><tbody>${compRows}</tbody></table>`;
   setTimeout(()=>makeSortable('tblTipComp',[1,3,4,5,6,7]),100);

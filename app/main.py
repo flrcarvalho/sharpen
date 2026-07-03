@@ -20,7 +20,7 @@ from anthropic import (
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, criar_token, dono_efetivo,
@@ -35,12 +35,13 @@ from repository import (
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos,
-    criar_parceiro, dashboard_rows, deletar_bilhetes,
+    criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
-    set_ativo_tipster, set_tipster_bulk,
+    resultado_valido, set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, resumo_conta, upsert_bilhetes,
+    valor_monetario_valido,
 )
 
 logger = logging.getLogger("scanner")
@@ -137,6 +138,42 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Sharpen — Scanner de Bets", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+
+
+# ── Cabeçalhos de segurança (CSP + hardening) ─────────────────────────────────
+# Defesa em profundidade junto do escaping do frontend. A CSP restringe as origens
+# de script/estilo/fonte às realmente usadas (self + cdnjs + Google Fonts) e bloqueia
+# o resto; 'unsafe-inline' segue necessário enquanto o front usa handlers/estilos
+# inline (removê-los depois permite apertar). frame-ancestors 'self' preserva os
+# iframes da casca (/app). connect-src 'self': o front só fala com a própria origem
+# (a Polymarket é chamada server-side).
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "img-src 'self' data: blob: https://www.google.com; "  # favicons das casas (s2/favicons)
+    "connect-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "frame-ancestors 'self'"
+)
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers.setdefault("Content-Security-Policy", _CSP)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return resp
+
+
+@app.get("/healthz")
+async def healthz():
+    """Liveness para o HEALTHCHECK do container — sem auth, sem tocar o banco."""
+    return {"ok": True}
 
 
 @app.exception_handler(Exception)
@@ -1176,7 +1213,36 @@ async def listar_bilhetes(
     }
 
 
-class BilheteManualRequest(BaseModel):
+class _BilheteFinanceiroBase(BaseModel):
+    """Validação de fronteira dos campos financeiros (stake/odd/resultado/data) nas
+    rotas de escrita: barra valor inválido ANTES de tocar o banco, para não
+    contaminar o P/L derivado (odd×stake). Vazio/ausente é permitido (campo
+    opcional ou "limpar"); quando preenchido, tem de ser válido. Erro → 422.
+    `check_fields=False`: os campos vivem nas subclasses."""
+
+    @field_validator("stake", "odd", check_fields=False)
+    @classmethod
+    def _valida_monetario(cls, v, info):
+        if not valor_monetario_valido(v):
+            raise ValueError(f"{info.field_name} inválido: informe um número maior que zero.")
+        return v
+
+    @field_validator("resultado", check_fields=False)
+    @classmethod
+    def _valida_resultado(cls, v):
+        if not resultado_valido(v):
+            raise ValueError("resultado deve ser W, L, V, HW, HL ou vazio.")
+        return v
+
+    @field_validator("data", check_fields=False)
+    @classmethod
+    def _valida_data(cls, v):
+        if not data_valida(v):
+            raise ValueError("data inválida: use DD/MM/AAAA.")
+        return v
+
+
+class BilheteManualRequest(_BilheteFinanceiroBase):
     casa: str
     parceiro: str
     data: Optional[str] = ""
@@ -1280,7 +1346,7 @@ async def arquivar_parceiro_route(parceiro_id: int, dono: str = Depends(dono_efe
     return {"arquivado": True}
 
 
-class AtualizarBilheteRequest(BaseModel):
+class AtualizarBilheteRequest(_BilheteFinanceiroBase):
     data: Optional[str] = None
     esporte: Optional[str] = None
     tipster: Optional[str] = None

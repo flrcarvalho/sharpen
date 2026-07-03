@@ -136,14 +136,15 @@ function buildMS(id,items,ph,page,cb,withIcons=false){
     const ico=withIcons?casaImg(it,13):'';
     const isSport=id.startsWith('sp_');
     const emo=isSport?sportEmoji(it):'';
-    const safe=it.replace(/'/g,"\\'").replace(/"/g,'\\"');
-    const safeAttr=it.replace(/"/g,'&quot;');
-    return`<div class="ms-opt ${MSS[id]?.has(it)?'sel':''}" data-val="${safeAttr}" onclick="toggleMS('${id}','${safe}','${page}','${cb||''}')"><span class="ms-chk">${MSS[id]?.has(it)?'✓':''}</span><span style="display:inline-flex;align-items:center;gap:2px">${ico}${emo?`<span class="sport-emoji">${emo}</span>`:''}${it}</span></div>`;
+    // safe: JS-string escaping (\ e ') + HTML-escaping (esc) — vai dentro de onclick="…'…'…"
+    const safe=esc(it.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+    const safeAttr=esc(it);
+    return`<div class="ms-opt ${MSS[id]?.has(it)?'sel':''}" data-val="${safeAttr}" onclick="toggleMS('${id}','${safe}','${page}','${cb||''}')"><span class="ms-chk">${MSS[id]?.has(it)?'✓':''}</span><span style="display:inline-flex;align-items:center;gap:2px">${ico}${emo?`<span class="sport-emoji">${emo}</span>`:''}${esc(it)}</span></div>`;
   }).join('');
-  const selLbl=hs?(MSS[id].size===1?[...MSS[id]][0]:MSS[id].size+' sel.'):ph;
+  const selLbl=hs?(MSS[id].size===1?esc([...MSS[id]][0]):MSS[id].size+' sel.'):ph;
   return`<div class="ms-wrap" id="msw_${id}">
     <div class="ms-btn ${hs?'asel':''}" id="msb_${id}" data-ph="${ph}" data-page="${page}" data-cb="${cb||''}" data-icons="${withIcons?1:0}" onclick="openMS(event,'${id}','${page}','${cb||''}')">
-      <span id="msl_${id}">${hs&&withIcons&&MSS[id].size===1?casaImg([...MSS[id]][0],13)+[...MSS[id]][0]:selLbl}</span>
+      <span id="msl_${id}">${hs&&withIcons&&MSS[id].size===1?casaImg([...MSS[id]][0],13)+esc([...MSS[id]][0]):selLbl}</span>
       <svg width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
     </div>
     <div class="ms-dd" id="msd_${id}">
@@ -245,7 +246,7 @@ function refreshMS(id){
   const withIcons=btn?.dataset?.icons==='1';
   if(lbl){
     if(hs){
-      if(withIcons&&MSS[id].size===1){lbl.innerHTML=casaImg([...MSS[id]][0],13)+[...MSS[id]][0];}
+      if(withIcons&&MSS[id].size===1){lbl.innerHTML=casaImg([...MSS[id]][0],13)+esc([...MSS[id]][0]);}
       else lbl.textContent=MSS[id].size===1?[...MSS[id]][0]:MSS[id].size+' sel.';
     }else lbl.textContent=ph;
   }

@@ -94,10 +94,10 @@ function _resMatrixHTML(rows, cols, colKeyOf){
       if(!d||d.n===0)return`<td style="${hBg};border-radius:3px;text-align:right;padding:5px 8px;color:var(--ink-mute);font-size:11px">—</td>`;
       const roi=d.s>0?(d.pl/d.s*100):0;
       const title=`${t} · ${c.label}: ${_txtPL(d.pl)} — ${d.n} bets · ROI ${fmtPct(roi,2)}`;
-      return`<td title="${title}" style="background:${heat.bg(d.pl)};color:${heat.txt(d.pl)};border-radius:3px;text-align:right;padding:5px 8px;font-weight:600;white-space:nowrap;font-size:11px">${fmtPL(d.pl)}<br><span style="font-size:9px;opacity:.7">${fmtPct(roi,1)} · ${d.n}b</span></td>`;
+      return`<td title="${esc(title)}" style="background:${heat.bg(d.pl)};color:${heat.txt(d.pl)};border-radius:3px;text-align:right;padding:5px 8px;font-weight:600;white-space:nowrap;font-size:11px">${fmtPL(d.pl)}<br><span style="font-size:9px;opacity:.7">${fmtPct(roi,1)} · ${d.n}b</span></td>`;
     }).join('');
     return`<tr>
-      <td style="${sT}font-weight:700;color:var(--ink);padding:5px 10px;border-right:1px solid var(--line);font-size:12px">${t}</td>
+      <td style="${sT}font-weight:700;color:var(--ink);padding:5px 10px;border-right:1px solid var(--line);font-size:12px">${esc(t)}</td>
       <td style="${sA}color:${accC};text-align:right;padding:5px 10px;font-weight:700;font-size:12px">${fmtPL(acc.pl)}<br><span style="font-size:9px;opacity:.55;color:var(--ink-mute)">${acc.n}b</span></td>
       ${cells}
     </tr>`;
@@ -214,7 +214,7 @@ function _resContribHTML(rows){
     const arrow=d.forma>0?'▲':d.forma<0?'▼':'■';
     const fc=d.forma>0?'var(--pos)':d.forma<0?'var(--neg)':'var(--ink-mute)';
     return`<tr>
-      <td style="font-weight:700;color:var(--ink)">${d.t}</td>
+      <td style="font-weight:700;color:var(--ink)">${esc(d.t)}</td>
       <td class="td-num" style="${lc};font-weight:600">${fmtPL(d.pl)}</td>
       <td class="td-c" style="color:var(--ink-soft)">${fmtPct(peso,1)}</td>
       <td class="td-num" style="color:var(--ink-soft)">${fmtR(d.vol)}</td>
@@ -265,9 +265,9 @@ function _resCorrHTML(rows){
     return`<td style="background:${bg};color:${tc};text-align:center;padding:6px 8px;font-size:11px;font-weight:600">${num2(v)}</td>`;
   };
   const thBase='padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-mute);white-space:nowrap;';
-  const head=`<tr><th style="${thBase}background:var(--field);text-align:left;position:sticky;left:0;z-index:2;min-width:120px"></th>${top.map(t=>`<th title="${t}" style="${thBase}text-align:center;min-width:74px">${short(t)}</th>`).join('')}</tr>`;
+  const head=`<tr><th style="${thBase}background:var(--field);text-align:left;position:sticky;left:0;z-index:2;min-width:120px"></th>${top.map(t=>`<th title="${esc(t)}" style="${thBase}text-align:center;min-width:74px">${esc(short(t))}</th>`).join('')}</tr>`;
   const body=top.map(a=>`<tr>
-    <td style="${thBase}background:var(--field);text-align:left;color:var(--ink);font-weight:700;position:sticky;left:0;z-index:1;font-size:11px">${short(a)}</td>
+    <td style="${thBase}background:var(--field);text-align:left;color:var(--ink);font-weight:700;position:sticky;left:0;z-index:1;font-size:11px">${esc(short(a))}</td>
     ${top.map(b=>a===b?`<td style="background:var(--elevated);text-align:center;padding:6px 8px;color:var(--ink-mute);font-size:11px">—</td>`:cell(pearson(a,b))).join('')}
   </tr>`).join('');
   return`<div style="overflow-x:auto"><table style="border-collapse:separate;border-spacing:2px;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">

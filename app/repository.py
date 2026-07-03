@@ -27,8 +27,8 @@ def _norm_odd(v: str) -> str:
         return v
 
 
-def _num(v) -> float:
-    """Converte número ("1.234,50" / "1,81" / "75.2606") para float.
+def _num_or_none(v) -> float | None:
+    """Converte número ("1.234,50" / "1,81" / "75.2606") para float; None se ilegível.
 
     Duas convenções coexistem no histórico:
       - BR com vírgula decimal: "1.234,50" → ponto é milhar, vírgula é decimal.
@@ -38,20 +38,29 @@ def _num(v) -> float:
     Regra: se há vírgula, ela manda (ponto = milhar). Sem vírgula, o ponto é
     decimal e deve ser preservado — removê-lo transformava "75.26" em 7526...,
     estourando o P/L derivado. Confirmado no banco: 5 odds nesse formato, 0 stakes.
-    Devolve 0.0 se ilegível.
+
+    Devolve None (não 0.0) quando ausente/ilegível — para os pontos onde um valor
+    inválido NÃO pode virar zero em silêncio: o guard de odd em `calcular_pl` (uma
+    vitória com odd ilegível não pode virar −stake) e a validação de entrada da API.
     """
     if v is None:
-        return 0.0
+        return None
     s = str(v).strip().rstrip(".")  # remove reticências/ponto solto ao final
     if not s:
-        return 0.0
+        return None
     if "," in s:
         s = s.replace(".", "").replace(",", ".")  # padrão BR: ponto = milhar
     # sem vírgula: o ponto (se houver) já é decimal — não mexe
     try:
         return float(s)
     except ValueError:
-        return 0.0
+        return None
+
+
+def _num(v) -> float:
+    """`_num_or_none` com 0.0 no lugar de None — compat com os filtros `> 0` a jusante."""
+    n = _num_or_none(v)
+    return n if n is not None else 0.0
 
 
 def calcular_pl(stake, odd, resultado) -> float | None:
@@ -77,7 +86,16 @@ def calcular_pl(stake, odd, resultado) -> float | None:
     if res not in _RESULTADOS_VALIDOS:
         return None
     s = _num(stake)
-    o = _num(odd)
+    # A odd só entra em W e HW. Nesses, uma odd ilegível/≤0 NÃO pode virar 0.0 em
+    # silêncio (transformaria uma vitória em −stake no P/L da grade e no agregado).
+    # Devolve None = "não calculável" → a linha é tratada como aberta: fica fora do
+    # feed e dos KPIs, e a Análise IA já sinaliza "sem odd" para o operador corrigir.
+    # Para L/V/HL a odd é irrelevante ao P/L, então não bloqueia.
+    o = 0.0
+    if res in ("W", "HW"):
+        o = _num_or_none(odd)
+        if o is None or o <= 0:
+            return None
     valor = {
         "W":  s * o,
         "L":  0.0,
@@ -109,6 +127,33 @@ def _data_iso(v) -> str | None:
         d, mth, y = m.groups()
         return f"{y}-{int(mth):02d}-{int(d):02d}"
     return None
+
+
+# ── Validação de entrada (fronteira da API) ───────────────────────────────────
+# Um valor financeiro inválido nunca deve entrar no banco e contaminar o P/L
+# derivado (odd×stake). Estas checagens são a barreira usada pelos validators
+# Pydantic das rotas de escrita (PATCH/manual). Vazio = permitido (campo opcional
+# ou "limpar"); quando preenchido, tem de ser válido.
+
+def resultado_valido(v) -> bool:
+    """True se `v` é vazio (aposta aberta) ou um código de resultado conhecido."""
+    s = (str(v).strip().upper() if v is not None else "")
+    return s == "" or s in _RESULTADOS_VALIDOS
+
+
+def valor_monetario_valido(v) -> bool:
+    """True se `v` é vazio ou um número > 0 (stake/odd). Rejeita lixo e ≤ 0."""
+    s = (str(v).strip() if v is not None else "")
+    if not s:
+        return True
+    n = _num_or_none(s)
+    return n is not None and n > 0
+
+
+def data_valida(v) -> bool:
+    """True se `v` é vazio ou uma data reconhecível (DD/MM/YYYY ou ISO)."""
+    s = (str(v).strip() if v is not None else "")
+    return not s or _data_iso(s) is not None
 
 
 def parse_tsv(tsv: str) -> list[dict]:
@@ -565,37 +610,31 @@ async def export_bilhetes(dono: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
-    """Resumo agregado de UMA conta (casa+parceiro) para a faixa de KPIs no topo
-    do extrator. Espelha EXATAMENTE os filtros de dashboard_rows (resultado
-    válido, stake>0, P/L numérico, data ISO), escopado a uma só conta e incluindo
-    arquivados — assim os números batem com o card da casa no Betting Dashboard.
+def _resumir_apostas(rows: list[dict]) -> dict:
+    """Agrega P/L, turnover, ROI, win rate, duração e dias ativos de uma lista de
+    apostas (dicts com stake/odd/resultado/data). PURA (sem DB) para ser testável —
+    é o núcleo de `resumo_conta`. Mesmos filtros de `dashboard_rows`: resultado
+    válido, stake>0, P/L numérico (odd ilegível numa vitória → linha excluída),
+    data ISO.
 
-    Devolve: apostas (settled), P/L, turnover (exclui Void), ROI, win rate,
-    duração (span 1ª→última aposta, em dias) e dias ativos (datas distintas).
+    Devolve: apostas (settled + void, contadas em `apostas`), P/L, turnover (exclui
+    Void), ROI, win rate, duração (span 1ª→última, em dias) e dias ativos.
     """
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT stake, odd, resultado, data FROM bilhetes "
-            "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
-            dono, casa, parceiro,
-        )
     pl = turn = 0.0
     n = settled = wins = 0
     datas: set[str] = set()
     dmin = dmax = None
     for r in rows:
-        resultado = (r["resultado"] or "").strip().upper()
+        resultado = (r.get("resultado") or "").strip().upper()
         if resultado not in _RESULTADOS_VALIDOS:
             continue
-        stake = _num(r["stake"])
+        stake = _num(r.get("stake"))
         if stake <= 0:
             continue
-        lucro = calcular_pl(r["stake"], r["odd"], resultado)
+        lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
         if lucro is None:
             continue
-        data_iso = _data_iso(r["data"])
+        data_iso = _data_iso(r.get("data"))
         if not data_iso:
             continue
         pl += lucro
@@ -626,6 +665,22 @@ async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
         "primeira": dmin,
         "ultima": dmax,
     }
+
+
+async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
+    """Resumo agregado de UMA conta (casa+parceiro) para a faixa de KPIs no topo
+    do extrator, incluindo arquivados — números batem com o card da casa no Betting
+    Dashboard (mesmos filtros). A matemática vive em `_resumir_apostas` (pura,
+    testável); aqui só buscamos as linhas da conta e delegamos.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT stake, odd, resultado, data FROM bilhetes "
+            "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
+            dono, casa, parceiro,
+        )
+    return _resumir_apostas([dict(r) for r in rows])
 
 
 async def dashboard_rows(donos: list[str]) -> list[dict]:

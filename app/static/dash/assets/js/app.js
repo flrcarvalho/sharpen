@@ -45,17 +45,17 @@ function mkHouseChip(nome){
   if(!nome)return`<span class="house-chip chip-initial">?</span>`;
   const domain=_houseDomain(nome);
   if(domain){
-    const init=(nome[0]||'?').toUpperCase();
-    const esc=nome.replace(/"/g,'&quot;');
-    return`<span class="house-chip" data-initial="${init}" data-casa="${esc}"><img src="${favicon(domain)}" alt="${esc}"></span>`;
+    const init=esc((nome[0]||'?').toUpperCase());
+    const escNome=esc(nome);
+    return`<span class="house-chip" data-initial="${init}" data-casa="${escNome}"><img src="${favicon(domain)}" alt="${escNome}"></span>`;
   }
-  return`<span class="house-chip chip-initial">${(nome[0]||'?').toUpperCase()}</span>`;
+  return`<span class="house-chip chip-initial">${esc((nome[0]||'?').toUpperCase())}</span>`;
 }
 function casaCell(nome){
-  return`<span style="display:inline-flex;align-items:center;gap:6px">${mkHouseChip(nome)}${nome||'—'}</span>`;
+  return`<span style="display:inline-flex;align-items:center;gap:6px">${mkHouseChip(nome)}${nome?esc(nome):'—'}</span>`;
 }
 function sportCell(esporte){
-  return`<span style="display:inline-flex;align-items:center;gap:6px">${mkSpChip(esporte)}${esporte||'—'}</span>`;
+  return`<span style="display:inline-flex;align-items:center;gap:6px">${mkSpChip(esporte)}${esporte?esc(esporte):'—'}</span>`;
 }
 // Mantido para compatibilidade — use mkHouseChip para novas implementações
 function casaImg(nome,size=14){
