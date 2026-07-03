@@ -3670,10 +3670,15 @@ async function salvarEdicao() {
     if (!r.ok) throw new Error();
     Object.assign(b, patch);
     const trocouParceiro = ('casa' in patch) || ('parceiro' in patch);
+    // stake/odd/resultado alteram o P/L DERIVADO (calcular_pl no backend). Não dá para
+    // confiar no b.pl local (fica velho após Object.assign) → re-busca a grade para o
+    // P/L recalcular e não exibir um lucro obsoleto. Campos sem impacto no P/L
+    // (tipster/descrição/esporte/data) seguem no render local, mais leve.
+    const trocouPL = ('stake' in patch) || ('odd' in patch) || ('resultado' in patch);
     fecharEdicao();
     if ('tipster' in patch) carregarTipsters();
-    if (trocouParceiro) {
-      // Mudou de casa/parceiro → sai da visão atual; recarrega grade + contadores.
+    if (trocouParceiro || trocouPL) {
+      // Mudou casa/parceiro OU um campo que altera o P/L → recarrega grade + contadores.
       await carregarGrade();
     } else {
       renderGrade(); atualizarStats();
