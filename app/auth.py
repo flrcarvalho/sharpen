@@ -51,6 +51,8 @@ USUARIOS: dict[str, str] = {
     "Feca": os.environ.get("SENHA_FECA_HASH", ""),
     "Diogo": os.environ.get("SENHA_DIOGO_HASH", ""),
     "Lava": os.environ.get("SENHA_LAVA_HASH", ""),
+    "Fatuch": os.environ.get("SENHA_FATUCH_HASH", ""),
+    "LavaFatuch": os.environ.get("SENHA_LAVAFATUCH_HASH", ""),
 }
 
 
@@ -62,6 +64,7 @@ USUARIOS: dict[str, str] = {
 OPERADORES: dict[str, list[str]] = {
     "Feca": ["Lava"],
     "Diogo": [],
+    "Fatuch": ["LavaFatuch"],
 }
 
 
