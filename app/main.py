@@ -1175,6 +1175,48 @@ async def listar_bilhetes(
     }
 
 
+class BilheteManualRequest(BaseModel):
+    casa: str
+    parceiro: str
+    data: Optional[str] = ""
+    esporte: Optional[str] = ""
+    tipster: Optional[str] = ""
+    aposta: Optional[str] = ""
+    descricao: Optional[str] = ""
+    stake: Optional[str] = ""
+    odd: Optional[str] = ""
+    resultado: Optional[str] = ""
+
+
+# Criação de dado NOVO → dono REAL (mesma regra de /extrair e /salvar, sessão 82):
+# a aposta manual vai sempre para a base de quem está logado.
+@app.post("/bilhetes/manual")
+async def inserir_bilhete_manual(body: BilheteManualRequest, dono: str = Depends(usuario_atual)):
+    if not (body.casa or "").strip() or not (body.parceiro or "").strip():
+        raise HTTPException(400, "Casa e parceiro são obrigatórios.")
+    resultado = (body.resultado or "").strip().upper()
+    if resultado and resultado not in {"W", "L", "V", "HW", "HL"}:
+        raise HTTPException(400, "Resultado deve ser W, L, V, HW, HL ou vazio.")
+    row = {
+        "casa": body.casa.strip(), "parceiro": body.parceiro.strip(),
+        "data": (body.data or "").strip(),
+        "esporte": (body.esporte or "").strip(),
+        "tipster": (body.tipster or "").strip(),
+        "aposta": (body.aposta or "").strip(),
+        "descricao": (body.descricao or "").strip(),
+        "stake": (body.stake or "").strip(),
+        "odd": (body.odd or "").strip(),
+        "resultado": resultado,
+        "codigo_bilhete": "",
+    }
+    inseridos, atualizados, ids, _alertas, _dup = await upsert_bilhetes(
+        [row], dono, origem="manual",
+    )
+    if not ids:
+        raise HTTPException(500, "Não foi possível inserir a aposta.")
+    return {"id": ids[0], "inserido": inseridos > 0, "atualizado": atualizados > 0}
+
+
 @app.get("/tipsters")
 async def listar_tipsters(dono: str = Depends(dono_efetivo)):
     return {"tipsters": await list_tipsters(dono)}

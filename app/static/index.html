@@ -1459,9 +1459,11 @@ td.c-res.res-HL { color: var(--warn); }
               </div>
             </div>
             <div class="grade-actions">
+              <!-- Inserir aposta manual (item 6): abre o modal em modo inserção. -->
+              <button class="btn btn-primary btn-sm" id="btn-inserir" type="button">+ Inserir aposta</button>
               <!-- Exportar (item 5): menu TSV/CSV — o usuário escolhe e o arquivo baixa pro PC. -->
               <div class="export-menu" id="export-menu">
-                <button class="btn btn-primary btn-sm" id="btn-exportar" type="button" aria-haspopup="true" aria-expanded="false">↓ Exportar ▾</button>
+                <button class="btn btn-ghost btn-sm" id="btn-exportar" type="button" aria-haspopup="true" aria-expanded="false">↓ Exportar ▾</button>
                 <div class="export-pop" id="export-pop" hidden>
                   <button type="button" class="export-opt" data-fmt="tsv">TSV <span>· colar na planilha</span></button>
                   <button type="button" class="export-opt" data-fmt="csv">CSV <span>· abrir no Excel</span></button>
@@ -3593,7 +3595,30 @@ function abrirEdicao(id) {
     const el = document.getElementById('ed-' + c);
     if (el) el.value = b[c] != null ? b[c] : '';
   });
+  // Modo edição: título/rótulo padrão e casa/parceiro editáveis.
+  document.querySelector('#edit-modal .modal-title').textContent = 'Editar aposta';
+  document.getElementById('edit-save').textContent = 'Salvar';
+  document.getElementById('ed-casa').readOnly = false;
+  document.getElementById('ed-parceiro').readOnly = false;
   document.getElementById('edit-modal').classList.add('open');
+}
+
+// Item 6: abre o MESMO modal em modo inserção (edBilheteId=null). Casa/parceiro
+// vêm da conta ativa (readonly) e data já vem preenchida com hoje.
+function abrirInsercao() {
+  if (!parceiroSelecionado) { setExpStatus('Selecione uma conta', 'err'); return; }
+  edBilheteId = null;
+  ED_CAMPOS.forEach(c => { const el = document.getElementById('ed-' + c); if (el) el.value = ''; });
+  const [y, m, d] = hojeISO().split('-');
+  document.getElementById('ed-data').value = `${d}/${m}/${y}`;
+  document.getElementById('ed-casa').value = NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa;
+  document.getElementById('ed-parceiro').value = parceiroSelecionado.nome;
+  document.getElementById('ed-casa').readOnly = true;
+  document.getElementById('ed-parceiro').readOnly = true;
+  document.querySelector('#edit-modal .modal-title').textContent = 'Nova aposta';
+  document.getElementById('edit-save').textContent = 'Adicionar';
+  document.getElementById('edit-modal').classList.add('open');
+  document.getElementById('ed-aposta').focus();
 }
 
 function fecharEdicao() {
@@ -3602,7 +3627,7 @@ function fecharEdicao() {
 }
 
 async function salvarEdicao() {
-  if (edBilheteId == null) return;
+  if (edBilheteId == null) return inserirAposta();   // modo inserção (item 6)
   const b = bilhetes.find(x => x.id === edBilheteId);
   if (!b) { fecharEdicao(); return; }
   const patch = {};
@@ -3636,6 +3661,33 @@ async function salvarEdicao() {
   }
 }
 
+// Insere uma aposta manual (item 6) → POST /bilhetes/manual. Casa/parceiro sempre
+// da conta ativa (independe do que estiver no campo readonly). Reaproveita a mesma
+// grade/contadores do fluxo de extração.
+async function inserirAposta() {
+  if (!parceiroSelecionado) { setExpStatus('Selecione uma conta', 'err'); return; }
+  const dados = {};
+  ED_CAMPOS.forEach(c => { const el = document.getElementById('ed-' + c); if (el) dados[c] = el.value.trim(); });
+  dados.casa = parceiroSelecionado.casa;
+  dados.parceiro = parceiroSelecionado.nome;
+  if (!dados.aposta && !dados.descricao) { setExpStatus('Preencha ao menos a aposta ou a descrição', 'err'); return; }
+  try {
+    const r = await fetch('/bilhetes/manual', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.detail || ''); }
+    fecharEdicao();
+    await carregarGrade();
+    atualizarIncompletos();
+    if (dados.tipster) carregarTipsters();
+    setExpStatus('✓ Aposta adicionada', 'ok');
+  } catch (e) {
+    setExpStatus(e.message ? ('Erro: ' + e.message) : 'Erro ao adicionar', 'err');
+  }
+}
+
+document.getElementById('btn-inserir').addEventListener('click', abrirInsercao);
 document.getElementById('edit-save').addEventListener('click', salvarEdicao);
 document.getElementById('edit-cancel').addEventListener('click', fecharEdicao);
 document.getElementById('edit-close').addEventListener('click', fecharEdicao);
