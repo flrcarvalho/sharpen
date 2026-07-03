@@ -27,9 +27,10 @@ from pydantic import BaseModel, field_validator
 
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, criar_token, dono_efetivo,
-    operadores_de, pode_ver_como, usuario_atual, usuario_do_request,
-    verificar_credenciais,
+    operadores_de, planilha_ao_vivo, pode_ver_como, usuario_atual,
+    usuario_do_request, verificar_credenciais,
 )
+from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
 from polymarket import CambioIndisponivel, coletar_bilhetes, coletar_dashboard
@@ -1152,7 +1153,20 @@ async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo)):
     no servidor de estáticos.
     """
     escopo = [dono] + operadores_de(dono)   # dono + operadores dele (vazio p/ operador)
-    rows = await dashboard_rows(escopo)
+    # Cada dono do escopo lê da sua fonte: planilha AO VIVO (Apps Script /exec,
+    # Fase 1) quando registrada, senão Postgres. O contrato de linha é idêntico
+    # nos dois casos (o Code.gs espelha `dashboard_rows`), então o feed sai
+    # consolidado e transparente para o front.
+    rows: list[dict] = []
+    donos_postgres: list[str] = []
+    for d in escopo:
+        url = planilha_ao_vivo(d)
+        if url:
+            rows += await dashboard_rows_ao_vivo(d, url)
+        else:
+            donos_postgres.append(d)
+    if donos_postgres:
+        rows += await dashboard_rows(donos_postgres)
     payload = {
         "ok": True,
         "data": rows,

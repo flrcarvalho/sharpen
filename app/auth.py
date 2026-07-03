@@ -68,9 +68,26 @@ OPERADORES: dict[str, list[str]] = {
 }
 
 
+# Donos cuja base é uma planilha Google AO VIVO (Apps Script /exec) em vez do
+# Postgres — Fase 1 do onboarding de um cliente: o dashboard lê a planilha dele
+# em tempo real (o cliente segue lançando na própria planilha) até a migração
+# para o banco (Fase 2). A URL vem de env var; ausente/vazia → cai no Postgres
+# (fail-safe: nunca quebra quem não tem planilha viva). LavaFatuch é o operador
+# do cliente Fatuch; toda a base dele mora na planilha ao vivo.
+PLANILHAS_AO_VIVO: dict[str, str] = {
+    "LavaFatuch": os.environ.get("PLANILHA_LAVAFATUCH_URL", ""),
+}
+
+
 def operadores_de(usuario: str) -> list[str]:
     """Operadores que este usuário (dono) pode visualizar. Vazio = não é dono."""
     return OPERADORES.get(usuario, [])
+
+
+def planilha_ao_vivo(dono: str) -> str:
+    """URL do Apps Script /exec da planilha ao vivo deste dono, ou "" se ele lê
+    do Postgres (o caso normal)."""
+    return PLANILHAS_AO_VIVO.get(dono) or ""
 
 
 def pode_ver_como(real: str, alvo: str) -> bool:
