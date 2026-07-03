@@ -1469,7 +1469,7 @@ td.c-res.res-HL { color: var(--warn); }
                   <button type="button" class="export-opt" data-fmt="csv">CSV <span>· abrir no Excel</span></button>
                 </div>
               </div>
-              <button class="btn btn-ghost btn-sm btn-danger" id="btn-deletar-sel" style="display:none">🗑 Deletar selecionados</button>
+              <button class="btn btn-ghost btn-sm btn-danger" id="btn-deletar-sel" style="display:none">🗑 Excluir selecionadas</button>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-desfazer" style="display:none">↩ Desfazer análise</button>
             </div>
           </div>
@@ -4181,13 +4181,20 @@ function atualizarBotoesGrade() {
   const selecionados = [...document.querySelectorAll('.row-chk:checked')].map(c => +c.dataset.id);
   const btnSel = document.getElementById('btn-deletar-sel');
   const btnDesfazer = document.getElementById('btn-desfazer');
-  if (btnSel) btnSel.style.display = selecionados.length ? '' : 'none';
+  const btnTip = document.getElementById('btn-tipster-sel');
+  if (btnSel) {
+    btnSel.style.display = selecionados.length ? '' : 'none';
+    btnSel.textContent = `🗑 Excluir ${selecionados.length} selecionada${selecionados.length === 1 ? '' : 's'}`;
+  }
+  if (btnTip) btnTip.style.display = selecionados.length ? '' : 'none';
   if (btnDesfazer) btnDesfazer.style.display = ultimaAnaliseIds.length ? '' : 'none';
 }
 
 document.getElementById('btn-deletar-sel').addEventListener('click', async () => {
   const ids = [...document.querySelectorAll('.row-chk:checked')].map(c => +c.dataset.id);
   if (!ids.length) return;
+  const n = ids.length;
+  if (!confirm(`Excluir ${n} aposta${n === 1 ? '' : 's'} selecionada${n === 1 ? '' : 's'}? Esta ação não pode ser desfeita.`)) return;
   try {
     const r = await fetch('/bilhetes', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -4196,9 +4203,9 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
     if (!r.ok) throw new Error();
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => !ids.includes(x));
     await carregarGrade(); atualizarIncompletos();
-    setExpStatus(`${ids.length} deletado(s)`, '');
+    setExpStatus(`${n} excluída${n === 1 ? '' : 's'}`, '');
   } catch {
-    setExpStatus('Erro ao deletar', 'err');
+    setExpStatus('Erro ao excluir', 'err');
   }
 });
 
