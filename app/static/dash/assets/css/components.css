@@ -1088,7 +1088,7 @@
 /* ── Sport emoji chip — grayscale per brand rules ────────────────────────── */
 .sport-emoji { filter: grayscale(1); }
 /* Logos e emojis dentro dos dropdowns multiselect seguem o mesmo padrão */
-.ms-opt img { filter: grayscale(1) contrast(0.5) brightness(1.25); }
+.ms-opt img { filter: grayscale(1) contrast(0.2) brightness(1.35); }
 
 /* ── Chips de Esporte e Casa — 24×24px, grayscale, token-only ───────────── */
 .sp-chip,
@@ -1099,24 +1099,19 @@
 }
 .sp-chip { font-size: 14px; line-height: 1; filter: grayscale(1); }
 .house-chip { overflow: hidden; }
-/* contrast(0.5) + brightness(1.25) levanta pixels pretos para ~#50,
-   normalizando logos com fundo escuro (Betboom, Pinnacle, BetMGM, KTO…) */
+/* Filtro ÚNICO das casas (mesmo valor no Planilhador): comprime logo de fundo
+   escuro OU claro para o mesmo cinza-claro → todas caem no tom do bet365, sem
+   exceção de cor. Ajuste o tom aqui (contrast menor = mais uniforme). */
 .house-chip img {
   width: 100%; height: 100%; object-fit: cover; display: block;
-  filter: grayscale(1) contrast(0.5) brightness(1.25);
+  filter: grayscale(1) contrast(0.2) brightness(1.35);
 }
 /* Logos circulares com padding transparente: scale corta a margem e preenche o chip */
 .house-chip[data-casa="Novibet"] img,
 .house-chip[data-casa="PixBet"] img,
 .house-chip[data-casa="Esportiva"] img { transform: scale(1.3); }
-/* KTO e BetMGM: logo claro sobre fundo escuro, sem redução de contraste */
-.house-chip[data-casa="KTO"] img,
-.house-chip[data-casa="BetMGM"] img { filter: grayscale(1) brightness(1.8); }
-/* BETesporte: fundo branco → invert + screen funde com o fundo escuro do chip */
-[data-theme="dark"] .house-chip[data-casa="BETesporte"] img {
-  filter: grayscale(1) invert(1) brightness(1.4);
-  mix-blend-mode: screen;
-}
+/* TOM unificado: KTO/BetMGM/BETesporte usam o mesmo filtro base (acima), sem
+   exceção de cor — mesmo tom do bet365. Só geometria fica como caso especial. */
 /* Fallback: inicial da casa em mono quando favicon indisponível */
 .chip-initial { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-soft); }
 

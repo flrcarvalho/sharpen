@@ -226,7 +226,10 @@ html.embedded .sidebar { display: none; }
   display: inline-grid; place-items: center;
 }
 .casa-chip img { width: 100%; height: 100%; object-fit: cover; display: block;
-  filter: grayscale(1) contrast(0.5) brightness(1.25); }
+  /* Filtro ÚNICO das casas (mesmo valor em .partner-favicon img e no dashboard):
+     comprime logo de fundo escuro OU claro para o mesmo cinza-claro → todas caem no
+     tom do bet365. Ajuste o tom aqui: contrast menor = mais uniforme; brightness clareia. */
+  filter: grayscale(1) contrast(0.2) brightness(1.35); }
 /* Nome da casa = rótulo de grupo discreto (estilo "Cabeçalho" da REFERENCIA §3),
    para que o PARCEIRO ganhe destaque visual abaixo. */
 .casa-name {
@@ -428,18 +431,12 @@ html.embedded .sidebar { display: none; }
   overflow: hidden; display: inline-grid; place-items: center; flex: none;
 }
 .partner-favicon img { width: 100%; height: 100%; object-fit: cover; display: block;
-  filter: grayscale(1) contrast(0.5) brightness(1.25); }
+  filter: grayscale(1) contrast(0.2) brightness(1.35); }
 
-/* ── Overrides de favicon por casa — mesmo padrão do Betting Dashboard ────────
-   contrast(0.5)+brightness(1.25) levanta pretos para ~#50, normalizando logos de
-   fundo escuro. Casos especiais espelham o components.css do Dashboard. */
-/* KTO e BetMGM: logo claro sobre fundo escuro, sem redução de contraste */
-.casa-group[data-casa="KTO"] .casa-chip img,
-.casa-group[data-casa="BetMGM"] .casa-chip img,
-.btbl-casa .casa-chip[data-casa="KTO"] img,
-.btbl-casa .casa-chip[data-casa="BetMGM"] img,
-.partner-favicon img[data-casa="KTO"],
-.partner-favicon img[data-casa="BetMGM"] { filter: grayscale(1) brightness(1.8); }
+/* ── Overrides de favicon por casa — SÓ geometria (encaixe) ───────────────────
+   TOM unificado: todas as casas usam o mesmo filtro base (acima), sem exceção de
+   cor. KTO/BetMGM/BETesporte caem no mesmo tom do bet365. Aqui ficam só ajustes de
+   escala p/ logos circulares ou com margem transparente. */
 /* Logos circulares com padding transparente: scale corta a margem e preenche o chip */
 .casa-group[data-casa="Novibet"] .casa-chip img,
 .casa-group[data-casa="Esportiva"] .casa-chip img,
@@ -450,14 +447,7 @@ html.embedded .sidebar { display: none; }
 .partner-favicon img[data-casa="Novibet"],
 .partner-favicon img[data-casa="Esportiva"],
 .partner-favicon img[data-casa="PixBet"] { transform: scale(1.3); }
-/* BETesporte: fundo branco → invert + screen funde com o fundo escuro do chip
-   (tema escuro único; sem gate [data-theme] como no Dashboard) */
-.casa-group[data-casa="BETesporte"] .casa-chip img,
-.btbl-casa .casa-chip[data-casa="BETesporte"] img,
-.partner-favicon img[data-casa="BETesporte"] {
-  filter: grayscale(1) invert(1) brightness(1.4);
-  mix-blend-mode: screen;
-}
+/* BETesporte: agora usa o filtro base unificado (sem invert) — mesmo tom das demais. */
 /* BetMGM e BETesporte: logo com margem transparente → amplia para preencher o quadradinho */
 .casa-group[data-casa="BetMGM"] .casa-chip img,
 .casa-group[data-casa="BETesporte"] .casa-chip img,
