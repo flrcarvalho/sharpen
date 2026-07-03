@@ -986,9 +986,9 @@ function renderTipsterDrill(rows){
       `<div class="analise-popup-section-title">Diagnóstico de Risco <span style="font-size:9px;color:var(--ink-mute);text-transform:none;letter-spacing:0">(Monte Carlo · 10.000 simulações)</span></div>`+
       `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">`+
         `<div class="kpi" style="${kS}">`+
-          `<div class="kpi-label"><span class="kpi-pipe"></span>p-value ${_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Probabilidade do resultado ser <b>mero acaso</b>. Quanto menor, mais confiável o <b>edge</b>.',rodapePValue(_pv))}</div>`+
+          `<div class="kpi-label"><span class="kpi-pipe"></span>p-value ${_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Indicador heurístico (bootstrap): quão improvável seria seu resultado por <b>acaso</b>, sem vantagem. Menor = destaca-se mais do acaso — <b>não é prova estatística nem recomendação</b>.',rodapePValue(_pv))}</div>`+
           `<div class="fdc-kpi__value" data-state="${_pv<0.05?'pos':'proj'}" style="${vS}">${_pv<0.001?'< 0,001':fmt(_pv,4)}</div>`+
-          `<div class="kpi-sub" style="${sbS}">${_pv<0.001?'resultado robusto':_pv<0.05?'rejeita o acaso':'inconclusivo'}</div>`+
+          `<div class="kpi-sub" style="${sbS}">${_pv<0.001?'sinal forte':_pv<0.05?'destaca do acaso':'inconclusivo'}</div>`+
         `</div>`+
         `<div class="kpi" style="${kS}">`+
           `<div class="kpi-label"><span class="kpi-pipe"></span>DD Médio ${_mkTipAnchor('DD Médio','<span class="lbl">média</span> dos DD simulados','Queda <b>típica projetada</b> (média das 10.000 simulações de Monte Carlo). <b>Não aconteceu</b> — é estimativa.','<span class="lbl">projetado · média</span>')}</div>`+

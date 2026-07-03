@@ -155,7 +155,7 @@ _CSP = (
     "script-src 'self' 'unsafe-inline'; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' data: blob: https://www.google.com; "  # favicons das casas (s2/favicons)
+    "img-src 'self' data: blob: https:; "  # favicons das casas: o s2/favicons do Google redireciona p/ gstatic → libera imagem https (não executa script)
     "connect-src 'self'; "
     "object-src 'none'; "
     "base-uri 'self'; "

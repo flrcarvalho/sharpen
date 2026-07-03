@@ -269,7 +269,7 @@ function renderOvRisco(rows){
       `</div>`+
     `</div>`;
   // skeleton: tooltip de p-value sem rodapé (depende do valor), valores = spinner
-  const pvTipSkel=_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Probabilidade do resultado ser <b>mero acaso</b>. Quanto menor, mais confiável o <b>edge</b>.','');
+  const pvTipSkel=_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Indicador heurístico (bootstrap): quão improvável seria seu resultado por <b>acaso</b>, sem vantagem. Menor = destaca-se mais do acaso — <b>não é prova estatística nem recomendação</b>.','');
   el.innerHTML=_frame(pvTipSkel,{state:'proj',html:spin},'<span style="color:var(--ink-mute)">—</span>',spin,spin,
     `<div class="fdc-risk-meter" style="margin-top:auto">${spin}</div>`);
   // dispara o cálculo (worker) e preenche quando voltar — descarta se já houve novo render
@@ -280,11 +280,11 @@ function renderOvRisco(rows){
     const _profit=_td.atual;
     const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows)});
     const _solCor=_sol.score>=0.65?'var(--d-pos)':_sol.score>=0.45?'var(--d-proj)':'var(--d-neg)';
-    const pvTip=_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Probabilidade do resultado ser <b>mero acaso</b>. Quanto menor, mais confiável o <b>edge</b>.',rodapePValue(_pv));
+    const pvTip=_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Indicador heurístico (bootstrap): quão improvável seria seu resultado por <b>acaso</b>, sem vantagem. Menor = destaca-se mais do acaso — <b>não é prova estatística nem recomendação</b>.',rodapePValue(_pv));
     el.innerHTML=_frame(
       pvTip,
       {state:_pv<0.05?'pos':'proj',html:_pv<0.001?'< 0,001':fmt(_pv,4)},
-      _pv<0.001?'resultado robusto':_pv<0.05?'rejeita o acaso':'inconclusivo',
+      _pv<0.001?'sinal forte':_pv<0.05?'destaca do acaso':'inconclusivo',
       fmtPL(-_mc.xmdd),
       fmtPL(-_mc.p99),
       `<div class="fdc-risk-meter" style="margin-top:auto">`+
