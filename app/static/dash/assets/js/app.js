@@ -578,7 +578,7 @@ function buildHTML(){
             <div class="metric-formula">ROI (%) = (Lucro Líquido <span class="op">÷</span> Turnover) <span class="op">×</span> 100</div>
             <div class="metric-example">Exemplo: apostou R$ 10.000 (turnover) e lucrou R$ 500 → ROI = +5,00%. A cada R$ 100 apostados, R$ 5 de lucro.</div>
             <div class="metric-note">O Turnover (denominador) exclui apostas Void — a stake anulada é devolvida e não conta como volume.</div>
-            <div class="metric-warn">ROI positivo no curto prazo pode ser sorte. Confirme a significância com o P-Value.</div>`,`<span class="metric-live" id="mv_roi">—</span>`)}
+            <div class="metric-warn">ROI positivo no curto prazo pode ser variância. Use o P-Value como indicador heurístico de apoio — ele não confirma vantagem por si só.</div>`,`<span class="metric-live" id="mv_roi">—</span>`)}
 
           ${mkCard('m_turnover','Turnover — Volume Apostado',`
             <div class="metric-desc">Volume total efetivamente apostado. É o denominador do ROI e da Stake Média — a base sobre a qual toda a rentabilidade é medida.</div>
@@ -631,7 +631,7 @@ function buildHTML(){
           ${mkCard('m_emdd','Drawdown Médio Esperado',`
             <div class="metric-desc">A queda <b>típica</b> que você deve esperar ao longo da operação. Não é o que aconteceu — é o que tende a acontecer, dada a dispersão dos seus resultados.</div>
             <div class="metric-formula">Drawdown Médio = média dos MDD de 10.000 reamostragens (bootstrap) dos P/L reais</div>
-            <div class="metric-note">O bootstrap reamostra seus próprios resultados milhares de vezes — herda a dispersão real da carteira, sem supor distribuição teórica. É o mesmo número exibido no Nível de Solidez dos drill-downs.</div>`,`<span class="metric-live d-proj" id="mv_xmdd">—</span>`)}
+            <div class="metric-note">O bootstrap reamostra seus próprios resultados milhares de vezes — herda a dispersão real da carteira, sem supor distribuição teórica. É o mesmo número exibido no Nível de Solidez dos drill-downs. Assume apostas <b>independentes e de mesma distribuição</b> — pode subestimar a cauda se houver sequências, mudança de regime ou stakes correlacionadas. Indicador heurístico, não garantia de risco máximo.</div>`,`<span class="metric-live d-proj" id="mv_xmdd">—</span>`)}
 
           ${mkCard('m_p95','Drawdown p95 (risco)',`
             <div class="metric-desc">O cenário <b>ruim-mas-plausível</b> para dimensionar a banca: em 95% das reamostragens a queda ficou abaixo deste valor; só 5% foram piores.</div>
@@ -655,29 +655,31 @@ function buildHTML(){
         </div>
 
         <div class="metric-section">
-          <div class="metric-title">Significância Estatística</div>
+          <div class="metric-title">Significância — indicadores heurísticos</div>
 
           ${mkCard('m_pval','P-Value',`
-            <div class="metric-desc">A probabilidade de que seu resultado seja <b>só sorte</b>, supondo que você não tenha vantagem real (edge). Quanto menor, mais improvável que seja acaso.</div>
+            <div class="metric-desc"><b>Indicador heurístico</b> (simulação bootstrap) de quão improvável seria o seu resultado por acaso, caso você não tivesse vantagem (edge). Quanto menor, mais o resultado se destaca do acaso — mas <b>não é uma prova estatística nem recomendação financeira</b>.</div>
             <div class="metric-formula">P-Value = bootstrap t-test sobre os resíduos de (lucro ~ yₒ <span class="op">·</span> stake), 10.000 reamostragens · H₀ = sem edge</div>
-            <div class="metric-note">Testa se o seu lucro por unidade apostada resiste ao acaso — NÃO é um teste sobre o Win Rate. Precisa de ≥ 30 apostas; abaixo disso o resultado fica inconclusivo.</div>
+            <div class="metric-note">Estima se o seu lucro por unidade apostada resiste ao acaso — NÃO é um teste sobre o Win Rate. Precisa de ≥ 30 apostas; abaixo disso fica inconclusivo. É um sinal de apoio, não uma garantia de edge.</div>
             <div class="term-grid">
-              <div class="term-card"><div class="term-name">&lt; 5% (0,05)</div><div class="term-def">Significativo. Seus resultados provavelmente não são acaso.</div></div>
-              <div class="term-card"><div class="term-name">&lt; 1% (0,01)</div><div class="term-def">Altamente significativo. Evidência forte de edge real.</div></div>
-              <div class="term-card"><div class="term-name">&lt; 0,1% (0,001)</div><div class="term-def">Nível exigido por pesquisadores rigorosos para confirmar edge.</div></div>
-              <div class="term-card"><div class="term-name">&gt; 5%</div><div class="term-def">Inconclusivo. Mais apostas necessárias para confirmar o edge.</div></div>
-            </div>`,`<span class="metric-live" id="mv_pval">—</span>`)}
+              <div class="term-card"><div class="term-name">&lt; 5% (0,05)</div><div class="term-def">Sinal heurístico de que o resultado se destaca do acaso — não confirma edge sozinho.</div></div>
+              <div class="term-card"><div class="term-name">&lt; 1% (0,01)</div><div class="term-def">Sinal forte (heurístico). Sugere destaque do acaso, não prova de edge real.</div></div>
+              <div class="term-card"><div class="term-name">&lt; 0,1% (0,001)</div><div class="term-def">Limiar rigoroso da pesquisa acadêmica. Aqui segue sendo indicador, não prova.</div></div>
+              <div class="term-card"><div class="term-name">&gt; 5%</div><div class="term-def">Inconclusivo. Amostra insuficiente para destacar do acaso.</div></div>
+            </div>
+            <div class="metric-warn">Métrica heurística de apoio — não é prova estatística de vantagem nem recomendação de aposta.</div>`,`<span class="metric-live" id="mv_pval">—</span>`)}
 
           ${mkCard('m_solidez','Nível de Solidez',`
-            <div class="metric-desc">Selo de qualidade composto que resume <b>4 pilares</b> numa nota (0 a 1) e numa faixa. Responde de uma vez: "dá para confiar nesta operação?".</div>
+            <div class="metric-desc"><b>Indicador heurístico</b> composto que resume <b>4 pilares</b> numa nota (0 a 1) e numa faixa, como um resumo rápido — <b>não é um selo certificado nem recomendação financeira</b>. Os pesos são calibragem interna, não um padrão estatístico.</div>
             <div class="metric-formula">Score = (Edge<span class="op">×</span>3 + Folga<span class="op">×</span>3 + Amostra<span class="op">×</span>2 + Variância<span class="op">×</span>2) <span class="op">÷</span> 10</div>
             <div class="term-grid">
-              <div class="term-card"><div class="term-name">Edge · peso 3</div><div class="term-def">P-Value — o resultado é estatisticamente significativo?</div></div>
+              <div class="term-card"><div class="term-name">Edge · peso 3</div><div class="term-def">P-Value — o resultado se destaca do acaso? (heurístico)</div></div>
               <div class="term-card"><div class="term-name">Folga · peso 3</div><div class="term-def">Profit / Drawdown — o lucro folga bem sobre o risco típico?</div></div>
               <div class="term-card"><div class="term-name">Amostra · peso 2</div><div class="term-def">Nº de apostas — há histórico suficiente para confiar?</div></div>
               <div class="term-card"><div class="term-name">Variância · peso 2</div><div class="term-def">Odd Média — odds moderadas pesam menos no risco.</div></div>
             </div>
-            <div class="metric-note">Faixas: ≥ 0,85 Muito Alta · ≥ 0,65 Alta · ≥ 0,45 Média · ≥ 0,25 Baixa · &lt; 0,25 Muito Baixa.</div>`,`<span class="metric-live" id="mv_solidez">—</span>`)}
+            <div class="metric-note">Faixas: ≥ 0,85 Muito Alta · ≥ 0,65 Alta · ≥ 0,45 Média · ≥ 0,25 Baixa · &lt; 0,25 Muito Baixa.</div>
+            <div class="metric-warn">Indicador heurístico de apoio — não é um selo estatístico certificado nem recomendação financeira.</div>`,`<span class="metric-live" id="mv_solidez">—</span>`)}
         </div>
 
         <div class="metric-section">
