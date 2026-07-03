@@ -43,7 +43,7 @@ from repository import (
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, resumo_conta, upsert_bilhetes,
-    valor_monetario_valido,
+    validar_linhas, valor_monetario_valido,
 )
 
 logger = logging.getLogger("scanner")
@@ -1010,7 +1010,24 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
         if body.parceiro:
             row["parceiro"] = body.parceiro
         row["tipster"] = ""
-    inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono, confianca=body.confianca)
+
+    # Validação de fronteira: grava só as linhas com campo financeiro válido; as
+    # malformadas (stake/odd/resultado/data presentes e ilegíveis) voltam à UI para
+    # correção, sem bloquear as boas nem contaminar o P/L. Incompleta (campo vazio)
+    # NÃO é rejeitada — é aposta aberta/leitura parcial, tratada como aviso.
+    rows, rejeitadas = validar_linhas(rows)
+
+    if rows:
+        inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono, confianca=body.confianca)
+    else:
+        inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}
+
+    for r in rejeitadas:
+        detalhe = f" · {r['resumo']}" if r["resumo"] else ""
+        alertas.append(
+            f"Linha {r['linha']} não salva — {r['erro']} (valor: '{r['valor']}'){detalhe}. "
+            "Corrija no bilhete e reenvie."
+        )
 
     arquivados = 0
     if ids and (body.casa or rows):
@@ -1028,7 +1045,7 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
 
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
             "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados,
-            "analise": analise}
+            "analise": analise, "rejeitados": rejeitadas}
 
 
 class PolymarketSyncRequest(BaseModel):

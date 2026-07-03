@@ -178,6 +178,41 @@ def parse_tsv(tsv: str) -> list[dict]:
     return rows
 
 
+def validar_linhas(rows: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Separa as linhas com campo financeiro MALFORMADO (presente e ilegível) das
+    salváveis, para o `/salvar` gravar as boas e devolver as ruins à UI.
+
+    Rejeita apenas o que é *presente e inválido*: stake/odd que não são número > 0,
+    resultado fora de {W,L,V,HW,HL}, ou data ilegível. NÃO rejeita linha só por estar
+    INCOMPLETA (campo vazio) — stake/odd/resultado/data vazios são aposta aberta ou
+    leitura parcial da IA, sinalizados como aviso (analisar_extracao), não erro.
+
+    Retorna (validas, rejeitadas). Cada rejeitada = {linha, campo, valor, erro, resumo}
+    (linha = posição 1-based na lista parseada; resumo identifica o bilhete p/ o operador).
+    """
+    validas: list[dict] = []
+    rejeitadas: list[dict] = []
+    for i, row in enumerate(rows, 1):
+        problema = None
+        for campo in ("stake", "odd"):
+            if not valor_monetario_valido(row.get(campo)):
+                problema = (campo, row.get(campo), f"{campo} inválido — não é um número maior que zero")
+                break
+        if problema is None and not resultado_valido(row.get("resultado")):
+            problema = ("resultado", row.get("resultado"), "resultado deve ser W, L, V, HW, HL ou vazio")
+        if problema is None and not data_valida(row.get("data")):
+            problema = ("data", row.get("data"), "data inválida — use DD/MM/AAAA")
+        if problema is None:
+            validas.append(row)
+            continue
+        campo, valor, msg = problema
+        resumo = " · ".join(
+            x for x in [row.get("data"), row.get("aposta"), row.get("descricao")] if x
+        )[:80]
+        rejeitadas.append({"linha": i, "campo": campo, "valor": valor, "erro": msg, "resumo": resumo})
+    return validas, rejeitadas
+
+
 # ── Análise de confiança da extração (heurística explicável) ──────────────────
 # Score de confiança = % médio de campos-chave preenchidos/válidos por bilhete.
 # NÃO mexe na IA: lê só as linhas já extraídas. Penaliza categoria incerta

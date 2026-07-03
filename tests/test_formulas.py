@@ -203,3 +203,31 @@ def test_resumir_vazio():
     assert r["roi"] == 0.0
     assert r["win_rate"] == 0.0
     assert r["duracao_dias"] == 0
+
+
+# ── validar_linhas (fronteira do /salvar) ─────────────────────────────────────
+def test_validar_linhas_aceita_validas_e_incompletas():
+    rows = [
+        {"stake": "100", "odd": "2,00", "resultado": "W", "data": "01/01/2026", "aposta": "ML"},
+        # aberta/incompleta (odd e resultado vazios) = OK, NÃO é rejeitada
+        {"stake": "50", "odd": "", "resultado": "", "data": "02/01/2026", "aposta": "Gols"},
+    ]
+    validas, rejeitadas = R.validar_linhas(rows)
+    assert len(validas) == 2
+    assert rejeitadas == []
+
+
+def test_validar_linhas_rejeita_malformada():
+    rows = [
+        {"stake": "100", "odd": "2,00", "resultado": "W", "data": "01/01/2026", "aposta": "ML"},
+        {"stake": "abc", "odd": "2,00", "resultado": "W", "data": "03/01/2026", "aposta": "Gols"},   # stake lixo
+        {"stake": "100", "odd": "0",    "resultado": "L", "data": "04/01/2026", "aposta": "ML"},     # odd = 0
+        {"stake": "100", "odd": "2,00", "resultado": "Z", "data": "05/01/2026", "aposta": "ML"},     # resultado inválido
+        {"stake": "100", "odd": "2,00", "resultado": "W", "data": "lixo",       "aposta": "ML"},     # data inválida
+    ]
+    validas, rejeitadas = R.validar_linhas(rows)
+    assert len(validas) == 1
+    assert len(rejeitadas) == 4
+    assert {r["campo"] for r in rejeitadas} == {"stake", "odd", "resultado", "data"}
+    assert rejeitadas[0]["linha"] == 2   # 1-based na lista parseada
+    assert all(("erro" in r and "valor" in r and "resumo" in r) for r in rejeitadas)
