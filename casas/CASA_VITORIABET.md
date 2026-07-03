@@ -210,7 +210,7 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 
 > **Ordem de output:** lista = mais recente (Nº20) no topo → TSV inverso (Nº15 = 1ª linha, Nº20 = última).
 > **Política de descrição (§2.1/§9):** classificar pelo mercado legível; descrição parcial honesta onde o confronto/perna vem truncado — nunca inventar. O `Nº` vai no `Código`.
-> **Pendências de amostra:** V, HW/HL, cashout, boost, bônus e **W-simples** ainda não observados (o único W do lote, Nº16, é Múltipla).
+> **Pendências de amostra (não bloqueiam):** V, HW/HL, cashout, boost, bônus e **W-simples** ainda não observados (o único W do lote, Nº16, é Múltipla). Casa **low-volume** — o lote completo disponível já foi processado; novas amostras desses cenários são improváveis a curto prazo. As regras globais cobrem esses casos quando surgirem.
 
 ---
 
@@ -294,11 +294,11 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 
 ## Feedback para a camada global / MODELO
 
-1. **Descrição truncada na lista de histórico:** a Vitória Bet corta a descrição no view de lista (copiar/colar e print), preservando só o início do mercado. Tratamento adotado (sem mudança de master): classificar pelo mercado legível + descrição parcial honesta; fallback = tela de detalhe / "Compartilhar". Espelha o padrão KTO/Superbet (segunda fonte quando a lista não expõe o campo).
+1. **Descrição truncada na lista de histórico:** a Vitória Bet corta a descrição no view de lista (copiar/colar e print), preservando só o início do mercado. Tratamento adotado (sem mudança de master; **decisão do Feca: a descrição não fica perfeita de qualquer jeito → a IA tem latitude para escolher o melhor caminho por bilhete na extração**): classificar pelo mercado legível + descrição parcial honesta; fallback = tela de detalhe / "Compartilhar". Espelha o padrão KTO/Superbet (segunda fonte quando a lista não expõe o campo).
 2. **Chip genérico `Sim / Não`:** todos os bilhetes usam a moldura "Sim / Não · Sim" como wrapper de seleção; o mercado real vive na descrição. Documentado como ruído (§12) e pegadinha (§13). Sem proposta de mudança global.
 
 ---
 
 VERSÃO: 2026
-STATUS: ATIVO (v1 — 6 goldens reais, 03/07/2026; W/L confirmados; V/HW/HL/cashout/boost/bônus e W-simples pendentes de amostra)
+STATUS: ATIVO (v1 — 6 goldens reais, 03/07/2026; casa low-volume, lote completo processado; W/L confirmados; V/HW/HL/cashout/boost/bônus e W-simples sem amostra — não bloqueiam)
 CASA: `Vitória Bet`
