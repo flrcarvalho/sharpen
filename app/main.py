@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import csv
+import gzip
 import io
 import json
 import logging
@@ -19,7 +20,7 @@ import xlrd
 from anthropic import (
     APIConnectionError, APIStatusError, AsyncAnthropic, RateLimitError,
 )
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
@@ -1137,7 +1138,7 @@ async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depend
 
 
 @app.get("/dashboard/data")
-async def dashboard_data(dono: str = Depends(dono_efetivo)):
+async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo)):
     """Fonte de dados do Betting Dashboard (mesmo contrato do Code.gs/Apps Script),
     montada do Postgres e filtrada pelo dono logado — substitui a planilha. O
     dashboard client-side faz toda a matemática; aqui só servimos o array cru.
@@ -1152,13 +1153,27 @@ async def dashboard_data(dono: str = Depends(dono_efetivo)):
     """
     escopo = [dono] + operadores_de(dono)   # dono + operadores dele (vazio p/ operador)
     rows = await dashboard_rows(escopo)
-    return {
+    payload = {
         "ok": True,
         "data": rows,
         "builtAt": datetime.now(timezone.utc).isoformat(),
         "count": len(rows),
         "operadores": escopo,
     }
+    body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+    # Compressão DIRECIONADA (só esta rota): o feed é um JSON grande (~toda a base) e
+    # altamente compressível → gzip corta ~85-90% da transferência, que é o gargalo
+    # da 1ª carga sem cache (#17). Não usamos GZipMiddleware global de propósito: ele
+    # bufferizaria os streams SSE da extração (keepalive). Aqui é uma resposta única.
+    aceita_gzip = "gzip" in request.headers.get("accept-encoding", "").lower()
+    if aceita_gzip and len(body) > 1024:
+        comprimido = gzip.compress(body, compresslevel=6)
+        return Response(
+            content=comprimido,
+            media_type="application/json",
+            headers={"Content-Encoding": "gzip", "Vary": "Accept-Encoding"},
+        )
+    return Response(content=body, media_type="application/json")
 
 
 @app.get("/exportar.csv")
