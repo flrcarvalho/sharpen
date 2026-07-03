@@ -34,12 +34,12 @@ from prompts import build_system
 from repository import (
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendentes,
+    casas_com_parceiros, contar_bilhetes, contar_incompletos,
     criar_parceiro, dashboard_rows, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     set_ativo_tipster,
-    list_parceiros, marcar_copiada, marcar_pendente, parse_tsv,
+    list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, resumo_conta, upsert_bilhetes,
 )
 
@@ -1104,23 +1104,6 @@ async def deletar_bilhete_route(bilhete_id: int, dono: str = Depends(dono_efetiv
     return {"deletado": True}
 
 
-@app.get("/pendentes")
-async def listar_pendentes(dono: str = Depends(dono_efetivo)):
-    """Contagem de bilhetes não copiados, por parceiro e por casa.
-
-    Alimenta os badges azuis da sidebar (bolinha com número de pendências).
-    """
-    linhas = await contar_pendentes(dono)
-    por_parceiro = [
-        {"casa": r["casa"], "parceiro": r["parceiro"], "pendentes": r["pendentes"]}
-        for r in linhas
-    ]
-    por_casa: dict[str, int] = {}
-    for r in linhas:
-        por_casa[r["casa"]] = por_casa.get(r["casa"], 0) + r["pendentes"]
-    return {"por_parceiro": por_parceiro, "por_casa": por_casa}
-
-
 @app.get("/conta/resumo")
 async def resumo_da_conta(
     casa: str, parceiro: str, dono: str = Depends(dono_efetivo)
@@ -1157,7 +1140,6 @@ async def listar_incompletos(dono: str = Depends(dono_efetivo)):
 async def listar_bilhetes(
     casa: Optional[str] = None,
     parceiro: Optional[str] = None,
-    copy_state: Optional[str] = None,
     extraction_state: Optional[str] = None,
     archived: str = "false",
     order: str = "asc",
@@ -1171,7 +1153,6 @@ async def listar_bilhetes(
         dono,
         casa=casa or None,
         parceiro=parceiro or None,
-        copy_state=copy_state or None,
         extraction_state=extraction_state or None,
         archived=archived,
         limit=limit,
@@ -1182,7 +1163,6 @@ async def listar_bilhetes(
         dono,
         casa=casa or None,
         parceiro=parceiro or None,
-        copy_state=copy_state or None,
         extraction_state=extraction_state or None,
         archived=archived,
     )
@@ -1203,26 +1183,6 @@ async def listar_tipsters(dono: str = Depends(dono_efetivo)):
 @app.get("/esportes")
 async def listar_esportes(dono: str = Depends(dono_efetivo)):
     return {"esportes": await list_esportes(dono)}
-
-
-class CopiarRequest(BaseModel):
-    ids: list[int]
-
-
-@app.post("/bilhetes/copiar")
-async def marcar_bilhetes_copiados(body: CopiarRequest, dono: str = Depends(dono_efetivo)):
-    if not body.ids:
-        raise HTTPException(400, "Lista de IDs vazia.")
-    atualizados = await marcar_copiada(body.ids, dono)
-    return {"atualizados": atualizados}
-
-
-@app.post("/bilhetes/desmarcar")
-async def desmarcar_bilhetes(body: CopiarRequest, dono: str = Depends(dono_efetivo)):
-    if not body.ids:
-        raise HTTPException(400, "Lista de IDs vazia.")
-    atualizados = await marcar_pendente(body.ids, dono)
-    return {"atualizados": atualizados}
 
 
 # ── Fase 4: parceiros persistidos ─────────────────────────────────────────────

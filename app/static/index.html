@@ -719,6 +719,23 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .exp-status { font-size: 11px; color: var(--ink-mute); }
 .exp-status.ok  { color: var(--pos); }
 .exp-status.err { color: var(--neg); }
+/* Menu Exportar (item 5): botão + popover com TSV/CSV */
+.export-menu { position: relative; }
+.export-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
+  min-width: 190px; padding: 5px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm);
+  box-shadow: var(--glow);
+}
+.export-pop[hidden] { display: none; }
+.export-opt {
+  display: flex; align-items: baseline; gap: 6px; width: 100%; text-align: left;
+  padding: 8px 10px; border: 0; border-radius: var(--r-xs); cursor: pointer;
+  background: transparent; color: var(--ink);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: .04em;
+}
+.export-opt span { color: var(--ink-mute); font-weight: 400; font-size: 11px; letter-spacing: 0; }
+.export-opt:hover { background: var(--surface-2); }
 .grade-wrap {
   flex: 1; overflow: auto; min-height: 0;
 }
@@ -739,7 +756,6 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 }
 .grade tbody tr { border-bottom: 1px solid var(--line-2); }
 .grade tbody tr:hover { background: var(--surface-2); }
-.grade tbody tr.row-cop { opacity: .5; }
 .grade tbody tr.row-arc { opacity: .35; background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(255,255,255,.018) 6px, rgba(255,255,255,.018) 7px); }
 .arc-chip {
   display: inline-flex; align-items: center; gap: 4px;
@@ -867,7 +883,6 @@ table.pm-ativas td.c-merc { color:var(--ink); }
   transition: background .1s;
 }
 .btbl-data-row:hover { background: rgba(var(--accent-rgb),.04); }
-.btbl-data-row.row-cop { opacity: .55; }
 .btbl-data-row.row-sel { background: rgba(var(--accent-rgb),.08); }
 .btbl-cell { min-width: 0; overflow: hidden; }
 .btbl-sel { display: flex; align-items: center; justify-content: center; }
@@ -1444,10 +1459,14 @@ td.c-res.res-HL { color: var(--warn); }
               </div>
             </div>
             <div class="grade-actions">
-              <button class="btn btn-primary btn-sm" id="btn-copiar-pend">⊕ Copiar pendentes</button>
-              <button class="btn btn-ghost btn-sm" id="btn-baixar-tsv">↓ Baixar .tsv</button>
-              <button class="btn btn-ghost btn-sm" id="btn-marcar-todas">✓ Marcar</button>
-              <button class="btn btn-ghost btn-sm btn-danger" id="btn-desmarcar-todas">✗ Desmarcar</button>
+              <!-- Exportar (item 5): menu TSV/CSV — o usuário escolhe e o arquivo baixa pro PC. -->
+              <div class="export-menu" id="export-menu">
+                <button class="btn btn-primary btn-sm" id="btn-exportar" type="button" aria-haspopup="true" aria-expanded="false">↓ Exportar ▾</button>
+                <div class="export-pop" id="export-pop" hidden>
+                  <button type="button" class="export-opt" data-fmt="tsv">TSV <span>· colar na planilha</span></button>
+                  <button type="button" class="export-opt" data-fmt="csv">CSV <span>· abrir no Excel</span></button>
+                </div>
+              </div>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-deletar-sel" style="display:none">🗑 Deletar selecionados</button>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-desfazer" style="display:none">↩ Desfazer análise</button>
             </div>
@@ -1746,7 +1765,7 @@ async function carregarCasas() {
     await Promise.all(casas.map(c => carregarParceiros(c)));
     casasCarregadas = casas;
     renderCasaList();
-    atualizarPendentes();
+    atualizarIncompletos();
     renderPainelContas();   // popula o Painel de Contas (landing sem conta ativa)
   } catch {
     // 4.2.c — a árvore saiu da sidebar; o elemento pode não existir mais.
@@ -1879,26 +1898,12 @@ function renderParceirosEmLista(casa, listEl) {
   aplicarBadgesSidebar();
 }
 
-// ── Badges da sidebar (bilhetes INCOMPLETOS) + stats de cópia do rodapé ───────
-// Sidebar: azul = sem tipster (incompleto), âmbar = abertas (sem resultado).
-// Rodapé "Grade · Exportar": copiadas/pendentes — fluxo de export TSV, mantido.
-let pendentesPorParceiro = {};                       // casa → { parceiro: nº pendentes } (rodapé)
-let semTipsterPorCasa = {}, semTipsterPorParceiro = {};  // sidebar azul
-let abertasPorCasa = {},   abertasPorParceiro = {};      // sidebar âmbar
+// ── Badges de incompletos (sem tipster + abertas) + contadores da barra ───────
+// Azul = sem tipster (aguardando informação), âmbar = abertas (aguardando resultado).
+let semTipsterPorCasa = {}, semTipsterPorParceiro = {};  // azul
+let abertasPorCasa = {},   abertasPorParceiro = {};      // âmbar
 
-async function atualizarPendentes() {
-  // Rodapé copiadas/pendentes (fluxo de export)
-  try {
-    const r = await fetch('/pendentes');
-    if (r.ok) {
-      const { por_parceiro } = await r.json();
-      pendentesPorParceiro = {};
-      (por_parceiro || []).forEach(({ casa, parceiro, pendentes }) => {
-        (pendentesPorParceiro[casa] = pendentesPorParceiro[casa] || {})[parceiro] = pendentes;
-      });
-    }
-  } catch { /* informativo */ }
-  // Badges da sidebar (incompletos: sem tipster + abertas)
+async function atualizarIncompletos() {
   try {
     const r = await fetch('/incompletos');
     if (!r.ok) return;
@@ -2761,7 +2766,7 @@ async function sincronizarPolymarket(opts = {}) {
     }
     paginaAtual = 0;   // posições recém-sincronizadas são as mais recentes → 1ª página
     await carregarGrade();
-    atualizarPendentes();
+    atualizarIncompletos();
     if (!silent) carregarDashboardPoly();        // no modo silencioso o poll já cuida do refresh
   } catch (e) {
     if (timer) clearInterval(timer);
@@ -3183,7 +3188,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
         await carregarGrade();
         atualizarBotoesGrade();
       }
-      atualizarPendentes();
+      atualizarIncompletos();
     } else if (data.xls_skipped > 0) {
       markDone(`✓ ${data.xls_skipped} apostas já salvas — nada novo${skipInfo}`, 'ok');
     } else {
@@ -3540,7 +3545,6 @@ function renderGrade() {
     return;
   }
   body.innerHTML = bilhetes.map(b => {
-    const cop = b.copy_state === 'copiada';
     const dupInfo = ultimaDuplicatas[String(b.id)];
     const soSuspect = ultimaScrollOverlaps.has(b.id);
     const badges = [];
@@ -3549,7 +3553,7 @@ function renderGrade() {
     const nomeCasa = NOMES[b.casa] || b.casa;
     const tipoHtml = b.aposta ? `<div class="btbl-tipo">${esc(b.aposta)}</div>` : '';
     const contaHtml = b.parceiro ? `<span class="btbl-casa-conta">${esc(b.parceiro)}</span>` : '';
-    return `<div class="btbl-cols btbl-data-row ${cop ? 'row-cop' : ''}" data-id="${b.id}">
+    return `<div class="btbl-cols btbl-data-row" data-id="${b.id}">
       <div class="btbl-cell btbl-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></div>
       <div class="btbl-cell btbl-date">${esc(b.data)}</div>
       <div class="btbl-cell">${tipoHtml}<div class="btbl-desc">${esc(b.descricao)}${badges.join('')}</div></div>
@@ -3625,7 +3629,7 @@ async function salvarEdicao() {
     } else {
       renderGrade(); atualizarStats();
     }
-    atualizarPendentes();
+    atualizarIncompletos();
     setExpStatus('✓ Aposta atualizada', 'ok');
   } catch {
     setExpStatus('Erro ao salvar edição', 'err');
@@ -3708,7 +3712,7 @@ async function salvarTipsterVal(id, valor) {
     });
     if (!r.ok) throw new Error();
     if (valor) carregarTipsters();
-    atualizarPendentes();
+    atualizarIncompletos();
   } catch {
     b.tipster = anterior;
     if (el) { el.value = anterior || ''; el.classList.toggle('tip-empty', !(anterior || '').trim()); }
@@ -3984,14 +3988,14 @@ function atualizarStats() {
   document.getElementById('s-result').textContent = `${semResult} aguardando resultado`;
 }
 
-// Busca TODOS os bilhetes do parceiro atual num dado estado (pagina em blocos de 1000).
-// Usado pelos botões de export, que operam sobre todas as páginas — não só a visível.
-async function bilhetesPorEstado(copyState) {
+// Busca TODAS as apostas ativas do parceiro atual (pagina em blocos de 1000),
+// em ordem cronológica. Usado pelo Exportar, que opera sobre todas as páginas.
+async function carregarTodosBilhetes() {
   if (!parceiroSelecionado) return [];
   const out = [];
   let off = 0;
   for (;;) {
-    const qs = `order=asc&archived=all&copy_state=${copyState}&limit=1000&offset=${off}`
+    const qs = `order=asc&archived=false&limit=1000&offset=${off}`
       + `&casa=${encodeURIComponent(parceiroSelecionado.casa)}`
       + `&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
     const r = await fetch(`/bilhetes?${qs}`);
@@ -4011,30 +4015,6 @@ function setExpStatus(msg, tipo) {
   if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3500);
 }
 
-// ── Checkbox toggle ───────────────────────────────────────────────────────────
-async function toggleCopy(id, btn) {
-  const b = bilhetes.find(x => x.id === id);
-  if (!b) return;
-  const wasCop = b.copy_state === 'copiada';
-  const endpoint = wasCop ? '/bilhetes/desmarcar' : '/bilhetes/copiar';
-  b.copy_state = wasCop ? 'pendente' : 'copiada';
-  btn.classList.toggle('checked', !wasCop);
-  btn.closest('.btbl-data-row').classList.toggle('row-cop', !wasCop);
-  try {
-    const r = await fetch(endpoint, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [id] })
-    });
-    if (!r.ok) throw new Error();
-    atualizarPendentes();
-  } catch {
-    b.copy_state = wasCop ? 'copiada' : 'pendente';
-    btn.classList.toggle('checked', wasCop);
-    btn.closest('.btbl-data-row').classList.toggle('row-cop', wasCop);
-    setExpStatus('Erro ao atualizar', 'err');
-  }
-}
-
 // Remove reticências de valores numéricos copiados para a planilha
 function _limparOdd(v) { return (v ?? '').replace(/\.{2,}$|…$/, ''); }
 
@@ -4052,78 +4032,66 @@ function _fmtOddDisplay(v) {
     : `<span class="odd-trunc" title="Odd completa: ${esc(full)}">${esc(curto)}</span>`;
 }
 
-// Monta o TSV (10 colunas) de um conjunto de bilhetes, em ordem cronológica.
+// As 10 colunas de saída (padrão MASTER_OUTPUT), em ordem cronológica.
+function _linhaExport(b) {
+  return [b.data, b.esporte, b.tipster, b.casa, b.parceiro,
+          b.aposta, b.descricao, b.stake, _limparOdd(b.odd), b.resultado]
+         .map(v => v ?? '');
+}
+// TSV: separado por TAB (colar direto na planilha). Sem cabeçalho.
 function montarTSV(arr) {
-  return arr.map(b =>
-    [b.data, b.esporte, b.tipster, b.casa, b.parceiro,
-     b.aposta, b.descricao, b.stake, _limparOdd(b.odd), b.resultado]
-    .map(v => v ?? '').join('\t')
-  ).join('\n');
+  return arr.map(b => _linhaExport(b).join('\t')).join('\n');
+}
+// CSV: separado por ';' (Excel pt-BR, que usa vírgula como decimal). Campos com
+// ';', aspas ou quebra de linha são escapados entre aspas duplas.
+function montarCSV(arr) {
+  const esc = v => {
+    const s = String(v);
+    return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return arr.map(b => _linhaExport(b).map(esc).join(';')).join('\r\n');
 }
 
-// ── Copiar pendentes (todas as páginas) ───────────────────────────────────────
-document.getElementById('btn-copiar-pend').addEventListener('click', async () => {
-  const pend = await bilhetesPorEstado('pendente');
-  if (!pend.length) { setExpStatus('Nenhum pendente', 'err'); return; }
-  try {
-    await navigator.clipboard.writeText(montarTSV(pend));
-    const r = await fetch('/bilhetes/copiar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: pend.map(b => b.id) })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    await carregarGrade(); atualizarPendentes();
-    setExpStatus(`✓ ${pend.length} copiados`, 'ok');
-  } catch (e) {
-    setExpStatus('Erro ao copiar — nada foi marcado', 'err');
-  }
-});
+// ── Exportar (item 5): menu TSV/CSV → baixa o arquivo pro PC ───────────────────
+(function initExport() {
+  const menu = document.getElementById('export-menu');
+  const btn  = document.getElementById('btn-exportar');
+  const pop  = document.getElementById('export-pop');
+  if (!menu || !btn || !pop) return;
 
-// ── Baixar .tsv (todas as páginas) ────────────────────────────────────────────
-document.getElementById('btn-baixar-tsv').addEventListener('click', async () => {
-  const pend = await bilhetesPorEstado('pendente');
-  if (!pend.length) { setExpStatus('Nenhum pendente', 'err'); return; }
-  const blob = new Blob([montarTSV(pend)], { type: 'text/tab-separated-values' });
+  function abrir(open) {
+    pop.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  btn.addEventListener('click', e => { e.stopPropagation(); abrir(pop.hidden); });
+  document.addEventListener('click', e => { if (!menu.contains(e.target)) abrir(false); });
+
+  pop.querySelectorAll('.export-opt').forEach(opt =>
+    opt.addEventListener('click', async () => {
+      abrir(false);
+      await exportar(opt.dataset.fmt);
+    })
+  );
+})();
+
+async function exportar(fmt) {
+  if (!parceiroSelecionado) { setExpStatus('Selecione uma conta', 'err'); return; }
+  setExpStatus('Preparando…', '');
+  const linhas = await carregarTodosBilhetes();
+  if (!linhas.length) { setExpStatus('Nenhuma aposta para exportar', 'err'); return; }
+  const isCsv = fmt === 'csv';
+  // CSV leva BOM (UTF-8) para o Excel abrir os acentos corretamente.
+  const conteudo = isCsv ? '﻿' + montarCSV(linhas) : montarTSV(linhas);
+  const mime = isCsv ? 'text/csv;charset=utf-8' : 'text/tab-separated-values';
+  const blob = new Blob([conteudo], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const nome = parceiroSelecionado ? `_${parceiroSelecionado.nome.replace(/\s+/g,'_')}` : '';
-  a.download = `sharpen${nome}_${new Date().toISOString().slice(0, 10)}.tsv`;
+  const nome = parceiroSelecionado ? `_${parceiroSelecionado.nome.replace(/\s+/g, '_')}` : '';
+  a.download = `sharpen${nome}_${hojeISO()}.${isCsv ? 'csv' : 'tsv'}`;
   a.click(); URL.revokeObjectURL(url);
-});
-
-// ── Marcar / Desmarcar (todas as páginas) ─────────────────────────────────────
-document.getElementById('btn-marcar-todas').addEventListener('click', async () => {
-  const pend = await bilhetesPorEstado('pendente');
-  if (!pend.length) { setExpStatus('Todas marcadas', ''); return; }
-  try {
-    const r = await fetch('/bilhetes/copiar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: pend.map(b => b.id) })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    await carregarGrade(); atualizarPendentes();
-    setExpStatus(`✓ ${pend.length} marcadas`, 'ok');
-  } catch (e) {
-    setExpStatus('Erro ao marcar', 'err');
-  }
-});
-
-document.getElementById('btn-desmarcar-todas').addEventListener('click', async () => {
-  const cop = await bilhetesPorEstado('copiada');
-  if (!cop.length) { setExpStatus('Nenhuma para desmarcar', ''); return; }
-  try {
-    const r = await fetch('/bilhetes/desmarcar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: cop.map(b => b.id) })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    await carregarGrade(); atualizarPendentes();
-    setExpStatus(`${cop.length} desmarcadas`, '');
-  } catch (e) {
-    setExpStatus('Erro ao desmarcar', 'err');
-  }
-});
+  setExpStatus(`✓ ${linhas.length} aposta(s) exportada(s)`, 'ok');
+}
 
 // ── Deletar bilhete individual ────────────────────────────────────────────────
 async function deletarBilhete(id) {
@@ -4131,7 +4099,7 @@ async function deletarBilhete(id) {
     const r = await fetch(`/bilhetes/${id}`, { method: 'DELETE' });
     if (!r.ok) throw new Error();
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => x !== id);
-    await carregarGrade(); atualizarPendentes();
+    await carregarGrade(); atualizarIncompletos();
     setExpStatus('Bilhete deletado', '');
   } catch {
     setExpStatus('Erro ao deletar', 'err');
@@ -4175,7 +4143,7 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
     });
     if (!r.ok) throw new Error();
     ultimaAnaliseIds = ultimaAnaliseIds.filter(x => !ids.includes(x));
-    await carregarGrade(); atualizarPendentes();
+    await carregarGrade(); atualizarIncompletos();
     setExpStatus(`${ids.length} deletado(s)`, '');
   } catch {
     setExpStatus('Erro ao deletar', 'err');
@@ -4192,7 +4160,7 @@ document.getElementById('btn-desfazer').addEventListener('click', async () => {
     });
     if (!r.ok) throw new Error();
     ultimaAnaliseIds = [];
-    await carregarGrade(); atualizarPendentes();
+    await carregarGrade(); atualizarIncompletos();
     setExpStatus(`Análise desfeita (${ids.length} bilhetes)`, '');
   } catch {
     setExpStatus('Erro ao desfazer', 'err');

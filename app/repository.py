@@ -455,24 +455,6 @@ async def contar_arquivados(casa: str, parceiro: str, dono: str) -> int:
     return row[0]
 
 
-async def contar_pendentes(dono: str) -> list[dict]:
-    """Conta bilhetes ainda não copiados (copy_state='pendente') por casa+parceiro.
-
-    Inclui arquivados — 'pendente' significa 'não copiado para a planilha',
-    independentemente de o bilhete estar visível na grade ou arquivado.
-    """
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """SELECT casa, parceiro, COUNT(*) AS pendentes
-               FROM bilhetes
-               WHERE dono = $1 AND copy_state = 'pendente'
-               GROUP BY casa, parceiro""",
-            dono,
-        )
-    return [dict(r) for r in rows]
-
-
 async def contar_incompletos(dono: str) -> list[dict]:
     """Conta, por casa+parceiro, bilhetes 'incompletos': sem tipster (azul na sidebar)
     e abertos/sem resultado (âmbar). Inclui arquivados — a pendência existe
@@ -494,11 +476,11 @@ async def contar_incompletos(dono: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def _filtros_bilhetes(dono, casa, parceiro, copy_state, extraction_state, archived):
+def _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived):
     """Monta a cláusula WHERE compartilhada entre a listagem e a contagem."""
     filters, params = [], []
     for col, val in [("dono", dono), ("casa", casa), ("parceiro", parceiro),
-                     ("copy_state", copy_state), ("extraction_state", extraction_state)]:
+                     ("extraction_state", extraction_state)]:
         if val is not None:
             params.append(val)
             filters.append(f"{col} = ${len(params)}")
@@ -515,7 +497,6 @@ async def list_bilhetes(
     dono: str,
     casa: str | None = None,
     parceiro: str | None = None,
-    copy_state: str | None = None,
     extraction_state: str | None = None,
     archived: str = "false",   # "false" | "true" | "all"
     limit: int = 500,
@@ -523,7 +504,7 @@ async def list_bilhetes(
     order: str = "asc",
 ) -> list[dict]:
     pool = await get_pool()
-    where, params = _filtros_bilhetes(dono, casa, parceiro, copy_state, extraction_state, archived)
+    where, params = _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived)
     order_sql = "ASC" if order == "asc" else "DESC"
     params.append(limit)
     limit_ph = f"${len(params)}"
@@ -549,13 +530,12 @@ async def contar_bilhetes(
     dono: str,
     casa: str | None = None,
     parceiro: str | None = None,
-    copy_state: str | None = None,
     extraction_state: str | None = None,
     archived: str = "false",
 ) -> int:
     """Total de bilhetes que casam o filtro (para paginação: "X de Y apostas")."""
     pool = await get_pool()
-    where, params = _filtros_bilhetes(dono, casa, parceiro, copy_state, extraction_state, archived)
+    where, params = _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived)
     async with pool.acquire() as conn:
         row = await conn.fetchrow(f"SELECT COUNT(*) FROM bilhetes {where}", *params)
     return row[0]
@@ -772,24 +752,6 @@ async def limpar_ativos_tipster(dono: str, codigos: list[str]) -> int:
     return int(result.split()[-1])
 
 
-async def marcar_copiada(ids: list[int], dono: str) -> int:
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        result = await conn.execute(
-            "UPDATE bilhetes SET copy_state = 'copiada', atualizado_em = NOW() WHERE id = ANY($1) AND dono = $2",
-            ids, dono,
-        )
-    return int(result.split()[-1])
-
-
-async def marcar_pendente(ids: list[int], dono: str) -> int:
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        result = await conn.execute(
-            "UPDATE bilhetes SET copy_state = 'pendente', atualizado_em = NOW() WHERE id = ANY($1) AND dono = $2",
-            ids, dono,
-        )
-    return int(result.split()[-1])
 
 
 # ── Parceiros ─────────────────────────────────────────────────────────────────
