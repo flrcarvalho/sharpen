@@ -79,6 +79,21 @@ input {
   transition: border-color .12s;
 }
 input:focus { outline: none; border-color: var(--accent, #6ea8fe); }
+.field { position: relative; }
+.field input { padding-right: 44px; }
+.olho {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; margin: 0; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: var(--r-sm, 10px);
+  box-shadow: none; color: var(--ink-mute); cursor: pointer;
+  transition: color .12s;
+}
+.olho:hover { color: var(--ink); filter: none; box-shadow: none; }
+.olho svg { width: 18px; height: 18px; display: block; }
+.olho .ic-off { display: none; }
+.olho.on .ic-on  { display: none; }
+.olho.on .ic-off { display: block; }
 button {
   width: 100%; margin-top: 22px; padding: 12px;
   background: var(--accent);
@@ -103,7 +118,13 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
       <label for="usuario">Usuário</label>
       <input id="usuario" name="usuario" autocomplete="username" autofocus required>
       <label for="senha">Senha</label>
-      <input id="senha" name="senha" type="password" autocomplete="current-password" required>
+      <div class="field">
+        <input id="senha" name="senha" type="password" autocomplete="current-password" required>
+        <button type="button" class="olho" id="olho" aria-label="Mostrar senha">
+          <svg class="ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
       <button type="submit" id="btn">Entrar</button>
       <div class="erro" id="erro"></div>
     </form>
@@ -113,6 +134,16 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
 const form = document.getElementById('form');
 const btn = document.getElementById('btn');
 const erro = document.getElementById('erro');
+
+// Mostrar / ocultar senha (olhinho)
+const olho = document.getElementById('olho');
+const senha = document.getElementById('senha');
+olho.addEventListener('click', () => {
+  const mostrar = senha.type === 'password';
+  senha.type = mostrar ? 'text' : 'password';
+  olho.classList.toggle('on', mostrar);
+  olho.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+});
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
