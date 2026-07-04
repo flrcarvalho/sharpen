@@ -1127,6 +1127,42 @@ async function _emojiToGrayDataUrl(emoji){
   return c.toDataURL('image/png');
 }
 
+// Emoldura a captura crua do drill: fundo escuro da marca (mata os cantos brancos
+// do html2canvas), cantos arredondados e um contorno azul da marca com brilho suave.
+// Cor e raio saem dos TOKENS lidos em runtime (getComputedStyle) → segue dark/light
+// e nunca desalinha da paleta. O fallback literal espelha o azul canônico (--fdc-blue).
+function _frameExportCanvas(raw,modal){
+  const cs=getComputedStyle(document.documentElement);
+  const blue=(cs.getPropertyValue('--accent')||'#2E8BFF').trim();
+  const bg=getComputedStyle(modal).backgroundColor||'#12161D';   // resolve var(--bg2)
+  const S=raw.width/Math.max(1,modal.offsetWidth);               // escala do html2canvas (~2)
+  const modalR=(parseFloat(getComputedStyle(modal).borderRadius)||12)*S;
+  const pad=Math.round(24*S);                     // respiro entre o card e a borda da imagem
+  const bw=Math.max(2,Math.round(2.5*S));         // espessura do contorno azul
+  const gap=Math.round(7*S);                      // folga entre o card e o contorno
+  const rOut=modalR+Math.round(16*S);             // raio externo da imagem
+  const W=raw.width+pad*2, H=raw.height+pad*2;
+  const out=document.createElement('canvas');
+  out.width=W; out.height=H;
+  const ctx=out.getContext('2d');
+  // Path de retângulo arredondado (sem depender de ctx.roundRect, ausente em navegadores antigos)
+  const rr=(x,y,w,h,r)=>{r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();};
+  // 1) placa de fundo escura arredondada — elimina qualquer canto branco
+  rr(0,0,W,H,rOut); ctx.fillStyle=bg; ctx.fill();
+  // 2) a captura, recortada exatamente nos cantos do modal
+  ctx.save(); rr(pad,pad,raw.width,raw.height,modalR); ctx.clip(); ctx.drawImage(raw,pad,pad); ctx.restore();
+  // 3) contorno azul da marca abraçando o card, com brilho suave
+  const fx=pad-gap, fy=pad-gap, fw=raw.width+gap*2, fh=raw.height+gap*2, rF=modalR+gap;
+  ctx.save();
+  ctx.shadowColor=blue; ctx.shadowBlur=Math.round(18*S);
+  ctx.strokeStyle=blue; ctx.lineWidth=bw;
+  rr(fx+bw/2,fy+bw/2,fw-bw,fh-bw,rF); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle=blue; ctx.lineWidth=bw;         // passada nítida por cima do brilho
+  rr(fx+bw/2,fy+bw/2,fw-bw,fh-bw,rF); ctx.stroke();
+  return out;
+}
+
 // Prepara o modal para captura com html2canvas; retorna {canvas} ou {canvas:null} em erro
 async function _buildDrillCanvas(modal){
   const logoEl=modal.querySelector('.drill-brand-logo');
@@ -1178,10 +1214,13 @@ async function _buildDrillCanvas(modal){
     _spRestoreData.forEach(({el,origHTML,origStyle})=>{el.innerHTML=origHTML;if(origStyle!==null)el.setAttribute('style',origStyle);else el.removeAttribute('style');});
   };
   try{
-    const canvas=await html2canvas(modal,{scale:2,useCORS:true,
+    // Captura com fundo TRANSPARENTE (backgroundColor:null): o padrão do html2canvas
+    // é branco e vazava nos cantos arredondados do modal (os "cantinhos brancos").
+    // A moldura da marca é composta depois, em _frameExportCanvas.
+    const raw=await html2canvas(modal,{scale:2,useCORS:true,backgroundColor:null,
       ignoreElements:el=>el.classList&&el.classList.contains('no-export')});
     _restore();
-    return{canvas};
+    return{canvas:_frameExportCanvas(raw,modal)};
   }catch(e){
     _restore();
     console.error('_buildDrillCanvas error:',e);
