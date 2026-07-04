@@ -100,6 +100,23 @@ Exemplo com o batch de 8 bilhetes desta sessão:
 - Localização: última linha do bilhete, após a data de colocação — `ID: [número]`
 - Nunca vai no output do usuário (11ª coluna interna para dedup).
 
+> ⚠️ **O ID só é confiável quando vem do TEXTO COLADO.** Um número de 18–19 dígitos
+> lido por **visão/OCR de imagem** erra dígitos a cada leitura — e como a dedup do
+> sistema usa o ID como chave (`ID/código diferente → INSERT`, ver `CLAUDE.md`), um
+> ID mal-lido faz o **mesmo bilhete entrar como novo**. Regras práticas:
+> 1. **Sempre prefira o modo TEXTO** (§2.1) — o ID vem exato, a dedup funciona.
+> 2. **Nunca re-suba o mesmo print** já processado — cada re-envio de imagem tende a
+>    gerar um ID diferente do anterior → duplicata silenciosa.
+> 3. Se só houver imagem e o ID estiver borrado/parcial, é **melhor deixar o ID vazio**
+>    (a dedup cai no fallback por conteúdo) do que "chutar" dígitos — um ID inventado é
+>    pior que nenhum ID.
+>
+> **Causa raiz (sessão 100):** a conta `KingPanda · Ellen [Eu]` acumulou 178 linhas
+> para 83 bilhetes reais porque a mesma cartela foi re-enviada por imagem em várias
+> levas, cada uma com o ID lido diferente. Corrigido no banco por reconciliação contra
+> o texto colado (a verdade). A prevenção estrutural (dedup por conteúdo mesmo com ID
+> presente) é decisão de app pendente — ver `CLAUDE.md §Regras de deduplicação`.
+
 ---
 
 ## 4. Data
@@ -262,6 +279,7 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa lista **ap
 - **Locale numérico:** interface pt-BR mas valores e odds em en-US (ponto decimal) → converter sempre para vírgula no output.
 - **Ordem de output = inversa do texto/grid:** primeiro no texto (topo-esquerdo) = última linha do TSV; último no texto (baixo-direito) = primeira linha do TSV.
 - **ID ausente no final do texto:** normal quando o texto foi cortado antes do rodapé do último bilhete — usar ID da imagem.
+- **ID de imagem é não-confiável (§3):** OCR erra dígitos do número de 18–19 casas → mesmo bilhete vira duplicata. Priorize o **texto colado**; nunca re-suba o mesmo print; ID borrado → deixe vazio, não chute.
 
 ---
 
