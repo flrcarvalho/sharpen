@@ -101,6 +101,13 @@ body::before {
   cursor: pointer; transition: border-color .12s, color .12s;
 }
 .host-refresh:hover { border-color: var(--accent-2); color: var(--accent-2); }
+.host-refresh .host-refresh-ico { display: inline-block; line-height: 1; }
+/* Estado "atualizando": botão desabilitado + seta girando (feedback do clique). */
+.host-refresh.is-loading { opacity: .7; cursor: default; border-color: var(--line); color: var(--ink-soft); }
+.host-refresh:disabled { pointer-events: none; }
+.host-refresh.is-loading .host-refresh-ico { animation: host-spin .7s linear infinite; }
+@keyframes host-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .host-refresh.is-loading .host-refresh-ico { animation: none; } }
 /* Sair: encerra a sessão (POST /logout → /login). Discreto; o hover sinaliza a saída
    (mesmo padrão do "arquivar" — neutro em repouso, --neg só na intenção). */
 .sb-logout {
@@ -149,7 +156,7 @@ body::before {
     <div class="sidebar-bottom">
       <div class="last-update"><span class="pulse-dot"></span>Dados sincronizados</div>
       <a href="/exportar.csv" class="sb-csv" title="Baixar toda a base como CSV (backup)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base (CSV)</a>
-      <button class="host-refresh" id="hostRefresh" title="Recarregar os dados do Dashboard">↻ Atualizar dados</button>
+      <button class="host-refresh" id="hostRefresh" title="Recarregar os dados do Dashboard"><span class="host-refresh-ico">↻</span> Atualizar dados</button>
       <button class="sb-logout" id="hostLogout" title="Encerrar sessão"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair</button>
       <div class="sb-endorse">by FDC Capital</div>
     </div>
@@ -218,10 +225,41 @@ body::before {
 
   // Atualizar dados: recarrega a base do Dashboard (o iframe fica vivo → sem esse
   // botão os dados envelheceriam numa sessão longa). Só age se o Dashboard já abriu.
+  // Feedback: enquanto o loadData do iframe roda, o botão gira ("Atualizando…") e,
+  // ao concluir, o rótulo "último sync" reflete o builtAt do servidor. Antes o botão
+  // vivia aqui no host mas SEM sinal visível — parecia morto (o spinner do Dashboard
+  // girava escondido dentro do iframe, e o texto ao lado era fixo "Dados sincronizados").
   var refreshBtn = document.getElementById('hostRefresh');
+  var lastUpdateEl = document.querySelector('.last-update');
+  function _p2(n){ return String(n).length < 2 ? '0' + n : '' + n; }
+  function fmtSync(ms){
+    if (!ms) return 'Dados sincronizados';
+    var d = new Date(ms);
+    return 'último sync: ' + _p2(d.getDate()) + '/' + _p2(d.getMonth()+1) + ' ' + _p2(d.getHours()) + ':' + _p2(d.getMinutes());
+  }
+  function readDashBuilt(){ try { return frDash.contentWindow._dataBuiltMs || 0; } catch(e){ return 0; } }
+  function paintSync(){ if (lastUpdateEl) lastUpdateEl.innerHTML = '<span class="pulse-dot"></span>' + fmtSync(readDashBuilt()); }
+  function setRefreshing(on){
+    if (!refreshBtn) return;
+    refreshBtn.classList.toggle('is-loading', on);
+    refreshBtn.disabled = on;
+    refreshBtn.innerHTML = '<span class="host-refresh-ico">↻</span> ' + (on ? 'Atualizando…' : 'Atualizar dados');
+  }
   if (refreshBtn) refreshBtn.addEventListener('click', function(){
-    try { if (dashLoaded && frDash.contentWindow.loadData) { frDash.contentWindow.loadData(true); } } catch(e){}
+    if (refreshBtn.disabled) return;
+    if (!(dashLoaded && frDash.contentWindow && frDash.contentWindow.loadData)) return; // Dashboard ainda não aberto
+    setRefreshing(true);
+    var t0 = Date.now();
+    var finish = function(){                                  // duração mínima p/ não piscar
+      var wait = 600 - (Date.now() - t0); if (wait < 0) wait = 0;
+      setTimeout(function(){ setRefreshing(false); paintSync(); }, wait);
+    };
+    var p; try { p = frDash.contentWindow.loadData(true); } catch(e){ finish(); return; }
+    Promise.resolve(p).then(finish, finish);                  // loadData resolve mesmo em erro (trata interno)
   });
+  // Mantém "último sync" vivo (1ª carga do Dashboard, refresh manual ou revalidação
+  // em 2º plano). Barato: só lê um número do iframe a cada 3s.
+  setInterval(paintSync, 3000);
 
   // Sair: confirma, encerra a sessão no servidor (apaga cookie) e volta pro login.
   // O redirect roda sempre — mesmo se o POST falhar (fetch rejeitado), pra não prender o usuário.
