@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="hdr">
+    <img src="icons/icon32.png" alt="" width="22" height="22">
+    <span class="hdr-nome">Sharpen Capture</span>
+  </header>
+
+  <!-- Estado: desconectado -->
+  <section id="tela-conectar" class="tela">
+    <p class="lead">Cole o código gerado no <strong>Conectar extensão</strong> do dashboard.</p>
+    <input id="codigo" class="campo-codigo" type="text" inputmode="text"
+           autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH" maxlength="9">
+    <button id="btn-conectar" class="btn btn-primary">Conectar</button>
+    <button id="toggle-cfg" class="link">Configurar servidor</button>
+    <div id="cfg" class="cfg" hidden>
+      <label class="cfg-label" for="api-base">URL da API</label>
+      <input id="api-base" class="campo" type="url" placeholder="https://www.sharpen.bet">
+      <button id="btn-salvar-cfg" class="btn btn-ghost btn-sm">Salvar</button>
+    </div>
+  </section>
+
+  <!-- Estado: conectado -->
+  <section id="tela-conectado" class="tela" hidden>
+    <div class="conn">
+      <span class="dot"></span>
+      <div>
+        <div class="conn-titulo">Conectado</div>
+        <div class="conn-sub"><span id="c-casa">—</span> · <span id="c-parceiro">—</span></div>
+      </div>
+    </div>
+    <button id="btn-capturar" class="btn btn-primary btn-big">📸 Capturar região</button>
+    <p id="nota-texto" class="nota" hidden>
+      Esta casa usa <strong>modo texto</strong> (robô de rolagem) — chega na próxima fase.
+    </p>
+    <button id="btn-desconectar" class="btn btn-ghost btn-sm">Desconectar</button>
+  </section>
+
+  <p id="msg" class="msg"></p>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+/* Marca provisória (azul sharpen). Quando a identidade final chegar, trocar as
+   variáveis abaixo + os PNGs em icons/ e o resto acompanha. */
+:root {
+  --bg:        #0B111C;
+  --surface:   #131C2B;
+  --surface-2: #1A2436;
+  --ink:       #E6ECF5;
+  --ink-soft:  #97A3B6;
+  --accent:    #2E8BFF;
+  --accent-ink:#08111F;
+  --pos:       #2BC07E;
+  --neg:       #E5484D;
+  --linha:     rgba(230,236,245,0.10);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  width: 300px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 14px;
+}
+
+.hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.hdr-nome { font-weight: 700; letter-spacing: .2px; }
+
+.tela { display: flex; flex-direction: column; gap: 10px; }
+
+.lead { margin: 0; color: var(--ink-soft); }
+
+.campo, .campo-codigo {
+  width: 100%; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--linha); border-radius: 9px; padding: 10px 12px;
+  font-family: inherit; font-size: 14px; outline: none;
+}
+.campo:focus, .campo-codigo:focus { border-color: var(--accent); }
+.campo-codigo {
+  text-align: center; letter-spacing: 4px; font-weight: 700;
+  text-transform: uppercase; font-family: ui-monospace, "SFMono-Regular", monospace;
+}
+
+.btn {
+  border: none; border-radius: 9px; padding: 11px 14px; cursor: pointer;
+  font: inherit; font-weight: 600;
+}
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-big { padding: 14px; font-size: 14px; }
+.btn-ghost {
+  background: transparent; color: var(--ink-soft);
+  border: 1px solid var(--linha);
+}
+.btn-ghost:hover { color: var(--ink); border-color: var(--ink-soft); }
+.btn-sm { padding: 8px 12px; font-weight: 500; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.link {
+  background: none; border: none; color: var(--ink-soft);
+  font: inherit; text-decoration: underline; cursor: pointer; padding: 2px;
+  align-self: flex-start;
+}
+.cfg { display: flex; flex-direction: column; gap: 6px;
+  border-top: 1px solid var(--linha); padding-top: 8px; }
+.cfg-label { font-size: 11px; color: var(--ink-soft); }
+
+.conn {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--linha);
+  border-radius: 11px; padding: 12px;
+}
+.dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--pos);
+  box-shadow: 0 0 0 4px rgba(43,192,126,.16); flex-shrink: 0;
+}
+.conn-titulo { font-weight: 700; }
+.conn-sub { color: var(--ink-soft); font-size: 12px; margin-top: 1px; }
+
+.nota {
+  margin: 0; color: var(--ink-soft); font-size: 12px;
+  background: var(--surface); border: 1px solid var(--linha);
+  border-radius: 9px; padding: 10px;
+}
+
+.msg { margin: 10px 0 0; min-height: 16px; font-size: 12px; }
+.msg.ok { color: var(--pos); }
+.msg.erro { color: var(--neg); }
+.msg.info { color: var(--ink-soft); }
