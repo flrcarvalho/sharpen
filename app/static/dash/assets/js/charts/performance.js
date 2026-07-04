@@ -1127,8 +1127,11 @@ async function _emojiToGrayDataUrl(emoji){
   return c.toDataURL('image/png');
 }
 
-// Emoldura a captura crua do drill: fundo escuro da marca (mata os cantos brancos
-// do html2canvas), cantos arredondados e um contorno azul da marca com brilho suave.
+// Emoldura a captura crua do drill: fundo escuro da marca OPACO (mata os cantos
+// brancos do html2canvas em QUALQUER fundo onde a imagem for colada) + contorno
+// azul da marca arredondado com brilho suave. O fundo é um retângulo cheio (cantos
+// externos retos) DE PROPÓSITO: canto arredondado exigiria transparência fora dele,
+// que vira branco em fundo claro (WhatsApp/Windows) — foi o que o Feca reportou.
 // Cor e raio saem dos TOKENS lidos em runtime (getComputedStyle) → segue dark/light
 // e nunca desalinha da paleta. O fallback literal espelha o azul canônico (--fdc-blue).
 function _frameExportCanvas(raw,modal){
@@ -1140,15 +1143,15 @@ function _frameExportCanvas(raw,modal){
   const pad=Math.round(24*S);                     // respiro entre o card e a borda da imagem
   const bw=Math.max(2,Math.round(2.5*S));         // espessura do contorno azul
   const gap=Math.round(7*S);                      // folga entre o card e o contorno
-  const rOut=modalR+Math.round(16*S);             // raio externo da imagem
   const W=raw.width+pad*2, H=raw.height+pad*2;
   const out=document.createElement('canvas');
   out.width=W; out.height=H;
   const ctx=out.getContext('2d');
   // Path de retângulo arredondado (sem depender de ctx.roundRect, ausente em navegadores antigos)
   const rr=(x,y,w,h,r)=>{r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();};
-  // 1) placa de fundo escura arredondada — elimina qualquer canto branco
-  rr(0,0,W,H,rOut); ctx.fillStyle=bg; ctx.fill();
+  // 1) fundo escuro da marca preenchendo TODO o retângulo (opaco) — nenhum canto
+  //    fica transparente, então nunca aparece branco, em nenhum fundo
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   // 2) a captura, recortada exatamente nos cantos do modal
   ctx.save(); rr(pad,pad,raw.width,raw.height,modalR); ctx.clip(); ctx.drawImage(raw,pad,pad); ctx.restore();
   // 3) contorno azul da marca abraçando o card, com brilho suave
