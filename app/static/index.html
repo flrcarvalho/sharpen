@@ -1435,7 +1435,7 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
             <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
-            <button class="btn btn-ghost btn-sm" id="btn-conectar-ext" title="Gera um código para conectar a extensão de captura a esta conta">🔗 Conectar extensão</button>
+            <button class="btn btn-ghost btn-sm" id="btn-conectar-ext" title="Gera um código para conectar a extensão SharpenUp a esta conta"><svg width="6" height="14" viewBox="40 10 40 100" aria-hidden="true" style="vertical-align:middle;margin-right:6px;position:relative;top:-1px"><defs><linearGradient id="suBladeBtn" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeBtn)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><span id="ext-btn-label">Conectar extensão</span></button>
             <button class="btn btn-ghost btn-sm" id="btn-desconectar-ext" style="display:none">Desconectar</button>
             <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
             <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
@@ -2907,7 +2907,7 @@ async function conectarExtensao() {
     let copiado = false;
     try { await navigator.clipboard.writeText(d.codigo); copiado = true; } catch (_) {}
     extStatus(`Código ${d.codigo}${copiado ? ' copiado' : ''} — cole na extensão. Aguardando…`, '');
-    document.getElementById('btn-conectar-ext').textContent = '🔗 Reconectar';
+    document.getElementById('ext-btn-label').textContent = 'Reconectar';
     document.getElementById('btn-desconectar-ext').style.display = '';
     extConectadoAviso = false;
     clearInterval(extPollTimer);
@@ -2952,8 +2952,8 @@ function desconectarExtensao(avisar = true) {
     fetch(`/captura/sessao/${extSessao.sessao_id}/encerrar`, { method: 'POST' }).catch(() => {});
     extSessao = null;
   }
-  const btn = document.getElementById('btn-conectar-ext');
-  if (btn) btn.textContent = '🔗 Conectar extensão';
+  const lbl = document.getElementById('ext-btn-label');
+  if (lbl) lbl.textContent = 'Conectar extensão';
   const dbtn = document.getElementById('btn-desconectar-ext');
   if (dbtn) dbtn.style.display = 'none';
   if (avisar) extStatus('', '');
