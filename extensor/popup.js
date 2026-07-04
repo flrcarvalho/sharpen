@@ -87,8 +87,11 @@ async function capturar() {
       setMsg("Abra a página da casa antes de capturar.", "erro");
       return;
     }
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["overlay.js"] });
-    window.close(); // o overlay assume a partir daqui, na própria página
+    // Garante o content script presente (abas abertas antes de instalar não o têm)
+    // e liga o modo moldura — o content.js assume: desenhar 1x → Snap várias vezes.
+    try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }); } catch (_) {}
+    await chrome.storage.local.set({ frameAtivo: true, frameCount: 0 });
+    window.close();
   } catch (e) {
     setMsg("Não foi possível abrir a captura nesta página.", "erro");
   }

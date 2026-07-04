@@ -1,27 +1,25 @@
-// Service worker: recebe a região selecionada pelo overlay, tira o print da aba
+// Service worker: recebe a região da moldura (content.js), tira o print da aba
 // visível, recorta e envia para a ponte (/captura/enviar) autenticado pelo token.
+// Ao fim avisa o content.js (CAPTURA_FIM {ok}) pra a moldura reaparecer e o
+// contador subir só em envio real.
 importScripts("config.js");
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === "CAPTURAR_REGIAO") {
-    // Depois do print (ok ou erro), avisa o FAB pra reaparecer.
     capturarRegiao(msg, sender.tab)
-      .then(() => sendResponse({ ok: true }))
-      .catch((e) => sendResponse({ ok: false, erro: String(e && e.message || e) }))
-      .finally(() => { try { chrome.tabs.sendMessage(sender.tab.id, { type: "FAB_ESTADO", estado: "idle" }); } catch (_) {} });
+      .then((ok) => { sendResponse({ ok }); avisarFim(sender.tab.id, ok); })
+      .catch((e) => { sendResponse({ ok: false, erro: String(e && e.message || e) }); avisarFim(sender.tab.id, false); });
     return true; // resposta assíncrona
-  }
-  if (msg && msg.type === "ABRIR_OVERLAY") {
-    // FAB pediu a captura → injeta a moldura na mesma aba.
-    chrome.scripting.executeScript({ target: { tabId: sender.tab.id }, files: ["overlay.js"] })
-      .catch(() => { try { chrome.tabs.sendMessage(sender.tab.id, { type: "FAB_ESTADO", estado: "idle" }); } catch (_) {} });
-    return false;
   }
 });
 
+function avisarFim(tabId, ok) {
+  try { chrome.tabs.sendMessage(tabId, { type: "CAPTURA_FIM", ok: !!ok }); } catch (_) {}
+}
+
 async function capturarRegiao(msg, tab) {
   const { rect, dpr, vw, vh } = msg;
-  // Print da viewport visível (já sem o overlay, que se escondeu antes de mandar).
+  // Print da viewport visível (já sem a moldura, que se escondeu antes de mandar).
   const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
   const bmp = await createImageBitmap(await (await fetch(dataUrl)).blob());
 
@@ -42,14 +40,14 @@ async function capturarRegiao(msg, tab) {
   ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
   const blob = await canvas.convertToBlob({ type: "image/png" });
 
-  await enviarCaptura(blob, tab);
+  return await enviarCaptura(blob, tab);   // true só se enviou de fato
 }
 
 async function enviarCaptura(blob, tab) {
   const { token } = await chrome.storage.local.get("token");
   if (!token) {
     await sinalizar(tab, false, "Não conectado. Cole o código no popup da extensão.");
-    return;
+    return false;
   }
   const base = await getApiBase();
   const fd = new FormData();
@@ -62,7 +60,7 @@ async function enviarCaptura(blob, tab) {
     r = await fetch(`${base}/captura/enviar`, { method: "POST", body: fd });
   } catch (e) {
     await sinalizar(tab, false, "Falha de rede ao enviar. Tente de novo.");
-    return;
+    return false;
   }
 
   if (r.status === 401) {
@@ -70,17 +68,18 @@ async function enviarCaptura(blob, tab) {
     await chrome.storage.local.remove(["token", "casa", "parceiro", "modo", "dono", "codigo"]);
     await chrome.storage.local.set({ lastError: "Sessão expirou. Gere um novo código no dashboard e reconecte." });
     await sinalizar(tab, false, "Sessão expirou — reconecte no popup.");
-    return;
+    return false;
   }
   if (r.status === 429) {
     await sinalizar(tab, false, "Fila cheia — processe no dashboard antes de enviar mais.");
-    return;
+    return false;
   }
   if (!r.ok) {
     await sinalizar(tab, false, "Erro ao enviar (" + r.status + ").");
-    return;
+    return false;
   }
   await sinalizar(tab, true, "Enviado ✓");
+  return true;
 }
 
 // Feedback na própria página (badge + toast), já que o popup costuma estar fechado.
