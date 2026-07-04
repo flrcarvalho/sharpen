@@ -11,6 +11,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch((e) => { sendResponse({ ok: false, erro: String(e && e.message || e) }); avisarFim(sender.tab.id, false); });
     return true; // resposta assíncrona
   }
+  if (msg && msg.type === "ENVIAR_TEXTO") {
+    enviarTexto(msg.texto, sender.tab).then((ok) => sendResponse({ ok })).catch(() => sendResponse({ ok: false }));
+    return true;
+  }
 });
 
 function avisarFim(tabId, ok) {
@@ -79,6 +83,34 @@ async function enviarCaptura(blob, tab) {
     return false;
   }
   await sinalizar(tab, true, "Enviado ✓");
+  return true;
+}
+
+// Envia o texto colhido pelo robô (modo Betano) → /captura/enviar tipo=texto.
+async function enviarTexto(texto, tab) {
+  const { token } = await chrome.storage.local.get("token");
+  if (!token) { await sinalizar(tab, false, "Não conectado. Cole o código no popup."); return false; }
+  if (!texto || !texto.trim()) { await sinalizar(tab, false, "Nada para enviar."); return false; }
+  const base = await getApiBase();
+  const fd = new FormData();
+  fd.append("token", token);
+  fd.append("tipo", "texto");
+  fd.append("texto", texto);
+  let r;
+  try {
+    r = await fetch(`${base}/captura/enviar`, { method: "POST", body: fd });
+  } catch (e) {
+    await sinalizar(tab, false, "Falha de rede ao enviar. Tente de novo.");
+    return false;
+  }
+  if (r.status === 401) {
+    await chrome.storage.local.remove(["token", "casa", "parceiro", "modo", "dono", "codigo"]);
+    await chrome.storage.local.set({ lastError: "Sessão expirou. Gere um novo código no dashboard e reconecte." });
+    await sinalizar(tab, false, "Sessão expirou — reconecte no popup.");
+    return false;
+  }
+  if (!r.ok) { await sinalizar(tab, false, "Erro ao enviar (" + r.status + ")."); return false; }
+  await sinalizar(tab, true, "Bilhetes enviados ✓");
   return true;
 }
 

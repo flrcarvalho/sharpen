@@ -26,8 +26,8 @@ do Sharpen + selo ↑, azul `#2E8BFF` / `#7FB2FF`, verde só em confirmação. F
 Cada navegador/perfil Octo cola o **seu** código → várias pontes ao mesmo tempo,
 cada uma numa casa. O código carrega dono + casa + parceiro + modo.
 
-- **Superbet** (e demais) → modo **print** (moldura ajustável). ✅ pronto
-- **Betano** → modo **texto** (robô de rolagem). ⏳ próxima fase
+- **Superbet** (e demais) → modo **print** (moldura fixa + Snap). ✅
+- **Betano** → modo **texto** (robô rola a página, colhe e deduplica os bilhetes). ✅
 
 ## Instalar (modo desenvolvedor / unpacked)
 

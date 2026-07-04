@@ -87,10 +87,16 @@ async function capturar() {
       setMsg("Abra a página da casa antes de capturar.", "erro");
       return;
     }
-    // Garante o content script presente (abas abertas antes de instalar não o têm)
-    // e liga o modo moldura — o content.js assume: desenhar 1x → Snap várias vezes.
+    // Garante o content script presente (abas abertas antes de instalar não o têm).
     try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }); } catch (_) {}
-    await chrome.storage.local.set({ frameAtivo: true, frameCount: 0 });
+    const { modo } = await chrome.storage.local.get("modo");
+    if (modo === "texto") {
+      // Betano: dispara o robô (rola + colhe + envia texto).
+      try { await chrome.tabs.sendMessage(tab.id, { type: "START_ROBOT" }); } catch (_) {}
+    } else {
+      // Print: liga o modo moldura — desenhar 1x → Snap várias vezes.
+      await chrome.storage.local.set({ frameAtivo: true, frameCount: 0 });
+    }
     window.close();
   } catch (e) {
     setMsg("Não foi possível abrir a captura nesta página.", "erro");
@@ -111,7 +117,8 @@ async function render() {
     else { fav.style.display = "none"; }
     const texto = st.modo === "texto";
     $("nota-texto").hidden = !texto;
-    $("btn-capturar").hidden = texto;   // modo texto (Betano) = próxima fase
+    $("btn-capturar").hidden = false;   // vale nos dois modos
+    $("cap-label").textContent = texto ? "Copiar bilhetes" : "Capturar";
   } else {
     telaConectar.hidden = false;
     telaConectado.hidden = true;
