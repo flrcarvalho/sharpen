@@ -4,10 +4,18 @@ importScripts("config.js");
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === "CAPTURAR_REGIAO") {
+    // Depois do print (ok ou erro), avisa o FAB pra reaparecer.
     capturarRegiao(msg.rect, msg.dpr, sender.tab)
       .then(() => sendResponse({ ok: true }))
-      .catch((e) => sendResponse({ ok: false, erro: String(e && e.message || e) }));
+      .catch((e) => sendResponse({ ok: false, erro: String(e && e.message || e) }))
+      .finally(() => { try { chrome.tabs.sendMessage(sender.tab.id, { type: "FAB_ESTADO", estado: "idle" }); } catch (_) {} });
     return true; // resposta assíncrona
+  }
+  if (msg && msg.type === "ABRIR_OVERLAY") {
+    // FAB pediu a captura → injeta a moldura na mesma aba.
+    chrome.scripting.executeScript({ target: { tabId: sender.tab.id }, files: ["overlay.js"] })
+      .catch(() => { try { chrome.tabs.sendMessage(sender.tab.id, { type: "FAB_ESTADO", estado: "idle" }); } catch (_) {} });
+    return false;
   }
 });
 

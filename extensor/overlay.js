@@ -47,6 +47,10 @@
 
   document.documentElement.appendChild(root);
 
+  // Avisa o FAB (mesmo mundo isolado) pra sumir enquanto a moldura está aberta —
+  // vale tanto pra captura pelo FAB quanto pelo popup.
+  try { window.dispatchEvent(new CustomEvent("sharpenup:overlay-open")); } catch (_) {}
+
   // ── Desenho da moldura ──────────────────────────────────────────────────────
   root.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
@@ -100,7 +104,12 @@
     }));
   }
 
-  function fechar() { limpar(); }
+  function fechar() {
+    // Cancelou (Esc/Cancelar): o FAB pode voltar já. (No caminho de captura,
+    // quem manda o FAB voltar é o background, só depois do print.)
+    try { window.dispatchEvent(new CustomEvent("sharpenup:overlay-cancel")); } catch (_) {}
+    limpar();
+  }
 
   function limpar() {
     document.removeEventListener("keydown", onKey, true);

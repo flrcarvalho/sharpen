@@ -17,8 +17,15 @@
     "storage"
   ],
   "host_permissions": [
-    "https://www.sharpen.bet/*",
-    "https://sharpen.bet/*"
+    "*://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["fab.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
   ],
   "icons": {
     "16": "icons/icon16.png",

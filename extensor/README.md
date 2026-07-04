@@ -16,8 +16,9 @@ do Sharpen + selo ↑, azul `#2E8BFF` / `#7FB2FF`, verde só em confirmação. F
    extensão"** → ele gera um código (`ABCD-EFGH`) e copia para a área de
    transferência.
 2. Na **extensão** (ícone na barra), cole o código e clique **Conectar**.
-3. Navegue até o bilhete na casa e clique **📸 Capturar região** → arraste a
-   moldura sobre o bilhete → **Capturar**.
+3. Navegue até o bilhete na casa. Clique no **botão flutuante SharpenUp** (aparece
+   sobre a página quando há pareamento ativo — arrastável) **ou** no ícone →
+   **Capturar** → arraste a moldura sobre o bilhete → **Capturar**.
 4. O print aparece na área de colar do dashboard, naquela conta. Repita para cada
    bilhete e depois **Processar** normalmente (com revisão na grade).
 5. Trocou de casa? Gere um novo código no dashboard e reconecte.
@@ -52,6 +53,7 @@ host, abra o popup → **Configurar servidor** → informe a URL → Salvar.
 | `manifest.json` | Manifesto MV3 (permissões, ícones, service worker) |
 | `config.js` | URL da API (ponto único), lida por popup e background |
 | `popup.html/.css/.js` | Painel: parear, estado, botão capturar |
+| `fab.js` | Botão flutuante (content script em todas as casas) — some durante o print |
 | `overlay.js` | Moldura de seleção injetada na página da casa |
 | `background.js` | Print da aba + recorte + envio para `/captura/enviar` |
 | `icons/` | Ícones 16/32/48/128 (placeholder) |
