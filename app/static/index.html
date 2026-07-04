@@ -1353,7 +1353,8 @@ td.c-res.res-HL { color: var(--warn); }
             <button type="button" class="acct-new-toggle" id="acctNewToggle">+ Nova conta</button>
             <div class="acct-new-form" id="acctNewForm" hidden>
               <select id="acctNewCasa" class="acct-new-casa" title="Casa"></select>
-              <input id="acctNewNome" class="acct-new-nome" type="text" placeholder="Nome do parceiro…" autocomplete="off" spellcheck="false">
+              <input id="acctNewParceiro" class="acct-new-nome" type="text" placeholder="Parceiro (login da conta)…" autocomplete="off" spellcheck="false">
+              <input id="acctNewForn" class="acct-new-nome" type="text" placeholder="Nome do fornecedor (opcional)…" autocomplete="off" spellcheck="false">
               <button type="button" class="acct-new-confirm" id="acctNewConfirm">Criar conta</button>
             </div>
           </div>
@@ -1434,7 +1435,10 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
             <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
+            <button class="btn btn-ghost btn-sm" id="btn-conectar-ext" title="Gera um código para conectar a extensão de captura a esta conta">🔗 Conectar extensão</button>
+            <button class="btn btn-ghost btn-sm" id="btn-desconectar-ext" style="display:none">Desconectar</button>
             <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
+            <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
             <span class="status-msg" id="status-msg"></span>
           </div>
         </div>
@@ -2187,6 +2191,7 @@ async function contasReativar(id, casa) { await reativarParceiro(id, casa); rend
 function selecionarParceiro(p) {
   if (parceiroSelecionado && parceiroSelecionado.id === p.id) return;
 
+  desconectarExtensao(false);   // ponte é ligada à conta ativa: troca de conta encerra
   salvarEstadoExtrator();
 
   parceiroSelecionado = p;
@@ -2305,16 +2310,22 @@ function abrirFormNovaConta() {
   if (!form) return;
   form.hidden = false;
   popularCasasNova();
-  const nome = document.getElementById('acctNewNome');
-  if (nome) { nome.value = ''; nome.focus(); }
+  const parc = document.getElementById('acctNewParceiro');
+  const forn = document.getElementById('acctNewForn');
+  if (parc) { parc.value = ''; parc.focus(); }
+  if (forn) forn.value = '';
 }
 async function criarContaNova() {
   const casaSel = document.getElementById('acctNewCasa');
-  const nomeInp = document.getElementById('acctNewNome');
+  const parcInp = document.getElementById('acctNewParceiro');
+  const fornInp = document.getElementById('acctNewForn');
   const casa = casaSel && casaSel.value;
-  const nome = ((nomeInp && nomeInp.value) || '').trim();
+  const parceiro = ((parcInp && parcInp.value) || '').trim();
+  const forn = ((fornInp && fornInp.value) || '').trim();
+  // Modelo canônico "Parceiro [Fornecedor]"; sem fornecedor fica só o parceiro (nunca "Parceiro []").
+  const nome = forn ? `${parceiro} [${forn}]` : parceiro;
   if (!casa) { alert('Selecione a casa.'); return; }
-  if (!nome) { if (nomeInp) nomeInp.focus(); return; }
+  if (!parceiro) { if (parcInp) parcInp.focus(); return; }
   try {
     const r = await fetch('/parceiros', {
       method: 'POST',
@@ -2851,6 +2862,97 @@ document.addEventListener('paste', e => {
   const imgs = [...e.clipboardData.files].filter(f => f.type.startsWith('image/'));
   if (imgs.length) { adicionarArquivos(imgs); e.preventDefault(); }
 });
+
+// ── Ponte de captura (extensão) ───────────────────────────────────────────────
+// Modelo de pareamento: gera um código ligado à conta ativa, copia p/ a área de
+// transferência e faz poll das capturas que a extensão manda, injetando-as na
+// mesma fila do upload (imagem → arquivos[]; texto → textarea). Uma ponte por vez.
+let extSessao = null;          // { sessao_id, codigo }
+let extPollTimer = null;
+let extConectadoAviso = false;
+
+function extStatus(msg, tipo) {
+  const el = document.getElementById('ext-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = tipo === 'ok' ? 'var(--pos)' : tipo === 'warn' ? 'var(--warn)' : 'var(--ink-soft)';
+}
+
+function b64ParaFile(b64, mediaType, nome) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], nome, { type: mediaType || 'image/png' });
+}
+
+async function conectarExtensao() {
+  if (!parceiroSelecionado) { setStatus('Selecione uma conta antes de conectar a extensão.', 'warn'); return; }
+  desconectarExtensao(false);   // encerra ponte anterior, se houver
+  try {
+    const r = await fetch('/captura/parear', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ casa: parceiroSelecionado.casa, parceiro: parceiroSelecionado.nome }),
+    });
+    if (!r.ok) throw new Error('parear');
+    const d = await r.json();
+    extSessao = { sessao_id: d.sessao_id, codigo: d.codigo };
+    let copiado = false;
+    try { await navigator.clipboard.writeText(d.codigo); copiado = true; } catch (_) {}
+    extStatus(`Código ${d.codigo}${copiado ? ' copiado' : ''} — cole na extensão. Aguardando…`, '');
+    document.getElementById('btn-conectar-ext').textContent = '🔗 Reconectar';
+    document.getElementById('btn-desconectar-ext').style.display = '';
+    extConectadoAviso = false;
+    clearInterval(extPollTimer);
+    extPollTimer = setInterval(pollExtensao, 2500);
+  } catch (_) {
+    extStatus('Não foi possível gerar o código. Tente de novo.', 'warn');
+  }
+}
+
+async function pollExtensao() {
+  if (!extSessao) { clearInterval(extPollTimer); return; }
+  try {
+    const r = await fetch(`/captura/sessao/${extSessao.sessao_id}`);
+    if (r.status === 404) { desconectarExtensao(false); extStatus('Sessão expirou. Conecte de novo.', 'warn'); return; }
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.conectado && !extConectadoAviso) {
+      extConectadoAviso = true;
+      extStatus(`Extensão conectada ✓ ${d.casa} / ${d.parceiro || '—'}`, 'ok');
+    }
+    if (d.capturas && d.capturas.length) {
+      const imgs = [];
+      for (const c of d.capturas) {
+        if (c.tipo === 'imagem') {
+          imgs.push(b64ParaFile(c.data, c.media_type, `captura_${c.id}.png`));
+        } else if (c.tipo === 'texto') {
+          const ta = document.getElementById('texto');
+          ta.value = (ta.value ? ta.value + '\n\n' : '') + c.data;
+          ta.dispatchEvent(new Event('input'));
+        }
+      }
+      if (imgs.length) adicionarArquivos(imgs);
+      extStatus(`Extensão conectada ✓ — ${d.capturas.length} captura(s) recebida(s). Processe abaixo.`, 'ok');
+    }
+  } catch (_) {}
+}
+
+function desconectarExtensao(avisar = true) {
+  clearInterval(extPollTimer); extPollTimer = null;
+  extConectadoAviso = false;
+  if (extSessao) {
+    fetch(`/captura/sessao/${extSessao.sessao_id}/encerrar`, { method: 'POST' }).catch(() => {});
+    extSessao = null;
+  }
+  const btn = document.getElementById('btn-conectar-ext');
+  if (btn) btn.textContent = '🔗 Conectar extensão';
+  const dbtn = document.getElementById('btn-desconectar-ext');
+  if (dbtn) dbtn.style.display = 'none';
+  if (avisar) extStatus('', '');
+}
+
+document.getElementById('btn-conectar-ext').addEventListener('click', conectarExtensao);
+document.getElementById('btn-desconectar-ext').addEventListener('click', () => desconectarExtensao(true));
 
 const IMG_MAX = 15;
 function adicionarArquivos(novos) {

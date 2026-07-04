@@ -30,6 +30,7 @@ from auth import (
     operadores_de, planilha_ao_vivo, pode_ver_como, usuario_atual,
     usuario_do_request, verificar_credenciais,
 )
+import captura as _captura
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
@@ -185,6 +186,11 @@ async def _security_headers(request: Request, call_next):
 # (GET/HEAD/OPTIONS) são isentos. Registrado como middleware DEPOIS de
 # _security_headers → roda ANTES dele (outermost), rejeitando cedo.
 _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+# Rotas da EXTENSÃO de captura: chegam com Origin da casa (superbet.com) ou da
+# própria extensão (chrome-extension://…), nunca do sharpen.bet, então bateriam
+# no guarda de origem. São isentas do guarda porque fazem a PRÓPRIA autenticação
+# — /conectar exige um código válido e curto; /enviar exige o token de sessão.
+_CAPTURA_ISENTAS = {"/captura/conectar", "/captura/enviar"}
 _ALLOWED_ORIGIN_HOSTS = {
     h.strip().lower()
     for h in os.environ.get("ALLOWED_ORIGIN_HOSTS", "").split(",")
@@ -203,7 +209,7 @@ def _host_de(valor: str) -> str:
 
 @app.middleware("http")
 async def _csrf_origin_guard(request: Request, call_next):
-    if request.method in _UNSAFE_METHODS:
+    if request.method in _UNSAFE_METHODS and request.url.path not in _CAPTURA_ISENTAS:
         fonte = request.headers.get("origin") or request.headers.get("referer")
         if fonte:
             proprio = _host_de(request.headers.get("x-forwarded-host")
@@ -880,6 +886,100 @@ async def listar_casas(dono: str = Depends(dono_efetivo)):
     # inclui casas inativas importadas (têm parceiros/dados, mas não têm manual)
     com_dados = set(await casas_com_parceiros(dono))
     return {"casas": sorted(manuais | com_dados)}
+
+
+# ── Ponte de captura (extensão ⇄ dashboard) ───────────────────────────────────
+# Modelo de pareamento: o dashboard gera um código curto ligado a (dono, casa,
+# parceiro); a extensão troca o código por um token e passa a enviar capturas;
+# o dashboard faz poll e injeta na área de colar. Lógica/registro em captura.py.
+
+class ParearRequest(BaseModel):
+    casa: str
+    parceiro: str = ""
+
+
+@app.post("/captura/parear")
+async def captura_parear(req: ParearRequest, dono: str = Depends(usuario_atual)):
+    """Dashboard cria a sessão de pareamento. Usa o dono REAL (dado novo vai para
+    quem está logado — mesma regra de /extrair)."""
+    casa_key = _display_to_key(req.casa)
+    sess = _captura.criar_sessao(dono, _casa_display(casa_key), casa_key, (req.parceiro or "").strip())
+    return {"sessao_id": sess.sessao_id, "codigo": sess.codigo, "modo": sess.modo,
+            "casa": sess.casa, "parceiro": sess.parceiro}
+
+
+@app.get("/captura/sessao/{sessao_id}")
+async def captura_poll(sessao_id: str, dono: str = Depends(usuario_atual)):
+    """Poll do dashboard: estado da conexão + capturas pendentes (entrega única)."""
+    sess = _captura.sessao_por_id(sessao_id)
+    if not sess or sess.dono != dono:
+        raise HTTPException(404, "Sessão de captura não encontrada.")
+    pend = _captura.drenar_capturas(sess)
+    return {
+        "conectado": sess.conectado,
+        "modo": sess.modo, "casa": sess.casa, "parceiro": sess.parceiro,
+        "capturas": [
+            {"id": c.id, "tipo": c.tipo, "media_type": c.media_type, "data": c.data}
+            for c in pend
+        ],
+    }
+
+
+@app.post("/captura/sessao/{sessao_id}/encerrar")
+async def captura_encerrar(sessao_id: str, dono: str = Depends(usuario_atual)):
+    sess = _captura.sessao_por_id(sessao_id)
+    if sess and sess.dono == dono:
+        _captura.encerrar(sessao_id)
+    return {"ok": True}
+
+
+class ConectarRequest(BaseModel):
+    codigo: str
+
+
+@app.post("/captura/conectar")
+async def captura_conectar(req: ConectarRequest):
+    """Extensão troca o código curto pelo token de envio + metadados do slot.
+    Isenta do guarda CSRF (Origin da casa/extensão); autentica pelo código."""
+    sess = _captura.conectar(req.codigo)
+    if not sess:
+        raise HTTPException(404, "Código inválido ou expirado.")
+    return {"token": sess.token_ext, "casa": sess.casa, "parceiro": sess.parceiro,
+            "modo": sess.modo, "dono": sess.dono}
+
+
+@app.post("/captura/enviar")
+async def captura_enviar(
+    token: str = Form(...),
+    tipo: str = Form("imagem"),
+    texto: Optional[str] = Form(None),
+    imagem: Optional[UploadFile] = File(default=None),
+):
+    """Extensão envia uma captura (print ou texto). Autentica pelo token de sessão.
+    Isenta do guarda CSRF."""
+    sess = _captura.sessao_por_token(token)
+    if not sess:
+        raise HTTPException(401, "Token de captura inválido ou expirado.")
+
+    if tipo == "texto":
+        if not (texto and texto.strip()):
+            raise HTTPException(400, "Texto vazio.")
+        ok = _captura.adicionar_captura(sess, "texto", "", texto)
+    else:
+        if imagem is None:
+            raise HTTPException(400, "Imagem ausente.")
+        ctype = (imagem.content_type or "").lower()
+        if ctype not in _ALLOWED_IMG_TYPES:
+            raise HTTPException(400, f"Tipo de imagem não suportado: {ctype or 'desconhecido'}.")
+        raw = await imagem.read()
+        if len(raw) > _MAX_IMG_BYTES:
+            raise HTTPException(413, "Imagem excede o limite de 12 MB.")
+        ok = _captura.adicionar_captura(
+            sess, "imagem", ctype, base64.standard_b64encode(raw).decode())
+
+    if not ok:
+        raise HTTPException(429, "Fila de capturas cheia — processe no dashboard antes de enviar mais.")
+    return {"ok": True}
 
 
 @app.post("/extrair")
