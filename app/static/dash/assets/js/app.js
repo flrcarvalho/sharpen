@@ -467,7 +467,7 @@ function buildHTML(){
       <div class="sidebar-bottom">
         <div class="last-update" id="lastUpdate"><span class="pulse-dot"></span><span id="lastUpdateText">carregando…</span></div>
         <a class="sb-csv" href="/exportar.csv" title="Baixar toda a base como CSV (backup)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base (CSV)</a>
-        <button class="update-btn" onclick="loadData(true)">↻ Atualizar dados</button>
+        <button class="update-btn" id="updateBtn" onclick="loadData(true)"><span class="update-ico">↻</span><span class="update-lbl">Atualizar dados</span></button>
         <div class="sb-endorse">by FDC Capital</div>
       </div>
     </aside>
@@ -901,15 +901,35 @@ function _idbSetData(val){
 function _setLastUpdate(ms,updating){
   const lu=document.getElementById('lastUpdateText');
   if(!lu)return;
-  let txt;
   if(ms){
     const d=new Date(ms);
-    txt='dados de '+d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    lu.textContent='último sync: '+d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   }else{
-    txt='carregando…';
+    lu.textContent=updating?'sincronizando…':'carregando…';
   }
-  if(updating)txt+=' · atualizando…';
-  lu.textContent=txt;
+}
+
+// Feedback do botão "Atualizar dados": enquanto o refresh roda, o ↻ gira e o
+// botão fica desabilitado ("Atualizando…"). Antes o botão parecia morto — nenhum
+// sinal de que o clique disparou algo. Duração mínima (600ms) evita piscada.
+function _setUpdating(on){
+  const b=document.getElementById('updateBtn');
+  if(!b)return;
+  const lbl=b.querySelector('.update-lbl');
+  if(on){
+    window._updT0=Date.now();
+    b.classList.add('is-loading');
+    b.disabled=true;
+    if(lbl)lbl.textContent='Atualizando…';
+    return;
+  }
+  const done=()=>{
+    b.classList.remove('is-loading');
+    b.disabled=false;
+    if(lbl)lbl.textContent='Atualizar dados';
+  };
+  const dt=Date.now()-(window._updT0||0);
+  if(dt<600)setTimeout(done,600-dt);else done();
 }
 function _errBanner(msg){
   const banner=document.createElement('div');
@@ -947,7 +967,8 @@ async function loadData(force){
   }
 
   // ── 2) Busca dados frescos (em paralelo com a UI já visível, quando houver cache) ──
-  if(!_rebuild)_setLastUpdate(window._dataBuiltMs,true); // refresh manual: feedback "atualizando…"
+  if(force)_setUpdating(true);                            // clique manual: gira o botão
+  if(!_rebuild)_setLastUpdate(window._dataBuiltMs,true);  // refresh manual: feedback "sincronizando…"
   let _fetchErr=null;
   try{
     // Boot/revalidação em 2º plano usam o cache rápido do Drive; o clique manual em
@@ -972,6 +993,7 @@ async function loadData(force){
 
   // ── 3a) DOM já montado (cache servido OU refresh manual): atualiza silencioso ──
   if(servedFromCache||!_rebuild){
+    if(force)_setUpdating(false); // encerra o giro do botão (sucesso ou erro)
     if(!_fetchErr){
       window._dataLoadMs=Date.now();
       _setLastUpdate(window._dataBuiltMs,false);

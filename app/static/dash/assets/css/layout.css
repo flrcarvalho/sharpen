@@ -125,6 +125,12 @@ body::before {
   transition: all 0.12s;
 }
 .update-btn:hover { border-color: var(--accent-2); color: var(--accent-2); }
+.update-btn .update-ico { display: inline-block; line-height: 1; }
+/* Estado "atualizando": botão desabilitado + seta girando (feedback do clique). */
+.update-btn.is-loading { opacity: .7; cursor: default; border-color: var(--line); color: var(--ink-soft); }
+.update-btn:disabled { pointer-events: none; }
+.update-btn.is-loading .update-ico { animation: update-spin 0.7s linear infinite; }
+@keyframes update-spin { to { transform: rotate(360deg); } }
 .sb-csv {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; margin-bottom: var(--space-2);
