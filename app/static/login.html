@@ -36,24 +36,35 @@ body::before {
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 44px 44px;
 }
+/* Luz azul da marca iluminando a tela por trás do card */
+body::after {
+  content: '';
+  position: fixed; z-index: 0; pointer-events: none;
+  left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 900px; height: 760px; max-width: 130vw;
+  background: radial-gradient(ellipse at center, rgba(var(--accent-rgb), .16), transparent 68%);
+  filter: blur(24px);
+}
 .card {
   position: relative; z-index: 1;
   width: 360px; max-width: calc(100vw - 32px);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg, 16px);
-  padding: 32px 28px 28px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  padding: 32px 28px 26px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.45), 0 0 90px -24px rgba(var(--accent-rgb), .18);
 }
-.logo { display: block; width: 200px; margin: 0 auto 14px; }
+.logo { display: block; width: 200px; margin: 0 auto 18px; }
 .logo img { width: 100%; height: auto; display: block; }
-.slogan {
+.tagline {
+  margin-top: 18px; padding-top: 20px;
+  border-top: 1px solid var(--line);
   text-align: center;
-  font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
   color: var(--ink-soft);
-  margin-bottom: 26px;
 }
-.slogan .dot { color: var(--accent); }
+.tagline .hl { color: var(--accent); }
 label {
   display: block; font-size: 11px; font-weight: 600;
   letter-spacing: .04em; text-transform: uppercase;
@@ -75,8 +86,9 @@ button {
   border: none; border-radius: var(--r-sm, 10px);
   font-size: 14px; font-weight: 700; font-family: inherit;
   cursor: pointer; transition: filter .12s, box-shadow .12s;
+  box-shadow: 0 10px 34px -8px rgba(var(--accent-rgb), .6);
 }
-button:hover { filter: brightness(1.06); box-shadow: var(--glow, 0 0 0 3px rgba(110,168,254,.25)); }
+button:hover { filter: brightness(1.06); box-shadow: 0 12px 40px -8px rgba(var(--accent-rgb), .78); }
 button:disabled { opacity: .6; cursor: default; box-shadow: none; }
 .erro {
   margin-top: 14px; min-height: 16px;
@@ -87,7 +99,6 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
 <body>
   <div class="card">
     <div class="logo"><img src="/static/brand-sharpen/blade/lockup-endorsed.svg" alt="Sharpen — by FDC Capital"></div>
-    <div class="slogan">Sharpen your edge<span class="dot">.</span></div>
     <form id="form">
       <label for="usuario">Usuário</label>
       <input id="usuario" name="usuario" autocomplete="username" autofocus required>
@@ -96,6 +107,7 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
       <button type="submit" id="btn">Entrar</button>
       <div class="erro" id="erro"></div>
     </form>
+    <div class="tagline">Sharp<span class="hl">en</span> your edge.</div>
   </div>
 <script>
 const form = document.getElementById('form');
