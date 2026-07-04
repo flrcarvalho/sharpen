@@ -3,8 +3,13 @@
 // Parceiros / Fornecedores
 function normForn(f){return(!f||f==='—')?'Eu':f;}
 
-// Persistent cost store
-const COST_KEY='dash_custos_v2';
+// Persistent cost store — ESCOPADO POR DONO (isolamento entre usuários).
+// A chave inclui o dono: os custos de um usuário nunca aparecem para outro.
+// window.__dono vem do feed /dashboard/data (app.js). Fallback '_' = namespace
+// vazio → nunca cai no store de outro dono.
+function costKey(){return 'dash_custos_v2::'+(window.__dono||'_');}
+// Seed histórico dos custos do FECA — aplicado SÓ para o dono 'Feca' (jamais semeia
+// outro usuário; global, era a fonte do vazamento — cada usuário preenche o seu).
 const CUSTO_SEED={
   "Annderson||Bet365":900,"JC||Betano":600,"JC||Superbet":500,
   "Move||Betano":600,"Move||Bet365":950,"Move||Superbet":600,
@@ -12,18 +17,25 @@ const CUSTO_SEED={
   "Richard||Bet365":800,"Richard||Betano":500,"Richard||Superbet":400
 };
 let custoData={};
-(()=>{
-  try{custoData=JSON.parse(localStorage.getItem(COST_KEY)||'null');}catch(e){}
-  if(!custoData||!Object.keys(custoData).length){
-    custoData={...CUSTO_SEED};
-    try{localStorage.setItem(COST_KEY,JSON.stringify(custoData));}catch(e){}
+// Carregado quando o dono é conhecido (app.js, após o feed). Idempotente.
+function loadCusto(){
+  const k=costKey();
+  // migração única do store legado (sem dono) → namespace do Feca, só na 1ª vez.
+  try{
+    const legacy=localStorage.getItem('dash_custos_v2');
+    if(legacy&&window.__dono==='Feca'&&!localStorage.getItem(k))localStorage.setItem(k,legacy);
+  }catch(e){}
+  try{custoData=JSON.parse(localStorage.getItem(k)||'null')||{};}catch(e){custoData={};}
+  if((!custoData||!Object.keys(custoData).length)&&window.__dono==='Feca'){
+    custoData={...CUSTO_SEED};          // seed só do Feca; demais donos começam vazios
+    try{localStorage.setItem(k,JSON.stringify(custoData));}catch(e){}
   }
-})();
+}
 function saveCusto(forn,casa,val){
   const k=forn+'||'+casa;
   const n=parseFloat(val.replace(/\./g,'').replace(',','.'));
   if(!isNaN(n)&&n>0)custoData[k]=n; else delete custoData[k];
-  try{localStorage.setItem(COST_KEY,JSON.stringify(custoData));}catch(e){}
+  try{localStorage.setItem(costKey(),JSON.stringify(custoData));}catch(e){}
   recalcCustos();
   renderCostPies();
   // Atualiza card de custo na visão geral e na aba fornecedores

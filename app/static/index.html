@@ -1633,6 +1633,9 @@ async function carregarUsuario() {
     const efetivo = data.dono_efetivo || real;
     const operadores = data.operadores || [];
     const vendo = efetivo !== real;
+    // isolamento do store de custos: escopa por dono efetivo + migra o legado uma vez.
+    window.__donoEfetivo = efetivo; window.__donoReal = real;
+    _migrarCustoLegado(real);
 
     document.getElementById('user-nome').textContent = efetivo;
     document.getElementById('operador-label').textContent = vendo ? 'Vendo' : 'Operador';
@@ -3366,20 +3369,34 @@ async function carregarGrade() {
 // Busca o resumo agregado no backend (/conta/resumo) e o custo no localStorage
 // dash_custos_v2 (mesmo store do Betting Dashboard, chaveado por fornecedor||casa).
 // O fornecedor sai do sufixo "[Fornecedor]" do nome do parceiro.
-const DASH_COST_KEY = 'dash_custos_v2';
+// Store de custos ESCOPADO POR DONO (isolamento entre usuários): a chave inclui o
+// dono efetivo, então o custo de um usuário nunca aparece para outro. Fallback '_'
+// (namespace vazio) se o dono ainda não é conhecido — nunca cai no store de outro.
+const DASH_COST_BASE = 'dash_custos_v2';
+function _custoKey() { return DASH_COST_BASE + '::' + (window.__donoEfetivo || '_'); }
+// Migração única do store LEGADO (sem dono) → namespace do dono REAL deste navegador.
+// Só migra quando o real é o Feca (quem tinha o store global) — assim os valores
+// antigos ficam sob 'Feca' e os demais donos começam vazios.
+function _migrarCustoLegado(real) {
+  try {
+    const legacy = localStorage.getItem(DASH_COST_BASE);
+    const alvo = DASH_COST_BASE + '::' + real;
+    if (legacy && real === 'Feca' && !localStorage.getItem(alvo)) localStorage.setItem(alvo, legacy);
+  } catch (e) {}
+}
 let _resumoToken = 0;
 
 function _lerCusto(forn, casa) {
   if (!forn) return 0;
-  try { const o = JSON.parse(localStorage.getItem(DASH_COST_KEY) || '{}'); return o[forn + '||' + casa] || 0; }
+  try { const o = JSON.parse(localStorage.getItem(_custoKey()) || '{}'); return o[forn + '||' + casa] || 0; }
   catch (e) { return 0; }
 }
 function _salvarCusto(forn, casa, val) {
   try {
-    const o = JSON.parse(localStorage.getItem(DASH_COST_KEY) || '{}');
+    const o = JSON.parse(localStorage.getItem(_custoKey()) || '{}');
     const n = parseFloat((val || '').toString().replace(/\./g, '').replace(',', '.'));
     if (!isNaN(n) && n > 0) o[forn + '||' + casa] = n; else delete o[forn + '||' + casa];
-    localStorage.setItem(DASH_COST_KEY, JSON.stringify(o));
+    localStorage.setItem(_custoKey(), JSON.stringify(o));
   } catch (e) {}
 }
 // Faixa de KPIs no padrão de marca (UI_REFERENCE §5). Dinheiro SEM abreviação,

@@ -1173,6 +1173,7 @@ async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo)):
         "builtAt": datetime.now(timezone.utc).isoformat(),
         "count": len(rows),
         "operadores": escopo,
+        "dono": dono,          # dono efetivo — o front escopa o store de custos por ele
     }
     body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
     # Compressão DIRECIONADA (só esta rota): o feed é um JSON grande (~toda a base) e

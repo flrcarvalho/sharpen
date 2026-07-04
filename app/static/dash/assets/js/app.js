@@ -956,6 +956,10 @@ async function loadData(force){
     const res=await fetch(url);
     const json=await res.json();
     if(!json.ok)throw new Error(json.error||'Erro desconhecido');
+    // dono efetivo: o store de custos é escopado por ele (isolamento entre usuários).
+    // Fallback '_' (namespace vazio) se ausente — nunca cai no store de outro dono.
+    window.__dono=json.dono||(json.operadores&&json.operadores[0])||'_';
+    if(typeof loadCusto==='function')loadCusto();
     aplicarFeed(json.data);
     auditCasas(DADOS);
     // builtAt = quando o servidor reconstruiu o cache (fonte de verdade da frescura dos dados)
