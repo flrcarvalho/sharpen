@@ -36,6 +36,7 @@ import openpyxl
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
 ORIGEM = 'import'
 VALID = {'W', 'L', 'V', 'HW', 'HL'}
+DIAS_INATIVA = 20        # conta sem aposta há mais de N dias → arquivada (auto)
 
 
 # ---------- sanitização de texto ----------
@@ -113,6 +114,27 @@ def construir_fold(brutos: list[str]) -> dict[str, str]:
         variantes = [(freq[t], t) for t in freq if t.lower() == lk]
         canon[lk] = max(variantes)[1]          # mais frequente vence (empate → maior string)
     return canon
+
+
+# ---------- parceiro = conta no padrão do Feca: "Usuário [Fornecedor]" ----------
+# Nesta base a coluna Parceiro é o FORNECEDOR e a coluna Usuário é o LOGIN da conta.
+# O padrão do sistema é `login [Fornecedor]`. Casos de borda:
+#   • Fornecedor que na verdade é nome de CASA (erro da origem) → [revisar].
+#   • login == fornecedor (ambos "Pessoal") → colapsa p/ um só (evita "Pessoal [Pessoal]").
+#   • falta login ou fornecedor → usa o que existir; nada → "Padrão".
+def compor_parceiro(usuario: str, parceiro_col: str, fold_par: dict[str, str]) -> str:
+    if parceiro_col and parceiro_col.upper().replace(' ', '') in _CASA_DISPLAY:
+        fornecedor = 'revisar'
+    else:
+        fornecedor = fold_par.get(parceiro_col.lower(), parceiro_col)
+    usuario = usuario.strip()
+    if not usuario and not fornecedor:
+        return 'Padrão'
+    if not fornecedor or usuario == fornecedor:
+        return usuario or fornecedor
+    if not usuario:
+        return fornecedor
+    return f'{usuario} [{fornecedor}]'
 
 
 # ---------- resultado: já vem canônico, só normaliza caixa e valida ----------
@@ -239,17 +261,12 @@ def carregar_rows(xlsx_path: str) -> list[dict]:
     out = []
     for r in brutas:
         tip, par = limpa(r[2]), limpa(r[4])
-        # parceiro que na verdade é nome de CASA (erro de digitação da origem) → 'revisar'
-        if par and par.upper().replace(' ', '') in _CASA_DISPLAY:
-            parceiro = 'revisar'
-        else:
-            parceiro = fold_par.get(par.lower(), par) or 'Padrão'
         out.append({
             'data': norm_data(r[0]),
             'esporte': norm_esporte(r[1]),
             'tipster': fold_tip.get(tip.lower(), tip),
             'casa': norm_casa(r[3]),
-            'parceiro': parceiro,
+            'parceiro': compor_parceiro(limpa(r[11]), par, fold_par),
             'aposta': categoria(r[5], r[1], r[6]),
             'descricao': limpa(r[6]),
             'stake': norm_num(r[7]),
@@ -332,6 +349,30 @@ async def importar(rows: list[dict], dono: str):
                             """INSERT INTO parceiros (dono, casa, nome) VALUES ($1,$2,$3)
                                ON CONFLICT (dono, casa, nome) DO NOTHING""",
                             dono, casa, parceiro)
+                    # re-import pode renomear parceiros (ex.: "Richard" → "email [Richard]");
+                    # remove os órfãos (parceiro sem nenhum bilhete) p/ não sobrar conta vazia.
+                    orfaos = await conn.execute(
+                        """DELETE FROM parceiros p
+                           WHERE p.dono=$1
+                             AND NOT EXISTS (SELECT 1 FROM bilhetes b
+                                             WHERE b.dono=p.dono AND b.casa=p.casa
+                                               AND b.parceiro=p.nome)""",
+                        dono)
+                    print(f'  parceiros órfãos removidos: {orfaos}')
+                    # auto-arquiva contas sem aposta nos últimos DIAS_INATIVA dias (pela
+                    # data do jogo). Reativa sozinha depois: o upsert de parceiro faz
+                    # arquivado=FALSE on-conflict quando chega aposta nova.
+                    arq = await conn.execute(
+                        f"""UPDATE parceiros p SET arquivado = TRUE
+                            WHERE p.dono=$1
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM bilhetes b
+                                  WHERE b.dono=p.dono AND b.casa=p.casa AND b.parceiro=p.nome
+                                    AND to_date(b.data,'DD/MM/YYYY')
+                                        >= CURRENT_DATE - INTERVAL '{DIAS_INATIVA} days'
+                              )""",
+                        dono)
+                    print(f'  contas auto-arquivadas (>{DIAS_INATIVA}d sem aposta): {arq}')
                     await conn.execute(
                         """
                         WITH ordered AS (
