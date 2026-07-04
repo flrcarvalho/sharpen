@@ -2339,7 +2339,8 @@ async function criarContaNova() {
     if (idx >= 0) parceirosCache[casa][idx] = p;
     else parceirosCache[casa] = [...(parceirosCache[casa] || []), p];
     parceirosArquivadosCache[casa] = (parceirosArquivadosCache[casa] || []).filter(x => x.id !== p.id);
-    if (nomeInp) nomeInp.value = '';
+    if (parcInp) parcInp.value = '';
+    if (fornInp) fornInp.value = '';
     // Parceiro novo nasce ativo — garante a aba certa antes de selecionar.
     acctPopAba = 'ativas';
     document.querySelectorAll('.acct-tabs button').forEach(x => x.classList.toggle('on', x.dataset.aba === 'ativas'));
@@ -2386,8 +2387,10 @@ async function criarContaNova() {
   });
   const novoConfirm = document.getElementById('acctNewConfirm');
   if (novoConfirm) novoConfirm.addEventListener('click', e => { e.stopPropagation(); criarContaNova(); });
-  const novoNome = document.getElementById('acctNewNome');
-  if (novoNome) novoNome.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criarContaNova(); } });
+  ['acctNewParceiro', 'acctNewForn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criarContaNova(); } });
+  });
 })();
 
 // ── Painel de Contas (landing quando não há conta ativa) ──────────────────────
@@ -2449,7 +2452,8 @@ function renderPainelContas() {
     '</div>' +
     '<div class="painel-newform" id="painel-newform">' +
       '<select id="painel-new-casa" class="acct-new-casa" title="Casa">' + casaOpts + '</select>' +
-      '<input id="painel-new-nome" class="acct-new-nome" type="text" placeholder="Nome do parceiro (ex.: João [Fornecedor])" autocomplete="off" spellcheck="false" onkeydown="if(event.key===&quot;Enter&quot;)painelCriarConta()">' +
+      '<input id="painel-new-parceiro" class="acct-new-nome" type="text" placeholder="Parceiro (login da conta)" autocomplete="off" spellcheck="false" onkeydown="if(event.key===&quot;Enter&quot;)painelCriarConta()">' +
+      '<input id="painel-new-forn" class="acct-new-nome" type="text" placeholder="Nome do fornecedor (opcional)" autocomplete="off" spellcheck="false" onkeydown="if(event.key===&quot;Enter&quot;)painelCriarConta()">' +
       '<button class="btn btn-primary btn-sm" type="button" onclick="painelCriarConta()">Criar</button>' +
       '<button class="btn btn-ghost btn-sm" type="button" onclick="painelToggleForm(false)">Cancelar</button>' +
     '</div>';
@@ -2602,15 +2606,19 @@ function painelToggleForm(force) {
   if (!f) return;
   const open = force === undefined ? !f.classList.contains('open') : !!force;
   f.classList.toggle('open', open);
-  if (open) { const n = document.getElementById('painel-new-nome'); if (n) n.focus(); }
+  if (open) { const n = document.getElementById('painel-new-parceiro'); if (n) n.focus(); }
 }
 
 async function painelCriarConta() {
   const casaEl = document.getElementById('painel-new-casa');
-  const nomeEl = document.getElementById('painel-new-nome');
+  const parcEl = document.getElementById('painel-new-parceiro');
+  const fornEl = document.getElementById('painel-new-forn');
   const casa = casaEl ? casaEl.value : '';
-  const nome = (nomeEl ? nomeEl.value : '').trim();
-  if (!casa || !nome) return;
+  const parceiro = (parcEl ? parcEl.value : '').trim();
+  const forn = (fornEl ? fornEl.value : '').trim();
+  // Modelo canônico "Parceiro [Fornecedor]"; sem fornecedor fica só o parceiro (nunca "Parceiro []").
+  const nome = forn ? `${parceiro} [${forn}]` : parceiro;
+  if (!casa || !parceiro) return;
   try {
     const r = await fetch('/parceiros', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa, nome }),
