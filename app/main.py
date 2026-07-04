@@ -1248,7 +1248,7 @@ async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depend
 
 
 @app.get("/dashboard/data")
-async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo)):
+async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo), refresh: bool = False):
     """Fonte de dados do Betting Dashboard (mesmo contrato do Code.gs/Apps Script),
     montada do Postgres e filtrada pelo dono logado — substitui a planilha. O
     dashboard client-side faz toda a matemática; aqui só servimos o array cru.
@@ -1271,7 +1271,9 @@ async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo)):
     for d in escopo:
         url = planilha_ao_vivo(d)
         if url:
-            rows += await dashboard_rows_ao_vivo(d, url)
+            # refresh=1 (clique manual em "Atualizar dados") força reconstrução
+            # ao vivo da planilha; sem isso o botão não fura os caches do feed.
+            rows += await dashboard_rows_ao_vivo(d, url, refresh=refresh)
         else:
             donos_postgres.append(d)
     if donos_postgres:

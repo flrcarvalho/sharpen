@@ -39,21 +39,34 @@ def _norm_casa(casa: str) -> str:
     return _CASA_CANON.get((casa or "").strip().lower(), casa)
 
 
-async def dashboard_rows_ao_vivo(dono: str, url: str) -> list[dict]:
+async def dashboard_rows_ao_vivo(dono: str, url: str, refresh: bool = False) -> list[dict]:
     """Busca o feed da planilha ao vivo do `dono` e carimba `operador=dono`.
 
     Usa cache local por TTL. Segue redirecionamento (o /exec do Apps Script
     faz 302 para googleusercontent.com). Em falha, cai no último feed em cache
     (stale) se houver; senão, propaga a exceção.
+
+    Com `refresh=True` (clique manual em "Atualizar dados"): ignora o cache
+    local de TTL e pede ao Apps Script uma RECONSTRUÇÃO AO VIVO (`?refresh=1`),
+    em vez do cache do Drive (até 30 min velho). É o único caminho que faz o
+    dado da planilha subir na hora — sem isso o botão "Atualizar" não fura os
+    caches empilhados (120s local + Drive de 30 min).
     """
     agora = time.monotonic()
     em_cache = _cache.get(dono)
-    if em_cache and (agora - em_cache[0]) < _TTL_SEGUNDOS:
+    if not refresh and em_cache and (agora - em_cache[0]) < _TTL_SEGUNDOS:
         return em_cache[1]
 
+    fetch_url = url
+    if refresh:
+        fetch_url = url + ("&" if "?" in url else "?") + "refresh=1"
+
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            resp = await client.get(url)
+        # rebuildCache do Apps Script é mais lento que servir o cache do Drive;
+        # dá mais folga no timeout quando forçamos refresh.
+        timeout = 60.0 if refresh else 30.0
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            resp = await client.get(fetch_url)
             resp.raise_for_status()
             payload = resp.json()
         if not payload.get("ok"):
