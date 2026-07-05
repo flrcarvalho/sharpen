@@ -677,6 +677,17 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .pm-tip-input { width:100%; min-width:88px; background:transparent; border:1px solid var(--line); border-radius:5px; padding:3px 6px; color:var(--ink); font-size:11px; font-family:var(--font-mono); }
 .pm-tip-input:focus { outline:none; border-color:var(--accent); }
 .pm-empty { padding:16px; text-align:center; color:var(--ink-mute); }
+.data-ref-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--ink-mute); cursor: default;
+}
+.data-ref-input {
+  font-size: 11px; font-family: var(--font-mono);
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--ink); border-radius: var(--r-xs); padding: 2px 6px;
+  cursor: pointer;
+}
+.data-ref-input:focus { outline: none; border-color: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner {
   width: 13px; height: 13px; border: 2px solid var(--line);
@@ -1446,6 +1457,10 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-ghost btn-sm" id="btn-conectar-ext" title="Gera um código para conectar a extensão SharpenUp a esta conta"><svg width="6" height="14" viewBox="40 10 40 100" aria-hidden="true" style="vertical-align:middle;margin-right:6px;position:relative;top:-1px"><defs><linearGradient id="suBladeBtn" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeBtn)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><span id="ext-btn-label">Conectar extensão</span></button>
             <button class="btn btn-ghost btn-sm" id="btn-desconectar-ext" style="display:none">Desconectar</button>
             <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
+            <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
+              <span>Captura</span>
+              <input type="date" id="data-ref" class="data-ref-input">
+            </label>
             <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
             <span class="status-msg" id="status-msg"></span>
           </div>
@@ -1725,20 +1740,26 @@ let ultimaDuplicatas = {};    // {str(db_id): [occurrence, total]}
 let ultimaScrollOverlaps = new Set(); // db_ids com suspeita de sobreposição de scroll
 const _activeStreams = new Map(); // cardId → AbortController
 let _cardCounter = 0;
-const estadoExtrator = {}; // parceiroId → { arquivos, csvFiles, xlsFiles, texto }
+const estadoExtrator = {}; // parceiroId → { arquivos, csvFiles, xlsFiles, texto, dataRef }
 
 function salvarEstadoExtrator() {
   if (!parceiroSelecionado) return;
   const id = parceiroSelecionado.id;
+  const dataRef = document.getElementById('data-ref').value;
   const formTemConteudo = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0
     || document.getElementById('texto').value.trim();
-  // Formulário vazio após submissão: preserva estado salvo (permite retry após falha).
-  if (!formTemConteudo && estadoExtrator[id]) return;
+  // Formulário vazio após submissão: preserva estado salvo (permite retry após falha),
+  // mas ainda atualiza a data (pode ter sido alterada sem conteúdo no form).
+  if (!formTemConteudo && estadoExtrator[id]) {
+    estadoExtrator[id].dataRef = dataRef;
+    return;
+  }
   estadoExtrator[id] = {
     arquivos: [...arquivos],
     csvFiles: [...csvFiles],
     xlsFiles: [...xlsFiles],
     texto: document.getElementById('texto').value,
+    dataRef,
   };
 }
 
@@ -1748,11 +1769,13 @@ function restaurarEstadoExtrator(id) {
   csvFiles = [...e.csvFiles];
   xlsFiles = [...e.xlsFiles];
   document.getElementById('texto').value = e.texto;
+  // Parceiro visto pela primeira vez cai em hoje real → "Ontem" = ontem real.
+  document.getElementById('data-ref').value = e.dataRef || hojeISO();
 }
 
 // Retorna a data de hoje (fuso local do usuário) no formato YYYY-MM-DD.
-// A extração usa isto como referência de captura (resolve Hoje/Ontem/Amanhã) —
-// o campo "Captura" foi removido (item 2): a data é sempre a de hoje, no fuso local.
+// Usada como default do campo "Captura" de cada parceiro → "Ontem" sempre resolve
+// para ontem real, e a extração envia a data no fuso local (não no relógio UTC do servidor).
 function hojeISO() {
   const now = new Date();
   const y = now.getFullYear();
@@ -1760,6 +1783,13 @@ function hojeISO() {
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+// Inicializar campo de data de referência com hoje (fuso local do usuário)
+(function () {
+  const inp = document.getElementById('data-ref');
+  if (!inp) return;
+  inp.value = hojeISO();
+})();
 
 const NOMES = {
   SUPERBET: 'Superbet', BET365: 'Bet365',
@@ -3077,7 +3107,7 @@ document.getElementById('texto').addEventListener('input', () => {
   atualizarBotaoExtrair();
   if (!parceiroSelecionado) return;
   if (!estadoExtrator[parceiroSelecionado.id])
-    estadoExtrator[parceiroSelecionado.id] = { arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], texto: '' };
+    estadoExtrator[parceiroSelecionado.id] = { arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], texto: '', dataRef: document.getElementById('data-ref').value };
   estadoExtrator[parceiroSelecionado.id].texto = document.getElementById('texto').value;
 });
 
@@ -3087,6 +3117,7 @@ function limparExtrator(explicit = false) {
     estadoExtrator[parceiroSelecionado.id] = {
       arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles],
       texto: document.getElementById('texto').value,
+      dataRef: document.getElementById('data-ref').value,
     };
   }
   arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews();
@@ -3422,9 +3453,10 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   if (xlsFiles.length > 0) {
     form.append('xls_file', xlsFiles[0], xlsFiles[0].name);
   }
-  // Referência de captura = hoje no fuso local (campo "Captura" removido no item 2).
+  // Referência de captura: valor do campo "Captura" (default = hoje no fuso local).
   // Enviamos explícito para não depender do relógio UTC do servidor perto da meia-noite.
-  const [y, m, d] = hojeISO().split('-');
+  const dataRefVal = document.getElementById('data-ref')?.value || hojeISO();
+  const [y, m, d] = dataRefVal.split('-');
   form.append('data_referencia', `${d}/${m}/${y}`);
 
   // Snapshot do parceiro atual (pode mudar enquanto o card processa)
@@ -3437,6 +3469,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   const estadoSnapshot = {
     arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles],
     texto: document.getElementById('texto').value,
+    dataRef: document.getElementById('data-ref').value,
   };
 
   // Snapshot dos nomes de arquivo (CSV/XLS) para exibir no card
