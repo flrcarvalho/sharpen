@@ -364,6 +364,54 @@ async def _dedup_betano_text(text: str, dono: str) -> tuple[str, int]:
     return "\n\n".join(mantidos), skipped
 
 
+# ── Superbet: split por bilhete + pré-dedup por ID ─────────────────────────────
+
+# Cada bilhete Superbet (texto do robô) começa com o marcador "[Código: XXXX-XXXXXX]".
+# O robô lê o código exato do atributo `id` do DOM (sem OCR) → o marcador é a fronteira
+# 100% confiável do bilhete, equivalente à linha-tipo do Betano.
+_SUPERBET_SPLIT_RE = re.compile(r'(?m)(?=^\[Código:\s)')
+_SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
+
+
+def _split_superbet_bilhetes(text: str) -> list[str]:
+    """Divide o texto colado da Superbet em blocos de 1 bilhete cada."""
+    return [b.strip() for b in _SUPERBET_SPLIT_RE.split(text) if b.strip()]
+
+
+async def _dedup_superbet_text(text: str, dono: str) -> tuple[str, int]:
+    """Espelha `_dedup_betano_text` para a Superbet.
+
+    Remove bilhetes já liquidados no banco + duplicatas dentro do colar. A chave é o
+    código do marcador `[Código: ...]`, que vem exato do DOM (sem OCR). Mantém a ordem
+    original. Bilhetes sem marcador legível são sempre mantidos.
+    """
+    blocks = _split_superbet_bilhetes(text)
+    if len(blocks) < 2:
+        return text, 0
+
+    ids = []
+    for b in blocks:
+        m = _SUPERBET_ID_RE.search(b)
+        ids.append(m.group(1).strip().upper() if m else None)
+
+    ja_resolvidos = await get_codigos_resolvidos([i for i in ids if i], dono)
+
+    mantidos: list[str] = []
+    vistos: set[str] = set()
+    skipped = 0
+    for block, bid in zip(blocks, ids):
+        if bid:
+            if bid in vistos or bid in ja_resolvidos:
+                skipped += 1
+                continue
+            vistos.add(bid)
+        mantidos.append(block)
+
+    if not mantidos:
+        return "", skipped
+    return "\n\n".join(mantidos), skipped
+
+
 # ── Instrução ─────────────────────────────────────────────────────────────────
 
 _INSTRUCAO = (
@@ -463,6 +511,9 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
         elif casa_key.upper() == "BETANO":
             # Split na linha-tipo (Simples/Dupla/Tripla/N-seleções) = fronteira do bilhete
             blocks = _BETANO_SPLIT_RE.split(full_text)
+        elif casa_key.upper() == "SUPERBET":
+            # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM)
+            blocks = _SUPERBET_SPLIT_RE.split(full_text)
         else:
             blocks = full_text.split("\n\n")
         blocks = [b.strip() for b in blocks if b.strip()]
@@ -1060,6 +1111,9 @@ async def extrair(
         # bilhetes já liquidados no banco e duplicatas de scroll dentro do colar.
         if casa_key.upper() == "BETANO":
             texto, n_skip = await _dedup_betano_text(texto, dono)
+            xls_skipped += n_skip
+        elif casa_key.upper() == "SUPERBET":
+            texto, n_skip = await _dedup_superbet_text(texto, dono)
             xls_skipped += n_skip
         if texto:
             base_content.append({"type": "text", "text": texto})
