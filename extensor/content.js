@@ -438,8 +438,16 @@
   // Modo passivo: rola a lista p/ a página paginar (lazy-load) e vai consumindo os
   // tickets que o sb_inject captura das RESPOSTAS da API (JSON exato do site). Sem
   // clique. Para no stopId (copiar dele pra cima) ou na janela de dias.
+  // Scroller da lista: `.sb-my-bets__items` se ele mesmo rolar; senão o maior
+  // scroller da página (geralmente o document).
+  function acharScrollSuperbet() {
+    const c = document.querySelector(".sb-my-bets__items");
+    if (c && c.scrollHeight > c.clientHeight + 20) return c;
+    return acharScroll();
+  }
+
   async function roboSuperbetPassive(ctx) {
-    const cont = document.querySelector(".sb-my-bets__items") || acharScroll();
+    const cont = acharScrollSuperbet();
     const blocos = [], usados = new Set();
     let travado = false;
 
@@ -462,27 +470,22 @@
     try { window.postMessage({ __sharpenupSBReq: true }, "*"); } catch (e) {}
     await sleep(250);
     processar();                 // o que já veio no load da página
-    sTo(cont, 0); await sleep(450);
-    let voltas = 0, semNovo = 0, ultTotal = -1, ultMax = -1;
-    while (!ctx.parar() && !travado && voltas < 800) {
+
+    // Rola JANELA + container até o fim, repetidamente, até a página parar de trazer
+    // bilhetes novos (dispara o lazy-load independe de qual elemento rola de fato).
+    let semNovo = 0, ultTotal = -1, voltas = 0;
+    while (!ctx.parar() && !travado && voltas < 500) {
       voltas++;
+      try { window.scrollTo(0, document.documentElement.scrollHeight); } catch (e) {}
+      try { if (cont && cont !== document.scrollingElement && cont !== document.documentElement) cont.scrollTop = cont.scrollHeight; } catch (e) {}
+      await sleep(700);
       processar();
       if (travado) break;
-      const top = sTop(cont), max = sMax(cont);
-      const cresceu = sbTickets.length > ultTotal || max > ultMax + 4;
-      ultTotal = sbTickets.length; ultMax = max;
-      if (top >= max - 4) {                 // no fundo → espera a página paginar (lazy-load)
-        sTo(cont, max);
-        if (cresceu) semNovo = 0; else if (++semNovo >= 5) break;
-        await sleep(700);
-      } else {
-        semNovo = 0;
-        sTo(cont, top + sClient(cont) * 0.85);
-        await sleep(450);
-      }
+      if (sbTickets.length > ultTotal) { ultTotal = sbTickets.length; semNovo = 0; }
+      else if (++semNovo >= 5) break;   // 5 rolagens sem nada novo → fim da lista
     }
     processar();
-    console.log("[SharpenUp] passivo: " + blocos.length + " bilhete(s) da API");
+    console.log("[SharpenUp] passivo: " + blocos.length + " bilhete(s) · sbTickets capturados=" + sbTickets.length);
     return blocos;
   }
 
