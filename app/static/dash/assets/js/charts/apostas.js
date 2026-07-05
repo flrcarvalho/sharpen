@@ -100,7 +100,7 @@ function renderApostasVirt(){
   const endIdx=Math.min(total,Math.ceil((scrollTop+contH)/BTBL_ROW_H)+buf);
   const topPad=startIdx*BTBL_ROW_H;
   const botPad=Math.max(0,(total-endIdx)*BTBL_ROW_H);
-  const RES_SHORT={W:'W',HW:'½W',L:'L',HL:'½L',V:'V',ABERTA:'Aberta'};
+  const RES_SHORT={W:'W',HW:'HW',L:'L',HL:'HL',V:'V',ABERTA:'Aberta'};
   const lines=rows.slice(startIdx,endIdx).map(r=>{
     const d=r.data.slice(0,10);
     const [yr,mo,dy]=d.split('-');

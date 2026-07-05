@@ -3730,7 +3730,7 @@ function sportEmoji(nome) {
   return SPORT_EMOJI[_sportKey(nome)] || '🏅';
 }
 
-const RES_LABEL = { W:'W', HW:'½W', L:'L', HL:'½L', V:'V' };
+const RES_LABEL = { W:'W', HW:'HW', L:'L', HL:'HL', V:'V' };
 function resPill(res) {
   const r = (res || '').toUpperCase();
   // vazio → pílula âmbar de "resultado não preenchido" (aposta aberta)
