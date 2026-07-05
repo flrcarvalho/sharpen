@@ -397,31 +397,43 @@
   // Chama a MESMA API que a página usa (GET /tickets?status=finished, header
   // sessionId, paginação por lastId = o cursor de código). Dado estruturado e exato:
   // ticketId, coefficient (odd), payment.stake, status, dateReceived, events[].
+  // Data → fuso America/São_Paulo (a API vem em UTC; sem conversão a data pula 1 dia).
   const _dbr = (iso) => {
     if (!iso) return "";
     const d = new Date(iso);
     if (isNaN(d)) return "";
-    return String(d.getUTCDate()).padStart(2, "0") + "/" +
-           String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + d.getUTCFullYear();
+    const p = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(d);
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    return g("day") + "/" + g("month") + "/" + g("year");
   };
   const _brl = (x) => (typeof x === "number") ? x.toFixed(2).replace(".", ",") : (x != null ? String(x) : "");
-  const _odd = (x) => (x != null) ? String(x).replace(".", ",") : "";
+  // Odd SEMPRE completa (regra primordial: nunca encurtar). Só tira ruído de float
+  // (ex.: 2.2700000000000002 → 2,27), mantendo toda a precisão real.
+  const _odd = (x) => (x == null) ? "" : (Math.round(x * 1e8) / 1e8).toString().replace(".", ",");
 
   function formatTicket(t) {
     const pay = t.payment || {};
     const win = t.win || {};
+    const stake = pay.stake != null ? pay.stake : pay.total;
+    const evs = t.events || [];
+    const cashout = !!win.isCashedOut;
     const L = [];
     L.push("[Código: " + (t.ticketId || "") + "]");
-    L.push("Data da aposta: " + _dbr(t.dateReceived));
-    if (t.datePayoff) L.push("Data de liquidação: " + _dbr(t.datePayoff));
-    L.push("Stake: " + _brl(pay.stake != null ? pay.stake : pay.total));
+    // Data = a do EVENTO mais recente (quando o bilhete resolve), não a de criação.
+    const datasEv = evs.map((e) => (e.date ? Date.parse(e.date) : NaN)).filter((x) => !isNaN(x));
+    const dataJogo = datasEv.length ? new Date(Math.max.apply(null, datasEv)).toISOString() : t.dateReceived;
+    L.push("Data: " + _dbr(dataJogo));
+    L.push("Apostado em: " + _dbr(t.dateReceived));
+    L.push("Stake: " + _brl(stake));
     if (pay.bonusAmount) L.push("Freebet incluído: " + _brl(pay.bonusAmount) + " (dinheiro real = stake − freebet)");
-    L.push("Odd total: " + _odd(t.coefficient));
+    // Odd COMPLETA p/ cálculo: em VITÓRIA com boost (SUPERTURBO) a coefficient é
+    // PRÉ-boost → a odd efetiva (que reconstrói o retorno) = retorno ÷ stake.
+    const efetiva = (t.status === "win" && !cashout && win.payoff > 0 && stake > 0)
+      ? (win.payoff / stake) : t.coefficient;
+    L.push("Odd total: " + _odd(efetiva));
     // Resultado bruto: a IA/CASA_SUPERBET aplica a regra (win→W, lost→L, cashout→V/W).
-    let st = t.status || "";
-    if (win.isCashedOut) st = "cashout";
+    let st = cashout ? "cashout" : (t.status || "");
     L.push("Status: " + st + (win.payoff != null ? (" · retorno " + _brl(win.payoff)) : ""));
-    const evs = t.events || [];
     L.push("Seleções (" + evs.length + "):");
     for (const e of evs) {
       const nome = Array.isArray(e.name) ? e.name.join(" — ") : (e.name || "");

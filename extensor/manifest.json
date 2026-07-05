@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A perninha do Sharpen que sobe seus bilhetes pro dashboard. Captura os bilhetes da casa e manda pro sharpen.bet via pareamento por código. Qualquer Chromium (Octo, Chrome, Edge, Brave).",
   "action": {
     "default_popup": "popup.html",

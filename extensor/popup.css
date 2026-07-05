@@ -119,6 +119,7 @@ body {
 .msg.info { color: var(--ink-soft); }
 
 .foot { display: flex; align-items: center; justify-content: space-between;
-  padding: 11px 17px; border-top: 1px solid var(--line);
+  padding: 12px 17px; border-top: 1px solid var(--line);
   font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-mute); margin-top: 14px; }
-.foot .cnt b { color: var(--accent-2); font-weight: 500; }
+.foot .lockup { height: 30px; width: auto; display: block; }
+.foot .ver { color: var(--ink-mute); }
