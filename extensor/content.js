@@ -414,16 +414,28 @@
     };
 
     sTo(cont, 0); await sleep(500);
-    let estavel = 0, voltas = 0;
-    while (!ctx.parar() && !travado && voltas < 800) {
+    // A Superbet carrega mais bilhetes (lazy-load) ao chegar no fim. NÃO paramos no
+    // primeiro "fundo": ao encostar, grudamos no fim p/ disparar o loader e esperamos;
+    // só desistimos após várias esperas SEM novidade (nem card novo, nem a página
+    // crescer). Isso resolve o "pegou 10, depois 18" — a lista ainda estava crescendo.
+    let voltas = 0, semNovidade = 0, ultTotal = 0, ultMax = -1;
+    while (!ctx.parar() && !travado && voltas < 2000) {
       voltas++;
       await processarVisiveis();
       if (travado) break;
       const top = sTop(cont), max = sMax(cont);
-      if (top >= max - 2) { await processarVisiveis(); break; }
-      sTo(cont, top + sClient(cont) * 0.8);
-      await sleep(430);
-      if (Math.abs(sTop(cont) - top) < 2) { if (++estavel > 3) break; } else estavel = 0;
+      const cresceu = blocos.length > ultTotal || max > ultMax + 4;
+      ultTotal = blocos.length; ultMax = max;
+      if (top >= max - 4) {                 // no fundo atual → espera o lazy-load
+        sTo(cont, max);                     // gruda no fim p/ disparar o carregamento
+        if (cresceu) semNovidade = 0;
+        else if (++semNovidade >= 4) { await processarVisiveis(); break; }
+        await sleep(650);
+      } else {
+        semNovidade = 0;
+        sTo(cont, top + sClient(cont) * 0.85);
+        await sleep(420);
+      }
     }
     return blocos;
   }
