@@ -24,6 +24,12 @@
       "js": ["content.js"],
       "run_at": "document_idle",
       "all_frames": false
+    },
+    {
+      "matches": ["*://*.superbet.bet.br/*", "*://superbet.bet.br/*", "*://*.superbet.com/*"],
+      "js": ["sb_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "icons": {

@@ -18,6 +18,16 @@
   const get = () => chrome.storage.local.get(["token", "modo", "frameAtivo", "frameRect", "frameCount"]);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // Sessão da API da Superbet, capturada pelo sb_inject.js (mundo MAIN) → habilita
+  // o modo API (sem clique). urlBase = URL de /tickets sem a query string.
+  let sbSession = null;
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupSB && d.sessionId && d.url) {
+      sbSession = { sessionId: d.sessionId, urlBase: String(d.url).split("?")[0] };
+    }
+  });
+
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
       '<defs><linearGradient id="sharpenupBladeGrad" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse">' +
@@ -322,8 +332,19 @@
     };
 
     let blocos;
-    if ((cfg.casa || "").toLowerCase() === "superbet") blocos = await roboSuperbet(ctx);
-    else blocos = await roboScroll(ctx);   // Betano + genéricos
+    if ((cfg.casa || "").toLowerCase() === "superbet") {
+      // Dá um tempinho pra capturar a sessão (a página busca /tickets no load).
+      for (let i = 0; i < 12 && !sbSession; i++) await sleep(200);
+      // Modo API (sem clique) se capturamos a sessão; senão cai no clique/DOM.
+      if (sbSession) {
+        try { blocos = await roboSuperbetAPI(ctx, sbSession); }
+        catch (e) { toastLocal("API indisponível — usando modo clique.", false); blocos = await roboSuperbet(ctx); }
+      } else {
+        blocos = await roboSuperbet(ctx);
+      }
+    } else {
+      blocos = await roboScroll(ctx);   // Betano + genéricos
+    }
 
     painel.remove();
     roboRodando = false;
@@ -372,8 +393,80 @@
     return blocos;
   }
 
-  // Estratégia Superbet: cada card da lista (.bet-list-item__container) tem o
-  // CÓDIGO no atributo `id` (exato, sem OCR). Simples já vêm inteiros; múltiplas
+  // ── Superbet modo API (sem clique) ───────────────────────────────────────────
+  // Chama a MESMA API que a página usa (GET /tickets?status=finished, header
+  // sessionId, paginação por lastId = o cursor de código). Dado estruturado e exato:
+  // ticketId, coefficient (odd), payment.stake, status, dateReceived, events[].
+  const _dbr = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d)) return "";
+    return String(d.getUTCDate()).padStart(2, "0") + "/" +
+           String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + d.getUTCFullYear();
+  };
+  const _brl = (x) => (typeof x === "number") ? x.toFixed(2).replace(".", ",") : (x != null ? String(x) : "");
+  const _odd = (x) => (x != null) ? String(x).replace(".", ",") : "";
+
+  function formatTicket(t) {
+    const pay = t.payment || {};
+    const win = t.win || {};
+    const L = [];
+    L.push("[Código: " + (t.ticketId || "") + "]");
+    L.push("Data da aposta: " + _dbr(t.dateReceived));
+    if (t.datePayoff) L.push("Data de liquidação: " + _dbr(t.datePayoff));
+    L.push("Stake: " + _brl(pay.stake != null ? pay.stake : pay.total));
+    if (pay.bonusAmount) L.push("Freebet incluído: " + _brl(pay.bonusAmount) + " (dinheiro real = stake − freebet)");
+    L.push("Odd total: " + _odd(t.coefficient));
+    // Resultado bruto: a IA/CASA_SUPERBET aplica a regra (win→W, lost→L, cashout→V/W).
+    let st = t.status || "";
+    if (win.isCashedOut) st = "cashout";
+    L.push("Status: " + st + (win.payoff != null ? (" · retorno " + _brl(win.payoff)) : ""));
+    const evs = t.events || [];
+    L.push("Seleções (" + evs.length + "):");
+    for (const e of evs) {
+      const nome = Array.isArray(e.name) ? e.name.join(" ") : (e.name || "");
+      const mkt = (e.market && e.market.name) || "";
+      const sel = (e.odd && e.odd.name) || "";
+      const oc = e.odd && e.odd.coefficient;
+      const dt = _dbr(e.date);
+      L.push("  • " + (dt ? dt + " · " : "") + nome + (mkt ? " · " + mkt : "") +
+             (sel ? " — " + sel : "") + (oc != null ? " @ " + _odd(oc) : ""));
+    }
+    return L.join("\n");
+  }
+
+  async function roboSuperbetAPI(ctx, sess) {
+    const base = sess.urlBase;
+    let lastId = "", blocos = [], vistos = new Set(), travado = false, paginas = 0;
+    while (!ctx.parar() && !travado && paginas < 200) {
+      paginas++;
+      const url = base + "?locale=pt-BR&count=20&status=finished&type=sports" +
+                  (lastId ? "&lastId=" + encodeURIComponent(lastId) : "");
+      const r = await fetch(url, { headers: { sessionId: sess.sessionId }, credentials: "omit" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      let arr = await r.json();
+      if (!Array.isArray(arr)) arr = arr.data || arr.tickets || [];
+      if (!arr.length) break;
+      for (const t of arr) {
+        const cod = (t.ticketId || "").toUpperCase();
+        if (!cod || vistos.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; break; }   // chegou no último já extraído
+        vistos.add(cod);
+        lastId = t.ticketId;   // cursor da próxima página
+        const dt = t.dateReceived ? Date.parse(t.dateReceived) : NaN;
+        const passou = !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicket(t));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; break; }   // passou da janela de dias → para
+      }
+      if (arr.length < 20) break;   // última página
+      await sleep(120);             // respiro entre páginas
+    }
+    return blocos;
+  }
+
+  // Estratégia Superbet (fallback): cada card da lista (.bet-list-item__container) tem
+  // o CÓDIGO no atributo `id` (exato, sem OCR). Simples já vêm inteiros; múltiplas
   // colapsam as pernas ("+N mais seleções") → o robô CLICA pra carregar o detalhe
   // completo e lê o texto mais rico (card expandido, selecionado ou painel da
   // direita — auto-descoberto). Para no stopId (copiar dele pra cima) ou na janela.
