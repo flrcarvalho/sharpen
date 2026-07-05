@@ -27,6 +27,18 @@
       sbSession = { sessionId: d.sessionId, urlBase: String(d.url).split("?")[0] };
     }
   });
+  // Fallback sem corrida de timing: o sb_inject também grava a sessão num atributo
+  // do DOM; lê de lá se o postMessage não chegou.
+  function lerSbSessionDoDOM() {
+    try {
+      const a = document.documentElement.getAttribute("data-sharpenup-sb");
+      if (a) {
+        const d = JSON.parse(decodeURIComponent(a));
+        if (d && d.sessionId && d.url) return { sessionId: d.sessionId, urlBase: String(d.url).split("?")[0] };
+      }
+    } catch (e) {}
+    return null;
+  }
 
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
@@ -334,7 +346,8 @@
     let blocos;
     if ((cfg.casa || "").toLowerCase() === "superbet") {
       // Dá um tempinho pra capturar a sessão (a página busca /tickets no load).
-      for (let i = 0; i < 12 && !sbSession; i++) await sleep(200);
+      // Tenta o postMessage E o atributo do DOM (robusto a timing).
+      for (let i = 0; i < 12 && !sbSession; i++) { sbSession = sbSession || lerSbSessionDoDOM(); if (sbSession) break; await sleep(200); }
       // Modo API (sem clique) se capturamos a sessão; senão cai no clique/DOM.
       if (sbSession) {
         try { blocos = await roboSuperbetAPI(ctx, sbSession); }

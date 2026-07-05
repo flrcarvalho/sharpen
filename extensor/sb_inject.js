@@ -5,8 +5,16 @@
 (function () {
   function envia(url, sessionId) {
     if (!url || !sessionId) return;
+    // Dois caminhos p/ robustez: postMessage (imediato) E um atributo no DOM
+    // (persiste — o content script lê quando precisar, sem corrida de timing).
     try {
       window.postMessage({ __sharpenupSB: true, url: String(url), sessionId: String(sessionId) }, "*");
+    } catch (e) {}
+    try {
+      document.documentElement.setAttribute(
+        "data-sharpenup-sb",
+        encodeURIComponent(JSON.stringify({ url: String(url), sessionId: String(sessionId) }))
+      );
     } catch (e) {}
   }
 
