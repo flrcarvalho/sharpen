@@ -325,23 +325,30 @@
     // Parada do robô: janela de N dias (look-back) OU até o ID do último bilhete
     // já extraído (copiar dele pra cima). Defensivo: sem data reconhecida, a janela
     // não corta → rola até o fim. Custo: o backend dedupa por ID antes da IA.
-    const cfg = await chrome.storage.local.get(["lookbackDias", "casa", "stopId"]);
+    const cfg = await chrome.storage.local.get(["lookbackDias", "casa", "stopId", "b365Marco", "b365Teto"]);
     const N = Math.max(1, Number(cfg.lookbackDias) || 30);
     const cutoff = Date.now() - N * 86400000;
     const pisoSanidade = cutoff - 730 * 86400000;
+    const casa = (cfg.casa || "").toLowerCase();
     const ctx = {
       cutoff, pisoSanidade,
       stopId: (cfg.stopId || "").trim().toUpperCase(),
+      // Bet365 (sem data nem ID): marco = trecho do último bilhete já exportado;
+      // teto = trava de custo (sem ID o backend não pré-dedupa).
+      marco: (cfg.b365Marco || "").trim(),
+      teto: Math.max(0, Number(cfg.b365Teto) || 0),
       parar: () => parar,
       painel,
     };
 
     let blocos;
-    if ((cfg.casa || "").toLowerCase() === "superbet") {
+    if (casa === "superbet") {
       // Modo passivo (rola + lê o JSON que a página recebe). Se nada foi capturado
       // (sb_inject inativo), cai no modo clique/DOM.
       blocos = await roboSuperbetPassive(ctx);
       if (!blocos.length) { console.log("[SharpenUp] nada capturado da API → modo clique"); blocos = await roboSuperbet(ctx); }
+    } else if (casa === "bet365") {
+      blocos = await roboBet365(ctx);
     } else {
       blocos = await roboScroll(ctx);   // Betano + genéricos
     }
@@ -510,6 +517,75 @@
     }
     processar();
     console.log("[SharpenUp] passivo: " + blocos.length + " bilhete(s) · sbTickets capturados=" + sbTickets.length);
+    return blocos;
+  }
+
+  // ── Bet365 modo texto ─────────────────────────────────────────────────────────
+  // A Bet365 não expõe ID nem data (nem no DOM, nem em JSON — o protocolo `Blob` é só
+  // preço). MAS cada card (.myb-SettledBetItem) traz o texto COMPLETO no DOM mesmo
+  // recolhido (só esconde via CSS) → o robô lê tudo sem clicar pra expandir. A lista é
+  // virtualizada (~74 na tela), então rola p/ renderizar o resto.
+  // DEDUP POR POSIÇÃO (não por texto): o mesmo card re-renderizado ao rolar fica na MESMA
+  // posição do conteúdo → dedupado; dois bilhetes idênticos DE VERDADE (ex.: duas apostas
+  // iguais no mesmo jogo) ocupam posições DIFERENTES → ambos mantidos (dedup por texto os
+  // fundiria e perderia um bilhete real). A posição vira sobre re-render pq some da
+  // virtualização? Se sim, o pior caso é re-coletar (contador infla, visível) — nunca
+  // sumir bilhete (erro silencioso). Parada: MARCO (trecho do último exportado; para AO
+  // reencontrar, sem incluir) OU TETO de N bilhetes (trava de custo).
+  function acharScrollBet365() {
+    const c = document.querySelector(".myb-MyBetsScroller");
+    if (c && c.scrollHeight > c.clientHeight + 20) return c;
+    return acharScroll();
+  }
+  async function roboBet365(ctx) {
+    const cont = acharScrollBet365();
+    const vistos = new Set(), blocos = [];
+    let travado = false;
+    const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const marcoN = norm(ctx.marco);
+
+    const coletar = () => {
+      const contTop = esDoc(cont) ? 0 : cont.getBoundingClientRect().top;
+      const contScroll = esDoc(cont) ? sTop(cont) : cont.scrollTop;
+      for (const el of document.querySelectorAll(".myb-SettledBetItem")) {
+        const txt = (el.innerText || "").trim();
+        if (txt.length < 20) continue;
+        // Posição no conteúdo virtual (estável entre re-renders): distingue o mesmo card
+        // de dois bilhetes idênticos. Arredonda p/ absorver subpixels.
+        const pos = Math.round(el.getBoundingClientRect().top - contTop + contScroll);
+        if (vistos.has(pos)) continue;
+        if (marcoN && norm(txt).includes(marcoN)) { travado = true; return; }   // último já exportado
+        vistos.add(pos);
+        blocos.push("[Bilhete Bet365]\n" + txt);
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (ctx.teto && blocos.length >= ctx.teto) { travado = true; return; }   // teto de segurança
+      }
+    };
+
+    sTo(cont, 0); await sleep(500);
+    // Rola do topo ao fim; ao encostar no fundo, gruda p/ a virtualização render mais e
+    // espera. Desiste após 4 esperas sem crescer (nem bilhete novo, nem a lista aumentar).
+    let voltas = 0, semNovidade = 0, ultTotal = 0, ultMax = -1;
+    while (!ctx.parar() && !travado && voltas < 2000) {
+      voltas++;
+      coletar();
+      if (travado) break;
+      const top = sTop(cont), max = sMax(cont);
+      const cresceu = blocos.length > ultTotal || max > ultMax + 4;
+      ultTotal = blocos.length; ultMax = max;
+      if (top >= max - 4) {                 // fundo atual → espera render de mais cards
+        sTo(cont, max);
+        if (cresceu) semNovidade = 0;
+        else if (++semNovidade >= 4) { coletar(); break; }
+        await sleep(650);
+      } else {
+        semNovidade = 0;
+        sTo(cont, top + sClient(cont) * 0.85);
+        await sleep(420);
+      }
+    }
+    coletar();
+    console.log("[SharpenUp] Bet365: " + blocos.length + " bilhete(s)");
     return blocos;
   }
 

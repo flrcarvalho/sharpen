@@ -61,6 +61,12 @@
       <input id="lookback" type="number" min="1" max="365" step="1" value="30"> dias</label>
     <label id="stopid-wrap" class="janela" hidden>ou parar no ID
       <input id="stopid" type="text" class="stopid" placeholder="opcional" spellcheck="false" autocomplete="off"></label>
+    <!-- Bet365: sem data e sem ID → marco (trecho do último bilhete já exportado) +
+         teto de bilhetes (trava de custo, pois o backend não pré-dedupa sem ID). -->
+    <label id="b365-marco-wrap" class="janela" hidden>Parar no último exportado
+      <input id="b365-marco" type="text" class="marco" placeholder="cole um trecho" spellcheck="false" autocomplete="off"></label>
+    <label id="b365-teto-wrap" class="janela" hidden>Teto de bilhetes
+      <input id="b365-teto" type="number" min="0" max="500" step="1" placeholder="0"></label>
   </section>
 
   <p id="msg" class="msg"></p>
@@ -76,7 +82,7 @@
       <text x="62" y="62" font-family="Manrope, Arial, sans-serif" font-weight="800" font-size="44" letter-spacing="-2.2" fill="#EEF2F7">Sharp<tspan fill="#3B95FF">en.</tspan></text>
       <text x="63" y="80" font-family="Manrope, Arial, sans-serif" font-weight="600" font-size="11" letter-spacing="0" fill="#95A1B0">by FDC Capital</text>
     </svg>
-    <span class="ver">v0.2.2</span>
+    <span class="ver">v0.2.3</span>
   </div>
 
   <script src="config.js"></script>

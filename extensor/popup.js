@@ -40,6 +40,15 @@ $("stopid").addEventListener("input", (e) => {
   e.target.value = v;
   chrome.storage.local.set({ stopId: v });
 });
+// Bet365: marco (texto livre — mantém acento/maiúsc.) + teto de bilhetes.
+$("b365-marco").addEventListener("input", (e) => {
+  chrome.storage.local.set({ b365Marco: e.target.value });
+});
+$("b365-teto").addEventListener("change", (e) => {
+  const n = Math.max(0, Math.min(500, Number(e.target.value) || 0));
+  e.target.value = n || "";
+  chrome.storage.local.set({ b365Teto: n });
+});
 
 $("btn-conectar").addEventListener("click", conectar);
 $("btn-desconectar").addEventListener("click", desconectar);
@@ -135,15 +144,24 @@ async function render() {
     if (dom) { fav.style.display = ""; fav.src = `https://icons.duckduckgo.com/ip3/${dom}.ico`; }
     else { fav.style.display = "none"; }
     const texto = st.modo === "texto";
+    // Bet365 usa marco + teto (sem data/ID); Betano/Superbet usam janela de dias + ID.
+    const isBet365 = texto && st.casa === "Bet365";
+    const isBetSup = texto && !isBet365;
     $("nota-texto").hidden = !texto;
-    $("janela-wrap").hidden = !texto;
-    $("stopid-wrap").hidden = !texto;
+    $("janela-wrap").hidden = !isBetSup;
+    $("stopid-wrap").hidden = !isBetSup;
+    $("b365-marco-wrap").hidden = !isBet365;
+    $("b365-teto-wrap").hidden = !isBet365;
     $("btn-capturar").hidden = false;   // vale nos dois modos
     $("cap-label").textContent = texto ? "Copiar bilhetes" : "Capturar";
-    if (texto) {
+    if (isBetSup) {
       const cfg = await chrome.storage.local.get(["lookbackDias", "stopId"]);
       $("lookback").value = cfg.lookbackDias || 30;
       $("stopid").value = cfg.stopId || "";
+    } else if (isBet365) {
+      const cfg = await chrome.storage.local.get(["b365Marco", "b365Teto"]);
+      $("b365-marco").value = cfg.b365Marco || "";
+      $("b365-teto").value = cfg.b365Teto || "";
     }
   } else {
     telaConectar.hidden = false;
