@@ -408,7 +408,7 @@ function showPage(id){
 function renderPage(id){
   _filterCache={};_lastPage=id;_lastPageSig=_pageSig(id);
   const rows=filtrarPagina(id);
-  if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(rows);renderOddsDist(rows);renderOvCusto();renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();}
+  if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(rows);renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();}
   else if(id==='sports'){renderSport(rows);}
   else if(id==='casas'){renderCasa(rows);}
   else if(id==='tipsters'){renderTipsters();}
@@ -483,7 +483,6 @@ function buildHTML(){
         ${mkCard('ov_heatmap','Calendário','<div id="ovHeatmapContent"></div>')}
         ${mkCard('roi_monthly','ROI Mensal (%)','<div class="chart-wrap" style="min-height:220px"><canvas id="chartROI" role="img" aria-label="ROI mensal"></canvas></div>')}
         ${mkCard('odds_dist','Distribuição de Odds — Apostas, Win Rate e ROI por faixa','<div class="chart-wrap" style="height:240px"><canvas id="chartOddsDist" role="img" aria-label="Odds dist"></canvas></div>')}
-        ${mkCard('ov_custo','Custo de Contas — Resumo','<div id="ovCustoContent"></div>')}
       </div>
 
       <!-- RESULTADOS (matriz por período + calendário + análises) -->
