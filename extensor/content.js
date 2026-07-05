@@ -416,6 +416,12 @@
     const win = t.win || {};
     const stake = pay.stake != null ? pay.stake : pay.total;
     const evs = t.events || [];
+    // DIAG temporário: loga a estrutura do 1º evento "Criar Aposta" (mercado/odd
+    // vazios) p/ mapear onde ficam os sub-mercados. Removido depois de mapeado.
+    if (!window.__suDiag) {
+      const ce = evs.find((e) => !((e.market && e.market.name) || (e.odd && e.odd.name)));
+      if (ce) { window.__suDiag = 1; console.log("[SharpenUp][DIAG] " + t.ticketId + " event:", JSON.stringify(ce)); }
+    }
     const cashout = !!win.isCashedOut;
     const L = [];
     L.push("[Código: " + (t.ticketId || "") + "]");
