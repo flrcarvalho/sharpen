@@ -408,7 +408,7 @@ function showPage(id){
 function renderPage(id){
   _filterCache={};_lastPage=id;_lastPageSig=_pageSig(id);
   const rows=filtrarPagina(id);
-  if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(rows);renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();}
+  if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(filtrarSemData('overview'),_refMonthKey('overview'));renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();}
   else if(id==='sports'){renderSport(rows);}
   else if(id==='casas'){renderCasa(rows);}
   else if(id==='tipsters'){renderTipsters();}

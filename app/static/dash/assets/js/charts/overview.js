@@ -78,11 +78,13 @@ function renderBankroll(rows){
     }}});
 }
 
-function renderROIMonthly(rows){
+function renderROIMonthly(rows,refKey){
   const byM={};rows.forEach(r=>{const d=new Date(r.data+'T12:00:00');const k=`${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;if(!byM[k])byM[k]={pl:0,s:0,mes:d.getMonth(),ano:d.getFullYear()};byM[k].pl+=r.lucro;if(r.resultado!=='V')byM[k].s+=r.stake;});
   const mks=Object.keys(byM).sort();
   const lbl=mks.map(k=>{const v=byM[k];return MESES_CURTOS[v.mes]+' '+String(v.ano).slice(2);});
   const vals=mks.map(k=>byM[k].s>0?parseFloat((byM[k].pl/byM[k].s*100).toFixed(2)):0);
+  const refIdx=refKey?mks.indexOf(refKey):-1;   // mês de referência do período → brilho azul
+  const accent=(getComputedStyle(document.documentElement).getPropertyValue('--accent')||'#2E8BFF').trim();
   function roiColor(v){
     if(v<=-10)return'rgba(180,20,40,.9)';
     if(v<-3)return'rgba(240,80,110,.75)';
@@ -107,7 +109,25 @@ function renderROIMonthly(rows){
     });
     ctx.restore();
   }};
-  mkChart('chartROI',{type:'bar',data:{labels:lbl,datasets:[{data:vals,backgroundColor:vals.map(roiColor),borderRadius:3,label:'ROI%'}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18,bottom:4}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtPct(ctx.raw,2)}}},scales:{x:{ticks:{color:tc(),font:{size:10},maxRotation:30},grid:{display:false},border:{display:false}},y:{ticks:{color:tc(),font:{size:10},callback:v=>fmtPct(v,1,v<0)},grid:{color:gc()},border:{display:false}}}},plugins:[roiLabelPlugin]});
+  // Brilho azul no mês de referência: contorno + glow (shadowBlur), mantendo a cor de ROI da barra
+  const refGlowPlugin={id:'roiRefGlow',afterDatasetsDraw(chart){
+    if(refIdx<0)return;
+    const el=chart.getDatasetMeta(0).data[refIdx];if(!el)return;
+    const pr=el.getProps(['x','y','base','width'],true);
+    const w=pr.width,left=pr.x-w/2,top=Math.min(pr.y,pr.base),h=Math.max(2,Math.abs(pr.base-pr.y)),r=3;
+    const{ctx}=chart;ctx.save();
+    ctx.shadowColor=accent;ctx.shadowBlur=14;ctx.strokeStyle=accent;ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(left+r,top);
+    ctx.arcTo(left+w,top,left+w,top+h,r);
+    ctx.arcTo(left+w,top+h,left,top+h,r);
+    ctx.arcTo(left,top+h,left,top,r);
+    ctx.arcTo(left,top,left+w,top,r);
+    ctx.closePath();ctx.stroke();ctx.restore();
+  }};
+  const bBorder=vals.map((v,i)=>i===refIdx?accent:'transparent');
+  const bWidth=vals.map((v,i)=>i===refIdx?1.5:0);
+  mkChart('chartROI',{type:'bar',data:{labels:lbl,datasets:[{data:vals,backgroundColor:vals.map(roiColor),borderColor:bBorder,borderWidth:bWidth,borderRadius:3,label:'ROI%'}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18,bottom:4}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtPct(ctx.raw,2)}}},scales:{x:{ticks:{color:tc(),font:{size:10},maxRotation:30},grid:{display:false},border:{display:false}},y:{ticks:{color:tc(),font:{size:10},callback:v=>fmtPct(v,1,v<0)},grid:{color:gc()},border:{display:false}}}},plugins:[refGlowPlugin,roiLabelPlugin]});
 }
 
 function renderOddsDist(rows,canvasId='chartOddsDist'){

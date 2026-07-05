@@ -93,6 +93,31 @@ function filtrarAbertas(p){
   });
 }
 
+// Igual a filtrarPagina, mas SEM o corte por data (respeita esporte/casa/tipster/
+// operador). Usado pelo ROI Mensal, que mostra todos os meses e só DESTACA o mês
+// de referência — filtrar por data o reduziria a uma barra só.
+function filtrarSemData(p){
+  const sp=msGet('sp_'+p),ca=msGet('ca_'+p),ti=msGet('ti_'+p),op=msGet('op_'+p);
+  return DADOS.filter(r=>{
+    if(sp.size>0&&!sp.has(r.esporte))return false;
+    if(ca.size>0&&!ca.has(r.casa))return false;
+    if(ti.size>0&&!ti.has(r.tipster))return false;
+    if(op.size>0&&!op.has(r.operador))return false;
+    return true;
+  });
+}
+
+// Chave "AAAA-MM" (mês 0-based, igual às chaves do ROI Mensal) do mês de referência
+// do período selecionado: fim do intervalo (st.dt), ou hoje p/ janelas 7/30/90d,
+// ou null p/ "Tudo" (sem destaque).
+function _refMonthKey(p){
+  const st=gfs(p);
+  const ref=st.dt||(st.qd>0?_today():'');
+  if(!ref)return null;
+  const d=new Date(ref+'T12:00:00');
+  return `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;
+}
+
 function setDateF(p,type,val){const st=gfs(p);st.qd=0;st.qt='';st.dayOff=0;st.monthOff=0;if(type==='f')st.df=val;else st.dt=val;rqb(p);_renderPageDebouncedDate(p);}
 
 function setQuick(p,days){
