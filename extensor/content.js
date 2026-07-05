@@ -450,22 +450,39 @@
   // da direita (com todas as pernas E a data por seleção), sem pegar a página toda.
   // Também considera o card selecionado como candidato. Rejeita "+N mais seleções" e
   // devolve o texto mais rico (o que tem as datas por perna costuma ser o maior).
+  // Rodapé do painel = código + ODDS TOTAIS + resultado (financeiro).
   const _MARC = /(status|pr[êe]mio|sacado|ganhou|perdido|reembols|devolvid)/i;
+  // Pernas/seleções (só no painel de detalhe, não no rodapé): data por seleção (dia
+  // da semana) OU nome de mercado. É o sinal p/ saber que subimos até incluir as pernas.
+  const _PERNA = /(seg|ter|qua|qui|sex|s[áa]b|dom)[a-z]*\.?\s*\d{1,2}|total de|menos de|mais de|resultado final|handicap|jogador\b|1[ºo]? tempo|2[ºo]? tempo|ambas|escanteios|cart[õo]es|impedimento|finaliza|chutes|gols|faltas|desarme/i;
+  function limparPainel(txt) {
+    return txt.split("\n").filter((l) => {
+      const s = l.trim();
+      if (!s) return false;
+      if (/interaja com a comunidade|inspire outros jogadores|entrar no supersocial/i.test(s)) return false;
+      if (/^mozilla\/5\.0/i.test(s)) return false;
+      if (/^[a-f0-9]{8}-[a-f0-9]{4}-/i.test(s)) return false;   // hash tipo uuid
+      if (/^[a-f0-9]{24,}$/i.test(s)) return false;             // hash longo
+      return true;
+    }).join("\n").trim();
+  }
   async function esperarDetalhe(codigo) {
-    for (let i = 0; i < 12; i++) {
-      await sleep(160);
-      const cands = [];
-      const sel = document.querySelector(".bet-list-item--selected");
-      if (sel) cands.push(sel.innerText || "");
-      const fora = [...document.querySelectorAll("div")].filter((d) => {
+    for (let i = 0; i < 14; i++) {
+      await sleep(150);
+      // Rodapé: MENOR div com código + ODDS TOTAIS + resultado (isola o painel certo).
+      const foot = [...document.querySelectorAll("div")].filter((d) => {
         const t = d.textContent || "";
         return t.includes(codigo) && /odds totais/i.test(t) && _MARC.test(t);
-      });
-      fora.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length);
-      if (fora[0]) cands.push(fora[0].innerText || "");
-      const bons = cands.map((t) => (t || "").trim())
-        .filter((t) => t && !/mais sele/i.test(t));
-      if (bons.length) { bons.sort((a, b) => b.length - a.length); return bons[0]; }
+      }).sort((a, b) => (a.textContent || "").length - (b.textContent || "").length)[0];
+      if (!foot) continue;
+      // Sobe do rodapé até o container que TAMBÉM tem as pernas (o painel completo).
+      let el = foot, alvo = foot;
+      for (let k = 0; k < 10 && el.parentElement; k++) {
+        el = el.parentElement;
+        if (_PERNA.test(el.textContent || "")) { alvo = el; break; }
+      }
+      const txt = limparPainel(alvo.innerText || "");
+      if (txt && !/mais sele/i.test(txt) && txt.includes(codigo)) return txt;
     }
     return null;
   }
