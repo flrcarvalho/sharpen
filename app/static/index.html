@@ -905,6 +905,14 @@ table.pm-ativas td.c-merc { color:var(--ink); }
 .btbl-cell { min-width: 0; overflow: hidden; }
 .btbl-sel { display: flex; align-items: center; justify-content: center; }
 .btbl-date { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); white-space: nowrap; }
+/* (i) de revisão: aposta resolvida com data no futuro = provável data errada. Âmbar = aviso. */
+.date-review {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; margin-left: 5px; border-radius: var(--r-pill);
+  background: rgba(var(--warn-rgb),.16); color: var(--warn);
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700; font-style: italic;
+  vertical-align: middle; cursor: help; line-height: 1;
+}
 .btbl-tipo {
   font-family: var(--font-mono); font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .1em; color: var(--accent); margin-bottom: 3px;
@@ -3714,6 +3722,19 @@ function fmtPL(v) {
   return `<span class="money ${cls}"><span class="money-sign">${sign}R$</span><span class="money-val">${abs}</span></span>`;
 }
 
+// Marca (i) de revisão quando a aposta está RESOLVIDA mas a data cai no FUTURO —
+// sinal de data errada (ex.: Super Odds "Longo Prazo" da Superbet mostra a data-guarda
+// do torneio, não a do jogo). Aposta ABERTA com data futura é legítima → não marca.
+const _RES_LIQUIDADO = new Set(['W', 'L', 'V', 'HW', 'HL']);
+function _dataRevisao(b) {
+  if (!b || !_RES_LIQUIDADO.has((b.resultado || '').trim().toUpperCase())) return false;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((b.data || '').trim());
+  if (!m) return false;
+  const d = new Date(+m[3], +m[2] - 1, +m[1]);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  return d.getTime() > hoje.getTime();
+}
+
 function renderGrade() {
   const body = document.getElementById('grade-body');
   if (!bilhetes.length) {
@@ -3731,7 +3752,7 @@ function renderGrade() {
     const contaHtml = b.parceiro ? `<span class="btbl-casa-conta">${esc(b.parceiro)}</span>` : '';
     return `<div class="btbl-cols btbl-data-row" data-id="${b.id}">
       <div class="btbl-cell btbl-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></div>
-      <div class="btbl-cell btbl-date">${esc(b.data)}</div>
+      <div class="btbl-cell btbl-date">${esc(b.data)}${_dataRevisao(b) ? `<span class="date-review" title="Data no futuro numa aposta já resolvida — confirme a data do jogo (a Superbet mostra a data do torneio em apostas 'Longo Prazo').">i</span>` : ''}</div>
       <div class="btbl-cell">${tipoHtml}<div class="btbl-desc">${esc(b.descricao)}${badges.join('')}</div></div>
       <div class="btbl-cell btbl-sport"><span class="sp-chip">${sportEmoji(b.esporte)}</span><span>${esc(b.esporte)}</span></div>
       <div class="btbl-cell"><input class="btbl-tip-input js-ac-tipster${(b.tipster || '').trim() ? '' : ' tip-empty'}" type="text" data-tip-id="${b.id}" spellcheck="false" autocomplete="off" readonly value="${esc(b.tipster)}" placeholder="— tipster —"></div>
