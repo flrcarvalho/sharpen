@@ -396,17 +396,21 @@
         if (ctx.stopId && codigo === ctx.stopId) { travado = true; return; }   // chegou no último já extraído
         vistos.add(codigo);
 
-        let texto = card.innerText || "";
-        const datas = parseDatas(texto.toLowerCase());
-        const passou = datas.some((ts) => ts < ctx.cutoff && ts > ctx.pisoSanidade);
+        // Data da janela: do cabeçalho do card (a Superbet ordena por ela).
+        const baseText = card.innerText || "";
+        const passou = parseDatas(baseText.toLowerCase())
+          .some((ts) => ts < ctx.cutoff && ts > ctx.pisoSanidade);
 
-        if (/mais sele/i.test(texto)) {   // múltipla colapsada → clica p/ o detalhe completo
-          try {
-            (card.querySelector(".bet-list-item") || card).click();
-            const rico = await esperarDetalhe(codigo, texto.length);
-            if (rico) texto = rico;
-          } catch (_) {}
-        }
+        // SEMPRE clica p/ ler o DETALHE da direita — só ele traz TODAS as pernas, a
+        // data por seleção, ODDS TOTAIS, STATUS/SACADO e o freebet. A lista da esquerda
+        // é resumo (colapsa múltiplas e não tem data por perna). Fallback = card.
+        let texto = baseText;
+        try {
+          (card.querySelector(".bet-list-item") || card).click();
+          const rico = await esperarDetalhe(codigo);
+          if (rico && rico.length > texto.length) texto = rico;
+        } catch (_) {}
+
         texto = texto.trim();
         if (texto.length >= 10) { blocos.push("[Código: " + codigo + "]\n" + texto); atualiza(); }
         if (passou) { travado = true; return; }   // passou da janela de dias → para
@@ -440,24 +444,27 @@
     return blocos;
   }
 
-  // Após clicar um bilhete, espera e devolve o texto mais completo do detalhe —
-  // procura no card selecionado E no painel da direita (elemento fora da lista que
-  // contém o código). Rejeita textos que ainda mostram "mais seleções".
-  async function esperarDetalhe(codigo, minLen) {
-    const scroller = document.querySelector(".sb-my-bets__items");
-    for (let i = 0; i < 9; i++) {
-      await sleep(170);
+  // Após clicar um bilhete, espera o painel de DETALHE carregar e devolve seu texto.
+  // O detalhe é a MENOR div que contém, juntos: o código + "ODDS TOTAIS" + um marcador
+  // de resultado (STATUS/PRÊMIO/SACADO/Ganhou/Perdido/Reembolso) — isso isola o painel
+  // da direita (com todas as pernas E a data por seleção), sem pegar a página toda.
+  // Também considera o card selecionado como candidato. Rejeita "+N mais seleções" e
+  // devolve o texto mais rico (o que tem as datas por perna costuma ser o maior).
+  const _MARC = /(status|pr[êe]mio|sacado|ganhou|perdido|reembols|devolvid)/i;
+  async function esperarDetalhe(codigo) {
+    for (let i = 0; i < 12; i++) {
+      await sleep(160);
       const cands = [];
       const sel = document.querySelector(".bet-list-item--selected");
       if (sel) cands.push(sel.innerText || "");
-      // painel da direita: div fora da lista, contendo o código, com cara de detalhe
-      const fora = [...document.querySelectorAll("div")].filter(
-        (d) => (!scroller || !scroller.contains(d)) && d.textContent
-          && d.textContent.includes(codigo) && /odds totais|status|@/i.test(d.textContent));
-      fora.sort((a, b) => (a.innerText || "").length - (b.innerText || "").length);
+      const fora = [...document.querySelectorAll("div")].filter((d) => {
+        const t = d.textContent || "";
+        return t.includes(codigo) && /odds totais/i.test(t) && _MARC.test(t);
+      });
+      fora.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length);
       if (fora[0]) cands.push(fora[0].innerText || "");
-      const bons = cands.map((t) => t.trim())
-        .filter((t) => t && !/mais sele/i.test(t) && t.length > minLen * 0.8);
+      const bons = cands.map((t) => (t || "").trim())
+        .filter((t) => t && !/mais sele/i.test(t));
       if (bons.length) { bons.sort((a, b) => b.length - a.length); return bons[0]; }
     }
     return null;
