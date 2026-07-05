@@ -844,6 +844,14 @@ async def login_page(request: Request):
     return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
+@app.get("/privacidade")
+async def privacidade_page():
+    # Pública (sem login): política de privacidade da extensão SharpenUp, exigida pela
+    # Chrome Web Store. URL estável p/ o formulário de privacidade da loja.
+    content = (Path(__file__).parent / "static" / "privacidade.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
+
+
 class LoginRequest(BaseModel):
     usuario: str
     senha: str
