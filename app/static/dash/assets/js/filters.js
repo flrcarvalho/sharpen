@@ -118,6 +118,15 @@ function _refMonthKey(p){
   return `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;
 }
 
+// Intervalo de datas selecionado (ISO AAAA-MM-DD) do período: {from,to} ou null p/
+// "Tudo". Usado p/ o calendário contornar de azul os dias dentro do período.
+function _selRange(p){
+  const st=gfs(p);
+  if(st.df||st.dt)return{from:st.df||'0000-01-01',to:st.dt||'9999-12-31'};
+  if(st.qd>0)return{from:new Date(Date.now()-st.qd*864e5).toISOString().slice(0,10),to:_today()};
+  return null;
+}
+
 function setDateF(p,type,val){const st=gfs(p);st.qd=0;st.qt='';st.dayOff=0;st.monthOff=0;if(type==='f')st.df=val;else st.dt=val;rqb(p);_renderPageDebouncedDate(p);}
 
 function setQuick(p,days){

@@ -1494,6 +1494,8 @@
 .cal__cell.empty { background:transparent !important; border-color:var(--line-2); }
 .cal__cell.offset { background:transparent !important; border-color:transparent; }
 .cal__cell.today { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+/* Dia(s) dentro do período do filtro: contorno + brilho azul da marca */
+.cal__cell.insel { border-color:var(--accent); box-shadow:0 0 0 1.5px var(--accent) inset, 0 0 10px -2px rgba(var(--accent-rgb),.5); }
 
 /* Conteúdo da célula */
 .cal__cell .top { display:flex; align-items:center; justify-content:space-between; }

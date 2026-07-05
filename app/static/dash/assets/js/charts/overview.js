@@ -191,16 +191,23 @@ function renderHeatmap(rows){
 function renderOvHeatmap(){
   const cont=document.getElementById('ovHeatmapContent');if(!cont)return;
   if(!DADOS||!DADOS.length){cont.innerHTML=mkEmpty('Sem dados carregados');return;}
+  // Acompanha o filtro: quando o mês de referência do período MUDA, o calendário
+  // pula p/ esse mês. Enquanto o mês não muda, a nav própria (‹ ›) segue livre.
+  const st=gfs('overview');
+  const refM=st.dt?st.dt.slice(0,7):(st.qd>0?_today().slice(0,7):null);
+  if(refM&&refM!==window._ovHeatRefLast){window._ovHeatMonth=refM;window._ovHeatRefLast=refM;}
   if(!window._ovHeatMonth){
     const months=[...new Set(DADOS.map(r=>r.data.slice(0,7)))].sort().reverse();
     window._ovHeatMonth=months[0]||'';
   }
+  const range=_selRange('overview');   // dias dentro do período → contorno azul
   window._calHeatCb=null; // no click action on overview
   cont.innerHTML=mkCalendarHeatmap(window._ovHeatMonth,DADOS,{
     showNav:true,
     onPrev:"window._ovHeatMonth=(function(){const m=[...new Set(DADOS.map(r=>r.data.slice(0,7)))].sort().reverse();const i=m.indexOf(window._ovHeatMonth);return i<m.length-1?m[i+1]:window._ovHeatMonth;})();renderOvHeatmap()",
     onNext:"window._ovHeatMonth=(function(){const m=[...new Set(DADOS.map(r=>r.data.slice(0,7)))].sort().reverse();const i=m.indexOf(window._ovHeatMonth);return i>0?m[i-1]:window._ovHeatMonth;})();renderOvHeatmap()",
     onSelect:"window._ovHeatMonth=this.value;renderOvHeatmap()",
+    range,
     compact:true
   });
 }

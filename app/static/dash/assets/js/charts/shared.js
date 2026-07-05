@@ -70,6 +70,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
     let cls = 'cal__cell';
     if(isWE) cls += ' we';
     if(isToday) cls += ' today';
+    if(opts.range && key>=opts.range.from && key<=opts.range.to) cls += ' insel'; // dia dentro do período selecionado
     if(dm) {
       cls += ' has';
       const plSign = dm.pl>0?'+':dm.pl<0?'−':'';
