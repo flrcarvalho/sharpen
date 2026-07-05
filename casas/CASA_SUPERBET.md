@@ -20,20 +20,25 @@
 
 ## 2. Modo de ingestão e layout
 
-Cada aposta é um **bloco único**, de cima para baixo:
+A Superbet entra por **dois modos**. O cálculo é o mesmo; muda só de onde os campos vêm.
 
-1. Card(s) de seleção (liga + data/hora da seleção + confronto + placar + mercado + odd + ✓/✗ por seleção)
-2. ID da aposta
-3. `ODDS TOTAIS`
-4. `APOSTA` (stake)
-5. Em boost: `SUPERMÚLTIPLA X%` + linha "Você ganhou R$ XX a mais"
-6. `PRÊMIO` (em W) **ou** `REEMBOLSO` (em void)
-7. `STATUS`
-8. Cabeçalho de **criação** do bilhete (`DD DE MMM. DE AAAA — HH:MM`) — fica junto ao ID, **não** é a data da aposta (ver §4)
+### Modo A — TEXTO (robô, padrão atual)
 
-Regra de blocos: interpretar cada bloco completo (seleções + ID + ODDS TOTAIS + APOSTA + STATUS); nunca misturar seleções de blocos diferentes.
+O robô da extensão colhe o texto do DOM. Cada bilhete começa com o marcador **`[Código: XXXX-XXXXXX]`** (código exato do atributo `id` do card, sem OCR) e segue de cima para baixo:
 
-**Ordenação de output:** manter a ordem das imagens enviadas. 1ª imagem colada = 1ª linha no TSV. NÃO inverter — o usuário controla a ordem ao colar os prints.
+1. **Uma perna por vez**, nesta ordem: `país/região` → `liga` → `data da seleção` → `time casa` → `time visitante` → `placar casa` → `placar visitante` → `linha do mercado` (`Mais de 5.5`) → `mercado` (`Valur Reykjavik - Total de Escanteios`) → `odd da seleção` (`2.12`). Simples = 1 perna; múltipla = N pernas em sequência.
+2. **Rodapé** (após a última perna): `ID` repetido → cabeçalho de **criação** (`DD DE MMM. DE AAAA — HH:MM`) → `ODDS TOTAIS` → `APOSTA` (+ `R$`) → [`SUPERTURBO X%` + valor, se boost] → [`PRÊMIO` **ou** `SACADO` **ou** `REEMBOLSO`] → [`Você ganhou R$ XX a mais`] → [`APOSTA GRÁTIS` + valor, se freebet] → `STATUS` (texto: `Perdido`/`Ganhou`/`Sacado`/`Reembolso`).
+
+> ⚠️ Odds no texto vêm com **PONTO** (`17.53`, `2.25`) — converter para vírgula (ver §11). Stake vem com vírgula (`150,00`).
+
+### Modo B — PRINT (imagem, ainda suportado)
+
+Cada aposta é um **bloco único**, de cima para baixo: card(s) de seleção (liga + data/hora + confronto + placar + mercado + odd + ✓/✗) → ID → `ODDS TOTAIS` → `APOSTA` → [boost] → `PRÊMIO`/`REEMBOLSO`/`SACADO` → `STATUS` → cabeçalho de criação. No print o ID só aparece no **detalhe** (ver §3).
+
+### Regras comuns aos dois modos
+
+- Interpretar cada bloco **completo** (todas as pernas + ID + ODDS TOTAIS + APOSTA + STATUS); nunca misturar pernas de blocos diferentes.
+- **Ordenação de output:** manter a ordem em que veio (1º bloco = 1ª linha no TSV). NÃO inverter — o usuário controla a ordem.
 
 ---
 
@@ -41,8 +46,8 @@ Regra de blocos: interpretar cada bloco completo (seleções + ID + ODDS TOTAIS 
 
 - Formato: `XXXX-XXXXXX` (alfanumérico). Ex.: `890C-QDPCUD`, `898K-7Y2U4H`.
 - Regra: 1 ID = 1 aposta = 1 linha.
-- **Pegadinha:** o ID aparece no **detalhe** da aposta, não na tela de lista. A lista mostra confronto/mercado/odd/stake/status, mas **não** o ID.
-- **Dedup quando só há a lista:** assinatura derivada = `data_criação + stake + odds_totais + confronto`. Abrir o detalhe (pegar o ID real) só nos candidatos que a assinatura marcar como novos.
+- **Modo TEXTO:** o ID vem **sempre** no marcador `[Código: XXXX-XXXXXX]` no topo do bloco (e repetido no rodapé). Exato do DOM — nunca falta. A dedup por ID é direta e à prova de falha; dois bilhetes de conteúdo idêntico com IDs distintos (ex.: `8901-QI2PSS` vs `8901-QI2PS1`) são **sempre** 2 linhas.
+- **Modo PRINT — pegadinha:** o ID só aparece no **detalhe**, não na lista. Sem ID na imagem, dedup por assinatura derivada = `data_criação + stake + odds_totais + confronto`; abrir o detalhe (pegar o ID real) só nos candidatos que a assinatura marcar como novos.
 - Existe também um hash UUID minúsculo no rodapé de cada bilhete (ex.: `33048385-a4e1-4ac8-...`). Possível chave alternativa, mas **não confirmado** se é estável por aposta ou por render/sessão. Não usar até confirmar.
 - Nunca duplicar, agrupar ou ignorar ID válido.
 
@@ -70,13 +75,14 @@ Formato final: `DD/MM/AAAA` (global).
 
 ## 5. Status e Resultado
 
-| Superbet exibe (STATUS) | Código |
+| Superbet exibe (`STATUS`) | Código |
 |---|---|
-| Ganhou ✓ | W |
-| Perdido ✗ | L |
-| Reembolso 🔄 | V |
+| `Ganhou` ✓ | W |
+| `Perdido` ✗ | L |
+| `Reembolso` 🔄 | V |
+| `Sacado` | cashout → ver §7 |
 
-Por seleção, o rótulo **`Anulada`** marca a perna anulada (push/void da seleção).
+No modo texto o `STATUS` vem como **palavra literal** no rodapé (`Perdido`, `Ganhou`, `Sacado`, `Reembolso`). Por seleção, o rótulo **`Anulada`** marca a perna anulada (push/void da seleção).
 
 <!-- TODO: como a Superbet sinaliza HW / HL (meia ganha / meia perdida), se sinaliza. Não apareceu em nenhum dos golden atuais. -->
 
@@ -86,23 +92,42 @@ Códigos válidos e regra de odd por código: `MASTER_RESULTADO_2026`.
 
 ## 6. Boost / promoção
 
-- Indicadores: `SUPERMÚLTIPLA X%` · linha "Você ganhou R$ XX a mais 🎉".
+- Indicadores: **`SUPERTURBO X%`** (rótulo atual) ou `SUPERMÚLTIPLA X%` (legado) · linha "Você ganhou R$ XX a mais 🎉".
 - O `PRÊMIO` **já contém** o boost. Logo, em `W`, `Odd = PRÊMIO ÷ Stake` captura o boost naturalmente (regra global `MASTER_RESULTADO_2026 §6`). A `ODDS TOTAIS` é a odd **sem** boost — não usar quando há PRÊMIO visível.
+- Ex. real (texto, `8909-QNRSXW`): `SUPERTURBO 30%` (+R$ 24,00); ODDS TOTAIS 1,80; PRÊMIO 204,00; stake 100 → Odd = `204,00 ÷ 100 = 2,04`. Nunca registrar 1,80.
 - Exemplo real (golden #2): ODDS TOTAIS 8,68; boost 5% (+R$19,22); PRÊMIO 453,64; stake 50 → Odd registrada = `453,64 ÷ 50 = 9,0728`.
 
 ---
 
 ## 7. Cashout
 
-`REEMBOLSO` (§5) é devolução de **void**, não cashout — não confundir.
+Rótulo do cashout na Superbet: **`SACADO`** (valor sacado) + `STATUS Sacado`. `REEMBOLSO` (§5) é devolução de **void**, NÃO cashout — não confundir.
 
-<!-- TODO: onde a Superbet exibe um cashout PARCIAL (encerramento antecipado) e com qual rótulo. A regra de odd no cashout é global (MASTER_RESULTADO_2026 §5.6). Aqui entra só o localizador. Não apareceu em nenhum dos 8 bilhetes enviados. -->
+Regra de odd no cashout é **global** (`MASTER_RESULTADO_2026 §5.1.2` e `§5.6`); aqui fica só o localizador:
+
+- `SACADO` **=** `APOSTA` (stake) → **V**, odd = `ODDS TOTAIS` do bilhete.
+- `SACADO` **≠** `APOSTA` (maior ou menor) → **W**, `Odd = SACADO ÷ Stake`.
+
+Ex. real (texto, `891J-YN5HZ1`): SACADO 256,00 = APOSTA 256,00 → **V**, odd = ODDS TOTAIS 1,97.
 
 ---
 
-## 8. Bônus
+## 8. Bônus / freebet
 
-<!-- TODO: confirmar se a casa opera com bônus/freebets e qual a política de tratamento (excluir / marcar / incluir). Sem amostra ainda. -->
+A Superbet opera com aposta grátis (freebet). No modo texto o rótulo é **`APOSTA GRÁTIS`** com o valor da parte grátis, **separado** do `APOSTA` (dinheiro real):
+
+```
+APOSTA
+140,00
+R$
+APOSTA GRÁTIS
+10,00
+R$
+```
+
+- **Política (decisão Feca): registrar o valor CHEIO.** `Stake = APOSTA + APOSTA GRÁTIS`.
+- Ex. real (`890N-QN9C4G`): APOSTA 140,00 + APOSTA GRÁTIS 10,00 → **Stake = 150,00**.
+- Layout antigo (colapsado) exibia tudo junto: `VALOR (10 R$ DE APOSTA GRÁTIS INCL.) 150,00 R$` — mesmo resultado (150,00).
 
 ---
 
@@ -145,8 +170,9 @@ Notas:
 
 ## 11. Odds
 
-- Formato exibido: decimal com vírgula.
+- Formato exibido: **PRINT** = decimal com vírgula; **TEXTO** (robô) = decimal com **PONTO** (`17.53`, `2.25`). No texto, converter o ponto em vírgula antes de escrever a odd (regra global — a planilha lê ponto como milhar e corrompe).
 - `ODDS TOTAIS` = odd estrutural (produto das seleções). Confirmado: bilhete `890C-QDPCUD` → 2,70 × 2,17 × 2,75 × 2,35 = 37,86 = ODDS TOTAIS.
+- **Odd dupla (Super Odds / CRIAR APOSTA / DICAS DE APOSTA):** a seleção mostra duas odds (`2.17` e `2.35`) = **original** e **turbinada**. A odd que vale é a **turbinada** (a maior) — que é a que aparece em `ODDS TOTAIS`. Ignorar a original. Ex.: `8901-QI2PSS` → 2,35. (Em W, `PRÊMIO ÷ Stake` governa de qualquer forma.)
 - Fonte e prioridade da odd: **global** (`MASTER_RESULTADO_2026`). Resumo da localização Superbet:
   - `W` → `Odd = PRÊMIO ÷ Stake`
 
@@ -161,6 +187,13 @@ Notas:
 ## 12. Ruído a ignorar
 
 `Interaja com a comunidade` · `Entrar no Supersocial` · `Dicas` · `+ Adicionar` · banners promocionais · barras de progresso ao vivo com número (ex.: `16`, `8`, `13` — são o stat ao vivo da seleção, não fazem parte da aposta) · quando houver badge ou indicação de substituição: o nome tachado/riscado = jogador original (usar), o nome em destaque acima = substituto (ignorar).
+
+**Ruído específico do modo TEXTO:**
+- **Placar embutido:** os dois números logo após os nomes dos times (`Vestmannaeyjar` / `Valur Reykjavik` / `1` / `0`) = placar ao vivo/final. Ignorar.
+- **Pênaltis:** `PEN`, `(2)`, `(4)` (ex.: `898M-7SGYY3`, Austrália × Egito) = disputa de pênaltis. Ignorar.
+- **Números soltos** entre pernas (`0`, `6`, `10`, `73`, `95`) = stat ao vivo. Ignorar.
+- **Rótulos de produto** (NÃO são mercado nem seleção): `CRIAR APOSTA`, `DICAS DE APOSTA`, `Super Odds`, `Super Odds — …`, `Longo Prazo - …`. São o nome do produto/construtor de aposta; a odd que os segue é a combinada (usar `ODDS TOTAIS`, ver §11).
+- **Cabeçalho de liga:** as linhas `país/região` + `liga` no topo de cada perna (`Internacional` / `Copa do Mundo`) contextualizam, mas o **esporte** vem da regra global (esporte ≠ liga).
 
 ---
 
@@ -181,7 +214,11 @@ Notas:
 
 - Nenhuma aposta com "Hoje" recebeu a data do cabeçalho.
 - Hoje/Ontem/Amanhã convertidos pela data de referência da captura.
-- Em W com boost, a odd usa `PRÊMIO`, nunca `ODDS TOTAIS`.
+- Em W com boost (`SUPERTURBO`/`SUPERMÚLTIPLA`), a odd usa `PRÊMIO`, nunca `ODDS TOTAIS`.
+- **Modo texto:** toda odd escrita com vírgula (nenhum ponto sobrando).
+- **Modo texto:** `STATUS Sacado` → V se `SACADO = APOSTA`; W (odd = SACADO÷Stake) se diferente.
+- **Modo texto:** com `APOSTA GRÁTIS`, o Stake gravado = `APOSTA + APOSTA GRÁTIS` (valor cheio).
+- **Modo texto:** placar/pênaltis/stat ao vivo nunca entram em odd, stake ou descrição.
 
 ---
 
@@ -239,6 +276,25 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 > Seleção exibida na Superbet: `Alec Small` (apenas o nome do vencedor apostado). Sem rótulo "Resultado Final".
 > Aposta = `ML` (resultado principal do confronto). NUNCA classificar como `Outros`.
 
+### Goldens do modo TEXTO (robô)
+
+Ilustram os rótulos e mecânicas novas do texto. Regra transversal: **≥2 seleções = `Múltipla`** — o rótulo de produto (`CRIAR APOSTA`/`DICAS DE APOSTA`/`Super Odds`) é ruído, não muda a categoria.
+
+**#T1 — Cashout `SACADO` = stake → V (`891J-YN5HZ1`)** — `SACADO 256,00 = APOSTA 256,00` → V, odd = ODDS TOTAIS:
+```
+03/07/2026	Futebol		Superbet		Múltipla	Under 2.5 Cartões [Suíça v Argélia] // Argélia - Under 2.5 Cartões [Suíça v Argélia]	256,00	1,97	V	891J-YN5HZ1
+```
+
+**#T2 — Boost `SUPERTURBO` W → odd = PRÊMIO÷Stake (`8909-QNRSXW`)** — SUPERTURBO 30%; ODDS TOTAIS 1,80 (sem boost); PRÊMIO 204,00; stake 100 → `204 ÷ 100 = 2,04`:
+```
+03/07/2026	Futebol		Superbet		Múltipla	Under 2.5 Cartões [Argentina v Cabo Verde] // Argentina - Under 2.5 Cartões [Argentina v Cabo Verde]	100,00	2,04	W	8909-QNRSXW
+```
+
+**#T3 — Freebet `APOSTA GRÁTIS` → stake cheio (`890N-QN9C4G`)** — APOSTA 140,00 + APOSTA GRÁTIS 10,00 → Stake 150,00; L → odd = ODDS TOTAIS 20,15; data = perna mais recente (Suíça×Argélia, 03/07 00:00):
+```
+03/07/2026	Futebol		Superbet		Múltipla	Espanha - Over 5.5 Tiros de Meta [Espanha v Áustria] // Over 1.5 Cartões 2º Tempo [Portugal v Croácia] // Over 27.5 Finalizações [Fortaleza v Ponte Preta] // Suíça - Under 6.5 Tiros de Meta [Suíça v Argélia]	150,00	20,15	L	890N-QN9C4G
+```
+
 ---
 
 ## Feedback para a camada global (registrar no track TSV)
@@ -251,5 +307,5 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 ---
 
 VERSÃO: 2026
-STATUS: QUASE COMPLETO (pendências: §5 HW/HL, §7 cashout real)
+STATUS: QUASE COMPLETO (pendência: §5 HW/HL — sem amostra. §7 cashout e §8 freebet resolvidos na sessão de modo-texto.)
 CASA: Superbet
