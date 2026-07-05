@@ -108,6 +108,7 @@ body {
 .janela input { width: 54px; background: #0A0D12; border: 1px solid var(--line);
   border-radius: 7px; padding: 6px 8px; color: var(--ink); font-family: var(--font-mono);
   font-size: 13px; text-align: center; outline: none; }
+.janela input.stopid { width: 108px; text-transform: uppercase; letter-spacing: .04em; }
 .janela input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,139,255,.16); }
 
 /* ── Mensagem + rodapé ─────────────────────────────────────────────────────── */

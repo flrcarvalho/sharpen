@@ -29,9 +29,11 @@ CODIGO_TTL = 15 * 60               # código válido p/ CONECTAR por 15 min
 MAX_CAPTURAS = 60                  # fila máxima por sessão (anti-OOM)
 MAX_SESSOES = 300                  # teto global de sessões vivas
 
-# Modo de captura por casa. Superbet (e o resto) = print; Betano = texto (robô de
-# rolagem). A extensão usa isto para saber se oferece a moldura ou o robozinho.
-_MODO_POR_CASA = {"BETANO": "texto"}
+# Modo de captura por casa. Betano e Superbet = texto (robô); o resto = print
+# (moldura + Snap). Superbet: cada card tem o CÓDIGO no atributo `id` (exato, sem
+# OCR) e o robô clica as múltiplas p/ pegar as pernas colapsadas — muito melhor que
+# print (ID perfeito, sem limite, sem zoom nas múltiplas grandes).
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:

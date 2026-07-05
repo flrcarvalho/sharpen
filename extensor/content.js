@@ -307,46 +307,61 @@
     let parar = false;
     painel.btnParar.onclick = () => { parar = true; };
 
-    // Look-back: para de rolar ao passar de N dias atrás (janela configurável).
-    // Lê a data da APOSTA do texto (a Betano ordena por ela, do topo=recente pro
-    // fundo=antigo). Defensivo: se não reconhecer nenhuma data, `passou` fica false
-    // → rola até o fim (comportamento seguro). Custo real: ver dedup por ID no
-    // backend — token escala com bilhetes novos, não com o histórico.
-    const { lookbackDias } = await chrome.storage.local.get("lookbackDias");
-    const N = Math.max(1, Number(lookbackDias) || 30);
+    // Parada do robô: janela de N dias (look-back) OU até o ID do último bilhete
+    // já extraído (copiar dele pra cima). Defensivo: sem data reconhecida, a janela
+    // não corta → rola até o fim. Custo: o backend dedupa por ID antes da IA.
+    const cfg = await chrome.storage.local.get(["lookbackDias", "casa", "stopId"]);
+    const N = Math.max(1, Number(cfg.lookbackDias) || 30);
     const cutoff = Date.now() - N * 86400000;
-    const pisoSanidade = cutoff - 730 * 86400000;   // ignora datas antigas demais (rodapés etc.)
-    let passou = false;
+    const pisoSanidade = cutoff - 730 * 86400000;
+    const ctx = {
+      cutoff, pisoSanidade,
+      stopId: (cfg.stopId || "").trim().toUpperCase(),
+      parar: () => parar,
+      painel,
+    };
 
+    let blocos;
+    if ((cfg.casa || "").toLowerCase() === "superbet") blocos = await roboSuperbet(ctx);
+    else blocos = await roboScroll(ctx);   // Betano + genéricos
+
+    painel.remove();
+    roboRodando = false;
+    if (!blocos.length) { toastLocal("Nada coletado — rolagem/estrutura não reconhecida.", false); return; }
+    chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: blocos.join("\n\n") });
+    toastLocal(blocos.length + " bilhete(s) coletado(s), enviando…", true);
+  }
+
+  // Estratégia genérica (Betano & cia): rola e colhe blocos de texto, dedup por
+  // conteúdo. Retorna os blocos coletados.
+  async function roboScroll(ctx) {
     const cont = acharScroll();
     const vistos = new Set(), blocos = [];
+    let passou = false;
     const push = (t) => {
       t = (t || "").trim();
       const k = t.replace(/\s+/g, " ").toLowerCase();
       if (k.length >= 20 && !vistos.has(k)) {
         vistos.add(k); blocos.push(t);
-        for (const ts of parseDatas(k)) { if (ts < cutoff && ts > pisoSanidade) passou = true; }
+        for (const ts of parseDatas(k)) { if (ts < ctx.cutoff && ts > ctx.pisoSanidade) passou = true; }
       }
     };
     const coletar = () => {
       const raiz = esDoc(cont) ? document.body : cont;
-      // Barato primeiro: corta o texto por linhas em branco (blocos ≈ cartões).
       let partes = (raiz.innerText || "").split(/\n\s*\n+/);
-      // Sem separação (1 bloco gigante) → cai no agrupamento por cartões (mais caro).
       if (partes.length <= 2) {
         const cards = acharCards(cont);
         if (cards && cards.length) partes = cards.map((el) => el.innerText);
       }
       partes.forEach(push);
-      painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+      ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
     };
-
     sTo(cont, 0); await sleep(450);
     let estavel = 0, voltas = 0;
-    while (!parar && voltas < 400) {
+    while (!ctx.parar() && voltas < 400) {
       voltas++;
       coletar();
-      if (passou && voltas >= 2) break;   // passou da janela de N dias → chega (já colheu a borda)
+      if (passou && voltas >= 2) break;
       const top = sTop(cont), max = sMax(cont);
       if (top >= max - 2) { coletar(); break; }
       sTo(cont, top + sClient(cont) * 0.8);
@@ -354,12 +369,86 @@
       if (Math.abs(sTop(cont) - top) < 2) { if (++estavel > 3) break; } else estavel = 0;
     }
     coletar();
-    painel.remove();
-    roboRodando = false;
+    return blocos;
+  }
 
-    if (!blocos.length) { toastLocal("Nada coletado — rolagem/estrutura não reconhecida.", false); return; }
-    chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: blocos.join("\n\n") });
-    toastLocal(blocos.length + " bilhete(s) coletado(s), enviando…", true);
+  // Estratégia Superbet: cada card da lista (.bet-list-item__container) tem o
+  // CÓDIGO no atributo `id` (exato, sem OCR). Simples já vêm inteiros; múltiplas
+  // colapsam as pernas ("+N mais seleções") → o robô CLICA pra carregar o detalhe
+  // completo e lê o texto mais rico (card expandido, selecionado ou painel da
+  // direita — auto-descoberto). Para no stopId (copiar dele pra cima) ou na janela.
+  async function roboSuperbet(ctx) {
+    const cont = document.querySelector(".sb-my-bets__items") || acharScroll();
+    const vistos = new Set(), blocos = [];
+    let travado = false;
+    const atualiza = () => ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+
+    const proximoCard = () =>
+      [...document.querySelectorAll(".bet-list-item__container")]
+        .find((c) => c.id && !vistos.has(c.id.trim().toUpperCase()));
+
+    const processarVisiveis = async () => {
+      // Re-consulta o DOM a cada card: clicar/rolar troca a lista virtualizada.
+      while (!ctx.parar() && !travado) {
+        const card = proximoCard();
+        if (!card) return;
+        const codigo = card.id.trim().toUpperCase();
+        if (ctx.stopId && codigo === ctx.stopId) { travado = true; return; }   // chegou no último já extraído
+        vistos.add(codigo);
+
+        let texto = card.innerText || "";
+        const datas = parseDatas(texto.toLowerCase());
+        const passou = datas.some((ts) => ts < ctx.cutoff && ts > ctx.pisoSanidade);
+
+        if (/mais sele/i.test(texto)) {   // múltipla colapsada → clica p/ o detalhe completo
+          try {
+            (card.querySelector(".bet-list-item") || card).click();
+            const rico = await esperarDetalhe(codigo, texto.length);
+            if (rico) texto = rico;
+          } catch (_) {}
+        }
+        texto = texto.trim();
+        if (texto.length >= 10) { blocos.push("[Código: " + codigo + "]\n" + texto); atualiza(); }
+        if (passou) { travado = true; return; }   // passou da janela de dias → para
+      }
+    };
+
+    sTo(cont, 0); await sleep(500);
+    let estavel = 0, voltas = 0;
+    while (!ctx.parar() && !travado && voltas < 800) {
+      voltas++;
+      await processarVisiveis();
+      if (travado) break;
+      const top = sTop(cont), max = sMax(cont);
+      if (top >= max - 2) { await processarVisiveis(); break; }
+      sTo(cont, top + sClient(cont) * 0.8);
+      await sleep(430);
+      if (Math.abs(sTop(cont) - top) < 2) { if (++estavel > 3) break; } else estavel = 0;
+    }
+    return blocos;
+  }
+
+  // Após clicar um bilhete, espera e devolve o texto mais completo do detalhe —
+  // procura no card selecionado E no painel da direita (elemento fora da lista que
+  // contém o código). Rejeita textos que ainda mostram "mais seleções".
+  async function esperarDetalhe(codigo, minLen) {
+    const scroller = document.querySelector(".sb-my-bets__items");
+    for (let i = 0; i < 9; i++) {
+      await sleep(170);
+      const cands = [];
+      const sel = document.querySelector(".bet-list-item--selected");
+      if (sel) cands.push(sel.innerText || "");
+      // painel da direita: div fora da lista, contendo o código, com cara de detalhe
+      const fora = [...document.querySelectorAll("div")].filter(
+        (d) => (!scroller || !scroller.contains(d)) && d.textContent
+          && d.textContent.includes(codigo) && /odds totais|status|@/i.test(d.textContent));
+      fora.sort((a, b) => (a.innerText || "").length - (b.innerText || "").length);
+      if (fora[0]) cands.push(fora[0].innerText || "");
+      const bons = cands.map((t) => t.trim())
+        .filter((t) => t && !/mais sele/i.test(t) && t.length > minLen * 0.8);
+      if (bons.length) { bons.sort((a, b) => b.length - a.length); return bons[0]; }
+    }
+    return null;
   }
 
   function criarPainelRobo() {

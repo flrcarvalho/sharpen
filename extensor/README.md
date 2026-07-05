@@ -26,11 +26,14 @@ do Sharpen + selo ↑, azul `#2E8BFF` / `#7FB2FF`, verde só em confirmação. F
 Cada navegador/perfil Octo cola o **seu** código → várias pontes ao mesmo tempo,
 cada uma numa casa. O código carrega dono + casa + parceiro + modo.
 
-- **Superbet** (e demais) → modo **print** (moldura fixa + Snap). ✅
-- **Betano** → modo **texto** (robô rola a página, colhe e deduplica os bilhetes). ✅
-  Para de rolar ao passar da **janela de look-back** (padrão 30 dias, ajustável no
-  popup) — não vai até o começo da conta todo dia. O backend ignora o que já foi
-  resolvido (dedup por ID), então a janela folgada é segura.
+- **Superbet** e **Betano** → modo **texto** (robô rola a página, colhe e deduplica). ✅
+  Demais casas → modo **print** (moldura fixa + Snap).
+- **Superbet:** cada card da lista tem o CÓDIGO no atributo `id` (exato, sem OCR). O
+  robô rola, lê cada bilhete e **clica as múltiplas colapsadas** ("+N mais seleções")
+  p/ pegar as pernas escondidas. Sem limite, sem zoom nas múltiplas grandes.
+- **Parada do robô (texto):** janela de **look-back** (padrão 30 dias) **OU** um **ID
+  de parada** ("copiar dele pra cima" — o último bilhete já extraído). Ambos no popup.
+  O backend ignora o que já foi resolvido (dedup por ID), então a janela folgada é segura.
 
 ## Instalar (modo desenvolvedor / unpacked)
 

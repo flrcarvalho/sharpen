@@ -35,6 +35,11 @@ $("lookback").addEventListener("change", (e) => {
   e.target.value = n;
   chrome.storage.local.set({ lookbackDias: n });
 });
+$("stopid").addEventListener("input", (e) => {
+  const v = e.target.value.trim().toUpperCase();
+  e.target.value = v;
+  chrome.storage.local.set({ stopId: v });
+});
 
 $("btn-conectar").addEventListener("click", conectar);
 $("btn-desconectar").addEventListener("click", desconectar);
@@ -124,11 +129,13 @@ async function render() {
     const texto = st.modo === "texto";
     $("nota-texto").hidden = !texto;
     $("janela-wrap").hidden = !texto;
+    $("stopid-wrap").hidden = !texto;
     $("btn-capturar").hidden = false;   // vale nos dois modos
     $("cap-label").textContent = texto ? "Copiar bilhetes" : "Capturar";
     if (texto) {
-      const { lookbackDias } = await chrome.storage.local.get("lookbackDias");
-      $("lookback").value = lookbackDias || 30;
+      const cfg = await chrome.storage.local.get(["lookbackDias", "stopId"]);
+      $("lookback").value = cfg.lookbackDias || 30;
+      $("stopid").value = cfg.stopId || "";
     }
   } else {
     telaConectar.hidden = false;
