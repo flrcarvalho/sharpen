@@ -1,10 +1,13 @@
 import hashlib
+import logging
 import re
 from datetime import date, datetime, timezone
 
 import asyncpg
 
 from database import get_pool
+
+logger = logging.getLogger("scanner")
 
 # Colunas do TSV (índices 0–9)
 _COLS = ["data", "esporte", "tipster", "casa", "parceiro",
@@ -1142,3 +1145,92 @@ async def get_codigos_resolvidos(codigos: list[str], dono: str) -> set[str]:
             codigos, dono,
         )
     return {row["codigo_bilhete"] for row in rows}
+
+
+# ── Log de uso de tokens (observabilidade de custo) ───────────────────────────
+# Preço USD por MTok (input, output, cache write 5m, cache read). Fonte: tabela de
+# preços da API Anthropic. Ao mudar o preço, atualize aqui — o custo já gravado
+# permanece congelado (foi calculado no ato da extração).
+_PRECOS = {
+    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0, "cache_read": 0.30, "cache_write": 3.75},
+    "claude-opus-4-8":   {"input": 5.0, "output": 25.0, "cache_read": 0.50, "cache_write": 6.25},
+}
+_PRECO_PADRAO = _PRECOS["claude-sonnet-4-6"]
+
+
+def custo_usd(modelo: str, tk: dict) -> float:
+    """Custo em USD de um lote de tokens para um modelo (preço por MTok / 1e6)."""
+    p = _PRECOS.get(modelo, _PRECO_PADRAO)
+    return (
+        tk.get("input", 0) * p["input"]
+        + tk.get("output", 0) * p["output"]
+        + tk.get("cache_read", 0) * p["cache_read"]
+        + tk.get("cache_write", 0) * p["cache_write"]
+    ) / 1_000_000
+
+
+async def registrar_uso(dono: str, casa: str, modelo: str, chunks: int,
+                        n_itens: int, tokens: dict) -> None:
+    """Grava uma linha de uso por extração. Fire-and-forget: nunca derruba o
+    stream (erros são só logados)."""
+    try:
+        custo = custo_usd(modelo, tokens)
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO uso_tokens
+                     (dono, casa, modelo, chunks, n_itens, input, output, cache_read, cache_write, custo_usd)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
+                dono, casa, modelo, int(chunks or 1), int(n_itens or 0),
+                int(tokens.get("input", 0)), int(tokens.get("output", 0)),
+                int(tokens.get("cache_read", 0)), int(tokens.get("cache_write", 0)), custo,
+            )
+    except Exception:
+        logger.warning("registrar_uso falhou (uso não gravado)", exc_info=True)
+
+
+async def uso_resumo(dono: str, dias: int = 30, todos: bool = False) -> dict:
+    """Resumo de uso/custo dos últimos `dias`. Se `todos`, agrega TODOS os donos
+    (visão da carteira inteira, p/ o dono do projeto) e inclui quebra por dono."""
+    pool = await get_pool()
+    janela = f"{int(dias)} days"
+    async with pool.acquire() as conn:
+        if todos:
+            filtro, args = "criado_em >= NOW() - $1::interval", (janela,)
+        else:
+            filtro, args = "dono = $2 AND criado_em >= NOW() - $1::interval", (janela, dono)
+
+        total = await conn.fetchrow(
+            f"""SELECT COUNT(*) extracoes, COALESCE(SUM(n_itens),0) itens,
+                       COALESCE(SUM(input),0) input, COALESCE(SUM(output),0) output,
+                       COALESCE(SUM(cache_read),0) cache_read, COALESCE(SUM(cache_write),0) cache_write,
+                       COALESCE(SUM(custo_usd),0) custo_usd
+                FROM uso_tokens WHERE {filtro}""", *args)
+        por_casa = await conn.fetch(
+            f"""SELECT casa, COUNT(*) extracoes, COALESCE(SUM(n_itens),0) itens,
+                       COALESCE(SUM(custo_usd),0) custo_usd
+                FROM uso_tokens WHERE {filtro}
+                GROUP BY casa ORDER BY custo_usd DESC""", *args)
+        por_dia = await conn.fetch(
+            f"""SELECT date_trunc('day', criado_em)::date dia, COUNT(*) extracoes,
+                       COALESCE(SUM(n_itens),0) itens, COALESCE(SUM(custo_usd),0) custo_usd
+                FROM uso_tokens WHERE {filtro}
+                GROUP BY dia ORDER BY dia""", *args)
+        por_dono = []
+        if todos:
+            por_dono = await conn.fetch(
+                f"""SELECT dono, COUNT(*) extracoes, COALESCE(SUM(n_itens),0) itens,
+                           COALESCE(SUM(custo_usd),0) custo_usd
+                    FROM uso_tokens WHERE {filtro}
+                    GROUP BY dono ORDER BY custo_usd DESC""", *args)
+
+    d = dict(total)
+    itens = d["itens"] or 0
+    d["custo_por_item_usd"] = (d["custo_usd"] / itens) if itens else 0.0
+    return {
+        "dias": int(dias), "escopo": "todos" if todos else dono,
+        "total": d,
+        "por_casa": [dict(r) for r in por_casa],
+        "por_dia": [dict(r) for r in por_dia],
+        "por_dono": [dict(r) for r in por_dono],
+    }

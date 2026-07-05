@@ -47,12 +47,21 @@ from repository import (
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
+    registrar_uso, uso_resumo,
 )
 
 logger = logging.getLogger("scanner")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 _client = AsyncAnthropic()
+
+# Tarefas fire-and-forget (ex.: gravar uso de tokens sem bloquear o stream). Guarda
+# uma referência forte até concluir — senão o GC pode matar a task antes da hora.
+_bg_tasks: set = set()
+def _fire(coro):
+    t = asyncio.create_task(coro)
+    _bg_tasks.add(t)
+    t.add_done_callback(_bg_tasks.discard)
 
 _MAX_CHUNKS = 4
 _MAX_CONCURRENT = 4
@@ -537,7 +546,8 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]]) -> tuple[str
 
 # ── Stream functions ──────────────────────────────────────────────────────────
 
-async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None):
+async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
+                             dono: str = "", casa: str = "", n_itens: int = 0):
     t_start = time.perf_counter()
     try:
         accumulated = ""
@@ -629,13 +639,15 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         accumulated, id_fix = corrigir_codigos_tsv(accumulated, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("seq id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
+        _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
 
 
-async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None):
+async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None,
+                           dono: str = "", casa: str = "", n_itens: int = 0):
     n_chunks = len(chunks)
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
@@ -736,6 +748,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
+        _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix})}\n\n"
     except Exception:
         logger.exception("par-final error")
@@ -886,6 +899,15 @@ async def listar_casas(dono: str = Depends(dono_efetivo)):
     # inclui casas inativas importadas (têm parceiros/dados, mas não têm manual)
     com_dados = set(await casas_com_parceiros(dono))
     return {"casas": sorted(manuais | com_dados)}
+
+
+@app.get("/uso/tokens")
+async def uso_tokens_endpoint(dias: int = 30, dono: str = Depends(usuario_atual)):
+    """Resumo de uso/custo de tokens dos últimos `dias`. O dono do projeto ('Feca')
+    vê a carteira inteira (todos os donos, com quebra por dono); os demais veem só
+    o próprio uso. Base p/ afiar o custo e priorizar parsers determinísticos."""
+    dias = max(1, min(365, dias))
+    return await uso_resumo(dono, dias, todos=(dono == "Feca"))
 
 
 # ── Ponte de captura (extensão ⇄ dashboard) ───────────────────────────────────
@@ -1086,10 +1108,14 @@ async def extrair(
                 sum(1 for b in base_content if b.get("type") == "text"),
                 len(chunks), use_parallel)
 
+    _casa_disp = _casa_display(casa_key)
+    _n_itens = len(base_content)   # imagens + blocos de texto (proxy de itens do lote)
     if use_parallel:
-        generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto)
+        generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto,
+                                     dono=dono, casa=_casa_disp, n_itens=_n_itens)
     else:
-        generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto)
+        generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto,
+                                       dono=dono, casa=_casa_disp, n_itens=_n_itens)
 
     return StreamingResponse(
         generator,

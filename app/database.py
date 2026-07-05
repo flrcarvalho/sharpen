@@ -107,6 +107,25 @@ CREATE TABLE IF NOT EXISTS polymarket_ativos_tipster (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dono, codigo)
 );
+
+-- Log de uso de tokens da API Anthropic por extração (observabilidade de custo).
+-- Uma linha por chamada a /extrair que consumiu modelo. custo_usd é calculado no
+-- ato (preço por modelo × tokens) — congela o custo mesmo se o preço mudar depois.
+CREATE TABLE IF NOT EXISTS uso_tokens (
+    id           SERIAL PRIMARY KEY,
+    criado_em    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono         TEXT NOT NULL,
+    casa         TEXT,
+    modelo       TEXT,
+    chunks       INT NOT NULL DEFAULT 1,
+    n_itens      INT NOT NULL DEFAULT 0,
+    input        BIGINT NOT NULL DEFAULT 0,
+    output       BIGINT NOT NULL DEFAULT 0,
+    cache_read   BIGINT NOT NULL DEFAULT 0,
+    cache_write  BIGINT NOT NULL DEFAULT 0,
+    custo_usd    REAL NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS uso_tokens_dono_criado ON uso_tokens (dono, criado_em);
 """
 
 
