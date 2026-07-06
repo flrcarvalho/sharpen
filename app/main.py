@@ -96,6 +96,7 @@ _TSV_HEADER = "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStak
 _CASA_DISPLAY: dict[str, str] = {
     "BET365":         "Bet365",
     "BETANO":         "Betano",
+    "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETNACIONAL":    "Betnacional",
     "BOLSADEAPOSTA":  "Bolsa de Aposta",
