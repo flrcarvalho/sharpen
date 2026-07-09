@@ -599,10 +599,10 @@
   function _clicarForte(el) {
     try { el.scrollIntoView({ block: "center" }); } catch (e) {}
     const o = { bubbles: true, cancelable: true, view: window };
-    for (const tipo of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+    for (const tipo of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
       try { el.dispatchEvent(new MouseEvent(tipo, o)); } catch (e) {}
     }
-    try { el.click(); } catch (e) {}
+    try { el.click(); } catch (e) {}   // click nativo (sem duplicar com um dispatch de "click")
   }
 
   // Modo passivo (dado vem do be_inject: exato, com id). A BETesporte pagina por BOTÃO
@@ -640,20 +640,21 @@
       if (filtrar) { try { filtrar.click(); } catch (e) {} await sleep(1500); processar(); }
     }
 
-    // Pagina clicando "CARREGAR MAIS…". Termina quando parar de trazer bilhetes novos por
-    // algumas voltas — INDEPENDENTE do botão continuar na tela (a BETesporte às vezes o
-    // mantém no fim). Isso garante que o robô ENCERRA sozinho e envia (não fica infinito).
-    let voltas = 0, semNovo = 0, ultTotal = -1;
-    while (!ctx.parar() && !travado && voltas < 300) {
+    // Pagina clicando "CARREGAR MAIS…". ENCERRA sozinho após 5s sem bilhete novo —
+    // INDEPENDENTE do botão continuar na tela (a BETesporte o mantém no fim). Usa RELÓGIO
+    // (não contagem de voltas) → robusto a variação de tempo de rede. Ao sair do while, o
+    // iniciarRobo envia automaticamente (sem precisar clicar Parar).
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && voltas < 400) {
       voltas++;
       processar();
       if (travado) break;
       const mais = _acharBotao("carregar mais");
-      if (mais) { _clicarForte(mais); await sleep(1100); }
-      else { try { window.scrollTo(0, document.documentElement.scrollHeight); } catch (e) {} await sleep(700); }
+      if (mais) { _clicarForte(mais); await sleep(1000); }
+      else { try { window.scrollTo(0, document.documentElement.scrollHeight); } catch (e) {} await sleep(600); }
       processar();
-      if (beTickets.length > ultTotal) { ultTotal = beTickets.length; semNovo = 0; }
-      else if (++semNovo >= 4) break;   // 4 voltas sem bilhete novo → fim (envia o que já tem)
+      if (beTickets.length > ultTotal) { ultTotal = beTickets.length; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 5000) break;   // 5s sem bilhete novo → encerra e envia
     }
     processar();
     console.log("[SharpenUp] BETesporte: " + blocos.length + " bilhete(s) · beTickets capturados=" + beTickets.length);
