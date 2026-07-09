@@ -512,8 +512,8 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
         elif casa_key.upper() == "BETANO":
             # Split na linha-tipo (Simples/Dupla/Tripla/N-seleções) = fronteira do bilhete
             blocks = _BETANO_SPLIT_RE.split(full_text)
-        elif casa_key.upper() == "SUPERBET":
-            # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM)
+        elif casa_key.upper() in ("SUPERBET", "BETESPORTE"):
+            # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API)
             blocks = _SUPERBET_SPLIT_RE.split(full_text)
         else:
             blocks = full_text.split("\n\n")
@@ -1126,7 +1126,9 @@ async def extrair(
         if casa_key.upper() == "BETANO":
             texto, n_skip = await _dedup_betano_text(texto, dono)
             xls_skipped += n_skip
-        elif casa_key.upper() == "SUPERBET":
+        elif casa_key.upper() in ("SUPERBET", "BETESPORTE"):
+            # Mesmo marcador [Código: ...] → reusa o pré-dedup por ID da Superbet
+            # (descarta bilhetes já liquidados no banco + duplicatas de scroll).
             texto, n_skip = await _dedup_superbet_text(texto, dono)
             xls_skipped += n_skip
         if texto:

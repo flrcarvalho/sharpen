@@ -33,6 +33,22 @@
     }
   });
 
+  // Itens da BETesporte capturados pelo be_inject.js (mundo MAIN) — as RESPOSTAS JSON de
+  // POST /api/bet/RequestUserTickets. Mesmo modelo passivo da Superbet: o robô só rola a
+  // lista p/ a página buscar mais; a extensão lê o dado exato do site (id, odd, value,
+  // status, date), sem clicar em "Ver Cupom".
+  const beTickets = [];
+  const beTicketSeen = new Set();
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupBEData && Array.isArray(d.items)) {
+      for (const t of d.items) {
+        const c = t && t.id;
+        if (c != null && !beTicketSeen.has(c)) { beTicketSeen.add(c); beTickets.push(t); }
+      }
+    }
+  });
+
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
       '<defs><linearGradient id="sharpenupBladeGrad" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse">' +
@@ -349,6 +365,8 @@
       if (!blocos.length) { console.log("[SharpenUp] nada capturado da API → modo clique"); blocos = await roboSuperbet(ctx); }
     } else if (casa === "bet365") {
       blocos = await roboBet365(ctx);
+    } else if (casa === "betesporte") {
+      blocos = await roboBetesportePassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // Betano + genéricos
     }
@@ -417,6 +435,12 @@
   // Odd SEMPRE completa (regra primordial: nunca encurtar). Só tira ruído de float
   // (ex.: 2.2700000000000002 → 2,27), mantendo toda a precisão real.
   const _odd = (x) => (x == null) ? "" : (Math.round(x * 1e8) / 1e8).toString().replace(".", ",");
+  // BETesporte: `date` vem SEM timezone ("2026-07-02T10:55:18") = já local (America/São
+  // Paulo). Só recorta AAAA-MM-DD → DD/MM/AAAA. NÃO usar `_dbr` (converte de UTC → pula 1 dia).
+  const _dbrBE = (s) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ""));
+    return m ? (m[3] + "/" + m[2] + "/" + m[1]) : "";
+  };
 
   function formatTicket(t) {
     const pay = t.payment || {};
@@ -517,6 +541,81 @@
     }
     processar();
     console.log("[SharpenUp] passivo: " + blocos.length + " bilhete(s) · sbTickets capturados=" + sbTickets.length);
+    return blocos;
+  }
+
+  // ── BETesporte modo API (sem clique) ─────────────────────────────────────────
+  // Formata 1 item da /api/bet/RequestUserTickets no bloco de texto que a IA lê
+  // (mesmo marcador "[Código: …]" da Superbet → o backend split/dedupa por ele).
+  // Status: 1=Perdido(L), 2=Ganho(W) — os únicos observados. Aberto/Devolvido/Encerrado/
+  // Cancelado ainda sem amostra → qualquer outro código (ou perna aberta) NÃO liquida
+  // sozinho: marca "a conferir" p/ o operador revisar (regra da casa: nunca chutar resultado).
+  function formatTicketBE(t) {
+    const L = [];
+    L.push("[Código: " + (t.id != null ? t.id : "") + "]");
+    L.push("Data: " + _dbrBE(t.date));
+    L.push("Stake: " + _brl(t.value));
+    L.push("Odd: " + _odd(t.odd));
+    // "possibleReturn" = value × odd = retorno POTENCIAL (não o realizado). Rotulado
+    // como tal p/ a IA nunca confundir o potencial de um bilhete PERDIDO com vitória —
+    // quem decide W/L é o Status. Em W, potencial = realizado (cross-check: ÷ stake = odd).
+    if (t.possibleReturn != null) L.push("Retorno potencial: " + _brl(t.possibleReturn));
+    if (t.cashoutValue && t.cashoutValue > 0) L.push("Cashout: " + _brl(t.cashoutValue));
+    let st;
+    if (t.openBetsCount && t.openBetsCount > 0) st = "em aberto (não liquidado — revisar)";
+    else if (t.status === 1) st = "1 (Perdido → L)";
+    else if (t.status === 2) st = "2 (Ganho → W)";
+    else st = t.status + " (a conferir — não liquidar automaticamente)";
+    L.push("Status: " + st);
+    const mercado = (t.betNome || "").trim();
+    const titulo = (t.partidaNome || t.homeTeamName || "").trim();
+    if (mercado) L.push("Mercado: " + mercado);
+    if (titulo && titulo !== mercado) L.push("Título: " + titulo);
+    if (t.optionNome) L.push("Seleção: " + t.optionNome);
+    return L.join("\n");
+  }
+
+  // Modo passivo (espelho do roboSuperbetPassive): rola a lista p/ a página paginar
+  // (lazy-load) e vai consumindo os itens que o be_inject captura das RESPOSTAS da API.
+  // Sem clique. Para no stopId (copiar dele pra cima) ou na janela de dias.
+  async function roboBetesportePassive(ctx) {
+    const cont = acharScroll();
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      for (const t of beTickets) {
+        const cod = (t.id != null ? String(t.id) : "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        const dt = t.date ? Date.parse(t.date) : NaN;
+        const passou = !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketBE(t));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao be_inject o que ele já capturou (a 1ª página vem no load da página).
+    try { window.postMessage({ __sharpenupBEReq: true }, "*"); } catch (e) {}
+    await sleep(250);
+    processar();
+
+    // Rola JANELA + container até o fim até a página parar de trazer bilhetes novos.
+    let semNovo = 0, ultTotal = -1, voltas = 0;
+    while (!ctx.parar() && !travado && voltas < 500) {
+      voltas++;
+      try { window.scrollTo(0, document.documentElement.scrollHeight); } catch (e) {}
+      try { if (cont && cont !== document.scrollingElement && cont !== document.documentElement) cont.scrollTop = cont.scrollHeight; } catch (e) {}
+      await sleep(700);
+      processar();
+      if (travado) break;
+      if (beTickets.length > ultTotal) { ultTotal = beTickets.length; semNovo = 0; }
+      else if (++semNovo >= 5) break;   // 5 rolagens sem nada novo → fim da lista
+    }
+    processar();
+    console.log("[SharpenUp] BETesporte: " + blocos.length + " bilhete(s) · beTickets capturados=" + beTickets.length);
     return blocos;
   }
 

@@ -14,7 +14,7 @@
 
 - Casa canônica: `BETesporte` *(BET em caixa alta + esporte em minúsculas — grafia exata na coluna `Casa`)*
 - Domínio: `betesporte.bet.br` · Aliases: `BET esporte`, "Betesporte" (sem o caixa-alta)
-- Locale: pt-BR na interface, mas **números mistos** — **odd em ponto decimal** (`1.85`, `12.60`); **stake e retorno em pt-BR com vírgula** e prefixo `R$` (`R$ 50,00`)
+- Locale: pt-BR na interface, mas **números mistos** — **odd em ponto decimal** (`1.85`, `12.60`); **stake e retorno em pt-BR com vírgula** e prefixo `R$` (`R$ 50,00`). Via robô/API os números já vêm normalizados (ver §2.1).
 - `Parceiro` / `Tipster`: preenchidos pela app; extrator deixa vazio
 
 ---
@@ -23,82 +23,81 @@
 
 ### 2.1 Modo de ingestão
 
-- **PRIMÁRIO:** texto colado / screenshot da lista **"Minhas Apostas"** (cards verticais empilhados).
-- **FALLBACK:** tela de detalhe do bilhete (botão **"Ver Cupom"**) — usar para recuperar a **data do evento** (a lista não a exibe — ver §4) e o confronto/adversário das múltiplas (ver §9).
+- **PRIMÁRIO (robô SharpenUp — modo texto):** a extensão lê **passivamente** a RESPOSTA da API que a própria página baixa — `POST /api/bet/RequestUserTickets` (JSON exato: `id`, `odd`, `value`, `possibleReturn`, `status`, `date`, `betNome`, `optionNome`). O robô só **rola** a lista p/ a página paginar; **não clica em "Ver Cupom"** e não faz requisição nova (o Bearer/JWT fica com a página). Cada bilhete vira um bloco de texto com o marcador **`[Código: <id>]`** — a mesma fronteira da Superbet, que o backend usa para split + pré-dedup por ID.
+  - Registro: `captura.py` `_MODO_POR_CASA["BETESPORTE"] = "texto"`; interceptor em `extensor/be_inject.js` (mundo MAIN, só no domínio da casa); formatação em `extensor/content.js` (`formatTicketBE` / `roboBetesportePassive`).
+- **FALLBACK (print da lista "Minhas Apostas"):** screenshots dos cards verticais. **Sem ID** → dedup só por assinatura (ver §3). Usar apenas se o robô não estiver disponível.
 
 ### 2.2 Tipo do bilhete declarado
 
-A BETesporte **declara o tipo no início do título** dos mercados combinados: `DUPLA - …`, `TRIPLA - …`, `MÚLTIPLA - …`. Este rótulo define a categoria `Múltipla` e a fórmula de odd (`MASTER_RESULTADO_2026 §7`).
+A BETesporte **declara o tipo no início do título** (`betNome`) dos mercados combinados: `DUPLA - …`, `TRIPLA - …`, `MÚLTIPLA - …`. Este rótulo define a categoria `Múltipla` e a fórmula de odd (`MASTER_RESULTADO_2026 §7`).
 - `DUPLA` / `TRIPLA` / `MÚLTIPLA` no início do título → `Múltipla`.
-- Sem rótulo de tipo → categoria do mercado da seleção (no lote atual, só `Jogo com o Gol mais Rápido` → `H2H`).
+- Sem rótulo de tipo → categoria do mercado da seleção (ex.: `Jogo com o Gol mais Rápido` → `H2H`).
 
-### 2.3 Layout do bilhete (card de "Minhas Apostas")
+### 2.3 Layout do bloco (robô/API)
 
-Anatomia de cima para baixo:
+Cada bilhete chega assim (campos derivados do JSON da API):
 ```
-[badge status]  Em Aberto / Ganho / Perdido      ← status ← traduzir (§5)
-Odd  <n.nn>                                       ← ODD (ponto decimal)
-R$ <stake>                                        ← stake
-R$ <retorno potencial/obtido>                     ← campo financeiro
-<título do mercado>                               ← linha bold (o mercado)
-<subtítulo / repetição do mercado>                ← cinza itálico (repete o título)
-<seleção>                                         ← verde: "Sim" ou o confronto escolhido
-[ícone] Ver Cupom                                 ← botão p/ detalhe (ruído)
-Encerrar Indisponível  /  R$ <retorno> Retorno    ← rodapé: aberto / liquidado
+[Código: 189070937]                               ← id do bilhete (dedup — §3)
+Data: 02/07/2026                                  ← date (§4)
+Stake: 20,00                                      ← value
+Odd: 25,24                                        ← odd (já combinada nas múltiplas)
+Retorno potencial: 504,80                         ← possibleReturn (value × odd, NÃO realizado)
+Status: 1 (Perdido → L)                           ← status ← traduzir (§5)
+Mercado: DUPLA - Portugal e Ponte Preta Vencerem Seus Jogos   ← betNome
+Título: <partidaNome, se ≠ mercado>               ← só quando traz o confronto (H2H)
+Seleção: Sim                                      ← optionNome (wrapper — ruído; §9)
 ```
 
-**Ordem do output:** a lista exibe do mais recente (topo) ao mais antigo (baixo). TSV: **inverso** — último card no texto (mais antigo) = 1ª linha; primeiro card (mais recente) = última linha (`MASTER_OUTPUT_2026 §15`).
+**Ordem do output:** a API/lista vem do mais recente ao mais antigo. TSV: **inverso** — bilhete mais antigo = 1ª linha; mais recente = última (`MASTER_OUTPUT_2026 §15`). O backend já inverte no modo texto.
+
+> **Layout do card (fallback print):** `[badge status] · Odd n.nn · R$ stake · R$ retorno · título · subtítulo (repete) · seleção verde · "Ver Cupom" · rodapé`. Sem ID.
 
 ---
 
 ## 3. ID do bilhete
 
-- Caso: **ausente** — a lista não expõe número/ID do bilhete; só o botão "Ver Cupom".
-- Assinatura derivada = `data + stake + retorno + confronto(s)` (regra global de dedup, `repository.py`).
-- Coluna `Código` (11ª interna) fica **vazia**.
-- **Limitação:** dois bilhetes 100% idênticos (mesmo mercado, stake, odd, retorno) não são distinguíveis sem ID — o sistema salva um e avisa (ver dedup em `CLAUDE.md`). No lote atual isso ocorre: **`DUPLA - Egito e Gana Vencerem Seus Jogos` · R$ 20,00 · 21.78** aparece **duas vezes** idêntica → colisão de assinatura esperada.
+- Caso: **VISÍVEL via API** (modo robô) — o campo `id` (numérico, ~9 dígitos, ex.: `189070937`) chega no marcador `[Código: <id>]`. É a chave forte de dedup, **exata** (vem do JSON, sem OCR).
+- Backend: split por `[Código: …]` (`_SUPERBET_SPLIT_RE`), pré-dedup por ID (`_dedup_superbet_text`) e validação de código numérico (`_ID_BETESPORTE_RE`) — tudo reusado do trilho Superbet.
+- Coluna `Código` (11ª interna) = o `id`.
+- **Fallback print (sem robô):** a lista **não** expõe o ID (só o "Ver Cupom") → assinatura derivada = `data + stake + retorno + confronto(s)`; dois bilhetes 100% idênticos não se distinguem (o sistema salva um e avisa). Essa limitação **desaparece** no modo robô.
 
 ---
 
 ## 4. Data
 
-- Fonte primária: **data do evento** no detalhe **"Ver Cupom"** (a lista de cards **não** exibe data por bilhete).
-- Fallback(s), em ordem: data informada pela operação → colocação (se o evento for no mesmo dia) → **data atual em `America/Sao_Paulo`** (último recurso).
-- Formato fonte (no cupom): converter para `DD/MM/AAAA` (descartar horário).
-- Múltipla: data = evento da **perna mais recente** (regra global, `MASTER_OUTPUT_2026`).
+- Fonte primária (robô/API): campo **`date`** (`2026-07-02T10:55:18`) → `DD/MM/AAAA` (descarta horário). Vem **sem timezone = já local** (America/São_Paulo) — o robô só recorta `AAAA-MM-DD` (não converte de UTC, senão pularia 1 dia).
+- É a data de **colocação/liquidação** do bilhete (a API não expõe data de evento por perna nos parlays "Vencerem Seus Jogos"). Fica na cadeia de fallback global como proxy de colocação — muito melhor que "data atual".
+- Múltipla: a API traz uma data única do bilhete (usar direto).
 
-> ⚠️ **Pegadinha crítica:** o topo da tela mostra apenas um **filtro de período** (ex.: `05/06/2026 - 05/07/2026`) — **não é a data do bilhete**. Nunca usar o período como data. Se a data não estiver disponível (lote só da lista), cai no fallback de extração — documentar. Em servidor UTC (Railway), fixar `America/Sao_Paulo` ao usar "data atual".
+> ⚠️ **Pegadinha (fallback print):** o topo da tela mostra só um **filtro de período** (`08/06/2026 - 08/07/2026`) — **não é a data do bilhete**. Nunca usar o período como data.
 
 ---
 
 ## 5. Status e Resultado
 
-> ⚠️ **DISCIPLINA DE TRADUÇÃO — crítica:** nunca copiar o rótulo visual da casa direto. Traduzir sempre para `W · L · V · HW · HL`.
+> ⚠️ **DISCIPLINA DE TRADUÇÃO — crítica:** nunca copiar o rótulo/código visual da casa direto. Traduzir sempre para `W · L · V · HW · HL`.
 
-| BETesporte exibe | Nosso código |
-|---|---|
-| `Ganho` (badge verde) + `Retorno > Stake` | W |
-| `Perdido` (badge vermelho) + `Retorno R$ 0,00` | L |
-| `Em Aberto` (badge azul) | *(não liquida — `extraction_state = aberta`)* |
-| *(void/anulação — rótulo não confirmado)* | V *(aguarda amostra)* |
-| *(meia vitória — rótulo não confirmado)* | HW *(aguarda amostra)* |
-| *(meia derrota — rótulo não confirmado)* | HL *(aguarda amostra)* |
+**Mapa do `status` numérico da API** (confirmados nos goldens reais):
 
-Conferência financeira (segunda linha de defesa): `Retorno = 0` → L · `Retorno = Stake` → V · `Retorno > Stake` → W.
+| `status` da API | BETesporte exibe | Nosso código |
+|---|---|---|
+| `1` | `Perdido` (badge vermelho, `Retorno R$ 0,00`) | **L** |
+| `2` | `Ganho` (badge verde, `Retorno > Stake`) | **W** |
+| *(qualquer outro código)* | Aberto / Devolvido / Encerrado / Cancelado — **sem amostra** | *(a conferir — ver abaixo)* |
 
-**Gatilho de meia-liquidação (HW/HL):**
-- Primário: rótulo não confirmado — só detectável pela assinatura financeira.
-- Confirmação por assinatura financeira **exata**: `HL → Retorno = Stake/2` · `HW → Retorno = (Stake/2) × (odd + 1)`.
-- Esta assinatura também distingue HW/HL de cashout (retorno arbitrário).
+- **Só `1` e `2` foram observados** (o dono nunca teve outro estado). O robô, ao ver `status ∉ {1,2}` **ou** `openBetsCount > 0`, emite `Status: … (a conferir — não liquidar automaticamente)` / `em aberto` — a linha **não vira W/L sozinha**; sai marcada p/ revisão manual. Isso cumpre a regra: **nunca chutar resultado**.
+- Quando o primeiro Aberto/Devolvido/Encerrado/Cancelado real aparecer, mapear o número aqui (2 min) — Devolvido → `V`; Encerrado → cashout (§7); Aberto → `extraction_state = aberta`.
 
-Apostas abertas (`Em Aberto`) → `extraction_state = aberta` (fora da fila de cópia). O rodapé dessas mostra **"Encerrar Indisponível"** (cashout indisponível — ver §7).
+Conferência financeira (segunda linha de defesa): `Retorno realizado = 0` → L · `= Stake` → V · `> Stake` → W. **Atenção:** o `possibleReturn` da API é o retorno **potencial** (`value × odd`), **não** o realizado — nunca usá-lo para decidir W/L; quem decide é o `status`.
+
+**Meia-liquidação (HW/HL):** sem amostra nesta casa. Se surgir, confirmação por assinatura financeira **exata**: `HL → retorno = Stake/2` · `HW → retorno = (Stake/2) × (odd + 1)`.
 
 ---
 
 ## 6. Boost / promoção
 
-- Tem boost: **não confirmado** — aguarda amostra.
-- Comportamento (regra global): se o campo de retorno já embutir o boost → `Odd = Retorno ÷ Stake` captura automaticamente.
+- Tem boost: **não confirmado** — aguarda amostra. Nos goldens, `possibleReturn = value × odd` exatamente (sem boost embutido).
+- Comportamento (regra global): se o retorno já embutir boost → `Odd = Retorno realizado ÷ Stake` captura automaticamente.
 
 <!-- TODO: confirmar se há odds turbinadas/promos e se o retorno embute o boost. -->
 
@@ -106,37 +105,39 @@ Apostas abertas (`Em Aberto`) → `extraction_state = aberta` (fora da fila de c
 
 ## 7. Cashout
 
-- Tem cashout: **parcial/condicional** — o rodapé exibe **"Encerrar"**, mas no lote observado sempre como **"Encerrar Indisponível"** (função existe, indisponível nesses bilhetes). Valor de cashout encerrado ainda **sem amostra**.
-- Regra global: `Odd = Cashout ÷ Stake` (resultado = W); se `Cashout = Stake` → resultado `V`, preservar odd exibida.
+- Tem cashout: **sim** (campo `cashoutValue` na API; `0` quando não houve). Rodapé "Encerrar" no card; no lote observado sempre "Encerrar Indisponível".
+- O robô emite `Cashout: <valor>` quando `cashoutValue > 0`.
+- Regra global: `Odd = Cashout ÷ Stake` (resultado = W); se `Cashout = Stake` → `V`, preservar odd exibida.
 - **Distinção de meia-liquidação:** cashout produz retorno arbitrário (não casa com `Stake/2` nem `(Stake/2)×(odd+1)`).
 
-<!-- TODO: confirmar localizador e formato do valor quando um bilhete for encerrado por cashout. -->
+<!-- TODO: confirmar o status numérico de um bilhete Encerrado por cashout quando surgir. -->
 
 ---
 
 ## 8. Bônus
 
-- Tem bônus / freebet: **não confirmado** — aguarda amostra.
+- Tem bônus / freebet: **não confirmado** — aguarda amostra. A API traz `paymentType` (nos goldens sempre `1`); um valor diferente pode indicar bônus.
 - **Política:** pendente até ter amostra real.
 
-<!-- TODO: confirmar se há apostas de bônus e como identificá-las. -->
+<!-- TODO: confirmar se paymentType ≠ 1 identifica bônus/freebet. -->
 
 ---
 
 ## 9. Mapa de mercados (BETesporte → `Aposta` global)
 
-> Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa lista **apenas** os mercados já confirmados num bilhete real desta casa (camada fina) — a taxonomia completa vive no MASTER e **não** se reescreve aqui.
+> Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa lista **apenas** os mercados já confirmados num bilhete real desta casa (camada fina).
 
-| BETesporte exibe (rótulo real) | Aposta global |
+| BETesporte exibe (`betNome`) | Aposta global |
 |---|---|
 | `DUPLA - … Vencerem Seus Jogos` · `TRIPLA - … Vencerem seus Jogos` · `MÚLTIPLA - … Vencerem Seus Jogos` (seleção "Sim") | Múltipla |
-| `Jogo com o Gol mais Rápido` · `… ter o Gol + Rápido Contra o Jogo …` (seleção = jogo escolhido ou "Sim") | H2H |
+| `Jogo com o Gol mais Rápido` · `… ter o Gol + Rápido Contra o Jogo …` (seleção = jogo escolhido) | H2H |
 
 **Notas de reconstrução:**
-- **"Vencerem Seus Jogos" = Múltipla:** é um parlay de vitórias (ML) de times distintos, pré-montado pela casa e apostado como "Sim". Espelha o precedente Vitória Bet (`Vencedores` plural → Múltipla) e a regra global Bet Builder → Múltipla. A casa **não exibe os adversários** → descrição = os times unidos por ` // `, **sem confronto** (`MASTER_DESCRICAO_2026 §19.10` — descrição válida sem confronto; nunca inventar adversário).
-- **"Gol mais Rápido" = H2H (decisão do Feca):** mercado comparativo entre **dois jogos** — aposta-se em qual dos dois terá o gol mais rápido. Estende o conceito de H2H (entidade-vs-entidade) para jogo-vs-jogo. Descrição: `Gol mais Rápido - [jogo apostado] v [outro jogo]`, com o **jogo apostado primeiro** (o verde da seleção / o primeiro no título "A e B (x) C e D"). Registrado no §Feedback como extensão.
+- **Campos do robô:** `Mercado` = `betNome` (o mercado); `Título` = `partidaNome` (o confronto, só aparece quando ≠ mercado, ex.: H2H); `Seleção` = `optionNome`.
+- **"Vencerem Seus Jogos" = Múltipla:** parlay de vitórias (ML) de times distintos, pré-montado pela casa e apostado como "Sim". A casa **não exibe os adversários** (nem no card, nem na API) → descrição = os times unidos por ` // `, **sem confronto** (`MASTER_DESCRICAO_2026 §19.10`; nunca inventar adversário). Espelha o precedente Vitória Bet.
+- **"Gol mais Rápido" = H2H (decisão do Feca):** mercado comparativo entre **dois jogos** — aposta-se em qual dos dois terá o gol mais rápido. Descrição: `Gol mais Rápido - [jogo apostado] v [outro jogo]`, com o **jogo apostado primeiro** (o `optionNome` / o primeiro no título "A e B (x) C e D").
 - Título "A e B **(x)** C e D": o `(x)` separa os **dois jogos comparados**; o `e` liga os dois times de **um** jogo → confronto `[A v B]`. Não confundir o `e` (times de um jogo) com o `(x)` (jogos comparados).
-- Seleção `Sim` é o wrapper da resposta à proposição — **nunca** vai na coluna Aposta nem na Descrição.
+- Seleção `Sim` é o wrapper da proposição — **nunca** vai na coluna Aposta nem na Descrição.
 - Sufixos como `(LIMITE: R$1.000)` = teto de pagamento (ruído) → ignorar na descrição.
 - Mercado sem categoria global → `Outros` ⚠️ + registrar no §Feedback.
 
@@ -144,165 +145,203 @@ Apostas abertas (`Em Aberto`) → `extraction_state = aberta` (fora da fila de c
 
 ## 10. Stake
 
-- Localização: 1ª linha `R$ <valor>` do bloco financeiro do card (acima do retorno).
-- Formato: **pt-BR** — `R$ 50,00`, `R$ 200,00` (vírgula decimal, ponto de milhar se houver).
-- Normalização: remover `R$ `, preservar vírgula decimal → `50,00`. Normalização final (símbolo, trim, milhar) = global (`MASTER_OUTPUT_2026 §11/§16`).
+- Localização: campo `value` da API (robô) / 1º `R$` do card (fallback print).
+- Formato: robô entrega já normalizado com vírgula (`20,00`); no card é pt-BR (`R$ 50,00`).
+- Normalização final (símbolo, trim, milhar) = global (`MASTER_OUTPUT_2026 §11/§16`).
 
 ---
 
 ## 11. Odds
 
-> **Campo financeiro principal: o valor de `Retorno`** — na lista, o 2º `R$` do card. Em aberto é o **retorno potencial** (`Stake × Odd`); liquidado é o **retorno obtido** (`R$ 252,00 Retorno`) em W e `R$ 0,00` em L.
+> **Campo financeiro principal:** `possibleReturn` (retorno **potencial** = `value × odd`). Em W, potencial = realizado → `possibleReturn ÷ Stake` reconstrói a odd (cross-check). Em L/V/HL, a odd vem do campo `odd` — **nunca** derivar odd de retorno potencial de um bilhete perdido.
 
-- Localização da odd exibida: rótulo `Odd <n.nn>` no topo do card.
-- Odd em **ponto decimal** → converter para vírgula; **preservar a precisão exibida** (`1.85` → `1,85`; `12.60` → `12,60`).
+- Localização da odd exibida: campo `odd` da API / rótulo `Odd n.nn` no card.
+- Odd em **ponto decimal** → converter para vírgula, **preservar precisão** (`1.85` → `1,85`; `25.24` → `25,24`). Odds inteiras da API vêm sem casas (`3.00` → `3`; `4.00` → `4`) — é a precisão completa, nada foi truncado (`3` ≡ `3,00`).
 
 | Resultado | Regra da odd |
 |---|---|
-| W | `Odd = Retorno obtido ÷ Stake` (deve coincidir com a odd exibida) |
-| L | odd **exibida** — nunca `0,00` |
-| V | odd **exibida** — nunca `1,00` |
-| HW | odd **exibida** — nunca metade |
-| HL | odd **exibida** — nunca metade |
+| W | `Odd = Retorno realizado ÷ Stake` (coincide com o campo `odd`) |
+| L | campo `odd` — nunca `0,00` |
+| V | campo `odd` — nunca `1,00` |
+| HW / HL | campo `odd` — nunca metade |
 | Cashout (≠ Stake) | `Odd = Cashout ÷ Stake` |
 
-**Múltiplas ("Vencerem Seus Jogos"):** a casa exibe **uma odd única** já combinada (ex.: `12.60`) → usá-la direto em L/V; em W, `Retorno ÷ Stake` (deve coincidir). **Não** recalcular por produto de pernas (os adversários/odds individuais não aparecem).
+**Múltiplas ("Vencerem Seus Jogos"):** a API traz **uma odd única** já combinada (ex.: `25.24`) → usá-la direto em L/V; em W, `Retorno ÷ Stake`. **Não** recalcular por produto de pernas (os adversários/odds individuais não aparecem).
 
-> ⚠️ Em `L` a odd nunca vira `0,00`; em `V` nunca `1,00`. Odd exibida é sempre preservada. `Retorno ÷ Stake` vale **só** para W / cashout / boost. Precisão: preservar — não truncar nem arredondar.
+> ⚠️ Em `L` a odd nunca vira `0,00`; em `V` nunca `1,00`. `Retorno ÷ Stake` vale **só** para W / cashout / boost. Precisão: preservar.
 
 ---
 
 ## 12. Ruído a ignorar
 
-badge de status (o texto é traduzido, não copiado) · rótulos `Odd` / `Retorno` (os valores vêm ao lado) · botão `Ver Cupom` e ícone de olho · rodapé `Encerrar Indisponível` · subtítulo cinza (repete o título — não é 2ª seleção) · seleção `Sim` (wrapper) · filtro de período no topo (**não é data**) · sufixo `(LIMITE: R$X)`
+`Seleção: Sim` (wrapper) · rótulos dos campos (os valores vêm ao lado) · `Retorno potencial` (é potencial, não decide resultado) · sufixo `(LIMITE: R$X)` · **[fallback print]** badge de status (traduzido, não copiado), botão `Ver Cupom`, subtítulo cinza (repete o título), filtro de período no topo (**não é data**)
 
 ---
 
 ## 13. Pegadinhas (resumo rápido)
 
-- **Sem data por bilhete na lista** — o topo mostra só o **filtro de período** (`05/06 - 05/07`), que **não é** a data do bilhete. Data real vem do "Ver Cupom"; sem ela, cai no fallback de extração (§4).
-- **Sem ID visível** → dedup por assinatura; dois bilhetes idênticos não se distinguem (o par `Egito e Gana` R$ 20 · 21.78 aparece duplicado no lote).
+- **`status` decide W/L, não o retorno** — `possibleReturn` é o potencial (`value × odd`); um bilhete PERDIDO tem `possibleReturn > 0` e mesmo assim é `L` (`status 1`).
+- **Só `status 1` (L) e `2` (W) mapeados** — qualquer outro (ou `openBetsCount > 0`) sai "a conferir", **não** liquida automático.
+- **`date` vem sem timezone** = já local; recortar `AAAA-MM-DD`, **não** converter de UTC.
 - **`(x)` no título separa dois JOGOS, `e` separa dois TIMES de um jogo** — errar isso quebra o confronto do H2H.
-- **`DUPLA/TRIPLA/MÚLTIPLA` é o tipo, não o mercado** → categoria `Múltipla`; a odd exibida já é a combinada (não multiplicar pernas).
+- **`DUPLA/TRIPLA/MÚLTIPLA` é o tipo, não o mercado** → categoria `Múltipla`; a odd da API já é a combinada (não multiplicar pernas).
 - **Múltipla sem adversários** — descrição fica sem confronto (só os times por ` // `). Nunca inventar o adversário.
-- **Odd em ponto, stake/retorno em vírgula** — converter só a odd; não confundir.
-- **`Em Aberto` não liquida** — vai como `aberta`, fora da fila de cópia.
+- **Odd inteira vem sem casas** (`3`, `4`) — é precisão completa, não truncar "de volta".
+- **[fallback print] sem ID** → dedup por assinatura; o modo robô resolve.
 
 ---
 
 ## 14. Validações específicas
 
-> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7 — Validação) + `MASTER_OUTPUT_2026 §17–§18` (resultado oficial, odd preservada em L/HL/V, esporte ≠ liga, jogador normalizado, nº de linhas = nº de bilhetes). Não duplicar aqui.
+> **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` (FASE 7) + `MASTER_OUTPUT_2026 §17–§18`. Não duplicar aqui.
 
 **Específicas da BETesporte:**
-- Odd convertida de ponto para vírgula, precisão preservada: `1.85` → `1,85`; `12.60` → `12,60`.
-- W cross-check: `Retorno obtido ÷ Stake = odd exibida` (devem bater — discrepância indica leitura errada).
-- Múltipla usa a **odd única exibida** — nunca produto de pernas (adversários ausentes).
-- Título com `(x)`: separar corretamente jogos (`(x)`) de times (`e`); confronto = `[Time A v Time B]`.
+- Resultado **só** de `status` (1→L, 2→W); status desconhecido / `openBetsCount>0` → linha "a conferir", nunca W/L.
+- `Código` = `id` numérico da API (11ª coluna preenchida no modo robô).
+- Odd convertida de ponto para vírgula, precisão preservada; odd inteira sem casas é válida.
+- W cross-check: `Retorno realizado ÷ Stake = odd exibida`.
+- Múltipla usa a **odd única** — nunca produto de pernas (adversários ausentes).
+- Título com `(x)`: separar jogos (`(x)`) de times (`e`); confronto = `[Time A v Time B]`.
 - Seleção `Sim` nunca aparece na coluna Aposta nem na Descrição.
-- `Código` sempre vazio (casa sem ID visível).
-- Período do topo nunca usado como data.
+- `possibleReturn` (retorno potencial) nunca decide resultado.
 
 ---
 
-## 15. Exemplos golden (bilhetes reais — lista "Minhas Apostas")
+## 15. Exemplos golden (bilhetes reais — API `RequestUserTickets`)
 
-Lote real (screenshots + texto colado, capturado 05/07/2026; período do filtro `05/06/2026 - 05/07/2026`).
+Lote real capturado da API em 08/07/2026 (dados do dono FERNANDO CARVALHO).
 
 Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descrição \t Stake \t Odd \t Resultado \t Código`
 
-> **Ordem de output:** lista = mais recente no topo → TSV inverso (último card do texto = 1ª linha).
-> **Data (§4):** a lista não traz data por bilhete → os goldens usam o **fallback de extração** `05/07/2026`; na prática, puxar do "Ver Cupom".
-> **Pendências de amostra (não bloqueiam):** V, HW/HL, cashout encerrado, boost e bônus ainda não observados. As regras globais cobrem esses casos quando surgirem.
+> **Ordem de output:** API = mais recente primeiro → TSV inverso (bilhete mais antigo = 1ª linha).
+> **Pendências (não bloqueiam):** V, HW/HL, cashout encerrado, boost, bônus e aberta ainda sem amostra — as regras globais + o "a conferir" (§5) cobrem quando surgirem.
 
 ---
 
-### G1 (TSV linha 1) — L · H2H · Gol mais Rápido (Argélia v Áustria)
+### G1 — L · H2H · Gol mais Rápido (Argélia v Áustria) · id 188644540
 
-**Input (card):** badge `Perdido` · `Odd 4.00` · `R$ 150,00` · `R$ 600,00` · título `Argélia e Áustria (x) Jordânia e Argentina` · mercado `Jogo com o Gol mais Rápido` · seleção `Argélia x Áustria` · rodapé `R$ 0,00 Retorno`.
+**Input (bloco do robô):**
+```
+[Código: 188644540]
+Data: 27/06/2026
+Stake: 150,00
+Odd: 4
+Retorno potencial: 600,00
+Status: 1 (Perdido → L)
+Mercado: Jogo com o Gol mais Rápido
+Título: Argélia e Áustria (x) Jordânia e Argentina
+Seleção: Argélia x Áustria
+```
 
-**Verificação:** Retorno = 0 → L. Odd exibida = 4,00 (preservar, nunca 0). `(x)` separa os dois jogos; jogo apostado (verde) = Argélia v Áustria (primeiro). H2H entre os dois jogos.
+**Verificação:** `status 1` → L. Odd = campo `odd` = 4 (preservar, nunca 0 nem derivar do potencial). `(x)` separa os dois jogos; jogo apostado (`Seleção`) = Argélia v Áustria (primeiro). H2H entre os dois jogos.
 
 **TSV esperado:**
 ```
-05/07/2026	Futebol		BETesporte		H2H	Gol mais Rápido - [Argélia v Áustria] v [Jordânia v Argentina]	150,00	4,00	L	
+27/06/2026	Futebol		BETesporte		H2H	Gol mais Rápido - [Argélia v Áustria] v [Jordânia v Argentina]	150,00	4	L	188644540
 ```
 
 ---
 
-### G2 (TSV linha 2) — W · H2H · Gol mais Rápido (Brasil v Japão)
+### G2 — W · H2H · Gol mais Rápido (Brasil v Japão) · id 188755646
 
-**Input (card):** badge `Ganho` · `Odd 3.00` · `R$ 200,00` · `R$ 600,00` · título `Brasil (x) Japão ter o Gol + Rápido Contra o Jogo da Alemanha (x) Paraguai (LIMITE: R$1.000)` · seleção `Sim` · rodapé `R$ 600,00 Retorno`.
+**Input (bloco do robô):**
+```
+[Código: 188755646]
+Data: 29/06/2026
+Stake: 200,00
+Odd: 3
+Retorno potencial: 600,00
+Status: 2 (Ganho → W)
+Mercado: Brasil (x) Japão ter o Gol + Rápido Contra o Jogo da Alemanha (x) Paraguai (LIMITE: R$1.000)
+Seleção: Sim
+```
 
-**Verificação:** Retorno R$ 600 > Stake R$ 200 → W. Odd = 600 ÷ 200 = 3,00 ✓. Comparação de gol mais rápido entre `[Brasil v Japão]` (apostado) e `[Alemanha v Paraguai]`. `(LIMITE: R$1.000)` = teto de pagamento (ruído). H2H.
+**Verificação:** `status 2` → W. Retorno realizado = 600 = Stake 200 × 3 → odd 3 ✓ (cross-check). Comparação de gol mais rápido entre `[Brasil v Japão]` (apostado) e `[Alemanha v Paraguai]`. `(LIMITE: R$1.000)` = teto de pagamento (ruído). H2H.
 
 **TSV esperado:**
 ```
-05/07/2026	Futebol		BETesporte		H2H	Gol mais Rápido - [Brasil v Japão] v [Alemanha v Paraguai]	200,00	3,00	W	
+29/06/2026	Futebol		BETesporte		H2H	Gol mais Rápido - [Brasil v Japão] v [Alemanha v Paraguai]	200,00	3	W	188755646
 ```
 
 ---
 
-### G3 (TSV linha 3) — W · Múltipla · TRIPLA (3 vitórias)
+### G3 — L · Múltipla · DUPLA (2 vitórias) · id 189070937
 
-**Input (card):** badge `Ganho` · `Odd 12.60` · `R$ 20,00` · `R$ 252,00` · título `TRIPLA - Criciúma, Londrina e Novorizontino Vencerem seus Jogos` · seleção `Sim` · rodapé `R$ 252,00 Retorno`.
+**Input (bloco do robô):**
+```
+[Código: 189070937]
+Data: 02/07/2026
+Stake: 20,00
+Odd: 25,24
+Retorno potencial: 504,80
+Status: 1 (Perdido → L)
+Mercado: DUPLA - Portugal e Ponte Preta Vencerem Seus Jogos
+Seleção: Sim
+```
 
-**Verificação:** Retorno R$ 252 > Stake R$ 20 → W. Odd = 252 ÷ 20 = 12,60 ✓ (bate com a exibida). `TRIPLA` → Múltipla; odd única combinada. Adversários não exibidos → descrição sem confronto, times por ` // `.
+**Verificação:** `status 1` → L (o `possibleReturn` 504,80 é potencial — **não** torna a aposta W). Odd = 25,24 (preservar). `DUPLA` → Múltipla; odd única combinada. Adversários ausentes → descrição sem confronto, times por ` // `.
 
 **TSV esperado:**
 ```
-05/07/2026	Futebol		BETesporte		Múltipla	Criciúma // Londrina // Novorizontino	20,00	12,60	W	
+02/07/2026	Futebol		BETesporte		Múltipla	Portugal // Ponte Preta	20,00	25,24	L	189070937
 ```
 
 ---
 
-### G4 (TSV linha 4) — L · Múltipla · DUPLA (par duplicado no lote)
+### G4 — L · Múltipla · TRIPLA (3 vitórias) · id 189056063
 
-**Input (card):** badge `Perdido` · `Odd 21.78` · `R$ 20,00` · `R$ 435,60` · título `DUPLA - Egito e Gana Vencerem Seus Jogos` · seleção `Sim` · rodapé `R$ 0,00 Retorno`.
+**Input (bloco do robô):**
+```
+[Código: 189056063]
+Data: 02/07/2026
+Stake: 26,00
+Odd: 13,81
+Retorno potencial: 359,06
+Status: 1 (Perdido → L)
+Mercado: TRIPLA - Espanha, Portugal e América-MG Vencerem Seus Jogos
+Seleção: Sim
+```
 
-**Verificação:** Retorno = 0 → L. Odd exibida = 21,78 (preservar). `DUPLA` → Múltipla. **Este card aparece duas vezes idêntico no lote** — sem ID, a assinatura (`data+stake+retorno+confronto`) colide → o sistema salva um e avisa (§3). Demonstra a limitação de dedup sem ID.
+**Verificação:** `status 1` → L. Odd = 13,81 (preservar). `TRIPLA` → Múltipla. 3 times unidos por ` // `, ordem original preservada (`MASTER_DESCRICAO_2026 §15`). Sem confronto.
 
 **TSV esperado:**
 ```
-05/07/2026	Futebol		BETesporte		Múltipla	Egito // Gana	20,00	21,78	L	
+02/07/2026	Futebol		BETesporte		Múltipla	Espanha // Portugal // América-MG	26,00	13,81	L	189056063
 ```
 
 ---
 
-### G5 (TSV linha 5) — L · Múltipla · MÚLTIPLA (4 vitórias)
+### G5 — L · Múltipla · MÚLTIPLA (4 vitórias) · id 188957818
 
-**Input (card):** badge `Perdido` · `Odd 20.12` · `R$ 30,00` · `R$ 603,60` · título `MÚLTIPLA - Suíça, Marrocos, Brasil e Inglaterra Vencerem Seus Jogos` · seleção `Sim` · rodapé `R$ 0,00 Retorno`.
+**Input (bloco do robô):**
+```
+[Código: 188957818]
+Data: 01/07/2026
+Stake: 26,00
+Odd: 8,11
+Retorno potencial: 210,86
+Status: 1 (Perdido → L)
+Mercado: MÚLTIPLA - Bélgica, EUA, Espanha e Portugal Vencerem Seus jogos
+Seleção: Sim
+```
 
-**Verificação:** Retorno = 0 → L. Odd exibida = 20,12 (preservar). `MÚLTIPLA` → Múltipla; 4 pernas unidas por ` // `, ordem original preservada (`MASTER_DESCRICAO_2026 §15`). Sem confronto (adversários ausentes).
+**Verificação:** `status 1` → L. Odd = 8,11 (preservar). `MÚLTIPLA` → Múltipla; 4 pernas unidas por ` // `, ordem original preservada. Sem confronto (adversários ausentes).
 
 **TSV esperado:**
 ```
-05/07/2026	Futebol		BETesporte		Múltipla	Suíça // Marrocos // Brasil // Inglaterra	30,00	20,12	L	
-```
-
----
-
-### G6 (aberta — fora da fila de cópia) — H2H · Gol mais Rápido (EUA v Bélgica)
-
-**Input (card):** badge `Em Aberto` · `Odd 1.85` · `R$ 50,00` · `R$ 92,50` · título `México e Inglaterra (x) EUA e Bélgica` · mercado `Jogo com o Gol mais Rápido` · seleção `EUA x Bélgica` · rodapé `Encerrar Indisponível`.
-
-**Verificação:** `Em Aberto` → **não liquida** → `extraction_state = aberta` (Resultado vazio, fora da fila de cópia). Odd exibida = 1,85 (retorno R$ 92,50 é o **potencial**, não usar p/ derivar resultado). Jogo apostado (verde) = EUA v Bélgica (primeiro). H2H.
-
-**TSV esperado (linha extraída, marcada `aberta`; Resultado vazio):**
-```
-05/07/2026	Futebol		BETesporte		H2H	Gol mais Rápido - [EUA v Bélgica] v [México v Inglaterra]	50,00	1,85		
+01/07/2026	Futebol		BETesporte		Múltipla	Bélgica // EUA // Espanha // Portugal	26,00	8,11	L	188957818
 ```
 
 ---
 
 ## Feedback para a camada global / MODELO
 
-1. **"Gol mais Rápido" classificado como `H2H` (decisão do Feca):** mercado comparativo entre **dois jogos** (qual terá o gol mais rápido). Estende o conceito de `H2H` do `MASTER_APOSTAS_2026 §5` (hoje exemplificado com entidade-vs-entidade — pilotos, jogadores) para **jogo-vs-jogo**. Sugestão: registrar essa extensão no §5/§6 do MASTER_APOSTAS se o padrão reaparecer em outras casas, para não recair em `Outros`.
-2. **Mercados "N times Vencerem Seus Jogos" sem adversários:** a casa pré-monta um parlay de ML mas só mostra os times que devem vencer (sem confronto). Tratamento adotado (sem mudança de master): `Múltipla` + descrição sem confronto (`MASTER_DESCRICAO_2026 §19.10`), times por ` // `. Espelha o precedente Vitória Bet.
-3. **Lista sem data por bilhete:** só há filtro de período. Documentado como pegadinha (§4/§13); fonte de data = detalhe "Ver Cupom". Sem proposta de mudança global.
+1. **"Gol mais Rápido" classificado como `H2H` (decisão do Feca):** mercado comparativo entre **dois jogos** (qual terá o gol mais rápido). Estende o `H2H` do `MASTER_APOSTAS_2026 §5` (hoje exemplificado com entidade-vs-entidade) para **jogo-vs-jogo**. Sugestão: registrar no §5/§6 do MASTER_APOSTAS se reaparecer em outras casas.
+2. **Mercados "N times Vencerem Seus Jogos" sem adversários:** a casa pré-monta um parlay de ML mas só mostra os times que devem vencer. Tratamento (sem mudança de master): `Múltipla` + descrição sem confronto, times por ` // `. Espelha o precedente Vitória Bet.
+3. **Ingestão por API passiva (robô):** a BETesporte entra no mesmo trilho da Superbet (interceptor no mundo MAIN + marcador `[Código:]` → split/dedup do backend reusados). Sem mudança de master — só reuso da maquinaria existente.
 
 ---
 
 VERSÃO: 2026
-STATUS: ATIVO (v1 — 6 goldens reais, 05/07/2026; W/L confirmados em H2H e Múltipla; aberta demonstrada; V/HW/HL/cashout/boost/bônus sem amostra — não bloqueiam)
+STATUS: ATIVO (v2 — robô/API `RequestUserTickets`; 5 goldens reais com Código, 08/07/2026; W/L confirmados em H2H e Múltipla; status 1=L, 2=W; Aberto/Devolvido/Encerrado/Cancelado sem amostra → "a conferir", não bloqueiam)
 CASA: `BETesporte`

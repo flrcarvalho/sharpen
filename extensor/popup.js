@@ -10,6 +10,7 @@ const DOMINIOS = {
   "Superbet": "superbet.com", "Betano": "betano.com", "Bet365": "bet365.com",
   "Betfair": "betfair.com", "KTO": "kto.com", "Pinnacle": "pinnacle.com",
   "Betnacional": "betnacional.com", "Lottu": "lottu.com", "Vitória Bet": "vitoriabet.com",
+  "BETesporte": "betesporte.bet.br",
 };
 
 function setMsg(texto, tipo) {

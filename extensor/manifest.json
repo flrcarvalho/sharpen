@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -28,6 +28,12 @@
     {
       "matches": ["*://*.superbet.bet.br/*", "*://superbet.bet.br/*", "*://*.superbet.com/*"],
       "js": ["sb_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.betesporte.bet.br/*", "*://betesporte.bet.br/*"],
+      "js": ["be_inject.js"],
       "run_at": "document_start",
       "world": "MAIN"
     }
