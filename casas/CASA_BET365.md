@@ -22,7 +22,7 @@
 
 - **Modo de ingestão: visão (screenshot). Sem export estruturado.**
 - **Feed contínuo:** múltiplos prints = mesmo scroll. 1º print = mais recente; dentro do print, topo = mais recente.
-- **Ordenação de output:** última aposta da última imagem = 1ª linha no TSV (mais antiga); 1ª aposta da 1ª imagem = última linha no TSV (mais recente). Processar de baixo para cima dentro de cada imagem, das imagens da última para a primeira.
+- **Ordenação de output:** emita os bilhetes na **ORDEM NATURAL DE LEITURA** — de cima para baixo dentro de cada imagem, e da 1ª imagem para a última (no modo texto do robô, na ordem em que aparecem, marcados por `[Bilhete Bet365]`). **NÃO inverta você mesmo.** O **sistema** reordena automaticamente para mais-antigo→mais-recente (a planilha exige essa ordem). O resultado final salvo fica: última aposta da última imagem = 1ª linha (mais antiga); 1ª aposta da 1ª imagem = última linha (mais recente) — mas isso é responsabilidade do sistema, não sua.
 - Abas: `Em Aberto` · `Encerrar Aposta` (cashout) · `Ao Vivo` · `Resolvidas`.
 
 **Sinal visual de esporte:** A Bet365 exibe ícone de camisa colorida (jersey icon) ao lado de **times** e nenhum ícone (ou foto pequena) ao lado de **jogadores individuais**.

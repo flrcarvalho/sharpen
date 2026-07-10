@@ -373,6 +373,12 @@ async def _dedup_betano_text(text: str, dono: str) -> tuple[str, int]:
 _SUPERBET_SPLIT_RE = re.compile(r'(?m)(?=^\[Código:\s)')
 _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 
+# Bet365 (texto do robô): cada bilhete começa com o marcador "[Bilhete Bet365]" que o
+# robô SharpenUp injeta (extensor/content.js). Fronteira confiável do bilhete — a Bet365
+# não tem ID/data, então este marcador é o único separador estável (evita o split genérico
+# por "\n\n", que fragmenta um card com linha em branco interna).
+_BET365_SPLIT_RE = re.compile(r'(?m)(?=^\[Bilhete Bet365\])')
+
 
 def _split_superbet_bilhetes(text: str) -> list[str]:
     """Divide o texto colado da Superbet em blocos de 1 bilhete cada."""
@@ -520,6 +526,9 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
         elif casa_key.upper() in ("SUPERBET", "BETESPORTE"):
             # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API)
             blocks = _SUPERBET_SPLIT_RE.split(full_text)
+        elif casa_key.upper() == "BET365":
+            # Split no marcador [Bilhete Bet365] injetado pelo robô = fronteira do bilhete
+            blocks = _BET365_SPLIT_RE.split(full_text)
         else:
             blocks = full_text.split("\n\n")
         blocks = [b.strip() for b in blocks if b.strip()]
@@ -542,6 +551,28 @@ def _extract_tsv_rows(text: str) -> list[str]:
     if lines and lines[0].startswith("Data\t"):
         lines = lines[1:]
     return lines
+
+
+def _reverse_tsv_rows(text: str) -> str:
+    """Inverte a ordem das linhas de dados dentro do bloco ```tsv (preserva header e o
+    resto do texto, ex.: ## Notas Críticas). Usado no caminho SEQUENCIAL das casas de feed
+    newest-first (Bet365): o modelo emite em ordem natural de leitura; a planilha exige
+    mais-antigo→mais-recente. O caminho paralelo já faz isso via
+    _combine_parallel_results(reverse_rows=True)."""
+    m = re.search(r'```tsv\n(.*?)\n```', text, re.DOTALL)
+    if not m:
+        return text
+    lines = m.group(1).split('\n')
+    header: list[str] = []
+    if lines and lines[0].startswith("Data\t"):
+        header = [lines[0]]
+        rows = lines[1:]
+    else:
+        rows = lines
+    rows = [r for r in rows if r.strip()]
+    rows.reverse()
+    novo = "```tsv\n" + "\n".join(header + rows) + "\n```"
+    return text[:m.start()] + novo + text[m.end():]
 
 
 def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows: bool = False) -> tuple[str, dict, list[int]]:
@@ -610,7 +641,7 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows
 # ── Stream functions ──────────────────────────────────────────────────────────
 
 async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
-                             dono: str = "", casa: str = "", n_itens: int = 0):
+                             dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False):
     t_start = time.perf_counter()
     try:
         accumulated = ""
@@ -702,6 +733,10 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         accumulated, id_fix = corrigir_codigos_tsv(accumulated, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("seq id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
+        # Feed newest-first (Bet365) num único chunk: inverte as linhas p/ oldest→newest,
+        # espelhando o que o paralelo faz. O modelo emitiu em ordem natural de leitura.
+        if reverse_rows:
+            accumulated = _reverse_tsv_rows(accumulated)
         _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix})}\n\n"
     except Exception:
@@ -807,13 +842,15 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         superbet_print = casa_key.upper() == "SUPERBET" and any(
             isinstance(b, dict) and b.get("type") == "image" for b in chunks[0]
         )
-        # Superbet TEXTO emite em ordem de CAPTURA (§2 "não inverter"). A inversão p/
-        # oldest→newest tem de ser no nível de LINHA, não de chunk: com >_MAX_CHUNKS
-        # bilhetes os chunks têm 2+ cada e inverter só a ORDEM DOS CHUNKS embaralha em
-        # blocos (bug de ordem reportado). As demais casas reverse (Betano/Bet365) já
-        # mandam o modelo inverter DENTRO do chunk → aí basta inverter a ordem dos chunks.
+        # Casas de feed newest-first (Bet365, Superbet-texto): o modelo emite em ordem de
+        # CAPTURA/leitura natural (§2 "não inverter"). A inversão p/ oldest→newest tem de
+        # ser no nível de LINHA, não de chunk: com >_MAX_CHUNKS bilhetes os chunks têm 2+
+        # cada e inverter só a ORDEM DOS CHUNKS embaralha em blocos (o bug de ordem que a
+        # Bet365 apresentava — ex.: 6 bilhetes T1..T6 saíam T5,T6,T3,T4,T1,T2). Inverter as
+        # LINHAS finais é determinístico e não depende de o modelo obedecer a instrução.
         superbet_text = casa_key.upper() == "SUPERBET" and not superbet_print
-        if superbet_text:
+        reverse_rows_casa = casa_key.upper() == "BET365" or superbet_text
+        if reverse_rows_casa:
             completed.sort(key=lambda x: x[0])   # ordem de captura (idx crescente)
             resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed, reverse_rows=True)
         else:
@@ -1205,8 +1242,10 @@ async def extrair(
         generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto,
                                      dono=dono, casa=_casa_disp, n_itens=_n_itens)
     else:
+        # Bet365 é feed newest-first: no chunk único, o sistema inverte p/ oldest→newest.
+        seq_reverse = casa_key.upper() == "BET365"
         generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto,
-                                       dono=dono, casa=_casa_disp, n_itens=_n_itens)
+                                       dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse)
 
     return StreamingResponse(
         generator,
