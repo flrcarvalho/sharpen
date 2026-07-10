@@ -269,10 +269,21 @@ Converter sempre para inglês.
 
 ## 12.1 Anytime
 
+A categoria `Anytime` cobre toda a família "jogador para marcar". O **limiar de gols** entra na Descrição — nunca vira categoria própria:
+
+- **1+ (marcar a qualquer momento):** sem sufixo → `Jogador [Confronto]`
+- **2+ gols** (Marcar 2 ou Mais / dois ou mais gols): `Jogador - 2+ Gols [Confronto]`
+- **3+ gols** (Hat-trick / Marcar 3 Gols / três ou mais gols): `Jogador - Hat-trick [Confronto]`
+- Outros limiares (N≥2, exceto 3): `Jogador - N+ Gols [Confronto]`
+
+> O sinal do mercado é a **linha "Para Marcar…"** do bilhete (presente em todo card). Parênteses ao lado do nome (`(2 ou Mais)`, `(A Qualquer Altura)`) são inconsistentes / qualificadores — **não** usar como fonte do limiar.
+
 Formato:
 
 ```text
-Jogador [Confronto]
+Jogador [Confronto]                 ← 1+ (anytime)
+Jogador - 2+ Gols [Confronto]       ← 2+
+Jogador - Hat-trick [Confronto]     ← 3+
 ```
 
 Exemplos:
@@ -280,6 +291,8 @@ Exemplos:
 ```text
 Mbappé [PSG v Marseille]
 Raphinha [Barcelona v Real Madrid]
+Daniel Rios - 2+ Gols [Vancouver FC v CF Montreal]
+Daniel Rios - Hat-trick [Vancouver FC v CF Montreal]
 ```
 
 ---

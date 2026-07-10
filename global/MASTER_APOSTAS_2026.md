@@ -120,6 +120,11 @@ Sinônimos:
 - Marcar a qualquer momento
 - Para marcar
 - Anytime Goal Scorer
+- Para marcar 2 ou mais / dois ou mais gols (marcador 2+)
+- Para marcar 3 ou mais / três ou mais gols (marcador 3+)
+- Hat-trick / marcar um hat-trick
+
+> `Anytime` cobre toda a família "jogador para marcar", inclusive os limiares 2+/3+. O **limiar não muda a categoria** — vai na Descrição (`MASTER_DESCRICAO_2026 §12.1`): 1+ sem sufixo, 2+ = `- 2+ Gols`, 3+ = `- Hat-trick`.
 
 ---
 
@@ -556,6 +561,8 @@ Anytime
 Exemplos:
 - Harry Kane para marcar
 - Mbappé Anytime Scorer
+
+**Limiar 2+/3+:** mercados "Para Marcar 2 ou Mais" / "dois ou mais gols" e "Hat-trick" / "três ou mais gols" **continuam `Anytime`** — o limiar vai só na Descrição (`MASTER_DESCRICAO_2026 §12.1`: `- 2+ Gols`, `- Hat-trick`), nunca vira categoria própria.
 
 ---
 
@@ -1011,6 +1018,10 @@ Sets (jogador) > Player Props          (→ Tênis)
 Desambiguação da categoria `Sets`:
 - `Sets` com **time / seleção** → Vôlei
 - `Sets` com **jogador individual / dupla** → Tênis
+
+Marcador discreto vs total de gols do jogador (Futebol):
+- `Para Marcar N ou Mais` / `Hat-trick` (mercado sim/não de marcar) → `Anytime`, limiar na descrição (`MASTER_DESCRICAO_2026 §12.1`)
+- `Total de Gols do Jogador` Over/Under X.5 (linha numérica) → `Player Props`
 
 Nunca utilizar:
 ```text

@@ -134,6 +134,8 @@ A Bet365 tem boost/promo. Quando houver, o **Retorno Obtido já reflete o valor 
 | Total de cartões asiáticos | Cartões |
 | Para o Jogador Receber Cartão | Cartões |
 | Para Marcar a Qualquer Momento | Anytime |
+| Para Marcar 2 ou Mais / dois ou mais Gols | Anytime (descr. `- 2+ Gols`) |
+| Para Marcar um Hat-trick / três ou mais Gols | Anytime (descr. `- Hat-trick`) |
 | Jogador a Dar Assistência | Assistência |
 | Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts | Player Props |
 | Pontos / Rebotes / Assistências / Cestas de 3 Convertidas / Pontuação Alta (NBA/WNBA) | Player Props |
@@ -147,6 +149,7 @@ Notas de reconstrução:
 - **Mais 180's (H2H Dardos):** o bilhete exibe dois nomes de jogadores sem o formato `A v B` explícito. O primeiro nome (em negrito / topo) = jogador apostado; o segundo nome (abaixo) = adversário. Reconstruir confronto: `[apostado v adversário]`. Descrição: `Jogador - Mais 180's [Jogador A v Jogador B]`.
 - **Criar Aposta** → sempre `Múltipla`, UMA linha por bilhete, mesmo com seleções do mesmo jogo e mesmo **cruzando vários confrontos** (junta tudo com ` // `).
 - Mesmo jogador, vários mercados → `Jogador - Mercado A / Mercado B [Confronto]` (`MASTER_DESCRICAO_2026 §12.4`).
+- **Marcador com limiar (2+/3+/hat-trick):** categoria sempre `Anytime`; o limiar vai na descrição (`- 2+ Gols` / `- Hat-trick`, ver `MASTER_DESCRICAO_2026 §12.1`). O sinal é a **linha "Para Marcar…"** (presente em todo card); o parêntese ao lado do nome (`(2 ou Mais)`, `(A Qualquer Altura)`) é inconsistente / qualificador — não usar como fonte. Sem o limiar, uma série 1+/2+/3+ do mesmo jogador vira linhas idênticas.
 - `Mais de` / `Menos de` → Over / Under.
 - **Handicap de objeto estatístico:** a categoria segue o **objeto** (`MASTER_APOSTAS §1`). `Handicap Asiático - Cartões` → `Cartões`; a linha de handicap (`+/-N`) vai só na descrição. Handicap sobre o resultado/gols continua `Handicap`.
 - Handicap asiático **split** aparece como linha dupla (`-1.0,-1.5`, `0.0,+0.5`) → manter a linha como exibida; pode gerar HW/HL/V (ver §5).
@@ -272,6 +275,14 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 13/06/2026	Futebol		Bet365		Anytime	Bruno Guimarães [Brasil v Marrocos]	300,00	7,00	L
 ```
 > Layout do bilhete: `▲ Danilo dos Santos 7.00` (substituto, negrito, topo) / `▼ Bruno Guimarães` (original, tachado, abaixo). Usar "Bruno Guimarães" — o tachado é o original apostado.
+
+**#10 — Série marcador com limiar (mesmo jogador, mercados distintos → limiar na descrição; SUBSTITUIÇÃO+ usa nome tachado):**
+```
+13/06/2026	Futebol		Bet365		Anytime	Daniel Rios [Vancouver FC v CF Montreal]	8,44	2,75	W
+13/06/2026	Futebol		Bet365		Anytime	Daniel Rios - 2+ Gols [Vancouver FC v CF Montreal]	50,60	13,00	L
+13/06/2026	Futebol		Bet365		Anytime	Daniel Rios - Hat-trick [Vancouver FC v CF Montreal]	13,26	67,00	L
+```
+> Três mercados do mesmo jogador: "Para Marcar a Qualquer Momento" (1+, sem sufixo), "Para Marcar 2 ou Mais" (`- 2+ Gols`) e "Hat-trick / três ou mais Gols" (`- Hat-trick`). Sem o limiar na descrição as três linhas ficariam idênticas. Nome = tachado (original `Daniel Rios`), não o substituto Prince Osei Owusu.
 
 ---
 
