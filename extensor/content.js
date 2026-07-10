@@ -49,6 +49,27 @@
     }
   });
 
+  // Bilhetes da Betano capturados pelo bn_inject.js (mundo MAIN) — as RESPOSTAS JSON de
+  // GET /api/ma/bet/bet-history-v3?settled=true&page=N. Mesmo modelo passivo: o robô só
+  // rola a lista p/ a página paginar (levas de 10, cursor lastId); a extensão lê o dado
+  // exato (BetId, Stake, DecimalOdds, Status, PlacedAt, Legs/Selections), sem OCR nem
+  // scraping de texto. `bnFimReal` = a página final (sem LastId) chegou → fim autoritativo.
+  const bnTickets = [];
+  const bnTicketSeen = new Set();
+  let bnFimReal = false;
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupBNData) {
+      if (Array.isArray(d.bets)) {
+        for (const t of d.bets) {
+          const c = t && t.BetId;
+          if (c != null && !bnTicketSeen.has(c)) { bnTicketSeen.add(c); bnTickets.push(t); }
+        }
+      }
+      if (d.fim) bnFimReal = true;
+    }
+  });
+
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
       '<defs><linearGradient id="sharpenupBladeGrad" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse">' +
@@ -367,8 +388,16 @@
       blocos = await roboBet365(ctx);
     } else if (casa === "betesporte") {
       blocos = await roboBetesportePassive(ctx);
+    } else if (casa === "betano") {
+      blocos = await roboBetanoPassive(ctx);
+      // Rede de segurança: se a API não trouxe NADA (aba aberta antes da extensão →
+      // 1ª página perdida), cai no robô de texto atual — nunca fica pior que hoje.
+      if (!blocos.length && !bnTickets.length) {
+        console.log("[SharpenUp] Betano: API vazia → fallback texto");
+        blocos = await roboScroll(ctx);
+      }
     } else {
-      blocos = await roboScroll(ctx);   // Betano + genéricos
+      blocos = await roboScroll(ctx);   // genéricos
     }
 
     painel.remove();
@@ -435,6 +464,19 @@
   // Odd SEMPRE completa (regra primordial: nunca encurtar). Só tira ruído de float
   // (ex.: 2.2700000000000002 → 2,27), mantendo toda a precisão real.
   const _odd = (x) => (x == null) ? "" : (Math.round(x * 1e8) / 1e8).toString().replace(".", ",");
+  // Betano: Stake/Return vêm como string BRL pt-BR ("R$1.914,56" = ponto milhar, vírgula
+  // decimal) → número. Odd vem como string com PONTO decimal ("2.02", "33.32") → número.
+  // São gramáticas diferentes: nunca usar o parser de dinheiro numa odd (comeria o ponto).
+  const _brlNum = (s) => {
+    if (typeof s === "number") return s;
+    const n = parseFloat(String(s || "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
+    return isNaN(n) ? null : n;
+  };
+  const _oddNum = (x) => {
+    if (typeof x === "number") return x;
+    const n = parseFloat(String(x || "").replace(",", "."));
+    return isNaN(n) ? null : n;
+  };
   // BETesporte: `date` vem SEM timezone ("2026-07-02T10:55:18") = já local (America/São
   // Paulo). Só recorta AAAA-MM-DD → DD/MM/AAAA. NÃO usar `_dbr` (converte de UTC → pula 1 dia).
   const _dbrBE = (s) => {
@@ -575,6 +617,68 @@
     return L.join("\n");
   }
 
+  // ── Betano modo API (sem clique) ─────────────────────────────────────────────
+  // Formata 1 bilhete da /api/ma/bet/bet-history-v3 no bloco de texto que a IA lê (mesmo
+  // marcador "[Código: …]" das outras casas → o backend split/dedupa por ele). Datas em
+  // UTC ("…Z") → America/São_Paulo (_dbr). Fiel ao CASA_BETANO §4/§5/§11:
+  //   • Data = PlacedAt (colocação; proxy do evento p/ mesmo-dia — a casa não expõe a do jogo).
+  //   • Status do bilhete: 2=Ganho→W · 3=Perdido→L · 0=Devolvido/Anulado→V. `Return` cruza
+  //     (Ganhos=0→L, =Stake→V, >Stake→W) — quem decide W/L/V é o pipeline, não a extensão.
+  //   • Odd: W = Return÷Stake com precisão total (respeita boost, §11) · L/V = odd combinada
+  //     estrutural (DecimalOdds; já é o produto das seleções nas múltiplas).
+  const _TIPO_BN = { Single: "Simples", Double: "Dupla", Triple: "Tripla" };
+  function formatTicketBN(t) {
+    const L = [];
+    const stake = _brlNum(t.Stake);
+    const ret = _brlNum(t.Return);
+    const legs = Array.isArray(t.Legs) ? t.Legs : [];
+    const legItems = [];
+    for (const lg of legs) for (const li of (lg.LegItems || [])) legItems.push(li);
+    const criarAposta = legItems.some((li) => li.ComboLegType === 1);
+
+    L.push("[Código: " + (t.BetId != null ? t.BetId : "") + "]");
+    L.push("Data: " + _dbr(t.PlacedAt));
+    let tipo = _TIPO_BN[t.Type] || (t.Accumulator && t.Accumulator !== "Single" ? t.Accumulator : (t.Type || ""));
+    if (criarAposta) tipo = (tipo ? tipo + " " : "") + "(Criar Aposta)";
+    if (tipo) L.push("Tipo: " + tipo);
+    L.push("Stake: " + _brl(stake));
+
+    // Resultado bruto — a IA/CASA_BETANO aplica a regra final.
+    let stTxt;
+    if (t.Status === 2) stTxt = "Ganho → W";
+    else if (t.Status === 3) stTxt = "Perdido → L";
+    else if (t.Status === 0) stTxt = "Devolvido/Anulado → V";
+    else stTxt = t.Status + " (a conferir — não liquidar automaticamente)";
+    L.push("Status: " + stTxt + (t.Return != null ? (" · Retorno " + t.Return) : ""));
+
+    // Odd total: W = Return÷Stake (boost, §11); senão a odd combinada estrutural.
+    const oddW = (t.Status === 2 && ret != null && stake > 0);
+    const oddTot = oddW ? (ret / stake)
+                 : (typeof t.DecimalOdds === "number" ? t.DecimalOdds : _oddNum(t.Odds));
+    L.push("Odd total: " + _odd(oddTot) + (oddW ? " (= Retorno ÷ Stake)" : ""));
+
+    L.push("Seleções:");
+    for (const li of legItems) {
+      const legOdd = (typeof li.DecimalOdds === "number") ? li.DecimalOdds : _oddNum(li.Odds);
+      const sels = Array.isArray(li.Selections) ? li.Selections : [];
+      if (li.ComboLegType === 1 && sels.length > 1) {
+        // Criar Aposta: sub-seleções combinadas numa perna, odd única (não repetir por sub).
+        const game = (sels[0] && sels[0].Game) || "";
+        L.push("  • [Criar Aposta @ " + _odd(legOdd) + "]" + (game ? " " + game : "") + ":");
+        for (const s of sels) L.push("      - " + (s.Title || "") + (s.Market ? " · " + s.Market : ""));
+      } else {
+        for (const s of sels) {
+          const so = _oddNum(s.Odd);
+          const boost = (s.OddsBeforeEnhancement && s.OddsBeforeEnhancement !== s.Odd)
+            ? " (sem boost " + String(s.OddsBeforeEnhancement).replace(".", ",") + ")" : "";
+          const partes = [s.Sport, s.Game, s.Market, s.Title].filter(Boolean).join(" · ");
+          L.push("  • " + partes + " @ " + _odd(so != null ? so : legOdd) + boost);
+        }
+      }
+    }
+    return L.join("\n");
+  }
+
   // Acha o elemento clicável VISÍVEL cujo rótulo contém a frase (menor texto = o mais
   // específico). Botões/links primeiro; se não achar, um elemento com o texto exato e
   // sobe pro ancestral clicável. Usado p/ "CARREGAR MAIS…" e "FILTRAR".
@@ -658,6 +762,57 @@
     }
     processar();
     console.log("[SharpenUp] BETesporte: " + blocos.length + " bilhete(s) · beTickets capturados=" + beTickets.length);
+    return blocos;
+  }
+
+  // Modo passivo (dado vem do bn_inject: exato, com BetId). A Betano pagina por SCROLL
+  // infinito (levas de 10, cursor lastId) → o robô ROLA até o fundo repetidamente p/ a
+  // página buscar mais, e vai consumindo o JSON. A ROLAGEM é idêntica à que já funciona
+  // hoje (gruda no fundo); só a LEITURA muda (JSON exato, não scraping). Para no stopId
+  // (copiar dele pra cima), na janela de dias, OU — sinal autoritativo — quando chega a
+  // página FINAL sem LastId (bnFimReal). NUNCA para no primeiro obstáculo: só desiste por
+  // teto após MUITOS segundos totalmente parado sem sinal de fim (rede travou de vez).
+  async function roboBetanoPassive(ctx) {
+    const cont = acharScroll();
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      for (const t of bnTickets) {
+        const cod = (t.BetId != null ? String(t.BetId) : "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        const dt = t.PlacedAt ? Date.parse(t.PlacedAt) : NaN;
+        const passou = !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketBN(t));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela de dias → para
+      }
+    };
+
+    // Pede ao bn_inject o que já capturou (a 1ª página vem no load da página).
+    try { window.postMessage({ __sharpenupBNReq: true }, "*"); } catch (e) {}
+    await sleep(300);
+    processar();
+
+    // Rola do topo p/ garantir que nada da 1ª leva foi pulado, depois gruda no fundo.
+    sTo(cont, 0); await sleep(400);
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !bnFimReal && voltas < 3000) {
+      voltas++;
+      // Gruda no fundo p/ disparar o lazy-load da próxima leva (comportamento que já funciona).
+      try { window.scrollTo(0, document.documentElement.scrollHeight); } catch (e) {}
+      try { if (cont && cont !== document.scrollingElement && cont !== document.documentElement) cont.scrollTop = cont.scrollHeight; } catch (e) {}
+      await sleep(700);
+      processar();
+      if (travado) break;
+      if (bnTickets.length > ultTotal) { ultTotal = bnTickets.length; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 12000) break;   // 12s parado, sem fim real → desiste (nunca no 1º obstáculo)
+    }
+    await sleep(400);
+    processar();   // consome a última leva (inclusive a página final sem LastId)
+    console.log("[SharpenUp] Betano: " + blocos.length + " bilhete(s) · bnTickets=" + bnTickets.length + " · fimReal=" + bnFimReal);
     return blocos;
   }
 
