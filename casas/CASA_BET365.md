@@ -138,6 +138,8 @@ A Bet365 tem boost/promo. Quando houver, o **Retorno Obtido já reflete o valor 
 | Para Marcar a Qualquer Momento | Anytime |
 | Para Marcar 2 ou Mais / dois ou mais Gols | Anytime (descr. `- 2+ Gols`) |
 | Para Marcar um Hat-trick / três ou mais Gols | Anytime (descr. `- Hat-trick`) |
+| Para Marcar Primeiro / Primeiro Marcador de Gol | Anytime (descr. `- Primeiro Marcador`) |
+| Para Marcar Por Último / Último Marcador de Gol | Anytime (descr. `- Último Marcador`) |
 | Jogador a Dar Assistência | Assistência |
 | Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts | Player Props |
 | Pontos / Rebotes / Assistências / Cestas de 3 Convertidas / Pontuação Alta (NBA/WNBA) | Player Props |
@@ -151,7 +153,7 @@ Notas de reconstrução:
 - **Mais 180's (H2H Dardos):** o bilhete exibe dois nomes de jogadores sem o formato `A v B` explícito. O primeiro nome (em negrito / topo) = jogador apostado; o segundo nome (abaixo) = adversário. Reconstruir confronto: `[apostado v adversário]`. Descrição: `Jogador - Mais 180's [Jogador A v Jogador B]`.
 - **Criar Aposta** → sempre `Múltipla`, UMA linha por bilhete, mesmo com seleções do mesmo jogo e mesmo **cruzando vários confrontos** (junta tudo com ` // `).
 - Mesmo jogador, vários mercados → `Jogador - Mercado A / Mercado B [Confronto]` (`MASTER_DESCRICAO_2026 §12.4`).
-- **Marcador com limiar (2+/3+/hat-trick):** categoria sempre `Anytime`; o limiar vai na descrição (`- 2+ Gols` / `- Hat-trick`, ver `MASTER_DESCRICAO_2026 §12.1`). O sinal é a **linha "Para Marcar…"** (presente em todo card); o parêntese ao lado do nome (`(2 ou Mais)`, `(A Qualquer Altura)`) é inconsistente / qualificador — não usar como fonte. Sem o limiar, uma série 1+/2+/3+ do mesmo jogador vira linhas idênticas.
+- **Marcador — sufixo OBRIGATÓRIO (2+/3+/hat-trick/Primeiro/Último):** categoria sempre `Anytime`; o mercado vai na descrição (`- 2+ Gols` / `- Hat-trick` / `- Primeiro Marcador` / `- Último Marcador`, ver `MASTER_DESCRICAO_2026 §12.1`). O sinal é a **linha "Para Marcar…"** (presente em todo card); o parêntese ao lado do nome (`(2 ou Mais)`, `(A Qualquer Altura)`) é inconsistente / qualificador — não usar como fonte. ⚠️ **Sem o sufixo, bilhetes DISTINTOS colapsam numa descrição idêntica** e são confundidos com duplicata — ex. real: Mbappé `Primeiro Marcador` (W) e `Último Marcador` (L), mesma stake e odd, viravam ambos `Kylian Mbappe [França v Marrocos]`. O `[Confronto]` é igualmente obrigatório em todo bilhete de jogador/props: sem ele, o mesmo mercado em jogos diferentes também colapsa (ex.: `De'Aaron Fox - 7+ Assistências` sem confronto, dois jogos distintos).
 - `Mais de` / `Menos de` → Over / Under.
 - **Handicap de objeto estatístico:** a categoria segue o **objeto** (`MASTER_APOSTAS §1`). `Handicap Asiático - Cartões` → `Cartões`; a linha de handicap (`+/-N`) vai só na descrição. Handicap sobre o resultado/gols continua `Handicap`.
 - Handicap asiático **split** aparece como linha dupla (`-1.0,-1.5`, `0.0,+0.5`) → manter a linha como exibida; pode gerar HW/HL/V (ver §5).

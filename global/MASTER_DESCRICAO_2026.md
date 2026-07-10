@@ -275,15 +275,21 @@ A categoria `Anytime` cobre toda a família "jogador para marcar". O **limiar de
 - **2+ gols** (Marcar 2 ou Mais / dois ou mais gols): `Jogador - 2+ Gols [Confronto]`
 - **3+ gols** (Hat-trick / Marcar 3 Gols / três ou mais gols): `Jogador - Hat-trick [Confronto]`
 - Outros limiares (N≥2, exceto 3): `Jogador - N+ Gols [Confronto]`
+- **Primeiro Marcador** (Primeiro Marcador de Gol / Para Marcar Primeiro): `Jogador - Primeiro Marcador [Confronto]`
+- **Último Marcador** (Último Marcador de Gol / Para Marcar Por Último): `Jogador - Último Marcador [Confronto]`
 
 > O sinal do mercado é a **linha "Para Marcar…"** do bilhete (presente em todo card). Parênteses ao lado do nome (`(2 ou Mais)`, `(A Qualquer Altura)`) são inconsistentes / qualificadores — **não** usar como fonte do limiar.
+
+> ⚠️ **O sufixo é OBRIGATÓRIO — sem ele, bilhetes DISTINTOS colapsam numa descrição idêntica.** `2+ Gols`, `Hat-trick`, `Primeiro Marcador` e `Último Marcador` são **mercados diferentes** do `anytime` (1+) e diferentes **entre si**. Omitir o sufixo faz dois bilhetes reais virarem texto igual. Exemplo real: `Kylian Mbappe - Primeiro Marcador [França v Marrocos]` (ganhou) e `Kylian Mbappe - Último Marcador [França v Marrocos]` (perdeu), **mesma stake e mesma odd** — sem o sufixo os dois viram `Kylian Mbappe [França v Marrocos]` e o sistema os confunde como duplicata. Cada mercado carrega o seu sufixo, **sempre**. E o `[Confronto]` é igualmente obrigatório: sem ele, o mesmo mercado do mesmo jogador em jogos diferentes também colapsa.
 
 Formato:
 
 ```text
-Jogador [Confronto]                 ← 1+ (anytime)
-Jogador - 2+ Gols [Confronto]       ← 2+
-Jogador - Hat-trick [Confronto]     ← 3+
+Jogador [Confronto]                        ← 1+ (anytime)
+Jogador - 2+ Gols [Confronto]              ← 2+
+Jogador - Hat-trick [Confronto]            ← 3+
+Jogador - Primeiro Marcador [Confronto]    ← primeiro a marcar
+Jogador - Último Marcador [Confronto]      ← último a marcar
 ```
 
 Exemplos:
@@ -293,6 +299,8 @@ Mbappé [PSG v Marseille]
 Raphinha [Barcelona v Real Madrid]
 Daniel Rios - 2+ Gols [Vancouver FC v CF Montreal]
 Daniel Rios - Hat-trick [Vancouver FC v CF Montreal]
+Kylian Mbappe - Primeiro Marcador [França v Marrocos]
+Kylian Mbappe - Último Marcador [França v Marrocos]
 ```
 
 ---
