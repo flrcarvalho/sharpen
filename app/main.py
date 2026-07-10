@@ -504,9 +504,27 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
     # Caso 2: só texto → divide por blocos de apostas
     if not images and texts:
         full_text = "\n\n".join(b["text"] for b in texts)
-        # CSV+texto precisam ficar juntos (a IA faz o join bilhete↔extrato)
+        # CSV+texto (Betfair): a IA faz o join bilhete↔extrato pelo ID `O/…`.
+        # Antes ia TUDO numa única chamada sequencial — em contas grandes essa
+        # chamada monstro (extrato inteiro + todos os bilhetes, até 64k de saída)
+        # estourava: a conexão navegador↔plataforma caía no meio → "network error".
+        # Agora fatiamos os BILHETES pela fronteira "\n\n" (a mesma que a extensão usa,
+        # content.js) e anexamos o MESMO bloco de CSV a cada chunk: cada chamada faz o
+        # join só do seu subconjunto (saída limitada por chamada), o join por ID segue
+        # íntegro e a ordem é remontada em _stream_parallel (reverse_chunks=True para
+        # Betfair — mesmo caminho do texto Betano). CSV duplicado em ≤_MAX_CHUNKS chunks.
         if "DADOS CSV:" in full_text:
-            return [base_content + [instrucao_block]]
+            csv_blocks   = [b for b in texts if b["text"].startswith("DADOS CSV:")]
+            bilhete_text = "\n\n".join(b["text"] for b in texts if not b["text"].startswith("DADOS CSV:"))
+            blocks = [b.strip() for b in bilhete_text.split("\n\n") if b.strip()]
+            if len(blocks) >= 2:
+                n = min(_MAX_CHUNKS, len(blocks))
+                size = math.ceil(len(blocks) / n)
+                return [
+                    [{"type": "text", "text": "\n\n".join(blocks[i:i+size])}] + csv_blocks + [instrucao_block]
+                    for i in range(0, len(blocks), size)
+                ]
+            return [base_content + [instrucao_block]]   # 1 bilhete só → chamada única
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
         elif casa_key.upper() == "BETANO":
