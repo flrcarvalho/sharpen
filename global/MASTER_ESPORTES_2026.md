@@ -532,6 +532,8 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Deta Hedman
 - Conor Heneghan
 - Robbie Martin
+- Jimmy van Schie (WDF / MODUS)
+- Kai Gotthardt (WDF / JDC)
 
 ---
 
