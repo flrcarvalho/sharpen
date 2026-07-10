@@ -410,6 +410,12 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Joao Victor Couto Loureiro
 - Sebastian Sorger (austríaco, ITF/Challenger — não confundir com dardista)
 - Khumoyun Sultanov (uzbeque, ATP/Challenger nº 2 do país, Davis Cup)
+- Dylan Salton (ITF — não confundir com dardista)
+- Simphiwe Ngwenya (ITF)
+- Louis Wessels (ITF)
+- Remy Dugardin (ITF)
+- James Van Herzeele (ITF)
+- Hiiro Sakamoto (ITF)
 
 **WTA:**
 - Aryna Sabalenka
@@ -445,6 +451,12 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Alina Shcherbinina
 - Andrea Palazon Lacasa
 - Min Liu (chinesa, ITF W50 — não confundir com "Ming Liu" do tênis de mesa)
+- Aleksandra Barmicheva (ITF)
+- Aiya Nupbay (ITF)
+- Katja Wiersholm (ITF)
+- Benedetta Ortenzi (ITF)
+- Yajing Cao (ITF)
+- Maralgoo Chogsomjav (ITF)
 
 ---
 
