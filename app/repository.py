@@ -412,10 +412,16 @@ def _assinatura(row: dict, _counter: int = 1) -> str:
     if codigo:
         raw = "|".join(["ID", row.get("casa", ""), row.get("parceiro", ""), codigo])
     else:
+        # Regra do Feca (casa SEM ID): duplicata SÓ quando stake + odd + descrição batem
+        # os TRÊS. Qualquer divergência = bilhetes distintos. O `stake` é obrigatório aqui:
+        # sem ele, dois bilhetes reais que só diferem no valor apostado (comum — o mesmo
+        # mercado apostado com stakes diferentes) colidiam na assinatura e um sobrescrevia
+        # o outro (perda silenciosa). `data`/`aposta` seguem no hash como salvaguarda extra
+        # (só tornam a chave MAIS restritiva → nunca fundem distintos).
         raw = "|".join([
             row.get("casa", ""), row.get("parceiro", ""),
             row.get("data", ""), row.get("aposta", ""), row.get("descricao", ""),
-            _norm_odd(row.get("odd", "")),
+            row.get("stake", ""), _norm_odd(row.get("odd", "")),
         ])
         if _counter > 1:
             raw += f"|{_counter}"
