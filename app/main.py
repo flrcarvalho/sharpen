@@ -504,27 +504,14 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
     # Caso 2: só texto → divide por blocos de apostas
     if not images and texts:
         full_text = "\n\n".join(b["text"] for b in texts)
-        # CSV+texto (Betfair): a IA faz o join bilhete↔extrato pelo ID `O/…`.
-        # Antes ia TUDO numa única chamada sequencial — em contas grandes essa
-        # chamada monstro (extrato inteiro + todos os bilhetes, até 64k de saída)
-        # estourava: a conexão navegador↔plataforma caía no meio → "network error".
-        # Agora fatiamos os BILHETES pela fronteira "\n\n" (a mesma que a extensão usa,
-        # content.js) e anexamos o MESMO bloco de CSV a cada chunk: cada chamada faz o
-        # join só do seu subconjunto (saída limitada por chamada), o join por ID segue
-        # íntegro e a ordem é remontada em _stream_parallel (reverse_chunks=True para
-        # Betfair — mesmo caminho do texto Betano). CSV duplicado em ≤_MAX_CHUNKS chunks.
+        # CSV+texto (Betfair): a IA faz o join bilhete↔extrato pelo ID `O/…`. Vai numa
+        # ÚNICA chamada sequencial (atômica). NÃO fatiar duplicando o CSV por chunk: em
+        # paralelo isso manda o extrato inteiro 4× ao mesmo tempo (pesado) e, se um chunk
+        # falha, o modo paralelo descarta os bilhetes dele EM SILÊNCIO (perda parcial).
+        # O "network error" de conta muito grande é problema separado — a resolver com
+        # filtragem do CSV por ID do bilhete (chunk pequeno), não com CSV duplicado.
         if "DADOS CSV:" in full_text:
-            csv_blocks   = [b for b in texts if b["text"].startswith("DADOS CSV:")]
-            bilhete_text = "\n\n".join(b["text"] for b in texts if not b["text"].startswith("DADOS CSV:"))
-            blocks = [b.strip() for b in bilhete_text.split("\n\n") if b.strip()]
-            if len(blocks) >= 2:
-                n = min(_MAX_CHUNKS, len(blocks))
-                size = math.ceil(len(blocks) / n)
-                return [
-                    [{"type": "text", "text": "\n\n".join(blocks[i:i+size])}] + csv_blocks + [instrucao_block]
-                    for i in range(0, len(blocks), size)
-                ]
-            return [base_content + [instrucao_block]]   # 1 bilhete só → chamada única
+            return [base_content + [instrucao_block]]
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
         elif casa_key.upper() == "BETANO":
