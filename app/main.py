@@ -557,7 +557,7 @@ def _extract_tsv_rows(text: str) -> list[str]:
     return lines
 
 
-def _combine_parallel_results(results: list[tuple[int, str, dict]]) -> tuple[str, dict, list[int]]:
+def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows: bool = False) -> tuple[str, dict, list[int]]:
     all_rows: list[str] = []
     total_tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     notes: list[str] = []
@@ -571,6 +571,12 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]]) -> tuple[str
             nota = m.group(1).strip()
             if nota and nota.lower() != "nenhuma":
                 notes.append(f"[Chunk {idx + 1}] {nota}")
+
+    # Inversão no nível de LINHA (Superbet texto): o modelo emitiu em ordem de captura
+    # (newest-first); a planilha exige oldest→newest. Reverter aqui — ANTES da detecção
+    # de scroll — garante que os índices sinalizados batam com a ordem final salva.
+    if reverse_rows:
+        all_rows.reverse()
 
     # Detecta suspeitos de sobreposição de scroll (linhas adjacentes, mesma chave invariante)
     # NÃO remove — apenas sinaliza os índices para o frontend mostrar badge azul
@@ -814,9 +820,19 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         superbet_print = casa_key.upper() == "SUPERBET" and any(
             isinstance(b, dict) and b.get("type") == "image" for b in chunks[0]
         )
-        reverse_chunks = not (is_xls_mode or superbet_print)
-        completed.sort(key=lambda x: x[0], reverse=reverse_chunks)
-        resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed)
+        # Superbet TEXTO emite em ordem de CAPTURA (§2 "não inverter"). A inversão p/
+        # oldest→newest tem de ser no nível de LINHA, não de chunk: com >_MAX_CHUNKS
+        # bilhetes os chunks têm 2+ cada e inverter só a ORDEM DOS CHUNKS embaralha em
+        # blocos (bug de ordem reportado). As demais casas reverse (Betano/Bet365) já
+        # mandam o modelo inverter DENTRO do chunk → aí basta inverter a ordem dos chunks.
+        superbet_text = casa_key.upper() == "SUPERBET" and not superbet_print
+        if superbet_text:
+            completed.sort(key=lambda x: x[0])   # ordem de captura (idx crescente)
+            resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed, reverse_rows=True)
+        else:
+            reverse_chunks = not (is_xls_mode or superbet_print)
+            completed.sort(key=lambda x: x[0], reverse=reverse_chunks)
+            resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed)
         logger.info("par total: %.1fs | chunks=%d | out=%d",
                     time.perf_counter() - t_start, n_chunks, total_tokens["output"])
         # Correção determinística do ID contra o texto colado (ver nota no seq).

@@ -63,7 +63,7 @@ Cada aposta é um **bloco único**: card(s) de seleção (liga + data/hora + con
 ### Regras comuns às três formas
 
 - Interpretar cada bloco **completo**; nunca misturar pernas de blocos diferentes.
-- **Ordenação de output:** manter a ordem em que veio (1º bloco = 1ª linha no TSV). NÃO inverter.
+- **Ordenação de output:** o extrator **mantém a ordem em que veio** (1º bloco = 1ª linha no TSV) — **NÃO inverte**. A inversão para `oldest→newest` (exigida por `MASTER_OUTPUT_2026 §4`) é feita pelo **sistema** na remontagem (`_stream_parallel`/`_combine_parallel_results`): para texto, reverte no nível de **linha** (não de chunk), para não embaralhar lotes com mais de 4 bilhetes.
 
 ---
 
