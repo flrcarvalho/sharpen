@@ -1,0 +1,23 @@
+{"nota": "§12.1 anytime 1+ — sem sufixo é válido", "aposta": "Anytime", "descricao": "Mbappé [PSG v Marseille]", "ok": true}
+{"nota": "§12.1 primeiro marcador com sufixo + confronto", "aposta": "Anytime", "descricao": "Kylian Mbappe - Primeiro Marcador [França v Marrocos]", "ok": true}
+{"nota": "§12.1 último marcador", "aposta": "Anytime", "descricao": "Kylian Mbappe - Último Marcador [França v Marrocos]", "ok": true}
+{"nota": "§12.1 2+ gols", "aposta": "Anytime", "descricao": "Daniel Rios - 2+ Gols [Vancouver FC v CF Montreal]", "ok": true}
+{"nota": "§12.1 hat-trick", "aposta": "Anytime", "descricao": "Daniel Rios - Hat-trick [Vancouver FC v CF Montreal]", "ok": true}
+{"nota": "§12.3 player props NBA", "aposta": "Player Props", "descricao": "Ja Morant - Over 7.5 Assistências [MEM Grizzlies v PHI 76ers]", "ok": true}
+{"nota": "§12.3 player props under", "aposta": "Player Props", "descricao": "Anthony Davis - Under 10.5 Rebotes [LAL Lakers v CHI Bulls]", "ok": true}
+{"nota": "§12.7 ML", "aposta": "ML", "descricao": "Lakers [LAL Lakers v CHI Bulls]", "ok": true}
+{"nota": "§12.5 totais do jogo", "aposta": "Gols", "descricao": "Over 2.5 Gols [Parma v Fiorentina]", "ok": true}
+{"nota": "§12.9 dupla chance por símbolo", "aposta": "Dupla Chance", "descricao": "1X [Manchester City v Arsenal]", "ok": true}
+{"nota": "§12.6 handicap", "aposta": "Handicap", "descricao": "Everton +0.5 [Nottingham Forest v Everton]", "ok": true}
+{"nota": "§10.3 race", "aposta": "Escanteios", "descricao": "Race 9 - Suécia [Japão v Suécia]", "ok": true}
+{"nota": "§13.2 h2h 180s dardos (Mais não é 'mais de')", "aposta": "H2H", "descricao": "Luke Littler - Mais 180's [Luke Littler v Luke Humphries]", "ok": true}
+{"nota": "§14 múltipla com dois confrontos válidos", "aposta": "Múltipla", "descricao": "Ja Morant - Over 7.5 Assistências [MEM Grizzlies v PHI 76ers] // Over 2.5 Gols [Parma v Fiorentina]", "ok": true}
+{"nota": "§8 fallback sem confronto (ML não é família obrigatória) — passa", "aposta": "ML", "descricao": "Mercado Especial - REVISAR", "ok": true}
+{"nota": "ERRO §5 separador 'x' no confronto", "aposta": "Anytime", "descricao": "Mbappé [PSG x Marseille]", "ok": false, "regra": "confronto-separador"}
+{"nota": "ERRO §5 separador 'vs' no confronto", "aposta": "ML", "descricao": "Lakers [LAL Lakers vs CHI Bulls]", "ok": false, "regra": "confronto-separador"}
+{"nota": "ERRO §11 over/under em português", "aposta": "Player Props", "descricao": "Ja Morant - Mais de 7.5 Assistências [MEM Grizzlies v PHI 76ers]", "ok": false, "regra": "over-under-pt"}
+{"nota": "ERRO §17 data na descrição", "aposta": "ML", "descricao": "Lakers [LAL Lakers v CHI Bulls] 25/12", "ok": false, "regra": "conteudo-proibido"}
+{"nota": "ERRO §17 dinheiro na descrição", "aposta": "ML", "descricao": "Lakers [LAL Lakers v CHI Bulls] R$ 50", "ok": false, "regra": "conteudo-proibido"}
+{"nota": "ERRO §3 separador '|'", "aposta": "Player Props", "descricao": "Ja Morant | Over 7.5 Assistências [MEM Grizzlies v PHI 76ers]", "ok": false, "regra": "separador-proibido"}
+{"nota": "AVISO §12.1 marcador colapsado (sem confronto)", "aposta": "Anytime", "descricao": "Kylian Mbappe - Primeiro Marcador", "ok": false, "regra": "sem-confronto"}
+{"nota": "AVISO §12.3 player props sem confronto", "aposta": "Player Props", "descricao": "Ja Morant - Over 7.5 Assistências", "ok": false, "regra": "sem-confronto"}
