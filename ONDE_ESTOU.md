@@ -106,10 +106,10 @@ Você aprovou e eu executei. Com `git mv` (histórico preservado) + correção d
 - **Consolidei as 3 auditorias antigas** numa só viva → `docs/AUDITORIA_2026.md` (os 50 achados com status de hoje).
 - **Juntei todos os planos e ideias** numa página → `Ideias/README.md`.
 - Criei **este mapa** (`ONDE_ESTOU.md`) + a versão visual (Artifact).
-- **Não movi/deletei nenhum arquivo existente** — a arrumação está em §6 como proposta, aguardando seu OK.
+- **Arrumei a raiz** (com seu OK): 9 `.md` soltos → `docs/` via `git mv` (histórico preservado), refs corrigidas — ver §6.
 - **Testei o sistema inteiro** — está verde (§2).
 
-> Tudo que criei é **aditivo** (só docs novos). Nada do app foi tocado. Se quiser, dá pra reverter com um `git revert`.
+> Nada foi **deletado**; os moves preservam histórico (`git mv`). Nenhum código do app foi tocado. Tudo reversível com `git revert`.
 
 ---
 
