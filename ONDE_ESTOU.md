@@ -56,7 +56,7 @@ parte já foi consertada).
 
 ### 🟡 Médio prazo / dívida técnica que vale pagar
 6. **Polymarket**: separar `entry_odd` de `realized_odd` (hoje a odd muda de significado conforme o resultado — distorce o dashboard).
-7. **Métricas quant** (p-value, Monte Carlo, solidez): renomear para "indicador heurístico" + disclaimer. Barato, e é risco de produto vender como estatística rigorosa.
+7. **Métricas quant** (p-value, Monte Carlo, solidez): o disclaimer **já existe** nos tooltips ("indicador heurístico… não é prova estatística nem recomendação"). Falta só **você decidir** se quer renomear o rótulo-título "p-value" no card. Decisão de marca — não invento.
 8. **Observabilidade**: request_id + log estruturado (hoje debugar produção é às cegas).
 9. **`SESSION_SECRET`**: fail-closed em produção (hoje, se faltar a env, o login cai a cada restart e só avisa).
 10. **Win rate**: decidir se HW conta meio (hoje conta vitória cheia, infla o número).
@@ -75,9 +75,9 @@ parte já foi consertada).
 
 ## 5. Próximos 3 passos que eu recomendo (quando você quiser)
 
-1. **Fechar a recuperação pós-SharpenUp**: completar descrições → medir colapso na base → limpar duplicatas Bet365 por re-extração. (itens 1–2 acima)
-2. **Rename das métricas quant + disclaimer** (item 7): barato, fecha um risco de produto, dá pra fazer numa sessão.
-3. **Arrancar a Fase 1 do SaaS multiusuário** (tabela `usuarios`): destrava o cadastro self-service e a assinatura de tipsters, que é a frente de crescimento.
+1. **Fechar a recuperação pós-SharpenUp**: rodar `scripts/medir_descricoes_colapsadas.py` (já pronto) p/ medir o colapso na base → completar descrições → limpar duplicatas Bet365 por re-extração. (itens 1–2 acima)
+2. **Métricas quant** (item 7): disclaimer já nos tooltips — só falta você decidir o rótulo-título. Praticamente fechado.
+3. **Arrancar a Fase 1 do SaaS multiusuário** (tabela `usuarios`): destrava o cadastro self-service e a assinatura de tipsters. É mudança de **auth** — merece sessão dedicada com você olhando o 1º login pós-deploy.
 
 ---
 
