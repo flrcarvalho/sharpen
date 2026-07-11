@@ -19,9 +19,9 @@
 
 | Status | Qtde | Leitura |
 |---|---:|---|
-| ✅ Resolvido | 15 | inclui as métricas quant #29-31 (fechadas por decisão de produto: nome técnico + explicação no tooltip) |
+| ✅ Resolvido | 16 | inclui métricas quant #29-31 (decisão de produto) e win rate #27 (HW/HL pela metade, 11/07) |
 | 🟡 Parcial | 6 | quick-win feito, estrutural adiado |
-| 🔴 Aberto | 17 | concentrados em P2 (UX / manutenção) |
+| 🔴 Aberto | 16 | concentrados em P2 (UX / manutenção) |
 | ⏸️ Adiado-por-design | 12 | dívida consciente, não esquecimento |
 
 **Veredito:** todos os **P0 de integridade de dinheiro e de segurança barata** foram resolvidos ou
@@ -64,7 +64,7 @@ Legenda: ✅ Resolvido · 🟡 Parcial · 🔴 Aberto · ⏸️ Adiado-por-desig
 | 24 | Modo "ver como" confunde | P1 | ⏸️ | Achado invertido; comportamento é proteção deliberada (sessão 82) |
 | 25 | Cálculos com `float` | P1 | ⏸️ | Ainda `float`; erro << 1 centavo (verificado). ADR-001 |
 | 26 | Parser devolve `0.0` em erro | P1 | ✅ | `_num_or_none` `repository.py:33` + guard de odd em `calcular_pl` (T1.1) |
-| 27 | Win rate conta HW cheio | P2 | 🔴 | `calcWR` (`app.js:109`) usa `['W','HW']` como win integral. **Decisão do Feca:** HW=0,5? |
+| 27 | Win rate: HW/HL pela metade | P2 | ✅ | Feito (11/07, `1360bbf`): HW=½ vitória, HL=½ derrota; consistente nos ~14 pontos via `wrFrac`/`wrPctRows` (`app.js`). Contagens seguem inteiras |
 | 28 | Odd média sem definição de void | P2 | 🔴 | Não documentado/testado explicitamente |
 | 29 | p-value não validado | P1 | ✅ | **Decisão do Feca (11/07):** manter o nome técnico é intencional; o risco (enganar) é resolvido pela **explicação no tooltip** (`overview.js:299`): _"indicador heurístico… não é prova estatística nem recomendação"_. Fechado |
 | 30 | Monte Carlo simplista | P1 | ✅ | Rotulado com honestidade — _"projetado · média… Não aconteceu — é estimativa"_ (`overview.js:272`). Método segue bootstrap iid (heurística **por design**, e assim declarada). Aceito + explicado |
@@ -132,7 +132,7 @@ As 5 "perguntas em aberto" do relatório antigo, respondidas pelo código de hoj
 | 6 | **#17** dashboard baixa a base inteira | Medir pós-gzip; se doer, ADR-002 opção B (colunar) |
 | 7 | **#16** `SELECT *` em rotas de listagem/export | Selecionar colunas explicitamente / DTO (acoplamento ao schema; baixo hoje) |
 | 8 | **#9** backups/artefatos no pacote de release | Garantir `.dockerignore`/`.gitignore` cobrindo `Backups/`, `__pycache__/` |
-| 9 | **#27** win rate infla HW como vitória cheia | Decidir regra oficial (HW=0,5) ou exibir bruto+ajustado |
+| 9 | **#22** Delete em massa sem limite operacional | Limite por request / soft delete / confirmação server-side |
 | 10 | **#36** Google Fonts externo | Self-host das fontes (fecha o CSP e remove dependência) |
 
 ---
