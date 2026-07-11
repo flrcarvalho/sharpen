@@ -31,7 +31,9 @@ A Betfair precisa de **duas fontes casadas pelo ID** `O/25146258/XXXX`:
 - `Sportsbook: Bet Placed (Transaction ID: S/…)` → colocação. **ID diferente (`S/`), não casa com o bilhete** → ignorar pro join.
 - `Sports Bonus Awarded` → crédito de bônus.
 
-**Join:** `ID da aposta` (A) = `Bet Ref O/…` (B). O extrato é estruturado/exportável (como a Pinnacle) → data e bônus saem dele de forma determinística.
+**Join:** `ID da aposta` (A) = `Bet Ref O/…` (B). O extrato é estruturado/exportável (como a Pinnacle) → data sai dele de forma determinística.
+
+> ⚙️ **O join é feito pelo SISTEMA, no código** (`_parse_betfair_csv` → mapa `ID→data`). O extrato (CSV) **NÃO vai para o modelo** — você recebe só os bilhetes (Fonte A) e emite cada linha com o **Código = ID `O/…` exato** e a coluna **Data VAZIA**. O sistema preenche a Data depois pelo ID (liquidação/void do extrato; perda por interpolação). Isso elimina a chamada única gigante e o `network error` em conta grande.
 
 **Ordenação de output — REGRA ABSOLUTA (Fonte A manda):**
 A ordem do TSV segue **exclusivamente a Fonte A** (prints/imagens/texto dos bilhetes).
@@ -42,7 +44,7 @@ O extrato (Fonte B / CSV) é usado **apenas para buscar data e dados financeiros
 | 1ª aposta (topo do print / início do texto) | **última linha** (mais recente) |
 | Última aposta (fim do print / fim do texto) | **1ª linha** (mais antiga) |
 
-> Regra mnemônica: inverter a Fonte A → gerar TSV. Nunca ordenar por data do extrato.
+> Regra mnemônica: **emita na ordem natural de leitura da Fonte A** (de cima p/ baixo, na ordem colada) — **NÃO inverta você mesmo**. O **sistema** inverte para oldest→newest. Nunca ordenar por data do extrato.
 
 ---
 
@@ -56,7 +58,9 @@ O extrato (Fonte B / CSV) é usado **apenas para buscar data e dados financeiros
 
 ## 4. Data (via join com o extrato)
 
-Regra global: data = **data do resultado**. Na Betfair ela vem do **extrato**, não do bilhete:
+> ⚙️ **Você (modelo) NÃO preenche a Data — deixe a coluna Data VAZIA.** O sistema casa a data pelo ID `O/…` (Código) contra o extrato. Sua única obrigação aqui é emitir o **Código = ID `O/…` exato**.
+
+Regra global: data = **data do resultado**. Na Betfair ela vem do **extrato** (via sistema), não do bilhete:
 
 - **Ganho / Cashout** → data da linha `Bet Settled (Bet Ref: O/…)` casada por ID.
 - **Void** → data da linha `Voided Bet Refund (Bet Ref: O/…)`.

@@ -386,6 +386,65 @@ def _split_superbet_bilhetes(text: str) -> list[str]:
     return [b.strip() for b in _SUPERBET_SPLIT_RE.split(text) if b.strip()]
 
 
+# ── Betfair: join determinístico bilhete↔extrato pelo ID O/… ────────────────────
+# O bilhete traz o ID (O/25146258/XXXX) mas NÃO a data; o extrato CSV traz a data de
+# liquidação por ID. Antes o CSV INTEIRO ia pro modelo fazer o join → chamada única
+# gigante, sem paralelismo, e `network error` em conta grande (Duka ~1044). Agora o
+# código monta o mapa ID→data e preenche depois: os bilhetes viram texto normal,
+# fatiado e paralelo, e o CSV nunca vai pro modelo.
+_BETFAIR_SETTLED_RE = re.compile(r'(?:Bet Settled|Voided Bet Refund)\s*\(Bet Ref:\s*(O/\d+/\d+)\)')
+_BETFAIR_ID_LINE_RE = re.compile(r'ID da aposta:\s*(O/\d+/\d+)')
+_MESES_PT = {"jan": "01", "fev": "02", "mar": "03", "abr": "04", "mai": "05", "jun": "06",
+             "jul": "07", "ago": "08", "set": "09", "out": "10", "nov": "11", "dez": "12"}
+
+
+def _betfair_data(fonte: str) -> str:
+    """'10-jul-26 17:26:50' → '10/07/2026'. Vazio se não parsear."""
+    m = re.match(r'\s*(\d{1,2})-([a-zç]{3})-(\d{2})', (fonte or "").strip().lower())
+    if not m:
+        return ""
+    mes = _MESES_PT.get(m.group(2), "")
+    return f"{m.group(1).zfill(2)}/{mes}/20{m.group(3)}" if mes else ""
+
+
+def _parse_betfair_csv(csv_content: str) -> dict[str, str]:
+    """Mapa {ID O/… : DD/MM/AAAA} das linhas `Bet Settled` / `Voided Bet Refund` do
+    extrato. Colocação (`Transaction ID: S/…`) é ignorada — o S/ não casa com o bilhete."""
+    mapa: dict[str, str] = {}
+    try:
+        rows = list(csv.reader(io.StringIO(csv_content or "")))
+    except Exception:
+        return mapa
+    for row in rows:
+        if len(row) < 2:
+            continue
+        hit = _BETFAIR_SETTLED_RE.search(row[1])
+        if hit:
+            data = _betfair_data(row[0])
+            if data:
+                mapa[hit.group(1)] = data
+    return mapa
+
+
+def _split_betfair_bilhetes(text: str) -> list[str]:
+    """Divide o texto colado da Betfair em blocos de 1 bilhete. Fronteira = a linha
+    'ID da aposta: O/…' que FECHA cada bilhete (o header 'Você ganhou R$…' e o tipo
+    Simples/Dupla ficam junto do bilhete seguinte, o que é indiferente pro modelo)."""
+    blocos: list[str] = []
+    atual: list[str] = []
+    for ln in (text or "").splitlines():
+        atual.append(ln)
+        if _BETFAIR_ID_LINE_RE.search(ln):
+            bloco = "\n".join(atual).strip()
+            if bloco:
+                blocos.append(bloco)
+            atual = []
+    resto = "\n".join(atual).strip()
+    if resto:
+        blocos.append(resto)
+    return blocos
+
+
 async def _dedup_superbet_text(text: str, dono: str) -> tuple[str, int]:
     """Espelha `_dedup_betano_text` para a Superbet.
 
@@ -529,6 +588,10 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
         elif casa_key.upper() == "BET365":
             # Split no marcador [Bilhete Bet365] injetado pelo robô = fronteira do bilhete
             blocks = _BET365_SPLIT_RE.split(full_text)
+        elif casa_key.upper() == "BETFAIR":
+            # Bilhetes em texto SEM o CSV (a data vem do join no código). Fronteira = a
+            # linha "ID da aposta: O/…" → fatia p/ paralelizar (fim da chamada única).
+            blocks = _split_betfair_bilhetes(full_text)
         else:
             blocks = full_text.split("\n\n")
         blocks = [b.strip() for b in blocks if b.strip()]
@@ -573,6 +636,53 @@ def _reverse_tsv_rows(text: str) -> str:
     rows.reverse()
     novo = "```tsv\n" + "\n".join(header + rows) + "\n```"
     return text[:m.start()] + novo + text[m.end():]
+
+
+def _apply_betfair_dates(tsv: str, date_map: dict) -> str:
+    """Preenche a coluna Data (col 0) de cada linha pelo Código = ID `O/…` (data de
+    liquidação do extrato, `date_map`). Perda (que não gera linha no extrato) → interpola
+    pela data do bilhete de ID mais próximo (a lista é sequencial por ID). Determinístico;
+    substitui o join que o modelo fazia lendo o CSV. Opera dentro do bloco ```tsv."""
+    if not date_map:
+        return tsv
+    m = re.search(r'```tsv\n(.*?)\n```', tsv, re.DOTALL)
+    if not m:
+        return tsv
+    linhas = m.group(1).split('\n')
+    header = [linhas[0]] if (linhas and linhas[0].startswith("Data\t")) else []
+    corpo = linhas[len(header):]
+    rows = [ln.split('\t') for ln in corpo if ln.strip()]
+
+    def _idnum(cells):
+        cod = cells[10] if len(cells) > 10 else ""
+        mm = re.search(r'O/\d+/(\d+)', cod)
+        return int(mm.group(1)) if mm else None
+
+    # 1) data AUTORITATIVA do extrato pelo ID (sobrescreve o que o modelo tenha posto);
+    #    marca as demais (perdas, sem linha no extrato) p/ interpolar.
+    conhecidos: list[tuple] = []   # (idnum, data) das que casaram no extrato
+    faltantes: list = []           # cells sem match (perdas)
+    for cells in rows:
+        cod = cells[10].strip() if len(cells) > 10 else ""
+        if cod in date_map:
+            cells[0] = date_map[cod]
+            idn = _idnum(cells)
+            if idn is not None:
+                conhecidos.append((idn, date_map[cod]))
+        else:
+            faltantes.append(cells)
+    # 2) perdas → data do bilhete de ID mais próximo entre os que casaram (sempre
+    #    recalculada, nunca confia na data que o modelo eventualmente escreveu).
+    if conhecidos:
+        for cells in faltantes:
+            idn = _idnum(cells)
+            if idn is None:
+                continue
+            cells[0] = min(conhecidos, key=lambda kv: abs(kv[0] - idn))[1]
+
+    novas = ["\t".join(c) for c in rows]
+    bloco = "```tsv\n" + "\n".join(header + novas) + "\n```"
+    return tsv[:m.start()] + bloco + tsv[m.end():]
 
 
 def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows: bool = False) -> tuple[str, dict, list[int]]:
@@ -641,7 +751,8 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows
 # ── Stream functions ──────────────────────────────────────────────────────────
 
 async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
-                             dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False):
+                             dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False,
+                             betfair_dates: dict | None = None):
     t_start = time.perf_counter()
     try:
         accumulated = ""
@@ -737,6 +848,9 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # espelhando o que o paralelo faz. O modelo emitiu em ordem natural de leitura.
         if reverse_rows:
             accumulated = _reverse_tsv_rows(accumulated)
+        # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
+        if betfair_dates:
+            accumulated = _apply_betfair_dates(accumulated, betfair_dates)
         _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix})}\n\n"
     except Exception:
@@ -745,7 +859,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
 
 
 async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None,
-                           dono: str = "", casa: str = "", n_itens: int = 0):
+                           dono: str = "", casa: str = "", n_itens: int = 0, betfair_dates: dict | None = None):
     n_chunks = len(chunks)
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
@@ -851,7 +965,9 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         # Bet365 apresentava — ex.: 6 bilhetes T1..T6 saíam T5,T6,T3,T4,T1,T2). Inverter as
         # LINHAS finais é determinístico e não depende de o modelo obedecer a instrução.
         superbet_text = casa_key.upper() == "SUPERBET" and not superbet_print
-        reverse_rows_casa = casa_key.upper() in ("BET365", "BETANO") or superbet_text
+        # Betfair (texto dos bilhetes em ordem da Fonte A, newest-first) entra no reverse
+        # por LINHA como a Bet365 — agora que é paralela, não dá p/ depender do modelo.
+        reverse_rows_casa = casa_key.upper() in ("BET365", "BETANO", "BETFAIR") or superbet_text
         if reverse_rows_casa:
             completed.sort(key=lambda x: x[0])   # ordem de captura (idx crescente)
             resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed, reverse_rows=True)
@@ -865,6 +981,9 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
+        # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
+        if betfair_dates:
+            resultado = _apply_betfair_dates(resultado, betfair_dates)
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos})}\n\n"
     except Exception:
@@ -1192,8 +1311,16 @@ async def extrair(
         if texto:
             base_content.append({"type": "text", "text": texto})
 
+    betfair_dates: dict | None = None
     if csv_content:
-        base_content.append({"type": "text", "text": f"DADOS CSV:\n{csv_content}"})
+        if casa_key.upper() == "BETFAIR":
+            # Join determinístico no CÓDIGO: parseia o extrato → mapa ID→data. O CSV NÃO
+            # vai pro modelo (fim do payload gigante + network error); os bilhetes viram
+            # texto normal, fatiado/paralelo, e a data é preenchida depois pelo ID.
+            betfair_dates = _parse_betfair_csv(csv_content)
+            logger.info("betfair: extrato com %d datas (join por ID no codigo)", len(betfair_dates))
+        else:
+            base_content.append({"type": "text", "text": f"DADOS CSV:\n{csv_content}"})
 
     if xls_file:
         raw = await xls_file.read()
@@ -1240,13 +1367,14 @@ async def extrair(
     _n_itens = len(base_content)   # imagens + blocos de texto (proxy de itens do lote)
     if use_parallel:
         generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto,
-                                     dono=dono, casa=_casa_disp, n_itens=_n_itens)
+                                     dono=dono, casa=_casa_disp, n_itens=_n_itens, betfair_dates=betfair_dates)
     else:
-        # Bet365 e Betano são feed newest-first: no chunk único, o sistema inverte p/
-        # oldest→newest (ex.: 1 bilhete Betano, ou o fallback de texto antigo em bloco único).
-        seq_reverse = casa_key.upper() in ("BET365", "BETANO")
+        # Bet365/Betano/Betfair são feed newest-first: no chunk único, o sistema inverte p/
+        # oldest→newest (ex.: 1 bilhete só, ou o fallback de texto antigo em bloco único).
+        seq_reverse = casa_key.upper() in ("BET365", "BETANO", "BETFAIR")
         generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto,
-                                       dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse)
+                                       dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse,
+                                       betfair_dates=betfair_dates)
 
     return StreamingResponse(
         generator,
