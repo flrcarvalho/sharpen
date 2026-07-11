@@ -318,11 +318,12 @@ async def _parse_xls(raw: bytes, dono: str) -> tuple[str, int]:
     return _format_xls_rows(new_rows_oldest_first), skipped
 
 
-# ── Betano: split por bilhete + pré-dedup por ID ───────────────────────────────
-
-# Cada bilhete Betano (texto copiado) começa com uma linha-tipo isolada
-# (Simples / Dupla / Tripla / N-seleções) e termina no rodapé ID:/data/Ganhos.
-# A linha-tipo é o separador confiável — equivalente ao "=== Aposta ID" da Pinnacle.
+# ── Betano LEGADO: split por bilhete + pré-dedup por ID (formato antigo de scraping) ──
+# ⚠️ NÃO é mais o caminho da Betano. Desde a migração p/ ingestão por API (bn_inject), a
+# Betano emite o marcador [Código: ...] e é roteada como Superbet/BETesporte (ver
+# _build_chunks e o dispatch de pré-dedup). Estas funções cobrem só o formato ANTIGO
+# (linha-tipo Simples/Dupla + rodapé ID:), hoje inalcançável exceto pelo fallback de texto
+# — mantidas como referência histórica; podem ser removidas quando o fallback sair.
 _BETANO_SPLIT_RE = re.compile(r'(?m)(?=^(?:Simples|Dupla|Tripla|\d+-seleções)\s*$)')
 _BETANO_ID_RE = re.compile(r'^ID:\s*(\d+)', re.MULTILINE)
 
@@ -520,11 +521,10 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
             return [base_content + [instrucao_block]]
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
-        elif casa_key.upper() == "BETANO":
-            # Split na linha-tipo (Simples/Dupla/Tripla/N-seleções) = fronteira do bilhete
-            blocks = _BETANO_SPLIT_RE.split(full_text)
-        elif casa_key.upper() in ("SUPERBET", "BETESPORTE"):
-            # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API)
+        elif casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO"):
+            # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API).
+            # Betano migrou p/ ingestão por API (bn_inject) e passou a emitir o mesmo marcador
+            # das outras — o antigo split por linha-tipo (Simples/Dupla) não casa mais o texto.
             blocks = _SUPERBET_SPLIT_RE.split(full_text)
         elif casa_key.upper() == "BET365":
             # Split no marcador [Bilhete Bet365] injetado pelo robô = fronteira do bilhete
@@ -806,6 +806,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
 
     tasks = [asyncio.create_task(_call_chunk(i, chunks[i])) for i in range(n_chunks)]
     completed = []
+    chunks_falhos = 0   # chunk que falhou = bilhetes daquele pedaço NÃO extraídos (aviso visível)
 
     try:
         for _ in range(n_chunks):
@@ -818,6 +819,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             if err:
                 logger.error("par chunk %d falhou (continuando): %s", idx + 1, err)
                 completed.append((idx, "", tokens))
+                chunks_falhos += 1
             else:
                 completed.append((idx, text, tokens))
             yield f"data: {json.dumps({'chunk_progress': idx + 1, 'of': n_chunks})}\n\n"
@@ -849,7 +851,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         # Bet365 apresentava — ex.: 6 bilhetes T1..T6 saíam T5,T6,T3,T4,T1,T2). Inverter as
         # LINHAS finais é determinístico e não depende de o modelo obedecer a instrução.
         superbet_text = casa_key.upper() == "SUPERBET" and not superbet_print
-        reverse_rows_casa = casa_key.upper() == "BET365" or superbet_text
+        reverse_rows_casa = casa_key.upper() in ("BET365", "BETANO") or superbet_text
         if reverse_rows_casa:
             completed.sort(key=lambda x: x[0])   # ordem de captura (idx crescente)
             resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed, reverse_rows=True)
@@ -864,7 +866,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
@@ -1181,12 +1183,10 @@ async def extrair(
     if texto:
         # Betano (texto): pré-dedup por ID antes de chamar o modelo — descarta
         # bilhetes já liquidados no banco e duplicatas de scroll dentro do colar.
-        if casa_key.upper() == "BETANO":
-            texto, n_skip = await _dedup_betano_text(texto, dono)
-            xls_skipped += n_skip
-        elif casa_key.upper() in ("SUPERBET", "BETESPORTE"):
-            # Mesmo marcador [Código: ...] → reusa o pré-dedup por ID da Superbet
-            # (descarta bilhetes já liquidados no banco + duplicatas de scroll).
+        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO"):
+            # Mesmo marcador [Código: ...] → pré-dedup por ID (descarta bilhetes já
+            # liquidados no banco + duplicatas de scroll dentro do colar). A Betano migrou
+            # p/ ingestão por API (bn_inject) e passou a usar o mesmo marcador das outras.
             texto, n_skip = await _dedup_superbet_text(texto, dono)
             xls_skipped += n_skip
         if texto:
@@ -1242,8 +1242,9 @@ async def extrair(
         generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto,
                                      dono=dono, casa=_casa_disp, n_itens=_n_itens)
     else:
-        # Bet365 é feed newest-first: no chunk único, o sistema inverte p/ oldest→newest.
-        seq_reverse = casa_key.upper() == "BET365"
+        # Bet365 e Betano são feed newest-first: no chunk único, o sistema inverte p/
+        # oldest→newest (ex.: 1 bilhete Betano, ou o fallback de texto antigo em bloco único).
+        seq_reverse = casa_key.upper() in ("BET365", "BETANO")
         generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto,
                                        dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse)
 

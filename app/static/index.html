@@ -3382,9 +3382,12 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
       if (upd > 0) parts.push(`${upd} atualizado(s)`);
       if (!parts.length) parts.push('0 novos');
       const alertMsg = ds.alertas && ds.alertas.length ? ` · ⚠️ ${ds.alertas.length} alerta(s)` : '';
-      const tipo = ds.alertas && ds.alertas.length ? 'warn' : 'ok';
+      // Chunk que falhou no paralelo = bilhetes daquele pedaço NÃO extraídos (perda parcial
+      // silenciosa antes deste aviso). Reprocessar é seguro — a dedup por código evita duplicar.
+      const failMsg = data.chunks_falhos > 0 ? ` · ⚠️ ${data.chunks_falhos} parte(s) falharam — REPROCESSE` : '';
+      const tipo = (ds.alertas && ds.alertas.length) || data.chunks_falhos > 0 ? 'warn' : 'ok';
 
-      markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}`, tipo);
+      markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}`, tipo);
 
       // Rail "Análise IA": KPIs + notas estruturadas + observação livre da IA
       renderRail(ds.analise, parsed.notas, modelLabel, _elapsed);
