@@ -5,6 +5,7 @@ Guarda o fix: quando TODOS os RPCs públicos caem, `_rpc_balance` devolve None
 stdlib + httpx (sem asyncpg/database), então importa direto.
 """
 import asyncio
+from datetime import datetime, timezone
 
 import polymarket
 
@@ -44,3 +45,68 @@ def test_calc_odd_e_sempre_payout_ratio():
 def test_calc_odd_sem_preco_valido_cai_em_1():
     assert polymarket._calc_odd({"avgPrice": 0}) == 1.0
     assert polymarket._calc_odd({"avgPrice": 1.5}) == 1.0
+
+
+# ── Persistir posições ATIVAS como bilhete aberto (frente A) ─────────────────
+
+def test_montar_linha_ativa_e_bilhete_aberto():
+    # Ativa = resultado vazio (→ extraction_state 'aberta', sem P/L), odd = 1/preço,
+    # stake em BRL = stake_usd × cotação da data da COMPRA.
+    pos = {"title": "Lakers vs Celtics", "eventSlug": "nba-lal-bos-2026-05-01",
+           "initialValue": 40.0, "avgPrice": 0.40, "conditionId": "0xabc"}
+    linha = polymarket._montar_linha(pos, "Feca [Eu]", "2026-05-01", 5.0, "")
+    assert linha["resultado"] == ""            # aberta
+    assert linha["casa"] == "Polymarket"
+    assert linha["esporte"] == "Basquete"      # pelo prefixo do slug
+    assert linha["odd"] == "2,5"               # 1/0,40
+    assert linha["stake"] == "200,00"          # 40 × 5,0 (BRL, vírgula decimal)
+    assert linha["stake_usd"] == 40.0
+    assert linha["codigo_bilhete"] == "0xabc"
+    assert linha["data"] == "01/05/2026"
+
+
+def test_montar_linha_resolvida_e_ativa_mesma_formatacao():
+    # O helper é IDÊNTICO nos dois caminhos; só o `resultado` muda (a resolvida traz W/L/V).
+    pos = {"title": "x", "initialValue": 10.0, "avgPrice": 0.5, "conditionId": "0xd"}
+    resolvida = polymarket._montar_linha(pos, "P", "2026-01-01", 5.0, "W")
+    ativa = polymarket._montar_linha(pos, "P", "2026-01-01", 5.0, "")
+    assert resolvida["resultado"] == "W" and ativa["resultado"] == ""
+    for campo in ("stake", "odd", "stake_usd", "codigo_bilhete", "data", "esporte"):
+        assert resolvida[campo] == ativa[campo]
+    assert resolvida["stake"] == "50,00" and resolvida["odd"] == "2"
+
+
+def test_montar_linha_split_descricao_indexada():
+    pos = {"title": "Match", "_splitTotal": 3, "_splitIndex": 1,
+           "initialValue": 5.0, "avgPrice": 0.25, "_splitId": "0xc__1", "conditionId": "0xc"}
+    linha = polymarket._montar_linha(pos, "P", "2026-01-01", 5.0, "")
+    assert linha["descricao"] == "Match [2/3]"
+    assert linha["codigo_bilhete"] == "0xc__1"   # código do split, não do conditionId cru
+
+
+def test_build_buy_cache_pega_menor_timestamp_de_buy():
+    activity = [
+        {"type": "BUY", "conditionId": "A", "timestamp": 200},
+        {"type": "BUY", "conditionId": "A", "timestamp": 100},   # abertura da posição A
+        {"side": "BUY", "conditionId": "B", "timestamp": 50},
+        {"type": "REDEEM", "conditionId": "A", "timestamp": 10},  # REDEEM não conta
+    ]
+    cache = polymarket._build_buy_cache(activity)
+    assert cache == {"A": 100, "B": 50}
+
+
+def test_data_compra_iso_usa_buy_timestamp_do_split():
+    ts = int(datetime(2026, 5, 1, 15, 0, tzinfo=timezone.utc).timestamp())  # 12:00 BRT
+    pos = {"_buyTimestamp": ts, "conditionId": "A"}
+    assert polymarket._data_compra_iso(pos, {}) == "2026-05-01"
+
+
+def test_data_compra_iso_cai_no_buy_cache_para_compra_unica():
+    ts = int(datetime(2026, 3, 10, 18, 0, tzinfo=timezone.utc).timestamp())  # 15:00 BRT
+    pos = {"conditionId": "A"}   # compra única: sem _buyTimestamp
+    assert polymarket._data_compra_iso(pos, {"A": ts}) == "2026-03-10"
+
+
+def test_data_compra_iso_fallback_startdate_sem_buy():
+    pos = {"conditionId": "Z", "startDate": "2026-02-20T10:00:00Z"}
+    assert polymarket._data_compra_iso(pos, {}) == "2026-02-20"

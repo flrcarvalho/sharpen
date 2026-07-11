@@ -161,6 +161,21 @@ async def _cotacao_para(client: httpx.AsyncClient, iso: str, cache: dict, hoje: 
 
 # ── Datas ───────────────────────────────────────────────────────────────────
 
+def _iso_from_any(ts) -> str:
+    """Normaliza um campo de data heterogêneo (ISO curto, epoch em `datetime`, ou
+    'YYYY-MM-DDT…Z') para ISO 'YYYY-MM-DD', ou '' se ilegível. Extraído para reuso
+    entre a data da resolvida (_data_iso) e a data da compra da ativa."""
+    if not ts:
+        return ""
+    if isinstance(ts, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", ts):
+        return ts
+    try:
+        d = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
+    except Exception:
+        return ""
+
+
 def _build_redeem_cache(activity: list) -> dict:
     """conditionId → maior timestamp de REDEEM (data em que a vitória foi resgatada)."""
     cache: dict = {}
@@ -171,6 +186,24 @@ def _build_redeem_cache(activity: list) -> dict:
                 continue
             ts = int(a.get("timestamp") or 0)
             cache[cid] = max(cache.get(cid, 0), ts)
+    return cache
+
+
+def _build_buy_cache(activity: list) -> dict:
+    """conditionId → MENOR timestamp de BUY (quando a posição foi aberta). É a data
+    da compra que a posição ATIVA carrega como `data` do bilhete aberto (decisão do
+    Feca). Splits de compra múltipla já trazem o `_buyTimestamp` próprio; a compra
+    única cai neste cache."""
+    cache: dict = {}
+    for a in activity:
+        if a.get("type") == "BUY" or a.get("side") == "BUY":
+            cid = a.get("conditionId")
+            if not cid:
+                continue
+            ts = int(a.get("timestamp") or 0)
+            if ts <= 0:
+                continue
+            cache[cid] = min(cache[cid], ts) if cid in cache else ts
     return cache
 
 
@@ -187,16 +220,19 @@ def _data_iso(pos: dict, redeem_cache: dict) -> str:
         y, m, day = map(int, matches[-1].split("-"))
         if y > 2000 and 1 <= m <= 12 and 1 <= day <= 31:
             return f"{y:04d}-{m:02d}-{day:02d}"
-    ts = pos.get("startDate") or pos.get("createdAt") or pos.get("endDate")
-    if not ts:
-        return ""
-    if isinstance(ts, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", ts):
-        return ts
-    try:
-        d = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    return _iso_from_any(pos.get("startDate") or pos.get("createdAt") or pos.get("endDate"))
+
+
+def _data_compra_iso(pos: dict, buy_cache: dict) -> str:
+    """Data da COMPRA de uma posição ativa (BRT). O split de compra múltipla traz o
+    `_buyTimestamp` próprio; a compra única cai no menor BUY do conditionId (`buy_cache`).
+    Sem BUY na activity (posição antiga fora da janela paginada), recua para as datas
+    do próprio `pos` (startDate/createdAt/endDate), mesma cauda de `_data_iso`."""
+    buy_ts = pos.get("_buyTimestamp") or buy_cache.get(pos.get("conditionId"))
+    if buy_ts:
+        d = datetime.fromtimestamp(int(buy_ts), BRT)
         return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
-    except Exception:
-        return ""
+    return _iso_from_any(pos.get("startDate") or pos.get("createdAt") or pos.get("endDate"))
 
 
 def _iso_to_br(iso: str) -> str:
@@ -489,6 +525,41 @@ def _calc_odd(pos: dict) -> float:
 
 # ── Pipeline público ────────────────────────────────────────────────────────
 
+def _montar_linha(pos: dict, parceiro: str, iso: str, cotacao: float, resultado: str) -> dict:
+    """Traduz UMA posição (resolvida OU ativa) para a linha do `upsert_bilhetes`.
+
+    Compartilhado entre `coletar_bilhetes` (resolvidas) e `coletar_ativas` (abertas) para
+    a formatação — esporte, categoria, descrição, stake BRL, stake_usd, odd, código —
+    ser IDÊNTICA nos dois caminhos e não divergir. O que o chamador decide:
+      - `iso`: data já resolvida (redeem p/ resolvida, compra p/ ativa) e o câmbio daquele dia;
+      - `cotacao`: PTAX do `iso` (USD→BRL);
+      - `resultado`: 'W'/'L'/'V' (resolvida) ou '' (ativa → extraction_state 'aberta', sem P/L).
+    O `_sort` = (data, timestamp da compra) dá ordem cronológica estável (o chamador remove)."""
+    title = pos.get("title") or ""
+    raw_sport = _detes_raw(title, pos.get("eventSlug") or pos.get("slug") or "")
+    stake_usd = _f(pos, "initialValue", "size")
+    stake_brl = stake_usd * cotacao
+    split_total = int(pos.get("_splitTotal") or 1)
+    desc = title
+    if split_total > 1:
+        desc = f"{title} [{int(pos.get('_splitIndex', 0)) + 1}/{split_total}]"
+    return {
+        "_sort": (iso or "9999-12-31", int(pos.get("_buyTimestamp") or 0)),
+        "data": _iso_to_br(iso),
+        "esporte": _norm_esporte(raw_sport),
+        "tipster": "",
+        "casa": "Polymarket",
+        "parceiro": parceiro,
+        "aposta": _categoria(title, raw_sport),
+        "descricao": desc,
+        "stake": _fmt_money(stake_brl),
+        "stake_usd": round(stake_usd, 2),   # valor original (saiu da conta) p/ referência na grade
+        "odd": _fmt_odd(_calc_odd(pos)),     # 1/preço — a mesma odd para aberta e resolvida
+        "resultado": resultado,
+        "codigo_bilhete": pos.get("_splitId") or pos.get("conditionId") or "",
+    }
+
+
 async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
     """Coleta o histórico resolvido da carteira e devolve linhas prontas para o
     `upsert_bilhetes` (dicts com as chaves de _COLS + codigo_bilhete), ordenadas
@@ -515,10 +586,7 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
         linhas = []
         cot_cache: dict = {}
         for pos in fechados:
-            title = pos.get("title") or ""
             iso = _data_iso(pos, redeem_cache)
-            raw_sport = _detes_raw(title, pos.get("eventSlug") or pos.get("slug") or "")
-            stake_usd = _f(pos, "initialValue", "size")
             cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
             if not cotacao:
                 # Sem cotação NÃO gravamos USD como se fosse R$ (corromperia stake e P/L).
@@ -526,31 +594,67 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
                     "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
                     "USD→BRL. Tente sincronizar novamente em alguns minutos."
                 )
-            stake_brl = stake_usd * cotacao
             pnl = _f(pos, "cashPnl")
-            split_total = int(pos.get("_splitTotal") or 1)
-            desc = title
-            if split_total > 1:
-                desc = f"{title} [{int(pos.get('_splitIndex', 0)) + 1}/{split_total}]"
-            linhas.append({
-                # Ordena por (data, timestamp da compra). O timestamp só existe em
-                # compras múltiplas (splits); compra única cai na data → sem ele,
-                # todas as únicas empilhavam com chave 0 e a ordem saía embaralhada.
-                "_sort": (iso or "9999-12-31", int(pos.get("_buyTimestamp") or 0)),
-                "data": _iso_to_br(iso),
-                "esporte": _norm_esporte(raw_sport),
-                "tipster": "",
-                "casa": "Polymarket",
-                "parceiro": parceiro,
-                "aposta": _categoria(title, raw_sport),
-                "descricao": desc,
-                "stake": _fmt_money(stake_brl),
-                "stake_usd": round(stake_usd, 2),   # valor original (saiu da conta) p/ referência na grade
-                "odd": _fmt_odd(_calc_odd(pos)),
-                # pnl exatamente zero = retornou o stake → V (P/L 0), não L (que daria -stake).
-                "resultado": "W" if pnl > 0.005 else ("L" if pnl < -0.005 else "V"),
-                "codigo_bilhete": pos.get("_splitId") or pos.get("conditionId") or "",
-            })
+            # pnl exatamente zero = retornou o stake → V (P/L 0), não L (que daria -stake).
+            resultado = "W" if pnl > 0.005 else ("L" if pnl < -0.005 else "V")
+            linhas.append(_montar_linha(pos, parceiro, iso, cotacao, resultado))
+
+    linhas.sort(key=lambda r: r["_sort"])
+    for r in linhas:
+        r.pop("_sort", None)
+    return linhas
+
+
+async def coletar_ativas(wallet: str, parceiro: str) -> list[dict]:
+    """Coleta as posições ATIVAS (ainda não resolvidas) da carteira como bilhete ABERTO:
+    `resultado` vazio (→ `extraction_state='aberta'` no upsert e SEM P/L, que só é derivado
+    para resolvidas), `data` = data da COMPRA e câmbio PTAX daquele dia (decisão do Feca).
+
+    Espelha `coletar_bilhetes` (mesmo `_montar_linha`, mesma detecção de esporte/categoria).
+    Fica DELIBERADAMENTE fora do caminho já testado das resolvidas para não arriscá-lo.
+
+    Transição aberta→resolvida: quando a posição resolve, ela sai daqui e passa a vir por
+    `coletar_bilhetes` com o MESMO `codigo_bilhete` (`_splitId`/`conditionId`, estável entre
+    syncs). Como a assinatura de linha COM código não depende de `data`/`resultado`
+    (`repository._assinatura`), o `upsert_bilhetes` casa a MESMA linha e só atualiza
+    `resultado` + `extraction_state` — não duplica.
+
+    Estabilidade do split (`conditionId__i`): as compras são ordenadas por timestamp
+    crescente (`_split_multibuys`), então uma compra nova é sempre POSTERIOR e entra como
+    `__N` no fim, sem remapear os índices anteriores → o código de cada split é estável
+    mesmo que a posição ganhe compras entre syncs. Por isso mantemos o índice `__i` (trocar
+    por `__<timestamp>` mudaria o código de todo o histórico resolvido já salvo → duplicaria)."""
+    wallet = wallet.strip().lower()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        positions = await _paginate(client, "positions", wallet,
+                                    {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
+        activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
+
+        # Ativas = as que NÃO são resolvidas-e-zeradas (o complemento exato do filtro
+        # `fechados` de `coletar_bilhetes`; mesmo critério de `coletar_dashboard`).
+        ativas_raw = [p for p in positions
+                      if not (p.get("redeemable") is True and _f(p, "currentValue") < 0.01)]
+        ativas_raw = _split_multibuys(ativas_raw, activity)
+        buy_cache = _build_buy_cache(activity)
+
+        hoje = None
+        for _back in range(0, 6):   # PTAX não publica fim de semana/feriado → recua
+            hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
+            if hoje:
+                break
+
+        linhas = []
+        cot_cache: dict = {}
+        for pos in ativas_raw:
+            iso = _data_compra_iso(pos, buy_cache)
+            cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
+            if not cotacao:
+                # Mesma barreira das resolvidas: sem câmbio, não grava USD como se fosse R$.
+                raise CambioIndisponivel(
+                    "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
+                    "USD→BRL. Tente sincronizar novamente em alguns minutos."
+                )
+            linhas.append(_montar_linha(pos, parceiro, iso, cotacao, ""))
 
     linhas.sort(key=lambda r: r["_sort"])
     for r in linhas:
@@ -731,3 +835,18 @@ if __name__ == "__main__":
         res[r["resultado"]] = res.get(r["resultado"], 0) + 1
     print(f"\n# Esportes: {esportes}")
     print(f"# Resultados: {res}")
+
+    # Ativas (bilhete ABERTO) — devem bater com o "N ativas" do dashboard.
+    ativas = asyncio.run(coletar_ativas(wallet, "Feca [Eu]"))
+    print(f"\n# {len(ativas)} posições ATIVAS (bilhete aberto — resultado vazio)\n")
+    for r in ativas[:12]:
+        print("\t".join(str(r.get(c, "")) for c in cols))
+    if len(ativas) > 12:
+        print("...")
+    # Conferência: nenhuma ativa pode ter resultado; o dashboard reporta o count.
+    dash = asyncio.run(coletar_dashboard(wallet))
+    com_result = [r for r in ativas if r["resultado"]]
+    print(f"\n# Ativas c/ resultado vazio: {len(ativas) - len(com_result)}/{len(ativas)} "
+          f"(esperado {len(ativas)})")
+    print(f"# Count do dashboard: {dash['count']} (deve bater com {len(ativas)})")
+    assert not com_result, f"ATIVA com resultado preenchido: {com_result[:2]}"
