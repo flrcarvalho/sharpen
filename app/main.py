@@ -34,7 +34,7 @@ import captura as _captura
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
-from polymarket import CambioIndisponivel, coletar_bilhetes, coletar_dashboard
+from polymarket import CambioIndisponivel, coletar_ativas, coletar_bilhetes, coletar_dashboard
 from prompts import build_system
 from repository import (
     analisar_extracao,
@@ -1454,8 +1454,9 @@ _WALLET_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 @app.post("/polymarket/sync")
 async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(dono_efetivo)):
-    """Coleta o histórico resolvido de uma carteira Polymarket via API e salva na
-    grade (casa='Polymarket'). Reusa upsert/auto-arquivar — mesma resposta do /salvar."""
+    """Sincroniza uma carteira Polymarket via API e salva na grade (casa='Polymarket'):
+    posições RESOLVIDAS (W/L/V) + posições ATIVAS como bilhete ABERTO (resultado vazio,
+    sem P/L, até liquidarem). Reusa upsert/auto-arquivar — mesma resposta do /salvar."""
     wallet = (body.wallet or "").strip()
     if not _WALLET_RE.match(wallet):
         raise HTTPException(400, "Carteira inválida — informe um endereço 0x… (42 caracteres).")
@@ -1464,7 +1465,8 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(dono_
         raise HTTPException(400, "Selecione um parceiro antes de sincronizar.")
 
     try:
-        rows = await coletar_bilhetes(wallet, parceiro)
+        resolvidas = await coletar_bilhetes(wallet, parceiro)
+        ativas = await coletar_ativas(wallet, parceiro)
     except CambioIndisponivel as exc:
         # Mensagem controlada por nós (não vaza internals); 503 = tente de novo depois.
         raise HTTPException(503, str(exc))
@@ -1472,13 +1474,22 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(dono_
         logger.exception("Falha na coleta Polymarket")
         raise HTTPException(502, "Erro ao consultar a Polymarket. Tente novamente.")
 
+    # Uma posição é OU ativa OU resolvida no mesmo snapshot, mas resolvidas vêm PRIMEIRO e
+    # removemos das ativas qualquer código já resolvido: garante que uma ativa processada
+    # depois nunca reseta (resultado→'') uma resolvida por coincidência de código no lote.
+    cods_resolvidos = {r["codigo_bilhete"] for r in resolvidas if r.get("codigo_bilhete")}
+    ativas = [a for a in ativas if a.get("codigo_bilhete") not in cods_resolvidos]
+    rows = resolvidas + ativas
+
     if not rows:
         return {"salvos": 0, "inseridos": 0, "atualizados": 0, "ids": [],
-                "alertas": ["Nenhum bilhete resolvido encontrado para esta carteira."],
+                "alertas": ["Nenhum bilhete encontrado para esta carteira."],
                 "duplicatas": {}, "arquivados": 0, "coletados": 0}
 
-    # Carry-over: o tipster atribuído à posição enquanto ativa (dashboard) acompanha
-    # o bilhete quando ele resolve. O upsert preserva tipster não-vazio.
+    # Carry-over: tipster atribuído a uma ativa ANTES desta feature (via a tabela
+    # polymarket_ativos_tipster) acompanha o bilhete. Agora a ativa já é um bilhete aberto
+    # com coluna tipster própria; manter o carry-over migra os tipsters legados para
+    # `bilhetes` (a tabela é aposentada aos poucos). O upsert preserva tipster não-vazio.
     codigos = [r["codigo_bilhete"] for r in rows if r.get("codigo_bilhete")]
     salvos = await get_ativos_tipster(dono, codigos)
     for r in rows:
@@ -1487,8 +1498,8 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(dono_
             r["tipster"] = t
 
     inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono, origem="sync")
-    # As posições que resolveram migraram o tipster para `bilhetes`: apaga as linhas
-    # de ativa correspondentes para não reinjetar (e sobrescrever) no próximo re-sync.
+    # Tipster migrado da tabela de ativas para `bilhetes`: apaga as linhas correspondentes
+    # para não reinjetar (e sobrescrever uma edição da grade) no próximo re-sync.
     if salvos:
         await limpar_ativos_tipster(dono, list(salvos.keys()))
     arquivados = await auto_arquivar("Polymarket", parceiro, len(ids), dono)

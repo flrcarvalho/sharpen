@@ -652,31 +652,6 @@ html.embedded .sidebar { display: none; }
 .pm-kpi-val.blue { color:var(--accent); }
 .pm-kpi-val.green { color:var(--pos); }
 .pm-kpi-sub { font-size:10px; color:var(--ink-mute); font-family:var(--font-mono); text-align:right; margin-top:2px; }
-.pm-ativas-wrap { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); margin:0; overflow:hidden; }
-.pm-ativas-head { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-family:var(--font-mono); border-bottom:1px solid var(--line); }
-.pm-ativas-scroll { max-height:300px; overflow:auto; }
-/* Tabela de ativas espelha a LINHA da lista de apostas resolvidas (mesmos
-   componentes: badge de tipo, descrição, chip de esporte, Casa·Parceiro) +
-   colunas ao vivo (Status/P&L %/Valor atual). Larguras por coluna; Aposta/Evento
-   absorve a sobra. */
-table.pm-ativas { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
-table.pm-ativas th.c-data { width:90px; }
-table.pm-ativas th.c-esp  { width:120px; }
-table.pm-ativas th.c-tip  { width:120px; }
-table.pm-ativas th.c-casa { width:150px; }
-table.pm-ativas th.c-stat { width:72px; }
-table.pm-ativas th.num    { width:94px; }
-table.pm-ativas th.c-merc { width:auto; }   /* absorve a sobra */
-table.pm-ativas th { text-align:left; font-family:var(--font-mono); padding:7px 10px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); font-weight:600; position:sticky; top:0; background:var(--surface); z-index:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-table.pm-ativas th.num, table.pm-ativas td.num { text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
-table.pm-ativas td { padding:9px 10px; border-top:1px solid var(--line); color:var(--ink-soft); vertical-align:middle; overflow:hidden; }
-table.pm-ativas td.c-merc { color:var(--ink); }
-.pm-rel { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:4px; font-size:9px; font-family:var(--font-mono); background:rgba(var(--warn-rgb),.16); color:var(--warn); }
-.pm-badge-ativa { padding:1px 7px; border-radius:4px; font-size:10px; font-family:var(--font-mono); background:rgba(var(--warn-rgb),.16); color:var(--warn); }
-.pm-pos { color:var(--pos); } .pm-neg { color:var(--neg); }
-.pm-tip-input { width:100%; min-width:88px; background:transparent; border:1px solid var(--line); border-radius:5px; padding:3px 6px; color:var(--ink); font-size:11px; font-family:var(--font-mono); }
-.pm-tip-input:focus { outline:none; border-color:var(--accent); }
-.pm-empty { padding:16px; text-align:center; color:var(--ink-mute); }
 .data-ref-label {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; color: var(--ink-mute); cursor: default;
@@ -1471,27 +1446,15 @@ td.c-res.res-HL { color: var(--warn); }
           </div>
         </div>
 
-        <!-- Polymarket: dashboard ao vivo (KPIs + posições ativas) -->
+        <!-- Polymarket: dashboard ao vivo (KPIs de saldo da carteira). As posições
+             ATIVAS não moram mais aqui: viram bilhete aberto na grade (badge âmbar
+             "aguardando resultado"), junto das resolvidas. Aqui ficam só os saldos. -->
         <div id="polymarket-dashboard" style="display:none">
           <div class="pm-kpis">
             <div class="pm-kpi"><span class="pm-kpi-label">Posições ativas</span><span class="pm-kpi-val" id="pm-k-count">—</span></div>
             <div class="pm-kpi"><span class="pm-kpi-label">Saldo em Aberto</span><span class="pm-kpi-val blue" id="pm-k-portfolio">—</span><span class="pm-kpi-sub" id="pm-k-portfolio-sub"></span></div>
             <div class="pm-kpi"><span class="pm-kpi-label">Saldo Disponível</span><span class="pm-kpi-val green" id="pm-k-cash">—</span><span class="pm-kpi-sub" id="pm-k-cash-sub"></span></div>
             <div class="pm-kpi"><span class="pm-kpi-label">Saldo Total</span><span class="pm-kpi-val green" id="pm-k-total">—</span><span class="pm-kpi-sub" id="pm-k-total-sub"></span></div>
-          </div>
-          <div class="pm-ativas-wrap">
-            <div class="pm-ativas-head"><span>Posições ativas</span><span id="pm-ativas-status"></span></div>
-            <div class="pm-ativas-scroll">
-              <table class="pm-ativas">
-                <thead><tr>
-                  <th class="c-data">Data</th><th class="c-merc">Aposta / Evento</th><th class="c-esp">Esporte</th>
-                  <th class="c-tip">Tipster</th><th class="c-casa">Casa · Parceiro</th>
-                  <th class="num">Stake</th><th class="num">Odd</th><th class="c-stat">Status</th>
-                  <th class="num">P&amp;L %</th><th class="num">Valor atual</th>
-                </tr></thead>
-                <tbody id="pm-ativas-body"><tr><td colspan="10" class="pm-empty">Cole a carteira e sincronize para ver as posições ativas.</td></tr></tbody>
-              </table>
-            </div>
           </div>
         </div>
 
@@ -1723,14 +1686,10 @@ async function logout() {
 let casaSelecionada = null;
 let parceiroSelecionado = null;   // { id, casa, nome }
 let parceirosCache = {};            // casa → parceiros ATIVOS
-// Polymarket: posições ativas AO VIVO por parceiro (vêm do dashboard sync, não do
-// banco — as ativas não são persistidas). Mapa SEPARADO p/ não ser apagado pelo
-// poll de /incompletos. Alimenta o badge âmbar da Polymarket no dropdown e em Contas.
-let polyAtivasLive = {};            // nome do parceiro Polymarket → nº posições ativas
-// Contagem de "em aberto" de uma conta para o badge âmbar: Polymarket usa as posições
-// ativas AO VIVO (quando já sincronizadas nesta sessão); as demais usam o persistido.
+// Contagem de "em aberto" de uma conta para o badge âmbar. Vem SEMPRE do persistido
+// (/incompletos → extraction_state='aberta'), inclusive a Polymarket: desde que as
+// posições ativas viraram bilhete aberto real, não há mais contagem "ao vivo" à parte.
 function abertasDe(casa, nome) {
-  if (casa === 'Polymarket' && polyAtivasLive[nome] != null) return polyAtivasLive[nome];
   return (abertasPorParceiro[casa] || {})[nome] || 0;
 }
 let parceirosArquivadosCache = {};  // casa → parceiros ARQUIVADOS (inativos)
@@ -2712,21 +2671,18 @@ let polyActivosPrev = null;   // Set de códigos ativos no último poll (detecta
 async function carregarDashboardPoly() {
   if (casaSelecionada !== 'Polymarket') return;
   const wallet = (document.getElementById('poly-wallet').value || localStorage.getItem('poly-wallet') || '').trim();
-  const st = document.getElementById('pm-ativas-status');
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
     renderDashPoly(null);
     polyActivosPrev = null;
-    if (wallet && st) st.textContent = '✗ carteira inválida (0x… 42 caracteres)';
     return;
   }
-  if (st && !st.textContent) st.textContent = 'carregando…';
   try {
     const rs = await fetch('/polymarket/dashboard?wallet=' + encodeURIComponent(wallet));
     if (!rs.ok) throw new Error('HTTP ' + rs.status);
     const d = await rs.json();
     renderDashPoly(d);
     // Modo online: se uma posição saiu das ativas entre dois polls, ela resolveu →
-    // puxa para o TSV automaticamente (sync silencioso).
+    // dispara o sync silencioso, que atualiza a grade (aberta→resolvida) automaticamente.
     const atual = new Set((d.ativas || []).map(a => a.codigo));
     if (polyActivosPrev) {
       const resolvidos = [...polyActivosPrev].filter(c => !atual.has(c));
@@ -2734,7 +2690,7 @@ async function carregarDashboardPoly() {
     }
     polyActivosPrev = atual;
   } catch (e) {
-    if (st) st.textContent = '✗ ' + e.message;
+    /* poll silencioso: erro de rede não precisa de UI dedicada (o botão Sincronizar tem a sua) */
   }
 }
 
@@ -2753,84 +2709,18 @@ function pararPollPoly() {
 
 function renderDashPoly(d) {
   const setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-  const body = document.getElementById('pm-ativas-body');
   if (!d) {
     ['pm-k-count','pm-k-portfolio','pm-k-cash','pm-k-total'].forEach(i => setTxt(i, '—'));
-    ['pm-k-portfolio-sub','pm-k-cash-sub','pm-k-total-sub','pm-ativas-status'].forEach(i => setTxt(i, ''));
-    if (body) body.innerHTML = '<tr><td colspan="10" class="pm-empty">Cole a carteira e sincronize para ver as posições ativas.</td></tr>';
+    ['pm-k-portfolio-sub','pm-k-cash-sub','pm-k-total-sub'].forEach(i => setTxt(i, ''));
     return;
   }
+  // Só os KPIs de saldo da carteira (ao vivo). As posições ativas agora vivem na grade
+  // como bilhete aberto — o badge âmbar de "aguardando resultado" vem do persistido.
   const cot = d.cotacao;
   setTxt('pm-k-count', d.count);
-  // Badge live: guarda a contagem de posições ativas desta conta Polymarket e
-  // atualiza os badges âmbar (dropdown + Contas) se estiverem visíveis.
-  if (parceiroSelecionado && parceiroSelecionado.casa === 'Polymarket' && typeof d.count === 'number') {
-    polyAtivasLive[parceiroSelecionado.nome] = d.count;
-    const wrap = document.getElementById('acctSelWrap');
-    if (wrap && wrap.classList.contains('open')) renderAcctTree();
-    const es = document.getElementById('empty-state');
-    if (es && es.style.display !== 'none') renderPainelLista();
-  }
   setTxt('pm-k-portfolio', fmtUSD(d.portfolio)); setTxt('pm-k-portfolio-sub', fmtBRLsub(d.portfolio, cot));
   setTxt('pm-k-cash', d.cash == null ? '—' : fmtUSD(d.cash)); setTxt('pm-k-cash-sub', d.cash == null ? 'saldo indisponível' : fmtBRLsub(d.cash, cot));
   setTxt('pm-k-total', d.total == null ? '—' : fmtUSD(d.total)); setTxt('pm-k-total-sub', d.total == null ? '' : fmtBRLsub(d.total, cot));
-  setTxt('pm-ativas-status', d.ativas.length + (d.ativas.length === 1 ? ' ativa' : ' ativas'));
-  if (!d.ativas.length) {
-    body.innerHTML = '<tr><td colspan="10" class="pm-empty">Nenhuma posição ativa.</td></tr>';
-    return;
-  }
-  // Se o operador está digitando um tipster agora, NÃO reconstruir o corpo: o
-  // body.innerHTML abaixo apagaria o input em foco e descartaria o texto não salvo.
-  // Os KPIs acima já atualizaram; o próximo poll (após o blur) refaz a tabela.
-  const _ae = document.activeElement;
-  if (_ae && _ae.classList && _ae.classList.contains('pm-tip-input') && body.contains(_ae)) {
-    return;
-  }
-  const parc = (parceiroSelecionado && parceiroSelecionado.nome) || '';
-  body.innerHTML = d.ativas.map(a => {
-    const rel = a.data_rel ? `<span class="pm-rel">${esc(a.data_rel)}</span>` : '';
-    const pnlCls = a.pnl_pct >= 0 ? 'pm-pos' : 'pm-neg';
-    const pnlTxt = (a.pnl_pct >= 0 ? '+' : '') + Number(a.pnl_pct).toFixed(1) + '%';
-    const tipoHtml = a.aposta ? `<div class="btbl-tipo">${esc(a.aposta)}</div>` : '';
-    const contaHtml = parc ? `<span class="btbl-casa-conta">${esc(parc)}</span>` : '';
-    return `<tr>
-      <td class="c-data">${esc(a.data)}${rel}</td>
-      <td class="c-merc">${tipoHtml}<div class="btbl-desc" title="${esc(a.mercado)}">${esc(a.mercado)}</div></td>
-      <td class="c-esp"><span class="btbl-sport"><span class="sp-chip">${sportEmoji(a.esporte)}</span><span>${esc(a.esporte)}</span></span></td>
-      <td class="c-tip"><input class="pm-tip-input js-ac-tipster" value="${esc(a.tipster || '')}" data-codigo="${esc(a.codigo)}" spellcheck="false" autocomplete="off" placeholder="— tipster —"></td>
-      <td class="c-casa"><span class="btbl-casa"><span class="casa-chip" data-casa="Polymarket"><img src="${faviconUrl('Polymarket')}" alt="Polymarket" loading="lazy"></span><span class="btbl-casa-sub"><span class="btbl-casa-nome">Polymarket</span>${contaHtml}</span></span></td>
-      <td class="num">${fmtUSD(a.stake_usd)}</td>
-      <td class="num">${_fmtOddDisplay(a.odd)}</td>
-      <td class="c-stat"><span class="pm-badge-ativa">ativa</span></td>
-      <td class="num ${pnlCls}">${pnlTxt}</td>
-      <td class="num">${fmtUSD(a.valor_atual)}</td>
-    </tr>`;
-  }).join('');
-  body.querySelectorAll('.pm-tip-input').forEach(inp => {
-    inp.addEventListener('focus', () => { inp.dataset.prev = inp.value; });
-    inp.addEventListener('change', () => salvarTipsterAtivo(inp));
-  });
-}
-
-async function salvarTipsterAtivo(inp) {
-  const codigo = inp.dataset.codigo;
-  if (!codigo) return;
-  const tipster = inp.value.trim();
-  const prev = inp.dataset.prev || '';
-  const st = document.getElementById('pm-ativas-status');
-  try {
-    const rs = await fetch('/polymarket/ativo-tipster', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ codigo, tipster }),
-    });
-    if (!rs.ok) throw new Error('HTTP ' + rs.status);
-    inp.dataset.prev = tipster;
-    if (tipster && typeof carregarTipsters === 'function') carregarTipsters();
-  } catch (e) {
-    inp.value = prev;                       // rollback igual à grade
-    if (st) st.textContent = '✗ não foi possível salvar o tipster';
-  }
 }
 
 function setPolyStatus(msg, kind) {
@@ -4676,7 +4566,6 @@ function setupColResize(table, storageKey) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.getElementById('btn-logout').addEventListener('click', logout);
-setupColResize(document.querySelector('table.pm-ativas'), 'fdc-pm-ativas-cols');
 setupBtblResize();
 carregarUsuario();
 carregarCasas();
