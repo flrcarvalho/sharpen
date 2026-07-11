@@ -10,7 +10,7 @@ function renderKPI(rows){
   const V=rows.filter(r=>r.resultado==='V').length;
   const settled=rows.filter(r=>r.resultado!=='V').length;
   const wins=W+HW;
-  const wr=settled>0?(wins/settled*100):0;
+  const wr=wrFrac(wins,HW,HL,settled);
   const{costConta}=calcCostFiltered(rows);
   // Custo de tipster — soma todos os valores mensais de ctData
   ctLoad();
@@ -133,14 +133,14 @@ function renderROIMonthly(rows,refKey){
 function renderOddsDist(rows,canvasId='chartOddsDist'){
   const bins=[1,1.5,2.0,2.5,3.0,4.0,6.0,10.0,30.0,100.0,Infinity];
   const lbls=['1.0–1.5','1.5–2.0','2.0–2.5','2.5–3.0','3.0–4.0','4.0–6.0','6.0–10','10–30','30–100','100+'];
-  const bdata=lbls.map(()=>({n:0,w:0,pl:0,s:0}));
+  const bdata=lbls.map(()=>({n:0,w:0,hw:0,hl:0,pl:0,s:0}));
   rows.filter(r=>r.resultado!=='V').forEach(r=>{
     for(let i=0;i<bins.length-1;i++){
-      if(r.odd>=bins[i]&&r.odd<bins[i+1]){bdata[i].n++;bdata[i].pl+=r.lucro;bdata[i].s+=r.stake;if(['W','HW'].includes(r.resultado))bdata[i].w++;break;}
+      if(r.odd>=bins[i]&&r.odd<bins[i+1]){bdata[i].n++;bdata[i].pl+=r.lucro;bdata[i].s+=r.stake;if(r.resultado==='W')bdata[i].w++;else if(r.resultado==='HW'){bdata[i].w++;bdata[i].hw++;}else if(r.resultado==='HL')bdata[i].hl++;break;}
     }
   });
   const counts=bdata.map(b=>b.n);
-  const wrs=bdata.map(b=>b.n>0?parseFloat((b.w/b.n*100).toFixed(1)):null);
+  const wrs=bdata.map(b=>b.n>0?parseFloat(wrFrac(b.w,b.hw,b.hl,b.n).toFixed(1)):null);
   const rois=bdata.map(b=>b.s>0?parseFloat((b.pl/b.s*100).toFixed(2)):null);
   mkChart(canvasId,{type:'bar',data:{labels:lbls,datasets:[
     {type:'bar',data:counts,backgroundColor:'rgba(46,139,255,.55)',borderRadius:3,label:'Apostas',yAxisID:'y'},

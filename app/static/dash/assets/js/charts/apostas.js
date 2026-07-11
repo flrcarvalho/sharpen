@@ -37,7 +37,7 @@ function renderApostas(){
   const roi=stake>0?(pl/stake*100):0;
   const wins=apostasFiltered.filter(r=>['W','HW'].includes(r.resultado)).length;
   const settled=apostasFiltered.filter(r=>r.resultado!=='V').length;
-  const wr=settled>0?(wins/settled*100):0;
+  const wr=wrPctRows(apostasFiltered);
   const avgOddAp=calcAvgOdd(apostasFiltered);
   const avgStakeAp=settled>0?stake/settled:0;   // turnover ÷ encerradas (exclui Void)
   const kpiEl=document.getElementById('apostasKPI');

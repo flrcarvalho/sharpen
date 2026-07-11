@@ -60,11 +60,11 @@ function _renderSportCards(){
   if(!el||!_sportEnts)return;
   if(!_sportEnts.length){el.innerHTML=mkEmpty('Nenhum esporte no período');return;}
   const{k,dir}=_sportSort;
-  const fns={pl:([,d])=>d.l,roi:([,d])=>d.s>0?d.l/d.s*100:0,to:([,d])=>d.s,wr:([,d])=>d.t>0?d.w/d.t*100:0,vol:([,d])=>d.n};
+  const fns={pl:([,d])=>d.l,roi:([,d])=>d.s>0?d.l/d.s*100:0,to:([,d])=>d.s,wr:([,d])=>wrFrac(d.w,d.hw,d.hl,d.t),vol:([,d])=>d.n};
   const fn=fns[k]||fns.pl;
   const sorted=[..._sportEnts].sort((a,b)=>dir*(fn(b)-fn(a)));
   el.innerHTML=sorted.map(([sport,d])=>{
-    const roi=d.s>0?(d.l/d.s*100):0,wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgStake=d.t>0?d.s/d.t:0,avgOdd=d.stk>0?d.wt/d.stk:0;
     return _mkSportCard(sport,d.l,roi,d.s,wr,d.n,_tipSparkSVG(_sportDays[sport]||{},_sportAllDays),avgStake,avgOdd);
   }).join('');
@@ -79,9 +79,9 @@ window.sportSortDir=function(){_sportSort.dir*=-1;_renderSportCards();};
 function renderSport(rows){
   const map={},dayMap={};
   rows.forEach(r=>{
-    if(!map[r.esporte])map[r.esporte]={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};
+    if(!map[r.esporte])map[r.esporte]={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};
     map[r.esporte].l+=r.lucro;if(r.resultado!=='V')map[r.esporte].s+=r.stake;map[r.esporte].n++;
-    if(r.resultado!=='V'){map[r.esporte].t++;if(['W','HW'].includes(r.resultado))map[r.esporte].w++;}
+    bumpWR(map[r.esporte],r.resultado);
     if(r.odd>0&&r.stake>0){map[r.esporte].wt+=r.odd*r.stake;map[r.esporte].stk+=r.stake;}
     const dk=r.data.slice(0,10);
     if(!dayMap[r.esporte])dayMap[r.esporte]={};
@@ -157,9 +157,9 @@ function renderSport(rows){
 function renderCasa(rows){
   const map={},dayMap={};
   rows.forEach(r=>{
-    if(!map[r.casa])map[r.casa]={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};
+    if(!map[r.casa])map[r.casa]={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};
     map[r.casa].l+=r.lucro;if(r.resultado!=='V')map[r.casa].s+=r.stake;map[r.casa].n++;
-    if(r.resultado!=='V'){map[r.casa].t++;if(['W','HW'].includes(r.resultado))map[r.casa].w++;}
+    bumpWR(map[r.casa],r.resultado);
     if(r.odd>0&&r.stake>0){map[r.casa].wt+=r.odd*r.stake;map[r.casa].stk+=r.stake;}
     const dk=r.data.slice(0,10);
     if(!dayMap[r.casa])dayMap[r.casa]={};
@@ -242,11 +242,11 @@ function _renderCasaCards(){
   if(!el||!_casaEnts)return;
   if(!_casaEnts.length){el.innerHTML=mkEmpty('Nenhuma casa no período');return;}
   const{k,dir}=_casaSort;
-  const fns={pl:([,d])=>d.l,roi:([,d])=>d.s>0?d.l/d.s*100:0,to:([,d])=>d.s,wr:([,d])=>d.t>0?d.w/d.t*100:0,vol:([,d])=>d.n};
+  const fns={pl:([,d])=>d.l,roi:([,d])=>d.s>0?d.l/d.s*100:0,to:([,d])=>d.s,wr:([,d])=>wrFrac(d.w,d.hw,d.hl,d.t),vol:([,d])=>d.n};
   const fn=fns[k]||fns.pl;
   const sorted=[..._casaEnts].sort((a,b)=>dir*(fn(b)-fn(a)));
   el.innerHTML=sorted.map(([c,d])=>{
-    const roi=d.s>0?(d.l/d.s*100):0,wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgStake=d.t>0?d.s/d.t:0,avgOdd=d.stk>0?d.wt/d.stk:0;
     return _mkCasaCard(c,d.l,roi,d.s,wr,d.n,_tipSparkSVG(_casaDays[c]||{},_casaAllDays),avgStake,avgOdd);
   }).join('');
@@ -344,9 +344,9 @@ function _casaBreakdownTbl(rows,dimKey,labelFn,maxVisible=10,tableId=''){
   const map={};
   rows.forEach(r=>{
     const k=r[dimKey];if(!k)return;
-    if(!map[k])map[k]={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0,r30s:0,r15s:0};
+    if(!map[k])map[k]={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0,r30s:0,r15s:0};
     map[k].l+=r.lucro;if(r.resultado!=='V')map[k].s+=r.stake;map[k].n++;
-    if(r.resultado!=='V'){map[k].t++;if(['W','HW'].includes(r.resultado))map[k].w++;}
+    bumpWR(map[k],r.resultado);
     if(r.odd>0&&r.stake>0){map[k].wt+=r.odd*r.stake;map[k].stk+=r.stake;}
     if(dimKey==='tipster'&&r.resultado!=='V'){   // turnover recente exclui Void
       if(r.data>=cutoff30)map[k].r30s+=r.stake;
@@ -361,7 +361,7 @@ function _casaBreakdownTbl(rows,dimKey,labelFn,maxVisible=10,tableId=''){
   const visible=ents.slice(0,maxVisible);
   const rest=ents.slice(maxVisible);
   const mkRow=([k,d],isOutros=false,outrosLabel='Outros',outrosNames='',muted=false)=>{
-    const roi=d.s>0?(d.l/d.s*100):0,wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgOdd=d.stk>0?d.wt/d.stk:0,avgStake=d.t>0?d.s/d.t:0;
     const lc=d.l>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
@@ -376,18 +376,18 @@ function _casaBreakdownTbl(rows,dimKey,labelFn,maxVisible=10,tableId=''){
     const outrosAtivos=rest.filter(([,d])=>d.r15s>0);
     const inativos=rest.filter(([,d])=>d.r15s===0);
     if(outrosAtivos.length>0){
-      const agg={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};
-      outrosAtivos.forEach(([,d])=>{agg.l+=d.l;agg.s+=d.s;agg.n+=d.n;agg.w+=d.w;agg.t+=d.t;agg.wt+=d.wt;agg.stk+=d.stk;});
+      const agg={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};
+      outrosAtivos.forEach(([,d])=>{agg.l+=d.l;agg.s+=d.s;agg.n+=d.n;agg.w+=d.w;agg.t+=d.t;agg.hw+=d.hw;agg.hl+=d.hl;agg.wt+=d.wt;agg.stk+=d.stk;});
       tRows+=mkRow([String(outrosAtivos.length),agg],true,'Outros',outrosAtivos.map(([k])=>k).join(' · '),false);
     }
     if(inativos.length>0){
-      const agg={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};
-      inativos.forEach(([,d])=>{agg.l+=d.l;agg.s+=d.s;agg.n+=d.n;agg.w+=d.w;agg.t+=d.t;agg.wt+=d.wt;agg.stk+=d.stk;});
+      const agg={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};
+      inativos.forEach(([,d])=>{agg.l+=d.l;agg.s+=d.s;agg.n+=d.n;agg.w+=d.w;agg.t+=d.t;agg.hw+=d.hw;agg.hl+=d.hl;agg.wt+=d.wt;agg.stk+=d.stk;});
       tRows+=mkRow([String(inativos.length),agg],true,'Inativos +15d',inativos.map(([k])=>k).join(' · '),true);
     }
   } else if(rest.length>0){
-    const agg={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};
-    rest.forEach(([,d])=>{agg.l+=d.l;agg.s+=d.s;agg.n+=d.n;agg.w+=d.w;agg.t+=d.t;agg.wt+=d.wt;agg.stk+=d.stk;});
+    const agg={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};
+    rest.forEach(([,d])=>{agg.l+=d.l;agg.s+=d.s;agg.n+=d.n;agg.w+=d.w;agg.t+=d.t;agg.hw+=d.hw;agg.hl+=d.hl;agg.wt+=d.wt;agg.stk+=d.stk;});
     tRows+=mkRow([String(rest.length),agg],true,'Outros',rest.map(([k])=>k).join(' · '),false);
   }
   const th=dimKey==='tipster'?'Tipster':dimKey==='casa'?'Casa':'Esporte';
@@ -403,7 +403,7 @@ function renderCasaDrill(rows){
   const roi=s>0?pl/s*100:0;
   const settled=rows.filter(r=>r.resultado!=='V');
   const wins=settled.filter(r=>['W','HW'].includes(r.resultado)).length;
-  const wr=settled.length>0?wins/settled.length*100:0;
+  const wr=wrPctRows(rows);
   const wt=rows.reduce((a,r)=>r.odd>0&&r.stake>0?a+r.odd*r.stake:a,0);
   const stk=rows.reduce((a,r)=>r.odd>0&&r.stake>0?a+r.stake:a,0);
   const avgOdd=stk>0?wt/stk:0;
@@ -625,7 +625,7 @@ function renderSportDrill(rows){
   const roi=s>0?pl/s*100:0;
   const settled=rows.filter(r=>r.resultado!=='V');
   const wins=settled.filter(r=>['W','HW'].includes(r.resultado)).length;
-  const wr=settled.length>0?wins/settled.length*100:0;
+  const wr=wrPctRows(rows);
   const wt=rows.reduce((a,r)=>r.odd>0&&r.stake>0?a+r.odd*r.stake:a,0);
   const stk=rows.reduce((a,r)=>r.odd>0&&r.stake>0?a+r.stake:a,0);
   const avgOdd=stk>0?wt/stk:0;
@@ -869,11 +869,11 @@ function _renderTipCards(){
   if(!el||!_tipsterEnts)return;
   if(!_tipsterEnts.length){el.innerHTML=mkEmpty('Nenhum tipster no período');return;}
   const {k,dir}=_tipsterSort;
-  const fns={pl:([,d])=>d.l,roi:([,d])=>d.s>0?d.l/d.s*100:0,to:([,d])=>d.s,wr:([,d])=>d.t>0?d.w/d.t*100:0,vol:([,d])=>d.n};
+  const fns={pl:([,d])=>d.l,roi:([,d])=>d.s>0?d.l/d.s*100:0,to:([,d])=>d.s,wr:([,d])=>wrFrac(d.w,d.hw,d.hl,d.t),vol:([,d])=>d.n};
   const fn=fns[k]||fns.pl;
   const sorted=[..._tipsterEnts].sort((a,b)=>dir*(fn(b)-fn(a)));
   el.innerHTML=sorted.map(([t,d])=>{
-    const roi=d.s>0?(d.l/d.s*100):0,wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgStake=d.t>0?d.s/d.t:0,avgOdd=d.stk>0?d.wt/d.stk:0;
     return _mkTipCard(t,d.l,roi,d.s,wr,d.n,_tipSparkSVG(_tipsterDays[t]||{},_tipsterAllDays),avgStake,avgOdd);
   }).join('');
@@ -900,7 +900,7 @@ function renderTipsterDrill(rows){
   const roi=s>0?pl/s*100:0;
   const settled=rows.filter(r=>r.resultado!=='V');
   const wins=settled.filter(r=>['W','HW'].includes(r.resultado)).length;
-  const wr=settled.length>0?wins/settled.length*100:0;
+  const wr=wrPctRows(rows);
   const wt=rows.reduce((a,r)=>r.odd>0&&r.stake>0?a+r.odd*r.stake:a,0);
   const stk=rows.reduce((a,r)=>r.odd>0&&r.stake>0?a+r.stake:a,0);
   const avgOdd=stk>0?wt/stk:0;
@@ -1266,17 +1266,17 @@ window.saveDrill=async function(){
 // ── Helpers extraídos para reuso no popup ───────────────────────────────────
 function _tipMonthTbody(rows){
   const byM={};
-  rows.forEach(r=>{const d=new Date(r.data+'T12:00:00'),k=`${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;if(!byM[k])byM[k]={bets:0,pl:0,s:0,w:0,t:0,wt:0,stk:0,ano:d.getFullYear(),mes:d.getMonth()};byM[k].bets++;byM[k].pl+=r.lucro;if(r.resultado!=='V')byM[k].s+=r.stake;if(r.resultado!=='V'){byM[k].t++;if(['W','HW'].includes(r.resultado))byM[k].w++;}if(r.odd>0&&r.stake>0){byM[k].wt+=r.odd*r.stake;byM[k].stk+=r.stake;}});
-  let totPL=0,totS=0,totB=0,totW=0,totT=0;
+  rows.forEach(r=>{const d=new Date(r.data+'T12:00:00'),k=`${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;if(!byM[k])byM[k]={bets:0,pl:0,s:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0,ano:d.getFullYear(),mes:d.getMonth()};byM[k].bets++;byM[k].pl+=r.lucro;if(r.resultado!=='V')byM[k].s+=r.stake;bumpWR(byM[k],r.resultado);if(r.odd>0&&r.stake>0){byM[k].wt+=r.odd*r.stake;byM[k].stk+=r.stake;}});
+  let totPL=0,totS=0,totB=0,totW=0,totT=0,totHW=0,totHL=0;
   const mHTML=Object.keys(byM).sort().map(k=>{
-    const v=byM[k];const roi=v.s>0?(v.pl/v.s*100):0,wr=v.t>0?(v.w/v.t*100):0;
+    const v=byM[k];const roi=v.s>0?(v.pl/v.s*100):0,wr=wrFrac(v.w,v.hw,v.hl,v.t);
     const avgOdd=v.stk>0?v.wt/v.stk:0,avgStake=v.t>0?v.s/v.t:0;
-    totPL+=v.pl;totS+=v.s;totB+=v.bets;totW+=v.w;totT+=v.t;
+    totPL+=v.pl;totS+=v.s;totB+=v.bets;totW+=v.w;totT+=v.t;totHW+=v.hw;totHL+=v.hl;
     const pc=v.pl>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
     return`<tr><td data-sort="${k}" style="white-space:nowrap">${MESES[v.mes]} ${v.ano}</td><td class="td-num">${v.bets.toLocaleString('pt-BR')}</td><td class="td-num" style="${pc}">${fmtPL(v.pl)}</td><td class="td-num">${fmtR(v.s)}</td><td class="td-num" style="${rc}">${fmtPct(roi,2)}</td><td class="td-num">${mkWRC(wr)}</td><td class="td-num">${fmtR(avgStake)}</td><td class="td-num">${fmtOdd(avgOdd)}</td></tr>`;
   }).join('');
-  const tRoi=totS>0?(totPL/totS*100):0,tWr=totT>0?(totW/totT*100):0;
+  const tRoi=totS>0?(totPL/totS*100):0,tWr=wrFrac(totW,totHW,totHL,totT);
   const tc2=totPL>=0?'color:var(--pos)':'color:var(--neg)';const rc2=tRoi>=0?'color:var(--pos)':'color:var(--neg)';
   return mHTML+`<tr class="total-row"><td>Total</td><td class="td-num">${totB.toLocaleString('pt-BR')}</td><td class="td-num" style="${tc2}">${fmtPL(totPL)}</td><td class="td-num">${fmtR(totS)}</td><td class="td-num" style="${rc2}">${fmtPct(tRoi,2)}</td><td class="td-num">${mkWRC(tWr)}</td><td class="td-num">${totT>0?fmtR(totS/totT):'—'}</td><td class="td-num">—</td></tr>`;
 }
@@ -1285,15 +1285,15 @@ function _tipBreakdownTbl(rows,dimKey,labelFn,tableId=''){
   const map={};
   rows.forEach(r=>{
     const k=r[dimKey];if(!k)return;
-    if(!map[k])map[k]={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};
+    if(!map[k])map[k]={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};
     map[k].l+=r.lucro;if(r.resultado!=='V')map[k].s+=r.stake;map[k].n++;
-    if(r.resultado!=='V'){map[k].t++;if(['W','HW'].includes(r.resultado))map[k].w++;}
+    bumpWR(map[k],r.resultado);
     if(r.odd>0&&r.stake>0){map[k].wt+=r.odd*r.stake;map[k].stk+=r.stake;}
   });
   const ents=Object.entries(map).sort((a,b)=>b[1].l-a[1].l);
   if(!ents.length)return mkEmpty('Sem dados no período');
   const tRows=ents.map(([k,d])=>{
-    const roi=d.s>0?(d.l/d.s*100):0,wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgOdd=d.stk>0?d.wt/d.stk:0;
     const avgStake=d.t>0?d.s/d.t:0;
     const lc=d.l>=0?'color:var(--pos)':'color:var(--neg)';
@@ -1316,9 +1316,9 @@ function renderTipsters(){
   {
     const tipMap={},tipDays={};
     baseRows.filter(r=>activeT.includes(r.tipster)).forEach(r=>{
-      if(!tipMap[r.tipster])tipMap[r.tipster]={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};
+      if(!tipMap[r.tipster])tipMap[r.tipster]={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};
       tipMap[r.tipster].l+=r.lucro;if(r.resultado!=='V')tipMap[r.tipster].s+=r.stake;tipMap[r.tipster].n++;
-      if(r.resultado!=='V'){tipMap[r.tipster].t++;if(['W','HW'].includes(r.resultado))tipMap[r.tipster].w++;}
+      bumpWR(tipMap[r.tipster],r.resultado);
       if(r.odd>0&&r.stake>0){tipMap[r.tipster].wt+=r.odd*r.stake;tipMap[r.tipster].stk+=r.stake;}
       const dk=r.data.slice(0,10);
       if(!tipDays[r.tipster])tipDays[r.tipster]={};
@@ -1370,10 +1370,10 @@ function renderTipsters(){
 
   // Comparativo Geral
   const map={};
-  baseRows.filter(r=>activeT.includes(r.tipster)).forEach(r=>{if(!map[r.tipster])map[r.tipster]={l:0,s:0,n:0,w:0,t:0,wt:0,stk:0};map[r.tipster].l+=r.lucro;if(r.resultado!=='V')map[r.tipster].s+=r.stake;map[r.tipster].n++;if(r.resultado!=='V'){map[r.tipster].t++;if(['W','HW'].includes(r.resultado))map[r.tipster].w++;}if(r.odd>0&&r.stake>0){map[r.tipster].wt+=r.odd*r.stake;map[r.tipster].stk+=r.stake;}});
+  baseRows.filter(r=>activeT.includes(r.tipster)).forEach(r=>{if(!map[r.tipster])map[r.tipster]={l:0,s:0,n:0,w:0,t:0,hw:0,hl:0,wt:0,stk:0};map[r.tipster].l+=r.lucro;if(r.resultado!=='V')map[r.tipster].s+=r.stake;map[r.tipster].n++;bumpWR(map[r.tipster],r.resultado);if(r.odd>0&&r.stake>0){map[r.tipster].wt+=r.odd*r.stake;map[r.tipster].stk+=r.stake;}});
   const ents=Object.entries(map).sort((a,b)=>b[1].l-a[1].l);
   const compRows=ents.map(([t,d])=>{
-    const roi=d.s>0?(d.l/d.s*100):0,wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgOdd=d.stk>0?d.wt/d.stk:0,avgStake=d.t>0?d.s/d.t:0;
     const lc=d.l>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';

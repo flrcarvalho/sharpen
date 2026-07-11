@@ -147,17 +147,17 @@ function _resMatrixSection(rows){
 function _resWeekdayHTML(rows){
   const NAMES=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   const ORDER=[1,2,3,4,5,6,0]; // seg → dom
-  const by={}; ORDER.forEach(i=>by[i]={pl:0,s:0,n:0,t:0,w:0});
+  const by={}; ORDER.forEach(i=>by[i]={pl:0,s:0,n:0,t:0,w:0,hw:0,hl:0});
   rows.forEach(r=>{
     const i=new Date(r.data.slice(0,10)+'T12:00:00').getDay();
     const d=by[i]; d.pl+=r.lucro; d.n++;
     if(r.resultado!=='V'){d.s+=r.stake;d.t++;}
-    if(r.resultado==='W'||r.resultado==='HW')d.w++;
+    if(r.resultado==='W')d.w++;else if(r.resultado==='HW'){d.w++;d.hw++;}else if(r.resultado==='HL')d.hl++;
   });
   const maxAbs=Math.max(...ORDER.map(i=>Math.abs(by[i].pl)),1);
   const rowsH=ORDER.map(i=>{
     const d=by[i];
-    const roi=d.s>0?(d.pl/d.s*100):0, wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.pl/d.s*100):0, wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const barW=Math.abs(d.pl)/maxAbs*100;
     const c=d.pl>=0?'var(--pos)':'var(--neg)';
     return`<tr>

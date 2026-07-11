@@ -218,14 +218,14 @@ function mkWRC(wr){
 // Sports & Casas
 function buildSummaryTable(tableId,label,ents,isCasa=false){
   const rows=ents.map(([nome,d])=>{
-    const roi=d.s>0?(d.l/d.s*100):0,wr=d.t>0?(d.w/d.t*100):0;
+    const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const lc=d.l>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
     const label_cell=isCasa?casaCell(nome):sportCell(nome);
     return`<tr><td style="font-weight:600;color:var(--ink)">${label_cell}</td><td class="td-c">${d.n}</td><td class="td-c">${mkWRC(wr)}</td><td class="td-num">${fmtR(d.s)}</td><td class="td-num" style="${lc}">${fmtPL(d.l)}</td><td class="td-c" style="${rc}">${fmtPct(roi,2)}</td></tr>`;
   }).join('');
-  const tot=ents.reduce((a,[,d])=>({n:a.n+d.n,w:a.w+d.w,t:a.t+d.t,s:a.s+d.s,l:a.l+d.l}),{n:0,w:0,t:0,s:0,l:0});
-  const tRoi=tot.s>0?(tot.l/tot.s*100):0,tWr=tot.t>0?(tot.w/tot.t*100):0;
+  const tot=ents.reduce((a,[,d])=>({n:a.n+d.n,w:a.w+d.w,hw:a.hw+(d.hw||0),hl:a.hl+(d.hl||0),t:a.t+d.t,s:a.s+d.s,l:a.l+d.l}),{n:0,w:0,hw:0,hl:0,t:0,s:0,l:0});
+  const tRoi=tot.s>0?(tot.l/tot.s*100):0,tWr=wrFrac(tot.w,tot.hw,tot.hl,tot.t);
   const tlc=tot.l>=0?'color:var(--pos)':'color:var(--neg)';const trc=tRoi>=0?'color:var(--pos)':'color:var(--neg)';
   return`<div class="tbl-wrap" style="margin-top:.75rem"><table class="tbl" id="${tableId}"><thead><tr>${mkTh(label,'','l')}${mkTh('Bets','','r')}${mkTh('Win Rate','','r')}${mkTh('Turnover','','r')}${mkTh('P/L','','r')}${mkTh('ROI','','r')}</tr></thead><tbody>${rows}<tr class="total-row"><td>Total</td><td class="td-c">${tot.n}</td><td class="td-c">${mkWRC(tWr)}</td><td class="td-num">${fmtR(tot.s)}</td><td class="td-num" style="${tlc}">${fmtPL(tot.l)}</td><td class="td-c" style="${trc}">${fmtPct(tRoi,2)}</td></tr></tbody></table></div>`;
 }

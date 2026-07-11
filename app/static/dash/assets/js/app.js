@@ -106,7 +106,17 @@ function normalCDF(z){const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*
 // Turnover canônico: soma da stake APENAS de apostas encerradas (exclui Void — stake devolvida)
 function calcTurnover(rows){return rows.reduce((a,r)=>a+(r.resultado!=='V'?r.stake:0),0);}
 function calcROI(rows){const s=calcTurnover(rows),l=rows.reduce((a,r)=>a+r.lucro,0);return s>0?(l/s)*100:0;}
-function calcWR(rows){const v=rows.filter(r=>['W','HW'].includes(r.resultado));const t=rows.filter(r=>r.resultado!=='V');return t.length>0?(v.length/t.length)*100:0;}
+// Win Rate com HW = meia vitória e HL = meia derrota (decisão do Feca, 11/07): a metade
+// devolvida de HW/HL sai da conta, como o Void. As CONTAGENS exibidas seguem INTEIRAS
+// (nunca "12,5"); só a % fraciona. Deriva das contagens inteiras já existentes — w (=W+HW),
+// t (=encerradas, exclui V) — mais quantos são HW e HL:
+//   wr = (w − ½·hw) / (t − ½·hw − ½·hl) × 100.
+// Defensivo: hw/hl ausentes (0) → cai no win rate antigo (w/t), nunca NaN.
+function wrFrac(w,hw,hl,t){hw=hw||0;hl=hl||0;const den=t-0.5*hw-0.5*hl;return den>0?((w-0.5*hw)/den)*100:0;}
+// Acumula os contadores de um mapa (w=vitórias inteiras W+HW; hw/hl p/ a fração; t=encerradas).
+function bumpWR(m,res){if(res==='V')return;m.t++;if(res==='W')m.w++;else if(res==='HW'){m.w++;m.hw=(m.hw||0)+1;}else if(res==='HL')m.hl=(m.hl||0)+1;}
+function wrPctRows(rows){let w=0,hw=0,hl=0,t=0;for(const r of rows){const x=r.resultado;if(x==='V')continue;t++;if(x==='W')w++;else if(x==='HW'){w++;hw++;}else if(x==='HL')hl++;}return wrFrac(w,hw,hl,t);}
+function calcWR(rows){return wrPctRows(rows);}
 function calcAvgOdd(rows){const real=rows.filter(r=>r.odd>0&&r.stake>0);const ss=real.reduce((a,r)=>a+r.stake,0);return ss>0?real.reduce((a,r)=>a+r.odd*r.stake,0)/ss:0;}
 // Drawdown REAL da carteira — fonte única de verdade.
 // Agrega o P/L por DIA e percorre a curva em ordem CRONOLÓGICA (igual ao gráfico
@@ -596,8 +606,8 @@ function buildHTML(){
 
           ${mkCard('m_wr','Win Rate',`
             <div class="metric-desc">Percentual de apostas ganhas entre as encerradas. Indicador de consistência — mas sozinho não diz se há lucro.</div>
-            <div class="metric-formula">Win Rate (%) = (W + HW) <span class="op">÷</span> (Total <span class="op">−</span> V) <span class="op">×</span> 100</div>
-            <div class="metric-note">W e HW contam como ganho; L e HL como perda; V (Void) fica de fora do cálculo.</div>
+            <div class="metric-formula">Win Rate (%) = (W + ½·HW) <span class="op">÷</span> (W <span class="op">+</span> L <span class="op">+</span> ½·HW <span class="op">+</span> ½·HL) <span class="op">×</span> 100</div>
+            <div class="metric-note">W = vitória cheia, HW = meia vitória; L = derrota cheia, HL = meia derrota; V (Void) e a metade devolvida de HW/HL ficam de fora.</div>
             <div class="metric-warn">Win Rate alto não garante lucro: ganhar 70% em odd 1,20 ainda pode dar ROI negativo. Leia sempre junto com a Odd Média.</div>`,`<span class="metric-live neu" id="mv_wr">—</span>`)}
 
           ${mkCard('m_odd','Odd Média Ponderada',`
@@ -1086,7 +1096,7 @@ function _showCalTip(cell,cx,cy){
   const date=cell.dataset.date||'';
   const roi =tv>0?pl/tv*100:0;
   const settled=W+HW+L+HL;
-  const wr  =settled>0?(W+HW)/settled*100:0;
+  const wr  =wrFrac(W+HW,HW,HL,settled);
   const sm  =n>0?tv/n:0;
   const[y,m,d2]=date.split('-');
   const DIAS_SHORT=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
