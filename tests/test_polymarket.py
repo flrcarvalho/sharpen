@@ -32,14 +32,15 @@ def test_rpc_balance_valor_quando_responde():
     assert got == 5.0    # 5_000_000 / 1e6 (6 casas)
 
 
-def test_calc_odd_vencedora_e_realizada():
-    # Vencedora de compra única: (stake+lucro)/stake = 1/preço = odd de entrada.
-    # stake 40 (100 cotas a 0,40), lucro 60 → odd 2,5 = 1/0,40.
-    odd = polymarket._calc_odd({"initialValue": 40.0, "cashPnl": 60.0, "avgPrice": 0.40})
-    assert abs(odd - 2.5) < 1e-9
+def test_calc_odd_e_sempre_payout_ratio():
+    # Uma odd pra tudo = 1/preço (retorno/investimento), independente de ganhar/perder
+    # e IGNORANDO o cashPnl (que carrega taxa). Preço 0,40 → 2,5.
+    assert abs(polymarket._calc_odd({"avgPrice": 0.40, "cashPnl": 60.0}) - 2.5) < 1e-9    # vencedora
+    assert abs(polymarket._calc_odd({"avgPrice": 0.40, "cashPnl": -40.0}) - 2.5) < 1e-9   # perdedora
+    # Lucro com taxa (55, não 60) NÃO altera a odd — é a limpa 1/preço:
+    assert abs(polymarket._calc_odd({"initialValue": 40.0, "cashPnl": 55.0, "avgPrice": 0.40}) - 2.5) < 1e-9
 
 
-def test_calc_odd_perdedora_usa_entrada():
-    # Sem lucro (perdedora/ativa): cai na odd de entrada 1/preço.
-    odd = polymarket._calc_odd({"initialValue": 40.0, "cashPnl": -40.0, "avgPrice": 0.40})
-    assert abs(odd - 2.5) < 1e-9
+def test_calc_odd_sem_preco_valido_cai_em_1():
+    assert polymarket._calc_odd({"avgPrice": 0}) == 1.0
+    assert polymarket._calc_odd({"avgPrice": 1.5}) == 1.0

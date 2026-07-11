@@ -478,10 +478,11 @@ def _fmt_odd(x: float) -> str:
 
 
 def _calc_odd(pos: dict) -> float:
-    s = _f(pos, "initialValue", "size")
-    p = _f(pos, "cashPnl")
-    if s > 0 and p > 0:
-        return (s + p) / s
+    """Odd = retorno/investimento (payout ratio) = 1/preço médio de compra. UMA odd
+    para tudo — resultado E indicadores (odd média): a odd do resultado se ganhou, ou
+    do POSSÍVEL resultado se perdeu/ativa (decisão do Feca). Não usa (stake+lucro)/stake:
+    o cashPnl carrega taxa/slippage, e a odd da planilha é a limpa (1/preço). Como cada
+    cota paga $1 no acerto, 1/preço é exatamente retorno÷investimento se vencer."""
     pr = _f(pos, "avgPrice", "price")
     return (1 / pr) if 0 < pr < 1 else 1.0
 
