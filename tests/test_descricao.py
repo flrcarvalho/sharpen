@@ -85,6 +85,21 @@ def test_multipla_dois_confrontos_ok():
     assert checar_descricao("Múltipla", d) == []
 
 
+def test_analisar_extracao_sinaliza_descricao_ruim():
+    """Item 3 ponta-a-ponta: o rail de avisos ganha uma nota DESCRIÇÃO quando há
+    descrição fora do padrão — e nenhuma quando o lote está limpo (warn-only)."""
+    import repository  # conftest stuba asyncpg/database
+    campos = dict(data="08/07/2026", esporte="Basquete", odd="1,90", stake="10", resultado="W")
+
+    limpo = [dict(aposta="ML", descricao="Lakers [LAL Lakers v CHI Bulls]", **campos)]
+    a = repository.analisar_extracao(limpo)
+    assert not any(n["n"] == "DESCRIÇÃO" for n in a["notas"])
+
+    ruim = [dict(aposta="ML", descricao="Lakers [LAL Lakers vs CHI Bulls]", **campos)]
+    a2 = repository.analisar_extracao(ruim)
+    assert any(n["n"] == "DESCRIÇÃO" and n["tipo"] == "warn" for n in a2["notas"])
+
+
 def test_resumo_lote_conta_erros_e_avisos():
     rows = [
         {"aposta": "ML", "descricao": "Lakers [LAL Lakers v CHI Bulls]"},          # ok

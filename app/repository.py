@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 import asyncpg
 
 from database import get_pool
+from descricao_check import resumo_lote
 
 logger = logging.getLogger("scanner")
 
@@ -399,6 +400,23 @@ def analisar_extracao(rows: list[dict], duplicatas: dict | None = None) -> dict:
         notas.append({"tipo": "info", "n": "DUPLICATA",
                       "titulo": f"{dups} possível(is) duplicata(s) no lote",
                       "texto": "Bilhetes idênticos sem ID visível — se vierem de imagens diferentes, confira e delete se necessário."})
+
+    # Conformidade da descrição (checador determinístico, MASTER_DESCRICAO). Warn-only:
+    # nunca bloqueia salvar — só sinaliza p/ o operador revisar/re-extrair. É a rede
+    # "indo pra frente" contra descrição colapsada (que distorce a dedup).
+    desc = resumo_lote(rows)
+    desc_total = desc["com_erro"] + desc["com_aviso"]
+    if desc_total:
+        partes = []
+        if desc["com_erro"]:
+            partes.append(f"{desc['com_erro']} fora do padrão (separador de confronto, Over/Under em português ou conteúdo proibido)")
+        if desc["com_aviso"]:
+            partes.append(f"{desc['com_aviso']} de marcador/props <b>sem confronto</b>")
+        notas.append({"tipo": "warn", "n": "DESCRIÇÃO",
+                      "titulo": f"{desc_total} bilhete(s) com descrição a revisar",
+                      "texto": "Confira na grade: " + "; ".join(partes) +
+                               ". Descrição incompleta/colapsada distorce a deduplicação — o ideal é re-extrair."})
+
     if not notas:
         notas.append({"tipo": "ok", "n": "OK",
                       "titulo": "Extração limpa",
