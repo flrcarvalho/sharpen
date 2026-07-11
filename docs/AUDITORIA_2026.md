@@ -19,8 +19,8 @@
 
 | Status | Qtde | Leitura |
 |---|---:|---|
-| ✅ Resolvido | 12 | inclui **3 a mais** do que o relatório de 03/07 registrava (ver §4) |
-| 🟡 Parcial | 9 | quick-win feito, estrutural adiado (inclui as métricas quant #29-31: disclaimer já no tooltip, falta o rótulo) |
+| ✅ Resolvido | 15 | inclui as métricas quant #29-31 (fechadas por decisão de produto: nome técnico + explicação no tooltip) |
+| 🟡 Parcial | 6 | quick-win feito, estrutural adiado |
 | 🔴 Aberto | 17 | concentrados em P2 (UX / manutenção) |
 | ⏸️ Adiado-por-design | 12 | dívida consciente, não esquecimento |
 
@@ -66,9 +66,9 @@ Legenda: ✅ Resolvido · 🟡 Parcial · 🔴 Aberto · ⏸️ Adiado-por-desig
 | 26 | Parser devolve `0.0` em erro | P1 | ✅ | `_num_or_none` `repository.py:33` + guard de odd em `calcular_pl` (T1.1) |
 | 27 | Win rate conta HW cheio | P2 | 🔴 | `calcWR` (`app.js:109`) usa `['W','HW']` como win integral. **Decisão do Feca:** HW=0,5? |
 | 28 | Odd média sem definição de void | P2 | 🔴 | Não documentado/testado explicitamente |
-| 29 | p-value não validado | P1 | 🟡 | **Disclaimer JÁ existe** no tooltip (`overview.js:299`, `performance.js:974`): _"Indicador heurístico (bootstrap)… não é prova estatística nem recomendação"_. Falta só (decisão do Feca) renomear o **rótulo-título** "p-value" |
-| 30 | Monte Carlo simplista | P1 | 🟡 | Tooltip já marca _"projetado · média"_ e _"Não aconteceu — é estimativa"_ (`overview.js:272`). Método bootstrap não reconstruído (mas honesto no rótulo) |
-| 31 | Solidez arbitrária | P2 | 🟡 | Rotulado _"índice composto"_; herda o disclaimer do p-value. Pesos seguem heurísticos |
+| 29 | p-value não validado | P1 | ✅ | **Decisão do Feca (11/07):** manter o nome técnico é intencional; o risco (enganar) é resolvido pela **explicação no tooltip** (`overview.js:299`): _"indicador heurístico… não é prova estatística nem recomendação"_. Fechado |
+| 30 | Monte Carlo simplista | P1 | ✅ | Rotulado com honestidade — _"projetado · média… Não aconteceu — é estimativa"_ (`overview.js:272`). Método segue bootstrap iid (heurística **por design**, e assim declarada). Aceito + explicado |
+| 31 | Solidez arbitrária | P2 | ✅ | Rotulado _"índice composto"_ + explicação; pesos heurísticos por design. Aceito por decisão de produto |
 | 32 | Polymarket mistura entry/realized odd | P1 | 🔴 | Só o câmbio foi tratado; `_calc_odd` ainda mistura. **Maior risco quant aberto** |
 | 33 | Fallback de câmbio p/ cotação de hoje | P1 | ✅ | Janela 10 dias + `CambioIndisponivel` `polymarket.py:55,148,524` (T1.4) |
 | 34 | Inline handlers no HTML | P2 | ⏸️ | `onclick` inline seguem; por isso CSP mantém `'unsafe-inline'` |
@@ -114,7 +114,7 @@ As 5 "perguntas em aberto" do relatório antigo, respondidas pelo código de hoj
 
 1. **Decimal/NUMERIC** → segue **adiado** (ADR-001 escrito, nada executado).
 2. **`/salvar` warning vs hard-reject** → **hard-reject por linha implementado** (`validar_linhas`). Foi além.
-3. **Rename métricas quant + disclaimer** → **parcial**: o disclaimer JÁ está nos tooltips (_"Indicador heurístico… não é prova estatística nem recomendação"_). Falta só o Feca decidir se renomeia o rótulo-título "p-value".
+3. **Rename métricas quant + disclaimer** → **fechado (11/07)**: os tooltips já explicam cada número (_"Indicador heurístico… não é prova estatística nem recomendação"_). O Feca decidiu **manter os nomes técnicos** — o objetivo era explicar o número, não removê-lo. Concern do auditor (não enganar) coberto.
 4. **CDN vendorizar vs SRI** → **vendorização FEITA**. CSP `script-src` caiu para `'self'`. (Google Fonts #36 ainda externo.)
 5. **CSRF/Origin check** → **implementado** (`_csrf_origin_guard`).
 
@@ -130,7 +130,7 @@ As 5 "perguntas em aberto" do relatório antigo, respondidas pelo código de hoj
 | 4 | **#6** `SESSION_SECRET` efêmero em prod | Fail-closed no startup quando `ENV=production` |
 | 5 | **#4** XFF spoofável no rate-limit de login | Confiar só no hop do proxy Railway / IP do socket |
 | 6 | **#17** dashboard baixa a base inteira | Medir pós-gzip; se doer, ADR-002 opção B (colunar) |
-| 7 | **#29/#30/#31** métricas quant — rótulo-título "p-value" ainda técnico | Disclaimer já existe no tooltip; falta só decidir renomear o rótulo (decisão de marca) |
+| 7 | **#16** `SELECT *` em rotas de listagem/export | Selecionar colunas explicitamente / DTO (acoplamento ao schema; baixo hoje) |
 | 8 | **#9** backups/artefatos no pacote de release | Garantir `.dockerignore`/`.gitignore` cobrindo `Backups/`, `__pycache__/` |
 | 9 | **#27** win rate infla HW como vitória cheia | Decidir regra oficial (HW=0,5) ou exibir bruto+ajustado |
 | 10 | **#36** Google Fonts externo | Self-host das fontes (fecha o CSP e remove dependência) |
