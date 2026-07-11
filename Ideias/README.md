@@ -40,6 +40,13 @@ Sharpen virar a página de assinatura recorrente dos tipsters (hoje eles usam Pi
 | MVP Fase 1: tipsters como usuários do SaaS + afiliados | 🟡 (depende de 1.1) |
 | Fase 2: página de assinatura recorrente completa | 🔵 |
 
+### 1.3 Perfil de Tipster (unidades, atribuição, Telegram) — `../docs/PLANO_TIPSTER.md`
+Dar ao tipster existência real no Sharpen (hoje é só texto livre). Três facetas do mesmo cadastro:
+P1 resultado em unidades no tempo (escada de stake, view derivada), P2 atribuição por watermark
+(stake exato tipo 199/401), P3 Telegram como fonte (MTProto + casamento tip↔bilhete). Invariante #0:
+anti-repasse (o Sharpen nunca surfa tip fresca). **Passo zero:** tabela `tipsters` + backfill. Plano
+sem código ainda. Curto/médio/longo conforme a faceta.
+
 ---
 
 ## 2. Planos de produto/UI
