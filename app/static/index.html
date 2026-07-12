@@ -1103,6 +1103,9 @@ html.embedded .sidebar { display: none; }
 }
 .nc-combo-item:hover, .nc-combo-item.active { background: var(--surface-2); color: var(--ink); }
 .nc-combo-item.nova { color: var(--accent-2); border-bottom: 1px solid var(--line); border-radius: 0; margin-bottom: 4px; padding-bottom: 9px; }
+/* Esconde de verdade (vence o display:flex de .modal-field/.nc-hint/.nc-combo-menu,
+   que o atributo [hidden] da UA não consegue sobrepor). */
+.nc-off { display: none !important; }
 
 /* ── Right panel: AI analysis ── */
 .right-panel {
@@ -1676,23 +1679,23 @@ td.c-res.res-HL { color: var(--warn); }
             <span class="nc-combo-val placeholder" id="nc-combo-val">Selecione a casa</span>
             <svg class="nc-combo-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
-          <div class="nc-combo-menu" id="nc-combo-menu" hidden>
+          <div class="nc-combo-menu nc-off" id="nc-combo-menu">
             <div class="nc-combo-srch"><input id="nc-combo-srch" placeholder="buscar casa…" autocomplete="off" spellcheck="false"></div>
             <div class="nc-combo-list" id="nc-combo-list"></div>
           </div>
         </div>
       </div>
-      <div class="modal-field" id="nc-casa-nome-field" hidden>
+      <div class="modal-field nc-off" id="nc-casa-nome-field">
         <label>Nome da casa</label>
         <input type="text" id="nc-casa-nome" placeholder="Ex.: Nova Casa Bet" autocomplete="off" spellcheck="false">
       </div>
-      <div class="modal-field" id="nc-casa-url-field" hidden>
-        <label>URL da casa <span class="nc-opt">(para o ícone)</span></label>
+      <div class="modal-field nc-off" id="nc-casa-url-field">
+        <label>URL da casa</label>
         <input type="text" id="nc-casa-url" placeholder="Ex.: novacasa.bet.br" autocomplete="off" spellcheck="false">
       </div>
-      <div class="nc-hint" id="nc-hint" hidden>
+      <div class="nc-hint nc-off" id="nc-hint">
         <span class="nc-hint-icon">💡</span>
-        <span class="nc-hint-txt">A casa fica <b>disponível para extração imediatamente</b>. A URL serve apenas para <b>exibir o ícone da casa</b> — informe o endereço do site (ex.: <b>novacasa.bet.br</b>). Sem URL, exibimos a inicial do nome.</span>
+        <span class="nc-hint-txt">A casa fica <b>disponível para extração imediatamente</b> após o cadastro. Insira <b>nome e URL</b> (ex.: <b>novacasa.bet.br</b>).</span>
       </div>
       <div class="modal-field">
         <label>Parceiro (login da conta)</label>
@@ -2517,7 +2520,7 @@ function _ncComboOpen(open) {
   const combo = document.getElementById('nc-combo'), menu = document.getElementById('nc-combo-menu');
   if (!combo || !menu) return;
   combo.classList.toggle('open', open);
-  menu.hidden = !open;   // menu em fluxo — sem posicionamento manual
+  menu.classList.toggle('nc-off', !open);   // .nc-off vence o display:flex; [hidden] não venceria
   if (open) {
     _ncComboRender('');
     const list = document.getElementById('nc-combo-list'); if (list) list.scrollTop = 0;
@@ -2553,17 +2556,19 @@ function fecharModalNovaConta() {
 // Revela Nome/URL/instruções só quando "+ nova casa" está selecionada.
 function ncOnCasaChange() {
   const novo = ((document.getElementById('nc-casa') || {}).value) === '__nova__';
-  ['nc-casa-nome-field', 'nc-casa-url-field', 'nc-hint'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !novo; });
+  ['nc-casa-nome-field', 'nc-casa-url-field', 'nc-hint'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('nc-off', !novo); });
   const t = document.getElementById('nc-title'); if (t) t.textContent = novo ? 'Cadastrar nova casa' : 'Nova conta';
 }
 async function ncCriarConta() {
   const sel = document.getElementById('nc-casa');
   const novo = sel && sel.value === '__nova__';
   const casa = novo ? (document.getElementById('nc-casa-nome').value || '').trim() : (sel ? sel.value : '');
+  const url = novo ? (document.getElementById('nc-casa-url').value || '').trim() : '';
   const parceiro = (document.getElementById('nc-parceiro').value || '').trim();
   const forn = (document.getElementById('nc-forn').value || '').trim();
   const nome = forn ? `${parceiro} [${forn}]` : parceiro;   // modelo canônico "Parceiro [Fornecedor]"
-  if (!casa) { alert(novo ? 'Informe o nome da casa nova.' : 'Selecione a casa.'); return; }
+  if (!casa) { alert(novo ? 'Informe o nome da casa nova.' : 'Selecione a casa.'); const n = document.getElementById('nc-casa-nome'); if (novo && n) n.focus(); return; }
+  if (novo && !url) { alert('Informe a URL da casa (ex.: novacasa.bet.br).'); const u = document.getElementById('nc-casa-url'); if (u) u.focus(); return; }
   if (!parceiro) { const pi = document.getElementById('nc-parceiro'); if (pi) pi.focus(); return; }
   const btn = document.getElementById('nc-criar'); if (btn) btn.disabled = true;
   try {
