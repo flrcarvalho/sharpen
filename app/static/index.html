@@ -1074,6 +1074,35 @@ html.embedded .sidebar { display: none; }
 .nc-hint-icon { flex: none; font-size: 13px; line-height: 1.5; }
 .nc-hint-txt { font-family: var(--font-sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
 .nc-hint-txt b { color: var(--ink); font-weight: 600; }
+/* Combo custom da casa (substitui o <select> nativo, que destoa da UI). */
+.nc-combo { position: relative; }
+.nc-combo-trigger {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm);
+  color: var(--ink); font-family: var(--font-mono); font-size: 13px; padding: 9px 12px;
+  transition: border-color .15s var(--ease);
+}
+.nc-combo-trigger:hover { border-color: rgba(var(--accent-rgb),.4); }
+.nc-combo.open .nc-combo-trigger { border-color: var(--accent); }
+.nc-combo-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nc-combo-val.placeholder { color: var(--ink-mute); }
+.nc-combo-chev { color: var(--ink-mute); flex: none; transition: transform .18s var(--ease); }
+.nc-combo.open .nc-combo-chev { transform: rotate(180deg); color: var(--accent-2); }
+.nc-combo-menu {
+  position: fixed; z-index: 200;   /* fixed: escapa do overflow do modal (igual .ac-menu) */
+  background: var(--elevated); border: 1px solid var(--line); border-radius: var(--r-sm);
+  box-shadow: var(--glow); padding: 6px; max-height: 260px; display: flex; flex-direction: column;
+}
+.nc-combo-srch { padding: 6px 8px; margin-bottom: 4px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--field); }
+.nc-combo-srch input { width: 100%; background: transparent; border: 0; outline: 0; color: var(--ink); font-family: var(--font-mono); font-size: 12px; box-sizing: border-box; }
+.nc-combo-list { overflow-y: auto; }
+.nc-combo-item {
+  padding: 7px 10px; border-radius: var(--r-xs); cursor: pointer;
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nc-combo-item:hover, .nc-combo-item.active { background: var(--surface-2); color: var(--ink); }
+.nc-combo-item.nova { color: var(--accent-2); border-bottom: 1px solid var(--line); border-radius: 0; margin-bottom: 4px; padding-bottom: 9px; }
 
 /* ── Right panel: AI analysis ── */
 .right-panel {
@@ -1641,19 +1670,29 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-body nc-body">
       <div class="modal-field">
         <label>Casa</label>
-        <select id="nc-casa"></select>
+        <input type="hidden" id="nc-casa">
+        <div class="nc-combo" id="nc-combo">
+          <div class="nc-combo-trigger" id="nc-combo-trigger" tabindex="0" role="button">
+            <span class="nc-combo-val placeholder" id="nc-combo-val">Selecione a casa</span>
+            <svg class="nc-combo-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="nc-combo-menu" id="nc-combo-menu" hidden>
+            <div class="nc-combo-srch"><input id="nc-combo-srch" placeholder="buscar casa…" autocomplete="off" spellcheck="false"></div>
+            <div class="nc-combo-list" id="nc-combo-list"></div>
+          </div>
+        </div>
       </div>
       <div class="modal-field" id="nc-casa-nome-field" hidden>
         <label>Nome da casa</label>
-        <input type="text" id="nc-casa-nome" placeholder="Ex.: OioiOiBet" autocomplete="off" spellcheck="false">
+        <input type="text" id="nc-casa-nome" placeholder="Ex.: Nova Casa Bet" autocomplete="off" spellcheck="false">
       </div>
       <div class="modal-field" id="nc-casa-url-field" hidden>
         <label>URL da casa <span class="nc-opt">(para o ícone)</span></label>
-        <input type="text" id="nc-casa-url" placeholder="Ex.: oioioibet.com" autocomplete="off" spellcheck="false">
+        <input type="text" id="nc-casa-url" placeholder="Ex.: novacasa.bet.br" autocomplete="off" spellcheck="false">
       </div>
       <div class="nc-hint" id="nc-hint" hidden>
         <span class="nc-hint-icon">💡</span>
-        <span class="nc-hint-txt">A casa nova <b>já funciona na extração na hora</b>. A <b>URL serve só para o ícone</b> — copie do endereço do site da casa no navegador (ex.: <b>oioioibet.com</b>). Sem URL, a casa fica com a inicial.</span>
+        <span class="nc-hint-txt">A casa fica <b>disponível para extração imediatamente</b>. A URL serve apenas para <b>exibir o ícone da casa</b> — informe o endereço do site (ex.: <b>novacasa.bet.br</b>). Sem URL, exibimos a inicial do nome.</span>
       </div>
       <div class="modal-field">
         <label>Parceiro (login da conta)</label>
@@ -2463,19 +2502,53 @@ async function criarContaNova() {
 }
 // ── Modal "Nova conta" (unifica dropdown + painel; substitui os forms inline) ──
 let _ncOrigem = 'dropdown';
+// Combo custom da casa (dropdown on-brand + buscável, no lugar do <select> nativo).
+function _ncComboRender(filtro) {
+  const list = document.getElementById('nc-combo-list');
+  if (!list) return;
+  const q = (filtro || '').trim().toLowerCase();
+  const casas = (casasCarregadas || []).filter(c => !q || String(NOMES[c] || c).toLowerCase().includes(q));
+  let html = '<div class="nc-combo-item nova" data-val="__nova__">+ cadastrar nova casa</div>';
+  html += casas.map(c => `<div class="nc-combo-item" data-val="${esc(c)}">${esc(NOMES[c] || c)}</div>`).join('');
+  if (!casas.length && q) html += '<div class="nc-combo-item" style="color:var(--ink-mute);cursor:default">nenhuma casa encontrada</div>';
+  list.innerHTML = html;
+}
+function _ncComboOpen(open) {
+  const combo = document.getElementById('nc-combo'), menu = document.getElementById('nc-combo-menu');
+  const trig = document.getElementById('nc-combo-trigger');
+  if (!combo || !menu) return;
+  combo.classList.toggle('open', open);
+  menu.hidden = !open;
+  if (open && trig) {
+    const r = trig.getBoundingClientRect();   // posiciona o menu fixo abaixo do gatilho
+    menu.style.top = (r.bottom + 6) + 'px';
+    menu.style.left = r.left + 'px';
+    menu.style.width = r.width + 'px';
+    _ncComboRender('');
+    const s = document.getElementById('nc-combo-srch');
+    if (s) { s.value = ''; setTimeout(() => s.focus(), 20); }
+  }
+}
+function _ncComboSet(val) {
+  const hidden = document.getElementById('nc-casa'), lbl = document.getElementById('nc-combo-val');
+  if (hidden) hidden.value = val || '';
+  if (lbl) {
+    lbl.textContent = val === '__nova__' ? '+ cadastrar nova casa' : (val ? (NOMES[val] || val) : 'Selecione a casa');
+    lbl.classList.toggle('placeholder', !val);
+  }
+  ncOnCasaChange();
+}
 function abrirModalNovaConta(origem) {
   _ncOrigem = origem || 'dropdown';
   const ov = document.getElementById('novaconta-modal');
-  const sel = document.getElementById('nc-casa');
-  if (!ov || !sel) return;
-  sel.innerHTML = (casasCarregadas || []).map(c => `<option value="${esc(c)}">${esc(NOMES[c] || c)}</option>`).join('')
-    + '<option value="__nova__">+ nova casa…</option>';
-  sel.value = (casasCarregadas && casasCarregadas.length) ? casasCarregadas[0] : '__nova__';
+  if (!ov) return;
   ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  ncOnCasaChange();
+  const def = (casasCarregadas && casasCarregadas.length) ? casasCarregadas[0] : '__nova__';
+  _ncComboOpen(false);
+  _ncComboSet(def);   // preenche label + hidden + dispara ncOnCasaChange
   const wrap = document.getElementById('acctSelWrap'); if (wrap) wrap.classList.remove('open');   // não sobrepor o dropdown
   ov.classList.add('open');
-  const foco = document.getElementById(sel.value === '__nova__' ? 'nc-casa-nome' : 'nc-parceiro');
+  const foco = document.getElementById(def === '__nova__' ? 'nc-casa-nome' : 'nc-parceiro');
   if (foco) setTimeout(() => foco.focus(), 30);
 }
 function fecharModalNovaConta() {
@@ -2527,12 +2600,29 @@ async function ncCriarConta() {
   const ov = document.getElementById('novaconta-modal');
   if (!ov) return;
   const close = document.getElementById('nc-close'), cancel = document.getElementById('nc-cancel');
-  const criar = document.getElementById('nc-criar'), casa = document.getElementById('nc-casa');
+  const criar = document.getElementById('nc-criar');
   if (close) close.addEventListener('click', fecharModalNovaConta);
   if (cancel) cancel.addEventListener('click', fecharModalNovaConta);
   if (criar) criar.addEventListener('click', ncCriarConta);
-  if (casa) casa.addEventListener('change', ncOnCasaChange);
-  ov.addEventListener('click', e => { if (e.target === ov) fecharModalNovaConta(); });   // clique fora fecha
+  // combo custom da casa
+  const trig = document.getElementById('nc-combo-trigger'), srch = document.getElementById('nc-combo-srch'), list = document.getElementById('nc-combo-list');
+  if (trig) trig.addEventListener('click', () => {
+    const combo = document.getElementById('nc-combo');
+    _ncComboOpen(!(combo && combo.classList.contains('open')));
+  });
+  if (srch) srch.addEventListener('input', () => _ncComboRender(srch.value));
+  if (list) list.addEventListener('click', e => {
+    const it = e.target.closest('.nc-combo-item');
+    if (!it || !it.dataset.val) return;
+    _ncComboSet(it.dataset.val);
+    _ncComboOpen(false);
+    if (it.dataset.val === '__nova__') { const n = document.getElementById('nc-casa-nome'); if (n) setTimeout(() => n.focus(), 20); }
+  });
+  ov.addEventListener('click', e => {
+    const combo = document.getElementById('nc-combo');
+    if (combo && !combo.contains(e.target)) _ncComboOpen(false);   // clique fora do combo fecha o menu
+    if (e.target === ov) fecharModalNovaConta();                    // clique fora do modal fecha o modal
+  });
   ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ncCriarConta(); } });
