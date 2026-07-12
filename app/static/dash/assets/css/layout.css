@@ -131,6 +131,26 @@ body::before {
 .update-btn:disabled { pointer-events: none; }
 .update-btn.is-loading .update-ico { animation: update-spin 0.7s linear infinite; }
 @keyframes update-spin { to { transform: rotate(360deg); } }
+
+/* ── Máscara de revalidação (stale-while-revalidate) ─────────────────────────
+   Ao abrir, o dashboard mostra o cache local (dado velho) e busca o fresco em
+   2º plano (~20-30s). Enquanto isso, marca o gráfico como provisório para o
+   número desatualizado não passar como real. Ver app.js _revalOn/_revalOff. */
+body.is-revalidating #card-bankroll .chart-wrap {
+  opacity: .35; filter: saturate(.55); transition: opacity .2s, filter .2s;
+  pointer-events: none;
+}
+.reval-pill { display: none; }
+body.is-revalidating .reval-pill {
+  position: fixed; top: 58px; left: calc(50% + 110px); transform: translateX(-50%);
+  z-index: 9997; display: inline-flex; align-items: center; gap: 9px;
+  padding: 8px 15px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 6px 22px rgba(0,0,0,.35);
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft);
+}
+.reval-pill .reval-spin { display: inline-flex; color: var(--accent);
+  animation: update-spin 0.8s linear infinite; }
 .sb-csv {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; margin-bottom: var(--space-2);

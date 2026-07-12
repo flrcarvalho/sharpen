@@ -950,6 +950,23 @@ function _errBanner(msg){
   document.body.appendChild(banner);
 }
 
+// Máscara de revalidação: enquanto o cache velho é substituído pelo dado fresco
+// (~20-30s), escurece o gráfico e mostra um pill "sincronizando…" para o número
+// desatualizado não ser lido como real. Só no boot por cache (não no refresh manual).
+function _revalOn(){
+  document.body.classList.add('is-revalidating');
+  if(!document.getElementById('revalPill')){
+    const p=document.createElement('div');
+    p.id='revalPill';p.className='reval-pill';p.setAttribute('aria-live','polite');
+    p.innerHTML='<span class="reval-spin"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg></span><span>Sincronizando dados… os números podem estar desatualizados</span>';
+    document.body.appendChild(p);
+  }
+}
+function _revalOff(){
+  document.body.classList.remove('is-revalidating');
+  document.getElementById('revalPill')?.remove();
+}
+
 async function loadData(force){
   const _rebuild=!document.getElementById('page-overview'); // primeira carga? (DOM ainda não montado)
   let servedFromCache=false;
@@ -966,6 +983,7 @@ async function loadData(force){
         window._dataLoadMs=cached.savedAt||Date.now();
         window._dataBuiltMs=cached.builtAt||cached.savedAt||Date.now();
         _setLastUpdate(window._dataBuiltMs,true); // mostra a hora de build do servidor + "atualizando…"
+        _revalOn(); // gráfico provisório até o dado fresco chegar
         servedFromCache=true;
       }
     }catch(e){/* IndexedDB indisponível (modo privado etc.) — segue para o loader */}
@@ -1006,6 +1024,7 @@ async function loadData(force){
   // ── 3a) DOM já montado (cache servido OU refresh manual): atualiza silencioso ──
   if(servedFromCache||!_rebuild){
     if(force)_setUpdating(false); // encerra o giro do botão (sucesso ou erro)
+    _revalOff(); // dado fresco chegou (ou falhou) → tira a máscara de sincronização
     if(!_fetchErr){
       window._dataLoadMs=Date.now();
       _setLastUpdate(window._dataBuiltMs,false);
