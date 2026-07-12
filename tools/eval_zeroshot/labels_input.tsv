@@ -1,0 +1,110 @@
+0	[BET365]	Para Ganhar a Partida / Para Vencer a Partida
+1	[BET365]	Handicap Asiático ("Ao-Vivo - …" = só ao vivo, ignorar p/ categoria)
+2	[BET365]	Handicap Asiático - Cartões
+3	[BET365]	Total de Escanteios (Asiáticos) / "Total de Escanteios - 3 Opções"
+4	[BET365]	Total de cartões asiáticos
+5	[BET365]	Para o Jogador Receber Cartão
+6	[BET365]	Para Marcar a Qualquer Momento
+7	[BET365]	Para Marcar 2 ou Mais / dois ou mais Gols
+8	[BET365]	Para Marcar um Hat-trick / três ou mais Gols
+9	[BET365]	Para Marcar Primeiro / Primeiro Marcador de Gol
+10	[BET365]	Para Marcar Por Último / Último Marcador de Gol
+11	[BET365]	Jogador a Dar Assistência
+12	[BET365]	Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts
+13	[BET365]	Total de Kills / Total de Dragons / Total de Torres ("Mapa N - …")
+14	[BET365]	Partida - Vencedor
+15	[BET365]	Mais 180's (Dardos — comparativo entre dois jogadores)
+16	[BET365]	Criar Aposta (container)
+17	[BETANO]	Vencedor
+18	[BETANO]	Handicap - Cartões
+19	[BETANO]	Tiros de meta Handicap 2-Way
+20	[BETANO]	Receber um cartão
+21	[BETANO]	Total de Cartões / Asiático (Mais/Menos) Total de Cartões
+22	[BETANO]	Total de escanteios / Escanteios Mais/Menos / 1.º Tempo Escanteios
+23	[BETANO]	Total de chutes
+24	[BETANO]	Total de Games no Set (Set N)
+25	[BETANO]	Chance Dupla / X2
+26	[BETANO]	Total de tiros de meta (goal kicks)
+27	[BETANO]	Total de Faltas
+28	[BETANO]	Tie Breaks
+29	[BETANO]	Total de 180's / Mais de–Menos de N 180's (Over/Under de um jogador)
+30	[BETANO]	Maioria de 180's / H2H 180's (comparativo: quem faz mais no confronto)
+31	[BETANO]	Criar Aposta / N-seleções / Dupla / Tripla
+32	[BETFAIR]	Resultado da partida
+33	[BETFAIR]	Handicap / Handicap no escanteio / Handicap nos pontos da partida
+34	[BETFAIR]	Marcador a qualquer momento
+35	[BETFAIR]	Escanteios do time da casa / "N ou mais escanteios"
+36	[BETFAIR]	Total de cartões do time da casa
+37	[BETFAIR]	Total de Inibidores/Torres/objetivos no Mapa N (E-Sports)
+38	[BETFAIR]	Maioria de 180's (Dardos)
+39	[BETFAIR]	Criar Aposta / Múltiplas do Criar Aposta
+40	[BETNACIONAL]	Ambos times marcam · Ambas equipes marcam (2ºT ou partida)
+41	[BETNACIONAL]	Cartão Vermelho Sim/Não - Sim · Cartão Amarelo Sim/Não - Sim
+42	[BETNACIONAL]	[Jogador] X+ Chutes ao Gol na Partida
+43	[BETNACIONAL]	X+ Escanteios Para Cada Time · Escanteios Mais/Menos
+44	[BETNACIONAL]	[Time] marca X+ gols · Total de gols Mais/Menos X
+45	[BETNACIONAL]	Vencedor - [Time/Jogador]
+46	[BETNACIONAL]	Outros mercados sem categoria específica
+47	[BETNACIONAL]	[Time] Marca em Ambos os Tempos
+48	[BOLSADEAPOSTA]	Both Score / Both Teams to Score
+49	[BOLSADEAPOSTA]	Over X Goals / Under X Goals
+50	[BOLSADEAPOSTA]	Nome de time como seleção (ex.: Alemanha) + mercado de resultado
+51	[BOLSADEAPOSTA]	Outros mercados sem categoria específica
+52	[JOGODEOURO]	Total de escanteios · 1º tempo - total de escanteios
+53	[JOGODEOURO]	Total de gols
+54	[JOGODEOURO]	Vencedor do encontro
+55	[JOGODEOURO]	Criar Aposta (badge CA, 2+ seleções)
+56	[JOGODEOURO]	(mercado não mapeado)
+57	[KINGPANDA]	Ambas equipes Marcam
+58	[KINGPANDA]	Jogador a Marcar um Gol · Marcar a qualquer momento
+59	[KINGPANDA]	Cartões · Equipe com Mais Cartões · Mais Cartões
+60	[KINGPANDA]	Chance Dupla
+61	[KINGPANDA]	Escanteios Mais/Menos (2-Vias) · Escanteios Mais/Menos
+62	[KINGPANDA]	Total de Gols Mais/Menos · Total de Gols
+63	[KINGPANDA]	Criador de apostas (múltiplas seleções)
+64	[KINGPANDA]	Resultado Correto · Resultado Correto - 1º Tempo · mercado não mapeado
+65	[KINGPANDA]	[Time]: Equipe Marca nos Dois Tempos · estatística coletiva de equipe
+66	[KTO]	Para marcar: [Jogador] - Sim (em cupom Simples)
+67	[KTO]	Para receber um cartão: [Jogador] - Sim · mercados de cartão
+68	[KTO]	Vencedor da partida: [Time/Jogador]
+69	[KTO]	Dupla · Quadrupla · Simples (N) · Duplas (X), Triplas (Y) (sistema)
+70	[LOTTU]	X PARA MARCAR A QUALQUER MOMENTO (simples)
+71	[LOTTU]	MAIS DE X ESCANTEIOS · MAIOR NÚMERO DE ESCANTEIOS
+72	[LOTTU]	MAIS DE X GOLS · MAIS DE X GOLS NO Xº TEMPO
+73	[LOTTU]	X PARA GANHAR
+74	[LOTTU]	Desafio com & na Resposta (2+ condições)
+75	[LOTTU]	MAIS DE X [stat] [jogador] · [JOGADOR] MAIS DE X [stat]
+76	[LOTTU]	X PARA GANHAR AMBOS OS TEMPOS · X PARA MARCAR EM AMBOS OS TEMPOS
+77	[PINNACLE]	Partida Moneyline
+78	[PINNACLE]	Partida 1X2 (seleção = um time)
+79	[PINNACLE]	Partida Handicap / Partida HDP
+80	[PINNACLE]	Props de Jogadores / Especiais
+81	[POLYMARKET]	Vencedor da partida / outcome simples
+82	[POLYMARKET]	Game Handicap / Map Handicap / spread
+83	[POLYMARKET]	Total: O/U X / over / under
+84	[POLYMARKET]	Games Total (Tênis)
+85	[POLYMARKET]	Sets (Tênis)
+86	[POLYMARKET]	Legs (Dardos)
+87	[POLYMARKET]	Both teams to score / BTTS (Futebol)
+88	[POLYMARKET]	Corners / escanteios (Futebol)
+89	[POLYMARKET]	Cards / cartões (Futebol)
+90	[POLYMARKET]	Goals / gols (Futebol)
+91	[SUPERBET]	Resultado Final / Vencedor / 1 2 (na seleção)
+92	[SUPERBET]	Handicap / Handicap (Inc. prorrogação) / Handicap de Mapas
+93	[SUPERBET]	Empate Anula Aposta
+94	[SUPERBET]	Total de Gols
+95	[SUPERBET]	Total de Escanteios
+96	[SUPERBET]	Total de Cartões
+97	[SUPERBET]	Total de Finalizações
+98	[SUPERBET]	Handicap - Finalizações / Handicap de Finalizações
+99	[SUPERBET]	Chutes no Gol
+100	[SUPERBET]	Total de Desarmes
+101	[SUPERBET]	Handicap - Desarmes
+102	[SUPERBET]	Total de Games / Games Ímpar/Par
+103	[SUPERBET]	Total de Quebras (tênis)
+104	[SUPERBET]	Total de strikeouts do arremessador (MLB)
+105	[SUPERBET]	Total de Impedimentos
+106	[SUPERBET]	Empate ou 2 / Dupla Chance
+107	[SUPERBET]	Tiros de Meta / Total de Tiros de Meta
+108	[VITORIABET]	Ambas as equipes marcarão
+109	[VITORIABET]	[Seleção] vencerá · Vencedores (1 confronto)
