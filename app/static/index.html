@@ -618,16 +618,28 @@ html.embedded .sidebar { display: none; }
 .btn-sm { padding: 5px 12px; font-size: 11px; }
 .btn-danger { color: var(--neg); border-color: rgba(var(--neg-rgb),.25); }
 .btn-danger:hover { background: rgba(var(--neg-rgb),.08); border-color: var(--neg); }
-/* Botão Conectar: o wordmark SharpenUp é o herói; "Conectar" é rótulo de apoio.
-   Wordmark cinza (desconectado) → cor cheia (conectado), espelhando o pill (.status off/on). */
+/* Botão Conectar: o logo SharpenUp (a extensão) é o herói; "Conectar" é rótulo de apoio.
+   Logo espelha o cabeçalho do popup (extensor/popup.css .tile/.up/.wm), em escala de botão.
+   Cinza (desconectado) → cor cheia (pareado), convenção do pill (.status off/on). */
 #btn-conectar-ext { display: inline-flex; align-items: center; gap: 9px; }
 #ext-btn-label { font-size: 12px; font-weight: 600; color: var(--ink-mute);
   letter-spacing: .01em; transition: color .18s ease; }
 #btn-conectar-ext:hover #ext-btn-label { color: var(--ink-soft); }
-#btn-conectar-ext .su-lockup { height: 20px; width: auto; display: block;
-  filter: grayscale(1) opacity(.8); transition: filter .18s ease; }
 #btn-conectar-ext.su-on #ext-btn-label { color: var(--ink); }
-#btn-conectar-ext.su-on .su-lockup { filter: none; }
+#btn-conectar-ext .su-mark { display: inline-flex; align-items: center; gap: 6px;
+  filter: grayscale(1) opacity(.55); transition: filter .18s ease; }
+#btn-conectar-ext.su-on .su-mark { filter: none; }
+#btn-conectar-ext .su-tile { position: relative; width: 19px; height: 19px; border-radius: 6px;
+  flex: none; background: linear-gradient(160deg, #1B222C, #0A0D12);
+  border: 1px solid var(--line); display: grid; place-items: center; }
+#btn-conectar-ext .su-tile > svg { width: 7px; height: 13px; }
+#btn-conectar-ext .su-up { position: absolute; top: -22%; right: -22%; width: 46%; height: 46%;
+  border-radius: 50%; background: var(--accent); color: #04122A; display: grid; place-items: center;
+  box-shadow: 0 0 0 2px var(--bg); }
+#btn-conectar-ext .su-up svg { width: 54%; height: 54%; fill: none; stroke: currentColor;
+  stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+#btn-conectar-ext .su-wm { font-weight: 800; font-size: 13px; letter-spacing: -.03em; color: var(--ink); }
+#btn-conectar-ext .su-wm .su-u { color: var(--accent-2); }
 .status-msg { font-size: 12px; color: var(--ink-mute); font-family: var(--font-mono); }
 .status-msg.ok   { color: var(--pos); }
 .status-msg.err  { color: var(--neg); }
@@ -1436,7 +1448,7 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
             <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
-            <button class="btn btn-ghost" id="btn-conectar-ext" title="Gera um código para conectar o SharpenUp a esta conta"><span id="ext-btn-label">Conectar</span><svg class="su-lockup" viewBox="0 0 258 96" aria-label="SharpenUp"><svg x="14" y="14" width="34" height="68" viewBox="40 10 40 100" overflow="visible"><defs><linearGradient id="suLockBtn" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suLockBtn)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><text x="62" y="62" font-family="Manrope, Arial, sans-serif" font-weight="800" font-size="44" letter-spacing="-2.2" fill="#EEF2F7">Sharp<tspan fill="#3B95FF">en.</tspan></text></svg></button>
+            <button class="btn btn-ghost" id="btn-conectar-ext" title="Gera um código para conectar o SharpenUp a esta conta"><span id="ext-btn-label">Conectar</span><span class="su-mark" aria-label="SharpenUp"><span class="su-tile"><svg viewBox="40 10 40 100" aria-hidden="true"><defs><linearGradient id="suBladeMk" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeMk)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><span class="su-up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span></span><span class="su-wm">Sharpen<span class="su-u">Up</span></span></span></button>
             <button class="btn btn-ghost btn-danger" id="btn-desconectar-ext" style="display:none">Desconectar</button>
             <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
             <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
