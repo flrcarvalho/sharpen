@@ -31,7 +31,19 @@ HW  → Half Win (meia ganha)
 HL  → Half Loss (meia perdida)
 ```
 
-Nenhum outro valor é permitido.
+Nenhum outro **código** é permitido.
+
+## 1.1 Aposta aberta / não liquidada → Resultado VAZIO
+
+Um bilhete **ainda não liquidado** (em aberto, aguardando resultado, "a conferir",
+pendente, "open") **não recebe código**: a coluna `Resultado` fica **vazia**. Só há
+W/L/V/HW/HL quando o bilhete está **liquidado**. Nunca chutar o resultado de uma aposta
+aberta — a linha fica sem resultado (o sistema a marca como `aberta` e a mantém **fora do
+P/L** até liquidar).
+
+**Retorno potencial ≠ retorno realizado.** Um bilhete aberto exibe um retorno *potencial*
+(= `Stake × Odd`) que é **maior que zero** — ele **nunca** decide W. Só o retorno
+**realizado** (após a liquidação) define resultado. Odd da aposta aberta = odd exibida.
 
 ---
 
