@@ -143,6 +143,18 @@ CREATE TABLE IF NOT EXISTS correcoes (
     criado_em      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS correcoes_casa_campo ON correcoes (casa, campo);
+
+-- Metadados de casa por dono (Fase 2): domínio para o favicon das casas novas
+-- adicionadas em autosserviço. O front (faviconUrl) resolve o ícone pelo domínio
+-- via Google S2 e aplica o chip padrão do sistema (REFERENCIA_CHIPS_CASAS.md).
+CREATE TABLE IF NOT EXISTS casas_meta (
+    dono          TEXT NOT NULL,
+    casa          TEXT NOT NULL,
+    dominio       TEXT,
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (dono, casa)
+);
 """
 
 

@@ -40,6 +40,7 @@ from repository import (
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos, corrigir_codigos_tsv,
+    set_casa_dominio, get_casas_dominios,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
@@ -1148,7 +1149,20 @@ async def listar_casas(dono: str = Depends(dono_efetivo)):
     }
     # inclui casas inativas importadas (têm parceiros/dados, mas não têm manual)
     com_dados = set(await casas_com_parceiros(dono))
-    return {"casas": sorted(manuais | com_dados)}
+    dominios = await get_casas_dominios(dono)
+    return {"casas": sorted(manuais | com_dados), "dominios": dominios}
+
+
+class CasaMetaRequest(BaseModel):
+    casa: str
+    dominio: str = ""
+
+
+@app.post("/casas/meta")
+async def salvar_casa_meta(body: CasaMetaRequest, dono: str = Depends(dono_efetivo)):
+    """Salva o domínio de uma casa (por dono) para o favicon (Fase 2)."""
+    await set_casa_dominio(dono, body.casa.strip(), body.dominio.strip())
+    return {"ok": True}
 
 
 @app.get("/uso/tokens")

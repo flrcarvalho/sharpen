@@ -1165,6 +1165,29 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
     return ok
 
 
+async def set_casa_dominio(dono: str, casa: str, dominio: str) -> None:
+    """Guarda o domínio de uma casa (por dono) para o favicon. Upsert idempotente.
+    Domínio vazio vira NULL (cai no fallback do faviconUrl)."""
+    if not casa.strip():
+        return
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """INSERT INTO casas_meta (dono, casa, dominio) VALUES ($1, $2, $3)
+               ON CONFLICT (dono, casa)
+               DO UPDATE SET dominio = EXCLUDED.dominio, atualizado_em = NOW()""",
+            dono, casa.strip(), (dominio or "").strip() or None)
+
+
+async def get_casas_dominios(dono: str) -> dict:
+    """Mapa casa→domínio do dono (só casas com domínio definido)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT casa, dominio FROM casas_meta WHERE dono = $1 AND dominio IS NOT NULL", dono)
+    return {r["casa"]: r["dominio"] for r in rows}
+
+
 async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:
     """Atribui o mesmo tipster a várias apostas de uma vez (1 UPDATE atômico).
     Só toca linhas do próprio dono. Retorna quantas foram atualizadas."""

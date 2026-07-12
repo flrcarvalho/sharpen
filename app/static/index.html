@@ -1064,6 +1064,16 @@ html.embedded .sidebar { display: none; }
 .modal-field input:focus, .modal-field textarea:focus { outline: none; border-color: var(--accent); }
 .modal-field textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--line); }
+/* Modal "Nova conta" — coluna única + bloco de instruções da casa nova. */
+.nc-body { display: flex; flex-direction: column; gap: 14px; }
+.nc-opt { color: var(--ink-mute); }
+.nc-hint {
+  display: flex; gap: 9px; padding: 10px 12px; border-radius: var(--r-sm);
+  background: rgba(var(--accent-rgb),.07); border: 1px solid rgba(var(--accent-rgb),.18);
+}
+.nc-hint-icon { flex: none; font-size: 13px; line-height: 1.5; }
+.nc-hint-txt { font-family: var(--font-sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
+.nc-hint-txt b { color: var(--ink); font-weight: 600; }
 
 /* ── Right panel: AI analysis ── */
 .right-panel {
@@ -1372,13 +1382,6 @@ td.c-res.res-HL { color: var(--warn); }
           <!-- 4.2.c — criar conta nova no TOPO do dropdown (substitui o "+ Novo parceiro" da árvore antiga) -->
           <div class="acct-new">
             <button type="button" class="acct-new-toggle" id="acctNewToggle">+ Nova conta</button>
-            <div class="acct-new-form" id="acctNewForm" hidden>
-              <select id="acctNewCasa" class="acct-new-casa" title="Casa" onchange="onCasaNovaSelChange()"></select>
-              <input id="acctNewCasaTxt" class="acct-new-nome" type="text" placeholder="Nome da casa nova…" autocomplete="off" spellcheck="false" hidden>
-              <input id="acctNewParceiro" class="acct-new-nome" type="text" placeholder="Parceiro (login da conta)…" autocomplete="off" spellcheck="false">
-              <input id="acctNewForn" class="acct-new-nome" type="text" placeholder="Nome do fornecedor (opcional)…" autocomplete="off" spellcheck="false">
-              <button type="button" class="acct-new-confirm" id="acctNewConfirm">Criar conta</button>
-            </div>
           </div>
           <div class="acct-srch"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="acct-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false"></div>
           <div class="acct-tabs"><button class="on" data-aba="ativas">Ativas</button><button data-aba="inativas">Inativas</button></div>
@@ -1628,6 +1631,46 @@ td.c-res.res-HL { color: var(--warn); }
   </div>
 </div>
 
+<!-- Nova conta (modal — substitui os forms inline do dropdown e do painel). -->
+<div class="modal-overlay" id="novaconta-modal">
+  <div class="modal modal-narrow">
+    <div class="modal-head">
+      <span class="modal-title">Nova conta</span>
+      <button class="modal-close" id="nc-close" type="button">✕</button>
+    </div>
+    <div class="modal-body nc-body">
+      <div class="modal-field">
+        <label>Casa</label>
+        <select id="nc-casa"></select>
+      </div>
+      <div class="modal-field" id="nc-casa-nome-field" hidden>
+        <label>Nome da casa</label>
+        <input type="text" id="nc-casa-nome" placeholder="Ex.: OioiOiBet" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="modal-field" id="nc-casa-url-field" hidden>
+        <label>URL da casa <span class="nc-opt">(para o ícone)</span></label>
+        <input type="text" id="nc-casa-url" placeholder="Ex.: oioioibet.com" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="nc-hint" id="nc-hint" hidden>
+        <span class="nc-hint-icon">💡</span>
+        <span class="nc-hint-txt">A casa nova <b>já funciona na extração na hora</b>. A <b>URL serve só para o ícone</b> — copie do endereço do site da casa no navegador (ex.: <b>oioioibet.com</b>). Sem URL, a casa fica com a inicial.</span>
+      </div>
+      <div class="modal-field">
+        <label>Parceiro (login da conta)</label>
+        <input type="text" id="nc-parceiro" placeholder="Ex.: joao123" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="modal-field">
+        <label>Fornecedor <span class="nc-opt">(opcional)</span></label>
+        <input type="text" id="nc-forn" placeholder="Ex.: Richard" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="nc-cancel" type="button">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="nc-criar" type="button">Criar conta</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Sessão: redireciona para /login se o cookie expirar ───────────────────────
 (function () {
@@ -1841,7 +1884,8 @@ const RES_CLASS = { W: 'r-W', L: 'r-L', V: 'r-V', HW: 'r-HW', HL: 'r-HL' };
 async function carregarCasas() {
   try {
     const r = await fetch('/casas');
-    const { casas } = await r.json();
+    const { casas, dominios } = await r.json();
+    if (dominios) Object.assign(DOMINIOS, dominios);   // domínios das casas novas → favicon
     await Promise.all(casas.map(c => carregarParceiros(c)));
     casasCarregadas = casas;
     renderCasaList();
@@ -2327,14 +2371,24 @@ function popularCasasNova() {
     + '<option value="__nova__">+ nova casa…</option>';
   if (atual) sel.value = atual;
 }
-// Ao escolher "+ nova casa", troca o select pelo campo de texto livre.
+// Ao escolher "+ nova casa", revela os campos de nome e URL (p/ o favicon).
 function onCasaNovaSelChange() {
   const sel = document.getElementById('acctNewCasa');
   const txt = document.getElementById('acctNewCasaTxt');
+  const url = document.getElementById('acctNewCasaUrl');
   if (!sel || !txt) return;
   const nova = sel.value === '__nova__';
   txt.hidden = !nova;
-  if (nova) { txt.value = ''; txt.focus(); }
+  if (url) url.hidden = !nova;
+  if (nova) { txt.value = ''; if (url) url.value = ''; txt.focus(); }
+}
+// Extrai o domínio de uma URL/entrada livre (p/ o favicon via faviconUrl).
+//  "https://www.OioiOi.com/sports?x=1" → "oioioi.com" · "x.bet.br" → "x.bet.br"
+function _dominioFromUrl(u) {
+  if (!u) return '';
+  return u.trim().toLowerCase()
+    .replace(/^https?:\/\//, '').replace(/^www\./, '')
+    .split('/')[0].split('?')[0].split('#')[0].trim();
 }
 function fecharFormNovaConta() {
   const form = document.getElementById('acctNewForm');
@@ -2347,6 +2401,8 @@ function abrirFormNovaConta() {
   popularCasasNova();
   const casaTxt = document.getElementById('acctNewCasaTxt');
   if (casaTxt) { casaTxt.value = ''; casaTxt.hidden = true; }
+  const casaUrl = document.getElementById('acctNewCasaUrl');
+  if (casaUrl) { casaUrl.value = ''; casaUrl.hidden = true; }
   const parc = document.getElementById('acctNewParceiro');
   const forn = document.getElementById('acctNewForn');
   if (parc) { parc.value = ''; parc.focus(); }
@@ -2380,6 +2436,17 @@ async function criarContaNova() {
     if (!(casasCarregadas || []).includes(p.casa)) {
       casasCarregadas = [...(casasCarregadas || []), p.casa].sort((a, b) => a.localeCompare(b));
     }
+    // Casa nova com URL → guarda o domínio p/ o favicon (chip padrão em todo o sistema).
+    if (casaSel && casaSel.value === '__nova__') {
+      const dom = _dominioFromUrl((document.getElementById('acctNewCasaUrl') || {}).value || '');
+      if (dom) {
+        DOMINIOS[p.casa] = dom;   // já aplica no render desta sessão
+        fetch('/casas/meta', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ casa: p.casa, dominio: dom }),
+        }).catch(() => {});       // persistência em 2º plano; não bloqueia a UI
+      }
+    }
     // Mesma reconciliação de cache do fluxo antigo (reusar nome arquivado reativa via ON CONFLICT).
     const idx = (parceirosCache[casa] || []).findIndex(x => x.id === p.id);
     if (idx >= 0) parceirosCache[casa][idx] = p;
@@ -2394,6 +2461,84 @@ async function criarContaNova() {
     abrirAcctPop(false);
   } catch { alert('Erro de rede.'); }
 }
+// ── Modal "Nova conta" (unifica dropdown + painel; substitui os forms inline) ──
+let _ncOrigem = 'dropdown';
+function abrirModalNovaConta(origem) {
+  _ncOrigem = origem || 'dropdown';
+  const ov = document.getElementById('novaconta-modal');
+  const sel = document.getElementById('nc-casa');
+  if (!ov || !sel) return;
+  sel.innerHTML = (casasCarregadas || []).map(c => `<option value="${esc(c)}">${esc(NOMES[c] || c)}</option>`).join('')
+    + '<option value="__nova__">+ nova casa…</option>';
+  sel.value = (casasCarregadas && casasCarregadas.length) ? casasCarregadas[0] : '__nova__';
+  ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ncOnCasaChange();
+  const wrap = document.getElementById('acctSelWrap'); if (wrap) wrap.classList.remove('open');   // não sobrepor o dropdown
+  ov.classList.add('open');
+  const foco = document.getElementById(sel.value === '__nova__' ? 'nc-casa-nome' : 'nc-parceiro');
+  if (foco) setTimeout(() => foco.focus(), 30);
+}
+function fecharModalNovaConta() {
+  const ov = document.getElementById('novaconta-modal'); if (ov) ov.classList.remove('open');
+}
+// Revela Nome/URL/instruções só quando "+ nova casa" está selecionada.
+function ncOnCasaChange() {
+  const novo = ((document.getElementById('nc-casa') || {}).value) === '__nova__';
+  ['nc-casa-nome-field', 'nc-casa-url-field', 'nc-hint'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !novo; });
+}
+async function ncCriarConta() {
+  const sel = document.getElementById('nc-casa');
+  const novo = sel && sel.value === '__nova__';
+  const casa = novo ? (document.getElementById('nc-casa-nome').value || '').trim() : (sel ? sel.value : '');
+  const parceiro = (document.getElementById('nc-parceiro').value || '').trim();
+  const forn = (document.getElementById('nc-forn').value || '').trim();
+  const nome = forn ? `${parceiro} [${forn}]` : parceiro;   // modelo canônico "Parceiro [Fornecedor]"
+  if (!casa) { alert(novo ? 'Informe o nome da casa nova.' : 'Selecione a casa.'); return; }
+  if (!parceiro) { const pi = document.getElementById('nc-parceiro'); if (pi) pi.focus(); return; }
+  const btn = document.getElementById('nc-criar'); if (btn) btn.disabled = true;
+  try {
+    const r = await fetch('/parceiros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa, nome }) });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar conta'); return; }
+    const p = await r.json();
+    if (!(casasCarregadas || []).includes(p.casa)) {
+      casasCarregadas = [...(casasCarregadas || []), p.casa].sort((a, b) => a.localeCompare(b));
+    }
+    if (novo) {   // casa nova com URL → domínio p/ o favicon (chip padrão em todo o sistema)
+      const dom = _dominioFromUrl((document.getElementById('nc-casa-url') || {}).value || '');
+      if (dom) {
+        DOMINIOS[p.casa] = dom;
+        fetch('/casas/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa: p.casa, dominio: dom }) }).catch(() => {});
+      }
+    }
+    await carregarParceiros(p.casa);   // recarrega cache da casa (ativas + arquivadas)
+    renderCasaList();
+    renderPainelContas();
+    fecharModalNovaConta();
+    if (_ncOrigem === 'dropdown') {    // veio do seletor de conta ativa → ativa a conta nova
+      acctPopAba = 'ativas';
+      document.querySelectorAll('.acct-tabs button').forEach(x => x.classList.toggle('on', x.dataset.aba === 'ativas'));
+      selecionarParceiro(p);
+      abrirAcctPop(false);
+    }
+  } catch { alert('Erro de rede.'); }
+  finally { if (btn) btn.disabled = false; }
+}
+(function initModalNovaConta() {
+  const ov = document.getElementById('novaconta-modal');
+  if (!ov) return;
+  const close = document.getElementById('nc-close'), cancel = document.getElementById('nc-cancel');
+  const criar = document.getElementById('nc-criar'), casa = document.getElementById('nc-casa');
+  if (close) close.addEventListener('click', fecharModalNovaConta);
+  if (cancel) cancel.addEventListener('click', fecharModalNovaConta);
+  if (criar) criar.addEventListener('click', ncCriarConta);
+  if (casa) casa.addEventListener('change', ncOnCasaChange);
+  ov.addEventListener('click', e => { if (e.target === ov) fecharModalNovaConta(); });   // clique fora fecha
+  ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ncCriarConta(); } });
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) fecharModalNovaConta(); });
+})();
 (function initAcctPop() {
   const wrap = document.getElementById('acctSelWrap');
   const btn = document.getElementById('acctSelBtn');
@@ -2428,14 +2573,7 @@ async function criarContaNova() {
   const novoToggle = document.getElementById('acctNewToggle');
   if (novoToggle) novoToggle.addEventListener('click', e => {
     e.stopPropagation();
-    const form = document.getElementById('acctNewForm');
-    if (form && form.hidden) abrirFormNovaConta(); else fecharFormNovaConta();
-  });
-  const novoConfirm = document.getElementById('acctNewConfirm');
-  if (novoConfirm) novoConfirm.addEventListener('click', e => { e.stopPropagation(); criarContaNova(); });
-  ['acctNewParceiro', 'acctNewForn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criarContaNova(); } });
+    abrirModalNovaConta('dropdown');   // abre o modal unificado (não mais o form inline)
   });
 })();
 
@@ -2493,15 +2631,8 @@ function renderPainelContas() {
       '<div><div class="painel-hero-eyebrow">Operação · gestão de contas</div>' +
       '<div class="painel-hero-titulo">Painel de contas</div></div>' +
       '<div class="painel-actions">' +
-        '<button class="btn btn-primary btn-sm" type="button" onclick="painelToggleForm()">+ Nova conta</button>' +
+        '<button class="btn btn-primary btn-sm" type="button" onclick="abrirModalNovaConta(&quot;painel&quot;)">+ Nova conta</button>' +
       '</div>' +
-    '</div>' +
-    '<div class="painel-newform" id="painel-newform">' +
-      '<select id="painel-new-casa" class="acct-new-casa" title="Casa">' + casaOpts + '</select>' +
-      '<input id="painel-new-parceiro" class="acct-new-nome" type="text" placeholder="Parceiro (login da conta)" autocomplete="off" spellcheck="false" onkeydown="if(event.key===&quot;Enter&quot;)painelCriarConta()">' +
-      '<input id="painel-new-forn" class="acct-new-nome" type="text" placeholder="Nome do fornecedor (opcional)" autocomplete="off" spellcheck="false" onkeydown="if(event.key===&quot;Enter&quot;)painelCriarConta()">' +
-      '<button class="btn btn-primary btn-sm" type="button" onclick="painelCriarConta()">Criar</button>' +
-      '<button class="btn btn-ghost btn-sm" type="button" onclick="painelToggleForm(false)">Cancelar</button>' +
     '</div>';
 
   if (!totContas) {
