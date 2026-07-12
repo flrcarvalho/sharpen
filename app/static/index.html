@@ -1089,9 +1089,9 @@ html.embedded .sidebar { display: none; }
 .nc-combo-chev { color: var(--ink-mute); flex: none; transition: transform .18s var(--ease); }
 .nc-combo.open .nc-combo-chev { transform: rotate(180deg); color: var(--accent-2); }
 .nc-combo-menu {
-  position: fixed; z-index: 200;   /* fixed: escapa do overflow do modal (igual .ac-menu) */
+  margin-top: 6px;   /* em fluxo: empurra o form pra baixo; o modal rola se precisar */
   background: var(--elevated); border: 1px solid var(--line); border-radius: var(--r-sm);
-  box-shadow: var(--glow); padding: 6px; max-height: 260px; display: flex; flex-direction: column;
+  box-shadow: var(--glow); padding: 6px; max-height: 280px; display: flex; flex-direction: column;
 }
 .nc-combo-srch { padding: 6px 8px; margin-bottom: 4px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--field); }
 .nc-combo-srch input { width: 100%; background: transparent; border: 0; outline: 0; color: var(--ink); font-family: var(--font-mono); font-size: 12px; box-sizing: border-box; }
@@ -1664,7 +1664,7 @@ td.c-res.res-HL { color: var(--warn); }
 <div class="modal-overlay" id="novaconta-modal">
   <div class="modal modal-narrow">
     <div class="modal-head">
-      <span class="modal-title">Nova conta</span>
+      <span class="modal-title" id="nc-title">Nova conta</span>
       <button class="modal-close" id="nc-close" type="button">✕</button>
     </div>
     <div class="modal-body nc-body">
@@ -1700,7 +1700,7 @@ td.c-res.res-HL { color: var(--warn); }
       </div>
       <div class="modal-field">
         <label>Fornecedor <span class="nc-opt">(opcional)</span></label>
-        <input type="text" id="nc-forn" placeholder="Ex.: Richard" autocomplete="off" spellcheck="false">
+        <input type="text" id="nc-forn" placeholder="Ex.: JoãoContas" autocomplete="off" spellcheck="false">
       </div>
     </div>
     <div class="modal-foot">
@@ -2515,16 +2515,12 @@ function _ncComboRender(filtro) {
 }
 function _ncComboOpen(open) {
   const combo = document.getElementById('nc-combo'), menu = document.getElementById('nc-combo-menu');
-  const trig = document.getElementById('nc-combo-trigger');
   if (!combo || !menu) return;
   combo.classList.toggle('open', open);
-  menu.hidden = !open;
-  if (open && trig) {
-    const r = trig.getBoundingClientRect();   // posiciona o menu fixo abaixo do gatilho
-    menu.style.top = (r.bottom + 6) + 'px';
-    menu.style.left = r.left + 'px';
-    menu.style.width = r.width + 'px';
+  menu.hidden = !open;   // menu em fluxo — sem posicionamento manual
+  if (open) {
     _ncComboRender('');
+    const list = document.getElementById('nc-combo-list'); if (list) list.scrollTop = 0;
     const s = document.getElementById('nc-combo-srch');
     if (s) { s.value = ''; setTimeout(() => s.focus(), 20); }
   }
@@ -2558,6 +2554,7 @@ function fecharModalNovaConta() {
 function ncOnCasaChange() {
   const novo = ((document.getElementById('nc-casa') || {}).value) === '__nova__';
   ['nc-casa-nome-field', 'nc-casa-url-field', 'nc-hint'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !novo; });
+  const t = document.getElementById('nc-title'); if (t) t.textContent = novo ? 'Cadastrar nova casa' : 'Nova conta';
 }
 async function ncCriarConta() {
   const sel = document.getElementById('nc-casa');
