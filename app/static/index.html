@@ -1373,7 +1373,8 @@ td.c-res.res-HL { color: var(--warn); }
           <div class="acct-new">
             <button type="button" class="acct-new-toggle" id="acctNewToggle">+ Nova conta</button>
             <div class="acct-new-form" id="acctNewForm" hidden>
-              <select id="acctNewCasa" class="acct-new-casa" title="Casa"></select>
+              <select id="acctNewCasa" class="acct-new-casa" title="Casa" onchange="onCasaNovaSelChange()"></select>
+              <input id="acctNewCasaTxt" class="acct-new-nome" type="text" placeholder="Nome da casa nova…" autocomplete="off" spellcheck="false" hidden>
               <input id="acctNewParceiro" class="acct-new-nome" type="text" placeholder="Parceiro (login da conta)…" autocomplete="off" spellcheck="false">
               <input id="acctNewForn" class="acct-new-nome" type="text" placeholder="Nome do fornecedor (opcional)…" autocomplete="off" spellcheck="false">
               <button type="button" class="acct-new-confirm" id="acctNewConfirm">Criar conta</button>
@@ -2321,8 +2322,19 @@ function popularCasasNova() {
   const sel = document.getElementById('acctNewCasa');
   if (!sel) return;
   const atual = sel.value;
-  sel.innerHTML = (casasCarregadas || []).map(c => `<option value="${esc(c)}">${esc(NOMES[c] || c)}</option>`).join('');
+  // casas existentes + a opção de cadastrar uma casa nova (modo cego — Fase 2)
+  sel.innerHTML = (casasCarregadas || []).map(c => `<option value="${esc(c)}">${esc(NOMES[c] || c)}</option>`).join('')
+    + '<option value="__nova__">+ nova casa…</option>';
   if (atual) sel.value = atual;
+}
+// Ao escolher "+ nova casa", troca o select pelo campo de texto livre.
+function onCasaNovaSelChange() {
+  const sel = document.getElementById('acctNewCasa');
+  const txt = document.getElementById('acctNewCasaTxt');
+  if (!sel || !txt) return;
+  const nova = sel.value === '__nova__';
+  txt.hidden = !nova;
+  if (nova) { txt.value = ''; txt.focus(); }
 }
 function fecharFormNovaConta() {
   const form = document.getElementById('acctNewForm');
@@ -2333,6 +2345,8 @@ function abrirFormNovaConta() {
   if (!form) return;
   form.hidden = false;
   popularCasasNova();
+  const casaTxt = document.getElementById('acctNewCasaTxt');
+  if (casaTxt) { casaTxt.value = ''; casaTxt.hidden = true; }
   const parc = document.getElementById('acctNewParceiro');
   const forn = document.getElementById('acctNewForn');
   if (parc) { parc.value = ''; parc.focus(); }
@@ -2340,9 +2354,13 @@ function abrirFormNovaConta() {
 }
 async function criarContaNova() {
   const casaSel = document.getElementById('acctNewCasa');
+  const casaTxt = document.getElementById('acctNewCasaTxt');
   const parcInp = document.getElementById('acctNewParceiro');
   const fornInp = document.getElementById('acctNewForn');
-  const casa = casaSel && casaSel.value;
+  // casa nova (texto livre) quando a opção "+ nova casa" está selecionada
+  const casa = (casaSel && casaSel.value === '__nova__')
+    ? ((casaTxt && casaTxt.value) || '').trim()
+    : (casaSel && casaSel.value);
   const parceiro = ((parcInp && parcInp.value) || '').trim();
   const forn = ((fornInp && fornInp.value) || '').trim();
   // Modelo canônico "Parceiro [Fornecedor]"; sem fornecedor fica só o parceiro (nunca "Parceiro []").
@@ -2357,6 +2375,11 @@ async function criarContaNova() {
     });
     if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar conta'); return; }
     const p = await r.json();
+    // Casa nova (Fase 2): passa a existir pelo uso — inclui na lista carregada
+    // para aparecer no dropdown/árvore sem esperar o próximo carregarCasas().
+    if (!(casasCarregadas || []).includes(p.casa)) {
+      casasCarregadas = [...(casasCarregadas || []), p.casa].sort((a, b) => a.localeCompare(b));
+    }
     // Mesma reconciliação de cache do fluxo antigo (reusar nome arquivado reativa via ON CONFLICT).
     const idx = (parceirosCache[casa] || []).findIndex(x => x.id === p.id);
     if (idx >= 0) parceirosCache[casa][idx] = p;

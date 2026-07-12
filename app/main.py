@@ -1852,8 +1852,10 @@ async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(d
     nome = body.nome.strip()
     if not nome:
         raise HTTPException(400, "Nome do parceiro não pode ser vazio.")
-    if not (CASAS_DIR / f"CASA_{casa_key}.md").exists():
-        raise HTTPException(400, f"Casa desconhecida: {body.casa}")
+    if not casa_key.strip():
+        raise HTTPException(400, "Casa não informada.")
+    # Casa nova (Fase 2 worldwide): não exige mais CASA_*.md. A casa passa a
+    # existir pelo uso (parceiro + bilhetes) e a extração roda em modo cego.
     row = await criar_parceiro(_casa_display(casa_key), nome, dono)
     return row
 
