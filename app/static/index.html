@@ -919,6 +919,13 @@ html.embedded .sidebar { display: none; }
   letter-spacing: .1em; color: var(--accent); margin-bottom: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Categoria incerta (IA marcou 'Outros'/⚠️): âmbar acionável — clique abre a edição. */
+.btbl-tipo.incerta {
+  display: inline-block; color: var(--warn);
+  background: rgba(var(--warn-rgb),.16); border: 1px solid rgba(var(--warn-rgb),.45);
+  border-radius: var(--r-pill); padding: 1px 6px; cursor: pointer;
+}
+.btbl-tipo.incerta:hover { background: rgba(var(--warn-rgb),.28); }
 .btbl-desc { font-size: 12px; color: var(--ink); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .btbl-desc .dup-badge, .btbl-desc .so-badge { margin-left: 6px; vertical-align: middle; }
 .btbl-sport { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; }
@@ -3685,6 +3692,13 @@ function _dataRevisao(b) {
   return d.getTime() > hoje.getTime();
 }
 
+// Espelha repository._aposta_incerta: IA sinaliza incerteza via 'Outros' ou ⚠️.
+function _apostaIncerta(a) {
+  if (!a) return false;
+  const s = a.trim().toLowerCase();
+  return s.includes('⚠') || s.startsWith('outros');
+}
+
 function renderGrade() {
   const body = document.getElementById('grade-body');
   if (!bilhetes.length) {
@@ -3698,7 +3712,10 @@ function renderGrade() {
     if (dupInfo) badges.push(`<span class="dup-badge" title="Suspeita de duplicidade — verifique se é aposta distinta ou erro de scroll">${dupInfo[0]}/${dupInfo[1]}</span>`);
     if (soSuspect) badges.push(`<span class="so-badge" title="Suspeita de sobreposição de scroll — esta aposta apareceu em imagens consecutivas. Verifique e delete se for duplicata.">scroll</span>`);
     const nomeCasa = NOMES[b.casa] || b.casa;
-    const tipoHtml = b.aposta ? `<div class="btbl-tipo">${esc(b.aposta)}</div>` : '';
+    const tipoIncerta = _apostaIncerta(b.aposta);
+    const tipoHtml = b.aposta
+      ? `<div class="btbl-tipo${tipoIncerta ? ' incerta' : ''}"${tipoIncerta ? ` title="Categoria incerta — clique para confirmar ou corrigir" onclick="abrirEdicao(${b.id})"` : ''}>${esc(b.aposta)}</div>`
+      : '';
     const contaHtml = b.parceiro ? `<span class="btbl-casa-conta">${esc(b.parceiro)}</span>` : '';
     return `<div class="btbl-cols btbl-data-row" data-id="${b.id}">
       <div class="btbl-cell btbl-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></div>
