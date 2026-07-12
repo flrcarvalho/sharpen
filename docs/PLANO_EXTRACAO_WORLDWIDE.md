@@ -91,30 +91,29 @@ Esforço em "sessões" (bloco focado com Claude Code, ~meio dia). Arquivos citad
 - **Dado:** os §9 ("mapa de mercados") de 13 casas reais são pares **`rótulo cru da casa → categoria global`** já confirmados por humano. Extraídos por script → **110 pares**, 16 categorias (ML, Cartões, Escanteios, Player Props, Múltipla, Gols, Handicap, Anytime, Ambas Marcam, Dupla Chance, Chutes, Chutes no Gol, Games, H2H, Team Props, E-Sports Props).
 - **Teste:** um agente **Sonnet** recebeu **só os MASTERs globais** (taxonomia §3 + sinônimos §4 + prioridade §7) e os 110 rótulos crus, **proibido de abrir qualquer `casas/CASA_*.md`**. Categorizou em "modo cego". Comparado 1-a-1 com o gold.
 
-### Resultado
+### Resultado (Sonnet 4.6 de produção — baseline oficial)
 
-| Métrica | Valor |
-|---|---|
-| Match exato cru | **90,0%** (99/110) |
-| Acerto real de **categoria**¹ | **94,5%** (104/110) |
-| Erros **silenciosos** (errado E sem sinalizar) | **3,6%** (4/110) |
-| Falhas **seguras** (modelo marcou `Outros` = incerteza → cai no amarelo) | 2/110 |
-| Categoria alucinada (fora da §3) | **0/110** |
+Rodado com o **mesmo modelo de produção** (`claude-sonnet-4-6`) via `tools/eval_zeroshot/run_blind.py` (chave do `.env`). Custo do batch: ~30k tokens in / 670 out ≈ **$0,10**.
 
-¹ 5 dos 11 "erros" são artefato de match exato: categoria idêntica (`Anytime`, `Outros`), só divergiu uma anotação entre parênteses no gold (ex.: `Anytime (descr. - 2+ Gols)`). O scorer normaliza isso.
+| Métrica | Sonnet 4.6 (produção) | 1ª rodada (proxy) |
+|---|---|---|
+| Acerto de **categoria** | **97,3%** (107/110) | 94,5% (104/110) |
+| Match exato cru | 90,0% (99/110) | 90,0% |
+| Erros **silenciosos** (errado E sem sinalizar) | **0,9%** (1/110) | 3,6% (4/110) |
+| Falhas **seguras** (modelo marcou `Outros` → amarelo) | 2/110 | 2/110 |
+| Alucinações (fora da §3) | **0** | 0 |
 
-**Os 6 misses reais:**
+**Os 3 misses do baseline real:**
 - **2 falhas seguras** (#83 Polymarket `Total O/U`, #103 Superbet `Total de Quebras (tênis)`): o modelo respondeu `Outros` sozinho → cairiam no amarelo pro usuário confirmar. **Não são erro silencioso — é o loop de confiança funcionando de graça.**
-- **4 erros silenciosos**, todos **mercados de nicho obscuro**: #9/#10 primeiro/último marcador (previu Player Props em vez de Anytime), #12 Hits/Runs/RBIs de baseball (previu `Corridas`, gold `Player Props` — **ambas categorias §3 válidas**, rótulo genuinamente ambíguo), #27 Total de Faltas. **É exatamente a cauda longa que a Fase 3 (cache aprendido) conserta após 1 correção.**
-- **0 alucinações.** (A 1ª leitura reportou 1 em #12 `Corridas`, mas `Corridas` **é** categoria oficial §3 — "corridas e estatísticas de Baseball"; era erro do harness, cuja lista estava incompleta. Corrigido: o harness agora lê as 27 categorias direto da §3.) O guardrail de enum da Fase 1 continua valendo como **seguro barato** (defesa em profundidade), não como conserto de um problema observado.
+- **1 erro silencioso** (#12 Hits/Runs/RBIs de baseball): previu `Corridas`, gold `Player Props` — **ambas categorias §3 válidas** num rótulo que mistura total de time + prop de arremessador. Discutível, não errado. **É exatamente a cauda longa que a Fase 3 (cache aprendido) resolve após 1 correção.**
+- **0 alucinações** (o guardrail de enum da Fase 1 fica como **seguro barato**, não conserto de bug observado).
 
 ### Ressalvas (para não superinterpretar)
 1. Testa **categorização**, não OCR/locale/stake/odd (riscos isolados nas Fases 1 e 4).
-2. Usou o **Sonnet atual** como proxy do Sonnet 4.6 de produção (capacidade ≥ → otimista no limite; em categorização a diferença é irrelevante).
-3. Rótulos do §9 são **mais limpos** que OCR real (viés otimista), mas o modelo viu **só o rótulo, sem o resto do bilhete**, enquanto em produção vê o bilhete inteiro (viés pessimista). Os dois se cancelam → proxy justo a conservador.
+2. Rótulos do §9 são **mais limpos** que OCR real (viés otimista), mas o modelo viu **só o rótulo, sem o resto do bilhete**, enquanto em produção vê o bilhete inteiro (viés pessimista). Os dois se cancelam → justo a conservador.
 
 ### Veredito
-**Sinal verde.** Sem nenhum arquivo de tradução, o modelo já mapeia ~94,5% dos mercados sozinho, com erro silencioso de ~3,6% concentrado 100% na cauda de nicho — onde o cache aprendido atua. O §9 escrito à mão compra pouco; o que ele faz, o zero-shot + confirmação + cache faz de forma que escala. **"Adicionar casa = funciona já" é realidade, não promessa.**
+**Sinal verde forte.** Com o próprio modelo de produção, sem nenhum arquivo de tradução, o Sonnet 4.6 mapeia **97,3%** dos mercados sozinho, com **1 único** erro silencioso (discutível, de nicho). O §9 escrito à mão compra pouquíssimo; o que ele faz, o zero-shot + confirmação + cache faz de forma que escala. **"Adicionar casa = funciona já" é realidade, não promessa.**
 
 ---
 

@@ -41,15 +41,15 @@ python tools/eval_zeroshot/pontuar.py
 
 ## Resultado registrado (Fase 0 — 2026-07-12, sessão 132)
 
-`preds.tsv` guarda a saída da 1ª rodada (Sonnet, modo cego, 110 rótulos de 13 casas):
+`preds.tsv` guarda a saída do **Sonnet 4.6 de produção** (`run_blind.py`, modo cego, 110 rótulos de 13 casas):
 
-| Métrica | Valor |
-|---|---|
-| Acerto de categoria | **94,5%** (104/110) |
-| Match cru | 90,0% (99/110) |
-| Erro silencioso | **3,6%** (4/110) — todos nicho obscuro |
-| Falha segura (pred=Outros) | 2/110 |
-| Alucinação | **0/110** (`Corridas` É categoria §3 válida — baseball) |
+| Métrica | Sonnet 4.6 (produção) | proxy (1ª rodada) |
+|---|---|---|
+| Acerto de categoria | **97,3%** (107/110) | 94,5% |
+| Match cru | 90,0% (99/110) | 90,0% |
+| Erro silencioso | **0,9%** (1/110) — nicho, discutível | 3,6% |
+| Falha segura (pred=Outros) | 2/110 | 2/110 |
+| Alucinação | **0/110** (`Corridas` É categoria §3 — baseball) | 0/110 |
 
 ## Ressalvas (não superinterpretar)
 
