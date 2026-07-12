@@ -10,18 +10,33 @@ Requer, ao lado deste script: pares.json (de extrair_pares.py) e preds.tsv.
 Grava RESULTADO.txt e imprime o resumo.
 """
 import json
+import re
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]
 
-# Categorias canônicas oficiais (global/MASTER_APOSTAS_2026.md §3).
-# Predição fora desta lista = alucinação (guardrail de enum na Fase 1 a mata).
-OFICIAIS = {
-    "Ambas Marcam", "Anytime", "Cartões", "Chutes", "Chutes no Gol",
-    "Dupla Chance", "E-Sports Props", "Escanteios", "Games", "Gols", "H2H",
-    "Handicap", "ML", "Múltipla", "Outros", "Player Props", "Team Props",
-    "Impedimentos", "Desarmes",
-}
+
+def carregar_oficiais() -> set:
+    """Lê a §3 (Tabela Oficial de Categorias) do MASTER_APOSTAS — fonte única.
+    Evita que a lista do harness desatualize em relação ao master."""
+    txt = (ROOT / "global" / "MASTER_APOSTAS_2026.md").read_text(encoding="utf-8")
+    cats, dentro = set(), False
+    for ln in txt.splitlines():
+        if re.match(r"^#+\s*3\.\s", ln):
+            dentro = True
+            continue
+        if dentro and re.match(r"^#+\s*4\.\s", ln):
+            break
+        if dentro and ln.strip().startswith("|"):
+            c = ln.strip().strip("|").split("|")[0].strip()
+            if c and c.lower() != "categoria" and not set(c) <= set("-: "):
+                cats.add(c)
+    return cats
+
+
+# Categorias canônicas oficiais (§3). Predição fora daqui = alucinação de verdade.
+OFICIAIS = carregar_oficiais()
 
 def norm(cat: str) -> str:
     """Categoria nua: tira anotação entre parênteses e o marcador ⚠️.

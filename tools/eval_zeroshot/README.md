@@ -49,7 +49,7 @@ python tools/eval_zeroshot/pontuar.py
 | Match cru | 90,0% (99/110) |
 | Erro silencioso | **3,6%** (4/110) — todos nicho obscuro |
 | Falha segura (pred=Outros) | 2/110 |
-| Alucinação | 1/110 (`Corridas`, inexistente) |
+| Alucinação | **0/110** (`Corridas` É categoria §3 válida — baseball) |
 
 ## Ressalvas (não superinterpretar)
 

@@ -4,12 +4,12 @@ ACERTO de CATEGORIA (métrica-alvo): 104 (94.5%)
 ERROS de categoria: 6 (5.5%)
   dos quais falhas SEGURAS (pred=Outros, cai no amarelo): 2
   dos quais erros SILENCIOSOS: 4 (3.6%)
-  alucinações (fora da §3): 1
+  alucinações (fora da §3): 0
 
 === ERROS DE CATEGORIA ===
   #  9 [BET365] 'Para Marcar Primeiro / Primeiro Marcador de Gol'  gold='Anytime (descr. - Primeiro Marcador)' pred='Player Props'
   # 10 [BET365] 'Para Marcar Por Último / Último Marcador de Gol'  gold='Anytime (descr. - Último Marcador)' pred='Player Props'
-  # 12 [BET365] 'Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts'  gold='Player Props' pred='Corridas' [ALUCINA]
+  # 12 [BET365] 'Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts'  gold='Player Props' pred='Corridas'
   # 27 [BETANO] 'Total de Faltas'  gold='Outros ⚠️ (nicho)' pred='Team Props'
   # 83 [POLYMARKET] 'Total: O/U X / over / under'  gold='Player Props' pred='Outros' [SEGURO]
   #103 [SUPERBET] 'Total de Quebras (tênis)'  gold='Player Props' pred='Outros' [SEGURO]

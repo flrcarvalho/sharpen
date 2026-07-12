@@ -65,7 +65,7 @@ Esforço em "sessões" (bloco focado com Claude Code, ~meio dia). Arquivos citad
 | # | Fase | O que muda (arquivos reais) | Esforço | Risco |
 |---|---|---|---|---|
 | **0** | **Validação** (gate) ✅ FEITA | Medir quanto o §9 realmente compra, rodando categorização zero-shot contra os §9 confirmados. Sem código de produção. | ½ sessão | — |
-| **1** | **Confidence da IA + guardrail de enum** | `_INSTRUCAO` (`app/main.py:484`) passa a pedir confiança por campo; **saída presa ao enum oficial de categorias** (§3) para matar alucinação tipo "Corridas"; frontend (`app/static/index.html:~3102`) sinaliza amarelo; fundir com o score heurístico que já existe (`repository.py:340`). | 2–3 sessões | Baixo |
+| **1** | **Confidence da IA + guardrail de enum** | `_INSTRUCAO` (`app/main.py:484`) passa a pedir confiança por campo; **saída presa ao enum oficial de categorias** (§3, 27 itens) como rede determinística — 0 alucinações observadas na Fase 0, mas barata como seguro; frontend (`app/static/index.html:~3102`) sinaliza amarelo; fundir com o score heurístico que já existe (`repository.py:340`). | 2–3 sessões | Baixo |
 | **2** | **Modo cego (default) + auto-registro** | `build_system(casa=None)` roda só com os 6 masters (`app/prompts.py:28`); `/extrair` aceita "casa desconhecida"; auto-registro da casa na 1ª ocorrência (hoje casa = entrada no dict `_CASA_DISPLAY` em `main.py:96` + arquivo; passa a existir tabela `casas` com nome+url+favicon). Popup "+adicionar conta" no front. | 3–4 sessões | Médio |
 | **3** | **Cache aprendido** (coração da tese) | Nova tabela `mapa_mercado (casa, rotulo_cru, categoria, confirmacoes)`; correção do usuário grava o par; job de destilação (propõe arquivo fino, humano aprova em 1 clique — invariante #1); estado de graduação da casa. | 5–8 sessões | Médio-alto |
 | **4** | **Locale/moeda** | `_num_or_none` (`repository.py:34`) vira locale-aware (hoje default pt-BR); normalizar **odd americana/fracionária → decimal antes do cálculo** (`odd = Resultado/Stake` depende disso); moeda por usuário. | 2–3 sessões | Médio |
@@ -99,14 +99,14 @@ Esforço em "sessões" (bloco focado com Claude Code, ~meio dia). Arquivos citad
 | Acerto real de **categoria**¹ | **94,5%** (104/110) |
 | Erros **silenciosos** (errado E sem sinalizar) | **3,6%** (4/110) |
 | Falhas **seguras** (modelo marcou `Outros` = incerteza → cai no amarelo) | 2/110 |
-| Categoria alucinada (fora da §3) | 1/110 |
+| Categoria alucinada (fora da §3) | **0/110** |
 
-¹ 5 dos 11 "erros" são artefato do scorer: categoria idêntica (`Anytime`, `Outros`), só divergiu uma anotação entre parênteses no gold (ex.: `Anytime (descr. - 2+ Gols)`).
+¹ 5 dos 11 "erros" são artefato de match exato: categoria idêntica (`Anytime`, `Outros`), só divergiu uma anotação entre parênteses no gold (ex.: `Anytime (descr. - 2+ Gols)`). O scorer normaliza isso.
 
 **Os 6 misses reais:**
 - **2 falhas seguras** (#83 Polymarket `Total O/U`, #103 Superbet `Total de Quebras (tênis)`): o modelo respondeu `Outros` sozinho → cairiam no amarelo pro usuário confirmar. **Não são erro silencioso — é o loop de confiança funcionando de graça.**
-- **4 erros silenciosos**, todos **mercados de nicho obscuro**: #9/#10 primeiro/último marcador (previu Player Props em vez de Anytime), #12 Hits/Runs/RBIs de baseball, #27 Total de Faltas. **É exatamente a cauda longa que a Fase 3 (cache aprendido) conserta após 1 correção.**
-- **1 alucinação** (#12 inventou "Corridas", inexistente na §3). Mitigação barata: **prender a saída ao enum oficial** → guardrail da Fase 1.
+- **4 erros silenciosos**, todos **mercados de nicho obscuro**: #9/#10 primeiro/último marcador (previu Player Props em vez de Anytime), #12 Hits/Runs/RBIs de baseball (previu `Corridas`, gold `Player Props` — **ambas categorias §3 válidas**, rótulo genuinamente ambíguo), #27 Total de Faltas. **É exatamente a cauda longa que a Fase 3 (cache aprendido) conserta após 1 correção.**
+- **0 alucinações.** (A 1ª leitura reportou 1 em #12 `Corridas`, mas `Corridas` **é** categoria oficial §3 — "corridas e estatísticas de Baseball"; era erro do harness, cuja lista estava incompleta. Corrigido: o harness agora lê as 27 categorias direto da §3.) O guardrail de enum da Fase 1 continua valendo como **seguro barato** (defesa em profundidade), não como conserto de um problema observado.
 
 ### Ressalvas (para não superinterpretar)
 1. Testa **categorização**, não OCR/locale/stake/odd (riscos isolados nas Fases 1 e 4).
