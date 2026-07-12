@@ -544,13 +544,6 @@ html.embedded .sidebar { display: none; }
   font-family: var(--font-sans); font-size: 12px; font-weight: 700; cursor: pointer; transition: box-shadow .12s;
 }
 .acct-new-confirm:hover { box-shadow: var(--glow); }
-.model-select {
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-sm); padding: 6px 12px;
-  font-size: 12px; color: var(--ink-soft); font-family: var(--font-mono);
-  cursor: pointer; outline: none; transition: border-color .12s;
-}
-.model-select:focus { border-color: var(--accent); box-shadow: var(--glow); }
 
 /* ── Partner body: two columns ── */
 .partner-body {
@@ -625,6 +618,12 @@ html.embedded .sidebar { display: none; }
 .btn-sm { padding: 5px 12px; font-size: 11px; }
 .btn-danger { color: var(--neg); border-color: rgba(var(--neg-rgb),.25); }
 .btn-danger:hover { background: rgba(var(--neg-rgb),.08); border-color: var(--neg); }
+/* Wordmark SharpenUp no botão Conectar: cinza (desconectado) → cor cheia (conectado),
+   espelhando a convenção de estado do pill da extensão (.status off/on). */
+#btn-conectar-ext .su-lockup { height: 15px; width: auto; vertical-align: middle;
+  margin-left: 6px; position: relative; top: -1px;
+  filter: grayscale(1) opacity(.6); transition: filter .18s ease; }
+#btn-conectar-ext.su-on .su-lockup { filter: none; }
 .status-msg { font-size: 12px; color: var(--ink-mute); font-family: var(--font-mono); }
 .status-msg.ok   { color: var(--pos); }
 .status-msg.err  { color: var(--neg); }
@@ -1375,12 +1374,11 @@ td.c-res.res-HL { color: var(--warn); }
       </div>
       </div>
     </div>
-    <!-- Modelo (e o sync da Polymarket, seu par de troca) movidos do partner-header -->
+    <!-- Sync da Polymarket movido do partner-header.
+         Modelo de IA NÃO é escolha do usuário: é definido no backend (config.py →
+         DEFAULT_MODEL) e só trocado por nós. O front não envia 'modelo'; /extrair
+         cai no Form(DEFAULT_MODEL). -->
     <div class="ctx-right">
-      <select id="modelo" class="model-select">
-        <option value="claude-sonnet-4-6" selected>Sonnet 4.6 · padrão</option>
-        <option value="claude-opus-4-8">Opus 4.8 · casos difíceis</option>
-      </select>
       <!-- Polymarket: sincronização via API ocupa o lugar do seletor de modelo (sem IA nesta casa) -->
       <div class="poly-head-sync" id="poly-head-sync" style="display:none">
         <span class="status-msg" id="poly-status"></span>
@@ -1434,8 +1432,8 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
             <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
-            <button class="btn btn-ghost btn-sm" id="btn-conectar-ext" title="Gera um código para conectar a extensão SharpenUp a esta conta"><svg width="6" height="14" viewBox="40 10 40 100" aria-hidden="true" style="vertical-align:middle;margin-right:6px;position:relative;top:-1px"><defs><linearGradient id="suBladeBtn" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeBtn)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><span id="ext-btn-label">Conectar extensão</span></button>
-            <button class="btn btn-ghost btn-sm" id="btn-desconectar-ext" style="display:none">Desconectar</button>
+            <button class="btn btn-ghost" id="btn-conectar-ext" title="Gera um código para conectar o SharpenUp a esta conta"><span id="ext-btn-label">Conectar</span><svg class="su-lockup" viewBox="0 0 258 96" aria-label="SharpenUp"><svg x="14" y="14" width="34" height="68" viewBox="40 10 40 100" overflow="visible"><defs><linearGradient id="suLockBtn" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suLockBtn)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><text x="62" y="62" font-family="Manrope, Arial, sans-serif" font-weight="800" font-size="44" letter-spacing="-2.2" fill="#EEF2F7">Sharp<tspan fill="#3B95FF">en.</tspan></text></svg></button>
+            <button class="btn btn-ghost btn-danger" id="btn-desconectar-ext" style="display:none">Desconectar</button>
             <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
             <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
               <span>Captura</span>
@@ -2646,11 +2644,9 @@ function aplicarModoCasa(casa) {
   const isPoly = casa === 'Polymarket';
   const up = document.getElementById('upload-section');
   const headSync = document.getElementById('poly-head-sync');
-  const modelo = document.getElementById('modelo');
   const dash = document.getElementById('polymarket-dashboard');
   if (up) up.style.display = isPoly ? 'none' : '';
   if (headSync) headSync.style.display = isPoly ? '' : 'none';
-  if (modelo) modelo.style.display = isPoly ? 'none' : '';   // sem IA na Polymarket
   if (dash) dash.style.display = isPoly ? '' : 'none';
   if (isPoly) {
     const w = document.getElementById('poly-wallet');
@@ -2841,6 +2837,7 @@ async function conectarExtensao() {
     try { await navigator.clipboard.writeText(d.codigo); copiado = true; } catch (_) {}
     extStatus(`Código ${d.codigo}${copiado ? ' copiado' : ''} — cole na extensão. Aguardando…`, '');
     document.getElementById('ext-btn-label').textContent = 'Reconectar';
+    document.getElementById('btn-conectar-ext').classList.add('su-on');
     document.getElementById('btn-desconectar-ext').style.display = '';
     extConectadoAviso = false;
     clearInterval(extPollTimer);
@@ -2886,7 +2883,9 @@ function desconectarExtensao(avisar = true) {
     extSessao = null;
   }
   const lbl = document.getElementById('ext-btn-label');
-  if (lbl) lbl.textContent = 'Conectar extensão';
+  if (lbl) lbl.textContent = 'Conectar';
+  const cbtn = document.getElementById('btn-conectar-ext');
+  if (cbtn) cbtn.classList.remove('su-on');
   const dbtn = document.getElementById('btn-desconectar-ext');
   if (dbtn) dbtn.style.display = 'none';
   if (avisar) extStatus('', '');
@@ -3121,10 +3120,16 @@ function renderRail(analise, notaIA, modelLabel, elapsedSec) {
 
 // ── Extraction cards (multi-paralelo) ─────────────────────────────────────────
 
-function createExtractionCard(parceiro, modelo, thumbUrls = [], fileNames = []) {
+// Rótulo humano do modelo — derivado do id que o backend informa no evento "done"
+// (o front não escolhe mais o modelo; quem decide é config.py → DEFAULT_MODEL).
+function modeloLabel(m) {
+  const s = m || '';
+  return s.includes('opus') ? 'Opus 4.8' : s.includes('4-5') ? 'Sonnet 4.5' : 'Sonnet 4.6';
+}
+
+function createExtractionCard(parceiro, thumbUrls = [], fileNames = []) {
   const id = ++_cardCounter;
   const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const modelLabel = modelo.includes('opus') ? 'Opus 4.8' : modelo.includes('4-5') ? 'Sonnet 4.5' : 'Sonnet 4.6';
   const label = `${esc(parceiro.casa)} · ${esc(parceiro.nome)}`;
 
   const card = document.createElement('div');
@@ -3180,7 +3185,6 @@ function createExtractionCard(parceiro, modelo, thumbUrls = [], fileNames = []) 
   return {
     id,
     ctrl,
-    modelLabel,
     setProgress(msg) { progEl.textContent = msg; },
     setTokens(t) {
       const pct = t.cache_read > 0
@@ -3206,7 +3210,7 @@ function createExtractionCard(parceiro, modelo, thumbUrls = [], fileNames = []) 
 }
 
 async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
-  const { ctrl, setProgress, setTokens, setNotas, markDone, modelLabel } = card;
+  const { ctrl, setProgress, setTokens, setNotas, markDone } = card;
   let _elapsed = 0;
   const _timer = setInterval(() => { _elapsed++; setProgress(`Processando… (${_elapsed}s)`); }, 1000);
   setRailRunning();   // rail entra em "analisando" enquanto o lote roda
@@ -3280,7 +3284,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
       markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}`, tipo);
 
       // Rail "Análise IA": KPIs + notas estruturadas + observação livre da IA
-      renderRail(ds.analise, parsed.notas, modelLabel, _elapsed);
+      renderRail(ds.analise, parsed.notas, modeloLabel(data.modelo), _elapsed);
 
       if (parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
         paginaAtual = 0;   // novos bilhetes são os mais recentes → 1ª página
@@ -3338,8 +3342,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   const form = new FormData();
   form.append('casa', parceiroSelecionado.casa);
   form.append('parceiro', parceiroSelecionado.nome);
-  const modelo = document.getElementById('modelo').value;
-  form.append('modelo', modelo);
+  // 'modelo' não é enviado: o backend decide via config.py (DEFAULT_MODEL).
   const txt = document.getElementById('texto').value.trim();
   if (txt) form.append('texto', txt);
   arquivos.forEach(f => form.append('imagens', f));
@@ -3376,7 +3379,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
 
   // Cria card → limpa o formulário SEM persistir o lote enviado (explicit=true não
   // grava em estadoExtrator) → re-habilita botão imediatamente.
-  const card = createExtractionCard(parceiroSnapshot, modelo, thumbUrls, fileNames);
+  const card = createExtractionCard(parceiroSnapshot, thumbUrls, fileNames);
   limparExtrator(true);
 
   // Roda extração em background (não bloqueia o formulário)
