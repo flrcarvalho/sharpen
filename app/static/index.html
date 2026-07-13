@@ -917,11 +917,15 @@ html.embedded .sidebar { display: none; }
 }
 /* Categoria incerta (IA marcou 'Outros'/⚠️): âmbar acionável — clique abre a edição. */
 .btbl-tipo.incerta {
-  display: inline-block; color: var(--warn);
+  display: inline-flex; align-items: center; gap: 5px; color: var(--warn);
   background: rgba(var(--warn-rgb),.16); border: 1px solid rgba(var(--warn-rgb),.45);
-  border-radius: var(--r-pill); padding: 1px 6px; cursor: pointer;
+  border-radius: var(--r-pill); padding: 1px 6px 1px 5px; cursor: pointer;
 }
 .btbl-tipo.incerta:hover { background: rgba(var(--warn-rgb),.28); }
+/* Glifo IA âmbar na célula que a IA marcou incerta (railv2 §4 — 11px, --warn).
+   Assina "a IA tocou este campo e não tem certeza — confirme" (tooltip diz o resto). */
+.inc-glifo { display: inline-grid; place-items: center; flex: none; color: var(--warn); }
+.inc-glifo svg { width: 11px; height: 11px; }
 .btbl-desc { font-size: 12px; color: var(--ink); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .btbl-desc .dup-badge, .btbl-desc .so-badge { margin-left: 6px; vertical-align: middle; }
 .btbl-sport { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; }
@@ -4031,7 +4035,7 @@ function renderGrade() {
     const nomeCasa = NOMES[b.casa] || b.casa;
     const tipoIncerta = _apostaIncerta(b.aposta);
     const tipoHtml = b.aposta
-      ? `<div class="btbl-tipo${tipoIncerta ? ' incerta' : ''}"${tipoIncerta ? ` title="Categoria incerta — clique para confirmar ou corrigir" onclick="abrirEdicao(${b.id})"` : ''}>${esc(b.aposta)}</div>`
+      ? `<div class="btbl-tipo${tipoIncerta ? ' incerta' : ''}"${tipoIncerta ? ` title="Categoria incerta — clique para confirmar ou corrigir" onclick="abrirEdicao(${b.id})"` : ''}>${tipoIncerta ? `<span class="inc-glifo" aria-hidden="true">${GLIFO_SVG}</span>` : ''}${esc(b.aposta)}</div>`
       : '';
     const contaHtml = b.parceiro ? `<span class="btbl-casa-conta">${esc(b.parceiro)}</span>` : '';
     return `<div class="btbl-cols btbl-data-row" data-id="${b.id}">
