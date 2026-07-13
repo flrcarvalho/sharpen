@@ -658,6 +658,31 @@ html.embedded .sidebar { display: none; }
 /* railv2 §2: nasce com 1 linha; expande no focus */
 .text-area:focus { border-color: var(--accent); box-shadow: var(--glow); min-height: 70px; }
 .text-area::placeholder { color: var(--ink-mute); }
+/* ── Etapa 2 (repaginação Extração): captura em 2 caixas iguais (texto | imagem) ──
+   #drop-zone continua sendo a caixa de imagem (mesmos handlers click/drop; paste é
+   global). O #texto vive na caixa da esquerda. As duas têm largura/altura idênticas. */
+.cap__inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
+@media (max-width: 680px) { .cap__inputs { grid-template-columns: 1fr; } }
+.capbox {
+  border: 1.5px dashed rgba(var(--accent-rgb),.4); border-radius: var(--r-md);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb),.05), transparent);
+  padding: 16px; min-height: 150px; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 11px;
+  transition: border-color .15s, background .15s; cursor: pointer;
+}
+.capbox:hover, .capbox.drag { border-color: rgba(var(--accent-rgb),.75); background: linear-gradient(180deg, rgba(var(--accent-rgb),.09), transparent); }
+.capbox--txt { cursor: text; }
+.capbox__hd { display: flex; align-items: center; gap: 11px; }
+.capbox__icon { width: 40px; height: 40px; border-radius: 11px; background: rgba(var(--accent-rgb),.12); border: 1px solid rgba(var(--accent-rgb),.3); display: grid; place-items: center; color: var(--accent-2); flex: none; }
+.capbox__icon svg { width: 21px; height: 21px; }
+.capbox__hd .t { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.capbox__hd .h { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 3px; line-height: 1.4; }
+.capbox__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 78px; border: 1px solid var(--line); border-radius: var(--r-sm); background: rgba(0,0,0,.15); }
+.capbox__hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
+.capbox__hint b { color: var(--accent-2); }
+.capbox__area { flex: 1; min-height: 78px !important; height: auto !important; resize: none; background: rgba(0,0,0,.15); }
+.cap__bar { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 2px; }
+.cap__sp { flex: 1; }
 .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .btn {
   padding: 10px 16px; border-radius: var(--r-sm);
@@ -1609,34 +1634,52 @@ td.c-res.res-HL { color: var(--warn); }
 
         <!-- Inputs -->
         <div class="input-section" id="upload-section">
-          <div class="upload-zone" id="drop-zone">
-            <div class="upload-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
-            <div class="upload-txt">
-              <div class="upload-label"><strong>Arraste, clique ou cole</strong> os bilhetes aqui</div>
-              <div class="upload-hint">Aceita prints, .csv e .xls · Ctrl+V cola um print · ou "+ Arquivo" abaixo</div>
+          <!-- Etapa 2: duas caixas iguais lado a lado (Colar texto | Print ou imagem) + barra de ação abaixo -->
+          <div class="cap__inputs">
+            <!-- Colar texto (textarea #texto preservado) -->
+            <div class="capbox capbox--txt">
+              <div class="capbox__hd">
+                <div class="capbox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h13"/></svg></div>
+                <div>
+                  <div class="t">Colar texto</div>
+                  <div class="h">cole o bilhete em texto — funciona junto com as imagens</div>
+                </div>
+              </div>
+              <textarea class="text-area capbox__area" id="texto"
+                placeholder='Ex.: "Múltipla · Over 2.5 [River v Boca] @ 1.85 · Stake R$ 100 · Bet365"…'></textarea>
             </div>
-            <div class="upload-preview" id="preview"></div>
+            <!-- Print ou imagem = #drop-zone (mesmos handlers: click / drop / paste global) -->
+            <div class="capbox" id="drop-zone">
+              <div class="capbox__hd">
+                <div class="capbox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></div>
+                <div>
+                  <div class="t">Print ou imagem</div>
+                  <div class="h">arraste, cole (Ctrl+V) ou clique · prints, .csv e .xls</div>
+                </div>
+              </div>
+              <div class="capbox__body">
+                <span class="capbox__hint">Solte aqui · <b>Escolher arquivo</b></span>
+                <div class="upload-preview" id="preview"></div>
+              </div>
+            </div>
           </div>
           <input type="file" id="file-input" multiple accept="image/*,application/pdf,.csv,text/csv,.xls,.xlsx">
 
-          <textarea class="text-area" id="texto"
-            placeholder="Cole aqui o texto do bilhete — opcional, funciona junto com as imagens"
-            rows="2"></textarea>
-
-          <div class="actions">
-            <button class="btn btn-primary" id="btn-extrair" disabled><span class="ai-glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>Processar Bilhetes</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
-            <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
-            <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
+          <div class="actions cap__bar">
             <button class="btn btn-ghost" id="btn-conectar-ext" title="Gera um código para conectar o SharpenUp a esta conta"><span id="ext-btn-label">Conectar</span><span class="su-mark" aria-label="SharpenUp"><span class="su-tile"><svg viewBox="40 10 40 100" aria-hidden="true"><defs><linearGradient id="suBladeMk" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeMk)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><span class="su-up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span></span><span class="su-wm">Sharpen<span class="su-u">Up</span></span></span></button>
             <button class="btn btn-ghost btn-danger" id="btn-desconectar-ext" style="display:none">Desconectar</button>
             <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
+            <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
+            <span class="status-msg" id="status-msg"></span>
+            <span class="cap__sp"></span>
             <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
               <span>Captura</span>
               <input type="date" id="data-ref" class="data-ref-input">
             </label>
-            <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
-            <span class="status-msg" id="status-msg"></span>
+            <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
+            <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
+            <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
+            <button class="btn btn-primary" id="btn-extrair" disabled><span class="ai-glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>Processar Bilhetes</button>
           </div>
         </div>
 
