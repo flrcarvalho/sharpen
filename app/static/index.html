@@ -458,7 +458,7 @@ html.embedded .sidebar { display: none; }
   font-size: 11px; color: var(--ink-soft); line-height: 1; }
 
 /* ── 4.2.a — Conta ativa na barra de contexto (migração casca unificada) ── */
-.ctxbar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 8px 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.ctxbar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 6px 10px; margin-bottom: 8px; flex-wrap: wrap; }
 .ctx-lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 3px; }
 /* 4.2.c — Operador e Modelo movidos para a context bar */
 .ctx-divider { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
@@ -467,8 +467,8 @@ html.embedded .sidebar { display: none; }
 /* Faixa de KPIs da conta ativa (item 3) — mesma linguagem visual da ctxbar,
    células separadas por divisor fino. Custo é um input editável (grava no
    localStorage dash_custos_v2, compartilhado com o Betting Dashboard). */
-.ctx-kpis { display: flex; align-items: stretch; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 6px; margin-bottom: 12px; }
-.ctx-kpi { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 9px 16px; min-width: 0; }
+.ctx-kpis { display: flex; align-items: stretch; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 6px; margin-bottom: 8px; }
+.ctx-kpi { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 14px; min-width: 0; }
 .ctx-kpi + .ctx-kpi::before { content: ""; position: absolute; left: 0; top: 22%; height: 56%; width: 1px; background: var(--line); }
 .ctx-kpi-lbl { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); white-space: nowrap; }
 .ctx-kpi-val { font-family: var(--font-mono); font-size: 15px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.05; }
@@ -1566,7 +1566,7 @@ td.c-res.res-HL { color: var(--warn); }
       <!-- RIGHT: AI analysis -->
       <div class="right-panel">
         <div class="right-panel-header">
-          <span class="right-panel-title">Análise IA</span>
+          <span class="right-panel-title">Sharpen IA</span>
           <span class="rail-pill" id="rail-pill" style="display:none"><span class="rp-dot"></span><span id="rail-pill-txt"></span></span>
         </div>
         <!-- Resumo do rail: 3 KPIs + notas (info/warn/ok) + rodapé. Preenchido
