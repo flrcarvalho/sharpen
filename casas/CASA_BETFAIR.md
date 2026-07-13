@@ -19,9 +19,54 @@
 
 ---
 
-## 2. Modo de ingestão e layout (DUAS fontes + join)
+## 2. Modo de ingestão e layout
 
-A Betfair precisa de **duas fontes casadas pelo ID** `O/25146258/XXXX`:
+### 2.0. CAPTURA via extensão (SharpenUp `bf_inject`) — via PRINCIPAL ✅
+
+A extensão lê a **RESPOSTA JSON** que a própria página já baixa da API de bilhetes
+resolvidos — `POST https://myactivity.betfair.bet.br/activity/sportsbook` — sem clique,
+sem OCR e **sem o extrato CSV**. O robô só rola a lista p/ paginar (levas de 10, cursor
+`nextPageIndex`; fim autoritativo = `moreAvailable:false`).
+
+Cada bilhete do JSON traz **tudo, exato**:
+
+| Campo JSON | Uso |
+|---|---|
+| `betId` = `O/25146258/XXXX` | Código (join/dedup); vira `[Código: O/…]` no bloco |
+| **`settledDate`** (`12-jul-26 17:33:53`) | **Data = RESOLUÇÃO — existe até nas PERDAS** |
+| `placedDate` | Colocação (informativo "Apostado em"; **nunca** vira a Data) |
+| `status`/`result` = `WON`/`LOST`/`VOID` | Resultado limpo (mata a colisão `V`/`P`/`N`, ver §5) |
+| `originalOdds.decimal` / `combinedOdds` | Odd exibida / estrutural da múltipla |
+| `rawStake` / `rawPotentialReturn` | Stake e retorno (W = retorno ÷ stake, precisão total) |
+| `stakeCash` / `stakeBonus` | Separa dinheiro real de freebet (§8) |
+| `fullCashout` / `isPartialCashOut` | Cashout (§7) |
+| `marketType` / `marketName` / `eventDescription` / `selection` / `sportName` | Mercado, confronto, seleção, esporte |
+
+> **Por que isto resolve a data das PERDAS:** o extrato CSV (via legada abaixo) **não gera
+> linha para bilhete perdido** (perda não devolve dinheiro) → a data da perda era
+> *interpolada* (aproximação). O JSON traz `settledDate` de **todo** bilhete → data de
+> resolução **exata**, perda inclusive. Fim da interpolação e do upload duplo.
+
+Formato do bloco emitido pela extensão (a IA lê e transcreve; o marcador `[Código: O/…]`
+é a fronteira do split/dedup no backend, igual a Superbet/Betano):
+
+```
+[Código: O/25146258/0001761]
+Data: 12/07/2026
+Apostado em: 12/07/2026
+Esporte (casa): Brazilian Football · Brazilian Serie B
+Tipo: Simples
+Stake: 100,00
+Status: LOST → L · Retorno 0.00
+Odd total: 12,00
+Seleções:
+  • São Bernardo x Cuiabá · Marcador a qualquer momento [TO_SCORE] · Pepe @ 12,00
+```
+
+### 2.1. LEGADO — texto (bilhetes) + extrato CSV, casados por ID
+
+> Fluxo antigo, mantido como fallback. Usado quando o bloco **não** traz `[Código: O/…]`.
+> A Betfair precisa de **duas fontes casadas pelo ID** `O/25146258/XXXX`:
 
 **Fonte A — bilhetes** ("Minhas apostas → Resolvida", print ou texto colado). Tem: tipo, código visual (`V`/`P`/`N`), confronto, mercado, seleção, odd, `Valor Apostado`, `Ganhos`, `ID da aposta`. **Não tem data.**
 
@@ -56,17 +101,27 @@ O extrato (Fonte B / CSV) é usado **apenas para buscar data e dados financeiros
 
 ---
 
-## 4. Data (via join com o extrato)
+## 4. Data
 
-> ⚙️ **Você (modelo) NÃO preenche a Data — deixe a coluna Data VAZIA.** O sistema casa a data pelo ID `O/…` (Código) contra o extrato. Sua única obrigação aqui é emitir o **Código = ID `O/…` exato**.
+Regra global: data = **data do resultado (resolução)**. Nunca a de colocação (`placedDate` /
+`Bet Placed`). Como preencher depende da via de ingestão (§2):
 
-Regra global: data = **data do resultado**. Na Betfair ela vem do **extrato** (via sistema), não do bilhete:
+### 4.A. Via CAPTURA (bloco tem `[Código: O/…]` + linha `Data:`) — PRINCIPAL
+
+> ✅ **Transcreva a `Data:` do bloco na coluna Data.** Ela já é a `settledDate` (resolução)
+> do JSON, correta para **todo** bilhete — **ganho, void E PERDA**. A linha `Apostado em:`
+> é só informativa (colocação): **ignore-a** para a coluna Data.
+
+### 4.B. Via LEGADO (texto + extrato CSV, sem `[Código:]`)
+
+> ⚙️ **NÃO preencha a Data — deixe a coluna Data VAZIA.** O sistema casa a data pelo ID
+> `O/…` (Código) contra o extrato. Sua única obrigação é emitir o **Código = ID `O/…` exato**.
 
 - **Ganho / Cashout** → data da linha `Bet Settled (Bet Ref: O/…)` casada por ID.
 - **Void** → data da linha `Voided Bet Refund (Bet Ref: O/…)`.
-- **Perda** → ⚠️ **não gera linha no extrato** (perda não devolve dinheiro). Datar por **interpolação**: a lista "Resolvida" está em ordem de ID (cronológica); a perda herda a data dos bilhetes datados que a cercam. Ambíguo só na virada de dia → marcar pra revisar.
+- **Perda** → ⚠️ **não gera linha no extrato** (perda não devolve dinheiro). Datar por **interpolação**: a lista "Resolvida" está em ordem de ID (cronológica); a perda herda a data dos bilhetes datados que a cercam. Ambíguo só na virada de dia → marcar pra revisar. *(É esta a aproximação que a via 4.A elimina.)*
 
-Formato fonte: `DD-mmm-YY HH:MM:SS` (ex.: `12-jun-26 20:47:03`) → `DD/MM/AAAA`. Nunca usar data de colocação (`Bet Placed`).
+Formato fonte (ambas as vias): `DD-mmm-YY HH:MM:SS` (ex.: `12-jun-26 20:47:03`) → `DD/MM/AAAA`.
 
 ---
 
@@ -81,6 +136,10 @@ A Betfair usa um código visual de uma letra que **colide** com o nosso:
 | `N` | Nulo / Anulado | **V** |
 
 > ⚠️ NUNCA copiar o código visual direto. O `V` da Betfair é **vitória → W**; o nosso `V` (void) é o `N` da Betfair.
+
+> ✅ **Via CAPTURA (§2.0):** o status vem **textual e limpo** do JSON — `WON → W` · `LOST → L`
+> · `VOID → V` — já pré-mapeado no bloco (`Status: WON → W`). A colisão `V`/`P`/`N` só existe
+> na tela (via legada/print); no JSON não há ambiguidade.
 
 Conferência financeira (decide em caso de dúvida): `Ganhos = 0` → L · `Ganhos = Valor Apostado` → V · `Ganhos > Valor Apostado` → W. Aba "Aberta" → `extraction_state = aberta`.
 

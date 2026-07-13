@@ -117,3 +117,30 @@ def test_apply_dates_sobrescreve_data_errada_do_modelo():
     datas = _datas(main._apply_betfair_dates(saida, m))
     assert datas[0] == "10/07/2026"   # win: extrato manda, ignora 2099
     assert datas[1] == "10/07/2026"   # perda: interpola 0001745, ignora 2099
+
+
+# ── Roteamento do split: CAPTURA (bf_inject, [Código: O/…]) vs LEGADO (ID da aposta:) ──
+# A captura (bf_inject) emite o marcador [Código: O/…] das casas passivas → fatia pelo
+# _SUPERBET_SPLIT_RE. O legado texto+extrato (sem [Código:]) continua fatiando por
+# "ID da aposta: O/…". Ambos precisam render 1 chunk por bilhete (2 bilhetes → 2 chunks).
+_INSTR = {"type": "text", "text": "INSTRUCAO"}
+
+
+def test_build_chunks_betfair_captura_split_por_codigo():
+    texto = (
+        "[Código: O/25146258/0001761]\nData: 12/07/2026\nStake: 100,00\nStatus: LOST → L\n\n"
+        "[Código: O/25146258/0001760]\nData: 12/07/2026\nStake: 100,00\nStatus: VOID → V"
+    )
+    chunks = main._build_chunks([{"type": "text", "text": texto}], _INSTR, "BETFAIR")
+    assert len(chunks) == 2   # 2 bilhetes distintos → 2 chunks (roteou pelo split de [Código:])
+    joined = "\n".join(b["text"] for ch in chunks for b in ch if b is not _INSTR)
+    assert "0001761" in joined and "0001760" in joined
+
+
+def test_build_chunks_betfair_legado_split_por_id_da_aposta():
+    texto = (
+        "Simples\nP\nA x B\n1.66\nID da aposta: O/25146258/0001747\n\n"
+        "Simples\nV\nC x D\n1.66\nID da aposta: O/25146258/0001746"
+    )
+    chunks = main._build_chunks([{"type": "text", "text": texto}], _INSTR, "BETFAIR")
+    assert len(chunks) == 2   # sem [Código:] → fatiou pelo _split_betfair_bilhetes (legado)

@@ -29,13 +29,16 @@ CODIGO_TTL = 15 * 60               # código válido p/ CONECTAR por 15 min
 MAX_CAPTURAS = 60                  # fila máxima por sessão (anti-OOM)
 MAX_SESSOES = 300                  # teto global de sessões vivas
 
-# Modo de captura por casa. Betano, Superbet, Bet365 e BETesporte = texto (robô); o
-# resto = print (moldura + Snap). Superbet: cada card tem o CÓDIGO no atributo `id`
+# Modo de captura por casa. Betano, Superbet, Bet365, BETesporte e Betfair = texto (robô);
+# o resto = print (moldura + Snap). Superbet: cada card tem o CÓDIGO no atributo `id`
 # (exato, sem OCR). Bet365: sem ID nem data, mas o texto do card vem completo no DOM
 # (mesmo recolhido) → robô lê tudo sem clicar. BETesporte: o robô lê a RESPOSTA da API
 # /api/bet/RequestUserTickets (JSON exato: id, odd, value, status, date) — resolve o ID
-# que não aparece na lista (só no "Ver Cupom") → dedup passa a funcionar.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto"}
+# que não aparece na lista (só no "Ver Cupom") → dedup passa a funcionar. Betfair: o robô
+# lê a RESPOSTA da API POST /activity/sportsbook (JSON exato: betId O/…, settledDate,
+# status WON/LOST/VOID, stake, odd) — data de resolução de TODO bilhete, perda inclusive
+# (o extrato CSV não tinha linha p/ perda). Substitui o fluxo texto+extrato com join no código.
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:

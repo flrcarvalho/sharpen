@@ -596,9 +596,15 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
             # Split no marcador [Bilhete Bet365] injetado pelo robô = fronteira do bilhete
             blocks = _BET365_SPLIT_RE.split(full_text)
         elif casa_key.upper() == "BETFAIR":
-            # Bilhetes em texto SEM o CSV (a data vem do join no código). Fronteira = a
-            # linha "ID da aposta: O/…" → fatia p/ paralelizar (fim da chamada única).
-            blocks = _split_betfair_bilhetes(full_text)
+            # Betfair tem DUAS ingestões:
+            #   • CAPTURA (bf_inject, atual): bloco traz o marcador [Código: O/…] + a Data
+            #     já resolvida (settledDate do JSON) → fatia como Superbet/Betano.
+            #   • LEGADO texto+extrato: sem [Código:], a Data vem do join no código →
+            #     fronteira = a linha "ID da aposta: O/…".
+            if "[Código:" in full_text:
+                blocks = _SUPERBET_SPLIT_RE.split(full_text)
+            else:
+                blocks = _split_betfair_bilhetes(full_text)
         else:
             blocks = full_text.split("\n\n")
         blocks = [b.strip() for b in blocks if b.strip()]
@@ -1336,7 +1342,10 @@ async def extrair(
     if texto:
         # Betano (texto): pré-dedup por ID antes de chamar o modelo — descarta
         # bilhetes já liquidados no banco e duplicatas de scroll dentro do colar.
-        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO"):
+        # Betfair via CAPTURA (bf_inject) usa o mesmo marcador [Código: O/…] → entra na
+        # pré-dedup. O legado texto+extrato (sem [Código:]) fica de fora (é dedupado depois).
+        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO") or \
+           (casa_key.upper() == "BETFAIR" and "[Código:" in texto):
             # Mesmo marcador [Código: ...] → pré-dedup por ID (descarta bilhetes já
             # liquidados no banco + duplicatas de scroll dentro do colar). A Betano migrou
             # p/ ingestão por API (bn_inject) e passou a usar o mesmo marcador das outras.

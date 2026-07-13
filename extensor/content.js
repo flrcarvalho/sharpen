@@ -70,6 +70,27 @@
     }
   });
 
+  // Bilhetes da BETFAIR capturados pelo bf_inject.js (mundo MAIN) — as RESPOSTAS JSON de
+  // POST /activity/sportsbook. Mesmo modelo passivo: o robô só rola a lista p/ a página
+  // paginar (levas de 10, cursor nextPageIndex); a extensão lê o dado exato (betId O/…,
+  // settledDate, status WON/LOST/VOID, stake, odd, seleções), sem OCR nem extrato CSV.
+  // `bfFimReal` = a página trouxe `moreAvailable:false` → fim autoritativo.
+  const bfTickets = [];
+  const bfTicketSeen = new Set();
+  let bfFimReal = false;
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupBFData) {
+      if (Array.isArray(d.bets)) {
+        for (const t of d.bets) {
+          const c = t && t.betId;
+          if (c && !bfTicketSeen.has(c)) { bfTicketSeen.add(c); bfTickets.push(t); }
+        }
+      }
+      if (d.fim) bfFimReal = true;
+    }
+  });
+
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
       '<defs><linearGradient id="sharpenupBladeGrad" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse">' +
@@ -396,6 +417,12 @@
         console.log("[SharpenUp] Betano: API vazia → fallback texto");
         blocos = await roboScroll(ctx);
       }
+    } else if (casa === "betfair") {
+      // Passivo puro (bf_inject): dado exato com betId + settledDate. SEM fallback de
+      // scrape DOM — a lista HTML da Betfair não tem data nem ID, scrape seria pior que
+      // não enviar. API vazia (aba aberta antes da extensão) → o iniciarRobo avisa "nada
+      // coletado"; basta recarregar a página da Betfair e rodar de novo.
+      blocos = await roboBetfairPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -482,6 +509,17 @@
   const _dbrBE = (s) => {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ""));
     return m ? (m[3] + "/" + m[2] + "/" + m[1]) : "";
+  };
+  // Betfair: `settledDate`/`placedDate` vêm como "12-jul-26 17:33:53" — mês PT abreviado,
+  // JÁ em horário local (o mesmo do extrato). Só converte DD-mmm-YY → DD/MM/AAAA. NÃO usar
+  // `_dbr` (é p/ ISO UTC → pularia 1 dia). Espelha o `_betfair_data` do backend.
+  const _MESES_BF = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06",
+                      jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
+  const _dbrBF = (s) => {
+    const m = /^\s*(\d{1,2})-([a-zç]{3})-(\d{2})/.exec(String(s || "").toLowerCase());
+    if (!m) return "";
+    const mes = _MESES_BF[m[2]];
+    return mes ? (m[1].padStart(2, "0") + "/" + mes + "/20" + m[3]) : "";
   };
 
   function formatTicket(t) {
@@ -695,6 +733,69 @@
     return L.join("\n");
   }
 
+  // ── Betfair modo API (sem clique) ─────────────────────────────────────────────
+  // Formata 1 bilhete do POST /activity/sportsbook no bloco de texto que a IA lê (mesmo
+  // marcador "[Código: O/…]" das outras casas passivas → o backend split/dedupa por ele).
+  // Datas: settledDate/placedDate vêm "DD-mmm-YY HH:MM:SS" JÁ em horário local (_dbrBF).
+  // Fiel ao CASA_BETFAIR §4/§5/§11:
+  //   • Data = settledDate (RESOLUÇÃO — existe até nas perdas, ao contrário do extrato CSV).
+  //   • Status: WON→W · LOST→L · VOID→V · cashout (fullCashout/isPartialCashOut) → regra §7.
+  //   • Odd: W = rawPotentialReturn÷rawStake (precisão total, respeita boost/ODDSBOOST) ·
+  //     L/V = odd exibida (originalOdds.decimal, nunca 0/1) · múltipla = combinedOdds.
+  const _TIPO_BF = { SGL: "Simples" };
+  function formatTicketBF(t) {
+    const L = [];
+    const stake = (typeof t.rawStake === "number") ? t.rawStake : _brlNum(t.stake);
+    const ret = (typeof t.rawPotentialReturn === "number") ? t.rawPotentialReturn : _brlNum(t.potentialReturn);
+    const oddDec = _oddNum((t.originalOdds && t.originalOdds.decimal) || t.combinedOdds);
+    const combined = _oddNum(t.combinedOdds);
+    const parts = Array.isArray(t.parts) ? t.parts : null;
+    const st = String(t.status || t.result || "").toUpperCase();
+    const isMult = (t.betType && t.betType !== "SGL") || (parts && parts.length > 1) || combined != null;
+
+    L.push("[Código: " + (t.betId || "") + "]");
+    L.push("Data: " + _dbrBF(t.settledDate));   // resolução (col Data); nunca a colocação
+    if (t.placedDate) L.push("Apostado em: " + _dbrBF(t.placedDate));
+    if (t.sportName) L.push("Esporte (casa): " + t.sportName + (t.competitionName ? " · " + t.competitionName : ""));
+
+    L.push("Tipo: " + (_TIPO_BF[t.betType] || (isMult ? "Múltipla" : "Simples")));
+    L.push("Stake: " + _brl(stake));
+    if (t.stakeBonus) L.push("Freebet incluído: " + _brl(_brlNum(t.stakeBonus)) + " (dinheiro real = stake − freebet)");
+
+    // Status/resultado bruto — a IA/CASA_BETFAIR aplica a regra final (nunca copiar o
+    // código visual V/P/N da tela; aqui já vem o status textual limpo do JSON).
+    const cashout = !!t.fullCashout || !!t.isPartialCashOut;
+    let stTxt;
+    if (cashout) stTxt = "Cash Out (" + (t.isPartialCashOut ? "parcial" : "total") + ") → regra §7 (Cash Out ÷ Stake)";
+    else if (st === "WON") stTxt = "WON → W";
+    else if (st === "LOST") stTxt = "LOST → L";
+    else if (st === "VOID") stTxt = "VOID → V";
+    else stTxt = st + " (a conferir — não liquidar automaticamente)";
+    L.push("Status: " + stTxt + (t.potentialReturn != null ? (" · Retorno " + t.potentialReturn) : ""));
+    if (cashout && t.potentialReturn != null) L.push("Cash Out: " + t.potentialReturn);
+
+    // Odd total: W (WON ou cashout com retorno) = Retorno÷Stake (precisão total, respeita
+    // boost/ODDSBOOST); L/V = odd exibida; múltipla sem win = combinedOdds estrutural.
+    const oddW = ret != null && stake > 0 && (st === "WON" || (cashout && ret > 0));
+    const oddTot = oddW ? (ret / stake) : (isMult && combined != null ? combined : oddDec);
+    L.push("Odd total: " + _odd(oddTot) + (oddW ? " (= Retorno ÷ Stake)" : ""));
+
+    L.push("Seleções:");
+    if (isMult && parts && parts.length) {
+      for (const p of parts) {
+        const po = _oddNum((p.originalOdds && p.originalOdds.decimal) || p.odds || p.decimalOdds);
+        const desc = [p.eventDescription, p.marketName, p.selection].filter(Boolean).join(" · ");
+        L.push("  • " + desc + (po != null ? " @ " + _odd(po) : ""));
+      }
+    } else {
+      const mt = t.marketType ? " [" + t.marketType + "]" : "";
+      const hcp = (t.handicap != null && t.handicap !== "") ? " (handicap " + t.handicap + ")" : "";
+      const desc = [t.eventDescription, (t.marketName || t.eventMarketDescription || "") + mt, t.selection].filter(Boolean).join(" · ");
+      L.push("  • " + desc + hcp + (oddDec != null ? " @ " + _odd(oddDec) : ""));
+    }
+    return L.join("\n");
+  }
+
   // Acha o elemento clicável VISÍVEL cujo rótulo contém a frase (menor texto = o mais
   // específico). Botões/links primeiro; se não achar, um elemento com o texto exato e
   // sobe pro ancestral clicável. Usado p/ "CARREGAR MAIS…" e "FILTRAR".
@@ -829,6 +930,58 @@
     await sleep(400);
     processar();   // consome a última leva (inclusive a página final sem LastId)
     console.log("[SharpenUp] Betano: " + blocos.length + " bilhete(s) · bnTickets=" + bnTickets.length + " · fimReal=" + bnFimReal);
+    return blocos;
+  }
+
+  // Modo passivo (dado vem do bf_inject: exato, com betId O/…). A Betfair pagina por SCROLL
+  // (levas de 10, cursor nextPageIndex) → o robô ROLA até o fundo repetidamente p/ a página
+  // buscar mais, e vai consumindo o JSON. Para no stopId (copiar dele pra cima), na janela de
+  // dias (por settledDate), OU — sinal autoritativo — quando a página traz `moreAvailable:false`
+  // (bfFimReal). NUNCA para no primeiro obstáculo: só desiste por teto após MUITOS segundos
+  // totalmente parado sem sinal de fim. Espelho do roboBetanoPassive.
+  async function roboBetfairPassive(ctx) {
+    const cont = acharScroll();
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      for (const t of bfTickets) {
+        const cod = (t.betId || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias pela settledDate (resolução). "12-jul-26…" → _dbrBF → DD/MM/AAAA → ts.
+        const dbr = _dbrBF(t.settledDate);
+        let dt = NaN;
+        if (dbr) { const pp = dbr.split("/"); dt = Date.UTC(+pp[2], +pp[1] - 1, +pp[0]); }
+        const passou = !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketBF(t));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela de dias → para
+      }
+    };
+
+    // Pede ao bf_inject o que já capturou (a 1ª página vem no load da página).
+    try { window.postMessage({ __sharpenupBFReq: true }, "*"); } catch (e) {}
+    await sleep(300);
+    processar();
+
+    // Rola do topo p/ garantir que nada da 1ª leva foi pulado, depois gruda no fundo.
+    sTo(cont, 0); await sleep(400);
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !bfFimReal && voltas < 3000) {
+      voltas++;
+      try { window.scrollTo(0, document.documentElement.scrollHeight); } catch (e) {}
+      try { if (cont && cont !== document.scrollingElement && cont !== document.documentElement) cont.scrollTop = cont.scrollHeight; } catch (e) {}
+      await sleep(700);
+      processar();
+      if (travado) break;
+      if (bfTickets.length > ultTotal) { ultTotal = bfTickets.length; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 12000) break;   // 12s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome a última leva (inclusive a página final com moreAvailable:false)
+    console.log("[SharpenUp] Betfair: " + blocos.length + " bilhete(s) · bfTickets=" + bfTickets.length + " · fimReal=" + bfFimReal);
     return blocos;
   }
 
