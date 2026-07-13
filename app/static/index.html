@@ -515,6 +515,9 @@ html.embedded .sidebar { display: none; }
 .acct-acct { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 10px 12px 10px 14px; cursor: pointer; border-left: 2px solid transparent; transition: background .14s, border-color .14s; position: relative; }
 .acct-acct + .acct-acct { border-top: 1px solid var(--line-2); }
 .acct-acct .acct-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); flex: none; }
+/* Aba Inativas: a conta está arquivada → dot apagado (offline), não verde de ativa.
+   Cinza neutro, não --neg: vermelho é reservado a perda/P-L (não a "conta inativa"). */
+.acct-acct .acct-dot.off { background: var(--ink-mute); }
 .acct-acct .acct-who { flex: 1; min-width: 0; }
 .acct-acct .acct-u { font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acct-acct .acct-o { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2470,6 +2473,7 @@ function renderAcctTree() {
   if (!tree) return;
   const q = (document.getElementById('acct-search').value || '').toLowerCase().trim();
   const fonte = acctPopAba === 'ativas' ? parceirosCache : parceirosArquivadosCache;
+  const inativa = acctPopAba !== 'ativas';   // aba Inativas → dot apagado (offline)
   let html = '';
   (casasCarregadas || []).forEach(casa => {
     const nomeCasa = NOMES[casa] || casa;
@@ -2503,7 +2507,7 @@ function renderAcctTree() {
         ? '<svg class="acct-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>'
         : '<svg class="acct-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>';
       html += '<div class="acct-acct' + (isSel ? ' sel' : '') + '" tabindex="0" role="button" data-casa="' + casa + '" data-id="' + p.id + '">'
-        + '<span class="acct-dot"></span>'
+        + '<span class="acct-dot' + (inativa ? ' off' : '') + '"></span>'
         + '<div class="acct-who"><div class="acct-u">' + esc(conta || '—') + '</div>' + sub + '</div>'
         + badges + tail + '</div>';
     });
