@@ -986,8 +986,9 @@
       }
     };
 
-    // Pede ao bf_inject o que já capturou (a 1ª página vem no load da página).
-    try { window.postMessage({ __sharpenupBFReq: true }, "*"); } catch (e) {}
+    // Pede ao bf_inject o estado + ARRANCA a paginação ativa até o teto (o bf_inject
+    // pagina sozinho pela API — não depende do scroll da página). Varrer tudo → limite 0.
+    try { window.postMessage({ __sharpenupBFReq: true, limite: (ctx.varrerTudo ? 0 : (ctx.qtdMax || 0)) }, "*"); } catch (e) {}
     await sleep(300);
     processar();
 
