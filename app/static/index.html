@@ -1667,7 +1667,7 @@ td.c-res.res-HL { color: var(--warn); }
                 <div class="capbox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h13"/></svg></div>
                 <div>
                   <div class="t">Colar texto</div>
-                  <div class="h">cole o bilhete em texto — funciona junto com as imagens</div>
+                  <div class="h">copie o texto do bilhete na casa de apostas e cole aqui para extração</div>
                 </div>
               </div>
               <textarea class="text-area capbox__area" id="texto"
@@ -3053,9 +3053,11 @@ function mostrarEmptyState() {
   renderPainelContas();
 }
 
-// Casas em que o SharpenUp opera (espelha o backend captura.py `_HOSTS_POR_CASA`).
-// Fora dessa lista o botão Conectar aparece esmaecido/não clicável (captura é por print manual).
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BET365', 'BETESPORTE', 'BETFAIR']);
+// Casas em que o SharpenUp opera de forma estável (subconjunto do backend
+// captura.py `_HOSTS_POR_CASA`). Fora dessa lista o botão Conectar aparece
+// esmaecido/não clicável (captura é por print manual).
+// Bet365 fora POR ORA: a 1ª tentativa de conexão não ficou estável → indisponível.
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR']);
 function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase()); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
