@@ -1213,7 +1213,7 @@ td.c-res.res-HL { color: var(--warn); }
 .right-panel:has(.extract-card) .rail-summary { max-height: 50%; }
 .rail-sum {
   padding: 16px 18px; border-bottom: 1px solid var(--line);
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; flex: none;
 }
 .rail-c .rail-k {
   font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .12em;
@@ -1249,15 +1249,65 @@ td.c-res.res-HL { color: var(--warn); }
   font-family: var(--font-mono); font-size: 11px; color: var(--ink);
   background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-weight: 500;
 }
-/* Fase 2 (sessão 133): modelo + segundos são registro de dev → saem da vista do
-   cliente (o nº de itens já vive no KPI). O dado segue no evento SSE / log server-side
-   para o backoffice da Fase 3. Reversível — só display. */
+/* railv2 §3.5: rodapé com conteúdo do CLIENTE ("Extração de hoje HH:MM · N itens").
+   Modelo/tokens/custo NÃO vivem mais aqui — migraram para o <details> Backoffice.
+   Inicia escondido (inline style); renderRail mostra ao concluir. */
 .rail-foot {
-  padding: 13px 18px; border-top: 1px solid var(--line);
+  padding: 12px 18px; border-top: 1px solid var(--line);
   font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute);
-  display: none; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex: none;
 }
 .rail-foot .rf-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-2); flex: none; }
+
+/* ── Rail v2 (railv2 §3) — camadas: head · sum · scroll(veredito/notas/backoffice) · hist · foot.
+   Cores por token/triplet (nunca literal — check-tokens §paleta). ── */
+.rail__brand { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+.rail__glifo { display: inline-grid; place-items: center; color: var(--accent-2); flex: none; }
+.rail__glifo svg { width: 16px; height: 16px; }
+.rail__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* Veredito — bloco didático do cliente ("posso confiar? o que falta?") */
+.verdict { margin: 14px 16px 6px; padding: 14px 16px; border-radius: var(--r-md); border: 1px solid var(--line); }
+.verdict.ok   { border-color: rgba(var(--pos-rgb),.35);    background: rgba(var(--pos-rgb),.06); }
+.verdict.warn { border-color: rgba(var(--warn-rgb),.35);   background: rgba(var(--warn-rgb),.06); }
+.verdict.run  { border-color: rgba(var(--accent-rgb),.35); background: rgba(var(--accent-rgb),.06); }
+.verdict .vk { font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; }
+.verdict.ok .vk { color: var(--pos); } .verdict.warn .vk { color: var(--warn); } .verdict.run .vk { color: var(--accent-2); }
+.verdict h3 { margin: 7px 0 6px; font-size: 15px; font-weight: 800; letter-spacing: -.015em; color: var(--ink); }
+.verdict p { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
+.verdict p b { color: var(--ink); font-weight: 700; }
+.rail__notes { padding: 2px 18px 8px; }
+
+/* Backoffice (colapsado) — modelo/tokens/custo/assinatura só aqui */
+.tech { margin: 4px 16px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); overflow: hidden; }
+.tech summary { list-style: none; cursor: pointer; padding: 11px 14px; display: flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); transition: color .2s; }
+.tech summary::-webkit-details-marker { display: none; }
+.tech summary:hover { color: var(--ink-soft); }
+.tech summary .chv { margin-left: auto; transition: transform .2s; color: var(--ink-mute); }
+.tech[open] summary .chv { transform: rotate(180deg); }
+.tech .kv { padding: 2px 14px 12px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-family: var(--font-mono); font-size: 11px; }
+.tech .kv .tk { color: var(--ink-mute); } .tech .kv .tv { color: var(--ink-soft); text-align: right; }
+.tech .kv .tv b { color: var(--ink); font-weight: 600; }
+.tech .kv .tv--full { grid-column: 1 / -1; text-align: left; color: var(--ink-soft); line-height: 1.5; }
+
+/* Histórico de extrações */
+.hist { border-top: 1px solid var(--line); flex: none; }
+.hist__head { padding: 12px 18px 8px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); display: flex; align-items: center; gap: 8px; }
+.hist__head .cnt { margin-left: auto; letter-spacing: .04em; }
+.hist__list { padding: 0 10px 10px; display: flex; flex-direction: column; max-height: 34vh; overflow-y: auto; }
+.hrow { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); cursor: pointer; transition: background .15s; }
+.hrow:hover, .hrow.on { background: var(--surface-2); }
+.hrow .hst { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.hrow .hst.ok { background: var(--pos); } .hrow .hst.warn { background: var(--warn); } .hrow .hst.run { background: var(--accent-2); }
+.hrow .hwho { min-width: 0; flex: 1; }
+.hrow .hwho .ha { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hrow .hwho .hb { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; }
+.hrow .hn { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; flex: none; }
+
+/* Skeletons (processando) */
+.skel { background: linear-gradient(90deg, var(--surface-2) 25%, rgba(255,255,255,.06) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
 
 /* ── Extraction cards ── */
 .extract-card { border-bottom: 1px solid var(--line); flex-shrink: 0; }
@@ -1594,27 +1644,36 @@ td.c-res.res-HL { color: var(--warn); }
        (veredito / notas / backoffice / histórico) e o glifo IA vêm nas fases seguintes. -->
   <aside class="rail" id="rail">
     <div class="right-panel-header">
-      <span class="right-panel-title">RAIO-X</span>
+      <span class="rail__brand">
+        <span class="rail__glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>
+        <span class="right-panel-title">RAIO-X</span>
+      </span>
       <span class="rail-pill" id="rail-pill" style="display:none"><span class="rp-dot"></span><span id="rail-pill-txt"></span></span>
     </div>
-    <!-- Resumo do rail: 3 KPIs + notas (info/warn/ok) + rodapé. Preenchido
-         ao concluir cada extração (reflete a última). Convive com os cards. -->
-    <div class="rail-summary" id="rail-summary" style="display:none">
-      <div class="rail-sum">
-        <div class="rail-c"><div class="rail-k">Itens</div><div class="rail-v" id="rail-itens">—</div></div>
-        <div class="rail-c"><div class="rail-k">Duplicadas</div><div class="rail-v" id="rail-dup">—</div></div>
-        <div class="rail-c"><div class="rail-k">Confiança</div><div class="rail-v" id="rail-conf">—</div></div>
-      </div>
-      <div class="rail-notes" id="rail-notes"></div>
-      <div class="rail-foot" id="rail-foot"><span class="rf-dot"></span><span id="rail-foot-txt"></span></div>
+    <!-- Sum (Itens/Duplicadas/Confiança) — flex:none, aparece ao concluir -->
+    <div class="rail-sum" id="rail-sum" style="display:none">
+      <div class="rail-c"><div class="rail-k">Itens</div><div class="rail-v" id="rail-itens">—</div></div>
+      <div class="rail-c"><div class="rail-k">Duplicadas</div><div class="rail-v" id="rail-dup">—</div></div>
+      <div class="rail-c"><div class="rail-k">Confiança</div><div class="rail-v" id="rail-conf">—</div></div>
     </div>
-    <div class="analysis-boxes" id="analysis-boxes">
-      <!-- Estado vazio -->
-      <div class="right-empty" id="right-empty">
-        <div class="right-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 2 1 3 1.5 4.5L8 18h8l.5-4.5C17 12 18 11 18 9a6 6 0 0 0-6-6z"/><path d="M9 21h6"/></svg></div>
-        <div>As notas críticas da extração<br>aparecerão aqui após processar um bilhete.</div>
+    <!-- Scroll: veredito (cliente) + notas de ação + backoffice (injetados por
+         renderRail); abaixo, os cards de extração (progresso/thumbs/cancelar). -->
+    <div class="rail__scroll">
+      <div id="rail-result"></div>
+      <div class="analysis-boxes" id="analysis-boxes">
+        <!-- Estado vazio -->
+        <div class="right-empty" id="right-empty">
+          <div class="right-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 2 1 3 1.5 4.5L8 18h8l.5-4.5C17 12 18 11 18 9a6 6 0 0 0-6-6z"/><path d="M9 21h6"/></svg></div>
+          <div>O resumo da extração aparece aqui<br>após processar um bilhete.</div>
+        </div>
       </div>
     </div>
+    <!-- Histórico — últimas extrações (7 dias), persistido por dono; clique reabre -->
+    <div class="hist" id="rail-hist" style="display:none">
+      <div class="hist__head">Últimas extrações<span class="cnt">7 dias</span></div>
+      <div class="hist__list" id="rail-hist-list"></div>
+    </div>
+    <div class="rail-foot" id="rail-foot" style="display:none"><span class="rf-dot"></span><span id="rail-foot-txt"></span></div>
   </aside><!-- .rail -->
 
   </div><!-- .workfull -->
@@ -1748,6 +1807,7 @@ async function carregarUsuario() {
     const vendo = efetivo !== real;
     // isolamento do store de custos: escopa por dono efetivo + migra o legado uma vez.
     window.__donoEfetivo = efetivo; window.__donoReal = real;
+  try { renderHist(); } catch (e) {}   // histórico do rail é escopado por dono
     _migrarCustoLegado(real);
 
     document.getElementById('user-nome').textContent = efetivo;
@@ -3215,14 +3275,43 @@ function parseResposta(text) {
   };
 }
 
-// ── Rail "Análise IA": resumo (KPIs + notas + rodapé) da última extração ───────
-// Reflete o último lote concluído. Notas = estruturadas do backend (só problemas
-// reais) + observação livre da IA (info). Confiança verde ≥95% (decisão Feca).
+// ── Rail "RAIO-X" (railv2 §3): camadas da última extração ─────────────────────
+// Veredito didático (cliente) + notas de AÇÃO/CONFERIDO + backoffice colapsado (nós)
+// + histórico persistido por dono. Confiança verde ≥95% (decisão Feca). O técnico
+// (modelo/tokens/custo/assinatura) só aparece dentro do <details> Backoffice.
+const RAIOX_HIST_KEY = 'sharpen_raiox_hist';
+function _histKey() { return RAIOX_HIST_KEY + '::' + (window.__donoEfetivo || '_'); }
+function _histLoad() {
+  try {
+    const raw = localStorage.getItem(_histKey());
+    const arr = raw ? JSON.parse(raw) : [];
+    const lim = Date.now() - 7 * 24 * 3600 * 1000;   // janela de 7 dias
+    return (Array.isArray(arr) ? arr : []).filter(h => (h.ts || 0) >= lim);
+  } catch (e) { return []; }
+}
+function _histSave(list) {
+  try { localStorage.setItem(_histKey(), JSON.stringify(list.slice(0, 40))); } catch (e) {}
+}
+function _histPush(entry) { const l = _histLoad(); l.unshift(entry); _histSave(l); renderHist(); }
+function _quando(ts) {
+  const d = new Date(ts), now = new Date();
+  const hm = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const same = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const ontem = new Date(now); ontem.setDate(now.getDate() - 1);
+  if (same(d, now)) return 'hoje ' + hm;
+  if (same(d, ontem)) return 'ontem ' + hm;
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
 function resetRail() {
-  const sum = document.getElementById('rail-summary');
+  const sum = document.getElementById('rail-sum');
   const pill = document.getElementById('rail-pill');
+  const res = document.getElementById('rail-result');
+  const foot = document.getElementById('rail-foot');
   if (sum) sum.style.display = 'none';
   if (pill) pill.style.display = 'none';
+  if (res) res.innerHTML = '';
+  if (foot) foot.style.display = 'none';
 }
 function setRailPill(estado) {   // 'run' | 'done' | null
   const pill = document.getElementById('rail-pill');
@@ -3233,49 +3322,129 @@ function setRailPill(estado) {   // 'run' | 'done' | null
   txt.textContent = estado === 'run' ? 'analisando' : 'extração concluída';
   pill.style.display = '';
 }
-function setRailRunning() { setRailPill('run'); }
-function renderRail(analise, notaIA, modelLabel, elapsedSec) {
-  if (!analise) return;
-  const sum = document.getElementById('rail-summary');
-  document.getElementById('right-empty').style.display = 'none';
+function setRailRunning() {
+  setRailPill('run');
+  const empty = document.getElementById('right-empty');
+  if (empty) empty.style.display = 'none';
+  const res = document.getElementById('rail-result');
+  if (res) {
+    const sk = '<div class="rail-note info"><div class="skel" style="height:10px;width:42%;margin:6px 0 9px"></div><div class="skel" style="height:9px;width:88%;margin-bottom:6px"></div><div class="skel" style="height:9px;width:64%"></div></div>';
+    res.innerHTML = '<div class="verdict run"><div class="vk">LENDO</div><h3>Analisando os bilhetes…</h3><p>Em segundos você confere o que entrou na grade.</p></div>'
+      + '<div class="rail__notes">' + sk + sk + '</div>';
+  }
+  const foot = document.getElementById('rail-foot'), ftx = document.getElementById('rail-foot-txt');
+  if (foot && ftx) { ftx.textContent = 'lendo bilhetes…'; foot.style.display = ''; }
+}
 
-  // KPIs
-  document.getElementById('rail-itens').textContent = analise.itens != null ? analise.itens : '—';
-  document.getElementById('rail-dup').textContent = analise.duplicadas != null ? analise.duplicadas : '—';
+// Monta veredito + notas de ação + backoffice a partir de um "resumo" normalizado
+// (usado tanto pela extração ao vivo quanto ao reabrir uma entrada do histórico).
+function _railResultHtml(r) {
+  const v = r.verdict || { cls: 'ok', k: '', h: '', p: '' };
+  let html = '<div class="verdict ' + v.cls + '"><div class="vk">' + esc(v.k) + '</div><h3>' + esc(v.h) + '</h3><p>' + (v.p || '') + '</p></div>';
+  const acao = (r.notas || []).filter(n => n.tipo === 'warn' || n.tipo === 'ok');
+  if (acao.length) {
+    html += '<div class="rail__notes">' + acao.map(nt => {
+      const t = nt.tipo === 'warn' ? 'warn' : 'ok';
+      return '<div class="rail-note ' + t + '"><div class="rn-n">' + esc(nt.n || '') + '</div><div class="rn-h">' + esc(nt.titulo || '') + '</div><div class="rn-p">' + (nt.texto || '') + '</div></div>';
+    }).join('') + '</div>';
+  }
+  const kv = (r.tech || []).map(t => '<span class="tk">' + esc(t[0]) + '</span><span class="tv">' + t[1] + '</span>').join('');
+  let extra = '';
+  if (r.obs) extra += '<span class="tv tv--full"><b>Observação da IA:</b> ' + r.obs + '</span>';
+  (r.notas || []).filter(n => n.tipo !== 'warn' && n.tipo !== 'ok').forEach(n => {
+    extra += '<span class="tv tv--full"><b>' + esc(n.titulo || n.n || 'Nota') + ':</b> ' + (n.texto || '') + '</span>';
+  });
+  html += '<details class="tech"><summary><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Backoffice · detalhe técnico<svg class="chv" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></summary><div class="kv">' + kv + extra + '</div></details>';
+  return html;
+}
+
+function _preencheSum(itens, dup, confPct) {
+  document.getElementById('rail-itens').textContent = (itens != null && itens !== '') ? itens : '—';
+  document.getElementById('rail-dup').textContent = dup != null ? dup : '—';
   const confEl = document.getElementById('rail-conf');
-  if (analise.confianca != null) {
-    const pct = Math.round(analise.confianca * 100);
-    confEl.textContent = pct + '%';
-    confEl.className = 'rail-v ' + (pct >= 95 ? 'pos' : 'warn');
-  } else {
-    confEl.textContent = '—';
-    confEl.className = 'rail-v';
-  }
+  if (confPct != null) { confEl.textContent = confPct + '%'; confEl.className = 'rail-v ' + (confPct >= 95 ? 'pos' : 'warn'); }
+  else { confEl.textContent = '—'; confEl.className = 'rail-v'; }
+  document.getElementById('rail-sum').style.display = '';
+}
 
-  // Notas estruturadas (texto já vem com <b> do backend) + observação livre da IA
+function renderRail(analise, notaIA, modelLabel, elapsedSec, ctx) {
+  if (!analise) return;
+  ctx = ctx || {};
+  const empty = document.getElementById('right-empty');
+  if (empty) empty.style.display = 'none';
+
+  const itens = analise.itens != null ? analise.itens : 0;
+  const dup = analise.duplicadas != null ? analise.duplicadas : 0;
+  const confPct = analise.confianca != null ? Math.round(analise.confianca * 100) : null;
+  _preencheSum(itens, analise.duplicadas != null ? dup : null, confPct);
+
+  // Veredito (síntese cliente): "posso confiar? o que falta?"
   const notas = Array.isArray(analise.notas) ? analise.notas.slice() : [];
-  if (notaIA && notaIA.trim() && notaIA.trim() !== 'Nenhuma') {
-    notas.push({ tipo: 'info', n: 'IA', titulo: 'Observação da IA',
-                 texto: esc(notaIA.trim()).replace(/\n/g, '<br>') });
-  }
-  document.getElementById('rail-notes').innerHTML = notas.map(nt => {
-    const t = (nt.tipo === 'warn' || nt.tipo === 'ok') ? nt.tipo : 'info';
-    return '<div class="rail-note ' + t + '">'
-      + '<div class="rn-n">' + esc(nt.n || '') + '</div>'
-      + '<div class="rn-h">' + esc(nt.titulo || '') + '</div>'
-      + '<div class="rn-p">' + (nt.texto || '') + '</div>'
-      + '</div>';
-  }).join('');
+  const avisos = notas.filter(n => n.tipo === 'warn').length;
+  const verdict = avisos > 0
+    ? { cls: 'warn', k: 'REVISAR', h: itens + ' aposta(s) na grade, ' + avisos + ' aviso(s)',
+        p: 'A extração entrou na grade. Confira o(s) aviso(s) abaixo antes de copiar — costuma ser 1 clique.' }
+    : { cls: 'ok', k: 'EXTRAÇÃO LIMPA', h: itens + ' aposta(s) na grade',
+        p: 'Datas, odds e stakes conferem com o print. Pronto para copiar.' };
 
-  // Rodapé: modelo · tempo · N itens
-  const segs = [];
-  if (modelLabel) segs.push(modelLabel);
-  if (elapsedSec != null) segs.push(String(elapsedSec).replace('.', ',') + ' s');
-  segs.push((analise.itens || 0) + ' item(ns)');
-  document.getElementById('rail-foot-txt').textContent = segs.join(' · ');
+  // Backoffice (só nós): modelo/duração/tokens/confiança/assinatura
+  const tech = [];
+  if (modelLabel) tech.push(['Modelo', '<b>' + esc(modelLabel) + '</b>']);
+  if (elapsedSec != null) tech.push(['Duração', String(elapsedSec).replace('.', ',') + ' s']);
+  if (ctx.tokens) tech.push(['Tokens', 'in ' + (ctx.tokens.input != null ? ctx.tokens.input : '—') + ' · out ' + (ctx.tokens.output != null ? ctx.tokens.output : '—')]);
+  if (confPct != null) tech.push(['Confiança', '<b>' + confPct + '%</b>']);
+  if (window.__donoEfetivo) tech.push(['Assinatura', esc(window.__donoEfetivo) + (ctx.parceiro ? ' · ' + esc(ctx.parceiro) : '')]);
 
+  const obs = (notaIA && notaIA.trim() && notaIA.trim() !== 'Nenhuma') ? esc(notaIA.trim()).replace(/\n/g, '<br>') : '';
+  const resumo = { verdict: verdict, notas: notas, tech: tech, obs: obs };
+  document.getElementById('rail-result').innerHTML = _railResultHtml(resumo);
+
+  const ftx = document.getElementById('rail-foot-txt'), foot = document.getElementById('rail-foot');
+  const hm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (ftx) ftx.textContent = 'Extração de hoje ' + hm + ' · ' + itens + ' item(ns)';
+  if (foot) foot.style.display = '';
   setRailPill('done');
-  if (sum) sum.style.display = '';
+
+  // Persiste o resumo desta extração (histórico reabrível)
+  _histPush({
+    id: 'x' + Date.now(), ts: Date.now(),
+    casa: ctx.casa || '', parceiro: ctx.parceiro || '',
+    itens: itens, dup: analise.duplicadas != null ? dup : null, conf: confPct,
+    st: avisos > 0 ? 'warn' : 'ok', resumo: resumo
+  });
+}
+
+// Histórico — lista clicável na base do rail; clique reabre o resumo daquela extração.
+function renderHist() {
+  const wrap = document.getElementById('rail-hist'), list = document.getElementById('rail-hist-list');
+  if (!wrap || !list) return;
+  const items = _histLoad();
+  if (!items.length) { wrap.style.display = 'none'; list.innerHTML = ''; return; }
+  wrap.style.display = '';
+  list.innerHTML = items.map((h, i) => {
+    const quem = esc(h.casa || 'Extração') + (h.parceiro ? ' · ' + esc(h.parceiro) : '');
+    const detalhe = (h.dup ? h.dup + ' dup · ' : '') + (h.st === 'warn' ? 'pendência' : 'limpa');
+    const b = _quando(h.ts) + ' · ' + (h.itens || 0) + ' item(ns) · ' + detalhe;
+    const n = h.conf != null ? h.conf + '%' : '—';
+    return '<div class="hrow" data-hist="' + i + '"><span class="hst ' + (h.st || 'ok') + '"></span>'
+      + '<div class="hwho"><div class="ha">' + quem + '</div><div class="hb">' + esc(b) + '</div></div>'
+      + '<span class="hn">' + n + '</span></div>';
+  }).join('');
+  list.querySelectorAll('[data-hist]').forEach(row => {
+    row.addEventListener('click', () => { const h = _histLoad()[+row.dataset.hist]; if (h) reopenHist(h, row); });
+  });
+}
+function reopenHist(h, row) {
+  const empty = document.getElementById('right-empty');
+  if (empty) empty.style.display = 'none';
+  _preencheSum(h.itens, h.dup, h.conf);
+  if (h.resumo) document.getElementById('rail-result').innerHTML = _railResultHtml(h.resumo);
+  const ftx = document.getElementById('rail-foot-txt'), foot = document.getElementById('rail-foot');
+  if (ftx) ftx.textContent = 'Reaberto · ' + _quando(h.ts) + ' · ' + (h.itens || 0) + ' item(ns)';
+  if (foot) foot.style.display = '';
+  setRailPill('done');
+  document.querySelectorAll('.hrow.on').forEach(r => r.classList.remove('on'));
+  if (row) row.classList.add('on');
 }
 
 // ── Extraction cards (multi-paralelo) ─────────────────────────────────────────
@@ -3444,7 +3613,8 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
       markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}`, tipo);
 
       // Rail "Análise IA": KPIs + notas estruturadas + observação livre da IA
-      renderRail(ds.analise, parsed.notas, modeloLabel(data.modelo), _elapsed);
+      renderRail(ds.analise, parsed.notas, modeloLabel(data.modelo), _elapsed,
+                 { casa: parceiro.casa, parceiro: parceiro.nome, tokens: data.tokens });
 
       if (parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
         paginaAtual = 0;   // novos bilhetes são os mais recentes → 1ª página
@@ -3487,7 +3657,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
     // (erro, cancelamento, nada extraído): mantém "concluída" se já há resumo.
     const pill = document.getElementById('rail-pill');
     if (pill && pill.classList.contains('run')) {
-      const sumShown = document.getElementById('rail-summary');
+      const sumShown = document.getElementById('rail-sum');
       if (sumShown && sumShown.style.display !== 'none') setRailPill('done');
       else setRailPill(null);
     }
