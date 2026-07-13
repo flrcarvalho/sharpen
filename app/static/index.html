@@ -1793,7 +1793,7 @@ td.c-res.res-HL { color: var(--warn); }
     </div>
     <!-- Histórico — últimas extrações (7 dias), persistido por dono; clique reabre -->
     <div class="hist" id="rail-hist" style="display:none">
-      <div class="hist__head">Últimas extrações<span class="cnt">7 dias</span></div>
+      <div class="hist__head">Histórico da conta<span class="cnt" id="hist-conta"></span></div>
       <div class="hist__list" id="rail-hist-list"></div>
     </div>
     <div class="rail-foot" id="rail-foot" style="display:none"><span class="rf-dot"></span><span id="rail-foot-txt"></span></div>
@@ -2554,6 +2554,7 @@ function atualizarBotaoConta() {
   img.src = faviconUrl(parceiroSelecionado.casa);
   chip.appendChild(img);
   atualizarQuickActs();
+  try { renderHist(); } catch (e) {}   // histórico do rail é escopado pela conta ativa
 }
 // Ações rápidas (editar nome / arquivar) só existem quando há conta ativa.
 function atualizarQuickActs() {
@@ -3440,11 +3441,12 @@ const RAIOX_HIST_KEY = 'sharpen_raiox_hist';
 const GLIFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg>';
 function _histKey() { return RAIOX_HIST_KEY + '::' + (window.__donoEfetivo || '_'); }
 function _histLoad() {
+  // Armazenamento bruto do dono (round-trip de save). O recorte por CONTA acontece
+  // só na exibição (renderHist) — filtrar aqui apagaria o histórico das outras contas.
   try {
     const raw = localStorage.getItem(_histKey());
     const arr = raw ? JSON.parse(raw) : [];
-    const lim = Date.now() - 7 * 24 * 3600 * 1000;   // janela de 7 dias
-    return (Array.isArray(arr) ? arr : []).filter(h => (h.ts || 0) >= lim);
+    return Array.isArray(arr) ? arr : [];
   } catch (e) { return []; }
 }
 function _histSave(list) {
@@ -3576,7 +3578,12 @@ function renderRail(analise, notaIA, modelLabel, elapsedSec, ctx) {
 function renderHist() {
   const wrap = document.getElementById('rail-hist'), list = document.getElementById('rail-hist-list');
   if (!wrap || !list) return;
-  const items = _histLoad();
+  // Histórico DESTA conta (casa + parceiro ativos) — não é janela de 7 dias nem mistura
+  // outras contas. Sem conta ativa → esconde. Ex.: na Bet365 não mostra a extração da Betfair.
+  const chave = parceiroSelecionado ? (parceiroSelecionado.casa + '||' + parceiroSelecionado.nome) : null;
+  const items = chave ? _histLoad().filter(h => ((h.casa || '') + '||' + (h.parceiro || '')) === chave) : [];
+  const cnt = document.getElementById('hist-conta');
+  if (cnt) cnt.textContent = items.length ? (items.length + (items.length === 1 ? ' extração' : ' extrações')) : '';
   if (!items.length) { wrap.style.display = 'none'; list.innerHTML = ''; return; }
   wrap.style.display = '';
   list.innerHTML = items.map((h, i) => {
@@ -3588,8 +3595,9 @@ function renderHist() {
       + '<div class="hwho"><div class="ha">' + quem + '</div><div class="hb">' + esc(b) + '</div></div>'
       + '<span class="hn">' + n + '</span></div>';
   }).join('');
-  list.querySelectorAll('[data-hist]').forEach(row => {
-    row.addEventListener('click', () => { const h = _histLoad()[+row.dataset.hist]; if (h) reopenHist(h, row); });
+  // Clique reabre pelo item capturado no closure (índice já é da lista filtrada).
+  list.querySelectorAll('[data-hist]').forEach((row, i) => {
+    row.addEventListener('click', () => reopenHist(items[i], row));
   });
 }
 function reopenHist(h, row) {
