@@ -10,10 +10,10 @@
 <link rel="stylesheet" href="/static/tokens.css">
 <style>
 /* ── Página Início (home pós-login) — a PORTA DE ENTRADA do Sharpen ──────────────
-   Não é decorativa: dá consciência situacional (como estou, o que está vivo, o que
-   preciso fazer, de onde vem o resultado) + a ação primária. Servida como iframe da
-   casca (/app); a sidebar é do host. Todos os números vêm do dataset real
-   (/dashboard/data, /bilhetes, /parceiros, /incompletos + RAIO-X em localStorage). */
+   Consciência situacional real: como estou (KPIs), o que está vivo (apostas em
+   aberto), o que preciso fazer (pendências), quem está ganhando/perdendo (bookies e
+   tipsters) e o que a IA fez (RAIO-X). Iframe da casca (/app); sidebar é do host.
+   Números 100% reais: /dashboard/data, /bilhetes, /parceiros, /incompletos + RAIO-X. */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 * { scrollbar-width: thin; scrollbar-color: var(--fdc-steel) transparent; }
 html, body { height: 100%; }
@@ -29,13 +29,13 @@ body::before {
 }
 a { color: var(--accent-2); text-decoration: none; }
 a:hover { color: var(--accent); }
-.mono { font-family: var(--font-mono); }
 .acc { color: var(--accent-2); }
 
-.main { position: relative; z-index: 1; max-width: 1320px; margin: 0 auto; padding: 30px 40px 34px; display: flex; flex-direction: column; min-height: 100%; gap: 16px; }
+/* Alinhada à ESQUERDA, colada na sidebar (não centralizamos páginas). Preenche a
+   largura como os outros apps; cap só p/ o texto não esticar demais em telas enormes. */
+.main { position: relative; z-index: 1; margin: 0; max-width: 1600px; padding: 28px 32px 30px; display: flex; flex-direction: column; min-height: 100%; gap: 15px; }
 
-/* Componente monetário canônico (verbatim de dash/components.css + app.js). Nesta
-   página o R$ é sempre INLINE (nunca coluna de planilha) → width auto, sem esticar. */
+/* Componente monetário canônico (verbatim de dash/components.css + app.js), inline. */
 .money { display: inline-flex; align-items: baseline; gap: 3px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .money-sign { font-size: 0.76em; color: var(--ink-soft); }
 .money-val { font-variant-numeric: tabular-nums; }
@@ -44,8 +44,8 @@ a:hover { color: var(--accent); }
 /* ── Cabeçalho ── */
 .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-mute); }
-h1 { font-size: 29px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0; }
-.briefing { font-size: 15px; color: var(--ink-soft); line-height: 1.55; margin-top: 10px; max-width: 70ch; }
+h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0; }
+.briefing { font-size: 15px; color: var(--ink-soft); line-height: 1.55; margin-top: 10px; max-width: 88ch; }
 .briefing b { color: var(--ink); font-weight: 700; }
 .btn { font-weight: 700; font-size: 13px; border-radius: var(--r-sm); padding: 11px 18px; border: 1px solid transparent; background: var(--accent); color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-sans); white-space: nowrap; }
 .btn:hover { filter: brightness(1.06); }
@@ -60,12 +60,12 @@ h1 { font-size: 29px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 .kpi .d { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-mute); margin-top: 7px; display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
 .kpi.feat { background: linear-gradient(180deg, rgba(var(--accent-rgb),.10), var(--surface) 65%); border-color: rgba(var(--accent-rgb),.32); }
 
-/* ── Corpo em 2 colunas (cresce p/ preencher a altura) ── */
+/* ── Blocos em 2 colunas ── */
 .body { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; flex: 1 1 auto; align-items: stretch; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-/* Painéis marcados com flex:1 absorvem a sobra → as duas colunas fecham na mesma altura. */
-.panel.grow { flex: 1 1 auto; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column; }
+.panel.grow { flex: 1 1 auto; }
 .ph { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
 .ph .tick { width: 3px; height: 15px; border-radius: 3px; background: var(--accent); flex: none; }
 .ph h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--accent-2); }
@@ -84,34 +84,35 @@ h1 { font-size: 29px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 .lrow .r { margin-left: auto; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; flex: none; display: flex; align-items: baseline; gap: 7px; }
 .lrow .r.acc { color: var(--accent-2); }
 .lrow .odd { color: var(--ink-mute); font-size: 11px; }
-.empty { padding: 22px 18px; text-align: center; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-mute); }
+.empty { padding: 20px 18px; text-align: center; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-mute); }
 .empty.ok { color: var(--pos); }
-
-/* Barras de ranking (Resultado por esporte) — reusa a linguagem do painel de contas. */
-.bar { display: grid; grid-template-columns: 22px 1fr 84px; align-items: center; gap: 11px; padding: 9px 18px; border-bottom: 1px solid var(--line-2); }
-.bar:last-child { border-bottom: 0; }
-.bar .be { font-size: 13px; text-align: center; filter: grayscale(.2); }
-.bar .bn { min-width: 0; }
-.bar .bname { font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bar .btrack { height: 5px; border-radius: var(--r-pill); background: rgba(var(--accent-rgb),.10); overflow: hidden; margin-top: 5px; }
-.bar .bfill { height: 100%; border-radius: var(--r-pill); }
-.bar .bfill.pos { background: var(--pos); } .bar .bfill.neg { background: var(--neg); }
-.bar .bval { text-align: right; font-size: 11.5px; }
-
 .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--line-2); font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); }
 .foot b { color: var(--ink-soft); font-weight: 600; }
 
-/* Glifo IA (assina o que a IA tocou). */
+/* Destaques (Bookies / Tipsters): duas colunas — ganhando (verde) / perdendo (vermelho). */
+.dcols { display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 auto; }
+.dcol { min-width: 0; display: flex; flex-direction: column; }
+.dcol + .dcol { border-left: 1px solid var(--line-2); }
+.dsub { font-family: var(--font-mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; padding: 11px 16px 7px; display: flex; align-items: center; gap: 6px; }
+.dsub.up { color: var(--pos); } .dsub.down { color: var(--neg); }
+.drow { display: flex; align-items: center; gap: 9px; padding: 7px 16px; font-size: 12px; }
+.drow .drank { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); width: 11px; flex: none; text-align: right; }
+.drow .dn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.drow .dv { font-family: var(--font-mono); font-size: 11.5px; flex: none; }
+.dnote { padding: 9px 16px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); }
+.dnote.ok { color: var(--pos); }
+
+/* Glifo IA. */
 .hglifo { width: 15px; height: 15px; flex: none; display: grid; place-items: center; }
 .hglifo.ok { color: var(--pos); } .hglifo.warn { color: var(--warn); }
 .hglifo svg { width: 100%; height: 100%; }
 
 .brandfoot { text-align: center; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); letter-spacing: .08em; padding-top: 2px; }
 
-@media (max-width: 1000px) {
+@media (max-width: 1100px) {
   .kpis { grid-template-columns: 1fr 1fr; }
-  .body { grid-template-columns: 1fr; }
-  .main { padding: 22px 18px 28px; }
+  .body, .duo { grid-template-columns: 1fr; }
+  .main { padding: 22px 18px 26px; }
 }
 </style>
 </head>
@@ -134,21 +135,15 @@ h1 { font-size: 29px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
   <div class="kpis">
     <div class="kpi feat"><div class="k">P/L hoje</div><div class="v" id="kpi-pl-hoje">—</div><div class="d" id="kpi-pl-hoje-d">—</div></div>
     <div class="kpi"><div class="k">P/L do mês</div><div class="v" id="kpi-pl-mes">—</div><div class="d" id="kpi-pl-mes-d">—</div></div>
-    <div class="kpi"><div class="k">Em jogo agora</div><div class="v acc" id="kpi-aberto">—</div><div class="d" id="kpi-aberto-d">—</div></div>
+    <div class="kpi"><div class="k">Apostas em aberto</div><div class="v acc" id="kpi-aberto">—</div><div class="d" id="kpi-aberto-d">—</div></div>
     <div class="kpi"><div class="k">Contas ativas</div><div class="v plain" id="kpi-contas">—</div><div class="d" id="kpi-contas-d">—</div></div>
   </div>
 
   <div class="body">
-    <div class="col">
-      <div class="panel">
-        <div class="ph"><span class="tick"></span><h3>Em jogo agora</h3><span class="meta" id="risco-meta">—</span></div>
-        <div class="plist" id="emjogo-list"><div class="empty">Carregando…</div></div>
-        <div class="foot" id="emjogo-foot" style="display:none"><span>Retorno potencial se tudo ganhar</span><span id="emjogo-pot">—</span></div>
-      </div>
-      <div class="panel grow">
-        <div class="ph"><span class="tick"></span><h3>Resultado por esporte</h3><span class="meta" id="esporte-mes">—</span></div>
-        <div class="plist" id="esporte-list"><div class="empty">Carregando…</div></div>
-      </div>
+    <div class="panel">
+      <div class="ph"><span class="tick"></span><h3>Apostas em Aberto</h3><span class="meta">aguardando resultado</span></div>
+      <div class="plist" id="emjogo-list"><div class="empty">Carregando…</div></div>
+      <div class="foot" id="emjogo-foot" style="display:none"><span>Capital em aberto</span><span id="emjogo-cap">—</span></div>
     </div>
     <div class="col">
       <div class="panel">
@@ -162,13 +157,23 @@ h1 { font-size: 29px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
     </div>
   </div>
 
+  <div class="duo">
+    <div class="panel">
+      <div class="ph"><span class="tick"></span><h3>Bookies</h3><span class="meta" id="bookie-mes">destaques</span></div>
+      <div class="dcols" id="bookie-cols"><div class="empty">Carregando…</div></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="tick"></span><h3>Tipsters</h3><span class="meta" id="tipster-mes">destaques</span></div>
+      <div class="dcols" id="tipster-cols"><div class="empty">Carregando…</div></div>
+    </div>
+  </div>
+
   <div class="brandfoot">Sharp<span class="acc">en</span> your edge.</div>
 </div>
 
 <script>
-// ── Helpers de dinheiro — cópia verbatim de dash/assets/js/app.js (fonte canônica).
-// P/L = fmtPL (2 casas, sinal, U+2212, cor só no número); agregado = fmtR (inteiro);
-// stake = moneyStake (2 casas, sem sinal, string crua); odd = fmtOdd. UI_REFERENCE §5.
+// ── Dinheiro — verbatim de dash/assets/js/app.js. P/L=fmtPL (2 casas, sinal U+2212,
+// cor só no número); agregado=fmtR (inteiro); stake=moneyStake (crua); odd=fmtOdd.
 function fmt(v,d=2){return Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});}
 function fmtPL(v){const cls=v>=0?'pos':'neg';return`<span class="money ${cls}"><span class="money-sign">${v>=0?'+':'−'}R$</span><span class="money-val">${fmt(Math.abs(v))}</span></span>`;}
 function fmtR(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(v,0)}</span></span>`;}
@@ -178,7 +183,6 @@ function fmtPct(v,d=2){return (v>=0?'+':'−')+Math.abs(v).toLocaleString('pt-BR
 function esc(v){if(v==null)return'';return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function num(v){if(v==null)return 0;if(typeof v==='number')return v;let s=String(v).trim();if(!s)return 0;if(s.indexOf(',')>=0)s=s.replace(/\./g,'').replace(',','.');const n=parseFloat(s);return isFinite(n)?n:0;}
 
-// ── Esportes (mapa compacto espelhando dash/data.js) ──
 const SPORT_EMOJI={futebol:'⚽',basquete:'🏀',tenis:'🎾',mma:'🥊',f1:'🏎️',nfl:'🏈',nhl:'🏒',baseball:'⚾',volei:'🏐',handbol:'🤾',dardos:'🎯',esports:'🎮',multiplos:'🔗',peixe:'🐟',snooker:'🎱',golf:'⛳',rugby:'🏉'};
 const SPORT_KEY={'Futebol':'futebol','Soccer':'futebol','NBA':'basquete','Basquete':'basquete','Basketball':'basquete','Tênis':'tenis','Tenis':'tenis','Tennis':'tenis','MMA':'mma','UFC':'mma','Boxe':'mma','F1':'f1','Fórmula 1':'f1','NFL':'nfl','Futebol Americano':'nfl','NHL':'nhl','Hóquei':'nhl','MLB':'baseball','Baseball':'baseball','Beisebol':'baseball','Vôlei':'volei','Volei':'volei','Handebol':'handbol','Handball':'handbol','Dardos':'dardos','Darts':'dardos','CS':'esports','CS:GO':'esports','Esports':'esports','eSports':'esports','Múltiplos':'multiplos','Multiplos':'multiplos','Snooker':'snooker','Golf':'golf','Golfe':'golf','Rugby':'rugby'};
 function sportEmoji(nome){if(!nome)return'🏅';let k=SPORT_KEY[nome];if(!k){const kk=Object.keys(SPORT_KEY).find(x=>x.toLowerCase()===nome.toLowerCase());k=kk?SPORT_KEY[kk]:null;}return SPORT_EMOJI[k]||'🏅';}
@@ -199,6 +203,16 @@ function custosLoad(dono){try{return JSON.parse(localStorage.getItem('dash_custo
 function parseForn(nome){const m=/^(.+?)\s*\[(.+?)\]$/.exec(nome||'');return m?m[2].trim():'';}
 function el(id){return document.getElementById(id);}
 
+// Top N positivos / negativos de um mapa {chave: pl}.
+function ranked(map,pos,n){const arr=Object.entries(map).map(([k,v])=>({k,v}));return pos?arr.filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,n):arr.filter(x=>x.v<0).sort((a,b)=>a.v-b.v).slice(0,n);}
+function drows(list){return list.map((x,i)=>'<div class="drow"><span class="drank">'+(i+1)+'</span><span class="dn">'+esc(x.k)+'</span><span class="dv">'+fmtPL(x.v)+'</span></div>').join('');}
+function destaques(map,noun){
+  const up=ranked(map,true,5), down=ranked(map,false,5);
+  const colUp='<div class="dcol"><div class="dsub up">▲ Ganhando</div>'+(up.length?drows(up):'<div class="dnote">sem '+noun+' no positivo ainda</div>')+'</div>';
+  const colDown='<div class="dcol"><div class="dsub down">▼ Perdendo</div>'+(down.length?drows(down):'<div class="dnote ok">nenhum no vermelho ✓</div>')+'</div>';
+  return colUp+colDown;
+}
+
 async function boot(){
   const now=new Date();
   el('eyebrow').textContent=(now.toLocaleDateString('pt-BR',{weekday:'long'})+' · '+now.getDate()+' de '+MESES[now.getMonth()]).toUpperCase();
@@ -216,48 +230,51 @@ async function boot(){
 
   const rows=(feed&&feed.data)||[];
   const todayISO=localISO(now), mesPref=todayISO.slice(0,7), mesNome=MESES[now.getMonth()];
-  let plHoje=0,nHoje=0,wHoje=0,plMes=0,turnMes=0,nMes=0;
-  const sportHoje={}, sportMes={};
+  let plHoje=0,nHoje=0,wHoje=0,plMes=0,turnMes=0;
+  const sportHoje={}, byCasaMes={}, byTipMes={};
   rows.forEach(r=>{
-    const l=Number(r.lucro)||0, st=Number(r.stake)||0, e=(r.esporte||'Outro').trim()||'Outro';
-    if(r.data===todayISO){ plHoje+=l; nHoje++; if(l>0)wHoje++; sportHoje[e]=(sportHoje[e]||0)+l; }
-    if((r.data||'').slice(0,7)===mesPref){ plMes+=l; turnMes+=st; nMes++; sportMes[e]=(sportMes[e]||0)+l; }
+    const l=Number(r.lucro)||0, st=Number(r.stake)||0;
+    if(r.data===todayISO){ plHoje+=l; nHoje++; if(l>0)wHoje++; const e=(r.esporte||'').trim(); if(e)sportHoje[e]=(sportHoje[e]||0)+l; }
+    if((r.data||'').slice(0,7)===mesPref){ plMes+=l; turnMes+=st;
+      const c=(r.casa||'').trim(); if(c)byCasaMes[c]=(byCasaMes[c]||0)+l;
+      const t=(r.tipster||'').trim(); if(t)byTipMes[t]=(byTipMes[t]||0)+l;
+    }
   });
   const roiMes=turnMes>0?(plMes/turnMes*100):0;
   const wrHoje=nHoje>0?Math.round(wHoje/nHoje*100):0;
-  // esporte que mais puxou hoje (só se positivo)
   let topSport=null,topVal=0; Object.entries(sportHoje).forEach(([e,v])=>{if(v>topVal){topVal=v;topSport=e;}});
 
-  // Abertas: exposição viva.
+  // Apostas em aberto (exposição viva).
   const abertas=(abertasResp&&abertasResp.bilhetes)||[];
   const nAberto=(abertasResp&&abertasResp.total!=null)?abertasResp.total:abertas.length;
-  let emJogo=0,potencial=0,paradas48=0; const lim48=Date.now()-48*3600*1000;
-  abertas.forEach(b=>{const st=num(b.stake),od=num(b.odd);emJogo+=st;potencial+=od>0?st*od:st;const t=b.criado_em?new Date(b.criado_em).getTime():NaN;if(isFinite(t)&&t<lim48)paradas48++;});
+  let capAberto=0,paradas48=0; const lim48=Date.now()-48*3600*1000;
+  abertas.forEach(b=>{capAberto+=num(b.stake);const t=b.criado_em?new Date(b.criado_em).getTime():NaN;if(isFinite(t)&&t<lim48)paradas48++;});
+  const casasAbertas=new Set(abertas.map(b=>b.casa).filter(Boolean)).size;
 
   // Contas.
   const parceiros=(parcResp&&parcResp.parceiros)||[];
   const ativos=parceiros.filter(p=>!p.arquivado);
   const casasAtivas=new Set(ativos.map(p=>p.casa)).size;
 
-  // Sem tipster.
+  // Pendências.
   const porCasaTip=(incompletos&&incompletos.por_casa_tipster)||{};
   let semTipster=0; Object.values(porCasaTip).forEach(v=>semTipster+=(v||0));
-
-  // Custos sem preencher (fornecedores ativos sem valor no store).
   const custos=custosLoad(dono); const fornsFaltando=new Set();
   ativos.forEach(p=>{const f=parseForn(p.nome);if(!f)return;if(custos[f+'||'+p.casa]==null)fornsFaltando.add(f);});
 
   // ── KPIs ──
-  el('kpi-pl-hoje').innerHTML=fmtPL(plHoje);
+  // Sem apostas encerradas hoje → P/L neutro (R$ 0), não "+R$ 0,00" verde.
+  el('kpi-pl-hoje').innerHTML=nHoje>0?fmtPL(plHoje):fmtR(0);
   el('kpi-pl-hoje-d').innerHTML=nHoje>0?(nHoje+(nHoje===1?' aposta · ':' apostas · ')+wrHoje+'% acerto'):'sem apostas encerradas';
   el('kpi-pl-mes').innerHTML=fmtPL(plMes);
   el('kpi-pl-mes-d').innerHTML='ROI '+fmtPct(roiMes)+' · '+mesNome;
   el('kpi-aberto').textContent=nAberto.toLocaleString('pt-BR');
-  el('kpi-aberto-d').innerHTML=fmtR(emJogo)+' em risco';
+  // Capital em aberto vive no rodapé do painel (sem eco aqui); KPI mostra a dispersão por casa.
+  el('kpi-aberto-d').textContent=nAberto>0?('em '+casasAbertas+(casasAbertas===1?' casa':' casas')):'nada em aberto';
   el('kpi-contas').textContent=ativos.length.toLocaleString('pt-BR');
   el('kpi-contas-d').textContent='de '+parceiros.length.toLocaleString('pt-BR')+' · '+casasAtivas+(casasAtivas===1?' casa':' casas');
 
-  // ── Pendências (ação) ──
+  // ── Pendências ──
   const pend=[];
   if(semTipster>0)pend.push({dot:'var(--warn)',t:semTipster+(semTipster===1?' bilhete aguardando tipster':' bilhetes aguardando tipster'),s:'Confirme o tipster na extração',r:'resolver →',go:'plan'});
   if(paradas48>0)pend.push({dot:'var(--warn)',t:paradas48+(paradas48===1?' aposta parada há 48h+':' apostas paradas há 48h+'),s:'Sem resultado — revise as abertas',r:'revisar →',go:'dash/apostas'});
@@ -267,20 +284,23 @@ async function boot(){
   if(!pend.length){pendHost.innerHTML='<div class="empty ok">Nada esperando por você. ✓</div>';}
   else{pendHost.innerHTML=pend.map(p=>'<div class="lrow clic" data-go="'+p.go+'"><span class="dot" style="background:'+p.dot+'"></span><div class="lc"><div class="t">'+esc(p.t)+'</div><div class="s">'+esc(p.s)+'</div></div><span class="r acc">'+p.r+'</span></div>').join('');
     pendHost.querySelectorAll('.lrow[data-go]').forEach(e=>e.addEventListener('click',()=>goHost(e.dataset.go)));}
-
-  // ── Briefing (narrativo, SEM repetir o número do KPI) ──
   const nP=pend.length;
-  const hook=nP>0?(nP===1?'Você tem <b>1 coisa</b> esperando por você.':'Você tem <b>'+nP+' coisas</b> esperando por você.'):'Nada pendente — está tudo em dia. ✓';
+
+  // ── Briefing (resumo escrito de verdade, sem travessão) ──
   let brief;
-  if(nHoje>0){ brief='<b>'+nHoje+(nHoje===1?' aposta encerrada':' apostas encerradas')+'</b> hoje'+(topSport?', <b>'+esc(topSport)+'</b> puxou o dia':'')+'. '+hook; }
-  else if(nAberto>0){ brief='Nenhuma aposta encerrada hoje — <b>'+nAberto+'</b> em jogo, '+fmtR(emJogo)+' em risco. '+hook; }
-  else { brief='Nenhuma aposta encerrada hoje e nada em jogo. '+hook; }
+  if(nHoje>0){
+    brief='Hoje você encerrou <b>'+nHoje+(nHoje===1?' aposta':' apostas')+'</b> com <b>'+wrHoje+'%</b> de acerto'+(topSport&&plHoje>=0?', e o <b>'+esc(topSport)+'</b> liderou o resultado':(plHoje<0?', e o dia fechou no vermelho':''))+'. ';
+  } else if(nAberto>0){
+    brief='Você ainda não encerrou apostas hoje. Tem <b>'+nAberto+(nAberto===1?'</b> aposta em aberto':'</b> apostas em aberto')+', somando '+fmtR(capAberto)+' de capital em jogo. ';
+  } else {
+    brief='Você ainda não tem apostas encerradas nem em aberto hoje. ';
+  }
+  brief+= nP>0 ? ('Há <b>'+nP+(nP===1?' pendência':' pendências')+'</b> esperando por você logo abaixo.') : 'Não há pendências: está tudo em dia.';
   el('briefing').innerHTML=brief;
 
-  // ── Em jogo agora (exposição viva) — o "em risco" vive só no KPI (sem eco aqui) ──
-  el('risco-meta').textContent = nAberto>0 ? (nAberto+(nAberto===1?' aposta':' apostas')) : '';
+  // ── Apostas em Aberto ──
   const ejHost=el('emjogo-list'), ejFoot=el('emjogo-foot');
-  if(!abertas.length){ ejHost.innerHTML='<div class="empty ok">Nenhuma aposta em jogo — tudo resolvido. ✓</div>'; }
+  if(!abertas.length){ ejHost.innerHTML='<div class="empty ok">Nenhuma aposta em aberto — tudo resolvido. ✓</div>'; }
   else{
     const vis=abertas.slice(0,7);
     ejHost.innerHTML=vis.map(b=>{
@@ -290,24 +310,17 @@ async function boot(){
       const right=moneyStake(b.stake)+(od>0?'<span class="odd">@ '+fmtOdd(od)+'</span>':'');
       return '<div class="lrow"><span class="spdot">'+sportEmoji(b.esporte)+'</span><div class="lc"><div class="t">'+titulo+'</div><div class="s">'+sub+'</div></div><span class="r">'+right+'</span></div>';
     }).join('');
-    if(abertas.length>vis.length) ejHost.innerHTML+='<div class="empty" style="padding:9px 18px;text-align:left">+ '+(abertas.length-vis.length)+' outras em jogo</div>';
-    el('emjogo-pot').innerHTML=fmtR(potencial);
+    if(abertas.length>vis.length) ejHost.innerHTML+='<div class="empty" style="padding:9px 18px;text-align:left">+ '+(abertas.length-vis.length)+' outras em aberto</div>';
+    el('emjogo-cap').innerHTML=fmtR(capAberto);
     ejFoot.style.display='';
   }
 
-  // ── Resultado por esporte (mês) — de onde vem o P/L ──
-  el('esporte-mes').textContent=mesNome;
-  const espHost=el('esporte-list');
-  const espArr=Object.entries(sportMes).map(([e,v])=>({e,v})).sort((a,b)=>Math.abs(b.v)-Math.abs(a.v)).slice(0,5);
-  const maxAbs=espArr.reduce((m,x)=>Math.max(m,Math.abs(x.v)),0)||1;
-  if(!espArr.length){ espHost.innerHTML='<div class="empty">Sem apostas encerradas em '+mesNome+'.</div>'; }
-  else{
-    espHost.innerHTML=espArr.map(x=>{
-      const w=Math.max(3,Math.round(Math.abs(x.v)/maxAbs*100));
-      const cls=x.v>=0?'pos':'neg';
-      return '<div class="bar"><span class="be">'+sportEmoji(x.e)+'</span><div class="bn"><div class="bname">'+esc(x.e)+'</div><div class="btrack"><div class="bfill '+cls+'" style="width:'+w+'%"></div></div></div><span class="bval">'+fmtPL(x.v)+'</span></div>';
-    }).join('');
-  }
+  // ── Bookies & Tipsters (destaques do mês: top 5 ↑ / top 5 ↓) ──
+  el('bookie-mes').textContent='destaques · '+mesNome;
+  el('tipster-mes').textContent='destaques · '+mesNome;
+  const bC=el('bookie-cols'), tC=el('tipster-cols');
+  bC.innerHTML=Object.keys(byCasaMes).length?destaques(byCasaMes,'casa'):'<div class="empty">Sem apostas encerradas em '+mesNome+'.</div>';
+  tC.innerHTML=Object.keys(byTipMes).length?destaques(byTipMes,'tipster'):'<div class="empty">Sem tipster registrado em '+mesNome+'.</div>';
 
   // ── Últimas extrações (RAIO-X) ──
   const hist=histLoad(dono);
