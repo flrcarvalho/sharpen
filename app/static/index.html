@@ -1264,6 +1264,14 @@ td.c-res.res-HL { color: var(--warn); }
 .rail__brand { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
 .rail__glifo { display: inline-grid; place-items: center; color: var(--accent-2); flex: none; }
 .rail__glifo svg { width: 16px; height: 16px; }
+/* Glifo IA (railv2 §4) — assina onde a IA tocou. Botão Processar (14px, branco)
+   e linhas do histórico (13px, cor semântica). Modelo/célula-inferida deferidos. */
+.ai-glifo { display: inline-grid; place-items: center; flex: none; }
+.ai-glifo svg { width: 14px; height: 14px; }
+#btn-extrair { display: inline-flex; align-items: center; gap: 8px; }
+.hrow .hglifo { display: inline-grid; place-items: center; flex: none; }
+.hrow .hglifo svg { width: 13px; height: 13px; }
+.hrow .hglifo.ok { color: var(--pos); } .hrow .hglifo.warn { color: var(--warn); } .hrow .hglifo.run { color: var(--accent-2); }
 .rail__scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
 /* Veredito — bloco didático do cliente ("posso confiar? o que falta?") */
@@ -1544,7 +1552,7 @@ td.c-res.res-HL { color: var(--warn); }
             rows="2"></textarea>
 
           <div class="actions">
-            <button class="btn btn-primary" id="btn-extrair" disabled>Processar Bilhetes</button>
+            <button class="btn btn-primary" id="btn-extrair" disabled><span class="ai-glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>Processar Bilhetes</button>
             <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
             <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
             <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
@@ -3280,6 +3288,8 @@ function parseResposta(text) {
 // + histórico persistido por dono. Confiança verde ≥95% (decisão Feca). O técnico
 // (modelo/tokens/custo/assinatura) só aparece dentro do <details> Backoffice.
 const RAIOX_HIST_KEY = 'sharpen_raiox_hist';
+// Glifo IA (a ponta do lápis do logo) — assina o que a IA tocou. Cor por currentColor.
+const GLIFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg>';
 function _histKey() { return RAIOX_HIST_KEY + '::' + (window.__donoEfetivo || '_'); }
 function _histLoad() {
   try {
@@ -3426,7 +3436,7 @@ function renderHist() {
     const detalhe = (h.dup ? h.dup + ' dup · ' : '') + (h.st === 'warn' ? 'pendência' : 'limpa');
     const b = _quando(h.ts) + ' · ' + (h.itens || 0) + ' item(ns) · ' + detalhe;
     const n = h.conf != null ? h.conf + '%' : '—';
-    return '<div class="hrow" data-hist="' + i + '"><span class="hst ' + (h.st || 'ok') + '"></span>'
+    return '<div class="hrow" data-hist="' + i + '"><span class="hglifo ' + (h.st || 'ok') + '">' + GLIFO_SVG + '</span>'
       + '<div class="hwho"><div class="ha">' + quem + '</div><div class="hb">' + esc(b) + '</div></div>'
       + '<span class="hn">' + n + '</span></div>';
   }).join('');
