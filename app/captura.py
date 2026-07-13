@@ -45,6 +45,32 @@ def modo_da_casa(casa_key: str) -> str:
     return _MODO_POR_CASA.get((casa_key or "").upper(), "print")
 
 
+# Domínios operacionais (BR) por casa — amarração casa↔site: uma captura vinda do site
+# de uma casa CONHECIDA não pode ser gravada no slot de OUTRA casa (ex.: conectar código
+# de Betfair e capturar na Superbet). Só as casas de robô estão aqui (é onde flui dado
+# estruturado e onde o engano dói); casa de print com domínio desconhecido → None → passa
+# (não bloqueia captura legítima que não temos como verificar).
+_HOSTS_POR_CASA = {
+    "SUPERBET":   ("superbet.bet.br", "superbet.com"),
+    "BETANO":     ("betano.bet.br",),
+    "BET365":     ("bet365.com", "bet365.bet.br"),
+    "BETESPORTE": ("betesporte.bet.br",),
+    "BETFAIR":    ("betfair.bet.br",),
+}
+
+
+def casa_de_host(host: str) -> str | None:
+    """casa_key da casa CONHECIDA dona do domínio, ou None se não reconhecido.
+    Casa o host exato ou subdomínio (ex.: myactivity.betfair.bet.br → BETFAIR)."""
+    h = (host or "").strip().lower()
+    if not h:
+        return None
+    for casa_key, hosts in _HOSTS_POR_CASA.items():
+        if any(h == x or h.endswith("." + x) for x in hosts):
+            return casa_key
+    return None
+
+
 @dataclass
 class Captura:
     id: str

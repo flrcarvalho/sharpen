@@ -1251,18 +1251,48 @@ async def captura_conectar(req: ConectarRequest):
             "modo": sess.modo, "dono": sess.dono}
 
 
+class ValidarRequest(BaseModel):
+    token: str
+
+
+@app.post("/captura/validar")
+async def captura_validar(req: ValidarRequest):
+    """Extensão valida o token AO ABRIR o popup: a sessão vive em memória (TTL + some no
+    restart do servidor), mas o token fica salvo na extensão → sem isto o popup mostrava
+    'conectado' com a sessão já morta. 401 = sessão inexistente/expirada (o popup limpa o
+    token órfão e volta a parear). Isenta do guarda CSRF; autentica pelo token."""
+    sess = _captura.sessao_por_token(req.token)
+    if not sess:
+        raise HTTPException(401, "Sessão de captura expirada.")
+    return {"ok": True, "casa": sess.casa, "parceiro": sess.parceiro,
+            "modo": sess.modo, "dono": sess.dono}
+
+
 @app.post("/captura/enviar")
 async def captura_enviar(
     token: str = Form(...),
     tipo: str = Form("imagem"),
     texto: Optional[str] = Form(None),
     imagem: Optional[UploadFile] = File(default=None),
+    origem: Optional[str] = Form(None),
 ):
     """Extensão envia uma captura (print ou texto). Autentica pelo token de sessão.
     Isenta do guarda CSRF."""
     sess = _captura.sessao_por_token(token)
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
+
+    # Amarração casa↔site (backstop do servidor): se a captura veio do site de uma casa
+    # CONHECIDA diferente da casa da sessão, rejeita — impede gravar (ex.) Superbet no slot
+    # da Betfair, mesmo com o cliente adulterado. Origem desconhecida (casa de print) → passa.
+    if origem:
+        casa_origem = _captura.casa_de_host(origem)
+        if casa_origem and casa_origem != (sess.casa_key or "").upper():
+            raise HTTPException(
+                409,
+                f"Casa incompatível: a captura veio de {origem}, mas a conexão é "
+                f"{sess.casa}. Gere um código de pareamento para a casa certa.",
+            )
 
     if tipo == "texto":
         if not (texto and texto.strip()):

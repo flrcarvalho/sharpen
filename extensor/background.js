@@ -21,6 +21,12 @@ function avisarFim(tabId, ok) {
   try { chrome.tabs.sendMessage(tabId, { type: "CAPTURA_FIM", ok: !!ok }); } catch (_) {}
 }
 
+// Domínio da aba de onde veio a captura → o backend amarra casa↔site (recusa gravar a
+// captura de um site no slot de outra casa). Vazio se a URL não parsear.
+function hostDaAba(tab) {
+  try { return new URL(tab.url).hostname; } catch (e) { return ""; }
+}
+
 async function capturarRegiao(msg, tab) {
   const { rect, dpr, vw, vh } = msg;
   // Print da viewport visível (já sem a moldura, que se escondeu antes de mandar).
@@ -58,6 +64,8 @@ async function enviarCaptura(blob, tab) {
   fd.append("token", token);
   fd.append("tipo", "imagem");
   fd.append("imagem", blob, "captura.png");
+  const origem = hostDaAba(tab);
+  if (origem) fd.append("origem", origem);
 
   let r;
   try {
@@ -78,6 +86,11 @@ async function enviarCaptura(blob, tab) {
     await sinalizar(tab, false, "Fila cheia — processe no dashboard antes de enviar mais.");
     return false;
   }
+  if (r.status === 409) {
+    // Amarração casa↔site: o site não corresponde à casa conectada.
+    await sinalizar(tab, false, "Casa incompatível — o site não corresponde à conexão. Gere um código para a casa certa.");
+    return false;
+  }
   if (!r.ok) {
     await sinalizar(tab, false, "Erro ao enviar (" + r.status + ").");
     return false;
@@ -96,6 +109,8 @@ async function enviarTexto(texto, tab) {
   fd.append("token", token);
   fd.append("tipo", "texto");
   fd.append("texto", texto);
+  const origem = hostDaAba(tab);
+  if (origem) fd.append("origem", origem);
   let r;
   try {
     r = await fetch(`${base}/captura/enviar`, { method: "POST", body: fd });
@@ -107,6 +122,10 @@ async function enviarTexto(texto, tab) {
     await chrome.storage.local.remove(["token", "casa", "parceiro", "modo", "dono", "codigo"]);
     await chrome.storage.local.set({ lastError: "Sessão expirou. Gere um novo código no dashboard e reconecte." });
     await sinalizar(tab, false, "Sessão expirou — reconecte no popup.");
+    return false;
+  }
+  if (r.status === 409) {
+    await sinalizar(tab, false, "Casa incompatível — o site não corresponde à conexão. Gere um código para a casa certa.");
     return false;
   }
   if (!r.ok) { await sinalizar(tab, false, "Erro ao enviar (" + r.status + ")."); return false; }

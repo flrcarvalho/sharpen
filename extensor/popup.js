@@ -13,6 +13,25 @@ const DOMINIOS = {
   "BETesporte": "betesporte.bet.br",
 };
 
+// Amarração casa↔site (Fix cliente): domínios operacionais (BR) das casas de robô. Ao
+// capturar, o popup exige que a aba ativa seja da casa CONECTADA — impede (ex.) capturar
+// na Superbet com um código de Betfair. Casa fora deste mapa (print, domínio desconhecido)
+// → não checa (não bloqueia captura legítima que não temos como verificar). Espelha o
+// _HOSTS_POR_CASA do backend (captura.py), que é o backstop que não dá pra burlar.
+const CASA_HOSTS = {
+  "Superbet":   ["superbet.bet.br", "superbet.com"],
+  "Betano":     ["betano.bet.br"],
+  "Bet365":     ["bet365.com", "bet365.bet.br"],
+  "BETesporte": ["betesporte.bet.br"],
+  "Betfair":    ["betfair.bet.br"],
+};
+function hostBate(host, casa) {
+  const hosts = CASA_HOSTS[casa];
+  if (!hosts) return true;                 // casa sem domínio conhecido → não checa
+  const h = (host || "").toLowerCase();
+  return hosts.some((x) => h === x || h.endsWith("." + x));
+}
+
 function setMsg(texto, tipo) {
   msg.textContent = texto || "";
   msg.className = "msg" + (tipo ? " " + tipo : "");
@@ -124,6 +143,15 @@ async function capturar() {
     // Garante o content script presente (abas abertas antes de instalar não o têm).
     try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }); } catch (_) {}
     const { modo, casa } = await chrome.storage.local.get(["modo", "casa"]);
+    // Amarração casa↔site: não deixa capturar numa casa diferente da conectada (ex.:
+    // código de Betfair rodando na Superbet). O backend tem o mesmo check como backstop.
+    let host = "";
+    try { host = new URL(tab.url).hostname; } catch (_) {}
+    if (!hostBate(host, casa)) {
+      setMsg("Conectado como " + casa + ", mas esta aba é " + (host || "outro site") +
+             ". Abra o site da " + casa + " ou gere um código para a casa certa.", "erro");
+      return;
+    }
     if (modo === "texto") {
       // Interceptor de API no mundo MAIN (be/sb_inject): o content_script declarativo só
       // roda em page LOAD. Se a aba já estava aberta antes de recarregar a extensão, injeta
@@ -152,55 +180,85 @@ chrome.storage.onChanged.addListener((ch, area) => {
   if (area === "local" && ("token" in ch || "casa" in ch || "modo" in ch || "lastError" in ch)) render();
 });
 
+// Valida o token contra a sessão viva no servidor. "ok" = conectado; "expired" (401) =
+// sessão morta (limpar token órfão); "offline" = servidor inacessível (não afirmar online).
+async function validarToken(token) {
+  try {
+    const base = await getApiBase();
+    const r = await fetch(`${base}/captura/validar`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (r.ok) return "ok";
+    if (r.status === 401) return "expired";
+    return "offline";
+  } catch (e) {
+    return "offline";
+  }
+}
+
 async function render() {
   const st = await chrome.storage.local.get(["token", "casa", "parceiro", "modo", "lastError"]);
-  if (st.token) {
-    telaConectar.hidden = true;
-    telaConectado.hidden = false;
-    setMsg("", "");                 // conectado é auto-explicativo; sem erro velho
-    setStatusPill(true);
-    $("c-casa").textContent = st.casa || "—";
-    $("c-parceiro").textContent = st.parceiro || "—";
-    const dom = DOMINIOS[st.casa];
-    const fav = $("c-favicon");
-    if (dom) { fav.style.display = ""; fav.src = `https://icons.duckduckgo.com/ip3/${dom}.ico`; }
-    else { fav.style.display = "none"; }
-    const texto = st.modo === "texto";
-    // Bet365: marco + teto (sem data/ID). Betfair: quantidade + dias + varrer tudo (histórico
-    // ilimitado). Betano/Superbet/BETesporte: janela de dias + ID.
-    const isBet365 = texto && st.casa === "Bet365";
-    const isBetfair = texto && st.casa === "Betfair";
-    const isBetSup = texto && !isBet365 && !isBetfair;
-    $("nota-texto").hidden = !texto;
-    $("janela-wrap").hidden = !isBetSup;
-    $("stopid-wrap").hidden = !isBetSup;
-    $("bf-qtd-wrap").hidden = !isBetfair;
-    $("bf-dias-wrap").hidden = !isBetfair;
-    $("bf-full-wrap").hidden = !isBetfair;
-    $("b365-marco-wrap").hidden = !isBet365;
-    $("b365-teto-wrap").hidden = !isBet365;
-    $("btn-capturar").hidden = false;   // vale nos dois modos
-    $("cap-label").textContent = texto ? "Copiar bilhetes" : "Capturar";
-    if (isBetSup) {
-      const cfg = await chrome.storage.local.get(["lookbackDias", "stopId"]);
-      $("lookback").value = cfg.lookbackDias || 30;
-      $("stopid").value = cfg.stopId || "";
-    } else if (isBet365) {
-      const cfg = await chrome.storage.local.get(["b365Marco", "b365Teto"]);
-      $("b365-marco").value = cfg.b365Marco || "";
-      $("b365-teto").value = cfg.b365Teto || "";
-    } else if (isBetfair) {
-      const cfg = await chrome.storage.local.get(["bfQtd", "bfDias", "bfFull"]);
-      $("bf-qtd").value = cfg.bfQtd || 100;
-      $("bf-dias").value = cfg.bfDias || "";
-      $("bf-full").checked = !!cfg.bfFull;
-      _bfToggleFull(!!cfg.bfFull);
-    }
-  } else {
+  if (!st.token) {
     telaConectar.hidden = false;
     telaConectado.hidden = true;
     setStatusPill(false);
     if (st.lastError) setMsg(st.lastError, "erro");
+    return;
+  }
+  // Token salvo ≠ sessão viva: a sessão mora em memória no servidor (some no restart do
+  // Railway / TTL de 6h). Valida ANTES de afirmar "Conectado" — pill/tela só dizem
+  // conectado se a sessão existir de fato.
+  const estado = await validarToken(st.token);
+  if (estado === "expired") {
+    // Sessão morta → limpa o token órfão + volta a parear (onChanged re-renderiza com o aviso).
+    await chrome.storage.local.set({ lastError: "Sessão expirada. Gere um novo código no dashboard e reconecte." });
+    await chrome.storage.local.remove(["token", "casa", "parceiro", "modo", "dono", "codigo"]);
+    return;
+  }
+  // "ok" (online) OU "offline" (servidor inacessível): mostra o slot pareado, mas o pill só
+  // acende no "ok"; no "offline" avisa e NÃO afirma conexão.
+  telaConectar.hidden = true;
+  telaConectado.hidden = false;
+  setStatusPill(estado === "ok");
+  setMsg(estado === "offline" ? "Sem conexão com o servidor — reabra o popup para tentar de novo." : "",
+         estado === "offline" ? "erro" : "");
+  $("c-casa").textContent = st.casa || "—";
+  $("c-parceiro").textContent = st.parceiro || "—";
+  const dom = DOMINIOS[st.casa];
+  const fav = $("c-favicon");
+  if (dom) { fav.style.display = ""; fav.src = `https://icons.duckduckgo.com/ip3/${dom}.ico`; }
+  else { fav.style.display = "none"; }
+  const texto = st.modo === "texto";
+  // Bet365: marco + teto (sem data/ID). Betfair: quantidade + dias + varrer tudo (histórico
+  // ilimitado). Betano/Superbet/BETesporte: janela de dias + ID.
+  const isBet365 = texto && st.casa === "Bet365";
+  const isBetfair = texto && st.casa === "Betfair";
+  const isBetSup = texto && !isBet365 && !isBetfair;
+  $("nota-texto").hidden = !texto;
+  $("janela-wrap").hidden = !isBetSup;
+  $("stopid-wrap").hidden = !isBetSup;
+  $("bf-qtd-wrap").hidden = !isBetfair;
+  $("bf-dias-wrap").hidden = !isBetfair;
+  $("bf-full-wrap").hidden = !isBetfair;
+  $("b365-marco-wrap").hidden = !isBet365;
+  $("b365-teto-wrap").hidden = !isBet365;
+  $("btn-capturar").hidden = false;   // vale nos dois modos
+  $("cap-label").textContent = texto ? "Copiar bilhetes" : "Capturar";
+  if (isBetSup) {
+    const cfg = await chrome.storage.local.get(["lookbackDias", "stopId"]);
+    $("lookback").value = cfg.lookbackDias || 30;
+    $("stopid").value = cfg.stopId || "";
+  } else if (isBet365) {
+    const cfg = await chrome.storage.local.get(["b365Marco", "b365Teto"]);
+    $("b365-marco").value = cfg.b365Marco || "";
+    $("b365-teto").value = cfg.b365Teto || "";
+  } else if (isBetfair) {
+    const cfg = await chrome.storage.local.get(["bfQtd", "bfDias", "bfFull"]);
+    $("bf-qtd").value = cfg.bfQtd || 100;
+    $("bf-dias").value = cfg.bfDias || "";
+    $("bf-full").checked = !!cfg.bfFull;
+    _bfToggleFull(!!cfg.bfFull);
   }
 }
 
