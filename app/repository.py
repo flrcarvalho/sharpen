@@ -586,7 +586,10 @@ async def upsert_bilhetes(
                     row.get("stake", ""), row.get("odd", ""), codigo, dono,
                 )
 
-            resultado = row.get("resultado", "").strip() or None
+            # .upper() canoniza o código (W/L/V/HW/HL). Sem isso, um 'v'/'w' minúsculo
+            # (extração/edição) não bate em _RESULTADOS_VALIDOS e o bilhete fica 'aberta'
+            # — parece resolvido (badge/PL já upperam) mas conta como "aguardando resultado".
+            resultado = row.get("resultado", "").strip().upper() or None
             extraction_state = "resolvida" if resultado in _RESULTADOS_VALIDOS else "aberta"
             try:
                 rec = await conn.fetchrow(
@@ -1135,12 +1138,16 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
     safe = {k: v for k, v in campos.items() if k in _EDITAVEIS}
     if not safe:
         return False
+    # Canoniza o resultado para maiúscula ANTES de gravar e de derivar o estado: digitar
+    # 'v' precisa virar 'V' no banco, senão fica 'aberta' e conta como "aguardando resultado".
+    if "resultado" in safe:
+        safe["resultado"] = (safe["resultado"] or "").strip().upper()
     sets, params = [], []
     for col, val in safe.items():
         params.append(val)
         sets.append(f"{col} = ${len(params)}")
     if "resultado" in safe:
-        es = "resolvida" if (safe["resultado"] or "").strip() in _RESULTADOS_VALIDOS else "aberta"
+        es = "resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta"
         params.append(es)
         sets.append(f"extraction_state = ${len(params)}")
     params.append(bilhete_id)
