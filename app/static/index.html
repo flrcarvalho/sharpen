@@ -3604,7 +3604,7 @@ function createExtractionCard(parceiro, thumbUrls = [], fileNames = []) {
   };
 }
 
-async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
+async function runExtractionCard(form, card, parceiro, estadoSnapshot, submittedAt) {
   const { ctrl, setProgress, setTokens, setNotas, markDone } = card;
   let _elapsed = 0;
   const _timer = setInterval(() => { _elapsed++; setProgress(`Processando… (${_elapsed}s)`); }, 1000);
@@ -3651,7 +3651,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
       const rs = await fetch('/salvar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome }),
+        body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome, submitted_at: submittedAt }),
       });
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar (HTTP ${rs.status})`);
@@ -3734,6 +3734,11 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot) {
 document.getElementById('btn-extrair').addEventListener('click', async () => {
   if (!parceiroSelecionado) return;
 
+  // Instante do ENVIO (clique), carimbado antes de qualquer processamento. Vai até o
+  // /salvar e vira o criado_em do lote → o feed respeita a ORDEM DE ENVIO mesmo quando
+  // extrações rodam em paralelo e uma demora mais que a outra para a IA processar.
+  const submittedAt = new Date().toISOString();
+
   // Captura dados do formulário ANTES de limpar
   const form = new FormData();
   form.append('casa', parceiroSelecionado.casa);
@@ -3779,7 +3784,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   limparExtrator(true);
 
   // Roda extração em background (não bloqueia o formulário)
-  runExtractionCard(form, card, parceiroSnapshot, estadoSnapshot);
+  runExtractionCard(form, card, parceiroSnapshot, estadoSnapshot, submittedAt);
 });
 
 // ── Grade ─────────────────────────────────────────────────────────────────────

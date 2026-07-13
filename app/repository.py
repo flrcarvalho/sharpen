@@ -1,7 +1,7 @@
 import hashlib
 import logging
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import asyncpg
 
@@ -463,7 +463,7 @@ def _assinatura(row: dict, _counter: int = 1) -> str:
 
 async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
-    origem: str = "extracao",
+    origem: str = "extracao", criado_base: datetime | None = None,
 ) -> tuple[int, int, list[int], list[str], dict]:
     """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
 
@@ -608,14 +608,19 @@ async def upsert_bilhetes(
             # Sem odd (linha colapsada) → 'aberta': não entra no feed nem duplica em
             # silêncio até o operador completar a odd (ver estado_extracao).
             extraction_state = estado_extracao(resultado, row.get("odd"))
+            # criado_em ancorado na hora de ENVIO (criado_base), com +i µs por linha para
+            # manter a ordem interna do lote estritamente crescente — espelha o NOW()-por-
+            # linha antigo. None → COALESCE cai no DEFAULT NOW() (sync/import/extensão).
+            criado_em_val = criado_base + timedelta(microseconds=i) if criado_base else None
             try:
                 rec = await conn.fetchrow(
                     """
                     INSERT INTO bilhetes
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                          aposta, descricao, stake, odd, resultado,
-                         extraction_state, confianca, stake_usd, origem)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                         extraction_state, confianca, stake_usd, origem, criado_em)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+                            COALESCE($18::timestamptz, NOW()))
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -634,6 +639,7 @@ async def upsert_bilhetes(
                     row.get("aposta"), row.get("descricao"),
                     row.get("stake"), row.get("odd"), resultado,
                     extraction_state, confianca, row.get("stake_usd"), origem,
+                    criado_em_val,
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos

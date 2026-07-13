@@ -1424,6 +1424,11 @@ class SalvarRequest(BaseModel):
     confianca: Optional[float] = None
     casa: Optional[str] = None
     parceiro: Optional[str] = None
+    # Instante do ENVIO (clique em Extrair), ISO 8601 do cliente. Vira o criado_em do
+    # lote para o feed respeitar a ordem de envio, e não a de conclusão do processamento
+    # (extrações paralelas: a mais lenta salvava por último e furava a fila). Ausente/
+    # inválido → fallback NOW() no banco (sync/import/extensão seguem como antes).
+    submitted_at: Optional[str] = None
 
 
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
@@ -1447,8 +1452,20 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
     # NÃO é rejeitada — é aposta aberta/leitura parcial, tratada como aviso.
     rows, rejeitadas = validar_linhas(rows)
 
+    # Converte o instante de envio do cliente em datetime aware. `fromisoformat` de
+    # versões antigas não aceita o sufixo 'Z' → normaliza para +00:00. Qualquer falha
+    # cai em None (o banco usa NOW()).
+    criado_base = None
+    if body.submitted_at:
+        try:
+            criado_base = datetime.fromisoformat(body.submitted_at.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            criado_base = None
+
     if rows:
-        inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono, confianca=body.confianca)
+        inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(
+            rows, dono, confianca=body.confianca, criado_base=criado_base
+        )
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}
 
