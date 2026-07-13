@@ -145,6 +145,21 @@ def resultado_valido(v) -> bool:
     return s == "" or s in _RESULTADOS_VALIDOS
 
 
+def estado_extracao(resultado, odd) -> str:
+    """Deriva `extraction_state` de (resultado, odd). 'resolvida' EXIGE resultado
+    canônico E odd utilizável (> 0). Sem odd (linha colapsada / ilegível) → 'aberta'
+    (aguardando informação): a aposta não polui o feed nem duplica em silêncio até o
+    operador completar a odd. Decisão do Feca (sessão 133): resultado sem odd não é
+    'resolvida limpa'. Casa com o guard de odd de `calcular_pl` (vitória sem odd = P/L
+    não-calculável), evitando linha 'resolvida' que some do feed."""
+    res = (resultado or "").strip().upper()
+    if res not in _RESULTADOS_VALIDOS:
+        return "aberta"
+    if (_num_or_none(odd) or 0) <= 0:
+        return "aberta"
+    return "resolvida"
+
+
 def valor_monetario_valido(v) -> bool:
     """True se `v` é vazio ou um número > 0 (stake/odd). Rejeita lixo e ≤ 0."""
     s = (str(v).strip() if v is not None else "")
@@ -590,7 +605,9 @@ async def upsert_bilhetes(
             # (extração/edição) não bate em _RESULTADOS_VALIDOS e o bilhete fica 'aberta'
             # — parece resolvido (badge/PL já upperam) mas conta como "aguardando resultado".
             resultado = row.get("resultado", "").strip().upper() or None
-            extraction_state = "resolvida" if resultado in _RESULTADOS_VALIDOS else "aberta"
+            # Sem odd (linha colapsada) → 'aberta': não entra no feed nem duplica em
+            # silêncio até o operador completar a odd (ver estado_extracao).
+            extraction_state = estado_extracao(resultado, row.get("odd"))
             try:
                 rec = await conn.fetchrow(
                     """
@@ -1142,22 +1159,10 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
     # 'v' precisa virar 'V' no banco, senão fica 'aberta' e conta como "aguardando resultado".
     if "resultado" in safe:
         safe["resultado"] = (safe["resultado"] or "").strip().upper()
-    sets, params = [], []
-    for col, val in safe.items():
-        params.append(val)
-        sets.append(f"{col} = ${len(params)}")
-    if "resultado" in safe:
-        es = "resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta"
-        params.append(es)
-        sets.append(f"extraction_state = ${len(params)}")
-    params.append(bilhete_id)
-    id_ph = len(params)
-    params.append(dono)
-    sql = (f"UPDATE bilhetes SET {', '.join(sets)}, atualizado_em = NOW() "
-           f"WHERE id = ${id_ph} AND dono = ${len(params)}")
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # snapshot ANTES do update, p/ registrar a correção (rótulo→antigo→novo).
+        # snapshot ANTES do update: registra a correção (rótulo→antigo→novo) E fornece
+        # resultado/odd atuais p/ recomputar o estado quando só um dos dois é editado.
         # Defensivo: se o snapshot falhar, a edição segue normalmente.
         antes = None
         try:
@@ -1165,6 +1170,26 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
                 "SELECT * FROM bilhetes WHERE id = $1 AND dono = $2", bilhete_id, dono)
         except Exception:
             logger.exception("snapshot p/ correção falhou (não-fatal)")
+        sets, params = [], []
+        for col, val in safe.items():
+            params.append(val)
+            sets.append(f"{col} = ${len(params)}")
+        # Recalcula extraction_state quando resultado OU odd muda, com o valor FINAL de
+        # cada um (novo se editado, senão o já gravado). Assim completar a odd de uma
+        # aposta 'aberta' (sem odd) promove p/ 'resolvida'; apagar a odd rebaixa.
+        if ("resultado" in safe or "odd" in safe) and antes is not None:
+            res_final = safe.get("resultado", antes["resultado"])
+            odd_final = safe.get("odd", antes["odd"])
+            params.append(estado_extracao(res_final, odd_final))
+            sets.append(f"extraction_state = ${len(params)}")
+        elif "resultado" in safe:  # snapshot falhou: regra antiga (só resultado)
+            params.append("resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta")
+            sets.append(f"extraction_state = ${len(params)}")
+        params.append(bilhete_id)
+        id_ph = len(params)
+        params.append(dono)
+        sql = (f"UPDATE bilhetes SET {', '.join(sets)}, atualizado_em = NOW() "
+               f"WHERE id = ${id_ph} AND dono = ${len(params)}")
         result = await conn.execute(sql, *params)
         ok = result.split()[-1] == "1"
         if ok and antes is not None:
