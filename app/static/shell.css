@@ -16,23 +16,41 @@
    Atualizado: 2026-06-30 (sessão 80e — etapa A, fatia 1). */
 
 /* ── Fatia 1 — navegação da sidebar (SHELL_SPEC §1) ──────────────────────────── */
+/* Grupo: rótulo mono + hairline que estrutura a lista (SHELL_SPEC §1). */
 .nav-group {
+  display: flex; align-items: center; gap: var(--sp-2);
   font-family: var(--font-mono);
   font-size: var(--text-nano); font-weight: var(--weight-bold);
   letter-spacing: .2em; text-transform: uppercase; color: var(--ink-mute);
-  padding: var(--sp-4) var(--sp-4) var(--sp-1);
+  padding: 18px var(--sp-4) 7px;
 }
+.nav-group::after { content: ''; flex: 1; height: 1px; background: var(--line-2); }
+
+/* Item: linha inset arredondada (margem lateral 10px → não encosta na borda). */
 .nav-item {
-  display: flex; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-4);
-  height: 34px; box-sizing: border-box;
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  margin: 1px 10px; padding: 0 10px;
+  height: 36px; box-sizing: border-box;
   font-size: var(--text-sm); font-weight: var(--weight-semibold);
   color: var(--ink-soft); text-decoration: none; cursor: pointer;
-  border-left: 2px solid transparent;
-  transition: background .12s, color .12s;
+  border-radius: var(--r-sm);
+  transition: background .14s, color .14s;
 }
-.nav-item:hover { color: var(--ink); background: rgba(var(--accent-rgb), .06); }
-.nav-item.active { color: var(--accent); background: rgba(var(--accent-rgb), .12); border-left-color: var(--accent); }
-.nav-icon { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-mute); }
+.nav-item:hover { color: var(--ink); background: rgba(255,255,255,.045); }
+
+/* Ativo: pílula degradê azul + hairline interna + aba curta arredondada + texto branco. */
+.nav-item.active {
+  color: #fff; font-weight: var(--weight-bold);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb),.24), rgba(var(--accent-rgb),.10));
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.35);
+}
+.nav-item.active::before {
+  content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 18px; border-radius: 0 3px 3px 0; background: var(--accent);
+}
+
+/* Ícones: vivos em repouso (--ink-soft), branco/azul nos estados. */
+.nav-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--ink-soft); transition: color .14s; }
 .nav-item:hover .nav-icon { color: var(--ink); }
-.nav-item.active .nav-icon { color: var(--accent); }
+.nav-item.active .nav-icon { color: var(--accent-2); }
