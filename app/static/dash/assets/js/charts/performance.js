@@ -270,13 +270,13 @@ function _seedDrillFromPage(p){
 }
 
 function _sliceByPeriod(rows,st){
-  const today=new Date().toISOString().slice(0,10);
+  const today=_today();
   let df='',dt='';
   if(st.qt==='hoje'){df=dt=today;}
   else if(st.qt==='wtd'){df=_wtdStart();dt=today;}
   else if(st.qt==='mtd'){df=_mtdStart();dt=today;}
   else if(st.qt==='ytd'){df=new Date().getFullYear()+'-01-01';dt=today;}
-  else if(st.qd>0){df=new Date(Date.now()-st.qd*864e5).toISOString().slice(0,10);}
+  else if(st.qd>0){df=_ymd(new Date(Date.now()-st.qd*864e5));}
   else{df=st.df||'';dt=st.dt||'';}
   if(!df&&!dt)return rows;
   return rows.filter(r=>{
@@ -339,8 +339,8 @@ function _getOutrosTip(){
 }
 
 function _casaBreakdownTbl(rows,dimKey,labelFn,maxVisible=10,tableId=''){
-  const cutoff30=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
-  const cutoff15=new Date(Date.now()-15*864e5).toISOString().slice(0,10);
+  const cutoff30=_ymd(new Date(Date.now()-30*864e5));
+  const cutoff15=_ymd(new Date(Date.now()-15*864e5));
   const map={};
   rows.forEach(r=>{
     const k=r[dimKey];if(!k)return;

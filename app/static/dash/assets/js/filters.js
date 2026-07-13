@@ -11,9 +11,13 @@ function _renderPageDebounced(p){clearTimeout(_renderDebounceT);_renderDebounceT
 function _renderPageDebouncedDate(p){clearTimeout(_dateDebouncT);clearTimeout(_renderDebounceT);_dateDebouncT=setTimeout(()=>renderPage(p),700);}
 
 // Date helpers for WTD/MTD/YTD/Hoje
-function _today(){return new Date().toISOString().slice(0,10);}
-function _wtdStart(){const d=new Date(),day=d.getDay()||7;d.setDate(d.getDate()-(day-1));return d.toISOString().slice(0,10);}
-function _mtdStart(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);}
+// SEMPRE fuso local (nunca toISOString/UTC): à noite no Brasil (UTC−3) o relógio
+// UTC já virou o dia seguinte, e "Hoje" resolveria para amanhã. _ymd() formata a
+// data no fuso do usuário, igual ao hojeISO() do index.html.
+function _ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _today(){return _ymd(new Date());}
+function _wtdStart(){const d=new Date(),day=d.getDay()||7;d.setDate(d.getDate()-(day-1));return _ymd(d);}
+function _mtdStart(){const d=new Date();return _ymd(new Date(d.getFullYear(),d.getMonth(),1));}
 function _ytdStart(){return new Date().getFullYear()+'-01-01';}
 
 function _dayNavLabel(off){
@@ -27,7 +31,7 @@ function navDay(p,delta){
   const newOff=Math.min(0,st.dayOff+delta);
   st.dayOff=newOff;st.qt='hoje';st.qd=0;
   const d=new Date();d.setDate(d.getDate()+newOff);
-  const iso=d.toISOString().slice(0,10);
+  const iso=_ymd(d);
   st.df=iso;st.dt=iso;
   const fEl=document.getElementById('df_f_'+p);if(fEl)fEl.value=iso;
   const tEl=document.getElementById('df_t_'+p);if(tEl)tEl.value=iso;
@@ -46,8 +50,8 @@ function navMonth(p,delta){
   const newOff=Math.min(0,st.monthOff+delta);
   st.monthOff=newOff;st.qt='mtd';st.qd=0;
   const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+newOff);
-  const firstDay=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-  const lastDay=newOff===0?_today():new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);
+  const firstDay=_ymd(new Date(d.getFullYear(),d.getMonth(),1));
+  const lastDay=newOff===0?_today():_ymd(new Date(d.getFullYear(),d.getMonth()+1,0));
   st.df=firstDay;st.dt=lastDay;
   const fEl=document.getElementById('df_f_'+p);if(fEl)fEl.value=firstDay;
   const tEl=document.getElementById('df_t_'+p);if(tEl)tEl.value=lastDay;
@@ -58,7 +62,7 @@ function filtrarPagina(p){
   if(_filterCache[p])return _filterCache[p];
   const st=gfs(p);
   const sp=msGet('sp_'+p),ca=msGet('ca_'+p),ti=msGet('ti_'+p),op=msGet('op_'+p);
-  const lim=st.qd>0?new Date(Date.now()-st.qd*864e5).toISOString().slice(0,10):'';
+  const lim=st.qd>0?_ymd(new Date(Date.now()-st.qd*864e5)):'';
   const res=DADOS.filter(r=>{
     if(st.df&&r.data<st.df)return false;
     if(st.dt&&r.data>st.dt)return false;
@@ -80,7 +84,7 @@ function filtrarAbertas(p){
   if(!DADOS_ABERTAS.length)return [];
   const st=gfs(p);
   const sp=msGet('sp_'+p),ca=msGet('ca_'+p),ti=msGet('ti_'+p),op=msGet('op_'+p);
-  const lim=st.qd>0?new Date(Date.now()-st.qd*864e5).toISOString().slice(0,10):'';
+  const lim=st.qd>0?_ymd(new Date(Date.now()-st.qd*864e5)):'';
   return DADOS_ABERTAS.filter(r=>{
     if(st.df&&r.data<st.df)return false;
     if(st.dt&&r.data>st.dt)return false;
@@ -123,7 +127,7 @@ function _refMonthKey(p){
 function _selRange(p){
   const st=gfs(p);
   if(st.df||st.dt)return{from:st.df||'0000-01-01',to:st.dt||'9999-12-31'};
-  if(st.qd>0)return{from:new Date(Date.now()-st.qd*864e5).toISOString().slice(0,10),to:_today()};
+  if(st.qd>0)return{from:_ymd(new Date(Date.now()-st.qd*864e5)),to:_today()};
   return null;
 }
 
