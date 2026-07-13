@@ -41,7 +41,8 @@
 
 Anatomia de um bilhete:
 
-1. **Cabeçalho verde (sup. esq.):** `R$<stake> <Tipo>` (em sistema: `N x R$<stake-por-linha> <Tipo>`). Marca o início do bilhete **e** define a estrutura: `Simples` · `Dupla` · `Tripla` · `Triplas` · `Múltiplas` · `Criar Aposta` · `3 x Duplas` · `Trixie` · `Yankee`… O Tipo determina a categoria `Aposta` (Simples → categoria do mercado; o resto → `Múltipla`) e, em sistema, **qual fórmula de odd** usar (`MASTER_RESULTADO_2026 §7`).
+1. **Cabeçalho verde (sup. esq.):** `R$<stake> <Tipo>` (em sistema: `N x R$<stake-por-linha> <Tipo>`). Marca o início do bilhete **e** define a estrutura: `Simples` · `Dupla` · `Tripla` · `Triplas` · `Múltiplas` · `Criar Aposta` · `Criar Aposta +` · `3 x Duplas` · `Trixie` · `Yankee`… O Tipo determina a categoria `Aposta` (Simples → categoria do mercado; o resto → `Múltipla`) e, em sistema, **qual fórmula de odd** usar (`MASTER_RESULTADO_2026 §7`).
+   - ⚠️ **Só conta como bilhete o cabeçalho com prefixo `R$<stake>`.** Os sub-rótulos internos `CRIAR APOSTA <odd>` (verde/cinza, **sem `R$`**, ex.: `CRIAR APOSTA 4.50`) **não são cabeçalhos** — são **pernas** (cada uma um Bet Builder) dentro de uma super múltipla `Criar Aposta +`. Confirme pela **contagem de blocos financeiros no rodapé**: um só `Aposta / Retorno Obtido` = um só bilhete, por mais pernas `CRIAR APOSTA` que existam (ver §9, super múltipla).
 2. **Rótulo de status (sup. dir.):** `Perdida` / `Anulado` / `Reembolso(Push)` / vazio (= ganho).
 3. **Seleções (meio):** negrito = seleção + linha; sublinha = mercado; tags por perna (`Anulado`, `½ Ganho`, `½ Perdido`, `½ Anulado`, `SUBSTITUIÇÃO+`); confronto com placar; ✓/✗; barras de progresso com número = stat ao vivo (ignorar).
 4. **Bloco financeiro final:** `Aposta` · `Retorno Total` · `Retorno Obtido`.
@@ -152,6 +153,10 @@ A Bet365 tem boost/promo. Quando houver, o **Retorno Obtido já reflete o valor 
 Notas de reconstrução:
 - **Mais 180's (H2H Dardos):** o bilhete exibe dois nomes de jogadores sem o formato `A v B` explícito. O primeiro nome (em negrito / topo) = jogador apostado; o segundo nome (abaixo) = adversário. Reconstruir confronto: `[apostado v adversário]`. Descrição: `Jogador - Mais 180's [Jogador A v Jogador B]`.
 - **Criar Aposta** → sempre `Múltipla`, UMA linha por bilhete, mesmo com seleções do mesmo jogo e mesmo **cruzando vários confrontos** (junta tudo com ` // `).
+- **Criar Aposta + (super múltipla) → ainda UMA linha.** Quando o cabeçalho verde é `Criar Aposta +` e o corpo traz **vários blocos `CRIAR APOSTA <odd>`** (cada bloco = um Bet Builder, com sua própria odd), é **um único bilhete** (um só `R$<stake>` no topo, um só bloco financeiro no rodapé). NÃO quebrar em uma linha por bloco. Regras:
+  - **Contagem:** 1 bilhete = 1 linha. Nº de blocos `CRIAR APOSTA` é irrelevante para a contagem.
+  - **Odd:** **produto** das odds dos blocos (ex.: `4.50 × 5.50 × 6.00 × 6.00 = 891,00`). Em `L` (RO = 0) essa é a **odd estrutural** exibida — mesma lógica de sistema perdido do §11; nunca `0,00`. Em `W`/cashout, vale a regra global `Odd = Retorno Obtido ÷ Aposta` (§11).
+  - **Descrição:** junta **todas** as seleções de **todos** os blocos com ` // `, na ordem de leitura, cada uma com seu `[Confronto]` (§12.4 do MASTER_DESCRICAO). Pernas com `SUBSTITUIÇÃO+` usam o nome **original tachado** (§12).
 - Mesmo jogador, vários mercados → `Jogador - Mercado A / Mercado B [Confronto]` (`MASTER_DESCRICAO_2026 §12.4`).
 - **Marcador — sufixo OBRIGATÓRIO (2+/3+/hat-trick/Primeiro/Último):** categoria sempre `Anytime`; o mercado vai na descrição (`- 2+ Gols` / `- Hat-trick` / `- Primeiro Marcador` / `- Último Marcador`, ver `MASTER_DESCRICAO_2026 §12.1`). O sinal é a **linha "Para Marcar…"** (presente em todo card); o parêntese ao lado do nome (`(2 ou Mais)`, `(A Qualquer Altura)`) é inconsistente / qualificador — não usar como fonte. ⚠️ **Sem o sufixo, bilhetes DISTINTOS colapsam numa descrição idêntica** e são confundidos com duplicata — ex. real: Mbappé `Primeiro Marcador` (W) e `Último Marcador` (L), mesma stake e odd, viravam ambos `Kylian Mbappe [França v Marrocos]`. O `[Confronto]` é igualmente obrigatório em todo bilhete de jogador/props: sem ele, o mesmo mercado em jogos diferentes também colapsa (ex.: `De'Aaron Fox - 7+ Assistências` sem confronto, dois jogos distintos).
 - `Mais de` / `Menos de` → Over / Under.
@@ -215,6 +220,7 @@ Barras de progresso com número (stat ao vivo) · placares e scoreboards ao vivo
 - HW/HL vêm como tags `½ Ganho` / `½ Perdido` (+ `½ Anulado`), não como rótulo único.
 - Perna `Anulado` em sistema/múltipla: preservar na descrição; se o bilhete ganhou, `RO ÷ Aposta` já embute o void.
 - `Criar Aposta` = 1 linha `Múltipla`, pode cruzar vários jogos.
+- `Criar Aposta +` (super múltipla) = **ainda 1 linha**; os blocos internos `CRIAR APOSTA <odd>` (sem `R$`) são pernas, não bilhetes. Odd = **produto** das odds dos blocos.
 - NBA / WNBA → **Basquete** (regra liga≠esporte).
 - Data: a Bet365 não expõe — usar data informada; fallback Brasília do dia (ver §4).
 - Sem ID visível → dedup por assinatura.
@@ -228,6 +234,7 @@ Barras de progresso com número (stat ao vivo) · placares e scoreboards ao vivo
 - 1 cabeçalho verde = 1 bilhete = 1 linha.
 - `Retorno Obtido` usado, nunca `Retorno Total`.
 - Todo `Criar Aposta` colapsado em 1 linha; pernas anuladas preservadas.
+- `Criar Aposta +` com N blocos `CRIAR APOSTA <odd>` = 1 linha, odd = produto das odds dos blocos (não N linhas de stake cheia).
 
 ---
 
@@ -289,6 +296,12 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 13/06/2026	Futebol		Bet365		Anytime	Daniel Rios - Hat-trick [Vancouver FC v CF Montreal]	13,26	67,00	L
 ```
 > Três mercados do mesmo jogador: "Para Marcar a Qualquer Momento" (1+, sem sufixo), "Para Marcar 2 ou Mais" (`- 2+ Gols`) e "Hat-trick / três ou mais Gols" (`- Hat-trick`). Sem o limiar na descrição as três linhas ficariam idênticas. Nome = tachado (original `Daniel Rios`), não o substituto Prince Osei Owusu.
+
+**#11 — L, `Criar Aposta +` super múltipla, 4 Bet Builders num só bilhete (odd = produto = 4,50×5,50×6,00×6,00):**
+```
+11/07/2026	Futebol		Bet365		Múltipla	Harry Kane - 2+ Chutes ao Gol [Noruega v Inglaterra] // Erling Haaland - 2+ Chutes ao Gol [Noruega v Inglaterra] // Ambos os Times Marcam [Noruega v Inglaterra] // Mikel Oyarzabal - 2+ Chutes ao Gol [Espanha v Bélgica] // Lamine Yamal - 2+ Chutes ao Gol [Espanha v Bélgica] // Espanha para se Classificar [Espanha v Bélgica] // França para se Classificar [França v Marrocos] // Kylian Mbappe - 2+ Chutes ao Gol [França v Marrocos] // Michael Olise - 2+ Chutes ao Gol [França v Marrocos] // Argentina - Intervalo/Final do Jogo [Argentina v Suíça] // Argentina - Maior Número de Chutes ao Gol [Argentina v Suíça] // Argentina - Maior Número de Escanteios [Argentina v Suíça]	20,00	891,00	L
+```
+> Cabeçalho `R$20,00 Criar Aposta +`, quatro blocos `CRIAR APOSTA 4.50 / 5.50 / 6.00 / 6.00`, um só rodapé (`Aposta R$20,00 · Retorno Obtido R$0,00`). É **1 bilhete**, não 4. Odd = produto dos blocos = `891,00`. `Erling Haaland` e `Mikel Oyarzabal` = originais tachados sob `SUBSTITUIÇÃO+` (não os substitutos Jorgen Larsen / Nico Williams).
 
 ---
 
