@@ -37,7 +37,7 @@ a:hover { color: var(--accent); }
 
 /* Componente monetário canônico (verbatim de dash/components.css + app.js), inline. */
 .money { display: inline-flex; align-items: baseline; gap: 3px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
-.money-sign { font-size: 0.76em; color: var(--ink-soft); }
+.money-sign { font-size: 0.78em; color: var(--ink-soft); }
 .money-val { font-variant-numeric: tabular-nums; }
 .money.pos .money-val { color: var(--pos); } .money.neg .money-val { color: var(--neg); }
 
@@ -94,20 +94,34 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 .foot .fl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); }
 .foot .fv { font-family: var(--font-mono); font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-/* Destaques (Bookies / Tipsters) = TABELA CANÔNICA (UI_REFERENCE §2/§4): header mono
-   uppercase --ink-mute, linhas separadas por --line-2, números mono à direita. */
-.dcols { display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 auto; }
-.dcol { min-width: 0; }
-.dcol + .dcol { border-left: 1px solid var(--line-2); }
-.rk-h { font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 12px 16px 8px; }
-.rk-h.up { color: var(--pos); } .rk-h.down { color: var(--neg); }
-.rk { width: 100%; border-collapse: collapse; }
-.rk td { font-size: 12px; color: var(--ink); padding: 7px 16px; border-top: 1px solid var(--line-2); white-space: nowrap; }
-.rk td.rank { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); width: 16px; text-align: right; }
-.rk td.nm { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.rk td.val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
-.rk td.note { color: var(--ink-mute); font-family: var(--font-mono); font-size: 10.5px; padding: 12px 16px; }
-.rk td.note.ok { color: var(--pos); }
+/* Destaques = LEADERBOARD (sem grade). 2 colunas Positivos|Negativos, cada linha com
+   favicon/avatar + nome + P/L + barra de magnitude. Separação por respiro, não por borda. */
+.dcols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; padding: 6px 18px 16px; flex: 1 1 auto; }
+.lb-col { min-width: 0; }
+.lb-h { display: flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; padding: 13px 0 6px; }
+.lb-h .cdot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.lb-h.up { color: var(--pos); } .lb-h.up .cdot { background: var(--pos); }
+.lb-h.down { color: var(--neg); } .lb-h.down .cdot { background: var(--neg); }
+.lb-h .tot { margin-left: auto; color: var(--ink-mute); font-weight: 500; letter-spacing: .04em; }
+.lb-row { padding: 8px 0 9px; }
+.lb-top { display: flex; align-items: center; gap: 10px; }
+.lb-rank { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); width: 12px; flex: none; text-align: right; }
+.lb-nm { font-size: 12.5px; color: var(--ink); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-val { margin-left: auto; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; flex: none; }
+.lb-track { position: relative; height: 3px; border-radius: 3px; background: var(--line-2); margin-top: 8px; margin-left: 22px; overflow: hidden; }
+.lb-fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; }
+.lb-fill.up { background: linear-gradient(90deg, rgba(var(--pos-rgb),.55), var(--pos)); }
+.lb-fill.down { background: linear-gradient(90deg, rgba(var(--neg-rgb),.55), var(--neg)); }
+.lb-empty { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); padding: 14px 0; }
+.lb-empty.ok { color: var(--pos); }
+
+/* Favicon de casa — padrão nosso (idêntico ao .casa-chip do app): 24×24, raio 7,
+   fundo steel, logo cover; a inicial fica atrás e some quando a imagem carrega. */
+.casa-chip { width: 24px; height: 24px; border-radius: 7px; background: var(--fdc-steel); border: 1px solid rgba(255,255,255,.08); flex: none; overflow: hidden; display: inline-grid; place-items: center; position: relative; }
+.casa-chip::after { content: attr(data-initial); font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ink-soft); }
+.casa-chip img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Avatar de tipster (pessoa, sem favicon): inicial em círculo neutro. */
+.tip-chip { width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); flex: none; display: inline-grid; place-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
 
 /* Glifo IA. */
 .hglifo { width: 15px; height: 15px; flex: none; display: grid; place-items: center; }
@@ -212,15 +226,52 @@ function el(id){return document.getElementById(id);}
 
 // Top N positivos / negativos de um mapa {chave: pl}.
 function ranked(map,pos,n){const arr=Object.entries(map).map(([k,v])=>({k,v}));return pos?arr.filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,n):arr.filter(x=>x.v<0).sort((a,b)=>a.v-b.v).slice(0,n);}
-function rkTable(list,noteHtml){
-  if(!list.length) return '<table class="rk"><tr>'+noteHtml+'</tr></table>';
-  return '<table class="rk">'+list.map((x,i)=>'<tr><td class="rank">'+(i+1)+'</td><td class="nm">'+esc(x.k)+'</td><td class="val">'+fmtPL(x.v)+'</td></tr>').join('')+'</table>';
+// Favicon de casa — MESMO mecanismo do resto do app (Google S2 + fallback inicial).
+// ⚠️ FONTE DA VERDADE do domínio: dash/assets/js/data.js (HOUSE_DOMAIN/CASA_ICONS).
+//    Cópia espelhada aqui porque o inicio.html é um iframe standalone e carregar
+//    data.js colide (esc/SPORT_*/MESES já definidos inline). Ao criar/renomear casa
+//    lá, replicar aqui — NÃO deixar esta virar uma segunda fonte da verdade.
+const CASA_DOMAIN={
+  '7K':'7k.bet.br','Bateu':'bateu.bet.br','Bet365':'bet365.com','Betano':'betano.com',
+  'Betao':'betao.bet.br','Betão':'betao.bet.br','Betboom':'betboom.bet.br','Faz1bet':'faz1.bet.br',
+  'Polymarket':'polymarket.com','Betboo':'betboo.com','Betbra':'betbra.bet.br','BETesporte':'betesporte.bet.br',
+  'Betfair':'betfair.com','Betfast':'betfast.bet.br','Betfusion':'betfusion.bet.br','BetMGM':'betmgm.bet.br',
+  'Betnacional':'betnacional.com','Betpontobet':'betpontobet.bet.br','Bolsa de Aposta':'bolsadeaposta.bet.br',
+  'Casa de Apostas':'casadeapostas.com','Donald Bet':'donald.bet.br','Esportes da Sorte':'esportesdasorte.com',
+  'Esportiva':'esportiva.bet.br','Estrela Bet':'estrelabet.com','Fulltbet':'fulltbet.bet.br','KTO':'kto.com',
+  'Lance de Sorte':'lancedesorte.bet.br','Liderbet':'lider.bet.br','MatchBook':'matchbook.com','MultiBet':'multi.bet.br',
+  'Novibet':'novibet.com','Pinnacle':'pinnacle.com','PixBet':'pixbet.com','Rei do Pitaco':'reidopitaco.com.br',
+  'SportingBet':'sportingbet.com','Superbet':'superbet.com','Tivo':'tivo.bet.br'
+};
+function casaFavicon(casa){
+  const dom=CASA_DOMAIN[casa]||(casa||'').toLowerCase().replace(/\s+/g,'')+'.com';
+  const init=esc((casa||'?').charAt(0).toUpperCase());
+  return '<span class="casa-chip" data-initial="'+init+'"><img src="https://www.google.com/s2/favicons?sz=128&domain='+encodeURIComponent(dom)+'" alt="" loading="lazy" onerror="this.remove()"></span>';
 }
-function destaques(map,noun){
+function tipAvatar(nome){ return '<span class="tip-chip">'+esc((nome||'?').charAt(0).toUpperCase())+'</span>'; }
+
+// Uma coluna do leaderboard. kind: 'casa' (favicon) | 'tipster' (avatar neutro).
+// A barra é proporcional ao MAIOR |P/L| DA COLUNA (rank 1 = 100%); piso de 3% p/ visibilidade.
+function lbCol(list,pos,kind,noun){
+  const cls=pos?'up':'down';
+  const head='<div class="lb-h '+cls+'"><span class="cdot"></span>'+(pos?'Positivos':'Negativos')+'<span class="tot">'+list.length+'</span></div>';
+  if(!list.length){
+    const msg=pos?('sem '+noun+' no positivo'):'nenhum no vermelho ✓';
+    return '<div class="lb-col">'+head+'<div class="lb-empty'+(pos?'':' ok')+'">'+msg+'</div></div>';
+  }
+  const max=Math.max.apply(null,list.map(x=>Math.abs(x.v)))||1;
+  const rows=list.map((x,i)=>{
+    const pct=Math.max(3,Math.round(Math.abs(x.v)/max*100));
+    const lead=kind==='casa'?casaFavicon(x.k):tipAvatar(x.k);
+    return '<div class="lb-row"><div class="lb-top"><span class="lb-rank">'+(i+1)+'</span>'+lead+
+           '<span class="lb-nm">'+esc(x.k)+'</span><span class="lb-val">'+fmtPL(x.v)+'</span></div>'+
+           '<div class="lb-track"><span class="lb-fill '+cls+'" style="width:'+pct+'%"></span></div></div>';
+  }).join('');
+  return '<div class="lb-col">'+head+rows+'</div>';
+}
+function destaques(map,noun,kind){
   const up=ranked(map,true,5), down=ranked(map,false,5);
-  const colUp='<div class="dcol"><div class="rk-h up">Positivos</div>'+rkTable(up,'<td class="note">sem '+noun+' no positivo</td>')+'</div>';
-  const colDown='<div class="dcol"><div class="rk-h down">Negativos</div>'+rkTable(down,'<td class="note ok">nenhum no vermelho ✓</td>')+'</div>';
-  return colUp+colDown;
+  return lbCol(up,true,kind,noun)+lbCol(down,false,kind,noun);
 }
 
 async function boot(){
@@ -329,8 +380,8 @@ async function boot(){
   el('bookie-mes').textContent='destaques · '+mesNome;
   el('tipster-mes').textContent='destaques · '+mesNome;
   const bC=el('bookie-cols'), tC=el('tipster-cols');
-  bC.innerHTML=Object.keys(byCasaMes).length?destaques(byCasaMes,'casa'):'<div class="empty">Sem apostas encerradas em '+mesNome+'.</div>';
-  tC.innerHTML=Object.keys(byTipMes).length?destaques(byTipMes,'tipster'):'<div class="empty">Sem tipster registrado em '+mesNome+'.</div>';
+  bC.innerHTML=Object.keys(byCasaMes).length?destaques(byCasaMes,'casa','casa'):'<div class="empty">Sem apostas encerradas em '+mesNome+'.</div>';
+  tC.innerHTML=Object.keys(byTipMes).length?destaques(byTipMes,'tipster','tipster'):'<div class="empty">Sem tipster registrado em '+mesNome+'.</div>';
 
   // ── Últimas extrações (RAIO-X) ──
   const hist=histLoad(dono);
