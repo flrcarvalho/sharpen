@@ -595,7 +595,11 @@ html.embedded .sidebar { display: none; }
    de scroll INTERNO do app (colmain e rail rolam por dentro) para não tocar na casca. */
 .workfull { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 372px; gap: 16px; align-items: stretch; padding-bottom: 18px; }
 .colmain { min-width: 0; display: flex; flex-direction: column; min-height: 0; gap: 12px; }
-.rail { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+/* Rail = 2 cards separados: Raio-X (70%) sobre Histórico da conta (30%). */
+.rail { min-width: 0; min-height: 0; display: grid; grid-template-rows: 7fr 3fr; gap: 14px; }
+.rail-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.rail-card--hist .hist__list { max-height: none; flex: 1; min-height: 0; }
+.hist-empty { padding: 16px 12px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); text-align: center; line-height: 1.5; }
 @media (max-width: 1180px) { .workfull { grid-template-columns: 1fr; } .rail { min-height: 46vh; } }
 
 /* ── Partner body: coluna única dentro da colmain (o rail saiu daqui p/ o grid) ── */
@@ -1275,16 +1279,22 @@ td.c-res.res-L  { color: var(--neg); }
 td.c-res.res-V  { color: var(--ink-mute); }
 td.c-res.res-HW { color: var(--accent-2); }
 td.c-res.res-HL { color: var(--warn); }
+/* Estado vazio do Raio-X = instruções (antes de qualquer extração). */
 .right-empty {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 14px; color: var(--ink-mute);
-  font-family: var(--font-mono); font-size: 11px; line-height: 1.6; text-align: center;
-  padding: 40px 24px;
+  flex: 1; display: flex; flex-direction: column; justify-content: flex-start;
+  color: var(--ink-mute); padding: 18px 16px; text-align: left;
 }
 .right-empty-icon {
   width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 12px;
   display: grid; place-items: center; color: var(--ink-mute);
 }
+.rx-lead { font-family: var(--font-mono); font-size: 11px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 16px; }
+.rx-lead b { color: var(--accent-2); }
+.rx-steps { display: flex; flex-direction: column; gap: 12px; }
+.rx-step { display: flex; gap: 11px; align-items: flex-start; }
+.rx-n { width: 20px; height: 20px; border-radius: 50%; background: rgba(var(--accent-rgb),.12); border: 1px solid rgba(var(--accent-rgb),.3); color: var(--accent-2); font-family: var(--font-mono); font-size: 10px; font-weight: 700; display: grid; place-items: center; flex: none; margin-top: 1px; }
+.rx-step p { margin: 0; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.5; color: var(--ink-soft); }
+.rx-step p b { color: var(--ink); }
 
 /* ── Rail Análise IA / Confiança (4.4) — resumo da extração ──
    Padrão do modelo "Planilhador (Modelo)": pill de estado + 3 KPIs
@@ -1771,37 +1781,44 @@ td.c-res.res-HL { color: var(--warn); }
        Sempre visível (concluído / processando / vazio). Fase 1 = layout; as camadas
        (veredito / notas / backoffice / histórico) e o glifo IA vêm nas fases seguintes. -->
   <aside class="rail" id="rail">
-    <div class="right-panel-header">
-      <span class="rail__brand">
-        <span class="rail__glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>
-        <span class="right-panel-title">RAIO-X</span>
-      </span>
-      <span class="rail-pill" id="rail-pill" style="display:none"><span class="rp-dot"></span><span id="rail-pill-txt"></span></span>
-    </div>
-    <!-- Sum (Itens/Duplicadas/Confiança) — flex:none, aparece ao concluir -->
-    <div class="rail-sum" id="rail-sum" style="display:none">
-      <div class="rail-c"><div class="rail-k">Itens</div><div class="rail-v" id="rail-itens">—</div></div>
-      <div class="rail-c"><div class="rail-k">Duplicadas</div><div class="rail-v" id="rail-dup">—</div></div>
-      <div class="rail-c"><div class="rail-k">Confiança</div><div class="rail-v" id="rail-conf">—</div></div>
-    </div>
-    <!-- Scroll: veredito (cliente) + notas de ação + backoffice (injetados por
-         renderRail); abaixo, os cards de extração (progresso/thumbs/cancelar). -->
-    <div class="rail__scroll">
-      <div id="rail-result"></div>
-      <div class="analysis-boxes" id="analysis-boxes">
-        <!-- Estado vazio -->
-        <div class="right-empty" id="right-empty">
-          <div class="right-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 2 1 3 1.5 4.5L8 18h8l.5-4.5C17 12 18 11 18 9a6 6 0 0 0-6-6z"/><path d="M9 21h6"/></svg></div>
-          <div>O resumo da extração aparece aqui<br>após processar um bilhete.</div>
+    <!-- ── Card 1: RAIO-X (70%) ── -->
+    <div class="rail-card rail-card--raiox">
+      <div class="right-panel-header">
+        <span class="rail__brand">
+          <span class="rail__glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>
+          <span class="right-panel-title">RAIO-X</span>
+        </span>
+        <span class="rail-pill" id="rail-pill" style="display:none"><span class="rp-dot"></span><span id="rail-pill-txt"></span></span>
+      </div>
+      <!-- Sum (Itens/Duplicadas/Confiança) — flex:none, aparece ao concluir -->
+      <div class="rail-sum" id="rail-sum" style="display:none">
+        <div class="rail-c"><div class="rail-k">Itens</div><div class="rail-v" id="rail-itens">—</div></div>
+        <div class="rail-c"><div class="rail-k">Duplicadas</div><div class="rail-v" id="rail-dup">—</div></div>
+        <div class="rail-c"><div class="rail-k">Confiança</div><div class="rail-v" id="rail-conf">—</div></div>
+      </div>
+      <!-- Scroll: veredito (cliente) + notas de ação + backoffice (injetados por
+           renderRail); abaixo, os cards de extração (progresso/thumbs/cancelar). -->
+      <div class="rail__scroll">
+        <div id="rail-result"></div>
+        <div class="analysis-boxes" id="analysis-boxes">
+          <!-- Estado vazio = instruções (antes de qualquer extração) -->
+          <div class="right-empty" id="right-empty">
+            <p class="rx-lead">Solte um bilhete e o <b>Sharpen faz o resto</b> — em segundos o resumo aparece aqui.</p>
+            <div class="rx-steps">
+              <div class="rx-step"><span class="rx-n">1</span><p><b>Solte um print ou cole o texto</b> na área ao lado.</p></div>
+              <div class="rx-step"><span class="rx-n">2</span><p>O <b>Sharpen</b> lê evento, mercado, odd, stake e resultado.</p></div>
+              <div class="rx-step"><span class="rx-n">3</span><p>Você <b>confere e confirma</b> — vai direto pra tabela.</p></div>
+            </div>
+          </div>
         </div>
       </div>
+      <div class="rail-foot" id="rail-foot" style="display:none"><span class="rf-dot"></span><span id="rail-foot-txt"></span></div>
     </div>
-    <!-- Histórico — últimas extrações (7 dias), persistido por dono; clique reabre -->
-    <div class="hist" id="rail-hist" style="display:none">
+    <!-- ── Card 2: Histórico da conta (30%) — sempre visível; clique reabre o resumo ── -->
+    <div class="rail-card rail-card--hist" id="rail-hist">
       <div class="hist__head">Histórico da conta<span class="cnt" id="hist-conta"></span></div>
       <div class="hist__list" id="rail-hist-list"></div>
     </div>
-    <div class="rail-foot" id="rail-foot" style="display:none"><span class="rf-dot"></span><span id="rail-foot-txt"></span></div>
   </aside><!-- .rail -->
 
   </div><!-- .workfull -->
@@ -3589,8 +3606,8 @@ function renderHist() {
   const items = chave ? _histLoad().filter(h => ((h.casa || '') + '||' + (h.parceiro || '')) === chave) : [];
   const cnt = document.getElementById('hist-conta');
   if (cnt) cnt.textContent = items.length ? (items.length + (items.length === 1 ? ' extração' : ' extrações')) : '';
-  if (!items.length) { wrap.style.display = 'none'; list.innerHTML = ''; return; }
-  wrap.style.display = '';
+  // Card sempre visível (bloco fixo de 30%): sem itens → mensagem, não esconde.
+  if (!items.length) { list.innerHTML = '<div class="hist-empty">Nenhuma extração nesta conta ainda.</div>'; return; }
   list.innerHTML = items.map((h, i) => {
     const quem = esc(h.casa || 'Extração') + (h.parceiro ? ' · ' + esc(h.parceiro) : '');
     const detalhe = (h.dup ? h.dup + ' dup · ' : '') + (h.st === 'warn' ? 'pendência' : 'limpa');
