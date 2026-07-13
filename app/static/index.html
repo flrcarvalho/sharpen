@@ -458,7 +458,7 @@ html.embedded .sidebar { display: none; }
   font-size: 11px; color: var(--ink-soft); line-height: 1; }
 
 /* ── 4.2.a — Conta ativa na barra de contexto (migração casca unificada) ── */
-.ctxbar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 6px 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.ctxbar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 6px 10px; margin-bottom: 0; flex-wrap: wrap; flex: none; }
 .ctx-lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 3px; }
 /* 4.2.c — Operador e Modelo movidos para a context bar */
 .ctx-divider { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
@@ -467,7 +467,7 @@ html.embedded .sidebar { display: none; }
 /* Faixa de KPIs da conta ativa (item 3) — mesma linguagem visual da ctxbar,
    células separadas por divisor fino. Custo é um input editável (grava no
    localStorage dash_custos_v2, compartilhado com o Betting Dashboard). */
-.ctx-kpis { display: flex; align-items: stretch; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 6px; margin-bottom: 8px; }
+.ctx-kpis { display: flex; align-items: stretch; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 6px; margin-bottom: 0; flex: none; }
 .ctx-kpi { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 14px; min-width: 0; }
 .ctx-kpi + .ctx-kpi::before { content: ""; position: absolute; left: 0; top: 22%; height: 56%; width: 1px; background: var(--line); }
 .ctx-kpi-lbl { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); white-space: nowrap; }
@@ -529,10 +529,19 @@ html.embedded .sidebar { display: none; }
 }
 .acct-new-toggle:hover { border-color: rgba(var(--accent-rgb),.5); color: var(--accent); background: var(--elevated); }
 
-/* ── Partner body: two columns ── */
+/* ── Rail v2 "RAIO-X" (handoff-rail-v2) — área de trabalho = grid colmain | rail full lateral.
+   O ctxbar e a KPI bar passam a viver DENTRO da colmain (não cruzam mais o rail).
+   Adaptação: o SPEC usa scroll de página + rail sticky/100vh; aqui mantemos o modelo
+   de scroll INTERNO do app (colmain e rail rolam por dentro) para não tocar na casca. */
+.workfull { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 372px; gap: 16px; align-items: stretch; padding-bottom: 18px; }
+.colmain { min-width: 0; display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+.rail { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+@media (max-width: 1180px) { .workfull { grid-template-columns: 1fr; } .rail { min-height: 46vh; } }
+
+/* ── Partner body: coluna única dentro da colmain (o rail saiu daqui p/ o grid) ── */
 .partner-body {
   flex: 1; display: flex; overflow: hidden;
-  gap: 16px; padding-bottom: 18px;
+  gap: 16px; padding-bottom: 0;
 }
 
 /* ── Left panel: inputs + grade (cards empilhados) ── */
@@ -1368,6 +1377,11 @@ td.c-res.res-HL { color: var(--warn); }
   <!-- ══ VIEW: Extração (Planilhador) ══ -->
   <div id="view-extracao">
 
+  <!-- Rail v2 (handoff-rail-v2): grid colmain | rail. ctxbar + KPI bar + intake +
+       grade vivem na COLUNA ESQUERDA; o rail RAIO-X é a 2ª coluna, full lateral. -->
+  <div class="workfull">
+  <div class="colmain">
+
   <!-- 4.2.c — context bar SEMPRE visível (Operador + seletor de conta + Modelo).
        Fica fora do partner-page para que o seletor de conta seja acessível também
        no estado vazio — sem ela aqui, sem árvore na sidebar, não há como fazer a 1ª seleção. -->
@@ -1567,36 +1581,40 @@ td.c-res.res-HL { color: var(--warn); }
 
       </div><!-- .left-panel -->
 
-      <div class="resizer" id="panel-resizer"></div>
-
-      <!-- RIGHT: AI analysis -->
-      <div class="right-panel">
-        <div class="right-panel-header">
-          <span class="right-panel-title">Sharpen IA</span>
-          <span class="rail-pill" id="rail-pill" style="display:none"><span class="rp-dot"></span><span id="rail-pill-txt"></span></span>
-        </div>
-        <!-- Resumo do rail: 3 KPIs + notas (info/warn/ok) + rodapé. Preenchido
-             ao concluir cada extração (reflete a última). Convive com os cards. -->
-        <div class="rail-summary" id="rail-summary" style="display:none">
-          <div class="rail-sum">
-            <div class="rail-c"><div class="rail-k">Itens</div><div class="rail-v" id="rail-itens">—</div></div>
-            <div class="rail-c"><div class="rail-k">Duplicadas</div><div class="rail-v" id="rail-dup">—</div></div>
-            <div class="rail-c"><div class="rail-k">Confiança</div><div class="rail-v" id="rail-conf">—</div></div>
-          </div>
-          <div class="rail-notes" id="rail-notes"></div>
-          <div class="rail-foot" id="rail-foot"><span class="rf-dot"></span><span id="rail-foot-txt"></span></div>
-        </div>
-        <div class="analysis-boxes" id="analysis-boxes">
-          <!-- Estado vazio -->
-          <div class="right-empty" id="right-empty">
-            <div class="right-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 2 1 3 1.5 4.5L8 18h8l.5-4.5C17 12 18 11 18 9a6 6 0 0 0-6-6z"/><path d="M9 21h6"/></svg></div>
-            <div>As notas críticas da extração<br>aparecerão aqui após processar um bilhete.</div>
-          </div>
-        </div>
-      </div><!-- .right-panel -->
-
     </div><!-- .partner-body -->
   </div><!-- .partner-page -->
+
+  </div><!-- .colmain -->
+
+  <!-- ══ RAIL "RAIO-X" — full lateral (2ª coluna do .workfull) ══
+       Sempre visível (concluído / processando / vazio). Fase 1 = layout; as camadas
+       (veredito / notas / backoffice / histórico) e o glifo IA vêm nas fases seguintes. -->
+  <aside class="rail" id="rail">
+    <div class="right-panel-header">
+      <span class="right-panel-title">RAIO-X</span>
+      <span class="rail-pill" id="rail-pill" style="display:none"><span class="rp-dot"></span><span id="rail-pill-txt"></span></span>
+    </div>
+    <!-- Resumo do rail: 3 KPIs + notas (info/warn/ok) + rodapé. Preenchido
+         ao concluir cada extração (reflete a última). Convive com os cards. -->
+    <div class="rail-summary" id="rail-summary" style="display:none">
+      <div class="rail-sum">
+        <div class="rail-c"><div class="rail-k">Itens</div><div class="rail-v" id="rail-itens">—</div></div>
+        <div class="rail-c"><div class="rail-k">Duplicadas</div><div class="rail-v" id="rail-dup">—</div></div>
+        <div class="rail-c"><div class="rail-k">Confiança</div><div class="rail-v" id="rail-conf">—</div></div>
+      </div>
+      <div class="rail-notes" id="rail-notes"></div>
+      <div class="rail-foot" id="rail-foot"><span class="rf-dot"></span><span id="rail-foot-txt"></span></div>
+    </div>
+    <div class="analysis-boxes" id="analysis-boxes">
+      <!-- Estado vazio -->
+      <div class="right-empty" id="right-empty">
+        <div class="right-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 2 1 3 1.5 4.5L8 18h8l.5-4.5C17 12 18 11 18 9a6 6 0 0 0-6-6z"/><path d="M9 21h6"/></svg></div>
+        <div>As notas críticas da extração<br>aparecerão aqui após processar um bilhete.</div>
+      </div>
+    </div>
+  </aside><!-- .rail -->
+
+  </div><!-- .workfull -->
   </div><!-- #view-extracao -->
   <!-- Contas & Parceiros foi unificada no Painel de Contas (#painelContas), no
        estado sem conta ativa. A view separada #view-contas foi removida (sessão 85b). -->
