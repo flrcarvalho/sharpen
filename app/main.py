@@ -200,8 +200,8 @@ _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # Rotas da EXTENSÃO de captura: chegam com Origin da casa (superbet.com) ou da
 # própria extensão (chrome-extension://…), nunca do sharpen.bet, então bateriam
 # no guarda de origem. São isentas do guarda porque fazem a PRÓPRIA autenticação
-# — /conectar exige um código válido e curto; /enviar exige o token de sessão.
-_CAPTURA_ISENTAS = {"/captura/conectar", "/captura/enviar"}
+# — /conectar exige um código válido e curto; /enviar e /validar exigem o token de sessão.
+_CAPTURA_ISENTAS = {"/captura/conectar", "/captura/enviar", "/captura/validar"}
 _ALLOWED_ORIGIN_HOSTS = {
     h.strip().lower()
     for h in os.environ.get("ALLOWED_ORIGIN_HOSTS", "").split(",")
