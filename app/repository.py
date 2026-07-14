@@ -995,6 +995,11 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
             if m:
                 conta, fornecedor = m.group(1).strip(), m.group(2).strip()
             out.append({
+                # id da linha no Postgres — usado pela página de Apostas do dashboard
+                # para editar/deletar (PATCH/DELETE /bilhetes/{id}). Linhas da planilha
+                # ao vivo (dashboard_rows_ao_vivo) não têm id → chegam sem esta chave e
+                # o front trata como não-editável.
+                "id": r.get("id"),
                 "data": data_iso,
                 "esporte": (r.get("esporte") or "").strip(),
                 "tipster": (r.get("tipster") or "").strip(),
@@ -1082,6 +1087,144 @@ async def limpar_ativos_tipster(dono: str, codigos: list[str]) -> int:
     return int(result.split()[-1])
 
 
+
+
+# ── Tipsters — cadastro (Perfil de Tipster, Fatia 0) ──────────────────────────
+# NÃO confundir com list_tipsters() acima, que devolve os NOMES distintos já usados
+# nos bilhetes (autocomplete da grade). As funções abaixo gerem a TABELA `tipsters`
+# (o cadastro em si). Espelham o CRUD de parceiros. Ver docs/PLANO_TIPSTER.md.
+
+async def garantir_tipster(dono: str, nome: str) -> None:
+    """Auto-cadastro: garante que o tipster existe na tabela no instante em que o nome
+    é digitado num bilhete. DO NOTHING → não duplica nem ressuscita um arquivado.
+    Best-effort: nunca deve derrubar a escrita do bilhete que a disparou."""
+    nome = (nome or "").strip()
+    if not nome:
+        return
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO tipsters (dono, nome) VALUES ($1, $2) "
+                "ON CONFLICT (dono, nome) DO NOTHING",
+                dono, nome,
+            )
+    except Exception:
+        logger.exception("auto-cadastro de tipster falhou (não-fatal)")
+
+
+async def criar_tipster(nome: str, dono: str) -> dict:
+    """Cadastro explícito (ou reativação) de um tipster. Espelha criar_parceiro."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO tipsters (dono, nome)
+            VALUES ($1, $2)
+            ON CONFLICT (dono, nome) DO UPDATE SET arquivado = FALSE
+            RETURNING id, nome, casas, mercados, obs, arquivado, criado_em
+            """,
+            dono, nome,
+        )
+    return dict(row)
+
+
+async def list_tipsters_cadastro(dono: str, incluir_arquivados: bool = False) -> list[dict]:
+    """Tipsters CADASTRADOS (a tabela), com campos de info. `completo` = tem ao menos um
+    campo de info preenchido; senão nasce incompleto (sinal (i) no onboarding)."""
+    pool = await get_pool()
+    filtro = "WHERE dono = $1"
+    if not incluir_arquivados:
+        filtro += " AND arquivado = FALSE"
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"SELECT id, nome, casas, mercados, obs, arquivado, criado_em "
+            f"FROM tipsters {filtro} ORDER BY nome ASC",
+            dono,
+        )
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["completo"] = bool(d.get("casas") or d.get("mercados") or d.get("obs"))
+        out.append(d)
+    return out
+
+
+async def arquivar_tipster(tipster_id: int, dono: str) -> bool:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE tipsters SET arquivado = TRUE WHERE id = $1 AND dono = $2", tipster_id, dono
+        )
+    return result.split()[-1] == "1"
+
+
+async def reativar_tipster(tipster_id: int, dono: str) -> bool:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE tipsters SET arquivado = FALSE WHERE id = $1 AND dono = $2", tipster_id, dono
+        )
+    return result.split()[-1] == "1"
+
+
+async def atualizar_tipster_info(tipster_id: int, dono: str, casas: str | None,
+                                 mercados: str | None, obs: str | None) -> bool:
+    """Preenche os campos de info do perfil (casas principais, mercados, observações).
+    None mantém o valor atual; string vazia limpa o campo."""
+    sets, params = [], []
+    for col, val in (("casas", casas), ("mercados", mercados), ("obs", obs)):
+        if val is not None:
+            params.append(val.strip() or None)
+            sets.append(f"{col} = ${len(params)}")
+    if not sets:
+        return False
+    params.append(tipster_id)
+    id_ph = len(params)
+    params.append(dono)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            f"UPDATE tipsters SET {', '.join(sets)} WHERE id = ${id_ph} AND dono = ${len(params)}",
+            *params,
+        )
+    return result.split()[-1] == "1"
+
+
+async def renomear_tipster(tipster_id: int, novo_nome: str, dono: str) -> dict:
+    """Renomeia o tipster E propaga aos bilhetes (que o referenciam por NOME em
+    bilhetes.tipster). Espelha renomear_parceiro. Colisão respeita UNIQUE (dono, nome):
+    se o novo nome já existe, recusa e explica — fundir dois tipsters é decisão manual
+    (reatribuir os bilhetes), não um efeito colateral silencioso do rename."""
+    novo_nome = (novo_nome or "").strip()
+    if not novo_nome:
+        return {"ok": False, "motivo": "Nome vazio."}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT nome FROM tipsters WHERE id = $1 AND dono = $2", tipster_id, dono
+            )
+            if not row:
+                return {"ok": False, "motivo": "Tipster não encontrado."}
+            antigo = row["nome"]
+            if antigo == novo_nome:
+                return {"ok": True, "bilhetes_atualizados": 0}
+            existe = await conn.fetchval(
+                "SELECT 1 FROM tipsters WHERE dono = $1 AND nome = $2 AND id <> $3",
+                dono, novo_nome, tipster_id,
+            )
+            if existe:
+                return {"ok": False, "motivo": "Já existe um tipster com esse nome."}
+            await conn.execute(
+                "UPDATE tipsters SET nome = $1 WHERE id = $2 AND dono = $3",
+                novo_nome, tipster_id, dono,
+            )
+            res = await conn.execute(
+                "UPDATE bilhetes SET tipster = $1 WHERE dono = $2 AND tipster = $3",
+                novo_nome, dono, antigo,
+            )
+    return {"ok": True, "bilhetes_atualizados": int(res.split()[-1])}
 
 
 # ── Parceiros ─────────────────────────────────────────────────────────────────
@@ -1200,6 +1343,9 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
         ok = result.split()[-1] == "1"
         if ok and antes is not None:
             await _registrar_correcoes(conn, bilhete_id, dono, antes, safe)
+    # Cadastro automático: editar o tipster de um bilhete faz o tipster existir na base.
+    if ok and safe.get("tipster"):
+        await garantir_tipster(dono, safe["tipster"])
     return ok
 
 
@@ -1238,7 +1384,11 @@ async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:
             "WHERE id = ANY($2) AND dono = $3",
             tipster, ids, dono,
         )
-    return int(result.split()[-1])
+    n = int(result.split()[-1])
+    if n:
+        # Cadastro automático: o tipster passa a existir na base ao ser atribuído.
+        await garantir_tipster(dono, tipster)
+    return n
 
 
 async def reativar_parceiro(parceiro_id: int, dono: str) -> bool:

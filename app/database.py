@@ -155,6 +155,32 @@ CREATE TABLE IF NOT EXISTS casas_meta (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dono, casa)
 );
+
+-- ── Tipsters — Perfil de Tipster (Fatia 0) ────────────────────────────────────
+-- Dá existência de verdade ao tipster, que hoje é só texto livre em bilhetes.tipster.
+-- Chave (dono, nome): mesmo tipster em N casas = UM registro; unificação por nome
+-- SEMPRE (decisão do Feca, 2026-07-14). Quer separar? Nomes distintos ("João 365").
+-- Espelha `parceiros`. Os campos de info (casas/mercados/obs) nascem vazios → tipster
+-- "incompleto" (sinal (i) no onboarding). Ver docs/PLANO_TIPSTER.md.
+CREATE TABLE IF NOT EXISTS tipsters (
+    id        SERIAL PRIMARY KEY,
+    nome      TEXT NOT NULL,
+    dono      TEXT NOT NULL DEFAULT 'Feca',
+    casas     TEXT,
+    mercados  TEXT,
+    obs       TEXT,
+    arquivado BOOLEAN NOT NULL DEFAULT FALSE,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (dono, nome)
+);
+
+-- Backfill idempotente: todo tipster distinto já presente nos bilhetes vira registro
+-- (incompleto). Roda a cada boot; ON CONFLICT DO NOTHING → nunca duplica nem
+-- ressuscita um tipster que foi arquivado à mão.
+INSERT INTO tipsters (dono, nome)
+SELECT DISTINCT dono, tipster FROM bilhetes
+WHERE tipster IS NOT NULL AND tipster <> ''
+ON CONFLICT (dono, nome) DO NOTHING;
 """
 
 

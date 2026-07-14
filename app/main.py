@@ -44,6 +44,8 @@ from repository import (
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
+    criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
+    atualizar_tipster_info, renomear_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
@@ -1997,6 +1999,73 @@ class ParceiroRenomearRequest(BaseModel):
 async def renomear_parceiro_route(parceiro_id: int, body: ParceiroRenomearRequest,
                                   dono: str = Depends(dono_efetivo)):
     res = await renomear_parceiro(parceiro_id, body.nome, dono)
+    if not res.get("ok"):
+        raise HTTPException(400, res.get("motivo", "Não foi possível renomear."))
+    return res
+
+
+# ── Fatia 0: cadastro de tipster (Perfil de Tipster) ──────────────────────────
+# NÃO confundir com GET /tipsters acima (autocomplete dos nomes já usados). Estas
+# rotas gerem a TABELA `tipsters`. Espelham o CRUD de /parceiros, com dono_efetivo.
+# Ver docs/PLANO_TIPSTER.md.
+
+class TipsterCriarRequest(BaseModel):
+    nome: str
+
+
+class TipsterInfoRequest(BaseModel):
+    casas: Optional[str] = None
+    mercados: Optional[str] = None
+    obs: Optional[str] = None
+
+
+class TipsterRenomearRequest(BaseModel):
+    nome: str
+
+
+@app.get("/tipsters/cadastro")
+async def listar_tipsters_cadastro(arquivados: bool = False, dono: str = Depends(dono_efetivo)):
+    rows = await list_tipsters_cadastro(dono, incluir_arquivados=arquivados)
+    return {"tipsters": rows}
+
+
+@app.post("/tipsters/cadastro")
+async def criar_tipster_route(body: TipsterCriarRequest, dono: str = Depends(dono_efetivo)):
+    nome = body.nome.strip()
+    if not nome:
+        raise HTTPException(400, "Nome do tipster não pode ser vazio.")
+    return await criar_tipster(nome, dono)
+
+
+@app.patch("/tipsters/{tipster_id}/info")
+async def atualizar_tipster_info_route(tipster_id: int, body: TipsterInfoRequest,
+                                       dono: str = Depends(dono_efetivo)):
+    ok = await atualizar_tipster_info(tipster_id, dono, body.casas, body.mercados, body.obs)
+    if not ok:
+        raise HTTPException(404, "Tipster não encontrado ou sem campos válidos.")
+    return {"atualizado": True}
+
+
+@app.post("/tipsters/{tipster_id}/arquivar")
+async def arquivar_tipster_route(tipster_id: int, dono: str = Depends(dono_efetivo)):
+    ok = await arquivar_tipster(tipster_id, dono)
+    if not ok:
+        raise HTTPException(404, "Tipster não encontrado.")
+    return {"arquivado": True}
+
+
+@app.post("/tipsters/{tipster_id}/reativar")
+async def reativar_tipster_route(tipster_id: int, dono: str = Depends(dono_efetivo)):
+    ok = await reativar_tipster(tipster_id, dono)
+    if not ok:
+        raise HTTPException(404, "Tipster não encontrado.")
+    return {"arquivado": False}
+
+
+@app.post("/tipsters/{tipster_id}/renomear")
+async def renomear_tipster_route(tipster_id: int, body: TipsterRenomearRequest,
+                                 dono: str = Depends(dono_efetivo)):
+    res = await renomear_tipster(tipster_id, body.nome, dono)
     if not res.get("ok"):
         raise HTTPException(400, res.get("motivo", "Não foi possível renomear."))
     return res
