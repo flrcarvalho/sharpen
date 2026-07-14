@@ -933,7 +933,7 @@
 /* Grid compartilhado: header e linhas de dado usam o mesmo template */
 .btbl-cols {
   display: grid;
-  grid-template-columns: var(--btbl-grid, 80px minmax(160px,1fr) 108px 114px 168px 92px 68px 80px 108px);
+  grid-template-columns: var(--btbl-grid, 80px minmax(160px,1fr) 108px 114px 168px 92px 68px 80px 108px 72px);
   gap: 0 12px;
   padding: 0 22px;
   box-sizing: border-box;
@@ -976,6 +976,43 @@
 }
 .btbl-data-row:hover { background: rgba(46,139,255,0.04); }
 .btbl-cell { min-width: 0; overflow: hidden; }
+/* Coluna de ações da lista de Apostas (editar / deletar) — espelha o extrator */
+.btbl-acts { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.act-btn {
+  width: 22px; height: 22px; padding: 0; border: none; background: transparent; cursor: pointer;
+  color: var(--ink-mute); display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; font-size: 12px; transition: background .1s, color .1s;
+}
+.act-btn:hover { background: var(--surface-2); color: var(--ink); }
+.act-btn.del:hover { background: rgba(var(--neg-rgb),.15); color: var(--neg); }
+/* Linha não-editável (planilha ao vivo ou linha de operador em visão consolidada):
+   ícone apagado, sem hover, sem cursor de clique. */
+.act-btn.off { color: var(--ink-mute); opacity: .28; cursor: default; }
+.act-btn.off:hover { background: transparent; color: var(--ink-mute); }
+
+/* ── Modal de edição da lista de Apostas ─────────────────────────────────── */
+.apedit-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.apedit-label {
+  font-family: var(--font-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--ink-mute);
+}
+.apedit-inp {
+  width: 100%; box-sizing: border-box; background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink);
+  font-family: var(--font-sans); font-size: 13px; padding: 8px 10px;
+  transition: border-color .12s;
+}
+.apedit-inp:focus { outline: none; border-color: var(--accent); }
+textarea.apedit-inp { resize: vertical; min-height: 56px; font-family: var(--font-sans); }
+.apedit-btn-ghost, .apedit-btn-primary {
+  font-size: 12px; padding: 8px 16px; border-radius: var(--r-sm); cursor: pointer;
+  font-family: var(--font-sans); font-weight: 600; border: 1px solid var(--line);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.apedit-btn-ghost { background: transparent; color: var(--ink-soft); }
+.apedit-btn-ghost:hover { border-color: var(--ink-mute); color: var(--ink); }
+.apedit-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.apedit-btn-primary:hover { filter: brightness(1.08); }
 .btbl-date {
   font-family: var(--font-mono);
   font-size: 11px;

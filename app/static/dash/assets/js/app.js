@@ -320,8 +320,8 @@ function addColResizer(th,tableId,colIdx){
 // A largura de cada coluna fica numa CSS var (--btbl-grid) no .btbl-wrap; como o
 // header e as linhas virtuais compartilham .btbl-cols, todas seguem a var sozinhas.
 // 'flex' = coluna Aposta/Evento (minmax 1fr) — absorve o resto, sem alça própria.
-const BTBL_W_DEFAULT=[80,'flex',108,114,168,92,68,80,108];
-const BTBL_W_KEY='btbl_colw_v1';
+const BTBL_W_DEFAULT=[80,'flex',108,114,168,92,68,80,108,72];
+const BTBL_W_KEY='btbl_colw_v2';   // v2: +coluna Ações (10 col) — v1 (9 col) cai no default pelo length-check
 let btblColW=BTBL_W_DEFAULT.slice();
 function _btblGridStr(){return btblColW.map(w=>w==='flex'?'minmax(160px,1fr)':w+'px').join(' ');}
 function _btblApplyGrid(){const wrap=document.querySelector('.btbl-wrap');if(wrap)wrap.style.setProperty('--btbl-grid',_btblGridStr());}
@@ -538,6 +538,7 @@ function buildHTML(){
             <div class="btbl-th sortable" data-col="8" onclick="apostasSort(8)">Odd <span class="sort-arrow">↕</span></div>
             <div class="btbl-th">Resultado</div>
             <div class="btbl-th sortable" data-col="10" onclick="apostasSort(10)" style="text-align:right">P/L <span class="sort-arrow">↕</span></div>
+            <div class="btbl-th" style="text-align:center">Ações</div>
           </div>
           <!-- Contador -->
           <div id="apostasCounter" class="btbl-counter"></div>
@@ -822,6 +823,48 @@ function buildHTML(){
           <button class="qbtn active" data-all="1" onclick="setDrillSportAll()">Tudo</button>
         </div>
         <div id="sportDrillBody"></div>
+      </div>
+    </div>
+
+    <!-- Editar aposta (página Apostas) — edita os 10 campos via PATCH /bilhetes/{id} -->
+    <div class="analise-popup-overlay" id="apEditOverlay" onclick="fecharEdicaoApostas(event)">
+      <div class="analise-popup-modal" id="apEditModal" style="max-width:560px" onclick="event.stopPropagation()">
+        <div class="analise-popup-hdr" style="align-items:center">
+          <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
+            <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">EDITAR</span>
+            <span style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text1);font-family:var(--font-sans);line-height:1.1">Aposta</span>
+          </div>
+          <div style="flex:1"></div>
+          <button onclick="fecharEdicaoApostas()" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--fdc-steel);border:1px solid var(--line);color:var(--ink-soft);border-radius:8px;cursor:pointer;font-size:15px;flex-shrink:0" title="Fechar">✕</button>
+        </div>
+        <div style="padding:var(--sp-5) var(--sp-6);display:grid;grid-template-columns:1fr 1fr;gap:12px 14px">
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-data">Data</label><input class="apedit-inp" id="ap-ed-data" type="text" placeholder="DD/MM/AAAA" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-resultado">Resultado</label>
+            <select class="apedit-inp" id="ap-ed-resultado">
+              <option value="">— aberta —</option>
+              <option value="W">W · Green</option>
+              <option value="L">L · Red</option>
+              <option value="V">V · Void</option>
+              <option value="HW">HW · Meio green</option>
+              <option value="HL">HL · Meio red</option>
+            </select>
+          </div>
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-esporte">Esporte</label><input class="apedit-inp" id="ap-ed-esporte" type="text" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-tipster">Tipster</label><input class="apedit-inp" id="ap-ed-tipster" type="text" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-casa">Casa</label><input class="apedit-inp" id="ap-ed-casa" type="text" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-parceiro">Parceiro</label><input class="apedit-inp" id="ap-ed-parceiro" type="text" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-stake">Stake</label><input class="apedit-inp" id="ap-ed-stake" type="text" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field"><label class="apedit-label" for="ap-ed-odd">Odd</label><input class="apedit-inp" id="ap-ed-odd" type="text" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field" style="grid-column:1/-1"><label class="apedit-label" for="ap-ed-aposta">Aposta / Tipo</label><input class="apedit-inp" id="ap-ed-aposta" type="text" spellcheck="false" autocomplete="off"></div>
+          <div class="apedit-field" style="grid-column:1/-1"><label class="apedit-label" for="ap-ed-descricao">Descrição / Evento</label><textarea class="apedit-inp" id="ap-ed-descricao" spellcheck="false"></textarea></div>
+        </div>
+        <div id="apEditErr" style="display:none;margin:0 var(--sp-6) 4px;color:var(--neg);font-size:12px;font-family:var(--font-sans)"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:var(--sp-4) var(--sp-6);border-top:1px solid var(--line)">
+          <button class="apedit-btn-ghost" style="border-color:transparent;color:var(--neg)" onclick="deletarApostas()">🗑 Deletar</button>
+          <div style="flex:1"></div>
+          <button class="apedit-btn-ghost" onclick="fecharEdicaoApostas()">Cancelar</button>
+          <button class="apedit-btn-primary" onclick="salvarEdicaoApostas()">Salvar</button>
+        </div>
       </div>
     </div>
   </div>`;

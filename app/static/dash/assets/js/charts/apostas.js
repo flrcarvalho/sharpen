@@ -108,7 +108,10 @@ function renderApostasVirt(){
     const resClass=`bet-res-${r.resultado}`;
     const resLabel=RES_SHORT[r.resultado]||r.resultado;
     const parceiro=r.parceiro&&r.parceiro!=='—'?r.parceiro:'';
-    return`<div class="btbl-cols btbl-data-row" style="height:${BTBL_ROW_H}px">
+    // Editável só quando há id (Postgres) E a linha é do dono efetivo. Linha de
+    // planilha ao vivo (sem id) ou de operador numa visão consolidada → view-only.
+    const editavel=r.id!=null&&r.operador===window.__dono;
+    return`<div class="btbl-cols btbl-data-row"${r.id!=null?` data-id="${r.id}"`:''} style="height:${BTBL_ROW_H}px">
       <div class="btbl-cell btbl-date">${dateStr}</div>
       <div class="btbl-cell">
         ${r.aposta?`<div class="btbl-tipo">${esc(r.aposta)}</div>`:''}
@@ -129,6 +132,9 @@ function renderApostasVirt(){
         <span class="bet-res-pill ${resClass}">${resLabel}</span>
       </div>
       <div class="btbl-cell btbl-pl">${r.resultado==='ABERTA'?'<span style="color:var(--ink-mute)">—</span>':fmtPL(r.lucro)}</div>
+      <div class="btbl-cell btbl-acts">${editavel
+        ? `<button class="act-btn" title="Editar aposta" onclick="abrirEdicaoApostas(${r.id})">✎</button><button class="act-btn del" title="Deletar aposta" onclick="deletarApostas(${r.id})">✕</button>`
+        : `<span class="act-btn off" title="Linha da planilha ao vivo ou de um operador — edite na origem">✎</span>`}</div>
     </div>`;
   }).join('');
   wrapper.innerHTML=
@@ -148,3 +154,81 @@ function clearApostasFilters(){
   document.querySelectorAll('.acf').forEach(el=>el.value='');
   renderApostas();
 }
+
+// ── Editar / deletar aposta (modal) ─────────────────────────────────────────
+// Reusa os endpoints do extrator: PATCH e DELETE /bilhetes/{id}. O modal (DOM em
+// app.js buildHTML) edita os 10 campos. Só linhas do dono efetivo COM id (Postgres)
+// chegam editáveis — ver `editavel` em renderApostasVirt. Após salvar/deletar,
+// re-busca o feed (loadData) para P/L derivado, KPIs e gating baterem com o servidor.
+let apEditId=null;
+const AP_ED_CAMPOS=['data','esporte','tipster','casa','parceiro','stake','odd','aposta','descricao','resultado'];
+function _apRowById(id){
+  return apostasTabela.find(r=>r.id===id)
+    || (typeof DADOS!=='undefined'?DADOS.find(r=>r.id===id):null)
+    || (typeof DADOS_ABERTAS!=='undefined'?DADOS_ABERTAS.find(r=>r.id===id):null)
+    || null;
+}
+function _apIsoToBR(s){const m=(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:(s||'');}
+// Valor mostrado no input para cada campo. Odd/stake em precisão TOTAL (String) —
+// a odd nunca é truncada; como o patch só leva campos alterados, uma odd intocada
+// jamais é reenviada (não corrompe o P/L derivado).
+function _apEditVal(r,c){
+  if(c==='data')return _apIsoToBR(r.data);
+  if(c==='resultado')return r.resultado==='ABERTA'?'':(r.resultado||'');
+  return r[c]!=null?String(r[c]):'';
+}
+function abrirEdicaoApostas(id){
+  const r=_apRowById(id);
+  if(!r)return;
+  apEditId=id;
+  AP_ED_CAMPOS.forEach(c=>{const el=document.getElementById('ap-ed-'+c);if(el)el.value=_apEditVal(r,c);});
+  const err=document.getElementById('apEditErr');if(err){err.style.display='none';err.textContent='';}
+  const ov=document.getElementById('apEditOverlay');
+  if(ov){ov.style.display='flex';document.body.style.overflow='hidden';}
+}
+window.abrirEdicaoApostas=abrirEdicaoApostas;
+function fecharEdicaoApostas(e){
+  if(e&&e.target!==document.getElementById('apEditOverlay'))return;
+  const ov=document.getElementById('apEditOverlay');
+  if(ov)ov.style.display='none';
+  document.body.style.overflow='';
+  apEditId=null;
+}
+window.fecharEdicaoApostas=fecharEdicaoApostas;
+function _apEditErro(msg){const err=document.getElementById('apEditErr');if(err){err.textContent=msg;err.style.display='block';}}
+async function salvarEdicaoApostas(){
+  if(apEditId==null)return;
+  const r=_apRowById(apEditId);
+  if(!r){fecharEdicaoApostas();return;}
+  const patch={};
+  AP_ED_CAMPOS.forEach(c=>{
+    const el=document.getElementById('ap-ed-'+c);
+    if(!el)return;
+    const v=el.value.trim();
+    if(_apEditVal(r,c)!==v)patch[c]=v;   // só o que mudou
+  });
+  if(!Object.keys(patch).length){fecharEdicaoApostas();return;}
+  try{
+    const res=await fetch(`/bilhetes/${apEditId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
+    if(!res.ok)throw new Error();
+    fecharEdicaoApostas();
+    await loadData(false);
+  }catch(_){_apEditErro('Erro ao salvar. Confira os campos (data DD/MM/AAAA, stake/odd numéricos, resultado W/L/V/HW/HL).');}
+}
+window.salvarEdicaoApostas=salvarEdicaoApostas;
+// Chamado com id (botão ✕ da linha) ou sem arg (botão do modal → usa apEditId).
+async function deletarApostas(id){
+  const alvo=(id!=null)?id:apEditId;
+  if(alvo==null)return;
+  if(!confirm('Deletar esta aposta? A linha será removida da base.'))return;
+  try{
+    const res=await fetch(`/bilhetes/${alvo}`,{method:'DELETE'});
+    if(!res.ok)throw new Error();
+    fecharEdicaoApostas();
+    await loadData(false);
+  }catch(_){
+    if(apEditId!=null)_apEditErro('Erro ao deletar.');
+    else alert('Erro ao deletar a aposta.');
+  }
+}
+window.deletarApostas=deletarApostas;
