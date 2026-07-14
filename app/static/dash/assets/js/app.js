@@ -406,6 +406,7 @@ const PAGE_META={
   'parceiros':      ['Fornecedores & Parceiros', 'turnover, lucro e período por conta'],
   'custos':         ['Custos de Contas',         'custo de aquisição por conta e fornecedor'],
   'custos_tipster': ['Custo de Tipsters',        'assinaturas, serviços e pagamentos'],
+  'tipster_metodo': ['Tipster / Método',         'cadastro, unidades e detecção do tipster'],
   'metrics':        ['Métricas',                 'base de conhecimento e valores atuais'],
 };
 // Deep-link: os atalhos do Planilhador chegam como /dashboard/#<id>. Sem âncora
@@ -447,6 +448,7 @@ function renderPage(id){
   else if(id==='parceiros'){renderParceiros(rows);}
   else if(id==='custos'){renderCustos(rows);}
   else if(id==='custos_tipster'){renderCustoTipster();}
+  else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
   else if(id==='resultados'){renderResultados();}
 }
@@ -492,6 +494,7 @@ function buildHTML(){
           ['parceiros','Fornecedores & Parceiros','<rect x="2" y="4" width="12" height="9" rx="1"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/>'],
           ['custos','Custos de Contas','<path d="M8 2v12M5 5h4.5a2 2 0 010 4H5m0 0h5a2 2 0 010 4H5"/>'],
           ['custos_tipster','Custo de Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12" cy="5" r="2"/><path d="M10 13.2c.6-.5 2-.7 2-.7"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="10" y1="10" x2="14" y2="10"/>'],
+          ['tipster_metodo','Tipster / Método','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12.5" cy="10.5" r="3"/><path d="M12.5 9v3M11 10.5h3"/>'],
           ['metrics','Métricas','<path d="M8 2v2M8 12v2M2 8h2m8 0h2"/><circle cx="8" cy="8" r="3"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
       </nav>
@@ -603,6 +606,11 @@ function buildHTML(){
       <!-- CUSTO DE TIPSTERS -->
       <div class="page" id="page-custos_tipster">
         <div id="custoTipsterContent"></div>
+      </div>
+
+      <!-- TIPSTER / MÉTODO -->
+      <div class="page" id="page-tipster_metodo">
+        <div id="tipsterMetodoContent"></div>
       </div>
 
       <!-- MÉTRICAS -->

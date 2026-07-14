@@ -507,3 +507,96 @@ function renderCustoTipster(){
       `)}
     </div>`;
 }
+
+// ── Aba "Tipster / Método" (Gestão) — cadastro EDITÁVEL do tipster + escada de unidade +
+// dicas de detecção. O drill (extrato) virou só-leitura: TODA a edição do tipster mora aqui.
+// Reusa os endpoints /tipsters/cadastro · /tipsters/{id}/info · /tipsters/unidades já no ar.
+let _tmCadastro=null;   // nome -> {id, casas, mercados, obs, completo, ...}
+let _tmSel=null;        // tipster selecionado no seletor
+function _tmVal(id){const e=document.getElementById(id);return e?e.value:'';}
+function _tmIsoBR(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return m?m[3]+'/'+m[2]+'/'+m[1]:(iso||'');}
+// Valor unitário da escada → .money 2 casas (UI_REFERENCE §5.1: stake/valor unitário).
+function _tmMoney(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(Number(v)||0,2)}</span></span>`;}
+function _tmDica(titulo,txt){return`<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px">`
+  +`<div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:6px">${titulo}</div>`
+  +`<div style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.45">${txt}</div></div>`;}
+
+async function renderTipsterMetodo(){
+  const cont=document.getElementById('tipsterMetodoContent');
+  if(!cont)return;
+  let lista=[];
+  try{const r=await fetch('/tipsters/cadastro?arquivados=0');const d=await r.json();lista=d.tipsters||[];}catch(e){lista=[];}
+  _tmCadastro={};lista.forEach(t=>{_tmCadastro[t.nome]=t;});
+  const nomes=lista.map(t=>t.nome).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const nInc=lista.filter(t=>!t.completo).length;
+  if(!_tmSel||!_tmCadastro[_tmSel])_tmSel=nomes[0]||null;
+
+  // Dicas — esqueleto da auto-atribuição (só-texto; a detecção real é etapa seguinte).
+  const dicas=`<p style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.5;margin-bottom:.9rem">`
+    +`Hoje o tipster é atribuído <strong style="color:var(--ink)">manualmente</strong> depois da extração — a IA nunca lê o tipster do bilhete. `
+    +`Preenchendo o cadastro abaixo você prepara o terreno para o Sharpen <strong style="color:var(--accent)">sugerir o tipster automaticamente</strong> durante a extração <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mute)">(em construção)</span>.</p>`
+    +`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">`
+    +_tmDica('Nome consistente','Use sempre o MESMO nome para o mesmo tipster (ex.: sempre &ldquo;SóChutes&rdquo;, nunca &ldquo;so chutes&rdquo;). O nome é a chave do cadastro e da atribuição.')
+    +_tmDica('Casas &amp; mercados','Informe onde o tipster opera e os mercados típicos. Um bilhete numa casa ou mercado que não é dele tem menos chance de ser atribuído a ele.')
+    +_tmDica('Escada de unidade','Defina quanto vale 1u em R$ ao longo do tempo. É o que converte o resultado em unidades e ancora a stake típica do tipster.')
+    +`</div>`;
+
+  const iv='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
+  const lb='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
+  const aviso=nInc?`<span style="font-family:var(--font-mono);font-size:10px;color:var(--accent);background:rgba(var(--accent-rgb),.12);border:1px solid var(--line);border-radius:999px;padding:3px 10px">${nInc} sem info preenchida</span>`:'';
+  const selector=nomes.length
+    ?`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1rem"><label style="${lb};margin:0">Tipster</label>`
+      +`<select id="tmSelect" onchange="tmPick(this.value)" style="${iv};max-width:300px">${nomes.map(n=>`<option value="${esc(n)}"${n===_tmSel?' selected':''}>${esc(n)}${_tmCadastro[n].completo?'':' · incompleto'}</option>`).join('')}</select>${aviso}</div><div id="tmEditor"></div>`
+    :`<div style="color:var(--ink-mute);font-size:12px;font-family:var(--font-sans);padding:1rem 0">Nenhum tipster cadastrado ainda. Eles aparecem aqui automaticamente quando você atribui um nome na extração.</div>`;
+
+  cont.innerHTML=mkCard('tm_dicas','Como o Sharpen detecta o tipster',dicas)+mkCard('tm_cad','Cadastro do tipster',selector);
+  if(_tmSel)tmRenderEditor(_tmSel);
+}
+window.renderTipsterMetodo=renderTipsterMetodo;
+
+function tmPick(nome){_tmSel=nome;tmRenderEditor(nome);}
+window.tmPick=tmPick;
+
+async function tmRenderEditor(nome){
+  const box=document.getElementById('tmEditor');
+  if(!box)return;
+  const t=(_tmCadastro||{})[nome]||null;
+  let segs=[];
+  try{const r=await fetch('/tipsters/unidades?tipster='+encodeURIComponent(nome));const d=await r.json();segs=d.escada||[];}catch(e){}
+  const iv='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
+  const lb='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
+  const bt='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
+  const bx='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
+  const info=t
+    ?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`
+      +`<div><label style="${lb}">Casas principais</label><input id="tmCasas" style="${iv}" value="${esc(t.casas||'')}" placeholder="Ex.: Bet365, Betano"></div>`
+      +`<div><label style="${lb}">Mercados</label><input id="tmMercados" style="${iv}" value="${esc(t.mercados||'')}" placeholder="Ex.: Under/Over gols"></div>`
+      +`<div style="grid-column:1/-1"><label style="${lb}">Observações</label><input id="tmObs" style="${iv}" value="${esc(t.obs||'')}" placeholder="Anotações sobre o método, gestão, contato…"></div>`
+      +`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button style="${bt}" onclick="tmSaveInfo(${t.id})">Salvar info</button></div>`
+    +`</div>`
+    :`<div style="color:var(--ink-mute);font-size:12px">Tipster não encontrado no cadastro.</div>`;
+  const segRows=segs.length
+    ?segs.map(s=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line-2)"><span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-soft)">desde ${esc(_tmIsoBR(s.vigente_desde))}</span><span style="margin-left:auto">${_tmMoney(s.valor)}</span><button style="${bx}" title="Remover" onclick="tmDelSeg(${s.id})">✕</button></div>`).join('')
+    :`<div style="color:var(--ink-mute);font-size:12px;padding:6px 0">Sem escada — o resultado em unidades usa a stake média até você definir o valor da unidade.</div>`;
+  box.innerHTML=info
+    +`<div style="margin-top:20px"><label style="${lb}">Escada de unidade — quanto vale 1u em R$ no tempo</label>${segRows}`
+      +`<div style="display:flex;gap:8px;margin-top:12px;align-items:center"><input id="tmData" style="${iv};max-width:130px;font-family:var(--font-mono)" placeholder="DD/MM/AAAA"><input id="tmValor" style="${iv};max-width:160px" placeholder="R$ por unidade"><button style="${bt}" onclick="tmAddSeg()">Adicionar</button></div>`
+    +`</div>`;
+}
+
+async function tmSaveInfo(id){
+  const body={casas:_tmVal('tmCasas'),mercados:_tmVal('tmMercados'),obs:_tmVal('tmObs')};
+  try{const r=await fetch('/tipsters/'+id+'/info',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw 0;_tmCadastro=null;if(typeof _tipCadastro!=='undefined')_tipCadastro=null;renderTipsterMetodo();}catch(e){alert('Erro ao salvar as informações.');}
+}
+window.tmSaveInfo=tmSaveInfo;
+async function tmAddSeg(){
+  const nome=_tmSel,data=_tmVal('tmData'),valor=_tmVal('tmValor');
+  if(!data||!valor){alert('Informe a data e o valor da unidade.');return;}
+  try{const r=await fetch('/tipsters/unidades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipster:nome,vigente_desde:data,valor:valor})});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.detail||'Não foi possível salvar.');return;}if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEditor(nome);}catch(e){alert('Erro ao adicionar o degrau.');}
+}
+window.tmAddSeg=tmAddSeg;
+async function tmDelSeg(id){
+  const nome=_tmSel;
+  try{const r=await fetch('/tipsters/unidades/'+id,{method:'DELETE'});if(!r.ok)throw 0;if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEditor(nome);}catch(e){alert('Erro ao remover o degrau.');}
+}
+window.tmDelSeg=tmDelSeg;

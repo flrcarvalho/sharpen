@@ -1102,59 +1102,39 @@ function closeTipsterDrill(e){
 }
 window.closeTipsterDrill=closeTipsterDrill;
 
-// ── Gestão do tipster DENTRO do drill (Perfil de Tipster) — info + escada de unidade.
-// Consolidado aqui (não numa aba separada no extrator): clicar num card abre o drill e
-// a gestão vem junto. Info via PATCH /tipsters/{id}/info; escada via /tipsters/unidades.
-let _tipCadastro=null;   // cache nome -> {id, completo, casas, mercados, obs}
-function _gval(id){const e=document.getElementById(id);return e?e.value:'';}
-function _gIsoBR(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return m?m[3]+'/'+m[2]+'/'+m[1]:(iso||'');}
+// ── Gestão do tipster DENTRO do drill (Perfil de Tipster) — AGORA SÓ-LEITURA.
+// A edição (info + escada de unidade) mora na aba "Tipster / Método" (Gestão). Aqui o
+// extrato apenas EXIBE o que já foi configurado: Stake Atual (valor da unidade vigente),
+// Última alteração (data desse degrau) e Custo (soma lançada na aba Custo de Tipsters).
 async function renderGestaoTipster(nome){
   const box=document.getElementById('tipDrillGestao');
   if(!box)return;
-  if(!_tipCadastro){try{const r=await fetch('/tipsters/cadastro?arquivados=0');const d=await r.json();_tipCadastro={};(d.tipsters||[]).forEach(t=>{_tipCadastro[t.nome]=t;});}catch(e){_tipCadastro={};}}
-  const t=_tipCadastro[nome]||null;
   let segs=[];
   try{const r=await fetch('/tipsters/unidades?tipster='+encodeURIComponent(nome));const d=await r.json();segs=d.escada||[];}catch(e){}
-  const iv='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
-  const lb='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
-  const bt='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
-  const bx='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
-  const money=v=>`<span class="money"><span class="money-sign">R$</span><span class="money-val">${(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></span>`;
-  const info=t
-    ?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`
-      +`<div><label style="${lb}">Casas principais</label><input id="gtCasas" style="${iv}" value="${esc(t.casas||'')}" placeholder="Ex.: Bet365, Betano"></div>`
-      +`<div><label style="${lb}">Mercados</label><input id="gtMercados" style="${iv}" value="${esc(t.mercados||'')}" placeholder="Ex.: Under/Over gols"></div>`
-      +`<div style="grid-column:1/-1"><label style="${lb}">Observações</label><input id="gtObs" style="${iv}" value="${esc(t.obs||'')}"></div>`
-      +`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button style="${bt}" onclick="salvarGestaoInfo(${t.id})">Salvar info</button></div>`
-    +`</div>`
-    :`<div style="color:var(--ink-mute);font-size:12px">Tipster não encontrado no cadastro.</div>`;
-  const segRows=segs.length
-    ?segs.map(s=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line-2)"><span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-soft)">desde ${esc(_gIsoBR(s.vigente_desde))}</span><span style="margin-left:auto">${money(s.valor)}</span><button style="${bx}" title="Remover" onclick="delGestaoSeg(${s.id})">✕</button></div>`).join('')
-    :`<div style="color:var(--ink-mute);font-size:12px;padding:6px 0">Sem escada — o resultado em unidades usa a stake média até você definir o valor da unidade.</div>`;
+  const hoje=(typeof _today==='function')?_today():new Date().toISOString().slice(0,10);
+  // Stake Atual = valor da unidade vigente hoje (último degrau com vigente_desde <= hoje).
+  const sorted=[...segs].sort((a,b)=>a.vigente_desde<b.vigente_desde?-1:1);
+  let atual=null,desde=null;
+  sorted.forEach(s=>{if(s.vigente_desde<=hoje){atual=s.valor;desde=s.vigente_desde;}});
+  // Custo do tipster = soma lançada na aba "Custo de Tipsters" (mesmo store, ctData).
+  if(typeof ctLoad==='function'){try{ctLoad();}catch(e){}}
+  const ct=(typeof ctData!=='undefined'&&ctData[nome])?ctData[nome]:{};
+  const custo=Object.values(ct).reduce((a,v)=>a+(parseFloat((v||'').toString().replace(',','.'))||0),0);
+  const money2=v=>`<span class="money"><span class="money-sign">R$</span><span class="money-val">${(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></span>`;
+  const fmtBR=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return m?m[3]+'/'+m[2]+'/'+m[1]:'—';};
+  const kS='display:flex;flex-direction:column;min-width:0';
+  const sbS='margin-top:auto;padding-top:6px';
+  const vS='font-size:16px';
+  const dash='<span style="color:var(--ink-mute)">—</span>';
   box.innerHTML=
-    `<div class="analise-popup-section-title">Gestão do tipster</div>`
-    +info
-    +`<div style="margin-top:18px"><label style="${lb}">Escada de unidade — quanto vale 1u em R$ no tempo</label>${segRows}`
-      +`<div style="display:flex;gap:8px;margin-top:12px;align-items:center"><input id="gtData" style="${iv};max-width:130px;font-family:var(--font-mono)" placeholder="DD/MM/AAAA"><input id="gtValor" style="${iv};max-width:160px" placeholder="R$ por unidade"><button style="${bt}" onclick="addGestaoSeg()">Adicionar</button></div>`
+    `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Gestão do tipster<span style="font-family:JetBrains Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">configure na aba Tipster / Método</span></div>`
+    +`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.6rem">`
+      +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Stake Atual</div><div class="kpi-val neu" style="${vS}">${atual!=null?money2(atual):dash}</div><div class="kpi-sub" style="${sbS}">valor de 1u vigente</div></div>`
+      +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Última alteração</div><div class="kpi-val neu" style="${vS};font-family:var(--font-mono)">${fmtBR(desde)}</div><div class="kpi-sub" style="${sbS}">${desde?'da unidade':'sem escada definida'}</div></div>`
+      +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Custo</div><div class="kpi-val neu" style="${vS}">${custo>0?fmtR(custo):dash}</div><div class="kpi-sub" style="${sbS}">aba Custo de Tipsters</div></div>`
     +`</div>`;
 }
 window.renderGestaoTipster=renderGestaoTipster;
-async function salvarGestaoInfo(id){
-  const body={casas:_gval('gtCasas'),mercados:_gval('gtMercados'),obs:_gval('gtObs')};
-  try{const r=await fetch('/tipsters/'+id+'/info',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw 0;_tipCadastro=null;renderGestaoTipster(_drillBaseName);}catch(e){alert('Erro ao salvar as informações.');}
-}
-window.salvarGestaoInfo=salvarGestaoInfo;
-async function addGestaoSeg(){
-  const nome=_drillBaseName,data=_gval('gtData'),valor=_gval('gtValor');
-  if(!data||!valor){alert('Informe a data e o valor da unidade.');return;}
-  try{const r=await fetch('/tipsters/unidades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipster:nome,vigente_desde:data,valor:valor})});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.detail||'Não foi possível salvar.');return;}_tipEscadas=null;renderGestaoTipster(nome);}catch(e){alert('Erro ao adicionar o degrau.');}
-}
-window.addGestaoSeg=addGestaoSeg;
-async function delGestaoSeg(id){
-  const nome=_drillBaseName;
-  try{const r=await fetch('/tipsters/unidades/'+id,{method:'DELETE'});if(!r.ok)throw 0;_tipEscadas=null;renderGestaoTipster(nome);}catch(e){alert('Erro ao remover o degrau.');}
-}
-window.delGestaoSeg=delGestaoSeg;
 
 // Renderiza emoji em canvas 24×24 e retorna data URL grayscale
 async function _emojiToGrayDataUrl(emoji){
