@@ -110,6 +110,63 @@ def calcular_pl(stake, odd, resultado) -> float | None:
     return round(valor - s, 2)
 
 
+def unidade_vigente(escada, data_iso: str | None) -> float | None:
+    """Valor da unidade (R$) vigente numa data, dada a ESCADA de um tipster.
+
+    `escada` = lista de segmentos {vigente_desde: 'YYYY-MM-DD', valor: float}, cada um
+    dizendo "a partir de vigente_desde, 1u vale `valor` reais" (função-degrau no tempo).
+    Retorna o valor do degrau ativo em `data_iso`. Datas ANTES do primeiro degrau usam
+    o primeiro valor (a 1ª stake vale da primeira aposta pra trás também — sem buraco de
+    "sem stake", regra do Feca). Escada vazia ou data ilegível → None.
+
+    NUNCA reprocessa o passado com a unidade nova: é o degrau que preserva o resultado
+    real em u (o exemplo dos 135u do PLANO_TIPSTER). Mesma filosofia derivada de
+    `calcular_pl` — nada em "u" é persistido; guarda-se só a escada.
+    """
+    if not escada or not data_iso:
+        return None
+    segs = sorted(escada, key=lambda s: s["vigente_desde"])
+    aplicavel = segs[0]["valor"]  # clamp à esquerda: antes do 1º degrau vale o 1º valor
+    for s in segs:
+        if s["vigente_desde"] <= data_iso:
+            aplicavel = s["valor"]
+        else:
+            break
+    return aplicavel
+
+
+def pl_em_unidades(linhas, escada, unidade_fallback: float | None = None) -> dict:
+    """Resultado em UNIDADES de um conjunto de apostas de UM tipster.
+
+    `linhas` = lista de {pl: float, data: 'YYYY-MM-DD'} já com o P/L em R$ derivado
+    (calcular_pl) e a data resolvida. Para cada aposta divide o P/L pela unidade
+    VIGENTE NA DATA dela (degrau) e soma:  P/L em u = Σ (pl_R$ ÷ unidade_da_data).
+
+    Sem escada: cai no `unidade_fallback` (a stake média do cliente) e marca
+    usou_fallback. Sem escada E sem fallback: a aposta entra em sem_unidade e fica de
+    fora da soma. O número em u só é "de carteira honesto" quando sem_unidade == 0
+    (senão a soma é parcial → a UI avisa).
+    """
+    total = 0.0
+    usou_fallback = False
+    sem_unidade = 0
+    n = 0
+    for ln in linhas:
+        pl = ln.get("pl")
+        if pl is None:
+            continue
+        u = unidade_vigente(escada, ln.get("data"))
+        if u is None and unidade_fallback is not None:
+            u, usou_fallback = unidade_fallback, True
+        if u is None or u <= 0:
+            sem_unidade += 1
+            continue
+        total += pl / u
+        n += 1
+    return {"u": round(total, 2), "usou_fallback": usou_fallback,
+            "sem_unidade": sem_unidade, "n": n}
+
+
 # Parceiro no formato "Conta [Fornecedor]" → separa conta e fornecedor.
 # Mesmo regex do Code.gs (getData) para o dashboard bater com a planilha.
 _PARCEIRO_RE = re.compile(r"^(.+?)\s*\[(.+?)\]$")
@@ -1224,7 +1281,97 @@ async def renomear_tipster(tipster_id: int, novo_nome: str, dono: str) -> dict:
                 "UPDATE bilhetes SET tipster = $1 WHERE dono = $2 AND tipster = $3",
                 novo_nome, dono, antigo,
             )
+            # Propaga também para a escada de unidade (chaveada por nome).
+            await conn.execute(
+                "UPDATE tipster_unidade SET tipster = $1 WHERE dono = $2 AND tipster = $3",
+                novo_nome, dono, antigo,
+            )
     return {"ok": True, "bilhetes_atualizados": int(res.split()[-1])}
+
+
+# ── Escada de unidade (Perfil de Tipster, Fatia 1) ────────────────────────────
+# As funções PURAS (unidade_vigente, pl_em_unidades) vivem lá em cima, junto de
+# calcular_pl. Estas são só os wrappers de banco. Ver docs/PLANO_TIPSTER.md §P1.
+
+async def get_escada_unidade(dono: str, tipster: str) -> list[dict]:
+    """Escada de valor-da-unidade no tempo de um tipster (degraus ordenados)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, vigente_desde, valor FROM tipster_unidade "
+            "WHERE dono = $1 AND tipster = $2 ORDER BY vigente_desde ASC",
+            dono, tipster,
+        )
+    return [dict(r) for r in rows]
+
+
+async def set_unidade(dono: str, tipster: str, vigente_desde: str, valor) -> dict:
+    """Insere/atualiza um degrau (a partir de `vigente_desde`, 1u = `valor` reais).
+    Valida data e valor > 0. Upsert por (dono, tipster, vigente_desde)."""
+    tipster = (tipster or "").strip()
+    if not tipster:
+        return {"ok": False, "motivo": "Tipster não informado."}
+    di = _data_iso(vigente_desde)
+    if not di:
+        return {"ok": False, "motivo": "Data inválida (use DD/MM/AAAA)."}
+    v = _num_or_none(valor)
+    if v is None or v <= 0:
+        return {"ok": False, "motivo": "Valor da unidade deve ser maior que zero."}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO tipster_unidade (dono, tipster, vigente_desde, valor)
+               VALUES ($1, $2, $3, $4)
+               ON CONFLICT (dono, tipster, vigente_desde)
+               DO UPDATE SET valor = EXCLUDED.valor
+               RETURNING id, vigente_desde, valor""",
+            dono, tipster, di, v,
+        )
+    return {"ok": True, "segmento": dict(row)}
+
+
+async def remover_unidade(unidade_id: int, dono: str) -> bool:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM tipster_unidade WHERE id = $1 AND dono = $2", unidade_id, dono
+        )
+    return result.split()[-1] == "1"
+
+
+async def resultado_em_unidades(dono: str, tipster: str) -> dict:
+    """P/L de um tipster em UNIDADES, usando a escada dele (via pl_em_unidades). Sem
+    escada, cai na stake média das apostas resolvidas do PRÓPRIO tipster (fallback) e
+    marca usou_fallback. NOTA: o PLANO_TIPSTER sugere como default a média GLOBAL do
+    cliente; aqui uso a do próprio tipster (self-contido) — trocar é só mudar o fallback."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT data, stake, odd, resultado FROM bilhetes "
+            "WHERE dono = $1 AND tipster = $2", dono, tipster,
+        )
+        esc = await conn.fetch(
+            "SELECT vigente_desde, valor FROM tipster_unidade "
+            "WHERE dono = $1 AND tipster = $2", dono, tipster,
+        )
+    escada = [dict(r) for r in esc]
+    linhas, stakes = [], []
+    for r in rows:
+        pl = calcular_pl(r["stake"], r["odd"], r["resultado"])
+        if pl is None:
+            continue
+        di = _data_iso(r["data"])
+        if di is None:
+            continue
+        linhas.append({"pl": pl, "data": di})
+        s = _num(r["stake"])
+        if s > 0:
+            stakes.append(s)
+    fallback = (sum(stakes) / len(stakes)) if (not escada and stakes) else None
+    res = pl_em_unidades(linhas, escada, unidade_fallback=fallback)
+    res["pl_reais"] = round(sum(ln["pl"] for ln in linhas), 2)
+    res["tem_escada"] = bool(escada)
+    return res
 
 
 # ── Parceiros ─────────────────────────────────────────────────────────────────

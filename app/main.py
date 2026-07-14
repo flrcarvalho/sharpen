@@ -46,6 +46,7 @@ from repository import (
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
+    get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
@@ -2069,6 +2070,42 @@ async def renomear_tipster_route(tipster_id: int, body: TipsterRenomearRequest,
     if not res.get("ok"):
         raise HTTPException(400, res.get("motivo", "Não foi possível renomear."))
     return res
+
+
+# ── Fatia 1: escada de unidade + resultado em "u" (motor, sem UI ainda) ────────
+# O tipster é referenciado por NOME (query param) — evita encoding no path. O render
+# de "u" (switch R$⇄u, fmtU) é UI e passa pelo /nova-ui na fatia da interface.
+
+class UnidadeSegmentoRequest(BaseModel):
+    tipster: str
+    vigente_desde: str
+    valor: float
+
+
+@app.get("/tipsters/unidades")
+async def get_escada_route(tipster: str, dono: str = Depends(dono_efetivo)):
+    return {"escada": await get_escada_unidade(dono, tipster)}
+
+
+@app.post("/tipsters/unidades")
+async def set_unidade_route(body: UnidadeSegmentoRequest, dono: str = Depends(dono_efetivo)):
+    res = await set_unidade(dono, body.tipster, body.vigente_desde, body.valor)
+    if not res.get("ok"):
+        raise HTTPException(400, res.get("motivo", "Não foi possível salvar o valor da unidade."))
+    return res
+
+
+@app.delete("/tipsters/unidades/{unidade_id}")
+async def remover_unidade_route(unidade_id: int, dono: str = Depends(dono_efetivo)):
+    ok = await remover_unidade(unidade_id, dono)
+    if not ok:
+        raise HTTPException(404, "Degrau da escada não encontrado.")
+    return {"removido": True}
+
+
+@app.get("/tipsters/resultado-unidades")
+async def resultado_unidades_route(tipster: str, dono: str = Depends(dono_efetivo)):
+    return await resultado_em_unidades(dono, tipster)
 
 
 # ── Betting Dashboard (mesma origem) ──────────────────────────────────────────

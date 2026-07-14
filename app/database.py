@@ -181,6 +181,22 @@ INSERT INTO tipsters (dono, nome)
 SELECT DISTINCT dono, tipster FROM bilhetes
 WHERE tipster IS NOT NULL AND tipster <> ''
 ON CONFLICT (dono, nome) DO NOTHING;
+
+-- ── Escada de valor-da-unidade no tempo (Perfil de Tipster, Fatia 1) ──────────
+-- Cada linha é um DEGRAU: "a partir de vigente_desde, 1u do tipster vale `valor`
+-- reais". A unidade é uma VIEW DERIVADA (como o P/L): NÃO se guarda "quantas u tinha
+-- a aposta" — guarda-se só esta escada, e u = P/L_R$ ÷ valor_vigente_na_data. Assim
+-- corrigir stake retroativa recalcula o histórico de graça. Chave por NOME (igual
+-- bilhetes.tipster); renomear_tipster propaga. Ver docs/PLANO_TIPSTER.md §P1.
+CREATE TABLE IF NOT EXISTS tipster_unidade (
+    id            SERIAL PRIMARY KEY,
+    dono          TEXT NOT NULL,
+    tipster       TEXT NOT NULL,
+    vigente_desde TEXT NOT NULL,   -- ISO YYYY-MM-DD: data em que este valor passa a valer
+    valor         REAL NOT NULL,   -- R$ por 1 unidade a partir de vigente_desde (> 0)
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (dono, tipster, vigente_desde)
+);
 """
 
 
