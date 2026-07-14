@@ -143,7 +143,8 @@ A Bet365 tem boost/promo. Quando houver, o **Retorno Obtido já reflete o valor 
 | Para Marcar Por Último / Último Marcador de Gol | Anytime (descr. `- Último Marcador`) |
 | Jogador a Dar Assistência | Assistência |
 | Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts | Player Props |
-| Pontos / Rebotes / Assistências / Cestas de 3 Convertidas / Pontuação Alta (NBA/WNBA) | Player Props |
+| Pontos / Rebotes / Assistências / Cestas de 3 Convertidas / Pontuação Alta (NBA/WNBA) — **de jogador** | Player Props |
+| **Totais do Jogo** / **Total - 2 Opções** (Basquete / eBasket — total do jogo) | **Pontos** |
 | Total de Kills / Total de Dragons / Total de Torres ("Mapa N - …") | E-Sports Props |
 | Partida - Vencedor | ML |
 | Para Sofrer Falta / Para Dar Passe / outros props estatísticos individuais de jogador (Futebol) | Player Props |
@@ -160,6 +161,9 @@ Notas de reconstrução:
 - Mesmo jogador, vários mercados → `Jogador - Mercado A / Mercado B [Confronto]` (`MASTER_DESCRICAO_2026 §12.4`).
 - **Marcador — sufixo OBRIGATÓRIO (2+/3+/hat-trick/Primeiro/Último):** categoria sempre `Anytime`; o mercado vai na descrição (`- 2+ Gols` / `- Hat-trick` / `- Primeiro Marcador` / `- Último Marcador`, ver `MASTER_DESCRICAO_2026 §12.1`). O sinal é a **linha "Para Marcar…"** (presente em todo card); o parêntese ao lado do nome (`(2 ou Mais)`, `(A Qualquer Altura)`) é inconsistente / qualificador — não usar como fonte. ⚠️ **Sem o sufixo, bilhetes DISTINTOS colapsam numa descrição idêntica** e são confundidos com duplicata — ex. real: Mbappé `Primeiro Marcador` (W) e `Último Marcador` (L), mesma stake e odd, viravam ambos `Kylian Mbappe [França v Marrocos]`. O `[Confronto]` é igualmente obrigatório em todo bilhete de jogador/props: sem ele, o mesmo mercado em jogos diferentes também colapsa (ex.: `De'Aaron Fox - 7+ Assistências` sem confronto, dois jogos distintos).
 - `Mais de` / `Menos de` → Over / Under.
+- **`Totais do Jogo` / `Total - 2 Opções` são rótulos genéricos — a categoria segue o objeto (`MASTER_APOSTAS §1`), não o rótulo.** Em Basquete / eBasket o objeto é ponto → `Pontos`. Em Futebol o mesmo tipo de mercado aparece como `Gols + -` → `Gols`. Nunca classificar total de jogo como `Team Props` (é a soma dos dois times, não estatística de equipe) nem como `Handicap`.
+- **eBasket (basquete virtual):** times da NBA com **handle do gamer entre parênteses** — `OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)` → Esporte `eBasket`, nunca `Basquete` nem `E-Sports` (`MASTER_ESPORTES_2026` — Regra Crítica Basquete vs eBasket). Confirmação: linha de pontos na faixa ~80–130 (NBA real ~220). ⚠️ **O handle é OBRIGATÓRIO na descrição** (`MASTER_DESCRICAO_2026 §13.3`): sem ele, `DAL Mavericks (TD24) v CHA Hornets (HYPER)` e `CHA Hornets (PROTOTYPE) v DAL Mavericks (GALAXY)` colapsam no mesmo confronto e bilhetes distintos viram duplicata.
+- **Placar do eBasket confirma o resultado:** os números à direita de cada time são pontos; a soma deve bater com a badge da barra de progresso (`OKC 49 + NY 52 = 101` vs `Mais de 92.5` → W).
 - **Handicap de objeto estatístico:** a categoria segue o **objeto** (`MASTER_APOSTAS §1`). `Handicap Asiático - Cartões` → `Cartões`; a linha de handicap (`+/-N`) vai só na descrição. Handicap sobre o resultado/gols continua `Handicap`.
 - Handicap asiático **split** aparece como linha dupla (`-1.0,-1.5`, `0.0,+0.5`) → manter a linha como exibida; pode gerar HW/HL/V (ver §5).
 - "Mapa N - …" / "Time Visitante - …" são qualificadores de contexto; entram na descrição conforme o master, mas não mudam a categoria.

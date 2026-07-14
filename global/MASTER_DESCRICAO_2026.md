@@ -572,6 +572,69 @@ Luke Littler - Mais 180's [Luke Littler v Luke Humphries]
 
 ---
 
+## 13.3 eBasket
+
+Basquete virtual (NBA 2K). Usa os templates do Basquete — a única especificidade é
+o **handle do gamer**.
+
+---
+
+### Regra Crítica — preservar o handle
+
+O confronto deve manter o handle entre parênteses, **exatamente como no bilhete**:
+
+```text
+[OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)]
+```
+
+Nunca remover o handle:
+
+```text
+[OKC Thunder v NY Knicks]        ← PROIBIDO
+```
+
+> **Motivo:** o time NBA é apenas uma skin — quem joga é o gamer. Sem o handle,
+> `DAL Mavericks (TD24) v CHA Hornets (HYPER)` e `CHA Hornets (PROTOTYPE) v DAL
+> Mavericks (GALAXY)` colapsam no mesmo confronto, e dois bilhetes distintos viram
+> duplicata na régua de dedup (stake + odd + descrição). O handle é a identidade
+> do participante, como o nome do jogador em Tênis.
+
+Preservar a grafia do handle em maiúsculas, como a casa exibe.
+
+---
+
+### Pontos (total do jogo)
+
+```text
+Over 92.5 Pontos [OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)]
+```
+
+---
+
+### Pontos (total do time)
+
+```text
+OKC Thunder (BRAZEN) Over 49.5 Pontos [OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)]
+```
+
+---
+
+### ML
+
+```text
+OKC Thunder (BRAZEN) [OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)]
+```
+
+---
+
+### Handicap
+
+```text
+NY Knicks (EQUALIZER) +4.5 [OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)]
+```
+
+---
+
 # 14. Múltiplas
 
 Múltiplas devem separar seleções utilizando:
@@ -660,6 +723,7 @@ Antes de retornar a saída, o extrator deve validar:
 9. entidade ↔ mercado utilizam ` - `
 10. confronto não foi inventado
 11. ordem original das seleções foi preservada
+12. em eBasket, o handle do gamer foi preservado no confronto (§13.3)
 
 Caso o confronto não possa ser identificado com segurança, a descrição permanece válida sem confronto.
 

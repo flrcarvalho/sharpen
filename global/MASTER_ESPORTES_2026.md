@@ -94,6 +94,7 @@ Exemplos válidos:
 ```text
 Futebol
 Basquete
+eBasket
 Futebol Americano
 Hóquei
 Tênis
@@ -112,7 +113,14 @@ NFL
 NHL
 darts
 tenis
+EBASKET
+Ebasket
+eBasketball
+Basquete Virtual
 ```
+
+> `eBasket` é a única exceção à capitalização inicial maiúscula — o valor oficial
+> começa com `e` minúsculo, como a marca do mercado.
 
 ---
 
@@ -269,6 +277,67 @@ Sinônimos:
 - WNBA
 - BASQUETE/NBA
 - National Basketball Association
+
+> Basquete é o esporte **real**. Basquete **virtual** (NBA 2K) tem valor próprio:
+> `eBasket` — ver a seção seguinte e a Regra Crítica — Basquete vs eBasket.
+
+---
+
+## eBasket
+
+Valor oficial:
+
+```text
+eBasket
+```
+
+Basquete **virtual** — partidas simuladas em videogame (NBA 2K), disputadas por
+gamers usando skins de times da NBA. Capitalização exata: `eBasket` (e minúsculo,
+B maiúsculo).
+
+Sinônimos:
+- EBASKET
+- E-BASKET
+- EBASKETBALL
+- E-BASKETBALL
+- BASQUETE VIRTUAL
+- BASQUETEBOL VIRTUAL
+- NBA 2K
+- NBA2K
+
+---
+
+### Regra Crítica — Basquete vs eBasket
+
+Os dois usam **os mesmos nomes de times da NBA**, então o nome do time NÃO
+discrimina. Sinais, em ordem de prioridade:
+
+| Sinal | Esporte |
+|---|---|
+| Handle do gamer entre parênteses após o time — `OKC Thunder (BRAZEN)` | **eBasket** |
+| Liga/torneio contém `2K`, `eBasket`, `Virtual` | **eBasket** |
+| Duração não-oficial no nome do evento (`4x5mins`, `10 Minutos`) | **eBasket** |
+| Total de pontos do jogo na faixa **~80–130** | **eBasket** |
+| Total de pontos do jogo na faixa **~180–260** | **Basquete** |
+| Jogadores reais nomeados (LeBron James, Stephen Curry…) | **Basquete** |
+
+> **Sinal decisivo — handle entre parênteses.** Em `OKC Thunder (BRAZEN) v NY Knicks
+> (EQUALIZER)`, BRAZEN e EQUALIZER são os gamers; os times NBA são apenas skins.
+> Um confronto NBA real nunca traz apelido entre parênteses ao lado do time.
+
+> **A linha de pontos é confirmação, não prova.** Um total de 92.5 é impossível num
+> jogo real de NBA (média ~220) — mas use a faixa apenas como reforço quando o
+> handle não estiver visível, nunca contra um sinal mais forte.
+
+**eBasket NÃO é `E-Sports`.** Apesar de ser jogo eletrônico, `E-Sports` neste
+documento cobre exclusivamente o universo MOBA/FPS (LoL, CS2, VALORANT, Dota) e
+carrega o vocabulário de mercado dele (kills, mapas, torres). eBasket usa a
+taxonomia do basquete (`Pontos`, `ML`, `Handicap`, `Player Props`).
+Nunca emitir `E-Sports Props` para eBasket — ver `MASTER_APOSTAS_2026 §6 (eBasket)`.
+
+**eBasket NÃO é `Basquete`.** Nunca classificar basquete virtual como Basquete: a
+volatilidade e o edge são distintos, e misturar os dois inviabiliza a análise por
+esporte.
 
 ---
 
@@ -885,6 +954,9 @@ Antes de retornar a saída, o extrator deve validar:
 10. `sets` com nome de **time/seleção** = Vôlei (nunca Tênis, exceto Copa Davis explícita)
 11. times nacionais genéricos sem sinal de Vôlei → Futebol; com sinal de Vôlei (liga/sets) → Vôlei
 12. nenhum bilhete classificado como `Padel` (esporte inexistente); duplas em notação `X/Y v W/Z` = **Tênis**
+13. time da NBA com **handle de gamer entre parênteses** = `eBasket` (nunca `Basquete` nem `E-Sports`)
+14. `eBasket` está escrito exatamente assim (nunca `EBASKET`, `Ebasket`, `eBasketball`, `Basquete Virtual`)
+15. basquete **real** (jogadores reais, total ~180–260) não foi classificado como `eBasket`
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

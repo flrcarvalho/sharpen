@@ -94,6 +94,7 @@ quando existir categoria mais específica aplicável.
 | Múltipla | Cupom com múltiplas seleções |
 | Outros | Último recurso |
 | Player Props | Estatísticas individuais de jogador |
+| Pontos | Mercados de pontos de jogo ou de time (Basquete / eBasket) |
 | Sets | Mercados de sets |
 | Team Props | Estatísticas de equipe |
 | Triplo-Duplo | Mercado específico de basquete |
@@ -340,6 +341,24 @@ Sinônimos:
 
 ---
 
+## Pontos
+
+Sinônimos:
+- Points
+- Total de Pontos
+- Mais/Menos pontos
+- Totais do Jogo (Basquete / eBasket)
+- Total - 2 Opções (Basquete / eBasket)
+- Total de Pontos do Time
+- Team Total Points
+
+> `Pontos` cobre o total de pontos do **jogo** ou de um **time**. Pontos de um
+> **jogador** continuam `Player Props` — ver §5 (Pontos) e §7 (prioridade).
+> Os rótulos `Totais do Jogo` e `Total - 2 Opções` só significam `Pontos` em
+> Basquete / eBasket; em outros esportes seguem o objeto (Futebol → `Gols`).
+
+---
+
 ## Sets
 
 Sinônimos:
@@ -435,6 +454,47 @@ Utilizar apenas quando:
 - estatísticas coletivas
 - mercados específicos do time
 
+Não confundir com:
+- `Pontos` (total de pontos do jogo ou do time em Basquete / eBasket — tem categoria própria)
+
+---
+
+## Pontos
+
+`Pontos` representa:
+
+```text
+Total de pontos do jogo ou de um time, em Basquete e eBasket.
+```
+
+É a categoria da unidade de pontuação do basquete, equivalente a `Gols` (Futebol),
+`Games` (Tênis), `Legs` (Dardos) e `Sets` (Vôlei).
+
+Como qualquer categoria, admite over/under, handicap de total ou comparativo — o
+tipo de mercado não altera a classificação (§1).
+
+**Discriminante — a entidade apostada** (mesmo critério de `Sets`):
+
+| Entidade no mercado | Categoria |
+|---|---|
+| Jogo inteiro (soma dos dois times) | `Pontos` |
+| Time | `Pontos` |
+| Jogador individual | `Player Props` |
+
+Exemplos:
+
+```text
+Under 220.5 [LAL Lakers v CHI Bulls]          → Pontos   (total do jogo)
+Mais de 92.5 [OKC Thunder v NY Knicks]        → Pontos   (total do jogo, eBasket)
+OKC Thunder Mais de 49.5 [OKC v NY]           → Pontos   (total do time)
+Mitchell Robinson - Under 3.5 Pontos [SA v NY] → Player Props (jogador)
+```
+
+Não confundir com:
+- `Player Props` (pontos de jogador — ver §6 NBA / Basquete)
+- `Team Props` (outras estatísticas coletivas: tiros de meta, etc.)
+- `Handicap` (spread do resultado, não total de pontos)
+
 ---
 
 ## Múltipla
@@ -516,7 +576,8 @@ Como qualquer tipo de mercado, a categoria segue o **objeto** apostado (§1):
 |---|---|
 | Primeiro a marcar X escanteios | `Escanteios` |
 | Primeiro a marcar X gols | `Gols` |
-| Primeiro a marcar X pontos | categoria do objeto no esporte (ex.: `Player Props` em NBA) — **não** existe categoria `Pontos` |
+| Primeiro a marcar X pontos (time/jogo) | `Pontos` |
+| Primeiro a marcar X pontos (jogador) | `Player Props` |
 | Primeiro a receber X cartões | `Cartões` |
 
 A estrutura "Race" e o número X ficam na **Descrição** (`MASTER_DESCRICAO_2026 §10.3`), nunca na categoria.
@@ -679,6 +740,24 @@ Tiro de Meta = bola sai pela linha de fundo após toque do atacante; o goleiro r
 
 ## NBA / Basquete
 
+### Total de pontos (jogo ou time)
+
+Classificar como:
+
+```text
+Pontos
+```
+
+Inclui: over/under do total do jogo, total de um time, handicap de total de pontos.
+
+Exemplos:
+- `Under 220.5 [LAL Lakers v CHI Bulls]` → `Pontos`
+- `OKC Thunder Mais de 49.5 [OKC v NY]` → `Pontos`
+
+---
+
+### Estatísticas individuais de jogador
+
 Qualquer estatística individual de jogador deve ser classificada como:
 
 ```text
@@ -709,6 +788,58 @@ Mercados específicos devem manter categoria própria:
 Double-Double
 Triplo-Duplo
 ```
+
+---
+
+## eBasket
+
+O eBasket (basquete virtual / NBA 2K) usa a **mesma taxonomia do Basquete** — muda
+apenas o valor da coluna `Esporte` (ver `MASTER_ESPORTES_2026`).
+
+---
+
+### Total de pontos (jogo ou time)
+
+Classificar como:
+
+```text
+Pontos
+```
+
+Rótulos usuais da casa: `Totais do Jogo`, `Total - 2 Opções`.
+
+Exemplo:
+- `Mais de 92.5 [OKC Thunder v NY Knicks]` → `Pontos`
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+### Estatísticas individuais
+
+Classificar como:
+
+```text
+Player Props
+```
+
+> ⚠️ Nunca usar `E-Sports Props` em eBasket. `E-Sports Props` é exclusivo do
+> Esporte `E-Sports` (invariante do `MASTER_ESPORTES_2026 §7`) e o vocabulário
+> dele (kills, mapas, torres) não existe no basquete virtual.
 
 ---
 
@@ -1013,11 +1144,22 @@ Assistência    > Player Props
 E-Sports Props > Player Props
 Sets (time)    > Player Props          (→ Vôlei)
 Sets (jogador) > Player Props          (→ Tênis)
+Pontos         > Team Props            (→ Basquete / eBasket)
+Pontos         > Handicap              (total de pontos ≠ spread)
 ```
 
 Desambiguação da categoria `Sets`:
 - `Sets` com **time / seleção** → Vôlei
 - `Sets` com **jogador individual / dupla** → Tênis
+
+Desambiguação da categoria `Pontos` (Basquete / eBasket):
+- pontos do **jogo** (soma dos dois times) → `Pontos`
+- pontos de um **time** → `Pontos`
+- pontos de um **jogador** → `Player Props` (§6 NBA / Basquete)
+
+> `Player Props` tem prioridade sobre `Pontos` **apenas** quando a entidade for um
+> jogador. Sem jogador nomeado, o total é sempre `Pontos` — nunca `Team Props`
+> nem `Outros`.
 
 Marcador discreto vs total de gols do jogador (Futebol):
 - `Para Marcar N ou Mais` / `Hat-trick` (mercado sim/não de marcar) → `Anytime`, limiar na descrição (`MASTER_DESCRICAO_2026 §12.1`)
@@ -1064,6 +1206,9 @@ Antes de retornar a saída, o extrator deve validar:
 15. `Sets` com nome de **time / seleção** = Vôlei (nunca Tênis, exceto Copa Davis explícita)
 16. `Sets` com nome de **jogador individual / dupla** = Tênis (nunca Vôlei)
 17. mercado "Mais 180's" / "Maioria de 180's" em Dardos foi classificado como `H2H` (nunca `Player Props` nem `Legs`)
+18. total de pontos de **jogo ou time** em Basquete / eBasket = `Pontos` (nunca `Team Props`, `Handicap` nem `Outros`)
+19. pontos de **jogador** em Basquete / eBasket = `Player Props` (nunca `Pontos`)
+20. `E-Sports Props` não foi utilizado em eBasket (é exclusivo do Esporte `E-Sports`)
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 
