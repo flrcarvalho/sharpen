@@ -1512,18 +1512,6 @@ td.c-res.res-HL { color: var(--warn); }
 .conta-act.danger { color: var(--neg); }
 .conta-act.danger:hover { border-color: var(--neg); background: rgba(var(--neg-rgb),.08); }
 .contas-empty { padding: 48px 24px; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); border: 1px dashed var(--line); border-radius: var(--r-lg); }
-/* Escada de unidade (Perfil de Tipster) — lista de degraus + form de alteração.
-   O .modal-body é um grid 2col; estes ocupam a linha inteira (como .modal-field.full). */
-.un-hint, #un-lista, .un-add { grid-column: 1 / -1; }
-.un-hint { font-size: 12px; color: var(--ink-soft); line-height: 1.5; margin-bottom: 14px; }
-.un-seg { display: flex; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--line-2); }
-.un-seg:last-child { border-bottom: 0; }
-.un-seg-data { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--ink-soft); }
-.un-seg-val { margin-left: auto; }
-.un-add { display: flex; gap: 8px; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-.un-add input { flex: 1; min-width: 0; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 10px; color: var(--ink); font-size: 13px; font-family: var(--font-sans); outline: none; }
-.un-add input:focus { border-color: var(--accent); box-shadow: var(--glow); }
-.un-add input:first-child { flex: 0 0 130px; max-width: 130px; font-family: var(--font-mono); }
 </style>
 </head>
 <body>
@@ -1545,7 +1533,6 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="nav-group">Operação</div>
     <div class="nav-item active" id="nav-planilhador" onclick="mostrarView('extracao')" title="Extração de bilhetes"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Extração e Captura</div>
     <div class="nav-item" id="nav-contas" onclick="mostrarView('contas')" title="Gestão de contas e parceiros"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 1.7l6 3-6 3-6-3z"/><path d="M2 4.7v6.6l6 3 6-3V4.7"/></svg>Contas &amp; Parceiros</div>
-    <div class="nav-item" id="nav-tipsters" onclick="mostrarView('tipsters')" title="Perfil de tipster"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="8" cy="5" r="2.6"/><path d="M2.6 14c0-3 2.4-4.6 5.4-4.6s5.4 1.6 5.4 4.6"/></svg>Tipsters</div>
     <div class="nav-group">Análise</div>
     <a class="nav-item" href="/dashboard/#overview"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>Visão Geral</a>
     <a class="nav-item" href="/dashboard/#sports"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 5-6"/></svg>Esportes</a>
@@ -1669,8 +1656,6 @@ td.c-res.res-HL { color: var(--warn); }
        Renderizado por renderPainelContas() a partir de parceirosCache/…Arquivados. -->
   <div class="empty-state" id="empty-state">
     <div class="painel" id="painelContas"></div>
-    <!-- Perfil de Tipster: painel de cadastro/info (mostrarView('tipsters')). -->
-    <div class="painel" id="painelTipsters" style="display:none"></div>
   </div>
 
   <!-- Partner page -->
@@ -1909,49 +1894,6 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="tipster-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="tipster-apply" type="button">Aplicar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Info do tipster (Perfil de Tipster) — casas principais / mercados / observações.
-     Preencher tira o sinal (i) de incompleto. PATCH /tipsters/{id}/info. -->
-<div class="modal-overlay" id="tipster-info-modal">
-  <div class="modal modal-narrow">
-    <div class="modal-head">
-      <span class="modal-title">Info do tipster · <span id="ti-nome"></span></span>
-      <button class="modal-close" type="button" onclick="fecharInfoTipster()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-field full"><label>Casas principais</label><input type="text" id="ti-casas" spellcheck="false" autocomplete="off" placeholder="Ex.: Bet365, Betano"></div>
-      <div class="modal-field full"><label>Mercados</label><input type="text" id="ti-mercados" spellcheck="false" autocomplete="off" placeholder="Ex.: Under/Over gols, Player props"></div>
-      <div class="modal-field full"><label>Observações</label><textarea id="ti-obs" spellcheck="false"></textarea></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost btn-sm" type="button" onclick="fecharInfoTipster()">Cancelar</button>
-      <button class="btn btn-primary btn-sm" type="button" onclick="salvarInfoTipster()">Salvar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Escada de unidade do tipster (Perfil de Tipster · Fatia 1) — quanto vale 1u
-     em R$ ao longo do tempo. Alimenta o resultado em "u" (derivado, dashboard). -->
-<div class="modal-overlay" id="tipster-unidade-modal">
-  <div class="modal modal-narrow">
-    <div class="modal-head">
-      <span class="modal-title">Unidades · <span id="un-nome"></span></span>
-      <button class="modal-close" type="button" onclick="fecharUnidades()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="un-hint">Quanto <b>1 unidade</b> vale em R$, ao longo do tempo. Cada alteração passa a valer a partir da data informada — a primeira vale desde a primeira aposta.</div>
-      <div id="un-lista"></div>
-      <div class="un-add">
-        <input type="text" id="un-data" placeholder="DD/MM/AAAA" spellcheck="false" autocomplete="off">
-        <input type="text" id="un-valor" placeholder="R$ por unidade" spellcheck="false" autocomplete="off">
-        <button class="btn btn-primary btn-sm" type="button" onclick="addUnidadeSeg()">Adicionar</button>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost btn-sm" type="button" onclick="fecharUnidades()">Fechar</button>
     </div>
   </div>
 </div>
@@ -2502,29 +2444,8 @@ function mostrarView(v) {
   const eyebrow = document.querySelector('.pagehead-eyebrow');
   const navP = document.getElementById('nav-planilhador');
   const navC = document.getElementById('nav-contas');
-  const navT = document.getElementById('nav-tipsters');
-  const pC = document.getElementById('painelContas');
-  const pT = document.getElementById('painelTipsters');
   if (!ext) return;
   ext.style.display = '';
-  [navP, navC, navT].forEach(n => n && n.classList.remove('active'));
-  if (v === 'tipsters') {
-    if (parceiroSelecionado) salvarEstadoExtrator();   // preserva o lote em montagem
-    parceiroSelecionado = null; casaSelecionada = null;
-    document.querySelectorAll('.parceiro-item.active').forEach(el => el.classList.remove('active'));
-    if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
-    mostrarEmptyState();   // mostra o hub
-    if (pC) pC.style.display = 'none';
-    if (pT) pT.style.display = '';
-    renderPainelTipsters();
-    if (title) title.textContent = 'Tipsters';
-    if (eyebrow) eyebrow.textContent = 'Operação · perfil de tipster';
-    navT && navT.classList.add('active');
-    return;
-  }
-  // Contas/Extração usam o Painel de Contas: garante que ele volta visível.
-  if (pT) pT.style.display = 'none';
-  if (pC) pC.style.display = '';
   if (v === 'contas') {
     if (parceiroSelecionado) salvarEstadoExtrator();   // preserva o lote em montagem
     parceiroSelecionado = null; casaSelecionada = null;
@@ -2533,11 +2454,11 @@ function mostrarView(v) {
     mostrarEmptyState();   // mostra o hub e renderiza o Painel de Contas
     if (title) title.textContent = 'Contas & Parceiros';
     if (eyebrow) eyebrow.textContent = 'Operação · gestão de contas';
-    navC && navC.classList.add('active');
+    navP && navP.classList.remove('active'); navC && navC.classList.add('active');
   } else {
     if (title) title.textContent = 'Extração e Captura';
     if (eyebrow) eyebrow.textContent = 'Operação · extração de bilhetes';
-    navP && navP.classList.add('active');
+    navC && navC.classList.remove('active'); navP && navP.classList.add('active');
     if (!parceiroSelecionado) mostrarEmptyState();   // sem conta ativa → hub
   }
 }
@@ -4711,223 +4632,6 @@ async function carregarTipsters() {
     const data = await r.json();
     esportesList = data.esportes || [];
   } catch {}
-}
-
-// ── Painel de Tipsters (Perfil de Tipster — cadastro/info) ─────────────────────
-// Espelha o Painel de Contas: lista de GET /tipsters/cadastro, badge (i) para
-// incompletos (sem casas/mercados/obs), ações editar-info / renomear / arquivar.
-// Nada monetário aqui (o resultado em "u" vive no dashboard) → §5 não se aplica.
-let tipstersCad = [];            // cache do cadastro (aba atual)
-let tipstersTab = 'ativos';      // 'ativos' | 'inativos'
-let tipstersBusca = '';
-let tipsterInfoId = null;        // id do tipster aberto no modal de info
-
-async function renderPainelTipsters() {
-  const host = document.getElementById('painelTipsters');
-  if (!host) return;
-  const inativos = tipstersTab === 'inativos';
-  try {
-    const r = await fetch('/tipsters/cadastro?arquivados=' + (inativos ? '1' : '0'));
-    const data = await r.json();
-    tipstersCad = data.tipsters || [];
-  } catch { tipstersCad = []; }
-  const incompletos = tipstersCad.filter(t => !t.completo).length;
-
-  const hero =
-    '<div class="painel-hero">' +
-      '<div><div class="painel-hero-eyebrow">Operação · perfil de tipster</div>' +
-      '<div class="painel-hero-titulo">Tipsters</div></div>' +
-      '<div class="contas-search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
-        '<input id="tip-search" placeholder="buscar tipster…" autocomplete="off" spellcheck="false" oninput="tipstersBusca=this.value;renderTipList()"></div>' +
-    '</div>';
-
-  const aviso = (!inativos && incompletos)
-    ? '<div class="painel-empty" style="border-style:solid;border-color:rgba(var(--accent-rgb),.35);color:var(--ink-soft)">' +
-        '<b style="color:var(--accent-2)">' + incompletos + '</b> ' +
-        (incompletos === 1 ? 'tipster sem cadastro completo' : 'tipsters sem cadastro completo') +
-        ' — clique em <b>Editar info</b> (ou no <span class="acct-badge pend">i</span>) para preencher.</div>'
-    : '';
-
-  const tabs =
-    '<div class="contas-tabs" style="width:max-content;margin:14px 0">' +
-      '<button class="' + (!inativos ? 'on' : '') + '" onclick="tipstersSetTab(\'ativos\')">Ativos</button>' +
-      '<button class="' + (inativos ? 'on' : '') + '" onclick="tipstersSetTab(\'inativos\')">Inativos</button>' +
-    '</div>';
-
-  host.innerHTML = hero + aviso + tabs + '<div id="painelTipList"></div>';
-  const si = document.getElementById('tip-search'); if (si) si.value = tipstersBusca;
-  renderTipList();
-}
-
-// Só a lista (preserva o foco da busca do hero). Filtra o cache por nome.
-function renderTipList() {
-  const box = document.getElementById('painelTipList');
-  if (!box) return;
-  const inativos = tipstersTab === 'inativos';
-  const q = (tipstersBusca || '').toLowerCase().trim();
-  let lista = tipstersCad;
-  if (q) lista = lista.filter(t => (t.nome || '').toLowerCase().includes(q));
-  let rows = '';
-  lista.forEach(t => {
-    const badge = !t.completo ? '<span class="acct-badge pend" title="Cadastro incompleto — falta info">i</span>' : '';
-    const acoes = inativos
-      ? '<button class="conta-act" onclick="reativarTipster(' + t.id + ')">Reativar</button>'
-      : '<button class="conta-act" onclick="abrirUnidades(' + t.id + ')">Unidades</button>' +
-        '<button class="conta-act" onclick="abrirInfoTipster(' + t.id + ')">Editar info</button>' +
-        '<button class="conta-act" onclick="renomearTipster(' + t.id + ')">Renomear</button>' +
-        '<button class="conta-act danger" onclick="arquivarTipster(' + t.id + ')">Arquivar</button>';
-    const meta = [t.casas, t.mercados].filter(Boolean).join(' · ');
-    rows += '<div class="conta-row">' +
-      '<span class="conta-nome">' + esc(t.nome || '—') +
-        (meta ? ' <span style="color:var(--ink-mute);font-weight:400;font-size:11px">' + esc(meta) + '</span>' : '') + '</span>' +
-      '<span class="conta-badges">' + badge + '</span>' +
-      '<span class="conta-acoes">' + acoes + '</span></div>';
-  });
-  box.innerHTML = rows
-    ? '<div class="contas-casa"><div style="padding:4px 0">' + rows + '</div></div>'
-    : '<div class="painel-empty">Nenhum tipster ' + (inativos ? 'arquivado' : 'ativo') + (q ? ' para "' + esc(q) + '"' : '') + '.</div>';
-}
-
-function tipstersSetTab(tab) { tipstersTab = tab; renderPainelTipsters(); }
-
-function abrirInfoTipster(id) {
-  const t = tipstersCad.find(x => x.id === id);
-  if (!t) return;
-  tipsterInfoId = id;
-  document.getElementById('ti-nome').textContent = t.nome || '';
-  document.getElementById('ti-casas').value = t.casas || '';
-  document.getElementById('ti-mercados').value = t.mercados || '';
-  document.getElementById('ti-obs').value = t.obs || '';
-  document.getElementById('tipster-info-modal').classList.add('open');
-}
-
-function fecharInfoTipster() {
-  document.getElementById('tipster-info-modal').classList.remove('open');
-  tipsterInfoId = null;
-}
-
-async function salvarInfoTipster() {
-  if (tipsterInfoId == null) return;
-  const body = {
-    casas: document.getElementById('ti-casas').value,
-    mercados: document.getElementById('ti-mercados').value,
-    obs: document.getElementById('ti-obs').value,
-  };
-  try {
-    const r = await fetch('/tipsters/' + tipsterInfoId + '/info', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error();
-    fecharInfoTipster();
-    renderPainelTipsters();
-  } catch { alert('Erro ao salvar as informações do tipster.'); }
-}
-
-async function renomearTipster(id) {
-  const t = tipstersCad.find(x => x.id === id);
-  if (!t) return;
-  const novo = (prompt('Renomear tipster (propaga para todas as apostas dele):', t.nome || '') || '').trim();
-  if (!novo || novo === t.nome) return;
-  try {
-    const r = await fetch('/tipsters/' + id + '/renomear', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome: novo }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(data.detail || 'Não foi possível renomear.'); return; }
-    renderPainelTipsters();
-    carregarTipsters();
-  } catch { alert('Erro ao renomear.'); }
-}
-
-async function arquivarTipster(id) {
-  try {
-    const r = await fetch('/tipsters/' + id + '/arquivar', { method: 'POST' });
-    if (!r.ok) throw new Error();
-    renderPainelTipsters();
-  } catch { alert('Erro ao arquivar o tipster.'); }
-}
-
-async function reativarTipster(id) {
-  try {
-    const r = await fetch('/tipsters/' + id + '/reativar', { method: 'POST' });
-    if (!r.ok) throw new Error();
-    renderPainelTipsters();
-  } catch { alert('Erro ao reativar o tipster.'); }
-}
-
-// ── Escada de unidade (Fatia 1) — quanto vale 1u em R$ ao longo do tempo ────────
-// A unidade é view derivada (nunca persiste o "u"): guarda-se só esta escada e o
-// resultado em u é calculado no dashboard. Valor em R$ usa moneyStake (§5).
-let unidadeTipsterNome = null;
-
-function _isoToBR(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
-  return m ? m[3] + '/' + m[2] + '/' + m[1] : (iso || '');
-}
-
-async function abrirUnidades(id) {
-  const t = tipstersCad.find(x => x.id === id);
-  if (!t) return;
-  unidadeTipsterNome = t.nome;
-  document.getElementById('un-nome').textContent = t.nome || '';
-  document.getElementById('un-data').value = '';
-  document.getElementById('un-valor').value = '';
-  document.getElementById('tipster-unidade-modal').classList.add('open');
-  await carregarEscada();
-}
-
-function fecharUnidades() {
-  document.getElementById('tipster-unidade-modal').classList.remove('open');
-  unidadeTipsterNome = null;
-}
-
-async function carregarEscada() {
-  const box = document.getElementById('un-lista');
-  if (!box || unidadeTipsterNome == null) return;
-  let segs = [];
-  try {
-    const r = await fetch('/tipsters/unidades?tipster=' + encodeURIComponent(unidadeTipsterNome));
-    const data = await r.json();
-    segs = data.escada || [];
-  } catch {}
-  if (!segs.length) {
-    box.innerHTML = '<div class="painel-empty" style="padding:22px">Sem escada ainda — o resultado em unidades usa a stake média até você definir o valor da unidade.</div>';
-    return;
-  }
-  box.innerHTML = segs.map(s => {
-    const val = (Number(s.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return '<div class="un-seg"><span class="un-seg-data">desde ' + esc(_isoToBR(s.vigente_desde)) + '</span>' +
-      '<span class="un-seg-val">' + moneyStake(val) + '</span>' +
-      '<button class="conta-act danger" title="Remover" onclick="removerEscada(' + s.id + ')">✕</button></div>';
-  }).join('');
-}
-
-async function addUnidadeSeg() {
-  if (unidadeTipsterNome == null) return;
-  const data = document.getElementById('un-data').value.trim();
-  const valor = document.getElementById('un-valor').value.trim();
-  if (!data || !valor) { alert('Informe a data e o valor da unidade.'); return; }
-  try {
-    const r = await fetch('/tipsters/unidades', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipster: unidadeTipsterNome, vigente_desde: data, valor: valor }),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(d.detail || 'Não foi possível salvar a alteração.'); return; }
-    document.getElementById('un-data').value = '';
-    document.getElementById('un-valor').value = '';
-    carregarEscada();
-  } catch { alert('Erro ao salvar a alteração de stake.'); }
-}
-
-async function removerEscada(segId) {
-  try {
-    const r = await fetch('/tipsters/unidades/' + segId, { method: 'DELETE' });
-    if (!r.ok) throw new Error();
-    carregarEscada();
-  } catch { alert('Erro ao remover o degrau.'); }
 }
 
 // Salva o tipster de um bilhete (PATCH otimista + sinal azul + badge da sidebar).
