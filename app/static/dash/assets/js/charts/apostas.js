@@ -3,6 +3,7 @@
 let apostasFiltered=[], apostasSortCol=0, apostasSortAsc=false;
 let apostasColFilters={};
 let apostasTabela=[], apostasAbertasFiltered=[]; // tabela = abertas (topo) + encerradas
+let _apInlineEditing=false; // enquanto true, o virtual-scroll não re-renderiza (não mata o editor da célula)
 
 const BTBL_ROW_H=68; // altura de linha da tabela de apostas
 
@@ -87,6 +88,7 @@ function renderApostas(){
 }
 
 function renderApostasVirt(){
+  if(_apInlineEditing)return; // edição inline aberta: não reconstruir a janela (mataria o input)
   const cont=document.getElementById('apostasCont');
   if(!cont)return;
   const rows=apostasTabela;
@@ -111,24 +113,28 @@ function renderApostasVirt(){
     // Editável só quando há id (Postgres) E a linha é do dono efetivo. Linha de
     // planilha ao vivo (sem id) ou de operador numa visão consolidada → view-only.
     const editavel=r.id!=null&&r.operador===window.__dono;
+    // Duplo-clique edita a célula in loco — só nas linhas editáveis (df() emite o
+    // marcador data-field; o handler _apInlineStart valida de novo). `ap-edit` dá o
+    // cursor de edição.
+    const df=f=>editavel?` data-field="${f}" class="ap-edit"`:'';
     return`<div class="btbl-cols btbl-data-row"${r.id!=null?` data-id="${r.id}"`:''} style="height:${BTBL_ROW_H}px">
-      <div class="btbl-cell btbl-date">${dateStr}</div>
+      <div class="btbl-cell btbl-date"${editavel?` data-field="data" class="btbl-cell btbl-date ap-edit"`:''}>${dateStr}</div>
       <div class="btbl-cell">
-        ${r.aposta?`<div class="btbl-tipo">${esc(r.aposta)}</div>`:''}
-        <div class="btbl-desc">${esc(r.descricao||r.aposta||'—')}</div>
+        ${r.aposta?`<div class="btbl-tipo"${df('aposta')}>${esc(r.aposta)}</div>`:''}
+        <div class="btbl-desc"${editavel?` data-field="descricao" class="btbl-desc ap-edit"`:''}>${esc(r.descricao||r.aposta||'—')}</div>
       </div>
-      <div class="btbl-cell btbl-sport">${mkSpChip(r.esporte)}<span>${esc(r.esporte||'—')}</span></div>
-      <div class="btbl-cell btbl-tipster">${esc(r.tipster||'—')}</div>
+      <div class="btbl-cell btbl-sport"${editavel?` data-field="esporte" class="btbl-cell btbl-sport ap-edit"`:''}>${mkSpChip(r.esporte)}<span>${esc(r.esporte||'—')}</span></div>
+      <div class="btbl-cell btbl-tipster"${editavel?` data-field="tipster" class="btbl-cell btbl-tipster ap-edit"`:''}>${esc(r.tipster||'—')}</div>
       <div class="btbl-cell btbl-casa">
         ${mkHouseChip(r.casa)}
         <div class="btbl-casa-sub">
-          <span class="btbl-casa-nome">${esc(r.casa||'—')}</span>
-          ${parceiro?`<span class="btbl-casa-conta">${esc(parceiro)}</span>`:''}
+          <span class="btbl-casa-nome"${df('casa')}>${esc(r.casa||'—')}</span>
+          ${parceiro?`<span class="btbl-casa-conta"${df('parceiro')}>${esc(parceiro)}</span>`:''}
         </div>
       </div>
-      <div class="btbl-cell btbl-num">${fmtR(r.stake)}</div>
-      <div class="btbl-cell btbl-num">${fmtOdd(r.odd)}</div>
-      <div class="btbl-cell" style="display:flex;align-items:center;justify-content:center">
+      <div class="btbl-cell btbl-num"${editavel?` data-field="stake" class="btbl-cell btbl-num ap-edit"`:''}>${fmtR(r.stake)}</div>
+      <div class="btbl-cell btbl-num"${editavel?` data-field="odd" class="btbl-cell btbl-num ap-edit"`:''}>${fmtOdd(r.odd)}</div>
+      <div class="btbl-cell"${editavel?` data-field="resultado" class="btbl-cell ap-edit"`:''} style="display:flex;align-items:center;justify-content:center">
         <span class="bet-res-pill ${resClass}">${resLabel}</span>
       </div>
       <div class="btbl-cell btbl-pl">${r.resultado==='ABERTA'?'<span style="color:var(--ink-mute)">—</span>':fmtPL(r.lucro)}</div>
@@ -232,3 +238,61 @@ async function deletarApostas(id){
   }
 }
 window.deletarApostas=deletarApostas;
+
+// ── Edição inline por duplo-clique ──────────────────────────────────────────
+// Duplo-clique numa célula editável (data-field) troca o conteúdo por um input
+// (ou <select> no resultado). Enter/blur salva via PATCH /bilhetes/{id} e re-busca
+// o feed; Esc cancela. Enquanto edita, _apInlineEditing trava o virtual-scroll.
+function _apInlineStart(cell){
+  if(_apInlineEditing)return;
+  const field=cell.dataset.field;
+  if(!field)return;
+  const rowEl=cell.closest('.btbl-data-row');
+  if(!rowEl||!rowEl.dataset.id)return;
+  const id=parseInt(rowEl.dataset.id,10);
+  const r=_apRowById(id);
+  if(!r||r.operador!==window.__dono)return;   // só o dono efetivo edita
+  const cur=_apEditVal(r,field);
+  const orig=cell.innerHTML;
+  _apInlineEditing=true;
+  let editor;
+  if(field==='resultado'){
+    editor=document.createElement('select');
+    editor.innerHTML='<option value="">— aberta —</option>'+['W','L','V','HW','HL'].map(x=>`<option value="${x}"${x===cur?' selected':''}>${x}</option>`).join('');
+  }else{
+    editor=document.createElement('input');
+    editor.type='text';
+    editor.value=cur;
+  }
+  editor.className='ap-inline-inp';
+  cell.innerHTML='';
+  cell.appendChild(editor);
+  editor.focus();
+  if(editor.select)editor.select();
+  let done=false;
+  const finish=async(commit)=>{
+    if(done)return;
+    done=true;
+    const val=editor.value.trim();
+    _apInlineEditing=false;
+    if(!commit||val===cur){cell.innerHTML=orig;return;}
+    try{
+      const res=await fetch(`/bilhetes/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:val})});
+      if(!res.ok)throw new Error();
+      await loadData(false);   // feed fresco → P/L derivado, KPIs e gating batem com o servidor
+    }catch(_){
+      cell.innerHTML=orig;
+      alert('Erro ao salvar. Confira o valor (data DD/MM/AAAA, stake/odd numéricos, resultado W/L/V/HW/HL).');
+    }
+  };
+  editor.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();finish(true);}
+    else if(e.key==='Escape'){e.preventDefault();finish(false);}
+  });
+  editor.addEventListener('blur',()=>finish(true));
+  if(field==='resultado')editor.addEventListener('change',()=>finish(true));
+}
+document.addEventListener('dblclick',e=>{
+  const cell=e.target.closest&&e.target.closest('#page-apostas [data-field]');
+  if(cell)_apInlineStart(cell);
+});
