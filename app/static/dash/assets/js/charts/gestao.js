@@ -508,18 +508,54 @@ function renderCustoTipster(){
     </div>`;
 }
 
-// ── Aba "Tipster / Método" (Gestão) — cadastro EDITÁVEL do tipster + escada de unidade +
-// dicas de detecção. O drill (extrato) virou só-leitura: TODA a edição do tipster mora aqui.
-// Reusa os endpoints /tipsters/cadastro · /tipsters/{id}/info · /tipsters/unidades já no ar.
+// ── Aba "Tipster / Método" (Gestão) — v2: lista de tipsters em BOXES (accordion). Cada box
+// abre em 2 colunas — ESQUERDA você preenche (casas/mercados/obs/escada), DIREITA o
+// "Sharpen sugere" analisa as apostas do tipster na base e dá casas/mercados/stake típica
+// em chips que você tica. O drill (extrato) é só-leitura. Endpoints já no ar:
+// /tipsters/cadastro · /tipsters/{id}/info · /tipsters/unidades.
 let _tmCadastro=null;   // nome -> {id, casas, mercados, obs, completo, ...}
-let _tmSel=null;        // tipster selecionado no seletor
+let _tmOpen=null;       // tipster com o box expandido (accordion: 1 aberto por vez)
+let _tmAgg=null;        // nome -> agregado das apostas da base (casas/mercados/stakes)
+let _tmQ='';            // termo da busca
+
+const _tmIV='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
+const _tmLB='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
+const _tmBT='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
+const _tmBTG='background:none;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
+const _tmBX='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
+
 function _tmVal(id){const e=document.getElementById(id);return e?e.value:'';}
 function _tmIsoBR(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return m?m[3]+'/'+m[2]+'/'+m[1]:(iso||'');}
-// Valor unitário da escada → .money 2 casas (UI_REFERENCE §5.1: stake/valor unitário).
-function _tmMoney(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(Number(v)||0,2)}</span></span>`;}
-function _tmDica(titulo,txt){return`<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px">`
-  +`<div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:6px">${titulo}</div>`
-  +`<div style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.45">${txt}</div></div>`;}
+// Valor unitário → .money 2 casas (UI_REFERENCE §5.1: stake/valor unitário). width:auto
+// para NÃO herdar o width:100%/space-between do .money de tabela (senão estica no inline).
+function _tmMoney(v){return`<span class="money" style="width:auto"><span class="money-sign">R$</span><span class="money-val">${fmt(Number(v)||0,2)}</span></span>`;}
+// nome dentro de onclick="…('…')" — escapa \ e '
+function _tmJs(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+// Agrega as apostas da base por tipster (1 passada em DADOS): contagem por casa, por
+// mercado (r.aposta) e por valor de stake (exclui Void). Fonte do "Sharpen sugere".
+function _tmBuildAgg(){
+  const agg={};
+  if(typeof DADOS==='undefined'||!DADOS)return agg;
+  DADOS.forEach(r=>{
+    if(!r.tipster)return;
+    const a=agg[r.tipster]||(agg[r.tipster]={n:0,pl:0,casas:{},mkts:{},stakes:{}});
+    a.n++;a.pl+=(r.lucro||0);
+    if(r.casa)a.casas[r.casa]=(a.casas[r.casa]||0)+1;
+    if(r.aposta)a.mkts[r.aposta]=(a.mkts[r.aposta]||0)+1;
+    if(r.resultado!=='V'&&r.stake>0)a.stakes[r.stake]=(a.stakes[r.stake]||0)+1;
+  });
+  return agg;
+}
+function _tmTop(obj,lim){return Object.entries(obj||{}).map(([k,c])=>({k,c})).sort((a,b)=>b.c-a.c).slice(0,lim||99);}
+// Stake típica = moda (stake mais frequente) → {valor, share, n} ou null.
+function _tmStakeTipica(stakes){
+  const ent=Object.entries(stakes||{});
+  if(!ent.length)return null;
+  const tot=ent.reduce((a,[,c])=>a+c,0);
+  ent.sort((a,b)=>b[1]-a[1]);
+  return {valor:Number(ent[0][0]),share:ent[0][1]/tot,n:tot};
+}
 
 async function renderTipsterMetodo(){
   const cont=document.getElementById('tipsterMetodoContent');
@@ -527,67 +563,120 @@ async function renderTipsterMetodo(){
   let lista=[];
   try{const r=await fetch('/tipsters/cadastro?arquivados=0');const d=await r.json();lista=d.tipsters||[];}catch(e){lista=[];}
   _tmCadastro={};lista.forEach(t=>{_tmCadastro[t.nome]=t;});
+  _tmAgg=_tmBuildAgg();
   const nomes=lista.map(t=>t.nome).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const nInc=lista.filter(t=>!t.completo).length;
-  if(!_tmSel||!_tmCadastro[_tmSel])_tmSel=nomes[0]||null;
 
-  // Dicas — esqueleto da auto-atribuição. Cada dica mapeia um SINAL do matcher
-  // (repository.sugerir_tipster): apelido/marca d'água (forte) · casa · faixa de stake.
-  const dicas=`<p style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.5;margin-bottom:.9rem">`
-    +`Hoje o tipster é atribuído <strong style="color:var(--ink)">manualmente</strong> depois da extração — a IA nunca lê o tipster do bilhete. `
-    +`Preenchendo o cadastro abaixo você prepara o terreno para o Sharpen <strong style="color:var(--accent)">sugerir o tipster automaticamente</strong> durante a extração <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mute)">(em construção)</span>.</p>`
-    +`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">`
-    +_tmDica('Apelidos / marca d&rsquo;água','O sinal mais forte: os textos que aparecem no print (nome do canal, @, marca). Quando a extração começar a ler a marca d&rsquo;água, ela casa com o apelido e sugere o tipster.')
-    +_tmDica('Nome consistente','Use sempre o MESMO nome para o mesmo tipster (ex.: sempre &ldquo;SóChutes&rdquo;, nunca &ldquo;so chutes&rdquo;). O nome é a chave do cadastro e da atribuição.')
-    +_tmDica('Casas &amp; mercados','Informe onde o tipster opera. Um bilhete numa casa que não é dele tem menos chance de ser atribuído a ele.')
-    +_tmDica('Faixa de stake','Defina a stake típica (mín/máx). Um bilhete com stake fora da faixa dificilmente é dele — ajuda a desempatar candidatos.')
+  const intro=`<p style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.5;margin:0">`
+    +`Cada tipster tem um box abaixo. Clique para abrir e preencher <strong style="color:var(--ink)">casas, mercados e a escada de unidade</strong> — ou deixe o <strong style="color:var(--accent)">Sharpen sugerir</strong> a partir das apostas dele na base. Isso prepara o terreno para o Sharpen atribuir o tipster sozinho na extração <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mute)">(em construção)</span>.</p>`;
+
+  const head=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1rem">`
+    +`<input id="tmBusca" value="${esc(_tmQ)}" oninput="tmBusca(this.value)" placeholder="Buscar tipster…" style="${_tmIV};max-width:280px">`
+    +(nInc?`<span style="font-family:var(--font-mono);font-size:10px;color:var(--accent);background:rgba(var(--accent-rgb),.12);border:1px solid var(--line);border-radius:999px;padding:3px 10px">${nInc} sem info preenchida</span>`:'')
     +`</div>`;
 
-  const iv='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
-  const lb='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
-  const aviso=nInc?`<span style="font-family:var(--font-mono);font-size:10px;color:var(--accent);background:rgba(var(--accent-rgb),.12);border:1px solid var(--line);border-radius:999px;padding:3px 10px">${nInc} sem info preenchida</span>`:'';
-  const selector=nomes.length
-    ?`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1rem"><label style="${lb};margin:0">Tipster</label>`
-      +`<select id="tmSelect" onchange="tmPick(this.value)" style="${iv};max-width:300px">${nomes.map(n=>`<option value="${esc(n)}"${n===_tmSel?' selected':''}>${esc(n)}${_tmCadastro[n].completo?'':' · incompleto'}</option>`).join('')}</select>${aviso}</div><div id="tmEditor"></div>`
-    :`<div style="color:var(--ink-mute);font-size:12px;font-family:var(--font-sans);padding:1rem 0">Nenhum tipster cadastrado ainda. Eles aparecem aqui automaticamente quando você atribui um nome na extração.</div>`;
-
-  cont.innerHTML=mkCard('tm_dicas','Como o Sharpen detecta o tipster',dicas)+mkCard('tm_cad','Cadastro do tipster',selector);
-  if(_tmSel)tmRenderEditor(_tmSel);
+  let corpo;
+  if(!nomes.length){
+    corpo=`<div style="color:var(--ink-mute);font-size:12px;font-family:var(--font-sans);padding:1rem 0">Nenhum tipster cadastrado ainda. Eles aparecem aqui automaticamente quando você atribui um nome na extração.</div>`;
+  }else{
+    const filtro=_tmQ.trim().toLowerCase();
+    const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
+    corpo=vis.length?vis.map(_tmBox).join(''):`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhum tipster encontrado.</div>`;
+  }
+  cont.innerHTML=mkCard('tm_intro','Tipster / Método',intro)+mkCard('tm_lista','Tipsters',head+`<div id="tmLista">${corpo}</div>`);
+  if(_tmOpen&&_tmCadastro[_tmOpen])tmRenderEditor(_tmOpen);
 }
 window.renderTipsterMetodo=renderTipsterMetodo;
 
-function tmPick(nome){_tmSel=nome;tmRenderEditor(nome);}
-window.tmPick=tmPick;
+// Box do accordion. Colapsado: nome + sinal de completude + volume/P/L. Expandido
+// (_tmOpen===nome): injeta o editor 2-colunas em #tmEditor (via tmRenderEditor).
+function _tmBox(nome){
+  const t=_tmCadastro[nome]||{};
+  const ag=(_tmAgg||{})[nome];
+  const aberto=_tmOpen===nome;
+  const badge=!t.completo
+    ?`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:rgba(var(--accent-rgb),.12);border-radius:999px;padding:2px 8px">falta info</span>`
+    :`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:2px 8px">completo</span>`;
+  const vol=ag?`<span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-mute)">${ag.n.toLocaleString('pt-BR')} apostas</span>`:'';
+  const pl=ag?fmtPL(ag.pl):'';
+  const caret=`<span style="color:var(--ink-mute);font-size:12px;display:inline-block;transform:rotate(${aberto?'90':'0'}deg)">▸</span>`;
+  const header=`<div onclick="tmToggle('${_tmJs(nome)}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;user-select:none">`
+    +caret+`<span style="font-weight:700;color:var(--ink);font-size:14px">${esc(nome)}</span>`+badge
+    +`<span style="margin-left:auto;display:flex;align-items:center;gap:14px">${vol}${pl}</span></div>`;
+  const body=aberto?`<div id="tmEditor" style="padding:0 14px 16px;border-top:1px solid var(--line-2)"></div>`:'';
+  return`<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden">${header}${body}</div>`;
+}
 
-// Estilos compartilhados info+escada.
-const _tmIV='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
-const _tmLB='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
-const _tmBT='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
-const _tmBX='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
+// Busca: re-renderiza SÓ a lista (#tmLista); o input de busca fica fora → não perde foco.
+function tmBusca(v){
+  _tmQ=v;
+  const lista=document.getElementById('tmLista');
+  if(!lista)return;
+  const filtro=(v||'').trim().toLowerCase();
+  const nomes=Object.keys(_tmCadastro||{}).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
+  lista.innerHTML=vis.length?vis.map(_tmBox).join(''):`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhum tipster encontrado.</div>`;
+  if(_tmOpen&&vis.includes(_tmOpen))tmRenderEditor(_tmOpen);
+}
+window.tmBusca=tmBusca;
+
+function tmToggle(nome){_tmOpen=(_tmOpen===nome)?null:nome;tmBusca(_tmQ);}
+window.tmToggle=tmToggle;
 
 function tmRenderEditor(nome){
   const box=document.getElementById('tmEditor');
   if(!box)return;
   const t=(_tmCadastro||{})[nome]||null;
+  if(!t){box.innerHTML=`<div style="color:var(--ink-mute);font-size:12px;padding:12px 0">Tipster não encontrado no cadastro.</div>`;return;}
   const iv=_tmIV,lb=_tmLB,bt=_tmBT;
-  const sv=v=>(v==null||v==='')?'':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
-  const info=t
-    ?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`
-      +`<div style="grid-column:1/-1"><label style="${lb}">Apelidos / marca d&rsquo;água <span style="color:var(--accent);text-transform:none;letter-spacing:0">— sinal mais forte da detecção</span></label><input id="tmApelidos" style="${iv}" value="${esc(t.apelidos||'')}" placeholder="Ex.: @sochutes, SÓ CHUTES, canal do Zé (separe por vírgula)"></div>`
-      +`<div><label style="${lb}">Casas principais</label><input id="tmCasas" style="${iv}" value="${esc(t.casas||'')}" placeholder="Ex.: Bet365, Betano"></div>`
-      +`<div><label style="${lb}">Mercados</label><input id="tmMercados" style="${iv}" value="${esc(t.mercados||'')}" placeholder="Ex.: Under/Over gols"></div>`
-      +`<div><label style="${lb}">Stake mínima (R$)</label><input id="tmStakeMin" style="${iv};font-family:var(--font-mono)" value="${esc(sv(t.stake_min))}" placeholder="Ex.: 50"></div>`
-      +`<div><label style="${lb}">Stake máxima (R$)</label><input id="tmStakeMax" style="${iv};font-family:var(--font-mono)" value="${esc(sv(t.stake_max))}" placeholder="Ex.: 500"></div>`
-      +`<div style="grid-column:1/-1"><label style="${lb}">Observações</label><input id="tmObs" style="${iv}" value="${esc(t.obs||'')}" placeholder="Anotações sobre o método, gestão, contato…"></div>`
-      +`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button style="${bt}" onclick="tmSaveInfo(${t.id})">Salvar info</button></div>`
-    +`</div>`
-    :`<div style="color:var(--ink-mute);font-size:12px">Tipster não encontrado no cadastro.</div>`;
-  // A escada mora num container próprio: adicionar/remover degrau re-renderiza SÓ ela,
-  // sem tocar nos inputs de info acima (senão o que foi digitado e não salvo sumia — bug
-  // relatado pelo Feca). Ver tmRenderEscada / tmAddSeg / tmDelSeg.
-  box.innerHTML=info+`<div id="tmEscada" style="margin-top:20px"></div>`;
+  const secTit='font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin:14px 0 12px';
+  // ESQUERDA — você preenche. A escada mora em #tmEscada (container próprio): adicionar/
+  // remover degrau re-renderiza SÓ ela, sem apagar os inputs não salvos (bug do Feca).
+  const esquerda=`<div>`
+    +`<div style="${secTit};color:var(--ink-soft)">Suas informações</div>`
+    +`<div style="margin-bottom:12px"><label style="${lb}">Casas principais</label><input id="tmCasas" style="${iv}" value="${esc(t.casas||'')}" placeholder="Ex.: Bet365, Betano"></div>`
+    +`<div style="margin-bottom:12px"><label style="${lb}">Mercados</label><input id="tmMercados" style="${iv}" value="${esc(t.mercados||'')}" placeholder="Ex.: Resultado Final, Under/Over"></div>`
+    +`<div style="margin-bottom:12px"><label style="${lb}">Observações</label><input id="tmObs" style="${iv}" value="${esc(t.obs||'')}" placeholder="Anotações sobre o método, gestão, contato…"></div>`
+    +`<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><button style="${bt}" onclick="tmSaveInfo(${t.id})">Salvar info</button></div>`
+    +`<div id="tmEscada"></div>`
+    +`</div>`;
+  // DIREITA — Sharpen sugere (analisa a base)
+  const direita=`<div>`
+    +`<div style="${secTit};color:var(--accent)">Sharpen sugere <span style="color:var(--ink-mute);text-transform:none;letter-spacing:0">— das apostas na base</span></div>`
+    +_tmSugestoes(nome)
+    +`</div>`;
+  box.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">${esquerda}${direita}</div>`;
   tmRenderEscada(nome);
 }
+
+// Painel "Sharpen sugere": stake típica (moda das stakes) + chips TICKÁVEIS das casas e
+// mercados mais usados pelo tipster. "Usar selecionados" copia os ticados p/ os inputs.
+function _tmSugestoes(nome){
+  const ag=(_tmAgg||{})[nome];
+  const lb=_tmLB;
+  if(!ag||!ag.n)return`<div style="color:var(--ink-mute);font-size:12px">Sem apostas deste tipster na base ainda — preencha à mão.</div>`;
+  const st=_tmStakeTipica(ag.stakes);
+  const stakeCard=st?`<div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px">`
+    +`<div style="${lb}">Stake típica</div>`
+    +`<div style="display:flex;align-items:baseline;gap:10px"><div style="font-size:18px">${_tmMoney(st.valor)}</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-mute)">${fmtPct(st.share*100,0,false)} das apostas</div></div>`
+    +`<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">É o valor mais comum das apostas — use como referência para definir a unidade (1u) na escada ao lado.</div>`
+    +`</div>`:'';
+  const chip=(grp,k,c)=>`<label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 10px;margin:0 6px 6px 0;cursor:pointer;font-size:12px;color:var(--ink)"><input type="checkbox" data-tmchip="${grp}" value="${esc(k)}" checked style="accent-color:var(--accent);cursor:pointer">${esc(k)} <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute)">${c}</span></label>`;
+  const casasChips=_tmTop(ag.casas,8).map(x=>chip('casa',x.k,x.c)).join('')||'<span style="color:var(--ink-mute);font-size:12px">—</span>';
+  const mktsChips=_tmTop(ag.mkts,10).map(x=>chip('mkt',x.k,x.c)).join('')||'<span style="color:var(--ink-mute);font-size:12px">—</span>';
+  return stakeCard
+    +`<div style="margin-bottom:12px"><div style="${lb}">Casas mais usadas</div><div>${casasChips}</div></div>`
+    +`<div style="margin-bottom:14px"><div style="${lb}">Mercados mais usados</div><div>${mktsChips}</div></div>`
+    +`<button style="${_tmBTG}" onclick="tmUsarSugestoes()">Usar selecionados →</button>`
+    +`<div style="font-size:11px;color:var(--ink-mute);margin-top:8px">Tique os que fazem sentido e clique para preencher as casas/mercados à esquerda. Depois é só “Salvar info”.</div>`;
+}
+function tmUsarSugestoes(){
+  const sel=g=>[...document.querySelectorAll('[data-tmchip="'+g+'"]:checked')].map(c=>c.value);
+  const ic=document.getElementById('tmCasas'),im=document.getElementById('tmMercados');
+  if(ic)ic.value=sel('casa').join(', ');
+  if(im)im.value=sel('mkt').join(', ');
+}
+window.tmUsarSugestoes=tmUsarSugestoes;
 
 async function tmRenderEscada(nome){
   const el=document.getElementById('tmEscada');
@@ -604,19 +693,18 @@ async function tmRenderEscada(nome){
 window.tmRenderEscada=tmRenderEscada;
 
 async function tmSaveInfo(id){
-  const body={casas:_tmVal('tmCasas'),mercados:_tmVal('tmMercados'),obs:_tmVal('tmObs'),
-              apelidos:_tmVal('tmApelidos'),stake_min:_tmVal('tmStakeMin'),stake_max:_tmVal('tmStakeMax')};
+  const body={casas:_tmVal('tmCasas'),mercados:_tmVal('tmMercados'),obs:_tmVal('tmObs')};
   try{const r=await fetch('/tipsters/'+id+'/info',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw 0;_tmCadastro=null;if(typeof _tipCadastro!=='undefined')_tipCadastro=null;renderTipsterMetodo();}catch(e){alert('Erro ao salvar as informações.');}
 }
 window.tmSaveInfo=tmSaveInfo;
 async function tmAddSeg(){
-  const nome=_tmSel,data=_tmVal('tmData'),valor=_tmVal('tmValor');
+  const nome=_tmOpen,data=_tmVal('tmData'),valor=_tmVal('tmValor');
   if(!data||!valor){alert('Informe a data e o valor da unidade.');return;}
   try{const r=await fetch('/tipsters/unidades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipster:nome,vigente_desde:data,valor:valor})});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.detail||'Não foi possível salvar.');return;}if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEscada(nome);}catch(e){alert('Erro ao adicionar o degrau.');}
 }
 window.tmAddSeg=tmAddSeg;
 async function tmDelSeg(id){
-  const nome=_tmSel;
+  const nome=_tmOpen;
   try{const r=await fetch('/tipsters/unidades/'+id,{method:'DELETE'});if(!r.ok)throw 0;if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEscada(nome);}catch(e){alert('Erro ao remover o degrau.');}
 }
 window.tmDelSeg=tmDelSeg;
