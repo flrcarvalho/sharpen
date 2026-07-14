@@ -167,8 +167,8 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 _CSP = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline'; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-    "font-src 'self' https://fonts.gstatic.com; "
+    "style-src 'self' 'unsafe-inline'; "  # fontes agora são SELF-HOST (/static/fonts.css) — sem Google Fonts
+    "font-src 'self'; "  # woff2 servidos de /static/fonts/ (mesma origem)
     "img-src 'self' data: blob: https:; "  # favicons das casas: o s2/favicons do Google redireciona p/ gstatic → libera imagem https (não executa script)
     "connect-src 'self'; "
     "object-src 'none'; "
