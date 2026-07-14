@@ -167,6 +167,53 @@ def pl_em_unidades(linhas, escada, unidade_fallback: float | None = None) -> dic
             "sem_unidade": sem_unidade, "n": n}
 
 
+def sugerir_tipster(bilhete: dict, tipsters: list, *, limite: int = 3) -> list[dict]:
+    """ESQUELETO da auto-atribuição (Perfil de Tipster, Fase B) — função PURA.
+
+    Dado um `bilhete` ({casa, stake, texto}) e a lista de tipsters CADASTRADOS (cada um
+    com nome, casas, stake_min, stake_max, apelidos), pontua e ranqueia os candidatos.
+    NÃO está plugada na extração — é de gaveta: quando a extração passar a devolver o
+    texto de marca d'água do print (`texto`), esta função vira a sugestão do tipster.
+
+    Sinais (pesos):
+      - apelido / marca d'água presente no texto → +100 (forte e específico)
+      - casa do bilhete entre as casas do tipster → +10
+      - stake dentro da faixa [stake_min, stake_max] → +5
+    Só devolve candidatos com score > 0, do maior pro menor. O sort é estável → empate
+    preserva a ordem de entrada. Comparações são case-insensitive e ignoram espaços.
+    """
+    def _norm(s):
+        return s.strip().lower() if isinstance(s, str) else ""
+
+    def _slug(s):
+        return re.sub(r"\s+", "", _norm(s))
+
+    casa = _slug(bilhete.get("casa"))
+    texto = _norm(bilhete.get("texto"))
+    stake = _num_or_none(bilhete.get("stake"))
+
+    ranked = []
+    for t in tipsters:
+        score, motivos = 0, []
+        apelidos = [a for a in (_norm(x) for x in (t.get("apelidos") or "").split(",")) if a]
+        if texto and any(a in texto for a in apelidos):
+            score += 100
+            motivos.append("apelido")
+        casas = {c for c in (_slug(x) for x in (t.get("casas") or "").split(",")) if c}
+        if casa and casa in casas:
+            score += 10
+            motivos.append("casa")
+        smin, smax = t.get("stake_min"), t.get("stake_max")
+        if stake is not None and (smin is not None or smax is not None):
+            if (smin is None or stake >= smin) and (smax is None or stake <= smax):
+                score += 5
+                motivos.append("stake")
+        if score > 0:
+            ranked.append({"nome": t.get("nome"), "score": score, "motivos": motivos})
+    ranked.sort(key=lambda r: r["score"], reverse=True)
+    return ranked[:limite] if limite else ranked
+
+
 # Parceiro no formato "Conta [Fornecedor]" → separa conta e fornecedor.
 # Mesmo regex do Code.gs (getData) para o dashboard bater com a planilha.
 _PARCEIRO_RE = re.compile(r"^(.+?)\s*\[(.+?)\]$")
@@ -1195,14 +1242,17 @@ async def list_tipsters_cadastro(dono: str, incluir_arquivados: bool = False) ->
         filtro += " AND arquivado = FALSE"
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            f"SELECT id, nome, casas, mercados, obs, arquivado, criado_em "
+            f"SELECT id, nome, casas, mercados, obs, stake_min, stake_max, apelidos, "
+            f"arquivado, criado_em "
             f"FROM tipsters {filtro} ORDER BY nome ASC",
             dono,
         )
     out = []
     for r in rows:
         d = dict(r)
-        d["completo"] = bool(d.get("casas") or d.get("mercados") or d.get("obs"))
+        d["completo"] = bool(d.get("casas") or d.get("mercados") or d.get("obs")
+                             or d.get("apelidos") or d.get("stake_min") is not None
+                             or d.get("stake_max") is not None)
         out.append(d)
     return out
 
@@ -1226,13 +1276,22 @@ async def reativar_tipster(tipster_id: int, dono: str) -> bool:
 
 
 async def atualizar_tipster_info(tipster_id: int, dono: str, casas: str | None,
-                                 mercados: str | None, obs: str | None) -> bool:
-    """Preenche os campos de info do perfil (casas principais, mercados, observações).
-    None mantém o valor atual; string vazia limpa o campo."""
+                                 mercados: str | None, obs: str | None,
+                                 stake_min=None, stake_max=None,
+                                 apelidos: str | None = None) -> bool:
+    """Preenche os campos de info do perfil (casas, mercados, observações + os campos de
+    detecção da Fase B: faixa de stake e apelidos/marca d'água).
+    Regra: `None` mantém o valor atual; para os campos de texto string vazia LIMPA; para
+    stake_min/stake_max, `""`/valor ilegível → NULL (via _num_or_none)."""
     sets, params = [], []
-    for col, val in (("casas", casas), ("mercados", mercados), ("obs", obs)):
+    for col, val in (("casas", casas), ("mercados", mercados), ("obs", obs),
+                     ("apelidos", apelidos)):
         if val is not None:
             params.append(val.strip() or None)
+            sets.append(f"{col} = ${len(params)}")
+    for col, val in (("stake_min", stake_min), ("stake_max", stake_max)):
+        if val is not None:                       # "" → _num_or_none → None → limpa (NULL)
+            params.append(_num_or_none(val))
             sets.append(f"{col} = ${len(params)}")
     if not sets:
         return False

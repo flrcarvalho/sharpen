@@ -174,6 +174,14 @@ CREATE TABLE IF NOT EXISTS tipsters (
     UNIQUE (dono, nome)
 );
 
+-- Fase B (esqueleto da auto-atribuição): campos que vão ALIMENTAR a detecção do tipster
+-- na extração (ainda de gaveta — ver repository.sugerir_tipster). Aditivo e idempotente.
+--   stake_min/stake_max = faixa de stake típica (R$); bilhete fora da faixa perde pontos.
+--   apelidos            = marca d'água / apelidos no print (CSV); o sinal MAIS forte.
+ALTER TABLE tipsters ADD COLUMN IF NOT EXISTS stake_min REAL;
+ALTER TABLE tipsters ADD COLUMN IF NOT EXISTS stake_max REAL;
+ALTER TABLE tipsters ADD COLUMN IF NOT EXISTS apelidos  TEXT;
+
 -- Backfill idempotente: todo tipster distinto já presente nos bilhetes vira registro
 -- (incompleto). Roda a cada boot; ON CONFLICT DO NOTHING → nunca duplica nem
 -- ressuscita um tipster que foi arquivado à mão.

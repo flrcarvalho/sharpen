@@ -47,7 +47,7 @@ from repository import (
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
-    get_escadas_todas,
+    get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
@@ -2019,6 +2019,11 @@ class TipsterInfoRequest(BaseModel):
     casas: Optional[str] = None
     mercados: Optional[str] = None
     obs: Optional[str] = None
+    # Fase B (detecção): faixa de stake típica (aceita número ou "1.234,50") e apelidos/
+    # marca d'água (CSV). None = não mexe; "" = limpa. Ver repository.sugerir_tipster.
+    stake_min: Optional[float | str] = None
+    stake_max: Optional[float | str] = None
+    apelidos: Optional[str] = None
 
 
 class TipsterRenomearRequest(BaseModel):
@@ -2042,10 +2047,29 @@ async def criar_tipster_route(body: TipsterCriarRequest, dono: str = Depends(don
 @app.patch("/tipsters/{tipster_id}/info")
 async def atualizar_tipster_info_route(tipster_id: int, body: TipsterInfoRequest,
                                        dono: str = Depends(dono_efetivo)):
-    ok = await atualizar_tipster_info(tipster_id, dono, body.casas, body.mercados, body.obs)
+    ok = await atualizar_tipster_info(tipster_id, dono, body.casas, body.mercados, body.obs,
+                                      stake_min=body.stake_min, stake_max=body.stake_max,
+                                      apelidos=body.apelidos)
     if not ok:
         raise HTTPException(404, "Tipster não encontrado ou sem campos válidos.")
     return {"atualizado": True}
+
+
+class SugerirTipsterRequest(BaseModel):
+    """Entrada da auto-atribuição (esqueleto). `texto` = marca d'água/apelido lido do
+    print — hoje a extração ainda não devolve isso, então a rota é de gaveta/teste."""
+    casa: Optional[str] = ""
+    stake: Optional[float | str] = None
+    texto: Optional[str] = ""
+
+
+@app.post("/tipsters/sugerir")
+async def sugerir_tipster_route(body: SugerirTipsterRequest, dono: str = Depends(dono_efetivo)):
+    tipsters = await list_tipsters_cadastro(dono, incluir_arquivados=False)
+    sugestoes = sugerir_tipster(
+        {"casa": body.casa, "stake": body.stake, "texto": body.texto}, tipsters
+    )
+    return {"sugestoes": sugestoes}
 
 
 @app.post("/tipsters/{tipster_id}/arquivar")

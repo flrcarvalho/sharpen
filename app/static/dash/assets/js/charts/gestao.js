@@ -531,14 +531,16 @@ async function renderTipsterMetodo(){
   const nInc=lista.filter(t=>!t.completo).length;
   if(!_tmSel||!_tmCadastro[_tmSel])_tmSel=nomes[0]||null;
 
-  // Dicas — esqueleto da auto-atribuição (só-texto; a detecção real é etapa seguinte).
+  // Dicas — esqueleto da auto-atribuição. Cada dica mapeia um SINAL do matcher
+  // (repository.sugerir_tipster): apelido/marca d'água (forte) · casa · faixa de stake.
   const dicas=`<p style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.5;margin-bottom:.9rem">`
     +`Hoje o tipster é atribuído <strong style="color:var(--ink)">manualmente</strong> depois da extração — a IA nunca lê o tipster do bilhete. `
     +`Preenchendo o cadastro abaixo você prepara o terreno para o Sharpen <strong style="color:var(--accent)">sugerir o tipster automaticamente</strong> durante a extração <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mute)">(em construção)</span>.</p>`
-    +`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">`
+    +`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">`
+    +_tmDica('Apelidos / marca d&rsquo;água','O sinal mais forte: os textos que aparecem no print (nome do canal, @, marca). Quando a extração começar a ler a marca d&rsquo;água, ela casa com o apelido e sugere o tipster.')
     +_tmDica('Nome consistente','Use sempre o MESMO nome para o mesmo tipster (ex.: sempre &ldquo;SóChutes&rdquo;, nunca &ldquo;so chutes&rdquo;). O nome é a chave do cadastro e da atribuição.')
-    +_tmDica('Casas &amp; mercados','Informe onde o tipster opera e os mercados típicos. Um bilhete numa casa ou mercado que não é dele tem menos chance de ser atribuído a ele.')
-    +_tmDica('Escada de unidade','Defina quanto vale 1u em R$ ao longo do tempo. É o que converte o resultado em unidades e ancora a stake típica do tipster.')
+    +_tmDica('Casas &amp; mercados','Informe onde o tipster opera. Um bilhete numa casa que não é dele tem menos chance de ser atribuído a ele.')
+    +_tmDica('Faixa de stake','Defina a stake típica (mín/máx). Um bilhete com stake fora da faixa dificilmente é dele — ajuda a desempatar candidatos.')
     +`</div>`;
 
   const iv='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
@@ -567,10 +569,14 @@ async function tmRenderEditor(nome){
   const lb='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
   const bt='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
   const bx='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
+  const sv=v=>(v==null||v==='')?'':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
   const info=t
     ?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`
+      +`<div style="grid-column:1/-1"><label style="${lb}">Apelidos / marca d&rsquo;água <span style="color:var(--accent);text-transform:none;letter-spacing:0">— sinal mais forte da detecção</span></label><input id="tmApelidos" style="${iv}" value="${esc(t.apelidos||'')}" placeholder="Ex.: @sochutes, SÓ CHUTES, canal do Zé (separe por vírgula)"></div>`
       +`<div><label style="${lb}">Casas principais</label><input id="tmCasas" style="${iv}" value="${esc(t.casas||'')}" placeholder="Ex.: Bet365, Betano"></div>`
       +`<div><label style="${lb}">Mercados</label><input id="tmMercados" style="${iv}" value="${esc(t.mercados||'')}" placeholder="Ex.: Under/Over gols"></div>`
+      +`<div><label style="${lb}">Stake mínima (R$)</label><input id="tmStakeMin" style="${iv};font-family:var(--font-mono)" value="${esc(sv(t.stake_min))}" placeholder="Ex.: 50"></div>`
+      +`<div><label style="${lb}">Stake máxima (R$)</label><input id="tmStakeMax" style="${iv};font-family:var(--font-mono)" value="${esc(sv(t.stake_max))}" placeholder="Ex.: 500"></div>`
       +`<div style="grid-column:1/-1"><label style="${lb}">Observações</label><input id="tmObs" style="${iv}" value="${esc(t.obs||'')}" placeholder="Anotações sobre o método, gestão, contato…"></div>`
       +`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button style="${bt}" onclick="tmSaveInfo(${t.id})">Salvar info</button></div>`
     +`</div>`
@@ -585,7 +591,8 @@ async function tmRenderEditor(nome){
 }
 
 async function tmSaveInfo(id){
-  const body={casas:_tmVal('tmCasas'),mercados:_tmVal('tmMercados'),obs:_tmVal('tmObs')};
+  const body={casas:_tmVal('tmCasas'),mercados:_tmVal('tmMercados'),obs:_tmVal('tmObs'),
+              apelidos:_tmVal('tmApelidos'),stake_min:_tmVal('tmStakeMin'),stake_max:_tmVal('tmStakeMax')};
   try{const r=await fetch('/tipsters/'+id+'/info',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw 0;_tmCadastro=null;if(typeof _tipCadastro!=='undefined')_tipCadastro=null;renderTipsterMetodo();}catch(e){alert('Erro ao salvar as informações.');}
 }
 window.tmSaveInfo=tmSaveInfo;
