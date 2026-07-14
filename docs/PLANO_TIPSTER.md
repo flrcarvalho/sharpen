@@ -240,10 +240,99 @@ entre `{início do evento}` e `{bilhete casado registrado}`, com delay-fixo só 
 
 | # | Etapa | Horizonte |
 |---|---|---|
-| 0 | **Cadastro de tipster** (tabela `tipsters` + backfill + onboarding `(i)`) — a espinha barata, pré-requisito dos três | 🟢 próximo |
-| 1 | **P1 — unidades** (escada + fallback de média + toggle R$/u via `/nova-ui`) | 🟢 |
+| 0 | **Cadastro de tipster** (tabela `tipsters` + backfill + onboarding `(i)`) — a espinha barata, pré-requisito dos três | ✅ **backend feito (sessão 142, `26b72f1`)** · UI pendente |
+| 1 | **P1 — unidades** (escada + fallback de média + toggle R$/u via `/nova-ui`) | ✅ **backend feito (sessão 142, `8150ed2`)** · UI pendente |
 | 2 | **P2 — watermark** (schema de regra + popup por tipster; chatbot fica beta) | 🟡 |
 | 3 | **P3 — Telegram** (MTProto + casamento + política de liberação) | 🔵 grande/condicional |
+
+> **Estado (2026-07-14):** todo o BACKEND das etapas 0 e 1 está no ar e testado (116 verdes).
+> Falta só a **UI** — especificada e auditada abaixo, aguardando (a) o editor de apostas do
+> dashboard mergear (evitar colisão em `dash/app.js`) e (b) a validação visual do `/nova-ui`.
+
+---
+
+## UI — spec auditado pelo `/nova-ui` (pronto p/ executar)
+
+> Escrito na sessão 142 rodando o checklist `/nova-ui` inteiro (não só o §5 monetário —
+> ver [[feedback_nova_ui_gate_total]]). Objetivo: quando o editor de apostas do dashboard
+> mergear, a construção vira execução mecânica, sem inventar convenção nova nem colidir.
+> **Toda classe abaixo já EXISTE** no `index.html` / dashboard — reuso, não crio.
+
+### Surface A — Painel de Tipsters (no extrator, `index.html`)
+
+Onde: **novo `nav-item` "Tipsters"** na sidebar do extrator, espelhando `#nav-contas`
+(`index.html:1526`), abrindo uma view via `mostrarView('tipsters')`. Coleta de dados:
+`GET /tipsters/cadastro`. É um arquivo **diferente** do que o editor de apostas mexe
+(`dash/app.js`) → sem colisão.
+
+Layout — **espelha o Painel de Contas** (mesmas classes, tipster não tem casa → lista
+plana, sem o agrupamento `.contas-casa`):
+- Contêiner `.painel` + `.painel-hero` (eyebrow mono `.painel-hero-eyebrow`).
+- Abas **Ativos / Inativos** = `.contas-tabs`/`button.on` (`index.html:1484`).
+- Busca = `.contas-search` (`:1487`).
+- Cada tipster = `.conta-row` com `.conta-nome` (nome), `.conta-badges` (o `(i)`) e
+  `.conta-acoes` com `.conta-act` ("Editar info", "Renomear") + `.conta-act.danger`
+  ("Arquivar"). Endpoints: `PATCH /tipsters/{id}/info`, `POST /tipsters/{id}/renomear`,
+  `/arquivar`, `/reativar`.
+- Vazio = `.contas-empty`.
+
+**Badge `(i)` de incompleto:** reusar o visual do `.pend-badge` (`index.html:247-255`) —
+pill azul (`--accent`), mono 10px, `#fff`, com o mesmo halo. Conteúdo `i`. Semântica:
+"sem info cadastrada" (`completo === false` vindo de `list_tipsters_cadastro`). Idêntico
+ao badge que já sinaliza conta sem tipster → **consistência total**, zero classe nova.
+
+### Surface B — Modal de info do tipster (`index.html`)
+
+Espelha o modal de edição (`.modal-field` + `<label>` + input, `index.html:1856`). Campos:
+- **Casas principais** — input texto (`atualizar_tipster_info` grava em `casas`).
+- **Mercados** — input texto (`mercados`).
+- **Observações** — `<textarea>` (`obs`).
+
+Nenhum campo monetário aqui → **§5 não se aplica**. Regras que se aplicam: inputs
+`--field`/`--surface-2` + `1px var(--line)` + `--r-sm`, foco borda `--accent` + `--glow`
+(§4); labels Manrope; nada de cor literal.
+
+### Surface C — Unidades + switch R$ ⇄ u (dashboard, `performance.js`) — **espera o merge**
+
+Vive na página **Tipsters** do dashboard (`renderTipsters` / `renderTipsterDrill`) — mesmo
+bundle do editor de apostas → **construir SÓ depois do merge**. Dados: `GET
+/tipsters/resultado-unidades?tipster=…` e `/tipsters/unidades` (escada).
+
+**Helper novo `fmtU(v)` — espelha `fmtPL` VERBATIM** (é o único jeito §5.1-compatível de um
+valor com sinal+magnitude que **não é R$**; o "u" entra como as exceções §5.3, mas mantendo
+o componente `.money`):
+- Componente `.money` + `.money-sign`/`.money-val` (herda cor-só-no-número, mono,
+  tabular-nums, **sem CSS novo**).
+- **2 casas**, decimal vírgula. **Minus U+2212** (não `-`). **Zero neutro** = `0,00u`
+  sem sinal/cor. `.money-val` colorido `--pos`/`--neg`; **`u` no `.money-sign`** (papel do
+  `R$`, neutro/menor `--ink-soft`). Ex.: `+3,25u` / `−1,50u` / `0,00u`.
+- **Nunca abreviar** (barrado pelo `check-tokens §d`). Proposta a **confirmar com o Feca no
+  commit da UI** (é convenção monetária nova): posição do `u` (sufixo, como acima) vs. papel
+  de "sign". Para **eixos/tooltips** de Chart.js, espelhar `fmtK` (`app.js:244`).
+
+**Switch R$ ⇄ u:** pill toggle (§4, `--r-pill`, ativo `--accent`, inativo `--ink-mute`) no
+cabeçalho da página Tipsters; alterna a máscara aplicada em `#tipsterPortfolioKPIs`,
+`#tblTipComp` e nos cards/drill. Estado por dono (localStorage, como o resto). `usou_fallback`
+/`sem_unidade` do backend viram **aviso** (`--warn`) com tooltip ("cada tipster tem unidade
+própria" / "3 tipsters sem stake — usando sua média").
+
+**Editor da escada:** modal com timeline de segmentos (`get_escada_unidade`); botão "inserir
+alteração de stake" (data + valor via `moneyStake`); `POST /tipsters/unidades` grava, `DELETE
+/tipsters/unidades/{id}` remove; mini-gráfico degrau (opcional, fase 2).
+
+### Auditoria `/nova-ui` desta spec
+
+- **§1 cor:** tudo via `var(--token)`; azul = único acento; verde/vermelho só no P/L em u
+  (semântica); âmbar só no aviso de fallback. ✅
+- **§2 tipografia:** nomes Manrope; badges/eyebrows mono uppercase; números tabular-nums. ✅
+- **§4 componentes:** inputs, pills, `.conta-*`, `.pend-badge` reusados verbatim; zero classe
+  nova até Surface C (que só adiciona o `fmtU`, espelhando `fmtPL`). ✅
+- **§5 monetário:** Surfaces A/B **não renderizam dinheiro** (N/A). Surface C usa **só**
+  `fmtU` (espelho de `fmtPL`) — nunca `.toFixed`/`.replace` em "u", nunca abreviar. ⚠️ o
+  formato final do "u" **passa pelo Feca** no commit da UI (convenção nova).
+- **Passo 4 (verificação visual):** exige subir o app com o Postgres → é POR ISSO que a UI
+  não foi construída às cegas nesta sessão; fica para a fatia de interface, com render
+  headless conferido antes do commit.
 
 ---
 
