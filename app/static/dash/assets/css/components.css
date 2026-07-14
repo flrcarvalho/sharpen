@@ -626,6 +626,12 @@
 .money.neg { color: var(--neg); }
 .money.pos .money-sign { color: var(--ink-soft); }
 .money.neg .money-sign { color: var(--ink-soft); }
+/* Sufixo "u" das unidades (Perfil de Tipster) — neutro/menor, papel do R$ mas colado
+   ao número (formato +3,25u). Herda o fmtU; cor fica só no número (.money-val). */
+.money-u { color: var(--ink-soft); font-size: .78em; }
+/* Toggle R$ ⇄ u da página Tipsters (reusa .tcard-seg como pill). */
+.tip-unit-row { display: flex; align-items: center; gap: 10px; margin-top: .5rem; }
+.tip-unit-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
 
 /* ── Status badges ───────────────────────────────────────────────────────── */
 .badge {

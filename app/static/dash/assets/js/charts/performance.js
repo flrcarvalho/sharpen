@@ -1312,6 +1312,16 @@ function renderTipsters(){
   const baseRows=filtrarPagina('tipsters');
   const allT=[...new Set(DADOS.map(r=>r.tipster).filter(Boolean))].sort();
   const activeT=selT.size>0?[...selT]:allT;
+  // Switch R$⇄u (Perfil de Tipster): reflete o estado no seg e, se em "u", garante as
+  // escadas em cache (busca uma vez). O u é computado sobre as linhas JÁ FILTRADAS.
+  const _seg=document.getElementById('tipUnitSeg');
+  if(_seg)_seg.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.u===_tipUnit));
+  if(_tipUnit==='u'&&_tipEscadas===null){
+    _tipEscadas={};   // trava anti-refetch concorrente; sobrescrito quando o fetch chega
+    fetch('/tipsters/escadas').then(r=>r.json()).then(d=>{_tipEscadas=d.escadas||{};renderTipsters();}).catch(()=>{_tipEscadas={};});
+  }
+  const emU=_tipUnit==='u';
+  const uMap=emU?_tipsterUnidades(baseRows.filter(r=>activeT.includes(r.tipster)),_tipEscadas||{}):null;
   // Tipster KPI cards — .tcard design (T-1)
   {
     const tipMap={},tipDays={};
@@ -1337,7 +1347,8 @@ function renderTipsters(){
       const posCount=_tipsterEnts.filter(([,d])=>d.l>0).length;
       const negCount=_tipsterEnts.filter(([,d])=>d.l<0).length;
       const totalT=_tipsterEnts.length;
-      const plCls=portPL>=0?'pos':'neg';
+      const portU=emU?activeT.reduce((a,t)=>a+((uMap&&uMap[t])||0),0):0;
+      const plCls=(emU?portU:portPL)>=0?'pos':'neg';
       const roiCls=portROI>=0?'pos':'neg';
       const roiStr=fmtPct(portROI,2);
       const el=document.getElementById('tipsterPortfolioKPIs');
@@ -1345,8 +1356,8 @@ function renderTipsters(){
         el.innerHTML=
           `<div class="kpi">`+
             `<div class="kpi-label"><span class="kpi-pipe"></span> P/L Carteira</div>`+
-            `<div class="kpi-val ${plCls}">${fmtPL(portPL)}</div>`+
-            `<div class="kpi-sub">resultado do conjunto</div>`+
+            `<div class="kpi-val ${plCls}">${emU?fmtU(portU):fmtPL(portPL)}</div>`+
+            `<div class="kpi-sub">${emU?'em unidades · escada por tipster':'resultado do conjunto'}</div>`+
           `</div>`+
           `<div class="kpi">`+
             `<div class="kpi-label"><span class="kpi-pipe"></span> ROI</div>`+
@@ -1375,9 +1386,10 @@ function renderTipsters(){
   const compRows=ents.map(([t,d])=>{
     const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgOdd=d.stk>0?d.wt/d.stk:0,avgStake=d.t>0?d.s/d.t:0;
-    const lc=d.l>=0?'color:var(--pos)':'color:var(--neg)';
+    const plVal=emU?((uMap&&uMap[t])||0):d.l;
+    const lc=plVal>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
-    return`<tr><td style="font-weight:700;color:var(--ink)">${esc(t)}</td><td>${d.n}</td><td class="td-num">${mkWRC(wr)}</td><td>${fmtR(d.s)}</td><td style="${lc}">${fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td>${fmtOdd(avgOdd)}</td><td>${fmtR(avgStake)}</td></tr>`;
+    return`<tr><td style="font-weight:700;color:var(--ink)">${esc(t)}</td><td>${d.n}</td><td class="td-num">${mkWRC(wr)}</td><td>${fmtR(d.s)}</td><td style="${lc}">${emU?fmtU(plVal):fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td>${fmtOdd(avgOdd)}</td><td>${fmtR(avgStake)}</td></tr>`;
   }).join('');
   document.getElementById('tipsterCompTable').innerHTML=`<table class="tbl" id="tblTipComp"><thead><tr>${mkTh('Tipster','','l')+mkTh('Bets','','r')+mkTh('Win Rate','','r')+mkTh('Turnover','','r')+mkTh('P/L','','r')+mkTh('ROI','','r')+_mkOddMediaTh('r')+mkTh('Stake média','','r')}</tr></thead><tbody>${compRows}</tbody></table>`;
   setTimeout(()=>makeSortable('tblTipComp',[1,3,4,5,6,7]),100);

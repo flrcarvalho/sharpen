@@ -15,6 +15,27 @@ function fmtPL(v){const cls=v>=0?'pos':'neg';return`<span class="money ${cls}"><
 function fmtR(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(v,0)}</span></span>`;}
 function fmtPct(v,d=2,signed=true){const abs=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});if(!signed)return abs+'%';return(v>=0?'+':'−')+abs+'%';}
 function fmtOdd(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+// fmtU — resultado em UNIDADES (Perfil de Tipster). Espelha fmtPL trocando R$→"u" como
+// sufixo (+3,25u / −1,50u), 2 casas, minus U+2212, cor só no número (§5; formato cravado
+// pelo Feca). Zero neutro (0,00u). Nota: o fmtPL acima trata zero como '+' (desvio herdado
+// do §5); o fmtU segue a regra — zero sem sinal e sem cor.
+function fmtU(v){const n=Number(v)||0;const cls=n>0?'pos':(n<0?'neg':'');const sign=n>0?'+':(n<0?'−':'');return`<span class="money ${cls}"><span class="money-val">${sign}${fmt(Math.abs(n))}<span class="money-u">u</span></span></span>`;}
+// unidade_vigente (mirror JS do backend): degrau + clamp à esquerda. escada ordenada por
+// data; null se vazia/data ilegível. Ver repository.py unidade_vigente.
+function _uVigente(escada,dataISO){if(!escada||!escada.length||!dataISO)return null;const s=[...escada].sort((a,b)=>a.vigente_desde<b.vigente_desde?-1:1);let ap=s[0].valor;for(const seg of s){if(seg.vigente_desde<=dataISO)ap=seg.valor;else break;}return ap;}
+// P/L em u por tipster sobre linhas JÁ FILTRADAS (respeita os filtros do dashboard).
+// Sem escada: fallback = stake média das linhas do tipster (espelha resultado_em_unidades).
+function _tipsterUnidades(rows,escadas){
+  const by={};
+  rows.forEach(r=>{if(!r.tipster)return;const d=by[r.tipster]||(by[r.tipster]={lin:[],stk:[]});d.lin.push({pl:r.lucro,data:(r.data||'').slice(0,10)});if(r.stake>0)d.stk.push(r.stake);});
+  const out={};
+  for(const t in by){const esc=(escadas&&escadas[t])||[];const stk=by[t].stk;const fb=(!esc.length&&stk.length)?stk.reduce((a,b)=>a+b,0)/stk.length:null;let u=0;by[t].lin.forEach(ln=>{let uu=_uVigente(esc,ln.data);if(uu==null)uu=fb;if(uu&&uu>0)u+=ln.pl/uu;});out[t]=u;}
+  return out;
+}
+// Switch R$ ⇄ u da página Tipsters (preferência por dono).
+let _tipUnit=(localStorage.getItem('dash_tipunit::'+(window.__dono||'_'))==='u')?'u':'reais';
+let _tipEscadas=null;   // cache de GET /tipsters/escadas (buscado sob demanda ao trocar p/ u)
+function tipSetUnit(u){_tipUnit=u;try{localStorage.setItem('dash_tipunit::'+(window.__dono||'_'),u);}catch(e){}renderTipsters();}
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function mkChart(id,cfg){destroyChart(id);if(!document.getElementById(id))return;charts[id]=new Chart(document.getElementById(id),cfg);}
 function isDark(){return document.documentElement.getAttribute('data-theme')==='dark';}
@@ -552,7 +573,7 @@ function buildHTML(){
       <!-- TIPSTERS -->
       <div class="page" id="page-tipsters">
         ${buildFilters('tipsters',sports,casas,tipsters)}
-        ${mkCard('tipster_kpi','Tipsters — Visão Geral','<div id="tipsterPortfolioKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:.75rem;margin-bottom:.75rem"></div><div class="tcard-sort"><span class="tcard-sort__lbl">Ordenar</span><div class="tcard-seg" id="tipsterSeg"><button data-k="pl" class="active" onclick="tipsterSortBy(this.dataset.k)">P/L</button><button data-k="roi" onclick="tipsterSortBy(this.dataset.k)">ROI</button><button data-k="to" onclick="tipsterSortBy(this.dataset.k)">Turnover</button><button data-k="wr" onclick="tipsterSortBy(this.dataset.k)">Win Rate</button><button data-k="vol" onclick="tipsterSortBy(this.dataset.k)">Volume</button></div><button class="tcard-dir" id="tipsterDir" onclick="tipsterSortDir()">↓</button></div><div class="tcard-grid" id="tipsterKpiCards"></div>')}
+        ${mkCard('tipster_kpi','Tipsters — Visão Geral','<div class="tip-unit-row"><span class="tip-unit-lbl">Exibir P/L em</span><div class="tcard-seg" id="tipUnitSeg"><button data-u="reais" onclick="tipSetUnit(&quot;reais&quot;)">R$</button><button data-u="u" onclick="tipSetUnit(&quot;u&quot;)" title="Resultado em unidades (escada de stake por tipster)">u</button></div></div><div id="tipsterPortfolioKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:.75rem;margin-bottom:.75rem"></div><div class="tcard-sort"><span class="tcard-sort__lbl">Ordenar</span><div class="tcard-seg" id="tipsterSeg"><button data-k="pl" class="active" onclick="tipsterSortBy(this.dataset.k)">P/L</button><button data-k="roi" onclick="tipsterSortBy(this.dataset.k)">ROI</button><button data-k="to" onclick="tipsterSortBy(this.dataset.k)">Turnover</button><button data-k="wr" onclick="tipsterSortBy(this.dataset.k)">Win Rate</button><button data-k="vol" onclick="tipsterSortBy(this.dataset.k)">Volume</button></div><button class="tcard-dir" id="tipsterDir" onclick="tipsterSortDir()">↓</button></div><div class="tcard-grid" id="tipsterKpiCards"></div>')}
         ${mkCard('tipster_comp','Comparativo Geral','<div class="tbl-wrap" id="tipsterCompTable"></div>')}
       </div>
 

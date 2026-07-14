@@ -1374,6 +1374,23 @@ async def resultado_em_unidades(dono: str, tipster: str) -> dict:
     return res
 
 
+async def get_escadas_todas(dono: str) -> dict:
+    """Todas as escadas do dono, agrupadas por tipster. O front computa o resultado em
+    unidades sobre as linhas JÁ FILTRADAS do dashboard (respeita data/esporte/casa) — por
+    isso entregamos as escadas cruas, não o u pronto. Payload pequeno (1 linha por degrau);
+    a maioria dos tipsters não tem escada e cai no fallback de média (calculado no cliente)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT tipster, vigente_desde, valor FROM tipster_unidade WHERE dono = $1 "
+            "ORDER BY tipster, vigente_desde", dono)
+    out: dict = {}
+    for r in rows:
+        out.setdefault(r["tipster"], []).append(
+            {"vigente_desde": r["vigente_desde"], "valor": r["valor"]})
+    return out
+
+
 # ── Parceiros ─────────────────────────────────────────────────────────────────
 
 async def criar_parceiro(casa: str, nome: str, dono: str) -> dict:

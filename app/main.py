@@ -47,6 +47,7 @@ from repository import (
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
+    get_escadas_todas,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
@@ -2108,6 +2109,11 @@ async def remover_unidade_route(unidade_id: int, dono: str = Depends(dono_efetiv
 @app.get("/tipsters/resultado-unidades")
 async def resultado_unidades_route(tipster: str, dono: str = Depends(dono_efetivo)):
     return await resultado_em_unidades(dono, tipster)
+
+
+@app.get("/tipsters/escadas")
+async def escadas_todas_route(dono: str = Depends(dono_efetivo)):
+    return {"escadas": await get_escadas_todas(dono)}
 
 
 # ── Betting Dashboard (mesma origem) ──────────────────────────────────────────
