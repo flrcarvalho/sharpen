@@ -113,18 +113,27 @@ _CASA_DISPLAY: dict[str, str] = {
 
 
 def _casa_display(key: str) -> str:
-    return _CASA_DISPLAY.get(key.upper(), key.title())
+    # Casa MAPEADA → nome oficial. Casa fora do mapa (modo cego / worldwide): a
+    # "chave" JÁ É o próprio display verbatim (ver _display_to_key), então devolve
+    # como está — NUNCA .title(). Title-casear destruía nomes de casa cega:
+    # "Rei do Pitaco" virava "Rei Do Pitaco"; combinado com o replace de espaço do
+    # _display_to_key, "Esportiva Bet" virava "Esportivabet" e criava conta paralela.
+    return _CASA_DISPLAY.get(key.upper(), key)
 
 
 def _display_to_key(name: str) -> str:
-    """Converte display name ou chave para a chave canônica (ex: 'Bolsa de Aposta' → 'BOLSADEAPOSTA')."""
+    """Converte display name ou chave para a chave canônica (ex: 'Bolsa de Aposta' → 'BOLSADEAPOSTA').
+
+    Para casa FORA do mapa (modo cego), a chave é o próprio nome preservado verbatim
+    (apenas trim) — assim o round-trip _casa_display(_display_to_key(x)) == x e o nome
+    de casas de 2+ palavras não é mais mutilado (espaço/caixa preservados)."""
     upper = name.upper()
     if upper in _CASA_DISPLAY:
         return upper
     for key, display in _CASA_DISPLAY.items():
         if display.upper() == upper:
             return key
-    return upper.replace(" ", "")
+    return name.strip()
 
 
 # ── Cache warmer ──────────────────────────────────────────────────────────────

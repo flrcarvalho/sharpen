@@ -30,5 +30,9 @@ if "database" not in sys.modules:
     async def get_pool():  # pragma: no cover - nunca chamado nos testes de fórmula
         raise RuntimeError("DB indisponível nos testes de fórmula")
 
+    async def init_db():  # pragma: no cover - importado por main, nunca chamado nos testes
+        raise RuntimeError("DB indisponível nos testes de fórmula")
+
     _fake_db.get_pool = get_pool
+    _fake_db.init_db = init_db
     sys.modules["database"] = _fake_db
