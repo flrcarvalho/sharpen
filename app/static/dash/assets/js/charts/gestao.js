@@ -559,16 +559,17 @@ window.renderTipsterMetodo=renderTipsterMetodo;
 function tmPick(nome){_tmSel=nome;tmRenderEditor(nome);}
 window.tmPick=tmPick;
 
-async function tmRenderEditor(nome){
+// Estilos compartilhados info+escada.
+const _tmIV='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
+const _tmLB='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
+const _tmBT='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
+const _tmBX='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
+
+function tmRenderEditor(nome){
   const box=document.getElementById('tmEditor');
   if(!box)return;
   const t=(_tmCadastro||{})[nome]||null;
-  let segs=[];
-  try{const r=await fetch('/tipsters/unidades?tipster='+encodeURIComponent(nome));const d=await r.json();segs=d.escada||[];}catch(e){}
-  const iv='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
-  const lb='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
-  const bt='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
-  const bx='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
+  const iv=_tmIV,lb=_tmLB,bt=_tmBT;
   const sv=v=>(v==null||v==='')?'':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
   const info=t
     ?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`
@@ -581,14 +582,26 @@ async function tmRenderEditor(nome){
       +`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button style="${bt}" onclick="tmSaveInfo(${t.id})">Salvar info</button></div>`
     +`</div>`
     :`<div style="color:var(--ink-mute);font-size:12px">Tipster não encontrado no cadastro.</div>`;
+  // A escada mora num container próprio: adicionar/remover degrau re-renderiza SÓ ela,
+  // sem tocar nos inputs de info acima (senão o que foi digitado e não salvo sumia — bug
+  // relatado pelo Feca). Ver tmRenderEscada / tmAddSeg / tmDelSeg.
+  box.innerHTML=info+`<div id="tmEscada" style="margin-top:20px"></div>`;
+  tmRenderEscada(nome);
+}
+
+async function tmRenderEscada(nome){
+  const el=document.getElementById('tmEscada');
+  if(!el)return;
+  let segs=[];
+  try{const r=await fetch('/tipsters/unidades?tipster='+encodeURIComponent(nome));const d=await r.json();segs=d.escada||[];}catch(e){}
+  const iv=_tmIV,lb=_tmLB,bt=_tmBT,bx=_tmBX;
   const segRows=segs.length
     ?segs.map(s=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line-2)"><span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-soft)">desde ${esc(_tmIsoBR(s.vigente_desde))}</span><span style="margin-left:auto">${_tmMoney(s.valor)}</span><button style="${bx}" title="Remover" onclick="tmDelSeg(${s.id})">✕</button></div>`).join('')
     :`<div style="color:var(--ink-mute);font-size:12px;padding:6px 0">Sem escada — o resultado em unidades usa a stake média até você definir o valor da unidade.</div>`;
-  box.innerHTML=info
-    +`<div style="margin-top:20px"><label style="${lb}">Escada de unidade — quanto vale 1u em R$ no tempo</label>${segRows}`
-      +`<div style="display:flex;gap:8px;margin-top:12px;align-items:center"><input id="tmData" style="${iv};max-width:130px;font-family:var(--font-mono)" placeholder="DD/MM/AAAA"><input id="tmValor" style="${iv};max-width:160px" placeholder="R$ por unidade"><button style="${bt}" onclick="tmAddSeg()">Adicionar</button></div>`
-    +`</div>`;
+  el.innerHTML=`<label style="${lb}">Escada de unidade — quanto vale 1u em R$ no tempo</label>${segRows}`
+    +`<div style="display:flex;gap:8px;margin-top:12px;align-items:center"><input id="tmData" style="${iv};max-width:130px;font-family:var(--font-mono)" placeholder="DD/MM/AAAA"><input id="tmValor" style="${iv};max-width:160px" placeholder="R$ por unidade"><button style="${bt}" onclick="tmAddSeg()">Adicionar</button></div>`;
 }
+window.tmRenderEscada=tmRenderEscada;
 
 async function tmSaveInfo(id){
   const body={casas:_tmVal('tmCasas'),mercados:_tmVal('tmMercados'),obs:_tmVal('tmObs'),
@@ -599,11 +612,11 @@ window.tmSaveInfo=tmSaveInfo;
 async function tmAddSeg(){
   const nome=_tmSel,data=_tmVal('tmData'),valor=_tmVal('tmValor');
   if(!data||!valor){alert('Informe a data e o valor da unidade.');return;}
-  try{const r=await fetch('/tipsters/unidades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipster:nome,vigente_desde:data,valor:valor})});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.detail||'Não foi possível salvar.');return;}if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEditor(nome);}catch(e){alert('Erro ao adicionar o degrau.');}
+  try{const r=await fetch('/tipsters/unidades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipster:nome,vigente_desde:data,valor:valor})});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.detail||'Não foi possível salvar.');return;}if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEscada(nome);}catch(e){alert('Erro ao adicionar o degrau.');}
 }
 window.tmAddSeg=tmAddSeg;
 async function tmDelSeg(id){
   const nome=_tmSel;
-  try{const r=await fetch('/tipsters/unidades/'+id,{method:'DELETE'});if(!r.ok)throw 0;if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEditor(nome);}catch(e){alert('Erro ao remover o degrau.');}
+  try{const r=await fetch('/tipsters/unidades/'+id,{method:'DELETE'});if(!r.ok)throw 0;if(typeof _tipEscadas!=='undefined')_tipEscadas=null;tmRenderEscada(nome);}catch(e){alert('Erro ao remover o degrau.');}
 }
 window.tmDelSeg=tmDelSeg;
