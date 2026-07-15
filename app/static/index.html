@@ -4662,10 +4662,15 @@ async function salvarTipsterVal(id, valor) {
 }
 
 // ── Sugerir tipster na extração (matcher client-side × perfis ativos) ───────────
-// Compara cada bilhete SEM tipster com os perfis (casas/esportes/mercados de Tipster/
-// Método) e preenche o dono quando o match é CLARO. Peso: dimensão EXCLUSIVA (só um
-// tipster ativo a declara) = 10; compartilhada = 1. Só sugere com folga clara (≥5) →
-// na prática exige um sinal exclusivo dominante; ambíguo/fraco fica vazio (seguro).
+// Compara cada bilhete SEM tipster com os perfis de Tipster / Método em 4 sinais:
+// casa · esporte · mercado · ASSINATURA DE STAKE (parseada da "Dica de stake": final
+// da stake e/ou valores exatos — ex.: Peixe=final 6, Robotenis=250, TC Insider=800).
+// Score = Σ pesos: esporte/mercado exclusivo=10 (compartilhado=1), casa exclusiva=5;
+// STAKE distintiva (≤2 donos) = 25/√(tamanho da assinatura) → um stake-fingerprint de 1
+// valor (Robotenis=250, TC=800) domina 2 categorias compartilhadas, mas uma lista larga
+// pesa menos. FILTRO DURO: se o tipster declara esportes e nenhum bate o do bilhete, é
+// descartado (um tipster de E-Sports nunca leva um bilhete de Futebol). Sugere só com
+// folga clara (≥8); empate/fraco fica vazio (seguro, não chuta).
 let tipsterProfiles = [];
 async function carregarPerfisTipster() {
   try { const r = await fetch('/tipsters/cadastro?arquivados=0'); const d = await r.json(); tipsterProfiles = d.tipsters || []; }
@@ -4674,28 +4679,59 @@ async function carregarPerfisTipster() {
 const _sugNorm = s => (s || '').toString().trim().toLowerCase();
 const _sugSlug = s => _sugNorm(s).replace(/\s+/g, '');
 const _sugSplit = s => (s || '').split(',').map(x => x.trim()).filter(Boolean);
+// Parseia a "Dica de stake" em {finais:Set, valores:Set}. "final 6" → finais{6};
+// "151 201 301" → valores{151,201,301} + finais{1}; "250"/"800" → valores exatos (final 0
+// não entra em `finais`, é pouco distintivo). Números < 20 e "final 0" são ignorados.
+function _parseStakeSig(dica) {
+  const finais = new Set(), valores = new Set();
+  const s = (dica || '').toLowerCase();
+  // "final 6" → 6. NÃO casa "final $1" (dólar da Polymarket, não é final de stake em R$).
+  let m; const reF = /final\s+(\d)\b/g;
+  while ((m = reF.exec(s))) { const d = parseInt(m[1]); if (d) finais.add(d); }
+  const reN = /\d{2,}(?:[.,]\d+)?/g;
+  while ((m = reN.exec(s))) { const v = Math.round(parseFloat(m[0].replace(',', '.'))); if (v >= 20) { valores.add(v); if (v % 10 !== 0) finais.add(v % 10); } }
+  return { finais, valores };
+}
+// Peso do stake para um perfil: final distintivo (1–9) pesa por especificidade
+// (25/√tamanho — assinatura de 1 valor pesa mais que lista larga); valor REDONDO (final 0,
+// ex.: 250/800) só conta se for a assinatura ÚNICA do tipster (Robotenis=250, TC=800),
+// senão é comum demais e vira 0 (evita falso-positivo em 200/300 redondo).
+function _stakeWeight(S, sig) {
+  const I = Math.round(Number(S) || 0);
+  if (!I || !sig) return 0;
+  const d = I % 10, sz = Math.max(1, sig.finais.size + sig.valores.size);
+  if (d !== 0 && sig.finais.has(d)) return 25 / Math.sqrt(sz);
+  if (sig.valores.has(I)) return sz === 1 ? 25 : 0;
+  return 0;
+}
 function _buildSugIndex() {
-  const ownCasa = {}, ownEsp = {}, ownMkt = {};
-  const push = (m, k, nome) => { if (!k) return; (m[k] || (m[k] = [])).push(nome); };
+  const ownCasa = {}, ownEsp = {}, ownMkt = {}, sig = {}, esp = {};
+  const add = (mp, k, nome) => { if (!k) return; (mp[k] || (mp[k] = new Set())).add(nome); };
   tipsterProfiles.forEach(p => {
-    _sugSplit(p.casas).forEach(c => push(ownCasa, _sugSlug(c), p.nome));
-    _sugSplit(p.esportes).forEach(e => push(ownEsp, _sugNorm(e), p.nome));
-    _sugSplit(p.mercados).forEach(m => push(ownMkt, _sugNorm(m), p.nome));
+    _sugSplit(p.casas).forEach(c => add(ownCasa, _sugSlug(c), p.nome));
+    _sugSplit(p.esportes).forEach(e => add(ownEsp, _sugNorm(e), p.nome));
+    _sugSplit(p.mercados).forEach(mk => add(ownMkt, _sugNorm(mk), p.nome));
+    sig[p.nome] = _parseStakeSig(p.dica_stake);
+    esp[p.nome] = new Set(_sugSplit(p.esportes).map(_sugNorm));   // esportes declarados (filtro duro)
   });
-  return { ownCasa, ownEsp, ownMkt };
+  return { ownCasa, ownEsp, ownMkt, sig, esp };
 }
 function _sugParaBilhete(b, idx) {
-  const dims = [idx.ownCasa[_sugSlug(b.casa)], idx.ownEsp[_sugNorm(b.esporte)], idx.ownMkt[_sugNorm(b.aposta)]];
-  const score = {};
-  dims.forEach(owners => {
-    if (!owners || !owners.length) return;
-    const w = owners.length === 1 ? 10 : 1;   // exclusivo pesa muito mais
-    owners.forEach(nome => { score[nome] = (score[nome] || 0) + w; });
-  });
-  const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
+  const casaK = _sugSlug(b.casa), espK = _sugNorm(b.esporte), mktK = _sugNorm(b.aposta);
+  const wOf = (set, excl) => (set && set.size === 1) ? excl : 1;   // exclusivo=excl, senão 1
+  const ranked = tipsterProfiles.map(p => {
+    // filtro duro: declara esportes mas nenhum bate o do bilhete → descarta
+    if (espK && idx.esp[p.nome] && idx.esp[p.nome].size && !idx.esp[p.nome].has(espK)) return { nome: p.nome, score: -1 };
+    let w = 0;
+    const oe = idx.ownEsp[espK]; if (oe && oe.has(p.nome)) w += wOf(oe, 10);
+    const om = idx.ownMkt[mktK]; if (om && om.has(p.nome)) w += wOf(om, 10);
+    const oc = idx.ownCasa[casaK]; if (oc && oc.has(p.nome)) w += wOf(oc, 5);   // casa é sinal mais fraco
+    w += _stakeWeight(b.stake, idx.sig[p.nome]);
+    return { nome: p.nome, score: w };
+  }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
   if (!ranked.length) return null;
-  const top = ranked[0][1], second = ranked[1] ? ranked[1][1] : 0;
-  return (top - second >= 5) ? ranked[0][0] : null;   // folga clara → sugere; senão vazio
+  const top = ranked[0].score, second = ranked[1] ? ranked[1].score : 0;
+  return (top - second >= 7) ? ranked[0].nome : null;   // folga clara → sugere; senão vazio
 }
 async function sugerirTipstersLote() {
   await carregarPerfisTipster();
