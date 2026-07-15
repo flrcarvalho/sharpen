@@ -568,7 +568,7 @@ function _tmSplit(s){return [...new Set(String(s||'').split(',').map(x=>x.trim()
 // Tag de exclusividade: quantos tipsters DISTINTOS usam essa chave (mercado/esporte).
 function _tmOwnerTag(map,key){
   const o=(map||{})[key]||0;
-  if(o===1)return`<span style="font-family:var(--font-mono);font-size:9px;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:1px 6px;margin-left:2px">só você</span>`;
+  if(o===1)return`<span style="font-family:var(--font-mono);font-size:9px;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:1px 6px;margin-left:2px">exclusivo</span>`;
   if(o>1)return`<span style="font-family:var(--font-mono);font-size:9px;color:var(--warn);background:rgba(var(--warn-rgb),.12);border-radius:999px;padding:1px 6px;margin-left:2px">${o} tipsters</span>`;
   return'';
 }
@@ -771,7 +771,7 @@ function _tmSugestoes(nome){
   const casasChips=_tmTop(ag.casas,8).map(x=>chip('casa',x.k,x.c)).join('')||dash;
   const espChips=_tmTop(ag.esp,8).map(x=>chip('esp',x.k,x.c,_tmEspTag(x.k))).join('')||dash;
   const mktsChips=_tmTop(ag.mkts,10).map(x=>chip('mkt',x.k,x.c,_tmMktTag(x.k))).join('')||dash;
-  const legenda=`<div style="font-size:11px;color:var(--ink-mute);margin-top:4px;display:flex;gap:16px;flex-wrap:wrap"><span><span style="color:var(--pos);font-weight:600">só você</span> = exclusivo, fácil identificar</span><span><span style="color:var(--warn);font-weight:600">N tipsters</span> = compartilhado, mais cuidado</span></div>`;
+  const legenda=`<div style="font-size:11px;color:var(--ink-mute);margin-top:4px;display:flex;gap:16px;flex-wrap:wrap"><span><span style="color:var(--pos);font-weight:600">exclusivo</span> = só um tipster nessa categoria, fácil identificar</span><span><span style="color:var(--warn);font-weight:600">N tipsters</span> = compartilhado, mais cuidado</span></div>`;
   return stakeCard
     +`<div style="margin-bottom:12px"><div style="${lb}">Casas mais usadas</div><div>${casasChips}</div></div>`
     +`<div style="margin-bottom:12px"><div style="${lb}">Esportes mais apostados</div><div>${espChips}</div></div>`
