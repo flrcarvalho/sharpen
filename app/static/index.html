@@ -1755,6 +1755,7 @@ td.c-res.res-HL { color: var(--warn); }
                   <button type="button" class="export-opt" data-fmt="csv">CSV <span>· abrir no Excel</span></button>
                 </div>
               </div>
+              <button class="btn btn-ghost btn-sm" id="btn-sugerir-tip" type="button" title="Preenche o tipster dos bilhetes vazios comparando casa · esporte · mercado com os perfis ativos (Tipster / Método). Prioriza o exclusivo; ambíguo fica vazio.">✨ Sugerir tipsters</button>
               <button class="btn btn-ghost btn-sm" id="btn-tipster-sel" style="display:none">👤 Informar tipster</button>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-deletar-sel" style="display:none">🗑 Excluir selecionadas</button>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-desfazer" style="display:none">↩ Desfazer análise</button>
@@ -4659,6 +4660,54 @@ async function salvarTipsterVal(id, valor) {
     setExpStatus('Erro ao salvar tipster', 'err');
   }
 }
+
+// ── Sugerir tipster na extração (matcher client-side × perfis ativos) ───────────
+// Compara cada bilhete SEM tipster com os perfis (casas/esportes/mercados de Tipster/
+// Método) e preenche o dono quando o match é CLARO. Peso: dimensão EXCLUSIVA (só um
+// tipster ativo a declara) = 10; compartilhada = 1. Só sugere com folga clara (≥5) →
+// na prática exige um sinal exclusivo dominante; ambíguo/fraco fica vazio (seguro).
+let tipsterProfiles = [];
+async function carregarPerfisTipster() {
+  try { const r = await fetch('/tipsters/cadastro?arquivados=0'); const d = await r.json(); tipsterProfiles = d.tipsters || []; }
+  catch { tipsterProfiles = []; }
+}
+const _sugNorm = s => (s || '').toString().trim().toLowerCase();
+const _sugSlug = s => _sugNorm(s).replace(/\s+/g, '');
+const _sugSplit = s => (s || '').split(',').map(x => x.trim()).filter(Boolean);
+function _buildSugIndex() {
+  const ownCasa = {}, ownEsp = {}, ownMkt = {};
+  const push = (m, k, nome) => { if (!k) return; (m[k] || (m[k] = [])).push(nome); };
+  tipsterProfiles.forEach(p => {
+    _sugSplit(p.casas).forEach(c => push(ownCasa, _sugSlug(c), p.nome));
+    _sugSplit(p.esportes).forEach(e => push(ownEsp, _sugNorm(e), p.nome));
+    _sugSplit(p.mercados).forEach(m => push(ownMkt, _sugNorm(m), p.nome));
+  });
+  return { ownCasa, ownEsp, ownMkt };
+}
+function _sugParaBilhete(b, idx) {
+  const dims = [idx.ownCasa[_sugSlug(b.casa)], idx.ownEsp[_sugNorm(b.esporte)], idx.ownMkt[_sugNorm(b.aposta)]];
+  const score = {};
+  dims.forEach(owners => {
+    if (!owners || !owners.length) return;
+    const w = owners.length === 1 ? 10 : 1;   // exclusivo pesa muito mais
+    owners.forEach(nome => { score[nome] = (score[nome] || 0) + w; });
+  });
+  const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
+  if (!ranked.length) return null;
+  const top = ranked[0][1], second = ranked[1] ? ranked[1][1] : 0;
+  return (top - second >= 5) ? ranked[0][0] : null;   // folga clara → sugere; senão vazio
+}
+async function sugerirTipstersLote() {
+  await carregarPerfisTipster();
+  if (!tipsterProfiles.length) { setExpStatus('Cadastre os perfis em Tipster / Método primeiro', 'err'); return; }
+  const idx = _buildSugIndex();
+  const vazios = bilhetes.filter(b => !(b.tipster || '').trim());
+  if (!vazios.length) { setExpStatus('Nenhum bilhete sem tipster', ''); return; }
+  let n = 0;
+  for (const b of vazios) { const nome = _sugParaBilhete(b, idx); if (nome) { await salvarTipsterVal(b.id, nome); n++; } }
+  setExpStatus(n ? `${n} de ${vazios.length} sugerido(s) — revise antes de exportar` : 'Nenhuma sugestão confiante (perfis ambíguos ou incompletos)', n ? 'ok' : '');
+}
+document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTipstersLote);
 
 // ── Coluna de tipster estilo planilha ─────────────────────────────────────────
 // Clique seleciona a célula · Shift+clique/Shift+setas estende · setas movem ·
