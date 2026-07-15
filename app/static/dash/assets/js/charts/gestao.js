@@ -590,11 +590,11 @@ async function renderTipsterMetodo(){
   const cont=document.getElementById('tipsterMetodoContent');
   if(!cont)return;
   let lista=[];
-  try{const r=await fetch('/tipsters/cadastro?arquivados=0');const d=await r.json();lista=d.tipsters||[];}catch(e){lista=[];}
+  try{const r=await fetch('/tipsters/cadastro?arquivados=1');const d=await r.json();lista=d.tipsters||[];}catch(e){lista=[];}
   _tmCadastro={};lista.forEach(t=>{_tmCadastro[t.nome]=t;});
   _tmAgg=_tmBuildAgg();
-  const nomes=lista.map(t=>t.nome).sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  const nInc=lista.filter(t=>!t.completo).length;
+  const nomes=_tmSortNomes(lista.map(t=>t.nome));
+  const nInc=lista.filter(t=>!t.completo&&!t.arquivado).length;   // só ativos incompletos
 
   const intro=`<p style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.5;margin:0">`
     +`Cada tipster tem um box abaixo. Clique para abrir e preencher <strong style="color:var(--ink)">casas, mercados e a escada de unidade</strong> — ou deixe o <strong style="color:var(--accent)">Sharpen sugerir</strong> a partir das apostas dele na base. Isso prepara o terreno para o Sharpen atribuir o tipster sozinho na extração <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mute)">(em construção)</span>.</p>`;
@@ -617,23 +617,35 @@ async function renderTipsterMetodo(){
 }
 window.renderTipsterMetodo=renderTipsterMetodo;
 
-// Box do accordion. Colapsado: nome + sinal de completude + volume/P/L. Expandido
-// (_tmOpen===nome): injeta o editor 2-colunas em #tmEditor (via tmRenderEditor).
+// Ordena: ATIVOS primeiro (alfabético), INATIVOS no fim (alfabético). Ver _tmBox/tmSetInativo.
+function _tmSortNomes(nomes){
+  return nomes.slice().sort((a,b)=>{
+    const aa=(_tmCadastro[a]||{}).arquivado?1:0,ab=(_tmCadastro[b]||{}).arquivado?1:0;
+    return aa!==ab?aa-ab:a.localeCompare(b,'pt-BR');
+  });
+}
+// Box do accordion. Colapsado: nome + tick "inativo" + sinal de completude + volume/P/L.
+// Expandido (_tmOpen===nome): injeta o editor 2-colunas em #tmEditor (via tmRenderEditor).
 function _tmBox(nome){
   const t=_tmCadastro[nome]||{};
   const ag=(_tmAgg||{})[nome];
   const aberto=_tmOpen===nome;
-  const badge=!t.completo
-    ?`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:rgba(var(--accent-rgb),.12);border-radius:999px;padding:2px 8px">falta info</span>`
-    :`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:2px 8px">completo</span>`;
+  const arq=!!t.arquivado;
+  const badge=arq
+    ?`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);background:var(--elevated);border:1px solid var(--line);border-radius:999px;padding:2px 8px">inativo</span>`
+    :(!t.completo
+      ?`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:rgba(var(--accent-rgb),.12);border-radius:999px;padding:2px 8px">falta info</span>`
+      :`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:2px 8px">completo</span>`);
   const vol=ag?`<span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-mute)">${ag.n.toLocaleString('pt-BR')} apostas</span>`:'';
   const pl=ag?fmtPL(ag.pl):'';
   const caret=`<span style="color:var(--ink-mute);font-size:12px;display:inline-block;transform:rotate(${aberto?'90':'0'}deg)">▸</span>`;
+  // tick "inativo" — para de expandir o box (stopPropagation) e arquiva/reativa o tipster.
+  const tick=`<label onclick="event.stopPropagation()" title="Marcar como inativo (não sigo mais)" style="display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-mute);cursor:pointer"><input type="checkbox" ${arq?'checked':''} onchange="tmSetInativo(${t.id},this.checked,'${_tmJs(nome)}')" style="accent-color:var(--accent);cursor:pointer">inativo</label>`;
   const header=`<div onclick="tmToggle('${_tmJs(nome)}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;user-select:none">`
     +caret+`<span style="font-weight:700;color:var(--ink);font-size:14px">${esc(nome)}</span>`+badge
-    +`<span style="margin-left:auto;display:flex;align-items:center;gap:14px">${vol}${pl}</span></div>`;
+    +`<span style="margin-left:auto;display:flex;align-items:center;gap:14px">${tick}${vol}${pl}</span></div>`;
   const body=aberto?`<div id="tmEditor" style="padding:0 14px 16px;border-top:1px solid var(--line-2)"></div>`:'';
-  return`<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden">${header}${body}</div>`;
+  return`<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;opacity:${arq?'.5':'1'}">${header}${body}</div>`;
 }
 
 // Busca: re-renderiza SÓ a lista (#tmLista); o input de busca fica fora → não perde foco.
@@ -642,7 +654,7 @@ function tmBusca(v){
   const lista=document.getElementById('tmLista');
   if(!lista)return;
   const filtro=(v||'').trim().toLowerCase();
-  const nomes=Object.keys(_tmCadastro||{}).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const nomes=_tmSortNomes(Object.keys(_tmCadastro||{}));
   const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
   lista.innerHTML=vis.length?vis.map(_tmBox).join(''):`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhum tipster encontrado.</div>`;
   if(_tmOpen&&vis.includes(_tmOpen))tmRenderEditor(_tmOpen);
@@ -651,6 +663,20 @@ window.tmBusca=tmBusca;
 
 function tmToggle(nome){_tmOpen=(_tmOpen===nome)?null:nome;tmBusca(_tmQ);}
 window.tmToggle=tmToggle;
+
+// Tick "inativo": arquiva (não sigo mais) ou reativa o tipster e reordena a lista (inativos
+// no fim). Atualiza o flag local e re-renderiza — sem refetch (mais rápido, mantém o agg).
+async function tmSetInativo(id,inativo,nome){
+  const url='/tipsters/'+id+'/'+(inativo?'arquivar':'reativar');
+  try{
+    const r=await fetch(url,{method:'POST'});
+    if(!r.ok)throw 0;
+    if(_tmCadastro[nome])_tmCadastro[nome].arquivado=inativo;
+    if(inativo&&_tmOpen===nome)_tmOpen=null;   // fecha o editor se arquivou o aberto
+    tmBusca(_tmQ);
+  }catch(e){alert('Não foi possível atualizar o status do tipster.');}
+}
+window.tmSetInativo=tmSetInativo;
 
 function tmRenderEditor(nome){
   const box=document.getElementById('tmEditor');
