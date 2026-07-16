@@ -4708,8 +4708,14 @@ function _numBR(v) {
   return isNaN(n) ? 0 : n;
 }
 function _stakeWeight(S, sig) {
-  const I = Math.round(_numBR(S));
-  if (!I || !sig) return 0;
+  const n = _numBR(S);
+  if (!n || !sig) return 0;
+  // Stake QUEBRADA (centavos != 00) não tem "final" de inteiro válido: arredondar
+  // fabricaria um dígito espúrio (50,67→51→final 1) que casaria a assinatura de outro
+  // tipster por acaso (79% das quebradas casam algum final na base do Feca). Sem sinal
+  // de stake aqui → 0. É a assinatura do Peixe ("quebrado/centavos"), que o Fix 2 lerá.
+  if (Math.round(n * 100) % 100 !== 0) return 0;
+  const I = Math.round(n);
   const d = I % 10;
   // FINAL distintivo: especificidade = quantos FINAIS distintos o tipster usa (usar só
   // final-1 é específico), NÃO quantos valores exemplo ele listou. Assim "51 101 151…"
