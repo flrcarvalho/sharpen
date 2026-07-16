@@ -474,6 +474,10 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 - Remy Dugardin (ITF)
 - James Van Herzeele (ITF)
 - Hiiro Sakamoto (ITF)
+- Jules Leroux (francês, ITF/Challenger — não confundir com dardista)
+- Millen Hurrion (britânico, ITF — não confundir com dardista)
+- Max Schoenhaus (alemão, ITF — não confundir com dardista)
+- Max Houkes (holandês, ATP/ITF — não confundir com dardista)
 
 **WTA:**
 - Aryna Sabalenka
