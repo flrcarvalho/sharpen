@@ -4691,7 +4691,10 @@ function _parseStakeSig(dica) {
   // \b nas duas pontas: NÃO pega número dentro de palavra ("365" de "bet365", "1" de "faz1bet").
   const reN = /\b\d{2,}(?:[.,]\d+)?\b/g;
   while ((m = reN.exec(s))) { const v = Math.round(parseFloat(m[0].replace(',', '.'))); if (v >= 20) { valores.add(v); if (v % 10 !== 0) finais.add(v % 10); } }
-  return { finais, valores };
+  // Assinatura de stake QUEBRADA (centavos): "valor quebrado inclusive centavos" (Peixe).
+  // A casa é amarrada em _buildSugIndex (Peixe declara "na betano" → só quebrada na Betano).
+  const quebrado = /quebrad|centavo|cents/.test(s);
+  return { finais, valores, quebrado };
 }
 // Peso do stake para um perfil: final distintivo (1–9) pesa por especificidade
 // (25/√tamanho — assinatura de 1 valor pesa mais que lista larga); valor REDONDO (final 0,
@@ -4707,24 +4710,34 @@ function _numBR(v) {
   const n = parseFloat(t);
   return isNaN(n) ? 0 : n;
 }
-function _stakeWeight(S, sig) {
+// Sinal de stake do bilhete para um perfil. Retorna {w, veto}. O veto é a regra do Feca
+// ("se não tem final 2 não é BFM"): o final declarado é CONDIÇÃO NECESSÁRIA, não bônus —
+// stake incompatível ELIMINA o candidato em vez de só somar 0.
+//   • Stake QUEBRADA (centavos): casa quem declara "quebrado/centavos" (na casa citada, se
+//     houver — Peixe na Betano). VETA quem só tem final de INTEIRO (não é dono de quebrada).
+//     Quem declara quebrado mas noutra casa, ou não tem final: neutro (0), não veta.
+//   • Stake INTEIRA: se o tipster tem final declarado e o final do bilhete NÃO bate (e não é
+//     um valor exato listado) → VETA. Bate → peso por especificidade (25/√nº de finais).
+//   • Final 0 não é distintivo → tipster de final 0 não veta nem é vetado por final (só valor).
+// b.stake vem STRING BR ("250,00"); _numBR parseia (Number dá NaN — senão nunca casa).
+function _stakeSignal(S, sig, casaK) {
   const n = _numBR(S);
-  if (!n || !sig) return 0;
-  // Stake QUEBRADA (centavos != 00) não tem "final" de inteiro válido: arredondar
-  // fabricaria um dígito espúrio (50,67→51→final 1) que casaria a assinatura de outro
-  // tipster por acaso (79% das quebradas casam algum final na base do Feca). Sem sinal
-  // de stake aqui → 0. É a assinatura do Peixe ("quebrado/centavos"), que o Fix 2 lerá.
-  if (Math.round(n * 100) % 100 !== 0) return 0;
-  const I = Math.round(n);
-  const d = I % 10;
-  // FINAL distintivo: especificidade = quantos FINAIS distintos o tipster usa (usar só
-  // final-1 é específico), NÃO quantos valores exemplo ele listou. Assim "51 101 151…"
-  // pesa igual a "final 1" (a lista não dilui o sinal). 1 final → 25.
-  if (d !== 0 && sig.finais.has(d)) return 25 / Math.sqrt(sig.finais.size);
-  // VALOR redondo (final 0, ex.: 250/800): só conta se for a assinatura ÚNICA (1 valor,
-  // sem finais) — senão 200/300 redondo vira ímã.
-  if (sig.valores.has(I)) return (sig.finais.size === 0 && sig.valores.size === 1) ? 25 : 0;
-  return 0;
+  if (!n || !sig) return { w: 0, veto: false };
+  const quebrada = Math.round(n * 100) % 100 !== 0;
+  const hasFinal = sig.finais.size > 0;
+  if (quebrada) {
+    if (sig.quebrado) return (!sig.quebradoCasa || _sugSlug(sig.quebradoCasa) === casaK) ? { w: 25, veto: false } : { w: 0, veto: false };
+    if (hasFinal) return { w: 0, veto: true };   // final de inteiro não é dono de stake quebrada
+    return { w: 0, veto: false };
+  }
+  const I = Math.round(n), d = I % 10;
+  if (hasFinal) {
+    if (d !== 0 && sig.finais.has(d)) return { w: 25 / Math.sqrt(sig.finais.size), veto: false };
+    if (sig.valores.has(I)) return { w: 25, veto: false };   // valor EXATO listado salva do veto
+    return { w: 0, veto: true };                              // final ≠ declarado → não é ele
+  }
+  if (sig.valores.has(I)) return { w: (sig.valores.size === 1) ? 25 : 0, veto: false };
+  return { w: 0, veto: false };
 }
 function _buildSugIndex() {
   const ownCasa = {}, ownEsp = {}, ownMkt = {}, sig = {}, esp = {};
@@ -4733,7 +4746,11 @@ function _buildSugIndex() {
     _sugSplit(p.casas).forEach(c => add(ownCasa, _sugSlug(c), p.nome));
     _sugSplit(p.esportes).forEach(e => add(ownEsp, _sugNorm(e), p.nome));
     _sugSplit(p.mercados).forEach(mk => add(ownMkt, _sugNorm(mk), p.nome));
-    sig[p.nome] = _parseStakeSig(p.dica_stake);
+    const ss = _parseStakeSig(p.dica_stake);
+    // Amarra a assinatura de quebrada à casa citada na própria dica (Peixe: "...na betano" →
+    // casa quebrada só na Betano). Casa não citada → vale em qualquer casa do tipster.
+    if (ss.quebrado) { const dl = (p.dica_stake || '').toLowerCase(); ss.quebradoCasa = _sugSplit(p.casas).find(c => dl.includes(_sugSlug(c))) || null; }
+    sig[p.nome] = ss;
     esp[p.nome] = new Set(_sugSplit(p.esportes).map(_sugNorm));   // esportes declarados (filtro duro)
   });
   return { ownCasa, ownEsp, ownMkt, sig, esp };
@@ -4744,11 +4761,13 @@ function _sugParaBilhete(b, idx) {
   const ranked = tipsterProfiles.map(p => {
     // filtro duro: declara esportes mas nenhum bate o do bilhete → descarta
     if (espK && idx.esp[p.nome] && idx.esp[p.nome].size && !idx.esp[p.nome].has(espK)) return { nome: p.nome, score: -1 };
-    let w = 0;
+    // Sinal de stake primeiro: pode VETAR (final ≠ declarado, ou quebrada em quem só tem final).
+    const ss = _stakeSignal(b.stake, idx.sig[p.nome], casaK);
+    if (ss.veto) return { nome: p.nome, score: -1 };
+    let w = ss.w;
     const oe = idx.ownEsp[espK]; if (oe && oe.has(p.nome)) w += wOf(oe, 10);
     const om = idx.ownMkt[mktK]; if (om && om.has(p.nome)) w += wOf(om, 10);
     const oc = idx.ownCasa[casaK]; if (oc && oc.has(p.nome)) w += wOf(oc, 5);   // casa é sinal mais fraco
-    w += _stakeWeight(b.stake, idx.sig[p.nome]);
     return { nome: p.nome, score: w };
   }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
   if (!ranked.length) return null;
