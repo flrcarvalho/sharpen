@@ -37,29 +37,18 @@ Outro
 
 # 2. Uso de Múltiplos
 
-Utilizar:
+Utilizar `Múltiplos` em qualquer um destes casos:
 
-```text
-Múltiplos
-```
+1. **Mistura de esportes diferentes** numa mesma aposta (2 ou mais seleções de modalidades distintas). Ex.: Futebol + Basquete → `Múltiplos`.
+2. **Acumulada de 3 OU MAIS seleções de JOGOS/eventos diferentes**, mesmo que do MESMO esporte. Ex.: 3 jogos de Futebol combinados → `Múltiplos`.
 
-exclusivamente quando uma única aposta misturar esportes diferentes.
+**Não** utilizar `Múltiplos` (usar o esporte real da aposta):
+- **1 ou 2 seleções** do mesmo esporte (simples ou dupla) → o esporte da(s) seleção(ões).
+- **Bet builder / combinação do MESMO jogo** — vários mercados de um único confronto, qualquer que seja o número de mercados → o esporte do jogo. Ex.: `Cartões // Escanteios // Gols [França v Espanha]` = 3 mercados de UM jogo → `Futebol`.
 
-Exemplo:
+**Como distinguir acumulada de bet builder:** comparar os confrontos `[A v B]` das pernas. Confrontos **diferentes** entre as pernas = jogos diferentes → conta para o "3+". **Mesmo confronto** em todas as pernas = um jogo só (bet builder) → usa o esporte do jogo, nunca `Múltiplos`.
 
-- Futebol
-- Basquete
-
-Resultado:
-
-```text
-Múltiplos
-```
-
-Nunca utilizar `Múltiplos`:
-- em múltiplas do mesmo esporte
-- em bet builders
-- em combinações do mesmo jogo
+Nota: `esporte = Múltiplos` não substitui a categoria — o mercado continua em `aposta` (ex.: `aposta = Múltipla`).
 
 ---
 
@@ -957,6 +946,7 @@ Antes de retornar a saída, o extrator deve validar:
 13. time da NBA com **handle de gamer entre parênteses** = `eBasket` (nunca `Basquete` nem `E-Sports`)
 14. `eBasket` está escrito exatamente assim (nunca `EBASKET`, `Ebasket`, `eBasketball`, `Basquete Virtual`)
 15. basquete **real** (jogadores reais, total ~180–260) não foi classificado como `eBasket`
+16. acumulada de **3+ seleções de jogos diferentes** (confrontos `[A v B]` distintos entre as pernas) = `Múltiplos`; **bet builder** (mesmo confronto em todas as pernas) = esporte do jogo, nunca `Múltiplos`
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 
