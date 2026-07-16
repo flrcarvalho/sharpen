@@ -4637,7 +4637,10 @@ async function carregarTipsters() {
 }
 
 // Salva o tipster de um bilhete (PATCH otimista + sinal azul + badge da sidebar).
-async function salvarTipsterVal(id, valor) {
+// origem (Fase 0): 'humano' quando o Feca digita/edita (default); 'sugerido' quando vem
+// do botão de auto-atribuição. Marca a procedência do rótulo p/ o treino nunca aprender
+// do próprio chute. Só acompanha quando há tipster (valor vazio → backend grava NULL).
+async function salvarTipsterVal(id, valor, origem = 'humano') {
   const b = bilhetes.find(x => x.id === id);
   if (!b) return;
   valor = (valor || '').trim();
@@ -4649,7 +4652,7 @@ async function salvarTipsterVal(id, valor) {
   try {
     const r = await fetch(`/bilhetes/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipster: valor }),
+      body: JSON.stringify({ tipster: valor, origem_tipster: origem }),
     });
     if (!r.ok) throw new Error();
     if (valor) carregarTipsters();
@@ -4781,7 +4784,7 @@ async function sugerirTipstersLote() {
   const vazios = bilhetes.filter(b => !(b.tipster || '').trim());
   if (!vazios.length) { setExpStatus('Nenhum bilhete sem tipster', ''); return; }
   let n = 0;
-  for (const b of vazios) { const nome = _sugParaBilhete(b, idx); if (nome) { await salvarTipsterVal(b.id, nome); n++; } }
+  for (const b of vazios) { const nome = _sugParaBilhete(b, idx); if (nome) { await salvarTipsterVal(b.id, nome, 'sugerido'); n++; } }
   setExpStatus(n ? `${n} de ${vazios.length} sugerido(s) — revise antes de exportar` : 'Nenhuma sugestão confiante (perfis ambíguos ou incompletos)', n ? 'ok' : '');
 }
 document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTipstersLote);

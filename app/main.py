@@ -1973,6 +1973,9 @@ class AtualizarBilheteRequest(_BilheteFinanceiroBase):
     stake: Optional[str] = None
     odd: Optional[str] = None
     resultado: Optional[str] = None
+    # Procedência do rótulo de tipster (Fase 0). O front manda 'sugerido' quando vem do
+    # botão de auto-atribuição; ausência num set de tipster → 'humano' (default no repo).
+    origem_tipster: Optional[str] = None
 
 
 @app.patch("/bilhetes/{bilhete_id}")

@@ -97,6 +97,12 @@ ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'extr
 -- USD→BRL). NULL para casas em R$ nativo. Número cru; a máscara é responsabilidade da UI.
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS stake_usd REAL;
 
+-- Procedência do RÓTULO de tipster (Fase 0 do PLANO_INTELIGENCIA_TIPSTER): humano |
+-- sugerido | telegram | importado | extracao. NULL = legado (linha anterior ao rastreio).
+-- Separa verdade (humano/import/telegram) de chute do sistema (sugerido) → o treino
+-- futuro nunca aprende da própria sugestão. NÃO entra em _SIG_COLS (não mexe na assinatura).
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem_tipster TEXT;
+
 -- Tipster atribuído a POSIÇÕES ATIVAS da Polymarket (dashboard ao vivo).
 -- Vive separado de `bilhetes` (que só guarda apostas resolvidas/exportáveis);
 -- chave = código do bilhete (conditionId/__i). Carregado p/ a grade quando resolve.

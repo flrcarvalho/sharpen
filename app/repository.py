@@ -1608,6 +1608,14 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
             params.append("resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta")
             sets.append(f"extraction_state = ${len(params)}")
 
+        # Procedência do rótulo de tipster (Fase 0): grava origem_tipster quando o tipster
+        # muda. Sem origem declarada → 'humano' (só o botão de sugestão manda 'sugerido').
+        # Tipster limpo (vazio) → NULL. origem_tipster ∉ _SIG_COLS → não mexe na assinatura.
+        if "tipster" in safe:
+            _tip = (safe["tipster"] or "").strip()
+            params.append((campos.get("origem_tipster") or "humano") if _tip else None)
+            sets.append(f"origem_tipster = ${len(params)}")
+
         # Ponto de retorno SEM assinatura: fallback se a corrida abaixo estourar a unique.
         sets_base, params_base = list(sets), list(params)
 
@@ -1673,12 +1681,14 @@ async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:
     Só toca linhas do próprio dono. Retorna quantas foram atualizadas."""
     if not ids:
         return 0
+    # Bulk é operação MANUAL → procedência 'humano' (tipster vazio → NULL). Fase 0.
+    origem = "humano" if (tipster or "").strip() else None
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
-            "UPDATE bilhetes SET tipster = $1, atualizado_em = NOW() "
+            "UPDATE bilhetes SET tipster = $1, origem_tipster = $4, atualizado_em = NOW() "
             "WHERE id = ANY($2) AND dono = $3",
-            tipster, ids, dono,
+            tipster, ids, dono, origem,
         )
     n = int(result.split()[-1])
     if n:
