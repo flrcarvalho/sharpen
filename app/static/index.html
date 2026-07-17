@@ -4669,11 +4669,13 @@ async function salvarTipsterVal(id, valor, origem = 'humano') {
 // casa · esporte · mercado · ASSINATURA DE STAKE (parseada da "Dica de stake": final
 // da stake e/ou valores exatos — ex.: Peixe=final 6, Robotenis=250, TC Insider=800).
 // Score = Σ pesos: esporte/mercado exclusivo=10 (compartilhado=1), casa exclusiva=5;
-// STAKE distintiva (≤2 donos) = 25/√(tamanho da assinatura) → um stake-fingerprint de 1
-// valor (Robotenis=250, TC=800) domina 2 categorias compartilhadas, mas uma lista larga
-// pesa menos. FILTRO DURO: se o tipster declara esportes e nenhum bate o do bilhete, é
-// descartado (um tipster de E-Sports nunca leva um bilhete de Futebol). Sugere só com
-// folga clara (≥8); empate/fraco fica vazio (seguro, não chuta).
+// STAKE = 25 (valor exato) ou 25/√(nº de finais) (final não-zero), MAS só conta se a stake for
+// DISTINTIVA no contexto: ≤2 sobreviventes do filtro de esporte a reivindicam (o "≤2 donos").
+// Um valor redondo comum (300 = 8 donos) vira ruído entre os de Futebol → peso 0; já 250 do
+// Robotenis só colide com tipsters de OUTROS esportes → segue fingerprint. FILTRO DURO: se o
+// tipster declara esportes e nenhum bate o do bilhete, é descartado (E-Sports nunca leva
+// Futebol). Sugere com folga clara (≥7); dono único sobrevivente do esporte dispensa folga
+// (não há concorrente). Empate/fraco fica vazio (seguro, não chuta).
 let tipsterProfiles = [];
 async function carregarPerfisTipster() {
   try { const r = await fetch('/tipsters/cadastro?arquivados=0'); const d = await r.json(); tipsterProfiles = d.tipsters || []; }
@@ -4762,7 +4764,7 @@ function _stakeSignal(S, sig, casaK) {
     if (sig.valores.has(I)) return { w: 25, veto: false };   // valor EXATO listado salva do veto
     return { w: 0, veto: true };                              // final ≠ declarado → não é ele
   }
-  if (sig.valores.has(I)) return { w: (sig.valores.size === 1) ? 25 : 0, veto: false };
+  if (sig.valores.has(I)) return { w: (sig.valores.size === 1) ? 25 : 0, veto: false };   // valor exato é fingerprint só se for a assinatura ÚNICA do tipster
   return { w: 0, veto: false };
 }
 function _buildSugIndex() {
@@ -4782,22 +4784,49 @@ function _buildSugIndex() {
   });
   return { ownCasa, ownEsp, ownMkt, sig, esp };
 }
+// Um tipster DECLARA esta stake se ela casa a assinatura dele — usado SÓ para medir
+// distintividade (quantos donos declaram o mesmo stake). Espelha as condições de _stakeSignal
+// SEM os pesos e SEM o gate de tamanho de lista: um valor que aparece em 8 listas é comum mesmo
+// que só um dono o tenha como assinatura única (é assim que a Australia=300 deixa de ser ímã).
+function _declaraStake(S, sig, casaK) {
+  const n = _numBR(S);
+  if (!n || !sig) return false;
+  if (sig.centavos && sig.centavos.size) return sig.centavos.has(Math.round(n * 100) % 100);
+  const quebrada = Math.round(n * 100) % 100 !== 0;
+  if (quebrada) return !!sig.quebrado && (!sig.quebradoCasa || _sugSlug(sig.quebradoCasa) === casaK);
+  const I = Math.round(n), d = I % 10;
+  return (d !== 0 && sig.finais.has(d)) || sig.valores.has(I);
+}
 function _sugParaBilhete(b, idx) {
   const casaK = _sugSlug(b.casa), espK = _sugNorm(b.esporte), mktK = _sugNorm(b.aposta);
   const wOf = (set, excl) => (set && set.size === 1) ? excl : 1;   // exclusivo=excl, senão 1
-  const ranked = tipsterProfiles.map(p => {
-    // filtro duro: declara esportes mas nenhum bate o do bilhete → descarta
-    if (espK && idx.esp[p.nome] && idx.esp[p.nome].size && !idx.esp[p.nome].has(espK)) return { nome: p.nome, score: -1 };
-    // Sinal de stake primeiro: pode VETAR (final ≠ declarado, ou quebrada em quem só tem final).
+  // Sobreviventes do filtro duro de esporte (declara esportes e nenhum bate o do bilhete → fora).
+  const survivors = tipsterProfiles.filter(p =>
+    !(espK && idx.esp[p.nome] && idx.esp[p.nome].size && !idx.esp[p.nome].has(espK)));
+  // DISTINTIVIDADE contextual da stake: conta quantos sobreviventes DECLARAM este mesmo stake
+  // (o "≤2 donos" do design). Ex.: 300 é declarada por 8 tipsters → entre os de Futebol são ≥3
+  // → vira ruído (peso 0) e a Australia deixa de ser ímã; já 250 do Robotenis só colide com
+  // tipsters de OUTROS esportes (fora dos sobreviventes de Tênis) → segue distintiva. Mede por
+  // DECLARAÇÃO, não por pontuação: senão um valor comum de vários donos passaria batido.
+  let claimants = 0;
+  survivors.forEach(p => { if (_declaraStake(b.stake, idx.sig[p.nome], casaK)) claimants++; });
+  const stakeDistinta = claimants <= 2;
+  const ranked = survivors.map(p => {
     const ss = _stakeSignal(b.stake, idx.sig[p.nome], casaK);
     if (ss.veto) return { nome: p.nome, score: -1 };
-    let w = ss.w;
+    let w = stakeDistinta ? ss.w : 0;   // stake comum (≥3 donos no contexto) não pontua
     const oe = idx.ownEsp[espK]; if (oe && oe.has(p.nome)) w += wOf(oe, 10);
     const om = idx.ownMkt[mktK]; if (om && om.has(p.nome)) w += wOf(om, 10);
     const oc = idx.ownCasa[casaK]; if (oc && oc.has(p.nome)) w += wOf(oc, 5);   // casa é sinal mais fraco
     return { nome: p.nome, score: w };
   }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
   if (!ranked.length) return null;
+  // Dono único do esporte, sobrevivente sozinho → sugere sem exigir folga: não há concorrente
+  // (ex.: DartsVader é o único de Dardos que passa; a folga-7 contra "0" o enterraria à toa).
+  if (ranked.length === 1) {
+    const oe = idx.ownEsp[espK];
+    if (oe && oe.has(ranked[0].nome)) return ranked[0].nome;
+  }
   const top = ranked[0].score, second = ranked[1] ? ranked[1].score : 0;
   return (top - second >= 7) ? ranked[0].nome : null;   // folga clara → sugere; senão vazio
 }

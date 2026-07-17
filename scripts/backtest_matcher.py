@@ -72,8 +72,17 @@ def _stake_signal(S, sig, casaK):
         if d != 0 and d in sig["finais"]: return (25.0 / math.sqrt(len(sig["finais"])), False)
         if I in sig["valores"]: return (25.0, False)
         return (0.0, True)
-    if I in sig["valores"]: return (25.0 if len(sig["valores"]) == 1 else 0.0, False)
+    if I in sig["valores"]: return (25.0 if len(sig["valores"]) == 1 else 0.0, False)   # valor exato = fingerprint só se assinatura única
     return (0.0, False)
+def _declara_stake(S, sig, casaK):
+    # Membership: o tipster DECLARA esta stake? (mede distintividade, ignora tamanho de lista).
+    n = _num_br(S)
+    if not n or not sig: return False
+    if sig.get("centavos"): return (round(n * 100) % 100) in sig["centavos"]
+    quebrada = round(n * 100) % 100 != 0
+    if quebrada: return bool(sig["quebrado"]) and (not sig["quebradoCasa"] or _slug(sig["quebradoCasa"]) == casaK)
+    I = round(n); d = I % 10
+    return (d != 0 and d in sig["finais"]) or (I in sig["valores"])
 def build_index(profs):
     ownCasa, ownEsp, ownMkt, sig, esp = defaultdict(set), defaultdict(set), defaultdict(set), {}, {}
     for p in profs:
@@ -92,20 +101,31 @@ def build_index(profs):
 def suggest(b, idx, profs):
     casaK, espK, mktK = _slug(b["casa"]), _norm(b["esporte"]), _norm(b["aposta"])
     wOf = lambda s, excl: excl if (s and len(s) == 1) else 1
+    # Sobreviventes do filtro duro de esporte.
+    survivors = [p for p in profs
+                 if not (espK and idx["esp"].get(p["nome"]) and len(idx["esp"][p["nome"]]) and espK not in idx["esp"][p["nome"]])]
+    # Distintividade CONTEXTUAL: conta quantos sobreviventes DECLARAM este stake (o "≤2 donos").
+    # Valor redondo comum (300 = 8 donos) vira ruído entre os de Futebol → 0; 250 do Robotenis só
+    # colide com outros esportes (fora dos sobreviventes) → segue distintiva. Mede por DECLARAÇÃO,
+    # não por pontuação: senão um valor comum de vários donos passaria batido.
+    claimants = sum(1 for p in survivors if _declara_stake(b["stake"], idx["sig"][p["nome"]], casaK))
+    stake_distinta = claimants <= 2
     ranked = []
-    for p in profs:
+    for p in survivors:
         nome = p["nome"]
-        es = idx["esp"].get(nome)
-        if espK and es and len(es) and espK not in es: continue
         w_add, veto = _stake_signal(b["stake"], idx["sig"][nome], casaK)
         if veto: continue
-        w = w_add
+        w = w_add if stake_distinta else 0.0
         oe = idx["ownEsp"].get(espK);  w += wOf(oe, 10) if (oe and nome in oe) else 0
         om = idx["ownMkt"].get(mktK);  w += wOf(om, 10) if (om and nome in om) else 0
         oc = idx["ownCasa"].get(casaK); w += wOf(oc, 5) if (oc and nome in oc) else 0
         if w > 0: ranked.append((nome, w))
     ranked.sort(key=lambda x: -x[1])
     if not ranked: return None
+    # Dono único do esporte, sobrevivente sozinho → sugere sem exigir folga (não há concorrente).
+    if len(ranked) == 1:
+        oe = idx["ownEsp"].get(espK)
+        if oe and ranked[0][0] in oe: return ranked[0][0]
     top = ranked[0][1]; second = ranked[1][1] if len(ranked) > 1 else 0
     return ranked[0][0] if (top - second >= FOLGA) else None
 
