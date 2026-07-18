@@ -387,6 +387,7 @@ html.embedded .sidebar { display: none; }
 
 /* Painel de lista (direita) — card único; as .contas-casa viram seções planas */
 .painel-lista-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.painel-lista-resumo { border-bottom: 1px solid var(--line); }
 .painel-lista-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .painel-lista-toolbar .contas-search { padding: 7px 11px; }
 .painel-lista-panel .contas-casa { background: transparent; border: 0; border-radius: 0; margin: 0; border-bottom: 1px solid var(--line); }
@@ -1456,6 +1457,7 @@ td.c-res.res-HL { color: var(--warn); }
 /* Histórico de extrações */
 .hist { border-top: 1px solid var(--line); flex: none; }
 .hist__head { padding: 12px 18px 8px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); display: flex; align-items: center; gap: 8px; }
+.hist__head::before { content: ""; width: 4px; height: 13px; background: var(--accent); border-radius: 2px; flex: none; }
 .hist__head .cnt { margin-left: auto; letter-spacing: .04em; }
 .hist__list { padding: 0 10px 10px; display: flex; flex-direction: column; max-height: 34vh; overflow-y: auto; }
 .hrow { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); cursor: pointer; transition: background .15s; }
@@ -2965,8 +2967,9 @@ function renderPainelContas() {
       '<span class="painel-legend-item"><span class="painel-legend-dot ativas"></span>Ativas <span class="painel-legend-val">' + nf(totAtivas) + '</span></span>' +
       '<span class="painel-legend-item"><span class="painel-legend-dot inativas"></span>Inativas <span class="painel-legend-val">' + nf(totInativas) + '</span></span>' +
     '</div>';
-  const resumo =
-    '<div class="painel-card">' +
+  // Resumo CONTAS é o CABEÇALHO do painel de lista (não um card solto).
+  const resumoHead =
+    '<div class="painel-lista-resumo">' +
       '<div class="painel-card-head"><span class="painel-card-titulo">Contas</span><span class="painel-card-count">' + pctAtivas + '% ativas</span></div>' +
       '<div class="painel-card-body">' +
         '<div class="painel-resumo-nums">' +
@@ -2981,9 +2984,10 @@ function renderPainelContas() {
       '</div>' +
     '</div>';
 
-  // ── Painel de lista (direita, < metade da largura): abas + busca + lista ──
+  // ── Painel de lista (ESQUERDA, mais larga): resumo (cabeçalho) + abas/busca + lista ──
   const listaPanel =
     '<div class="painel-lista-panel">' +
+      resumoHead +
       '<div class="painel-lista-toolbar">' +
         '<div class="contas-search" style="margin-left:0;min-width:150px;flex:1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
         '<input id="painel-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
@@ -3025,12 +3029,12 @@ function renderPainelContas() {
   const custoCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Custos por fornecedor</span><span class="painel-card-count">' + nf(custoRows.length) + ' fornecedores</span></div><div class="painel-card-body">' + custoTbl + '</div></div>';
   const atividadeCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Atividade das contas</span><span class="painel-card-count" id="painelAtividadeCount"></span></div><div class="painel-card-body" id="painelAtividade"><div class="painel-empty">Carregando atividade…</div></div></div>';
 
-  // Topo: coluna esquerda (resumo + contas por casa) | painel de lista (direita).
+  // Topo: ESQUERDA = painel de lista (resumo Contas no topo + lista) | DIREITA = Contas por casa.
   // Abaixo (informativo de contas, sem métricas de aposta): custos + atividade.
   host.innerHTML = hero +
     '<div class="painel-top">' +
-      '<div class="painel-col">' + resumo + casaCard + '</div>' +
       listaPanel +
+      casaCard +
     '</div>' +
     custoCard + atividadeCard;
   renderPainelLista();       // preenche a lista de gestão (grupos por casa + ações)
