@@ -651,43 +651,67 @@ async function renderCasasFeudo(){
   const pend=_casasVisao.filter(c=>!c.modo&&c.sugestao_modo).length;
   const intro=`<p style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.5;margin:0 0 12px">`
     +`Casa de nicho costuma ser de <strong style="color:var(--ink)">um tipster só</strong> — na BETesporte é sempre o mesmo, independente do valor. Marque cada casa como <strong style="color:var(--ink)">dedicada</strong> (1-2 tipsters) ou <strong style="color:var(--ink)">compartilhada</strong>. As sugestões vêm da sua própria base. <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mute)">(ainda não liga no atribuidor — só o registro)</span></p>`;
-  const head=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1rem">`
+  const nFeudos=_casasVisao.filter(c=>c.modo==='dedicada'||(!c.modo&&c.sugestao_modo==='dedicada')).length;
+  const nCuradas=_casasVisao.filter(c=>c.modo).length;
+  const kpi=(n,lbl,cor)=>`<span style="color:${cor||'var(--ink-mute)'}"><span style="color:${cor||'var(--ink)'};font-weight:600">${n}</span> ${lbl}</span>`;
+  const resumo=`<div style="display:flex;gap:18px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">`
+    +kpi(_casasVisao.length,'casas')+kpi(nFeudos,'feudo'+(nFeudos===1?'':'s'))
+    +kpi(nCuradas,'curada'+(nCuradas===1?'':'s'),nCuradas?'var(--pos)':null)+`</div>`;
+  const head=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:.5rem">`
     +`<input id="casasBusca" value="${esc(_casasQ)}" oninput="casasBusca(this.value)" placeholder="Buscar casa…" style="${_tmIV};max-width:260px">`
     +(pend?`<button onclick="casasAplicarSugestoes()" style="${_tmBTG}">Aplicar ${pend} sugestão(ões) pendente(s)</button>`:'')
     +`</div>`;
-  body.innerHTML=intro+head+`<div id="casasLista"></div>`;
+  body.innerHTML=intro+resumo+head+`<div id="casasLista"></div>`;
   renderCasasLista();
 }
 window.renderCasasFeudo=renderCasasFeudo;
 
 function casasBusca(v){_casasQ=v;renderCasasLista();}
 
+// Feudos (dedicada, curada ou sugerida) primeiro por pureza; o resto por volume.
+function _casaEhFeudo(c){return c.modo==='dedicada'||(!c.modo&&c.sugestao_modo==='dedicada');}
 function renderCasasLista(){
   const box=document.getElementById('casasLista');if(!box)return;
   const q=_casasQ.trim().toLowerCase();
-  const vis=_casasVisao.filter(c=>!q||(c.casa||'').toLowerCase().includes(q));
+  const vis=_casasVisao.filter(c=>!q||(c.casa||'').toLowerCase().includes(q)).slice().sort((a,b)=>{
+    const fa=_casaEhFeudo(a)?0:1,fb=_casaEhFeudo(b)?0:1;
+    return fa!==fb?fa-fb:(fa===0?(b.top_share-a.top_share):(b.total-a.total));
+  });
   box.innerHTML=vis.length?vis.map(_casaRow).join('')
     :`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhuma casa encontrada.</div>`;
 }
 
 function _casaRow(c){
   const st=_casaState(c),ativos=_casaAtivos(),cj=_tmJs(c.casa);
-  const ev=`${fmt(c.total,0)} aposta${c.total===1?'':'s'} · ${esc(c.top||'—')} ${fmtPct(c.top_share,0,false)} · ${c.n_tipsters} tipster${c.n_tipsters===1?'':'s'}`;
-  const seg=m=>{const on=st.modo===m;return`<button onclick="casaModo('${cj}','${m}')" style="border:1px solid ${on?'var(--accent)':'var(--line)'};background:${on?'rgba(var(--accent-rgb),.12)':'none'};color:${on?'var(--accent)':'var(--ink-soft)'};border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer">${m==='dedicada'?'Dedicada':'Compartilhada'}</button>`;};
+  const feudo=st.modo==='dedicada',curada=!!c.modo;
+  // Barra de pureza: quão monogâmica é a casa (share do top). Cheia+azul = feudo; toco = compartilhada.
+  const barW=Math.max(3,Math.min(100,c.top_share||0));
+  const bar=`<div style="height:5px;width:110px;flex:0 0 auto;background:var(--surface-2);border-radius:999px;overflow:hidden"><div style="height:100%;width:${barW}%;background:${feudo?'var(--accent)':'var(--ink-mute)'};border-radius:999px"></div></div>`;
+  const meta=`<span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute)"><span style="color:var(--ink-soft)">${esc(c.top||'—')}</span> ${fmtPct(c.top_share,0,false)} · ${fmt(c.total,0)} aposta${c.total===1?'':'s'} · ${c.n_tipsters} tipster${c.n_tipsters===1?'':'s'}</span>`;
+  // Segmented dedicada|compartilhada (um controle só, ativo em azul cheio).
+  const seg=`<div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-shrink:0">`
+    +['dedicada','multi'].map(m=>{const on=st.modo===m;return`<button onclick="casaModo('${cj}','${m}')" style="border:0;background:${on?'var(--accent)':'transparent'};color:${on?'#fff':'var(--ink-soft)'};padding:5px 13px;font-size:11.5px;font-weight:600;font-family:var(--font-sans);cursor:pointer">${m==='dedicada'?'Dedicada':'Compartilhada'}</button>`}).join('')
+    +`</div>`;
   let picks='';
-  if(st.modo==='dedicada'){
+  if(feudo){
     const opt=(sel,ph)=>`<option value="">${ph}</option>`+ativos.map(n=>`<option value="${esc(n)}"${n===sel?' selected':''}>${esc(n)}</option>`).join('');
-    picks=`<select onchange="casaTip('${cj}',0,this.value)" style="${_tmIV};max-width:170px">${opt(st.tipsters[0]||'','— tipster —')}</select>`
-      +`<select onchange="casaTip('${cj}',1,this.value)" style="${_tmIV};max-width:170px">${opt(st.tipsters[1]||'','— 2º (opcional) —')}</select>`;
+    picks=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1px">`
+      +`<select onchange="casaTip('${cj}',0,this.value)" style="${_tmIV};max-width:180px">${opt(st.tipsters[0]||'','— tipster —')}</select>`
+      +`<select onchange="casaTip('${cj}',1,this.value)" style="${_tmIV};max-width:180px">${opt(st.tipsters[1]||'','— 2º (opcional) —')}</select>`
+      +`</div>`;
   }
+  const pill=(txt,cor,bg)=>`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;color:${cor};background:${bg};border-radius:999px;padding:2px 8px">${txt}</span>`;
   let chip='';
-  if(c.modo)chip=`<span style="font-family:var(--font-mono);font-size:9px;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:2px 8px">curada</span>`;
-  else if(c.sugestao_modo)chip=`<span style="font-family:var(--font-mono);font-size:9px;color:var(--ink-mute);background:var(--surface-2);border-radius:999px;padding:2px 8px">sugerido</span>`;
-  return`<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid var(--line)">`
-    +`<div style="min-width:190px;flex:0 0 auto">${casaCell(c.casa)}<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute);margin-top:3px;margin-left:20px">${ev}</div></div>`
-    +`<div style="display:flex;gap:6px;flex-shrink:0">${seg('dedicada')}${seg('multi')}</div>`
-    +`<div style="display:flex;gap:6px;flex:1;flex-wrap:wrap">${picks}</div>`
-    +`<div style="flex-shrink:0">${chip}</div>`
+  if(c.modo==='dedicada')chip=pill('curada','var(--pos)','rgba(var(--pos-rgb),.12)');
+  else if(c.modo==='multi')chip=pill('compartilhada','var(--ink-mute)','var(--surface-2)');
+  else if(c.sugestao_modo)chip=pill('sugerido','var(--accent)','rgba(var(--accent-rgb),.10)');
+  return`<div style="display:flex;align-items:flex-start;gap:16px;padding:13px 12px;border-bottom:1px solid var(--line);${curada?'box-shadow:inset 3px 0 0 var(--accent);border-radius:0 6px 6px 0':''}">`
+    +`<div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:7px">`
+      +`<div style="display:flex;align-items:center;gap:8px">${mkHouseChip(c.casa)}<strong style="font-size:13px;color:var(--ink)">${esc(c.casa)}</strong>${chip}</div>`
+      +`<div style="display:flex;align-items:center;gap:10px">${bar}${meta}</div>`
+      +picks
+    +`</div>`
+    +`<div style="flex:0 0 auto;padding-top:2px">${seg}</div>`
     +`</div>`;
 }
 
