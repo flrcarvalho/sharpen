@@ -569,8 +569,11 @@ html.embedded .sidebar { display: none; }
 .idcard__meta { min-width: 0; }
 .idcard__meta .nm { font-size: 16px; font-weight: 700; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .idcard__meta .usr { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.idcard__foot { display: flex; gap: 7px; margin-top: auto; }
+/* idcard__foot empilhado: "Selecionar conta" full width em cima; editar | arquivar 50/50 embaixo. */
+.idcard__foot { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
 .idcard .acct-selwrap { flex: 1; }
+.idcard__foot .acct-quickacts { width: 100%; gap: 7px; }
+.idcard__foot .acct-quickacts .chgbtn.p { flex: 1; width: auto; }
 .chgbtn { width: 100%; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); border-radius: var(--r-sm); padding: 8px; font-family: var(--font-mono); font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: border-color .15s, color .15s; }
 .chgbtn:hover { color: var(--ink); border-color: rgba(var(--accent-rgb),.4); }
 .chgbtn.p { flex: 0 0 38px; width: 38px; padding: 8px 0; }
@@ -1625,7 +1628,7 @@ td.c-res.res-HL { color: var(--warn); }
       <!-- Rodapé: Trocar conta (abre o mesmo dropdown acctPop) + editar nome + arquivar -->
       <div class="idcard__foot">
         <div class="acct-selwrap" id="acctSelWrap">
-          <button class="chgbtn" id="acctSelBtn" type="button" title="Trocar conta">Trocar conta <span class="ctx-chev">▾</span></button>
+          <button class="chgbtn" id="acctSelBtn" type="button" title="Selecionar conta">Selecionar conta <span class="ctx-chev">▾</span></button>
           <div class="acctpop" id="acctPop">
             <!-- 4.2.c — criar conta nova no TOPO do dropdown (substitui o "+ Novo parceiro" da árvore antiga) -->
             <div class="acct-new">
