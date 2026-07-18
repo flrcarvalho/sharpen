@@ -612,10 +612,125 @@ async function renderTipsterMetodo(){
     const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
     corpo=vis.length?vis.map(_tmBox).join(''):`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhum tipster encontrado.</div>`;
   }
-  cont.innerHTML=mkCard('tm_intro','Tipster / Método',intro)+mkCard('tm_lista','Tipsters',head+`<div id="tmLista">${corpo}</div>`);
+  cont.innerHTML=mkCard('tm_intro','Tipster / Método',intro)+mkCard('tm_lista','Tipsters',head+`<div id="tmLista">${corpo}</div>`)
+    +mkCard('casas_feudo','Casas · atribuição por casa',`<div id="casasFeudoBody"><div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Carregando casas…</div></div>`);
   if(_tmOpen&&_tmCadastro[_tmOpen])tmRenderEditor(_tmOpen);
+  renderCasasFeudo();
 }
 window.renderTipsterMetodo=renderTipsterMetodo;
+
+// ── Casas · atribuição por casa (casa-feudo) — Etapa 1: registro + curadoria ────
+// Casa de nicho costuma ser de UM tipster (na BETesporte é sempre Peixe, independente do
+// valor). Aqui o Feca declara casa→tipster(s): 'dedicada' (1-2) ou 'multi'. A tela nasce
+// pré-preenchida com a SUGESTÃO do backend (pureza observada, só rótulos humanos). Cada
+// linha auto-salva via POST /casas/config. NÃO liga no atribuidor ainda (Etapa 1). Reusa
+// casaCell/fmtPct/esc/fmt e os estilos _tmIV/_tmBTG. Ver STATUS s148 · [[matcher_sugerir_tipsters]].
+let _casasVisao=[];        // [{casa,total,n_tipsters,top,top_share,sugestao_modo,sugestao_tipsters,modo,tipsters}]
+let _casasEdit={};         // casa -> {modo, tipsters:[...]}  (estado de trabalho da tela)
+let _casasQ='';            // termo da busca
+
+function _casaAtivos(){
+  return Object.values(_tmCadastro||{}).filter(t=>!t.arquivado).map(t=>t.nome).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+}
+// Estado inicial de uma casa: config salva > sugestão do backend > 'multi' vazio.
+function _casaState(c){
+  if(_casasEdit[c.casa])return _casasEdit[c.casa];
+  let st;
+  if(c.modo)st={modo:c.modo,tipsters:_tmSplit(c.tipsters)};
+  else if(c.sugestao_modo)st={modo:c.sugestao_modo,tipsters:(c.sugestao_tipsters||[]).slice()};
+  else st={modo:'multi',tipsters:[]};
+  _casasEdit[c.casa]=st;return st;
+}
+
+async function renderCasasFeudo(){
+  const body=document.getElementById('casasFeudoBody');
+  if(!body)return;
+  try{const r=await fetch('/casas/config');const d=await r.json();_casasVisao=d.casas||[];}
+  catch(e){_casasVisao=[];}
+  _casasEdit={};
+  const pend=_casasVisao.filter(c=>!c.modo&&c.sugestao_modo).length;
+  const intro=`<p style="font-size:12px;color:var(--ink-soft);font-family:var(--font-sans);line-height:1.5;margin:0 0 12px">`
+    +`Casa de nicho costuma ser de <strong style="color:var(--ink)">um tipster só</strong> — na BETesporte é sempre o mesmo, independente do valor. Marque cada casa como <strong style="color:var(--ink)">dedicada</strong> (1-2 tipsters) ou <strong style="color:var(--ink)">compartilhada</strong>. As sugestões vêm da sua própria base. <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mute)">(ainda não liga no atribuidor — só o registro)</span></p>`;
+  const head=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1rem">`
+    +`<input id="casasBusca" value="${esc(_casasQ)}" oninput="casasBusca(this.value)" placeholder="Buscar casa…" style="${_tmIV};max-width:260px">`
+    +(pend?`<button onclick="casasAplicarSugestoes()" style="${_tmBTG}">Aplicar ${pend} sugestão(ões) pendente(s)</button>`:'')
+    +`</div>`;
+  body.innerHTML=intro+head+`<div id="casasLista"></div>`;
+  renderCasasLista();
+}
+window.renderCasasFeudo=renderCasasFeudo;
+
+function casasBusca(v){_casasQ=v;renderCasasLista();}
+
+function renderCasasLista(){
+  const box=document.getElementById('casasLista');if(!box)return;
+  const q=_casasQ.trim().toLowerCase();
+  const vis=_casasVisao.filter(c=>!q||(c.casa||'').toLowerCase().includes(q));
+  box.innerHTML=vis.length?vis.map(_casaRow).join('')
+    :`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhuma casa encontrada.</div>`;
+}
+
+function _casaRow(c){
+  const st=_casaState(c),ativos=_casaAtivos(),cj=_tmJs(c.casa);
+  const ev=`${fmt(c.total,0)} aposta${c.total===1?'':'s'} · ${esc(c.top||'—')} ${fmtPct(c.top_share,0,false)} · ${c.n_tipsters} tipster${c.n_tipsters===1?'':'s'}`;
+  const seg=m=>{const on=st.modo===m;return`<button onclick="casaModo('${cj}','${m}')" style="border:1px solid ${on?'var(--accent)':'var(--line)'};background:${on?'rgba(var(--accent-rgb),.12)':'none'};color:${on?'var(--accent)':'var(--ink-soft)'};border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer">${m==='dedicada'?'Dedicada':'Compartilhada'}</button>`;};
+  let picks='';
+  if(st.modo==='dedicada'){
+    const opt=(sel,ph)=>`<option value="">${ph}</option>`+ativos.map(n=>`<option value="${esc(n)}"${n===sel?' selected':''}>${esc(n)}</option>`).join('');
+    picks=`<select onchange="casaTip('${cj}',0,this.value)" style="${_tmIV};max-width:170px">${opt(st.tipsters[0]||'','— tipster —')}</select>`
+      +`<select onchange="casaTip('${cj}',1,this.value)" style="${_tmIV};max-width:170px">${opt(st.tipsters[1]||'','— 2º (opcional) —')}</select>`;
+  }
+  let chip='';
+  if(c.modo)chip=`<span style="font-family:var(--font-mono);font-size:9px;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:2px 8px">curada</span>`;
+  else if(c.sugestao_modo)chip=`<span style="font-family:var(--font-mono);font-size:9px;color:var(--ink-mute);background:var(--surface-2);border-radius:999px;padding:2px 8px">sugerido</span>`;
+  return`<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid var(--line)">`
+    +`<div style="min-width:190px;flex:0 0 auto">${casaCell(c.casa)}<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute);margin-top:3px;margin-left:20px">${ev}</div></div>`
+    +`<div style="display:flex;gap:6px;flex-shrink:0">${seg('dedicada')}${seg('multi')}</div>`
+    +`<div style="display:flex;gap:6px;flex:1;flex-wrap:wrap">${picks}</div>`
+    +`<div style="flex-shrink:0">${chip}</div>`
+    +`</div>`;
+}
+
+async function casaSalvar(casa){
+  const st=_casasEdit[casa];if(!st)return;
+  const tips=st.modo==='dedicada'?st.tipsters.filter(Boolean):[];
+  if(st.modo==='dedicada'&&!tips.length)return;   // dedicada sem tipster: nada a salvar ainda
+  try{
+    const r=await fetch('/casas/config',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({casa:casa,modo:st.modo,tipsters:tips.join(',')})});
+    if(!r.ok)throw 0;
+    const c=_casasVisao.find(x=>x.casa===casa);if(c){c.modo=st.modo;c.tipsters=tips.join(',');}
+    renderCasasLista();
+  }catch(e){alert('Erro ao salvar a casa.');}
+}
+function casaModo(casa,modo){
+  const c=_casasVisao.find(x=>x.casa===casa);if(!c)return;
+  const st=_casaState(c);st.modo=modo;
+  if(modo==='dedicada'&&!st.tipsters.filter(Boolean).length){
+    const seed=(c.sugestao_tipsters&&c.sugestao_tipsters.length)?c.sugestao_tipsters.slice():(c.top?[c.top]:[]);
+    st.tipsters=seed.filter(n=>_casaAtivos().includes(n));
+  }
+  if(modo==='multi'||st.tipsters.filter(Boolean).length)casaSalvar(casa);
+  else renderCasasLista();   // dedicada sem tipster ativo p/ semear: mostra os selects vazios
+}
+function casaTip(casa,idx,nome){
+  const c=_casasVisao.find(x=>x.casa===casa);if(!c)return;
+  const st=_casaState(c);
+  st.tipsters[idx]=nome;
+  st.tipsters=[...new Set(st.tipsters.filter(Boolean))].slice(0,2);
+  if(st.tipsters.length)casaSalvar(casa);else renderCasasLista();
+}
+async function casasAplicarSugestoes(){
+  const pend=_casasVisao.filter(c=>!c.modo&&c.sugestao_modo);
+  for(const c of pend){
+    const modo=c.sugestao_modo,tips=modo==='dedicada'?(c.sugestao_tipsters||[]):[];
+    if(modo==='dedicada'&&!tips.length)continue;
+    try{const r=await fetch('/casas/config',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({casa:c.casa,modo:modo,tipsters:tips.join(',')})});
+      if(r.ok){c.modo=modo;c.tipsters=tips.join(',');}}catch(e){}
+  }
+  renderCasasFeudo();
+}
 
 // Ordena: ATIVOS primeiro (alfabético), INATIVOS no fim (alfabético). Ver _tmBox/tmSetInativo.
 function _tmSortNomes(nomes){
