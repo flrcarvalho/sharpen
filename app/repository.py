@@ -1287,6 +1287,17 @@ async def list_tipsters_cadastro(dono: str, incluir_arquivados: bool = False) ->
     if not incluir_arquivados:
         filtro += " AND arquivado = FALSE"
     async with pool.acquire() as conn:
+        # Poda de órfãos: tipster com 0 bilhetes E nenhuma info é um typo já corrigido na base
+        # cuja linha de cadastro ficou pra trás (o backfill do boot só ADICIONA, nunca remove).
+        # Pedido do Feca: "typo corrigido → some da lista". Guardado e seguro — nunca apaga quem
+        # tem bilhete (o backfill o traria de volta) nem quem tem info curada (some só o lixo,
+        # não o trabalho). Não há criação manual de tipster na UI, então 0 bilhetes = sempre órfão.
+        await conn.execute(
+            "DELETE FROM tipsters t WHERE t.dono = $1 "
+            "AND t.casas IS NULL AND t.mercados IS NULL AND t.obs IS NULL AND t.apelidos IS NULL "
+            "AND t.dica_stake IS NULL AND t.esportes IS NULL AND t.stake_min IS NULL AND t.stake_max IS NULL "
+            "AND NOT EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = t.dono AND b.tipster = t.nome)",
+            dono)
         rows = await conn.fetch(
             f"SELECT id, nome, casas, mercados, obs, stake_min, stake_max, apelidos, "
             f"dica_stake, esportes, arquivado, criado_em "
