@@ -1611,24 +1611,8 @@ td.c-res.res-HL { color: var(--warn); }
        acctPop, acctQuickActs, poly-head-sync, ctxKpis. Só muda a moldura. -->
   <div class="arow">
     <div class="idcard">
-      <!-- Operador: mantém o trocador "ver como operador" + Sair (funcional, não é só rótulo) -->
-      <div class="idcard__op">
-        <span class="idcard__op-lbl">Operador</span>
-        <div class="operador-bar" id="operador-bar">
-          <button class="operador-trigger" id="operador-trigger" title="Operador">
-            <span class="operador-id">
-              <span class="user-dot"></span>
-              <span class="label" id="operador-label">Operador</span>
-              <span id="user-nome">…</span>
-            </span>
-            <span class="operador-caret">▾</span>
-          </button>
-          <div class="operador-menu">
-            <div id="operador-switch"></div>
-            <button id="btn-logout">Sair</button>
-          </div>
-        </div>
-      </div>
+      <!-- Operador (identidade + trocador "ver base de" + Sair) MOVIDO para o rodapé da
+           sidebar da casca (app.html #sbOperador). Aqui o idcard foca em Casa | Parceiro. -->
       <!-- Identidade da conta ativa (logo + nome da casa + usuário) -->
       <div class="idcard__main">
         <span class="ctx-hchip idcard__logo" id="ctx-hchip"></span>
@@ -2013,14 +1997,17 @@ async function carregarUsuario() {
   try { renderHist(); atualizarRaioxVazio(); } catch (e) {}   // rail: feed/histórico + estado do Raio-X
     _migrarCustoLegado(real);
 
-    document.getElementById('user-nome').textContent = efetivo;
-    document.getElementById('operador-label').textContent = vendo ? 'Vendo' : 'Operador';
-    document.getElementById('operador-bar').classList.toggle('vendo', vendo);
+    // O UI do operador vive agora na casca (app.html #sbOperador). Aqui só resta o
+    // trabalho load-bearing (dono efetivo, histórico, custos). Os writes de DOM abaixo
+    // são guardados: os elementos do operador não existem mais neste iframe.
+    const _nomeEl = document.getElementById('user-nome'); if (_nomeEl) _nomeEl.textContent = efetivo;
+    const _lblEl = document.getElementById('operador-label'); if (_lblEl) _lblEl.textContent = vendo ? 'Vendo' : 'Operador';
+    const _barEl = document.getElementById('operador-bar'); if (_barEl) _barEl.classList.toggle('vendo', vendo);
 
     // Trocador: só aparece para donos (com operadores). Lista os operadores +
     // "voltar para mim" quando se está visualizando algum.
     const box = document.getElementById('operador-switch');
-    box.innerHTML = '';
+    if (box) { box.innerHTML = '';
     if (operadores.length) {
       const head = document.createElement('div');
       head.className = 'op-head';
@@ -2040,7 +2027,7 @@ async function carregarUsuario() {
         volta.addEventListener('click', () => verComo(''));
         box.appendChild(volta);
       }
-    }
+    } }
   } catch (_) {}
 }
 
@@ -2494,11 +2481,15 @@ function mostrarView(v) {
     if (eyebrow) eyebrow.textContent = 'Operação · gestão de contas';
     // RAIO-X só faz sentido na Extração → nesta visão o rail mostra só o histórico.
     const railEl = document.getElementById('rail'); if (railEl) railEl.classList.add('rail--histonly');
+    // O idcard (conta ativa + tiles) não serve à gestão de contas → esconde o .arow
+    // e sobe o painel (sem box nem espaço vazio). Selecionar conta = clicar na lista.
+    const arowEl = document.querySelector('.arow'); if (arowEl) arowEl.style.display = 'none';
     navP && navP.classList.remove('active'); navC && navC.classList.add('active');
   } else {
     if (title) title.textContent = 'Extração e Captura';
     if (eyebrow) eyebrow.textContent = 'Operação · extração de bilhetes';
     const railEl = document.getElementById('rail'); if (railEl) railEl.classList.remove('rail--histonly');
+    const arowEl = document.querySelector('.arow'); if (arowEl) arowEl.style.display = '';
     navC && navC.classList.remove('active'); navP && navP.classList.add('active');
     if (!parceiroSelecionado) mostrarEmptyState();   // sem conta ativa → hub
   }
@@ -5556,27 +5547,13 @@ function setupColResize(table, storageKey) {
   });
 }
 
-// ── Menu suspenso do Operador ──────────────────────────────────────────────────
-(function () {
-  const bar = document.getElementById('operador-bar');
-  const trigger = document.getElementById('operador-trigger');
-  trigger.addEventListener('click', e => {
-    e.stopPropagation();
-    bar.classList.toggle('open');
-  });
-  document.addEventListener('click', e => {
-    if (!bar.contains(e.target)) bar.classList.remove('open');
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') bar.classList.remove('open');
-  });
-})();
+// Menu suspenso do Operador MOVIDO para a casca (app.html #sbOperador). O trigger/menu
+// e o botão Sair não existem mais neste iframe.
 
 // 4.2.c — as abas Ativas/Inativas da sidebar foram removidas; a troca de aba vive
 // agora no dropdown "Conta ativa" da context bar (.acct-tabs / acctPopAba).
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-document.getElementById('btn-logout').addEventListener('click', logout);
 setupBtblResize();
 carregarUsuario();
 carregarCasas();

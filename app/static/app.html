@@ -121,6 +121,28 @@ body::before {
 }
 .sb-logout svg { width: 13px; height: 13px; flex-shrink: 0; }
 .sb-logout:hover { border-color: var(--neg); color: var(--neg); }
+/* Operador no rodapé da sidebar — identidade + trocador "ver base de" (donos). */
+.sb-operador { position: relative; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line-2); }
+.sb-op-trigger { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: default; text-align: left; color: var(--ink); font-family: var(--font-sans); }
+.sb-operador.has-switch .sb-op-trigger { cursor: pointer; }
+.sb-operador.has-switch .sb-op-trigger:hover { border-color: var(--ink-mute); }
+.sb-op-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); flex: none; }
+.sb-op-meta { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.sb-op-lbl { font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); }
+.sb-op-nome { font-size: 12px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-op-caret { font-size: 9px; color: var(--ink-mute); flex: none; display: none; transition: transform .15s; }
+.sb-operador.has-switch .sb-op-caret { display: block; }
+.sb-operador.open .sb-op-caret { transform: rotate(180deg); }
+.sb-op-menu { display: none; position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; background: var(--elevated); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 5px; box-shadow: var(--glow); z-index: 20; }
+.sb-operador.open .sb-op-menu { display: block; }
+.sb-op-head { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); padding: 6px 8px 4px; }
+.sb-op-menu button { width: 100%; text-align: left; padding: 8px 10px; background: transparent; border: 0; border-radius: var(--r-xs); color: var(--ink-soft); font-family: var(--font-sans); font-size: 12px; cursor: pointer; }
+.sb-op-menu button:hover { background: var(--surface-2); color: var(--ink); }
+.sb-op-menu button.ativo { color: var(--accent); }
+.sb-op-menu button.voltar { color: var(--ink-soft); border-top: 1px solid var(--line); margin-top: 4px; }
+.sb-operador.vendo .sb-op-trigger { border-color: var(--accent); }
+.sb-operador.vendo .sb-op-dot { background: var(--accent); }
+.sb-operador.vendo .sb-op-lbl { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -157,6 +179,19 @@ body::before {
       <div class="nav-item" data-key="dash:metrics" onclick="location.hash='dash/metrics'"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v2M8 12v2M2 8h2m8 0h2"/><circle cx="8" cy="8" r="3"/></svg>Métricas</div>
     </nav>
     <div class="sidebar-bottom">
+      <!-- Identidade do operador (movida da tela de Extração): quem está usando o sistema.
+           Trocar operador ("ver base de", só donos) + Sair vivem aqui no rodapé da casca. -->
+      <div class="sb-operador" id="sbOperador">
+        <button class="sb-op-trigger" id="sbOpTrigger" title="Operador" type="button">
+          <span class="sb-op-dot"></span>
+          <span class="sb-op-meta">
+            <span class="sb-op-lbl" id="sbOpLbl">Operador</span>
+            <span class="sb-op-nome" id="sbOpNome">…</span>
+          </span>
+          <span class="sb-op-caret" id="sbOpCaret">▾</span>
+        </button>
+        <div class="sb-op-menu" id="sbOpMenu"><div id="sbOpSwitch"></div></div>
+      </div>
       <div class="last-update"><span class="pulse-dot"></span>Dados sincronizados</div>
       <a href="/exportar.csv" class="sb-csv" title="Baixar toda a base como CSV (backup)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base (CSV)</a>
       <button class="host-refresh" id="hostRefresh" title="Recarregar os dados do Dashboard"><span class="host-refresh-ico">↻</span> Atualizar dados</button>
@@ -282,6 +317,48 @@ body::before {
 
   window.addEventListener('hashchange', route);
   route();
+})();
+
+/* Operador no rodapé da sidebar: identidade + trocador "ver base de" (só donos com
+   operadores). Trocar = POST /ver-como + reload da casca (recria os iframes com o novo
+   dono efetivo → estado limpo em toda a base). O "Sair" continua sendo o #hostLogout. */
+(function(){
+  var wrap = document.getElementById('sbOperador');
+  var trig = document.getElementById('sbOpTrigger');
+  if (!wrap || !trig) return;
+  function verComo(alvo){
+    fetch('/ver-como', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alvo: alvo }) })
+      .catch(function(){}).then(function(){ window.location.reload(); });
+  }
+  fetch('/me').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+    if (!d) return;
+    var real = d.usuario || '';
+    var efetivo = d.dono_efetivo || real;
+    var ops = d.operadores || [];
+    var vendo = efetivo !== real;
+    document.getElementById('sbOpNome').textContent = efetivo || 'operador';
+    document.getElementById('sbOpLbl').textContent = vendo ? 'Vendo' : 'Operador';
+    wrap.classList.toggle('vendo', vendo);
+    if (ops.length) {
+      var sw = document.getElementById('sbOpSwitch');
+      var head = document.createElement('div'); head.className = 'sb-op-head'; head.textContent = 'Ver base de'; sw.appendChild(head);
+      ops.forEach(function(op){
+        var b = document.createElement('button'); b.textContent = op;
+        if (op === efetivo) b.className = 'ativo';
+        b.addEventListener('click', function(){ verComo(op); });
+        sw.appendChild(b);
+      });
+      if (vendo) {
+        var volta = document.createElement('button'); volta.className = 'voltar'; volta.textContent = '↩ Voltar para ' + real;
+        volta.addEventListener('click', function(){ verComo(''); });
+        sw.appendChild(volta);
+      }
+      wrap.classList.add('has-switch');
+    }
+  }).catch(function(){});
+  trig.addEventListener('click', function(e){ e.stopPropagation(); if (wrap.classList.contains('has-switch')) wrap.classList.toggle('open'); });
+  document.addEventListener('click', function(e){ if (!wrap.contains(e.target)) wrap.classList.remove('open'); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') wrap.classList.remove('open'); });
 })();
 </script>
 
