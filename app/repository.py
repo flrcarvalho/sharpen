@@ -1389,11 +1389,11 @@ async def casas_visao(dono: str) -> list[dict]:
             "AND (origem_tipster IS DISTINCT FROM 'sugerido') "
             "GROUP BY casa, tipster", dono)
         cfg_rows = await conn.fetch(
-            "SELECT casa, modo, tipsters FROM casa_config WHERE dono = $1", dono)
+            "SELECT casa, modo, tipsters, origem FROM casa_config WHERE dono = $1", dono)
         ativos = await conn.fetch(
             "SELECT nome FROM tipsters WHERE dono = $1 AND arquivado = FALSE", dono)
     ativos_set = {r["nome"] for r in ativos}
-    cfg = {r["casa"]: {"modo": r["modo"], "tipsters": r["tipsters"]} for r in cfg_rows}
+    cfg = {r["casa"]: {"modo": r["modo"], "tipsters": r["tipsters"], "origem": r["origem"]} for r in cfg_rows}
     por_casa: dict[str, dict] = {}
     for r in rows:
         casa = (r["casa"] or "").strip()
@@ -1426,17 +1426,21 @@ async def casas_visao(dono: str) -> list[dict]:
             "sugestao_modo": sug_modo, "sugestao_tipsters": sug_tipsters,
             "modo": c["modo"] if c else None,             # None = ainda não curada
             "tipsters": c["tipsters"] if c else "",
+            "origem": c["origem"] if c else None,         # 'sharpen' | 'custom' | None (não curada)
         })
     out.sort(key=lambda x: -x["total"])
     return out
 
 
-async def salvar_casa_config(dono: str, casa: str, modo: str, tipsters: str) -> bool:
+async def salvar_casa_config(dono: str, casa: str, modo: str, tipsters: str,
+                             origem: str = "custom") -> bool:
     """Upsert da curadoria de uma casa. modo='dedicada' exige 1-2 tipsters; 'multi' zera a
-    lista. Chave (dono, casa). Retorna False se o input for inválido."""
+    lista. `origem` = 'sharpen' (aplicada da sugestão) | 'custom' (editada à mão). Chave
+    (dono, casa). Retorna False se o input for inválido."""
     casa = (casa or "").strip()
     modo = (modo or "").strip().lower()
-    if not casa or modo not in ("dedicada", "multi"):
+    origem = (origem or "custom").strip().lower()
+    if not casa or modo not in ("dedicada", "multi") or origem not in ("sharpen", "custom"):
         return False
     if modo == "dedicada":
         tips_list = [t.strip() for t in (tipsters or "").split(",") if t.strip()]
@@ -1448,10 +1452,10 @@ async def salvar_casa_config(dono: str, casa: str, modo: str, tipsters: str) -> 
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute(
-            "INSERT INTO casa_config (dono, casa, modo, tipsters, atualizado_em) "
-            "VALUES ($1, $2, $3, $4, NOW()) "
-            "ON CONFLICT (dono, casa) DO UPDATE SET modo = $3, tipsters = $4, atualizado_em = NOW()",
-            dono, casa, modo, tips)
+            "INSERT INTO casa_config (dono, casa, modo, tipsters, origem, atualizado_em) "
+            "VALUES ($1, $2, $3, $4, $5, NOW()) "
+            "ON CONFLICT (dono, casa) DO UPDATE SET modo = $3, tipsters = $4, origem = $5, atualizado_em = NOW()",
+            dono, casa, modo, tips, origem)
     return True
 
 

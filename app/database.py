@@ -234,6 +234,10 @@ CREATE TABLE IF NOT EXISTS casa_config (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dono, casa)
 );
+-- Procedência da curadoria da casa (tag "Origem" da tela): 'sharpen' = aplicada da sugestão
+-- do sistema; 'custom' = o dono editou à mão. Qualquer edição de atribuição/tipster marca
+-- 'custom'. Aditivo; linha nova default 'custom' (só se cria linha ao salvar = ação humana).
+ALTER TABLE casa_config ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'custom';
 """
 
 

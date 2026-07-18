@@ -2067,10 +2067,12 @@ async def atualizar_tipster_info_route(tipster_id: int, body: TipsterInfoRequest
 
 
 class CasaConfigRequest(BaseModel):
-    """Curadoria de uma casa: modo 'dedicada' (1-2 tipsters) ou 'multi' (compartilhada)."""
+    """Curadoria de uma casa: modo 'dedicada' (1-2 tipsters) ou 'multi' (compartilhada).
+    `origem` = 'sharpen' (aplicada da sugestão) | 'custom' (editada à mão)."""
     casa: str
     modo: str
     tipsters: Optional[str] = ""
+    origem: Optional[str] = "custom"
 
 
 @app.get("/casas/config")
@@ -2081,9 +2083,9 @@ async def listar_casas_config(dono: str = Depends(dono_efetivo)):
 
 @app.post("/casas/config")
 async def salvar_casa_config_route(body: CasaConfigRequest, dono: str = Depends(dono_efetivo)):
-    ok = await salvar_casa_config(dono, body.casa, body.modo, body.tipsters or "")
+    ok = await salvar_casa_config(dono, body.casa, body.modo, body.tipsters or "", body.origem or "custom")
     if not ok:
-        raise HTTPException(400, "Config de casa inválida (modo deve ser 'dedicada' com 1-2 tipsters, ou 'multi').")
+        raise HTTPException(400, "Config de casa inválida (modo 'dedicada' com 1-2 tipsters ou 'multi'; origem 'sharpen'/'custom').")
     return {"salvo": True}
 
 
