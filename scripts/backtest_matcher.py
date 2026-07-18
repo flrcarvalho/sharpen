@@ -98,11 +98,12 @@ def build_index(profs):
         sig[nome] = ss
         esp[nome] = set(_norm(e) for e in _split(p["esportes"]))
     return {"ownCasa": ownCasa, "ownEsp": ownEsp, "ownMkt": ownMkt, "sig": sig, "esp": esp}
-def suggest(b, idx, profs):
+def _ranqueia(b, idx, profs, allowed=None):
     casaK, espK, mktK = _slug(b["casa"]), _norm(b["esporte"]), _norm(b["aposta"])
     wOf = lambda s, excl: excl if (s and len(s) == 1) else 1
+    pool = [p for p in profs if allowed is None or p["nome"] in allowed]
     # Sobreviventes do filtro duro de esporte.
-    survivors = [p for p in profs
+    survivors = [p for p in pool
                  if not (espK and idx["esp"].get(p["nome"]) and len(idx["esp"][p["nome"]]) and espK not in idx["esp"][p["nome"]])]
     # Distintividade CONTEXTUAL: conta quantos sobreviventes DECLARAM este stake (o "≤2 donos").
     # Valor redondo comum (300 = 8 donos) vira ruído entre os de Futebol → 0; 250 do Robotenis só
@@ -129,12 +130,22 @@ def suggest(b, idx, profs):
     top = ranked[0][1]; second = ranked[1][1] if len(ranked) > 1 else 0
     return ranked[0][0] if (top - second >= FOLGA) else None
 
+def suggest(b, idx, profs, dedicadas):
+    # Casa-feudo (curadoria em casa_config): 1 dono CRAVA; 2 RESTRINGE o pool e o stake desempata;
+    # ADITIVO (não suprime → cai no baseline). Espelha _sugParaBilhete do index.html (Etapa 2).
+    ded = [n for n in dedicadas.get(_slug(b["casa"]), []) if n in idx["sig"]]
+    if len(ded) == 1: return ded[0]
+    if len(ded) == 2:
+        r = _ranqueia(b, idx, profs, set(ded))
+        if r is not None: return r
+    return _ranqueia(b, idx, profs, None)
+
 async def main():
     conn = await asyncpg.connect(DB)
     try:
         donos = [r["dono"] for r in await conn.fetch("SELECT DISTINCT dono FROM tipsters ORDER BY dono")]
         print(f"janela de teste: últimos {DIAS} dias · folga {FOLGA}\n")
-        print(f"{'dono':<12}{'N':>6}{'c/perfil':>9}{'cobertura':>11}{'precisão':>10}   confusões (real→sugerido)")
+        print(f"{'dono':<12}{'N':>6}{'c/perfil':>9}{'cobertura':>11}{'precisão':>10}{'feudos':>8}   confusões (real→sugerido)")
         for dono in donos:
             profs = [dict(r) for r in await conn.fetch(
                 "SELECT nome, casas, esportes, mercados, dica_stake, obs FROM tipsters "
@@ -142,6 +153,13 @@ async def main():
             if not profs: continue
             ativos = set(p["nome"] for p in profs)
             idx = build_index(profs)
+            # Casa-feudo: curadoria do Feca (casa_config, modo='dedicada'). Vazio → dormente.
+            ded_rows = await conn.fetch(
+                "SELECT casa, tipsters FROM casa_config WHERE dono=$1 AND modo='dedicada'", dono)
+            dedicadas = {}
+            for r in ded_rows:
+                tips = [t.strip() for t in (r["tipsters"] or "").split(",") if t.strip()][:2]
+                if tips: dedicadas[_slug(r["casa"])] = tips
             bilhetes = await conn.fetch(
                 "SELECT casa, esporte, aposta, stake, tipster FROM bilhetes "
                 "WHERE dono=$1 AND tipster IS NOT NULL AND tipster <> '' "
@@ -154,7 +172,7 @@ async def main():
             for b in bilhetes:
                 real = b["tipster"].strip()
                 if real in ativos: com_perfil += 1
-                pred = suggest(b, idx, profs)
+                pred = suggest(b, idx, profs, dedicadas)
                 if pred is not None:
                     sug += 1
                     if pred == real: acerto += 1
@@ -162,7 +180,7 @@ async def main():
             cob = f"{100*sug/N:.0f}%"
             prec = f"{100*acerto/sug:.0f}%" if sug else "—"
             top_conf = " · ".join(f"{r}→{p}({n})" for (r, p), n in conf.most_common(3))
-            print(f"{dono:<12}{N:>6}{com_perfil:>9}{cob:>11}{prec:>10}   {top_conf}")
+            print(f"{dono:<12}{N:>6}{com_perfil:>9}{cob:>11}{prec:>10}{len(dedicadas):>8}   {top_conf}")
     finally:
         await conn.close()
 

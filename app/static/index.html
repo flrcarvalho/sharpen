@@ -4709,6 +4709,21 @@ async function carregarPerfisTipster() {
   try { const r = await fetch('/tipsters/cadastro?arquivados=0'); const d = await r.json(); tipsterProfiles = d.tipsters || []; }
   catch { tipsterProfiles = []; }
 }
+// Casas dedicadas (curadoria do Feca): slug(casa) → [tipster1(, tipster2)]. Só as casas com
+// modo='dedicada' e tipster(s); 'multi'/não-curada ficam de fora. Alimenta _sugParaBilhete.
+let _casasDedicadas = {};
+async function carregarCasasDedicadas() {
+  _casasDedicadas = {};
+  try {
+    const r = await fetch('/casas/config'); const d = await r.json();
+    (d.casas || []).forEach(c => {
+      if (c.modo === 'dedicada' && c.tipsters) {
+        const tips = _sugSplit(c.tipsters).slice(0, 2);
+        if (tips.length) _casasDedicadas[_sugSlug(c.casa)] = tips;
+      }
+    });
+  } catch { _casasDedicadas = {}; }
+}
 const _sugNorm = s => (s || '').toString().trim().toLowerCase();
 const _sugSlug = s => _sugNorm(s).replace(/\s+/g, '');
 const _sugSplit = s => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -4825,11 +4840,14 @@ function _declaraStake(S, sig, casaK) {
   const I = Math.round(n), d = I % 10;
   return (d !== 0 && sig.finais.has(d)) || sig.valores.has(I);
 }
-function _sugParaBilhete(b, idx) {
+// Núcleo do ranqueamento. `allowed` (Set de nomes) restringe o pool de candidatos — usado
+// pela casa-feudo de 2 donos. Sem `allowed` = todos os perfis (baseline).
+function _sugRanqueia(b, idx, allowed) {
   const casaK = _sugSlug(b.casa), espK = _sugNorm(b.esporte), mktK = _sugNorm(b.aposta);
   const wOf = (set, excl) => (set && set.size === 1) ? excl : 1;   // exclusivo=excl, senão 1
+  const pool = allowed ? tipsterProfiles.filter(p => allowed.has(p.nome)) : tipsterProfiles;
   // Sobreviventes do filtro duro de esporte (declara esportes e nenhum bate o do bilhete → fora).
-  const survivors = tipsterProfiles.filter(p =>
+  const survivors = pool.filter(p =>
     !(espK && idx.esp[p.nome] && idx.esp[p.nome].size && !idx.esp[p.nome].has(espK)));
   // DISTINTIVIDADE contextual da stake: conta quantos sobreviventes DECLARAM este mesmo stake
   // (o "≤2 donos" do design). Ex.: 300 é declarada por 8 tipsters → entre os de Futebol são ≥3
@@ -4858,8 +4876,18 @@ function _sugParaBilhete(b, idx) {
   const top = ranked[0].score, second = ranked[1] ? ranked[1].score : 0;
   return (top - second >= 7) ? ranked[0].nome : null;   // folga clara → sugere; senão vazio
 }
+// Casa-feudo (curadoria do Feca em casa_config, via /casas/config): casa DEDICADA a 1 tipster
+// CRAVA; a 2 tipsters RESTRINGE o pool a eles e o resto do matcher (stake) desempata. ADITIVO:
+// casa nunca SUPRIME — se não decidir, cai no matcher normal. Só usa o que o Feca CUROU
+// (modo='dedicada'); casa 'multi' ou não curada não entra. Ver STATUS Etapa 2.
+function _sugParaBilhete(b, idx) {
+  const ded = (_casasDedicadas[_sugSlug(b.casa)] || []).filter(n => idx.sig[n]);   // só donos que são perfil ativo
+  if (ded.length === 1) return ded[0];                                             // 1 dono → crava
+  if (ded.length === 2) { const r = _sugRanqueia(b, idx, new Set(ded)); if (r) return r; }   // 2 donos → restringe + stake desempata
+  return _sugRanqueia(b, idx, null);                                               // baseline (aditivo: não suprime)
+}
 async function sugerirTipstersLote() {
-  await carregarPerfisTipster();
+  await Promise.all([carregarPerfisTipster(), carregarCasasDedicadas()]);
   if (!tipsterProfiles.length) { setExpStatus('Cadastre os perfis em Tipster / Método primeiro', 'err'); return; }
   const idx = _buildSugIndex();
   const vazios = bilhetes.filter(b => !(b.tipster || '').trim());
