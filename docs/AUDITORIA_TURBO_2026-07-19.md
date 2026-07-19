@@ -24,7 +24,8 @@
 > **11 correções no ar** (uma por commit, todas testadas · suíte 140 → 169):
 > - **Onda 1** — schema banco vazio `201b223` · polymarket/sync base certa `eee55c1` · P/L zero neutro `31166ad` · tooltip+dot HW/HL `d2f23ba`. _(custo tipster #1/#2 → amanhã com Jonathan)_
 > - **Onda 2** — X-Forwarded-For `afad142` · `.dockerignore` `947cef7` · SESSION_SECRET fail-closed `06be977` · `test_auth.py` (27 testes) `0bf12f2`. _(resta #11 harness de DB)_
-> - **Onda 3** — índices em `bilhetes` `8e6e7c4`. _(resta #13 autodiagnóstico, #14 domain.py, #14b polymarket robustez)_
+> - **Onda 3** — índices em `bilhetes` `8e6e7c4` · **teto de paginação Polymarket** (anti loop-infinito) `771aea3`. _(resta #13 autodiagnóstico, #14 domain.py, #14b resto: consolidar fetch duplo + `_portfolio`→"—")_
+> - **Poly UX** — auto-sync ao entrar/voltar (throttle 5 min, pausa se aba oculta) `efbd55f`. _(resta: sync incremental por marca d'água — precisa teste de paridade ao vivo)_
 > - **Onda 4** — win rate backend = dashboard (HW=½) `0941bf7`. _(resta solidez #15/#16, backtest #18)_
 > - **Onda 6** — faxina: planos→docs/, link, remove NOTA `0d528a0`. _(resta re-sync docs, Backups retenção)_
 >
