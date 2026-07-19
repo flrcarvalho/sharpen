@@ -614,6 +614,7 @@ async def _assinatura_pos_edicao(conn, antes, safe: dict, dono: str,
 async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
     origem: str = "extracao", criado_base: datetime | None = None,
+    coproprietarios: list[str] | None = None,
 ) -> tuple[int, int, list[int], list[str], dict]:
     """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
 
@@ -663,6 +664,29 @@ async def upsert_bilhetes(
                 k = (casa_k, parc_k, round(st, 2), _norm_odd(rr["odd"] or ""))
                 coded_por_conta.setdefault(k, []).append(rr["codigo_bilhete"])
 
+        # Dedup CRUZADA (linhagem supervisor↔operadores): assinaturas que JÁ existem
+        # sob um co-proprietário para as contas deste lote. Contas físicas são
+        # compartilhadas dentro da linhagem — um supervisor pode repassar ao operador
+        # uma conta que usou (ex.: Feca arquiva e o Lava assume). Um bilhete cujo
+        # `sig` bate aqui é a MESMA aposta física recapturada do histórico
+        # compartilhado; inserir sob o outro dono a contaria duas vezes no painel do
+        # supervisor. Auto-escopada: só colide quando casa+parceiro batem EXATAMENTE
+        # entre donos (conta genuinamente compartilhada) — contas próprias do operador
+        # têm parceiro diferente e nunca entram aqui. Casas com código (Betano) tornam
+        # a assinatura (ID|casa|parceiro|codigo) à prova de erro. Inclui arquivados
+        # (as antigas do supervisor costumam estar archived=TRUE).
+        sig_de_coproprietario: set[str] = set()
+        if coproprietarios:
+            contas = {(row.get("casa", ""), row.get("parceiro", "")) for row in rows}
+            for casa_k, parc_k in contas:
+                recs = await conn.fetch(
+                    """SELECT assinatura FROM bilhetes
+                       WHERE dono = ANY($1) AND casa = $2 AND parceiro = $3""",
+                    coproprietarios, casa_k, parc_k,
+                )
+                for rr in recs:
+                    sig_de_coproprietario.add(rr["assinatura"])
+
         for i, row in enumerate(rows):
             codigo = row.get("codigo_bilhete", "").strip()
 
@@ -702,6 +726,19 @@ async def upsert_bilhetes(
                         )
             else:
                 sig = _assinatura(row)
+
+            # Guard da dedup cruzada: se esta assinatura já pertence a um co-proprietário
+            # da conta compartilhada, é a MESMA aposta física já planilhada pelo outro
+            # dono (histórico anterior ao repasse). Não insere sob este dono — evita a
+            # dupla contagem no painel do supervisor. Só sinaliza; não apaga nada.
+            if sig in sig_de_coproprietario:
+                alertas.append(
+                    f"Bilhete {i + 1} já pertence a outro operador desta conta "
+                    f"({row.get('casa', '')} / {row.get('parceiro', '')}) — "
+                    "histórico anterior ao repasse, ignorado."
+                )
+                id_per_row.append(None)
+                continue
 
             if codigo:
                 # Migração A: normaliza assinatura de linha existente com mesmo código.

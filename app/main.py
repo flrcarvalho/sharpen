@@ -26,8 +26,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
 
 from auth import (
-    COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, criar_token, dono_efetivo,
-    operadores_de, planilha_ao_vivo, pode_ver_como, usuario_atual,
+    COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, coproprietarios, criar_token,
+    dono_efetivo, operadores_de, planilha_ao_vivo, pode_ver_como, usuario_atual,
     usuario_do_request, verificar_credenciais,
 )
 import captura as _captura
@@ -1521,7 +1521,8 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
 
     if rows:
         inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(
-            rows, dono, confianca=body.confianca, criado_base=criado_base
+            rows, dono, confianca=body.confianca, criado_base=criado_base,
+            coproprietarios=coproprietarios(dono),
         )
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}

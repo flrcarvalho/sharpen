@@ -86,6 +86,27 @@ def operadores_de(usuario: str) -> list[str]:
     return OPERADORES.get(usuario, [])
 
 
+def coproprietarios(usuario: str) -> list[str]:
+    """Outros donos da MESMA linhagem supervisor↔operadores (exclui o próprio).
+
+    Contas físicas são compartilhadas dentro da linhagem: um supervisor pode
+    repassar uma conta que usou para um operador seu. Um bilhete cuja assinatura
+    já existe sob um co-proprietário (mesma casa+parceiro) é a MESMA aposta física
+    recapturada do histórico compartilhado — a dedup cruzada em `upsert_bilhetes`
+    a barra para não contar duas vezes no painel do supervisor.
+
+    Ex.: coproprietarios('Lava') -> ['Feca']; coproprietarios('Feca') -> ['Lava'].
+    Dono solo (fora de OPERADORES) -> [] (nenhuma checagem cruzada).
+    """
+    grupo: set[str] = set()
+    for supervisor, ops in OPERADORES.items():
+        if usuario == supervisor or usuario in ops:
+            grupo.add(supervisor)
+            grupo.update(ops)
+    grupo.discard(usuario)
+    return sorted(grupo)
+
+
 def planilha_ao_vivo(dono: str) -> str:
     """URL do Apps Script /exec da planilha ao vivo deste dono, ou "" se ele lê
     do Postgres (o caso normal)."""
