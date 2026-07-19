@@ -20,7 +20,7 @@
 > **Feito (sessão 160 — turbo/CEO, +6 commits):** #14c faxina CSS morto · **#13 autodiagnóstico
 > universal das casas-robô** (maior risco vivo — manifest 0.3.5, recarregar extensão) · **#11 harness
 > de camada-DB real** (Postgres no CI, gateado em `TEST_DATABASE_URL`, nunca prod) · **#20** 3 lacunas
-> de propagação nos masters (aprovado) · **#15/#16 Solidez** gate de rentabilidade + força-do-sinal (aprovado).
+> de propagação nos masters (aprovado) · ~~#15/#16 Solidez~~ (revertido `9394553` — rumo errado; → sessão dedicada de redesenho).
 > **Aberto (prioridade):** custo tipster→Postgres (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) ·
 > **Poly incremental + #5 odd** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md) — precisa a carteira do Feca) ·
 > #14 domain.py (adiado) · #18 backtest temporal · #19 separador bet builder ✅ (` // ` único separador) · #21 golden · #25 Backups.
