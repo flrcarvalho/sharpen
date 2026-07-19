@@ -29,8 +29,10 @@
 .tm-wrap .pill-warn{font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;color:var(--warn);background:rgba(var(--warn-rgb),.1);border:1px solid rgba(var(--warn-rgb),.3);border-radius:var(--r-pill);padding:7px 12px;white-space:nowrap}
 
 /* ---------- TAB BAR (2 botões) + KPIs ---------- */
-.tm-wrap .kpi{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);border:1px solid var(--line);border-radius:var(--r-pill);padding:8px 13px;background:var(--surface);white-space:nowrap}
-.tm-wrap .kpi b{color:var(--ink)} .tm-wrap .kpi .w{color:var(--warn)}
+/* .tm-kpi (renomeado de .kpi do pack): o dash já tem .kpi = card min-height:120px (vira
+   círculo). Nome próprio + display/min-height explícitos evitam a colisão de vez. */
+.tm-wrap .tm-kpi{display:inline-flex;align-items:center;min-height:0;font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);border:1px solid var(--line);border-radius:var(--r-pill);padding:8px 13px;background:var(--surface);white-space:nowrap}
+.tm-wrap .tm-kpi b{color:var(--ink)} .tm-wrap .tm-kpi .w{color:var(--warn)}
 .tabbar{display:flex;gap:6px;padding:5px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--surface);width:max-content;margin-bottom:22px}
 .tabbar button{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.03em;color:var(--ink-mute);background:transparent;border:0;cursor:pointer;padding:11px 22px;border-radius:var(--r-pill);white-space:nowrap;display:flex;align-items:center;gap:9px;transition:.18s var(--ease)}
 .tabbar button .n{font-family:var(--font-mono);font-size:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-pill);padding:2px 8px;color:var(--ink-soft)}
@@ -108,10 +110,10 @@
 @media(max-width:900px){.ladder__tl{border-left:0;padding-left:0;border-top:1px solid var(--line-2);padding-top:20px}}
 .tl-hd{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:20px}
 .tl-empty{font-family:var(--font-mono);font-size:11px;color:var(--ink-mute);border:1px dashed var(--line);border-radius:var(--r-sm);padding:18px;text-align:center;line-height:1.5}
-.tl-list{display:flex;align-items:stretch;overflow-x:auto;padding:22px 0 6px} /* padding-top dá respiro pra bolinha (dot+glow) não cortar */
+.tl-list{display:flex;align-items:stretch;overflow-x:auto;padding:30px 0 6px} /* padding-top generoso: a bolinha (dot -6.5px + glow 3px) fica bem dentro do clip do scroll-x */
 .tl-node{position:relative;flex:1 0 168px;max-width:230px;padding:22px 22px 4px 0;border-top:1.5px solid var(--line)}
 .tl-dot{position:absolute;left:0;top:-6.5px;width:11px;height:11px;border-radius:50%;background:var(--surface);border:2px solid var(--ink-mute);box-sizing:border-box}
-.tl-node.cur .tl-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px rgba(var(--accent-rgb),.15)}
+.tl-node.cur .tl-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.15)}
 .tl-b{display:flex;flex-direction:column;gap:5px}
 .tl-top{display:flex;align-items:center;gap:9px}
 .tl-date{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.02em}

@@ -612,8 +612,8 @@ async function renderTipsterMetodo(){
   }
   const paneTP=`<section class="pane" id="paneTP"><div class="panel"><div class="panel__head"><span class="tick"></span><h2>Tipster / Método</h2></div>${intro}${toolbar}<div id="tmLista" style="padding:6px 14px 14px">${corpo}</div></div></section>`;
   const paneCasas=`<section class="pane" id="paneCasas" hidden></section>`;
-  const kpis=`<span class="kpi" id="kpiTP"><b>${nAtivos}</b> tipsters${nInc?` · <span class="w">${nInc} sem info</span>`:''}</span>`
-    +`<span class="kpi" id="kpiCasas" style="display:none"><b id="kpiCasasN">—</b> casas · <span class="w" id="kpiCasasSug">—</span></span>`;
+  const kpis=`<span class="tm-kpi" id="kpiTP"><b>${nAtivos}</b> tipsters${nInc?` · <span class="w">${nInc} sem info</span>`:''}</span>`
+    +`<span class="tm-kpi" id="kpiCasas" style="display:none"><b id="kpiCasasN">—</b> casas · <span class="w" id="kpiCasasSug">—</span></span>`;
   const tabs=`<div class="tabbar" role="tablist">`
     +`<button data-tab="tp" class="on" onclick="tmTab('tp')"><span>Tipster / Método</span><span class="n">${nAtivos}</span></button>`
     +`<button data-tab="casas" onclick="tmTab('casas')"><span>Casas</span><span class="n" id="tabCasasN">—</span></button></div>`;
