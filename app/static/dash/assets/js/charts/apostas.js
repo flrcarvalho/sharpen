@@ -113,28 +113,30 @@ function renderApostasVirt(){
     // Editável só quando há id (Postgres) E a linha é do dono efetivo. Linha de
     // planilha ao vivo (sem id) ou de operador numa visão consolidada → view-only.
     const editavel=r.id!=null&&r.operador===window.__dono;
-    // Duplo-clique edita a célula in loco — só nas linhas editáveis (df() emite o
-    // marcador data-field; o handler _apInlineStart valida de novo). `ap-edit` dá o
-    // cursor de edição.
-    const df=f=>editavel?` data-field="${f}" class="ap-edit"`:'';
+    // Duplo-clique edita a célula in loco — só nas linhas editáveis. `df()` emite o
+    // marcador data-field (o handler _apInlineStart valida de novo) e `ec` concatena a
+    // classe `ap-edit` (cursor) na classe-base. UM só atributo class por célula: um
+    // segundo class= era descartado pelo parser → o cursor de edição nunca aparecia.
+    const df=f=>editavel?` data-field="${f}"`:'';
+    const ec=editavel?' ap-edit':'';
     return`<div class="btbl-cols btbl-data-row"${r.id!=null?` data-id="${r.id}"`:''} style="height:${BTBL_ROW_H}px">
-      <div class="btbl-cell btbl-date"${editavel?` data-field="data" class="btbl-cell btbl-date ap-edit"`:''}>${dateStr}</div>
+      <div class="btbl-cell btbl-date${ec}"${df('data')}>${dateStr}</div>
       <div class="btbl-cell">
-        ${r.aposta?`<div class="btbl-tipo"${df('aposta')}>${esc(r.aposta)}</div>`:''}
-        <div class="btbl-desc"${editavel?` data-field="descricao" class="btbl-desc ap-edit"`:''}>${esc(r.descricao||r.aposta||'—')}</div>
+        ${r.aposta?`<div class="btbl-tipo${ec}"${df('aposta')}>${esc(r.aposta)}</div>`:''}
+        <div class="btbl-desc${ec}"${df('descricao')}>${esc(r.descricao||r.aposta||'—')}</div>
       </div>
-      <div class="btbl-cell btbl-sport"${editavel?` data-field="esporte" class="btbl-cell btbl-sport ap-edit"`:''}>${mkSpChip(r.esporte)}<span>${esc(r.esporte||'—')}</span></div>
-      <div class="btbl-cell btbl-tipster"${editavel?` data-field="tipster" class="btbl-cell btbl-tipster ap-edit"`:''}>${esc(r.tipster||'—')}</div>
+      <div class="btbl-cell btbl-sport${ec}"${df('esporte')}>${mkSpChip(r.esporte)}<span>${esc(r.esporte||'—')}</span></div>
+      <div class="btbl-cell btbl-tipster${ec}"${df('tipster')}>${esc(r.tipster||'—')}</div>
       <div class="btbl-cell btbl-casa">
         ${mkHouseChip(r.casa)}
         <div class="btbl-casa-sub">
-          <span class="btbl-casa-nome"${df('casa')}>${esc(r.casa||'—')}</span>
-          ${parceiro?`<span class="btbl-casa-conta"${df('parceiro')}>${esc(parceiro)}</span>`:''}
+          <span class="btbl-casa-nome${ec}"${df('casa')}>${esc(r.casa||'—')}</span>
+          ${parceiro?`<span class="btbl-casa-conta${ec}"${df('parceiro')}>${esc(parceiro)}</span>`:''}
         </div>
       </div>
-      <div class="btbl-cell btbl-num"${editavel?` data-field="stake" class="btbl-cell btbl-num ap-edit"`:''}>${fmtR(r.stake)}</div>
-      <div class="btbl-cell btbl-num"${editavel?` data-field="odd" class="btbl-cell btbl-num ap-edit"`:''}>${fmtOdd(r.odd)}</div>
-      <div class="btbl-cell"${editavel?` data-field="resultado" class="btbl-cell ap-edit"`:''} style="display:flex;align-items:center;justify-content:center">
+      <div class="btbl-cell btbl-num${ec}"${df('stake')}>${fmtR(r.stake)}</div>
+      <div class="btbl-cell btbl-num${ec}"${df('odd')}>${fmtOdd(r.odd)}</div>
+      <div class="btbl-cell${ec}"${df('resultado')} style="display:flex;align-items:center;justify-content:center">
         <span class="bet-res-pill ${resClass}">${resLabel}</span>
       </div>
       <div class="btbl-cell btbl-pl">${r.resultado==='ABERTA'?'<span style="color:var(--ink-mute)">—</span>':fmtPL(r.lucro)}</div>
