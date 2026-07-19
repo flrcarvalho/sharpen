@@ -376,7 +376,7 @@ function renderMetrics(rows){
   const profDdRaw=xmdd>0?pl/xmdd:null;
   // Significância
   const pval=calcPValueMC(rows,10000);
-  const sol=calcSolidez({pValue:pval,profitXmdd:profDdRaw!==null?profDdRaw:0,nApostas:rows.length,oddMedia:avgOdd,roi:roi});
+  const sol=calcSolidez({pValue:pval,profitXmdd:profDdRaw!==null?profDdRaw:0,nApostas:rows.length,oddMedia:avgOdd});
 
   // Preenche um badge: só o texto se cls===undefined (mantém a classe semântica do markup);
   // troca a classe quando o sinal/limiar é dinâmico (ROI, P/L, RF, Profit/DD, P-Value, Solidez).

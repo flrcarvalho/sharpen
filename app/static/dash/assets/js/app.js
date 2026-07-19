@@ -251,23 +251,11 @@ function calcTopoDrawdown(rows){
   return{topo:peak,topoData:peakDate,atual:acc,ddAtual:dd,ddAtualPct:peak>0?dd/peak:0};
 }
 function calcSolidez(o){
-  // Edge: significância estatística (p-value) SOZINHA infla com amostra grande — +0,5% de
-  // yield sobre 25k apostas fica "significativo" mas é trivial na prática (#16). Por isso a
-  // banda cheia exige significância E um yield minimamente relevante (≥3%, POSITIVO);
-  // significância de efeito pequeno vale meia. Separa força-do-sinal (ROI) do tamanho-de-
-  // amostra (que já é o sAmostra). `roi` em % (calcROI); ausente → mantém o comportamento antigo.
-  var roi=(typeof o.roi==='number')?o.roi:null;
-  var signif=o.pValue<0.001?1:o.pValue<0.05?0.5:0;
-  var forte=(roi===null)?true:(roi>=3);
-  var sEdge=(signif>=1)?(forte?1:0.5):signif;
+  var sEdge=o.pValue<0.001?1:o.pValue<0.05?0.5:0;
   var sFolga=o.profitXmdd>5?1:o.profitXmdd>=2?0.5:0;
   var sAmostra=o.nApostas>=1000?1:o.nApostas>=300?0.5:0;
   var sVar=o.oddMedia<=3?1:o.oddMedia<=10?0.5:0;
   var score=(sEdge*3+sFolga*3+sAmostra*2+sVar*2)/10;
-  // Gate de rentabilidade (#15): 40% do índice (amostra+variância) é agnóstico a lucro, então
-  // um book grande e PERDEDOR floreava até "Alta". Com yield conhecido e NEGATIVO, trava em
-  // "Muito Baixa" — o resto do índice vira contexto, não selo de solidez.
-  if(roi!==null&&roi<0)score=Math.min(score,0.20);
   var faixa=score>=0.85?'Muito Alta':score>=0.65?'Alta':score>=0.45?'Média':score>=0.25?'Baixa':'Muito Baixa';
   return{score:score,faixa:faixa};
 }
@@ -738,7 +726,7 @@ function buildHTML(){
               <div class="term-card"><div class="term-name">Amostra · peso 2</div><div class="term-def">Nº de apostas — há histórico suficiente para confiar?</div></div>
               <div class="term-card"><div class="term-name">Variância · peso 2</div><div class="term-def">Odd Média — odds moderadas pesam menos no risco.</div></div>
             </div>
-            <div class="metric-note">Faixas: ≥ 0,85 Muito Alta · ≥ 0,65 Alta · ≥ 0,45 Média · ≥ 0,25 Baixa · &lt; 0,25 Muito Baixa. O Edge exige <b>yield relevante</b> (≥ 3%), não só significância — muita amostra torna qualquer vantagem "significativa", ainda que trivial. Estratégia no <b>vermelho</b> (yield negativo) trava em <b>Muito Baixa</b>, por maior que seja a amostra.</div>
+            <div class="metric-note">Faixas: ≥ 0,85 Muito Alta · ≥ 0,65 Alta · ≥ 0,45 Média · ≥ 0,25 Baixa · &lt; 0,25 Muito Baixa.</div>
             <div class="metric-warn">Indicador heurístico de apoio — não é um selo estatístico certificado nem recomendação financeira.</div>`,`<span class="metric-live" id="mv_solidez">—</span>`)}
         </div>
 

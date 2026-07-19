@@ -909,7 +909,7 @@ function renderTipsterDrill(rows){
 
   // Diagnóstico de risco
   const _td=calcTopoDrawdown(rows),_mc=calcMCdrawdown(rows,10000),_rf=calcRecoveryFactor(rows),_pv=calcPValueMC(rows,10000),_dd=calcDrawdownReal(rows),_mddR=_dd.mddReais,_mddP=_dd.mddPct,_profit=_td.atual;
-  const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows),roi:calcROI(rows)});
+  const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows)});
   const _solCor=_sol.score>=0.65?'var(--d-pos)':_sol.score>=0.45?'var(--d-proj)':'var(--d-neg)';
   const _fmtD=d=>{if(!d)return'—';const p=d.slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0];};
   const _mddBench=_dd.troughDate?`<span class="lbl">vale em ${_fmtD(_dd.troughDate)}</span> · <span class="thr">quanto menor, melhor</span>`:'<span class="thr">quanto menor, melhor</span>';
