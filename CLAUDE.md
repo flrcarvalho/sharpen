@@ -100,10 +100,10 @@ O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem
 | **ID/código do bilhete disponível e igual** | Mesmo bilhete — UPSERT (atualiza resultado/estado) |
 | **ID/código do bilhete disponível e diferente** | Bilhetes distintos — sempre INSERT (mesmo conteúdo idêntico) |
 | **Sem ID, conteúdo diferente** (odd, descrição, etc.) | Bilhetes distintos — INSERT |
-| **Sem ID, conteúdo idêntico, mesmo lote** | Possível sobreposição de prints — salva uma vez + aviso amarelo ao usuário |
+| **Sem ID, conteúdo idêntico, mesmo lote** | Possível sobreposição de prints — salva **ambas** as linhas (assinaturas distintas via `_counter`: `B`, `B\|2`, …) + aviso amarelo ao usuário; delete se for sobreposição real |
 | **Sem ID, conteúdo idêntico, lotes diferentes** | Re-processamento do mesmo bilhete — UPSERT silencioso |
 
-**Limitação:** Para casas onde o ID não é visível no print (ou a AI não consegue lê-lo), dois bilhetes 100% idênticos (mesmos jogos, odds, stake, casa) não têm como ser distinguidos. O sistema salva um e avisa. Use o botão de deletar e re-processe se necessário.
+**Limitação:** Para casas onde o ID não é visível no print (ou a AI não consegue lê-lo), dois bilhetes 100% idênticos (mesmos jogos, odds, stake, casa) não têm como ser distinguidos. O sistema salva **ambos** (assinaturas distintas via `_counter`) e avisa. Use o botão de deletar se for sobreposição real.
 
 **Fonte canônica (implementação):** `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. Esta tabela documenta o comportamento do código; ao mudar a lógica de dedup, **o código é a verdade** (atualize a tabela depois).
 
