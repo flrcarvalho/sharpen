@@ -20,6 +20,16 @@
 | Médios / Baixos / Info | ~63 / ~70 / ~64 |
 | Baseline de saúde | ✅ 140 testes passam · `check-tokens` verde · compila · working tree limpo, tudo pushado |
 
+> ### ⚙️ Progresso da execução (sessão 158 — 19/07)
+> **11 correções no ar** (uma por commit, todas testadas · suíte 140 → 169):
+> - **Onda 1** — schema banco vazio `201b223` · polymarket/sync base certa `eee55c1` · P/L zero neutro `31166ad` · tooltip+dot HW/HL `d2f23ba`. _(custo tipster #1/#2 → amanhã com Jonathan)_
+> - **Onda 2** — X-Forwarded-For `afad142` · `.dockerignore` `947cef7` · SESSION_SECRET fail-closed `06be977` · `test_auth.py` (27 testes) `0bf12f2`. _(resta #11 harness de DB)_
+> - **Onda 3** — índices em `bilhetes` `8e6e7c4`. _(resta #13 autodiagnóstico, #14 domain.py, #14b polymarket robustez)_
+> - **Onda 4** — win rate backend = dashboard (HW=½) `0941bf7`. _(resta solidez #15/#16, backtest #18)_
+> - **Onda 6** — faxina: planos→docs/, link, remove NOTA `0d528a0`. _(resta re-sync docs, Backups retenção)_
+>
+> Abertos maiores: Onda 5 (dados), A (polymarket robustez). Verificação visual ao vivo (Ctrl+F5) pendente.
+
 **Veredito global do CEO:** o sistema está **firme e no ar, sem nada crítico e sem risco ativo de corromper dinheiro ou vazar dado entre clientes nos caminhos atuais.** As duas fundações mais importantes — **núcleo de dinheiro** (P/L derivado) e **isolamento multi-tenant** — foram auditadas a fundo e voltaram **sólidas e bem defendidas**. O que existe é uma camada de **dívida de segunda ordem** (bugs de UI/filtro, cobertura de teste nas bordas, drift de cor, dívida de arquitetura e escala) e uma **defasagem dos documentos de planejamento** que faz o backlog parecer pior do que é. Saúde por área: **verde** em Segurança/Infra; **amarelo** em todo o resto; **nenhuma vermelha**.
 
 ---
