@@ -305,7 +305,7 @@ function renderOvRisco(rows){
     if(req!==_ovRiscoReq||!document.getElementById('ovRiscoContent'))return;
     const _td=calcTopoDrawdown(rows);
     const _profit=_td.atual;
-    const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows)});
+    const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows),roi:calcROI(rows)});
     const _solCor=_sol.score>=0.65?'var(--d-pos)':_sol.score>=0.45?'var(--d-proj)':'var(--d-neg)';
     const pvTip=_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Indicador heurístico (bootstrap): quão improvável seria seu resultado por <b>acaso</b>, sem vantagem. Menor = destaca-se mais do acaso — <b>não é prova estatística nem recomendação</b>.',rodapePValue(_pv));
     el.innerHTML=_frame(
