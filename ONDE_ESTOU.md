@@ -6,6 +6,23 @@
 
 ---
 
+> ## 🔄 ATUALIZAÇÃO 19/07/2026 (sessões 158-159) — LEIA PRIMEIRO
+> O corpo abaixo é o retrato de **10-11/07 (sessão 122)**. Desde então rolou a **Auditoria Turbo**
+> (a maior do projeto — 26 especialistas / 9 áreas) + execução de **6 ondas**. **Fonte de verdade
+> ATUAL do backlog:** [`docs/AUDITORIA_TURBO_2026-07-19.md`](docs/AUDITORIA_TURBO_2026-07-19.md) (com tracker de progresso).
+>
+> **Saúde hoje:** 0 críticos na auditoria · **172 testes** passam (eram 65) · no ar.
+> **Feito (sessões 158-159):** schema-init de banco vazio · tenancy do `/polymarket/sync` · §5 P/L
+> zero neutro · `.dot` HW/HL distintos · win rate backend=front (HW=½) · **trio de segurança**
+> (SESSION_SECRET fail-closed + X-Forwarded-For + `.dockerignore`) · **`test_auth.py`** (27 testes) ·
+> **índices** em `bilhetes` · faxina de docs (planos→`docs/`) · **Polymarket** (teto de paginação +
+> auto-sync com throttle + fetch consolidado ~2×) · Betano lê apostas em aberto.
+> **Aberto (prioridade):** custo tipster→Postgres (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) ·
+> harness de DB (#11) · **Poly incremental** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md)) ·
+> autodiagnóstico da extensão (#13) · solidez estatística (#15/#16) · re-sync dos docs de consolidação.
+
+---
+
 ## 1. Posição atual, em uma frase
 
 O sistema está **de pé, no ar, testado e conectado** (sessão 122, commit `c4b49fd`, working tree limpo).
