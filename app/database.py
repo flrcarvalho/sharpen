@@ -60,11 +60,6 @@ UPDATE bilhetes  SET casa = 'Betano'   WHERE casa = 'BETANO';
 UPDATE bilhetes  SET casa = 'Betfair'  WHERE casa = 'BETFAIR';
 UPDATE bilhetes  SET casa = 'Pinnacle' WHERE casa = 'PINNACLE';
 UPDATE bilhetes  SET casa = 'Superbet' WHERE casa = 'SUPERBET';
-UPDATE parceiros SET casa = 'Bet365'   WHERE casa = 'BET365';
-UPDATE parceiros SET casa = 'Betano'   WHERE casa = 'BETANO';
-UPDATE parceiros SET casa = 'Betfair'  WHERE casa = 'BETFAIR';
-UPDATE parceiros SET casa = 'Pinnacle' WHERE casa = 'PINNACLE';
-UPDATE parceiros SET casa = 'Superbet' WHERE casa = 'SUPERBET';
 
 CREATE TABLE IF NOT EXISTS parceiros (
     id        SERIAL PRIMARY KEY,
@@ -89,6 +84,15 @@ BEGIN
             UNIQUE (dono, casa, nome);
     END IF;
 END$$;
+
+-- Normalizar nomes de casas em parceiros: UPPERCASE → display name.
+-- (DEPOIS do CREATE TABLE parceiros — senão, em banco vazio, o UPDATE roda antes da
+--  tabela existir e faz rollback de todo o SCHEMA_SQL, travando o init de zero.)
+UPDATE parceiros SET casa = 'Bet365'   WHERE casa = 'BET365';
+UPDATE parceiros SET casa = 'Betano'   WHERE casa = 'BETANO';
+UPDATE parceiros SET casa = 'Betfair'  WHERE casa = 'BETFAIR';
+UPDATE parceiros SET casa = 'Pinnacle' WHERE casa = 'PINNACLE';
+UPDATE parceiros SET casa = 'Superbet' WHERE casa = 'SUPERBET';
 
 -- Origem do registro: extracao (IA) | sync (Polymarket API) | import (migração da planilha).
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'extracao';
