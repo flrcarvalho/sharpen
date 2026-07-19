@@ -59,18 +59,17 @@ body::before {
 .brand .w .e { color: var(--accent-2); }
 /* Nota de endosso no rodapé da sidebar (Manual v1.1): discreta, mono/mute. */
 /* Endosso (tier 5): centralizado, mono minúsculo, uppercase espaçado, discreto. */
-.sb-endorse { text-align: center; font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .16em; color: var(--ink-mute); opacity: .65; }
 .sidebar-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 0; margin: 0; }
-/* Rodapé em tiers: operador → status de sync → ações pareadas → sair → endosso.
+/* Rodapé em tiers: usuário → status de sync → ações pareadas → sair.
    Empurrado pro fundo (margin-top:auto) e ritmado por gap (sem margens soltas). */
 .sidebar-bottom { flex-shrink: 0; margin-top: auto; padding: 14px 6px 4px; border-top: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 10px; }
-/* Status de sync (tier 2): dot + rótulo à esquerda, timestamp empurrado à direita. */
+/* Status de sync (tier 2): centralizado — dot + rótulo na 1ª linha, data na 2ª. */
 .last-update {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
   font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute);
 }
-.sync-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sync-time { margin-left: auto; flex: none; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+.sync-top { display: inline-flex; align-items: center; gap: 6px; }
+.sync-time { color: var(--ink-mute); font-variant-numeric: tabular-nums; }
 @keyframes pulse-dot {
   0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(var(--pos-rgb),.4); }
   50%      { opacity: .8; box-shadow: 0 0 0 4px rgba(var(--pos-rgb),0); }
@@ -187,15 +186,15 @@ body::before {
         <button class="sb-op-trigger" id="sbOpTrigger" title="Operador" type="button">
           <span class="sb-op-dot"></span>
           <span class="sb-op-meta">
-            <span class="sb-op-lbl" id="sbOpLbl">Operador</span>
+            <span class="sb-op-lbl" id="sbOpLbl">Usuário</span>
             <span class="sb-op-nome" id="sbOpNome">…</span>
           </span>
           <span class="sb-op-caret" id="sbOpCaret">▾</span>
         </button>
         <div class="sb-op-menu" id="sbOpMenu"><div id="sbOpSwitch"></div></div>
       </div>
-      <!-- Tier 2 — Status de sync: dot pulsante + rótulo + timestamp à direita (pintado por paintSync). -->
-      <div class="last-update"><span class="pulse-dot"></span><span class="sync-label">Dados sincronizados</span></div>
+      <!-- Tier 2 — Status de sync (centralizado): dot + rótulo na 1ª linha, data na 2ª (pintado por paintSync). -->
+      <div class="last-update"><span class="sync-top"><span class="pulse-dot"></span>Dados sincronizados</span></div>
       <!-- Tier 3 — Ações utilitárias pareadas (grid 1fr 1fr). -->
       <div class="sb-actions">
         <a href="/exportar.csv" class="sb-csv" title="Baixar toda a base como CSV (backup)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar CSV</a>
@@ -203,8 +202,6 @@ body::before {
       </div>
       <!-- Tier 4 — Sair (full-width). -->
       <button class="sb-logout" id="hostLogout" title="Encerrar sessão"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair</button>
-      <!-- Tier 5 — Endosso. -->
-      <div class="sb-endorse">by FDC Capital</div>
     </div>
   </aside>
 
@@ -295,7 +292,7 @@ body::before {
   function paintSync(){
     if (!lastUpdateEl) return;
     var t = fmtSync(readDashBuilt());
-    lastUpdateEl.innerHTML = '<span class="pulse-dot"></span><span class="sync-label">Dados sincronizados</span>'
+    lastUpdateEl.innerHTML = '<span class="sync-top"><span class="pulse-dot"></span>Dados sincronizados</span>'
       + (t ? '<span class="sync-time">' + t + '</span>' : '');
   }
   function setRefreshing(on){
@@ -350,7 +347,7 @@ body::before {
     var ops = d.operadores || [];
     var vendo = efetivo !== real;
     document.getElementById('sbOpNome').textContent = efetivo || 'operador';
-    document.getElementById('sbOpLbl').textContent = vendo ? 'Vendo' : 'Operador';
+    document.getElementById('sbOpLbl').textContent = vendo ? 'Vendo' : 'Usuário';
     wrap.classList.toggle('vendo', vendo);
     if (ops.length) {
       var sw = document.getElementById('sbOpSwitch');
