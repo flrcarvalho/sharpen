@@ -3124,6 +3124,7 @@ function aplicarModoCasa(casa) {
     if (w && !w.value) w.value = localStorage.getItem('poly-wallet') || '';
     setPolyStatus('', '');
     iniciarPollPoly();
+    _polyAutoSyncSePreciso();   // ao ENTRAR na Poly: sincroniza se passou de 5 min do último
   } else {
     pararPollPoly();
   }
@@ -3137,6 +3138,7 @@ let polyActivosPrev = null;   // Set de códigos ativos no último poll (detecta
 
 async function carregarDashboardPoly() {
   if (casaSelecionada !== 'Polymarket') return;
+  if (document.visibilityState !== 'visible') return;   // aba em 2º plano: não faz polling
   const wallet = (document.getElementById('poly-wallet').value || localStorage.getItem('poly-wallet') || '').trim();
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
     renderDashPoly(null);
@@ -3156,6 +3158,7 @@ async function carregarDashboardPoly() {
       if (resolvidos.length && !polySyncing) sincronizarPolymarket({ silencioso: true });
     }
     polyActivosPrev = atual;
+    _polyAutoSyncSePreciso();   // a cada poll (60s), sincroniza tudo se passou de 5 min
   } catch (e) {
     /* poll silencioso: erro de rede não precisa de UI dedicada (o botão Sincronizar tem a sua) */
   }
@@ -3197,6 +3200,26 @@ function setPolyStatus(msg, kind) {
   el.className = 'status-msg' + (kind ? ' ' + kind : '');
 }
 
+// Auto-sync com throttle (regra do Feca): sincroniza o histórico completo ao ENTRAR na
+// Polymarket e ao VOLTAR à aba/tela, mais um tique a cada ~5 min enquanto o usuário navega —
+// NUNCA a cada clique. Só dispara se o último sync (qualquer origem) foi há mais de 5 min, e
+// só com a aba visível (o sync é pesado; não faz sentido em 2º plano). O timestamp é gravado
+// em todo sync bem-sucedido (manual/Enter/auto/silencioso) → a régua vale para todos.
+const POLY_SYNC_TTL = 5 * 60 * 1000;   // 5 min
+function _polyStale(wallet) {
+  return (Date.now() - Number(localStorage.getItem('poly-last-sync::' + wallet) || 0)) > POLY_SYNC_TTL;
+}
+function _polyAutoSyncSePreciso() {
+  if (casaSelecionada !== 'Polymarket') return;
+  if (document.visibilityState !== 'visible') return;   // aba em 2º plano → não sincroniza
+  if (polySyncing) return;
+  if (!parceiroSelecionado) return;
+  const wallet = (document.getElementById('poly-wallet').value || '').trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return;
+  if (!_polyStale(wallet)) return;                       // sincronizado há <5 min → não repete
+  sincronizarPolymarket();
+}
+
 let polySyncing = false;
 async function sincronizarPolymarket(opts = {}) {
   const silent = opts.silencioso === true;
@@ -3226,6 +3249,7 @@ async function sincronizarPolymarket(opts = {}) {
       throw new Error(err.detail || ('HTTP ' + rs.status));
     }
     const d = await rs.json();
+    localStorage.setItem('poly-last-sync::' + wallet, String(Date.now()));   // marca d'água do throttle
     if (silent) {
       if (d.inseridos || d.atualizados) setPolyStatus('✓ posição resolvida → enviada ao TSV', 'ok');
     } else {
@@ -3251,6 +3275,13 @@ async function sincronizarPolymarket(opts = {}) {
 document.getElementById('btn-poly-sync').addEventListener('click', () => sincronizarPolymarket());
 document.getElementById('poly-wallet').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); sincronizarPolymarket(); }
+});
+// Voltar à aba/tela (após sair): refresca os KPIs e sincroniza tudo se passou de 5 min.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && casaSelecionada === 'Polymarket') {
+    carregarDashboardPoly();
+    _polyAutoSyncSePreciso();
+  }
 });
 
 // ── Upload ────────────────────────────────────────────────────────────────────
