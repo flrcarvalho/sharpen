@@ -34,7 +34,7 @@ import captura as _captura
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import init_db
-from polymarket import CambioIndisponivel, coletar_ativas, coletar_bilhetes, coletar_dashboard
+from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
 from repository import (
     analisar_extracao,
@@ -1582,8 +1582,7 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
         raise HTTPException(400, "Selecione um parceiro antes de sincronizar.")
 
     try:
-        resolvidas = await coletar_bilhetes(wallet, parceiro)
-        ativas = await coletar_ativas(wallet, parceiro)
+        resolvidas, ativas = await coletar_tudo(wallet, parceiro)
     except CambioIndisponivel as exc:
         # Mensagem controlada por nós (não vaza internals); 503 = tente de novo depois.
         raise HTTPException(503, str(exc))

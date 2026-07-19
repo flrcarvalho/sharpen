@@ -170,3 +170,48 @@ def test_paginate_trava_proxy_preso(monkeypatch):
     monkeypatch.setattr(polymarket, "_get_json", fake)
     with pytest.raises(polymarket.PolymarketRespostaInesperada):
         asyncio.run(polymarket._paginate(None, "positions", "0xw", {}, 100))
+
+
+# ── Consolidação do fetch: coletar_tudo == coletar_bilhetes + coletar_ativas ──
+
+_POS_RESOLVIDA = {
+    "conditionId": "0xRES", "redeemable": True, "currentValue": 0.0, "cashPnl": 30.0,
+    "avgPrice": 0.5, "title": "Lakers vs Celtics", "initialValue": 40.0, "size": 40.0,
+    "eventSlug": "nba-lal-bos-2026-05-01", "endDate": "2026-05-02T00:00:00Z",
+    "startDate": "2026-05-01T00:00:00Z",
+}
+_POS_ATIVA = {
+    "conditionId": "0xATV", "redeemable": False, "currentValue": 25.0, "cashPnl": 0.0,
+    "avgPrice": 0.4, "title": "Heat vs Bucks", "initialValue": 20.0, "size": 20.0,
+    "eventSlug": "nba-mia-mil-2026-06-01", "endDate": "2026-06-02T00:00:00Z",
+    "startDate": "2026-06-01T00:00:00Z",
+}
+
+
+def test_coletar_tudo_paridade_com_funcoes_separadas(monkeypatch):
+    # coletar_tudo busca positions+activity UMA vez e deriva resolvidas+ativas; deve dar a
+    # MESMA saída que coletar_bilhetes + coletar_ativas (que buscavam 2×). Prova a consolidação
+    # (o ganho é fazer 1 fetch em vez de 2 — a saída não pode mudar).
+    async def fake_paginate(client, path, wallet, extra, page_size):
+        # cópias frescas a cada chamada: mutações de _split_multibuys não vazam entre caminhos
+        return [dict(_POS_RESOLVIDA), dict(_POS_ATIVA)] if path == "positions" else []
+
+    async def fake_ptax_hoje(client):
+        return 5.0
+
+    async def fake_cotacao(client, iso, cache, hoje):
+        return 5.0   # câmbio fixo → sem rede PTAX/BCB
+
+    monkeypatch.setattr(polymarket, "_paginate", fake_paginate)
+    monkeypatch.setattr(polymarket, "_ptax_hoje", fake_ptax_hoje)
+    monkeypatch.setattr(polymarket, "_cotacao_para", fake_cotacao)
+
+    resolvidas_t, ativas_t = asyncio.run(polymarket.coletar_tudo("0xWALLET", "P [x]"))
+    resolvidas_s = asyncio.run(polymarket.coletar_bilhetes("0xWALLET", "P [x]"))
+    ativas_s = asyncio.run(polymarket.coletar_ativas("0xWALLET", "P [x]"))
+
+    assert resolvidas_t == resolvidas_s   # resolvidas idênticas
+    assert ativas_t == ativas_s           # ativas idênticas
+    # e exercitou de fato os dois caminhos:
+    assert len(resolvidas_t) == 1 and resolvidas_t[0]["resultado"] == "W"
+    assert len(ativas_t) == 1 and ativas_t[0]["resultado"] == ""

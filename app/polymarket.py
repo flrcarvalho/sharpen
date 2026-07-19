@@ -584,49 +584,104 @@ def _montar_linha(pos: dict, parceiro: str, iso: str, cotacao: float, resultado:
     }
 
 
-async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
-    """Coleta o histórico resolvido da carteira e devolve linhas prontas para o
-    `upsert_bilhetes` (dicts com as chaves de _COLS + codigo_bilhete), ordenadas
-    da mais antiga para a mais nova (= ordem cronológica de inserção na grade)."""
-    wallet = wallet.strip().lower()
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        positions = await _paginate(client, "positions", wallet,
-                                    {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
-        activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
+_CAMBIO_INDISPONIVEL_MSG = (
+    "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
+    "USD→BRL. Tente sincronizar novamente em alguns minutos."
+)
 
-        active_cids = {p.get("conditionId") for p in positions if p.get("conditionId")}
-        fechados = [p for p in positions
-                    if p.get("redeemable") is True and _f(p, "currentValue") < 0.01]
-        fechados = _reconciliar_redeems(fechados, activity, active_cids)
-        fechados = _split_multibuys(fechados, activity)
 
-        redeem_cache = _build_redeem_cache(activity)
-        hoje = None
-        for _back in range(0, 6):   # PTAX não publica fim de semana/feriado → recua
-            hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
-            if hoje:
-                break
+async def _ptax_hoje(client: httpx.AsyncClient) -> float | None:
+    """Cotação PTAX 'de hoje', recuando até 6 dias (PTAX não publica fim de semana/feriado)."""
+    for _back in range(0, 6):
+        hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
+        if hoje:
+            return hoje
+    return None
 
-        linhas = []
-        cot_cache: dict = {}
-        for pos in fechados:
-            iso = _data_iso(pos, redeem_cache)
-            cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
-            if not cotacao:
-                # Sem cotação NÃO gravamos USD como se fosse R$ (corromperia stake e P/L).
-                raise CambioIndisponivel(
-                    "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
-                    "USD→BRL. Tente sincronizar novamente em alguns minutos."
-                )
-            pnl = _f(pos, "cashPnl")
-            # pnl exatamente zero = retornou o stake → V (P/L 0), não L (que daria -stake).
-            resultado = "W" if pnl > 0.005 else ("L" if pnl < -0.005 else "V")
-            linhas.append(_montar_linha(pos, parceiro, iso, cotacao, resultado))
 
+async def _fetch_carteira(client: httpx.AsyncClient, wallet: str) -> tuple[list, list]:
+    """As duas paginações que TODO sync precisa: positions (holdings) + activity (log)."""
+    positions = await _paginate(client, "positions", wallet,
+                                {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
+    activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
+    return positions, activity
+
+
+def _ordenar_por_sort(linhas: list[dict]) -> list[dict]:
+    """Ordena por `_sort` (cronológico) e remove a chave auxiliar antes de devolver."""
     linhas.sort(key=lambda r: r["_sort"])
     for r in linhas:
         r.pop("_sort", None)
     return linhas
+
+
+async def _derivar_resolvidas(client: httpx.AsyncClient, positions: list, activity: list,
+                              parceiro: str, hoje: float | None, cot_cache: dict) -> list[dict]:
+    """Deriva as linhas RESOLVIDAS (W/L/V) a partir de positions+activity já buscados."""
+    active_cids = {p.get("conditionId") for p in positions if p.get("conditionId")}
+    fechados = [p for p in positions
+                if p.get("redeemable") is True and _f(p, "currentValue") < 0.01]
+    fechados = _reconciliar_redeems(fechados, activity, active_cids)
+    fechados = _split_multibuys(fechados, activity)
+    redeem_cache = _build_redeem_cache(activity)
+
+    linhas = []
+    for pos in fechados:
+        iso = _data_iso(pos, redeem_cache)
+        cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
+        if not cotacao:
+            # Sem cotação NÃO gravamos USD como se fosse R$ (corromperia stake e P/L).
+            raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG)
+        pnl = _f(pos, "cashPnl")
+        # pnl exatamente zero = retornou o stake → V (P/L 0), não L (que daria -stake).
+        resultado = "W" if pnl > 0.005 else ("L" if pnl < -0.005 else "V")
+        linhas.append(_montar_linha(pos, parceiro, iso, cotacao, resultado))
+    return _ordenar_por_sort(linhas)
+
+
+async def _derivar_ativas(client: httpx.AsyncClient, positions: list, activity: list,
+                          parceiro: str, hoje: float | None, cot_cache: dict) -> list[dict]:
+    """Deriva as linhas ATIVAS (bilhete ABERTO, resultado vazio) a partir de positions+activity.
+    Ativas = complemento exato do filtro `fechados` das resolvidas; data = data da COMPRA."""
+    ativas_raw = [p for p in positions
+                  if not (p.get("redeemable") is True and _f(p, "currentValue") < 0.01)]
+    ativas_raw = _split_multibuys(ativas_raw, activity)
+    buy_cache = _build_buy_cache(activity)
+
+    linhas = []
+    for pos in ativas_raw:
+        iso = _data_compra_iso(pos, buy_cache)
+        cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
+        if not cotacao:
+            raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG)
+        linhas.append(_montar_linha(pos, parceiro, iso, cotacao, ""))
+    return _ordenar_por_sort(linhas)
+
+
+async def coletar_tudo(wallet: str, parceiro: str) -> tuple[list[dict], list[dict]]:
+    """Sync completo em UMA passada de rede: busca positions+activity UMA vez e deriva
+    resolvidas + ativas do MESMO dado (antes `coletar_bilhetes` e `coletar_ativas` refaziam
+    as 2 paginações + o PTAX cada uma → ~2× o custo de rede por sync). O `cot_cache` é
+    compartilhado: uma data usada por uma resolvida E uma ativa custa 1 PTAX, não 2.
+    Retorna (resolvidas, ativas) — exatamente a mesma saída das duas funções separadas."""
+    wallet = wallet.strip().lower()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        positions, activity = await _fetch_carteira(client, wallet)
+        hoje = await _ptax_hoje(client)
+        cot_cache: dict = {}
+        resolvidas = await _derivar_resolvidas(client, positions, activity, parceiro, hoje, cot_cache)
+        ativas = await _derivar_ativas(client, positions, activity, parceiro, hoje, cot_cache)
+    return resolvidas, ativas
+
+
+async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
+    """Histórico RESOLVIDO da carteira, pronto p/ `upsert_bilhetes` (mais antiga → mais nova).
+    Mantida para o dry-run/compatibilidade; o `/sync` usa `coletar_tudo` (1 fetch p/ os dois)."""
+    wallet = wallet.strip().lower()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        positions, activity = await _fetch_carteira(client, wallet)
+        hoje = await _ptax_hoje(client)
+        return await _derivar_resolvidas(client, positions, activity, parceiro, hoje, {})
 
 
 async def coletar_ativas(wallet: str, parceiro: str) -> list[dict]:
@@ -650,40 +705,9 @@ async def coletar_ativas(wallet: str, parceiro: str) -> list[dict]:
     por `__<timestamp>` mudaria o código de todo o histórico resolvido já salvo → duplicaria)."""
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
-        positions = await _paginate(client, "positions", wallet,
-                                    {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
-        activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
-
-        # Ativas = as que NÃO são resolvidas-e-zeradas (o complemento exato do filtro
-        # `fechados` de `coletar_bilhetes`; mesmo critério de `coletar_dashboard`).
-        ativas_raw = [p for p in positions
-                      if not (p.get("redeemable") is True and _f(p, "currentValue") < 0.01)]
-        ativas_raw = _split_multibuys(ativas_raw, activity)
-        buy_cache = _build_buy_cache(activity)
-
-        hoje = None
-        for _back in range(0, 6):   # PTAX não publica fim de semana/feriado → recua
-            hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
-            if hoje:
-                break
-
-        linhas = []
-        cot_cache: dict = {}
-        for pos in ativas_raw:
-            iso = _data_compra_iso(pos, buy_cache)
-            cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
-            if not cotacao:
-                # Mesma barreira das resolvidas: sem câmbio, não grava USD como se fosse R$.
-                raise CambioIndisponivel(
-                    "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
-                    "USD→BRL. Tente sincronizar novamente em alguns minutos."
-                )
-            linhas.append(_montar_linha(pos, parceiro, iso, cotacao, ""))
-
-    linhas.sort(key=lambda r: r["_sort"])
-    for r in linhas:
-        r.pop("_sort", None)
-    return linhas
+        positions, activity = await _fetch_carteira(client, wallet)
+        hoje = await _ptax_hoje(client)
+        return await _derivar_ativas(client, positions, activity, parceiro, hoje, {})
 
 
 # ── Dashboard ao vivo: posições ativas + saldos da carteira ─────────────────
