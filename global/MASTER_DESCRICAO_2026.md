@@ -670,8 +670,10 @@ Em múltiplas:
 |---|---|
 | Entidade ↔ Mercado | ` - ` |
 | Mercados do mesmo jogador | ` / ` |
-| Seleções diferentes | ` // ` |
+| Seleções (múltipla ou bet builder) | ` // ` |
 | Confronto | ` v ` |
+
+> ` // ` é o **único** separador de seleção — vale tanto para múltiplas de jogos diferentes quanto para bet builder (várias seleções do mesmo jogo, um só `[Confronto]`). Casa que mostra outro conector entre seleções (`&`, `E`, `+`) **traduz para ` // `** no output (ex.: Lottu, Jogo de Ouro). Nunca emitir `&`/`+` no TSV.
 
 ---
 

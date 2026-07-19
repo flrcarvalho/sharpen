@@ -147,8 +147,8 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 - **`Mais de X` / `Menos de X` → `Over X` / `Under X`**: padrão global — ver `MASTER_DESCRICAO_2026 §11`. A Lottu exibe em português; a saída TSV é sempre em inglês.
 - Tags de campanha (`Desafio`, `Odds Turbinadas`, `MEGA ODDS`, `Copa do Mundo 2026`, `Internacional`, `Brasil`) → ruído, ignorar para classificação de esporte e aposta.
 - Nome do jogador em Player Props aparece no início da Resposta em maiúsculas (`VOZINHA MAIS DE 3.5 DEFESAS`) → normalizar para `Nome Próprio`.
-- Conector `E` entre jogadores em Desafio multi-player (`VINICIUS JR. E RAPHINHA`) → tratar igual a `&`, bilhete é `Múltipla`.
-- Descrição de Múltipla (Desafio): usar `&` como separador de condições normalizadas, seguido de `[Confronto]` no final.
+- Conector `E` entre jogadores em Desafio multi-player (`VINICIUS JR. E RAPHINHA`) → tratar como separador de seleção, bilhete é `Múltipla`.
+- Descrição de Múltipla (Desafio): usar ` // ` como separador de seleções normalizadas, seguido de `[Confronto]` no final. O site mostra `&`/`E` entre as condições no campo "Resposta:" → **traduzir para ` // `** (o separador oficial de seleção do sistema; `MASTER_DESCRICAO §16`).
 
 ---
 
@@ -242,7 +242,7 @@ Resolvido em: 21/06/2026 02:58
 
 **TSV esperado:**
 ```
-21/06/2026	Futebol		Lottu		Múltipla	Japão Ganhar Ambos os Tempos & Over 4,5 Escanteios [Tunisia v Japão]	29,00	7,60	W
+21/06/2026	Futebol		Lottu		Múltipla	Japão Ganhar Ambos os Tempos // Over 4,5 Escanteios [Tunisia v Japão]	29,00	7,60	W
 ```
 
 ---
@@ -300,7 +300,7 @@ Resolvido em: 21/06/2026 02:57
 
 **TSV esperado:**
 ```
-21/06/2026	Futebol		Lottu		Múltipla	Japão Ganhar & Ayase Ueda Marcar a Qualquer Momento [Tunisia v Japão]	100,00	4,20	W
+21/06/2026	Futebol		Lottu		Múltipla	Japão Ganhar // Ayase Ueda Marcar a Qualquer Momento [Tunisia v Japão]	100,00	4,20	W
 ```
 
 ---
@@ -329,7 +329,7 @@ Resolvido em: 20/06/2026 18:57
 
 **TSV esperado:**
 ```
-20/06/2026	Futebol		Lottu		Múltipla	Alemanha Ganhar & Kai Havertz Marcar a Qualquer Momento [Alemanha v Costa do Marfim]	59,36	3,50	L
+20/06/2026	Futebol		Lottu		Múltipla	Alemanha Ganhar // Kai Havertz Marcar a Qualquer Momento [Alemanha v Costa do Marfim]	59,36	3,50	L
 ```
 
 ---
@@ -358,7 +358,7 @@ Resolvido em: 19/06/2026 22:27
 
 **TSV esperado:**
 ```
-19/06/2026	Futebol		Lottu		Múltipla	Vinicius Jr. & Raphinha Marcar a Qualquer Momento [Brasil v Haiti]	76,00	4,50	L
+19/06/2026	Futebol		Lottu		Múltipla	Vinicius Jr. // Raphinha Marcar a Qualquer Momento [Brasil v Haiti]	76,00	4,50	L
 ```
 
 ---

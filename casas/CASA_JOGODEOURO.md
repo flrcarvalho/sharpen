@@ -174,7 +174,7 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa lista **ap
 - **`Mais de X` / `Menos de X` → `Over X` / `Under X`**: padrão global — ver `MASTER_DESCRICAO_2026 §11`. A casa exibe em português; a saída TSV é sempre em inglês.
 - Recorte temporal de mercado: `1º tempo - total de escanteios` → manter o recorte na descrição (`Escanteios 1ºT`).
 - Placar final do jogo (`3:2`) ao lado do confronto → ruído, ignorar.
-- Descrição de Criar Aposta (Múltipla): usar `&` como separador das seleções normalizadas, seguido de `[Confronto]` no final.
+- Descrição de Criar Aposta (Múltipla): usar ` // ` como separador das seleções normalizadas, seguido de `[Confronto]` no final (o card liga as seleções do mesmo jogo → **traduzir para ` // `**, o separador oficial de seleção do sistema; `MASTER_DESCRICAO §16`).
 
 ---
 
@@ -294,7 +294,7 @@ Tipo de Dispositivo Usado              Tipo de Dispositivo: Desktop
 
 **TSV esperado:**
 ```
-22/06/2026	Futebol		Jogo de Ouro		Múltipla	Noruega Ganhar & Over 3,5 Escanteios 1ºT [Noruega v Senegal]	30,00	3,50	W
+22/06/2026	Futebol		Jogo de Ouro		Múltipla	Noruega Ganhar // Over 3,5 Escanteios 1ºT [Noruega v Senegal]	30,00	3,50	W
 ```
 
 ---
