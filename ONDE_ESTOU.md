@@ -23,7 +23,7 @@
 > de propagação nos masters (aprovado) · **#15/#16 Solidez** gate de rentabilidade + força-do-sinal (aprovado).
 > **Aberto (prioridade):** custo tipster→Postgres (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) ·
 > **Poly incremental + #5 odd** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md) — precisa a carteira do Feca) ·
-> #14 domain.py (adiado) · #18 backtest temporal · #19 separador bet builder (recomendação pronta) · #21 golden · #25 Backups.
+> #14 domain.py (adiado) · #18 backtest temporal · #19 separador bet builder ✅ (` // ` único separador) · #21 golden · #25 Backups.
 
 ---
 
