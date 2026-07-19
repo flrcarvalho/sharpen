@@ -11,14 +11,14 @@ function applyAparencia(){
 
 // Helpers
 function fmt(v,d=2){return Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});}
-function fmtPL(v){const cls=v>=0?'pos':'neg';return`<span class="money ${cls}"><span class="money-sign">${v>=0?'+':'−'}R$</span><span class="money-val">${fmt(Math.abs(v))}</span></span>`;}
+function fmtPL(v){const cls=v>0?'pos':(v<0?'neg':'');const sign=v>0?'+':(v<0?'−':'');return`<span class="money ${cls}"><span class="money-sign">${sign}R$</span><span class="money-val">${fmt(Math.abs(v))}</span></span>`;}
 function fmtR(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(v,0)}</span></span>`;}
 function fmtPct(v,d=2,signed=true){const abs=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});if(!signed)return abs+'%';return(v>=0?'+':'−')+abs+'%';}
 function fmtOdd(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 // fmtU — resultado em UNIDADES (Perfil de Tipster). Espelha fmtPL trocando R$→"u" como
 // sufixo (+3,25u / −1,50u), 2 casas, minus U+2212, cor só no número (§5; formato cravado
-// pelo Feca). Zero neutro (0,00u). Nota: o fmtPL acima trata zero como '+' (desvio herdado
-// do §5); o fmtU segue a regra — zero sem sinal e sem cor.
+// pelo Feca). Zero neutro (0,00u) — igual ao fmtPL acima: ambos tratam zero sem sinal e
+// sem cor (§5.1). Antes o fmtPL pintava zero de verde com '+'; corrigido na Onda 1.
 function fmtU(v){const n=Number(v)||0;const cls=n>0?'pos':(n<0?'neg':'');const sign=n>0?'+':(n<0?'−':'');return`<span class="money ${cls}"><span class="money-val">${sign}${fmt(Math.abs(n))}<span class="money-u">u</span></span></span>`;}
 // unidade_vigente (mirror JS do backend): degrau + clamp à esquerda. escada ordenada por
 // data; null se vazia/data ilegível. Ver repository.py unidade_vigente.

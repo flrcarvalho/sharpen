@@ -20,7 +20,7 @@ window._resContribSort = window._resContribSort  || {k:'pl',dir:-1};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 // P/L em texto puro — fmtPL devolve HTML com aspas e NÃO pode entrar em title=""
-function _txtPL(v){return (v>=0?'+':'−')+'R$ '+fmt(Math.abs(v));}
+function _txtPL(v){return (v>0?'+':(v<0?'−':''))+'R$ '+fmt(Math.abs(v));}
 
 function _resMonday(dateStr){
   const d=new Date(dateStr+'T12:00:00');
