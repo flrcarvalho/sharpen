@@ -24,7 +24,7 @@ Planilhador/
 1. O app **lê** os masters, **nunca escreve**. Mudança = diff revisado + aprovação humana.
 2. Arquivo de casa **traduz**; nunca redefine regra global.
 3. **Cálculo é global, localização é da casa.**
-4. Backup em `Planilhador/Backups/<nome-descritivo>/` antes de qualquer edição. Nunca usar `FDC Capital/Backups/`.
+4. Backup em `Planilhador/Backups/<nome-descritivo>/` antes de qualquer edição. Nunca usar `FDC Capital/Backups/`. **Retenção (#25 auditoria):** copiar para o backup **só os arquivos que serão editados** — nunca `docs/HISTORICO.md` (500KB, já versionado no git) nem diretórios inteiros. `Backups/` é gitignored/manual; podar snapshots além de ~últimas sessões / 90 dias quando incomodar (o git cobre o histórico versionado).
 5. Arquivos completos, nunca diffs parciais.
 6. Uma mudança por vez. Propor → aguardar confirmação → executar.
 7. Atualizar `STATUS.md` ao fim de cada mudança aplicada.

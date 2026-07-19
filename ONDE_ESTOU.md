@@ -21,9 +21,8 @@
 > universal das casas-robô** (maior risco vivo — manifest 0.3.5, recarregar extensão) · **#11 harness
 > de camada-DB real** (Postgres no CI, gateado em `TEST_DATABASE_URL`, nunca prod) · **#20** 3 lacunas
 > de propagação nos masters (aprovado) · ~~#15/#16 Solidez~~ (revertido `9394553` — rumo errado; → sessão dedicada de redesenho).
-> **Aberto (prioridade):** custo tipster→Postgres (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) ·
-> **Poly incremental + #5 odd** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md) — precisa a carteira do Feca) ·
-> #14 domain.py (adiado) · #18 backtest temporal · #19 separador bet builder ✅ (` // ` único separador) · #21 golden · #25 Backups.
+> **Migalhas MORTAS (sessão 160):** #14 domain.py (fechado — premissa obsoleta, #11 já destravou) · #18 backtest → frente tipster · #21 golden → precisa prints do Feca · #25 Backups → convenção no CLAUDE.md #4. #19 ✅ (` // ` único separador).
+> **Backlog restante = só 3 sessões próprias:** (1) **Custo tipster → Postgres** (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) · (2) **Sessão só-Poly** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md) — incremental + #5 odd + `_portfolio`, precisa a carteira do Feca) · (3) **Sessão só-Solidez** (redesenho do KPI, ver [[solidez_kpi_proposito]]).
 
 ---
 
