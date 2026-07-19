@@ -7,6 +7,8 @@ stdlib + httpx (sem asyncpg/database), então importa direto.
 import asyncio
 from datetime import datetime, timezone
 
+import pytest
+
 import polymarket
 
 
@@ -142,3 +144,29 @@ def test_detes_fallback_corners_sem_slug_e_futebol():
 
 def test_detes_fallback_kills_sem_slug_e_esports():
     assert polymarket._detes_raw("Total Kills Over/Under 30.5 in Game 2?", "") == "E-Sports"
+
+
+# ── Paginação: teto de sanidade (anti loop-infinito de proxy preso) ──────────
+
+def test_paginate_para_em_pagina_incompleta(monkeypatch):
+    # 1 página cheia (100) + 1 parcial (50) → 150 itens, encerra normal sem loop.
+    paginas = [[{"i": k} for k in range(100)], [{"i": k} for k in range(50)]]
+
+    async def fake(client, url, params):
+        idx = params["offset"] // 100
+        return paginas[idx] if idx < len(paginas) else []
+
+    monkeypatch.setattr(polymarket, "_get_json", fake)
+    out = asyncio.run(polymarket._paginate(None, "positions", "0xw", {}, 100))
+    assert len(out) == 150
+
+
+def test_paginate_trava_proxy_preso(monkeypatch):
+    # Proxy defeituoso devolvendo SEMPRE página cheia: sem o teto seria loop infinito.
+    # Deve abortar com PolymarketRespostaInesperada em vez de pendurar.
+    async def fake(client, url, params):
+        return [{"i": 0}] * 100
+
+    monkeypatch.setattr(polymarket, "_get_json", fake)
+    with pytest.raises(polymarket.PolymarketRespostaInesperada):
+        asyncio.run(polymarket._paginate(None, "positions", "0xw", {}, 100))

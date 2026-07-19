@@ -46,6 +46,7 @@ BRT = timezone(timedelta(hours=-3))
 _PAGE_POSITIONS = 100
 _PAGE_ACTIVITY = 500
 _SIZE_THRESHOLD = ".1"
+_MAX_ITENS_PAGINACAO = 200_000   # teto de sanidade da paginação (anti loop-infinito de proxy preso)
 
 # Retry/backoff para soluços transitórios do proxy/PTAX (429/5xx/timeout/conexão).
 _RETRY_ATTEMPTS = 3
@@ -96,7 +97,12 @@ async def _get_json(client: httpx.AsyncClient, url: str, params: dict) -> list:
 
 async def _paginate(client: httpx.AsyncClient, path: str, wallet: str,
                     extra: dict, page_size: int) -> list:
-    """Busca todas as páginas de um endpoint da carteira até esgotar (sem teto)."""
+    """Busca todas as páginas de um endpoint da carteira até esgotar.
+
+    Trava de sanidade (`_MAX_ITENS_PAGINACAO`): nenhuma carteira real chega perto do teto,
+    mas um proxy/cache defeituoso que passe a devolver SEMPRE uma página cheia faria o
+    `offset` crescer pra sempre → loop infinito, com o sync/dashboard pendurado. Ao estourar
+    o teto, aborta com erro controlado em vez de travar."""
     out: list = []
     offset = 0
     while True:
@@ -107,6 +113,11 @@ async def _paginate(client: httpx.AsyncClient, path: str, wallet: str,
         out.extend(page)
         if len(page) < page_size:
             break
+        if len(out) >= _MAX_ITENS_PAGINACAO:
+            raise PolymarketRespostaInesperada(
+                f"Paginação de /{path} passou de {_MAX_ITENS_PAGINACAO} itens — o proxy pode "
+                "estar preso devolvendo páginas cheias. Tente sincronizar de novo em minutos."
+            )
         offset += page_size
     return out
 
