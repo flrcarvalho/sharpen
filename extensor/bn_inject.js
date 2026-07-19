@@ -22,11 +22,13 @@
   const all = [];
   const seen = new Set();                          // chave: BetId|A (aberta) ou BetId|S (liquidada)
   let fimSettled = false, fimOpen = false;
+  let respostas = 0;   // respostas do endpoint de histórico que o hook viu (autodiagnóstico)
 
+  // Emite SEMPRE hook:true + respostas (heartbeat), mesmo sem bilhetes/fim — assim o content
+  // distingue "hook não carregou" de "endpoint respondeu mas lemos 0" (achado #13). Espelha o
+  // bf_inject; mantém `fimSettled`/`fimOpen` p/ o robô saber o fim autoritativo de cada lista.
   function postAll() {
-    if (all.length || fimSettled || fimOpen) {
-      try { window.postMessage({ __sharpenupBNData: true, bets: all, fimSettled, fimOpen }, "*"); } catch (e) {}
-    }
+    try { window.postMessage({ __sharpenupBNData: true, bets: all, fimSettled, fimOpen, hook: true, respostas: respostas }, "*"); } catch (e) {}
   }
 
   function forward(url, text) {
@@ -38,22 +40,23 @@
     try {
       const j = JSON.parse(text);
       const res = j && j.Result;
-      if (!res) return;
-      const arr = Array.isArray(res.Bets) ? res.Bets : [];
-      let added = false;
-      for (const t of arr) {
-        const c = t && t.BetId;
-        if (c == null) continue;
-        const k = c + "|" + (aberta ? "A" : "S");
-        if (seen.has(k)) continue;
-        seen.add(k);
-        t.__aberta = aberta;   // objeto é o nosso clone (JSON.parse) — mutar é seguro
-        all.push(t); added = true;
+      if (res) {
+        respostas++;   // o endpoint de histórico respondeu com a forma esperada (hook vivo)
+        const arr = Array.isArray(res.Bets) ? res.Bets : [];
+        for (const t of arr) {
+          const c = t && t.BetId;
+          if (c == null) continue;
+          const k = c + "|" + (aberta ? "A" : "S");
+          if (seen.has(k)) continue;
+          seen.add(k);
+          t.__aberta = aberta;   // objeto é o nosso clone (JSON.parse) — mutar é seguro
+          all.push(t);
+        }
+        // Última página vem SEM LastId (ou Bets vazio) → fim autoritativo DAQUELA lista.
+        if (!("LastId" in res) || res.LastId == null) { if (aberta) fimOpen = true; else fimSettled = true; }
       }
-      // Última página vem SEM LastId (ou Bets vazio) → fim autoritativo DAQUELA lista.
-      if (!("LastId" in res) || res.LastId == null) { if (aberta) fimOpen = true; else fimSettled = true; }
-      if (added || fimSettled || fimOpen) postAll();
     } catch (e) {}
+    postAll();   // sempre reporta o heartbeat (como o bf_inject), inclusive quando lê 0
   }
 
   // O content script pede o acumulado ao iniciar o robô → re-envia tudo.

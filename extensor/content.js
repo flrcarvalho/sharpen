@@ -23,12 +23,17 @@
   // paginar; a extensão lê o dado exato do site, sem clicar e sem requisição nova.
   const sbTickets = [];
   const sbTicketSeen = new Set();
+  let sbHookVivo = false, sbRespostas = 0;   // autodiagnóstico (espelha o da Betfair)
   window.addEventListener("message", (ev) => {
     const d = ev.data;
-    if (d && d.__sharpenupSBData && Array.isArray(d.tickets)) {
-      for (const t of d.tickets) {
-        const c = t && t.ticketId;
-        if (c && !sbTicketSeen.has(c)) { sbTicketSeen.add(c); sbTickets.push(t); }
+    if (d && d.__sharpenupSBData) {
+      if (d.hook) sbHookVivo = true;
+      if (typeof d.respostas === "number") sbRespostas = d.respostas;
+      if (Array.isArray(d.tickets)) {
+        for (const t of d.tickets) {
+          const c = t && t.ticketId;
+          if (c && !sbTicketSeen.has(c)) { sbTicketSeen.add(c); sbTickets.push(t); }
+        }
       }
     }
   });
@@ -39,12 +44,17 @@
   // status, date), sem clicar em "Ver Cupom".
   const beTickets = [];
   const beTicketSeen = new Set();
+  let beHookVivo = false, beRespostas = 0;   // autodiagnóstico (espelha o da Betfair)
   window.addEventListener("message", (ev) => {
     const d = ev.data;
-    if (d && d.__sharpenupBEData && Array.isArray(d.items)) {
-      for (const t of d.items) {
-        const c = t && t.id;
-        if (c != null && !beTicketSeen.has(c)) { beTicketSeen.add(c); beTickets.push(t); }
+    if (d && d.__sharpenupBEData) {
+      if (d.hook) beHookVivo = true;
+      if (typeof d.respostas === "number") beRespostas = d.respostas;
+      if (Array.isArray(d.items)) {
+        for (const t of d.items) {
+          const c = t && t.id;
+          if (c != null && !beTicketSeen.has(c)) { beTicketSeen.add(c); beTickets.push(t); }
+        }
       }
     }
   });
@@ -59,9 +69,12 @@
   // autoritativo é POR LISTA (`bnFimOpen`/`bnFimSettled`): a aba ativa decide qual usar.
   const bnById = new Map();          // BetId(string) → ticket (liquidada > aberta)
   let bnFimOpen = false, bnFimSettled = false;
+  let bnHookVivo = false, bnRespostas = 0;   // autodiagnóstico (espelha o da Betfair)
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (d && d.__sharpenupBNData) {
+      if (d.hook) bnHookVivo = true;
+      if (typeof d.respostas === "number") bnRespostas = d.respostas;
       if (Array.isArray(d.bets)) {
         for (const t of d.bets) {
           const c = t && t.BetId;
@@ -450,16 +463,33 @@
     painel.remove();
     roboRodando = false;
     if (!blocos.length) {
-      if (casa === "betfair") {
-        // Autodiagnóstico na tela (sem console): onde travou a captura da Betfair.
-        toastLocal("Betfair: 0 bilhetes. Hook: " + (bfHookVivo ? "ATIVO" : "NÃO carregou") +
-                   " · respostas /activity/sportsbook: " + bfRespostas +
-                   " · bilhetes vistos: " + bfTickets.length, false);
+      // Autodiagnóstico diferencial das casas-robô passivas (antes só a Betfair tinha; achado
+      // #13). Distingue "hook NÃO carregou" (inject não injetou) de "endpoint mudou" (hook vivo,
+      // 0 respostas) de "formato mudou / conta vazia" (respostas>0, 0 vistos). Antes tudo isso
+      // caía num "Nada coletado" genérico → falha silenciosa quando a casa troca o DOM/endpoint.
+      // Casas sem inject (bet365/genéricos) seguem no aviso genérico.
+      const diag = {
+        betfair:    { nome: "Betfair",    hook: bfHookVivo, resp: bfRespostas, vistos: bfTickets.length },
+        superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbTickets.length },
+        betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
+        betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
+      }[casa];
+      if (diag) {
+        const msg = diag.nome + ": 0 bilhetes. Hook: " + (diag.hook ? "ATIVO" : "NÃO carregou") +
+                    " · respostas da API: " + diag.resp + " · bilhetes vistos: " + diag.vistos;
+        toastLocal(msg, false);
+        // Escala ao popup (persistente) SÓ na falha inequívoca: inject não carregou OU o endpoint
+        // não respondeu nenhuma vez. "respostas>0 & 0 vistos" fica só no toast — pode ser conta
+        // genuinamente vazia, e um alerta persistente viraria falso positivo.
+        if (!diag.hook || diag.resp === 0) {
+          try { chrome.storage.local.set({ lastError: msg + " — a extensão pode precisar de atualização; avise o suporte." }); } catch (e) {}
+        }
       } else {
         toastLocal("Nada coletado — rolagem/estrutura não reconhecida.", false);
       }
       return;
     }
+    try { chrome.storage.local.remove("lastError"); } catch (e) {}   // rodada OK → limpa diagnóstico antigo
     chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: blocos.join("\n\n") });
     toastLocal(blocos.length + " bilhete(s) coletado(s), enviando…", true);
   }

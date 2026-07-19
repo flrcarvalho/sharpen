@@ -12,25 +12,29 @@
   const RX = /\/api\/bet\/RequestUserTickets/i;   // endpoint da LISTA de bilhetes
   const all = [];
   const seen = new Set();
+  let respostas = 0;   // respostas do endpoint de tickets que o hook viu (autodiagnóstico)
 
+  // Emite SEMPRE hook:true + respostas (heartbeat), mesmo com 0 itens — assim o content
+  // distingue "hook não carregou" de "endpoint respondeu mas lemos 0" (achado #13). Espelha o
+  // bf_inject. Postar `items:[]` é inofensivo (o content dedupa e só lê hook/respostas).
   function postAll() {
-    if (all.length) { try { window.postMessage({ __sharpenupBEData: true, items: all }, "*"); } catch (e) {} }
+    try { window.postMessage({ __sharpenupBEData: true, items: all, hook: true, respostas: respostas }, "*"); } catch (e) {}
   }
 
   function forward(url, text) {
     if (!RX.test(String(url)) || typeof text !== "string") return;
     try {
       const j = JSON.parse(text);
+      respostas++;   // o endpoint de tickets respondeu (prova de hook vivo + site respondendo)
       // Forma: { data: { items: [...] } }. Tolerante a variações (items no topo).
       const arr = (j && j.data && Array.isArray(j.data.items)) ? j.data.items
                 : (Array.isArray(j) ? j : (j.items || []));
-      let added = false;
       for (const t of arr) {
         const c = t && t.id;
-        if (c != null && !seen.has(c)) { seen.add(c); all.push(t); added = true; }
+        if (c != null && !seen.has(c)) { seen.add(c); all.push(t); }
       }
-      if (added) postAll();
     } catch (e) {}
+    postAll();   // sempre reporta o heartbeat (como o bf_inject), inclusive quando lê 0
   }
 
   // O content script pede o acumulado ao iniciar o robô → re-envia tudo.

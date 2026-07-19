@@ -11,23 +11,27 @@
   const RX = /\/user\/\d+\/tickets/;   // endpoint da LISTA de bilhetes do usuário
   const all = [];
   const seen = new Set();
+  let respostas = 0;   // respostas do endpoint de tickets que o hook viu (autodiagnóstico)
 
+  // Emite SEMPRE hook:true + respostas (heartbeat), mesmo com 0 tickets — assim o content
+  // distingue "hook não carregou" de "endpoint respondeu mas lemos 0" (achado #13). Espelha o
+  // bf_inject. Postar `tickets:[]` é inofensivo (o content dedupa e só lê hook/respostas).
   function postAll() {
-    if (all.length) { try { window.postMessage({ __sharpenupSBData: true, tickets: all }, "*"); } catch (e) {} }
+    try { window.postMessage({ __sharpenupSBData: true, tickets: all, hook: true, respostas: respostas }, "*"); } catch (e) {}
   }
 
   function forward(url, text) {
     if (!RX.test(String(url)) || typeof text !== "string") return;
     try {
       const j = JSON.parse(text);
+      respostas++;   // o endpoint de tickets respondeu (prova de hook vivo + site respondendo)
       const arr = Array.isArray(j) ? j : (j.data || j.tickets || []);
-      let added = false;
       for (const t of arr) {
         const c = t && t.ticketId;
-        if (c && !seen.has(c)) { seen.add(c); all.push(t); added = true; }
+        if (c && !seen.has(c)) { seen.add(c); all.push(t); }
       }
-      if (added) postAll();
     } catch (e) {}
+    postAll();   // sempre reporta o heartbeat (como o bf_inject), inclusive quando lê 0
   }
 
   // O content script pede o acumulado ao iniciar o robô → re-envia tudo.
