@@ -66,6 +66,8 @@ O Feca rodou **vários terminais em paralelo** antes de dormir. Diagnóstico:
 | 11 | **Harness de camada-DB** para exercer `upsert_bilhetes` + queries por `dono` (hoje o conftest stuba o banco → ~50 funções async sem teste: dinheiro, dedup, tenancy) | `app/repository.py:614-870` | grande |
 
 > Itens 7-9 são o "trio barato de segurança" — fazer os três juntos numa sessão.
+>
+> **✅ STATUS 19/07 (sessão 158):** trio de segurança **FEITO e no ar** — SESSION_SECRET fail-closed em produção (`06be977`, segredo setado no Railway pelo Feca), X-Forwarded-For não-spoofável (`afad142`), `.dockerignore` (`947cef7`). **#10/#11 (testes: `test_auth.py` + harness de DB) seguem abertos** — próximo alvo natural.
 
 ### 🌊 Onda 3 — Arquitetura de maior retorno
 | # | Achado | Local | Esforço |
