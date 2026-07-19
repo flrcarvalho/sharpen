@@ -30,16 +30,22 @@ VER_COMO_COOKIE = "fdc_ver_como"     # cookie do "ver como" (operador sendo visu
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 dias
 
 # Segredo de assinatura do cookie.
-# Em produção, defina SESSION_SECRET no Railway (persiste sessões entre reinícios).
-# Se ausente, gera um segredo ALEATÓRIO no boot: ninguém consegue forjar cookies
-# (não há mais default conhecido), ao custo de as sessões caírem a cada reinício.
-# Nunca derruba o app — falha-fechado seguro em vez de falha-aberto.
-SESSION_SECRET = os.environ.get("SESSION_SECRET") or secrets.token_hex(32)
-if not os.environ.get("SESSION_SECRET"):
+# Em PRODUÇÃO (Railway) o SESSION_SECRET é OBRIGATÓRIO: sem ele o app NÃO sobe
+# (fail-closed). Antes gerava um segredo efêmero que derrubava TODOS os logins a
+# cada reinício e mascarava a env faltando — falha silenciosa. Em dev (fora do
+# Railway) mantém o fallback aleatório + aviso, para não travar o local.
+_EM_PRODUCAO = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+_secret_env = os.environ.get("SESSION_SECRET")
+if not _secret_env and _EM_PRODUCAO:
+    raise RuntimeError(
+        "SESSION_SECRET ausente em produção — defina a variável no Railway. "
+        "Fail-closed: o app não sobe sem segredo persistente (as sessões cairiam a cada restart)."
+    )
+SESSION_SECRET = _secret_env or secrets.token_hex(32)
+if not _secret_env:
     logger.warning(
-        "SESSION_SECRET não definido — usando segredo efêmero aleatório. "
-        "Sessões cairão a cada reinício do servidor. "
-        "Defina SESSION_SECRET no Railway para persistir os logins."
+        "SESSION_SECRET não definido (ambiente de dev) — usando segredo efêmero aleatório. "
+        "Sessões cairão a cada reinício. Defina SESSION_SECRET para persistir os logins."
     )
 
 
