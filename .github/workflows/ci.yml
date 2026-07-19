@@ -8,6 +8,24 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Postgres de TESTE efêmero — só para o harness de camada-DB (tests/test_repository_db.py).
+    # Localhost; some ao fim do job. O TEST_DATABASE_URL abaixo destrava esses testes (sem ele,
+    # a suíte de DB é pulada e o conftest stuba o banco). Ver tests/conftest.py.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sharpen_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -30,7 +48,9 @@ jobs:
       - name: Compilar (checagem de sintaxe)
         run: python -m compileall app tools scripts
 
-      - name: Testes de fórmulas financeiras
+      - name: Testes (fórmulas + harness de camada-DB)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sharpen_test
         run: pytest -q
 
       - name: Auditoria casa × global
