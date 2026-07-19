@@ -17,9 +17,13 @@
 > (SESSION_SECRET fail-closed + X-Forwarded-For + `.dockerignore`) · **`test_auth.py`** (27 testes) ·
 > **índices** em `bilhetes` · faxina de docs (planos→`docs/`) · **Polymarket** (teto de paginação +
 > auto-sync com throttle + fetch consolidado ~2×) · Betano lê apostas em aberto.
+> **Feito (sessão 160 — turbo/CEO, +6 commits):** #14c faxina CSS morto · **#13 autodiagnóstico
+> universal das casas-robô** (maior risco vivo — manifest 0.3.5, recarregar extensão) · **#11 harness
+> de camada-DB real** (Postgres no CI, gateado em `TEST_DATABASE_URL`, nunca prod) · **#20** 3 lacunas
+> de propagação nos masters (aprovado) · **#15/#16 Solidez** gate de rentabilidade + força-do-sinal (aprovado).
 > **Aberto (prioridade):** custo tipster→Postgres (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) ·
-> harness de DB (#11) · **Poly incremental** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md)) ·
-> autodiagnóstico da extensão (#13) · solidez estatística (#15/#16) · re-sync dos docs de consolidação.
+> **Poly incremental + #5 odd** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md) — precisa a carteira do Feca) ·
+> #14 domain.py (adiado) · #18 backtest temporal · #19 separador bet builder (recomendação pronta) · #21 golden · #25 Backups.
 
 ---
 

@@ -31,6 +31,17 @@
 >
 > Abertos maiores: Onda 5 (dados), A (polymarket robustez). Verificação visual ao vivo (Ctrl+F5) pendente.
 
+> ### ⚙️ Progresso da execução (sessão 160 — 19/07, modo turbo / CEO)
+> **+6 correções no ar** (uma por commit, backup + testes/gate verdes em cada · suíte segue 172):
+> - **#14c** faxina CSS — 3 blocos de componente mortos (uso-zero por grep: `.seg-btn` "canônica", `.badge*`, `.apostas-sort-*`) `ee8ba22`.
+> - **#13** autodiagnóstico universal nas casas-robô passivas — Superbet/BETesporte/Betano ganham o heartbeat `hook`/`respostas` da Betfair + **toast diferencial** (hook não carregou / endpoint mudou / formato mudou-ou-conta-vazia) + escala ao popup `lastError` na falha inequívoca `5b548ea`. **Maior risco vivo fechado.** Manifest 0.3.4→**0.3.5** (Feca precisa recarregar a extensão).
+> - **#11** harness de camada-DB REAL via Postgres no CI — upsert insert/update, isolamento por dono, blindagens aberta→resolvida; conftest condicional gateado em `TEST_DATABASE_URL` (trava anti-prod: nunca `DATABASE_URL`) `e7a8188` + split do step p/ não contaminar TestClient `1e66d20`. Local: 172 passed, 3 skipped; **CI roda os 3 de verdade** (a conferir — sem `gh` local).
+> - **#20** 3 lacunas de propagação nos masters (Prim/Últ Marcador→APOSTAS §4; Resultado vazio→OUTPUT §13.1+§18.8; Múltiplos→ESPORTES §7 whitelist) `40deee0` — **aprovado pelo Feca**, audit_casas verde, não toca casas.
+> - **#15/#16** Solidez — gate de rentabilidade (yield<0 trava em "Muito Baixa") + separa força-do-sinal (Edge exige yield ≥3%, não só significância) de tamanho-de-amostra + disclaimer `1923052` — **aprovado pelo Feca**.
+>
+> **Decisões do Feca (sessão 160):** #20 aplicar os 3 · #15/#16 corrigir os dois · **#5 Poly odd → decidir junto com a Poly incremental**.
+> **Aberto:** #14 domain.py (**adiado** — refactor grande do core de dinheiro, ganho marginal pois as puras já têm teste e o #11 destravou o harness sem o split); #18 backtest temporal (metodologia — frente de inteligência de tipster); **#19 separador bet builder** (achado: ` & ` = mesmo-jogo em Jogo de Ouro/Lottu vs ` // ` = jogos diferentes — recomendação = codificar ` & ` no §16, aguarda OK); #21 golden bilhetes (precisa amostras); #25 Backups retenção; **Poly incremental + #5** (precisa a carteira do Feca: probe do filtro conditionId + fixtures + paridade ao vivo).
+
 **Veredito global do CEO:** o sistema está **firme e no ar, sem nada crítico e sem risco ativo de corromper dinheiro ou vazar dado entre clientes nos caminhos atuais.** As duas fundações mais importantes — **núcleo de dinheiro** (P/L derivado) e **isolamento multi-tenant** — foram auditadas a fundo e voltaram **sólidas e bem defendidas**. O que existe é uma camada de **dívida de segunda ordem** (bugs de UI/filtro, cobertura de teste nas bordas, drift de cor, dívida de arquitetura e escala) e uma **defasagem dos documentos de planejamento** que faz o backlog parecer pior do que é. Saúde por área: **verde** em Segurança/Infra; **amarelo** em todo o resto; **nenhuma vermelha**.
 
 ---
