@@ -10,7 +10,7 @@ Horizontes: **🟢 curto** (próximas sessões) · **🟡 médio** (semanas) · 
 
 ## 1. Frente estratégica maior — Sharpen como plataforma
 
-### 1.1 SaaS multiusuário — `../PLANO_MULTIUSUARIO_2026.md`
+### 1.1 SaaS multiusuário — `../docs/PLANO_MULTIUSUARIO_2026.md`
 Transformar o Sharpen de app provisionado à mão em SaaS: cadastro no site, login social, tabela de
 usuários no banco, e depois assinatura. **Aprovado em princípio (sessão 116), execução não iniciada.**
 Ponto de convergência limpo: qualquer login novo só precisa produzir um `usuario` confiável e chamar
@@ -98,7 +98,7 @@ existem) — vale ler só como histórico. Frentes ainda vivas dele:
 Parser determinístico via DOM da extensão para casas de alto volume + IA só na cauda. Log de tokens já
 construído (`/uso/tokens`); parser determinístico ainda não codado. 🟡
 
-### 4.3 Migração planilha → Postgres — `../PLANO_UNIFICACAO_2026.md`
+### 4.3 Migração planilha → Postgres — `../docs/PLANO_UNIFICACAO_2026.md`
 Trazer as ~25.726 apostas da planilha p/ o Postgres (era-split, em fatias). Grosso feito e auditado;
 **cauda de casas** ainda pode faltar (Pinnacle, Superbet, Novibet, Bet365 ativas, Betnacional) —
 confirmar no `../STATUS.md`. 🟢
@@ -132,9 +132,9 @@ Betano determinística na 120b). **Restam:**
 
 | Documento | Caminho | Papel |
 |---|---|---|
-| SaaS multiusuário | `../PLANO_MULTIUSUARIO_2026.md` | plano ativo |
+| SaaS multiusuário | `../docs/PLANO_MULTIUSUARIO_2026.md` | plano ativo |
 | Perfil de Tipster (unidades/atribuição/Telegram) | `../docs/PLANO_TIPSTER.md` | plano ativo |
-| Migração planilha→Postgres | `../PLANO_UNIFICACAO_2026.md` | plano ativo |
+| Migração planilha→Postgres | `../docs/PLANO_UNIFICACAO_2026.md` | plano ativo |
 | Casca unificada | `../docs/PLANO_CASCA_UNIFICADA.md` | plano ativo (polimento) |
 | ADR-001 / ADR-002 | `../docs/ADR-00*.md` | decisões com gate |
 | Auditoria consolidada | `../docs/AUDITORIA_2026.md` | risco técnico vivo |

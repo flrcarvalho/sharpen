@@ -96,7 +96,7 @@ Você aprovou e eu executei. Com `git mv` (histórico preservado) + correção d
 | Feito | Detalhe |
 |---|---|
 | ✅ 9 `.md` soltos → `docs/` | `AUDITORIA_CRITICA`, `RELATORIO_CORRECOES`, `RISK_REDUCTION_PLAN`, `REFERENCIA_CHIPS/EMOJIS/LISTA`, `PLANO_CONSTRUCAO`, `CASAS_CONFIABILIDADE`, `GUIA_NOVA_CASA` |
-| ✅ Raiz enxuta | Sobrou só o essencial: `CLAUDE.md`, `STATUS.md`, `ONDE_ESTOU.md`, `PLANO_MULTIUSUARIO_2026.md`, `PLANO_UNIFICACAO_2026.md` + configs |
+| ✅ Raiz enxuta | Sobrou só o essencial: `CLAUDE.md`, `STATUS.md`, `ONDE_ESTOU.md` + configs (os `PLANO_*.md` migraram para `docs/`) |
 | ✅ Banner de "histórico/desatualizado" no `PLANO_CONSTRUCAO.md` | Deixa claro que é registro, não fonte viva |
 | ✅ Referências cruzadas corrigidas | `Ideias/README`, `PLANO_MULTIUSUARIO`, skill `/nova-casa` — e vários links de `docs/` que estavam quebrados **passaram a resolver** (os alvos agora moram na mesma pasta) |
 | ✅ `golden_set/README.md` | Explica o propósito da pasta (antes vazia, contradizendo o CLAUDE.md) |
