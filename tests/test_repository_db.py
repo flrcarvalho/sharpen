@@ -97,6 +97,19 @@ def test_upsert_isola_por_dono():
     asyncio.run(body())
 
 
+def test_upsert_canoniza_resultado_minusculo():
+    """Lado da ESCRITA do bug case-sensitive (#179): 'w'/'v' minúsculo entra e é gravado
+    canônico ('W'/'V') via .strip().upper() no upsert — senão ficava 'aberta' (parecia
+    resolvido mas contava como aguardando). A regressão existente só cobria a leitura."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(codigo_bilhete="C1", resultado="  w ")], "TDonoA")
+        r = await _get("TDonoA", "C1")
+        assert r["resultado"] == "W"
+        assert r["extraction_state"] != "aberta"
+    asyncio.run(body())
+
+
 def test_upsert_aberta_para_resolvida_nao_rebaixa():
     """Bilhete ABERTO (sem resultado/odd) que resolve depois: as 2 blindagens do ON CONFLICT.
     (1) resolve preenche resultado e refresca odd (era 'aberta'); (2) uma re-leitura tardia
