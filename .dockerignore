@@ -1,0 +1,53 @@
+# Slimming do contexto de build enviado ao daemon Docker.
+# O Dockerfile só faz COPY de app/ global/ casas/ — todo o resto é peso morto
+# (Backups/ tem ~55MB, .git idem). Menos contexto = build/upload mais rápido.
+#
+# ⚠️ NÃO listar app/, global/ nem casas/ aqui: os MASTER_*.md e CASA_*.md são
+#    necessários em runtime. Por isso NÃO usar "*.md" global (excluiria os masters).
+
+# Controle de versão / CI
+.git/
+.github/
+.gitignore
+
+# Backups e temporários (grandes)
+Backups/
+_backups/
+
+# Documentação e planos (não vão para runtime)
+docs/
+Ideias/
+STATUS.md
+ONDE_ESTOU.md
+NOTA_AO_AUDIT.md
+PLANO_*.md
+CLAUDE.md
+*.pdf
+
+# Código auxiliar não usado pelo app em produção
+tests/
+scripts/
+tools/
+extensor/
+apps_script/
+golden_set/
+
+# Python / caches
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Segredos e config local (nunca na imagem)
+.env
+.env.*
+!.env.example
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
