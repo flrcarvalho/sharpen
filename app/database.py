@@ -107,6 +107,17 @@ ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS stake_usd REAL;
 -- futuro nunca aprende da própria sugestão. NÃO entra em _SIG_COLS (não mexe na assinatura).
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem_tipster TEXT;
 
+-- Índices da tabela mais quente (bilhetes). Sem eles, toda home do dashboard faz
+-- seq scan + sort em memória por dono, e o pré-dedup por código varre sem índice.
+-- IF NOT EXISTS = idempotente (roda a cada boot sem recriar). A dedup por assinatura
+-- (dono, casa, parceiro, assinatura) já é servida pelo índice UNIQUE — não repetir aqui.
+--   • feed/listagem: SELECT ... WHERE dono=$ ORDER BY criado_em, id
+CREATE INDEX IF NOT EXISTS idx_bilhetes_dono_criado
+    ON bilhetes (dono, criado_em, id);
+--   • pré-dedup por código do bilhete (parcial: só as linhas que têm código)
+CREATE INDEX IF NOT EXISTS idx_bilhetes_dono_codigo
+    ON bilhetes (dono, codigo_bilhete) WHERE codigo_bilhete IS NOT NULL;
+
 -- Tipster atribuído a POSIÇÕES ATIVAS da Polymarket (dashboard ao vivo).
 -- Vive separado de `bilhetes` (que só guarda apostas resolvidas/exportáveis);
 -- chave = código do bilhete (conditionId/__i). Carregado p/ a grade quando resolve.
