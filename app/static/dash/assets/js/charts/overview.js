@@ -12,10 +12,17 @@ function renderKPI(rows){
   const wins=W+HW;
   const wr=wrFrac(wins,HW,HL,settled);
   const{costConta}=calcCostFiltered(rows);
-  // Custo de tipster — soma todos os valores mensais de ctData
+  // Custo de tipster — soma SÓ os meses dentro do período filtrado (assinatura é mensal;
+  // espelha o custo de conta, que já respeita a data via calcCostFiltered). Mês "YYYY-MM"
+  // entra se estiver no intervalo [menor, maior] mês das apostas filtradas. Sem filtro (tudo),
+  // o span cobre todos os meses → mesmo número de antes; só as visões filtradas mudam (fim
+  // do double-count: filtrar "julho" descontava jan..jul do custo). Ver achado Turbo overview.js.
   ctLoad();
-  const costTipster=Object.values(ctData).reduce((total,monthsObj)=>{
-    return total+Object.values(monthsObj||{}).reduce((a,v)=>{
+  const _ymMin=rows.length?rows.reduce((m,r)=>r.data<m?r.data:m,'9999-99-99').slice(0,7):null;
+  const _ymMax=rows.length?rows.reduce((m,r)=>r.data>m?r.data:m,'0000-00-00').slice(0,7):null;
+  const costTipster=!_ymMin?0:Object.values(ctData).reduce((total,monthsObj)=>{
+    return total+Object.entries(monthsObj||{}).reduce((a,[m,v])=>{
+      if(m<_ymMin||m>_ymMax)return a;   // mês fora do período filtrado → não conta
       return a+(parseFloat((v||'').toString().replace(',','.'))||0);
     },0);
   },0);
