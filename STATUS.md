@@ -88,7 +88,7 @@ Os 6 MASTER_*.md vivem em `/global/`; as 15 casas em `/casas/` (Polymarket por A
 - **Pinnacle:** §5 rótulo exato de HW/HL no export (precisa de Asian Handicap de quarto liquidado)
 - **Bolsa de Aposta:** §5 V/HW/HL · §6 boost · §7 cashout · §8 bônus · apostas Lay
 - **Betnacional:** §5 HW/HL · §5 V (rótulo visual de void) · §7 cashout · §8 bônus
-- **Jogo de Ouro:** §5 V/HW/HL · §5 rótulo do card na aba Cashout · §7 cashout · §8 bônus · §9 (23 categorias aguardam amostra)
+- **Jogo de Ouro:** §5 V/HW/HL · §5 rótulo do card na aba Cashout · §7 cashout · §8 bônus
 
 **Próximo passo:**
 - Preencher pendências das casas existentes assim que amostras reais chegarem (ver lista acima).

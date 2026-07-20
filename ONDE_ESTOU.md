@@ -77,15 +77,14 @@ parte já foi consertada).
 
 ### 🔴 Curto prazo / operacional (o que dói na rotina)
 1. **Teste ao vivo do Betfair com a conta Duka** — validar velocidade e datas do fix da sessão 121.
-2. **`CASA_BETANO.md` desatualizada** — ainda descreve scraping, mas a Betano virou ingestão por API. Reescrever §2/§3/§12.
-3. **Fix estrutural de dedup**: garantir que a extração da Betano sempre capture o ID visível (raiz do problema de duplicata).
+2. **Fix estrutural de dedup**: garantir que a extração da Betano sempre capture o ID visível (raiz do problema de duplicata).
 
 ### 🟡 Médio prazo / dívida técnica que vale pagar
 6. **Polymarket**: separar `entry_odd` de `realized_odd` (hoje a odd muda de significado conforme o resultado — distorce o dashboard).
 7. ~~Métricas quant~~ ✅ **fechado (11/07)**: nomes técnicos **mantidos** (sua decisão) + explicação de cada número no tooltip. O objetivo era explicar o porquê do número, não removê-lo — e isso já estava feito.
 8. **Observabilidade**: request_id + log estruturado (hoje debugar produção é às cegas).
-9. **`SESSION_SECRET`**: fail-closed em produção (hoje, se faltar a env, o login cai a cada restart e só avisa).
-10. **Win rate**: decidir se HW conta meio (hoje conta vitória cheia, infla o número).
+9. ~~`SESSION_SECRET` fail-closed~~ ✅ **fechado**: prod levanta erro no boot se a env faltar (Onda 2, `06be977`).
+10. ~~Win rate HW=½~~ ✅ **fechado**: backend espelha o front (HW conta meio), commits `1360bbf`/`0941bf7`.
 
 ### 🔵 Longo prazo / estratégico (planejado, com gate)
 - **SaaS multiusuário** (cadastro no site, login Google/Telegram, pagamento) — Fase 1 = tabela `usuarios`. Ver `Ideias/README.md`.

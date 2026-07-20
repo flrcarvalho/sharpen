@@ -75,7 +75,7 @@ Da auditoria visual da casca (`../docs/AUDITORIA_VISUAL_CASCA_2026-06-30.md`, ho
 |---|---|---|---|
 | Migração dinheiro → NUMERIC/Decimal | `../docs/ADR-001-migracao-numeric-decimal.md` | Fase 0 (não iniciado), gate parcial | 🔵 adiado por design |
 | Dashboard 1ª carga (agregação no servidor) | `../docs/ADR-002-dashboard-primeira-carga.md` | Fase 1 (gzip) ✅ · Fase 2 condicional | 🔵 condicional a medição |
-| Rename métricas quant + disclaimer (p-value/MC/solidez) | `../docs/AUDITORIA_2026.md` #29–31 | Aberto (barato) | 🟢 |
+| ~~Rename métricas quant + disclaimer (p-value/MC/solidez)~~ ✅ fechado (11/07) — nomes técnicos mantidos + explicação no tooltip (decisão do Feca) | `../docs/AUDITORIA_2026.md` #29–31 | ✅ Fechado | — |
 | Polymarket: separar entry_odd / realized_odd | `../docs/AUDITORIA_2026.md` #32 | Aberto | 🟡 |
 | Observabilidade (request_id + log estruturado) | #44 | Aberto | 🟡 |
 | Rotação da senha do Postgres | `../docs/runbook-rotacao-postgres.md` | Runbook pronto, execução pendente | 🟢 |
