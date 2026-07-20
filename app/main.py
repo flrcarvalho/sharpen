@@ -42,6 +42,7 @@ from repository import (
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos, corrigir_codigos_tsv,
     set_casa_dominio, get_casas_dominios,
+    get_custo_store, salvar_custo_store,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
@@ -2187,6 +2188,33 @@ async def salvar_casa_config_route(body: CasaConfigRequest, dono: str = Depends(
     ok = await salvar_casa_config(dono, body.casa, body.modo, body.tipsters or "", body.origem or "custom")
     if not ok:
         raise HTTPException(400, "Config de casa inválida (modo 'dedicada' com 1-2 tipsters ou 'multi'; origem 'sharpen'/'custom').")
+    return {"salvo": True}
+
+
+# ── Custos por dono (Custo por Tipster + Custos Gerais) ───────────────────────
+# Persistem os custos da tela Gestão › Custos no Postgres, por dono (antes só em
+# localStorage global → sumiam ao trocar de aparelho). Semeados uma vez pela
+# página /dashboard/importar-custos.html. Ver database.custo_store / STATUS s165.
+class CustoStoreRequest(BaseModel):
+    """Blob de custos do dono: custo_tipster = {tipster:{"YYYY-MM": valor}},
+    custo_geral = [{id, tipo, values}]. O front manda sempre o estado completo."""
+    custo_tipster: dict = {}
+    custo_geral: list = []
+
+
+@app.get("/custos/store")
+async def get_custo_store_route(dono: str = Depends(dono_efetivo)):
+    """Custos do dono. `existe=False` = servidor ainda vazio p/ este dono → o front
+    usa o cache local e a página de importação oferece semear a partir do navegador."""
+    dados = await get_custo_store(dono)
+    if dados is None:
+        return {"existe": False, "custo_tipster": {}, "custo_geral": []}
+    return {"existe": True, **dados}
+
+
+@app.post("/custos/store")
+async def salvar_custo_store_route(body: CustoStoreRequest, dono: str = Depends(dono_efetivo)):
+    await salvar_custo_store(dono, body.custo_tipster or {}, body.custo_geral or [])
     return {"salvo": True}
 
 

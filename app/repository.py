@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import re
 from datetime import date, datetime, timedelta, timezone
@@ -1855,6 +1856,43 @@ async def get_casas_dominios(dono: str) -> dict:
         rows = await conn.fetch(
             "SELECT casa, dominio FROM casas_meta WHERE dono = $1 AND dominio IS NOT NULL", dono)
     return {r["casa"]: r["dominio"] for r in rows}
+
+
+async def get_custo_store(dono: str) -> dict | None:
+    """Custos do dono (Custo por Tipster + Custos Gerais) — ver database.custo_store.
+    Retorna None se o dono AINDA NÃO tem registro (servidor "vazio" → o front sabe
+    que precisa importar do navegador). custo_tipster = {tipster:{"YYYY-MM":val}};
+    custo_geral = [{id,tipo,values}]. Espelha get_casas_dominios. JSONB volta como
+    str no asyncpg (sem codec) → json.loads."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT custo_tipster, custo_geral FROM custo_store WHERE dono = $1", dono)
+    if row is None:
+        return None
+    ct = row["custo_tipster"]
+    cg = row["custo_geral"]
+    if isinstance(ct, str):
+        ct = json.loads(ct)
+    if isinstance(cg, str):
+        cg = json.loads(cg)
+    return {"custo_tipster": ct or {}, "custo_geral": cg or []}
+
+
+async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list) -> None:
+    """Upsert do blob de custos do dono. Substitui o registro inteiro — o front
+    sempre manda o estado completo (como o localStorage fazia). Espelha
+    salvar_casa_config. Passa JSON como texto + cast ::jsonb (sem codec global)."""
+    ct = json.dumps(custo_tipster if isinstance(custo_tipster, dict) else {})
+    cg = json.dumps(custo_geral if isinstance(custo_geral, list) else [])
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO custo_store (dono, custo_tipster, custo_geral, atualizado_em) "
+            "VALUES ($1, $2::jsonb, $3::jsonb, NOW()) "
+            "ON CONFLICT (dono) DO UPDATE SET custo_tipster = EXCLUDED.custo_tipster, "
+            "custo_geral = EXCLUDED.custo_geral, atualizado_em = NOW()",
+            dono, ct, cg)
 
 
 async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:

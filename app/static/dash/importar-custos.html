@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sharpen — Importar custos para o servidor</title>
+
+  <link rel="icon" type="image/svg+xml" href="/static/favicon/favicon.svg">
+  <meta name="theme-color" content="#0A0D12">
+
+  <!-- Fontes + tokens + componente .money da marca (mesma origem: /dashboard/) -->
+  <link rel="stylesheet" href="/static/fonts.css">
+  <link rel="stylesheet" href="assets/css/tokens.css?v=2">
+  <link rel="stylesheet" href="assets/css/components.css?v=12">
+
+  <style>
+    /* Página utilitária de uso único (semear o servidor a partir do localStorage do
+       PC certo). Layout mínimo em cima dos tokens da marca — sem formatador de R$
+       próprio: o total usa fmtR (espelho de app.js) + o componente .money. */
+    html,body{margin:0;background:var(--bg,#0A0D12);color:var(--ink,#E6EAF0);
+      font-family:var(--font-sans,'Manrope',sans-serif);-webkit-font-smoothing:antialiased;}
+    .wrap{max-width:640px;margin:0 auto;padding:40px 20px 80px;}
+    h1{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:0 0 6px;}
+    .sub{color:var(--ink-mute);font-size:13px;line-height:1.5;margin:0 0 24px;}
+    .card{background:var(--surface,#12161D);border:1px solid var(--line,#232A34);
+      border-radius:14px;padding:20px;margin-bottom:16px;}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
+    .kpi{background:var(--elevated,#171C25);border:1px solid var(--line,#232A34);
+      border-radius:10px;padding:12px 14px;}
+    .kpi-l{font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:9px;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:6px;}
+    .kpi-v{font-size:20px;font-weight:700;font-family:var(--font-mono,'JetBrains Mono',monospace);}
+    .lista{margin-top:6px;}
+    .li{display:flex;justify-content:space-between;align-items:center;padding:7px 2px;
+      border-bottom:1px solid var(--line,#232A34);font-size:13px;}
+    .li:last-child{border-bottom:0;}
+    .li .nome{color:var(--ink);font-weight:600;}
+    .aviso{display:flex;gap:9px;background:rgba(var(--warn-rgb,214,158,46),.10);
+      border:1px solid rgba(var(--warn-rgb,214,158,46),.30);border-radius:10px;
+      padding:12px 14px;font-size:12.5px;line-height:1.5;color:var(--ink-soft,#B7C0CE);margin-bottom:18px;}
+    .aviso b{color:var(--warn,#D69E2E);}
+    button{width:100%;padding:13px 16px;border:0;border-radius:10px;cursor:pointer;
+      font-family:var(--font-sans,'Manrope',sans-serif);font-size:14px;font-weight:700;
+      background:var(--accent,#3B82F6);color:#fff;transition:opacity .15s;}
+    button:hover{opacity:.9;}
+    button:disabled{opacity:.45;cursor:default;}
+    .msg{margin-top:14px;font-size:13px;line-height:1.5;text-align:center;}
+    .msg.ok{color:var(--pos,#2FA36B);}
+    .msg.err{color:var(--neg,#E5484D);}
+    .center{text-align:center;color:var(--ink-mute);font-size:13px;padding:8px 0;}
+    a{color:var(--accent,#3B82F6);}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Importar custos para o servidor</h1>
+    <p class="sub">Esta página lê os custos (Custo por Tipster + Custos Gerais) que estão
+      salvos <b>neste navegador</b> e os envia para o servidor. Depois disso eles passam a
+      aparecer em qualquer computador ou celular — e nunca mais somem ao trocar de aparelho.</p>
+
+    <div id="conteudo">
+      <div class="center">Carregando…</div>
+    </div>
+  </div>
+
+  <script>
+    // ── Máscara monetária: ESPELHO de app.js:13,15 (UI_REFERENCE §5.1 — custo/agregado
+    //    = fmtR, inteiro, via componente .money). Não é formatador novo. ──────────────
+    function fmt(v,d){return Math.abs(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});}
+    function fmtR(v){return '<span class="money"><span class="money-sign">R$</span><span class="money-val">'+fmt(v,0)+'</span></span>';}
+    // Parse de valor de célula: espelha gestao.js buildCTRows (BR simples "250"/"250,00").
+    function num(v){return parseFloat((v||'').toString().replace(',','.'))||0;}
+    function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+    // Chaves LEGADAS globais — as mesmas que o dashboard usou até agora.
+    var CT_KEY='custoTipsterData', CG_KEY='custoGeralData';
+    function lsGet(k,fb){try{return JSON.parse(localStorage.getItem(k)||fb);}catch(e){return JSON.parse(fb);}}
+
+    var ctData=lsGet(CT_KEY,'{}')||{}, cgData=lsGet(CG_KEY,'[]')||[];
+    var el=document.getElementById('conteudo');
+
+    function somaTipster(m){var t=0;for(var k in m){t+=num(m[k]);}return t;}
+    function somaGeral(row){var v=(row&&row.values)||{},t=0;for(var k in v){t+=num(v[k]);}return t;}
+
+    function render(jaExiste){
+      // Tipsters com algum valor (ordenados por total desc)
+      var tips=Object.keys(ctData).map(function(t){return {nome:t,total:somaTipster(ctData[t])};})
+                 .filter(function(x){return x.total>0;}).sort(function(a,b){return b.total-a.total;});
+      var gerais=(Array.isArray(cgData)?cgData:[]).map(function(r){return {nome:r.tipo||'(sem descrição)',total:somaGeral(r)};})
+                 .filter(function(x){return x.total>0;});
+      var totalGeral=tips.reduce(function(a,x){return a+x.total;},0)+gerais.reduce(function(a,x){return a+x.total;},0);
+
+      if(tips.length===0 && gerais.length===0){
+        el.innerHTML='<div class="card"><div class="center">Não encontrei nenhum custo salvo <b>neste navegador</b>.<br><br>'+
+          'Abra esta página no <b>mesmo computador</b> onde você preencheu os custos, ou preencha-os primeiro na tela de Custos.</div></div>';
+        return;
+      }
+
+      var linhasTips=tips.map(function(x){return '<div class="li"><span class="nome">'+esc(x.nome)+'</span>'+fmtR(x.total)+'</div>';}).join('');
+      var linhasGerais=gerais.map(function(x){return '<div class="li"><span class="nome">'+esc(x.nome)+'</span>'+fmtR(x.total)+'</div>';}).join('');
+
+      var jaExisteAviso = jaExiste ? '<div class="aviso"><span>♻️</span><div>Este usuário <b>já tem custos salvos no servidor</b>. '+
+        'Enviar de novo vai <b>substituir</b> o que está lá pela lista abaixo. Só continue se esta for a versão certa.</div></div>' : '';
+
+      el.innerHTML=
+        '<div class="card">'+
+          '<div class="kpis">'+
+            '<div class="kpi"><div class="kpi-l">Tipsters c/ custo</div><div class="kpi-v">'+tips.length+'</div></div>'+
+            '<div class="kpi"><div class="kpi-l">Custos gerais</div><div class="kpi-v">'+gerais.length+'</div></div>'+
+            '<div class="kpi"><div class="kpi-l">Total</div><div class="kpi-v">'+fmtR(totalGeral)+'</div></div>'+
+          '</div>'+
+          (linhasTips?'<div class="lista">'+linhasTips+'</div>':'')+
+          (linhasGerais?'<div class="lista" style="margin-top:10px">'+linhasGerais+'</div>':'')+
+        '</div>'+
+        jaExisteAviso+
+        '<div class="aviso"><span>⚠️</span><div>Importe <b>do computador onde você preencheu</b> os custos. '+
+          'Confira a lista acima: ela precisa ser a <b>completa</b>. Se aqui aparecer pouca coisa, é o navegador errado — não envie.</div></div>'+
+        '<button id="btn" onclick="enviar()">Enviar ao servidor</button>'+
+        '<div class="msg" id="msg"></div>';
+    }
+
+    function enviar(){
+      var btn=document.getElementById('btn'), msg=document.getElementById('msg');
+      btn.disabled=true; msg.className='msg'; msg.textContent='Enviando…';
+      fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData})})
+        .then(function(r){
+          if(r.status===401){msg.className='msg err';
+            msg.innerHTML='Você precisa estar <b>logado</b>. Abra o <a href="/app">dashboard</a>, faça login e recarregue esta página.';
+            btn.disabled=false;return;}
+          if(!r.ok){throw 0;}
+          msg.className='msg ok';
+          msg.innerHTML='✓ Pronto! Seus custos foram salvos no servidor.<br>Agora eles aparecem em qualquer aparelho. Pode fechar esta página.';
+          btn.textContent='Enviado';
+        })
+        .catch(function(){msg.className='msg err';
+          msg.textContent='Não consegui enviar agora. Verifique a conexão e tente de novo.';
+          btn.disabled=false;});
+    }
+
+    // Detecta login (401) e se o servidor já tem dados, antes de mostrar a prévia.
+    fetch('/custos/store')
+      .then(function(r){
+        if(r.status===401){
+          el.innerHTML='<div class="card"><div class="center">Você precisa estar <b>logado</b> para importar.<br><br>'+
+            'Abra o <a href="/app">dashboard</a>, faça login e recarregue esta página.</div></div>';
+          return null;
+        }
+        return r.ok?r.json():{existe:false};
+      })
+      .then(function(d){ if(d)render(!!(d.existe&&(Object.keys(d.custo_tipster||{}).length||(d.custo_geral||[]).length))); })
+      .catch(function(){ render(false); }); // offline: mostra a prévia mesmo assim
+  </script>
+</body>
+</html>

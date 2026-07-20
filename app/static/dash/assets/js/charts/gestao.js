@@ -414,7 +414,9 @@ function renderMetrics(rows){
 
 // Build HTML
 function renderCustoTipster(){
-  ctLoad();
+  // Carga (cache local + servidor, fonte de verdade) é feita por ctLoad() no
+  // dispatcher da aba (app.js) ANTES de pintar; aqui só renderiza o estado atual.
+  // Os handlers de edição (saveCT/saveCG) chamam este render após mutar em memória.
   const cont=document.getElementById('custoTipsterContent');
   if(!cont)return;
   const tipsters=[...new Set(DADOS.map(r=>r.tipster).filter(Boolean))].sort();

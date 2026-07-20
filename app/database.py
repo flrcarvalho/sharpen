@@ -253,6 +253,25 @@ CREATE TABLE IF NOT EXISTS casa_config (
 -- do sistema; 'custom' = o dono editou à mão. Qualquer edição de atribuição/tipster marca
 -- 'custom'. Aditivo; linha nova default 'custom' (só se cria linha ao salvar = ação humana).
 ALTER TABLE casa_config ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'custom';
+
+-- ── Custos por dono (Custo por Tipster + Custos Gerais) ───────────────────────
+-- Migra o custo de assinatura/serviço (Gestão › Custos) do localStorage do
+-- navegador para o Postgres, por dono. Antes vivia SÓ em localStorage (chaves
+-- GLOBAIS custoTipsterData/custoGeralData, sem dono) → não sincronizava entre
+-- aparelhos e não tinha backup: o que era digitado num PC sumia ao abrir noutro
+-- (incidente Jonathan, 2026-07-19 — abriu noutra máquina e viu tudo zerado menos
+-- um tipster). Blob único por dono: custo_tipster = {tipster:{"YYYY-MM":"valor"}};
+-- custo_geral = [{id,tipo,values:{"YYYY-MM":"valor"}}]. O front sempre grava o
+-- estado completo (como fazia no localStorage). Semeado UMA vez pela página
+-- /dashboard/importar-custos.html (lê o localStorage do PC certo e sobe). O
+-- dashboard nunca cria este registro sozinho quando há custo legado no navegador
+-- (evita oficializar cópia parcial do aparelho errado). Ver STATUS s165.
+CREATE TABLE IF NOT EXISTS custo_store (
+    dono          TEXT PRIMARY KEY,
+    custo_tipster JSONB NOT NULL DEFAULT '{}'::jsonb,
+    custo_geral   JSONB NOT NULL DEFAULT '[]'::jsonb,
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 """
 
 

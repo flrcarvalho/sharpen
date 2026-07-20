@@ -447,7 +447,7 @@ function renderPage(id){
   else if(id==='apostas'){renderApostas();}
   else if(id==='parceiros'){renderParceiros(rows);}
   else if(id==='custos'){renderCustos(rows);}
-  else if(id==='custos_tipster'){renderCustoTipster();}
+  else if(id==='custos_tipster'){ctLoad().then(renderCustoTipster);} // carga (servidor) → pinta
   else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
   else if(id==='resultados'){renderResultados();}
@@ -904,15 +904,47 @@ function buildHTML(){
 
 
 // ── CUSTO DE TIPSTERS ───────────────────────────────────────────────────────
+// Fonte de verdade = Postgres (por dono), via /custos/store. O localStorage virou
+// só CACHE offline / paint instantâneo (chaves legadas — as MESMAS que a página
+// /dashboard/importar-custos.html lê p/ semear o servidor). Antes o custo vivia SÓ
+// nessas chaves GLOBAIS e sumia ao trocar de aparelho (incidente Jonathan
+// 2026-07-19). Ver database.custo_store / STATUS s165.
 const CT_KEY='custoTipsterData'; // {tipster: {YYYY-MM: value}, ...}
 const CG_KEY='custoGeralData';   // [{id, tipo, values: {YYYY-MM: value}}, ...]
 let ctData={}, cgData=[];
+let _ctServerBacked=false; // true quando o servidor já tem registro deste dono
+let _ctHadLegacy=false;    // true quando havia custo legado no localStorage no load
 
-function ctLoad(){
+function _ctHasVal(k,empty){const v=localStorage.getItem(k);return !!v&&v!==empty&&v!=='null';}
+function _ctMirror(){try{localStorage.setItem(CT_KEY,JSON.stringify(ctData));localStorage.setItem(CG_KEY,JSON.stringify(cgData));}catch(e){}}
+function _ctPush(){try{fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData})});}catch(e){}}
+
+// Carga: cache local (síncrono, p/ não perder o dado se o servidor cair) + servidor
+// (fonte de verdade, corrige ao chegar). Chamar UMA vez ao entrar na aba.
+async function ctLoad(){
+  _ctHadLegacy=_ctHasVal(CT_KEY,'{}')||_ctHasVal(CG_KEY,'[]');
   try{ctData=JSON.parse(localStorage.getItem(CT_KEY)||'{}');}catch(e){ctData={};}
   try{cgData=JSON.parse(localStorage.getItem(CG_KEY)||'[]');}catch(e){cgData=[];}
+  try{
+    const r=await fetch('/custos/store');
+    if(r.ok){
+      const d=await r.json();
+      if(d.existe){ctData=d.custo_tipster||{};cgData=d.custo_geral||[];_ctServerBacked=true;_ctMirror();}
+      else{_ctServerBacked=false;} // servidor vazio p/ este dono
+    }
+  }catch(e){/* offline: fica no cache local já carregado */}
 }
-function ctSave(){localStorage.setItem(CT_KEY,JSON.stringify(ctData));localStorage.setItem(CG_KEY,JSON.stringify(cgData));}
+
+// Save: sempre grava o cache local; sobe pro servidor SÓ quando seguro:
+//  - servidor já tem registro → atualiza (fluxo normal);
+//  - servidor vazio E sem custo legado no navegador → usuário novo, 1º save cria o registro;
+//  - servidor vazio E COM custo legado → NÃO cria sozinho (evita oficializar cópia parcial
+//    do aparelho errado — regra do Feca). A página de importação semeia do PC certo.
+function ctSave(){
+  _ctMirror();
+  if(_ctServerBacked){_ctPush();return;}
+  if(!_ctHadLegacy){_ctServerBacked=true;_ctPush();}
+}
 
 function ctGetMonths(){
   // Last 6 months ending current month
