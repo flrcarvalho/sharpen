@@ -21,8 +21,10 @@
   // Tickets da Superbet capturados pelo sb_inject.js (mundo MAIN) — as RESPOSTAS
   // JSON que a própria página recebe da API. O robô só rola a lista p/ a página
   // paginar; a extensão lê o dado exato do site, sem clicar e sem requisição nova.
-  const sbTickets = [];
-  const sbTicketSeen = new Set();
+  // Duas abas: Liquidada (`status=finished`) e Em aberto (`status=active` → `__aberta:true`,
+  // sem resultado). `sbById` guarda 1 ticket por ticketId — a versão LIQUIDADA vence a
+  // ABERTA (quando o bilhete fecha na mesma sessão, a verdade da liquidação substitui).
+  const sbById = new Map();          // ticketId → ticket (liquidada > aberta)
   let sbHookVivo = false, sbRespostas = 0;   // autodiagnóstico (espelha o da Betfair)
   window.addEventListener("message", (ev) => {
     const d = ev.data;
@@ -32,7 +34,9 @@
       if (Array.isArray(d.tickets)) {
         for (const t of d.tickets) {
           const c = t && t.ticketId;
-          if (c && !sbTicketSeen.has(c)) { sbTicketSeen.add(c); sbTickets.push(t); }
+          if (!c) continue;
+          const ex = sbById.get(c);
+          if (!ex || (ex.__aberta && !t.__aberta)) sbById.set(c, t);   // liquidada vence aberta
         }
       }
     }
@@ -470,7 +474,7 @@
       // Casas sem inject (bet365/genéricos) seguem no aviso genérico.
       const diag = {
         betfair:    { nome: "Betfair",    hook: bfHookVivo, resp: bfRespostas, vistos: bfTickets.length },
-        superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbTickets.length },
+        superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbById.size },
         betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
       }[casa];
@@ -587,7 +591,12 @@
     const win = t.win || {};
     const stake = pay.stake != null ? pay.stake : pay.total;
     const evs = t.events || [];
-    const cashout = !!win.isCashedOut;
+    // Bilhete da aba "Em aberto" (URL status=active): ainda não liquidou. Sobe SEM
+    // resultado (a IA deixa a coluna Resultado vazia → o backend grava 'aberta'); a odd
+    // vai a estrutural (coefficient). Quando fechar, a re-extração (mesmo ticketId) faz
+    // UPSERT e atualiza resultado/odd. Nunca liquidar um aberto pelo status.
+    const aberta = !!t.__aberta;
+    const cashout = !aberta && !!win.isCashedOut;
     const L = [];
     L.push("[Código: " + (t.ticketId || "") + "]");
     // Data = a do EVENTO mais recente (quando o bilhete resolve), não a de criação.
@@ -598,13 +607,16 @@
     L.push("Stake: " + _brl(stake));
     if (pay.bonusAmount) L.push("Freebet incluído: " + _brl(pay.bonusAmount) + " (dinheiro real = stake − freebet)");
     // Odd COMPLETA p/ cálculo: em VITÓRIA com boost (SUPERTURBO) a coefficient é
-    // PRÉ-boost → a odd efetiva (que reconstrói o retorno) = retorno ÷ stake.
-    const efetiva = (t.status === "win" && !cashout && win.payoff > 0 && stake > 0)
+    // PRÉ-boost → a odd efetiva (que reconstrói o retorno) = retorno ÷ stake. Aberta =
+    // coefficient estrutural (sem retorno realizado ainda).
+    const efetiva = (!aberta && t.status === "win" && !cashout && win.payoff > 0 && stake > 0)
       ? (win.payoff / stake) : t.coefficient;
     L.push("Odd total: " + _odd(efetiva));
     // Resultado bruto: a IA/CASA_SUPERBET aplica a regra (win→W, lost→L, cashout→V/W).
-    let st = cashout ? "cashout" : (t.status || "");
-    L.push("Status: " + st + (win.payoff != null ? (" · retorno " + _brl(win.payoff)) : ""));
+    let st = aberta ? "em aberto (aguardando resultado — NÃO liquidar; sem resultado)"
+                    : (cashout ? "cashout" : (t.status || ""));
+    // Em aberto, `win.payoff` é ganho POTENCIAL (não realizado) → rotula como tal.
+    L.push("Status: " + st + (win.payoff != null ? ((aberta ? " · ganho potencial " : " · retorno ") + _brl(win.payoff)) : ""));
     L.push("Seleções (" + evs.length + "):");
     for (const e of evs) {
       const nome = Array.isArray(e.name) ? e.name.join(" — ") : (e.name || "");
@@ -645,15 +657,19 @@
     const cont = acharScrollSuperbet();
     const blocos = [], usados = new Set();
     let travado = false;
+    // Aba "Em aberto" (/minhas-apostas/abertos): abertas são recentes → a janela de dias
+    // NÃO corta (senão uma liquidada velha ainda em memória interromperia antes das abertas).
+    const naAbaAberta = /abertos/i.test(location.pathname);
 
     const processar = () => {
-      for (const t of sbTickets) {
+      for (const t of sbById.values()) {
         const cod = (t.ticketId || "").toUpperCase();
         if (!cod || usados.has(cod)) continue;
         if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
         usados.add(cod);
         const dt = t.dateReceived ? Date.parse(t.dateReceived) : NaN;
-        const passou = !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        // Janela de dias corta só LIQUIDADAS e só fora da aba Em aberto.
+        const passou = !naAbaAberta && !t.__aberta && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
         blocos.push(formatTicket(t));
         ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
         if (passou) { travado = true; return; }   // passou da janela → para
@@ -676,11 +692,12 @@
       await sleep(700);
       processar();
       if (travado) break;
-      if (sbTickets.length > ultTotal) { ultTotal = sbTickets.length; semNovo = 0; }
+      if (sbById.size > ultTotal) { ultTotal = sbById.size; semNovo = 0; }
       else if (++semNovo >= 5) break;   // 5 rolagens sem nada novo → fim da lista
     }
     processar();
-    console.log("[SharpenUp] passivo: " + blocos.length + " bilhete(s) · sbTickets capturados=" + sbTickets.length);
+    console.log("[SharpenUp] passivo: " + blocos.length + " bilhete(s) · sbById=" + sbById.size +
+                " · aba=" + (naAbaAberta ? "abertas" : "liquidadas"));
     return blocos;
   }
 

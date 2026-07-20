@@ -21,14 +21,25 @@
   }
 
   function forward(url, text) {
-    if (!RX.test(String(url)) || typeof text !== "string") return;
+    const u = String(url);
+    if (!RX.test(u) || typeof text !== "string") return;
+    // Discriminador NA URL (igual à Betano): a aba "Em aberto" chama `status=active`; a
+    // "Liquidada", `status=finished`. A aberta sobe SEM resultado (o backend grava 'aberta'
+    // e faz UPSERT por ticketId quando fechar). A marca `__aberta` viaja com o ticket. Um
+    // MESMO ticketId pode existir nas duas listas → a chave do `seen` inclui o estado.
+    const aberta = /[?&]status=active/i.test(u);
     try {
       const j = JSON.parse(text);
       respostas++;   // o endpoint de tickets respondeu (prova de hook vivo + site respondendo)
       const arr = Array.isArray(j) ? j : (j.data || j.tickets || []);
       for (const t of arr) {
         const c = t && t.ticketId;
-        if (c && !seen.has(c)) { seen.add(c); all.push(t); }
+        if (!c) continue;
+        const k = c + "|" + (aberta ? "A" : "S");
+        if (seen.has(k)) continue;
+        seen.add(k);
+        t.__aberta = aberta;   // objeto é o nosso clone (JSON.parse) — mutar é seguro
+        all.push(t);
       }
     } catch (e) {}
     postAll();   // sempre reporta o heartbeat (como o bf_inject), inclusive quando lê 0
