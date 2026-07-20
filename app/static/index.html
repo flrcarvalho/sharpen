@@ -2158,7 +2158,9 @@ const DOMINIOS = {
 };
 function faviconUrl(casa) {
   const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  // encodeURIComponent: casa de modo cego (worldwide) é texto livre do usuário/IA →
+  // sem encode, um domínio com " ou > escapa do src="..." (XSS armazenado, C1). Espelha inicio.html:270.
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
 }
 
 // Fallback de favicon (REFERENCIA_CHIPS_CASAS.md §2): se a imagem não carrega,
@@ -2246,8 +2248,8 @@ function buildCasaGroup(casa) {
   const header = document.createElement('div');
   header.className = 'casa-header expanded';
   header.innerHTML = `
-    <div class="casa-chip" data-initial="${(NOMES[casa]||casa).charAt(0).toUpperCase()}"><img src="${faviconUrl(casa)}" alt="${NOMES[casa]||casa}" loading="lazy"></div>
-    <span class="casa-name">${NOMES[casa] || casa}</span>
+    <div class="casa-chip" data-initial="${esc((NOMES[casa]||casa).charAt(0).toUpperCase())}"><img src="${faviconUrl(casa)}" alt="${esc(NOMES[casa]||casa)}" loading="lazy"></div>
+    <span class="casa-name">${esc(NOMES[casa] || casa)}</span>
     <span class="pend-badge" data-pend-casa></span>
     <span class="open-badge" data-open-casa></span>
     <span class="casa-arrow">▶</span>
@@ -2648,7 +2650,7 @@ function renderAcctTree() {
     const n = parceiros.length;
     // Moldura do grupo (casa): banda-header não clicável + contagem de contas.
     html += '<div class="acct-grp">'
-      + '<div class="acct-gh"><span class="ctx-hchip"><img data-casa="' + casa + '" src="' + faviconUrl(casa) + '" alt=""></span>'
+      + '<div class="acct-gh"><span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span>'
       + '<span class="acct-gname">' + esc(nomeCasa) + '</span>'
       + '<span class="acct-gcount">' + n + (n === 1 ? ' conta' : ' contas') + '</span></div>';
     parceiros.forEach(p => {
@@ -2671,7 +2673,7 @@ function renderAcctTree() {
       const tail = isSel
         ? '<svg class="acct-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>'
         : '<svg class="acct-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>';
-      html += '<div class="acct-acct' + (isSel ? ' sel' : '') + '" tabindex="0" role="button" data-casa="' + casa + '" data-id="' + p.id + '">'
+      html += '<div class="acct-acct' + (isSel ? ' sel' : '') + '" tabindex="0" role="button" data-casa="' + esc(casa) + '" data-id="' + p.id + '">'
         + '<span class="acct-dot' + (inativa ? ' off' : '') + '"></span>'
         + '<div class="acct-who"><div class="acct-u">' + esc(conta || '—') + '</div>' + sub + '</div>'
         + badges + tail + '</div>';
