@@ -40,7 +40,7 @@ function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];
 function mkChart(id,cfg){destroyChart(id);if(!document.getElementById(id))return;charts[id]=new Chart(document.getElementById(id),cfg);}
 function isDark(){return document.documentElement.getAttribute('data-theme')==='dark';}
 function gc(){return isDark()?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';}
-function tc(){return isDark()?'#505060':'#a0a0b8';}
+function tc(){return isDark()?'#5E6775':'#a0a0b8';}  // dark = valor de --ink-mute (label de eixo apagado, mas legível) — #60 auditoria
 // Favicon via Google S2 — para produção offline trocar por: assets/casas/NOME.png
 function favicon(domain){return`https://www.google.com/s2/favicons?domain=${domain}&sz=64`;}
 function _houseDomain(nome){

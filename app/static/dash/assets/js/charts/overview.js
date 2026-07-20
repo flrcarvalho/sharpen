@@ -152,7 +152,7 @@ function renderOddsDist(rows,canvasId='chartOddsDist'){
     scales:{
       x:{ticks:{color:tc(),font:{size:10}},grid:{display:false},border:{display:false}},
       y:{ticks:{color:tc(),font:{size:10}},grid:{color:gc()},border:{display:false},position:'left'},
-      y1:{ticks:{color:'#2BC07E',font:{size:10},callback:v=>v+'%'},grid:{display:false},border:{display:false},position:'right'},
+      y1:{min:0,max:100,ticks:{color:'#2BC07E',font:{size:10},callback:v=>v+'%'},grid:{display:false},border:{display:false},position:'right'},
       y2:{ticks:{color:'#E0A21A',font:{size:10},callback:v=>v+'%'},grid:{display:false},border:{display:false},position:'right',offset:true}
     }}});
 }
