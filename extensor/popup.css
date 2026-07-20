@@ -10,6 +10,7 @@
   --accent:    #2E8BFF;
   --accent-2:  #7FB2FF;
   --pos:       #2BC07E;
+  --warn:      #E8B93F;
   --line:      rgba(255,255,255,0.09);
   --line-2:    rgba(255,255,255,0.05);
   --r-lg: 16px; --r-md: 10px; --r-sm: 8px;
@@ -50,6 +51,17 @@ body {
 .status.off { color: var(--ink-mute); } .status.off .d { background: var(--ink-mute); }
 .status.on { color: var(--accent-2); } .status.on .d { background: var(--accent);
   box-shadow: 0 0 6px rgba(46,139,255,.8); }
+
+/* ── Aviso de versão desatualizada ─────────────────────────────────────────── */
+.verwarn { display: flex; align-items: center; gap: 10px; padding: 11px 17px;
+  background: rgba(232,185,63,.10); border-bottom: 1px solid rgba(232,185,63,.28); }
+.verwarn-ic { width: 19px; height: 19px; border-radius: 50%; flex: none; display: grid;
+  place-items: center; background: var(--warn); color: #1A1204; }
+.verwarn-tx { flex: 1; font-size: 12px; line-height: 1.35; color: var(--warn); }
+.verwarn-btn { flex: none; background: var(--warn); color: #1A1204; border: none;
+  font-family: inherit; font-weight: 700; font-size: 12px; border-radius: 7px;
+  padding: 6px 12px; cursor: pointer; transition: filter .15s; }
+.verwarn-btn:hover { filter: brightness(1.08); }
 
 /* ── Corpo ─────────────────────────────────────────────────────────────────── */
 .bd { padding: 18px 17px; display: flex; flex-direction: column; gap: 0; }

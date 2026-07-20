@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SharpenUp — instalar e atualizar</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0A0D12; --surface: #12161D; --surface-2: #161C24;
+      --ink: #E6ECF5; --ink-soft: #C9D2DE; --ink-mute: #9AA6B6; --ink-faint: #6B7686;
+      --accent: #2E8BFF; --accent-2: #7FB2FF;
+      --pos: #2BC07E; --warn: #E8B93F;
+      --line: rgba(255,255,255,.09);
+      --font-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.6 "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+      letter-spacing: -.01em; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 52px 22px 90px; }
+
+    /* Cabeçalho de marca (lâmina + selo Up, kit SharpenUp) */
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+    .tile { position: relative; width: 40px; height: 40px; border-radius: 11px; flex: none;
+      background: linear-gradient(160deg, #1B222C, #0A0D12); border: 1px solid var(--line);
+      display: grid; place-items: center; }
+    .tile > svg { width: 15px; height: 28px; }
+    .up { position: absolute; top: -9%; right: -9%; width: 42%; height: 42%; border-radius: 50%;
+      background: var(--accent); color: #04122A; display: grid; place-items: center;
+      box-shadow: 0 0 0 3px #0A0D12, 0 3px 9px rgba(0,0,0,.5); }
+    .up svg { width: 52%; height: 52%; fill: none; stroke: currentColor; stroke-width: 3.6;
+      stroke-linecap: round; stroke-linejoin: round; }
+    .wm { font-weight: 800; font-size: 22px; letter-spacing: -.04em; }
+    .wm .u { color: var(--accent-2); }
+
+    h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -.02em; }
+    .sub { color: var(--ink-mute); font-size: 15px; margin: 0 0 30px; }
+
+    /* Card de status de versão */
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+      padding: 20px 22px; margin-bottom: 26px; }
+    .status { display: flex; align-items: center; gap: 12px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--ink-faint); }
+    .status.ok .dot { background: var(--pos); box-shadow: 0 0 8px rgba(43,192,126,.7); }
+    .status.old .dot { background: var(--warn); box-shadow: 0 0 8px rgba(232,185,63,.6); }
+    .status .txt { font-weight: 700; font-size: 16px; }
+    .status.ok .txt { color: var(--pos); }
+    .status.old .txt { color: var(--warn); }
+    .vers { font-family: var(--font-mono); font-size: 13px; color: var(--ink-mute);
+      margin: 12px 0 0; display: flex; gap: 22px; flex-wrap: wrap; }
+    .vers b { color: var(--ink); font-weight: 600; }
+
+    .dl { margin-top: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 9px; background: var(--accent);
+      color: #fff; font-weight: 700; font-size: 15px; text-decoration: none;
+      padding: 12px 20px; border-radius: 11px; transition: background .15s; }
+    .btn:hover { background: #1E7CF0; }
+    .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4;
+      stroke-linecap: round; stroke-linejoin: round; }
+    .dl-note { color: var(--ink-faint); font-size: 13px; }
+
+    h2 { font-size: 18px; margin: 34px 0 12px; letter-spacing: -.01em; }
+    ol { padding-left: 20px; margin: 0; }
+    li { color: var(--ink-soft); margin: 9px 0; }
+    li b { color: var(--ink); }
+    code { font-family: var(--font-mono); font-size: 13px; background: var(--surface-2);
+      border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; color: var(--accent-2); }
+    .tip { background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+      border-radius: 10px; padding: 13px 16px; margin: 18px 0 0; color: var(--ink-mute); font-size: 14px; }
+    .tip b { color: var(--ink); }
+    a { color: var(--accent-2); }
+
+    .foot { margin-top: 46px; padding-top: 20px; border-top: 1px solid var(--line);
+      color: var(--ink-faint); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <!-- Gradiente da lâmina (kit SharpenUp) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="blade" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5BA9FF"></stop><stop offset="1" stop-color="#1E7CF0"></stop>
+    </linearGradient>
+  </defs></svg>
+
+  <div class="wrap">
+    <div class="brand">
+      <span class="tile">
+        <svg viewBox="40 10 40 100"><path d="M60 16 L60 90 L42 104 Z" fill="url(#blade)"></path><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"></path></svg>
+        <span class="up"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></span>
+      </span>
+      <span class="wm">Sharpen<span class="u">Up</span></span>
+    </div>
+
+    <h1>Instalar e atualizar o SharpenUp</h1>
+    <p class="sub">A perninha do Sharpen que captura seus bilhetes na casa e sobe pro painel. Esta página serve <b>sempre a última versão</b> — baixe daqui sempre que for avisado que está desatualizado.</p>
+
+    <div class="card">
+      <div class="status" id="status">
+        <span class="dot"></span>
+        <span class="txt" id="status-txt">Verificando versão…</span>
+      </div>
+      <p class="vers" id="vers"></p>
+      <div class="dl">
+        <a class="btn" href="/extensao/download">
+          <svg viewBox="0 0 24 24"><path d="M12 5v10M7 12l5 5 5-5M5 19h14"></path></svg>
+          Baixar SharpenUp (.zip)
+        </a>
+        <span class="dl-note">Descompacte antes de carregar no navegador.</span>
+      </div>
+    </div>
+
+    <h2>Como instalar (primeira vez)</h2>
+    <ol>
+      <li><b>Baixe</b> o <code>.zip</code> acima e <b>descompacte</b> numa pasta fixa (não apague depois — o navegador lê dela).</li>
+      <li>Abra <code>chrome://extensions</code> (no Octo, o gerenciador de extensões do perfil).</li>
+      <li>Ligue o <b>Modo do desenvolvedor</b> (canto superior direito).</li>
+      <li>Clique em <b>Carregar sem compactação</b> e selecione a pasta descompactada.</li>
+      <li>Fixe o ícone na barra. Pronto — pareie com o código gerado no dashboard.</li>
+    </ol>
+
+    <h2>Como atualizar (quando aparecer o aviso)</h2>
+    <ol>
+      <li><b>Baixe</b> o novo <code>.zip</code> acima e descompacte <b>por cima</b> da mesma pasta (substituindo os arquivos).</li>
+      <li>Em <code>chrome://extensions</code>, no card do SharpenUp, clique no botão de <b>recarregar</b> (↻).</li>
+      <li>Se preferir, remova e recarregue a pasta. A conexão é refeita com um novo código.</li>
+    </ol>
+
+    <div class="tip">
+      <b>Vários navegadores/perfis Octo?</b> Repita a instalação em cada perfil onde captura. O aviso de versão aparece no popup da extensão e no extrator do dashboard toda vez que uma ponte antiga conecta — é o seu lembrete de atualizar aquele perfil.
+    </div>
+
+    <p class="foot">© 2026 FDC Capital — SharpenUp · <a href="/privacidade">Política de privacidade</a></p>
+  </div>
+
+  <script>
+    function tupla(v) { return (v || '').split('.').map(function (p) { var n = parseInt(p, 10); return isNaN(n) ? 0 : n; }); }
+    function menor(a, b) {
+      var ta = tupla(a), tb = tupla(b), n = Math.max(ta.length, tb.length);
+      for (var i = 0; i < n; i++) { var x = ta[i] || 0, y = tb[i] || 0; if (x !== y) return x < y; }
+      return false;
+    }
+    var instalada = (new URLSearchParams(location.search).get('v') || '').trim();
+    fetch('/extensao/versao').then(function (r) { return r.json(); }).then(function (d) {
+      var atual = (d.versao || '').trim();
+      var box = document.getElementById('status');
+      var txt = document.getElementById('status-txt');
+      var vers = document.getElementById('vers');
+      if (!instalada) {
+        // Aberta direto (sem versão instalada informada) — só mostra a versão atual.
+        box.className = 'status';
+        txt.textContent = 'Última versão disponível';
+        txt.style.color = 'var(--ink)';
+        vers.innerHTML = 'Versão atual: <b>' + (atual || '—') + '</b>';
+      } else if (menor(instalada, atual)) {
+        box.className = 'status old';
+        txt.textContent = 'Sua versão está desatualizada';
+        vers.innerHTML = 'Você tem: <b>' + instalada + '</b>' + '<span>Atual: <b>' + atual + '</b></span>';
+      } else {
+        box.className = 'status ok';
+        txt.textContent = 'Você está atualizado';
+        vers.innerHTML = 'Você tem: <b>' + instalada + '</b>' + '<span>Atual: <b>' + atual + '</b></span>';
+      }
+    }).catch(function () {
+      document.getElementById('status-txt').textContent = 'Não foi possível verificar a versão agora.';
+    });
+  </script>
+</body>
+</html>

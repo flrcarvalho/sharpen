@@ -5,6 +5,11 @@ const telaConectar = $("tela-conectar");
 const telaConectado = $("tela-conectado");
 const msg = $("msg");
 
+// Versão desta instalação (do manifest) — reportada ao backend nos handshakes p/ ele
+// detectar instalações antigas. O backend responde se está desatualizada.
+const VERSAO = chrome.runtime.getManifest().version;
+let _versaoInfo = { desatualizada: false, versao_atual: "" };
+
 // Domínio da casa p/ o favicon (grayscale, cosmético — some se não carregar).
 const DOMINIOS = {
   "Superbet": "superbet.com", "Betano": "betano.com", "Bet365": "bet365.com",
@@ -97,6 +102,17 @@ $("btn-conectar").addEventListener("click", conectar);
 $("btn-desconectar").addEventListener("click", desconectar);
 $("btn-capturar").addEventListener("click", capturar);
 
+// "Atualizar" → abre a página de instalação/atualização com a versão instalada na URL
+// (a página mostra atualizado ✓ / desatualizado ⚠ e o link do .zip novo).
+$("btn-atualizar").addEventListener("click", async () => {
+  const base = await getApiBase();
+  chrome.tabs.create({ url: `${base}/extensao?v=${encodeURIComponent(VERSAO)}` });
+});
+
+// Rodapé mostra a versão real do manifest (nunca um número hardcoded que dessincroniza).
+const _verEl = document.querySelector(".foot .ver");
+if (_verEl) _verEl.textContent = "v" + VERSAO;
+
 async function conectar() {
   const codigo = $("codigo").value.trim().toUpperCase();
   if (codigo.replace(/[^A-Z0-9]/g, "").length < 8) {
@@ -109,11 +125,12 @@ async function conectar() {
     const r = await fetch(`${base}/captura/conectar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ codigo }),
+      body: JSON.stringify({ codigo, versao: VERSAO }),
     });
     if (r.status === 404) { setMsg("Código inválido ou expirado. Gere outro no dashboard.", "erro"); return; }
     if (!r.ok) { setMsg("Erro ao conectar (" + r.status + ").", "erro"); return; }
     const d = await r.json();
+    _versaoInfo = { desatualizada: !!d.desatualizada, versao_atual: d.versao_atual || "" };
     await chrome.storage.local.set({
       token: d.token, casa: d.casa, parceiro: d.parceiro,
       modo: d.modo, dono: d.dono, codigo,
@@ -189,9 +206,12 @@ async function validarToken(token) {
     const base = await getApiBase();
     const r = await fetch(`${base}/captura/validar`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, versao: VERSAO }),
     });
-    if (r.ok) return "ok";
+    if (r.ok) {
+      try { const d = await r.json(); _versaoInfo = { desatualizada: !!d.desatualizada, versao_atual: d.versao_atual || "" }; } catch (_) {}
+      return "ok";
+    }
     if (r.status === 401) return "expired";
     return "offline";
   } catch (e) {
@@ -199,7 +219,22 @@ async function validarToken(token) {
   }
 }
 
+// Faixa de aviso: some quando atualizado, aparece com a versão-alvo quando atrás.
+function renderAvisoVersao() {
+  const el = $("aviso-versao");
+  if (!el) return;
+  if (_versaoInfo.desatualizada) {
+    $("aviso-versao-txt").textContent = _versaoInfo.versao_atual
+      ? `Versão ${VERSAO} desatualizada — atualize para ${_versaoInfo.versao_atual}.`
+      : "Versão desatualizada — atualize.";
+    el.hidden = false;
+  } else {
+    el.hidden = true;
+  }
+}
+
 async function render() {
+  renderAvisoVersao();
   const st = await chrome.storage.local.get(["token", "casa", "parceiro", "modo", "lastError"]);
   if (!st.token) {
     telaConectar.hidden = false;
@@ -212,6 +247,9 @@ async function render() {
   // Railway / TTL de 6h). Valida ANTES de afirmar "Conectado" — pill/tela só dizem
   // conectado se a sessão existir de fato.
   const estado = await validarToken(st.token);
+  // validarToken acabou de popular _versaoInfo (a resposta do /validar traz o sinal de
+  // versão) — re-renderiza a faixa agora, senão ela só apareceria no próximo render.
+  renderAvisoVersao();
   if (estado === "expired") {
     // Sessão morta → limpa o token órfão + volta a parear (onChanged re-renderiza com o aviso).
     await chrome.storage.local.set({ lastError: "Sessão expirada. Gere um novo código no dashboard e reconecte." });

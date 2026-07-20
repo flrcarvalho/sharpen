@@ -8,6 +8,9 @@ RUN pip install --no-cache-dir -r app/requirements.txt
 COPY app/ app/
 COPY global/ global/
 COPY casas/ casas/
+# extensor/ é servido em runtime: a rota /extensao gera o .zip da extensão a partir
+# desta pasta e lê a versão do manifest (fonte única de verdade da versão publicada).
+COPY extensor/ extensor/
 
 # Usuário não-root: reduz o impacto de uma eventual execução de código no container.
 RUN useradd --create-home --uid 10001 appuser

@@ -93,6 +93,7 @@ class Sessao:
     atividade: float
     token_ext: str = ""
     conectado: bool = False
+    versao_ext: str = ""          # versão da extensão pareada (p/ sinalizar desatualizado)
     capturas: list = field(default_factory=list)
 
 
@@ -167,6 +168,17 @@ def conectar(codigo: str) -> Sessao | None:
                 sess.atividade = agora
                 return sess
         return None
+
+
+def registrar_versao(sess: Sessao, versao: str) -> None:
+    """Guarda a versão reportada pela extensão nos handshakes (conectar/validar/enviar).
+    Insumo do sinal de 'desatualizada' que o popup e o extrator mostram. Vazio = ignora
+    (extensão antiga que ainda não reporta versão — tratada como desatualizada na leitura)."""
+    v = (versao or "").strip()
+    if not v:
+        return
+    with _LOCK:
+        sess.versao_ext = v
 
 
 def sessao_por_token(token: str) -> Sessao | None:

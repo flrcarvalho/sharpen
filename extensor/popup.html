@@ -22,6 +22,14 @@
     <span id="status-pill" class="status off"><span class="d"></span><span id="status-txt">offline</span></span>
   </header>
 
+  <!-- Aviso de versão desatualizada: o backend sinaliza quando esta instalação está
+       atrás da publicada. O botão abre a página de atualização (/extensao?v=<versão>). -->
+  <section id="aviso-versao" class="verwarn" hidden>
+    <span class="verwarn-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></span>
+    <span class="verwarn-tx" id="aviso-versao-txt">Versão desatualizada.</span>
+    <button id="btn-atualizar" class="verwarn-btn">Atualizar</button>
+  </section>
+
   <!-- Estado A: desconectado / parear -->
   <section id="tela-conectar" class="bd tela">
     <p class="say">Gere um <b>código de pareamento</b> no dashboard (botão <b>Conectar extensão</b>) e cole aqui pra ligar esta casa ao seu Scanner.</p>
@@ -82,7 +90,7 @@
       <text x="62" y="62" font-family="Manrope, Arial, sans-serif" font-weight="800" font-size="44" letter-spacing="-2.2" fill="#EEF2F7">Sharp<tspan fill="#3B95FF">en.</tspan></text>
       <text x="63" y="80" font-family="Manrope, Arial, sans-serif" font-weight="600" font-size="11" letter-spacing="0" fill="#95A1B0">by FDC Capital</text>
     </svg>
-    <span class="ver">v0.3.3</span>
+    <span class="ver">v0.4.0</span>
   </div>
 
   <script src="config.js"></script>

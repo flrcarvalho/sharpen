@@ -63,6 +63,7 @@ async function enviarCaptura(blob, tab) {
   const fd = new FormData();
   fd.append("token", token);
   fd.append("tipo", "imagem");
+  fd.append("versao", chrome.runtime.getManifest().version);
   fd.append("imagem", blob, "captura.png");
   const origem = hostDaAba(tab);
   if (origem) fd.append("origem", origem);
@@ -108,6 +109,7 @@ async function enviarTexto(texto, tab) {
   const fd = new FormData();
   fd.append("token", token);
   fd.append("tipo", "texto");
+  fd.append("versao", chrome.runtime.getManifest().version);
   fd.append("texto", texto);
   const origem = hostDaAba(tab);
   if (origem) fd.append("origem", origem);

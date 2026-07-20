@@ -3358,7 +3358,20 @@ async function pollExtensao() {
     const d = await r.json();
     if (d.conectado && !extConectadoAviso) {
       extConectadoAviso = true;
-      extStatus(`Extensão conectada ✓ ${d.casa} / ${d.parceiro || '—'}`, 'ok');
+      if (d.desatualizada) {
+        // Ponte antiga conectada → cutuca a atualizar (link abre /extensao com a versão
+        // instalada, que mostra o status e o .zip novo). Mesmo sinal do popup da extensão.
+        const el = document.getElementById('ext-status');
+        if (el) {
+          const alvo = d.versao_atual ? ` (v${d.versao_ext || '?'} → v${d.versao_atual})` : '';
+          el.innerHTML = `⚠ Extensão conectada, mas desatualizada${alvo}. ` +
+            `<a href="/extensao?v=${encodeURIComponent(d.versao_ext || '')}" target="_blank" ` +
+            `style="color:var(--warn);text-decoration:underline">Atualizar</a>`;
+          el.style.color = 'var(--warn)';
+        }
+      } else {
+        extStatus(`Extensão conectada ✓ ${d.casa} / ${d.parceiro || '—'}`, 'ok');
+      }
     }
     if (d.capturas && d.capturas.length) {
       const imgs = [];

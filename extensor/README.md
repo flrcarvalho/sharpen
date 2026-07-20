@@ -47,6 +47,23 @@ cada uma numa casa. O código carrega dono + casa + parceiro + modo.
 No **Octo**, a extensão é adicionada por perfil (ou global, conforme a config do
 Octo). Repita o carregamento nos perfis onde for capturar.
 
+## Distribuição e atualização
+
+A extensão **não está na Chrome Web Store** (rejeitada pela política de jogos de azar) e é
+instalada *unpacked*, que não tem auto-update. A distribuição é um **link fixo**:
+
+- **`sharpen.bet/extensao`** — página pública com o botão de baixar o `.zip` (gerado
+  on-the-fly a partir desta pasta no deploy, sempre a última versão) e o passo-a-passo de
+  instalar/recarregar. É o único canal — mande este link para cada operador.
+- A extensão reporta a própria versão (`manifest.json`) nos handshakes de captura
+  (`conectar`/`validar`/`enviar`). O backend compara com a versão publicada e, se estiver
+  atrás, mostra um aviso **no popup** (faixa amarela → botão Atualizar) e **no extrator do
+  dashboard** (badge na ponte). Instalação antiga (que ainda não reporta versão) conta como
+  desatualizada.
+
+> **Regra:** toda mudança nesta pasta **precisa bumpar `version` no `manifest.json`** — senão
+> a detecção de desatualizado não enxerga a nova release.
+
 ## Configurar o servidor (opcional)
 
 Por padrão a extensão fala com `https://www.sharpen.bet`. Para testar contra outro

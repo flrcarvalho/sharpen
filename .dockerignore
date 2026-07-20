@@ -28,9 +28,10 @@ CLAUDE.md
 tests/
 scripts/
 tools/
-extensor/
 apps_script/
 golden_set/
+# extensor/ NÃO é ignorado: o app o serve em runtime (rota /extensao gera o .zip da
+#   extensão on-the-fly a partir desta pasta e lê a versão do manifest). Ver Dockerfile.
 
 # Python / caches
 **/__pycache__/

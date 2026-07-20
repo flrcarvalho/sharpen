@@ -9,6 +9,7 @@ import math
 import os
 import re
 import time
+import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1074,6 +1075,84 @@ async def privacidade_page():
     return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
 
 
+# ── Extensão SharpenUp: versão, página de download e .zip ─────────────────────
+# A extensão NÃO está na Chrome Web Store (rejeitada pela política de jogos de azar)
+# e é instalada como "unpacked" — que não tem auto-update. A distribuição é um link
+# fixo (sharpen.bet/extensao) que serve SEMPRE a última versão + detecção de quem
+# está velho (a extensão reporta a própria versão nos handshakes de captura).
+#
+# Fonte ÚNICA da versão publicada = extensor/manifest.json no deploy. Bumpar a
+# versão lá é o gesto que faz o sistema detectar e avisar os instalados antigos.
+_EXTENSOR_DIR = Path(__file__).parent.parent / "extensor"
+
+
+def _versao_extensao() -> str:
+    """Versão publicada, lida do manifest da extensão no deploy. '' se ausente/ilegível."""
+    try:
+        manifest = json.loads((_EXTENSOR_DIR / "manifest.json").read_text(encoding="utf-8"))
+        return str(manifest.get("version", "")).strip()
+    except Exception:
+        return ""
+
+
+def _versao_tupla(v: str) -> tuple:
+    """'0.3.8' -> (0, 3, 8) para comparação numérica. Partes não-numéricas viram 0."""
+    partes = []
+    for p in (v or "").split("."):
+        try:
+            partes.append(int(p))
+        except ValueError:
+            partes.append(0)
+    return tuple(partes)
+
+
+def versao_desatualizada(v_ext: str) -> bool:
+    """True se a versão instalada é menor que a publicada — OU ausente (extensão antiga
+    que ainda não reporta versão). Sem referência publicada → nunca afirma desatualizado."""
+    atual = _versao_extensao()
+    if not atual:
+        return False
+    if not (v_ext or "").strip():
+        return True
+    return _versao_tupla(v_ext) < _versao_tupla(atual)
+
+
+@app.get("/extensao")
+async def extensao_page():
+    # Pública (sem login): página de instalação/atualização do SharpenUp. É o único
+    # canal de distribuição — o link fixo sempre serve a última versão. O botão
+    # "Atualizar" do popup abre aqui com ?v=<versão instalada> para mostrar o status.
+    content = (Path(__file__).parent / "static" / "extensao.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/extensao/versao")
+async def extensao_versao():
+    # Versão publicada — a página /extensao e a extensão comparam contra a instalada.
+    return {"versao": _versao_extensao()}
+
+
+@app.get("/extensao/download")
+async def extensao_download():
+    # .zip da extensão gerado on-the-fly a partir de extensor/ no deploy → é sempre,
+    # automaticamente, a versão publicada. O usuário descompacta e faz no navegador
+    # "Carregar sem compactação" apontando para a pasta. Sem passo de build manual.
+    if not _EXTENSOR_DIR.is_dir():
+        raise HTTPException(404, "Pacote da extensão indisponível.")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for caminho in sorted(_EXTENSOR_DIR.rglob("*")):
+            if caminho.is_file():
+                zf.write(caminho, caminho.relative_to(_EXTENSOR_DIR).as_posix())
+    ver = _versao_extensao() or "0"
+    nome = f"sharpenup-{ver}.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
+
+
 class LoginRequest(BaseModel):
     usuario: str
     senha: str
@@ -1244,6 +1323,12 @@ async def captura_poll(sessao_id: str, dono: str = Depends(usuario_atual)):
     return {
         "conectado": sess.conectado,
         "modo": sess.modo, "casa": sess.casa, "parceiro": sess.parceiro,
+        # Sinal de versão para o extrator marcar "ponte desatualizada". Só afirma
+        # desatualizado depois que a extensão conectou (senão o slot recém-criado,
+        # ainda sem ponte, apareceria falsamente velho).
+        "versao_ext": sess.versao_ext,
+        "versao_atual": _versao_extensao(),
+        "desatualizada": versao_desatualizada(sess.versao_ext) if sess.conectado else False,
         "capturas": [
             {"id": c.id, "tipo": c.tipo, "media_type": c.media_type, "data": c.data}
             for c in pend
@@ -1261,6 +1346,7 @@ async def captura_encerrar(sessao_id: str, dono: str = Depends(usuario_atual)):
 
 class ConectarRequest(BaseModel):
     codigo: str
+    versao: str = ""              # versão da extensão (p/ detectar instalação antiga)
 
 
 @app.post("/captura/conectar")
@@ -1270,12 +1356,15 @@ async def captura_conectar(req: ConectarRequest):
     sess = _captura.conectar(req.codigo)
     if not sess:
         raise HTTPException(404, "Código inválido ou expirado.")
+    _captura.registrar_versao(sess, req.versao)
     return {"token": sess.token_ext, "casa": sess.casa, "parceiro": sess.parceiro,
-            "modo": sess.modo, "dono": sess.dono}
+            "modo": sess.modo, "dono": sess.dono,
+            "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
 
 
 class ValidarRequest(BaseModel):
     token: str
+    versao: str = ""              # versão da extensão (p/ detectar instalação antiga)
 
 
 @app.post("/captura/validar")
@@ -1287,8 +1376,10 @@ async def captura_validar(req: ValidarRequest):
     sess = _captura.sessao_por_token(req.token)
     if not sess:
         raise HTTPException(401, "Sessão de captura expirada.")
+    _captura.registrar_versao(sess, req.versao)
     return {"ok": True, "casa": sess.casa, "parceiro": sess.parceiro,
-            "modo": sess.modo, "dono": sess.dono}
+            "modo": sess.modo, "dono": sess.dono,
+            "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
 
 
 @app.post("/captura/enviar")
@@ -1298,12 +1389,14 @@ async def captura_enviar(
     texto: Optional[str] = Form(None),
     imagem: Optional[UploadFile] = File(default=None),
     origem: Optional[str] = Form(None),
+    versao: str = Form(""),
 ):
     """Extensão envia uma captura (print ou texto). Autentica pelo token de sessão.
     Isenta do guarda CSRF."""
     sess = _captura.sessao_por_token(token)
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
+    _captura.registrar_versao(sess, versao)
 
     # Amarração casa↔site (backstop do servidor): se a captura veio do site de uma casa
     # CONHECIDA diferente da casa da sessão, rejeita — impede gravar (ex.) Superbet no slot
