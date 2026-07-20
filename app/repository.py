@@ -1895,6 +1895,37 @@ async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list) 
             dono, ct, cg)
 
 
+async def get_custo_conta(dono: str) -> dict | None:
+    """Custo por conta/fornecedor do dono ({"fornecedor||casa": numero}) — coluna
+    custo_conta de custo_store. Retorna None se o dono não tem registro nenhum. O
+    row pode existir (do import de tipster/geral) com custo_conta vazio; a rota
+    decide `existe` pela NÃO-vacuidade do dict. JSONB→str no asyncpg → json.loads."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT custo_conta FROM custo_store WHERE dono = $1", dono)
+    if row is None:
+        return None
+    v = row["custo_conta"]
+    if isinstance(v, str):
+        v = json.loads(v)
+    return {"custo_conta": v or {}}
+
+
+async def salvar_custo_conta(dono: str, custo_conta: dict) -> None:
+    """Upsert do custo por conta/fornecedor, tocando SÓ a coluna custo_conta (não
+    mexe em custo_tipster/custo_geral). Front manda o estado completo. Linha nova
+    nasce com os outros custos no default da coluna ('{}'/'[]')."""
+    cc = json.dumps(custo_conta if isinstance(custo_conta, dict) else {})
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO custo_store (dono, custo_conta, atualizado_em) "
+            "VALUES ($1, $2::jsonb, NOW()) "
+            "ON CONFLICT (dono) DO UPDATE SET custo_conta = EXCLUDED.custo_conta, atualizado_em = NOW()",
+            dono, cc)
+
+
 async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:
     """Atribui o mesmo tipster a várias apostas de uma vez (1 UPDATE atômico).
     Só toca linhas do próprio dono. Retorna quantas foram atualizadas."""

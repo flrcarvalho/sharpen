@@ -1989,6 +1989,7 @@ async function carregarUsuario() {
     window.__donoEfetivo = efetivo; window.__donoReal = real;
   try { renderHist(); atualizarRaioxVazio(); } catch (e) {}   // rail: feed/histórico + estado do Raio-X
     _migrarCustoLegado(real);
+    _syncCustoContaServidor();  // custo por-conta: puxa a verdade do Postgres p/ o cache
 
     // O UI do operador vive agora na casca (app.html #sbOperador). Aqui só resta o
     // trabalho load-bearing (dono efetivo, histórico, custos). Os writes de DOM abaixo
@@ -4167,6 +4168,27 @@ function _migrarCustoLegado(real) {
   } catch (e) {}
 }
 let _resumoToken = 0;
+// Custo por-conta agora vive no Postgres (/custos/conta, por dono); o localStorage
+// dash_custos_v2::<dono> virou cache. _lerCusto/_salvarCusto seguem lendo/gravando o
+// cache (síncrono, como antes); _syncCustoContaServidor puxa a verdade do servidor p/ o
+// cache no boot e _salvarCusto sobe a alteração. Mesma trava anti-semeadura-parcial do
+// CT/CG (ver [[custo_tipster_incidente_jonathan]]): navegador com custo legado + servidor
+// vazio NÃO semeia sozinho — só a página de importação sobe (do navegador certo).
+let _custoContaServerBacked = false, _custoContaHadLegacy = false;
+async function _syncCustoContaServidor() {
+  try { _custoContaHadLegacy = Object.keys(JSON.parse(localStorage.getItem(_custoKey()) || '{}')).length > 0; }
+  catch (e) { _custoContaHadLegacy = false; }
+  try {
+    const r = await fetch('/custos/conta');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.existe) {
+      _custoContaServerBacked = true;
+      try { localStorage.setItem(_custoKey(), JSON.stringify(d.custo_conta || {})); } catch (e) {}
+      if (parceiroSelecionado) atualizarResumoConta();  // re-pinta a faixa com a verdade do servidor
+    }
+  } catch (e) {}
+}
 
 function _lerCusto(forn, casa) {
   if (!forn) return 0;
@@ -4179,6 +4201,11 @@ function _salvarCusto(forn, casa, val) {
     const n = parseFloat((val || '').toString().replace(/\./g, '').replace(',', '.'));
     if (!isNaN(n) && n > 0) o[forn + '||' + casa] = n; else delete o[forn + '||' + casa];
     localStorage.setItem(_custoKey(), JSON.stringify(o));
+    // sobe pro servidor só quando seguro: servidor já semeado, OU navegador sem legado.
+    if (_custoContaServerBacked || !_custoContaHadLegacy) {
+      _custoContaServerBacked = true;
+      fetch('/custos/conta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ custo_conta: o }) }).catch(() => {});
+    }
   } catch (e) {}
 }
 // Faixa de KPIs no padrão de marca (UI_REFERENCE §5). Dinheiro SEM abreviação,

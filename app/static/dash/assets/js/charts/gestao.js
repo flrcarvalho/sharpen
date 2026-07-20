@@ -17,25 +17,48 @@ const CUSTO_SEED={
   "Richard||Bet365":800,"Richard||Betano":500,"Richard||Superbet":400
 };
 let custoData={};
-// Carregado quando o dono é conhecido (app.js, após o feed). Idempotente.
-function loadCusto(){
+let _custoServerBacked=false; // true quando o servidor já tem custo por-conta deste dono
+let _custoHadLegacy=false;    // true quando havia custo por-conta legado no localStorage no load
+function _custoMirror(){try{localStorage.setItem(costKey(),JSON.stringify(custoData));}catch(e){}}
+function _custoPush(){try{fetch('/custos/conta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_conta:custoData})});}catch(e){}}
+
+// Carga do custo por-conta: fonte de verdade = Postgres (/custos/conta, por dono); o
+// localStorage dash_custos_v2::<dono> virou cache/paint. Chamado no feed (app.js) com o
+// dono conhecido. Prefixo síncrono carrega o cache (o render usa isso); o servidor corrige
+// em seguida e re-pinta o card de custo da visão geral. Mesma fragilidade cross-device do
+// CT/CG (ver [[custo_tipster_incidente_jonathan]]) — por isso a trava anti-semeadura-parcial.
+async function loadCusto(){
   const k=costKey();
-  // migração única do store legado (sem dono) → namespace do Feca, só na 1ª vez.
+  // migração única do store legado (sem dono) → namespace do Feca, só na 1ª vez (cache).
   try{
     const legacy=localStorage.getItem('dash_custos_v2');
     if(legacy&&window.__dono==='Feca'&&!localStorage.getItem(k))localStorage.setItem(k,legacy);
   }catch(e){}
-  try{custoData=JSON.parse(localStorage.getItem(k)||'null')||{};}catch(e){custoData={};}
-  if((!custoData||!Object.keys(custoData).length)&&window.__dono==='Feca'){
-    custoData={...CUSTO_SEED};          // seed só do Feca; demais donos começam vazios
-    try{localStorage.setItem(k,JSON.stringify(custoData));}catch(e){}
-  }
+  let cache={};try{cache=JSON.parse(localStorage.getItem(k)||'null')||{};}catch(e){cache={};}
+  _custoHadLegacy=!!Object.keys(cache).length;
+  custoData=cache;
+  // seed do Feca só como fallback EM MEMÓRIA (sem gravar nem subir): Feca sem nada ainda.
+  if(!Object.keys(custoData).length&&window.__dono==='Feca')custoData={...CUSTO_SEED};
+  try{
+    const r=await fetch('/custos/conta');
+    if(r.ok){
+      const d=await r.json();
+      if(d.existe){custoData=d.custo_conta||{};_custoServerBacked=true;_custoMirror();
+        if(typeof renderOvCusto==='function'){try{renderOvCusto();}catch(e){}}}
+      else{_custoServerBacked=false;} // servidor ainda sem custo por-conta deste dono
+    }
+  }catch(e){/* offline: fica no cache já carregado */}
 }
 function saveCusto(forn,casa,val){
   const k=forn+'||'+casa;
   const n=parseFloat(val.replace(/\./g,'').replace(',','.'));
   if(!isNaN(n)&&n>0)custoData[k]=n; else delete custoData[k];
-  try{localStorage.setItem(costKey(),JSON.stringify(custoData));}catch(e){}
+  _custoMirror();
+  // sobe pro servidor só quando seguro (mesma trava do CT/CG): servidor já tem registro,
+  // OU não há custo legado no navegador (usuário novo cria no 1º save). Servidor vazio +
+  // legado → NÃO semeia sozinho; só a página de importação sobe (do navegador certo).
+  if(_custoServerBacked)_custoPush();
+  else if(!_custoHadLegacy){_custoServerBacked=true;_custoPush();}
   recalcCustos();
   renderCostPies();
   // Atualiza card de custo na visão geral e na aba fornecedores

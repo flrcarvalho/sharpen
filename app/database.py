@@ -270,8 +270,13 @@ CREATE TABLE IF NOT EXISTS custo_store (
     dono          TEXT PRIMARY KEY,
     custo_tipster JSONB NOT NULL DEFAULT '{}'::jsonb,
     custo_geral   JSONB NOT NULL DEFAULT '[]'::jsonb,
+    custo_conta   JSONB NOT NULL DEFAULT '{}'::jsonb,
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- custo_conta: custo por conta/fornecedor {fornecedor||casa: numero} (antes só no
+-- localStorage dash_custos_v2::<dono>, mesma fragilidade cross-device do CT/CG). ALTER
+-- p/ a custo_store que JÁ existe em prod desde s165. Ver STATUS s167 / [[custo_conta_isolado_por_dono]].
+ALTER TABLE custo_store ADD COLUMN IF NOT EXISTS custo_conta JSONB NOT NULL DEFAULT '{}'::jsonb;
 """
 
 

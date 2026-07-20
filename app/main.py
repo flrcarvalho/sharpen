@@ -43,6 +43,7 @@ from repository import (
     casas_com_parceiros, contar_bilhetes, contar_incompletos, corrigir_codigos_tsv,
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
+    get_custo_conta, salvar_custo_conta,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
@@ -2215,6 +2216,29 @@ async def get_custo_store_route(dono: str = Depends(dono_efetivo)):
 @app.post("/custos/store")
 async def salvar_custo_store_route(body: CustoStoreRequest, dono: str = Depends(dono_efetivo)):
     await salvar_custo_store(dono, body.custo_tipster or {}, body.custo_geral or [])
+    return {"salvo": True}
+
+
+# Custo por conta/fornecedor ({fornecedor||casa: numero}) — antes só no localStorage
+# dash_custos_v2::<dono> (dashboard gestao.js + extrator index.html). Coluna custo_conta
+# de custo_store; endpoint PRÓPRIO p/ não colidir com o blob tipster/geral acima.
+class CustoContaRequest(BaseModel):
+    custo_conta: dict = {}
+
+
+@app.get("/custos/conta")
+async def get_custo_conta_route(dono: str = Depends(dono_efetivo)):
+    """`existe` = há custo por-conta de verdade no servidor (dict não-vazio). Uma linha
+    criada só pelo import de tipster/geral tem custo_conta vazio → existe=False (o front
+    ainda oferece importar o por-conta)."""
+    dados = await get_custo_conta(dono)
+    conta = (dados or {}).get("custo_conta") or {}
+    return {"existe": bool(conta), "custo_conta": conta}
+
+
+@app.post("/custos/conta")
+async def salvar_custo_conta_route(body: CustoContaRequest, dono: str = Depends(dono_efetivo)):
+    await salvar_custo_conta(dono, body.custo_conta or {})
     return {"salvo": True}
 
 
