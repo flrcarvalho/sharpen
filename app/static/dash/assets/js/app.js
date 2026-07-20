@@ -244,9 +244,16 @@ function calcRecoveryFactor(rows){
   return mdd>0?profit/mdd:null;
 }
 function calcTopoDrawdown(rows){
-  var s=rows.slice().sort(function(a,b){return a.data<b.data?-1:a.data>b.data?1:0;});
+  // Topo/Drawdown DIA A DIA (não aposta-por-aposta). A coluna `data` é só o dia
+  // (YYYY-MM-DD, sem hora — ver repository._data_iso), então a ordem das apostas
+  // DENTRO de um dia é arbitrária (ordem do feed, não a de resolução). Empilhar
+  // aposta-por-aposta criava picos intradiários fantasmas: um dia positivo podia
+  // "bater topo" no meio e depois cair, gerando drawdown que nunca existiu. Agregar
+  // por dia é a única régua fiel ao dado e alinha com calcDrawdownReal e o gráfico.
+  var byDay={};for(var i=0;i<rows.length;i++){var k=(rows[i].data||'').slice(0,10);if(!k)continue;byDay[k]=(byDay[k]||0)+(rows[i].lucro||0);}
+  var days=Object.keys(byDay).sort();
   var acc=0,peak=-Infinity,peakDate=null;
-  for(var i=0;i<s.length;i++){acc+=(s[i].lucro||0);if(acc>peak){peak=acc;peakDate=s[i].data;}}
+  for(var j=0;j<days.length;j++){acc+=byDay[days[j]];if(acc>peak){peak=acc;peakDate=days[j];}}
   var dd=peak-acc;
   return{topo:peak,topoData:peakDate,atual:acc,ddAtual:dd,ddAtualPct:peak>0?dd/peak:0};
 }
