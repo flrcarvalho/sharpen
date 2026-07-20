@@ -77,7 +77,7 @@ parte já foi consertada).
 
 ### 🔴 Curto prazo / operacional (o que dói na rotina)
 1. **Teste ao vivo do Betfair com a conta Duka** — validar velocidade e datas do fix da sessão 121.
-2. **Fix estrutural de dedup**: garantir que a extração da Betano sempre capture o ID visível (raiz do problema de duplicata).
+2. **Fix estrutural de dedup**: garantir que a extração da Betano sempre capture o ID visível (raiz do problema de duplicata). Mesma classe de bug na KingPanda (ID por OCR) e Bet365 (sem ID) — causa documentada na memória; fix estrutural aguarda passe dedicado.
 
 ### 🟡 Médio prazo / dívida técnica que vale pagar
 6. **Polymarket**: separar `entry_odd` de `realized_odd` (hoje a odd muda de significado conforme o resultado — distorce o dashboard).
@@ -91,7 +91,7 @@ parte já foi consertada).
 - **Assinatura de tipsters** (Rota Asaas) — estudo pronto, execução não iniciada.
 - **ADR-001** (dinheiro→NUMERIC/Decimal) — adiado por design, com gate.
 - **ADR-002 Fase 2** (agregação do dashboard no servidor) — condicional a medição pós-gzip.
-- **Telegram → tipster automático** (Fase 5 do plano original) — maior lacuna do fluxo.
+- **Telegram → tipster automático** — casa canônica é o **Perfil de Tipster P3** (`docs/PLANO_INTELIGENCIA_TIPSTER.md`), não item solto; maior lacuna do fluxo.
 
 > Detalhe técnico completo de tudo isso: **`docs/AUDITORIA_2026.md`** (auditoria única e viva).
 > Detalhe de todos os planos/ideias: **`Ideias/README.md`**.

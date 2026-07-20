@@ -44,8 +44,9 @@ Sharpen virar a página de assinatura recorrente dos tipsters (hoje eles usam Pi
 Dar ao tipster existência real no Sharpen (hoje é só texto livre). Três facetas do mesmo cadastro:
 P1 resultado em unidades no tempo (escada de stake, view derivada), P2 atribuição por watermark
 (stake exato tipo 199/401), P3 Telegram como fonte (MTProto + casamento tip↔bilhete). Invariante #0:
-anti-repasse (o Sharpen nunca surfa tip fresca). **Passo zero:** tabela `tipsters` + backfill. Plano
-sem código ainda.
+anti-repasse (o Sharpen nunca surfa tip fresca). **Passo zero:** tabela `tipsters` + backfill.
+**Fase 0 no ar:** coluna `origem_tipster` (procedência do rótulo, `52b39ae`) + backtest do matcher
+(baseline por carteira). Fases 1+ ainda sem código.
 - **Horizontes:** P1 🟢 (backend pronto; UI trava no formato "u" via `/nova-ui`) · P2 🟡 · P3 🔵.
   **Ordem:** cadastro de tipster → P1 → P2 → Telegram. Onboarding: tipster nasce sozinho e incompleto
   (sinal `(i)` + lista de pendências no login).
