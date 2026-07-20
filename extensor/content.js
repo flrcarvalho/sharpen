@@ -848,7 +848,14 @@
 
     L.push("Tipo: " + (_TIPO_BF[t.betType] || (isMult ? "Múltipla" : "Simples")));
     L.push("Stake: " + _brl(stake));
-    if (t.stakeBonus) L.push("Freebet incluído: " + _brl(_brlNum(t.stakeBonus)) + " (dinheiro real = stake − freebet)");
+    // Freebet faz PARTE do stake (dinheiro real = stake − freebet) → não pode ser MAIOR
+    // que o stake. Valor absurdo (visto num Each Way de outright: 10000 num stake de 200)
+    // = leitura errada do campo → não exibe, senão gera "dinheiro real" negativo.
+    if (t.stakeBonus) {
+      const fb = _brlNum(t.stakeBonus);
+      if (fb != null && fb > 0 && fb <= stake)
+        L.push("Freebet incluído: " + _brl(fb) + " (dinheiro real = stake − freebet)");
+    }
 
     // Status/resultado bruto — a IA/CASA_BETFAIR aplica a regra final (nunca copiar o
     // código visual V/P/N da tela; aqui já vem o status textual limpo do JSON).
@@ -865,7 +872,18 @@
     // Odd total: W (WON ou cashout com retorno) = Retorno÷Stake (precisão total, respeita
     // boost/ODDSBOOST); L/V = odd exibida; múltipla sem win = combinedOdds estrutural.
     const oddW = ret != null && stake > 0 && (st === "WON" || (cashout && ret > 0));
-    const oddTot = oddW ? (ret / stake) : (isMult && combined != null ? combined : oddDec);
+    let oddTot = oddW ? (ret / stake) : (isMult && combined != null ? combined : oddDec);
+    // Múltipla perdida às vezes vem SEM combinedOdds nem originalOdds.decimal → reconstrói
+    // a odd combinada pelo PRODUTO das pernas (cada `part` traz a sua odd). Só quando TODAS
+    // as pernas têm odd válida (senão deixa vazio, honesto — nunca inventa odd parcial).
+    if (oddTot == null && isMult && parts && parts.length) {
+      let prod = 1, ok = true;
+      for (const p of parts) {
+        const po = _oddNum((p.originalOdds && p.originalOdds.decimal) || p.odds || p.decimalOdds);
+        if (po != null && po > 0) prod *= po; else { ok = false; break; }
+      }
+      if (ok) oddTot = prod;
+    }
     L.push("Odd total: " + _odd(oddTot) + (oddW ? " (= Retorno ÷ Stake)" : ""));
 
     L.push("Seleções:");
