@@ -119,6 +119,34 @@
     }
   });
 
+  // Bilhetes da PINNACLE capturados pelo pn_inject.js (mundo MAIN) — as RESPOSTAS JSON de
+  // POST /member-service/v2/wager-filter, já convertidas de array posicional p/ objeto
+  // nomeado pelo inject. Mesmo modelo passivo + REPLAY ATIVO: o inject re-emite a busca das
+  // duas abas (Decidido/Não decidido) e devolve tudo. `pnById` guarda 1 bilhete por id — a
+  // versão SETTLED (resolvida) vence a ABERTA quando o bilhete fecha na mesma sessão.
+  // `pnFimReal` = o inject terminou de re-emitir as duas abas → fim autoritativo.
+  const pnById = new Map();          // id(string) → bilhete (resolvida > aberta)
+  let pnFimReal = false;
+  let pnHookVivo = false, pnRespostas = 0;   // autodiagnóstico (espelha o da Betfair)
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupPNData) {
+      if (d.hook) pnHookVivo = true;
+      if (typeof d.respostas === "number") pnRespostas = d.respostas;
+      if (Array.isArray(d.bets)) {
+        for (const t of d.bets) {
+          const c = t && t.id;
+          if (c == null) continue;
+          const key = String(c);
+          const ex = pnById.get(key);
+          // Entra se ainda não há nada; ou se o novo é RESOLVIDO e o guardado era ABERTO.
+          if (!ex || (ex.aberta && !t.aberta)) pnById.set(key, t);
+        }
+      }
+      if (d.fim) pnFimReal = true;
+    }
+  });
+
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
       '<defs><linearGradient id="sharpenupBladeGrad" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse">' +
@@ -460,6 +488,13 @@
       // não enviar. API vazia (aba aberta antes da extensão) → o iniciarRobo avisa "nada
       // coletado"; basta recarregar a página da Betfair e rodar de novo.
       blocos = await roboBetfairPassive(ctx);
+    } else if (casa === "pinnacle") {
+      // Passivo + replay ativo (pn_inject): dado exato com id, das duas abas de uma vez
+      // (Decidido na janela de dias + Não decidido inteira). SEM fallback de scrape DOM — a
+      // tabela é a mesma resposta JSON que já lemos; scrape só perderia precisão. API vazia
+      // (nenhum /wager-filter disparou) → o autodiagnóstico avisa; basta abrir a tela
+      // "Minhas Apostas" e rodar de novo.
+      blocos = await roboPinnaclePassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -477,6 +512,7 @@
         superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbById.size },
         betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
+        pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
       }[casa];
       if (diag) {
         const msg = diag.nome + ": 0 bilhetes. Hook: " + (diag.hook ? "ATIVO" : "NÃO carregou") +
@@ -902,6 +938,97 @@
     return L.join("\n");
   }
 
+  // ── Pinnacle modo API (sem clique) ────────────────────────────────────────────
+  // Formata 1 bilhete do POST /wager-filter (já convertido de array posicional p/ objeto
+  // pelo pn_inject) no bloco de texto que a IA lê (mesmo marcador "[Código: …]" das outras
+  // casas passivas → o backend split/dedupa por ele). Fiel à CASA_PINNACLE:
+  //   • Data = data do EVENTO (§4: evento ≈ liquidação; a colocação NUNCA é usada).
+  //   • Decimal exibido com PONTO → vírgula (§1). Odd preservada na precisão original (§11).
+  //   • Sem boost e sem cashout (§6/§7): a odd exibida é autoritativa; P/L é só cross-check.
+  //   • Resultado: WON→W · LOST→L · PUSHED/Void→V · quarto de handicap pode dar HW/HL (§5);
+  //     a IA decide o código final — a extensão só entrega o rótulo cru + o P/L p/ conferir.
+  //   • Aberta (status ≠ SETTLED): sobe SEM resultado → o backend grava 'aberta' e faz UPSERT
+  //     por id quando o bilhete fechar (atualiza, não duplica).
+  // Datas "YYYY-MM-DD" (evento) já são locais (America/São Paulo) → só recorta DD/MM/AAAA
+  // (NÃO usar _dbr, que converte de UTC e pularia 1 dia).
+  const _dbrPN = (s) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ""));
+    return m ? (m[3] + "/" + m[2] + "/" + m[1]) : "";
+  };
+  // Odd Pinnacle: string com PONTO ("1.636", "18.060") → vírgula, precisão intacta.
+  const _oddPN = (s) => {
+    const str = String(s == null ? "" : s).trim();
+    return str ? str.replace(".", ",") : "";
+  };
+  // Linha (handicap/total): número → texto pt-BR. NÃO força "+": em Over/Under a linha é um
+  // total (ex.: 20,5, sem sinal) e um "+" seria enganoso; em handicap positivo a IA deduz o
+  // sinal pelo contexto (seleção = time + linha), como a CASA_PINNACLE ensina. O "-" natural
+  // do handicap negativo é preservado.
+  const _linhaPN = (n) => (n == null || n === 0) ? "" : String(n).replace(".", ",");
+
+  function formatTicketPN(t) {
+    const L = [];
+    L.push("[Código: " + (t.id != null ? t.id : "") + "]");
+    L.push("Data: " + _dbrPN(t.dataEvento));                 // data do evento (a que vale)
+    if (t.dataColoc) L.push("Apostado em: " + _dbrPN(t.dataColoc));
+    L.push("Stake: " + _brl(t.stake));
+
+    // Resultado bruto — a IA/CASA_PINNACLE aplica a regra final. Aberta = sem resultado.
+    let stTxt;
+    if (t.aberta) {
+      stTxt = "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    } else {
+      const rot = String(t.resultLabel || t.resultRaw || "").toUpperCase();
+      if (rot === "WON" || rot === "WIN") stTxt = "Ganho (WON) → W";
+      else if (rot === "LOST" || rot === "LOSE") stTxt = "Perdeu (LOST) → L";
+      else if (rot === "PUSHED" || rot === "PUSH" || rot === "VOID" || rot === "REFUND") stTxt = rot + " → V";
+      else stTxt = (rot || "?") + " (a conferir — não liquidar automaticamente)";
+    }
+    // P/L líquido (Vitória/derrota) — cross-check p/ a IA distinguir HW/HL de W/L cheio.
+    // Nunca é cashout (Pinnacle não tem): é o P/L de liquidação normal.
+    const plTxt = (t.plNet != null && !t.aberta) ? " · P/L " + _brl(t.plNet) : "";
+    L.push("Status: " + stTxt + plTxt);
+    L.push("Odd total: " + _oddPN(t.odd));
+
+    // Múltipla (Mix Parlay): sinaliza o tipo p/ a IA classificar (MASTER_ESPORTES: mistura de
+    // esportes OU 3+ jogos diferentes → Múltiplos). Simples: esporte genérico (§13: nunca
+    // promover p/ a liga). Localização (Tennis→Tênis…) fica com a IA/CASA_PINNACLE.
+    if (t.pernas && t.pernas.length) {
+      L.push("Tipo: Múltipla (" + t.pernas.length + " seleções)");
+    } else if (t.esporte) {
+      L.push("Esporte (casa): " + t.esporte + (t.liga ? " · " + t.liga : ""));
+    }
+
+    L.push("Seleções:");
+    if (t.pernas && t.pernas.length) {
+      // Múltipla (Mix Parlay): cada perna com seu confronto, seleção, linha, odd e data.
+      for (const p of t.pernas) {
+        const lin = _linhaPN(p.linha);
+        const sel = (p.selecao + (lin ? " " + lin : "")).trim();
+        const partes = [p.esporte, p.liga, sel, _confrontoPN(p.confronto)].filter(Boolean).join(" · ");
+        const un = p.unidade ? " (" + p.unidade + ")" : "";
+        L.push("  • " + partes + un +
+               (p.odd ? " @ " + _oddPN(p.odd) : "") +
+               (p.dataEvento ? " · " + _dbrPN(p.dataEvento) : ""));
+      }
+    } else {
+      // Simples: seleção (ou lado "Mais de/Menos de" + prop) + linha, depois o confronto.
+      const conf = _confrontoPN(t.confronto);
+      const pick = t.selecao || [t.ladoSel, t.titulo].filter(Boolean).join(" ");
+      const lin = _linhaPN(t.linha);
+      const un = t.unidade ? " (" + t.unidade + ")" : "";
+      const cat = t.categoria ? " [" + t.categoria + "]" : "";
+      L.push("  • " + [(pick + (lin ? " " + lin : "")).trim(), conf].filter(Boolean).join(" · ") + un + cat);
+    }
+    return L.join("\n");
+  }
+  // Confronto: a Pinnacle usa "A -vs- B"; a descrição global usa "A v B". Normaliza aqui
+  // (a IA também sabe, mas entregar já limpo evita ruído). Remove placar ao vivo "[0-0]".
+  function _confrontoPN(s) {
+    return String(s || "").replace(/\s*\[[0-9]+-[0-9]+\]\s*/g, " ")
+      .replace(/\s*-vs-\s*/gi, " v ").replace(/\s+/g, " ").trim();
+  }
+
   // Acha o elemento clicável VISÍVEL cujo rótulo contém a frase (menor texto = o mais
   // específico). Botões/links primeiro; se não achar, um elemento com o texto exato e
   // sobe pro ancestral clicável. Usado p/ "CARREGAR MAIS…" e "FILTRAR".
@@ -1100,6 +1227,55 @@
     processar();   // consome a última leva (inclusive a página final com moreAvailable:false)
     console.log("[SharpenUp] Betfair: " + blocos.length + " bilhete(s) · bfTickets=" + bfTickets.length +
                 " · hook=" + bfHookVivo + " · respostas=" + bfRespostas + " · fimReal=" + bfFimReal);
+    return blocos;
+  }
+
+  // Modo passivo + REPLAY ATIVO (dado vem do pn_inject: exato, com id). A Pinnacle NÃO rola
+  // uma lista infinita: cada busca /wager-filter devolve o resultado inteiro de UMA aba. Então
+  // o robô não precisa rolar — ele pede ao pn_inject que RE-EMITA as duas abas (Decidido, na
+  // janela de dias, + Não decidido, todas) e espera o fim (`pnFimReal`). Depois formata tudo.
+  // A janela de dias corta só as ENCERRADAS antigas (as abertas não filtram por data e são
+  // sempre atuais). Dedup/estado é por id → janela folgada é segura (o backend faz UPSERT).
+  async function roboPinnaclePassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+    const N = Math.max(1, Math.round((Date.now() - ctx.cutoff) / 86400000));   // janela de dias do popup
+
+    const processar = () => {
+      for (const t of pnById.values()) {
+        const cod = (t.id != null ? String(t.id) : "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias corta só ENCERRADAS (pela data do evento). Abertas nunca cortam.
+        const dt = t.dataEvento ? Date.parse(t.dataEvento) : NaN;
+        const passou = !t.aberta && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketPN(t));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao pn_inject o acumulado + arranca o replay das duas abas (com a janela de dias).
+    try { window.postMessage({ __sharpenupPNReq: true, dias: N }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar as duas abas (pnFimReal), consumindo o que for chegando.
+    // NUNCA para no 1º obstáculo: só desiste por teto após muitos segundos parado sem fim.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !pnFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (pnById.size > ultTotal) { ultTotal = pnById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] Pinnacle: " + blocos.length + " bilhete(s) · pnById=" + pnById.size +
+                " · hook=" + pnHookVivo + " · respostas=" + pnRespostas + " · fimReal=" + pnFimReal);
     return blocos;
   }
 

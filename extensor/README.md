@@ -26,8 +26,15 @@ do Sharpen + selo ↑, azul `#2E8BFF` / `#7FB2FF`, verde só em confirmação. F
 Cada navegador/perfil Octo cola o **seu** código → várias pontes ao mesmo tempo,
 cada uma numa casa. O código carrega dono + casa + parceiro + modo.
 
-- **Superbet** e **Betano** → modo **texto** (robô rola a página, colhe e deduplica). ✅
-  Demais casas → modo **print** (moldura fixa + Snap).
+- **Superbet**, **Betano**, **Bet365**, **BETesporte**, **Betfair** e **Pinnacle** → modo
+  **texto** (robô colhe o dado exato e deduplica por ID). ✅ Demais casas → modo **print**
+  (moldura fixa + Snap).
+- **Pinnacle:** o robô lê a resposta da API `POST /member-service/v2/wager-filter` (a mesma
+  tela "Minhas Apostas") e **re-emite a busca das duas abas** — `Decidido` (encerradas, na
+  janela de dias) **e** `Não decidido` (abertas, todas) — numa rodada só, sem trocar aba na
+  tela. Cada bilhete é um array posicional que o `pn_inject.js` converte em objeto (id, odd,
+  stake, status, datas, seleção, pernas). Abertas sobem sem resultado; o UPSERT por ID atualiza
+  quando fecham.
 - **Superbet:** cada card da lista tem o CÓDIGO no atributo `id` (exato, sem OCR). O
   robô rola, lê cada bilhete e **clica as múltiplas colapsadas** ("+N mais seleções")
   p/ pegar as pernas escondidas. Sem limite, sem zoom nas múltiplas grandes.

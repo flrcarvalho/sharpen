@@ -29,6 +29,7 @@ const CASA_HOSTS = {
   "Bet365":     ["bet365.com", "bet365.bet.br"],
   "BETesporte": ["betesporte.bet.br"],
   "Betfair":    ["betfair.bet.br"],
+  "Pinnacle":   ["pinnacle.bet.br"],
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -176,7 +177,8 @@ async function capturar() {
       const inj = casa === "BETesporte" ? "be_inject.js"
                 : casa === "Superbet" ? "sb_inject.js"
                 : casa === "Betano" ? "bn_inject.js"
-                : casa === "Betfair" ? "bf_inject.js" : null;
+                : casa === "Betfair" ? "bf_inject.js"
+                : casa === "Pinnacle" ? "pn_inject.js" : null;
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
       if (inj) { try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [inj], world: "MAIN" }); } catch (_) {} }
