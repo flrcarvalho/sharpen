@@ -2060,6 +2060,7 @@ let abaParceiros = 'ativas';        // 'ativas' | 'inativas'
 let arquivos = [];
 let csvFiles = [];
 let xlsFiles = [];
+let pdfFiles = [];   // PDFs (ex.: extrato Bet365); o servidor converte cada página em imagem
 let bilhetes = [];
 let ultimaAnaliseIds = [];
 let ultimaDuplicatas = {};    // {str(db_id): [occurrence, total]}
@@ -2073,7 +2074,7 @@ function salvarEstadoExtrator() {
   const id = parceiroSelecionado.id;
   const dataRef = document.getElementById('data-ref').value;
   const formTemConteudo = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0
-    || document.getElementById('texto').value.trim();
+    || pdfFiles.length > 0 || document.getElementById('texto').value.trim();
   // Formulário vazio após submissão: preserva estado salvo (permite retry após falha),
   // mas ainda atualiza a data (pode ter sido alterada sem conteúdo no form).
   if (!formTemConteudo && estadoExtrator[id]) {
@@ -2084,16 +2085,18 @@ function salvarEstadoExtrator() {
     arquivos: [...arquivos],
     csvFiles: [...csvFiles],
     xlsFiles: [...xlsFiles],
+    pdfFiles: [...pdfFiles],
     texto: document.getElementById('texto').value,
     dataRef,
   };
 }
 
 function restaurarEstadoExtrator(id) {
-  const e = estadoExtrator[id] || { arquivos: [], csvFiles: [], xlsFiles: [], texto: '' };
+  const e = estadoExtrator[id] || { arquivos: [], csvFiles: [], xlsFiles: [], pdfFiles: [], texto: '' };
   arquivos = [...e.arquivos];
   csvFiles = [...e.csvFiles];
   xlsFiles = [...e.xlsFiles];
+  pdfFiles = [...(e.pdfFiles || [])];
   document.getElementById('texto').value = e.texto;
   // Parceiro visto pela primeira vez cai em hoje real → "Ontem" = ontem real.
   document.getElementById('data-ref').value = e.dataRef || hojeISO();
@@ -3416,10 +3419,12 @@ const IMG_MAX = 15;
 function adicionarArquivos(novos) {
   const novosCsv = novos.filter(f => f.type === 'text/csv' || f.name.toLowerCase().endsWith('.csv'));
   const novosXls = novos.filter(f => /\.(xls|xlsx)$/i.test(f.name));
+  const novosPdf = novos.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
   const novosImgs = novos.filter(f => f.type.startsWith('image/'));
 
   csvFiles = [...csvFiles, ...novosCsv];
   xlsFiles = [...xlsFiles, ...novosXls];
+  pdfFiles = [...pdfFiles, ...novosPdf];
 
   if (novosImgs.length > 0) {
     const disponivel = IMG_MAX - arquivos.length;
@@ -3489,7 +3494,24 @@ function renderPreviews() {
     p.appendChild(wrap);
   });
 
-  document.getElementById('btn-limpar-imgs').style.display = (arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0) ? '' : 'none';
+  pdfFiles.forEach((f, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb-rm';
+
+    const card = document.createElement('div');
+    card.className = 'csv-card';
+    card.title = f.name + ' — cada página vira uma imagem na extração';
+    card.textContent = '📕 ' + (f.name.length > 16 ? f.name.slice(0, 14) + '…' : f.name);
+
+    const btn = document.createElement('button');
+    btn.className = 'thumb-del'; btn.textContent = '✕';
+    btn.addEventListener('click', e => { e.stopPropagation(); pdfFiles.splice(i, 1); renderPreviews(); atualizarBotaoExtrair(); });
+
+    wrap.appendChild(card); wrap.appendChild(btn);
+    p.appendChild(wrap);
+  });
+
+  document.getElementById('btn-limpar-imgs').style.display = (arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0 || pdfFiles.length > 0) ? '' : 'none';
   const cnt = document.getElementById('img-count');
   if (arquivos.length > 0) {
     const n = arquivos.length;
@@ -3512,14 +3534,14 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('img-lightbox').style.display = 'none';
 });
 function atualizarBotaoExtrair() {
-  const ok = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0 || document.getElementById('texto').value.trim();
+  const ok = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0 || pdfFiles.length > 0 || document.getElementById('texto').value.trim();
   document.getElementById('btn-extrair').disabled = !parceiroSelecionado || !ok;
 }
 document.getElementById('texto').addEventListener('input', () => {
   atualizarBotaoExtrair();
   if (!parceiroSelecionado) return;
   if (!estadoExtrator[parceiroSelecionado.id])
-    estadoExtrator[parceiroSelecionado.id] = { arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], texto: '', dataRef: document.getElementById('data-ref').value };
+    estadoExtrator[parceiroSelecionado.id] = { arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], pdfFiles: [...pdfFiles], texto: '', dataRef: document.getElementById('data-ref').value };
   estadoExtrator[parceiroSelecionado.id].texto = document.getElementById('texto').value;
 });
 
@@ -3527,12 +3549,12 @@ function limparExtrator(explicit = false) {
   if (!explicit && parceiroSelecionado) {
     // Salva estado antes de limpar: permite navegar e voltar para retry após falha
     estadoExtrator[parceiroSelecionado.id] = {
-      arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles],
+      arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], pdfFiles: [...pdfFiles],
       texto: document.getElementById('texto').value,
       dataRef: document.getElementById('data-ref').value,
     };
   }
-  arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews();
+  arquivos = []; csvFiles = []; xlsFiles = []; pdfFiles = []; renderPreviews();
   document.getElementById('texto').value = '';
   if (explicit && parceiroSelecionado) delete estadoExtrator[parceiroSelecionado.id];
   setStatus('', ''); atualizarBotaoExtrair();
@@ -3546,7 +3568,7 @@ function limparPainelDireito() {
   resetRail();
 }
 document.getElementById('btn-limpar').addEventListener('click', () => limparExtrator(true));
-document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; csvFiles = []; xlsFiles = []; renderPreviews(); atualizarBotaoExtrair(); });
+document.getElementById('btn-limpar-imgs').addEventListener('click', () => { arquivos = []; csvFiles = []; xlsFiles = []; pdfFiles = []; renderPreviews(); atualizarBotaoExtrair(); });
 document.getElementById('btn-cancelar').addEventListener('click', () => { _activeStreams.forEach(c => c.abort()); });
 
 function setStatus(msg, tipo) {
@@ -4036,11 +4058,12 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
     // enviado some e não pode vazar para um envio seguinte.
     if (estadoSnapshot) {
       const vendoEste = parceiroSelecionado && parceiroSelecionado.id === parceiro.id;
-      const formVivoOcupado = vendoEste && (arquivos.length || csvFiles.length || xlsFiles.length
+      const formVivoOcupado = vendoEste && (arquivos.length || csvFiles.length || xlsFiles.length || pdfFiles.length
         || document.getElementById('texto').value.trim());
       const est = estadoExtrator[parceiro.id];
       const estadoOcupado = est && ((est.arquivos && est.arquivos.length)
         || (est.csvFiles && est.csvFiles.length) || (est.xlsFiles && est.xlsFiles.length)
+        || (est.pdfFiles && est.pdfFiles.length)
         || (est.texto && est.texto.trim()));
       if (!formVivoOcupado && !estadoOcupado) {
         estadoExtrator[parceiro.id] = estadoSnapshot;
@@ -4077,6 +4100,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   const txt = document.getElementById('texto').value.trim();
   if (txt) form.append('texto', txt);
   arquivos.forEach(f => form.append('imagens', f));
+  pdfFiles.forEach(f => form.append('pdfs', f));
   if (csvFiles.length > 0) {
     const textos = await Promise.all(csvFiles.map(f => f.text()));
     const csvContent = csvFiles.map((f, i) => `--- ${f.name} ---\n${textos[i]}`).join('\n\n');
@@ -4099,14 +4123,14 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   // parceiro e não são reanexadas/reprocessadas num lote seguinte (bug de duplicação,
   // onde o envio anterior reaparecia carimbado com a data do envio novo).
   const estadoSnapshot = {
-    arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles],
+    arquivos: [...arquivos], csvFiles: [...csvFiles], xlsFiles: [...xlsFiles], pdfFiles: [...pdfFiles],
     texto: document.getElementById('texto').value,
     dataRef: document.getElementById('data-ref').value,
   };
 
-  // Snapshot dos nomes de arquivo (CSV/XLS) para exibir no card
+  // Snapshot dos nomes de arquivo (CSV/XLS/PDF) para exibir no card
   const thumbUrls = arquivos.map(f => URL.createObjectURL(f));
-  const fileNames = [...csvFiles.map(f => f.name), ...xlsFiles.map(f => f.name)];
+  const fileNames = [...csvFiles.map(f => f.name), ...xlsFiles.map(f => f.name), ...pdfFiles.map(f => f.name)];
 
   // Cria card → limpa o formulário SEM persistir o lote enviado (explicit=true não
   // grava em estadoExtrator) → re-habilita botão imediatamente.

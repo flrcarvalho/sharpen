@@ -81,6 +81,13 @@ _MAX_IMG_BYTES = 12 * 1024 * 1024     # 12 MB por imagem
 _MAX_TOTAL_BYTES = 60 * 1024 * 1024   # 60 MB somando todas as imagens
 _MAX_XLS_BYTES = 20 * 1024 * 1024     # 20 MB para o XLS
 _ALLOWED_IMG_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+# PDF (ex.: extrato "Apostas Resolvidas" da Bet365 salvo como PDF): convertido no
+# servidor para 1 PNG por página, injetado no MESMO caminho de imagem da extração
+# (chunking, ordem newest-first e detecção de sobreposição reaproveitados). Cada
+# página conta como 1 imagem no teto _MAX_IMGS.
+_MAX_PDF_BYTES = 25 * 1024 * 1024     # 25 MB por PDF
+_MAX_PDF_PAGES = _MAX_IMGS            # nº de páginas renderizadas por PDF = teto de imagens
+_PDF_RENDER_ZOOM = 2.0                # ~150 dpi: nítido para OCR do modelo sem estourar bytes
 
 # Retry com backoff exponencial para picos da API Anthropic (overloaded 529 / rate-limit 429).
 _RETRY_MAX = 4          # tentativas extras além da primeira
@@ -1433,6 +1440,44 @@ async def captura_enviar(
     return {"ok": True}
 
 
+def _pdf_para_blocos_imagem(raw: bytes, nome: str) -> list[dict]:
+    """Renderiza cada página de um PDF em PNG e devolve blocos de imagem no formato
+    do payload da Anthropic (base64). Reaproveita todo o pipeline de imagem: cada
+    página vira um "screenshot" como se tivesse sido colado. Import de fitz (PyMuPDF)
+    é preguiçoso — se a lib faltar, o erro é claro em vez de derrubar o boot do app."""
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        raise HTTPException(500, "Suporte a PDF indisponível no servidor (PyMuPDF ausente).")
+
+    try:
+        doc = fitz.open(stream=raw, filetype="pdf")
+    except Exception:
+        raise HTTPException(400, f"PDF ilegível ou corrompido: '{nome}'.")
+
+    if doc.page_count > _MAX_PDF_PAGES:
+        doc.close()
+        raise HTTPException(413, f"PDF '{nome}' tem {doc.page_count} páginas; máximo de {_MAX_PDF_PAGES} por envio.")
+
+    matriz = fitz.Matrix(_PDF_RENDER_ZOOM, _PDF_RENDER_ZOOM)
+    blocos: list[dict] = []
+    try:
+        for pagina in doc:
+            pix = pagina.get_pixmap(matrix=matriz)
+            png = pix.tobytes("png")
+            blocos.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": base64.standard_b64encode(png).decode(),
+                },
+            })
+    finally:
+        doc.close()
+    return blocos
+
+
 @app.post("/extrair")
 async def extrair(
     casa: str = Form(...),
@@ -1441,6 +1486,7 @@ async def extrair(
     texto: Optional[str] = Form(None),
     csv_content: Optional[str] = Form(None),
     imagens: list[UploadFile] = File(default=[]),
+    pdfs: list[UploadFile] = File(default=[]),
     xls_file: Optional[UploadFile] = File(default=None),
     data_referencia: Optional[str] = Form(None),
     # Criação de dado NOVO usa o dono REAL (usuario_atual), não dono_efetivo: em
@@ -1484,6 +1530,26 @@ async def extrair(
                 "data": base64.standard_b64encode(raw).decode(),
             },
         })
+
+    # PDFs → cada página vira um bloco de imagem, no mesmo caminho das colagens.
+    for pdf in pdfs:
+        raw = await pdf.read()
+        if not raw:
+            continue
+        if len(raw) > _MAX_PDF_BYTES:
+            raise HTTPException(413, f"PDF '{pdf.filename}' excede o limite de 25 MB.")
+        blocos = _pdf_para_blocos_imagem(raw, pdf.filename or "arquivo.pdf")
+        for b in blocos:
+            total_bytes += (len(b["source"]["data"]) * 3) // 4  # tamanho aprox. do PNG decodificado
+            if total_bytes > _MAX_TOTAL_BYTES:
+                raise HTTPException(413, "Tamanho total das imagens excede 60 MB.")
+        base_content.extend(blocos)
+
+    # Teto combinado: imagens coladas + páginas de PDF não podem passar de _MAX_IMGS
+    # (cada uma vira um chunk potencial na extração).
+    _n_imgs = sum(1 for b in base_content if b.get("type") == "image")
+    if _n_imgs > _MAX_IMGS:
+        raise HTTPException(413, f"Máximo de {_MAX_IMGS} imagens/páginas por envio (recebidas {_n_imgs}).")
 
     xls_skipped = 0
 
