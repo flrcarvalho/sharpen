@@ -86,7 +86,10 @@ _ALLOWED_IMG_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 # (chunking, ordem newest-first e detecção de sobreposição reaproveitados). Cada
 # página conta como 1 imagem no teto _MAX_IMGS.
 _MAX_PDF_BYTES = 25 * 1024 * 1024     # 25 MB por PDF
-_MAX_PDF_PAGES = _MAX_IMGS            # nº de páginas renderizadas por PDF = teto de imagens
+_MAX_PDF_PAGES = 50                   # páginas por PDF (extrato de semana/mês tem muitas).
+                                     # Também é o teto COMBINADO de blocos de imagem
+                                     # (imagens coladas + páginas de PDF) num envio. Colagem
+                                     # avulsa de imagens segue limitada a _MAX_IMGS (15).
 _PDF_RENDER_ZOOM = 2.0                # zoom-alvo (~150 dpi) para página tamanho carta/A4
 _PDF_MAX_LONG_PX = 2400              # teto do lado maior do PNG: página gigante (pôster,
                                      # export largo) NÃO é renderizada a 2.0x — o zoom cai
@@ -1564,24 +1567,26 @@ async def extrair(
         })
 
     # PDFs → cada página vira um bloco de imagem, no mesmo caminho das colagens.
+    # A renderização é CPU-bound (síncrona); roda em thread para NÃO travar o event
+    # loop enquanto converte um extrato de muitas páginas (seguraria os outros requests).
     for pdf in pdfs:
         raw = await pdf.read()
         if not raw:
             continue
         if len(raw) > _MAX_PDF_BYTES:
             raise HTTPException(413, f"PDF '{pdf.filename}' excede o limite de 25 MB.")
-        blocos = _pdf_para_blocos_imagem(raw, pdf.filename or "arquivo.pdf")
+        blocos = await asyncio.to_thread(_pdf_para_blocos_imagem, raw, pdf.filename or "arquivo.pdf")
         for b in blocos:
             total_bytes += (len(b["source"]["data"]) * 3) // 4  # tamanho aprox. do PNG decodificado
             if total_bytes > _MAX_TOTAL_BYTES:
                 raise HTTPException(413, "Tamanho total das imagens excede 60 MB.")
         base_content.extend(blocos)
 
-    # Teto combinado: imagens coladas + páginas de PDF não podem passar de _MAX_IMGS
+    # Teto combinado: imagens coladas + páginas de PDF não passam de _MAX_PDF_PAGES
     # (cada uma vira um chunk potencial na extração).
     _n_imgs = sum(1 for b in base_content if b.get("type") == "image")
-    if _n_imgs > _MAX_IMGS:
-        raise HTTPException(413, f"Máximo de {_MAX_IMGS} imagens/páginas por envio (recebidas {_n_imgs}).")
+    if _n_imgs > _MAX_PDF_PAGES:
+        raise HTTPException(413, f"Máximo de {_MAX_PDF_PAGES} imagens/páginas por envio (recebidas {_n_imgs}).")
 
     xls_skipped = 0
 
