@@ -344,7 +344,15 @@ function renderNovidades(dono){
   vis.forEach(n=>seen.add(n.id)); novSeenSave(dono,seen);
 }
 
-async function boot(){
+/* boot(force) — monta a tela inteira a partir das 4 rotas.
+   `force` só existe por causa do ↻ da casca: a carteira que lê planilha AO VIVO
+   (Fatuch) tem DOIS caches empilhados no caminho (Apps Script no Drive, 30 min +
+   TTL de 120 s no backend). Sem `?refresh=1` o clique não fura nenhum dos dois e
+   o painel "Apostas em Aberto" mostra um retrato de até ~32 min atrás — foi o que
+   pareceu bug (2 abertas já liquidadas na tela, 20 do dia ausentes). Só o feed
+   ganha o parâmetro; /bilhetes, /parceiros e /incompletos vêm do Postgres, sempre
+   frescos. Reexecutar é seguro: todo render substitui innerHTML (listeners junto). */
+async function boot(force){
   const now=new Date();
   el('eyebrow').textContent=(now.toLocaleDateString('pt-BR',{weekday:'long'})+' · '+now.getDate()+' de '+MESES[now.getMonth()]).toUpperCase();
 
@@ -354,13 +362,16 @@ async function boot(){
   renderNovidades(dono);
 
   const [feed,abertasResp,parcResp,incompletos]=await Promise.all([
-    jget('/dashboard/data'),
+    jget('/dashboard/data'+(force?'?refresh=1':'')),
     jget('/bilhetes?extraction_state=aberta&archived=false&limit=1000&order=desc'),
     jget('/parceiros?arquivados=true'),
     jget('/incompletos'),
   ]);
 
   const rows=(feed&&feed.data)||[];
+  // Frescura do feed: a casca lê este número do iframe ativo p/ pintar o rótulo
+  // "Dados sincronizados · dd/mm · hh:mm" ao lado do ↻ (mesmo contrato do dash).
+  window._dataBuiltMs=(feed&&feed.builtAt)?Date.parse(feed.builtAt):Date.now();
   const todayISO=localISO(now), mesPref=todayISO.slice(0,7), mesNome=MESES[now.getMonth()];
   let plHoje=0,nHoje=0,wHoje=0,plMes=0,turnMes=0;
   const sportHoje={}, byCasaMes={}, byTipMes={};
@@ -501,6 +512,10 @@ async function boot(){
     histHost.querySelectorAll('.lrow[data-go]').forEach(e=>e.addEventListener('click',()=>goHost(e.dataset.go)));
   }
 }
+// Contrato com a casca (app.html): mesmo nome/assinatura do loadData do Dashboard,
+// então o ↻ trata os dois iframes do mesmo jeito. Resolve SEMPRE (boot trata os
+// erros internamente via jget → null), pra o botão nunca ficar preso girando.
+window.loadData=function(force){ return boot(!!force).catch(function(){}); };
 boot();
 </script>
 </body>

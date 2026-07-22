@@ -196,7 +196,7 @@ body::before {
       <div class="last-update"><span class="sync-top"><span class="pulse-dot"></span>Dados sincronizados</span></div>
       <!-- Tier 3 — Ação utilitária: Atualizar (o "Baixar CSV" migrou p/ a toolbar da aba Apostas). -->
       <div class="sb-actions">
-        <button class="host-refresh" id="hostRefresh" title="Recarregar os dados do Dashboard"><span class="host-refresh-ico">↻</span> Atualizar</button>
+        <button class="host-refresh" id="hostRefresh" title="Recarregar os dados (busca a planilha na hora, sem esperar o cache)"><span class="host-refresh-ico">↻</span> Atualizar</button>
       </div>
       <!-- Tier 4 — Sair (full-width). -->
       <button class="sb-logout" id="hostLogout" title="Encerrar sessão"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair</button>
@@ -272,8 +272,8 @@ body::before {
   frPlan.addEventListener('load', function(){ if (current.app === 'plan') setTimeout(function(){ callPlan(current.target); }, 0); });
   frDash.addEventListener('load', function(){ if (current.app === 'dash') setTimeout(function(){ callDash(current.target); }, 0); });
 
-  // Atualizar dados: recarrega a base do Dashboard (o iframe fica vivo → sem esse
-  // botão os dados envelheceriam numa sessão longa). Só age se o Dashboard já abriu.
+  // Atualizar dados: recarrega a base do app ATIVO (os iframes ficam vivos → sem esse
+  // botão os dados envelheceriam numa sessão longa). Age no Início e no Dashboard.
   // Feedback: enquanto o loadData do iframe roda, o botão gira ("Atualizando…") e,
   // ao concluir, o rótulo "último sync" reflete o builtAt do servidor. Antes o botão
   // vivia aqui no host mas SEM sinal visível — parecia morto (o spinner do Dashboard
@@ -286,10 +286,27 @@ body::before {
     var d = new Date(ms);
     return _p2(d.getDate()) + '/' + _p2(d.getMonth()+1) + ' · ' + _p2(d.getHours()) + ':' + _p2(d.getMinutes());
   }
-  function readDashBuilt(){ try { return frDash.contentWindow._dataBuiltMs || 0; } catch(e){ return 0; } }
+  // Alvo do ↻ = o app VISÍVEL que sabe recarregar a própria base (Início e Dashboard
+  // expõem loadData(force); a Extração não tem base). Antes o botão só falava com o
+  // Dashboard: quem estava na tela de Início clicava e NADA acontecia — e é justo lá
+  // que mora o painel "Apostas em Aberto" da carteira de planilha ao vivo, o retrato
+  // que mais envelhece (cache do Apps Script, 30 min). Com a Extração aberta, cai no
+  // Dashboard (se já carregado) ou no Início, pra o botão nunca ficar morto.
+  function refreshTarget(){
+    var ordem = current.app === 'inicio' ? [frInicio, frDash]
+              : current.app === 'dash'   ? [frDash, frInicio]
+              :                            [frDash, frInicio];
+    for (var i = 0; i < ordem.length; i++){
+      var fr = ordem[i];
+      if (fr === frDash && !dashLoaded) continue;   // Dashboard ainda não abriu
+      try { if (fr.contentWindow && fr.contentWindow.loadData) return fr; } catch(e){}
+    }
+    return null;
+  }
+  function readBuilt(fr){ try { return (fr || frDash).contentWindow._dataBuiltMs || 0; } catch(e){ return 0; } }
   function paintSync(){
     if (!lastUpdateEl) return;
-    var t = fmtSync(readDashBuilt());
+    var t = fmtSync(readBuilt(refreshTarget()));
     lastUpdateEl.innerHTML = '<span class="sync-top"><span class="pulse-dot"></span>Dados sincronizados</span>'
       + (t ? '<span class="sync-time">' + t + '</span>' : '');
   }
@@ -301,14 +318,15 @@ body::before {
   }
   if (refreshBtn) refreshBtn.addEventListener('click', function(){
     if (refreshBtn.disabled) return;
-    if (!(dashLoaded && frDash.contentWindow && frDash.contentWindow.loadData)) return; // Dashboard ainda não aberto
+    var alvo = refreshTarget();
+    if (!alvo) return;                                        // nenhum app com base carregado ainda
     setRefreshing(true);
     var t0 = Date.now();
     var finish = function(){                                  // duração mínima p/ não piscar
       var wait = 600 - (Date.now() - t0); if (wait < 0) wait = 0;
       setTimeout(function(){ setRefreshing(false); paintSync(); }, wait);
     };
-    var p; try { p = frDash.contentWindow.loadData(true); } catch(e){ finish(); return; }
+    var p; try { p = alvo.contentWindow.loadData(true); } catch(e){ finish(); return; }
     Promise.resolve(p).then(finish, finish);                  // loadData resolve mesmo em erro (trata interno)
   });
   // Mantém "último sync" vivo (1ª carga do Dashboard, refresh manual ou revalidação
