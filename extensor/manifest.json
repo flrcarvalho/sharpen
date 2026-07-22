@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -55,6 +55,13 @@
       "js": ["pn_inject.js"],
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.bet365.bet.br/*", "*://bet365.bet.br/*"],
+      "js": ["b3_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
     }
   ],
   "icons": {

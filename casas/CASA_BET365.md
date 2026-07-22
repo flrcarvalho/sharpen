@@ -20,7 +20,14 @@
 
 ## 2. Modo de ingestão e layout
 
-- **Modo de ingestão: visão (screenshot). Sem export estruturado.**
+- **Modo de ingestão primário: TEXTO via API de Histórico (SharpenUp `b3_inject`).** O robô lê
+  as respostas de `/sportshistoryapi/summary` + `/confirmation` (formato `F|00;…`) do
+  **Histórico** (Resolvidas + Pendentes) — dado exato: código estável `BR`, resultado, stake,
+  odd, jogo/mercado, e **data de encerramento** (kickoff + folga por esporte, UK→Brasília).
+  Detalhes em `docs/PLANO_BET365_CAPTURA_API.md`.
+- **Fallback: visão (screenshot) / DOM.** Se a API não responder (token do replay recusado, ou
+  a aba do Histórico não foi aberta), o robô raspa os cards `.myb-SettledBetItem` (texto do DOM),
+  e o print manual continua valendo. As regras de layout abaixo valem para esse caminho.
 - **Feed contínuo:** múltiplos prints = mesmo scroll. 1º print = mais recente; dentro do print, topo = mais recente.
 - **Ordenação de output:** emita os bilhetes na **ORDEM NATURAL DE LEITURA** — de cima para baixo dentro de cada imagem, e da 1ª imagem para a última (no modo texto do robô, na ordem em que aparecem, marcados por `[Bilhete Bet365]`). **NÃO inverta você mesmo.** O **sistema** reordena automaticamente para mais-antigo→mais-recente (a planilha exige essa ordem). O resultado final salvo fica: última aposta da última imagem = 1ª linha (mais antiga); 1ª aposta da 1ª imagem = última linha (mais recente) — mas isso é responsabilidade do sistema, não sua.
 - Abas: `Em Aberto` · `Encerrar Aposta` (cashout) · `Ao Vivo` · `Resolvidas`.

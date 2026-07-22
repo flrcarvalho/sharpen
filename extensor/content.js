@@ -147,6 +147,27 @@
     }
   });
 
+  // Bilhetes da BET365 capturados pelo b3_inject.js (mundo MAIN) — as RESPOSTAS de
+  // /sportshistoryapi/summary + /confirmation (formato F|…), já parseadas pelo inject. Mesmo
+  // modelo passivo + REPLAY ATIVO: o inject varre as duas listas (settled=1 resolvidas · settled=0
+  // abertas) e busca o DETALHE de cada bilhete (jogo/mercado + código estável BR). `b3ById` guarda
+  // 1 bilhete por bsid (chave da visão); o dedup final no backend é pelo código BR no texto.
+  // `b3FimReal` = o inject terminou de varrer as listas e os detalhes → fim autoritativo.
+  const b3ById = new Map();          // bsid(string) → bilhete mesclado (summary + confirmation)
+  let b3FimReal = false;
+  let b3HookVivo = false, b3Respostas = 0;   // autodiagnóstico (espelha as outras casas passivas)
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupB3Data) {
+      if (d.hook) b3HookVivo = true;
+      if (typeof d.respostas === "number") b3Respostas = d.respostas;
+      if (Array.isArray(d.bets)) {
+        for (const t of d.bets) { if (t && t.bsid) b3ById.set(String(t.bsid), t); }
+      }
+      if (d.fim) b3FimReal = true;
+    }
+  });
+
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
       '<defs><linearGradient id="sharpenupBladeGrad" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse">' +
@@ -471,7 +492,15 @@
       blocos = await roboSuperbetPassive(ctx);
       if (!blocos.length) { console.log("[SharpenUp] nada capturado da API → modo clique"); blocos = await roboSuperbet(ctx); }
     } else if (casa === "bet365") {
-      blocos = await roboBet365(ctx);
+      // Passivo + replay ativo (b3_inject): dado exato via /sportshistoryapi (código BR estável,
+      // resultado, data de encerramento, jogo/mercado). Fallback: o robô de DOM atual (raspa
+      // .myb-SettledBetItem) se a API não trouxer nada (token do replay recusado, ou a aba do
+      // Histórico não foi aberta) — nunca fica pior que hoje.
+      blocos = await roboBet365Passive(ctx);
+      if (!blocos.length && !b3ById.size) {
+        console.log("[SharpenUp] Bet365: API vazia → fallback DOM");
+        blocos = await roboBet365DOM(ctx);
+      }
     } else if (casa === "betesporte") {
       blocos = await roboBetesportePassive(ctx);
     } else if (casa === "betano") {
@@ -513,6 +542,7 @@
         betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
+        bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Respostas, vistos: b3ById.size },
       }[casa];
       if (diag) {
         const msg = diag.nome + ": 0 bilhetes. Hook: " + (diag.hook ? "ATIVO" : "NÃO carregou") +
@@ -1279,7 +1309,141 @@
     return blocos;
   }
 
-  // ── Bet365 modo texto ─────────────────────────────────────────────────────────
+  // ── Bet365 modo API (passivo + replay) ────────────────────────────────────────
+  // Formata 1 bilhete lido do /sportshistoryapi (parseado pelo b3_inject) no bloco de texto que a
+  // IA lê (marcador "[Código: BR…]" das outras casas passivas → o backend split/dedupa por ele).
+  // Fiel à CASA_BET365 + docs/PLANO_BET365_CAPTURA_API.md:
+  //   • Código = BR (comprovante; ESTÁVEL aberta→resolvida). Sem detalhe (BR não veio) → vazio.
+  //   • Data = ENCERRAMENTO: maior kickoff das pernas + folga do esporte, convertido UK→Brasília.
+  //   • Resultado: RT do summary vs stake → W/L/V (cashout ≠ retorno cheio → W). Aberta = sem.
+  //   • Odd fracionária ("21/20") → decimal com precisão completa (21/20 = 2,05).
+  //   • Múltiplo (3+ jogos diferentes) → sinaliza o tipo p/ a IA classificar (MASTER_ESPORTES).
+
+  // CL → esporte (âncora; a IA/CASA_BET365 finaliza a localização). eSoccer vem com CL=1 → o
+  // handle "(gamer)" entre parênteses é o sinal (a IA trata). CL=15/151 ainda desconhecidos.
+  const _CL_B3 = { "1": "Futebol", "13": "Tênis", "18": "Basquete", "94": "Badminton" };
+  // Folga kickoff→liquidação por esporte (horas) — só p/ acertar o DIA perto da meia-noite.
+  const _OFF_B3 = { "1": 2.5, "18": 2.5, "13": 3, "94": 1.5 };
+
+  // Odd Bet365: fracionária "num/den" → decimal (num/den + 1), precisão completa, vírgula.
+  const _oddB3 = (frac) => {
+    const s = String(frac || ""); const i = s.indexOf("/");
+    if (i < 0) return "";
+    const a = parseFloat(s.slice(0, i)), b = parseFloat(s.slice(i + 1));
+    if (!isFinite(a) || !isFinite(b) || b === 0) return "";
+    return String(a / b + 1).replace(".", ",");
+  };
+  const _numB3 = (s) => parseFloat(String(s == null ? "" : s).replace(",", ".")) || 0;
+
+  // Reino Unido (Europe/London) → Brasília (UTC-3, sem horário de verão). BST (fim mar→fim out) =
+  // UTC+1 → BR = UK-4; GMT = UTC+0 → BR = UK-3. Retorna a DATA de Brasília (já com a folga).
+  function _ehBST(y, mo, d) {
+    if (mo < 3 || mo > 10) return false;
+    if (mo > 3 && mo < 10) return true;
+    const ultimoDom = (yy, mm) => { const x = new Date(Date.UTC(yy, mm, 0)); return x.getUTCDate() - x.getUTCDay(); };
+    return mo === 3 ? d >= ultimoDom(y, 3) : d < ultimoDom(y, 10);
+  }
+  function _dataFimB3(kickoffTS, offsetH) {
+    const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(kickoffTS || ""));
+    if (!m) return "";
+    const y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5];
+    const uk = Date.UTC(y, mo - 1, d, h, mi);                       // hora de parede UK como pseudo-UTC
+    const ukToBr = _ehBST(y, mo, d) ? 4 : 3;
+    const br = new Date(uk - (ukToBr - offsetH) * 3600000);
+    const p = (n) => String(n).padStart(2, "0");
+    return p(br.getUTCDate()) + "/" + p(br.getUTCMonth() + 1) + "/" + br.getUTCFullYear();
+  }
+
+  // Resultado bruto p/ a IA (RT do summary vs stake). Cashout ≠ retorno cheio → W (regra do MASTER).
+  function _resultadoB3(t) {
+    if (t.aberta || t.rt == null) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    const st = _numB3(t.ts != null ? t.ts : t.stake), rt = _numB3(t.rt);
+    if (rt === 0) return "Perdeu → L";
+    if (Math.abs(rt - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
+    if (rt > st) return "Ganho → W (retorno R$ " + rt.toFixed(2).replace(".", ",") + ")";
+    return "Ganho/perda parcial (retorno R$ " + rt.toFixed(2).replace(".", ",") + " · a conferir HW/HL)";
+  }
+
+  function formatTicketB3(t) {
+    const L = [];
+    L.push("[Código: " + (t.code || "") + "]");
+    const legs = (t.legs && t.legs.length) ? t.legs : [];
+    const cls = Array.from(new Set(legs.map((l) => l.cl).filter(Boolean)));
+    const jogos = new Set(legs.map((l) => l.jogo).filter(Boolean));
+    const multiplo = jogos.size >= 3 || cls.length > 1;
+    // data de encerramento = maior kickoff+folga entre as pernas
+    let dataFim = "", maxMs = -Infinity;
+    for (const l of legs) {
+      const off = _OFF_B3[l.cl] != null ? _OFF_B3[l.cl] : 2.5;
+      const dd = _dataFimB3(l.kickoff, off);
+      if (dd) { const p = dd.split("/"); const ms = Date.UTC(+p[2], +p[1] - 1, +p[0]); if (ms > maxMs) { maxMs = ms; dataFim = dd; } }
+    }
+    if (dataFim) L.push("Data (encerramento): " + dataFim);
+    L.push("Stake: " + _brl(_numB3(t.ts != null ? t.ts : t.stake)));
+    L.push("Status: " + _resultadoB3(t));
+    if (!multiplo && t.oddFrac) L.push("Odd: " + _oddB3(t.oddFrac));
+    if (multiplo) L.push("Tipo: Múltipla (" + legs.length + " seleções)");
+    else if (cls.length) L.push("Esporte (casa): CL=" + cls[0] + (_CL_B3[cls[0]] ? " (" + _CL_B3[cls[0]] + ")" : ""));
+
+    L.push("Seleções:");
+    if (legs.length) {
+      for (const l of legs) {
+        const partes = [l.jogo, l.mercado, l.sel].filter(Boolean).join(" · ");
+        L.push("  • " + partes + (l.oddFrac ? " @ " + _oddB3(l.oddFrac) : "") + (l.liga ? " · " + l.liga : ""));
+      }
+    } else if (t.sels && t.sels.length) {
+      for (const s of t.sels) L.push("  • " + s.na + (s.od ? " @ " + _oddB3(s.od) : ""));   // só summary (detalhe não veio)
+    }
+    return L.join("\n");
+  }
+
+  // Modo passivo + REPLAY ATIVO (dado vem do b3_inject: exato, com código BR). Não rola lista: o
+  // inject re-emite as duas listas (resolvidas na janela de dias + abertas todas) e busca o detalhe
+  // de cada bilhete. O robô só espera o fim (`b3FimReal`) e formata. Dedup/estado por código → o
+  // backend faz UPSERT (aberta→resolvida na mesma linha). Os detalhes chegam DEPOIS do summary, por
+  // isso os blocos são reconstruídos do estado final ao terminar.
+  async function roboBet365Passive(ctx) {
+    let travado = false;
+    const N = Math.max(1, Math.round((Date.now() - ctx.cutoff) / 86400000));
+
+    const contar = () => {
+      let n = 0;
+      for (const t of b3ById.values()) {
+        if (ctx.stopId && t.code && String(t.code).toUpperCase() === ctx.stopId) { travado = true; break; }
+        n++;
+      }
+      ctx.painel.contador.textContent = n + " bilhete" + (n === 1 ? "" : "s");
+    };
+
+    // Pede ao b3_inject o acumulado + arranca o replay (janela de dias das resolvidas).
+    try { window.postMessage({ __sharpenupB3Req: true, dias: N }, "*"); } catch (e) {}
+    await sleep(500);
+    contar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !b3FimReal && voltas < 900) {
+      voltas++;
+      await sleep(500);
+      contar();
+      if (travado) break;
+      if (b3ById.size > ultTotal) { ultTotal = b3ById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 20000) break;   // 20s parado, sem fim → desiste
+    }
+    await sleep(400);
+
+    // Monta os blocos do ESTADO FINAL (os detalhes que chegaram por último já entraram).
+    const blocos = [];
+    for (const t of b3ById.values()) {
+      if (ctx.stopId && t.code && String(t.code).toUpperCase() === ctx.stopId) break;   // até o já-exportado
+      blocos.push(formatTicketB3(t));
+    }
+    console.log("[SharpenUp] Bet365 API: " + blocos.length + " bilhete(s) · b3ById=" + b3ById.size +
+                " · hook=" + b3HookVivo + " · respostas=" + b3Respostas + " · fimReal=" + b3FimReal);
+    return blocos;
+  }
+
+  // ── Bet365 modo DOM (fallback) ────────────────────────────────────────────────
+  // Usado só quando a API /sportshistoryapi não trouxe nada (roboBet365Passive vazio).
   // A Bet365 não expõe ID nem data (nem no DOM, nem em JSON — o protocolo `Blob` é só
   // preço). MAS cada card (.myb-SettledBetItem) traz o texto COMPLETO no DOM mesmo
   // recolhido (só esconde via CSS) → o robô lê tudo sem clicar pra expandir. A lista é
@@ -1296,7 +1460,7 @@
     if (c && c.scrollHeight > c.clientHeight + 20) return c;
     return acharScroll();
   }
-  async function roboBet365(ctx) {
+  async function roboBet365DOM(ctx) {
     const cont = acharScrollBet365();
     const vistos = new Set(), blocos = [];
     let travado = false;

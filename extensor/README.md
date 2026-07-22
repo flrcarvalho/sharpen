@@ -35,6 +35,13 @@ cada uma numa casa. O código carrega dono + casa + parceiro + modo.
   tela. Cada bilhete é um array posicional que o `pn_inject.js` converte em objeto (id, odd,
   stake, status, datas, seleção, pernas). Abertas sobem sem resultado; o UPSERT por ID atualiza
   quando fecham.
+- **Bet365:** o `b3_inject.js` lê as respostas de `/sportshistoryapi/summary` +
+  `/confirmation` (formato texto `F|00;…`) do **Histórico** e **re-emite as duas listas** —
+  `settled=1` (resolvidas, janela de dias) **e** `settled=0` (abertas, todas) — paginando pelo
+  cursor `PT`, depois busca o **detalhe** de cada bilhete (jogo/mercado + código estável `BR`).
+  Dedup pelo `BR` (o ID numérico do summary muda quando resolve). Data = **encerramento**
+  (kickoff + folga por esporte, UK→Brasília). Se o replay for recusado (token `x-net-sync-term`
+  rotativo), cai no **robô de DOM** anterior — sem regressão. Ver `docs/PLANO_BET365_CAPTURA_API.md`.
 - **Superbet:** cada card da lista tem o CÓDIGO no atributo `id` (exato, sem OCR). O
   robô rola, lê cada bilhete e **clica as múltiplas colapsadas** ("+N mais seleções")
   p/ pegar as pernas escondidas. Sem limite, sem zoom nas múltiplas grandes.
