@@ -535,7 +535,7 @@
       // #13). Distingue "hook NÃO carregou" (inject não injetou) de "endpoint mudou" (hook vivo,
       // 0 respostas) de "formato mudou / conta vazia" (respostas>0, 0 vistos). Antes tudo isso
       // caía num "Nada coletado" genérico → falha silenciosa quando a casa troca o DOM/endpoint.
-      // Casas sem inject (bet365/genéricos) seguem no aviso genérico.
+      // Casas sem inject (genéricos) seguem no aviso genérico.
       const diag = {
         betfair:    { nome: "Betfair",    hook: bfHookVivo, resp: bfRespostas, vistos: bfTickets.length },
         superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbById.size },

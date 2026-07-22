@@ -3156,8 +3156,10 @@ function mostrarEmptyState() {
 // Casas em que o SharpenUp opera de forma estável (subconjunto do backend
 // captura.py `_HOSTS_POR_CASA`). Fora dessa lista o botão Conectar aparece
 // esmaecido/não clicável (captura é por print manual).
-// Bet365 fora POR ORA: a 1ª tentativa de conexão não ficou estável → indisponível.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE']);
+// Bet365 voltou em 22/07/2026: a 1ª tentativa (robô de DOM) não segurava; agora a
+// captura é passiva pela API de histórico (`/sportshistoryapi`, b3_inject) com o
+// robô de DOM só como fallback — mesmo padrão de Betfair/Pinnacle.
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365']);
 function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase()); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
