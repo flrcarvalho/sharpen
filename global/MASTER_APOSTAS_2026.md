@@ -94,7 +94,7 @@ quando existir categoria mais específica aplicável.
 | Múltipla | Cupom com múltiplas seleções |
 | Outros | Último recurso |
 | Player Props | Estatísticas individuais de jogador |
-| Pontos | Mercados de pontos de jogo ou de time (Basquete, eBasket, Vôlei) |
+| Pontos | Mercados de pontos de jogo ou de time (Basquete, eBasket, Vôlei, Badminton) |
 | Sets | Mercados de sets |
 | Team Props | Estatísticas de equipe |
 | Triplo-Duplo | Mercado específico de basquete |
@@ -468,8 +468,14 @@ Não confundir com:
 
 ```text
 Total de pontos do jogo ou de um time, em qualquer esporte cujo
-objeto apostado seja o ponto: Basquete, eBasket e Vôlei.
+objeto apostado seja o ponto: Basquete, eBasket, Vôlei e Badminton.
 ```
+
+> **Badminton:** o total de pontos da partida (ou de um game) é `Pontos`
+> (ex.: `Over 41.5 Pontos`, `Handicap de Pontos`). O total de **parciais**
+> (games/sets, ex.: `Under 2.5 Sets`, `Handicap -1.5 Sets`) é `Sets`, não `Pontos`
+> — a unidade contada decide, igual ao Vôlei (ver Discriminante 2). Pontos de um
+> **jogador** (Total Player Points) seguem `Player Props`.
 
 É a categoria do **objeto ponto**, equivalente a `Gols` (Futebol), `Games` (Tênis)
 e `Legs` (Dardos). Segue o princípio §1: a categoria registra o objeto medido.
@@ -996,6 +1002,74 @@ Nunca utilizar:
 
 ---
 
+## Badminton
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+### Total de parciais (games/sets)
+
+Classificar como:
+
+```text
+Sets
+```
+
+---
+
+### Total de pontos
+
+Classificar como:
+
+```text
+Pontos
+```
+
+---
+
+### Estatísticas individuais
+
+Classificar como:
+
+```text
+Player Props
+```
+
+Exemplos:
+- total de pontos de um jogador
+
+---
+
+### Regras Críticas — Badminton
+
+Badminton utiliza:
+- pontos
+- games (= sets)
+
+Nunca utilizar:
+- legs
+- frames
+- aces
+
+`set` ≡ `game` ≡ `jogo` — mesmo parcial (as casas divergem no rótulo: Betano usa "set", bet365 usa "jogo/game", Superbet mistura). O total/handicap de **parciais** é `Sets`; o total/handicap de **pontos** é `Pontos`.
+
+---
+
 ## Dardos
 
 ---
@@ -1196,7 +1270,7 @@ Desambiguação da categoria `Sets`:
 - `Sets` com **time / seleção** → Vôlei
 - `Sets` com **jogador individual / dupla** → Tênis
 
-Desambiguação da categoria `Pontos` (Basquete / eBasket / Vôlei):
+Desambiguação da categoria `Pontos` (Basquete / eBasket / Vôlei / Badminton):
 - pontos do **jogo** (soma dos dois times) → `Pontos`
 - pontos de um **time** → `Pontos`
 - pontos de um **jogador** → `Player Props` (§6 NBA / Basquete)
@@ -1254,7 +1328,7 @@ Antes de retornar a saída, o extrator deve validar:
 15. `Sets` com nome de **time / seleção** = Vôlei (nunca Tênis, exceto Copa Davis explícita)
 16. `Sets` com nome de **jogador individual / dupla** = Tênis (nunca Vôlei)
 17. mercado "Mais 180's" / "Maioria de 180's" em Dardos foi classificado como `H2H` (nunca `Player Props` nem `Legs`)
-18. total de pontos de **jogo ou time** em Basquete / eBasket / Vôlei = `Pontos` (nunca `Team Props`, `Games`, `Gols`, `Handicap` nem `Outros`)
+18. total de pontos de **jogo ou time** em Basquete / eBasket / Vôlei / Badminton = `Pontos` (nunca `Team Props`, `Games`, `Gols`, `Handicap` nem `Outros`); no Badminton, total de **parciais** (games/sets) = `Sets`, não `Pontos`
 19. pontos de **jogador** em Basquete / eBasket = `Player Props` (nunca `Pontos`)
 20. `E-Sports Props` não foi utilizado em eBasket (é exclusivo do Esporte `E-Sports`)
 21. no Vôlei, a **unidade contada** define a categoria: ponto → `Pontos`, set → `Sets` (nunca `Games`)

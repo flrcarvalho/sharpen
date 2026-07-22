@@ -118,7 +118,7 @@ const SPORT_EMOJI={
   futebol:'⚽', basquete:'🏀', tenis:'🎾', mma:'🥊', f1:'🏎️',
   nfl:'🏈', nhl:'🏒', baseball:'⚾', volei:'🏐', handbol:'🤾',
   dardos:'🎯', esports:'🎮', multiplos:'🔗', peixe:'🐟',
-  snooker:'🎱', golf:'⛳', rugby:'🏉',
+  snooker:'🎱', golf:'⛳', rugby:'🏉', badminton:'🏸',
 };
 // Sport SVG icons — minimal line style
 const SPORT_SVG={
@@ -139,6 +139,7 @@ const SPORT_SVG={
   snooker:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="7" r="2.2"/><line x1="8" y1="9.2" x2="8" y2="13"/></svg>`,
   golf:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><path d="M8 2 L13 4.5 L8 7Z"/><ellipse cx="8" cy="13.5" rx="4" ry="1.2"/></svg>`,
   rugby:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><ellipse cx="8" cy="8" rx="5.5" ry="3.5"/><line x1="8" y1="4.5" x2="8" y2="11.5"/><line x1="5.2" y1="6.5" x2="10.8" y2="6.5"/><line x1="5.2" y1="9.5" x2="10.8" y2="9.5"/></svg>`,
+  badminton:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12.4" r="1.7"/><path d="M6.6 11.1 L4.2 4.2"/><path d="M8 10.7 L8 3.2"/><path d="M9.4 11.1 L11.8 4.2"/><path d="M4.2 4.2 Q8 2 11.8 4.2"/></svg>`,
   outro:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r=".8" fill="currentColor" stroke="none"/></svg>`,
 };
 // Alias map: sport name → svg key
@@ -147,6 +148,7 @@ const SPORT_KEY={
   'NBA':'basquete','Basquete':'basquete','Basquetebol':'basquete','Basketball':'basquete','Nba':'basquete',
   'eBasket':'basquete','EBasket':'basquete','eBasketball':'basquete','Basquete Virtual':'basquete',
   'Tênis':'tenis','Tenis':'tenis','Tennis':'tenis','Tênis de Mesa':'tenis','Ping Pong':'tenis',
+  'Badminton':'badminton','Badmington':'badminton',
   'MMA':'mma','UFC':'mma','Boxe':'mma','Boxing':'mma','Luta':'mma',
   'F1':'f1','Formula 1':'f1','Fórmula 1':'f1','Formula1':'f1',
   'NFL':'nfl','Futebol Americano':'nfl',

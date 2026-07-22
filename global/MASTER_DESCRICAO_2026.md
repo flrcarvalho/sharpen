@@ -635,6 +635,58 @@ NY Knicks (EQUALIZER) +4.5 [OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)]
 
 ---
 
+## 13.4 Badminton
+
+> A unidade do parcial é `Sets` (o "game" do badminton = o "set" do tênis).
+> `game`/`jogo`/`set` são sinônimos de entrada e normalizam para **Sets**.
+> A soma de pontos é `Pontos`. Handicap traz a unidade no texto (`Sets` ou `Pontos`).
+
+---
+
+### ML
+
+```text
+Shi Yuqi [Shi Yuqi v Anders Antonsen]
+```
+
+---
+
+### Sets
+
+```text
+Under 2.5 Sets [Shi Yuqi v Anders Antonsen]
+```
+
+---
+
+### Handicap
+
+```text
+Shi Yuqi -1.5 Sets [Shi Yuqi v Anders Antonsen]
+```
+
+```text
+Shi Yuqi -6.5 Pontos [Shi Yuqi v Anders Antonsen]
+```
+
+---
+
+### Pontos
+
+```text
+Over 41.5 Pontos [Shi Yuqi v Anders Antonsen]
+```
+
+---
+
+### Player Props
+
+```text
+Shi Yuqi - Over 21.5 Pontos [Shi Yuqi v Anders Antonsen]
+```
+
+---
+
 # 14. Múltiplas
 
 Múltiplas devem separar seleções utilizando:

@@ -87,6 +87,7 @@ eBasket
 Futebol Americano
 Hóquei
 Tênis
+Badminton
 Dardos
 MMA
 E-Sports
@@ -534,6 +535,214 @@ Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lis
 
 ---
 
+## Badminton
+
+Valor oficial:
+
+```text
+Badminton
+```
+
+Sinônimos:
+- BADMINTON
+- BWF
+- BWF WORLD TOUR
+- ALL ENGLAND
+- SUPER 1000
+- SUPER 750
+- SUPER 500
+- SUPER 300
+- THOMAS CUP
+- UBER CUP
+- SUDIRMAN CUP
+
+---
+
+### Referências auxiliares — Badminton
+
+Utilizar os nomes abaixo como apoio de desambiguação em mercados ML/H2H. A lista não é exaustiva — **quando o atleta não estiver listado, usar conhecimento próprio do modelo para identificar o esporte** (ver §5 item 4). Complementar com sinais contextuais (BWF, Super 1000/750/500/300, All England, Thomas/Uber Cup, pontos até 21). Nomes asiáticos podem vir com sobrenome primeiro, em CAIXA ALTA e com hífen variável (`An Se-young` = `An Seyoung` = `AN Se Young`).
+
+**Simples Masculino (MS) — BWF:**
+- Shi Yuqi
+- Kunlavut Vitidsarn
+- Anders Antonsen
+- Jonatan Christie
+- Christo Popov
+- Chou Tien-chen
+- Alex Lanier
+- Li Shifeng
+- Victor Lai
+- Lin Chun-yi
+- Lakshya Sen
+- Kodai Naraoka
+- Alwi Farhan
+- Loh Kean Yew
+- Weng Hongyang
+- Toma Junior Popov
+- Koki Watanabe
+- Panitchaphon Teeraratsakul
+- Chi Yu-jen
+- Kenta Nishimoto
+- Ayush Shetty
+- Yushi Tanaka
+- Nhat Nguyen
+- Rasmus Gemke
+- Leong Jun Hao
+- Lu Guangzu
+- Jason Teh Jia Heng
+- Brian Yang
+- Yudai Okimoto
+- Arnaud Merkle
+- H. S. Prannoy
+- Lee Chia-hao
+- Moh. Zaki Ubaidillah
+- Kidambi Srikanth
+- Wang Tzu-wei
+- Wang Zhengxing
+- Jeon Hyeok-jin
+- Magnus Johannesen
+- Prahdiska Bagas Shujiwo
+- Wang Po-wei
+- Anthony Sinisuka Ginting
+- Tharun Mannepalli
+- Su Li-yang
+- Justin Hoh
+- Julien Carraggi
+- Minoru Koga
+- Kiran George
+
+**Simples Feminino (WS) — BWF:**
+- An Se-young
+- Wang Zhiyi
+- Akane Yamaguchi
+- Chen Yufei
+- Han Yue
+- Putri Kusuma Wardani
+- Ratchanok Intanon
+- Pornpawee Chochuwong
+- Tomoka Miyazaki
+- P. V. Sindhu
+- Chiu Pin-chien
+- Nozomi Okuhara
+- Michelle Li
+- Mia Blichfeldt
+- Sim Yu-jin
+- Lin Hsiang-ti
+- Line Christophersen
+- Kim Ga-eun
+- Riko Gunji
+- Busanan Ongbamrungphan
+- Line Højmark Kjærsfeldt
+- Hina Akechi
+- Pitchamon Opatniput
+- Unnati Hooda
+- Supanida Katethong
+- Letshanaa Karupathevan
+- Natsuki Nidaira
+- Huang Yu-hsun
+- Kirsty Gilmour
+- Devika Sihag
+- Wong Ling Ching
+- Han Qianxi
+- Tanvi Sharma
+- Amalie Schulz
+- Sung Shuo-yun
+- Isharani Baruah
+- Yeo Jia Min
+- Polina Buhrova
+- Manami Suizu
+- Kaloyana Nalbantova
+- Tung Ciou-tong
+- Yvonne Li
+- Hsu Wen-chi
+- Wendy Zhang
+- Shriyanshi Valishetty
+- Julie Dawall Jakobsen
+
+**Duplas (MD/WD/XD) — nomes individuais, BWF:**
+- Aaron Chia
+- Soh Wooi Yik
+- Kim Won Ho
+- Seo Seung Jae
+- Fajar Alfian
+- Muhammad Shohibul Fikri
+- Satwiksairaj Rankireddy
+- Chirag Shetty
+- Liang Weikeng
+- Wang Chang
+- Goh Sze Fei
+- Nur Izzuddin
+- Man Wei Chong
+- Tee Kai Wun
+- Takuro Hoki
+- Yugo Kobayashi
+- Kim Astrup
+- Anders Skaarup Rasmussen
+- Ben Lane
+- Sean Vendy
+- Wang Chi-lin
+- Liu Shengshu
+- Tan Ning
+- Baek Ha Na
+- Lee So Hee
+- Yuki Fukushima
+- Mayu Matsumoto
+- Pearly Tan
+- Thinaah Muralitharan
+- Jia Yifan
+- Zhang Shuxian
+- Kim Hye Jeong
+- Kong Hee Yong
+- Chiharu Shida
+- Arisa Higashino
+- Gabriela Stoeva
+- Stefani Stoeva
+- Feng Yanzhe
+- Huang Dongping
+- Jiang Zhenbang
+- Wei Yaxin
+- Mathias Christiansen
+- Alexandra Bøje
+- Chen Tang Jie
+- Toh Ee Wei
+- Dechapol Puavaranukroh
+- Supissara Paewsampran
+- Thom Gicquel
+- Delphine Delrue
+- Sapsiree Taerattanachai
+- Jesper Toft
+- Amalie Magelund
+- Tanisha Crasto
+- Dhruv Kapila
+- Yuta Watanabe
+
+---
+
+### Contextos auxiliares — Badminton
+
+Os seguintes termos fortalecem identificação como Badminton:
+
+**Termos de mercado / placar:**
+- rally
+- game (parcial; algumas casas chamam de "set" ou "jogo")
+- melhor de 3 games
+- pontos até 21 (teto 30) — ou até 15 (teto 21) a partir de 2027
+- 21-18 / 21-15 / 24-22 (placar de game)
+
+**Ligas e torneios:**
+- BWF
+- BWF World Tour
+- Super 1000 / 750 / 500 / 300 / 100
+- All England Open
+- China Open / Malaysia Open / Indonesia Open / Japan Open / Denmark Open / India Open
+- Thomas Cup / Uber Cup / Sudirman Cup
+- World Championships (Badminton)
+
+**Disciplinas (notação):**
+- MS (simples masc.) / WS (simples fem.) / MD (duplas masc.) / WD (duplas fem.) / XD (duplas mistas)
+
+---
+
 ## Dardos
 
 Valor oficial:
@@ -684,6 +893,35 @@ Nunca classificar Dardos como Tênis apenas por similaridade de mercado.
 
 ---
 
+### Regra Crítica — Badminton vs Tênis vs Dardos
+
+Os três são esportes de confronto individual (ou duplas) com alta colisão em ML/H2H/Handicap/Over-Under. Desambiguar SEMPRE por sinal positivo — nunca só pelo nome.
+
+Regras obrigatórias (em ordem de prioridade):
+
+1. `legs` / `checkout` / `180` / `oche` / `average` / `PDC` / `WDF` / `MODUS` → **Dardos** (prioridade máxima)
+2. `games` / `ace` / `break` / `tie-break` / `deuce` / `ATP` / `WTA` / `ITF` / Grand Slam → **Tênis** (prioridade máxima)
+3. `BWF` / `Super 1000/750/500/300` / `All England` / `China Open` / `Thomas Cup` / `Uber Cup` / `rally` / pontos até 21 (teto 30) → **Badminton** (prioridade máxima)
+4. Participante na lista auxiliar de Dardos → Dardos · de Badminton → Badminton · de Tênis → Tênis
+5. `set` SOZINHO NÃO desambigua (aparece nos três) — só vale combinado com um sinal acima.
+
+**Colisões de sobrenome que exigem sinal positivo (nunca decidir só pelo nome):**
+- Chineses/coreanos/taiwaneses (`Wang`, `Zhang`, `Chen`, `Li`, `Lin`, `Lee`, `Kim`) colidem entre **Badminton** e tenistas chineses/coreanos — exigir nome completo + contexto BWF/ATP.
+- `Anderson`, `Evans`, `Williams`, `Wade`, `Smith` colidem entre **Dardos** (PDC) e **Tênis** — exigir sinal de liga/vocabulário.
+
+**Regra de desempate — atleta não identificado:**
+Quando o confronto for entre dois individuais/duplas em ML/H2H, nenhum identificável, e NÃO houver sinal positivo de Dardos nem de Badminton, o esporte padrão é **Tênis** (o circuito ITF tem ordens de magnitude mais atletas de nicho que BWF ou PDC). **Nunca** usar Badminton nem Dardos como padrão de desempate — ambos exigem sinal positivo.
+
+**Notação de duplas `X/Y v W/Z`:** por padrão é **Tênis (duplas)** (ver Regra Crítica — Tênis vs Padel); só vira **Badminton (duplas)** com sinal positivo de badminton (BWF, torneio, dupla na lista) e só vira **Dardos** com sinal de dardos.
+
+Conflito genuinamente insolúvel:
+
+```text
+Outro
+```
+
+---
+
 ### Regra Crítica — Tênis vs Padel
 
 **`Padel` NÃO é um esporte reconhecido neste documento.** Nunca emitir o valor `Padel` na coluna `Esporte` (viola §1 — "nunca inventar novos esportes").
@@ -720,6 +958,8 @@ Exemplos:
 - `Sérvia v Argentina — Over 3.5 sets` → **Vôlei**
 
 > **Copa Davis** (Tênis por equipes) usa times, mas é contexto raro. Sem menção explícita a "Copa Davis" ou "Davis Cup", times nacionais em mercados de sets → presumir **Vôlei**.
+>
+> **Badminton** também usa `sets` (o "game" do badminton = o "set" do tênis) com jogadores individuais/duplas. Jogador individual em mercado de sets é **Tênis** por padrão; só vira **Badminton** com sinal positivo (BWF, Super 1000/750/500/300, All England, Thomas/Uber Cup, nome na lista de Badminton). Ver "Regra Crítica — Badminton vs Tênis vs Dardos".
 
 ---
 
@@ -955,7 +1195,7 @@ Antes de retornar a saída, o extrator deve validar:
 6. `games` nunca foi classificado como `Dardos`
 7. conflitos genuínos utilizam `Outro`
 8. mercados ML/H2H foram analisados utilizando desambiguação contextual
-9. `sets` com nome de **jogador individual** = Tênis (nunca Vôlei, exceto Copa Davis explícita)
+9. `sets` com nome de **jogador individual** = Tênis (nunca Vôlei, exceto Copa Davis explícita; exceto sinal positivo de Badminton — BWF/Super/All England/Thomas-Uber/nome na lista → Badminton)
 10. `sets` com nome de **time/seleção** = Vôlei (nunca Tênis, exceto Copa Davis explícita)
 11. times nacionais genéricos sem sinal de Vôlei → Futebol; com sinal de Vôlei (liga/sets) → Vôlei
 12. nenhum bilhete classificado como `Padel` (esporte inexistente); duplas em notação `X/Y v W/Z` = **Tênis**
@@ -963,6 +1203,7 @@ Antes de retornar a saída, o extrator deve validar:
 14. `eBasket` está escrito exatamente assim (nunca `EBASKET`, `Ebasket`, `eBasketball`, `Basquete Virtual`)
 15. basquete **real** (jogadores reais, total ~180–260) não foi classificado como `eBasket`
 16. acumulada de **3+ seleções de jogos diferentes** (confrontos `[A v B]` distintos entre as pernas) = `Múltiplos`; **bet builder** (mesmo confronto em todas as pernas) = esporte do jogo, nunca `Múltiplos`
+17. confronto entre indivíduos/duplas de raquete sem sinal positivo de Badminton (`BWF`, `Super 1000/750/500/300`, `All England`, `Thomas/Uber Cup`, nome na lista) nem de Dardos (`legs`, `PDC`, `checkout`) = `Tênis` (padrão); Badminton e Dardos **nunca** são padrão de desempate
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

@@ -68,6 +68,7 @@ Ainda usada apenas em **labels de gráfico** (Chart.js). Em tabelas/cards/listas
 | `volei`     | 🏐   | Vôlei |
 | `handbol`   | 🤾   | Handebol |
 | `dardos`    | 🎯   | Dardos / Darts |
+| `badminton` | 🏸   | Badminton (BWF) |
 | `esports`   | 🎮   | E-Sports / CS:GO |
 | `multiplos` | 🔗   | Múltiplos / combinadas |
 | `peixe`     | 🐟   | "Peixe" (categoria interna) |
@@ -88,6 +89,7 @@ const SPORT_KEY = {
   'Futebol':'futebol','Fútbol':'futebol','Soccer':'futebol',
   'NBA':'basquete','Basquete':'basquete','Basquetebol':'basquete','Basketball':'basquete','Nba':'basquete',
   'Tênis':'tenis','Tenis':'tenis','Tennis':'tenis','Tênis de Mesa':'tenis','Ping Pong':'tenis',
+  'Badminton':'badminton','Badmington':'badminton',
   'MMA':'mma','UFC':'mma','Boxe':'mma','Boxing':'mma','Luta':'mma',
   'F1':'f1','Formula 1':'f1','Fórmula 1':'f1','Formula1':'f1',
   'NFL':'nfl','Futebol Americano':'nfl',
@@ -109,7 +111,7 @@ const SPORT_EMOJI = {
   futebol:'⚽', basquete:'🏀', tenis:'🎾', mma:'🥊', f1:'🏎️',
   nfl:'🏈', nhl:'🏒', baseball:'⚾', volei:'🏐', handbol:'🤾',
   dardos:'🎯', esports:'🎮', multiplos:'🔗', peixe:'🐟',
-  snooker:'🎱', golf:'⛳', rugby:'🏉',
+  snooker:'🎱', golf:'⛳', rugby:'🏉', badminton:'🏸',
 };
 ```
 
