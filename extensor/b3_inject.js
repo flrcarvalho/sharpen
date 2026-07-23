@@ -24,6 +24,8 @@
   const byBsid = new Map();       // bsid(string) → bilhete mesclado (summary + confirmation)
   const confPedido = new Set();   // bsids cujo confirmation já foi disparado (não repetir)
   let respostas = 0;              // respostas de summary/confirmation que o hook viu (autodiagnóstico)
+  let outrasHistory = 0;          // requisições com "history" no path que NÃO casaram os regex —
+                                  // se isto for >0 com `respostas`=0, o endpoint mudou de nome.
   let reqSum = null;              // {url, method, headers} de um summary real (base do replay)
   let pedido = false;             // o robô já pediu → pode arrancar o replay
   let loopAtivo = false;          // trava: um replay por vez
@@ -100,11 +102,18 @@
   }
 
   // ── emissão ao content ─────────────────────────────────────────────────────────
+  // A área de membros da Bet365 roda em OUTRA origem (`members.bet365.bet.br`) — na prática,
+  // num iframe dentro da página que o usuário vê. O `b3_inject` roda em todos os frames
+  // (`all_frames`), mas o `content.js` só existe no TOP → postar só na própria window deixaria
+  // o inject do iframe gritando para dentro do iframe, sem ninguém ouvindo (sintoma: "Hook
+  // ATIVO · respostas 0"). Por isso emitimos na própria window E no topo (postMessage
+  // cross-origin é permitido). `href`/`topo` identificam o frame no autodiagnóstico.
   function enviar() {
-    try {
-      window.postMessage({ __sharpenupB3Data: true, hook: true,
-        bets: Array.from(byBsid.values()), respostas: respostas, fim: fimReplay }, "*");
-    } catch (e) {}
+    const msg = { __sharpenupB3Data: true, hook: true, href: location.href,
+                  topo: window.top === window, bets: Array.from(byBsid.values()),
+                  respostas: respostas, history: outrasHistory, fim: fimReplay };
+    try { window.postMessage(msg, "*"); } catch (e) {}
+    try { if (window.top && window.top !== window) window.top.postMessage(msg, "*"); } catch (e) {}
   }
 
   // ── captura passiva das respostas (summary/confirmation que a página já faz) ─────
@@ -159,6 +168,16 @@
     } catch (e) {}
     return o;
   }
+  // Diagnóstico: requisição com "history" no path que NÃO é o summary/confirmation esperado.
+  // Se o Jonathan/Feca virem `respostas=0` mas `history>0`, o endpoint foi renomeado — o log
+  // guarda a URL real e o conserto vira ajuste de regex, sem mais uma rodada às cegas.
+  function contarHistory(url) {
+    const u = String(url || "");
+    if (!/history/i.test(u) || RX_CONF.test(u)) return;
+    outrasHistory++;
+    if (outrasHistory <= 5) LOG("URL com 'history' fora do padrão:", u.slice(0, 200));
+  }
+
   function capturarReq(url, method, headers) {
     if (reqSum || !RX_SUM.test(String(url))) return;
     reqSum = { url: String(url), method: (method || "GET"), headers: headers || {} };
@@ -264,6 +283,15 @@
     if (!d || !d.__sharpenupB3Req) return;
     if (typeof d.dias === "number" && d.dias > 0) janelaDias = d.dias;
     pedido = true;
+    // Repassa o pedido aos frames FILHOS: o content só alcança a própria window, e quem vê as
+    // chamadas é o inject lá dentro (members.bet365.bet.br). Repassar aqui cobre também
+    // iframe aninhado — cada nível empurra para o seguinte. `saltos` corta qualquer ciclo.
+    const saltos = (typeof d.saltos === "number" ? d.saltos : 0) + 1;
+    if (saltos <= 4) {
+      for (let i = 0; i < window.frames.length && i < 24; i++) {
+        try { window.frames[i].postMessage({ __sharpenupB3Req: true, dias: janelaDias, saltos: saltos }, "*"); } catch (e) {}
+      }
+    }
     enviar();
     arrancar();
   });
@@ -273,7 +301,7 @@
     const w = function (...a) {
       const url = (a[0] && a[0].url) || a[0];
       const opts = a[1] || (a[0] && typeof a[0] === "object" ? a[0] : null);
-      try { if (RX_SUM.test(String(url))) capturarReq(url, opts && opts.method, _hdrsToObj(opts && opts.headers)); } catch (e) {}
+      try { if (RX_SUM.test(String(url))) capturarReq(url, opts && opts.method, _hdrsToObj(opts && opts.headers)); else contarHistory(url); } catch (e) {}
       return of.apply(this, a).then((r) => {
         try { if (RX_SUM.test(String(url)) || RX_CONF.test(String(url))) r.clone().text().then((t) => forward(url, t)); } catch (e) {}
         return r;
@@ -291,7 +319,7 @@
     const s = function (body) {
       try {
         const u = this.__suB3U;
-        if (RX_SUM.test(String(u))) capturarReq(u, this.__suB3M, this.__suB3H);
+        if (RX_SUM.test(String(u))) capturarReq(u, this.__suB3M, this.__suB3H); else contarHistory(u);
         if (RX_SUM.test(String(u)) || RX_CONF.test(String(u))) {
           this.addEventListener("load", () => { try { forward(u, this.responseText); } catch (e) {} });
         }

@@ -155,18 +155,37 @@
   // `b3FimReal` = o inject terminou de varrer as listas e os detalhes → fim autoritativo.
   const b3ById = new Map();          // bsid(string) → bilhete mesclado (summary + confirmation)
   let b3FimReal = false;
-  let b3HookVivo = false, b3Respostas = 0;   // autodiagnóstico (espelha as outras casas passivas)
+  let b3HookVivo = false;
+  // Um inject POR FRAME responde (a área de membros da Bet365 é outra origem, em iframe).
+  // Guardar por `href` em vez de uma variável única: com 2 frames, o último a falar
+  // sobrescreveria o contador do outro — o top diria 0 e apagaria as respostas do iframe.
+  const b3PorFrame = new Map();      // href → { respostas, history, topo }
+  const b3Soma = (campo) => { let n = 0; for (const f of b3PorFrame.values()) n += (f[campo] || 0); return n; };
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (d && d.__sharpenupB3Data) {
       if (d.hook) b3HookVivo = true;
-      if (typeof d.respostas === "number") b3Respostas = d.respostas;
+      b3PorFrame.set(String(d.href || "?"), {
+        respostas: typeof d.respostas === "number" ? d.respostas : 0,
+        history: typeof d.history === "number" ? d.history : 0,
+        topo: !!d.topo,
+      });
       if (Array.isArray(d.bets)) {
         for (const t of d.bets) { if (t && t.bsid) b3ById.set(String(t.bsid), t); }
       }
       if (d.fim) b3FimReal = true;
     }
   });
+  // Pede o acumulado + arranca o replay. Posta na própria window E em cada frame filho —
+  // quem enxerga as chamadas da API é o inject dentro do iframe de `members.bet365.bet.br`,
+  // e o postMessage do content só alcança a própria window. Cada inject repassa adiante.
+  function b3Pedir(dias) {
+    const msg = { __sharpenupB3Req: true, dias: dias, saltos: 0 };
+    try { window.postMessage(msg, "*"); } catch (e) {}
+    for (let i = 0; i < window.frames.length && i < 24; i++) {
+      try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
+    }
+  }
 
   function bladeSVG(w, h) {
     return '<svg viewBox="40 10 40 100" width="' + w + '" height="' + h + '" style="pointer-events:none">' +
@@ -542,11 +561,16 @@
         betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
-        bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Respostas, vistos: b3ById.size },
+        bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
+                      // Extras só da Bet365: em quantos frames o inject respondeu (a área de
+                      // membros é outra origem, em iframe) e quantas URLs com "history" passaram
+                      // sem casar o padrão — separa "não alcancei o frame certo" de "endpoint mudou".
+                      extra: " · frames: " + b3PorFrame.size + " · outras URLs de histórico: " + b3Soma("history") },
       }[casa];
       if (diag) {
         const msg = diag.nome + ": 0 bilhetes. Hook: " + (diag.hook ? "ATIVO" : "NÃO carregou") +
-                    " · respostas da API: " + diag.resp + " · bilhetes vistos: " + diag.vistos;
+                    " · respostas da API: " + diag.resp + " · bilhetes vistos: " + diag.vistos +
+                    (diag.extra || "");
         toastLocal(msg, false);
         // Escala ao popup (persistente) SÓ na falha inequívoca: inject não carregou OU o endpoint
         // não respondeu nenhuma vez. "respostas>0 & 0 vistos" fica só no toast — pode ser conta
@@ -1416,7 +1440,7 @@
     };
 
     // Pede ao b3_inject o acumulado + arranca o replay (janela de dias das resolvidas).
-    try { window.postMessage({ __sharpenupB3Req: true, dias: N }, "*"); } catch (e) {}
+    b3Pedir(N);
     await sleep(500);
     contar();
 
@@ -1424,6 +1448,10 @@
     while (!ctx.parar() && !travado && !b3FimReal && voltas < 900) {
       voltas++;
       await sleep(500);
+      // Re-pede a cada ~5s enquanto nada chegou: o iframe de membros pode montar DEPOIS do
+      // clique em "Copiar bilhetes" (ou o usuário navegar para o Histórico com o robô já
+      // rodando) — um pedido único perderia esse frame para sempre.
+      if (voltas % 10 === 0 && !b3ById.size) b3Pedir(N);
       contar();
       if (travado) break;
       if (b3ById.size > ultTotal) { ultTotal = b3ById.size; ultCresceu = Date.now(); }
@@ -1438,7 +1466,12 @@
       blocos.push(formatTicketB3(t));
     }
     console.log("[SharpenUp] Bet365 API: " + blocos.length + " bilhete(s) · b3ById=" + b3ById.size +
-                " · hook=" + b3HookVivo + " · respostas=" + b3Respostas + " · fimReal=" + b3FimReal);
+                " · hook=" + b3HookVivo + " · frames=" + b3PorFrame.size +
+                " · respostas=" + b3Soma("respostas") + " · fimReal=" + b3FimReal);
+    for (const [href, f] of b3PorFrame) {
+      console.log("[SharpenUp] Bet365 frame " + (f.topo ? "TOPO" : "iframe") +
+                  " · respostas=" + f.respostas + " · history=" + f.history + " · " + href.slice(0, 120));
+    }
     return blocos;
   }
 
