@@ -1371,6 +1371,9 @@
     const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(kickoffTS || ""));
     if (!m) return "";
     const y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5];
+    // Bet builder de mesmo jogo vem com TP=00010101000000 (sem kickoff). Sem esta guarda o
+    // bilhete ganhava "Data (encerramento): 01/01/0001" — data falsa é pior que data ausente.
+    if (y < 2000) return "";
     const uk = Date.UTC(y, mo - 1, d, h, mi);                       // hora de parede UK como pseudo-UTC
     const ukToBr = _ehBST(y, mo, d) ? 4 : 3;
     const br = new Date(uk - (ukToBr - offsetH) * 3600000);
@@ -1392,8 +1395,11 @@
     const L = [];
     L.push("[Código: " + (t.code || "") + "]");
     const legs = (t.legs && t.legs.length) ? t.legs : [];
-    const cls = Array.from(new Set(legs.map((l) => l.cl).filter(Boolean)));
-    const jogos = new Set(legs.map((l) => l.jogo).filter(Boolean));
+    // Sem detalhe (o "Detalhes da Aposta" ainda não foi aberto) o esporte e a contagem de
+    // jogos saem do summary — antes vinham só das pernas e o bilhete ficava sem esporte.
+    const base = legs.length ? legs : (t.sels || []);
+    const cls = Array.from(new Set(base.map((l) => l.cl).filter(Boolean)));
+    const jogos = new Set(base.map((l) => l.jogo || l.na).filter(Boolean));
     const multiplo = jogos.size >= 3 || cls.length > 1;
     // data de encerramento = maior kickoff+folga entre as pernas
     let dataFim = "", maxMs = -Infinity;
@@ -1410,13 +1416,31 @@
     else if (cls.length) L.push("Esporte (casa): CL=" + cls[0] + (_CL_B3[cls[0]] ? " (" + _CL_B3[cls[0]] + ")" : ""));
 
     L.push("Seleções:");
+    // BET BUILDER (mesmo jogo): a perna traz `subs` — o cabeçalho é o JOGO e cada sub é uma
+    // seleção com seu mercado. Sem isto o bilhete saía com 1 linha só (bug da s178).
+    // O separador entre seleções continua sendo ' // ' no texto final (regra #19); aqui as
+    // linhas são cruas, para a IA montar a descrição.
     if (legs.length) {
       for (const l of legs) {
-        const partes = [l.jogo, l.mercado, l.sel].filter(Boolean).join(" · ");
-        L.push("  • " + partes + (l.oddFrac ? " @ " + _oddB3(l.oddFrac) : "") + (l.liga ? " · " + l.liga : ""));
+        if (l.subs && l.subs.length) {
+          const jogo = l.jogo || l.sel;
+          // A perna de bet builder vem com OD=0/1 (odd 1,00): a odd é do BILHETE, já impressa
+          // acima. Imprimir "@ 1" aqui daria à IA uma odd falsa por seleção.
+          const od = _oddB3(l.oddFrac);
+          L.push("  • " + jogo + (od && od !== "1" ? " @ " + od : "") + (l.liga ? " · " + l.liga : ""));
+          for (const s of l.subs) L.push("      – " + [s.mercado, s.na].filter(Boolean).join(" · "));
+        } else {
+          const partes = [l.jogo, l.mercado, l.sel].filter(Boolean).join(" · ");
+          L.push("  • " + partes + (l.oddFrac ? " @ " + _oddB3(l.oddFrac) : "") + (l.liga ? " · " + l.liga : ""));
+        }
       }
     } else if (t.sels && t.sels.length) {
-      for (const s of t.sels) L.push("  • " + s.na + (s.od ? " @ " + _oddB3(s.od) : ""));   // só summary (detalhe não veio)
+      for (const s of t.sels) {                                  // só summary (detalhe não veio)
+        L.push("  • " + s.na + (s.od ? " @ " + _oddB3(s.od) : ""));
+        if (s.subs && s.subs.length) {
+          for (const sb of s.subs) L.push("      – " + [sb.mercado, sb.na].filter(Boolean).join(" · "));
+        }
+      }
     }
     return L.join("\n");
   }

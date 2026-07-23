@@ -1,43 +1,38 @@
 // Mundo MAIN (só na Bet365): lê as RESPOSTAS de /sportshistoryapi/summary e
 // /sportshistoryapi/confirmation (formato texto proprietário `F|00;chave=valor;…|01;…|`) que
-// a própria página baixa, e RE-EMITE ativamente (replay) as buscas — com os cookies+headers da
-// sessão — para varrer as duas listas (settled=1 resolvidas · settled=0 abertas) e buscar o
-// DETALHE de cada bilhete (jogo/mercado/liga + o código estável `BR`). Depois repassa objetos
-// limpos ao content script, para tratar igual às outras casas passivas (Betfair/Pinnacle).
+// a própria página baixa, e repassa objetos limpos ao content script — para tratar igual às
+// outras casas passivas (Betfair/Pinnacle).
+//
+// SÓ PASSIVO — POR QUE NÃO HÁ REPLAY: até a v0.6.2 este arquivo re-emitia as buscas por conta
+// própria (replay), reaproveitando os headers da requisição que a página tinha feito. Não
+// funciona: o header `x-net-sync-term` rotaciona A CADA requisição e o servidor o exige.
+// Provado ao vivo na sessão 178, do frame `members.bet365.bet.br` e com a sessão logada:
+//   • mesma URL, com os headers da página  → 200 com o payload `F|…`
+//   • mesma URL, só com cookie (sem token) → 200 com corpo VAZIO (`len: 0`)
+//   • mesma URL, com um token VENCIDO      → HTML da página de 404
+// Não temos como gerar um token válido (vem de código ofuscado da casa). Quem consegue chamar
+// a API é a PRÓPRIA página → o content script dirige a UI (rola a lista p/ paginar, abre
+// "Detalhes da Aposta" p/ o confirmation) e este arquivo só escuta. Ver
+// docs/PLANO_BET365_CAPTURA_API.md.
 //
 // POR QUE PRECISA DO DETALHE: o `summary` NÃO traz jogo/mercado/liga nem o código `BR` — só a
-// seleção crua, odd, stake, retorno e o esporte (`CL`). O `confirmation?bsid=` completa.
+// seleção crua, odd, stake, retorno, o esporte (`CL`) e as pernas de bet builder. O
+// `confirmation?bsid=` completa.
 //
 // DEDUP: a chave estável é o `BR` (código do comprovante — do confirmation). O `ID` numérico do
 // summary MUDA quando a aposta resolve (namespace D1→D0), então serve só de `bsid` para buscar o
-// detalhe na mesma visão. Ver docs/PLANO_BET365_CAPTURA_API.md.
-//
-// PAGINAÇÃO: a lista é por cursor no parâmetro `to` — a resposta traz no registro `00` um campo
-// `PT=<ISO>` que vira o `to` da próxima página. `from` fica fixo.
-//
-// TOKEN: o header `x-net-sync-term` rotaciona por requisição; o replay reaproveita os headers
-// EXATOS da requisição que a página fez (melhor chance de o servidor aceitar). Se o replay for
-// recusado, o content cai no robô de DOM atual (roboBet365DOM) — sem regressão.
+// detalhe na mesma visão.
 (function () {
   const RX_SUM = /\/sportshistoryapi\/summary/i;
   const RX_CONF = /\/sportshistoryapi\/confirmation/i;
   const byBsid = new Map();       // bsid(string) → bilhete mesclado (summary + confirmation)
-  const confPedido = new Set();   // bsids cujo confirmation já foi disparado (não repetir)
   let respostas = 0;              // respostas de summary/confirmation que o hook viu (autodiagnóstico)
   let outrasHistory = 0;          // requisições com "history" no path que NÃO casaram os regex —
                                   // se isto for >0 com `respostas`=0, o endpoint mudou de nome.
-  let reqSum = null;              // {url, method, headers} de um summary real (base do replay)
-  let pedido = false;             // o robô já pediu → pode arrancar o replay
-  let loopAtivo = false;          // trava: um replay por vez
-  let fimReplay = false;          // as duas listas + os detalhes já foram varridos
-  let janelaDias = 45;            // janela das RESOLVIDAS (o robô sobrescreve). Abertas = tudo.
-  const MAX_PAGINAS = 60;         // teto de páginas por lista (segurança anti-loop)
-  const MAX_CONF = 400;           // teto de detalhes buscados (segurança de custo/tempo)
-  const CONC = 5;                 // detalhes buscados em paralelo
   const LOG = (...a) => { try { console.log("[SharpenUp b3_inject]", ...a); } catch (e) {} };
   LOG("hook instalado em", location.href);
 
-  const of = window.fetch;        // fetch ORIGINAL — o replay usa este (não re-dispara o wrapper)
+  const of = window.fetch;        // fetch ORIGINAL (o wrapper embrulha este)
 
   // ── parser do formato F|… ──────────────────────────────────────────────────────
   function parseRecords(blob) {
@@ -57,7 +52,9 @@
     return recs;
   }
 
-  // summary → { cursor:PT, bets:[{bsid,bs,stake,oddFrac,rt,tipo,sel,cl}] }
+  // summary → { cursor:PT, bets:[{bsid,bs,stake,oddFrac,rt,tipo,sels}] }
+  // Registros: 00 header (PT=cursor) · 01 bilhete · 03 seleção · 04 perna de BET BUILDER
+  // (mesmo jogo: NA=seleção, N2=mercado) · 02 TY=SD/ST (stake/retorno).
   function parseSummary(blob) {
     const recs = parseRecords(blob);
     let cursor = null;
@@ -70,8 +67,14 @@
         cur = { bsid: kv.ID || "", bs: kv.BS, tp: kv.TP || "", sels: [],
                 stake: null, ts: null, oddFrac: "", rt: null, tipo: "" };
       } else if (code === "03" && cur) {
-        cur.sels.push({ na: kv.NA || kv.FN || "", od: kv.OD || "", cl: kv.CL || "" });
+        // `na` é a seleção; quando vierem pernas 04 depois, esse mesmo `na` é o JOGO
+        // (bet builder). Quem decide é o formatador, olhando se `subs` tem item.
+        cur.sels.push({ na: kv.NA || kv.FN || "", od: kv.OD || "", cl: kv.CL || "", subs: [] });
         if (!cur.oddFrac) cur.oddFrac = kv.OD || "";
+      } else if (code === "04" && cur && cur.sels.length && "NA" in kv) {
+        // Bet builder: cada 04 é uma perna do MESMO jogo da seleção 03 anterior. Sem isto o
+        // bilhete sai "reduzido" — só o nome do jogo, sem os mercados (bug visto na s178).
+        cur.sels[cur.sels.length - 1].subs.push({ na: kv.NA || "", mercado: kv.N2 || "" });
       } else if (code === "02" && cur) {
         if (kv.TY === "SD") { if ("ST" in kv) cur.stake = kv.ST; if ("TS" in kv) cur.ts = kv.TS; cur.tipo = kv.NA || ""; }
         else if (kv.TY === "ST") {
@@ -84,19 +87,38 @@
     return { cursor, bets };
   }
 
-  // confirmation → { br, da, bs, tipo, rt, ts, legs:[{sel,oddFrac,kickoff,cl,liga,jogo,mercado}] }
+  // confirmation → { br, da, bs, tipo, rt, ts, legs:[{sel,oddFrac,kickoff,cl,liga,jogo,mercado,subs}] }
+  // Estrutura REAL (payload capturado na s178, não a suposta):
+  //   00           cabeçalho — BR (código), DA (colocação), BS, NA (tipo)
+  //   02 (com NA)  EVENTO/perna — NA=seleção (ou o jogo, em bet builder), FN=jogo, L3=liga,
+  //                MN=mercado, TP=kickoff, CL=esporte, OD=odd
+  //   03 (com NA)  perna do BET BUILDER dentro do 02 anterior — NA=seleção, N2=mercado
+  //   01 TY=CS     linha final — RT (retorno) e TS (stake total)
+  //   01 TY=DI     início do bloco KYC (nome, endereço, CPF) → IGNORAR daqui pra frente
   function parseConfirmation(blob) {
     const recs = parseRecords(blob);
     if (!recs.length) return null;
     const head = recs[0][1];
+    // Guarda: sem `BR` no cabeçalho não é um confirmation (é HTML de erro/404, por exemplo).
+    // Sem esta checagem o parser devolvia um objeto com código VAZIO e o bilhete subia sem
+    // chave de dedup, silenciosamente — foi assim que o replay quebrado passou despercebido.
+    if (!head || !("BR" in head)) return null;
     const out = { br: head.BR || "", da: head.DA || "", bs: head.BS, tipo: head.NA || "",
                   rt: null, ts: null, legs: [] };
+    let sensivel = false;   // depois de 01;TY=DI vêm dados pessoais — nunca viram perna
+    let atual = null;
     for (const [code, kv] of recs) {
-      if (code === "02" && "FN" in kv) {
-        out.legs.push({ sel: kv.NA || "", oddFrac: kv.OD || "", kickoff: kv.TP || "",
-                        cl: kv.CL || "", liga: kv.L3 || "", jogo: kv.FN || "", mercado: kv.MN || "" });
-      }
       if (kv.TY === "CS") { if ("RT" in kv) out.rt = kv.RT; if ("TS" in kv) out.ts = kv.TS; }
+      if (code === "01" && kv.TY === "DI") { sensivel = true; atual = null; continue; }
+      if (sensivel) continue;
+      if (code === "02" && "NA" in kv && !("VA" in kv)) {
+        atual = { sel: kv.NA || "", oddFrac: kv.OD || "", kickoff: kv.TP || "",
+                  cl: kv.CL || "", liga: kv.L3 || "", jogo: kv.FN || "",
+                  mercado: kv.MN || "", subs: [] };
+        out.legs.push(atual);
+      } else if (code === "03" && atual && "NA" in kv) {
+        atual.subs.push({ na: kv.NA || "", mercado: kv.N2 || "" });
+      }
     }
     return out;
   }
@@ -111,17 +133,17 @@
   function enviar() {
     const msg = { __sharpenupB3Data: true, hook: true, href: location.href,
                   topo: window.top === window, bets: Array.from(byBsid.values()),
-                  respostas: respostas, history: outrasHistory, fim: fimReplay };
+                  respostas: respostas, history: outrasHistory };
     try { window.postMessage(msg, "*"); } catch (e) {}
     try { if (window.top && window.top !== window) window.top.postMessage(msg, "*"); } catch (e) {}
   }
 
-  // ── captura passiva das respostas (summary/confirmation que a página já faz) ─────
+  // ── captura passiva das respostas (summary/confirmation que a página faz) ───────
   function forward(url, text) {
     const u = String(url);
     if (RX_SUM.test(u)) {
       const r = parseSummary(text);
-      if (!r) return false;
+      if (!r || !r.bets.length) return false;
       respostas++;
       const settled = /settled=1/i.test(u);
       for (const b of r.bets) if (b.bsid) mergeSummary(b, settled);
@@ -131,7 +153,7 @@
     if (RX_CONF.test(u)) {
       const bsid = _param(u, "bsid");
       const c = parseConfirmation(text);
-      if (!c) return false;
+      if (!c) { LOG("confirmation sem BR (resposta inválida) · bsid", bsid); return false; }
       respostas++;
       if (bsid) mergeConf(bsid, c);
       enviar();
@@ -157,20 +179,11 @@
     byBsid.set(bsid, ex);
   }
 
-  // ── replay ativo ────────────────────────────────────────────────────────────────
   function _param(u, k) { try { return new URL(u, location.origin).searchParams.get(k) || ""; } catch (e) { return ""; } }
-  function _hdrsToObj(h) {
-    const o = {};
-    try {
-      if (!h) return o;
-      if (typeof h.forEach === "function") h.forEach((v, k) => { o[k] = v; });
-      else if (typeof h === "object") for (const k in h) o[k] = h[k];
-    } catch (e) {}
-    return o;
-  }
+
   // Diagnóstico: requisição com "history" no path que NÃO é o summary/confirmation esperado.
-  // Se o Jonathan/Feca virem `respostas=0` mas `history>0`, o endpoint foi renomeado — o log
-  // guarda a URL real e o conserto vira ajuste de regex, sem mais uma rodada às cegas.
+  // Se virem `respostas=0` mas `history>0`, o endpoint foi renomeado — o log guarda a URL real
+  // e o conserto vira ajuste de regex, sem mais uma rodada às cegas.
   function contarHistory(url) {
     const u = String(url || "");
     if (!/history/i.test(u) || RX_CONF.test(u)) return;
@@ -178,130 +191,26 @@
     if (outrasHistory <= 5) LOG("URL com 'history' fora do padrão:", u.slice(0, 200));
   }
 
-  function capturarReq(url, method, headers) {
-    if (reqSum || !RX_SUM.test(String(url))) return;
-    reqSum = { url: String(url), method: (method || "GET"), headers: headers || {} };
-    LOG("summary capturado p/ replay ·", reqSum.url.slice(0, 120));
-    if (pedido) arrancar();
-  }
-
-  function _iso(ms) { try { return new Date(ms).toISOString(); } catch (e) { return ""; } }
-
-  // Monta a URL de uma página de summary (settled + janela [from,to]).
-  function urlSummary(settled, fromISO, toISO) {
-    const u = new URL(reqSum.url, location.origin);
-    u.searchParams.set("settled", settled ? "1" : "0");
-    u.searchParams.set("from", fromISO);
-    u.searchParams.set("to", toISO);
-    return u.toString();
-  }
-  // URL do detalhe de um bilhete (a partir do lid/cid do summary).
-  function urlConfirmation(settled, bsid) {
-    const s = new URL(reqSum.url, location.origin);
-    const u = new URL(s.origin + "/sportshistoryapi/confirmation");
-    u.searchParams.set("settled", settled ? "1" : "0");
-    u.searchParams.set("lid", s.searchParams.get("lid") || "");
-    u.searchParams.set("cid", s.searchParams.get("cid") || "");
-    u.searchParams.set("bsid", bsid);
-    u.searchParams.set("cr", "0");
-    return u.toString();
-  }
-
-  async function getText(url) {
-    const r = await of.call(window, url, { method: "GET", headers: reqSum.headers, credentials: "include" });
-    return await r.text();
-  }
-
-  // Varre UMA lista (settled 0/1) paginando pelo cursor PT até esgotar/janela/teto.
-  async function varrerLista(settled) {
-    const to = Date.now();
-    const from = settled ? (to - Math.max(1, janelaDias) * 86400000) : (to - 400 * 86400000);
-    const fromISO = _iso(from);
-    let toISO = _iso(to), pag = 0, ultimoPT = null;
-    while (pag < MAX_PAGINAS) {
-      pag++;
-      let txt;
-      try { txt = await getText(urlSummary(settled, fromISO, toISO)); }
-      catch (e) { LOG("erro replay summary:", e && e.message); break; }
-      const r = parseSummary(txt);
-      if (!r) break;
-      respostas++;
-      const antes = byBsid.size;
-      for (const b of r.bets) if (b.bsid) mergeSummary(b, settled);
-      enviar();
-      if (byBsid.size === antes && !r.bets.length) break;   // página vazia → fim
-      if (!r.cursor || r.cursor === ultimoPT) break;        // cursor não avançou → fim
-      ultimoPT = r.cursor; toISO = r.cursor;
-    }
-  }
-
-  // Busca o detalhe (confirmation) de cada bilhete sem `code`, com concorrência limitada.
-  async function buscarDetalhes() {
-    const alvos = [];
-    for (const b of byBsid.values()) {
-      if (b.code || confPedido.has(b.bsid)) continue;
-      alvos.push(b);
-      if (alvos.length >= MAX_CONF) break;
-    }
-    let i = 0;
-    async function worker() {
-      while (i < alvos.length) {
-        const b = alvos[i++];
-        confPedido.add(b.bsid);
-        try {
-          const txt = await getText(urlConfirmation(!b.aberta, b.bsid));
-          respostas++;
-          const c = parseConfirmation(txt);
-          if (c) mergeConf(b.bsid, c);
-        } catch (e) { LOG("erro replay confirmation:", e && e.message); }
-        enviar();
-      }
-    }
-    const workers = [];
-    for (let w = 0; w < CONC; w++) workers.push(worker());
-    await Promise.all(workers);
-  }
-
-  async function arrancar() {
-    if (loopAtivo || fimReplay || !reqSum) return;
-    loopAtivo = true;
-    try {
-      await varrerLista(true);    // resolvidas (janela de dias)
-      await varrerLista(false);   // abertas (todas)
-      await buscarDetalhes();     // jogo/mercado/código BR de cada bilhete
-    } finally {
-      loopAtivo = false;
-      fimReplay = true;
-      enviar();
-    }
-  }
-
-  // O content script pede o acumulado ao iniciar o robô (com a janela de dias) → re-envia tudo
-  // E arranca o replay. A 1ª resposta pode ter vindo no load (antes do content ouvir).
+  // O content script pede o acumulado ao iniciar o robô → re-envia tudo (a 1ª resposta pode ter
+  // vindo no load, antes de o content estar ouvindo). Repassa aos frames FILHOS: o content só
+  // alcança a própria window, e quem vê as chamadas é o inject dentro do iframe de membros.
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (!d || !d.__sharpenupB3Req) return;
-    if (typeof d.dias === "number" && d.dias > 0) janelaDias = d.dias;
-    pedido = true;
-    // Repassa o pedido aos frames FILHOS: o content só alcança a própria window, e quem vê as
-    // chamadas é o inject lá dentro (members.bet365.bet.br). Repassar aqui cobre também
-    // iframe aninhado — cada nível empurra para o seguinte. `saltos` corta qualquer ciclo.
     const saltos = (typeof d.saltos === "number" ? d.saltos : 0) + 1;
     if (saltos <= 4) {
       for (let i = 0; i < window.frames.length && i < 24; i++) {
-        try { window.frames[i].postMessage({ __sharpenupB3Req: true, dias: janelaDias, saltos: saltos }, "*"); } catch (e) {}
+        try { window.frames[i].postMessage({ __sharpenupB3Req: true, saltos: saltos }, "*"); } catch (e) {}
       }
     }
     enviar();
-    arrancar();
   });
 
   // ── fetch ──
   if (of && !of.__suB3W) {
     const w = function (...a) {
       const url = (a[0] && a[0].url) || a[0];
-      const opts = a[1] || (a[0] && typeof a[0] === "object" ? a[0] : null);
-      try { if (RX_SUM.test(String(url))) capturarReq(url, opts && opts.method, _hdrsToObj(opts && opts.headers)); else contarHistory(url); } catch (e) {}
+      try { if (!RX_SUM.test(String(url))) contarHistory(url); } catch (e) {}
       return of.apply(this, a).then((r) => {
         try { if (RX_SUM.test(String(url)) || RX_CONF.test(String(url))) r.clone().text().then((t) => forward(url, t)); } catch (e) {}
         return r;
@@ -312,14 +221,13 @@
   }
 
   // ── XMLHttpRequest ──
-  const oo = XMLHttpRequest.prototype.open, os = XMLHttpRequest.prototype.send, osh = XMLHttpRequest.prototype.setRequestHeader;
+  const oo = XMLHttpRequest.prototype.open, os = XMLHttpRequest.prototype.send;
   if (!os.__suB3W) {
-    XMLHttpRequest.prototype.open = function (m, u) { this.__suB3U = u; this.__suB3M = m; this.__suB3H = {}; return oo.apply(this, arguments); };
-    XMLHttpRequest.prototype.setRequestHeader = function (k, v) { try { this.__suB3H[k] = v; } catch (e) {} return osh.apply(this, arguments); };
+    XMLHttpRequest.prototype.open = function (m, u) { this.__suB3U = u; return oo.apply(this, arguments); };
     const s = function (body) {
       try {
         const u = this.__suB3U;
-        if (RX_SUM.test(String(u))) capturarReq(u, this.__suB3M, this.__suB3H); else contarHistory(u);
+        if (!RX_SUM.test(String(u))) contarHistory(u);
         if (RX_SUM.test(String(u)) || RX_CONF.test(String(u))) {
           this.addEventListener("load", () => { try { forward(u, this.responseText); } catch (e) {} });
         }
