@@ -343,6 +343,63 @@ def _edit_distance(a: str, b: str) -> int:
     return dp[n]
 
 
+def codigos_do_texto(texto: str | None) -> list[str]:
+    """Códigos de bilhete presentes no texto-fonte, na ORDEM em que aparecem, sem repetir.
+
+    É a lista determinística do que a extração TEM de devolver: cada `[Código: …]` /
+    `ID: …` é uma fronteira de bilhete injetada pelo robô a partir do DOM/API — não é
+    leitura de IA. Serve de gabarito para `conferir_cobertura`.
+
+    Casas sem esse marcador (Bet365, prints) devolvem lista vazia → quem chama trata
+    como "não dá para conferir" e segue o comportamento antigo.
+    """
+    if not texto:
+        return []
+    achados: list[tuple[int, str]] = []
+    for rx in (_ID_TEXTO_RE, _ID_SUPERBET_RE, _ID_BETESPORTE_RE):
+        achados.extend((m.start(), m.group(1).strip()) for m in rx.finditer(texto))
+    achados.sort(key=lambda p: p[0])
+    vistos: set[str] = set()
+    ordem: list[str] = []
+    for _, cod in achados:
+        if cod and cod not in vistos:
+            vistos.add(cod)
+            ordem.append(cod)
+    return ordem
+
+
+def codigos_do_tsv(tsv: str) -> set[str]:
+    """Códigos presentes na 11ª coluna das linhas-bilhete do TSV."""
+    out: set[str] = set()
+    for line in (tsv or "").split("\n"):
+        if line.startswith("Data\t"):
+            continue          # cabeçalho: a 11ª coluna dele é o rótulo "Código"
+        parts = line.split("\t")
+        if len(parts) >= 11 and parts[10].strip():
+            out.add(parts[10].strip())
+    return out
+
+
+def conferir_cobertura(tsv: str, texto: str | None) -> dict:
+    """Bilhetes que estavam no texto-fonte e NÃO voltaram no TSV.
+
+    Motivo (sessão 179): `_extract_tsv_rows` devolve [] quando um chunk responde sem o
+    bloco ```tsv — o pedaço inteiro some SEM erro, e `chunks_falhos` (que só conta
+    exceção) não acusa. Numa extração real da Superbet, 39 dos 61 bilhetes evaporaram
+    e a tela mostrou "✓ 22 novo(s)". Como o gabarito de códigos é determinístico
+    (vem do DOM), a perda é detectável sem IA nenhuma.
+
+    Retorna {"esperados": n, "faltantes": [códigos na ordem do texto]}.
+    esperados == 0 → casa sem marcador de código: não dá para conferir (no-op).
+    """
+    esperados = codigos_do_texto(texto)
+    if not esperados:
+        return {"esperados": 0, "faltantes": []}
+    vistos = codigos_do_tsv(tsv)
+    return {"esperados": len(esperados),
+            "faltantes": [c for c in esperados if c not in vistos]}
+
+
 def corrigir_codigos_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
     """Corrige a 11ª coluna (código do bilhete) de cada linha TSV para o ID REAL
     presente no `texto` colado. Cirúrgico e conservador:

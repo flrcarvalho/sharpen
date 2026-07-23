@@ -57,6 +57,7 @@ from repository import (
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo,
+    conferir_cobertura, codigos_do_texto,
 )
 
 logger = logging.getLogger("scanner")
@@ -697,6 +698,119 @@ def _reverse_tsv_rows(text: str) -> str:
     return text[:m.start()] + novo + text[m.end():]
 
 
+def _set_tsv_rows(text: str, rows: list[str]) -> str:
+    """Troca as linhas de dados do bloco ```tsv preservando header e o resto do texto.
+    Espelha `_reverse_tsv_rows`, que faz o mesmo com a lista invertida."""
+    m = re.search(r'```tsv\n(.*?)\n```', text, re.DOTALL)
+    if not m:
+        return text
+    linhas = m.group(1).split('\n')
+    header = [linhas[0]] if (linhas and linhas[0].startswith("Data\t")) else []
+    novo = "```tsv\n" + "\n".join(header + rows) + "\n```"
+    return text[:m.start()] + novo + text[m.end():]
+
+
+def _blocos_dos_codigos(texto: str, codigos: list[str]) -> str:
+    """Recorta do texto-fonte só os blocos dos códigos pedidos, na ordem do texto.
+
+    Fronteira de bloco = o mesmo marcador que `_build_chunks` usa para fatiar
+    (`[Código: …]` / `=== Aposta ID`). Cada bloco fica INTEIRO — o modelo relê o
+    bilhete completo, não um fragmento."""
+    if "=== Aposta ID" in texto:
+        blocos = re.split(r'(?=^=== Aposta ID)', texto, flags=re.MULTILINE)
+    else:
+        blocos = _SUPERBET_SPLIT_RE.split(texto)
+    alvo = set(codigos)
+    escolhidos = []
+    for b in blocos:
+        if not b.strip():
+            continue
+        if any(c in b for c in alvo):
+            escolhidos.append(b.strip())
+    return "\n\n".join(escolhidos)
+
+
+async def _repescar_faltantes(system: list[dict], texto: str, faltantes: list[str],
+                              modelo: str, instrucao_block: dict) -> tuple[list[str], dict]:
+    """Reprocessa SÓ os bilhetes que não voltaram, num chunk único.
+
+    Barato por construção: manda apenas os blocos faltantes (o system, que é o caro,
+    vem do cache). Qualquer erro aqui é engolido — a repescagem é uma segunda chance,
+    nunca pode derrubar a extração que já deu certo."""
+    tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    recorte = _blocos_dos_codigos(texto, faltantes)
+    if not recorte:
+        return [], tokens
+    conteudo = [{"type": "text", "text": recorte}, instrucao_block]
+    try:
+        acc = ""
+        async with _client.messages.stream(
+            model=modelo, max_tokens=64000, system=system,
+            messages=[{"role": "user", "content": conteudo}],
+        ) as stream:
+            async for pedaco in stream.text_stream:
+                acc += pedaco
+            fin = await stream.get_final_message()
+        u = fin.usage
+        tokens["input"]       += u.input_tokens
+        tokens["output"]      += u.output_tokens
+        tokens["cache_read"]  += getattr(u, "cache_read_input_tokens", 0)
+        tokens["cache_write"] += getattr(u, "cache_creation_input_tokens", 0)
+        return _extract_tsv_rows(acc), tokens
+    except Exception as e:
+        logger.error("repescagem falhou: %s", e)
+        return [], tokens
+
+
+async def _garantir_cobertura(system: list[dict], resultado: str, texto: str | None,
+                              modelo: str, instrucao_block: dict | None,
+                              reverse_rows: bool) -> tuple[str, dict, dict]:
+    """Confere se todo bilhete do texto-fonte virou linha; repesca o que faltou.
+
+    Sessão 179: um chunk que responde SEM o bloco ```tsv contribui com zero linhas e
+    `chunks_falhos` (que só conta exceção) não acusa — 39 de 61 bilhetes da Superbet
+    sumiram e a tela disse "✓ 22 novo(s)". Aqui a perda é detectada pelo gabarito de
+    códigos (determinístico, vem do DOM) e corrigida com uma segunda chamada só do que
+    faltou. O que ainda assim não voltar sobe como aviso ALTO para o operador.
+
+    Casa sem marcador de código (Bet365, prints) → `esperados` = 0 → no-op integral.
+    Retorna (resultado, cobertura, tokens_extras).
+    """
+    tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    cobertura = conferir_cobertura(resultado, texto)
+    faltantes = cobertura["faltantes"]
+    if not faltantes or not texto or instrucao_block is None:
+        return resultado, {**cobertura, "recuperados": 0}, tokens
+
+    logger.warning("cobertura: %d de %d bilhete(s) não voltaram — repescando: %s",
+                   len(faltantes), cobertura["esperados"], ", ".join(faltantes[:10]))
+    novas, tokens = await _repescar_faltantes(system, texto, faltantes, modelo, instrucao_block)
+    if not novas:
+        return resultado, {**cobertura, "recuperados": 0}, tokens
+
+    # Ordem: o texto-fonte vem newest-first e a planilha exige oldest→newest — a mesma
+    # inversão que o combine já aplicou às linhas originais.
+    if reverse_rows:
+        novas = list(reversed(novas))
+    todas = _extract_tsv_rows(resultado) + novas
+    # Reordena pela posição no texto-fonte, mas SÓ quando toda linha tem código
+    # conhecido (caso das casas com marcador). Se alguma linha não tem, mantém a ordem
+    # de chegada e deixa as repescadas no fim — nunca embaralha o que já estava certo.
+    ordem = {c: i for i, c in enumerate(codigos_do_texto(texto))}
+    def _pos(linha: str):
+        parts = linha.split("\t")
+        return ordem.get(parts[10].strip()) if len(parts) > 10 else None
+    if all(_pos(l) is not None for l in todas):
+        todas.sort(key=lambda l: -_pos(l) if reverse_rows else _pos(l))
+
+    resultado = _set_tsv_rows(resultado, todas)
+    cobertura = conferir_cobertura(resultado, texto)
+    recuperados = len(faltantes) - len(cobertura["faltantes"])
+    logger.info("cobertura: %d recuperado(s) na repescagem · %d ainda faltando",
+                recuperados, len(cobertura["faltantes"]))
+    return resultado, {**cobertura, "recuperados": recuperados}, tokens
+
+
 def _apply_betfair_dates(tsv: str, date_map: dict) -> str:
     """Preenche a coluna Data (col 0) de cada linha pelo Código = ID `O/…` (data de
     liquidação do extrato, `date_map`). Perda (que não gera linha no extrato) → interpola
@@ -907,11 +1021,17 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # espelhando o que o paralelo faz. O modelo emitiu em ordem natural de leitura.
         if reverse_rows:
             accumulated = _reverse_tsv_rows(accumulated)
+        # Cobertura: todo bilhete do texto virou linha? Roda DEPOIS da inversão para as
+        # linhas repescadas entrarem na mesma ordem final.
+        accumulated, cobertura, tk_extra = await _garantir_cobertura(
+            system, accumulated, texto, modelo, content[-1] if content else None, reverse_rows)
+        for k in total_tokens:
+            total_tokens[k] += tk_extra.get(k, 0)
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
         if betfair_dates:
             accumulated = _apply_betfair_dates(accumulated, betfair_dates)
         _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -1040,11 +1160,23 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
+        # Cobertura: chunk que responde sem o bloco ```tsv some em silêncio (o
+        # `chunks_falhos` só conta exceção). Confere pelo gabarito de códigos e repesca.
+        resultado, cobertura, tk_extra = await _garantir_cobertura(
+            system, resultado, texto, modelo,
+            chunks[0][-1] if chunks and chunks[0] else None, reverse_rows_casa)
+        for k in total_tokens:
+            total_tokens[k] += tk_extra.get(k, 0)
+        if cobertura.get("recuperados"):
+            # A lista de linhas mudou → os índices de sobreposição de scroll não valem
+            # mais. São só um badge azul de dica; descartar é seguro (e casa com código
+            # nunca é marcada como sobreposição — ver `_scroll_key`).
+            scroll_overlap_indices = []
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
         if betfair_dates:
             resultado = _apply_betfair_dates(resultado, betfair_dates)
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
