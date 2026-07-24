@@ -66,15 +66,6 @@ $("stopid").addEventListener("input", (e) => {
   e.target.value = v;
   chrome.storage.local.set({ stopId: v });
 });
-// Bet365: marco (texto livre — mantém acento/maiúsc.) + teto de bilhetes.
-$("b365-marco").addEventListener("input", (e) => {
-  chrome.storage.local.set({ b365Marco: e.target.value });
-});
-$("b365-teto").addEventListener("change", (e) => {
-  const n = Math.max(0, Math.min(500, Number(e.target.value) || 0));
-  e.target.value = n || "";
-  chrome.storage.local.set({ b365Teto: n });
-});
 // Betfair: quantidade (freio principal, padrão 100) + dias opcional + varrer tudo.
 $("bf-qtd").addEventListener("change", (e) => {
   const n = Math.max(1, Math.min(5000, Number(e.target.value) || 100));
@@ -306,8 +297,9 @@ async function render() {
   if (dom) { fav.style.display = ""; fav.src = `https://icons.duckduckgo.com/ip3/${dom}.ico`; }
   else { fav.style.display = "none"; }
   const texto = st.modo === "texto";
-  // Bet365: marco + teto (sem data/ID). Betfair: quantidade + dias + varrer tudo (histórico
-  // ilimitado). Betano/Superbet/BETesporte: janela de dias + ID.
+  // Bet365: nada extra — o robô detalha por rota e o backend pré-dedupa/pagina (não precisa
+  // mais de marco/teto). Betfair: quantidade + dias + varrer tudo. Betano/Superbet/BETesporte:
+  // janela de dias + ID.
   const isBet365 = texto && st.casa === "Bet365";
   const isBetfair = texto && st.casa === "Betfair";
   const isBetSup = texto && !isBet365 && !isBetfair;
@@ -317,18 +309,12 @@ async function render() {
   $("bf-qtd-wrap").hidden = !isBetfair;
   $("bf-dias-wrap").hidden = !isBetfair;
   $("bf-full-wrap").hidden = !isBetfair;
-  $("b365-marco-wrap").hidden = !isBet365;
-  $("b365-teto-wrap").hidden = !isBet365;
   $("btn-capturar").hidden = false;   // vale nos dois modos
   $("cap-label").textContent = texto ? "Copiar bilhetes" : "Capturar";
   if (isBetSup) {
     const cfg = await chrome.storage.local.get(["lookbackDias", "stopId"]);
     $("lookback").value = cfg.lookbackDias || 30;
     $("stopid").value = cfg.stopId || "";
-  } else if (isBet365) {
-    const cfg = await chrome.storage.local.get(["b365Marco", "b365Teto"]);
-    $("b365-marco").value = cfg.b365Marco || "";
-    $("b365-teto").value = cfg.b365Teto || "";
   } else if (isBetfair) {
     const cfg = await chrome.storage.local.get(["bfQtd", "bfDias", "bfFull"]);
     $("bf-qtd").value = cfg.bfQtd || 100;

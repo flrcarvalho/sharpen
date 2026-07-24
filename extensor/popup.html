@@ -75,12 +75,8 @@
     <label id="bf-dias-wrap" class="janela" hidden>ou até
       <input id="bf-dias" type="number" min="1" max="365" step="1" placeholder="—"> dias (opcional)</label>
     <label id="bf-full-wrap" class="chk" hidden><input id="bf-full" type="checkbox"> Varrer conta inteira (histórico)</label>
-    <!-- Bet365: sem data e sem ID → marco (trecho do último bilhete já exportado) +
-         teto de bilhetes (trava de custo, pois o backend não pré-dedupa sem ID). -->
-    <label id="b365-marco-wrap" class="janela" hidden>Parar no último exportado
-      <input id="b365-marco" type="text" class="marco" placeholder="cole um trecho" spellcheck="false" autocomplete="off"></label>
-    <label id="b365-teto-wrap" class="janela" hidden>Teto de bilhetes
-      <input id="b365-teto" type="number" min="0" max="500" step="1" placeholder="0"></label>
+    <!-- Bet365 não tem controles extras: o robô detalha por rota e o backend pré-dedupa (pula
+         os já resolvidos) e pagina — o antigo marco/teto virou obsoleto e saiu. -->
   </section>
 
   <p id="msg" class="msg"></p>

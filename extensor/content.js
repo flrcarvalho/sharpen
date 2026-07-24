@@ -511,7 +511,7 @@
     // Parada do robô: janela de N dias (look-back) OU até o ID do último bilhete
     // já extraído (copiar dele pra cima). Defensivo: sem data reconhecida, a janela
     // não corta → rola até o fim. Custo: o backend dedupa por ID antes da IA.
-    const cfg = await chrome.storage.local.get(["lookbackDias", "casa", "stopId", "b365Marco", "b365Teto", "bfQtd", "bfDias", "bfFull"]);
+    const cfg = await chrome.storage.local.get(["lookbackDias", "casa", "stopId", "bfQtd", "bfDias", "bfFull"]);
     const N = Math.max(1, Number(cfg.lookbackDias) || 30);
     const cutoff = Date.now() - N * 86400000;
     const pisoSanidade = cutoff - 730 * 86400000;
@@ -519,10 +519,6 @@
     const ctx = {
       cutoff, pisoSanidade,
       stopId: (cfg.stopId || "").trim().toUpperCase(),
-      // Bet365 (sem data nem ID): marco = trecho do último bilhete já exportado;
-      // teto = trava de custo (sem ID o backend não pré-dedupa).
-      marco: (cfg.b365Marco || "").trim(),
-      teto: Math.max(0, Number(cfg.b365Teto) || 0),
       parar: () => parar,
       painel,
     };

@@ -130,7 +130,6 @@ body {
   border-radius: 7px; padding: 6px 8px; color: var(--ink); font-family: var(--font-mono);
   font-size: 13px; text-align: center; outline: none; }
 .janela input.stopid { width: 108px; text-transform: uppercase; letter-spacing: .04em; }
-.janela input.marco { width: 150px; text-align: left; font-family: inherit; font-size: 12px; }
 .janela input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,139,255,.16); }
 .chk { display: flex; align-items: center; gap: 8px; margin-top: 10px;
   font-size: 12px; color: var(--ink-soft); cursor: pointer; }
