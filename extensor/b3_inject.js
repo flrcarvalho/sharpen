@@ -11,9 +11,9 @@
 //   • mesma URL, só com cookie (sem token) → 200 com corpo VAZIO (`len: 0`)
 //   • mesma URL, com um token VENCIDO      → HTML da página de 404
 // Não temos como gerar um token válido (vem de código ofuscado da casa). Quem consegue chamar
-// a API é a PRÓPRIA página → o content script dirige a UI (rola a lista p/ paginar, abre
-// "Detalhes da Aposta" p/ o confirmation) e este arquivo só escuta. Ver
-// docs/PLANO_BET365_CAPTURA_API.md.
+// a API é a PRÓPRIA página → o content script pede ao inject que NAVEGUE por rota
+// (location.hash = #/HICO/BSSB/C<bsid>/D1/) até a confirmation de cada bilhete, e este arquivo
+// só escuta as respostas. Ver docs/PLANO_BET365_CAPTURA_API.md.
 //
 // POR QUE PRECISA DO DETALHE: o `summary` NÃO traz jogo/mercado/liga nem o código `BR` — só a
 // seleção crua, odd, stake, retorno, o esporte (`CL`) e as pernas de bet builder. O
