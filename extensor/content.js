@@ -157,6 +157,7 @@
   let b3FimReal = false;
   let b3HookVivo = false;
   let b3Driver = null;               // {feitos,pulados,falhas} do driver de UI (autodiagnóstico)
+  let b3MsgTick = 0;                 // carimbo da última mensagem do inject → progresso do driver
   // Um inject POR FRAME responde (a área de membros da Bet365 é outra origem, em iframe).
   // Guardar por `href` em vez de uma variável única: com 2 frames, o último a falar
   // sobrescreveria o contador do outro — o top diria 0 e apagaria as respostas do iframe.
@@ -165,6 +166,7 @@
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (d && d.__sharpenupB3Data) {
+      b3MsgTick = Date.now();        // qualquer sinal do inject conta como "vivo" p/ o timeout
       if (d.hook) b3HookVivo = true;
       b3PorFrame.set(String(d.href || "?"), {
         respostas: typeof d.respostas === "number" ? d.respostas : 0,
@@ -1511,18 +1513,22 @@
     const lembrados = await b3Lembrados();         // { bsid: {code,da,legs} } de rodadas anteriores
     b3Pedir(N, "detalhar", Object.keys(lembrados)); // 2º: manda abrir os detalhes que faltam
 
-    let voltas = 0, ultProg = -1, ultCresceu = Date.now();
-    while (!ctx.parar() && !travado && !b3FimReal && voltas < 3000) {
+    let voltas = 0, ultProg = -1, ultCresceu = Date.now(), ultMsg = b3MsgTick;
+    while (!ctx.parar() && !travado && !b3FimReal && voltas < 6000) {
       voltas++;
       await sleep(500);
-      // Re-pede enquanto nada chegou: o iframe de membros pode montar DEPOIS do clique em
-      // "Copiar bilhetes" (ou o usuário navegar para o Histórico com o robô já rodando).
-      if (voltas % 20 === 0 && !b3ById.size) b3Pedir(N, "detalhar", lembrados);
+      // Re-pede "detalhar" até o driver terminar (b3FimReal): o iframe de membros pode montar
+      // DEPOIS do clique em "Copiar bilhetes" (ou o driver ainda não ter pegado o pedido). O
+      // frame da lista ignora re-pedidos enquanto já está rodando (guarda driverRodando).
+      if (voltas % 20 === 0 && !b3FimReal) b3Pedir(N, "detalhar", Object.keys(lembrados));
       contar();
       if (travado) break;
+      // Progresso = bilhetes/códigos crescendo OU qualquer sinal do inject (o driver manda um
+      // ping a cada "Mostrar Mais"/detalhe → não morre durante a expansão, quando a contagem
+      // não cresce mas o trabalho continua).
       const p = progresso();
-      if (p > ultProg) { ultProg = p; ultCresceu = Date.now(); }
-      else if (Date.now() - ultCresceu > 30000) break;   // 30s sem progresso → desiste
+      if (p > ultProg || b3MsgTick > ultMsg) { ultProg = p; ultMsg = b3MsgTick; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 45000) break;   // 45s realmente parado → desiste
     }
     await sleep(400);
 

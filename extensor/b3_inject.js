@@ -198,75 +198,129 @@
   // POR QUE AQUI E NÃO NO content.js: a lista do Histórico é renderizada DENTRO do iframe
   // `members.bet365.bet.br` — outra origem. O `content.js` roda só no frame de cima
   // (`all_frames:false`) e não alcança esse DOM. Este inject já roda dentro do iframe, então
-  // é ele quem clica. Nos frames que não têm a lista, `acharFolhas` volta vazio e o driver
-  // não faz nada — não precisa saber em qual frame está.
+  // é ele quem clica. Nos frames que não têm a lista, o driver sai na hora (guarda `temLista`)
+  // — resolve o conflito de dois frames de membros rodando ao mesmo tempo.
   //
   // POR QUE UM CLIQUE POR BILHETE: só a página consegue chamar o `confirmation` (o token
   // `x-net-sync-term` é exigido e rotaciona). Abrir o detalhe é o gesto que a faz chamar.
   //
-  // LIMITE CONHECIDO: ao clicar "Voltar" a lista **volta ao topo** e perde as páginas já
-  // carregadas (confirmado pelo Feca na s178). Por isso o driver trabalha na janela que o
-  // usuário deixou na tela — com "Últimas 24/48 horas" a lista cabe em ~1 página e o custo
-  // de voltar é ~zero. Se a janela for longa, ele avisa em vez de rolar n² vezes.
-  const MAX_DET = 400;            // teto de detalhes por rodada (trava de tempo)
+  // POR QUE SELETOR POR CLASSE E NÃO POR TEXTO (fix s180): até a v0.6.4 o driver achava os
+  // botões pelo texto exato "Detalhes da Aposta"/"Voltar". O botão voltar renderiza "‹ Voltar"
+  // (com a setinha) → o casamento exato falhava, caía no `history.back()` e a navegação
+  // embolava depois do 1º-2º bilhete (destrinchava 1 de 38). Os nomes de classe foram mapeados
+  // via Inspecionar (s180) e não mudam com idioma nem com a setinha.
+  //
+  // LISTA REINICIA NO TOPO ao voltar de um detalhe (e perde as páginas de "Mostrar Mais"). Por
+  // isso, a cada volta o driver RE-EXPANDE com "Mostrar Mais" até o card alvo aparecer
+  // (`revelarAte`) — funciona reiniciando ou não. Custa O(n²) de rolagem no pior caso, mas
+  // completa a janela; para "Últimas 24/48h" (lista curta) é rápido.
+  const MAX_DET = 600;            // teto de detalhes por rodada (trava de tempo)
   let driverRodando = false;
 
-  function acharFolhas(txt) {
+  // Seletores reais da área de Histórico (mapeados via Inspecionar, s180).
+  const SEL_DETALHE = ".h-BetSummary_BetDetails";       // botão "Detalhes da Aposta" de cada card
+  const SEL_MAIS    = ".hl-SummaryRenderer_ShowMore";   // "Mostrar Mais" (carrega a próxima página)
+  const SEL_VOLTAR  = ".hl-BackButtonWithHistory";      // "‹ Voltar"
+  const SEL_LISTA   = ".hl-SummaryRenderer_Container";  // presente = estamos na LISTA
+  const SEL_CONF    = ".h-BetConfirmation";             // presente = estamos no DETALHE
+
+  const qs  = (s) => document.querySelector(s);
+  const qsa = (s) => Array.from(document.querySelectorAll(s));
+  function clicar(el) { try { if (el) { el.click(); return true; } } catch (e) {} return false; }
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Botões de detalhe: classe primeiro; se a classe mudar de skin, cai no texto (nó-folha).
+  function botoesDetalhe() {
+    const porClasse = qsa(SEL_DETALHE);
+    if (porClasse.length) return porClasse;
     const out = [];
-    for (const el of document.querySelectorAll("div,span,a,button,li,p")) {
-      if (el.children.length) continue;                       // só nós-folha
-      if ((el.textContent || "").trim() === txt) out.push(el);
+    for (const el of document.querySelectorAll("div,span,a,button")) {
+      if (el.children.length) continue;
+      if ((el.textContent || "").trim() === "Detalhes da Aposta") out.push(el.closest(SEL_DETALHE) || el);
     }
     return out;
   }
-  function clicar(el) { try { el.click(); return true; } catch (e) { return false; } }
-  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  function botaoVoltar() {
+    const porClasse = qs(SEL_VOLTAR);
+    if (porClasse) return porClasse;
+    for (const el of document.querySelectorAll("div,span,a,button")) {
+      if (el.children.length) continue;
+      const t = (el.textContent || "").trim();
+      if (t === "Voltar" || t === "‹ Voltar" || /^[‹<]\s*Voltar$/.test(t)) return el;
+    }
+    return null;
+  }
+  function temLista() { return !!(qs(SEL_LISTA) || botoesDetalhe().length); }
 
-  // Espera o confirmation daquele clique chegar (o `forward` preenche o `code`), com teto.
-  async function esperarDetalhe(antes, limiteMs) {
+  // Espera surgir um código NOVO (o confirmation daquele clique chegou), com teto. Retorna
+  // assim que chega — clique que produz código sai em ~1s, não nos 8s.
+  async function esperarCodigo(antes, limiteMs) {
     const t0 = Date.now();
     while (Date.now() - t0 < limiteMs) {
-      let comCodigo = 0;
-      for (const b of byBsid.values()) if (b.code) comCodigo++;
-      if (comCodigo > antes) return true;
+      let n = 0; for (const b of byBsid.values()) if (b.code) n++;
+      if (n > antes) return true;
       await espera(150);
     }
     return false;
   }
 
+  // Garante que estamos na LISTA (não numa confirmation esquecida). Clica "Voltar" e espera a
+  // lista reaparecer, com retentativas — NÃO desiste na primeira leitura vazia (o SPA
+  // re-renderiza com atraso; desistir cedo era o bug da v0.6.4).
+  async function garantirLista(tentativas) {
+    for (let k = 0; k < (tentativas || 12); k++) {
+      if (qs(SEL_LISTA) || botoesDetalhe().length) return true;
+      // Alterna: tenta o botão "‹ Voltar" e o history.back(). Se o clique no botão não navegar
+      // (o handler pode não responder a .click()), o history.back() cobre — e vice-versa. Sem
+      // isso, ficar só no botão travava o driver no 1º bilhete quando o clique não pegava.
+      const v = botaoVoltar();
+      if (v && k % 2 === 0) clicar(v);
+      else { try { history.back(); } catch (e) {} }
+      await espera(450);
+    }
+    return !!(qs(SEL_LISTA) || botoesDetalhe().length);
+  }
+
+  // Carrega páginas via "Mostrar Mais" até haver MAIS de `alvo` botões de detalhe, ou até o
+  // "Mostrar Mais" sumir / parar de crescer (fim). Cada clique manda um ping (`enviar`) para o
+  // content não achar que travou durante a expansão (a contagem de bilhetes não cresce aí).
+  async function revelarAte(alvo) {
+    let estagnou = 0;
+    for (let passo = 0; passo < 200; passo++) {
+      const n = botoesDetalhe().length;
+      if (n > alvo) return n;
+      const mais = qs(SEL_MAIS);
+      if (!mais) return n;                       // não há mais o que carregar
+      clicar(mais);
+      await espera(1000);
+      enviar(false, { expandindo: true });
+      const depois = botoesDetalhe().length;
+      if (depois <= n) { estagnou++; if (estagnou >= 2) return depois; } else estagnou = 0;
+    }
+    return botoesDetalhe().length;
+  }
+
   async function detalhar(jaTem) {
     if (driverRodando) return;
+    if (!temLista()) return;                     // frame sem a lista não dirige
     driverRodando = true;
-    const conhecidos = new Set(jaTem || []);
-    let i = 0, feitos = 0, pulados = 0, falhas = 0;
+    let feitos = 0, pulados = 0, falhas = 0, proc = 0;
     try {
-      while (i < MAX_DET) {
-        const bots = acharFolhas("Detalhes da Aposta");
-        if (!bots.length) break;                              // frame sem lista, ou lista vazia
-        if (i >= bots.length) break;                          // fim do que está carregado
-        // A ordem dos cards na tela é a ordem em que os bilhetes vieram no summary, e o Map
-        // preserva ordem de inserção → o i-ésimo card é o i-ésimo bsid. Se o mapa errar, o
-        // pior caso é abrir um detalhe já conhecido: o confirmation traz o bsid REAL na URL,
-        // então o dado é guardado no lugar certo de qualquer jeito.
-        const bsid = Array.from(byBsid.keys())[i];
-        const t = bsid ? byBsid.get(bsid) : null;
-        // Guarda do BS=1: bilhete detalhado enquanto ABERTO precisa ser reaberto — o bloco de
-        // cashout ("Encerrar Aposta") só aparece no confirmation depois que ele resolve.
-        const jaFechado = t && t.code && t.aberta === false;
-        if (jaFechado || (bsid && conhecidos.has(bsid) && t && t.aberta === false)) { i++; pulados++; continue; }
-
-        let comCodigo = 0;
-        for (const b of byBsid.values()) if (b.code) comCodigo++;
-        if (!clicar(bots[i])) { i++; falhas++; continue; }
-        const ok = await esperarDetalhe(comCodigo, 8000);
-        if (!ok) falhas++; else feitos++;
+      await garantirLista();
+      while (proc < MAX_DET) {
+        const disp = await revelarAte(proc);     // garante o card `proc` carregado (re-expande)
+        if (proc >= disp) break;                 // acabou a lista
+        const btn = botoesDetalhe()[proc];
+        if (!btn) break;
+        try { btn.scrollIntoView({ block: "center" }); } catch (e) {}
+        await espera(150);
+        let comCodigo = 0; for (const b of byBsid.values()) if (b.code) comCodigo++;
+        if (!clicar(btn)) { falhas++; proc++; await garantirLista(); continue; }
+        const ok = await esperarCodigo(comCodigo, 8000);
+        if (ok) feitos++; else falhas++;
         enviar();
-        // Volta para a lista. Sem isto o próximo clique não existe (estamos na tela de detalhe).
-        const volta = acharFolhas("Voltar");
-        if (volta.length) clicar(volta[volta.length - 1]);
-        else { history.back(); }
-        await espera(900);
-        i++;
+        await garantirLista();                   // clica "Voltar" e espera a lista voltar
+        proc++;
       }
     } catch (e) {
       LOG("driver erro:", e && e.message);
