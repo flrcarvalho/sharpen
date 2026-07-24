@@ -612,8 +612,24 @@
       return;
     }
     try { chrome.storage.local.remove("lastError"); } catch (e) {}   // rodada OK → limpa diagnóstico antigo
-    chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: blocos.join("\n\n") });
+    // BANCA antes de enviar. O envio é ÚNICO (tudo de uma vez, no fim da varredura). Se a
+    // sessão morreu no meio da raspagem — restart do servidor (as sessões vivem em memória)
+    // OU queda de rede — o POST volta 401/erro e, até aqui, os minutos de serviço raspado eram
+    // DESCARTADOS sem recuperação (o `sendMessage` era fire-and-forget, ninguém via a falha).
+    // Agora: guarda em `envioPendente`, ESPERA o {ok} do background e só limpa o banco se
+    // enviou de fato. Falhou → mantém guardado e o popup mostra "Reenviar" (sem re-raspar nada).
+    const texto = blocos.join("\n\n");
+    try { await chrome.storage.local.set({ envioPendente: { texto: texto, n: blocos.length, casa: cfg.casa || "", ts: Date.now() } }); } catch (e) {}
     toastLocal(blocos.length + " bilhete(s) coletado(s), enviando…", true);
+    let resp = null;
+    try { resp = await chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: texto }); } catch (e) {}
+    if (resp && resp.ok) {
+      try { await chrome.storage.local.remove("envioPendente"); } catch (e) {}
+    } else {
+      // NÃO perde nada: o texto fica bancado em `envioPendente`. O background já sinalizou a
+      // causa (sessão expirou / falha de rede); aqui reforça na página que dá pra reenviar.
+      toastLocal(blocos.length + " bilhete(s) guardados — a conexão caiu no envio. Reconecte no popup e clique Reenviar (nada foi perdido).", false);
+    }
   }
 
   // Estratégia genérica (Betano & cia): rola e colhe blocos de texto, dedup por

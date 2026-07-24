@@ -102,6 +102,7 @@ function _bfToggleFull(on) {
 $("btn-conectar").addEventListener("click", conectar);
 $("btn-desconectar").addEventListener("click", desconectar);
 $("btn-capturar").addEventListener("click", capturar);
+$("btn-reenviar").addEventListener("click", reenviar);
 
 // "Atualizar" → abre a página de instalação/atualização com a versão instalada na URL
 // (a página mostra atualizado ✓ / desatualizado ⚠ e o link do .zip novo).
@@ -194,6 +195,29 @@ async function capturar() {
   }
 }
 
+// Reenvia o texto bancado (`envioPendente`) que ficou de um envio que caiu — SEM re-raspar
+// nada. Vai pelo mesmo caminho ENVIAR_TEXTO do background (sem aba → sem checagem casa↔site,
+// que aqui é só backstop). Só limpa o banco quando o servidor confirma {ok}; falhou de novo →
+// mantém guardado. Se a sessão morreu de novo (401), o background limpa o token → reconectar.
+async function reenviar() {
+  const st = await chrome.storage.local.get(["token", "envioPendente"]);
+  const pend = st.envioPendente;
+  if (!pend || !pend.texto) { $("pendente").hidden = true; return; }
+  if (!st.token) { setMsg("Reconecte primeiro (cole um novo código) e reenvie.", "erro"); return; }
+  setMsg("Reenviando…", "info");
+  $("btn-reenviar").disabled = true;
+  let resp = null;
+  try { resp = await chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: pend.texto }); } catch (e) {}
+  $("btn-reenviar").disabled = false;
+  if (resp && resp.ok) {
+    await chrome.storage.local.remove("envioPendente");
+    $("pendente").hidden = true;
+    setMsg((pend.n || "") + " bilhete(s) reenviados ✓ — abra o dashboard para processar.", "ok");
+  } else {
+    setMsg("Reenvio falhou — os bilhetes seguem guardados. Confira a conexão e tente de novo.", "erro");
+  }
+}
+
 // Re-renderiza quando o estado de conexão muda no storage (ex.: o background
 // remove o token ao expirar a sessão → o popup sai de "Conectado" na hora, sem
 // ficar mostrando estado velho). Não re-renderiza em writes de lookback/stopId.
@@ -237,12 +261,22 @@ function renderAvisoVersao() {
 
 async function render() {
   renderAvisoVersao();
-  const st = await chrome.storage.local.get(["token", "casa", "parceiro", "modo", "lastError"]);
+  const st = await chrome.storage.local.get(["token", "casa", "parceiro", "modo", "lastError", "envioPendente"]);
+  // Envio bancado que ficou de uma queda no envio único. Poda > 24h (o backend dedupa por
+  // código, mas um aviso perpétuo de dado velho confunde) — some silenciosamente.
+  let pend = (st.envioPendente && st.envioPendente.texto) ? st.envioPendente : null;
+  if (pend && pend.ts && (Date.now() - pend.ts) > 24 * 3600 * 1000) {
+    try { await chrome.storage.local.remove("envioPendente"); } catch (e) {}
+    pend = null;
+  }
   if (!st.token) {
     telaConectar.hidden = false;
     telaConectado.hidden = true;
     setStatusPill(false);
-    if (st.lastError) setMsg(st.lastError, "erro");
+    // Pendência guardada tem prioridade sobre o lastError: reassegura o usuário na hora ("nada
+    // foi perdido") e diz o próximo passo (reconectar → o banner de Reenviar aparece).
+    if (pend) setMsg(pend.n + " bilhete(s) do último envio ficaram guardados. Reconecte para reenviar — nada foi perdido.", "info");
+    else if (st.lastError) setMsg(st.lastError, "erro");
     return;
   }
   // Token salvo ≠ sessão viva: a sessão mora em memória no servidor (some no restart do
@@ -301,6 +335,15 @@ async function render() {
     $("bf-dias").value = cfg.bfDias || "";
     $("bf-full").checked = !!cfg.bfFull;
     _bfToggleFull(!!cfg.bfFull);
+  }
+  // Banner de reenvio: aparece quando há texto bancado de um envio que caiu. O botão só
+  // funciona de fato com sessão viva; se estiver "offline", reenviar falha e mantém guardado.
+  const pendEl = $("pendente");
+  if (pend) {
+    $("pend-txt").textContent = pend.n + " bilhete(s) guardados do último envio (a conexão caiu). Reenvie sem raspar de novo:";
+    pendEl.hidden = false;
+  } else {
+    pendEl.hidden = true;
   }
 }
 

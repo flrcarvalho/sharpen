@@ -56,6 +56,12 @@
       </button>
       <button id="btn-desconectar" class="btn btn--ghost">Desconectar</button>
     </div>
+    <!-- Envio pendente: a última captura foi raspada mas o envio único caiu (sessão morta /
+         queda de rede). O texto ficou bancado em `envioPendente` → reenviar não re-raspa nada. -->
+    <section id="pendente" class="pend" hidden>
+      <span class="pend-tx" id="pend-txt">Envio pendente.</span>
+      <button id="btn-reenviar" class="btn btn--primary btn--block btn--sm">Reenviar</button>
+    </section>
     <p id="nota-texto" class="nota" hidden>Esta casa usa <b>modo texto</b>: o robô rola a página e copia os bilhetes automaticamente.</p>
     <label id="janela-wrap" class="janela" hidden>Parar após
       <input id="lookback" type="number" min="1" max="365" step="1" value="30"> dias</label>

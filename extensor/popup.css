@@ -115,6 +115,12 @@ body {
 
 .row { display: flex; gap: 9px; }
 .row .btn { flex: 1; }
+
+/* Envio pendente (queda no envio único) — banner de reenvio. Âmbar = "atenção, aja",
+   sem alarme vermelho: o serviço está guardado, é só reenviar. */
+.pend { display: flex; flex-direction: column; gap: 9px; margin-top: 13px; padding: 11px 12px;
+  background: rgba(232,185,63,.08); border: 1px solid rgba(232,185,63,.28); border-radius: 9px; }
+.pend-tx { font-size: 12px; line-height: 1.4; color: var(--warn); }
 .nota { margin: 13px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.45;
   background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px; }
 .nota b { color: var(--ink); }
