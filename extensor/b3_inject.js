@@ -220,6 +220,14 @@
     return false;
   }
 
+  // Navega para UMA confirmation e espera o código chegar (ou o teto estourar). Isolado p/ o
+  // ramo D0 poder repetir a MESMA navegação; o D1 (24h) usa igual, sem retry.
+  async function navegarUm(rota, teto) {
+    let antes = 0; for (const b of byBsid.values()) if (b.code) antes++;
+    try { location.hash = rota; } catch (e) {}
+    return await esperarCodigo(antes, teto);
+  }
+
   // ── DETALHAMENTO POR ROTA (s180 — o método bom) ───────────────────────────────
   // Em vez de clicar "Detalhes" → Voltar → "Mostrar Mais", navega DIRETO para a rota da
   // confirmação de cada bilhete: `#/HICO/BSSB/C<bsid>/D<ns>/`. Provado ao vivo: essa rota carrega
@@ -247,16 +255,28 @@
       }
       LOG("rota: detalhando " + alvos.length + " bilhete(s) por hash");
       for (const bsid of alvos) {
-        let antes = 0; for (const b of byBsid.values()) if (b.code) antes++;
-        // Rota derivada do PD do bilhete (`#HICO#BSSB#C<id>#D0/D1#` → `#/HICO/BSSB/C<id>/D0-D1/`).
-        // O namespace D0/D1 muda por janela (24h=D1, 48h/Período=D0); sem PD, cai no /D1/ legado.
         const t = byBsid.get(bsid);
+        // Rota derivada do PD do bilhete (`#HICO#BSSB#C<id>#D0/D1#` → `#/HICO/BSSB/C<id>/D0-D1/`).
+        // O namespace muda por janela (24h=D1, 48h/Período=D0); sem PD, cai no /D1/ legado.
         const rota = (t && t.pd) ? "#" + t.pd.replace(/#/g, "/") : "#/HICO/BSSB/C" + bsid + "/D1/";
-        try { location.hash = rota; } catch (e) {}
-        const ok = await esperarCodigo(antes, 8000);
+        const isD0 = !!(t && t.pd && /#D0#/i.test(t.pd));
+        // D1 (24h) = caminho de sempre, INTOCADO: uma navegação, teto 8s, folga 300ms.
+        // D0 (48h/Período) = caminho novo: a confirmation dá 500 sob RAJADA (o 24h não). Espera
+        // mais, dá folga maior p/ o token `x-net-sync-term` rotacionar, e RETENTA com "bounce" no
+        // hash (volta à lista e retorna → força um hashchange NOVO = re-fetch com token fresco, que
+        // é o que faz o clique manual dar 200). Nenhum bilhete D1 entra aqui → 24h não pode quebrar.
+        let ok = await navegarUm(rota, isD0 ? 9000 : 8000);
+        if (isD0) {
+          for (let tent = 0; !ok && tent < 2; tent++) {
+            LOG("D0: retry " + (tent + 1) + " · bsid " + bsid);
+            try { location.hash = _volta.hash || "#/HISU/"; } catch (e) {}   // bounce → força hashchange novo
+            await espera(800);
+            ok = await navegarUm(rota, 9000);
+          }
+        }
         if (ok) feitos++; else falhas++;
         enviar();
-        await espera(300);
+        await espera(isD0 ? 900 : 300);
       }
     } catch (e) {
       LOG("rota erro:", e && e.message);
