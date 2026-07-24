@@ -64,7 +64,7 @@
       if (code === "00") { if (kv.PT) cursor = kv.PT; continue; }
       if (code === "01") {
         if (cur) bets.push(cur);
-        cur = { bsid: kv.ID || "", bs: kv.BS, tp: kv.TP || "", sels: [],
+        cur = { bsid: kv.ID || "", bs: kv.BS, tp: kv.TP || "", pd: kv.PD || "", sels: [],
                 stake: null, ts: null, oddFrac: "", rt: null, tipo: "" };
       } else if (code === "03" && cur) {
         // `na` é a seleção; quando vierem pernas 04 depois, esse mesmo `na` é o JOGO
@@ -174,6 +174,7 @@
     ex.aberta = b.bs === "0";
     ex.tp = b.tp; ex.stake = b.stake; ex.ts = b.ts; ex.oddFrac = b.oddFrac; ex.rt = b.rt; ex.tipo = b.tipo;
     ex.sels = b.sels;
+    if (b.pd) ex.pd = b.pd;   // rota da confirmation — o namespace (D0/D1) vem daqui, não de chute
     byBsid.set(b.bsid, ex);
   }
   function mergeConf(bsid, c) {
@@ -221,10 +222,12 @@
 
   // ── DETALHAMENTO POR ROTA (s180 — o método bom) ───────────────────────────────
   // Em vez de clicar "Detalhes" → Voltar → "Mostrar Mais", navega DIRETO para a rota da
-  // confirmação de cada bilhete: `#/HICO/BSSB/C<bsid>/D1/`. Provado ao vivo: essa rota carrega a
-  // confirmation (a própria página faz a chamada, com o token dela) e o hook captura o código BR
+  // confirmação de cada bilhete: `#/HICO/BSSB/C<bsid>/D<ns>/`. Provado ao vivo: essa rota carrega
+  // a confirmation (a própria página faz a chamada, com o token dela) e o hook captura o código BR
   // + jogo/mercado/liga. NÃO mexe na lista → sem Voltar, sem reset, sem o "Mostrar Mais" bugado.
-  // A rota vem do próprio summary (campo `PD=#HICO#BSSB#C<id>#D1#`), mas basta o ID (bsid).
+  // A rota vem do campo `PD=#HICO#BSSB#C<id>#D<ns>#` do summary — e o NAMESPACE importa: 24h
+  // recentes vêm `D1`, 48h/Período vêm `D0`. Chutar `/D1/` fixo fazia a confirmation voltar VAZIA
+  // (sem BR) fora do 24h (s183) → agora deriva do PD; sem PD, cai no padrão `/D1/`.
   // Só o frame de membros (que capturou os summaries → `byBsid` populado) tem a hash do app.
   let rotaRodando = false;
   const _volta = { hash: "" };
@@ -245,7 +248,11 @@
       LOG("rota: detalhando " + alvos.length + " bilhete(s) por hash");
       for (const bsid of alvos) {
         let antes = 0; for (const b of byBsid.values()) if (b.code) antes++;
-        try { location.hash = "#/HICO/BSSB/C" + bsid + "/D1/"; } catch (e) {}
+        // Rota derivada do PD do bilhete (`#HICO#BSSB#C<id>#D0/D1#` → `#/HICO/BSSB/C<id>/D0-D1/`).
+        // O namespace D0/D1 muda por janela (24h=D1, 48h/Período=D0); sem PD, cai no /D1/ legado.
+        const t = byBsid.get(bsid);
+        const rota = (t && t.pd) ? "#" + t.pd.replace(/#/g, "/") : "#/HICO/BSSB/C" + bsid + "/D1/";
+        try { location.hash = rota; } catch (e) {}
         const ok = await esperarCodigo(antes, 8000);
         if (ok) feitos++; else falhas++;
         enviar();
