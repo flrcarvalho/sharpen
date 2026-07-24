@@ -411,12 +411,11 @@ async def _dedup_betano_text(text: str, dono: str) -> tuple[str, int]:
 # 100% confiável do bilhete, equivalente à linha-tipo do Betano.
 _SUPERBET_SPLIT_RE = re.compile(r'(?m)(?=^\[Código:\s)')
 _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
-
-# Bet365 (texto do robô): cada bilhete começa com o marcador "[Bilhete Bet365]" que o
-# robô SharpenUp injeta (extensor/content.js). Fronteira confiável do bilhete — a Bet365
-# não tem ID/data, então este marcador é o único separador estável (evita o split genérico
-# por "\n\n", que fragmenta um card com linha em branco interna).
-_BET365_SPLIT_RE = re.compile(r'(?m)(?=^\[Bilhete Bet365\])')
+# A Bet365 (robô b3_inject) emite o MESMO marcador `[Código: BR…]` como 1ª linha de cada
+# bilhete → usa este mesmo split/ID. Antes havia um `_BET365_SPLIT_RE` por `[Bilhete Bet365]`,
+# marcador que o `formatTicketB3` NUNCA emitiu → o chunk nunca dividia e o lote inteiro ia num
+# request só (sem paralelismo), e a bet365 ficava fora do pré-dedup. Corrigido: cai no split das
+# demais.
 
 
 def _split_superbet_bilhetes(text: str) -> list[str]:
@@ -634,14 +633,12 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
             return [base_content + [instrucao_block]]
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
-        elif casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO"):
-            # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API).
-            # Betano migrou p/ ingestão por API (bn_inject) e passou a emitir o mesmo marcador
-            # das outras — o antigo split por linha-tipo (Simples/Dupla) não casa mais o texto.
+        elif casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365"):
+            # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API). Betano
+            # (bn_inject) e Bet365 (b3_inject) emitem o mesmo marcador → todas fatiam igual. A
+            # Bet365 antes caía num `[Bilhete Bet365]` inexistente → não dividia, ia tudo num
+            # request só; agora fatia e paraleliza como as demais.
             blocks = _SUPERBET_SPLIT_RE.split(full_text)
-        elif casa_key.upper() == "BET365":
-            # Split no marcador [Bilhete Bet365] injetado pelo robô = fronteira do bilhete
-            blocks = _BET365_SPLIT_RE.split(full_text)
         elif casa_key.upper() == "BETFAIR":
             # Betfair tem DUAS ingestões:
             #   • CAPTURA (bf_inject, atual): bloco traz o marcador [Código: O/…] + a Data
@@ -1737,8 +1734,10 @@ async def extrair(
         # Betano (texto): pré-dedup por ID antes de chamar o modelo — descarta
         # bilhetes já liquidados no banco e duplicatas de scroll dentro do colar.
         # Betfair via CAPTURA (bf_inject) usa o mesmo marcador [Código: O/…] → entra na
-        # pré-dedup. O legado texto+extrato (sem [Código:]) fica de fora (é dedupado depois).
-        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO") or \
+        # pré-dedup. A Bet365 (b3_inject) também emite [Código: BR…] → entra (descarta os já
+        # RESOLVIDOS no banco antes de gastar IA; abertos sem código são sempre mantidos). O
+        # legado texto+extrato (sem [Código:]) fica de fora (é dedupado depois).
+        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365") or \
            (casa_key.upper() == "BETFAIR" and "[Código:" in texto):
             # Mesmo marcador [Código: ...] → pré-dedup por ID (descarta bilhetes já
             # liquidados no banco + duplicatas de scroll dentro do colar). A Betano migrou
