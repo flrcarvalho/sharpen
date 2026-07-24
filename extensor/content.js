@@ -1511,14 +1511,20 @@
     const lembrados = await b3Lembrados();         // { bsid: {code,da,legs} } de rodadas anteriores
     b3Pedir(N, "detalhar", Object.keys(lembrados)); // 2º: manda abrir os detalhes que faltam
 
+    // Sobra sem código = bilhete visto mas ainda sem detalhe (BR). Um `fim` de UMA passada NÃO
+    // encerra enquanto sobrar: em lista grande (período) os bilhetes chegam em LOTES e a 1ª passada
+    // fecha só o que estava na mão; o resto precisa de mais passadas. 24h/48h fecham tudo na 1ª →
+    // sobra 0 → o fim encerra na hora, sem passada extra (idêntico ao de antes).
+    const semCodigo = () => { let n = 0; for (const t of b3ById.values()) if (!t.code) n++; return n; };
     let voltas = 0, ultProg = -1, ultCresceu = Date.now(), ultMsg = b3MsgTick;
-    while (!ctx.parar() && !travado && !b3FimReal && voltas < 6000) {
+    while (!ctx.parar() && !travado && voltas < 6000) {
       voltas++;
       await sleep(500);
-      // Re-pede "detalhar" até o driver terminar (b3FimReal): o iframe de membros pode montar
-      // DEPOIS do clique em "Copiar bilhetes" (ou o driver ainda não ter pegado o pedido). O
-      // frame da lista ignora re-pedidos enquanto já está rodando (guarda driverRodando).
-      if (voltas % 20 === 0 && !b3FimReal) b3Pedir(N, "detalhar", Object.keys(lembrados));
+      const resta = semCodigo();
+      if (b3FimReal && resta === 0) break;                 // fim de verdade: nada mais sem código
+      // Enquanto sobrar sem código, re-pede "detalhar" e REABRE a janela de `fim` (a próxima
+      // passada precisa poder anunciar o seu próprio fim). Pega os bilhetes que chegaram depois.
+      if (resta > 0 && voltas % 12 === 0) { b3FimReal = false; b3Pedir(N, "detalhar", Object.keys(lembrados)); }
       contar();
       if (travado) break;
       // Progresso = bilhetes/códigos crescendo OU qualquer sinal do inject (o driver manda um

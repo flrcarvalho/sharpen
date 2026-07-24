@@ -205,7 +205,8 @@
   // isTrusted) e a lista reinicia no topo ao "Voltar". O método por rota (`location.hash`,
   // abaixo) dispensa lista, "Voltar" e "Mostrar Mais" — navega direto na confirmação de cada
   // bilhete. Histórico dessa saga no git (v0.6.5→0.6.13) e no STATUS (s180a).
-  let jaVarri = false;            // este frame já varreu → ignora re-pedidos do content
+  const jaTentados = new Set();   // bsids já tentados neste ciclo → não repete (término garantido) e
+                                  // deixa passadas novas pegarem o que chegou depois (período em lotes)
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Espera surgir um código NOVO (a confirmation navegada chegou), com teto. Retorna assim que
@@ -240,21 +241,28 @@
   let rotaRodando = false;
   const _volta = { hash: "" };
   async function detalharPorRota(jaTem) {
-    if (rotaRodando || jaVarri) return;
-    if (!byBsid.size) return;                      // frame sem summaries não é o de membros
-    rotaRodando = true;
+    if (rotaRodando) return;                        // 1 passada por vez (concorrência) — SEM lock permanente
+    if (!byBsid.size) return;                       // frame sem summaries não é o de membros
     const conhecidos = new Set(jaTem || []);
-    _volta.hash = location.hash || "";             // p/ voltar à lista no fim
-    let feitos = 0, pulados = 0, falhas = 0;
+    // Alvos = uncoded, não-conhecidos (memória) e ainda NÃO tentados neste ciclo. Uma passada pega
+    // só o que está na mão AGORA; em lista grande (período) os bilhetes chegam em LOTES → o content
+    // re-pede "detalhar" e cada passada nova detalha o lote que chegou depois, até esgotar.
+    let pulados = 0;
+    const alvos = [];
+    for (const [bsid, t] of byBsid) {
+      if (t.code) continue;                         // já tem detalhe (rodada anterior/re-hidratado)
+      if (conhecidos.has(String(bsid))) { pulados++; continue; }
+      if (jaTentados.has(String(bsid))) continue;   // já tentei neste ciclo → não repete
+      alvos.push(bsid);
+    }
+    if (!alvos.length) { enviar(true, { feitos: 0, pulados: pulados, falhas: 0 }); return; }  // nada novo → fim
+    rotaRodando = true;
+    _volta.hash = location.hash || "";              // p/ voltar à lista no fim
+    let feitos = 0, falhas = 0;
     try {
-      const alvos = [];
-      for (const [bsid, t] of byBsid) {
-        if (t.code) continue;                      // já tem detalhe (rodada anterior/re-hidratado)
-        if (conhecidos.has(String(bsid))) { pulados++; continue; }
-        alvos.push(bsid);
-      }
       LOG("rota: detalhando " + alvos.length + " bilhete(s) por hash");
       for (const bsid of alvos) {
+        jaTentados.add(String(bsid));               // marca ANTES de tentar → nunca repete, mesmo se falhar
         const t = byBsid.get(bsid);
         // Rota derivada do PD do bilhete (`#HICO#BSSB#C<id>#D0/D1#` → `#/HICO/BSSB/C<id>/D0-D1/`).
         // O namespace muda por janela (24h=D1, 48h/Período=D0); sem PD, cai no /D1/ legado.
@@ -283,8 +291,7 @@
     } finally {
       try { location.hash = _volta.hash || "#/HISU/"; } catch (e) {}  // volta p/ a lista
       rotaRodando = false;
-      if (feitos > 0) jaVarri = true;
-      LOG("driver(rota): " + feitos + " detalhe(s) · " + pulados + " pulado(s) · " + falhas + " falha(s)");
+      LOG("driver(rota): " + feitos + " detalhe(s) · " + falhas + " falha(s) · tentados " + jaTentados.size);
       enviar(true, { feitos: feitos, pulados: pulados, falhas: falhas });
     }
   }
