@@ -1504,17 +1504,31 @@
     let travado = false;
     const N = Math.max(1, Math.round((Date.now() - ctx.cutoff) / 86400000));
 
+    // Memória de rodadas passadas ({ bsid: {code,da,legs} }) — carregada ANTES de tudo porque o
+    // "acabou?" e o painel dependem dela (ver `pronto`).
+    const lembrados = await b3Lembrados();
+    // "pronto" = já tem código NESTA rodada OU está na memória (será re-hidratado no fim, não
+    // precisa ser re-buscado). Sem tratar a memória como pronta, o driver detalhava só os NOVOS
+    // e o laço ficava girando em vazio achando que faltavam os já-conhecidos → TRAVA em lote
+    // grande com memória cheia (114 vistos, só 2 novos detalhados, painel preso em "114").
+    const pronto = (t) => !!(t.code || lembrados[String(t.bsid)]);
+
     const contar = () => {
-      let n = 0;
+      let n = 0, c = 0;
       for (const t of b3ById.values()) {
         if (ctx.stopId && t.code && String(t.code).toUpperCase() === ctx.stopId) { travado = true; break; }
         n++;
+        if (pronto(t)) c++;
       }
-      ctx.painel.contador.textContent = n + " bilhete" + (n === 1 ? "" : "s");
+      // Fase 1 (recolhendo a lista): só o total sobe. Fase 2 (detalhando): o total fica parado e
+      // sobe o "prontos" — mostrar os dois mata o "parece que travou" no lote grande.
+      ctx.painel.contador.textContent = (c < n)
+        ? c + " de " + n + " prontos"
+        : n + " bilhete" + (n === 1 ? "" : "s");
     };
-    // Progresso = bilhetes vistos + bilhetes que já ganharam código. Enquanto o driver abre os
-    // detalhes a QUANTIDADE não cresce (só o conteúdo) — medir só o tamanho faria o timeout de
-    // inatividade matar o robô no meio da varredura.
+    // Progresso p/ o timeout de inatividade: vistos + com código. Enquanto o driver abre os
+    // detalhes a QUANTIDADE não cresce (só o conteúdo) — medir só o tamanho mataria o robô no
+    // meio da varredura.
     const progresso = () => {
       let n = 0;
       for (const t of b3ById.values()) if (t.code) n++;
@@ -1524,14 +1538,14 @@
     b3Pedir(N);                                   // 1º: recolhe o que o inject já viu
     await sleep(600);
     contar();
-    const lembrados = await b3Lembrados();         // { bsid: {code,da,legs} } de rodadas anteriores
     b3Pedir(N, "detalhar", Object.keys(lembrados)); // 2º: manda abrir os detalhes que faltam
 
-    // Sobra sem código = bilhete visto mas ainda sem detalhe (BR). Um `fim` de UMA passada NÃO
-    // encerra enquanto sobrar: em lista grande (período) os bilhetes chegam em LOTES e a 1ª passada
-    // fecha só o que estava na mão; o resto precisa de mais passadas. 24h/48h fecham tudo na 1ª →
-    // sobra 0 → o fim encerra na hora, sem passada extra (idêntico ao de antes).
-    const semCodigo = () => { let n = 0; for (const t of b3ById.values()) if (!t.code) n++; return n; };
+    // Sobra = bilhete visto que ainda NÃO está pronto (sem código E fora da memória). Um `fim` de
+    // UMA passada NÃO encerra enquanto sobrar: em lista grande (período) os bilhetes chegam em
+    // LOTES e a 1ª passada fecha só o que estava na mão; o resto precisa de mais passadas. 24h/48h
+    // fecham tudo na 1ª → sobra 0 → encerra na hora. **Memória cheia → os já-conhecidos contam
+    // como prontos → sobra 0 deles → não trava mais** (era o bug: contava-os como pendentes).
+    const semCodigo = () => { let n = 0; for (const t of b3ById.values()) if (!pronto(t)) n++; return n; };
     let voltas = 0, ultProg = -1, ultCresceu = Date.now(), ultMsg = b3MsgTick;
     while (!ctx.parar() && !travado && voltas < 6000) {
       voltas++;
