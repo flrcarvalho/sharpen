@@ -1376,10 +1376,12 @@
   //   • Múltiplo (3+ jogos diferentes) → sinaliza o tipo p/ a IA classificar (MASTER_ESPORTES).
 
   // CL → esporte (âncora; a IA/CASA_BET365 finaliza a localização). eSoccer vem com CL=1 → o
-  // handle "(gamer)" entre parênteses é o sinal (a IA trata). CL=15/151 ainda desconhecidos.
-  const _CL_B3 = { "1": "Futebol", "13": "Tênis", "18": "Basquete", "94": "Badminton" };
+  // handle "(gamer)" entre parênteses é o sinal (a IA trata). CL=15=Dardos (liga DARTS-MODUS,
+  // "Vencedor da Partida") e CL=91=Vôlei (liga VB-*, "Handicap (Pontos)") — mapeados dos payloads
+  // reais da conta marloncezar01 (s180). CL=151 ainda desconhecido.
+  const _CL_B3 = { "1": "Futebol", "13": "Tênis", "15": "Dardos", "18": "Basquete", "91": "Vôlei", "94": "Badminton" };
   // Folga kickoff→liquidação por esporte (horas) — só p/ acertar o DIA perto da meia-noite.
-  const _OFF_B3 = { "1": 2.5, "18": 2.5, "13": 3, "94": 1.5 };
+  const _OFF_B3 = { "1": 2.5, "13": 3, "15": 1.5, "18": 2.5, "91": 2, "94": 1.5 };
 
   // Odd Bet365: fracionária "num/den" → decimal (num/den + 1), precisão completa, vírgula.
   const _oddB3 = (frac) => {
