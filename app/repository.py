@@ -1112,7 +1112,20 @@ async def list_bilhetes(
 ) -> list[dict]:
     pool = await get_pool()
     where, params = _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived)
-    order_sql = "ASC" if order == "asc" else "DESC"
+    # order: "asc"/"desc" = por criado_em (ordem de captura). "data_desc" = grade da Extração:
+    # EM ABERTO (sem resultado) no TOPO, depois RESOLVIDOS por data do EVENTO desc (mais recente
+    # primeiro). `data` é texto DD/MM/AAAA → to_date guardado por regex (vazio/malformado vira NULL
+    # → fim do grupo). Empate no mesmo dia = ordem de captura (criado_em). Só a grade usa isto; a
+    # exportação segue em "asc" (mais antigo embaixo), caminho separado.
+    if order == "data_desc":
+        order_clause = (
+            "ORDER BY (CASE WHEN NULLIF(resultado, '') IS NULL THEN 0 ELSE 1 END) ASC, "
+            "(CASE WHEN data ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN to_date(data, 'DD/MM/YYYY') END) "
+            "DESC NULLS LAST, criado_em DESC, id DESC"
+        )
+    else:
+        order_sql = "ASC" if order == "asc" else "DESC"
+        order_clause = f"ORDER BY criado_em {order_sql}, id {order_sql}"
     params.append(limit)
     limit_ph = f"${len(params)}"
     params.append(offset)
@@ -1120,8 +1133,7 @@ async def list_bilhetes(
 
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            f"SELECT * FROM bilhetes {where} "
-            f"ORDER BY criado_em {order_sql}, id {order_sql} LIMIT {limit_ph} OFFSET {offset_ph}",
+            f"SELECT * FROM bilhetes {where} {order_clause} LIMIT {limit_ph} OFFSET {offset_ph}",
             *params,
         )
     out = []

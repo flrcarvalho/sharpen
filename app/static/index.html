@@ -4215,7 +4215,7 @@ async function carregarGrade() {
   const body = document.getElementById('grade-body');
   try {
     const off = paginaAtual * PAGE_SIZE;
-    const qs = `order=desc&archived=all&limit=${PAGE_SIZE}&offset=${off}`
+    const qs = `order=data_desc&archived=all&limit=${PAGE_SIZE}&offset=${off}`
       + `&casa=${encodeURIComponent(parceiroSelecionado.casa)}`
       + `&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
     const r = await fetch(`/bilhetes?${qs}`);
