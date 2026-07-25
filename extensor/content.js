@@ -147,6 +147,31 @@
     }
   });
 
+  // Cupons da KTO capturados pelo kto_inject.js (mundo MAIN) — as RESPOSTAS de
+  // /coupon/history.json (Kambi), já normalizadas pelo inject. Mesmo modelo passivo + REPLAY
+  // ATIVO: o inject repagina cada aba por `range_start` até `range.more === false`, então o
+  // operador NÃO precisa clicar "Mostrar mais". `ktoById` guarda 1 cupom por couponRef (a
+  // versão resolvida vence a aberta). `ktoFimReal` = o inject terminou → fim autoritativo.
+  const ktoById = new Map();         // couponRef(string) → cupom
+  let ktoFimReal = false;
+  let ktoHookVivo = false, ktoRespostas = 0;   // autodiagnóstico (espelha Pinnacle/Betfair)
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupKTOData) {
+      if (d.hook) ktoHookVivo = true;
+      if (typeof d.respostas === "number") ktoRespostas = d.respostas;
+      if (Array.isArray(d.cupons)) {
+        const aberto = (c) => (c.bets || []).some((b) => !b.status || b.status === "OPEN");
+        for (const c of d.cupons) {
+          if (!c || !c.ref) continue;
+          const ex = ktoById.get(c.ref);
+          if (!ex || (aberto(ex) && !aberto(c))) ktoById.set(c.ref, c);
+        }
+      }
+      if (d.fim) ktoFimReal = true;
+    }
+  });
+
   // Bilhetes da BET365 capturados pelo b3_inject.js (mundo MAIN) — as RESPOSTAS de
   // /sportshistoryapi/summary + /confirmation (formato F|…), já parseadas pelo inject. Mesmo
   // modelo passivo + REPLAY ATIVO: o inject varre as duas listas (settled=1 resolvidas · settled=0
@@ -567,6 +592,11 @@
       // (nenhum /wager-filter disparou) → o autodiagnóstico avisa; basta abrir a tela
       // "Minhas Apostas" e rodar de novo.
       blocos = await roboPinnaclePassive(ctx);
+    } else if (casa === "kto") {
+      // Passivo puro (kto_inject, API Kambi). SEM fallback de texto: o roboScroll genérico
+      // NÃO serve para a KTO — a lista não tem linha em branco entre cupons, então o
+      // innerText virava um bloco só (menu + rodapé + ~140 bilhetes) e a IA perdia o resto.
+      blocos = await roboKTOPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -585,6 +615,7 @@
         betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
+        kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -707,10 +738,17 @@
   // Betfair: `settledDate`/`placedDate` vêm como "12-jul-26 17:33:53" — mês PT abreviado,
   // JÁ em horário local (o mesmo do extrato). Só converte DD-mmm-YY → DD/MM/AAAA. NÃO usar
   // `_dbr` (é p/ ISO UTC → pularia 1 dia). Espelha o `_betfair_data` do backend.
+  //
+  // O PONTO da abreviação é OPCIONAL (`\.?`). Em 25/07/2026 a Betfair passou a emitir
+  // "18-jul.-26 12:12:42" (abreviação pt-BR correta, com ponto) no lugar de "18-jul-26".
+  // O regex antigo casava "jul", esperava "-" e encontrava "." → NÃO casava → data vazia em
+  // 100% dos bilhetes. Como Data é a 1ª coluna do TSV, a linha inteira saía deslocada e era
+  // rejeitada no /salvar: 5 dias de bilhetes liquidados não entraram (sessão 191). Aceitar o
+  // ponto é estritamente permissivo — o formato sem ponto segue casando igual.
   const _MESES_BF = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06",
                       jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
   const _dbrBF = (s) => {
-    const m = /^\s*(\d{1,2})-([a-zç]{3})-(\d{2})/.exec(String(s || "").toLowerCase());
+    const m = /^\s*(\d{1,2})-([a-zç]{3})\.?-(\d{2})/.exec(String(s || "").toLowerCase());
     if (!m) return "";
     const mes = _MESES_BF[m[2]];
     return mes ? (m[1].padStart(2, "0") + "/" + mes + "/20" + m[3]) : "";
@@ -1370,6 +1408,222 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] Pinnacle: " + blocos.length + " bilhete(s) · pnById=" + pnById.size +
                 " · hook=" + pnHookVivo + " · respostas=" + pnRespostas + " · fimReal=" + pnFimReal);
+    return blocos;
+  }
+
+  // ── KTO modo API (passivo puro, Kambi) ────────────────────────────────────────
+  // Formata 1 cupom lido do /coupon/history.json (parseado pelo kto_inject) no bloco de texto
+  // que a IA lê — com o marcador "[Código: …]" das outras casas passivas, para o backend
+  // fatiar/paralelizar e pré-dedupar por ID antes de gastar IA.
+  //
+  // Mapeamentos VALIDADOS cruzando o JSON com o texto renderizado pela própria página:
+  //   • stake/odd/line vêm em MILÉSIMOS (stake 600000 = R$600,00 · line 8500 = 8.5) — o
+  //     inject já dividiu por 1000.
+  //   • `betOdds` é 0 em toda PERDIDA → a odd nunca sai dele sozinho.
+  //   • ODDÃO+ tem duas naturezas: ODDS_BOOST (odd sobe: 1,34 → 2,00) e PROFIT_BOOST (lucro
+  //     sobe X%: 2,15 → 2,3226). Nas duas, `payout ÷ stake` devolve a odd efetiva — que é
+  //     exatamente a regra global "W → Retorno ÷ Stake". Nada de decidir boost aqui.
+  //   • Aberta: `potentialPayout ÷ stake` é MAIS preciso que betOdds (que a Kambi trunca em
+  //     3 casas): cupom 12939510404 → 2,0435 vs 2,043. Regra da odd sem truncar.
+  //
+  // O que NÃO é decidido aqui: o status final. O bloco leva o status CRU da API e uma leitura
+  // derivada do dinheiro (objetiva). Status novo/desconhecido nunca vira W ou L por chute —
+  // a CASA_KTO.md faz o de-para.
+
+  // sport (Kambi) → rótulo pt-BR de apoio. A localização final é da CASA_KTO/MASTER_ESPORTES;
+  // o bloco leva SEMPRE o enum cru + os eventGroups (que já vêm em português) por cima.
+  const _SPORT_KTO = {
+    FOOTBALL: "Futebol", TENNIS: "Tênis", BASKETBALL: "Basquete", VOLLEYBALL: "Vôlei",
+    DARTS: "Dardos", BOXING: "Boxe", MARTIAL_ARTS: "UFC/MMA", MMA: "UFC/MMA",
+    TABLE_TENNIS: "Tênis de Mesa", BADMINTON: "Badminton", HANDBALL: "Handebol",
+    ICE_HOCKEY: "Hóquei no Gelo", AMERICAN_FOOTBALL: "Futebol Americano", BASEBALL: "Beisebol",
+    SNOOKER: "Sinuca", CRICKET: "Críquete", RUGBY: "Rugby", GOLF: "Golfe", CYCLING: "Ciclismo",
+    ATHLETICS: "Atletismo", MOTOR_SPORTS: "F1", FORMULA_ONE: "F1", ESPORTS: "eSports",
+    SPECIAL_BETS: "(mercado especial — esporte pelo jogo/liga)",
+  };
+
+  const _somaKTO = (bets, campo) => (bets || []).reduce((a, b) => a + (typeof b[campo] === "number" ? b[campo] : 0), 0);
+  const _abertaKTO = (c) => (c.bets || []).some((b) => !b.status || b.status === "OPEN");
+  // Odd sem truncar (só tira ruído de float), decimal com vírgula — igual às outras casas.
+  const _oddTxtKTO = (x) => (x == null || !isFinite(x)) ? "" : String(Math.round(x * 1e8) / 1e8).replace(".", ",");
+
+  // UTC (ISO da Kambi) → horário de Brasília. `_dbr` já faz a data; aqui sai data + hora,
+  // porque a KTO tem cupons repetidos no mesmo dia que só a hora separa.
+  function _dhKTO(iso) {
+    const d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d)) return "";
+    const p = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    }).formatToParts(d);
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    return g("day") + "/" + g("month") + "/" + g("year") + " " + g("hour") + ":" + g("minute") + ":" + g("second");
+  }
+
+  // Odd DECLARADA pela casa (a exibida no card). Só existe quando o cupom tem uma entrada só.
+  // NUNCA sai de `oddBase` sozinha — ela é 0 nas perdidas.
+  function _oddDeclKTO(c) {
+    if ((c.bets || []).length !== 1) return null;
+    const b = c.bets[0];
+    return b.oddBoost != null ? b.oddBoost : b.odd;
+  }
+
+  // Concilia odd × dinheiro. As duas fontes têm erro conhecido e em direções opostas:
+  //   • o RETORNO é arredondado ao centavo pela casa (cupom 12886595322: odd 2,15 × R$123,29 =
+  //     R$265,0735, pago R$265,07 → retorno÷stake dá 2,14997161, que não é a odd de ninguém);
+  //   • a ODD DECLARADA é truncada em 3 casas pela Kambi (cupom 12886593360: boost real
+  //     2,3226 vem como 2,322; o cupom aberto 12939510404 é 2,0435 e vem como 2,043).
+  // Critério: se a odd declarada explica o retorno **até o centavo**, ela é a verdadeira (quem
+  // arredondou foi o dinheiro). Se não explica, o dinheiro manda (é lá que o boost/cashout
+  // aparece inteiro). Nunca trunca nada — só escolhe a fonte exata.
+  function _conciliaKTO(retorno, stake, declarada) {
+    if (declarada != null && stake > 0 && Math.abs(retorno - declarada * stake) <= 0.01) return declarada;
+    return retorno / stake;
+  }
+
+  // Odd efetiva. Ordem: retorno real (W, já com boost) → retorno potencial (aberta) → odd
+  // exibida (perdida/devolvida, onde a odd não move P/L). Cupom com mais de uma entrada em
+  // `bets` (sistema / stake dividida) não tem odd única: devolve null e a IA lê o detalhe.
+  function _oddKTO(c) {
+    const st = _somaKTO(c.bets, "stake");
+    const pay = _somaKTO(c.bets, "payout");
+    const decl = _oddDeclKTO(c);
+    if (st > 0 && pay > 0 && Math.abs(pay - st) >= 0.005) return _conciliaKTO(pay, st, decl);   // ganho (inclui boost)
+    if (_abertaKTO(c) && st > 0) {
+      const pot = (c.bets || []).reduce((a, b) => a + (b.potencialBoost != null ? b.potencialBoost : (b.potencial || 0)), 0);
+      if (pot > 0) return _conciliaKTO(pot, st, decl);
+    }
+    return decl;
+  }
+
+  // Leitura derivada do DINHEIRO (objetiva, não depende de conhecer todo enum de status).
+  function _resultadoKTO(c) {
+    if (_abertaKTO(c)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    const st = _somaKTO(c.bets, "stake"), pay = _somaKTO(c.bets, "payout");
+    if (pay === 0) return "Perdeu → L";
+    if (Math.abs(pay - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
+    if (pay > st) return "Ganho → W (retorno R$ " + _brl(pay) + ")";
+    return "Retorno parcial (R$ " + _brl(pay) + " · conferir HW/HL ou cashout)";
+  }
+
+  function _tipoKTO(c) {
+    const rows = c.rows || [];
+    if (c.sistema > 0) return "Sistema (" + c.sistema + " combinação(ões) · " + rows.length + " seleções)";
+    if (rows.length >= 2) return "Múltipla (" + rows.length + " seleções)";
+    if (rows.length === 1) {
+      const r = rows[0];
+      if (r.tipo === "BET_BUILDER") return "Bet Builder (mesmo jogo · " + (r.sels || []).length + " seleções)";
+      return "Simples";
+    }
+    return "";
+  }
+
+  function formatTicketKTO(c) {
+    const L = [];
+    L.push("[Código: " + c.ref + "]");
+    const dh = _dhKTO(c.colocada);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(_somaKTO(c.bets, "stake")));
+    L.push("Status: " + _resultadoKTO(c));
+    // Status CRU da API — é ele que a CASA_KTO.md traduz. Sem isso, um enum novo (cashout,
+    // recusado, meio-ganho) viraria chute a partir do dinheiro.
+    const brutos = Array.from(new Set((c.bets || []).map((b) => b.status).filter(Boolean)));
+    if (brutos.length) L.push("Status (API): " + brutos.join(" + "));
+    const odd = _oddKTO(c);
+    if (odd != null) L.push("Odd: " + _oddTxtKTO(odd));
+    const tipo = _tipoKTO(c);
+    if (tipo) L.push("Tipo: " + tipo);
+
+    // ODDÃO+ — o rótulo que a KTO estampa no card. Mostra a odd base e a turbinada para a IA
+    // conferir contra a CASA_KTO §6 (boost), sem precisar recalcular.
+    if (c.boostTipo) {
+      const b = (c.bets || [])[0] || {};
+      const partes = ["ODDÃO+ (" + c.boostTipo + (c.boostPct != null ? " " + c.boostPct + "%" : "") + ")"];
+      // A odd de chegada é a MESMA da linha "Odd:" (efetiva), não a `betOddsBoosted` truncada —
+      // duas grandezas parecidas no mesmo bloco só confundiriam a leitura.
+      if (b.oddBase && b.oddBoost) partes.push("odd base " + _oddTxtKTO(b.oddBase) + " → " + _oddTxtKTO(odd != null ? odd : b.oddBoost));
+      if (c.bonus) partes.push("bônus R$ " + _brl(c.bonus));
+      L.push("Boost: " + partes.join(" · "));
+    }
+    // Stake dividida / aposta de sistema: o card mostra as duas entradas ("R$176.97R$61.52").
+    if ((c.bets || []).length > 1) {
+      L.push("Entradas (" + c.bets.length + "): " + c.bets.map((b) =>
+        "stake R$ " + _brl(b.stake) + " → retorno R$ " + _brl(b.payout) + " [" + (b.status || "?") + "]").join(" · "));
+    }
+    for (const t of (c.tags || [])) L.push("Marcação da casa: " + t);
+
+    L.push("Seleções:");
+    for (const r of (c.rows || [])) {
+      const sels = r.sels || [];
+      const cab = sels.length > 1 ? "  · " : "- ";     // bet builder: pernas indentadas sob o jogo
+      if (sels.length > 1 && sels[0] && sels[0].jogo) {
+        L.push("- " + sels[0].jogo + " (Bet Builder — mesmo jogo, " + sels.length + " seleções)");
+      }
+      for (const s of sels) {
+        const bits = [];
+        if (s.mercado) bits.push(s.mercado + ":");
+        bits.push(s.label || "");
+        if (s.linha != null) bits.push("(linha " + String(s.linha).replace(".", ",") + ")");
+        if (s.status) bits.push("[" + s.status + (s.antecipada ? " · liquidação antecipada" : "") + "]");
+        L.push(cab + bits.join(" ").trim());
+        const ctx2 = [];
+        if (s.jogo && sels.length === 1) ctx2.push("Jogo: " + s.jogo);
+        if (s.esporte) ctx2.push("Esporte: " + s.esporte + (_SPORT_KTO[s.esporte] ? " (" + _SPORT_KTO[s.esporte] + ")" : ""));
+        if (s.grupos && s.grupos.length) ctx2.push("Liga: " + s.grupos.join(" / "));
+        if (s.inicio) ctx2.push("Início: " + _dhKTO(s.inicio));
+        if (ctx2.length) L.push("    " + ctx2.join(" · "));
+        if (s.nota) L.push("    Obs. da casa: " + s.nota);
+      }
+      if (r.odd != null && sels.length > 1) L.push("    Odd da seleção: " + _oddTxtKTO(r.oddBoost != null ? r.oddBoost : r.odd));
+      else if (r.odd != null && (c.rows || []).length > 1) L.push("    Odd da perna: " + _oddTxtKTO(r.oddBoost != null ? r.oddBoost : r.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboKTOPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro (a lista da KTO é assim), para o corte da janela
+      // de dias cair no lugar certo.
+      const todos = Array.from(ktoById.values()).sort((a, b) =>
+        (Date.parse(b.colocada) || 0) - (Date.parse(a.colocada) || 0));
+      for (const c of todos) {
+        const cod = String(c.ref || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias corta só as RESOLVIDAS (pela data de colocação, que é a que o card
+        // mostra). Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = c.colocada ? Date.parse(c.colocada) : NaN;
+        const passou = !_abertaKTO(c) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketKTO(c));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao kto_inject o acumulado + arranca o replay (repagina cada aba até `more:false`).
+    try { window.postMessage({ __sharpenupKTOReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar (ktoFimReal), consumindo o que for chegando. Não para no 1º
+    // obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !ktoFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (ktoById.size > ultTotal) { ultTotal = ktoById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] KTO: " + blocos.length + " bilhete(s) · ktoById=" + ktoById.size +
+                " · hook=" + ktoHookVivo + " · respostas=" + ktoRespostas + " · fimReal=" + ktoFimReal);
     return blocos;
   }
 

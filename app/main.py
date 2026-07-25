@@ -633,11 +633,11 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
             return [base_content + [instrucao_block]]
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
-        elif casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365"):
+        elif casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO"):
             # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API). Betano
-            # (bn_inject) e Bet365 (b3_inject) emitem o mesmo marcador → todas fatiam igual. A
-            # Bet365 antes caía num `[Bilhete Bet365]` inexistente → não dividia, ia tudo num
-            # request só; agora fatia e paraleliza como as demais.
+            # (bn_inject), Bet365 (b3_inject) e KTO (kto_inject) emitem o mesmo marcador → todas
+            # fatiam igual. A Bet365 antes caía num `[Bilhete Bet365]` inexistente → não dividia,
+            # ia tudo num request só; agora fatia e paraleliza como as demais.
             blocks = _SUPERBET_SPLIT_RE.split(full_text)
         elif casa_key.upper() == "BETFAIR":
             # Betfair tem DUAS ingestões:
@@ -1735,9 +1735,10 @@ async def extrair(
         # bilhetes já liquidados no banco e duplicatas de scroll dentro do colar.
         # Betfair via CAPTURA (bf_inject) usa o mesmo marcador [Código: O/…] → entra na
         # pré-dedup. A Bet365 (b3_inject) também emite [Código: BR…] → entra (descarta os já
-        # RESOLVIDOS no banco antes de gastar IA; abertos sem código são sempre mantidos). O
+        # RESOLVIDOS no banco antes de gastar IA; abertos sem código são sempre mantidos). A KTO
+        # (kto_inject, API Kambi) emite [Código: <couponRef>] → entra pelo mesmo caminho. O
         # legado texto+extrato (sem [Código:]) fica de fora (é dedupado depois).
-        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365") or \
+        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO") or \
            (casa_key.upper() == "BETFAIR" and "[Código:" in texto):
             # Mesmo marcador [Código: ...] → pré-dedup por ID (descarta bilhetes já
             # liquidados no banco + duplicatas de scroll dentro do colar). A Betano migrou

@@ -23,8 +23,11 @@
 
 ### 2.1 Modo de ingestão
 
-- **PRIMÁRIO:** screenshot / visão — lista de cupons em "Minhas Apostas" / histórico.
+- **PRIMÁRIO (captura SharpenUp):** **API** — a KTO roda em **Kambi**; o `kto_inject.js` lê as respostas de `/coupon/history.json` que a própria página recebe e repagina o histórico inteiro. Dado estruturado e exato (ver §2.5).
+- **SECUNDÁRIO:** screenshot / visão — lista de cupons em "Minhas Apostas" / histórico.
 - **FALLBACK:** texto colado da mesma lista (mesma anatomia).
+
+> ⚠️ O robô de **rolagem genérico** (`roboScroll`) **não serve** para a KTO: a lista não tem linha em branco entre cupons, então o `innerText` vira um bloco único (menu + rodapé + todos os bilhetes) e a extração perde tudo depois dos primeiros. Por isso a captura é por API.
 
 ### 2.2 Tipo do bilhete declarado
 
@@ -59,6 +62,38 @@ Pagamento: R$XX.XX                      ← retorno real (somente em Ganha) → 
 ### 2.4 Ordem do output
 
 A lista exibe do **mais recente (topo)** para o **mais antigo (baixo)**. O TSV sai na ordem **inversa**: último cupom no texto/imagem (mais antigo) = **1ª linha**; primeiro cupom (mais recente) = última linha.
+
+### 2.5 Captura por API (Kambi) — campos e armadilhas
+
+Endpoint: `GET …/player/api/v2019/<operador>/coupon/history.json?…&range_size=N&range_start=M&status=…`
+Paginação: `range.more === false` encerra; o avanço soma o `range.size` **devolvido** (não o pedido).
+
+| Campo da API | Vira | Observação |
+|---|---|---|
+| `couponRef` | `Código` | é o "ID do Cupom" do card (§3) |
+| `placedDate` | `Data` | ISO **UTC** → converter para America/São_Paulo |
+| `bets[].stake` | `Stake` | **milésimos** (`600000` = R$ 600,00) |
+| `bets[].payout` | retorno real | usado para W (`Odd = payout ÷ stake`) |
+| `bets[].potentialPayout(Boosted)` | retorno potencial | odd da **aberta** = potencial ÷ stake (mais preciso que `betOdds`) |
+| `bets[].playedOdds` | odd exibida | **milésimos**; única fonte em perdida/devolvida |
+| `bets[].betOdds` | — | ⚠️ **vem `0` em toda aposta PERDIDA** — nunca usar sozinho |
+| `rewardType` + `betOddsBoosted` | boost `ODDÃO+` (§6) | `ODDS_BOOST` (odd sobe) · `PROFIT_BOOST` (lucro sobe `boostPercentage`%) |
+| `couponRows[].selectionType` | tipo | `SIMPLE` × N linhas = múltipla · `BET_BUILDER` = mesmo jogo (separador ` // `) |
+| `systemBets` | sistema | `Simples (N)`, `Duplas (X), Triplas (Y)` (§2.2) |
+| `events[].sport` | esporte | enum (`FOOTBALL`, `TENNIS`, `DARTS`, `BOXING`, `MARTIAL_ARTS`, `SPECIAL_BETS`…) — **acaba a heurística de desempate** |
+| `events[].eventGroups[]` | liga | já em português (`Futebol / MLS`) |
+| `betOffers[].criterion` | mercado | rótulo pt-BR — entra no mapa do §9 |
+| `outcomes[].line` / `betOffers[].line` | linha | **milésimos** (`8500` = 8.5) |
+| `outcomes[].outcomeTags` | `EARLY_SETTLED` | liquidação antecipada da perna |
+
+**Conciliação da odd (achado da validação contra dado real).** As duas fontes de odd erram, em direções opostas:
+
+- o **retorno** é arredondado ao centavo pela casa — cupom `12886595322`: odd 2,15 × R$ 123,29 = R$ 265,0735, pago **R$ 265,07** → `retorno ÷ stake` daria **2,14997161**, que não é a odd de ninguém;
+- a **odd declarada** é truncada em 3 casas pela Kambi — cupom `12886593360`: boost real **2,3226** vem como `2322`; o aberto `12939510404` é **2,0435** e vem como `2043`.
+
+Critério: **se a odd declarada explica o retorno até o centavo, ela é a verdadeira** (quem arredondou foi o dinheiro); se não explica, o **dinheiro manda** (é onde boost e cashout aparecem inteiros). Nunca truncar — só escolher a fonte exata.
+
+**Cupom com mais de uma entrada em `bets[]`** (sistema, ou stake dividida entre parte turbinada e normal — o card mostra `R$176.97R$61.52`): continua sendo **um cupom = uma linha**; stake e retorno são a **soma** das entradas, e o bloco lista cada entrada.
 
 ---
 
@@ -96,6 +131,16 @@ A lista exibe do **mais recente (topo)** para o **mais antigo (baixo)**. O TSV s
 | `Recusado` | **IGNORAR o cupom por completo** (ver §13) |
 
 Conferência financeira (segunda linha de defesa): `Pagamento > Aposta` → W · `Perdida` sem pagamento → L.
+
+**Na captura por API (§2.5)** o bloco traz `Status (API): …` com o `betStatus` **cru**. De-para confirmado em dado real:
+
+| `betStatus` | Nosso código |
+|---|---|
+| `WON` | W |
+| `LOST` | L |
+| `OPEN` | — (aberta; `extraction_state = aberta`, Resultado vazio) |
+
+> ⚠️ **Status fora desta tabela (void, cashout, recusado, meia-liquidação) ainda não apareceu em amostra.** Nunca inferir W/L de um enum desconhecido: usar a leitura financeira que acompanha o bloco (`Status:` derivado de `payout` vs `stake`) e, em dúvida, deixar em aberto e sinalizar. `Recusado` continua valendo a regra do §13 (ignorar o cupom).
 
 **Gatilho de meia-liquidação (HW/HL):** rótulo explícito aguarda amostra. Confirmação por assinatura financeira (`HL → Pagamento = Aposta/2`; `HW → Pagamento = (Aposta/2)×(odd+1)`), só em linhas asiáticas de quarto (`.25`/`.75`).
 
