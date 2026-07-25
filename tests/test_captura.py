@@ -15,11 +15,20 @@ def test_casa_de_host_reconhece_dominio_exato_e_subdominio():
     assert captura.casa_de_host("betano.bet.br") == "BETANO"
     assert captura.casa_de_host("bet365.com") == "BET365"
     assert captura.casa_de_host("betesporte.bet.br") == "BETESPORTE"
+    # Casas de captura que entraram depois (s170 Pinnacle, s190 KTO): o backstop tem de
+    # protegê-las igual. Antes só a KTO era citada, e como EXEMPLO DE DESCONHECIDA no teste
+    # abaixo — o registro da s190 passou a devolver "KTO" e o teste ficou vermelho por
+    # envelhecimento, não por regressão. Agora a expectativa está do lado certo.
+    assert captura.casa_de_host("pinnacle.bet.br") == "PINNACLE"
+    assert captura.casa_de_host("kto.bet.br") == "KTO"
+    assert captura.casa_de_host("www.kto.bet.br") == "KTO"                 # subdomínio
 
 
 def test_casa_de_host_desconhecido_ou_vazio_retorna_none():
-    # Casa de print / domínio que não mapeamos → None → NÃO bloqueia (não dá p/ verificar).
-    assert captura.casa_de_host("kto.bet.br") is None
+    # Casa de PRINT (não está em _HOSTS_POR_CASA) → None → NÃO bloqueia (não dá p/ verificar).
+    # Use sempre uma casa de print como exemplo aqui: casa de captura vira "conhecida" no dia
+    # em que o robô cobrir ela, e o teste quebraria sozinho de novo.
+    assert captura.casa_de_host("kingpanda.bet.br") is None
     assert captura.casa_de_host("exemplo.com") is None
     assert captura.casa_de_host("") is None
     assert captura.casa_de_host(None) is None

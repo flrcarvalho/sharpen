@@ -84,15 +84,20 @@ def test_combine_paralelo_sem_reverse_mantem_ordem():
     assert _descricoes(combinado) == ["A", "B", "C", "D"]
 
 
-# ── _build_chunks: split por [Bilhete Bet365] ─────────────────────────────────
+# ── _build_chunks: split por [Código: …] ──────────────────────────────────────
+# O marcador da bet365 é `[Código: BR…]`, o MESMO das outras casas de robô. Este teste já
+# exigiu `[Bilhete Bet365]` — marcador que o `formatTicketB3` NUNCA emitiu e que a s189
+# removeu do backend justamente por isso (com ele, o chunk não dividia e o lote inteiro ia
+# num request só, fora do pré-dedup). A intenção do teste continua valendo; só a âncora muda.
 
-def test_build_chunks_bet365_split_por_marcador():
+
+def test_build_chunks_bet365_split_por_codigo():
     texto = (
-        "[Bilhete Bet365]\nT1 linha a\n\nlinha b interna\n"
-        "[Bilhete Bet365]\nT2\n"
-        "[Bilhete Bet365]\nT3\n"
-        "[Bilhete Bet365]\nT4\n"
-        "[Bilhete Bet365]\nT5\n"
+        "[Código: BR001]\nT1 linha a\n\nlinha b interna\n"
+        "[Código: BR002]\nT2\n"
+        "[Código: BR003]\nT3\n"
+        "[Código: BR004]\nT4\n"
+        "[Código: BR005]\nT5\n"
     )
     base = [{"type": "text", "text": texto}]
     instr = {"type": "text", "text": "INSTR"}
@@ -103,5 +108,5 @@ def test_build_chunks_bet365_split_por_marcador():
     corpo = "\n\n".join(
         b["text"] for ch in chunks for b in ch if b.get("text") != "INSTR"
     )
-    assert corpo.count("[Bilhete Bet365]") == 5
+    assert corpo.count("[Código: BR") == 5
     assert "linha b interna" in corpo  # 1º bilhete inteiro preservado
