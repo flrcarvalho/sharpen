@@ -119,7 +119,7 @@ O arquivo vai **inteiro para o prompt** em toda extração da bet365:
 Instrução morta no prompt não quebra nada sozinha, mas gasta contexto e induz o modelo a
 procurar âncora inexistente.
 
-### A5 — A suíte de testes está VERMELHA no `main` desde 24/07 · **ALTO** · não corrigido
+### A5 — A suíte de testes está VERMELHA no `main` desde 24/07 · **ALTO** · ✅ CORRIGIDO (`61d5c8d`)
 
 ```
 2 failed, 191 passed, 4 skipped
@@ -140,9 +140,17 @@ sinal fica vermelho por ruído conhecido, ele **para de avisar quando quebrar de
 o deploy do Railway sai no push, independente do CI. O `pre-commit` local só checa tokens de
 marca, não roda teste.
 
-**Correção proposta:** atualizar os dois testes para o comportamento atual (trocar o exemplo
-de host desconhecido por um domínio realmente não mapeado; reescrever o teste do chunker
-contra `[Código:]`) e voltar a tratar CI vermelho como bloqueio.
+**Aplicado (só `tests/`, nenhum arquivo de produção):** `kto.bet.br` e `pinnacle.bet.br` viraram
+asserções **positivas** (antes estavam soltas), o exemplo de host desconhecido virou
+`kingpanda.bet.br` (casa de print — com comentário fixando a regra: usar sempre casa de print
+aqui, senão o teste quebra sozinho quando o robô cobrir a casa) e o teste do chunker passou a
+ancorar em `[Código: BR…]`. **193 passed, 4 skipped.**
+
+> **Pendência de DX que apareceu no caminho:** rodar `pytest` da raiz **sem** `tests/` quebra
+> localmente — o pytest coleta os `test_*.py` dentro de `Backups/` e o `main.py` de um snapshot
+> antigo **sombreia** o `app/main.py`, derrubando 9 coletas. No CI não acontece (`Backups/` é
+> gitignored). Conserto de 3 linhas: um `pytest.ini` com `testpaths = tests` e
+> `norecursedirs = Backups`. Não apliquei — muda como a suíte roda para todo mundo.
 
 ---
 
@@ -228,7 +236,7 @@ O `extensor/README.md` listava `fab.js` e `overlay.js` (arquivos que não existe
 
 | # | O quê | Por quê | Tamanho | Risco |
 |---|---|---|---|---|
-| 1 | **Voltar o CI ao verde** (A5) | sinal quebrado não avisa mais nada | 2 testes | nenhum |
+| ~~1~~ | ~~**Voltar o CI ao verde** (A5)~~ | ✅ feito em `61d5c8d` | — | — |
 | 2 | **Religar a cobertura da bet365** (A1) | 28 bilhetes podem sumir em silêncio hoje | 2 linhas + teste | baixo |
 | 3 | **Pinnacle no pré-dedup e no chunker** (A2) | custo de IA recorrente à toa | 2 linhas | baixo |
 | 4 | **Comentários e `CASA_BET365.md`** (A3, A4) | a doc canônica está ensinando errado | 4 trechos | nenhum |
