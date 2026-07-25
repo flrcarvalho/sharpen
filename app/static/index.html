@@ -3159,7 +3159,10 @@ function mostrarEmptyState() {
 // Bet365 voltou em 22/07/2026: a 1ª tentativa (robô de DOM) não segurava; agora a
 // captura é passiva pela API de histórico (`/sportshistoryapi`, b3_inject) com o
 // robô de DOM só como fallback — mesmo padrão de Betfair/Pinnacle.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365']);
+// KTO entrou em 25/07/2026: casa de TEXTO sem injetor — a lista "Minhas Apostas"
+// renderiza o cupom inteiro no DOM, então o roboScroll genérico (content.js) cobre
+// sem interceptar API. Backend já devolve modo `texto` (captura.py `_MODO_POR_CASA`).
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO']);
 function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase()); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
