@@ -13,9 +13,30 @@ Planilhador/
 ├── global/          ← 6 masters globais (fonte única de verdade)
 ├── casas/           ← 1 arquivo por casa (traduz; nunca redefine)
 ├── golden_set/      ← bilhetes reais + TSV esperado (validação)
+├── extensor/        ← SharpenUp (extensão de captura) + harness/ de regressão
 ├── Backups/         ← snapshots antes de cada edição
 └── STATUS.md        ← estado atual; ler antes de qualquer sessão
 ```
+
+---
+
+## ⚠️ CASA NOVA — leia antes de começar
+
+Casa tem **duas camadas independentes**. Confira qual você vai mexer:
+
+| Camada | O que é | Guia | Gate |
+|---|---|---|---|
+| **Leitura** | `casas/CASA_*.md` + registro no seletor/favicon. Já funciona por **print**. | [`docs/GUIA_NOVA_CASA.md`](docs/GUIA_NOVA_CASA.md) | `python tools/audit_casas.py` |
+| **Captura** | robô do SharpenUp lendo a API da casa. **12 pontos de registro** em 4 camadas. | [`docs/GUIA_CASA_SHARPENUP.md`](docs/GUIA_CASA_SHARPENUP.md) | `python tools/audit_sharpenup.py` |
+
+Mapa do sistema: [`docs/SHARPENUP_ARQUITETURA.md`](docs/SHARPENUP_ARQUITETURA.md).
+Regressão da captura: `node extensor/harness/run.mjs` — **rode antes de todo commit que
+toque `extensor/`**. Skills: `/sharpenup-recon` → `/sharpenup-casa` → `/sharpenup-validar`;
+casa que parou → `/sharpenup-diagnostico`.
+
+> **Nunca escolha o modo TEXTO sem provar que há linha em branco entre bilhetes no
+> `innerText`.** Sem isso a lista vira um bloco só e a IA perde o resto **em silêncio**
+> (s192: KTO, ~90 % dos bilhetes). Na dúvida, vá por trás — F12 → Network → a API da casa.
 
 ---
 

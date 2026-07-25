@@ -1,7 +1,16 @@
-# Guia: Cadastrar Nova Casa
+# Guia: Cadastrar Nova Casa (camada de LEITURA)
 
 > Seguir esta ordem exata. Todas as etapas são obrigatórias.
 > Uma mudança por vez — propor, confirmar, executar.
+
+> **Escopo:** este guia cobre a casa **como fonte de leitura** — o arquivo de tradução, o
+> registro no seletor e o favicon. Com isso a casa já funciona por **print** (moldura + Snap)
+> ou texto colado. É o suficiente para a maioria das casas.
+>
+> Para a casa ser **capturada automaticamente pelo SharpenUp** (robô lendo a API da casa),
+> siga também [`GUIA_CASA_SHARPENUP.md`](GUIA_CASA_SHARPENUP.md) — são 12 pontos de registro
+> a mais, verificados por `python tools/audit_sharpenup.py`. Skills: `/sharpenup-recon`
+> (reconhecimento) e `/sharpenup-casa` (implementação).
 
 ---
 
@@ -142,6 +151,9 @@ Adicionar entrada na sessão atual com:
 ---
 
 ## Checklist rápido
+
+> Este checklist entrega a casa em **modo print**. Se ela também vai ser capturada pelo
+> robô, o checklist da captura é o da Fase 5 do [`GUIA_CASA_SHARPENUP.md`](GUIA_CASA_SHARPENUP.md).
 
 - [ ] Backup criado em `Backups/pre_<casa>_<data>/`
 - [ ] `casas/CASA_<NOME>.md` criado (15 seções preenchidas, goldens verificados)

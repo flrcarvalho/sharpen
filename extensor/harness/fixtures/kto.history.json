@@ -1,0 +1,123 @@
+{
+  "historyCoupons": [
+    {
+      "couponRef": 12939510404,
+      "placedDate": "2026-07-25T04:12:03.35Z",
+      "currency": "BRL",
+      "channel": "WEB",
+      "tags": [],
+      "bets": [
+        { "betRef": 16078301861, "couponRowIndexes": [0,1,2], "betOdds": 2043, "playedOdds": 2043,
+          "betStatus": "OPEN", "stake": 600000, "payout": 0, "potentialPayout": 1226100, "tags": [] }
+      ],
+      "outcomes": [
+        { "outcomeId": 4266214052, "eventId": 1028073342, "betOfferId": 2670862107, "label": "FC Neptunas Klaipeda", "status": "OPEN", "outcomeTags": [], "earlySettlement": false },
+        { "outcomeId": 4267553491, "eventId": 1028441236, "betOfferId": 2671288201, "label": "Paulo Aokuso", "status": "OPEN", "outcomeTags": [], "earlySettlement": false },
+        { "outcomeId": 4266387167, "eventId": 1025806557, "betOfferId": 2670893089, "label": "Menos 8.5", "status": "OPEN", "outcomeTags": [], "earlySettlement": false, "line": 8500 }
+      ],
+      "couponRows": [
+        { "index": 0, "outcomeId": 4266214052, "status": "OPEN", "playedOdds": 1340, "selectionType": "SIMPLE" },
+        { "index": 1, "outcomeId": 4267553491, "status": "OPEN", "playedOdds": 1250, "selectionType": "SIMPLE" },
+        { "index": 2, "outcomeId": 4266387167, "status": "OPEN", "playedOdds": 1220, "selectionType": "SIMPLE" }
+      ],
+      "events": [
+        { "eventId": 1028441236, "sport": "BOXING", "homeName": "Paulo Aokuso", "awayName": "Luis Antonio Tejeda", "eventName": "Paulo Aokuso - Luis Antonio Tejeda", "eventGroups": [{"id":1,"name":"Boxe"},{"id":2,"name":"Combates futuros"}], "eventStartDate": "2026-07-25T23:00:00Z" },
+        { "eventId": 1025806557, "sport": "FOOTBALL", "homeName": "Philadelphia Union", "awayName": "Seattle Sounders", "eventName": "Philadelphia Union - Seattle Sounders", "eventGroups": [{"id":3,"name":"Futebol"},{"id":4,"name":"MLS"}], "eventStartDate": "2026-07-25T23:30:00Z" },
+        { "eventId": 1028073342, "sport": "FOOTBALL", "homeName": "FC Neptunas Klaipeda", "awayName": "Šiauliai II", "eventName": "FC Neptunas Klaipeda - Šiauliai II", "eventGroups": [{"id":3,"name":"Futebol"},{"id":5,"name":"1 Lyga"}], "eventStartDate": "2026-07-25T14:00:00Z" }
+      ],
+      "betOffers": [
+        { "betOfferId": 2671288201, "boType": "Match", "criterion": "Odds do Combate", "tags": [] },
+        { "betOfferId": 2670893089, "boType": "Over/Under", "criterion": "Total de Escanteio por Philadelphia Union", "line": 8500, "tags": [] },
+        { "betOfferId": 2670862107, "boType": "Match", "criterion": "Resultado Final", "tags": [] }
+      ],
+      "systemBets": []
+    },
+    {
+      "couponRef": 12886338194,
+      "placedDate": "2026-07-09T20:16:09.591Z",
+      "bets": [
+        { "betRef": 16018736293, "couponRowIndexes": [0], "betOdds": 0, "playedOdds": 6000,
+          "betStatus": "LOST", "stake": 50000, "payout": 0, "potentialPayout": 0, "tags": [] }
+      ],
+      "outcomes": [
+        { "outcomeId": 4245869683, "eventId": 1026591355, "betOfferId": 2664764846, "label": "Raí da Silva Pessanha - Sim", "status": "LOST", "outcomeTags": [], "earlySettlement": false, "line": 1000 }
+      ],
+      "couponRows": [ { "index": 0, "outcomeId": 4245869683, "status": "LOST", "playedOdds": 6000, "payoutOdds": 0, "selectionType": "SIMPLE" } ],
+      "events": [ { "eventId": 1026591355, "sport": "FOOTBALL", "homeName": "Juventude", "awayName": "Vila Nova", "eventName": "Juventude - Vila Nova", "eventGroups": [{"id":3,"name":"Futebol"},{"id":6,"name":"Brasileirão Série B"}], "eventStartDate": "2026-07-10T22:00:00Z" } ],
+      "betOffers": [ { "betOfferId": 2664764846, "boType": "Player Occurrence Line", "criterion": "Marca", "line": 1000, "tags": [] } ],
+      "systemBets": []
+    },
+    {
+      "couponRef": 12886595322,
+      "placedDate": "2026-07-09T21:04:20.181Z",
+      "bets": [
+        { "betRef": 16019008138, "couponRowIndexes": [0], "betOdds": 2150, "playedOdds": 2150,
+          "betStatus": "WON", "stake": 123290, "payout": 265070, "potentialPayout": 265070, "tags": [] }
+      ],
+      "outcomes": [ { "outcomeId": 4247138941, "eventId": 1028263739, "betOfferId": 2665141286, "label": "Ousmane Dembélé - Mais 0.5", "status": "WON", "outcomeTags": [], "earlySettlement": false, "line": 500 } ],
+      "couponRows": [ { "index": 0, "outcomeId": 4247138941, "status": "WON", "playedOdds": 2150, "payoutOdds": 2150, "selectionType": "SIMPLE" } ],
+      "events": [ { "eventId": 1028263739, "sport": "FOOTBALL", "homeName": "França", "awayName": "Marrocos", "eventName": "França - Marrocos", "eventGroups": [{"id":3,"name":"Futebol"},{"id":7,"name":"Copa 2026"}], "eventStartDate": "2026-07-09T20:00:00Z" } ],
+      "betOffers": [ { "betOfferId": 2665141286, "boType": "Player Occurrence Line", "criterion": "Chutes a gol pelo jogador (Fechado usando dados Opta)", "line": 500, "tags": [] } ],
+      "systemBets": []
+    },
+    {
+      "couponRef": 12886593360,
+      "placedDate": "2026-07-09T21:04:09.829Z",
+      "bets": [
+        { "betRef": 16019001833, "couponRowIndexes": [0], "betOdds": 2150, "betOddsBoosted": 2322, "playedOdds": 2150,
+          "betStatus": "WON", "stake": 50000, "payout": 116130, "potentialPayout": 107500, "potentialPayoutBoosted": 116130, "bonusPayout": 8630, "tags": [] }
+      ],
+      "outcomes": [ { "outcomeId": 4247138941, "eventId": 1028263739, "betOfferId": 2665141286, "label": "Ousmane Dembélé - Mais 0.5", "status": "WON", "outcomeTags": [], "earlySettlement": false, "line": 500 } ],
+      "couponRows": [ { "index": 0, "outcomeId": 4247138941, "status": "WON", "playedOdds": 2150, "payoutOdds": 2150, "selectionType": "SIMPLE" } ],
+      "events": [ { "eventId": 1028263739, "sport": "FOOTBALL", "homeName": "França", "awayName": "Marrocos", "eventName": "França - Marrocos", "eventGroups": [{"id":3,"name":"Futebol"},{"id":7,"name":"Copa 2026"}], "eventStartDate": "2026-07-09T20:00:00Z" } ],
+      "betOffers": [ { "betOfferId": 2665141286, "boType": "Player Occurrence Line", "criterion": "Chutes a gol pelo jogador (Fechado usando dados Opta)", "line": 500, "tags": [] } ],
+      "bonusPayout": 8630,
+      "rewardType": "PROFIT_BOOST",
+      "boostPercentage": 15,
+      "systemBets": []
+    },
+    {
+      "couponRef": 12864726191,
+      "placedDate": "2026-07-05T15:17:44.785Z",
+      "bets": [
+        { "betRef": 15995202737, "couponRowIndexes": [0], "betOdds": 1340, "betOddsBoosted": 2000, "playedOdds": 1340,
+          "betStatus": "WON", "stake": 15000, "payout": 30000, "potentialPayout": 20100, "potentialPayoutBoosted": 30000, "bonusPayout": 9900, "tags": [] }
+      ],
+      "outcomes": [ { "outcomeId": 4242559355, "eventId": 1028215466, "betOfferId": 2663770712, "label": "Sim", "status": "WON", "outcomeTags": [], "earlySettlement": false } ],
+      "couponRows": [ { "index": 0, "outcomeId": 4242559355, "status": "WON", "playedOdds": 1340, "payoutOdds": 1340, "oddsBoosted": 2000, "selectionType": "SIMPLE" } ],
+      "events": [ { "eventId": 1028215466, "sport": "SPECIAL_BETS", "eventName": "Brasil - Noruega", "eventGroups": [{"id":8,"name":"#KTOdds"},{"id":7,"name":"Copa 2026"}], "eventStartDate": "2026-07-05T20:00:00Z" } ],
+      "betOffers": [ { "betOfferId": 2663770712, "boType": "Winner", "criterion": "Vini Jr (BRA) ou Haaland (NOR) para marcar", "extraInfo": "Apenas tempo normal. Os jogadores precisam iniciar o jogo para que as apostas sejam válidas.", "tags": [] } ],
+      "bonusPayout": 9900,
+      "rewardType": "ODDS_BOOST",
+      "systemBets": []
+    },
+    {
+      "couponRef": 12885883904,
+      "placedDate": "2026-07-09T19:43:08.111Z",
+      "bets": [
+        { "betRef": 16018268626, "couponRowIndexes": [0], "betOdds": 2200, "playedOdds": 2200,
+          "betStatus": "WON", "stake": 300000, "payout": 660000, "potentialPayout": 660000, "tags": [] }
+      ],
+      "outcomes": [
+        { "outcomeId": 4247139333, "eventId": 1028263739, "betOfferId": 2665141479, "label": "Anass Salah-Eddine - Mais 0.5", "status": "WON", "outcomeTags": ["EARLY_SETTLED"], "earlySettlement": true, "line": 500 },
+        { "outcomeId": 4247139441, "eventId": 1028263739, "betOfferId": 2665159806, "label": "Adrien Rabiot - Mais 0.5", "status": "WON", "outcomeTags": [], "earlySettlement": false, "line": 500 },
+        { "outcomeId": 4247139439, "eventId": 1028263739, "betOfferId": 2665159805, "label": "Désiré Doué - Mais 0.5", "status": "WON", "outcomeTags": [], "earlySettlement": false, "line": 500 }
+      ],
+      "couponRows": [
+        { "index": 0, "status": "WON", "outcomeGroup": { "operation": "AND", "groups": [
+            { "operation": "AND", "outcomeIds": [4247139441] },
+            { "operation": "AND", "outcomeIds": [4247139439] },
+            { "operation": "AND", "outcomeIds": [4247139333] } ] },
+          "playedOdds": 2200, "payoutOdds": 2200, "selectionType": "BET_BUILDER" }
+      ],
+      "events": [ { "eventId": 1028263739, "sport": "FOOTBALL", "homeName": "França", "awayName": "Marrocos", "eventName": "França - Marrocos", "eventGroups": [{"id":3,"name":"Futebol"},{"id":7,"name":"Copa 2026"}], "eventStartDate": "2026-07-09T20:00:00Z" } ],
+      "betOffers": [
+        { "betOfferId": 2665159805, "boType": "Player Occurrence Line", "criterion": "Faltas concedidas pelo jogador (Fechado usando dados Opta)", "line": 500, "tags": [] },
+        { "betOfferId": 2665159806, "boType": "Player Occurrence Line", "criterion": "Faltas concedidas pelo jogador (Fechado usando dados Opta)", "line": 500, "tags": [] },
+        { "betOfferId": 2665141479, "boType": "Player Occurrence Line", "criterion": "Faltas concedidas pelo jogador (Fechado usando dados Opta)", "line": 500, "tags": [] }
+      ],
+      "systemBets": []
+    }
+  ],
+  "range": { "start": 0, "size": 6, "more": false }
+}
