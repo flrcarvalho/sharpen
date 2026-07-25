@@ -42,7 +42,11 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # lê a RESPOSTA da API POST /activity/sportsbook (JSON exato: betId O/…, settledDate,
 # status WON/LOST/VOID, stake, odd) — data de resolução de TODO bilhete, perda inclusive
 # (o extrato CSV não tinha linha p/ perda). Substitui o fluxo texto+extrato com join no código.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto"}
+# KTO: texto SEM injetor — a lista "Minhas Apostas" renderiza o cupom inteiro no DOM (ID do
+# Cupom, mercados, odd, stake, status), então o roboScroll genérico (content.js) rola + lê o
+# innerText + dedupa por conteúdo. Sem interceptar API (o `else` do dispatch cai no genérico);
+# o corte de lookback usa a data "DD de mmm. de AAAA" que o parseDatas já reconhece.
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -61,6 +65,7 @@ _HOSTS_POR_CASA = {
     "BETESPORTE": ("betesporte.bet.br",),
     "BETFAIR":    ("betfair.bet.br",),
     "PINNACLE":   ("pinnacle.bet.br",),
+    "KTO":        ("kto.bet.br",),
 }
 
 
