@@ -110,3 +110,37 @@ def test_build_chunks_bet365_split_por_codigo():
     )
     assert corpo.count("[Código: BR") == 5
     assert "linha b interna" in corpo  # 1º bilhete inteiro preservado
+
+
+# ── Lista única das casas com marcador [Código: …] (s194) ─────────────────────
+# Chunking e pré-dedup precisam enxergar SEMPRE o mesmo conjunto de casas. Eram duas tuplas
+# literais repetidas a ~1100 linhas de distância, e a Pinnacle entrou na captura (s170) sem
+# ser somada a nenhuma das duas: ficou re-enviando à IA todo bilhete já resolvido (456 no
+# banco em 25/07) a cada recaptura, e fatiando pelo fallback frágil "\n\n".
+
+
+def test_casas_com_marcador_cobrem_todas_as_casas_de_robo():
+    """A lista tem de conter toda casa cujo robô emite `[Código: …]`.
+
+    A Betfair fica FORA de propósito: tem duas ingestões (captura com marcador e o legado
+    texto+extrato sem marcador) e é roteada por CONTEÚDO, não por casa.
+    """
+    assert main._CASAS_MARCADOR_CODIGO >= {
+        "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE",
+    }
+    assert "BETFAIR" not in main._CASAS_MARCADOR_CODIGO
+
+
+def test_build_chunks_pinnacle_split_por_codigo():
+    texto = (
+        "[Código: 3089350167]\nData: 21/07/2026\nStake: 100,00\nStatus: Ganho (WON) → W\n"
+        "[Código: 3089350168]\nData: 21/07/2026\nStake: 100,00\nStatus: Perdeu (LOST) → L\n"
+        "[Código: 3089350169]\nData: 22/07/2026\nStake: 100,00\nStatus: Ganho (WON) → W\n"
+        "[Código: 3089350170]\nData: 22/07/2026\nStake: 100,00\nStatus: Perdeu (LOST) → L\n"
+    )
+    base = [{"type": "text", "text": texto}]
+    instr = {"type": "text", "text": "INSTR"}
+    chunks = main._build_chunks(base, instr, casa_key="PINNACLE")
+    assert len(chunks) > 1
+    corpo = "\n\n".join(b["text"] for ch in chunks for b in ch if b.get("text") != "INSTR")
+    assert corpo.count("[Código: 308935016") + corpo.count("[Código: 3089350170") == 4

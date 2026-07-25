@@ -417,6 +417,21 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 # request só (sem paralelismo), e a bet365 ficava fora do pré-dedup. Corrigido: cai no split das
 # demais.
 
+# LISTA ÚNICA das casas cujo robô emite `[Código: …]` como 1ª linha de cada bilhete. Ela governa
+# DUAS coisas que precisam andar juntas: o chunking (fatiar pelo marcador, não pelo frágil
+# "\n\n") e o pré-dedup (descartar, ANTES da IA, o que já está resolvido no banco).
+#
+# Existia como duas tuplas literais repetidas a ~1100 linhas de distância — e a Pinnacle entrou
+# na captura (s170) sem ser somada a nenhuma das duas: ficou 5 dias re-enviando à IA todos os
+# bilhetes já resolvidos (456 no banco em 25/07) a cada recaptura, e fatiando pelo fallback.
+# Uma lista só é o que impede a próxima casa de repetir isso — `tools/audit_sharpenup.py` confere.
+#
+# A BETFAIR fica de fora de propósito: ela tem duas ingestões (captura com marcador e o legado
+# texto+extrato sem marcador) e é roteada POR CONTEÚDO (`"[Código:" in texto`), não por casa.
+_CASAS_MARCADOR_CODIGO = frozenset({
+    "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE",
+})
+
 
 def _split_superbet_bilhetes(text: str) -> list[str]:
     """Divide o texto colado da Superbet em blocos de 1 bilhete cada."""
@@ -637,7 +652,7 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
             return [base_content + [instrucao_block]]
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
-        elif casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO"):
+        elif casa_key.upper() in _CASAS_MARCADOR_CODIGO:
             # Split no marcador [Código: ...] = fronteira do bilhete (exato do DOM/API). Betano
             # (bn_inject), Bet365 (b3_inject) e KTO (kto_inject) emitem o mesmo marcador → todas
             # fatiam igual. A Bet365 antes caía num `[Bilhete Bet365]` inexistente → não dividia,
@@ -1741,8 +1756,12 @@ async def extrair(
         # pré-dedup. A Bet365 (b3_inject) também emite [Código: BR…] → entra (descarta os já
         # RESOLVIDOS no banco antes de gastar IA; abertos sem código são sempre mantidos). A KTO
         # (kto_inject, API Kambi) emite [Código: <couponRef>] → entra pelo mesmo caminho. O
-        # legado texto+extrato (sem [Código:]) fica de fora (é dedupado depois).
-        if casa_key.upper() in ("SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO") or \
+        # legado texto+extrato (sem [Código:]) fica de fora (é dedupado depois). A lista de
+        # casas é a MESMA do chunking (`_CASAS_MARCADOR_CODIGO`) — as duas andam juntas, e
+        # mantê-las como tuplas separadas foi o que deixou a Pinnacle fora das duas.
+        # Só descarta o que está `resolvida` no banco: bilhete ABERTO segue sendo reprocessado,
+        # senão nunca seria atualizado ao liquidar (ver `get_codigos_resolvidos`).
+        if casa_key.upper() in _CASAS_MARCADOR_CODIGO or \
            (casa_key.upper() == "BETFAIR" and "[Código:" in texto):
             # Mesmo marcador [Código: ...] → pré-dedup por ID (descarta bilhetes já
             # liquidados no banco + duplicatas de scroll dentro do colar). A Betano migrou

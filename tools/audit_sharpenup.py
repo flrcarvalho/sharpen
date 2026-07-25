@@ -132,12 +132,21 @@ def chaves_js(corpo: str) -> set[str]:
 
 
 def tuplas_backend_com(chave: str) -> tuple[bool, bool]:
-    """(está no chunker, está no pré-dedup) do main.py."""
+    """(está no chunker, está no pré-dedup) do main.py.
+
+    Desde a s194 as duas decisões saem da MESMA lista nomeada `_CASAS_MARCADOR_CODIGO` — antes
+    eram duas tuplas literais repetidas a ~1100 linhas de distância, e foi assim que a Pinnacle
+    ficou fora das duas. Aqui conferimos as três coisas: a casa está na lista, e cada um dos
+    dois pontos de uso realmente CONSULTA a lista (ninguém re-inlinou um literal).
+    """
     src = _txt(MAIN_PY)
-    chunker = re.search(r"casa_key\.upper\(\) in \(([^)]*)\):\s*\n\s*#[^\n]*Split no marcador", src)
-    predup = re.search(r"if casa_key\.upper\(\) in \(([^)]*)\)\s*or", src)
-    achou = lambda m: bool(m) and f'"{chave}"' in m.group(1)
-    return achou(chunker), achou(predup)
+    m = re.search(r"_CASAS_MARCADOR_CODIGO\s*=\s*frozenset\(\{(.*?)\}\)", src, re.DOTALL)
+    if not m:                                    # lista sumiu → não dá para afirmar nada
+        return False, False
+    na_lista = f'"{chave}"' in m.group(1)
+    usa_chunker = bool(re.search(r"casa_key\.upper\(\) in _CASAS_MARCADOR_CODIGO:", src))
+    usa_predup = bool(re.search(r"if casa_key\.upper\(\) in _CASAS_MARCADOR_CODIGO or", src))
+    return (na_lista and usa_chunker), (na_lista and usa_predup)
 
 
 def injects_popup() -> dict[str, str]:
