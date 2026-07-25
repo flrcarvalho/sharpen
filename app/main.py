@@ -436,8 +436,12 @@ _MESES_PT = {"jan": "01", "fev": "02", "mar": "03", "abr": "04", "mai": "05", "j
 
 
 def _betfair_data(fonte: str) -> str:
-    """'10-jul-26 17:26:50' → '10/07/2026'. Vazio se não parsear."""
-    m = re.match(r'\s*(\d{1,2})-([a-zç]{3})-(\d{2})', (fonte or "").strip().lower())
+    """'10-jul-26 17:26:50' → '10/07/2026'. Vazio se não parsear.
+
+    O PONTO da abreviação é opcional (`\\.?`): em 25/07/2026 a Betfair passou a emitir
+    '10-jul.-26'. Gêmeo do `_dbrBF` do `extensor/content.js` — se um mudar, mude o outro.
+    """
+    m = re.match(r'\s*(\d{1,2})-([a-zç]{3})\.?-(\d{2})', (fonte or "").strip().lower())
     if not m:
         return ""
     mes = _MESES_PT.get(m.group(2), "")

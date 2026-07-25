@@ -281,13 +281,23 @@ def data_valida(v) -> bool:
 
 
 def parse_tsv(tsv: str) -> list[dict]:
-    """Converte bloco TSV em lista de dicts. Ignora linhas vazias e cabeçalho."""
+    """Converte bloco TSV em lista de dicts. Ignora linhas vazias e cabeçalho.
+
+    NUNCA usar `line.strip()` aqui: a 1ª coluna (Data) pode vir legitimamente VAZIA — a
+    própria instrução manda deixar em branco quando a casa não informa a data — e aí a
+    linha começa com TAB. O `strip()` engolia esse TAB e **deslocava todas as colunas uma
+    casa à esquerda**: `odd` recebia 'W', `resultado` recebia o código, e o `validar_linhas`
+    rejeitava 100% do lote. O `/salvar` devolvia "0 novos · N alertas" e não gravava nada,
+    sem erro visível. Foi o que engoliu 5 dias de Betfair quando a casa mudou o formato de
+    data (sessão 193) — bug GERAL, não daquela casa. Recorta só a quebra de linha e faz o
+    strip por CAMPO, que limpa espaços sem destruir a informação de campo vazio.
+    """
     rows = []
     for line in tsv.splitlines():
-        line = line.strip()
-        if not line:
+        line = line.rstrip("\r\n")
+        if not line.strip():
             continue
-        parts = line.split("\t")
+        parts = [p.strip() for p in line.split("\t")]
         if len(parts) < 10:
             continue
         row = dict(zip(_COLS, parts[:10]))
