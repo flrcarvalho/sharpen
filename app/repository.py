@@ -333,10 +333,31 @@ _ID_SUPERBET_RE = re.compile(r"\[Código:\s*([0-9A-Za-z]{3,6}-[0-9A-Za-z]{4,8})\
 # (ex.: 189070937). Também só valida por claim exato (o gate _ID_MINLEN=16 barra o snap
 # por edit-distance nesses ~9 dígitos → código errado vira "incerto", nunca é corrompido).
 _ID_BETESPORTE_RE = re.compile(r"\[Código:\s*(\d{6,12})\]")
-# Betfair (captura bf_inject): o marcador traz o ID de aposta no formato `O/conta/seq`
-# (ex.: O/25146258/0001775). Usado só como GABARITO de cobertura — ver nota em
-# `codigos_do_texto` sobre por que ele NÃO entra no snap de `corrigir_codigos_tsv`.
-_ID_BETFAIR_RE = re.compile(r"\[Código:\s*(O/\d{4,12}/\d{4,12})\]")
+# (Havia aqui um `_ID_BETFAIR_RE` para o formato `O/conta/seq`. Ele existia SÓ como gabarito
+# de cobertura e foi absorvido pela regex genérica abaixo — que cobre Betfair, bet365 e
+# qualquer casa futura. As duas regexes acima seguem vivas porque alimentam o
+# `corrigir_codigos_tsv`, que é outro mecanismo.)
+# GABARITO GENÉRICO (só para `codigos_do_texto`): qualquer conteúdo no marcador `[Código: …]`
+# em INÍCIO DE LINHA. É o espelho exato do `_SUPERBET_ID_RE`/`_SUPERBET_SPLIT_RE` do main.py —
+# de propósito: a fronteira que o chunker usa para FATIAR passa a ser a mesma que a conferência
+# usa para COBRAR. Se o chunker considera um bilhete, a cobertura o exige de volta.
+#
+# Por que genérico e não mais uma regex por casa: as quatro regexes acima cobrem formato a
+# formato, e a bet365 (`JR8714690761I`) simplesmente nunca foi adicionada — resultado: a
+# conferência de cobertura (o guarda contra chunk que some sem erro, s179) ficou DESLIGADA
+# justamente na casa de maior lote, e ninguém tinha como perceber. Casa nova agora entra de
+# graça, sem regex nova (era o achado #5 da auditoria do SharpenUp).
+#
+# Seguro porque aqui o código só é usado em comparação EXATA (gabarito). Ele NÃO entra no
+# `corrigir_codigos_tsv`, que faz snap por edit-distance: o código da bet365 é SEQUENCIAL
+# (`QR1560103381I` / `…382I` / `…383I` — 130 pares a ≤2 chars no banco), então um snap por
+# semelhança trocaria um código VÁLIDO pelo do bilhete vizinho. O gate `_ID_MINLEN=16` já barra
+# esses 13 chars de qualquer forma; este comentário existe para ninguém "melhorar" isso depois.
+#
+# `[Código: ]` VAZIO (bet365 cujo detalhe não chegou) não vira gabarito — o `.strip()` esvazia
+# e o filtro descarta. Sem isso, todo bilhete sem detalhe viraria "faltante" falso → repescagem
+# à toa e linha duplicada no TSV.
+_ID_MARCADOR_RE = re.compile(r"^\[Código:\s*([^\]\r\n]+?)\s*\]", re.MULTILINE)
 _ID_MINLEN = 16    # ID muito curto = a IA truncou demais → irrecuperável, não arrisca
 _ID_MARGIN = 3     # o ID real mais próximo tem de ganhar do 2º por ≥3 (senão ambíguo)
 _ID_MAXDIST = 8    # acima disso a leitura destruiu o número → não confia no snap
@@ -364,17 +385,19 @@ def codigos_do_texto(texto: str | None) -> list[str]:
     `ID: …` é uma fronteira de bilhete injetada pelo robô a partir do DOM/API — não é
     leitura de IA. Serve de gabarito para `conferir_cobertura`.
 
-    Casas sem esse marcador (Bet365, prints) devolvem lista vazia → quem chama trata
-    como "não dá para conferir" e segue o comportamento antigo.
+    O marcador é lido pela regex GENÉRICA (`_ID_MARCADOR_RE`), a mesma fronteira do
+    chunker — toda casa de robô entra sem regex própria. Casa sem marcador (prints,
+    legado colado à mão) devolve lista vazia → quem chama trata como "não dá para
+    conferir" e segue o comportamento antigo.
     """
     if not texto:
         return []
     achados: list[tuple[int, str]] = []
-    # `_ID_BETFAIR_RE` entra AQUI e não no `corrigir_codigos_tsv`: aqui o código só é
+    # `_ID_MARCADOR_RE` entra AQUI e não no `corrigir_codigos_tsv`: aqui o código só é
     # lido como gabarito (comparação exata); lá ele viraria alvo de snap por
-    # edit-distance — o `O/…` tem 18 chars, passaria do gate `_ID_MINLEN` e mudaria o
-    # comportamento do id-fix da Betfair, que é outro assunto.
-    for rx in (_ID_TEXTO_RE, _ID_SUPERBET_RE, _ID_BETESPORTE_RE, _ID_BETFAIR_RE):
+    # edit-distance, que é outro comportamento (e perigoso em código sequencial —
+    # ver a nota na definição da regex).
+    for rx in (_ID_TEXTO_RE, _ID_MARCADOR_RE):
         achados.extend((m.start(), m.group(1).strip()) for m in rx.finditer(texto))
     achados.sort(key=lambda p: p[0])
     vistos: set[str] = set()

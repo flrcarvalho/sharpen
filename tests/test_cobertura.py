@@ -60,25 +60,43 @@ def test_codigos_do_texto_em_ordem_sem_repetir():
 
 def test_gabarito_cobre_os_formatos_reais_de_cada_casa():
     """Formatos conferidos contra os códigos que estão no banco em produção.
-    Bet365 fica de fora de propósito (formato `JR8714690761I`, robô em obra na s178)."""
+
+    A bet365 ficava de fora desde a s178 ("robô em obra") — e continuou fora depois que as
+    s182→s189 estabilizaram o `[Código: BR…]`, deixando a conferência de cobertura DESLIGADA
+    justamente na casa de maior lote. Desde a s194 o gabarito é uma regex genérica de marcador,
+    então toda casa entra sem regex própria."""
     reais = {
         "Superbet":   "891L-YJ3VAH",
         "Betano":     "20675937607",
         "Pinnacle":   "3089350167",
         "BETesporte": "190989817",
         "Betfair":    "O/25146258/0001775",
+        "KTO":        "12939510404",
+        "Bet365":     "JR8714690761I",
     }
     for casa, cod in reais.items():
         assert codigos_do_texto(f"[Código: {cod}]\nData: 21/07/2026") == [cod], casa
 
 
-def test_gabarito_ignora_codigo_bet365():
-    # Sem gabarito → conferência vira no-op; não gera falso "faltante".
-    assert codigos_do_texto("[Código: JR8714690761I]") == []
+def test_gabarito_ignora_marcador_vazio():
+    """`[Código: ]` vazio é real: a bet365 emite assim quando o detalhe do bilhete não chegou.
+
+    Ele NÃO pode virar gabarito — viraria um "faltante" que nunca volta, disparando repescagem
+    à toa e reinserindo a linha (duplicata). Sem código, o bilhete simplesmente não é cobrado.
+    """
+    assert codigos_do_texto("[Código: ]\nData: 21/07/2026") == []
+    assert codigos_do_texto("[Código:]\nData: 21/07/2026") == []
+    assert codigos_do_texto("[Código: JR8714690761I]\n[Código: ]") == ["JR8714690761I"]
+
+
+def test_gabarito_so_reconhece_marcador_em_inicio_de_linha():
+    """A fronteira é a mesma do chunker (`_SUPERBET_SPLIT_RE`, início de linha). Marcador no
+    meio de uma linha de descrição não é bilhete e não pode ser cobrado."""
+    assert codigos_do_texto("Seleções: algo [Código: FALSO123] mais texto") == []
 
 
 def test_codigos_do_texto_sem_marcador_e_vazio():
-    # Bet365 / prints: sem [Código:] não há gabarito → a conferência vira no-op.
+    # Prints / texto colado à mão: sem [Código:] não há gabarito → a conferência vira no-op.
     assert codigos_do_texto("[Bilhete Bet365]\nalgo aqui") == []
     assert codigos_do_texto(None) == []
 
@@ -104,6 +122,49 @@ def test_cobertura_pega_chunk_que_sumiu():
 def test_cobertura_sem_gabarito_e_no_op():
     c = conferir_cobertura(_tsv([]), "[Bilhete Bet365]\nsem codigo")
     assert c["esperados"] == 0 and c["faltantes"] == []
+
+
+# ── bet365 ponta a ponta (s194) ───────────────────────────────────────────────
+# A bet365 ficou FORA da conferência da s179 até a s194: nenhuma regex reconhecia
+# `JR8714690761I`, então o guarda contra chunk-que-some estava desligado na casa de maior
+# lote (~110 bilhetes = 4 chunks; um chunk mudo levaria ~28 bilhetes em silêncio).
+# Este teste trava a cadeia inteira com o texto REAL que o `formatTicketB3` emite —
+# inclusive o `[Código: ]` VAZIO, que a bet365 produz quando o detalhe do bilhete não
+# chegou e que NÃO pode virar faltante (viraria repescagem à toa + linha duplicada).
+
+_B3_TEXTO = "\n\n".join([
+    "[Código: JR8714690761I]\nData (encerramento): 21/07/2026\nStake: 50,00\nStatus: Ganho → W",
+    "[Código: JR8714690762K]\nData (encerramento): 21/07/2026\nStake: 30,00\nStatus: Perdeu → L",
+    "[Código: ]\nData (encerramento): 22/07/2026\nStake: 10,00\nStatus: Perdeu → L",
+    "[Código: QR1560103381I]\nData (encerramento): 22/07/2026\nStake: 20,00\nStatus: Ganho → W",
+])
+
+
+def _tsv_b3(cods):
+    linhas = [main._TSV_HEADER]
+    for c in cods:
+        linhas.append(f"21/07/2026\tFutebol\t\tBet365\tconta\tML\tdesc\t50,00\t2,00\tW\t{c}")
+    return "```tsv\n" + "\n".join(linhas) + "\n```"
+
+
+def test_cobertura_bet365_detecta_bilhete_que_sumiu():
+    c = conferir_cobertura(_tsv_b3(["JR8714690761I", "QR1560103381I"]), _B3_TEXTO)
+    # 3 esperados: o `[Código: ]` vazio não conta (não há o que cobrar sem código)
+    assert c["esperados"] == 3
+    assert c["faltantes"] == ["JR8714690762K"]
+
+
+def test_cobertura_bet365_completa_nao_acusa_falta():
+    c = conferir_cobertura(
+        _tsv_b3(["JR8714690761I", "JR8714690762K", "QR1560103381I"]), _B3_TEXTO)
+    assert c["esperados"] == 3 and c["faltantes"] == []
+
+
+def test_repescagem_bet365_recorta_o_bloco_certo():
+    recorte = main._blocos_dos_codigos(_B3_TEXTO, ["JR8714690762K"])
+    assert recorte.count("[Código:") == 1
+    assert "JR8714690762K" in recorte and "Stake: 30,00" in recorte
+    assert "JR8714690761I" not in recorte
 
 
 # ── recorte dos faltantes ─────────────────────────────────────────────────────
