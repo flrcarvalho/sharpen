@@ -3159,9 +3159,12 @@ function mostrarEmptyState() {
 // Bet365 voltou em 22/07/2026: a 1ª tentativa (robô de DOM) não segurava; agora a
 // captura é passiva pela API de histórico (`/sportshistoryapi`, b3_inject) com o
 // robô de DOM só como fallback — mesmo padrão de Betfair/Pinnacle.
-// KTO entrou em 25/07/2026: casa de TEXTO sem injetor — a lista "Minhas Apostas"
-// renderiza o cupom inteiro no DOM, então o roboScroll genérico (content.js) cobre
-// sem interceptar API. Backend já devolve modo `texto` (captura.py `_MODO_POR_CASA`).
+// KTO entrou em 25/07/2026: captura por API (Kambi, `kto_inject`) — a tentativa de
+// robô de texto (s190) perdia ~90% dos bilhetes, porque a lista da KTO não tem linha
+// em branco entre cupons e o roboScroll junta tudo num bloco só. Refeito na s192.
+// Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
+// desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
+// Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
 const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO']);
 function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase()); }
 

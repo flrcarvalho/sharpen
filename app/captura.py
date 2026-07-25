@@ -42,10 +42,13 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # lê a RESPOSTA da API POST /activity/sportsbook (JSON exato: betId O/…, settledDate,
 # status WON/LOST/VOID, stake, odd) — data de resolução de TODO bilhete, perda inclusive
 # (o extrato CSV não tinha linha p/ perda). Substitui o fluxo texto+extrato com join no código.
-# KTO: texto SEM injetor — a lista "Minhas Apostas" renderiza o cupom inteiro no DOM (ID do
-# Cupom, mercados, odd, stake, status), então o roboScroll genérico (content.js) rola + lê o
-# innerText + dedupa por conteúdo. Sem interceptar API (o `else` do dispatch cai no genérico);
-# o corte de lookback usa a data "DD de mmm. de AAAA" que o parseDatas já reconhece.
+# KTO: por API (Kambi) via `kto_inject` — GET /coupon/history.json, repaginado por range_start
+# até `range.more:false`, então o operador não clica "Mostrar mais".
+# ⚠ A s190 tentou pôr a KTO no robô de TEXTO genérico e não funcionou: o `roboScroll` parte o
+# innerText por LINHA EM BRANCO, e a lista da KTO não tem linha em branco entre cupons — os
+# ~140 bilhetes viravam UM bloco com menu e rodapé, e a IA perdia ~90% em silêncio. Refeito por
+# API na s192. Antes de marcar uma casa nova como "texto", confira essa fronteira
+# (docs/GUIA_CASA_SHARPENUP.md, Fase 1).
 _MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto"}
 
 
