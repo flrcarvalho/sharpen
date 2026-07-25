@@ -52,7 +52,7 @@ Três consequências mensuráveis:
 
 ## 2. Achados que valem dinheiro ou dado (agir)
 
-### A1 — Bet365 está fora da conferência de cobertura · **ALTO** · não corrigido
+### A1 — Bet365 está fora da conferência de cobertura · **ALTO** · ✅ CORRIGIDO (`831f97f`)
 
 `repository.py::codigos_do_texto` reconhece o código por quatro regexes de formato
 (`repository.py:317-330`). Nenhuma casa com o formato da bet365 (`JR8714690761I`):
@@ -75,13 +75,22 @@ A exclusão foi **deliberada na s178** ("robô em obra") e está congelada num t
 (`tests/test_cobertura.py:76`) — mas as s182→s189 estabilizaram o `[Código: BR…]`, e ninguém
 voltou para religar o guarda. É dívida de decisão vencida, não bug de digitação.
 
-**Correção proposta** (2 linhas + 1 teste): uma regex genérica de marcador para o caso
-alfanumérico, ou `_ID_BET365_RE` explícita, adicionada **só** em `codigos_do_texto` (que
-compara exato). Não tocar `corrigir_codigos_tsv`, que usa outra lista e faria *snap* por
-edit-distance — comportamento diferente, assunto separado. Inverter o teste que hoje trava a
-exclusão.
+**Aplicado:** `_ID_MARCADOR_RE` — qualquer conteúdo em `[Código: …]` em início de linha, o
+espelho exato do `_SUPERBET_SPLIT_RE` do chunker. A fronteira que **fatia** passa a ser a mesma
+que **cobra**, e casa nova entra sem regex nova (resolve o achado estrutural §3.1 junto).
 
-### A2 — Pinnacle está fora do pré-dedup · **ALTO** · não corrigido
+**Verificado no banco ANTES de ligar** — falso "faltante" dispararia repescagem à toa e
+reinseriria a linha (duplicata). 1.507 códigos bet365: **100 %** na forma `AA9999999999A` e
+**zero** grupo de mesmo-conteúdo com códigos parecidos, que é a assinatura de transcrição
+errada. Os 130 pares a ≤2 chars são **sequenciais** (`QR1560103381I` / `…382I` / `…383I` —
+apostas seguidas), não erro. Isso confirma que o código da bet365 **não** pode entrar no
+`corrigir_codigos_tsv`: um *snap* por semelhança trocaria um código válido pelo do bilhete
+vizinho (o gate `_ID_MINLEN=16` já barra; o comentário no código fixa o motivo).
+
+`[Código: ]` vazio (bet365 sem detalhe) não vira gabarito. +4 testes, incluindo a cadeia
+ponta a ponta com o texto real do `formatTicketB3`.
+
+### A2 — Pinnacle está fora do pré-dedup · **ALTO** · ✅ CORRIGIDO (`7cf11ae`)
 
 `main.py:1741` lista `("SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO")`. **Pinnacle não
 está** — apesar de o `formatTicketPN` emitir `[Código: …]` (`content.js:1103`) e de
@@ -98,16 +107,23 @@ texto fatia pelo fallback `\n\n` em vez do marcador `[Código:]`. Hoje funciona 
 coincidência (os robôs juntam blocos com linha em branco) — mas é frágil: um bloco que
 contenha linha em branco vira dois bilhetes.
 
-**Correção proposta:** somar `"PINNACLE"` às duas tuplas. Uma linha cada.
+**Aplicado:** as duas tuplas literais (repetidas a ~1100 linhas de distância) viraram uma
+lista única, `_CASAS_MARCADOR_CODIGO` — é ela que impede a próxima casa de repetir o
+esquecimento. Conferido antes que `get_codigos_resolvidos` só descarta o que está `resolvida`:
+bilhete **aberto** segue sendo reprocessado e atualizado ao liquidar.
 
-### A3 — Comentários canônicos mentindo sobre a KTO · **BAIXO** · não corrigido
+O próprio `audit_sharpenup.py` acusou quando as tuplas viraram lista nomeada (ele lia os
+literais) — agora exige as três coisas: a casa está na lista **e** os dois pontos de uso
+consultam a lista, ninguém re-inlinou literal.
+
+### A3 — Comentários canônicos mentindo sobre a KTO · **BAIXO** · ✅ CORRIGIDO (`101e70f`)
 
 `captura.py:45-48` e `index.html:3162-3164` afirmam que a KTO é *"texto SEM injetor — o
 `roboScroll` genérico cobre"*. Isso foi verdade por ~4 horas: a s192 substituiu tudo por
 `kto_inject.js` + `roboKTOPassive` **exatamente porque o `roboScroll` não cobria**. Quem ler
 esses comentários para criar a próxima casa vai repetir o erro que a s192 pagou para descobrir.
 
-### A4 — `CASA_BET365.md` ensina a IA duas coisas que não existem mais · **BAIXO** · não corrigido
+### A4 — `CASA_BET365.md` ensina a IA duas coisas que não existem mais · **BAIXO** · ✅ CORRIGIDO (`101e70f`)
 
 O arquivo vai **inteiro para o prompt** em toda extração da bet365:
 
@@ -236,10 +252,10 @@ O `extensor/README.md` listava `fab.js` e `overlay.js` (arquivos que não existe
 
 | # | O quê | Por quê | Tamanho | Risco |
 |---|---|---|---|---|
-| ~~1~~ | ~~**Voltar o CI ao verde** (A5)~~ | ✅ feito em `61d5c8d` | — | — |
-| 2 | **Religar a cobertura da bet365** (A1) | 28 bilhetes podem sumir em silêncio hoje | 2 linhas + teste | baixo |
-| 3 | **Pinnacle no pré-dedup e no chunker** (A2) | custo de IA recorrente à toa | 2 linhas | baixo |
-| 4 | **Comentários e `CASA_BET365.md`** (A3, A4) | a doc canônica está ensinando errado | 4 trechos | nenhum |
+| ~~1~~ | ~~**Voltar o CI ao verde** (A5)~~ | ✅ `61d5c8d` | — | — |
+| ~~2~~ | ~~**Religar a cobertura da bet365** (A1)~~ | ✅ `831f97f` — virou gabarito genérico: casa nova entra sem regex | — | — |
+| ~~3~~ | ~~**Pinnacle no pré-dedup e no chunker** (A2)~~ | ✅ `7cf11ae` — as 2 tuplas viraram lista única | — | — |
+| ~~4~~ | ~~**Comentários e `CASA_BET365.md`** (A3, A4)~~ | ✅ `101e70f` | — | — |
 | 5 | **Checagem de origem nos listeners** (3.3) | integridade do dado | 7 linhas | baixo |
 | 6 | **`roboPassivoGenerico` + `su_hook.js`** (3.2) | casa nova: 300 → ~40 linhas | 1 sessão | **médio** — mexe em 7 casas que funcionam; fazer **depois** de haver caso de harness para cada uma |
 | 7 | **Caso de harness para as 6 casas restantes** | pré-requisito do #5: sem regressão travada, refatorar 7 casas é apostar | 1 fixture por casa (o Feca captura no F12) | baixo |
@@ -270,8 +286,13 @@ O `extensor/README.md` listava `fab.js` e `overlay.js` (arquivos que não existe
 **Organização**
 - `extensor/Backups/` removida (duplicata vazia fora do lugar).
 
-**Nada de produção foi alterado.** `app/`, `extensor/*.js` e `manifest.json` estão intactos —
-os achados A1–A4 estão propostos, não aplicados.
+**Produção alterada depois (mesma sessão, com aprovação, um commit por achado):** A5
+(`61d5c8d`, só `tests/`) · A1 (`831f97f`, `repository.py`) · A2 (`7cf11ae`, `main.py`) ·
+A3+A4 (`101e70f`, só comentário/doc). `extensor/*.js` e `manifest.json` seguem **intactos** —
+nenhuma mudança exige recarregar a extensão.
+
+**Placar da auditoria:** 5 achados de ação → **5 corrigidos**. Restam os estruturais (§3.2,
+§3.3) e o backlog de escala, que dependem de decisão e de mais cobertura de harness.
 
 ---
 
