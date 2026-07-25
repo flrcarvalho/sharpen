@@ -2199,7 +2199,7 @@ function faviconUrl(casa) {
   const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
   // encodeURIComponent: casa de modo cego (worldwide) é texto livre do usuário/IA →
   // sem encode, um domínio com " ou > escapa do src="..." (XSS armazenado, C1). Espelha inicio.html:270.
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
 }
 
 // Fallback de favicon (REFERENCIA_CHIPS_CASAS.md §2): se a imagem não carrega,

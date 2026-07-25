@@ -13,7 +13,7 @@ Cada linha da tabela tem, na 1ª coluna, o chip do favicon + o nome:
 ```html
 <span style="display:inline-flex;align-items:center;gap:6px">
   <span class="house-chip" data-initial="B" data-casa="Bet365">
-    <img src="https://www.google.com/s2/favicons?domain=bet365.com&sz=64" alt="Bet365">
+    <img src="https://www.google.com/s2/favicons?domain=bet365.com&sz=128" alt="Bet365">
   </span>
   Bet365
 </span>
@@ -26,9 +26,9 @@ Cada linha da tabela tem, na 1ª coluna, o chip do favicon + o nome:
 
 ## 2. Favicon (chip da casa)
 
-### URL do favicon — padrão Google S2, sempre `sz=64`
+### URL do favicon — padrão Google S2, sempre `sz=128`
 ```
-https://www.google.com/s2/favicons?domain={DOMINIO}&sz=64
+https://www.google.com/s2/favicons?domain={DOMINIO}&sz=128
 ```
 
 | Casa            | Domínio              |
@@ -263,19 +263,19 @@ Separador de milhar pt-BR (`1.167`): `(n).toLocaleString('pt-BR')`.
       <thead><tr><th class="th-l">Casa</th><th class="th-r">Bets</th></tr></thead>
       <tbody>
         <tr>
-          <td><span class="casa-cell"><span class="house-chip" data-initial="B" data-casa="Bet365"><img src="https://www.google.com/s2/favicons?domain=bet365.com&sz=64" alt="Bet365"></span>Bet365</span></td>
+          <td><span class="casa-cell"><span class="house-chip" data-initial="B" data-casa="Bet365"><img src="https://www.google.com/s2/favicons?domain=bet365.com&sz=128" alt="Bet365"></span>Bet365</span></td>
           <td class="td-num">1.167</td>
         </tr>
         <tr>
-          <td><span class="casa-cell"><span class="house-chip" data-initial="B" data-casa="Betano"><img src="https://www.google.com/s2/favicons?domain=betano.com&sz=64" alt="Betano"></span>Betano</span></td>
+          <td><span class="casa-cell"><span class="house-chip" data-initial="B" data-casa="Betano"><img src="https://www.google.com/s2/favicons?domain=betano.com&sz=128" alt="Betano"></span>Betano</span></td>
           <td class="td-num">374</td>
         </tr>
         <tr>
-          <td><span class="casa-cell"><span class="house-chip" data-initial="R" data-casa="Rei do Pitaco"><img src="https://www.google.com/s2/favicons?domain=reidopitaco.com.br&sz=64" alt="Rei do Pitaco"></span>Rei do Pitaco</span></td>
+          <td><span class="casa-cell"><span class="house-chip" data-initial="R" data-casa="Rei do Pitaco"><img src="https://www.google.com/s2/favicons?domain=reidopitaco.com.br&sz=128" alt="Rei do Pitaco"></span>Rei do Pitaco</span></td>
           <td class="td-num">17</td>
         </tr>
         <tr>
-          <td><span class="casa-cell"><span class="house-chip" data-initial="N" data-casa="Novibet"><img src="https://www.google.com/s2/favicons?domain=novibet.com&sz=64" alt="Novibet"></span>Novibet</span></td>
+          <td><span class="casa-cell"><span class="house-chip" data-initial="N" data-casa="Novibet"><img src="https://www.google.com/s2/favicons?domain=novibet.com&sz=128" alt="Novibet"></span>Novibet</span></td>
           <td class="td-num">49</td>
         </tr>
       </tbody>
