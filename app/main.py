@@ -343,12 +343,13 @@ def _format_xls_rows(rows: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
-async def _parse_xls(raw: bytes, dono: str) -> tuple[str, int]:
+async def _parse_xls(raw: bytes, dono: str, casa: str = "", parceiro: str = "") -> tuple[str, int]:
     rows = _xls_parse_rows(raw)
     if not rows:
         return "", 0
     all_ids = [r["id"] for r in rows if r["id"]]
-    known_ids = await get_codigos_existentes(all_ids, dono)
+    # "Já tenho" = já tenho NESTA CONTA (ver a nota de escopo em `repository.py`).
+    known_ids = await get_codigos_existentes(all_ids, dono, casa, parceiro)
     new_rows = [r for r in rows if r["id"] not in known_ids]
     skipped = len(rows) - len(new_rows)
     new_rows_oldest_first = list(reversed(new_rows))
@@ -372,7 +373,8 @@ def _split_betano_bilhetes(text: str) -> list[str]:
     return [b.strip() for b in _BETANO_SPLIT_RE.split(text) if b.strip()]
 
 
-async def _dedup_betano_text(text: str, dono: str) -> tuple[str, int]:
+async def _dedup_betano_text(text: str, dono: str, casa: str = "",
+                             parceiro: str = "") -> tuple[str, int]:
     """Remove bilhetes já liquidados no banco + duplicatas de scroll dentro do colar.
 
     Retorna (texto_filtrado, qtd_ignorada). Mantém a ordem original (mais recente no topo).
@@ -387,7 +389,9 @@ async def _dedup_betano_text(text: str, dono: str) -> tuple[str, int]:
         m = _BETANO_ID_RE.search(b)
         ids.append(m.group(1) if m else None)
 
-    ja_resolvidos = await get_codigos_resolvidos([i for i in ids if i], dono)
+    # Escopado na CONTA: bilhete que já existe em OUTRA conta do mesmo dono não pode
+    # sumir do lote desta aqui (ver a nota em `repository.py`).
+    ja_resolvidos = await get_codigos_resolvidos([i for i in ids if i], dono, casa, parceiro)
 
     mantidos: list[str] = []
     vistos: set[str] = set()
@@ -502,7 +506,8 @@ def _split_betfair_bilhetes(text: str) -> list[str]:
     return blocos
 
 
-async def _dedup_superbet_text(text: str, dono: str) -> tuple[str, int]:
+async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
+                               parceiro: str = "") -> tuple[str, int]:
     """Espelha `_dedup_betano_text` para a Superbet.
 
     Remove bilhetes já liquidados no banco + duplicatas dentro do colar. A chave é o
@@ -518,7 +523,9 @@ async def _dedup_superbet_text(text: str, dono: str) -> tuple[str, int]:
         m = _SUPERBET_ID_RE.search(b)
         ids.append(m.group(1).strip().upper() if m else None)
 
-    ja_resolvidos = await get_codigos_resolvidos([i for i in ids if i], dono)
+    # Escopado na CONTA: bilhete que já existe em OUTRA conta do mesmo dono não pode
+    # sumir do lote desta aqui (ver a nota em `repository.py`).
+    ja_resolvidos = await get_codigos_resolvidos([i for i in ids if i], dono, casa, parceiro)
 
     mantidos: list[str] = []
     vistos: set[str] = set()
@@ -1767,7 +1774,12 @@ async def extrair(
             # Mesmo marcador [Código: ...] → pré-dedup por ID (descarta bilhetes já
             # liquidados no banco + duplicatas de scroll dentro do colar). A Betano migrou
             # p/ ingestão por API (bn_inject) e passou a usar o mesmo marcador das outras.
-            texto, n_skip = await _dedup_superbet_text(texto, dono)
+            # A conta entra no filtro: "já resolvido" passa a valer só NESTA conta. O nome
+            # vem do formulário e pode estar velho se a conta foi renomeada no meio do
+            # caminho — o pior caso é não pular nada (a IA reprocessa e o UPSERT dedupa),
+            # nunca esconder bilhete, que era o modo de falha antigo.
+            texto, n_skip = await _dedup_superbet_text(
+                texto, dono, _casa_display(casa_key), parceiro)
             xls_skipped += n_skip
         if texto:
             base_content.append({"type": "text", "text": texto})
@@ -1787,7 +1799,7 @@ async def extrair(
         raw = await xls_file.read()
         if len(raw) > _MAX_XLS_BYTES:
             raise HTTPException(413, "Arquivo XLS excede o limite de 20 MB.")
-        xls_text, n_skip = await _parse_xls(raw, dono)
+        xls_text, n_skip = await _parse_xls(raw, dono, _casa_display(casa_key), parceiro)
         xls_skipped += n_skip
         if xls_text:
             base_content.append({"type": "text", "text": xls_text})

@@ -2153,38 +2153,63 @@ async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict
             "assinaturas_recalculadas": recalculadas}
 
 
-async def get_codigos_existentes(codigos: list[str], dono: str) -> set[str]:
-    """Retorna subset de codigos que já existem no banco (deste dono)."""
+# Escopo do pré-dedup por código: a CONTA, não o dono.
+#
+# O UPSERT trata conta como espaço separado (`UNIQUE (dono, casa, parceiro, assinatura)`),
+# mas o pré-dedup filtrava só por `dono` — então um bilhete que já existisse em QUALQUER
+# conta do dono era descartado ANTES de chegar na IA e nunca entrava na conta que estava
+# sendo extraída. Foi o que fez a 2ª extração da Tivo (s198) trazer 2 de 25: os outros 20
+# estavam na conta órfã, invisível, e o operador poderia repetir a extração à vontade sem
+# nunca ver o lote aparecer. Casa+parceiro chegam como filtro OPCIONAL para não mudar os
+# chamadores que não têm a conta em mãos (o comportamento antigo é o fallback).
+def _filtro_conta(params: list, casa: str | None, parceiro: str | None) -> str:
+    sql = ""
+    if casa:
+        params.append(casa)
+        sql += f" AND casa = ${len(params)}"
+    if parceiro:
+        params.append(parceiro)
+        sql += f" AND parceiro = ${len(params)}"
+    return sql
+
+
+async def get_codigos_existentes(codigos: list[str], dono: str, casa: str | None = None,
+                                 parceiro: str | None = None) -> set[str]:
+    """Retorna subset de codigos que já existem no banco (deste dono / desta conta)."""
     if not codigos:
         return set()
+    params = [codigos, dono]
+    sql = ("SELECT codigo_bilhete FROM bilhetes "
+           "WHERE codigo_bilhete = ANY($1::text[]) AND dono = $2")
+    sql += _filtro_conta(params, casa, parceiro)
     pool = await get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT codigo_bilhete FROM bilhetes WHERE codigo_bilhete = ANY($1::text[]) AND dono = $2",
-            codigos, dono,
-        )
+        rows = await conn.fetch(sql, *params)
     return {row["codigo_bilhete"] for row in rows}
 
 
-async def get_codigos_resolvidos(codigos: list[str], dono: str) -> set[str]:
+async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None = None,
+                                 parceiro: str | None = None) -> set[str]:
     """Retorna subset de codigos já salvos E liquidados (extraction_state = 'resolvida').
 
-    Usado no pré-dedup de texto (Betano): pula bilhetes que já estão no banco como
-    resolvidos, mas NÃO pula os salvos como 'aberta' — assim uma aposta que estava
-    em aberto (vinda de print) e agora aparece liquidada no texto ainda é processada
-    para atualizar o resultado.
+    Usado no pré-dedup de texto: pula bilhetes que já estão no banco como resolvidos, mas
+    NÃO pula os salvos como 'aberta' — assim uma aposta que estava em aberto (vinda de
+    print) e agora aparece liquidada no texto ainda é processada para atualizar o resultado.
+
+    Com `casa`/`parceiro`, "já tenho esse bilhete" passa a significar "já tenho NESTA
+    conta" — ver a nota de escopo acima.
     """
     if not codigos:
         return set()
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """SELECT codigo_bilhete FROM bilhetes
+    params = [codigos, dono]
+    sql = ("""SELECT codigo_bilhete FROM bilhetes
                WHERE codigo_bilhete = ANY($1::text[])
                  AND extraction_state = 'resolvida'
-                 AND dono = $2""",
-            codigos, dono,
-        )
+                 AND dono = $2""")
+    sql += _filtro_conta(params, casa, parceiro)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(sql, *params)
     return {row["codigo_bilhete"] for row in rows}
 
 
