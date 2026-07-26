@@ -147,7 +147,14 @@ Conferência financeira (decide em caso de dúvida): `Ganhos = 0` → L · `Ganh
 
 ## 6. Boost / promoção
 
-**A Betfair Sportsbook não tem boost/promoção de odds.** Por isso a odd exibida é autoritativa para W — não há boost a capturar. *(É o oposto da Superbet, onde o boost obriga a usar Retorno÷Stake.)*
+**A Betfair Sportsbook não tem boost/promoção de odds** — não há boost a capturar.
+
+> ⚠️ Isso **não** muda a regra da odd. Em `W` a odd continua saindo de **Ganhos ÷ Valor
+> Apostado** (§11), como em qualquer casa — a odd exibida **nunca** é autoritativa para
+> vitória. A exibida vale para `L` e `V` (ver §11). Não ter boost significa apenas que não
+> há promoção a caçar, não que o rótulo da tela substitua o dinheiro: a Betfair arredonda a
+> odd exibida para 2 casas, então em bilhetes reais ela **diverge** do valor verdadeiro
+> (`O/…0001806`: exibida 1,83, mas 550 ÷ 300 = 1,83333333).
 
 ---
 
