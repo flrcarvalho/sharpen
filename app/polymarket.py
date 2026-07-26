@@ -13,10 +13,11 @@ Decisões (sessão Polymarket-1):
   atravessar feriados. Para aposta ANTIGA sem PTAX na janela, aborta o sync em vez
   de usar a cotação de hoje (que corromperia o histórico em BRL); só aposta recente
   (≤7 dias) usa hoje como proxy. Ver `_cotacao_para`.
-- Ingere apenas posições RESOLVIDAS (W/L) — espelha o `getOrderedFechados` do
-  app antigo e cobre o pedido "migrar todo o histórico". Posições abertas
-  (transitórias) ficam para uma fase futura, evitando a borda de dedup
-  aberta→resolvida em compras múltiplas.
+- Ingere posições RESOLVIDAS (W/L/V) e também as ABERTAS, como bilhete sem
+  resultado — a transição aberta→resolvida é um UPSERT pelo mesmo `Código`.
+- O resultado sai de quanto CADA COTA pagou na liquidação (`_payouts_por_lado`),
+  não de um P/L agregado por mercado, e cada LADO comprado é uma aposta própria.
+  Ver `casas/CASA_POLYMARKET.md §5` — é onde mora a régua, e o que ela conserta.
 - Paginação SEM teto fixo (corrige o achado #4 da auditoria do Polymarket):
   busca até a página vir vazia, garantindo histórico desde a 1ª aposta.
 
@@ -421,32 +422,211 @@ def _f(d: dict, *keys: str) -> float:
     return 0.0
 
 
-def _reconciliar_redeems(fechados: list, activity: list, active_cids: set) -> list:
-    """Recupera vitórias já resgatadas (somem de /positions, vivem só na activity)."""
-    closed_ids = {p.get("conditionId") for p in fechados if p.get("conditionId")}
-    act_map: dict = {}
+def _e_buy(a: dict) -> bool:
+    return a.get("type") == "BUY" or a.get("side") == "BUY"
+
+
+def _e_sell(a: dict) -> bool:
+    return a.get("type") == "SELL" or a.get("side") == "SELL"
+
+
+def _e_redeem(a: dict) -> bool:
+    return a.get("type") == "REDEEM" or a.get("side") == "REDEEM"
+
+
+# ── Resolução do mercado: quanto CADA COTA pagou, por lado ───────────────────
+#
+# Este bloco existe porque o sinal "posição resolvida" estava sendo lido errado
+# (sessão 195). Um mercado da Polymarket liquida cada cota em exatamente três
+# valores possíveis:
+#
+#   1,0 → o lado acertou       0,0 → o lado errou       0,5 → mercado ANULADO
+#
+# O 0,5 é a resolução "50/50": quando o evento é cancelado/indefinido, a Polymarket
+# devolve metade para OS DOIS lados. Antes o código só reconhecia como resolvida a
+# posição com `currentValue < 0.01` — verdade apenas para a DERROTA. Anulada (0,5) e
+# vitória ainda não resgatada (1,0) valem dinheiro, falhavam o teste e viravam bilhete
+# ABERTO para sempre. `redeemable` sozinho já significa resolvido.
+
+_PAYOUTS_DE_LIQUIDACAO = (0.0, 0.5, 1.0)
+_EPS_PAYOUT = 0.005
+# `outcomeIndex` 999 = índice NÃO INFORMADO no resgate. Não é sinônimo de anulado: a
+# Polymarket usa o mesmo marcador no resgate via adaptador de negative-risk (o
+# conditionId sai com uma longa fila de zeros), onde a cota pagou $1 cheio. Quem
+# desempata é o dinheiro — ver `_payouts_por_lado`. Confundir os dois transformava
+# vitória cheia em meia vitória.
+_OUTCOME_NAO_INFORMADO = 999
+
+# Pó de cota. Vender "tudo" deixa uma sobra de arredondamento (ex.: comprou
+# 352,941175 e vendeu 352,94) que NÃO é posição viva. O limiar é o mesmo que a
+# própria API usa para parar de listar a posição (`sizeThreshold`) — abaixo dele
+# a posição já sumiu de /positions, então tratá-la como aberta seria mentira.
+_DUST_COTAS = float(_SIZE_THRESHOLD)
+
+
+def _payout_de_liquidacao(cur_price: float) -> float | None:
+    """Payout por cota de um preço JÁ liquidado, ou None se o preço for de mercado
+    ainda negociando. Guarda deliberada: mesmo com `redeemable` ligado, um preço
+    fora de {0; 0,5; 1} significa que ainda há mercado — melhor deixar o bilhete
+    ABERTO do que inventar um W/L que o UPSERT depois não rebaixa."""
+    for alvo in _PAYOUTS_DE_LIQUIDACAO:
+        if abs(cur_price - alvo) <= _EPS_PAYOUT:
+            return alvo
+    return None
+
+
+def _posicao_resolvida(pos: dict) -> bool:
+    """A posição saiu do mercado (liquidou)? `redeemable` é o sinal da Polymarket;
+    o preço confirma que ele é de liquidação."""
+    return (pos.get("redeemable") is True
+            and _payout_de_liquidacao(_f(pos, "curPrice")) is not None)
+
+
+def _lados_por_cid(activity: list) -> dict:
+    """conditionId → {asset: outcomeIndex} — os lados que a carteira chegou a comprar.
+    É o que permite dizer, quando a posição já saiu da carteira, QUAL lado ganhou:
+    o REDEEM traz o `outcomeIndex` vencedor, mas não o `asset`."""
+    lados: dict = {}
     for a in activity:
+        if not (_e_buy(a) or _e_sell(a)):
+            continue
+        cid, asset = a.get("conditionId"), a.get("asset")
+        if cid and asset:
+            lados.setdefault(cid, {})[asset] = a.get("outcomeIndex")
+    return lados
+
+
+def _quase(a: float, b: float) -> bool:
+    """Igualdade em dinheiro/cotas, com folga de 1% para o arredondamento da API."""
+    return abs(a - b) <= max(0.01 * max(abs(b), 1.0), _EPS_USD)
+
+
+def _payouts_por_lado(positions: list, activity: list, mov: dict) -> dict:
+    """conditionId → {asset: payout por cota}. Só entra mercado RESOLVIDO.
+
+    Duas fontes complementares, porque uma posição resolvida pode ou não ainda estar
+    na carteira:
+      1) `/positions`: o `curPrice` da posição resolvida JÁ é o valor de liquidação;
+      2) `activity`: quando o resgate esvaziou a posição (some de /positions), é o
+         REDEEM que conta o que aconteceu.
+
+    No caso (2), quando o resgate informa o `outcomeIndex` vencedor (172 dos 180
+    resgates da carteira de referência) a leitura é direta. Quando vem
+    `_OUTCOME_NAO_INFORMADO`, o índice não serve e quem desempata é o VALOR pago:
+    metade das cotas = anulado; o total de um lado = aquele lado ganhou cheio
+    (negative-risk); zero = ninguém recebeu. Sem casamento, não inventamos payout —
+    a aposta segue aberta até um sync futuro fechar a conta, que é melhor que gravar
+    um W/L errado (o UPSERT não rebaixa resolvida de volta para aberta).
+
+    A fonte (1) tem precedência: é o estado atual da carteira."""
+    tab: dict = {}
+    lados = _lados_por_cid(activity)
+
+    resgates: dict = {}
+    for a in activity:
+        if not _e_redeem(a):
+            continue
         cid = a.get("conditionId")
         if not cid:
             continue
-        slot = act_map.setdefault(cid, {"buys": [], "redeems": []})
-        if a.get("type") == "REDEEM" or a.get("side") == "REDEEM":
-            slot["redeems"].append(a)
-        elif a.get("type") == "BUY" or a.get("side") == "BUY":
+        slot = resgates.setdefault(cid, {"usd": 0.0, "indices": set()})
+        slot["usd"] += _f(a, "size", "amount")
+        slot["indices"].add(a.get("outcomeIndex"))
+
+    for cid, rg in resgates.items():
+        cotas = {asset: _cotas_vivas(mov, cid, asset) for asset in lados.get(cid, {})}
+        total = sum(cotas.values())
+        if total <= 0:
+            continue
+        informados = {i for i in rg["indices"] if i != _OUTCOME_NAO_INFORMADO}
+        if informados:
+            tab[cid] = {a: (1.0 if lados[cid].get(a) in informados else 0.0) for a in cotas}
+            continue
+        pago = rg["usd"]
+        if _quase(pago, 0.5 * total):
+            tab[cid] = {a: 0.5 for a in cotas}          # anulado: metade para todo lado
+        elif pago <= _EPS_USD:
+            tab[cid] = {a: 0.0 for a in cotas}
+        else:
+            venceu = [a for a, s in cotas.items() if s > 0 and _quase(pago, s)]
+            if len(venceu) == 1:
+                tab[cid] = {a: (1.0 if a == venceu[0] else 0.0) for a in cotas}
+
+    for p in positions:
+        cid, asset = p.get("conditionId"), p.get("asset")
+        if not cid or not _posicao_resolvida(p):
+            continue
+        tab.setdefault(cid, {})[asset or ""] = _payout_de_liquidacao(_f(p, "curPrice"))
+    return tab
+
+
+def _movimento_por_lado(activity: list) -> dict:
+    """(conditionId, asset) → cotas compradas/vendidas e USD recebido na venda.
+
+    A VENDA antecipada (`side == 'SELL'`) era ignorada pelo módulo inteiro — a aposta
+    vendida antes da liquidação simplesmente não existia na planilha. Na língua global
+    ela é um cashout: retorno = o que a venda pagou."""
+    mov: dict = {}
+    for a in activity:
+        cid, asset = a.get("conditionId"), a.get("asset")
+        if not cid:
+            continue
+        chave = (cid, asset or "")
+        slot = mov.setdefault(chave, {"compradas": 0.0, "vendidas": 0.0, "usd_venda": 0.0})
+        if _e_buy(a):
+            slot["compradas"] += _f(a, "size")
+        elif _e_sell(a):
+            slot["vendidas"] += _f(a, "size")
+            slot["usd_venda"] += _f(a, "usdcSize", "size")
+    return mov
+
+
+def _cotas_vivas(mov: dict, cid: str, asset: str) -> float:
+    """Cotas que chegaram à liquidação (compradas menos as vendidas antes dela)."""
+    m = mov.get((cid, asset or ""), {})
+    return max(m.get("compradas", 0.0) - m.get("vendidas", 0.0), 0.0)
+
+
+def _reconciliar_saidas(fechados: list, activity: list, positions: list,
+                        payouts: dict) -> list:
+    """Recupera as apostas que já não estão em `/positions` — porque foram resgatadas
+    (REDEEM esvazia a posição) ou vendidas antes da liquidação (SELL).
+
+    Agrupa por **(conditionId, asset)**, não por conditionId. Antes agrupava por
+    conditionId e isso somava os DOIS LADOS quando a carteira apostou nos dois: o
+    resultado saía de um P/L agregado e o `_split_multibuys` carimbava o MESMO
+    W/L nas duas pernas — 5 derrotas viraram vitória nesta carteira. Cada lado é uma
+    aposta independente (pode inclusive vir de tipsters diferentes) e é planilhado
+    como tal."""
+    cobertos = {(p.get("conditionId"), p.get("asset") or "") for p in positions}
+    mov = _movimento_por_lado(activity)
+
+    por_lado: dict = {}
+    for a in activity:
+        cid, asset = a.get("conditionId"), a.get("asset")
+        if not cid or not (_e_buy(a) or _e_sell(a)):
+            continue
+        slot = por_lado.setdefault((cid, asset or ""), {"buys": [], "meta": a})
+        if _e_buy(a):
             slot["buys"].append(a)
 
     extras = []
-    for cid, mov in act_map.items():
-        buys, redeems = mov["buys"], mov["redeems"]
-        if not redeems or cid in closed_ids or cid in active_cids:
+    for (cid, asset), dados in por_lado.items():
+        buys = dados["buys"]
+        if not buys or (cid, asset) in cobertos:
             continue
+        m = mov.get((cid, asset), {})
+        payout = payouts.get(cid, {}).get(asset)
+        vendeu_tudo = m.get("compradas", 0.0) - m.get("vendidas", 0.0) <= _DUST_COTAS
+        if payout is None and not vendeu_tudo:
+            continue   # nem liquidou nem saiu na venda → nada a reconciliar
+
         total_bought = sum(_f(b, "size") * _f(b, "price") for b in buys)
-        # fallback alinhado ao app standalone (size ‖ amount); usdcSize não existe na activity
-        total_redeemed = sum(_f(r, "size", "amount") for r in redeems)
         total_shares = sum(_f(b, "size") for b in buys)
         avg_price = (sum(_f(b, "price") * _f(b, "size") for b in buys) / total_shares) if total_shares else 0.0
-        meta = redeems[0] if redeems else (buys[0] if buys else {})
-        redeem_ts = max((int(r.get("timestamp") or 0) for r in redeems), default=0)
+        meta = dados["meta"]
+        redeem_ts = max((int(r.get("timestamp") or 0) for r in activity
+                         if _e_redeem(r) and r.get("conditionId") == cid), default=0)
         extras.append({
             "conditionId": cid,
             "_splitId": cid,
@@ -458,10 +638,10 @@ def _reconciliar_redeems(fechados: list, activity: list, active_cids: set) -> li
             # regex de título en-US não pega nome de time/torneio (corners, ITF, kills…).
             "eventSlug": meta.get("eventSlug") or "",
             "slug": meta.get("slug") or "",
-            "asset": meta.get("asset") or "",
+            "asset": asset,
             "avgPrice": avg_price,
             "initialValue": total_bought,
-            "cashPnl": total_redeemed - total_bought,
+            "size": total_shares,
             "startDate": (datetime.fromtimestamp(int(buys[0]["timestamp"]), timezone.utc).isoformat()
                           if buys and buys[0].get("timestamp") else None),
             "_redeemTs": redeem_ts or None,
@@ -471,10 +651,17 @@ def _reconciliar_redeems(fechados: list, activity: list, active_cids: set) -> li
 
 def _split_multibuys(fechados: list, activity: list) -> list:
     """Expande posições com várias compras em entradas individuais (uma por BUY),
-    preservando o stake e a odd de cada compra."""
+    preservando o stake e a odd de cada compra.
+
+    O índice do split (`__i`, que vira o `codigo_bilhete`) é numerado sobre TODAS as
+    compras do conditionId em ordem cronológica — não sobre as compras do lado. Isso
+    é deliberado: mantém o código idêntico ao que já está salvo no banco (a
+    reconciliação por lado, que conserta o mercado comprado nos dois lados, mudaria a
+    numeração e faria o re-sync duplicar o histórico). Também impede que os dois lados
+    de um mesmo mercado gerem o MESMO código e colidam na dedup."""
     buy_map: dict = {}
     for a in activity:
-        if a.get("type") != "BUY" and a.get("side") != "BUY":
+        if not _e_buy(a):
             continue
         cid = a.get("conditionId")
         if not cid:
@@ -487,38 +674,44 @@ def _split_multibuys(fechados: list, activity: list) -> list:
     for pos in fechados:
         cid = pos.get("conditionId") or ""
         buys = buy_map.get(cid, [])
+        ordem = {id(b): i for i, b in enumerate(buys)}   # índice GLOBAL do conditionId
         match = [b for b in buys if not (pos.get("asset") and b.get("asset") and pos["asset"] != b["asset"])]
 
-        if len(match) <= 1:
+        if len(buys) <= 1:
             pos["_splitId"] = cid
             pos["_splitTotal"] = 1
+            pos.setdefault("_lado", pos.get("asset") or "")
             if len(match) == 1:
                 bp = _f(match[0], "price")
                 if 0 < bp < 1:
                     pos["avgPrice"] = bp
+                pos["_cotas"] = _f(match[0], "size")
+                pos.setdefault("_lado", match[0].get("asset") or "")
+            else:
+                pos["_cotas"] = _f(pos, "size")
             result.append(pos)
             continue
 
-        is_win = _f(pos, "cashPnl") > 0
         # Distribui o valor de mercado da posição-mãe proporcional ao stake de cada
         # compra (espelha o splitMultiBuys do app). Sem isto, cada split herdaria o
         # currentValue cheio → o dashboard somava N× em posições ativas multi-compra.
         total_stake = sum(_f(b, "size") * _f(b, "price") for b in match)
         pos_cv = _f(pos, "currentValue")
-        for i, buy in enumerate(match):
+        for buy in match:
+            i = ordem[id(buy)]
             price = _f(buy, "price")
             shares = _f(buy, "size")
             this_stake = shares * price
-            this_pnl = (shares - this_stake) if price > 0 else (_f(pos, "cashPnl") / len(match))
             split = dict(pos)
             split.update({
                 "_splitId": f"{cid}__{i}",
                 "_splitIndex": i,
-                "_splitTotal": len(match),
+                "_splitTotal": len(buys),
                 "_buyTimestamp": int(buy.get("timestamp") or 0),
+                "_cotas": shares,
+                "_lado": buy.get("asset") or (pos.get("asset") or ""),
                 "initialValue": this_stake,
                 "avgPrice": price,
-                "cashPnl": this_pnl if is_win else -this_stake,
                 "currentValue": (pos_cv * this_stake / total_stake) if total_stake else pos_cv,
                 "conditionId": cid,
             })
@@ -537,14 +730,75 @@ def _fmt_odd(x: float) -> str:
     return s.replace(".", ",") if s else "1"
 
 
-def _calc_odd(pos: dict) -> float:
-    """Odd = retorno/investimento (payout ratio) = 1/preço médio de compra. UMA odd
-    para tudo — resultado E indicadores (odd média): a odd do resultado se ganhou, ou
-    do POSSÍVEL resultado se perdeu/ativa (decisão do Feca). Não usa (stake+lucro)/stake:
-    o cashPnl carrega taxa/slippage, e a odd da planilha é a limpa (1/preço). Como cada
-    cota paga $1 no acerto, 1/preço é exatamente retorno÷investimento se vencer."""
+def _odd_de_entrada(pos: dict) -> float:
+    """Odd apostada = 1/preço médio de compra. É a odd do POSSÍVEL resultado — a que
+    fica na linha quando a aposta perdeu, foi anulada devolvendo o stake, ou segue
+    aberta (decisão do Feca). Não usa (stake+lucro)/stake: o cashPnl carrega
+    taxa/slippage, e a odd da planilha é a limpa."""
     pr = _f(pos, "avgPrice", "price")
     return (1 / pr) if 0 < pr < 1 else 1.0
+
+
+def _calc_odd(pos: dict) -> float:
+    """Odd que vai para a linha. Usa a odd EFETIVA (`_oddFinal` = retorno ÷ stake)
+    quando a liquidação calculou uma — caso do mercado anulado e da venda antecipada,
+    onde a cota não pagou $1 cheio. Sem ela, cai na odd de entrada."""
+    odd = pos.get("_oddFinal")
+    if odd:
+        return float(odd)
+    return _odd_de_entrada(pos)
+
+
+_EPS_USD = 0.005   # banda neutra em USD (mesma do antigo teste sobre cashPnl)
+
+
+def _retorno_usd(pos: dict, payouts: dict, mov: dict) -> float | None:
+    """USD que ESTA unidade devolveu: o que a venda antecipada pagou + as cotas que
+    sobraram × o payout de liquidação do lado. None = ainda há cota viva num mercado
+    que não liquidou → a aposta continua ABERTA."""
+    cid = pos.get("conditionId") or ""
+    lado = pos.get("_lado") or pos.get("asset") or ""
+    cotas = _f(pos, "_cotas") or _f(pos, "size")
+    m = mov.get((cid, lado), {})
+    compradas = m.get("compradas", 0.0)
+    # A venda é do LADO inteiro; cada unidade leva a fatia proporcional às suas cotas.
+    frac = (cotas / compradas) if compradas > 0 else 1.0
+    restantes = max(cotas - m.get("vendidas", 0.0) * frac, 0.0)
+    retorno = m.get("usd_venda", 0.0) * frac
+    if restantes > _DUST_COTAS:
+        payout = payouts.get(cid, {}).get(lado)
+        if payout is None:
+            return None
+        retorno += restantes * payout
+    return retorno
+
+
+def _liquidacao(pos: dict, payouts: dict, mov: dict) -> tuple[str, float] | None:
+    """(resultado, odd) da unidade, ou None se ela ainda está ABERTA.
+
+    É a régua global de cashout (`MASTER_RESULTADO §5.1.2` e `§5.6`) aplicada ao que a
+    aposta REALMENTE devolveu:
+
+        retorno 0             → L   (odd de entrada = a do possível resultado)
+        retorno == stake      → V   (anulada devolvendo o stake; P/L zero)
+        retorno != stake      → W   com odd = retorno ÷ stake
+
+    Na vitória cheia cada cota paga $1, então `retorno ÷ stake` é exatamente `1/preço`
+    — a odd de entrada. Nesse caso devolvemos a própria odd de entrada para preservar
+    dígito por dígito a odd já gravada no histórico (o `initialValue` da API arredonda
+    e a divisão daria uma string de odd diferente para os ~370 bilhetes já salvos)."""
+    retorno = _retorno_usd(pos, payouts, mov)
+    if retorno is None:
+        return None
+    stake = _f(pos, "initialValue", "size")
+    if retorno <= _EPS_USD:
+        return "L", _odd_de_entrada(pos)
+    if abs(retorno - stake) <= _EPS_USD or stake <= 0:
+        return "V", _odd_de_entrada(pos)
+    cotas = _f(pos, "_cotas") or _f(pos, "size")
+    if abs(retorno - cotas) <= _EPS_USD:
+        return "W", _odd_de_entrada(pos)   # payout cheio ($1/cota) → odd = 1/preço
+    return "W", retorno / stake
 
 
 # ── Pipeline público ────────────────────────────────────────────────────────
@@ -578,7 +832,7 @@ def _montar_linha(pos: dict, parceiro: str, iso: str, cotacao: float, resultado:
         "descricao": desc,
         "stake": _fmt_money(stake_brl),
         "stake_usd": round(stake_usd, 2),   # valor original (saiu da conta) p/ referência na grade
-        "odd": _fmt_odd(_calc_odd(pos)),     # 1/preço — a mesma odd para aberta e resolvida
+        "odd": _fmt_odd(_calc_odd(pos)),     # odd de entrada, ou a efetiva na liquidação
         "resultado": resultado,
         "codigo_bilhete": pos.get("_splitId") or pos.get("conditionId") or "",
     }
@@ -618,23 +872,25 @@ def _ordenar_por_sort(linhas: list[dict]) -> list[dict]:
 async def _derivar_resolvidas(client: httpx.AsyncClient, positions: list, activity: list,
                               parceiro: str, hoje: float | None, cot_cache: dict) -> list[dict]:
     """Deriva as linhas RESOLVIDAS (W/L/V) a partir de positions+activity já buscados."""
-    active_cids = {p.get("conditionId") for p in positions if p.get("conditionId")}
-    fechados = [p for p in positions
-                if p.get("redeemable") is True and _f(p, "currentValue") < 0.01]
-    fechados = _reconciliar_redeems(fechados, activity, active_cids)
+    mov = _movimento_por_lado(activity)
+    payouts = _payouts_por_lado(positions, activity, mov)
+    fechados = [p for p in positions if _posicao_resolvida(p)]
+    fechados = _reconciliar_saidas(fechados, activity, positions, payouts)
     fechados = _split_multibuys(fechados, activity)
     redeem_cache = _build_redeem_cache(activity)
 
     linhas = []
     for pos in fechados:
+        liq = _liquidacao(pos, payouts, mov)
+        if liq is None:
+            continue   # ainda tem cota viva em mercado não liquidado → sai pelas ativas
+        resultado, odd = liq
         iso = _data_iso(pos, redeem_cache)
         cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
         if not cotacao:
             # Sem cotação NÃO gravamos USD como se fosse R$ (corromperia stake e P/L).
             raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG)
-        pnl = _f(pos, "cashPnl")
-        # pnl exatamente zero = retornou o stake → V (P/L 0), não L (que daria -stake).
-        resultado = "W" if pnl > 0.005 else ("L" if pnl < -0.005 else "V")
+        pos["_oddFinal"] = odd
         linhas.append(_montar_linha(pos, parceiro, iso, cotacao, resultado))
     return _ordenar_por_sort(linhas)
 
@@ -643,8 +899,7 @@ async def _derivar_ativas(client: httpx.AsyncClient, positions: list, activity: 
                           parceiro: str, hoje: float | None, cot_cache: dict) -> list[dict]:
     """Deriva as linhas ATIVAS (bilhete ABERTO, resultado vazio) a partir de positions+activity.
     Ativas = complemento exato do filtro `fechados` das resolvidas; data = data da COMPRA."""
-    ativas_raw = [p for p in positions
-                  if not (p.get("redeemable") is True and _f(p, "currentValue") < 0.01)]
+    ativas_raw = [p for p in positions if not _posicao_resolvida(p)]
     ativas_raw = _split_multibuys(ativas_raw, activity)
     buy_cache = _build_buy_cache(activity)
 
@@ -790,8 +1045,9 @@ async def coletar_dashboard(wallet: str) -> dict:
                 proxy = str(fonte[0]["proxyWallet"]).lower()
                 break
 
-        ativas_raw = [p for p in positions
-                      if not (p.get("redeemable") is True and _f(p, "currentValue") < 0.01)]
+        # Mesmo filtro das ativas do sync: posição resolvida (inclusive a ANULADA e a
+        # vitória ainda não resgatada, que continuam valendo dinheiro) NÃO é posição ativa.
+        ativas_raw = [p for p in positions if not _posicao_resolvida(p)]
         ativas_raw = _split_multibuys(ativas_raw, activity)
 
         pusd = await _rpc_balance(client, _PUSD, proxy)
@@ -820,10 +1076,9 @@ async def coletar_dashboard(wallet: str) -> dict:
         stake_usd = _f(pos, "initialValue", "size")
         valor_atual = _f(pos, "currentValue")
         pnl_pct = ((valor_atual - stake_usd) / stake_usd * 100) if stake_usd else 0.0
-        # Odd da ativa = SEMPRE a odd de entrada (1/preço de compra). Não usar _calc_odd:
-        # com P&L não-realizado positivo ele daria o valor de mercado, não a odd apostada.
-        _pr = _f(pos, "avgPrice", "price")
-        odd_entrada = (1 / _pr) if 0 < _pr < 1 else 1.0
+        # Odd da ativa = SEMPRE a odd de entrada (1/preço de compra), nunca o valor de
+        # mercado — a posição ainda não liquidou.
+        odd_entrada = _odd_de_entrada(pos)
         end_iso = ""
         ed = pos.get("endDate")
         if isinstance(ed, str):

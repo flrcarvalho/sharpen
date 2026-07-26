@@ -116,21 +116,161 @@ def test_data_compra_iso_fallback_startdate_sem_buy():
 
 # ── Esporte de vitórias reconciliadas (achado: caíam todas em 'Outro') ───────
 
-def test_reconciliar_redeems_preserva_eventslug_e_detecta_esporte():
+def _reconciliar(activity, positions=()):
+    """Atalho dos testes: monta movimento+payouts e reconcilia o que saiu da carteira."""
+    mov = polymarket._movimento_por_lado(activity)
+    payouts = polymarket._payouts_por_lado(list(positions), activity, mov)
+    return polymarket._reconciliar_saidas([], activity, list(positions), payouts)
+
+
+def test_reconciliar_saidas_preserva_eventslug_e_detecta_esporte():
     # A vitória resgatada some de /positions e é recuperada da activity. Antes o
     # eventSlug era descartado → o título en-US ("O/U 1.5 Rounds") não casava nada →
     # 'Outro'. Agora o slug ufc-… é preservado e a detecção acha MMA.
     activity = [
-        {"type": "TRADE", "side": "BUY", "conditionId": "R1", "size": 10, "price": 0.5,
-         "timestamp": 100, "title": "O/U 1.5 Rounds",
+        {"type": "TRADE", "side": "BUY", "conditionId": "R1", "asset": "A1", "outcomeIndex": 0,
+         "size": 10, "price": 0.5, "timestamp": 100, "title": "O/U 1.5 Rounds",
          "eventSlug": "ufc-abc-2026-07-11", "slug": "ufc-abc-totals-1pt5"},
-        {"type": "REDEEM", "conditionId": "R1", "size": 20, "timestamp": 200,
+        {"type": "REDEEM", "conditionId": "R1", "outcomeIndex": 0, "size": 10, "timestamp": 200,
          "title": "O/U 1.5 Rounds", "eventSlug": "ufc-abc-2026-07-11", "slug": "ufc-abc-totals-1pt5"},
     ]
-    extras = polymarket._reconciliar_redeems([], activity, set())
+    extras = _reconciliar(activity)
     assert len(extras) == 1
     assert extras[0]["eventSlug"] == "ufc-abc-2026-07-11"
     assert polymarket._detes_raw(extras[0]["title"], extras[0]["eventSlug"]) == "MMA"
+
+
+# ── Liquidação: quanto CADA COTA pagou (sessão 195) ──────────────────────────
+#
+# Bugs que estes testes prendem, todos provados na carteira real do Feca:
+#   1. anulada/vitória-não-resgatada viravam bilhete ABERTO para sempre;
+#   2. anulada (50/50) virava W/L cheio, com o dobro da odd;
+#   3. mercado comprado nos DOIS lados virava duas vitórias;
+#   4. venda antecipada não gerava linha nenhuma.
+
+def _pos(**kw):
+    base = {"conditionId": "0xC", "asset": "A1", "title": "Time A vs Time B",
+            "eventSlug": "cs2-a-b-2026-07-14", "size": 100.0, "avgPrice": 0.4,
+            "initialValue": 40.0, "redeemable": True}
+    base.update(kw)
+    return base
+
+
+def test_posicao_anulada_e_resolvida_nao_aberta():
+    # curPrice 0,5 + redeemable = mercado ANULADO (50/50). Antes falhava o teste
+    # `currentValue < 0.01` e virava bilhete aberto eterno (caso do Feca em 13/07).
+    assert polymarket._posicao_resolvida(_pos(curPrice=0.5, currentValue=50.0)) is True
+
+
+def test_vitoria_nao_resgatada_e_resolvida_nao_aberta():
+    assert polymarket._posicao_resolvida(_pos(curPrice=1.0, currentValue=100.0)) is True
+
+
+def test_derrota_continua_resolvida():
+    assert polymarket._posicao_resolvida(_pos(curPrice=0.0, currentValue=0.0)) is True
+
+
+def test_preco_de_mercado_nao_e_liquidacao():
+    # Guarda: preço fora de {0; 0,5; 1} não é liquidação, mesmo com redeemable ligado.
+    # Melhor deixar ABERTA do que gravar um W/L que o UPSERT depois não rebaixa.
+    assert polymarket._posicao_resolvida(_pos(curPrice=0.63, currentValue=63.0)) is False
+    assert polymarket._payout_de_liquidacao(0.63) is None
+
+
+def test_anulada_vira_cashout_e_nao_vitoria_cheia():
+    # Comprou a 0,40 e cada cota pagou 0,50 → retorno 50 sobre stake 40.
+    # Régua de cashout (MASTER_RESULTADO §5.6): W com odd = retorno ÷ stake = 1,25.
+    # Antes saía W com odd 2,5 (1/preço) → P/L 2× o real.
+    pos = _pos(curPrice=0.5, currentValue=50.0, _cotas=100.0, _lado="A1")
+    payouts = {"0xC": {"A1": 0.5}}
+    assert polymarket._liquidacao(pos, payouts, {}) == ("W", 1.25)
+
+
+def test_vitoria_cheia_mantem_odd_de_entrada():
+    # Payout $1/cota → retorno ÷ stake É 1/preço. Devolvemos a odd de entrada para a
+    # string da odd não mudar nos ~370 bilhetes já salvos (senão o re-sync os reescreve).
+    pos = _pos(curPrice=1.0, currentValue=100.0, _cotas=100.0, _lado="A1")
+    assert polymarket._liquidacao(pos, {"0xC": {"A1": 1.0}}, {}) == ("W", 2.5)
+
+
+def test_derrota_mantem_odd_do_possivel_resultado():
+    pos = _pos(curPrice=0.0, currentValue=0.0, _cotas=100.0, _lado="A1")
+    assert polymarket._liquidacao(pos, {"0xC": {"A1": 0.0}}, {}) == ("L", 2.5)
+
+
+def test_anulada_que_devolve_o_stake_e_void():
+    # Comprou exatamente a 0,50 e recebeu 0,50 → devolveu o stake → V (P/L zero).
+    pos = _pos(avgPrice=0.5, initialValue=50.0, _cotas=100.0, _lado="A1")
+    assert polymarket._liquidacao(pos, {"0xC": {"A1": 0.5}}, {})[0] == "V"
+
+
+def test_sem_liquidacao_continua_aberta():
+    pos = _pos(_cotas=100.0, _lado="A1")
+    assert polymarket._liquidacao(pos, {}, {}) is None
+
+
+def _act(**kw):
+    base = {"type": "TRADE", "side": "BUY", "conditionId": "0xC", "asset": "A1",
+            "outcomeIndex": 0, "size": 100.0, "price": 0.4, "usdcSize": 40.0,
+            "timestamp": 100, "title": "Time A vs Time B", "eventSlug": "cs2-a-b-2026-07-14"}
+    base.update(kw)
+    return base
+
+
+def test_indice_999_com_metade_e_anulado():
+    # 200 cotas, resgate de 100 = 0,50/cota → anulado.
+    activity = [_act(size=200.0), {"type": "REDEEM", "conditionId": "0xC",
+                                   "outcomeIndex": 999, "size": 100.0, "timestamp": 200}]
+    mov = polymarket._movimento_por_lado(activity)
+    assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 0.5}}
+
+
+def test_indice_999_com_total_do_lado_e_vitoria_cheia():
+    # negative-risk: o resgate passa pelo adaptador e o índice vem 999, mas pagou $1/cota.
+    # Ler 999 como "anulado" cortava a vitória pela metade (regressão pega no gate real).
+    activity = [_act(size=200.0), {"type": "REDEEM", "conditionId": "0xC",
+                                   "outcomeIndex": 999, "size": 200.0, "timestamp": 200}]
+    mov = polymarket._movimento_por_lado(activity)
+    assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 1.0}}
+
+
+def test_dois_lados_do_mesmo_mercado_sao_apostas_independentes():
+    # Comprou os DOIS lados: um ganha, o outro perde. Antes o P/L era agregado por
+    # conditionId e o MESMO resultado era carimbado nas duas pernas (5 derrotas viraram
+    # vitória na carteira do Feca). Cada lado é aposta própria — pode ser de outro tipster.
+    activity = [
+        _act(asset="A1", outcomeIndex=0, size=100.0, price=0.4, timestamp=100),
+        _act(asset="A2", outcomeIndex=1, size=200.0, price=0.6, timestamp=200),
+        {"type": "REDEEM", "conditionId": "0xC", "outcomeIndex": 1, "size": 200.0,
+         "timestamp": 300, "title": "Time A vs Time B"},
+    ]
+    mov = polymarket._movimento_por_lado(activity)
+    payouts = polymarket._payouts_por_lado([], activity, mov)
+    assert payouts == {"0xC": {"A1": 0.0, "A2": 1.0}}
+    unidades = polymarket._split_multibuys(_reconciliar(activity), activity)
+    res = {u["_splitId"]: polymarket._liquidacao(u, payouts, mov) for u in unidades}
+    # códigos distintos (senão os dois lados colidem na dedup) e resultados opostos
+    assert res["0xC__0"][0] == "L" and res["0xC__1"][0] == "W"
+
+
+def test_venda_antecipada_vira_cashout():
+    # Comprou 100 cotas por $40 e vendeu por $34 antes de liquidar. Antes a aposta
+    # não gerava linha NENHUMA (o módulo só conhecia BUY e REDEEM).
+    activity = [_act(), _act(side="SELL", size=100.0, price=0.34, usdcSize=34.0, timestamp=200)]
+    extras = _reconciliar(activity)
+    assert len(extras) == 1
+    mov = polymarket._movimento_por_lado(activity)
+    unidade = polymarket._split_multibuys(extras, activity)[0]
+    resultado, odd = polymarket._liquidacao(unidade, {}, mov)
+    assert resultado == "W" and abs(odd - 0.85) < 1e-9   # 34 ÷ 40
+
+
+def test_venda_total_com_po_de_cota_conta_como_saida():
+    # Comprou 352,941175 e vendeu 352,94: a sobra é pó de arredondamento, não posição
+    # viva. O limiar é o mesmo `sizeThreshold` que faz a API parar de listar a posição.
+    activity = [_act(size=352.941175, price=0.17, usdcSize=60.0),
+                _act(side="SELL", size=352.94, price=0.16, usdcSize=55.05, timestamp=200)]
+    assert len(_reconciliar(activity)) == 1
 
 
 def test_detes_slug_nwsl_e_futebol():
@@ -174,14 +314,18 @@ def test_paginate_trava_proxy_preso(monkeypatch):
 
 # ── Consolidação do fetch: coletar_tudo == coletar_bilhetes + coletar_ativas ──
 
+# Vitória ainda NÃO resgatada: segue em /positions valendo o total das cotas
+# (curPrice 1,0). É o caso que o filtro antigo (`currentValue < 0.01`) jogava para
+# "aberta". O fixture anterior descrevia vitória com currentValue 0 — combinação que
+# não existe no dado real: resgatou, some de /positions.
 _POS_RESOLVIDA = {
-    "conditionId": "0xRES", "redeemable": True, "currentValue": 0.0, "cashPnl": 30.0,
-    "avgPrice": 0.5, "title": "Lakers vs Celtics", "initialValue": 40.0, "size": 40.0,
+    "conditionId": "0xRES", "redeemable": True, "curPrice": 1.0, "currentValue": 80.0,
+    "avgPrice": 0.5, "title": "Lakers vs Celtics", "initialValue": 40.0, "size": 80.0,
     "eventSlug": "nba-lal-bos-2026-05-01", "endDate": "2026-05-02T00:00:00Z",
     "startDate": "2026-05-01T00:00:00Z",
 }
 _POS_ATIVA = {
-    "conditionId": "0xATV", "redeemable": False, "currentValue": 25.0, "cashPnl": 0.0,
+    "conditionId": "0xATV", "redeemable": False, "curPrice": 0.5, "currentValue": 25.0,
     "avgPrice": 0.4, "title": "Heat vs Bucks", "initialValue": 20.0, "size": 20.0,
     "eventSlug": "nba-mia-mil-2026-06-01", "endDate": "2026-06-02T00:00:00Z",
     "startDate": "2026-06-01T00:00:00Z",

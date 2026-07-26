@@ -37,6 +37,10 @@
 
 - **Código** (11ª coluna interna) = `conditionId` da posição. Compras múltiplas no
   mesmo mercado viram entradas individuais com sufixo `__i` (`conditionId__0`, `__1`…).
+- O índice `__i` é numerado sobre **todas as compras do `conditionId`** em ordem
+  cronológica — não sobre as compras de um lado. Isso mantém o código estável quando a
+  carteira compra os **dois lados** do mesmo mercado (cada lado é aposta própria e os
+  dois precisam de códigos diferentes, senão colidem na dedup).
 - A dedup global por ID (`repository._assinatura`) usa esse Código → **reprocessar a
   mesma carteira é UPSERT limpo**, sem duplicar. Sincronizar de novo só atualiza.
 
@@ -51,13 +55,42 @@
 
 ## 5. Resultado (W / L / V / HW / HL)
 
-- **W** quando `cashPnl > 0` (a posição pagou mais que o stake).
-- **L** quando `cashPnl < 0` (a posição perdeu o stake).
-- **V** quando `cashPnl ≈ 0` (banda neutra `|cashPnl| ≤ 0,005`): a posição devolveu
-  o stake (P/L zero) → **anulada, não perda**. Sem essa banda, um P/L exatamente
-  zero cairia em `L` e marcaria −stake indevidamente.
-- Vitórias **já resgatadas** somem de `/positions` e são reconstruídas a partir da
-  `activity` (eventos `REDEEM`) — classificam corretamente como **W**.
+Tudo sai de **quanto cada cota pagou na liquidação** (`payout`), não de um P/L
+agregado. Um mercado da Polymarket liquida a cota em exatamente três valores:
+
+| `payout` | significado |
+|---|---|
+| **1,0** | o lado acertou |
+| **0,0** | o lado errou |
+| **0,5** | mercado **ANULADO** — evento cancelado/indefinido, devolve metade aos dois lados |
+
+Com o `payout` na mão, o resultado é a régua global de cashout
+(`MASTER_RESULTADO §5.1.2` e `§5.6`) aplicada ao **retorno real** da linha:
+
+- **L** — retorno zero.
+- **V** — retorno igual ao stake (P/L zero) → anulada, não perda.
+- **W** — retorno diferente do stake, com **odd = retorno ÷ stake**. Na vitória cheia
+  isso é exatamente `1/preço` (a odd de entrada), então o histórico não muda; no
+  mercado anulado é `0,5 ÷ preço`, que pode dar **odd menor que 1** quando a cota foi
+  comprada acima de 0,50 — é o previsto para cashout abaixo do stake.
+
+**Como saber que liquidou:** `redeemable: true` **sozinho** já significa resolvido; o
+preço só confirma que é de liquidação. Ler `currentValue < 0,01` como sinal de
+resolução era o bug da sessão 195 — só vale para a DERROTA, então **anulada** e
+**vitória ainda não resgatada** (que continuam valendo dinheiro) viravam bilhete
+ABERTO para sempre.
+
+**Posição que saiu da carteira** (o resgate esvazia a posição) é reconstruída da
+`activity`, agrupando por **`conditionId` + `asset`** — nunca só por `conditionId`:
+comprar os dois lados do mesmo mercado são **duas apostas independentes** (podem até
+vir de tipsters diferentes) e uma ganha enquanto a outra perde.
+
+> ⚠️ `outcomeIndex: 999` no `REDEEM` = índice **não informado**, e **não** é sinônimo
+> de anulado: a Polymarket usa o mesmo marcador no resgate via adaptador de
+> *negative-risk* (o `conditionId` sai com uma longa fila de zeros), onde a cota pagou
+> $1 cheio. Quem desempata é o **valor pago**: metade das cotas → anulado; o total de
+> um lado → aquele lado ganhou.
+
 - **HW / HL** não se aplicam ao modelo binário da Polymarket (sem meia-aposta).
   Aguardam amostra caso algum mercado novo exija.
 
@@ -71,9 +104,12 @@
 
 ## 7. Cashout
 
-- Venda antecipada de posição (`SELL`) existe, mas é rara (1 caso na carteira de
-  referência). **Não tratada** no MVP: o stake do split pode ficar superestimado.
-  Aguarda amostra para política definitiva.
+- Venda antecipada (`SELL`) é tratada como cashout: **W** com `odd = valor da venda ÷
+  stake`. Antes a venda era ignorada pelo módulo inteiro e a aposta **não gerava linha
+  nenhuma** na planilha.
+- Sobra de arredondamento na venda total (ex.: comprou 352,941175 e vendeu 352,94) é
+  **pó**, não posição viva — o limiar é o mesmo `sizeThreshold` que faz a API parar de
+  listar a posição.
 
 ---
 
