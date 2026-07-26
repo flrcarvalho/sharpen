@@ -172,6 +172,32 @@
     }
   });
 
+  // Bilhetes da TIVO capturados pelo tv_inject.js (mundo MAIN) — as RESPOSTAS do proxy
+  // /api/game/p/messagetosport com {name:"gethistory"}, já normalizadas pelo inject. A Tivo
+  // NÃO pagina: uma única chamada devolve a conta inteira e a própria casa carimba `Count`,
+  // então `tvFimReal` chega junto com a primeira lista completa (fim autoritativo, não teto de
+  // tempo). `tvById` guarda 1 bilhete por ID — a versão RESOLVIDA vence a ABERTA, porque o
+  // mesmo bilhete volta liquidado numa consulta posterior.
+  const tvById = new Map();          // ID(string) → bilhete
+  let tvFimReal = false;
+  let tvHookVivo = false, tvRespostas = 0;   // autodiagnóstico
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupTVData) {
+      if (d.hook) tvHookVivo = true;
+      if (typeof d.respostas === "number") tvRespostas = d.respostas;
+      if (Array.isArray(d.tickets)) {
+        const aberto = (t) => t.status === 5 || t.resultado === 0;
+        for (const t of d.tickets) {
+          if (!t || !t.id) continue;
+          const ex = tvById.get(t.id);
+          if (!ex || (aberto(ex) && !aberto(t))) tvById.set(t.id, t);
+        }
+      }
+      if (d.fim) tvFimReal = true;
+    }
+  });
+
   // Bilhetes da BET365 capturados pelo b3_inject.js (mundo MAIN) — as RESPOSTAS de
   // /sportshistoryapi/summary + /confirmation (formato F|…), já parseadas pelo inject. Mesmo
   // modelo passivo + REPLAY ATIVO: o inject varre as duas listas (settled=1 resolvidas · settled=0
@@ -597,6 +623,12 @@
       // NÃO serve para a KTO — a lista não tem linha em branco entre cupons, então o
       // innerText virava um bloco só (menu + rodapé + ~140 bilhetes) e a IA perdia o resto.
       blocos = await roboKTOPassive(ctx);
+    } else if (casa === "tivo") {
+      // Passivo + replay de UMA chamada (tv_inject). O histórico não tem paginação: a casa
+      // devolve a conta inteira com `Count`. SEM fallback de texto — a lista da Tivo é uma
+      // tabela sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
+      // bloco só e a IA perderia o resto em silêncio.
+      blocos = await roboTVPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -616,6 +648,7 @@
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
+        tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -1646,6 +1679,213 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] KTO: " + blocos.length + " bilhete(s) · ktoById=" + ktoById.size +
                 " · hook=" + ktoHookVivo + " · respostas=" + ktoRespostas + " · fimReal=" + ktoFimReal);
+    return blocos;
+  }
+
+  // ── Tivo modo API (passivo + replay de uma chamada) ───────────────────────────
+  // Formata 1 bilhete lido do `gethistory` (normalizado pelo tv_inject) no bloco de texto que a
+  // IA lê. Fiel ao que a Tivo entrega — as regras de tradução vivem em `casas/CASA_TIVO.md`:
+  //   • Código = `ID` do bilhete (o "# 298710215" do card) → é o marcador de chunk e de dedup.
+  //   • Data = `ActionTime` (COLOCAÇÃO — a coluna "Data" do card), epoch ms UTC → Brasília.
+  //   • Odd = `Koef`, precisão COMPLETA. A tela trunca em 2 casas (208.4854 vira "208.48"),
+  //     então o card não serve de fonte. No W, o dinheiro confirma: Koef × stake == retorno.
+  //   • Aberta: `PossibleWin` é retorno POTENCIAL, nunca "retorno"; `WinKoef` vem null e
+  //     `WinAmount` vem 0 — nenhum dos dois pode virar odd.
+  //   • `Result` fora de {0,2,3} sobe CRU, marcado para conferência — nunca vira W/L por chute.
+
+  const _abertaTV = (t) => t.status === 5 || t.resultado === 0;
+  // Odd sem truncar (só tira ruído de float), decimal com vírgula.
+  const _oddTxtTV = (x) => (x == null || !isFinite(x)) ? "" : String(Math.round(x * 1e8) / 1e8).replace(".", ",");
+  const _numTxtTV = (x) => (x == null || !isFinite(x)) ? "" : String(x).replace(".", ",");
+
+  // epoch ms UTC → data + hora de Brasília. Sem a conversão o bilhete pula de dia: o
+  // 298710215 é 17:00:06Z, que é 14:00 em Brasília — e "14:00" é o que o card mostra.
+  function _dhTV(ms) {
+    const d = (typeof ms === "number" && isFinite(ms)) ? new Date(ms) : null;
+    if (!d || isNaN(d)) return "";
+    const p = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    }).formatToParts(d);
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    return g("day") + "/" + g("month") + "/" + g("year") + " " + g("hour") + ":" + g("minute") + ":" + g("second");
+  }
+
+  // Data do EVENTO mais recente entre as pernas — é ela que vai para a 1ª coluna do TSV
+  // (`MASTER_OUTPUT §4`: "em apostas múltiplas: usar a data da perna mais recente"). A coluna
+  // "Data" do card da Tivo mostra a COLOCAÇÃO, que é outra coisa: na amostra real, 2 dos 24
+  // bilhetes caem em dia diferente (o outright de F1 é colocado 22/07 para um evento em 25/07;
+  // o de tênis é colocado 17/05 para 18/05). Usar a colocação gravaria os dois no dia errado.
+  function _dataEventoTV(t) {
+    let max = null;
+    for (const i of (t.itens || [])) {
+      const ini = i.jogo ? i.jogo.inicio : (i.outright ? i.outright.inicio : null);
+      if (typeof ini === "number" && isFinite(ini) && (max === null || ini > max)) max = ini;
+    }
+    return max;
+  }
+
+  // Odd efetiva. O `Koef` é a fonte; o dinheiro só entra se o Koef NÃO explicar o retorno até
+  // o centavo (é onde um boost futuro apareceria inteiro). Nunca trunca — só escolhe a fonte.
+  function _oddTV(t) {
+    const st = t.stake || 0, ret = t.retorno || 0;
+    if (!_abertaTV(t) && st > 0 && ret > 0 && Math.abs(ret - st) >= 0.005) {
+      if (t.koef != null && Math.abs(ret - t.koef * st) <= 0.01) return t.koef;
+      return ret / st;
+    }
+    return t.koef;
+  }
+
+  // De-para do `Result` da Tivo. Enum desconhecido NÃO vira resultado: sobe cru para conferência.
+  function _resultadoTV(t) {
+    if (_abertaTV(t)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (t.resultado !== 2 && t.resultado !== 3) {
+      return "Result " + t.resultado + " (a conferir — não liquidar automaticamente)";
+    }
+    const st = t.stake || 0, ret = t.retorno || 0;
+    const pre = t.cashout ? "Cash Out · " : "";
+    if (t.resultado === 3 || ret === 0) return pre + "Perdeu → L";
+    if (Math.abs(ret - st) < 0.005) return pre + "Devolvida/void (retorno = stake) → V";
+    if (ret > st) return pre + "Ganho → W (retorno R$ " + _brl(ret) + ")";
+    return pre + "Retorno parcial (R$ " + _brl(ret) + " · conferir HW/HL ou cashout)";
+  }
+
+  function _tipoTV(t) {
+    const n = (t.itens || []).length;
+    if (t.sistema) return "Sistema (" + n + " seleções)";
+    if (n >= 2) return "Múltipla (" + n + " seleções)";
+    if (n === 1) return "Simples";
+    return "";
+  }
+
+  // O nome do mercado pode vir com placeholder do motor: "{p1_r} quarto - Total de pontos" +
+  // FinalPosition.p1 = 3 → "3º quarto - Total de pontos". Sem isso vaza template cru para a IA.
+  // Placeholder que não soubermos preencher fica como está (não inventamos rótulo).
+  function _mercadoTV(i) {
+    let m = String(i.mercado || "");
+    if (i.p1 != null) m = m.replace(/\{p1_r\}/g, i.p1 + "º");
+    return m.replace(/\s+/g, " ").trim();
+  }
+
+  const _RESULT_PERNA_TV = { 0: "pendente", 2: "ganhou", 3: "perdeu" };
+
+  function formatTicketTV(t) {
+    const L = [];
+    L.push("[Código: " + t.id + "]");
+    // Primeiro a data que vale para o TSV (evento mais recente), depois a colocação — que é a
+    // que o card mostra e serve de contexto/ordem, nunca de coluna Data.
+    const dev = _dhTV(_dataEventoTV(t));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dh = _dhTV(t.colocada);
+    if (dh) L.push("Data (colocação): " + dh);
+    if (t.stake != null) L.push("Stake: R$ " + _brl(t.stake));
+    L.push("Status: " + _resultadoTV(t));
+    // Enum CRU da API — é ele que a CASA_TIVO.md traduz. Sem isso, um estado novo (cashout,
+    // recusado, meio-ganho) viraria chute a partir do dinheiro.
+    L.push("Status (API): Status=" + t.status + " · Result=" + t.resultado);
+    const odd = _oddTV(t);
+    if (odd != null) L.push("Odd: " + _oddTxtTV(odd));
+    const tipo = _tipoTV(t);
+    if (tipo) L.push("Tipo: " + tipo);
+    if (_abertaTV(t) && t.potencial != null) L.push("Retorno potencial: R$ " + _brl(t.potencial));
+    if (t.bonus) L.push("Marcação da casa: aposta com bônus (IsBonus)");
+    if (t.cashout) L.push("Marcação da casa: cashout (CashOut) — conferir valor no card");
+
+    // Sinal para a IA classificar Múltipla × Bet Builder pelo MASTER_ESPORTES, sem que o
+    // rótulo "Tipo" (que é o da casa) minta.
+    const itens = t.itens || [];
+    if (itens.length >= 2) {
+      const jogos = new Set(itens.map((i) => i.jogo ? (i.jogo.casa + "|" + i.jogo.fora) : ("outright:" + i.id)));
+      if (jogos.size === 1) L.push("Mesmo jogo: as " + itens.length + " seleções são do mesmo evento");
+    }
+
+    L.push("Seleções:");
+    for (const i of itens) {
+      const bits = [];
+      if (i.outright) {
+        // Outright: `Game` é null e o Market.Name é lixo interno do motor.
+        if (i.outright.nome) bits.push(i.outright.nome + ":");
+        bits.push(i.outright.selecao || i.selecao || "");
+      } else {
+        const m = _mercadoTV(i);
+        if (m) bits.push(m + ":");
+        bits.push(i.selecao || "");
+        if (i.linha != null) bits.push("(linha " + _numTxtTV(i.linha) + ")");
+      }
+      const rp = _RESULT_PERNA_TV[i.resultado];
+      bits.push("[" + (rp || ("Result " + i.resultado + " — a conferir")) + "]");
+      L.push("- " + bits.join(" ").replace(/\s+/g, " ").trim());
+
+      const ctx2 = [];
+      if (i.jogo && (i.jogo.casa || i.jogo.fora)) ctx2.push("Jogo: " + i.jogo.casa + " - " + i.jogo.fora);
+      if (i.esporte) ctx2.push("Esporte: " + i.esporte);
+      const liga = [i.regiao, i.campeonato].filter(Boolean).join(" / ");
+      if (liga) ctx2.push("Liga: " + liga);
+      const ini = i.jogo ? i.jogo.inicio : (i.outright ? i.outright.inicio : null);
+      if (ini) ctx2.push("Início: " + _dhTV(ini));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      // Placar do jogo. NÃO emitimos Team1Score/Team2Score: eles são a estatística do mercado
+      // (escanteios, cartões), e sairiam no bloco parecendo placar.
+      if (i.placar) L.push("    Placar: " + i.placar);
+      if (i.odd != null && itens.length > 1) L.push("    Odd da perna: " + _oddTxtTV(i.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboTVPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Mais recente primeiro (é a ordem do card), para o corte da janela cair no lugar certo.
+      const todos = Array.from(tvById.values()).sort((a, b) => (b.colocada || 0) - (a.colocada || 0));
+      for (const t of todos) {
+        const cod = String(t.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // A janela de dias corta só as RESOLVIDAS (pela colocação, que é a data do card).
+        // Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = t.colocada;
+        const passou = !_abertaTV(t) && typeof dt === "number" && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketTV(t));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Pede o acumulado + arranca o replay. NÃO mandamos `dias`: o filtro `from`/`to` é do
+    // servidor e cortaria também as ABERTAS antigas (aposta colocada há 60 dias com jogo
+    // amanhã). Como a conta inteira vem numa chamada só, é mais barato e mais seguro trazer
+    // tudo e deixar a janela para o corte acima, que sabe preservar aberta.
+    // Vai para o topo E para os iframes: o inject que interessa está no frame do sportsbook v4
+    // (mesma origem), e postMessage do topo não desce sozinho para os filhos.
+    const pedir = () => {
+      const msg = { __sharpenupTVReq: true };
+      try { window.postMessage(msg, "*"); } catch (e) {}
+      for (let i = 0; i < window.frames.length && i < 24; i++) {
+        try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
+      }
+    };
+    pedir();
+    await sleep(400);
+    processar();
+
+    // Espera o fim autoritativo, consumindo o que chegar. Não para no 1º obstáculo: só desiste
+    // por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !tvFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (tvById.size > ultTotal) { ultTotal = tvById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Tivo: " + blocos.length + " bilhete(s) · tvById=" + tvById.size +
+                " · hook=" + tvHookVivo + " · respostas=" + tvRespostas + " · fimReal=" + tvFimReal);
     return blocos;
   }
 

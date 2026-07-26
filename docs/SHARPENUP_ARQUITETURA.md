@@ -116,8 +116,9 @@ Regras que valem para todos:
 | **Pinnacle** | API + replay | `POST /member-service/v2/wager-filter` | `pn_inject.js` | `id` (array posicional!) | replay das 2 abas | data do evento |
 | **KTO** | API + replay | `GET /coupon/history.json` (Kambi) | `kto_inject.js` | `couponRef` | `range.more:false` | `placedDate` (UTC→BRT) |
 | **Bet365** | rota (`location.hash`) | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
+| **Tivo** | API + replay (1 chamada) | `POST /api/game/p/messagetosport` (`gethistory`) | `tv_inject.js` | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
 
-Freios no popup: **dias + ID de parada** (Superbet/BETesporte/Betano/KTO/Pinnacle) ·
+Freios no popup: **dias + ID de parada** (Superbet/BETesporte/Betano/KTO/Pinnacle/Tivo) ·
 **quantidade + dias + varrer tudo** (Betfair, histórico ilimitado e fora de ordem) ·
 **nenhum** (Bet365 — o freio virou o pré-dedup do backend).
 

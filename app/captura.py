@@ -49,7 +49,9 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # ~140 bilhetes viravam UM bloco com menu e rodapé, e a IA perdia ~90% em silêncio. Refeito por
 # API na s192. Antes de marcar uma casa nova como "texto", confira essa fronteira
 # (docs/GUIA_CASA_SHARPENUP.md, Fase 1).
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto"}
+# TIVO: por API (BetConstruct) via `tv_inject` — POST /api/game/p/messagetosport com
+# {name:"gethistory"}. Sem paginação: uma chamada devolve a conta inteira com `Count`.
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -69,6 +71,7 @@ _HOSTS_POR_CASA = {
     "BETFAIR":    ("betfair.bet.br",),
     "PINNACLE":   ("pinnacle.bet.br",),
     "KTO":        ("kto.bet.br",),
+    "TIVO":       ("tivo.bet.br",),
 }
 
 
