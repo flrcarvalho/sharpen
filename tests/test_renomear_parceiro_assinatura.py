@@ -1,0 +1,146 @@
+"""Renomear conta tem de RECALCULAR a assinatura dos bilhetes que move.
+
+O `parceiro` entra no hash de `_assinatura` (com ou sem código de bilhete). Até a s198 o
+`renomear_parceiro` só trocava o texto da coluna: os bilhetes ficavam com o hash do nome
+ANTIGO, então a próxima captura da mesma conta calculava uma assinatura nova, não colidia
+com nada, o UPSERT não dedupava e o histórico inteiro DUPLICAVA.
+
+Irmão de `test_assinatura_edicao.py` (s145, mesma falha pelo lápis do editor). Roda sem
+Postgres: o conftest stuba asyncpg/database e o pool aqui é de mentira.
+"""
+import asyncio
+from unittest.mock import patch
+
+import repository
+
+_A = repository._assinatura
+
+
+class _FakeConn:
+    """Conn de mentira com o mínimo que `renomear_parceiro` usa."""
+
+    def __init__(self, conta, bilhetes):
+        self.conta = conta                 # {"casa": ..., "nome": ...}
+        self.bilhetes = bilhetes           # lista de dicts (colunas do SELECT)
+        self.execs = []
+
+    # --- transação ---------------------------------------------------------
+    def transaction(self):
+        conn = self
+
+        class _T:
+            async def __aenter__(self_inner):
+                return conn
+
+            async def __aexit__(self_inner, *a):
+                return False
+
+        return _T()
+
+    # --- queries -----------------------------------------------------------
+    async def fetchrow(self, _sql, *_a):
+        return self.conta
+
+    async def fetchval(self, sql, *a):
+        if "FROM parceiros" in sql:
+            return None                    # nunca colide com outra conta
+        # NOT EXISTS da colisão de assinatura: (dono, casa, parceiro, sig, id)
+        dono, casa, parceiro, sig, bid = a
+        return not any(
+            b.get("_dono", dono) == dono and b["casa"] == casa
+            and b["parceiro"] == parceiro and b["assinatura"] == sig and b["id"] != bid
+            for b in self.bilhetes
+        )
+
+    async def fetch(self, _sql, *_a):
+        return [dict(b) for b in self.bilhetes]
+
+    async def execute(self, sql, *a):
+        self.execs.append((sql, a))
+        if "UPDATE bilhetes SET parceiro" in sql:
+            novo = a[0]
+            for b in self.bilhetes:
+                b["parceiro"] = novo
+            return f"UPDATE {len(self.bilhetes)}"
+        if "UPDATE bilhetes SET assinatura" in sql:
+            nova, bid, _dono = a
+            for b in self.bilhetes:
+                if b["id"] == bid:
+                    b["assinatura"] = nova
+            return "UPDATE 1"
+        return "UPDATE 1"
+
+
+class _FakePool:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def acquire(self):
+        conn = self.conn
+
+        class _A:
+            async def __aenter__(self_inner):
+                return conn
+
+            async def __aexit__(self_inner, *a):
+                return False
+
+        return _A()
+
+
+def _bilhete(bid, **kw):
+    b = dict(id=bid, casa="Tivo", parceiro="Feca [[Eu]]", data="26/07/2026",
+             aposta="Múltipla", descricao="Karmine Corp [Team Heretics v Karmine Corp]",
+             stake="51,00", odd="27,55", codigo_bilhete=None)
+    b.update(kw)
+    b["assinatura"] = _A({**b, "codigo_bilhete": b["codigo_bilhete"] or ""})
+    return b
+
+
+def _renomear(bilhetes, novo="Feca [Eu]"):
+    conn = _FakeConn({"casa": "Tivo", "nome": "Feca [[Eu]]"}, bilhetes)
+    # patch como CONTEXTO (não atribuição solta): no CI, com TEST_DATABASE_URL, o
+    # `test_repository_db.py` usa o `get_pool` de verdade — um stub vazado o derrubaria.
+    with patch.object(repository, "get_pool",
+                      lambda: asyncio.sleep(0, result=_FakePool(conn))):
+        res = asyncio.run(repository.renomear_parceiro(351, novo, "Feca"))
+    return res, conn
+
+
+def test_assinatura_segue_o_nome_novo():
+    b = _bilhete(1)
+    velha = b["assinatura"]
+    res, conn = _renomear([b])
+    esperada = _A({**b, "parceiro": "Feca [Eu]", "codigo_bilhete": ""})
+    assert conn.bilhetes[0]["assinatura"] == esperada
+    assert conn.bilhetes[0]["assinatura"] != velha
+    assert res["bilhetes_atualizados"] == 1
+    assert res["assinaturas_recalculadas"] == 1
+
+
+def test_bilhete_com_codigo_tambem_muda():
+    # Com código o hash é "ID|casa|parceiro|código" — o parceiro está lá do mesmo jeito.
+    b = _bilhete(1, codigo_bilhete="298782220")
+    _renomear([b])
+    assert b["assinatura"] == _A({**b, "parceiro": "Feca [Eu]",
+                                  "codigo_bilhete": "298782220"})
+
+
+def test_duas_linhas_de_conteudo_identico_nao_colidem():
+    # Sem código e com stake/odd/descrição iguais, o hash base é o mesmo: a segunda tem de
+    # escalar o _counter, como o upsert já faz para bilhetes distintos de conteúdo igual.
+    a, b = _bilhete(1), _bilhete(2)
+    res, conn = _renomear([a, b])
+    assinaturas = {x["assinatura"] for x in conn.bilhetes}
+    assert len(assinaturas) == 2, "duas linhas ficaram com a MESMA assinatura"
+    assert res["assinaturas_recalculadas"] == 2
+
+
+def test_nome_igual_nao_mexe_em_nada():
+    b = _bilhete(1)
+    velha = b["assinatura"]
+    res, conn = _renomear([b], novo="Feca [[Eu]]")
+    assert res["bilhetes_atualizados"] == 0
+    assert res["assinaturas_recalculadas"] == 0
+    assert conn.bilhetes[0]["assinatura"] == velha
+    assert conn.execs == []

@@ -2085,9 +2085,18 @@ async def reativar_parceiro(parceiro_id: int, dono: str) -> bool:
 
 
 async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict:
-    """Renomeia a conta E propaga o novo nome aos bilhetes dela (os bilhetes referenciam
-    o parceiro por NOME — `bilhetes.casa + bilhetes.parceiro` —, então sem isto as apostas
-    ficariam órfãs). Tudo numa transação. Retorna {ok, motivo?, bilhetes_atualizados}."""
+    """Renomeia a conta, propaga o novo nome aos bilhetes dela E recalcula a assinatura.
+
+    Os bilhetes referenciam o parceiro por NOME (`bilhetes.casa + bilhetes.parceiro`), então
+    sem propagar o nome as apostas ficariam órfãs. E o `parceiro` também entra no hash de
+    `_assinatura` — com ou sem código de bilhete —, então sem RECALCULAR a assinatura toda
+    conta renomeada ficava com o hash do nome ANTIGO: a próxima captura da mesma conta
+    calculava uma assinatura nova, não colidia com nada, o UPSERT não dedupava e o histórico
+    inteiro DUPLICAVA. Mesma família do `_assinatura_pos_edicao` (s145), que cobriu a edição
+    de bilhete e deixou o rename de conta de fora.
+
+    Tudo numa transação. Retorna {ok, motivo?, bilhetes_atualizados, assinaturas_recalculadas}.
+    """
     novo_nome = (novo_nome or "").strip()
     if not novo_nome:
         return {"ok": False, "motivo": "Nome vazio."}
@@ -2101,7 +2110,7 @@ async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict
                 return {"ok": False, "motivo": "Conta não encontrada."}
             casa, antigo = row["casa"], row["nome"]
             if antigo == novo_nome:
-                return {"ok": True, "bilhetes_atualizados": 0}
+                return {"ok": True, "bilhetes_atualizados": 0, "assinaturas_recalculadas": 0}
             # Colisão: já existe outra conta com esse nome nesta casa (viola UNIQUE).
             existe = await conn.fetchval(
                 "SELECT 1 FROM parceiros WHERE dono = $1 AND casa = $2 AND nome = $3 AND id <> $4",
@@ -2113,11 +2122,35 @@ async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict
                 "UPDATE parceiros SET nome = $1 WHERE id = $2 AND dono = $3",
                 novo_nome, parceiro_id, dono,
             )
+            # Lê ANTES de mexer: o recálculo precisa do conteúdo que entra no hash.
+            antes = await conn.fetch(
+                """SELECT id, casa, parceiro, data, aposta, descricao, stake, odd,
+                          codigo_bilhete, assinatura
+                     FROM bilhetes
+                    WHERE dono = $1 AND casa = $2 AND parceiro = $3
+                    ORDER BY id""",
+                dono, casa, antigo,
+            )
             res = await conn.execute(
                 "UPDATE bilhetes SET parceiro = $1 WHERE dono = $2 AND casa = $3 AND parceiro = $4",
                 novo_nome, dono, casa, antigo,
             )
-    return {"ok": True, "bilhetes_atualizados": int(res.split()[-1])}
+            # Recálculo DEPOIS do UPDATE do nome: a checagem de colisão do
+            # `_assinatura_pos_edicao` procura irmãs "na mesma conta", que só agora é a nova.
+            # Uma consulta por bilhete — a conta é a unidade de trabalho do operador (dezenas
+            # a poucas centenas de linhas), e roda uma vez por rename, não por extração.
+            recalculadas = 0
+            for b in antes:
+                nova = await _assinatura_pos_edicao(
+                    conn, b, {"parceiro": novo_nome}, dono, b["id"])
+                if nova:
+                    await conn.execute(
+                        "UPDATE bilhetes SET assinatura = $1 WHERE id = $2 AND dono = $3",
+                        nova, b["id"], dono,
+                    )
+                    recalculadas += 1
+    return {"ok": True, "bilhetes_atualizados": int(res.split()[-1]),
+            "assinaturas_recalculadas": recalculadas}
 
 
 async def get_codigos_existentes(codigos: list[str], dono: str) -> set[str]:
