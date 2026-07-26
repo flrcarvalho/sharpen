@@ -256,3 +256,55 @@ def test_get_tipster_por_codigo_so_traz_preenchido():
             "TDonoA", "Polymarket", "Feca [Eu]", ["0xCID", "0xVAZIO"])
         assert got == {"0xCID": "Nomade"}
     _run(body())
+
+
+# ── Fonte determinística manda; fonte de IA continua blindada (s204) ─────────
+#
+# A blindagem congela odd/data/stake ao resolver, para a re-leitura ruidosa da IA não
+# estragar a linha. Mas com fonte determinística ela impede que uma CORREÇÃO DE CÁLCULO
+# alcance a linha antiga — e como `resultado` nunca foi blindado, o resultado novo
+# convivia com a odd velha (28 linhas Polymarket com lucro fantasma).
+
+def test_sync_refresca_financeiro_de_linha_ja_resolvida():
+    """origem='sync': a fonte manda em odd/data/stake mesmo na linha já resolvida."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_row(casa="Polymarket", resultado="W", odd="1,96", stake="601,92",
+                  data="02/06/2026")], "TDonoA", origem="sync")
+        # O cálculo do coletor foi corrigido: mesma aposta, odd na metade.
+        await repository.upsert_bilhetes(
+            [_row(casa="Polymarket", resultado="W", odd="0,98", stake="601,92",
+                  data="03/06/2026")], "TDonoA", origem="sync")
+        r = await _get("TDonoA", "BET1")
+        assert r["odd"] == "0,98"            # correção chegou
+        assert r["data"] == "03/06/2026"
+        assert (r["resultado"] or "").upper() == "W"
+        assert await _count("TDonoA") == 1   # nunca duplicou
+    _run(body())
+
+
+def test_extracao_ia_continua_blindada_em_linha_resolvida():
+    """origem='extracao' (IA): resolvida segue congelada — a blindagem original vale."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(resultado="W", odd="1,90")], "TDonoA")
+        await repository.upsert_bilhetes([_row(resultado="W", odd="9,99",
+                                               stake="777,00")], "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert r["odd"] == "1,90"             # re-leitura da IA NÃO sobrescreve
+        assert r["stake"] == "100,00"
+    _run(body())
+
+
+def test_sync_preserva_tipster_ao_refrescar():
+    """A fonte manda no dinheiro, mas não apaga o tipster atribuído na grade."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_row(casa="Polymarket", tipster="Nomade", odd="1,96")], "TDonoA", origem="sync")
+        await repository.upsert_bilhetes(
+            [_row(casa="Polymarket", tipster="", odd="0,98")], "TDonoA", origem="sync")
+        r = await _get("TDonoA", "BET1")
+        assert r["odd"] == "0,98" and r["tipster"] == "Nomade"
+    _run(body())

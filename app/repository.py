@@ -710,6 +710,23 @@ async def _assinatura_pos_edicao(conn, antes, safe: dict, dono: str,
     return None
 
 
+# Origem cuja FONTE é determinística: recalcula o bilhete inteiro do zero a cada leitura
+# (hoje só o `/polymarket/sync`, que lê a API on-chain da carteira). Para ela o UPSERT
+# refresca `odd`/`data`/`stake` mesmo na linha JÁ resolvida — a fonte manda sempre.
+#
+# Por que a exceção existe (s204): a blindagem que congela os campos financeiros ao
+# resolver protege a extração por IA, onde a re-leitura é ruidosa e sobrescrever seria
+# pior que manter. Mas com fonte determinística ela vira uma parede: uma correção do
+# CÁLCULO nunca alcança a linha antiga. Foi exatamente o que aconteceu quando o cálculo
+# do mercado anulado foi corrigido — o `resultado` (que nunca foi blindado) mudou de L
+# para W e a `odd` ficou a antiga, dobrada, deixando 28 linhas com lucro fantasma:
+# blindar metade dos campos é pior que blindar todos ou nenhum.
+#
+# Contrapartida aceita pelo Feca: edição manual de data/stake/odd numa aposta de casa
+# sincronizada não sobrevive ao próximo sync (o `tipster` sobrevive — ver o COALESCE).
+_ORIGEM_AUTORITATIVA = "sync"
+
+
 async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
     origem: str = "extracao", criado_base: datetime | None = None,
@@ -923,6 +940,8 @@ async def upsert_bilhetes(
                         --     verdade da liquidação — vitória com boost passa a odd = Retorno
                         --     ÷ Stake, etc. Linha já resolvida fica intacta. A assinatura por
                         --     código não usa esses campos → o match não quebra.
+                        --     EXCEÇÃO `origem = 'sync'` (ver _ORIGEM_AUTORITATIVA): fonte
+                        --     determinística recalcula tudo do zero, então ela MANDA sempre.
                         resultado        = COALESCE(NULLIF(EXCLUDED.resultado, ''), bilhetes.resultado),
                         extraction_state = CASE
                             WHEN NULLIF(EXCLUDED.resultado, '') IS NULL
@@ -930,12 +949,15 @@ async def upsert_bilhetes(
                             THEN bilhetes.extraction_state
                             ELSE EXCLUDED.extraction_state END,
                         odd = CASE WHEN bilhetes.extraction_state = 'aberta'
+                                        OR EXCLUDED.origem = 'sync'
                                    THEN COALESCE(NULLIF(EXCLUDED.odd, ''), bilhetes.odd)
                                    ELSE bilhetes.odd END,
                         data = CASE WHEN bilhetes.extraction_state = 'aberta'
+                                         OR EXCLUDED.origem = 'sync'
                                     THEN COALESCE(NULLIF(EXCLUDED.data, ''), bilhetes.data)
                                     ELSE bilhetes.data END,
                         stake = CASE WHEN bilhetes.extraction_state = 'aberta'
+                                          OR EXCLUDED.origem = 'sync'
                                      THEN COALESCE(NULLIF(EXCLUDED.stake, ''), bilhetes.stake)
                                      ELSE bilhetes.stake END,
                         -- backfill do USD em re-sync; nunca apaga um valor já gravado
@@ -968,11 +990,11 @@ async def upsert_bilhetes(
                         extraction_state = CASE
                             WHEN NULLIF($7, '') IS NULL AND NULLIF(resultado, '') IS NOT NULL
                             THEN extraction_state ELSE $8 END,
-                        odd   = CASE WHEN extraction_state = 'aberta'
+                        odd   = CASE WHEN extraction_state = 'aberta' OR $12 = 'sync'
                                      THEN COALESCE(NULLIF($9,  ''), odd)   ELSE odd   END,
-                        data  = CASE WHEN extraction_state = 'aberta'
+                        data  = CASE WHEN extraction_state = 'aberta' OR $12 = 'sync'
                                      THEN COALESCE(NULLIF($10, ''), data)  ELSE data  END,
-                        stake = CASE WHEN extraction_state = 'aberta'
+                        stake = CASE WHEN extraction_state = 'aberta' OR $12 = 'sync'
                                      THEN COALESCE(NULLIF($11, ''), stake) ELSE stake END,
                         atualizado_em    = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
@@ -980,7 +1002,7 @@ async def upsert_bilhetes(
                     """,
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig,
                     row.get("tipster"), codigo or None, resultado, extraction_state,
-                    row.get("odd"), row.get("data"), row.get("stake"),
+                    row.get("odd"), row.get("data"), row.get("stake"), origem,
                 )
             if rec:
                 db_id = rec["id"]
