@@ -1028,18 +1028,40 @@
     // Status/resultado bruto — a IA/CASA_BETFAIR aplica a regra final (nunca copiar o
     // código visual V/P/N da tela; aqui já vem o status textual limpo do JSON).
     const cashout = !!t.fullCashout || !!t.isPartialCashOut;
+
+    // `status` fora de WON/LOST/VOID num bilhete JÁ LIQUIDADO → quem decide é a conferência
+    // financeira do CASA_BETFAIR §5 (`Ganhos = 0` → L · `= Valor Apostado` → V · `>` → W).
+    // Caso real: Each Way com `status:"PLACED"` (= "colocou", não "em aberto") e
+    // `result:"SETTLED"` + `settledDate` — o código lia o status cru, dizia "a conferir", a
+    // IA deixava a coluna Resultado vazia e o bilhete virava `aberta` para sempre; um W de
+    // R$530 sobre R$200 ficou fora do P/L desde 20/07 (s195). Só age em bilhete liquidado:
+    // aposta genuinamente em aberto NÃO tem `settledDate` nem `result` de liquidação, então
+    // segue caindo no "a conferir" e sobe sem resultado, como deve.
+    const _RES_LIQ = ["SETTLED", "WON", "LOST", "VOID", "CASHED_OUT"];
+    const liquidado = !!t.settledDate || _RES_LIQ.indexOf(String(t.result || "").toUpperCase()) >= 0;
+    let stFin = "";   // código deduzido pelo DINHEIRO quando o rótulo não resolve
+    if (!cashout && liquidado && ret != null && stake > 0 &&
+        st !== "WON" && st !== "LOST" && st !== "VOID") {
+      if (ret === 0) stFin = "L";
+      else if (Math.abs(ret - stake) < 0.005) stFin = "V";
+      else if (ret > stake) stFin = "W";
+      // 0 < Retorno < Stake não é coberto pelo §5 → fica "a conferir" (nunca chutar).
+    }
+
     let stTxt;
     if (cashout) stTxt = "Cash Out (" + (t.isPartialCashOut ? "parcial" : "total") + ") → regra §7 (Cash Out ÷ Stake)";
     else if (st === "WON") stTxt = "WON → W";
     else if (st === "LOST") stTxt = "LOST → L";
     else if (st === "VOID") stTxt = "VOID → V";
+    else if (stFin) stTxt = st + " (liquidado) → " + stFin + " — §5 conferência financeira (Retorno vs Stake)";
     else stTxt = st + " (a conferir — não liquidar automaticamente)";
     L.push("Status: " + stTxt + (t.potentialReturn != null ? (" · Retorno " + t.potentialReturn) : ""));
     if (cashout && t.potentialReturn != null) L.push("Cash Out: " + t.potentialReturn);
 
-    // Odd total: W (WON ou cashout com retorno) = Retorno÷Stake (precisão total, respeita
-    // boost/ODDSBOOST); L/V = odd exibida; múltipla sem win = combinedOdds estrutural.
-    const oddW = ret != null && stake > 0 && (st === "WON" || (cashout && ret > 0));
+    // Odd total: W (WON, W deduzido pelo §5, ou cashout com retorno) = Retorno÷Stake
+    // (precisão total, respeita boost/ODDSBOOST); L/V = odd exibida; múltipla sem win =
+    // combinedOdds estrutural.
+    const oddW = ret != null && stake > 0 && (st === "WON" || stFin === "W" || (cashout && ret > 0));
     let oddTot = oddW ? (ret / stake) : (isMult && combined != null ? combined : oddDec);
     // Múltipla perdida às vezes vem SEM combinedOdds nem originalOdds.decimal → reconstrói
     // a odd combinada pelo PRODUTO das pernas (cada `part` traz a sua odd). Só quando TODAS
