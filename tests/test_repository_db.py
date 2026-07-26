@@ -171,7 +171,11 @@ def test_upsert_aberta_para_resolvida_nao_rebaixa():
 # resultado que nunca chega (caso real: 1 linha na base do Feca, s200).
 
 def _poly(**kw):
-    return _row(casa="Polymarket", parceiro="Feca [Eu]", resultado="", odd="2,50", **kw)
+    """Linha Polymarket em aberto. Os padrões entram por dict (não como keyword fixa),
+    senão um `_poly(resultado=...)` colidiria com o padrão homônimo."""
+    base = dict(casa="Polymarket", parceiro="Feca [Eu]", resultado="", odd="2,50")
+    base.update(kw)
+    return _row(**base)
 
 
 def test_remove_codigo_cru_quando_mercado_vira_fatiado():
