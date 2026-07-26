@@ -2803,7 +2803,10 @@ async function ncCriarConta() {
   const casa = novo ? (document.getElementById('nc-casa-nome').value || '').trim() : (sel ? sel.value : '');
   const url = novo ? (document.getElementById('nc-casa-url').value || '').trim() : '';
   const parceiro = (document.getElementById('nc-parceiro').value || '').trim();
-  const forn = (document.getElementById('nc-forn').value || '').trim();
+  // Os colchetes são do MODELO, não do que se digita: quem escreveu "[Eu]" no campo criava
+  // a conta "Feca [[Eu]]", tinha de renomear — e foi um rename desses, com um lote em voo,
+  // que produziu os 22 bilhetes órfãos da Tivo (s198). Saneia na origem.
+  const forn = (document.getElementById('nc-forn').value || '').replace(/[\[\]]/g, '').trim();
   const nome = forn ? `${parceiro} [${forn}]` : parceiro;   // modelo canônico "Parceiro [Fornecedor]"
   if (!casa) { alert(novo ? 'Informe o nome da casa nova.' : 'Selecione a casa.'); const n = document.getElementById('nc-casa-nome'); if (novo && n) n.focus(); return; }
   if (novo && !url) { alert('Informe a URL da casa (ex.: novacasa.bet.br).'); const u = document.getElementById('nc-casa-url'); if (u) u.focus(); return; }
