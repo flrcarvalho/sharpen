@@ -1178,7 +1178,9 @@
   // casas passivas → o backend split/dedupa por ele). Fiel à CASA_PINNACLE:
   //   • Data = data do EVENTO (§4: evento ≈ liquidação; a colocação NUNCA é usada).
   //   • Decimal exibido com PONTO → vírgula (§1). Odd preservada na precisão original (§11).
-  //   • Sem boost e sem cashout (§6/§7): a odd exibida é autoritativa; P/L é só cross-check.
+  //   • Sem boost e sem cashout (§6/§7) — mas isso NÃO torna a exibida autoritativa: em W a
+  //     odd é Retorno÷Stake, e o Retorno sai do P/L (Stake + P/L). O P/L não é cross-check,
+  //     é o insumo. A exibida vale só em L/V/HW/HL e nas abertas. Ver CASA_PINNACLE §11.
   //   • Resultado: WON→W · LOST→L · PUSHED/Void→V · quarto de handicap pode dar HW/HL (§5);
   //     a IA decide o código final — a extensão só entrega o rótulo cru + o P/L p/ conferir.
   //   • Aberta (status ≠ SETTLED): sobe SEM resultado → o backend grava 'aberta' e faz UPSERT

@@ -114,7 +114,16 @@ Handicaps asiáticos de quarto (`0.25` / `0.75` / `1.25` / `1.75`) podem gerar `
 
 ## 6. Boost / promoção
 
-**A Pinnacle não tem boost nem promoção.** Por isso a odd exibida é autoritativa — não há boost a capturar. *(É o oposto da Superbet, onde o boost obriga a usar Retorno÷Stake.)*
+**A Pinnacle não tem boost nem promoção** — não há boost a capturar.
+
+> ⚠️ Isso **não** muda a regra da odd. Em `W` a odd continua saindo de **`Retorno ÷ Stake`**
+> (§11), como em qualquer casa — a odd exibida **nunca** é autoritativa para vitória. A
+> exibida vale para `L`, `V`, `HW` e `HL` (ver §11). Não ter boost significa apenas que não
+> há promoção a caçar, não que o rótulo da tela substitua o dinheiro: a Pinnacle exibe a odd
+> com 3 casas e o `Vitória/derrota` ao centavo, então a exibida pode simplesmente **não
+> explicar** o retorno — por isso a conferência `Retorno ÷ Stake` é **sempre** obrigatória em
+> `W`, e não uma checagem de exceção. *(Foi o que aconteceu na Betfair: `O/…0001806` exibia
+> 1,83, mas 550 ÷ 300 = 1,83333333.)*
 
 ---
 
@@ -159,8 +168,26 @@ Notas de reconstrução:
 ## 11. Odds
 
 - Origem: coluna `Probabilidades`. Formato ponto (`1.609`, `18.060`) → vírgula (`1,609`, `18,060`). Preservar a precisão original do export — não truncar nem preencher zeros.
-- **Sem boost e sem cashout** → a odd exibida é autoritativa para W/L/V/HW/HL. O `Retorno÷Stake` global daria o mesmo valor.
-- `Vitória/derrota` é **P&L líquido**, não retorno total. Se for reconciliar: `retorno total = Stake + Vitória/derrota`. Ex.: stake 400, V/d +243,6 → retorno 643,6 → 643,6÷400 = 1,609 ✓.
+- `Vitória/derrota` é **P&L líquido**, não retorno total → **`retorno total = Stake + Vitória/derrota`**.
+
+Qual odd vale, por resultado — **regra global** (`MASTER_RESULTADO_2026 §2`); esta seção só
+localiza os campos da Pinnacle:
+
+| Resultado | Odd |
+|---|---|
+| `W` | **`Retorno ÷ Stake`** = `(Stake + Vitória/derrota) ÷ Stake` — **nunca a exibida** |
+| `L` | odd exibida (`Vitória/derrota` = −Stake; derivar daria 0) |
+| `V` | odd exibida (`Vitória/derrota` = 0) |
+| `HW` / `HL` | odd exibida (global: meia-liquidação **nunca** usa `Retorno ÷ Stake`) |
+| aberta | odd exibida (não há retorno realizado) |
+
+Fallback global: `W` **sem** retorno legível (print cortado, coluna ausente) → odd exibida.
+
+> ⚠️ **A conferência é sempre necessária, mesmo sem boost.** A exibida costuma bater — stake
+> 400, V/d +243,6 → 643,6 ÷ 400 = 1,609 ✓ (bilhete `3066865337`, §15 #1) — mas bater na
+> maioria não é autoridade: a odd exibida tem 3 casas e o P&L é arredondado ao centavo, então
+> a igualdade cai sozinha por diferença de casas decimais. Em `W` a odd sai do dinheiro,
+> ponto. Não há cashout na Pinnacle (§7), então o `Retorno` é sempre o de liquidação normal.
 
 ---
 
