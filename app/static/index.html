@@ -3997,6 +3997,9 @@ function createExtractionCard(parceiro, thumbUrls = [], fileNames = []) {
     },
     markDone(msg, tipo) {
       card.classList.remove('extract-card--running');
+      // Tira o tipo anterior: o card pode ser remarcado depois da conferência da grade
+      // (guard "salvou N · grade 0"), e duas classes de tipo brigavam no CSS.
+      card.classList.remove('extract-card--ok', 'extract-card--warn', 'extract-card--err');
       card.classList.add(`extract-card--${tipo}`);
       progEl.className = `ec-prog ${tipo}`;
       progEl.textContent = msg;
@@ -4065,7 +4068,12 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
       const rs = await fetch('/salvar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome, submitted_at: submittedAt }),
+        // `parceiro_id` MANDA no servidor sobre casa/parceiro-texto: este snapshot é uma
+        // cópia rasa feita no clique, então renomear a conta com o lote em voo mandava o
+        // nome VELHO e os bilhetes viravam órfãos, invisíveis (s195, Tivo). O texto segue
+        // junto como fallback (extensão/import não têm id).
+        body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome,
+                               parceiro_id: parceiro.id, submitted_at: submittedAt }),
       });
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar (HTTP ${rs.status})`);
@@ -4108,6 +4116,20 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         paginaAtual = 0;   // novos bilhetes são os mais recentes → 1ª página
         await carregarGrade();
         atualizarBotoesGrade();
+        // GUARD (s195): "salvei N" e "a grade voltou 0" conviviam em silêncio. Era o
+        // sintoma do bilhete órfão — conta renomeada com o lote em voo, gravado no nome
+        // velho, invisível em todas as telas. Qualquer divergência futura entre o que o
+        // servidor gravou e o que a conta ativa enxerga cai aqui, em vermelho.
+        const gravadoEm = ds.parceiro || parceiro.nome;
+        if (ins + upd > 0 && totalBilhetes === 0) {
+          markDone(`✗ ${ins + upd} salvo(s) em «${gravadoEm}» — não aparecem na conta ativa `
+                   + `«${parceiroSelecionado.nome}». Recarregue a página; se persistir, avise.`, 'err');
+        } else if (ds.parceiro && ds.parceiro !== parceiro.nome) {
+          // Caso benigno: a conta foi renomeada durante o lote e o servidor resolveu pelo
+          // ID — os bilhetes caíram na conta certa. Registrado só para não parecer mágica.
+          markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}${cobMsg} · conta renomeada `
+                   + `durante a extração — salvo em «${ds.parceiro}»`, 'warn');
+        }
       }
       atualizarIncompletos();
     } else if (data.xls_skipped > 0) {

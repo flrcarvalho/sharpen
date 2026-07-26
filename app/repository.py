@@ -1809,6 +1809,24 @@ async def criar_parceiro(casa: str, nome: str, dono: str) -> dict:
     return dict(row)
 
 
+async def get_parceiro(parceiro_id: int, dono: str) -> dict | None:
+    """A conta pelo ID — fonte de verdade do par (casa, nome) na hora de gravar.
+
+    O `/salvar` recebia casa/parceiro como TEXTO vindo do cliente. O card de extração
+    carrega uma cópia RASA do parceiro (nome congelado no clique), então renomear a conta
+    com um lote em voo fazia o lote ser gravado com o nome VELHO: bilhete órfão, invisível
+    em todas as telas, sem erro (sessão 195 — Tivo, 22 bilhetes). Resolvendo pelo ID no
+    instante da gravação, o rename deixa de importar.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, casa, nome, arquivado FROM parceiros WHERE id = $1 AND dono = $2",
+            parceiro_id, dono,
+        )
+    return dict(row) if row else None
+
+
 async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados: bool = False) -> list[dict]:
     pool = await get_pool()
     params = [dono]

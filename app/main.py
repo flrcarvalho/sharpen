@@ -53,7 +53,7 @@ from repository import (
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
     get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
-    list_parceiros, parse_tsv,
+    get_parceiro, list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo,
@@ -1851,6 +1851,13 @@ class SalvarRequest(BaseModel):
     confianca: Optional[float] = None
     casa: Optional[str] = None
     parceiro: Optional[str] = None
+    # ID da conta (tabela `parceiros`). Quando vem, MANDA sobre casa/parceiro-texto: o
+    # nome é lido do banco no instante da gravação. Sem isto, um rename de conta com o
+    # lote em voo gravava o nome VELHO (o card carrega uma cópia rasa do parceiro, com o
+    # nome congelado no clique) e os bilhetes viravam órfãos — invisíveis em todas as
+    # telas, sem erro nenhum (sessão 195, Tivo: 22 bilhetes). Opcional: extensão, import,
+    # Polymarket e /bilhetes/manual seguem mandando só o texto.
+    parceiro_id: Optional[int] = None
     # Instante do ENVIO (clique em Extrair), ISO 8601 do cliente. Vira o criado_em do
     # lote para o feed respeitar a ordem de envio, e não a de conclusão do processamento
     # (extrações paralelas: a mais lenta salvava por último e furava a fila). Ausente/
@@ -1861,16 +1868,27 @@ class SalvarRequest(BaseModel):
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
 # quem está logado, mesmo em modo "ver como operador". Decisão do Feca, sessão 82.
 @app.post("/salvar")
-async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
+async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual),
+                 dono_view: str = Depends(dono_efetivo)):
     rows = parse_tsv(body.tsv)
     if not rows:
         raise HTTPException(400, "Nenhuma linha válida encontrada no TSV.")
-    casa_key = _display_to_key(body.casa) if body.casa else None
+
+    # Conta pelo ID = fonte de verdade (ver nota no SalvarRequest). Busca no dono
+    # EFETIVO porque é por ele que as contas são listadas ("ver como"); a gravação
+    # do bilhete segue no dono REAL, como antes. Sem match, nada muda.
+    casa_txt, parceiro_txt = body.casa, body.parceiro
+    if body.parceiro_id:
+        conta = await get_parceiro(body.parceiro_id, dono_view)
+        if conta:
+            casa_txt, parceiro_txt = conta["casa"], conta["nome"]
+
+    casa_key = _display_to_key(casa_txt) if casa_txt else None
     for row in rows:
         if casa_key:
             row["casa"] = _casa_display(casa_key)
-        if body.parceiro:
-            row["parceiro"] = body.parceiro
+        if parceiro_txt:
+            row["parceiro"] = parceiro_txt
         row["tipster"] = ""
 
     # Validação de fronteira: grava só as linhas com campo financeiro válido; as
@@ -1905,22 +1923,28 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual)):
         )
 
     arquivados = 0
-    if ids and (body.casa or rows):
+    if ids and (casa_txt or rows):
         # Usa o MESMO display name com que as linhas foram gravadas (acima), senão
         # o filtro do auto_arquivar não casa. Antes: _casa_display(body.casa.upper())
         # transformava "Bolsa de Aposta" em "Bolsa De Aposta" (D maiúsculo) e o
         # arquivamento silenciosamente não ocorria para casas multi-palavra.
         casa_display = _casa_display(casa_key) if casa_key else rows[0].get("casa", "")
-        parceiro_nome = body.parceiro or (rows[0].get("parceiro", "") if rows else "")
+        parceiro_nome = parceiro_txt or (rows[0].get("parceiro", "") if rows else "")
         arquivados = await auto_arquivar(casa_display, parceiro_nome, len(ids), dono)
 
     # Resumo do rail "Análise IA": confiança (heurística sobre as linhas) + KPIs +
     # notas estruturadas (só problemas reais). Não toca na IA de extração.
     analise = analisar_extracao(rows, duplicatas)
 
+    # Conta em que as linhas REALMENTE caíram. O front compara com a conta ativa e grita
+    # quando diverge — antes, "salvei 22" e "a grade voltou 0" conviviam sem ninguém notar.
+    gravado_casa = _casa_display(casa_key) if casa_key else (rows[0].get("casa", "") if rows else "")
+    gravado_parceiro = parceiro_txt or (rows[0].get("parceiro", "") if rows else "")
+
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
             "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados,
-            "analise": analise, "rejeitados": rejeitadas}
+            "analise": analise, "rejeitados": rejeitadas,
+            "casa": gravado_casa, "parceiro": gravado_parceiro}
 
 
 class PolymarketSyncRequest(BaseModel):
