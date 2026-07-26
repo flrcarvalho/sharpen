@@ -1881,6 +1881,39 @@ async def criar_parceiro(casa: str, nome: str, dono: str) -> dict:
     return dict(row)
 
 
+async def casa_canonica(nome: str) -> str:
+    """A grafia com que ESTA casa já existe no sistema — ou `nome`, se ela é nova.
+
+    `casa` é TEXTO em todas as tabelas, então cada grafia vira uma casa DIFERENTE: contas,
+    KPIs, filtros e favicon separados. Foi assim que "PixBet" (Feca) e "Pixbet" (Jonathan)
+    passaram meses convivendo como duas casas — cada base importada trouxe a sua, e ninguém
+    via a divisão porque cada dono só enxerga a própria (s199: 8 grupos, 358 bilhetes).
+
+    Casa NOVA continua entrando verbatim: não title-caseia, não remove espaço, não mutila
+    "Rei do Pitaco" (a regra da s141 segue de pé). A trava é só contra criar uma GÊMEA por
+    caixa/espaço de uma casa que já existe.
+
+    Busca em `parceiros` (350 linhas) e não em `bilhetes` (dezenas de milhares): toda casa
+    nasce junto com uma conta — o fluxo da UI exige escolher/criar a conta antes de extrair.
+    Consulta global de propósito: a casa é do mundo, não do dono; se o Jonathan cadastra
+    "pixbet", ele cai na "PixBet" que já existe e as bases não se separam de novo.
+    """
+    nome = (nome or "").strip()
+    if not nome:
+        return nome
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT casa FROM parceiros
+                WHERE lower(replace(casa, ' ', '')) = lower(replace($1, ' ', ''))
+                GROUP BY casa
+                ORDER BY COUNT(*) DESC, casa
+                LIMIT 1""",
+            nome,
+        )
+    return row["casa"] if row else nome
+
+
 async def get_parceiro(parceiro_id: int, dono: str) -> dict | None:
     """A conta pelo ID — fonte de verdade do par (casa, nome) na hora de gravar.
 

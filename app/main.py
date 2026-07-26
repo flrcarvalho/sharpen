@@ -54,7 +54,7 @@ from repository import (
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
     get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
-    get_parceiro, list_parceiros, parse_tsv,
+    casa_canonica, get_parceiro, list_parceiros, parse_tsv,
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo,
@@ -1895,6 +1895,10 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual),
         conta = await get_parceiro(body.parceiro_id, dono_view)
         if conta:
             casa_txt, parceiro_txt = conta["casa"], conta["nome"]
+    elif casa_txt:
+        # Sem conta pela qual resolver (extensão, import, /salvar direto): pelo menos não
+        # deixa nascer uma gêmea por caixa/espaço de uma casa já existente.
+        casa_txt = await casa_canonica(casa_txt)
 
     casa_key = _display_to_key(casa_txt) if casa_txt else None
     for row in rows:
@@ -2385,7 +2389,10 @@ async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(d
         raise HTTPException(400, "Casa não informada.")
     # Casa nova (Fase 2 worldwide): não exige mais CASA_*.md. A casa passa a
     # existir pelo uso (parceiro + bilhetes) e a extração roda em modo cego.
-    row = await criar_parceiro(_casa_display(casa_key), nome, dono)
+    # A casa NASCE aqui — é o ponto certo para impedir uma gêmea por caixa/espaço de uma
+    # casa que já existe ("Pixbet" quando o sistema já tem "PixBet"). Casa realmente nova
+    # segue entrando verbatim (ver `casa_canonica`).
+    row = await criar_parceiro(await casa_canonica(_casa_display(casa_key)), nome, dono)
     return row
 
 
