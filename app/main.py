@@ -46,7 +46,8 @@ from repository import (
     get_custo_conta, salvar_custo_conta,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
-    get_codigos_resolvidos, limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
+    get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
+    limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
     casas_visao, salvar_casa_config,
@@ -2014,7 +2015,27 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
         if t:
             r["tipster"] = t
 
+    # Mercado que ganhou uma 2ª compra: o código migra de `cid` para `cid__i` e a linha
+    # antiga (código cru) some do radar do UPSERT — vira fantasma presa em "aberta".
+    # Antes de gravar, herdamos o tipster dela; depois de gravar, ela é removida.
+    cids_fatiados = sorted({r["codigo_bilhete"].split("__")[0] for r in rows
+                            if "__" in (r.get("codigo_bilhete") or "")})
+    if cids_fatiados:
+        tipster_cru = await get_tipster_por_codigo(dono, "Polymarket", parceiro, cids_fatiados)
+        for r in rows:
+            cid = (r.get("codigo_bilhete") or "").split("__")[0]
+            if not r.get("tipster") and tipster_cru.get(cid):
+                r["tipster"] = tipster_cru[cid]
+
     inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(rows, dono, origem="sync")
+    # Só agora (upsert concluído) a linha de código cru pode sair: o SQL exige que as
+    # fatias irmãs já existam, então um upsert que tenha falhado não apaga nada.
+    fantasmas = await remover_bilhetes_supersedidos(dono, "Polymarket", parceiro, cids_fatiados)
+    if fantasmas:
+        alertas.append(
+            f"{len(fantasmas)} linha(s) duplicada(s) removida(s): o mercado ganhou uma "
+            "compra nova e a linha antiga ficou órfã do código do bilhete."
+        )
     # Tipster migrado da tabela de ativas para `bilhetes`: apaga as linhas correspondentes
     # para não reinjetar (e sobrescrever uma edição da grade) no próximo re-sync.
     if salvos:

@@ -161,3 +161,94 @@ def test_upsert_aberta_para_resolvida_nao_rebaixa():
         assert r["odd"] == "1,90"                          # odd preservada
         assert await _count("TDonoA") == 1                 # nunca duplicou
     _run(body())
+
+
+# ── Fantasma do código cru (Polymarket: mercado ganha a 2ª compra) ────────────
+#
+# O código do bilhete depende de QUANTAS compras o mercado tem: 1 compra grava
+# `cid`, e quando entra a 2ª o coletor passa a emitir `cid__0`/`cid__1`. A linha
+# antiga some do radar do UPSERT e fica congelada em "aberta", esperando um
+# resultado que nunca chega (caso real: 1 linha na base do Feca, s200).
+
+def _poly(**kw):
+    return _row(casa="Polymarket", parceiro="Feca [Eu]", resultado="", odd="2,50", **kw)
+
+
+def test_remove_codigo_cru_quando_mercado_vira_fatiado():
+    """Código cru sai quando as fatias irmãs existem; o resto da conta não é tocado."""
+    async def body():
+        await _reset()
+        # 1º sync: uma compra só → código CRU, aposta em aberto.
+        await repository.upsert_bilhetes([_poly(codigo_bilhete="0xCID")], "TDonoA")
+        # 2º sync: entrou a 2ª compra → o coletor passa a emitir as fatias.
+        await repository.upsert_bilhetes([
+            _poly(codigo_bilhete="0xCID__0", descricao="M [1/2]", resultado="L"),
+            _poly(codigo_bilhete="0xCID__1", descricao="M [2/2]", resultado="W"),
+        ], "TDonoA")
+        # Um mercado de compra única, que NÃO pode ser afetado.
+        await repository.upsert_bilhetes([_poly(codigo_bilhete="0xOUTRO",
+                                                descricao="Outro")], "TDonoA")
+        assert await _count("TDonoA") == 4          # o fantasma ainda está lá
+
+        apagadas = await repository.remover_bilhetes_supersedidos(
+            "TDonoA", "Polymarket", "Feca [Eu]", ["0xCID", "0xOUTRO"])
+        assert len(apagadas) == 1
+        assert apagadas[0]["codigo_bilhete"] == "0xCID"
+        assert await _count("TDonoA") == 3
+        assert await _get("TDonoA", "0xCID") is None       # fantasma removido
+        assert await _get("TDonoA", "0xCID__0") is not None  # fatias intactas
+        assert await _get("TDonoA", "0xCID__1") is not None
+        assert await _get("TDonoA", "0xOUTRO") is not None   # compra única preservada
+    _run(body())
+
+
+def test_nao_remove_codigo_cru_sem_fatias_irmas():
+    """Guarda auto-verificável: sem as fatias no banco (upsert falhou), nada é apagado."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_poly(codigo_bilhete="0xCID")], "TDonoA")
+        apagadas = await repository.remover_bilhetes_supersedidos(
+            "TDonoA", "Polymarket", "Feca [Eu]", ["0xCID"])
+        assert apagadas == []
+        assert await _get("TDonoA", "0xCID") is not None
+    _run(body())
+
+
+def test_remove_codigo_cru_respeita_dono_e_conta():
+    """A remoção é escopada: não alcança outro dono nem outra conta da mesma casa."""
+    async def body():
+        await _reset()
+        for dono in ("TDonoA", "TDonoB"):
+            await repository.upsert_bilhetes([_poly(codigo_bilhete="0xCID")], dono)
+            await repository.upsert_bilhetes([
+                _poly(codigo_bilhete="0xCID__0", descricao="M [1/2]"),
+                _poly(codigo_bilhete="0xCID__1", descricao="M [2/2]"),
+            ], dono)
+        # Outra conta do MESMO dono, com o mesmo código cru.
+        await repository.upsert_bilhetes([_poly(codigo_bilhete="0xCID",
+                                                parceiro="Feca [Outra]")], "TDonoA")
+
+        apagadas = await repository.remover_bilhetes_supersedidos(
+            "TDonoA", "Polymarket", "Feca [Eu]", ["0xCID"])
+        assert len(apagadas) == 1
+        assert await _count("TDonoB") == 3          # outro dono intocado
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            outra = await conn.fetchval(
+                "SELECT COUNT(*) FROM bilhetes WHERE dono='TDonoA' AND parceiro='Feca [Outra]'")
+        assert outra == 1                            # outra conta intocada
+    _run(body())
+
+
+def test_get_tipster_por_codigo_so_traz_preenchido():
+    """Carry-over do tipster: só devolve o que foi de fato atribuído."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([
+            _poly(codigo_bilhete="0xCID", tipster="Nomade"),
+            _poly(codigo_bilhete="0xVAZIO", descricao="Sem tipster", tipster=""),
+        ], "TDonoA")
+        got = await repository.get_tipster_por_codigo(
+            "TDonoA", "Polymarket", "Feca [Eu]", ["0xCID", "0xVAZIO"])
+        assert got == {"0xCID": "Nomade"}
+    _run(body())

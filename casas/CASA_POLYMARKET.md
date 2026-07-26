@@ -44,6 +44,14 @@
 - A dedup global por ID (`repository._assinatura`) usa esse Código → **reprocessar a
   mesma carteira é UPSERT limpo**, sem duplicar. Sincronizar de novo só atualiza.
 
+> ⚠️ **O código depende de QUANTAS compras o mercado tem.** Com 1 compra é `cid` cru;
+> quando entra a 2ª, o coletor passa a emitir `cid__0`/`cid__1` e a linha antiga **nunca
+> mais é alcançada por um UPSERT** — vira fantasma, congelada no estado em que estava
+> (tipicamente "aberta", esperando um resultado que jamais chega) e contando como aposta
+> a mais. O `/polymarket/sync` fecha isso: herda o tipster da linha crua e a remove
+> **depois** do upsert, via `remover_bilhetes_supersedidos`, que só apaga se as fatias
+> irmãs já existirem na mesma conta.
+
 ---
 
 ## 4. Ordem das linhas

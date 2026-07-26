@@ -1411,6 +1411,56 @@ async def set_ativo_tipster(dono: str, codigo: str, tipster: str) -> None:
         )
 
 
+async def get_tipster_por_codigo(dono: str, casa: str, parceiro: str,
+                                 codigos: list[str]) -> dict[str, str]:
+    """codigo_bilhete → tipster já gravado na conta (só os não vazios)."""
+    if not codigos:
+        return {}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT codigo_bilhete, tipster FROM bilhetes "
+            "WHERE dono = $1 AND casa = $2 AND parceiro = $3 "
+            "AND codigo_bilhete = ANY($4::text[]) AND COALESCE(tipster,'') <> ''",
+            dono, casa, parceiro, codigos,
+        )
+    return {r["codigo_bilhete"]: r["tipster"] for r in rows}
+
+
+async def remover_bilhetes_supersedidos(dono: str, casa: str, parceiro: str,
+                                        cids: list[str]) -> list[dict]:
+    """Apaga a linha de código CRU (`cid`) de um mercado que passou a ser fatiado
+    (`cid__0`, `cid__1`, …), devolvendo as linhas apagadas.
+
+    Por que existe: no Polymarket o código do bilhete depende de QUANTAS compras o
+    mercado tem — 1 compra grava `cid`, e quando entra a 2ª o coletor passa a emitir
+    `cid__i`. A linha antiga então nunca mais é alcançada por um UPSERT: vira fantasma,
+    congelada no estado em que estava (tipicamente "aberta", esperando um resultado que
+    jamais chega) e contando como aposta a mais. Ela é duplicata de uma das fatias.
+
+    A remoção é auto-verificável no próprio SQL: só apaga o código cru se JÁ existirem
+    fatias irmãs dele na mesma conta (`split_part` em vez de `LIKE`, que trataria o `_`
+    do sufixo como curinga). Se o upsert das fatias falhou, nada é apagado."""
+    if not cids:
+        return []
+    pool = await get_pool()
+    cols = ", ".join(f"b.{c}" for c in _COLS_RESTAURAR)
+    async with pool.acquire() as conn:
+        recs = await conn.fetch(
+            f"""DELETE FROM bilhetes b
+                WHERE b.dono = $1 AND b.casa = $2 AND b.parceiro = $3
+                  AND b.codigo_bilhete = ANY($4::text[])
+                  AND EXISTS (SELECT 1 FROM bilhetes s
+                              WHERE s.dono = b.dono AND s.casa = b.casa
+                                AND s.parceiro = b.parceiro
+                                AND s.codigo_bilhete <> b.codigo_bilhete
+                                AND split_part(s.codigo_bilhete, '__', 1) = b.codigo_bilhete)
+                RETURNING {cols}""",
+            dono, casa, parceiro, cids,
+        )
+    return [dict(r) for r in recs]
+
+
 async def limpar_ativos_tipster(dono: str, codigos: list[str]) -> int:
     """Apaga as linhas de tipster de ativas que já migraram para `bilhetes` (a aposta
     resolveu). Sem isso, o carry-over reinjetaria o tipster antigo a cada re-sync,
