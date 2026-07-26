@@ -248,6 +248,25 @@ O `extensor/README.md` listava `fab.js` e `overlay.js` (arquivos que não existe
 
 ---
 
+## 3.8 — Onde isto chegou (carimbo de 26/07, s202)
+
+O padrão saiu do papel em menos de 24 h, e pagou:
+
+- **O harness virou hábito.** De 1 caso (KTO) para **3 casos / 65 bilhetes** (KTO, Betfair,
+  Tivo) — e já **achou bug real**: `157bc1f` (Betfair, Each Way liquidado virando aposta
+  aberta) e o esqueleto da Tivo que apagava bilhete cheio (s198), pego por teste de mutação.
+- **A casa nova seguiu o guia.** A **Tivo** (BetConstruct) entrou pelas 7 fases, com fixture
+  real e armadilhas documentadas no `casos/tivo.mjs` no mesmo formato — sem a saga de 8
+  sessões que a bet365 custou.
+- **O gate pegou o que devia.** `audit_sharpenup.py` acusou a própria mudança que o cegaria
+  (tuplas → lista nomeada) e hoje roda 15/15 OK, com a Tivo dentro.
+- **Achado novo desta faxina:** dois itens deste backlog seguiam listados no `STATUS.md §5`
+  como abertos **depois de corrigidos** (cobertura da bet365 e Pinnacle no pré-dedup).
+  Conferido com as funções reais e removidos. Backlog que mente custa uma sessão inteira,
+  igual bug.
+
+---
+
 ## 4. Próximos passos, na ordem em que eu faria
 
 | # | O quê | Por quê | Tamanho | Risco |
@@ -258,7 +277,7 @@ O `extensor/README.md` listava `fab.js` e `overlay.js` (arquivos que não existe
 | ~~4~~ | ~~**Comentários e `CASA_BET365.md`** (A3, A4)~~ | ✅ `101e70f` | — | — |
 | 5 | **Checagem de origem nos listeners** (3.3) | integridade do dado | 7 linhas | baixo |
 | 6 | **`roboPassivoGenerico` + `su_hook.js`** (3.2) | casa nova: 300 → ~40 linhas | 1 sessão | **médio** — mexe em 7 casas que funcionam; fazer **depois** de haver caso de harness para cada uma |
-| 7 | **Caso de harness para as 6 casas restantes** | pré-requisito do #5: sem regressão travada, refatorar 7 casas é apostar | 1 fixture por casa (o Feca captura no F12) | baixo |
+| 7 | **Caso de harness para as casas restantes** | pré-requisito do #6. **Em andamento:** Betfair, KTO e Tivo já têm caso; falta bet365 (fixtures já no repo), Pinnacle, Superbet, Betano, BETesporte | 1 fixture por casa (o Feca captura no F12) | baixo |
 | 8 | **Injeção por host** (`registerContentScripts`) | tirar 119 KB de toda navegação | ½ sessão | médio |
 | 9 | **Podar `Backups/`** | 434 pastas; o git já guarda o versionado | decisão do Feca | irreversível |
 
