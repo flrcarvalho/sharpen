@@ -277,12 +277,18 @@ const CASA_DOMAIN={
   'Rei do Pitaco':'pitaco.bet.br',
   // grafias das bases importadas (o DB guarda ESTES rótulos exatos)
   'BetBra':'betbra.bet.br','Aposta Ganha':'apostaganha.bet.br','Esportiva Bet':'esportiva.bet.br',
-  'Multibet':'multi.bet.br','Faz1be':'faz1.bet.br','Pagol':'pagol.bet.br'
+  // Diferença só de CAIXA não precisa de linha aqui (o casaFavicon casa por caixa-baixa);
+  // sufixo diferente ("7k Bet" × "7K") continua exigindo alias.
+  'Multibet':'multi.bet.br','Faz1be':'faz1.bet.br','Pagol':'pagol.bet.br','7k Bet':'7k.bet.br'
 };
+// Índice por caixa-baixa: a mesma casa convive no banco em variantes de caixa ("Faz1bet" ×
+// "Faz1Bet", "PixBet" × "Pixbet"), e o lookup exato caía no palpite `.com`. Espelha o
+// `dash/assets/js/app.js:48-50` e o `faviconUrl` do index.html.
+const CASA_DOMAIN_LC=new Map(Object.entries(CASA_DOMAIN).map(([k,v])=>[k.toLowerCase(),v]));
 function casaFavicon(casa){
   // Fallback só para casa NOVA fora do mapa: sem acento e sem espaço + .com (melhor palpite).
   const fb=(casa||'').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'')+'.com';
-  const dom=CASA_DOMAIN[casa]||fb;
+  const dom=CASA_DOMAIN[casa]||CASA_DOMAIN_LC.get((casa||'').toLowerCase())||fb;
   const init=esc((casa||'?').charAt(0).toUpperCase());
   return '<span class="casa-chip" data-casa="'+esc(casa||'')+'" data-initial="'+init+'"><img src="https://www.google.com/s2/favicons?sz=128&domain='+encodeURIComponent(dom)+'" alt="" loading="lazy" onerror="this.remove()"></span>';
 }

@@ -2191,12 +2191,27 @@ const DOMINIOS = {
   'Rei do Pitaco': 'pitaco.bet.br',
   // grafias das bases importadas (ex.: Jonathan) — o DB guarda ESTES rótulos exatos,
   // que diferem em caixa/sufixo das chaves canônicas acima (BetBra≠Betbra etc.).
+  // Diferença SÓ de caixa não precisa mais de linha aqui: o `faviconUrl` casa por
+  // caixa-baixa. Sufixo diferente ("7k Bet" × "7K") continua exigindo alias.
   'BetBra': 'betbra.bet.br', 'Aposta Ganha': 'apostaganha.bet.br',
   'Esportiva Bet': 'esportiva.bet.br', 'Multibet': 'multi.bet.br',
-  'Faz1be': 'faz1.bet.br', 'Pagol': 'pagol.bet.br',
+  'Faz1be': 'faz1.bet.br', 'Pagol': 'pagol.bet.br', '7k Bet': '7k.bet.br',
+  // Estas seis já estavam decididas no `inicio.html` (CASA_DOMAIN) e faltavam AQUI — os
+  // dois mapas vinham dessincronizados. Copiadas de lá, nenhum domínio inventado.
+  'Betão': 'betao.bet.br', 'Betboo': 'betboo.com', 'Betboom': 'betboom.bet.br',
+  'Betfusion': 'betfusion.bet.br', 'Liderbet': 'lider.bet.br',
+  'SportingBet': 'sportingbet.com',
 };
+// Índice por caixa-baixa. O banco guarda a grafia que o import/a casa mandou — e a mesma
+// casa convive em variantes ("Faz1bet" × "Faz1Bet", "PixBet" × "Pixbet", "MatchBook" ×
+// "Matchbook") —, então o lookup EXATO errava e o chip caía no palpite `nome + .com`, que
+// para a Faz1bet é um domínio que nem existe. O dashboard já resolvia assim
+// (`dash/assets/js/app.js:48-50`); aqui tinha ficado para trás, e a lista de aliases do
+// mapa vinha sendo mantida na mão, uma grafia por vez.
+const _DOMINIOS_LC = new Map(Object.entries(DOMINIOS).map(([k, v]) => [k.toLowerCase(), v]));
 function faviconUrl(casa) {
-  const domain = DOMINIOS[casa] || (casa.toLowerCase() + '.com');
+  const chave = (casa || '').toLowerCase();
+  const domain = DOMINIOS[casa] || _DOMINIOS_LC.get(chave) || (casa.toLowerCase() + '.com');
   // encodeURIComponent: casa de modo cego (worldwide) é texto livre do usuário/IA →
   // sem encode, um domínio com " ou > escapa do src="..." (XSS armazenado, C1). Espelha inicio.html:270.
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
@@ -2824,6 +2839,7 @@ async function ncCriarConta() {
       const dom = _dominioFromUrl((document.getElementById('nc-casa-url') || {}).value || '');
       if (dom) {
         DOMINIOS[p.casa] = dom;
+        _DOMINIOS_LC.set(String(p.casa || '').toLowerCase(), dom);   // casa nova entra nos DOIS
         fetch('/casas/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa: p.casa, dominio: dom }) }).catch(() => {});
       }
     }
