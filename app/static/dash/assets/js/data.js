@@ -22,6 +22,10 @@ function esc(v){
 const CASA_ICONS={
   '7K':'https://www.google.com/s2/favicons?sz=128&domain=7k.bet.br',
   'Bateu':'https://www.google.com/s2/favicons?sz=128&domain=bateu.bet.br',
+  // Domínios confirmados pelo Feca (as três que faltavam em TODOS os mapas).
+  'Aposta1':'https://www.google.com/s2/favicons?sz=128&domain=aposta1.bet.br',
+  'Bet do Milhão':'https://www.google.com/s2/favicons?sz=128&domain=milhao.bet.br',
+  'Bingoplus':'https://www.google.com/s2/favicons?sz=128&domain=bingoplus.bet.br',
   'Bet365':'https://www.google.com/s2/favicons?sz=128&domain=bet365.com',
   'Betano':'https://www.google.com/s2/favicons?sz=128&domain=betano.com',
   'Betao':'https://www.google.com/s2/favicons?sz=128&domain=betao.bet.br',
@@ -68,6 +72,7 @@ const CASA_ICONS={
 const HOUSE_DOMAIN={
   '7K':'7k.bet.br',
   'Bateu':'bateu.bet.br',
+  'Aposta1':'aposta1.bet.br','Bet do Milhão':'milhao.bet.br','Bingoplus':'bingoplus.bet.br',
   'Bet365':'bet365.com',
   'Betano':'betano.com',
   'Betao':'betao.bet.br',
