@@ -380,7 +380,11 @@ Exemplos:
 Over 2.5 Gols [Parma v Fiorentina]
 Under 220.5 Pontos [LAL Lakers v CHI Bulls]
 Over 5.5 Legs [Luke Littler v Luke Humphries]
+Over 1.5 Rounds [Ramazan Temirov v Steve Erceg]
 ```
+
+> O total de **rounds** de uma luta (MMA / Boxe) usa este mesmo template — o formato
+> não muda por esporte, só o objeto contado (ver `MASTER_APOSTAS §5 Rounds`).
 
 ---
 

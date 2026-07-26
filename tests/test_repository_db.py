@@ -308,3 +308,32 @@ def test_sync_preserva_tipster_ao_refrescar():
         r = await _get("TDonoA", "BET1")
         assert r["odd"] == "0,98" and r["tipster"] == "Nomade"
     _run(body())
+
+
+def test_sync_refresca_classificacao_de_linha_ja_resolvida():
+    """esporte/aposta/descricao nunca eram atualizados (só no INSERT) — com fonte
+    determinística isso trancava a correção do classificador fora do banco."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_row(casa="Polymarket", esporte="Outro", aposta="Player Props",
+                  descricao="O/U 1.5 Rounds")], "TDonoA", origem="sync")
+        await repository.upsert_bilhetes(
+            [_row(casa="Polymarket", esporte="MMA", aposta="Rounds",
+                  descricao="O/U 1.5 Rounds")], "TDonoA", origem="sync")
+        r = await _get("TDonoA", "BET1")
+        assert r["esporte"] == "MMA" and r["aposta"] == "Rounds"
+        assert await _count("TDonoA") == 1
+    _run(body())
+
+
+def test_extracao_ia_nao_sobrescreve_classificacao():
+    """Fora do sync a classificação segue intocada: a IA relê com ruído e o operador
+    corrige na grade — uma re-extração não pode desfazer a correção dele."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(esporte="Futebol", aposta="Escanteios")], "TDonoA")
+        await repository.upsert_bilhetes([_row(esporte="Outro", aposta="Outros")], "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert r["esporte"] == "Futebol" and r["aposta"] == "Escanteios"
+    _run(body())

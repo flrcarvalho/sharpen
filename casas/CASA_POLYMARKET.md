@@ -132,18 +132,29 @@ vir de tipsters diferentes) e uma ganha enquanto a outra perde.
 > Camada fina: lista só o que a Polymarket confirma. As 27 categorias vivem no
 > `MASTER_APOSTAS §3` — não reescrever aqui.
 
+> **O `O/U` não decide categoria — o OBJETO contado decide** (`MASTER_APOSTAS §1`).
+> A Polymarket escreve quase tudo como `O/U X`, então classificar pelo `over/under`
+> jogava escanteio, gol, ponto e round todos em `Player Props`: eram **35 linhas**
+> erradas na carteira de referência, e nenhuma era de jogador.
+
 | Mercado no título Polymarket | Aposta global |
 |---|---|
 | Vencedor da partida / outcome simples | ML |
+| `Will X win by KO or TKO?` (método de vitória, MMA) | ML |
 | `Game Handicap` / `Map Handicap` / spread | Handicap |
-| `Total: O/U X` / `over` / `under` | Player Props |
+| `Corners` / escanteios (Futebol) | Escanteios |
+| `Goals` / gols / `O/U 2.5` de gols (Futebol) | Gols |
+| `Cards` / cartões (Futebol) | Cartões |
+| `Both teams to score` / BTTS (Futebol) | Ambas Marcam |
+| `O/U 179.5` — total do jogo/time (Basquete) | Pontos |
+| `O/U 1.5 Rounds` (MMA / Boxe) | Rounds |
+| `O/U 8.5` — corridas (Baseball) | Corridas |
+| `Strikeouts O/U` — estatística do arremessador | Player Props |
 | `Games Total` (Tênis) | Games |
 | `Sets` (Tênis) | Sets |
 | `Legs` (Dardos) | Legs |
-| `Both teams to score` / BTTS (Futebol) | Ambas Marcam |
-| `Corners` / escanteios (Futebol) | Escanteios |
-| `Cards` / cartões (Futebol) | Cartões |
-| `Goals` / gols (Futebol) | Gols |
+| `Total Kills` / `Map X Total Rounds` / `Games Total` (E-Sports) | E-Sports Props |
+| Estatística individual de jogador, sem categoria própria | Player Props |
 
 > Mercados sem sinal claro no título caem em `ML` e são ajustáveis na grade.
 

@@ -95,6 +95,7 @@ quando existir categoria mais específica aplicável.
 | Outros | Último recurso |
 | Player Props | Estatísticas individuais de jogador |
 | Pontos | Mercados de pontos de jogo ou de time (Basquete, eBasket, Vôlei, Badminton) |
+| Rounds | Mercados de rounds/assaltos da luta (MMA, Boxe) |
 | Sets | Mercados de sets |
 | Team Props | Estatísticas de equipe |
 | Triplo-Duplo | Mercado específico de basquete |
@@ -362,6 +363,20 @@ Sinônimos:
 
 ---
 
+## Rounds
+
+Sinônimos:
+- Rounds
+- Assaltos
+- Total de Rounds
+- Mais/Menos rounds
+- Over/Under Rounds
+- Round Totals
+- A luta vai além de X rounds
+- Fight goes the distance
+
+---
+
 ## Sets
 
 Sinônimos:
@@ -522,6 +537,37 @@ Não confundir com:
 - `Games` (Tênis — unidade = game, não ponto)
 - `Gols` (Futebol — objeto = gol)
 - `Handicap` (spread do resultado, não total de pontos)
+
+---
+
+## Rounds
+
+`Rounds` representa:
+
+```text
+Total de rounds (assaltos) que a luta dura — MMA e Boxe.
+```
+
+É a categoria do **objeto round**, equivalente a `Gols` (Futebol), `Pontos`
+(Basquete), `Games` (Tênis) e `Legs` (Dardos). Segue o princípio §1: a categoria
+registra o **objeto medido**, não o tipo de mercado — então over/under, handicap de
+total ou comparativo continuam todos `Rounds`.
+
+Exemplos:
+- `O/U 1.5 Rounds` → `Rounds`
+- `Total de Assaltos — Mais de 2,5` → `Rounds`
+- `A luta vai além de 1.5 rounds?` → `Rounds`
+
+> **Não confundir com `Player Props`.** O round é do **combate**, não uma estatística
+> pessoal de um lutador. Antes desta categoria existir, `O/U 1.5 Rounds` caía em
+> `Player Props`, contrariando o princípio §1 (ver §7).
+
+> **Não confundir com `ML`.** `Will X win by KO or TKO?` é o **método de vitória**,
+> logo `ML` (resultado da luta) — não `Rounds`. O que define `Rounds` é o objeto
+> contado ser o round.
+
+> **Handicap de rounds** (ex.: `Lutador A -1,5 rounds`) segue `Handicap`, pela regra
+> de handicap de rounds/mapas em §6 — igual a handicap de sets.
 
 ---
 
@@ -1207,6 +1253,61 @@ Player Props
 
 ---
 
+## MMA / Boxe
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+### Método de vitória
+
+Vencer por KO/TKO, finalização ou decisão — o objeto é **quem vence e como**,
+continua sendo o resultado da luta:
+
+```text
+ML
+```
+
+---
+
+### Total de rounds
+
+Quantos rounds a luta dura (over/under, "vai além de X rounds", "termina na
+distância"):
+
+```text
+Rounds
+```
+
+> Handicap de rounds entre lutadores segue `Handicap` (ver "Handicap de
+> rounds/mapas" nesta seção §6).
+
+---
+
+### Estatísticas individuais do lutador
+
+Golpes significativos, quedas, tempo de controle — estatística **pessoal**:
+
+```text
+Player Props
+```
+
+---
+
 ## E-Sports
 
 ---
@@ -1264,7 +1365,16 @@ Pontos         > Team Props            (→ Basquete / eBasket / Vôlei)
 Pontos         > Handicap              (total de pontos ≠ spread)
 Pontos         > Games                 (→ Vôlei conta ponto, não game)
 Pontos         > Outros                (o total de pontos SEMPRE tem gaveta)
+Rounds         > Player Props          (→ MMA / Boxe: o round é da LUTA)
+Rounds         > Outros                (o total de rounds SEMPRE tem gaveta)
+ML             > Rounds                (método de vitória — KO/TKO/decisão)
 ```
+
+Desambiguação da categoria `Rounds` (MMA / Boxe):
+- **quantos rounds a luta dura** (`O/U 1.5 Rounds`) → `Rounds`
+- **como a luta termina** (`Will X win by KO or TKO?`) → `ML` (é o resultado)
+- **handicap de rounds** entre lutadores → `Handicap`
+- estatística **pessoal** do lutador (golpes, quedas) → `Player Props`
 
 Desambiguação da categoria `Sets`:
 - `Sets` com **time / seleção** → Vôlei
@@ -1332,6 +1442,7 @@ Antes de retornar a saída, o extrator deve validar:
 19. pontos de **jogador** em Basquete / eBasket = `Player Props` (nunca `Pontos`)
 20. `E-Sports Props` não foi utilizado em eBasket (é exclusivo do Esporte `E-Sports`)
 21. no Vôlei, a **unidade contada** define a categoria: ponto → `Pontos`, set → `Sets` (nunca `Games`)
+22. total de **rounds** da luta em MMA / Boxe = `Rounds` (nunca `Player Props` nem `Outros`); **método de vitória** (KO/TKO/decisão) = `ML`; **handicap de rounds** = `Handicap`
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

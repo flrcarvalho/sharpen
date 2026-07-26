@@ -960,6 +960,20 @@ async def upsert_bilhetes(
                                           OR EXCLUDED.origem = 'sync'
                                      THEN COALESCE(NULLIF(EXCLUDED.stake, ''), bilhetes.stake)
                                      ELSE bilhetes.stake END,
+                        -- Classificação (esporte/aposta/descrição) NUNCA foi atualizada:
+                        -- só entrava no INSERT. Com fonte determinística isso trava a
+                        -- correção do classificador fora do banco — foi o que segurou 40
+                        -- linhas mal classificadas. Fora do `sync`, segue intocada (a IA
+                        -- relê com ruído e o operador edita na grade).
+                        esporte = CASE WHEN EXCLUDED.origem = 'sync'
+                                       THEN COALESCE(NULLIF(EXCLUDED.esporte, ''), bilhetes.esporte)
+                                       ELSE bilhetes.esporte END,
+                        aposta = CASE WHEN EXCLUDED.origem = 'sync'
+                                      THEN COALESCE(NULLIF(EXCLUDED.aposta, ''), bilhetes.aposta)
+                                      ELSE bilhetes.aposta END,
+                        descricao = CASE WHEN EXCLUDED.origem = 'sync'
+                                         THEN COALESCE(NULLIF(EXCLUDED.descricao, ''), bilhetes.descricao)
+                                         ELSE bilhetes.descricao END,
                         -- backfill do USD em re-sync; nunca apaga um valor já gravado
                         stake_usd        = COALESCE(EXCLUDED.stake_usd, bilhetes.stake_usd),
                         atualizado_em    = NOW()
@@ -996,6 +1010,12 @@ async def upsert_bilhetes(
                                      THEN COALESCE(NULLIF($10, ''), data)  ELSE data  END,
                         stake = CASE WHEN extraction_state = 'aberta' OR $12 = 'sync'
                                      THEN COALESCE(NULLIF($11, ''), stake) ELSE stake END,
+                        esporte   = CASE WHEN $12 = 'sync'
+                                         THEN COALESCE(NULLIF($13, ''), esporte)   ELSE esporte   END,
+                        aposta    = CASE WHEN $12 = 'sync'
+                                         THEN COALESCE(NULLIF($14, ''), aposta)    ELSE aposta    END,
+                        descricao = CASE WHEN $12 = 'sync'
+                                         THEN COALESCE(NULLIF($15, ''), descricao) ELSE descricao END,
                         atualizado_em    = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
                     RETURNING id, FALSE AS was_inserted
@@ -1003,6 +1023,7 @@ async def upsert_bilhetes(
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig,
                     row.get("tipster"), codigo or None, resultado, extraction_state,
                     row.get("odd"), row.get("data"), row.get("stake"), origem,
+                    row.get("esporte"), row.get("aposta"), row.get("descricao"),
                 )
             if rec:
                 db_id = rec["id"]

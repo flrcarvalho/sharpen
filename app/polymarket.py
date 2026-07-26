@@ -288,6 +288,10 @@ _SLUG_SPORT = {
     "fifwc": "Futebol", "wc": "Futebol", "copa": "Futebol", "brasileirao": "Futebol",
     "libertadores": "Futebol", "soccer": "Futebol", "nwsl": "Futebol",
     "efl": "Futebol", "usl": "Futebol", "concacaf": "Futebol", "uwcl": "Futebol",
+    # `col` = UEFA Conference League (o slug NÃO usa o `uecl` da sigla oficial);
+    # `per1` = Liga 1 do Peru; `auc` = Australia Cup. Sem eles, 7 jogos de futebol
+    # caíam em 'Outro' — nome de clube pequeno não é pego pelo regex de título.
+    "col": "Futebol", "per1": "Futebol", "auc": "Futebol",
     # mma
     "ufc": "MMA", "mma": "MMA", "bellator": "MMA", "pfl": "MMA",
     # dardos / f1 / golf / vôlei / rugby / snooker (snooker → Outro no _norm_esporte)
@@ -381,13 +385,34 @@ def _norm_esporte(raw: str) -> str:
     return _NORM_ESPORTE.get(raw, "Outro")
 
 
+# "over"/"under" com FRONTEIRA DE PALAVRA. Sem o `\b`, o `under` casava dentro de
+# "Th(under)" e "Th(under)pick": `Spurs vs. Thunder` (moneyline de basquete) e dois
+# jogos do torneio Thunderpick viravam mercado de total. Bug real, 3 linhas.
+_RE_TOTAL = re.compile(r"\b(over|under|o/u|mais de|menos de)\b|\btotal\b")
+
+
 def _categoria(title: str, raw_sport: str) -> str:
+    """Categoria = **objeto apostado**, nunca o tipo de mercado (`MASTER_APOSTAS §1`).
+
+    A ordem aqui é a regra: o objeto (escanteio, gol, ponto, round…) é testado ANTES
+    do genérico over/under. Estava ao contrário — e como a Polymarket escreve quase
+    tudo como `O/U X`, o teste genérico vencia sempre e escanteio, gol, ponto e round
+    caíam todos em `Player Props` (35 linhas na carteira de referência, nenhuma de
+    jogador). O `MASTER_APOSTAS §7` põe isso em uma linha: mercado específico tem
+    prioridade sobre categoria genérica."""
     t = (title or "").lower()
     if re.search(r"handicap|spread|\(-\d|\(\+\d|[-+]\d+\.5\s|game handicap|map handicap", t):
         return "Handicap"
-    if re.search(r"over|under|mais de|menos de|total.*gol|total.*point|o/u", t):
-        # invariante global: estatística de E-Sports é E-Sports Props, nunca Player Props
-        return "E-Sports Props" if raw_sport == "E-Sports" else "Player Props"
+
+    # ── objeto contado (tem categoria própria) ──────────────────────────────
+    if re.search(r"corner|escanteio", t):
+        return "Escanteios"
+    if raw_sport == "MMA":
+        # O round é da LUTA. Método de vitória (KO/TKO/decisão) é o RESULTADO → ML.
+        if re.search(r"\brounds?\b|\bassaltos?\b", t):
+            return "Rounds"
+        if re.search(r"\bko\b|\btko\b|submission|decision|finaliza", t):
+            return "ML"
     if raw_sport == "Tênis":
         if "games" in t:
             return "Games"
@@ -399,13 +424,25 @@ def _categoria(title: str, raw_sport: str) -> str:
     if raw_sport == "Futebol":
         if re.search(r"both teams|btts|ambas marcam", t):
             return "Ambas Marcam"
-        if re.search(r"corner|escanteio", t):
-            return "Escanteios"
         if re.search(r"card|cartão|cartao", t):
             return "Cartões"
-        if re.search(r"\bgol\b|\bgols\b|goal", t):
+        # No futebol o total sem outro objeto nomeado é de GOLS (o objeto padrão do
+        # esporte) — `O/U 2.5`, `1st Half O/U 1.5`, `Time A O/U 0.5`.
+        if re.search(r"\bgols?\b|goals?", t) or _RE_TOTAL.search(t):
             return "Gols"
         return "ML"
+    if raw_sport in ("Basquete", "Vôlei") and _RE_TOTAL.search(t):
+        return "Pontos"          # total do jogo ou de um time (§9 nº 18)
+    if raw_sport == "Baseball" and _RE_TOTAL.search(t):
+        # Estatística individual do arremessador/rebatedor segue Player Props (§6).
+        if re.search(r"strikeout|home run|\brbi\b|\bhits?\b|\bbases\b", t):
+            return "Player Props"
+        return "Corridas"
+
+    # ── genérico: sobrou um total sem objeto com gaveta própria ─────────────
+    if _RE_TOTAL.search(t):
+        # invariante global: estatística de E-Sports é E-Sports Props, nunca Player Props
+        return "E-Sports Props" if raw_sport == "E-Sports" else "Player Props"
     return "ML"
 
 
