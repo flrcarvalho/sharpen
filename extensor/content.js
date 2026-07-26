@@ -101,6 +101,11 @@
   // `bfFimReal` = a página trouxe `moreAvailable:false` → fim autoritativo.
   const bfTickets = [];
   const bfTicketSeen = new Set();
+  // Lista ABERTA (aba "Aberta"), balde separado: a mesma varredura sobe encerradas +
+  // abertas num clique só (s197). Um bilhete que fechar entre duas capturas aparece nas
+  // DUAS listas em capturas diferentes — o UPSERT por código resolve (a resolvida vence).
+  const bfAbertas = [];
+  const bfAbertaSeen = new Set();
   let bfFimReal = false;
   let bfHookVivo = false;   // o bf_inject respondeu → hook ativo na página (autodiagnóstico)
   let bfRespostas = 0;      // respostas de /activity/sportsbook que o hook viu
@@ -113,6 +118,14 @@
         for (const t of d.bets) {
           const c = t && t.betId;
           if (c && !bfTicketSeen.has(c)) { bfTicketSeen.add(c); bfTickets.push(t); }
+        }
+      }
+      if (Array.isArray(d.abertas)) {
+        for (const t of d.abertas) {
+          const c = t && t.betId;
+          // Se o bilhete já veio na lista RESOLVIDA nesta mesma varredura, ele liquidou —
+          // a versão resolvida vence e a aberta é descartada (nunca o contrário).
+          if (c && !bfAbertaSeen.has(c) && !bfTicketSeen.has(c)) { bfAbertaSeen.add(c); bfAbertas.push(t); }
         }
       }
       if (d.fim) bfFimReal = true;
@@ -642,7 +655,7 @@
       // caía num "Nada coletado" genérico → falha silenciosa quando a casa troca o DOM/endpoint.
       // Casas sem inject (genéricos) seguem no aviso genérico.
       const diag = {
-        betfair:    { nome: "Betfair",    hook: bfHookVivo, resp: bfRespostas, vistos: bfTickets.length },
+        betfair:    { nome: "Betfair",    hook: bfHookVivo, resp: bfRespostas, vistos: bfTickets.length + bfAbertas.length },
         superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbById.size },
         betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
@@ -1081,20 +1094,46 @@
       // 0 < Retorno < Stake não é coberto pelo §5 → fica "a conferir" (nunca chutar).
     }
 
+    // ABERTA (aba "Aberta", `status:"OPEN"`): sem `settledDate` e sem `result` de liquidação.
+    // Sobe SEM resultado — MASTER_RESULTADO §1.1: nunca chutar o resultado de uma aposta
+    // aberta. A Data fica VAZIA de propósito (a coluna Data É a data de resolução, §4.A, e
+    // ela ainda não existe); quando o bilhete liquidar, o UPSERT por código preenche.
+    const aberta = !liquidado && (st === "OPEN" || !!t.__aberta);
+
+    // CASH OUT: o rótulo `status` é INÚTIL aqui — o mesmo desfecho aparece como "LOST"
+    // (bilhete O/…0001821) e como "WON" (O/…0001807). Quem decide é o dinheiro, como manda
+    // o MASTER_RESULTADO §5.1.2 / §5.6: Cash Out == Stake → V (desistiu, saiu no zero) ·
+    // Cash Out != Stake → W com odd = Cash Out ÷ Stake. Antes o código mandava "regra §7"
+    // com "Odd total: 1", e a IA gravava W/odd 1 num bilhete que era V.
+    const coIgualStake = cashout && ret != null && stake > 0 && Math.abs(ret - stake) < 0.005;
+
     let stTxt;
-    if (cashout) stTxt = "Cash Out (" + (t.isPartialCashOut ? "parcial" : "total") + ") → regra §7 (Cash Out ÷ Stake)";
+    if (aberta) stTxt = "em aberto (aguardando resultado — NÃO liquidar; deixe Resultado VAZIO)";
+    else if (cashout) {
+      stTxt = "Cash Out (" + (t.isPartialCashOut ? "parcial" : "total") + ") → " +
+              (coIgualStake ? "V — Cash Out = Stake (§5.1.2), use a odd exibida"
+                            : "W — odd = Cash Out ÷ Stake (§5.6)");
+    }
     else if (st === "WON") stTxt = "WON → W";
     else if (st === "LOST") stTxt = "LOST → L";
     else if (st === "VOID") stTxt = "VOID → V";
     else if (stFin) stTxt = st + " (liquidado) → " + stFin + " — §5 conferência financeira (Retorno vs Stake)";
     else stTxt = st + " (a conferir — não liquidar automaticamente)";
-    L.push("Status: " + stTxt + (t.potentialReturn != null ? (" · Retorno " + t.potentialReturn) : ""));
+    // Em aposta aberta o retorno é POTENCIAL (= Stake × Odd) e NUNCA decide W (§1.1) —
+    // rotular é obrigatório, senão a IA lê um retorno > 0 e conclui vitória.
+    const rotRet = aberta ? " · Retorno POTENCIAL (ainda não realizado) " : " · Retorno ";
+    L.push("Status: " + stTxt + (t.potentialReturn != null ? (rotRet + t.potentialReturn) : ""));
     if (cashout && t.potentialReturn != null) L.push("Cash Out: " + t.potentialReturn);
 
     // Odd total: W (WON, W deduzido pelo §5, ou cashout com retorno) = Retorno÷Stake
     // (precisão total, respeita boost/ODDSBOOST); L/V = odd exibida; múltipla sem win =
     // combinedOdds estrutural.
-    const oddW = ret != null && stake > 0 && (st === "WON" || stFin === "W" || (cashout && ret > 0));
+    // Aberta NUNCA usa Retorno÷Stake (o retorno é potencial, §1.1) → cai na odd exibida.
+    // Cash Out igual à stake é V → também usa a odd exibida, não 1.
+    // Em CASHOUT o `status` não vale (1765 e 1807 vêm "WON" e são V): o ramo do cashout
+    // decide sozinho, e o rótulo WON não pode reativar Retorno÷Stake por fora.
+    const oddW = !aberta && ret != null && stake > 0 &&
+                 (cashout ? (ret > 0 && !coIgualStake) : (st === "WON" || stFin === "W"));
     let oddTot = oddW ? (ret / stake) : (isMult && combined != null ? combined : oddDec);
     // Múltipla perdida às vezes vem SEM combinedOdds nem originalOdds.decimal → reconstrói
     // a odd combinada pelo PRODUTO das pernas (cada `part` traz a sua odd). Só quando TODAS
@@ -1412,7 +1451,23 @@
     }
     await sleep(400);
     processar();   // consome a última leva (inclusive a página final com moreAvailable:false)
+
+    // ABERTAS no MESMO clique (s197). Vão INTEIRAS, sem os freios de quantidade/dias das
+    // encerradas: são poucas por definição, são as mais recentes e o freio existe para não
+    // varrer histórico ilimitado — o que não se aplica aqui. Entram DEPOIS das encerradas
+    // na ordem do lote; o backend faz UPSERT por código quando cada uma liquidar.
+    let nAb = 0;
+    for (const t of bfAbertas) {
+      const cod = (t.betId || "").toUpperCase();
+      if (!cod || usados.has(cod)) continue;
+      usados.add(cod);
+      blocos.push(formatTicketBF(t));
+      nAb++;
+      ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+    }
+
     console.log("[SharpenUp] Betfair: " + blocos.length + " bilhete(s) · bfTickets=" + bfTickets.length +
+                " · abertas=" + nAb + "/" + bfAbertas.length +
                 " · hook=" + bfHookVivo + " · respostas=" + bfRespostas + " · fimReal=" + bfFimReal);
     return blocos;
   }

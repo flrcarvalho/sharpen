@@ -14,6 +14,10 @@
   const RX = /sportsbook/i;
   const all = [];
   const seen = new Set();
+  const abertas = [];              // lista ABERTA (status=OPEN) — balde SEPARADO, ver `forward`
+  const seenAb = new Set();
+  let reqOpen = null;              // requisição da lista ABERTA (p/ buscar sem depender da página)
+  let buscandoAbertas = false;
   let fimReal = false;
   let respostas = 0;
   let reqCtx = null;        // {url, method, headers, body} da requisição SETTLED (p/ replay)
@@ -29,7 +33,7 @@
   const of = window.fetch;  // fetch ORIGINAL — o replay usa este p/ não re-disparar o wrapper.
 
   function enviar() {
-    const msg = { __sharpenupBFData: true, hook: true, bets: all, fim: fimReal, respostas: respostas };
+    const msg = { __sharpenupBFData: true, hook: true, bets: all, abertas: abertas, fim: fimReal, respostas: respostas };
     try { window.postMessage(msg, "*"); } catch (e) {}
     try { if (window.top && window.top !== window) window.top.postMessage(msg, "*"); } catch (e) {}
   }
@@ -52,7 +56,18 @@
   }
 
   // Guarda a 1ª requisição "sportsbook" COM body → base do replay de paginação.
+  // Guarda TAMBÉM, à parte, a requisição da lista ABERTA (`"status":"OPEN"`): a página a
+  // dispara sozinha ao carregar, e tê-la em mãos permite buscar as abertas mesmo quando o
+  // usuário entra direto na aba Resolvida. NÃO mexe no `reqCtx` — o replay das ENCERRADAS
+  // continua exatamente como estava.
   function capturarReq(url, method, headers, body) {
+    if (RX.test(String(url)) && body && !reqOpen) {
+      const s = _bodyToStr(body);
+      if (/"status"\s*:\s*"OPEN"/i.test(s)) {
+        reqOpen = { url: String(url), method: (method || "POST"), headers: headers, body: s };
+        LOG("requisição da lista ABERTA capturada");
+      }
+    }
     if (reqCtx || !RX.test(String(url)) || !body) return;
     reqCtx = { url: String(url), method: (method || "POST"), headers: headers, body: _bodyToStr(body) };
     LOG("requisição capturada p/ replay · body:", (reqCtx.body || "").slice(0, 200));
@@ -64,8 +79,23 @@
     let j;
     try { j = JSON.parse(text); } catch (e) { return null; }
     if (!j || !Array.isArray(j.bets)) return null;
-    const status = j.responseFilters && j.responseFilters.status;
-    if (status && String(status).toUpperCase() !== "SETTLED") return null;   // só a RESOLVIDA
+    const status = String((j.responseFilters && j.responseFilters.status) || "").toUpperCase();
+    // Lista ABERTA: a página já dispara esta requisição sozinha ao carregar e, até a s197, a
+    // resposta era simplesmente DESCARTADA (por isso nunca capturamos aposta em aberto).
+    // Agora ela vai para um balde SEPARADO e a função devolve `null` exatamente como antes:
+    // `respostas`, `all`, `fimReal`, `ultimoNext` e o `paginarLoop` só são alimentados pela
+    // lista SETTLED, então a captura das ENCERRADAS fica byte a byte igual. Aditivo puro.
+    if (status === "OPEN") {
+      let novos = 0;
+      for (const t of j.bets) {
+        const c = t && t.betId;
+        if (c && !seenAb.has(c)) { seenAb.add(c); abertas.push(t); novos++; }
+      }
+      LOG("abertas:", j.bets.length, "· total:", abertas.length);
+      if (novos) enviar();
+      return null;
+    }
+    if (status && status !== "SETTLED") return null;   // qualquer outra aba: ignora
     respostas++;
     const antes = all.length;
     for (const t of j.bets) {
@@ -136,7 +166,27 @@
     pedido = true;
     enviar();
     if (!loopAtivo && !fimReal && reqCtx && ultimoNext != null) paginarLoop(ultimoNext, ultimoStart);
+    buscarAbertas();
   });
+
+  // Rede de segurança das ABERTAS: normalmente a página já disparou a lista Aberta ao
+  // carregar e o balde acima já está cheio. Se NÃO estiver (ex.: a aba Resolvida foi aberta
+  // direto), refaz a MESMA requisição que a própria página faz, com os cookies da sessão.
+  // Uma única vez, sem paginar: a lista de abertas é curta (`moreAvailable` costuma vir
+  // false) e o custo de errar aqui não pode encostar nas encerradas.
+  async function buscarAbertas() {
+    if (buscandoAbertas || abertas.length || !reqOpen) return;
+    buscandoAbertas = true;
+    try {
+      const r = await of.call(window, reqOpen.url, {
+        method: reqOpen.method, headers: reqOpen.headers,
+        body: reqOpen.body, credentials: "include",
+      });
+      forward(reqOpen.url, await r.text());   // cai no ramo OPEN → balde + enviar()
+      LOG("busca ativa da lista ABERTA:", abertas.length, "bilhete(s)");
+    } catch (e) { LOG("busca ativa das abertas falhou:", e && e.message); }
+    enviar();
+  }
 
   // ── fetch ──
   if (of && !of.__suBFW) {
