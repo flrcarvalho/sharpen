@@ -93,6 +93,47 @@ async function colher(arquivo, chave) {
   return { ultima, lista: (ultima && ultima[chave]) || [] };
 }
 
+// Servidor de mentira que responde pelo `status` e pelo ÍNDICE do corpo, como a casa faz.
+// É isto que permite provar (a) que a paginação avança de verdade e (b) que uma aba busca a
+// outra sozinha — as duas queixas do Feca na s198: "trouxe 22 e eu pedi 100" e "não vem
+// abertas + encerradas juntas".
+function servidor() {
+  const p0 = JSON.parse(fixture("betfair.settled2.json"));   // rangeStart 0  · more:true
+  const p1 = JSON.parse(fixture("betfair.settled3.json"));   // rangeStart 10 · more:true
+  const ab = fixture("betfair.open.json");
+  const pedidos = [];
+  const resp = (url, opts) => {
+    const body = String((opts && opts.body) || "");
+    pedidos.push(body);
+    if (!url.includes("sportsbook")) return null;
+    if (/"status"\s*:\s*"OPEN"/i.test(body)) return ab;
+    const m = /"fromRecord"\s*:\s*(\d+)/i.exec(body);
+    const idx = m ? Number(m[1]) : 0;
+    if (idx === 0) return JSON.stringify(p0);
+    if (idx === 10) return JSON.stringify({ ...p1, moreAvailable: false, nextPageIndex: null });
+    return JSON.stringify({ ...p1, bets: [], moreAvailable: false, nextPageIndex: null });
+  };
+  return { resp, pedidos };
+}
+
+// Corpo que a página emite ao abrir CADA aba (formato real, colado do console do Feca).
+const CORPO_ABERTA = '{"status":"OPEN","dateFilter":0,"fromRecord":0,"pageSize":10,"oddsType":"decimal"}';
+const CORPO_RESOLVIDA = '{"status":"SETTLED","dateFilter":"90","fromRecord":0,"pageSize":10,"oddsType":"decimal"}';
+
+async function umClique(corpoInicial) {
+  const srv = servidor();
+  const { ultima } = await rodarInject({
+    inject: "bf_inject.js",
+    href: "https://myactivity.betfair.bet.br/sportsbook",
+    urlInicial: "https://myactivity.betfair.bet.br/activity/sportsbook",
+    pedido: "__sharpenupBFReq",
+    corpoInicial: corpoInicial,
+    ms: 900,
+    responder: srv.resp,
+  });
+  return { ultima, pedidos: srv.pedidos };
+}
+
 export async function rodar() {
   const falhas = [];
   const fmt = carregarContent().pegar("formatTicketBF");
@@ -146,5 +187,28 @@ export async function rodar() {
       }
     }
   }
+
+  // ── UM CLIQUE = as duas listas, partindo de QUALQUER aba (s199) ───────────────
+  // Antes: o contexto do replay ficava preso na 1ª requisição (a da aba Aberta), o
+  // `paginarLoop` repaginava a lista errada, morria na 1ª volta e o `finally` marcava
+  // `fimReal` — o que impedia o robô de sequer rolar. Resultado: 22 encerradas quando o
+  // operador pediu 100, e nunca as duas listas juntas.
+  for (const [rotulo, corpo] of [["aba Resolvida", CORPO_RESOLVIDA], ["aba Aberta", CORPO_ABERTA]]) {
+    const { ultima, pedidos } = await umClique(corpo);
+    testes++;
+    if (!ultima) { falhas.push(`${rotulo}: o inject não emitiu nenhuma mensagem`); continue; }
+    const nEnc = (ultima.bets || []).length;
+    const nAb = (ultima.abertas || []).length;
+    // 2 páginas de 10 = 20 encerradas; a 2ª só chega se a paginação ATIVA funcionar.
+    if (nEnc !== 20) falhas.push(`${rotulo}: esperava 20 encerradas (2 páginas), vieram ${nEnc} — paginação ativa não avançou`);
+    if (nAb !== 2) falhas.push(`${rotulo}: esperava 2 abertas no mesmo clique, vieram ${nAb}`);
+    if (!ultima.fim) falhas.push(`${rotulo}: não sinalizou fim ao esgotar a lista`);
+    // A 2ª página tem de ser pedida com fromRecord=10 E pageSize intacto (o replay antigo
+    // sobrescrevia o pageSize junto com o índice quando os dois valiam 10).
+    const p2 = pedidos.find((b) => /"fromRecord"\s*:\s*10/.test(b));
+    if (!p2) falhas.push(`${rotulo}: nenhuma requisição pediu a 2ª página (fromRecord:10)`);
+    else if (!/"pageSize"\s*:\s*10/.test(p2)) falhas.push(`${rotulo}: pageSize foi sobrescrito junto com o índice → ${p2}`);
+  }
+
   return { falhas, testes };
 }

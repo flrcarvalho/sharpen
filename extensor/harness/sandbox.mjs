@@ -47,9 +47,13 @@ export async function rodarInject(cfg) {
   const urls = [];
   const ouvintes = [];
 
-  const responder = (url) => {
+  // `opts` (method/headers/body) chega ao `responder` como 2º argumento: sem ele não dá para
+  // distinguir duas requisições que compartilham a MESMA URL — caso da Betfair, onde a aba
+  // Aberta e a Resolvida só diferem pelo `"status"` do corpo, e a paginação só se prova
+  // olhando o índice enviado. Casos antigos ignoram o 2º argumento e seguem iguais.
+  const responder = (url, opts) => {
     urls.push(String(url));
-    return cfg.responder(String(url));
+    return cfg.responder(String(url), opts || null);
   };
   const resposta = (url, corpo) => ({
     ok: corpo != null, status: corpo == null ? 404 : 200, url: String(url),
@@ -66,7 +70,7 @@ export async function rodarInject(cfg) {
       // Entrega também aos ouvintes do próprio inject (é assim que o content dispara o replay).
       for (const cb of ouvintes) { try { cb({ data: msg, source: janela }); } catch (e) {} }
     },
-    fetch(url) { return Promise.resolve(resposta(url, responder(url))); },
+    fetch(url, opts) { return Promise.resolve(resposta(url, responder(url, opts))); },
   };
   janela.top = janela;
   janela.window = janela;
@@ -77,8 +81,8 @@ export async function rodarInject(cfg) {
     open(m, u) { this._m = m; this._u = u; },
     setRequestHeader() {},
     addEventListener(t, cb) { (this._ouvintes[t] ||= []).push(cb); },
-    send() {
-      const corpo = responder(this._u);
+    send(body) {
+      const corpo = responder(this._u, { method: this._m, body: body });
       this.responseText = corpo == null ? "" : corpo;
       this.status = corpo == null ? 404 : 200;
       setTimeout(() => { for (const cb of (this._ouvintes.load || [])) cb.call(this); }, 0);
@@ -95,8 +99,10 @@ export async function rodarInject(cfg) {
   vm.createContext(ctx);
   vm.runInContext(ler(path.join(EXT, cfg.inject)), ctx, { filename: cfg.inject });
 
-  // 1) a página pede a lista (é o que o hook escuta)
-  await janela.fetch(cfg.urlInicial || cfg.href);
+  // 1) a página pede a lista (é o que o hook escuta). `corpoInicial` simula o CORPO que a
+  // página envia — necessário quando o inject guarda a requisição para repaginar depois.
+  await janela.fetch(cfg.urlInicial || cfg.href,
+                     cfg.corpoInicial ? { method: "POST", body: cfg.corpoInicial } : undefined);
   await espera(30);
   // 2) o content pede o acumulado e arranca o replay
   if (cfg.pedido) { janela.postMessage({ [cfg.pedido]: true }); }

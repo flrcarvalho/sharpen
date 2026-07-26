@@ -107,6 +107,7 @@
   const bfAbertas = [];
   const bfAbertaSeen = new Set();
   let bfFimReal = false;
+  let bfPaginando = false;   // o inject está buscando páginas → não desistir por inatividade
   let bfHookVivo = false;   // o bf_inject respondeu → hook ativo na página (autodiagnóstico)
   let bfRespostas = 0;      // respostas de /activity/sportsbook que o hook viu
   window.addEventListener("message", (ev) => {
@@ -128,6 +129,7 @@
           if (c && !bfAbertaSeen.has(c) && !bfTicketSeen.has(c)) { bfAbertaSeen.add(c); bfAbertas.push(t); }
         }
       }
+      if (typeof d.paginando === "boolean") bfPaginando = d.paginando;
       if (d.fim) bfFimReal = true;
     }
   });
@@ -1452,7 +1454,10 @@
       await sleep(700);
       processar();
       if (travado) break;
-      if (bfTickets.length > ultTotal) { ultTotal = bfTickets.length; ultCresceu = Date.now(); }
+      // `bfPaginando` conta como sinal de vida: o inject busca as páginas pela API e pode
+      // levar mais de 12s entre levas. Sem isto o robô desistia no meio da paginação e o
+      // lote saía curto — a mesma queixa de "não completa o número pedido".
+      if (bfTickets.length > ultTotal || bfPaginando) { ultTotal = bfTickets.length; ultCresceu = Date.now(); }
       else if (Date.now() - ultCresceu > 12000) break;   // 12s parado, sem fim real → desiste
     }
     await sleep(400);
