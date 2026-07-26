@@ -25,6 +25,19 @@
   **Histórico** (Resolvidas + Pendentes) — dado exato: código estável `BR`, resultado, stake,
   odd, jogo/mercado, e **data de encerramento** (kickoff + folga por esporte, UK→Brasília).
   Detalhes em `docs/PLANO_BET365_CAPTURA_API.md`.
+- ⚠️ **Janela de captura: `Últimas 24/48 horas` não cobre aposta COLOCADA antes da janela, mesmo
+  que ela tenha liquidado dentro dela (s203).** Consequência: um bilhete capturado ABERTO some da
+  aba `Em Aberto` quando resolve, não aparece na lista das 48h, e fica preso em "aguardando
+  resultado" **para sempre** (a cada dia ele se afasta mais da janela). **Regra: para reconciliar
+  abertas antigas, rode o modo `Período` cobrindo desde a data em que a aposta foi feita**, não
+  desde a data do jogo. A dedup é pelo código `BR`, então tudo entra por UPSERT: reprocessar não
+  duplica nem cria linha nova. Medido na conta `marloncezar01`: 26 bilhetes presos, e uma passada
+  de `Período` sobre 19 a 21/07 fechou 8 sem inserir nenhuma linha.
+- ⚠️ **A captura é PASSIVA: o robô só enxerga o que a lista da tela já carregou.** O `b3_inject`
+  lê as respostas que a própria página baixa; ele não rola nem pagina sozinho (o "Mostrar Mais" é
+  não-automatizável, s180). Lista não expandida = bilhete não capturado, **em silêncio**. Expanda
+  a lista até o fim antes de mandar capturar, e confira no console:
+  `[SharpenUp] Bet365 API: N bilhete(s) · com código=X/Y`.
 - **Fallback: visão (screenshot).** Se a captura não trouxer nada (aba do Histórico não aberta
   ou extensão desatualizada), o **print manual** continua valendo — as regras de layout abaixo
   valem para esse caminho. Não há mais fallback de DOM: o robô que raspava os cards
