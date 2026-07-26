@@ -108,5 +108,47 @@ export async function rodar() {
       if (odd !== e.odd) falhas.push(`${id}: odd esperada ${e.odd}, veio "${odd}" (a tela trunca; vale o Koef inteiro)`);
     }
   }
+
+  // ── Esqueleto: bilhete que volta só com o identificador (s198) ─────────────────
+  // Aconteceu ao vivo em 3 dos 25 bilhetes do lote de 26/07 — os MESMOS IDs que vêm
+  // cheios nesta fixture. Como um esqueleto não parece "aberto" (status undefined), a
+  // regra resolvida-vence-aberta não o substituía: quem chegasse PRIMEIRO ganhava, e o
+  // bilhete cheio era descartado em silêncio. Aqui os dois vêm na mesma resposta, um com
+  // o esqueleto ANTES e outro com o esqueleto DEPOIS — as duas ordens têm de sobreviver.
+  const bruto = JSON.parse(corpo);
+  const cheio = (id) => bruto.Tickets.find((t) => String(t.ID) === id);
+  const A = cheio("291115424"), B = cheio("291115639");
+  // Sem `Count` de propósito: o fim autoritativo (`Error:null` + sem Count) segue valendo.
+  const misturado = JSON.stringify({ Error: null, Tickets: [{ ID: A.ID }, A, B, { ID: B.ID }] });
+
+  const r2 = await rodarInject({
+    inject: "tv_inject.js",
+    href: "https://tivo.bet.br/br/sportsbook/prematch#/mybets",
+    urlInicial: "https://tivo.bet.br/api/game/p/messagetosport",
+    pedido: "__sharpenupTVReq",
+    responder: (url) => (url.includes("messagetosport") ? misturado : null),
+  });
+  const t2 = (r2.ultima && r2.ultima.tickets) || [];
+  testes++;
+  if (t2.length !== 2) {
+    falhas.push(`esqueleto: esperava 2 bilhetes (um por ID), vieram ${t2.length}`);
+  } else {
+    for (const t of t2) {
+      testes++;
+      if (!(t.itens || []).length || t.status == null) {
+        falhas.push(`esqueleto: o bilhete ${t.id} ficou VAZIO — o esqueleto venceu o bilhete cheio`);
+      }
+    }
+  }
+
+  // Esqueleto SOZINHO (nenhuma versão cheia): tem de subir NOMEADO, mantendo o marcador
+  // [Código:] — é por ele que a conferência de cobertura cobra o bilhete e manda recapturar.
+  // O que não pode é virar bloco mudo, que a IA tentava adivinhar.
+  testes++;
+  const so = fmt({ id: "291115424" });
+  if (!so.startsWith("[Código: 291115424]")) falhas.push("esqueleto sozinho: perdeu o marcador [Código:]");
+  if (!/SEM DETALHE/.test(so)) falhas.push("esqueleto sozinho: subiu sem o aviso SEM DETALHE");
+  if (/Status \(API\)|Stake:|Odd:/.test(so)) falhas.push("esqueleto sozinho: emitiu campo que não existe no dado");
+
   return { falhas, testes };
 }

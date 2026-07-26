@@ -122,10 +122,20 @@
     try { if (window.top && window.top !== window) window.top.postMessage(msg, "*"); } catch (e) {}
   }
 
+  // Bilhete que veio SÓ com o identificador (sem Status, sem Result, sem pernas). Existe:
+  // 3 dos 25 bilhetes do lote de 26/07 subiram assim, com "Status=undefined" e a lista de
+  // seleções vazia — e os mesmos IDs vêm CHEIOS no payload de referência do recon.
+  const vazio = (x) => x.status == null && x.resultado == null && !(x.itens || []).length;
+
   // O mesmo bilhete pode voltar em consultas diferentes: a versão RESOLVIDA vence a ABERTA.
+  // E CONTEÚDO vence esqueleto, sempre — sem esta regra o esqueleto ganhava por chegar
+  // primeiro: ele não parece "aberto" (status undefined), então a linha de baixo nunca o
+  // substituía e o bilhete cheio que chegava depois era descartado em silêncio (s198).
   function guardar(t) {
     const ex = byId.get(t.id);
     if (!ex) { byId.set(t.id, t); return; }
+    if (vazio(t)) return;                            // esqueleto nunca sobrescreve
+    if (vazio(ex)) { byId.set(t.id, t); return; }    // conteúdo sempre vence esqueleto
     const aberto = (x) => x.status === 5 || x.resultado === 0;
     if (aberto(ex) && !aberto(t)) byId.set(t.id, t);
   }

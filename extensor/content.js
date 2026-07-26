@@ -201,10 +201,16 @@
       if (typeof d.respostas === "number") tvRespostas = d.respostas;
       if (Array.isArray(d.tickets)) {
         const aberto = (t) => t.status === 5 || t.resultado === 0;
+        // Espelha o `guardar` do tv_inject: CONTEÚDO vence esqueleto (bilhete que veio só com
+        // o identificador). Sem isto o esqueleto ganhava por chegar primeiro — ele não parece
+        // "aberto", então a regra resolvida-vence-aberta não o substituía (s198).
+        const vazio = (t) => t.status == null && t.resultado == null && !(t.itens || []).length;
         for (const t of d.tickets) {
           if (!t || !t.id) continue;
           const ex = tvById.get(t.id);
-          if (!ex || (aberto(ex) && !aberto(t))) tvById.set(t.id, t);
+          if (!ex) { tvById.set(t.id, t); continue; }
+          if (vazio(t)) continue;
+          if (vazio(ex) || (aberto(ex) && !aberto(t))) tvById.set(t.id, t);
         }
       }
       if (d.fim) tvFimReal = true;
@@ -1827,6 +1833,15 @@
   function formatTicketTV(t) {
     const L = [];
     L.push("[Código: " + t.id + "]");
+    // Esqueleto: a casa devolveu só o identificador. Sai NOMEADO em vez de virar um bloco
+    // mudo ("Status: Result undefined" + "Seleções:" vazio) que a IA tentava adivinhar. O
+    // marcador acima fica de propósito: é por ele que a conferência de cobertura cobra o
+    // bilhete de volta e manda reprocessar, em vez de o bilhete sumir da contagem (s198).
+    if (t.status == null && t.resultado == null && !(t.itens || []).length) {
+      L.push("SEM DETALHE — a casa devolveu só o identificador deste bilhete.");
+      L.push("NÃO extraia esta aposta: recapture. Não invente stake, odd, data nem resultado.");
+      return L.join("\n");
+    }
     // Primeiro a data que vale para o TSV (evento mais recente), depois a colocação — que é a
     // que o card mostra e serve de contexto/ordem, nunca de coluna Data.
     const dev = _dhTV(_dataEventoTV(t));

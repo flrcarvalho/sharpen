@@ -116,6 +116,20 @@ De-para do par `Status` + `Result`:
 - O `Result` também existe **por perna** (`Items[].Result`), com os mesmos valores. Na amostra apareceu um `Result: 1` numa perna (bilhete `298710215`) cuja natureza **ainda não foi confirmada** — provável devolvida/void. Enquanto não houver um bilhete inteiro nesse estado para cruzar com a tela, ele sobe cru.
 - Quem decide W/V/HW/HL é a régua financeira do `MASTER_RESULTADO_2026`, não o enum sozinho.
 
+### 5.1 Bloco `SEM DETALHE` — não extrair
+
+Às vezes a casa devolve o bilhete **só com o identificador**. O bloco chega assim:
+
+```
+[Código: 291115424]
+SEM DETALHE — a casa devolveu só o identificador deste bilhete.
+NÃO extraia esta aposta: recapture. Não invente stake, odd, data nem resultado.
+```
+
+**Não gere linha** para esse bloco — nem vazia, nem "aberta". Ele existe para a conferência
+de cobertura cobrar o bilhete de volta e pedir reprocessamento; qualquer linha inventada
+aqui vira aposta fantasma no banco. Aconteceu em 3 dos 25 bilhetes do lote de 26/07/2026.
+
 ---
 
 ## 6. Boost / promoção
@@ -204,6 +218,7 @@ tabela acima de propósito: só entra no mapa o que está decidido.
 - Outright tem `Game: null` e `Market.Name` inútil — usar `Outright` + `OutrightGame`.
 - O sportsbook vive num **iframe**: o inject roda com `all_frames: true` e repassa ao topo.
 - `Result` fora de {0,2,3} nunca vira W/L por dedução.
+- Bloco `SEM DETALHE` (só o identificador) **não vira linha** — ver §5.1.
 
 ---
 
