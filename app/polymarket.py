@@ -1056,9 +1056,19 @@ async def coletar_dashboard(wallet: str) -> dict:
         # (None), NÃO zero — senão "cash R$0" mente sobre a carteira (#47).
         saldo_ok = (pusd is not None) or (usdce is not None)
         cash = (pusd or 0.0) + (usdce or 0.0)
+        # Dinheiro que já LIQUIDOU e continua na carteira porque não foi resgatado. Não é
+        # exposição: é valor certo (cota × 0,5 ou × 1) esperando um clique na Polymarket.
+        # Separado do "em aberto" para o painel parar de chamar os dois de saldo em aberto.
+        a_resgatar = sum(_f(p, "currentValue") for p in positions
+                         if _posicao_resolvida(p) and _f(p, "currentValue") > 0.01)
+
         portfolio = await _portfolio(client, wallet)
         if portfolio <= 0:
-            portfolio = sum(_f(p, "currentValue") for p in ativas_raw)
+            portfolio = sum(_f(p, "currentValue") for p in ativas_raw) + a_resgatar
+        # `em_aberto` sai por subtração para que as duas parcelas SEMPRE fechem com o
+        # portfólio (e com o saldo total). O que liquidou tem preço fixo; a oscilação de
+        # mercado, se houver, é do lado aberto — que é onde ela de fato existe.
+        em_aberto = max(portfolio - a_resgatar, 0.0)
         hoje = None
         for _back in range(0, 6):   # PTAX não publica fim de semana/feriado → recua
             hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
@@ -1100,10 +1110,15 @@ async def coletar_dashboard(wallet: str) -> dict:
         })
     ativas.sort(key=lambda a: (a["data"] or "9999"))
 
-    total = cash + portfolio
+    # Soma o que a tela MOSTRA, não os valores crus: arredondar cada parcela e o total em
+    # separado deixava o total 1 centavo fora da conta que o operador faz de cabeça
+    # (109,82 + 949,94 aparecendo como 1.059,75). Os KPIs precisam fechar entre si.
+    total = round(cash, 2) + round(portfolio, 2)
     return {
         "count": len(ativas),
         "portfolio": round(portfolio, 2),
+        "em_aberto": round(em_aberto, 2),      # exposição real (posições que ainda correm)
+        "a_resgatar": round(a_resgatar, 2),    # liquidado e não resgatado — só clicar
         # Saldo indisponível → cash/total viram None (a UI mostra "—", não R$0).
         # Portfólio segue vindo do Worker /value (não depende dos RPCs).
         "cash": round(cash, 2) if saldo_ok else None,
