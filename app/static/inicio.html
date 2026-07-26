@@ -278,11 +278,11 @@ const CASA_DOMAIN={
   // só no Planilhador (faltavam aqui → caíam no globo)
   'KingPanda':'kingpanda.bet.br','Lottu':'lottu.bet.br','Jogo de Ouro':'jogodeouro.bet.br','Vitória Bet':'vitoriabet.bet',
   'Rei do Pitaco':'pitaco.bet.br',
-  // grafias das bases importadas (o DB guarda ESTES rótulos exatos)
-  'BetBra':'betbra.bet.br','Aposta Ganha':'apostaganha.bet.br','Esportiva Bet':'esportiva.bet.br',
-  // Diferença só de CAIXA não precisa de linha aqui (o casaFavicon casa por caixa-baixa);
-  // sufixo diferente ("7k Bet" × "7K") continua exigindo alias.
-  'Multibet':'multi.bet.br','Faz1be':'faz1.bet.br','Pagol':'pagol.bet.br','7k Bet':'7k.bet.br'
+  // grafias das bases importadas. As gêmeas por caixa/sufixo (`BetBra`, `Multibet`,
+  // `Faz1be`, `7k Bet`, `Esportiva Bet`) SAÍRAM na s206: as casas foram unificadas no banco
+  // (s204) e a `casa_canonica` impede que voltem. Diferença só de CAIXA também não precisa
+  // de linha — o `casaFavicon` casa por caixa-baixa.
+  'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br'
 };
 // Índice por caixa-baixa: a mesma casa convive no banco em variantes de caixa ("Faz1bet" ×
 // "Faz1Bet", "PixBet" × "Pixbet"), e o lookup exato caía no palpite `.com`. Espelha o

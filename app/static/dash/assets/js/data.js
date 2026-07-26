@@ -31,7 +31,7 @@ const CASA_ICONS={
   'Betao':'https://www.google.com/s2/favicons?sz=128&domain=betao.bet.br',
   'Betão':'https://www.google.com/s2/favicons?sz=128&domain=betao.bet.br',
   'Betboom':'https://www.google.com/s2/favicons?sz=128&domain=betboom.bet.br',
-  'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
+  'Faz1Bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
   'Betboo':'https://www.google.com/s2/favicons?sz=128&domain=betboo.com',
   'Betbra':'https://www.google.com/s2/favicons?sz=128&domain=betbra.bet.br',
@@ -55,6 +55,9 @@ const CASA_ICONS={
   'MatchBook':'https://www.google.com/s2/favicons?sz=128&domain=matchbook.com',
   'MultiBet':'https://www.google.com/s2/favicons?sz=128&domain=multi.bet.br',
   'Novibet':'https://www.google.com/s2/favicons?sz=128&domain=novibet.com',
+  // Faltavam SÓ aqui (os outros dois mapas já tinham) — o dash caía no fallback.
+  'Aposta Ganha':'https://www.google.com/s2/favicons?sz=128&domain=apostaganha.bet.br',
+  'Pagol':'https://www.google.com/s2/favicons?sz=128&domain=pagol.bet.br',
   'Pinnacle':'https://www.google.com/s2/favicons?sz=128&domain=pinnacle.com',
   'PixBet':'https://www.google.com/s2/favicons?sz=128&domain=pix.bet.br',
   'Rei do Pitaco':'https://www.google.com/s2/favicons?sz=128&domain=pitaco.bet.br',
@@ -78,7 +81,7 @@ const HOUSE_DOMAIN={
   'Betao':'betao.bet.br',
   'Betão':'betao.bet.br',
   'Betboom':'betboom.bet.br',
-  'Faz1bet':'faz1.bet.br',
+  'Faz1Bet':'faz1.bet.br',   // grafia unificada no banco (s204); era 'Faz1bet'
   'Polymarket':'polymarket.com',
   'Betboo':'betboo.com',
   'Betbra':'betbra.bet.br',
@@ -102,6 +105,7 @@ const HOUSE_DOMAIN={
   'MatchBook':'matchbook.com',
   'MultiBet':'multi.bet.br',
   'Novibet':'novibet.com',
+  'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br',   // faltavam só aqui
   'Pinnacle':'pinnacle.com',
   'PixBet':'pix.bet.br',
   'Rei do Pitaco':'pitaco.bet.br',

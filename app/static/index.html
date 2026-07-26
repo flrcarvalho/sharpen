@@ -2199,13 +2199,12 @@ const DOMINIOS = {
   'Vitória Bet': 'vitoriabet.bet',
   // chaveado pelo valor do DB ("Rei do Pitaco"); marca rebatizada para Pitaco (pitaco.bet.br)
   'Rei do Pitaco': 'pitaco.bet.br',
-  // grafias das bases importadas (ex.: Jonathan) — o DB guarda ESTES rótulos exatos,
-  // que diferem em caixa/sufixo das chaves canônicas acima (BetBra≠Betbra etc.).
-  // Diferença SÓ de caixa não precisa mais de linha aqui: o `faviconUrl` casa por
-  // caixa-baixa. Sufixo diferente ("7k Bet" × "7K") continua exigindo alias.
-  'BetBra': 'betbra.bet.br', 'Aposta Ganha': 'apostaganha.bet.br',
-  'Esportiva Bet': 'esportiva.bet.br', 'Multibet': 'multi.bet.br',
-  'Faz1be': 'faz1.bet.br', 'Pagol': 'pagol.bet.br', '7k Bet': '7k.bet.br',
+  // grafias das bases importadas (ex.: Jonathan) — o DB guardava ESTES rótulos exatos.
+  // As gêmeas por caixa/sufixo (`BetBra`, `Multibet`, `Faz1be`, `7k Bet`, `Esportiva Bet`)
+  // SAÍRAM na s206: as casas foram unificadas no banco (s204) e a `casa_canonica` impede
+  // que voltem, então essas linhas só faziam o mapa mentir sobre o que existe. Diferença
+  // só de caixa também não precisa de linha: o `faviconUrl` casa por caixa-baixa.
+  'Aposta Ganha': 'apostaganha.bet.br', 'Pagol': 'pagol.bet.br',
   // Estas seis já estavam decididas no `inicio.html` (CASA_DOMAIN) e faltavam AQUI — os
   // dois mapas vinham dessincronizados. Copiadas de lá, nenhum domínio inventado.
   'Betão': 'betao.bet.br', 'Betboo': 'betboo.com', 'Betboom': 'betboom.bet.br',
