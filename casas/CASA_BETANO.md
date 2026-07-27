@@ -20,6 +20,20 @@
 
 ## 2. Modo de ingestão e layout
 
+### 2.0 Captura (SharpenUp) — uma aba por rodada
+
+O robô lê a API da casa (`GET /api/ma/bet/bet-history-v3?settled=true|false`) e **exporta só a
+lista da aba que está na tela**: em `Histórico → Apostas → Em aberto` saem só as abertas; em
+`Liquidada`, só as liquidadas. Para capturar tudo, **rode nas duas abas** (duas rodadas).
+
+Motivo (s209): a Betano é SPA — trocar de aba **não** recarrega a página, então o interceptador
+acumula as duas listas na memória da aba. Antes desta regra, rodar em `Em aberto` depois de ter
+passado pela `Liquidada` exportava as duas juntas. Além do token gasto à toa, o campo "parar no
+ID" preenchido com um bilhete **liquidado** interrompia a varredura **antes** das abertas e elas
+não saíam, sem erro na tela.
+
+### 2.1 Modos legados (print / texto)
+
 Dois modos:
 
 - **Resolvidas → TEXTO** (copiar). É a fonte de gravação principal.

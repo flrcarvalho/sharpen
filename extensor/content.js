@@ -1355,7 +1355,8 @@
   // infinito (levas de 10, cursor lastId) → o robô ROLA até o fundo repetidamente p/ a
   // página buscar mais, e vai consumindo o JSON. A ROLAGEM é idêntica à que já funciona
   // hoje (gruda no fundo); só a LEITURA muda (JSON exato, não scraping). Serve às DUAS
-  // abas: liquidadas (com resultado) e Em aberto (sem resultado → o backend grava 'aberta').
+  // abas: liquidadas (com resultado) e Em aberto (sem resultado → o backend grava 'aberta') —
+  // UMA POR RODADA: exporta só a lista da aba que está na tela (ver a guarda em `processar`).
   // Para no stopId (copiar dele pra cima), na janela de dias (só liquidadas), OU — sinal
   // autoritativo — quando a LISTA ATIVA chega à página FINAL sem LastId (fimAtivo). NUNCA
   // para no 1º obstáculo: só desiste por teto após MUITOS segundos parado sem sinal de fim.
@@ -1369,6 +1370,13 @@
 
     const processar = () => {
       for (const t of bnById.values()) {
+        // SÓ a lista da aba ATIVA. `bnById` é acumulador da SESSÃO DA PÁGINA (a Betano é SPA:
+        // trocar de aba não recarrega, então o hook nunca esquece o que já viu). Sem esta
+        // guarda, rodar em "Em aberto" depois de ter passado pela "Liquidada" exportava as duas
+        // listas juntas (s209: 25 bilhetes = 5 abertas + 20 liquidadas em memória) — token à toa
+        // e, pior, com `stopId` de bilhete LIQUIDADO o `travado` disparava ANTES das abertas e
+        // elas não saíam, sem erro na tela. Uma aba por rodada; para pegar tudo, rode nas duas.
+        if (!!t.__aberta !== naAbaAberta) continue;
         const cod = (t.BetId != null ? String(t.BetId) : "").toUpperCase();
         if (!cod || usados.has(cod)) continue;
         if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
