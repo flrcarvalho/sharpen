@@ -137,7 +137,10 @@ Regras que valem para todos:
 > `isLastPage` distinguem; "o tamanho bateu" não. Quando não distinguir, use um segundo
 > eixo: aqui o `gethistory` aceita `to`, então ao tocar o teto o inject varre para trás
 > (`varrerParaTras`) até uma janela voltar vazia. Custa 1 requisição quando não havia nada;
-> recupera o histórico inteiro quando havia.
+> recupera o histórico inteiro quando havia. **Validado contra o servidor real** (s211):
+> partindo de um teto simulado de 6 bilhetes, a varredura recuperou os 32 da conta e parou
+> sozinha — ver `CASA_BETFAST §2.1.1`. O harness prova o algoritmo; só o ao vivo prova que
+> a casa colabora com o segundo eixo.
 
 Freios no popup: **dias + ID de parada** (Superbet/BETesporte/Betano/KTO/Pinnacle/Tivo/Betfast) ·
 **quantidade + dias + varrer tudo** (Betfair, histórico ilimitado e fora de ordem) ·

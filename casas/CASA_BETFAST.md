@@ -13,6 +13,7 @@
 ## 1. Identidade
 
 - Casa canônica: `Betfast` · site: `betfast.bet.br` (serve também em `www.betfast.bet.br`; as duas respondem 200, sem redirecionar)
+- **Duas contas conhecidas** (= dois `Parceiro` no sistema): `fecanario` (50 bilhetes, a do payload de referência) e `flrcarvalho` (32, a que loga no navegador do dev). Os achados desta doc foram confirmados **nas duas** — ver §5.2 e §12.1.
 - Locale: pt-BR · Moeda: R$ (BRL) — a API carimba `CurrencySTR: "BRL"`
 - **Decimal exibido na tela: PONTO** (`24.28`, `1,604.28`) → normalizar para vírgula.
 - Motor: **BetConstruct** (sportsbook v4), servido num **iframe de mesma origem** dentro do site.
@@ -72,6 +73,28 @@ A primeira coleta real (27/07/2026) respondeu **`Count: 50` com exatamente 50 bi
 | varredura não concluiu | rede caiu / teto de 40 janelas | aviso para rodar de novo antes de considerar o período fechado |
 
 A varredura **só roda quando o teto foi tocado** e **não roda com janela de dias pedida** (aí o corte é intencional do operador). A Tivo, com `Count 24`, nunca entra nesse ramo — o caminho provado dela segue intacto. Os dois desfechos estão travados em `casos/betfast.mjs`, inclusive com uma "página 2" sintética que só existe pela API.
+
+#### ✅ Validado contra o servidor real (s211, conta `flrcarvalho`)
+
+O harness prova o algoritmo; isto prova que **a casa colabora**. Três medições ao vivo:
+
+| teste | resultado |
+|---|---|
+| `to` no futuro | devolve os 32 da conta — o parâmetro não quebra a consulta |
+| `to` no meio da faixa | devolve 26, **todos anteriores ao corte** e subconjunto do total |
+| `to` = mais antigo − 1 | `Count: 0`, `Error: null` — não há nada antes |
+
+E o laço completo, com o teto **simulado** (1ª consulta limitada aos 6 mais recentes, fingindo uma lista cheia):
+
+```
+inicial (teto fingido) →  6 bilhetes
+to < 17/06 12:31       → 26 novos → 32
+to < 08/05 13:10       →  0 novos → para sozinha
+```
+
+Recuperou **32 de 32**, nenhum faltando. É a prova que a fixture não pode dar: **a casa respeita o `to`**, então a varredura recupera de fato o histórico que a tela esconde.
+
+> ⚠ O que isso **não** prova: o teto de 50 em si. Esta conta tem 32 bilhetes e nunca o toca — quem tocou foi a `fecanario`, com 50. O mecanismo está validado; o gatilho, não.
 
 ### 2.2 Tipo do bilhete declarado
 
@@ -160,7 +183,7 @@ De-para do par `Status` + `Result` (bilhete):
 
 Quem decide W/V/HW/HL é a régua financeira do `MASTER_RESULTADO_2026`, não o enum sozinho.
 
-> Nos 50 bilhetes da amostra: 45 `L` e 5 `W`, **nenhuma aberta**. Aberta segue sem amostra nesta casa (o comportamento é o mesmo da Tivo).
+> Nos 50 bilhetes da `fecanario`: 45 `L` e 5 `W`. Nos 32 da `flrcarvalho`: 27 `L` e 5 `W`. **Nenhuma aberta em 82 bilhetes, nas duas contas** — e nenhum cashout, bônus, aposta de sistema ou outright. Essas pendências (§7, §8) não são falta de procura: são estados que estas contas não produziram.
 
 ### 5.1 `Result` por perna
 
@@ -189,6 +212,8 @@ Ler o `Koef` daria retorno de R$ 786,18 — quase o **dobro** do que a casa pago
 **Regra:** vale a régua global (`MASTER_RESULTADO`) — em `W` a odd é **`Retorno ÷ Stake`**, sempre. O formatador já concilia: só usa o `Koef` quando ele explica o retorno até o centavo. Em `L` não há retorno para recalcular, então a odd segue sendo o `Koef` cheio (o bilhete `298710145` tem uma perna void e é `L`).
 
 > Isso **fecha a pendência aberta da Tivo**: a `CASA_TIVO §5` carregava o `Result: 1` como "natureza ainda não confirmada" desde a s196. Mesmo motor, mesma resposta.
+
+> **Confirmado nas duas contas:** `fecanario` tem 3 pernas `Result: 1` (uma delas no `295698756`, que é o W onde o dinheiro prova a regra) e `flrcarvalho` tem 1 (`293761188`, perna de odd 3,35 anulada num bilhete que perdeu por outra perna). Não é anomalia de uma conta.
 
 ### 5.3 Bloco `SEM DETALHE` — não extrair
 
@@ -332,7 +357,9 @@ Três coisas a saber:
 
 Data do evento: `OfferedOddObject.StartTime`, lido como horário do Brasil (§4.1).
 
-Na amostra, os 4 são de futebol (Copa do Mundo). Esporte declarado: `Soccer` → `Futebol` pelo `MASTER_ESPORTES`.
+Na amostra da `fecanario`, os 4 são de futebol (Copa do Mundo). Esporte declarado: `Soccer` → `Futebol` pelo `MASTER_ESPORTES`.
+
+> **Confirmado na segunda conta:** a `flrcarvalho` tem mais **2** `ItemType 6` entre 32 bilhetes. O tipo é recorrente na casa, não um acidente do lote de referência — e nas duas contas o `Sport` da perna vem `null`, que é exatamente o que deixaria o bloco mudo.
 
 ---
 
@@ -386,5 +413,5 @@ Na amostra, os 4 são de futebol (Copa do Mundo). Esporte declarado: `Soccer` �
 ---
 
 VERSÃO: 2026
-STATUS: CAPTURA COMPLETA (espelho da Tivo) · **não validada ao vivo** · 2 mercados pendentes (§9) · golden a preencher (§15)
+STATUS: CAPTURA COMPLETA (espelho da Tivo) · varredura do teto **validada contra o servidor real** (§2.1.1) · **captura ponta a ponta pela extensão ainda não rodada** · 2 mercados pendentes (§9) · golden a preencher (§15)
 CASA: Betfast
