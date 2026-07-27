@@ -1,0 +1,192 @@
+{
+    "isLastPage": true,
+    "bets": [
+        {
+            "selectionsCount": 1,
+            "eventName": "Bahia (F) vs. Botafogo (F)",
+            "id": 5236294996,
+            "type": 0,
+            "status": 0,
+            "unitStake": 30.0,
+            "totalStake": 30.0,
+            "finalStake": 30.0,
+            "openStake": 30.0,
+            "totalWin": 90.0,
+            "createdDate": "2026-07-27T00:14:14.48Z",
+            "combLength": 1,
+            "linesCount": 1,
+            "currency": "BRL",
+            "selections": [
+                {
+                    "id": 14981019,
+                    "status": 0,
+                    "price": 3.0,
+                    "priceType": 3,
+                    "name": "Bahia (F) para marcar em ambos os tempos: Sim | Total de gols: Mais de 2.5",
+                    "marketName": "BetBuilder",
+                    "marketTypeId": 56,
+                    "childMarketTypeId": 0,
+                    "isLive": false,
+                    "isBetBuilder": true,
+                    "isBanker": false,
+                    "isVirtual": false,
+                    "dbId": 10,
+                    "eventId": 17150388,
+                    "eventName": "Bahia (F) vs. Botafogo (F)",
+                    "eventDate": "2026-07-27T22:00:00Z",
+                    "isLiveOrVirtual": false,
+                    "bbOdds": [
+                        {
+                            "marketName": "Bahia (F) para marcar em ambos os tempos",
+                            "oddName": "Sim",
+                            "status": 0,
+                            "id": 4253262180,
+                            "marketId": 1653317557,
+                            "selectionTypeId": 74,
+                            "sportMarketId": 70587,
+                            "marketTypeId": 56,
+                            "spec": ""
+                        },
+                        {
+                            "marketName": "Total de gols",
+                            "oddName": "Mais de 2.5",
+                            "status": 0,
+                            "id": 4253262061,
+                            "marketId": 1653317508,
+                            "selectionTypeId": 12,
+                            "sportMarketId": 70520,
+                            "marketTypeId": 18,
+                            "spec": "{\"1\":\"2.5\"}"
+                        }
+                    ],
+                    "sportTypeId": 1,
+                    "boostedSelection": {
+                        "preBoostedPrice": 2.2223,
+                        "boostProperty": 3
+                    },
+                    "sportId": 66,
+                    "champId": 4079,
+                    "catId": 593,
+                    "marketId": 0,
+                    "selectionTypeId": 74
+                }
+            ],
+            "remainingTotalWin": 90.0,
+            "cashOutValue": 0.0,
+            "partialCashOut": 0.0,
+            "bonus": 0.0,
+            "bonusPart": 0.0,
+            "initBonusPart": 0.0,
+            "bonusPartPercent": 0,
+            "bonusInsurance": 0.0,
+            "partialCashouts": [],
+            "isCancelAllowed": false,
+            "totalOdds": 3.0,
+            "boostedBet": {
+                "boostPercentage": 0,
+                "preBoostedPotWin": 66.66,
+                "preBoostedWin": 0.0
+            },
+            "device": 0
+        },
+        {
+            "selectionsCount": 1,
+            "eventName": "Sport vs. Cuiabá",
+            "id": 5236292971,
+            "type": 0,
+            "status": 0,
+            "unitStake": 30.0,
+            "totalStake": 30.0,
+            "finalStake": 30.0,
+            "openStake": 30.0,
+            "totalWin": 150.0,
+            "createdDate": "2026-07-27T00:13:40.24Z",
+            "combLength": 1,
+            "linesCount": 1,
+            "currency": "BRL",
+            "selections": [
+                {
+                    "id": 14980510,
+                    "status": 0,
+                    "price": 5.0,
+                    "priceType": 3,
+                    "name": "Sport total de gols: Mais de 0.5 | Ambas equipes marcam: Não | 1º tempo - total de escanteios: Mais de 3.5",
+                    "marketName": "BetBuilder",
+                    "marketTypeId": 19,
+                    "childMarketTypeId": 0,
+                    "isLive": false,
+                    "isBetBuilder": true,
+                    "isBanker": false,
+                    "isVirtual": false,
+                    "dbId": 10,
+                    "eventId": 16059355,
+                    "eventName": "Sport vs. Cuiabá",
+                    "eventDate": "2026-07-27T22:30:00Z",
+                    "isLiveOrVirtual": false,
+                    "bbOdds": [
+                        {
+                            "marketName": "Sport total de gols",
+                            "oddName": "Mais de 0.5",
+                            "status": 0,
+                            "id": 4256603992,
+                            "marketId": 1654243578,
+                            "selectionTypeId": 12,
+                            "sportMarketId": 70525,
+                            "marketTypeId": 19,
+                            "spec": "{\"1\":\"0.5\"}"
+                        },
+                        {
+                            "marketName": "Ambas equipes marcam",
+                            "oddName": "Não",
+                            "status": 0,
+                            "id": 4256604091,
+                            "marketId": 1654243627,
+                            "selectionTypeId": 76,
+                            "sportMarketId": 70545,
+                            "marketTypeId": 29,
+                            "spec": ""
+                        },
+                        {
+                            "marketName": "1º tempo - total de escanteios",
+                            "oddName": "Mais de 3.5",
+                            "status": 0,
+                            "id": 4266153668,
+                            "marketId": 1657370004,
+                            "selectionTypeId": 12,
+                            "sportMarketId": 70747,
+                            "marketTypeId": 177,
+                            "spec": "{\"1\":\"3.5\"}"
+                        }
+                    ],
+                    "sportTypeId": 1,
+                    "boostedSelection": {
+                        "preBoostedPrice": 3.8,
+                        "boostProperty": 3
+                    },
+                    "sportId": 66,
+                    "champId": 11005,
+                    "catId": 593,
+                    "marketId": 0,
+                    "selectionTypeId": 0
+                }
+            ],
+            "remainingTotalWin": 150.0,
+            "cashOutValue": 0.0,
+            "partialCashOut": 0.0,
+            "bonus": 0.0,
+            "bonusPart": 0.0,
+            "initBonusPart": 0.0,
+            "bonusPartPercent": 0,
+            "bonusInsurance": 0.0,
+            "partialCashouts": [],
+            "isCancelAllowed": false,
+            "totalOdds": 5.0,
+            "boostedBet": {
+                "boostPercentage": 0,
+                "preBoostedPotWin": 114.0,
+                "preBoostedWin": 0.0
+            },
+            "device": 0
+        }
+    ]
+}

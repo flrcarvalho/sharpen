@@ -57,6 +57,7 @@ CODIGO_EXEMPLO: dict[str, str] = {
     "PINNACLE":   "3089350167",
     "KTO":        "12939510404",
     "TIVO":       "298710215",
+    "VAIDEBET":   "5234878919",
     "BET365":     "JR8714690761I",
 }
 

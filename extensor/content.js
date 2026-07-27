@@ -219,6 +219,33 @@
     }
   });
 
+  // Bilhetes da VAIDEBET capturados pelo vb_inject.js (mundo MAIN) — as respostas de
+  // `POST …/WidgetReports/widgetExpandedBetHistory` (Altenar/BIA), já paginadas nas duas
+  // abas pelo inject. O inject sobe o bilhete CRU (o JSON é nomeado e estável); quem
+  // traduz status/esporte é o formatador abaixo + `casas/CASA_VAIDEBET.md`.
+  const vbById = new Map();          // id(string) → bilhete cru
+  let vbFimReal = false;
+  let vbHookVivo = false, vbRespostas = 0;   // autodiagnóstico
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupVBData) {
+      if (d.hook) vbHookVivo = true;
+      if (typeof d.respostas === "number") vbRespostas = d.respostas;
+      if (Array.isArray(d.bets)) {
+        // Resolvida vence aberta (o inject já aplica; aqui é a mesma regra do lado do
+        // content, porque as mensagens chegam intercaladas e a última não é a mais completa).
+        for (const b of d.bets) {
+          if (!b || b.id == null) continue;
+          const k = String(b.id);
+          const ex = vbById.get(k);
+          if (ex && ex.status !== 0 && b.status === 0) continue;
+          vbById.set(k, b);
+        }
+      }
+      if (d.fim) vbFimReal = true;
+    }
+  });
+
   // Bilhetes da BET365 capturados pelo b3_inject.js (mundo MAIN) — as RESPOSTAS de
   // /sportshistoryapi/summary + /confirmation (formato F|…), já parseadas pelo inject. Mesmo
   // modelo passivo + REPLAY ATIVO: o inject varre as duas listas (settled=1 resolvidas · settled=0
@@ -650,6 +677,13 @@
       // tabela sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
       // bloco só e a IA perderia o resto em silêncio.
       blocos = await roboTVPassive(ctx);
+    } else if (casa === "vaidebet") {
+      // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
+      // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
+      // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
+      // grid, sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
+      // bloco só e a IA perderia o resto em silêncio (lição da KTO, s192).
+      blocos = await roboVBPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -670,6 +704,7 @@
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
         tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
+        vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -1971,6 +2006,242 @@
     processar();
     console.log("[SharpenUp] Tivo: " + blocos.length + " bilhete(s) · tvById=" + tvById.size +
                 " · hook=" + tvHookVivo + " · respostas=" + tvRespostas + " · fimReal=" + tvFimReal);
+    return blocos;
+  }
+
+  // ── VaideBet (Altenar/BIA) ────────────────────────────────────────────────────
+  // Formata 1 bilhete lido de `/WidgetReports/widgetExpandedBetHistory` (parseado pelo
+  // vb_inject) no bloco de texto que a IA lê. Fiel ao que o card renderiza:
+  //   • Código = `id` (o "ID:" do rodapé do card) — chave de dedup e do `[Código:]`.
+  //   • Data do TSV = `eventDate` mais recente (UTC→Brasília). A colocação (`createdDate`)
+  //     vai junto, como contexto: nas abertas do reconhecimento os dois campos caem em DIAS
+  //     diferentes (colocada 26/07 para jogo em 27/07), e usar a colocação gravaria errado.
+  //   • Odd = `totalOdds`, JÁ boostada (o riscado do card é `preBoostedPrice`, truncado na
+  //     tela). No W vale a regra global (retorno ÷ stake); as duas concordam nesta casa.
+  //   • ABERTA (`status:0`): `totalWin` é retorno POTENCIAL e vem preenchido — lê-lo como
+  //     realizado transformaria toda aposta em aberto em vitória fantasma.
+  //   • `status` fora de {0,1,2} sobe CRU, marcado para conferência — nunca vira W/L.
+
+  const _abertaVB = (b) => b && b.status === 0;
+  const _oddTxtVB = (x) => (x == null || !isFinite(x)) ? "" : String(Math.round(x * 1e8) / 1e8).replace(".", ",");
+
+  // O payload não traz o NOME do esporte, só o id. Mapa ancorado no que foi confirmado
+  // contra a tela; id fora do mapa sobe cru (a IA/CASA_VAIDEBET.md finaliza pelo evento).
+  const _ESPORTE_VB = { 1: "Futebol", 13: "Beisebol" };
+  const _RESULT_PERNA_VB = { 0: "pendente", 1: "ganhou", 2: "perdeu" };
+
+  // ISO UTC ("2026-07-26T17:34:39.79Z") → epoch ms. Data inválida vira null (nunca 0, que
+  // viraria 01/01/1970 no bloco).
+  function _msVB(iso) {
+    if (!iso) return null;
+    const t = Date.parse(String(iso));
+    return isFinite(t) ? t : null;
+  }
+
+  // epoch ms UTC → data + hora de Brasília. Sem converter, o bilhete pula de dia: o
+  // 5232943733 é 01:55Z do dia 26, que é 22:55 do dia 25 em Brasília — e é isso que o card mostra.
+  function _dhVB(ms) {
+    const d = (typeof ms === "number" && isFinite(ms)) ? new Date(ms) : null;
+    if (!d || isNaN(d)) return "";
+    const p = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    }).formatToParts(d);
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    return g("day") + "/" + g("month") + "/" + g("year") + " " + g("hour") + ":" + g("minute") + ":" + g("second");
+  }
+
+  // Data do EVENTO mais recente entre as seleções (`MASTER_OUTPUT §4`).
+  function _dataEventoVB(b) {
+    let max = null;
+    for (const s of (b.selections || [])) {
+      const t = _msVB(s && s.eventDate);
+      if (t != null && (max === null || t > max)) max = t;
+    }
+    return max;
+  }
+
+  // Odd efetiva. `totalOdds` é a fonte (já contém o boost); o dinheiro só entra se a odd
+  // declarada NÃO explicar o retorno até o centavo. Nunca trunca — só escolhe a fonte.
+  function _oddVB(b) {
+    const dec = (typeof b.totalOdds === "number" && isFinite(b.totalOdds)) ? b.totalOdds : null;
+    if (_abertaVB(b)) return dec;
+    const st = b.totalStake || 0, ret = b.totalWin || 0;
+    if (b.status === 1 && st > 0 && ret > 0) {
+      if (dec != null && Math.abs(ret - dec * st) <= 0.01) return dec;
+      return ret / st;
+    }
+    return dec;
+  }
+
+  function _resultadoVB(b) {
+    if (_abertaVB(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (b.status !== 1 && b.status !== 2) {
+      return "status " + b.status + " (a conferir — não liquidar automaticamente)";
+    }
+    const st = b.totalStake || 0, ret = b.totalWin || 0;
+    // Cashout: a conta do reconhecimento não tinha nenhum, então o campo nunca foi visto
+    // preenchido. Se vier, o desfecho é marcado e o valor sai na linha própria — quem aplica
+    // a regra (cashout = stake → V · ≠ stake → W com odd = cashout ÷ stake) é a IA com o MASTER.
+    const pre = (b.cashOutValue > 0 || b.partialCashOut > 0) ? "Cash Out · " : "";
+    if (b.status === 2) return pre + "Perdeu → L";
+    if (ret === 0) return pre + "status 1 (ganha) com retorno ZERO — a conferir, não liquidar automaticamente";
+    if (Math.abs(ret - st) < 0.005) return pre + "Devolvida/void (retorno = stake) → V";
+    if (ret > st) return pre + "Ganho → W";
+    return pre + "Retorno parcial (R$ " + _brl(ret) + " · conferir HW/HL ou cashout)";
+  }
+
+  function _tipoVB(b) {
+    const sels = b.selections || [];
+    if (sels.length >= 2) return "Múltipla (" + sels.length + " seleções)";
+    const s = sels[0];
+    if (s && s.isBetBuilder) {
+      const n = (s.bbOdds || []).length;
+      return "Bet Builder (mesmo jogo · " + (n || 1) + " seleções)";
+    }
+    return sels.length === 1 ? "Simples" : "";
+  }
+
+  function _esporteVB(b) {
+    const s = (b.selections || [])[0];
+    const id = s ? s.sportTypeId : null;
+    if (id == null) return "";
+    const nome = _ESPORTE_VB[id];
+    return nome ? nome + " (sportTypeId " + id + ")"
+                : "sportTypeId " + id + " (a conferir — id não mapeado na CASA_VAIDEBET)";
+  }
+
+  function formatTicketVB(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+
+    const dev = _dhVB(_dataEventoVB(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dco = _dhVB(_msVB(b.createdDate));
+    if (dco) L.push("Data (colocação): " + dco);
+
+    if (b.totalStake != null) L.push("Stake: R$ " + _brl(b.totalStake));
+    L.push("Status: " + _resultadoVB(b));
+    // Enum CRU da casa — é ele que a CASA_VAIDEBET.md traduz. Sem isso, um estado novo
+    // (cashout, anulado, meio-ganho) viraria chute a partir do dinheiro.
+    L.push("Status (API): status=" + b.status);
+
+    const odd = _oddVB(b);
+    if (odd != null) L.push("Odd: " + _oddTxtVB(odd));
+    const tipo = _tipoVB(b);
+    if (tipo) L.push("Tipo: " + tipo);
+    const esp = _esporteVB(b);
+    if (esp) L.push("Esporte: " + esp);
+
+    // Dinheiro: o de uma ABERTA é POTENCIAL e sai com esse rótulo, nunca como "Retorno".
+    if (_abertaVB(b)) {
+      const pot = (b.remainingTotalWin != null) ? b.remainingTotalWin : b.totalWin;
+      if (pot != null) L.push("Retorno potencial: R$ " + _brl(pot));
+    } else if (b.totalWin) {
+      L.push("Retorno: R$ " + _brl(b.totalWin));
+    }
+    if (b.cashOutValue > 0) L.push("Cash Out: R$ " + _brl(b.cashOutValue) + " — aplicar a regra de cashout (não é o retorno normal)");
+    if (b.partialCashOut > 0) L.push("Cash Out parcial: R$ " + _brl(b.partialCashOut));
+    if (b.bonus) L.push("Marcação da casa: aposta com bônus (R$ " + _brl(b.bonus) + ")");
+
+    // Boost: o card mostra "2.33 » 3.00" (o riscado é a odd ANTES do boost, truncada na
+    // tela). Sai como marcação para a IA não confundir com a odd válida, que é a de cima.
+    const s0 = (b.selections || [])[0];
+    const pre = s0 && s0.boostedSelection ? s0.boostedSelection.preBoostedPrice : null;
+    if (pre != null && odd != null && Math.abs(pre - odd) > 0.0001) {
+      L.push("Marcação da casa: odd turbinada — odd antes do boost " + _oddTxtVB(pre) + " · valendo " + _oddTxtVB(odd));
+    }
+
+    const sels = b.selections || [];
+    if (sels.length >= 2) {
+      const jogos = new Set(sels.map((s) => String(s.eventName || s.eventId || "")));
+      if (jogos.size === 1) L.push("Mesmo jogo: as " + sels.length + " seleções são do mesmo evento");
+    }
+
+    L.push("Seleções:");
+    for (const s of sels) {
+      const pernas = (s.bbOdds || []);
+      if (pernas.length) {
+        // Bet builder: `name` já traz as pernas concatenadas por " | ", mas só `bbOdds` tem o
+        // status de cada uma. Emitimos perna a perna (o separador canônico do projeto é " // ",
+        // e é a IA que monta a descrição — aqui a lista fica explícita, uma por linha).
+        for (const p of pernas) {
+          const rp = _RESULT_PERNA_VB[p.status];
+          L.push("- " + [p.marketName ? p.marketName + ":" : "", p.oddName || "",
+                         "[" + (rp || ("status " + p.status + " — a conferir")) + "]"]
+                        .join(" ").replace(/\s+/g, " ").trim());
+        }
+      } else {
+        const rp = _RESULT_PERNA_VB[s.status];
+        L.push("- " + [s.marketName ? s.marketName + ":" : "", s.name || "",
+                       "[" + (rp || ("status " + s.status + " — a conferir")) + "]"]
+                      .join(" ").replace(/\s+/g, " ").trim());
+      }
+      const ctx2 = [];
+      if (s.eventName) ctx2.push("Jogo: " + s.eventName);
+      const ini = _dhVB(_msVB(s.eventDate));
+      if (ini) ctx2.push("Início: " + ini);
+      if (s.isLive) ctx2.push("Ao vivo");
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.eventScore) L.push("    Placar: " + s.eventScore);
+      if (s.price != null && sels.length > 1) L.push("    Odd da seleção: " + _oddTxtVB(s.price));
+    }
+    return L.join("\n");
+  }
+
+  async function roboVBPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Mais recente primeiro (é a ordem do card), para o corte da janela cair no lugar certo.
+      const todos = Array.from(vbById.values())
+        .sort((a, b) => (_msVB(b.createdDate) || 0) - (_msVB(a.createdDate) || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // A janela de dias corta só as RESOLVIDAS (pela colocação, que é o que o card mostra).
+        // Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = _msVB(b.createdDate);
+        const passou = !_abertaVB(b) && typeof dt === "number" && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketVB(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Pede o acumulado + arranca o replay das duas abas. `dias` vai junto: é ele que vira o
+    // `dateFrom` das RESOLVIDAS no servidor (as abertas o inject busca com janela larga de
+    // propósito — aposta antiga com jogo amanhã não pode ser cortada pelo filtro).
+    const dias = Math.max(1, Math.round((Date.now() - ctx.cutoff) / 86400000));
+    const pedir = () => {
+      const msg = { __sharpenupVBReq: true, dias: dias };
+      try { window.postMessage(msg, "*"); } catch (e) {}
+      for (let i = 0; i < window.frames.length && i < 24; i++) {
+        try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
+      }
+    };
+    pedir();
+    await sleep(400);
+    processar();
+
+    // Espera o fim autoritativo (`isLastPage` nas duas abas), consumindo o que chegar. Não
+    // para no 1º obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !vbFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (vbById.size > ultTotal) { ultTotal = vbById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] VaideBet: " + blocos.length + " bilhete(s) · vbById=" + vbById.size +
+                " · hook=" + vbHookVivo + " · respostas=" + vbRespostas + " · fimReal=" + vbFimReal);
     return blocos;
   }
 
