@@ -1,0 +1,87 @@
+{
+    "Result": {
+        "Bets": [
+            {
+                "IsSuperKombi": false,
+                "Type": "Single",
+                "TypeId": 1,
+                "BetId": 20706361776,
+                "PlacedAt": "2026-07-25T18:55:51.09Z",
+                "SettledAt": "2026-07-26T15:03:49.65Z",
+                "PossibleWinnings": "R$422,10",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$201,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$201,00",
+                "Status": 2,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": true,
+                                "Odds": "2.10",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10071155807,
+                                        "Title": "Gabriel Bortoleto",
+                                        "Sport": "Fórmula 1",
+                                        "Game": "Grande Prêmio da Hungria",
+                                        "Odd": "2.10",
+                                        "Market": "Vencedor do grupo 3 - (Franco Colapinto, Gabriel Bortoleto, Esteban Ocon, Carlos Sainz)",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FRM1",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 8,
+                                        "LeagueId": 17004,
+                                        "MarketId": 3109,
+                                        "EventId": 89347684,
+                                        "BetRadarMatchId": 1289019000,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "Hungria-Corrida",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 1,
+                                "Banker": false,
+                                "DecimalOdds": 2.1000,
+                                "Reasoning": [],
+                                "ZoneId": 11357
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$422,10",
+                    "OriginalPotentialNetWinnings": "R$422,10"
+                },
+                "BonusTokens": [],
+                "Return": "R$422,10",
+                "Accumulator": "Single",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20693646786,
+                "Odds": "2.10",
+                "Settled": true,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": true,
+                "Promotions": [],
+                "DecimalOdds": 2.1000,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            }
+        ],
+        "LastId": 20706075926
+    }
+}

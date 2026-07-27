@@ -1,0 +1,625 @@
+{
+    "Result": {
+        "Bets": [
+            {
+                "IsSuperKombi": false,
+                "Type": "Accumulator5",
+                "TypeId": 5,
+                "BetId": 20713079396,
+                "PlacedAt": "2026-07-26T16:25:58.15Z",
+                "SettledAt": "2026-07-26T19:54:27.21Z",
+                "PossibleWinnings": "R$0,00",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$300,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$300,00",
+                "Status": 3,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": true,
+                                "Odds": "1.82",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10074174037,
+                                        "Title": "Mais de 5.5",
+                                        "Sport": "Futebol",
+                                        "Game": "Deportivo Riestra - Boca Juniors",
+                                        "Odd": "1.82",
+                                        "Score": "3-0",
+                                        "Market": "Total de Cartões",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 2,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 195785,
+                                        "MarketId": 65,
+                                        "EventId": 88418032,
+                                        "BetRadarMatchId": 72529098,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 2,
+                                "Banker": false,
+                                "DecimalOdds": 1.8200,
+                                "Reasoning": [],
+                                "ZoneId": 11319
+                            },
+                            {
+                                "Settled": true,
+                                "Odds": "1.78",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10043439713,
+                                        "Title": "Mais de 1",
+                                        "Sport": "Futebol",
+                                        "Game": "Inter Toronto FC - Forge FC",
+                                        "Odd": "1.78",
+                                        "Score": "1-3",
+                                        "Market": "Asiático (Mais/Menos) - Total de gols - 1° Tempo",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 194888,
+                                        "MarketId": 395,
+                                        "EventId": 87462184,
+                                        "BetRadarMatchId": 68686050,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 1,
+                                "Banker": false,
+                                "DecimalOdds": 1.7800,
+                                "Reasoning": [],
+                                "ZoneId": 11457
+                            },
+                            {
+                                "Settled": true,
+                                "Odds": "1.85",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10057277209,
+                                        "Title": "Mais de 1.5",
+                                        "Sport": "Futebol",
+                                        "Game": "Bahia - Corinthians",
+                                        "Odd": "1.85",
+                                        "Score": "1-1",
+                                        "Market": "Corinthians Total de Cartões na 2ª Parte Mais/Menos",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 10016,
+                                        "MarketId": 4158,
+                                        "EventId": 89242144,
+                                        "BetRadarMatchId": 66886874,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 1,
+                                "Banker": false,
+                                "DecimalOdds": 1.8500,
+                                "Reasoning": [],
+                                "ZoneId": 10004
+                            },
+                            {
+                                "Settled": true,
+                                "Odds": "1.42",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10034766750,
+                                        "Title": "Montreal Alouettes",
+                                        "Sport": "Futebol Americano",
+                                        "Game": "Montreal Alouettes - Hamilton Tiger-Cats",
+                                        "Odd": "1.42",
+                                        "Market": "Quarto 2 Vencedor",
+                                        "Settled": true,
+                                        "Live": true,
+                                        "SportId": "AMFO",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 5,
+                                        "LeagueId": 10116,
+                                        "MarketId": 3019,
+                                        "EventId": 89371628,
+                                        "BetRadarMatchId": 68385786,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 1,
+                                "Banker": false,
+                                "DecimalOdds": 1.4200,
+                                "Reasoning": [],
+                                "ZoneId": 10055
+                            },
+                            {
+                                "Settled": true,
+                                "Odds": "1.70",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10053707221,
+                                        "Title": "Mais de 0.75",
+                                        "Sport": "Futebol",
+                                        "Game": "Criciúma - Náutico",
+                                        "Odd": "1.70",
+                                        "Score": "0-0",
+                                        "Market": "Asiático (Mais/Menos) - Total de gols - 1° Tempo",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 2,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 10017,
+                                        "MarketId": 395,
+                                        "EventId": 89531787,
+                                        "BetRadarMatchId": 68823118,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 2,
+                                "Banker": false,
+                                "DecimalOdds": 1.7000,
+                                "Reasoning": [],
+                                "ZoneId": 10004
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$0,00",
+                    "OriginalPotentialNetWinnings": "R$0,00"
+                },
+                "BonusTokens": [],
+                "Return": "R$0,00",
+                "Accumulator": "{number}-fold",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20700259736,
+                "Odds": "14.46",
+                "Settled": true,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": false,
+                "Promotions": [],
+                "DecimalOdds": 14.4677,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            },
+            {
+                "IsSuperKombi": false,
+                "Type": "Single",
+                "TypeId": 1,
+                "BetId": 20712642016,
+                "PlacedAt": "2026-07-26T15:32:42.27Z",
+                "SettledAt": "2026-07-26T20:40:31.23Z",
+                "PossibleWinnings": "R$902,70",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$306,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$306,00",
+                "Status": 2,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": true,
+                                "Odds": "2.95",
+                                "ComboLegType": 1,
+                                "Selections": [
+                                    {
+                                        "Id": 10019582916,
+                                        "Title": "Mais de 1.5",
+                                        "Sport": "Futebol",
+                                        "Game": "Bahia - Corinthians",
+                                        "Odd": "2.95",
+                                        "Score": "1-1",
+                                        "Market": "Total de Gols",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 10016,
+                                        "MarketId": 13,
+                                        "EventId": 89242144,
+                                        "BetRadarMatchId": 66886874,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    },
+                                    {
+                                        "Id": 10019582841,
+                                        "Title": "Mais de 0.5",
+                                        "Sport": "Futebol",
+                                        "Game": "Bahia - Corinthians",
+                                        "Odd": "2.95",
+                                        "Score": "1-1",
+                                        "Market": "Total de gols - 1° Tempo",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 10016,
+                                        "MarketId": 14,
+                                        "EventId": 89242144,
+                                        "BetRadarMatchId": 66886874,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    },
+                                    {
+                                        "Id": 10064411287,
+                                        "Title": "Mais de 4.5",
+                                        "Sport": "Futebol",
+                                        "Game": "Bahia - Corinthians",
+                                        "Odd": "2.95",
+                                        "Score": "1-1",
+                                        "Market": "Total de Cartões",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 10016,
+                                        "MarketId": 65,
+                                        "EventId": 89242144,
+                                        "BetRadarMatchId": 66886874,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 1,
+                                "Banker": false,
+                                "DecimalOdds": 2.9500,
+                                "Reasoning": [],
+                                "ZoneId": 10004
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$902,70",
+                    "OriginalPotentialNetWinnings": "R$902,70"
+                },
+                "BonusTokens": [],
+                "Return": "R$902,70",
+                "Accumulator": "Single",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20699828606,
+                "Odds": "2.95",
+                "Settled": true,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": true,
+                "Promotions": [
+                    {
+                        "PromotionType": 2
+                    }
+                ],
+                "BonusOffer": {
+                    "BetId": 20712642016,
+                    "WinningPercentage": 25,
+                    "CampaignId": 271613,
+                    "Winnings": 149.175000,
+                    "WinningsWithCurrency": {
+                        "Amount": 149.175000,
+                        "CurrencyCode": "BRL"
+                    },
+                    "SelectionIds": [],
+                    "IsMax": false,
+                    "MaxValue": 25000,
+                    "CampaignType": 8
+                },
+                "DecimalOdds": 2.9500,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            },
+            {
+                "IsSuperKombi": false,
+                "Type": "Single",
+                "TypeId": 1,
+                "BetId": 20708999896,
+                "PlacedAt": "2026-07-25T23:47:29.33Z",
+                "SettledAt": "2026-07-26T02:39:57.9Z",
+                "PossibleWinnings": "R$0,00",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$100,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$100,00",
+                "Status": 3,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": true,
+                                "Odds": "5.10",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10052396110,
+                                        "Title": "Peter Stroud",
+                                        "Sport": "Futebol",
+                                        "Game": "Minnesota United FC - Vancouver Whitecaps FC",
+                                        "Odd": "5.10",
+                                        "Score": "0-0",
+                                        "Market": "Receber um cartão",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "FOOT",
+                                        "Status": 2,
+                                        "Virtual": false,
+                                        "OfferTypes": [
+                                            20
+                                        ],
+                                        "ArdSportId": 1,
+                                        "LeagueId": 17103,
+                                        "MarketId": 62,
+                                        "EventId": 85173258,
+                                        "PlayerSubstitutions": [
+                                            {
+                                                "Id": 18899207,
+                                                "Name": "Wil Trapp (Minnesota United FC)"
+                                            }
+                                        ],
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 2,
+                                "Banker": false,
+                                "VoidNotStartingPlayersSelected": true,
+                                "DecimalOdds": 5.1000,
+                                "Reasoning": [],
+                                "ZoneId": 11387
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$0,00",
+                    "OriginalPotentialNetWinnings": "R$0,00"
+                },
+                "BonusTokens": [],
+                "Return": "R$0,00",
+                "Accumulator": "Single",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20696252066,
+                "Odds": "5.10",
+                "Settled": true,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": false,
+                "Promotions": [],
+                "DecimalOdds": 5.1000,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            },
+            {
+                "IsSuperKombi": false,
+                "Type": "Single",
+                "TypeId": 1,
+                "BetId": 20707888096,
+                "PlacedAt": "2026-07-25T21:51:49.47Z",
+                "SettledAt": "2026-07-26T14:01:46.42Z",
+                "PossibleWinnings": "R$445,20",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$106,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$106,00",
+                "Status": 2,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": true,
+                                "Odds": "4.20",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10070241152,
+                                        "Title": "Vencedor do Set (Set 1): Brasil (F) & Total de pontos: Mais de 185.5",
+                                        "Sport": "Vôlei",
+                                        "Game": "Turquia (F) - Brasil (F)",
+                                        "Odd": "4.20",
+                                        "OddsBeforeEnhancement": "3.50",
+                                        "Score": "3-1",
+                                        "Market": "Super Odds Turbinadas",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "VOLL",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 4,
+                                        "LeagueId": 190201,
+                                        "MarketId": 4853,
+                                        "EventId": 89670250,
+                                        "BetRadarMatchId": 73161550,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 1,
+                                "Banker": false,
+                                "DecimalOdds": 4.2000,
+                                "Reasoning": [],
+                                "ZoneId": 10005
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$445,20",
+                    "OriginalPotentialNetWinnings": "R$445,20"
+                },
+                "BonusTokens": [],
+                "Return": "R$445,20",
+                "Accumulator": "Single",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20695151536,
+                "Odds": "4.20",
+                "Settled": true,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": true,
+                "Promotions": [],
+                "DecimalOdds": 4.2000,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            },
+            {
+                "IsSuperKombi": false,
+                "Type": "Single",
+                "TypeId": 1,
+                "BetId": 20707886166,
+                "PlacedAt": "2026-07-25T21:51:33.31Z",
+                "SettledAt": "2026-07-26T13:39:48.91Z",
+                "PossibleWinnings": "R$0,00",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$156,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$156,00",
+                "Status": 3,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": true,
+                                "Odds": "2.75",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10070239846,
+                                        "Title": "Vencedor do 1°set/ Vencedor da partida: Brasil (F) & Brasil (F)",
+                                        "Sport": "Vôlei",
+                                        "Game": "Turquia (F) - Brasil (F)",
+                                        "Odd": "2.75",
+                                        "OddsBeforeEnhancement": "2.50",
+                                        "Score": "3-1",
+                                        "Market": "Odds Turbinadas",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "VOLL",
+                                        "Status": 2,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 4,
+                                        "LeagueId": 190201,
+                                        "MarketId": 5754,
+                                        "EventId": 89670250,
+                                        "BetRadarMatchId": 73161550,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 2,
+                                "Banker": false,
+                                "DecimalOdds": 2.7500,
+                                "Reasoning": [],
+                                "ZoneId": 10005
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$0,00",
+                    "OriginalPotentialNetWinnings": "R$0,00"
+                },
+                "BonusTokens": [],
+                "Return": "R$0,00",
+                "Accumulator": "Single",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20695149606,
+                "Odds": "2.75",
+                "Settled": true,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": false,
+                "Promotions": [],
+                "DecimalOdds": 2.7500,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            }
+        ],
+        "LastId": 20707886166
+    }
+}

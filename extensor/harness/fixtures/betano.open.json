@@ -1,0 +1,293 @@
+{
+    "Result": {
+        "Bets": [
+            {
+                "IsSuperKombi": false,
+                "Type": "Single",
+                "TypeId": 1,
+                "BetId": 20716925556,
+                "PlacedAt": "2026-07-26T21:41:30.34Z",
+                "PossibleWinnings": "R$1.440,00",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$800,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$800,00",
+                "Status": 1,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": false,
+                                "Odds": "1.80",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10071857961,
+                                        "Title": "Tallon Griekspoor",
+                                        "Sport": "Tênis",
+                                        "Game": "Alejandro Tabilo - Tallon Griekspoor",
+                                        "Odd": "1.80",
+                                        "Market": "Vencedor",
+                                        "Settled": false,
+                                        "Live": false,
+                                        "SportId": "TENN",
+                                        "Virtual": false,
+                                        "OfferTypes": [
+                                            7
+                                        ],
+                                        "ArdSportId": 3,
+                                        "LeagueId": 16878,
+                                        "MarketId": 160,
+                                        "EventId": 89685797,
+                                        "BetRadarMatchId": 73163846,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Banker": false,
+                                "DecimalOdds": 1.8,
+                                "Reasoning": [],
+                                "ZoneId": 11307
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$1.440,00",
+                    "OriginalPotentialNetWinnings": "R$1.440,00"
+                },
+                "BonusTokens": [],
+                "Accumulator": "Single",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20704049826,
+                "Odds": "1.80",
+                "Settled": false,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": false,
+                "Promotions": [],
+                "DecimalOdds": 1.8,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            },
+            {
+                "IsSuperKombi": false,
+                "Type": "Single",
+                "TypeId": 1,
+                "BetId": 20711454676,
+                "PlacedAt": "2026-07-26T12:51:09Z",
+                "PossibleWinnings": "R$648,00",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$400,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$400,00",
+                "Status": 1,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": false,
+                                "Odds": "1.62",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10072380415,
+                                        "Title": "0 - 2",
+                                        "Sport": "Tênis",
+                                        "Game": "Alberto Bronzetti / Manuel Mazza - Filippo Romano / Jacopo Vasami",
+                                        "Odd": "1.62",
+                                        "Market": "Resultado exato (sets)",
+                                        "Settled": false,
+                                        "Live": false,
+                                        "SportId": "TENN",
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 3,
+                                        "LeagueId": 197530,
+                                        "MarketId": 1360,
+                                        "EventId": 89663441,
+                                        "BetRadarMatchId": 73157694,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Banker": false,
+                                "DecimalOdds": 1.62,
+                                "Reasoning": [],
+                                "ZoneId": 11402
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$648,00",
+                    "OriginalPotentialNetWinnings": "R$648,00"
+                },
+                "BonusTokens": [],
+                "Accumulator": "Single",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20698657856,
+                "Odds": "1.62",
+                "Settled": false,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": false,
+                "Promotions": [],
+                "DecimalOdds": 1.62,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            },
+            {
+                "IsSuperKombi": false,
+                "Type": "Double",
+                "TypeId": 2,
+                "BetId": 20708244036,
+                "PlacedAt": "2026-07-25T22:45:19.88Z",
+                "PossibleWinnings": "R$1.325,44",
+                "PossibleWinningsCurrencyCode": "BRL",
+                "Stake": "R$800,00",
+                "StakeAlternativeCurrency": "",
+                "StakeOriginalCurrencyCode": "BRL",
+                "StakeIncludingFee": "R$800,00",
+                "Status": 1,
+                "Legs": [
+                    {
+                        "LegItems": [
+                            {
+                                "Settled": false,
+                                "Odds": "1.52",
+                                "ComboLegType": 1,
+                                "Selections": [
+                                    {
+                                        "Id": 10070543607,
+                                        "Title": "Digvijay Pratap Singh",
+                                        "Sport": "Tênis",
+                                        "Game": "Digvijay Pratap Singh - Sergey Betov",
+                                        "Odd": "1.52",
+                                        "Market": "Vencedor do Set (Set 1)",
+                                        "Settled": true,
+                                        "Live": true,
+                                        "SportId": "TENN",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 3,
+                                        "LeagueId": 206512,
+                                        "MarketId": 1514,
+                                        "EventId": 89674207,
+                                        "BetRadarMatchId": 73161978,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    },
+                                    {
+                                        "Id": 10070543609,
+                                        "Title": "Digvijay Pratap Singh",
+                                        "Sport": "Tênis",
+                                        "Game": "Digvijay Pratap Singh - Sergey Betov",
+                                        "Odd": "1.52",
+                                        "Market": "Vencedor do Set (Set 2)",
+                                        "Settled": false,
+                                        "Live": true,
+                                        "SportId": "TENN",
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 3,
+                                        "LeagueId": 206512,
+                                        "MarketId": 1514,
+                                        "EventId": 89674207,
+                                        "BetRadarMatchId": 73161978,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Banker": false,
+                                "DecimalOdds": 1.52,
+                                "Reasoning": [],
+                                "ZoneId": 11402
+                            },
+                            {
+                                "Settled": true,
+                                "Odds": "1.09",
+                                "ComboLegType": 0,
+                                "Selections": [
+                                    {
+                                        "Id": 10071132125,
+                                        "Title": "Francesco Forti",
+                                        "Sport": "Tênis",
+                                        "Game": "Federico Zeballos - Francesco Forti",
+                                        "Odd": "1.09",
+                                        "Score": "0-2",
+                                        "Market": "Vencedor",
+                                        "Settled": true,
+                                        "Live": false,
+                                        "SportId": "TENN",
+                                        "Status": 1,
+                                        "Virtual": false,
+                                        "OfferTypes": [],
+                                        "ArdSportId": 3,
+                                        "LeagueId": 197529,
+                                        "MarketId": 160,
+                                        "EventId": 89679783,
+                                        "BetRadarMatchId": 73162562,
+                                        "Reasoning": [],
+                                        "OutrightInfo": "",
+                                        "IsInPlay": false
+                                    }
+                                ],
+                                "Status": 1,
+                                "Banker": false,
+                                "DecimalOdds": 1.09,
+                                "Reasoning": [],
+                                "ZoneId": 11402
+                            }
+                        ],
+                        "Banker": false
+                    }
+                ],
+                "BetFeesPotentialWinnings": {
+                    "HasFee": false,
+                    "ShowTax": false,
+                    "FeePercentage": 0,
+                    "FeeCalculationType": 0,
+                    "FeesRefunded": false,
+                    "PotentialNetWinnings": "R$1.325,44",
+                    "OriginalPotentialNetWinnings": "R$1.325,44"
+                },
+                "BonusTokens": [],
+                "Accumulator": "Double",
+                "IsPartOfAMission": false,
+                "BetslipInfoId": 20695502936,
+                "Odds": "1.65",
+                "Settled": false,
+                "InPlay": false,
+                "Lines": 1,
+                "BonusType": 0,
+                "AiCardEligible": false,
+                "Promotions": [],
+                "DecimalOdds": 1.6568,
+                "IsSelfSettlement": false,
+                "IsCreditCashout": false
+            }
+        ]
+    }
+}
