@@ -1,0 +1,1306 @@
+<title>Sharpen — briefing de marca e produto para agência</title>
+<style>
+/* ==========================================================================
+   Sharpen — Briefing completo para agência de marketing
+   Sistema de design: FDC Capital (pack/tokens/tokens.css). Tratamento de
+   DOCUMENTO DE TRABALHO: rail de navegação fixo + coluna de leitura estreita,
+   seções numeradas (a numeração é referência real: "seção 6.2"), tabelas e
+   cartões de regra. Sem hero decorativo — a agência vem aqui para consultar.
+   ========================================================================== */
+<!--FONTS-->
+
+:root{
+  --bg:#0A0D12; --surface:#12161D; --surface-2:#161B22; --elevated:#1A2029;
+  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.05);
+  --ink:#EEF2F7; --ink-soft:#95A1B0; --ink-mute:#5E6775;
+  --accent:#2E8BFF; --accent-2:#7FB2FF; --accent-rgb:46,139,255;
+  --pos:#2BC07E; --neg:#E5524B; --warn:#E0A21A;
+  --pos-rgb:43,192,126; --neg-rgb:229,82,75; --warn-rgb:224,162,26;
+  --steel:#222831; --grid:rgba(255,255,255,.05);
+  --font-sans:"Manrope","Inter",system-ui,-apple-system,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",monospace;
+  --r-sm:8px; --r-md:12px; --r-lg:18px; --r-pill:999px;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+:root[data-theme="dark"]{
+  --bg:#0A0D12; --surface:#12161D; --surface-2:#161B22; --elevated:#1A2029;
+  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.05);
+  --ink:#EEF2F7; --ink-soft:#95A1B0; --ink-mute:#5E6775;
+  --accent:#2E8BFF; --accent-2:#7FB2FF; --accent-rgb:46,139,255;
+  --grid:rgba(255,255,255,.05); --steel:#222831;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme]){
+    --bg:#F4F7FB; --surface:#FFFFFF; --surface-2:#EDF2F7; --elevated:#FFFFFF;
+    --line:rgba(10,15,25,.10); --line-2:rgba(10,15,25,.055);
+    --ink:#0E1626; --ink-soft:#46586D; --ink-mute:#7C8BA0;
+    --accent:#1E7CF0; --accent-2:#2E8BFF; --accent-rgb:30,124,240;
+    --grid:rgba(0,0,0,.06); --steel:#AEB7C2;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F4F7FB; --surface:#FFFFFF; --surface-2:#EDF2F7; --elevated:#FFFFFF;
+  --line:rgba(10,15,25,.10); --line-2:rgba(10,15,25,.055);
+  --ink:#0E1626; --ink-soft:#46586D; --ink-mute:#7C8BA0;
+  --accent:#1E7CF0; --accent-2:#2E8BFF; --accent-rgb:30,124,240;
+  --grid:rgba(0,0,0,.06); --steel:#AEB7C2;
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--font-sans); font-size:16px; line-height:1.68;
+  letter-spacing:-.008em; -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.45;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+a{color:var(--accent-2); text-decoration:none;}
+a:hover{color:var(--accent);}
+:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:4px;}
+h1,h2,h3,h4{margin:0; font-weight:800; letter-spacing:-.032em; line-height:1.14; text-wrap:balance;}
+p{margin:0;}
+strong,b{font-weight:700; color:var(--ink);}
+code{font-family:var(--font-mono); font-size:.88em; color:var(--accent-2);
+  background:var(--surface-2); border:1px solid var(--line-2); border-radius:5px; padding:1px 6px;}
+
+/* ---------- Casca do documento ---------- */
+.doc{position:relative; z-index:1; display:grid; grid-template-columns:270px minmax(0,1fr);
+  max-width:1280px; margin:0 auto; gap:0; align-items:start;}
+.rail{
+  position:sticky; top:0; height:100vh; overflow-y:auto; padding:30px 22px 34px 28px;
+  border-right:1px solid var(--line-2); display:flex; flex-direction:column; gap:20px;
+  scrollbar-width:thin;
+}
+.rail .brand{display:flex; align-items:center; gap:11px;}
+.blade{width:14px; height:32px; display:block; flex:none;}
+.wm{font-weight:800; font-size:20px; letter-spacing:-.045em;}
+.wm .e{color:var(--accent-2);}
+.rail .doclabel{
+  font-family:var(--font-mono); font-size:9px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink-mute); line-height:1.8; border-top:1px solid var(--line-2); padding-top:16px;
+}
+.toc{display:flex; flex-direction:column; gap:1px;}
+.toc a{
+  display:flex; gap:10px; align-items:baseline; padding:6px 9px; border-radius:var(--r-sm);
+  font-size:13px; color:var(--ink-soft); line-height:1.4; border-left:2px solid transparent;
+}
+.toc a .n{font-family:var(--font-mono); font-size:10.5px; color:var(--ink-mute); flex:none; width:16px;}
+.toc a:hover{background:var(--surface-2); color:var(--ink);}
+.toc a.on{color:var(--accent-2); border-left-color:var(--accent); background:rgba(var(--accent-rgb),.07);}
+.toc a.on .n{color:var(--accent);}
+.railfoot{margin-top:auto; font-family:var(--font-mono); font-size:9.5px;
+  letter-spacing:.08em; color:var(--ink-mute); line-height:1.9;
+  border-top:1px solid var(--line-2); padding-top:14px;}
+.main{padding:0 46px 120px 46px; min-width:0;}
+@media (max-width:1000px){
+  .doc{grid-template-columns:1fr;}
+  .rail{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line-2);
+    padding:24px 22px 20px;}
+  .toc{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:2px;}
+  .railfoot{margin-top:14px;}
+  .main{padding:0 22px 90px;}
+}
+
+/* ---------- Capa ---------- */
+.cover{padding:64px 0 46px; border-bottom:1px solid var(--line);}
+.eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ink-mute); display:flex; align-items:center; gap:9px;}
+.eyebrow::before{content:''; width:14px; height:1px; background:var(--accent); flex:none;}
+.cover h1{font-size:clamp(32px,4.4vw,52px); margin:18px 0 0;}
+.cover .sub{font-size:19px; color:var(--ink-soft); margin-top:18px; max-width:70ch; line-height:1.6;}
+/* Hairline por `gap` sobre o fundo: as réguas ficam certas em qualquer número
+   de colunas, sem depender de :nth-child — que quebra quando a grade reflui. */
+.meta-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:1px; margin-top:34px; border:1px solid var(--line); border-radius:var(--r-md);
+  background:var(--line-2); overflow:hidden;}
+.meta-cell{padding:14px 18px; background:var(--surface);}
+.meta-cell .k{font-family:var(--font-mono); font-size:9px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink-mute);}
+.meta-cell .v{font-family:var(--font-mono); font-size:13px; color:var(--ink); margin-top:6px;}
+
+/* ---------- Seções ---------- */
+section{padding:60px 0 8px; scroll-margin-top:24px;}
+.sh{display:flex; align-items:baseline; gap:14px; margin-bottom:10px;}
+.sh .sn{font-family:var(--font-mono); font-size:12px; color:var(--accent);
+  letter-spacing:.06em; flex:none; padding-top:4px;}
+.sh h2{font-size:clamp(24px,2.9vw,34px);}
+.sdek{font-size:17px; color:var(--ink-soft); max-width:74ch; line-height:1.65; margin-bottom:26px;}
+h3.sub3{font-size:18px; margin:34px 0 12px; display:flex; align-items:baseline; gap:11px;}
+h3.sub3 .nn{font-family:var(--font-mono); font-size:11px; color:var(--ink-mute); flex:none;}
+.body-p{font-size:16px; color:var(--ink-soft); max-width:74ch; margin-bottom:14px; line-height:1.7;}
+.body-p + .body-p{margin-top:-2px;}
+
+/* ---------- Blocos ---------- */
+.grid{display:grid; gap:12px;}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr));}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr));}
+@media (max-width:820px){.g2,.g3{grid-template-columns:1fr;}}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md);
+  padding:20px 22px; display:flex; flex-direction:column; gap:9px; min-width:0;}
+.card .kicker{font-family:var(--font-mono); font-size:9px; letter-spacing:.15em;
+  text-transform:uppercase; color:var(--ink-mute);}
+.card h4{font-size:16px;}
+.card p{font-size:14px; color:var(--ink-soft); line-height:1.62;}
+.card ul{margin:2px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px;}
+.card li{position:relative; padding-left:15px; font-size:13.5px; color:var(--ink-soft); line-height:1.55;}
+.card li::before{content:''; position:absolute; left:2px; top:8px; width:4px; height:4px;
+  border-radius:50%; background:var(--accent-2);}
+
+/* Faixa é/não é */
+.duo{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+@media (max-width:820px){.duo{grid-template-columns:1fr;}}
+.pane{border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); overflow:hidden;}
+.pane-h{padding:12px 20px; border-bottom:1px solid var(--line); background:var(--surface-2);
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;}
+.pane-h.ok{color:var(--pos);} .pane-h.no{color:var(--neg);}
+.pane ul{margin:0; padding:16px 20px 18px; list-style:none; display:flex; flex-direction:column; gap:9px;}
+.pane li{position:relative; padding-left:22px; font-size:14.5px; color:var(--ink-soft); line-height:1.55;}
+.pane li::before{position:absolute; left:0; top:0; font-family:var(--font-mono); font-size:13px;}
+.pane.ok li::before{content:'✓'; color:var(--pos);}
+.pane.no li::before{content:'×'; color:var(--neg);}
+.pane li b{color:var(--ink);}
+
+/* Tabela */
+.tw{overflow-x:auto; border:1px solid var(--line); border-radius:var(--r-md);
+  background:var(--surface); margin:6px 0 4px;}
+table{width:100%; border-collapse:collapse; min-width:620px;}
+th,td{padding:13px 17px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line-2);}
+thead th{font-family:var(--font-mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-mute); font-weight:500; background:var(--surface-2); border-bottom:1px solid var(--line);}
+tbody th{font-size:14px; font-weight:700; color:var(--ink); white-space:nowrap;}
+td{font-size:13.5px; color:var(--ink-soft); line-height:1.58;}
+tr:last-child th, tr:last-child td{border-bottom:0;}
+td.num, th.num{font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.tnote{font-size:12.5px; color:var(--ink-mute); line-height:1.6; margin-top:10px; max-width:88ch;}
+
+/* Chips de status */
+.chip{display:inline-flex; align-items:center; gap:6px; padding:2px 9px; border-radius:var(--r-pill);
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.05em; white-space:nowrap;}
+.chip.ok{color:var(--pos); background:rgba(var(--pos-rgb),.12); border:1px solid rgba(var(--pos-rgb),.3);}
+.chip.wait{color:var(--warn); background:rgba(var(--warn-rgb),.12); border:1px solid rgba(var(--warn-rgb),.3);}
+.chip.no{color:var(--neg); background:rgba(var(--neg-rgb),.12); border:1px solid rgba(var(--neg-rgb),.3);}
+.chip.info{color:var(--accent-2); background:rgba(var(--accent-rgb),.10); border:1px solid rgba(var(--accent-rgb),.28);}
+
+/* Callout */
+.call{border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:var(--r-sm);
+  background:var(--surface-2); padding:16px 20px; margin:16px 0; font-size:14.5px;
+  color:var(--ink-soft); line-height:1.65;}
+.call.warn{border-left-color:var(--warn);}
+.call.danger{border-left-color:var(--neg);}
+.call .ct{display:block; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink-mute); margin-bottom:7px;}
+
+/* Paleta */
+.swatches{display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:10px;}
+.sw{border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; background:var(--surface);}
+/* Contorno interno para o Platinum Black não sumir contra a superfície escura —
+   a amostra precisa ter aresta em qualquer tema. */
+.sw .chipc{height:64px; display:block; box-shadow:inset 0 0 0 1px var(--line);}
+.sw .info{padding:11px 13px 13px;}
+.sw .nm{font-size:13px; font-weight:700;}
+.sw .hx{font-family:var(--font-mono); font-size:11px; color:var(--accent-2); margin-top:3px;}
+.sw .us{font-size:11.5px; color:var(--ink-mute); margin-top:5px; line-height:1.45;}
+
+/* Tipografia demo */
+.typo{border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); overflow:hidden;}
+.typo-row{padding:20px 22px; border-top:1px solid var(--line-2); display:flex; gap:22px;
+  align-items:baseline; flex-wrap:wrap;}
+.typo-row:first-child{border-top:0;}
+.typo-row .lbl{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink-mute); width:120px; flex:none;}
+.typo-row .demo{min-width:0;}
+.d-display{font-size:34px; font-weight:800; letter-spacing:-.038em; line-height:1.05;}
+.d-body{font-size:16px; color:var(--ink-soft); line-height:1.66; max-width:56ch;}
+.d-mono{font-family:var(--font-mono); font-size:15px; font-variant-numeric:tabular-nums;}
+.d-label{font-family:var(--font-mono); font-size:10px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink-mute);}
+.typo-row .spec{margin-left:auto; font-family:var(--font-mono); font-size:10.5px; color:var(--ink-mute);
+  text-align:right; line-height:1.7;}
+@media (max-width:820px){.typo-row .spec{margin-left:0; text-align:left; width:100%;}}
+
+/* Voz: assim sim / assim não */
+.voice{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+@media (max-width:820px){.voice{grid-template-columns:1fr;}}
+.vcol{border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; background:var(--surface);}
+.vh{padding:11px 18px; font-family:var(--font-mono); font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; border-bottom:1px solid var(--line); background:var(--surface-2);}
+.vh.y{color:var(--pos);} .vh.n{color:var(--neg);}
+.vitem{padding:14px 18px; border-top:1px solid var(--line-2); font-size:14.5px; line-height:1.6;}
+.vitem:first-of-type{border-top:0;}
+.vcol.y .vitem{color:var(--ink);}
+.vcol.n .vitem{color:var(--ink-mute); text-decoration-color:var(--line);}
+
+/* Timeline de fases */
+.phases{border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); overflow:hidden;}
+.phase{display:grid; grid-template-columns:150px minmax(0,1fr); gap:22px;
+  padding:20px 22px; border-top:1px solid var(--line-2);}
+.phase:first-child{border-top:0;}
+.phase .pl{display:flex; flex-direction:column; gap:5px;}
+.phase .pn{font-family:var(--font-mono); font-size:10px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--accent);}
+.phase .pt{font-size:15.5px; font-weight:700; letter-spacing:-.02em;}
+.phase .pw{font-family:var(--font-mono); font-size:10.5px; color:var(--ink-mute);}
+.phase ul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:7px;}
+.phase li{position:relative; padding-left:15px; font-size:14px; color:var(--ink-soft); line-height:1.55;}
+.phase li::before{content:''; position:absolute; left:2px; top:8px; width:4px; height:4px;
+  border-radius:50%; background:var(--accent-2);}
+@media (max-width:760px){.phase{grid-template-columns:1fr; gap:12px;}}
+
+/* Checklist de ativos */
+.assets{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;}
+.asset{border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface);
+  padding:14px 16px; display:flex; gap:11px; align-items:flex-start;}
+.asset .box{width:14px; height:14px; border:1px solid var(--line); border-radius:4px;
+  flex:none; margin-top:3px; background:var(--surface-2);}
+.asset .at{font-size:14px; font-weight:600; line-height:1.4;}
+.asset .ad{font-size:12.5px; color:var(--ink-mute); line-height:1.5; margin-top:3px;}
+
+footer.docfoot{margin-top:70px; padding-top:26px; border-top:1px solid var(--line);
+  display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; color:var(--ink-mute);}
+footer.docfoot .r{margin-left:auto;}
+</style>
+
+<div class="doc">
+
+<!-- ══════════════════ RAIL ══════════════════ -->
+<aside class="rail">
+  <div class="brand">
+    <svg class="blade" viewBox="40 10 40 100" role="img" aria-label="Sharpen">
+      <path d="M60 16 L60 90 L42 104 Z" fill="var(--accent)"></path>
+      <path d="M60 16 L78 104 L60 90 Z" fill="var(--steel)"></path>
+    </svg>
+    <span class="wm">Sharp<span class="e">en.</span></span>
+  </div>
+  <div class="doclabel">Briefing de marca<br>e produto · agência</div>
+  <nav class="toc" id="toc">
+    <a href="#s0"><span class="n">00</span><span>Resumo em 60 segundos</span></a>
+    <a href="#s1"><span class="n">01</span><span>A empresa e o produto</span></a>
+    <a href="#s2"><span class="n">02</span><span>Como o produto funciona</span></a>
+    <a href="#s3"><span class="n">03</span><span>Mercado e público</span></a>
+    <a href="#s4"><span class="n">04</span><span>Concorrência</span></a>
+    <a href="#s5"><span class="n">05</span><span>Posicionamento e mensagens</span></a>
+    <a href="#s6"><span class="n">06</span><span>Identidade visual</span></a>
+    <a href="#s7"><span class="n">07</span><span>Tom de voz</span></a>
+    <a href="#s8"><span class="n">08</span><span>Conformidade e risco</span></a>
+    <a href="#s9"><span class="n">09</span><span>Canais e pilares</span></a>
+    <a href="#s10"><span class="n">10</span><span>Plano de 90 dias</span></a>
+    <a href="#s11"><span class="n">11</span><span>KPIs e metas</span></a>
+    <a href="#s12"><span class="n">12</span><span>Provas e números</span></a>
+    <a href="#s13"><span class="n">13</span><span>Entregáveis e próximos passos</span></a>
+  </nav>
+  <div class="railfoot">FDC CAPITAL<br>DATA INTELLIGENCE<br>DOC. INTERNO · 18+</div>
+</aside>
+
+<!-- ══════════════════ CONTEÚDO ══════════════════ -->
+<main class="main">
+
+<div class="cover">
+  <div class="eyebrow">Documento de briefing · confidencial</div>
+  <h1>Sharpen — briefing de marca e produto</h1>
+  <p class="sub">
+    Tudo o que a agência precisa para escrever, desenhar e veicular pelo Sharpen sem nos
+    consultar a cada peça: o que o produto é, para quem, contra quem, com que voz, dentro
+    de quais limites legais e com quais provas. Onde houver dúvida, a resposta padrão está
+    escrita aqui — inclusive as respostas desconfortáveis.
+  </p>
+  <div class="meta-grid">
+    <div class="meta-cell"><div class="k">Produto</div><div class="v">Sharpen</div></div>
+    <div class="meta-cell"><div class="k">Empresa</div><div class="v">FDC Capital</div></div>
+    <div class="meta-cell"><div class="k">Categoria</div><div class="v">SaaS de dados</div></div>
+    <div class="meta-cell"><div class="k">Mercado</div><div class="v">Global</div></div>
+    <div class="meta-cell"><div class="k">Estágio</div><div class="v">No ar, em operação</div></div>
+    <div class="meta-cell"><div class="k">Versão</div><div class="v">27 / 07 / 2026</div></div>
+  </div>
+</div>
+
+<!-- ─────────── 00 ─────────── -->
+<section id="s0">
+  <div class="sh"><span class="sn">00</span><h2>Resumo em 60 segundos</h2></div>
+  <p class="sdek">
+    Se a agência ler só esta seção, já consegue não errar feio.
+  </p>
+
+  <div class="call">
+    <span class="ct">A frase que resume tudo</span>
+    <b>O Sharpen transforma o histórico de apostas de qualquer casa do mundo em um único
+    registro padronizado — e prova, estatisticamente, se aquele resultado é vantagem ou é
+    sorte.</b> É uma empresa de dados que atua em apostas esportivas. Não é tipster, não é
+    casa de apostas, não vende palpite e não promete lucro.
+  </div>
+
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card">
+      <span class="kicker">O que vendemos</span>
+      <h4>Verdade sobre o próprio desempenho</h4>
+      <p>O produto não ajuda a ganhar mais apostas. Ele mostra, com rigor, se você está
+      ganhando por vantagem ou por acaso — e quanto isso custa depois dos custos.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Contra quem competimos</span>
+      <h4>A planilha e os trackers de uma praça só</h4>
+      <p>Os rastreadores globais automatizam bem dentro da lista de casas que integram.
+      Fora dela, viram digitação manual. O Sharpen não tem essa parede.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Por que ganhamos</span>
+      <h4>Integramos o motor, não a marca</h4>
+      <p>Lemos a plataforma que equipa centenas de casas no mundo — e, quando não há
+      plataforma conhecida, lemos o print, em qualquer idioma.</p>
+    </div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">0.1</span>As cinco regras que não se quebram</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Regra</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><th>Nunca prometer lucro</th><td>Além de ilegal em publicidade de apostas, destrói a única coisa que o produto vende: credibilidade estatística. "Lucro garantido", "entrada certa", "green" e afins estão banidos.</td></tr>
+        <tr><th>Nunca parecer tipster</th><td>Nada de placar de green/red, print de bilhete premiado, contagem de acertos, grupo VIP ou linguagem de canal de apostas. Isso nos coloca na categoria errada na cabeça do cliente certo.</td></tr>
+        <tr><th>Sempre 18+ e jogo responsável</th><td>Selo de idade e menção a jogo responsável em toda peça paga e em todo perfil. Sem exceção, em qualquer país.</td></tr>
+        <tr><th>Número só com fonte</th><td>Toda estatística usada em peça tem de sair da seção 12 deste documento. Se não estiver lá, não vai ao ar até ser medida.</td></tr>
+        <tr><th>Sóbrio, sempre</th><td>Referências visuais: Bloomberg, TradingView, Linear, Stripe. Nunca: cassino, neon, dinheiro voando, festa, urgência.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─────────── 01 ─────────── -->
+<section id="s1">
+  <div class="sh"><span class="sn">01</span><h2>A empresa e o produto</h2></div>
+  <p class="sdek">
+    Uma marca-mãe, um produto principal e uma extensão. Entender a hierarquia evita a
+    confusão mais comum: tratar o SharpenUp como produto separado.
+  </p>
+
+  <h3 class="sub3"><span class="nn">1.1</span>Arquitetura de marca</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Nome</th><th>O que é</th><th>Como aparece na comunicação</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>FDC Capital</th>
+          <td>A empresa. Tecnologia e dados aplicados a apostas esportivas. Descritor: <i>Data Intelligence</i>.</td>
+          <td>Endosso discreto, no rodapé e em contexto institucional. Não lidera peça de produto.</td>
+        </tr>
+        <tr>
+          <th>Sharpen</th>
+          <td>O produto: plataforma web de captura, padronização e análise de apostas. Domínio <code>sharpen.bet</code>.</td>
+          <td><b>É a marca que fala.</b> Toda campanha, todo canal, todo criativo é do Sharpen.</td>
+        </tr>
+        <tr>
+          <th>SharpenUp</th>
+          <td>A extensão de navegador que captura os bilhetes dentro da casa e envia ao painel.</td>
+          <td>Componente do Sharpen, nunca produto autônomo. Citado como recurso ("a captura automática"), não como marca própria.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="call warn">
+    <span class="ct">Atenção operacional</span>
+    A extensão é distribuída por <b>link direto no site</b>, com aviso de versão — e vai
+    continuar assim. Lojas de extensão não aceitam software relacionado a apostas. Nunca
+    use "baixe na loja" como chamada, e nunca planeje um marco de campanha em cima de uma
+    aprovação de loja que não vai existir.
+  </div>
+
+  <h3 class="sub3"><span class="nn">1.2</span>O que somos e o que não somos</h3>
+  <div class="duo">
+    <div class="pane ok">
+      <div class="pane-h ok">É — e pode ser dito assim</div>
+      <ul>
+        <li>Empresa de <b>tecnologia e dados</b></li>
+        <li><b>Sports analytics</b> e inteligência de apostas</li>
+        <li>Ferramenta de <b>análise quantitativa</b> de desempenho</li>
+        <li>Plataforma de <b>gestão de operação</b> (contas, parceiros, custos)</li>
+        <li>Software <b>sério, técnico e verificável</b></li>
+      </ul>
+    </div>
+    <div class="pane no">
+      <div class="pane-h no">Não é — nunca evocar</div>
+      <ul>
+        <li><b>Tipster</b> ou canal de apostas</li>
+        <li><b>Grupo VIP</b>, mentoria ou comunidade de palpites</li>
+        <li><b>Casa de apostas</b>, cassino ou afiliado de casa</li>
+        <li><b>Influenciador</b> de apostas</li>
+        <li>Promessa de <b>renda extra</b> ou de investimento</li>
+      </ul>
+    </div>
+  </div>
+  <p class="body-p" style="margin-top:16px">
+    Atuamos em apostas esportivas, mas sempre pelo ângulo de <b>dados, seriedade, vantagem
+    mensurável e disciplina</b> — nunca pelo mundo festivo das apostas. Se uma peça pudesse
+    ter sido feita por uma casa de apostas, ela está errada.
+  </p>
+
+  <h3 class="sub3"><span class="nn">1.3</span>Estágio atual</h3>
+  <div class="grid g3">
+    <div class="card">
+      <span class="kicker">Produto</span>
+      <h4>No ar e em uso diário</h4>
+      <p>Plataforma em produção, com carteiras reais operando todos os dias e histórico
+      migrado de planilhas antigas.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Multiusuário</span>
+      <h4>Vários donos e operadores</h4>
+      <p>Cada carteira é isolada. Já existem donos com operadores próprios, o que valida a
+      camada B2B do produto.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Comercial</span>
+      <h4>Pré-lançamento público</h4>
+      <p>Entrada ainda é por convite. A agência entra justamente para construir a demanda do
+      lançamento aberto.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 02 ─────────── -->
+<section id="s2">
+  <div class="sh"><span class="sn">02</span><h2>Como o produto funciona</h2></div>
+  <p class="sdek">
+    A agência não precisa saber programar, mas precisa entender as três camadas — é delas
+    que sai toda mensagem verdadeira sobre o Sharpen.
+  </p>
+
+  <h3 class="sub3"><span class="nn">2.1</span>As três camadas</h3>
+  <div class="grid g3">
+    <div class="card">
+      <span class="kicker">Camada 1</span>
+      <h4>Capturar</h4>
+      <p>A extensão lê o histórico de apostas dentro da casa, na sessão que o próprio usuário
+      já abriu. Não faz login, não aposta, não movimenta saldo, não guarda senha.</p>
+      <ul>
+        <li>11 fontes lidas na origem</li>
+        <li>Print, PDF, texto e planilha para todas as outras</li>
+        <li>Traz também as apostas ainda em aberto</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="kicker">Camada 2</span>
+      <h4>Padronizar</h4>
+      <p>Cada casa nomeia o mesmo mercado de um jeito. Tudo é traduzido para um vocabulário
+      fechado antes de ser gravado — é o que torna casas, países e moedas comparáveis.</p>
+      <ul>
+        <li>27 categorias de mercado</li>
+        <li>Régua de dinheiro auditada (boost, cashout, anulada)</li>
+        <li>Bilhete repetido não vira linha nova</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="kicker">Camada 3</span>
+      <h4>Analisar</h4>
+      <p>O painel responde as perguntas de operação e as de método — inclusive a mais dura,
+      que é se o resultado se sustenta estatisticamente.</p>
+      <ul>
+        <li>Resultado por casa, esporte, mercado, tipster e conta</li>
+        <li>Custos descontados: o P/L da tela é líquido</li>
+        <li>Solidez, drawdown esperado e significância</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">2.2</span>Os quatro diferenciais reais</h3>
+  <p class="body-p">
+    Estes são os únicos argumentos de superioridade que a agência deve usar. Qualquer outro
+    provavelmente também existe no concorrente.
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Diferencial</th><th>Explicação para leigo</th><th>Prova</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>Motor, não marca</th>
+          <td>A maioria das casas não escreve o próprio sistema: licencia uma plataforma. Lemos a plataforma — então uma casa nova vira cadastro, não projeto.</td>
+          <td>Uma segunda marca no mesmo motor entrou em produção <b>sem uma linha de código nova</b>.</td>
+        </tr>
+        <tr>
+          <th>Print como integração universal</th>
+          <td>Quando não há motor conhecido, a leitura por imagem devolve o mesmo resultado. Nenhum concorrente oferece isso: a alternativa deles é digitar.</td>
+          <td>94,5% de acerto de categoria numa casa que o sistema nunca tinha visto.</td>
+        </tr>
+        <tr>
+          <th>Camada de operação</th>
+          <td>Contas, parceiros, fornecedores, custo por conta e custo por tipster. Os concorrentes são apps de apostador individual.</td>
+          <td>Carteiras com operadores e bases isoladas já rodando em produção.</td>
+        </tr>
+        <tr>
+          <th>Prova estatística</th>
+          <td>Testamos se o resultado é vantagem ou acaso, simulando milhares de versões do próprio histórico do usuário.</td>
+          <td>p-value por reamostragem, drawdown por simulação, fator de recuperação e o índice Solidez.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub3"><span class="nn">2.3</span>O exemplo que explica o produto inteiro</h3>
+  <div class="call">
+    <span class="ct">Use isto sempre que precisar explicar o valor em uma cena</span>
+    Uma múltipla de <b>R$ 250,00</b> paga <b>R$ 960,75</b>. A odd impressa no bilhete não é
+    <b>3,843</b> — a casa aplicou um boost, ou anulou uma perna e recalculou. Quem anota à
+    mão registra a odd da tela e nunca descobre. O Sharpen calcula a odd a partir do dinheiro
+    que efetivamente entrou. <b>É pequeno, é chato, e é onde o histórico de todo mundo mente.</b>
+  </div>
+
+  <h3 class="sub3"><span class="nn">2.4</span>Limites do produto — comunicar sem rodeio</h3>
+  <div class="grid g2">
+    <div class="card">
+      <span class="kicker">Não faz</span>
+      <h4>Busca de valor, arbitragem e comparador de odds</h4>
+      <p>Não temos tela de odds nem alerta de surebet. Isso é outra categoria de ferramenta
+      (OddsJam, RebelBetting, Trademate). Podemos conviver com elas; não competimos.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Ainda não faz</span>
+      <h4>CLV — valor da linha de fechamento</h4>
+      <p>É onde os melhores trackers ganham de nós hoje. Está no roteiro. Enquanto não sai,
+      a resposta honesta é a da seção 7.3 — nunca fingir que temos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 03 ─────────── -->
+<section id="s3">
+  <div class="sh"><span class="sn">03</span><h2>Mercado e público</h2></div>
+  <p class="sdek">
+    Mercado global desde o primeiro dia. O Brasil é a base de operação e o primeiro campo de
+    prova, não o teto da ambição.
+  </p>
+
+  <h3 class="sub3"><span class="nn">3.1</span>Geografia</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Praça</th><th>Situação</th><th>Papel na estratégia</th></tr></thead>
+      <tbody>
+        <tr><th>Brasil</th><td><span class="chip ok">base</span></td><td>Mercado regulado desde 2024, altíssimo volume, casas em <code>.bet.br</code> rodando em plataformas licenciadas. É onde o produto amadureceu e onde temos os primeiros clientes.</td></tr>
+        <tr><th>América Latina</th><td><span class="chip info">expansão 1</span></td><td>Mesmas plataformas de sportsbook do Brasil. A cobertura técnica praticamente já existe: o esforço é de idioma e de canal.</td></tr>
+        <tr><th>Europa</th><td><span class="chip info">expansão 2</span></td><td>Onde os motores que já lemos são mais fortes. Público mais maduro em conceitos de edge e gestão de banca — audiência que entende o discurso técnico de primeira.</td></tr>
+        <tr><th>EUA e Canadá</th><td><span class="chip wait">avaliar</span></td><td>Mercado mais servido do mundo em trackers, e onde CLV é padrão. Entrar aqui exige o CLV pronto. <b>Não é prioridade de campanha agora.</b></td></tr>
+        <tr><th>África e Ásia</th><td><span class="chip info">oportunidade</span></td><td>Plataformas conhecidas, baixa oferta de ferramentas de análise. Alto potencial, baixa prioridade até termos suporte a idioma e moeda no painel.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub3"><span class="nn">3.2</span>As três personas</h3>
+  <div class="grid g3">
+    <div class="card">
+      <span class="kicker">Persona A · núcleo</span>
+      <h4>O apostador metódico</h4>
+      <p>Aposta há anos, tem planilha própria, segue um ou mais tipsters, opera em 3 a 8
+      casas. Sabe o que é ROI e desconfia de quem promete lucro.</p>
+      <ul>
+        <li><b>Dor:</b> não sabe se o lucro é método ou sorte</li>
+        <li><b>Gatilho:</b> um mês ruim que ele não sabe interpretar</li>
+        <li><b>Objeção:</b> "minha planilha já resolve"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="kicker">Persona B · maior ticket</span>
+      <h4>O operador de banca</h4>
+      <p>Roda várias contas, com parceiros, fornecedores e custos. Aposta é o trabalho dele.
+      Já perdeu dinheiro por erro de controle.</p>
+      <ul>
+        <li><b>Dor:</b> contabilidade dispersa, custo invisível</li>
+        <li><b>Gatilho:</b> fechar o mês e o número não bater</li>
+        <li><b>Objeção:</b> "meus dados vão ficar seguros?"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="kicker">Persona C · alavanca</span>
+      <h4>O tipster profissional sério</h4>
+      <p>Vende método e precisa provar desempenho para assinantes. Hoje mostra print; quer
+      mostrar auditoria.</p>
+      <ul>
+        <li><b>Dor:</b> não consegue provar que é bom</li>
+        <li><b>Gatilho:</b> concorrência inflando resultado</li>
+        <li><b>Objeção:</b> "e se o número me expuser?"</li>
+      </ul>
+    </div>
+  </div>
+  <div class="call">
+    <span class="ct">Prioridade de campanha</span>
+    <b>Persona A traz volume, Persona B traz receita, Persona C traz distribuição.</b> O
+    conteúdo orgânico fala com A; a venda direta e o material de vendas falam com B; parcerias
+    e co-marketing falam com C. Uma campanha que tenta falar com as três ao mesmo tempo não
+    fala com nenhuma.
+  </div>
+</section>
+
+<!-- ─────────── 04 ─────────── -->
+<section id="s4">
+  <div class="sh"><span class="sn">04</span><h2>Concorrência</h2></div>
+  <p class="sdek">
+    Três categorias, não uma. Saber contra quem estamos em cada conversa evita comparação
+    injusta — que soa a desespero — e comparação preguiçosa — que soa a genérico.
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Categoria</th><th>Exemplos</th><th>Onde eles ganham</th><th>Onde nós ganhamos</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>Planilha própria</th>
+          <td>Excel, Google Sheets, planilhas vendidas prontas</td>
+          <td>Grátis, familiar, controle total, ninguém precisa aprender nada</td>
+          <td>Não digitar; erro de odd; teste estatístico; custos; multiconta</td>
+        </tr>
+        <tr>
+          <th>Trackers automáticos</th>
+          <td>Pikkit, Juice Reel, Betstamp, SlipSync</td>
+          <td>Sincronização madura nas casas que integram, CLV automático, app móvel, base de usuários grande, social</td>
+          <td>Cobertura fora da lista integrada; leitura por print; camada de operação; prova estatística</td>
+        </tr>
+        <tr>
+          <th>Ferramentas de odds e valor</th>
+          <td>OddsJam, RebelBetting, Trademate</td>
+          <td>Encontram a aposta antes de ela ser feita — problema diferente e muito valorizado</td>
+          <td>Não competimos. Somos complementares: eles acham, nós auditamos o que virou resultado</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">
+    Recursos, planos e listas de casas desses produtos mudam com frequência. Antes de citar
+    qualquer concorrente numa peça, confirme na fonte oficial dele na mesma semana. Peça
+    comparativa <b>nunca</b> deve depreciar concorrente: descrevemos escopo, não qualidade.
+  </p>
+  <div class="call warn">
+    <span class="ct">Regra de comparação</span>
+    Todo material comparativo nosso <b>tem de perder pelo menos uma linha</b>. Hoje perdemos
+    em CLV e em busca de valor, e isso fica visível. Um comparativo que ganha tudo é
+    propaganda — e o público desta categoria reconhece propaganda na hora.
+  </div>
+</section>
+
+<!-- ─────────── 05 ─────────── -->
+<section id="s5">
+  <div class="sh"><span class="sn">05</span><h2>Posicionamento e mensagens</h2></div>
+
+  <h3 class="sub3"><span class="nn">5.1</span>Declaração de posicionamento</h3>
+  <div class="call">
+    Para <b>quem aposta com método e opera sério</b>, que precisa saber se o próprio resultado
+    se sustenta, o <b>Sharpen</b> é a plataforma que transforma o histórico de qualquer casa
+    do mundo em um registro único e auditável. Diferente dos rastreadores de aposta, que
+    param onde a integração deles acaba e medem só o passado, o Sharpen lê a casa pelo motor,
+    lê o print quando não há motor, e testa estatisticamente se existe vantagem.
+  </div>
+
+  <h3 class="sub3"><span class="nn">5.2</span>As três mensagens-chave</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Mensagem</th><th>Formulação curta</th><th>Prova que a sustenta</th></tr></thead>
+      <tbody>
+        <tr><th>Cobertura</th><td>"Toda casa fala uma língua. O Sharpen fala todas."</td><td>Leitura por motor + leitura por print em qualquer idioma</td></tr>
+        <tr><th>Exatidão</th><td>"A odd que aparece não é a odd que pagou."</td><td>Odd de aposta ganha calculada por retorno ÷ stake</td></tr>
+        <tr><th>Prova</th><td>"Lucro não é prova. Prova é prova."</td><td>p-value, drawdown simulado, fator de recuperação, Solidez</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub3"><span class="nn">5.3</span>Proposta de valor por persona</h3>
+  <div class="grid g3">
+    <div class="card">
+      <span class="kicker">Para o apostador metódico</span>
+      <h4>"Descubra se o seu método existe"</h4>
+      <p>Ângulo emocional: a insegurança de não saber se é bom. Ângulo racional: teste
+      estatístico sobre o próprio histórico.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Para o operador de banca</span>
+      <h4>"Feche o mês com o número certo"</h4>
+      <p>Ângulo emocional: o cansaço do controle manual. Ângulo racional: custos descontados,
+      contas isoladas, zero duplicata.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Para o tipster sério</span>
+      <h4>"Pare de mostrar print. Mostre auditoria."</h4>
+      <p>Ângulo emocional: ser confundido com quem infla resultado. Ângulo racional: histórico
+      padronizado e verificável.</p>
+    </div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">5.4</span>Assinatura</h3>
+  <p class="body-p">
+    A assinatura da marca é <b>"Sharpen your edge."</b> — usada em inglês em qualquer praça,
+    porque é o nome do produto flexionado, e traduzir quebra o trocadilho. Aparece no fecho
+    de peças institucionais, nunca como headline de performance.
+  </p>
+</section>
+
+<!-- ─────────── 06 ─────────── -->
+<section id="s6">
+  <div class="sh"><span class="sn">06</span><h2>Identidade visual</h2></div>
+  <p class="sdek">
+    O sistema já existe, está implementado no produto e é a fonte da verdade. A agência não
+    cria uma identidade nova: aplica esta em novos suportes.
+  </p>
+
+  <h3 class="sub3"><span class="nn">6.1</span>Paleta</h3>
+  <div class="swatches">
+    <div class="sw"><span class="chipc" style="background:#0A0D12"></span>
+      <div class="info"><div class="nm">Platinum Black</div><div class="hx">#0A0D12</div><div class="us">Fundo base. O escuro é o padrão da marca.</div></div></div>
+    <div class="sw"><span class="chipc" style="background:#2E8BFF"></span>
+      <div class="info"><div class="nm">Electric Blue</div><div class="hx">#2E8BFF</div><div class="us">Acento único. Só como sinal, nunca como decoração.</div></div></div>
+    <div class="sw"><span class="chipc" style="background:#7FB2FF"></span>
+      <div class="info"><div class="nm">Blue Light</div><div class="hx">#7FB2FF</div><div class="us">Destaque secundário, títulos de painel, gráficos.</div></div></div>
+    <div class="sw"><span class="chipc" style="background:#222831"></span>
+      <div class="info"><div class="nm">Steel</div><div class="hx">#222831</div><div class="us">Superfície sólida, chips e selos.</div></div></div>
+    <div class="sw"><span class="chipc" style="background:#AEB7C2"></span>
+      <div class="info"><div class="nm">Platinum</div><div class="hx">#AEB7C2</div><div class="us">Texto secundário e apoio.</div></div></div>
+    <div class="sw"><span class="chipc" style="background:#2BC07E"></span>
+      <div class="info"><div class="nm">Positivo</div><div class="hx">#2BC07E</div><div class="us">Só resultado numérico positivo. Nunca "green".</div></div></div>
+    <div class="sw"><span class="chipc" style="background:#E5524B"></span>
+      <div class="info"><div class="nm">Negativo</div><div class="hx">#E5524B</div><div class="us">Só perda realizada. Nunca alarme decorativo.</div></div></div>
+    <div class="sw"><span class="chipc" style="background:#E0A21A"></span>
+      <div class="info"><div class="nm">Aviso</div><div class="hx">#E0A21A</div><div class="us">Pendência e projeção. Nunca perda realizada.</div></div></div>
+  </div>
+  <div class="call">
+    <span class="ct">Regra 60 · 30 · 10</span>
+    60% fundo e superfícies escuras · 30% platina e textos · <b>10% azul</b>. O azul é sinal,
+    não enfeite: se ele estiver em tudo, deixou de comunicar. Verde e vermelho aparecem
+    <b>apenas</b> em número de resultado — nunca em fundo, botão ou fundo de card.
+  </div>
+  <div class="duo" style="margin-top:12px">
+    <div class="pane ok">
+      <div class="pane-h ok">Cor · pode</div>
+      <ul>
+        <li>Fundo escuro com muito respiro</li>
+        <li>Um único ponto azul por composição</li>
+        <li>Grade técnica sutil ao fundo</li>
+        <li>Versão clara quando o suporte exigir (impresso, e-mail)</li>
+      </ul>
+    </div>
+    <div class="pane no">
+      <div class="pane-h no">Cor · não pode</div>
+      <ul>
+        <li>Gradiente chamativo, neon, roxo, rosa, verde-limão</li>
+        <li>Ciano — foi removido da paleta, não voltar</li>
+        <li>Verde e vermelho como cor de fundo ou de marca</li>
+        <li>Qualquer hex fora desta paleta</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">6.2</span>Tipografia</h3>
+  <div class="typo">
+    <div class="typo-row">
+      <span class="lbl">Display</span>
+      <span class="demo d-display">Lucro não é prova.</span>
+      <span class="spec">Manrope 800<br>tracking −0.035em</span>
+    </div>
+    <div class="typo-row">
+      <span class="lbl">Texto</span>
+      <span class="demo d-body">Manrope 400 e 500 para corpo. Linha alta, medida curta, muito respiro. O texto tem de parecer relatório, não anúncio.</span>
+      <span class="spec">Manrope 400/500<br>line-height 1.6–1.7</span>
+    </div>
+    <div class="typo-row">
+      <span class="lbl">Dados</span>
+      <span class="demo d-mono">R$ 250,00 · odd 3,843 · ROI +4,12% · p &lt; 0,001</span>
+      <span class="spec">JetBrains Mono<br>tabular-nums</span>
+    </div>
+    <div class="typo-row">
+      <span class="lbl">Rótulo</span>
+      <span class="demo d-label">DRAWDOWN ESPERADO · P95</span>
+      <span class="spec">JetBrains Mono<br>caixa alta · tracking .14em</span>
+    </div>
+  </div>
+  <div class="call warn">
+    <span class="ct">A regra tipográfica que mais é quebrada</span>
+    <b>Todo número vai em JetBrains Mono.</b> Valor, odd, porcentagem, data, código de bilhete,
+    rótulo de eixo. Número em Manrope quebra a assinatura visual da marca na hora — é o erro
+    mais comum de quem chega agora.
+  </div>
+
+  <h3 class="sub3"><span class="nn">6.3</span>Símbolo e logotipo</h3>
+  <div class="grid g2">
+    <div class="card">
+      <span class="kicker">Símbolo</span>
+      <h4>A lâmina</h4>
+      <p>Duas faces assimétricas formando uma lâmina afiada — o gesto de "sharpen". A face
+      esquerda é azul, a direita é steel. É o ícone do produto, usado sozinho em avatar,
+      favicon e chip.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Logotipo</span>
+      <h4>Sharp<span style="color:var(--accent-2)">en.</span></h4>
+      <p>Manrope 800, tracking fechado, com <b>"en."</b> em azul claro — o destaque marca a
+      raiz do nome. O ponto final faz parte do logotipo: é afirmação, não abreviação.</p>
+    </div>
+  </div>
+  <div class="duo" style="margin-top:12px">
+    <div class="pane ok">
+      <div class="pane-h ok">Logo · pode</div>
+      <ul>
+        <li>Símbolo sozinho quando o espaço é pequeno</li>
+        <li>Versão monocromática branca sobre fundo escuro</li>
+        <li>Área de proteção mínima ao redor, sempre generosa</li>
+        <li>Endosso "FDC Capital" discreto, em contexto institucional</li>
+      </ul>
+    </div>
+    <div class="pane no">
+      <div class="pane-h no">Logo · não pode</div>
+      <ul>
+        <li>Distorcer, rotacionar ou inclinar</li>
+        <li>Recolorir fora da paleta</li>
+        <li>Sombra, contorno, brilho ou efeito 3D</li>
+        <li>Sobre foto movimentada ou fundo de baixo contraste</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">6.4</span>Direção de imagem</h3>
+  <div class="grid g2">
+    <div class="card">
+      <span class="kicker">Sim</span>
+      <h4>Interface, dado e grade</h4>
+      <p>A melhor imagem do Sharpen é o próprio produto: painéis, tabelas, séries temporais,
+      a linha de dez colunas. Fotografia, quando houver, é sóbria e ambiente de trabalho —
+      luz baixa, monitor, papel, café. Referências: Bloomberg, TradingView, Linear, Stripe.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Não</span>
+      <h4>O imaginário de cassino</h4>
+      <p>Nada de dinheiro voando, ficha, dado, roleta, taça, carro, comemoração de gol,
+      celular com notificação de green, seta subindo em neon, emoji de foguete. Nem em
+      ironia, nem em meme.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 07 ─────────── -->
+<section id="s7">
+  <div class="sh"><span class="sn">07</span><h2>Tom de voz</h2></div>
+  <p class="sdek">
+    A voz do Sharpen é a de um analista sênior que respeita o interlocutor: direto, técnico
+    quando precisa, e desconfortavelmente honesto quando o assunto pede.
+  </p>
+
+  <h3 class="sub3"><span class="nn">7.1</span>Atributos</h3>
+  <div class="grid g3">
+    <div class="card"><span class="kicker">01</span><h4>Preciso</h4><p>Número exato, unidade explícita, sem arredondar para impressionar. "94,5%", não "quase 100%".</p></div>
+    <div class="card"><span class="kicker">02</span><h4>Direto</h4><p>Frase curta, voz ativa, verbo no começo. Se dá para cortar uma palavra, corta.</p></div>
+    <div class="card"><span class="kicker">03</span><h4>Honesto até doer</h4><p>Diz o que o produto não faz antes que perguntem. É a nossa vantagem competitiva de tom.</p></div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">7.2</span>Assim sim · assim não</h3>
+  <div class="voice">
+    <div class="vcol y">
+      <div class="vh y">Assim sim</div>
+      <div class="vitem">"Seu histórico diz que existe vantagem. Ele também diz que a amostra ainda é pequena."</div>
+      <div class="vitem">"A odd que aparece não é a odd que pagou."</div>
+      <div class="vitem">"Se os seus números não sustentarem uma conclusão, nós vamos te dizer isso."</div>
+      <div class="vitem">"Não procuramos aposta para você. Medimos as que você já fez."</div>
+    </div>
+    <div class="vcol n">
+      <div class="vh n">Assim não</div>
+      <div class="vitem">"Multiplique sua banca com inteligência artificial!"</div>
+      <div class="vitem">"O segredo dos apostadores profissionais 🔥"</div>
+      <div class="vitem">"Green atrás de green: veja o resultado de ontem"</div>
+      <div class="vitem">"Comece hoje e mude de vida"</div>
+    </div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">7.3</span>Respostas padrão para perguntas difíceis</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Pergunta</th><th>Resposta oficial</th></tr></thead>
+      <tbody>
+        <tr><th>"Vocês dão dicas?"</th><td>"Não, e não vamos dar. O Sharpen mede o que você já apostou. Quem decide a aposta é você."</td></tr>
+        <tr><th>"Dá para viver de aposta?"</th><td>"A maioria das pessoas perde dinheiro apostando. O Sharpen serve tanto para mostrar que existe vantagem quanto para mostrar que não existe."</td></tr>
+        <tr><th>"Vocês têm CLV?"</th><td>"Ainda não. CLV exige linha de fechamento confiável, e isso existe bem em alguns mercados e mal em outros. Está no roteiro e sai quando der para fazer certo."</td></tr>
+        <tr><th>"Preciso dar minha senha?"</th><td>"Não. A extensão lê o histórico na sessão que você já abriu. Não faz login, não aposta, não move saldo e não guarda credencial."</td></tr>
+        <tr><th>"Quanto custa?"</th><td>Encaminhar para o time — <span class="chip wait">preço não definido</span> Nenhuma peça deve citar valor até a tabela ser fechada.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub3"><span class="nn">7.4</span>Vocabulário</h3>
+  <div class="duo">
+    <div class="pane ok">
+      <div class="pane-h ok">Usar</div>
+      <ul>
+        <li>histórico · registro · auditoria</li>
+        <li>vantagem · edge · significância · amostra</li>
+        <li>banca · exposição · drawdown · variância</li>
+        <li>casa · conta · parceiro · operação</li>
+      </ul>
+    </div>
+    <div class="pane no">
+      <div class="pane-h no">Evitar</div>
+      <ul>
+        <li>green · red · bateu · entrada certa</li>
+        <li>lucro garantido · dinheiro fácil · renda extra</li>
+        <li>investimento · rentabilidade · trader de apostas</li>
+        <li>caixa alta gritando · urgência · contagem regressiva</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 08 ─────────── -->
+<section id="s8">
+  <div class="sh"><span class="sn">08</span><h2>Conformidade e risco</h2></div>
+  <p class="sdek">
+    A categoria é sensível e as regras variam por país e por plataforma. Esta seção define o
+    que é regra nossa (vale sempre) e o que precisa de validação jurídica antes de ir ao ar.
+  </p>
+
+  <h3 class="sub3"><span class="nn">8.1</span>Regras internas — valem em qualquer praça</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Regra</th><th>Aplicação</th></tr></thead>
+      <tbody>
+        <tr><th>18+ visível</th><td>Selo de idade em toda peça paga, em toda bio de perfil e no rodapé do site.</td></tr>
+        <tr><th>Jogo responsável</th><td>Menção e link em toda peça paga. Em campanha, uma peça por mês dedicada ao tema — não é obrigação, é posicionamento.</td></tr>
+        <tr><th>Zero promessa de retorno</th><td>Nenhuma peça sugere ganho, valor esperado, "quanto você poderia ter feito" ou projeção de banca.</td></tr>
+        <tr><th>Zero depoimento de ganho</th><td>Depoimento de cliente pode falar de organização, tempo economizado e clareza. Nunca de quanto lucrou.</td></tr>
+        <tr><th>Nunca mirar menores</th><td>Segmentação sempre 18+ (ou 21+ onde a praça exigir). Nada de estética infantil, mascote, desenho ou linguagem de escola.</td></tr>
+        <tr><th>Nada de dado real de cliente</th><td>Captura de tela em peça usa base de demonstração, com nomes e valores fictícios. Sempre.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub3"><span class="nn">8.2</span>Contexto regulatório — Brasil</h3>
+  <p class="body-p">
+    O mercado brasileiro de apostas de quota fixa foi regulamentado pela <b>Lei nº 14.790/2023</b>
+    e é fiscalizado pela Secretaria de Prêmios e Apostas do Ministério da Fazenda. Operadores
+    autorizados usam domínio <code>.bet.br</code> e estão sujeitos a regras específicas de
+    publicidade, além da autorregulação do CONAR.
+  </p>
+  <div class="call warn">
+    <span class="ct">Ponto que precisa de jurídico — não decidir na agência</span>
+    <b>O Sharpen não é operador de apostas</b>, e por isso não está automaticamente sujeito às
+    regras de publicidade dirigidas às casas. Mas somos <b>adjacentes ao setor</b>, e as
+    plataformas de mídia costumam tratar categorias adjacentes com o mesmo rigor.
+    <b>Antes da primeira campanha paga, precisamos de um parecer jurídico</b> sobre: (a) como
+    o Sharpen é classificado na regulamentação brasileira de publicidade de apostas;
+    (b) que avisos são obrigatórios nas nossas peças; (c) o mesmo para cada praça internacional
+    que a campanha alcançar. <span class="chip wait">pendente</span>
+  </div>
+
+  <h3 class="sub3"><span class="nn">8.3</span>Políticas de plataforma</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Plataforma</th><th>Risco</th><th>Encaminhamento</th></tr></thead>
+      <tbody>
+        <tr><th>Meta e Google Ads</th><td><span class="chip wait">verificar</span></td><td>Ambas restringem anúncios de jogo e apostas, com exigência de certificação prévia por país. É preciso confirmar se uma ferramenta de análise cai nessa política antes de investir verba. Plano B: campanhas focadas em "análise de dados" e "produtividade", sem menção a casa de apostas no criativo.</td></tr>
+        <tr><th>TikTok</th><td><span class="chip no">alto risco</span></td><td>Política restritiva para conteúdo de apostas. Tratar como canal orgânico experimental, nunca como pilar de mídia paga.</td></tr>
+        <tr><th>X e LinkedIn</th><td><span class="chip info">mais permissivo</span></td><td>LinkedIn é o melhor canal para o discurso B2B (persona B). X concentra a comunidade de apostas analíticas em inglês.</td></tr>
+        <tr><th>YouTube</th><td><span class="chip ok">bom encaixe</span></td><td>Formato longo favorece o nosso conteúdo (método, estatística, bastidor). Orgânico primeiro; mídia paga só depois do parecer jurídico.</td></tr>
+        <tr><th>Lojas de extensão</th><td><span class="chip no">indisponível</span></td><td>Não aceitam extensão relacionada a apostas. Distribuição é por link direto no site, para sempre. Não planejar nada em cima disso.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub3"><span class="nn">8.4</span>Plano de crise resumido</h3>
+  <div class="grid g3">
+    <div class="card">
+      <span class="kicker">Cenário 1</span>
+      <h4>"Isso incentiva vício"</h4>
+      <p>Resposta: o Sharpen mostra o resultado real, inclusive quando ele é negativo, e não
+      recomenda nenhuma aposta. Reforçar jogo responsável e não entrar em discussão longa.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Cenário 2</span>
+      <h4>"Vocês raspam a casa"</h4>
+      <p>Resposta: a extensão lê o histórico do próprio usuário na sessão dele, como a página
+      que ele já está vendo. Não faz login, não aposta e não acessa dado de terceiro.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Cenário 3</span>
+      <h4>Erro de dado exposto publicamente</h4>
+      <p>Resposta: reconhecer, explicar a causa e informar a correção. Nunca minimizar. A
+      credibilidade técnica é o ativo — defendê-la vale mais que qualquer campanha.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 09 ─────────── -->
+<section id="s9">
+  <div class="sh"><span class="sn">09</span><h2>Canais e pilares de conteúdo</h2></div>
+  <p class="sdek">
+    O produto é técnico e o público desconfia de marketing. Por isso a estratégia é de
+    <b>autoridade</b>, não de alcance: conteúdo que ensina e prova, antes de conteúdo que vende.
+  </p>
+
+  <h3 class="sub3"><span class="nn">9.1</span>Os quatro pilares</h3>
+  <div class="grid g2">
+    <div class="card">
+      <span class="kicker">Pilar 1 · 40%</span>
+      <h4>Método e rigor</h4>
+      <p>Educação real sobre o que sustenta uma operação: amostra, variância, drawdown,
+      significância, gestão de banca. Conteúdo que seria útil mesmo para quem nunca usar
+      o Sharpen — é o que constrói autoridade de verdade.</p>
+      <ul>
+        <li>"Quantas apostas você precisa para saber se é bom?"</li>
+        <li>"Por que o seu ROI mente nos primeiros três meses"</li>
+        <li>"Drawdown: o número que define o tamanho da sua banca"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="kicker">Pilar 2 · 25%</span>
+      <h4>A armadilha do dado</h4>
+      <p>Casos concretos de erro silencioso em histórico: odd de vitrine, boost fora da conta,
+      cashout mal lançado, bilhete duplicado, data do evento contra data da aposta. Cada um
+      é um post e uma demonstração de produto ao mesmo tempo.</p>
+      <ul>
+        <li>"Sua múltipla ganhou. A odd que você anotou está errada."</li>
+        <li>"O bônus que some do seu P/L"</li>
+        <li>"Aposta em aberto não é lucro"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="kicker">Pilar 3 · 20%</span>
+      <h4>Bastidor do produto</h4>
+      <p>Como uma casa nova entra, como um erro foi descoberto, o que aprendemos com um
+      payload. Transparência de engenharia é raríssima nesta categoria e diferencia muito —
+      sem jamais expor dado de cliente.</p>
+      <ul>
+        <li>"Uma casa nova por dentro: do print ao painel"</li>
+        <li>"O bug que teria virado R$ 500 de lucro fantasma"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="kicker">Pilar 4 · 15%</span>
+      <h4>Produto e prova social honesta</h4>
+      <p>Recursos, novidades e depoimentos — sempre sobre <b>organização, tempo e clareza</b>,
+      nunca sobre lucro. Demonstração em base fictícia.</p>
+      <ul>
+        <li>"Da planilha ao painel em uma tarde"</li>
+        <li>"O que o operador vê quando fecha o mês"</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">9.2</span>Canais</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Canal</th><th>Papel</th><th>Formato</th><th class="num">Cadência</th></tr></thead>
+      <tbody>
+        <tr><th>YouTube</th><td>Autoridade e busca. Nosso melhor canal de longo prazo.</td><td>Vídeo de 8–15 min sobre método; demonstração de tela</td><td class="num">1 / semana</td></tr>
+        <tr><th>Instagram</th><td>Alcance e reconhecimento visual da marca.</td><td>Carrossel de conceito; corte vertical do YouTube</td><td class="num">4 / semana</td></tr>
+        <tr><th>X · Twitter</th><td>Comunidade analítica, principalmente em inglês.</td><td>Thread com dado; gráfico do painel</td><td class="num">5 / semana</td></tr>
+        <tr><th>LinkedIn</th><td>Persona B e parceiros institucionais.</td><td>Post de bastidor técnico e de operação</td><td class="num">2 / semana</td></tr>
+        <tr><th>Blog · SEO</th><td>Aquisição de cauda longa e material de apoio às vendas.</td><td>Guias de método; comparativos de categoria</td><td class="num">2 / mês</td></tr>
+        <tr><th>E-mail</th><td>Ativação e retenção de quem já entrou.</td><td>Uma lição de método + uma novidade do produto</td><td class="num">1 / semana</td></tr>
+        <tr><th>Comunidade</th><td>Suporte, feedback e prova social orgânica.</td><td>Telegram ou Discord, moderado por nós</td><td class="num">contínuo</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">
+    Cadência é proposta inicial, para ser calibrada com a capacidade real da agência no
+    primeiro mês. Preferimos <b>menos peças com mais profundidade</b> a um calendário cheio
+    de conteúdo raso — neste público, conteúdo raso custa credibilidade em vez de gerar
+    alcance.
+  </p>
+</section>
+
+<!-- ─────────── 10 ─────────── -->
+<section id="s10">
+  <div class="sh"><span class="sn">10</span><h2>Plano de 90 dias</h2></div>
+  <p class="sdek">
+    Proposta de sequência para a agência criticar e ajustar na reunião de kick-off. A lógica é
+    construir base antes de gastar verba.
+  </p>
+  <div class="phases">
+    <div class="phase">
+      <div class="pl">
+        <span class="pn">Fase 1</span>
+        <span class="pt">Fundação</span>
+        <span class="pw">dias 1–30</span>
+      </div>
+      <ul>
+        <li>Auditoria dos ativos existentes e adaptação da identidade para social e mídia</li>
+        <li>Kit de peças-modelo: 3 formatos de carrossel, 2 de vídeo curto, 1 de thread</li>
+        <li>Perfis abertos e padronizados nos cinco canais, com 18+ e jogo responsável nas bios</li>
+        <li>Parecer jurídico solicitado (seção 8.2) — bloqueia mídia paga até sair</li>
+        <li>Primeiros 8 conteúdos do pilar 1 publicados, sem verba</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="pl">
+        <span class="pn">Fase 2</span>
+        <span class="pt">Autoridade</span>
+        <span class="pw">dias 31–60</span>
+      </div>
+      <ul>
+        <li>Cadência plena dos quatro pilares</li>
+        <li>Página de captura para a lista de espera, com a landing do usuário final como base</li>
+        <li>Primeiras parcerias com a persona C (tipster sério) — co-marketing, não patrocínio</li>
+        <li>Teste de mídia paga em LinkedIn e YouTube, verba pequena, só se o jurídico liberar</li>
+        <li>Primeiro conteúdo em inglês, para medir resposta internacional</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="pl">
+        <span class="pn">Fase 3</span>
+        <span class="pt">Aquisição</span>
+        <span class="pw">dias 61–90</span>
+      </div>
+      <ul>
+        <li>Campanha de lançamento aberto, ancorada na mensagem "Lucro não é prova"</li>
+        <li>Escala nos canais que provaram custo por cadastro viável</li>
+        <li>Comunidade aberta e ativa</li>
+        <li>Primeiro estudo de caso publicado — organização e tempo, jamais lucro</li>
+        <li>Revisão completa deste briefing com o que o mercado ensinou</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 11 ─────────── -->
+<section id="s11">
+  <div class="sh"><span class="sn">11</span><h2>KPIs e metas</h2></div>
+  <p class="sdek">
+    Métrica de vaidade não paga conta. A hierarquia abaixo é a ordem em que vamos discutir
+    resultado nas reuniões mensais.
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Nível</th><th>Métrica</th><th>Por que importa</th></tr></thead>
+      <tbody>
+        <tr><th>Primário</th><td>Cadastros qualificados (aposta em 2+ casas e tem histórico)</td><td>É o único número que vira cliente. Cadastro sem histórico não ativa e não paga.</td></tr>
+        <tr><th>Primário</th><td>Ativação: cadastro que conecta uma casa e importa a primeira base</td><td>Mede se a comunicação atraiu a pessoa certa, e não só a curiosa.</td></tr>
+        <tr><th>Secundário</th><td>Custo por cadastro qualificado, por canal</td><td>Decide onde a verba cresce e onde ela morre.</td></tr>
+        <tr><th>Secundário</th><td>Retenção de conteúdo: visualizações completas e tempo de leitura</td><td>Em conteúdo técnico, profundidade prevê confiança melhor que alcance.</td></tr>
+        <tr><th>Apoio</th><td>Menções espontâneas e citações por terceiros</td><td>Sinal de que a autoridade está sendo construída de fato.</td></tr>
+        <tr><th>Ignorar</th><td>Seguidores, curtidas e impressões isoladas</td><td>Não são objetivo. Podem ser relatados, nunca comemorados como resultado.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="call">
+    <span class="ct">Metas numéricas</span>
+    Ficam em aberto de propósito. <b>Sem baseline não existe meta honesta</b> — e ainda não
+    temos baseline de aquisição paga. A proposta é: 30 dias medindo sem meta, e a partir do
+    dia 31 a agência propõe metas com base no que o próprio canal mostrou.
+  </div>
+</section>
+
+<!-- ─────────── 12 ─────────── -->
+<section id="s12">
+  <div class="sh"><span class="sn">12</span><h2>Provas e números autorizados</h2></div>
+  <p class="sdek">
+    Esta é a única fonte de números para peça. O que não estiver aqui não vai ao ar sem
+    passar por nós — inclusive número que "todo mundo sabe".
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Afirmação</th><th>Status</th><th>Observação de uso</th></tr></thead>
+      <tbody>
+        <tr><th>11 fontes lidas na origem</th><td><span class="chip ok">liberado</span></td><td>10 casas de apostas + 1 exchange on-chain. Conferir o número neste documento antes de cada campanha: ele cresce.</td></tr>
+        <tr><th>3 motores de sportsbook mapeados</th><td><span class="chip ok">liberado</span></td><td>Kambi, BetConstruct e Altenar. Não citar marcas de casas que ainda não lemos.</td></tr>
+        <tr><th>Mais de 150 marcas rodam nesses motores</th><td><span class="chip ok">liberado</span></td><td>Dado público dos fabricantes. Redigir como <b>alcance potencial</b>, nunca como "150 casas suportadas" — seria mentira.</td></tr>
+        <tr><th>94,5% de acerto em casa nunca vista</th><td><span class="chip ok">liberado</span></td><td>Acerto de <b>categoria de mercado</b> em teste sem configuração prévia. Sempre citar com essa qualificação.</td></tr>
+        <tr><th>27 categorias de mercado</th><td><span class="chip ok">liberado</span></td><td>Vocabulário fechado do padrão.</td></tr>
+        <tr><th>Mais de 25 mil apostas processadas</th><td><span class="chip ok">liberado</span></td><td>Base migrada e reconciliada da primeira carteira. Não usar como "número de usuários".</td></tr>
+        <tr><th>Número de clientes ou de usuários</th><td><span class="chip no">proibido</span></td><td>Estamos em pré-lançamento. Qualquer número aqui envelhece mal e soa inflado.</td></tr>
+        <tr><th>Preço e planos</th><td><span class="chip wait">pendente</span></td><td>Tabela ainda não fechada. Nenhuma peça cita valor.</td></tr>
+        <tr><th>Resultado financeiro de usuário</th><td><span class="chip no">proibido</span></td><td>Nunca, em nenhum formato — nem anonimizado, nem "um cliente nosso fez X".</td></tr>
+        <tr><th>Comparação nominal com concorrente</th><td><span class="chip wait">caso a caso</span></td><td>Só com verificação na fonte na mesma semana e revisão nossa. Descrever escopo, nunca qualidade.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─────────── 13 ─────────── -->
+<section id="s13">
+  <div class="sh"><span class="sn">13</span><h2>Entregáveis e próximos passos</h2></div>
+
+  <h3 class="sub3"><span class="nn">13.1</span>O que esperamos da agência na Fase 1</h3>
+  <div class="assets">
+    <div class="asset"><span class="box"></span><div><div class="at">Kit de social</div><div class="ad">Grade de perfil, capas, avatar e 3 modelos de carrossel dentro do sistema visual</div></div></div>
+    <div class="asset"><span class="box"></span><div><div class="at">Modelos de vídeo</div><div class="ad">Abertura, legenda e encerramento padronizados para corte vertical e horizontal</div></div></div>
+    <div class="asset"><span class="box"></span><div><div class="at">Calendário editorial</div><div class="ad">90 dias mapeados por pilar, canal e formato</div></div></div>
+    <div class="asset"><span class="box"></span><div><div class="at">Guia de aplicação</div><div class="ad">Extensão deste briefing para os suportes que a agência criar</div></div></div>
+    <div class="asset"><span class="box"></span><div><div class="at">Página de captura</div><div class="ad">Lista de espera, alinhada à landing do usuário final</div></div></div>
+    <div class="asset"><span class="box"></span><div><div class="at">Plano de mídia</div><div class="ad">Cenários de verba, condicionado ao parecer jurídico da seção 8.2</div></div></div>
+    <div class="asset"><span class="box"></span><div><div class="at">Kit de imprensa</div><div class="ad">Descritivos curto e longo, biografias, logos e capturas de tela aprovadas</div></div></div>
+    <div class="asset"><span class="box"></span><div><div class="at">Versão em inglês</div><div class="ad">Adaptação das mensagens-chave para teste internacional na Fase 2</div></div></div>
+  </div>
+
+  <h3 class="sub3"><span class="nn">13.2</span>O que nós entregamos à agência</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Item</th><th>Quando</th></tr></thead>
+      <tbody>
+        <tr><th>Acesso a uma base de demonstração no painel</th><td>No kick-off — é a melhor forma de entender o produto</td></tr>
+        <tr><th>Pacote de marca (tokens, fontes, logos, componentes)</th><td>No kick-off</td></tr>
+        <tr><th>Capturas de tela aprovadas, com dados fictícios</th><td>Primeira semana</td></tr>
+        <tr><th>Uma hora por semana com o time de produto</th><td>Contínuo — para o pilar 3 ter matéria-prima real</td></tr>
+        <tr><th>Revisão de peça em até 48 h</th><td>Contínuo</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub3"><span class="nn">13.3</span>Três decisões pendentes do nosso lado</h3>
+  <div class="grid g3">
+    <div class="card">
+      <span class="kicker">Decisão 1</span>
+      <h4>Preço e modelo</h4>
+      <p>Assinatura por usuário, por conta conectada ou por volume. Trava a comunicação de
+      conversão — a Fase 1 roda sem ela, a Fase 3 não.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Decisão 2</span>
+      <h4>Praça internacional prioritária</h4>
+      <p>América Latina é a expansão mais barata; Europa é a de público mais maduro. Escolher
+      uma define idioma, canal e parceiro.</p>
+    </div>
+    <div class="card">
+      <span class="kicker">Decisão 3</span>
+      <h4>Parecer jurídico</h4>
+      <p>Sem ele, mídia paga não começa. É o item de caminho crítico da Fase 1 — abrir na
+      primeira semana.</p>
+    </div>
+  </div>
+
+  <div class="call" style="margin-top:26px">
+    <span class="ct">Uma última coisa</span>
+    Este produto vende <b>desconfiança bem calibrada</b>: a ideia de que o seu próprio
+    resultado merece ser questionado antes de comemorado. Toda peça que soar como as outras
+    peças desse mercado — barulhenta, eufórica, com promessa — trabalha contra o produto,
+    por melhor que seja o desempenho dela. <b>Na dúvida, seja mais sóbrio.</b>
+  </div>
+</section>
+
+<footer class="docfoot">
+  <span>SHARPEN · FDC CAPITAL</span>
+  <span>BRIEFING DE MARCA E PRODUTO · v1 · 27/07/2026</span>
+  <span class="r">DOCUMENTO INTERNO · NÃO DISTRIBUIR · 18+</span>
+</footer>
+
+</main>
+</div>
+
+<script>
+(function(){
+  /* Rail: marca a seção visível. Documento longo — sem isso a agência se perde. */
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); })
+                  .filter(Boolean);
+  if (!secs.length || !('IntersectionObserver' in window)) return;
+
+  var visiveis = new Set();
+  function pintar(){
+    var alvo = null;
+    for (var i = 0; i < secs.length; i++){
+      if (visiveis.has(secs[i].id)){ alvo = secs[i].id; break; }
+    }
+    links.forEach(function(a){
+      a.classList.toggle('on', a.getAttribute('href') === '#' + alvo);
+    });
+  }
+  var io = new IntersectionObserver(function(ents){
+    ents.forEach(function(en){
+      if (en.isIntersecting) visiveis.add(en.target.id);
+      else visiveis.delete(en.target.id);
+    });
+    pintar();
+  }, { rootMargin: '-10% 0px -70% 0px', threshold: 0 });
+  secs.forEach(function(s){ io.observe(s); });
+})();
+</script>
