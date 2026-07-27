@@ -128,6 +128,22 @@ O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem
 
 **Fonte canônica (implementação):** `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. Esta tabela documenta o comportamento do código; ao mudar a lógica de dedup, **o código é a verdade** (atualize a tabela depois).
 
+### Mexeu em `casa` ou `parceiro` de um bilhete? Recalcule a assinatura.
+
+`casa` e `parceiro` entram no hash de `_assinatura` (com ou sem código de bilhete). Trocar
+qualquer um dos dois sem recalcular deixa a linha com o hash antigo: a próxima captura
+gera uma assinatura nova, não colide com nada, o UPSERT não dedupa e **o histórico
+duplica inteiro**. Vale para renomear conta, unificar casa, mover bilhete e backfill.
+
+Quem já faz certo: `renomear_parceiro()`, `atualizar_bilhete()` (via `_assinatura_pos_edicao`),
+`scripts/unificar_casas.py` e `scripts/reparar_orfaos_parceiro.py`. Reuse o laço de
+`_counter` deles — duas linhas de conteúdo idêntico precisam escalar, não colidir.
+
+`casa` é **texto** em `bilhetes`, `parceiros`, `casas_meta`, `casa_config`, `correcoes`,
+`uso_tokens` e `tipsters.casas`: cada grafia é uma casa **diferente** no sistema. Ao criar
+conta, `repository.casa_canonica()` reusa a grafia que já existe; casa nova entra
+**verbatim** (nunca title-casear — mutilar nome cria conta paralela).
+
 ---
 
 ## Regra de cashout (planilha-compatível)
