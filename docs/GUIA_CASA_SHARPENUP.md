@@ -159,6 +159,22 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 ## Fase 7 — Soltar e validar ao vivo
 
 1. **Bump da `version` no `manifest.json`** — sem isso ninguém é avisado de que há versão nova.
+   Qual dígito subir:
+
+   | Dígito | Quando | Exemplo |
+   |---|---|---|
+   | **MAJOR** | Quebra de compatibilidade com o backend — a build antiga **para de capturar**, não só fica desatualizada. É o sinal de "atualize agora". | ainda não houve |
+   | **MINOR** | Mecanismo novo de captura ou de distribuição; contrato novo retrocompatível. | `0.3.0` Betfair por JSON (nasce o `*_inject` passivo) · `0.4.0` link fixo + aviso de versão · `0.5.0` hook `wager-filter` · `0.6.0` bet365 por rota |
+   | **PATCH** | Casa nova sobre mecanismo que já existe, fix, ajuste de parser, casa espelho. | `0.6.23` KTO · `0.6.25` Tivo · `0.6.30` VaideBet · `0.6.32` Betfast |
+
+   > **Casa nova quase sempre é PATCH.** O minor é da *técnica*, não da contagem de casas —
+   > 4 casas entraram dentro do `0.6.x` sem mexer no meio. Ficar em `0.x` indefinidamente é
+   > esperado: a extensão **não vai para a Chrome Web Store** (a loja não aprova extensão de
+   > apostas) e a distribuição é manual pelo link fixo, para sempre — então não existe marco
+   > externo para forçar um `1.0.0`.
+
+   A comparação é numérica por tupla (`_versao_tupla` em `app/main.py`), então `0.6.30 > 0.6.9`.
+   Não há pressa técnica de virar o meio.
 2. Commit + push (deploy Railway automático). `STATUS.md` na mesma sessão.
 3. Peça ao operador: **recarregar a extensão** e **Ctrl+Shift+R na aba da casa** — recarregar
    a extensão *não* re-injeta em aba já aberta (armadilha recorrente).
