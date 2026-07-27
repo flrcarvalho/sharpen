@@ -71,9 +71,13 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 .ph .tick { width: 3px; height: 15px; border-radius: 3px; background: var(--accent); flex: none; }
 .ph h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--accent-2); }
 .ph .meta { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
-/* Novidades: faixa larga de anúncios de release (dev-controlada, mesma p/ todos os donos).
-   Reusa a casca .panel/.ph; badge "novo" some depois que o dono vê (localStorage por dono). */
-.novidades { margin-bottom: 2px; }
+/* Novidades: DUAS caixas lado a lado (dev-controladas, mesmas p/ todos os donos).
+   ESQUERDA = novidades do Sharpen (painel/site). DIREITA = SharpenUp, versão a versão.
+   Mesma proporção das colunas de baixo (.body) para as bordas alinharem; quando só uma
+   das duas tem conteúdo, `.solo` faz ela ocupar a linha inteira.
+   Reusam a casca .panel/.ph; badge "novo" some depois que o dono vê (localStorage por dono). */
+.novrow { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; margin-bottom: 2px; align-items: start; }
+.novrow.solo { grid-template-columns: 1fr; }
 .novidades .ph .nv-new { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); background: rgba(var(--accent-rgb), .14); border-radius: 999px; padding: 2px 8px; }
 .nvlist { display: flex; flex-direction: column; }
 .nvrow { display: flex; gap: 13px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
@@ -83,6 +87,25 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 .nvrow .nv-tag { align-self: flex-start; font-family: var(--font-mono); font-size: 10px; letter-spacing: .03em; color: var(--accent-2); background: rgba(var(--accent-rgb), .10); border: 1px solid rgba(var(--accent-rgb), .28); border-radius: var(--r-sm); padding: 1px 8px; }
 .nvrow .nv-title { font-size: 13px; font-weight: 700; color: var(--ink); }
 .nvrow .nv-text { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+/* Lista de itens da entrada (opcional): explica o COMO sem virar parágrafo longo. */
+.nv-itens { list-style: none; margin: 3px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.nv-itens li { position: relative; padding-left: 14px; font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.nv-itens li::before { content: ''; position: absolute; left: 2px; top: 7px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent-2); }
+/* Mark do SharpenUp no cabeçalho — mesmo kit da /extensao (lâmina + wordmark), na
+   geometria de chip desta tela (24×24, raio 7, fundo steel). Cor só de token. */
+.su-mark { width: 24px; height: 24px; border-radius: 7px; background: var(--fdc-steel); border: 1px solid var(--line); display: inline-grid; place-items: center; flex: none; }
+.su-mark svg { width: 9px; height: 17px; display: block; }
+.ph h3.su-wm { color: var(--ink); letter-spacing: -.02em; }
+.ph h3.su-wm span { color: var(--accent-2); }
+/* Linha da caixa SharpenUp: chip de versão + texto (1 linha, ou lista quando precisa
+   explicar o uso) + data. Nunca detalhe técnico — ver comentário do array SHARPENUP. */
+.svrow { display: flex; align-items: flex-start; gap: 11px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.svrow:last-child { border-bottom: 0; }
+.svrow .sv-v { font-family: var(--font-mono); font-size: 10px; color: var(--accent-2); background: rgba(var(--accent-rgb), .10); border: 1px solid rgba(var(--accent-rgb), .28); border-radius: var(--r-sm); padding: 1px 7px; flex: none; min-width: 58px; text-align: center; }
+.svrow .sv-b { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.svrow .sv-t { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.svrow .sv-t b { color: var(--ink); font-weight: 600; }
+.svrow .sv-d { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); flex: none; padding-top: 2px; }
 .plist { display: flex; flex-direction: column; }
 /* Painel "Apostas em Aberto": lista cresce e rola por dentro para o rodapé
    (Capital em aberto) ficar fixo na base do box; excedente vira toggle. */
@@ -155,7 +178,7 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 
 @media (max-width: 1100px) {
   .kpis { grid-template-columns: 1fr 1fr; }
-  .body, .duo { grid-template-columns: 1fr; }
+  .body, .duo, .novrow { grid-template-columns: 1fr; }
   .main { padding: 22px 18px 26px; }
 }
 </style>
@@ -183,9 +206,18 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
     <div class="kpi"><div class="k">Contas ativas</div><div class="v plain" id="kpi-contas">—</div><div class="d" id="kpi-contas-d">—</div></div>
   </div>
 
-  <div class="panel novidades" id="novidades" style="display:none">
-    <div class="ph"><span class="tick"></span><h3>Novidades</h3><span class="nv-new" id="nv-new" hidden>novo</span><span class="meta">atualizações do Sharpen</span></div>
-    <div class="nvlist" id="nv-list"></div>
+  <div class="novrow" id="novrow" style="display:none">
+    <div class="panel novidades" id="novidades" style="display:none">
+      <div class="ph"><span class="tick"></span><h3>Novidades</h3><span class="nv-new" id="nv-new" hidden>novo</span><span class="meta">atualizações do Sharpen</span></div>
+      <div class="nvlist" id="nv-list"></div>
+    </div>
+    <div class="panel novidades" id="supanel" style="display:none">
+      <div class="ph">
+        <span class="su-mark"><svg viewBox="40 10 40 100" aria-hidden="true"><path d="M60 16 L60 90 L42 104 Z" fill="var(--accent)"></path><path d="M60 16 L78 104 L60 90 Z" fill="var(--ink-mute)"></path></svg></span>
+        <h3 class="su-wm">Sharpen<span>Up</span></h3><span class="nv-new" id="su-new" hidden>novo</span><span class="meta">versão a versão</span>
+      </div>
+      <div class="nvlist" id="su-list"></div>
+    </div>
   </div>
 
   <div class="body">
@@ -322,35 +354,89 @@ function destaques(map,noun,kind){
 }
 
 // ── Novidades ────────────────────────────────────────────────────────────────
-// Changelog dev-controlado (mesmo p/ todos os donos). Nova entrada no TOPO a cada
-// release. `data` = 'AAAA-MM-DD'. O painel some sozinho quando não há entrada recente
-// (janela NOV_DIAS); o badge "novo" some depois que o dono vê (localStorage por dono).
+// DOIS changelogs dev-controlados (mesmos p/ todos os donos), lado a lado:
+//   NOVIDADES  → o que mudou no Sharpen (painel/site). Entrada nova no TOPO.
+//                `data`='AAAA-MM-DD'; some da home depois de NOV_DIAS.
+//   SHARPENUP  → a extensão, VERSÃO A VERSÃO. É histórico: mostra sempre as
+//                SU_MAX últimas, não some por idade.
+// Os dois aceitam `texto` e/ou `itens[]` (lista curta), com **negrito** no meio.
+// REGRA DE CONTEÚDO DO SHARPENUP (Feca): nunca detalhe técnico — "nova casa X",
+// "melhorias na extração da X". Explicar COMO SE USA pode; como foi feito, não.
 const NOVIDADES=[
-  {id:'sharpenup-050-pinnacle', data:'2026-07-21', tag:'SharpenUp v0.5.0', titulo:'Extração da Pinnacle',
-   texto:'O SharpenUp agora puxa seus bilhetes da Pinnacle automaticamente — abertas e encerradas numa rodada só. Baixe a nova versão em Extração › Conectar SharpenUp.'},
+  {id:'sharpen-sugerir-tipsters', data:'2026-07-18', tag:'Sharpen', titulo:'Sugerir tipsters — o Sharpen indica o dono do bilhete',
+   texto:'Na Extração, o botão **Sugerir tipsters** pega cada bilhete que ficou sem tipster e compara com os perfis cadastrados em **Gestão › Tipster / Método**. A decisão sai de quatro sinais:',
+   itens:[
+     '**Casa** — casa dedicada a um tipster já é indicação direta.',
+     '**Esporte** — se o tipster não trabalha aquele esporte, ele é eliminado na hora (nunca cai Futebol para quem só faz E-Sports).',
+     '**Mercado** — mercado que só um tipster usa pesa muito mais que mercado que todo mundo usa.',
+     '**Stake** — o jeito da stake: final, valor fixo ou os centavos reservados (ex.: sempre termina em 21). É o sinal mais forte, e stake incompatível elimina o candidato em vez de só pontuar menos.',
+   ],
+   fecho:'Ele só preenche quando um perfil ganha com folga clara: **empate ou sinal fraco fica em branco**, porque errar o dono é pior que deixar vazio. Por isso quanto mais completo o perfil em Tipster / Método — casas, esportes, mercados e a dica de stake —, menos bilhete sobra pra você atribuir na mão. A própria tela sugere esses campos a partir das suas apostas: é só ticar.'},
 ];
-const NOV_DIAS=45;   // janela de recência: a novidade some da home depois disso
+const SHARPENUP=[
+  {id:'su-0630', v:'v0.6.30', data:'2026-07-26', texto:'Nova casa: **VaideBet**.'},
+  {id:'su-0626', v:'v0.6.26', data:'2026-07-26', texto:'**Betfair**: abertas e encerradas na mesma captura.'},
+  {id:'su-0625', v:'v0.6.25', data:'2026-07-25', texto:'Nova casa: **Tivo**.'},
+  {id:'su-0623', v:'v0.6.23', data:'2026-07-25', texto:'Melhorias na extração da **KTO**.'},
+  {id:'su-0622', v:'v0.6.22', data:'2026-07-24', texto:'Nova casa: **bet365**. A captura é pelo **Histórico de Apostas**, uma janela por vez.',
+   itens:[
+     'Na bet365, escolha a janela: **Últimas 24 horas**, **Últimas 48 horas** ou **Período**. Cada uma é uma captura.',
+     'O SharpenUp só enxerga o que já está **carregado na tela**. Clique em **"Mostrar mais"** até a lista chegar onde você quer — o que não foi expandido não é capturado.',
+     'As janelas de 24 e 48 horas trazem as apostas **feitas** naquele intervalo. Aposta mais antiga que só liquidou agora não aparece ali.',
+     'Pra fechar bilhete que ficou preso em "aguardando resultado", rode **Período** cobrindo desde o dia em que a aposta foi feita. Pode repetir sem medo: não duplica.',
+   ]},
+  {id:'su-050', v:'v0.5.0', data:'2026-07-21', texto:'Nova casa: **Pinnacle**.'},
+];
+const NOV_DIAS=45;   // janela de recência do painel do Sharpen (a caixa some depois disso)
+const SU_MAX=6;      // quantas versões a caixa do SharpenUp mostra (histórico, sem prazo)
 function novSeenLoad(dono){try{return new Set(JSON.parse(localStorage.getItem('sharpen_novidades_seen::'+(dono||'_'))||'[]'));}catch(e){return new Set();}}
 function novSeenSave(dono,set){try{localStorage.setItem('sharpen_novidades_seen::'+(dono||'_'),JSON.stringify([...set]));}catch(e){}}
+// Texto do changelog: escapa PRIMEIRO (segue XSS-safe) e só então converte **x** em <b>.
+function novRich(s){return esc(s||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');}
+function novItens(a){return (a&&a.length)?'<ul class="nv-itens">'+a.map(i=>'<li>'+novRich(i)+'</li>').join('')+'</ul>':'';}
+// Data pt-BR direto da string (fuso local, nunca UTC — senão 21/07 vira 20/07 à noite no BR).
+function novDia(iso){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');return m?(m[3]+'/'+m[2]):'';}
 function renderNovidades(dono){
+  const seen=novSeenLoad(dono);
+  const vistos=[];          // ids exibidos nesta visita (marcados no fim, nos DOIS painéis)
+  let algum=false;
+
+  // ── Painel do Sharpen (recência) ──
   const lim=Date.now()-NOV_DIAS*24*3600*1000;
   const vis=NOVIDADES.filter(n=>{const t=Date.parse(n.data);return isNaN(t)||t>=lim;});
-  if(!vis.length)return;   // nada recente → painel fica escondido
-  const seen=novSeenLoad(dono);
-  const temNovo=vis.some(n=>!seen.has(n.id));
-  el('nv-list').innerHTML=vis.map(n=>{
-    // Data pt-BR direto da string (fuso local, nunca UTC — senão 21/07 vira 20/07 à noite no BR).
-    const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(n.data||''); const dl=m?(m[3]+'/'+m[2]):'';
-    return '<div class="nvrow"><div class="nv-date">'+esc(dl)+'</div><div class="nv-body">'+
+  if(vis.length){
+    el('nv-list').innerHTML=vis.map(n=>
+      '<div class="nvrow"><div class="nv-date">'+esc(novDia(n.data))+'</div><div class="nv-body">'+
       (n.tag?'<span class="nv-tag">'+esc(n.tag)+'</span>':'')+
       (n.titulo?'<span class="nv-title">'+esc(n.titulo)+'</span>':'')+
-      (n.texto?'<span class="nv-text">'+esc(n.texto)+'</span>':'')+
-      '</div></div>';
-  }).join('');
-  const badge=el('nv-new'); if(badge)badge.hidden=!temNovo;
-  el('novidades').style.display='';
+      (n.texto?'<span class="nv-text">'+novRich(n.texto)+'</span>':'')+
+      novItens(n.itens)+
+      (n.fecho?'<span class="nv-text">'+novRich(n.fecho)+'</span>':'')+
+      '</div></div>').join('');
+    el('nv-new').hidden=!vis.some(n=>!seen.has(n.id));
+    el('novidades').style.display=''; algum=true;
+    vis.forEach(n=>vistos.push(n.id));
+  }
+
+  // ── Caixa do SharpenUp (histórico: últimas SU_MAX, sem janela de idade) ──
+  const sv=SHARPENUP.slice(0,SU_MAX);
+  if(sv.length){
+    el('su-list').innerHTML=sv.map(s=>
+      '<div class="svrow"><span class="sv-v">'+esc(s.v||'')+'</span><div class="sv-b">'+
+      (s.texto?'<span class="sv-t">'+novRich(s.texto)+'</span>':'')+
+      novItens(s.itens)+
+      '</div><span class="sv-d">'+esc(novDia(s.data))+'</span></div>').join('');
+    // Badge "novo" da extensão respeita a recência (o histórico fica, o aviso não).
+    el('su-new').hidden=!sv.some(s=>!seen.has(s.id)&&Date.parse(s.data)>=lim);
+    el('supanel').style.display=''; algum=true;
+    sv.forEach(s=>vistos.push(s.id));
+  }
+
+  if(!algum)return;                                   // nada a mostrar → linha some
+  const row=el('novrow'); row.style.display='';
+  row.classList.toggle('solo',!vis.length||!sv.length);   // só uma caixa → largura inteira
   // Marca as visíveis como vistas → o badge some na PRÓXIMA visita (não nesta).
-  vis.forEach(n=>seen.add(n.id)); novSeenSave(dono,seen);
+  vistos.forEach(id=>seen.add(id)); novSeenSave(dono,seen);
 }
 
 /* boot(force) — monta a tela inteira a partir das 4 rotas.
