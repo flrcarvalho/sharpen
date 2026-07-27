@@ -251,11 +251,23 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 
 ## 15. Exemplos golden (bilhetes reais)
 
-<!-- TODO: a casa acabou de entrar (s209) e ainda NÃO houve extração real validada ponta a
-     ponta. Preencher com o primeiro lote conferido contra a planilha — sem isso, exemplo
-     aqui seria chute com cara de gabarito. A regressão da CAPTURA (campos, data, odd,
-     status, aberta × potencial) já está travada em `extensor/harness/casos/vaidebet.mjs`,
-     com 12 bilhetes reais + 3 casos sintéticos. -->
+Primeiro lote real (s210 · 22 bilhetes · conferido linha a linha contra o card):
+
+```text
+26/07/2026	Futebol		VaideBet		Múltipla	Yuri Alberto - Over 0.5 Chutes no Gol [Bahia v Corinthians] // Ademir - Over 0.5 Chutes no Gol [Bahia v Corinthians]	30,00	3	L	5234878919
+26/07/2026	Futebol		VaideBet		Escanteios	Ambas equipes 2+ Escanteios - 1º Tempo [Bahia v Corinthians]	30,00	2,5	W	5232940855
+24/07/2026	Baseball		VaideBet		Outros	LA Dodgers e Mais de 8.5 [New York Mets v LA Dodgers]	30,00	3,3	L	5227473386
+22/07/2026	Futebol		VaideBet		Anytime	Calleri Jonathan [São Paulo v Athletico-PR]	300,00	3,1	L	5215693271
+27/07/2026	Futebol		VaideBet		Múltipla	Bahia (F) para marcar em ambos os tempos: Sim [Bahia (F) v Botafogo (F)] // Over 2.5 Gols [Bahia (F) v Botafogo (F)]	30,00	3		5236294996
+```
+
+Por que estes cinco: bet builder de **prop de jogador** (prova que vai para `Chutes no Gol`, não `Player Props`) · simples de escanteio · o **combinado** do beisebol em `Outros` com o esporte no valor oficial · o `Anytime` cuja **data é do evento (22/07), não da colocação (20/07)** · e uma **aberta**, com Resultado **vazio** apesar de o payload trazer `totalWin: 90`.
+
+<!-- Os 2 erros do lote (esporte "Beisebol" e 2 datas com 1 dia de atraso) foram corrigidos
+     no banco e viraram trava no harness / validação no §14 — ver STATUS s210. -->
+
+A regressão da CAPTURA (campos, data, odd, status, aberta × potencial, rótulo do esporte)
+está travada em `extensor/harness/casos/vaidebet.mjs`: 12 bilhetes reais + 3 sintéticos.
 
 ---
 
@@ -268,5 +280,5 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 ---
 
 VERSÃO: 2026
-STATUS: CAPTURA COMPLETA (harness verde) · mapa de mercados **fechado** (§9) · golden a preencher (§15) · **sem validação ao vivo**
+STATUS: CAPTURA COMPLETA (harness verde) · mapa de mercados **fechado** (§9) · **validada ao vivo** (s210 — 22 bilhetes, 2 defeitos achados e corrigidos, golden em §15)
 CASA: VaideBet
