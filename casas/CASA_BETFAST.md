@@ -57,15 +57,21 @@ Filtro de aba (`result` na mensagem): omitido = tudo · `0` aberta · `2` ganha 
 
 > ⚠ **`from`/`to` são epoch em MILISSEGUNDOS.** Em segundos a API devolve `Count: 0` com `Error: null` — some tudo sem erro nenhum.
 
-### 2.1.1 ⚠ `Count: 50` — fim autoritativo ou teto? MEDIDO E NÃO RESOLVIDO
+### 2.1.1 ⭐ `Count: 50` é TETO DA CONSULTA, não fim de conta — e a varredura fura
 
-A primeira coleta real (27/07/2026) respondeu **`Count: 50` com exatamente 50 bilhetes**. Na Tivo o `Count` era 24, então o limite **nunca foi exercitado num número redondo** — e 50 é tamanho de página típico.
+A primeira coleta real (27/07/2026) respondeu **`Count: 50` com exatamente 50 bilhetes**. Na Tivo o `Count` era 24, então esse limite **nunca tinha sido exercitado**.
 
-"A conta acabou" e "o servidor cortou no teto" chegam com **a mesma cara**. Se for teto, o robô declara fim e o histórico anterior some **sem erro nenhum** — a mesma família de falha que custou 39 de 61 bilhetes na s179.
+**Confirmado pelo operador:** a lista da Betfast **para nesse limite e não tem "mostrar mais" nem carregamento automático**. Ou seja, `Tickets.length === Count` significa **"a consulta encheu"**, não "a conta acabou". Um bilhete mais antigo que o teto seria **invisível para sempre, sem erro nenhum** — a mesma família de falha que custou 39 de 61 bilhetes na s179.
 
-Enquanto a medição não é feita, o inject **não fica calado**: a partir de `Count >= 50` ele levanta `tetoSuspeito` e o painel avisa o operador. Travado em `casos/betfast.mjs`.
+**A tela não mostra, mas a API entrega.** O `gethistory` aceita `to`, então o robô não aposta numa leitura: ao tocar o teto ele **pergunta** — pede tudo anterior ao bilhete mais antigo que já tem e repete até uma janela voltar sem novidade.
 
-**Como medir (30 s):** rolar "Minhas apostas" até o fim e ver se existe bilhete anterior ao mais antigo recebido (na amostra: `291798971`, 23/05/2026). Se existir, é teto → a captura precisa de varredura por janelas `from`/`to`, e isso vale para as duas casas.
+| desfecho | o que significa | o que o operador vê |
+|---|---|---|
+| 1ª janela volta vazia | o teto era mesmo o total | nada (custou 1 requisição) |
+| janelas trazem bilhetes | havia histórico escondido | *"a captura foi além do teto: N bilhetes, mais do que a tela mostra"* |
+| varredura não concluiu | rede caiu / teto de 40 janelas | aviso para rodar de novo antes de considerar o período fechado |
+
+A varredura **só roda quando o teto foi tocado** e **não roda com janela de dias pedida** (aí o corte é intencional do operador). A Tivo, com `Count 24`, nunca entra nesse ramo — o caminho provado dela segue intacto. Os dois desfechos estão travados em `casos/betfast.mjs`, inclusive com uma "página 2" sintética que só existe pela API.
 
 ### 2.2 Tipo do bilhete declarado
 
@@ -104,7 +110,7 @@ Lista tabular: `Status · Id · Data · Tipo · Valor apostado · ODDS · Quanti
 | `Items[].CalculatedBetAmount` | ⚠ **rateio** da stake por perna | não é stake |
 | `CashOut` / `PossibleCashout` | flags de cashout | sem caso na amostra (§7) |
 | `IsBonus` / `IsSystem` | bônus / aposta de sistema | sem caso na amostra (§8) |
-| `Count` | total de bilhetes da consulta | fim declarado — **ver a ressalva do §2.1.1** |
+| `Count` | bilhetes **desta consulta** | ⚠ é teto, não total da conta — ver §2.1.1 |
 
 ---
 
@@ -130,13 +136,13 @@ A Betfast expõe as duas, e elas divergem:
 
 Fuso: `ActionTime` e `Game.StartTime` são **epoch ms UTC** → converter para America/Sao_Paulo. Confirmado contra o card: `ActionTime 15:22:02Z` aparece como `12:22`.
 
-### 4.1 ⚠ A exceção da odd oferecida — fuso NÃO confirmado
+### 4.1 A exceção da odd oferecida — string sem fuso, lida como horário do Brasil
 
-O `OfferedOddObject.StartTime` é **string ISO sem `Z`** (`"2026-07-02T00:00:00"`), enquanto todo o resto do motor é epoch ms UTC. O inject força `Z` (lê como UTC) **por consistência com o próprio motor — isso é hipótese declarada, não leitura de tela.**
+O `OfferedOddObject.StartTime` é **string ISO sem offset** (`"2026-07-02T00:00:00"`), enquanto todo o resto do motor é epoch ms UTC.
 
-Risco confinado: nos 4 bilhetes da amostra a escolha só muda o **dia** em um, o `296275825` (USA x Bósnia) — 01/07 se UTC, 02/07 se já for local.
+**Decisão do Feca (s211): tratar como horário do Brasil** — o valor literal da string é a hora local. O inject carimba `-03:00` explicitamente, e não deixa o JS resolver: `new Date("2026-07-02T00:00:00")` usa o fuso **da máquina**, então o mesmo bilhete daria data diferente num operador fora do país. Offset fixo (não `America/Sao_Paulo`) porque o Brasil não opera horário de verão desde 2019 e todo histórico aqui é posterior; string que já traga offset ou `Z` é respeitada como veio.
 
-**Como medir:** abrir esse bilhete na casa e ler o horário do jogo que a tela mostra. Enquanto não for feito, fica registrado como hipótese aqui e no `casos/betfast.mjs`.
+Efeito nos 4 bilhetes: em 3 muda só a hora; no `296275825` (USA x Bósnia) muda o **dia** — fica **02/07**, não 01/07. É a linha do harness que acusa se alguém reverter o offset.
 
 ---
 
@@ -324,7 +330,7 @@ Três coisas a saber:
 2. **A casa conta como `Simples`** (`Items.length === 1`), mas são N seleções do **mesmo evento**: é bet builder. O bloco emite `Tipo: Aposta turbinada da casa (bet builder — 3 seleções do mesmo evento)` para a IA não classificar como simples e perder as outras seleções da descrição.
 3. **A odd é o `Koef` do bilhete**, não o produto das sub-seleções (6,4237 contra 9,51) nem os preços internos. A oferta tem preço negociado pela casa.
 
-Data do evento: `OfferedOddObject.StartTime` — **ver a ressalva de fuso do §4.1**.
+Data do evento: `OfferedOddObject.StartTime`, lido como horário do Brasil (§4.1).
 
 Na amostra, os 4 são de futebol (Copa do Mundo). Esporte declarado: `Soccer` → `Futebol` pelo `MASTER_ESPORTES`.
 
@@ -336,7 +342,7 @@ Na amostra, os 4 são de futebol (Copa do Mundo). Esporte declarado: `Soccer` �
 - **Perna `Result: 1` = anulada** → o `Koef` inclui ela e superestima o retorno; em `W` vale `Retorno ÷ Stake` (§5.2).
 - Data: card mostra colocação; o TSV quer o **evento mais recente** (8 em 50 mudam de dia).
 - `ItemType: 6` sai mudo se não ler o `OfferedOddObject` (§12.1) — e os rótulos vêm em inglês.
-- `Count == Tickets.length` **não prova** conta inteira nesta casa enquanto o teto de 50 não for medido (§2.1.1).
+- `Count == Tickets.length` **não prova** conta inteira: é o teto da consulta, e a lista não tem "mostrar mais". A varredura retroativa por `to` é que fecha a cobertura (§2.1.1).
 - `from`/`to` em **segundos** devolvem 0 bilhetes **sem erro**.
 - `CalculatedBetAmount` ≠ stake · `Team1Score` ≠ placar.
 - Outright tem `Game: null` e `Market.Name` inútil — usar `Outright` + `OutrightGame`.
@@ -380,5 +386,5 @@ Na amostra, os 4 são de futebol (Copa do Mundo). Esporte declarado: `Soccer` �
 ---
 
 VERSÃO: 2026
-STATUS: CAPTURA COMPLETA (espelho da Tivo) · **não validada ao vivo** · 2 mercados pendentes (§9) · teto do `Count` e fuso da odd oferecida a medir · golden a preencher (§15)
+STATUS: CAPTURA COMPLETA (espelho da Tivo) · **não validada ao vivo** · 2 mercados pendentes (§9) · golden a preencher (§15)
 CASA: Betfast

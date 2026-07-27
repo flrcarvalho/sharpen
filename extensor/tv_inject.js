@@ -22,18 +22,18 @@
 //    request expõe o body). Por isso quem decide é a FORMA DA RESPOSTA: só processamos o que
 //    vier com `Tickets` em array. Mensagem que não for histórico é ignorada em silêncio.
 //
-// 2) NÃO HÁ PAGINAÇÃO. Uma única chamada devolve a conta inteira e a própria casa carimba
-//    `Count`. Provado ao vivo: `from` de 2020 devolve exatamente os mesmos bilhetes que `from`
-//    vazio. Então o "replay" aqui é UMA requisição, não um laço — o fim é autoritativo
-//    (`Error:null` + `Tickets.length === Count`), nunca heurística de tempo.
+// 2) NÃO HÁ PAGINAÇÃO NA TELA, E A CONSULTA TEM TETO. Uma chamada devolve a lista e a casa
+//    carimba `Count`; a Tivo respondeu 24, a Betfast **exatamente 50**. O operador confirmou
+//    (s211) que a lista da Betfast **para nas 50 e não tem "mostrar mais"** — ou seja
+//    `Tickets.length === Count` significa "a consulta encheu", NÃO "a conta acabou". Um
+//    bilhete mais antigo que o teto seria invisível para sempre, sem erro nenhum: a mesma
+//    família de falha que custou 39 de 61 bilhetes na s179.
 //
-//    ⚠ MEDIDO E NÃO RESOLVIDO (s211): a conta da Betfast respondeu `Count: 50` com
-//    exatamente 50 bilhetes. Na Tivo o `Count` era 24, então o limite NUNCA foi exercitado
-//    num número redondo. Se 50 for teto do servidor e não o total da conta, o fim
-//    "autoritativo" acima é falso e o resto do histórico some sem erro nenhum — a família
-//    de falha que custou 39 de 61 bilhetes na s179. Enquanto a medição não é feita (rolar
-//    a lista até o fim e ver se há algo antes do bilhete mais antigo recebido), o mínimo
-//    é NÃO ficar calado: `tetoSuspeito` sobe junto com os bilhetes e o content avisa.
+//    A API, porém, aceita `to`. Então o robô não aposta numa leitura — ele PERGUNTA: ao
+//    tocar o teto, pede tudo anterior ao bilhete mais antigo que tem e repete até uma janela
+//    voltar sem novidade (`varrerParaTras`). Se 50 era mesmo o total, custa uma requisição
+//    que volta vazia; se não era, o histórico aparece. A Tivo (24) nunca entra nesse ramo,
+//    então o caminho já provado dela segue intacto.
 //
 // ARMADILHA CONFIRMADA no dado real: `from`/`to` são epoch em MILISSEGUNDOS. Passar em
 // SEGUNDOS devolve `Count: 0` com `Error: null` — ou seja, some tudo sem erro nenhum. Toda
@@ -50,7 +50,9 @@
   let loopAtivo = false;                           // trava: um replay por vez
   let fimReplay = false;                           // a casa já entregou a lista completa
   let dias = 0;                                    // janela pedida pelo robô (0 = tudo)
-  let tetoSuspeito = false;                        // `Count` redondo: pode ser teto, não total
+  let tetoSuspeito = false;                        // a consulta encheu: `len == Count` no teto
+  let varreuAlemDoTeto = false;                    // a varredura achou bilhete além do teto
+  let tetoResolvido = false;                       // a varredura chegou ao fim: sem dúvida a reportar
   const LOG = (...a) => { try { console.log("[SharpenUp tv_inject]", ...a); } catch (e) {} };
   LOG("hook instalado em", location.href);
 
@@ -61,6 +63,9 @@
   // A partir daqui um `Count` que fecha com o nº de bilhetes deixa de ser prova de conta
   // inteira: 50 é valor de página típico. Abaixo disso (a Tivo respondeu 24) o fim é fim.
   const TETO_ALERTA = 50;
+  // Janelas retroativas na varredura. 40 × 50 = 2.000 bilhetes de folga; é rede contra laço
+  // infinito se a casa passar a ignorar o `to`, não um limite esperado de conta.
+  const TETO_JANELAS = 40;
 
   // ── normalização (BetConstruct → objeto limpo) ────────────────────────────────
   // Dinheiro e odd vêm em unidade normal (Amount 150.0 = R$ 150,00) — NÃO há milésimos aqui.
@@ -69,19 +74,19 @@
 
   // O motor mistura DUAS gramáticas de data. Os campos normais são epoch ms UTC
   // (`ActionTime`, `Game.StartTime`). Já o `OfferedOddObject` — que vem de outra parte do
-  // backend — serializa string ISO **sem `Z`** ("2026-07-02T00:00:00"). Em JS, `new Date()`
-  // de uma string sem offset é lida como hora LOCAL DA MÁQUINA: no Chrome do operador em
-  // São Paulo isso somaria 3 h por engano. Forçamos `Z` para ler como UTC, coerente com
-  // todo o resto do motor.
+  // backend — serializa string ISO **sem offset** ("2026-07-02T00:00:00").
   //
-  // ⚠ HIPÓTESE DECLARADA, NÃO MEDIDA (s211): que essa string seja UTC é dedução por
-  // consistência, não leitura de tela. Nos 4 bilhetes da amostra a escolha só muda o DIA em
-  // um (`296275825`, USA x Bósnia: 01/07 se UTC, 02/07 se local) — desempate = abrir o
-  // bilhete na casa e ler o horário do jogo. Está travado em `casos/betfast.mjs`.
+  // Decisão do Feca (s211): tratar como **horário do Brasil**. Por isso carimbamos `-03:00`
+  // explicitamente em vez de deixar o JS resolver — `new Date("2026-07-02T00:00:00")` usa o
+  // fuso DA MÁQUINA, então o mesmo bilhete daria data diferente num operador fora do país.
+  // Fixo em -03:00 e não `America/Sao_Paulo` porque o Brasil não opera horário de verão
+  // desde 2019 e todo histórico de aposta aqui é posterior; string com offset próprio
+  // (ou `Z`) é respeitada como veio.
+  const OFFSET_CASA = "-03:00";
   function _msISO(s) {
     if (typeof s !== "number" && typeof s !== "string") return null;
     if (typeof s === "number") return isFinite(s) ? s : null;
-    const t = Date.parse(/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + "Z");
+    const t = Date.parse(/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + OFFSET_CASA);
     return isFinite(t) ? t : null;
   }
 
@@ -183,7 +188,9 @@
     const msg = {
       __sharpenupTVData: true, hook: true,
       tickets: Array.from(byId.values()), respostas: respostas, fim: fimReplay,
-      tetoSuspeito: tetoSuspeito,
+      // `tetoSuspeito` = a consulta encheu · `tetoResolvido` = a varredura foi até o fim e
+      // não havia mais nada. O content só alarma o operador quando sobra dúvida.
+      tetoSuspeito: tetoSuspeito, tetoResolvido: tetoResolvido, alemDoTeto: varreuAlemDoTeto,
     };
     try { window.postMessage(msg, "*"); } catch (e) {}
     // O sportsbook v4 roda num IFRAME (mesma origem) e é DE LÁ que o gethistory sai — mas o
@@ -235,23 +242,85 @@
     return completa;
   }
 
-  // ── replay: uma requisição, sem paginação ─────────────────────────────────────
-  function corpoHistorico() {
+  // ── replay ────────────────────────────────────────────────────────────────────
+  // `ate` (opcional): epoch ms — pede tudo ANTERIOR a esse instante. É o que permite
+  // furar o teto da lista (ver `varrerParaTras`).
+  function corpoHistorico(ate) {
     // Janela de dias → `from`/`to` em MILISSEGUNDOS (segundos devolvem 0 em silêncio).
     const agora = Date.now();
     const msg = {
       countOnly: false,
       language: (reqCtx && reqCtx.language) || IDIOMA_PADRAO,
       from: dias > 0 ? agora - dias * 86400000 : "",
-      to: dias > 0 ? agora : "",
+      to: typeof ate === "number" ? ate : (dias > 0 ? agora : ""),
     };
     // Sem `result`: a consulta sem filtro traz abertas E resolvidas de uma vez.
     return JSON.stringify({ name: "gethistory", message: JSON.stringify(msg) });
   }
 
+  // Colocação mais antiga já recebida — a borda de onde a próxima janela continua.
+  function maisAntigo() {
+    let min = null;
+    for (const t of byId.values()) {
+      if (typeof t.colocada === "number" && isFinite(t.colocada) && (min === null || t.colocada < min)) min = t.colocada;
+    }
+    return min;
+  }
+
   function urlHistorico() {
     if (reqCtx && reqCtx.url) return reqCtx.url;
     try { return new URL("/api/game/p/messagetosport", location.href).href; } catch (e) { return null; }
+  }
+
+  // Uma requisição de histórico. Devolve `true` se a resposta veio completa.
+  async function consultar(alvo, ate) {
+    let r;
+    try {
+      r = await of.call(window, alvo, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: corpoHistorico(ate),
+        credentials: "include",
+      });
+    } catch (e) { LOG("erro no replay:", e && e.message); return null; }
+    if (!r || !r.ok) { LOG("replay parou · HTTP", r && r.status); return null; }
+    try { return forward(r.url || alvo, await r.text()); } catch (e) { return null; }
+  }
+
+  // ── varredura para trás: furar o teto da lista ────────────────────────────────
+  // A lista da casa PARA num teto (50 na conta da Betfast) e **não tem "mostrar mais"** —
+  // confirmado pelo operador (s211). Ou seja, `Tickets.length === Count` não significa "a
+  // conta acabou", significa "a consulta encheu". Um bilhete mais antigo que o teto seria
+  // invisível para sempre, sem erro nenhum.
+  //
+  // A API, porém, aceita `to`. Então em vez de apostar numa leitura, o robô PERGUNTA: pede
+  // tudo anterior ao bilhete mais antigo que já tem e vê se vem algo. Isso resolve os dois
+  // mundos sem depender de interpretação — se 50 era mesmo o total, a primeira janela volta
+  // vazia e custa uma requisição; se não era, o histórico aparece.
+  //
+  // Só roda quando o teto foi tocado (`tetoSuspeito`) e quando NÃO há janela de dias pedida
+  // pelo robô — com `dias` o corte é intencional do operador e não deve ser furado.
+  // A Tivo (Count 24) nunca chega aqui: o caminho provado dela segue intacto.
+  //
+  // Parada: janela que não traz NENHUM id novo (a casa ignorou o `to`, ou acabou de verdade)
+  // + teto duro de janelas. "Repetição não é fim, vazio é" — mas aqui pedimos uma faixa
+  // estritamente anterior, então repetir É sinal de fim (lição inversa da VaideBet, s210).
+  async function varrerParaTras(alvo) {
+    for (let j = 0; j < TETO_JANELAS; j++) {
+      const borda = maisAntigo();
+      if (borda == null) return;
+      const antes = byId.size;
+      const r = await consultar(alvo, borda - 1);
+      if (r === null) return;                       // erro de rede: para, sem apagar nada
+      if (byId.size === antes) {                    // nada novo → fim de verdade
+        if (j === 0) LOG("varredura: nada antes do teto — os", antes, "bilhetes são a conta inteira.");
+        tetoResolvido = true;                       // conferido: não há dúvida a reportar
+        return;
+      }
+      LOG("varredura: janela", j + 1, "trouxe", byId.size - antes, "bilhete(s) além do teto · total:", byId.size);
+      varreuAlemDoTeto = true;
+    }
+    LOG("varredura: teto de", TETO_JANELAS, "janelas atingido — pode haver mais histórico.");
   }
 
   async function arrancarReplay() {
@@ -260,21 +329,14 @@
     if (!alvo) return;
     loopAtivo = true;
     try {
+      let completa = false;
       for (let i = 0; i < TETO_TENTATIVAS; i++) {
-        let r;
-        try {
-          r = await of.call(window, alvo, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: corpoHistorico(),
-            credentials: "include",
-          });
-        } catch (e) { LOG("erro no replay:", e && e.message); break; }
-        if (!r || !r.ok) { LOG("replay parou · HTTP", r && r.status); break; }
-        let completa = false;
-        try { completa = forward(r.url || alvo, await r.text()); } catch (e) { break; }
-        if (completa) { fimReplay = true; break; }        // fim AUTORITATIVO (a casa carimbou)
+        const r = await consultar(alvo);
+        if (r === null) break;
+        if (r) { completa = true; break; }               // fim declarado pela casa
       }
+      // A casa disse "acabou" tendo enchido a consulta → conferir se há mais atrás.
+      if (completa && tetoSuspeito && !(dias > 0)) await varrerParaTras(alvo);
     } finally {
       loopAtivo = false;
       fimReplay = true;                                    // não deixa o robô esperando o teto

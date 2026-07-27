@@ -196,12 +196,17 @@
   const tvById = new Map();          // ID(string) → bilhete
   let tvFimReal = false;
   let tvHookVivo = false, tvRespostas = 0;   // autodiagnóstico
-  let tvTetoSuspeito = false;        // `Count` redondo: pode ser teto do servidor, não o total
+  // Teto da consulta: a lista da casa para num limite (50 na Betfast) e não tem "mostrar
+  // mais". `tvTetoSuspeito` = tocou o teto · `tvTetoResolvido` = a varredura retroativa foi
+  // até o fim e não havia mais nada · `tvAlemDoTeto` = ela trouxe histórico que a tela esconde.
+  let tvTetoSuspeito = false, tvTetoResolvido = false, tvAlemDoTeto = false;
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (d && d.__sharpenupTVData) {
       if (d.hook) tvHookVivo = true;
       if (d.tetoSuspeito) tvTetoSuspeito = true;
+      if (d.tetoResolvido) tvTetoResolvido = true;
+      if (d.alemDoTeto) tvAlemDoTeto = true;
       if (typeof d.respostas === "number") tvRespostas = d.respostas;
       if (Array.isArray(d.tickets)) {
         const aberto = (t) => t.status === 5 || t.resultado === 0;
@@ -2065,18 +2070,24 @@
     }
     await sleep(400);
     processar();
-    // "A conta acabou" e "o servidor cortou no teto" chegam idênticos (`len == Count`). Se o
-    // inject marcou suspeita, o operador PRECISA saber — a alternativa é declarar sucesso e
-    // perder o histórico antigo sem erro nenhum, que é como a s179 perdeu 39 de 61 bilhetes.
-    // Só avisa quando NÃO houve outro freio (janela de dias / stopId), senão o corte é nosso.
+    // A consulta tem teto e a lista da casa não tem "mostrar mais": `len == Count` significa
+    // "encheu", não "acabou". O inject varre para trás por `to` e resolve sozinho — o toast
+    // aqui é só para os dois desfechos que o operador precisa saber.
+    // Nada é dito quando houve outro freio (janela de dias / stopId): aí o corte é nosso.
     if (tvTetoSuspeito && !travado) {
-      toastLocal("Atenção: a casa devolveu exatamente " + tvById.size + " bilhetes e disse que " +
-                 "acabou. Pode ser o teto do servidor, não o fim da conta — role \"Minhas apostas\" " +
-                 "até o fim e confira se há algo mais antigo.", false);
+      if (tvAlemDoTeto) {
+        toastLocal("A lista da casa para no teto, mas a captura foi além dele pela API: " +
+                   tvById.size + " bilhetes no total — mais do que a tela mostra.", true);
+      } else if (!tvTetoResolvido) {
+        // A varredura não concluiu (rede caiu, teto de janelas). Não afirmar cobertura.
+        toastLocal("Atenção: a casa devolveu " + tvById.size + " bilhetes, no limite da consulta, " +
+                   "e não deu para conferir se há histórico mais antigo. Rode de novo antes de " +
+                   "considerar o período fechado.", false);
+      }
     }
     console.log("[SharpenUp] Tivo/Betfast: " + blocos.length + " bilhete(s) · tvById=" + tvById.size +
                 " · hook=" + tvHookVivo + " · respostas=" + tvRespostas + " · fimReal=" + tvFimReal +
-                " · tetoSuspeito=" + tvTetoSuspeito);
+                " · teto=" + tvTetoSuspeito + " · resolvido=" + tvTetoResolvido + " · alemDoTeto=" + tvAlemDoTeto);
     return blocos;
   }
 

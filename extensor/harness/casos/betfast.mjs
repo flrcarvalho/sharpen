@@ -31,13 +31,11 @@
 // está em `OfferedOddObject`, e vem EM INGLÊS (`Soccer`, `Match result`, `shots on
 // target`), porque o `language: 33` do pedido não alcança esse objeto.
 //
-// ⚠ FUSO NÃO CONFIRMADO — a única leitura deste arquivo que NÃO saiu do card. O
-// `OfferedOddObject.StartTime` é string ISO **sem `Z`** (`"2026-07-02T00:00:00"`),
-// enquanto todo o resto do motor é epoch ms UTC. Tratamos como UTC por consistência com
-// o próprio motor. Em 3 dos 4 bilhetes a hipótese não muda o DIA (só a hora), então o
-// risco está confinado a UM bilhete: o `296275825` (USA x Bósnia) cai em 01/07 se a
-// string for UTC e em 02/07 se já for local. Desempate: abrir esse bilhete na casa e ler
-// o horário do jogo na tela. Enquanto não for feito, é hipótese declarada, não medida.
+// FUSO da odd oferecida: o `OfferedOddObject.StartTime` é string ISO **sem offset**
+// (`"2026-07-02T00:00:00"`), enquanto o resto do motor é epoch ms UTC. **Decisão do Feca
+// (s211): tratar como horário do Brasil** — o inject carimba `-03:00` em vez de deixar o
+// JS usar o fuso da máquina (que daria data diferente por operador). Os horários esperados
+// abaixo são, portanto, o valor literal da string.
 //
 // ── Como os valores abaixo foram obtidos ────────────────────────────────────────
 // Print da lista "Minhas apostas" de 27/07/2026, colunas `Status · Id · Data · Tipo ·
@@ -89,21 +87,22 @@ const ESPERADO = {
   "298254792": { data: "20/07/2026 16:12:47", evento: "21/07/2026 13:00:47", odd: "10,8108", tela: "10.81", pernas: 3, status: /^Perdeu → L/ },
 };
 
-// Os 4 `ItemType: 6`. `evento` assume o `OfferedOddObject.StartTime` como UTC (ver o aviso
-// no cabeçalho). `odd` é o `Koef` do bilhete — não o `RealPrice` nem o `CalcPrice` da
-// oferta, que são preços internos do motor e divergem (6.17 / 7.1 contra Koef 9.51).
+// Os 4 `ItemType: 6`. `evento` = o `OfferedOddObject.StartTime` lido como horário do Brasil
+// (= o valor literal da string). `odd` é o `Koef` do bilhete — não o `RealPrice` nem o
+// `CalcPrice` da oferta, que são preços internos do motor e divergem (6.17 / 7.1 contra 9.51).
 const OFERTAS = {
-  "297302630": { data: "10/07/2026 22:18:17", evento: "11/07/2026 18:00:00", odd: "9,51",
+  "297302630": { data: "10/07/2026 22:18:17", evento: "11/07/2026 21:00:00", odd: "9,51",
                  jogo: "Norway - England", esporte: "Soccer", liga: "World Cup / Quarter-finals",
                  subs: ["Match result: 2", "Kane, Harry shots on target: 2 and more", "Haaland, Erling shots on target: 2 and more"] },
-  "297051837": { data: "08/07/2026 12:34:00", evento: "09/07/2026 17:00:00", odd: "6,14",
+  "297051837": { data: "08/07/2026 12:34:00", evento: "09/07/2026 20:00:00", odd: "6,14",
                  jogo: "France - Morocco", esporte: "Soccer", liga: "World Cup / Quarter-finals",
                  subs: ["Match result: 1", "Mbappe, Kylian shots on target: 2 and more", "Total cards: Over"] },
-  // ⚠ É ESTE que desempata o fuso: 01/07 se a string for UTC, 02/07 se já for local.
-  "296275825": { data: "01/07/2026 20:55:56", evento: "01/07/2026 21:00:00", odd: "12,56",
+  // O único dos 4 em que o fuso troca o DIA: 01/07 se a string fosse UTC, 02/07 como local.
+  // Fica em 02/07 pela decisão do Feca — e é a linha que acusa se alguém reverter o offset.
+  "296275825": { data: "01/07/2026 20:55:56", evento: "02/07/2026 00:00:00", odd: "12,56",
                  jogo: "USA - Bosnia & Herzegovina", esporte: "Soccer", liga: "World Cup / 1/16-finals",
                  subs: ["Match result: 1", "Balogun, Folarin shots on target: 2 and more", "Pulisic, Christian shots on target: 2 and more"] },
-  "295233005": { data: "22/06/2026 16:56:59", evento: "22/06/2026 18:00:00", odd: "4,93",
+  "295233005": { data: "22/06/2026 16:56:59", evento: "22/06/2026 21:00:00", odd: "4,93",
                  jogo: "France - Iraq", esporte: "Soccer", liga: "World Cup / Group Stage",
                  subs: ["Total: Over", "Mbappe, Kylian shots on target: 2 and more", "Total corners: Over"] },
 };
@@ -133,15 +132,25 @@ export async function rodar() {
   testes++;
   if (tickets.length !== 50) falhas.push(`esperava 50 bilhetes na fixture, vieram ${tickets.length}`);
 
-  // ── 2. Teto do `Count` — não pode declarar fim CALADO ─────────────────────────
-  // Esta conta responde `Count: 50` == `Tickets.length`: exatamente o formato de um teto
-  // de servidor. Na Tivo o `Count` era 24 e o limite nunca foi exercitado. Enquanto não se
-  // mede se 50 é o total real ou um teto, o mínimo é NÃO ficar em silêncio — silêncio é
-  // como a s179 perdeu 39 de 61 bilhetes.
+  // ── 2. Teto do `Count` — a consulta encheu, então tem de conferir atrás ───────
+  // Esta conta responde `Count: 50` == `Tickets.length`, e o operador confirmou que a lista
+  // **para nas 50 e não tem "mostrar mais"** (s211): `len == Count` significa "a consulta
+  // encheu", não "a conta acabou". O inject marca o teto e varre para trás por `to`.
+  // Aqui o `responder` devolve sempre o MESMO corpo, então a 1ª janela retroativa não traz
+  // nada novo → a varredura conclui que os 50 são tudo (`tetoResolvido`).
   testes++;
   if (!ultima.tetoSuspeito) {
-    falhas.push("Count:50 == Tickets.length e o inject não levantou `tetoSuspeito` — " +
-                "se 50 for teto do servidor, o resto da conta some SEM AVISO");
+    falhas.push("Count:50 == Tickets.length e o inject não marcou `tetoSuspeito` — " +
+                "sem isso ele declara fim sem conferir se há histórico além do teto");
+  }
+  testes++;
+  if (!ultima.tetoResolvido) {
+    falhas.push("a varredura retroativa não rodou (ou não concluiu): sem ela, bilhete " +
+                "anterior ao teto fica invisível PARA SEMPRE, sem erro nenhum");
+  }
+  testes++;
+  if (ultima.alemDoTeto) {
+    falhas.push("`alemDoTeto` ligado sendo que a janela retroativa não trouxe bilhete novo");
   }
 
   const fmt = carregarContent().pegar("formatTicketTV");
@@ -235,7 +244,7 @@ export async function rodar() {
     }
 
     const evento = linha(txt, "Data (evento mais recente):");
-    if (evento !== e.evento) falhas.push(`${id}: evento esperado ${e.evento}, veio "${evento}" (StartTime do OfferedOddObject, lido como UTC)`);
+    if (evento !== e.evento) falhas.push(`${id}: evento esperado ${e.evento}, veio "${evento}" (StartTime do OfferedOddObject, lido como horário do Brasil)`);
     const data = linha(txt, "Data (colocação):");
     if (data !== e.data) falhas.push(`${id}: colocação esperada ${e.data}, veio "${data}"`);
     const odd = linha(txt, "Odd:");
@@ -280,6 +289,63 @@ export async function rodar() {
         falhas.push(`espelho: ${diferentes.length} bloco(s) diferem entre os dois hosts (${diferentes.slice(0, 3).join(", ")}…)`);
       }
     }
+  }
+
+  // ── 7. A varredura TRAZ o histórico que a tela esconde ────────────────────────
+  // O teste acima cobre "não havia mais nada". Este cobre o caso que dói: a conta TEM
+  // bilhete além do teto e a tela não mostra. Simulamos a casa de verdade — a consulta sem
+  // `to` devolve as 50 do teto; com `to` devolve o que é mais antigo que aquele instante.
+  // Sem a varredura, esses bilhetes seriam invisíveis para sempre, sem erro nenhum.
+  {
+    const bruto = JSON.parse(corpo);
+    const ordenado = [...bruto.Tickets].sort((a, b) => (b.ActionTime || 0) - (a.ActionTime || 0));
+    const teto = ordenado.slice(0, 50);                       // o que a tela mostra
+    // Dois bilhetes fabricados ANTES do mais antigo real (23/05/2026) — a "página 2" que só
+    // existe pela API. Marcados como sintéticos: não são leitura de card.
+    const antigos = [
+      { ...ordenado[ordenado.length - 1], ID: 111111111, ActionTime: Date.parse("2026-04-10T14:00:00Z") },
+      { ...ordenado[ordenado.length - 1], ID: 222222222, ActionTime: Date.parse("2026-03-01T14:00:00Z") },
+    ];
+    const corpoDe = (lista) => JSON.stringify({ Error: null, Tickets: lista, Count: lista.length });
+
+    const r3 = await rodarInject({
+      inject: "tv_inject.js",
+      href: HREF,
+      urlInicial: API,
+      pedido: "__sharpenupTVReq",
+      ms: 900,
+      responder: (url, opts) => {
+        if (!url.includes("messagetosport")) return null;
+        let ate = null;
+        try {
+          const o = JSON.parse((opts && opts.body) || "{}");
+          const m = JSON.parse(o.message || "{}");
+          if (typeof m.to === "number") ate = m.to;
+        } catch (e) {}
+        if (ate == null) return corpoDe(teto);                       // a lista da tela
+        const fatia = antigos.filter((t) => t.ActionTime <= ate);    // só o que é mais antigo
+        return corpoDe(fatia);
+      },
+    });
+
+    const t3 = (r3.ultima && r3.ultima.tickets) || [];
+    testes++;
+    if (t3.length !== 52) {
+      falhas.push(`varredura: esperava 52 bilhetes (50 do teto + 2 além dele), vieram ${t3.length}` +
+                  (t3.length === 50 ? " — a varredura NÃO furou o teto; o histórico antigo ficaria invisível" : ""));
+    }
+    testes++;
+    if (!r3.ultima || !r3.ultima.alemDoTeto) {
+      falhas.push("varredura: trouxe bilhete além do teto mas não sinalizou `alemDoTeto`");
+    }
+    testes++;
+    const ids3 = new Set(t3.map((t) => String(t.id)));
+    for (const id of ["111111111", "222222222"]) {
+      if (!ids3.has(id)) falhas.push(`varredura: o bilhete ${id}, anterior ao teto, não foi capturado`);
+    }
+    // E não pode virar laço: a casa devolve lista vazia quando não há mais nada atrás.
+    testes++;
+    if (!r3.ultima.fim) falhas.push("varredura: não sinalizou `fim` — o robô ficaria esperando o teto de tempo");
   }
 
   return { falhas, testes };

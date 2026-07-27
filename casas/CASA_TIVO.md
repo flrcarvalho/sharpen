@@ -37,7 +37,7 @@ POST https://tivo.bet.br/api/game/p/messagetosport
 Duas consequências que mandam no desenho:
 
 1. **A mesma URL serve dezenas de mensagens** (saldo, notificações, tradução). Quem separa o histórico é a **forma da resposta**: só vale o que vier com `Tickets` em array.
-2. **Não há paginação.** Uma chamada devolve a conta inteira e a casa carimba `Count` — provado: `from` de 2020 devolve exatamente os mesmos bilhetes que `from` vazio. O **fim autoritativo** é `Error:null` + `Tickets.length === Count`.
+2. **Não há paginação na tela, e a consulta tem teto.** Uma chamada devolve a lista e a casa carimba `Count` — nesta conta, 24 (`from` de 2020 devolve os mesmos bilhetes que `from` vazio). ⚠ **Mas `Tickets.length === Count` não é prova de conta inteira:** na [`CASA_BETFAST`](CASA_BETFAST.md) (mesmo motor) a resposta veio com **50 de 50** e a lista para aí, sem "mostrar mais" — `len == Count` significa "a consulta encheu". Ao tocar esse teto o inject varre para trás por `to` até uma janela voltar vazia (`CASA_BETFAST §2.1.1`). Com 24 bilhetes esta conta nunca entra nesse ramo, mas entrará se crescer.
 
 Filtro de aba (`result` na mensagem): omitido = tudo · `0` aberta · `2` ganha · `3` perdida. O robô **não** usa o filtro: pede tudo de uma vez.
 
