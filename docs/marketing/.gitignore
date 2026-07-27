@@ -1,0 +1,4 @@
+# Gerados pelo build_fontes.py — sao a FONTE + ~75 KB de fonte em base64.
+# Ficam fora do git (blob binario nao diffa e polui o historico); regere com:
+#   python build_fontes.py <fonte>.html <fonte>.build.html
+*.build.html

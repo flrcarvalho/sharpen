@@ -18,11 +18,17 @@ silencioso e a página perderia Manrope + JetBrains Mono, que são metade da ass
 visual da marca. Por isso as duas fontes entram **embutidas em base64**.
 
 Os arquivos versionados aqui são as **fontes** (com o marcador `<!--FONTS-->`).
-O arquivo publicado é o **gerado** (~135–145 KB), que não vai para o git.
+O arquivo publicado é o **gerado** (`*.build.html`, ~135–145 KB), que fica **fora do git**
+(ver `.gitignore`): é a fonte mais ~75 KB de base64, blob binário que não diffa.
+
+> **Abrir a fonte no navegador funciona, mas sem as fontes da marca** — o marcador
+> `<!--FONTS-->` ocupa o lugar das `@font-face`, então cai em system-ui + mono genérica.
+> Para ver a página exatamente como está publicada, abra o `.build.html`.
 
 ```
-python docs/marketing/build_fontes.py docs/marketing/landing-usuario-final.html /tmp/pub-usuario.html
-python docs/marketing/build_fontes.py docs/marketing/briefing-agencia.html      /tmp/pub-agencia.html
+cd docs/marketing
+python build_fontes.py landing-usuario-final.html landing-usuario-final.build.html
+python build_fontes.py briefing-agencia.html      briefing-agencia.build.html
 ```
 
 Depois é só republicar o arquivo gerado pelo mesmo caminho de sempre — a URL do
