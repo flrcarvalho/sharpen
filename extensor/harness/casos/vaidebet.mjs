@@ -39,9 +39,11 @@ const ESPERADO = {
   // ODDS TURBINADAS (boostProperty 1, o outro tipo de boost) — a odd continua sendo totalOdds.
   "5230926410": { evento: "25/07/2026 21:30:00", data: "25/07/2026 14:04:32", odd: "2",   status: /^Perdeu → L$/, tipo: /^Simples$/ },
   "5229246530": { evento: "26/07/2026 00:00:00", data: "25/07/2026 00:12:25", odd: "4",   status: /^Ganho → W/,   tipo: /^Bet Builder \(mesmo jogo · 3 seleções\)$/, retorno: "120,00" },
-  // beisebol (sportTypeId 13) — o payload não traz o NOME do esporte, só o id.
-  "5227473386": { evento: "24/07/2026 20:10:00", data: "24/07/2026 14:24:05", odd: "3,3", status: /^Perdeu → L$/, tipo: /^Simples$/ },
-  "5226364090": { evento: "24/07/2026 19:45:00", data: "24/07/2026 02:09:54", odd: "4",   status: /^Perdeu → L$/, tipo: /^Simples$/ },
+  // beisebol (sportTypeId 13) — o payload não traz o NOME do esporte, só o id. O rótulo tem
+  // de ser o valor OFICIAL do MASTER_ESPORTES (`Baseball`); no 1º lote real ele saiu como
+  // "Beisebol" (sinônimo) e o banco ficou com duas grafias do mesmo esporte.
+  "5227473386": { evento: "24/07/2026 20:10:00", data: "24/07/2026 14:24:05", odd: "3,3", status: /^Perdeu → L$/, tipo: /^Simples$/, esporte: /^Baseball\b/ },
+  "5226364090": { evento: "24/07/2026 19:45:00", data: "24/07/2026 02:09:54", odd: "4",   status: /^Perdeu → L$/, tipo: /^Simples$/, esporte: /^Baseball\b/ },
 
   // ── abertas (DIA DIFERENTE: colocadas 26/07, eventos em 27/07) ────────────────
   "5236294996": { evento: "27/07/2026 19:00:00", data: "26/07/2026 21:14:14", odd: "3", status: /em aberto/, tipo: /^Bet Builder \(mesmo jogo · 2 seleções\)$/, aberta: true, potencial: "90,00" },
@@ -155,6 +157,13 @@ export async function rodar() {
 
     const tipo = linha(txt, "Tipo:");
     if (!e.tipo.test(tipo)) falhas.push(`${id}: tipo "${tipo}"`);
+
+    // O rótulo do esporte é copiado pela IA para a coluna Esporte: se não for o valor
+    // OFICIAL do MASTER_ESPORTES, o mesmo esporte entra no banco com duas grafias.
+    if (e.esporte) {
+      const esp = linha(txt, "Esporte:");
+      if (!e.esporte.test(esp)) falhas.push(`${id}: esporte "${esp}" não é o valor oficial do MASTER_ESPORTES`);
+    }
 
     if (e.retorno) {
       const r = linha(txt, "Retorno:");

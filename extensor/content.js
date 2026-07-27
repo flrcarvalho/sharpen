@@ -2027,7 +2027,13 @@
 
   // O payload não traz o NOME do esporte, só o id. Mapa ancorado no que foi confirmado
   // contra a tela; id fora do mapa sobe cru (a IA/CASA_VAIDEBET.md finaliza pelo evento).
-  const _ESPORTE_VB = { 1: "Futebol", 13: "Beisebol" };
+  //
+  // ⚠️ O rótulo TEM de ser o valor oficial do `MASTER_ESPORTES_2026` — a IA copia o que
+  // está escrito aqui. No 1º lote real eu tinha escrito "Beisebol" (sinônimo, não o valor
+  // oficial) e o banco saiu com as duas grafias: 3 linhas "Beisebol" + 1 "Baseball", que o
+  // sistema conta como esportes DIFERENTES. O oficial é `Baseball` (`MASTER_ESPORTES §Baseball`,
+  // onde BEISEBOL aparece como sinônimo de entrada, nunca como saída).
+  const _ESPORTE_VB = { 1: "Futebol", 13: "Baseball" };
   const _RESULT_PERNA_VB = { 0: "pendente", 1: "ganhou", 2: "perdeu" };
 
   // ISO UTC ("2026-07-26T17:34:39.79Z") → epoch ms. Data inválida vira null (nunca 0, que

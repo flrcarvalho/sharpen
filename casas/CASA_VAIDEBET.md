@@ -82,7 +82,7 @@ Cards em **grid de 2 colunas**, com faixa colorida de status no topo (`ABERTO` /
 | `selections[].eventName` | confronto (`Bahia vs. Corinthians`) | |
 | `selections[].eventScore` | **placar** (`"1:1"`) | ausente em bilhete aberto |
 | `selections[].spec` | linha/handicap em JSON (`{"1":"0.5"}`) | ruído — a linha já vem no `oddName` |
-| `selections[].sportTypeId` | esporte, **só o id** | `1` = Futebol · `13` = Beisebol (confirmados) — ver §12 |
+| `selections[].sportTypeId` | esporte, **só o id** | `1` = `Futebol` · `13` = `Baseball` (confirmados) — ver §12 |
 | `cashOutValue` / `partialCashOut` / `partialCashouts[]` | cashout | **sempre 0 na amostra** — ver §7 |
 | `bonus` / `bonusPart` / `bonusInsurance` | bônus | sem caso na amostra (§8) |
 | `isLastPage` (raiz) | **fim autoritativo** da paginação | |
@@ -214,7 +214,7 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 
 ## 12. Ruído a ignorar
 
-- **`sportTypeId` é o esporte, mas só como número.** Confirmados: `1` = Futebol, `13` = Beisebol. Há ainda `sportId` (66 / 76), numeração paralela do motor — usar `sportTypeId`. Id fora do mapa sobe cru e a IA resolve pelo evento/mercado.
+- **`sportTypeId` é o esporte, mas só como número.** Confirmados: `1` = **`Futebol`**, `13` = **`Baseball`** — os valores **oficiais** do `MASTER_ESPORTES_2026` (⚠️ "Beisebol" é sinônimo de *entrada*, nunca de saída: no 1º lote real o bloco escreveu "Beisebol" e o banco ficou com **duas grafias do mesmo esporte**, contadas como esportes diferentes). Há ainda `sportId` (66 / 76), numeração paralela do motor — usar `sportTypeId`. Id fora do mapa sobe cru e a IA resolve pelo evento/mercado.
 - `spec` (`{"1":"0.5"}`, `{"30":"4"}`) — a linha já vem legível no `oddName`/`name`.
 - `marketTypeId`, `sportMarketId`, `childMarketTypeId`, `selectionTypeId`, `marketId`, `dbId` — internos do motor.
 - `champId` / `catId` — liga e país, **só como id** (sem nome). Não há campo de liga legível no payload.
@@ -241,10 +241,11 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 
 > **Transversais (todas as casas):** ver `MASTER_PIPELINE_2026 §8` + `MASTER_OUTPUT_2026 §17–§18`. Não duplicar aqui.
 
-- Coluna Data = evento mais recente (não a colocação).
+- **Coluna Data = a linha `Data (evento mais recente):` do bloco, copiada literalmente.** Nunca inferir da vizinhança nem da ordem da lista. **Erro real no 1º lote (s210):** os dois únicos bilhetes cujo evento caía em **24/07** saíram gravados como **23/07** — a data dos bilhetes vizinhos — embora o bloco trouxesse `24/07/2026` nas duas linhas. Data errada é a coluna 1 do TSV: desloca o bilhete de dia no painel inteiro.
 - Odd com precisão completa, decimal com vírgula, e sempre a **pós-boost**.
 - Bilhete aberto sai **sem** resultado (`extraction_state = aberta`) e **sem** retorno realizado.
-- Bet builder: pernas unidas por `" // "` na Descrição (achado #19).
+- Bet builder: pernas unidas por `" // "` na Descrição (achado #19) e `Aposta = Múltipla` **mesmo sendo tudo do mesmo jogo** (`MASTER_APOSTAS §Bet Builder` — confirmado no 1º lote).
+- Esporte: copiar o valor **oficial** do bloco (`Futebol` / `Baseball`), nunca um sinônimo.
 
 ---
 
