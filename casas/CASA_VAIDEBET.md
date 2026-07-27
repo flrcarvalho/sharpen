@@ -183,16 +183,15 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 | `Marcador - <Jogador> (TIME)`, seleção `Qualq. Altura` ¹ | Anytime |
 | `<Time> para marcar em ambos os tempos` ¹ | Team Props |
 | `<Time> Mais de/Menos de (incluindo innings extra)` (beisebol) ¹ | Corridas |
+| `Winner & total (incl. extra innings)` (beisebol) | Outros |
 
 > **Estatística de JOGADOR não vira `Player Props` aqui.** O `MASTER_APOSTAS §Player Props` é explícito: *"NÃO usar `Player Props` quando o objeto apostado tiver categoria própria, mesmo que o mercado envolva um jogador específico"* — e `Chutes a gol` é sinônimo literal de `Chutes no Gol` (§4). O precedente canônico é o cartão: `"Nico Williams — Para o Jogador Receber Cartão"` → `Cartões`, **nunca** `Player Props` (§5 Cartões). A regra "jogador individual → `Player Props`" existe **só** para `Pontos` e `Sets`, onde está escrita como exceção da própria categoria — não é regra geral.
 
 > **`para marcar em ambos os tempos` = `Team Props`**, não `Gols`: o objeto é um feito da equipe no jogo, não a contagem de gols. Padrão já estabelecido em `CASA_BETNACIONAL §9` e `CASA_LOTTU §9` (confirmado originalmente na KingPanda).
 
+> **`Winner & total` = mercado COMBINADO → `Outros`** (decisão do Feca, s210). Uma seleção só que carrega **duas** apostas — resultado + total de corridas (`LA Dodgers e mais de 8.5`). Nenhuma categoria descreve o objeto sozinha: `ML` esconderia o total, `Corridas` esconderia o resultado. Cai no `§2` como último recurso, e **as duas partes vão na Descrição** (`LA Dodgers // Over 8,5 Corridas`), que é onde a informação não se perde. Vale para qualquer mercado combinado desta casa enquanto o `MASTER_APOSTAS` não tiver regra geral (ver Feedback).
+
 ¹ Visto no card da casa (print do histórico), ainda não no payload da amostra salva — o mercado existe, mas não está nas fixtures do harness.
-
-**Pendente de decisão** — aparece no dado real e **não** tem categoria aplicável:
-
-- ⚠ `Winner & total (incl. extra innings)` (beisebol, **em inglês no payload**) — uma seleção só que combina **duas** apostas: resultado + total de corridas (`LA Dodgers e mais de 8.5`). O `MASTER_APOSTAS` não tem regra para mercado combinado: `ML` esconderia o total e `Corridas` esconderia o resultado. Recomendação: `Outros` (§2 — último recurso quando nenhuma categoria específica descreve o objeto), com as duas partes na Descrição. **Decisão do Feca.**
 
 ---
 
@@ -261,12 +260,12 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 
 ## Feedback para a camada global / MODELO
 
-1. **Mercado COMBINADO não tem regra** no `MASTER_APOSTAS`: `Winner & total` junta resultado + total numa seleção só, e a §2 (prioridade) pressupõe que existe *uma* categoria específica aplicável. O mesmo padrão aparece no futebol (`Resultado & Ambas Marcam`) e vai reaparecer. Vale uma linha decidindo entre `Outros` e "categoria do componente principal".
+1. **Mercado COMBINADO não tem regra** no `MASTER_APOSTAS`: `Winner & total` junta resultado + total numa seleção só, e a §2 (prioridade) pressupõe que existe *uma* categoria específica aplicável. Nesta casa ficou **`Outros`** por decisão do Feca (s210) — mas é decisão **local**, e o mesmo padrão existe no futebol (`Resultado & Ambas Marcam`) e vai reaparecer em qualquer casa. Vale promover a regra ao global: combinado → `Outros`, com os componentes na Descrição.
 2. **Mercados de beisebol chegam em inglês** neste motor (`Winner & total (incl. extra innings)`) mesmo com `culture: pt-BR`. Se outras casas Altenar entrarem, o padrão vai se repetir.
 3. *(resolvido na própria sessão — fica como registro)* A dúvida "estatística de jogador vira `Player Props`?" **já está respondida** no §Player Props + §5 Cartões. Não é lacuna: o objeto manda, e a exceção por entidade existe só em `Pontos`/`Sets`.
 
 ---
 
 VERSÃO: 2026
-STATUS: CAPTURA COMPLETA (harness verde) · tradução com 1 mercado pendente (§9 — combinado do beisebol) e golden a preencher (§15) · **sem validação ao vivo**
+STATUS: CAPTURA COMPLETA (harness verde) · mapa de mercados **fechado** (§9) · golden a preencher (§15) · **sem validação ao vivo**
 CASA: VaideBet
