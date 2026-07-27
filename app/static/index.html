@@ -2168,6 +2168,7 @@ const NOMES = {
   BETNACIONAL: 'Betnacional', LOTTU: 'Lottu',
   JOGODEOURO: 'Jogo de Ouro', KTO: 'KTO',
   POLYMARKET: 'Polymarket', VITORIABET: 'Vitória Bet', TIVO: 'Tivo', VAIDEBET: 'VaideBet',
+  BETFAST: 'Betfast',
   // "Rei do Pitaco" rebatizou para "Pitaco" — alias de exibição (DB ainda guarda o nome antigo)
   'Rei do Pitaco': 'Pitaco',
 };
@@ -3194,7 +3195,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST']);
 function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase()); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────

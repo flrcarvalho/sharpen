@@ -18,6 +18,8 @@
 - Motor: **BetConstruct** (sportsbook v4), servido num **iframe de mesma origem** dentro do site.
 - `Parceiro` / `Tipster`: não preenchidos na extração — vêm do workspace da app.
 
+> ⚠ **A [`CASA_BETFAST`](CASA_BETFAST.md) é espelho técnico desta casa** (s211): mesmo motor, mesmo endpoint, mesmos campos, **mesmo `tv_inject.js` e mesmo formatador**. Ao mexer numa, confira a outra — e leia o §9 e o §12.1 de lá, que têm mercados e um tipo de bilhete (`ItemType 6`) que esta amostra não tinha.
+
 ---
 
 ## 2. Modo de ingestão e layout  ⭐
@@ -113,8 +115,16 @@ De-para do par `Status` + `Result`:
 | 10 | 2 | Retorno **igual** à stake | `V` |
 | 10 | *outro* | **Desconhecido** — sobe cru, não liquidar automaticamente | — |
 
-- O `Result` também existe **por perna** (`Items[].Result`), com os mesmos valores. Na amostra apareceu um `Result: 1` numa perna (bilhete `298710215`) cuja natureza **ainda não foi confirmada** — provável devolvida/void. Enquanto não houver um bilhete inteiro nesse estado para cruzar com a tela, ele sobe cru.
+- O `Result` também existe **por perna** (`Items[].Result`): `0` pendente · **`1` anulada/devolvida** · `2` ganhou · `3` perdeu.
 - Quem decide W/V/HW/HL é a régua financeira do `MASTER_RESULTADO_2026`, não o enum sozinho.
+
+### 5.0 ⭐ Perna anulada (`Result: 1`) — a casa recalcula o bilhete
+
+**Confirmado na s211, pelo dinheiro, na conta da [`CASA_BETFAST`](CASA_BETFAST.md)** — mesmo motor BetConstruct, então vale aqui. Até então este arquivo carregava o `Result: 1` como "natureza não confirmada" desde a s196 (perna do bilhete `298710215`).
+
+Quando uma perna é anulada, ela sai do cálculo e a casa liquida pelo produto das restantes. O `Koef` **continua sendo o produto de TODAS**, inclusive a void. Prova no bilhete `295698756` da Betfast (stake R$ 151,00): pernas 1,95 (`Result 1`) e 2,67 (`Result 2`) → `Koef` 5,2065, mas `WinKoef` 2,67 e `WinAmount` 403,17 = 151 × 2,67 **ao centavo**. Ler o `Koef` daria R$ 786,18 — quase o dobro.
+
+**Regra:** em `W`, odd = `Retorno ÷ Stake` (régua global). O formatador já concilia — só usa o `Koef` quando ele explica o retorno até o centavo. Em `L` não há retorno para recalcular e a odd segue sendo o `Koef` cheio.
 
 ### 5.1 Bloco `SEM DETALHE` — não extrair
 
@@ -202,6 +212,7 @@ tabela acima de propósito: só entra no mapa o que está decidido.
 
 ## 12. Ruído a ignorar
 
+- **`ItemType: 6` (odd oferecida / bet builder promocional)** — não apareceu nesta amostra, mas o motor tem: `Game`, `Market`, `Position` e `Sport` vêm `null` e o conteúdo real fica em `OfferedOddObject`, **em inglês**. Sem tratamento o bloco sai mudo. Já lido pelo `tv_inject`; a documentação completa está em [`CASA_BETFAST §12.1`](CASA_BETFAST.md#121--itemtype-6--odd-oferecida-bet-builder-promocional).
 - `Market.Name` com **placeholder** `{p1_r}`: preencher com `FinalPosition.p1` (`{p1_r} quarto` + `p1:3` → "3º quarto"). Sem isso vaza template cru.
 - `Team1Score`/`Team2Score` — estatística do mercado, **não** placar.
 - `ResultUrl` (`SCOUT_DATA`, `whoscored.com`) — link de conferência da casa, não é dado do bilhete.

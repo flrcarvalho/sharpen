@@ -57,6 +57,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     "PINNACLE":   "3089350167",
     "KTO":        "12939510404",
     "TIVO":       "298710215",
+    # Betfast é espelho da Tivo e compartilha o espaço de IDs do motor BetConstruct — este é
+    # um bilhete real da conta (o W de 22/07, retorno R$ 1.604,28).
+    "BETFAST":    "298388575",
     "VAIDEBET":   "5234878919",
     "BET365":     "JR8714690761I",
 }

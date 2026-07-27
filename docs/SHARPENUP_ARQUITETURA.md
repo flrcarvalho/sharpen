@@ -117,8 +117,26 @@ Regras que valem para todos:
 | **KTO** | API + replay | `GET /coupon/history.json` (Kambi) | `kto_inject.js` | `couponRef` | `range.more:false` | `placedDate` (UTC→BRT) |
 | **Bet365** | rota (`location.hash`) | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
 | **Tivo** | API + replay (1 chamada) | `POST /api/game/p/messagetosport` (`gethistory`) | `tv_inject.js` | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
+| **Betfast** | **espelho da Tivo** — mesmo motor BetConstruct | idem | **`tv_inject.js`** (o mesmo) | `ID` | idem ⚠ ver abaixo | evento mais recente (UTC→SP) |
 
-Freios no popup: **dias + ID de parada** (Superbet/BETesporte/Betano/KTO/Pinnacle/Tivo) ·
+> **Casa espelho — o padrão da Betfast (s211).** Quando uma casa nova roda o **mesmo motor** de
+> uma já ligada, ela **não ganha inject próprio**: entra nos 12 pontos de registro apontando
+> para o inject existente (`popup.js` + `content_scripts` do manifest) e reusa o ramo do
+> `content.js`. O que muda é só o domínio. Duplicar `tv_inject.js` seriam 270 linhas gêmeas
+> divergindo com o tempo — a dívida nº 3 do §8. **O que torna isso seguro é o teste:** o
+> `casos/betfast.mjs` roda a MESMA fixture pelos dois domínios e compara os blocos byte a
+> byte, então nada pode se amarrar ao host sem ficar vermelho. Antes de tratar uma casa como
+> espelho, **prove o motor** (não confie na aparência): HTML servindo o mesmo loader, mesmo
+> caminho de API respondendo 401 (contra 400/404 numa rota falsa) e os mesmos nomes de campo
+> num payload real.
+>
+> ⚠ **Tivo/Betfast — o `Count` pode ser teto.** A conta da Betfast respondeu `Count: 50` com
+> 50 bilhetes; a da Tivo, 24. "Acabou" e "cortei no teto" chegam idênticos. A partir de 50 o
+> inject levanta `tetoSuspeito` e o painel avisa em vez de declarar sucesso calado — mas a
+> medição (rolar a lista até o fim) segue pendente. Se for teto, as duas casas precisam de
+> varredura por janelas `from`/`to`.
+
+Freios no popup: **dias + ID de parada** (Superbet/BETesporte/Betano/KTO/Pinnacle/Tivo/Betfast) ·
 **quantidade + dias + varrer tudo** (Betfair, histórico ilimitado e fora de ordem) ·
 **nenhum** (Bet365 — o freio virou o pré-dedup do backend).
 

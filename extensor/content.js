@@ -196,10 +196,12 @@
   const tvById = new Map();          // ID(string) → bilhete
   let tvFimReal = false;
   let tvHookVivo = false, tvRespostas = 0;   // autodiagnóstico
+  let tvTetoSuspeito = false;        // `Count` redondo: pode ser teto do servidor, não o total
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (d && d.__sharpenupTVData) {
       if (d.hook) tvHookVivo = true;
+      if (d.tetoSuspeito) tvTetoSuspeito = true;
       if (typeof d.respostas === "number") tvRespostas = d.respostas;
       if (Array.isArray(d.tickets)) {
         const aberto = (t) => t.status === 5 || t.resultado === 0;
@@ -671,11 +673,16 @@
       // NÃO serve para a KTO — a lista não tem linha em branco entre cupons, então o
       // innerText virava um bloco só (menu + rodapé + ~140 bilhetes) e a IA perdia o resto.
       blocos = await roboKTOPassive(ctx);
-    } else if (casa === "tivo") {
+    } else if (casa === "tivo" || casa === "betfast") {
       // Passivo + replay de UMA chamada (tv_inject). O histórico não tem paginação: a casa
       // devolve a conta inteira com `Count`. SEM fallback de texto — a lista da Tivo é uma
       // tabela sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
       // bloco só e a IA perderia o resto em silêncio.
+      //
+      // A BETFAST cai aqui de propósito (s211): é espelho da Tivo — mesmo motor
+      // BetConstruct, mesmo `POST /api/game/p/messagetosport`, mesmos nomes de campo. Um
+      // ramo, um inject, um formatador. O harness roda a mesma fixture pelos dois domínios
+      // e compara os blocos byte a byte (`casos/betfast.mjs`).
       blocos = await roboTVPassive(ctx);
     } else if (casa === "vaidebet") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
@@ -704,6 +711,9 @@
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
         tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
+        // Espelho da Tivo: mesmo inject, mesmos contadores. Só o nome muda, para o
+        // operador não ler "Tivo: 0 bilhetes" estando na Betfast.
+        betfast:    { nome: "Betfast",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
@@ -1830,7 +1840,12 @@
   function _dataEventoTV(t) {
     let max = null;
     for (const i of (t.itens || [])) {
-      const ini = i.jogo ? i.jogo.inicio : (i.outright ? i.outright.inicio : null);
+      // A oferta (`ItemType 6`) guarda o início do jogo no `OfferedOddObject`, não em
+      // `Game` — que vem null. Sem esta terceira fonte, os 4 bilhetes de odd oferecida da
+      // Betfast saíam SEM data de evento nenhuma, e Data é a 1ª coluna do TSV.
+      const ini = i.jogo ? i.jogo.inicio
+                : (i.outright ? i.outright.inicio
+                : (i.oferta ? i.oferta.inicio : null));
       if (typeof ini === "number" && isFinite(ini) && (max === null || ini > max)) max = ini;
     }
     return max;
@@ -1862,7 +1877,15 @@
   }
 
   function _tipoTV(t) {
-    const n = (t.itens || []).length;
+    const itens = t.itens || [];
+    const n = itens.length;
+    // Odd oferecida: a casa conta UMA perna (`Items.length === 1`) e o card diz "Simples",
+    // mas por dentro são N seleções do MESMO evento — é bet builder. Sem este rótulo a IA
+    // classificaria como aposta simples e perderia as outras seleções da descrição
+    // (`MASTER_ESPORTES` / regra dos múltiplos: bet builder fica com o esporte do jogo).
+    const of = itens.find((i) => i.oferta && (i.oferta.selecoes || []).length);
+    if (of) return "Aposta turbinada da casa (bet builder — " + of.oferta.selecoes.length +
+                   " seleções do mesmo evento)";
     if (t.sistema) return "Sistema (" + n + " seleções)";
     if (n >= 2) return "Múltipla (" + n + " seleções)";
     if (n === 1) return "Simples";
@@ -1878,7 +1901,14 @@
     return m.replace(/\s+/g, " ").trim();
   }
 
-  const _RESULT_PERNA_TV = { 0: "pendente", 2: "ganhou", 3: "perdeu" };
+  // `Result` por perna. O `1` = ANULADA/DEVOLVIDA (void), confirmado pelo DINHEIRO na conta
+  // da Betfast (s211), não por dedução — a `CASA_TIVO §5` carregava esse enum como "natureza
+  // não confirmada" desde a s196. Prova, no bilhete 295698756:
+  //     perna 1.95 (Result 1) + perna 2.67 (Result 2) → Koef 5,2065 (as duas)
+  //     mas WinKoef = 2,67 (só a que valeu) e WinAmount = 151 × 2,67 = 403,17 AO CENTAVO.
+  // A casa recalculou o bilhete sem a perna void. A odd efetiva sai da régua global
+  // (`retorno ÷ stake`), que o `_oddTV` já aplica quando o Koef não explica o retorno.
+  const _RESULT_PERNA_TV = { 0: "pendente", 1: "anulada/devolvida", 2: "ganhou", 3: "perdeu" };
 
   function formatTicketTV(t) {
     const L = [];
@@ -1921,6 +1951,37 @@
 
     L.push("Seleções:");
     for (const i of itens) {
+      // ── Odd oferecida (`ItemType 6`): bet builder promocional da casa ──────────
+      // A perna vem com Game/Market/Position/Sport todos null; tudo que a IA precisa está
+      // no OfferedOddObject. Sem este ramo o bloco saía "- [perdeu]" e nada mais — 4 dos
+      // 50 bilhetes da Betfast (8%), e a IA teria de inventar esporte e descrição.
+      // Os rótulos vêm em INGLÊS porque o `language: 33` do pedido não alcança este objeto;
+      // avisamos explicitamente para a IA não tratá-los como mercado desconhecido.
+      if (i.oferta) {
+        const o = i.oferta;
+        const cab = ["Aposta turbinada da casa (odd oferecida)"];
+        if (o.jogo) cab.push("— " + o.jogo);
+        L.push("- " + cab.join(" ") + " [" + (_RESULT_PERNA_TV[i.resultado] || ("Result " + i.resultado + " — a conferir")) + "]");
+        L.push("    ⚠ Rótulos desta oferta vêm em inglês (a casa não traduz este bloco).");
+        const ctxO = [];
+        if (o.esporte) ctxO.push("Esporte: " + o.esporte);
+        const ligaO = [o.regiao, o.campeonato].filter(Boolean).join(" / ");
+        if (ligaO) ctxO.push("Liga: " + ligaO);
+        if (o.inicio) ctxO.push("Início: " + _dhTV(o.inicio));
+        if (ctxO.length) L.push("    " + ctxO.join(" · "));
+        for (const s of (o.selecoes || [])) {
+          const p = [];
+          if (s.mercado) p.push(s.mercado + ":");
+          p.push(s.selecao || "");
+          if (s.odd != null) p.push("@ " + _oddTxtTV(s.odd));
+          L.push("    • " + p.join(" ").replace(/\s+/g, " ").trim());
+        }
+        // A odd do bilhete é o `Koef` (já emitido acima). O produto das sub-seleções NÃO
+        // bate com ele (6,4237 contra 9,51): a oferta tem preço negociado pela casa, e os
+        // campos internos `RealPrice`/`CalcPrice` divergem entre si. Não emitimos nenhum
+        // deles para não dar à IA uma segunda odd concorrente.
+        continue;
+      }
       const bits = [];
       if (i.outright) {
         // Outright: `Game` é null e o Market.Name é lixo interno do motor.
@@ -2004,8 +2065,18 @@
     }
     await sleep(400);
     processar();
-    console.log("[SharpenUp] Tivo: " + blocos.length + " bilhete(s) · tvById=" + tvById.size +
-                " · hook=" + tvHookVivo + " · respostas=" + tvRespostas + " · fimReal=" + tvFimReal);
+    // "A conta acabou" e "o servidor cortou no teto" chegam idênticos (`len == Count`). Se o
+    // inject marcou suspeita, o operador PRECISA saber — a alternativa é declarar sucesso e
+    // perder o histórico antigo sem erro nenhum, que é como a s179 perdeu 39 de 61 bilhetes.
+    // Só avisa quando NÃO houve outro freio (janela de dias / stopId), senão o corte é nosso.
+    if (tvTetoSuspeito && !travado) {
+      toastLocal("Atenção: a casa devolveu exatamente " + tvById.size + " bilhetes e disse que " +
+                 "acabou. Pode ser o teto do servidor, não o fim da conta — role \"Minhas apostas\" " +
+                 "até o fim e confira se há algo mais antigo.", false);
+    }
+    console.log("[SharpenUp] Tivo/Betfast: " + blocos.length + " bilhete(s) · tvById=" + tvById.size +
+                " · hook=" + tvHookVivo + " · respostas=" + tvRespostas + " · fimReal=" + tvFimReal +
+                " · tetoSuspeito=" + tvTetoSuspeito);
     return blocos;
   }
 

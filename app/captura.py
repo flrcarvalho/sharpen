@@ -51,7 +51,9 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # (docs/GUIA_CASA_SHARPENUP.md, Fase 1).
 # TIVO: por API (BetConstruct) via `tv_inject` — POST /api/game/p/messagetosport com
 # {name:"gethistory"}. Sem paginação: uma chamada devolve a conta inteira com `Count`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto"}
+# BETFAST: ESPELHO da Tivo (s211) — mesmo motor BetConstruct, mesmo caminho de API, mesmos
+# nomes de campo; muda o domínio e a cor. Usa o MESMO `tv_inject.js`, sem código duplicado.
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -73,6 +75,9 @@ _HOSTS_POR_CASA = {
     "KTO":        ("kto.bet.br",),
     "TIVO":       ("tivo.bet.br",),
     "VAIDEBET":   ("vaidebet.bet.br",),
+    # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
+    # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
+    "BETFAST":    ("betfast.bet.br",),
 }
 
 

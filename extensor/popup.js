@@ -33,6 +33,7 @@ const CASA_HOSTS = {
   "KTO":        ["kto.bet.br"],
   "Tivo":       ["tivo.bet.br"],
   "VaideBet":   ["vaidebet.bet.br"],
+  "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -176,6 +177,9 @@ async function capturar() {
                 : casa === "Pinnacle" ? "pn_inject.js"
                 : casa === "KTO" ? "kto_inject.js"
                 : casa === "Tivo" ? "tv_inject.js"
+                // Betfast é espelho da Tivo (mesmo motor BetConstruct, mesmo endpoint):
+                // MESMO inject, de propósito. Duplicar seria manter 270 linhas gêmeas.
+                : casa === "Betfast" ? "tv_inject.js"
                 : casa === "VaideBet" ? "vb_inject.js" : null;
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
