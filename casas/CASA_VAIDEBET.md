@@ -179,7 +179,7 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 | `Total cartões` · `1º tempo - total cartões` | Cartões |
 | `Vencedor do encontro` · `Vencedor (incluindo innings extra)` | ML |
 | `Ambas equipes marcam` | Ambas Marcam |
-| `Chutes a Gol - <Jogador> (TIME)` (ex.: `Chutes a Gol - Yuri Alberto (COR)`) | **Chutes no Gol** — ver nota abaixo |
+| `Chutes a Gol - <Jogador> (TIME)` (ex.: `Chutes a Gol - Yuri Alberto (COR)`) | Chutes no Gol |
 | `Marcador - <Jogador> (TIME)`, seleção `Qualq. Altura` ¹ | Anytime |
 | `<Time> para marcar em ambos os tempos` ¹ | Team Props |
 | `<Time> Mais de/Menos de (incluindo innings extra)` (beisebol) ¹ | Corridas |
