@@ -128,6 +128,29 @@ O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem
 
 **Fonte canônica (implementação):** `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. Esta tabela documenta o comportamento do código; ao mudar a lógica de dedup, **o código é a verdade** (atualize a tabela depois).
 
+### Fonte determinística manda; extração por IA congela.
+
+O UPSERT **congela** `odd`, `data`, `stake`, `esporte`, `aposta` e `descricao` assim que a
+aposta resolve. Isso protege a extração por IA: a re-leitura é ruidosa e sobrescrever seria
+pior que manter. **Exceção: `origem='sync'`** (fonte determinística — hoje só o
+`/polymarket/sync`, que lê a API on-chain). Para ela esses campos são sempre refrescados.
+
+**Por que a exceção existe:** `resultado` nunca foi congelado. Com fonte determinística isso
+deixava a linha **meio atualizada** — ao corrigir o cálculo do mercado anulado, o resultado
+passou de `L` para `W` e a odd ficou a antiga, dobrada: 28 linhas viraram lucro fantasma
+(+R$578 onde o real era −R$11,80). **Blindar metade dos campos é pior que blindar todos ou
+nenhum.** O mesmo valia para `esporte`/`aposta`, que só entravam no INSERT e trancaram 40
+linhas mal classificadas fora de qualquer correção.
+
+Contrapartida: edição manual de data/stake/odd/esporte/categoria/descrição numa casa
+sincronizada **não sobrevive** ao sync. O `tipster` sobrevive.
+
+> **Método:** melhorar o cálculo não basta — confira se ele **chega ao banco**. Depois de
+> corrigir qualquer fórmula, diffe `banco × coletor` linha a linha.
+
+**Fonte canônica:** `app/repository.py` — `_ORIGEM_AUTORITATIVA` e o `ON CONFLICT` de
+`upsert_bilhetes()`.
+
 ### Mexeu em `casa` ou `parceiro` de um bilhete? Recalcule a assinatura.
 
 `casa` e `parceiro` entram no hash de `_assinatura` (com ou sem código de bilhete). Trocar
