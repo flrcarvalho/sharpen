@@ -179,14 +179,20 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 | `Total cartões` · `1º tempo - total cartões` | Cartões |
 | `Vencedor do encontro` · `Vencedor (incluindo innings extra)` | ML |
 | `Ambas equipes marcam` | Ambas Marcam |
+| `Chutes a Gol - <Jogador> (TIME)` (ex.: `Chutes a Gol - Yuri Alberto (COR)`) | **Chutes no Gol** — ver nota abaixo |
+| `Marcador - <Jogador> (TIME)`, seleção `Qualq. Altura` ¹ | Anytime |
+| `<Time> para marcar em ambos os tempos` ¹ | Team Props |
+| `<Time> Mais de/Menos de (incluindo innings extra)` (beisebol) ¹ | Corridas |
 
-**Pendentes de decisão** — aparecem no dado real e **não** têm categoria óbvia. Ficam fora da tabela acima de propósito: só entra no mapa o que está decidido.
+> **Estatística de JOGADOR não vira `Player Props` aqui.** O `MASTER_APOSTAS §Player Props` é explícito: *"NÃO usar `Player Props` quando o objeto apostado tiver categoria própria, mesmo que o mercado envolva um jogador específico"* — e `Chutes a gol` é sinônimo literal de `Chutes no Gol` (§4). O precedente canônico é o cartão: `"Nico Williams — Para o Jogador Receber Cartão"` → `Cartões`, **nunca** `Player Props` (§5 Cartões). A regra "jogador individual → `Player Props`" existe **só** para `Pontos` e `Sets`, onde está escrita como exceção da própria categoria — não é regra geral.
 
-- ⚠ `Chutes a Gol - <Jogador> (TIME)` (ex.: `Chutes a Gol - Yuri Alberto (COR)`) — o objeto é *chutes no gol* (→ `Chutes no Gol` pelo §1), mas a entidade é **jogador individual** (→ `Player Props`). O `MASTER_APOSTAS` só define o discriminante de entidade para `Pontos`/`Sets`, não para as estatísticas de futebol. **Confirmar com o Feca antes do 1º lote grande.**
-- ⚠ `<Time> para marcar em ambos os tempos` — provável `Gols`; sem regra explícita no MASTER.
-- ⚠ `Marcador - <Jogador> (TIME)` com seleção `Qualq. Altura` — é o "marcar a qualquer momento" traduzido; forte candidato a `Anytime`. Confirmar o rótulo.
-- ⚠ `Winner & total (incl. extra innings)` (beisebol, **em inglês no payload**) — combina resultado + total de corridas numa seleção só. Provável `Outros`.
-- ⚠ `<Time> Mais de/Menos de (incluindo innings extra)` (beisebol) — o objeto é corrida → provável `Corridas`.
+> **`para marcar em ambos os tempos` = `Team Props`**, não `Gols`: o objeto é um feito da equipe no jogo, não a contagem de gols. Padrão já estabelecido em `CASA_BETNACIONAL §9` e `CASA_LOTTU §9` (confirmado originalmente na KingPanda).
+
+¹ Visto no card da casa (print do histórico), ainda não no payload da amostra salva — o mercado existe, mas não está nas fixtures do harness.
+
+**Pendente de decisão** — aparece no dado real e **não** tem categoria aplicável:
+
+- ⚠ `Winner & total (incl. extra innings)` (beisebol, **em inglês no payload**) — uma seleção só que combina **duas** apostas: resultado + total de corridas (`LA Dodgers e mais de 8.5`). O `MASTER_APOSTAS` não tem regra para mercado combinado: `ML` esconderia o total e `Corridas` esconderia o resultado. Recomendação: `Outros` (§2 — último recurso quando nenhuma categoria específica descreve o objeto), com as duas partes na Descrição. **Decisão do Feca.**
 
 ---
 
@@ -255,11 +261,12 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 
 ## Feedback para a camada global / MODELO
 
-1. **Estatística de futebol de um JOGADOR não tem discriminante de entidade** no `MASTER_APOSTAS`. Para `Pontos` e `Sets` a regra é explícita (jogador → `Player Props`); para `Chutes no Gol`, `Chutes`, `Cartões` e `Impedimentos` o §1 diz que o objeto manda, sem falar da entidade. `Chutes a Gol - Yuri Alberto (COR)` cai exatamente nessa lacuna. Vale uma linha na tabela de prioridade semântica.
+1. **Mercado COMBINADO não tem regra** no `MASTER_APOSTAS`: `Winner & total` junta resultado + total numa seleção só, e a §2 (prioridade) pressupõe que existe *uma* categoria específica aplicável. O mesmo padrão aparece no futebol (`Resultado & Ambas Marcam`) e vai reaparecer. Vale uma linha decidindo entre `Outros` e "categoria do componente principal".
 2. **Mercados de beisebol chegam em inglês** neste motor (`Winner & total (incl. extra innings)`) mesmo com `culture: pt-BR`. Se outras casas Altenar entrarem, o padrão vai se repetir.
+3. *(resolvido na própria sessão — fica como registro)* A dúvida "estatística de jogador vira `Player Props`?" **já está respondida** no §Player Props + §5 Cartões. Não é lacuna: o objeto manda, e a exceção por entidade existe só em `Pontos`/`Sets`.
 
 ---
 
 VERSÃO: 2026
-STATUS: CAPTURA COMPLETA (harness verde) · tradução com 5 mercados pendentes (§9) e golden a preencher (§15) · **sem validação ao vivo**
+STATUS: CAPTURA COMPLETA (harness verde) · tradução com 1 mercado pendente (§9 — combinado do beisebol) e golden a preencher (§15) · **sem validação ao vivo**
 CASA: VaideBet
