@@ -225,6 +225,24 @@ async def _security_headers(request: Request, call_next):
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
     resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    # ── HTML nunca fica preso no cache do navegador (s215) ────────────────────
+    # Os assets levam `?v=` no src, então bumpar a versão os renova. Mas o `?v=`
+    # vive DENTRO do HTML — e o HTML não tinha `Cache-Control` nenhum, o que faz
+    # o navegador escolher sozinho por quanto tempo não perguntar ao servidor
+    # (heurística de ~10% da idade do arquivo: horas ou dias).
+    #
+    # O efeito é pior do que "dado velho": o navegador serve a casca ANTIGA e ela
+    # referencia os assets pelas URLs antigas — que hoje devolvem o conteúdo NOVO.
+    # Tela nova aparece, script novo não, porque a tag que o chama só existe na
+    # casca nova. Foi exatamente o que aconteceu com a tela "Em Aberto": a página
+    # montou vazia porque o `<script src="charts/abertas.js">` nunca foi pedido.
+    #
+    # `no-cache` NÃO proíbe guardar — obriga a REVALIDAR. Com o ETag que o
+    # StaticFiles já manda, o custo normal é um 304 sem corpo. Só HTML: JS/CSS
+    # seguem cacheáveis, senão o `?v=` perderia a razão de existir.
+    # Travado em tests/test_cache_headers.py (os dois lados da regra).
+    if resp.headers.get("content-type", "").startswith("text/html"):
+        resp.headers["Cache-Control"] = "no-cache, must-revalidate"
     return resp
 
 

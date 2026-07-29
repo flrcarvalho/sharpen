@@ -471,13 +471,19 @@ async function boot(force){
   let plHoje=0,nHoje=0,wHoje=0,plMes=0,turnMes=0;
   const sportHoje={}, byCasaMes={}, byTipMes={};
   rows.forEach(r=>{
+    const res=(r.resultado||'').toUpperCase();
     // Aberta NÃO é métrica: entrou no feed na s215 (com lucro=0) só para alimentar a
     // lista/painel. Contá-la aqui inflaria o turnover do mês e afundaria o ROI, e
     // ainda entraria em "apostas encerradas hoje" com P/L zero.
-    if((r.resultado||'').toUpperCase()==='ABERTA')return;
+    if(res==='ABERTA')return;
     const l=Number(r.lucro)||0, st=Number(r.stake)||0;
     if(r.data===todayISO){ plHoje+=l; nHoje++; if(l>0)wHoje++; const e=(r.esporte||'').trim(); if(e)sportHoje[e]=(sportHoje[e]||0)+l; }
-    if((r.data||'').slice(0,7)===mesPref){ plMes+=l; turnMes+=st;
+    if((r.data||'').slice(0,7)===mesPref){ plMes+=l;
+      // Turnover CANÔNICO exclui Void — a stake anulada é devolvida, não é volume
+      // (MASTER_OUTPUT; espelha calcTurnover do dashboard). Somar o Void aqui era o
+      // motivo de o ROI do mês vir MENOR que o da mesma janela no dashboard: mesmo
+      // P/L sobre um denominador inflado.
+      if(res!=='V')turnMes+=st;
       const c=(r.casa||'').trim(); if(c)byCasaMes[c]=(byCasaMes[c]||0)+l;
       const t=(r.tipster||'').trim(); if(t)byTipMes[t]=(byTipMes[t]||0)+l;
     }
