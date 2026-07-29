@@ -52,30 +52,39 @@ def _parceiros():
 
 PARCEIROS = _parceiros()
 
-# ── Apostas em aberto: o painel de exposicao viva da tela inicial ────────────
-# Nao saem do feed (o feed so tem resolvidas, igual em producao): sao um punhado
-# de linhas proprias, com `criado_em` recente para o card ficar vivo no print.
+# ── Apostas em aberto: painel da tela inicial + tela "Em Aberto" do dash ─────
+# Desde a s215 elas saem NO FEED (resultado='ABERTA', lucro=0), igual em producao
+# (repository.dashboard_rows) -- e' o que alimenta a tela "Em Aberto". A rota
+# /bilhetes?extraction_state=aberta devolve AS MESMAS linhas, tambem como em
+# producao; quem consome as duas dedupa por `id` (ver inicio.html).
+# `data` = data do EVENTO, espalhada pelos proximos dias (o calendario da tela
+# mede exatamente isso), com duas atrasadas para o print mostrar esse estado.
+_ABRT_OFFSETS = [-2, -1, 0, 0, 1, 1, 2, 3, 4, 6, 9, 13]
+
+
 def _abertas():
     agora = datetime.now()
-    base = [r for r in LINHAS[-400:] if r["esporte"] in ("Futebol", "Basquete", "Tênis")][:7]
+    hoje = agora.date()
+    base = [r for r in LINHAS[-600:] if r["esporte"] in ("Futebol", "Basquete", "Tênis")][:len(_ABRT_OFFSETS)]
     saida = []
     for k, r in enumerate(base):
-        saida.append({
+        linha = dict(r)
+        linha.update({
             "id": 900000 + k,
-            "descricao": r["descricao"],
-            "aposta": r["aposta"],
-            "tipster": r["tipster"],
-            "casa": r["casa"],
-            "parceiro": r["parceiro"],
-            "esporte": r["esporte"],
-            "odd": r["odd"],
-            "stake": f"{r['stake']:.2f}".replace(".", ","),
+            "data": (hoje + timedelta(days=_ABRT_OFFSETS[k])).isoformat(),
+            "resultado": "ABERTA",
+            "lucro": 0.0,
             "criado_em": (agora - timedelta(hours=3 + k * 7)).isoformat(),
         })
+        saida.append(linha)
     return saida
 
 
 ABERTAS = _abertas()
+# O feed consolida resolvidas + abertas, exatamente como o `dashboard_rows`.
+LINHAS_FEED = LINHAS + ABERTAS
+# Contrato de /bilhetes (grade do extrator): stake em texto pt-BR.
+ABERTAS_BILHETES = [dict(r, stake=f"{r['stake']:.2f}".replace(".", ",")) for r in ABERTAS]
 
 
 @app.get("/me")
@@ -92,8 +101,8 @@ def dashboard_data(refresh: bool = False):
     # `dono` escopa o store de custos no front (isolamento entre usuarios).
     return {
         "ok": True,
-        "data": LINHAS,
-        "count": len(LINHAS),
+        "data": LINHAS_FEED,
+        "count": len(LINHAS_FEED),
         "builtAt": datetime.now().isoformat(),
         "dono": dados_demo.DONO,
         "operadores": [dados_demo.DONO],
@@ -103,7 +112,7 @@ def dashboard_data(refresh: bool = False):
 @app.get("/bilhetes")
 def bilhetes(extraction_state: str = "", archived: str = "", limit: int = 100, order: str = "desc"):
     if extraction_state == "aberta":
-        return {"bilhetes": ABERTAS, "total": len(ABERTAS)}
+        return {"bilhetes": ABERTAS_BILHETES, "total": len(ABERTAS_BILHETES)}
     return {"bilhetes": [], "total": 0}
 
 

@@ -1355,20 +1355,32 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
       - data conversível para ISO.
     Inclui Polymarket (todas as linhas do banco). `conta`/`fornecedor` saem do
     parceiro "Conta [Fornecedor]"; `lucro` = P/L derivado (calcular_pl).
+
+    APOSTAS ABERTAS (sessão 215): linha com `resultado` VAZIO sai no feed marcada
+    `resultado='ABERTA'` e `lucro=0`, no MESMO contrato das demais. Antes elas eram
+    descartadas aqui, e o front (que já tinha o split `DADOS` × `DADOS_ABERTAS`)
+    nunca recebia nada — a lista de Apostas e a tela "Em Aberto" ficavam cegas para
+    o que a captura passou a importar. `lucro=0` é seguro porque `aplicarFeed`
+    separa ABERTA de tudo o que alimenta métrica: nenhum KPI/gráfico as soma.
+    `resultado` preenchido mas fora de {W,L,V,HW,HL} continua sendo lixo → descarte.
     """
     out = []
     for dono in donos:
         rows = await export_bilhetes(dono)
         for r in rows:
             resultado = (r.get("resultado") or "").strip().upper()
-            if resultado not in _RESULTADOS_VALIDOS:
+            aberta = not resultado
+            if not aberta and resultado not in _RESULTADOS_VALIDOS:
                 continue
             stake = _num(r.get("stake"))
             if stake <= 0:
                 continue
-            lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
-            if lucro is None:
-                continue
+            if aberta:
+                resultado, lucro = "ABERTA", 0.0
+            else:
+                lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
+                if lucro is None:
+                    continue
             data_iso = _data_iso(r.get("data"))
             if not data_iso:
                 continue
@@ -1377,7 +1389,7 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
             m = _PARCEIRO_RE.match(parceiro)
             if m:
                 conta, fornecedor = m.group(1).strip(), m.group(2).strip()
-            out.append({
+            linha = {
                 # id da linha no Postgres — usado pela página de Apostas do dashboard
                 # para editar/deletar (PATCH/DELETE /bilhetes/{id}). Linhas da planilha
                 # ao vivo (dashboard_rows_ao_vivo) não têm id → chegam sem esta chave e
@@ -1397,7 +1409,13 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
                 "resultado": resultado,
                 "lucro": lucro,
                 "operador": dono,
-            })
+            }
+            # `criado_em` SÓ nas abertas: a tela "Em Aberto" mede há quanto tempo a
+            # aposta está parada (o mesmo sinal de 48h+ do Início). Carimbar as ~30k
+            # encerradas custaria ~1MB de feed sem nenhum consumidor.
+            if aberta and r.get("criado_em"):
+                linha["criado_em"] = r["criado_em"]
+            out.append(linha)
     return out
 
 

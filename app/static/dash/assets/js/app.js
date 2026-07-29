@@ -407,7 +407,8 @@ const PAGE_META={
   'overview':       ['Visão Geral',              'performance consolidada'],
   'sports':         ['Esportes',                 'performance por modalidade esportiva'],
   'casas':          ['Bookies',                  'performance e ROI por bookmaker'],
-  'apostas':        ['Apostas',                  'espelho completo da base de dados'],
+  'apostas':        ['Minha Base',               'espelho completo da base de dados'],
+  'abertas':        ['Em Aberto',                'apostas ainda não liquidadas — exposição viva'],
   'tipsters':       ['Tipsters',                 'análise comparativa e individual'],
   'resultados':     ['Resultados',               'matriz por período, calendário e análises'],
   'parceiros':      ['Fornecedores & Parceiros', 'turnover, lucro e período por conta'],
@@ -452,6 +453,7 @@ function renderPage(id){
   else if(id==='casas'){renderCasa(rows);}
   else if(id==='tipsters'){renderTipsters();}
   else if(id==='apostas'){renderApostas();}
+  else if(id==='abertas'){renderAbertas();}
   else if(id==='parceiros'){renderParceiros(rows);}
   else if(id==='custos'){renderCustos(rows);}
   else if(id==='custos_tipster'){ctLoad().then(renderCustoTipster);} // carga (servidor) → pinta
@@ -462,10 +464,14 @@ function renderPage(id){
 
 // KPI
 function buildHTML(){
-  const tipsters=[...new Set(DADOS.map(r=>r.tipster).filter(Boolean))].sort();
-  const sports=[...new Set(DADOS.map(r=>r.esporte).filter(Boolean))].sort();
-  const casas=[...new Set(DADOS.map(r=>r.casa).filter(Boolean))].sort();
-  ['overview','sports','casas','apostas','tipsters','resultados','parceiros','custos','metrics'].forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
+  // Opções dos filtros saem de DADOS **+ DADOS_ABERTAS**: uma casa (ou tipster, ou
+  // esporte) que só tenha aposta EM ABERTO existe de verdade e precisa aparecer no
+  // seletor da tela "Em Aberto" — lendo só DADOS ela ficaria invisível e infiltrável.
+  const _todas=DADOS.concat(DADOS_ABERTAS);
+  const tipsters=[...new Set(_todas.map(r=>r.tipster).filter(Boolean))].sort();
+  const sports=[...new Set(_todas.map(r=>r.esporte).filter(Boolean))].sort();
+  const casas=[...new Set(_todas.map(r=>r.casa).filter(Boolean))].sort();
+  ['overview','sports','casas','apostas','abertas','tipsters','resultados','parceiros','custos','metrics'].forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
   msInit('tipsters');
 
   document.getElementById('root').innerHTML=`
@@ -484,12 +490,18 @@ function buildHTML(){
       <nav class="sidebar-nav">
         <div class="nav-group">Operação</div>
         <a class="nav-item" href="/" style="text-decoration:none" title="Abrir a Extração e Captura — leitura e edição de bilhetes"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Extração e Captura</a>
+        <!-- Minhas Apostas: a base crua. "Minha Base" = tudo (era "Apostas");
+             "Em Aberto" = só o que ainda não liquidou. -->
+        <div class="nav-group">Minhas Apostas</div>
+        ${[
+          ['apostas','Minha Base','<path d="M2 4h12M2 8h12M2 12h8"/><rect x="1" y="2" width="14" height="12" rx="1"/>'],
+          ['abertas','Em Aberto','<circle cx="8" cy="8" r="6.2"/><path d="M8 4.4V8l2.6 1.6"/>'],
+        ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Análise</div>
         ${[
           ['overview','Visão Geral','<rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>'],
           ['sports','Esportes','<path d="M2 12l4-4 3 3 5-6"/>'],
           ['casas','Bookies','<rect x="1" y="3" width="14" height="10" rx="1"/><path d="M1 8h14M5 3v10"/>'],
-          ['apostas','Apostas','<path d="M2 4h12M2 8h12M2 12h8"/><rect x="1" y="2" width="14" height="12" rx="1"/>'],
           ['tipsters','Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.5 2.2-4 5-4s5 1.5 5 4"/><circle cx="12" cy="5" r="2"/><path d="M12 9c1.5.3 3 1.2 3 4"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Resultados</div>
@@ -578,6 +590,24 @@ function buildHTML(){
             <div id="apostasCardWrap"></div>
           </div>
         </div>
+      </div>
+
+      <!-- EM ABERTO — apostas ainda não liquidadas (exposição viva).
+           Sem filtro de Período de propósito: aposta aberta aponta pro futuro
+           (ver buildFiltersSemData em filters.js). Render: charts/abertas.js. -->
+      <div class="page" id="page-abertas">
+        ${buildFiltersSemData('abertas',sports,casas,tipsters)}
+        <div id="abertasKPI"></div>
+        ${mkCard('abrt_cal','Para quando são as apostas','<div id="abertasCal"></div>','<span style="margin-left:auto;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">por data do evento</span>')}
+        <div class="row2">
+          ${mkCard('abrt_casas','Exposição por casa','<div id="abertasCasas"></div>')}
+          ${mkCard('abrt_tipsters','Exposição por tipster','<div id="abertasTipsters"></div>')}
+        </div>
+        ${mkCard('abrt_lista','Apostas em aberto','<div class="abrt-tbl" style="margin-top:.5rem">'+
+          '<div class="abrt-row abrt-hdr"><div>Data do evento</div><div>Aposta / Evento</div><div>Esporte</div><div>Tipster</div><div>Casa · Parceiro</div><div style="text-align:right">Stake</div><div style="text-align:right">Odd</div><div style="text-align:right">Retorno</div><div style="text-align:center">Ações</div></div>'+
+          '<div id="abertasContagem" class="abrt-conta-count"></div>'+
+          '<div id="abertasLista" style="max-height:calc(100vh - 320px);overflow-y:auto"></div>'+
+        '</div>','<span style="margin-left:auto;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">quem liquida primeiro no topo</span>')}
       </div>
 
       <!-- TIPSTERS -->

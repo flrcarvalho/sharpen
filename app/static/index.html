@@ -3143,6 +3143,10 @@ async function renderPainelAtividade(force) {
   const map = {};   // casa||parceiro -> agregado por conta
   rows.forEach(r => {
     if (!r || !r.casa || !r.data) return;
+    // Desde a s215 o feed carrega também as ABERTAS (para a tela "Em Aberto" do
+    // dashboard). Este painel conta histórico RESOLVIDO — sem o corte, a coluna
+    // "Apostas" e a duração da conta passariam a somar aposta ainda não liquidada.
+    if ((r.resultado || '').toUpperCase() === 'ABERTA') return;
     const key = r.casa + '||' + r.parceiro;
     let a = map[key];
     if (!a) a = map[key] = { casa: r.casa, parceiro: r.parceiro, conta: r.conta || r.parceiro, forn: r.fornecedor || '', n: 0, min: r.data, max: r.data, dias: new Set() };

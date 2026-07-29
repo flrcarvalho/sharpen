@@ -362,3 +362,17 @@ function buildFilters(p,sports,casas,tipsters){
     ${(()=>{const ops=[...new Set(DADOS.map(r=>r.operador).filter(Boolean))].sort();return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p)}</div>`:'';})()}
   </div>`;
 }
+
+// Barra de filtros SEM o grupo Período — usada pela tela "Em Aberto".
+// Aposta em aberto aponta para o FUTURO: um recorte "últimos 30 dias" esconderia
+// justamente o jogo de amanhã, que é o que a tela existe para mostrar. Como esta
+// barra nunca escreve df/dt/qd, o gfs('abertas') fica zerado e o corte por data de
+// filtrarAbertas() nunca dispara — a página vê sempre TODA a exposição viva.
+function buildFiltersSemData(p,sports,casas,tipsters){
+  return`<div class="filters">
+    <div class="filter-group"><div class="filter-label">Esporte</div>${buildMS('sp_'+p,sports,'Todos os esportes',p)}</div>
+    <div class="filter-group"><div class="filter-label">Casa</div>${buildMS('ca_'+p,casas,'Todas as casas',p,'',true)}</div>
+    ${tipsters?`<div class="filter-group"><div class="filter-label">Tipster</div>${buildMS('ti_'+p,tipsters,'Todos os tipsters',p)}</div>`:''}
+    ${(()=>{const ops=[...new Set(DADOS.map(r=>r.operador).filter(Boolean))].sort();return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p)}</div>`:'';})()}
+  </div>`;
+}

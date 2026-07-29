@@ -227,6 +227,14 @@
   padding-top: 6px;
   font-family: var(--font-mono);
 }
+/* R$ DENTRO da legenda do KPI (ex.: "lucro de R$ 28.650 se todas ganharem").
+   O .money padrão é `width:100%` + `.money-val{min-width:10ch}` — largura de
+   COLUNA de tabela; numa frase corrida ele empurra o resto para outra linha e
+   joga o valor pro canto. Aqui ele volta a ser inline, sem perder nenhuma regra
+   do §5 (R$ menor/neutro, mono, tabular, cor só no número). */
+.kpi-sub .money { width: auto; gap: 2px; }
+.kpi-sub .money-val,
+.kpi-sub .money-sign { min-width: 0; }
 /* Card principal (P/L Líquido) — brilho de destaque */
 .kpi.hero {
   background: linear-gradient(150deg, rgba(var(--accent-rgb),.12), var(--surface) 62%);
@@ -1533,3 +1541,150 @@ select.ap-inline-inp { padding: 2px 4px; }
 /* Responsivo */
 @media(max-width:900px) { .cal__kpis { grid-template-columns:repeat(3,1fr); } }
 @media(max-width:620px) { .cal__hero { flex:1 1 100%; } .cal__kpis { grid-template-columns:repeat(2,1fr); } }
+
+/* ══ EM ABERTO (Minhas Apostas › Em Aberto) ═══════════════════════════════════
+   Tela das apostas AINDA NÃO LIQUIDADAS. Vocabulário visual próprio de propósito:
+   aqui não existe P/L (nada resolveu), então nada usa --pos/--neg. A cor da
+   exposição é o âmbar de "pendente" (--warn), a mesma que o Início já usa para
+   as abertas; o azul de acento fica para o retorno potencial (projeção).
+   Classes próprias (não .cal__/.btbl) porque aquelas carregam comportamento
+   global — o tooltip de P/L engancha em `.cal__cell.has` e o resize de coluna
+   em `.btbl-hdr-row .btbl-th` (querySelectorAll sem escopo de página). */
+
+/* O componente .money é obrigatório em todo R$ (UI_REFERENCE §5.1), mas o
+   `min-width:10ch` do .money-val existe para alinhar COLUNA de tabela larga —
+   dentro de célula de calendário (62px) ou de barra ele estoura. Relaxar a
+   largura mínima não afeta nenhuma regra de marca: o R$ segue menor/neutro,
+   a cor segue só no número e a fonte segue mono/tabular. */
+.abrt-cal__cell .money,
+.abrt-bar__val .money,
+.abrt-conta-count .money,
+.abrt-num .money { width:auto; gap:2px; }
+.abrt-cal__cell .money-val,
+.abrt-bar__val .money-val,
+.abrt-conta-count .money-val,
+.abrt-num .money-val { min-width:0; }
+.abrt-cal__cell .money-sign,
+.abrt-bar__val .money-sign,
+.abrt-conta-count .money-sign,
+.abrt-num .money-sign { min-width:0; }
+
+/* ── Horizonte: quanto é pra hoje, pra amanhã, pra semana ───────────────── */
+.abrt-horiz { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:.35rem 0 1.25rem; }
+.abrt-horiz__c {
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md);
+  padding:var(--sp-3) var(--sp-4); display:flex; flex-direction:column; gap:4px; min-width:0;
+}
+.abrt-horiz__c.on { border-color:rgba(var(--warn-rgb),.42); }
+.abrt-horiz__c.vazia { opacity:.5; }
+.abrt-horiz__k {
+  font-family:var(--font-mono); font-size:var(--text-nano); font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-mute);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.abrt-horiz__v { font-size:var(--text-lg); font-weight:var(--weight-extrabold); letter-spacing:-.02em; color:var(--ink); }
+.abrt-horiz__v .money { width:auto; gap:2px; }
+.abrt-horiz__v .money-val { min-width:0; }
+.abrt-horiz__v .money-sign { min-width:0; }
+.abrt-horiz__s { font-family:var(--font-mono); font-size:var(--text-nano); color:var(--ink-mute); margin-top:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@media(max-width:1100px) { .abrt-horiz { grid-template-columns:repeat(3,1fr); } }
+
+/* ── Calendário: para quando são as apostas ─────────────────────────────── */
+.abrt-cal__bar { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.abrt-cal__spacer { flex:1; }
+.abrt-cal__legend {
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--font-mono); font-size:var(--text-nano);
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-mute);
+}
+.abrt-cal__legend i {
+  width:9px; height:9px; border-radius:2px; flex:none;
+  background:rgba(var(--warn-rgb),.42); border:1px solid rgba(var(--warn-rgb),.5);
+}
+.abrt-cal__wk { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:8px; }
+.abrt-cal__wk span {
+  font-family:var(--font-mono); font-size:var(--text-nano); font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-mute); text-align:center;
+}
+.abrt-cal__wk span.we { color:var(--ink-soft); }
+.abrt-cal__grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; grid-auto-rows:62px; }
+.abrt-cal__cell {
+  border:1px solid var(--line-2); border-radius:var(--r-sm);
+  padding:6px 8px; display:flex; flex-direction:column; justify-content:space-between;
+  background:var(--surface-2); overflow:hidden;
+}
+.abrt-cal__cell.we { background-color:rgba(255,255,255,.02); }
+.abrt-cal__cell.vazio { background:transparent; border-color:var(--line-2); }
+.abrt-cal__cell.offset { background:transparent; border-color:transparent; }
+.abrt-cal__cell.hoje { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+.abrt-cal__cell.passado { opacity:.62; }
+.abrt-cal__cell .top { display:flex; align-items:center; justify-content:space-between; gap:4px; }
+.abrt-cal__cell .dn { font-family:var(--font-mono); font-weight:600; font-size:12px; color:var(--ink-soft); }
+.abrt-cal__cell.vazio .dn { color:var(--ink-mute); }
+.abrt-cal__cell .marca { font-family:var(--font-mono); font-size:8px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-2); }
+.abrt-cal__cell .qtd { font-family:var(--font-mono); font-size:8px; letter-spacing:.1em; color:var(--ink-mute); }
+.abrt-cal__cell .val { text-align:right; }
+.abrt-cal__cell .val .money { justify-content:flex-end; font-size:var(--text-md); font-weight:700; }
+
+/* ── Barras de exposição (por casa · por tipster · por esporte) ─────────── */
+.abrt-bars { display:flex; flex-direction:column; gap:2px; margin-top:.35rem; }
+.abrt-bar {
+  display:grid; grid-template-columns:minmax(120px,1.3fr) minmax(90px,2fr) auto;
+  align-items:center; gap:14px; padding:9px 4px;
+  border-bottom:1px solid var(--line-2);
+}
+.abrt-bar:last-child { border-bottom:0; }
+.abrt-bar__id {
+  display:inline-flex; align-items:center; gap:7px; min-width:0;
+  font-size:var(--text-sm); font-weight:600; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+/* display:block é obrigatório: são <span> dentro do grid, e span inline ignora
+   height — sem isto a barra vira um fio de 1px e o preenchimento some. */
+.abrt-bar__track { display:block; height:8px; border-radius:var(--r-pill); background:rgba(255,255,255,.05); overflow:hidden; }
+.abrt-bar__fill { display:block; height:100%; border-radius:var(--r-pill); background:linear-gradient(90deg,rgba(var(--warn-rgb),.55),var(--warn)); }
+.abrt-bar__val { display:flex; flex-direction:column; align-items:flex-end; gap:2px; white-space:nowrap; }
+.abrt-bar__val .money { font-size:var(--text-sm); font-weight:700; }
+.abrt-bar__meta { font-family:var(--font-mono); font-size:var(--text-nano); letter-spacing:.06em; color:var(--ink-mute); }
+
+/* ── Lista das apostas em aberto ────────────────────────────────────────── */
+.abrt-tbl { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
+.abrt-row {
+  display:grid;
+  grid-template-columns:96px minmax(180px,1fr) 104px 116px 168px 88px 66px 98px 60px;
+  gap:0 12px; padding:0 22px; box-sizing:border-box; align-items:center;
+}
+.abrt-hdr {
+  height:38px; background:var(--surface-2); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:9px; text-transform:uppercase;
+  letter-spacing:.14em; color:var(--ink-mute); white-space:nowrap;
+}
+.abrt-hdr > div { overflow:hidden; text-overflow:ellipsis; }
+.abrt-linha { height:62px; border-bottom:1px solid rgba(255,255,255,.028); transition:background .1s; }
+.abrt-linha:hover { background:rgba(var(--accent-rgb),.04); }
+.abrt-linha > div { min-width:0; overflow:hidden; }
+.abrt-quando { display:flex; flex-direction:column; gap:2px; }
+.abrt-quando .dia { font-family:var(--font-mono); font-size:12px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.abrt-quando .rel { font-family:var(--font-mono); font-size:var(--text-nano); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-mute); }
+.abrt-quando .rel.hoje { color:var(--accent-2); }
+.abrt-quando .rel.atrasada { color:var(--warn); }
+.abrt-tipo {
+  font-family:var(--font-mono); font-size:var(--text-nano); font-weight:700;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-mute);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.abrt-desc { font-size:var(--text-sm); color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.abrt-txt { font-size:var(--text-sm); color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.abrt-conta { display:flex; flex-direction:column; min-width:0; }
+.abrt-conta .nome { font-size:var(--text-sm); color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.abrt-conta .sub { font-family:var(--font-mono); font-size:var(--text-nano); color:var(--ink-mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.abrt-casa-cel { display:flex; align-items:center; gap:8px; min-width:0; }
+.abrt-num { font-family:var(--font-mono); font-size:12px; font-variant-numeric:tabular-nums; color:var(--ink); text-align:right; white-space:nowrap; }
+.abrt-num .money { justify-content:flex-end; }
+.abrt-ret .money-val { color:var(--accent-2); }
+.abrt-acts { display:flex; align-items:center; justify-content:flex-end; gap:2px; }
+.abrt-conta-count {
+  font-family:var(--font-mono); font-size:9px; color:var(--ink-mute); letter-spacing:.08em;
+  text-align:right; padding:8px 22px 6px; text-transform:uppercase; border-bottom:1px solid var(--line);
+}
+@media(max-width:1100px) { .abrt-row { grid-template-columns:88px minmax(150px,1fr) 96px 108px 140px 80px 60px 90px 52px; } }

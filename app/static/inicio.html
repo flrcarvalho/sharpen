@@ -471,6 +471,10 @@ async function boot(force){
   let plHoje=0,nHoje=0,wHoje=0,plMes=0,turnMes=0;
   const sportHoje={}, byCasaMes={}, byTipMes={};
   rows.forEach(r=>{
+    // Aberta NÃO é métrica: entrou no feed na s215 (com lucro=0) só para alimentar a
+    // lista/painel. Contá-la aqui inflaria o turnover do mês e afundaria o ROI, e
+    // ainda entraria em "apostas encerradas hoje" com P/L zero.
+    if((r.resultado||'').toUpperCase()==='ABERTA')return;
     const l=Number(r.lucro)||0, st=Number(r.stake)||0;
     if(r.data===todayISO){ plHoje+=l; nHoje++; if(l>0)wHoje++; const e=(r.esporte||'').trim(); if(e)sportHoje[e]=(sportHoje[e]||0)+l; }
     if((r.data||'').slice(0,7)===mesPref){ plMes+=l; turnMes+=st;
@@ -482,15 +486,18 @@ async function boot(force){
   const wrHoje=nHoje>0?Math.round(wHoje/nHoje*100):0;
   let topSport=null,topVal=0; Object.entries(sportHoje).forEach(([e,v])=>{if(v>topVal){topVal=v;topSport=e;}});
 
-  // Apostas em aberto (exposição viva). Duas fontes DISJUNTAS por dono: quem lê a
-  // planilha AO VIVO tem as abertas no feed (resultado='ABERTA', fora do Postgres);
-  // quem é Postgres tem em /bilhetes?extraction_state=aberta (o feed exclui abertas
-  // via repository.dashboard_rows). Um dono é sempre um OU outro, então a união não
-  // duplica. Sem isso, carteira de planilha viva mostrava "tudo resolvido" com
-  // abertas reais no feed (bug do Fatuch: card Abertas:2 vs painel vazio).
+  // Apostas em aberto (exposição viva). Duas fontes por dono: quem lê a planilha AO
+  // VIVO tem as abertas no feed (resultado='ABERTA', fora do Postgres); quem é
+  // Postgres tem em /bilhetes?extraction_state=aberta. Sem isso, carteira de planilha
+  // viva mostrava "tudo resolvido" com abertas reais no feed (bug do Fatuch: card
+  // Abertas:2 vs painel vazio).
+  // ⚠️ Desde a s215 o feed TAMBÉM carrega as abertas do Postgres (para a tela
+  // "Em Aberto" do dashboard), então as fontes deixaram de ser disjuntas. O corte
+  // `r.id==null` mantém aqui só o que é EXCLUSIVO do feed — linha de planilha ao
+  // vivo não tem id. Sem esse corte, quem é Postgres contaria cada aberta DUAS vezes.
   const pgAbertas=(abertasResp&&abertasResp.bilhetes)||[];
   const pgTotal=(abertasResp&&abertasResp.total!=null)?abertasResp.total:pgAbertas.length;
-  const feedAbertas=rows.filter(r=>(r.resultado||'').toUpperCase()==='ABERTA').map(r=>({
+  const feedAbertas=rows.filter(r=>(r.resultado||'').toUpperCase()==='ABERTA'&&r.id==null).map(r=>({
     descricao:r.descricao,aposta:r.aposta,tipster:r.tipster,casa:r.casa,
     parceiro:r.parceiro,esporte:r.esporte,odd:r.odd,
     stake:fmt(num(r.stake),2),criado_em:r.criado_em||null,
