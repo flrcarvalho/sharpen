@@ -2228,6 +2228,101 @@ async def reativar_parceiro(parceiro_id: int, dono: str) -> bool:
     return result.split()[-1] == "1"
 
 
+# Retenção da lixeira de contas excluídas. Ver `lixeira_contas` em database.py.
+LIXEIRA_DIAS = 7
+
+
+async def resumo_parceiro(parceiro_id: int, dono: str) -> dict | None:
+    """Identidade da conta + quantas apostas ela tem HOJE no banco.
+
+    Alimenta o modal de confirmação da exclusão. A contagem sai da mesma cláusula
+    que o DELETE vai usar (`dono + casa + parceiro`), então o número exibido é
+    exatamente o que será apagado — não uma estimativa de outra fonte.
+
+    Não serve `/dashboard/data` para isso de propósito: aquele feed é cacheado e,
+    em conta que lê planilha viva, chega a atrasar dezenas de minutos — mostraria
+    um número desatualizado numa tela que promete "isto será apagado".
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, casa, nome, arquivado FROM parceiros WHERE id = $1 AND dono = $2",
+            parceiro_id, dono,
+        )
+        if not row:
+            return None
+        n = await conn.fetchval(
+            "SELECT COUNT(*) FROM bilhetes WHERE dono = $1 AND casa = $2 AND parceiro = $3",
+            dono, row["casa"], row["nome"],
+        )
+    return {"id": row["id"], "casa": row["casa"], "nome": row["nome"],
+            "arquivado": row["arquivado"], "bilhetes": int(n or 0)}
+
+
+async def excluir_parceiro(parceiro_id: int, dono: str, confirmar_nome: str) -> dict:
+    """Exclui a conta e TODAS as apostas dela. Irreversível pela UI.
+
+    `confirmar_nome` tem de bater com o nome gravado. A UI já exige que o operador
+    digite o nome, mas a rota é destrutiva e não pode depender só do cliente para
+    isso: sem a conferência aqui, um `DELETE /parceiros/7` disparado por engano
+    (histórico do navegador, script, curl) apagaria o histórico inteiro de uma conta.
+
+    Tudo numa transação, nesta ordem:
+      1. purga da lixeira o que passou de LIXEIRA_DIAS (preguiçosa, sem cron);
+      2. DELETE dos bilhetes com RETURNING to_jsonb — a MESMA operação que apaga
+         é a que produz o snapshot, então é impossível gravar uma lixeira que não
+         corresponda ao que saiu;
+      3. grava o snapshot em `lixeira_contas`;
+      4. DELETE da linha em `parceiros`.
+
+    Escopo do que NÃO é apagado, e por quê:
+      · `correcoes` e `uso_tokens` — só têm `casa`, não `parceiro`: não há como
+        escopar por conta. São log de aprendizado da extração e de custo, não dado
+        da conta.
+      · `casas_meta` / `casa_config` — pertencem à CASA, que continua existindo
+        (pode ter outras contas, e recriar uma conta lá deve voltar com o favicon
+        e a curadoria intactos).
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT casa, nome, arquivado FROM parceiros WHERE id = $1 AND dono = $2",
+                parceiro_id, dono,
+            )
+            if not row:
+                return {"ok": False, "motivo": "Conta não encontrada."}
+            casa, nome = row["casa"], row["nome"]
+            if (confirmar_nome or "").strip() != nome:
+                return {"ok": False, "motivo": "O nome digitado não confere com o da conta."}
+
+            await conn.execute(
+                "DELETE FROM lixeira_contas WHERE excluido_em < NOW() - ($1 || ' days')::interval",
+                str(LIXEIRA_DIAS),
+            )
+            snap = await conn.fetch(
+                "DELETE FROM bilhetes b WHERE b.dono = $1 AND b.casa = $2 AND b.parceiro = $3 "
+                "RETURNING to_jsonb(b.*) AS linha",
+                dono, casa, nome,
+            )
+            linhas = [r["linha"] for r in snap]
+            # asyncpg devolve jsonb como str (sem codec global registrado); o array
+            # inteiro entra como texto + cast ::jsonb — mesmo padrão de salvar_casa_config.
+            await conn.execute(
+                "INSERT INTO lixeira_contas (dono, casa, parceiro, arquivado, n_bilhetes, bilhetes) "
+                "VALUES ($1, $2, $3, $4, $5, $6::jsonb)",
+                dono, casa, nome, row["arquivado"], len(linhas),
+                "[" + ",".join(linhas) + "]",
+            )
+            await conn.execute(
+                "DELETE FROM parceiros WHERE id = $1 AND dono = $2", parceiro_id, dono
+            )
+    logger.info("conta excluída: dono=%s casa=%s parceiro=%s bilhetes=%d (lixeira %dd)",
+                dono, casa, nome, len(linhas), LIXEIRA_DIAS)
+    return {"ok": True, "casa": casa, "nome": nome,
+            "bilhetes_excluidos": len(linhas), "lixeira_dias": LIXEIRA_DIAS}
+
+
 async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict:
     """Renomeia a conta, propaga o novo nome aos bilhetes dela E recalcula a assinatura.
 

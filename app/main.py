@@ -54,8 +54,9 @@ from repository import (
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
     get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
-    casa_canonica, get_parceiro, list_parceiros, parse_tsv,
-    reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta, upsert_bilhetes,
+    casa_canonica, excluir_parceiro, get_parceiro, list_parceiros, parse_tsv,
+    reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
+    resumo_parceiro, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo,
     conferir_cobertura, codigos_do_texto,
@@ -2461,6 +2462,34 @@ async def reativar_parceiro_route(parceiro_id: int, dono: str = Depends(dono_efe
 
 class ParceiroRenomearRequest(BaseModel):
     nome: str
+
+
+@app.get("/parceiros/{parceiro_id}/resumo")
+async def resumo_parceiro_route(parceiro_id: int, dono: str = Depends(dono_efetivo)):
+    """Identidade + nº de apostas da conta. Só o modal de exclusão consome: o número
+    que a tela promete apagar tem de vir da mesma consulta que o DELETE usa."""
+    res = await resumo_parceiro(parceiro_id, dono)
+    if not res:
+        raise HTTPException(404, "Conta não encontrada.")
+    return res
+
+
+class ParceiroExcluirRequest(BaseModel):
+    # Nome exato da conta, digitado pelo operador no modal. Conferido no repositório
+    # — a rota é destrutiva e não pode confiar só no cliente para a confirmação.
+    confirmar: str
+
+
+@app.delete("/parceiros/{parceiro_id}")
+async def excluir_parceiro_route(parceiro_id: int, body: ParceiroExcluirRequest,
+                                 dono: str = Depends(dono_efetivo)):
+    """Exclui a conta e TODAS as apostas dela. Snapshot fica em `lixeira_contas`
+    por LIXEIRA_DIAS (restauração manual: scripts/restaurar_conta_lixeira.py)."""
+    res = await excluir_parceiro(parceiro_id, dono, body.confirmar)
+    if not res.get("ok"):
+        motivo = res.get("motivo", "Não foi possível excluir.")
+        raise HTTPException(404 if "não encontrada" in motivo else 400, motivo)
+    return res
 
 
 @app.post("/parceiros/{parceiro_id}/renomear")

@@ -277,6 +277,37 @@ CREATE TABLE IF NOT EXISTS custo_store (
 -- localStorage dash_custos_v2::<dono>, mesma fragilidade cross-device do CT/CG). ALTER
 -- p/ a custo_store que JÁ existe em prod desde s165. Ver STATUS s167 / [[custo_conta_isolado_por_dono]].
 ALTER TABLE custo_store ADD COLUMN IF NOT EXISTS custo_conta JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- ── Lixeira de contas excluídas (rede de segurança da exclusão) ───────────────
+-- A exclusão de conta é HARD DELETE: apaga a linha em `parceiros` e TODOS os
+-- bilhetes dela. Esta tabela guarda o snapshot por 7 dias para o caso de
+-- arrependimento (restauração manual via scripts/restaurar_conta_lixeira.py).
+--
+-- Por que uma tabela separada e NÃO um soft-delete (coluna `excluido` em
+-- bilhetes): soft-delete obrigaria a filtrar em dezenas de queries espalhadas
+-- (dashboard, KPIs, dedup, export, P/L) e UM esquecimento vira lucro fantasma —
+-- a mesma família de bug do UPSERT meio-atualizado documentada no CLAUDE.md.
+-- Aqui nada mais no sistema lê esta tabela: acoplamento zero, por construção.
+--
+-- Por que o snapshot é JSONB e não uma tabela-espelho de `bilhetes`: a `bilhetes`
+-- ganha coluna de tempos em tempos via ALTER TABLE, e um espelho pararia de
+-- copiar a coluna nova em silêncio. `to_jsonb(b.*)` copia a linha inteira, seja
+-- ela qual for hoje ou amanhã — imune a drift de schema.
+--
+-- Purga preguiçosa (sem cron): toda exclusão apaga antes o que passou de 7 dias.
+-- Mesmo padrão da poda de tipster órfão em list_tipsters_cadastro().
+CREATE TABLE IF NOT EXISTS lixeira_contas (
+    id           BIGSERIAL PRIMARY KEY,
+    dono         TEXT NOT NULL,
+    casa         TEXT NOT NULL,
+    parceiro     TEXT NOT NULL,
+    arquivado    BOOLEAN NOT NULL DEFAULT FALSE,   -- estado da conta no momento da exclusão
+    n_bilhetes   INT NOT NULL DEFAULT 0,
+    bilhetes     JSONB NOT NULL DEFAULT '[]'::jsonb,
+    excluido_em  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS lixeira_contas_dono_excluido
+    ON lixeira_contas (dono, excluido_em);
 """
 
 

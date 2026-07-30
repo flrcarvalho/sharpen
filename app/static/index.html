@@ -1274,6 +1274,53 @@ select.ap-inline-inp { padding: 2px 4px; }
    que o atributo [hidden] da UA não consegue sobrepor). */
 .nc-off { display: none !important; }
 
+/* Modal "Excluir conta" — confirmação de ação irreversível. Espelha o .nc-hint
+   trocando o acento azul pelo --neg (aqui é perigo, não instrução) e acrescenta
+   a identidade da conta + o placar do que será apagado. O NÚMERO fica neutro de
+   propósito: verde/vermelho em número é semântica de resultado/P-L (UI_REFERENCE
+   §1), e este é uma contagem de apostas — o vermelho fica na moldura e no botão. */
+.xc-body { display: flex; flex-direction: column; gap: 14px; }
+.xc-aviso {
+  display: flex; gap: 9px; padding: 10px 12px; border-radius: var(--r-sm);
+  background: rgba(var(--neg-rgb),.07); border: 1px solid rgba(var(--neg-rgb),.22);
+}
+.xc-aviso-icon { flex: none; font-size: 13px; line-height: 1.5; }
+.xc-aviso-txt { font-family: var(--font-sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
+.xc-aviso-txt b { color: var(--ink); font-weight: 600; }
+.xc-alvo {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.xc-alvo-nomes { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.xc-alvo-conta {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.xc-alvo-casa {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+.xc-alvo-n { flex: none; text-align: right; }
+.xc-alvo-n .n {
+  display: block; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 15px; color: var(--ink);
+}
+.xc-alvo-n .l {
+  display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+/* O nome a digitar vive dentro de um .modal-field label, que é UPPERCASE por padrão.
+   Herdar isso pediria "FECA [JOAOCONTAS]" e exigiria "Feca [JoaoContas]" — a tela
+   mostraria uma coisa e o botão só liberaria com outra. A caixa aqui é literal. */
+.xc-echo {
+  font-family: var(--font-mono); color: var(--ink); font-weight: 600;
+  text-transform: none; letter-spacing: .02em;
+}
+/* Sem isto o botão desabilitado fica idêntico ao habilitado: o operador acha que
+   o clique falhou em vez de entender que falta digitar o nome. Espelha .btn-primary. */
+.btn-danger:disabled { opacity: .4; cursor: not-allowed; }
+.btn-danger:disabled:hover { background: transparent; border-color: rgba(var(--neg-rgb),.25); }
+
 /* ── Right panel: AI analysis ── */
 .right-panel {
   width: 340px; flex-shrink: 0;
@@ -1458,6 +1505,7 @@ td.c-res.res-HL { color: var(--warn); }
 .hact.act-new { color: var(--accent-2); }
 .hact.act-arch { color: var(--ink-mute); }
 .hact.act-ren { color: var(--ink-soft); }
+.hact.act-del { color: var(--neg); }
 .hrow .hglifo.ok { color: var(--pos); } .hrow .hglifo.warn { color: var(--warn); } .hrow .hglifo.run { color: var(--accent-2); }
 .rail__scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
@@ -2000,6 +2048,39 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="nc-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="nc-criar" type="button">Criar conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Excluir conta (irreversível): apaga a conta e TODAS as apostas dela. O botão só
+     habilita depois que o operador digita o nome exato — mesma trava do backend. -->
+<div class="modal-overlay" id="excluirconta-modal">
+  <div class="modal modal-narrow">
+    <div class="modal-head">
+      <span class="modal-title">Excluir conta</span>
+      <button class="modal-close" id="xc-close" type="button">✕</button>
+    </div>
+    <div class="modal-body xc-body">
+      <div class="xc-aviso">
+        <span class="xc-aviso-icon">⚠️</span>
+        <span class="xc-aviso-txt">Todas as apostas registradas nela <b>serão excluídas</b>. Esta ação é <b>irreversível</b>.</span>
+      </div>
+      <div class="xc-alvo">
+        <span class="ctx-hchip" id="xc-chip"></span>
+        <span class="xc-alvo-nomes">
+          <span class="xc-alvo-conta" id="xc-conta">—</span>
+          <span class="xc-alvo-casa" id="xc-casa">—</span>
+        </span>
+        <span class="xc-alvo-n"><span class="n" id="xc-n">—</span><span class="l">apostas</span></span>
+      </div>
+      <div class="modal-field full">
+        <label>Digite <span class="xc-echo" id="xc-echo"></span> para confirmar</label>
+        <input type="text" id="xc-input" autocomplete="off" spellcheck="false" placeholder="Nome exato da conta">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="xc-cancel" type="button">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="xc-confirm" type="button" disabled>Excluir conta</button>
     </div>
   </div>
 </div>
@@ -2578,11 +2659,17 @@ function renderPainelLista() {
       const badges = (ab > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (ab > 99 ? '99+' : ab) + '</span>' : '')
                    + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '');
       const clic = contasTab === 'ativas';   // ativa = tem perfil na Extração → linha inteira abre lá
-      const acoes = clic
-        ? '<button class="conta-act" onclick="event.stopPropagation();contasRenomear(' + p.id + ',this.closest(\'.conta-row\').dataset.casa,this.closest(\'.conta-row\').dataset.nome)">Renomear</button>'
-          + '<button class="conta-act danger" onclick="event.stopPropagation();contasArquivar(' + p.id + ',this.closest(\'.conta-row\').dataset.casa)">Arquivar</button>'
-        : '<button class="conta-act" onclick="contasRenomear(' + p.id + ',this.closest(\'.conta-row\').dataset.casa,this.closest(\'.conta-row\').dataset.nome)">Renomear</button>'
-          + '<button class="conta-act" onclick="contasReativar(' + p.id + ',this.closest(\'.conta-row\').dataset.casa)">Reativar</button>';
+      // Na aba Ativas a linha inteira abre a conta na Extração, então toda ação precisa
+      // parar a propagação. Excluir aparece nas DUAS abas — conta arquivada é justamente
+      // a que mais se quer apagar — e é a ÚNICA em vermelho: Arquivar saiu do `.danger`
+      // porque é reversível. Aqui o --neg passa a significar "irreversível", não
+      // "cuidado genérico"; se as duas fossem vermelhas, a cor não avisaria nada.
+      const stop = clic ? 'event.stopPropagation();' : '';
+      const ds = 'this.closest(\'.conta-row\').dataset.';
+      const acoes =
+        '<button class="conta-act" onclick="' + stop + 'contasRenomear(' + p.id + ',' + ds + 'casa,' + ds + 'nome)">Renomear</button>'
+        + '<button class="conta-act" onclick="' + stop + (clic ? 'contasArquivar' : 'contasReativar') + '(' + p.id + ',' + ds + 'casa)">' + (clic ? 'Arquivar' : 'Reativar') + '</button>'
+        + '<button class="conta-act danger" onclick="' + stop + 'contasExcluir(' + p.id + ',' + ds + 'casa)">Excluir</button>';
       html += '<div class="conta-row' + (clic ? ' clickable' : '') + '" data-casa="' + esc(casa) + '" data-nome="' + esc(p.nome || '') + '"'
         + (clic ? ' onclick="contasAbrir(' + p.id + ',this.dataset.casa)" title="Abrir na Extração"' : '')
         + '><span class="conta-nome">' + esc(p.nome || '—') + '</span><span class="conta-badges">' + badges + '</span><span class="conta-acoes">' + acoes + '</span></div>';
@@ -2629,6 +2716,124 @@ async function contasRenomear(id, casa, nomeAtual) {
 
 async function contasArquivar(id, casa) { await arquivarParceiro(id, casa); renderPainelContas(); }
 async function contasReativar(id, casa) { await reativarParceiro(id, casa); renderPainelContas(); }
+
+// ── Excluir conta (irreversível) ─────────────────────────────────────────────
+// Diferente de Arquivar, que só esconde: aqui a linha em `parceiros` e TODAS as
+// apostas dela saem do banco. O backend guarda um snapshot em `lixeira_contas`
+// por 7 dias (restauração manual via scripts/restaurar_conta_lixeira.py) — a UI
+// não expõe isso de propósito: prometer "dá pra desfazer" convidaria ao clique
+// fácil, e é justamente o clique fácil que este modal existe para impedir.
+let _xcAlvo = null;
+
+async function contasExcluir(id, casa) {
+  const ov = document.getElementById('excluirconta-modal');
+  if (!ov) return;
+  const p = (parceirosCache[casa] || []).find(x => x.id === id)
+         || (parceirosArquivadosCache[casa] || []).find(x => x.id === id);
+  _xcAlvo = { id, casa, nome: p ? p.nome : '', bilhetes: null };
+  // Abre já com o que se sabe; a contagem chega depois (COUNT no banco). O botão
+  // fica travado até ela chegar — confirmar sem saber quantas apostas caem é
+  // exatamente o que esta tela existe para impedir.
+  document.getElementById('xc-conta').textContent = _xcAlvo.nome || '—';
+  document.getElementById('xc-casa').textContent = NOMES[casa] || casa;
+  document.getElementById('xc-echo').textContent = _xcAlvo.nome || '';
+  document.getElementById('xc-n').textContent = '…';
+  const chip = document.getElementById('xc-chip');
+  chip.innerHTML = '';
+  const img = Object.assign(document.createElement('img'), { alt: NOMES[casa] || casa });
+  img.dataset.casa = casa;
+  img.src = faviconUrl(casa);
+  chip.appendChild(img);
+  const inp = document.getElementById('xc-input');
+  inp.value = '';
+  xcValidar();
+  ov.classList.add('open');
+  setTimeout(() => inp.focus(), 30);
+  try {
+    const r = await fetch('/parceiros/' + id + '/resumo');
+    if (!r.ok) throw new Error('resumo');
+    const d = await r.json();
+    if (!_xcAlvo || _xcAlvo.id !== id) return;   // fechado ou trocado durante o fetch
+    _xcAlvo.nome = d.nome;
+    _xcAlvo.bilhetes = d.bilhetes;
+    document.getElementById('xc-conta').textContent = d.nome;
+    document.getElementById('xc-echo').textContent = d.nome;
+    // Contagem de apostas (unidades, não dinheiro) → milhar pt-BR, nunca abreviado.
+    document.getElementById('xc-n').textContent = (d.bilhetes || 0).toLocaleString('pt-BR');
+    xcValidar();
+  } catch {
+    fecharModalExcluirConta();
+    alert('Não foi possível conferir quantas apostas seriam excluídas. Tente de novo.');
+  }
+}
+
+function fecharModalExcluirConta() {
+  const ov = document.getElementById('excluirconta-modal');
+  if (ov) ov.classList.remove('open');
+  _xcAlvo = null;
+}
+
+// Libera o botão só com o nome exato digitado E a contagem já confirmada.
+function xcValidar() {
+  const btn = document.getElementById('xc-confirm'), inp = document.getElementById('xc-input');
+  if (!btn || !inp) return;
+  btn.disabled = !(_xcAlvo && _xcAlvo.bilhetes !== null && inp.value.trim() === _xcAlvo.nome);
+}
+
+async function xcConfirmar() {
+  if (!_xcAlvo) return;
+  const { id, casa, nome } = _xcAlvo;
+  const btn = document.getElementById('xc-confirm');
+  if (btn) { btn.disabled = true; btn.textContent = 'Excluindo…'; }
+  try {
+    const r = await fetch('/parceiros/' + id, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmar: nome }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.detail || 'Erro ao excluir a conta.');
+      return;
+    }
+    // Sai dos DOIS caches: a conta pode ter vindo de qualquer das abas.
+    parceirosCache[casa] = (parceirosCache[casa] || []).filter(x => x.id !== id);
+    parceirosArquivadosCache[casa] = (parceirosArquivadosCache[casa] || []).filter(x => x.id !== id);
+    if (parceiroSelecionado && parceiroSelecionado.id === id) {
+      parceiroSelecionado = null; casaSelecionada = null; mostrarEmptyState();
+    }
+    // As apostas saíram do banco → o feed cacheado do painel de atividade envelheceu
+    // na hora; sem invalidar, a conta excluída seguiria na tabela até o F5.
+    painelDashRows = null; _painelDashPromise = null;
+    _actPush('exclusao', casa, nome);
+    fecharModalExcluirConta();
+    renderCasaList();
+    renderPainelContas();
+  } catch { alert('Erro de rede.'); }
+  finally { if (btn) { btn.textContent = 'Excluir conta'; xcValidar(); } }
+}
+
+(function initModalExcluirConta() {
+  const ov = document.getElementById('excluirconta-modal');
+  if (!ov) return;
+  ['xc-close', 'xc-cancel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', fecharModalExcluirConta);
+  });
+  const btn = document.getElementById('xc-confirm');
+  if (btn) btn.addEventListener('click', xcConfirmar);
+  const inp = document.getElementById('xc-input');
+  if (inp) {
+    inp.addEventListener('input', xcValidar);
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && btn && !btn.disabled) xcConfirmar();
+    });
+  }
+  ov.addEventListener('click', e => { if (e.target === ov) fecharModalExcluirConta(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && ov.classList.contains('open')) fecharModalExcluirConta();
+  });
+})();
 
 // ── Selecionar parceiro ───────────────────────────────────────────────────────
 function selecionarParceiro(p) {
@@ -3898,12 +4103,13 @@ function _renderHistConta(list, cnt, title) {
     row.addEventListener('click', () => reopenHist(items[i], row));
   });
 }
-const _ACT_ROTULO = { criacao: 'nova conta', arquivamento: 'arquivada', renomeacao: 'renomeada', reativacao: 'reativada' };
+const _ACT_ROTULO = { criacao: 'nova conta', arquivamento: 'arquivada', renomeacao: 'renomeada', reativacao: 'reativada', exclusao: 'excluída' };
 const _ACT_ICONE = {
   criacao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   arquivamento: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>',
   renomeacao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
   reativacao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>',
+  exclusao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
 };
 function _feedRow(e) {
   const quem = esc(e.casa || '—') + (e.parceiro ? ' · ' + esc(e.parceiro) : '');
@@ -3914,7 +4120,9 @@ function _feedRow(e) {
       + '<div class="hwho"><div class="ha">' + quem + '</div><div class="hb">' + esc(detalhe) + '</div></div>'
       + '<span class="hn">' + n + '</span></div>';
   }
-  const cls = (e.tipo === 'arquivamento') ? 'act-arch' : (e.tipo === 'renomeacao' ? 'act-ren' : 'act-new');
+  const cls = (e.tipo === 'arquivamento') ? 'act-arch'
+            : (e.tipo === 'renomeacao') ? 'act-ren'
+            : (e.tipo === 'exclusao') ? 'act-del' : 'act-new';
   const detalhe = _quando(e.ts) + ' · ' + (_ACT_ROTULO[e.tipo] || e.tipo);
   return '<div class="hrow"><span class="hact ' + cls + '">' + (_ACT_ICONE[e.tipo] || '') + '</span>'
     + '<div class="hwho"><div class="ha">' + quem + '</div><div class="hb">' + esc(detalhe) + '</div></div></div>';
