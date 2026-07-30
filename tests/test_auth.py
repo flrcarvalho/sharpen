@@ -127,6 +127,7 @@ def test_coproprietarios_simetrico_na_linhagem():
 
 def test_coproprietarios_dono_solo_ou_inexistente_vazio():
     assert auth.coproprietarios("Jonathan") == []            # solo → sem checagem cruzada
+    assert auth.coproprietarios("WilliamOliveira") == []     # solo (s218)
     assert auth.coproprietarios("Naoexiste") == []
 
 
