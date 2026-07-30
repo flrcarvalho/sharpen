@@ -53,6 +53,30 @@ casa que parou → `/sharpenup-diagnostico`.
 
 ---
 
+## Conta de usuário nova = duas metades, e a segunda é humana
+
+Criar login é 1 linha em `USUARIOS` (`app/auth.py`) + a env var `SENHA_<USER>_HASH` no
+Railway. **Não existe migration, seed nem import:** o isolamento é a coluna `dono` no
+Postgres, então a base nasce vazia e o primeiro bilhete capturado cria as linhas.
+
+O código sobe no push. A senha depende de alguém colar a variável no Railway — e
+**enquanto ela falta o login diz "usuário ou senha inválidos"**, igualzinho a senha
+errada (`USUARIOS[x] == ""` nunca autentica; fail-closed por desenho).
+
+**Antes de suspeitar do código, separe código de configuração medindo:** um asset que
+só existe no deploy novo responde 200 → o usuário está em `USUARIOS`; `POST /login`
+devolvendo **401** tem origem única (`verificar_credenciais` falso) — 429 é rate-limit,
+500 é erro do app. Usuário existindo + 401 = **env var ausente ou truncada**.
+
+**O `$` do hash bcrypt é a armadilha de transporte:** `$2b$12$…` passa mutilado por
+qualquer shell que interpole variável (PowerShell inclusive). Cole na caixa de Variables
+do Railway, confira **60 caracteres** e nenhum espaço nas pontas. Hash nunca vai para o
+git. Decidir também se a conta é **dono solo** ou entra em `OPERADORES` — solo é o
+default; operador significa que o supervisor vê a base dele e que a dedup cruzada passa
+a valer entre os dois.
+
+---
+
 ## ⚠️ REGRA DE UI / MARCA OBRIGATÓRIA (antes de criar QUALQUER visual novo)
 
 > **Motivo:** na sessão 83, cards de KPI foram criados com formatadores caseiros que abreviavam (`1,4k`) e coloriam o valor inteiro — violando 4 regras do padrão monetário. O Feca teve que voltar em detalhe já documentado. A causa: **regra escrita sem hábito de conferir = pulada.** Esta seção torna a conferência obrigatória.
@@ -178,4 +202,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-06-14 (sessão 15)
+ATUALIZADO: 2026-07-29 (sessão 218 — seção "Conta de usuário nova = duas metades")
