@@ -893,6 +893,49 @@ function _sliceDrillRows(){return _sliceByPeriod(_drillBaseRows,_drillPeriodSt);
 
 function _updateDrillChips(){_updateDrillPeriodBar('tipsterDrillPeriodBar',_drillPeriodSt,_drillInheritSt);}
 
+// Contador de drill aberto: só a resposta do Monte Carlo do drill ATUAL pinta os cards.
+let _tipDrillReq=0;
+
+// Os 4 cards do "Diagnóstico de Risco" do drill de tipster. `d` null = esqueleto
+// (spinner) enquanto o worker calcula; `d` = {mc,pv,sol} = valores. UMA função para os
+// dois estados de propósito: esqueleto e valor escritos em lugares diferentes divergem
+// no primeiro tooltip que alguém mexer.
+function _tipRiscoHTML(d,kS,vS,sbS){
+  const spin=mcSpinner();
+  const tipPV=_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Indicador heurístico (bootstrap): quão improvável seria seu resultado por <b>acaso</b>, sem vantagem. Menor = destaca-se mais do acaso — <b>não é prova estatística nem recomendação</b>.',d?rodapePValue(d.pv):'');
+  const tipDDmed=_mkTipAnchor('DD Médio','<span class="lbl">média</span> dos DD simulados','Queda <b>típica projetada</b> (média das 10.000 simulações de Monte Carlo). <b>Não aconteceu</b> — é estimativa.','<span class="lbl">projetado · média</span>');
+  const tipDDext=_mkTipAnchor('DD Extremo','<span class="lbl">pior</span> DD simulado (p99)','Pior queda plausível (<b>1 em 100</b> cenários) — <b>não aconteceu</b>, é projeção de 10.000 reamostragens. Dimensiona a banca.','<span class="lbl">projetado · cauda · p99</span>');
+  const tipSol=_mkTipAnchor('Nível de Solidez','<span class="lbl">índice composto</span>','P-value, drawdown e consistência <b>num selo só</b>.','<span class="lbl">Escala</span> <span class="scale"><i></i><i></i><i></i><i class="on"></i><i class="on"></i></span> <span class="good">Baixa → Alta</span>');
+  const solCor=d?(d.sol.score>=0.65?'var(--d-pos)':d.sol.score>=0.45?'var(--d-proj)':'var(--d-neg)'):'var(--ink-mute)';
+  return(
+    `<div class="kpi" style="${kS}">`+
+      `<div class="kpi-label"><span class="kpi-pipe"></span>p-value ${tipPV}</div>`+
+      `<div class="fdc-kpi__value" data-state="${d?(d.pv<0.05?'pos':'proj'):'proj'}" style="${vS}">${d?(d.pv<0.001?'< 0,001':fmt(d.pv,4)):spin}</div>`+
+      `<div class="kpi-sub" style="${sbS}">${d?(d.pv<0.001?'sinal forte':d.pv<0.05?'destaca do acaso':'inconclusivo'):'&nbsp;'}</div>`+
+    `</div>`+
+    `<div class="kpi" style="${kS}">`+
+      `<div class="kpi-label"><span class="kpi-pipe"></span>DD Médio ${tipDDmed}</div>`+
+      `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${d?fmtPL(-d.mc.xmdd):spin}</div>`+
+      `<div class="kpi-sub" style="${sbS}">projetado · média</div>`+
+    `</div>`+
+    `<div class="kpi" style="${kS}">`+
+      `<div class="kpi-label"><span class="kpi-pipe"></span>DD Extremo ${tipDDext}</div>`+
+      `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${d?fmtPL(-d.mc.p99):spin}</div>`+
+      `<div class="kpi-sub" style="${sbS}">projetado · 1 em 100</div>`+
+    `</div>`+
+    `<div class="kpi" style="${kS}">`+
+      `<div class="kpi-label"><span class="kpi-pipe"></span>Nível de Solidez ${tipSol}</div>`+
+      `<div class="fdc-risk-meter" style="margin-top:auto">`+
+        (d
+          ? `<span class="fdc-risk-meter__tag" style="color:${solCor}">${d.sol.faixa}</span>`+
+            `<div class="fdc-risk-meter__track">`+
+              `<span class="fdc-risk-meter__knob" style="--value:${(d.sol.score*100).toFixed(1)}%"></span>`+
+            `</div>`
+          : spin)+
+      `</div>`+
+    `</div>`);
+}
+
 function renderTipsterDrill(rows){
   const nome=_drillBaseName;
   const pl=rows.reduce((a,r)=>a+r.lucro,0);
@@ -907,10 +950,11 @@ function renderTipsterDrill(rows){
   const plCls=pl>=0?'pos':'neg';
   const roiCls=roi>=0?'pos':'neg';
 
-  // Diagnóstico de risco
-  const _td=calcTopoDrawdown(rows),_mc=calcMCdrawdown(rows,10000),_rf=calcRecoveryFactor(rows),_pv=calcPValueMC(rows,10000),_dd=calcDrawdownReal(rows),_mddR=_dd.mddReais,_mddP=_dd.mddPct,_profit=_td.atual;
-  const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows)});
-  const _solCor=_sol.score>=0.65?'var(--d-pos)':_sol.score>=0.45?'var(--d-proj)':'var(--d-neg)';
+  // Cenário atual — tudo REAL (histórico), barato, entra na hora.
+  // O Diagnóstico de Risco (Monte Carlo) NÃO é calculado aqui: ver `_tipDrillReq`
+  // logo abaixo do markup. Rodava síncrono e congelava a aba a cada clique num
+  // tipster — 11,9 s medidos com 3.899 apostas (s217).
+  const _td=calcTopoDrawdown(rows),_rf=calcRecoveryFactor(rows),_dd=calcDrawdownReal(rows),_mddR=_dd.mddReais,_mddP=_dd.mddPct,_profit=_td.atual;
   const _fmtD=d=>{if(!d)return'—';const p=d.slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0];};
   const _mddBench=_dd.troughDate?`<span class="lbl">vale em ${_fmtD(_dd.troughDate)}</span> · <span class="thr">quanto menor, melhor</span>`:'<span class="thr">quanto menor, melhor</span>';
 
@@ -970,32 +1014,7 @@ function renderTipsterDrill(rows){
     `</div>`+
     `<div class="analise-popup-section">`+
       `<div class="analise-popup-section-title">Diagnóstico de Risco <span style="font-size:9px;color:var(--ink-mute);text-transform:none;letter-spacing:0">(Monte Carlo · 10.000 simulações)</span></div>`+
-      `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">`+
-        `<div class="kpi" style="${kS}">`+
-          `<div class="kpi-label"><span class="kpi-pipe"></span>p-value ${_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Indicador heurístico (bootstrap): quão improvável seria seu resultado por <b>acaso</b>, sem vantagem. Menor = destaca-se mais do acaso — <b>não é prova estatística nem recomendação</b>.',rodapePValue(_pv))}</div>`+
-          `<div class="fdc-kpi__value" data-state="${_pv<0.05?'pos':'proj'}" style="${vS}">${_pv<0.001?'< 0,001':fmt(_pv,4)}</div>`+
-          `<div class="kpi-sub" style="${sbS}">${_pv<0.001?'sinal forte':_pv<0.05?'destaca do acaso':'inconclusivo'}</div>`+
-        `</div>`+
-        `<div class="kpi" style="${kS}">`+
-          `<div class="kpi-label"><span class="kpi-pipe"></span>DD Médio ${_mkTipAnchor('DD Médio','<span class="lbl">média</span> dos DD simulados','Queda <b>típica projetada</b> (média das 10.000 simulações de Monte Carlo). <b>Não aconteceu</b> — é estimativa.','<span class="lbl">projetado · média</span>')}</div>`+
-          `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${fmtPL(-_mc.xmdd)}</div>`+
-          `<div class="kpi-sub" style="${sbS}">projetado · média</div>`+
-        `</div>`+
-        `<div class="kpi" style="${kS}">`+
-          `<div class="kpi-label"><span class="kpi-pipe"></span>DD Extremo ${_mkTipAnchor('DD Extremo','<span class="lbl">pior</span> DD simulado (p99)','Pior queda plausível (<b>1 em 100</b> cenários) — <b>não aconteceu</b>, é projeção de 10.000 reamostragens. Dimensiona a banca.','<span class="lbl">projetado · cauda · p99</span>')}</div>`+
-          `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${fmtPL(-_mc.p99)}</div>`+
-          `<div class="kpi-sub" style="${sbS}">projetado · 1 em 100</div>`+
-        `</div>`+
-        `<div class="kpi" style="${kS}">`+
-          `<div class="kpi-label"><span class="kpi-pipe"></span>Nível de Solidez ${_mkTipAnchor('Nível de Solidez','<span class="lbl">índice composto</span>','P-value, drawdown e consistência <b>num selo só</b>.','<span class="lbl">Escala</span> <span class="scale"><i></i><i></i><i></i><i class="on"></i><i class="on"></i></span> <span class="good">Baixa → Alta</span>')}</div>`+
-          `<div class="fdc-risk-meter" style="margin-top:auto">`+
-            `<span class="fdc-risk-meter__tag" style="color:${_solCor}">${_sol.faixa}</span>`+
-            `<div class="fdc-risk-meter__track">`+
-              `<span class="fdc-risk-meter__knob" style="--value:${(_sol.score*100).toFixed(1)}%"></span>`+
-            `</div>`+
-          `</div>`+
-        `</div>`+
-      `</div>`+
+      `<div id="tipDrillRisco" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">${_tipRiscoHTML(null,kS,vS,sbS)}</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
       `<div class="analise-popup-section-title">Análise Mensal</div>`+
@@ -1047,6 +1066,18 @@ function renderTipsterDrill(rows){
 
   // Distribuição de Odds — scoped ao tipster (mesmo gráfico da Visão Geral)
   renderOddsDist(rows,'tipsterDrillOdds');
+
+  // ── Diagnóstico de Risco: Monte Carlo no Web Worker ────────────────────────
+  // Dispara depois de o popup já estar pintado; os 4 cards ficam com "calculando…"
+  // até a resposta. `_tipDrillReq` descarta resposta de um drill anterior — abrir o
+  // tipster A, fechar e abrir o B não pode pintar o número do A no card do B.
+  const _req=++_tipDrillReq;
+  mcComputeAsync(rows,10000).then(({mc:_mc,pv:_pv})=>{
+    const alvo=document.getElementById('tipDrillRisco');
+    if(_req!==_tipDrillReq||!alvo)return;
+    const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows)});
+    alvo.innerHTML=_tipRiscoHTML({mc:_mc,pv:_pv,sol:_sol},kS,vS,sbS);
+  });
 
   setTimeout(()=>{
     makeSortable('tipDrillTblMensal',[1,2,3,4,5,6,7]);

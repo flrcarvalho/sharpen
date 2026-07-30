@@ -161,7 +161,9 @@ function calcDrawdownReal(rows){
 }
 function calcMDDreais(rows){return calcDrawdownReal(rows).mddReais;}
 function calcMDDpct(rows){return calcDrawdownReal(rows).mddPct;}
-function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;var t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+// mulberry32, _calcMCdrawdownRaw e _calcPValueMCraw moram em assets/js/mc-core.js
+// (carregado antes deste arquivo no index.html). Fonte única: o mesmo arquivo é o que
+// o Web Worker importa — página e worker rodam a MESMA matemática, sem duplicá-la.
 // ── Memoização do Monte Carlo ────────────────────────────────────────────────
 // calcMCdrawdown e calcPValueMC são funções PURAS (semente derivada dos dados),
 // então o resultado só depende de (conjunto de rows, sims). Voltar a uma aba com
@@ -174,26 +176,38 @@ function _rowsSig(rows){var n=rows.length,sl=0,ss=0,sa=0;for(var i=0;i<n;i++){va
 function calcMCdrawdown(rows,sims){var k=(sims||5000)+'@'+_rowsSig(rows);var h=_mcCache[k];if(h)return h;return _mcCache[k]=_calcMCdrawdownRaw(rows,sims);}
 function calcPValueMC(rows,sims){var k=(sims||0)+'@'+_rowsSig(rows);var h=_pvCache[k];if(h!==undefined)return h;return _pvCache[k]=_calcPValueMCraw(rows,sims);}
 // ── Web Worker do Monte Carlo (não trava a UI) ───────────────────────────────
-// O código do worker é GERADO a partir das mesmas funções _calcMCdrawdownRaw e
-// _calcPValueMCraw (via .toString()) — garante número idêntico ao cálculo síncrono,
-// sem duplicar a matemática. mcComputeAsync devolve uma Promise; alimenta o MESMO
-// cache da memoização (_mcCache/_pvCache), então cache-hit resolve na hora (sem
-// spinner). Fallback: se o navegador bloquear Worker (ex.: file://), computa em
-// sync ADIADO (setTimeout) — a UI ao menos pinta antes de o cálculo travar.
+// O worker é um ARQUIVO de mesma origem (assets/js/mc-worker.js) que importa
+// assets/js/mc-core.js — a mesma fonte que esta página carrega. Número idêntico ao
+// cálculo síncrono, sem duplicar a matemática. mcComputeAsync devolve uma Promise e
+// alimenta o MESMO cache da memoização (_mcCache/_pvCache), então cache-hit resolve
+// na hora (sem spinner).
+//
+// NUNCA VOLTAR PARA `new Worker(URL.createObjectURL(blob))` (s217): a CSP do app é
+// `default-src 'self'` e worker de `blob:` cai nela → construtor bloqueado. Foi o que
+// aconteceu de 03/07 a 29/07 — o worker morria no boot, o fallback síncrono assumia
+// CALADO e o dashboard travava 52 s com 30k apostas. Se um dia o worker precisar ser
+// gerado em runtime, a CSP tem de ganhar `worker-src` explícito na MESMA mudança.
+//
+// Fallback: navegador sem Worker (ou arquivo ausente) computa em sync ADIADO
+// (setTimeout) — a UI ao menos pinta antes de o cálculo travar. O fallback agora
+// AVISA no console: silêncio foi o que escondeu a regressão por 26 dias.
 var _mcWorker=null,_mcWorkerTried=false,_mcReqId=0,_mcPending=Object.create(null);
+// Diagnóstico legível de fora (teste de fumaça e console): 'worker' | 'sync'.
+var _mcModo='indefinido';
 function _mcSyncFromArrays(L,S,sims){var n=L.length,rows=new Array(n);for(var i=0;i<n;i++)rows[i]={lucro:L[i],stake:S[i]};return{mc:_calcMCdrawdownRaw(rows,sims),pv:_calcPValueMCraw(rows,sims)};}
+function _mcCaiuParaSync(motivo){
+  if(_mcModo!=='sync'){_mcModo='sync';console.warn('[monte-carlo] Web Worker indisponível ('+motivo+') — cálculo vai rodar na thread principal e pode travar a tela em bases grandes.');}
+}
 function _getMcWorker(){
   if(_mcWorkerTried)return _mcWorker;
   _mcWorkerTried=true;
   try{
-    var src=mulberry32.toString()+'\n'+_calcMCdrawdownRaw.toString()+'\n'+_calcPValueMCraw.toString()+'\n'+
-      'self.onmessage=function(e){var d=e.data,n=d.L.length,rows=new Array(n);for(var i=0;i<n;i++)rows[i]={lucro:d.L[i],stake:d.S[i]};'+
-      'try{var mc=_calcMCdrawdownRaw(rows,d.sims),pv=_calcPValueMCraw(rows,d.sims);self.postMessage({id:d.id,mc:mc,pv:pv});}'+
-      'catch(err){self.postMessage({id:d.id,err:String(err)});}};';
-    _mcWorker=new Worker(URL.createObjectURL(new Blob([src],{type:'application/javascript'})));
-    _mcWorker.onmessage=function(e){var d=e.data,p=_mcPending[d.id];if(!p)return;delete _mcPending[d.id];p.resolve(d.err?_mcSyncFromArrays(p.L,p.S,p.sims):{mc:d.mc,pv:d.pv});};
-    _mcWorker.onerror=function(){_mcWorker=null;for(var id in _mcPending){var p=_mcPending[id];delete _mcPending[id];p.resolve(_mcSyncFromArrays(p.L,p.S,p.sims));}};
-  }catch(e){_mcWorker=null;}
+    // O ?v= viaja para o mc-core.js dentro do worker (via location.search) — bump num lugar só.
+    _mcWorker=new Worker('assets/js/mc-worker.js?v=1');
+    _mcModo='worker';
+    _mcWorker.onmessage=function(e){var d=e.data,p=_mcPending[d.id];if(!p)return;delete _mcPending[d.id];if(d.err)_mcCaiuParaSync('erro dentro do worker: '+d.err);p.resolve(d.err?_mcSyncFromArrays(p.L,p.S,p.sims):{mc:d.mc,pv:d.pv});};
+    _mcWorker.onerror=function(ev){_mcWorker=null;_mcCaiuParaSync('onerror: '+((ev&&ev.message)||'sem mensagem — típico de bloqueio por CSP'));for(var id in _mcPending){var p=_mcPending[id];delete _mcPending[id];p.resolve(_mcSyncFromArrays(p.L,p.S,p.sims));}};
+  }catch(e){_mcWorker=null;_mcCaiuParaSync('construtor lançou: '+e.message);}
   return _mcWorker;
 }
 function mcComputeAsync(rows,sims){
@@ -212,32 +226,12 @@ function mcComputeAsync(rows,sims){
   }
   return new Promise(function(resolve){setTimeout(function(){resolve(_mcSyncFromArrays(L,S,sims));},0);}).then(done);
 }
-function _calcPValueMCraw(rows,sims){var n=rows.length;if(n<30)return 1;sims=sims||(n>10000?3000:(n>3000?5000:10000));var L=new Float64Array(n),S=new Float64Array(n),sumL=0,sumS=0;for(var i=0;i<n;i++){L[i]=+rows[i].lucro||0;S[i]=+rows[i].stake||0;sumL+=L[i];sumS+=S[i];}if(sumS<=0)return 1;var yObs=sumL/sumS,r0=new Float64Array(n),q0=0;for(var j=0;j<n;j++){r0[j]=L[j]-yObs*S[j];q0+=r0[j]*r0[j];}var seObs=Math.sqrt(q0)/sumS;if(seObs<=0)return 1;var tObs=yObs/seObs;var seed=((n*2654435761)^(Math.round(Math.abs(sumL)*1000)|0))>>>0,rng=mulberry32(seed),cnt=0;for(var s=0;s<sims;s++){var rs=0,ss=0,rr=0,rsa=0,ssq=0;for(var b=0;b<n;b++){var k=(rng()*n)|0,rk=r0[k],sk=S[k];rs+=rk;ss+=sk;rr+=rk*rk;rsa+=rk*sk;ssq+=sk*sk;}if(ss<=0)continue;var ys=rs/ss,su2=rr-2*ys*rsa+ys*ys*ssq;if(su2>0&&ys*ss/Math.sqrt(su2)>=tObs)cnt++;}return(cnt+1)/(sims+1);}
-function _calcMCdrawdownRaw(rows,sims){
-  sims=sims||5000;
-  var n=rows.length;
-  if(n<2)return{xmdd:0,p50:0,p95:0,p99:0};
-  var pls=new Float64Array(n),sumL=0;
-  for(var i=0;i<n;i++){pls[i]=rows[i].lucro||0;sumL+=pls[i];}
-  // O bootstrap reamostra o MULTICONJUNTO de P/L (iid) — a ordem do array só afeta a
-  // realização semeada, não a distribuição. Ordenar os VALORES canoniza o array: o mesmo
-  // conjunto de apostas dá o mesmo número em Métricas e nos drill-downs, independente da
-  // ordem de entrada. (Ordenar por data não basta: apostas do mesmo dia empatam e a ordem
-  // interna do empate ainda variaria entre telas.) Float64Array.sort() é numérico por padrão.
-  pls.sort();
-  // Semente derivada dos dados (independente da ordem) → determinístico entre renders e telas
-  var seed=((n*2654435761)^(Math.round(Math.abs(sumL)*1000)|0))>>>0,rng=mulberry32(seed);
-  var mdds=new Float64Array(sims);
-  for(var s=0;s<sims;s++){
-    var acc=0,peak=0,dd=0;
-    for(var b=0;b<n;b++){acc+=pls[(rng()*n)|0];if(acc>peak)peak=acc;var t=peak-acc;if(t>dd)dd=t;}
-    mdds[s]=dd;
-  }
-  var arr=Array.prototype.slice.call(mdds).sort(function(a,b){return a-b;});
-  var q=function(f){return arr[Math.min(sims-1,Math.floor(f*sims))];};
-  var sum=0;for(var k=0;k<sims;k++)sum+=arr[k];
-  return{xmdd:sum/sims,p50:q(0.50),p95:q(0.95),p99:q(0.99)};
-}
+// _calcPValueMCraw e _calcMCdrawdownRaw: ver assets/js/mc-core.js (fonte única,
+// compartilhada com o Web Worker). Não redeclarar aqui — duas cópias divergem.
+
+// Selo "calculando…" das casas que esperam o Monte Carlo (mesmo markup que a Visão
+// Geral já usava): valor que ainda vai chegar nunca aparece como número provisório.
+function mcSpinner(){return'<span style="display:inline-flex;align-items:center;gap:6px;color:var(--ink-mute);font-family:var(--font-mono);font-size:11px"><svg width="14" height="14" viewBox="0 0 16 16" style="flex-shrink:0"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--ink-mute)" stroke-width="2" stroke-dasharray="26" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="0.8s" repeatCount="indefinite"/></circle></svg>calculando…</span>';}
 function calcRecoveryFactor(rows){
   var profit=0;for(var i=0;i<rows.length;i++)profit+=(rows[i].lucro||0);
   var mdd=calcMDDreais(rows);

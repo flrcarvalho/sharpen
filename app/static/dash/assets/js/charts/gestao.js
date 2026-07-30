@@ -383,6 +383,8 @@ function renderCustos(rows){
 
 // Metrics knowledge base — preenche a faixa de KPIs de resumo e o badge de valor
 // ao vivo (#mv_*) de cada card. Todos os cálculos vêm das funções canônicas de app.js.
+// Contador de render: só a resposta do Monte Carlo do render MAIS RECENTE pinta a tela.
+let _metricsReq=0;
 function renderMetrics(rows){
   // Fundamentais
   const pl=rows.reduce((a,r)=>a+(r.lucro||0),0);
@@ -393,17 +395,14 @@ function renderMetrics(rows){
   // Risco & Drawdown
   const dr=calcDrawdownReal(rows),mddR=dr.mddReais,mddPct=dr.mddPct;
   const rf=calcRecoveryFactor(rows);
-  // Bootstrap dos P/L reais (mesmo motor dos drill-downs): média = drawdown típico,
-  // p95 = cauda de risco, p99 = cauda extrema.
-  const _mc=calcMCdrawdown(rows,10000),xmdd=_mc.xmdd,ddP95=_mc.p95,ddP99=_mc.p99;
-  const profDdRaw=xmdd>0?pl/xmdd:null;
-  // Significância
-  const pval=calcPValueMC(rows,10000);
-  const sol=calcSolidez({pValue:pval,profitXmdd:profDdRaw!==null?profDdRaw:0,nApostas:rows.length,oddMedia:avgOdd});
 
   // Preenche um badge: só o texto se cls===undefined (mantém a classe semântica do markup);
   // troca a classe quando o sinal/limiar é dinâmico (ROI, P/L, RF, Profit/DD, P-Value, Solidez).
   const setLive=(id,txt,cls)=>{const el=document.getElementById(id);if(!el)return;el.textContent=txt;if(cls!==undefined)el.className='metric-live'+(cls?' '+cls:'');};
+  // Esqueleto: troca SÓ o conteúdo. Mexer na className apagaria a classe semântica que
+  // vem do markup (mv_xmdd/mv_p95/mv_p99 nascem `d-proj`) — e aí o valor voltaria com a
+  // cor errada, porque `setLive` sem o 3º argumento justamente PRESERVA essa classe.
+  const setLiveHTML=(id,html)=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=html;};
   const plTxt=(pl>=0?'+R$ ':'−R$ ')+fmt(pl,0);
 
   setLive('mv_roi',fmtPct(roi,2,true),roi>=0?'pos':'neg');
@@ -416,23 +415,50 @@ function renderMetrics(rows){
   setLive('mv_mdd_r','R$ '+fmt(mddR,0));
   setLive('mv_mdd_p',fmtPct(mddPct,2,false));
   setLive('mv_rf',rf===null?'—':fmtOdd(rf)+'×',rf===null?'neu':rf>=2?'d-pos':rf>=1?'d-info':'d-neg');
-  setLive('mv_xmdd','R$ '+fmt(xmdd,0));
-  setLive('mv_p95','R$ '+fmt(ddP95,0));
-  setLive('mv_p99','R$ '+fmt(ddP99,0));
-  setLive('mv_pdd',profDdRaw===null?'—':fmtOdd(profDdRaw)+'×',profDdRaw===null?'neu':profDdRaw>=2?'d-pos':profDdRaw>=1?'d-info':'d-neg');
 
-  setLive('mv_pval',pval<0.001?'< 0,001':fmt(pval,3),pval<0.05?'d-pos':pval<0.15?'d-info':'neu');
-  setLive('mv_solidez',sol.faixa,sol.score>=0.65?'d-pos':sol.score>=0.45?'d-info':sol.score>=0.25?'d-proj':'d-neg');
+  // ── Bootstrap (Monte Carlo) — ASSÍNCRONO, no Web Worker ────────────────────
+  // Média = drawdown típico, p95 = cauda de risco, p99 = cauda extrema; mais o
+  // p-value e a Solidez, que dependem dos dois. São ~300 milhões de iterações com a
+  // base cheia: rodando aqui na thread principal, a tela congelava por dezenas de
+  // segundos (s217 — 40 s medidos na base do Feca, com o Chrome oferecendo "aguardar
+  // ou fechar a aba"). Agora o cálculo sai para o worker e estes 6 valores chegam
+  // depois, marcados com o selo "calculando…". `_metricsReq` descarta a resposta de
+  // um render antigo: trocar de filtro no meio do cálculo não pinta número da janela
+  // anterior. Os demais KPIs (P/L, ROI, WR, MDD real) já estão na tela desde agora.
+  const spin=mcSpinner();
+  ['mv_xmdd','mv_p95','mv_p99','mv_pdd','mv_pval','mv_solidez'].forEach(id=>setLiveHTML(id,spin));
 
-  // Faixa de KPIs no topo — resumo headline (não duplica os cards)
-  document.getElementById('metricsKPI').innerHTML=[
+  const kpiEl=document.getElementById('metricsKPI');
+  const kpiFixos=[
     {l:'P/L Líquido',v:plTxt,c:pl>=0?'pos':'neg'},
     {l:'ROI',v:fmtPct(roi,2,true),c:roi>=0?'pos':'neg'},
     {l:'Win Rate',v:fmtPct(wr,1,false),c:'neu'},
     {l:'MDD Real',v:'R$ '+fmt(mddR,0),c:mddPct<15?'pos':mddPct<30?'neu':'neg'},
-    {l:'Drawdown Médio',v:'R$ '+fmt(xmdd,0),c:'neu'},
-    {l:'Nível de Solidez',v:sol.faixa,c:sol.score>=0.65?'pos':sol.score>=0.45?'neu':'neg'},
   ].map(k=>`<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div></div>`).join('');
+  if(kpiEl)kpiEl.innerHTML=kpiFixos+
+    `<div class="kpi"><div class="kpi-label">Drawdown Médio</div><div class="kpi-val neu" id="mk_xmdd">${spin}</div></div>`+
+    `<div class="kpi"><div class="kpi-label">Nível de Solidez</div><div class="kpi-val neu" id="mk_sol">${spin}</div></div>`;
+
+  const req=++_metricsReq;
+  mcComputeAsync(rows,10000).then(({mc:_mc,pv:pval})=>{
+    if(req!==_metricsReq||!document.getElementById('mv_xmdd'))return;   // render mais novo assumiu
+    const xmdd=_mc.xmdd,ddP95=_mc.p95,ddP99=_mc.p99;
+    const profDdRaw=xmdd>0?pl/xmdd:null;
+    const sol=calcSolidez({pValue:pval,profitXmdd:profDdRaw!==null?profDdRaw:0,nApostas:rows.length,oddMedia:avgOdd});
+
+    // sem 3º argumento: mantém a classe `d-proj` do markup (valor projetado, não real)
+    setLive('mv_xmdd','R$ '+fmt(xmdd,0));
+    setLive('mv_p95','R$ '+fmt(ddP95,0));
+    setLive('mv_p99','R$ '+fmt(ddP99,0));
+    setLive('mv_pdd',profDdRaw===null?'—':fmtOdd(profDdRaw)+'×',profDdRaw===null?'neu':profDdRaw>=2?'d-pos':profDdRaw>=1?'d-info':'d-neg');
+    setLive('mv_pval',pval<0.001?'< 0,001':fmt(pval,3),pval<0.05?'d-pos':pval<0.15?'d-info':'neu');
+    setLive('mv_solidez',sol.faixa,sol.score>=0.65?'d-pos':sol.score>=0.45?'d-info':sol.score>=0.25?'d-proj':'d-neg');
+
+    const elX=document.getElementById('mk_xmdd');
+    if(elX){elX.textContent='R$ '+fmt(xmdd,0);elX.className='kpi-val neu';}
+    const elS=document.getElementById('mk_sol');
+    if(elS){elS.textContent=sol.faixa;elS.className='kpi-val '+(sol.score>=0.65?'pos':sol.score>=0.45?'neu':'neg');}
+  });
 }
 
 // Build HTML
