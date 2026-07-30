@@ -130,6 +130,19 @@ def test_coproprietarios_dono_solo_ou_inexistente_vazio():
     assert auth.coproprietarios("Naoexiste") == []
 
 
+def test_lavapessoal_e_dono_solo_isolado_do_feca():
+    # Nome parecido com `Lava` (operador do Feca), natureza OPOSTA: LavaPessoal é
+    # DONO SOLO. Base pessoal isolada — o Feca não a alcança nem por "ver como"
+    # nem pela dedup cruzada. Trava a decisão de criação da conta (s216).
+    assert "LavaPessoal" in auth.USUARIOS
+    assert auth.operadores_de("LavaPessoal") == []
+    assert auth.coproprietarios("LavaPessoal") == []
+    assert auth.pode_ver_como("Feca", "LavaPessoal") is False
+    assert auth.pode_ver_como("LavaPessoal", "Feca") is False
+    assert auth.pode_ver_como("LavaPessoal", "Lava") is False
+    assert auth.pode_ver_como("LavaPessoal", "LavaPessoal") is True
+
+
 # ── dono_efetivo: o coração do isolamento em modo "ver como" ──────────────────
 
 def test_dono_efetivo_sem_ver_como_retorna_proprio():

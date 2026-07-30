@@ -62,6 +62,7 @@ USUARIOS: dict[str, str] = {
     "LavaFatuch": os.environ.get("SENHA_LAVAFATUCH_HASH", ""),
     "Jonathan": os.environ.get("SENHA_JONATHAN_HASH", ""),
     "Gabriel": os.environ.get("SENHA_GABRIEL_HASH", ""),
+    "LavaPessoal": os.environ.get("SENHA_LAVAPESSOAL_HASH", ""),
 }
 
 
@@ -70,6 +71,11 @@ USUARIOS: dict[str, str] = {
 # deslogar. Donos NÃO se veem entre si (Feca não vê Diogo). Operadores não veem
 # ninguém além de si mesmos (lista vazia). Lava é operador do Feca; Primo é
 # operador do Diogo (mesmo modelo: Diogo tem base própria + vê a do Primo).
+#
+# ATENÇÃO ao parecido de nome: `LavaPessoal` é DONO SOLO — base pessoal, isolada,
+# NÃO é operador do Feca (decisão do Feca ao criar a conta). Ninguém "vê como"
+# LavaPessoal e ele não vê ninguém; `coproprietarios` = [] → sem dedup cruzada.
+# Não o pendure em OPERADORES por semelhança com `Lava`.
 OPERADORES: dict[str, list[str]] = {
     "Feca": ["Lava"],
     "Diogo": ["Primo"],
