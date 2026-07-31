@@ -193,6 +193,38 @@ conta, `repository.casa_canonica()` reusa a grafia que já existe; casa nova ent
 
 ---
 
+## Excluir dado: mova para tabela isolada, nunca soft-delete
+
+Exclusão destrutiva **move** as linhas para uma tabela que mais nada no sistema lê
+(hoje `lixeira_contas`, alimentada pelo botão Excluir do Painel de Contas, retenção
+de 7 dias com purga preguiçosa). Nunca marque `excluido = TRUE` na tabela de origem.
+
+**Por quê:** soft-delete em `bilhetes` obrigaria a filtrar em dezenas de queries
+espalhadas (dashboard, KPIs, dedup, export, P/L). Um esquecimento vira lucro
+fantasma, a mesma família do UPSERT meio-atualizado descrito acima. Tabela separada
+tem acoplamento zero por construção.
+
+Duas regras de forma:
+
+- **O snapshot e o DELETE são a MESMA operação** (`DELETE ... RETURNING to_jsonb(b.*)`).
+  Ler antes e apagar depois abre janela para gravar uma lixeira que não corresponde
+  ao que saiu.
+- **Snapshot em JSONB, nunca tabela-espelho.** `bilhetes` ganha coluna via `ALTER TABLE`
+  de tempos em tempos, e um espelho pararia de copiar a coluna nova em silêncio.
+
+Restaurar casa o snapshot com as colunas que a tabela tem **hoje** e usa `ON CONFLICT
+DO NOTHING`: entre excluir e restaurar o espaço pode ter sido reocupado, e **dado novo
+manda**.
+
+**Rota destrutiva reconfere a confirmação no servidor.** A UI trava o botão até o nome
+exato ser digitado, mas isso é conveniência, não segurança: um `DELETE` disparado por
+engano (histórico do navegador, script, curl) não pode apagar histórico.
+
+**Fonte canônica:** `app/repository.py` (`excluir_parceiro`, `LIXEIRA_DIAS`) e
+`scripts/restaurar_conta_lixeira.py`.
+
+---
+
 ## Regra de cashout (planilha-compatível)
 
 > **Fonte canônica:** `global/MASTER_RESULTADO_2026.md §5.1.2` (cashout = stake → V) e `§5.6` (cashout ≠ stake → W), com resumo em `MASTER_OUTPUT_2026.md §14`. **Mudou? Mude no MASTER, nunca aqui.**
@@ -202,4 +234,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-07-29 (sessão 218 — seção "Conta de usuário nova = duas metades")
+ATUALIZADO: 2026-07-30 (sessão 219 — seção "Excluir dado: mova para tabela isolada")
