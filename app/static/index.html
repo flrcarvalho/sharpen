@@ -5159,7 +5159,8 @@ async function salvarTipsterVal(id, valor, origem = 'humano') {
 // casa · esporte · mercado · ASSINATURA DE STAKE (parseada da "Dica de stake": final
 // da stake e/ou valores exatos — ex.: Peixe=final 6, Robotenis=250, TC Insider=800).
 // Score = Σ pesos: esporte/mercado exclusivo=10 (compartilhado=1), casa exclusiva=5;
-// STAKE = 25 (valor exato) ou 25/√(nº de finais) (final não-zero), MAS só conta se a stake for
+// STAKE = 40 (valor exato NÃO-REDONDO — digital), 25 (valor exato redondo) ou
+// 25/√(nº de finais) (final não-zero — família), MAS só conta se a stake for
 // DISTINTIVA no contexto: ≤2 sobreviventes do filtro de esporte a reivindicam (o "≤2 donos").
 // Um valor redondo comum (300 = 8 donos) vira ruído entre os de Futebol → peso 0; já 250 do
 // Robotenis só colide com tipsters de OUTROS esportes → segue fingerprint. FILTRO DURO: se o
@@ -5264,6 +5265,15 @@ function _stakeSignal(S, sig, casaK) {
     return { w: 0, veto: false };
   }
   const I = Math.round(n), d = I % 10;
+  // Valor EXATO não-redondo declarado é DIGITAL; final derivado é só FAMÍLIA — e digital
+  // ganha de família. O parser deriva o final de todo valor não-redondo, então "49, 99"
+  // (MultiLBB) transformava ele em dono do final 9 inteiro e ele empatava com o 199 do
+  // LBB: 28 × 27, folga 1 < 7, os dois se anulavam e a coluna ficava vazia (s219 — o
+  // MultiLBB nasceu em 27/07 e derrubou em silêncio um LBB que rodava havia semanas).
+  // Quem CRAVA o valor vence quem só herdou o final. REDONDO fica de fora de propósito
+  // (50/100/250/800 é valor comum, não digital): sem esse corte o M&M — que declara
+  // "50 100 200 300 400" — passaria a roubar os 50/100 do Peixe (252 erros no backtest).
+  if (d !== 0 && sig.valores.has(I)) return { w: 40, veto: false };
   if (hasFinal) {
     if (d !== 0 && sig.finais.has(d)) return { w: 25 / Math.sqrt(sig.finais.size), veto: false };
     if (sig.valores.has(I)) return { w: 25, veto: false };   // valor EXATO listado salva do veto
