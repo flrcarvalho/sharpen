@@ -129,6 +129,7 @@ def test_coproprietarios_dono_solo_ou_inexistente_vazio():
     assert auth.coproprietarios("Jonathan") == []            # solo → sem checagem cruzada
     assert auth.coproprietarios("WilliamOliveira") == []     # solo (s218)
     assert auth.coproprietarios("ViniciusOliveira") == []    # solo (s220)
+    assert auth.coproprietarios("SoChutes") == []            # solo (s223 — conta do tipster)
     assert auth.coproprietarios("Naoexiste") == []
 
 
@@ -143,6 +144,17 @@ def test_os_dois_oliveira_sao_donos_solos_independentes():
     assert auth.pode_ver_como("ViniciusOliveira", "WilliamOliveira") is False
     assert auth.pode_ver_como("Feca", "ViniciusOliveira") is False
     assert auth.pode_ver_como("ViniciusOliveira", "ViniciusOliveira") is True
+
+
+def test_sochutes_e_dono_solo_isolado():
+    # Conta do TIPSTER Só Chutes (s223): o bot Sharpen loga como `SoChutes` e
+    # planilha os bilhetes do canal. Dono solo — ninguém "vê como" ele, ele não
+    # vê ninguém, sem dedup cruzada. Pendurar em OPERADORES derruba a suíte.
+    assert "SoChutes" in auth.USUARIOS
+    assert auth.operadores_de("SoChutes") == []
+    assert auth.pode_ver_como("Feca", "SoChutes") is False
+    assert auth.pode_ver_como("SoChutes", "Feca") is False
+    assert auth.pode_ver_como("SoChutes", "SoChutes") is True
 
 
 def test_lavapessoal_e_dono_solo_isolado_do_feca():
