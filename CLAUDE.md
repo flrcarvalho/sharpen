@@ -77,6 +77,36 @@ a valer entre os dois.
 
 ---
 
+## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
+
+O matcher (`_sugParaBilhete`, inline no `app/static/index.html`) só sugere com **folga ≥ 7**
+entre o 1º e o 2º colocado. Em empate ele fica **vazio de propósito** — não chuta.
+
+A consequência é o modo de falha: **um perfil novo pode matar um perfil antigo em silêncio.**
+Nada aparece no rail nem no console, só a coluna vazia. Foi a s221: `MultiLBB` nasceu com a
+dica `49, 99`, o parser deriva o final de todo valor não-redondo (`49 → 9`, `99 → 9`), ele
+virou dono do final 9 inteiro e empatou com o `199` do LBB (28 × 27) — os dois se anularam.
+
+**Diagnóstico, nesta ordem:**
+
+1. `select nome, criado_em from tipsters where dono = '<dono>' order by criado_em desc limit 5`
+   — perfil criado ou editado nos últimos dias é o primeiro suspeito.
+2. **Prove por remoção, não por dedução.** Extraia o bloco JS do `index.html`, rode em node
+   contra os perfis e bilhetes **reais** do banco, e compare com e sem o perfil suspeito.
+   Isola a causa sem editar nada.
+3. Só então mexa no peso. E **meça**: backtest contra bilhetes já rotulados, antes e depois.
+
+**Ao calibrar peso de stake, dois cortes são load-bearing** (tirar qualquer um já quebrou o
+matcher em produção): valor **redondo** (50/100/250/800) não é digital, é valor comum — sem
+esse corte o M&M rouba os 50/100 do Peixe; e `valores.size === 1` separa "este valor É minha
+assinatura única" de "é um dos vários que aposto".
+
+> **Assinatura tem ERA.** O `199` foi do SóTudo até junho e virou do LBB em julho. Backtest
+> in-sample pune o acerto de hoje com bilhete velho — leia o placar sabendo disso, e use
+> holdout **temporal** para qualquer regra que aprenda da base.
+
+---
+
 ## ⚠️ REGRA DE UI / MARCA OBRIGATÓRIA (antes de criar QUALQUER visual novo)
 
 > **Motivo:** na sessão 83, cards de KPI foram criados com formatadores caseiros que abreviavam (`1,4k`) e coloriam o valor inteiro — violando 4 regras do padrão monetário. O Feca teve que voltar em detalhe já documentado. A causa: **regra escrita sem hábito de conferir = pulada.** Esta seção torna a conferência obrigatória.
@@ -234,4 +264,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-07-30 (sessão 219 — seção "Excluir dado: mova para tabela isolada")
+ATUALIZADO: 2026-07-31 (sessão 221 — seção "Sugerir tipsters parou? O suspeito é um perfil novo")
