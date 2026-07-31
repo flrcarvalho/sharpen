@@ -87,6 +87,12 @@ Padrão monetário: `../UI_REFERENCE.md §5`.
 
 ## Pendências conhecidas
 
+- **Landing do usuário final vai ser reescrita.** Sai o detalhe de arquitetura (motores,
+  payload da API, pesos da Solidez); entra print real do sistema. **Print primeiro,
+  texto depois:** hoje a página se defende explicando o mecanismo porque não mostra
+  nada. Lista completa do que sai no `STATUS.md`, backlog da s214.
+- **Prints prontos, com 4 correções abertas** — ferramenta em `../../scripts/demo/`
+  (perfil de produção → base fictícia → servidor → captura). Detalhe no `STATUS.md`.
 - **Versão em inglês** não foi feita — o posicionamento é worldwide, mas as duas
   páginas estão em pt-BR. Foram escritas para que a troca seja só de copy (nenhum
   texto está preso em imagem ou SVG).
