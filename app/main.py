@@ -2711,6 +2711,92 @@ async def escadas_todas_route(dono: str = Depends(dono_efetivo)):
     return {"escadas": await get_escadas_todas(dono)}
 
 
+# ── Página pública de tipster (sem auth, somente leitura) ─────────────────────
+# sharpen.bet/tipsters/<slug> — vitrine de resultados para membros e possíveis
+# clientes do tipster. SÓ slugs do registro abaixo existem (o resto é 404: nenhum
+# dono vira público por acidente). ORDEM IMPORTA: esta rota tem path dinâmico e
+# DEVE ficar depois de todas as rotas /tipsters/* de API (o Starlette casa na
+# ordem de registro — movê-la para cima engoliria /tipsters/cadastro etc.).
+TIPSTERS_PUBLICOS: dict[str, dict] = {
+    "sochutes": {"dono": "SoChutes", "nome": "Só Chutes"},
+}
+
+_PUBLICO_TTL = 300  # 5 min — página é pública; o cache protege o Postgres
+_publico_cache: dict[str, tuple[float, str]] = {}
+_PUBLICO_TEMPLATE = Path(__file__).parent / "static" / "publico" / "tipster.html"
+
+
+async def _dados_publicos(cfg: dict) -> dict:
+    """Agrega o feed do dono em KPIs (em UNIDADES — decisão do Feca para bases de
+    tipster: 1u = 1), fechamentos mensais e últimas apostas. Reusa dashboard_rows
+    (mesmo P/L derivado de calcular_pl do dashboard — nunca uma segunda fórmula)."""
+    rows = await dashboard_rows([cfg["dono"]])
+    resolvidas = [r for r in rows if r["resultado"] != "ABERTA"]
+
+    profit = sum(r["lucro"] for r in resolvidas)
+    turnover = sum(r["stake"] for r in resolvidas)
+    greens = sum(1 for r in resolvidas if r["resultado"] in ("W", "HW"))
+
+    por_mes: dict[str, dict] = {}
+    for r in resolvidas:
+        m = por_mes.setdefault(r["data"][:7], {"mes": r["data"][:7], "n": 0, "turnover": 0.0, "profit": 0.0})
+        m["n"] += 1
+        m["turnover"] += r["stake"]
+        m["profit"] += r["lucro"]
+    mensal = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
+    for m in mensal:
+        m["roi"] = (m["profit"] / m["turnover"] * 100) if m["turnover"] else 0.0
+
+    ultimas = sorted(rows, key=lambda r: (r["data"], r.get("id") or 0), reverse=True)[:20]
+
+    # horário de Brasília (UTC−3) — mesma convenção manual do restante do app
+    brasilia = datetime.fromtimestamp(time.time() - 3 * 3600, tz=timezone.utc)
+    return {
+        "nome": cfg["nome"],
+        "atualizado": brasilia.strftime("%d/%m/%Y %H:%M"),
+        "kpis": {
+            "profit": profit,
+            "turnover": turnover,
+            "roi": (profit / turnover * 100) if turnover else 0.0,
+            "winrate": (greens / len(resolvidas) * 100) if resolvidas else 0.0,
+            "apostas": len(resolvidas),
+        },
+        "mensal": mensal,
+        "ultimas": [
+            {
+                "data": r["data"],
+                "desc": r["descricao"] or r["aposta"],
+                "odd": r["odd"],
+                "stake": r["stake"],
+                "resultado": r["resultado"],
+                "lucro": r["lucro"],
+            }
+            for r in ultimas
+        ],
+    }
+
+
+@app.get("/tipsters/{slug}")
+async def pagina_publica_tipster(slug: str):
+    cfg = TIPSTERS_PUBLICOS.get(slug.lower())
+    if not cfg:
+        raise HTTPException(404, "Página não encontrada.")
+    agora = time.time()
+    hit = _publico_cache.get(slug.lower())
+    if hit and agora - hit[0] < _PUBLICO_TTL:
+        html = hit[1]
+    else:
+        dados = await _dados_publicos(cfg)
+        template = _PUBLICO_TEMPLATE.read_text(encoding="utf-8")
+        # `</` escapado: descrição vinda do banco não pode fechar a tag <script>
+        blob = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/")
+        html = template.replace("__NOME__", cfg["nome"]).replace("__DADOS__", blob)
+        _publico_cache[slug.lower()] = (agora, html)
+    # sem Cache-Control próprio: o middleware da casa força no-cache em HTML
+    # (regra da s215); quem segura o público é o cache em memória acima.
+    return HTMLResponse(html)
+
+
 # ── Betting Dashboard (mesma origem) ──────────────────────────────────────────
 # Serve o front do dashboard (cópia viva em static/dash/) que lê /dashboard/data,
 # filtrado pelo login. A planilha/Apps Script no GitHub Pages segue como backup
