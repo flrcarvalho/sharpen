@@ -17,7 +17,7 @@ function renderKPI(rows){
   // entra se estiver no intervalo [menor, maior] mês das apostas filtradas. Sem filtro (tudo),
   // o span cobre todos os meses → mesmo número de antes; só as visões filtradas mudam (fim
   // do double-count: filtrar "julho" descontava jan..jul do custo). Ver achado Turbo overview.js.
-  ctLoad();
+  if(!window.MODO_PUBLICO)ctLoad();   // público: /custos/store é autenticada (daria 401)
   const _ymMin=rows.length?rows.reduce((m,r)=>r.data<m?r.data:m,'9999-99-99').slice(0,7):null;
   const _ymMax=rows.length?rows.reduce((m,r)=>r.data>m?r.data:m,'0000-00-00').slice(0,7):null;
   const costTipster=!_ymMin?0:Object.values(ctData).reduce((total,monthsObj)=>{
@@ -30,7 +30,12 @@ function renderKPI(rows){
   const lucroLiq=lucro-totalCost;
 
   // ── Andar 1: P/L Bruto → Custo Conta → Custo Tipster → P/L Líquido ────────
-  const row1=[
+  // Público (vitrine de tipster): custo é conceito do DONO, não do cliente do
+  // tipster — os dois cards sairiam sempre 0,00u. O andar 1 vira um único P/L
+  // hero de largura cheia (bruto = líquido sem custos).
+  const row1=window.MODO_PUBLICO?[
+    {l:'P/L',v:fmtPL(lucro),c:lucro>=0?'pos':'neg',s:'resultado da carteira',accent:'hero',span:true},
+  ]:[
     {l:'P/L Bruto',v:fmtPL(lucro),c:lucro>=0?'pos':'neg',s:'antes de custos',accent:''},
     {l:'Custo de Contas',v:costConta>0?fmtPL(-costConta):fmtR(0),c:costConta>0?'neg':'neu',s:'total aquisição',accent:''},
     {l:'Custo de Tipsters',v:costTipster>0?fmtPL(-costTipster):fmtR(0),c:costTipster>0?'neg':'neu',s:'assinaturas / serviços',accent:''},
@@ -46,7 +51,7 @@ function renderKPI(rows){
   const divider=`<div style="grid-column:1/-1;height:1px;background:var(--line-2);margin:2px 0;opacity:.6"></div>`;
   document.getElementById('kpiGrid').innerHTML=
     `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:stretch;margin-bottom:1.25rem">`+
-    row1.map(k=>`<div class="kpi ${k.accent||''}"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('')+
+    row1.map(k=>`<div class="kpi ${k.accent||''}"${k.span?' style="grid-column:1/-1"':''}><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('')+
     row2.map(k=>`<div class="kpi"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div>${k.bar!==undefined?`<div class="wrc"><div class="t"><div class="f" style="width:${Math.min(100,Math.max(0,k.bar)).toFixed(1)}%"></div></div></div>`:''}<div class="kpi-sub">${k.s}</div></div>`).join('')+
     `</div>`;
 }
