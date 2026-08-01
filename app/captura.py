@@ -53,7 +53,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # {name:"gethistory"}. Sem paginação: uma chamada devolve a conta inteira com `Count`.
 # BETFAST: ESPELHO da Tivo (s211) — mesmo motor BetConstruct, mesmo caminho de API, mesmos
 # nomes de campo; muda o domínio e a cor. Usa o MESMO `tv_inject.js`, sem código duplicado.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto"}
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -78,6 +78,9 @@ _HOSTS_POR_CASA = {
     # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
     # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
     "BETFAST":    ("betfast.bet.br",),
+    # A API vive em prod-betnacional-bets.bet6.com.br, mas a ABA (origem da captura) é o
+    # site da casa — o backstop casa↔site olha o host da aba, não o da API.
+    "BETNACIONAL": ("betnacional.bet.br",),
 }
 
 

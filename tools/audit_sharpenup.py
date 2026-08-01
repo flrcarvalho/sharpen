@@ -62,6 +62,8 @@ CODIGO_EXEMPLO: dict[str, str] = {
     "BETFAST":    "298388575",
     "VAIDEBET":   "5234878919",
     "BET365":     "JR8714690761I",
+    # ticket_id real da conta (a Super Odds aberta de 01/08) — formato NXBNAC + 24 dígitos.
+    "BETNACIONAL": "NXBNAC000142211281785609607878",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do

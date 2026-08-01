@@ -23,7 +23,8 @@
 
 ### 2.1 Modo de ingestão
 
-- **PRIMÁRIO:** texto colado — aba **"Histórico de apostas"** com filtro **"Liquidadas"** aplicado antes de copiar. O filtro exclui apostas em aberto; só apostas liquidadas entram no texto.
+- **PRIMÁRIO (desde s227):** captura **SharpenUp** — robô por API (`bnc_inject.js`, ver §2.5). Blocos com `[Código: NXBNAC…]` real, status da API e retorno potencial rotulado. Cobre abertas E resolvidas numa passada (`status=all`).
+- **LEGADO:** texto colado — aba **"Histórico de apostas"** com filtro **"Liquidadas"** aplicado antes de copiar (§2.3). O filtro exclui apostas em aberto; só apostas liquidadas entram no texto.
 - **FALLBACK:** screenshot / visão — aba **"Apostas"** (cards das últimas 24h). Usar quando o Histórico não estiver disponível.
 
 > ⚠️ **Apostas em aberto:** aplicar sempre o filtro "Liquidadas" no Histórico antes de copiar. Sem o filtro, apostas em aberto podem mostrar `Retorno: R$0,00` — indistinguível de L no texto. O sistema já suporta `extraction_state = aberta` via mecanismo existente, mas o filtro é a solução mais limpa e confiável.
@@ -79,11 +80,32 @@ R$ XX,00
 
 **Ordem do output:** Histórico exibe mais recente (topo) → mais antiga (baixo). TSV: **último no texto = 1ª linha** (cronológico crescente, mais antiga primeiro).
 
+### 2.5 Captura SharpenUp (API `all-bets`) — campos e armadilhas (recon s227)
+
+Endpoint: `GET prod-betnacional-bets.bet6.com.br/api/v2/all-bets?status=all&…&date_start=…&date_end=…`
+(Bearer Keycloak ~15 min + header `nsx-token-version: v2`; a página manda os pares
+`date_start/date_end` E `startDate/endDate`). Fixture real: `extensor/harness/fixtures/betnacional.all-bets.json`.
+Regressão: `extensor/harness/casos/betnacional.mjs`.
+
+| Campo | Onde está | Observação |
+|---|---|---|
+| ID do bilhete | `ticket_id` (`NXBNAC` + 24 dígitos) | é o "ID da aposta" do card (botão Copiar) → `[Código:]` e chave de dedup |
+| Estrutura | `bets[]` é lista de **PERNAS** | múltipla de 4 = 4 objetos com o mesmo `ticket_id`; o inject agrupa por `header_id`/`ticket_id` |
+| Stake / retorno | `header_stake` / `header_return` — **string, ponto decimal, reais** (`"150.00"`) | não é milésimo |
+| ⚠️ Retorno de PENDENTE | `header_return` preenchido = retorno **POTENCIAL** (card "Retorno R$ 135,00" com jogo por começar) | o bloco rotula "Retorno potencial:" — nunca virar ganho (armadilha VaideBet) |
+| Odd | `odd` (perna) · `total_odd` (bilhete) | `total_odd` vem **arredondada em 3 casas** (4.144; real 4,14375): no W a odd sai de `retorno ÷ stake` quando a declarada não explica o retorno até o centavo |
+| Data | `created_at` (colocação — a que o card mostra) · `event_date` (evento, por perna) · `bet_paid_at` (liquidação) | **já em horário LOCAL, sem Z** — não converter de UTC |
+| Status do bilhete | `bet_status_id`/`bet_status_name` + `header_result` | de-para no §5 |
+| Resultado da perna | `return_type_id` (cru no bloco) | de-para no §5 |
+| Boost | `is_super_odds` | Super Odds: `home`/`away` vazios, descrição vive em `market_name` |
+| Paginação | janela de datas (~8 dias por consulta) | sem `more:false` exposto → o inject varre janelas para trás até secar (4 janelas sem bilhete novo) |
+
 ---
 
 ## 3. ID do bilhete
 
-- Caso: **sem ID impresso** — a Betnacional não exibe códigos de bilhete nos views de texto (Histórico e cards de 24h)
+- **Captura SharpenUp (primário):** ID **REAL** — `ticket_id` da API (`NXBNAC` + 24 dígitos, o "ID da aposta" do card). O bloco já chega com `[Código: NXBNAC…]`; dedup/UPSERT direto por ele. O código sintético abaixo vale **só** para o legado de texto colado.
+- Caso (legado texto/print): **sem ID impresso** — a Betnacional não exibe códigos de bilhete nos views de texto (Histórico e cards de 24h)
 - **Código sintético (11ª coluna interna) — OBRIGATÓRIO:** a Betnacional exibe o **horário de colocação** (`DD/MM/AAAA, às HH:MM`) em todo bilhete. Esse timestamp é estável entre reprocessamentos e único por bilhete — use-o para montar o `Código`:
   - **Formato:** `BN-DD/MM/AAAA-HH:MM-<odd exibida>` — ex.: `BN-22/06/2026-07:46-8.50`
   - **Odd no Código:** sempre a **odd exibida** (`Odd: X.XX`, 2 casas), nunca a calculada (`Retorno ÷ Aposta`). A exibida é estável; a calculada oscila em precisão e quebraria a dedup.
@@ -108,7 +130,20 @@ R$ XX,00
 
 > ⚠️ **DISCIPLINA DE TRADUÇÃO — crítica:** nunca copiar sinal visual diretamente. Traduzir sempre para `W · L · V · HW · HL`.
 
-**View Histórico (primário):**
+**Captura SharpenUp (primário) — enums CRUS da API no bloco:**
+
+| API (`Status (API):` no bloco) | Nosso código |
+|---|---|
+| `Pendente` (`bet_status_id=0`, `header_result=null`) | **aberta** — Resultado vazio (`extraction_state = aberta`); "Retorno potencial" NÃO é ganho |
+| `Finalizado · header_result=1` | W — odd = retorno ÷ stake (o bloco já traz conciliada) |
+| `Finalizado · header_result=0` + retorno `R$ 0,00` | L |
+| `Finalizado · header_result=0` + retorno = stake | V |
+| `Finalizado` + retorno parcial (0 < retorno ≠ stake, sem result=1) | conferir HW/HL ou cashout — não chutar |
+| enum novo (o bloco marca "a conferir — não liquidar automaticamente") | NÃO liquidar; registrar no §Feedback |
+
+Resultado da **perna** (`return_type_id`, cru no bloco): `1` = perna ganhou · `0` = perna perdeu · `2` = perna anulada (visto 1 caso, perna com `booked:0` — a conferir) · `null`/ausente = perna aberta. Serve para conferência interna da múltipla; o resultado do BILHETE sai do de-para acima.
+
+**View Histórico (texto legado):**
 
 | Betnacional exibe | Nosso código |
 |---|---|
@@ -452,5 +487,5 @@ R$ 350,00
 ---
 
 VERSÃO: 2026
-STATUS: ATIVO (v1 — 7 goldens reais, 21/06/2026)
+STATUS: ATIVO (v2 — captura SharpenUp por API na s227 (01/08/2026); v1 com 7 goldens reais de texto colado, 21/06/2026)
 CASA: `Betnacional`

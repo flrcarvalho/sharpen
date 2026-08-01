@@ -253,6 +253,33 @@
     }
   });
 
+  // Bilhetes da BETNACIONAL capturados pelo bnc_inject.js (mundo MAIN) — as RESPOSTAS de
+  // GET /api/v2/all-bets (BFF prod-betnacional-bets.bet6.com.br), já AGRUPADAS por
+  // ticket_id pelo inject (a API devolve PERNAS soltas: múltipla de 4 = 4 objetos com o
+  // mesmo ticket_id). Mesmo modelo passivo + REPLAY ATIVO: o inject varre janelas de datas
+  // para trás até secar — a casa não expôs um `more:false`, então o fim é "N janelas sem
+  // bilhete novo". `bncById` guarda 1 bilhete por ticket_id — a versão RESOLVIDA
+  // (statusId !== 0) vence a ABERTA (Pendente), porque o bilhete volta liquidado depois.
+  const bncById = new Map();         // ticket_id → bilhete agrupado
+  let bncFimReal = false;
+  let bncHookVivo = false, bncRespostas = 0;   // autodiagnóstico (espelha KTO/Pinnacle)
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupBNCData) {
+      if (d.hook) bncHookVivo = true;
+      if (typeof d.respostas === "number") bncRespostas = d.respostas;
+      if (Array.isArray(d.tickets)) {
+        for (const t of d.tickets) {
+          if (!t || !t.codigo) continue;
+          const ex = bncById.get(t.codigo);
+          if (ex && ex.statusId !== 0 && t.statusId === 0) continue;   // resolvida vence aberta
+          bncById.set(t.codigo, t);
+        }
+      }
+      if (d.fim) bncFimReal = true;
+    }
+  });
+
   // Bilhetes da BET365 capturados pelo b3_inject.js (mundo MAIN) — as RESPOSTAS de
   // /sportshistoryapi/summary + /confirmation (formato F|…), já parseadas pelo inject. Mesmo
   // modelo passivo + REPLAY ATIVO: o inject varre as duas listas (settled=1 resolvidas · settled=0
@@ -678,6 +705,13 @@
       // NÃO serve para a KTO — a lista não tem linha em branco entre cupons, então o
       // innerText virava um bloco só (menu + rodapé + ~140 bilhetes) e a IA perdia o resto.
       blocos = await roboKTOPassive(ctx);
+    } else if (casa === "betnacional") {
+      // Passivo + replay por janelas de datas (bnc_inject). A lista da página só cobre a
+      // janela exibida (~8 dias); o inject varre janelas para trás até secar. SEM fallback
+      // de texto: os cards da BetNacional não têm linha em branco garantida entre bilhetes,
+      // então o roboScroll genérico viraria um bloco só e a IA perderia o resto em silêncio
+      // (lição da KTO, s192).
+      blocos = await roboBNCPassive(ctx);
     } else if (casa === "tivo" || casa === "betfast") {
       // Passivo + replay de UMA chamada (tv_inject). O histórico não tem paginação: a casa
       // devolve a conta inteira com `Count`. SEM fallback de texto — a lista da Tivo é uma
@@ -715,6 +749,7 @@
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
+        betnacional: { nome: "BetNacional", hook: bncHookVivo, resp: bncRespostas, vistos: bncById.size },
         tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         // Espelho da Tivo: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "Tivo: 0 bilhetes" estando na Betfast.
@@ -1805,6 +1840,157 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] KTO: " + blocos.length + " bilhete(s) · ktoById=" + ktoById.size +
                 " · hook=" + ktoHookVivo + " · respostas=" + ktoRespostas + " · fimReal=" + ktoFimReal);
+    return blocos;
+  }
+
+  // ── BetNacional modo API (passivo + replay por janelas de datas) ──────────────
+  // Formata 1 bilhete lido do /api/v2/all-bets (agrupado por ticket_id pelo bnc_inject) no
+  // bloco de texto que a IA lê — com o marcador "[Código: …]" das outras casas passivas.
+  //
+  // Mapeamentos VALIDADOS cruzando o JSON com o card renderizado (recon s227):
+  //   • dinheiro em STRING com ponto decimal, em reais ("150.00") — o inject já converteu.
+  //   • `header_return` de bilhete PENDENTE é retorno POTENCIAL (card "Retorno R$ 135,00"
+  //     com o jogo por começar) → aqui vira "Retorno potencial:", nunca ganho (VaideBet).
+  //   • `total_odd` vem ARREDONDADA em 3 casas (4.144; real 4.14375): no W a odd sai de
+  //     retorno ÷ stake quando a declarada não explica o retorno até o centavo.
+  //   • `created_at`/`event_date` JÁ vêm em horário local (sem Z) — card "01/08/2026, às
+  //     15h40" = "2026-08-01 15:40:08". Converter de UTC aqui deslocaria a hora.
+  //
+  // O que NÃO é decidido aqui: o status final. O bloco leva o enum CRU (`bet_status_name` +
+  // `header_result`) e uma leitura derivada do dinheiro (objetiva). Status novo nunca vira
+  // W/L por chute — a CASA_BETNACIONAL.md faz o de-para; perna sobe `return_type_id` cru.
+
+  const _abertaBNC = (t) => t.statusId === 0;
+  // Odd sem truncar (só tira ruído de float), decimal com vírgula — igual às outras casas.
+  const _oddTxtBNC = (x) => (x == null || !isFinite(x)) ? "" : String(Math.round(x * 1e8) / 1e8).replace(".", ",");
+
+  // Datas da casa JÁ vêm locais ("2026-08-01 15:40:08" / "2026-08-01T17:30:00") →
+  // reformata por regex, sem Date/fuso (converter de UTC pularia a hora).
+  function _dhBNC(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(s || ""));
+    if (!m) return "";
+    return m[3] + "/" + m[2] + "/" + m[1] + " " + m[4] + ":" + m[5] + ":" + (m[6] || "00");
+  }
+
+  // Concilia odd × dinheiro (mesma régua da KTO). As duas fontes erram em direções opostas:
+  //   • `total_odd` é arredondada em 3 casas pela casa (4.144 × R$200 = 828,80 ≠ pago 828,75);
+  //   • o retorno é arredondado ao centavo (1.857 × R$300 = 557,10 exato → declarada vence).
+  // Critério: a declarada vence SE explicar o retorno até o centavo; senão o dinheiro manda.
+  function _conciliaBNC(retorno, stake, declarada) {
+    if (declarada != null && stake > 0 && Math.abs(retorno - declarada * stake) <= 0.01) return declarada;
+    return retorno / stake;
+  }
+
+  // Odd efetiva. W → retorno ÷ stake (conciliado); aberta/perdida/void → odd estrutural
+  // declarada (`total_odd`) — nelas a odd não move P/L e o retorno de aberta é potencial.
+  function _oddBNC(t) {
+    const st = t.stake || 0, ret = t.retorno || 0;
+    if (!_abertaBNC(t) && st > 0 && ret > 0 && Math.abs(ret - st) >= 0.005) return _conciliaBNC(ret, st, t.oddTotal);
+    return t.oddTotal;
+  }
+
+  // Leitura derivada do DINHEIRO + `header_result` (objetiva). Enum desconhecido sobe cru.
+  function _resultadoBNC(t) {
+    if (_abertaBNC(t)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (t.statusId === 1) {
+      const st = t.stake || 0, ret = t.retorno || 0;
+      if (t.resultado === 1 || ret > st) return "Ganhou → W (retorno R$ " + _brl(ret) + ")";
+      if (ret === 0) return "Perdeu → L";
+      if (Math.abs(ret - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
+      return "Retorno parcial (R$ " + _brl(ret) + " · conferir HW/HL ou cashout)";
+    }
+    return (t.statusNome || ("status " + t.statusId)) + " (a conferir — não liquidar automaticamente)";
+  }
+
+  function _tipoBNC(t) {
+    const n = (t.pernas || []).length;
+    return n >= 2 ? "Múltipla (" + n + " seleções)" : "Simples";
+  }
+
+  function formatTicketBNC(t) {
+    const L = [];
+    L.push("[Código: " + t.codigo + "]");
+    const dh = _dhBNC(t.colocada);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(t.stake));
+    L.push("Status: " + _resultadoBNC(t));
+    // Status CRU da API — é ele que a CASA_BETNACIONAL.md traduz. Sem isso, um enum novo
+    // (cashout, cancelada) viraria chute a partir do dinheiro.
+    L.push("Status (API): " + (t.statusNome || "?") + (t.resultado != null ? " · header_result=" + t.resultado : ""));
+    // ABERTA: o header_return é POTENCIAL — rotulado como tal, nunca "Retorno:" seco.
+    if (_abertaBNC(t) && t.retorno > 0) L.push("Retorno potencial: R$ " + _brl(t.retorno));
+    const odd = _oddBNC(t);
+    if (odd != null) L.push("Odd: " + _oddTxtBNC(odd));
+    L.push("Tipo: " + _tipoBNC(t));
+    // Super Odds — o produto de boost da casa (mercado especial com odd turbinada). No W a
+    // regra global já cobre (retorno ÷ stake); o rótulo existe p/ a IA conferir na CASA §6.
+    if (t.superOdds) L.push("Boost: Super Odds (odd turbinada pela casa)");
+    if (t.outright) L.push("Marcação da casa: outright (vencedor de competição)");
+    if (t.pagaEm) L.push("Liquidada em: " + _dhBNC(t.pagaEm));
+    L.push("Seleções:");
+    for (const p of (t.pernas || [])) {
+      const bits = [];
+      if (p.mercado) bits.push(p.mercado + ":");
+      bits.push(p.selecao || "");
+      if (p.specifier) bits.push("(" + p.specifier + ")");
+      // Resultado da PERNA cru (return_type_id: 1/0/2/null) — de-para na CASA_BETNACIONAL §5.
+      if (p.resultadoPerna != null) bits.push("[perna (API): return_type_id=" + p.resultadoPerna + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (p.casa || p.fora) ctx2.push("Jogo: " + p.casa + " x " + p.fora);
+      if (p.esporte) ctx2.push("Esporte: " + p.esporte);
+      if (p.liga) ctx2.push("Liga: " + p.liga);
+      if (p.inicio) ctx2.push("Início: " + _dhBNC(p.inicio));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (p.odd != null && (t.pernas || []).length > 1) L.push("    Odd da perna: " + _oddTxtBNC(p.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboBNCPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro. "YYYY-MM-DD HH:MM:SS" ordena por string —
+      // sem Date/fuso, pelo mesmo motivo do _dhBNC.
+      const todos = Array.from(bncById.values()).sort((a, b) =>
+        String(b.colocada || "").localeCompare(String(a.colocada || "")));
+      for (const t of todos) {
+        const cod = String(t.codigo || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias corta só as RESOLVIDAS (pela data de colocação, a que o card
+        // mostra). Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = t.colocada ? Date.parse(String(t.colocada).replace(" ", "T")) : NaN;
+        const passou = !_abertaBNC(t) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketBNC(t));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao bnc_inject o acumulado + arranca o replay (varre janelas de datas p/ trás).
+    try { window.postMessage({ __sharpenupBNCReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar (bncFimReal), consumindo o que for chegando. Não para no 1º
+    // obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !bncFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (bncById.size > ultTotal) { ultTotal = bncById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] BetNacional: " + blocos.length + " bilhete(s) · bncById=" + bncById.size +
+                " · hook=" + bncHookVivo + " · respostas=" + bncRespostas + " · fimReal=" + bncFimReal);
     return blocos;
   }
 
