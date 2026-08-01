@@ -32,8 +32,26 @@ function _tipsterUnidades(rows,escadas){
   for(const t in by){const esc=(escadas&&escadas[t])||[];const stk=by[t].stk;const fb=(!esc.length&&stk.length)?stk.reduce((a,b)=>a+b,0)/stk.length:null;let u=0;by[t].lin.forEach(ln=>{let uu=_uVigente(esc,ln.data);if(uu==null)uu=fb;if(uu&&uu>0)u+=ln.pl/uu;});out[t]=u;}
   return out;
 }
-// Switch R$ ⇄ u da página Tipsters (preferência por dono).
-let _tipUnit=(localStorage.getItem('dash_tipunit::'+(window.__dono||'_'))==='u')?'u':'reais';
+// ── MODO PÚBLICO (vitrine de tipster em /tipsters/<slug>) ────────────────────
+// `window.MODO_PUBLICO = {slug, nome}` é injetado pelo BACKEND no shell servido
+// em /tipsters/<slug> — nunca existe no dashboard privado (/dashboard | /app).
+// A base de tipster é contada em UNIDADES (1u = 1; decisão do Feca, s223), então
+// as máscaras de R$ passam a renderizar "u". Tudo aqui é guardado pela flag:
+// sem ela, o comportamento privado é byte a byte o de antes.
+const PUBLICO=window.MODO_PUBLICO||null;
+const PUB_PAGES=['overview','sports','casas','tipsters','apostas','abertas'];
+if(PUBLICO){
+  // fmtPL → fmtU (2 casas, sufixo u). fmtR ADAPTATIVO: agregado grande sai
+  // inteiro (12.182u), mas stake em unidades vive em 0.25–3u — inteiro viraria
+  // "0u"; abaixo de 100, 2 casas.
+  fmtPL=v=>fmtU(v);
+  fmtR=v=>{const n=Number(v)||0;return`<span class="money"><span class="money-val">${fmt(n,Math.abs(n)>=100?0:2)}<span class="money-u">u</span></span></span>`;};
+}
+
+// Switch R$ ⇄ u da página Tipsters (preferência por dono). Em modo público a
+// base JÁ é unidades — o switch some da UI e fica cravado no caminho "reais"
+// (que agora renderiza u via fmtPL/fmtR acima), sem tocar em /tipsters/escadas.
+let _tipUnit=(!PUBLICO&&localStorage.getItem('dash_tipunit::'+(window.__dono||'_'))==='u')?'u':'reais';
 let _tipEscadas=null;   // cache de GET /tipsters/escadas (buscado sob demanda ao trocar p/ u)
 function tipSetUnit(u){_tipUnit=u;try{localStorage.setItem('dash_tipunit::'+(window.__dono||'_'),u);}catch(e){}renderTipsters();}
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
@@ -262,16 +280,17 @@ function calcSolidez(o){
 }
 
 
-// Formatação de eixos com ponto como separador de milhar
+// Formatação de eixos com ponto como separador de milhar (modo público: "u")
 function fmtK(v){
   const abs=Math.abs(Math.round(v));
   const s=abs.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
-  return(v<0?'−':'')+'R$ '+s;
+  return(v<0?'−':'')+(PUBLICO?s+'u':'R$ '+s);
 }
 const sortState={};
 function parseNum(raw){
-  // Remove R$, spaces, %, +, then handle Brazilian number format (dot=thousand, comma=decimal)
-  const s=raw.replace(/R\$\s*/g,'').replace(/[+\s%]/g,'').trim();
+  // Remove R$ (e o sufixo "u" do modo público), spaces, %, +, then handle
+  // Brazilian number format (dot=thousand, comma=decimal)
+  const s=raw.replace(/R\$\s*/g,'').replace(/u\s*$/,'').replace(/[+\s%]/g,'').trim();
   // Remove thousand separators (dots before groups of 3 digits) then replace comma with dot
   const n=parseFloat(s.replace(/\.(?=\d{3}[,\.])/g,'').replace(',','.'));
   return isNaN(n)?0:n;
@@ -415,6 +434,7 @@ const PAGE_META={
 // (ou âncora desconhecida) cai na Visão Geral, preservando o comportamento antigo.
 function _pageFromHash(){
   const h=(location.hash||'').replace(/^#/,'');
+  if(PUBLICO&&!PUB_PAGES.includes(h))return'overview'; // público: só as abas da vitrine
   return PAGE_META[h]?h:'overview';
 }
 // Deep-link com o SPA já aberto: reage a mudança de âncora na URL.
@@ -440,6 +460,7 @@ function showPage(id){
   renderPage(id);
 }
 function renderPage(id){
+  if(PUBLICO&&!PUB_PAGES.includes(id))return; // público: abas de gestão não existem
   _filterCache={};_lastPage=id;_lastPageSig=_pageSig(id);
   const rows=filtrarPagina(id);
   if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(filtrarSemData('overview'),_refMonthKey('overview'));renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();}
@@ -929,6 +950,25 @@ function buildHTML(){
     </div>
   </div>`;
 
+  // Modo público: poda a casca DEPOIS do innerHTML (cirurgia por remoção — o
+  // template privado fica intocado). Sem nav-item nem dispatch, as páginas de
+  // gestão viram cascas inertes; o modal de edição sai do DOM inteiro.
+  if(PUBLICO){
+    document.querySelectorAll('.sidebar-nav .nav-group').forEach(g=>{
+      if(['Operação','Resultados','Gestão'].includes(g.textContent.trim()))g.remove();
+    });
+    document.querySelector('.sidebar-nav a.nav-item')?.remove();               // link Extração
+    ['resultados','parceiros','custos','custos_tipster','tipster_metodo','metrics']
+      .forEach(id=>document.getElementById('nav-'+id)?.remove());
+    document.querySelector('#page-apostas a[href="/exportar.csv"]')?.remove(); // download da base
+    document.getElementById('apEditOverlay')?.remove();                        // modal de edição
+    document.querySelector('#page-tipsters .tip-unit-row')?.remove();          // switch R$⇄u (já é u)
+    const brand=document.querySelector('.sidebar-brand');
+    if(brand&&PUBLICO.nome)brand.insertAdjacentHTML('afterend',
+      `<div class="pub-tipster">${esc(PUBLICO.nome)}</div>`);
+    document.title=(PUBLICO.nome||'Tipster')+' — Resultados | Sharpen';
+  }
+
   showPage(_pageFromHash());
   initBtblResize();
 }
@@ -1018,7 +1058,10 @@ window.deleteCG=function(idx){
 // por isso o cache de dados vai em IndexedDB. Guarda o json.data CRU (re-normaliza
 // ao ler, para acompanhar mudanças no normalizeDados). Estratégia: stale-while-
 // revalidate — boot instantâneo com o último dado salvo + atualização em 2º plano.
-const _IDB_NAME='fdc_dash', _IDB_STORE='kv', _IDB_KEY='dados_v1';
+// Chave namespaced por modo: o público NÃO pode reusar (nem sobrescrever) o
+// cache do dashboard privado — mesma origem, mesmo IndexedDB.
+const _IDB_NAME='fdc_dash', _IDB_STORE='kv',
+      _IDB_KEY=PUBLICO?('dados_pub_'+PUBLICO.slug):'dados_v1';
 function _idbOpen(){
   return new Promise((resolve,reject)=>{
     let req;
@@ -1138,14 +1181,19 @@ async function loadData(force){
   try{
     // Boot/revalidação em 2º plano usam o cache rápido do Drive; o clique manual em
     // "Atualizar dados" (force=true) força reconstrução ao vivo da planilha (?refresh=1).
-    const url=force?APPS_SCRIPT_URL+(APPS_SCRIPT_URL.includes('?')?'&':'?')+'refresh=1':APPS_SCRIPT_URL;
+    // Modo público: feed sem auth de /tipsters/<slug>/data (cache de 5 min no servidor).
+    const base=PUBLICO?('/tipsters/'+encodeURIComponent(PUBLICO.slug)+'/data'):APPS_SCRIPT_URL;
+    const url=force?base+(base.includes('?')?'&':'?')+'refresh=1':base;
     const res=await fetch(url);
     const json=await res.json();
     if(!json.ok)throw new Error(json.error||'Erro desconhecido');
     // dono efetivo: o store de custos é escopado por ele (isolamento entre usuários).
     // Fallback '_' (namespace vazio) se ausente — nunca cai no store de outro dono.
-    window.__dono=json.dono||(json.operadores&&json.operadores[0])||'_';
-    if(typeof loadCusto==='function')loadCusto();
+    // Público: sentinela que NUNCA casa com r.operador → toda linha nasce
+    // não-editável (o gate `r.operador===window.__dono` cobre botões, dblclick
+    // e handlers de uma vez — apostas.js/abertas.js).
+    window.__dono=PUBLICO?'§publico§':(json.dono||(json.operadores&&json.operadores[0])||'_');
+    if(!PUBLICO&&typeof loadCusto==='function')loadCusto();
     aplicarFeed(json.data);
     auditCasas(DADOS);
     // builtAt = quando o servidor reconstruiu o cache (fonte de verdade da frescura dos dados)
@@ -1260,17 +1308,17 @@ function _showCalTip(cell,cx,cy){
   const plCls =pl>0?'pos':pl<0?'neg':'';
   const roiSign=roi>0?'+':roi<0?'−':'';
   const roiCls=roi>=0?'pos':'neg';
-  const nf=v=>Math.abs(Math.round(v)).toLocaleString('pt-BR');
+  const nf=v=>{const a=Math.abs(v);return(PUBLICO&&a<100)?fmt(a,2):Math.abs(Math.round(v)).toLocaleString('pt-BR');};
   _calTip.innerHTML=`
     <div class="ct-date">${dateFmt}</div>
-    <div class="ct-pl ${plCls}"><span class="cur">${plSign}R$</span>${nf(pl)}</div>
+    <div class="ct-pl ${plCls}">${PUBLICO?`${plSign}${nf(pl)}<span class="cur">u</span>`:`<span class="cur">${plSign}R$</span>${nf(pl)}`}</div>
     <div class="ct-sep"></div>
     <div class="ct-grid">
       <div class="ct-item"><span class="lbl">ROI</span><span class="val ${roiCls}">${roiSign}${Math.abs(roi).toFixed(2).replace('.',',')}%</span></div>
       <div class="ct-item"><span class="lbl">WIN RATE</span><span class="val">${wr.toFixed(1).replace('.',',')}%</span></div>
       <div class="ct-item"><span class="lbl">Apostas</span><span class="val">${n}</span></div>
-      <div class="ct-item"><span class="lbl">Turnover</span><span class="val"><span class="cur">R$</span>${nf(tv)}</span></div>
-      <div class="ct-item"><span class="lbl">Stake Méd.</span><span class="val"><span class="cur">R$</span>${nf(sm)}</span></div>
+      <div class="ct-item"><span class="lbl">Turnover</span><span class="val">${PUBLICO?`${nf(tv)}<span class="cur">u</span>`:`<span class="cur">R$</span>${nf(tv)}`}</span></div>
+      <div class="ct-item"><span class="lbl">Stake Méd.</span><span class="val">${PUBLICO?`${nf(sm)}<span class="cur">u</span>`:`<span class="cur">R$</span>${nf(sm)}`}</span></div>
       <div class="ct-item"><span class="lbl">W / L</span><span class="val"><b class="w">${W}</b> · <b class="l">${L}</b></span></div>
     </div>`;
   _calTip.style.display='block';

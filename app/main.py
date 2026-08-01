@@ -2711,69 +2711,56 @@ async def escadas_todas_route(dono: str = Depends(dono_efetivo)):
     return {"escadas": await get_escadas_todas(dono)}
 
 
-# ── Página pública de tipster (sem auth, somente leitura) ─────────────────────
-# sharpen.bet/tipsters/<slug> — vitrine de resultados para membros e possíveis
-# clientes do tipster. SÓ slugs do registro abaixo existem (o resto é 404: nenhum
-# dono vira público por acidente). ORDEM IMPORTA: esta rota tem path dinâmico e
-# DEVE ficar depois de todas as rotas /tipsters/* de API (o Starlette casa na
-# ordem de registro — movê-la para cima engoliria /tipsters/cadastro etc.).
+# ── Vitrine pública de tipster (sem auth, somente leitura) ────────────────────
+# sharpen.bet/tipsters/<slug> — o PRÓPRIO Betting Dashboard servido em modo
+# público (decisão do Feca, s226: o cliente do tipster navega, filtra e analisa
+# como se fosse a base dele — a "experiência Sharpen" — 100% em UNIDADES).
+# Duas rotas: a casca (shell do dash + window.MODO_PUBLICO injetado) e o feed
+# (/tipsters/<slug>/data, mesmo contrato de /dashboard/data, cache de 5 min).
+# SÓ slugs do registro abaixo existem (o resto é 404: nenhum dono vira público
+# por acidente). ORDEM IMPORTA: rotas de path dinâmico registradas DEPOIS de
+# todas as /tipsters/* de API (o Starlette casa na ordem de registro), e
+# /tipsters/{slug}/data ANTES de /tipsters/{slug} (mais específica primeiro).
 TIPSTERS_PUBLICOS: dict[str, dict] = {
     "sochutes": {"dono": "SoChutes", "nome": "Só Chutes"},
 }
 
-_PUBLICO_TTL = 300  # 5 min — página é pública; o cache protege o Postgres
-_publico_cache: dict[str, tuple[float, str]] = {}
-_PUBLICO_TEMPLATE = Path(__file__).parent / "static" / "publico" / "tipster.html"
+_PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres
+_publico_data_cache: dict[str, tuple[float, bytes, bytes]] = {}  # slug → (ts, json, gzip)
+_DASH_SHELL = Path(__file__).parent / "static" / "dash" / "index.html"
 
 
-async def _dados_publicos(cfg: dict) -> dict:
-    """Agrega o feed do dono em KPIs (em UNIDADES — decisão do Feca para bases de
-    tipster: 1u = 1), fechamentos mensais e últimas apostas. Reusa dashboard_rows
-    (mesmo P/L derivado de calcular_pl do dashboard — nunca uma segunda fórmula)."""
-    rows = await dashboard_rows([cfg["dono"]])
-    resolvidas = [r for r in rows if r["resultado"] != "ABERTA"]
-
-    profit = sum(r["lucro"] for r in resolvidas)
-    turnover = sum(r["stake"] for r in resolvidas)
-    greens = sum(1 for r in resolvidas if r["resultado"] in ("W", "HW"))
-
-    por_mes: dict[str, dict] = {}
-    for r in resolvidas:
-        m = por_mes.setdefault(r["data"][:7], {"mes": r["data"][:7], "n": 0, "turnover": 0.0, "profit": 0.0})
-        m["n"] += 1
-        m["turnover"] += r["stake"]
-        m["profit"] += r["lucro"]
-    mensal = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
-    for m in mensal:
-        m["roi"] = (m["profit"] / m["turnover"] * 100) if m["turnover"] else 0.0
-
-    ultimas = sorted(rows, key=lambda r: (r["data"], r.get("id") or 0), reverse=True)[:20]
-
-    # horário de Brasília (UTC−3) — mesma convenção manual do restante do app
-    brasilia = datetime.fromtimestamp(time.time() - 3 * 3600, tz=timezone.utc)
-    return {
-        "nome": cfg["nome"],
-        "atualizado": brasilia.strftime("%d/%m/%Y %H:%M"),
-        "kpis": {
-            "profit": profit,
-            "turnover": turnover,
-            "roi": (profit / turnover * 100) if turnover else 0.0,
-            "winrate": (greens / len(resolvidas) * 100) if resolvidas else 0.0,
-            "apostas": len(resolvidas),
-        },
-        "mensal": mensal,
-        "ultimas": [
-            {
-                "data": r["data"],
-                "desc": r["descricao"] or r["aposta"],
-                "odd": r["odd"],
-                "stake": r["stake"],
-                "resultado": r["resultado"],
-                "lucro": r["lucro"],
-            }
-            for r in ultimas
-        ],
-    }
+@app.get("/tipsters/{slug}/data")
+async def dados_publicos_tipster(slug: str, request: Request, refresh: bool = False):
+    """Feed do modo público — mesmo contrato de /dashboard/data (o front é o
+    mesmo), montado por dashboard_rows (mesmo P/L derivado; nunca 2ª fórmula).
+    `refresh` é aceito e IGNORADO: o botão "Atualizar dados" do dash manda
+    ?refresh=1, mas visitante anônimo não fura o cache de 5 min."""
+    cfg = TIPSTERS_PUBLICOS.get(slug.lower())
+    if not cfg:
+        raise HTTPException(404, "Página não encontrada.")
+    agora = time.time()
+    hit = _publico_data_cache.get(slug.lower())
+    if not hit or agora - hit[0] >= _PUBLICO_TTL:
+        rows = await dashboard_rows([cfg["dono"]])
+        payload = {
+            "ok": True,
+            "data": rows,
+            "builtAt": datetime.now(timezone.utc).isoformat(),
+            "count": len(rows),
+            "operadores": [cfg["dono"]],
+            "dono": cfg["dono"],
+        }
+        body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+        hit = (agora, body, gzip.compress(body, compresslevel=6))
+        _publico_data_cache[slug.lower()] = hit
+    if "gzip" in request.headers.get("accept-encoding", "").lower():
+        return Response(
+            content=hit[2],
+            media_type="application/json",
+            headers={"Content-Encoding": "gzip", "Vary": "Accept-Encoding"},
+        )
+    return Response(content=hit[1], media_type="application/json")
 
 
 @app.get("/tipsters/{slug}")
@@ -2781,19 +2768,19 @@ async def pagina_publica_tipster(slug: str):
     cfg = TIPSTERS_PUBLICOS.get(slug.lower())
     if not cfg:
         raise HTTPException(404, "Página não encontrada.")
-    agora = time.time()
-    hit = _publico_cache.get(slug.lower())
-    if hit and agora - hit[0] < _PUBLICO_TTL:
-        html = hit[1]
-    else:
-        dados = await _dados_publicos(cfg)
-        template = _PUBLICO_TEMPLATE.read_text(encoding="utf-8")
-        # `</` escapado: descrição vinda do banco não pode fechar a tag <script>
-        blob = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/")
-        html = template.replace("__NOME__", cfg["nome"]).replace("__DADOS__", blob)
-        _publico_cache[slug.lower()] = (agora, html)
-    # sem Cache-Control próprio: o middleware da casa força no-cache em HTML
-    # (regra da s215); quem segura o público é o cache em memória acima.
+    html = _DASH_SHELL.read_text(encoding="utf-8")
+    # Injeção ANTES do script de guarda do shell (que redirecionaria para /app):
+    # a flag ativa o modo público no front; o <base> resolve os assets relativos
+    # (assets/js/…) para /dashboard/, onde o StaticFiles já os serve. Só valores
+    # do REGISTRO entram no HTML — nada vindo de fora da caixa.
+    inj = (
+        "<script>window.MODO_PUBLICO="
+        + json.dumps({"slug": slug.lower(), "nome": cfg["nome"]}, ensure_ascii=False)
+        + ';</script>\n  <base href="/dashboard/">'
+    )
+    html = html.replace("<head>", "<head>\n  " + inj, 1)
+    # HTML segue a regra da casa (middleware força no-cache — s215); o custo real
+    # está no feed, que tem o cache de 5 min acima.
     return HTMLResponse(html)
 
 

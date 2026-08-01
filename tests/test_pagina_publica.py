@@ -1,13 +1,18 @@
-"""Página pública de tipster (/tipsters/<slug>) — sem auth, somente leitura.
+"""Vitrine pública de tipster (/tipsters/<slug>) — o Betting Dashboard em modo
+público, sem auth, somente leitura (s226).
 
-Três riscos que estes testes travam:
+O que estes testes travam:
   1. VAZAMENTO: só slugs do registro TIPSTERS_PUBLICOS existem — qualquer outro
-     valor é 404. Nenhum dono do sistema vira página pública por acidente.
-  2. ORDEM DE ROTA: /tipsters/{slug} é dinâmica e registrada por ÚLTIMO. Se algum
-     refactor a mover para cima, ela engole /tipsters/cadastro (API autenticada)
-     — o teste de precedência reprova na hora.
-  3. INJEÇÃO: o JSON entra inline num <script>; uma descrição vinda do banco com
-     "</script>" não pode fechar a tag (escape `</` → `<\\/`).
+     valor é 404, nas DUAS rotas (casca e feed). Nenhum dono vira público por
+     acidente.
+  2. ORDEM DE ROTA: as rotas dinâmicas são registradas por ÚLTIMO. Se um refactor
+     as mover para cima, engolem /tipsters/cadastro (API autenticada) — o teste
+     de precedência reprova na hora.
+  3. INJEÇÃO: a casca só recebe valores do REGISTRO (slug/nome) — nunca dado do
+     banco; o feed é JSON puro. A flag precisa vir ANTES do script de guarda
+     (senão o navegador redireciona para /app e a vitrine nunca abre).
+  4. CACHE: o feed público é cacheado 5 min em memória — visitante anônimo não
+     martela o Postgres nem fura o cache com ?refresh=1.
 """
 import sys
 
@@ -22,20 +27,14 @@ AMOSTRA = [
     {
         "id": 1, "data": "2026-07-31", "esporte": "Futebol", "tipster": "Só Chutes",
         "casa": "Bet365", "parceiro": "Padrão", "conta": "Padrão", "fornecedor": "",
-        "aposta": "Múltipla", "descricao": "Jabir Ali [Ostersunds FK v Osters IF] // Christian Wagner [Sandvikens IF v GIF Sundsvall]",
+        "aposta": "Múltipla", "descricao": "Jabir Ali [Ostersunds FK v Osters IF]",
         "stake": 1.0, "odd": 5.33, "resultado": "W", "lucro": 4.33, "operador": "SoChutes",
     },
     {
-        "id": 2, "data": "2026-07-30", "esporte": "Futebol", "tipster": "Só Chutes",
+        "id": 2, "data": "2026-07-31", "esporte": "Futebol", "tipster": "Só Chutes",
         "casa": "Bet365", "parceiro": "Padrão", "conta": "Padrão", "fornecedor": "",
-        "aposta": "Múltipla", "descricao": "descrição maliciosa </script><script>alert(1)</script>",
-        "stake": 1.0, "odd": 4.5, "resultado": "L", "lucro": -1.0, "operador": "SoChutes",
-    },
-    {
-        "id": 3, "data": "2026-07-31", "esporte": "Futebol", "tipster": "Só Chutes",
-        "casa": "Bet365", "parceiro": "Padrão", "conta": "Padrão", "fornecedor": "",
-        "aposta": "Anytime", "descricao": "Gustav Lindgren [BK Hacken v Kalmar FF]",
-        "stake": 0.25, "odd": 10.68, "resultado": "ABERTA", "lucro": 0.0, "operador": "SoChutes",
+        "aposta": "Múltipla", "descricao": "Tripla", "stake": 0.25, "odd": 10.68,
+        "resultado": "ABERTA", "lucro": 0.0, "operador": "SoChutes",
     },
 ]
 
@@ -44,53 +43,68 @@ def _com_amostra(monkeypatch):
     chamadas = {"n": 0}
 
     async def fake(donos):
-        assert donos == ["SoChutes"], "página pública só pode ler o dono do registro"
+        assert donos == ["SoChutes"], "feed público só pode ler o dono do registro"
         chamadas["n"] += 1
         return [dict(r) for r in AMOSTRA]
 
     monkeypatch.setattr(main, "dashboard_rows", fake)
-    main._publico_cache.clear()
+    main._publico_data_cache.clear()
     return chamadas
 
 
-def test_pagina_publica_responde_sem_auth(monkeypatch):
-    _com_amostra(monkeypatch)
+# ── Casca (shell do dashboard com MODO_PUBLICO injetado) ──────────────────────
+
+def test_casca_responde_sem_auth_e_injeta_flag():
     r = cliente.get("/tipsters/sochutes")  # nenhum cookie
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
-    assert "Só Chutes" in r.text
-    assert "__DADOS__" not in r.text and "__NOME__" not in r.text
-    # agregação: 2 resolvidas (W 4.33, L −1.0) → profit 3.33 no JSON injetado
-    assert '"profit": 3.33' in r.text
-    assert '"apostas": 2' in r.text
+    assert '"slug": "sochutes"' in r.text
+    assert '"nome": "Só Chutes"' in r.text
+    assert '<base href="/dashboard/">' in r.text
+    # a flag PRECISA vir antes do script de guarda, senão o redirect ganha
+    assert r.text.index("window.MODO_PUBLICO") < r.text.index("location.replace")
 
+
+def test_casca_e_o_shell_do_dashboard():
+    r = cliente.get("/tipsters/sochutes")
+    # é o shell real do dash (mesmos assets versionados), não uma página paralela
+    assert "assets/js/app.js" in r.text
+    assert "assets/js/charts/performance.js" in r.text
+
+
+# ── Feed público (/tipsters/<slug>/data) ─────────────────────────────────────
+
+def test_feed_mesmo_contrato_do_dashboard_data(monkeypatch):
+    _com_amostra(monkeypatch)
+    r = cliente.get("/tipsters/sochutes/data")
+    assert r.status_code == 200
+    body = r.json()  # httpx descomprime o gzip transparentemente
+    assert body["ok"] is True
+    assert body["count"] == 2
+    assert body["dono"] == "SoChutes"
+    assert body["operadores"] == ["SoChutes"]
+    assert body["data"][0]["lucro"] == 4.33
+
+
+def test_cache_de_5_min_e_refresh_ignorado(monkeypatch):
+    chamadas = _com_amostra(monkeypatch)
+    cliente.get("/tipsters/sochutes/data")
+    cliente.get("/tipsters/sochutes/data")
+    cliente.get("/tipsters/sochutes/data?refresh=1")  # botão "Atualizar dados"
+    assert chamadas["n"] == 1, "anônimo não fura o cache — nem com ?refresh=1"
+
+
+# ── Registro e precedência ───────────────────────────────────────────────────
 
 def test_slug_fora_do_registro_e_404(monkeypatch):
     _com_amostra(monkeypatch)
-    for slug in ("naoexiste", "feca", "SoChutes-outro"):
-        assert cliente.get(f"/tipsters/{slug}").status_code == 404
+    for rota in ("/tipsters/naoexiste", "/tipsters/feca", "/tipsters/naoexiste/data"):
+        assert cliente.get(rota).status_code == 404, rota
 
 
 def test_precedencia_das_rotas_de_api(monkeypatch):
-    # /tipsters/cadastro é API autenticada e está registrada ANTES da dinâmica:
-    # sem cookie ela responde 401 — nunca 404 (slug inexistente) nem 200 (página).
+    # /tipsters/cadastro e /tipsters/unidades são API autenticada, registradas
+    # ANTES das dinâmicas: sem cookie respondem 401 — nunca 404 nem 200 público.
     _com_amostra(monkeypatch)
-    r = cliente.get("/tipsters/cadastro")
-    assert r.status_code == 401
-
-
-def test_cache_de_5_min_evita_martelar_o_banco(monkeypatch):
-    chamadas = _com_amostra(monkeypatch)
-    cliente.get("/tipsters/sochutes")
-    cliente.get("/tipsters/sochutes")
-    assert chamadas["n"] == 1, "segunda visita dentro do TTL deve sair do cache em memória"
-    # HTML segue a regra da casa (s215): no-cache no navegador; o servidor é que
-    # segura o público com o cache em memória de 5 min testado acima.
-    assert "no-cache" in cliente.get("/tipsters/sochutes").headers.get("cache-control", "")
-
-
-def test_descricao_nao_fecha_o_script(monkeypatch):
-    _com_amostra(monkeypatch)
-    r = cliente.get("/tipsters/sochutes")
-    assert "</script><script>alert(1)</script>" not in r.text
-    assert "<\\/script>" in r.text
+    assert cliente.get("/tipsters/cadastro").status_code == 401
+    assert cliente.get("/tipsters/unidades?tipster=x").status_code == 401

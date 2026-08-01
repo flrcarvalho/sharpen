@@ -76,7 +76,8 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
       const plSign = dm.pl>0?'+':dm.pl<0?'−':'';
       const plCls  = dm.pl>0?'pos':dm.pl<0?'neg':'';
       const plAbs  = Math.abs(dm.pl);
-      const plFmt  = Math.round(plAbs).toLocaleString('pt-BR');
+      // público (unidades): P/L diário vive em 0.25–5u — inteiro achataria tudo em 0/1
+      const plFmt  = (window.MODO_PUBLICO&&plAbs<100)?fmt(plAbs,2):Math.round(plAbs).toLocaleString('pt-BR');
       cells += `<div class="${cls}" style="${heatBg(dm.pl)}"
         data-date="${key}" data-pl="${dm.pl.toFixed(2)}" data-n="${dm.n}"
         data-turnover="${dm.turnover.toFixed(2)}" data-wins="${dm.wins}"
@@ -85,7 +86,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
         <div class="top">
           <span class="dn">${d}</span>${isToday?'<span class="hoje">hoje</span>':''}
         </div>
-        <div class="pl ${plCls}"><span class="cur">${plSign}R$</span>${plFmt}</div>
+        <div class="pl ${plCls}">${window.MODO_PUBLICO?`${plSign}${plFmt}<span class="cur">u</span>`:`<span class="cur">${plSign}R$</span>${plFmt}`}</div>
       </div>`;
     } else {
       cls += ' empty';
@@ -119,10 +120,10 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
   // Hero P/L
   const heroSign = mPL>0?'+':mPL<0?'−':'';
   const heroCls  = mPL>0?'pos':mPL<0?'neg':'';
-  const heroAbs  = Math.abs(Math.round(mPL)).toLocaleString('pt-BR');
+  const heroAbs  = (window.MODO_PUBLICO&&Math.abs(mPL)<100)?fmt(Math.abs(mPL),2):Math.abs(Math.round(mPL)).toLocaleString('pt-BR');
   const heroHTML = `<div class="cal__hero">
     <div class="k"><span class="kpi-pipe"></span> P/L DO MÊS</div>
-    <div class="v ${heroCls}"><span class="cur">${heroSign}R$</span>${heroAbs}</div>
+    <div class="v ${heroCls}">${window.MODO_PUBLICO?`${heroSign}${heroAbs}<span class="cur">u</span>`:`<span class="cur">${heroSign}R$</span>${heroAbs}`}</div>
     <div class="cal__sub">${mN} apostas</div>
   </div>`;
 
@@ -142,7 +143,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
     </div>
     <div class="cal__kpi">
       <div class="k"><span class="kpi-pipe"></span> Turnover</div>
-      <div class="v"><span class="cur">R$</span>${Math.round(mTurnover).toLocaleString('pt-BR')}</div>
+      <div class="v">${window.MODO_PUBLICO?`${fmt(mTurnover,Math.abs(mTurnover)>=100?0:2)}<span class="cur">u</span>`:`<span class="cur">R$</span>${Math.round(mTurnover).toLocaleString('pt-BR')}`}</div>
       <div class="cal__sub">no mês</div>
     </div>
     <div class="cal__kpi">
@@ -157,7 +158,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
     </div>
     <div class="cal__kpi">
       <div class="k"><span class="kpi-pipe"></span> Stake Média</div>
-      <div class="v"><span class="cur">R$</span>${mAvgStake>0?Math.round(mAvgStake).toLocaleString('pt-BR'):'—'}</div>
+      <div class="v">${window.MODO_PUBLICO?`${mAvgStake>0?fmt(mAvgStake,Math.abs(mAvgStake)>=100?0:2):'—'}<span class="cur">u</span>`:`<span class="cur">R$</span>${mAvgStake>0?Math.round(mAvgStake).toLocaleString('pt-BR'):'—'}`}</div>
       <div class="cal__sub">por aposta</div>
     </div>
   </div>` : '';

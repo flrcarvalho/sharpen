@@ -34,8 +34,10 @@ function _mkSportCard(sport,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const plCls=pl>=0?'pos':'neg';
   const roiCls=roi>=0?'pos':'neg';
   const plAmt=Math.abs(pl).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const stakeInt=Math.round(stake).toLocaleString('pt-BR');
-  const avgStakeStr=Math.round(avgStake||0).toLocaleString('pt-BR');
+  // Público (unidades): stake vive em 0.25–3u — arredondar para inteiro viraria "0u".
+  // Adaptativo: <100 → 2 casas; agregado grande segue inteiro (mesma régua do fmtR).
+  const stakeInt=(window.MODO_PUBLICO&&Math.abs(stake)<100)?fmt(stake,2):Math.round(stake).toLocaleString('pt-BR');
+  const avgStakeStr=(window.MODO_PUBLICO&&Math.abs(avgStake||0)<100)?fmt(avgStake||0,2):Math.round(avgStake||0).toLocaleString('pt-BR');
   const avgOddStr=fmtOdd(avgOdd);
   const betsStr=bets.toLocaleString('pt-BR');
   const roiStr=fmtPct(roi,1);
@@ -44,11 +46,11 @@ function _mkSportCard(sport,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const escAttr=esc(sport);
   return`<div class="tcard" data-sport="${escAttr}">`
     +`<div class="tcard__top"><span class="tcard__casa-hdr">${mkSpChip(sport)}<span class="nametag__nm" title="${escAttr}">${esc(sport)}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
-    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}"><span class="tcard__cur">${plSign} R$</span>${plAmt}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
+    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}">${window.MODO_PUBLICO?`${plSign}${plAmt}<span class="tcard__cur">u</span>`:`<span class="tcard__cur">${plSign} R$</span>${plAmt}`}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
     +sparkSVG
     +`<div class="tcard__foot">`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val"><span class="tcard__cur--sm">R$</span>${stakeInt}</div></div>`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val"><span class="tcard__cur--sm">R$</span>${avgStakeStr}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${stakeInt}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${stakeInt}`}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${avgStakeStr}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${avgStakeStr}`}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Odd Média ${_mkOddTip()}</div><div class="tcard__stat-val">${avgOddStr}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Win Rate</div><div class="tcard__stat-val">${wrStr}</div><div class="tcard__wrbar"><div class="tcard__wrfill" style="width:${wrPct}%"></div></div></div>`
     +`</div>`
@@ -216,8 +218,10 @@ function _mkCasaCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const plCls=pl>=0?'pos':'neg';
   const roiCls=roi>=0?'pos':'neg';
   const plAmt=Math.abs(pl).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const stakeInt=Math.round(stake).toLocaleString('pt-BR');
-  const avgStakeStr=Math.round(avgStake||0).toLocaleString('pt-BR');
+  // Público (unidades): stake vive em 0.25–3u — arredondar para inteiro viraria "0u".
+  // Adaptativo: <100 → 2 casas; agregado grande segue inteiro (mesma régua do fmtR).
+  const stakeInt=(window.MODO_PUBLICO&&Math.abs(stake)<100)?fmt(stake,2):Math.round(stake).toLocaleString('pt-BR');
+  const avgStakeStr=(window.MODO_PUBLICO&&Math.abs(avgStake||0)<100)?fmt(avgStake||0,2):Math.round(avgStake||0).toLocaleString('pt-BR');
   const avgOddStr=fmtOdd(avgOdd);
   const betsStr=bets.toLocaleString('pt-BR');
   const roiStr=fmtPct(roi,1);
@@ -226,11 +230,11 @@ function _mkCasaCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const escAttr=esc(name);
   return`<div class="tcard" data-casa="${escAttr}">`
     +`<div class="tcard__top"><span class="tcard__casa-hdr">${mkHouseChip(name)}<span class="nametag__nm" title="${escAttr}">${esc(name)}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
-    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}"><span class="tcard__cur">${plSign} R$</span>${plAmt}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
+    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}">${window.MODO_PUBLICO?`${plSign}${plAmt}<span class="tcard__cur">u</span>`:`<span class="tcard__cur">${plSign} R$</span>${plAmt}`}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
     +sparkSVG
     +`<div class="tcard__foot">`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val"><span class="tcard__cur--sm">R$</span>${stakeInt}</div></div>`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val"><span class="tcard__cur--sm">R$</span>${avgStakeStr}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${stakeInt}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${stakeInt}`}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${avgStakeStr}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${avgStakeStr}`}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Odd Média ${_mkOddTip()}</div><div class="tcard__stat-val">${avgOddStr}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Win Rate</div><div class="tcard__stat-val">${wrStr}</div><div class="tcard__wrbar"><div class="tcard__wrfill" style="width:${wrPct}%"></div></div></div>`
     +`</div>`
@@ -843,8 +847,10 @@ function _mkTipCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const plCls=pl>=0?'pos':'neg';
   const roiCls=roi>=0?'pos':'neg';
   const plAmt=Math.abs(pl).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const stakeInt=Math.round(stake).toLocaleString('pt-BR');
-  const avgStakeStr=Math.round(avgStake||0).toLocaleString('pt-BR');
+  // Público (unidades): stake vive em 0.25–3u — arredondar para inteiro viraria "0u".
+  // Adaptativo: <100 → 2 casas; agregado grande segue inteiro (mesma régua do fmtR).
+  const stakeInt=(window.MODO_PUBLICO&&Math.abs(stake)<100)?fmt(stake,2):Math.round(stake).toLocaleString('pt-BR');
+  const avgStakeStr=(window.MODO_PUBLICO&&Math.abs(avgStake||0)<100)?fmt(avgStake||0,2):Math.round(avgStake||0).toLocaleString('pt-BR');
   const avgOddStr=fmtOdd(avgOdd);
   const betsStr=bets.toLocaleString('pt-BR');
   const roiStr=fmtPct(roi,1);
@@ -853,11 +859,11 @@ function _mkTipCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const escAttr=esc(name);
   return`<div class="tcard" data-name="${escAttr}">`
     +`<div class="tcard__top"><span class="nametag"><span class="nametag__nm" title="${escAttr}">${esc(name)}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
-    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}"><span class="tcard__cur">${plSign} R$</span>${plAmt}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
+    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}">${window.MODO_PUBLICO?`${plSign}${plAmt}<span class="tcard__cur">u</span>`:`<span class="tcard__cur">${plSign} R$</span>${plAmt}`}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
     +sparkSVG
     +`<div class="tcard__foot">`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val"><span class="tcard__cur--sm">R$</span>${stakeInt}</div></div>`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val"><span class="tcard__cur--sm">R$</span>${avgStakeStr}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${stakeInt}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${stakeInt}`}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${avgStakeStr}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${avgStakeStr}`}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Odd Média ${_mkOddTip()}</div><div class="tcard__stat-val">${avgOddStr}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Win Rate</div><div class="tcard__stat-val">${wrStr}</div><div class="tcard__wrbar"><div class="tcard__wrfill" style="width:${wrPct}%"></div></div></div>`
     +`</div>`
@@ -1151,7 +1157,9 @@ async function renderGestaoTipster(nome){
   if(typeof ctLoad==='function'){try{ctLoad();}catch(e){}}
   const ct=(typeof ctData!=='undefined'&&ctData[nome])?ctData[nome]:{};
   const custo=Object.values(ct).reduce((a,v)=>a+(parseFloat((v||'').toString().replace(',','.'))||0),0);
-  const money2=v=>`<span class="money"><span class="money-sign">R$</span><span class="money-val">${(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></span>`;
+  const money2=v=>window.MODO_PUBLICO
+    ?`<span class="money"><span class="money-val">${(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}<span class="money-u">u</span></span></span>`
+    :`<span class="money"><span class="money-sign">R$</span><span class="money-val">${(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></span>`;
   const fmtBR=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return m?m[3]+'/'+m[2]+'/'+m[1]:'—';};
   const kS='display:flex;flex-direction:column;min-width:0';
   const sbS='margin-top:auto;padding-top:6px';

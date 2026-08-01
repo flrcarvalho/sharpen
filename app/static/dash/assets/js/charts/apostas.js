@@ -140,9 +140,9 @@ function renderApostasVirt(){
         <span class="bet-res-pill ${resClass}">${resLabel}</span>
       </div>
       <div class="btbl-cell btbl-pl">${r.resultado==='ABERTA'?'<span style="color:var(--ink-mute)">—</span>':fmtPL(r.lucro)}</div>
-      <div class="btbl-cell btbl-acts">${editavel
+      <div class="btbl-cell btbl-acts">${window.MODO_PUBLICO?'':(editavel
         ? `<button class="act-btn" title="Editar aposta" onclick="abrirEdicaoApostas(${r.id})">✎</button><button class="act-btn del" title="Deletar aposta" onclick="deletarApostas(${r.id})">✕</button>`
-        : `<span class="act-btn off" title="Linha da planilha ao vivo ou de um operador — edite na origem">✎</span>`}</div>
+        : `<span class="act-btn off" title="Linha da planilha ao vivo ou de um operador — edite na origem">✎</span>`)}</div>
     </div>`;
   }).join('');
   wrapper.innerHTML=
@@ -205,6 +205,7 @@ function fecharEdicaoApostas(e){
 window.fecharEdicaoApostas=fecharEdicaoApostas;
 function _apEditErro(msg){const err=document.getElementById('apEditErr');if(err){err.textContent=msg;err.style.display='block';}}
 async function salvarEdicaoApostas(){
+  if(window.MODO_PUBLICO)return;   // vitrine pública: nunca escreve (nem via console)
   if(apEditId==null)return;
   const r=_apRowById(apEditId);
   if(!r){fecharEdicaoApostas();return;}
@@ -226,6 +227,7 @@ async function salvarEdicaoApostas(){
 window.salvarEdicaoApostas=salvarEdicaoApostas;
 // Chamado com id (botão ✕ da linha) ou sem arg (botão do modal → usa apEditId).
 async function deletarApostas(id){
+  if(window.MODO_PUBLICO)return;   // vitrine pública: nunca escreve (nem via console)
   const alvo=(id!=null)?id:apEditId;
   if(alvo==null)return;
   if(!confirm('Deletar esta aposta? A linha será removida da base.'))return;
@@ -295,6 +297,7 @@ function _apInlineStart(cell){
   if(field==='resultado')editor.addEventListener('change',()=>finish(true));
 }
 document.addEventListener('dblclick',e=>{
+  if(window.MODO_PUBLICO)return;   // vitrine pública: sem edição inline
   const cell=e.target.closest&&e.target.closest('#page-apostas [data-field]');
   if(cell)_apInlineStart(cell);
 });

@@ -274,10 +274,10 @@ function _abrtLista(rows) {
       `<div class="abrt-num">${fmtR(r.stake)}</div>` +
       `<div class="abrt-num">${Number(r.odd) > 0 ? fmtOdd(r.odd) : '—'}</div>` +
       `<div class="abrt-num abrt-ret">${ret > 0 ? fmtR(ret) : '<span style="color:var(--ink-mute)">—</span>'}</div>` +
-      `<div class="abrt-acts">${editavel
+      `<div class="abrt-acts">${window.MODO_PUBLICO ? '' : (editavel
         ? `<button class="act-btn" title="Editar aposta" onclick="abrirEdicaoApostas(${r.id})">✎</button>` +
           `<button class="act-btn del" title="Deletar aposta" onclick="deletarApostas(${r.id})">✕</button>`
-        : `<span class="act-btn off" title="Linha da planilha ao vivo ou de um operador — edite na origem">✎</span>`}</div>` +
+        : `<span class="act-btn off" title="Linha da planilha ao vivo ou de um operador — edite na origem">✎</span>`)}</div>` +
     `</div>`;
   }).join('');
 }
