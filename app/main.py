@@ -34,7 +34,7 @@ from auth import (
 import captura as _captura
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
-from database import init_db
+from database import init_db, seed_usuarios
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
 from repository import (
@@ -190,6 +190,14 @@ async def _cache_warmer():
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await init_db()
+    # Fase 1 / Deploy A (PLANO_MULTIUSUARIO_2026): semeia a tabela `usuarios`.
+    # Infra pura — nenhum código lê a tabela ainda. Falha aqui NÃO derruba o
+    # boot (o app funciona 100% sem ela nesta fase); o checkpoint de inspeção
+    # antes do Deploy B pega qualquer seed que não aconteceu.
+    try:
+        await seed_usuarios()
+    except Exception:
+        logger.exception("seed_usuarios falhou — app segue no ar (Deploy A: tabela ainda não é lida)")
     asyncio.create_task(_cache_warmer())
     yield
 

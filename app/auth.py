@@ -97,6 +97,33 @@ PLANILHAS_AO_VIVO: dict[str, str] = {
 }
 
 
+def linhas_seed_usuarios() -> list[tuple]:
+    """Linhas de seed da tabela `usuarios` (Fase 1 do PLANO_MULTIUSUARIO_2026).
+
+    Deriva dos dicts acima — que seguem sendo a fonte de verdade do auth até o
+    Deploy B. Os usuários atuais entram `status='ativo'`; Feca é `admin`;
+    operador ganha `parent_owner`; planilha viva vira `planilha_url`. Hash
+    vazio (env ausente) vira NULL, nunca string vazia — NULL é o marcador de
+    "sem senha local" (contas futuras só-social).
+
+    Pura (sem banco) de propósito: quem toca o Postgres é
+    `database.seed_usuarios()`; a montagem das linhas é testável em
+    tests/test_seed_usuarios.py sem stub de asyncpg.
+    """
+    pai = {op: dono for dono, ops in OPERADORES.items() for op in ops}
+    return [
+        (
+            username,
+            senha_hash or None,
+            "ativo",
+            "admin" if username == "Feca" else "user",
+            pai.get(username),
+            PLANILHAS_AO_VIVO.get(username) or None,
+        )
+        for username, senha_hash in USUARIOS.items()
+    ]
+
+
 def operadores_de(usuario: str) -> list[str]:
     """Operadores que este usuário (dono) pode visualizar. Vazio = não é dono."""
     return OPERADORES.get(usuario, [])

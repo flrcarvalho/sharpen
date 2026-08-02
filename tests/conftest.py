@@ -42,6 +42,10 @@ if not os.environ.get("TEST_DATABASE_URL"):
         async def init_db():  # pragma: no cover - importado por main, nunca chamado nos testes
             raise RuntimeError("DB indisponível nos testes de fórmula")
 
+        async def seed_usuarios():  # pragma: no cover - importado por main, nunca chamado nos testes
+            raise RuntimeError("DB indisponível nos testes de fórmula")
+
         _fake_db.get_pool = get_pool
         _fake_db.init_db = init_db
+        _fake_db.seed_usuarios = seed_usuarios
         sys.modules["database"] = _fake_db

@@ -308,6 +308,36 @@ CREATE TABLE IF NOT EXISTS lixeira_contas (
 );
 CREATE INDEX IF NOT EXISTS lixeira_contas_dono_excluido
     ON lixeira_contas (dono, excluido_em);
+
+-- ── Usuários (Fase 1 do PLANO_MULTIUSUARIO_2026 — Deploy A) ───────────────────
+-- Futura fonte de verdade da identidade (hoje: dicts hardcoded em auth.py +
+-- env vars SENHA_<USER>_HASH). NESTA fase a tabela só é criada e semeada
+-- (seed_usuarios) para inspeção — NENHUM código de auth a lê ainda; a virada
+-- de chave é o Deploy B. `username` = coluna `dono` das tabelas de dados
+-- (integridade lógica, sem FK — dono órfão de importação não pode travar).
+--   status  → "aberto com aprovação": cadastro novo nasce 'pendente' até o
+--             admin aprovar; login/sessão só passam com 'ativo' (é isto que
+--             resolve o C3 da auditoria: desativar = revogar sessão na hora).
+--   role    → 'admin' aprova cadastros (substituirá o hardcode "Feca").
+--   parent_owner → substitui o dict OPERADORES (NULL = dono).
+--   planilha_url → substitui PLANILHAS_AO_VIVO ('' /NULL = lê do Postgres).
+--   senha_hash NULL → conta que loga só via social (Google/Telegram, Fase 3).
+CREATE TABLE IF NOT EXISTS usuarios (
+    username      TEXT PRIMARY KEY,
+    senha_hash    TEXT,
+    email         TEXT UNIQUE,
+    nome          TEXT,
+    status        TEXT NOT NULL DEFAULT 'pendente'
+                     CHECK (status IN ('ativo','pendente','suspenso')),
+    role          TEXT NOT NULL DEFAULT 'user'
+                     CHECK (role IN ('admin','user')),
+    parent_owner  TEXT,
+    planilha_url  TEXT,
+    google_sub    TEXT UNIQUE,
+    telegram_id   TEXT UNIQUE,
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 """
 
 
@@ -328,3 +358,26 @@ async def init_db() -> None:
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute(SCHEMA_SQL)
+
+
+async def seed_usuarios() -> None:
+    """Seed idempotente da tabela `usuarios` a partir dos dicts de auth.
+
+    Fase 1 / Deploy A do PLANO_MULTIUSUARIO_2026: popula a tabela com os
+    usuários atuais SEM mudar comportamento — o auth continua lendo os dicts.
+    ON CONFLICT DO NOTHING: o que já está no banco nunca é sobrescrito (rodar
+    a cada boot é seguro; senha trocada via env continua valendo porque quem
+    autentica nesta fase são os dicts, não a tabela).
+    """
+    from auth import linhas_seed_usuarios  # import local: evita acoplar database→auth no import
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.executemany(
+            """
+            INSERT INTO usuarios (username, senha_hash, status, role, parent_owner, planilha_url)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (username) DO NOTHING
+            """,
+            linhas_seed_usuarios(),
+        )
