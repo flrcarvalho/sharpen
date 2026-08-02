@@ -2537,7 +2537,8 @@
   //   • Múltiplo (3+ jogos diferentes) → sinaliza o tipo p/ a IA classificar (MASTER_ESPORTES).
 
   // CL → esporte (âncora; a IA/CASA_BET365 finaliza a localização). eSoccer vem com CL=1 → o
-  // handle "(gamer)" entre parênteses é o sinal (a IA trata). CL=15=Dardos (liga DARTS-MODUS,
+  // handle "(gamer)" entre parênteses é o sinal e a IA emite o esporte próprio `eSoccer`
+  // (MASTER_ESPORTES, Regra Crítica — Futebol vs eSoccer). CL=15=Dardos (liga DARTS-MODUS,
   // "Vencedor da Partida") e CL=91=Vôlei (liga VB-*, "Handicap (Pontos)") — mapeados dos payloads
   // reais da conta marloncezar01 (s180/s188). CL=10=F1/Automobilismo (liga MOTORRACING, "GP …
   // · Treino/Carro Vencedor" — F1 é esporte oficial no MASTER_ESPORTES). CL=151 ainda desconhecido.

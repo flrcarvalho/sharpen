@@ -82,6 +82,7 @@ Exemplos válidos:
 
 ```text
 Futebol
+eSoccer
 Basquete
 eBasket
 Futebol Americano
@@ -107,10 +108,14 @@ EBASKET
 Ebasket
 eBasketball
 Basquete Virtual
+ESOCCER
+Esoccer
+e-Soccer
+Futebol Virtual
 ```
 
-> `eBasket` é a única exceção à capitalização inicial maiúscula — o valor oficial
-> começa com `e` minúsculo, como a marca do mercado.
+> `eBasket` e `eSoccer` são as únicas exceções à capitalização inicial maiúscula —
+> os valores oficiais começam com `e` minúsculo, como a marca do mercado.
 
 ---
 
@@ -262,6 +267,70 @@ Sinônimos:
 - FOOTBALL
 - FUTEBOL
 
+> Futebol é o esporte **real**. Futebol **virtual** (FIFA / eFootball) tem valor
+> próprio: `eSoccer` — ver a seção seguinte e a Regra Crítica — Futebol vs eSoccer.
+
+---
+
+## eSoccer
+
+Valor oficial:
+
+```text
+eSoccer
+```
+
+Futebol **virtual** — partidas simuladas em videogame (FIFA / eFootball), disputadas
+por gamers usando skins de clubes e seleções reais. Capitalização exata: `eSoccer`
+(e minúsculo, S maiúsculo).
+
+Sinônimos:
+- ESOCCER
+- E-SOCCER
+- ESOCCER BATTLE
+- ESOCCER LBB
+- FUTEBOL VIRTUAL
+- EFOOTBALL
+- FIFA (o videogame, nunca a entidade)
+
+---
+
+### Regra Crítica — Futebol vs eSoccer
+
+Os dois usam **os mesmos nomes de clubes e seleções**, então o nome do time NÃO
+discrimina. Sinais, em ordem de prioridade:
+
+| Sinal | Esporte |
+|---|---|
+| Handle do gamer entre parênteses após o time — `Real Madrid (Cofi111)` | **eSoccer** |
+| Liga/torneio contém `eSoccer`, `Esoccer`, `LBB`, `Battle`, `GT Leagues`, `Virtual` | **eSoccer** |
+| Duração não-oficial no nome do evento (`8 mins play`, `10 mins play`) | **eSoccer** |
+| Linha de gols alta para futebol — total na faixa **~4.5–9.5 gols** | **eSoccer** |
+| Jogadores reais nomeados (Haaland, Mbappé…) | **Futebol** |
+
+> **Sinal decisivo — handle entre parênteses.** Em `Germany (vladl3n) v Morocco (hrk)`,
+> vladl3n e hrk são os gamers; as seleções são apenas skins. Um confronto real nunca
+> traz apelido entre parênteses ao lado do time.
+
+> **A linha de gols é confirmação, não prova.** Over 6.5 gols é raríssimo no futebol
+> real — mas use a faixa apenas como reforço quando o handle não estiver visível,
+> nunca contra um sinal mais forte.
+
+**O esporte da skin decide entre os virtuais.** Handle entre parênteses diz apenas
+"é virtual"; quem define o valor é o time: clube/seleção de futebol com handle →
+`eSoccer`; time da NBA com handle → `eBasket`. O mercado confirma (Gols → eSoccer;
+Pontos → eBasket).
+
+**eSoccer NÃO é `E-Sports`.** Apesar de ser jogo eletrônico, `E-Sports` neste
+documento cobre exclusivamente o universo MOBA/FPS (LoL, CS2, VALORANT, Dota) e
+carrega o vocabulário de mercado dele (kills, mapas, torres). eSoccer usa a
+taxonomia do futebol (`Gols`, `ML`, `Handicap`, `Escanteios`).
+Nunca emitir `E-Sports Props` para eSoccer — ver `MASTER_APOSTAS_2026 §6 (eSoccer)`.
+
+**eSoccer NÃO é `Futebol`.** Nunca classificar futebol virtual como Futebol: a
+volatilidade e o edge são distintos, e misturar os dois inviabiliza a análise por
+esporte.
+
 ---
 
 ## Basquete
@@ -340,6 +409,10 @@ Nunca emitir `E-Sports Props` para eBasket — ver `MASTER_APOSTAS_2026 §6 (eBa
 **eBasket NÃO é `Basquete`.** Nunca classificar basquete virtual como Basquete: a
 volatilidade e o edge são distintos, e misturar os dois inviabiliza a análise por
 esporte.
+
+**eBasket NÃO é `eSoccer`.** O handle entre parênteses diz apenas "é virtual"; o
+esporte da skin decide: time da NBA → `eBasket`, clube/seleção de futebol →
+`eSoccer` (ver Regra Crítica — Futebol vs eSoccer).
 
 ---
 
@@ -1204,6 +1277,9 @@ Antes de retornar a saída, o extrator deve validar:
 15. basquete **real** (jogadores reais, total ~180–260) não foi classificado como `eBasket`
 16. acumulada de **3+ seleções de jogos diferentes** (confrontos `[A v B]` distintos entre as pernas) = `Múltiplos`; **bet builder** (mesmo confronto em todas as pernas) = esporte do jogo, nunca `Múltiplos`
 17. confronto entre indivíduos/duplas de raquete sem sinal positivo de Badminton (`BWF`, `Super 1000/750/500/300`, `All England`, `Thomas/Uber Cup`, nome na lista) nem de Dardos (`legs`, `PDC`, `checkout`) = `Tênis` (padrão); Badminton e Dardos **nunca** são padrão de desempate
+18. clube/seleção de **futebol** com handle de gamer entre parênteses = `eSoccer` (nunca `Futebol`, `eBasket` nem `E-Sports`)
+19. `eSoccer` está escrito exatamente assim (nunca `ESOCCER`, `Esoccer`, `e-Soccer`, `Futebol Virtual`)
+20. futebol **real** (jogadores reais, sem handle entre parênteses) não foi classificado como `eSoccer`
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

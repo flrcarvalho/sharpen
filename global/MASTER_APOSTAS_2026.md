@@ -812,6 +812,51 @@ Tiro de Meta = bola sai pela linha de fundo após toque do atacante; o goleiro r
 
 ---
 
+## eSoccer
+
+O eSoccer (futebol virtual / FIFA / eFootball) usa a **mesma taxonomia do Futebol** —
+muda apenas o valor da coluna `Esporte` (ver `MASTER_ESPORTES_2026`).
+
+---
+
+### Total de gols (jogo ou time)
+
+Classificar como:
+
+```text
+Gols
+```
+
+Exemplo:
+- `Over 6.5 Gols [Germany (vladl3n) v Morocco (hrk)]` → `Gols`
+
+> Linhas altas (5.5 / 6.5 / 8.5) são normais no eSoccer — continuam `Gols`,
+> nunca `Pontos` (não existe "ponto" em futebol virtual).
+
+---
+
+### Resultado principal
+
+Sem handicap:
+
+```text
+ML
+```
+
+Com handicap:
+
+```text
+Handicap
+```
+
+---
+
+> ⚠️ Nunca usar `E-Sports Props` em eSoccer. `E-Sports Props` é exclusivo do
+> Esporte `E-Sports` (invariante do `MASTER_ESPORTES_2026 §7`) e o vocabulário
+> dele (kills, mapas, torres) não existe no futebol virtual.
+
+---
+
 ## NBA / Basquete
 
 ### Total de pontos (jogo ou time)
@@ -1440,9 +1485,10 @@ Antes de retornar a saída, o extrator deve validar:
 17. mercado "Mais 180's" / "Maioria de 180's" em Dardos foi classificado como `H2H` (nunca `Player Props` nem `Legs`)
 18. total de pontos de **jogo ou time** em Basquete / eBasket / Vôlei / Badminton = `Pontos` (nunca `Team Props`, `Games`, `Gols`, `Handicap` nem `Outros`); no Badminton, total de **parciais** (games/sets) = `Sets`, não `Pontos`
 19. pontos de **jogador** em Basquete / eBasket = `Player Props` (nunca `Pontos`)
-20. `E-Sports Props` não foi utilizado em eBasket (é exclusivo do Esporte `E-Sports`)
+20. `E-Sports Props` não foi utilizado em eBasket nem em eSoccer (é exclusivo do Esporte `E-Sports`)
 21. no Vôlei, a **unidade contada** define a categoria: ponto → `Pontos`, set → `Sets` (nunca `Games`)
 22. total de **rounds** da luta em MMA / Boxe = `Rounds` (nunca `Player Props` nem `Outros`); **método de vitória** (KO/TKO/decisão) = `ML`; **handicap de rounds** = `Handicap`
+23. total de **gols** em eSoccer = `Gols` (nunca `Pontos`, mesmo com linha alta tipo 6.5 / 8.5)
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

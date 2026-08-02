@@ -156,6 +156,7 @@ const SPORT_SVG={
 // Alias map: sport name → svg key
 const SPORT_KEY={
   'Futebol':'futebol','Fútbol':'futebol','Soccer':'futebol',
+  'eSoccer':'futebol','ESoccer':'futebol','Esoccer':'futebol','Futebol Virtual':'futebol',
   'NBA':'basquete','Basquete':'basquete','Basquetebol':'basquete','Basketball':'basquete','Nba':'basquete',
   'eBasket':'basquete','EBasket':'basquete','eBasketball':'basquete','Basquete Virtual':'basquete',
   'Tênis':'tenis','Tenis':'tenis','Tennis':'tenis','Tênis de Mesa':'tenis','Ping Pong':'tenis',

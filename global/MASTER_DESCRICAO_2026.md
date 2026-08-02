@@ -691,6 +691,44 @@ Shi Yuqi - Over 21.5 Pontos [Shi Yuqi v Anders Antonsen]
 
 ---
 
+## 13.5 eSoccer
+
+Futebol virtual (FIFA / eFootball). Usa os templates do Futebol — a única
+especificidade é o **handle do gamer**, com a mesma Regra Crítica do eBasket
+(§13.3): o confronto deve manter o handle entre parênteses, **exatamente como
+no bilhete**, preservando a grafia que a casa exibe.
+
+```text
+[Germany (vladl3n) v Morocco (hrk)]
+```
+
+Nunca remover o handle:
+
+```text
+[Germany v Morocco]        ← PROIBIDO
+```
+
+> **Motivo:** o mesmo do eBasket — o clube/seleção é apenas uma skin; quem joga é
+> o gamer. Sem o handle, dois confrontos distintos colapsam na régua de dedup.
+
+---
+
+### Gols (total do jogo)
+
+```text
+Over 6.5 Gols [Germany (vladl3n) v Morocco (hrk)]
+```
+
+---
+
+### ML
+
+```text
+Real Madrid (Cofi111) [Real Madrid (Cofi111) v Bayern (Ilulle)]
+```
+
+---
+
 # 14. Múltiplas
 
 Múltiplas devem separar seleções utilizando:
@@ -781,7 +819,7 @@ Antes de retornar a saída, o extrator deve validar:
 9. entidade ↔ mercado utilizam ` - `
 10. confronto não foi inventado
 11. ordem original das seleções foi preservada
-12. em eBasket, o handle do gamer foi preservado no confronto (§13.3)
+12. em eBasket e eSoccer, o handle do gamer foi preservado no confronto (§13.3 / §13.5)
 
 Caso o confronto não possa ser identificado com segurança, a descrição permanece válida sem confronto.
 
