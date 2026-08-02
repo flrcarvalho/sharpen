@@ -235,13 +235,34 @@ def _verifica_hash(senha: str, hash_guardado: str) -> bool:
         return False
 
 
+def resultado_login(usuario: str, senha: str) -> str:
+    """Resultado do login: 'ok' | 'pendente' | 'suspenso' | 'invalido'.
+
+    O status só é revelado quando a SENHA CONFERE — senha errada e usuário
+    inexistente são o mesmo 'invalido' (não dá para enumerar contas nem
+    descobrir o status de um cadastro alheio chutando senhas).
+    """
+    entrada = _usuarios_cache.get(usuario)
+    if not entrada or not _verifica_hash(senha, entrada.get("senha_hash") or ""):
+        return "invalido"
+    status = entrada.get("status")
+    if status == "ativo":
+        return "ok"
+    return status if status in ("pendente", "suspenso") else "invalido"
+
+
 def verificar_credenciais(usuario: str, senha: str) -> bool:
     """Senha confere E o usuário está ativo. Pendente/suspenso não loga —
     mesmo com a senha certa (modelo "aberto com aprovação")."""
-    entrada = _usuarios_cache.get(usuario)
-    if not entrada or entrada.get("status") != "ativo":
-        return False
-    return _verifica_hash(senha, entrada.get("senha_hash") or "")
+    return resultado_login(usuario, senha) == "ok"
+
+
+def gerar_hash_senha(senha: str) -> str:
+    """Hash bcrypt de um cadastro novo (Fase 2). CPU-bound (~100ms por desenho
+    do bcrypt) — o chamador async deve rodar via asyncio.to_thread."""
+    if bcrypt is None:
+        raise RuntimeError("bcrypt indisponível — cadastro exige bcrypt instalado")
+    return bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
 
 
 def criar_token(usuario: str) -> str:

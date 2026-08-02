@@ -383,6 +383,71 @@ async def seed_usuarios() -> None:
         )
 
 
+async def criar_usuario(username: str, email: str, senha_hash: str) -> str | None:
+    """Cria um cadastro PENDENTE (Fase 2 — "aberto com aprovação").
+
+    Retorna None se criou, ou o motivo do conflito ('usuario' | 'email').
+    A checagem é case-insensitive de propósito: 'feca' e 'Feca' seriam DONOS
+    diferentes no resto do sistema (a coluna `dono` é texto), então grafia
+    gêmea de um username existente precisa ser barrada aqui, na porta.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        conflito = await conn.fetchrow(
+            """
+            SELECT
+                EXISTS (SELECT 1 FROM usuarios WHERE lower(username) = lower($1)) AS u,
+                EXISTS (SELECT 1 FROM usuarios WHERE lower(email)    = lower($2)) AS e
+            """,
+            username, email,
+        )
+        if conflito["u"]:
+            return "usuario"
+        if conflito["e"]:
+            return "email"
+        try:
+            await conn.execute(
+                """
+                INSERT INTO usuarios (username, senha_hash, email, status, role)
+                VALUES ($1, $2, $3, 'pendente', 'user')
+                """,
+                username, senha_hash, email,
+            )
+        except asyncpg.UniqueViolationError:
+            return "usuario"  # corrida entre o SELECT e o INSERT: perde educadamente
+    return None
+
+
+async def listar_usuarios() -> list[dict]:
+    """Lista para o painel /admin — pendentes primeiro, depois mais recentes.
+    NUNCA devolve senha_hash (hash não sai do banco nem para admin)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        linhas = await conn.fetch(
+            """
+            SELECT username, email, status, role, parent_owner,
+                   COALESCE(planilha_url, '') <> '' AS planilha_viva, criado_em
+            FROM usuarios
+            ORDER BY (status = 'pendente') DESC, criado_em DESC
+            """
+        )
+    return [dict(l) for l in linhas]
+
+
+async def definir_status_usuario(username: str, status: str) -> bool:
+    """Aprovar ('ativo') / suspender ('suspenso') / voltar a 'pendente'.
+    True se o usuário existia. O chamador recarrega o cache de auth."""
+    if status not in ("ativo", "pendente", "suspenso"):
+        raise ValueError(f"status inválido: {status!r}")
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        r = await conn.execute(
+            "UPDATE usuarios SET status = $2, atualizado_em = NOW() WHERE username = $1",
+            username, status,
+        )
+    return r.endswith(" 1")  # asyncpg devolve 'UPDATE 1' / 'UPDATE 0'
+
+
 async def carregar_usuarios() -> list[dict]:
     """Lê a tabela `usuarios` no formato do `auth._usuarios_cache` (Deploy B).
 

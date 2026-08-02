@@ -28,14 +28,17 @@ from pydantic import BaseModel, field_validator
 
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, atualizar_cache_usuarios,
-    coproprietarios, criar_token, dono_efetivo, eh_admin, operadores_de,
-    planilha_ao_vivo, pode_ver_como, usuario_atual, usuario_do_request,
-    verificar_credenciais,
+    coproprietarios, criar_token, dono_efetivo, eh_admin, gerar_hash_senha,
+    operadores_de, planilha_ao_vivo, pode_ver_como, resultado_login,
+    usuario_atual, usuario_do_request,
 )
 import captura as _captura
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
-from database import carregar_usuarios, init_db, seed_usuarios
+from database import (
+    carregar_usuarios, criar_usuario, definir_status_usuario, init_db,
+    listar_usuarios, seed_usuarios,
+)
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
 from repository import (
@@ -1417,7 +1420,14 @@ async def login(body: LoginRequest, request: Request):
         raise HTTPException(429, "Muitas tentativas. Aguarde alguns minutos e tente novamente.")
 
     usuario = body.usuario.strip()
-    if not verificar_credenciais(usuario, body.senha):
+    veredito = resultado_login(usuario, body.senha)
+    if veredito != "ok":
+        # Mensagem específica SÓ com a senha certa (resultado_login devolve
+        # 'invalido' para senha errada — sem enumeração de contas/status).
+        if veredito == "pendente":
+            raise HTTPException(403, "Cadastro em análise — você será liberado assim que for aprovado.")
+        if veredito == "suspenso":
+            raise HTTPException(403, "Conta suspensa. Fale com o administrador.")
         fails.append(now)
         _login_fails[ip] = fails
         await asyncio.sleep(0.5)  # atraso constante desacelera brute-force
@@ -1442,6 +1452,128 @@ async def logout():
     resp.delete_cookie(COOKIE_NAME)
     resp.delete_cookie(VER_COMO_COOKIE)   # sai limpo: encerra também o "ver como"
     return resp
+
+
+# ── Cadastro self-service (Fase 2 — "aberto com aprovação") ───────────────────
+# Qualquer um se cadastra; a conta nasce `pendente` e só loga depois que um
+# admin aprovar no /admin. Ver docs/PLANO_MULTIUSUARIO_2026.md §Fase 2.
+
+_USUARIO_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.\-]{2,23}$")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def validar_cadastro(usuario: str, email: str, senha: str) -> str | None:
+    """Valida os campos do cadastro. Retorna a mensagem de erro, ou None se ok.
+
+    O username vira a coluna `dono` de TODAS as tabelas de dados (texto usado
+    verbatim no sistema inteiro) — por isso o formato é restrito: 3–24 chars,
+    começa com letra, sem espaço/acento (grafia é identidade; ver CLAUDE.md
+    "casa é texto").
+    """
+    if not _USUARIO_RE.fullmatch(usuario):
+        return ("Usuário inválido: 3 a 24 caracteres, começando com letra, "
+                "só letras, números, ponto, hífen ou _ (sem espaços/acentos).")
+    if len(email) > 254 or not _EMAIL_RE.fullmatch(email):
+        return "E-mail inválido."
+    if len(senha) < 8:
+        return "A senha precisa de pelo menos 8 caracteres."
+    if len(senha) > 128:
+        return "Senha longa demais (máximo 128 caracteres)."
+    return None
+
+
+class SignupRequest(BaseModel):
+    usuario: str
+    email: str
+    senha: str
+
+
+# Rate limit próprio do cadastro (mais apertado que o do login: criar conta é
+# raro; 5/h por IP segura spam de cadastros pendentes sem atrapalhar ninguém).
+_SIGNUP_WINDOW = 3600
+_SIGNUP_MAX = 5
+_signup_hits: dict[str, list[float]] = {}
+
+
+@app.post("/signup")
+async def signup(body: SignupRequest, request: Request):
+    ip = _client_ip(request)
+    now = time.time()
+    hits = [t for t in _signup_hits.get(ip, []) if now - t < _SIGNUP_WINDOW]
+    if len(hits) >= _SIGNUP_MAX:
+        raise HTTPException(429, "Muitos cadastros deste endereço. Tente novamente mais tarde.")
+
+    usuario = body.usuario.strip()
+    email = body.email.strip()
+    erro = validar_cadastro(usuario, email, body.senha)
+    if erro:
+        raise HTTPException(400, erro)
+
+    hits.append(now)
+    _signup_hits[ip] = hits
+    senha_hash = await asyncio.to_thread(gerar_hash_senha, body.senha)
+    conflito = await criar_usuario(usuario, email, senha_hash)
+    if conflito == "usuario":
+        raise HTTPException(409, "Este nome de usuário já existe.")
+    if conflito == "email":
+        raise HTTPException(409, "Este e-mail já tem cadastro.")
+
+    # Recarrega o cache JÁ (sem esperar o refresher): o login deste usuário
+    # passa a responder "cadastro em análise" imediatamente.
+    atualizar_cache_usuarios(await carregar_usuarios())
+    logger.info("signup: cadastro pendente criado — usuario=%s email=%s", usuario, email)
+    return {"ok": True, "mensagem": "Cadastro recebido! Sua conta está em análise — você poderá entrar assim que for aprovada."}
+
+
+# ── Painel de admin (aprovação de cadastros) ──────────────────────────────────
+
+def _exigir_admin(usuario: str) -> None:
+    """Gate das rotas /admin/*: papel `admin` na tabela usuarios (via cache)."""
+    if not eh_admin(usuario):
+        raise HTTPException(403, "Acesso restrito ao administrador.")
+
+
+@app.get("/admin")
+async def admin_page(request: Request):
+    # Página fora da casca (/app): só o admin a usa. Não-admin não descobre
+    # nada — cai no /app como se a rota não existisse para ele.
+    usuario = usuario_do_request(request)
+    if not usuario:
+        return RedirectResponse("/login", status_code=303)
+    if not eh_admin(usuario):
+        return RedirectResponse("/app", status_code=303)
+    content = (Path(__file__).parent / "static" / "admin.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
+@app.get("/admin/usuarios")
+async def admin_listar_usuarios(usuario: str = Depends(usuario_atual)):
+    _exigir_admin(usuario)
+    return {"usuarios": await listar_usuarios(), "eu": usuario}
+
+
+@app.post("/admin/usuarios/{username}/aprovar")
+async def admin_aprovar(username: str, usuario: str = Depends(usuario_atual)):
+    """Aprova um cadastro pendente (ou reativa um suspenso) — status='ativo'."""
+    _exigir_admin(usuario)
+    if not await definir_status_usuario(username, "ativo"):
+        raise HTTPException(404, "Usuário não encontrado.")
+    atualizar_cache_usuarios(await carregar_usuarios())
+    logger.info("admin: %s aprovou/reativou %s", usuario, username)
+    return {"ok": True}
+
+
+@app.post("/admin/usuarios/{username}/suspender")
+async def admin_suspender(username: str, usuario: str = Depends(usuario_atual)):
+    """Suspende um usuário: login barrado E sessão revogada em ≤60s (C3)."""
+    _exigir_admin(usuario)
+    if username == usuario:
+        raise HTTPException(400, "Não dá para suspender a própria conta de admin.")
+    if not await definir_status_usuario(username, "suspenso"):
+        raise HTTPException(404, "Usuário não encontrado.")
+    atualizar_cache_usuarios(await carregar_usuarios())
+    logger.info("admin: %s suspendeu %s", usuario, username)
+    return {"ok": True}
 
 
 @app.get("/me")

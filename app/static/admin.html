@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Usuários — Sharpen</title>
+<meta name="theme-color" content="#0A0D12">
+<link rel="icon" type="image/svg+xml" href="/static/favicon/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon/favicon-16.png">
+<link rel="stylesheet" href="/static/fonts.css">
+<link rel="stylesheet" href="/static/tokens.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 40px 16px;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  opacity: 0.55; pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+.card {
+  position: relative; z-index: 1;
+  width: 940px; max-width: 100%;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg, 16px);
+  padding: 28px;
+  box-shadow: var(--shadow-card, 0 20px 60px rgba(0,0,0,.45));
+}
+.topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.topo h1 {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.topo a {
+  font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+  text-decoration: none; transition: color .12s;
+}
+.topo a:hover { color: var(--accent); }
+table { width: 100%; border-collapse: collapse; }
+th {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-mute);
+  text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+td {
+  font-size: 13px; padding: 10px;
+  border-bottom: 1px solid var(--line-2, var(--line));
+  vertical-align: middle;
+}
+td.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+td.mute { color: var(--ink-soft); }
+.pill {
+  display: inline-block; padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  border-radius: var(--r-pill, 999px);
+  border: 1px solid var(--line);
+}
+.pill.pendente { color: var(--warn); border-color: rgba(var(--warn-rgb), .4); background: rgba(var(--warn-rgb), .10); }
+.pill.ativo    { color: var(--pos);  border-color: rgba(var(--pos-rgb), .4);  background: rgba(var(--pos-rgb), .10); }
+.pill.suspenso { color: var(--neg);  border-color: rgba(var(--neg-rgb), .4);  background: rgba(var(--neg-rgb), .10); }
+.pill.admin    { color: var(--accent); border-color: rgba(var(--accent-rgb), .4); background: rgba(var(--accent-rgb), .10); }
+.acoes { display: flex; gap: 8px; justify-content: flex-end; }
+.btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm, 8px);
+  color: var(--ink-soft);
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: border-color .12s, color .12s;
+}
+.btn:hover { border-color: var(--accent); color: var(--ink); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primario { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primario:hover { filter: brightness(1.06); }
+.aviso {
+  margin-top: 14px; min-height: 16px;
+  font-size: 12.5px; color: var(--neg); text-align: center;
+}
+.vazio { padding: 26px 10px; text-align: center; color: var(--ink-mute); font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="topo">
+      <h1>Admin · Usuários</h1>
+      <a href="/app">← Voltar ao app</a>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Usuário</th><th>E-mail</th><th>Status</th><th>Papel</th>
+          <th>Operador de</th><th>Criado em</th><th style="text-align:right">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="linhas"><tr><td colspan="7" class="vazio">Carregando…</td></tr></tbody>
+    </table>
+    <div class="aviso" id="aviso"></div>
+  </div>
+<script>
+const tbody = document.getElementById('linhas');
+const aviso = document.getElementById('aviso');
+let eu = '';
+
+// Render 100% via DOM/textContent — email e usuário são entrada de terceiros
+// (signup público): nunca interpolar em innerHTML.
+function celula(texto, cls) {
+  const td = document.createElement('td');
+  if (cls) td.className = cls;
+  td.textContent = texto;
+  return td;
+}
+
+function pill(texto, cls) {
+  const td = document.createElement('td');
+  const s = document.createElement('span');
+  s.className = 'pill ' + cls;
+  s.textContent = texto;
+  td.appendChild(s);
+  return td;
+}
+
+function botao(rotulo, primario, onclick, desabilitado) {
+  const b = document.createElement('button');
+  b.className = 'btn' + (primario ? ' primario' : '');
+  b.textContent = rotulo;
+  b.disabled = !!desabilitado;
+  b.addEventListener('click', onclick);
+  return b;
+}
+
+async function agir(username, acao) {
+  aviso.textContent = '';
+  try {
+    const r = await fetch('/admin/usuarios/' + encodeURIComponent(username) + '/' + acao, { method: 'POST' });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      aviso.textContent = data.detail || 'Falhou. Tente novamente.';
+    }
+  } catch (_) {
+    aviso.textContent = 'Erro de conexão.';
+  }
+  carregar();
+}
+
+async function carregar() {
+  try {
+    const r = await fetch('/admin/usuarios');
+    if (r.status === 401) { window.location.href = '/login'; return; }
+    if (r.status === 403) { window.location.href = '/app'; return; }
+    const data = await r.json();
+    eu = data.eu || '';
+    tbody.textContent = '';
+    if (!data.usuarios || !data.usuarios.length) {
+      const tr = document.createElement('tr');
+      const td = celula('Nenhum usuário.', 'vazio');
+      td.colSpan = 7;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+    for (const u of data.usuarios) {
+      const tr = document.createElement('tr');
+      tr.appendChild(celula(u.username, 'mono'));
+      tr.appendChild(celula(u.email || '—', 'mute'));
+      tr.appendChild(pill(u.status, u.status));
+      tr.appendChild(u.role === 'admin' ? pill('admin', 'admin') : celula('user', 'mute'));
+      tr.appendChild(celula(u.parent_owner || '—', 'mute'));
+      const criado = u.criado_em ? new Date(u.criado_em).toLocaleDateString('pt-BR') : '—';
+      tr.appendChild(celula(criado, 'mono mute'));
+      const tdAcoes = document.createElement('td');
+      const box = document.createElement('div');
+      box.className = 'acoes';
+      if (u.status === 'pendente') {
+        box.appendChild(botao('Aprovar', true, () => agir(u.username, 'aprovar')));
+        box.appendChild(botao('Recusar', false, () => agir(u.username, 'suspender')));
+      } else if (u.status === 'ativo') {
+        box.appendChild(botao('Suspender', false, () => agir(u.username, 'suspender'), u.username === eu));
+      } else {
+        box.appendChild(botao('Reativar', true, () => agir(u.username, 'aprovar')));
+      }
+      tdAcoes.appendChild(box);
+      tr.appendChild(tdAcoes);
+      tbody.appendChild(tr);
+    }
+  } catch (_) {
+    aviso.textContent = 'Erro ao carregar a lista.';
+  }
+}
+
+carregar();
+</script>
+</body>
+</html>
