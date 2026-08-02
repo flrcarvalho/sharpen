@@ -122,7 +122,7 @@ function renderApostasVirt(){
     return`<div class="btbl-cols btbl-data-row"${r.id!=null?` data-id="${r.id}"`:''} style="height:${BTBL_ROW_H}px">
       <div class="btbl-cell btbl-date${ec}"${df('data')}>${dateStr}</div>
       <div class="btbl-cell">
-        ${r.novo&&!window.MODO_PUBLICO?'<span class="bet-res-pill bet-new-pill">NEW</span>':''}${r.aposta?`<div class="btbl-tipo${ec}"${df('aposta')}>${esc(r.aposta)}</div>`:''}
+        ${r.aposta?`<div class="btbl-tipo${ec}"${df('aposta')}>${esc(r.aposta)}</div>`:''}
         <div class="btbl-desc${ec}"${df('descricao')}>${esc(r.descricao||r.aposta||'—')}</div>
       </div>
       <div class="btbl-cell btbl-sport${ec}"${df('esporte')}>${mkSpChip(r.esporte)}<span>${esc(r.esporte||'—')}</span></div>

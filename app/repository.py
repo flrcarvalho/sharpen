@@ -1410,12 +1410,6 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
                 "lucro": lucro,
                 "operador": dono,
             }
-            # TEMPORÁRIO (s231): badge "NEW" na página de Apostas para o Feca revisar a
-            # 1ª leva do robô BetNacional (códigos NXBNAC…) contra a base antiga. Só as
-            # linhas do robô carregam a chave (payload desprezível). Remover — aqui e no
-            # render de charts/apostas.js — quando a revisão manual terminar.
-            if linha["casa"] == "Betnacional" and str(r.get("codigo_bilhete") or "").startswith("NXBNAC"):
-                linha["novo"] = True
             # `criado_em` SÓ nas abertas: a tela "Em Aberto" mede há quanto tempo a
             # aposta está parada (o mesmo sinal de 48h+ do Início). Carimbar as ~30k
             # encerradas custaria ~1MB de feed sem nenhum consumidor.
