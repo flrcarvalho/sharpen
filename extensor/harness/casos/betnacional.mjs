@@ -82,5 +82,30 @@ export async function rodar() {
   }
   if (testes !== Object.keys(ESPERADO).length)
     falhas.push(`só ${testes} dos ${Object.keys(ESPERADO).length} bilhetes do gabarito apareceram`);
+
+  // "Cancelado" = void com devolução integral — confirmado ao vivo (s228): card "Cancelada",
+  // Aposta R$ 25,00 = Ganho R$ 25,00 (NXBNAC…459206253). A fixture não tem o payload cru
+  // desse bilhete (capturado só formatado), então o teste alimenta o formatador com o
+  // OBJETO AGRUPADO que o inject emite — os valores vêm do card real; `statusId: 2` é o
+  // único campo não confirmado (o formatador decide pelo NOME, não pelo id).
+  const cancelada = {
+    codigo: "NXBNAC000142211281783459206253", statusId: 2, statusNome: "Cancelado",
+    resultado: 1, stake: 25, retorno: 25, oddTotal: 26, tipoNome: "Simples",
+    colocada: "2026-07-07 18:20:06", pagaEm: "2026-07-07 19:03:34",
+    superOdds: true, outright: false,
+    pernas: [{ idx: 1, mercado: "Melhor Marcador de Cada Seleção - Vini Jr (Brasil), Messi (Argentina), Mbappé (França) e Harry Kane (Inglaterra)", selecao: "Sim", specifier: "", odd: 26, resultadoPerna: 2, casa: "", fora: "", esporte: "Futebol", liga: "Copa do Mundo FIFA", inicio: "2026-06-11 16:00:00" }],
+  };
+  const txtCanc = fmt(cancelada);
+  testes++;
+  const stCanc = linha(txtCanc, "Status:");
+  if (!/Cancelada\/void \(retorno = stake\) → V$/.test(stCanc))
+    falhas.push(`cancelada: esperava void → V, veio "${stCanc}"`);
+  if (linha(txtCanc, "Odd:") !== "26")
+    falhas.push(`cancelada: void exibe a odd do bilhete (26), veio "${linha(txtCanc, "Odd:")}"`);
+  // Cancelado SEM devolução integral não pode virar V no chute — segue "a conferir".
+  const stMeia = linha(fmt({ ...cancelada, retorno: 12.5 }), "Status:");
+  if (!/a conferir — não liquidar automaticamente/.test(stMeia))
+    falhas.push(`cancelada sem devolução integral: esperava "a conferir", veio "${stMeia}"`);
+
   return { falhas, testes };
 }

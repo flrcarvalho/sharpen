@@ -1899,6 +1899,13 @@
       if (Math.abs(ret - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
       return "Retorno parcial (R$ " + _brl(ret) + " · conferir HW/HL ou cashout)";
     }
+    // "Cancelado" confirmado ao vivo (s228): mercado anulado pela casa devolve a stake
+    // integral (card "Cancelada" · Aposta R$25 = Ganho R$25) → void. Decide pelo NOME +
+    // dinheiro; cancelado SEM devolução integral segue caindo no "a conferir" abaixo.
+    if (/^cancelad/i.test(t.statusNome || "")) {
+      const st = t.stake || 0, ret = t.retorno || 0;
+      if (st > 0 && Math.abs(ret - st) < 0.005) return "Cancelada/void (retorno = stake) → V";
+    }
     return (t.statusNome || ("status " + t.statusId)) + " (a conferir — não liquidar automaticamente)";
   }
 

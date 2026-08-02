@@ -139,9 +139,11 @@ Regressão: `extensor/harness/casos/betnacional.mjs`.
 | `Finalizado · header_result=0` + retorno `R$ 0,00` | L |
 | `Finalizado · header_result=0` + retorno = stake | V |
 | `Finalizado` + retorno parcial (0 < retorno ≠ stake, sem result=1) | conferir HW/HL ou cashout — não chutar |
+| `Cancelado` + retorno = stake | **V** — mercado anulado pela casa devolve a stake integral (confirmado ao vivo s228: card "Cancelada", Aposta R$ 25 = Ganho R$ 25, `header_result=1`, perna `return_type_id=2`). Odd = a exibida no bilhete |
+| `Cancelado` sem devolução integral | "a conferir" — não liquidar (caso nunca visto; o formatador só dá V com retorno = stake) |
 | enum novo (o bloco marca "a conferir — não liquidar automaticamente") | NÃO liquidar; registrar no §Feedback |
 
-Resultado da **perna** (`return_type_id`, cru no bloco): `1` = perna ganhou · `0` = perna perdeu · `2` = perna anulada (visto 1 caso, perna com `booked:0` — a conferir) · `null`/ausente = perna aberta. Serve para conferência interna da múltipla; o resultado do BILHETE sai do de-para acima.
+Resultado da **perna** (`return_type_id`, cru no bloco): `1` = perna ganhou · `0` = perna perdeu · `2` = perna anulada/void (confirmado ao vivo s228: bilhete `Cancelado` com devolução integral tinha a perna em `2`) · `null`/ausente = perna aberta. Serve para conferência interna da múltipla; o resultado do BILHETE sai do de-para acima.
 
 **View Histórico (texto legado):**
 
