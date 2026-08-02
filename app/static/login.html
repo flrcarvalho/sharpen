@@ -122,6 +122,22 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
   text-align: center; cursor: pointer; transition: color .12s;
 }
 .alternar:hover { color: var(--accent); filter: none; box-shadow: none; }
+.social { margin-top: 16px; }
+.ou {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute);
+}
+.ou::before, .ou::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.btn-social {
+  display: block; width: 100%; margin-top: 10px; padding: 11px 12px;
+  background: transparent; border: 1px solid var(--line);
+  border-radius: var(--r-sm, 10px);
+  color: var(--ink-soft); font-size: 13.5px; font-weight: 600;
+  text-align: center; text-decoration: none;
+  transition: border-color .12s, color .12s;
+}
+.btn-social:hover { border-color: var(--accent); color: var(--ink); }
 </style>
 </head>
 <body>
@@ -140,8 +156,16 @@ button:disabled { opacity: .6; cursor: default; box-shadow: none; }
       </div>
       <button type="submit" id="btn">Entrar</button>
       <div class="erro" id="erro"></div>
+      <div class="sucesso" id="info" hidden></div>
       <button type="button" class="alternar" id="ir-cadastro">Não tem conta? <u>Criar conta</u></button>
     </form>
+    <!-- Login social (Fase 3): os botões só aparecem quando /auth/metodos
+         confirma que o método está configurado no servidor (fail-safe). -->
+    <div class="social" id="social" hidden>
+      <div class="ou">ou</div>
+      <a class="btn-social" id="btn-google" href="/auth/google" hidden>Entrar com Google</a>
+      <a class="btn-social" id="btn-telegram" href="/auth/telegram/ir" hidden>Entrar com Telegram</a>
+    </div>
     <!-- Cadastro (Fase 2 — "aberto com aprovação"): a conta nasce pendente e só
          entra depois que o admin aprovar no /admin. -->
     <form id="form-cadastro" hidden>
@@ -181,16 +205,41 @@ olho.addEventListener('click', () => {
   olho.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
 });
 
+// Botões sociais: fail-safe — só aparecem quando o servidor confirma que o
+// método tem credencial configurada (senão a tela fica idêntica à de sempre).
+const social = document.getElementById('social');
+let temSocial = false;
+fetch('/auth/metodos').then(r => r.json()).then(m => {
+  document.getElementById('btn-google').hidden = !m.google;
+  document.getElementById('btn-telegram').hidden = !m.telegram;
+  temSocial = !!(m.google || m.telegram);
+  social.hidden = !temSocial || form.hidden;
+}).catch(() => {});
+
+// Mensagens do fluxo social (os callbacks voltam por redirect com ?social=…)
+const msgSocial = new URLSearchParams(location.search).get('social');
+if (msgSocial === 'pendente') {
+  const info = document.getElementById('info');
+  info.textContent = 'Cadastro recebido! Sua conta está em análise — você poderá entrar assim que for aprovada.';
+  info.hidden = false;
+} else if (msgSocial === 'suspenso') {
+  erro.textContent = 'Conta suspensa. Fale com o administrador.';
+} else if (msgSocial === 'erro') {
+  erro.textContent = 'Não foi possível entrar com o provedor. Tente novamente.';
+}
+
 // Alternância login ⇄ cadastro
 const formCadastro = document.getElementById('form-cadastro');
 document.getElementById('ir-cadastro').addEventListener('click', () => {
   form.hidden = true;
+  social.hidden = true;
   formCadastro.hidden = false;
   document.getElementById('cad-usuario').focus();
 });
 document.getElementById('ir-login').addEventListener('click', () => {
   formCadastro.hidden = true;
   form.hidden = false;
+  social.hidden = !temSocial;
   document.getElementById('usuario').focus();
 });
 

@@ -448,6 +448,72 @@ async def definir_status_usuario(username: str, status: str) -> bool:
     return r.endswith(" 1")  # asyncpg devolve 'UPDATE 1' / 'UPDATE 0'
 
 
+# Campos de vínculo social permitidos (Fase 3). Whitelist: o nome do campo entra
+# na SQL por f-string, então NUNCA pode vir de entrada do usuário sem passar aqui.
+_CAMPOS_SOCIAIS = ("google_sub", "telegram_id", "email")
+
+
+async def buscar_usuario_social(campo: str, valor: str) -> dict | None:
+    """Acha o usuário dono deste vínculo social (ou deste e-mail). None = não há."""
+    if campo not in _CAMPOS_SOCIAIS:
+        raise ValueError(f"campo social inválido: {campo!r}")
+    comparacao = "lower(email) = lower($1)" if campo == "email" else f"{campo} = $1"
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        linha = await conn.fetchrow(
+            f"SELECT username, status, role FROM usuarios WHERE {comparacao}", valor
+        )
+    return dict(linha) if linha else None
+
+
+async def vincular_social(username: str, campo: str, valor: str, email: str | None = None) -> None:
+    """Grava o vínculo social num usuário existente (1º login Google/Telegram de
+    uma conta que já existia). O e-mail só preenche se estava vazio — nunca
+    sobrescreve um e-mail já cadastrado."""
+    if campo not in ("google_sub", "telegram_id"):
+        raise ValueError(f"campo social inválido: {campo!r}")
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            f"""
+            UPDATE usuarios
+            SET {campo} = $2, email = COALESCE(email, $3), atualizado_em = NOW()
+            WHERE username = $1
+            """,
+            username, valor, email,
+        )
+
+
+async def usernames_em_uso() -> set[str]:
+    """Usernames existentes em lowercase — base da derivação de username social
+    (colisão case-insensitive é colisão; ver criar_usuario)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        linhas = await conn.fetch("SELECT lower(username) AS u FROM usuarios")
+    return {l["u"] for l in linhas}
+
+
+async def criar_usuario_social(
+    username: str,
+    email: str | None,
+    *,
+    google_sub: str | None = None,
+    telegram_id: str | None = None,
+    nome: str | None = None,
+) -> None:
+    """Cria a conta PENDENTE de quem chegou via Google/Telegram (sem senha local:
+    senha_hash NULL). Mesmo funil de aprovação do /signup."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO usuarios (username, email, nome, status, role, google_sub, telegram_id)
+            VALUES ($1, $2, $3, 'pendente', 'user', $4, $5)
+            """,
+            username, email, nome, google_sub, telegram_id,
+        )
+
+
 async def carregar_usuarios() -> list[dict]:
     """Lê a tabela `usuarios` no formato do `auth._usuarios_cache` (Deploy B).
 

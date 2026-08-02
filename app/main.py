@@ -2,6 +2,8 @@ import asyncio
 import base64
 import csv
 import gzip
+import hashlib
+import hmac
 import io
 import json
 import logging
@@ -14,7 +16,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
+
+import httpx
 
 import xlrd
 
@@ -28,16 +32,17 @@ from pydantic import BaseModel, field_validator
 
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, atualizar_cache_usuarios,
-    coproprietarios, criar_token, dono_efetivo, eh_admin, gerar_hash_senha,
-    operadores_de, planilha_ao_vivo, pode_ver_como, resultado_login,
-    usuario_atual, usuario_do_request,
+    coproprietarios, criar_token, criar_token_curto, dono_efetivo, eh_admin,
+    gerar_hash_senha, operadores_de, planilha_ao_vivo, pode_ver_como,
+    resultado_login, usuario_atual, usuario_do_request, validar_token_curto,
 )
 import captura as _captura
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import (
-    carregar_usuarios, criar_usuario, definir_status_usuario, init_db,
-    listar_usuarios, seed_usuarios,
+    buscar_usuario_social, carregar_usuarios, criar_usuario,
+    criar_usuario_social, definir_status_usuario, init_db, listar_usuarios,
+    seed_usuarios, usernames_em_uso, vincular_social,
 )
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
@@ -1574,6 +1579,269 @@ async def admin_suspender(username: str, usuario: str = Depends(usuario_atual)):
     atualizar_cache_usuarios(await carregar_usuarios())
     logger.info("admin: %s suspendeu %s", usuario, username)
     return {"ok": True}
+
+
+# ── Login social (Fase 3 — Google OIDC + Telegram) ────────────────────────────
+# FAIL-SAFE por env var: sem credenciais, /auth/metodos responde tudo False, os
+# botões nem aparecem no login.html e as rotas dão 404 — deployável dormente.
+# Os DOIS fluxos são 100% por redirect de navegador (nenhum script externo — a
+# CSP fica intacta) e convergem em _resolver_social → criar_token + cookie, o
+# mesmo ponto de sessão do login por senha. Conta desconhecida NUNCA entra
+# direto: nasce `pendente` no mesmo funil de aprovação do /signup.
+# Ver docs/PLANO_MULTIUSUARIO_2026.md §Fase 3.
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+# Base pública dos redirects de OAuth (callback registrado no Google Console).
+BASE_URL_PUBLICA = os.environ.get("PUBLIC_BASE_URL", "https://www.sharpen.bet")
+
+
+def _google_configurado() -> bool:
+    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+
+def _telegram_configurado() -> bool:
+    # O bot_id (metade numérica do token) monta a URL do oauth.telegram.org.
+    return bool(TELEGRAM_BOT_TOKEN and ":" in TELEGRAM_BOT_TOKEN)
+
+
+def derivar_username(base: str, em_uso: set[str]) -> str:
+    """Deriva um username válido (mesma régua do validar_cadastro) a partir do
+    e-mail/nome vindo do provedor social. Sanitiza para o charset permitido,
+    garante 1ª letra e 3–24 chars; colisão (case-insensitive, contra
+    usernames_em_uso) ganha sufixo numérico crescente."""
+    limpo = re.sub(r"[^A-Za-z0-9_.\-]", "", base or "")
+    limpo = re.sub(r"^[^A-Za-z]+", "", limpo)[:24] or "usuario"
+    if len(limpo) < 3:
+        limpo = (limpo + "000")[:3]
+    candidato, i = limpo, 2
+    while candidato.lower() in em_uso:
+        sufixo = str(i)
+        candidato = limpo[: 24 - len(sufixo)] + sufixo
+        i += 1
+    return candidato
+
+
+def _claims_do_id_token(id_token: str) -> dict | None:
+    """Extrai e valida os claims do id_token da Google.
+
+    A assinatura NÃO é verificada de propósito: o token acabou de chegar da
+    própria Google (endpoint /token, TLS + client_secret) — não é um token
+    apresentado pelo cliente. Validamos iss, aud (nosso client_id), exp e sub.
+    E-mail não-verificado é descartado (nunca casar conta por e-mail que a
+    Google não confirmou — vetor clássico de account takeover)."""
+    try:
+        parte = id_token.split(".")[1]
+        parte += "=" * (-len(parte) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(parte))
+    except Exception:
+        return None
+    if claims.get("iss") not in ("https://accounts.google.com", "accounts.google.com"):
+        return None
+    if claims.get("aud") != GOOGLE_CLIENT_ID:
+        return None
+    if int(claims.get("exp", 0)) < time.time():
+        return None
+    if not claims.get("sub"):
+        return None
+    if claims.get("email") and not claims.get("email_verified"):
+        claims = dict(claims, email=None)
+    return claims
+
+
+def _telegram_dados_validos(dados: dict, bot_token: str, agora: float | None = None) -> bool:
+    """Valida o payload do Login do Telegram (spec oficial): HMAC-SHA256 do
+    data-check-string (campos ordenados, sem o `hash`) com chave
+    SHA256(bot_token), + frescor de `auth_date` ≤ 10 min (payload velho não
+    loga — anti-replay)."""
+    recebido = dados.get("hash", "")
+    if not recebido or not dados.get("id") or not dados.get("auth_date"):
+        return False
+    pares = sorted(f"{k}={v}" for k, v in dados.items() if k != "hash")
+    chave = hashlib.sha256(bot_token.encode()).digest()
+    esperado = hmac.new(chave, "\n".join(pares).encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(esperado, recebido):
+        return False
+    try:
+        idade = (agora if agora is not None else time.time()) - int(dados["auth_date"])
+    except (TypeError, ValueError):
+        return False
+    return -60 <= idade <= 600  # -60 tolera clock skew
+
+
+async def _resolver_social(
+    *,
+    google_sub: str | None = None,
+    telegram_id: str | None = None,
+    email: str | None = None,
+    nome: str | None = None,
+) -> tuple[str, str | None]:
+    """Converge os dois provedores: acha o usuário pelo vínculo, ou vincula pela
+    1ª vez via e-mail verificado, ou cria a conta pendente. Retorna
+    (destino_do_redirect, username_para_cookie|None) — cookie só quando ativo."""
+    campo, valor = ("google_sub", google_sub) if google_sub else ("telegram_id", telegram_id)
+    u = await buscar_usuario_social(campo, valor)
+    if u is None and email:
+        # 1º login social de uma conta que já existia (e-mail VERIFICADO pela
+        # Google — _claims_do_id_token já descartou os não-verificados).
+        u = await buscar_usuario_social("email", email)
+        if u is not None:
+            await vincular_social(u["username"], campo, valor)
+            logger.info("social: %s vinculado a %s via e-mail", campo, u["username"])
+    if u is None:
+        base = (email or "").split("@")[0] or (nome or "")
+        username = derivar_username(base, await usernames_em_uso())
+        await criar_usuario_social(
+            username, email, google_sub=google_sub, telegram_id=telegram_id, nome=nome
+        )
+        atualizar_cache_usuarios(await carregar_usuarios())
+        logger.info("social: cadastro pendente criado via %s — %s", campo, username)
+        return "/login?social=pendente", None
+    if u["status"] == "pendente":
+        return "/login?social=pendente", None
+    if u["status"] != "ativo":
+        return "/login?social=suspenso", None
+    logger.info("social: login de %s via %s", u["username"], campo)
+    return "/app", u["username"]
+
+
+def _com_cookie_de_sessao(resp: Response, username: str) -> Response:
+    resp.set_cookie(
+        key=COOKIE_NAME,
+        value=criar_token(username),
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=True,
+    )
+    return resp
+
+
+@app.get("/auth/metodos")
+async def auth_metodos():
+    """Diz ao login.html quais botões sociais mostrar (fail-safe por env var)."""
+    return {"google": _google_configurado(), "telegram": _telegram_configurado()}
+
+
+@app.get("/auth/google")
+async def auth_google():
+    if not _google_configurado():
+        raise HTTPException(404, "Login Google não configurado.")
+    params = urlencode({
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": f"{BASE_URL_PUBLICA}/auth/google/callback",
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": criar_token_curto("oauth-google"),
+        "prompt": "select_account",
+    })
+    return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{params}", status_code=302)
+
+
+@app.get("/auth/google/callback")
+async def auth_google_callback(code: str = "", state: str = "", error: str = ""):
+    if not _google_configurado():
+        raise HTTPException(404, "Login Google não configurado.")
+    if error or not code or not validar_token_curto(state, "oauth-google"):
+        return RedirectResponse("/login?social=erro", status_code=303)
+    try:
+        async with httpx.AsyncClient(timeout=15) as cli:
+            r = await cli.post("https://oauth2.googleapis.com/token", data={
+                "code": code,
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "redirect_uri": f"{BASE_URL_PUBLICA}/auth/google/callback",
+                "grant_type": "authorization_code",
+            })
+        r.raise_for_status()
+        claims = _claims_do_id_token(r.json().get("id_token", ""))
+    except Exception:
+        logger.exception("oauth google: troca de código falhou")
+        return RedirectResponse("/login?social=erro", status_code=303)
+    if not claims:
+        return RedirectResponse("/login?social=erro", status_code=303)
+    try:
+        destino, username = await _resolver_social(
+            google_sub=str(claims["sub"]), email=claims.get("email"), nome=claims.get("name"),
+        )
+    except Exception:
+        logger.exception("oauth google: resolução do usuário falhou")
+        return RedirectResponse("/login?social=erro", status_code=303)
+    resp = RedirectResponse(destino, status_code=303)
+    return _com_cookie_de_sessao(resp, username) if username else resp
+
+
+@app.get("/auth/telegram/ir")
+async def auth_telegram_ir():
+    """Manda o navegador para a página de autorização do Telegram (fluxo SEM
+    widget embarcado — a CSP do app não abre para scripts externos). O retorno
+    vem no fragmento #tgAuthResult da página /auth/telegram/retorno."""
+    if not _telegram_configurado():
+        raise HTTPException(404, "Login Telegram não configurado.")
+    bot_id = TELEGRAM_BOT_TOKEN.split(":", 1)[0]
+    params = urlencode({
+        "bot_id": bot_id,
+        "origin": BASE_URL_PUBLICA,
+        "return_to": f"{BASE_URL_PUBLICA}/auth/telegram/retorno",
+    })
+    return RedirectResponse(f"https://oauth.telegram.org/auth?{params}", status_code=302)
+
+
+# Página-ponte do retorno do Telegram: o oauth.telegram.org devolve os dados no
+# FRAGMENTO da URL (#tgAuthResult=<base64url>), que nunca chega ao servidor —
+# este HTML mínimo lê o fragmento e o entrega ao POST /auth/telegram, que aí sim
+# valida o HMAC e decide. Sem script externo (CSP intacta).
+_TELEGRAM_RETORNO_HTML = """<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><title>Entrando… — Sharpen</title></head>
+<body style="background:#0A0D12;color:#95A1B0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
+<p>Concluindo login…</p>
+<script>
+(async () => {
+  const m = location.hash.match(/tgAuthResult=([A-Za-z0-9_\\-=]+)/);
+  if (!m) { location.replace('/login?social=erro'); return; }
+  try {
+    const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    const dados = JSON.parse(atob(b64));
+    const r = await fetch('/auth/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    });
+    const j = await r.json().catch(() => ({}));
+    location.replace(j.destino || '/login?social=erro');
+  } catch (_) { location.replace('/login?social=erro'); }
+})();
+</script></body></html>"""
+
+
+@app.get("/auth/telegram/retorno")
+async def auth_telegram_retorno():
+    if not _telegram_configurado():
+        raise HTTPException(404, "Login Telegram não configurado.")
+    return HTMLResponse(_TELEGRAM_RETORNO_HTML, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
+@app.post("/auth/telegram")
+async def auth_telegram(request: Request):
+    if not _telegram_configurado():
+        raise HTTPException(404, "Login Telegram não configurado.")
+    try:
+        dados = await request.json()
+    except Exception:
+        raise HTTPException(400, "Payload inválido.")
+    if not isinstance(dados, dict) or not _telegram_dados_validos(dados, TELEGRAM_BOT_TOKEN):
+        raise HTTPException(401, "Dados de login do Telegram inválidos ou expirados.")
+    try:
+        destino, username = await _resolver_social(
+            telegram_id=str(dados["id"]),
+            nome=dados.get("username") or dados.get("first_name"),
+        )
+    except Exception:
+        logger.exception("telegram: resolução do usuário falhou")
+        raise HTTPException(500, "Falha ao concluir o login. Tente novamente.")
+    resp = JSONResponse({"destino": destino})
+    return _com_cookie_de_sessao(resp, username) if username else resp
 
 
 @app.get("/me")

@@ -1,8 +1,12 @@
 # PLANO — Multiusuário / Cadastro / Login social / Pagamento (Sharpen)
 
-> **Status:** na CANTEIRA (aprovado em princípio, a executar "muito em breve" — sessão 116, 08/07/2026).
+> **Status (2026-08-02, s233–s236): FASES 1, 2 e 3 EXECUTADAS.**
+> - **Fase 1 ✅** (s233): tabela `usuarios` + auth via `_usuarios_cache` lastreado no banco; suspensão revoga sessão em ≤60s (C3 resolvido). Dicts de `auth.py` viraram semente.
+> - **Fase 2 ✅** (s235): `POST /signup` (conta nasce `pendente`) + painel `/admin` (aprovar/suspender/reativar). Validado pelo Feca no ar.
+> - **Fase 3 ✅ código no ar, DORMENTE** (s236): Google OIDC (`/auth/google` + callback) e Telegram (`/auth/telegram/ir` → oauth.telegram.org → `/auth/telegram/retorno` → `POST /auth/telegram`); botões no login via `/auth/metodos` — **acendem sozinhos quando as env vars `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`TELEGRAM_BOT_TOKEN` existirem no Railway** (parte do Feca: OAuth Client no Google Cloud com redirect `https://www.sharpen.bet/auth/google/callback`; bot no @BotFather com `/setdomain` → `www.sharpen.bet`).
+> - **Fase 4 (pagamento): não iniciada.**
 > **Fonte de verdade operacional:** este arquivo. A memória `saas_multiusuario_plano.md` aponta pra cá.
-> Antes de executar: reler `CLAUDE.md` (backup → uma etapa por vez → commit+push) e conferir o código atual (`app/auth.py`, `app/database.py`, `app/main.py`) — este plano foi escrito lendo esses arquivos em 08/07/2026; podem ter mudado.
+> O texto das fases abaixo foi mantido como escrito em 08/07/2026 (histórico da decisão); o que vale é o código.
 
 ---
 

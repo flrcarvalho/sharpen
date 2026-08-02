@@ -276,6 +276,37 @@ def criar_token(usuario: str) -> str:
     return f"{payload}.{assinatura}"
 
 
+def criar_token_curto(proposito: str, ttl: int = 600) -> str:
+    """Token assinado de curta duração para fluxos de uma via — ex.: o `state`
+    anti-CSRF do OAuth (Fase 3). Mesmo formato do cookie de sessão, mas com um
+    PROPÓSITO no payload: um token de um fluxo nunca serve em outro."""
+    exp = int(time.time()) + ttl
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"p": proposito, "exp": exp}).encode()
+    ).decode()
+    assinatura = hmac.new(
+        SESSION_SECRET.encode(), payload.encode(), hashlib.sha256
+    ).hexdigest()
+    return f"{payload}.{assinatura}"
+
+
+def validar_token_curto(token: str | None, proposito: str) -> bool:
+    """True se o token curto é bem-assinado, do propósito certo e não expirou."""
+    if not token:
+        return False
+    try:
+        payload, assinatura = token.rsplit(".", 1)
+        esperado = hmac.new(
+            SESSION_SECRET.encode(), payload.encode(), hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(assinatura, esperado):
+            return False
+        dados = json.loads(base64.urlsafe_b64decode(payload.encode()))
+        return dados.get("p") == proposito and int(dados.get("exp", 0)) >= int(time.time())
+    except Exception:
+        return False
+
+
 def ler_token(token: str | None) -> str | None:
     """Retorna o usuário se o token for válido e não expirado; senão None."""
     if not token:
