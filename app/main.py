@@ -27,14 +27,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
 
 from auth import (
-    COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, coproprietarios, criar_token,
-    dono_efetivo, operadores_de, planilha_ao_vivo, pode_ver_como, usuario_atual,
-    usuario_do_request, verificar_credenciais,
+    COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, atualizar_cache_usuarios,
+    coproprietarios, criar_token, dono_efetivo, eh_admin, operadores_de,
+    planilha_ao_vivo, pode_ver_como, usuario_atual, usuario_do_request,
+    verificar_credenciais,
 )
 import captura as _captura
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
-from database import init_db, seed_usuarios
+from database import carregar_usuarios, init_db, seed_usuarios
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
 from repository import (
@@ -187,18 +188,33 @@ async def _cache_warmer():
         await asyncio.sleep(240)
 
 
+async def _usuarios_refresher():
+    """Recarrega o cache de identidade do banco a cada 60s (TTL defensivo do
+    PLANO_MULTIUSUARIO §1.2): aprovar/suspender usuário propaga a todos os
+    workers em ≤60s sem custo no hot-path. Falha mantém o último cache bom."""
+    while True:
+        await asyncio.sleep(60)
+        try:
+            atualizar_cache_usuarios(await carregar_usuarios())
+        except Exception:
+            logger.exception("refresh do cache de usuarios falhou — mantendo o último estado bom")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await init_db()
-    # Fase 1 / Deploy A (PLANO_MULTIUSUARIO_2026): semeia a tabela `usuarios`.
-    # Infra pura — nenhum código lê a tabela ainda. Falha aqui NÃO derruba o
-    # boot (o app funciona 100% sem ela nesta fase); o checkpoint de inspeção
-    # antes do Deploy B pega qualquer seed que não aconteceu.
+    # Fase 1 (PLANO_MULTIUSUARIO_2026): semeia a tabela `usuarios` (idempotente,
+    # ON CONFLICT DO NOTHING) e carrega o cache de identidade do banco — a
+    # tabela é a fonte de verdade desde o Deploy B. Falha aqui NÃO derruba o
+    # boot: o cache segue com a semente dos dicts de auth.py (comportamento
+    # idêntico ao pré-Deploy B) e o refresher tenta de novo a cada 60s.
     try:
         await seed_usuarios()
+        atualizar_cache_usuarios(await carregar_usuarios())
     except Exception:
-        logger.exception("seed_usuarios falhou — app segue no ar (Deploy A: tabela ainda não é lida)")
+        logger.exception("seed/carga inicial de usuarios falhou — cache segue na semente; refresher reitera")
     asyncio.create_task(_cache_warmer())
+    asyncio.create_task(_usuarios_refresher())
     yield
 
 
@@ -1500,11 +1516,11 @@ async def salvar_casa_meta(body: CasaMetaRequest, dono: str = Depends(dono_efeti
 
 @app.get("/uso/tokens")
 async def uso_tokens_endpoint(dias: int = 30, dono: str = Depends(usuario_atual)):
-    """Resumo de uso/custo de tokens dos últimos `dias`. O dono do projeto ('Feca')
+    """Resumo de uso/custo de tokens dos últimos `dias`. Admin (`usuarios.role`)
     vê a carteira inteira (todos os donos, com quebra por dono); os demais veem só
     o próprio uso. Base p/ afiar o custo e priorizar parsers determinísticos."""
     dias = max(1, min(365, dias))
-    return await uso_resumo(dono, dias, todos=(dono == "Feca"))
+    return await uso_resumo(dono, dias, todos=eh_admin(dono))
 
 
 # ── Ponte de captura (extensão ⇄ dashboard) ───────────────────────────────────

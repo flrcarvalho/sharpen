@@ -257,6 +257,67 @@ def test_planilha_ao_vivo_padrao_vazio():
     assert auth.planilha_ao_vivo("LavaFatuch") == ""   # env PLANILHA_LAVAFATUCH_URL vazia nos testes
 
 
+# ── Cache lastreado no banco + gate de status (Fase 1 / Deploy B) ────────────
+# O cache nasce da SEMENTE (dicts) com todo mundo 'ativo' — os testes acima já
+# exercem esse caminho. Aqui trava o que o Deploy B adicionou: suspender revoga
+# sessão E login na hora (C3), e o refresher nunca troca cache bom por vazio.
+
+def test_status_suspenso_revoga_sessao_e_login(monkeypatch):
+    tok = auth.criar_token("Jonathan")
+    assert auth.ler_token(tok) == "Jonathan"
+    suspenso = dict(auth._usuarios_cache["Jonathan"], status="suspenso")
+    monkeypatch.setitem(auth._usuarios_cache, "Jonathan", suspenso)
+    assert auth.ler_token(tok) is None                       # cookie de 30 dias morre JÁ
+    assert auth.verificar_credenciais("Jonathan", "qq") is False
+
+
+def test_status_pendente_nao_loga_mesmo_com_senha_certa(monkeypatch):
+    if auth.bcrypt is None:
+        pytest.skip("bcrypt não instalado neste ambiente")
+    h = auth.bcrypt.hashpw(b"senha-certa", auth.bcrypt.gensalt()).decode()
+    monkeypatch.setitem(
+        auth._usuarios_cache, "Novato",
+        {"senha_hash": h, "status": "pendente", "role": "user",
+         "parent_owner": None, "planilha_url": None},
+    )
+    # senha CONFERE, mas status pendente barra ("aberto com aprovação")
+    assert auth.verificar_credenciais("Novato", "senha-certa") is False
+    suspenso_nao = dict(auth._usuarios_cache["Novato"], status="ativo")
+    monkeypatch.setitem(auth._usuarios_cache, "Novato", suspenso_nao)
+    assert auth.verificar_credenciais("Novato", "senha-certa") is True
+
+
+def test_atualizar_cache_ignora_lista_vazia(monkeypatch):
+    antes = auth._usuarios_cache
+    auth.atualizar_cache_usuarios([])                        # leitura quebrada → ignora
+    assert auth._usuarios_cache is antes
+    monkeypatch.setattr(auth, "_usuarios_cache", antes)      # restaura no teardown
+
+
+def test_atualizar_cache_substitui_inteiro(monkeypatch):
+    monkeypatch.setattr(auth, "_usuarios_cache", dict(auth._usuarios_cache))
+    auth.atualizar_cache_usuarios([
+        {"username": "Feca", "senha_hash": None, "status": "ativo", "role": "admin",
+         "parent_owner": None, "planilha_url": None},
+    ])
+    assert set(auth._usuarios_cache) == {"Feca"}             # troca atômica, não merge
+    assert auth.ler_token(auth.criar_token("Jonathan")) is None
+    monkeypatch.setattr(auth, "_usuarios_cache", auth._cache_da_semente())
+
+
+def test_eh_admin_so_feca_na_semente():
+    assert auth.eh_admin("Feca") is True
+    assert auth.eh_admin("Jonathan") is False
+    assert auth.eh_admin("Naoexiste") is False
+
+
+def test_cache_da_semente_espelha_dicts():
+    cache = auth._cache_da_semente()
+    assert set(cache) == set(auth.USUARIOS)
+    assert cache["Lava"]["parent_owner"] == "Feca"
+    assert all(e["status"] == "ativo" for e in cache.values())
+
+
 # ── SESSION_SECRET fail-closed em produção (guard de boot) ────────────────────
 # Roda num subprocesso porque a decisão acontece no IMPORT de auth.
 

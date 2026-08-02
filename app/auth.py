@@ -4,8 +4,13 @@ Isolamento lógico: cada rota recupera o `dono` (username) do cookie de sessão
 e o repassa ao repositório, que filtra TODA query por dono. Sem cookie válido,
 nenhuma rota de dados responde.
 
-Sem dependências novas — apenas stdlib. As senhas ficam em hash SHA-256;
-podem ser sobrescritas por variável de ambiente em produção.
+Fonte de verdade da identidade (Fase 1 do PLANO_MULTIUSUARIO_2026): a tabela
+`usuarios` no Postgres, espelhada aqui no `_usuarios_cache` em memória — o
+hot-path do auth continua I/O-zero. Os dicts USUARIOS/OPERADORES/
+PLANILHAS_AO_VIVO viraram SEMENTE: populam o cache no import (testes/dev sem
+banco) e a tabela via seed; no boot o banco sobrescreve o cache e o refresher
+do main o renova a cada ~60s. Sessão/login exigem `status='ativo'` — suspender
+um usuário no banco revoga o cookie dele em ≤60s (C3 da auditoria).
 """
 import base64
 import hashlib
@@ -49,6 +54,8 @@ if not _secret_env:
     )
 
 
+# SEMENTE (desde o Deploy B da Fase 1, quem manda é a tabela `usuarios` via
+# _usuarios_cache — estes dicts só semeiam o cache no import e a tabela no seed).
 # usuário → hash bcrypt da senha, vindo SEMPRE das env vars do Railway
 # (SENHA_<USER>_HASH). SEM default no código: se a env faltar, o login falha
 # (fail-closed) em vez de cair num hash hardcoded. Os hashes SHA-256 versionados
@@ -124,9 +131,58 @@ def linhas_seed_usuarios() -> list[tuple]:
     ]
 
 
+# ── Cache de identidade lastreado no banco (Fase 1 / Deploy B) ────────────────
+# username → {senha_hash, status, role, parent_owner, planilha_url} — o formato
+# das linhas de `database.carregar_usuarios()`. Substituído INTEIRO a cada
+# carga (nunca mutado item a item): leitura sem lock, porque a troca do dict é
+# atômica no CPython. Nasce da semente (dicts acima) para testes/dev sem banco;
+# em produção o lifespan o sobrescreve com o banco antes da primeira request.
+def _cache_da_semente() -> dict[str, dict]:
+    return {
+        username: {
+            "senha_hash": senha_hash,
+            "status": status,
+            "role": role,
+            "parent_owner": parent_owner,
+            "planilha_url": planilha_url,
+        }
+        for (username, senha_hash, status, role, parent_owner, planilha_url) in linhas_seed_usuarios()
+    }
+
+
+_usuarios_cache: dict[str, dict] = _cache_da_semente()
+
+
+def atualizar_cache_usuarios(linhas: list[dict]) -> None:
+    """Substitui o cache inteiro pelo estado do banco (startup + refresher de 60s
+    do main; a Fase 2 chama após aprovar/suspender). Lista vazia é IGNORADA —
+    fail-safe: uma leitura quebrada nunca troca um cache bom por "ninguém loga"."""
+    global _usuarios_cache
+    if linhas:
+        _usuarios_cache = {l["username"]: dict(l) for l in linhas}
+
+
+def _usuario_ativo(usuario: str) -> bool:
+    entrada = _usuarios_cache.get(usuario)
+    return bool(entrada and entrada.get("status") == "ativo")
+
+
+def eh_admin(usuario: str) -> bool:
+    """Papel de admin (vê o agregado de custo; na Fase 2, aprova cadastros)."""
+    entrada = _usuarios_cache.get(usuario)
+    return bool(entrada and entrada.get("role") == "admin")
+
+
 def operadores_de(usuario: str) -> list[str]:
-    """Operadores que este usuário (dono) pode visualizar. Vazio = não é dono."""
-    return OPERADORES.get(usuario, [])
+    """Operadores que este usuário (dono) pode visualizar. Vazio = não é dono.
+
+    Independe de status: suspender um operador corta o ACESSO dele (login e
+    cookie morrem no gate de 'ativo'), mas não esconde a base dele do
+    supervisor — dado não some junto com o acesso.
+    """
+    return sorted(
+        u for u, e in _usuarios_cache.items() if e.get("parent_owner") == usuario
+    )
 
 
 def coproprietarios(usuario: str) -> list[str]:
@@ -139,13 +195,15 @@ def coproprietarios(usuario: str) -> list[str]:
     a barra para não contar duas vezes no painel do supervisor.
 
     Ex.: coproprietarios('Lava') -> ['Feca']; coproprietarios('Feca') -> ['Lava'].
-    Dono solo (fora de OPERADORES) -> [] (nenhuma checagem cruzada).
+    Dono solo (sem parent_owner e sem operadores) -> [] (nenhuma checagem cruzada).
     """
-    grupo: set[str] = set()
-    for supervisor, ops in OPERADORES.items():
-        if usuario == supervisor or usuario in ops:
-            grupo.add(supervisor)
-            grupo.update(ops)
+    entrada = _usuarios_cache.get(usuario)
+    if not entrada:
+        return []
+    raiz = entrada.get("parent_owner") or usuario
+    grupo = {
+        u for u, e in _usuarios_cache.items() if (e.get("parent_owner") or u) == raiz
+    }
     grupo.discard(usuario)
     return sorted(grupo)
 
@@ -153,7 +211,8 @@ def coproprietarios(usuario: str) -> list[str]:
 def planilha_ao_vivo(dono: str) -> str:
     """URL do Apps Script /exec da planilha ao vivo deste dono, ou "" se ele lê
     do Postgres (o caso normal)."""
-    return PLANILHAS_AO_VIVO.get(dono) or ""
+    entrada = _usuarios_cache.get(dono)
+    return (entrada or {}).get("planilha_url") or ""
 
 
 def pode_ver_como(real: str, alvo: str) -> bool:
@@ -177,7 +236,12 @@ def _verifica_hash(senha: str, hash_guardado: str) -> bool:
 
 
 def verificar_credenciais(usuario: str, senha: str) -> bool:
-    return _verifica_hash(senha, USUARIOS.get(usuario) or "")
+    """Senha confere E o usuário está ativo. Pendente/suspenso não loga —
+    mesmo com a senha certa (modelo "aberto com aprovação")."""
+    entrada = _usuarios_cache.get(usuario)
+    if not entrada or entrada.get("status") != "ativo":
+        return False
+    return _verifica_hash(senha, entrada.get("senha_hash") or "")
 
 
 def criar_token(usuario: str) -> str:
@@ -206,7 +270,10 @@ def ler_token(token: str | None) -> str | None:
         if int(dados.get("exp", 0)) < int(time.time()):
             return None
         usuario = dados.get("u")
-        return usuario if usuario in USUARIOS else None
+        # Gate de status a CADA request (C3 da auditoria): cookie bem-assinado
+        # de usuário suspenso/removido morre aqui — desativar no banco revoga a
+        # sessão em ≤60s (TTL do cache), sem esperar os 30 dias do cookie.
+        return usuario if _usuario_ativo(usuario) else None
     except Exception:
         return None
 

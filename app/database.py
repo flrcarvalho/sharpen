@@ -381,3 +381,20 @@ async def seed_usuarios() -> None:
             """,
             linhas_seed_usuarios(),
         )
+
+
+async def carregar_usuarios() -> list[dict]:
+    """Lê a tabela `usuarios` no formato do `auth._usuarios_cache` (Deploy B).
+
+    Devolve a lista crua; quem troca o cache é `auth.atualizar_cache_usuarios`
+    (que ignora lista vazia — fail-safe contra leitura quebrada).
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        linhas = await conn.fetch(
+            """
+            SELECT username, senha_hash, status, role, parent_owner, planilha_url
+            FROM usuarios
+            """
+        )
+    return [dict(l) for l in linhas]
