@@ -3147,6 +3147,7 @@ async def escadas_todas_route(dono: str = Depends(dono_efetivo)):
 # /tipsters/{slug}/data ANTES de /tipsters/{slug} (mais específica primeiro).
 TIPSTERS_PUBLICOS: dict[str, dict] = {
     "sochutes": {"dono": "SoChutes", "nome": "Só Chutes"},
+    "zoraesports": {"dono": "ZoraEsports", "nome": "Zora eSports"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres

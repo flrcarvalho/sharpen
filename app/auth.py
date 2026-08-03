@@ -73,6 +73,7 @@ USUARIOS: dict[str, str] = {
     "WilliamOliveira": os.environ.get("SENHA_WILLIAMOLIVEIRA_HASH", ""),
     "ViniciusOliveira": os.environ.get("SENHA_VINICIUSOLIVEIRA_HASH", ""),
     "SoChutes": os.environ.get("SENHA_SOCHUTES_HASH", ""),
+    "ZoraEsports": os.environ.get("SENHA_ZORAESPORTS_HASH", ""),
 }
 
 
