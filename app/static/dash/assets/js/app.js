@@ -469,8 +469,10 @@ function renderPage(id){
   else if(id==='tipsters'){renderTipsters();}
   else if(id==='apostas'){renderApostas();}
   else if(id==='abertas'){renderAbertas();}
-  else if(id==='parceiros'){renderParceiros(rows);}
-  else if(id==='custos'){renderCustos(rows);}
+  // As duas abas contam contas pelo mesmo _costState (cadastro ∪ bilhetes): esperam
+  // o cadastro para não discordarem entre si no nº de contas e no custo total.
+  else if(id==='parceiros'){contasLoad().then(()=>renderParceiros(rows));}
+  else if(id==='custos'){contasLoad().then(()=>renderCustos(rows));}
   else if(id==='custos_tipster'){ctLoad().then(renderCustoTipster);} // carga (servidor) → pinta
   else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
@@ -1194,6 +1196,9 @@ async function loadData(force){
     // e handlers de uma vez — apostas.js/abertas.js).
     window.__dono=PUBLICO?'§publico§':(json.dono||(json.operadores&&json.operadores[0])||'_');
     if(!PUBLICO&&typeof loadCusto==='function')loadCusto();
+    // Cadastro de contas: base da tabela de custos (conta comprada tem custo antes
+    // da 1ª aposta). Carrega junto do feed e repinta o card de custo ao chegar.
+    if(!PUBLICO&&typeof contasLoad==='function')contasLoad();
     aplicarFeed(json.data);
     auditCasas(DADOS);
     // builtAt = quando o servidor reconstruiu o cache (fonte de verdade da frescura dos dados)

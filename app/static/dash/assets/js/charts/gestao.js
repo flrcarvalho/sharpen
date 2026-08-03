@@ -117,13 +117,54 @@ function calcCasaCost(nomeCasa,minDate,maxDate){
   return{total,nContas};
 }
 
+// ── Cadastro de contas (tabela `parceiros`) ───────────────────────────────────
+// O custo de aquisição é conhecido na COMPRA da conta — antes da primeira aposta.
+// Por isso o estado de custo nasce do CADASTRO, não dos bilhetes. Derivar só de
+// bilhetes escondia toda conta ainda sem aposta LIQUIDADA, e no limite deixava a
+// aba inteira em branco: `DADOS` só contém encerradas (app.js `aplicarFeed`), então
+// quem tinha apenas apostas em aberto via "Aguardando carregamento dos dados…" para
+// sempre (s239 — Diogo, 16 contas cadastradas e 12 bilhetes, todos em aberto).
+let _contasCadastro=null;   // [{casa,conta,fornecedor}] — null = ainda não carregado
+const _PARCEIRO_RE=/^(.+?)\s*\[(.+?)\]$/;   // "Conta [Fornecedor]" — espelha repository.py
+function _splitParceiro(nome){
+  const s=(nome||'').trim();const m=_PARCEIRO_RE.exec(s);
+  return m?{conta:m[1].trim(),fornecedor:m[2].trim()}:{conta:s,fornecedor:''};
+}
+// Carga do cadastro (uma vez por sessão). /parceiros já vem escopado pelo dono e,
+// sem `?arquivados=1`, traz só as contas ATIVAS — conta arquivada não entra na
+// tabela de custos, mas se ela tiver bilhete continua contando pelo lado dos bilhetes.
+async function contasLoad(){
+  if(_contasCadastro)return _contasCadastro;
+  try{
+    const r=await fetch('/parceiros');
+    const d=r.ok?await r.json():{};
+    _contasCadastro=(d.parceiros||[])
+      .map(p=>({casa:(p.casa||'').trim(),..._splitParceiro(p.nome)}))
+      .filter(p=>p.casa&&p.conta);
+  }catch(e){_contasCadastro=[];}   // offline: cai no comportamento antigo (só bilhetes)
+  // O cadastro chega DEPOIS do primeiro render (é um fetch): reconstrói o estado e
+  // repinta o card de custo da visão geral, igual ao que loadCusto() já faz.
+  try{
+    if(typeof DADOS!=='undefined')buildCostState(DADOS);
+    if(typeof renderOvCusto==='function')renderOvCusto();
+  }catch(e){}
+  return _contasCadastro;
+}
+
 function buildCostState(rows){
   if(typeof DADOS!=='undefined'&&DADOS.length)_buildFirstBetMap();
-  const normRows=rows.map(r=>({...r,fornecedor:normForn(r.fornecedor)}));
-  const allForns=[...new Set(normRows.map(r=>r.fornecedor))].sort();
-  const allCasasRaw=[...new Set(normRows.map(r=>r.casa).filter(Boolean))];
+  const normRows=(rows||[]).map(r=>({...r,fornecedor:normForn(r.fornecedor)}));
+  // União CADASTRO ∪ BILHETES: o cadastro traz a conta comprada que ainda não
+  // apostou; os bilhetes trazem a conta antiga que nunca foi cadastrada (na base do
+  // Feca são 130 — a união preserva as duas pontas). Medido na s239: nenhum dono
+  // tem colisão de grafia de casa nem fornecedor divergente entre as duas fontes,
+  // então a mesma conta nunca é contada duas vezes.
+  const cadastro=(_contasCadastro||[]).map(p=>({casa:p.casa,conta:p.conta,fornecedor:normForn(p.fornecedor)}));
+  const universo=normRows.concat(cadastro);
+  const allForns=[...new Set(universo.map(r=>r.fornecedor))].sort();
+  const allCasasRaw=[...new Set(universo.map(r=>r.casa).filter(Boolean))];
   const contaMap={};
-  normRows.forEach(r=>{const k=r.casa+'||'+r.fornecedor;if(!contaMap[k])contaMap[k]=new Set();contaMap[k].add(r.conta);});
+  universo.forEach(r=>{const k=r.casa+'||'+r.fornecedor;if(!contaMap[k])contaMap[k]=new Set();contaMap[k].add(r.conta);});
   const contaCount={};
   allForns.forEach(f=>allCasasRaw.forEach(c=>{const s=contaMap[c+'||'+f];contaCount[f+'||'+c]=s?s.size:0;}));
   const casaTotal={};allCasasRaw.forEach(c=>{casaTotal[c]=allForns.reduce((a,f)=>a+(contaCount[f+'||'+c]||0),0);});
@@ -242,7 +283,7 @@ function buildCostTable(allForns,allCasas,contaCount){
   }).join('');
 
   document.getElementById('costTableWrap').innerHTML=`
-    <p style="font-size:11px;color:var(--ink-mute);margin-bottom:.75rem;font-family:var(--font-sans)">💡 Insira o custo de cada conta comprada por fornecedor/casa. O total é calculado pelo nº de contas ativas. Valores salvos automaticamente no navegador.</p>
+    <p style="font-size:11px;color:var(--ink-mute);margin-bottom:.75rem;font-family:var(--font-sans)">💡 Insira o custo de cada conta comprada por fornecedor/casa. O total é calculado pelo nº de contas ativas — as cadastradas no Painel de Contas mais as que já têm aposta. Valores salvos automaticamente.</p>
     <div class="tbl-wrap"><table class="tbl" id="tblCost"><thead>${header}</thead><tbody id="costTbody">${totalRow}${bodyRows}</tbody></table></div>`;
   setTimeout(()=>makeSortable('tblCost',[]),100);
   renderCostPies();
@@ -369,14 +410,18 @@ function renderCustoCards(allForns,allCasas,contaCount){
 function renderCustos(rows){
   // rows vem do filtrarPagina — sempre disponível após o fetch
   const fonte=rows&&rows.length?rows:DADOS;
-  if(!fonte||!fonte.length){
-    const wrap=document.getElementById('costTableWrap');
-    if(wrap)wrap.innerHTML=`<div style="text-align:center;padding:2rem;color:var(--ink-mute);font-family:var(--font-sans);font-size:12px">Aguardando carregamento dos dados...</div>`;
-    return;
-  }
-  // Sempre usa DADOS completo para o estado (custos devem refletir todas as contas, não filtradas)
+  // Sempre usa DADOS completo para o estado (custos devem refletir todas as contas, não
+  // filtradas) — somado ao cadastro dentro de buildCostState. NÃO desistir com DADOS
+  // vazio: quem só tem aposta em aberto tem cadastro e precisa preencher o custo.
   buildCostState(DADOS.length?DADOS:fonte);
   const{allForns,allCasas,contaCount}=_costState;
+  if(!allCasas.length){
+    const wrap=document.getElementById('costTableWrap');
+    if(wrap)wrap.innerHTML=`<div style="text-align:center;padding:2rem;color:var(--ink-mute);font-family:var(--font-sans);font-size:12px">Nenhuma conta cadastrada ainda. Cadastre suas contas no <strong style="color:var(--warn)">Painel de Contas</strong> para lançar os custos aqui.</div>`;
+    const kpi=document.getElementById('custosKpi');
+    if(kpi)kpi.innerHTML='';
+    return;
+  }
   buildCostTable(allForns,allCasas,contaCount);
   _renderCustosKpi();
 }
