@@ -455,7 +455,7 @@ function renderCasaDrill(rows){
       `</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Evolução<span style="font-family:JetBrains Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">P/L diário · evolução acumulada</span></div>`+
+      `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Evolução<span style="font-family:JetBrains Mono,monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">P/L diário · evolução acumulada</span></div>`+
       `<div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;flex-wrap:wrap">`+
         `<span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:20px;height:2px;background:#2E8BFF;border-radius:1px;flex-shrink:0"></span>P/L acumulado</span>`+
         `<span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:12px;height:12px;background:rgba(43,192,126,.8);border-radius:2px;flex-shrink:0"></span>Dia positivo</span>`+
@@ -665,7 +665,7 @@ function renderSportDrill(rows){
       `</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Evolução<span style="font-family:JetBrains Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">P/L diário · evolução acumulada</span></div>`+
+      `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Evolução<span style="font-family:JetBrains Mono,monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">P/L diário · evolução acumulada</span></div>`+
       `<div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;flex-wrap:wrap">`+
         `<span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:20px;height:2px;background:#2E8BFF;border-radius:1px;flex-shrink:0"></span>P/L acumulado</span>`+
         `<span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:12px;height:12px;background:rgba(43,192,126,.8);border-radius:2px;flex-shrink:0"></span>Dia positivo</span>`+
@@ -985,7 +985,7 @@ function renderTipsterDrill(rows){
     `</div>`+
     `<div class="analise-popup-section" id="tipDrillGestao"></div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Resultado Geral<span style="font-family:JetBrains Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">P/L diário · evolução acumulada</span></div>`+
+      `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Resultado Geral<span style="font-family:JetBrains Mono,monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">P/L diário · evolução acumulada</span></div>`+
       `<div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;flex-wrap:wrap">`+
         `<span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:20px;height:2px;background:#2E8BFF;border-radius:1px;flex-shrink:0"></span>P/L acumulado</span>`+
         `<span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:12px;height:12px;background:rgba(43,192,126,.8);border-radius:2px;flex-shrink:0"></span>Dia positivo</span>`+
@@ -1166,7 +1166,7 @@ async function renderGestaoTipster(nome){
   const vS='font-size:16px';
   const dash='<span style="color:var(--ink-mute)">—</span>';
   box.innerHTML=
-    `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Gestão do tipster<span style="font-family:JetBrains Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">configure na aba Tipster / Método</span></div>`
+    `<div class="analise-popup-section-title" style="display:flex;align-items:center;justify-content:space-between">Gestão do tipster<span style="font-family:JetBrains Mono,monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">configure na aba Tipster / Método</span></div>`
     +`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.6rem">`
       +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Stake Atual</div><div class="kpi-val neu" style="${vS}">${atual!=null?money2(atual):dash}</div><div class="kpi-sub" style="${sbS}">valor de 1u vigente</div></div>`
       +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Última alteração</div><div class="kpi-val neu" style="${vS};font-family:var(--font-mono)">${fmtBR(desde)}</div><div class="kpi-sub" style="${sbS}">${desde?'da unidade':'sem escada definida'}</div></div>`

@@ -615,7 +615,7 @@ function buildHTML(){
       <div class="page" id="page-abertas">
         ${buildFiltersSemData('abertas',sports,casas,tipsters)}
         <div id="abertasKPI"></div>
-        ${mkCard('abrt_cal','Para quando são as apostas','<div id="abertasCal"></div>','<span style="margin-left:auto;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">por data do evento</span>')}
+        ${mkCard('abrt_cal','Para quando são as apostas','<div id="abertasCal"></div>','<span style="margin-left:auto;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">por data do evento</span>')}
         <div class="row2">
           ${mkCard('abrt_casas','Exposição por casa','<div id="abertasCasas"></div>')}
           ${mkCard('abrt_tipsters','Exposição por tipster','<div id="abertasTipsters"></div>')}
@@ -624,7 +624,7 @@ function buildHTML(){
           '<div class="abrt-row abrt-hdr"><div>Data do evento</div><div>Aposta / Evento</div><div>Esporte</div><div>Tipster</div><div>Casa · Parceiro</div><div style="text-align:right">Stake</div><div style="text-align:right">Odd</div><div style="text-align:right">Retorno</div><div style="text-align:center">Ações</div></div>'+
           '<div id="abertasContagem" class="abrt-conta-count"></div>'+
           '<div id="abertasLista" style="max-height:calc(100vh - 320px);overflow-y:auto"></div>'+
-        '</div>','<span style="margin-left:auto;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">quem liquida primeiro no topo</span>')}
+        '</div>','<span style="margin-left:auto;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">quem liquida primeiro no topo</span>')}
       </div>
 
       <!-- TIPSTERS -->

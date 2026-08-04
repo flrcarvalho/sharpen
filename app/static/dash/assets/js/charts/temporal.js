@@ -311,7 +311,7 @@ function renderResultados(){
   const matrixCard=mkCard('res_matrix','Matriz — P/L por Período',mat.html,seg+navWrap);
 
   // Gráfico
-  const chartCard=mkCard('res_chart','Resultado Geral','<div class="chart-wrap" style="height:280px"><canvas id="chartResGeral" role="img" aria-label="P/L acumulado"></canvas></div>','<span style="margin-left:auto;font-family:JetBrains Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">P/L diário · evolução acumulada</span>');
+  const chartCard=mkCard('res_chart','Resultado Geral','<div class="chart-wrap" style="height:280px"><canvas id="chartResGeral" role="img" aria-label="P/L acumulado"></canvas></div>','<span style="margin-left:auto;font-family:JetBrains Mono,monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">P/L diário · evolução acumulada</span>');
 
   // Calendário
   if(!window._resCalMonth||!rows.some(r=>r.data.slice(0,7)===window._resCalMonth)){
