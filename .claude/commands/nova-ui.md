@@ -36,8 +36,12 @@ por 1-3. Uma etapa por vez; parar e perguntar ao Feca em qualquer duvida de conv
 - **Escada de Tinta** (`CLAUDE.md`): nenhum `--ink-mute` abaixo de 10px; nenhum nome
   proprio (casa/tipster/operador/e-mail) em `--ink-mute`; contraste medido sobre o
   **fundo efetivo** (somando overlays `rgba(255,255,255,…)`), nao sobre o token de
-  superficie. Varredura rapida:
-  `grep -rn "ink-mute" app/static --include=*.html --include=*.css --include=*.js | grep -E "font-size: ?(8|8\.5|9|9\.5)px"`
+  superficie. **Varredura em TRES criterios** — o grep de px literal sozinho da falso verde:
+  - `... | grep -E "font-size: ?(8|8\.5|9|9\.5)px"` — tamanho literal abaixo do piso
+  - `... | grep "text-nano"` — tamanho vindo de TOKEN (`--text-nano` = 9px)
+  - `grep -rn "ink-mute\|ink-soft" ... | grep -E "opacity: ?\.[0-9]"` — opacidade sobre tom apagado
+  Excecoes ja documentadas (nao contam): caret/seta/`.metric-info` (icone) e
+  `.act-btn.off`/`*.is-loading` (opacidade como ESTADO).
 - `node scripts/tokens/check-tokens.mjs` -> tem que sair **verde** (drift + paleta + shell + monetario).
 - Validar o JS: extrair o script inline e `new vm.Script(...)` (0 erro).
 - Se possivel, **render headless** (Chrome `--headless=new --screenshot`) e conferir visualmente.

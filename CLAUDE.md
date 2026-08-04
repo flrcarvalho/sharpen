@@ -209,9 +209,24 @@ Medido no tema escuro (o app é dark, sem toggle), sobre `--surface-2` com overl
   traduz, no sistema, como *subir um degrau na escada*.
 - Compensar tom baixo com peso 700 em 9,5px: engorda o borrão, não corrige a leitura.
 
-> **Ícone não é texto.** Caret e seta (`.operador-caret`, `.casa-arrow`, `.sb-op-caret`)
-> ficam em 9px `--ink-mute` por desenho. É a única exceção, e está comentada no CSS para
-> não virar precedente.
+**`opacity` não é um degrau da escada — é um multiplicador.** Aplicada sobre um tom já
+apagado ela derruba o contraste efetivo sem aparecer em nenhum grep de cor: `--ink-mute`
+com `opacity:.55` dava ~1,9:1, e `--ink-soft` com `opacity:.7` caía para ~4,4:1, logo
+abaixo do mínimo do papel. Se o texto precisa ser mais discreto, **desça um degrau na
+escada**, não aplique opacidade.
+
+**Duas exceções, ambas comentadas no CSS para não virarem precedente:**
+
+- **Ícone não é texto.** Caret, seta e o "i" de ajuda (`.operador-caret`, `.casa-arrow`,
+  `.sb-op-caret`, `.metric-info`) ficam abaixo do piso, em `--ink-mute`, por desenho.
+- **`opacity` como ESTADO é legítima** — `.act-btn.off`, `.update-btn.is-loading`,
+  `.host-refresh.is-loading`. Ali ela sinaliza desabilitado/carregando, não hierarquia.
+
+> **A varredura precisa de três critérios, não um.** O grep de `--ink-mute` por px
+> literal é cego a tamanho vindo de token (`var(--text-nano)` = 9px), a `opacity` sobre
+> tom apagado, e ao papel errado num corpo que passa no piso (label de legenda em 11px
+> `--ink-mute` reprova por ser label, não por ser pequeno). Um lint que resolva só o
+> primeiro critério dá falso verde.
 
 ---
 
