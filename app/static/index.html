@@ -75,7 +75,7 @@ body::before {
 .brand .w { font-weight: 800; font-size: 36px; letter-spacing: -.04em; color: var(--ink); }
 .brand .w .e { color: var(--accent-2); }
 /* Nota de endosso no rodapé da sidebar (Manual v1.1): discreta, mono/mute. */
-.sb-endorse { text-align: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-mute); padding-top: 2px; }
+.sb-endorse { text-align: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-soft); padding-top: 2px; }
 /* Embedded no host /app: a sidebar vem do host → some a interna (o .content preenche). */
 html.embedded .sidebar { display: none; }
 /* Miolo rolável: tudo entre o operador e o export. min-height:0 é o que
@@ -112,6 +112,7 @@ html.embedded .sidebar { display: none; }
   background: var(--pos); flex-shrink: 0;
   box-shadow: 0 0 0 3px rgba(var(--pos-rgb),.18);
 }
+/* Caret: ÍCONE, não texto — fica em 9px --ink-mute por desenho (Escada de Tinta). */
 .operador-caret { font-size: 9px; color: var(--ink-mute); flex-shrink: 0; transition: transform .15s; }
 .operador-bar.open .operador-caret { transform: rotate(180deg); }
 .operador-menu {
@@ -231,6 +232,7 @@ html.embedded .sidebar { display: none; }
   color: var(--ink-mute);
 }
 .casa-header.expanded .casa-name { color: var(--ink-soft); }
+/* Caret: ÍCONE, não texto — fica em 9px --ink-mute por desenho (Escada de Tinta). */
 .casa-arrow { font-size: 9px; color: var(--ink-mute); transition: transform .15s; }
 /* Badges de sidebar — sinalizam bilhetes INCOMPLETOS no parceiro/casa.
    Azul (FDC): sem tipster.  Âmbar (--warn): apostas abertas (sem resultado). */
@@ -301,13 +303,13 @@ html.embedded .sidebar { display: none; }
    mono + tabular-nums, sem abreviação (UI_REFERENCE §5). Azul = único acento. */
 .painel { display: flex; flex-direction: column; gap: 18px; }
 .painel-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.painel-hero-eyebrow { font-family: var(--font-mono); font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-hero-eyebrow { font-family: var(--font-mono); font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); }
 .painel-hero-titulo { font-size: 18px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); margin-top: 4px; }
 
 /* KPI cards — tarja azul antes do label (SHELL_SPEC §3) */
 .painel-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .painel-kpi { display: flex; flex-direction: column; gap: 9px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 15px 18px; }
-.painel-kpi-lbl { display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-kpi-lbl { display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 .painel-kpi-lbl::before { content: ""; width: 4px; height: 13px; background: var(--accent); border-radius: 2px; margin-right: 8px; flex: none; }
 .painel-kpi-val { font-family: var(--font-mono); font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
 .painel-kpi-sub { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-mute); }
@@ -368,13 +370,13 @@ html.embedded .sidebar { display: none; }
 .painel-resumo-nums { display: flex; margin-bottom: 16px; }
 .painel-resumo-num { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .painel-resumo-num + .painel-resumo-num { border-left: 1px solid var(--line); padding-left: 18px; }
-.painel-resumo-num .l { display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-resumo-num .l { display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 .painel-resumo-num .n { font-family: var(--font-mono); font-size: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
 .painel-resumo-foot { display: flex; gap: 26px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .painel-resumo-foot .painel-nova-conta { margin-left: auto; align-self: center; }
 .painel-foot-stat { display: flex; flex-direction: column; gap: 4px; }
 .painel-foot-stat .n { font-family: var(--font-mono); font-size: 16px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
-.painel-foot-stat .l { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.painel-foot-stat .l { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 
 /* Painel de lista (direita) — card único; as .contas-casa viram seções planas */
 .painel-lista-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
@@ -453,7 +455,7 @@ html.embedded .sidebar { display: none; }
 
 /* ── 4.2.a — Conta ativa na barra de contexto (migração casca unificada) ── */
 .ctxbar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 6px 10px; margin-bottom: 0; flex-wrap: wrap; flex: none; }
-.ctx-lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 3px; }
+.ctx-lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 3px; }
 /* 4.2.c — Operador e Modelo movidos para a context bar */
 .ctx-divider { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
 .ctx-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -691,7 +693,7 @@ html.embedded .sidebar { display: none; }
 .capbox__icon { width: 40px; height: 40px; border-radius: 11px; background: rgba(var(--accent-rgb),.12); border: 1px solid rgba(var(--accent-rgb),.3); display: grid; place-items: center; color: var(--accent-2); flex: none; }
 .capbox__icon svg { width: 21px; height: 21px; }
 .capbox__hd .t { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.2; }
-.capbox__hd .h { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 3px; line-height: 1.4; }
+.capbox__hd .h { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
 .capbox__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 78px; border: 1px solid var(--line); border-radius: var(--r-sm); background: rgba(0,0,0,.15); }
 .capbox__hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
 .capbox__hint b { color: var(--accent-2); }
@@ -808,7 +810,7 @@ html.embedded .sidebar { display: none; }
    caso a faixa vira 5 colunas. Sem ele, o layout de 4 continua idêntico ao de sempre. */
 .pm-kpis.tem-resgatar { grid-template-columns:repeat(5,1fr); }
 .pm-kpi { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:16px 18px; display:flex; flex-direction:column; gap:5px; }
-.pm-kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-mute); font-family:var(--font-mono); display:flex; align-items:center; }
+.pm-kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); font-family:var(--font-mono); display:flex; align-items:center; }
 .pm-kpi-label::before { content:""; width:4px; height:13px; background:var(--accent); border-radius:2px; margin-right:8px; flex:none; }
 .pm-kpi-val { font-size:22px; font-weight:800; font-family:var(--font-mono); letter-spacing:-.03em; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; text-align:right; margin-top:2px; }
 .pm-kpi-val.blue { color:var(--accent); }
@@ -1136,7 +1138,7 @@ html.embedded .sidebar { display: none; }
 .btbl-casa { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
 .btbl-casa-sub { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .btbl-casa-nome { font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.btbl-casa-conta { font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btbl-casa-conta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .btbl-num { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; text-align: right; }
 .btbl-res { display: flex; align-items: center; justify-content: center; }
 .bet-res-pill {
@@ -1415,7 +1417,7 @@ td.c-res.res-HL { color: var(--warn); }
 .rx-n { width: 20px; height: 20px; border-radius: 50%; background: rgba(var(--accent-rgb),.12); border: 1px solid rgba(var(--accent-rgb),.3); color: var(--accent-2); font-family: var(--font-mono); font-size: 10px; font-weight: 700; display: grid; place-items: center; flex: none; margin-top: 1px; }
 .rx-step p { margin: 0; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.5; color: var(--ink-soft); }
 .rx-step p b { color: var(--ink); }
-.rx-tip { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 10px; line-height: 1.55; color: var(--ink-mute); }
+.rx-tip { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 10px; line-height: 1.55; color: var(--ink-soft); }
 .rx-tip b { color: var(--accent-2); }
 /* SharpenUp esmaecido nas casas não conectáveis */
 #btn-conectar-ext.is-off, #btn-conectar-ext:disabled { opacity: .4; cursor: not-allowed; }
@@ -1528,9 +1530,10 @@ td.c-res.res-HL { color: var(--warn); }
 
 /* Backoffice (colapsado) — modelo/tokens/custo/assinatura só aqui */
 .tech { margin: 4px 16px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); overflow: hidden; }
-.tech summary { list-style: none; cursor: pointer; padding: 11px 14px; display: flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); transition: color .2s; }
+.tech summary { list-style: none; cursor: pointer; padding: 11px 14px; display: flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); transition: color .2s; }
 .tech summary::-webkit-details-marker { display: none; }
-.tech summary:hover { color: var(--ink-soft); }
+/* base subiu para --ink-soft (label) → o hover sobe junto, senão some a afordância. */
+.tech summary:hover { color: var(--ink); }
 .tech summary .chv { margin-left: auto; transition: transform .2s; color: var(--ink-mute); }
 .tech[open] summary .chv { transform: rotate(180deg); }
 .tech .kv { padding: 2px 14px 12px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-family: var(--font-mono); font-size: 11px; }
@@ -1540,7 +1543,7 @@ td.c-res.res-HL { color: var(--warn); }
 
 /* Histórico de extrações */
 .hist { border-top: 1px solid var(--line); flex: none; }
-.hist__head { padding: 12px 18px 8px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); display: flex; align-items: center; gap: 8px; }
+.hist__head { padding: 12px 18px 8px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
 .hist__head::before { content: ""; width: 4px; height: 13px; background: var(--accent); border-radius: 2px; flex: none; }
 .hist__head .cnt { margin-left: auto; letter-spacing: .04em; }
 .hist__list { padding: 0 10px 10px; display: flex; flex-direction: column; max-height: 34vh; overflow-y: auto; }
@@ -1550,7 +1553,7 @@ td.c-res.res-HL { color: var(--warn); }
 .hrow .hst.ok { background: var(--pos); } .hrow .hst.warn { background: var(--warn); } .hrow .hst.run { background: var(--accent-2); }
 .hrow .hwho { min-width: 0; flex: 1; }
 .hrow .hwho .ha { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hrow .hwho .hb { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; }
+.hrow .hwho .hb { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 2px; }
 .hrow .hn { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; flex: none; }
 
 /* Skeletons (processando) */
