@@ -890,7 +890,7 @@ function _casaMselBuild(msel,casa){
   }).join('');
   let pop=msel.querySelector('.msel__pop');
   if(!pop){pop=document.createElement('div');pop.className='msel__pop';msel.appendChild(pop);}
-  const hint=cap?'<div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-mute);padding:2px 4px 6px">máx. 2 — desmarque um para trocar</div>':'';
+  const hint=cap?'<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute);padding:2px 4px 6px">máx. 2 — desmarque um para trocar</div>':'';
   pop.innerHTML='<div class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>'
     +'<input placeholder="buscar tipster…" oninput="_casaMselFilter(this)" onclick="event.stopPropagation()"></div>'+hint+'<div class="msel__list">'+rows+'</div>';
 }
@@ -971,7 +971,7 @@ function _tmBox(nome){
   const aberto=_tmOpen===nome;
   const arq=!!t.arquivado;
   const badge=arq
-    ?`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);background:var(--elevated);border:1px solid var(--line);border-radius:999px;padding:2px 8px">inativo</span>`
+    ?`<span style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);background:var(--elevated);border:1px solid var(--line);border-radius:999px;padding:2px 8px">inativo</span>`
     :(!t.completo
       ?`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:rgba(var(--accent-rgb),.12);border-radius:999px;padding:2px 8px">falta info</span>`
       :`<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--pos);background:rgba(var(--pos-rgb),.12);border-radius:999px;padding:2px 8px">completo</span>`);
