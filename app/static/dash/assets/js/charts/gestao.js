@@ -631,19 +631,37 @@ function _tmJs(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 let _tmSelCasas=[],_tmSelMkts=[],_tmSelEsp=[];   // seleção do editor aberto
 let _tmAllCasas=[],_tmAllMkts=[],_tmAllEsp=[];   // universo da base (p/ os menus)
 let _tmMktOwners={},_tmEspOwners={};             // key -> nº de tipsters DISTINTOS que usam
+let _tmTaxo=null;                                // taxonomia canônica dos MASTERs (/taxonomia)
+// Esportes e categorias VÁLIDOS, do MASTER_ESPORTES §7 e do MASTER_APOSTAS §3. Cacheado
+// por sessão. Offline/erro → objeto vazio: o menu cai no comportamento antigo (só a base),
+// nunca quebra. Ver o docstring da rota /taxonomia para por que a tela usa a UNIÃO.
+async function _tmTaxoLoad(){
+  if(_tmTaxo)return _tmTaxo;
+  try{
+    const r=await fetch('/taxonomia');
+    const d=r.ok?await r.json():{};
+    _tmTaxo={esportes:d.esportes||[],categorias:d.categorias||[]};
+  }catch(e){_tmTaxo={esportes:[],categorias:[]};}
+  return _tmTaxo;
+}
 // Agrega as apostas da base por tipster (1 passada): contagem por casa, mercado (r.aposta),
 // esporte e valor de stake (exclui Void) — fonte do "Sharpen sugere". Na mesma passada monta
 // o universo de casas/mercados/esportes (os menus do editor) e a contagem de tipsters
 // DISTINTOS por mercado/esporte (exclusividade: 1 tipster = sinal forte; vários = cuidado).
 //
-// Duas uniões, pelo mesmo motivo da aba Custos de Contas (s239) e do seletor de filtros
-// (app.js buildHTML): a EXISTÊNCIA de uma casa não vem da aposta liquidada.
+// Três uniões, pelo mesmo motivo da aba Custos de Contas (s239) e do seletor de filtros
+// (app.js buildHTML): a EXISTÊNCIA de uma opção não vem da aposta liquidada.
 //   1. DADOS ∪ DADOS_ABERTAS — aposta em aberto é aposta. Lendo só DADOS, o tipster que
 //      ainda não teve nenhuma resolvida ficava invisível para o "Sharpen sugere".
 //   2. universo de casas ∪ CADASTRO (`_contasCadastro`) — conta comprada existe antes da 1ª
 //      aposta. Sem isso, dono novo abria o editor com o menu "+ adicionar casa" VAZIO e o
 //      painel da direita mandando "preencha à mão" sem nada para escolher (s241 — Diogo, 20
 //      contas em 16 casas e nenhum bilhete: o menu vinha com ZERO opções).
+//   3. esportes/mercados ∪ TAXONOMIA canônica (`_tmTaxo`, dos MASTERs) — o tipster que ele
+//      segue pode apostar num esporte que ele ainda não apostou. A base sozinha só oferece
+//      o passado. A união nos dois sentidos importa: o canônico traz o que falta, a base
+//      preserva a grafia herdada de import (`Fórmula 1`, `Esoccer`) que o canônico não tem
+//      e que os bilhetes dele usam — e é ela que o matcher compara.
 // Medido na s241, em todos os donos: nenhuma grafia de casa diverge entre cadastro e
 // bilhete (`Bet365` × `BET365`), então a união nunca duplica linha no menu.
 // O `pl` do agregado continua somando só o que vem no feed (aberta não tem lucro) e não é
@@ -651,6 +669,8 @@ let _tmMktOwners={},_tmEspOwners={};             // key -> nº de tipsters DISTI
 function _tmBuildAgg(){
   const agg={},casaSet=new Set(),mktSet=new Set(),espSet=new Set(),mo={},eo={};
   (_contasCadastro||[]).forEach(p=>{if(p.casa)casaSet.add(p.casa);});
+  ((_tmTaxo||{}).esportes||[]).forEach(e=>espSet.add(e));
+  ((_tmTaxo||{}).categorias||[]).forEach(m=>mktSet.add(m));
   const _liq=(typeof DADOS!=='undefined'&&DADOS)?DADOS:[];
   const _ab=(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[];
   _liq.concat(_ab).forEach(r=>{
@@ -703,9 +723,10 @@ async function renderTipsterMetodo(){
   let lista=[];
   try{const r=await fetch('/tipsters/cadastro?arquivados=1');const d=await r.json();lista=d.tipsters||[];}catch(e){lista=[];}
   _tmCadastro={};lista.forEach(t=>{_tmCadastro[t.nome]=t;});
-  // O cadastro de contas alimenta o menu de casas (ver _tmBuildAgg): garante que ele já
-  // chegou antes de montar o universo. contasLoad() é idempotente — cacheia por sessão.
-  try{if(typeof contasLoad==='function')await contasLoad();}catch(e){}
+  // Cadastro de contas (menu de casas) e taxonomia (menus de esporte/mercado) alimentam o
+  // universo — ver _tmBuildAgg. Garante que os dois chegaram antes de montar os menus; as
+  // duas cargas são idempotentes (cacheiam por sessão) e vão juntas, em paralelo.
+  try{await Promise.all([typeof contasLoad==='function'?contasLoad():null,_tmTaxoLoad()]);}catch(e){}
   _tmAgg=_tmBuildAgg();
   const nomes=_tmSortNomes(lista.map(t=>t.nome));
   const nInc=lista.filter(t=>!t.completo&&!t.arquivado).length;   // só ativos incompletos

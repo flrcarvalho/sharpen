@@ -101,6 +101,19 @@ duas deram zero em todos os donos na s239, mas isso é medição datada, não ga
 > a data da 1ª aposta). Misturar os dois é como o UPSERT meio-atualizado: vira lucro
 > fantasma.
 
+**Nem toda entidade tem cadastro. Esporte e mercado têm MASTER.** Para eles a fonte de
+"o que existe" é a taxonomia canônica — `app/taxonomia.py` **lê** o `MASTER_ESPORTES §7`
+e o `MASTER_APOSTAS §3`, e a rota `/taxonomia` serve as listas (s241). A tela usa a
+**união** com a base do dono, e os dois lados são load-bearing: o canônico oferece o que
+ele ainda não apostou, a base preserva a grafia herdada de import (`Fórmula 1`, `Esoccer`,
+`Tênis de Mesa`) que o canônico não tem e que **é a que o matcher compara**.
+
+Ler o MASTER em vez de copiá-lo tira uma linha da regra de propagação acima, e o preço é
+um parse que **falha em silêncio**: seção renumerada, tabela virando lista, e a extração
+devolve `[]` sem erro nenhum — menu vazio para o usuário. Quem lê MASTER em código paga
+o gate junto: `tests/test_taxonomia.py` trava âncoras e piso de tamanho, para MASTER
+reformatado quebrar o CI em vez da tela.
+
 ---
 
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
@@ -162,6 +175,9 @@ assinatura única" de "é um dos vários que aposto".
 | **Mapa de mercados — só casas afetadas** | `casas/CASA_*.md §9` | **Apenas** as casas cujo §9 já referencia a categoria/rótulo afetado. Buscar com `grep -rl "<categoria>" casas/`. Sob a camada fina, o §9 lista só mercados confirmados — uma categoria nunca vista por uma casa **não** aparece lá e **não** precisa de update. |
 | Template de descrição | `MASTER_DESCRICAO_2026.md §12 ou §13` | Adicionar template se o formato for novo |
 | Prioridade semântica | `MASTER_APOSTAS_2026.md §7` | Atualizar se houver risco de confusão com Player Props / Outros |
+
+> Os menus de esporte e mercado do editor de tipster **não** entram nesta lista: eles leem
+> o MASTER em tempo de execução (`/taxonomia`). Categoria criada aparece lá sozinha.
 
 > **Motivo:** em 13/06/2026 as categorias `Dupla Chance`, `Impedimentos` e `Chutes no Gol` foram criadas no MASTER mas os mapas das casas ficaram desatualizados apontando para `Outros ⚠️`. A **causa raiz** era a duplicação: cada casa reescrevia as 27 categorias. Desde a sessão 49 (camada fina), o §9 lista só o que a casa confirma → a superfície de propagação encolheu para as casas realmente afetadas.
 

@@ -40,6 +40,7 @@ import captura as _captura
 import eventos as _eventos
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
+from taxonomia import categorias_canonicas, esportes_canonicos
 from database import (
     buscar_usuario_social, carregar_usuarios, criar_usuario,
     criar_usuario_social, definir_status_usuario, init_db, listar_usuarios,
@@ -2854,6 +2855,19 @@ async def listar_tipsters(dono: str = Depends(dono_efetivo)):
 @app.get("/esportes")
 async def listar_esportes(dono: str = Depends(dono_efetivo)):
     return {"esportes": await list_esportes(dono)}
+
+
+@app.get("/taxonomia")
+async def taxonomia(dono: str = Depends(dono_efetivo)):
+    """Esportes e categorias VÁLIDOS, lidos dos MASTERs (`app/taxonomia.py`).
+
+    Complementa `/esportes`, que só devolve o que o dono já apostou: quem ainda não tem
+    base precisa dos valores canônicos para preencher o perfil do tipster à mão. A tela
+    usa a UNIÃO das duas — o canônico oferece o que ele ainda não apostou, a base
+    preserva a grafia herdada de import antigo (`Fórmula 1`, `Esoccer`) que o canônico
+    não tem e que os bilhetes dele realmente usam.
+    """
+    return {"esportes": list(esportes_canonicos()), "categorias": list(categorias_canonicas())}
 
 
 # ── Fase 4: parceiros persistidos ─────────────────────────────────────────────
