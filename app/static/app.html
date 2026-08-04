@@ -376,7 +376,27 @@ body::before {
       var d; try { d = JSON.parse(ev.data || '{}'); } catch(e){ d = {}; }
       if (d && d.base_mudou) agendarAutoRefresh();
     };
+    // SSE reconectou depois de CAIR (deploy, rede): o que mudou no vão não gerou
+    // evento para esta conexão — uma recarga única cobre o buraco. O flag esCaiu
+    // separa reconexão de 1ª conexão (senão toda carga da casca recarregaria à toa).
+    var esCaiu = false;
+    esBase.onerror = function(){ esCaiu = true; };
+    esBase.onopen = function(){ if (esCaiu){ esCaiu = false; agendarAutoRefresh(); } };
   }
+
+  // Etapa 2 do tempo real (s241): rede de segurança para SSE caído/congelado.
+  // Navegador desacelera ou congela aba oculta (timer e SSE inclusos); ao VOLTAR
+  // para a aba, se o dado envelheceu além de 5 min, recarrega sem force. A idade
+  // vem do builtAt do SERVIDOR (_dataBuiltMs, o mesmo do rótulo "último sync") —
+  // varre a fila porque o app visível pode não ter base (Extração) e o relógio
+  // válido estar num iframe de trás. builtAt=0 = app ainda carregando: não mexe.
+  var IDADE_MAX_MS = 5 * 60000;
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState !== 'visible') return;
+    var fila = refreshQueue(), built = 0;
+    for (var i = 0; i < fila.length; i++){ var b = readBuilt(fila[i]); if (b){ built = b; break; } }
+    if (built && (Date.now() - built) > IDADE_MAX_MS) agendarAutoRefresh();
+  });
   // Mantém "último sync" vivo (1ª carga do Dashboard, refresh manual ou revalidação
   // em 2º plano). Barato: só lê um número do iframe a cada 3s.
   setInterval(paintSync, 3000);
