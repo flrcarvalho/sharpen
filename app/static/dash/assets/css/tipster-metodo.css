@@ -14,7 +14,7 @@
 .tm-wrap .panel__head .meta{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-mute);margin-left:auto;letter-spacing:.04em}
 .tm-wrap .panel__head .meta b{color:var(--ink-soft)}
 .tm-wrap .intro{padding:15px 20px;border-bottom:1px solid var(--line-2);font-size:13px;color:var(--ink-soft);line-height:1.6;background:linear-gradient(180deg,rgba(var(--accent-rgb),.04),transparent)}
-.tm-wrap .intro b{color:var(--ink)} .tm-wrap .intro .em{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;color:var(--ink-mute);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-xs);padding:2px 6px;text-transform:uppercase}
+.tm-wrap .intro b{color:var(--ink)} .tm-wrap .intro .em{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-xs);padding:2px 6px;text-transform:uppercase}
 .tm-wrap .toolbar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .tm-wrap .search{flex:1;min-width:200px;display:flex;align-items:center;gap:9px;background:var(--field);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 13px}
 .tm-wrap .search svg{width:14px;height:14px;color:var(--ink-mute);flex:none}
@@ -44,7 +44,7 @@
 /* ---------- CASAS — tabela alinhada por grade ---------- */
 .chead,.crow{display:grid;grid-template-columns:minmax(170px,1fr) minmax(0,1.25fr) 176px 190px 112px;gap:14px;align-items:center;padding:0 18px}
 .chead{height:44px;border-bottom:1px solid var(--line)}
-.chead div{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute)}
+.chead div{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
 .chead .r,.crow .r{justify-self:end}
 .crow{min-height:70px;border-top:1px solid var(--line-2)}
 .crow:first-child{border-top:0}
@@ -57,7 +57,7 @@
 .cstats b{color:var(--ink-soft)}
 /* atribuição segmentada (Dedicada / Compartilhada) */
 .attr{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--field)}
-.attr button{font-family:var(--font-mono);font-size:10px;letter-spacing:.02em;color:var(--ink-mute);background:transparent;border:0;cursor:pointer;padding:7px 13px;border-radius:var(--r-pill);white-space:nowrap;transition:.15s}
+.attr button{font-family:var(--font-mono);font-size:10px;letter-spacing:.02em;color:var(--ink-soft);background:transparent;border:0;cursor:pointer;padding:7px 13px;border-radius:var(--r-pill);white-space:nowrap;transition:.15s}
 .attr button.on{background:var(--accent);color:#fff}
 .dedmut{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-mute);letter-spacing:.02em}
 
@@ -82,7 +82,7 @@
 .msopt .box svg{width:10px;height:10px;color:#fff;opacity:0}
 .msopt.on .box{background:var(--accent);border-color:var(--accent)} .msopt.on .box svg{opacity:1}
 .msopt .n{flex:1;min-width:0}
-.msopt .vol{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-mute)}
+.msopt .vol{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-soft)}
 
 /* ---------- ORIGEM (2 tags: Sharpen / Personalizado) ---------- */
 .org{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:.06em;padding:4px 9px;border-radius:var(--r-pill);border:1px solid;white-space:nowrap}
@@ -108,7 +108,7 @@
 /* timeline: mais NOVA à esquerda -> mais ANTIGA à direita */
 .ladder__tl{border-left:1px solid var(--line-2);padding-left:40px}
 @media(max-width:900px){.ladder__tl{border-left:0;padding-left:0;border-top:1px solid var(--line-2);padding-top:20px}}
-.tl-hd{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:20px}
+.tl-hd{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:20px}
 .tl-empty{font-family:var(--font-mono);font-size:11px;color:var(--ink-mute);border:1px dashed var(--line);border-radius:var(--r-sm);padding:18px;text-align:center;line-height:1.5}
 .tl-list{display:flex;align-items:stretch;overflow-x:auto;padding:30px 0 6px} /* padding-top generoso: a bolinha (dot -6.5px + glow 3px) fica bem dentro do clip do scroll-x */
 .tl-node{position:relative;flex:1 0 168px;max-width:230px;padding:22px 22px 4px 0;border-top:1.5px solid var(--line)}
