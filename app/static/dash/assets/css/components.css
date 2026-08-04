@@ -1602,11 +1602,15 @@ select.ap-inline-inp { padding: 2px 4px; }
   background:rgba(var(--warn-rgb),.42); border:1px solid rgba(var(--warn-rgb),.5);
 }
 .abrt-cal__wk { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:8px; }
+/* Dia da semana é LABEL (categoria) — --ink-soft no piso de 9,5px. O grep de
+   --ink-mute por px literal não pegava isto: o tamanho vinha de var(--text-nano). */
 .abrt-cal__wk span {
-  font-family:var(--font-mono); font-size:var(--text-nano); font-weight:700;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-mute); text-align:center;
+  font-family:var(--font-mono); font-size:var(--text-xxs); font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); text-align:center;
 }
-.abrt-cal__wk span.we { color:var(--ink-soft); }
+/* Fim de semana continua UM degrau acima do resto da fileira — antes era
+   soft × mute, agora é ink × soft. A distinção é a mesma; o piso é que subiu. */
+.abrt-cal__wk span.we { color:var(--ink); }
 .abrt-cal__grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; grid-auto-rows:62px; }
 .abrt-cal__cell {
   border:1px solid var(--line-2); border-radius:var(--r-sm);
@@ -1679,14 +1683,18 @@ select.ap-inline-inp { padding: 2px 4px; }
 .abrt-txt { font-size:var(--text-sm); color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .abrt-conta { display:flex; flex-direction:column; min-width:0; }
 .abrt-conta .nome { font-size:var(--text-sm); color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.abrt-conta .sub { font-family:var(--font-mono); font-size:var(--text-nano); color:var(--ink-mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* Esta sub-linha carrega o NOME DA CONTA (parceiro), não um metadado — era o único
+   nome próprio de fato preso em --ink-mute (2,9:1, e em 9px vindo de --text-nano).
+   Fica em --ink-soft, e não em --ink, para não competir com a casa na linha de cima:
+   mesma decisão do .acct-o no seletor de contas. */
+.abrt-conta .sub { font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .abrt-casa-cel { display:flex; align-items:center; gap:8px; min-width:0; }
 .abrt-num { font-family:var(--font-mono); font-size:12px; font-variant-numeric:tabular-nums; color:var(--ink); text-align:right; white-space:nowrap; }
 .abrt-num .money { justify-content:flex-end; }
 .abrt-ret .money-val { color:var(--accent-2); }
 .abrt-acts { display:flex; align-items:center; justify-content:flex-end; gap:2px; }
 .abrt-conta-count {
-  font-family:var(--font-mono); font-size:9px; color:var(--ink-mute); letter-spacing:.08em;
+  font-family:var(--font-mono); font-size:10px; color:var(--ink-mute); letter-spacing:.08em;
   text-align:right; padding:8px 22px 6px; text-transform:uppercase; border-bottom:1px solid var(--line);
 }
 @media(max-width:1100px) { .abrt-row { grid-template-columns:88px minmax(150px,1fr) 96px 108px 140px 80px 60px 90px 52px; } }
