@@ -39,6 +39,11 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
  *        Recebe TODA requisição, inclusive as do replay: é aqui que se simula paginação.
  * @param {string} [cfg.pedido]   chave do pedido do content (ex.: "__sharpenupKTOReq") —
  *        postada após a 1ª resposta para arrancar o replay ativo.
+ * @param {string[]} [cfg.urlsExtra]  URLs buscadas DEPOIS da inicial, em ordem. Existe para as
+ *        casas cujo detalhe a PÁGINA busca, não o inject — na bet365 o `confirmation` só sai
+ *        quando o app navega por rota (`location.hash`), coisa que não existe fora do navegador.
+ *        Sem isto o harness só conseguiria exercitar o `summary`, e o merge summary+confirmation
+ *        (de onde vêm código, data e jogo/mercado) ficaria sem regressão.
  * @param {number} [cfg.ms=400]   tempo de forno antes de colher.
  * @returns {Promise<{mensagens:object[], ultima:object|null, urls:string[]}>}
  */
@@ -104,6 +109,8 @@ export async function rodarInject(cfg) {
   await janela.fetch(cfg.urlInicial || cfg.href,
                      cfg.corpoInicial ? { method: "POST", body: cfg.corpoInicial } : undefined);
   await espera(30);
+  // 1b) respostas que a PÁGINA busca depois (detalhe por rota, na bet365) — ver `cfg.urlsExtra`.
+  for (const u of (cfg.urlsExtra || [])) { await janela.fetch(u); await espera(20); }
   // 2) o content pede o acumulado e arranca o replay
   if (cfg.pedido) { janela.postMessage({ [cfg.pedido]: true }); }
   await espera(cfg.ms || 400);
