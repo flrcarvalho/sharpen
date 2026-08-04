@@ -497,14 +497,18 @@ html.embedded .sidebar { display: none; }
 .acct-tabs button { flex: 1; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 7px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer; }
 .acct-tabs button.on { background: var(--accent); color: #fff; border-color: transparent; }
 /* SPEC "Seletor de Conta": casa é MOLDURA (grupo não clicável), parceiro é BOTÃO.
-   Dois níveis tipográficos SEMPRE: grupo = mono pequeno uppercase apagado;
-   conta = sans maior semibold acesa. A distância de peso elimina a ambiguidade. */
+   A casa é NOME PRÓPRIO → título do grupo em --ink (Escada de Tinta, CLAUDE.md).
+   A separação grupo × conta é de POSIÇÃO e moldura, não de tom: o mono 9,5px
+   apagado dava 2,9:1 sobre o fundo efetivo (#1A1F26) e reprovava até o piso de 3:1.
+   O único elemento --ink-mute da banda é o contador. */
 .acct-grp { margin: 6px 4px 2px; border: 1px solid var(--line-2); border-radius: var(--r-md); overflow: hidden; background: var(--surface-2); }
 /* Banda-header do grupo (casa): sem hover, sem cursor, sem foco — não é clicável. */
-.acct-gh { display: flex; align-items: center; gap: 9px; padding: 8px 12px; background: rgba(255,255,255,.025); border-bottom: 1px solid var(--line-2); user-select: none; }
-.acct-gh .ctx-hchip { width: 20px; height: 20px; border-radius: 5px; }
-.acct-gh .acct-gname { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); }
-.acct-gh .acct-gcount { margin-left: auto; font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute); letter-spacing: .06em; }
+.acct-gh { display: flex; align-items: center; gap: 9px; padding: 8px 12px; background: rgba(255,255,255,.025); border-bottom: 1px solid var(--line-2); user-select: none; min-width: 0; }
+.acct-gh .ctx-hchip { width: 22px; height: 22px; border-radius: 6px; }
+/* casa = título do grupo, não metadado. Trunca para nunca empurrar o contador. */
+.acct-gh .acct-gname { font-family: var(--font-sans); font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; text-transform: none; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* contador = único elemento mute da linha */
+.acct-gh .acct-gcount { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-mute); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 3px 9px; }
 /* Linha da conta (parceiro): alvo ≥ 40px, focável, hover azul com borda-esquerda. */
 .acct-acct { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 10px 12px 10px 14px; cursor: pointer; border-left: 2px solid transparent; transition: background .14s, border-color .14s; position: relative; }
 .acct-acct + .acct-acct { border-top: 1px solid var(--line-2); }
@@ -514,7 +518,8 @@ html.embedded .sidebar { display: none; }
 .acct-acct .acct-dot.off { background: var(--ink-mute); }
 .acct-acct .acct-who { flex: 1; min-width: 0; }
 .acct-acct .acct-u { font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.acct-acct .acct-o { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* "operador · Fulano" é LABEL (categoria + nome), não enfeite → --ink-soft. */
+.acct-acct .acct-o { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acct-acct .acct-chev { color: var(--ink-mute); flex: none; opacity: 0; transition: opacity .14s; }
 .acct-acct:hover { background: rgba(var(--accent-rgb),.07); border-left-color: var(--accent); }
 .acct-acct:focus-visible { outline: none; background: rgba(var(--accent-rgb),.07); border-left-color: var(--accent); }
@@ -1604,10 +1609,11 @@ td.c-res.res-HL { color: var(--warn); }
 .contas-search input { background: transparent; border: 0; outline: 0; color: var(--ink); font-size: 13px; width: 100%; font-family: var(--font-sans); }
 .contas-search input::placeholder { color: var(--ink-mute); }
 .contas-casa { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 14px; }
-.contas-casa-head { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
+.contas-casa-head { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); min-width: 0; }
 .contas-casa-head .ctx-hchip { width: 24px; height: 24px; }
-.contas-casa-nome { font-size: 14px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
-.contas-casa-count { margin-left: auto; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
+.contas-casa-nome { font-size: 14px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Mesmo componente do .acct-gcount noutro contexto: contador = chip mute, 10px. */
+.contas-casa-count { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-mute); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 3px 9px; }
 .conta-row { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line-2); }
 .conta-row:last-child { border-bottom: 0; }
 .conta-row:hover { background: rgba(var(--accent-rgb),.04); }
@@ -2253,6 +2259,30 @@ const NOMES = {
   // "Rei do Pitaco" rebatizou para "Pitaco" — alias de exibição (DB ainda guarda o nome antigo)
   'Rei do Pitaco': 'Pitaco',
 };
+// Caixa de exibição da casa no cabeçalho de grupo. O CSS não força mais uppercase
+// (Escada de Tinta: caixa alta só em CATEGORIA; nome próprio vai em caixa própria),
+// então o nome precisa chegar na caixa certa vindo do banco.
+//   • Caixa MISTA = a marca já traz a caixa dela → verbatim. Title-casear mutilaria
+//     BETesporte, VaideBet, KingPanda, PixBet.
+//   • Só entra no title case quem chega SEM informação de caixa (tudo maiúsculo ou
+//     tudo minúsculo): "BLAZE" → "Blaze", "LANCE DE SORTE" → "Lance de Sorte".
+//   • Sigla de até 3 caracteres numa palavra só fica em caixa alta: KTO, 7K.
+// NUNCA altera o dado persistido — `casa` é TEXTO e cada grafia é uma casa diferente
+// no sistema (CLAUDE.md). Isto é display, e só no cabeçalho de grupo.
+const _CASA_MINUSCULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);
+function casaDisplay(nome) {
+  const s = String(nome || '').trim();
+  if (!s) return s;
+  if (s !== s.toUpperCase() && s !== s.toLowerCase()) return s;   // caixa própria → verbatim
+  const toks = s.split(/(\s+)/);
+  if (toks.filter(t => t.trim()).length === 1 && s.length <= 3) return s.toUpperCase();
+  return toks.map((p, i) => {
+    if (!p.trim()) return p;
+    const low = p.toLowerCase();
+    if (i > 0 && _CASA_MINUSCULAS.has(low)) return low;
+    return low.charAt(0).toUpperCase() + low.slice(1);
+  }).join('');
+}
 // Chaveado pelo NOME DE EXIBIÇÃO (igual ao valor de `casa` que /casas devolve),
 // nunca pela chave UPPERCASE — faviconUrl() recebe sempre o display name.
 // Domínio = onde o Google S2 resolve o melhor favicon. Regra: padrão BR é
@@ -2647,7 +2677,7 @@ function renderPainelLista() {
   const fonte = contasTab === 'ativas' ? parceirosCache : parceirosArquivadosCache;
   let html = '', total = 0;
   (casasCarregadas || []).forEach(casa => {
-    const nomeCasa = NOMES[casa] || casa;
+    const nomeCasa = casaDisplay(NOMES[casa] || casa);
     let ps = (fonte[casa] || []);
     if (q) ps = ps.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
     if (!ps.length) return;
@@ -2913,7 +2943,7 @@ function renderAcctTree() {
   const inativa = acctPopAba !== 'ativas';   // aba Inativas → dot apagado (offline)
   let html = '';
   (casasCarregadas || []).forEach(casa => {
-    const nomeCasa = NOMES[casa] || casa;
+    const nomeCasa = casaDisplay(NOMES[casa] || casa);
     let parceiros = (fonte[casa] || []);
     if (q) parceiros = parceiros.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
     if (!parceiros.length) return;
