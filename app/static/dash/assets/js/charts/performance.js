@@ -371,7 +371,7 @@ function _casaBreakdownTbl(rows,dimKey,labelFn,maxVisible=10,tableId=''){
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
     const trStyle=muted?' style="opacity:0.45"':'';
     const labelCell=isOutros
-      ?`<td><span class="outros-anchor" data-outros="${esc(outrosNames)}" style="cursor:help;border-bottom:1px dashed var(--ink-mute);color:var(--ink-mute)">${esc(outrosLabel)} (${esc(k)})</span></td>`
+      ?`<td><span class="outros-anchor" data-outros="${esc(outrosNames)}" style="cursor:help;border-bottom:1px dashed var(--ink-soft);color:var(--ink-soft)">${esc(outrosLabel)} (${esc(k)})</span></td>`
       :`<td>${labelFn(k)}</td>`;
     return`<tr${trStyle}>${labelCell}<td class="td-num">${d.n.toLocaleString('pt-BR')}</td><td class="td-num" style="${lc}">${fmtPL(d.l)}</td><td class="td-num">${fmtR(d.s)}</td><td class="td-num" style="${rc}">${fmtPct(roi,2)}</td><td class="td-num">${mkWRC(wr)}</td><td class="td-num">${fmtR(avgStake)}</td><td class="td-num">${fmtOdd(avgOdd)}</td></tr>`;
   };
