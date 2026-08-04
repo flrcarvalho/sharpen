@@ -67,7 +67,7 @@ function _resMatrixHTML(rows, cols, colKeyOf){
   const sA ='position:sticky;left:140px;z-index:2;white-space:nowrap;border-right:1px solid var(--line);'+rBg+';';
   const sTh='position:sticky;left:0;z-index:3;'+hBg+';';
   const sAh='position:sticky;left:140px;z-index:3;border-right:1px solid var(--line);'+hBg+';';
-  const thBase='padding:6px 10px;text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-mute);white-space:nowrap;';
+  const thBase='padding:6px 10px;text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);white-space:nowrap;';
 
   const head=`<tr style="border-bottom:1px solid var(--line)">
     <th style="${sTh}${thBase}text-align:left;min-width:140px">Tipster</th>
@@ -264,7 +264,7 @@ function _resCorrHTML(rows){
     const tc=a>0.5?'#fff':(v>0?'var(--neg)':'var(--pos)');
     return`<td style="background:${bg};color:${tc};text-align:center;padding:6px 8px;font-size:11px;font-weight:600">${num2(v)}</td>`;
   };
-  const thBase='padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-mute);white-space:nowrap;';
+  const thBase='padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);white-space:nowrap;';
   const head=`<tr><th style="${thBase}background:var(--field);text-align:left;position:sticky;left:0;z-index:2;min-width:120px"></th>${top.map(t=>`<th title="${esc(t)}" style="${thBase}text-align:center;min-width:74px">${esc(short(t))}</th>`).join('')}</tr>`;
   const body=top.map(a=>`<tr>
     <td style="${thBase}background:var(--field);text-align:left;color:var(--ink);font-weight:700;position:sticky;left:0;z-index:1;font-size:11px">${esc(short(a))}</td>
