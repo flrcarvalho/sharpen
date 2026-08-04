@@ -363,7 +363,7 @@ function renderCustoCards(allForns,allCasas,contaCount){
 
   // Card total consolidado
   const totalCard=`<div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 22px;min-width:200px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center">
-    <div style="font-size:10px;font-weight:700;color:var(--ink-mute);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;font-family:'JetBrains Mono',monospace">Total</div>
+    <div style="font-size:10px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;font-family:'JetBrains Mono',monospace">Total</div>
     <div style="font-size:26px;font-weight:700;color:var(--warn);font-family:'JetBrains Mono',monospace;letter-spacing:-.02em">R$ ${fmt(grandCost,0)}</div>
     <div style="font-size:11px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;margin-top:4px">${contasComPreco} contas · R$${fmt(avgCostPago,0)}/conta</div>
     <div style="font-size:10px;color:var(--ink-mute);font-family:'JetBrains Mono',monospace;margin-top:2px">${allForns.filter(f=>fornTots[f]>0).length} fornecedores</div>
@@ -615,7 +615,7 @@ let _tmAgg=null;        // nome -> agregado das apostas da base (casas/mercados/
 let _tmQ='';            // termo da busca
 
 const _tmIV='background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:13px;font-family:var(--font-sans);outline:none;width:100%;box-sizing:border-box';
-const _tmLB='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px;display:block';
+const _tmLB='font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;display:block';
 const _tmBT='background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
 const _tmBTG='background:none;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer;flex-shrink:0';
 const _tmBX='background:none;border:1px solid var(--line);color:var(--neg);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;flex-shrink:0';
