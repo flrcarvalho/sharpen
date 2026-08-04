@@ -185,6 +185,17 @@ function _apEditVal(r,c){
   if(c==='resultado')return r.resultado==='ABERTA'?'':(r.resultado||'');
   return r[c]!=null?String(r[c]):'';
 }
+function _apBRToIso(s){const m=(s||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:'';}
+// Botão de calendário do campo Data: pré-carrega o valor digitado e abre o picker
+// nativo; escolher um dia devolve DD/MM/AAAA ao input de texto (que segue digitável).
+function apEdAbrirCalendario(){
+  const txt=document.getElementById('ap-ed-data'),cal=document.getElementById('ap-ed-data-cal');
+  if(!txt||!cal)return;
+  if(!cal._apWired){cal._apWired=true;cal.addEventListener('change',()=>{if(cal.value)txt.value=_apIsoToBR(cal.value);});}
+  cal.value=_apBRToIso(txt.value);
+  try{cal.showPicker();}catch(_){cal.focus();cal.click();}
+}
+window.apEdAbrirCalendario=apEdAbrirCalendario;
 function abrirEdicaoApostas(id){
   const r=_apRowById(id);
   if(!r)return;

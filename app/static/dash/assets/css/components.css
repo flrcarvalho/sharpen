@@ -957,6 +957,19 @@
 }
 .apedit-inp:focus { outline: none; border-color: var(--accent); }
 textarea.apedit-inp { resize: vertical; min-height: 56px; font-family: var(--font-sans); }
+/* Data híbrida: digita DD/MM/AAAA ou abre o calendário pelo botão
+   (input date invisível; o botão chama showPicker — mesmo padrão da Extração) */
+.apedit-data-wrap { position: relative; display: flex; }
+.apedit-data-wrap .apedit-inp { padding-right: 36px; }
+.apedit-data-btn {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-mute); cursor: pointer; /* ícone, não texto (exceção da Escada de Tinta) */
+  transition: color .12s;
+}
+.apedit-data-btn:hover { color: var(--ink-soft); }
+#ap-ed-data-cal { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
 .apedit-btn-ghost, .apedit-btn-primary {
   font-size: 12px; padding: 8px 16px; border-radius: var(--r-sm); cursor: pointer;
   font-family: var(--font-sans); font-weight: 600; border: 1px solid var(--line);
