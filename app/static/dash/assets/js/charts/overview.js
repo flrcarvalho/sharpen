@@ -183,7 +183,7 @@ function renderHeatmap(rows){
   }
   let html=`<table class="heatmap-table"><thead><tr><th></th>${MESES.map(m=>`<th style="text-align:center">${m}</th>`).join('')}</tr></thead><tbody>`;
   anos.forEach(ano=>{
-    html+=`<tr><th style="text-align:right;padding-right:8px;color:var(--ink-mute);font-size:10px;white-space:nowrap">${ano}</th>`;
+    html+=`<tr><th style="text-align:right;padding-right:8px;color:var(--ink-soft);font-size:10px;white-space:nowrap">${ano}</th>`;
     for(let m=0;m<12;m++){
       const k=ano+'-'+m;
       if(byM[k]){
