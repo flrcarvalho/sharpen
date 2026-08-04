@@ -82,7 +82,7 @@ function _resMatrixHTML(rows, cols, colKeyOf){
   }).join('');
   const totRow=`<tr style="border-bottom:2px solid var(--line)">
     <td style="${sT}font-weight:700;color:var(--ink);padding:6px 10px;border-right:1px solid var(--line)">Total</td>
-    <td style="${sA}color:${totPL>=0?'var(--pos)':'var(--neg)'};text-align:right;padding:6px 10px;font-weight:700">${fmtPL(totPL)}<br><span style="font-size:9px;opacity:.55;color:var(--ink-mute)">${totN}b</span></td>
+    <td style="${sA}color:${totPL>=0?'var(--pos)':'var(--neg)'};text-align:right;padding:6px 10px;font-weight:700">${fmtPL(totPL)}<br><span style="font-size:10px;color:var(--ink-mute)">${totN}b</span></td>
     ${totCells}
   </tr>`;
 
@@ -98,7 +98,7 @@ function _resMatrixHTML(rows, cols, colKeyOf){
     }).join('');
     return`<tr>
       <td style="${sT}font-weight:700;color:var(--ink);padding:5px 10px;border-right:1px solid var(--line);font-size:12px">${esc(t)}</td>
-      <td style="${sA}color:${accC};text-align:right;padding:5px 10px;font-weight:700;font-size:12px">${fmtPL(acc.pl)}<br><span style="font-size:9px;opacity:.55;color:var(--ink-mute)">${acc.n}b</span></td>
+      <td style="${sA}color:${accC};text-align:right;padding:5px 10px;font-weight:700;font-size:12px">${fmtPL(acc.pl)}<br><span style="font-size:10px;color:var(--ink-mute)">${acc.n}b</span></td>
       ${cells}
     </tr>`;
   }).join('');
