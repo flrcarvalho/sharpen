@@ -58,6 +58,18 @@ import asyncpg
 
 RAIZ = Path(__file__).resolve().parent.parent
 
+# O console do Windows abre em cp1252, que não encoda '→' nem '⚠' — imprimir um deles levanta
+# UnicodeEncodeError e MATA o script no meio do relatório. Num script destrutivo esse é o pior
+# lugar para morrer: o operador vê meia contagem e não sabe se algo foi apagado (na s244 não
+# foi — a exceção caiu antes da transação, mas isso só se descobre lendo o traceback).
+# `errors="replace"` degrada o caractere; nunca aborta. Sem forçar utf-8: trocar a codificação
+# do console faria os acentos saírem como mojibake, que é o mesmo remédio virando doença.
+for _fluxo in (sys.stdout, sys.stderr):
+    try:
+        _fluxo.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 
 def _dsn() -> str:
     dsn = os.environ.get("DATABASE_URL")
@@ -123,14 +135,14 @@ async def main() -> None:
         print(f"  com data de HOJE ............ {resumo['data_hoje']}")
         print(f"  descrição SEM confronto ..... {resumo['sem_confronto']}")
         print(f"  liquidadas (entram no P/L) .. {resumo['liquidadas']}")
-        print(f"  janela de criação ........... {resumo['primeiro']} → {resumo['ultimo']}")
+        print(f"  janela de criação ........... {resumo['primeiro']} ate {resumo['ultimo']}")
 
         # Rede de segurança: um lote de robô é criado em minutos. Se a janela abrir muitos dias,
         # o --desde está pegando bilhete de PRINT (legítimo, também sem código) e não só o lote.
         d0 = datetime.fromisoformat(resumo["primeiro"]).date()
         d1 = datetime.fromisoformat(resumo["ultimo"]).date()
         if (d1 - d0).days > 1:
-            print(f"\n  ⚠️  A janela cobre {(d1 - d0).days + 1} dias. Bilhete antigo capturado por "
+            print(f"\n  !! A janela cobre {(d1 - d0).days + 1} dias. Bilhete antigo capturado por "
                   f"PRINT também não tem código e é legítimo. Estreite o --desde antes de aplicar.")
 
         # `correcoes.bilhete_id` é BIGINT solto (sem FK): apagar o bilhete deixa a correção
