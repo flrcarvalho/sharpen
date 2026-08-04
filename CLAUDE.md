@@ -161,6 +161,60 @@ assinatura única" de "é um dos vários que aposto".
 
 ---
 
+## Escada de Tinta — a cor do texto vem do PAPEL, não do espaço
+
+> **Motivo:** o cabeçalho de grupo do Painel de Contas usava `--ink-mute` em 9,5px caixa
+> alta com tracking .16em sobre fundo efetivo `#1A1F26` — **2,9:1**. Reprova AA (4,5:1) e
+> reprova até o piso de texto grande (3:1). O feedback que abriu o caso foi de uso, não de
+> auditoria: *"essas letras nesse cinza claro fica muito claro"*.
+
+Três causas somaram: tom baixo, corpo minúsculo e tracking largo em caixa alta. Junto
+veio **inversão de hierarquia** — o e-mail da conta (13,5px/700/`--ink`) pesava mais que o
+nome da casa, então a varredura da lista lia endereços em vez de casas.
+
+A regra que faltava: **`--ink-mute` nunca teve piso de tamanho.** Ele é legítimo em 12px
+sobre `--surface`; em 9,5px caixa alta sobre `--surface-2` deixa de ser texto e vira
+textura.
+
+**Contraste sempre medido sobre o FUNDO EFETIVO** — somando os overlays de
+`rgba(255,255,255,…)`, não sobre o token de superfície que está no CSS. Foi o overlay de
+`.025` que escondeu o problema.
+
+| Papel | Exemplo | Cor | Corpo mín. | Contraste mín. |
+|---|---|---|---|---|
+| Identidade / nome próprio | casa, tipster, operador, e-mail | `--ink` | 13px | 12:1 |
+| Valor numérico | KPI, odd, saldo, P/L | `--ink` | 13px | 12:1 |
+| Label / eyebrow / `thead` | CONTAS, PERÍODO, ESPORTE | `--ink-soft` | 9,5px | 4,5:1 |
+| Metadado secundário | contador, unidade, timestamp | `--ink-mute` | 10px | 3:1 |
+| Desabilitado / placeholder | input vazio, ícone off | `--ink-mute` | 12px | — |
+
+Medido no tema escuro (o app é dark, sem toggle), sobre `--surface-2` com overlay:
+`--ink` **14,7:1** · `--ink-soft` **6,3:1** · `--ink-mute` **3,0:1**.
+
+**Faça**
+
+- Um único elemento `--ink-mute` por linha ou cabeçalho. Se houver dois, um deles é
+  conteúdo disfarçado de enfeite.
+- Caixa alta + tracking só em **categoria**. Nome de marca vai em caixa própria — e aí o
+  dado precisa chegar na caixa certa (`casaDisplay()` no `index.html`: title case **só**
+  em quem vem sem informação de caixa; caixa mista é verbatim, senão mutila `BETesporte`,
+  `VaideBet`, `KingPanda`).
+- Abaixo de 11px: subir um degrau na escada e o peso para 500.
+
+**Não faça**
+
+- `--ink-mute` em texto abaixo de 10px, em qualquer superfície.
+- Filho mais legível que o pai (e-mail em `--ink` dentro de grupo em `--ink-mute`).
+- Resolver contraste com `#FFFFFF` — **a escala fecha em `--ink`**. "Mudar pra branco" se
+  traduz, no sistema, como *subir um degrau na escada*.
+- Compensar tom baixo com peso 700 em 9,5px: engorda o borrão, não corrige a leitura.
+
+> **Ícone não é texto.** Caret e seta (`.operador-caret`, `.casa-arrow`, `.sb-op-caret`)
+> ficam em 9px `--ink-mute` por desenho. É a única exceção, e está comentada no CSS para
+> não virar precedente.
+
+---
+
 ## ⚠️ REGRA DE PROPAGAÇÃO OBRIGATÓRIA
 
 **Toda vez que uma categoria for criada, renomeada ou removida do `MASTER_APOSTAS_2026.md`, os seguintes arquivos DEVEM ser atualizados na mesma sessão, sem exceção:**
@@ -306,4 +360,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-03 (sessão 239 — seção "`DADOS` só tem aposta LIQUIDADA")
+ATUALIZADO: 2026-08-03 (sessão 242 — seção "Escada de Tinta")

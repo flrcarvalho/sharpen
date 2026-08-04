@@ -33,6 +33,11 @@ por 1-3. Uma etapa por vez; parar e perguntar ao Feca em qualquer duvida de conv
 
 ## 4. AUTO-AUDITAR antes do commit (obrigatorio)
 - Conferir item a item contra `UI_REFERENCE §5`: 2 casas? `R$` menor/neutro? cor so no numero? minus U+2212? zero neutro? sem abreviar? sem `.toFixed`/`.replace`? label PT-BR?
+- **Escada de Tinta** (`CLAUDE.md`): nenhum `--ink-mute` abaixo de 10px; nenhum nome
+  proprio (casa/tipster/operador/e-mail) em `--ink-mute`; contraste medido sobre o
+  **fundo efetivo** (somando overlays `rgba(255,255,255,…)`), nao sobre o token de
+  superficie. Varredura rapida:
+  `grep -rn "ink-mute" app/static --include=*.html --include=*.css --include=*.js | grep -E "font-size: ?(8|8\.5|9|9\.5)px"`
 - `node scripts/tokens/check-tokens.mjs` -> tem que sair **verde** (drift + paleta + shell + monetario).
 - Validar o JS: extrair o script inline e `new vm.Script(...)` (0 erro).
 - Se possivel, **render headless** (Chrome `--headless=new --screenshot`) e conferir visualmente.
