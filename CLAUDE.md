@@ -77,6 +77,32 @@ a valer entre os dois.
 
 ---
 
+## `DADOS` só tem aposta LIQUIDADA. Quem existe antes da 1ª aposta vem do cadastro.
+
+`aplicarFeed` (`dash/assets/js/app.js`) parte o feed em dois: `DADOS` recebe só
+`W/L/V/HW/HL` e `DADOS_ABERTAS` recebe o resto. Toda tela que deriva de `DADOS` herda
+o mesmo ponto cego: **usuário novo, que só tem aposta em aberto, chega com `DADOS`
+vazio.** O sintoma não é erro, é tela parada num "aguardando" que nunca resolve (s239:
+o Diogo cadastrou 16 contas, tinha 12 bilhetes, todos em aberto, e a aba Custos de
+Contas ficou em branco).
+
+A regra de fundo: **a existência de uma entidade não vem do bilhete.** Conta comprada
+tem custo antes de apostar; o cadastro (`parceiros`) é a fonte de quem existe, e o
+bilhete só acrescenta o que nunca foi cadastrado. Onde os dois valem, use a **união** —
+na base do Feca são 130 contas que só existem em bilhete e sumiriam se você trocasse
+uma fonte pela outra em vez de somar.
+
+Antes de unir cadastro e bilhete, **meça as duas divergências que duplicam linha**:
+grafia de casa (`Bet365` × `BET365`) e fornecedor divergente para a mesma conta. As
+duas deram zero em todos os donos na s239, mas isso é medição datada, não garantia.
+
+> Separe **existir** de **contar no P/L**. Conta sem aposta aparece na tela para
+> receber o custo, e continua fora de qualquer janela de P/L (`calcCostFiltered` usa
+> a data da 1ª aposta). Misturar os dois é como o UPSERT meio-atualizado: vira lucro
+> fantasma.
+
+---
+
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 
 O matcher (`_sugParaBilhete`, inline no `app/static/index.html`) só sugere com **folga ≥ 7**
@@ -264,4 +290,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-07-31 (sessão 221 — seção "Sugerir tipsters parou? O suspeito é um perfil novo")
+ATUALIZADO: 2026-08-03 (sessão 239 — seção "`DADOS` só tem aposta LIQUIDADA")
