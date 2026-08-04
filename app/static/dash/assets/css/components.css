@@ -1357,6 +1357,8 @@ select.ap-inline-inp { padding: 2px 4px; }
    O .metric-tip inline fica hidden — JS global (_gTip) o clona e posiciona. */
 .tip-anchor                { position: relative; display: inline-flex; align-items: center; }
 
+/* "i" dentro de um disco de 14px: é ÍCONE, não texto — fica em --text-nano
+   --ink-mute por desenho, mesma exceção do caret (Escada de Tinta). */
 .metric-info               { width: 14px; height: 14px; border-radius: 50%;
                               border: 1px solid var(--line); display: inline-grid;
                               place-items: center; font-family: var(--font-mono);
@@ -1522,7 +1524,7 @@ select.ap-inline-inp { padding: 2px 4px; }
   min-width:240px; box-shadow:var(--shadow-md);
   font-family:var(--font-mono);
 }
-.cal-tip .ct-date { font-size:var(--text-nano); letter-spacing:.14em; text-transform:uppercase; color:var(--ink-mute); margin-bottom:8px; }
+.cal-tip .ct-date { font-size:var(--text-xxs); letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:8px; }
 .cal-tip .ct-pl { font-size:var(--text-2xl); font-weight:800; letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums; }
 .cal-tip .ct-pl .cur { font-size:.5em; color:var(--ink-soft); font-weight:600; margin-right:2px; }
 .cal-tip .ct-pl.pos { color:var(--pos); }
@@ -1530,7 +1532,7 @@ select.ap-inline-inp { padding: 2px 4px; }
 .cal-tip .ct-sep { height:1px; background:var(--line); margin:12px 0; }
 .cal-tip .ct-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
 .cal-tip .ct-item { display:flex; flex-direction:column; gap:2px; }
-.cal-tip .ct-item .lbl { font-size:var(--text-nano); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-mute); }
+.cal-tip .ct-item .lbl { font-size:var(--text-xxs); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); }
 .cal-tip .ct-item .val { font-size:var(--text-md); font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .cal-tip .ct-item .val .cur { font-size:.72em; color:var(--ink-soft); margin-right:1px; }
 .cal-tip .ct-item .val.pos { color:var(--pos); }
@@ -1586,7 +1588,7 @@ select.ap-inline-inp { padding: 2px 4px; }
 .abrt-horiz__v .money { width:auto; gap:2px; }
 .abrt-horiz__v .money-val { min-width:0; }
 .abrt-horiz__v .money-sign { min-width:0; }
-.abrt-horiz__s { font-family:var(--font-mono); font-size:var(--text-nano); color:var(--ink-mute); margin-top:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.abrt-horiz__s { font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-mute); margin-top:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 @media(max-width:1100px) { .abrt-horiz { grid-template-columns:repeat(3,1fr); } }
 
 /* ── Calendário: para quando são as apostas ─────────────────────────────── */
@@ -1651,7 +1653,7 @@ select.ap-inline-inp { padding: 2px 4px; }
 .abrt-bar__fill { display:block; height:100%; border-radius:var(--r-pill); background:linear-gradient(90deg,rgba(var(--warn-rgb),.55),var(--warn)); }
 .abrt-bar__val { display:flex; flex-direction:column; align-items:flex-end; gap:2px; white-space:nowrap; }
 .abrt-bar__val .money { font-size:var(--text-sm); font-weight:700; }
-.abrt-bar__meta { font-family:var(--font-mono); font-size:var(--text-nano); letter-spacing:.06em; color:var(--ink-mute); }
+.abrt-bar__meta { font-family:var(--font-mono); font-size:var(--text-xxs); letter-spacing:.06em; color:var(--ink-mute); }
 
 /* ── Lista das apostas em aberto ────────────────────────────────────────── */
 .abrt-tbl { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
@@ -1671,7 +1673,7 @@ select.ap-inline-inp { padding: 2px 4px; }
 .abrt-linha > div { min-width:0; overflow:hidden; }
 .abrt-quando { display:flex; flex-direction:column; gap:2px; }
 .abrt-quando .dia { font-family:var(--font-mono); font-size:12px; color:var(--ink); font-variant-numeric:tabular-nums; }
-.abrt-quando .rel { font-family:var(--font-mono); font-size:var(--text-nano); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-mute); }
+.abrt-quando .rel { font-family:var(--font-mono); font-size:var(--text-xxs); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-mute); }
 .abrt-quando .rel.hoje { color:var(--accent-2); }
 .abrt-quando .rel.atrasada { color:var(--warn); }
 .abrt-tipo {
