@@ -44,7 +44,7 @@ a:hover { color: var(--accent); }
 
 /* ── Cabeçalho ── */
 .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-mute); }
+.eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); }
 h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0; }
 .briefing { font-size: 15px; color: var(--ink-soft); line-height: 1.55; margin-top: 10px; max-width: 88ch; }
 .briefing b { color: var(--ink); font-weight: 700; }
@@ -55,10 +55,10 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 /* ── KPIs ── */
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 15px 17px; min-width: 0; }
-.kpi .k { font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); }
+.kpi .k { font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .kpi .v { font-family: var(--font-mono); font-size: 22px; font-weight: 600; margin-top: 9px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi .v.plain { color: var(--ink); } .kpi .v.acc { color: var(--accent-2); }
-.kpi .d { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-mute); margin-top: 7px; display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.kpi .d { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-soft); margin-top: 7px; display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
 .kpi.feat { background: linear-gradient(180deg, rgba(var(--accent-rgb),.10), var(--surface) 65%); border-color: rgba(var(--accent-rgb),.32); }
 
 /* ── Blocos em 2 colunas ── */
@@ -124,7 +124,7 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 .sp-chip { width: 24px; height: 24px; border-radius: 7px; background: var(--fdc-steel); border: 1px solid rgba(255,255,255,.08); display: inline-grid; place-items: center; flex: none; font-size: 14px; line-height: 1; filter: grayscale(1); }
 .lrow .lc { min-width: 0; flex: 1; }
 .lrow .t { font-family: var(--font-sans); font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lrow .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lrow .r { margin-left: auto; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; flex: none; display: flex; align-items: baseline; gap: 7px; }
 .lrow .r.acc { color: var(--accent-2); }
 .lrow .odd { color: var(--ink-mute); font-size: 11px; }
@@ -133,7 +133,7 @@ h1 { font-size: 28px; font-weight: 800; letter-spacing: -.035em; margin: 8px 0 0
 /* Totalizador (linha de soma da coluna de stakes) — tratamento de "total": borda
    forte, rótulo mono uppercase apagado, valor em --ink alinhado à direita (fmtR). */
 .foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--line); }
-.foot .fl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); }
+.foot .fl { font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .foot .fv { font-family: var(--font-mono); font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* Destaques = LEADERBOARD (sem grade). 2 colunas Positivos|Negativos, cada linha com
