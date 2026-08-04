@@ -338,15 +338,40 @@ CREATE TABLE IF NOT EXISTS usuarios (
     criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ── Tempo real: aviso de mudança na base (s241) ───────────────────────────────
+-- Qualquer escrita em `bilhetes` (INSERT/UPDATE/DELETE — venha do app, da
+-- extensão, do sync da Polymarket ou de script de import) dispara
+-- pg_notify('base_mudou', dono). O backend escuta numa conexão dedicada
+-- (eventos.py) e repassa via SSE (/eventos) para as telas abertas recarregarem
+-- sozinhas. O trigger fica na TABELA, e não em hooks no código, para que nenhum
+-- escritor fique de fora por esquecimento. pg_notify deduplica payload igual
+-- dentro da mesma transação → lote de N bilhetes num só COMMIT vira 1 aviso.
+CREATE OR REPLACE FUNCTION notificar_base_mudou() RETURNS trigger AS $fn$
+BEGIN
+    PERFORM pg_notify('base_mudou', COALESCE(NEW.dono, OLD.dono));
+    RETURN NULL;
+END;
+$fn$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_bilhetes_base_mudou ON bilhetes;
+CREATE TRIGGER trg_bilhetes_base_mudou
+    AFTER INSERT OR UPDATE OR DELETE ON bilhetes
+    FOR EACH ROW EXECUTE FUNCTION notificar_base_mudou();
 """
+
+
+def dsn() -> str:
+    """DSN do Postgres no formato que o asyncpg aceita (postgres:// → postgresql://).
+    Compartilhado com eventos.py, que abre uma conexão DEDICADA fora do pool."""
+    return os.environ["DATABASE_URL"].replace("postgres://", "postgresql://", 1)
 
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        url = os.environ["DATABASE_URL"].replace("postgres://", "postgresql://", 1)
         _pool = await asyncpg.create_pool(
-            url,
+            dsn(),
             min_size=1,
             max_size=5,
             max_inactive_connection_lifetime=60,

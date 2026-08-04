@@ -37,6 +37,7 @@ from auth import (
     resultado_login, usuario_atual, usuario_do_request, validar_token_curto,
 )
 import captura as _captura
+import eventos as _eventos
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from database import (
@@ -223,6 +224,8 @@ async def lifespan(_app: FastAPI):
         logger.exception("seed/carga inicial de usuarios falhou — cache segue na semente; refresher reitera")
     asyncio.create_task(_cache_warmer())
     asyncio.create_task(_usuarios_refresher())
+    # Tempo real (s241): LISTEN base_mudou numa conexão dedicada; alimenta /eventos.
+    asyncio.create_task(_eventos.escutar_banco())
     yield
 
 
@@ -2529,6 +2532,48 @@ async def polymarket_ativo_tipster(body: AtivoTipsterRequest, dono: str = Depend
         raise HTTPException(400, "Código da posição ausente.")
     await set_ativo_tipster(dono, codigo, (body.tipster or "").strip())
     return {"ok": True}
+
+
+@app.get("/eventos")
+async def eventos_sse(dono: str = Depends(dono_efetivo)):
+    """Canal de tempo real (SSE): avisa "sua base mudou" para a tela recarregar
+    sozinha — a casca (/app) assina UMA conexão e propaga ao loadData() dos
+    iframes (s241). A fonte é o trigger `trg_bilhetes_base_mudou` no Postgres,
+    então extração, captura da extensão, sync, edição, exclusão e até script de
+    import contam — sem instrumentar rota por rota.
+
+    O escopo é o MESMO do /dashboard/data: dono efetivo + operadores dele — a
+    captura de um operador reflete na tela do supervisor na hora. O evento não
+    carrega dado (só o dono que mudou); quem busca o dado é o loadData.
+    """
+    entrada = _eventos.assinar([dono] + operadores_de(dono))
+    fila = entrada[1]
+
+    async def gen():
+        try:
+            # Handshake: destrava proxies que só liberam o stream após o 1º byte
+            # e dá à casca a confirmação de canal aberto.
+            yield f"data: {json.dumps({'ok': True})}\n\n"
+            while True:
+                try:
+                    mudou = await asyncio.wait_for(fila.get(), timeout=20)
+                except asyncio.TimeoutError:
+                    # Keepalive: mantém proxies acordados e faz o servidor
+                    # descobrir cliente desconectado (a escrita falha → finally).
+                    yield f"data: {json.dumps({'keepalive': True})}\n\n"
+                    continue
+                # Coalesce: rajada de avisos (lote em vários COMMITs) vira um só.
+                while not fila.empty():
+                    fila.get_nowait()
+                yield f"data: {json.dumps({'base_mudou': mudou})}\n\n"
+        finally:
+            _eventos.cancelar(entrada)
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/dashboard/data")

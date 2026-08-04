@@ -39,6 +39,9 @@ if not os.environ.get("TEST_DATABASE_URL"):
         async def get_pool():  # pragma: no cover - nunca chamado nos testes de fórmula
             raise RuntimeError("DB indisponível nos testes de fórmula")
 
+        def dsn():  # pragma: no cover - importado por eventos.py, nunca chamado nos testes
+            raise RuntimeError("DB indisponível nos testes de fórmula")
+
         async def init_db():  # pragma: no cover - importado por main, nunca chamado nos testes
             raise RuntimeError("DB indisponível nos testes de fórmula")
 
@@ -70,6 +73,7 @@ if not os.environ.get("TEST_DATABASE_URL"):
             raise RuntimeError("DB indisponível nos testes de fórmula")
 
         _fake_db.get_pool = get_pool
+        _fake_db.dsn = dsn
         _fake_db.init_db = init_db
         _fake_db.seed_usuarios = seed_usuarios
         _fake_db.carregar_usuarios = carregar_usuarios

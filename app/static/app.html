@@ -329,8 +329,10 @@ body::before {
     refreshBtn.disabled = on;
     refreshBtn.innerHTML = '<span class="host-refresh-ico">↻</span> ' + (on ? 'Atualizando…' : 'Atualizar');
   }
-  if (refreshBtn) refreshBtn.addEventListener('click', function(){
-    if (refreshBtn.disabled) return;
+  // Corpo da recarga, compartilhado pelo clique (forcar=true) e pelo tempo real
+  // (forcar=false — dono Postgres já lê fresco; o ?refresh=1 fica só para o
+  // clique porque reconstruir a planilha ao vivo custa ~10-20s).
+  function executarRefresh(forcar){
     var fila = refreshQueue();
     if (!fila.length) return;                                 // nenhum app com base carregado ainda
     setRefreshing(true);
@@ -344,11 +346,37 @@ body::before {
       catch(e){ return Promise.resolve(); }
     };
     // 1º com force (reconstrói + enche o cache) → depois os demais em paralelo, do cache.
-    chamar(fila[0], true).then(function(){
+    chamar(fila[0], forcar).then(function(){
       var resto = fila.slice(1).map(function(fr){ return chamar(fr, false); });
       return resto.length ? Promise.all(resto) : null;
     }).then(finish, finish);
+  }
+  if (refreshBtn) refreshBtn.addEventListener('click', function(){
+    if (refreshBtn.disabled) return;
+    executarRefresh(true);
   });
+
+  // Tempo real (s241): o servidor avisa via SSE (/eventos) quando a base do dono
+  // muda — extração, captura da extensão, sync, edição, exclusão; o gatilho é um
+  // trigger na TABELA bilhetes, então todo escritor conta. Debounce de 1,5s
+  // transforma a rajada de um lote em UMA recarga; se já há recarga em curso
+  // (botão girando), reagenda em vez de empilhar. EventSource reconecta sozinho
+  // quando o servidor cai (deploy) — nenhum código de retry aqui.
+  var autoTimer = null;
+  function agendarAutoRefresh(){
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(function(){
+      if (refreshBtn && refreshBtn.disabled){ agendarAutoRefresh(); return; }
+      executarRefresh(false);
+    }, 1500);
+  }
+  if (window.EventSource){
+    var esBase = new EventSource('/eventos');
+    esBase.onmessage = function(ev){
+      var d; try { d = JSON.parse(ev.data || '{}'); } catch(e){ d = {}; }
+      if (d && d.base_mudou) agendarAutoRefresh();
+    };
+  }
   // Mantém "último sync" vivo (1ª carga do Dashboard, refresh manual ou revalidação
   // em 2º plano). Barato: só lê um número do iframe a cada 3s.
   setInterval(paintSync, 3000);
