@@ -464,7 +464,7 @@ function renderCasaDrill(rows){
       `<div class="chart-wrap" style="height:220px"><canvas id="casaDrillLine"></canvas></div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title">Cenário Atual <span style="font-size:9px;color:var(--ink-mute);text-transform:none;letter-spacing:0">(dados reais · histórico)</span></div>`+
+      `<div class="analise-popup-section-title">Cenário Atual <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(dados reais · histórico)</span></div>`+
       `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">`+
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Topo Histórico ${_mkTipAnchor('Topo Histórico','','Maior saldo que esta casa <b>já atingiu</b> no período.','<span class="lbl">marco</span>')}</div><div class="fdc-kpi__value" data-state="pos" style="${vS}">${fmtPL(_td.topo)}</div><div class="kpi-sub" style="${sbS}">atingido em ${_fmtD(_td.topoData)}</div></div>`+
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Drawdown Atual ${_mkTipAnchor('Drawdown Atual','<span class="lbl">DD</span> <span class="op">=</span> Topo <span class="op">→</span> Saldo atual','Quanto o saldo nesta casa está <b>abaixo do último pico</b>, agora.','<span class="thr">perto de 0</span> <span class="good">é o ideal</span>')}</div><div class="fdc-kpi__value" data-state="real" style="${vS}">${fmtPL(-_td.ddAtual)}</div><div class="kpi-sub" style="${sbS}">${fmtPct(_td.ddAtualPct*100,1,false)} do topo</div></div>`+
@@ -674,7 +674,7 @@ function renderSportDrill(rows){
       `<div class="chart-wrap" style="height:220px"><canvas id="sportDrillLine"></canvas></div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title">Cenário Atual <span style="font-size:9px;color:var(--ink-mute);text-transform:none;letter-spacing:0">(dados reais · histórico)</span></div>`+
+      `<div class="analise-popup-section-title">Cenário Atual <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(dados reais · histórico)</span></div>`+
       `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">`+
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Topo Histórico ${_mkTipAnchor('Topo Histórico','','Maior saldo que este esporte <b>já atingiu</b> no período.','<span class="lbl">marco</span>')}</div><div class="fdc-kpi__value" data-state="pos" style="${vS}">${fmtPL(_td.topo)}</div><div class="kpi-sub" style="${sbS}">atingido em ${_fmtD(_td.topoData)}</div></div>`+
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Drawdown Atual ${_mkTipAnchor('Drawdown Atual','<span class="lbl">DD</span> <span class="op">=</span> Topo <span class="op">→</span> Saldo atual','Quanto o saldo neste esporte está <b>abaixo do último pico</b>, agora.','<span class="thr">perto de 0</span> <span class="good">é o ideal</span>')}</div><div class="fdc-kpi__value" data-state="real" style="${vS}">${fmtPL(-_td.ddAtual)}</div><div class="kpi-sub" style="${sbS}">${fmtPct(_td.ddAtualPct*100,1,false)} do topo</div></div>`+
@@ -994,7 +994,7 @@ function renderTipsterDrill(rows){
       `<div class="chart-wrap" style="height:220px"><canvas id="tipsterDrillLine"></canvas></div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title">Cenário Atual <span style="font-size:9px;color:var(--ink-mute);text-transform:none;letter-spacing:0">(dados reais · histórico)</span></div>`+
+      `<div class="analise-popup-section-title">Cenário Atual <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(dados reais · histórico)</span></div>`+
       `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">`+
         `<div class="kpi" style="${kS}">`+
           `<div class="kpi-label"><span class="kpi-pipe"></span>Topo Histórico ${_mkTipAnchor('Topo Histórico','','Maior saldo que a banca <b>já atingiu</b> no período.','<span class="lbl">marco</span>')}</div>`+
@@ -1019,7 +1019,7 @@ function renderTipsterDrill(rows){
       `</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title">Diagnóstico de Risco <span style="font-size:9px;color:var(--ink-mute);text-transform:none;letter-spacing:0">(Monte Carlo · 10.000 simulações)</span></div>`+
+      `<div class="analise-popup-section-title">Diagnóstico de Risco <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(Monte Carlo · 10.000 simulações)</span></div>`+
       `<div id="tipDrillRisco" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">${_tipRiscoHTML(null,kS,vS,sbS)}</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
@@ -1027,7 +1027,7 @@ function renderTipsterDrill(rows){
       `<div class="tbl-wrap drill-tbl"><table class="tbl" id="tipDrillTblMensal"><thead><tr>${mkTh('Mês','','l')+mkTh('Bets','','r')+mkTh('P/L','','r')+mkTh('Turnover','','r')+mkTh('ROI','','r')+mkTh('Win Rate','','r')+mkTh('Stake média','','r')+_mkOddMediaTh('r','88px')}</tr></thead><tbody>${_tipMonthTbody(rows)}</tbody></table></div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
-      `<div class="analise-popup-section-title">Distribuição de Odds <span style="font-size:9px;color:var(--ink-mute);text-transform:none;letter-spacing:0">(apostas, win rate e ROI por faixa)</span></div>`+
+      `<div class="analise-popup-section-title">Distribuição de Odds <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(apostas, win rate e ROI por faixa)</span></div>`+
       `<div class="chart-wrap" style="height:240px;margin-top:.75rem"><canvas id="tipsterDrillOdds" role="img" aria-label="Distribuição de odds do tipster"></canvas></div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
