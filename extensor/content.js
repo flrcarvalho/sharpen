@@ -291,6 +291,8 @@
   let b3HookVivo = false;
   let b3Driver = null;               // {feitos,pulados,falhas} do driver de UI (autodiagnóstico)
   let b3MsgTick = 0;                 // carimbo da última mensagem do inject → progresso do driver
+  let b3Retidos = 0;                 // bilhetes vistos SEM o `confirmation` → retidos, não sobem
+                                     // (ver `b3Emissivel`; o aviso ao operador sai no `iniciarRobo`)
   // Um inject POR FRAME responde (a área de membros da Bet365 é outra origem, em iframe).
   // Guardar por `href` em vez de uma variável única: com 2 frames, o último a falar
   // sobrescreveria o contador do outro — o top diria 0 e apagaria as respostas do iframe.
@@ -759,7 +761,10 @@
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
                       // sem casar o padrão — separa "não alcancei o frame certo" de "endpoint mudou".
-                      extra: " · frames: " + b3PorFrame.size + " · outras URLs de histórico: " + b3Soma("history") },
+                      // `retidos` separa "não vi nada" de "vi N e todos vieram sem confirmação" —
+                      // sem isto o operador lê "0 bilhetes / vistos: 139" e não entende o que houve.
+                      extra: " · frames: " + b3PorFrame.size + " · outras URLs de histórico: " + b3Soma("history") +
+                             (b3Retidos ? " · RETIDOS por falta de confirmação: " + b3Retidos : "") },
       }[casa];
       if (diag) {
         const msg = diag.nome + ": 0 bilhetes. Hook: " + (diag.hook ? "ATIVO" : "NÃO carregou") +
@@ -795,6 +800,16 @@
       // NÃO perde nada: o texto fica bancado em `envioPendente`. O background já sinalizou a
       // causa (sessão expirou / falha de rede); aqui reforça na página que dá pra reenviar.
       toastLocal(blocos.length + " bilhete(s) guardados — a conexão caiu no envio. Reconecte no popup e clique Reenviar (nada foi perdido).", false);
+    }
+    // Bet365: bilhete visto mas sem `confirmation` foi RETIDO (ver `b3Emissivel`). O aviso vai
+    // para a TELA e para o popup porque o log do console JÁ EXISTIA e passou despercebido — foram
+    // 139 linhas erradas numa captura só (s244). Sobe 64px para não empilhar no toast do envio.
+    if (casa === "bet365" && b3Retidos > 0) {
+      const av = "Bet365: " + b3Retidos + " bilhete(s) NÃO foram enviados — a página não devolveu a " +
+                 "confirmação deles, então estão sem código e sem data. Rode de novo com a janela " +
+                 "'Últimas 24 horas' ou 'Últimas 48 horas'.";
+      toastLocal(av, false, 64);
+      try { chrome.storage.local.set({ lastError: av }); } catch (e) {}
     }
   }
 
@@ -2588,6 +2603,19 @@
     return "Ganho/perda parcial (retorno R$ " + rt.toFixed(2).replace(".", ",") + " · a conferir HW/HL)";
   }
 
+  // ── O bilhete só sobe se o `confirmation` chegou (s244) ───────────────────────
+  // O `summary` sozinho NÃO tem: código BR (a identidade), kickoff (a data) nem jogo/mercado/liga.
+  // Um bilhete assim não é "incompleto", é ERRADO em três eixos ao mesmo tempo:
+  //   • sem código → a assinatura vira conteúdo → a próxima captura não reconhece → INSERT duplicado;
+  //   • sem linha "Data (encerramento)" → o backend cai na DATA DE REFERÊNCIA (= hoje, `main.py`
+  //     `_INSTRUCAO`/`data_referencia`) → aposta de julho entra datada de hoje, no P/L de hoje;
+  //   • sem `legs` → a descrição sai decapitada ("HNK Gorica" em vez de "… [A v B]").
+  // Medido na s244, conta `marloncezar01`: lote de 206 → 139 sem confirmation · os MESMOS 139 com
+  // data de hoje · 84 com par exato (stake+odd+resultado+seleção) num bilhete que já existia com
+  // código. Reter é estritamente melhor que emitir: o bilhete volta INTEIRO na próxima rodada
+  // (o `jaTentados` do inject é por ciclo e a memória `b3Detalhes` só guarda quem tem código).
+  const b3Emissivel = (t) => !!(t && t.code && t.legs && t.legs.length);
+
   function formatTicketB3(t) {
     const L = [];
     L.push("[Código: " + (t.code || "") + "]");
@@ -2739,21 +2767,26 @@
     if (novos) await b3Lembrar(paraLembrar);
 
     // Monta os blocos do ESTADO FINAL (os detalhes que chegaram por último já entraram).
+    // Bilhete sem `confirmation` é RETIDO aqui, não emitido — ver `b3Emissivel`.
     const blocos = [];
+    b3Retidos = 0;
     for (const t of b3ById.values()) {
       if (ctx.stopId && t.code && String(t.code).toUpperCase() === ctx.stopId) break;   // até o já-exportado
+      if (!b3Emissivel(t)) { b3Retidos++; continue; }
       blocos.push(formatTicketB3(t));
     }
     let comCodigo = 0;
     for (const t of b3ById.values()) if (t.code) comCodigo++;
     console.log("[SharpenUp] Bet365 API: " + blocos.length + " bilhete(s) · com código=" + comCodigo +
-                "/" + b3ById.size + " · hook=" + b3HookVivo + " · frames=" + b3PorFrame.size +
+                "/" + b3ById.size + " · retidos=" + b3Retidos + " · hook=" + b3HookVivo +
+                " · frames=" + b3PorFrame.size +
                 " · respostas=" + b3Soma("respostas") + " · fimReal=" + b3FimReal +
                 " · driver=" + (b3Driver ? JSON.stringify(b3Driver) : "não rodou"));
-    if (comCodigo < b3ById.size) {
-      console.log("[SharpenUp] Bet365: " + (b3ById.size - comCodigo) + " bilhete(s) SEM código BR — " +
-                  "provável lista longa demais (ao voltar de um detalhe ela reinicia no topo). " +
-                  "Use 'Últimas 24 horas' ou 'Últimas 48 horas' e rode de novo.");
+    if (b3Retidos) {
+      console.log("[SharpenUp] Bet365: " + b3Retidos + " bilhete(s) RETIDOS (sem confirmation: sem " +
+                  "código BR, sem data e sem jogo/mercado) — provável lista longa demais (ao voltar " +
+                  "de um detalhe ela reinicia no topo). Use 'Últimas 24 horas' ou 'Últimas 48 horas' " +
+                  "e rode de novo. Até a s244 estes bilhetes SUBIAM, datados de hoje e duplicados.");
     }
     for (const [href, f] of b3PorFrame) {
       console.log("[SharpenUp] Bet365 frame " + (f.topo ? "TOPO" : "iframe") +
@@ -2895,10 +2928,12 @@
     return { remove: () => p.remove(), contador: p.querySelector("#su-robo-n"), btnParar: btn };
   }
 
-  function toastLocal(texto, ok) {
+  // `alturaExtra` (px) sobe o toast para ele não empilhar em cima de outro já na tela — dois
+  // toasts no mesmo `bottom` ficam sobrepostos e o de baixo vira ruído ilegível.
+  function toastLocal(texto, ok, alturaExtra) {
     const t = document.createElement("div");
     t.textContent = texto;
-    S(t, { position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
+    S(t, { position: "fixed", bottom: (24 + (Number(alturaExtra) || 0)) + "px", left: "50%", transform: "translateX(-50%)",
       "z-index": "2147483647", font: "13px/1.4 system-ui,sans-serif", color: "#fff",
       background: ok ? "#1B7F4E" : "#B3363B", padding: "10px 16px", "border-radius": "10px",
       "box-shadow": "0 8px 24px rgba(0,0,0,.35)" });
