@@ -616,7 +616,7 @@
 .money-u { color: var(--ink-soft); font-size: .78em; }
 /* Toggle R$ ⇄ u da página Tipsters (reusa .tcard-seg como pill). */
 .tip-unit-row { display: flex; align-items: center; gap: 10px; margin-top: .5rem; }
-.tip-unit-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.tip-unit-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 
 /* ── Streak dots ─────────────────────────────────────────────────────────── */
 .streak { display: flex; flex-wrap: wrap; gap: 3px; }
@@ -728,7 +728,7 @@
 .metric-live.d-proj { color: var(--d-proj); background: var(--d-proj-soft); border-color: transparent; }
 .metric-live.d-pos  { color: var(--d-pos);  background: var(--d-pos-soft);  border-color: transparent; }
 .metric-live.d-info { color: var(--d-info); background: var(--d-info-soft); border-color: transparent; }
-.metric-live__lbl   { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-mute); margin-right: 4px; }
+.metric-live__lbl   { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-right: 4px; }
 .term-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 0.75rem; }
 .term-card {
   background: var(--field);
@@ -1622,7 +1622,9 @@ select.ap-inline-inp { padding: 2px 4px; }
 .abrt-cal__cell .dn { font-family:var(--font-mono); font-weight:600; font-size:12px; color:var(--ink-soft); }
 .abrt-cal__cell.vazio .dn { color:var(--ink-mute); }
 .abrt-cal__cell .marca { font-family:var(--font-mono); font-size:8px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-2); }
-.abrt-cal__cell .qtd { font-family:var(--font-mono); font-size:8px; letter-spacing:.1em; color:var(--ink-mute); }
+/* 8px era textura, não texto. Sobe ao piso de metadado (10px) — cabe: a célula tem
+   62px de altura e a linha .top só carrega o dia (12px) + esta contagem. */
+.abrt-cal__cell .qtd { font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; color:var(--ink-mute); }
 .abrt-cal__cell .val { text-align:right; }
 .abrt-cal__cell .val .money { justify-content:flex-end; font-size:var(--text-md); font-weight:700; }
 
