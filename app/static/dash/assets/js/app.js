@@ -546,9 +546,9 @@ function buildHTML(){
       <div class="page" id="page-overview">
         ${buildFilters('overview',sports,casas,tipsters)}
         <div class="kpi-grid" id="kpiGrid"></div>
-        ${mkCard('bankroll','Resultado Geral','<div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:20px;height:2px;background:#2E8BFF;border-radius:1px;flex-shrink:0"></span>P/L acumulado</span><span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:12px;height:12px;background:rgba(43,192,126,.8);border-radius:2px;flex-shrink:0"></span>Dia positivo</span><span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute)"><span style="display:inline-block;width:12px;height:12px;background:rgba(229,82,75,.8);border-radius:2px;flex-shrink:0"></span>Dia negativo</span></div><div class="chart-wrap" style="min-height:380px"><canvas id="chartBankroll" role="img" aria-label="P/L"></canvas></div>','<span style="margin-left:auto;margin-right:8px;font-family:JetBrains Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);opacity:.7">P/L diário · evolução acumulada</span>')}
-        ${mkCard('ov_streaks','Cenário Atual','<div id="ovStreaksContent"></div>','<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-mute)"><span style="width:5px;height:5px;border-radius:50%;background:var(--d-info)"></span>Dados reais · histórico</span>')}
-        ${mkCard('ov_risco','Diagnóstico de Risco','<div id="ovRiscoContent"></div>','<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-mute)"><span style="width:5px;height:5px;border-radius:50%;background:var(--d-proj)"></span>Simulado · Monte Carlo · 10.000</span>')}
+        ${mkCard('bankroll','Resultado Geral','<div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-soft)"><span style="display:inline-block;width:20px;height:2px;background:#2E8BFF;border-radius:1px;flex-shrink:0"></span>P/L acumulado</span><span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-soft)"><span style="display:inline-block;width:12px;height:12px;background:rgba(43,192,126,.8);border-radius:2px;flex-shrink:0"></span>Dia positivo</span><span style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);color:var(--ink-soft)"><span style="display:inline-block;width:12px;height:12px;background:rgba(229,82,75,.8);border-radius:2px;flex-shrink:0"></span>Dia negativo</span></div><div class="chart-wrap" style="min-height:380px"><canvas id="chartBankroll" role="img" aria-label="P/L"></canvas></div>','<span style="margin-left:auto;margin-right:8px;font-family:JetBrains Mono,monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">P/L diário · evolução acumulada</span>')}
+        ${mkCard('ov_streaks','Cenário Atual','<div id="ovStreaksContent"></div>','<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)"><span style="width:5px;height:5px;border-radius:50%;background:var(--d-info)"></span>Dados reais · histórico</span>')}
+        ${mkCard('ov_risco','Diagnóstico de Risco','<div id="ovRiscoContent"></div>','<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)"><span style="width:5px;height:5px;border-radius:50%;background:var(--d-proj)"></span>Simulado · Monte Carlo · 10.000</span>')}
         ${mkCard('ov_heatmap','Calendário','<div id="ovHeatmapContent"></div>')}
         ${mkCard('roi_monthly','ROI Mensal (%)','<div class="chart-wrap" style="min-height:220px"><canvas id="chartROI" role="img" aria-label="ROI mensal"></canvas></div>')}
         ${mkCard('odds_dist','Distribuição de Odds — Apostas, Win Rate e ROI por faixa','<div class="chart-wrap" style="height:240px"><canvas id="chartOddsDist" role="img" aria-label="Odds dist"></canvas></div>')}
@@ -815,7 +815,7 @@ function buildHTML(){
             <img src="brand/sharpen-lockup-dark-tight.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
             <div style="width:1px;height:32px;background:var(--line);flex-shrink:0;margin-left:10px;margin-right:14px"></div>
             <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
-              <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">TIPSTER</span>
+              <span style="font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft)">TIPSTER</span>
               <span id="tipsterDrillName" style="font-size:28px;font-weight:800;letter-spacing:-.02em;color:var(--text1);font-family:var(--font-sans);line-height:1.1"></span>
             </div>
           </div>
@@ -847,7 +847,7 @@ function buildHTML(){
             <img src="brand/sharpen-lockup-dark-tight.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
             <div style="width:1px;height:32px;background:var(--line);flex-shrink:0;margin-left:10px;margin-right:14px"></div>
             <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
-              <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">BOOKIE</span>
+              <span style="font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft)">BOOKIE</span>
               <div style="display:flex;align-items:center;gap:8px;line-height:1">
                 <span id="casaDrillChip"></span>
                 <span id="casaDrillName" style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--text1);font-family:var(--font-sans)"></span>
@@ -882,7 +882,7 @@ function buildHTML(){
             <img src="brand/sharpen-lockup-dark-tight.svg" height="70" alt="Sharpen" class="drill-brand-logo" style="flex-shrink:0;filter:brightness(1.15)" crossorigin="anonymous">
             <div style="width:1px;height:32px;background:var(--line);flex-shrink:0;margin-left:10px;margin-right:14px"></div>
             <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
-              <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">ESPORTE</span>
+              <span style="font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft)">ESPORTE</span>
               <div style="display:flex;align-items:center;gap:8px;line-height:1">
                 <span id="sportDrillChip"></span>
                 <span id="sportDrillName" style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--text1);font-family:var(--font-sans)"></span>
@@ -914,7 +914,7 @@ function buildHTML(){
       <div class="analise-popup-modal" id="apEditModal" style="max-width:560px" onclick="event.stopPropagation()">
         <div class="analise-popup-hdr" style="align-items:center">
           <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
-            <span style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-mute)">EDITAR</span>
+            <span style="font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft)">EDITAR</span>
             <span style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text1);font-family:var(--font-sans);line-height:1.1">Aposta</span>
           </div>
           <div style="flex:1"></div>
