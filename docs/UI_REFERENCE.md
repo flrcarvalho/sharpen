@@ -77,6 +77,12 @@
   vermelho, V neutro.
 - **Tabelas:** header mono uppercase `--ink-mute`; linhas separadas por `--line`; números
   mono + direita.
+- **Campo de data (regra desde a s246):** todo campo de data usa o **SharpenCal**
+  (`app/static/sharpen-cal.js`) — botão de ícone + `SharpenCal.abrir(anchor, valor, onPick,
+  {saida:'br'|'iso'})`, input segue digitável. Em `type=date`, embrulhar em `.shcal-datewrap`
+  (esconde o indicador nativo) e despachar `change` no onPick. **Nunca** usar o popup nativo
+  do Chrome (sem marca, e `showPicker()` de input escondido falha em silêncio) nem criar um
+  segundo calendário.
 
 ---
 
