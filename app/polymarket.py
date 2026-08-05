@@ -13,6 +13,8 @@ Decisões (sessão Polymarket-1):
   atravessar feriados. Para aposta ANTIGA sem PTAX na janela, aborta o sync em vez
   de usar a cotação de hoje (que corromperia o histórico em BRL); só aposta recente
   (≤7 dias) usa hoje como proxy. Ver `_cotacao_para`.
+- A PTAX vem em UMA chamada de FAIXA para todo o histórico, não uma por data. Ver
+  `_carregar_periodo` — era o gargalo do sync inteiro (s247).
 - Ingere posições RESOLVIDAS (W/L/V) e também as ABERTAS, como bilhete sem
   resultado — a transição aberta→resolvida é um UPSERT pelo mesmo `Código`.
 - O resultado sai de quanto CADA COTA pagou na liquidação (`_payouts_por_lado`),
@@ -34,10 +36,14 @@ from datetime import datetime, timezone, timedelta
 import httpx
 
 POLY_BASE = "https://polymarket-proxy.flrcarvalho.workers.dev"
-BCB_PTAX = (
-    "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"
-    "CotacaoDolarDia(dataCotacao=@dataCotacao)"
-)
+_BCB_ODATA = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"
+# Cotação de UM dia. Só sobrou como rede de segurança do `_ptax_hoje` — o caminho
+# normal usa a faixa (abaixo), que troca N chamadas por uma.
+BCB_PTAX = _BCB_ODATA + "CotacaoDolarDia(dataCotacao=@dataCotacao)"
+# Cotações de uma FAIXA de datas numa chamada só. Devolve 1 boletim de fechamento por
+# dia útil, em ordem cronológica, e ignora dia sem boletim (fim de semana/feriado).
+BCB_PTAX_PERIODO = (_BCB_ODATA +
+                    "CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)")
 BRT = timezone(timedelta(hours=-3))
 
 # Tamanho de página POR endpoint — espelha o app standalone (index_proxy.html).
@@ -56,6 +62,12 @@ _RETRY_BASE = 1.0   # espera = base * 2**tentativa → 1s, 2s
 
 class CambioIndisponivel(RuntimeError):
     """PTAX/BCB não retornou cotação — abortamos para NÃO gravar USD como se fosse R$."""
+
+
+_CAMBIO_INDISPONIVEL_MSG = (
+    "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
+    "USD→BRL. Tente sincronizar novamente em alguns minutos."
+)
 
 
 class PolymarketRespostaInesperada(RuntimeError):
@@ -126,7 +138,9 @@ async def _paginate(client: httpx.AsyncClient, path: str, wallet: str,
 # ── Cotação USD→BRL (PTAX/BCB) ──────────────────────────────────────────────
 
 async def _ptax(client: httpx.AsyncClient, dia: datetime) -> float | None:
-    """cotacaoVenda do dia (M-D-Y). Retorna None se não houver boletim."""
+    """cotacaoVenda de UM dia (M-D-Y). Retorna None se não houver boletim — ou se o
+    BCB falhar (os dois casos são indistinguíveis aqui; por isso esta função só é
+    usada na rede de segurança do `_ptax_hoje`, nunca no laço por data)."""
     mdy = f"{dia.month:02d}-{dia.day:02d}-{dia.year:04d}"
     params = {"@dataCotacao": f"'{mdy}'", "$top": "1", "$format": "json"}
     try:
@@ -138,6 +152,98 @@ async def _ptax(client: httpx.AsyncClient, dia: datetime) -> float | None:
 
 
 _COTACAO_FALLBACK_DIAS = 7   # aposta "recente": usar hoje como proxy é desprezível
+_RECUO_MAX_DIAS = 10         # janela de recuo para atravessar feriado longo
+
+# ── Mapa de cotações em massa (a correção do gargalo, s247) ─────────────────
+#
+# A cotação de um dia PASSADO nunca muda, e o BCB entrega uma FAIXA inteira numa
+# chamada só: 3 anos de PTAX = 902 registros em ~1,3s. O desenho anterior pedia
+# um dia por vez e pagava caro duas vezes:
+#
+#   - LENTIDÃO: 76 datas distintas de bilhete viravam 111 chamadas SEQUENCIAIS
+#     (as datas + o recuo de fim de semana), a ~1,7s cada = ~3 min de sync, e
+#     crescendo linearmente com o histórico da carteira;
+#   - FRAGILIDADE: `_ptax` devolve None tanto para "não houve boletim" quanto para
+#     "o BCB falhou". Com o BCB oscilando (medido: 1 falha a cada 6 chamadas), um
+#     soluço consumia os 10 recuos de uma data e derrubava o sync INTEIRO com
+#     `CambioIndisponivel` — 3 minutos de trabalho perdidos por um timeout.
+#
+# O mapa é de MÓDULO (vive entre requisições), então o 2º sync não gasta chamada
+# nenhuma. É seguro porque só guarda dia já publicado, que é imutável.
+_PTAX_MAPA: dict[str, float] = {}   # ISO 'YYYY-MM-DD' → cotacaoVenda de fechamento
+_PTAX_DE: str = ""                  # menor data já coberta por uma carga em massa
+_PTAX_ATE: str = ""                 # maior data já coberta
+
+
+def _hoje_iso() -> str:
+    d = datetime.now(BRT)
+    return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
+
+
+def _mdy(iso: str) -> str:
+    """ISO 'YYYY-MM-DD' → 'MM-DD-YYYY' (o formato que a API do BCB exige)."""
+    y, m, d = iso.split("-")
+    return f"{m}-{d}-{y}"
+
+
+def _iso_mais(iso: str, dias: int) -> str:
+    d = datetime.strptime(iso, "%Y-%m-%d") + timedelta(days=dias)
+    return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
+
+
+async def _carregar_periodo(client: httpx.AsyncClient, de_iso: str, ate_iso: str) -> None:
+    """Carrega no `_PTAX_MAPA` todas as cotações de fechamento da faixa, em UMA chamada.
+
+    Levanta (via `_get_retry`) quando o BCB não responde — de propósito: aqui a falha
+    de rede é distinguível de "dia sem boletim", que é justamente o que faltava no
+    caminho por data."""
+    global _PTAX_DE, _PTAX_ATE
+    params = {
+        "@dataInicial": f"'{_mdy(de_iso)}'",
+        "@dataFinalCotacao": f"'{_mdy(ate_iso)}'",
+        "$select": "cotacaoVenda,dataHoraCotacao",
+        "$format": "json",
+    }
+    r = await _get_retry(client, BCB_PTAX_PERIODO, params)
+    for item in r.json().get("value", []):
+        iso = str(item.get("dataHoraCotacao") or "")[:10]
+        cot = item.get("cotacaoVenda")
+        if len(iso) == 10 and cot:
+            # `setdefault` = fica o PRIMEIRO registro do dia, igual ao `$top=1` do
+            # endpoint por data. O BCB republica um punhado de dias (ex.: 23/04/2025)
+            # com dois boletins de mesmo valor; a escolha não muda o número, mas
+            # manter a regra idêntica garante que re-sync não mexa em stake gravado.
+            _PTAX_MAPA.setdefault(iso, float(cot))
+    _PTAX_DE = min(_PTAX_DE, de_iso) if _PTAX_DE else de_iso
+    _PTAX_ATE = max(_PTAX_ATE, ate_iso) if _PTAX_ATE else ate_iso
+
+
+async def _garantir_cobertura(client: httpx.AsyncClient, iso: str) -> None:
+    """Garante que o mapa cobre `[iso − 10 dias .. hoje]`, carregando o que faltar.
+
+    Chamado por data, mas a carga é da faixa toda: a 1ª data do sync já traz o
+    histórico inteiro e as outras 75 acertam em memória. Sem cobertura e com o BCB
+    fora do ar, aborta rápido (`CambioIndisponivel` → 503 "tente de novo") em vez de
+    moer chamada por chamada até falhar no fim."""
+    hoje = _hoje_iso()
+    de = _iso_mais(iso, -_RECUO_MAX_DIAS)
+    if _PTAX_DE and _PTAX_ATE and de >= _PTAX_DE and hoje <= _PTAX_ATE:
+        return
+    try:
+        await _carregar_periodo(client, min(de, _PTAX_DE) if _PTAX_DE else de, hoje)
+    except Exception as exc:
+        raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG) from exc
+
+
+def _cotacao_do_mapa(iso: str) -> float | None:
+    """Última cotação publicada ATÉ `iso`, recuando no máximo 10 dias. É exatamente o
+    laço de recuo de antes — mesma janela, mesma escolha —, agora resolvido em
+    memória, sem uma ida à rede por dia tentado."""
+    for back in range(0, _RECUO_MAX_DIAS):
+        val = _PTAX_MAPA.get(_iso_mais(iso, -back))
+        if val:
+            return val
+    return None
 
 
 async def _cotacao_para(client: httpx.AsyncClient, iso: str, cache: dict, hoje: float | None) -> float | None:
@@ -155,20 +261,29 @@ async def _cotacao_para(client: httpx.AsyncClient, iso: str, cache: dict, hoje: 
         return hoje
     if iso in cache:
         return cache[iso]
-    base = datetime.strptime(iso, "%Y-%m-%d")
-    val = None
-    for back in range(0, 10):   # janela ampla: PTAX tem décadas de histórico, achar a data é regra
-        val = await _ptax(client, base - timedelta(days=back))
-        if val:
-            break
+    await _garantir_cobertura(client, iso)
+    val = _cotacao_do_mapa(iso)
     if not val:
         # Sem PTAX na janela: só cai para "hoje" se a aposta for recente o bastante
         # para a diferença ser irrelevante; senão devolve None (chamador aborta).
-        idade_dias = (datetime.now(BRT).date() - base.date()).days
+        idade_dias = (datetime.now(BRT).date() - datetime.strptime(iso, "%Y-%m-%d").date()).days
         if idade_dias <= _COTACAO_FALLBACK_DIAS:
             val = hoje
     cache[iso] = val
     return val
+
+
+def _inicio_hint(activity: list) -> str:
+    """Data mais antiga que o sync vai precisar de câmbio, deduzida da activity (a
+    compra é sempre anterior ao resgate). Serve só para a 1ª carga já pedir a faixa
+    inteira e não uma janelinha em torno de hoje — se algum bilhete acabar fora dela,
+    `_garantir_cobertura` estende sozinho. Sem activity, hoje."""
+    ts = [int(a.get("timestamp") or 0) for a in activity]
+    ts = [t for t in ts if t > 0]
+    if not ts:
+        return _hoje_iso()
+    d = datetime.fromtimestamp(min(ts), BRT)
+    return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
 
 
 # ── Datas ───────────────────────────────────────────────────────────────────
@@ -875,18 +990,26 @@ def _montar_linha(pos: dict, parceiro: str, iso: str, cotacao: float, resultado:
     }
 
 
-_CAMBIO_INDISPONIVEL_MSG = (
-    "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
-    "USD→BRL. Tente sincronizar novamente em alguns minutos."
-)
-
-
 async def _ptax_hoje(client: httpx.AsyncClient) -> float | None:
-    """Cotação PTAX 'de hoje', recuando até 6 dias (PTAX não publica fim de semana/feriado)."""
+    """Cotação PTAX 'de hoje', recuando até 6 dias (PTAX não publica fim de semana/feriado).
+
+    Sai do mesmo mapa em massa — depois que a faixa está carregada não custa chamada
+    nenhuma. Se a faixa falhar, cai no endpoint por dia (rede de segurança barata: no
+    máximo 6 chamadas, e só para UMA data). Nunca levanta: o dashboard ao vivo mostra
+    "—" no lugar do sub em R$, mas continua de pé."""
+    hoje = _hoje_iso()
+    try:
+        await _garantir_cobertura(client, hoje)
+    except CambioIndisponivel:
+        for _back in range(0, 6):
+            val = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
+            if val:
+                return val
+        return None
     for _back in range(0, 6):
-        hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
-        if hoje:
-            return hoje
+        val = _PTAX_MAPA.get(_iso_mais(hoje, -_back))
+        if val:
+            return val
     return None
 
 
@@ -959,6 +1082,10 @@ async def coletar_tudo(wallet: str, parceiro: str) -> tuple[list[dict], list[dic
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
         positions, activity = await _fetch_carteira(client, wallet)
+        # Uma carga de PTAX cobrindo da 1ª compra até hoje ANTES de derivar: as datas
+        # dos bilhetes acertam todas em memória. Se o BCB estiver fora, falha aqui em
+        # segundos — não depois de moer o histórico inteiro.
+        await _garantir_cobertura(client, _inicio_hint(activity))
         hoje = await _ptax_hoje(client)
         cot_cache: dict = {}
         resolvidas = await _derivar_resolvidas(client, positions, activity, parceiro, hoje, cot_cache)
@@ -972,6 +1099,7 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
         positions, activity = await _fetch_carteira(client, wallet)
+        await _garantir_cobertura(client, _inicio_hint(activity))
         hoje = await _ptax_hoje(client)
         return await _derivar_resolvidas(client, positions, activity, parceiro, hoje, {})
 
@@ -998,6 +1126,7 @@ async def coletar_ativas(wallet: str, parceiro: str) -> list[dict]:
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
         positions, activity = await _fetch_carteira(client, wallet)
+        await _garantir_cobertura(client, _inicio_hint(activity))
         hoje = await _ptax_hoje(client)
         return await _derivar_ativas(client, positions, activity, parceiro, hoje, {})
 
@@ -1106,11 +1235,9 @@ async def coletar_dashboard(wallet: str) -> dict:
         # portfólio (e com o saldo total). O que liquidou tem preço fixo; a oscilação de
         # mercado, se houver, é do lado aberto — que é onde ela de fato existe.
         em_aberto = max(portfolio - a_resgatar, 0.0)
-        hoje = None
-        for _back in range(0, 6):   # PTAX não publica fim de semana/feriado → recua
-            hoje = await _ptax(client, datetime.now(BRT) - timedelta(days=_back))
-            if hoje:
-                break
+        # Cotação do dia para o sub em R$ dos KPIs. Vem do mapa em massa (que o sync já
+        # carregou) — este poll roda a cada 60s e não pode pagar rede por isso.
+        hoje = await _ptax_hoje(client)
 
     ativas = []
     for pos in ativas_raw:

@@ -366,6 +366,44 @@ engano (histórico do navegador, script, curl) não pode apagar histórico.
 
 ---
 
+## API externa por item = latência E falha multiplicadas. Peça a FAIXA.
+
+> **Motivo:** o sync da Polymarket levava mais de 3 minutos e "muitas vezes nem
+> funcionava". A Polymarket respondia em 3s. O resto era o **Banco Central**: o câmbio
+> era pedido **uma data por vez**, e 76 datas de bilhete viravam **113 chamadas
+> sequenciais** (s247).
+
+Duas coisas escalam juntas quando se chama uma API externa em laço, e a segunda é a
+que morde:
+
+- **Latência** — 113 × 179ms = 25s com o BCB saudável. Cresce com o histórico, sem teto.
+- **Probabilidade de falha** — com o BCB oscilando (medido: 1 falha em 6), 113 chamadas
+  são 113 chances de derrubar o sync. Cada falha ainda carrega o backoff do `_get_retry`
+  (3 tentativas + 3s), e minutos viram a norma.
+
+**Antes de otimizar o laço, procure o endpoint de faixa.** O BCB entrega 3 anos de PTAX
+em **uma** chamada de 1,3s. A pergunta certa quase nunca é "como paralelizo 113
+chamadas?", e sim "por que são 113?".
+
+**Dado histórico é imutável — cacheie entre requisições.** Cotação de dia passado nunca
+muda: o mapa é de módulo (`polymarket._PTAX_MAPA`) e o 2º sync não gasta rede nenhuma.
+Vale para qualquer dado datado e fechado; não vale para saldo, preço ou posição aberta.
+
+**Engolir a exceção transforma falha de rede em dado ausente.** O `_ptax` antigo devolvia
+`None` tanto para "não houve boletim nesse dia" quanto para "o BCB caiu" — os dois
+indistinguíveis. O laço então tratava o timeout como feriado, recuava 10 dias e só no
+fim derrubava o sync inteiro. **Se o chamador precisa distinguir os dois casos, o
+`except` não pode achatá-los.**
+
+> **Trocar a fonte de um número exige provar que o número não mudou.** A cotação nova
+> foi comparada com a antiga **nas 76 datas, uma a uma**: 0 divergências. Sem isso o
+> re-sync mexeria em stake já gravado — `origem='sync'` é `_ORIGEM_AUTORITATIVA` e
+> refresca `stake`/`odd`/`data` mesmo em bilhete resolvido. Repare no detalhe que quase
+> passou: o BCB republica alguns dias com **dois** boletins, e o endpoint antigo pegava
+> o primeiro (`$top=1`) — o mapa mantém a mesma escolha (`setdefault`) de propósito.
+
+---
+
 ## Regra de cashout (planilha-compatível)
 
 > **Fonte canônica:** `global/MASTER_RESULTADO_2026.md §5.1.2` (cashout = stake → V) e `§5.6` (cashout ≠ stake → W), com resumo em `MASTER_OUTPUT_2026.md §14`. **Mudou? Mude no MASTER, nunca aqui.**
@@ -375,4 +413,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-03 (sessão 242 — seção "Escada de Tinta")
+ATUALIZADO: 2026-08-05 (sessão 247 — seção "API externa por item")

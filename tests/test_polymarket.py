@@ -7,6 +7,7 @@ stdlib + httpx (sem asyncpg/database), então importa direto.
 import asyncio
 from datetime import datetime, timezone
 
+import httpx
 import pytest
 
 import polymarket
@@ -346,9 +347,13 @@ def test_coletar_tudo_paridade_com_funcoes_separadas(monkeypatch):
     async def fake_cotacao(client, iso, cache, hoje):
         return 5.0   # câmbio fixo → sem rede PTAX/BCB
 
+    async def fake_cobertura(client, iso):
+        return None  # a carga em massa também é rede — sem isto o teste sai para o BCB
+
     monkeypatch.setattr(polymarket, "_paginate", fake_paginate)
     monkeypatch.setattr(polymarket, "_ptax_hoje", fake_ptax_hoje)
     monkeypatch.setattr(polymarket, "_cotacao_para", fake_cotacao)
+    monkeypatch.setattr(polymarket, "_garantir_cobertura", fake_cobertura)
 
     resolvidas_t, ativas_t = asyncio.run(polymarket.coletar_tudo("0xWALLET", "P [x]"))
     resolvidas_s = asyncio.run(polymarket.coletar_bilhetes("0xWALLET", "P [x]"))
@@ -359,3 +364,116 @@ def test_coletar_tudo_paridade_com_funcoes_separadas(monkeypatch):
     # e exercitou de fato os dois caminhos:
     assert len(resolvidas_t) == 1 and resolvidas_t[0]["resultado"] == "W"
     assert len(ativas_t) == 1 and ativas_t[0]["resultado"] == ""
+
+
+# ── PTAX em massa: 1 chamada no lugar de N (s247) ────────────────────────────
+#
+# O sync levava >3 min porque pedia a cotação de UMA data por vez: 76 datas de
+# bilhete viravam 111 chamadas sequenciais ao BCB, a ~1,7s cada. Pior, `_ptax`
+# devolvia None tanto para "dia sem boletim" quanto para "o BCB falhou", então um
+# timeout consumia os 10 recuos e derrubava o sync inteiro. Estes testes travam as
+# duas correções: a faixa única e a distinção falha × sem-boletim.
+
+
+@pytest.fixture(autouse=True)
+def _mapa_ptax_limpo():
+    """O mapa é de MÓDULO (vive entre requisições, de propósito). Zera entre testes
+    para um não herdar a cobertura do outro."""
+    polymarket._PTAX_MAPA.clear()
+    polymarket._PTAX_DE = ""
+    polymarket._PTAX_ATE = ""
+    yield
+    polymarket._PTAX_MAPA.clear()
+    polymarket._PTAX_DE = ""
+    polymarket._PTAX_ATE = ""
+
+
+def _resposta_periodo(itens):
+    class R:
+        def json(self):
+            return {"value": itens}
+    return R()
+
+
+def test_carregar_periodo_indexa_por_dia_e_mantem_o_primeiro(monkeypatch):
+    # O BCB republica alguns dias com dois boletins (ex.: 23/04/2025, mesmo valor).
+    # Vale o PRIMEIRO — é o que o `$top=1` do endpoint por data devolvia. Trocar a
+    # escolha mudaria stake já gravado num re-sync.
+    async def fake_get(client, url, params):
+        assert url == polymarket.BCB_PTAX_PERIODO
+        return _resposta_periodo([
+            {"cotacaoVenda": 5.10, "dataHoraCotacao": "2026-08-03 13:05:10.123"},
+            {"cotacaoVenda": 5.20, "dataHoraCotacao": "2026-08-04 13:06:30.416"},
+            {"cotacaoVenda": 5.99, "dataHoraCotacao": "2026-08-04 13:06:30.443"},
+        ])
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    asyncio.run(polymarket._carregar_periodo(None, "2026-08-01", "2026-08-04"))
+    assert polymarket._PTAX_MAPA == {"2026-08-03": 5.10, "2026-08-04": 5.20}
+    assert polymarket._PTAX_DE == "2026-08-01" and polymarket._PTAX_ATE == "2026-08-04"
+
+
+def test_cotacao_do_mapa_recua_ate_10_dias_e_para():
+    polymarket._PTAX_MAPA.update({"2026-07-31": 5.0773})
+    assert polymarket._cotacao_do_mapa("2026-07-31") == 5.0773   # o próprio dia
+    assert polymarket._cotacao_do_mapa("2026-08-02") == 5.0773   # domingo → recua p/ sexta
+    assert polymarket._cotacao_do_mapa("2026-08-09") == 5.0773   # 9 dias depois: ainda pega
+    assert polymarket._cotacao_do_mapa("2026-08-10") is None     # 10 dias: fora da janela
+
+
+def test_uma_unica_chamada_ao_bcb_para_muitas_datas(monkeypatch):
+    # A regressão que importa: 76 datas distintas não podem virar 76 idas à rede.
+    chamadas = []
+
+    async def fake_get(client, url, params):
+        chamadas.append(params["@dataInicial"])
+        return _resposta_periodo([{"cotacaoVenda": 5.0, "dataHoraCotacao": f"2026-05-{d:02d} 13:00:00"}
+                                  for d in range(1, 32)])
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    monkeypatch.setattr(polymarket, "_hoje_iso", lambda: "2026-05-31")
+
+    cache: dict = {}
+    datas = [f"2026-05-{d:02d}" for d in range(10, 31)]
+    for iso in datas:
+        got = asyncio.run(polymarket._cotacao_para(None, iso, cache, 5.0))
+        assert got == 5.0
+    assert len(chamadas) == 1, f"esperava 1 carga em massa, houve {len(chamadas)}"
+
+
+def test_bcb_fora_do_ar_aborta_em_vez_de_virar_dia_sem_boletim(monkeypatch):
+    # Antes: falha de rede virava None, indistinguível de "não houve boletim" → o
+    # código recuava 10 dias, chamava 10× e só então derrubava o sync. Agora a falha
+    # é falha: CambioIndisponivel na hora (→ 503 "tente de novo").
+    async def fake_get(client, url, params):
+        raise httpx.ConnectError("BCB fora do ar")
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    with pytest.raises(polymarket.CambioIndisponivel):
+        asyncio.run(polymarket._garantir_cobertura(None, "2026-05-10"))
+
+
+def test_cobertura_ja_carregada_nao_repete_chamada(monkeypatch):
+    # Cotação de dia passado é imutável → o 2º sync não gasta rede nenhuma.
+    chamadas = []
+
+    async def fake_get(client, url, params):
+        chamadas.append(params)
+        return _resposta_periodo([{"cotacaoVenda": 5.0, "dataHoraCotacao": "2026-05-15 13:00:00"}])
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    monkeypatch.setattr(polymarket, "_hoje_iso", lambda: "2026-05-20")
+
+    asyncio.run(polymarket._garantir_cobertura(None, "2026-05-15"))
+    asyncio.run(polymarket._garantir_cobertura(None, "2026-05-16"))   # dentro da faixa
+    assert len(chamadas) == 1
+
+
+def test_inicio_hint_pega_a_compra_mais_antiga():
+    # 01/05/2026 12:00 BRT e 10/06/2026 — o hint tem que ser o menor, senão a 1ª carga
+    # pede uma janela em torno de hoje e o histórico antigo dispara uma 2ª chamada.
+    ts_maio = int(datetime(2026, 5, 1, 12, 0, tzinfo=polymarket.BRT).timestamp())
+    ts_junho = int(datetime(2026, 6, 10, 12, 0, tzinfo=polymarket.BRT).timestamp())
+    activity = [{"timestamp": ts_junho}, {"timestamp": ts_maio}, {"timestamp": 0}]
+    assert polymarket._inicio_hint(activity) == "2026-05-01"
+    assert polymarket._inicio_hint([]) == polymarket._hoje_iso()

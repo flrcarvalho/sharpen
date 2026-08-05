@@ -28,7 +28,11 @@
   `limit=100` (a API limita a página deste endpoint — pedir mais faria a parada
   `len < limit` truncar o histórico em silêncio); `/activity` pede `limit=500`.
 - **Cotação USD→BRL:** `olinda.bcb.gov.br` (PTAX, `cotacaoVenda`), pela data da
-  aposta, com fallback de até 4 dias (fim de semana/feriado) e, por fim, hoje.
+  aposta, recuando até **10 dias** para atravessar fim de semana/feriado. Cai para a
+  cotação de hoje **só** se a aposta tiver ≤ 7 dias; aposta antiga sem PTAX na janela
+  aborta o sync (`CambioIndisponivel`) em vez de gravar histórico com câmbio errado.
+  A faixa inteira vem em **uma** chamada (`CotacaoDolarPeriodo`) e fica num mapa de
+  módulo — nunca uma chamada por data (s247; ver `CLAUDE.md`, "API externa por item").
 - **Sem upload:** o painel da casa troca o drag-and-drop por **carteira + Sincronizar**.
 
 ---
