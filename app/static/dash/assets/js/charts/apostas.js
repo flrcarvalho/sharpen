@@ -185,15 +185,12 @@ function _apEditVal(r,c){
   if(c==='resultado')return r.resultado==='ABERTA'?'':(r.resultado||'');
   return r[c]!=null?String(r[c]):'';
 }
-function _apBRToIso(s){const m=(s||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:'';}
-// Botão de calendário do campo Data: pré-carrega o valor digitado e abre o picker
-// nativo; escolher um dia devolve DD/MM/AAAA ao input de texto (que segue digitável).
+// Botão de calendário do campo Data do modal: abre o SharpenCal (calendário da
+// marca) ancorado no input; escolher um dia devolve DD/MM/AAAA ao campo digitável.
 function apEdAbrirCalendario(){
-  const txt=document.getElementById('ap-ed-data'),cal=document.getElementById('ap-ed-data-cal');
-  if(!txt||!cal)return;
-  if(!cal._apWired){cal._apWired=true;cal.addEventListener('change',()=>{if(cal.value)txt.value=_apIsoToBR(cal.value);});}
-  cal.value=_apBRToIso(txt.value);
-  try{cal.showPicker();}catch(_){cal.focus();cal.click();}
+  const txt=document.getElementById('ap-ed-data');
+  if(!txt||!window.SharpenCal)return;
+  SharpenCal.abrir(txt,txt.value,v=>{txt.value=v;});
 }
 window.apEdAbrirCalendario=apEdAbrirCalendario;
 function abrirEdicaoApostas(id){
@@ -288,6 +285,7 @@ function _apInlineStart(cell){
   const finish=async(commit)=>{
     if(done)return;
     done=true;
+    if(window.SharpenCal)SharpenCal.fechar();
     const val=editor.value.trim();
     _apInlineEditing=false;
     if(!commit||val===cur){cell.innerHTML=orig;return;}
@@ -306,6 +304,11 @@ function _apInlineStart(cell){
   });
   editor.addEventListener('blur',()=>finish(true));
   if(field==='resultado')editor.addEventListener('change',()=>finish(true));
+  // Data: o SharpenCal abre junto do input (digitar continua valendo). Escolher um
+  // dia preenche e salva; o popover segura o foco no editor (mousedown preventDefault),
+  // então o blur não dispara no meio do clique.
+  if(field==='data'&&window.SharpenCal)
+    SharpenCal.abrir(editor,cur,v=>{if(v){editor.value=v;finish(true);}});
 }
 document.addEventListener('dblclick',e=>{
   if(window.MODO_PUBLICO)return;   // vitrine pública: sem edição inline

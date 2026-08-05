@@ -324,6 +324,13 @@ function refreshMS(id){
   }
 }
 
+// Ícone + abertura do SharpenCal nos inputs de período (o indicador nativo some no CSS)
+function _calSVG(){return '<svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg>';}
+function abrirCalFiltro(id){
+  const inp=document.getElementById(id);
+  if(!inp||!window.SharpenCal)return;
+  SharpenCal.abrir(inp,inp.value,v=>{inp.value=v;inp.dispatchEvent(new Event('change',{bubbles:true}));},{saida:'iso'});
+}
 function buildFilters(p,sports,casas,tipsters){
   const st=gfs(p);
   const isAll=st.qd===0&&!st.qt&&!st.df&&!st.dt;
@@ -331,9 +338,9 @@ function buildFilters(p,sports,casas,tipsters){
     <div class="filter-group">
       <div class="filter-label">Período</div>
       <div class="date-row">
-        <input type="date" id="df_f_${p}" value="${st.df}" onchange="setDateF('${p}','f',this.value)">
+        <span class="shcal-datewrap"><input type="date" id="df_f_${p}" value="${st.df}" onchange="setDateF('${p}','f',this.value)"><button type="button" class="shcal-databtn" title="Abrir calendário" aria-label="Abrir calendário" onclick="abrirCalFiltro('df_f_${p}')">${_calSVG()}</button></span>
         <span class="date-sep">→</span>
-        <input type="date" id="df_t_${p}" value="${st.dt}" onchange="setDateF('${p}','t',this.value)">
+        <span class="shcal-datewrap"><input type="date" id="df_t_${p}" value="${st.dt}" onchange="setDateF('${p}','t',this.value)"><button type="button" class="shcal-databtn" title="Abrir calendário" aria-label="Abrir calendário" onclick="abrirCalFiltro('df_t_${p}')">${_calSVG()}</button></span>
       </div>
       <div class="quick-btns">
         <button class="qbtn ${st.qt==='hoje'?'active':''}" data-qt="hoje" onclick="setQuickType('${p}','hoje')">Hoje</button>

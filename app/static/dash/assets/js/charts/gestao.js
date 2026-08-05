@@ -1155,10 +1155,17 @@ async function tmRenderEscada(nome){
   }
   el.innerHTML=`<div class="ladder"><div class="ladder__hd"><span class="eye">Escada de unidade — quanto vale 1u em R$ no tempo</span></div>`
     +`<div class="ladder__bd"><div class="ladder__form"><p class="ladder__note">${note}</p>`
-      +`<div class="ladder__row"><input id="tmData" class="inp" type="date" style="color-scheme:dark" title="Dia em que a unidade passa a valer — clique p/ o calendário ou digite"><input id="tmValor" class="inp" placeholder="R$ por unidade"><button class="btn btn--primary" onclick="tmAddSeg()">Adicionar</button></div>`
+      +`<div class="ladder__row"><span class="shcal-datewrap"><input id="tmData" class="inp" type="date" style="color-scheme:dark" title="Dia em que a unidade passa a valer — abra o calendário ou digite"><button type="button" class="shcal-databtn" title="Abrir calendário" aria-label="Abrir calendário" onclick="tmAbrirCal()"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button></span><input id="tmValor" class="inp" placeholder="R$ por unidade"><button class="btn btn--primary" onclick="tmAddSeg()">Adicionar</button></div>`
     +`</div><div class="ladder__tl">${tl}</div></div></div>`;
 }
 window.tmRenderEscada=tmRenderEscada;
+// Botão de calendário da escada: SharpenCal grava ISO no input (digitar continua valendo)
+function tmAbrirCal(){
+  const inp=document.getElementById('tmData');
+  if(!inp||!window.SharpenCal)return;
+  SharpenCal.abrir(inp,inp.value,v=>{inp.value=v;},{saida:'iso'});
+}
+window.tmAbrirCal=tmAbrirCal;
 
 async function tmSaveInfo(id){
   const body={casas:_tmSelCasas.join(', '),mercados:_tmSelMkts.join(', '),esportes:_tmSelEsp.join(', '),obs:_tmVal('tmObs'),dica_stake:_tmVal('tmDica')};

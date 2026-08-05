@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/tokens.css">
 <link rel="stylesheet" href="/static/shell.css"><!-- casca compartilhada c/ o Dashboard (etapa A) -->
+<script src="/static/sharpen-cal.js?v=1"></script><!-- calendário da marca (todo campo de data) -->
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 /* Scrollbar de marca FDC — fina, thumb steel, track na superfície. */
@@ -1132,8 +1133,8 @@ html.embedded .sidebar { display: none; }
 .btbl-tip-input[readonly] { caret-color: transparent; cursor: default; }
 .btbl-tip-input.cell-sel { background: rgba(var(--accent-rgb),.12); }
 .btbl-tip-input.cell-active { outline: 2px solid var(--accent); outline-offset: -2px; background: rgba(var(--accent-rgb),.18); border-color: transparent; }
-/* Campo Data do editor: híbrido — digita DD/MM/AAAA ou abre o calendário pelo botão
-   (input de calendário sobreposto invisível; botão e duplo-clique chamam showPicker) */
+/* Campo Data do editor: híbrido — digita DD/MM/AAAA ou abre o SharpenCal
+   (calendário da marca) pelo botão. O popup nativo do Chrome não é usado. */
 .ed-data-wrap { position: relative; display: flex; }
 .ed-data-wrap input[type="text"] { width: 100%; padding-right: 36px; }
 .ed-data-btn {
@@ -1144,7 +1145,10 @@ html.embedded .sidebar { display: none; }
   transition: color .15s var(--ease);
 }
 .ed-data-btn:hover { color: var(--ink-soft); }
-#ed-data-cal { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+/* Data de referência da captura: o indicador nativo some — o calendário é o SharpenCal */
+.dref-wrap { position: relative; display: inline-flex; align-items: center; }
+.dref-wrap .data-ref-input { padding-right: 28px; }
+.data-ref-input::-webkit-calendar-picker-indicator { display: none; }
 .btbl-casa { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
 .btbl-casa-sub { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .btbl-casa-nome { font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1822,7 +1826,7 @@ td.c-res.res-HL { color: var(--warn); }
             <button class="btn btn-ghost btn-danger" id="btn-desconectar-ext" style="display:none">Desconectar</button>
             <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
               <span>Captura</span>
-              <input type="date" id="data-ref" class="data-ref-input">
+              <span class="dref-wrap"><input type="date" id="data-ref" class="data-ref-input"><button type="button" id="data-ref-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button></span>
             </label>
             <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
             <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
@@ -1982,7 +1986,7 @@ td.c-res.res-HL { color: var(--warn); }
       <button class="modal-close" id="edit-close" type="button">✕</button>
     </div>
     <div class="modal-body">
-      <div class="modal-field"><label>Data</label><div class="ed-data-wrap"><input type="text" id="ed-data" spellcheck="false" placeholder="DD/MM/AAAA" title="Digite a data ou abra o calendário"><button type="button" id="ed-data-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button><input type="date" id="ed-data-cal" tabindex="-1" aria-hidden="true"></div></div>
+      <div class="modal-field"><label>Data</label><div class="ed-data-wrap"><input type="text" id="ed-data" spellcheck="false" placeholder="DD/MM/AAAA" title="Digite a data ou abra o calendário"><button type="button" id="ed-data-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button></div></div>
       <div class="modal-field"><label>Esporte</label><input type="text" id="ed-esporte" class="js-ac-esporte" spellcheck="false" autocomplete="off"></div>
       <div class="modal-field"><label>Casa</label><input type="text" id="ed-casa" spellcheck="false"></div>
       <div class="modal-field"><label>Parceiro</label><input type="text" id="ed-parceiro" spellcheck="false"></div>
@@ -2259,6 +2263,14 @@ function hojeISO() {
   const inp = document.getElementById('data-ref');
   if (!inp) return;
   inp.value = hojeISO();
+  // Botão de calendário: SharpenCal grava ISO e dispara change; Limpar volta a hoje
+  // (a data de referência nunca pode ficar vazia — ela resolve Hoje/Ontem/Amanhã).
+  document.getElementById('data-ref-btn').addEventListener('click', () => {
+    SharpenCal.abrir(inp, inp.value, v => {
+      inp.value = v || hojeISO();
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    }, { saida: 'iso' });
+  });
 })();
 
 const NOMES = {
@@ -5121,31 +5133,14 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('edit-modal').classList.contains('open')) fecharEdicao();
 });
 
-// ── Campo Data do editor: botão/duplo-clique abre o calendário (ou digita à mão) ─
+// ── Campo Data do editor: botão/duplo-clique abre o SharpenCal (ou digita à mão) ─
 (function () {
   const txt = document.getElementById('ed-data');
-  const cal = document.getElementById('ed-data-cal');
   const btn = document.getElementById('ed-data-btn');
-  if (!txt || !cal) return;
-  const brToISO = s => {
-    const m = (s || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
-  };
-  const isoToBR = s => {
-    const m = (s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
-  };
-  const abrirCal = () => {
-    cal.value = brToISO(txt.value);
-    try { cal.showPicker(); }            // gesto do clique habilita o showPicker
-    catch (_) { cal.focus(); cal.click(); }
-  };
+  if (!txt || !btn) return;
+  const abrirCal = () => SharpenCal.abrir(txt, txt.value, v => { txt.value = v; });
   txt.addEventListener('dblclick', abrirCal);
-  if (btn) btn.addEventListener('click', abrirCal);
-  cal.addEventListener('change', () => {
-    const br = isoToBR(cal.value);
-    if (br) txt.value = br;
-  });
+  btn.addEventListener('click', abrirCal);
 })();
 
 // ── Paginação ─────────────────────────────────────────────────────────────────

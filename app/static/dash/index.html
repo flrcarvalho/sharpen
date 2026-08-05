@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="assets/css/tokens.css?v=2">
   <link rel="stylesheet" href="/static/shell.css?v=1"><!-- casca compartilhada c/ o Planilhador (etapa A) -->
   <link rel="stylesheet" href="assets/css/layout.css?v=7">
-  <link rel="stylesheet" href="assets/css/components.css?v=20">
+  <link rel="stylesheet" href="assets/css/components.css?v=21">
   <link rel="stylesheet" href="assets/css/tipster-metodo.css?v=5"><!-- tela Tipster/Método (pack do Feca) -->
 
   <!-- Aparência init: aplica tema antes do render para evitar flash.
@@ -62,17 +62,18 @@
 <!-- Núcleo do Monte Carlo: MESMO arquivo que o Web Worker importa (mc-worker.js).
      O ?v= daqui versiona a página; o do worker vive no `new Worker(...?v=)` do app.js —
      ao editar mc-core.js, bumpe OS DOIS, senão página e worker rodam versões diferentes. -->
+<script src="/static/sharpen-cal.js?v=1"         defer></script><!-- calendário da marca (todo campo de data) -->
 <script src="assets/js/mc-core.js?v=1"           defer></script>
 <script src="assets/js/data.js?v=11"             defer></script>
-<script src="assets/js/filters.js?v=8"           defer></script>
+<script src="assets/js/filters.js?v=9"           defer></script>
 <script src="assets/js/charts/shared.js?v=4"     defer></script>
-<script src="assets/js/charts/gestao.js?v=26"    defer></script>
+<script src="assets/js/charts/gestao.js?v=27"    defer></script>
 <script src="assets/js/charts/overview.js?v=14"   defer></script>
 <script src="assets/js/charts/temporal.js?v=7"   defer></script>
 <script src="assets/js/charts/performance.js?v=15" defer></script>
-<script src="assets/js/charts/apostas.js?v=13"   defer></script>
+<script src="assets/js/charts/apostas.js?v=14"   defer></script>
 <script src="assets/js/charts/abertas.js?v=2"    defer></script>
-<script src="assets/js/app.js?v=32"              defer></script>
+<script src="assets/js/app.js?v=33"              defer></script>
 
 </body>
 </html>
