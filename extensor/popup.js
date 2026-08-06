@@ -36,6 +36,7 @@ const CASA_HOSTS = {
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
+  "Betboom":    ["betboom.bet.br"],   // espelho da Jonbet · mesmo motor BetBy (sptpub.com)
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -184,7 +185,9 @@ async function capturar() {
                 : casa === "Betfast" ? "tv_inject.js"
                 : casa === "VaideBet" ? "vb_inject.js"
                 : casa === "Betnacional" ? "bnc_inject.js"
-                : casa === "Jonbet" ? "jb_inject.js" : null;
+                // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
+                // `/api/v1/my_bets/list`): MESMO inject, de propósito.
+                : (casa === "Jonbet" || casa === "Betboom") ? "jb_inject.js" : null;
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
       if (inj) { try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [inj], world: "MAIN" }); } catch (_) {} }

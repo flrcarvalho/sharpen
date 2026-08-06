@@ -138,6 +138,12 @@ _TSV_HEADER = "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStak
 _CASA_DISPLAY: dict[str, str] = {
     "BET365":         "Bet365",
     "BETANO":         "Betano",
+    # ⚠ A MARCA escreve "BetBoom", mas a canônica aqui é "Betboom" — medido antes de
+    # registrar (s250): a base já tem 172 bilhetes, 3 contas e 3 perfis de tipster nessa
+    # grafia. Registrar uma casa neste mapa é mudança RETROATIVA (reinterpreta toda conta
+    # que já existe na grafia gêmea); foi assim que a Jonbet quebrou na s249. Aqui o
+    # round-trip `_casa_display(_display_to_key("Betboom"))` fecha em identidade.
+    "BETBOOM":        "Betboom",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -494,7 +500,7 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 # texto+extrato sem marcador) e é roteada POR CONTEÚDO (`"[Código:" in texto`), não por casa.
 _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
-    "BETFAST", "BETNACIONAL", "JONBET",
+    "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM",
 })
 
 

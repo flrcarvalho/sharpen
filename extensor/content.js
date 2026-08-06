@@ -757,12 +757,17 @@
       // grid, sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
       // bloco só e a IA perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboVBPassive(ctx);
-    } else if (casa === "jonbet") {
+    } else if (casa === "jonbet" || casa === "betboom") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
       // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
       // de texto: os cards da Jonbet ficam num grid de 3 colunas, sem linha em branco entre
       // bilhetes, então o roboScroll genérico viraria um bloco só e a IA perderia o resto em
       // silêncio (lição da KTO, s192).
+      //
+      // A BETBOOM cai aqui de propósito (s250): é espelho da Jonbet — as duas rodam **BetBy**
+      // (`sptpub.com`), mesmo `GET /api/v1/my_bets/list`, mesmos nomes de campo, mesmo enum de
+      // status. Só muda o cluster do host (`api-32-…` × `api-31-…`), que o inject nunca
+      // hardcoda: o `RX` casa por PATH. Um ramo, um inject, um formatador — como Tivo/Betfast.
       blocos = await roboJBPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
@@ -790,6 +795,9 @@
         betfast:    { nome: "Betfast",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
+        // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o
+        // operador não ler "Jonbet: 0 bilhetes" estando na Betboom.
+        betboom:    { nome: "Betboom",    hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -2085,7 +2093,7 @@
     }
     await sleep(400);
     processar();   // consome o que chegou por último
-    console.log("[SharpenUp] Jonbet: " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
+    console.log("[SharpenUp] Jonbet/Betboom: " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
                 " · hook=" + jbHookVivo + " · respostas=" + jbRespostas + " · fimReal=" + jbFimReal);
     return blocos;
   }

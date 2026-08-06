@@ -69,6 +69,10 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # FORA do snap por edit-distance de `corrigir_codigos_tsv` de propósito — nenhuma das três
     # regexes de lá casa 19 dígitos. A cobertura funciona pelo marcador genérico.
     "JONBET":     "2696533322854707365",
+    # id real do BetBy (a ganha de 05/08, R$ 906,00 — `sum` 300 × `total_k` 3,02). Betboom é
+    # espelho da Jonbet e compartilha o espaço de IDs do motor: mesmo formato numérico de 19
+    # dígitos e, pelo mesmo motivo da Jonbet, FORA do snap por edit-distance.
+    "BETBOOM":    "2696881722674520125",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do

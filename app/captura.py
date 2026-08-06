@@ -53,7 +53,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # {name:"gethistory"}. Sem paginação: uma chamada devolve a conta inteira com `Count`.
 # BETFAST: ESPELHO da Tivo (s211) — mesmo motor BetConstruct, mesmo caminho de API, mesmos
 # nomes de campo; muda o domínio e a cor. Usa o MESMO `tv_inject.js`, sem código duplicado.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto"}
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -84,6 +84,9 @@ _HOSTS_POR_CASA = {
     # Mesma situação da BetNacional: a API é do BetBy (api-NN-sp-<hash>.sptpub.com) e o
     # renderer vem de jonbet.sptpub.com, mas a ABA é o site da casa.
     "JONBET":     ("jonbet.bet.br",),
+    # Espelho da Jonbet: mesmo BetBy, outro cluster (`api-32-…` × `api-31-…`) e outro tenant
+    # do renderer (betboombr.sptpub.com). A ABA continua sendo o site da casa.
+    "BETBOOM":    ("betboom.bet.br",),
 }
 
 
