@@ -39,6 +39,8 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
  *        Recebe TODA requisição, inclusive as do replay: é aqui que se simula paginação.
  * @param {string} [cfg.pedido]   chave do pedido do content (ex.: "__sharpenupKTOReq") —
  *        postada após a 1ª resposta para arrancar o replay ativo.
+ * @param {object} [cfg.optsInicial]  2º argumento do fetch inicial (method/headers/body). Use
+ *        quando o replay depender dos HEADERS que a página mandou — ex.: o Bearer da Jonbet.
  * @param {string[]} [cfg.urlsExtra]  URLs buscadas DEPOIS da inicial, em ordem. Existe para as
  *        casas cujo detalhe a PÁGINA busca, não o inject — na bet365 o `confirmation` só sai
  *        quando o app navega por rota (`location.hash`), coisa que não existe fora do navegador.
@@ -106,11 +108,24 @@ export async function rodarInject(cfg) {
 
   // 1) a página pede a lista (é o que o hook escuta). `corpoInicial` simula o CORPO que a
   // página envia — necessário quando o inject guarda a requisição para repaginar depois.
+  // `optsInicial` dá controle total do 2º argumento do fetch: existe para as casas cujo replay
+  // depende dos HEADERS da requisição real (Jonbet/BetBy — o `Authorization: Bearer` é a única
+  // coisa que separa a chamada útil daquela que a página dispara antes de autenticar e toma
+  // 401). Sem ele o harness não conseguiria exercitar a guarda do token.
   await janela.fetch(cfg.urlInicial || cfg.href,
-                     cfg.corpoInicial ? { method: "POST", body: cfg.corpoInicial } : undefined);
+                     cfg.optsInicial ||
+                     (cfg.corpoInicial ? { method: "POST", body: cfg.corpoInicial } : undefined));
   await espera(30);
   // 1b) respostas que a PÁGINA busca depois (detalhe por rota, na bet365) — ver `cfg.urlsExtra`.
-  for (const u of (cfg.urlsExtra || [])) { await janela.fetch(u); await espera(20); }
+  // Cada item é uma URL ou `{url, opts}` — a forma com `opts` existe para reproduzir a
+  // sequência real da Jonbet: a 1ª chamada sai sem `Authorization` e toma 401, a 2ª já vai
+  // autenticada. É só nessa 2ª que o inject pode aprender a requisição para o replay.
+  for (const x of (cfg.urlsExtra || [])) {
+    const u = (x && typeof x === "object") ? x.url : x;
+    const o = (x && typeof x === "object") ? x.opts : undefined;
+    await janela.fetch(u, o);
+    await espera(20);
+  }
   // 2) o content pede o acumulado e arranca o replay
   if (cfg.pedido) { janela.postMessage({ [cfg.pedido]: true }); }
   await espera(cfg.ms || 400);

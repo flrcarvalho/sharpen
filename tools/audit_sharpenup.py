@@ -64,6 +64,11 @@ CODIGO_EXEMPLO: dict[str, str] = {
     "BET365":     "JR8714690761I",
     # ticket_id real da conta (a Super Odds aberta de 01/08) — formato NXBNAC + 24 dígitos.
     "BETNACIONAL": "NXBNAC000142211281785609607878",
+    # id real do BetBy (a ganha de 04/08, R$ 623,01) — numérico de 19 dígitos. ⚠ Os ids da
+    # Jonbet são QUASE IDÊNTICOS entre si (…475463 × …475401 diferem em 3 chars): ela fica
+    # FORA do snap por edit-distance de `corrigir_codigos_tsv` de propósito — nenhuma das três
+    # regexes de lá casa 19 dígitos. A cobertura funciona pelo marcador genérico.
+    "JONBET":     "2696533322854707365",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do

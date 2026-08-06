@@ -118,6 +118,25 @@ Regras que valem para todos:
 | **Bet365** | rota (`location.hash`) | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
 | **Tivo** | API + replay (1 chamada) | `POST /api/game/p/messagetosport` (`gethistory`) | `tv_inject.js` | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
 | **Betfast** | **espelho da Tivo** — mesmo motor BetConstruct | idem | **`tv_inject.js`** (o mesmo) | `ID` | teto de 50 + varredura por `to` ⚠ | evento mais recente (UTC→SP) |
+| **BetNacional** | API + replay (janelas de datas) | `GET /api/v2/all-bets` | `bnc_inject.js` | `ticket_id` | janelas até secar | ⚠ ver nota abaixo |
+| **VaideBet** | API + replay (paginado) | `POST /api/WidgetReports/widgetExpandedBetHistory` (Altenar) | `vb_inject.js` | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
+| **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
+
+> ⚠ **BetNacional — divergência de rótulo NÃO medida (anotada na s248, ao preencher esta tabela).**
+> `formatTicketBNC` emite só `Data (colocação):` (de `t.colocada`), enquanto `CASA_BETNACIONAL §4`
+> diz que a coluna Data é a **do evento** e que o campo do Histórico já é "evento / liquidação".
+> Pode ser só nome infeliz da variável — o campo da casa talvez já seja o do evento — ou pode ser
+> o mesmo defeito que a VaideBet levou a produção na s210. **Ninguém mediu se as duas datas
+> divergem nessa casa.** Para decidir: comparar `t.colocada` com `pernas[].inicio` (que o bloco já
+> emite como `Início:`) num lote real. Enquanto isso, esta célula fica marcada, não chutada.
+>
+> **Jonbet (s248) — três coisas que só essa casa tem até agora.** (1) O motor **BetBy** renderiza
+> na **própria página** (`bt-renderer.min.js`), não em iframe — o `content.js` alcança tudo. (2) A
+> página dispara a lista **antes de o token existir** e toma **401**, com um corpo que **tem uma
+> chave `status`** que não é status de bilhete; por isso o inject só aprende requisição **com
+> `Authorization`** e só processa corpo com `results` array. (3) A odd (`total_k`) vem **0 em toda
+> perdida**, com `k` guardando a real — mesma família do `betOdds` da KTO. **BetBy é plataforma:**
+> casa nova que carregue `sptpub.com` é **casa espelho** pelo padrão da Betfast abaixo.
 
 > **Casa espelho — o padrão da Betfast (s211).** Quando uma casa nova roda o **mesmo motor** de
 > uma já ligada, ela **não ganha inject próprio**: entra nos 12 pontos de registro apontando

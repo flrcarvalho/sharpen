@@ -2280,7 +2280,7 @@ const NOMES = {
   BETNACIONAL: 'Betnacional', LOTTU: 'Lottu',
   JOGODEOURO: 'Jogo de Ouro', KTO: 'KTO',
   POLYMARKET: 'Polymarket', VITORIABET: 'Vitória Bet', TIVO: 'Tivo', VAIDEBET: 'VaideBet',
-  BETFAST: 'Betfast',
+  BETFAST: 'Betfast', JONBET: 'Jonbet',
   // "Rei do Pitaco" rebatizou para "Pitaco" — alias de exibição (DB ainda guarda o nome antigo)
   'Rei do Pitaco': 'Pitaco',
 };
@@ -2331,7 +2331,7 @@ const DOMINIOS = {
   Betfast: 'betfast.bet.br', BetMGM: 'betmgm.bet.br', 'Donald Bet': 'donald.bet.br',
   Esportiva: 'esportiva.bet.br', Faz1Bet: 'faz1.bet.br', Fulltbet: 'fulltbet.bet.br',
   'Lance de Sorte': 'lancedesorte.bet.br', MultiBet: 'multi.bet.br', Tivo: 'tivo.bet.br',
-  VaideBet: 'vaidebet.bet.br',
+  VaideBet: 'vaidebet.bet.br', Jonbet: 'jonbet.bet.br',
   // só no Planilhador (não estão no Dashboard) — reguladas BR
   KingPanda: 'kingpanda.bet.br', Lottu: 'lottu.bet.br', 'Jogo de Ouro': 'jogodeouro.bet.br',
   'Vitória Bet': 'vitoriabet.bet',
@@ -3459,7 +3459,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET']);
 function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase()); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────

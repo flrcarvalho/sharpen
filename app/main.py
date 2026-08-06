@@ -144,6 +144,7 @@ _CASA_DISPLAY: dict[str, str] = {
     "BETNACIONAL":    "Betnacional",
     "BOLSADEAPOSTA":  "Bolsa de Aposta",
     "JOGODEOURO":     "Jogo de Ouro",
+    "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
     "KTO":            "KTO",
     "LOTTU":          "Lottu",
@@ -493,7 +494,7 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 # texto+extrato sem marcador) e é roteada POR CONTEÚDO (`"[Código:" in texto`), não por casa.
 _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
-    "BETFAST", "BETNACIONAL",
+    "BETFAST", "BETNACIONAL", "JONBET",
 })
 
 

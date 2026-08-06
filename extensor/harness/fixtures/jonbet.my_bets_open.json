@@ -1,0 +1,212 @@
+{
+  "results": [
+    {
+      "id": "2696892252130783466",
+      "type": "1/1",
+      "currency": "R$",
+      "sum": "200",
+      "k": "1.87",
+      "total_k": "1.87",
+      "selections": [
+        {
+          "id": "2696892252130783467",
+          "live": false,
+          "event_id": "2696799078179811362",
+          "sport_id": "31",
+          "virtual": false,
+          "market_id": "237",
+          "outcome_id": "1715",
+          "specifiers": "hcp=3.5",
+          "market_name": "Handicap pontos",
+          "outcome_name": "Kharb, Anmol (-3.5)",
+          "k": "1.87",
+          "status": "open",
+          "desc": {
+            "id": "2696799078179811362",
+            "scheduled": 1785989100,
+            "type": "match",
+            "virtual": false,
+            "sport": {
+              "id": "31",
+              "name": "Badminton"
+            },
+            "category": {
+              "id": "1669817297256189952",
+              "name": "International"
+            },
+            "tournament": {
+              "id": "1679128533542354944",
+              "name": "Korea Masters, WS"
+            },
+            "competitors": [
+              {
+                "id": "148760",
+                "name": "Vu, Thi Trang"
+              },
+              {
+                "id": "1079816",
+                "name": "Kharb, Anmol"
+              }
+            ]
+          },
+          "boost": false,
+          "is_bet_builder": false
+        }
+      ],
+      "status": "open",
+      "timestamp": 1785963619.595635,
+      "potential_win": "374",
+      "currency_details": {
+        "sign_before_value": true,
+        "cents": 2
+      },
+      "is_bet_builder": false,
+      "cashout_amount": "184.46",
+      "cashout": {
+        "amount_gross": "184.46",
+        "amount_net": "184.46",
+        "payout_tax": "0",
+        "payout_tax_rate": "0"
+      }
+    },
+    {
+      "id": "2696881871849136836",
+      "type": "1/1",
+      "currency": "R$",
+      "sum": "300",
+      "k": "1.71",
+      "total_k": "1.71",
+      "selections": [
+        {
+          "id": "2696881871849136837",
+          "live": false,
+          "event_id": "2696799078179811350",
+          "sport_id": "31",
+          "virtual": false,
+          "market_id": "186",
+          "outcome_id": "5",
+          "specifiers": "",
+          "market_name": "Vencedor",
+          "outcome_name": "Baruah, Isharani",
+          "k": "1.71",
+          "status": "open",
+          "desc": {
+            "id": "2696799078179811350",
+            "scheduled": 1785986100,
+            "type": "match",
+            "virtual": false,
+            "sport": {
+              "id": "31",
+              "name": "Badminton"
+            },
+            "category": {
+              "id": "1669817297256189952",
+              "name": "International"
+            },
+            "tournament": {
+              "id": "1679128533542354944",
+              "name": "Korea Masters, WS"
+            },
+            "competitors": [
+              {
+                "id": "1125545",
+                "name": "Kim, Min Sun"
+              },
+              {
+                "id": "847036",
+                "name": "Baruah, Isharani"
+              }
+            ]
+          },
+          "boost": false,
+          "is_bet_builder": false
+        }
+      ],
+      "status": "open",
+      "timestamp": 1785961115.643062,
+      "potential_win": "513",
+      "currency_details": {
+        "sign_before_value": true,
+        "cents": 2
+      },
+      "is_bet_builder": false,
+      "cashout_amount": "276.69",
+      "cashout": {
+        "amount_gross": "276.69",
+        "amount_net": "276.69",
+        "payout_tax": "0",
+        "payout_tax_rate": "0"
+      }
+    },
+    {
+      "id": "2696878266291196409",
+      "type": "1/1",
+      "currency": "R$",
+      "sum": "250",
+      "k": "2.12",
+      "total_k": "2.12",
+      "selections": [
+        {
+          "id": "2696878266291196410",
+          "live": false,
+          "event_id": "2696486686422085659",
+          "sport_id": "31",
+          "virtual": false,
+          "market_id": "186",
+          "outcome_id": "4",
+          "specifiers": "",
+          "market_name": "Vencedor",
+          "outcome_name": "Tee K W / Yap R K",
+          "k": "2.12",
+          "status": "open",
+          "desc": {
+            "id": "2696486686422085659",
+            "scheduled": 1785992100,
+            "type": "match",
+            "virtual": false,
+            "sport": {
+              "id": "31",
+              "name": "Badminton"
+            },
+            "category": {
+              "id": "1669817297256189952",
+              "name": "International"
+            },
+            "tournament": {
+              "id": "1678923539085942784",
+              "name": "Korea Masters, MD"
+            },
+            "competitors": [
+              {
+                "id": "2691034443371646990",
+                "name": "Tee K W / Yap R K"
+              },
+              {
+                "id": "2678279286477168667",
+                "name": "Jin Y / Lee J M"
+              }
+            ]
+          },
+          "boost": false,
+          "is_bet_builder": false
+        }
+      ],
+      "status": "open",
+      "timestamp": 1785960240.9779482,
+      "potential_win": "530",
+      "currency_details": {
+        "sign_before_value": true,
+        "cents": 2
+      },
+      "is_bet_builder": false,
+      "cashout_amount": "230.57",
+      "cashout": {
+        "amount_gross": "230.57",
+        "amount_net": "230.57",
+        "payout_tax": "0",
+        "payout_tax_rate": "0"
+      }
+    }
+  ],
+  "count": 3
+}

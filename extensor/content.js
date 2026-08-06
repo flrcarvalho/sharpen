@@ -187,6 +187,31 @@
     }
   });
 
+  // Bilhetes da JONBET capturados pelo jb_inject.js (mundo MAIN) — as RESPOSTAS de
+  // `my_bets/list` (BetBy / sptpub), já normalizadas pelo inject. Mesmo modelo passivo +
+  // REPLAY ATIVO: o inject repagina por `skip` até `skip >= count`, então o operador NÃO
+  // precisa rolar a lista. `jbById` guarda 1 bilhete por id (a versão resolvida vence a
+  // aberta). `jbFimReal` = o inject terminou → fim autoritativo.
+  const jbById = new Map();          // id(string) → bilhete
+  let jbFimReal = false;
+  let jbHookVivo = false, jbRespostas = 0;   // autodiagnóstico (espelha KTO/Pinnacle)
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupJBData) {
+      if (d.hook) jbHookVivo = true;
+      if (typeof d.respostas === "number") jbRespostas = d.respostas;
+      if (Array.isArray(d.bilhetes)) {
+        const aberto = (b) => !b.status || b.status === "open";
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = jbById.get(b.id);
+          if (!ex || (aberto(ex) && !aberto(b))) jbById.set(b.id, b);
+        }
+      }
+      if (d.fim) jbFimReal = true;
+    }
+  });
+
   // Bilhetes da TIVO capturados pelo tv_inject.js (mundo MAIN) — as RESPOSTAS do proxy
   // /api/game/p/messagetosport com {name:"gethistory"}, já normalizadas pelo inject. A Tivo
   // NÃO pagina: uma única chamada devolve a conta inteira e a própria casa carimba `Count`,
@@ -732,6 +757,13 @@
       // grid, sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
       // bloco só e a IA perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboVBPassive(ctx);
+    } else if (casa === "jonbet") {
+      // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
+      // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
+      // de texto: os cards da Jonbet ficam num grid de 3 colunas, sem linha em branco entre
+      // bilhetes, então o roboScroll genérico viraria um bloco só e a IA perderia o resto em
+      // silêncio (lição da KTO, s192).
+      blocos = await roboJBPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -757,6 +789,7 @@
         // operador não ler "Tivo: 0 bilhetes" estando na Betfast.
         betfast:    { nome: "Betfast",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
+        jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -1855,6 +1888,205 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] KTO: " + blocos.length + " bilhete(s) · ktoById=" + ktoById.size +
                 " · hook=" + ktoHookVivo + " · respostas=" + ktoRespostas + " · fimReal=" + ktoFimReal);
+    return blocos;
+  }
+
+  // ── Jonbet modo API (passivo + replay paginado por `skip`) ────────────────────
+  // Formata 1 bilhete lido de `my_bets/list` (BetBy/sptpub) no bloco de texto que a IA lê.
+  //
+  // Mapeamentos VALIDADOS cruzando o JSON com o card renderizado (recon s248, 10 bilhetes):
+  //   • dinheiro e odds em STRING com PONTO decimal, em reais ("333.16", "1.87") — o inject
+  //     já converteu para número. NUNCA usar o parser de dinheiro BR aqui.
+  //   • stake é `sum`, não `stake`.
+  //   • `timestamp` é epoch em SEGUNDOS (float), não em ms — `×1000` antes de virar Date, e
+  //     formatado em America/Sao_Paulo como todas as outras casas.
+  //   • `potential_win` de bilhete ABERTO é retorno POTENCIAL → aqui vira "Retorno potencial:",
+  //     nunca ganho (a lição da VaideBet, cujo `totalWin` de aberta virava vitória fantasma).
+  //
+  // ⚠ A ARMADILHA DA CASA: `total_k` vem 0 em TODA perdida (6 de 6 na base real), com `k`
+  // guardando a odd que o card mostra. `_oddDeclJB` é quem resolve — é literalmente a regra do
+  // app da própria casa (`0 === parseFloat(total_k) ? k : total_k`). Ler `total_k` cru grava
+  // odd zero em 100% das perdas, exatamente como o `betOdds` da KTO fazia.
+
+  const _abertaJB = (b) => !b.status || b.status === "open";
+
+  // epoch em SEGUNDOS → horário de Brasília, com hora (a Jonbet tem vários bilhetes no mesmo
+  // dia que só a hora separa). Confere com o card até o minuto; os segundos o card não mostra.
+  function _dhJB(ts) {
+    const d = (ts != null && isFinite(ts)) ? new Date(ts * 1000) : null;
+    if (!d || isNaN(d)) return "";
+    const p = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    }).formatToParts(d);
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    return g("day") + "/" + g("month") + "/" + g("year") + " " + g("hour") + ":" + g("minute") + ":" + g("second");
+  }
+
+  // Odd DECLARADA pela casa (a exibida no card). `oddTotal` é a do bilhete inteiro, mas zera
+  // na perdida — aí a verdadeira está em `oddBilhete`. NUNCA usar `oddTotal` sozinha.
+  function _oddDeclJB(b) {
+    if (b.oddTotal != null && b.oddTotal !== 0) return b.oddTotal;
+    return b.oddBilhete != null ? b.oddBilhete : null;
+  }
+
+  // Retorno EFETIVO do bilhete resolvido. A ordem é a do próprio app da casa:
+  // imposto aplicado (`taxes.final_payout`) → liquidado (`result_sum`). Hoje a Jonbet não
+  // aplica imposto (`payout_tax: 0` e `taxes` ausente); se um dia vier, o líquido manda —
+  // é o valor que o jogador de fato recebe, e é o que o card estampa.
+  function _retornoJB(b) {
+    if (b.payoutFinal != null) return b.payoutFinal;
+    if (b.retorno != null) return b.retorno;
+    return null;
+  }
+
+  // Concilia odd × dinheiro, igual à KTO: a odd declarada vence SE explicar o retorno até o
+  // centavo (quem arredondou foi o dinheiro); senão o dinheiro manda — é lá que boost e
+  // cashout aparecem inteiros. Nunca trunca nada, só escolhe a fonte exata.
+  function _conciliaJB(retorno, stake, declarada) {
+    if (declarada != null && stake > 0 && Math.abs(retorno - declarada * stake) <= 0.01) return declarada;
+    return retorno / stake;
+  }
+
+  function _oddJB(b) {
+    const st = b.stake, decl = _oddDeclJB(b), pay = _retornoJB(b);
+    // Ganho (inclui cashout, cuja odd é `cashout ÷ stake` por regra do MASTER_RESULTADO §5.6).
+    if (st > 0 && pay != null && pay > 0 && Math.abs(pay - st) >= 0.005) return _conciliaJB(pay, st, decl);
+    // Aberta: a odd sai do retorno potencial, mais preciso que a declarada quando ela arredonda.
+    if (_abertaJB(b) && st > 0 && b.potencial > 0) return _conciliaJB(b.potencial, st, decl);
+    return decl;   // perdida / devolvida — a odd não move o P/L, vale a exibida
+  }
+
+  // Leitura derivada do DINHEIRO (objetiva). O status CRU sobe junto, sempre: é ele que a
+  // CASA_JONBET.md traduz. Ponto fino: retorno zero só vira "L" quando o status cru CONCORDA
+  // (`lost`). Um enum novo — `canceled`, `refund`, `rejected`, `useless` — que devolva zero
+  // jamais pode virar derrota por chute; vai para conferência.
+  function _resultadoJB(b) {
+    if (_abertaJB(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    const st = b.stake, pay = _retornoJB(b);
+    if (pay == null) return "status \"" + b.status + "\" sem valor de retorno (a conferir — não liquidar automaticamente)";
+    if (pay === 0) {
+      return b.status === "lost" ? "Perdeu → L"
+        : "retorno zero com status \"" + b.status + "\" (a conferir — não liquidar automaticamente)";
+    }
+    if (Math.abs(pay - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
+    if (pay > st) return "Ganho → W (retorno R$ " + _brl(pay) + ")";
+    return "Retorno parcial (R$ " + _brl(pay) + " · conferir HW/HL ou cashout)";
+  }
+
+  function _tipoJB(b) {
+    const sels = b.sels || [], n = sels.length;
+    if (b.combinacoes > 0) return "Sistema (" + b.combinacoes + " combinação(ões) · " + n + " seleções)";
+    if (b.betBuilder || sels.some((s) => s.betBuilder)) return "Bet Builder (mesmo jogo · " + n + " seleções)";
+    if (n >= 2) return "Múltipla (" + n + " seleções)";
+    if (n === 1) return "Simples";
+    return "";
+  }
+
+  // Data do EVENTO mais recente entre as pernas — é a que vai para a coluna Data do TSV
+  // (`MASTER_OUTPUT §4`: "em apostas múltiplas: usar a data da perna mais recente") e é a que
+  // o card estampa no topo do bloco ("Hoje, 01:05"). NÃO é a colocação: na base real 7 dos 10
+  // bilhetes foram colocados num dia para jogo do dia seguinte (05/08 18:00 → 06/08 01:05).
+  // Emitir só a colocação gravaria a maioria dos bilhetes no dia errado — foi o defeito que a
+  // VaideBet levou para produção na s210.
+  function _dataEventoJB(b) {
+    let max = null;
+    for (const s of (b.sels || [])) {
+      if (s.inicio != null && isFinite(s.inicio) && (max == null || s.inicio > max)) max = s.inicio;
+    }
+    return max;
+  }
+
+  function formatTicketJB(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhJB(_dataEventoJB(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dh = _dhJB(b.ts);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _resultadoJB(b));
+    L.push("Status (API): " + (b.status || "(vazio)"));
+    const odd = _oddJB(b);
+    if (odd != null) L.push("Odd: " + _odd(odd));
+    const tipo = _tipoJB(b);
+    if (tipo) L.push("Tipo: " + tipo + (b.tipo && b.tipo !== "1/1" ? " · combinação da casa: " + b.tipo : ""));
+    if (_abertaJB(b) && b.potencial > 0) L.push("Retorno potencial: R$ " + _brl(b.potencial));
+    // Cashout só aparece quando FOI EXECUTADO. Numa aberta, `cashout_amount` é a oferta de
+    // venda antecipada — mostrar isso ao lado do bilhete seria pedir uma vitória fantasma.
+    if (!_abertaJB(b) && b.cashout != null && b.cashout > 0) {
+      L.push("Cashout executado: R$ " + _brl(b.cashoutLiq != null ? b.cashoutLiq : b.cashout) +
+             (b.imposto ? " (imposto retido R$ " + _brl(b.imposto) + ")" : ""));
+    }
+    if (b.freebet) L.push("Freebet: " + (typeof b.freebet === "string" ? b.freebet : "sim") + " (conferir regra de stake devolvida)");
+    if (b.bonus) L.push("Bônus aplicado: " + (typeof b.bonus === "object" ? JSON.stringify(b.bonus) : String(b.bonus)));
+
+    L.push("Seleções:");
+    const sels = b.sels || [];
+    const mesmoJogo = sels.length > 1 && sels.every((s) => s.jogo && s.jogo === sels[0].jogo);
+    if (mesmoJogo) L.push("- " + sels[0].jogo + " (Bet Builder — mesmo jogo, " + sels.length + " seleções)");
+    for (const s of sels) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.label || "");
+      if (s.linha) bits.push("(" + s.linha + ")");
+      if (s.status) bits.push("[" + s.status + "]");
+      L.push((mesmoJogo ? "  · " : "- ") + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.jogo && !mesmoJogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.ligas && s.ligas.length) ctx2.push("Liga: " + s.ligas.join(" / "));
+      if (s.aoVivo) ctx2.push("AO VIVO");
+      if (s.inicio) ctx2.push("Início: " + _dhJB(s.inicio));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null && sels.length > 1) L.push("    Odd da seleção: " + _odd(s.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboJBPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro (é a ordem que a própria API devolve, decrescente
+      // por data), para o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(jbById.values()).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias corta só as RESOLVIDAS (pela data de colocação, a que o card mostra).
+        // Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = (b.ts != null && isFinite(b.ts)) ? b.ts * 1000 : NaN;
+        const passou = !_abertaJB(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketJB(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao jb_inject o acumulado + arranca o replay (repagina por `skip` até `count`).
+    try { window.postMessage({ __sharpenupJBReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar (jbFimReal), consumindo o que for chegando. Não para no 1º
+    // obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !jbFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (jbById.size > ultTotal) { ultTotal = jbById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] Jonbet: " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
+                " · hook=" + jbHookVivo + " · respostas=" + jbRespostas + " · fimReal=" + jbFimReal);
     return blocos;
   }
 

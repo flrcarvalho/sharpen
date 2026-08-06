@@ -35,6 +35,7 @@ const CASA_HOSTS = {
   "VaideBet":   ["vaidebet.bet.br"],
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Betnacional": ["betnacional.bet.br"],
+  "Jonbet":     ["jonbet.bet.br"],
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -182,7 +183,8 @@ async function capturar() {
                 // MESMO inject, de propósito. Duplicar seria manter 270 linhas gêmeas.
                 : casa === "Betfast" ? "tv_inject.js"
                 : casa === "VaideBet" ? "vb_inject.js"
-                : casa === "Betnacional" ? "bnc_inject.js" : null;
+                : casa === "Betnacional" ? "bnc_inject.js"
+                : casa === "Jonbet" ? "jb_inject.js" : null;
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
       if (inj) { try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [inj], world: "MAIN" }); } catch (_) {} }

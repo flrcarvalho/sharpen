@@ -65,6 +65,7 @@ const CASA_ICONS={
   'Superbet':'https://www.google.com/s2/favicons?sz=128&domain=superbet.com',
   'Tivo':'https://www.google.com/s2/favicons?sz=128&domain=tivo.bet.br',
   'VaideBet':'https://www.google.com/s2/favicons?sz=128&domain=vaidebet.bet.br',
+  'Jonbet':'https://www.google.com/s2/favicons?sz=128&domain=jonbet.bet.br',
   // Casas só do Planilhador (antes faltavam aqui → favicon quebrado no dashboard):
   'Vitória Bet':'https://www.google.com/s2/favicons?sz=128&domain=vitoriabet.bet',
   'KingPanda':'https://www.google.com/s2/favicons?sz=128&domain=kingpanda.bet.br',
@@ -114,6 +115,7 @@ const HOUSE_DOMAIN={
   'Superbet':'superbet.com',
   'Tivo':'tivo.bet.br',
   'VaideBet':'vaidebet.bet.br',
+  'Jonbet':'jonbet.bet.br',
   // Casas só do Planilhador (antes faltavam aqui → casaDomain() devolvia '' → favicon quebrado):
   'Vitória Bet':'vitoriabet.bet',
   'KingPanda':'kingpanda.bet.br',
