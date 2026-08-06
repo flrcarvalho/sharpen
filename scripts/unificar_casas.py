@@ -45,6 +45,16 @@ MAPA = {
     "Esportiva Bet": "Esportiva",     # difere no sufixo, não na caixa
     "7k Bet":        "7K",            # idem
     "Fullbet":       "Fulltbet",      # mesma casa (fulltbet.bet.br), confirmado pelo Feca
+    # s249: as 2 contas nasceram à mão como "JonBet" ANTES de a casa entrar no
+    # `_CASA_DISPLAY` (s248). Enquanto a chave não existia no mapa, o round-trip
+    # `_casa_display(_display_to_key("JonBet"))` caía no ramo verbatim e devolvia a
+    # grafia intacta; com a chave, ele passou a devolver "Jonbet" e o /salvar gravou
+    # os bilhetes numa casa que conta nenhuma enxerga (a grade filtra `casa = $1`
+    # EXATO). A marca escreve "Jonbet" — conferido em jonbet.bet.br.
+    # Aqui `bilhetes` tem ZERO linha na grafia velha (as 13 já estão em "Jonbet"),
+    # então esta entrada não move bilhete nem recalcula assinatura: corrige só a
+    # conta e as tabelas de metadado que ficaram do lado errado.
+    "JonBet":        "Jonbet",
 }
 
 # Contas de typo que ficaram vazias. Só some se tiver ZERO bilhete (conferido em tempo de execução).
@@ -229,7 +239,24 @@ async def aplicar(conn) -> None:
 
 
 async def main() -> None:
+    global MAPA, CONTAS_VAZIAS
     aplicar_flag = "--aplicar" in sys.argv
+
+    # `--somente <grafia>`: aplica UMA entrada do MAPA em vez do mapa inteiro.
+    # Existe porque o mapa é cumulativo e uma base importada DEPOIS de uma unificação
+    # ressuscita a grafia velha (s249: os 42 `Faz1bet` do LavaPessoal reapareceram na
+    # s222, muito depois da s199). Sem o filtro, corrigir uma casa arrastaria a base de
+    # outro dono na mesma transação — e recalcularia assinatura lá. O relatório segue
+    # mostrando o mapa TODO quando o filtro não é usado, para o resíduo não sumir de vista.
+    if "--somente" in sys.argv:
+        alvo = sys.argv[sys.argv.index("--somente") + 1]
+        if alvo not in MAPA:
+            print(f"ABORTADO: '{alvo}' não está no MAPA. Grafias: {', '.join(MAPA)}")
+            return
+        MAPA = {alvo: MAPA[alvo]}
+        CONTAS_VAZIAS = []      # limpeza de typo da s199, não pertence a um recorte
+        print(f"[--somente] recorte ativo: {alvo!r} -> {MAPA[alvo]!r}\n")
+
     conn = await asyncpg.connect(os.environ["DATABASE_URL"])
     try:
         n_col = await relatorio(conn)
