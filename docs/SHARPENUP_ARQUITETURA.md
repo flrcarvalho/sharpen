@@ -176,7 +176,7 @@ um registro único: são listas paralelas que precisam concordar. **Rode
 | # | Onde | O quê | Se faltar |
 |---|---|---|---|
 | 1 | `casas/CASA_<KEY>.md` | tradução fina (15 seções) | roda em modo cego (funciona, traduz pior) |
-| 2 | `app/main.py` `_CASA_DISPLAY` | `"KEY": "Nome Canônico"` | casa não existe para o sistema |
+| 2 | `app/main.py` `_CASA_DISPLAY` | `"KEY": "Nome Canônico"` | casa não existe para o sistema — **e ver o aviso retroativo abaixo** |
 | 3 | `app/main.py` tupla do `_build_chunks` | `"KEY"` | fatia pelo frágil `\n\n` em vez do `[Código:]` |
 | 4 | `app/main.py` tupla do pré-dedup | `"KEY"` | paga IA de novo por bilhete já resolvido |
 | 5 | `app/repository.py` regex de código | formato do `[Código: …]` | **conferência de cobertura desligada** (perda silenciosa de chunk passa batido) |
@@ -190,6 +190,33 @@ um registro único: são listas paralelas que precisam concordar. **Rode
 
 E, dentro do `extensor/content.js`: **ouvinte** da mensagem, **`formatTicketXX`**, **`roboXXPassive`**,
 **ramo no `iniciarRobo`** e **entrada no mapa de autodiagnóstico**.
+
+### ⚠️ Registrar casa no `_CASA_DISPLAY` é mudança RETROATIVA
+
+O ponto 2 não é só cadastro: ele **reinterpreta toda conta que já existe** numa grafia gêmea.
+
+O `/salvar` resolve a conta por `parceiro_id` e depois roda a casa por
+`_casa_display(_display_to_key(casa))`. Enquanto a chave **não** está no mapa, o
+`_display_to_key` cai no ramo verbatim e o round-trip é **identidade**. Assim que ela entra,
+o round-trip passa a devolver o nome do mapa — e a conta cadastrada na outra grafia deixa de
+casar com o bilhete, porque a grade filtra `casa = $1` **exato**.
+
+Foi assim que a Jonbet quebrou (s249): conta `JonBet`, bilhete gravado `Jonbet`, captura
+perfeita e **grade vazia**. O sintoma é o guard da s195 com os dois nomes **iguais** —
+`N salvo(s) em «X» — não aparecem na conta ativa «X»`: quem diverge é a casa, não o parceiro.
+
+**Passo obrigatório antes de adicionar a linha:** meça a grafia que já existe no banco
+(`parceiros`, `bilhetes`, `casas_meta`, `correcoes`, `uso_tokens`, `tipsters.casas`).
+**A base manda, não a marca.** Na Betboom (s250) isso evitou repetir o defeito: a marca
+escreve `BetBoom`, mas havia 172 bilhetes e 3 contas em `Betboom` — adotar a grafia da marca
+custaria 172 recálculos de assinatura em duas bases.
+
+Teste rápido do defeito, para toda grafia distinta de `parceiros`:
+`_casa_display(_display_to_key(x)) == x`. Em 06/08/2026 dava 1 quebrada em 57.
+
+Conserto, se escapar: `scripts/unificar_casas.py --somente <grafia>` (o `--somente` existe
+porque o `MAPA` é cumulativo — sem o recorte, corrigir uma casa arrasta a base de outro dono
+na mesma transação).
 
 ---
 
