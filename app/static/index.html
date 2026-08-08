@@ -1224,6 +1224,11 @@ select.ap-inline-inp { padding: 2px 4px; }
   box-shadow: var(--shadow-card);
 }
 .modal.modal-narrow { width: 400px; }
+/* Modal com algo preenchido não fecha por gesto acidental (clique no fundo / Esc):
+   sacode de leve para não parecer travado. Fechar de propósito segue no ✕/Cancelar. */
+@keyframes modal-shake { 10%,90% { transform: translateX(-2px); } 30%,70% { transform: translateX(3px); } 50% { transform: translateX(-3px); } }
+.modal.modal--shake { animation: modal-shake .32s var(--ease); }
+@media (prefers-reduced-motion: reduce) { .modal.modal--shake { animation: none; } }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); }
 .modal-title {
   display: inline-flex; align-items: center; gap: 9px;
@@ -2042,7 +2047,7 @@ td.c-res.res-HL { color: var(--warn); }
             <svg class="nc-combo-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
           <div class="nc-combo-menu nc-off" id="nc-combo-menu">
-            <div class="nc-combo-srch"><input id="nc-combo-srch" placeholder="buscar casa…" autocomplete="off" spellcheck="false"></div>
+            <div class="nc-combo-srch"><input id="nc-combo-srch" placeholder="buscar casa…" autocomplete="off" spellcheck="false" data-modal-ignore></div>
             <div class="nc-combo-list" id="nc-combo-list"></div>
           </div>
         </div>
@@ -2109,6 +2114,50 @@ td.c-res.res-HL { color: var(--warn); }
 </div>
 
 <script>
+// ── Guarda de modal preenchível ──────────────────────────────────────────────
+// Clique no fundo e Esc são gestos fáceis de disparar sem querer, e o modal
+// sempre reabre em branco: quem tinha meia ficha preenchida perdia tudo. Aqui o
+// gesto ACIDENTAL passa a ser condicional — modal intocado fecha como antes,
+// modal com conteúdo digitado ignora o gesto e sacode. Fechar de propósito
+// continua no ✕ e no Cancelar (esses nunca perguntam).
+//
+// "Intocado" é medido contra o estado da ABERTURA (_modalBaseline), não contra
+// vazio: o modal de editar aposta nasce cheio, e comparar com vazio o deixaria
+// eternamente sujo. Campo de busca interna não conta como preenchimento —
+// marque-o com data-modal-ignore.
+function _modalCampos(ov) {
+  // Campo escondido (o Nome/URL da casa quando a casa escolhida já existe) não conta:
+  // senão o modal ficaria "sujo" por um texto que o operador nem está vendo.
+  return Array.from(ov.querySelectorAll('input, textarea, select'))
+    .filter(el => el.type !== 'hidden' && !el.disabled && !el.hasAttribute('data-modal-ignore') && el.offsetParent !== null);
+}
+function _modalValor(el) { return (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value; }
+function _modalBaseline(ov) {
+  if (!ov) return;
+  _modalCampos(ov).forEach(el => { el._modalBase = _modalValor(el); });
+}
+function _modalSujo(ov) {
+  if (!ov) return false;
+  return _modalCampos(ov).some(el => {
+    const base = (el._modalBase === undefined) ? ((el.type === 'checkbox' || el.type === 'radio') ? false : '') : el._modalBase;
+    return _modalValor(el) !== base;
+  });
+}
+function _modalShake(ov) {
+  const m = ov && ov.querySelector('.modal');
+  if (!m) return;
+  m.classList.remove('modal--shake');
+  void m.offsetWidth;                       // reinicia a animação em cliques seguidos
+  m.classList.add('modal--shake');
+  setTimeout(() => m.classList.remove('modal--shake'), 400);
+}
+// Retorna true se fechou. Use SÓ em gesto acidental (fundo/Esc).
+function _modalFecharSeLimpo(ov, fechar) {
+  if (_modalSujo(ov)) { _modalShake(ov); return false; }
+  fechar();
+  return true;
+}
+
 // ── Sessão: redireciona para /login se o cookie expirar ───────────────────────
 (function () {
   const _fetch = window.fetch;
@@ -2803,6 +2852,7 @@ async function contasExcluir(id, casa) {
   inp.value = '';
   xcValidar();
   ov.classList.add('open');
+  _modalBaseline(ov);
   setTimeout(() => inp.focus(), 30);
   try {
     const r = await fetch('/parceiros/' + id + '/resumo');
@@ -2884,9 +2934,10 @@ async function xcConfirmar() {
       if (e.key === 'Enter' && btn && !btn.disabled) xcConfirmar();
     });
   }
-  ov.addEventListener('click', e => { if (e.target === ov) fecharModalExcluirConta(); });
+  // Fundo/Esc só fecham com o campo de confirmação ainda vazio (ver _modalFecharSeLimpo).
+  ov.addEventListener('click', e => { if (e.target === ov) _modalFecharSeLimpo(ov, fecharModalExcluirConta); });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && ov.classList.contains('open')) fecharModalExcluirConta();
+    if (e.key === 'Escape' && ov.classList.contains('open')) _modalFecharSeLimpo(ov, fecharModalExcluirConta);
   });
 })();
 
@@ -3015,7 +3066,11 @@ function _painelParseConta(nome) {
 function abrirAcctPop(open) {
   const wrap = document.getElementById('acctSelWrap');
   if (!wrap) return;
-  if (open) { renderAcctTree(); wrap.classList.add('open'); const s = document.getElementById('acct-search'); if (s) { s.value = ''; s.focus(); } }
+  // A busca zera ANTES do render: limpar depois deixava a árvore desenhada com o
+  // termo antigo e o campo já vazio — escolher uma conta filtrada e reabrir mostrava
+  // só aquela casa, como se as outras tivessem sumido (nada no console, só a lista).
+  const s = document.getElementById('acct-search');
+  if (open) { if (s) s.value = ''; renderAcctTree(); wrap.classList.add('open'); if (s) s.focus(); }
   else wrap.classList.remove('open');
 }
 
@@ -3071,6 +3126,7 @@ function abrirModalNovaConta(origem) {
   _ncComboSet(def);   // preenche label + hidden + dispara ncOnCasaChange
   const wrap = document.getElementById('acctSelWrap'); if (wrap) wrap.classList.remove('open');   // não sobrepor o dropdown
   ov.classList.add('open');
+  _modalBaseline(ov);   // referência do "intocado" p/ a guarda de fechamento acidental
   const foco = document.getElementById(def === '__nova__' ? 'nc-casa-nome' : 'nc-parceiro');
   if (foco) setTimeout(() => foco.focus(), 30);
 }
@@ -3152,13 +3208,18 @@ async function ncCriarConta() {
   ov.addEventListener('click', e => {
     const combo = document.getElementById('nc-combo');
     if (combo && !combo.contains(e.target)) _ncComboOpen(false);   // clique fora do combo fecha o menu
-    if (e.target === ov) fecharModalNovaConta();                    // clique fora do modal fecha o modal
+    if (e.target === ov) _modalFecharSeLimpo(ov, fecharModalNovaConta);   // fundo: só fecha se nada foi digitado
   });
   ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ncCriarConta(); } });
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) fecharModalNovaConta(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !ov.classList.contains('open')) return;
+    const combo = document.getElementById('nc-combo');
+    if (combo && combo.classList.contains('open')) { _ncComboOpen(false); return; }   // Esc fecha o combo primeiro
+    _modalFecharSeLimpo(ov, fecharModalNovaConta);
+  });
 })();
 (function initAcctPop() {
   const wrap = document.getElementById('acctSelWrap');
@@ -4966,6 +5027,7 @@ function abrirEdicao(id) {
   document.getElementById('ed-casa').readOnly = false;
   document.getElementById('ed-parceiro').readOnly = false;
   document.getElementById('edit-modal').classList.add('open');
+  _modalBaseline(document.getElementById('edit-modal'));   // nasce cheio: a referência é o valor original
 }
 
 // Item 6: abre o MESMO modal em modo inserção (edBilheteId=null). Casa/parceiro
@@ -4983,6 +5045,7 @@ function abrirInsercao() {
   document.querySelector('#edit-modal .modal-title').textContent = 'Nova aposta';
   document.getElementById('edit-save').textContent = 'Adicionar';
   document.getElementById('edit-modal').classList.add('open');
+  _modalBaseline(document.getElementById('edit-modal'));   // data/casa/parceiro pré-preenchidos não contam como digitação
   document.getElementById('ed-aposta').focus();
 }
 
@@ -5126,11 +5189,13 @@ document.getElementById('btn-inserir').addEventListener('click', abrirInsercao);
 document.getElementById('edit-save').addEventListener('click', salvarEdicao);
 document.getElementById('edit-cancel').addEventListener('click', fecharEdicao);
 document.getElementById('edit-close').addEventListener('click', fecharEdicao);
+// Fundo/Esc: só fecham se nada mudou desde a abertura (ver _modalFecharSeLimpo).
 document.getElementById('edit-modal').addEventListener('click', e => {
-  if (e.target.id === 'edit-modal') fecharEdicao();
+  if (e.target.id === 'edit-modal') _modalFecharSeLimpo(e.currentTarget, fecharEdicao);
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('edit-modal').classList.contains('open')) fecharEdicao();
+  const ov = document.getElementById('edit-modal');
+  if (e.key === 'Escape' && ov.classList.contains('open')) _modalFecharSeLimpo(ov, fecharEdicao);
 });
 
 // ── Campo Data do editor: botão/duplo-clique abre o SharpenCal (ou digita à mão) ─
@@ -5926,6 +5991,7 @@ function abrirTipsterLote() {
   const inp = document.getElementById('tipster-input');
   inp.value = '';
   document.getElementById('tipster-modal').classList.add('open');
+  _modalBaseline(document.getElementById('tipster-modal'));
   inp.focus();
 }
 
@@ -5957,11 +6023,11 @@ document.getElementById('tipster-apply').addEventListener('click', aplicarTipste
 document.getElementById('tipster-cancel').addEventListener('click', fecharTipsterLote);
 document.getElementById('tipster-close').addEventListener('click', fecharTipsterLote);
 document.getElementById('tipster-modal').addEventListener('click', e => {
-  if (e.target.id === 'tipster-modal') fecharTipsterLote();
+  if (e.target.id === 'tipster-modal') _modalFecharSeLimpo(e.currentTarget, fecharTipsterLote);
 });
 document.getElementById('tipster-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); aplicarTipsterLote(); }
-  if (e.key === 'Escape') fecharTipsterLote();
+  if (e.key === 'Escape') _modalFecharSeLimpo(document.getElementById('tipster-modal'), fecharTipsterLote);
 });
 
 // ── Resizer (divisor entre painéis) ──────────────────────────────────────────

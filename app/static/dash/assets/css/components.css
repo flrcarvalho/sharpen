@@ -529,6 +529,11 @@
   max-height: 85vh;
   overflow-y: auto;
 }
+/* Modal com edição pendente não fecha por clique no fundo: sacode de leve para
+   não parecer travado (o ✕ e o Cancelar continuam fechando sempre). */
+@keyframes modal-shake { 10%,90% { transform: translateX(-2px); } 30%,70% { transform: translateX(3px); } 50% { transform: translateX(-3px); } }
+.analise-popup-modal.modal--shake { animation: modal-shake .32s ease; }
+@media (prefers-reduced-motion: reduce) { .analise-popup-modal.modal--shake { animation: none; } }
 .analise-popup-hdr {
   display: flex;
   align-items: center;

@@ -203,8 +203,23 @@ function abrirEdicaoApostas(id){
   if(ov){ov.style.display='flex';document.body.style.overflow='hidden';}
 }
 window.abrirEdicaoApostas=abrirEdicaoApostas;
+// Alguma edição pendente? Compara com o valor carregado na abertura — o modal
+// nasce cheio, então "sujo" é o que o operador mudou, não o que está preenchido.
+function _apEditSujo(){
+  const r=apEditId!=null?_apRowById(apEditId):null;
+  if(!r)return false;
+  return AP_ED_CAMPOS.some(c=>{const el=document.getElementById('ap-ed-'+c);return el&&el.value!==_apEditVal(r,c);});
+}
 function fecharEdicaoApostas(e){
   if(e&&e.target!==document.getElementById('apEditOverlay'))return;
+  // Clique no fundo é gesto fácil de disparar sem querer e o modal reabre do zero:
+  // com edição pendente ele não fecha, só sacode. ✕/Cancelar chamam sem evento e
+  // fecham sempre (intenção explícita).
+  if(e&&_apEditSujo()){
+    const m=document.getElementById('apEditModal');
+    if(m){m.classList.remove('modal--shake');void m.offsetWidth;m.classList.add('modal--shake');setTimeout(()=>m.classList.remove('modal--shake'),400);}
+    return;
+  }
   const ov=document.getElementById('apEditOverlay');
   if(ov)ov.style.display='none';
   document.body.style.overflow='';
