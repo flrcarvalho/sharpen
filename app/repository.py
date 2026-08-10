@@ -1159,7 +1159,27 @@ async def contar_incompletos(dono: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived):
+# ── Pendências da grade (ponte "aviso do RAIO-X → linha na tela") ─────────────
+# O rail conta os problemas do LOTE (`analisar_extracao`), mas quem precisa corrigir
+# procura a LINHA — e numa conta paginada de 110 bilhetes achar 4 células vazias é
+# caça manual (feedback de usuário, s258: "ficou complicado de achá-las"). Estes
+# predicados são a mesma pergunta feita ao banco, para o chip filtrar a conta INTEIRA
+# (todas as páginas), não só a que está carregada.
+#
+# Espelham `analisar_extracao`: lá a régua é `_num(...) > 0` e `_aposta_incerta`.
+# Vazio-ou-zero por regex (nunca cast para numeric): `stake` vem em pt-BR com ponto de
+# milhar ("1.914,56") e um `::numeric` estouraria a query inteira com erro de sintaxe
+# numa linha só. Regex não levanta exceção — no pior caso classifica errado 1 linha.
+_PENDENCIAS_SQL = {
+    "sem_odd":     "(odd IS NULL OR btrim(odd) = '' OR btrim(odd) ~ '^0+([.,]0+)?$')",
+    "sem_stake":   "(stake IS NULL OR btrim(stake) = '' OR btrim(stake) ~ '^0+([.,]0+)?$')",
+    # Categoria a confirmar: vazia, 'Outros…' ou marcada com ⚠ pela IA (= `_aposta_incerta`).
+    "categoria":   "(aposta IS NULL OR btrim(aposta) = '' OR aposta ILIKE 'outros%' OR aposta LIKE '%⚠%')",
+    "sem_tipster": "(tipster IS NULL OR btrim(tipster) = '')",
+}
+
+
+def _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived, pendencia=None):
     """Monta a cláusula WHERE compartilhada entre a listagem e a contagem."""
     filters, params = [], []
     for col, val in [("dono", dono), ("casa", casa), ("parceiro", parceiro),
@@ -1172,8 +1192,28 @@ def _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived):
     elif archived == "true":
         filters.append("archived = TRUE")
     # "all" → sem filtro
+    # Pendência só entra pelo dicionário (nome desconhecido é ignorado, nunca
+    # interpolado): o SQL é constante, o valor do usuário nunca vira fragmento.
+    if pendencia and pendencia in _PENDENCIAS_SQL:
+        filters.append(_PENDENCIAS_SQL[pendencia])
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
     return where, params
+
+
+async def contar_pendencias(dono: str, casa: str | None = None,
+                            parceiro: str | None = None,
+                            archived: str = "all") -> dict:
+    """Contadores dos chips de pendência de uma conta: quantos bilhetes estão sem
+    odd, sem stake, com categoria a confirmar e sem tipster. `archived='all'` por
+    padrão porque é o que a grade da Extração mostra — o chip tem de bater com o
+    que o usuário vê na lista."""
+    where, params = _filtros_bilhetes(dono, casa, parceiro, None, archived)
+    cols = ", ".join(f"COUNT(*) FILTER (WHERE {sql}) AS {nome}"
+                     for nome, sql in _PENDENCIAS_SQL.items())
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(f"SELECT {cols} FROM bilhetes {where}", *params)
+    return {k: (row[k] or 0) for k in _PENDENCIAS_SQL}
 
 
 async def list_bilhetes(
@@ -1185,9 +1225,10 @@ async def list_bilhetes(
     limit: int = 500,
     offset: int = 0,
     order: str = "asc",
+    pendencia: str | None = None,
 ) -> list[dict]:
     pool = await get_pool()
-    where, params = _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived)
+    where, params = _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived, pendencia)
     # order: "asc"/"desc" = por criado_em (ordem de captura). "data_desc" = grade da Extração:
     # EM ABERTO (sem resultado) no TOPO, depois RESOLVIDOS por data do EVENTO desc (mais recente
     # primeiro). `data` é texto DD/MM/AAAA → to_date guardado por regex (vazio/malformado vira NULL
@@ -1227,10 +1268,11 @@ async def contar_bilhetes(
     parceiro: str | None = None,
     extraction_state: str | None = None,
     archived: str = "false",
+    pendencia: str | None = None,
 ) -> int:
     """Total de bilhetes que casam o filtro (para paginação: "X de Y apostas")."""
     pool = await get_pool()
-    where, params = _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived)
+    where, params = _filtros_bilhetes(dono, casa, parceiro, extraction_state, archived, pendencia)
     async with pool.acquire() as conn:
         row = await conn.fetchrow(f"SELECT COUNT(*) FROM bilhetes {where}", *params)
     return row[0]

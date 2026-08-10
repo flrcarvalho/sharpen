@@ -51,7 +51,8 @@ from prompts import build_system
 from repository import (
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
-    casas_com_parceiros, contar_bilhetes, contar_incompletos, corrigir_codigos_tsv,
+    casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendencias,
+    corrigir_codigos_tsv,
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
     get_custo_conta, salvar_custo_conta,
@@ -2757,6 +2758,22 @@ async def listar_incompletos(dono: str = Depends(dono_efetivo)):
     }
 
 
+@app.get("/pendencias")
+async def listar_pendencias(
+    casa: Optional[str] = None,
+    parceiro: Optional[str] = None,
+    archived: str = "all",
+    dono: str = Depends(dono_efetivo),
+):
+    """Contadores dos chips de pendência da conta ativa (sem odd / sem stake /
+    categoria a confirmar / sem tipster). É a ponte do aviso do RAIO-X, que conta o
+    LOTE, para a GRADE, que é paginada: sem isto o usuário sabe que há 4 bilhetes
+    sem odd e não tem como achá-los."""
+    return await contar_pendencias(
+        dono, casa=casa or None, parceiro=parceiro or None, archived=archived,
+    )
+
+
 @app.get("/bilhetes")
 async def listar_bilhetes(
     casa: Optional[str] = None,
@@ -2766,6 +2783,7 @@ async def listar_bilhetes(
     order: str = "asc",
     limit: int = 500,
     offset: int = 0,
+    pendencia: Optional[str] = None,
     dono: str = Depends(dono_efetivo),
 ):
     limit = max(1, min(limit, 1000))
@@ -2779,6 +2797,7 @@ async def listar_bilhetes(
         limit=limit,
         offset=offset,
         order=order,
+        pendencia=pendencia or None,
     )
     total = await contar_bilhetes(
         dono,
@@ -2786,6 +2805,7 @@ async def listar_bilhetes(
         parceiro=parceiro or None,
         extraction_state=extraction_state or None,
         archived=archived,
+        pendencia=pendencia or None,
     )
     arquivados_count = 0
     if archived != "true" and (casa or parceiro):

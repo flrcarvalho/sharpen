@@ -337,3 +337,63 @@ def test_extracao_ia_nao_sobrescreve_classificacao():
         r = await _get("TDonoA", "BET1")
         assert r["esporte"] == "Futebol" and r["aposta"] == "Escanteios"
     _run(body())
+
+
+# ── Pendências da grade (s258) ────────────────────────────────────────────────
+#
+# O predicado roda no Postgres: só um banco de verdade prova que a regex classifica
+# como o rail conta. O caso que motivou tudo é o 1º: múltipla PERDIDA da Betfair que
+# chegou sem odd (o P/L está certo — perda é −stake — mas a linha é invisível na
+# grade paginada). O `stake` em pt-BR com ponto de milhar é o outro: ele derrubaria
+# a query se o predicado fizesse cast para numeric.
+
+def test_contar_pendencias_e_filtro_de_listagem():
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([
+            _row(codigo_bilhete="P1", odd="", resultado="L"),              # sem odd
+            _row(codigo_bilhete="P2", odd="0,00"),                         # odd zerada
+            _row(codigo_bilhete="P3", stake="", odd="2,10"),               # sem stake
+            _row(codigo_bilhete="P4", aposta="Outros ⚠️", odd="2,10"),     # categoria incerta
+            _row(codigo_bilhete="P5", stake="1.914,56", odd="1,90",
+                 tipster="Peixe"),                                         # completa (milhar pt-BR)
+        ], "TDonoA")
+
+        p = await repository.contar_pendencias("TDonoA")
+        assert p["sem_odd"] == 2          # P1 e P2 (vazia e zerada)
+        assert p["sem_stake"] == 1        # P3
+        assert p["categoria"] == 1        # P4
+        assert p["sem_tipster"] == 4      # todas menos P5
+
+        # A listagem filtrada devolve exatamente as mesmas linhas que o chip conta.
+        linhas = await repository.list_bilhetes("TDonoA", archived="all", pendencia="sem_odd")
+        assert {r["codigo_bilhete"] for r in linhas} == {"P1", "P2"}
+        assert await repository.contar_bilhetes("TDonoA", archived="all", pendencia="sem_odd") == 2
+
+        # Stake pt-BR com ponto de milhar NÃO é pendência (nem quebra a query).
+        semstake = await repository.list_bilhetes("TDonoA", archived="all", pendencia="sem_stake")
+        assert {r["codigo_bilhete"] for r in semstake} == {"P3"}
+    _run(body())
+
+
+def test_pendencia_desconhecida_nao_filtra_nada():
+    """Querystring adulterada não vira SQL: o nome fora do dicionário é ignorado e a
+    listagem volta completa (falha ABERTA, nunca com fragmento interpolado)."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(codigo_bilhete="Q1")], "TDonoA")
+        linhas = await repository.list_bilhetes(
+            "TDonoA", archived="all", pendencia="odd IS NULL) OR (1=1")
+        assert len(linhas) == 1
+    _run(body())
+
+
+def test_pendencia_isolada_por_dono():
+    """O contador é da conta do dono — nunca conta pendência do vizinho."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(codigo_bilhete="R1", odd="")], "TDonoA")
+        await repository.upsert_bilhetes([_row(codigo_bilhete="R2", odd="")], "TDonoB")
+        assert (await repository.contar_pendencias("TDonoA"))["sem_odd"] == 1
+        assert (await repository.contar_pendencias("TDonoB"))["sem_odd"] == 1
+    _run(body())

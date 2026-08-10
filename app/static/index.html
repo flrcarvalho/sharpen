@@ -863,6 +863,38 @@ html.embedded .sidebar { display: none; }
 .exp-status { font-size: 11px; color: var(--ink-mute); }
 .exp-status.ok  { color: var(--pos); }
 .exp-status.err { color: var(--neg); }
+/* ── Chips de pendência (ponte "aviso do RAIO-X → linha na grade", s258) ───────
+   O rail conta o LOTE ("4 bilhete(s) sem odd") e quem corrige precisa da LINHA:
+   numa conta paginada (PAGE_SIZE 100) achar 4 células vazias era caça manual.
+   Cor: âmbar porque pendência é AVISO (UI_REFERENCE §1); o chip LIGADO vira azul
+   — filtro ativo é estado de UI, e azul é o único acento de UI. Label em
+   --ink-soft, nunca --ink-mute (Escada de Tinta: label/eyebrow tem piso 4,5:1). */
+.pend-bar {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 0 18px 11px; flex-shrink: 0;
+}
+.pend-bar[hidden] { display: none; }
+.pend-lbl {
+  font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-soft);
+}
+.pend-chip {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 3px 10px; border-radius: var(--r-pill);
+  background: rgba(var(--warn-rgb),.10); border: 1px solid rgba(var(--warn-rgb),.32);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft);
+  transition: background .12s var(--ease), border-color .12s var(--ease), color .12s var(--ease);
+}
+.pend-chip:hover { background: rgba(var(--warn-rgb),.22); color: var(--ink); }
+.pend-chip .pc-n { font-size: 11px; font-weight: 700; color: var(--warn); font-variant-numeric: tabular-nums; }
+.pend-chip.on { background: rgba(var(--accent-rgb),.16); border-color: var(--accent); color: var(--ink); }
+.pend-chip.on .pc-n { color: var(--accent-2); }
+.pend-clear {
+  background: none; border: 0; cursor: pointer; padding: 3px 4px;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--accent-2);
+}
+.pend-clear:hover { color: var(--ink); text-decoration: underline; }
 /* Toast de undo (exclusão): fixo no rodapé-centro, some sozinho; ação Desfazer. */
 .undo-toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(8px);
@@ -1069,6 +1101,17 @@ html.embedded .sidebar { display: none; }
   font-family: var(--font-mono); font-size: 9px; font-weight: 700; font-style: italic;
   vertical-align: middle; cursor: help; line-height: 1;
 }
+/* Campo ausente na linha (odd/stake). A célula vazia renderizava string vazia — o
+   usuário lia "4 bilhete(s) sem odd" no rail e não achava nenhuma delas na lista.
+   Âmbar acionável, mesma família do .date-review; clique abre a edição. */
+.cell-missing {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; padding: 1px 7px; border-radius: var(--r-pill);
+  background: rgba(var(--warn-rgb),.14); color: var(--warn);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; line-height: 1.5;
+  cursor: pointer;
+}
+.cell-missing:hover { background: rgba(var(--warn-rgb),.28); }
 .btbl-tipo {
   font-family: var(--font-mono); font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .1em; color: var(--accent); margin-bottom: 3px;
@@ -1503,6 +1546,16 @@ td.c-res.res-HL { color: var(--warn); }
   font-family: var(--font-mono); font-size: 11px; color: var(--ink);
   background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-weight: 500;
 }
+/* Ação da nota (s258): leva o aviso até as linhas — aplica o chip de pendência
+   correspondente na grade e rola até lá. Sem isto a nota conta e não aponta. */
+.rn-act {
+  margin-top: 10px; display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(var(--accent-rgb),.12); border: 1px solid rgba(var(--accent-rgb),.42);
+  border-radius: var(--r-pill); padding: 4px 12px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700; color: var(--accent-2);
+  transition: background .12s var(--ease), color .12s var(--ease);
+}
+.rn-act:hover { background: rgba(var(--accent-rgb),.26); color: var(--ink); }
 /* railv2 §3.5: rodapé com conteúdo do CLIENTE ("Extração de hoje HH:MM · N itens").
    Modelo/tokens/custo NÃO vivem mais aqui — migraram para o <details> Backoffice.
    Inicia escondido (inline style); renderRail mostra ao concluir. */
@@ -1892,6 +1945,9 @@ td.c-res.res-HL { color: var(--warn); }
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-desfazer" style="display:none">↩ Desfazer análise</button>
             </div>
           </div>
+          <!-- Pendências da conta: chips que FILTRAM a grade (conta inteira, não só a
+               página carregada). Nasce escondida; renderPendencias() mostra quando há. -->
+          <div class="pend-bar" id="pend-bar" hidden></div>
           <div class="btbl-wrap">
             <div class="btbl-counter" id="btbl-counter"></div>
             <div class="btbl-scroll">
@@ -2971,6 +3027,10 @@ function selecionarParceiro(p) {
   ultimaDuplicatas = {};
   ultimaScrollOverlaps = new Set();
   paginaAtual = 0;
+  // Filtro de pendência é da CONTA — trocar de conta com ele ligado mostraria uma
+  // grade recortada sem que o usuário tenha pedido (e "sumiram meus bilhetes").
+  filtroPendencia = null;
+  pendContagens = {};
 
   restaurarEstadoExtrator(p.id);
   renderPreviews();
@@ -4132,7 +4192,13 @@ function _railResultHtml(r) {
   if (acao.length) {
     html += '<div class="rail__notes">' + acao.map(nt => {
       const t = nt.tipo === 'warn' ? 'warn' : 'ok';
-      return '<div class="rail-note ' + t + '"><div class="rn-n">' + esc(nt.n || '') + '</div><div class="rn-h">' + esc(nt.titulo || '') + '</div><div class="rn-p">' + (nt.texto || '') + '</div></div>';
+      // Aviso com filtro correspondente ganha a ponte para a grade (s258). Só em
+      // 'warn': numa nota 'ok' não há linha para mostrar.
+      const pk = (t === 'warn') ? PEND_POR_NOTA[String(nt.n || '').toUpperCase()] : null;
+      const act = pk
+        ? '<button type="button" class="rn-act" data-pend="' + pk + '">Ver na grade →</button>'
+        : '';
+      return '<div class="rail-note ' + t + '"><div class="rn-n">' + esc(nt.n || '') + '</div><div class="rn-h">' + esc(nt.titulo || '') + '</div><div class="rn-p">' + (nt.texto || '') + '</div>' + act + '</div>';
     }).join('') + '</div>';
   }
   const kv = (r.tech || []).map(t => '<span class="tk">' + esc(t[0]) + '</span><span class="tv">' + t[1] + '</span>').join('');
@@ -4633,7 +4699,8 @@ async function carregarGrade() {
     const off = paginaAtual * PAGE_SIZE;
     const qs = `order=data_desc&archived=all&limit=${PAGE_SIZE}&offset=${off}`
       + `&casa=${encodeURIComponent(parceiroSelecionado.casa)}`
-      + `&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
+      + `&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`
+      + (filtroPendencia ? `&pendencia=${encodeURIComponent(filtroPendencia)}` : '');
     const r = await fetch(`/bilhetes?${qs}`);
     const data = await r.json();
     bilhetes = data.bilhetes;
@@ -4647,10 +4714,83 @@ async function carregarGrade() {
     atualizarStats();
     atualizarBotoesGrade();
     atualizarResumoConta();
+    carregarPendencias();
   } catch (e) {
     body.innerHTML = `<div class="grade-empty" style="color:var(--neg)">Erro: ${e.message}</div>`;
   }
 }
+
+// ── Pendências da conta (chips que filtram a grade) ──────────────────────────
+// A ponte entre o aviso do RAIO-X (que conta o LOTE) e a linha que precisa de
+// correção (que vive numa grade PAGINADA). Feedback de usuário na s258: a nota
+// dizia "4 bilhete(s) sem odd" e ele não conseguiu achar nenhuma das 4 em 110
+// linhas. O filtro é SERVER-SIDE (`/bilhetes?pendencia=`) de propósito: filtrar o
+// array local pegaria só a página carregada e esconderia o resto em silêncio.
+const PENDENCIAS = [
+  { k: 'sem_odd',     rot: 'Sem odd',      t: 'Bilhetes sem odd — o cálculo de P/L de vitória depende dela.' },
+  { k: 'sem_stake',   rot: 'Sem stake',    t: 'Bilhetes sem valor apostado.' },
+  { k: 'categoria',   rot: 'Categoria',    t: 'Categoria vazia ou marcada como incerta pela IA (Outros ⚠️).' },
+  { k: 'sem_tipster', rot: 'Sem tipster',  t: 'Bilhetes sem tipster informado.' },
+];
+// Nome da nota do rail (`analise.notas[].n`) → chip. Nota sem par aqui (DUPLICATA,
+// DESCRIÇÃO) simplesmente não ganha botão — nunca aponta para um filtro que não existe.
+const PEND_POR_NOTA = { 'ODD': 'sem_odd', 'STAKE': 'sem_stake', 'MERCADO': 'categoria' };
+let filtroPendencia = null;
+let pendContagens = {};
+
+async function carregarPendencias() {
+  if (!parceiroSelecionado) return;
+  try {
+    const qs = `casa=${encodeURIComponent(parceiroSelecionado.casa)}`
+      + `&parceiro=${encodeURIComponent(parceiroSelecionado.nome)}`;
+    const r = await fetch(`/pendencias?${qs}`);
+    if (!r.ok) return;
+    pendContagens = await r.json();
+    renderPendencias();
+  } catch { /* chip é informativo — falha silenciosa, a grade segue */ }
+}
+
+function renderPendencias() {
+  const bar = document.getElementById('pend-bar');
+  if (!bar) return;
+  const ativos = PENDENCIAS.filter(p => (pendContagens[p.k] || 0) > 0 || p.k === filtroPendencia);
+  if (!ativos.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  bar.innerHTML = '<span class="pend-lbl">Pendências</span>'
+    + ativos.map(p => `<button type="button" class="pend-chip${filtroPendencia === p.k ? ' on' : ''}"`
+        + ` data-pend="${p.k}" title="${esc(p.t)} Clique para ver só essas linhas.">`
+        + `${esc(p.rot)}<span class="pc-n">${pendContagens[p.k] || 0}</span></button>`).join('')
+    + (filtroPendencia ? '<button type="button" class="pend-clear" id="pend-clear">limpar filtro</button>' : '');
+}
+
+// Alterna o filtro (clicar no chip ligado desliga). Volta para a 1ª página: o
+// offset da página 3 não faz sentido num conjunto que acabou de encolher.
+function togglePendencia(k) {
+  filtroPendencia = (filtroPendencia === k) ? null : k;
+  paginaAtual = 0;
+  renderPendencias();
+  carregarGrade();
+}
+
+// Chamado pelo botão "Ver na grade" da nota do rail: LIGA o filtro (não alterna —
+// quem clica no aviso quer ver as linhas) e rola a grade para o campo de visão.
+function verPendenciaNaGrade(k) {
+  if (!k) return;
+  filtroPendencia = k;
+  paginaAtual = 0;
+  renderPendencias();
+  carregarGrade();
+  const sec = document.querySelector('.grade-section');
+  if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.pend-chip');
+  if (chip) { togglePendencia(chip.dataset.pend); return; }
+  if (e.target.closest('#pend-clear')) { togglePendencia(filtroPendencia); return; }
+  const act = e.target.closest('.rn-act');
+  if (act) verPendenciaNaGrade(act.dataset.pend);
+});
 
 // ── Faixa de KPIs da conta ativa (item 3) ────────────────────────────────────
 // Busca o resumo agregado no backend (/conta/resumo) e o custo no localStorage
@@ -4976,10 +5116,18 @@ function _apostaIncerta(a) {
   return s.includes('⚠') || s.startsWith('outros');
 }
 
+// Marcador de campo ausente: a célula vazia era invisível na lista (era isso que
+// impedia de achar os "N bilhete(s) sem odd" do rail). Clique abre a edição.
+function _faltando(id, dica) {
+  return `<span class="cell-missing" title="${esc(dica)}" onclick="abrirEdicao(${id})">—</span>`;
+}
+
 function renderGrade() {
   const body = document.getElementById('grade-body');
   if (!bilhetes.length) {
-    body.innerHTML = '<div class="grade-empty">Nenhum bilhete salvo. Extraia para preencher.</div>';
+    body.innerHTML = filtroPendencia
+      ? '<div class="grade-empty">Nenhuma aposta com essa pendência nesta conta — está tudo preenchido.</div>'
+      : '<div class="grade-empty">Nenhum bilhete salvo. Extraia para preencher.</div>';
     return;
   }
   body.innerHTML = bilhetes.map(b => {
@@ -5004,8 +5152,8 @@ function renderGrade() {
         <span class="casa-chip" data-casa="${esc(b.casa)}"><img src="${faviconUrl(b.casa)}" alt="${esc(nomeCasa)}" loading="lazy"></span>
         <div class="btbl-casa-sub"><span class="btbl-casa-nome ap-edit" data-field="casa">${esc(nomeCasa)}</span>${contaHtml}</div>
       </div>
-      <div class="btbl-cell btbl-num ap-edit" data-field="stake">${moneyStake(b.stake)}${b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : ''}</div>
-      <div class="btbl-cell btbl-num ap-edit" data-field="odd">${_fmtOddDisplay(b.odd)}</div>
+      <div class="btbl-cell btbl-num ap-edit" data-field="stake">${moneyStake(b.stake) || _faltando(b.id, 'Stake ausente — dê duplo-clique para preencher')}${b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : ''}</div>
+      <div class="btbl-cell btbl-num ap-edit" data-field="odd">${_fmtOddDisplay(b.odd) || _faltando(b.id, 'Odd ausente ou ilegível no print — dê duplo-clique para preencher')}</div>
       <div class="btbl-cell btbl-res ap-edit" data-field="resultado">${resPill(b.resultado)}</div>
       <div class="btbl-cell btbl-num btbl-pl">${fmtPL(b.pl)}</div>
       <div class="btbl-cell btbl-acts">
@@ -5098,7 +5246,9 @@ async function salvarEdicao() {
       // Mudou casa/parceiro OU um campo que altera o P/L → recarrega grade + contadores.
       await carregarGrade();
     } else {
-      renderGrade(); atualizarStats();
+      // Render local não passa por carregarGrade → os chips de pendência ficariam
+      // com a contagem velha (categoria/tipster acabaram de mudar).
+      renderGrade(); atualizarStats(); carregarPendencias();
     }
     atualizarIncompletos();
     setExpStatus('✓ Aposta atualizada', 'ok');
@@ -5152,7 +5302,7 @@ function _exInlineStart(cell) {
       b[field] = val;
       const pesado = ['stake', 'odd', 'resultado', 'casa', 'parceiro'].includes(field);
       if (pesado) { await carregarGrade(); }
-      else { renderGrade(); atualizarStats(); }
+      else { renderGrade(); atualizarStats(); carregarPendencias(); }
       atualizarIncompletos();
       setExpStatus('✓ Aposta atualizada', 'ok');
     } catch {
@@ -5267,6 +5417,7 @@ async function salvarTipsterVal(id, valor, origem = 'humano') {
     if (!r.ok) throw new Error();
     if (valor) carregarTipsters();
     atualizarIncompletos();
+    carregarPendencias();   // o chip "Sem tipster" acabou de mudar
   } catch {
     b.tipster = anterior;
     if (el) { el.value = anterior || ''; el.classList.toggle('tip-empty', !(anterior || '').trim()); }
