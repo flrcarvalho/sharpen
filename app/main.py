@@ -3265,6 +3265,10 @@ async def escadas_todas_route(dono: str = Depends(dono_efetivo)):
 TIPSTERS_PUBLICOS: dict[str, dict] = {
     "sochutes": {"dono": "SoChutes", "nome": "Só Chutes"},
     "zoraesports": {"dono": "ZoraEsports", "nome": "Zora eSports"},
+    # 3º tipster (s260). O slug é o nome de MARCA (`fleury`); o dono é o username
+    # com que ele se cadastrou no site (`Flurray`) — os dois divergem de propósito
+    # e é o registro que faz a ponte. Base 100 % em unidades, como o modo pede.
+    "fleury": {"dono": "Flurray", "nome": "Fleury"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres

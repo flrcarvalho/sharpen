@@ -55,6 +55,24 @@ casa que parou → `/sharpenup-diagnostico`.
 
 ## Conta de usuário nova = duas metades, e a segunda é humana
 
+> **Antes de tudo: hoje quase toda conta nova NÃO passa por aqui.** Desde a Fase 2 quem
+> se cadastra pelo site cria a própria linha em `usuarios`, com o hash da senha que ele
+> mesmo escolheu; ao supervisor cabe **aprovar** (`status` → `ativo`). **Não há env var,
+> não há deploy, não há linha em `app/auth.py`** — o dict `USUARIOS` é *semente* das
+> contas anteriores ao autosserviço. Mande subir env var para quem se cadastrou sozinho
+> e você está resolvendo um problema que não existe. **Meça primeiro:**
+> `select username, status, length(senha_hash) from usuarios where …`.
+>
+> **E o `dono` TEM de ser o username — não o nome de marca.** Os dois divergem com
+> frequência (s260: a marca é `Fleury`, o username é `Flurray`) e o isolamento por
+> `dono` **falha em silêncio**: import feito sob o nome de marca não dá erro nenhum,
+> só entrega tela vazia para o usuário certo. Confirme o username **na tabela**, nunca
+> pelo nome do arquivo, do canal ou da planilha. A ponte entre os dois nomes é o
+> registro `TIPSTERS_PUBLICOS` (`app/main.py`), onde o **slug** é a marca e o `dono` é
+> o username.
+
+O caminho abaixo vale só para as contas **antigas** (semente) ou criadas à mão.
+
 Criar login é 1 linha em `USUARIOS` (`app/auth.py`) + a env var `SENHA_<USER>_HASH` no
 Railway. **Não existe migration, seed nem import:** o isolamento é a coluna `dono` no
 Postgres, então a base nasce vazia e o primeiro bilhete capturado cria as linhas.

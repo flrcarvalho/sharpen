@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Importa a base do tipster Fleury (FleuryChutes.xlsx, aba 'Geral') para dono='Fleury'.
+"""Importa a base do tipster Fleury (FleuryChutes.xlsx, aba 'Geral') para dono='Flurray'.
 
 Base de nicho: 100 % mercados de FINALIZAÇÃO no futebol (11/06/2026 → 09/08/2026,
-473 apostas). Conta criada nesta sessão em `app/auth.py` (dono SOLO).
+473 apostas).
+
+⚠️ A MARCA é `Fleury`; o DONO é `Flurray`. Ele se cadastrou sozinho no site (Fase 2
+do onboarding) e o Feca aprovou — a linha já nasceu na tabela `usuarios` com o hash
+da senha que ele mesmo escolheu. **Não existe env var nem linha em `app/auth.py`
+para esta conta**: o dict `USUARIOS` é semente das contas antigas, anteriores ao
+cadastro em autosserviço. O `dono` TEM de ser o username, senão a base fica
+invisível para ele (foi o erro cometido e corrigido na própria s260).
 
 Layout da planilha (header na linha 1; as colunas J..V são painéis de KPI da
 própria planilha e são ignoradas):
@@ -19,9 +26,10 @@ Por que a aba 'Geral' e não as três mensais (06.26 / 07.26 / 08.26):
 
 Decisões do Feca (esta sessão):
 
-- **Dono novo `Fleury`**, solo — sem OPERADORES, sem dedup cruzada. O login só
-  passa a funcionar quando `SENHA_FLEURY_HASH` for colada no Railway.
-- **Tipster** = `Fleury` em todas as linhas.
+- **Dono solo** — sem OPERADORES, sem dedup cruzada.
+- **Tipster** = `Fleury` em todas as linhas (é o nome de marca, não o username).
+- **Página pública** em `/tipsters/fleury` (`TIPSTERS_PUBLICOS` no `main.py`) —
+  o modo público serve esta base 100 % em unidades, que é o que ele já usa.
 - **Uma conta por casa**: `Padrão` em cada uma das 4 casas (Bet365, Betano,
   Superbet, BetMGM) → 4 linhas no Painel de Contas, cada uma com custo próprio.
 - **Stake em UNIDADES**: a planilha conta em u (0,10–4,00). Importa 1u = 1 — o
@@ -65,7 +73,7 @@ from collections import Counter
 import openpyxl
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
-DONO = 'Fleury'
+DONO = 'Flurray'         # username do cadastro no site; a MARCA é 'Fleury'
 PARCEIRO = 'Padrão'
 TIPSTER = 'Fleury'
 ESPORTE = 'Futebol'          # base 100 % futebol (finalizações de jogador/time)
