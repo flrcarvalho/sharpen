@@ -53,7 +53,10 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # {name:"gethistory"}. Sem paginação: uma chamada devolve a conta inteira com `Count`.
 # BETFAST: ESPELHO da Tivo (s211) — mesmo motor BetConstruct, mesmo caminho de API, mesmos
 # nomes de campo; muda o domínio e a cor. Usa o MESMO `tv_inject.js`, sem código duplicado.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto"}
+# ESPORTIVA: ESPELHO da VaideBet (s254) — mesmo motor Altenar/BIA, MESMO host de gateway
+# (`sb2bethistory-gateway-altenar2.biahosted.com`) e mesmo endpoint; muda só o
+# `integration` (`esportiva` × `vaidebet`). Usa o MESMO `vb_inject.js`.
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -75,6 +78,10 @@ _HOSTS_POR_CASA = {
     "KTO":        ("kto.bet.br",),
     "TIVO":       ("tivo.bet.br",),
     "VAIDEBET":   ("vaidebet.bet.br",),
+    # Espelho da VaideBet: mesmo Altenar/BIA, MESMO gateway de histórico
+    # (`sb2bethistory-gateway-altenar2.biahosted.com`) — o que separa as duas é o
+    # `integration` do corpo. A ABA continua sendo o site da casa.
+    "ESPORTIVA":  ("esportiva.bet.br",),
     # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
     # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
     "BETFAST":    ("betfast.bet.br",),

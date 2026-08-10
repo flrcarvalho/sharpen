@@ -149,6 +149,13 @@ _CASA_DISPLAY: dict[str, str] = {
     "BETFAST":        "Betfast",
     "BETNACIONAL":    "Betnacional",
     "BOLSADEAPOSTA":  "Bolsa de Aposta",
+    # ⚠ A MARCA escreve "EsportivaBet" (logo) / "Esportiva Bet" (título), mas a canônica
+    # aqui é "Esportiva" — MEDIDO antes de registrar (s254): a base já tinha 351 bilhetes,
+    # 2 contas e 4 perfis de tipster nessa grafia, e nenhuma linha em "Esportiva Bet".
+    # (Há resquício de `Esportivabet` em casas_meta/correcoes/uso_tokens, do bug antigo de
+    # title-case descrito acima; ele NÃO entra no mapa, então o round-trip das duas grafias
+    # fecha em identidade e nenhuma conta existente é reinterpretada.)
+    "ESPORTIVA":      "Esportiva",
     "JOGODEOURO":     "Jogo de Ouro",
     "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
@@ -500,7 +507,7 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 # texto+extrato sem marcador) e é roteada POR CONTEÚDO (`"[Código:" in texto`), não por casa.
 _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
-    "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM",
+    "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA",
 })
 
 

@@ -750,12 +750,17 @@
       // ramo, um inject, um formatador. O harness roda a mesma fixture pelos dois domínios
       // e compara os blocos byte a byte (`casos/betfast.mjs`).
       blocos = await roboTVPassive(ctx);
-    } else if (casa === "vaidebet") {
+    } else if (casa === "vaidebet" || casa === "esportiva") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
       // grid, sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
       // bloco só e a IA perderia o resto em silêncio (lição da KTO, s192).
+      //
+      // A Esportiva é ESPELHO da VaideBet (s254): mesmo motor Altenar/BIA, MESMO host de
+      // gateway e mesmo endpoint — muda só o `integration` do corpo. Um ramo, um inject, um
+      // formatador. O harness roda a fixture DELA e compara os blocos com os do host da
+      // VaideBet byte a byte (`casos/esportiva.mjs`).
       blocos = await roboVBPassive(ctx);
     } else if (casa === "jonbet" || casa === "betboom") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
@@ -794,6 +799,9 @@
         // operador não ler "Tivo: 0 bilhetes" estando na Betfast.
         betfast:    { nome: "Betfast",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
+        // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
+        // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.
+        esportiva:  { nome: "Esportiva",  hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "Jonbet: 0 bilhetes" estando na Betboom.
@@ -2539,9 +2547,11 @@
     return blocos;
   }
 
-  // ── VaideBet (Altenar/BIA) ────────────────────────────────────────────────────
+  // ── VaideBet + Esportiva (Altenar/BIA) ────────────────────────────────────────
   // Formata 1 bilhete lido de `/WidgetReports/widgetExpandedBetHistory` (parseado pelo
-  // vb_inject) no bloco de texto que a IA lê. Fiel ao que o card renderiza:
+  // vb_inject) no bloco de texto que a IA lê. Serve as DUAS casas do motor: elas dividem
+  // gateway, endpoint, enum e formato de campo — só o `integration` do corpo difere
+  // (`vaidebet` × `esportiva`). Fiel ao que o card renderiza:
   //   • Código = `id` (o "ID:" do rodapé do card) — chave de dedup e do `[Código:]`.
   //   • Data do TSV = `eventDate` mais recente (UTC→Brasília). A colocação (`createdDate`)
   //     vai junto, como contexto: nas abertas do reconhecimento os dois campos caem em DIAS
@@ -2556,7 +2566,8 @@
   const _oddTxtVB = (x) => (x == null || !isFinite(x)) ? "" : String(Math.round(x * 1e8) / 1e8).replace(".", ",");
 
   // O payload não traz o NOME do esporte, só o id. Mapa ancorado no que foi confirmado
-  // contra a tela; id fora do mapa sobe cru (a IA/CASA_VAIDEBET.md finaliza pelo evento).
+  // contra a tela; id fora do mapa sobe cru (a IA + o `casas/CASA_*.md` da casa finalizam
+  // pelo evento).
   //
   // ⚠️ O rótulo TEM de ser o valor oficial do `MASTER_ESPORTES_2026` — a IA copia o que
   // está escrito aqui. No 1º lote real eu tinha escrito "Beisebol" (sinônimo, não o valor
@@ -2644,7 +2655,7 @@
     if (id == null) return "";
     const nome = _ESPORTE_VB[id];
     return nome ? nome + " (sportTypeId " + id + ")"
-                : "sportTypeId " + id + " (a conferir — id não mapeado na CASA_VAIDEBET)";
+                : "sportTypeId " + id + " (a conferir — id não mapeado no arquivo da casa)";
   }
 
   function formatTicketVB(b) {
@@ -2776,7 +2787,7 @@
     }
     await sleep(400);
     processar();
-    console.log("[SharpenUp] VaideBet: " + blocos.length + " bilhete(s) · vbById=" + vbById.size +
+    console.log("[SharpenUp] VaideBet/Esportiva: " + blocos.length + " bilhete(s) · vbById=" + vbById.size +
                 " · hook=" + vbHookVivo + " · respostas=" + vbRespostas + " · fimReal=" + vbFimReal);
     return blocos;
   }

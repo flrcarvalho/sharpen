@@ -33,6 +33,7 @@ const CASA_HOSTS = {
   "KTO":        ["kto.bet.br"],
   "Tivo":       ["tivo.bet.br"],
   "VaideBet":   ["vaidebet.bet.br"],
+  "Esportiva":  ["esportiva.bet.br"],  // espelho da VaideBet · mesmo motor Altenar/BIA
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
@@ -184,6 +185,8 @@ async function capturar() {
                 // MESMO inject, de propósito. Duplicar seria manter 270 linhas gêmeas.
                 : casa === "Betfast" ? "tv_inject.js"
                 : casa === "VaideBet" ? "vb_inject.js"
+                // Espelho da VaideBet (Altenar/BIA, mesmo gateway): MESMO inject.
+                : casa === "Esportiva" ? "vb_inject.js"
                 : casa === "Betnacional" ? "bnc_inject.js"
                 // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
                 // `/api/v1/my_bets/list`): MESMO inject, de propósito.

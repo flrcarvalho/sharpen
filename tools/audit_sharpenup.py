@@ -61,6 +61,10 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # um bilhete real da conta (o W de 22/07, retorno R$ 1.604,28).
     "BETFAST":    "298388575",
     "VAIDEBET":   "5234878919",
+    # id real da conta (o W de 09/08 na Bahia × Vasco, stake 124 → retorno 198,40). A
+    # Esportiva é espelho da VaideBet e compartilha o espaço de IDs do motor Altenar:
+    # mesmo formato numérico de 10 dígitos.
+    "ESPORTIVA":  "5277832732",
     "BET365":     "JR8714690761I",
     # ticket_id real da conta (a Super Odds aberta de 01/08) — formato NXBNAC + 24 dígitos.
     "BETNACIONAL": "NXBNAC000142211281785609607878",

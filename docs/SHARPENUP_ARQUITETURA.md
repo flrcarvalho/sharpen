@@ -120,6 +120,7 @@ Regras que valem para todos:
 | **Betfast** | **espelho da Tivo** — mesmo motor BetConstruct | idem | **`tv_inject.js`** (o mesmo) | `ID` | teto de 50 + varredura por `to` ⚠ | evento mais recente (UTC→SP) |
 | **BetNacional** | API + replay (janelas de datas) | `GET /api/v2/all-bets` | `bnc_inject.js` | `ticket_id` | janelas até secar | ⚠ ver nota abaixo |
 | **VaideBet** | API + replay (paginado) | `POST /api/WidgetReports/widgetExpandedBetHistory` (Altenar) | `vb_inject.js` | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
+| **Esportiva** | **espelho da VaideBet** — mesmo motor Altenar/BIA | idem, **mesmo host de gateway** | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
 
 > ⚠ **BetNacional — divergência de rótulo NÃO medida (anotada na s248, ao preencher esta tabela).**
@@ -130,6 +131,19 @@ Regras que valem para todos:
 > divergem nessa casa.** Para decidir: comparar `t.colocada` com `pernas[].inicio` (que o bloco já
 > emite como `Início:`) num lote real. Enquanto isso, esta célula fica marcada, não chutada.
 >
+> **Altenar/BIA também é PLATAFORMA (s254).** A Esportiva entrou **sem uma linha de código
+> novo de captura**: reusa `vb_inject.js`, `formatTicketVB` e `roboVBPassive`. Mudou só o ramo
+> do `iniciarRobo`, a entrada de autodiagnóstico e os 12 registros — o desenho Tivo/Betfast e
+> Jonbet/Betboom pela terceira vez. Aqui o espelho é ainda mais apertado que nos outros dois:
+> não é só "mesmo motor", é o **mesmo host de gateway**
+> (`sb2bethistory-gateway-altenar2.biahosted.com`), e o que separa as marcas é o campo
+> `integration` do corpo (`esportiva` × `vaidebet`). **Detecção pré-login:** a home carrega
+> `sb2frontend-altenar2.biahosted.com` / `sb2wsdk-cdn-altenar2.biahosted.net` com
+> `integration=<marca>` na query — dá para confirmar o motor sem credencial nenhuma, como no
+> BetBy. ⚠ Registrar `ESPORTIVA` no `_CASA_DISPLAY` foi mudança retroativa sobre **351
+> bilhetes** que já existiam na grafia `Esportiva` (ver o aviso do §5): a grafia foi **medida
+> no banco antes**, e o round-trip foi provado em 61 grafias (0 quebradas).
+
 > **Jonbet (s248) — três coisas que só essa casa tem até agora.** (1) O motor **BetBy** renderiza
 > na **própria página** (`bt-renderer.min.js`), não em iframe — o `content.js` alcança tudo. (2) A
 > página dispara a lista **antes de o token existir** e toma **401**, com um corpo que **tem uma
