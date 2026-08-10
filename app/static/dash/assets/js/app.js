@@ -506,7 +506,10 @@ function buildHTML(){
       </div>
       <nav class="sidebar-nav">
         <div class="nav-group">Operação</div>
-        <a class="nav-item" href="/" style="text-decoration:none" title="Abrir a Extração e Captura — leitura e edição de bilhetes"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Extração e Captura</a>
+        <a class="nav-item" id="nav-extracao-link" href="/" style="text-decoration:none" title="Abrir a Extração e Captura — leitura e edição de bilhetes"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M1.5 5.5h13M1.5 9.5h13M5.5 1.5v13"/></svg>Extração e Captura</a>
+        <!-- SharpenUp: página pública/standalone da extensão. Abre em nova aba (sai do
+             app) e nunca fica "ativo" — não é página do dashboard. Espelha app.html. -->
+        <a class="nav-item" id="navSharpenUp" href="/extensao" target="_blank" rel="noopener" style="text-decoration:none" title="Instalar ou atualizar o SharpenUp — abre em nova aba"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 11.3V5"/><path d="M5.5 7.5 8 5l2.5 2.5"/></svg>SharpenUp<svg class="nav-out" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10 10.5 5.5"/><path d="M6.6 5.5h3.9v3.9"/></svg></a>
         <!-- Minhas Apostas: a base crua. "Minha Base" = tudo (era "Apostas");
              "Em Aberto" = só o que ainda não liquidou. -->
         <div class="nav-group">Minhas Apostas</div>
@@ -959,7 +962,10 @@ function buildHTML(){
     document.querySelectorAll('.sidebar-nav .nav-group').forEach(g=>{
       if(['Operação','Resultados','Gestão'].includes(g.textContent.trim()))g.remove();
     });
-    document.querySelector('.sidebar-nav a.nav-item')?.remove();               // link Extração
+    // Links externos do grupo Operação — removidos por ID, nunca por posição: o
+    // querySelector antigo pegava só o PRIMEIRO <a> e o 2º vazava para a página
+    // pública do tipster assim que um link novo entrasse no grupo.
+    ['nav-extracao-link','navSharpenUp'].forEach(id=>document.getElementById(id)?.remove());
     ['resultados','parceiros','custos','custos_tipster','tipster_metodo','metrics']
       .forEach(id=>document.getElementById('nav-'+id)?.remove());
     document.querySelector('#page-apostas a[href="/exportar.csv"]')?.remove(); // download da base

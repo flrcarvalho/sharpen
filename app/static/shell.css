@@ -54,3 +54,10 @@
 .nav-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--ink-soft); transition: color .14s; }
 .nav-item:hover .nav-icon { color: var(--ink); }
 .nav-item.active .nav-icon { color: var(--accent-2); }
+
+/* Item que SAI do app (target=_blank): o glifo ↗ à direita avisa antes do clique que
+   o destino abre fora. É ÍCONE, não texto — fica em --ink-mute abaixo do piso da
+   Escada de Tinta POR DESENHO, mesma exceção já comentada para caret/seta
+   (.operador-caret, .casa-arrow, .sb-op-caret). Não usar esta classe em texto. */
+.nav-out { width: 11px; height: 11px; margin-left: auto; flex-shrink: 0; color: var(--ink-mute); transition: color .14s; }
+.nav-item:hover .nav-out { color: var(--ink-soft); }
