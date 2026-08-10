@@ -286,6 +286,33 @@ def test_ascii_passa_nos_dois_caminhos(telegram_ligado):
         assert r.status_code == 200
 
 
+# ── Fail-safe visual: `hidden` tem de ESCONDER de verdade ─────────────────────
+# O JS marca `hidden` nos botões que o servidor não confirmou, mas `.btn-social`
+# declara `display` — e declaração do autor VENCE a regra `[hidden]{display:none}`
+# do navegador. Sem a regra explícita o fail-safe roda e não esconde nada: o
+# botão do Google apareceu em produção assim que o Telegram acendeu, e
+# `/auth/google` responde 404 sem credencial (clique = erro cru).
+
+def _login_html():
+    from pathlib import Path
+    return Path("app/static/login.html").read_text(encoding="utf-8")
+
+
+def test_btn_social_hidden_esconde_de_verdade():
+    css = _login_html()
+    assert ".btn-social[hidden]" in css, "sem a regra, `hidden` não esconde o botão social"
+    trecho = css.split(".btn-social[hidden]", 1)[1].split("}", 1)[0]
+    assert "display: none" in trecho or "display:none" in trecho
+
+
+def test_botoes_sociais_nascem_escondidos_no_markup():
+    """Fail-safe também no HTML: se o fetch de /auth/metodos falhar, nada aparece."""
+    html = _login_html()
+    for alvo in ('id="btn-google"', 'id="btn-telegram"'):
+        tag = html.split(alvo, 1)[1].split(">", 1)[0]
+        assert "hidden" in tag, f"{alvo} tem de nascer hidden no markup"
+
+
 # ── Callback do Google: guards antes de qualquer rede ─────────────────────────
 
 def test_google_callback_state_invalido_vira_erro(monkeypatch):
