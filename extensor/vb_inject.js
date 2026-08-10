@@ -19,6 +19,10 @@
 // NÃO DECIDE NADA: normaliza a lista e sobe o bilhete cru. Status desconhecido sobe como
 // está; quem traduz é o `content.js` + `casas/CASA_VAIDEBET.md`.
 (function () {
+  // ⚠ O "Expanded" é LOAD-BEARING, não enfeite: a Jogo de Ouro (s256) serve também um
+  // `widgetBetHistory` COMPACTO no painel lateral, cujos campos ninguém mediu (a única
+  // amostra veio vazia). Afrouxar esta regex faz o bilhete do widget errado entrar no lote
+  // — `casos/jogodeouro.mjs` trava isso.
   const RX = /widgetExpandedBetHistory/i;        // endpoint da LISTA de bilhetes
   const porId = new Map();                       // id(string) → bilhete cru
   let respostas = 0;                             // respostas do endpoint que o hook viu (autodiagnóstico)

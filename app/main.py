@@ -163,6 +163,11 @@ _CASA_DISPLAY: dict[str, str] = {
     "LOTTU":          "Lottu",
     "PINNACLE":       "Pinnacle",
     "POLYMARKET":     "Polymarket",
+    # A base já usava esta grafia antes do registro (1 conta e 8 bilhetes do LavaPessoal,
+    # medidos na s257) — então o round-trip `_casa_display(_display_to_key("Stake"))` continua
+    # identidade e nenhuma conta existente deixa de casar com os bilhetes. Ver o aviso de
+    # mudança RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5.
+    "STAKE":          "Stake",
     "SUPERBET":       "Superbet",
     "TIVO":           "Tivo",
     "VAIDEBET":       "VaideBet",
@@ -507,7 +512,7 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 # texto+extrato sem marcador) e é roteada POR CONTEÚDO (`"[Código:" in texto`), não por casa.
 _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
-    "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA",
+    "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
 })
 
 

@@ -12,12 +12,17 @@
 
 ## 1. Identidade
 
-- Casa canônica: `Jogo de Ouro`
+- Casa canônica: `Jogo de Ouro` — grafia única no banco (medido na s256: 120 bilhetes, 3 contas, 82 correções, todos em `Jogo de Ouro`). Já estava no `_CASA_DISPLAY` antes da captura, então ligar o robô **não** foi mudança retroativa.
 - Domínio: `jogodeouro.bet.br`
 - Locale: pt-BR (rótulos em português)
 - Formato numérico: **en-US** — ponto decimal em dinheiro e odds (ex.: `R$30.00`, `3.50`) → converter para vírgula (`30,00`, `3,50`)
 - Moeda: `R$`
+- **Motor: Altenar / BIA** (`biahosted.com`) — o mesmo da VaideBet e da Esportiva. Ver §2.1.
 - `Parceiro` / `Tipster`: preenchidos pelo app
+
+> **Como se confirma o motor sem login** (e sem tocar no gate de idade): a home carrega
+> `sb2wsdk-cdn-altenar2.biahosted.net` e `sb2commongateway-altenar2.biahosted.com`; o
+> `integration` da casa é `jogodeouro`.
 
 ---
 
@@ -25,10 +30,40 @@
 
 ### 2.1 Modo de ingestão
 
-- **PRIMÁRIO:** screenshot — bilhetes exibidos em cards (grid de duas colunas)
-- **FALLBACK:** texto colado — aguarda confirmação de que o site permite copiar o histórico como texto
+**Captura por API + replay** (SharpenUp · `extensor/vb_inject.js` — o **mesmo** da VaideBet e
+da Esportiva; ver §2.1.1). Desde a s256 esta casa deixou de ser de print.
 
-> A casa oferece abas de filtro no topo: `Aberto · Processado · Ganhou · Perdida · Cashout`. Extrair apenas bilhetes resolvidos (`Processado` / `Ganhou` / `Perdida` / `Cashout`); ignorar `Aberto`.
+```
+POST https://sb2bethistory-gateway-altenar2.biahosted.com/api/WidgetReports/widgetExpandedBetHistory
+{"culture":"pt-BR","timezoneOffset":180,"integration":"jogodeouro","deviceType":1,
+ "countryCode":"BR","dateFrom":"…Z","dateTo":"…Z","liveOnly":false,"numFormat":"en-GB",
+ "pageNumber":1,"pageSize":10,"statuses":[1,8,2,4,18]}
+→ {"isLastPage":false,"bets":[…]}
+```
+
+- **Abas = array `statuses` do corpo**, mesma URL: Processado `[1,8,2,4,18]` · Aberto `[0,10,3,20,17]`.
+  Os filtros `Ganhou`, `Perdida` e `Cashout` da tela são recortes dos mesmos estados.
+- **Fim autoritativo: `isLastPage: true`.** Paginação por `pageNumber` (10/página), **provada ao
+  vivo** na s256 (`pageNumber:2` → 10 ids novos, nenhum repetido).
+- Autenticação por header **`Authorization: Bearer`**, de outra origem — o replay reusa os headers
+  reais da requisição da página.
+- O robô varre as duas abas a cada rodada. **Aberta não é mais ignorada:** ela sobe com
+  Resultado **vazio** (`extraction_state = aberta`), como nas casas irmãs.
+
+### 2.1.1 ⚠️ Esta casa tem DOIS widgets de histórico — capture na TELA CHEIA
+
+Diferença que **nenhuma** das outras duas casas Altenar tem, e que decide se a captura funciona:
+
+| Onde | Endpoint | O inject captura? |
+|---|---|---|
+| Painel lateral "Minhas apostas" (colapsado, à direita) | `widgetBetHistory` (**compacto**) | **Não** |
+| Tela cheia do histórico (`?page=betHistory`, atrás de "Mostrar mais apostas") | `widgetExpandedBetHistory` | **Sim** |
+
+O `RX` do inject é `/widgetExpandedBetHistory/i` e **não casa** com o compacto — de propósito:
+a única amostra do compacto veio com `bets: []`, então ninguém mediu que campos ele traz, e
+usá-lo para replay seria chute. **Consequência operacional: capturar com o histórico completo
+aberto na tela.** Capturar a partir do painel lateral dá lote vazio com o hook ATIVO — por isso
+o autodiagnóstico desta casa (e só dela) diz onde clicar quando `respostas = 0`.
 
 ### 2.2 Tipo do bilhete declarado
 
@@ -103,11 +138,29 @@ Cada card contém **duas** ocorrências de `DD/MM • HH:MM`:
 
 ## 5. Status e Resultado
 
+Com a captura por API o estado vem no campo `status` do bilhete, **conferido contra a faixa
+colorida do card** (s256) — mesmo enum das casas irmãs:
+
+| `status` (API) | Card | Nosso código |
+|---|---|---|
+| 0 | faixa `ABERTO` | *(vazio — não liquidar)* |
+| 1 | `GANHOU / VENCIDO` | W (conferir o dinheiro) |
+| 1 + retorno = stake | — | V |
+| 2 | `PERDIDO` | L |
+| 3 · 4 · 8 · 10 · 17 · 18 · 20 | só nos filtros das abas | **sobem CRUS** — não liquidar |
+
+> ⚠️ **`totalWin` de bilhete ABERTO é o retorno POTENCIAL** e vem preenchido — a armadilha
+> que a VaideBet levou a produção na s210. **Não há amostra dela nesta casa** (a conta tinha
+> 0 apostas em aberto no recon), mas o formatador é o MESMO das três casas Altenar e o ramo
+> está travado nos harnesses da VaideBet e da Esportiva. Só `status: 1` autoriza `retorno ÷ stake`.
+
+Tabela antiga (leitura por print, ainda válida para quem extrair de imagem):
+
 | Jogo de Ouro exibe | Nosso código |
 |---|---|
 | `GANHOU / VENCIDO` (header verde) | W |
 | `PERDIDO` (header vermelho) | L |
-| `Aberto` (aba) | **IGNORAR** (não extrair) |
+| `Aberto` (aba) | Resultado **vazio** (`extraction_state = aberta`) |
 | (aba `Cashout` — rótulo de card aguarda amostra) | W ou V (ver regra global de cashout) |
 | (sem amostra) | V |
 | (sem amostra) | HW |
@@ -127,9 +180,13 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 
 ## 6. Boost / promoção
 
-- Tem boost: **sim** — a Jogo de Ouro turbina odds regularmente.
+- Tem boost: **sim** — a Jogo de Ouro turbina odds regularmente. **10 de 10 bilhetes da amostra
+  da s256 são boostados**: aqui o boost é o padrão, não a exceção.
 - Localizador visual: `[odd_original] >> [odd_final]` no canto superior direito do card + badge verde **`ODDS DE OURO`**.
-- `Cotações totais` sempre reflete a odd **final (boosted)**.
+- Na API: `boostedSelection.boostProperty: 3` — **o mesmo enum** que a VaideBet estampa como
+  `GOLDEN BOOST` e a Esportiva como `TURBINADA`. **O nome do selo é da marca; o enum é do motor.**
+- `Cotações totais` (= `totalOdds`) sempre reflete a odd **final (boosted)** — é ela que vai
+  para o TSV. O riscado é `boostedSelection.preBoostedPrice` e **nunca** é a odd válida.
 - Para W: `Ganho total ÷ Stake` já captura o boost automaticamente.
 - Para L: usar `Cotações totais` diretamente (Ganho total vazio).
 
@@ -200,6 +257,12 @@ Fonte de verdade das categorias: `MASTER_APOSTAS_2026 §3`. Este mapa lista **ap
 | Cashout (≠ stake) | `Odd = Cashout ÷ Stake` |
 
 > ⚠️ A odd antes do `>>` (`[odd_original]`) é decorativa/pré-boost — ignorar. Para W a odd é `Ganho total ÷ Stake` (já boosted). A odd exibida em `Cotações totais` é a final; conferir cruzando com `Ganho total ÷ Stake` em W.
+
+> ⚠️ **A TELA TRUNCA a odd riscada em 2 casas** (medido na s256, 4 casos em 10):
+> `preBoostedPrice: 2.7143` aparece como `2.71` · `2.6667` → `2.66` · `2.625` → `2.62` ·
+> `2.3334` → `2.33`. **Nunca ler odd do card** — a captura emite o valor cheio.
+> Nos 4 `W` da amostra o dinheiro e a odd concordam ao centavo (`totalOdds × stake == totalWin`:
+> 3,3×30=99 · 2,65×30=79,50 · 4×30=120 · 2,25×30=67,50), então as duas réguas fecham.
 
 ---
 
@@ -308,6 +371,13 @@ Tipo de Dispositivo Usado              Tipo de Dispositivo: Desktop
 ---
 
 VERSÃO: 2026
-STATUS: ATIVA
+STATUS: **CAPTURA POR API** desde a s256 (era print) · harness verde (`casos/jogodeouro.mjs`, 10 bilhetes reais + controle negativo) · mapa de mercados §9 herdado da era print, **não revisado** contra o payload · ⚠️ **NÃO validada ao vivo pela extensão**
 CASA: `Jogo de Ouro`
-ATUALIZADO: 2026-06-22 (sessão 43)
+ATUALIZADO: 2026-08-09 (sessão 256 — captura por API, 3ª casa do motor Altenar)
+
+<!-- Sem amostra nesta casa (a conta do recon tinha 10 resolvidas e ZERO abertas):
+     aposta em aberto · cashout executado · V/HW/HL · bônus · múltipla de jogos diferentes ·
+     qualquer esporte além de futebol · os 7 valores de `status` fora de {0,1,2}.
+     A única aposta ESPECIAL vista (`QUEM CONSEGUE A REMONTADA?`, marketTypeId 5001,
+     selectionTypeId -1, sem eventScore) está travada no harness. -->
+

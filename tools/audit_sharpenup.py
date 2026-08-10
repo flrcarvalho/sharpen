@@ -65,6 +65,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Esportiva é espelho da VaideBet e compartilha o espaço de IDs do motor Altenar:
     # mesmo formato numérico de 10 dígitos.
     "ESPORTIVA":  "5277832732",
+    # id real da conta (o W de 08/08 no Boca × Vélez, stake 30 → retorno 99,00). 3ª casa do
+    # motor Altenar: mesmo espaço de IDs, numérico de 10 dígitos.
+    "JOGODEOURO": "5273475058",
     "BET365":     "JR8714690761I",
     # ticket_id real da conta (a Super Odds aberta de 01/08) — formato NXBNAC + 24 dígitos.
     "BETNACIONAL": "NXBNAC000142211281785609607878",
@@ -77,6 +80,10 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # espelho da Jonbet e compartilha o espaço de IDs do motor: mesmo formato numérico de 19
     # dígitos e, pelo mesmo motivo da Jonbet, FORA do snap por edit-distance.
     "BETBOOM":    "2696881722674520125",
+    # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
+    # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
+    # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.
+    "STAKE":      "8342050",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do

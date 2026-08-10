@@ -187,6 +187,32 @@
     }
   });
 
+  // Bilhetes da STAKE capturados pelo stk_inject.js (mundo MAIN) — as RESPOSTAS de
+  // `POST /restapi/v1/betslip/history|active`, já normalizadas pelo inject. Mesmo modelo
+  // passivo + REPLAY ATIVO: o inject repagina por `range_start` até `next_page_exists:false`,
+  // então o operador NÃO precisa clicar "Próxima". `stkById` guarda 1 bilhete por
+  // `internal_bet_id` — que é o ID que o CARD estampa, não o `ticket_id` (s257). A versão
+  // LIQUIDADA vence a ABERTA. `stkFimReal` = o inject terminou → fim autoritativo.
+  const stkById = new Map();         // internal_bet_id(string) → bilhete
+  let stkFimReal = false;
+  let stkHookVivo = false, stkRespostas = 0;   // autodiagnóstico (espelha KTO/Pinnacle)
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupSTKData) {
+      if (d.hook) stkHookVivo = true;
+      if (typeof d.respostas === "number") stkRespostas = d.respostas;
+      if (Array.isArray(d.bilhetes)) {
+        const aberto = (b) => b.ticketStatus === 1;
+        for (const b of d.bilhetes) {
+          if (!b || !b.ref) continue;
+          const ex = stkById.get(b.ref);
+          if (!ex || (aberto(ex) && !aberto(b))) stkById.set(b.ref, b);
+        }
+      }
+      if (d.fim) stkFimReal = true;
+    }
+  });
+
   // Bilhetes da JONBET capturados pelo jb_inject.js (mundo MAIN) — as RESPOSTAS de
   // `my_bets/list` (BetBy / sptpub), já normalizadas pelo inject. Mesmo modelo passivo +
   // REPLAY ATIVO: o inject repagina por `skip` até `skip >= count`, então o operador NÃO
@@ -732,6 +758,18 @@
       // NÃO serve para a KTO — a lista não tem linha em branco entre cupons, então o
       // innerText virava um bloco só (menu + rodapé + ~140 bilhetes) e a IA perdia o resto.
       blocos = await roboKTOPassive(ctx);
+    } else if (casa === "stake") {
+      // Passivo + replay paginado (stk_inject). A Stake roda a MESMA Kambi da KTO, mas atrás
+      // de um REST próprio (`POST /restapi/v1/betslip/history`) — vocabulário de mercado
+      // igual, embalagem diferente. Por isso ela NÃO é casa espelho da KTO na captura: ganha
+      // inject e formatador próprios (ao contrário de Betfast/Tivo e Betboom/Jonbet, que
+      // compartilham o motor inteiro).
+      //
+      // A lista vem de 10 em 10 por botão "Próxima"; o inject repagina por `range_start` até
+      // `next_page_exists:false`. SEM fallback de texto: os cards ficam num grid de 3 colunas,
+      // sem linha em branco entre bilhetes, então o roboScroll genérico viraria um bloco só e
+      // a IA perderia o resto em silêncio (lição da KTO, s192).
+      blocos = await roboSTKPassive(ctx);
     } else if (casa === "betnacional") {
       // Passivo + replay por janelas de datas (bnc_inject). A lista da página só cobre a
       // janela exibida (~8 dias); o inject varre janelas para trás até secar. SEM fallback
@@ -750,17 +788,23 @@
       // ramo, um inject, um formatador. O harness roda a mesma fixture pelos dois domínios
       // e compara os blocos byte a byte (`casos/betfast.mjs`).
       blocos = await roboTVPassive(ctx);
-    } else if (casa === "vaidebet" || casa === "esportiva") {
+    } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
       // grid, sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
       // bloco só e a IA perderia o resto em silêncio (lição da KTO, s192).
       //
-      // A Esportiva é ESPELHO da VaideBet (s254): mesmo motor Altenar/BIA, MESMO host de
-      // gateway e mesmo endpoint — muda só o `integration` do corpo. Um ramo, um inject, um
-      // formatador. O harness roda a fixture DELA e compara os blocos com os do host da
-      // VaideBet byte a byte (`casos/esportiva.mjs`).
+      // A Esportiva (s254) e a Jogo de Ouro (s256) são ESPELHOS da VaideBet: mesmo motor
+      // Altenar/BIA, MESMO host de gateway e mesmo endpoint — muda só o `integration` do
+      // corpo. Um ramo, um inject, um formatador. O harness roda a fixture de CADA UMA e
+      // compara os blocos com os do host da VaideBet byte a byte.
+      //
+      // ⚠ A Jogo de Ouro serve DOIS widgets: o painel lateral "Minhas apostas" chama
+      // `widgetBetHistory` (compacto) e só a TELA CHEIA do histórico chama o
+      // `widgetExpandedBetHistory` que o `RX` do inject casa. Se o operador capturar sem
+      // abrir a tela cheia, o inject nunca aprende a requisição e o lote volta vazio —
+      // por isso o autodiagnóstico dela diz onde clicar (ver CASA_JOGODEOURO §2.1).
       blocos = await roboVBPassive(ctx);
     } else if (casa === "jonbet" || casa === "betboom") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
@@ -793,6 +837,7 @@
         betano:     { nome: "Betano",     hook: bnHookVivo, resp: bnRespostas, vistos: bnById.size },
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
+        stake:      { nome: "Stake",      hook: stkHookVivo, resp: stkRespostas, vistos: stkById.size },
         betnacional: { nome: "BetNacional", hook: bncHookVivo, resp: bncRespostas, vistos: bncById.size },
         tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         // Espelho da Tivo: mesmo inject, mesmos contadores. Só o nome muda, para o
@@ -802,6 +847,14 @@
         // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.
         esportiva:  { nome: "Esportiva",  hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
+        // Jogo de Ouro: mesmo inject/contadores das irmãs Altenar, mas com um extra que só
+        // ela precisa. Esta casa tem DOIS widgets de histórico e o inject só casa o da tela
+        // cheia; capturar a partir do painel lateral dá `respostas: 0` com o hook ATIVO —
+        // que é indistinguível de "endpoint mudou" para quem lê o toast. A dica diz onde clicar.
+        jogodeouro: { nome: "Jogo de Ouro", hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
+                      extra: vbRespostas === 0
+                        ? " · abra o histórico COMPLETO (Minhas apostas › Mostrar mais apostas) e capture com ele na tela"
+                        : "" },
         jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "Jonbet: 0 bilhetes" estando na Betboom.
@@ -1904,6 +1957,188 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] KTO: " + blocos.length + " bilhete(s) · ktoById=" + ktoById.size +
                 " · hook=" + ktoHookVivo + " · respostas=" + ktoRespostas + " · fimReal=" + ktoFimReal);
+    return blocos;
+  }
+
+  // ── Stake modo API (passivo + replay paginado por `range_start`) ──────────────
+  // A Stake roda KAMBI (mesmo motor da KTO) atrás de um REST próprio. Por isso o vocabulário
+  // de mercado é o MESMO da KTO — `Total de Escanteio por <time>`, `Resultado Final`, esporte
+  // em caixa alta — e a `CASA_STAKE.md §9` copia o mapa da KTO. O que muda é a embalagem:
+  // dinheiro em REAIS (não milésimos) e status em INTEIRO (não string).
+  //
+  // De-para do `bet_status`, medido contra o rótulo do card (recon s257). O canônico vive na
+  // `CASA_STAKE.md §5`; aqui é só a leitura. Enum FORA deste mapa sobe cru e não é liquidado.
+  const _ST_STK = { 1: "aberta", 2: "ganha", 3: "perdida", 4: "anulada" };
+
+  // Stake efetivo. `bet_total_stake` vem **0 em toda ANULADA** — o valor real (o "Valor Total"
+  // do card) está em `bet_request_stake`. Ler o campo óbvio grava R$0,00 em 100% delas.
+  const _stakeSTK = (b) => (typeof b.stake === "number" && b.stake > 0) ? b.stake
+                         : (typeof b.stakePedida === "number" ? b.stakePedida : 0);
+
+  // Odd EXATA = produto das odds das pernas. `bet_total_odds` é arredondada a 2 casas pela
+  // casa (3.7 onde o real é 3,702056) e na PERDIDA não há dinheiro nenhum para derivar
+  // (`bet_payout` e `bet_potential_payout` são os dois 0).
+  function _oddProdSTK(b) {
+    const sels = b.sels || [];
+    if (!sels.length) return null;
+    let p = 1;
+    for (const s of sels) {
+      const o = (typeof s.oddBoost === "number" && s.oddBoost > 0) ? s.oddBoost : s.odd;
+      if (typeof o !== "number" || !(o > 0)) return null;
+      p *= o;
+    }
+    return p;
+  }
+
+  // Concilia odd × dinheiro, como o `_conciliaKTO` — com uma diferença: aqui a "declarada" é
+  // o PRODUTO das pernas, não um campo (o campo já vem arredondado). Se o produto explica o
+  // dinheiro até o centavo, ele é a odd verdadeira (quem arredondou foi o pagamento:
+  // 3,702056 × 150 = 555,3084 → pago 555,31). Se NÃO explica — boost, cashout, liquidação
+  // antecipada — o dinheiro manda, que é a regra global do W. Nunca trunca: só escolhe a fonte.
+  function _conciliaSTK(dinheiro, stake, prod) {
+    if (prod != null && stake > 0 && Math.abs(dinheiro - prod * stake) <= 0.01) return prod;
+    return dinheiro / stake;
+  }
+
+  // Ordem: retorno real (W, já com boost/cashout) → retorno potencial (aberta/anulada) →
+  // produto das pernas (perdida, onde a odd não move P/L mas a planilha precisa dela).
+  function _oddSTK(b) {
+    const st = _stakeSTK(b), prod = _oddProdSTK(b);
+    const pot = (typeof b.potencialBoost === "number" && b.potencialBoost > 0) ? b.potencialBoost : b.potencial;
+    if (st > 0 && typeof b.payout === "number" && b.payout > 0) return _conciliaSTK(b.payout, st, prod);
+    if (st > 0 && typeof pot === "number" && pot > 0) return _conciliaSTK(pot, st, prod);
+    if (prod != null) return prod;
+    return (typeof b.oddBoost === "number" && b.oddBoost > 0) ? b.oddBoost : b.odd;
+  }
+
+  // Leitura pelo ENUM, **não** pelo dinheiro. Na Stake `bet_payout` é 0 na ANULADA *e* na
+  // PERDIDA: o dinheiro não distingue as duas. A KTO pode derivar do dinheiro (`_resultadoKTO`);
+  // aqui a mesma heurística marcaria toda anulada como L.
+  function _resultadoSTK(b) {
+    const k = _ST_STK[b.status];
+    if (k === "aberta") return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (k === "ganha") return "Ganho → W (retorno R$ " + _brl(b.payout || 0) + ")";
+    if (k === "perdida") return "Perdeu → L";
+    if (k === "anulada") return "Anulada pela casa (stake devolvido; P/L zero) → V";
+    return "bet_status=" + String(b.status) + " (a conferir — não liquidar automaticamente)";
+  }
+
+  function _tipoSTK(b) {
+    const sels = b.sels || [];
+    if (sels.length >= 2) {
+      const jogos = new Set(sels.map((s) => s.eventoId).filter(Boolean));
+      if (jogos.size === 1) return "Bet Builder (mesmo jogo · " + sels.length + " seleções)";
+      return "Múltipla (" + sels.length + " seleções)";
+    }
+    if (sels.length === 1) return "Simples";
+    return "";
+  }
+
+  function formatTicketSTK(b) {
+    const L = [];
+    L.push("[Código: " + b.ref + "]");
+    // `_dhKTO` é reusado de propósito: é exatamente a mesma conversão (ISO UTC → America/
+    // Sao_Paulo, data + hora). Duplicar a função só criaria duas verdades para o mesmo fuso.
+    const dh = _dhKTO(b.colocada);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(_stakeSTK(b)));
+    L.push("Status: " + _resultadoSTK(b));
+    // Status CRU da API — é ele que a CASA_STAKE.md traduz. Sem isso, um enum novo (cashout,
+    // meio-ganho, recusado) viraria chute a partir do dinheiro.
+    L.push("Status (API): bet_status=" + String(b.status) + " · ticket_status=" + String(b.ticketStatus));
+    const odd = _oddSTK(b);
+    if (odd != null) L.push("Odd: " + _oddTxtKTO(odd));
+    const tipo = _tipoSTK(b);
+    if (tipo) L.push("Tipo: " + tipo);
+
+    // Retorno de bilhete ABERTO é POTENCIAL, nunca "retorno" — senão a IA liquida uma aposta
+    // que ainda está correndo.
+    if (_ST_STK[b.status] === "aberta" && typeof b.potencial === "number" && b.potencial > 0) {
+      L.push("Retorno potencial: R$ " + _brl(b.potencial));
+    }
+    if (_ST_STK[b.status] === "anulada") {
+      // Na anulada o card mostra "Valor Total" (= bet_request_stake) e "Pagamento R$0,00".
+      // Deixa explícito para a IA não ler o pagamento zero como derrota.
+      L.push("Obs. da casa: aposta anulada — `bet_total_stake` veio 0 e o valor exibido é o " +
+             "solicitado (R$ " + _brl(b.stakePedida || 0) + "). Não é perda: P/L zero.");
+    }
+    if (typeof b.cashout === "number" && b.cashout > 0) {
+      L.push("Cashout disponível: R$ " + _brl(b.cashout) + (b.cashoutStatus ? " [" + b.cashoutStatus + "]" : ""));
+    }
+    if (b.oddBoost != null || b.potencialBoost != null) {
+      const partes = [];
+      if (b.oddBoost != null) partes.push("odd turbinada " + _oddTxtKTO(b.oddBoost));
+      if (b.potencialBoost != null) partes.push("retorno turbinado R$ " + _brl(b.potencialBoost));
+      L.push("Boost: " + partes.join(" · "));
+    }
+    if (b.bonusTipo != null) L.push("Tipo de bônus (API): " + String(b.bonusTipo));
+    if (b.ticket) L.push("Ticket da casa: " + b.ticket);
+
+    L.push("Seleções:");
+    for (const s of (b.sels || [])) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.label || "");
+      if (s.status != null) bits.push("[sel_status=" + String(s.status) + (s.antecipada ? " · liquidação antecipada" : "") + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte + (_SPORT_KTO[s.esporte] ? " (" + _SPORT_KTO[s.esporte] + ")" : ""));
+      if (s.inicio) ctx2.push("Início: " + _dhKTO(s.inicio));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.resultado && s.resultado !== "N/A") L.push("    Resultado do mercado (casa): " + s.resultado);
+      const oS = (typeof s.oddBoost === "number" && s.oddBoost > 0) ? s.oddBoost : s.odd;
+      if (oS != null) L.push("    Odd da perna: " + _oddTxtKTO(oS));
+    }
+    return L.join("\n");
+  }
+
+  async function roboSTKPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro (a lista da Stake é assim), para o corte da
+      // janela de dias cair no lugar certo.
+      const todos = Array.from(stkById.values()).sort((a, b) =>
+        (Date.parse(b.colocada) || 0) - (Date.parse(a.colocada) || 0));
+      for (const b of todos) {
+        const cod = String(b.ref || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias corta só as RESOLVIDAS (pela data de colocação, que é a que o card
+        // mostra). Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = b.colocada ? Date.parse(b.colocada) : NaN;
+        const aberta = _ST_STK[b.status] === "aberta";
+        const passou = !aberta && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketSTK(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao stk_inject o acumulado + arranca o replay (repagina cada variante até
+    // `next_page_exists:false`).
+    try { window.postMessage({ __sharpenupSTKReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar (stkFimReal), consumindo o que for chegando. Não para no 1º
+    // obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !stkFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (stkById.size > ultTotal) { ultTotal = stkById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] Stake: " + blocos.length + " bilhete(s) · stkById=" + stkById.size +
+                " · hook=" + stkHookVivo + " · respostas=" + stkRespostas + " · fimReal=" + stkFimReal);
     return blocos;
   }
 

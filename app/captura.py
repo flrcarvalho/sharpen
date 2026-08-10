@@ -56,7 +56,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # ESPORTIVA: ESPELHO da VaideBet (s254) — mesmo motor Altenar/BIA, MESMO host de gateway
 # (`sb2bethistory-gateway-altenar2.biahosted.com`) e mesmo endpoint; muda só o
 # `integration` (`esportiva` × `vaidebet`). Usa o MESMO `vb_inject.js`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto"}
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -76,12 +76,20 @@ _HOSTS_POR_CASA = {
     "BETFAIR":    ("betfair.bet.br",),
     "PINNACLE":   ("pinnacle.bet.br",),
     "KTO":        ("kto.bet.br",),
+    # Stake (s257). Roda a MESMA Kambi da KTO, mas atrás de um REST próprio
+    # (`web-api.stake.bet.br/restapi/v1/betslip/*`) — por isso NÃO é casa espelho: tem inject
+    # e formatador próprios. A ABA continua sendo o site da casa.
+    "STAKE":      ("stake.bet.br",),
     "TIVO":       ("tivo.bet.br",),
     "VAIDEBET":   ("vaidebet.bet.br",),
     # Espelho da VaideBet: mesmo Altenar/BIA, MESMO gateway de histórico
     # (`sb2bethistory-gateway-altenar2.biahosted.com`) — o que separa as duas é o
     # `integration` do corpo. A ABA continua sendo o site da casa.
     "ESPORTIVA":  ("esportiva.bet.br",),
+    # 3ª casa Altenar (s256). ⚠ Esta serve DOIS widgets de histórico: o painel lateral usa
+    # `widgetBetHistory` (compacto) e a tela cheia usa `widgetExpandedBetHistory` — só a
+    # segunda é capturada. Ver CASA_JOGODEOURO §2.1.
+    "JOGODEOURO": ("jogodeouro.bet.br",),
     # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
     # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
     "BETFAST":    ("betfast.bet.br",),

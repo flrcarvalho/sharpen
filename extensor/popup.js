@@ -15,7 +15,7 @@ const DOMINIOS = {
   "Superbet": "superbet.com", "Betano": "betano.com", "Bet365": "bet365.com",
   "Betfair": "betfair.com", "KTO": "kto.com", "Pinnacle": "pinnacle.com",
   "Betnacional": "betnacional.com", "Lottu": "lottu.com", "Vitória Bet": "vitoriabet.com",
-  "BETesporte": "betesporte.bet.br",
+  "BETesporte": "betesporte.bet.br", "Stake": "stake.bet.br",
 };
 
 // Amarração casa↔site (Fix cliente): domínios operacionais (BR) das casas de robô. Ao
@@ -31,9 +31,13 @@ const CASA_HOSTS = {
   "Betfair":    ["betfair.bet.br"],
   "Pinnacle":   ["pinnacle.bet.br"],
   "KTO":        ["kto.bet.br"],
+  // Stake: mesma Kambi da KTO, mas atrás de REST próprio → inject e formatador PRÓPRIOS
+  // (não é casa espelho, ao contrário de Betfast/Tivo e Betboom/Jonbet).
+  "Stake":      ["stake.bet.br"],
   "Tivo":       ["tivo.bet.br"],
   "VaideBet":   ["vaidebet.bet.br"],
   "Esportiva":  ["esportiva.bet.br"],  // espelho da VaideBet · mesmo motor Altenar/BIA
+  "Jogo de Ouro": ["jogodeouro.bet.br"],  // 3ª casa Altenar · captura na TELA CHEIA do histórico
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
@@ -180,6 +184,7 @@ async function capturar() {
                 : casa === "Betfair" ? "bf_inject.js"
                 : casa === "Pinnacle" ? "pn_inject.js"
                 : casa === "KTO" ? "kto_inject.js"
+                : casa === "Stake" ? "stk_inject.js"
                 : casa === "Tivo" ? "tv_inject.js"
                 // Betfast é espelho da Tivo (mesmo motor BetConstruct, mesmo endpoint):
                 // MESMO inject, de propósito. Duplicar seria manter 270 linhas gêmeas.
@@ -187,6 +192,7 @@ async function capturar() {
                 : casa === "VaideBet" ? "vb_inject.js"
                 // Espelho da VaideBet (Altenar/BIA, mesmo gateway): MESMO inject.
                 : casa === "Esportiva" ? "vb_inject.js"
+                : casa === "Jogo de Ouro" ? "vb_inject.js"
                 : casa === "Betnacional" ? "bnc_inject.js"
                 // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
                 // `/api/v1/my_bets/list`): MESMO inject, de propósito.

@@ -115,12 +115,14 @@ Regras que valem para todos:
 | **Betfair** | API + replay | `POST /activity/sportsbook` | `bf_inject.js` | `betId` `O/…` | `moreAvailable:false` | `settledDate` (já local) |
 | **Pinnacle** | API + replay | `POST /member-service/v2/wager-filter` | `pn_inject.js` | `id` (array posicional!) | replay das 2 abas | data do evento |
 | **KTO** | API + replay | `GET /coupon/history.json` (Kambi) | `kto_inject.js` | `couponRef` | `range.more:false` | `placedDate` (UTC→BRT) |
+| **Stake** | API + replay (paginado) | `POST /restapi/v1/betslip/history` (Kambi atrás de REST próprio) | `stk_inject.js` | `internal_bet_id` (7 díg.) | `next_page_exists:false` | `ticket_placed_date` (UTC→SP) |
 | **Bet365** | rota (`location.hash`) | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
 | **Tivo** | API + replay (1 chamada) | `POST /api/game/p/messagetosport` (`gethistory`) | `tv_inject.js` | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
 | **Betfast** | **espelho da Tivo** — mesmo motor BetConstruct | idem | **`tv_inject.js`** (o mesmo) | `ID` | teto de 50 + varredura por `to` ⚠ | evento mais recente (UTC→SP) |
 | **BetNacional** | API + replay (janelas de datas) | `GET /api/v2/all-bets` | `bnc_inject.js` | `ticket_id` | janelas até secar | ⚠ ver nota abaixo |
 | **VaideBet** | API + replay (paginado) | `POST /api/WidgetReports/widgetExpandedBetHistory` (Altenar) | `vb_inject.js` | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Esportiva** | **espelho da VaideBet** — mesmo motor Altenar/BIA | idem, **mesmo host de gateway** | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
+| **Jogo de Ouro** | **espelho da VaideBet** — 3ª casa Altenar | idem ⚠ **só na TELA CHEIA** (o painel lateral usa `widgetBetHistory`) | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
 
 > ⚠ **BetNacional — divergência de rótulo NÃO medida (anotada na s248, ao preencher esta tabela).**
@@ -143,6 +145,40 @@ Regras que valem para todos:
 > BetBy. ⚠ Registrar `ESPORTIVA` no `_CASA_DISPLAY` foi mudança retroativa sobre **351
 > bilhetes** que já existiam na grafia `Esportiva` (ver o aviso do §5): a grafia foi **medida
 > no banco antes**, e o round-trip foi provado em 61 grafias (0 quebradas).
+>
+> ⚠️ **Espelho não quer dizer LISO — a Jogo de Ouro (s256) provou isso.** Ela é a 3ª casa
+> Altenar e reusa tudo, mas serve **dois** widgets de histórico: o painel lateral chama
+> `widgetBetHistory` (**compacto**) e só a **tela cheia** chama o `widgetExpandedBetHistory`
+> que o `RX` casa. A regex **não** foi afrouxada: a única amostra do compacto veio com
+> `bets: []`, ninguém mediu seus campos, e consumi-lo seria chute — o `Expanded` virou
+> comentário load-bearing no inject, com o caso de harness travando que o bilhete do widget
+> errado não entra no lote. **A lição geral: ao ligar uma casa espelho, confira QUAL tela
+> dispara o endpoint conhecido** — "mesmo motor" não garante "mesma superfície". Quando o
+> custo cai no operador (aqui: capturar com a tela cheia aberta), o autodiagnóstico da casa
+> tem de dizer onde clicar, senão o erro vira "0 bilhetes" indistinguível de endpoint mudado.
+
+> ⚠️ **Mesmo motor NÃO basta para reusar o inject — a Stake (s257) é o contra-exemplo.** Ela
+> roda a **mesma Kambi da KTO** (provado pelo vocabulário: `Total de Escanteio por <time>`
+> aparece literalmente nas fixtures das duas, mais `range_start`/`range_size`), e mesmo assim
+> ganhou inject próprio. O motivo é que ela **não expõe a Kambi**: embrulha num REST próprio,
+> com nomes snake_case, dinheiro em **reais** (não milésimos), status em **inteiro** (não
+> string) e fim por `next_page_exists` (não `range.more`). **A regra que sai daqui: o que
+> autoriza o reuso é o motor que CHEGA AO NAVEGADOR, não o motor que a casa licenciou.** O
+> teste barato é olhar os nomes de campo de um payload real — se eles mudaram, é casa nova na
+> captura, ainda que seja espelho na leitura (o `CASA_STAKE.md §9` herda o mapa da KTO).
+>
+> **Stake — duas armadilhas que nenhuma outra casa tinha mostrado.** (1) **`bet_total_stake`
+> vem `0` em toda ANULADA**; o valor real mora em `bet_request_stake` — mesma família do
+> `betOdds:0` da KTO e do `total_k:0` da Jonbet, mas no **stake**, não na odd. (2) **O dinheiro
+> não distingue anulada de perdida**: as duas têm `bet_payout: 0`. A leitura financeira que a
+> KTO usa (`payout == 0 → L`) marcaria toda anulada como derrota — **nesta casa o enum manda**,
+> e por isso o bloco emite `Status (API): bet_status=N` cru. Generalizando: **antes de derivar
+> resultado do dinheiro, prove que o dinheiro separa os casos.**
+>
+> **Stake — a casa PARTE a aposta em dois bilhetes** quando não aceita o stake inteiro (medido:
+> 7 de 10 apostas, IDs distintos, mesmo segundo, stakes somando redondo). Os dois lados são
+> bilhetes reais e viram duas linhas; a dedup por código já lida, mas qualquer análise por
+> *aposta* conta em dobro. Travado no `casos/stake.mjs` com a soma esperada por par.
 
 > **Jonbet (s248) — três coisas que só essa casa tem até agora.** (1) O motor **BetBy** renderiza
 > na **própria página** (`bt-renderer.min.js`), não em iframe — o `content.js` alcança tudo. (2) A
