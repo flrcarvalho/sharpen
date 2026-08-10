@@ -375,6 +375,18 @@ const NOVIDADES=[
 ];
 const SHARPENUP=[
   {id:'su-0639', v:'v0.6.39', data:'2026-08-09', texto:'Nova casa: **Esportiva**.'},
+  {id:'su-0638', v:'v0.6.38', data:'2026-08-06', texto:'Nova casa: **Betboom**.'},
+  {id:'su-0637', v:'v0.6.37', data:'2026-08-06', texto:'Nova casa: **Jonbet**.'},
+  {id:'su-0636', v:'v0.6.36', data:'2026-08-04', texto:'Melhorias na extração da **bet365**.',
+   itens:[
+     'Bilhete cujos detalhes não chegaram a carregar fica **retido**, e a tela avisa quantos foram.',
+     '**Nada se perde:** ele volta inteiro na próxima captura. Pode repetir sem medo — não duplica.',
+   ]},
+  {id:'su-0635', v:'v0.6.35', data:'2026-08-01', texto:'**BetNacional**: aposta cancelada com a stake devolvida por inteiro agora sai como **V** (anulada), não como perda.'},
+  {id:'su-0634', v:'v0.6.34', data:'2026-08-01', texto:'Nova casa: **BetNacional**.'},
+  {id:'su-0633', v:'v0.6.33', data:'2026-07-27', texto:'**Tivo** e **Betfast**: a captura vai além dos 50 bilhetes que a tela mostra e busca também o histórico mais antigo.'},
+  {id:'su-0632', v:'v0.6.32', data:'2026-07-27', texto:'Nova casa: **Betfast**.'},
+  {id:'su-0631', v:'v0.6.31', data:'2026-07-27', texto:'Melhorias na extração da **VaideBet**.'},
   {id:'su-0630', v:'v0.6.30', data:'2026-07-26', texto:'Nova casa: **VaideBet**.'},
   {id:'su-0626', v:'v0.6.26', data:'2026-07-26', texto:'**Betfair**: abertas e encerradas na mesma captura.'},
   {id:'su-0625', v:'v0.6.25', data:'2026-07-25', texto:'Nova casa: **Tivo**.'},
@@ -389,7 +401,10 @@ const SHARPENUP=[
   {id:'su-050', v:'v0.5.0', data:'2026-07-21', texto:'Nova casa: **Pinnacle**.'},
 ];
 const NOV_DIAS=45;   // janela de recência do painel do Sharpen (a caixa some depois disso)
-const SU_MAX=6;      // quantas versões a caixa do SharpenUp mostra (histórico, sem prazo)
+const SU_MAX=9;      // quantas versões a caixa do SharpenUp mostra (histórico, sem prazo)
+// 6 → 9 na s254: o changelog tinha pulado 8 versões (0.6.31 → 0.6.38, incluindo a estreia
+// da Betfast). Ao preencher, o corte em 6 esconderia justamente os itens recuperados —
+// preencher o array e manter o corte antigo seria trabalho que ninguém veria.
 function novSeenLoad(dono){try{return new Set(JSON.parse(localStorage.getItem('sharpen_novidades_seen::'+(dono||'_'))||'[]'));}catch(e){return new Set();}}
 function novSeenSave(dono,set){try{localStorage.setItem('sharpen_novidades_seen::'+(dono||'_'),JSON.stringify([...set]));}catch(e){}}
 // Texto do changelog: escapa PRIMEIRO (segue XSS-safe) e só então converte **x** em <b>.
