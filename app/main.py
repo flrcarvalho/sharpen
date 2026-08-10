@@ -1491,6 +1491,87 @@ async def logout():
     return resp
 
 
+# ── Aviso ao admin (canal de SAÍDA do app) ────────────────────────────────────
+# O cadastro nascia mudo: a conta ficava `pendente` no /admin e NADA avisava
+# ninguém. Na prática o dono só descobria abrindo a tela por acaso — um cadastro
+# chegou a esperar 2 dias, e três de um mesmo dia só foram vistos porque alguém
+# perguntou "chegou mais alguém?". Tela que depende de ser lembrada não é aviso.
+#
+# ⚠️ Variáveis PRÓPRIAS, deliberadamente separadas do TELEGRAM_BOT_TOKEN do
+# login social: aquela é o interruptor do botão "Entrar com Telegram", e apagá-la
+# para desligar o botão NÃO pode calar o aviso de cadastro. Um canal, um
+# interruptor. Mesmo fail-safe do resto: sem env var, vira no-op silencioso.
+TELEGRAM_ALERTA_TOKEN = os.environ.get("TELEGRAM_ALERTA_TOKEN", "")
+TELEGRAM_ALERTA_CHAT_ID = os.environ.get("TELEGRAM_ALERTA_CHAT_ID", "")
+
+# Referência forte às tarefas em voo: o asyncio só guarda weakref das tasks, e
+# sem isto o coletor pode matar o aviso no meio do caminho (falha silenciosa e
+# intermitente, a pior de diagnosticar).
+_tarefas_aviso: set[asyncio.Task] = set()
+
+
+def _alerta_configurado() -> bool:
+    return bool(TELEGRAM_ALERTA_TOKEN and ":" in TELEGRAM_ALERTA_TOKEN and TELEGRAM_ALERTA_CHAT_ID)
+
+
+async def avisar_admin(texto: str) -> bool:
+    """Manda um aviso ao admin pelo Telegram. NUNCA levanta.
+
+    O aviso é efeito colateral de uma ação do usuário (cadastrar-se). Deixar a
+    exceção subir trocaria um problema pequeno ("o dono não foi avisado") por um
+    grande ("a pessoa não conseguiu se cadastrar porque o Telegram caiu").
+    Devolve True só quando o Telegram confirmou a entrega.
+    """
+    if not _alerta_configurado():
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=8) as cli:
+            r = await cli.post(
+                f"https://api.telegram.org/bot{TELEGRAM_ALERTA_TOKEN}/sendMessage",
+                json={
+                    "chat_id": TELEGRAM_ALERTA_CHAT_ID,
+                    "text": texto,
+                    "disable_web_page_preview": True,
+                },
+            )
+        r.raise_for_status()
+        return True
+    except Exception:
+        # sem parse_mode no envio: texto cru não tem escaping para errar, e um
+        # nome com _ ou * não pode ser o motivo de um aviso não sair.
+        logger.exception("aviso admin: envio falhou (a ação do usuário segue normal)")
+        return False
+
+
+def disparar_aviso(texto: str) -> None:
+    """Fire-and-forget: o aviso não segura a resposta ao usuário nem por 1s.
+
+    O try/except cobre o AGENDAMENTO, não só o envio: `avisar_admin` já engole
+    tudo por dentro, mas se o `create_task` falhasse (loop fechado, por exemplo)
+    a exceção subiria pelo `/signup` e derrubaria o cadastro — justamente o que
+    esta função existe para impedir. Sem o guard, o aviso vira um jeito NOVO de
+    o cadastro falhar.
+    """
+    if not _alerta_configurado():
+        return
+    try:
+        tarefa = asyncio.create_task(avisar_admin(texto))
+        _tarefas_aviso.add(tarefa)
+        tarefa.add_done_callback(_tarefas_aviso.discard)
+    except Exception:
+        logger.exception("aviso admin: agendamento falhou (a ação do usuário segue normal)")
+
+
+def _texto_cadastro_novo(usuario: str, email: str | None, via: str) -> str:
+    return (
+        "🔔 Novo cadastro no Sharpen\n\n"
+        f"Usuário: {usuario}\n"
+        f"E-mail: {email or '—'}\n"
+        f"Entrou por: {via}\n\n"
+        f"Aprovar em {BASE_URL_PUBLICA}/admin"
+    )
+
+
 # ── Cadastro self-service (Fase 2 — "aberto com aprovação") ───────────────────
 # Qualquer um se cadastra; a conta nasce `pendente` e só loga depois que um
 # admin aprovar no /admin. Ver docs/PLANO_MULTIUSUARIO_2026.md §Fase 2.
@@ -1559,6 +1640,7 @@ async def signup(body: SignupRequest, request: Request):
     # passa a responder "cadastro em análise" imediatamente.
     atualizar_cache_usuarios(await carregar_usuarios())
     logger.info("signup: cadastro pendente criado — usuario=%s email=%s", usuario, email)
+    disparar_aviso(_texto_cadastro_novo(usuario, email, "formulário de senha"))
     return {"ok": True, "mensagem": "Cadastro recebido! Sua conta está em análise — você poderá entrar assim que for aprovada."}
 
 
@@ -1729,6 +1811,10 @@ async def _resolver_social(
         )
         atualizar_cache_usuarios(await carregar_usuarios())
         logger.info("social: cadastro pendente criado via %s — %s", campo, username)
+        # Mesmo aviso do /signup: conta pendente nasce nestes DOIS pontos, e
+        # cobrir só um recria em silêncio o buraco que este aviso veio fechar.
+        disparar_aviso(_texto_cadastro_novo(
+            username, email, "Google" if google_sub else "Telegram"))
         return "/login?social=pendente", None
     if u["status"] == "pendente":
         return "/login?social=pendente", None

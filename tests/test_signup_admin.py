@@ -11,6 +11,7 @@ de qualquer query; o DB stub do conftest explodiria se fossem alcançados):
 3. Gates das rotas: /signup valida antes do DB; /admin/* exige sessão (401)
    e papel admin (403); a página /admin redireciona em vez de vazar.
 """
+import asyncio
 import sys
 
 import pytest
@@ -92,6 +93,104 @@ def test_signup_usuario_invalido_da_400_sem_tocar_banco():
 def test_signup_senha_curta_da_400():
     r = cliente.post("/signup", json={"usuario": "UsuarioOk", "email": "x@y.co", "senha": "curta"})
     assert r.status_code == 400
+
+
+# ── Aviso ao admin: o cadastro deixou de ser mudo ─────────────────────────────
+# A conta pendente ficava só no /admin, e nada avisava ninguém: um cadastro
+# esperou 2 dias e três de um mesmo dia só foram vistos porque alguém perguntou.
+# O que estes testes travam: o fail-safe (sem env var, nada acontece), o payload,
+# e — o mais importante — que o aviso NUNCA vira um jeito novo de o cadastro
+# falhar. Ele é efeito colateral; a ação do usuário tem precedência sempre.
+
+@pytest.fixture
+def alerta_ligado(monkeypatch):
+    monkeypatch.setattr(main, "TELEGRAM_ALERTA_TOKEN", "111:AAtokenDeAviso")
+    monkeypatch.setattr(main, "TELEGRAM_ALERTA_CHAT_ID", "42")
+    return monkeypatch
+
+
+class _RespFake:
+    def raise_for_status(self):
+        pass
+
+
+def _cliente_fake(capturado):
+    class Cli:
+        def __init__(self, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, json=None):
+            capturado["url"], capturado["json"] = url, json
+            return _RespFake()
+    return Cli
+
+
+def test_alerta_desligado_sem_env():
+    assert main._alerta_configurado() is False
+
+
+def test_alerta_desligado_e_no_op():
+    # Sem env var não pode nem tentar agendar (não há loop rodando aqui: se
+    # `disparar_aviso` chamasse create_task, este teste explodiria).
+    assert main.disparar_aviso("qualquer coisa") is None
+
+
+def test_alerta_exige_token_e_chat(monkeypatch):
+    monkeypatch.setattr(main, "TELEGRAM_ALERTA_TOKEN", "111:AAtoken")
+    monkeypatch.setattr(main, "TELEGRAM_ALERTA_CHAT_ID", "")
+    assert main._alerta_configurado() is False        # token sem destino não serve
+    monkeypatch.setattr(main, "TELEGRAM_ALERTA_CHAT_ID", "42")
+    monkeypatch.setattr(main, "TELEGRAM_ALERTA_TOKEN", "sem-dois-pontos")
+    assert main._alerta_configurado() is False        # token malformado
+
+
+def test_avisar_admin_envia_payload_certo(alerta_ligado):
+    capturado = {}
+    alerta_ligado.setattr(main.httpx, "AsyncClient", _cliente_fake(capturado))
+    assert asyncio.run(main.avisar_admin("oi")) is True
+    assert capturado["url"].endswith("/bot111:AAtokenDeAviso/sendMessage")
+    assert capturado["json"]["chat_id"] == "42"
+    assert capturado["json"]["text"] == "oi"
+
+
+def test_avisar_admin_engole_falha_do_telegram(alerta_ligado):
+    class Explode:
+        def __init__(self, **k):
+            pass
+
+        async def __aenter__(self):
+            raise RuntimeError("telegram fora do ar")
+
+        async def __aexit__(self, *a):
+            return False
+
+    alerta_ligado.setattr(main.httpx, "AsyncClient", Explode)
+    assert asyncio.run(main.avisar_admin("oi")) is False   # devolve, não levanta
+
+
+def test_disparar_aviso_engole_falha_de_agendamento(alerta_ligado):
+    """Guard do AGENDAMENTO: sem ele, o aviso derrubaria o /signup que o chamou."""
+    def create_task_quebrado(_):
+        raise RuntimeError("sem event loop")
+
+    alerta_ligado.setattr(main.asyncio, "create_task", create_task_quebrado)
+    assert main.disparar_aviso("oi") is None              # não propaga
+
+
+def test_texto_do_aviso_tem_o_essencial():
+    t = main._texto_cadastro_novo("Fulano", "f@x.com", "formulário de senha")
+    for pedaco in ("Fulano", "f@x.com", "/admin", "formulário de senha"):
+        assert pedaco in t
+    # Login pelo Telegram NÃO fornece e-mail — o aviso não pode quebrar nem
+    # sair com "None" no lugar do endereço.
+    sem_email = main._texto_cadastro_novo("Fulano", None, "Telegram")
+    assert "None" not in sem_email and "—" in sem_email
 
 
 # ── /login: mensagens de pendente/suspenso ────────────────────────────────────

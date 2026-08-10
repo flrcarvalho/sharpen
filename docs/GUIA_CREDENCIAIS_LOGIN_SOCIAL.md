@@ -94,4 +94,38 @@
 
 ---
 
+## 5. Aviso de cadastro novo no seu Telegram (s259)
+
+> Independente do login social. São **variáveis próprias** de propósito: apagar o
+> `TELEGRAM_BOT_TOKEN` para desligar o botão de login **não** cala este aviso.
+
+Sem estas duas, o app não avisa nada (no-op silencioso; o cadastro segue igual).
+
+| Variável | Valor |
+|---|---|
+| `TELEGRAM_ALERTA_TOKEN` | token de um bot que **você já iniciou** (`/start`) |
+| `TELEGRAM_ALERTA_CHAT_ID` | seu id numérico de conversa com esse bot |
+
+**Como descobrir o `chat_id`** (30s):
+
+1. No Telegram, abra o bot e mande `/start` (obrigatório — bot não fala primeiro
+   com quem nunca falou com ele).
+2. No navegador, abra `https://api.telegram.org/bot<TOKEN>/getUpdates`.
+3. Procure `"chat":{"id":123456789` — esse número é o `TELEGRAM_ALERTA_CHAT_ID`.
+
+Se o `getUpdates` vier `{"ok":true,"result":[]}`, o `/start` não chegou nesse bot
+— confira se o token é do mesmo bot em que você mandou a mensagem.
+
+**Conferir que acendeu:** cadastre uma conta de teste em `/login → Criar conta`.
+O aviso chega com usuário, e-mail, por onde entrou e o link do `/admin`.
+Depois é só excluir a conta de teste.
+
+> **Por que o aviso nunca derruba o cadastro:** ele é disparado fire-and-forget,
+> com timeout de 8s, exceção engolida no envio **e no agendamento**. Telegram
+> fora do ar = você não é avisado; nunca = a pessoa não consegue se cadastrar.
+> Travado em `tests/test_signup_admin.py`.
+
+---
+
 CRIADO: sessão 236 (2026-08-03, madrugada autorizada).
+ATUALIZADO: sessão 259 (2026-08-10 — §5, aviso de cadastro novo).
