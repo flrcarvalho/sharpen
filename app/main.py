@@ -1829,11 +1829,22 @@ _TELEGRAM_RETORNO_HTML = """<!DOCTYPE html>
 <p>Concluindo login…</p>
 <script>
 (async () => {
-  const m = location.hash.match(/tgAuthResult=([A-Za-z0-9_\\-=]+)/);
+  // Aceita base64url (-_) E base64 padrão (+/): o alfabeto que o Telegram usa
+  // no fragmento não está medido contra o serviço real, e um charset apertado
+  // truncaria o payload em silêncio — o usuário só veria "?social=erro".
+  const m = location.hash.match(/tgAuthResult=([A-Za-z0-9_+\\/\\-=]+)/);
   if (!m) { location.replace('/login?social=erro'); return; }
   try {
     const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
-    const dados = JSON.parse(atob(b64));
+    // ⚠️ UTF-8 é LOAD-BEARING aqui, não estética. `atob` devolve binary string
+    // (1 char por BYTE), então JSON.parse(atob(...)) entrega "FernÃ£o" onde o
+    // Telegram assinou "Fernão" — o data-check-string muda, o HMAC do servidor
+    // deixa de bater e o login morre em 401 para todo nome com acento ou emoji.
+    // O sintoma é idêntico ao de token errado / setdomain faltando, então o
+    // defeito se disfarça de erro de configuração. Travado em
+    // tests/test_login_social.py (ponte + acento).
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const dados = JSON.parse(new TextDecoder().decode(bytes));
     const r = await fetch('/auth/telegram', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

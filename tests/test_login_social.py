@@ -220,6 +220,72 @@ def test_telegram_hash_invalido_da_401(telegram_ligado):
     assert r.status_code == 401
 
 
+# ── Página-ponte: o fragmento tem de chegar ao POST em UTF-8 ──────────────────
+# O payload vem no FRAGMENTO (#tgAuthResult), que nunca chega ao servidor — quem
+# o decodifica é o JS da ponte, antes do POST. `atob` devolve binary string (1
+# char por BYTE): JSON.parse(atob(...)) entrega "FernÃ£o" onde foi assinado
+# "Fernão", o data-check-string muda e o HMAC reprova. O usuário levaria 401 com
+# sintoma IDÊNTICO ao de token errado / setdomain faltando.
+#
+# ⚠️ Limite honesto: não está medido se o Telegram serializa o JSON com UTF-8
+# cru ou com escapes \uXXXX (sem bot no ar não dá para ver). Estes testes cobrem
+# o caso RUIM — se vier escapado, o caminho UTF-8 dá exatamente o mesmo
+# resultado, então o fix é correto nos dois cenários e o custo é zero.
+
+def _ponte_navegador(dados_assinados, *, utf8=True):
+    """Repete o caminho da página-ponte: JSON → base64url no fragmento → dict do
+    POST. `utf8=False` reproduz o `atob` cru (o defeito), como controle."""
+    fragmento = base64.urlsafe_b64encode(
+        json.dumps(dados_assinados, ensure_ascii=False).encode("utf-8")
+    ).decode()
+    brutos = base64.b64decode(fragmento.replace("-", "+").replace("_", "/"))
+    return json.loads(brutos.decode("utf-8" if utf8 else "latin-1"))
+
+
+def test_ponte_telegram_serve_o_caminho_utf8():
+    # Sem os comentários: o bloco EXPLICA o defeito citando `JSON.parse(atob(…))`,
+    # e um guard ingênuo casaria com a prosa em vez do código.
+    codigo = "\n".join(
+        l for l in main._TELEGRAM_RETORNO_HTML.splitlines() if not l.strip().startswith("//")
+    )
+    assert "JSON.parse(new TextDecoder().decode(" in codigo   # decodifica como UTF-8
+    assert "JSON.parse(atob(" not in codigo                   # nunca o caminho que mutila
+    assert "A-Za-z0-9_+" in codigo                            # charset aceita base64 padrão (+/)
+
+
+def test_telegram_nome_com_acento_loga(telegram_ligado):
+    _com_vinculo(telegram_ligado, "ativo")
+    dados = _payload_telegram(first_name="Fernão", last_name="Conceição")
+    r = cliente.post("/auth/telegram", json=_ponte_navegador(dados))
+    assert r.status_code == 200 and r.json()["destino"] == "/app"
+
+
+def test_telegram_nome_com_emoji_loga(telegram_ligado):
+    _com_vinculo(telegram_ligado, "ativo")
+    dados = _payload_telegram(first_name="Ana ⚽", username="ana_bet")
+    r = cliente.post("/auth/telegram", json=_ponte_navegador(dados))
+    assert r.status_code == 200 and r.json()["destino"] == "/app"
+
+
+def test_controle_negativo_ponte_sem_utf8_reprova(telegram_ligado):
+    """Controle: pelo caminho ANTIGO (atob cru) o mesmo payload dá 401. Sem isto
+    os dois testes acima passariam mesmo com o defeito de volta no JS."""
+    _com_vinculo(telegram_ligado, "ativo")
+    dados = _payload_telegram(first_name="Fernão", last_name="Conceição")
+    r = cliente.post("/auth/telegram", json=_ponte_navegador(dados, utf8=False))
+    assert r.status_code == 401
+
+
+def test_ascii_passa_nos_dois_caminhos(telegram_ligado):
+    """Por que o defeito passaria despercebido num teste manual: nome sem acento
+    valida igual pelos dois caminhos — quem testa com 'Fernando' não vê nada."""
+    _com_vinculo(telegram_ligado, "ativo")
+    dados = _payload_telegram(first_name="Fernando")
+    for modo in (True, False):
+        r = cliente.post("/auth/telegram", json=_ponte_navegador(dados, utf8=modo))
+        assert r.status_code == 200
+
+
 # ── Callback do Google: guards antes de qualquer rede ─────────────────────────
 
 def test_google_callback_state_invalido_vira_erro(monkeypatch):
