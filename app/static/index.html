@@ -3525,7 +3525,14 @@ function mostrarEmptyState() {
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
 const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE']);
-function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase()); }
+// ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
+// exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
+// NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o
+// `.toUpperCase()` sozinho bastava; a Jogo de Ouro foi a primeira composta e o botão
+// "Conectar" nasceu desabilitado — o bug da s191 de novo, por outro caminho.
+// O `replace` espelha o que o `_display_to_key` do backend já fazia (casar pelo display), e
+// tanto faz receber o display (`Jogo de Ouro`) quanto a chave (`JOGODEOURO`).
+function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase().replace(/\s+/g, '')); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
 function aplicarModoCasa(casa) {

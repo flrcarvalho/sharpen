@@ -137,6 +137,29 @@ def conectaveis() -> set[str]:
     return set(re.findall(r"'([A-Z0-9]+)'", m.group(1))) if m else set()
 
 
+def normaliza_conectavel() -> str:
+    """A normalização que `_casaConectavel` aplica ANTES de consultar o Set.
+
+    Existe porque estar na lista NÃO basta: o front consulta com a casa **como está no
+    banco** (o display, `Jogo de Ouro`), enquanto as chaves do Set são as do
+    `_CASA_DISPLAY`, sem espaço. Até a s256 toda casa de captura tinha nome de uma palavra
+    e `.toUpperCase()` bastava; a Jogo de Ouro foi a primeira composta e o botão "Conectar"
+    nasceu desabilitado **com a casa devidamente registrada** — o audit passava verde
+    porque conferia a lista, não o runtime. Devolve "" se a função sumiu/mudou de forma.
+    """
+    m = re.search(r"function _casaConectavel\(casa\)\s*\{\s*return CASAS_CONECTAVEIS\.has\((.*?)\);", _txt(INDEX_HTML))
+    return m.group(1) if m else ""
+
+
+def display_casa_conectavel(display: str) -> bool:
+    """Simula `_casaConectavel(display)` do front — o teste que faltava."""
+    expr = normaliza_conectavel()
+    chave = display.upper()
+    if "replace" in expr:                      # tira espaços, como o front faz hoje
+        chave = re.sub(r"\s+", "", chave)
+    return chave in conectaveis()
+
+
 def bloco(src: str, nome: str, abre: str = "{", fecha: str = "}") -> str:
     """Corpo textual do literal `nome = { … }` (primeiro fechamento em coluna 0/1)."""
     m = re.search(re.escape(nome) + r"\s*=\s*" + re.escape(abre) + r"(.*?)\n\s*" + re.escape(fecha),
@@ -248,6 +271,13 @@ def auditar(chave: str, display: str, ctx: dict) -> list[tuple[str, str]]:
     if chave not in ctx["conectaveis"]:
         a.append(("FAIL", "ausente em index.html CASAS_CONECTAVEIS → o botão 'Conectar' "
                           "nasce DESABILITADO e nada da captura roda (bug da s191)"))
+    # Estar na lista NÃO basta: o front consulta com o DISPLAY vindo do banco
+    # (`parceiroSelecionado.casa`), não com a chave. Casa de nome composto quebrava aqui
+    # com tudo "registrado" — foi o botão morto da Jogo de Ouro na s256.
+    elif not display_casa_conectavel(display):
+        a.append(("FAIL", f"'{display}' não passa por `_casaConectavel()` em runtime "
+                          f"(o front consulta com o nome do banco, não com a chave '{chave}') → "
+                          "botão 'Conectar' DESABILITADO mesmo com a casa registrada"))
     hp = ctx["hosts_popup"].get(display)
     if hp is None:
         a.append(("WARN", f"'{display}' ausente em popup.js CASA_HOSTS "
