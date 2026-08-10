@@ -38,6 +38,7 @@ const CASA_HOSTS = {
   "VaideBet":   ["vaidebet.bet.br"],
   "Esportiva":  ["esportiva.bet.br"],  // espelho da VaideBet · mesmo motor Altenar/BIA
   "Jogo de Ouro": ["jogodeouro.bet.br"],  // 3ª casa Altenar · captura na TELA CHEIA do histórico
+  "Betpix365":  ["betpix365.bet.br"],  // 4ª casa Altenar · captura em Minhas Apostas (replay busca o expandido)
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],

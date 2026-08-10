@@ -1,7 +1,15 @@
-// Mundo MAIN (VaideBet — plataforma Altenar/BIA): lê as RESPOSTAS da API de bilhetes
+// Mundo MAIN (plataforma Altenar/BIA — VaideBet, Esportiva, Jogo de Ouro e Betpix365):
+// lê as RESPOSTAS da API de bilhetes
 // (`POST https://sb2bethistory-gateway-altenar2.biahosted.com/api/WidgetReports/widgetExpandedBetHistory`)
-// que a própria página baixa E **PAGINA ATIVAMENTE**: a partir de uma requisição real,
-// re-emite o POST avançando `pageNumber` até `isLastPage:true`, nas DUAS abas.
+// e **PAGINA ATIVAMENTE**: a partir de uma requisição real, re-emite o POST avançando
+// `pageNumber` até `isLastPage:true`, nas DUAS abas.
+//
+// AS QUATRO CASAS COMPARTILHAM ESTE ARQUIVO. O que separa as marcas é UM campo do corpo
+// (`integration`), que vem junto na requisição aprendida — por isso o `RX` casa por PATH e
+// nenhum host aparece aqui. Mas "mesmo motor" não garante "mesma superfície":
+//   • Jogo de Ouro — serve os DOIS widgets; só a TELA CHEIA dispara o expandido;
+//   • Betpix365   — serve SÓ o compacto; o expandido existe e responde, mas ninguém o chama.
+// Daí os dois regexes logo abaixo.
 //
 // POR QUE REPLAY E NÃO PASSIVO (s209): a lista NÃO carrega sozinha — a tela tem um botão
 // "Mostrar mais apostas" e o histórico vem de 10 em 10. Paginar por API dispensa o botão
@@ -19,11 +27,26 @@
 // NÃO DECIDE NADA: normaliza a lista e sobe o bilhete cru. Status desconhecido sobe como
 // está; quem traduz é o `content.js` + `casas/CASA_VAIDEBET.md`.
 (function () {
-  // ⚠ O "Expanded" é LOAD-BEARING, não enfeite: a Jogo de Ouro (s256) serve também um
-  // `widgetBetHistory` COMPACTO no painel lateral, cujos campos ninguém mediu (a única
-  // amostra veio vazia). Afrouxar esta regex faz o bilhete do widget errado entrar no lote
-  // — `casos/jogodeouro.mjs` trava isso.
-  const RX = /widgetExpandedBetHistory/i;        // endpoint da LISTA de bilhetes
+  // ⚠ DOIS regexes, e a separação é o ponto — não é duplicação.
+  //
+  // `RX` (CONSUMIR) é LOAD-BEARING: só o "Expanded" traz `selections`, e é dele que saem
+  // pernas, mercado e data de evento. O `widgetBetHistory` COMPACTO existe de verdade (Jogo
+  // de Ouro s256 no painel lateral, Betpix365 s258 na tela inteira) e foi MEDIDO na
+  // Betpix365: **nenhum** dos 9 bilhetes tinha `selections`. Consumi-lo geraria bilhete
+  // sem descrição, em silêncio. `casos/jogodeouro.mjs` e `casos/betpix365.mjs` travam os
+  // dois lados: o corpo do compacto nunca pode virar bilhete.
+  //
+  // `RX_APRENDE` (APRENDER url+headers) é mais largo, e precisa ser: a **Betpix365 nunca
+  // dispara o Expanded**. A tela "Minhas Apostas" dela chama só o compacto, e o detalhe de
+  // cada bilhete sai de um `WidgetGetBetDetails` POR ITEM — o anti-padrão do `CLAUDE.md`
+  // ("API externa por item = latência E falha multiplicadas. Peça a FAIXA."). O Expanded
+  // responde 200 com `selections` para `integration=betpix365`; a casa só não o usa.
+  // Então aprendemos a requisição de QUALQUER um dos dois e reescrevemos o path — o
+  // compacto entra como MOLDE de url+headers, jamais como dado.
+  const RX = /widgetExpandedBetHistory/i;        // CONSUMIR: só o expandido vira bilhete
+  const RX_APRENDE = /widget(?:Expanded)?BetHistory/i;   // APRENDER: compacto serve de molde
+  // O replay sempre bate no expandido, venha o molde de onde vier.
+  const paraExpandido = (u) => String(u).replace(/widgetBetHistory/i, "widgetExpandedBetHistory");
   const porId = new Map();                       // id(string) → bilhete cru
   let respostas = 0;                             // respostas do endpoint que o hook viu (autodiagnóstico)
   let reqCtx = null;                             // {url, method, headers, body} de um POST real (p/ replay)
@@ -101,9 +124,14 @@
 
   // Guarda o 1º POST real do endpoint COM body → base do replay (url + headers + corpo).
   // Os headers importam mais que o corpo: é onde vive o `Authorization: Bearer`.
+  //
+  // A URL é normalizada para o EXPANDIDO na hora de guardar: na Betpix365 o único POST que
+  // a página faz é o do compacto, e é dele que herdamos `Authorization`, `integration`,
+  // `culture`, `pageSize` etc. Reescrever aqui (e não no laço) garante que existe UM só
+  // lugar onde o path é decidido.
   function capturarReq(url, method, headers, body) {
-    if (reqCtx || !RX.test(String(url)) || !body) return;
-    reqCtx = { url: String(url), method: (method || "POST"), headers: headers || {}, body: _bodyToStr(body) };
+    if (reqCtx || !RX_APRENDE.test(String(url)) || !body) return;
+    reqCtx = { url: paraExpandido(url), method: (method || "POST"), headers: headers || {}, body: _bodyToStr(body) };
     LOG("requisição capturada p/ replay · body:", (reqCtx.body || "").slice(0, 220));
     if (pedido) arrancarReplay();
   }
@@ -207,7 +235,9 @@
     XMLHttpRequest.prototype.setRequestHeader = function (k, v) { try { this.__suVBH[k] = v; } catch (e) {} return osh.apply(this, arguments); };
     const s = function (body) {
       try {
-        if (RX.test(String(this.__suVBU))) {
+        // Gate largo (aprende do compacto também). O `forward` se protege sozinho: ele
+        // rejeita pelo `RX` estreito, então o corpo do compacto não vira bilhete nem aqui.
+        if (RX_APRENDE.test(String(this.__suVBU))) {
           if (body) capturarReq(this.__suVBU, this.__suVBM, this.__suVBH, body);
           this.addEventListener("load", () => { try { forward(this.__suVBU, this.responseText); } catch (e) {} });
         }

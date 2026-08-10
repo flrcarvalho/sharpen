@@ -123,6 +123,7 @@ Regras que valem para todos:
 | **VaideBet** | API + replay (paginado) | `POST /api/WidgetReports/widgetExpandedBetHistory` (Altenar) | `vb_inject.js` | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Esportiva** | **espelho da VaideBet** — mesmo motor Altenar/BIA | idem, **mesmo host de gateway** | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jogo de Ouro** | **espelho da VaideBet** — 3ª casa Altenar | idem ⚠ **só na TELA CHEIA** (o painel lateral usa `widgetBetHistory`) | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
+| **Betpix365** | **espelho da VaideBet** — 4ª casa Altenar | idem ⚠ **a casa só dispara o `widgetBetHistory` compacto**; o replay aprende dele e busca o Expanded | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
 
 > ⚠ **BetNacional — divergência de rótulo NÃO medida (anotada na s248, ao preencher esta tabela).**
@@ -146,6 +147,36 @@ Regras que valem para todos:
 > bilhetes** que já existiam na grafia `Esportiva` (ver o aviso do §5): a grafia foi **medida
 > no banco antes**, e o round-trip foi provado em 61 grafias (0 quebradas).
 >
+> ⚠️ **A Betpix365 (s258) levou o "espelho não é liso" ao extremo: a casa NÃO CHAMA o
+> endpoint de que ela mesma precisa.** A tela "Minhas Apostas" dispara só o
+> `widgetBetHistory` **compacto** — que foi finalmente MEDIDO aqui e **não traz
+> `selections`** em nenhum dos 9 bilhetes (sem perna, sem mercado, sem data de evento). O
+> detalhe existe, mas num `WidgetGetBetDetails` **por item** — o anti-padrão do `CLAUDE.md`
+> ("peça a FAIXA"). E o `widgetExpandedBetHistory` **responde 200 com `selections`** para
+> `integration=betpix365`: a casa só não o usa.
+>
+> A saída foi **separar o regex que APRENDE do que CONSOME** no `vb_inject.js`:
+> `RX_APRENDE = /widget(?:Expanded)?BetHistory/i` aprende url+headers de qualquer um dos dois
+> e `capturarReq` reescreve o path para o Expanded; `RX` (consumir) segue casando **só** o
+> Expanded, então o corpo do compacto nunca vira bilhete. **A distinção é o que mantém a
+> regra da Jogo de Ouro de pé** — e os dois casos de harness travam os dois lados: o
+> `jogodeouro.mjs` prova que o bilhete do widget errado não entra no lote, o `betpix365.mjs`
+> prova que o Expanded é buscado mesmo quando a página nunca o pediu.
+>
+> **A lição geral: "a casa expõe o endpoint" e "a casa usa o endpoint" são perguntas
+> diferentes.** Vale testar o endpoint conhecido com os headers da página antes de concluir
+> que a casa não o tem.
+>
+> Outros achados da Betpix365: **"Ganhos extra"** (`bets[].bonus`) é bônus de múltipla pago
+> **por fora da odd** — `totalWin ÷ stake` (4,23) ≠ `totalOdds` (4,08345), a 1ª casa Altenar
+> em que a odd declarada não explica o retorno; a régua do dinheiro vence (regra global do W)
+> · **`boostedBet.boostPercentage` vem `0` mesmo com boost real** — o sinal é
+> `preBoostedPrice ≠ totalOdds` · selo **`GOLDEN BOOST`** (mesmo `boostProperty: 3`), 8 de 9
+> boostados · tela trunca o riscado (`3.3334` → `3.33`) · `totalOdds` **não zera** em perdida
+> · ⚠ **`Betpix365` ≠ `PixBet`**: casas diferentes, e a `PixBet` tem 56 bilhetes na base —
+> `PIXBET` ficou **fora** do `_CASA_DISPLAY` de propósito (round-trip provado em 62 grafias,
+> 0 quebradas antes e depois).
+
 > ⚠️ **Espelho não quer dizer LISO — a Jogo de Ouro (s256) provou isso.** Ela é a 3ª casa
 > Altenar e reusa tudo, mas serve **dois** widgets de histórico: o painel lateral chama
 > `widgetBetHistory` (**compacto**) e só a **tela cheia** chama o `widgetExpandedBetHistory`

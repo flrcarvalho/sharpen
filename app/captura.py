@@ -56,7 +56,10 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # ESPORTIVA: ESPELHO da VaideBet (s254) — mesmo motor Altenar/BIA, MESMO host de gateway
 # (`sb2bethistory-gateway-altenar2.biahosted.com`) e mesmo endpoint; muda só o
 # `integration` (`esportiva` × `vaidebet`). Usa o MESMO `vb_inject.js`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto"}
+# BETPIX365: 4ª casa Altenar (s258). ⚠ É a única que NÃO dispara o `widgetExpandedBetHistory`
+# por conta própria — a tela dela chama só o widget compacto, e o inject aprende url+headers
+# dele para então buscar o expandido. Também usa o MESMO `vb_inject.js`.
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -90,6 +93,10 @@ _HOSTS_POR_CASA = {
     # `widgetBetHistory` (compacto) e a tela cheia usa `widgetExpandedBetHistory` — só a
     # segunda é capturada. Ver CASA_JOGODEOURO §2.1.
     "JOGODEOURO": ("jogodeouro.bet.br",),
+    # 4ª casa Altenar (s258). Aqui a página dispara SÓ o widget compacto
+    # (`widgetBetHistory`); quem busca o `widgetExpandedBetHistory` é o replay do inject,
+    # reusando o `Authorization` aprendido. A ABA continua sendo o site da casa.
+    "BETPIX365":  ("betpix365.bet.br",),
     # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
     # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
     "BETFAST":    ("betfast.bet.br",),

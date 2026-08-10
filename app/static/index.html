@@ -2330,7 +2330,7 @@ const NOMES = {
   JOGODEOURO: 'Jogo de Ouro', KTO: 'KTO',
   POLYMARKET: 'Polymarket', VITORIABET: 'Vitória Bet', TIVO: 'Tivo', VAIDEBET: 'VaideBet',
   BETFAST: 'Betfast', JONBET: 'Jonbet', BETBOOM: 'Betboom', ESPORTIVA: 'Esportiva',
-  STAKE: 'Stake',
+  STAKE: 'Stake', BETPIX365: 'Betpix365',
   // "Rei do Pitaco" rebatizou para "Pitaco" — alias de exibição (DB ainda guarda o nome antigo)
   'Rei do Pitaco': 'Pitaco',
 };
@@ -2382,6 +2382,8 @@ const DOMINIOS = {
   Esportiva: 'esportiva.bet.br', Faz1Bet: 'faz1.bet.br', Fulltbet: 'fulltbet.bet.br',
   'Lance de Sorte': 'lancedesorte.bet.br', MultiBet: 'multi.bet.br', Tivo: 'tivo.bet.br',
   VaideBet: 'vaidebet.bet.br', Jonbet: 'jonbet.bet.br',
+  // ⚠ Betpix365 ≠ PixBet: são casas diferentes, com domínios diferentes.
+  Betpix365: 'betpix365.bet.br',
   // Stake: o domínio regulado BR, não o `stake.com` global — é o site que o operador usa e
   // o que está no `_HOSTS_POR_CASA` do backend.
   Stake: 'stake.bet.br',
@@ -3524,7 +3526,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o

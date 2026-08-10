@@ -148,6 +148,13 @@ _CASA_DISPLAY: dict[str, str] = {
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
     "BETNACIONAL":    "Betnacional",
+    # ⚠ NÃO confundir com `PixBet`, que é OUTRA casa e tem 56 bilhetes na base (medido s258).
+    # `PIXBET` não está neste mapa, então o round-trip dela segue verbatim e nada é
+    # reinterpretado. A grafia canônica aqui foi MEDIDA antes de registrar: já existiam
+    # 1 conta em `parceiros` e 1 linha em `casas_meta` exatamente como `Betpix365`
+    # (0 bilhetes — a conta nasceu sem captura). Ver o aviso de mudança RETROATIVA em
+    # docs/SHARPENUP_ARQUITETURA.md §5.
+    "BETPIX365":      "Betpix365",
     "BOLSADEAPOSTA":  "Bolsa de Aposta",
     # ⚠ A MARCA escreve "EsportivaBet" (logo) / "Esportiva Bet" (título), mas a canônica
     # aqui é "Esportiva" — MEDIDO antes de registrar (s254): a base já tinha 351 bilhetes,
@@ -513,6 +520,7 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
     "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
+    "BETPIX365",
 })
 
 

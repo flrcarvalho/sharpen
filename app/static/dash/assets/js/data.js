@@ -72,6 +72,8 @@ const CASA_ICONS={
   'KingPanda':'https://www.google.com/s2/favicons?sz=128&domain=kingpanda.bet.br',
   'Lottu':'https://www.google.com/s2/favicons?sz=128&domain=lottu.bet.br',
   'Jogo de Ouro':'https://www.google.com/s2/favicons?sz=128&domain=jogodeouro.bet.br',
+  // ⚠ Betpix365 ≠ PixBet (casas diferentes, domínios diferentes)
+  'Betpix365':'https://www.google.com/s2/favicons?sz=128&domain=betpix365.bet.br',
 };
 // Mapa de domínios para chips de casa (favicon via favicon())
 // Para produção offline/nítida: substituir favicon() por assets/casas/NOME.png
@@ -123,6 +125,7 @@ const HOUSE_DOMAIN={
   'KingPanda':'kingpanda.bet.br',
   'Lottu':'lottu.bet.br',
   'Jogo de Ouro':'jogodeouro.bet.br',
+  'Betpix365':'betpix365.bet.br',
 };
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES_CURTOS=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
