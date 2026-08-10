@@ -60,6 +60,13 @@ O compacto é **estruturalmente insuficiente**: sem `selections` não há perna,
 
 **Consequência operacional: nenhuma.** Basta abrir *Minhas Apostas* e capturar. Se vier `respostas: 0` com o hook ATIVO, não é tela errada — é sessão expirada (Bearer inválido) ou path mudado; o autodiagnóstico da casa diz isso.
 
+### 2.1.2 ⚠️ Dois obstáculos ao diagnosticar esta casa pelo F12
+
+Ambos custaram tempo na s258 e escondem a requisição de quem for investigar:
+
+1. **A tela busca as DUAS abas no load e serve o resto de cache.** Trocar Aberto ⇄ Processado, mexer no filtro de data ou clicar em qualquer lugar **não dispara rede nenhuma** depois disso. Quem instalar um hook de `fetch` *depois* do load (console, snippet, `javascript_tool`) **nunca vê a requisição** — só um hook em `document_start` pega, que é exatamente o que o `content_scripts` do manifest faz (`"run_at": "document_start"`, `world: MAIN`). Para inspecionar à mão, use o **painel Network do DevTools aberto ANTES do reload**.
+2. **`performance.getEntriesByType('resource')` mente por buffer cheio.** O padrão é **250 entradas** e esta página já estoura isso no load — a chamada do histórico simplesmente não aparece na lista. Antes de concluir "não há requisição", rode `performance.setResourceTimingBufferSize(3000)` + `performance.clearResourceTimings()`.
+
 ### 2.2 Tipo do bilhete declarado
 
 - `type: 0` + `selections[0].isBetBuilder: true` → **Bet Builder** (seleções do mesmo jogo, pernas em `bbOdds`). Card sem título de confronto próprio: usa o nome do jogo. → `Aposta = Múltipla` (`MASTER_APOSTAS §Bet Builder`).
