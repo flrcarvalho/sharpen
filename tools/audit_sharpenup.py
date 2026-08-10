@@ -224,6 +224,25 @@ def content_dispatch() -> set[str]:
     return set(re.findall(r'casa === "(\w+)"', src[ini:fim]))
 
 
+def chave_runtime_content(display: str) -> str:
+    """O valor que a variável `casa` do `iniciarRobo` REALMENTE assume para este display.
+
+    O `content.js` recebe do pareamento o NOME DE EXIBIÇÃO (`Jogo de Ouro`), não a chave
+    (`JOGODEOURO`), e normaliza antes de comparar. Reproduzimos a normalização real lendo a
+    linha do código — se ela mudar, o audit acompanha em vez de mentir.
+
+    Sem isto o audit era um espelho: comparava o literal `casa === "jogodeouro"` com a chave
+    `JOGODEOURO.lower()` — a mesma string, dos dois lados, e nunca o valor de runtime. Foi
+    assim que a Jogo de Ouro passou verde enquanto raspava o rodapé do site (s256).
+    """
+    m = re.search(r'const casa = \(cfg\.casa \|\| ""\)\.toLowerCase\(\)(.*?);', _txt(CONTENT_JS))
+    expr = m.group(1) if m else ""
+    v = display.lower()
+    if "replace" in expr:                      # tira espaços, como o content.js faz hoje
+        v = re.sub(r"\s+", "", v)
+    return v
+
+
 def content_diag() -> set[str]:
     """Casas com entrada no mapa de autodiagnóstico (0 bilhetes → causa provável)."""
     src = _txt(CONTENT_JS)
@@ -285,10 +304,15 @@ def auditar(chave: str, display: str, ctx: dict) -> list[tuple[str, str]]:
     elif hb and hp != hb:
         a.append(("FAIL", f"popup.js CASA_HOSTS {sorted(hp)} ≠ captura.py _HOSTS_POR_CASA {sorted(hb)}"))
 
-    if chave.lower() not in ctx["dispatch"]:
-        a.append(("FAIL", f'content.js iniciarRobo() sem ramo `casa === "{chave.lower()}"` → '
-                          "cai no roboScroll genérico em silêncio"))
-    if chave.lower() not in ctx["diag"]:
+    # ⚠ O que importa é o valor de RUNTIME, não a chave: o content.js recebe o display do
+    # pareamento. Casa de nome composto cai no roboScroll genérico — e o robô genérico não
+    # falha, ele RASPA A PÁGINA (na s256 a Jogo de Ouro mandou o rodapé do site para a IA).
+    runtime = chave_runtime_content(display)
+    if runtime not in ctx["dispatch"]:
+        a.append(("FAIL", f'content.js iniciarRobo() sem ramo para `casa === "{runtime}"` '
+                          f'(o valor real que "{display}" assume em runtime) → cai no '
+                          "roboScroll genérico e RASPA A PÁGINA em vez de falhar"))
+    if runtime not in ctx["diag"]:
         a.append(("WARN", "sem entrada no mapa de autodiagnóstico do content.js "
                           "(0 bilhetes vira aviso genérico, sem causa provável)"))
 

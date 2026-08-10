@@ -701,7 +701,15 @@
     const N = Math.max(1, Number(cfg.lookbackDias) || 30);
     const cutoff = Date.now() - N * 86400000;
     const pisoSanidade = cutoff - 730 * 86400000;
-    const casa = (cfg.casa || "").toLowerCase();
+    // ⚠ `cfg.casa` é o NOME DE EXIBIÇÃO que o backend devolveu no pareamento ("Jogo de Ouro"),
+    // não a chave do `_CASA_DISPLAY` ("JOGODEOURO"). Os ramos abaixo comparam com a chave em
+    // minúsculas, então o espaço TEM de sair aqui — senão a casa de nome composto não casa
+    // ramo nenhum e cai no `roboScroll` genérico **em silêncio**: na s256 a Jogo de Ouro
+    // raspou o RODAPÉ INSTITUCIONAL do site (9 blocos de texto separados por linha em branco)
+    // e mandou para a IA como se fossem bilhetes. Até então toda casa de robô tinha nome de
+    // uma palavra só e o `.toLowerCase()` sozinho bastava — a mesma classe de defeito que
+    // deixou o botão "Conectar" morto no `index.html`.
+    const casa = (cfg.casa || "").toLowerCase().replace(/\s+/g, "");
     const ctx = {
       cutoff, pisoSanidade,
       stopId: (cfg.stopId || "").trim().toUpperCase(),
@@ -788,7 +796,7 @@
       // ramo, um inject, um formatador. O harness roda a mesma fixture pelos dois domínios
       // e compara os blocos byte a byte (`casos/betfast.mjs`).
       blocos = await roboTVPassive(ctx);
-    } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro") {
+    } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" || casa === "betpix365") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
@@ -805,6 +813,11 @@
       // `widgetExpandedBetHistory` que o `RX` do inject casa. Se o operador capturar sem
       // abrir a tela cheia, o inject nunca aprende a requisição e o lote volta vazio —
       // por isso o autodiagnóstico dela diz onde clicar (ver CASA_JOGODEOURO §2.1).
+      //
+      // ⚠ A Betpix365 (s258) é o caso inverso e não custa nada ao operador: ela serve SÓ o
+      // compacto, em "Minhas Apostas". O inject aprende url+headers dele (`RX_APRENDE`) e
+      // reescreve o path para o expandido no replay — o compacto entra como molde, nunca
+      // como dado, porque medimos que ele não traz `selections`.
       blocos = await roboVBPassive(ctx);
     } else if (casa === "jonbet" || casa === "betboom") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
@@ -854,6 +867,14 @@
         jogodeouro: { nome: "Jogo de Ouro", hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
                       extra: vbRespostas === 0
                         ? " · abra o histórico COMPLETO (Minhas apostas › Mostrar mais apostas) e capture com ele na tela"
+                        : "" },
+        // Betpix365: 4ª casa Altenar, mesmo inject/contadores. Aqui a página só dispara o
+        // widget compacto e quem busca o expandido é o replay — então `respostas: 0` com o
+        // hook ATIVO não é "abra outra tela" (como na Jogo de Ouro), é sinal de que o
+        // aprendizado do molde falhou: sessão expirada (Bearer inválido) ou path mudado.
+        betpix365:  { nome: "Betpix365",  hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
+                      extra: vbRespostas === 0
+                        ? " · abra Minhas Apostas e recarregue a página (Ctrl+Shift+R); se persistir, refaça o login"
                         : "" },
         jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o
