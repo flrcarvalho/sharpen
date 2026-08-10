@@ -325,11 +325,27 @@ def test_estado_extracao_exige_resultado_e_odd():
     assert R.estado_extracao("L", "1,75") == "resolvida"
     assert R.estado_extracao("V", "2,00") == "resolvida"
     assert R.estado_extracao("W", "0.7") == "resolvida"   # ponto decimal, cashout parcial
-    # sem odd (linha colapsada) → aberta, mesmo com resultado válido
+    # sem odd na VITÓRIA → aberta: `calcular_pl` devolve None e a linha some do feed.
     assert R.estado_extracao("W", "") == "aberta"
-    assert R.estado_extracao("L", None) == "aberta"
-    assert R.estado_extracao("V", "0,00") == "aberta"
+    assert R.estado_extracao("HW", None) == "aberta"
     # sem resultado → aberta
     assert R.estado_extracao("", "2,00") == "aberta"
     # minúsculo canoniza (não regride o fix do 'v'/'w')
     assert R.estado_extracao("w", "2,0") == "resolvida"
+
+
+def test_estado_extracao_perda_e_void_nao_exigem_odd():
+    """s259 — a odd só é exigida onde o P/L depende dela. Em L/V/HL o P/L está completo
+    sem odd (perda = −stake, void = 0), e exigi-la deixava a linha 'aberta' PARA SEMPRE
+    no badge âmbar: caso real das 4 múltiplas perdidas da Betfair sem `combinedOdds`.
+    O par com `calcular_pl` é o contrato — se um lado mudar, este teste quebra."""
+    for res in ("L", "V", "HL"):
+        assert R.estado_extracao(res, "") == "resolvida"
+        assert R.estado_extracao(res, None) == "resolvida"
+        assert R.estado_extracao(res, "0,00") == "resolvida"
+        # e o P/L desses casos é calculável sem odd nenhuma — é essa a razão da regra
+        assert R.calcular_pl("100", "", res) is not None
+    # a recíproca: onde o P/L NÃO fecha sem odd, o estado continua 'aberta'
+    for res in ("W", "HW"):
+        assert R.calcular_pl("100", "", res) is None
+        assert R.estado_extracao(res, "") == "aberta"

@@ -397,3 +397,25 @@ def test_pendencia_isolada_por_dono():
         assert (await repository.contar_pendencias("TDonoA"))["sem_odd"] == 1
         assert (await repository.contar_pendencias("TDonoB"))["sem_odd"] == 1
     _run(body())
+
+
+def test_perda_sem_odd_grava_resolvida():
+    """s259 — o lado da ESCRITA do alinhamento `estado_extracao` × `calcular_pl`.
+    Perda sem odd (múltipla que a casa entregou sem `combinedOdds`) tem P/L completo
+    (−stake) e não pode nascer 'aberta': ficaria no badge âmbar para sempre. Já a
+    VITÓRIA sem odd continua 'aberta' — ali o P/L é não-calculável."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([
+            _row(codigo_bilhete="S1", resultado="L", odd=""),
+            _row(codigo_bilhete="S2", resultado="V", odd=""),
+            _row(codigo_bilhete="S3", resultado="W", odd=""),
+        ], "TDonoA")
+        assert (await _get("TDonoA", "S1"))["extraction_state"] == "resolvida"
+        assert (await _get("TDonoA", "S2"))["extraction_state"] == "resolvida"
+        assert (await _get("TDonoA", "S3"))["extraction_state"] == "aberta"
+
+        # E o chip "Sem odd" continua enxergando as três — a pendência de campo vazio
+        # não depende do estado (é isso que mantém a linha achável na grade).
+        assert (await repository.contar_pendencias("TDonoA"))["sem_odd"] == 3
+    _run(body())

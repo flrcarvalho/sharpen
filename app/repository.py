@@ -250,17 +250,33 @@ def resultado_valido(v) -> bool:
     return s == "" or s in _RESULTADOS_VALIDOS
 
 
+# Resultados em que a odd é LOAD-BEARING: sem ela `calcular_pl` devolve None e a linha
+# some do feed. Em L/V/HL o P/L não usa odd (perda = −stake, void = 0), então exigir odd
+# ali marcava como "aguardando" uma linha que já está completa para todo efeito de dinheiro.
+_RESULTADOS_ODD_OBRIGATORIA = frozenset({"W", "HW"})
+
+
 def estado_extracao(resultado, odd) -> str:
     """Deriva `extraction_state` de (resultado, odd). 'resolvida' EXIGE resultado
-    canônico E odd utilizável (> 0). Sem odd (linha colapsada / ilegível) → 'aberta'
-    (aguardando informação): a aposta não polui o feed nem duplica em silêncio até o
-    operador completar a odd. Decisão do Feca (sessão 133): resultado sem odd não é
-    'resolvida limpa'. Casa com o guard de odd de `calcular_pl` (vitória sem odd = P/L
-    não-calculável), evitando linha 'resolvida' que some do feed."""
+    canônico; a odd só é exigida onde o P/L depende dela (W/HW). Decisão do Feca
+    (sessão 133): resultado sem odd não é 'resolvida limpa' — mas isso valia para a
+    VITÓRIA, cujo P/L fica não-calculável. Alinhado com `calcular_pl` na s259.
+
+    **Por que mudou:** L/V/HL sem odd ficavam 'aberta' PARA SEMPRE — o P/L estava certo
+    e a linha aparecia no feed (`dashboard_rows` não gateia por estado), mas o badge
+    âmbar as contava como "aguardando resultado" e elas nunca saíam de lá. Caso real que
+    fechou o diagnóstico (s259): 4 múltiplas PERDIDAS da Betfair que a casa entregou sem
+    `combinedOdds` — o usuário via 6 pendências onde havia 2. Era o achado
+    `docs/auditoria_turbo/gerente_Codigo.md:29`.
+
+    A odd continua sinalizada como pendência onde importa: o chip "Sem odd" da grade
+    (`_PENDENCIAS_SQL`) e a nota do RAIO-X (`analisar_extracao`) contam por campo vazio,
+    não por `extraction_state` — quem quer completar a odd de uma perda continua achando
+    a linha."""
     res = (resultado or "").strip().upper()
     if res not in _RESULTADOS_VALIDOS:
         return "aberta"
-    if (_num_or_none(odd) or 0) <= 0:
+    if res in _RESULTADOS_ODD_OBRIGATORIA and (_num_or_none(odd) or 0) <= 0:
         return "aberta"
     return "resolvida"
 
