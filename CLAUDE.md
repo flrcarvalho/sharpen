@@ -227,6 +227,14 @@ Medido no tema escuro (o app é dark, sem toggle), sobre `--surface-2` com overl
   traduz, no sistema, como *subir um degrau na escada*.
 - Compensar tom baixo com peso 700 em 9,5px: engorda o borrão, não corrige a leitura.
 
+**Fundo sólido de acento pede tinta ESCURA, não branca.** A escada acima descreve tinta
+sobre superfície escura; quando o fundo vira o próprio acento, ela se inverte e o reflexo
+"texto claro sobre cor" reprova. Medido: `#FFFFFF` sobre `--accent` dá **3,36:1** e
+`--ink` dá 2,78:1 — os dois abaixo do mínimo de texto pequeno. `var(--bg)` sobre
+`--accent` dá **5,8:1**, e sobre `--warn` dá **8,7:1**. Vale para qualquer pill, badge ou
+botão de estado ligado. Os `.pend-badge`/`.open-badge` da sidebar usam `#fff`/`#241a02`
+literais e são **desvio conhecido, anterior a esta regra** — não copiar de lá.
+
 **`opacity` não é um degrau da escada — é um multiplicador.** Aplicada sobre um tom já
 apagado ela derruba o contraste efetivo sem aparecer em nenhum grep de cor: `--ink-mute`
 com `opacity:.55` dava ~1,9:1, e `--ink-soft` com `opacity:.7` caía para ~4,4:1, logo

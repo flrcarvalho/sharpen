@@ -9,6 +9,7 @@ Testa a montagem do WHERE, que é pura (não abre conexão). Duas garantias:
    `_num(odd) > 0`; o SQL tem de concordar em vazio e em zero, senão o chip mostra
    um número e a nota mostra outro — e o usuário perde a confiança nos dois.
 """
+import inspect
 import re
 
 import repository as R
@@ -34,7 +35,9 @@ def test_pendencia_desconhecida_e_ignorada():
 
 
 def test_todas_as_pendencias_da_ui_existem():
-    """Os 4 chips do front (`PENDENCIAS` no index.html) precisam ter par no backend."""
+    """Chave usada pelo front precisa ter par no backend. `sem_tipster` é a que o
+    badge azul da barra aplica (s262); as outras três seguem servidas pela rota,
+    sem consumidor na UI desde que a faixa de chips saiu."""
     assert set(R._PENDENCIAS_SQL) == {"sem_odd", "sem_stake", "categoria", "sem_tipster"}
 
 
@@ -66,3 +69,27 @@ def test_stake_pt_br_com_milhar_nao_e_pendencia():
     (ou tentasse `::numeric` no SQL) esta linha viraria pendência — ou derrubaria a
     query inteira. Por isso o predicado é regex de vazio-ou-zero, não cast."""
     assert R._num("1.914,56") > 0
+
+
+# ── 3. Badge que filtra não pode mentir (s262) ────────────────────────────────
+# Os dois contadores da barra viraram filtro clicável. O número sai de
+# `contar_incompletos` e a lista sai de `_filtros_bilhetes` — se os predicados
+# divergirem, a pill diz 7 e a grade mostra 5. Estes dois testes travam o par;
+# quebrar um lado quebra o CI em vez da tela.
+def test_badge_azul_conta_e_filtra_com_o_mesmo_predicado():
+    """`contar_incompletos` tem de montar o COUNT com o MESMO fragmento que o
+    filtro `pendencia=sem_tipster` aplica — daí ele ler de `_PENDENCIAS_SQL` em
+    vez de repetir o SQL à mão (era `tipster = ''`, sem o `btrim`)."""
+    fonte = inspect.getsource(R.contar_incompletos)
+    assert '_PENDENCIAS_SQL["sem_tipster"]' in fonte
+    assert "tipster = ''" not in fonte, "predicado duplicado à mão volta a divergir"
+    assert "btrim(tipster)" in R._PENDENCIAS_SQL["sem_tipster"]
+
+
+def test_badge_ambar_filtra_pelo_mesmo_estado_que_conta():
+    """O número âmbar é `COUNT(*) FILTER (WHERE extraction_state = 'aberta')`, e o
+    badge filtra por `?extraction_state=aberta` — que entra no WHERE como coluna
+    parametrizada, não como pendência. Aqui só travamos que esse caminho existe."""
+    assert "extraction_state = 'aberta'" in inspect.getsource(R.contar_incompletos)
+    w = R._filtros_bilhetes("D", None, None, "aberta", "all")[0]
+    assert "extraction_state = $2" in w

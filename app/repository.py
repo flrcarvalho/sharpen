@@ -1158,18 +1158,27 @@ async def contar_incompletos(dono: str) -> list[dict]:
     """Conta, por casa+parceiro, bilhetes 'incompletos': sem tipster (azul na sidebar)
     e abertos/sem resultado (âmbar). Inclui arquivados — a pendência existe
     independentemente de o bilhete estar visível na grade. Só retorna grupos com
-    pelo menos uma pendência (mantém o payload pequeno)."""
+    pelo menos uma pendência (mantém o payload pequeno).
+
+    Desde a s262 estes dois números NÃO são só informativos: cada um vira um badge
+    clicável que FILTRA a grade da Extração. Por isso o predicado tem de ser
+    literalmente o mesmo dos dois lados, senão o badge diz 7 e a lista mostra 5 —
+    'sem tipster' reusa `_PENDENCIAS_SQL` (que é o que `/bilhetes?pendencia=`
+    aplica) e 'abertas' é `extraction_state = 'aberta'` (o que `?extraction_state=`
+    aplica). O `btrim` importa: tipster com espaço em branco só, sem ele, entrava
+    numa contagem e ficava fora da outra."""
+    sem_tip = _PENDENCIAS_SQL["sem_tipster"]
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            """SELECT casa, parceiro,
-                      COUNT(*) FILTER (WHERE tipster IS NULL OR tipster = '') AS sem_tipster,
-                      COUNT(*) FILTER (WHERE extraction_state = 'aberta')     AS abertas
-               FROM bilhetes
-               WHERE dono = $1
-               GROUP BY casa, parceiro
-               HAVING COUNT(*) FILTER (WHERE tipster IS NULL OR tipster = '') > 0
-                   OR COUNT(*) FILTER (WHERE extraction_state = 'aberta') > 0""",
+            f"""SELECT casa, parceiro,
+                       COUNT(*) FILTER (WHERE {sem_tip})                  AS sem_tipster,
+                       COUNT(*) FILTER (WHERE extraction_state = 'aberta') AS abertas
+                FROM bilhetes
+                WHERE dono = $1
+                GROUP BY casa, parceiro
+                HAVING COUNT(*) FILTER (WHERE {sem_tip}) > 0
+                    OR COUNT(*) FILTER (WHERE extraction_state = 'aberta') > 0""",
             dono,
         )
     return [dict(r) for r in rows]
