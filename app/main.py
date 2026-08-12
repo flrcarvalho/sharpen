@@ -3355,6 +3355,10 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # com que ele se cadastrou no site (`Flurray`) — os dois divergem de propósito
     # e é o registro que faz a ponte. Base 100 % em unidades, como o modo pede.
     "fleury": {"dono": "Flurray", "nome": "Fleury"},
+    # 4º tipster (s264). Aqui marca e username COINCIDEM — conferido na tabela
+    # `usuarios` (ativo, cadastro em autosserviço), não deduzido do nome da
+    # planilha. Base multiesporte em unidades: escanteios, props e múltiplas.
+    "reidocriquete": {"dono": "reidocriquete", "nome": "Rei do Criquete"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres
