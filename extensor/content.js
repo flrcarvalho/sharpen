@@ -1440,7 +1440,10 @@
       const rot = String(t.resultLabel || t.resultRaw || "").toUpperCase();
       if (rot === "WON" || rot === "WIN") stTxt = "Ganho (WON) → W";
       else if (rot === "LOST" || rot === "LOSE") stTxt = "Perdeu (LOST) → L";
-      else if (rot === "PUSHED" || rot === "PUSH" || rot === "VOID" || rot === "REFUND") stTxt = rot + " → V";
+      // "REFUNDED"/"CANCELLED" vêm da aposta ANULADA (campo 18 = CANCELLED, motivo no 43) —
+      // provados no id 3088982702, s262. "PUSHED"/"VOID"/"REFUND" seguem sem amostra real.
+      else if (rot === "PUSHED" || rot === "PUSH" || rot === "VOID" || rot === "REFUND" ||
+               rot === "REFUNDED" || rot === "CANCELLED") stTxt = rot + " → V";
       else stTxt = (rot || "?") + " (a conferir — não liquidar automaticamente)";
     }
     // P/L líquido (Vitória/derrota) — cross-check p/ a IA distinguir HW/HL de W/L cheio.
@@ -1727,19 +1730,51 @@
     let travado = false;
     const N = Math.max(1, Math.round((Date.now() - ctx.cutoff) / 86400000));   // janela de dias do popup
 
-    const processar = () => {
+    // DUAS PASSADAS, e a separação é o conserto — não é organização. `pnById` é percorrido na
+    // ORDEM DE INSERÇÃO, e o replay emite SETTLED antes de OPEN (`pn_inject`: `_emitir(true)`
+    // → `_emitir(false)`), então as ABERTAS ficam no FIM do mapa. Numa passada só, qualquer
+    // freio das liquidadas — janela de dias ou stopId — abortava o laço ANTES de chegar nelas
+    // e elas sumiam sem erro na tela. Mesmo estrago da Betano na s209 (ver `roboBetanoPassive`).
+    //
+    // E o disparo não era raro, era ESTRUTURAL (medido ao vivo na s262): o replay pede as
+    // liquidadas a partir de `hoje − N dias 00:00:00`, o dia INTEIRO, enquanto o corte aqui é
+    // `ctx.cutoff`, hora exata. Some-se que `dataEvento` é data-só ("2026-07-12") e `Date.parse`
+    // lê como UTC — no fuso BR recua mais 3h. O dia mais antigo da janela cai fora SEMPRE: a
+    // casa devolveu 4 liquidadas de 12/07 nos índices 88-91 de 92, e as abertas morriam ali.
+    //
+    // Cada lista tem seu próprio freio: travar nas liquidadas não pode calar as abertas, nem
+    // o contrário. O laço de espera só desiste quando as DUAS travaram (senão o fim autoritativo
+    // `pnFimReal` manda, como antes).
+    let travouAbertas = false, travouLiquidadas = false;
+
+    // "pula" (já saiu) · "trava" (freio desta lista) · "ok". O stopId trava ANTES de emitir
+    // (copiar dele pra cima); a janela trava DEPOIS (o bilhete da borda ainda sai).
+    const emitir = (t) => {
+      const cod = (t.id != null ? String(t.id) : "").toUpperCase();
+      if (!cod || usados.has(cod)) return "pula";
+      if (ctx.stopId && cod === ctx.stopId) return "trava";   // último já extraído
+      usados.add(cod);
+      blocos.push(formatTicketPN(t));
+      ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+      // Janela de dias corta só ENCERRADAS (pela data do evento). Abertas nunca cortam:
+      // aposta em aberto é sempre atual, então "passou da janela" não se aplica a ela.
+      const dt = t.dataEvento ? Date.parse(t.dataEvento) : NaN;
+      if (!t.aberta && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade) return "trava";
+      return "ok";
+    };
+
+    const passada = (querAberta) => {
       for (const t of pnById.values()) {
-        const cod = (t.id != null ? String(t.id) : "").toUpperCase();
-        if (!cod || usados.has(cod)) continue;
-        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
-        usados.add(cod);
-        // Janela de dias corta só ENCERRADAS (pela data do evento). Abertas nunca cortam.
-        const dt = t.dataEvento ? Date.parse(t.dataEvento) : NaN;
-        const passou = !t.aberta && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
-        blocos.push(formatTicketPN(t));
-        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
-        if (passou) { travado = true; return; }   // passou da janela → para
+        if (!!t.aberta !== querAberta) continue;
+        if (emitir(t) === "trava") return true;
       }
+      return false;
+    };
+
+    const processar = () => {
+      if (!travouAbertas) travouAbertas = passada(true);
+      if (!travouLiquidadas) travouLiquidadas = passada(false);
+      travado = travouAbertas && travouLiquidadas;
     };
 
     // Pede ao pn_inject o acumulado + arranca o replay das duas abas (com a janela de dias).

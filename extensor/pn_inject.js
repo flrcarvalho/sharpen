@@ -42,8 +42,14 @@
     if (!Array.isArray(a)) return null;
     const id = a[7];
     if (id == null) return null;
-    const statusLiq = a[18];
-    const aberta = String(statusLiq || "").toUpperCase() !== "SETTLED";
+    const statusLiq = String(a[18] || "").toUpperCase();
+    // RESOLVIDA = SETTLED **ou** CANCELLED. A Pinnacle usa `CANCELLED` na aposta anulada, e
+    // ali os dois campos de resultado chegam NULOS (6 e 93) — quem carrega o motivo é o 43
+    // ("REFUNDED"), com o 4 confirmando ("1:Cancelled,0:Cancelled"). Testar só `!== "SETTLED"`
+    // classificava a anulada como ABERTA: ela subia sem resultado e ficava para sempre em
+    // "aguardando", um pendente que nunca fecha (s262, id 3088982702 — R$800 em tênis).
+    // Anulada é V (MASTER_RESULTADO §5.1.2); devolvemos o rótulo para o formatador cair no V.
+    const aberta = statusLiq !== "SETTLED" && statusLiq !== "CANCELLED";
     const pernasRaw = Array.isArray(a[44]) ? a[44] : null;   // múltipla (Mix Parlay)
     const ehProp = a[10] != null && a[10] !== "";            // prop tem o confronto no 10
     return {
@@ -51,7 +57,9 @@
       aberta: aberta,
       statusLiq: statusLiq,
       resultRaw: a[6] || "",             // WIN / LOSE (vazio em aberta)
-      resultLabel: a[93] || "",          // WON / LOST / PUSHED (vazio em aberta)
+      // WON / LOST / PUSHED (vazio em aberta). Na anulada o 93 é nulo e o motivo mora no 43
+      // ("REFUNDED") — sem esse fallback o bloco sairia "? (a conferir)" em vez de V.
+      resultLabel: a[93] || (statusLiq === "CANCELLED" ? (a[43] || "CANCELLED") : ""),
       plNet: a[0],                       // Vitória/derrota (P/L líquido)
       esporte: a[31] || "",              // "Tennis", "Soccer", "E Sports"…
       liga: a[28] || "",                 // "ATP Estoril - Qualifiers"
