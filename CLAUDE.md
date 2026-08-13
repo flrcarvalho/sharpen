@@ -50,6 +50,24 @@ casa que parou → `/sharpenup-diagnostico`.
 6. Uma mudança por vez. Propor → aguardar confirmação → executar.
 7. Atualizar `STATUS.md` ao fim de cada mudança aplicada.
 8. **Commit e push sempre juntos.** Após cada mudança aprovada: `git add` → `git commit` → `git push`. Deploy automático via Railway. Nunca deixar commit sem push.
+9. **Toda atualização fechada = perguntar se avisa os testers**, já com a mensagem pronta (ver abaixo). O Feca escolhe informar ou não. Nunca enviar sem o "pode mandar".
+
+---
+
+## Aviso de versão ao grupo `Sharpen - Testers`
+
+O `@sharpenbetbot` é admin do grupo e serve de canal de **novas versões e atualizações**.
+
+**Só informamos. Não damos detalhes.** A mensagem diz o que mudou em **uma linha** e o que o
+tester precisa **fazer**. Ficam de fora: mecânica interna, nome de campo, causa raiz, número de
+bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STATUS.md`.
+
+- `chat_id` = `-5172183099` · `BOT_TOKEN` no `.env` de `Downloads/BOTS/sharpen-bot`.
+- **Confirmar o destino com `getChat` antes de publicar.** Mensagem em grupo não tem desfazer.
+- **Nunca `getUpdates`** — briga com o polling do bot em produção.
+- É **grupo comum**, não supergrupo. Se for promovido, o id passa a `-100…` e o envio falha; o
+  `getChat` acusa antes.
+- Extensão: a ação do tester é sempre atualizar em `sharpen.bet/extensao` (distribuição manual).
 
 ---
 
