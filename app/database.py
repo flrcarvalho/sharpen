@@ -32,6 +32,17 @@ CREATE TABLE IF NOT EXISTS bilhetes (
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS codigo_bilhete TEXT;
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Estrutura de SISTEMA (s265): `3 x Duplas`, `4 x Triplas`, Trixie… A odd de um sistema é
+-- a MÉDIA das linhas, não o produto (MASTER_RESULTADO §7.3), mas nada no banco dizia que a
+-- linha era sistema: `Aposta` é a categoria canônica (`Múltipla`) e a descrição de um
+-- `3 x Duplas` é IDÊNTICA à da tripla das mesmas seleções. Sem estas colunas não dá para
+-- varrer o histórico atrás de odd de sistema errada, nem medir o volume desse tipo de aposta
+-- — e ele cresce. NULL = não é sistema (o caso normal). São dados de ESTRUTURA, imutáveis:
+-- não entram na assinatura (`_SIG_COLS`) e o UPSERT só os preenche, nunca os apaga, então
+-- re-capturar bilhete antigo faz backfill sem violar o congelamento financeiro.
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS sistema TEXT;
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS sistema_linhas INTEGER;
+
 -- Aposentado o fluxo de copiar/marcar para a planilha (sessão 89): a coluna
 -- copy_state ('pendente'|'copiada') não é mais usada por nenhum código. DROP é
 -- metadados no Postgres (rápido, não reescreve a tabela) e idempotente (IF EXISTS).

@@ -5,14 +5,18 @@ Mede a exposição ao defeito da s265: bilhete de **sistema** da Bet365 (`3 x Du
 `4 x Triplas`…) gravado com a odd da **múltipla cheia** (produto das odds) em vez da
 **média das linhas** (`MASTER_RESULTADO §7.3`).
 
-POR QUE ISTO NÃO É UM SCRIPT DE CORREÇÃO: o banco NÃO guarda a estrutura do bilhete
-(nº de apostas / seleções por aposta) nem as odds por perna — só a odd final e a
-descrição. Com isso não há como recalcular a odd correta a partir do banco. A correção
-é por **re-captura** (o UPSERT refresca `odd` enquanto `extraction_state = 'aberta'`),
-e para linha já resolvida é decisão humana. Este script só MEDE, para o Feca decidir.
+POR QUE ISTO NÃO É UM SCRIPT DE CORREÇÃO: o banco não guarda as odds **por perna**, então
+não há como recalcular a odd correta a partir dele. A correção é por **re-captura** (o
+UPSERT refresca `odd` enquanto `extraction_state = 'aberta'`), e para linha já resolvida é
+decisão humana. Este script só MEDE, para o Feca decidir.
 
-Três medidas, da mais certa para a mais incerta:
+Quatro medidas, da mais certa para a mais incerta. **A (0) tornou as outras três
+transitórias:** desde a s265 a captura grava a estrutura na coluna `sistema`, então quem
+foi capturado com a extensão ≥ 0.6.45 é medido sem heurística nenhuma. As heurísticas (2a)
+e (2b) só existem para a base ANTIGA, que ainda não passou por uma re-captura.
 
+  (0) EXATO      — `sistema IS NOT NULL`. Sem heurística: a captura marcou. Vazio
+                   significa "ninguém capturou com a versão nova ainda", não "não há".
   (1) UNIVERSO   — múltiplas da Bet365 ainda ABERTAS. É o que a re-captura conserta
                    sozinha; qualquer sistema aqui dentro se corrige ao rodar o robô
                    com a extensão ≥ 0.6.45.
@@ -44,6 +48,15 @@ from pathlib import Path
 
 import asyncpg
 
+# O console do Windows abre em cp1252 e derruba o script no primeiro caractere fora da
+# tabela (`≥` mata; `—` passa) — erro de ENCODING mascarado de erro de medição. Saída em
+# UTF-8 com substituição: o relatório sai inteiro em qualquer terminal.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 
 def _database_url() -> str:
     url = os.environ.get("DATABASE_URL", "").strip()
@@ -69,6 +82,29 @@ async def main() -> None:
         filtro_dono = "AND dono = $1" if args.dono else ""
         p = [args.dono] if args.dono else []
 
+        print("=" * 78)
+        print("(0) MEDIDA EXATA — coluna `sistema` (só existe para captura ≥ 0.6.45)")
+        print("    Sem heurística: quem tem `sistema` preenchido É sistema, ponto. A base")
+        print("    antiga só aparece aqui depois de re-capturada (o UPSERT faz backfill).")
+        print("=" * 78)
+        exato = await conn.fetch(f"""
+            SELECT sistema, sistema_linhas,
+                   COUNT(*) AS n,
+                   COUNT(*) FILTER (WHERE extraction_state = 'aberta') AS abertas,
+                   COUNT(*) FILTER (WHERE resultado = 'L') AS perdidas
+              FROM bilhetes
+             WHERE sistema IS NOT NULL AND NOT archived
+               {filtro_dono}
+             GROUP BY sistema, sistema_linhas
+             ORDER BY n DESC
+        """, *p)
+        if not exato:
+            print("  nenhuma linha marcada ainda — ninguém capturou com a versão nova.")
+        for r in exato:
+            print(f"  {r['sistema']:<14} {r['sistema_linhas']:>3} linhas · {r['n']:>5} bilhete(s) "
+                  f"· {r['abertas']} aberta(s) · {r['perdidas']} L")
+
+        print()
         print("=" * 78)
         print("(1) UNIVERSO — múltiplas da Bet365 AINDA ABERTAS (a re-captura conserta)")
         print("=" * 78)

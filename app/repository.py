@@ -324,8 +324,87 @@ def parse_tsv(tsv: str) -> list[dict]:
         codigo = parts[10].strip() if len(parts) > 10 else ""
         if codigo:
             row["codigo_bilhete"] = codigo
+        # 12ª coluna: estrutura de SISTEMA, no formato `"<N>x <rótulo>"` (ex.: `3x Duplas`) —
+        # o mesmo rótulo que a casa imprime no cabeçalho do bilhete. Ela NÃO é escrita pela
+        # IA: o backend a anexa a partir do texto-fonte (`anexar_sistema_tsv`), casando pelo
+        # código. Ausente = bilhete de linha única, que é o caso normal.
+        if len(parts) > 11 and parts[11].strip():
+            m = _SISTEMA_COL_RE.match(parts[11].strip())
+            if m:
+                row["sistema_linhas"] = int(m.group(1))
+                row["sistema"] = m.group(2).strip()
         rows.append(row)
     return rows
+
+
+# ── Estrutura de SISTEMA: do texto-fonte para a 12ª coluna ────────────────────
+# `3 x Duplas` (3 apostas de 2 seleções) e a TRIPLA das mesmas 3 seleções chegam à IA com as
+# mesmas odds e a mesma descrição — só a ESTRUTURA os separa, e ela não cabe em nenhuma das 10
+# colunas da planilha. Em vez de pedir mais uma coluna à IA (que erraria, e mexeria no formato
+# canônico de TODAS as casas), o backend a extrai do texto do robô e a anexa ele mesmo: o robô
+# já emite `Tipo: SISTEMA <rótulo> — <N> apostas de <k> seleção(ões)` logo abaixo do
+# `[Código: …]`, e o código é a chave. Determinístico, sem IA no caminho.
+_SISTEMA_COL_RE = re.compile(r"^(\d+)x\s+(.+)$")
+_SISTEMA_TXT_RE = re.compile(
+    r"^Tipo:\s*SISTEMA\s+(.+?)\s+—\s+(\d+)\s+apostas\b", re.MULTILINE)
+
+
+def sistemas_do_texto(texto: str | None) -> dict[str, tuple[str, int]]:
+    """Mapa `código → (rótulo, nº de linhas)` lido do texto do robô.
+
+    Só entra bilhete que tem AS DUAS coisas: o marcador `[Código: …]` e a linha
+    `Tipo: SISTEMA …` no bloco dele. Bilhete de linha única não aparece no mapa —
+    ausência aqui significa "não é sistema", e é o caso normal.
+    """
+    if not texto or "SISTEMA" not in texto:
+        return {}
+    mapa: dict[str, tuple[str, int]] = {}
+    # Fatia por bilhete pelo MESMO marcador que o chunker usa para partir o texto
+    # (`_ID_MARCADOR_RE` — o gabarito genérico, que já cobre qualquer casa).
+    blocos = _ID_MARCADOR_RE.split(texto)
+    # split com 1 grupo de captura → [antes, cod1, bloco1, cod2, bloco2, …]
+    for i in range(1, len(blocos) - 1, 2):
+        codigo = (blocos[i] or "").strip()
+        m = _SISTEMA_TXT_RE.search(blocos[i + 1] or "")
+        if not codigo or not m:
+            continue
+        rotulo = m.group(1).strip()
+        # O robô escreve `?` quando a casa não nomeou o tipo — nº de linhas ainda vale.
+        if rotulo in ("", "?"):
+            rotulo = "Sistema"
+        mapa[codigo] = (rotulo, int(m.group(2)))
+    return mapa
+
+
+def anexar_sistema_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
+    """Anexa a 12ª coluna (estrutura do sistema) às linhas cujo código está no texto.
+
+    Roda DEPOIS de toda a montagem do TSV (correção de código, inversão, cobertura,
+    repesca), para que nenhuma linha nasça depois e fique sem a coluna. Linha sem
+    código, ou com código que não é sistema, passa intacta — e o TSV que já vem sem a
+    11ª coluna é preenchido com um campo vazio, senão a 12ª cairia na casa da 11ª.
+
+    Retorna (tsv, {"sistemas": n}).
+    """
+    mapa = sistemas_do_texto(texto)
+    if not mapa:
+        return tsv, {"sistemas": 0}
+    linhas = tsv.split("\n")
+    n = 0
+    for i, line in enumerate(linhas):
+        parts = line.split("\t")
+        if len(parts) < 10:
+            continue                                  # nota/texto livre: passa intacto
+        codigo = parts[10].strip() if len(parts) > 10 else ""
+        if not codigo or codigo not in mapa:
+            continue
+        rotulo, qtd = mapa[codigo]
+        while len(parts) < 11:
+            parts.append("")
+        parts = parts[:11] + [f"{qtd}x {rotulo}"]      # sobrescreve 12ª antiga, se houver
+        linhas[i] = "\t".join(parts)
+        n += 1
+    return "\n".join(linhas), {"sistemas": n}
 
 
 # ── Correção determinística do ID contra o texto-fonte ────────────────────────
@@ -937,9 +1016,10 @@ async def upsert_bilhetes(
                     INSERT INTO bilhetes
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                          aposta, descricao, stake, odd, resultado,
-                         extraction_state, confianca, stake_usd, origem, criado_em)
+                         extraction_state, confianca, stake_usd, origem, criado_em,
+                         sistema, sistema_linhas)
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-                            COALESCE($18::timestamptz, NOW()))
+                            COALESCE($18::timestamptz, NOW()), $19, $20)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -992,6 +1072,12 @@ async def upsert_bilhetes(
                                          ELSE bilhetes.descricao END,
                         -- backfill do USD em re-sync; nunca apaga um valor já gravado
                         stake_usd        = COALESCE(EXCLUDED.stake_usd, bilhetes.stake_usd),
+                        -- Estrutura do sistema: IMUTÁVEL (um `3 x Duplas` nunca vira outra
+                        -- coisa), então só PREENCHE — nunca sobrescreve nem apaga. É o que
+                        -- faz a re-captura de bilhete ANTIGO virar backfill de graça, sem
+                        -- tocar em nada de financeiro nem violar o congelamento (s265).
+                        sistema          = COALESCE(bilhetes.sistema, EXCLUDED.sistema),
+                        sistema_linhas   = COALESCE(bilhetes.sistema_linhas, EXCLUDED.sistema_linhas),
                         atualizado_em    = NOW()
                     RETURNING id, (xmax = 0) AS was_inserted
                     """,
@@ -1002,6 +1088,7 @@ async def upsert_bilhetes(
                     row.get("stake"), row.get("odd"), resultado,
                     extraction_state, confianca, row.get("stake_usd"), origem,
                     criado_em_val,
+                    row.get("sistema") or None, row.get("sistema_linhas"),
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
@@ -1032,6 +1119,9 @@ async def upsert_bilhetes(
                                          THEN COALESCE(NULLIF($14, ''), aposta)    ELSE aposta    END,
                         descricao = CASE WHEN $12 = 'sync'
                                          THEN COALESCE(NULLIF($15, ''), descricao) ELSE descricao END,
+                        -- estrutura imutável: só preenche (espelha o ON CONFLICT acima)
+                        sistema          = COALESCE(sistema, $16),
+                        sistema_linhas   = COALESCE(sistema_linhas, $17),
                         atualizado_em    = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
                     RETURNING id, FALSE AS was_inserted
@@ -1040,6 +1130,7 @@ async def upsert_bilhetes(
                     row.get("tipster"), codigo or None, resultado, extraction_state,
                     row.get("odd"), row.get("data"), row.get("stake"), origem,
                     row.get("esporte"), row.get("aposta"), row.get("descricao"),
+                    row.get("sistema") or None, row.get("sistema_linhas"),
                 )
             if rec:
                 db_id = rec["id"]

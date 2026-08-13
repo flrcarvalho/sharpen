@@ -54,6 +54,12 @@ Se qualquer coluna extra aparecer, o TSV deve ser considerado inválido.
 
 **Exceção — Código (11ª coluna interna):** o app de extração pode solicitar explicitamente uma 11ª coluna chamada `Código` com o ID/código do bilhete visível no print. Quando essa coluna aparecer na instrução da chamada, emiti-la **não viola esta regra** — ela é interna ao sistema, usada só para deduplicação no banco de dados, e nunca vai para a planilha do usuário.
 
+> **12ª coluna (`Sistema`) — NÃO é sua. Nunca a emita.** Existe uma 12ª coluna interna com a
+> estrutura de bilhetes de sistema (formato `3x Duplas`), mas quem a escreve é o **backend**,
+> depois de você responder: ele a lê do texto-fonte e casa pelo código. Você continua emitindo
+> **10 colunas** (ou 11, com `Código`). Se vir essa coluna num TSV, ignore-a — produzi-la por
+> conta própria é erro, e o valor seria chutado.
+
 ---
 
 # 3. Separador de Colunas

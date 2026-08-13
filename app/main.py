@@ -52,6 +52,7 @@ from repository import (
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendencias,
+    anexar_sistema_tsv,
     corrigir_codigos_tsv,
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
@@ -1141,6 +1142,12 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
         if betfair_dates:
             accumulated = _apply_betfair_dates(accumulated, betfair_dates)
+        # 12ª coluna (estrutura de SISTEMA) — determinística, lida do texto do robô e casada
+        # pelo código. POR ÚLTIMO de propósito: depois da repesca de cobertura e da inversão,
+        # senão linha nascida ali ficaria sem a coluna, em silêncio.
+        accumulated, sis_fix = anexar_sistema_tsv(accumulated, texto)
+        if sis_fix["sistemas"]:
+            logger.info("seq sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
         _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura})}\n\n"
     except Exception:
@@ -1286,6 +1293,10 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
         if betfair_dates:
             resultado = _apply_betfair_dates(resultado, betfair_dates)
+        # 12ª coluna (estrutura de SISTEMA) — ver nota no caminho sequencial.
+        resultado, sis_fix = anexar_sistema_tsv(resultado, texto)
+        if sis_fix["sistemas"]:
+            logger.info("par sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura})}\n\n"
     except Exception:
