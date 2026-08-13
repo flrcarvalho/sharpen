@@ -84,7 +84,24 @@ errada (`USUARIOS[x] == ""` nunca autentica; fail-closed por desenho).
 **Antes de suspeitar do código, separe código de configuração medindo:** um asset que
 só existe no deploy novo responde 200 → o usuário está em `USUARIOS`; `POST /login`
 devolvendo **401** tem origem única (`verificar_credenciais` falso) — 429 é rate-limit,
-500 é erro do app. Usuário existindo + 401 = **env var ausente ou truncada**.
+500 é erro do app. Usuário existindo + 401 = env var ausente, env var truncada **ou a
+senha simplesmente não é aquela**.
+
+**Essa terceira causa é a mais provável em conta de autosserviço, e foi a da s264.** O
+supervisor passa a senha que ele *planejou* (`fredpelado`); quem se cadastrou pelo site
+escolheu outra, e o hash guardado é da dele. A var estava presente e íntegra, e mesmo
+assim dava 401. **Não trate senha dita por terceiro como fato: prove contra o hash**, é
+uma linha e é leitura pura —
+`bcrypt.checkpw(b"<senha>", (select senha_hash from usuarios where username=…))`. Isso
+separa "senha errada" de "transporte quebrou" antes de mexer em qualquer coisa.
+
+**Resetar a senha de quem se cadastrou sozinho é decisão do dono da conta, não sua.** Não
+existe rota de troca no app (só `/admin/usuarios/{u}/aprovar` e `/suspender`), então
+mudar significa `UPDATE` cru em `senha_hash` e derrubar o acesso da pessoa. Pergunte.
+
+**Ao gravar senha em env var, confira o que CHEGOU, não o que você mandou:** comprimento
+e último caractere. `!`, `$` e `` ` `` são comidos por shell que interpola — o `$` do
+bcrypt é o caso clássico, e um `!` no fim de senha é o mesmo problema com outra roupa.
 
 **O `$` do hash bcrypt é a armadilha de transporte:** `$2b$12$…` passa mutilado por
 qualquer shell que interpole variável (PowerShell inclusive). Cole na caixa de Variables
