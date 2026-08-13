@@ -33,6 +33,12 @@
   desde a data do jogo. A dedup é pelo código `BR`, então tudo entra por UPSERT: reprocessar não
   duplica nem cria linha nova. Medido na conta `marloncezar01`: 26 bilhetes presos, e uma passada
   de `Período` sobre 19 a 21/07 fechou 8 sem inserir nenhuma linha.
+- **Sistema, no modo API: o robô já entrega a odd pronta.** O payload traz a estrutura do
+  bilhete (`BC` = nº de apostas · `BT` = seleções por aposta · `ST` = unitária · `TS` = total), e
+  quando `BC > 1` o bloco sai com `Tipo: SISTEMA …` mais uma linha `Odd (estrutural do sistema):
+  <valor>` **já calculada** (média das linhas, `MASTER_RESULTADO §7.3`). **Use esse valor; não
+  multiplique as odds das seleções.** Se a estrutura não fechar (Trixie/Yankee, que misturam
+  tamanhos de linha), o bloco pede o cálculo pelo §7 em vez de entregar número — nunca chuta.
 - ⚠️ **A captura é PASSIVA: o robô só enxerga o que a lista da tela já carregou.** O `b3_inject`
   lê as respostas que a própria página baixa; ele não rola nem pagina sozinho (o "Mostrar Mais" é
   não-automatizável, s180). Lista não expandida = bilhete não capturado, **em silêncio**. Expanda
@@ -214,6 +220,22 @@ Notas de reconstrução:
 **Sistemas (Duplas/Triplas/Trixie/Yankee…):**
 - Ganho (RO > 0), inclusive **com perna anulada** → `Odd = Retorno Obtido ÷ Aposta`. O colapso da perna void já está embutido no RO; não recalcular fórmula. (Ex.: 3x Duplas, stake 900, perna anulada, RO 2940 → odd `3,2667`.)
 - Perdido inteiro (RO = 0) → odd **estrutural** pela fórmula do `MASTER_RESULTADO_2026 §7`, preservando a perna anulada como odd `1,00` na estrutura. (Caso mais complexo — ex.: Trixie com perna anulada + demais perdidas.)
+- **Aberto (sem RO)** → odd **estrutural**, igual ao perdido. Não há retorno para ajustar.
+
+> ⚠️ **`Nº de Apostas` é o que separa sistema de múltipla — o rótulo NÃO separa.** A Bet365
+> escreve `Tipo de Aposta: Triplas` tanto na **tripla comum** (`Nº de Apostas 1`) quanto num
+> sistema, e um `3 x Duplas` traz **as mesmas 3 odds** da tripla das mesmas seleções. `Nº de
+> Apostas > 1` → odd = **média das linhas** (`MASTER_RESULTADO §7.3`); `= 1` → produto.
+>
+> Exemplo real (s265), mesmas 3 seleções (1,42 · 2,10 · 1,95), dois bilhetes irmãos:
+>
+> | Bilhete | Nº de Apostas | Unitária | Total | Odd | Retorno potencial |
+> |---|---|---|---|---|---|
+> | `Duplas` | 3 | 101,00 | **303,00** | **3,282** (média das 3 duplas) | 994,43 |
+> | `Triplas` | 1 | 51,00 | **51,00** | 5,8149 (produto) | 296,55 |
+>
+> Ler o de cima com a odd de baixo inflava o retorno potencial em 77 % — e, por ser bilhete
+> **aberto**, nada o corrigiria depois.
 
 > ⚠️ Regra crítica (global): em `L` a odd nunca vira `0,00`; em `HL` nunca vira `0,50`/metade; em `V` nunca vira `1,00`. A odd original é **preservada**. `RO ÷ Aposta` vale só para W / cashout / boost / sistema ganho.
 

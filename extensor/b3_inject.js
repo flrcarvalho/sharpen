@@ -52,9 +52,15 @@
     return recs;
   }
 
-  // summary → { cursor:PT, bets:[{bsid,bs,stake,oddFrac,rt,tipo,sels}] }
+  // summary → { cursor:PT, bets:[{bsid,bs,stake,oddFrac,rt,tipo,bc,bt,sels}] }
   // Registros: 00 header (PT=cursor) · 01 bilhete · 03 seleção · 04 perna de BET BUILDER
   // (mesmo jogo: NA=seleção, N2=mercado) · 02 TY=SD/ST (stake/retorno).
+  //
+  // ⚠️ BC e BT são a ESTRUTURA do bilhete e sem eles um sistema é indistinguível de uma múltipla:
+  //   BC = nº de APOSTAS (linhas) · BT = seleções por aposta · NA = o rótulo ("Duplas"/"Triplas")
+  //   ST (no TY=SD) = stake UNITÁRIO (por linha) · TS = stake TOTAL (= ST × BC)
+  // `3 x Duplas` (BC=3, BT=2) e a tripla das MESMAS 3 seleções (BC=1, BT=3) chegam com as mesmas
+  // odds e o mesmo NA-ish; só BC/BT separam. Ver `_linhasSistemaB3` no content.js (s265).
   function parseSummary(blob) {
     const recs = parseRecords(blob);
     let cursor = null;
@@ -65,7 +71,8 @@
       if (code === "01") {
         if (cur) bets.push(cur);
         cur = { bsid: kv.ID || "", bs: kv.BS, tp: kv.TP || "", pd: kv.PD || "", sels: [],
-                stake: null, ts: null, oddFrac: "", rt: null, tipo: "" };
+                stake: null, ts: null, oddFrac: "", rt: null, tipo: "",
+                bc: kv.BC || "", bt: kv.BT || "" };
       } else if (code === "03" && cur) {
         // `na` é a seleção; quando vierem pernas 04 depois, esse mesmo `na` é o JOGO
         // (bet builder). Quem decide é o formatador, olhando se `subs` tem item.
@@ -76,7 +83,15 @@
         // bilhete sai "reduzido" — só o nome do jogo, sem os mercados (bug visto na s178).
         cur.sels[cur.sels.length - 1].subs.push({ na: kv.NA || "", mercado: kv.N2 || "" });
       } else if (code === "02" && cur) {
-        if (kv.TY === "SD") { if ("ST" in kv) cur.stake = kv.ST; if ("TS" in kv) cur.ts = kv.TS; cur.tipo = kv.NA || ""; }
+        // TY=SD é o registro mais confiável da estrutura (BC/BT vêm aqui E no `01`; o `01` de
+        // alguns bilhetes vem sem BC). `cur.stake` = ST do SD = stake UNITÁRIO, não o total.
+        if (kv.TY === "SD") {
+          if ("ST" in kv) cur.stake = kv.ST;
+          if ("TS" in kv) cur.ts = kv.TS;
+          cur.tipo = kv.NA || "";
+          if (kv.BC) cur.bc = kv.BC;
+          if (kv.BT) cur.bt = kv.BT;
+        }
         else if (kv.TY === "ST") {
           if ("RT" in kv) cur.rt = kv.RT;                 // ausente = aberta
           if (cur.stake == null && "ST" in kv) cur.stake = kv.ST;
@@ -103,8 +118,10 @@
     // Sem esta checagem o parser devolvia um objeto com código VAZIO e o bilhete subia sem
     // chave de dedup, silenciosamente — foi assim que o replay quebrado passou despercebido.
     if (!head || !("BR" in head)) return null;
+    // BC/BT também no cabeçalho `00` (redundância boa: se um bilhete vier sem eles no summary,
+    // o confirmation completa). NUNCA ler BC do `01;TY=CS` — lá ele vem VAZIO (`BC=;`).
     const out = { br: head.BR || "", da: head.DA || "", bs: head.BS, tipo: head.NA || "",
-                  rt: null, ts: null, legs: [] };
+                  bc: head.BC || "", bt: head.BT || "", rt: null, ts: null, legs: [] };
     let sensivel = false;   // depois de 01;TY=DI vêm dados pessoais — nunca viram perna
     let atual = null;
     for (const [code, kv] of recs) {
@@ -174,6 +191,8 @@
     ex.aberta = b.bs === "0";
     ex.tp = b.tp; ex.stake = b.stake; ex.ts = b.ts; ex.oddFrac = b.oddFrac; ex.rt = b.rt; ex.tipo = b.tipo;
     ex.sels = b.sels;
+    if (b.bc) ex.bc = b.bc;
+    if (b.bt) ex.bt = b.bt;
     if (b.pd) ex.pd = b.pd;   // rota da confirmation — o namespace (D0/D1) vem daqui, não de chute
     byBsid.set(b.bsid, ex);
   }
@@ -183,6 +202,8 @@
     if (c.ts != null) ex.ts = c.ts;
     if (c.rt != null && ex.rt == null) ex.rt = c.rt;   // não sobrescreve o RT do summary (realizado)
     if (!ex.tipo) ex.tipo = c.tipo;
+    if (!ex.bc && c.bc) ex.bc = c.bc;
+    if (!ex.bt && c.bt) ex.bt = c.bt;
     if (c.bs != null) ex.aberta = c.bs === "0";
     byBsid.set(bsid, ex);
   }

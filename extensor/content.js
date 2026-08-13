@@ -3104,14 +3104,75 @@
   const _OFF_B3 = { "1": 2.5, "10": 2.5, "13": 3, "15": 1.5, "18": 2.5, "91": 2, "94": 1.5 };
 
   // Odd Bet365: fracionária "num/den" → decimal (num/den + 1), precisão completa, vírgula.
-  const _oddB3 = (frac) => {
+  // `_oddNumB3` devolve o NÚMERO (NaN se ilegível) — quem precisa calcular usa esta; `_oddB3` é
+  // a mesma conta formatada para o texto que a IA lê.
+  const _oddNumB3 = (frac) => {
     const s = String(frac || ""); const i = s.indexOf("/");
-    if (i < 0) return "";
+    if (i < 0) return NaN;
     const a = parseFloat(s.slice(0, i)), b = parseFloat(s.slice(i + 1));
-    if (!isFinite(a) || !isFinite(b) || b === 0) return "";
-    return String(a / b + 1).replace(".", ",");
+    if (!isFinite(a) || !isFinite(b) || b === 0) return NaN;
+    return a / b + 1;
   };
+  const _oddB3 = (frac) => { const v = _oddNumB3(frac); return isFinite(v) ? String(v).replace(".", ",") : ""; };
   const _numB3 = (s) => parseFloat(String(s == null ? "" : s).replace(",", ".")) || 0;
+
+  // ── SISTEMA (N × Duplas/Triplas/…): a odd é a MÉDIA das linhas, NUNCA o produto ───────────
+  // A bet365 empacota um sistema em UM bilhete (1 código BR → 1 linha nossa, como o exemplo #7 da
+  // CASA_BET365). A estrutura vem em `BC` (nº de apostas) e `BT` (seleções por aposta).
+  //
+  // POR QUE ISTO EXISTE (s265): `3 x Duplas` e a TRIPLA das mesmas 3 seleções produziam blocos
+  // idênticos para a IA — mesmas odds, mesma contagem de pernas —, e ela multiplicava as odds nos
+  // dois casos. O bilhete de duplas ficava com a odd da tripla: odds 1,42 · 2,10 · 1,95 viravam
+  // 5,81 em vez de 3,282, e o retorno potencial de R$ 303 inflava de R$ 994 para R$ 1.762 (+77%).
+  // Em bilhete GANHO o `Retorno ÷ Aposta` conserta sozinho; em ABERTA e em PERDIDA (RT=0) não há
+  // retorno que conserte — é aqui, e só aqui.
+  //
+  // Σ dos produtos de todas as combinações C(n,k) das odds (MASTER_RESULTADO §7.3).
+  function _combSomaB3(odds, k) {
+    let soma = 0;
+    const rec = (i, resta, prod) => {
+      if (resta === 0) { soma += prod; return; }
+      for (let j = i; j <= odds.length - resta; j++) rec(j + 1, resta - 1, prod * odds[j]);
+    };
+    rec(0, k, 1);
+    return soma;
+  }
+  function _cnkB3(n, k) {   // C(n,k) — inteiro; k fora de [0,n] → 0
+    if (k < 0 || k > n) return 0;
+    let r = 1;
+    for (let i = 1; i <= k; i++) r = r * (n - k + i) / i;
+    return Math.round(r);
+  }
+
+  // Linhas de estrutura do bilhete de sistema — `[]` quando o bilhete NÃO é sistema (BC ≤ 1),
+  // e aí nada muda no bloco (múltipla comum continua sendo o produto das odds).
+  // `fonte` = as seleções COM odd (preferir as do summary: em bet builder as pernas do
+  // confirmation vêm com OD=0/1 e envenenariam a média).
+  function _linhasSistemaB3(t, fonte) {
+    const bc = parseInt(t.bc, 10) || 0;
+    if (bc <= 1) return [];
+    const bt = parseInt(t.bt, 10) || 0;
+    const n = fonte.length;
+    const uni = _numB3(t.stake), tot = _numB3(t.ts != null ? t.ts : t.stake);
+    const L = ["Tipo: SISTEMA " + (t.tipo || "?") + " — " + bc + " apostas de " + (bt || "?") +
+               " seleção(ões), sobre " + n + " seleções · aposta unitária R$ " + _brl(uni) +
+               " · total R$ " + _brl(tot) + " (a Stake acima é o TOTAL — é ela que vale)"];
+    const odds = fonte.map((s) => _oddNumB3(s.oddFrac || s.od)).filter((x) => isFinite(x) && x > 1);
+    // Só calcula quando a estrutura FECHA: C(n,bt) tem de dar exatamente as BC linhas do bilhete
+    // e toda seleção tem de ter odd legível. Trixie/Yankee/Lucky (que MISTURAM tamanhos de linha)
+    // não fecham — e aí entregamos o dado + a regra, nunca um número chutado.
+    if (bt >= 1 && odds.length === n && _cnkB3(n, bt) === bc) {
+      const media = _combSomaB3(odds, bt) / bc;
+      L.push("Odd (estrutural do sistema): " + String(media).replace(".", ",") +
+             "  ← JÁ CALCULADA (média das " + bc + " linhas). Use esta odd; NÃO multiplique as " +
+             "odds das seleções — o produto é a odd da múltipla cheia, que este bilhete NÃO é. " +
+             "Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).");
+    } else {
+      L.push("Odd (estrutural do sistema): calcule pela MASTER_RESULTADO §7 — média das " + bc +
+             " linhas do sistema. NUNCA o produto simples das odds.");
+    }
+    return L;
+  }
 
   // Reino Unido (Europe/London) → Brasília (UTC-3, sem horário de verão). BST (fim mar→fim out) =
   // UTC+1 → BR = UK-4; GMT = UTC+0 → BR = UK-3. Retorna a DATA de Brasília (já com a folga).
@@ -3178,9 +3239,15 @@
     if (dataFim) L.push("Data (encerramento): " + dataFim);
     L.push("Stake: " + _brl(_numB3(t.ts != null ? t.ts : t.stake)));
     L.push("Status: " + _resultadoB3(t));
-    if (!multiplo && t.oddFrac) L.push("Odd: " + _oddB3(t.oddFrac));
-    if (multiplo) L.push("Tipo: Múltipla (" + legs.length + " seleções)");
-    else if (cls.length) L.push("Esporte (casa): CL=" + cls[0] + (_CL_B3[cls[0]] ? " (" + _CL_B3[cls[0]] + ")" : ""));
+    // Sistema (BC > 1): as odds saem do SUMMARY quando houver — em bet builder as pernas do
+    // confirmation vêm com OD=0/1 e a odd real da perna só existe no `03` do summary.
+    const sistema = _linhasSistemaB3(t, (t.sels && t.sels.length) ? t.sels : legs);
+    // `Odd:` (a do bilhete) só faz sentido em aposta de linha única. Num sistema ela é a odd de
+    // UMA seleção e mandaria a IA para o número errado.
+    if (!multiplo && !sistema.length && t.oddFrac) L.push("Odd: " + _oddB3(t.oddFrac));
+    if (sistema.length) for (const s of sistema) L.push(s);
+    else if (multiplo) L.push("Tipo: Múltipla (" + legs.length + " seleções)");
+    if (!multiplo && cls.length) L.push("Esporte (casa): CL=" + cls[0] + (_CL_B3[cls[0]] ? " (" + _CL_B3[cls[0]] + ")" : ""));
 
     L.push("Seleções:");
     // BET BUILDER (mesmo jogo): a perna traz `subs` — o cabeçalho é o JOGO e cada sub é uma

@@ -521,6 +521,28 @@ Odd registrada = 1.706,41 ÷ 150 = 11,37606666666667
 | L sem cashout | Odd estrutural |
 | V | Odd estrutural original |
 | HW / HL | Odd exibida |
+| **Aberta (não liquidada)** | **Odd estrutural** — não há retorno realizado para ajustar |
+
+> ⚠️ **Múltipla e sistema não são a mesma conta.** Em **múltipla** (uma linha só) a odd
+> estrutural é o **produto** das odds. Em **sistema** (várias linhas) é a **média das linhas** —
+> nunca o produto. Ver §7.3.
+>
+> **Onde isso morde:** em `W` o `Retorno ÷ Stake` conserta qualquer erro de estrutura sozinho, e
+> por isso o defeito passa despercebido por muito tempo. Em **aberta** e em **`L`** não existe
+> retorno que conserte: a odd estrutural é a única fonte, e errá-la é errar a odd gravada e o
+> retorno potencial da tela. Foi assim na s265 (Bet365, `3 x Duplas` lida como tripla: odd 5,81
+> em vez de 3,282, retorno potencial R$ 1.762 em vez de R$ 994).
+
+### Stake de sistema = o TOTAL, sempre
+
+A casa mostra os dois números: **aposta unitária** (por linha) e **total** (= unitária × nº de
+linhas). O bilhete é **uma linha** na planilha, e a Stake registrada é o **total** — é o que
+saiu da conta. A odd média já está dimensionada para esse total: `total × odd média` = retorno
+se todas as linhas ganharem.
+
+```text
+3 x Duplas · unitária R$ 101,00 · total R$ 303,00 → Stake = 303,00 (nunca 101,00)
+```
 
 ---
 
@@ -559,9 +581,77 @@ Odd = a × b × c × d × e
 
 ---
 
-## 7.3 Trixie
+## 7.3 Sistema uniforme — `N x Duplas`, `N x Triplas`, `N x Simples`
+
+O caso mais comum, e o que mais se confunde com múltipla: a casa combina **n seleções** em
+**todas as combinações de tamanho k**, cada uma valendo uma aposta própria de mesmo valor.
+
+```text
+Nº de linhas  = C(n, k)
+Odd estrutural = (Σ dos produtos de todas as combinações de tamanho k) ÷ C(n, k)
+```
+
+### `3 x Duplas` (n = 3, k = 2 → 3 linhas)
+
+```text
+Odd = (ab + ac + bc) / 3
+```
+
+### `6 x Duplas` (n = 4, k = 2 → 6 linhas)
+
+```text
+Odd = (ab + ac + ad + bc + bd + cd) / 6
+```
+
+### `4 x Triplas` (n = 4, k = 3 → 4 linhas)
+
+```text
+Odd = (abc + abd + acd + bcd) / 4
+```
+
+### `3 x Simples` (n = 3, k = 1 → 3 linhas)
+
+```text
+Odd = (a + b + c) / 3
+```
+
+> **A múltipla comum é o caso `k = n`** (uma linha só): `C(n,n) = 1` e a fórmula colapsa no
+> produto de §7.2. Ou seja, a mesma conta serve para os dois — o que muda é **o nº de linhas**.
+
+**Como distinguir sistema de múltipla, na prática:** pelo **nº de apostas** do bilhete, não pelo
+rótulo. A Bet365 escreve `Tipo de Aposta: Triplas` tanto na tripla comum (`Nº de Apostas 1`)
+quanto num sistema; e um `3 x Duplas` e a tripla das **mesmas 3 seleções** trazem as **mesmas
+odds**. Só `Nº de Apostas` separa os dois.
+
+| Nº de apostas | O que é | Odd |
+|---|---|---|
+| 1 | múltipla comum | produto das odds (§7.2) |
+| > 1 | sistema | média das linhas (acima) |
+
+**Exemplo completo** (bilhete real, s265 — odds 1,42 · 2,10 · 1,95):
+
+```text
+3 x Duplas, unitária 101,00, total 303,00
+  (1,42×2,10 + 1,42×1,95 + 2,10×1,95) / 3 = 3,282   → retorno potencial 994,45 ✅
+  1,42 × 2,10 × 1,95                      = 5,8149  → 1.762,25 ❌ (essa é a odd da TRIPLA)
+
+Tripla, stake 51,00
+  1,42 × 2,10 × 1,95 = 5,8149             → retorno potencial 296,56 ✅
+```
+
+> **Perna anulada em sistema:** preserve-a como odd `1,00` **dentro da estrutura** e recalcule —
+> não a remova, ou o nº de linhas muda. Se o bilhete ganhou, `Retorno ÷ Aposta` já embute o void
+> e dispensa a fórmula (§7.1).
+
+---
+
+## 7.4 Trixie
 
 Trixie = 3 duplas + 1 tripla
+
+> **Não é uniforme** — mistura tamanhos de linha, então a fórmula de §7.3 não se aplica: as 4
+> linhas são enumeradas na mão, abaixo. Mesmas regras de §7.1 (stake = total; ganho → `Retorno ÷
+> Aposta`).
 
 Total de linhas:
 
@@ -577,7 +667,7 @@ Fórmula:
 
 ---
 
-## 7.4 Yankee
+## 7.5 Yankee
 
 Yankee = 6 duplas + 4 triplas + 1 quádrupla
 
@@ -595,7 +685,7 @@ Fórmula:
 
 ---
 
-## 7.5 Super Yankee
+## 7.6 Super Yankee
 
 Super Yankee =:
 - 10 duplas

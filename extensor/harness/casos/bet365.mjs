@@ -12,7 +12,8 @@
 //   2. o merge summary+confirmation entrega código BR, liga e as pernas de bet builder;
 //   3. o `confirmation` NÃO vaza o bloco KYC (`01;TY=DI` em diante: nome, endereço, CPF);
 //   4. a odd fracionária vira decimal com precisão completa;
-//   5. o buraco CONHECIDO da data em bet builder de mesmo jogo (ver `SEM_DATA`, abaixo).
+//   5. o buraco CONHECIDO da data em bet builder de mesmo jogo (ver `SEM_DATA`, abaixo);
+//   6. SISTEMA (`N x Duplas`): a odd é a MÉDIA das linhas, nunca o produto das odds (s265).
 import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
 
 export const casa = "Bet365";
@@ -111,6 +112,63 @@ export async function rodar() {
                              `é "evento → informada → Brasília-hoje", colocação nunca`);
   if (!c.da || !c.tp) falhas.push(`${COMPLETO}: da/tp sumiram do merge — são a única data disponível ` +
                                   `neste bilhete se algum dia o §4 mudar`);
+
+  // ── 6. SISTEMA: odd = MÉDIA das linhas, nunca o produto (s265) ──────────────
+  // O bilhete 49633134678 da fixture é um `3 x Duplas` REAL: `BT=2 · BC=3 · ST=175 · TS=525`,
+  // odds 15/8 · 5/4 · 7/4 (= 2,875 · 2,25 · 2,75).
+  //   correto : (2,875×2,25 + 2,875×2,75 + 2,25×2,75) ÷ 3 = 6,854166666666667
+  //   o bug   : 2,875 × 2,25 × 2,75                        = 17,7890625  ← a odd da TRIPLA
+  // Era isso que subia: `3 x Duplas` e a tripla das MESMAS seleções produziam blocos idênticos
+  // e a IA multiplicava nos dois. Em W o `Retorno ÷ Aposta` mascarava; em ABERTA e em L (RT=0,
+  // que é o caso deste bilhete) não havia nada para mascarar.
+  // Chamamos `fmt()` num bilhete só-summary de propósito: a fixture não tem o confirmation deste
+  // bsid, e a aritmética do sistema não depende dele (as odds por linha vêm do `03` do summary —
+  // que é a fonte certa mesmo quando HÁ confirmation, porque em bet builder a perna vem OD=0/1).
+  const dup = por.get("49633134678");
+  if (!dup) {
+    falhas.push("49633134678 (3 x Duplas) não foi parseado do summary");
+  } else {
+    if (String(dup.bc) !== "3") falhas.push(`49633134678: BC esperado "3" (nº de apostas), veio "${dup.bc}" ` +
+                                            `— sem BC o sistema é indistinguível de uma múltipla comum`);
+    if (String(dup.bt) !== "2") falhas.push(`49633134678: BT esperado "2" (seleções por aposta), veio "${dup.bt}"`);
+    if (dup.tipo !== "Duplas") falhas.push(`49633134678: tipo esperado "Duplas", veio "${dup.tipo}"`);
+    const td = fmt(dup);
+    const tipo = linha(td, "Tipo:");
+    if (!/^SISTEMA Duplas — 3 apostas de 2 seleção\(ões\), sobre 3 seleções/.test(tipo)) {
+      falhas.push(`49633134678: linha de estrutura errada: "${tipo}"`);
+    }
+    if (!/aposta unitária R\$ 175,00 · total R\$ 525,00/.test(tipo)) {
+      falhas.push(`49633134678: unitária/total errados na linha de estrutura: "${tipo}"`);
+    }
+    const oddSis = linha(td, "Odd (estrutural do sistema):");
+    if (!oddSis.startsWith("6,854166666666667")) {
+      falhas.push(`49633134678: odd do sistema esperada 6,854166666666667 (média das 3 duplas), ` +
+                  `veio "${oddSis}"`);
+    }
+    if (/17,789/.test(td)) {
+      falhas.push("49633134678: o bloco traz 17,7890625 — o PRODUTO das 3 odds. Esse é o bug da " +
+                  "s265: é a odd da tripla, não a do sistema de duplas");
+    }
+    // Num sistema a linha `Odd:` (odd do bilhete) seria a odd de UMA seleção → mandaria a IA
+    // para o número errado. Tem de estar ausente.
+    if (linha(td, "Odd:")) falhas.push(`49633134678: linha "Odd:" não devia existir em sistema (veio "${linha(td, "Odd:")}")`);
+    if (linha(td, "Stake:") !== "525,00") falhas.push(`49633134678: Stake devia ser o TOTAL 525,00, veio "${linha(td, "Stake:")}"`);
+  }
+
+  // ── 6b. O INVERSO: bilhete de 1 linha NÃO pode virar sistema ────────────────
+  // `BC=1` é múltipla comum (ou simples) e ali o produto das odds está CERTO. Se a linha de
+  // sistema aparecer aqui, o conserto da s265 virou o defeito oposto.
+  for (const bsid of ["49635244290", COMPLETO]) {
+    const b = por.get(bsid);
+    if (!b) continue;
+    const bl = fmt(b);
+    if (linha(bl, "Tipo:").startsWith("SISTEMA")) {
+      falhas.push(`${bsid}: BC=${b.bc} (1 aposta) não é sistema, mas o bloco saiu como SISTEMA`);
+    }
+    if (linha(bl, "Odd (estrutural do sistema):")) {
+      falhas.push(`${bsid}: bilhete de 1 linha ganhou odd de sistema`);
+    }
+  }
 
   return { falhas, testes: bets.length };
 }
