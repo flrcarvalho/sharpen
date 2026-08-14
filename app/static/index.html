@@ -6114,18 +6114,30 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
   }
 });
 
+// "Desfazer análise" APAGA (DELETE em `bilhetes`, sem lixeira — `deletar_bilhetes`).
+// Duas faltas que se somaram na s266 e custaram ~152 bilhetes recém-capturados: o botão
+// não dizia QUANTOS ia apagar (o rótulo sugere "voltar atrás", não "excluir em massa"), e
+// descartava o `linhas` que a rota JÁ devolve para o undo — o irmão `btn-deletar-sel`
+// usava o mesmo endpoint e oferecia o toast desde sempre. Agora confirma com a contagem
+// e reusa `showUndoToast`; nada de componente novo.
 document.getElementById('btn-desfazer').addEventListener('click', async () => {
   if (!ultimaAnaliseIds.length) return;
   const ids = [...ultimaAnaliseIds];
+  const n = ids.length;
+  if (!confirm(`Excluir ${n} aposta${n === 1 ? '' : 's'} desta análise?\n\n`
+             + `Isto APAGA do banco — não é só tirar da tela.`)) return;
   try {
     const r = await fetch('/bilhetes', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids })
     });
     if (!r.ok) throw new Error();
+    const d = await r.json().catch(() => ({}));
     ultimaAnaliseIds = [];
     await carregarGrade(); atualizarIncompletos();
-    setExpStatus(`Análise desfeita (${ids.length} bilhetes)`, '');
+    if (d.linhas && d.linhas.length)
+      showUndoToast(`Análise desfeita (${n} bilhete${n === 1 ? '' : 's'}).`, d.linhas);
+    else setExpStatus(`Análise desfeita (${n} bilhetes)`, '');
   } catch {
     setExpStatus('Erro ao desfazer', 'err');
   }
