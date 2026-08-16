@@ -808,7 +808,7 @@
       // sem linha em branco entre bilhetes, então o roboScroll genérico viraria um bloco só e
       // a IA perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboSTKPassive(ctx);
-    } else if (casa === "pitaco" || casa === "reidopitaco") {
+    } else if (casa === "pitaco") {
       // Replay puro (pt_inject) sobre gRPC-Web/protobuf binário — plataforma própria da casa,
       // sem parentesco com Altenar/BetBy/Kambi/BetConstruct. Duas particularidades desta casa:
       //
@@ -821,8 +821,8 @@
       // SEM fallback de texto: os cards ficam colados, sem linha em branco entre bilhetes, e o
       // roboScroll genérico viraria um bloco só (lição da KTO, s192).
       //
-      // Os DOIS nomes caem aqui de propósito: a casa foi rebatizada de "Rei do Pitaco" para
-      // "Pitaco" e as duas grafias convivem no banco — contas antigas pareiam com a antiga.
+      // A casa é a antiga "Rei do Pitaco"; a grafia foi unificada no banco na s270, então só
+      // `Pitaco` chega aqui — o backend não devolve mais o nome velho no pareamento.
       blocos = await roboPTCPassive(ctx);
     } else if (casa === "betnacional") {
       // Passivo + replay por janelas de datas (bnc_inject). A lista da página só cobre a
@@ -901,9 +901,6 @@
         // com 0 respostas é sempre falha do replay — sessão expirada (a auth é por header) ou
         // endpoint mudado —, nunca "tela errada". Quando o inject sabe o motivo, ele diz.
         pitaco:     { nome: "Pitaco",     hook: ptcHookVivo, resp: ptcRespostas, vistos: ptcById.size,
-                      extra: ptcErro ? " · " + ptcErro
-                           : (ptcRespostas === 0 ? " · abra Minhas Apostas e recarregue a página (Ctrl+Shift+R); se persistir, refaça o login" : "") },
-        reidopitaco: { nome: "Pitaco",    hook: ptcHookVivo, resp: ptcRespostas, vistos: ptcById.size,
                       extra: ptcErro ? " · " + ptcErro
                            : (ptcRespostas === 0 ? " · abra Minhas Apostas e recarregue a página (Ctrl+Shift+R); se persistir, refaça o login" : "") },
         betnacional: { nome: "BetNacional", hook: bncHookVivo, resp: bncRespostas, vistos: bncById.size },

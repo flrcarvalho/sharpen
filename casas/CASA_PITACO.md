@@ -17,12 +17,13 @@
 - Locale: pt-BR na interface **e** nos valores — dinheiro em formato BR (`R$ 101,00`) e odd com **ponto** decimal e sufixo `x` (`5.45x`)
 - `Parceiro` / `Tipster`: preenchidos pela app; extrator deixa vazio
 
-> ⚠️ **A casa é a antiga "Rei do Pitaco"** — mesma operação, marca nova do `.bet.br`. O banco
-> tem as **duas grafias vivas** (54 bilhetes em `Rei do Pitaco`, 3 em `Pitaco`, medidos em
-> 16/08/2026) e por isso as duas estão registradas no `_CASA_DISPLAY`, apontando para este
-> mesmo manual (alias em `app/prompts.py`). Não criar `CASA_REIDOPITACO.md`: uma regra, um
-> lugar. As duas entradas desaparecem quando a unificação de grafia for feita — frente
-> própria, porque mexe em 57 linhas e recalcula a assinatura de cada uma.
+> **A casa é a antiga "Rei do Pitaco"** — mesma operação, marca nova do `.bet.br`.
+> **`Pitaco` é o nome padrão desde 16/08/2026 (s270)**, e a grafia velha foi **unificada no
+> banco** na mesma sessão (`scripts/unificar_casas.py --somente "Rei do Pitaco"`): 54 bilhetes
+> de dois donos movidos, **54 assinaturas recalculadas**, resíduo **zero** nas 7 tabelas onde
+> `casa` é texto, e as 57 assinaturas resultantes conferidas contra o que a próxima captura
+> vai gerar (0 divergem → a dedup continua fechando). Não recriar a grafia antiga em lugar
+> nenhum: ela não casa mais nenhuma linha.
 
 > **Plataforma PRÓPRIA** (Next.js + gRPC-Web). Não é espelho de Altenar/BetBy/Kambi/
 > BetConstruct: nenhum vocabulário de campo coincide, e o transporte é protobuf binário.

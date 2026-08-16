@@ -62,6 +62,11 @@ O `@sharpenbetbot` é admin do grupo e serve de canal de **novas versões e atua
 tester precisa **fazer**. Ficam de fora: mecânica interna, nome de campo, causa raiz, número de
 bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STATUS.md`.
 
+> ⚠️ **`Sharpen` é o SISTEMA; `SharpenUp` é a EXTENSÃO.** O número de versão (`0.6.46`) é do
+> **SharpenUp** — é ele que o tester atualiza. Escrever "Sharpen 0.6.46" versiona o produto
+> inteiro e confunde quem lê (corrigido em produção na s270, com a mensagem já publicada).
+> A regra vale para release note, changelog e qualquer texto voltado ao usuário.
+
 - `chat_id` = `-5172183099` · `BOT_TOKEN` no `.env` de `Downloads/BOTS/sharpen-bot`.
 - **Confirmar o destino com `getChat` antes de publicar.** Mensagem em grupo não tem desfazer.
 - **Nunca `getUpdates`** — briga com o polling do bot em produção.

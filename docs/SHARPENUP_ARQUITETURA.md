@@ -254,13 +254,21 @@ Regras que valem para todos:
 > **anulada devolve o stake**, então o dinheiro não distingue V de W · **não há campo de
 > esporte** no payload · auth **por header** (Firebase), não por cookie.
 >
-> ⚠️ **A casa está registrada sob DUAS chaves** (`PITACO` e `REIDOPITACO`) porque as duas
-> grafias convivem no banco (54 bilhetes na antiga, 3 na nova) e o `casa_canonica()` não as
-> funde — ele só normaliza caixa e espaço. Consequências que precisaram de código: o backstop
-> casa↔site passou a comparar por `captura.mesma_casa()` (com `!=` a conta antiga tomaria 409
-> capturando do site certo), e o manual é **um só**, via `_ALIAS_MANUAL` no `prompts.py` —
-> duplicar o `CASA_*.md` violaria "uma regra, um lugar". Round-trip medido antes de registrar:
-> 63 grafias no banco, **0 quebradas antes e 0 depois**.
+> ⚠️ **A casa REBATIZOU, e a grafia foi unificada na mesma sessão.** A "Rei do Pitaco" virou
+> `Pitaco`, e por algumas horas as duas grafias conviveram no banco (54 bilhetes na antiga, 3
+> na nova) — o `casa_canonica()` **não** funde nomes distintos, ele só normaliza caixa e
+> espaço. Registrar as duas chaves funcionava, mas custava três mecanismos paralelos
+> (equivalência no backstop, alias de manual, alias de exibição). O Feca decidiu que `Pitaco`
+> é o nome padrão, e a unificação apagou os três: `scripts/unificar_casas.py --somente
+> "Rei do Pitaco"` moveu **54 bilhetes de 2 donos** com **54 assinaturas recalculadas**,
+> resíduo **zero** nas 7 tabelas.
+>
+> **A lição que fica é sobre a ORDEM.** Enquanto as duas chaves existiam, o backstop
+> casa↔site quebrava: `casa_de_host` devolve a **primeira** chave que casa o host, então a
+> comparação exata rejeitava com **409** quem pareasse pela grafia antiga e capturasse do
+> site **certo**. Casa que rebatiza deve ser **unificada antes** de ser registrada — registrar
+> duas grafias é uma ponte cara, não um estado de repouso. Round-trip medido nas duas pontas:
+> 63 grafias no banco, **0 quebradas** antes e depois.
 
 > **Casa espelho — o padrão da Betfast (s211).** Quando uma casa nova roda o **mesmo motor** de
 > uma já ligada, ela **não ganha inject próprio**: entra nos 12 pontos de registro apontando

@@ -171,20 +171,12 @@ _CASA_DISPLAY: dict[str, str] = {
     "KTO":            "KTO",
     "LOTTU":          "Lottu",
     "PINNACLE":       "Pinnacle",
-    # ⚠ A MESMA casa em DUAS grafias, e as duas estão registradas de propósito (s270). A
-    # "Rei do Pitaco" rebatizou para "Pitaco" (`pitaco.bet.br`), e o banco tem as duas
-    # convivendo: 54 bilhetes em `Rei do Pitaco` (Feca 34 · Diogo 20, 4 contas) e 3 em
-    # `Pitaco` (LavaPessoal, do import). O `casa_canonica()` não funde as duas — ele só
-    # normaliza caixa e espaço —, então registrar só a nova deixaria as contas antigas fora
-    # do modo texto e o botão "Conectar" morto nelas. Round-trip MEDIDO antes de registrar:
-    # 63 grafias no banco, **0 quebradas antes e 0 depois** (ver o aviso de mudança
-    # RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5).
-    # As duas apontam para o MESMO manual (`CASA_PITACO.md`, via alias em prompts.py) e para
-    # o mesmo inject — nada é duplicado além da linha de registro. As duas entradas morrem
-    # juntas quando a unificação de grafia for feita (frente própria: mexe em 57 linhas e
-    # recalcula a assinatura de cada uma).
+    # A antiga "Rei do Pitaco" (`pitaco.bet.br`). **`Pitaco` é o nome padrão desde a s270** —
+    # a grafia velha foi unificada no banco na mesma sessão (`scripts/unificar_casas.py
+    # --somente "Rei do Pitaco"`): 54 bilhetes de 2 donos movidos, 54 assinaturas
+    # recalculadas, resíduo ZERO nas 7 tabelas onde `casa` é texto. Não recriar a chave
+    # `REIDOPITACO`: ela deixaria de casar com qualquer linha do banco.
     "PITACO":         "Pitaco",
-    "REIDOPITACO":    "Rei do Pitaco",
     "POLYMARKET":     "Polymarket",
     # A base já usava esta grafia antes do registro (1 conta e 8 bilhetes do LavaPessoal,
     # medidos na s257) — então o round-trip `_casa_display(_display_to_key("Stake"))` continua
@@ -537,9 +529,7 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
     "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
     "BETPIX365",
-    # As duas grafias da mesma casa (ver o comentário no `_CASA_DISPLAY`): a conta pareada
-    # pode estar em qualquer uma das duas, e o robô emite o mesmo `[Código: …]` nas duas.
-    "PITACO", "REIDOPITACO",
+    "PITACO",
 })
 
 
@@ -2190,10 +2180,13 @@ async def captura_enviar(
     # da Betfair, mesmo com o cliente adulterado. Origem desconhecida (casa de print) → passa.
     if origem:
         casa_origem = _captura.casa_de_host(origem)
-        # `mesma_casa` e não `!=`: a Pitaco está registrada sob DUAS grafias (`PITACO` e
-        # `REIDOPITACO`) que apontam para o mesmo host, então a comparação crua rejeitaria
-        # a conta antiga capturando do site certo.
-        if casa_origem and not _captura.mesma_casa(casa_origem, sess.casa_key or ""):
+        # ⚠ Comparação EXATA — só funciona porque cada casa tem UMA chave. Se um dia duas
+        # chaves apontarem para o mesmo host (foi o caso da Pitaco na s270, enquanto as
+        # grafias `PITACO` e `REIDOPITACO` conviviam), `casa_de_host` devolve sempre a
+        # primeira e este `!=` rejeita com 409 quem capturou do site CERTO — erro impossível
+        # de entender para o operador. Naquele caso a saída foi unificar a grafia; se
+        # reaparecer, a alternativa é uma tabela de equivalência aqui.
+        if casa_origem and casa_origem != (sess.casa_key or "").upper():
             raise HTTPException(
                 409,
                 f"Casa incompatível: a captura veio de {origem}, mas a conexão é "

@@ -60,8 +60,7 @@ const CASA_ICONS={
   'Pagol':'https://www.google.com/s2/favicons?sz=128&domain=pagol.bet.br',
   'Pinnacle':'https://www.google.com/s2/favicons?sz=128&domain=pinnacle.com',
   'PixBet':'https://www.google.com/s2/favicons?sz=128&domain=pix.bet.br',
-  'Rei do Pitaco':'https://www.google.com/s2/favicons?sz=128&domain=pitaco.bet.br',
-  // A casa rebatizou; as DUAS grafias existem no banco e as duas precisam de ícone.
+  // Antiga "Rei do Pitaco" — grafia unificada no banco na s270.
   'Pitaco':'https://www.google.com/s2/favicons?sz=128&domain=pitaco.bet.br',
   'SportingBet':'https://www.google.com/s2/favicons?sz=128&domain=sportingbet.com',
   'Stake':'https://www.google.com/s2/favicons?sz=128&domain=stake.bet.br',
@@ -115,7 +114,6 @@ const HOUSE_DOMAIN={
   'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br',   // faltavam só aqui
   'Pinnacle':'pinnacle.com',
   'PixBet':'pix.bet.br',
-  'Rei do Pitaco':'pitaco.bet.br',
   'Pitaco':'pitaco.bet.br',
   'SportingBet':'sportingbet.com',
   'Stake':'stake.bet.br',

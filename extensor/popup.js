@@ -43,10 +43,9 @@ const CASA_HOSTS = {
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
   "Betboom":    ["betboom.bet.br"],   // espelho da Jonbet · mesmo motor BetBy (sptpub.com)
-  // A MESMA casa sob as duas grafias que existem no banco (ela rebatizou de "Rei do Pitaco"
-  // para "Pitaco"). Plataforma própria, gRPC-Web/protobuf — inject próprio.
+  // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
+  // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
-  "Rei do Pitaco": ["pitaco.bet.br"],
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -202,8 +201,7 @@ async function capturar() {
                 // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
                 // `/api/v1/my_bets/list`): MESMO inject, de propósito.
                 : (casa === "Jonbet" || casa === "Betboom") ? "jb_inject.js"
-                // As duas grafias da MESMA casa caem no mesmo inject (ver CASA_HOSTS acima).
-                : (casa === "Pitaco" || casa === "Rei do Pitaco") ? "pt_inject.js" : null;
+                : casa === "Pitaco" ? "pt_inject.js" : null;
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
       if (inj) { try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [inj], world: "MAIN" }); } catch (_) {} }

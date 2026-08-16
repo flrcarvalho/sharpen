@@ -55,6 +55,16 @@ MAPA = {
     # então esta entrada não move bilhete nem recalcula assinatura: corrige só a
     # conta e as tabelas de metadado que ficaram do lado errado.
     "JonBet":        "Jonbet",
+    # s270: a casa REBATIZOU — "Rei do Pitaco" virou "Pitaco" (`pitaco.bet.br`), e o Feca
+    # decidiu que Pitaco é o nome padrão. Não é diferença de caixa nem de sufixo: são nomes
+    # distintos, como `Esportiva Bet` → `Esportiva` acima. Move bilhete de TRÊS donos (Feca,
+    # Diogo e LavaPessoal), e por isso **recalcula assinatura** — sem isso a próxima captura
+    # não deduparia e o histórico duplicaria inteiro.
+    #
+    # Migração parcial seria PIOR que nenhuma: o registro da casa deixa de ter a chave
+    # `REIDOPITACO` na mesma sessão, então quem ficasse na grafia velha perderia o botão
+    # "Conectar" e cairia em modo print, em silêncio.
+    "Rei do Pitaco": "Pitaco",
 }
 
 # Contas de typo que ficaram vazias. Só some se tiver ZERO bilhete (conferido em tempo de execução).

@@ -40,38 +40,24 @@ def test_casa_de_host_nao_confunde_dominio_parecido():
     assert captura.casa_de_host("naosuperbet.com") is None
 
 
-def test_mesma_casa_aceita_grafias_equivalentes():
-    """A Pitaco está registrada sob DUAS chaves (`PITACO` e `REIDOPITACO`) enquanto as duas
-    grafias convivem no banco, e as duas apontam para `pitaco.bet.br`.
-
-    Como `casa_de_host` devolve sempre a PRIMEIRA chave que casa o host, o backstop
-    comparando por `!=` rejeitaria com 409 quem pareasse pela conta antiga e capturasse do
-    site CERTO — um erro impossível de entender para o operador. Este teste é o que impede
-    a comparação de voltar a ser crua.
-    """
-    assert captura.mesma_casa("PITACO", "REIDOPITACO")
-    assert captura.mesma_casa("REIDOPITACO", "PITACO")
-    assert captura.mesma_casa("pitaco", "ReiDoPitaco")          # caixa não importa
-    assert captura.mesma_casa("KTO", "KTO")                     # igualdade simples segue valendo
-    # E a equivalência NÃO pode virar um passe livre entre casas diferentes.
-    assert not captura.mesma_casa("PITACO", "BETANO")
-    assert not captura.mesma_casa("REIDOPITACO", "KTO")
-    assert not captura.mesma_casa("SUPERBET", "BETFAIR")
-    assert not captura.mesma_casa("PITACO", "")
-
-
 def test_backstop_casa_de_host_da_pitaco():
+    """A Pitaco é a antiga "Rei do Pitaco" — a grafia foi unificada no banco na s270 e a casa
+    tem UMA chave só (`PITACO`).
+
+    O backstop compara chaves por igualdade exata, o que só é seguro enquanto cada casa tiver
+    uma chave. Enquanto as duas grafias conviveram, `casa_de_host` devolvia sempre a primeira
+    e o `!=` rejeitava com 409 quem capturava do site CERTO.
+    """
     assert captura.casa_de_host("pitaco.bet.br") == "PITACO"
     assert captura.casa_de_host("www.pitaco.bet.br") == "PITACO"
     # O domínio ANTIGO da marca não está registrado (a operação regulada é a `.bet.br`).
     assert captura.casa_de_host("reidopitaco.com.br") is None
-    # E a chave que `casa_de_host` devolve tem de ser aceita pelas DUAS grafias da sessão.
-    assert captura.mesma_casa(captura.casa_de_host("pitaco.bet.br"), "REIDOPITACO")
-    assert captura.mesma_casa(captura.casa_de_host("pitaco.bet.br"), "PITACO")
+    # E a grafia velha não pode ter voltado ao registro: ela não casa mais linha nenhuma
+    # do banco, então uma sessão nela capturaria para uma casa que não existe.
+    assert "REIDOPITACO" not in captura._HOSTS_POR_CASA
+    assert "REIDOPITACO" not in captura._MODO_POR_CASA
 
 
-def test_modo_da_casa_pitaco_e_texto_nas_duas_grafias():
-    # Modo "print" aqui significaria a extensão nem tentar o robô — falha silenciosa para
-    # quem estiver pareado pela grafia antiga.
+def test_modo_da_casa_pitaco_e_texto():
+    # Modo "print" aqui significaria a extensão nem tentar o robô — falha silenciosa.
     assert captura.modo_da_casa("PITACO") == "texto"
-    assert captura.modo_da_casa("REIDOPITACO") == "texto"
