@@ -62,11 +62,22 @@ export async function rodarInject(cfg) {
     urls.push(String(url));
     return cfg.responder(String(url), opts || null);
   };
-  const resposta = (url, corpo) => ({
-    ok: corpo != null, status: corpo == null ? 404 : 200, url: String(url),
-    text: () => Promise.resolve(corpo == null ? "" : corpo),
-    clone: () => ({ text: () => Promise.resolve(corpo == null ? "" : corpo) }),
-  });
+  // O `responder` pode devolver TEXTO (o caso das 15 casas até aqui) ou BYTES (Buffer /
+  // Uint8Array). Bytes existem para a Pitaco, que responde protobuf binário em gRPC-Web: ler
+  // esse corpo por `text()` passaria pelo decode UTF-8 e **corromperia os bytes** — todo
+  // 0x80-0xFF inválido vira U+FFFD e o payload nunca mais volta. Por isso a resposta dublada
+  // ganhou `arrayBuffer()`. Para corpo de texto nada muda (`text()` continua sendo a fonte).
+  const resposta = (url, corpo) => {
+    const bin = corpo != null && typeof corpo !== "string";
+    const buf = () => (corpo == null ? Buffer.alloc(0) : (bin ? Buffer.from(corpo) : Buffer.from(corpo, "utf8")));
+    const text = () => Promise.resolve(corpo == null ? "" : (bin ? buf().toString("utf8") : corpo));
+    const arrayBuffer = () => { const b = buf(); return Promise.resolve(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
+    return {
+      ok: corpo != null, status: corpo == null ? 404 : 200, url: String(url),
+      text, arrayBuffer,
+      clone: () => ({ text, arrayBuffer }),
+    };
+  };
 
   const janela = {
     location: { href: cfg.href, origin: new URL(cfg.href).origin },
@@ -90,7 +101,9 @@ export async function rodarInject(cfg) {
     addEventListener(t, cb) { (this._ouvintes[t] ||= []).push(cb); },
     send(body) {
       const corpo = responder(this._u, { method: this._m, body: body });
-      this.responseText = corpo == null ? "" : corpo;
+      const bin = corpo != null && typeof corpo !== "string";
+      this.responseText = corpo == null ? "" : (bin ? Buffer.from(corpo).toString("utf8") : corpo);
+      if (bin) { const b = Buffer.from(corpo); this.response = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); }
       this.status = corpo == null ? 404 : 200;
       setTimeout(() => { for (const cb of (this._ouvintes.load || [])) cb.call(this); }, 0);
     },
@@ -101,6 +114,9 @@ export async function rodarInject(cfg) {
     console: { log: () => {}, warn: () => {}, error: () => {} },   // silencia o LOG do inject
     URL, URLSearchParams, JSON, Math, Date, Array, Number, String, Object, Boolean,
     Promise, Set, Map, isFinite, isNaN, parseFloat, parseInt, Intl, setTimeout, clearTimeout,
+    // Binário: a Pitaco responde protobuf em gRPC-Web, então o inject dela monta e lê bytes.
+    // No navegador esses globais sempre existiram; aqui o `vm` só enxerga o que a gente passa.
+    Uint8Array, Int8Array, Uint32Array, DataView, ArrayBuffer, TextDecoder, TextEncoder,
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);

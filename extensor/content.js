@@ -331,6 +331,36 @@
     }
   });
 
+  // Bilhetes da PITACO capturados pelo pt_inject.js (mundo MAIN). Plataforma PRÓPRIA, falando
+  // **gRPC-Web com protobuf binário** (`UiMyBetsService/GetUiMyBetsTabContent`) — o inject
+  // decodifica os bytes e entrega objeto limpo. Modelo REPLAY PURO, e aqui isso não é escolha
+  // de estilo: a página cancela o stream da própria resposta (`AbortController`), então o
+  // `clone().arrayBuffer()` do hook morre com "The user aborted a request" em 100% das vezes.
+  // O inject aprende url+headers e busca o dado ele mesmo, pedindo a lista INTEIRA num
+  // `pageSize` grande — paginar por página perde bilhete nesta casa (ver o cabeçalho do
+  // inject). `ptcById` guarda 1 bilhete por código; a versão RESOLVIDA vence a ABERTA.
+  const ptcById = new Map();         // código(string) → bilhete
+  let ptcFimReal = false;
+  let ptcHookVivo = false, ptcRespostas = 0;   // autodiagnóstico (espelha KTO/Pinnacle)
+  let ptcErro = "";                            // último erro do replay (401, teto, formato)
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupPTCData) {
+      if (d.hook) ptcHookVivo = true;
+      if (typeof d.respostas === "number") ptcRespostas = d.respostas;
+      if (typeof d.erro === "string") ptcErro = d.erro;
+      if (Array.isArray(d.bilhetes)) {
+        const aberto = (b) => b.status === 1 || b.status === 2;
+        for (const b of d.bilhetes) {
+          if (!b || !b.ref) continue;
+          const ex = ptcById.get(b.ref);
+          if (!ex || (aberto(ex) && !aberto(b))) ptcById.set(b.ref, b);
+        }
+      }
+      if (d.fim) ptcFimReal = true;
+    }
+  });
+
   // Bilhetes da BET365 capturados pelo b3_inject.js (mundo MAIN) — as RESPOSTAS de
   // /sportshistoryapi/summary + /confirmation (formato F|…), já parseadas pelo inject. Mesmo
   // modelo passivo + REPLAY ATIVO: o inject varre as duas listas (settled=1 resolvidas · settled=0
@@ -778,6 +808,22 @@
       // sem linha em branco entre bilhetes, então o roboScroll genérico viraria um bloco só e
       // a IA perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboSTKPassive(ctx);
+    } else if (casa === "pitaco" || casa === "reidopitaco") {
+      // Replay puro (pt_inject) sobre gRPC-Web/protobuf binário — plataforma própria da casa,
+      // sem parentesco com Altenar/BetBy/Kambi/BetConstruct. Duas particularidades desta casa:
+      //
+      // (1) O passivo é IMPOSSÍVEL aqui: a página cancela o stream da própria resposta, e o
+      //     `clone().arrayBuffer()` do hook morre com "The user aborted a request" (5 de 5 na
+      //     medição). Quem busca o dado é o replay, sempre.
+      // (2) O robô NÃO pagina: pede a lista inteira num `pageSize` grande. Paginar por página
+      //     perde bilhete — a página 3 repete a 1 e a varredura vê 31 códigos onde há 49.
+      //
+      // SEM fallback de texto: os cards ficam colados, sem linha em branco entre bilhetes, e o
+      // roboScroll genérico viraria um bloco só (lição da KTO, s192).
+      //
+      // Os DOIS nomes caem aqui de propósito: a casa foi rebatizada de "Rei do Pitaco" para
+      // "Pitaco" e as duas grafias convivem no banco — contas antigas pareiam com a antiga.
+      blocos = await roboPTCPassive(ctx);
     } else if (casa === "betnacional") {
       // Passivo + replay por janelas de datas (bnc_inject). A lista da página só cobre a
       // janela exibida (~8 dias); o inject varre janelas para trás até secar. SEM fallback
@@ -851,6 +897,15 @@
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
         stake:      { nome: "Stake",      hook: stkHookVivo, resp: stkRespostas, vistos: stkById.size },
+        // Pitaco: `respostas` conta as do REPLAY (o passivo não existe nesta casa). Hook ATIVO
+        // com 0 respostas é sempre falha do replay — sessão expirada (a auth é por header) ou
+        // endpoint mudado —, nunca "tela errada". Quando o inject sabe o motivo, ele diz.
+        pitaco:     { nome: "Pitaco",     hook: ptcHookVivo, resp: ptcRespostas, vistos: ptcById.size,
+                      extra: ptcErro ? " · " + ptcErro
+                           : (ptcRespostas === 0 ? " · abra Minhas Apostas e recarregue a página (Ctrl+Shift+R); se persistir, refaça o login" : "") },
+        reidopitaco: { nome: "Pitaco",    hook: ptcHookVivo, resp: ptcRespostas, vistos: ptcById.size,
+                      extra: ptcErro ? " · " + ptcErro
+                           : (ptcRespostas === 0 ? " · abra Minhas Apostas e recarregue a página (Ctrl+Shift+R); se persistir, refaça o login" : "") },
         betnacional: { nome: "BetNacional", hook: bncHookVivo, resp: bncRespostas, vistos: bncById.size },
         tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         // Espelho da Tivo: mesmo inject, mesmos contadores. Só o nome muda, para o
@@ -2195,6 +2250,226 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] Stake: " + blocos.length + " bilhete(s) · stkById=" + stkById.size +
                 " · hook=" + stkHookVivo + " · respostas=" + stkRespostas + " · fimReal=" + stkFimReal);
+    return blocos;
+  }
+
+  // ── Pitaco modo API (replay puro, gRPC-Web/protobuf) ─────────────────────────
+  // De-para do status do BILHETE, medido **por contagem contra o filtro da tela** (recon s270),
+  // não deduzido: `3` bateu com os 10 cards de "Ganhas" e `8` com o único de "Reembolsadas".
+  // O canônico vive na `CASA_PITACO.md §5`; aqui é só a leitura. Enum fora deste mapa sobe cru
+  // e NÃO é liquidado.
+  const _ST_PTC = { 1: "aberta", 2: "aberta", 3: "ganha", 4: "perdida", 8: "anulada" };
+  const _abertaPTC = (b) => _ST_PTC[b.status] === "aberta";
+
+  // Odd EXATA = produto das odds das pernas. A odd do bilhete (`.1.3`) é ARREDONDADA a 2 casas
+  // pela casa e **não explica o retorno**: no bilhete 80010000038606210 ela diz 3.67x, mas o
+  // pagamento foi R$ 371,62 sobre R$ 101,00 (= 3,6795, que é o produto). Usar a exibida erraria
+  // R$ 0,95 num bilhete só. O produto bateu com a odd total em 49 de 49 na amostra real.
+  function _oddProdPTC(b) {
+    const sels = b.sels || [];
+    if (!sels.length) return null;
+    let p = 1;
+    for (const s of sels) {
+      if (typeof s.odd !== "number" || !(s.odd > 0)) return null;
+      p *= s.odd;
+    }
+    return p;
+  }
+
+  // Mesmo critério do `_conciliaKTO`/`_conciliaSTK`: se o produto das pernas explica o dinheiro
+  // até o centavo, ele é a odd verdadeira (quem arredondou foi o pagamento). Se não explica —
+  // boost, cashout, liquidação antecipada — o dinheiro manda, que é a regra global do W.
+  // Nunca trunca: só escolhe a fonte.
+  function _conciliaPTC(dinheiro, stake, prod) {
+    if (prod != null && stake > 0 && Math.abs(dinheiro - prod * stake) <= 0.01) return prod;
+    return dinheiro / stake;
+  }
+
+  // Ordem: ganha → retorno real; aberta/perdida → retorno POTENCIAL (o `.5.5` existe nas duas
+  // e carrega a odd contratada); anulada → a odd VIGENTE (1.00x), com a original saindo numa
+  // linha própria, porque nela o potencial ainda guarda a odd de antes da anulação (5,94) e
+  // devolvê-la como "a odd" contradiria o card, que estampa 1.00x.
+  function _oddPTC(b) {
+    const st = b.stake, prod = _oddProdPTC(b);
+    if (_ST_PTC[b.status] === "ganha" && st > 0 && typeof b.retorno === "number" && b.retorno > 0) {
+      return _conciliaPTC(b.retorno, st, prod);
+    }
+    if (_ST_PTC[b.status] === "anulada") return b.oddExibida != null ? b.oddExibida : prod;
+    if (st > 0 && typeof b.potencial === "number" && b.potencial > 0) return _conciliaPTC(b.potencial, st, prod);
+    if (prod != null) return prod;
+    return b.oddExibida;
+  }
+
+  // Leitura pelo ENUM, nunca pelo dinheiro: na anulada o retorno é o próprio stake (R$ 101,00
+  // devolvidos), e uma heurística financeira leria isso como ganho de odd 1,00.
+  function _resultadoPTC(b) {
+    const k = _ST_PTC[b.status];
+    if (k === "aberta") return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (k === "ganha") return "Ganho → W (retorno R$ " + _brl(b.retorno || 0) + ")";
+    if (k === "perdida") return "Perdeu → L";
+    if (k === "anulada") return "Anulada pela casa (stake devolvido; P/L zero) → V";
+    return "status=" + String(b.status) + " (a conferir — não liquidar automaticamente)";
+  }
+
+  function _tipoPTC(b) {
+    const sels = b.sels || [];
+    if (sels.length >= 2) {
+      const jogos = new Set(sels.map((s) => s.eventoId).filter(Boolean));
+      if (jogos.size === 1) return "Bet Builder (mesmo jogo · " + sels.length + " seleções)";
+      return "Múltipla (" + sels.length + " seleções)";
+    }
+    if (sels.length === 1) return "Simples";
+    return "";
+  }
+
+  // Data do evento de UMA perna, em ms. A Pitaco entrega isso de três formas e a forma muda
+  // com o estado do evento (medido: em bilhete FINALIZADO são 112 de 112 pernas na forma de
+  // texto `"15/08"`, **sem ano**). Quando só há o texto, o ano vem da colocação — e a janela
+  // de ±180 dias resolve a virada de ano (evento em janeiro, aposta em dezembro).
+  function _msEventoPTC(s, colocadaMs) {
+    if (typeof s.inicio === "number" && s.inicio > 0) return s.inicio * 1000;
+    const m = /^(\d{2})\/(\d{2})$/.exec(String(s.dataTxt || "").trim());
+    if (!m || !colocadaMs) return NaN;
+    const ano = new Date(colocadaMs).getFullYear();
+    let t = Date.parse(ano + "-" + m[2] + "-" + m[1] + "T12:00:00-03:00");
+    if (isNaN(t)) return NaN;
+    const DIA = 86400000;
+    if (t - colocadaMs < -180 * DIA) t = Date.parse((ano + 1) + "-" + m[2] + "-" + m[1] + "T12:00:00-03:00");
+    else if (t - colocadaMs > 180 * DIA) t = Date.parse((ano - 1) + "-" + m[2] + "-" + m[1] + "T12:00:00-03:00");
+    return t;
+  }
+
+  // A coluna Data é a do EVENTO (regra da casa), e numa múltipla é o evento MAIS RECENTE —
+  // mesmo critério de Tivo/VaideBet/Jonbet. Não é a colocação: elas divergem em 46 das 112
+  // pernas resolvidas da amostra (41%).
+  function _msEventoBilhetePTC(b) {
+    const col = (typeof b.colocada === "number" && b.colocada > 0) ? b.colocada * 1000 : 0;
+    let melhor = NaN;
+    for (const s of (b.sels || [])) {
+      const t = _msEventoPTC(s, col);
+      if (!isNaN(t) && (isNaN(melhor) || t > melhor)) melhor = t;
+    }
+    return melhor;
+  }
+
+  // Só a data (a hora do evento sai por perna, em "Início:").
+  function _dPTC(ms) {
+    if (!ms || isNaN(ms)) return "";
+    const p = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric",
+    }).formatToParts(new Date(ms));
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    return g("day") + "/" + g("month") + "/" + g("year");
+  }
+  const _dhPTC = (unix) => (typeof unix === "number" && unix > 0) ? _dhKTO(new Date(unix * 1000).toISOString()) : "";
+
+  function formatTicketPTC(b) {
+    const L = [];
+    L.push("[Código: " + b.ref + "]");
+    // A Data que vai para o TSV é a do EVENTO. A de colocação vai junto, rotulada, porque a
+    // casa não dá o ano do evento e é dela que o ano foi derivado.
+    const dEv = _dPTC(_msEventoBilhetePTC(b));
+    if (dEv) L.push("Data (evento): " + dEv);
+    const dh = _dhPTC(b.colocada);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _resultadoPTC(b));
+    // Status CRU da API — é ele que a CASA_PITACO.md traduz. Sem isso, um enum novo (cashout
+    // executado, meio-ganho, recusado) viraria chute a partir do dinheiro.
+    L.push("Status (API): status=" + String(b.status));
+    const odd = _oddPTC(b);
+    if (odd != null) L.push("Odd: " + _oddTxtKTO(odd));
+    const tipo = _tipoPTC(b);
+    if (tipo) L.push("Tipo: " + tipo);
+    if (b.tipo) L.push("Rótulo da casa: " + b.tipo);
+
+    // A odd riscada do card. Aparece quando uma perna foi anulada (o resto do bilhete segue
+    // valendo) ou quando a casa mudou a odd — os dois casos existem na amostra.
+    if (b.oddOriginal != null && b.oddExibida != null && b.oddOriginal !== b.oddExibida) {
+      L.push("Odd original (riscada pela casa): " + _oddTxtKTO(b.oddOriginal) +
+             " → vigente " + _oddTxtKTO(b.oddExibida));
+    }
+    // Retorno de bilhete ABERTO é POTENCIAL, nunca "retorno" — e nesta casa o campo de retorno
+    // realizado vem IGUAL ao potencial enquanto a aposta corre (a vitória fantasma da VaideBet).
+    if (_abertaPTC(b) && typeof b.potencial === "number" && b.potencial > 0) {
+      L.push("Retorno potencial: R$ " + _brl(b.potencial));
+    }
+    if (_ST_PTC[b.status] === "anulada") {
+      L.push("Obs. da casa: aposta anulada/reembolsada — o retorno é o próprio stake devolvido " +
+             "(R$ " + _brl(b.retorno || 0) + "). Não é ganho: P/L zero.");
+    }
+    if (typeof b.cashout === "number" && b.cashout > 0) {
+      L.push("Cashout disponível (não executado): R$ " + _brl(b.cashout));
+    }
+
+    L.push("Seleções:");
+    for (const s of (b.sels || [])) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.label || "");
+      if (s.status != null) bits.push("[sel_status=" + String(s.status) + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.casa || s.fora) ctx2.push("Jogo: " + s.casa + " x " + s.fora);
+      // Não existe campo de ESPORTE no payload desta casa (medido: nenhuma ocorrência de
+      // futebol/tênis/basquete no payload inteiro). O esporte sai do confronto e do mercado,
+      // como no modo cego — por isso o jogo é sempre emitido.
+      const tEv = _msEventoPTC(s, (b.colocada || 0) * 1000);
+      if (s.inicio) ctx2.push("Início: " + _dhPTC(s.inicio));
+      else if (!isNaN(tEv)) ctx2.push("Data do evento (casa): " + String(s.dataTxt || "") + " → " + _dPTC(tEv));
+      if (s.periodo) ctx2.push("AO VIVO (" + s.periodo + ")");
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null) L.push("    Odd da perna: " + _oddTxtKTO(s.odd) +
+        (s.oddOriginal != null && s.oddOriginal !== s.odd ? " (original " + _oddTxtKTO(s.oddOriginal) + ")" : ""));
+    }
+    return L.join("\n");
+  }
+
+  async function roboPTCPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro (pela colocação, que é o único carimbo com hora),
+      // para o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(ptcById.values()).sort((a, b) => (b.colocada || 0) - (a.colocada || 0));
+      for (const b of todos) {
+        const cod = String(b.ref || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias corta só as RESOLVIDAS. Aberta nunca corta — senão uma resolvida velha
+        // interromperia antes delas. O corte usa a COLOCAÇÃO de propósito: é o carimbo que
+        // existe em todo bilhete (a data do evento pode vir sem ano).
+        const dt = (b.colocada || 0) * 1000;
+        const passou = !_abertaPTC(b) && dt > 0 && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketPTC(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao pt_inject o acumulado + arranca o replay (as duas abas, lista inteira por aba).
+    try { window.postMessage({ __sharpenupPTCReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar (ptcFimReal), consumindo o que for chegando. Não para no 1º
+    // obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !ptcFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (ptcById.size > ultTotal) { ultTotal = ptcById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] Pitaco: " + blocos.length + " bilhete(s) · ptcById=" + ptcById.size +
+                " · hook=" + ptcHookVivo + " · respostas=" + ptcRespostas + " · fimReal=" + ptcFimReal +
+                (ptcErro ? " · erro=" + ptcErro : ""));
     return blocos;
   }
 

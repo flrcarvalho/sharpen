@@ -25,6 +25,14 @@ def reload_masters() -> None:
     logger.info("cache de masters limpo")
 
 
+# Chaves de casa que compartilham o MESMO manual. Existe porque a mesma casa pode estar
+# registrada sob duas grafias enquanto a unificação no banco não é feita — e duplicar o
+# `CASA_*.md` violaria o invariante nº 1 do projeto (uma regra, um lugar): dois arquivos
+# divergiriam com o tempo e ninguém saberia qual está valendo.
+# Some quando a grafia antiga for migrada.
+_ALIAS_MANUAL = {"REIDOPITACO": "PITACO"}
+
+
 def build_system(casa: str) -> list[dict]:
     """
     Monta 7 blocos de sistema com 2 breakpoints de cache:
@@ -41,7 +49,7 @@ def build_system(casa: str) -> list[dict]:
             block["cache_control"] = {"type": "ephemeral"}
         blocks.append(block)
 
-    casa_path = CASAS_DIR / f"CASA_{casa}.md"
+    casa_path = CASAS_DIR / f"CASA_{_ALIAS_MANUAL.get((casa or '').upper(), casa)}.md"
     if casa_path.exists():
         blocks.append({
             "type": "text",

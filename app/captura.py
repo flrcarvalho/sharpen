@@ -59,7 +59,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # BETPIX365: 4ª casa Altenar (s258). ⚠ É a única que NÃO dispara o `widgetExpandedBetHistory`
 # por conta própria — a tela dela chama só o widget compacto, e o inject aprende url+headers
 # dele para então buscar o expandido. Também usa o MESMO `vb_inject.js`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto"}
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto", "REIDOPITACO": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -79,6 +79,12 @@ _HOSTS_POR_CASA = {
     "BETFAIR":    ("betfair.bet.br",),
     "PINNACLE":   ("pinnacle.bet.br",),
     "KTO":        ("kto.bet.br",),
+    # Pitaco (s270) — plataforma PRÓPRIA, gRPC-Web/protobuf. As duas chaves são a MESMA casa
+    # em duas grafias (ver `_CASA_DISPLAY` no main.py) e apontam para o mesmo host: a conta
+    # pareada pode estar em qualquer uma das duas enquanto a unificação não for feita.
+    # O domínio antigo (`reidopitaco.com.br`) NÃO entra: a operação `.bet.br` é a nova.
+    "PITACO":     ("pitaco.bet.br",),
+    "REIDOPITACO": ("pitaco.bet.br",),
     # Stake (s257). Roda a MESMA Kambi da KTO, mas atrás de um REST próprio
     # (`web-api.stake.bet.br/restapi/v1/betslip/*`) — por isso NÃO é casa espelho: tem inject
     # e formatador próprios. A ABA continua sendo o site da casa.
@@ -110,6 +116,24 @@ _HOSTS_POR_CASA = {
     # do renderer (betboombr.sptpub.com). A ABA continua sendo o site da casa.
     "BETBOOM":    ("betboom.bet.br",),
 }
+
+
+# Grafias que são a MESMA casa. Existe porque o backstop casa↔site compara CHAVES, e a
+# Pitaco está registrada sob duas (`PITACO` e `REIDOPITACO`) enquanto a unificação de grafia
+# não é feita. As duas apontam para `pitaco.bet.br`, então `casa_de_host` devolve sempre a
+# primeira — sem esta equivalência, quem parear pela conta antiga capturaria do site CERTO e
+# tomaria 409 "Casa incompatível", que é um erro impossível de entender para o operador.
+_CASAS_EQUIVALENTES: tuple[frozenset[str], ...] = (
+    frozenset({"PITACO", "REIDOPITACO"}),
+)
+
+
+def mesma_casa(a: str, b: str) -> bool:
+    """As duas chaves designam a mesma casa? (igualdade, ou grafias equivalentes)"""
+    a, b = (a or "").upper(), (b or "").upper()
+    if a == b:
+        return True
+    return any(a in grupo and b in grupo for grupo in _CASAS_EQUIVALENTES)
 
 
 def casa_de_host(host: str) -> str | None:

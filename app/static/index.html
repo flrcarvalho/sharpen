@@ -2398,7 +2398,12 @@ const NOMES = {
   POLYMARKET: 'Polymarket', VITORIABET: 'Vitória Bet', TIVO: 'Tivo', VAIDEBET: 'VaideBet',
   BETFAST: 'Betfast', JONBET: 'Jonbet', BETBOOM: 'Betboom', ESPORTIVA: 'Esportiva',
   STAKE: 'Stake', BETPIX365: 'Betpix365',
-  // "Rei do Pitaco" rebatizou para "Pitaco" — alias de exibição (DB ainda guarda o nome antigo)
+  // A MESMA casa sob duas chaves: ela rebatizou de "Rei do Pitaco" para "Pitaco" e o banco
+  // tem as duas grafias vivas (54 bilhetes na antiga, 3 na nova). Ver `_CASA_DISPLAY` no
+  // main.py — as duas somem juntas quando a unificação for feita.
+  PITACO: 'Pitaco', REIDOPITACO: 'Rei do Pitaco',
+  // Alias de EXIBIÇÃO (chave = o valor que vem do DB): a conta antiga aparece como "Pitaco"
+  // na tela, sem que o dado persistido mude.
   'Rei do Pitaco': 'Pitaco',
 };
 // Caixa de exibição da casa no cabeçalho de grupo. O CSS não força mais uppercase
@@ -2457,8 +2462,10 @@ const DOMINIOS = {
   // só no Planilhador (não estão no Dashboard) — reguladas BR
   KingPanda: 'kingpanda.bet.br', Lottu: 'lottu.bet.br', 'Jogo de Ouro': 'jogodeouro.bet.br',
   'Vitória Bet': 'vitoriabet.bet',
-  // chaveado pelo valor do DB ("Rei do Pitaco"); marca rebatizada para Pitaco (pitaco.bet.br)
-  'Rei do Pitaco': 'pitaco.bet.br',
+  // chaveado pelo valor do DB ("Rei do Pitaco"); marca rebatizada para Pitaco (pitaco.bet.br).
+  // As DUAS grafias existem no banco, então as duas precisam de domínio — senão o chip da
+  // conta nova cai no palpite `nome + .com`, que não é o domínio dela.
+  'Rei do Pitaco': 'pitaco.bet.br', 'Pitaco': 'pitaco.bet.br',
   // grafias das bases importadas (ex.: Jonathan) — o DB guardava ESTES rótulos exatos.
   // As gêmeas por caixa/sufixo (`BetBra`, `Multibet`, `Faz1be`, `7k Bet`, `Esportiva Bet`)
   // SAÍRAM na s206: as casas foram unificadas no banco (s204) e a `casa_canonica` impede
@@ -3597,7 +3604,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'PITACO', 'REIDOPITACO']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o

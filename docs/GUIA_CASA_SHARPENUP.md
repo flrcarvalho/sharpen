@@ -186,6 +186,9 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 ## Livro de armadilhas (pago em sessões)
 
 **Dado**
+- **Payload BINÁRIO** — a Pitaco fala gRPC-Web/protobuf, sem `.proto` publicado. A fixture
+  guarda a resposta em base64 (`{b64: …}`): ler binário por `text()` passa pelo decode UTF-8
+  e **corrompe todo byte 0x80-0xFF**. O `resposta()` do sandbox tem `arrayBuffer()` para isso.
 - **Milésimos** — KTO: `stake 600000` = R$ 600,00, `line 8500` = 8.5.
 - **Campo zerado em perdida** — KTO: `betOdds` = 0 em 100 % das perdas; a odd sai do dinheiro.
 - **Odd truncada pela casa × retorno arredondado ao centavo** — a odd declarada vence **se**
@@ -208,6 +211,16 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
   "01/01/0001". Data falsa é pior que data ausente.
 
 **Fluxo**
+- **O modo passivo pode ser impossível** — a Pitaco cancela o stream da própria resposta
+  (`AbortController`) e o `clone().arrayBuffer()` morre com *"The user aborted a request"*
+  (5 de 5). Antes de assumir o passivo, confira se o clone resolve de verdade; se não, o
+  inject só aprende url+headers e busca o dado ele mesmo.
+- **Paginar pode PERDER bilhete** — na Pitaco a paginação por página devolve
+  `20 · 10 · 20 · 0 · 1`, com a página 3 repetindo o primeiro código da página 1: **31
+  códigos únicos onde existem 49**. E os dois critérios usuais falham juntos ("menor que a
+  pedida = fim" é falso; não há `more`). Quando o `pageSize` for respeitado, **peça a lista
+  inteira** e escale enquanto a casa disser que há mais. Prove com contagem de códigos
+  ÚNICOS entre estratégias, nunca com a contagem de uma passada só.
 - **Aba já aberta não recebe o inject** ao recarregar a extensão → Ctrl+Shift+R.
 - **iframe de outra origem** — bet365: a lista vive no iframe de membros; o `content.js`
   (`all_frames:false`) não alcança. Quem age tem de ser o inject.
@@ -231,4 +244,4 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-07-25 (sessão 194)
+ATUALIZADO: 2026-08-16 (sessão 270 — armadilhas de payload binário, passivo impossível e paginação que perde bilhete)

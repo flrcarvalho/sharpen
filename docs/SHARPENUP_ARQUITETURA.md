@@ -125,6 +125,7 @@ Regras que valem para todos:
 | **Jogo de Ouro** | **espelho da VaideBet** — 3ª casa Altenar | idem ⚠ **só na TELA CHEIA** (o painel lateral usa `widgetBetHistory`) | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Betpix365** | **espelho da VaideBet** — 4ª casa Altenar | idem ⚠ **a casa só dispara o `widgetBetHistory` compacto**; o replay aprende dele e busca o Expanded | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
+| **Pitaco** | **replay puro** (o passivo é impossível) | `POST /…UiMyBetsService/GetUiMyBetsTabContent` — **gRPC-Web / protobuf binário** | `pt_inject.js` | `.4.1.1` (17 díg.) | campo `.5` ausente na resposta | evento mais recente ⚠ **sem ano** — derivado da colocação |
 
 > ⚠ **BetNacional — divergência de rótulo NÃO medida (anotada na s248, ao preencher esta tabela).**
 > `formatTicketBNC` emite só `Data (colocação):` (de `t.colocada`), enquanto `CASA_BETNACIONAL §4`
@@ -218,6 +219,48 @@ Regras que valem para todos:
 > `Authorization`** e só processa corpo com `results` array. (3) A odd (`total_k`) vem **0 em toda
 > perdida**, com `k` guardando a real — mesma família do `betOdds` da KTO. **BetBy é plataforma:**
 > casa nova que carregue `sptpub.com` é **casa espelho** pelo padrão da Betfast abaixo.
+
+> ⚠️ **Pitaco (s270) — três coisas que nenhuma outra casa tinha mostrado.**
+>
+> **(1) O passivo pode ser IMPOSSÍVEL.** Até aqui, todo inject lia a resposta que a página já
+> recebia (`clone().text()`), e o replay era só para repaginar. A Pitaco cancela o stream da
+> própria resposta (`AbortController`): o clone morre com *"The user aborted a request"* em
+> 5 de 5 tentativas medidas. O inject **só aprende url+headers** e busca o dado ele mesmo —
+> e por isso `respostas` conta as do REPLAY, não as da página. Ao ligar uma casa nova, vale
+> conferir se o clone realmente resolve antes de assumir o modelo passivo.
+>
+> **(2) Paginar pode ser PIOR que não paginar.** A paginação por número de página desta casa
+> é furada de um jeito determinístico: `20 · 10 · 20 · 0 · 1`, com a página 3 repetindo o
+> primeiro código da página 1 — a varredura vê **31 códigos únicos onde existem 49**. E os
+> dois critérios de parada mais usados falham juntos: "página menor que a pedida = fim" é
+> falso (a 2ª veio com 10 e a 3ª veio cheia), e não há `more`/`hasNext` nomeado. O que existe
+> é um campo (`.5`) que **aparece só quando a página encheu E há mais**. A saída foi pedir a
+> lista inteira num `pageSize` grande e escalar enquanto esse campo vier. **A própria tela da
+> casa sofre do defeito** — o filtro "Perdidas" trava em 20 cards por mais que se role,
+> enquanto a API tem 38 —, o que é um bom lembrete de que a conferência "contagem da tela ×
+> contagem da API" pode divergir sem que o lado errado seja o nosso.
+>
+> **(3) Transporte binário muda o harness, não só o inject.** Protobuf sem `.proto` publicado:
+> o de-para foi medido cruzando payload e card, e as fixtures guardam a resposta em base64
+> (`{b64: …}`) porque ler binário por `text()` corrompe todo byte 0x80-0xFF no decode UTF-8.
+> O `resposta()` do `sandbox.mjs` ganhou `arrayBuffer()` por isso — mudança aditiva, os 15
+> casos anteriores não a enxergam.
+>
+> Outros achados: **a odd exibida é arredondada a 2 casas e não explica o retorno** (3.67x
+> onde o real é 3,6795 — R$ 0,95 de erro num bilhete), com o **produto das pernas batendo em
+> 49 de 49** como conferência independente · **a data do evento vem sem ano** em bilhete
+> finalizado (112 de 112 pernas), e a colocação não a substitui (divergem em 41%) ·
+> **retorno de bilhete aberto = potencial** (a vitória fantasma da VaideBet de novo) ·
+> **anulada devolve o stake**, então o dinheiro não distingue V de W · **não há campo de
+> esporte** no payload · auth **por header** (Firebase), não por cookie.
+>
+> ⚠️ **A casa está registrada sob DUAS chaves** (`PITACO` e `REIDOPITACO`) porque as duas
+> grafias convivem no banco (54 bilhetes na antiga, 3 na nova) e o `casa_canonica()` não as
+> funde — ele só normaliza caixa e espaço. Consequências que precisaram de código: o backstop
+> casa↔site passou a comparar por `captura.mesma_casa()` (com `!=` a conta antiga tomaria 409
+> capturando do site certo), e o manual é **um só**, via `_ALIAS_MANUAL` no `prompts.py` —
+> duplicar o `CASA_*.md` violaria "uma regra, um lugar". Round-trip medido antes de registrar:
+> 63 grafias no banco, **0 quebradas antes e 0 depois**.
 
 > **Casa espelho — o padrão da Betfast (s211).** Quando uma casa nova roda o **mesmo motor** de
 > uma já ligada, ela **não ganha inject próprio**: entra nos 12 pontos de registro apontando
@@ -344,4 +387,4 @@ na mesma transação).
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-07-25 (sessão 194)
+ATUALIZADO: 2026-08-16 (sessão 270 — Pitaco: gRPC-Web/protobuf, replay puro, casa com duas grafias)

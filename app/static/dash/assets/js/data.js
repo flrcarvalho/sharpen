@@ -61,6 +61,8 @@ const CASA_ICONS={
   'Pinnacle':'https://www.google.com/s2/favicons?sz=128&domain=pinnacle.com',
   'PixBet':'https://www.google.com/s2/favicons?sz=128&domain=pix.bet.br',
   'Rei do Pitaco':'https://www.google.com/s2/favicons?sz=128&domain=pitaco.bet.br',
+  // A casa rebatizou; as DUAS grafias existem no banco e as duas precisam de ícone.
+  'Pitaco':'https://www.google.com/s2/favicons?sz=128&domain=pitaco.bet.br',
   'SportingBet':'https://www.google.com/s2/favicons?sz=128&domain=sportingbet.com',
   'Stake':'https://www.google.com/s2/favicons?sz=128&domain=stake.bet.br',
   'Superbet':'https://www.google.com/s2/favicons?sz=128&domain=superbet.com',
@@ -114,6 +116,7 @@ const HOUSE_DOMAIN={
   'Pinnacle':'pinnacle.com',
   'PixBet':'pix.bet.br',
   'Rei do Pitaco':'pitaco.bet.br',
+  'Pitaco':'pitaco.bet.br',
   'SportingBet':'sportingbet.com',
   'Stake':'stake.bet.br',
   'Superbet':'superbet.com',

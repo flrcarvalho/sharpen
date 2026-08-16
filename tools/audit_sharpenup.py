@@ -87,6 +87,14 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.
     "STAKE":      "8342050",
+    # Código real da conta (a ganha de 15/08 que pagou R$ 550,45) — numérico de 17 dígitos.
+    # ⚠ Como os da Jonbet/Betboom, os códigos da Pitaco são QUASE IDÊNTICOS entre si
+    # (…632231 × …632214, sequenciais por segundo de colocação): ela fica FORA do snap por
+    # edit-distance de `corrigir_codigos_tsv` — e fica de graça, porque nenhuma das regexes
+    # que alimentam o snap casa 17 dígitos (`_ID_BETESPORTE_RE` para em 12). A cobertura
+    # funciona pelo marcador genérico `_ID_MARCADOR_RE`.
+    "PITACO":     "80010000038631931",
+    "REIDOPITACO": "80010000038631931",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do
@@ -253,6 +261,13 @@ def content_diag() -> set[str]:
     return set(re.findall(r"(?m)^\s*(\w+):\s*\{", m.group(1))) if m else set()
 
 
+def _alias_manual() -> dict[str, str]:
+    """`_ALIAS_MANUAL` do prompts.py: chave de casa -> chave do CASA_*.md que ela usa."""
+    src = _txt(ROOT / "app" / "prompts.py")
+    m = re.search(r"_ALIAS_MANUAL\s*=\s*\{(.*?)\}", src, re.DOTALL)
+    return dict(re.findall(r'"([A-Z0-9]+)":\s*"([A-Z0-9]+)"', m.group(1))) if m else {}
+
+
 def codigo_reconhecido(exemplo: str) -> bool:
     """`repository.py::codigos_do_texto` enxerga esse formato de código?"""
     sys.path.insert(0, str(APP))
@@ -271,8 +286,13 @@ def auditar(chave: str, display: str, ctx: dict) -> list[tuple[str, str]]:
     modo = ctx["modos"].get(chave, "print")
 
     # ── camada IA / dashboard (vale para TODA casa) ──
-    if not (ROOT / "casas" / f"CASA_{chave}.md").exists():
-        a.append(("WARN", f"sem casas/CASA_{chave}.md (roda em modo cego — ok, mas sem tradução fina)"))
+    # O alias é lido do PRÓPRIO `prompts.py`, não copiado: é ele que decide qual manual a
+    # extração carrega. Duas chaves da mesma casa (grafia velha e nova) compartilham um
+    # manual só — duplicar o `CASA_*.md` violaria "uma regra, um lugar".
+    manual = _alias_manual().get(chave, chave)
+    if not (ROOT / "casas" / f"CASA_{manual}.md").exists():
+        alvo = f"CASA_{manual}.md" + (f" (alias de {chave})" if manual != chave else "")
+        a.append(("WARN", f"sem casas/{alvo} (roda em modo cego — ok, mas sem tradução fina)"))
     if chave not in ctx["nomes_html"]:
         a.append(("FAIL", "ausente em index.html NOMES"))
     for rotulo, chaves in (("index.html DOMINIOS", ctx["dominios_html"]),
