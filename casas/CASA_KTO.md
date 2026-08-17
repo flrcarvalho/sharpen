@@ -185,13 +185,13 @@ Conferência financeira (segunda linha de defesa): `Pagamento > Aposta` → W ·
 | `Vencedor da partida: [Time/Jogador]` | ML | ✓ confirmado |
 | `Dupla` · `Quadrupla` · `Simples (N)` · `Duplas (X), Triplas (Y)` (sistema) | Múltipla | ✓ confirmado |
 | `[Time] vence e ambos os times marcam` (resultado + BTTS combinados) · mercado sem categoria | Outros ⚠️ | fallback (ver §Feedback) |
-| `Faltas concedidas/cometidas pelo jogador` · estatística individual de jogador sem categoria própria | Player Props | ✓ confirmado |
+| `Faltas concedidas/cometidas pelo jogador` | Faltas | ✓ confirmado |
 
 **Notas de reconstrução:**
 - Confronto: separador `-` (ex.: `Strasbourg - Mainz`, `Chéquia - México`) → normalizar para `v` com colchetes: `[Strasbourg v Mainz]`.
 - `Para marcar: [Jogador] - Sim` em cupom **Simples** = `Anytime`; dentro de cupom Dupla/Quadrupla/Sistema, o cupom inteiro = `Múltipla` (a seleção entra só na Descrição).
 - `Para receber um cartão: [Jogador] - Sim` = `Cartões` mesmo sendo jogador individual (princípio §1 `MASTER_APOSTAS`; object = cartão, nunca Player Props).
-- `Faltas concedidas pelo jogador` = `Player Props` (estatística individual; não há categoria `Faltas`). `(Fechado usando dados Opta)` é ruído.
+- `Faltas concedidas pelo jogador` = `Faltas` (s272 — a categoria passou a existir). Vale a mesma régua do cartão logo acima: o objeto apostado manda, então falta de jogador é `Faltas` e **nunca** `Player Props`; a entidade vai na Descrição. `(Fechado usando dados Opta)` é ruído.
 - `Mais X` / `Menos X` → `Over X` / `Under X` (padrão global `MASTER_DESCRICAO_2026 §11`).
 - Mercado sem categoria → `Outros ⚠️` + registrar no §Feedback.
 

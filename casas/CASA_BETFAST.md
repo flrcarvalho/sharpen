@@ -278,7 +278,7 @@ Só os mercados **confirmados no dado real desta casa** (camada fina). São 64 r
 | `{p1_r} set - Total de pontos` · `1º set - Total de pontos` · `{p1_r} quarto - Total de pontos` · `Total de pontos` · `Total de pontos (incl. prorrogação)` | Pontos |
 | `Innings 1 até 5 - Total` · `Innings 1 até 5 - Total do time de casa` · `Innings 1 até 5 - Total do time de fora` | Corridas |
 | `1º Mapa - Total de Abates` | E-Sports Props |
-| `Total de faltas` · `Time da casa Total de faltas` · `Time de fora Total de faltas` · `Handicap Asiático de faltas` | Outros |
+| `Total de faltas` · `Time da casa Total de faltas` · `Time de fora Total de faltas` · `Handicap Asiático de faltas` | Faltas |
 | `Total de cobranças de lateral` · `1° Tempo  - Total de cobranças de lateral` | Outros |
 
 **Notas de decisão** (por que cada um caiu onde caiu):
@@ -289,8 +289,8 @@ Só os mercados **confirmados no dado real desta casa** (camada fina). São 64 r
 - **`Abates` → `E-Sports Props`**: sinônimo oficial (*"Total de Kills / Abates"*), e o §E-Sports manda usar `E-Sports Props` e **nunca** `Player Props` quando o objeto é estatística de e-sport.
 - **`Handicap de set` → `Sets`**: handicap sobre a unidade contada segue o objeto (tabela "unidade contada" do `MASTER_APOSTAS`), mesmo caminho da `CASA_TIVO §9`.
 - **`Innings 1 até 5 - …` → `Corridas`**: beisebol, o objeto contado é corrida. Precedente firmado na `CASA_VAIDEBET §9` (s210).
-- **`Total de faltas` → `Outros`**: não existe categoria "Faltas" no `§3`. Precedente explícito em `CASA_BETANO §9` (`Total de Faltas → Outros ⚠️ nicho`). Aplicado também a `Handicap Asiático de faltas` — handicap segue o objeto.
-- **`Total de cobranças de lateral` → `Outros`**: mesmo caso das faltas (estatística de jogo sem categoria própria). Sem precedente direto; segue a régua das faltas por analogia.
+- **`Total de faltas` → `Faltas`** (s272): a categoria passou a existir no `§3` — foi a contagem desta conta (11 pernas, mais que `Gols`) que derrubou o argumento de "nicho" registrado no Feedback #1. Aplicado também a `Handicap Asiático de faltas` e ao total por time: handicap e recorte seguem o objeto (`MASTER_APOSTAS §1`).
+- **`Total de cobranças de lateral` → `Outros`**: mesma família das faltas (estatística de jogo), mas **fora do escopo da s272 de propósito** — criar `Faltas` foi decisão aprovada; estender a régua a lateral e tiro de meta é decisão própria. Segue pendente no Feedback #2.
 
 **Pendentes de decisão** — aparecem no dado real e **não** têm categoria óbvia. Ficam fora da tabela de propósito: só entra no mapa o que está decidido.
 
@@ -405,8 +405,8 @@ Na amostra da `fecanario`, os 4 são de futebol (Copa do Mundo). Esporte declara
 
 ## Feedback para a camada global / MODELO
 
-1. **`Faltas` é frequente demais para ficar em `Outros`.** Nesta conta aparece em **11 pernas** (`Total de faltas`, por time, e `Handicap Asiático de faltas`) — mais que `Gols`. O precedente da `CASA_BETANO` manda `Outros ⚠️ (nicho)`, e foi o que apliquei, mas "nicho" já não descreve o volume. Candidato a categoria própria via `/propagar-categoria`.
-2. **`Cobranças de lateral` e `Tiro de meta` são a mesma família de `Faltas`** (estatística de jogo sem categoria), mas hoje caem em lugares diferentes: lateral em `Outros` e tiro de meta em `Team Props` (por sinônimo explícito do §4). Vale alinhar a régua — ou as três viram categoria, ou as três viram `Outros`.
+1. ~~**`Faltas` é frequente demais para ficar em `Outros`.**~~ **RESOLVIDO na s272:** `Faltas` é categoria própria no `MASTER_APOSTAS §3`. Este item era a evidência que faltava — **11 pernas** nesta conta (`Total de faltas`, por time e `Handicap Asiático de faltas`), mais que `Gols`. O `§9` desta casa e os da `CASA_BETANO` e `CASA_KTO` foram repontados na mesma sessão.
+2. **`Cobranças de lateral` e `Tiro de meta` são a mesma família de `Faltas`** (estatística de jogo sem categoria), mas hoje caem em lugares diferentes: lateral em `Outros` e tiro de meta em `Team Props` (por sinônimo explícito do §4). Vale alinhar a régua — ou as duas viram categoria, ou as duas viram `Outros`. **Segue aberto:** a s272 criou só `Faltas`, que era o que estava aprovado.
 3. **Unidade contada em e-sports.** O MASTER resolve `Sets` e `Games`, mas não diz onde cai handicap/total de **mapas**. Ver os pendentes do §9.
 4. **`Result: 1` = anulada** (§5.2) foi confirmado aqui e vale para a `CASA_TIVO`, que registrava o enum como não confirmado desde a s196.
 

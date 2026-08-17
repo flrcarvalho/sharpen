@@ -123,7 +123,7 @@ Conferência financeira: `Ganhos = 0` → L · `Ganhos = Aposta` → V · `Ganho
 | Total de Pontos e Rebotes / Arremessos de três pontos convertidos / Total de Rebotes e Assistências `[Jogador]` (NBA/EuroLeague) | Player Props |
 | Chance Dupla / `X2` | Dupla Chance |
 | Total de tiros de meta (goal kicks) | Team Props |
-| Total de Faltas | **Outros** ⚠️ (nicho) |
+| Total de Faltas | Faltas |
 | Tie Breaks | **Outros** ⚠️ (nicho tênis) |
 | 1º Quarto - Total de pontos | **Outros** ⚠️ (total de período — avaliar Team Props) |
 | Total de 180's / Mais de–Menos de N 180's (Over/Under de **um** jogador) | Player Props |
@@ -239,7 +239,7 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 ## Feedback para a camada global / MODELO
 
 1. **Múltipla sem odd combinada exibida** → calcular odd estrutural por produto (já no `MASTER_RESULTADO §7`); reforça que a casa pode não dar a odd total.
-2. **Mercados nicho sem categoria global:** Faltas, Tie Breaks, total de período. Decidir o que vira categoria nova vs fica em `Outros`. (Dupla Chance → `Dupla Chance` e Tiros de meta → `Team Props` já foram resolvidos como categoria.)
+2. **Mercados nicho sem categoria global:** ~~Faltas~~, Tie Breaks, total de período. Decidir o que vira categoria nova vs fica em `Outros`. (Dupla Chance → `Dupla Chance` e Tiros de meta → `Team Props` já foram resolvidos como categoria. **`Faltas` virou categoria própria na s272** — o volume real na `CASA_BETFAST` já era maior que o de `Gols`, e "nicho" tinha deixado de descrever o caso.)
 3. **Esporte ausente no global:** apareceu polo aquático (CN Barceloneta v Ferencvaros) — hoje cai em `Outro`. Avaliar adicionar.
 4. **Data colocação-como-proxy:** mais um padrão pra cadeia de data do `MASTER_OUTPUT §4` (evento → informada → extrato/join → colocação-proxy → Brasília).
 

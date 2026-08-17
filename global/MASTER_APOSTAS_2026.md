@@ -83,6 +83,7 @@ quando existir categoria mais específica aplicável.
 | Double-Double | Mercado específico de basquete |
 | E-Sports Props | Estatísticas específicas de E-Sports |
 | Escanteios | Mercados de escanteios |
+| Faltas | Mercados de faltas cometidas |
 | Games | Mercados de games em Tênis |
 | Gols | Mercados de gols |
 | H2H | Mercado comparativo entre duas entidades |
@@ -245,6 +246,19 @@ Sinônimos:
 - Primeiro a marcar X escanteios (race / corrida)
 - Race to X corners
 - Corrida de escanteios
+
+---
+
+## Faltas
+
+Sinônimos:
+- Fouls
+- Falta
+- Total de faltas
+- Faltas cometidas
+- Faltas concedidas
+- Handicap Asiático de faltas
+- Time da casa / Time de fora — Total de faltas
 
 ---
 
@@ -623,6 +637,31 @@ Não confundir com:
 
 ---
 
+## Faltas
+
+Mercado de **faltas cometidas**, em qualquer recorte: total da partida, total de um
+time, handicap asiático de faltas e faltas de um **jogador**.
+
+Aplicável principalmente ao Futebol.
+
+> **Falta de jogador é `Faltas`, nunca `Player Props`** — o objeto apostado é a falta,
+> exatamente como em `Cartões` (`§6 Futebol`: "Para receber um cartão: [Jogador]" é
+> `Cartões` mesmo sendo jogador individual). A regra é a do `§1`: a categoria registra o
+> objeto, e a entidade — jogo, time ou jogador — vai para a **Descrição**.
+
+Não confundir com:
+- `Cartões` (a punição, não a infração — nem toda falta vira cartão)
+- `Desarmes` (tackle é disputa legal de bola; falta é infração)
+- `Impedimentos` (infração de posição, contada à parte pelas casas)
+- `Team Props` (estatística coletiva sem categoria própria)
+
+Fora do escopo por ora: `Cobranças de lateral` e `Tiros de meta`, que são da mesma
+família ("estatística de jogo") mas hoje caem em lugares diferentes — lateral em
+`Outros` e tiro de meta em `Team Props`, por sinônimo explícito do `§4`. Alinhar essa
+régua é decisão própria, registrada no Feedback da `CASA_BETFAST`.
+
+---
+
 ## Desambiguação — Mercados Estatísticos de Futebol
 
 Categorias distintas que não devem ser confundidas:
@@ -634,7 +673,8 @@ Categorias distintas que não devem ser confundidas:
 | Chutes        | Total de finalizações (no alvo ou não)  |
 | Escanteios    | Escanteios                              |
 | Impedimentos  | Impedimentos                            |
-| Cartões       | Cartões amarelos e/ou vermelhos         |
+| Faltas        | Faltas cometidas (a infração)           |
+| Cartões       | Cartões amarelos e/ou vermelhos (a punição) |
 
 Cada uma dessas categorias pode conter mercados de handicap, total (over/under), resultado comparativo (time A vs time B) ou linha. O tipo de mercado não altera a categoria — apenas o objeto apostado define a classificação.
 
@@ -762,6 +802,22 @@ Chutes no Gol
 ```
 
 Inclui: handicap de SOT, total de chutes no alvo, time com mais chutes no gol.
+
+---
+
+### Faltas
+
+Classificar como:
+
+```text
+Faltas
+```
+
+Inclui: total de faltas da partida, total de um time, handicap asiático de faltas e
+**faltas cometidas/concedidas por um jogador**.
+
+⚠️ Faltas de **jogador** também são `Faltas`, nunca `Player Props` — mesma régua do
+`Cartões` neste §6: o objeto apostado manda, e a entidade vai na Descrição.
 
 ---
 
@@ -1403,6 +1459,9 @@ Legs           > Player Props          (→ Dardos)
 H2H            > Player Props          (→ Dardos 180s comparativo)
 Anytime        > Player Props
 Assistência    > Player Props
+Faltas         > Player Props          (→ falta de JOGADOR é falta, como o cartão)
+Faltas         > Outros                (a infração sempre tem gaveta)
+Faltas         > Team Props            (falta de TIME é falta, não estatística genérica)
 E-Sports Props > Player Props
 Sets (time)    > Player Props          (→ Vôlei)
 Sets (jogador) > Player Props          (→ Tênis)
@@ -1489,6 +1548,7 @@ Antes de retornar a saída, o extrator deve validar:
 21. no Vôlei, a **unidade contada** define a categoria: ponto → `Pontos`, set → `Sets` (nunca `Games`)
 22. total de **rounds** da luta em MMA / Boxe = `Rounds` (nunca `Player Props` nem `Outros`); **método de vitória** (KO/TKO/decisão) = `ML`; **handicap de rounds** = `Handicap`
 23. total de **gols** em eSoccer = `Gols` (nunca `Pontos`, mesmo com linha alta tipo 6.5 / 8.5)
+24. mercado de **faltas** = `Faltas` em qualquer recorte — total da partida, de um time, handicap asiático e **faltas de jogador** (nunca `Player Props`, `Team Props` nem `Outros`)
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 

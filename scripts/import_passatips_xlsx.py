@@ -81,12 +81,16 @@ esporte → Player Props → Outros) e duas precedências são load-bearing:
 Resultado medido nas 911 linhas: **1 única linha em `Outros`** (`Over 10.5
 ensaios`, rugby — o MASTER não tem categoria para tries).
 
-⚠️ **`Faltas` não existe no `MASTER_APOSTAS §3`.** As 10 linhas de futebol com
-`faltas` entram em `Team Props` ("estatísticas de equipe"), que é a gaveta mais
-específica que existe hoje — nunca `Outros`, que o §8 reserva para último
-recurso. Fica anotado como **candidata a categoria própria**: criar `Faltas`
-dispara a regra de propagação inteira (§3, §4, §5, §6, §9 + os `§9` das casas
-afetadas), e isso é mudança própria, com aprovação.
+As 9 linhas de futebol com `faltas` entram em **`Faltas`**, categoria criada no
+`MASTER_APOSTAS §3` na mesma sessão (s272) com a regra de propagação inteira
+(§3, §4, §5, §6, §7, §9) e o repontamento do `§9` de três casas que mandavam
+faltas para a gaveta errada: `CASA_BETANO` e `CASA_BETFAST` (`Outros ⚠️`) e
+`CASA_KTO` (`Player Props`).
+
+Estas 9 linhas **não** foram a evidência que sustentou a categoria — a régua do
+`§8` (`Outros` é último recurso) e a do `§2` (nunca `Player Props` quando há
+categoria específica) já vinham sendo forçadas em três casas, e o Feedback da
+`CASA_BETFAST` registrava faltas em **11 pernas numa conta só, mais que `Gols`**.
 
 ── Descrição ─────────────────────────────────────────────────────────────────
 
@@ -317,10 +321,8 @@ def norm_categoria(esporte_bruto, esporte, descricao) -> str:
         return 'Player Props'
     if re.search(r'cestas|arremessos|\b3p\b|\btres\b', d):
         return 'Team Props'
-    # `faltas` não tem categoria no MASTER — Team Props é a gaveta mais
-    # específica que existe hoje. Candidata a categoria própria (ver docstring).
     if re.search(r'\bfaltas?\b', d):
-        return 'Team Props'
+        return 'Faltas'
     if re.search(r'180s?\b|\bfours?\b', d):
         # §6 Dardos: comparativo ("ter mais 180s") é H2H; total individual é Props.
         return 'H2H' if re.search(r'\bmais\b', d) else 'Player Props'
