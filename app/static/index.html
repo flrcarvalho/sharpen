@@ -2397,7 +2397,7 @@ const NOMES = {
   JOGODEOURO: 'Jogo de Ouro', KTO: 'KTO',
   POLYMARKET: 'Polymarket', VITORIABET: 'Vitória Bet', TIVO: 'Tivo', VAIDEBET: 'VaideBet',
   BETFAST: 'Betfast', JONBET: 'Jonbet', BETBOOM: 'Betboom', ESPORTIVA: 'Esportiva',
-  STAKE: 'Stake', BETPIX365: 'Betpix365',
+  STAKE: 'Stake', BETPIX365: 'Betpix365', NOVIBET: 'Novibet',
   // Antiga "Rei do Pitaco". `Pitaco` é o nome padrão desde a s270, e a grafia velha foi
   // unificada NO BANCO na mesma sessão — por isso o alias de exibição que existia aqui saiu:
   // não há mais linha alguma em `Rei do Pitaco` para traduzir.
@@ -3599,7 +3599,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'PITACO']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'PITACO', 'NOVIBET']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o

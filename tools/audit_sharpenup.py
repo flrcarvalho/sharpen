@@ -94,6 +94,11 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # que alimentam o snap casa 17 dígitos (`_ID_BETESPORTE_RE` para em 12). A cobertura
     # funciona pelo marcador genérico `_ID_MARCADOR_RE`.
     "PITACO":     "80010000038631931",
+    # ticketId real da conta (o sistema `Doublesx 3` ganho de 16/08, R$ 332,41 sobre R$ 303) —
+    # numérico de 9 dígitos, o mesmo número que o card estampa com `#`. Cai no
+    # `_ID_BETESPORTE_RE` (\d{6,12}), e o gate `_ID_MINLEN=16` barra o snap por edit-distance
+    # nesses códigos curtos: código errado vira "incerto", nunca é corrompido.
+    "NOVIBET":    "474269610",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do

@@ -177,6 +177,12 @@ _CASA_DISPLAY: dict[str, str] = {
     # recalculadas, resíduo ZERO nas 7 tabelas onde `casa` é texto. Não recriar a chave
     # `REIDOPITACO`: ela deixaria de casar com qualquer linha do banco.
     "PITACO":         "Pitaco",
+    # A base já usava esta grafia MUITO antes do registro: 849 bilhetes de 4 donos, 9 contas,
+    # 2 `casas_meta`, 109 `correcoes` e 4 `tipsters.casas` — todos em `Novibet`, sem nenhuma
+    # variante (medido na s271, `ilike '%novi%'` nas 7 tabelas). Round-trip conferido antes de
+    # registrar: 59 grafias distintas em `parceiros`, 0 quebradas. Ver o aviso de mudança
+    # RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5 — é o defeito que matou a Jonbet na s249.
+    "NOVIBET":        "Novibet",
     "POLYMARKET":     "Polymarket",
     # A base já usava esta grafia antes do registro (1 conta e 8 bilhetes do LavaPessoal,
     # medidos na s257) — então o round-trip `_casa_display(_display_to_key("Stake"))` continua
@@ -530,6 +536,7 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "BETFAST", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
     "BETPIX365",
     "PITACO",
+    "NOVIBET",
 })
 
 

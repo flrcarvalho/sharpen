@@ -213,6 +213,42 @@
     }
   });
 
+  // Bilhetes da NOVIBET capturados pelo nv_inject.js (mundo MAIN) — o `POST
+  // /spt/api/historytickets/search` que o INJECT refaz, já normalizado. Plataforma PRÓPRIA
+  // (gateway BlueBrown), sem parentesco com Altenar/BetBy/Kambi/BetConstruct.
+  //
+  // ⚠ Replay PURO: a página aborta o próprio request e a resposta dela é inalcançável (o
+  // `clone()` rejeita com "The user aborted a request."). Some-se a isso que a tela pede um
+  // dia só e apenas as fechadas — o replay alarga para os 12 meses que a casa serve e usa
+  // `result:null`, que traz abertas + fechadas de uma vez.
+  //
+  // Por isso `nvRespostas` conta as respostas do REPLAY, não as da página.
+  //
+  // `nvById` guarda 1 bilhete por `ticketId` — o mesmo código que o card estampa com `#`. A
+  // versão LIQUIDADA vence a ABERTA: `settlement` (e portanto `pagou`) só existe depois de
+  // liquidar. `nvFimReal` = o inject terminou → fim autoritativo.
+  const nvById = new Map();          // ticketId(string) → bilhete
+  let nvFimReal = false;
+  let nvHookVivo = false, nvRespostas = 0;   // autodiagnóstico (espelha KTO/Pinnacle)
+  let nvTruncado = false, nvErro = "";       // a casa só serve 12 meses; e o erro do replay
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupNVData) {
+      if (d.hook) nvHookVivo = true;
+      if (typeof d.respostas === "number") nvRespostas = d.respostas;
+      if (d.truncado) nvTruncado = true;
+      if (d.erro) nvErro = String(d.erro);
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.ref) continue;
+          const ex = nvById.get(b.ref);
+          if (!ex || (ex.pagou == null && b.pagou != null)) nvById.set(b.ref, b);
+        }
+      }
+      if (d.fim) nvFimReal = true;
+    }
+  });
+
   // Bilhetes da JONBET capturados pelo jb_inject.js (mundo MAIN) — as RESPOSTAS de
   // `my_bets/list` (BetBy / sptpub), já normalizadas pelo inject. Mesmo modelo passivo +
   // REPLAY ATIVO: o inject repagina por `skip` até `skip >= count`, então o operador NÃO
@@ -808,6 +844,23 @@
       // sem linha em branco entre bilhetes, então o roboScroll genérico viraria um bloco só e
       // a IA perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboSTKPassive(ctx);
+    } else if (casa === "novibet") {
+      // REPLAY PURO (nv_inject) — o passivo é impossível, como na Pitaco. Plataforma própria
+      // da casa (gateway BlueBrown), sem parentesco com Altenar/BetBy/Kambi/BetConstruct.
+      //
+      // Três razões independentes, todas medidas ao vivo:
+      // (1) A página é Angular e ABORTA o próprio request ao desinscrever — o
+      //     `clone().text()` da resposta morre com "The user aborted a request.". Não há
+      //     resposta para ler passivamente; o inject aprende url+headers e busca ele mesmo.
+      // (2) A tela pede ~24h (`dateFrom`/`dateTo` do filtro do painel).
+      // (3) A tela pede só as FECHADAS (`result:2`).
+      // Sem o replay a captura pegaria 11 bilhetes de 42 — e nenhuma aposta em aberto. Ele
+      // pede os 12 meses que a casa serve, com `result:null`, que devolve tudo numa chamada.
+      //
+      // SEM fallback de texto: os cards ficam colados no painel lateral, sem linha em
+      // branco entre bilhetes, então o roboScroll genérico viraria um bloco só e a IA
+      // perderia o resto em silêncio (lição da KTO, s192).
+      blocos = await roboNVPassive(ctx);
     } else if (casa === "pitaco") {
       // Replay puro (pt_inject) sobre gRPC-Web/protobuf binário — plataforma própria da casa,
       // sem parentesco com Altenar/BetBy/Kambi/BetConstruct. Duas particularidades desta casa:
@@ -897,6 +950,13 @@
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
         stake:      { nome: "Stake",      hook: stkHookVivo, resp: stkRespostas, vistos: stkById.size },
+        // Novibet: `respostas` conta a da página + as do replay. Hook ATIVO com 0 respostas
+        // significa que o inject nunca viu a requisição — quase sempre a tela de apostas não
+        // foi aberta (é ela que dispara o `historytickets/search`), e sem uma requisição real
+        // o replay não tem os headers `x-gw-*` para aprender.
+        novibet:    { nome: "Novibet",    hook: nvHookVivo, resp: nvRespostas, vistos: nvById.size,
+                      extra: nvErro ? " · " + nvErro
+                           : (nvRespostas === 0 ? " · abra o painel Apostas (o ícone no rodapé) e rode de novo" : "") },
         // Pitaco: `respostas` conta as do REPLAY (o passivo não existe nesta casa). Hook ATIVO
         // com 0 respostas é sempre falha do replay — sessão expirada (a auth é por header) ou
         // endpoint mudado —, nunca "tela errada". Quando o inject sabe o motivo, ele diz.
@@ -2247,6 +2307,234 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] Stake: " + blocos.length + " bilhete(s) · stkById=" + stkById.size +
                 " · hook=" + stkHookVivo + " · respostas=" + stkRespostas + " · fimReal=" + stkFimReal);
+    return blocos;
+  }
+
+  // ── Novibet modo API (passivo + replay que ALARGA a janela) ──────────────────
+  // De-para do resultado do BILHETE. A casa manda string legível, não enum numérico — e
+  // mesmo assim ela sobe CRUA na linha `Status (API):`, para que um valor novo (cashout,
+  // anulada, meia-liquidação) seja reconhecível em vez de chutado. O canônico vive na
+  // `CASA_NOVIBET.md §5`; aqui é só a leitura.
+  const _ST_NV = { Won: "ganha", Lost: "perdida", Pending: "aberta" };
+  const _abertaNV = (b) => _ST_NV[b.resultado] === "aberta";
+
+  // Esporte: a casa escreve em pt-PT (`Ténis`, `Voleibol`) e o MASTER_ESPORTES é pt-BR.
+  // A tradução canônica é da CASA_NOVIBET.md §3; esta dica só evita que a IA tenha de
+  // adivinhar. Sysname fora do mapa sobe cru — nunca vira chute.
+  const _SPORT_NV = {
+    SOCCER: "Futebol", TENNIS_SINGLES: "Tênis", TENNIS_DOUBLES: "Tênis",
+    BASKETBALL: "Basquete", VOLLEYBALL: "Vôlei", ICE_HOCKEY: "Hóquei no Gelo",
+    HANDBALL: "Handebol", TABLE_TENNIS: "Tênis de Mesa", BASEBALL: "Beisebol",
+    AMERICAN_FOOTBALL: "Futebol Americano", MMA: "UFC/MMA", BOXING: "Boxe",
+    ESPORTS: "eSports", DARTS: "Dardos", SNOOKER: "Sinuca", RUGBY: "Rugby",
+    CRICKET: "Críquete", GOLF: "Golfe", FUTSAL: "Futsal", BADMINTON: "Badminton",
+  };
+
+  // Rótulo em português do sistema, derivado do PRÓPRIO nome do tipo (`Fold2` → duplas).
+  // Derivar do número é o que mantém a casa funcionando quando aparecer `Fold3`/`Fold4`
+  // sem ninguém tocar no código; tipo que não casar o padrão sobe cru.
+  const _SIS_NV = { 2: "Duplas", 3: "Triplas", 4: "Quádruplas", 5: "Quíntuplas", 6: "Sêxtuplas" };
+  function _foldNV(tipo) {
+    const m = /^Fold(\d+)$/i.exec(String(tipo || ""));
+    if (!m) return null;
+    const k = parseInt(m[1], 10);
+    return (k >= 2) ? { k: k, rotulo: _SIS_NV[k] || ("Múltiplas de " + k) } : null;
+  }
+
+  // A odd que vai ao TSV.
+  //   • GANHO → Retorno ÷ Stake, com precisão total (regra global do W). Cobre de graça o
+  //     boost multiplicativo da casa (`factor` 1.05) e o sistema, onde só parte das linhas
+  //     ganha e nenhuma odd declarada explica o pagamento.
+  //   • ABERTA / PERDIDA → a odd ESTRUTURAL. Em múltipla comum é `placedPrice` (que já vem
+  //     pós-boost e bate com o produto das pernas em 23 de 23). Em SISTEMA o `placedPrice`
+  //     NÃO é odd: é a SOMA dos produtos das C(n,k) linhas (19 de 19), então a odd
+  //     estrutural é essa soma ÷ nº de linhas = a MÉDIA do MASTER_RESULTADO §7.3.
+  // A odd ESTRUTURAL, sem olhar o dinheiro: múltipla comum = `placedPrice`; sistema = a
+  // soma das linhas ÷ nº de linhas (a média do §7.3). É a odd de bilhete aberto/perdido, e
+  // segue valendo como referência estrutural mesmo quando o bilhete ganhou.
+  function _oddEstruturalNV(b) {
+    const v = b.odd && b.odd.valor;
+    if (v == null) return null;
+    const linhas = b.linhas || 1;
+    return linhas > 1 ? (v / linhas) : v;
+  }
+
+  // W paga pelo dinheiro (regra global): Retorno ÷ Stake, com precisão total.
+  const _oddPorDinheiroNV = (b) =>
+    !_abertaNV(b) && b.pagou != null && b.pagou > 0 && b.stake > 0;
+
+  function _oddNV(b) {
+    if (_oddPorDinheiroNV(b)) return b.pagou / b.stake;
+    return _oddEstruturalNV(b);
+  }
+
+  function _statusNV(b) {
+    const s = _ST_NV[b.resultado];
+    if (s === "aberta") return "Em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (s === "ganha") return "Ganhou → W";
+    if (s === "perdida") return "Perdeu → L";
+    // Valor novo (anulada, cashout, meia-liquidação): sobe cru e NÃO vira W/L por chute.
+    return (b.resultado || "(sem resultado)") + " (a conferir — não liquidar automaticamente)";
+  }
+
+  function formatTicketNV(b) {
+    const L = [];
+    L.push("[Código: " + b.ref + "]");
+    // `_dhKTO` é reusado de propósito: é exatamente a mesma conversão (ISO UTC → America/
+    // Sao_Paulo, data + hora). Duplicar só criaria duas verdades para o mesmo fuso.
+    // Conferido ao segundo contra o card: 2026-08-16T15:01:27Z ⇄ "16/8/2026, 12:01:27".
+    const dh = _dhKTO(b.colocada);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _statusNV(b));
+    // Resultado CRU da API — é ele que a CASA_NOVIBET.md traduz.
+    L.push("Status (API): result=" + String(b.resultado) + " · ticketType=" + String(b.tipo) +
+           " · multiplier=" + String(b.linhas));
+
+    const fold = _foldNV(b.tipo);
+    const n = (b.sels || []).length;
+    if (fold && (b.linhas || 0) > 1) {
+      // Formato lido pelo backend (`sistemas_do_texto`) para montar a 12ª coluna `Sistema`:
+      // `Tipo: SISTEMA <rótulo> — <N> apostas de <k> seleção(ões)`. Sem isto, um `3 x Duplas`
+      // e a TRIPLA das mesmas seleções ficariam indistinguíveis no banco.
+      L.push("Tipo: SISTEMA " + fold.rotulo + " — " + b.linhas + " apostas de " + fold.k +
+             " seleção(ões), sobre " + n + " seleções · aposta unitária R$ " + _brl(b.stakeLinha) +
+             " · total R$ " + _brl(b.stake) + " (a Stake acima é o TOTAL — é ela que vale)");
+      // A conferência independente: C(n,k) tem de dar exatamente as N linhas do bilhete.
+      // Quando não fecha (Trixie/Yankee, que misturam tamanhos), entregamos o dado e a
+      // regra, nunca um número chutado — mesma política da bet365.
+      const media = _oddEstruturalNV(b);
+      if (_cnkB3(n, fold.k) === b.linhas && media != null) {
+        L.push("Odd (estrutural do sistema): " + _oddTxtKTO(media) +
+               "  ← JÁ CALCULADA (média das " + b.linhas + " linhas). NÃO multiplique as " +
+               "odds das seleções — o produto é a odd da múltipla cheia, que este bilhete " +
+               "NÃO é. Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).");
+      } else {
+        L.push("Odd (estrutural do sistema): calcule pela MASTER_RESULTADO §7 — média das " +
+               b.linhas + " linhas. NUNCA o produto simples das odds.");
+      }
+      // `placedPrice` do sistema é a SOMA das linhas, não uma odd. Dito explicitamente para
+      // a IA não copiar o número que o card estampa.
+      if (b.odd && b.odd.texto) {
+        L.push("Obs. da casa: o card mostra @ " + b.odd.texto + " — esse número é a SOMA dos " +
+               "multiplicadores das " + b.linhas + " linhas, NÃO a odd do bilhete.");
+      }
+    } else if (n === 1) {
+      L.push("Tipo: Simples");
+    } else if (n > 1) {
+      L.push("Tipo: Múltipla (" + n + " seleções)");
+    }
+
+    const odd = _oddNV(b);
+    if (odd != null) {
+      L.push("Odd: " + _oddTxtKTO(odd) + (_oddPorDinheiroNV(b) ? " (= Retorno ÷ Stake)" : ""));
+    }
+
+    // Retorno de bilhete ABERTO é POTENCIAL, nunca "retorno" — senão a IA liquida uma aposta
+    // que ainda está correndo. `finalFinancials.payout` é potencial SEMPRE nesta casa: ele
+    // continua estampando o prêmio cheio mesmo em bilhete perdido.
+    if (_abertaNV(b)) {
+      if (typeof b.potencial === "number" && b.potencial > 0) {
+        L.push("Retorno potencial: R$ " + _brl(b.potencial) + " (POTENCIAL — a aposta não liquidou)");
+      }
+    } else if (b.pagou != null) {
+      L.push("Retorno: R$ " + _brl(b.pagou));
+    }
+
+    if (typeof b.imposto === "number" && b.imposto > 0) {
+      L.push("Imposto retido na fonte: R$ " + _brl(b.imposto) +
+             " (o Retorno acima é o valor pago pela casa)");
+    }
+    // Boost desta casa é MULTIPLICATIVO e pago por fora da odd (`payout = stake × odd ×
+    // factor`; factor 1,05 medido). A odd do W já o absorve por vir do dinheiro.
+    if (b.boost && (b.boost.amount || (b.boost.factor && b.boost.factor !== 1))) {
+      L.push("Boost: fator " + String(b.boost.factor).replace(".", ",") +
+             " · valor extra R$ " + _brl(b.boost.amount) +
+             (b.boost.isMax ? " (máximo)" : ""));
+    }
+    // Odd riscada: uma perna anulada/meio-anulada muda o multiplicador do bilhete.
+    if (b.oddFinal && b.oddFinal.valor != null && b.odd && b.odd.valor != null &&
+        b.oddFinal.valor !== b.odd.valor) {
+      L.push("Odd revisada pela casa: " + _oddTxtKTO(b.odd.valor) + " → " +
+             _oddTxtKTO(b.oddFinal.valor) + " (alguma seleção foi anulada — ver as pernas)");
+    }
+    if (b.cashout || b.cashoutPreco) {
+      L.push("Cashout (dado cru da casa): " + JSON.stringify(b.cashout || b.cashoutPreco));
+    }
+    if (b.liquidada) L.push("Liquidado em: " + _dhKTO(b.liquidada));
+
+    L.push("Seleções:");
+    for (const s of (b.sels || [])) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.selecao || "");
+      if (s.resultado) bits.push("[" + s.resultado + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.esporte) {
+        const can = _SPORT_NV[s.esporteSys];
+        ctx2.push("Esporte: " + s.esporte + (can && can !== s.esporte ? " (" + can + ")" : ""));
+      }
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd && s.odd.valor != null) L.push("    Odd da perna: " + _oddTxtKTO(s.odd.valor));
+      const marcas = [];
+      if (s.aoVivo) marcas.push("ao vivo");
+      if (s.turbinada) marcas.push("odd turbinada pela casa");
+      if (s.banker) marcas.push("banker (perna fixa do sistema)");
+      if (s.sobrescrito) marcas.push("resultado sobrescrito: " + s.sobrescrito);
+      if (s.tag) marcas.push("tag: " + s.tag);
+      if (marcas.length) L.push("    " + marcas.join(" · "));
+    }
+    return L.join("\n");
+  }
+
+  async function roboNVPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro (a lista da casa é Descending por colocação),
+      // para o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(nvById.values()).sort((a, b) =>
+        (Date.parse(b.colocada) || 0) - (Date.parse(a.colocada) || 0));
+      for (const b of todos) {
+        const cod = String(b.ref || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // Janela de dias corta só as RESOLVIDAS (pela data de colocação, que é a que o card
+        // mostra). Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = b.colocada ? Date.parse(b.colocada) : NaN;
+        const passou = !_abertaNV(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketNV(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao nv_inject o acumulado + arranca o replay (alarga a janela para 12 meses e
+    // varre com `result:null`, que traz abertas e fechadas juntas).
+    try { window.postMessage({ __sharpenupNVReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar (nvFimReal), consumindo o que for chegando. Não para no 1º
+    // obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !nvFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (nvById.size > ultTotal) { ultTotal = nvById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] Novibet: " + blocos.length + " bilhete(s) · nvById=" + nvById.size +
+                " · hook=" + nvHookVivo + " · respostas=" + nvRespostas + " · fimReal=" + nvFimReal +
+                (nvTruncado ? " · janela truncada em 12 meses pela casa" : ""));
     return blocos;
   }
 

@@ -213,8 +213,14 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 **Fluxo**
 - **O modo passivo pode ser impossível** — a Pitaco cancela o stream da própria resposta
   (`AbortController`) e o `clone().arrayBuffer()` morre com *"The user aborted a request"*
-  (5 de 5). Antes de assumir o passivo, confira se o clone resolve de verdade; se não, o
-  inject só aprende url+headers e busca o dado ele mesmo.
+  (5 de 5). A **Novibet** repete o sintoma sem nenhum parentesco técnico: é Angular, e o
+  `HttpClient` aborta o request ao desinscrever. Antes de assumir o passivo, confira se o
+  clone resolve de verdade; se não, o inject só aprende url+headers e busca o dado ele mesmo.
+- **A REQUISIÇÃO DA TELA PODE SER ESTREITA** — e aí o replay existe para *alargar o filtro*,
+  não para repaginar. A Novibet pede ~24h **e** só as fechadas; um passivo perfeito pegaria
+  11 de 42 bilhetes, **sem nenhuma aposta em aberto**, parecendo funcionar. Pergunte sempre
+  **o que a tela NÃO pediu**: filtro de data, aba, e o valor do filtro que ela nunca usa
+  (`result:null` traz tudo).
 - **Paginar pode PERDER bilhete** — na Pitaco a paginação por página devolve
   `20 · 10 · 20 · 0 · 1`, com a página 3 repetindo o primeiro código da página 1: **31
   códigos únicos onde existem 49**. E os dois critérios usuais falham juntos ("menor que a
@@ -244,4 +250,4 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-16 (sessão 270 — armadilhas de payload binário, passivo impossível e paginação que perde bilhete)
+ATUALIZADO: 2026-08-17 (sessão 271 — a requisição da tela como gargalo: replay que alarga o filtro)

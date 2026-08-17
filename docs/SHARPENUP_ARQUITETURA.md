@@ -126,6 +126,7 @@ Regras que valem para todos:
 | **Betpix365** | **espelho da VaideBet** — 4ª casa Altenar | idem ⚠ **a casa só dispara o `widgetBetHistory` compacto**; o replay aprende dele e busca o Expanded | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
 | **Pitaco** | **replay puro** (o passivo é impossível) | `POST /…UiMyBetsService/GetUiMyBetsTabContent` — **gRPC-Web / protobuf binário** | `pt_inject.js` | `.4.1.1` (17 díg.) | campo `.5` ausente na resposta | evento mais recente ⚠ **sem ano** — derivado da colocação |
+| **Novibet** | **replay puro** (o passivo é impossível) | `POST /spt/api/historytickets/search` (gateway BlueBrown, host da casa) | `nv_inject.js` | `ticketId` (9 díg.) | `skip >= statistics.count` | `placedAt` (colocação, UTC→SP) ⚠ **não há data de evento** |
 
 > ⚠ **BetNacional — divergência de rótulo NÃO medida (anotada na s248, ao preencher esta tabela).**
 > `formatTicketBNC` emite só `Data (colocação):` (de `t.colocada`), enquanto `CASA_BETNACIONAL §4`
@@ -270,6 +271,39 @@ Regras que valem para todos:
 > duas grafias é uma ponte cara, não um estado de repouso. Round-trip medido nas duas pontas:
 > 63 grafias no banco, **0 quebradas** antes e depois.
 
+> ⚠️ **Novibet (s271) — a 2ª casa em que o PASSIVO É IMPOSSÍVEL, e a 1ª em que a TELA é o
+> gargalo.** Plataforma própria (gateway `BlueBrown.OnlineSportsbook.Gateway`), API no mesmo
+> host do site.
+>
+> **(1) O passivo morre igual ao da Pitaco, por outro motivo.** A página é Angular e o
+> `HttpClient` aborta o próprio request ao desinscrever: `clone().text()` rejeita com *"The
+> user aborted a request."*. A Pitaco ensinou o sintoma; aqui ele apareceu numa casa sem
+> nenhum parentesco técnico com ela. **Vale checar o clone em toda casa nova** — o custo é uma
+> medição e o preço de errar é um inject que parece funcionar (o replay cobre) enquanto o
+> `respostas` do autodiagnóstico conta outra coisa.
+>
+> **(2) A requisição da TELA é estreita em dois eixos, e isso é novo.** Até aqui o replay
+> existia para *repaginar*. Nesta casa ele existe para **alargar o filtro**: a página pede
+> `dateFrom`/`dateTo` de ~24h **e** `result:2` (só fechadas). Um inject passivo perfeito
+> capturaria 11 de 42 bilhetes e **nenhuma aposta em aberto** — e pareceria estar funcionando.
+> O `result:null` (que a página nunca usa) devolve abertas + fechadas numa chamada.
+> **A pergunta a fazer numa casa nova não é só "como pagino?", é "o que a tela NÃO pediu?".**
+>
+> **(3) Fim autoritativo de verdade:** `statistics.count` é o total da janela e **não muda**
+> com `skip`/`take` — distingue "acabou" de "a consulta encheu", que é justamente o que o
+> `Count` da Tivo não distinguia. Paginação provada por códigos ÚNICOS em três estratégias
+> (`take` 50, 20 e 7 → 42/42 nas três). `take` tem teto **50** (51 → 400).
+>
+> Outros achados: **odd de SISTEMA não é a do card** — em `Fold2` o `placedPrice` é a SOMA dos
+> produtos das C(n,k) linhas (19 de 19), e a odd estrutural é essa soma ÷ `multiplier` (a média
+> do `MASTER_RESULTADO §7.3`); o card estampa `@ 10.33` num bilhete de odd real 1,097 ·
+> **`cost` é o stake TOTAL e `amount` o por linha** · **`finalFinancials.payout` é sempre
+> POTENCIAL**, inclusive em perdida (o retorno real é `settlement.payout`, e `settlement` é
+> `null` em toda aberta) · **esporte em pt-PT** (`Ténis`, `Voleibol`) → traduzir pelo
+> `competitionContextSysname` · 🚀 vem colado no nome do mercado · histórico limitado a **12
+> meses** pela casa, com `maxDurationExceeded` avisando (pedir a janela cheia LIGA a flag —
+> o inject deixa 2 dias de folga para o aviso não virar ruído).
+
 > **Casa espelho — o padrão da Betfast (s211).** Quando uma casa nova roda o **mesmo motor** de
 > uma já ligada, ela **não ganha inject próprio**: entra nos 12 pontos de registro apontando
 > para o inject existente (`popup.js` + `content_scripts` do manifest) e reusa o ramo do
@@ -395,4 +429,4 @@ na mesma transação).
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-16 (sessão 270 — Pitaco: gRPC-Web/protobuf, replay puro, casa com duas grafias)
+ATUALIZADO: 2026-08-17 (sessão 271 — Novibet: replay puro, e a TELA como gargalo do filtro)

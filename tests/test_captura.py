@@ -61,3 +61,23 @@ def test_backstop_casa_de_host_da_pitaco():
 def test_modo_da_casa_pitaco_e_texto():
     # Modo "print" aqui significaria a extensão nem tentar o robô — falha silenciosa.
     assert captura.modo_da_casa("PITACO") == "texto"
+
+
+def test_backstop_casa_de_host_da_novibet():
+    """A Novibet é plataforma PRÓPRIA e serve a API no mesmo host do site.
+
+    Isso torna o backstop casa↔site especialmente simples aqui: não há domínio de gateway
+    separado para registrar (como o `biahosted.com` das casas Altenar), então o host da aba
+    é o único que importa.
+    """
+    assert captura.casa_de_host("novibet.bet.br") == "NOVIBET"
+    assert captura.casa_de_host("www.novibet.bet.br") == "NOVIBET"
+    # `.com` é a operação internacional, não a regulada no BR — fora do registro de propósito.
+    assert captura.casa_de_host("novibet.com") is None
+    # E o guard do domínio parecido continua valendo.
+    assert captura.casa_de_host("novibet.bet.br.evil.com") is None
+
+
+def test_modo_da_casa_novibet_e_texto():
+    # Modo "print" aqui significaria a extensão nem tentar o robô — falha silenciosa.
+    assert captura.modo_da_casa("NOVIBET") == "texto"

@@ -59,7 +59,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # BETPIX365: 4ª casa Altenar (s258). ⚠ É a única que NÃO dispara o `widgetExpandedBetHistory`
 # por conta própria — a tela dela chama só o widget compacto, e o inject aprende url+headers
 # dele para então buscar o expandido. Também usa o MESMO `vb_inject.js`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto"}
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto", "NOVIBET": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -79,6 +79,10 @@ _HOSTS_POR_CASA = {
     "BETFAIR":    ("betfair.bet.br",),
     "PINNACLE":   ("pinnacle.bet.br",),
     "KTO":        ("kto.bet.br",),
+    # Novibet (s271) — plataforma PRÓPRIA (gateway BlueBrown), sem parentesco com
+    # Altenar/BetBy/Kambi/BetConstruct. A API vive no MESMO host da casa (`/spt/api/…`), então
+    # não há domínio de gateway separado para listar aqui.
+    "NOVIBET":    ("novibet.bet.br",),
     # Pitaco (s270) — plataforma PRÓPRIA, gRPC-Web/protobuf. Antiga "Rei do Pitaco"; a grafia
     # velha foi unificada no banco na mesma sessão. O domínio antigo (`reidopitaco.com.br`)
     # NÃO entra: a operação regulada é a `.bet.br`.
