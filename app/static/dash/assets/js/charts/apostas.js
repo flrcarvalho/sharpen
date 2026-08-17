@@ -163,6 +163,136 @@ function clearApostasFilters(){
   renderApostas();
 }
 
+// ── Autocomplete de tipster (modal + edição inline) ─────────────────────────
+// Feedback do tester João Henrique (14/08): "ser possível selecionar os tipsters já
+// cadastrados ao invés de digitar manualmente, assim como já acontece durante o
+// cadastro da aposta". Na Extração o dropdown existe desde sempre (`.ac-menu`, no
+// index.html); aqui os dois campos de tipster eram `<input>` cru.
+//
+// TEXTO LIVRE CONTINUA VALENDO — o menu sugere, não restringe. Um `<select>` fecharia
+// a porta para o tipster que ainda não existe, e é justamente na edição que ele
+// costuma nascer. Por isso a lista é sugestão, e nada valida o que foi digitado.
+//
+// As opções saem da mesma união de gestao.js `_ctTipsters`, MENOS a fonte `ctData`:
+// custo só está carregado se o dono passou pela aba de custos nesta sessão, e uma
+// sugestão que aparece ou não conforme a aba visitada antes é pior que não ter.
+let _acMenu=null;      // <div.ac-menu> — criado sob demanda, vive no body
+let _acInp=null;       // input ligado no momento
+let _acItens=[];       // opções visíveis agora
+let _acIdx=-1;         // índice destacado (navegação por teclado)
+let _acCb=null;        // callback de escolha do input ligado
+
+function _apTipsterOpcoes(){
+  const s=new Set();
+  const cad=(typeof _tipsCadastro!=='undefined'&&_tipsCadastro)?_tipsCadastro:[];
+  cad.forEach(n=>s.add(n));
+  const _liq=(typeof DADOS!=='undefined'&&DADOS)?DADOS:[];
+  const _ab=(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[];
+  _liq.concat(_ab).forEach(r=>{if(r.tipster)s.add(r.tipster);});
+  return [...s].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+}
+function _acEl(){
+  if(_acMenu)return _acMenu;
+  _acMenu=document.createElement('div');
+  _acMenu.className='ac-menu';
+  document.body.appendChild(_acMenu);
+  // mousedown, NÃO click: dispara antes do blur, então o editor inline não salva no
+  // meio do clique e o `preventDefault` mantém o foco no input. Mesmo truque que o
+  // SharpenCal usa para conviver com o `blur`→`finish(true)` da edição inline.
+  _acMenu.addEventListener('mousedown',e=>{
+    const it=e.target.closest&&e.target.closest('.ac-item');
+    if(!it)return;
+    e.preventDefault();
+    _acAplicar(parseInt(it.dataset.i,10));
+  });
+  return _acMenu;
+}
+function _acAberto(){return !!_acMenu&&_acMenu.style.display!=='none';}
+function _acFechar(){if(_acMenu)_acMenu.style.display='none';_acItens=[];_acIdx=-1;}
+function _acSoltar(){_acFechar();_acInp=null;_acCb=null;}
+function _acPintar(){
+  if(!_acMenu)return;
+  Array.from(_acMenu.children).forEach((el,i)=>el.classList.toggle('active',i===_acIdx));
+  const at=_acMenu.children[_acIdx];
+  if(at)at.scrollIntoView({block:'nearest'});
+}
+function _acAplicar(i){
+  if(i<0||i>=_acItens.length||!_acInp)return;
+  const v=_acItens[i],cb=_acCb;
+  _acInp.value=v;
+  _acFechar();
+  if(cb)cb(v);
+}
+// `filtrar` = já digitou algo (filtra pelo texto); no foco abre a lista inteira.
+function _acRender(filtrar){
+  if(!_acInp)return;
+  const m=_acEl();
+  const q=_acInp.value.trim().toLowerCase();
+  let ops=_apTipsterOpcoes();
+  if(filtrar&&q){
+    ops=ops.filter(t=>t.toLowerCase().includes(q))
+      .sort((a,b)=>(b.toLowerCase().startsWith(q)?1:0)-(a.toLowerCase().startsWith(q)?1:0));
+  }
+  ops=ops.slice(0,50);
+  _acItens=ops;
+  if(!ops.length){_acFechar();return;}   // nome novo: sem menu, o campo segue livre
+  m.innerHTML=ops.map((t,i)=>`<div class="ac-item" data-i="${i}">${esc(t)}</div>`).join('');
+  m.style.display='block';
+  // Ancoragem: `position:fixed` + rect do input. Vira para CIMA quando não cabe
+  // abaixo — sem isso, editar uma linha do rodapé da tabela abriria o menu fora da tela.
+  const r=_acInp.getBoundingClientRect();
+  m.style.minWidth=Math.max(r.width,160)+'px';
+  m.style.left=Math.max(4,Math.min(r.left,window.innerWidth-m.offsetWidth-4))+'px';
+  const abaixo=window.innerHeight-r.bottom;
+  m.style.top=(abaixo<m.offsetHeight+8&&r.top>abaixo)
+    ? Math.max(4,r.top-m.offsetHeight-2)+'px'
+    : (r.bottom+2)+'px';
+  _acIdx=(filtrar&&q)?0:-1;   // melhor match já destacado → Enter aceita direto
+  _acPintar();
+}
+// Liga o dropdown num input de tipster. `aoEscolher` roda depois de preencher o campo
+// (a edição inline aproveita para salvar na hora, como o SharpenCal faz na data).
+// O keydown é registrado AQUI, antes dos handlers de quem chama: com o menu aberto,
+// Enter/Esc/setas são do menu e param por `stopImmediatePropagation` — sem isso o
+// Enter salvaria a linha em vez de aceitar a sugestão, e o Esc cancelaria a edição
+// inteira em vez de só fechar a lista. Um 2º Esc (menu fechado) cancela, como antes.
+function _acLigar(inp,aoEscolher){
+  if(!inp)return;
+  const focar=()=>{_acInp=inp;_acCb=aoEscolher||null;_acRender(false);};
+  inp.addEventListener('focus',focar);
+  inp.addEventListener('input',()=>{_acInp=inp;_acCb=aoEscolher||null;_acRender(true);});
+  inp.addEventListener('blur',()=>{if(_acInp===inp)_acSoltar();});
+  inp.addEventListener('keydown',e=>{
+    if(_acInp!==inp)return;
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      if(!_acAberto()){_acRender(true);if(!_acAberto())return;}
+      e.preventDefault();e.stopImmediatePropagation();
+      const n=_acItens.length;
+      _acIdx=(e.key==='ArrowDown')?(_acIdx+1>=n?0:_acIdx+1):(_acIdx-1<0?n-1:_acIdx-1);
+      _acPintar();
+    }else if(e.key==='Enter'&&_acAberto()&&_acIdx>=0){
+      e.preventDefault();e.stopImmediatePropagation();
+      _acAplicar(_acIdx);
+    }else if(e.key==='Escape'&&_acAberto()){
+      e.preventDefault();e.stopImmediatePropagation();
+      _acFechar();
+    }else if(e.key==='Tab'){_acFechar();}
+  });
+  // Ancoragem é por coordenada: rolar ou redimensionar deixaria o menu órfão no lugar
+  // antigo. Captura porque o scroll que interessa é o da tabela virtual, não o do body.
+  if(!_acLigar._glob){
+    _acLigar._glob=true;
+    window.addEventListener('scroll',()=>{if(_acAberto())_acFechar();},true);
+    window.addEventListener('resize',()=>{if(_acAberto())_acFechar();});
+  }
+}
+// Carga do cadastro (gestao.js, cacheada por sessão). Assíncrona: se o menu já estiver
+// aberto quando a resposta chegar, repinta — senão a 1ª abertura mostraria só a base.
+function _acCarregar(){
+  if(typeof tipstersCadastroLoad!=='function')return;
+  tipstersCadastroLoad().then(()=>{if(_acAberto())_acRender(!!_acInp&&!!_acInp.value.trim());}).catch(()=>{});
+}
+
 // ── Editar / deletar aposta (modal) ─────────────────────────────────────────
 // Reusa os endpoints do extrator: PATCH e DELETE /bilhetes/{id}. O modal (DOM em
 // app.js buildHTML) edita os 10 campos. Só linhas do dono efetivo COM id (Postgres)
@@ -198,6 +328,12 @@ function abrirEdicaoApostas(id){
   if(!r)return;
   apEditId=id;
   AP_ED_CAMPOS.forEach(c=>{const el=document.getElementById('ap-ed-'+c);if(el)el.value=_apEditVal(r,c);});
+  // Tipster: dropdown dos já cadastrados. O input é estático (nasce no buildHTML), então
+  // liga UMA vez — reabrir o modal empilharia listeners. Sem callback: no modal a escolha
+  // só preenche o campo; quem salva é o botão, como nos outros 9 campos.
+  const elTip=document.getElementById('ap-ed-tipster');
+  if(elTip&&!elTip.dataset.acOn){elTip.dataset.acOn='1';_acLigar(elTip,null);}
+  _acCarregar();
   const err=document.getElementById('apEditErr');if(err){err.style.display='none';err.textContent='';}
   const ov=document.getElementById('apEditOverlay');
   if(ov){ov.style.display='flex';document.body.style.overflow='hidden';}
@@ -223,6 +359,7 @@ function fecharEdicaoApostas(e){
   const ov=document.getElementById('apEditOverlay');
   if(ov)ov.style.display='none';
   document.body.style.overflow='';
+  _acSoltar();   // o menu vive no body: fechar o modal sem soltá-lo o deixaria na tela
   apEditId=null;
 }
 window.fecharEdicaoApostas=fecharEdicaoApostas;
@@ -313,6 +450,10 @@ function _apInlineStart(cell){
       alert('Erro ao salvar. Confira o valor (data DD/MM/AAAA, stake/odd numéricos, resultado W/L/V/HW/HL).');
     }
   };
+  // Tipster: mesmo dropdown do modal, ligado ANTES dos handlers abaixo — com o menu
+  // aberto ele consome Enter/Esc/setas (ver `_acLigar`). Escolher preenche e SALVA na
+  // hora, igual ao SharpenCal na data; o campo continua aceitando nome digitado.
+  if(field==='tipster'){_acLigar(editor,()=>finish(true));_acCarregar();}
   editor.addEventListener('keydown',e=>{
     if(e.key==='Enter'){e.preventDefault();finish(true);}
     else if(e.key==='Escape'){e.preventDefault();finish(false);}

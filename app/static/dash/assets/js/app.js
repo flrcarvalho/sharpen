@@ -477,7 +477,7 @@ function renderPage(id){
   // síncrono (saveCT/saveCG o chamam direto) e a lista de linhas sai da união cadastro ∪
   // bilhetes ∪ abertas ∪ custo lançado (gestao.js `_ctTipsters`). Vão em paralelo e são
   // idempotentes; se qualquer uma falhar, a tela cai no comportamento antigo.
-  else if(id==='custos_tipster'){Promise.all([ctLoad(),ctTipstersLoad()]).then(()=>renderCustoTipster());}
+  else if(id==='custos_tipster'){Promise.all([ctLoad(),tipstersCadastroLoad()]).then(()=>renderCustoTipster());}
   else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
   else if(id==='resultados'){renderResultados();}

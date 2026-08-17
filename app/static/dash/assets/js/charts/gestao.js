@@ -511,16 +511,18 @@ function renderMetrics(rows){
 // liquidada. `/tipsters/cadastro` sem `?arquivados=1` traz só os ATIVOS — tipster que
 // o dono parou de seguir sai da tabela, mas volta sozinho se tiver aposta ou custo
 // lançado (as outras três fontes de `_ctTipsters`).
-let _ctTipsCadastro=null;   // [nome] — null = ainda não carregado
-async function ctTipstersLoad(){
-  if(_ctTipsCadastro)return _ctTipsCadastro;
-  if(window.MODO_PUBLICO){_ctTipsCadastro=[];return _ctTipsCadastro;}  // rota autenticada: daria 401
+// Mora aqui, mas NÃO é só da aba de custos: o autocomplete do editor de apostas
+// (`charts/apostas.js`) lê o mesmo cache — daí o nome neutro.
+let _tipsCadastro=null;   // [nome] — null = ainda não carregado
+async function tipstersCadastroLoad(){
+  if(_tipsCadastro)return _tipsCadastro;
+  if(window.MODO_PUBLICO){_tipsCadastro=[];return _tipsCadastro;}  // rota autenticada: daria 401
   try{
     const r=await fetch('/tipsters/cadastro?arquivados=0');
     const d=r.ok?await r.json():{};
-    _ctTipsCadastro=(d.tipsters||[]).map(t=>(t.nome||'').trim()).filter(Boolean);
-  }catch(e){_ctTipsCadastro=[];}   // offline: cai no comportamento antigo (só bilhetes)
-  return _ctTipsCadastro;
+    _tipsCadastro=(d.tipsters||[]).map(t=>(t.nome||'').trim()).filter(Boolean);
+  }catch(e){_tipsCadastro=[];}   // offline: cai no comportamento antigo (só bilhetes)
+  return _tipsCadastro;
 }
 
 // Quem aparece na tabela de custo — UNIÃO de quatro fontes, e as quatro são load-bearing:
@@ -537,7 +539,7 @@ async function ctTipstersLoad(){
 // localeCompare pt-BR porque `.sort()` é ASCII e jogava nome acentuado para o fim.
 function _ctTipsters(){
   const s=new Set();
-  (_ctTipsCadastro||[]).forEach(n=>s.add(n));
+  (_tipsCadastro||[]).forEach(n=>s.add(n));
   const _liq=(typeof DADOS!=='undefined'&&DADOS)?DADOS:[];
   const _ab=(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[];
   _liq.concat(_ab).forEach(r=>{if(r.tipster)s.add(r.tipster);});
@@ -550,7 +552,7 @@ function _ctTipsters(){
 // Build HTML
 function renderCustoTipster(){
   // Carga (cache local + servidor, fonte de verdade) é feita por ctLoad() no
-  // dispatcher da aba (app.js) ANTES de pintar, junto com ctTipstersLoad() (cadastro);
+  // dispatcher da aba (app.js) ANTES de pintar, junto com tipstersCadastroLoad();
   // aqui só renderiza o estado atual. Os handlers de edição (saveCT/saveCG) chamam este
   // render após mutar em memória — por isso ele segue SÍNCRONO e lê o cache.
   const cont=document.getElementById('custoTipsterContent');

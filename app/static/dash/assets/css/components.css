@@ -997,6 +997,33 @@ textarea.apedit-inp { resize: vertical; min-height: 56px; font-family: var(--fon
 }
 .ap-inline-inp:focus { outline: none; }
 select.ap-inline-inp { padding: 2px 4px; }
+
+/* ── Autocomplete de tipster (modal de edição + edição inline) ─────────────
+   Mesma IDEIA do dropdown da Extração (`.ac-menu` no index.html), mas com a casca
+   do popover da marca — o SharpenCal (`/static/sharpen-cal.js`), que é o precedente
+   mais recente de popover ancorado dentro deste mesmo modal: `--surface-2`, raio
+   `--r-md`, sombra preta, z-index 10000 e realce por `rgba(var(--accent-rgb),…)`.
+   NÃO copia dois pontos do original, os dois por conformidade e não por gosto:
+   (a) nome de tipster é IDENTIDADE na Escada de Tinta (`CLAUDE.md`) — vai em `--ink`
+       13px `--font-sans` (medido: 15,4:1 sobre `--surface-2`), e não no `--ink-soft`
+       12px mono de lá, que rende 6,2:1 sobre a superfície dele contra o piso de 12:1
+       do papel. O `.ac-item` do index.html é anterior à Escada e fica como está —
+       desvio conhecido, não copiar daqui para lá nem de lá para cá;
+   (b) o item destacado NÃO usa fundo sólido de acento com `#fff` por cima (3,36:1) —
+       usa o mesmo véu de acento do `.shcal__dia:hover`, com a tinta em `--ink`. */
+.ac-menu {
+  position: fixed; z-index: 10000; display: none;
+  max-height: 232px; overflow-y: auto;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r-md); box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+  padding: 4px; font-family: var(--font-sans);
+}
+.ac-item {
+  padding: 6px 10px; border-radius: var(--r-sm); cursor: pointer;
+  font-size: 13px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ac-item.active, .ac-item:hover { background: rgba(var(--accent-rgb), .14); }
 .btbl-date {
   font-family: var(--font-mono);
   font-size: 11px;
