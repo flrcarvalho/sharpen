@@ -473,7 +473,11 @@ function renderPage(id){
   // o cadastro para não discordarem entre si no nº de contas e no custo total.
   else if(id==='parceiros'){contasLoad().then(()=>renderParceiros(rows));}
   else if(id==='custos'){contasLoad().then(()=>renderCustos(rows));}
-  else if(id==='custos_tipster'){ctLoad().then(renderCustoTipster);} // carga (servidor) → pinta
+  // Custo (servidor) + cadastro de tipsters — as duas cargas ANTES de pintar: o render é
+  // síncrono (saveCT/saveCG o chamam direto) e a lista de linhas sai da união cadastro ∪
+  // bilhetes ∪ abertas ∪ custo lançado (gestao.js `_ctTipsters`). Vão em paralelo e são
+  // idempotentes; se qualquer uma falhar, a tela cai no comportamento antigo.
+  else if(id==='custos_tipster'){Promise.all([ctLoad(),ctTipstersLoad()]).then(()=>renderCustoTipster());}
   else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
   else if(id==='resultados'){renderResultados();}

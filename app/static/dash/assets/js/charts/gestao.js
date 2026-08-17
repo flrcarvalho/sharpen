@@ -506,14 +506,56 @@ function renderMetrics(rows){
   });
 }
 
+// ── Cadastro de tipsters (tabela `tipsters`) ──────────────────────────────────
+// Mesma razão do cadastro de contas acima: a EXISTÊNCIA do tipster não vem da aposta
+// liquidada. `/tipsters/cadastro` sem `?arquivados=1` traz só os ATIVOS — tipster que
+// o dono parou de seguir sai da tabela, mas volta sozinho se tiver aposta ou custo
+// lançado (as outras três fontes de `_ctTipsters`).
+let _ctTipsCadastro=null;   // [nome] — null = ainda não carregado
+async function ctTipstersLoad(){
+  if(_ctTipsCadastro)return _ctTipsCadastro;
+  if(window.MODO_PUBLICO){_ctTipsCadastro=[];return _ctTipsCadastro;}  // rota autenticada: daria 401
+  try{
+    const r=await fetch('/tipsters/cadastro?arquivados=0');
+    const d=r.ok?await r.json():{};
+    _ctTipsCadastro=(d.tipsters||[]).map(t=>(t.nome||'').trim()).filter(Boolean);
+  }catch(e){_ctTipsCadastro=[];}   // offline: cai no comportamento antigo (só bilhetes)
+  return _ctTipsCadastro;
+}
+
+// Quem aparece na tabela de custo — UNIÃO de quatro fontes, e as quatro são load-bearing:
+//   1. CADASTRO — tipster assinado antes da primeira aposta (o custo já corre). Lendo só
+//      `DADOS` ele só nascia na tela quando a primeira aposta LIQUIDAVA.
+//   2. DADOS — as liquidadas, o comportamento antigo.
+//   3. DADOS_ABERTAS — `aplicarFeed` (app.js) manda a aberta para cá, então o tipster com
+//      apostas só em aberto sumia da aba inteira (feedback do João Henrique, 14/08/2026 —
+//      mesma família da aba Custos de Contas na s239).
+//   4. chaves de `ctData` com valor — INVARIANTE: custo lançado SEMPRE tem linha na tela.
+//      `renderOvCusto` (overview.js) soma `ctData` inteiro, sem olhar esta lista; sem a
+//      união o valor continuava batendo no KPI da visão geral com a linha para editá-lo
+//      fora da tela — cobrado e ineditável.
+// localeCompare pt-BR porque `.sort()` é ASCII e jogava nome acentuado para o fim.
+function _ctTipsters(){
+  const s=new Set();
+  (_ctTipsCadastro||[]).forEach(n=>s.add(n));
+  const _liq=(typeof DADOS!=='undefined'&&DADOS)?DADOS:[];
+  const _ab=(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[];
+  _liq.concat(_ab).forEach(r=>{if(r.tipster)s.add(r.tipster);});
+  Object.keys(ctData||{}).forEach(t=>{
+    if(Object.values(ctData[t]||{}).some(v=>(parseFloat((v||'').toString().replace(',','.'))||0)>0))s.add(t);
+  });
+  return [...s].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+}
+
 // Build HTML
 function renderCustoTipster(){
   // Carga (cache local + servidor, fonte de verdade) é feita por ctLoad() no
-  // dispatcher da aba (app.js) ANTES de pintar; aqui só renderiza o estado atual.
-  // Os handlers de edição (saveCT/saveCG) chamam este render após mutar em memória.
+  // dispatcher da aba (app.js) ANTES de pintar, junto com ctTipstersLoad() (cadastro);
+  // aqui só renderiza o estado atual. Os handlers de edição (saveCT/saveCG) chamam este
+  // render após mutar em memória — por isso ele segue SÍNCRONO e lê o cache.
   const cont=document.getElementById('custoTipsterContent');
   if(!cont)return;
-  const tipsters=[...new Set(DADOS.map(r=>r.tipster).filter(Boolean))].sort();
+  const tipsters=_ctTipsters();
   const months=ctGetMonths();
 
   // ── CUSTOS GERAIS ──
