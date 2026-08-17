@@ -3024,7 +3024,13 @@ async function xcConfirmar() {
 function selecionarParceiro(p) {
   if (parceiroSelecionado && parceiroSelecionado.id === p.id) return;
 
-  desconectarExtensao(false);   // ponte é ligada à conta ativa: troca de conta encerra
+  // Ponte é ligada à conta ativa: troca de conta encerra — e LIMPA o aviso (`true`).
+  // Com `false` a ponte caía mas o texto verde "Extensão conectada ✓" ficava grudado na
+  // barra, então a conta nova nascia dizendo que estava conectada quando não estava
+  // (s272: relato do tester na Novibet). Os outros dois chamadores passam `false` de
+  // propósito, porque põem um status logo em seguida (`conectarExtensao` e o 404 do
+  // poll); aqui não vem nada depois, e o aviso velho sobrevive à troca.
+  desconectarExtensao(true);
   salvarEstadoExtrator();
 
   parceiroSelecionado = p;
