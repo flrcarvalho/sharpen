@@ -32,9 +32,10 @@ from pydantic import BaseModel, field_validator
 
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, atualizar_cache_usuarios,
-    coproprietarios, criar_token, criar_token_curto, dono_efetivo, eh_admin,
-    gerar_hash_senha, operadores_de, planilha_ao_vivo, pode_ver_como,
-    resultado_login, usuario_atual, usuario_do_request, validar_token_curto,
+    coproprietarios, criar_token, criar_token_curto, dono_efetivo,
+    dono_efetivo_ou_bot, eh_admin, gerar_hash_senha, operadores_de,
+    planilha_ao_vivo, pode_ver_como, resultado_login, usuario_atual,
+    usuario_atual_ou_bot, usuario_ativo, usuario_do_request, validar_token_curto,
 )
 import captura as _captura
 import eventos as _eventos
@@ -43,8 +44,8 @@ from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from taxonomia import categorias_canonicas, esportes_canonicos
 from database import (
     buscar_usuario_social, carregar_usuarios, criar_usuario,
-    criar_usuario_social, definir_status_usuario, init_db, listar_usuarios,
-    seed_usuarios, usernames_em_uso, vincular_social,
+    criar_usuario_social, definir_bot_habilitado, definir_status_usuario,
+    init_db, listar_usuarios, seed_usuarios, usernames_em_uso, vincular_social,
 )
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
@@ -1720,6 +1721,35 @@ async def admin_suspender(username: str, usuario: str = Depends(usuario_atual)):
     return {"ok": True}
 
 
+class BotHabilitadoRequest(BaseModel):
+    habilitado: bool
+
+
+@app.post("/admin/usuarios/{username}/bot")
+async def admin_bot_habilitado(username: str, body: BotHabilitadoRequest,
+                               usuario: str = Depends(usuario_atual)):
+    """Liga/desliga o planilhamento pelo bot de tipster na base deste usuário.
+
+    É a autorização do token de serviço (s273): sem este flag o `SHARPEN_BOT_TOKEN`
+    não escreve nada no dono, mesmo válido. Existir como BOTÃO é o ponto — antes
+    disso, pôr um tipster novo no bot exigia guardar a senha dele numa env var e
+    subir deploy; agora é aprovar a conta e ligar aqui.
+
+    Só faz sentido em conta ATIVA: o gate de identidade do bot exige 'ativo'
+    também, então ligar para um pendente/suspenso não daria acesso nenhum e só
+    criaria a impressão de que deu.
+    """
+    _exigir_admin(usuario)
+    if body.habilitado and not usuario_ativo(username):
+        raise HTTPException(400, "Aprove a conta antes de liberar o bot.")
+    if not await definir_bot_habilitado(username, body.habilitado):
+        raise HTTPException(404, "Usuário não encontrado.")
+    atualizar_cache_usuarios(await carregar_usuarios())
+    logger.info("admin: %s %s o bot para %s", usuario,
+                "habilitou" if body.habilitado else "desabilitou", username)
+    return {"ok": True, "bot_habilitado": body.habilitado}
+
+
 # ── Login social (Fase 3 — Google OIDC + Telegram) ────────────────────────────
 # FAIL-SAFE por env var: sem credenciais, /auth/metodos responde tudo False, os
 # botões nem aparecem no login.html e as rotas dão 404 — deployável dormente.
@@ -2487,8 +2517,8 @@ class SalvarRequest(BaseModel):
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
 # quem está logado, mesmo em modo "ver como operador". Decisão do Feca, sessão 82.
 @app.post("/salvar")
-async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual),
-                 dono_view: str = Depends(dono_efetivo)):
+async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
+                 dono_view: str = Depends(dono_efetivo_ou_bot)):
     rows = parse_tsv(body.tsv)
     if not rows:
         raise HTTPException(400, "Nenhuma linha válida encontrada no TSV.")
@@ -2815,7 +2845,7 @@ class DeletarRequest(BaseModel):
 
 
 @app.delete("/bilhetes")
-async def deletar_bilhetes_route(body: DeletarRequest, dono: str = Depends(dono_efetivo)):
+async def deletar_bilhetes_route(body: DeletarRequest, dono: str = Depends(dono_efetivo_ou_bot)):
     if not body.ids:
         raise HTTPException(400, "Lista de IDs vazia.")
     linhas = await deletar_bilhetes(body.ids, dono)
@@ -3012,7 +3042,7 @@ class TipsterLoteRequest(BaseModel):
 # Edição de dado existente → dono EFETIVO (mesma regra do PATCH single): atua sobre
 # as apostas que estão sendo vistas na grade.
 @app.post("/bilhetes/tipster")
-async def informar_tipster_lote(body: TipsterLoteRequest, dono: str = Depends(dono_efetivo)):
+async def informar_tipster_lote(body: TipsterLoteRequest, dono: str = Depends(dono_efetivo_ou_bot)):
     if not body.ids:
         raise HTTPException(400, "Nenhuma aposta selecionada.")
     tip = (body.tipster or "").strip()
@@ -3102,7 +3132,7 @@ class AtualizarBilheteRequest(_BilheteFinanceiroBase):
 
 @app.patch("/bilhetes/{bilhete_id}")
 async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest,
-                                  dono: str = Depends(dono_efetivo)):
+                                  dono: str = Depends(dono_efetivo_ou_bot)):
     campos = {k: v for k, v in body.model_dump().items() if v is not None}
     ok = await atualizar_bilhete(bilhete_id, campos, dono)
     if not ok:

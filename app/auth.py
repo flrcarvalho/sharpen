@@ -54,6 +54,49 @@ if not _secret_env:
     )
 
 
+# ── Token de serviço do bot de tipster (s273) ────────────────────────────────
+# UM segredo, criado uma vez, para sempre. Substitui o desenho anterior, em que
+# o bot fazia LOGIN COMO o tipster e por isso cada tipster novo obrigava a
+# guardar a SENHA DELE numa env var do Railway (eram três: Só Chutes, Zora e
+# Rei do Criquete). Aquilo não escalava e punha credencial de terceiro sob nossa
+# guarda — e a senha nem era nossa para pedir: quem se cadastra pelo site escolhe
+# a própria.
+#
+# O bot passa a se identificar assim:
+#     Authorization: Bearer <SHARPEN_BOT_TOKEN>
+#     X-Sharpen-Dono: passapano
+#
+# TRÊS condições, todas obrigatórias, para a identidade valer:
+#   1. o token confere (comparação em tempo constante);
+#   2. o dono existe e está 'ativo';
+#   3. o dono tem `bot_habilitado` — o botão do painel /admin.
+#
+# A (3) é o que torna isto administrável sem deploy: tipster novo = aprovar a
+# conta e ligar o botão. E é o que impede o token de virar chave-mestra por
+# descuido: conta aprovada não ganha escrita de robô de brinde.
+#
+# ⚠ ESCOPO: esta identidade NÃO entra em `usuario_atual` nem em `dono_efetivo`.
+# Ela vive em dependencies PRÓPRIAS (`usuario_atual_ou_bot` / `dono_efetivo_ou_bot`),
+# aplicadas só nas rotas que o bot usa. Um `grep -n "_ou_bot" app/main.py` lista,
+# exaustivamente, tudo o que o token alcança — e `/admin/*`, que segue em
+# `usuario_atual`, está fora por construção.
+#
+# Sem a env var o mecanismo fica DESLIGADO (nenhum header autentica nada), então
+# ambiente sem o segredo não ganha uma porta aberta por omissão.
+BOT_TOKEN_HEADER = "authorization"
+BOT_DONO_HEADER = "x-sharpen-dono"
+_BOT_TOKEN = os.environ.get("SHARPEN_BOT_TOKEN") or ""
+# Piso de tamanho: um token curto por engano (ex.: "1") viraria adivinhável.
+_BOT_TOKEN_MIN = 32
+if _BOT_TOKEN and len(_BOT_TOKEN) < _BOT_TOKEN_MIN:
+    raise RuntimeError(
+        f"SHARPEN_BOT_TOKEN tem {len(_BOT_TOKEN)} caracteres — mínimo {_BOT_TOKEN_MIN}. "
+        "Gere com `python -c \"import secrets; print(secrets.token_urlsafe(48))\"`."
+    )
+if not _BOT_TOKEN:
+    logger.info("SHARPEN_BOT_TOKEN ausente — planilhamento por token de serviço DESLIGADO.")
+
+
 # SEMENTE (desde o Deploy B da Fase 1, quem manda é a tabela `usuarios` via
 # _usuarios_cache — estes dicts só semeiam o cache no import e a tabela no seed).
 # usuário → hash bcrypt da senha, vindo SEMPRE das env vars do Railway
@@ -168,10 +211,25 @@ def _usuario_ativo(usuario: str) -> bool:
     return bool(entrada and entrada.get("status") == "ativo")
 
 
+# Mesmo gate, exposto para quem está fora deste módulo (o /admin precisa saber
+# se a conta está ativa antes de liberar o bot para ela).
+usuario_ativo = _usuario_ativo
+
+
 def eh_admin(usuario: str) -> bool:
     """Papel de admin (vê o agregado de custo; na Fase 2, aprova cadastros)."""
     entrada = _usuarios_cache.get(usuario)
     return bool(entrada and entrada.get("role") == "admin")
+
+
+def bot_habilitado(usuario: str) -> bool:
+    """Este dono autoriza o bot de tipster a planilhar na base dele? (s273)
+
+    Lido do cache a CADA request, igual ao gate de 'ativo': desligar o botão no
+    /admin corta a escrita do bot em ≤60s (TTL do cache), sem deploy e sem
+    rotacionar o token."""
+    entrada = _usuarios_cache.get(usuario)
+    return bool(entrada and entrada.get("bot_habilitado"))
 
 
 def operadores_de(usuario: str) -> list[str]:
@@ -365,3 +423,74 @@ def dono_efetivo(request: Request) -> str:
     if alvo and alvo != real and pode_ver_como(real, alvo):
         return alvo
     return real
+
+
+# ── Identidade do bot de tipster ─────────────────────────────────────────────
+def dono_do_bot(request: Request) -> str | None:
+    """Dono que o token de serviço está autorizado a escrever, ou None.
+
+    None (e nunca exceção) para QUALQUER falha — token ausente, errado, dono
+    inexistente, suspenso ou sem o botão ligado —, para que o chamador possa
+    tentar a sessão de navegador em seguida. Ver o bloco de comentário no topo
+    do arquivo para o desenho e o escopo.
+    """
+    if not _BOT_TOKEN:
+        return None
+    cabecalho = request.headers.get(BOT_TOKEN_HEADER) or ""
+    if not cabecalho.lower().startswith("bearer "):
+        return None
+    # compare_digest sempre, e sobre bytes: comparar com `==` vazaria o tamanho
+    # do segredo pelo tempo de resposta.
+    enviado = cabecalho[7:].strip()
+    if not secrets.compare_digest(enviado.encode(), _BOT_TOKEN.encode()):
+        return None
+    dono = (request.headers.get(BOT_DONO_HEADER) or "").strip()
+    # As três condições do desenho: dono informado, ativo e com o botão ligado.
+    # A ordem importa para o log: sem `dono` não há o que auditar.
+    if not dono:
+        logger.warning("[bot] token válido sem X-Sharpen-Dono — requisição recusada")
+        return None
+    if not _usuario_ativo(dono):
+        logger.warning("[bot] dono %r inexistente ou não-ativo — recusado", dono)
+        return None
+    if not bot_habilitado(dono):
+        logger.warning("[bot] dono %r sem bot_habilitado — recusado", dono)
+        return None
+    return dono
+
+
+# As duas dependencies abaixo ESPELHAM `usuario_atual` e `dono_efetivo`, e a
+# única diferença é o fallback para o token do bot quando não há cookie. Elas
+# existem como par porque o `/salvar` usa AS DUAS ao mesmo tempo, com sentidos
+# diferentes: dado NOVO vai para o dono REAL (decisão da s82 — criar em "ver
+# como" gravaria na base errada), enquanto a conta pelo id é resolvida no dono
+# EFETIVO. Colapsar as duas num único helper quebraria essa regra em silêncio.
+#
+# O cookie vem PRIMEIRO nas duas: o caminho do navegador não muda em nada, e o
+# token só entra onde não há sessão.
+#
+# Aplicar estas dependencies é o que dá alcance ao token — um
+# `grep -n "_ou_bot" app/main.py` lista, exaustivamente, tudo o que ele atinge.
+def usuario_atual_ou_bot(request: Request) -> str:
+    """Espelha `usuario_atual` (identidade REAL, ignora "ver como") + token do bot."""
+    real = usuario_do_request(request)
+    if real:
+        return real
+    dono = dono_do_bot(request)
+    if dono:
+        return dono
+    raise HTTPException(status_code=401, detail="Não autenticado")
+
+
+def dono_efetivo_ou_bot(request: Request) -> str:
+    """Espelha `dono_efetivo` (respeita "ver como") + token do bot."""
+    real = usuario_do_request(request)
+    if real:
+        alvo = ler_token(request.cookies.get(VER_COMO_COOKIE))
+        if alvo and alvo != real and pode_ver_como(real, alvo):
+            return alvo
+        return real
+    dono = dono_do_bot(request)
+    if dono:
+        return dono
+    raise HTTPException(status_code=401, detail="Não autenticado")

@@ -350,6 +350,16 @@ CREATE TABLE IF NOT EXISTS usuarios (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- `bot_habilitado` (s273) — o bot de tipster pode planilhar NA BASE DESTE dono.
+-- Antes disso o bot fazia login COMO o tipster, então cada tipster novo obrigava
+-- a guardar a senha DELE numa env var do Railway (eram três: Só Chutes, Zora e
+-- Rei do Criquete). Não escalava e ainda punha credencial de terceiro sob nossa
+-- guarda. Agora o bot usa UM token de serviço (SHARPEN_BOT_TOKEN, criado uma vez)
+-- e diz em qual dono está escrevendo pelo header X-Sharpen-Dono; este flag é a
+-- autorização, e é um botão no painel /admin. Tipster novo = aprovar + ligar.
+-- Nasce FALSE de propósito: conta aprovada não ganha escrita de robô de brinde.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bot_habilitado BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- ── Tempo real: aviso de mudança na base (s241) ───────────────────────────────
 -- Qualquer escrita em `bilhetes` (INSERT/UPDATE/DELETE — venha do app, da
 -- extensão, do sync da Polymarket ou de script de import) dispara
@@ -462,7 +472,8 @@ async def listar_usuarios() -> list[dict]:
         linhas = await conn.fetch(
             """
             SELECT username, email, status, role, parent_owner,
-                   COALESCE(planilha_url, '') <> '' AS planilha_viva, criado_em
+                   COALESCE(planilha_url, '') <> '' AS planilha_viva,
+                   bot_habilitado, criado_em
             FROM usuarios
             ORDER BY (status = 'pendente') DESC, criado_em DESC
             """
@@ -560,8 +571,25 @@ async def carregar_usuarios() -> list[dict]:
     async with pool.acquire() as conn:
         linhas = await conn.fetch(
             """
-            SELECT username, senha_hash, status, role, parent_owner, planilha_url
+            SELECT username, senha_hash, status, role, parent_owner, planilha_url,
+                   bot_habilitado
             FROM usuarios
             """
         )
     return [dict(l) for l in linhas]
+
+
+async def definir_bot_habilitado(username: str, habilitado: bool) -> bool:
+    """Liga/desliga o planilhamento pelo bot de tipster nesta base (s273).
+
+    É a autorização do token de serviço: sem este flag, o token não escreve nada
+    no dono, mesmo válido. True se o usuário existia; o chamador recarrega o
+    cache de auth (o flag é lido de lá a cada request)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        r = await conn.execute(
+            "UPDATE usuarios SET bot_habilitado = $2, atualizado_em = NOW() "
+            "WHERE username = $1",
+            username, habilitado,
+        )
+    return r.endswith(" 1")

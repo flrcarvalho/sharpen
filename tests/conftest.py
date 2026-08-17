@@ -72,6 +72,9 @@ if not os.environ.get("TEST_DATABASE_URL"):
         async def criar_usuario_social(*a, **k):  # pragma: no cover - importado por main, nunca chamado nos testes
             raise RuntimeError("DB indisponível nos testes de fórmula")
 
+        async def definir_bot_habilitado(*a):  # pragma: no cover - importado por main, nunca chamado nos testes
+            raise RuntimeError("DB indisponível nos testes de fórmula")
+
         _fake_db.get_pool = get_pool
         _fake_db.dsn = dsn
         _fake_db.init_db = init_db
@@ -84,4 +87,5 @@ if not os.environ.get("TEST_DATABASE_URL"):
         _fake_db.vincular_social = vincular_social
         _fake_db.usernames_em_uso = usernames_em_uso
         _fake_db.criar_usuario_social = criar_usuario_social
+        _fake_db.definir_bot_habilitado = definir_bot_habilitado
         sys.modules["database"] = _fake_db
