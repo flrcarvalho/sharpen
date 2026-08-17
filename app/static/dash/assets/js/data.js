@@ -64,6 +64,9 @@ const CASA_ICONS={
   'Pitaco':'https://www.google.com/s2/favicons?sz=128&domain=pitaco.bet.br',
   'SportingBet':'https://www.google.com/s2/favicons?sz=128&domain=sportingbet.com',
   'Stake':'https://www.google.com/s2/favicons?sz=128&domain=stake.bet.br',
+  // Casas novas da base do PassaTips VIP (s272) — caixa conferida no site de cada uma.
+  'Betvip':'https://www.google.com/s2/favicons?sz=128&domain=betvip.bet.br',
+  'Suprema Bet':'https://www.google.com/s2/favicons?sz=128&domain=suprema.bet.br',
   'Superbet':'https://www.google.com/s2/favicons?sz=128&domain=superbet.com',
   'Tivo':'https://www.google.com/s2/favicons?sz=128&domain=tivo.bet.br',
   'VaideBet':'https://www.google.com/s2/favicons?sz=128&domain=vaidebet.bet.br',
@@ -117,6 +120,8 @@ const HOUSE_DOMAIN={
   'Pitaco':'pitaco.bet.br',
   'SportingBet':'sportingbet.com',
   'Stake':'stake.bet.br',
+  // Casas novas da base do PassaTips VIP (s272).
+  'Betvip':'betvip.bet.br','Suprema Bet':'suprema.bet.br',
   'Superbet':'superbet.com',
   'Tivo':'tivo.bet.br',
   'VaideBet':'vaidebet.bet.br',

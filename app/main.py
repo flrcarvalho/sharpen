@@ -3390,6 +3390,11 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # `usuarios` (ativo, cadastro em autosserviço), não deduzido do nome da
     # planilha. Base multiesporte em unidades: escanteios, props e múltiplas.
     "reidocriquete": {"dono": "reidocriquete", "nome": "Rei do Criquete"},
+    # 5º tipster (s272). Marca e username DIVERGEM de novo, como no Fleury: a
+    # marca é `PassaTips VIP` e o username é `passapano` (conferido na tabela
+    # `usuarios` — ativo, cadastro em autosserviço em 17/08/2026). Base
+    # MULTIESPORTE em unidades: 911 apostas em 20 esportes, 02/06 → 17/08/2026.
+    "passatipsvip": {"dono": "passapano", "nome": "PassaTips VIP"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres
