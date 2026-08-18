@@ -456,6 +456,15 @@ linhas mal classificadas fora de qualquer correção.
 Contrapartida: edição manual de data/stake/odd/esporte/categoria/descrição numa casa
 sincronizada **não sobrevive** ao sync. O `tipster` sobrevive.
 
+**E o congelamento só começa quando a linha RESOLVE.** Enquanto `extraction_state =
+'aberta'`, `data`, `odd` e `stake` são refrescados por qualquer reenvio, de qualquer
+origem. Quem escreve por robô reenvia a cada marcação (o bot de tipster manda sempre o
+mesmo timestamp do print), então **editar esses campos à mão no dashboard antes da
+liquidação é desfeito sem aviso**: a tela aceita, salva, e o próximo reenvio devolve o
+valor antigo. Para corrigir linha viva de fonte automática, corrija NA FONTE (no caso do
+bot, `/ajustar #N <data>`, que reenvia e depois faz `PATCH /bilhetes/{id}`) ou espere a
+liquidação. A edição à mão vale sozinha em linha já resolvida e em casa não sincronizada.
+
 > **Método:** melhorar o cálculo não basta — confira se ele **chega ao banco**. Depois de
 > corrigir qualquer fórmula, diffe `banco × coletor` linha a linha.
 
@@ -559,4 +568,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-18 (sessão 276 — token de serviço do bot; planilha e bot na mesma série de código)
+ATUALIZADO: 2026-08-18 (sessão 278 — congelamento do UPSERT só começa quando a linha resolve)
