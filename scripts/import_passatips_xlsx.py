@@ -511,6 +511,45 @@ async def importar(rows: list[dict]):
         None, None, ORIGEM,                       # confianca, stake_usd, origem
     ) for r in rows]
 
+    # ── GUARD DE COLISÃO COM O BOT (s273) ────────────────────────────────────
+    # A partir do dia em que o bot de tipster entra, ele e esta planilha passam a
+    # escrever na MESMA série de códigos `PT<aaaamm>-<n>` — e o código entra na
+    # assinatura (`ID|casa|parceiro|codigo`). Dois escritores, uma série, nenhum
+    # sabendo do outro.
+    #
+    # Isso não é hipótese: em 18/08 o import gravou `PT202608-259` às 09:19 e o
+    # bot criou o bilhete #259 às 09:20, com a mesma casa e a mesma conta. A
+    # assinatura bateu, o `/salvar` tratou como o MESMO bilhete e a aposta do dia
+    # foi absorvida pela linha importada — sem erro, sem aviso, sem linha nova.
+    #
+    # Por isso o import agora ABORTA quando um código que ele vai gravar já
+    # existe sob outra origem. É a única checagem possível deste lado: quem
+    # escreveu antes tem precedência, e o conserto (subir o contador do bot) é
+    # decisão humana, não algo para o script adivinhar.
+    conn = await asyncpg.connect(url, command_timeout=120)
+    try:
+        colisoes = await conn.fetch(
+            """
+            SELECT codigo_bilhete, casa, descricao, origem
+            FROM bilhetes
+            WHERE dono = $1 AND origem <> $2 AND codigo_bilhete = ANY($3::text[])
+            ORDER BY codigo_bilhete
+            """,
+            DONO, ORIGEM, [r['codigo'] for r in rows],
+        )
+    finally:
+        await conn.close()
+    if colisoes:
+        print(f'\n✋ ABORTADO — {len(colisoes)} código(s) que este import geraria já '
+              f'existem na base, gravados por OUTRA origem (o bot):')
+        for c in colisoes:
+            print(f"    {c['codigo_bilhete']} | {c['casa']} | {c['descricao'][:50]} "
+                  f"| origem={c['origem']}")
+        raise SystemExit(
+            'Sobrescrever isso apagaria aposta que o bot planilhou. Suba o contador do bot '
+            '(/contador N no apoio) para além do último código da planilha e rode de novo.'
+        )
+
     last_err = None
     for tentativa in range(1, 4):
         try:
