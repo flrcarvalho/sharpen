@@ -44,6 +44,18 @@
 Quem intercepta a resposta da API tem de rodar no mundo `MAIN` — daí o `xx_inject.js`.
 Eles só conversam por `postMessage`.
 
+> ⚠️ **A escolha do mundo não é só sobre `fetch`: ela decide se o CLIQUE funciona.** Ler a
+> resposta exige `MAIN`; **dirigir a página pode exigir o ISOLATED**. Na bet365 (s279) o mesmo
+> `.click()`, no mesmo `div.hl-SummaryRenderer_ShowMore`, dá **8 cliques com zero requisição**
+> quando disparado do `b3_inject` (MAIN) e **carrega a página seguinte** quando disparado de um
+> content script comum — enquanto pelo console (que também é MAIN) funciona. Foram descartados
+> por medição, não por dedução: patch de `HTMLElement.prototype.click` (é `[native code]`),
+> barreira `isTrusted` (o clique sintético carregou 3×), handler num filho (o div não tem
+> filhos) e viewport (o iframe não rola). **Casa que precise clicar: separe o arquivo que
+> escuta do arquivo que clica**, como `b3_inject.js` (MAIN, escuta) + `b3_expand.js` (ISOLATED,
+> clica), conversando por `window.postMessage` na mesma window. E note o custo de não fazer
+> isso: o laço no mundo errado **não dá erro** — ele clica, conta os cliques e reporta fim.
+
 **O que a extensão NÃO faz:** decidir W/L/V, traduzir mercado, calcular P/L. Ela entrega
 **texto cru e fiel** (com o marcador `[Código: …]`); quem interpreta é a IA com os
 `global/MASTER_*` + `casas/CASA_*.md`. Regra da casa: *cálculo é global, localização é da casa*.
@@ -116,7 +128,7 @@ Regras que valem para todos:
 | **Pinnacle** | API + replay | `POST /member-service/v2/wager-filter` | `pn_inject.js` | `id` (array posicional!) | replay das 2 abas | data do evento |
 | **KTO** | API + replay | `GET /coupon/history.json` (Kambi) | `kto_inject.js` | `couponRef` | `range.more:false` | `placedDate` (UTC→BRT) |
 | **Stake** | API + replay (paginado) | `POST /restapi/v1/betslip/history` (Kambi atrás de REST próprio) | `stk_inject.js` | `internal_bet_id` (7 díg.) | `next_page_exists:false` | `ticket_placed_date` (UTC→SP) |
-| **Bet365** | rota (`location.hash`) | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
+| **Bet365** | rota (`location.hash`) + "Mostrar Mais" automático | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` (MAIN) + `b3_expand.js` (ISOLATED, clica) | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
 | **Tivo** | API + replay (1 chamada) | `POST /api/game/p/messagetosport` (`gethistory`) | `tv_inject.js` | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
 | **Betfast** | **espelho da Tivo** — mesmo motor BetConstruct | idem | **`tv_inject.js`** (o mesmo) | `ID` | teto de 50 + varredura por `to` ⚠ | evento mais recente (UTC→SP) |
 | **BetNacional** | API + replay (janelas de datas) | `GET /api/v2/all-bets` | `bnc_inject.js` | `ticket_id` | janelas até secar | ⚠ ver nota abaixo |

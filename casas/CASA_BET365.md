@@ -39,11 +39,14 @@
   <valor>` **já calculada** (média das linhas, `MASTER_RESULTADO §7.3`). **Use esse valor; não
   multiplique as odds das seleções.** Se a estrutura não fechar (Trixie/Yankee, que misturam
   tamanhos de linha), o bloco pede o cálculo pelo §7 em vez de entregar número — nunca chuta.
-- ⚠️ **A captura é PASSIVA: o robô só enxerga o que a lista da tela já carregou.** O `b3_inject`
-  lê as respostas que a própria página baixa; ele não rola nem pagina sozinho (o "Mostrar Mais" é
-  não-automatizável, s180). Lista não expandida = bilhete não capturado, **em silêncio**. Expanda
-  a lista até o fim antes de mandar capturar, e confira no console:
-  `[SharpenUp] Bet365 API: N bilhete(s) · com código=X/Y`.
+- ⚠️ **A captura é PASSIVA — o `b3_inject` lê as respostas que a própria página baixa.** O que
+  ele dirige são dois gestos: **expandir a lista** ("Mostrar Mais" automático, s279) e navegar
+  por rota até a confirmação de cada bilhete (s180). Basta abrir o Histórico na janela desejada
+  e mandar capturar; **o operador não clica mais em "Mostrar Mais"** (era obrigatório até a
+  v0.6.47, e quem parasse antes do fim capturava só o 1º lote **em silêncio**). Confira no
+  console: `[SharpenUp] Bet365 API: N bilhete(s) · com código=X/Y` e as linhas
+  `[SharpenUp b3_expand] #N · altura … · cards …` (quem clica é o `b3_expand.js`, no mundo
+  ISOLATED — no MAIN o clique não aciona a casa, ver `docs/SHARPENUP_ARQUITETURA.md §1`).
 - **Fallback: visão (screenshot).** Se a captura não trouxer nada (aba do Histórico não aberta
   ou extensão desatualizada), o **print manual** continua valendo — as regras de layout abaixo
   valem para esse caminho. Não há mais fallback de DOM: o robô que raspava os cards

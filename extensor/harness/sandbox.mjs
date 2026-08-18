@@ -39,8 +39,17 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
  *        Recebe TODA requisição, inclusive as do replay: é aqui que se simula paginação.
  * @param {string} [cfg.pedido]   chave do pedido do content (ex.: "__sharpenupKTOReq") —
  *        postada após a 1ª resposta para arrancar o replay ativo.
+ * @param {object} [cfg.pedidoMsg]  pedido COMPLETO a postar (a mensagem inteira do content, com
+ *        `acao`/`jaTem`). Use quando a fase testada depender da ação, não só do "acorda".
+ * @param {"turbo"} [cfg.relogio]  ver o comentário do `_st` abaixo — encurta as esperas do inject.
  * @param {object} [cfg.optsInicial]  2º argumento do fetch inicial (method/headers/body). Use
  *        quando o replay depender dos HEADERS que a página mandou — ex.: o Bearer da Jonbet.
+ * @param {object} [cfg.dom]      `document` dublado, para os injects que DIRIGEM a página além de
+ *        escutá-la. Hoje só a bet365: ela expande a lista clicando `.hl-SummaryRenderer_ShowMore`
+ *        (s279) e sem um DOM aqui o loop de expansão ficaria sem regressão — justamente o loop
+ *        que precisa provar que TERMINA. Precisa expor ao menos `querySelector`. O default é um
+ *        documento vazio (querySelector → null), que é o que os outros 16 casos veem: inject que
+ *        não toca no DOM segue idêntico.
  * @param {string[]} [cfg.urlsExtra]  URLs buscadas DEPOIS da inicial, em ordem. Existe para as
  *        casas cujo detalhe a PÁGINA busca, não o inject — na bet365 o `confirmation` só sai
  *        quando o app navega por rota (`location.hash`), coisa que não existe fora do navegador.
@@ -83,6 +92,14 @@ export async function rodarInject(cfg) {
     location: { href: cfg.href, origin: new URL(cfg.href).origin },
     frames: [],
     addEventListener(tipo, cb) { if (tipo === "message") ouvintes.push(cb); },
+    // `removeEventListener` não é enfeite: o inject registra um ouvinte por rodada enquanto
+    // espera a expansão e o solta no fim. Sem ele aqui, o harness quebrava com TypeError e
+    // qualquer vazamento de ouvinte passaria despercebido.
+    removeEventListener(tipo, cb) {
+      if (tipo !== "message") return;
+      const i = ouvintes.indexOf(cb);
+      if (i > -1) ouvintes.splice(i, 1);
+    },
     postMessage(msg) {
       mensagens.push(msg);
       // Entrega também aos ouvintes do próprio inject (é assim que o content dispara o replay).
@@ -109,11 +126,24 @@ export async function rodarInject(cfg) {
     },
   };
 
+  // Documento dublado (ver `cfg.dom`): vazio por padrão — o inject que só escuta nunca o toca.
+  // Em forma de FUNÇÃO recebe a `janela`, para o clique dublado poder disparar a requisição que
+  // a PÁGINA faria (é assim que "Mostrar Mais" carrega o lote seguinte na bet365).
+  const documento = (typeof cfg.dom === "function" ? cfg.dom(janela) : cfg.dom) ||
+                    { querySelector: () => null, querySelectorAll: () => [] };
+  janela.document = documento;
+
+  // Relógio turbo (`cfg.relogio === "turbo"`): o `setTimeout` do inject dispara na hora. Existe
+  // para o loop de expansão da bet365, que espera 900ms entre cliques — em tempo real um caso de
+  // 3 cliques + 8 ciclos de estagnação levaria ~10s e o harness inteiro roda em menos de 1s. NÃO
+  // mexe em `Date.now()`: quem tem teto por relógio (`esperarCodigo`) continua medindo tempo real.
+  const _st = cfg.relogio === "turbo" ? ((cb) => setTimeout(cb, 0)) : setTimeout;
+
   const ctx = {
-    window: janela, location: janela.location, XMLHttpRequest: XHRFake,
+    window: janela, location: janela.location, XMLHttpRequest: XHRFake, document: documento,
     console: { log: () => {}, warn: () => {}, error: () => {} },   // silencia o LOG do inject
     URL, URLSearchParams, JSON, Math, Date, Array, Number, String, Object, Boolean,
-    Promise, Set, Map, isFinite, isNaN, parseFloat, parseInt, Intl, setTimeout, clearTimeout,
+    Promise, Set, Map, isFinite, isNaN, parseFloat, parseInt, Intl, setTimeout: _st, clearTimeout,
     // Binário: a Pitaco responde protobuf em gRPC-Web, então o inject dela monta e lê bytes.
     // No navegador esses globais sempre existiram; aqui o `vm` só enxerga o que a gente passa.
     Uint8Array, Int8Array, Uint32Array, DataView, ArrayBuffer, TextDecoder, TextEncoder,
@@ -144,6 +174,10 @@ export async function rodarInject(cfg) {
   }
   // 2) o content pede o acumulado e arranca o replay
   if (cfg.pedido) { janela.postMessage({ [cfg.pedido]: true }); }
+  // Pedido COMPLETO (objeto): o content manda mais que a chave — na bet365 manda `acao` e
+  // `jaTem`, e é a `acao:"detalhar"` que arranca a expansão da lista. Postado depois do simples
+  // porque alguns injects usam o 1º como "acorda" e o 2º como comando.
+  if (cfg.pedidoMsg) { janela.postMessage(cfg.pedidoMsg); }
   await espera(cfg.ms || 400);
 
   const meus = mensagens.filter((m) => m && Object.keys(m).some((k) => k.endsWith("Data")));

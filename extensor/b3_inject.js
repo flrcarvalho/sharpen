@@ -15,6 +15,11 @@
 // (location.hash = #/HICO/BSSB/C<bsid>/D1/) até a confirmation de cada bilhete, e este arquivo
 // só escuta as respostas. Ver docs/PLANO_BET365_CAPTURA_API.md.
 //
+// DUAS COISAS ELE DIRIGE (o resto é escuta pura): expande a lista clicando "Mostrar Mais" até o
+// fim (`expandirLista`, s279 — era o último gesto manual da casa) e navega por `location.hash`
+// até a confirmação de cada bilhete (`detalharPorRota`, s180). Nenhuma das duas chama a API por
+// conta própria — quem chama é sempre a página, com o token dela.
+//
 // POR QUE PRECISA DO DETALHE: o `summary` NÃO traz jogo/mercado/liga nem o código `BR` — só a
 // seleção crua, odd, stake, retorno, o esporte (`CL`) e as pernas de bet builder. O
 // `confirmation?bsid=` completa.
@@ -221,11 +226,17 @@
   }
 
   // ── Helpers do detalhamento por ROTA (ver `detalharPorRota` abaixo) ────────────
-  // O detalhamento por CLIQUE na lista (driver de UI, até a v0.6.13) foi REMOVIDO na s180: o
-  // "Mostrar Mais" da bet365 é bugado (não aciona nem com ~1000 cliques sintéticos — barreira
-  // isTrusted) e a lista reinicia no topo ao "Voltar". O método por rota (`location.hash`,
-  // abaixo) dispensa lista, "Voltar" e "Mostrar Mais" — navega direto na confirmação de cada
-  // bilhete. Histórico dessa saga no git (v0.6.5→0.6.13) e no STATUS (s180a).
+  // O detalhamento por CLIQUE na lista (driver de UI, até a v0.6.13) foi REMOVIDO na s180: ao
+  // voltar de um detalhe a lista reinicia no topo e perde as páginas já carregadas. O método por
+  // rota (`location.hash`, abaixo) dispensa lista e "Voltar" — navega direto na confirmação de
+  // cada bilhete. Histórico dessa saga no git (v0.6.5→0.6.13) e no STATUS (s180a).
+  //
+  // ⚠️ O QUE AQUELE COMENTÁRIO AFIRMAVA E ERA FALSO (corrigido na s279): "o 'Mostrar Mais' é
+  // bugado, não aciona nem com ~1000 cliques sintéticos — barreira isTrusted". Isso era DEDUÇÃO
+  // a partir de um driver que clicava numa lista que ele mesmo desmontava a cada bilhete. Prova
+  // em contrário: uma extensão de terceiro (o "auto-show-more" do arrudex) clica no MESMO
+  // seletor com `el.click()` puro e expande a lista inteira, sem truque nenhum. Não há barreira
+  // de trusted event — havia lista instável. Ver `expandirLista`, logo abaixo.
   const jaTentados = new Set();   // bsids já tentados neste ciclo → não repete (término garantido) e
                                   // deixa passadas novas pegarem o que chegou depois (período em lotes)
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -248,6 +259,88 @@
     let antes = 0; for (const b of byBsid.values()) if (b.code) antes++;
     try { location.hash = rota; } catch (e) {}
     return await esperarCodigo(antes, teto);
+  }
+
+  // ── EXPANSÃO DA LISTA — "Mostrar Mais" automático (s279) ──────────────────────
+  // O ÚNICO gesto humano que sobrava na bet365: sem clicar "Mostrar Mais" até o fim, a página só
+  // baixa o 1º lote de `/summary` e o robô capturava só esses ~10 bilhetes — silenciosamente, sem
+  // erro nenhum. O detalhamento já é automático desde a s180 (por rota); a paginação, não.
+  //
+  // QUEM CLICA É O `b3_expand.js`, no mundo ISOLATED — não este arquivo. A 1ª tentativa clicava
+  // aqui mesmo (MAIN) e deu 8 cliques com ZERO requisição, enquanto o mesmo `.click()` no mesmo
+  // elemento funcionava pelo console. O porquê disso continua sem nome; o cabeçalho do
+  // `b3_expand.js` lista tudo o que foi descartado por medição. Este arquivo só PEDE e ESPERA.
+  //
+  // A ORDEM IMPORTA: expandir tem de terminar antes de `detalharPorRota`, que navega por hash e
+  // tira a lista da tela. O que não carregou até ali não existe para o robô.
+  //
+  // Consequência boa de a captura ser passiva: depois de expandida, a lista pode resetar à
+  // vontade — cada clique já fez a página baixar um `/summary` que o hook guardou em `byBsid`.
+  const ESPERA_ACK  = 1500;     // ms; sem ACK = `b3_expand` ausente → segue sem expandir
+  const TETO_EXPAND = 420000;   // ms; teto do lado de cá (o de lá é 400 cliques × 900ms)
+
+  let expansaoFeita = false;    // 1 expansão por rodada do robô (reset no `onmessage`)
+  let expandindo = false;
+
+  async function expandirLista() {
+    if (expandindo || expansaoFeita) return;
+    if (!byBsid.size) return;   // frame sem summaries não é o da lista de membros
+    expandindo = true;
+    expansaoFeita = true;
+    let ack = false, pronto = null;
+    const ouvir = (ev) => {
+      const d = ev.data;
+      if (!d) return;
+      if (d.__sharpenupB3ExpandAck) ack = true;
+      if (d.__sharpenupB3Expandido) { ack = true; pronto = d; }
+    };
+    window.addEventListener("message", ouvir);
+    const t0 = Date.now();
+    try {
+      // Avisa o content ANTES de qualquer espera: o laço dele roda a cada 500ms e a condição de
+      // fim precisa saber que há expansão em curso já na 1ª volta. Sem este ping o robô podia
+      // encerrar durante o ACK (s279 — o log mostrava `[b3_expand] #N` saindo DEPOIS do
+      // `Bet365 API: N bilhete(s)`).
+      enviar(false, { expandindo: true });
+      window.postMessage({ __sharpenupB3Expandir: true }, "*");
+      while (!ack && Date.now() - t0 < ESPERA_ACK) await espera(100);
+      if (!ack) {
+        LOG("expansão: b3_expand não respondeu — seguindo sem expandir (extensão desatualizada?)");
+        return;
+      }
+      while (!pronto && Date.now() - t0 < TETO_EXPAND) {
+        await espera(300);
+        // Ping ao content: durante a expansão a contagem fica parada e o robô tem timeout de
+        // 45 s de inatividade — sem este sinal ele desistiria no meio.
+        enviar(false, { expandindo: true });
+      }
+      if (pronto) {
+        LOG("expansão: " + pronto.cliques + " clique(s) · " + pronto.cards + " card(s) · " +
+            pronto.motivo + " · " + Math.round((Date.now() - t0) / 1000) + "s · bilhetes " + byBsid.size);
+      } else {
+        LOG("expansão: teto de " + Math.round(TETO_EXPAND / 1000) + "s estourado — seguindo com o que veio");
+      }
+    } catch (e) {
+      LOG("expansão erro:", e && e.message);
+    } finally {
+      window.removeEventListener("message", ouvir);
+      expandindo = false;
+      // `expandindo:false` é o que LIBERA o fim do robô — inclusive nos caminhos de erro e de
+      // ACK ausente. Por isso vive no `finally`, não no caminho feliz.
+      enviar(false, { expandindo: false });
+    }
+  }
+
+  // Expandir SEMPRE antes de detalhar. Guarda única para as duas fases — o content re-pede
+  // "detalhar" a cada ~6 s e sem isto a 2ª chamada entraria no meio da expansão.
+  let cicloRodando = false;
+  async function expandirEDetalhar(jaTem) {
+    if (cicloRodando) return;
+    cicloRodando = true;
+    try {
+      await expandirLista();
+      await detalharPorRota(jaTem);
+    } finally { cicloRodando = false; }
   }
 
   // ── DETALHAMENTO POR ROTA (s180 — o método bom) ───────────────────────────────
@@ -330,8 +423,15 @@
                                              jaTem: d.jaTem, saltos: saltos }, "*"); } catch (e) {}
       }
     }
+    // Pedido SEM ação = o content está abrindo uma rodada nova do robô (`b3Pedir(N)` é a 1ª
+    // coisa que `roboBet365Passive` faz). É o único sinal de "começou de novo" que o inject
+    // recebe — a página não recarrega entre rodadas. Sem este reset, rodar o robô 2× sem F5
+    // deixaria a 2ª rodada sem expandir a lista.
+    if (!d.acao) expansaoFeita = false;
     enviar();
-    if (d.acao === "detalhar") detalharPorRota(d.jaTem);   // rota por hash (não clica na lista)
+    // Expande a lista ("Mostrar Mais") e só então detalha por hash. A ordem importa: detalhar
+    // navega para fora da lista, e o que não foi carregado até ali não existe para o robô.
+    if (d.acao === "detalhar") expandirEDetalhar(d.jaTem);
   });
 
   // ── fetch ──

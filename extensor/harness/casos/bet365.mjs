@@ -14,7 +14,9 @@
 //   4. a odd fracionária vira decimal com precisão completa;
 //   5. o buraco CONHECIDO da data em bet builder de mesmo jogo (ver `SEM_DATA`, abaixo);
 //   6. SISTEMA (`N x Duplas`): a odd é a MÉDIA das linhas, nunca o produto das odds (s265).
-import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
+import fs from "node:fs";
+import path from "node:path";
+import { rodarInject, carregarContent, fixture, linha, EXT } from "../sandbox.mjs";
 
 export const casa = "Bet365";
 
@@ -170,5 +172,213 @@ export async function rodar() {
     }
   }
 
+  falhas.push(...duplaEEsportes(fmt));
+  falhas.push(...await expansao());
   return { falhas, testes: bets.length };
+}
+
+// ── 7. EXPANSÃO DA LISTA — o "Mostrar Mais" automático (s279) ─────────────────
+// Quem clica é o `b3_expand.js`, no mundo ISOLATED (o porquê está no cabeçalho dele). O que se
+// prova aqui é o LOOP, não o parser: que ele clica e — o que realmente importa — que ele
+// TERMINA pelas duas saídas.
+//
+// Por que isto merece regressão própria: até a v0.6.47 o operador clicava "Mostrar Mais" à mão
+// e, se parasse antes do fim, o robô capturava só o 1º lote **sem erro nenhum**, como se aquilo
+// fosse a lista inteira. Trocar um gesto humano por um laço automático move a falha silenciosa
+// de lugar: laço que não termina trava a captura, e laço que termina cedo demais reproduz
+// exatamente o defeito antigo.
+//
+// O QUE ISTO **NÃO** COBRE (medido por mutação, s279): o clique de verdade. `btn.click()` num
+// objeto dublado sempre "funciona" — foi por isso que a 1ª versão passou verde no harness e
+// deu 8 cliques com ZERO requisição na casa. Este caso trava o laço; quem prova o clique é a
+// aba real, e o tell lá é o log `[SharpenUp b3_expand] #N · altura … · cards …`: altura parada
+// com cliques subindo = o clique não está acionando a casa.
+// DOM dublado: botão que aceita `limite` cliques e depois some, e uma altura que só cresce
+// quando `crescer` é verdadeiro. É o mínimo que o laço lê.
+function domFalso({ limite, crescer }) {
+  const est = { cliques: 0, altura: 1000 };
+  const botao = {
+    scrollIntoView() {},
+    click() { est.cliques++; if (crescer) est.altura += 800; },
+  };
+  est.doc = () => ({
+    body: { get scrollHeight() { return est.altura; } },
+    querySelector: (sel) => (sel === '.hl-SummaryRenderer_ShowMore'
+      ? (est.cliques >= limite ? null : botao) : null),
+    querySelectorAll: () => [],
+  });
+  return est;
+}
+
+async function rodarExpand(est) {
+  return rodarInject({
+    inject: 'b3_expand.js',
+    href: 'https://members.bet365.bet.br/members/',
+    urlInicial: 'https://members.bet365.bet.br/x',
+    relogio: 'turbo',
+    dom: () => est.doc(),
+    pedidoMsg: { __sharpenupB3Expandir: true },
+    responder: () => null,
+    ms: 500,
+  });
+}
+
+async function expansao() {
+  const falhas = [];
+
+  // ── 7a. Botão some depois de 2 cliques → para em 2 ──────────────────────────
+  {
+    const est = domFalso({ limite: 2, crescer: true });
+    await rodarExpand(est);
+    if (est.cliques !== 2) {
+      falhas.push(`expansão: esperava 2 cliques (o botão some no 3º), foram ${est.cliques} — ` +
+                  `mais que isso é laço que não vê o fim da lista; menos, é a captura parando ` +
+                  `no 1º lote (o defeito que a s279 resolveu)`);
+    }
+  }
+
+  // ── 7b. Botão eterno e altura parada → para por estagnação ──────────────────
+  // Sem esta saída o laço giraria enquanto a aba estivesse aberta. `SEM_MUDANCA_MAX` é 8 no
+  // `b3_expand`; o teto duro (`MAX_CLIQUES`, 400) não pode ser o que segura este caso.
+  {
+    const est = domFalso({ limite: Infinity, crescer: false });
+    await rodarExpand(est);
+    if (est.cliques !== 8) {
+      falhas.push(`expansão: com o botão eterno e a altura da página parada (o critério de fim, ` +
+                  `igual ao da extensão que funciona), esperava parar em 8 cliques, parou em ` +
+                  `${est.cliques}. ${est.cliques > 8
+                    ? 'Laço sem freio: numa aba real ele clicaria até o teto de 400.'
+                    : 'Freio curto demais: a casa às vezes demora a entregar o lote e a lista ' +
+                      'ficaria pela metade, em silêncio.'}`);
+    }
+  }
+
+  // ── 7c. A PONTE não trava quando o `b3_expand` não responde ─────────────────
+  // O `b3_inject` pede a expansão e espera. Se o `b3_expand` não estiver lá (extensão
+  // desatualizada, frame sem lista), ele tem de seguir para o detalhamento em vez de esperar o
+  // teto de 7 minutos — senão uma versão velha do content script trava a captura inteira.
+  {
+    const { ultima } = await rodarInject({
+      inject: 'b3_inject.js',
+      href: 'https://members.bet365.bet.br/members/',
+      urlInicial: 'https://members.bet365.bet.br/sportshistoryapi/summary?settled=1',
+      relogio: 'turbo',
+      // Ninguém responde ao `__sharpenupB3Expandir`: é exatamente o cenário do b3_expand ausente.
+      pedidoMsg: { __sharpenupB3Req: true, acao: 'detalhar',
+                   jaTem: ['49637455311', '49635244290', '49633134678'] },
+      responder: (url) => (/\/sportshistoryapi\/summary/.test(url) ? fixture('bet365.summary.txt') : null),
+      // 2,5 s de forno: a espera pelo ACK é de 1,5 s em tempo REAL (o relógio turbo do sandbox
+      // acelera `setTimeout`, não `Date.now()`). Colher antes disso mediria o teste, não o código.
+      ms: 2500,
+    });
+    if (!ultima || !ultima.fim) {
+      falhas.push('ponte: sem o `b3_expand` respondendo, o inject não chegou a anunciar `fim` — ' +
+                  'a espera pelo ACK não está soltando e a captura travaria na expansão');
+    }
+  }
+
+  // ── 7d. O robô não pode encerrar ANTES de a expansão acabar ─────────────────
+  // Teste ESTRUTURAL (lê o texto do `content.js`), e é de propósito: exercitar
+  // `roboBet365Passive` de verdade exigiria dublar painel, ctx e o relógio da captura inteira,
+  // e o que se quer travar são duas linhas específicas.
+  //
+  // O bug que ele guarda (s279, visto ao vivo): `b3FimReal` é variável de MÓDULO e ficava
+  // `true` desde a captura anterior — a página não recarrega entre rodadas. Com a memória
+  // cheia (`resta === 0`), o laço encerrava na 1ª volta, 500ms depois de começar, **enquanto o
+  // `b3_expand` ainda clicava**. O console mostrava o `Bet365 API: N bilhete(s)` sair ANTES das
+  // linhas `[b3_expand] #N`, e a captura ficava com o que a lista tinha no começo.
+  {
+    const src = fs.readFileSync(path.join(EXT, "content.js"), "utf8");
+    const corpo = src.slice(src.indexOf("async function roboBet365Passive"));
+    if (!/^\s*b3FimReal = false;/m.test(corpo.slice(0, 2000))) {
+      falhas.push("content.js: `roboBet365Passive` não reseta `b3FimReal` no início — estado da " +
+                  "rodada anterior vaza e o robô encerra na 1ª volta quando a memória está cheia");
+    }
+    if (!/^\s*b3Expandindo = false;/m.test(corpo.slice(0, 2000))) {
+      falhas.push("content.js: `roboBet365Passive` não reseta `b3Expandindo` no início");
+    }
+    if (!/if \(b3FimReal && resta === 0 && !b3Expandindo\) break;/.test(corpo)) {
+      falhas.push("content.js: a condição de fim do robô não exige `!b3Expandindo` — o robô pode " +
+                  "encerrar no meio do 'Mostrar Mais' e perder tudo o que a lista carregar depois");
+    }
+    const inj = fs.readFileSync(path.join(EXT, "b3_inject.js"), "utf8");
+    if (!/enviar\(false, \{ expandindo: false \}\)/.test(inj)) {
+      falhas.push("b3_inject.js: a expansão não sinaliza `expandindo:false` ao terminar — a flag " +
+                  "ficaria presa em true e o robô só sairia pelo timeout de 45s");
+    }
+  }
+
+  return falhas;
+}
+
+// ── 8. DUPLA do mesmo esporte: a odd é o PRODUTO, não a da 1ª seleção ────────
+// Bug medido na captura de 129 bilhetes da s279 (o "Mostrar Mais" automático não o criou —
+// ampliou a amostra até ele aparecer). O gatilho é escapar de `multiplo`, que exige 3+ jogos
+// OU 2 esportes: uma DUPLA do mesmo esporte não é nenhum dos dois, e o bloco imprimia `Odd:`
+// com `t.oddFrac` = a odd da PRIMEIRA seleção.
+//
+// Quatro casos reais na exportação; os números abaixo são do `QA8502058091I`:
+//   stake 46 · retorno 1173 → 25,5 · odds 4,25 e 6 → produto 25,5 · o bloco dizia 4,25.
+// Em `W` a IA se salva pelo `Retorno ÷ Aposta`; em `L` (`PA9555804861I`: 3,25 onde o certo era
+// 11,7) não há retorno para mascarar — é a mesma família do bug de sistema da s265.
+//
+// Bilhete SINTÉTICO de propósito: a fixture salva não tem dupla do mesmo esporte (foi por isso
+// que o caso passou verde por 35 sessões). Os valores são do bilhete real, não inventados.
+function duplaEEsportes(fmt) {
+  const falhas = [];
+  const perna = (jogo, sel, odd, cl, liga) => ({ sel, jogo, mercado: "Resultado Final",
+    oddFrac: odd, cl, liga, kickoff: "20260812180000", subs: [] });
+  const dupla = {
+    bsid: "1", code: "QA8502058091I", bc: "1", bt: "2", aberta: false,
+    stake: "46.00", ts: "46.00", rt: "1173.00", tipo: "Dupla", oddFrac: "13/4",   // 4,25
+    sels: [{ na: "Bragantino x Atletico Mineiro", od: "13/4", cl: "1" },
+           { na: "Tigre x Montevideo City Torque", od: "5/1", cl: "1" }],
+    legs: [perna("Bragantino x Atletico Mineiro", "Atletico-MG", "13/4", "1", "SOC-COPA-SUDA"),
+           perna("Tigre x Montevideo City Torque", "Montevideo City Torque", "5/1", "1", "SOC-COPA-SUDA")],
+  };
+  const txt = fmt(dupla);
+  if (linha(txt, "Odd:")) {
+    falhas.push(`dupla: o bloco emitiu "Odd: ${linha(txt, "Odd:")}" num bilhete de 2 seleções — ` +
+                `essa é a odd da PRIMEIRA seleção (4,25), não a do bilhete (25,5 = 1173/46). ` +
+                `Em L não há Retorno÷Aposta para mascarar e o número errado vai para o banco`);
+  }
+  if (!/^Tipo: 2 seleções/m.test(txt)) {
+    falhas.push("dupla: falta a linha de estrutura dizendo que a odd é o PRODUTO das seleções — " +
+                "sem `Odd:` e sem ela, a IA fica sem saber de onde tirar a odd do bilhete");
+  }
+
+  // O INVERSO: bilhete de 1 seleção (e bet builder de mesmo jogo, que também é 1 perna) TEM de
+  // continuar imprimindo `Odd:`. Se o conserto matar isso, todo bilhete simples perde a odd.
+  const simples = { bsid: "2", code: "X", bc: "1", bt: "1", aberta: false, stake: "100.00",
+    ts: "100.00", rt: "0", oddFrac: "4/5",   // 1,8
+    sels: [{ na: "A x B", od: "4/5", cl: "1" }],
+    legs: [perna("A x B", "Mais de 2.5", "4/5", "1", "LIGA")] };
+  if (linha(fmt(simples), "Odd:") !== "1,8") {
+    falhas.push(`simples: perdeu a linha "Odd:" (veio "${linha(fmt(simples), "Odd:")}") — o ` +
+                `conserto da dupla não pode atingir bilhete de 1 seleção`);
+  }
+
+  // ── Esportes mapeados na s279 (nomes já canônicos no MASTER_ESPORTES §4) ────
+  for (const [cl, nome] of [["151", "E-Sports"], ["162", "MMA"], ["8", "Rugby"]]) {
+    const b = { bsid: "3", code: "Y", bc: "1", bt: "1", aberta: false, stake: "10", ts: "10",
+      rt: "0", oddFrac: "1/1", sels: [{ na: "A x B", od: "1/1", cl }],
+      legs: [perna("A x B", "S", "1/1", cl, "L")] };
+    const esp = linha(fmt(b), "Esporte (casa):");
+    if (!esp.includes(`(${nome})`)) {
+      falhas.push(`CL=${cl} devia sair como "${nome}", veio "${esp}" — sem o nome a IA ` +
+                  `classifica pela liga e o esporte vira chute`);
+    }
+  }
+  // E os NÃO mapeados continuam crus, de propósito (ver o comentário do `_CL_B3`).
+  for (const cl of ["107", "16"]) {
+    const b = { bsid: "4", code: "Z", bc: "1", bt: "1", aberta: false, stake: "10", ts: "10",
+      rt: "0", oddFrac: "1/1", sels: [{ na: "A x B", od: "1/1", cl }],
+      legs: [perna("A x B", "S", "1/1", cl, "L")] };
+    if (/\(/.test(linha(fmt(b), "Esporte (casa):"))) {
+      falhas.push(`CL=${cl} ganhou nome de esporte. 107 é squash (NÃO existe no MASTER — criar ` +
+                  `esporte é decisão humana + propagação) e 16 tem uma amostra só, com o CL=18 ` +
+                  `já sendo Basquete. Se foi de propósito, atualize os MASTERs e este teste`);
+    }
+  }
+  return falhas;
 }

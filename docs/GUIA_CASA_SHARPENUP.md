@@ -232,8 +232,16 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
   (`all_frames:false`) não alcança. Quem age tem de ser o inject.
 - **Token rotativo** — bet365: `x-net-sync-term` muda por requisição; replay por API é
   impossível, só a própria página consegue chamar.
-- **Cliques sintéticos** — o "Mostrar Mais" da bet365 checa `isTrusted` e não é automatizável.
 - **Lista que volta ao topo** ao sair do detalhe torna a varredura O(n²).
+- **Clicar do mundo MAIN pode não acionar nada** — e sem erro. Este item já disse "o 'Mostrar
+  Mais' da bet365 checa `isTrusted` e não é automatizável"; **era falso** (s279). O clique
+  sintético funciona: o que não funciona é dispará-lo de dentro do `xx_inject.js`. Medido na
+  bet365: 8 cliques do inject (MAIN) → **zero** requisição; o mesmo `.click()`, no mesmo
+  elemento, pelo console e por um content script comum → carrega a página seguinte.
+  **Quem escuta a API roda no MAIN; quem clica roda no ISOLATED, em arquivo separado**
+  (`b3_inject.js` + `b3_expand.js`), conversando por `window.postMessage`. Antes de culpar
+  `isTrusted`, troque o mundo — e desconfie de qualquer conclusão do tipo "a casa bloqueia"
+  que não tenha sido isolada peça a peça.
 - **Fim autoritativo ≠ heurística** — parar por "N rolagens sem novidade" perde bilhete em
   rede lenta. Use o sinal da casa; tempo é só rede de segurança.
 - **Envio único** — o texto fica bancado em `envioPendente` até o servidor confirmar; sem isso,

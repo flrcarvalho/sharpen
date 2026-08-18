@@ -405,6 +405,9 @@
   // `b3FimReal` = o inject terminou de varrer as listas e os detalhes → fim autoritativo.
   const b3ById = new Map();          // bsid(string) → bilhete mesclado (summary + confirmation)
   let b3FimReal = false;
+  let b3Expandindo = false;          // o `b3_expand` está clicando "Mostrar Mais" AGORA (s279).
+                                     // Sem isto o robô encerra no meio da expansão — ver o
+                                     // reset dos dois no início de `roboBet365Passive`.
   let b3HookVivo = false;
   let b3Driver = null;               // {feitos,pulados,falhas} do driver de UI (autodiagnóstico)
   let b3MsgTick = 0;                 // carimbo da última mensagem do inject → progresso do driver
@@ -429,6 +432,10 @@
         for (const t of d.bets) { if (t && t.bsid) b3ById.set(String(t.bsid), t); }
       }
       if (d.fim) b3FimReal = true;
+      // `expandindo` é ESTADO, não contador: chega true a cada ping da expansão e false quando
+      // ela acaba. Por isso o teste é `in`, e não a verdade do valor — `if (d.driver.expandindo)`
+      // nunca conseguiria desligar a flag.
+      if (d.driver && "expandindo" in d.driver) b3Expandindo = !!d.driver.expandindo;
       if (d.driver) b3Driver = d.driver;
     }
   });
@@ -1041,8 +1048,9 @@
     // 139 linhas erradas numa captura só (s244). Sobe 64px para não empilhar no toast do envio.
     if (casa === "bet365" && b3Retidos > 0) {
       const av = "Bet365: " + b3Retidos + " bilhete(s) NÃO foram enviados — a página não devolveu a " +
-                 "confirmação deles, então estão sem código e sem data. Rode de novo com a janela " +
-                 "'Últimas 24 horas' ou 'Últimas 48 horas'.";
+                 "confirmação deles, então estão sem código e sem data. Rode de novo: os que " +
+                 "faltaram são tentados outra vez. Se insistir, estreite a janela na tela da casa " +
+                 "('Últimas 24 horas' / 'Últimas 48 horas') e rode de novo.";
       toastLocal(av, false, 64);
       try { chrome.storage.local.set({ lastError: av }); } catch (e) {}
     }
@@ -3659,9 +3667,25 @@
   // "Vencedor da Partida") e CL=91=Vôlei (liga VB-*, "Handicap (Pontos)") — mapeados dos payloads
   // reais da conta marloncezar01 (s180/s188). CL=10=F1/Automobilismo (liga MOTORRACING, "GP …
   // · Treino/Carro Vencedor" — F1 é esporte oficial no MASTER_ESPORTES). CL=151 ainda desconhecido.
-  const _CL_B3 = { "1": "Futebol", "10": "F1", "13": "Tênis", "15": "Dardos", "18": "Basquete", "91": "Vôlei", "94": "Badminton" };
+  // CL da casa → nome canônico do `MASTER_ESPORTES §4`. Só entra CL com nome JÁ canônico: se o
+  // esporte não existir no MASTER, mapear aqui abriria a regra de propagação (3 MASTERs) sem
+  // decisão humana. CL desconhecido sai como `CL=<n>` e a IA classifica pela liga/participantes.
+  //
+  // NÃO MAPEADOS DE PROPÓSITO (s279, vistos na captura de 129 bilhetes do Feca):
+  //   • CL=107 → é squash (liga `SQ-PSAW3M`, o PSA World Tour), mas **Squash não existe no
+  //     MASTER_ESPORTES** → criar esporte é decisão humana + propagação, não conserto de bug.
+  //   • CL=16  → UMA amostra (`Esteli @ Dantos`, liga `B-NICCNBSM`, basquete nicaraguense) e o
+  //     CL=18 JÁ é Basquete. Dois CLs para o mesmo esporte a partir de um bilhete é dedução —
+  //     esperar mais amostra. Ver a saga da s279 sobre o custo de deduzir em vez de medir.
+  const _CL_B3 = { "1": "Futebol", "8": "Rugby", "10": "F1", "13": "Tênis", "15": "Dardos",
+                   "18": "Basquete", "91": "Vôlei", "94": "Badminton", "151": "E-Sports",
+                   "162": "MMA" };
   // Folga kickoff→liquidação por esporte (horas) — só p/ acertar o DIA perto da meia-noite.
-  const _OFF_B3 = { "1": 2.5, "10": 2.5, "13": 3, "15": 1.5, "18": 2.5, "91": 2, "94": 1.5 };
+  // Os três novos são ESTIMATIVA por duração típica do evento (E-Sports = série longa, como o
+  // tênis; MMA = luta curta, como dardos; rugby = 80min + intervalo). Só mudam a data quando o
+  // evento cai perto da meia-noite; na dúvida o default de 2.5 continua valendo.
+  const _OFF_B3 = { "1": 2.5, "8": 2, "10": 2.5, "13": 3, "15": 1.5, "18": 2.5, "91": 2,
+                    "94": 1.5, "151": 3, "162": 1.5 };
 
   // Odd Bet365: fracionária "num/den" → decimal (num/den + 1), precisão completa, vírgula.
   // `_oddNumB3` devolve o NÚMERO (NaN se ilegível) — quem precisa calcular usa esta; `_oddB3` é
@@ -3788,6 +3812,15 @@
     const base = legs.length ? legs : (t.sels || []);
     const cls = Array.from(new Set(base.map((l) => l.cl).filter(Boolean)));
     const jogos = new Set(base.map((l) => l.jogo || l.na).filter(Boolean));
+    // `multiplo` responde "a CATEGORIA é Múltipla?" (a regra dos 3+ jogos do MASTER_APOSTAS).
+    // `nSel` responde "quantas seleções o bilhete tem?". São perguntas DIFERENTES, e usar a
+    // primeira para as duas foi o bug da s279: uma dupla do mesmo esporte (2 jogos, 1 CL) não
+    // é `multiplo`, então o bloco imprimia `Odd:` com `t.oddFrac` — que o `parseSummary` enche
+    // com a odd da PRIMEIRA seleção. Medido na captura de 129 bilhetes: `QA8502058091I` saiu
+    // com `Odd: 4,25` sendo 25,5 (= 1173/46 = 4,25 × 6). Em `W` a IA se salva pelo
+    // `Retorno ÷ Aposta`; em `L` (`PA9555804861I`, 3,25 onde o certo era 11,7) não há nada
+    // para mascarar e o número errado vai direto para o banco.
+    const nSel = base.length;
     const multiplo = jogos.size >= 3 || cls.length > 1;
     // data de encerramento = maior kickoff+folga entre as pernas
     let dataFim = "", maxMs = -Infinity;
@@ -3804,9 +3837,15 @@
     const sistema = _linhasSistemaB3(t, (t.sels && t.sels.length) ? t.sels : legs);
     // `Odd:` (a do bilhete) só faz sentido em aposta de linha única. Num sistema ela é a odd de
     // UMA seleção e mandaria a IA para o número errado.
-    if (!multiplo && !sistema.length && t.oddFrac) L.push("Odd: " + _oddB3(t.oddFrac));
+    // `Odd:` é a odd do BILHETE e só coincide com a da seleção quando há UMA seleção. Bet
+    // builder de mesmo jogo continua entrando aqui (1 perna com `subs`), que é o certo: a odd
+    // é do bilhete, não das pernas.
+    if (nSel === 1 && !sistema.length && t.oddFrac) L.push("Odd: " + _oddB3(t.oddFrac));
     if (sistema.length) for (const s of sistema) L.push(s);
     else if (multiplo) L.push("Tipo: Múltipla (" + legs.length + " seleções)");
+    else if (nSel > 1) L.push("Tipo: " + nSel + " seleções — a odd do bilhete é o PRODUTO das " +
+                              "odds abaixo (a casa não entrega a odd combinada). Em bilhete " +
+                              "ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).");
     if (!multiplo && cls.length) L.push("Esporte (casa): CL=" + cls[0] + (_CL_B3[cls[0]] ? " (" + _CL_B3[cls[0]] + ")" : ""));
 
     L.push("Seleções:");
@@ -3845,12 +3884,25 @@
   // BR, jogo, mercado, liga e kickoff. Não dá para chamar a API direto: o token
   // `x-net-sync-term` é exigido e rotaciona por requisição (provado ao vivo na s178).
   // O robô aqui só coordena: pede, acompanha o contador e formata o estado final.
-  // JANELA: use "Últimas 24/48 horas" na tela. Ao voltar de um detalhe a lista reinicia no topo
-  // e perde as páginas carregadas, então lista curta = captura rápida; lista longa = o driver
-  // para no fim da 1ª página e avisa (melhor que rolar n² vezes).
+  //
+  // "MOSTRAR MAIS" É AUTOMÁTICO desde a s279 (`expandirLista`, no inject). Até a v0.6.47 o
+  // operador tinha de clicar o botão até o fim da lista à mão — sem isso a página só baixava o
+  // 1º lote de `/summary` e o robô capturava só ~20 bilhetes, **sem erro nenhum**, como se
+  // aquilo fosse a lista inteira. Agora o inject expande primeiro e só então detalha por rota.
+  // JANELA: a da tela da casa continua mandando (24/48h/Período) — o robô lê o que ela mostrar.
   async function roboBet365Passive(ctx) {
     let travado = false;
     const N = Math.max(1, Math.round((Date.now() - ctx.cutoff) / 86400000));
+    // ⚠️ ESTADO DE RODADA NÃO PODE VAZAR PARA A SEGUINTE. `b3FimReal` é variável de módulo e
+    // ficava `true` desde a captura anterior (a página não recarrega entre rodadas). Com a
+    // memória cheia — `resta === 0`, todos os bsids já conhecidos — a condição de fim disparava
+    // na PRIMEIRA volta do laço, 500ms depois de começar. Antes da s279 isso passava, porque
+    // nada acontecia antes do detalhamento; agora decapita a expansão inteira: o robô encerra
+    // enquanto o `b3_expand` ainda está clicando, e o que a lista carregou depois se perde.
+    // Sintoma no console: `driver={"expandindo":true}` no log final e as linhas `[b3_expand] #N`
+    // continuando DEPOIS do `Bet365 API: N bilhete(s)`.
+    b3FimReal = false;
+    b3Expandindo = false;
 
     // Memória de rodadas passadas ({ bsid: {code,da,legs} }) — carregada ANTES de tudo porque o
     // "acabou?" e o painel dependem dela (ver `pronto`).
@@ -3899,7 +3951,8 @@
       voltas++;
       await sleep(500);
       const resta = semCodigo();
-      if (b3FimReal && resta === 0) break;                 // fim de verdade: nada mais sem código
+      // Fim de verdade: a expansão acabou, o inject anunciou fim e não sobrou bilhete sem código.
+      if (b3FimReal && resta === 0 && !b3Expandindo) break;
       // Enquanto sobrar sem código, re-pede "detalhar" e REABRE a janela de `fim` (a próxima
       // passada precisa poder anunciar o seu próprio fim). Pega os bilhetes que chegaram depois.
       if (resta > 0 && voltas % 12 === 0) { b3FimReal = false; b3Pedir(N, "detalhar", Object.keys(lembrados)); }
@@ -3953,9 +4006,10 @@
                 " · driver=" + (b3Driver ? JSON.stringify(b3Driver) : "não rodou"));
     if (b3Retidos) {
       console.log("[SharpenUp] Bet365: " + b3Retidos + " bilhete(s) RETIDOS (sem confirmation: sem " +
-                  "código BR, sem data e sem jogo/mercado) — provável lista longa demais (ao voltar " +
-                  "de um detalhe ela reinicia no topo). Use 'Últimas 24 horas' ou 'Últimas 48 horas' " +
-                  "e rode de novo. Até a s244 estes bilhetes SUBIAM, datados de hoje e duplicados.");
+                  "código BR, sem data e sem jogo/mercado). Desde a s279 a lista é expandida sozinha, " +
+                  "então a causa provável mudou: a `confirmation` dá 500 sob rajada no namespace D0 " +
+                  "(48h/Período) e o retry do inject não venceu. Rodar de novo tenta só os que " +
+                  "faltaram. Até a s244 estes bilhetes SUBIAM, datados de hoje e duplicados.");
     }
     for (const [href, f] of b3PorFrame) {
       console.log("[SharpenUp] Bet365 frame " + (f.topo ? "TOPO" : "iframe") +
