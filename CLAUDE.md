@@ -135,6 +135,70 @@ a valer entre os dois.
 
 ---
 
+## Bot de tipster: NUNCA peça a senha dele. Aprove a conta e ligue o botão.
+
+Até a s276 o bot fazia **login como o tipster**, então cada tipster novo obrigava a
+guardar a **senha dele** numa env var do Railway (chegou a três) e a subir deploy. Não
+escalava, punha credencial de terceiro sob nossa guarda — e a senha nem é nossa para
+pedir: quem se cadastra pelo site escolhe a própria.
+
+Hoje é **um token de serviço só, para sempre** (`SHARPEN_BOT_TOKEN`, o mesmo valor nos
+dois serviços do Railway: o app e o `sharpen-bot`). O bot se identifica assim:
+
+```
+Authorization: Bearer <SHARPEN_BOT_TOKEN>
+X-Sharpen-Dono: <username do tipster>
+```
+
+**Tipster novo = aprovar a conta no `/admin` + clicar "Ligar bot".** Zero variável, zero
+deploy, zero senha de terceiro. As env vars do tenant (`<XX>_APOIO_ID`, `<XX>_DESTINO_ID`)
+seguem existindo porque são ids de Telegram, não credencial.
+
+**Três condições, todas obrigatórias** (`auth.dono_do_bot`): token confere · dono está
+`ativo` · dono tem `bot_habilitado`. A terceira é o que impede o token de virar
+chave-mestra: conta aprovada não ganha escrita de robô de brinde. Desligar o botão corta
+a escrita em ≤60s (TTL do cache), sem deploy e sem rotacionar o token.
+
+**Escopo:** a identidade do bot **não** entra em `usuario_atual` nem em `dono_efetivo`.
+Ela vive em `usuario_atual_ou_bot` / `dono_efetivo_ou_bot`, aplicadas só nas 4 rotas que o
+bot usa. `grep -n "_ou_bot" app/main.py` lista tudo o que o token alcança, e
+`tests/test_bot_token.py` **quebra** se alguém aplicar numa rota nova.
+
+> **Ao migrar um tenant, ligue o botão ANTES de o token existir no Railway.** Na s276 eu
+> subi o token com só um dos quatro habilitados: os quatro trocaram de caminho juntos e os
+> três sem botão passaram a tomar 401 em cada operação. Nenhum bilhete se perdeu (o
+> `/salvar` é UPSERT por código), mas **a marcação de resultado parou de chegar** — o canal
+> mostra ✅/❌ e a planilha não acompanha, sem erro nenhum. Hoje o 401 do token cai para a
+> senha **daquele tenant** se ela ainda existir, mas a ordem certa continua sendo botão
+> primeiro.
+
+**Dado dessincronizado se conserta com `/ressincronizar [AAAA-MM]`** no apoio: o bot
+reempurra ao Sharpen o que já está no storage dele. Seguro de repetir (UPSERT por código,
+vazio nunca rebaixa). Deixa de fora anulado e bilhete **sem casa** — linha sem casa nasce
+invisível no Painel de Contas e reenvio não conserta, porque a casa entra na assinatura.
+
+---
+
+## Planilha e bot escrevem na MESMA série de código. Só um pode ser a fonte.
+
+Import de planilha e bot de tipster geram o mesmo `XX<aaaamm>-<n>`, e o código entra na
+assinatura (`ID|casa|parceiro|codigo`). Dois escritores, uma série, nenhum sabendo do
+outro.
+
+Na s276 isso custou uma aposta: o import gravou `PT202608-259` às 09:19 e o bot criou o
+bilhete #259 às 09:20, mesma casa e mesma conta. A assinatura bateu, o `/salvar` tratou
+como o **mesmo bilhete**, o congelamento manteve descrição/odd/stake da linha importada e
+"vazio nunca rebaixa" manteve o resultado. **A aposta do dia foi absorvida — sem erro, sem
+aviso, sem linha nova.**
+
+- Os importadores **abortam** quando um código que gerariam já existe sob outra origem.
+- No dia em que o bot entra, **suba o contador** (`/contador N` no apoio) para além do
+  último código da planilha, antes da primeira aposta.
+- E decida qual é a fonte: **a partir daí o bot planilha e a planilha vira histórico
+  congelado.** Manter os dois escrevendo é conviver com colisão a cada import.
+
+---
+
 ## `DADOS` só tem aposta LIQUIDADA. Quem existe antes da 1ª aposta vem do cadastro.
 
 `aplicarFeed` (`dash/assets/js/app.js`) parte o feed em dois: `DADOS` recebe só
@@ -495,4 +559,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-17 (sessão 274 — "quem já tem valor lançado precisa ter linha na tela")
+ATUALIZADO: 2026-08-18 (sessão 276 — token de serviço do bot; planilha e bot na mesma série de código)
