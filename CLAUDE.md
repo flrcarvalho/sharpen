@@ -159,6 +159,21 @@ duas deram zero em todos os donos na s239, mas isso é medição datada, não ga
 > a data da 1ª aposta). Misturar os dois é como o UPSERT meio-atualizado: vira lucro
 > fantasma.
 
+**Quem já tem valor lançado precisa ter linha na tela onde se lança.** É a mesma família
+do UPSERT meio-atualizado, com um agravante: o total continua certo e só a linha some.
+A aba Custo de Tipsters listava a partir de `DADOS`, enquanto `renderOvCusto`
+(`overview.js`) soma `ctData` **inteiro**, sem olhar a lista. Tipster que ainda não tinha
+aposta liquidada saía da tabela com o custo dele seguindo no KPI da visão geral: cobrado
+e ineditável (s274, feedback do tester João Henrique).
+
+Então a lista de qualquer tela de lançamento tem **duas** obrigações, não uma. Oferecer
+quem existe (cadastro ∪ base, a regra acima) e **nunca esconder chave que já tem valor**.
+Na prática são fontes distintas na mesma união: `_ctTipsters` (`charts/gestao.js`) soma
+cadastro, `DADOS`, `DADOS_ABERTAS` e as chaves de `ctData` com valor > 0.
+
+> Sintoma para reconhecer isso em outra tela: o KPI não bate com a soma da tabela que
+> fica logo abaixo dele. Some pela tela antes de suspeitar do cálculo.
+
 **Nem toda entidade tem cadastro. Esporte e mercado têm MASTER.** Para eles a fonte de
 "o que existe" é a taxonomia canônica — `app/taxonomia.py` **lê** o `MASTER_ESPORTES §7`
 e o `MASTER_APOSTAS §3`, e a rota `/taxonomia` serve as listas (s241). A tela usa a
@@ -480,4 +495,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-05 (sessão 247 — seção "API externa por item")
+ATUALIZADO: 2026-08-17 (sessão 274 — "quem já tem valor lançado precisa ter linha na tela")
