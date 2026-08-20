@@ -1050,7 +1050,9 @@ function _tmListaHTML(vis,buscando){
   const grupo=(chave,rotulo,nomes)=>{
     if(!nomes.length)return'';   // grupo vazio não desenha cabeçalho (mesma régua da pill "sem info")
     const aberto=buscando||_tmGrpOpen[chave];
-    const cls=`tm-grp tm-grp--${chave}`+(buscando?' tm-grp--locked':'');
+    // --open só existe para o CSS: fechado, o box é a faixa do cabeçalho sozinha e não pode
+    // desenhar a linha de baixo (viraria um risco solto embaixo da caixa).
+    const cls=`tm-grp tm-grp--${chave}`+(aberto?' tm-grp--open':'')+(buscando?' tm-grp--locked':'');
     return`<div class="${cls}">`
       +`<div class="tm-grp__head" onclick="tmGrpToggle('${chave}')">`
         +`<span class="tm-grp__caret" style="transform:rotate(${aberto?'90':'0'}deg)">▸</span>`
