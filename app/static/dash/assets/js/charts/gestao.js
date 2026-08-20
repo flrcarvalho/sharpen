@@ -1021,12 +1021,15 @@ function _tmBox(nome){
   // Só a quantidade de apostas importa nesta página (P/L removido, pedido do Feca). Largura
   // fixa + nowrap + right → a contagem e o tick de inativo alinham milimetricamente entre linhas.
   const vol=`<span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-mute);white-space:nowrap;min-width:104px;text-align:right">${ag?ag.n.toLocaleString('pt-BR')+' apostas':''}</span>`;
+  // O badge segue a MESMA régua: encostado no nome ele mudava de x a cada linha (o nome é
+  // que manda na largura), então vira coluna própria no bloco da direita.
+  const badgeCol=`<span style="min-width:92px;text-align:right;white-space:nowrap">${badge}</span>`;
   const caret=`<span style="color:var(--ink-mute);font-size:12px;display:inline-block;transform:rotate(${aberto?'90':'0'}deg)">▸</span>`;
   // tick "inativo" — para de expandir o box (stopPropagation) e arquiva/reativa o tipster.
   const tick=`<label onclick="event.stopPropagation()" title="Marcar como inativo (não sigo mais)" style="display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-mute);cursor:pointer"><input type="checkbox" ${arq?'checked':''} onchange="tmSetInativo(${t.id},this.checked,'${_tmJs(nome)}')" style="accent-color:var(--accent);cursor:pointer">inativo</label>`;
   const header=`<div onclick="tmToggle('${_tmJs(nome)}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;user-select:none">`
-    +caret+`<span style="font-weight:700;color:var(--ink);font-size:14px">${esc(nome)}</span>`+badge
-    +`<span style="margin-left:auto;display:flex;align-items:center;gap:20px">${vol}${tick}</span></div>`;
+    +caret+`<span style="font-weight:700;color:var(--ink);font-size:14px">${esc(nome)}</span>`
+    +`<span style="margin-left:auto;display:flex;align-items:center;gap:20px">${badgeCol}${vol}${tick}</span></div>`;
   const body=aberto?`<div id="tmEditor" style="padding:0 14px 16px;border-top:1px solid var(--line-2)"></div>`:'';
   return`<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;opacity:${arq?'.5':'1'}">${header}${body}</div>`;
 }
