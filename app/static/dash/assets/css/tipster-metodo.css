@@ -28,6 +28,29 @@
 .tm-wrap .btn--primary:disabled{opacity:.6;cursor:default;box-shadow:none}
 .tm-wrap .pill-warn{font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;color:var(--warn);background:rgba(var(--warn-rgb),.1);border:1px solid rgba(var(--warn-rgb),.3);border-radius:var(--r-pill);padding:7px 12px;white-space:nowrap}
 
+/* ---------- GRUPOS ATIVOS / INATIVOS (#tmLista) ---------- */
+/* Cabeçalho minimizável por grupo; o box do tipster muda de grupo sozinho quando o tick
+   "inativo" liga/desliga (ver _tmListaHTML / tmSetInativo em charts/gestao.js).
+   Cor: o tom vive na barrinha, no rótulo e no contador — nunca em literal.
+   Contraste medido sobre o fundo efetivo do painel (--surface #12161D):
+   --pos 7,8:1 e --neg 4,9:1, os dois passam AA em texto pequeno. Rótulo é
+   label/eyebrow → 10,5px (acima do piso de 9,5px da Escada de Tinta). */
+.tm-wrap .tm-grp{margin-bottom:12px}
+.tm-wrap .tm-grp:last-child{margin-bottom:0}
+.tm-wrap .tm-grp__head{display:flex;align-items:center;gap:9px;padding:9px 6px;cursor:pointer;user-select:none;border-bottom:1px solid var(--line-2)}
+.tm-wrap .tm-grp--locked .tm-grp__head{cursor:default}
+.tm-wrap .tm-grp__caret{font-size:12px;line-height:1;color:var(--ink-mute);transition:transform .18s var(--ease)}
+.tm-wrap .tm-grp--locked .tm-grp__caret{visibility:hidden}
+.tm-wrap .tm-grp__tick{width:3px;height:14px;border-radius:3px;flex:none}
+.tm-wrap .tm-grp__lbl{font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+.tm-wrap .tm-grp__sep{font-family:var(--font-mono);font-size:11px;color:var(--ink-mute)}
+.tm-wrap .tm-grp__n{font-family:var(--font-mono);font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.tm-wrap .tm-grp--ativos .tm-grp__tick{background:var(--pos)}
+.tm-wrap .tm-grp--ativos .tm-grp__lbl,.tm-wrap .tm-grp--ativos .tm-grp__n{color:var(--pos)}
+.tm-wrap .tm-grp--inativos .tm-grp__tick{background:var(--neg)}
+.tm-wrap .tm-grp--inativos .tm-grp__lbl,.tm-wrap .tm-grp--inativos .tm-grp__n{color:var(--neg)}
+.tm-wrap .tm-grp__body{padding-top:10px}
+
 /* ---------- TAB BAR (2 botões) + KPIs ---------- */
 /* .tm-kpi (renomeado de .kpi do pack): o dash já tem .kpi = card min-height:120px (vira
    círculo). Nome próprio + display/min-height explícitos evitam a colisão de vez. */

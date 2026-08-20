@@ -787,7 +787,7 @@ async function renderTipsterMetodo(){
   }else{
     const filtro=_tmQ.trim().toLowerCase();
     const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
-    corpo=vis.length?vis.map(_tmBox).join(''):`<div style="color:var(--ink-mute);font-size:12px;padding:20px">Nenhum tipster encontrado.</div>`;
+    corpo=_tmListaHTML(vis,!!filtro);
   }
   const paneTP=`<section class="pane" id="paneTP"><div class="panel"><div class="panel__head"><span class="tick"></span><h2>Tipster / Método</h2></div>${intro}${toolbar}<div id="tmLista" style="padding:6px 14px 14px">${corpo}</div></div></section>`;
   const paneCasas=`<section class="pane" id="paneCasas" hidden></section>`;
@@ -1000,12 +1000,11 @@ function _casaUpdMeta(){
   if(m)m.innerHTML='<b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas';
 }
 
-// Ordena: ATIVOS primeiro (alfabético), INATIVOS no fim (alfabético). Ver _tmBox/tmSetInativo.
+// Ordem DENTRO de cada grupo: alfabética (localeCompare pt-BR — `.sort()` cru é ASCII e
+// joga nome acentuado para o fim). Ativo × inativo não entra mais na ordenação: quem
+// separa os dois é o grupo (ver _tmListaHTML).
 function _tmSortNomes(nomes){
-  return nomes.slice().sort((a,b)=>{
-    const aa=(_tmCadastro[a]||{}).arquivado?1:0,ab=(_tmCadastro[b]||{}).arquivado?1:0;
-    return aa!==ab?aa-ab:a.localeCompare(b,'pt-BR');
-  });
+  return nomes.slice().sort((a,b)=>a.localeCompare(b,'pt-BR'));
 }
 // Box do accordion. Colapsado: nome + tick "inativo" + sinal de completude + volume/P/L.
 // Expandido (_tmOpen===nome): injeta o editor 2-colunas em #tmEditor (via tmRenderEditor).
@@ -1032,6 +1031,46 @@ function _tmBox(nome){
   return`<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;opacity:${arq?'.5':'1'}">${header}${body}</div>`;
 }
 
+// ── Grupos Ativos / Inativos ─────────────────────────────────────────────────
+// A lista é partida em dois grupos minimizáveis. O estado mora em módulo porque TUDO
+// aqui re-renderiza pela tmBusca (busca, toggle do box, tick de inativo) — guardar no
+// DOM perderia o aberto/fechado a cada tecla. Default pedido pelo Feca: Ativos aberto,
+// Inativos fechado.
+let _tmGrpOpen={ativos:true,inativos:false};
+
+// Monta o corpo de #tmLista. `buscando` = há filtro digitado: aí os dois grupos vão
+// ABERTOS e o cabeçalho para de ser clicável (classe --locked, caret escondido). Sem
+// isso o nome de um inativo casaria o filtro dentro do grupo fechado e a tela ficaria
+// vazia — pareceria bug de busca.
+function _tmListaHTML(vis,buscando){
+  if(!vis.length)return`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhum tipster encontrado.</div>`;
+  const grupo=(chave,rotulo,nomes)=>{
+    if(!nomes.length)return'';   // grupo vazio não desenha cabeçalho (mesma régua da pill "sem info")
+    const aberto=buscando||_tmGrpOpen[chave];
+    const cls=`tm-grp tm-grp--${chave}`+(buscando?' tm-grp--locked':'');
+    return`<div class="${cls}">`
+      +`<div class="tm-grp__head" onclick="tmGrpToggle('${chave}')">`
+        +`<span class="tm-grp__caret" style="transform:rotate(${aberto?'90':'0'}deg)">▸</span>`
+        +`<span class="tm-grp__tick"></span>`
+        +`<span class="tm-grp__lbl">${rotulo}</span>`
+        +`<span class="tm-grp__sep">·</span>`
+        +`<span class="tm-grp__n">${nomes.length.toLocaleString('pt-BR')}</span>`
+      +`</div>`
+      +(aberto?`<div class="tm-grp__body">${nomes.map(_tmBox).join('')}</div>`:'')
+    +`</div>`;
+  };
+  return grupo('ativos','Ativos',vis.filter(n=>!(_tmCadastro[n]||{}).arquivado))
+    +grupo('inativos','Inativos',vis.filter(n=>(_tmCadastro[n]||{}).arquivado));
+}
+
+// Minimiza/maximiza um grupo. Durante a busca é no-op de propósito (ver _tmListaHTML).
+function tmGrpToggle(chave){
+  if(_tmQ.trim())return;
+  _tmGrpOpen[chave]=!_tmGrpOpen[chave];
+  tmBusca(_tmQ);
+}
+window.tmGrpToggle=tmGrpToggle;
+
 // Busca: re-renderiza SÓ a lista (#tmLista); o input de busca fica fora → não perde foco.
 function tmBusca(v){
   _tmQ=v;
@@ -1040,7 +1079,7 @@ function tmBusca(v){
   const filtro=(v||'').trim().toLowerCase();
   const nomes=_tmSortNomes(Object.keys(_tmCadastro||{}));
   const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
-  lista.innerHTML=vis.length?vis.map(_tmBox).join(''):`<div style="color:var(--ink-mute);font-size:12px;padding:1rem 0">Nenhum tipster encontrado.</div>`;
+  lista.innerHTML=_tmListaHTML(vis,!!filtro);
   if(_tmOpen&&vis.includes(_tmOpen))tmRenderEditor(_tmOpen);
 }
 window.tmBusca=tmBusca;
