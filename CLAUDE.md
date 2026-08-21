@@ -70,6 +70,16 @@ bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STA
 - `chat_id` = `-5172183099` · `BOT_TOKEN` no `.env` de `Downloads/BOTS/sharpen-bot`.
 - **Confirmar o destino com `getChat` antes de publicar.** Mensagem em grupo não tem desfazer.
 - **Nunca `getUpdates`** — briga com o polling do bot em produção.
+- **Nunca diagnostique envio chamando `sendMessage` de novo.** Grupo real não tem desfazer,
+  e a segunda chamada publica o teste. Na primeira falha, **imprima o `description` da
+  resposta**: ele já diz a causa. Na s282 o `ok=false` era o `curl` do Windows não lendo path
+  do Git Bash, e o teste de diagnóstico foi parar no grupo. Chame a API por Python, que
+  controla o UTF-8 de ponta a ponta. Para testar de verdade, use um chat seu, nunca o grupo.
+- **Identificar mensagem já enviada, sem `getUpdates`:** a Bot API não tem `getMessage`. Use
+  `editMessageText` com o texto **idêntico**. O erro `message is not modified` só aparece
+  quando o conteúdo bate exatamente, então ele confirma a identidade **sem alterar a
+  mensagem**. Faça isso antes de qualquer `deleteMessage` por id deduzido: id vizinho pode
+  ser a linha de um tester, e apagar mensagem de terceiro não tem volta.
 - É **grupo comum**, não supergrupo. Se for promovido, o id passa a `-100…` e o envio falha; o
   `getChat` acusa antes.
 - Extensão: a ação do tester é sempre atualizar em `sharpen.bet/extensao` (distribuição manual).
@@ -568,4 +578,5 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-18 (sessão 278 — congelamento do UPSERT só começa quando a linha resolve)
+ATUALIZADO: 2026-08-20 (sessão 282 — aviso ao grupo: não diagnosticar envio com `sendMessage`;
+identificar mensagem por `editMessageText` com texto idêntico)
