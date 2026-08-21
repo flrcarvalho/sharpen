@@ -569,7 +569,7 @@ html.embedded .sidebar { display: none; }
 .idcard__meta .usr { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* idcard__foot empilhado: "Selecionar conta" full width em cima; editar | arquivar 50/50 embaixo. */
 .idcard__foot { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
-.idcard .acct-selwrap { flex: 1; }
+.idcard .acct-selwrap { flex: 1; min-width: 0; }
 .idcard__foot .acct-quickacts { width: 100%; gap: 7px; }
 .idcard__foot .acct-quickacts .chgbtn.p { flex: 1; width: auto; }
 .chgbtn { width: 100%; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); border-radius: var(--r-sm); padding: 8px; font-family: var(--font-mono); font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: border-color .15s, color .15s; }
@@ -577,6 +577,16 @@ html.embedded .sidebar { display: none; }
 .chgbtn.p { flex: 0 0 38px; width: 38px; padding: 8px 0; }
 .chgbtn.p svg { width: 15px; height: 15px; }
 .chgbtn.danger:hover { border-color: rgba(var(--neg-rgb),.45); color: var(--neg); }
+/* Navegação entre contas: ‹ | Selecionar conta | ›. As setas são estreitas (30px) para
+   o rótulo do meio não quebrar dentro do idcard de 250px. O dropdown (.acctpop) é
+   position:absolute dentro do .acct-selwrap, então a linha não muda o ancoramento dele. */
+.acct-navrow { display: flex; align-items: stretch; gap: 6px; }
+.chgbtn.p.nav { flex: 0 0 30px; width: 30px; }
+.chgbtn.p.nav svg { width: 14px; height: 14px; }
+/* Ponta da lista: opacidade como ESTADO (desabilitado), não como hierarquia de tinta —
+   mesma exceção documentada de .act-btn.off no CLAUDE.md (Escada de Tinta). */
+.chgbtn:disabled { opacity: .38; cursor: default; }
+.chgbtn:disabled:hover { color: var(--ink-soft); border-color: var(--line); }
 .chgbtn .ctx-chev { transition: transform .2s; }
 .idcard .acct-selwrap.open .ctx-chev { transform: rotate(180deg); color: var(--accent-2); }
 
@@ -1791,6 +1801,14 @@ td.c-res.res-HL { color: var(--warn); }
       </div>
       <!-- Rodapé: Trocar conta (abre o mesmo dropdown acctPop) + editar nome + arquivar -->
       <div class="idcard__foot">
+        <!-- Linha de navegação: ‹ conta anterior | Selecionar conta | próxima conta ›.
+             As setas andam na MESMA lista do dropdown (ordem casa → conta), na aba a que
+             a conta ativa pertence (ativas ou inativas) — não na aba que o dropdown está
+             mostrando. Sem wrap-around: nas pontas o botão fica desabilitado. -->
+        <div class="acct-navrow">
+        <button class="chgbtn p nav" id="acctPrev" type="button" title="Conta anterior" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
         <div class="acct-selwrap" id="acctSelWrap">
           <button class="chgbtn" id="acctSelBtn" type="button" title="Selecionar conta">Selecionar conta <span class="ctx-chev">▾</span></button>
           <div class="acctpop" id="acctPop">
@@ -1802,6 +1820,10 @@ td.c-res.res-HL { color: var(--warn); }
             <div class="acct-tabs"><button class="on" data-aba="ativas">Ativas</button><button data-aba="inativas">Inativas</button></div>
             <div id="acctTree"></div>
           </div>
+        </div>
+        <button class="chgbtn p nav" id="acctNext" type="button" title="Próxima conta" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
         </div>
         <!-- Ações rápidas da conta ativa (item 1): editar nome + arquivar. Reusam
              contasRenomear()/contasArquivar() — as mesmas do hub. Só aparecem quando
@@ -2518,6 +2540,7 @@ async function carregarCasas() {
     renderCasaList();
     atualizarIncompletos();
     renderPainelContas();   // popula o Painel de Contas (landing sem conta ativa)
+    atualizarAcctNav();     // caches prontos → só agora as setas ‹ › sabem onde estão as pontas
   } catch {
     // 4.2.c — a árvore saiu da sidebar; o elemento pode não existir mais.
     const cl = document.getElementById('casa-list');
@@ -3099,6 +3122,45 @@ function atualizarBotaoConta() {
 function atualizarQuickActs() {
   const qa = document.getElementById('acctQuickActs');
   if (qa) qa.style.display = parceiroSelecionado ? 'flex' : 'none';
+  atualizarAcctNav();
+}
+// ── Setas ‹ › — andar pela lista de contas sem abrir o dropdown ───────────────
+// A ordem é EXATAMENTE a do dropdown (casasCarregadas → parceiros de cada casa), para
+// que a seta leve à conta que o olho veria em seguida na lista. A fonte é a aba a que a
+// conta ATIVA pertence (ativas ou inativas), não `acctPopAba`: navegar não pode saltar
+// de uma conta ativa para uma arquivada só porque o dropdown ficou na outra aba.
+function _acctListaPlana() {
+  if (!parceiroSelecionado) return [];
+  const daCasa = (parceirosCache[parceiroSelecionado.casa] || []);
+  const fonte = daCasa.some(p => p.id === parceiroSelecionado.id) ? parceirosCache : parceirosArquivadosCache;
+  const out = [];
+  (casasCarregadas || []).forEach(c => (fonte[c] || []).forEach(p => out.push(p)));
+  return out;
+}
+// Rótulo do vizinho, para o title do botão: "Bet365 · marloncezar01".
+function _acctRotulo(p) {
+  if (!p) return '';
+  return casaDisplay(NOMES[p.casa] || p.casa) + ' · ' + _painelParseConta(p.nome);
+}
+function atualizarAcctNav() {
+  const prev = document.getElementById('acctPrev');
+  const next = document.getElementById('acctNext');
+  if (!prev || !next) return;
+  const lista = _acctListaPlana();
+  const i = parceiroSelecionado ? lista.findIndex(p => p.id === parceiroSelecionado.id) : -1;
+  const ant = i > 0 ? lista[i - 1] : null;
+  const prox = i >= 0 ? lista[i + 1] : null;
+  prev.disabled = !ant;
+  next.disabled = !prox;
+  prev.title = ant ? 'Conta anterior · ' + _acctRotulo(ant) : 'Conta anterior';
+  next.title = prox ? 'Próxima conta · ' + _acctRotulo(prox) : 'Próxima conta';
+}
+function acctNavegar(passo) {
+  const lista = _acctListaPlana();
+  if (!parceiroSelecionado) return;
+  const i = lista.findIndex(p => p.id === parceiroSelecionado.id);
+  const alvo = i < 0 ? null : lista[i + passo];
+  if (alvo) selecionarParceiro(alvo);
 }
 function renderAcctTree() {
   const tree = document.getElementById('acctTree');
@@ -3322,6 +3384,12 @@ async function ncCriarConta() {
     if (!parceiroSelecionado) return;
     contasRenomear(parceiroSelecionado.id, parceiroSelecionado.casa, parceiroSelecionado.nome);
   });
+  // Setas ‹ ›: andam na lista sem abrir o dropdown (fecha-o se estiver aberto, para a
+  // conta nova aparecer no idcard e não atrás do painel).
+  const prev = document.getElementById('acctPrev');
+  const next = document.getElementById('acctNext');
+  if (prev) prev.addEventListener('click', e => { e.stopPropagation(); abrirAcctPop(false); acctNavegar(-1); });
+  if (next) next.addEventListener('click', e => { e.stopPropagation(); abrirAcctPop(false); acctNavegar(1); });
   const arch = document.getElementById('acctArchive');
   if (arch) arch.addEventListener('click', () => {
     if (!parceiroSelecionado) return;
