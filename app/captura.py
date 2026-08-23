@@ -53,13 +53,17 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # {name:"gethistory"}. Sem paginação: uma chamada devolve a conta inteira com `Count`.
 # BETFAST: ESPELHO da Tivo (s211) — mesmo motor BetConstruct, mesmo caminho de API, mesmos
 # nomes de campo; muda o domínio e a cor. Usa o MESMO `tv_inject.js`, sem código duplicado.
+# FAZ1BET: 3ª casa do mesmo motor (s284), espelho das duas acima. Também usa o `tv_inject.js`.
+# O motor foi provado ANTES de registrar: 401 no `messagetosport` contra 404 numa rota falsa,
+# `sbloader.js` 200, e os 118 campos do payload real são subconjunto exato dos das outras
+# duas. O harness roda a fixture dela pelos TRÊS hosts e compara os blocos byte a byte.
 # ESPORTIVA: ESPELHO da VaideBet (s254) — mesmo motor Altenar/BIA, MESMO host de gateway
 # (`sb2bethistory-gateway-altenar2.biahosted.com`) e mesmo endpoint; muda só o
 # `integration` (`esportiva` × `vaidebet`). Usa o MESMO `vb_inject.js`.
 # BETPIX365: 4ª casa Altenar (s258). ⚠ É a única que NÃO dispara o `widgetExpandedBetHistory`
 # por conta própria — a tela dela chama só o widget compacto, e o inject aprende url+headers
 # dele para então buscar o expandido. Também usa o MESMO `vb_inject.js`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto", "NOVIBET": "texto"}
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto", "NOVIBET": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -108,6 +112,12 @@ _HOSTS_POR_CASA = {
     # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
     # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
     "BETFAST":    ("betfast.bet.br",),
+    # 3ª casa BetConstruct (s284), espelho de Tivo/Betfast. Motor provado antes do registro:
+    # `/api/game/p/messagetosport` responde 401 (rota falsa do mesmo prefixo dá 404) e
+    # `/sportsbookv4/sbloader.js` responde 200 — e os 118 campos do payload real são um
+    # subconjunto exato dos das outras duas, sem nenhum campo novo. Só `faz1.bet.br` (o
+    # site não usa `www`), e o `casa_de_host` casa subdomínio se um dia usar.
+    "FAZ1BET":    ("faz1.bet.br",),
     # A API vive em prod-betnacional-bets.bet6.com.br, mas a ABA (origem da captura) é o
     # site da casa — o backstop casa↔site olha o host da aba, não o da API.
     "BETNACIONAL": ("betnacional.bet.br",),

@@ -38,7 +38,19 @@ from repository import _assinatura  # noqa: E402
 # `Betboo` × `Betboom` NÃO entram: são casas diferentes (betboo.com × betboom.bet.br).
 MAPA = {
     "BetBra":        "Betbra",
-    "Faz1bet":       "Faz1Bet",
+    # s284 — a seta INVERTEU. A s199 elegeu "Faz1Bet", mas dois imports posteriores
+    # (LavaPessoal s222, arrudex s277) trouxeram "Faz1bet" e viraram a maioria: 107
+    # bilhetes contra 26. Na hora de registrar a casa no `_CASA_DISPLAY` (captura pelo
+    # SharpenUp), foi preciso escolher UMA — o round-trip do `/salvar` passa a impor a
+    # grafia registrada, e a outra vira conta de grade vazia (o bug da s249).
+    # Escolhida "Faz1bet" por três critérios independentes: a MARCA escreve minúsculo
+    # (`faz1bet` no HTML de faz1.bet.br, 7 ocorrências, nenhuma com B maiúsculo), é a
+    # maioria dos bilhetes, e mover 26 linhas de Lava/Feca/Jonathan toca menos base de
+    # terceiro do que mover as 107 de arrudex/LavaPessoal.
+    "Faz1Bet":       "Faz1bet",
+    # Resíduo pré-s204 vivo só em `correcoes` (1 linha). Entra junto para a grafia
+    # não sobreviver em nenhuma das 7 tabelas.
+    "Faz1be":        "Faz1bet",
     "Matchbook":     "MatchBook",
     "Multibet":      "MultiBet",
     "Pixbet":        "PixBet",

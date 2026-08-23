@@ -40,6 +40,7 @@ const CASA_HOSTS = {
   "Jogo de Ouro": ["jogodeouro.bet.br"],  // 3ª casa Altenar · captura na TELA CHEIA do histórico
   "Betpix365":  ["betpix365.bet.br"],  // 4ª casa Altenar · captura em Minhas Apostas (replay busca o expandido)
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
+  "Faz1bet":    ["faz1.bet.br"],      // 3ª casa BetConstruct (s284) · o domínio não tem o "bet"
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
   "Betboom":    ["betboom.bet.br"],   // espelho da Jonbet · mesmo motor BetBy (sptpub.com)
@@ -195,6 +196,11 @@ async function capturar() {
                 // Betfast é espelho da Tivo (mesmo motor BetConstruct, mesmo endpoint):
                 // MESMO inject, de propósito. Duplicar seria manter 270 linhas gêmeas.
                 : casa === "Betfast" ? "tv_inject.js"
+                // Faz1bet: 3ª casa do mesmo motor (s284) — MESMO inject, mesma razão.
+                // Linha PRÓPRIA de propósito, não `(a || b) ?`: o `injects_popup()` do
+                // audit casa por `casa === "X" ? "y.js"` e não enxerga a forma com `||`
+                // (é por isso que Jonbet/Betboom passam sem a checagem de manifest).
+                : casa === "Faz1bet" ? "tv_inject.js"
                 : casa === "VaideBet" ? "vb_inject.js"
                 // Espelho da VaideBet (Altenar/BIA, mesmo gateway): MESMO inject.
                 : casa === "Esportiva" ? "vb_inject.js"

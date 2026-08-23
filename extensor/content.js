@@ -891,7 +891,7 @@
       // então o roboScroll genérico viraria um bloco só e a IA perderia o resto em silêncio
       // (lição da KTO, s192).
       blocos = await roboBNCPassive(ctx);
-    } else if (casa === "tivo" || casa === "betfast") {
+    } else if (casa === "tivo" || casa === "betfast" || casa === "faz1bet") {
       // Passivo + replay de UMA chamada (tv_inject). O histórico não tem paginação: a casa
       // devolve a conta inteira com `Count`. SEM fallback de texto — a lista da Tivo é uma
       // tabela sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
@@ -901,6 +901,12 @@
       // BetConstruct, mesmo `POST /api/game/p/messagetosport`, mesmos nomes de campo. Um
       // ramo, um inject, um formatador. O harness roda a mesma fixture pelos dois domínios
       // e compara os blocos byte a byte (`casos/betfast.mjs`).
+      //
+      // A FAZ1BET (s284) é a 3ª casa do mesmo motor e entra pelo mesmo caminho. O motor foi
+      // provado antes: 401 no `messagetosport` contra 404 numa rota falsa do mesmo prefixo,
+      // `sbloader.js` 200, e os 118 campos do payload real são subconjunto exato dos das
+      // outras duas — zero campo novo. `casos/faz1bet.mjs` roda a fixture dela pelos TRÊS
+      // hosts e exige bloco idêntico; amarrar o domínio deixa o caso vermelho.
       blocos = await roboTVPassive(ctx);
     } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" || casa === "betpix365") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
@@ -975,6 +981,9 @@
         // Espelho da Tivo: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "Tivo: 0 bilhetes" estando na Betfast.
         betfast:    { nome: "Betfast",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
+        // 3ª casa do mesmo motor (s284). Mesma razão da linha acima: o nome no toast é o da
+        // casa em que o operador está, não o da primeira que usou o inject.
+        faz1bet:    { nome: "Faz1bet",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.

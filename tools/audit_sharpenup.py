@@ -60,6 +60,10 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Betfast é espelho da Tivo e compartilha o espaço de IDs do motor BetConstruct — este é
     # um bilhete real da conta (o W de 22/07, retorno R$ 1.604,28).
     "BETFAST":    "298388575",
+    # id real da conta (a perdida de 22/08 com Koef 13,25 — o único dos 9 em que o card e o
+    # payload mostram a mesma odd). 3ª casa do motor BetConstruct: mesmo espaço de IDs,
+    # numérico de 9 dígitos, como Tivo e Betfast.
+    "FAZ1BET":    "301526505",
     "VAIDEBET":   "5234878919",
     # id real da conta (o W de 09/08 na Bahia × Vasco, stake 124 → retorno 198,40). A
     # Esportiva é espelho da VaideBet e compartilha o espaço de IDs do motor Altenar:

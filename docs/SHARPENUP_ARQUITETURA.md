@@ -131,6 +131,7 @@ Regras que valem para todos:
 | **Bet365** | rota (`location.hash`) + "Mostrar Mais" automático | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` (MAIN) + `b3_expand.js` (ISOLATED, clica) | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
 | **Tivo** | API + replay (1 chamada) | `POST /api/game/p/messagetosport` (`gethistory`) | `tv_inject.js` | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
 | **Betfast** | **espelho da Tivo** — mesmo motor BetConstruct | idem | **`tv_inject.js`** (o mesmo) | `ID` | teto de 50 + varredura por `to` ⚠ | evento mais recente (UTC→SP) |
+| **Faz1bet** | **espelho da Tivo** — 3ª casa BetConstruct | idem ⚠ **sem iframe**: o sportsbook é a própria página | **`tv_inject.js`** (o mesmo) | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
 | **BetNacional** | API + replay (janelas de datas) | `GET /api/v2/all-bets` | `bnc_inject.js` | `ticket_id` | janelas até secar | ⚠ ver nota abaixo |
 | **VaideBet** | API + replay (paginado) | `POST /api/WidgetReports/widgetExpandedBetHistory` (Altenar) | `vb_inject.js` | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Esportiva** | **espelho da VaideBet** — mesmo motor Altenar/BIA | idem, **mesmo host de gateway** | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
@@ -327,6 +328,24 @@ Regras que valem para todos:
 > caminho de API respondendo 401 (contra 400/404 numa rota falsa) e os mesmos nomes de campo
 > num payload real.
 >
+> **A prova mais barata do motor é a UNIÃO DE CHAVES** (s284, Faz1bet — 3ª casa do mesmo
+> motor). Em vez de comparar campo a campo à mão, extraia todas as chaves aninhadas do
+> payload real da casa nova e cheque se são **subconjunto** das das irmãs. Na Faz1bet deu
+> **118 chaves, zero nova**: nenhum campo que o formatador existente não saiba ler. Isso
+> cabe numa medição e substitui a leitura de um payload de 38 KB.
+>
+> ⚠ **Espelho compartilha CÓDIGO, não DICIONÁRIO.** O mesmo motor, com o mesmo
+> `language: 33`, entrega rótulos de mercado **diferentes** por tenant: onde a Betfast diz
+> `2º Tempo - Total de escanteios`, a Faz1bet diz `2º metade - …` (e ainda tem um `Total de
+> de impedimentos` com o "de" duplicado). O `§9` do `CASA_*.md` continua sendo **por casa**
+> mesmo em casa espelho — copiar o da irmã deixaria esses rótulos sem correspondência.
+>
+> ⚠ **Antes de registrar, meça a GRAFIA no banco.** Pôr a chave no `_CASA_DISPLAY` é
+> retroativo: o round-trip do `/salvar` passa a impor a grafia registrada, e conta que
+> esteja numa grafia gêmea passa a gravar numa casa que a grade dela não enxerga (s249). A
+> Faz1bet tinha **duas** grafias vivas (107 × 26 bilhetes) e a unificação teve de vir
+> ANTES do registro — ver `CASA_FAZ1BET §1.2`.
+>
 > ⚠ **Tivo/Betfast — `Count` é teto da CONSULTA, não fim de conta.** A Betfast respondeu
 > `Count: 50` com 50 bilhetes (a Tivo, 24) e a lista dela **para aí, sem "mostrar mais"**
 > (confirmado pelo operador). `len == Count` significa "a consulta encheu". **Lição geral:
@@ -339,7 +358,7 @@ Regras que valem para todos:
 > sozinha — ver `CASA_BETFAST §2.1.1`. O harness prova o algoritmo; só o ao vivo prova que
 > a casa colabora com o segundo eixo.
 
-Freios no popup: **dias + ID de parada** (Superbet/BETesporte/Betano/KTO/Pinnacle/Tivo/Betfast) ·
+Freios no popup: **dias + ID de parada** (Superbet/BETesporte/Betano/KTO/Pinnacle/Tivo/Betfast/Faz1bet) ·
 **quantidade + dias + varrer tudo** (Betfair, histórico ilimitado e fora de ordem) ·
 **nenhum** (Bet365 — o freio virou o pré-dedup do backend).
 

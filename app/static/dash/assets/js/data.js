@@ -31,7 +31,7 @@ const CASA_ICONS={
   'Betao':'https://www.google.com/s2/favicons?sz=128&domain=betao.bet.br',
   'Betão':'https://www.google.com/s2/favicons?sz=128&domain=betao.bet.br',
   'Betboom':'https://www.google.com/s2/favicons?sz=128&domain=betboom.bet.br',
-  'Faz1Bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
+  'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
   'Betboo':'https://www.google.com/s2/favicons?sz=128&domain=betboo.com',
   'Betbra':'https://www.google.com/s2/favicons?sz=128&domain=betbra.bet.br',
@@ -90,7 +90,8 @@ const HOUSE_DOMAIN={
   'Betao':'betao.bet.br',
   'Betão':'betao.bet.br',
   'Betboom':'betboom.bet.br',
-  'Faz1Bet':'faz1.bet.br',   // grafia unificada no banco (s204); era 'Faz1bet'
+  'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
+                             // mas imports posteriores viraram a maioria e a marca escreve minúsculo
   'Polymarket':'polymarket.com',
   'Betboo':'betboo.com',
   'Betbra':'betbra.bet.br',
