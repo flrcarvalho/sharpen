@@ -5326,12 +5326,27 @@ async function salvarEdicao() {
     // Mesmo aviso da edição inline: mercado trocado em bilhete SEM código muda a
     // assinatura, e a próxima captura da casa insere linha nova em vez de deduplicar.
     if ('aposta' in patch) carregarMercados();
-    setExpStatus(('aposta' in patch) && resp.sem_codigo
-      ? '✓ Aposta atualizada — esta casa não mostra o ID do bilhete: recapturar este dia pode duplicar a linha'
-      : '✓ Aposta atualizada', ('aposta' in patch) && resp.sem_codigo ? 'warn' : 'ok');
+    _exStatusEdicao(resp, Object.keys(patch));
   } catch {
     setExpStatus('Erro ao salvar edição', 'err');
   }
+}
+
+// Status depois de salvar. Os dois avisos vêm MEDIDOS do servidor (`flags_pos_edicao`)
+// porque as duas armadilhas são invisíveis daqui:
+//   · mercado trocado em bilhete SEM código muda a assinatura → a próxima captura insere
+//     linha nova em vez de deduplicar;
+//   · data/odd/stake editados em aposta ainda ABERTA de fonte automática são REESCRITOS
+//     pelo próximo envio do robô — a tela salva e o valor antigo volta sozinho.
+// Sem aviso, as duas só apareceriam dias depois, longe da causa.
+function _exStatusEdicao(resp, campos) {
+  const av = [];
+  if (resp && resp.sem_codigo && campos.indexOf('aposta') >= 0)
+    av.push('esta casa não mostra o ID do bilhete: recapturar este dia pode duplicar a linha');
+  if (resp && resp.volatil)
+    av.push('aposta em aberto: o próximo envio da casa pode sobrescrever data, stake e odd');
+  setExpStatus(av.length ? '✓ Salvo — ' + av.join(' · ') : '✓ Aposta atualizada',
+    av.length ? 'warn' : 'ok');
 }
 
 // ── Edição inline por duplo-clique (grade de extração) ──────────────────────
@@ -5387,12 +5402,8 @@ function _exInlineStart(cell) {
       // colide, e o UPSERT insere uma segunda linha. O servidor mede e responde; o
       // aviso sai aqui porque é aqui que a pessoa está olhando — a duplicata só
       // apareceria dias depois, longe da causa.
-      if (field === 'aposta') {
-        carregarMercados();   // a contagem dos favoritos acabou de mudar
-        setExpStatus(resp.sem_codigo
-          ? '✓ Mercado atualizado — esta casa não mostra o ID do bilhete: recapturar este dia pode duplicar a linha'
-          : '✓ Mercado atualizado', resp.sem_codigo ? 'warn' : 'ok');
-      } else setExpStatus('✓ Aposta atualizada', 'ok');
+      if (field === 'aposta') carregarMercados();   // a contagem dos favoritos mudou
+      _exStatusEdicao(resp, [field]);
     } catch {
       cell.innerHTML = orig;
       setExpStatus('Erro ao salvar edição', 'err');

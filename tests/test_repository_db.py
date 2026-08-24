@@ -419,3 +419,73 @@ def test_perda_sem_odd_grava_resolvida():
         # não depende do estado (é isso que mantém a linha achável na grade).
         assert (await repository.contar_pendencias("TDonoA"))["sem_odd"] == 3
     _run(body())
+
+
+# ── flags_pos_edicao: os dois avisos que a tela dá depois de salvar (s286) ─────────
+# São AVISOS, não bloqueios — mas cada um cobre um jeito de a edição do usuário morrer em
+# silêncio, e a condição de cada um mora no banco (código do bilhete, estado, origem).
+# Por isso valem um teste contra Postgres REAL: a regra é uma leitura de linha, e um stub
+# só provaria que o `if` do Python funciona.
+
+
+def test_flags_sem_codigo_so_em_bilhete_sem_codigo():
+    """`aposta` está em `_SIG_COLS` quando não há código: renomear o mercado muda a
+    assinatura e a próxima captura INSERE em vez de deduplicar. Com código, o hash é
+    ID|casa|parceiro|codigo — a aposta não entra, e nenhum aviso deve aparecer."""
+    async def body():
+        await _reset()
+        _i, _u, ids_com, _a, _d = await repository.upsert_bilhetes([_row()], "TDonoA")
+        _i2, _u2, ids_sem, _a2, _d2 = await repository.upsert_bilhetes(
+            [_row(codigo_bilhete="", descricao="Sem codigo", stake="55,00")], "TDonoA")
+
+        f = await repository.flags_pos_edicao(ids_com[0], "TDonoA", {"aposta"})
+        assert f["sem_codigo"] is False
+        f = await repository.flags_pos_edicao(ids_sem[0], "TDonoA", {"aposta"})
+        assert f["sem_codigo"] is True
+    _run(body())
+
+
+def test_flags_volatil_so_enquanto_a_aposta_esta_aberta():
+    """Enquanto `extraction_state='aberta'`, o `ON CONFLICT` refresca data/odd/stake a cada
+    reenvio: a edição manual é DESFEITA sem aviso. Depois de resolver, o congelamento
+    começa e a edição passa a valer — o aviso não pode aparecer aí, ou vira ruído."""
+    async def body():
+        await _reset()
+        _i, _u, abertos, _a, _d = await repository.upsert_bilhetes(
+            [_row(codigo_bilhete="AB1", resultado="", odd="")], "TDonoA")
+        _i2, _u2, resolvidos, _a2, _d2 = await repository.upsert_bilhetes(
+            [_row(codigo_bilhete="RS1")], "TDonoA")
+
+        f = await repository.flags_pos_edicao(abertos[0], "TDonoA", {"stake"})
+        assert f["volatil"] is True
+        f = await repository.flags_pos_edicao(resolvidos[0], "TDonoA", {"odd", "data"})
+        assert f["volatil"] is False
+    _run(body())
+
+
+def test_flags_volatil_nao_acusa_linha_lancada_a_mao():
+    """Aposta `manual` não tem robô por trás — ninguém vai reenviá-la, então editar
+    stake/odd/data nela vale, mesmo em aberto. Avisar ali seria alarme falso."""
+    async def body():
+        await _reset()
+        _i, _u, ids, _a, _d = await repository.upsert_bilhetes(
+            [_row(codigo_bilhete="MAN1", resultado="", odd="")], "TDonoA", origem="manual")
+        f = await repository.flags_pos_edicao(ids[0], "TDonoA", {"stake"})
+        assert f["volatil"] is False
+    _run(body())
+
+
+def test_flags_so_consulta_o_que_foi_editado_e_respeita_o_dono():
+    """Campo sem armadilha → `{}` (nem consulta). Linha de OUTRO dono → `{}`, para a tela
+    nunca inventar aviso sobre bilhete que não é dela — mesmo isolamento do resto."""
+    async def body():
+        await _reset()
+        _i, _u, ids, _a, _d = await repository.upsert_bilhetes(
+            [_row(codigo_bilhete="", resultado="", odd="")], "TDonoA")
+        assert await repository.flags_pos_edicao(ids[0], "TDonoA", {"tipster"}) == {}
+        assert await repository.flags_pos_edicao(ids[0], "TDonoA", set()) == {}
+        assert await repository.flags_pos_edicao(ids[0], "TDonoB", {"aposta", "stake"}) == {}
+        # e o caminho feliz continua devolvendo as duas juntas quando as duas se aplicam
+        f = await repository.flags_pos_edicao(ids[0], "TDonoA", {"aposta", "stake"})
+        assert f == {"sem_codigo": True, "volatil": True}
+    _run(body())

@@ -1625,21 +1625,51 @@ async def list_mercados(dono: str) -> list[dict]:
     return [{"nome": r["aposta"], "n": r["n"]} for r in rows]
 
 
-async def bilhete_sem_codigo(bilhete_id: int, dono: str) -> bool:
-    """True quando o bilhete NÃO tem código visível — logo, `aposta` está no hash dele.
+# Campos cujo valor a captura REESCREVE enquanto a aposta não liquida (ver o `ON CONFLICT`
+# de `upsert_bilhetes`: com `extraction_state = 'aberta'`, odd/data/stake são refrescados
+# por qualquer reenvio).
+_CAMPOS_VOLATEIS = frozenset({"data", "odd", "stake"})
 
-    Editar o mercado de um bilhete sem código muda a assinatura (`_SIG_COLS`), e a
-    próxima captura da casa gera a assinatura do nome antigo: não colide, e o UPSERT
-    insere uma segunda linha. Serve só para AVISAR quem editou; nada aqui bloqueia.
-    Bilhete inexistente/de outro dono → False (não inventa aviso para linha que não é dele).
+
+async def flags_pos_edicao(bilhete_id: int, dono: str, campos: set[str]) -> dict:
+    """Duas coisas que a TELA precisa dizer depois de salvar — e que só o banco sabe.
+
+    `sem_codigo` (quando `aposta` foi editada): o bilhete não tem código visível, então
+    `aposta` está no hash da assinatura (`_SIG_COLS`). A edição já recalcula, mas a próxima
+    captura da casa gera a assinatura do nome ANTIGO, não colide, e o UPSERT insere uma
+    SEGUNDA linha em vez de deduplicar.
+
+    `volatil` (quando data/odd/stake foram editados): a linha continua `aberta` e não é
+    `manual`, então o próximo envio do robô refresca esses campos e **desfaz a edição sem
+    aviso** — a tela aceita, salva, e o valor antigo volta. Corrigir isso é NA FONTE, ou
+    depois da liquidação (o congelamento só começa quando a linha resolve).
+
+    As duas são só AVISO: nada aqui bloqueia nem altera o que foi gravado. Uma consulta
+    só, e apenas quando os campos editados interessam. Bilhete de outro dono → `{}`, para
+    a tela não inventar aviso sobre linha que não é dela.
     """
+    quer_codigo = "aposta" in campos
+    quer_volatil = bool(_CAMPOS_VOLATEIS & campos)
+    if not (quer_codigo or quer_volatil):
+        return {}
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT codigo_bilhete FROM bilhetes WHERE id = $1 AND dono = $2",
+            "SELECT codigo_bilhete, extraction_state, origem FROM bilhetes "
+            "WHERE id = $1 AND dono = $2",
             bilhete_id, dono,
         )
-    return bool(row) and not (row["codigo_bilhete"] or "").strip()
+    if not row:
+        return {}
+    out: dict = {}
+    if quer_codigo:
+        out["sem_codigo"] = not (row["codigo_bilhete"] or "").strip()
+    if quer_volatil:
+        # Lido DEPOIS do update de propósito: completar a odd de uma aposta sem odd promove
+        # a linha para 'resolvida' na mesma chamada, e aí o aviso seria falso.
+        out["volatil"] = (row["extraction_state"] == "aberta"
+                          and (row["origem"] or "") != "manual")
+    return out
 
 
 async def get_ativos_tipster(dono: str, codigos: list[str]) -> dict[str, str]:

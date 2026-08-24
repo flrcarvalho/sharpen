@@ -65,7 +65,13 @@ function _abrtAgrupar(rows, chave) {
 }
 
 // ── Render principal ────────────────────────────────────────────────────────
+// A guarda de edição é a mesma da Minha Base (`renderApostasVirt`): a revalidação em
+// 2º plano (`loadData`) reconstrói a tela sozinha, e no meio de uma edição inline isso
+// mataria o input com o valor já digitado dentro — sem erro, como se o clique não tivesse
+// acontecido. Fica na ENTRADA, não só na lista: repintar KPI e calendário enquanto a
+// linha editada some da tabela deixaria a tela contando uma coisa e mostrando outra.
 function renderAbertas() {
+  if (_apInlineEditing) return;
   const rows = filtrarAbertas('abertas');
   _abrtKPIs(rows);
   _abrtCalendario(rows);
@@ -262,17 +268,24 @@ function _abrtLista(rows) {
     const ret = _abrtRetorno(r);
     // Editável só com id (Postgres) E linha do dono efetivo — mesma régua da Minha Base.
     const editavel = r.id != null && r.operador === window.__dono;
-    return `<div class="abrt-row abrt-linha">` +
-      `<div class="abrt-quando"><span class="dia">${_abrtBR(r.data)}</span><span class="rel ${q.cls}">${q.txt}</span></div>` +
-      `<div>${r.aposta ? `<div class="abrt-tipo">${esc(r.aposta)}</div>` : ''}` +
-        `<div class="abrt-desc" title="${esc(r.descricao || r.aposta || '')}">${esc(r.descricao || r.aposta || '—')}</div></div>` +
-      `<div class="abrt-txt">${mkSpChip(r.esporte)}<span>${esc(r.esporte || '—')}</span></div>` +
-      `<div class="abrt-txt">${esc(r.tipster || '—')}</div>` +
+    // Duplo-clique edita in loco (motor em apostas.js, `_apInlineStart`, que já procura a
+    // linha em DADOS_ABERTAS). `df()` marca o campo e `ec` põe o cursor de texto — só nas
+    // linhas editáveis, senão a célula convidaria a um gesto que o servidor recusaria.
+    // FORA de propósito: Retorno (é derivado — stake × odd, editar ali não teria destino)
+    // e Resultado (não existe como coluna nesta tela; liquidar segue pelo ✎).
+    const df = f => editavel ? ` data-field="${f}"` : '';
+    const ec = editavel ? ' ap-edit' : '';
+    return `<div class="abrt-row abrt-linha"${r.id != null ? ` data-id="${r.id}"` : ''}>` +
+      `<div class="abrt-quando${ec}"${df('data')}><span class="dia">${_abrtBR(r.data)}</span><span class="rel ${q.cls}">${q.txt}</span></div>` +
+      `<div>${r.aposta ? `<div class="abrt-tipo${ec}"${df('aposta')}>${esc(r.aposta)}</div>` : ''}` +
+        `<div class="abrt-desc${ec}"${df('descricao')} title="${esc(r.descricao || r.aposta || '')}">${esc(r.descricao || r.aposta || '—')}</div></div>` +
+      `<div class="abrt-txt${ec}"${df('esporte')}>${mkSpChip(r.esporte)}<span>${esc(r.esporte || '—')}</span></div>` +
+      `<div class="abrt-txt${ec}"${df('tipster')}>${esc(r.tipster || '—')}</div>` +
       `<div class="abrt-casa-cel">${mkHouseChip(r.casa)}<div class="abrt-conta">` +
-        `<span class="nome">${esc(r.casa || '—')}</span>` +
-        `${parceiro ? `<span class="sub">${esc(parceiro)}</span>` : ''}</div></div>` +
-      `<div class="abrt-num">${fmtR(r.stake)}</div>` +
-      `<div class="abrt-num">${Number(r.odd) > 0 ? fmtOdd(r.odd) : '—'}</div>` +
+        `<span class="nome${ec}"${df('casa')}>${esc(r.casa || '—')}</span>` +
+        `${parceiro ? `<span class="sub${ec}"${df('parceiro')}>${esc(parceiro)}</span>` : ''}</div></div>` +
+      `<div class="abrt-num${ec}"${df('stake')}>${fmtR(r.stake)}</div>` +
+      `<div class="abrt-num${ec}"${df('odd')}>${Number(r.odd) > 0 ? fmtOdd(r.odd) : '—'}</div>` +
       `<div class="abrt-num abrt-ret">${ret > 0 ? fmtR(ret) : '<span style="color:var(--ink-mute)">—</span>'}</div>` +
       `<div class="abrt-acts">${window.MODO_PUBLICO ? '' : (editavel
         ? `<button class="act-btn" title="Editar aposta" onclick="abrirEdicaoApostas(${r.id})">✎</button>` +

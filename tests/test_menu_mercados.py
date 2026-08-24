@@ -18,6 +18,7 @@ A prova de COMPORTAMENTO (união das listas, corte dos favoritos, fav↔todos, r
 item) roda em `tests/js/menu_mercados.mjs`, que executa o código recortado do próprio
 `index.html`. Este arquivo o invoca — ver `test_prova_por_execucao_do_menu`.
 """
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -31,6 +32,7 @@ REPO = RAIZ / "app" / "repository.py"
 DASH_JS = RAIZ / "app" / "static" / "dash" / "assets" / "js" / "charts" / "apostas.js"
 DASH_CSS = RAIZ / "app" / "static" / "dash" / "assets" / "css" / "components.css"
 DASH_HTML = RAIZ / "app" / "static" / "dash" / "index.html"
+ABERTAS_JS = RAIZ / "app" / "static" / "dash" / "assets" / "js" / "charts" / "abertas.js"
 
 
 @pytest.fixture(scope="module")
@@ -107,9 +109,9 @@ def test_aviso_de_duplicata_chega_a_quem_edita():
     main = MAIN.read_text(encoding="utf-8")
     repo = REPO.read_text(encoding="utf-8")
     index_txt = INDEX.read_text(encoding="utf-8")
-    assert "async def bilhete_sem_codigo" in repo
-    assert 'extra["sem_codigo"] = await bilhete_sem_codigo' in main
-    assert '"aposta" in campos' in main, "o aviso passou a consultar em toda edição"
+    assert "async def flags_pos_edicao" in repo
+    assert "extra = await flags_pos_edicao(bilhete_id, dono, set(campos))" in main
+    assert '"aposta" in campos' in repo, "o aviso deixou de depender do campo editado"
     assert "resp.sem_codigo" in index_txt, "a tela não usa mais o aviso do servidor"
     assert "aposta" in repo[repo.index("_SIG_COLS = frozenset"):repo.index("_SIG_COLS = frozenset") + 200], \
         "se `aposta` saiu da assinatura, este aviso virou mentira — reveja o texto"
@@ -160,12 +162,81 @@ def test_dash_contagem_respeita_a_escada(index: str):
     assert "n.toLocaleString('pt-BR')" in js, "a contagem do dash abreviou ou virou número cru"
 
 
-def test_cache_bust_subiu():
-    """JS/CSS do dash editados sem bump de `?v=` chegam ao tester como versão velha —
-    o recurso 'não funciona' e nada no console diz por quê."""
+@pytest.mark.parametrize("arquivo,piso", [
+    ("assets/js/charts/apostas.js", 18),
+    ("assets/js/charts/abertas.js", 3),
+    ("assets/css/components.css", 24),
+])
+def test_cache_bust_nao_regride(arquivo: str, piso: int):
+    """JS/CSS do dash editados sem bump de `?v=` chegam ao tester como versão VELHA — o
+    recurso "não funciona" e nada no console diz por quê.
+
+    PISO, não valor exato: travar o número faria este teste quebrar em toda edição futura
+    dos mesmos arquivos, e teste que grita sem motivo é teste que se aprende a ignorar. Ele
+    pega o que interessa — alguém REMOVER o `?v=` ou fazer o número andar para trás.
+    """
     html = DASH_HTML.read_text(encoding="utf-8")
-    assert "assets/js/charts/apostas.js?v=17" in html, "bumpe o ?v= do apostas.js"
-    assert "assets/css/components.css?v=24" in html, "bumpe o ?v= do components.css"
+    m = re.search(re.escape(arquivo) + r"\?v=(\d+)", html)
+    assert m, f"{arquivo} perdeu o ?v= — o cache do navegador passa a mandar"
+    assert int(m.group(1)) >= piso, f"{arquivo}?v= regrediu (é {m.group(1)}, piso {piso})"
+
+
+# ── Em Aberto: edição inline inteira (etapa 3) ─────────────────────────────────
+
+
+def test_abertas_liga_a_edicao_inline():
+    """A aba nunca teve edição inline; agora tem, reusando o motor da Minha Base.
+
+    Três peças, e nenhuma delas avisa se sumir: a linha precisa do `data-id` (é por ele que
+    `_apInlineStart` acha o bilhete), as células precisam do `data-field`, e o listener
+    precisa incluir `#page-abertas` — sem ele o duplo-clique não faz nada, calado.
+    """
+    js = ABERTAS_JS.read_text(encoding="utf-8")
+    ap = DASH_JS.read_text(encoding="utf-8")
+    assert 'data-id="${r.id}"' in js, "a linha da aba perdeu o data-id"
+    assert "#page-abertas [data-field]" in ap, "o listener parou de cobrir a aba Em Aberto"
+    assert "cell.closest('[data-id]')" in ap,         "o motor voltou a procurar .btbl-data-row — a linha da aba Em Aberto não é essa"
+    for campo in ("data", "aposta", "descricao", "esporte", "tipster", "casa", "parceiro",
+                  "stake", "odd"):
+        assert "df('%s')" % campo in js, f"campo {campo} não é editável na aba Em Aberto"
+
+
+def test_abertas_nao_edita_o_que_nao_tem_destino():
+    """Retorno é DERIVADO (stake × odd) e Resultado não existe como coluna nesta tela.
+
+    Uma célula que aceita duplo-clique e não tem onde gravar é pior que uma que não aceita:
+    o usuário digita, o valor some no re-render, e nada explica por quê.
+    """
+    js = ABERTAS_JS.read_text(encoding="utf-8")
+    ini = js.index("const df = f => editavel")
+    linha = js[ini:js.index("}).join('');", ini)]
+    assert "df('retorno')" not in linha and "df('resultado')" not in linha
+    assert 'abrt-ret' in linha and 'data-field' not in linha[linha.index('abrt-ret'):linha.index('abrt-acts')],         "a célula de Retorno virou editável — ela é derivada, não tem destino no banco"
+
+
+def test_abertas_nao_repinta_por_cima_da_edicao():
+    """`loadData` revalida em 2º plano e reconstrói a tela: no meio de uma edição isso
+    mataria o input com o texto já digitado dentro. A guarda fica na ENTRADA do render —
+    repintar KPI e calendário com a lista congelada deixaria a tela contando uma coisa e
+    mostrando outra."""
+    js = ABERTAS_JS.read_text(encoding="utf-8")
+    corpo = js[js.index("function renderAbertas()"):js.index("// ── 1) KPIs")]
+    assert "if (_apInlineEditing) return;" in corpo
+
+
+def test_aviso_de_edicao_volatil_existe_nos_dois_fronts():
+    """Editar data/odd/stake de aposta ABERTA de fonte automática é DESFEITO pelo próximo
+    envio do robô (o `ON CONFLICT` refresca esses campos enquanto a linha não resolve).
+
+    É o modo de falha mais traiçoeiro desta etapa: a tela aceita, salva, mostra o valor
+    novo — e horas depois ele volta ao que era. A aba Em Aberto, por definição, só tem
+    linhas nesse estado, então o aviso não é opcional lá.
+    """
+    repo = REPO.read_text(encoding="utf-8")
+    assert '_CAMPOS_VOLATEIS = frozenset({"data", "odd", "stake"})' in repo
+    assert 'row["extraction_state"] == "aberta"' in repo and '!= "manual"' in repo,         "o aviso deixou de checar estado/origem — passaria a acusar linha que não corre risco"
+    assert "AVISO_VOLATIL" in DASH_JS.read_text(encoding="utf-8")
+    assert "resp.volatil" in INDEX.read_text(encoding="utf-8"),         "a Extração parou de avisar (a grade dela também edita stake/odd de aposta aberta)"
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node ausente")

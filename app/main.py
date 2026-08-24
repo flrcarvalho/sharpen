@@ -61,7 +61,7 @@ from repository import (
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
-    bilhete_sem_codigo, limpar_ativos_tipster, list_bilhetes, list_esportes,
+    flags_pos_edicao, limpar_ativos_tipster, list_bilhetes, list_esportes,
     list_mercados, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
@@ -3154,15 +3154,12 @@ async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest
     ok = await atualizar_bilhete(bilhete_id, campos, dono)
     if not ok:
         raise HTTPException(404, "Bilhete não encontrado ou sem campos válidos.")
-    # `aposta` entra no hash da assinatura de bilhete SEM código (`_SIG_COLS`). A edição
-    # já recalcula a assinatura, mas a próxima captura da casa vai gerar a assinatura do
-    # nome ANTIGO, não colidir com nada e INSERIR uma segunda linha. Quem edita precisa
-    # saber disso na hora — a duplicata aparece dias depois, longe da causa. Bilhete com
-    # código não corre o risco (o hash é ID|casa|parceiro|codigo, sem a aposta).
-    # Só consulta quando a aposta foi de fato editada; nas outras edições, nada muda.
-    extra = {}
-    if "aposta" in campos:
-        extra["sem_codigo"] = await bilhete_sem_codigo(bilhete_id, dono)
+    # Avisos que só o banco sabe (ver `flags_pos_edicao`): mercado trocado em bilhete sem
+    # código duplica na próxima captura; data/odd/stake editados em aposta ainda ABERTA de
+    # fonte automática são desfeitos pelo próximo envio do robô. Os dois falham em
+    # silêncio — a tela aceita e salva —, então o aviso é na hora, para quem está olhando.
+    # Uma consulta só, e apenas quando os campos editados interessam.
+    extra = await flags_pos_edicao(bilhete_id, dono, set(campos))
     return {"atualizado": True, **extra}
 
 

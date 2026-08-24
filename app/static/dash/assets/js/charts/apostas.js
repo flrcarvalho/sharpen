@@ -231,6 +231,20 @@ function apAviso(msg){
 }
 const AVISO_SEM_CODIGO='Mercado alterado. Esta casa não mostra o ID do bilhete, '
   +'então recapturar este dia pode criar uma linha duplicada.';
+// Enquanto a aposta não liquida, o robô da casa REESCREVE data/odd/stake a cada envio
+// (ver o ON CONFLICT de upsert_bilhetes): a tela aceita a edição, salva, e o valor antigo
+// volta sozinho. O servidor só manda esta flag quando a linha ainda está aberta E não é
+// manual — em linha resolvida, ou lançada à mão, a edição vale e nenhum aviso aparece.
+const AVISO_VOLATIL='Esta aposta ainda está em aberto: o próximo envio da casa pode '
+  +'sobrescrever data, stake e odd. Corrija na origem ou espere a liquidação.';
+// Os dois avisos podem coincidir numa edição pelo modal (que salva vários campos de uma
+// vez); um toast só, para não empilhar caixa sobre caixa.
+function _apAvisoDe(resp,campos){
+  const av=[];
+  if(resp.sem_codigo&&campos.indexOf('aposta')>=0)av.push(AVISO_SEM_CODIGO);
+  if(resp.volatil)av.push(AVISO_VOLATIL);
+  if(av.length)apAviso(av.join(' '));
+}
 // Desempate alfabético: sem ele, dois mercados de mesma contagem trocam de lugar entre
 // uma abertura e outra do menu, e a posição do item deixa de ser memorizável.
 function _apMercadoFav(){
@@ -475,7 +489,7 @@ async function salvarEdicaoApostas(){
     const res=await fetch(`/bilhetes/${apEditId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
     if(!res.ok)throw new Error();
     const resp=await res.json().catch(()=>({}));
-    if(('aposta' in patch)&&resp.sem_codigo)apAviso(AVISO_SEM_CODIGO);
+    _apAvisoDe(resp,Object.keys(patch));
     fecharEdicaoApostas();
     await loadData(false);
   }catch(_){_apEditErro('Erro ao salvar. Confira os campos (data DD/MM/AAAA, stake/odd numéricos, resultado W/L/V/HW/HL).');}
@@ -507,7 +521,9 @@ function _apInlineStart(cell){
   if(_apInlineEditing)return;
   const field=cell.dataset.field;
   if(!field)return;
-  const rowEl=cell.closest('.btbl-data-row');
+  // `[data-id]` e não `.btbl-data-row`: a mesma edição inline serve a Minha Base e à aba
+  // Em Aberto, cujas linhas são `.abrt-row`. O que as duas têm em comum é o id no wrapper.
+  const rowEl=cell.closest('[data-id]');
   if(!rowEl||!rowEl.dataset.id)return;
   const id=parseInt(rowEl.dataset.id,10);
   const r=_apRowById(id);
@@ -541,7 +557,7 @@ function _apInlineStart(cell){
       const res=await fetch(`/bilhetes/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:val})});
       if(!res.ok)throw new Error();
       const resp=await res.json().catch(()=>({}));
-      if(field==='aposta'&&resp.sem_codigo)apAviso(AVISO_SEM_CODIGO);
+      _apAvisoDe(resp,[field]);
       await loadData(false);   // feed fresco → P/L derivado, KPIs e gating batem com o servidor
     }catch(_){
       cell.innerHTML=orig;
@@ -568,6 +584,6 @@ function _apInlineStart(cell){
 }
 document.addEventListener('dblclick',e=>{
   if(window.MODO_PUBLICO)return;   // vitrine pública: sem edição inline
-  const cell=e.target.closest&&e.target.closest('#page-apostas [data-field]');
+  const cell=e.target.closest&&e.target.closest('#page-apostas [data-field],#page-abertas [data-field]');
   if(cell)_apInlineStart(cell);
 });
