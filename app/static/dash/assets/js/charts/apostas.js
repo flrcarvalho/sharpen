@@ -181,6 +181,81 @@ let _acInp=null;       // input ligado no momento
 let _acItens=[];       // opções visíveis agora
 let _acIdx=-1;         // índice destacado (navegação por teclado)
 let _acCb=null;        // callback de escolha do input ligado
+let _acFonte=null;     // (filtrando)=>string[] — quem alimenta o menu do input ligado
+let _acCont=null;      // nome→contagem (só o menu de mercado usa); null = sem números
+
+// ── Mercados (coluna Aposta) ────────────────────────────────────────────────
+// Pedido do Feca: tipster que planilha "Cartões" onde a IA escreveu "Múltipla" trocava
+// o nome digitando, bilhete a bilhete. Duas listas, porque são dois gestos:
+//   · favoritos     — os que ELE mais usa, com a contagem (duplo-clique na célula);
+//   · lista completa — MASTER_APOSTAS §3 ∪ a base dele, alfabética (modal ✎).
+// Digitou uma letra? Os dois passam a varrer a completa — senão o mercado raro (ou o
+// que só existe no MASTER) fica inalcançável justamente para quem foi buscá-lo pelo nome.
+//
+// A frequência sai de `DADOS ∪ DADOS_ABERTAS`, NÃO da rota /mercados que a Extração usa:
+// para um supervisor o feed inclui a base dos operadores, e contar no servidor daria um
+// menu que não corresponde à tela que ele está olhando. Aposta em aberto conta igual —
+// ler só `DADOS` repetiria o ponto cego da s239 (quem só tem aposta aberta some).
+const MKT_FAV=12;
+let _mktTaxo=null;     // categorias canônicas (/taxonomia), cacheadas por sessão
+let _mktContCache=null,_mktContN=-1;
+function _apMercadoCont(){
+  // Memo pelo TAMANHO do feed: `loadData` troca os arrays inteiros, então o número de
+  // linhas mudar é sinal de feed novo. Sem isto, a base inteira seria varrida a cada
+  // tecla digitada no menu.
+  const _l=(typeof DADOS!=='undefined'&&DADOS)?DADOS.length:0;
+  const _a=(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS.length:0;
+  if(_mktContCache&&_mktContN===_l+_a)return _mktContCache;
+  const c={};
+  const _liq=(typeof DADOS!=='undefined'&&DADOS)?DADOS:[];
+  const _ab=(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[];
+  _liq.concat(_ab).forEach(r=>{if(r.aposta)c[r.aposta]=(c[r.aposta]||0)+1;});
+  _mktContCache=c;_mktContN=_l+_a;
+  return c;
+}
+// Aviso pós-edição. Existe por causa de UM caso e ele está escrito no texto: `aposta`
+// entra no hash da assinatura de bilhete SEM código (`_SIG_COLS`), então renomear o
+// mercado faz a próxima captura da casa INSERIR uma segunda linha em vez de deduplicar.
+// A duplicata apareceria dias depois, longe da causa — por isso o aviso é na hora.
+let _apAvisoT=null;
+function apAviso(msg){
+  const velho=document.getElementById('apAviso');
+  if(velho)velho.remove();
+  if(_apAvisoT)clearTimeout(_apAvisoT);
+  const el=document.createElement('div');
+  el.id='apAviso';el.className='ap-aviso';el.setAttribute('role','status');
+  el.innerHTML=`<span class="ap-aviso__ico" aria-hidden="true">⚠</span><span>${esc(msg)}</span>`
+    +`<button class="ap-aviso__x" title="Fechar" onclick="this.parentElement.remove()">✕</button>`;
+  document.body.appendChild(el);
+  _apAvisoT=setTimeout(()=>{const e=document.getElementById('apAviso');if(e)e.remove();},10000);
+}
+const AVISO_SEM_CODIGO='Mercado alterado. Esta casa não mostra o ID do bilhete, '
+  +'então recapturar este dia pode criar uma linha duplicada.';
+// Desempate alfabético: sem ele, dois mercados de mesma contagem trocam de lugar entre
+// uma abertura e outra do menu, e a posição do item deixa de ser memorizável.
+function _apMercadoFav(){
+  const c=_apMercadoCont();
+  return Object.keys(c).sort((a,b)=>(c[b]-c[a])||a.localeCompare(b,'pt-BR')).slice(0,MKT_FAV);
+}
+function _apMercadoTodos(){
+  const u=new Set(Object.keys(_apMercadoCont()));
+  (_mktTaxo||[]).forEach(m=>u.add(m));
+  return [...u].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+}
+// Carrega a taxonomia UMA vez por sessão; se o menu já estiver aberto quando chegar,
+// repinta — senão a 1ª abertura mostraria só a base (mesmo cuidado do _acCarregar).
+function _apMktCarregar(){
+  if(_mktTaxo!==null)return;
+  fetch('/taxonomia').then(r=>r.json()).then(d=>{
+    _mktTaxo=d.categorias||[];
+    if(_acAberto())_acRender(!!_acInp&&!!_acInp.value.trim());
+  }).catch(()=>{_mktTaxo=[];});   // offline: cai só na base, nunca quebra o menu
+}
+
+// A fonte de mercado, no formato que o `_acLigar` entende.
+const AC_MKT={ops:filtrando=>filtrando?_apMercadoTodos():_apMercadoFav(),cont:_apMercadoCont};
+// Modal ✎: lista completa já na abertura (o gesto ali é "quero ver tudo o que existe").
+const AC_MKT_TODOS={ops:()=>_apMercadoTodos(),cont:_apMercadoCont};
 
 function _apTipsterOpcoes(){
   const s=new Set();
@@ -209,7 +284,7 @@ function _acEl(){
 }
 function _acAberto(){return !!_acMenu&&_acMenu.style.display!=='none';}
 function _acFechar(){if(_acMenu)_acMenu.style.display='none';_acItens=[];_acIdx=-1;}
-function _acSoltar(){_acFechar();_acInp=null;_acCb=null;}
+function _acSoltar(){_acFechar();_acInp=null;_acCb=null;_acFonte=null;_acCont=null;}
 function _acPintar(){
   if(!_acMenu)return;
   Array.from(_acMenu.children).forEach((el,i)=>el.classList.toggle('active',i===_acIdx));
@@ -228,7 +303,8 @@ function _acRender(filtrar){
   if(!_acInp)return;
   const m=_acEl();
   const q=_acInp.value.trim().toLowerCase();
-  let ops=_apTipsterOpcoes();
+  const filtrando=!!(filtrar&&q);
+  let ops=(_acFonte||_apTipsterOpcoes)(filtrando);
   if(filtrar&&q){
     ops=ops.filter(t=>t.toLowerCase().includes(q))
       .sort((a,b)=>(b.toLowerCase().startsWith(q)?1:0)-(a.toLowerCase().startsWith(q)?1:0));
@@ -236,7 +312,15 @@ function _acRender(filtrar){
   ops=ops.slice(0,50);
   _acItens=ops;
   if(!ops.length){_acFechar();return;}   // nome novo: sem menu, o campo segue livre
-  m.innerHTML=ops.map((t,i)=>`<div class="ac-item" data-i="${i}">${esc(t)}</div>`).join('');
+  // Contagem só no menu de mercado, e só em quem JÁ foi usado: item vindo do MASTER
+  // que ele nunca apostou aparece sem número — zero seria ruído, e a ausência já diz
+  // "novo para você".
+  m.innerHTML=ops.map((t,i)=>{
+    if(!_acCont)return`<div class="ac-item" data-i="${i}">${esc(t)}</div>`;
+    const n=_acCont[t];
+    const cnt=n?`<span class="ac-count">${n.toLocaleString('pt-BR')}</span>`:'';
+    return`<div class="ac-item ac-item--mkt" data-i="${i}"><span class="ac-nome">${esc(t)}</span>${cnt}</div>`;
+  }).join('');
   m.style.display='block';
   // Ancoragem: `position:fixed` + rect do input. Vira para CIMA quando não cabe
   // abaixo — sem isso, editar uma linha do rodapé da tabela abriria o menu fora da tela.
@@ -256,11 +340,17 @@ function _acRender(filtrar){
 // Enter/Esc/setas são do menu e param por `stopImmediatePropagation` — sem isso o
 // Enter salvaria a linha em vez de aceitar a sugestão, e o Esc cancelaria a edição
 // inteira em vez de só fechar a lista. Um 2º Esc (menu fechado) cancela, como antes.
-function _acLigar(inp,aoEscolher){
+// `fonte` (opcional) = {ops:(filtrando)=>string[], cont:()=>({nome:n})}. Sem ela, o menu
+// segue sendo o de tipster — o comportamento que existia antes desta assinatura.
+function _acLigar(inp,aoEscolher,fonte){
   if(!inp)return;
-  const focar=()=>{_acInp=inp;_acCb=aoEscolher||null;_acRender(false);};
+  // Armar SEMPRE junta input+callback+fonte: um único input errado deixaria o menu com a
+  // fonte do anterior (mercado abrindo em campo de tipster), e isso não daria erro nenhum.
+  const armar=()=>{_acInp=inp;_acCb=aoEscolher||null;
+    _acFonte=fonte?fonte.ops:null;_acCont=(fonte&&fonte.cont)?fonte.cont():null;};
+  const focar=()=>{armar();_acRender(false);};
   inp.addEventListener('focus',focar);
-  inp.addEventListener('input',()=>{_acInp=inp;_acCb=aoEscolher||null;_acRender(true);});
+  inp.addEventListener('input',()=>{armar();_acRender(true);});
   inp.addEventListener('blur',()=>{if(_acInp===inp)_acSoltar();});
   inp.addEventListener('keydown',e=>{
     if(_acInp!==inp)return;
@@ -333,7 +423,11 @@ function abrirEdicaoApostas(id){
   // só preenche o campo; quem salva é o botão, como nos outros 9 campos.
   const elTip=document.getElementById('ap-ed-tipster');
   if(elTip&&!elTip.dataset.acOn){elTip.dataset.acOn='1';_acLigar(elTip,null);}
-  _acCarregar();
+  // Mercado: lista COMPLETA (MASTER ∪ base). Mesma régua do tipster — liga uma vez, sem
+  // callback: no modal quem salva é o botão.
+  const elMkt=document.getElementById('ap-ed-aposta');
+  if(elMkt&&!elMkt.dataset.acOn){elMkt.dataset.acOn='1';_acLigar(elMkt,null,AC_MKT_TODOS);}
+  _acCarregar();_apMktCarregar();
   const err=document.getElementById('apEditErr');if(err){err.style.display='none';err.textContent='';}
   const ov=document.getElementById('apEditOverlay');
   if(ov){ov.style.display='flex';document.body.style.overflow='hidden';}
@@ -380,6 +474,8 @@ async function salvarEdicaoApostas(){
   try{
     const res=await fetch(`/bilhetes/${apEditId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
     if(!res.ok)throw new Error();
+    const resp=await res.json().catch(()=>({}));
+    if(('aposta' in patch)&&resp.sem_codigo)apAviso(AVISO_SEM_CODIGO);
     fecharEdicaoApostas();
     await loadData(false);
   }catch(_){_apEditErro('Erro ao salvar. Confira os campos (data DD/MM/AAAA, stake/odd numéricos, resultado W/L/V/HW/HL).');}
@@ -444,6 +540,8 @@ function _apInlineStart(cell){
     try{
       const res=await fetch(`/bilhetes/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:val})});
       if(!res.ok)throw new Error();
+      const resp=await res.json().catch(()=>({}));
+      if(field==='aposta'&&resp.sem_codigo)apAviso(AVISO_SEM_CODIGO);
       await loadData(false);   // feed fresco → P/L derivado, KPIs e gating batem com o servidor
     }catch(_){
       cell.innerHTML=orig;
@@ -454,6 +552,8 @@ function _apInlineStart(cell){
   // aberto ele consome Enter/Esc/setas (ver `_acLigar`). Escolher preenche e SALVA na
   // hora, igual ao SharpenCal na data; o campo continua aceitando nome digitado.
   if(field==='tipster'){_acLigar(editor,()=>finish(true));_acCarregar();}
+  // Mercado: mesmo motor, fonte própria — abre nos favoritos e salva ao escolher.
+  if(field==='aposta'){_acLigar(editor,()=>finish(true),AC_MKT);_apMktCarregar();}
   editor.addEventListener('keydown',e=>{
     if(e.key==='Enter'){e.preventDefault();finish(true);}
     else if(e.key==='Escape'){e.preventDefault();finish(false);}

@@ -1024,6 +1024,39 @@ select.ap-inline-inp { padding: 2px 4px; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ac-item.active, .ac-item:hover { background: rgba(var(--accent-rgb), .14); }
+/* Item do menu de MERCADO (coluna Aposta). O nome herda o --ink 13px do .ac-item —
+   ele é o conteúdo selecionável. A contagem é METADADO SECUNDÁRIO na Escada de Tinta:
+   --ink-soft 10px mono. Medido sobre o fundo do menu (--surface-2 #161B22):
+   --ink 15,4:1 · --ink-soft 6,6:1 · --ink-mute 3,03:1 — o mute passaria raspando aqui,
+   mas no menu gêmeo da Extração (sobre --elevated) ele cai para 2,86:1 e REPROVA.
+   Um só degrau nos dois menus, para a mesma coisa não ter dois tons. */
+.ac-item--mkt { display: flex; align-items: baseline; gap: 14px; }
+.ac-item--mkt .ac-nome { overflow: hidden; text-overflow: ellipsis; }
+.ac-count {
+  margin-left: auto; flex: none;
+  font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+/* ── Aviso pós-edição (canto inferior direito) ──────────────────────────────
+   O dashboard não tinha canal de aviso: só o `_errBanner`, que usa cor LITERAL
+   (#E5524B) e é desvio conhecido — não copiado para cá. Nasce em token.
+   Fica 10s (não 3,5s como o status da Extração): quem acabou de renomear um
+   mercado precisa ler uma frase inteira sobre duplicata antes de ela sumir.
+   Medido sobre --surface (#12161D): --ink 16,1:1 · --warn 8,1:1. */
+.ap-aviso {
+  position: fixed; right: 20px; bottom: 20px; z-index: 10001;
+  max-width: 380px; display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid rgba(var(--warn-rgb), .45);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.45; color: var(--ink);
+}
+.ap-aviso__ico { color: var(--warn); flex: none; font-size: 13px; line-height: 1.35; }
+.ap-aviso__x {
+  margin-left: 4px; flex: none; background: none; border: 0; cursor: pointer;
+  color: var(--ink-soft); font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.ap-aviso__x:hover { color: var(--ink); }
 .btbl-date {
   font-family: var(--font-mono);
   font-size: 11px;
