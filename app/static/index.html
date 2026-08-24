@@ -5755,13 +5755,49 @@ function _sugParaBilhete(b, idx) {
   if (ded.length === 2) { const r = _sugRanqueia(b, idx, new Set(ded)); if (r) return r; }   // 2 donos → restringe + stake desempata
   return _sugRanqueia(b, idx, null);                                               // baseline (aditivo: não suprime)
 }
+// Pergunta ao servidor (`POST /tipsters/sugerir`, ver app/matcher.py). Devolve
+// {sugestoes, fonte} ou null se a rota não responder — offline nunca tira o botão do ar.
+async function _sugPeloServidor(vazios) {
+  try {
+    const r = await fetch('/tipsters/sugerir', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bilhetes: vazios.map(b => ({
+        id: String(b.id), casa: b.casa || '', esporte: b.esporte || '',
+        aposta: b.aposta || '', stake: b.stake == null ? '' : String(b.stake),
+        descricao: b.descricao || '',
+      })) }),
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+// Sugere o tipster dos bilhetes sem rótulo. Dois caminhos, e o servidor diz qual vale:
+//
+//   · fonte='evidencia'   — o modelo aprendeu da base ROTULADA À MÃO do dono e respondeu.
+//     Bilhete que não veio na resposta é abstenção DELIBERADA e fica vazio. Não caia no
+//     matcher declarativo aqui: medido na base do Feca, o declarativo fazia 75 % de precisão
+//     e mandava 212 dos 287 erros para um tipster só (o Arrudex levava quase toda múltipla).
+//   · fonte='declarativo' — dono ainda sem histórico rotulado. Aí sim o matcher local decide;
+//     é ele que acerta 100 % na carteira do Jaao26, que tem perfis nítidos e base pequena.
+//
+// O declarativo segue inteiro logo acima e continua sendo a rede de segurança: rota fora do ar,
+// offline ou dono novo caem nele sem o botão deixar de funcionar.
 async function sugerirTipstersLote() {
+  const vazios = bilhetes.filter(b => !(b.tipster || '').trim());
+  if (!vazios.length) { setExpStatus('Nenhum bilhete sem tipster', ''); return; }
+  setExpStatus('Sugerindo…', '');
+  const resp = await _sugPeloServidor(vazios);
+  let n = 0;
+  if (resp && resp.fonte === 'evidencia') {
+    const sug = resp.sugestoes || {};
+    for (const b of vazios) { const nome = sug[String(b.id)]; if (nome) { await salvarTipsterVal(b.id, nome, 'sugerido'); n++; } }
+    setExpStatus(n ? `${n} de ${vazios.length} sugerido(s) — revise antes de exportar`
+                   : 'Nenhuma sugestão confiante — os bilhetes não se parecem com o que você já classificou', n ? 'ok' : '');
+    return;
+  }
   await Promise.all([carregarPerfisTipster(), carregarCasasDedicadas()]);
   if (!tipsterProfiles.length) { setExpStatus('Cadastre os perfis em Tipster / Método primeiro', 'err'); return; }
   const idx = _buildSugIndex();
-  const vazios = bilhetes.filter(b => !(b.tipster || '').trim());
-  if (!vazios.length) { setExpStatus('Nenhum bilhete sem tipster', ''); return; }
-  let n = 0;
   for (const b of vazios) { const nome = _sugParaBilhete(b, idx); if (nome) { await salvarTipsterVal(b.id, nome, 'sugerido'); n++; } }
   setExpStatus(n ? `${n} de ${vazios.length} sugerido(s) — revise antes de exportar` : 'Nenhuma sugestão confiante (perfis ambíguos ou incompletos)', n ? 'ok' : '');
 }

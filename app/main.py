@@ -40,6 +40,7 @@ from auth import (
 )
 import captura as _captura
 import eventos as _eventos
+import matcher
 from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from taxonomia import categorias_canonicas, esportes_canonicos
@@ -67,7 +68,7 @@ from repository import (
     list_mercados, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
-    casas_visao, salvar_casa_config,
+    casas_visao, salvar_casa_config, casas_dedicadas, rotulos_humanos,
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
     get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
@@ -3282,6 +3283,11 @@ async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest
     ok = await atualizar_bilhete(bilhete_id, campos, dono)
     if not ok:
         raise HTTPException(404, "Bilhete não encontrado ou sem campos válidos.")
+    # Rótulo HUMANO de tipster é treino novo para o matcher por evidência: derruba o modelo em
+    # cache para o próximo lote já aprender da correção. Rótulo 'sugerido' não conta — o modelo
+    # não pode aprender do próprio chute (s289, ver app/matcher.py).
+    if "tipster" in campos and campos.get("origem_tipster", "humano") != "sugerido":
+        matcher.invalidar(dono)
     # Avisos que só o banco sabe (ver `flags_pos_edicao`): mercado trocado em bilhete sem
     # código duplica na próxima captura; data/odd/stake editados em aposta ainda ABERTA de
     # fonte automática são desfeitos pelo próximo envio do robô. Os dois falham em
@@ -3390,6 +3396,67 @@ async def atualizar_tipster_info_route(tipster_id: int, body: TipsterInfoRequest
     if not ok:
         raise HTTPException(404, "Tipster não encontrado ou sem campos válidos.")
     return {"atualizado": True}
+
+
+class BilheteSugRequest(BaseModel):
+    """Um bilhete sem tipster, do jeito que a tela da Extração o tem em mãos."""
+    id: str
+    casa: Optional[str] = ""
+    esporte: Optional[str] = ""
+    aposta: Optional[str] = ""
+    stake: Optional[float | str] = ""      # o front manda STRING BR ("250,00")
+    descricao: Optional[str] = ""
+
+
+class SugerirTipstersRequest(BaseModel):
+    bilhetes: list[BilheteSugRequest] = []
+
+
+@app.post("/tipsters/sugerir")
+async def sugerir_tipsters_route(body: SugerirTipstersRequest, dono: str = Depends(dono_efetivo)):
+    """Sugere o tipster de cada bilhete a partir do que o dono JÁ ROTULOU à mão (s289).
+
+    Substitui o matcher declarativo (que pontuava o perfil de Tipster / Método) como caminho
+    principal — ele fazia 75 % de precisão na carteira do Feca e mandava 212 de 287 erros para
+    um tipster só. Ver `app/matcher.py` para a medição e os dois cortes de confiança.
+
+    A resposta diz a `fonte`, e a tela precisa disso:
+      · 'evidencia'    — o modelo respondeu; o que não veio é abstenção deliberada, e a coluna
+                         fica VAZIA. Não caia no declarativo aqui: era ele que errava.
+      · 'declarativo'  — dono sem histórico rotulado suficiente. A tela usa o matcher local,
+                         que segue valendo (é ele que acerta 100 % na carteira do Jaao26).
+
+    Casa DEDICADA a 1 tipster (curada em `casa_config`) crava antes de tudo — é curadoria
+    humana explícita, mais forte que qualquer inferência. READ-ONLY: nada é gravado aqui; quem
+    grava é o PATCH de cada bilhete, com `origem_tipster='sugerido'`."""
+    if not body.bilhetes:
+        return {"sugestoes": {}, "fonte": "evidencia", "treino": 0}
+
+    dedicadas = await casas_dedicadas(dono)
+    modelo = matcher.modelo_em_cache(dono)
+    if modelo is None:
+        modelo = matcher.treinar(await rotulos_humanos(dono))
+        matcher.guardar_modelo(dono, modelo)
+
+    # Só tipster ATIVO pode ser sugerido — arquivado não volta por inferência.
+    ativos = [t["nome"] for t in await list_tipsters_cadastro(dono, incluir_arquivados=False)]
+    ativos_set = set(ativos)
+    fonte = "evidencia" if modelo.treino >= matcher.MIN_TREINO else "declarativo"
+
+    sugestoes: dict[str, str] = {}
+    for b in body.bilhetes:
+        dono_casa = dedicadas.get(re.sub(r"\s+", "", (b.casa or "").strip().lower()), [])
+        if len(dono_casa) == 1 and dono_casa[0] in ativos_set:
+            sugestoes[b.id] = dono_casa[0]
+            continue
+        if fonte != "evidencia":
+            continue
+        # Casa dedicada a 2 donos restringe o pool e o modelo desempata entre eles.
+        pool = [n for n in dono_casa if n in ativos_set] if len(dono_casa) == 2 else ativos
+        nome = matcher.sugerir(modelo, pool, b.casa, b.esporte, b.aposta, b.stake, b.descricao)
+        if nome:
+            sugestoes[b.id] = nome
+    return {"sugestoes": sugestoes, "fonte": fonte, "treino": modelo.treino}
 
 
 class CasaConfigRequest(BaseModel):

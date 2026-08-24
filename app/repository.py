@@ -1960,6 +1960,36 @@ async def casas_visao(dono: str) -> list[dict]:
     return out
 
 
+async def rotulos_humanos(dono: str) -> list[dict]:
+    """Histórico rotulado À MÃO do dono — o treino do matcher por evidência (`app/matcher.py`).
+
+    `origem_tipster = 'sugerido'` fica DE FORA: é chute do próprio sistema, e treinar nele faz
+    o matcher aprender a repetir o próprio erro (a mesma razão pela qual `casas_visao` já exclui
+    'sugerido' ao medir a pureza de uma casa). READ-ONLY."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT casa, esporte, aposta, stake, descricao, tipster FROM bilhetes "
+            "WHERE dono = $1 AND tipster IS NOT NULL AND tipster <> '' "
+            "AND (origem_tipster IS DISTINCT FROM 'sugerido')", dono)
+    return [dict(r) for r in rows]
+
+
+async def casas_dedicadas(dono: str) -> dict[str, list[str]]:
+    """Casas que o dono CUROU como dedicadas: slug(casa) → [tipster1(, tipster2)].
+    Só o que está salvo em `casa_config` — sugestão não curada não entra (s288/s289)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT casa, tipsters FROM casa_config WHERE dono = $1 AND modo = 'dedicada'", dono)
+    out: dict[str, list[str]] = {}
+    for r in rows:
+        tips = [t.strip() for t in (r["tipsters"] or "").split(",") if t.strip()][:2]
+        if tips:
+            out[re.sub(r"\s+", "", (r["casa"] or "").strip().lower())] = tips
+    return out
+
+
 async def salvar_casa_config(dono: str, casa: str, modo: str, tipsters: str,
                              origem: str = "custom") -> bool:
     """Upsert da curadoria de uma casa. modo='dedicada' exige 1-2 tipsters; 'multi' zera a

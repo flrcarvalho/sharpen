@@ -1,14 +1,30 @@
-"""Fase 0B — backtest holdout do matcher v4 de auto-atribuição (READ-ONLY).
+"""Backtest holdout dos DOIS matchers de auto-atribuição, lado a lado (READ-ONLY).
 
-Porta fiel de _sugParaBilhete/_stakeSignal/_parseStakeSig/_parseCentavos do
-app/static/index.html. v4 = código de centavos EXPLÍCITO ("Os centavos (21)" nas obs) tem
-prioridade e vira match nível-ID; quem não declara código cai na lógica antiga (finais/quebrada).
-Para cada dono: pega os bilhetes recentes JÁ atribuídos (excluindo os de procedência
-'sugerido', que são chute do próprio sistema — ver Fase 0A), esconde o tipster, roda o
-matcher contra o cadastro ATUAL e mede cobertura × precisão + as maiores confusões.
+  · declarativo — o que o dono DECLARA no perfil de Tipster / Método (casas, esportes,
+    mercados, dica de stake). Porta fiel de `_sugParaBilhete` & cia. do `app/static/index.html`,
+    onde ele ainda vive como rede de segurança para dono sem histórico rotulado.
+  · evidência   — o que o dono JÁ ROTULOU à mão. Importa `app/matcher.py` DIRETO: o backtest
+    mede o código de produção, não uma cópia dele (cópia diverge em silêncio e o placar passa
+    a medir outra coisa).
+
+Para cada dono: pega os bilhetes da janela JÁ atribuídos (excluindo os de procedência
+'sugerido', que são chute do próprio sistema), esconde o tipster, roda os dois matchers e mede
+cobertura × precisão + as maiores confusões. O modelo de evidência treina só no que veio ANTES
+da janela — holdout temporal, senão o placar é in-sample e mente para cima.
 
 NADA é gravado — só SELECT. Uso:
     cd app && python ../scripts/backtest_matcher.py [DIAS]   (default 14)
+
+Placar de referência (s289, janela de 30 dias, base real):
+
+    dono        declarativo      evidência
+    Feca        47 % / 75 %      55 % / 90 %
+    Gabriel     12 % / 99 %      28 % / 94 %
+    Jonathan    10 % / 41 %      13 % / 92 %
+
+Leia a precisão junto da cobertura: apertar um matcher até ele quase não sugerir sobe a
+precisão sem servir para nada. E leia o placar sabendo que **assinatura tem ERA** — o `199`
+foi do SóTudo até junho e virou do LBB em julho.
 
 ⚠️ CAVEAT (holdout temporal): usa `criado_em` como eixo de tempo. Isso vale para bases
 NATIVAS (extraídas ao longo do tempo, ex.: Feca). Para bases IMPORTADAS de uma vez
@@ -18,6 +34,8 @@ nessas, o split temporal correto usa a coluna `data` (data do evento). Refino pe
 import asyncio, asyncpg, pathlib, sys, re, math
 from collections import Counter, defaultdict
 sys.stdout.reconfigure(encoding="utf-8")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "app"))
+import matcher   # o matcher de PRODUÇÃO, não uma porta dele
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 env = (ROOT / ".env").read_text(encoding="utf-8")
@@ -140,47 +158,75 @@ def suggest(b, idx, profs, dedicadas):
         if r is not None: return r
     return _ranqueia(b, idx, profs, None)
 
+def _placar(rows, prever):
+    """(cobertura %, precisão %, confusões) de um matcher sobre um lote rotulado."""
+    sug = acerto = 0
+    conf = Counter()
+    for b in rows:
+        real = (b["tipster"] or "").strip()
+        pred = prever(b)
+        if pred is not None:
+            sug += 1
+            if pred == real:
+                acerto += 1
+            else:
+                conf[(real, pred)] += 1
+    cob = 100 * sug / len(rows) if rows else 0
+    prec = 100 * acerto / sug if sug else 0
+    return cob, prec, sug, acerto, conf
+
+
+def _linha(rot, cob, prec, sug, acerto, conf, extra=""):
+    top = " · ".join(f"{r}→{p}({n})" for (r, p), n in conf.most_common(3))
+    marca = f"{cob:.0f}%" if sug else "—"
+    pmarca = f"{prec:.0f}%" if sug else "—"
+    print(f"   {rot:<14}{marca:>10}{pmarca:>10}  ({acerto}/{sug}){extra}   {top}")
+
+
 async def main():
     conn = await asyncpg.connect(DB)
     try:
         donos = [r["dono"] for r in await conn.fetch("SELECT DISTINCT dono FROM tipsters ORDER BY dono")]
-        print(f"janela de teste: últimos {DIAS} dias · folga {FOLGA}\n")
-        print(f"{'dono':<12}{'N':>6}{'c/perfil':>9}{'cobertura':>11}{'precisão':>10}{'feudos':>8}   confusões (real→sugerido)")
+        print(f"janela de teste: últimos {DIAS} dias · folga declarativa {FOLGA} · "
+              f"margem de evidência {matcher.MARGEM} · inéditas ≤ {matcher.MAX_INEDITAS}\n")
         for dono in donos:
             profs = [dict(r) for r in await conn.fetch(
                 "SELECT nome, casas, esportes, mercados, dica_stake, obs FROM tipsters "
                 "WHERE dono=$1 AND arquivado IS NOT TRUE", dono)]
             if not profs: continue
-            ativos = set(p["nome"] for p in profs)
+            ativos = [p["nome"] for p in profs]
             idx = build_index(profs)
-            # Casa-feudo: curadoria do Feca (casa_config, modo='dedicada'). Vazio → dormente.
+            # Casa-feudo: curadoria do dono (casa_config, modo='dedicada'). Vazio → dormente.
             ded_rows = await conn.fetch(
                 "SELECT casa, tipsters FROM casa_config WHERE dono=$1 AND modo='dedicada'", dono)
             dedicadas = {}
             for r in ded_rows:
                 tips = [t.strip() for t in (r["tipsters"] or "").split(",") if t.strip()][:2]
                 if tips: dedicadas[_slug(r["casa"])] = tips
+            campos = "casa, esporte, aposta, stake, descricao, tipster"
+            filtro = ("WHERE dono=$1 AND tipster IS NOT NULL AND tipster <> '' "
+                      "AND (origem_tipster IS DISTINCT FROM 'sugerido') ")
             bilhetes = await conn.fetch(
-                "SELECT casa, esporte, aposta, stake, tipster FROM bilhetes "
-                "WHERE dono=$1 AND tipster IS NOT NULL AND tipster <> '' "
-                "AND (origem_tipster IS DISTINCT FROM 'sugerido') "
+                f"SELECT {campos} FROM bilhetes " + filtro +
                 "AND criado_em >= NOW() - ($2 || ' days')::interval", dono, str(DIAS))
-            N = len(bilhetes)
-            if N == 0: continue
-            com_perfil = sug = acerto = 0
-            conf = Counter()
-            for b in bilhetes:
-                real = b["tipster"].strip()
-                if real in ativos: com_perfil += 1
-                pred = suggest(b, idx, profs, dedicadas)
-                if pred is not None:
-                    sug += 1
-                    if pred == real: acerto += 1
-                    else: conf[(real, pred)] += 1
-            cob = f"{100*sug/N:.0f}%"
-            prec = f"{100*acerto/sug:.0f}%" if sug else "—"
-            top_conf = " · ".join(f"{r}→{p}({n})" for (r, p), n in conf.most_common(3))
-            print(f"{dono:<12}{N:>6}{com_perfil:>9}{cob:>11}{prec:>10}{len(dedicadas):>8}   {top_conf}")
+            if not bilhetes: continue
+            # Treino = TUDO que veio antes da janela de teste. Holdout temporal: sem este corte
+            # o modelo já viu a resposta e o placar vira propaganda.
+            antes = await conn.fetch(
+                f"SELECT {campos} FROM bilhetes " + filtro +
+                "AND criado_em < NOW() - ($2 || ' days')::interval", dono, str(DIAS))
+            modelo = matcher.treinar([dict(r) for r in antes])
+            com_perfil = sum(1 for b in bilhetes if (b["tipster"] or "").strip() in set(ativos))
+            print(f"── {dono} · {len(bilhetes)} bilhetes na janela ({com_perfil} com perfil ativo) · "
+                  f"treino {modelo.treino} · {len(dedicadas)} casa(s) dedicada(s)")
+            print(f"   {'matcher':<14}{'cobertura':>10}{'precisão':>10}            confusões (real→sugerido)")
+            _linha("declarativo", *_placar(bilhetes, lambda b: suggest(b, idx, profs, dedicadas)))
+            if modelo.treino < matcher.MIN_TREINO:
+                print(f"   {'evidência':<14}{'—':>10}{'—':>10}  (treino abaixo de {matcher.MIN_TREINO} → o app usa o declarativo)")
+            else:
+                _linha("evidência", *_placar(bilhetes, lambda b: matcher.sugerir(
+                    modelo, ativos, b["casa"], b["esporte"], b["aposta"], b["stake"], b["descricao"])))
+            print()
     finally:
         await conn.close()
 
