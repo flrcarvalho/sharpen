@@ -194,6 +194,15 @@ _CASA_DISPLAY: dict[str, str] = {
     # identidade e nenhuma conta existente deixa de casar com os bilhetes. Ver o aviso de
     # mudança RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5.
     "STAKE":          "Stake",
+    # A base já usava esta grafia muito antes do registro, e a MEDIÇÃO decidiu (s289):
+    # `SportingBet` tinha 119 bilhetes / 5 contas / 4 donos (Feca, Tonelada, Jonathan,
+    # LavaPessoal) contra 4 bilhetes / 1 conta em `Sportingbet` (Diogo). A gêmea foi
+    # unificada ANTES desta linha entrar — `scripts/unificar_casas.py --somente Sportingbet
+    # --aplicar`, 4 bilhetes movidos e 4 assinaturas recalculadas, zero colisão. Na ordem
+    # inversa, os 4 bilhetes do Diogo ficariam numa casa que a conta dele não enxerga:
+    # grade vazia, sem erro nenhum — o defeito que matou a Jonbet na s249 (ver o aviso de
+    # mudança RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5).
+    "SPORTINGBET":    "SportingBet",
     "SUPERBET":       "Superbet",
     "TIVO":           "Tivo",
     "VAIDEBET":       "VaideBet",
@@ -542,6 +551,7 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "BETPIX365",
     "PITACO",
     "NOVIBET",
+    "SPORTINGBET",
 })
 
 

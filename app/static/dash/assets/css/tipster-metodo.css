@@ -23,7 +23,7 @@
 .tm-wrap .inp{width:100%;height:44px;background:var(--field);border:1px solid var(--line);border-radius:var(--r-sm);padding:0 14px;color:var(--ink);font-family:var(--font-sans);font-size:13.5px;outline:none;transition:.18s}
 .tm-wrap .inp::placeholder{color:var(--ink-mute)} .tm-wrap .inp:focus{border-color:var(--accent)}
 .tm-wrap .btn{font-family:var(--font-sans);font-weight:700;font-size:13px;height:44px;border-radius:var(--r-sm);padding:0 20px;border:1px solid transparent;cursor:pointer;transition:.2s var(--ease);display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
-.tm-wrap .btn--primary{background:var(--accent);color:#fff}
+.tm-wrap .btn--primary{background:var(--accent);color:var(--bg)}
 .tm-wrap .btn--primary:hover{box-shadow:var(--glow)}
 .tm-wrap .btn--primary:disabled{opacity:.6;cursor:default;box-shadow:none}
 .tm-wrap .pill-warn{font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;color:var(--warn);background:rgba(var(--warn-rgb),.1);border:1px solid rgba(var(--warn-rgb),.3);border-radius:var(--r-pill);padding:7px 12px;white-space:nowrap}
@@ -70,14 +70,14 @@
 .tabbar button{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.03em;color:var(--ink-mute);background:transparent;border:0;cursor:pointer;padding:11px 22px;border-radius:var(--r-pill);white-space:nowrap;display:flex;align-items:center;gap:9px;transition:.18s var(--ease)}
 .tabbar button .n{font-family:var(--font-mono);font-size:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-pill);padding:2px 8px;color:var(--ink-soft)}
 .tabbar button:hover{color:var(--ink-soft)}
-.tabbar button.on{background:var(--accent);color:#fff}
-.tabbar button.on .n{background:rgba(255,255,255,.2);border-color:transparent;color:#fff}
+.tabbar button.on{background:var(--accent);color:var(--bg)}
+.tabbar button.on .n{background:rgba(0,0,0,.16);border-color:transparent;color:var(--bg)}
 .pane[hidden]{display:none}
 
 /* ---------- CASAS — tabela alinhada por grade ---------- */
 .chead,.crow{display:grid;grid-template-columns:minmax(170px,1fr) minmax(0,1.25fr) 176px 190px 112px;gap:14px;align-items:center;padding:0 18px}
 .chead{height:44px;border-bottom:1px solid var(--line)}
-.chead div{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.chead div{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
 .chead .r,.crow .r{justify-self:end}
 .crow{min-height:70px;border-top:1px solid var(--line-2)}
 .crow:first-child{border-top:0}
@@ -91,12 +91,21 @@
 /* atribuição segmentada (Dedicada / Compartilhada) */
 .attr{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--field)}
 .attr button{font-family:var(--font-mono);font-size:10px;letter-spacing:.02em;color:var(--ink-soft);background:transparent;border:0;cursor:pointer;padding:7px 13px;border-radius:var(--r-pill);white-space:nowrap;transition:.15s}
-.attr button.on{background:var(--accent);color:#fff}
+/* Fundo sólido de acento pede tinta ESCURA (Escada de Tinta): #fff sobre --accent dá 3,36:1
+   e reprova; var(--bg) dá 5,8:1. Era literal #fff — desvio anterior, corrigido na s288. */
+.attr button.on{background:var(--accent);color:var(--bg)}
 .dedmut{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-mute);letter-spacing:.02em}
+/* Casa ainda NÃO curada: a linha mostra o estado REAL (nenhum toggle ligado) e a sugestão do
+   Sharpen COMO sugestão. Antes a tela semeava a sugestão nos toggles e o Feca via "Dedicada ·
+   Arrudex" numa casa que o matcher nunca viu — casa_config vazio (s288). O nome do tipster
+   fica em --ink: nome próprio nunca vai em --ink-mute (Escada de Tinta). */
+.dedsug{display:flex;align-items:baseline;gap:7px;min-width:0}
+.dedsug .lbl{font-family:var(--font-mono);font-size:10px;letter-spacing:.02em;color:var(--ink-mute);flex:none}
+.dedsug .nm{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---------- MULTI-SELECT "Tipster dedicado" (padrão da marca) ---------- */
 .msel{position:relative;width:100%}
-.msel__btn{width:100%;height:38px;background:var(--field);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--ink);font-family:var(--font-sans);font-size:12.5px;padding:0 11px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:.15s}
+.msel__btn{width:100%;height:38px;background:var(--field);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--ink);font-family:var(--font-sans);font-size:13px;padding:0 11px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:.15s}
 .msel__btn:hover{border-color:var(--border-blue)}
 .msel__btn .ph{color:var(--ink-mute)}
 .msel__btn>span:not(.ph):not(.cnt){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -117,11 +126,14 @@
 .msopt .n{flex:1;min-width:0}
 .msopt .vol{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-soft)}
 
-/* ---------- ORIGEM (2 tags: Sharpen / Personalizado) ---------- */
-.org{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:.06em;padding:4px 9px;border-radius:var(--r-pill);border:1px solid;white-space:nowrap}
+/* ---------- ORIGEM (3 tags: A definir / Sharpen / Personalizado) ---------- */
+/* 9,5px é o piso de label da Escada de Tinta (era 9px — desvio anterior, corrigido na s288). */
+.org{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.06em;padding:4px 9px;border-radius:var(--r-pill);border:1px solid;white-space:nowrap}
 .org svg{width:11px;height:11px;flex:none}
 .org--sharpen{color:var(--accent-2);background:rgba(var(--accent-rgb),.1);border-color:var(--border-blue)}
 .org--custom{color:var(--ink-soft);background:var(--surface-2);border-color:var(--line)}
+/* Não curada: tracejado = ainda não vale para o matcher (s288). */
+.org--pend{color:var(--ink-soft);background:transparent;border-color:var(--line);border-style:dashed}
 #applySug{height:auto;padding:11px 16px;font-size:12px}
 
 /* ---------- ESCADA DE UNIDADE — form + linha do tempo HORIZONTAL ---------- */

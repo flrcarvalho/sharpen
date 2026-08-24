@@ -832,14 +832,24 @@ function _casaAtivos(){
 function _casaAtivosDetalhe(){
   return _casaAtivos().map(n=>{const a=(_tmAgg||{})[n];return {n,bets:a&&a.n?a.n.toLocaleString('pt-BR'):''};});
 }
-// Estado inicial de uma casa: config salva > sugestão do backend > 'multi' vazio.
+// Estado REAL de uma casa: o que está salvo em casa_config, e nada mais. `modo:null` = ainda
+// não curada — e a tela precisa MOSTRAR isso.
+//
+// ⚠️ Até a s288 esta função semeava o estado com a SUGESTÃO do backend quando não havia config
+// salva. A linha aparecia com o toggle "Dedicada" aceso e o tipster no multi-select, idêntica a
+// uma casa curada — só que `casa_config` estava VAZIO e o matcher (que lê `modo==='dedicada'`)
+// nunca via nada. Medido na s288: 0 linhas em casa_config para o dono Feca, com a tela mostrando
+// Stake→Arrudex e VaideBet→Peixe. Estado declarado na tela ≠ estado medido no banco.
+// A sugestão continua existindo — como sugestão, ao lado, e só vira curadoria por gesto do Feca.
 function _casaState(c){
   if(_casasEdit[c.casa])return _casasEdit[c.casa];
-  let st;
-  if(c.modo)st={modo:c.modo,tipsters:_tmSplit(c.tipsters)};
-  else if(c.sugestao_modo)st={modo:c.sugestao_modo,tipsters:(c.sugestao_tipsters||[]).slice(0,2)};
-  else st={modo:'multi',tipsters:[]};
+  const st=c.modo?{modo:c.modo,tipsters:_tmSplit(c.tipsters)}:{modo:null,tipsters:[]};
   _casasEdit[c.casa]=st;return st;
+}
+// Sugestão do backend para esta casa (só existe enquanto ela não foi curada).
+function _casaSug(c){
+  if(c.modo||!c.sugestao_modo)return null;
+  return {modo:c.sugestao_modo,tipsters:(c.sugestao_tipsters||[]).slice(0,2)};
 }
 
 async function renderCasasFeudo(){
@@ -849,18 +859,20 @@ async function renderCasasFeudo(){
   catch(e){_casasVisao=[];}
   _casasEdit={};
   const pend=_casasVisao.filter(c=>!c.modo&&c.sugestao_modo).length;
-  const nDed=_casasVisao.filter(c=>c.modo==='dedicada').length, nComp=_casasVisao.length-nDed;
+  const nDed=_casasVisao.filter(c=>c.modo==='dedicada').length;
+  const nComp=_casasVisao.filter(c=>c.modo==='multi').length;
+  const nSem=_casasVisao.length-nDed-nComp;   // ainda não curadas — não valem no matcher
   const set=(id,html)=>{const e=document.getElementById(id);if(e)e.innerHTML=html;};
   set('tabCasasN',String(_casasVisao.length));
   set('kpiCasasN',String(_casasVisao.length));
   set('kpiCasasSug',pend?(pend+' sugestões'):'curado');
   const sSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>';
-  const intro='<div class="intro">Casa de nicho costuma ser de <b>um tipster só</b> — na BETesporte é sempre o mesmo, independente do valor. Marque cada casa como <b>Dedicada</b> (1-2 tipsters) ou <b>Compartilhada</b>. As sugestões vêm da sua própria base. <span class="em">liga no atribuidor quando você curar</span></div>';
+  const intro='<div class="intro">Casa de nicho costuma ser de <b>um tipster só</b> — na BETesporte é sempre o mesmo, independente do valor. Marque cada casa como <b>Dedicada</b> (1-2 tipsters) ou <b>Compartilhada</b>. As sugestões vêm da sua própria base. <span class="em">só vale no atribuidor depois que você curar</span></div>';
   const toolbar='<div class="toolbar"><div class="search">'+sSvg+'<input id="casaSearch" value="'+esc(_casasQ)+'" oninput="casasBusca(this.value)" placeholder="Buscar casa…"></div>'
     +(pend?'<button class="btn btn--primary" id="applySug" onclick="casasAplicarSugestoes()">Aplicar '+pend+' sugestões</button>':'')+'</div>';
   const chead='<div class="chead"><div>Casa</div><div>Volume · dono na base</div><div>Atribuição</div><div>Tipster dedicado</div><div class="r">Origem</div></div>';
   pane.innerHTML='<div class="panel"><div class="panel__head"><span class="tick"></span><h2>Atribuição por casa</h2>'
-    +'<span class="meta"><b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas</span></div>'+intro+toolbar+chead+'<div id="casasList"></div></div>';
+    +'<span class="meta">'+_casaMetaTxt(nDed,nComp,nSem)+'</span></div>'+intro+toolbar+chead+'<div id="casasList"></div></div>';
   renderCasasLista();
 }
 window.renderCasasFeudo=renderCasasFeudo;
@@ -886,24 +898,39 @@ function _mselLbl(tips){
   if(tips.length===1)return '<span>'+esc(tips[0])+'</span>';
   return '<span>'+esc(tips[0])+'</span><span class="cnt">+'+(tips.length-1)+'</span>';
 }
-// Tag Origem: Sharpen (sugerido/aplicado) ou Personalizado (editado à mão). Casa não curada
-// mas com sugestão → mostra Sharpen (é a opinião do sistema); sem nada → vazio.
+// Tag Origem — 3 estados, e o terceiro é o que faltava: "A definir" = NÃO curada, não vale no
+// matcher. Antes a casa não curada mostrava "Sharpen", indistinguível de uma sugestão já
+// aplicada (s288). Sharpen = curada aplicando a sugestão; Personalizado = curada à mão.
 function _orgTag(c){
-  const o=c.origem||(c.sugestao_modo?'sharpen':null);
-  if(o==='custom')return '<span class="org org--custom">'+_PEN+'Personalizado</span>';
-  if(o==='sharpen')return '<span class="org org--sharpen">'+_SPARK+'Sharpen</span>';
+  if(!c.modo)return '<span class="org org--pend">A definir</span>';
+  if(c.origem==='custom')return '<span class="org org--custom">'+_PEN+'Personalizado</span>';
+  if(c.origem==='sharpen')return '<span class="org org--sharpen">'+_SPARK+'Sharpen</span>';
   return '';
 }
+// Meta do cabeçalho. "a definir" só aparece quando existe — casa não curada é pendência, e
+// pendência escondida é a que nunca é resolvida.
+function _casaMetaTxt(nDed,nComp,nSem){
+  return '<b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas'+(nSem?(' · <b>'+nSem+'</b> a definir'):'');
+}
 function _casaRowGrid(c){
-  const st=_casaState(c),cj=_tmJs(c.casa),isD=st.modo==='dedicada';
+  const st=_casaState(c),cj=_tmJs(c.casa),isD=st.modo==='dedicada',sug=_casaSug(c);
   const dom=(typeof _houseDomain==='function')?_houseDomain(c.casa):'';
   const ic=dom?('<img src="'+favicon(dom)+'" alt="">'):esc((c.casa||'?').slice(0,2).toUpperCase());
   const cstats='<b>'+fmt(c.total,0)+'</b> apostas · '+esc(c.top||'—')+' '+fmtPct(c.top_share,0,false)+' · '+c.n_tipsters+' tipsters';
+  // Não curada = NENHUM botão aceso. O toggle mostra o que está salvo, nunca o que o Sharpen acha.
   const attr='<div class="attr"><button data-attr="dedicated" class="'+(isD?'on':'')+'" onclick="casaModo(\''+cj+'\',\'dedicada\')">Dedicada</button>'
-    +'<button data-attr="shared" class="'+(isD?'':'on')+'" onclick="casaModo(\''+cj+'\',\'multi\')">Compartilhada</button></div>';
-  const ded=isD
-    ? '<div class="msel"><button class="msel__btn" onclick="casaMselToggle(\''+cj+'\',event)">'+_mselLbl(st.tipsters)+_CHV+'</button></div>'
-    : '<span class="dedmut">— não aplicável —</span>';
+    +'<button data-attr="shared" class="'+(st.modo==='multi'?'on':'')+'" onclick="casaModo(\''+cj+'\',\'multi\')">Compartilhada</button></div>';
+  let ded;
+  if(isD){
+    ded='<div class="msel"><button class="msel__btn" onclick="casaMselToggle(\''+cj+'\',event)">'+_mselLbl(st.tipsters)+_CHV+'</button></div>';
+  }else if(st.modo==='multi'){
+    ded='<span class="dedmut">— não aplicável —</span>';
+  }else if(sug&&sug.modo==='dedicada'&&sug.tipsters.length){
+    // Sugestão APARECE, mas como sugestão: clicar em "Dedicada" é o gesto que a torna real.
+    ded='<div class="dedsug"><span class="lbl">sugere</span><span class="nm">'+esc(sug.tipsters.join(', '))+'</span></div>';
+  }else{
+    ded='<span class="dedmut">— a definir —</span>';
+  }
   return '<div class="crow'+(isD?' dedic':'')+'" data-name="'+esc((c.casa||'').toLowerCase())+'">'
     +'<div class="casa"><span class="ic">'+ic+'</span><span class="nm" title="'+esc(c.casa)+'">'+esc(c.casa)+'</span></div>'
     +'<div class="cstats">'+cstats+'</div>'
@@ -929,12 +956,17 @@ function _casaMselBuild(msel,casa){
   const st=_casaState(c),cap=st.tipsters.length>=2;
   const rows=_casaAtivosDetalhe().map(t=>{
     const on=st.tipsters.indexOf(t.n)>-1,dim=(!on&&cap);
-    return '<div class="msopt'+(on?' on':'')+'" data-name="'+esc(t.n)+'"'+(dim?' style="opacity:.4;pointer-events:none"':'')
+    // Único dono marcado: clique travado (não some com a dedicação), mas SEM esmaecer — ele é o
+    // dono da casa, não um item desabilitado. O hint acima diz por onde tirar (s288).
+    const trava=on&&st.tipsters.length===1;
+    return '<div class="msopt'+(on?' on':'')+'" data-name="'+esc(t.n)+'"'+(dim?' style="opacity:.4;pointer-events:none"':(trava?' style="pointer-events:none"':''))
       +' onclick="casaMselPick(\''+_tmJs(casa)+'\',\''+_tmJs(t.n)+'\',event)"><span class="box">'+_CK+'</span><span class="n">'+esc(t.n)+'</span><span class="vol">'+esc(t.bets)+'</span></div>';
   }).join('');
   let pop=msel.querySelector('.msel__pop');
   if(!pop){pop=document.createElement('div');pop.className='msel__pop';msel.appendChild(pop);}
-  const hint=cap?'<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute);padding:2px 4px 6px">máx. 2 — desmarque um para trocar</div>':'';
+  const hint=cap
+    ?'<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute);padding:2px 4px 6px">máx. 2 — desmarque um para trocar</div>'
+    :(st.tipsters.length===1?'<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute);padding:2px 4px 6px">para tirar a dedicação use "Compartilhada"</div>':'');
   pop.innerHTML='<div class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>'
     +'<input placeholder="buscar tipster…" oninput="_casaMselFilter(this)" onclick="event.stopPropagation()"></div>'+hint+'<div class="msel__list">'+rows+'</div>';
 }
@@ -947,7 +979,10 @@ function casaMselPick(casa,nome,ev){
   const opt=ev.target.closest('.msopt');if(!opt)return;
   const c=_casasVisao.find(x=>x.casa===casa);if(!c)return;
   const st=_casaState(c),p=st.tipsters.indexOf(nome);
-  if(p>-1){st.tipsters.splice(p,1);opt.classList.remove('on');}
+  // Desmarcar o ÚLTIMO tipster deixaria a casa dedicada sem dono: `casaSalvar` recusa (o backend
+  // exige 1-2), a tela esvaziaria e o banco ficaria com o dono antigo — a mesma mentira que esta
+  // sessão veio consertar. Para tirar a dedicação existe "Compartilhada" (s288).
+  if(p>-1){ if(st.tipsters.length<=1)return; st.tipsters.splice(p,1);opt.classList.remove('on'); }
   else{ if(st.tipsters.length>=2)return; st.tipsters.push(nome);opt.classList.add('on'); }
   const msel=opt.closest('.msel'); if(msel){const btn=msel.querySelector('.msel__btn');if(btn)btn.innerHTML=_mselLbl(st.tipsters)+_CHV;}
   const row=opt.closest('.crow'); if(row){const rc=row.querySelector('.r');if(rc){c.origem='custom';rc.innerHTML=_orgTag(c);}}
@@ -961,11 +996,13 @@ function casaModo(casa,modo){
   const c=_casasVisao.find(x=>x.casa===casa);if(!c)return;
   const st=_casaState(c);
   if(st.modo===modo)return;
+  const eraSug=!st.modo&&c.sugestao_modo===modo;   // curou clicando exatamente no que o Sharpen sugeriu
   st.modo=modo;
   if(modo==='multi')st.tipsters=[];
   else if(!st.tipsters.length){st.tipsters=(c.sugestao_tipsters||[]).slice(0,2).filter(n=>_casaAtivos().includes(n));}
-  c.origem='custom';
-  if(modo==='multi'||st.tipsters.length)casaSalvar(casa,'custom');
+  const org=eraSug?'sharpen':'custom';
+  c.origem=org;
+  if(modo==='multi'||st.tipsters.length)casaSalvar(casa,org);
   renderCasasLista(); _casaUpdMeta();
 }
 // Persiste a casa (com origem). NÃO re-renderiza (o multi-select atualiza in-place). Dedicada
@@ -995,9 +1032,10 @@ async function casasAplicarSugestoes(){
 }
 // Atualiza o contador do cabeçalho (dedicadas · compartilhadas) sem re-render completo.
 function _casaUpdMeta(){
-  const nDed=_casasVisao.filter(c=>c.modo==='dedicada').length,nComp=_casasVisao.length-nDed;
+  const nDed=_casasVisao.filter(c=>c.modo==='dedicada').length;
+  const nComp=_casasVisao.filter(c=>c.modo==='multi').length;
   const m=document.querySelector('#paneCasas .panel__head .meta');
-  if(m)m.innerHTML='<b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas';
+  if(m)m.innerHTML=_casaMetaTxt(nDed,nComp,_casasVisao.length-nDed-nComp);
 }
 
 // Ordem DENTRO de cada grupo: alfabética (localeCompare pt-BR — `.sort()` cru é ASCII e

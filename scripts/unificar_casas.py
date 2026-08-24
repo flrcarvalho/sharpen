@@ -51,6 +51,14 @@ MAPA = {
     # Resíduo pré-s204 vivo só em `correcoes` (1 linha). Entra junto para a grafia
     # não sobreviver em nenhuma das 7 tabelas.
     "Faz1be":        "Faz1bet",
+    # s289 — mesma situação da Faz1bet acima, e pela mesma razão: a SportingBet entrou no
+    # `_CASA_DISPLAY` ao ganhar captura pelo SharpenUp, e a partir daí o round-trip do
+    # `/salvar` impõe UMA grafia. A base decidiu, não a marca: `SportingBet` tem 119
+    # bilhetes / 5 contas / 4 donos (Feca, Tonelada, Jonathan, LavaPessoal) contra 4
+    # bilhetes / 1 conta de `Sportingbet` (Diogo). Sem esta linha, os 4 bilhetes do Diogo
+    # continuariam gravados numa casa que a conta dele não enxerga — grade vazia, sem erro
+    # nenhum, exatamente o bug da s249.
+    "Sportingbet":   "SportingBet",
     "Matchbook":     "MatchBook",
     "Multibet":      "MultiBet",
     "Pixbet":        "PixBet",

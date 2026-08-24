@@ -50,6 +50,11 @@ MANIFEST = EXT / "manifest.json"
 # formato — é esse gabarito que liga a conferência de cobertura (perda silenciosa de
 # chunk, s179). CASA NOVA DE CAPTURA ENTRA AQUI, com um código real do bilhete.
 CODIGO_EXEMPLO: dict[str, str] = {
+    # id real da conta (o W de 18/08 — "Vasco to qualify" com BIG ODD, stake 50 →
+    # retorno 125,00). Formato PRÓPRIO do motor bwin/Entain: alfanumérico de 10,
+    # sem separador — reconhecido pela regex GENÉRICA do repository, não por uma
+    # regex por casa (achado #5 da auditoria).
+    "SPORTINGBET": "20PGTUNX29",
     "SUPERBET":   "891L-YJ3VAH",
     "BETANO":     "20675937607",
     "BETESPORTE": "190989817",

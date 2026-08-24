@@ -340,6 +340,33 @@
     }
   });
 
+  // Bilhetes da SPORTINGBET capturados pelo spb_inject.js (mundo MAIN) — as respostas de
+  // `POST /pt-br/sports/api/mybets/betslips` (motor bwin/Entain), já paginadas nas duas abas
+  // pelo inject. O inject sobe o bilhete CRU; quem traduz estado/esporte é o formatador
+  // abaixo + `casas/CASA_SPORTINGBET.md`.
+  const spbById = new Map();         // betSlipNumber(string) → bilhete cru
+  let spbFimReal = false;
+  let spbHookVivo = false, spbRespostas = 0;   // autodiagnóstico
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupSPBData) {
+      if (d.hook) spbHookVivo = true;
+      if (typeof d.respostas === "number") spbRespostas = d.respostas;
+      if (Array.isArray(d.bets)) {
+        // Resolvida vence aberta (o inject já aplica; aqui é a mesma regra do lado do
+        // content, porque as mensagens chegam intercaladas e a última não é a mais completa).
+        for (const b of d.bets) {
+          if (!b || b.betSlipNumber == null) continue;
+          const k = String(b.betSlipNumber);
+          const ex = spbById.get(k);
+          if (ex && ex.state !== "Open" && b.state === "Open") continue;
+          spbById.set(k, b);
+        }
+      }
+      if (d.fim) spbFimReal = true;
+    }
+  });
+
   // Bilhetes da BETNACIONAL capturados pelo bnc_inject.js (mundo MAIN) — as RESPOSTAS de
   // GET /api/v2/all-bets (BFF prod-betnacional-bets.bet6.com.br), já AGRUPADAS por
   // ticket_id pelo inject (a API devolve PERNAS soltas: múltipla de 4 = 4 objetos com o
@@ -931,6 +958,18 @@
       // reescreve o path para o expandido no replay — o compacto entra como molde, nunca
       // como dado, porque medimos que ele não traz `selections`.
       blocos = await roboVBPassive(ctx);
+    } else if (casa === "sportingbet") {
+      // Passivo + replay paginado (spb_inject, motor bwin/Entain — o primeiro deste motor
+      // no Sharpen, sem espelho para reusar). A tela pede 6 bilhetes por vez e só busca
+      // mais na rolagem; o inject pagina por `index` nas duas abas com `maxItems` alto.
+      //
+      // SEM fallback de texto, e isso foi MEDIDO, não suposto: o `innerText` da lista tem
+      // 6 bilhetes e ZERO linha em branco, então o roboScroll genérico juntaria tudo num
+      // bloco só e a IA perderia o resto em silêncio (lição da KTO, s192). O card
+      // colapsado ainda por cima não mostra o ID nem as pernas.
+      //
+      // ⚠ Fim autoritativo aqui é LISTA VAZIA — esta casa não manda `isLastPage`/`more`.
+      blocos = await roboSPBPassive(ctx);
     } else if (casa === "jonbet" || casa === "betboom") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
       // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
@@ -988,6 +1027,14 @@
         // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.
         esportiva:  { nome: "Esportiva",  hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
+        // SportingBet (bwin/Entain): `respostas: 0` com hook ATIVO tem causa específica aqui
+        // — sem os headers do motor o endpoint responde **200 com o HTML da SPA**, e o
+        // `forward` descarta (exige `betslips` como array). Ou seja, "respondeu" e "trouxe
+        // bilhete" são coisas diferentes nesta casa, e o extra diz o que fazer.
+        sportingbet: { nome: "SportingBet", hook: spbHookVivo, resp: spbRespostas, vistos: spbById.size,
+                       extra: spbRespostas === 0
+                         ? "Abra Minhas Apostas e troque de aba (Liquidadas ↔ Em Aberto) para a casa disparar a busca."
+                         : "" },
         // Jogo de Ouro: mesmo inject/contadores das irmãs Altenar, mas com um extra que só
         // ela precisa. Esta casa tem DOIS widgets de histórico e o inject só casa o da tela
         // cheia; capturar a partir do painel lateral dá `respostas: 0` com o hook ATIVO —
@@ -3718,6 +3765,249 @@
       .join(" · ");
     try {
       toastLocal("Atenção: esta casa devolveu estado que o SharpenUp ainda não traduz — " + resumo +
+                 ". Esses bilhetes sobem sem resultado. IDs completos no console (F12).", false, 56);
+    } catch (e) {}
+  }
+
+  // ── SportingBet (bwin / Entain) ───────────────────────────────────────────────
+  // Formata 1 bilhete lido de `POST /pt-br/sports/api/mybets/betslips` (parseado pelo
+  // spb_inject) no bloco de texto que a IA lê. Fiel ao que o card renderiza:
+  //   • Código = `betSlipNumber` (alfanumérico de 10, sempre presente) — chave de dedup.
+  //   • Data do TSV = `fixture.date` mais recente (UTC→Brasília).
+  //   • Odd = `totalOdds.european`, JÁ boostada (o riscado do card é `originalOdds`).
+  //   • ABERTA (`state:"Open"`): `payout` é 0 e o potencial mora em `maxPayout` /
+  //     `grossPossibleWinnings` — campos SEPARADOS, ao contrário da VaideBet.
+  //   • `state` fora de {Open,Won,Lost,Canceled} sobe CRU, marcado para conferência.
+  const _valSPB = (o) => (o && isFinite(o.value) ? Number(o.value) : 0);
+  const _abertaSPB = (b) => b && b.state === "Open";
+
+  // ⚠️ O rótulo do esporte sai do **id**, nunca de `sport.name`. A casa escreve
+  // "Beisebol" (id 23), que é SINÔNIMO DE ENTRADA do `MASTER_ESPORTES`; o valor oficial é
+  // `Baseball`. A IA copia o rótulo verbatim — foi assim que a VaideBet gravou duas
+  // grafias do mesmo esporte no banco (s210). Id fora do mapa sobe cru, marcado.
+  const _ESPORTE_SPB = { 4: "Futebol", 23: "Baseball" };
+
+  // ⚠️ Nomes de PROMOÇÃO que a casa põe no lugar do mercado. "BIG ODD" e "Múltiplas
+  // Aumentadas" chegam em `market.name`, mas não são mercado: o mercado real vive em
+  // `option.name` ("Kevin Viveros tem 2 ou mais chutes no gol"). Copiar `market.name`
+  // jogaria todo bilhete turbinado em `Outros` — e turbinada aqui é o padrão, não a exceção.
+  const _PROMO_SPB = new Set(["BIG ODD", "Múltiplas Aumentadas", "Odds Turbinadas", "Super Odds"]);
+
+  const _RESULT_PERNA_SPB = { Open: "pendente", Won: "ganhou", Lost: "perdeu", Canceled: "anulada" };
+
+  // Data do EVENTO mais recente entre as seleções (`MASTER_OUTPUT §4`). `_msVB`/`_dhVB`
+  // são reusados de propósito: converter ISO-UTC para America/Sao_Paulo é regra GLOBAL,
+  // não localização de casa (`CLAUDE.md`: cálculo é global, localização é da casa).
+  function _dataEventoSPB(b) {
+    let max = null;
+    for (const s of (b.bets || [])) {
+      const t = _msVB(s && s.fixture && s.fixture.date);
+      if (t != null && (max === null || t > max)) max = t;
+    }
+    return max;
+  }
+
+  // Odd efetiva. `totalOdds.european` é a fonte (já contém o boost); o dinheiro só entra se
+  // a odd declarada NÃO explicar o retorno até o centavo. Nunca trunca — só escolhe a fonte.
+  function _oddSPB(b) {
+    const dec = (b.totalOdds && isFinite(b.totalOdds.european)) ? Number(b.totalOdds.european) : null;
+    if (_abertaSPB(b)) return dec;
+    const st = _valSPB(b.stake), ret = _valSPB(b.payout);
+    if (b.state === "Won" && st > 0 && ret > 0) {
+      if (dec != null && Math.abs(ret - dec * st) <= 0.01) return dec;
+      return ret / st;
+    }
+    return dec;
+  }
+
+  function _resultadoSPB(b) {
+    if (_abertaSPB(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    const st = _valSPB(b.stake), ret = _valSPB(b.payout);
+    const pre = (b.isEarlyPayout || (b.earlyPayoutInformation && b.earlyPayoutInformation.autoCashoutTriggered))
+      ? "Cash Out · " : "";
+    // Anulada: a casa tem estado próprio (`Canceled`, com `cancellationReason`). Registrado
+    // desde o 1º dia por causa da Esportiva (s285), onde o enum de anulada existia havia
+    // meses e, por não estar traduzido, deixava a linha presa em "aguardando" para sempre.
+    if (b.state === "Canceled") return pre + "Anulada/void (stake devolvido) → V";
+    if (b.state === "Lost") return pre + "Perdeu → L";
+    if (b.state === "Won") {
+      if (ret === 0) return pre + "state Won com retorno ZERO — a conferir, não liquidar automaticamente";
+      if (Math.abs(ret - st) < 0.005) return pre + "Devolvida/void (retorno = stake) → V";
+      if (ret > st) return pre + "Ganho → W";
+      return pre + "Retorno parcial (R$ " + _brl(ret) + " · conferir HW/HL ou cashout)";
+    }
+    return "state " + b.state + " (a conferir — não liquidar automaticamente)";
+  }
+
+  function _tipoSPB(b) {
+    const n = (b.bets || []).length;
+    if (b.slipType === "Combo" || n >= 2) return "Múltipla (" + n + " seleções)";
+    return n === 1 ? "Simples" : "";
+  }
+
+  function _esporteSPB(b) {
+    const s = (b.bets || [])[0];
+    const id = s && s.sport ? s.sport.id : null;
+    if (id == null) return "";
+    const nome = _ESPORTE_SPB[id];
+    return nome ? nome + " (sportId " + id + ")"
+                : "sportId " + id + " · a casa chama de «" + ((s.sport && s.sport.name) || "") +
+                  "» (a conferir — id não mapeado no arquivo da casa)";
+  }
+
+  function formatTicketSPB(b) {
+    const L = [];
+    L.push("[Código: " + b.betSlipNumber + "]");
+
+    const dev = _dhVB(_dataEventoSPB(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    // ⚠️ `conclusionDateUtc` MENTE: é a data em que a aposta foi COLOCADA, não a conclusão.
+    // Prova medida na conta: o bilhete 20PSJ4C9B6 tem "conclusão" 24/08 18:28 e o jogo é
+    // 24/08 20:00 — uma conclusão não pode ser anterior ao evento.
+    const dco = _dhVB(_msVB(b.conclusionDateUtc));
+    if (dco) L.push("Data (colocação): " + dco);
+
+    if (b.stake) L.push("Stake: R$ " + _brl(_valSPB(b.stake)));
+    L.push("Status: " + _resultadoSPB(b));
+    // Enum CRU da casa — é ele que a CASA_SPORTINGBET.md traduz. Sem isso, um estado novo
+    // viraria chute a partir do dinheiro.
+    L.push("Status (API): state=" + b.state);
+
+    const odd = _oddSPB(b);
+    if (odd != null) L.push("Odd: " + _oddTxtVB(odd));
+    const tipo = _tipoSPB(b);
+    if (tipo) L.push("Tipo: " + tipo);
+    const esp = _esporteSPB(b);
+    if (esp) L.push("Esporte: " + esp);
+
+    const sels = b.bets || [];
+    const s0 = sels[0];
+    const mkt = (s0 && s0.market && s0.market.name) || "";
+    if (mkt && _PROMO_SPB.has(mkt)) {
+      // Promoção não é mercado: sai como marcação, e a linha "Mercado:" NÃO é emitida —
+      // a categoria tem de ser derivada da descrição da seleção.
+      L.push("Marcação da casa: promoção «" + mkt + "» — este NÃO é o mercado; o mercado " +
+             "real está na descrição da seleção");
+    } else if (mkt && sels.length === 1) {
+      L.push("Mercado: " + mkt);
+    }
+
+    // Dinheiro: o de uma ABERTA é POTENCIAL e sai com esse rótulo, nunca como "Retorno".
+    if (_abertaSPB(b)) {
+      const pot = _valSPB(b.maxPayout) || _valSPB(b.grossPossibleWinnings);
+      if (pot) L.push("Retorno potencial: R$ " + _brl(pot));
+    } else if (_valSPB(b.payout)) {
+      L.push("Retorno: R$ " + _brl(_valSPB(b.payout)));
+    }
+
+    if (b.isFreeBet) L.push("Marcação da casa: aposta grátis (freebet) — o stake não saiu do saldo");
+    if (b.isEditBet) L.push("Marcação da casa: aposta editada (Edit Bet)");
+
+    // Boost: o card mostra "1.98 » 2.50" (o riscado é a odd ANTES do boost). Sai como
+    // marcação para a IA não confundir com a odd válida, que é a de cima.
+    const od = s0 && s0.optionBetDetails;
+    const preOdd = (od && od.isPriceBoost && od.priceBoostData && od.priceBoostData.originalOdds)
+      ? od.priceBoostData.originalOdds.european : null;
+    if (preOdd != null && odd != null && Math.abs(preOdd - odd) > 0.0001) {
+      L.push("Marcação da casa: odd turbinada — odd antes do boost " + _oddTxtVB(preOdd) +
+             " · valendo " + _oddTxtVB(odd));
+    }
+
+    if (sels.length >= 2) {
+      const jogos = new Set(sels.map((s) => String((s.fixture && s.fixture.name) || "")));
+      if (jogos.size === 1) L.push("Mesmo jogo: as " + sels.length + " seleções são do mesmo evento");
+    }
+
+    L.push("Seleções:");
+    for (const s of sels) {
+      const rp = _RESULT_PERNA_SPB[s.state];
+      const mk = (s.market && s.market.name) || "";
+      const op = (s.option && s.option.name) || "";
+      // Na perna, o rótulo de promoção também é ruído: a descrição útil é a da opção.
+      const rotulo = (mk && !_PROMO_SPB.has(mk)) ? mk + ": " + op : op;
+      L.push("- " + (rotulo + " [" + (rp || ("state " + s.state + " — a conferir")) + "]").replace(/\s+/g, " ").trim());
+      const ctx2 = [];
+      if (s.fixture && s.fixture.name) ctx2.push("Jogo: " + s.fixture.name);
+      const ini = _dhVB(_msVB(s.fixture && s.fixture.date));
+      if (ini) ctx2.push("Início: " + ini);
+      if (s.competition && s.competition.name) ctx2.push("Competição: " + s.competition.name);
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.cancellationReason) L.push("    Anulada pela casa: " + s.cancellationReason);
+      if (s.odds && isFinite(s.odds.european) && sels.length > 1) L.push("    Odd da seleção: " + _oddTxtVB(s.odds.european));
+    }
+    return L.join("\n");
+  }
+
+  async function roboSPBPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Mais recente primeiro (é a ordem do card), para o corte da janela cair no lugar certo.
+      const todos = Array.from(spbById.values())
+        .sort((a, b) => (_msVB(b.conclusionDateUtc) || 0) - (_msVB(a.conclusionDateUtc) || 0));
+      for (const b of todos) {
+        const cod = String(b.betSlipNumber || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // A janela de dias corta só as RESOLVIDAS (pela colocação, que é o que o card
+        // mostra). Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        // Aqui o corte é obrigatoriamente do content: o corpo desta casa não tem filtro de data.
+        const dt = _msVB(b.conclusionDateUtc);
+        const passou = !_abertaSPB(b) && typeof dt === "number" && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketSPB(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    const pedir = () => {
+      const msg = { __sharpenupSPBReq: true };
+      try { window.postMessage(msg, "*"); } catch (e) {}
+      for (let i = 0; i < window.frames.length && i < 24; i++) {
+        try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
+      }
+    };
+    pedir();
+    await sleep(400);
+    processar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !spbFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (spbById.size > ultTotal) { ultTotal = spbById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] SportingBet: " + blocos.length + " bilhete(s) · spbById=" + spbById.size +
+                " · hook=" + spbHookVivo + " · respostas=" + spbRespostas + " · fimReal=" + spbFimReal);
+    avisarEstadoNaoMapeadoSPB();
+    return blocos;
+  }
+
+  // Mesmo aviso que a família Altenar ganhou na s285, pelo mesmo motivo: estado que o
+  // formatador não traduz sobe "a conferir", a IA devolve resultado vazio e a linha nasce
+  // "aguardando" — sem aviso, ela fica assim para sempre. O aviso APONTA os IDs.
+  function avisarEstadoNaoMapeadoSPB() {
+    const conhecidos = new Set(["Open", "Won", "Lost", "Canceled"]);
+    const porEstado = new Map();
+    for (const b of spbById.values()) {
+      if (!b || conhecidos.has(b.state)) continue;
+      if (!porEstado.has(b.state)) porEstado.set(b.state, []);
+      porEstado.get(b.state).push(String(b.betSlipNumber));
+    }
+    if (!porEstado.size) return;
+    const partes = Array.from(porEstado.entries()).map(([s, ids]) => "state=" + s + " em " + ids.length + " bilhete(s): " + ids.join(", "));
+    console.warn("[SharpenUp] SportingBet · estado(s) não traduzido(s) — " + partes.join(" · "));
+    const resumo = Array.from(porEstado.entries())
+      .map(([s, ids]) => "state=" + s + " (" + ids.slice(0, 3).join(", ") + (ids.length > 3 ? "…" : "") + ")").join(" · ");
+    try {
+      toastLocal("Atenção: a SportingBet devolveu estado que o SharpenUp ainda não traduz — " + resumo +
                  ". Esses bilhetes sobem sem resultado. IDs completos no console (F12).", false, 56);
     } catch (e) {}
   }

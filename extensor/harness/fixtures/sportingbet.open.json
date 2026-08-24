@@ -1,0 +1,156 @@
+{
+  "summary": {
+    "openBetsCount": 1,
+    "liveBetsCount": 0,
+    "liveEventIds": [],
+    "openEvents": {
+      "2:7838002": {
+        "siblings": [],
+        "openBetsCount": 1
+      }
+    },
+    "betNumbers": [
+      "20PSJ4C9B6"
+    ],
+    "isMigrationSummary": false,
+    "hasError": false
+  },
+  "betslips": [
+    {
+      "betSlipNumber": "20PSJ4C9B6",
+      "type": "Simples",
+      "typeAsName": "Single bet",
+      "typeId": 1,
+      "conclusionDateUtc": "2026-08-24T21:28:42.57Z",
+      "stake": {
+        "currency": "BRL",
+        "value": 0.4300
+      },
+      "stakePerBet": {
+        "currency": "BRL",
+        "value": 0.4300
+      },
+      "payout": {
+        "currency": "BRL",
+        "value": 0.0000
+      },
+      "maxPayout": {
+        "currency": "BRL",
+        "value": 1.29
+      },
+      "state": "Open",
+      "bets": [
+        {
+          "index": 1,
+          "state": "Open",
+          "outcome": "Abertas",
+          "odds": {
+            "european": 3.0,
+            "oddsFormat": "European"
+          },
+          "oddsFormat": "European",
+          "oddsChangeAcceptanceMode": "Higher",
+          "isBanker": false,
+          "fixture": {
+            "id": 7838002,
+            "compoundId": "2:7838002",
+            "name": "Botafogo - Athletico-PR",
+            "date": "2026-08-24T23:00:00Z",
+            "type": "PairGame"
+          },
+          "competition": {
+            "id": 102838,
+            "name": "Brasileiro Serie A"
+          },
+          "market": {
+            "id": 203262566,
+            "name": "BIG ODD"
+          },
+          "option": {
+            "id": 775718821,
+            "name": "Kevin Viveros tem 2 ou mais chutes no gol"
+          },
+          "region": {
+            "id": 33,
+            "name": "Brasil"
+          },
+          "sport": {
+            "id": 4,
+            "name": "Futebol"
+          },
+          "optionBetDetails": {
+            "isBetBuilder": false,
+            "isVirtual": false,
+            "isPriceBoost": true,
+            "priceBoostData": {
+              "originalOdds": {
+                "european": 2.5,
+                "oddsFormat": "European"
+              }
+            },
+            "pick": {
+              "id": 2666133495,
+              "optionId": 775718821,
+              "optionName": "Kevin Viveros tem 2 ou mais chutes no gol",
+              "positionInBet": 1
+            },
+            "picks": [
+              {
+                "id": 2666133495,
+                "optionId": 775718821,
+                "optionName": "Kevin Viveros tem 2 ou mais chutes no gol",
+                "positionInBet": 1
+              }
+            ],
+            "isStartingPrice": false,
+            "xCastSettlementDeviated": false,
+            "bestOddsGuaranteedState": "NotEligible"
+          },
+          "isBetCorrection": false
+        }
+      ],
+      "totalOdds": {
+        "european": 3.0,
+        "oddsFormat": "European"
+      },
+      "combinations": [],
+      "containsLiveBets": false,
+      "isFreeBet": false,
+      "isEarlyPayout": false,
+      "isDelayedForEarlyPayout": false,
+      "isBasicModel": false,
+      "slipType": "Single",
+      "grossPayout": {
+        "currency": "BRL",
+        "value": 0.0000
+      },
+      "grossPossibleWinnings": {
+        "currency": "BRL",
+        "value": 1.29
+      },
+      "bestOddsGuaranteedInformation": {
+        "state": "NotEligible"
+      },
+      "promoTokens": [],
+      "edsPromoTokens": [],
+      "signPostingRewards": [],
+      "signPostings": [],
+      "isEditBet": false,
+      "editBetInformation": {
+        "betSlipRealNumber": "20PSJ4C9B6",
+        "editBetHistory": []
+      },
+      "earlyPayoutInformation": {
+        "autoCashoutTriggered": false
+      },
+      "isTeaserBet": false,
+      "betGroups": [],
+      "businessContext": {
+        "loginDomainId": 93,
+        "isReadOnly": false
+      }
+    }
+  ],
+  "typeFilter": "Open",
+  "errorLoadingBets": false
+}

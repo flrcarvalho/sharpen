@@ -2436,7 +2436,7 @@ const NOMES = {
   JOGODEOURO: 'Jogo de Ouro', KTO: 'KTO',
   POLYMARKET: 'Polymarket', VITORIABET: 'Vitória Bet', TIVO: 'Tivo', VAIDEBET: 'VaideBet',
   BETFAST: 'Betfast', FAZ1BET: 'Faz1bet', JONBET: 'Jonbet', BETBOOM: 'Betboom', ESPORTIVA: 'Esportiva',
-  STAKE: 'Stake', BETPIX365: 'Betpix365', NOVIBET: 'Novibet',
+  STAKE: 'Stake', BETPIX365: 'Betpix365', NOVIBET: 'Novibet', SPORTINGBET: 'SportingBet',
   // Antiga "Rei do Pitaco". `Pitaco` é o nome padrão desde a s270, e a grafia velha foi
   // unificada NO BANCO na mesma sessão — por isso o alias de exibição que existia aqui saiu:
   // não há mais linha alguma em `Rei do Pitaco` para traduzir.
@@ -2514,7 +2514,7 @@ const DOMINIOS = {
   // dois mapas vinham dessincronizados. Copiadas de lá, nenhum domínio inventado.
   'Betão': 'betao.bet.br', 'Betboo': 'betboo.com', 'Betboom': 'betboom.bet.br',
   'Betfusion': 'betfusion.bet.br', 'Liderbet': 'lider.bet.br',
-  'SportingBet': 'sportingbet.com',
+  'SportingBet': 'sportingbet.bet.br',
 };
 // Índice por caixa-baixa. O banco guarda a grafia que o import/a casa mandou — e a mesma
 // casa convive em variantes ("Faz1bet" × "Faz1Bet", "PixBet" × "Pixbet", "MatchBook" ×
@@ -3694,7 +3694,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'FAZ1BET', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'PITACO', 'NOVIBET']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'FAZ1BET', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'PITACO', 'NOVIBET', 'SPORTINGBET']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o

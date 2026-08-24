@@ -62,7 +62,7 @@ const CASA_ICONS={
   'PixBet':'https://www.google.com/s2/favicons?sz=128&domain=pix.bet.br',
   // Antiga "Rei do Pitaco" — grafia unificada no banco na s270.
   'Pitaco':'https://www.google.com/s2/favicons?sz=128&domain=pitaco.bet.br',
-  'SportingBet':'https://www.google.com/s2/favicons?sz=128&domain=sportingbet.com',
+  'SportingBet':'https://www.google.com/s2/favicons?sz=128&domain=sportingbet.bet.br',
   'Stake':'https://www.google.com/s2/favicons?sz=128&domain=stake.bet.br',
   // Casas novas da base do PassaTips VIP (s272) — caixa conferida no site de cada uma.
   'Betvip':'https://www.google.com/s2/favicons?sz=128&domain=betvip.bet.br',
@@ -119,7 +119,7 @@ const HOUSE_DOMAIN={
   'Pinnacle':'pinnacle.com',
   'PixBet':'pix.bet.br',
   'Pitaco':'pitaco.bet.br',
-  'SportingBet':'sportingbet.com',
+  'SportingBet':'sportingbet.bet.br',
   'Stake':'stake.bet.br',
   // Casas novas da base do PassaTips VIP (s272).
   'Betvip':'betvip.bet.br','Suprema Bet':'suprema.bet.br',
