@@ -870,6 +870,7 @@ html.embedded .sidebar { display: none; }
 .exp-status { font-size: 11px; color: var(--ink-mute); }
 .exp-status.ok  { color: var(--pos); }
 .exp-status.err { color: var(--neg); }
+.exp-status.warn { color: var(--warn); }
 /* ── Badges da barra de apostas (s262) ────────────────────────────────────────
    Os dois contadores da conta ("aguardando tipster" / "aguardando resultado")
    viraram PILL CLICÁVEL: o badge É o filtro da grade. Server-side de propósito
@@ -1170,6 +1171,22 @@ html.embedded .sidebar { display: none; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ac-item.active, .ac-item:hover { background: var(--surface-2); color: var(--ink); }
+/* ── Item do menu de MERCADO (coluna Aposta) ────────────────────────────────
+   Nome em --ink por decisão de Escada de Tinta, não por gosto: o `.ac-item`
+   acima é --ink-soft 12px e é DESVIO CONHECIDO, anterior à Escada (está
+   registrado assim no components.css do dash). Item novo não herda desvio —
+   nasce no degrau certo. Medido sobre o fundo efetivo do menu (--elevated
+   #1A2029): --ink 14,6:1 · --ink-soft 6,2:1 · --ink-mute 2,86:1.
+   A contagem é METADADO SECUNDÁRIO (papel da Escada): --ink-soft 10px, e NÃO
+   --ink-mute — sobre --elevated ele mede 2,86:1, abaixo do piso de 3:1 do
+   papel. Aqui a hierarquia sai por tamanho e por tom, os dois acima do piso. */
+.ac-item--mkt { display: flex; align-items: baseline; gap: 14px; color: var(--ink); }
+.ac-item--mkt .ac-nome { overflow: hidden; text-overflow: ellipsis; }
+.ac-count {
+  margin-left: auto; flex: none;
+  font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
 /* Mesma casca do chip de casa (REFERENCIA_EMOJIS_ESPORTES §2): 24×24, raio 7px,
    fundo steel, emoji 14px dessaturado. */
 .sp-chip {
@@ -2088,7 +2105,7 @@ td.c-res.res-HL { color: var(--warn); }
       <div class="modal-field"><label>Resultado</label><select id="ed-resultado"><option value="">— aberta —</option><option value="W">W</option><option value="L">L</option><option value="V">V</option><option value="HW">HW</option><option value="HL">HL</option></select></div>
       <div class="modal-field"><label>Stake</label><input type="text" id="ed-stake" spellcheck="false"></div>
       <div class="modal-field"><label>Odd</label><input type="text" id="ed-odd" spellcheck="false"></div>
-      <div class="modal-field full"><label>Aposta (tipo)</label><input type="text" id="ed-aposta" spellcheck="false"></div>
+      <div class="modal-field full"><label>Aposta (tipo)</label><input type="text" id="ed-aposta" class="js-ac-mercado-todos" spellcheck="false" autocomplete="off"></div>
       <div class="modal-field full"><label>Descrição</label><textarea id="ed-descricao" spellcheck="false"></textarea></div>
     </div>
     <div class="modal-foot">
@@ -4804,6 +4821,7 @@ async function carregarGrade() {
     renderPager();
     atualizarContador();
     carregarTipsters();
+    carregarMercados();
     atualizarStats();
     atualizarBotoesGrade();
     atualizarResumoConta();
@@ -5186,8 +5204,13 @@ function renderGrade() {
     if (soSuspect) badges.push(`<span class="so-badge" title="Suspeita de sobreposição de scroll — esta aposta apareceu em imagens consecutivas. Verifique e delete se for duplicata.">scroll</span>`);
     const nomeCasa = NOMES[b.casa] || b.casa;
     const tipoIncerta = _apostaIncerta(b.aposta);
+    // A categoria vira célula editável (duplo-clique → menu dos mercados mais usados).
+    // O `onclick` que abria o modal saiu da célula inteira e foi para o GLIFO: na
+    // célula ele brigava com o duplo-clique — os dois cliques disparam `click` antes
+    // do `dblclick`, então o modal abria por cima da edição inline. No glifo o gesto
+    // fica explícito e os dois caminhos convivem.
     const tipoHtml = b.aposta
-      ? `<div class="btbl-tipo${tipoIncerta ? ' incerta' : ''}"${tipoIncerta ? ` title="Categoria incerta — clique para confirmar ou corrigir" onclick="abrirEdicao(${b.id})"` : ''}>${tipoIncerta ? `<span class="inc-glifo" aria-hidden="true">${GLIFO_SVG}</span>` : ''}${esc(b.aposta)}</div>`
+      ? `<div class="btbl-tipo ap-edit${tipoIncerta ? ' incerta' : ''}" data-field="aposta" title="Duplo-clique para trocar o mercado">${tipoIncerta ? `<span class="inc-glifo" aria-hidden="true" title="Categoria incerta — clique para confirmar ou corrigir" onclick="event.stopPropagation();abrirEdicao(${b.id})" style="cursor:pointer">${GLIFO_SVG}</span>` : ''}${esc(b.aposta)}</div>`
       : '';
     const contaHtml = b.parceiro ? `<span class="btbl-casa-conta ap-edit" data-field="parceiro">${esc(b.parceiro)}</span>` : '';
     return `<div class="btbl-cols btbl-data-row" data-id="${b.id}">
@@ -5281,6 +5304,7 @@ async function salvarEdicao() {
       body: JSON.stringify(patch),
     });
     if (!r.ok) throw new Error();
+    const resp = await r.json().catch(() => ({}));
     Object.assign(b, patch);
     const trocouParceiro = ('casa' in patch) || ('parceiro' in patch);
     // stake/odd/resultado alteram o P/L DERIVADO (calcular_pl no backend). Não dá para
@@ -5299,7 +5323,12 @@ async function salvarEdicao() {
       renderGrade(); atualizarStats();
     }
     atualizarIncompletos();
-    setExpStatus('✓ Aposta atualizada', 'ok');
+    // Mesmo aviso da edição inline: mercado trocado em bilhete SEM código muda a
+    // assinatura, e a próxima captura da casa insere linha nova em vez de deduplicar.
+    if ('aposta' in patch) carregarMercados();
+    setExpStatus(('aposta' in patch) && resp.sem_codigo
+      ? '✓ Aposta atualizada — esta casa não mostra o ID do bilhete: recapturar este dia pode duplicar a linha'
+      : '✓ Aposta atualizada', ('aposta' in patch) && resp.sem_codigo ? 'warn' : 'ok');
   } catch {
     setExpStatus('Erro ao salvar edição', 'err');
   }
@@ -5332,7 +5361,7 @@ function _exInlineStart(cell) {
     editor.type = 'text';
     editor.value = cur;
   }
-  editor.className = 'ap-inline-inp';
+  editor.className = 'ap-inline-inp' + (field === 'aposta' ? ' js-ac-mercado' : '');
   cell.innerHTML = '';
   cell.appendChild(editor);
   editor.focus();
@@ -5347,12 +5376,23 @@ function _exInlineStart(cell) {
     try {
       const r = await fetch(`/bilhetes/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: val }) });
       if (!r.ok) throw new Error();
+      const resp = await r.json().catch(() => ({}));
       b[field] = val;
       const pesado = ['stake', 'odd', 'resultado', 'casa', 'parceiro'].includes(field);
       if (pesado) { await carregarGrade(); }
       else { renderGrade(); atualizarStats(); }
       atualizarIncompletos();
-      setExpStatus('✓ Aposta atualizada', 'ok');
+      // `aposta` entra no hash da assinatura quando o bilhete não tem código visível
+      // (`_SIG_COLS`): a próxima captura da casa gera a assinatura do nome ANTIGO, não
+      // colide, e o UPSERT insere uma segunda linha. O servidor mede e responde; o
+      // aviso sai aqui porque é aqui que a pessoa está olhando — a duplicata só
+      // apareceria dias depois, longe da causa.
+      if (field === 'aposta') {
+        carregarMercados();   // a contagem dos favoritos acabou de mudar
+        setExpStatus(resp.sem_codigo
+          ? '✓ Mercado atualizado — esta casa não mostra o ID do bilhete: recapturar este dia pode duplicar a linha'
+          : '✓ Mercado atualizado', resp.sem_codigo ? 'warn' : 'ok');
+      } else setExpStatus('✓ Aposta atualizada', 'ok');
     } catch {
       cell.innerHTML = orig;
       setExpStatus('Erro ao salvar edição', 'err');
@@ -5431,6 +5471,34 @@ document.getElementById('pg-next').addEventListener('click', () => {
 // ── Autocomplete de tipster/esporte (dropdown custom — datalist nativo não é estilizável) ──
 let tipstersList = [];
 let esportesList = [];
+// Mercados (coluna Aposta) em DUAS listas, porque o pedido é de dois menus:
+//   · mercadosFav   — os do operador, do mais usado ao menos (o menu do duplo-clique)
+//   · mercadosTodos — MASTER_APOSTAS §3 ∪ os dele, alfabético (o menu do botão ✎)
+// `mercadosCont` guarda a contagem para pintar ao lado do nome. A união com o
+// canônico é a mesma regra da tela de Tipster / Método: o MASTER oferece o que ele
+// ainda não apostou, a base preserva a grafia herdada de import — que é a que os
+// bilhetes dele realmente usam. Nenhuma das duas restringe: o campo segue livre,
+// e mercado digitado que não está em lista nenhuma é salvo do mesmo jeito.
+let mercadosFav = [], mercadosTodos = [], mercadosCont = {};
+let _taxoCategorias = null;   // cache de sessão — o MASTER só muda em deploy
+async function carregarMercados() {
+  try {
+    if (_taxoCategorias === null) {
+      try {
+        const rt = await fetch('/taxonomia');
+        _taxoCategorias = ((await rt.json()).categorias) || [];
+      } catch { _taxoCategorias = []; }   // offline: cai só na base, nunca quebra o menu
+    }
+    const r = await fetch('/mercados');
+    const lista = (await r.json()).mercados || [];
+    mercadosFav = lista.map(m => m.nome);
+    mercadosCont = {};
+    lista.forEach(m => { mercadosCont[m.nome] = m.n; });
+    const uniao = new Set(mercadosFav);
+    _taxoCategorias.forEach(c => uniao.add(c));
+    mercadosTodos = [...uniao].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  } catch {}
+}
 async function carregarTipsters() {
   try {
     const r = await fetch('/tipsters');
@@ -5701,8 +5769,24 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
   let anchor = -1, editing = false, clip = [];
 
   const isGrid = el => !!(el && el.classList && el.classList.contains('btbl-tip-input'));
-  const isAC = el => !!(el && el.classList && (el.classList.contains('js-ac-tipster') || el.classList.contains('js-ac-esporte')));
-  const acSource = el => (el && el.classList && el.classList.contains('js-ac-esporte')) ? esportesList : tipstersList;
+  const _tem = (el, c) => !!(el && el.classList && el.classList.contains(c));
+  const isAC = el => _tem(el, 'js-ac-tipster') || _tem(el, 'js-ac-esporte')
+    || _tem(el, 'js-ac-mercado') || _tem(el, 'js-ac-mercado-todos');
+  const isMkt = el => _tem(el, 'js-ac-mercado') || _tem(el, 'js-ac-mercado-todos');
+  // Duas classes para o mesmo campo, porque são dois menus com propósitos diferentes:
+  //   js-ac-mercado       (duplo-clique na grade) — abre nos FAVORITOS, os 12 que ele
+  //                        mais usa. É o gesto rápido de quem planilha em série.
+  //   js-ac-mercado-todos (modal ✎) — abre na lista COMPLETA, MASTER ∪ base dele.
+  // Assim que o operador digita QUALQUER letra, os dois passam a varrer a lista
+  // completa: senão o mercado raro — ou o que só existe no MASTER — ficaria
+  // inalcançável justamente por quem foi procurá-lo pelo nome.
+  const MKT_FAV = 12;
+  const acSource = (el, filtrando) => {
+    if (_tem(el, 'js-ac-mercado-todos')) return mercadosTodos;
+    if (_tem(el, 'js-ac-mercado')) return filtrando ? mercadosTodos : mercadosFav.slice(0, MKT_FAV);
+    if (_tem(el, 'js-ac-esporte')) return esportesList;
+    return tipstersList;
+  };
   const cells = () => Array.from(document.querySelectorAll('.btbl-tip-input'));
   const curIdx = () => cells().indexOf(inp);
   const tipId = el => parseInt(el.dataset.tipId);
@@ -5714,7 +5798,8 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
   function renderMenu(useFilter) {
     if (!inp) return;
     const q = inp.value.trim().toLowerCase();
-    const src = acSource(inp);
+    const filtrando = !!(useFilter && q);
+    const src = acSource(inp, filtrando);
     let opts = src;
     if (useFilter && q) {
       opts = src.filter(t => t.toLowerCase().includes(q))
@@ -5727,7 +5812,16 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
     menu.style.left = r.left + 'px';
     menu.style.top = (r.bottom + 2) + 'px';
     menu.style.minWidth = Math.max(r.width, 150) + 'px';
-    menu.innerHTML = opts.map((t, i) => `<div class="ac-item" data-i="${i}">${esc(t)}</div>`).join('');
+    // Contagem só no menu de mercado, e só quando o mercado JÁ foi usado: item vindo
+    // do MASTER que ele nunca apostou aparece sem número — zero seria ruído, e a
+    // ausência já diz "novo para você".
+    const mkt = isMkt(inp);
+    menu.innerHTML = opts.map((t, i) => {
+      if (!mkt) return `<div class="ac-item" data-i="${i}">${esc(t)}</div>`;
+      const n = mercadosCont[t];
+      const cnt = n ? `<span class="ac-count">${n.toLocaleString('pt-BR')}</span>` : '';
+      return `<div class="ac-item ac-item--mkt" data-i="${i}"><span class="ac-nome">${esc(t)}</span>${cnt}</div>`;
+    }).join('');
     menu.style.display = 'block';
     active = (useFilter && q) ? 0 : -1;   // melhor match já destacado → Enter aceita direto
     hi();

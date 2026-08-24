@@ -1603,6 +1603,45 @@ async def list_esportes(dono: str) -> list[str]:
     return [r["esporte"] for r in rows]
 
 
+async def list_mercados(dono: str) -> list[dict]:
+    """Mercados (coluna `Aposta`) já usados por este dono, do mais para o menos frequente.
+
+    Irmão de `list_esportes`, com uma diferença que é o ponto do recurso: devolve a
+    CONTAGEM junto. O menu de duplo-clique da grade mostra os favoritos do operador, e
+    "favorito" aqui é medido pelo uso — ninguém marca nada à mão.
+
+    A ordem é por frequência (desempate alfabético, senão dois mercados de mesma
+    contagem trocariam de lugar entre uma carga e outra). O menu completo — este ∪ a
+    taxonomia do MASTER, via `/taxonomia` — é montado no cliente.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT aposta, COUNT(*) AS n FROM bilhetes "
+            "WHERE dono = $1 AND aposta IS NOT NULL AND aposta <> '' "
+            "GROUP BY aposta ORDER BY n DESC, aposta ASC",
+            dono,
+        )
+    return [{"nome": r["aposta"], "n": r["n"]} for r in rows]
+
+
+async def bilhete_sem_codigo(bilhete_id: int, dono: str) -> bool:
+    """True quando o bilhete NÃO tem código visível — logo, `aposta` está no hash dele.
+
+    Editar o mercado de um bilhete sem código muda a assinatura (`_SIG_COLS`), e a
+    próxima captura da casa gera a assinatura do nome antigo: não colide, e o UPSERT
+    insere uma segunda linha. Serve só para AVISAR quem editou; nada aqui bloqueia.
+    Bilhete inexistente/de outro dono → False (não inventa aviso para linha que não é dele).
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT codigo_bilhete FROM bilhetes WHERE id = $1 AND dono = $2",
+            bilhete_id, dono,
+        )
+    return bool(row) and not (row["codigo_bilhete"] or "").strip()
+
+
 async def get_ativos_tipster(dono: str, codigos: list[str]) -> dict[str, str]:
     """Tipster salvo para posições ativas Polymarket (codigo → tipster), deste dono."""
     if not codigos:

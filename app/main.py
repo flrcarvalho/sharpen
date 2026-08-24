@@ -61,7 +61,8 @@ from repository import (
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
-    limpar_ativos_tipster, list_bilhetes, list_esportes, list_tipsters,
+    bilhete_sem_codigo, limpar_ativos_tipster, list_bilhetes, list_esportes,
+    list_mercados, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
     casas_visao, salvar_casa_config,
@@ -3063,6 +3064,21 @@ async def listar_esportes(dono: str = Depends(dono_efetivo)):
     return {"esportes": await list_esportes(dono)}
 
 
+@app.get("/mercados")
+async def listar_mercados(dono: str = Depends(dono_efetivo)):
+    """Mercados já usados por este dono, do mais para o menos frequente (com contagem).
+
+    Alimenta o menu de duplo-clique da coluna `Aposta` na grade da Extração — ali o
+    cliente só tem a PÁGINA de bilhetes da conta aberta, então a frequência não pode
+    ser contada no navegador. O dashboard não consome esta rota de propósito: lá os
+    favoritos saem de `DADOS ∪ DADOS_ABERTAS`, que para um supervisor inclui a base
+    dos operadores — contar aqui daria um menu que não corresponde à tela.
+
+    O menu COMPLETO (botão ✎) é esta lista ∪ `/taxonomia`, unida no cliente.
+    """
+    return {"mercados": await list_mercados(dono)}
+
+
 @app.get("/taxonomia")
 async def taxonomia(dono: str = Depends(dono_efetivo)):
     """Esportes e categorias VÁLIDOS, lidos dos MASTERs (`app/taxonomia.py`).
@@ -3138,7 +3154,16 @@ async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest
     ok = await atualizar_bilhete(bilhete_id, campos, dono)
     if not ok:
         raise HTTPException(404, "Bilhete não encontrado ou sem campos válidos.")
-    return {"atualizado": True}
+    # `aposta` entra no hash da assinatura de bilhete SEM código (`_SIG_COLS`). A edição
+    # já recalcula a assinatura, mas a próxima captura da casa vai gerar a assinatura do
+    # nome ANTIGO, não colidir com nada e INSERIR uma segunda linha. Quem edita precisa
+    # saber disso na hora — a duplicata aparece dias depois, longe da causa. Bilhete com
+    # código não corre o risco (o hash é ID|casa|parceiro|codigo, sem a aposta).
+    # Só consulta quando a aposta foi de fato editada; nas outras edições, nada muda.
+    extra = {}
+    if "aposta" in campos:
+        extra["sem_codigo"] = await bilhete_sem_codigo(bilhete_id, dono)
+    return {"atualizado": True, **extra}
 
 
 @app.post("/parceiros/{parceiro_id}/reativar")
