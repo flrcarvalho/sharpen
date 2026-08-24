@@ -45,7 +45,7 @@ def _sem_cache():
 @pytest.fixture
 def cenario(monkeypatch):
     """Monta a base do dono e devolve um setter para cada peça."""
-    estado = {"rotulos": [], "dedicadas": {}, "ativos": ["Alfa", "Beta"]}
+    estado = {"rotulos": [], "dedicadas": {}, "ativos": ["Alfa", "Beta"], "dominio": {}}
 
     async def _rotulos(dono):
         assert dono == DONO
@@ -54,11 +54,15 @@ def cenario(monkeypatch):
     async def _dedicadas(dono):
         return estado["dedicadas"]
 
+    async def _dominio(dono):
+        return estado["dominio"]
+
     async def _cadastro(dono, incluir_arquivados=False):
         return [{"nome": n} for n in estado["ativos"]]
 
     monkeypatch.setattr(main, "rotulos_humanos", _rotulos)
     monkeypatch.setattr(main, "casas_dedicadas", _dedicadas)
+    monkeypatch.setattr(main, "dominio_esportes", _dominio)
     monkeypatch.setattr(main, "list_tipsters_cadastro", _cadastro)
     main.app.dependency_overrides[main.dono_efetivo] = lambda: DONO
     yield estado
@@ -191,3 +195,64 @@ def test_modelo_e_reaproveitado_do_cache_entre_chamadas(cenario, monkeypatch):
     _post(corpo)
     _post(corpo)
     assert treinos["n"] == 1
+
+
+# ── esporte praticamente exclusivo (s289) ───────────────────────────────────────
+def test_esporte_exclusivo_decide_sozinho(cenario):
+    """O caso Bad Milton: 44 apostas de Badminton na carteira, praticamente todas dele, e o
+    matcher se calava porque um tipster que nunca fez Badminton ficava perto na log-odds.
+    Aqui o treino inteiro aponta para Alfa e o domínio do esporte aponta para Beta — o domínio
+    ganha, porque é evidência direta e não inferência."""
+    cenario["rotulos"] = [_bilhete() for _ in range(matcher.MIN_TREINO)]
+    cenario["dominio"] = {"badminton": ("Beta", 44, 44)}
+    d = _post([{"id": "1", "casa": "Betboom", "esporte": "Badminton", "aposta": "ML",
+                "stake": "300,00", "descricao": "x"}])
+    assert d["sugestoes"] == {"1": "Beta"}
+
+
+def test_esporte_exclusivo_vale_ate_sem_modelo(cenario):
+    """Evidência direta não depende de treino: vale no dono que ainda cai no declarativo."""
+    cenario["rotulos"] = []
+    cenario["dominio"] = {"badminton": ("Beta", 44, 44)}
+    d = _post([{"id": "1", "casa": "Betboom", "esporte": "Badminton", "aposta": "ML",
+                "stake": "300,00", "descricao": "x"}])
+    assert d["fonte"] == "declarativo"
+    assert d["sugestoes"] == {"1": "Beta"}
+
+
+def test_esporte_compartilhado_NAO_decide(cenario):
+    """Contraprova — sem ela a regra passaria a cravar o maior de qualquer esporte. 44 de 60 é
+    73 %: o esporte é dele, mas não SÓ dele."""
+    cenario["rotulos"] = []
+    cenario["dominio"] = {"badminton": ("Beta", 44, 60)}
+    d = _post([{"id": "1", "casa": "Betboom", "esporte": "Badminton", "aposta": "ML",
+                "stake": "300,00", "descricao": "x"}])
+    assert d["sugestoes"] == {}
+
+
+def test_esporte_exclusivo_mas_com_pouco_historico_NAO_decide(cenario):
+    """Exclusividade com 5 bilhetes é coincidência, não padrão (MIN_ESPORTE)."""
+    cenario["rotulos"] = []
+    cenario["dominio"] = {"badminton": ("Beta", 5, 5)}
+    d = _post([{"id": "1", "casa": "Betboom", "esporte": "Badminton", "aposta": "ML",
+                "stake": "300,00", "descricao": "x"}])
+    assert d["sugestoes"] == {}
+
+
+def test_dono_do_esporte_arquivado_NAO_decide(cenario):
+    cenario["rotulos"] = []
+    cenario["ativos"] = ["Alfa"]
+    cenario["dominio"] = {"badminton": ("Arquivado", 44, 44)}
+    d = _post([{"id": "1", "casa": "Betboom", "esporte": "Badminton", "aposta": "ML",
+                "stake": "300,00", "descricao": "x"}])
+    assert d["sugestoes"] == {}
+
+
+def test_casa_dedicada_ganha_do_esporte_exclusivo(cenario):
+    """Curadoria humana explícita fica acima de qualquer evidência derivada."""
+    cenario["rotulos"] = []
+    cenario["dedicadas"] = {"betboom": ["Alfa"]}
+    cenario["dominio"] = {"badminton": ("Beta", 44, 44)}
+    d = _post([{"id": "1", "casa": "Betboom", "esporte": "Badminton", "aposta": "ML",
+                "stake": "300,00", "descricao": "x"}])
+    assert d["sugestoes"] == {"1": "Alfa"}

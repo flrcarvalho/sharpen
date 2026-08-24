@@ -14,8 +14,8 @@ afrouxar: o matcher continua respondendo, só que errado.
 O dado sintético aqui EXERCE as regras (a regra "teste verde não é teste que detecta" do
 CLAUDE.md): os cenários têm empate real, tipster fora do treino e volume acima dos cortes.
 Cada asserção foi provada por mutação: `python scripts/mutar_matcher.py` quebra o matcher de
-propósito, uma mutação por vez, e exige que este arquivo passe a falhar (8/8 detectadas na
-s289). Rode-o depois de mexer aqui — teste que não detecta a mutação não está testando nada.
+propósito, uma mutação por vez, e exige que este arquivo passe a falhar (19/19 detectadas
+na s289). Rode-o depois de mexer aqui — teste que não detecta a mutação não está testando nada.
 
 O que este arquivo NÃO cobre: a rota HTTP (`POST /tipsters/sugerir`), a leitura do Postgres e
 a qualidade estatística real — essa se mede com `scripts/backtest_matcher.py` contra a base.
@@ -187,3 +187,61 @@ def test_constantes_de_confianca_nao_foram_afrouxadas():
     assert matcher.MARGEM >= 2.5
     assert matcher.MAX_INEDITAS == 0
     assert matcher.MIN_TREINO >= 200
+
+
+# ── esporte praticamente exclusivo (s289) ───────────────────────────────────────
+# Feedback do Feca: "as do Bad Milton são muito fáceis de caracterizar, são as únicas do
+# Badminton, não tem por que não categorizar". O modelo não via isso — um tipster que NUNCA
+# fez Badminton ficava a 1,67 de log-odds e comia a folga.
+DOM = {"badminton": ("Bad Milton", 44, 45)}   # 97,8 %… abaixo do corte de propósito
+DOM_EXCLUSIVO = {"badminton": ("Bad Milton", 44, 44)}
+
+
+def test_esporte_exclusivo_decide_antes_do_modelo():
+    """Evidência direta ganha da inferência: o treino inteiro diz "Outro" e o esporte diz
+    "Bad Milton"."""
+    m = matcher.treinar(treino(tipster="Outro", esporte="Badminton"))
+    assert matcher.sugerir(m, ["Outro", "Bad Milton"], "Betboom", "Badminton", "ML",
+                           "300,00", "x", dominio=DOM_EXCLUSIVO) == "Bad Milton"
+
+
+def test_esporte_exclusivo_decide_sem_modelo_nenhum():
+    """Não depende de treino — o dono pode não ter histórico nenhum ainda."""
+    assert matcher.sugerir(matcher.treinar([]), ["Bad Milton"], "Betboom", "Badminton", "ML",
+                           "300,00", "x", dominio=DOM_EXCLUSIVO) == "Bad Milton"
+
+
+def test_esporte_compartilhado_nao_decide():
+    """PUREZA_ESPORTE: 44 de 60 é 73 % — o esporte é dele, mas não SÓ dele. Sem esta contraprova
+    a regra viraria "crava o maior de qualquer esporte"."""
+    assert matcher.dono_do_esporte({"badminton": ("Bad Milton", 44, 60)},
+                                   "Badminton", ["Bad Milton"]) is None
+
+
+def test_esporte_exclusivo_com_pouco_historico_nao_decide():
+    """MIN_ESPORTE: exclusividade com 5 bilhetes é coincidência, não padrão."""
+    assert matcher.dono_do_esporte({"badminton": ("Bad Milton", 5, 5)},
+                                   "Badminton", ["Bad Milton"]) is None
+
+
+def test_dono_do_esporte_arquivado_nao_decide():
+    assert matcher.dono_do_esporte(DOM_EXCLUSIVO, "Badminton", ["Outro"]) is None
+
+
+def test_dono_do_esporte_normaliza_o_nome():
+    """A chave do domínio vem em minúsculas do SQL; o bilhete traz "Badminton"."""
+    assert matcher.dono_do_esporte(DOM_EXCLUSIVO, "  BADMINTON ", ["Bad Milton"]) == "Bad Milton"
+
+
+def test_sem_dominio_o_matcher_segue_igual():
+    """`dominio` é opcional: quem não passa (backtest antigo, chamada solta) não muda de
+    comportamento."""
+    m = matcher.treinar(treino(tipster="Antigo"))
+    assert matcher.sugerir(m, ["Antigo"], "Bet365", "Futebol", "Múltipla", "100,00", "A // B") == "Antigo"
+    assert matcher.dono_do_esporte({}, "Badminton", ["Bad Milton"]) is None
+    assert matcher.dono_do_esporte(None, "Badminton", ["Bad Milton"]) is None
+
+
+def test_cortes_do_esporte_nao_foram_afrouxados():
+    assert matcher.PUREZA_ESPORTE >= 0.98
+    assert matcher.MIN_ESPORTE >= 25

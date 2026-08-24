@@ -15,7 +15,7 @@ Dois alvos, porque são dois modos de falha diferentes:
 Restaura os originais no `finally` (inclusive se o pytest estourar) e confere byte a byte.
 Cópias vão para `Backups/_mutacao_matcher/` ANTES de qualquer escrita.
 
-Placar de referência (s289): 15/15 detectadas. A M5 escapou na primeira rodada — o teste não
+Placar de referência (s289): 19/19 detectadas. A M5 escapou na primeira rodada — o teste não
 tinha cenário com tipster sem histórico E treino curto, que é onde a regra morde.
 """
 import pathlib
@@ -50,6 +50,15 @@ MUTACOES_MODELO = {
         ('CORTE_IGNORA = ("casa=", "val=")', "CORTE_IGNORA = ()"),
     "M10 corte para de olhar as features estáveis (nada mais veta)":
         ('CORTE_IGNORA = ("casa=", "val=")', 'CORTE_IGNORA = ("casa=", "val=", "esp=", "mkt=", "fim=", "faixa=", "pernas=")'),
+    "M11 esporte exclusivo deixa de decidir":
+        ("    dono_esp = dono_do_esporte(dominio, esporte, ativos)",
+         "    dono_esp = None  # dono_do_esporte(dominio, esporte, ativos)"),
+    "M12 esporte COMPARTILHADO passa a decidir (pureza ignorada)":
+        ("PUREZA_ESPORTE = 0.98", "PUREZA_ESPORTE = 0.0"),
+    "M13 esporte com 3 bilhetes ja decide (volume ignorado)":
+        ("MIN_ESPORTE = 25", "MIN_ESPORTE = 0"),
+    "M14 dono do esporte ARQUIVADO volta a decidir":
+        ("    return nome if nome in set(ativos) else None", "    return nome"),
 }
 
 MUTACOES_ROTA = {

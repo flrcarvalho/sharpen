@@ -68,7 +68,7 @@ from repository import (
     list_mercados, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
     atualizar_tipster_info, renomear_tipster,
-    casas_visao, salvar_casa_config, casas_dedicadas, rotulos_humanos,
+    casas_visao, salvar_casa_config, casas_dedicadas, rotulos_humanos, dominio_esportes,
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
     get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
@@ -3433,6 +3433,7 @@ async def sugerir_tipsters_route(body: SugerirTipstersRequest, dono: str = Depen
         return {"sugestoes": {}, "fonte": "evidencia", "treino": 0}
 
     dedicadas = await casas_dedicadas(dono)
+    dominio = await dominio_esportes(dono)
     modelo = matcher.modelo_em_cache(dono)
     if modelo is None:
         modelo = matcher.treinar(await rotulos_humanos(dono))
@@ -3450,10 +3451,16 @@ async def sugerir_tipsters_route(body: SugerirTipstersRequest, dono: str = Depen
             sugestoes[b.id] = dono_casa[0]
             continue
         if fonte != "evidencia":
+            # Esporte praticamente exclusivo é evidência direta, não inferência: vale mesmo no
+            # dono que ainda cai no matcher declarativo.
+            dono_esp = matcher.dono_do_esporte(dominio, b.esporte, ativos)
+            if dono_esp:
+                sugestoes[b.id] = dono_esp
             continue
         # Casa dedicada a 2 donos restringe o pool e o modelo desempata entre eles.
         pool = [n for n in dono_casa if n in ativos_set] if len(dono_casa) == 2 else ativos
-        nome = matcher.sugerir(modelo, pool, b.casa, b.esporte, b.aposta, b.stake, b.descricao)
+        nome = matcher.sugerir(modelo, pool, b.casa, b.esporte, b.aposta, b.stake, b.descricao,
+                               dominio=dominio)
         if nome:
             sugestoes[b.id] = nome
     return {"sugestoes": sugestoes, "fonte": fonte, "treino": modelo.treino}

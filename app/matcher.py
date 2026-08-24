@@ -83,6 +83,25 @@ MAX_INEDITAS = 0
 CORTE_IGNORA = ("casa=", "val=")
 # Abaixo disto o modelo não se sustenta e a rota devolve o dono ao matcher declarativo.
 MIN_TREINO = 200
+# ESPORTE PRATICAMENTE EXCLUSIVO de um tipster → é ele, sem passar pelo modelo.
+#
+# Feedback do Feca (s289): "as do Bad Milton são muito fáceis de caracterizar, são as únicas do
+# Badminton, não tem por que não categorizar". Ele está certo, e o modelo não via isso: o
+# Badminton tem 44 apostas dele na carteira, mas um tipster que NUNCA fez Badminton ficava a
+# 1,67 de log-odds e comia a folga, então o matcher se calava no caso mais fácil que existe.
+#
+# Os dois cortes abaixo são o que separa "esse esporte é dele" de "ele é o maior nesse esporte".
+# Medido: com pureza 1,00 a regra não dispara (o próprio `Feca` tem 4 apostas de Badminton) e
+# com 0,95 ela custa 3,2 pontos de precisão ao Gabriel, que recebe tipster novo o tempo todo.
+# 0,98 × 25 resolve os 3 casos do Feca, não mexe no placar dele e custa 2,6 pontos ao Gabriel.
+#
+# ⚠️ A pureza é medida sobre TODOS os rótulos, inclusive os que o próprio sistema sugeriu e o
+# dono não corrigiu — aqui isso é deliberado (a pergunta é "de quem é este esporte na operação",
+# e rótulo aceito responde), mas é a única parte do matcher que se realimenta. Os cortes altos
+# são o que impede a realimentação de virar profecia: um esporte só entra com 25 bilhetes e
+# 98 % de concentração, e a correção humana desfaz na hora.
+PUREZA_ESPORTE = 0.98
+MIN_ESPORTE = 25
 # Suavização de Laplace. Baixa de propósito: features raras precisam pesar.
 ALFA = 0.35
 # Vida do modelo em memória. O treino é barato (~26 mil linhas em menos de 1s) e o dono rotula
@@ -169,12 +188,31 @@ def treinar(linhas: Iterable[dict]) -> Modelo:
     return m
 
 
+def dono_do_esporte(dominio: dict, esporte: Any, ativos: Iterable[str]) -> Optional[str]:
+    """O tipster de quem aquele esporte é, na prática — ou None se ele é compartilhado.
+
+    `dominio` = {esporte_normalizado: (tipster, bilhetes_dele, bilhetes_no_esporte)}, vindo de
+    `repository.dominio_esportes`. Ver PUREZA_ESPORTE / MIN_ESPORTE para o porquê dos cortes."""
+    d = dominio.get(_norm(esporte)) if dominio else None
+    if not d:
+        return None
+    nome, n, total = d
+    if total < MIN_ESPORTE or not total or (n / total) < PUREZA_ESPORTE:
+        return None
+    return nome if nome in set(ativos) else None
+
+
 def sugerir(m: Modelo, ativos: Iterable[str], casa: Any, esporte: Any, aposta: Any,
-            stake: Any, descricao: Any) -> Optional[str]:
+            stake: Any, descricao: Any, dominio: Optional[dict] = None) -> Optional[str]:
     """O tipster mais provável, ou None quando o modelo não tem convicção.
 
     None não é falha — é a resposta certa para bilhete ambíguo. A coluna fica vazia e o dono
     decide, que é melhor do que um chute que ele vai ter de caçar depois."""
+    # Esporte praticamente exclusivo decide sozinho, antes do modelo: é evidência direta e mais
+    # forte que qualquer folga de log-odds.
+    dono_esp = dono_do_esporte(dominio, esporte, ativos)
+    if dono_esp:
+        return dono_esp
     if not m.total:
         return None
     feats = features(casa, esporte, aposta, stake, descricao)

@@ -1975,6 +1975,32 @@ async def rotulos_humanos(dono: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+async def dominio_esportes(dono: str) -> dict[str, tuple[str, int, int]]:
+    """Para cada esporte do dono: quem é o maior tipster nele, quantos bilhetes são dele e
+    quantos o esporte tem. Alimenta `matcher.dono_do_esporte` (s289).
+
+    Ao contrário de `rotulos_humanos`, conta TODOS os rótulos — inclusive os que o sistema
+    sugeriu e o dono não corrigiu. A pergunta aqui é "de quem é este esporte na operação", e um
+    rótulo aceito responde. O preço é ser a única parte do matcher que se realimenta; os cortes
+    de `PUREZA_ESPORTE`/`MIN_ESPORTE` existem para segurar isso. Agrega no banco — trazer 30 mil
+    linhas para contar em Python seria desperdício. READ-ONLY."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT lower(btrim(esporte)) AS esp, btrim(tipster) AS tip, COUNT(*) AS n "
+            "FROM bilhetes WHERE dono = $1 AND tipster IS NOT NULL AND btrim(tipster) <> '' "
+            "AND esporte IS NOT NULL AND btrim(esporte) <> '' "
+            "GROUP BY 1, 2", dono)
+    total: dict[str, int] = {}
+    melhor: dict[str, tuple[str, int]] = {}
+    for r in rows:
+        esp, tip, n = r["esp"], r["tip"], r["n"]
+        total[esp] = total.get(esp, 0) + n
+        if n > melhor.get(esp, ("", 0))[1]:
+            melhor[esp] = (tip, n)
+    return {esp: (melhor[esp][0], melhor[esp][1], total[esp]) for esp in total}
+
+
 async def casas_dedicadas(dono: str) -> dict[str, list[str]]:
     """Casas que o dono CUROU como dedicadas: slug(casa) → [tipster1(, tipster2)].
     Só o que está salvo em `casa_config` — sugestão não curada não entra (s288/s289)."""

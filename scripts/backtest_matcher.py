@@ -18,9 +18,9 @@ NADA é gravado — só SELECT. Uso:
 Placar de referência (s289, janela de 30 dias, base real):
 
     dono        declarativo      evidência
-    Feca        47 % / 75 %      55 % / 90 %
-    Gabriel     12 % / 99 %      28 % / 94 %
-    Jonathan    10 % / 41 %      13 % / 92 %
+    Feca        47 % / 74 %      61 % / 89 %
+    Gabriel     12 % / 99 %      46 % / 88 %
+    Jonathan    10 % / 41 %      28 % / 96 %
 
 Leia a precisão junto da cobertura: apertar um matcher até ele quase não sugerir sobe a
 precisão sem servir para nada. E leia o placar sabendo que **assinatura tem ERA** — o `199`
@@ -216,6 +216,20 @@ async def main():
                 f"SELECT {campos} FROM bilhetes " + filtro +
                 "AND criado_em < NOW() - ($2 || ' days')::interval", dono, str(DIAS))
             modelo = matcher.treinar([dict(r) for r in antes])
+            # Domínio de esporte: quem manda em cada esporte, contando TODOS os rótulos ANTES da
+            # janela (inclusive os sugeridos — ver repository.dominio_esportes). Computar sobre a
+            # janela de teste seria vazamento: a resposta estaria dentro da pergunta.
+            dom_rows = await conn.fetch(
+                "SELECT lower(btrim(esporte)) AS esp, btrim(tipster) AS tip, COUNT(*) AS n "
+                "FROM bilhetes WHERE dono=$1 AND tipster IS NOT NULL AND btrim(tipster) <> '' "
+                "AND esporte IS NOT NULL AND btrim(esporte) <> '' "
+                "AND criado_em < NOW() - ($2 || ' days')::interval GROUP BY 1, 2", dono, str(DIAS))
+            tot_esp, top_esp = {}, {}
+            for r in dom_rows:
+                tot_esp[r["esp"]] = tot_esp.get(r["esp"], 0) + r["n"]
+                if r["n"] > top_esp.get(r["esp"], ("", 0))[1]:
+                    top_esp[r["esp"]] = (r["tip"], r["n"])
+            dominio = {e: (top_esp[e][0], top_esp[e][1], tot_esp[e]) for e in tot_esp}
             com_perfil = sum(1 for b in bilhetes if (b["tipster"] or "").strip() in set(ativos))
             print(f"── {dono} · {len(bilhetes)} bilhetes na janela ({com_perfil} com perfil ativo) · "
                   f"treino {modelo.treino} · {len(dedicadas)} casa(s) dedicada(s)")
@@ -225,7 +239,8 @@ async def main():
                 print(f"   {'evidência':<14}{'—':>10}{'—':>10}  (treino abaixo de {matcher.MIN_TREINO} → o app usa o declarativo)")
             else:
                 _linha("evidência", *_placar(bilhetes, lambda b: matcher.sugerir(
-                    modelo, ativos, b["casa"], b["esporte"], b["aposta"], b["stake"], b["descricao"])))
+                    modelo, ativos, b["casa"], b["esporte"], b["aposta"], b["stake"], b["descricao"],
+                    dominio=dominio)))
             print()
     finally:
         await conn.close()
