@@ -181,6 +181,7 @@ let _acInp=null;       // input ligado no momento
 let _acItens=[];       // opções visíveis agora
 let _acIdx=-1;         // índice destacado (navegação por teclado)
 let _acCb=null;        // callback de escolha do input ligado
+const AC_MAX_W=360;    // teto de largura do menu (ver _acRender)
 let _acFonte=null;     // (filtrando)=>string[] — quem alimenta o menu do input ligado
 let _acCont=null;      // nome→contagem (só o menu de mercado usa); null = sem números
 
@@ -280,6 +281,23 @@ function _apTipsterOpcoes(){
   _liq.concat(_ab).forEach(r=>{if(r.tipster)s.add(r.tipster);});
   return [...s].sort((a,b)=>a.localeCompare(b,'pt-BR'));
 }
+// O scroll veio de DENTRO de um popover ancorado (o menu ou o calendário da marca)? Então
+// é gesto de navegar na lista, não de sair dela.
+function _acRolagemInterna(e){
+  const t=e&&e.target;
+  return !!(t&&t.nodeType===1&&t.closest&&t.closest('.ac-menu,.shcal'));
+}
+// Rolar a tabela com uma edição inline aberta CONGELAVA a tela: `renderApostasVirt` volta
+// cedo enquanto `_apInlineEditing` é true, então a barra andava e as linhas não. O usuário
+// via a página inteira travada — e era só o editor que seguia aberto atrás. Encerrar com
+// commit é a mesma semântica do blur (que já salva ao clicar fora) e devolve o scroll na
+// hora. `_apInlineFim` é o `finish` da edição viva; null quando não há nenhuma.
+let _apInlineFim=null;
+function _acScrollFora(){
+  if(_acAberto())_acFechar();
+  const fim=_apInlineFim;
+  if(fim){_apInlineFim=null;fim(true);}
+}
 function _acEl(){
   if(_acMenu)return _acMenu;
   _acMenu=document.createElement('div');
@@ -339,7 +357,9 @@ function _acRender(filtrar){
   // Ancoragem: `position:fixed` + rect do input. Vira para CIMA quando não cabe
   // abaixo — sem isso, editar uma linha do rodapé da tabela abriria o menu fora da tela.
   const r=_acInp.getBoundingClientRect();
-  m.style.minWidth=Math.max(r.width,160)+'px';
+  // Teto de largura: o editor inline ocupa a CÉLULA, e na Minha Base ela chega a ~1700px —
+  // o menu virava uma faixa atravessando a tela, com a contagem no outro extremo do olho.
+  m.style.minWidth=Math.min(Math.max(r.width,160),AC_MAX_W)+'px';
   m.style.left=Math.max(4,Math.min(r.left,window.innerWidth-m.offsetWidth-4))+'px';
   const abaixo=window.innerHeight-r.bottom;
   m.style.top=(abaixo<m.offsetHeight+8&&r.top>abaixo)
@@ -384,9 +404,16 @@ function _acLigar(inp,aoEscolher,fonte){
   });
   // Ancoragem é por coordenada: rolar ou redimensionar deixaria o menu órfão no lugar
   // antigo. Captura porque o scroll que interessa é o da tabela virtual, não o do body.
+  //
+  // MAS o menu TEM scroll próprio (max-height 232px), e em captura o `window` recebe também
+  // o scroll de DENTRO dele: rolar a lista para achar um mercado fechava o menu na cara do
+  // usuário (s287, reportado pelo tester Marlon). Era latente desde sempre — o menu de
+  // tipster cabia na tela e ninguém rolava; o de mercado tem 27+ itens e SEMPRE precisa
+  // rolar. Por isso o alvo é FILTRADO, e não o handler removido: rolar a PÁGINA continua
+  // fechando, senão o menu (position:fixed) fica órfão no lugar antigo.
   if(!_acLigar._glob){
     _acLigar._glob=true;
-    window.addEventListener('scroll',()=>{if(_acAberto())_acFechar();},true);
+    window.addEventListener('scroll',e=>{if(!_acRolagemInterna(e))_acScrollFora();},true);
     window.addEventListener('resize',()=>{if(_acAberto())_acFechar();});
   }
 }
@@ -549,9 +576,14 @@ function _apInlineStart(cell){
   const finish=async(commit)=>{
     if(done)return;
     done=true;
+    _apInlineFim=null;
+    // A flag cai PRIMEIRO, antes de qualquer coisa que possa lançar: enquanto ela é true o
+    // `renderApostasVirt` volta cedo e a tabela para de redesenhar ao rolar — a tela inteira
+    // parece travada. Se uma exceção aqui no meio a deixasse presa, o usuário só sairia
+    // recarregando a página, sem nada no console dizendo por quê.
+    _apInlineEditing=false;
     if(window.SharpenCal)SharpenCal.fechar();
     const val=editor.value.trim();
-    _apInlineEditing=false;
     if(!commit||val===cur){cell.innerHTML=orig;return;}
     try{
       const res=await fetch(`/bilhetes/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:val})});
@@ -576,6 +608,7 @@ function _apInlineStart(cell){
   });
   editor.addEventListener('blur',()=>finish(true));
   if(field==='resultado')editor.addEventListener('change',()=>finish(true));
+  _apInlineFim=finish;   // rolar a tabela encerra por aqui (ver _acScrollFora)
   // Data: o SharpenCal abre junto do input (digitar continua valendo). Escolher um
   // dia preenche e salva; o popover segura o foco no editor (mousedown preventDefault),
   // então o blur não dispara no meio do clique.

@@ -5822,7 +5822,7 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
     const r = inp.getBoundingClientRect();
     menu.style.left = r.left + 'px';
     menu.style.top = (r.bottom + 2) + 'px';
-    menu.style.minWidth = Math.max(r.width, 150) + 'px';
+    menu.style.minWidth = Math.min(Math.max(r.width, 150), 360) + 'px';   // teto: ver s287
     // Contagem só no menu de mercado, e só quando o mercado JÁ foi usado: item vindo
     // do MASTER que ele nunca apostou aparece sem número — zero seria ruído, e a
     // ausência já diz "novo para você".
@@ -6043,7 +6043,15 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
       if (leaving === inp || !isGrid(leaving)) closeMenu();
     }, 120);
   }, true);
-  window.addEventListener('scroll', () => closeMenu(), true);
+  // Em captura, o `window` recebe também o scroll de DENTRO do menu (ele tem
+  // `max-height:240px; overflow-y:auto`): rolar a lista para achar um mercado fechava o
+  // menu na cara do usuário (s287). Rolar a PÁGINA continua fechando — o menu é
+  // `position:fixed` e ficaria órfão no lugar antigo.
+  window.addEventListener('scroll', e => {
+    const t = e && e.target;
+    if (t && t.nodeType === 1 && t.closest && t.closest('.ac-menu, .shcal')) return;
+    closeMenu();
+  }, true);
   window.addEventListener('resize', () => closeMenu());
 })();
 

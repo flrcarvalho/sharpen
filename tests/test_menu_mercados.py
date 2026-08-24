@@ -163,7 +163,7 @@ def test_dash_contagem_respeita_a_escada(index: str):
 
 
 @pytest.mark.parametrize("arquivo,piso", [
-    ("assets/js/charts/apostas.js", 18),
+    ("assets/js/charts/apostas.js", 19),
     ("assets/js/charts/abertas.js", 3),
     ("assets/css/components.css", 25),
 ])
@@ -254,6 +254,61 @@ def test_aviso_de_edicao_volatil_existe_nos_dois_fronts():
     assert 'row["extraction_state"] == "aberta"' in repo and '!= "manual"' in repo,         "o aviso deixou de checar estado/origem — passaria a acusar linha que não corre risco"
     assert "AVISO_VOLATIL" in DASH_JS.read_text(encoding="utf-8")
     assert "resp.volatil" in INDEX.read_text(encoding="utf-8"),         "a Extração parou de avisar (a grade dela também edita stake/odd de aposta aberta)"
+
+
+def test_rolar_dentro_do_menu_nao_fecha_o_menu():
+    """Bug do tester Marlon (s287): "o scroll/barra lateral não estão funcionando".
+
+    O handler de scroll é registrado em CAPTURA no `window` — obrigatório, porque scroll
+    não borbulha —, então ele recebia também o scroll de DENTRO do `.ac-menu`: rolar a
+    lista para achar um mercado fechava o menu. Latente desde sempre; o menu de tipster
+    cabia na tela, o de mercado tem 27+ itens e sempre precisa rolar.
+    """
+    js = DASH_JS.read_text(encoding="utf-8")
+    idx = INDEX.read_text(encoding="utf-8")
+    assert "if(!_acRolagemInterna(e))_acScrollFora()" in js,         "o handler do dash voltou a fechar o menu em qualquer scroll"
+    assert "'.ac-menu,.shcal'" in js, "o guard perdeu o menu ou o calendário"
+    assert "closest('.ac-menu, .shcal')" in idx,         "a Extração voltou a fechar o menu ao rolar dentro dele"
+
+
+def test_rolar_encerra_a_edicao_para_a_tabela_voltar_a_rolar():
+    """O segundo bug da mesma queixa, e o que parecia pane geral: com a edição inline
+    aberta, `renderApostasVirt` volta cedo, então rolar movia a barra e não redesenhava
+    linha nenhuma. Encerrar com COMMIT ao rolar devolve o scroll na hora — mesma semântica
+    do blur, que já salva ao clicar fora. `fim(false)` aqui descartaria o que foi digitado.
+    """
+    js = DASH_JS.read_text(encoding="utf-8")
+    assert "let _apInlineFim=null;" in js
+    assert "if(fim){_apInlineFim=null;fim(true);}" in js,         "rolar deixou de encerrar a edição, ou passou a encerrar descartando"
+    assert "_apInlineFim=finish;" in js, "a edição não registra mais o seu finish"
+    # A flag cai antes de SharpenCal.fechar(): presa em true, congela a tabela para sempre.
+    corpo = js[js.index("const finish=async(commit)=>{"):]
+    corpo = corpo[:corpo.index("editor.addEventListener('keydown'")]
+    assert corpo.index("_apInlineEditing=false;") < corpo.index("SharpenCal.fechar()"),         "a flag que congela a tabela caiu depois de uma chamada que pode lançar"
+
+
+def test_menu_nao_atravessa_a_tela():
+    """O editor inline ocupa a CÉLULA, e na Minha Base ela chega a ~1700px: sem teto, o
+    menu virava uma faixa atravessando a tela com a contagem no outro extremo do olho."""
+    js = DASH_JS.read_text(encoding="utf-8")
+    assert "Math.min(Math.max(r.width,160),AC_MAX_W)" in js
+    assert "const AC_MAX_W=360;" in js
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node ausente")
+def test_prova_por_execucao_do_scroll():
+    """12 asserções sobre o roteamento do scroll, com a LIGAÇÃO recortada do arquivo.
+
+    Provado por mutação: 7/7 detectadas, incluindo a que reintroduz o bug original. Duas
+    escaparam na 1ª versão e o teste foi refeito por isso: ele reimplementava o
+    `if (!interna) fora()` em vez de usar o listener real, e o dublê do finish ignorava o
+    argumento — então "encerrar descartando o que foi digitado" passava verde.
+    """
+    r = subprocess.run(
+        ["node", str(RAIZ / "tests" / "js" / "menu_scroll.mjs")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node ausente")
