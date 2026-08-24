@@ -165,7 +165,7 @@ def test_dash_contagem_respeita_a_escada(index: str):
 @pytest.mark.parametrize("arquivo,piso", [
     ("assets/js/charts/apostas.js", 18),
     ("assets/js/charts/abertas.js", 3),
-    ("assets/css/components.css", 24),
+    ("assets/css/components.css", 25),
 ])
 def test_cache_bust_nao_regride(arquivo: str, piso: int):
     """JS/CSS do dash editados sem bump de `?v=` chegam ao tester como versão VELHA — o
@@ -222,6 +222,23 @@ def test_abertas_nao_repinta_por_cima_da_edicao():
     js = ABERTAS_JS.read_text(encoding="utf-8")
     corpo = js[js.index("function renderAbertas()"):js.index("// ── 1) KPIs")]
     assert "if (_apInlineEditing) return;" in corpo
+
+
+def test_categoria_da_aba_em_aberto_respeita_a_escada():
+    """`.abrt-tipo` é a coluna Aposta da aba Em Aberto — e o alvo do duplo-clique.
+
+    Era `--ink-mute` em `--text-nano` (9px): 3,17:1 sobre `--surface` e 3,03:1 no hover,
+    com papel de LABEL (piso 4,5:1). A Escada de Tinta proíbe `--ink-mute` abaixo de 10px
+    em qualquer superfície — é o mesmo defeito que originou a regra. Em `--ink-soft` a
+    10px dá 6,9:1. Este gate existe porque o grep de px literal é CEGO aqui: o tamanho
+    vinha de token, não de número.
+    """
+    css = DASH_CSS.read_text(encoding="utf-8")
+    bloco = css[css.index(".abrt-tipo {"):]
+    bloco = bloco[:bloco.index("}")]
+    assert "--ink-mute" not in bloco, "a categoria voltou para --ink-mute (3,17:1 — reprova)"
+    assert "--text-nano" not in bloco, "a categoria voltou para 9px (abaixo do piso da Escada)"
+    assert "--ink-soft" in bloco and "--text-xxs" in bloco
 
 
 def test_aviso_de_edicao_volatil_existe_nos_dois_fronts():

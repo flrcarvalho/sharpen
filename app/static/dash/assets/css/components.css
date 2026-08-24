@@ -1757,9 +1757,15 @@ select.ap-inline-inp { padding: 2px 4px; }
 .abrt-quando .rel { font-family:var(--font-mono); font-size:var(--text-xxs); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-mute); }
 .abrt-quando .rel.hoje { color:var(--accent-2); }
 .abrt-quando .rel.atrasada { color:var(--warn); }
+/* Escada de Tinta (s286): era `--ink-mute` em `--text-nano` (9px) — o tom abaixo de 10px
+   que a Escada proíbe em QUALQUER superfície, e num papel de LABEL (piso 4,5:1), não de
+   metadado. Medido sobre `--surface`: 3,17:1, e 3,03:1 sob o véu de acento do hover — o
+   mesmo defeito que originou a regra no cabeçalho de grupo do Painel de Contas. Em
+   `--ink-soft` a 10px dá 6,9:1. A célula passou a ser ALVO de duplo-clique nesta sessão,
+   o que sobe a régua: era o texto mais apagado da linha, e é a coluna do recurso. */
 .abrt-tipo {
-  font-family:var(--font-mono); font-size:var(--text-nano); font-weight:700;
-  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-mute);
+  font-family:var(--font-mono); font-size:var(--text-xxs); font-weight:700;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .abrt-desc { font-size:var(--text-sm); color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
