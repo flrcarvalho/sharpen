@@ -143,7 +143,15 @@ O estado vem do campo `status` do bilhete, **conferido contra a faixa colorida d
 | 1 | `GANHOU / VENCIDO` | W (conferir o dinheiro) |
 | 1 + retorno = stake | — | V |
 | 2 | `PERDIDO` | L |
-| 3 · 4 · 8 · 10 · 17 · 18 · 20 | só nos filtros das abas | **sobem CRUS** — não liquidar |
+| **8** | faixa `ANULADA` (`totalWin == totalStake`) | **V** — odd exibida |
+| **7** | **fora de todos os filtros da casa** | **sobe CRU** — não liquidar |
+| 3 · 4 · 10 · 17 · 18 · 20 | só nos filtros das abas | **sobem CRUS** — não liquidar |
+
+> O `8` e o `7` foram batizados na **Esportiva** (s285) e valem aqui porque o enum é do
+> **motor** (Altenar/BIA), não da marca — o de-para com os 4 bilhetes reais e a medição de
+> 250 bilhetes está em [`CASA_ESPORTIVA.md §5`](CASA_ESPORTIVA.md). Dois detalhes que pegam:
+> a casa lista as anuladas dentro do filtro **`Ganho`** (`statuses:[1,8]`), e o `7` não está
+> em filtro nenhum — sem pedi-lo de propósito, o bilhete some da tela **e** da captura.
 
 Conferência financeira (segunda linha de defesa): `Ganho total` vazio/`0` → L · `Ganho total = Stake` → V · `Ganho total > Stake` → W.
 
@@ -370,5 +378,5 @@ ATUALIZADO: 2026-08-09 (sessão 258 — captura por API, 4ª casa do motor Alten
 
 <!-- Sem amostra nesta casa (a conta do recon tinha 9 resolvidas e ZERO abertas):
      aposta em aberto · cashout executado · V/HW/HL · freebet · qualquer esporte além de
-     futebol (`sportTypeId: 1` em 9 de 9) · os 7 valores de `status` fora de {0,1,2} ·
+     futebol (`sportTypeId: 1` em 9 de 9) · os 6 valores de `status` fora de {0,1,2,8} ·
      aposta ao vivo (`isLive: false` em todas) · aposta especial (marketTypeId 5001). -->

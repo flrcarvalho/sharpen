@@ -273,5 +273,79 @@ export async function rodar() {
     }
   }
 
+  // ── 5. ANULADA (`status 8`) e o órfão (`status 7`) — bilhetes REAIS, s285 ─────
+  // Medido na conta anapetry03 em 23/08/2026: 250 bilhetes de 2026 inteiro trazem SÓ os
+  // enums 0, 1, 2, 7 e 8. Os quatro `status:8` são anulações de verdade — a faixa do card
+  // diz ANULADA e o "Ganho total" repete o "Valor total de aposta". Até a s285 eles subiam
+  // como "a conferir": a IA devolvia resultado vazio, a linha nascia "aguardando" e ficava
+  // assim para sempre, porque toda recaptura repetia o mesmo bloco.
+  //
+  // Detalhe que engana quem for conferir na tela: a casa lista as anuladas dentro do filtro
+  // **Ganho** (`statuses:[1,8]`), não num filtro de anuladas.
+  {
+    const anuladas = JSON.parse(fixture("esportiva.anuladas.json")).bets;
+    // Devolução = o "Ganho total" do card, que nas 4 é idêntico ao "Valor total de aposta".
+    const DEVOLUCAO = { "5317731393": "1,00", "5306439522": "124,00", "5296262805": "100,00", "5281584944": "30,00" };
+    for (const b of anuladas) {
+      const id = String(b.id);
+      const txt = fmt(b);
+      const st = linha(txt, "Status:");
+      testes++;
+
+      if (id === "5310191599") {
+        // O ÓRFÃO. `status 7`, as DUAS pernas do bet builder ganhas (`status 1`, placar 2:1)
+        // e ainda assim `totalWin: 0` — sem cashout. É o contraexemplo que proíbe deduzir
+        // desfecho pelo dinheiro: uma régua "retorno 0 → L" o marcaria como perda, e uma
+        // "pernas ganhas → W" o marcaria como ganho. Nenhuma das duas tem prova.
+        if (!/a conferir/.test(st)) falhas.push(`${id}: status 7 não foi marcado "a conferir" — vira chute`);
+        if (/→ [WLV]\b/.test(st)) falhas.push(`${id}: status 7 recebeu código de resultado — proibido`);
+        continue;
+      }
+
+      if (st !== "Anulada/void (stake devolvido) → V")
+        falhas.push(`${id}: anulada devia sair "Anulada/void (stake devolvido) → V", veio "${st}"`);
+
+      // A odd do V é a EXIBIDA no card (`MASTER_RESULTADO §5.1.2`), nunca 1,00. Se o bloco
+      // chamasse a devolução de "Retorno", a IA aplicaria retorno ÷ stake e gravaria 1,00 —
+      // o 5317731393 (odd 51,42) mostra o tamanho do estrago.
+      const odd = linha(txt, "Odd:").split(" ")[0];
+      const oddCard = String(Math.round(b.totalOdds * 1e8) / 1e8).replace(".", ",");
+      if (odd !== oddCard) falhas.push(`${id}: odd da anulada esperada ${oddCard} (a exibida), veio "${odd}"`);
+      if (linha(txt, "Retorno:")) falhas.push(`${id}: anulada emitiu "Retorno:" — é devolução de stake, não ganho`);
+      const dev = linha(txt, "Devolução do stake:");
+      if (dev !== "R$ " + DEVOLUCAO[id] + " (aposta anulada — não é ganho)")
+        falhas.push(`${id}: devolução esperada "R$ ${DEVOLUCAO[id]} (aposta anulada — não é ganho)", veio "${dev}"`);
+      if (!/status=8/.test(linha(txt, "Status (API):")))
+        falhas.push(`${id}: perdeu o enum cru na linha "Status (API):" — o de-para da casa fica cego`);
+    }
+
+    // A rede de segurança do PRÓXIMO enum: processado + retorno = stake → V. E o limite dela,
+    // que é o que impede a vitória fantasma de voltar por outra porta: o MESMO dinheiro num
+    // enum da família ABERTA (17) continua sem liquidar, porque ali `totalWin` é potencial.
+    const base = anuladas.find((b) => String(b.id) === "5296262805");
+    testes++;
+    const inedito = fmt({ ...base, status: 4 });
+    if (!/→ V$/.test(linha(inedito, "Status:")))
+      falhas.push("rede de segurança: status 4 (processado) com retorno = stake não virou V");
+    testes++;
+    const aberto = fmt({ ...base, status: 17 });
+    if (/→ [WLV]\b/.test(linha(aberto, "Status:")))
+      falhas.push("status 17 é da família ABERTA (totalWin é potencial) e não pode liquidar por retorno = stake");
+  }
+
+  // ── 6. O `status 7` tem de ser PEDIDO, senão o bilhete não existe ─────────────
+  // Ele não está em nenhum dos cinco filtros da casa (Aberto `[0,10,3,20,17]` · Processado
+  // `[1,8,2,4,18]` · Ganho `[1,8]` · Perdida `[2]` · Cashout `[4,18]`): sem pedi-lo de
+  // propósito, o bilhete some da captura E da tela, sem erro nenhum. O gateway aceita o valor
+  // extra (medido ao vivo: `statuses:[7,8]` devolveu os dois).
+  {
+    const { pedidos } = await umClique(CORPO_RESOLVIDAS);
+    testes++;
+    const pediu7 = pedidos.some((b) => {
+      try { return (JSON.parse(b).statuses || []).includes(7); } catch (e) { return false; }
+    });
+    if (!pediu7) falhas.push("nenhuma requisição pediu `status 7` — bilhete nesse estado sumiria em silêncio");
+  }
+
   return { falhas, testes };
 }

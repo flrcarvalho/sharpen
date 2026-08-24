@@ -147,7 +147,15 @@ colorida do card** (s256) — mesmo enum das casas irmãs:
 | 1 | `GANHOU / VENCIDO` | W (conferir o dinheiro) |
 | 1 + retorno = stake | — | V |
 | 2 | `PERDIDO` | L |
-| 3 · 4 · 8 · 10 · 17 · 18 · 20 | só nos filtros das abas | **sobem CRUS** — não liquidar |
+| **8** | faixa `ANULADA` (`totalWin == totalStake`) | **V** — odd exibida |
+| **7** | **fora de todos os filtros da casa** | **sobe CRU** — não liquidar |
+| 3 · 4 · 10 · 17 · 18 · 20 | só nos filtros das abas | **sobem CRUS** — não liquidar |
+
+> O `8` e o `7` foram batizados na **Esportiva** (s285) e valem aqui porque o enum é do
+> **motor** (Altenar/BIA), não da marca — o de-para com os 4 bilhetes reais e a medição de
+> 250 bilhetes está em [`CASA_ESPORTIVA.md §5`](CASA_ESPORTIVA.md). Dois detalhes que pegam:
+> a casa lista as anuladas dentro do filtro **`Ganho`** (`statuses:[1,8]`), e o `7` não está
+> em filtro nenhum — sem pedi-lo de propósito, o bilhete some da tela **e** da captura.
 
 > ⚠️ **`totalWin` de bilhete ABERTO é o retorno POTENCIAL** e vem preenchido — a armadilha
 > que a VaideBet levou a produção na s210. **Não há amostra dela nesta casa** (a conta tinha
@@ -377,7 +385,7 @@ ATUALIZADO: 2026-08-09 (sessão 256 — captura por API, 3ª casa do motor Alten
 
 <!-- Sem amostra nesta casa (a conta do recon tinha 10 resolvidas e ZERO abertas):
      aposta em aberto · cashout executado · V/HW/HL · bônus · múltipla de jogos diferentes ·
-     qualquer esporte além de futebol · os 7 valores de `status` fora de {0,1,2}.
+     qualquer esporte além de futebol · os 6 valores de `status` fora de {0,1,2,8}.
      A única aposta ESPECIAL vista (`QUEM CONSEGUE A REMONTADA?`, marketTypeId 5001,
      selectionTypeId -1, sem eventScore) está travada no harness. -->
 

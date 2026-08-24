@@ -122,9 +122,26 @@ De-para do `status` do bilhete:
 | 1 | Ganhou (faixa `GANHOU / VENCIDO`) — conferir o dinheiro | `W` |
 | 1 + retorno **igual** à stake | Devolvida / void | `V` |
 | 2 | Perdeu (faixa `PERDIDO`) | `L` |
-| 3 · 4 · 8 · 10 · 17 · 18 · 20 | **Desconhecidos** — sobem crus, não liquidar automaticamente | — |
+| **8** | **Anulada** (faixa `ANULADA`) — `totalWin == totalStake` | **`V`** |
+| **7** | **Órfão** — fora de todos os filtros da casa; sobe cru | — |
+| 3 · 4 · 10 · 17 · 18 · 20 | Sem amostra — sobem crus, não liquidar automaticamente | — |
 
-Os valores desconhecidos aparecem **só nos filtros das abas** — nenhum bilhete real trouxe um deles até agora. O mais provável é que cubram anulado/devolvido/cashout/recusado, mas **enquanto não houver um bilhete para cruzar com a tela, é chute** e sobe cru.
+**O `8` e o `7` foram batizados na ESPORTIVA (s285), não aqui** — e valem para as duas casas
+porque o enum é do **motor** (Altenar/BIA), não da marca, exatamente como o `boostProperty: 3`
+que a VaideBet chama de `GOLDEN BOOST` e a Esportiva de `TURBINADA`. O de-para completo, com
+os 4 bilhetes reais e a medição de 250 bilhetes que o sustenta, está em
+[`CASA_ESPORTIVA.md §5`](CASA_ESPORTIVA.md). Resumo do que muda aqui:
+
+- `8` = **anulada** → `V` com a **odd exibida** (nunca 1,00). O bloco emite
+  `Devolução do stake:`, não `Retorno:` — com o rótulo errado a IA calcularia retorno ÷ stake.
+  Cuidado ao conferir na tela: a casa lista as anuladas dentro do filtro **`Ganho`**
+  (`statuses:[1,8]`).
+- `7` = **órfão**: não está em nenhum dos cinco filtros, então nem a tela nem a captura o
+  veriam. O inject o pede de propósito só para o bilhete **chegar**; a leitura segue crua.
+
+Os seis valores restantes seguem **sem uma única amostra** nas duas casas. O mais provável é
+que cubram cashout/recusado, mas **enquanto não houver bilhete para cruzar com a tela, é
+chute** e sobe cru.
 
 O `status` também existe **por perna** (`bbOdds[].status`), com os mesmos valores: `0` pendente · `1` ganhou · `2` perdeu. Confere com o ✓/✗ verde/vermelho do card.
 
@@ -229,7 +246,9 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 - Odd: a tela **trunca** a riscada; a válida é a **boostada** (`totalOdds`).
 - Data: card mostra colocação no rodapé; o TSV quer o **evento** (as 2 abertas mudam de dia).
 - Datas em `Z` = UTC → converter; sem isso o bilhete pula de dia.
-- `status` fora de {0,1,2} nunca vira W/L por dedução — 7 valores ainda não batizados.
+- `status` fora de {0,1,2,8} nunca vira W/L por dedução — 6 valores ainda não batizados.
+- Enum que **nenhum filtro da casa pede** existe (`7`): sem pedi-lo, o bilhete some dos dois
+  lados — da tela e da captura — sem erro nenhum (s285).
 - A lista **não** carrega sozinha ("Mostrar mais apostas") → só API paginada resolve.
 - O endpoint é de outra origem e usa **Bearer**: replay sem os headers reais volta 401.
 - `cashOutValue` = 0 **não** significa "sem cashout disponível" (o valor vem de outro endpoint).

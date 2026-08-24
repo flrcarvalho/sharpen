@@ -130,9 +130,48 @@ De-para do `status` do bilhete — **confirmado contra a faixa colorida do card*
 | 1 | Ganhou (faixa `GANHOU / VENCIDO`) — conferir o dinheiro | `W` |
 | 1 + retorno **igual** à stake | Devolvida / void | `V` |
 | 2 | Perdeu (faixa `PERDIDO`) | `L` |
-| 3 · 4 · 8 · 10 · 17 · 18 · 20 | **Desconhecidos** — sobem crus, não liquidar automaticamente | — |
+| **8** | **Anulada** (faixa `ANULADA`) — `totalWin == totalStake` | **`V`** |
+| **7** | **Órfão** — fora de todos os filtros da casa; sobe cru | — |
+| 3 · 4 · 10 · 17 · 18 · 20 | Sem amostra — sobem crus, não liquidar automaticamente | — |
 
-Os valores desconhecidos aparecem **só nos filtros das abas** — nenhum bilhete real trouxe um deles, nem aqui nem na VaideBet. Enquanto não houver bilhete para cruzar com a tela, é chute e sobe cru.
+### 5.1 O `status 8` é ANULADA (s285)
+
+Provado contra os cards desta conta, em 4 bilhetes reais — `5281584944` (30/30) ·
+`5296262805` (100/100) · `5306439522` (124/124) · `5317731393` (1/1). Em todos, `totalWin`
+**repete** `totalStake`, e a **seleção também vem com `status: 8`**. O card estampa a faixa
+`ANULADA` e o rodapé "Ganho total" igual ao "Valor total de aposta".
+
+> ⚠️ **A casa lista as anuladas dentro do filtro `Ganho`** (`statuses:[1,8]`), não num filtro
+> próprio. Quem for conferir na tela procura em "anuladas" e não acha.
+
+O `V` leva a **odd exibida**, nunca 1,00 (`MASTER_RESULTADO §5.1.2`). Por isso o bloco emite
+`Devolução do stake:` em vez de `Retorno:` — com o rótulo errado a IA aplicaria retorno ÷
+stake e gravaria 1,00 (o `5317731393`, de odd 51,42, mostra o tamanho do estrago).
+
+**Antes da s285 esses 4 subiam como "a conferir"**, a IA devolvia resultado vazio, a linha
+nascia `aguardando` — e ficava assim para sempre, porque toda recaptura repetia o bloco.
+
+### 5.2 O `status 7` não existe para a tela — e quase não existiu para nós
+
+Um caso em 250 bilhetes: `5310191599` (19/08, Flamengo × Cruzeiro, R$40). As **duas pernas**
+do bet builder ganharam (`status: 1`, placar 2:1) e mesmo assim `totalWin: 0`, sem cashout.
+
+O que o torna especial não é o dinheiro, é onde ele **não** está: `7` fica fora dos **cinco**
+filtros da casa — Aberto `[0,10,3,20,17]` · Processado `[1,8,2,4,18]` · Ganho `[1,8]` ·
+Perdida `[2]` · Cashout `[4,18]`. A tela não tem onde mostrá-lo, e a captura não o pediria:
+o bilhete some dos dois lados, sem erro nenhum. O inject passou a pedir o `7` de propósito
+(o gateway aceita o valor extra — medido: `statuses:[7,8]` devolve os dois) só para ele
+**chegar**; a leitura segue crua até alguém descobrir o que ele significa.
+
+> Ele é também o contraexemplo que proíbe deduzir desfecho pelo dinheiro nesta casa: uma
+> régua "retorno 0 → L" o marcaria como perda, e "pernas ganhas → W" como ganho. Nenhuma das
+> duas tem prova. <!-- TODO: perguntar ao suporte o que é o 7 e para onde foram os R$40. -->
+
+### 5.3 Medição que sustenta a tabela
+
+**250 bilhetes, 2026 inteiro, conta `anapetry03`, 23/08/2026:** `0` (9) · `1` (117) ·
+`2` (119) · `7` (1) · `8` (4). Os outros seis valores dos filtros seguem **sem uma única
+amostra** — continuam subindo crus, e é assim que devem ficar.
 
 O `status` também existe **por perna** (`bbOdds[].status`), com os mesmos valores: `0` pendente · `1` ganhou · `2` perdeu. Confere com o ✓ verde / ✗ vermelho do card. **Um bet builder perde com uma perna ganha** — o `5277858243` tem `Chance dupla ✓` e `Mais de 0.5 ✗` e o bilhete é `L`.
 
@@ -233,7 +272,9 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 - `Chutes` **≠** `Chutes no Gol`, e a casa usa os dois com nomes parecidos (§9).
 - Data: card mostra colocação no rodapé; o TSV quer o **evento**.
 - Datas em `Z` = UTC → converter; sem isso o bilhete pula de dia.
-- `status` fora de {0,1,2} nunca vira W/L por dedução — 7 valores ainda não batizados.
+- `status` fora de {0,1,2,8} nunca vira W/L por dedução — 6 valores ainda não batizados.
+- Enum que **nenhum filtro da casa pede** existe (`7`): sem pedi-lo, o bilhete some da tela
+  **e** da captura, sem erro nenhum (s285).
 - A lista **não** carrega sozinha ("Mostrar mais apostas") → só API paginada resolve.
 - Os cards nascem **colapsados** ("Expandir tudo") — mais um motivo para nunca tentar DOM/texto.
 - O endpoint é de outra origem e usa **Bearer**: replay sem os headers reais volta 401.

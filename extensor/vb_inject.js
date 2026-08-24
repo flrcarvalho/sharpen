@@ -61,10 +61,20 @@
   const of = window.fetch;                       // fetch ORIGINAL — o replay usa este (não re-dispara o wrapper)
 
   // Os dois arrays de `statuses` que a própria tela envia (colados do Payload real).
-  // 0 = aberta · 1 = ganha · 2 = perdida (provados contra o card). Os demais valores
-  // aparecem só aqui, nos filtros — nenhum bilhete real trouxe um deles até agora.
+  // 0 = aberta · 1 = ganha · 2 = perdida · 8 = ANULADA (os quatro provados contra o card).
+  //
+  // O `7` NÃO vem da tela: ele foi encontrado medindo a conta (s285, Esportiva/anapetry03 —
+  // 250 bilhetes de 2026, um único caso). A casa **não** o inclui em nenhum dos cinco filtros
+  // dela (Aberto `[0,10,3,20,17]` · Processado `[1,8,2,4,18]` · Ganho `[1,8]` · Perdida `[2]`
+  // · Cashout `[4,18]`), então o bilhete não aparece nem para o operador nem para a captura:
+  // some sem erro. Pedimos o 7 de propósito para ele ao menos CHEGAR — o formatador o marca
+  // "a conferir" e ninguém liquida por dedução. O gateway aceita o valor extra sem reclamar
+  // (medido: `statuses:[7,8]` devolveu os dois).
+  //
+  // ⚠️ Enum novo aqui NÃO liquida nada sozinho: quem traduz é `_resultadoVB` no content.js,
+  // travado pelo harness. Este array decide só o que a casa nos MOSTRA.
   const ST_ABERTAS = [0, 10, 3, 20, 17];
-  const ST_RESOLVIDAS = [1, 8, 2, 4, 18];
+  const ST_RESOLVIDAS = [1, 8, 2, 4, 18, 7];
   const ehAberta = (b) => b && b.status === 0;
 
   // Resolvida vence aberta: o mesmo bilhete aparece nas duas abas enquanto liquida, e o

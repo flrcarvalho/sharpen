@@ -3489,16 +3489,45 @@
     return dec;
   }
 
+  // ANULADA. Enum próprio da casa, provado na s285 contra os cards da Esportiva: os 4 bilhetes
+  // com `status: 8` da conta trazem `totalWin == totalStake` (30/30 · 100/100 · 124/124 · 1/1),
+  // a SELEÇÃO também vem em 8, e a faixa do card diz ANULADA. Detalhe que engana: a tela lista
+  // esses bilhetes dentro do filtro **Ganho** (`statuses:[1,8]`), não num filtro de anuladas.
+  const _VOID_VB = new Set([8]);
+
+  // Família PROCESSADO — o array que a própria tela envia na aba "Processado". Só quem está
+  // aqui teve o dinheiro REALIZADO; na família aberta o `totalWin` ainda é potencial, e ler o
+  // dinheiro dela é a vitória fantasma que esta casa quase produziu (`CASA_VAIDEBET §5`).
+  const _ST_PROCESSADO_VB = new Set([1, 8, 2, 4, 18]);
+
   function _resultadoVB(b) {
     if (_abertaVB(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
-    if (b.status !== 1 && b.status !== 2) {
-      return "status " + b.status + " (a conferir — não liquidar automaticamente)";
-    }
     const st = b.totalStake || 0, ret = b.totalWin || 0;
     // Cashout: a conta do reconhecimento não tinha nenhum, então o campo nunca foi visto
     // preenchido. Se vier, o desfecho é marcado e o valor sai na linha própria — quem aplica
     // a regra (cashout = stake → V · ≠ stake → W com odd = cashout ÷ stake) é a IA com o MASTER.
     const pre = (b.cashOutValue > 0 || b.partialCashOut > 0) ? "Cash Out · " : "";
+
+    if (_VOID_VB.has(b.status)) {
+      if (st > 0 && Math.abs(ret - st) < 0.005) return pre + "Anulada/void (stake devolvido) → V";
+      // Enum de anulada com dinheiro que NÃO fecha: nunca visto. Some do automático em vez de
+      // inventar meia-liquidação — o enum sozinho não manda no P/L.
+      return pre + "status " + b.status + " (anulada pelo enum, mas retorno R$ " + _brl(ret) +
+             " ≠ stake R$ " + _brl(st) + " — a conferir, não liquidar automaticamente)";
+    }
+
+    if (b.status !== 1 && b.status !== 2) {
+      // Rede de segurança para o PRÓXIMO enum. Retorno igual à stake num bilhete já processado
+      // é devolução, venha o enum que vier — é a mesma régua financeira do `MASTER_RESULTADO
+      // §5.1.2`, e `V` não move P/L, então errar aqui custa uma linha neutra. Deliberadamente
+      // NÃO existe atalho equivalente para W/L: retorno zero com perna ganha existe nesta casa
+      // (o `status 7` do 5310191599) e viraria "perdeu" por dedução.
+      if (_ST_PROCESSADO_VB.has(b.status) && st > 0 && Math.abs(ret - st) < 0.005) {
+        return pre + "Devolvida/void (retorno = stake · status " + b.status +
+               " ainda não batizado) → V";
+      }
+      return "status " + b.status + " (a conferir — não liquidar automaticamente)";
+    }
     if (b.status === 2) return pre + "Perdeu → L";
     if (ret === 0) return pre + "status 1 (ganha) com retorno ZERO — a conferir, não liquidar automaticamente";
     if (Math.abs(ret - st) < 0.005) return pre + "Devolvida/void (retorno = stake) → V";
@@ -3552,6 +3581,11 @@
     if (_abertaVB(b)) {
       const pot = (b.remainingTotalWin != null) ? b.remainingTotalWin : b.totalWin;
       if (pot != null) L.push("Retorno potencial: R$ " + _brl(pot));
+    } else if (_VOID_VB.has(b.status) && b.totalWin) {
+      // Na ANULADA o "Ganho total" do card é a DEVOLUÇÃO do stake, não prêmio. Chamá-lo de
+      // "Retorno" faria a IA aplicar a régua do W (retorno ÷ stake) e gravar odd 1,00 no lugar
+      // da odd exibida, que é a que o `MASTER_RESULTADO §5.1.2` manda manter no V.
+      L.push("Devolução do stake: R$ " + _brl(b.totalWin) + " (aposta anulada — não é ganho)");
     } else if (b.totalWin) {
       L.push("Retorno: R$ " + _brl(b.totalWin));
     }
@@ -3657,7 +3691,35 @@
     processar();
     console.log("[SharpenUp] VaideBet/Esportiva: " + blocos.length + " bilhete(s) · vbById=" + vbById.size +
                 " · hook=" + vbHookVivo + " · respostas=" + vbRespostas + " · fimReal=" + vbFimReal);
+    avisarEnumNaoMapeadoVB();
     return blocos;
+  }
+
+  // Estado que o lote trouxe e o formatador NÃO sabe traduzir. Sem este aviso o bilhete sobe
+  // marcado "a conferir", a IA devolve resultado vazio, a linha nasce "aguardando" e nunca
+  // resolve — foi assim que 4 anuladas (`status 8`) ficaram meses paradas até a s285.
+  //
+  // O aviso APONTA a linha: contar sem dizer QUAL bilhete transforma a checagem numa caça
+  // manual em centenas de cards. IDs completos vão para o console (o toast vive 2,6s).
+  function avisarEnumNaoMapeadoVB() {
+    const porStatus = new Map();
+    for (const b of vbById.values()) {
+      const s = b && b.status;
+      if (s === 0 || s === 1 || s === 2 || _VOID_VB.has(s)) continue;
+      if (!porStatus.has(s)) porStatus.set(s, []);
+      porStatus.get(s).push(String(b.id));
+    }
+    if (!porStatus.size) return;
+    const partes = Array.from(porStatus.entries()).map(
+      ([s, ids]) => "status=" + s + " em " + ids.length + " bilhete(s): " + ids.join(", "));
+    console.warn("[SharpenUp] VaideBet/Esportiva · estado(s) não traduzido(s) — " + partes.join(" · "));
+    const resumo = Array.from(porStatus.entries())
+      .map(([s, ids]) => "status=" + s + " (" + ids.slice(0, 3).join(", ") + (ids.length > 3 ? "…" : "") + ")")
+      .join(" · ");
+    try {
+      toastLocal("Atenção: esta casa devolveu estado que o SharpenUp ainda não traduz — " + resumo +
+                 ". Esses bilhetes sobem sem resultado. IDs completos no console (F12).", false, 56);
+    } catch (e) {}
   }
 
   // ── Bet365 modo API (passivo + detalhe por rota) ──────────────────────────────
