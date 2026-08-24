@@ -124,8 +124,11 @@ body::before {
    entre tiers vem do gap do .sidebar-bottom, sem separador próprio. */
 .sb-operador { position: relative; }
 .sb-op-trigger { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: default; text-align: left; color: var(--ink); font-family: var(--font-sans); }
-.sb-operador.has-switch .sb-op-trigger { cursor: pointer; }
-.sb-operador.has-switch .sb-op-trigger:hover { border-color: var(--ink-mute); }
+/* `has-menu` = o menu tem ALGUMA entrada. Desde a s275 ele sempre tem ("Minha
+   conta" vale para todo mundo); antes só abria para dono com operadores, e o
+   gate era o `has-switch`. O bloco "Ver base de" segue condicional aos ops. */
+.sb-operador.has-menu .sb-op-trigger { cursor: pointer; }
+.sb-operador.has-menu .sb-op-trigger:hover { border-color: var(--ink-mute); }
 .sb-op-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); flex: none; }
 .sb-op-meta { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .sb-op-lbl { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
@@ -142,6 +145,76 @@ body::before {
 .sb-op-menu button.ativo { color: var(--accent); }
 .sb-op-menu button.voltar { color: var(--ink-soft); border-top: 1px solid var(--line); margin-top: 4px; }
 .sb-operador.vendo .sb-op-trigger { border-color: var(--accent); }
+.sb-op-menu button.conta { border-top: 1px solid var(--line); margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+.sb-op-menu button.conta svg { width: 13px; height: 13px; flex: none; }
+
+/* ── Modal "Minha conta" (s275) ──────────────────────────────────────────────
+   Mora na CASCA, e não numa tela: a conta é do usuário, não da aba em que ele
+   está. Estrutura e medidas espelham o modal canônico do index.html (a tela de
+   Extração) para que o mesmo componente não tenha dois visuais.
+   Desvio deliberado de UMA propriedade: o label vai em --ink-soft, não no
+   --ink-mute do original. Papel de LABEL pede --ink-soft (Escada de Tinta);
+   o original é anterior à regra e está anotado no STATUS para conserto à parte. */
+.mc-overlay {
+  position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.62);
+  display: none; align-items: center; justify-content: center; padding: 24px;
+  backdrop-filter: blur(2px);
+}
+.mc-overlay.open { display: flex; }
+.mc-modal {
+  width: 420px; max-width: 100%; max-height: 90vh; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+}
+/* Preenchido não fecha por gesto acidental (fundo/Esc): sacode de leve em vez de
+   descartar o que foi digitado. Fechar de propósito segue no ✕/Cancelar. */
+@keyframes mc-shake { 10%,90% { transform: translateX(-2px); } 30%,70% { transform: translateX(3px); } 50% { transform: translateX(-3px); } }
+.mc-modal.shake { animation: mc-shake .32s var(--ease); }
+@media (prefers-reduced-motion: reduce) { .mc-modal.shake { animation: none; } }
+.mc-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.mc-title {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--font-sans); font-size: 14px; font-weight: 800;
+  letter-spacing: -.01em; color: var(--ink);
+}
+.mc-title::before { content: ""; width: 3px; height: 16px; border-radius: 3px; background: var(--accent); }
+.mc-close {
+  background: transparent; border: 1px solid var(--line); color: var(--ink-soft);
+  border-radius: var(--r-sm); width: 30px; height: 30px; flex: none;
+  cursor: pointer; font-size: 16px; line-height: 1; transition: .15s var(--ease);
+}
+.mc-close:hover { color: var(--ink); border-color: var(--ink-mute); background: var(--surface-2); }
+.mc-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+/* Identidade do usuário: nome próprio é --ink em 13px (Escada de Tinta), nunca
+   um tom apagado — é o dado que responde "quem sou eu aqui". */
+.mc-quem { display: flex; flex-direction: column; gap: 3px; }
+.mc-quem b { font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--ink); }
+.mc-quem span { font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.mc-sec { display: flex; flex-direction: column; gap: 11px; padding-top: 16px; border-top: 1px solid var(--line); }
+/* Título de SEÇÃO pesa mais que o label do campo: no primeiro render os dois
+   saíram idênticos (mono 10px --ink-soft) e a hierarquia achatou — o olho não
+   separava "Trocar senha" de "Senha atual". Seção é --ink; label, --ink-soft. */
+.mc-sec-tit { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); margin-bottom: 2px; }
+.mc-field { display: flex; flex-direction: column; gap: 7px; }
+.mc-field label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.mc-field input {
+  background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm);
+  color: var(--ink); font-family: var(--font-mono); font-size: 13px; padding: 9px 12px;
+  transition: border-color .15s var(--ease); width: 100%;
+}
+.mc-field input:focus { outline: none; border-color: var(--accent); }
+.mc-acao { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+.mc-btn {
+  border-radius: var(--r-sm); padding: 8px 14px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 700;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--bg);
+  transition: .15s var(--ease);
+}
+.mc-btn:hover { filter: brightness(1.08); }
+.mc-btn:disabled { opacity: .55; cursor: default; }   /* opacidade como ESTADO */
+.mc-msg { font-family: var(--font-sans); font-size: 12px; font-weight: 600; flex: 1; }
+.mc-msg.erro { color: var(--neg); }
+.mc-msg.ok { color: var(--pos); }
 .sb-operador.vendo .sb-op-dot { background: var(--accent); }
 .sb-operador.vendo .sb-op-lbl { color: var(--accent); }
 </style>
@@ -212,6 +285,55 @@ body::before {
       <button class="sb-logout" id="hostLogout" title="Encerrar sessão"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair</button>
     </div>
   </aside>
+
+  <!-- Minha conta (s275): senha e e-mail do próprio usuário. Vive na casca, fora
+       dos iframes — a conta é do usuário, não da tela em que ele está. -->
+  <div class="mc-overlay" id="mcOverlay">
+    <div class="mc-modal" id="mcModal">
+      <div class="mc-head">
+        <span class="mc-title">Minha conta</span>
+        <button class="mc-close" id="mcClose" type="button" aria-label="Fechar">✕</button>
+      </div>
+      <div class="mc-body">
+        <div class="mc-quem">
+          <span>Usuário</span>
+          <b id="mcUsuario">…</b>
+        </div>
+
+        <div class="mc-sec" id="mcSecSenha">
+          <div class="mc-sec-tit">Trocar senha</div>
+          <div class="mc-field">
+            <label for="mcAtual">Senha atual</label>
+            <input type="password" id="mcAtual" autocomplete="current-password">
+          </div>
+          <div class="mc-field">
+            <label for="mcNova">Senha nova</label>
+            <input type="password" id="mcNova" autocomplete="new-password" minlength="8">
+          </div>
+          <div class="mc-field">
+            <label for="mcNova2">Repetir a senha nova</label>
+            <input type="password" id="mcNova2" autocomplete="new-password" minlength="8">
+          </div>
+          <div class="mc-acao">
+            <span class="mc-msg" id="mcMsgSenha"></span>
+            <button class="mc-btn" id="mcSalvarSenha" type="button">Salvar senha</button>
+          </div>
+        </div>
+
+        <div class="mc-sec">
+          <div class="mc-sec-tit">E-mail de recuperação</div>
+          <div class="mc-field">
+            <label for="mcEmail">Endereço</label>
+            <input type="email" id="mcEmail" autocomplete="email" placeholder="voce@exemplo.com">
+          </div>
+          <div class="mc-acao">
+            <span class="mc-msg" id="mcMsgEmail"></span>
+            <button class="mc-btn" id="mcSalvarEmail" type="button">Salvar e-mail</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Conteúdo: os 2 apps carregados como iframes (mesma origem → chamada cruzada OK).
        O Planilhador carrega já; o Dashboard é lazy (só no 1º clique em Análise). -->
@@ -453,12 +575,102 @@ body::before {
         volta.addEventListener('click', function(){ verComo(''); });
         sw.appendChild(volta);
       }
-      wrap.classList.add('has-switch');
     }
+    // "Minha conta" para TODO usuário (o menu deixou de ser exclusivo de dono
+    // com operadores). Sempre por último: é ação de conta, não de navegação.
+    var mc = document.createElement('button');
+    mc.className = 'conta';
+    mc.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c0-3 2.5-4.6 5.5-4.6s5.5 1.6 5.5 4.6"/></svg>Minha conta';
+    mc.addEventListener('click', function(){ wrap.classList.remove('open'); abrirConta(d); });
+    document.getElementById('sbOpSwitch').appendChild(mc);
+    wrap.classList.add('has-menu');
   }).catch(function(){});
-  trig.addEventListener('click', function(e){ e.stopPropagation(); if (wrap.classList.contains('has-switch')) wrap.classList.toggle('open'); });
+  trig.addEventListener('click', function(e){ e.stopPropagation(); if (wrap.classList.contains('has-menu')) wrap.classList.toggle('open'); });
   document.addEventListener('click', function(e){ if (!wrap.contains(e.target)) wrap.classList.remove('open'); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') wrap.classList.remove('open'); });
+
+  /* ── Modal "Minha conta" ───────────────────────────────────────────────────
+     Trocar a senha encerra as OUTRAS sessões (o cookie leva a impressão do hash;
+     ver auth.impressao_senha). A resposta traz o cookie novo, então quem trocou
+     continua dentro — nada de recarregar nem mandar pro /login. */
+  var ov = document.getElementById('mcOverlay');
+  var mo = document.getElementById('mcModal');
+  var elAtual = document.getElementById('mcAtual');
+  var elNova = document.getElementById('mcNova');
+  var elNova2 = document.getElementById('mcNova2');
+  var elEmail = document.getElementById('mcEmail');
+  var msgSenha = document.getElementById('mcMsgSenha');
+  var msgEmail = document.getElementById('mcMsgEmail');
+  var btnSenha = document.getElementById('mcSalvarSenha');
+  var btnEmail = document.getElementById('mcSalvarEmail');
+  var emailOriginal = '';
+
+  function msg(el, texto, classe){ el.textContent = texto || ''; el.className = 'mc-msg' + (classe ? ' ' + classe : ''); }
+
+  function abrirConta(d){
+    document.getElementById('mcUsuario').textContent = d.usuario || '';
+    emailOriginal = d.email || '';
+    elEmail.value = emailOriginal;
+    elAtual.value = elNova.value = elNova2.value = '';
+    msg(msgSenha, ''); msg(msgEmail, '');
+    // Conta só-social não tem senha local: o formulário inteiro sai de cena em
+    // vez de pedir uma "senha atual" que não existe.
+    document.getElementById('mcSecSenha').style.display = d.tem_senha === false ? 'none' : '';
+    ov.classList.add('open');
+    (d.tem_senha === false ? elEmail : elAtual).focus();
+  }
+
+  function preenchido(){
+    return !!(elAtual.value || elNova.value || elNova2.value || elEmail.value !== emailOriginal);
+  }
+
+  function fechar(forcar){
+    // Gesto acidental (fundo/Esc) não descarta o que já foi digitado: sacode.
+    // O ✕ e o Cancelar fecham sempre — quem clica neles quer sair.
+    if (!forcar && preenchido()) {
+      mo.classList.remove('shake');
+      void mo.offsetWidth;                 // reinicia a animação
+      mo.classList.add('shake');
+      return;
+    }
+    ov.classList.remove('open');
+  }
+
+  document.getElementById('mcClose').addEventListener('click', function(){ fechar(true); });
+  ov.addEventListener('click', function(e){ if (e.target === ov) fechar(false); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && ov.classList.contains('open')) fechar(false); });
+
+  function envia(botao, elMsg, url, corpo, aoDarCerto){
+    botao.disabled = true;
+    msg(elMsg, 'Salvando…');
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) })
+      .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, corpo: j }; }); })
+      .then(function(res){
+        if (!res.ok) { msg(elMsg, res.corpo.detail || 'Não foi possível salvar.', 'erro'); return; }
+        aoDarCerto(res.corpo);
+      })
+      .catch(function(){ msg(elMsg, 'Falha de conexão. Tente de novo.', 'erro'); })
+      .then(function(){ botao.disabled = false; });
+  }
+
+  btnSenha.addEventListener('click', function(){
+    if (elNova.value !== elNova2.value) { msg(msgSenha, 'As senhas não conferem.', 'erro'); return; }
+    if (elNova.value.length < 8) { msg(msgSenha, 'A senha precisa de pelo menos 8 caracteres.', 'erro'); return; }
+    envia(btnSenha, msgSenha, '/conta/senha',
+      { senha_atual: elAtual.value, senha_nova: elNova.value },
+      function(corpo){
+        elAtual.value = elNova.value = elNova2.value = '';
+        msg(msgSenha, corpo.mensagem || 'Senha alterada.', 'ok');
+      });
+  });
+
+  btnEmail.addEventListener('click', function(){
+    envia(btnEmail, msgEmail, '/conta/email', { email: elEmail.value.trim() },
+      function(corpo){
+        emailOriginal = corpo.email || elEmail.value.trim();
+        msg(msgEmail, 'E-mail salvo.', 'ok');
+      });
+  });
 })();
 </script>
 

@@ -216,6 +216,17 @@ def _usuario_ativo(usuario: str) -> bool:
 usuario_ativo = _usuario_ativo
 
 
+def email_de(usuario: str) -> str:
+    """E-mail cadastrado, ou "" — do cache (sem query no /me, que a casca chama
+    a cada carga de tela)."""
+    return (_usuarios_cache.get(usuario) or {}).get("email") or ""
+
+
+def tem_senha(usuario: str) -> bool:
+    """A conta tem senha local? False = só-social (nada a trocar no perfil)."""
+    return bool((_usuarios_cache.get(usuario) or {}).get("senha_hash"))
+
+
 def eh_admin(usuario: str) -> bool:
     """Papel de admin (vê o agregado de custo; na Fase 2, aprova cadastros)."""
     entrada = _usuarios_cache.get(usuario)
@@ -324,10 +335,48 @@ def gerar_hash_senha(senha: str) -> str:
     return bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
 
 
+# ── Impressão da senha: revogação de sessão sem estado novo (s275) ───────────
+# O cookie carrega uma IMPRESSÃO do `senha_hash` vigente. `ler_token` a compara
+# com a impressão de agora (lida do `_usuarios_cache`, já em memória): trocou a
+# senha → o hash muda → a impressão muda → TODO cookie emitido antes morre na
+# request seguinte, inclusive um roubado. É o `get_session_auth_hash` do Django.
+#
+# Por que assim, e não por uma coluna de "versão de sessão":
+#   • sem migration e sem query nova — `ler_token` continua I/O-zero, e ele roda
+#     em toda request do app;
+#   • o app roda em UM worker (Dockerfile: uvicorn sem --workers), então o
+#     `atualizar_cache_usuarios` que a rota de troca chama deixa o cache correto
+#     no mesmo instante para todo mundo. Com vários workers haveria uma janela
+#     de até 60s (TTL do refresher) em que a sessão recém-criada seria recusada
+#     por um worker de cache velho — se um dia subir `--workers`, esta é a linha
+#     que precisa de pg_notify antes.
+#
+# A MESMA função dá uso único ao token de redefinição de senha (fatia 3): o
+# token morre sozinho ao ser consumido, porque consumi-lo troca o hash.
+#
+# Conta só-social (`senha_hash` NULL, 0 hoje) tem impressão constante: ela não
+# tem senha para trocar, e o gate dela é o status, não o hash.
+_IMPRESSAO_SEM_SENHA = "social"
+
+
+def impressao_senha(usuario: str) -> str:
+    """Impressão curta e estável do `senha_hash` vigente do usuário.
+
+    Curta de propósito (16 hex): vai no payload de todo cookie. Não é segredo —
+    é derivada de um hash bcrypt (que já é irreversível) e serve só para
+    comparar "é a mesma senha de quando este cookie nasceu?".
+    """
+    entrada = _usuarios_cache.get(usuario) or {}
+    guardado = entrada.get("senha_hash")
+    if not guardado:
+        return _IMPRESSAO_SEM_SENHA
+    return hashlib.sha256(guardado.encode()).hexdigest()[:16]
+
+
 def criar_token(usuario: str) -> str:
     exp = int(time.time()) + SESSION_MAX_AGE
     payload = base64.urlsafe_b64encode(
-        json.dumps({"u": usuario, "exp": exp}).encode()
+        json.dumps({"u": usuario, "exp": exp, "s": impressao_senha(usuario)}).encode()
     ).decode()
     assinatura = hmac.new(
         SESSION_SECRET.encode(), payload.encode(), hashlib.sha256
@@ -384,7 +433,17 @@ def ler_token(token: str | None) -> str | None:
         # Gate de status a CADA request (C3 da auditoria): cookie bem-assinado
         # de usuário suspenso/removido morre aqui — desativar no banco revoga a
         # sessão em ≤60s (TTL do cache), sem esperar os 30 dias do cookie.
-        return usuario if _usuario_ativo(usuario) else None
+        if not _usuario_ativo(usuario):
+            return None
+        # Gate de senha (s275): a impressão do payload tem de bater com a de
+        # agora. Trocar a senha derruba as outras sessões — inclusive a de quem
+        # roubou o cookie, que é o motivo de trocar. Token ANTIGO (sem "s", de
+        # antes deste deploy) não passa: aceitá-lo por compatibilidade manteria
+        # aberto exatamente o buraco que este gate veio fechar. O preço é um
+        # relogin único de todo mundo no deploy — combinado e avisado.
+        if dados.get("s") != impressao_senha(usuario):
+            return None
+        return usuario
     except Exception:
         return None
 

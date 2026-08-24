@@ -75,6 +75,12 @@ if not os.environ.get("TEST_DATABASE_URL"):
         async def definir_bot_habilitado(*a):  # pragma: no cover - importado por main, nunca chamado nos testes
             raise RuntimeError("DB indisponível nos testes de fórmula")
 
+        async def atualizar_senha_usuario(*a):  # pragma: no cover - o teste de troca de senha monkeypatcha main.*
+            raise RuntimeError("DB indisponível nos testes de fórmula")
+
+        async def atualizar_email_usuario(*a):  # pragma: no cover - o teste de troca de e-mail monkeypatcha main.*
+            raise RuntimeError("DB indisponível nos testes de fórmula")
+
         _fake_db.get_pool = get_pool
         _fake_db.dsn = dsn
         _fake_db.init_db = init_db
@@ -88,4 +94,6 @@ if not os.environ.get("TEST_DATABASE_URL"):
         _fake_db.usernames_em_uso = usernames_em_uso
         _fake_db.criar_usuario_social = criar_usuario_social
         _fake_db.definir_bot_habilitado = definir_bot_habilitado
+        _fake_db.atualizar_senha_usuario = atualizar_senha_usuario
+        _fake_db.atualizar_email_usuario = atualizar_email_usuario
         sys.modules["database"] = _fake_db

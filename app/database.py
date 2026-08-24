@@ -464,6 +464,49 @@ async def criar_usuario(username: str, email: str, senha_hash: str) -> str | Non
     return None
 
 
+async def atualizar_senha_usuario(username: str, senha_hash: str) -> bool:
+    """Grava o hash novo da senha. True se o usuário existia.
+
+    O chamador é obrigado a recarregar o cache de auth logo em seguida — e não
+    só pelo login: desde a s275 a impressão do `senha_hash` entra no cookie, e
+    é o cache que `ler_token` consulta. Sem a recarga, o usuário troca a senha
+    e a sessão dele (a nova, recém-emitida) é recusada até o refresher rodar.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        r = await conn.execute(
+            "UPDATE usuarios SET senha_hash = $2, atualizado_em = NOW() WHERE username = $1",
+            username, senha_hash,
+        )
+    return r.endswith(" 1")
+
+
+async def atualizar_email_usuario(username: str, email: str) -> str | None:
+    """Define/troca o e-mail da conta. None se gravou, 'email' se já é de outro.
+
+    Existe para as contas anteriores ao autosserviço (13 das 24 na s275, todas
+    com `email` NULL): sem e-mail elas não têm como recuperar senha sozinhas e
+    dependem do admin para sempre. Mesma checagem case-insensitive do cadastro
+    — `Fulano@x.com` e `fulano@x.com` são a mesma caixa postal, e a UNIQUE do
+    Postgres, que é sensível a caixa, não barraria a segunda.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        dono = await conn.fetchval(
+            "SELECT username FROM usuarios WHERE lower(email) = lower($1)", email
+        )
+        if dono is not None and dono != username:
+            return "email"
+        try:
+            await conn.execute(
+                "UPDATE usuarios SET email = $2, atualizado_em = NOW() WHERE username = $1",
+                username, email,
+            )
+        except asyncpg.UniqueViolationError:
+            return "email"  # corrida entre o SELECT e o UPDATE: perde educadamente
+    return None
+
+
 async def listar_usuarios() -> list[dict]:
     """Lista para o painel /admin — pendentes primeiro, depois mais recentes.
     NUNCA devolve senha_hash (hash não sai do banco nem para admin)."""
@@ -571,8 +614,8 @@ async def carregar_usuarios() -> list[dict]:
     async with pool.acquire() as conn:
         linhas = await conn.fetch(
             """
-            SELECT username, senha_hash, status, role, parent_owner, planilha_url,
-                   bot_habilitado
+            SELECT username, senha_hash, email, status, role, parent_owner,
+                   planilha_url, bot_habilitado
             FROM usuarios
             """
         )

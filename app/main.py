@@ -33,9 +33,10 @@ from pydantic import BaseModel, field_validator
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, atualizar_cache_usuarios,
     coproprietarios, criar_token, criar_token_curto, dono_efetivo,
-    dono_efetivo_ou_bot, eh_admin, gerar_hash_senha, operadores_de,
-    planilha_ao_vivo, pode_ver_como, resultado_login, usuario_atual,
+    dono_efetivo_ou_bot, eh_admin, email_de, gerar_hash_senha, operadores_de,
+    planilha_ao_vivo, pode_ver_como, resultado_login, tem_senha, usuario_atual,
     usuario_atual_ou_bot, usuario_ativo, usuario_do_request, validar_token_curto,
+    verificar_credenciais,
 )
 import captura as _captura
 import eventos as _eventos
@@ -43,6 +44,7 @@ from planilha_viva import dashboard_rows_ao_vivo
 from config import ALLOWED_MODELS, CASAS_DIR, DEFAULT_MODEL
 from taxonomia import categorias_canonicas, esportes_canonicos
 from database import (
+    atualizar_email_usuario, atualizar_senha_usuario,
     buscar_usuario_social, carregar_usuarios, criar_usuario,
     criar_usuario_social, definir_bot_habilitado, definir_status_usuario,
     init_db, listar_usuarios, seed_usuarios, usernames_em_uso, vincular_social,
@@ -1608,6 +1610,27 @@ _USUARIO_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.\-]{2,23}$")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def validar_senha(senha: str) -> str | None:
+    """Regra ÚNICA de senha aceitável — cadastro, troca no perfil e redefinição.
+
+    Extraída do `validar_cadastro` na s275, quando a troca de senha virou uma
+    segunda porta de entrada para o mesmo campo: com a regra copiada, apertar o
+    mínimo num lugar deixaria o outro frouxo em silêncio.
+    """
+    if len(senha) < 8:
+        return "A senha precisa de pelo menos 8 caracteres."
+    if len(senha) > 128:
+        return "Senha longa demais (máximo 128 caracteres)."
+    return None
+
+
+def validar_email(email: str) -> str | None:
+    """Regra única de e-mail — cadastro e troca no perfil."""
+    if len(email) > 254 or not _EMAIL_RE.fullmatch(email):
+        return "E-mail inválido."
+    return None
+
+
 def validar_cadastro(usuario: str, email: str, senha: str) -> str | None:
     """Valida os campos do cadastro. Retorna a mensagem de erro, ou None se ok.
 
@@ -1619,13 +1642,7 @@ def validar_cadastro(usuario: str, email: str, senha: str) -> str | None:
     if not _USUARIO_RE.fullmatch(usuario):
         return ("Usuário inválido: 3 a 24 caracteres, começando com letra, "
                 "só letras, números, ponto, hífen ou _ (sem espaços/acentos).")
-    if len(email) > 254 or not _EMAIL_RE.fullmatch(email):
-        return "E-mail inválido."
-    if len(senha) < 8:
-        return "A senha precisa de pelo menos 8 caracteres."
-    if len(senha) > 128:
-        return "Senha longa demais (máximo 128 caracteres)."
-    return None
+    return validar_email(email) or validar_senha(senha)
 
 
 class SignupRequest(BaseModel):
@@ -2042,7 +2059,108 @@ async def me(request: Request):
         "usuario": real,
         "dono_efetivo": dono_efetivo(request),
         "operadores": operadores_de(real),
+        # Perfil (s275): alimentam o modal "Minha conta". `tem_senha` False =
+        # conta só-social, que não tem senha para trocar — o formulário some.
+        "email": email_de(real),
+        "tem_senha": tem_senha(real),
     }
+
+
+# ── Minha conta: senha e e-mail do próprio usuário (s275) ────────────────────
+# As DUAS rotas usam `usuario_atual` (identidade REAL da sessão) e nunca
+# `dono_efetivo`: um operador em "ver como" enxerga a base do supervisor, e se
+# a credencial saísse do dono efetivo ele trocaria a SENHA DO SUPERVISOR. É a
+# mesma distinção que o /me expõe, e aqui ela é a fronteira de privilégio.
+
+class TrocarSenhaRequest(BaseModel):
+    senha_atual: str
+    senha_nova: str
+
+
+class TrocarEmailRequest(BaseModel):
+    email: str
+
+
+# Rate limit da troca de senha: a rota é autenticada, mas confere a senha atual
+# — logo é um oráculo para chutá-la a partir de uma sessão roubada. 10/h por IP
+# não atrapalha ninguém (trocar senha é raro) e fecha o brute-force.
+_SENHA_WINDOW = 3600
+_SENHA_MAX = 10
+_senha_hits: dict[str, list[float]] = {}
+
+
+@app.post("/conta/senha")
+async def trocar_senha(body: TrocarSenhaRequest, request: Request):
+    usuario = usuario_atual(request)
+    ip = _client_ip(request)
+    now = time.time()
+    hits = [t for t in _senha_hits.get(ip, []) if now - t < _SENHA_WINDOW]
+    if len(hits) >= _SENHA_MAX:
+        raise HTTPException(429, "Muitas tentativas. Aguarde alguns minutos e tente novamente.")
+
+    if not tem_senha(usuario):
+        raise HTTPException(400, "Esta conta entra por login social e não tem senha.")
+    erro = validar_senha(body.senha_nova)
+    if erro:
+        raise HTTPException(400, erro)
+
+    # A senha ATUAL é exigida mesmo com sessão válida: o cookie dura 30 dias e
+    # pode estar numa máquina emprestada. Sessão prova "entrou um dia", não
+    # "é a pessoa agora".
+    hits.append(now)
+    _senha_hits[ip] = hits
+    if not await asyncio.to_thread(verificar_credenciais, usuario, body.senha_atual):
+        await asyncio.sleep(0.5)   # mesmo atraso constante do /login
+        raise HTTPException(401, "Senha atual incorreta.")
+    if body.senha_nova == body.senha_atual:
+        raise HTTPException(400, "A senha nova precisa ser diferente da atual.")
+
+    senha_hash = await asyncio.to_thread(gerar_hash_senha, body.senha_nova)
+    if not await atualizar_senha_usuario(usuario, senha_hash):
+        raise HTTPException(404, "Usuário não encontrado.")
+    # Recarga IMEDIATA, sem esperar o refresher de 60s: a impressão do hash no
+    # cookie é lida DESTE cache, então sem isto o token novo emitido logo abaixo
+    # nasceria inválido e o usuário cairia no /login com a senha certa.
+    atualizar_cache_usuarios(await carregar_usuarios())
+    _senha_hits.pop(ip, None)      # sucesso limpa o contador do IP
+    logger.info("conta: senha trocada — usuario=%s", usuario)
+
+    # Cookie novo com a impressão nova. As OUTRAS sessões deste usuário morrem
+    # aqui (é o ponto da fatia): quem trocou a senha continua dentro, quem
+    # estava com o cookie antigo — inclusive um roubado — cai na próxima request.
+    resp = JSONResponse({"ok": True, "mensagem": "Senha alterada. As outras sessões foram encerradas."})
+    resp.set_cookie(
+        key=COOKIE_NAME,
+        value=criar_token(usuario),
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=True,
+    )
+    # O "ver como" também é assinado com a impressão do ALVO e segue válido;
+    # só o cookie de sessão precisava ser reemitido.
+    return resp
+
+
+@app.post("/conta/email")
+async def trocar_email(body: TrocarEmailRequest, request: Request):
+    """Define/troca o e-mail da própria conta.
+
+    Existe para as contas anteriores ao autosserviço (13 das 24 na s275, todas
+    sem e-mail): é o que vai permitir a elas recuperar a senha sozinhas quando
+    o envio por e-mail subir. Não há verificação de posse ainda — o próprio
+    fluxo de recuperação a fará, ao exigir que o link chegue na caixa.
+    """
+    usuario = usuario_atual(request)
+    email = body.email.strip()
+    erro = validar_email(email)
+    if erro:
+        raise HTTPException(400, erro)
+    if await atualizar_email_usuario(usuario, email) == "email":
+        raise HTTPException(409, "Este e-mail já está em uso por outra conta.")
+    atualizar_cache_usuarios(await carregar_usuarios())
+    logger.info("conta: e-mail atualizado — usuario=%s", usuario)
+    return {"ok": True, "email": email}
 
 
 class VerComoRequest(BaseModel):
