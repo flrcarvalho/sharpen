@@ -385,6 +385,31 @@ escada**, não aplique opacidade.
 
 ---
 
+## Teste verde não é teste que detecta
+
+Gate novo só vale depois de provado por **mutação**: quebre o código de propósito e
+confira que o teste falha. Verde sem essa prova não prova nada.
+
+Dois modos de falso verde, os dois medidos na s286 e na s287:
+
+1. **O teste reimplementa o código sob teste.** O harness reescrevia a ligação do
+   listener em vez de recortá-la do arquivo. A mutação que removia o guard passou
+   verde. Recorte o código real do arquivo; nunca copie o trecho para o teste.
+2. **O dado sintético não exerce a regra.** Feed com 5 itens nunca atinge um corte de
+   12. Sem empate, o desempate não decide nada. Se o item "só da base" também está no
+   MASTER, a união não foi provada. E cuidado com ordem: o sort do V8 é estável, então
+   um empate pode "acertar" sem regra nenhuma se a ordem natural já for a esperada.
+
+Quando uma mutação escapa, o defeito quase sempre está no teste, não no código.
+
+**Mutação inócua existe.** Se o código segue correto sem aquela linha, ela é redundante
+e não é buraco de teste. Registre a diferença em vez de inventar asserção para ela.
+
+**Diga o que o teste NÃO cobre.** DOM dublado sempre "clica" (s279) e nunca rola de
+verdade. Escreva o limite no cabeçalho do arquivo, senão o verde vira promessa falsa.
+
+---
+
 ## ⚠️ REGRA DE PROPAGAÇÃO OBRIGATÓRIA
 
 **Toda vez que uma categoria for criada, renomeada ou removida do `MASTER_APOSTAS_2026.md`, os seguintes arquivos DEVEM ser atualizados na mesma sessão, sem exceção:**
@@ -578,5 +603,5 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-20 (sessão 282 — aviso ao grupo: não diagnosticar envio com `sendMessage`;
+ATUALIZADO: 2026-08-24 (sessão 287 — regra nova: teste verde não é teste que detecta; gate novo se prova por mutação)
 identificar mensagem por `editMessageText` com texto idêntico)
