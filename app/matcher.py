@@ -22,9 +22,9 @@ Medido com holdout TEMPORAL (treina no passado, testa nos últimos 30 dias), por
 (cobertura / precisão):
 
     dono       matcher declarativo     este módulo
-    Feca         47 % / 74 %           55 % / 90 %
-    Gabriel      12 % / 99 %           26 % / 97 %
-    Jonathan     10 % / 41 %           12 % / 94 %
+    Feca         47 % / 74 %           61 % / 89 %
+    Gabriel      12 % / 99 %           44 % / 91 %
+    Jonathan     10 % / 41 %           26 % / 97 %
 
 Na carteira do Feca isso é 295 erros virando 134, com MAIS bilhetes sugeridos (1.156 → 1.344);
 os erros que caíam no Arrudex passam de 155 para 6, e os 165 bilhetes do SóChutes na janela
@@ -70,6 +70,17 @@ from typing import Any, Iterable, Optional
 MARGEM = 2.5
 # Features do bilhete que o vencedor pode nunca ter feito. 0 = nenhuma (ver docstring).
 MAX_INEDITAS = 0
+# ...mas o corte só olha as features ESTÁVEIS. `casa` e `val` mudam legitimamente sem o tipster
+# mudar de comportamento: ele abre conta numa casa nova, ele aposta um valor que nunca apostou.
+# Contá-las fazia o corte disparar em NOVIDADE em vez de em incompatibilidade, e isso emudecia o
+# matcher no caso mais fácil que existe (s289, dois casos do Feca):
+#   · Bad Milton é o ÚNICO de Badminton da carteira, vencia com folga 5,4 — e era barrado porque
+#     nunca tinha apostado na Betboom (`casa=betboom` inédita).
+#   · Fatuch vencia com folga 8,5 num bilhete de final 7 — barrado porque `val=147` era inédito,
+#     e valor exato é quase único por bilhete, então quase toda stake nova disparava o corte.
+# Medido: ignorá-las levou a cobertura de 55 % → 61 % (Feca), 26 % → 44 % (Gabriel) e 12 % → 26 %
+# (Jonathan), com precisão ≥ 88,9 % em todos. As duas SEGUEM pontuando — só não vetam.
+CORTE_IGNORA = ("casa=", "val=")
 # Abaixo disto o modelo não se sustenta e a rota devolve o dono ao matcher declarativo.
 MIN_TREINO = 200
 # Suavização de Laplace. Baixa de propósito: features raras precisam pesar.
@@ -188,8 +199,10 @@ def sugerir(m: Modelo, ativos: Iterable[str], casa: Any, esporte: Any, aposta: A
         return None
     ranked.sort(reverse=True)
     topo = ranked[0][1]
-    # Confiança ABSOLUTA: o bilhete precisa se parecer com o que o vencedor já fez.
-    if sum(1 for f in feats if m.cnt[topo][f] == 0) > MAX_INEDITAS:
+    # Confiança ABSOLUTA: o bilhete precisa se parecer com o que o vencedor já fez — medida só
+    # nas features estáveis, porque casa nova e valor de stake novo são novidade, não outro dono.
+    if sum(1 for f in feats
+           if not f.startswith(CORTE_IGNORA) and m.cnt[topo][f] == 0) > MAX_INEDITAS:
         return None
     if len(ranked) == 1:
         return topo

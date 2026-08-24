@@ -99,11 +99,39 @@ def test_tipster_sem_historico_nao_rouba_a_folga_de_quem_tem():
                            "Múltipla", "100,00", "A // B") == "Antigo"
 
 
-def test_uma_feature_inedita_ja_basta_para_abster():
-    """MAX_INEDITAS=0: o corte é NENHUMA feature inédita, não "poucas". Aqui só a casa muda."""
+def test_uma_feature_estavel_inedita_ja_basta_para_abster():
+    """MAX_INEDITAS=0: o corte é NENHUMA inédita, não "poucas". Aqui só o mercado muda."""
+    m = matcher.treinar(treino(tipster="Antigo"))
+    assert matcher.sugerir(m, ["Antigo"], "Bet365", "Futebol", "MercadoQueEleNuncaFez",
+                           "100,00", "A // B") is None
+
+
+def test_casa_nova_NAO_abstem():
+    """Tipster abrir conta numa casa nova é rotina — não é outro dono.
+
+    Este é o caso do Bad Milton (s289): único de Badminton na carteira, vencia com folga 5,4 e
+    era barrado porque nunca tinha apostado na Betboom. O corte disparava em NOVIDADE.
+    """
     m = matcher.treinar(treino(tipster="Antigo"))
     assert matcher.sugerir(m, ["Antigo"], "CasaQueEleNuncaUsou", "Futebol", "Múltipla",
-                           "100,00", "A // B") is None
+                           "100,00", "A // B") == "Antigo"
+
+
+def test_valor_de_stake_novo_NAO_abstem():
+    """Caso do Fatuch (s289): vencia com folga 8,5 num bilhete de final 7 e era barrado porque
+    `val=147` era inédito. Valor exato é quase único por bilhete — contá-lo no corte fazia quase
+    toda stake nova emudecer o matcher. O FINAL da stake continua contando (é a assinatura)."""
+    m = matcher.treinar(treino(tipster="Antigo", stake="107,00"))
+    assert matcher.sugerir(m, ["Antigo"], "Bet365", "Futebol", "Múltipla",
+                           "147,00", "A // B") == "Antigo", "mesmo final 7, valor novo"
+
+
+def test_final_de_stake_inedito_ainda_abstem():
+    """Contraprova: `fim` NÃO está na lista de ignorados. Ele é a assinatura do tipster, e um
+    final que ele nunca usou continua sendo motivo para não cravar."""
+    m = matcher.treinar(treino(tipster="Antigo", stake="100,00"))
+    assert matcher.sugerir(m, ["Antigo"], "Bet365", "Futebol", "Múltipla",
+                           "97,00", "A // B") is None
 
 
 # ── abstenção: confiança RELATIVA (MARGEM) ──────────────────────────────────────

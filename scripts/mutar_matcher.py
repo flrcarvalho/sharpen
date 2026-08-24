@@ -15,7 +15,7 @@ Dois alvos, porque são dois modos de falha diferentes:
 Restaura os originais no `finally` (inclusive se o pytest estourar) e confere byte a byte.
 Cópias vão para `Backups/_mutacao_matcher/` ANTES de qualquer escrita.
 
-Placar de referência (s289): 13/13 detectadas. A M5 escapou na primeira rodada — o teste não
+Placar de referência (s289): 15/15 detectadas. A M5 escapou na primeira rodada — o teste não
 tinha cenário com tipster sem histórico E treino curto, que é onde a regra morde.
 """
 import pathlib
@@ -46,6 +46,10 @@ MUTACOES_MODELO = {
          '        nome = (b.get("tipster") or "").strip()'),
     "M8 cache ignora o TTL":
         ("    if time.monotonic() - ts > TTL_MODELO:", "    if False:"),
+    "M9 corte volta a contar casa/valor (novidade vira veto)":
+        ('CORTE_IGNORA = ("casa=", "val=")', "CORTE_IGNORA = ()"),
+    "M10 corte para de olhar as features estáveis (nada mais veta)":
+        ('CORTE_IGNORA = ("casa=", "val=")', 'CORTE_IGNORA = ("casa=", "val=", "esp=", "mkt=", "fim=", "faixa=", "pernas=")'),
 }
 
 MUTACOES_ROTA = {
