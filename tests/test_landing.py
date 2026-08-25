@@ -1,14 +1,17 @@
-"""Landing pública em `/` (s294) — a única porta de entrada de quem ainda não é cliente.
+"""Landing de venda — hoje em PRÉVIA (s294), não publicada.
+
+A página chegou a servir a rota `/` por uns 20 minutos e foi retirada no mesmo dia,
+a pedido do Feca: *"para uma primeira versão tá bom, mas não quero ela online"*. Ela
+vive em `/landing`, que exige sessão.
 
 O que estes testes travam, e por que cada um existe:
 
-  1. VISITANTE VÊ A LANDING. Até a s294 `/` mandava todo mundo para `/login`, que
-     é a tela de quem JÁ tem conta. Se um refactor restaurar o redirect, a
-     sharpen.bet volta a não ter o que mostrar — e nada no app quebraria para
-     avisar.
-  2. SESSÃO CONTINUA MANDANDO. Quem está logado tem de cair no Planilhador ao
-     digitar o domínio, como sempre foi. É a metade da mudança que não pode
-     regredir junto.
+  1. NINGUÉM DE FORA ALCANÇA. Anônimo em `/` e em `/landing` vai para o login. Este
+     é o teste que impede a página de voltar ao ar por acidente — um refactor
+     distraído no `root()` republicaria uma peça de marketing inacabada, e nada
+     no app quebraria para avisar.
+  2. O FECA CONSEGUE REVISAR. Com sessão, `/landing` serve a página. Sem isso a
+     prévia não serve para nada e alguém a devolveria para `/` só para poder vê-la.
   3. IMAGEM REFERENCIADA EXISTE NO DISCO. `<img>` quebrado não derruba página
      nenhuma: ela só fica com um buraco, e quem descobre é o visitante. Como as
      imagens nascem de um pipeline manual (`scripts/demo/capturar.mjs` →
@@ -44,24 +47,48 @@ def _landing_txt() -> str:
     return LANDING.read_text(encoding="utf-8")
 
 
-# ── 1. visitante ─────────────────────────────────────────────────────────────
-def test_visitante_recebe_a_landing_e_nao_o_login():
-    r = cliente.get("/", follow_redirects=False)
-    assert r.status_code == 200, f"esperado 200, veio {r.status_code} (redirect de volta?)"
-    corpo = r.text
-    # Âncoras de conteúdo, não de markup: o teste não pode passar só porque
-    # alguma página respondeu 200.
-    assert "landing" in corpo or "Criar conta" in corpo
-    assert "O seu resultado" in corpo
+TITULO = "O seu resultado, depois dos custos"
 
 
-# ── 2. sessão ────────────────────────────────────────────────────────────────
+# ── 1. ninguém de fora alcança ───────────────────────────────────────────────
+def test_anonimo_nao_ve_a_landing_em_lugar_nenhum():
+    for rota in ("/", "/landing"):
+        r = cliente.get(rota, follow_redirects=False)
+        assert r.status_code == 303, f"{rota}: esperado redirect, veio {r.status_code}"
+        assert r.headers["location"] == "/login", f"{rota} -> {r.headers.get('location')}"
+
+
+def test_a_pagina_se_declara_nao_indexavel_enquanto_for_previa():
+    """`noindex` e a rota andam JUNTOS: publicar é mexer nos dois.
+
+    Sozinho, cada um falha em silêncio — página pública com `noindex` não aparece
+    no Google (o motivo de existir), e página em prévia com `index` seria indexada
+    no dia em que a rota voltasse. Este teste amarra os dois estados.
+    """
+    html = _landing_txt()
+    publica = "/landing" not in Path(main.__file__).read_text(encoding="utf-8")
+    if publica:
+        assert 'content="index, follow"' in html, "a landing está pública e mandou o Google ignorá-la"
+    else:
+        assert 'content="noindex, nofollow"' in html, (
+            "a landing está em PRÉVIA (rota /landing existe) mas se declara indexável"
+        )
+
+
+# ── 2. o Feca consegue revisar ───────────────────────────────────────────────
+def test_com_sessao_a_previa_abre():
+    r = cliente.get("/landing", cookies={auth.COOKIE_NAME: auth.criar_token("Feca")},
+                    follow_redirects=False)
+    assert r.status_code == 200
+    assert TITULO in r.text
+
+
 def test_logado_continua_caindo_no_planilhador():
     r = cliente.get("/", cookies={auth.COOKIE_NAME: auth.criar_token("Feca")},
                     follow_redirects=False)
     assert r.status_code == 200
     # O Planilhador não tem o título da landing; a landing não tem a grade.
-    assert "O seu resultado, depois dos custos" not in r.text
+    assert TITULO not in r.text
 
 
 # ── 3. imagens ───────────────────────────────────────────────────────────────

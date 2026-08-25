@@ -1339,23 +1339,34 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
 
 @app.get("/")
 async def root(request: Request):
-    """Visitante → landing pública. Sessão válida → o Planilhador, como sempre.
-
-    Até a s294 esta rota mandava o visitante direto para `/login`, o que dava a
-    sharpen.bet uma porta de entrada que só serve para quem JÁ é cliente: nada a
-    indexar, nada a mostrar, nada a vender. A landing (`static/landing.html`) é
-    a única página pública do produto além de `/privacidade` e `/extensao`.
-
-    A sessão continua mandando: quem já está logado nunca vê a landing ao digitar
-    o domínio — cai no app, que é o comportamento que os usuários atuais têm hoje.
-    """
+    # Sem sessão válida → tela de login.
+    #
+    # ⚠️ A landing de venda (`static/landing.html`) chegou a servir esta rota por ~20
+    # minutos na s294 e foi RETIRADA no mesmo dia, a pedido do Feca: *"para uma
+    # primeira versão tá bom, mas não quero ela online"*. A página continua no repo
+    # e é revisável em `/landing`, que EXIGE sessão. Publicar = trocar o `/landing`
+    # por este bloco de novo e devolver `robots` para `index` no HTML.
     if not usuario_do_request(request):
-        conteudo = (Path(__file__).parent / "static" / "landing.html").read_text(encoding="utf-8")
-        # Página pública e estável: pode ser cacheada. As imagens são versionadas
-        # pelo nome do arquivo, então um cache curto não segura print antigo.
-        return HTMLResponse(content=conteudo, headers={"Cache-Control": "public, max-age=300"})
+        return RedirectResponse("/login", status_code=303)
     content = (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
     return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
+@app.get("/landing")
+async def landing_previa(request: Request):
+    """Prévia da landing de venda — NÃO é pública. Exige sessão, de propósito.
+
+    Existe para o Feca revisar a página em URL de verdade (com as imagens servidas
+    pelo `/static`, que é como ela vai se comportar no ar) sem que nenhum visitante
+    a alcance. Anônimo vai para o login, igual a qualquer tela interna.
+
+    Enquanto for prévia, o HTML declara `robots: noindex, nofollow`. Trocar isso é
+    parte do gesto de publicar, não um detalhe separado.
+    """
+    if not usuario_do_request(request):
+        return RedirectResponse("/login", status_code=303)
+    conteudo = (Path(__file__).parent / "static" / "landing.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=conteudo, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/app")
