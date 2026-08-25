@@ -100,6 +100,19 @@ _MAX_CONCURRENT = 8      # requests simultâneos à API (semáforo). Subiu de 4 
 _IMGS_POR_CHUNK = 3     # páginas de PDF / imagens por chunk. Chunk enxuto = resposta rápida;
                         # 50 páginas viram ~17 chunks pequenos (concorrência limitada pelo
                         # semáforo) em vez de 4 chunks gordos de ~13 páginas que travavam.
+# Teto da espera do escalonamento de cache (s295, ver `_stream_parallel`). É rede de
+# segurança, não cronômetro: o caso normal libera em ~2–5s, no 1º token do chunk 0. O
+# número existe só para que um chunk 0 travado não segure a extração inteira — expirar
+# custa dinheiro (os chunks voltam a escrever o cache juntos), nunca dado.
+_STAGGER_TIMEOUT = 25
+
+# ⚠️ NÃO agrupe blocos por um piso de bilhetes (a "correção B" do estudo de custo) sem
+# antes unificar a regra de INVERSÃO DE LINHAS. Medido na s295: `_stream_parallel` inverte
+# quando `casa ∈ {BET365, BETANO, BETFAIR}` **ou** é Superbet-TEXTO; o `_stream_sequential`
+# recebe `seq_reverse`, que **não** inclui a Superbet. Hoje isso não aparece porque lote com
+# 2+ bilhetes sempre cai no paralelo — um piso mandaria lote pequeno para o sequencial e a
+# Superbet-texto sairia na ordem trocada, **sem erro nenhum**. Regra duplicada é regra que
+# diverge. Ver `docs/PLANO_TRADUTOR_DETERMINISTICO.md`.
 
 # Limites de upload (validados no servidor — o teto do front é contornável).
 _MAX_IMGS = 15
@@ -237,20 +250,42 @@ def _display_to_key(name: str) -> str:
 
 # ── Cache warmer ──────────────────────────────────────────────────────────────
 
+# Intervalo do aquecedor. O TTL do cache é de 1h (`prompts._CACHE_TTL`) e a leitura o
+# renova sem custo, então 55 min deixa 5 min de folga — o prazo é contado do INÍCIO da
+# requisição que lê/escreve, não do fim da resposta.
+#
+# Era 240s (TTL de 5 min). Medido na s295: 360 pings/dia × 53.555 tokens × US$0,30/MTok =
+# **US$ 173/mês** que NÃO apareciam em `uso_tokens` (o `registrar_uso` só grava o caminho
+# da extração). Ele gastava US$ 173 para evitar US$ 68 de escrita — prejuízo de US$ 105/mês.
+# A 55 min o mesmo aquecimento custa ~US$ 13/mês.
+#
+# A prova de que ele roda e de que aquece UMA casa só: das casas com ≥8 chamadas em 60 dias,
+# a Superbet é a única com `cache_write = 0` em 100% delas (130 de 130). Bet365 paga escrita
+# em 41%. O valor real do aquecedor está no bloco dos 6 masters, que é comum a TODA casa —
+# o bloco `CASA_SUPERBET` vir junto é efeito colateral, não o objetivo.
+_WARMER_INTERVALO = 55 * 60
+
+
 async def _cache_warmer():
-    """Mantém o cache ephemeral dos masters vivo com ping a cada 4 min (TTL Anthropic = 5 min)."""
+    """Mantém o cache dos masters vivo nos vãos longos de tráfego (TTL = 1h).
+
+    `max_tokens=0` é a forma canônica de pré-aquecer: a API roda o prefill (escreve o cache
+    no breakpoint), devolve `content: []` e `stop_reason: "max_tokens"` e **não fatura token
+    de saída**. O `max_tokens=1` anterior era o workaround antigo, que gerava uma resposta
+    de um token para descartar.
+    """
     await asyncio.sleep(30)
     while True:
         try:
             await _client.messages.create(
                 model=DEFAULT_MODEL,
-                max_tokens=1,
+                max_tokens=0,
                 system=build_system("SUPERBET"),
-                messages=[{"role": "user", "content": "ping"}],
+                messages=[{"role": "user", "content": "warmup"}],
             )
         except Exception:
             pass
-        await asyncio.sleep(240)
+        await asyncio.sleep(_WARMER_INTERVALO)
 
 
 async def _usuarios_refresher():
@@ -1192,8 +1227,31 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
     result_queue: asyncio.Queue = asyncio.Queue()
+    # Escalonamento do 1º chunk (s295). Todos os chunks mandam o MESMO prompt de sistema.
+    # Disparados juntos com o cache frio, todos erram e TODOS escrevem: medido, 26.456
+    # tokens de `cache_write` médio nas chamadas frias, para um bloco de casa que tem
+    # 5k–11k. Soltando o chunk 0 primeiro, os demais LEEM o que ele gravou — 0,1× a base
+    # em vez de 2×. O sinal é o PRIMEIRO TOKEN do chunk 0: ele só sai depois do prefill,
+    # que é exatamente quando a entrada de cache passa a existir (esperar o chunk 0
+    # TERMINAR seria serializar a extração; esperar o prefill não é).
+    cache_quente = asyncio.Event()
 
     async def _call_chunk(idx: int, chunk_content: list[dict]):
+        """Espera o cache do chunk 0 esquentar e delega. NUNCA trava: o `wait_for` tem
+        timeout e o `finally` libera o portão mesmo se o chunk 0 estourar."""
+        if idx > 0:
+            try:
+                await asyncio.wait_for(cache_quente.wait(), timeout=_STAGGER_TIMEOUT)
+            except asyncio.TimeoutError:
+                logger.info("par: stagger expirou em %.0fs — soltando chunk %d assim mesmo",
+                            _STAGGER_TIMEOUT, idx + 1)
+        try:
+            await _call_chunk_inner(idx, chunk_content)
+        finally:
+            if idx == 0:
+                cache_quente.set()
+
+    async def _call_chunk_inner(idx: int, chunk_content: list[dict]):
         async with sem:
             t0 = time.perf_counter()
             accumulated = ""
@@ -1212,6 +1270,10 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                                 system=system, messages=messages,
                             ) as stream:
                                 async for chunk in stream.text_stream:
+                                    # 1º token do chunk 0 = prefill terminou = o cache do
+                                    # prompt de sistema já existe. Libera os outros chunks.
+                                    if idx == 0 and not cache_quente.is_set():
+                                        cache_quente.set()
                                     attempt_text += chunk
                                 fin = await stream.get_final_message()
                             break

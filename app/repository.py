@@ -2736,12 +2736,22 @@ async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None
 
 
 # ── Log de uso de tokens (observabilidade de custo) ───────────────────────────
-# Preço USD por MTok (input, output, cache write 5m, cache read). Fonte: tabela de
+# Preço USD por MTok (input, output, cache write, cache read). Fonte: tabela de
 # preços da API Anthropic. Ao mudar o preço, atualize aqui — o custo já gravado
 # permanece congelado (foi calculado no ato da extração).
+#
+# `cache_write` é o preço do TTL de **1 hora** (2× a base), não o de 5 min (1,25×).
+# Desde a s295 todo `cache_control` do projeto nasce com `ttl: "1h"` — ver
+# `prompts._CACHE_TTL`, que é o único lugar onde o TTL é declarado. **As duas constantes
+# andam juntas:** trocar o TTL sem trocar o preço faz este log mentir para baixo, e é
+# justamente ele que decide quais casas entram na fila do tradutor determinístico.
+#
+# O `usage` da API devolve a quebra (`cache_creation.ephemeral_1h_input_tokens` /
+# `ephemeral_5m_input_tokens`), mas o projeto usa um TTL só: um preço basta. Se algum dia
+# convivermos com os dois, a quebra é o caminho — não uma média.
 _PRECOS = {
-    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0, "cache_read": 0.30, "cache_write": 3.75},
-    "claude-opus-4-8":   {"input": 5.0, "output": 25.0, "cache_read": 0.50, "cache_write": 6.25},
+    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0, "cache_read": 0.30, "cache_write": 6.00},
+    "claude-opus-4-8":   {"input": 5.0, "output": 25.0, "cache_read": 0.50, "cache_write": 10.00},
 }
 _PRECO_PADRAO = _PRECOS["claude-sonnet-4-6"]
 

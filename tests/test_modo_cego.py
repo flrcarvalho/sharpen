@@ -3,7 +3,7 @@
 build_system deve devolver os 6 masters + 1 bloco de casa QUANDO o CASA_*.md existe,
 e só os 6 masters quando não existe (casa nova, desconhecida).
 """
-from prompts import build_system
+from prompts import build_system, _CACHE_TTL
 
 
 def test_casa_conhecida_inclui_manual():
@@ -14,9 +14,46 @@ def test_casa_conhecida_inclui_manual():
 def test_casa_desconhecida_modo_cego():
     blocks = build_system("OIOIOIBET_INEXISTENTE_123")
     assert len(blocks) == 6           # só os 6 masters — sem bloco de casa
-    # o breakpoint de cache continua no último master global
-    assert blocks[-1].get("cache_control") == {"type": "ephemeral"}
+    # O breakpoint de cache continua no último master global. Compara com `_CACHE_TTL`,
+    # a ÚNICA declaração do TTL — literal aqui duplicaria a fonte de verdade e faria este
+    # teste (que fala de modo cego) quebrar toda vez que o TTL mudasse. Que o TTL seja o
+    # certo é assunto do `test_cache_ttl_e_preco_andam_juntos` abaixo.
+    assert blocks[-1].get("cache_control") == _CACHE_TTL
     assert all(b["type"] == "text" for b in blocks)
+
+
+# ── TTL do cache e preço do cache_write são UM par (s295) ────────────────────
+# O prompt de sistema (44.593 tokens de masters + o arquivo da casa) é relido uma vez por
+# chunk: era 46% da fatura da API. O TTL passou de 5 min para 1h, e a escrita a 1h custa
+# 2× a base em vez de 1,25×. Se alguém mexer num sem mexer no outro, o log de custo mente
+# — e é ele que decide a fila de casas do tradutor determinístico. Este teste é o que
+# impede a dupla de se separar em silêncio.
+from repository import _PRECOS   # noqa: E402
+
+
+def test_cache_ttl_e_preco_andam_juntos():
+    assert _CACHE_TTL == {"type": "ephemeral", "ttl": "1h"}, (
+        "TTL mudou: revise _PRECOS['cache_write'] junto (5m = 1,25× a base, 1h = 2×)"
+    )
+    for modelo, p in _PRECOS.items():
+        assert p["cache_write"] == p["input"] * 2, (
+            f"{modelo}: cache_write deve ser 2× o input (TTL de 1h), não "
+            f"{p['cache_write']} para input {p['input']}"
+        )
+        # A leitura é 0,1× a base nos dois TTLs — não se move com esta mudança.
+        assert abs(p["cache_read"] - p["input"] * 0.1) < 1e-9
+
+
+def test_todo_breakpoint_de_cache_usa_o_mesmo_ttl():
+    """Nenhum bloco pode ficar com o TTL padrão de 5 min por esquecimento.
+
+    Vale para os dois modos: com manual de casa (2 breakpoints) e cego (1).
+    """
+    for casa in ("BET365", "SUPERBET", "OIOIOIBET_INEXISTENTE_123"):
+        marcados = [b for b in build_system(casa) if "cache_control" in b]
+        assert marcados, f"{casa}: nenhum breakpoint de cache"
+        for b in marcados:
+            assert b["cache_control"] == _CACHE_TTL, f"{casa}: breakpoint fora do TTL único"
 
 
 # ── Nome de casa de modo cego não pode ser mutilado ──────────────────────────
