@@ -50,6 +50,13 @@ casa que parou → `/sharpenup-diagnostico`.
 6. Uma mudança por vez. Propor → aguardar confirmação → executar.
 7. Atualizar `STATUS.md` ao fim de cada mudança aplicada.
 8. **Commit e push sempre juntos.** Após cada mudança aprovada: `git add` → `git commit` → `git push`. Deploy automático via Railway. Nunca deixar commit sem push.
+   - **Com mais de uma sessão aberta, `add` e `commit` vão no MESMO comando.** O index é
+     compartilhado: arquivo que fica esperando entre um e outro é levado por quem commitar
+     primeiro. Aconteceu duas vezes em 24/08, nos dois sentidos — em `75d93dc` uma sessão
+     levou 17 arquivos da outra, e em `6cb8037` a mensagem era de uma sessão e o conteúdo
+     do `STATUS.md` era da outra, **fazendo a narrativa do matcher se perder** (só o código
+     subiu). Confira com `git show --stat` depois de commitar; se levou arquivo alheio,
+     **não reescreva histórico já pushado** — registre no `STATUS.md` e siga.
 9. **Toda atualização fechada = perguntar se avisa os testers**, já com a mensagem pronta (ver abaixo). O Feca escolhe informar ou não. Nunca enviar sem o "pode mandar".
 
 ---
