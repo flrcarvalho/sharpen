@@ -367,6 +367,38 @@
     }
   });
 
+  // Bilhetes da LOTTU capturados pelo lt_inject.js (mundo MAIN) — motor NGBras. O inject
+  // já ANEXA o detalhe (`events`) a cada bilhete, porque a lista da casa não traz seleção
+  // nenhuma. Quem traduz estado/descrição é o formatador abaixo + `casas/CASA_LOTTU.md`.
+  const ltByCode = new Map();        // code(string) → bilhete cru (+ events)
+  let ltFimReal = false;
+  let ltHookVivo = false, ltRespostas = 0;   // autodiagnóstico
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupLTData) {
+      if (d.hook) ltHookVivo = true;
+      if (typeof d.respostas === "number") ltRespostas = d.respostas;
+      if (Array.isArray(d.bets)) {
+        for (const b of d.bets) {
+          if (!b || b.code == null) continue;
+          const k = String(b.code);
+          const ex = ltByCode.get(k);
+          // Resolvida vence aberta E detalhe vence lista — perder o `events` já obtido
+          // custaria outra chamada por item, que nesta casa é o recurso caro.
+          if (ex) {
+            if (ex.status !== "OPEN" && b.status === "OPEN") continue;
+            if (Array.isArray(ex.events) && !Array.isArray(b.events)) {
+              ltByCode.set(k, Object.assign({}, b, { events: ex.events }));
+              continue;
+            }
+          }
+          ltByCode.set(k, b);
+        }
+      }
+      if (d.fim) ltFimReal = true;
+    }
+  });
+
   // Bilhetes da BETNACIONAL capturados pelo bnc_inject.js (mundo MAIN) — as RESPOSTAS de
   // GET /api/v2/all-bets (BFF prod-betnacional-bets.bet6.com.br), já AGRUPADAS por
   // ticket_id pelo inject (a API devolve PERNAS soltas: múltipla de 4 = 4 objetos com o
@@ -970,6 +1002,15 @@
       //
       // ⚠ Fim autoritativo aqui é LISTA VAZIA — esta casa não manda `isLastPage`/`more`.
       blocos = await roboSPBPassive(ctx);
+    } else if (casa === "lottu") {
+      // Passivo + replay (lt_inject, motor NGBras — o 2º motor novo em dois dias). Três
+      // consultas de FORMAS diferentes: resolvidas por FAIXA de datas (uma chamada resolve
+      // o período inteiro), abertas por `page`, e o DETALHE um por bilhete — a lista da
+      // casa não traz seleção nenhuma, então sem o detalhe não há coluna Data nem descrição.
+      //
+      // ⚠ É a casa mais LENTA da base por desenho: o detalhe é sequencial. A janela de dias
+      // é o freio que impede isso virar 152 chamadas toda vez.
+      blocos = await roboLTPassive(ctx);
     } else if (casa === "jonbet" || casa === "betboom") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
       // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
@@ -1031,6 +1072,10 @@
         // — sem os headers do motor o endpoint responde **200 com o HTML da SPA**, e o
         // `forward` descarta (exige `betslips` como array). Ou seja, "respondeu" e "trouxe
         // bilhete" são coisas diferentes nesta casa, e o extra diz o que fazer.
+        lottu:      { nome: "Lottu",      hook: ltHookVivo, resp: ltRespostas, vistos: ltByCode.size,
+                      extra: ltRespostas === 0
+                        ? "Abra Minhas Apostas e clique em Aplicar no filtro de datas — é a busca que a casa exige."
+                        : "" },
         sportingbet: { nome: "SportingBet", hook: spbHookVivo, resp: spbRespostas, vistos: spbById.size,
                        extra: spbRespostas === 0
                          ? "Abra Minhas Apostas e troque de aba (Liquidadas ↔ Em Aberto) para a casa disparar a busca."
@@ -3987,6 +4032,194 @@
     console.log("[SharpenUp] SportingBet: " + blocos.length + " bilhete(s) · spbById=" + spbById.size +
                 " · hook=" + spbHookVivo + " · respostas=" + spbRespostas + " · fimReal=" + spbFimReal);
     avisarEstadoNaoMapeadoSPB();
+    return blocos;
+  }
+
+  // ── Lottu (NGBras) ────────────────────────────────────────────────────────────
+  // Formata 1 bilhete lido de `GET /bet` + `GET /bet/{_id}` (o inject já anexou `events`).
+  //
+  // ⚠️ A ARMADILHA DESTA CASA, e ela é pior que a da VaideBet: `return_value` e
+  // `gross_return_value` são o retorno **POTENCIAL**, em TODA linha — inclusive nas
+  // perdidas. Medido nos 152 bilhetes da conta (s290): 114 de 114 perdidas trazem o campo
+  // preenchido, e em 114 de 114 ele é exatamente `stake × odd`. O card repete isso
+  // ("Retorno R$ 125,00" numa aposta que perdeu). Lê-lo como dinheiro recebido viraria
+  // lucro em 3 de cada 4 linhas. **Nesta casa só o `status` decide W/L; dinheiro não é régua.**
+  const _valLT = (x) => (isFinite(x) ? Number(x) : 0);
+  const _abertaLT = (b) => b && b.status === "OPEN";
+
+  const _RESULT_PERNA_LT = { OPEN: "pendente", WON: "ganhou", LOST: "perdeu",
+                             CANCELED: "anulada", VOID: "anulada", REFUNDED: "devolvida" };
+
+  // Data do EVENTO mais recente entre as seleções. Só existe no detalhe — bilhete sem
+  // `events` não tem coluna Data, e é isso que o bloco precisa dizer em voz alta.
+  function _dataEventoLT(b) {
+    let max = null;
+    for (const e of (b.events || [])) {
+      const t = _msVB(e && (e.event_date || (e.event && e.event.date)));
+      if (t != null && (max === null || t > max)) max = t;
+    }
+    return max;
+  }
+
+  function _resultadoLT(b) {
+    if (_abertaLT(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    const st = _valLT(b.value), ret = _valLT(b.return_value);
+    const pre = (_valLT(b.cashout_value) > 0) ? "Cash Out · " : "";
+    if (b.status === "LOST") return pre + "Perdeu → L";
+    if (b.status === "CANCELED" || b.status === "VOID" || b.status === "REFUNDED")
+      return pre + "Anulada/void (stake devolvido) → V";
+    if (b.status === "WON") {
+      if (Math.abs(ret - st) < 0.005) return pre + "Devolvida/void (retorno = stake) → V";
+      if (ret > st) return pre + "Ganho → W";
+      return pre + "status WON com retorno " + _brl(ret) + " ≤ stake — a conferir, não liquidar automaticamente";
+    }
+    return "status " + b.status + " (a conferir — não liquidar automaticamente)";
+  }
+
+  // ⚠️ `events_qty` NÃO basta para decidir o tipo nesta casa, e a regra é anterior à
+  // captura — está em `CASA_LOTTU §2.2` desde a s41, escrita a partir do print: a Lottu
+  // vende **Desafios**, que são condições COMBINADAS sobre o mesmo jogo, empacotadas como
+  // "Simples de X". O `&` na resposta é o que as denuncia ("PALMEIRAS PARA GANHAR UM DOS
+  // TEMPOS & MAIS DE 2.5 GOLS" = duas condições). Pelo `MASTER_APOSTAS`, isso é Bet
+  // Builder → Múltipla. Olhar só a estrutura da API classificaria tudo como Simples.
+  function _tipoLT(b) {
+    const evs = b.events || [];
+    const n = evs.length || _valLT(b.events_qty);
+    if (n >= 2) return "Múltipla (" + n + " seleções)";
+    const cond = evs.reduce((acc, e) => acc + String((e && e.answer) || "").split("&").length - 1, 0);
+    if (n === 1 && cond > 0) return "Múltipla (Desafio · " + (cond + 1) + " condições no mesmo jogo)";
+    return n === 1 ? "Simples" : "";
+  }
+
+  function formatTicketLT(b) {
+    const L = [];
+    L.push("[Código: " + b.code + "]");
+
+    const dev = _dhVB(_dataEventoLT(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    else L.push("Data (evento mais recente): NÃO DISPONÍVEL — o detalhe deste bilhete não " +
+                "chegou (a lista da casa não traz seleção); usar a colocação e conferir na casa");
+    const dco = _dhVB(_msVB(b.created_at));
+    if (dco) L.push("Data (colocação): " + dco);
+
+    if (b.value != null) L.push("Stake: R$ " + _brl(_valLT(b.value)));
+    L.push("Status: " + _resultadoLT(b));
+    L.push("Status (API): status=" + b.status);
+
+    const odd = (b.extracted_odd != null && isFinite(b.extracted_odd)) ? Number(b.extracted_odd) : null;
+    if (odd != null) L.push("Odd: " + _oddTxtVB(odd));
+    const tipo = _tipoLT(b);
+    if (tipo) L.push("Tipo: " + tipo);
+
+    // ⚠️ A casa NÃO tem campo de esporte — só `championship` e `country`. Declarar isso é
+    // obrigatório: sem a declaração a IA preenche a coluna Esporte por conta própria, em
+    // silêncio, e ninguém descobre.
+    L.push("Esporte: não informado pela casa — deduzir do campeonato/evento abaixo");
+
+    // Dinheiro: NUNCA "Retorno:" fora do W (ver a armadilha no topo deste bloco).
+    const ret = _valLT(b.return_value);
+    if (b.status === "WON" && ret) L.push("Retorno: R$ " + _brl(ret));
+    else if (ret) L.push("Retorno potencial: R$ " + _brl(ret) +
+                         " (valor POTENCIAL — a casa preenche mesmo em aposta perdida; não é ganho)");
+    if (_valLT(b.cashout_value) > 0) L.push("Cash Out: R$ " + _brl(_valLT(b.cashout_value)) +
+                                            " — aplicar a regra de cashout (não é o retorno normal)");
+    if (b.using_bonus) L.push("Marcação da casa: aposta com bônus");
+    if (b.is_custom_bet) L.push("Marcação da casa: aposta personalizada (custom bet)");
+
+    const bo = b.promotions && b.promotions.odds_boost;
+    if (bo && (_valLT(bo.percentage) > 0 || _valLT(bo.value) > 0))
+      L.push("Marcação da casa: odd turbinada (odds_boost " + _valLT(bo.percentage) + "%)");
+
+    const evs = b.events || [];
+    if (!evs.length) {
+      L.push("Seleções: NÃO DISPONÍVEIS neste bilhete (detalhe não carregado)");
+      return L.join("\n");
+    }
+    L.push("Seleções:");
+    for (const e of evs) {
+      const ev = e.event || {};
+      const rp = _RESULT_PERNA_LT[e.status];
+      // `answer` já vem como frase pronta ("PARA AMBOS OS TIMES MARCAREM & MAIS DE 9.5
+      // ESCANTEIOS") — é a descrição da aposta, e a casa não separa mercado de seleção.
+      L.push("- " + (e.answer || "") + " [" + (rp || ("status " + e.status + " — a conferir")) + "]");
+      const ctx2 = [];
+      if (ev.question) ctx2.push("Jogo: " + ev.question);
+      const ini = _dhVB(_msVB(e.event_date || ev.date));
+      if (ini) ctx2.push("Início: " + ini);
+      if (ev.championship) ctx2.push("Competição: " + ev.championship);
+      if (ev.country) ctx2.push("País: " + ev.country);
+      if (e.is_live) ctx2.push("Ao vivo");
+      if (e.is_sgp) ctx2.push("Mesmo jogo (SGP)");
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (e.odd != null && evs.length > 1) L.push("    Odd da seleção: " + _oddTxtVB(e.odd));
+      if (e.original_odd != null && e.odd != null && Math.abs(e.original_odd - e.odd) > 0.0001)
+        L.push("    Marcação da casa: odd alterada — original " + _oddTxtVB(e.original_odd) +
+               " · valendo " + _oddTxtVB(e.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboLTPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      const todos = Array.from(ltByCode.values())
+        .sort((a, b) => (_msVB(b.created_at) || 0) - (_msVB(a.created_at) || 0));
+      for (const b of todos) {
+        const cod = String(b.code || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        // Bilhete sem detalhe ainda pode chegar (o inject busca um por vez): esperar em vez
+        // de emitir um bloco sem data de evento nem descrição.
+        if (!Array.isArray(b.events) && !ltFimReal) continue;
+        usados.add(cod);
+        const dt = _msVB(b.created_at);
+        const passou = !_abertaLT(b) && typeof dt === "number" && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketLT(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    const dias = Math.max(1, Math.round((Date.now() - ctx.cutoff) / 86400000));
+    const pedir = () => {
+      const msg = { __sharpenupLTReq: true, dias: dias };
+      try { window.postMessage(msg, "*"); } catch (e) {}
+      for (let i = 0; i < window.frames.length && i < 24; i++) {
+        try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
+      }
+    };
+    pedir();
+    await sleep(400);
+    processar();
+
+    // Espera mais longa que nas outras casas de propósito: o detalhe é UMA chamada POR
+    // BILHETE, sequencial. 150 bilhetes novos levam minutos, e cortar antes do `fim`
+    // entregaria bilhete sem descrição.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !ltFimReal && voltas < 1200) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (ltByCode.size > ultTotal) { ultTotal = ltByCode.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 30000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Lottu: " + blocos.length + " bilhete(s) · ltByCode=" + ltByCode.size +
+                " · hook=" + ltHookVivo + " · respostas=" + ltRespostas + " · fimReal=" + ltFimReal);
+    const semDetalhe = Array.from(ltByCode.values()).filter((b) => !Array.isArray(b.events));
+    if (semDetalhe.length) {
+      const ids = semDetalhe.map((b) => String(b.code));
+      console.warn("[SharpenUp] Lottu · " + ids.length + " bilhete(s) sem detalhe: " + ids.join(", "));
+      try {
+        toastLocal("Atenção: " + ids.length + " bilhete(s) da Lottu subiram SEM as seleções " +
+                   "(o detalhe não carregou) — eles vão sem data de evento nem descrição. " +
+                   "Códigos no console (F12).", false, 56);
+      } catch (e) {}
+    }
     return blocos;
   }
 

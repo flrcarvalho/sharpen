@@ -54,6 +54,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # retorno 125,00). Formato PRÓPRIO do motor bwin/Entain: alfanumérico de 10,
     # sem separador — reconhecido pela regex GENÉRICA do repository, não por uma
     # regex por casa (achado #5 da auditoria).
+    # id real da conta (o W de 29/07 no Vitória x Palmeiras, stake 50 -> retorno 175).
+    # Numérico de 7 dígitos, reconhecido pela regex GENÉRICA do repository.
+    "LOTTU":      "6512222",
     "SPORTINGBET": "20PGTUNX29",
     "SUPERBET":   "891L-YJ3VAH",
     "BETANO":     "20675937607",

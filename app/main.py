@@ -553,6 +553,7 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",
+    "LOTTU",
 })
 
 

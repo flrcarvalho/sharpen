@@ -24,8 +24,39 @@
 
 ### 2.1 Modo de ingestão
 
-- **PRIMÁRIO:** texto colado — aba "Apostas" do histórico no site (sem filtro de resolvidas disponível)
-- **FALLBACK:** screenshot — quando texto não for possível
+- **PRIMÁRIO (desde a s290): captura por API** (SharpenUp · `extensor/lt_inject.js`).
+- **FALLBACK:** texto colado / screenshot — o que valia sozinho até a s290.
+
+### 2.1.1 A API (motor NGBras)
+
+Motor **NGBras** — confirmado ANTES do login, pelos assets: a home não carrega plataforma de
+apostas nenhuma (só `widgets.sir.sportradar.com`, que é widget de estatística). **Não é
+Altenar**, apesar de a suspeita inicial ser essa.
+
+**TRÊS consultas, de formas diferentes** — não é a mesma URL com outro filtro:
+
+```
+1. resolvidas → GET /bet?initial_date=…Z&final_date=…Z&status=ALL   (FAIXA, sem paginar)
+2. abertas    → GET /bet?status=OPEN&page=N                          (paginado, sem datas)
+3. detalhe    → GET /bet/{_id}                                       (UM POR BILHETE)
+```
+
+Host da API: `alpha-sb.ngbras.com` (outra origem — o site é `lottu.bet.br`).
+
+1. **A faixa é generosa:** uma chamada devolveu **152 bilhetes / 84 KB**, o ano inteiro, sem
+   paginação e sem cursor. É o *"peça a FAIXA"* do `CLAUDE.md` acontecendo de graça.
+2. **⚠️ Sem `initial_date`/`final_date` a casa responde `[]` com HTTP 200.** Não é erro: é
+   lista vazia. No reconhecimento isso fez parecer, por um momento, que a conta não tinha
+   aposta. O replay sempre manda a faixa.
+3. **Autenticação por header** (`authorization` + `ngx-source`), não cookie. Sendo outra
+   origem, chamada sem os headers reais morre no CORS — por isso o inject **aprende** a
+   requisição em vez de montá-la, e só aprende a que traz `authorization`.
+4. **⚠️ A lista NÃO traz as seleções** — só `events_qty`. Jogo, mercado e a **data do evento**
+   (a coluna Data do TSV) só existem no detalhe, **uma chamada por bilhete**. É o anti-padrão
+   do `CLAUDE.md` ("API externa por item"), aqui inevitável. O que o limita é a janela de
+   dias + o `stopId`: na 1ª captura de conta antiga custa caro; nas seguintes, quase nada.
+   Bilhete que suba sem detalhe sai com `Data (evento…): NÃO DISPONÍVEL` e toast de aviso —
+   nunca em silêncio.
 
 > ⚠️ **A Lottu não permite filtrar apenas apostas resolvidas.** As apostas em aberto ficam misturadas na lista. O badge amarelo `Aberto` identifica claramente cada aposta em aberto — **ignorar completamente** bets com esse badge. Extrair apenas `Ganhou` e `Perdeu`.
 
@@ -78,18 +109,30 @@ Resolvido em: DD/MM/AAAA HH:MM     ← liquidação (usar esta)
 
 ## 5. Status e Resultado
 
-| Lottu exibe | Nosso código |
-|---|---|
-| `Ganhou` | W |
-| `Perdeu` | L |
-| `Aberto` | **IGNORAR** (não extrair) |
-| (sem amostra) | V |
-| (sem amostra) | HW |
-| (sem amostra) | HL |
+| Lottu exibe | `status` da API | Nosso código |
+|---|---|---|
+| `Ganhou` | `WON` | W |
+| `Perdeu` | `LOST` | L |
+| `Aberto` | `OPEN` | *(vazio — não liquidar)* |
+| (sem amostra) | `CANCELED`/`VOID`/`REFUNDED` | V *(mapeados por antecipação)* |
+| (sem amostra) | — | HW |
+| (sem amostra) | — | HL |
 
-Conferência financeira (segunda linha de defesa): `Retorno = 0` → L · `Retorno = Stake` → V · `Retorno > Stake` → W.
+> 🚫 **NÃO existe conferência financeira nesta casa — e isto corrige o que este arquivo dizia
+> até a s290.** A versão anterior mandava usar `Retorno = 0 → L · Retorno > Stake → W` como
+> "segunda linha de defesa", o que contradizia o próprio aviso logo abaixo e, aplicado ao pé
+> da letra, **transformaria toda aposta perdida em W**.
+>
+> **Medido na API, nos 152 bilhetes da conta (s290): 114 de 114 perdidas trazem
+> `return_value` PREENCHIDO, e em 114 de 114 ele é exatamente `stake × odd`.** O campo é o
+> potencial, sempre, em toda linha. Nunca houve um `Retorno = 0` para servir de sinal.
+>
+> **Só o `status` decide W/L nesta casa. Dinheiro não é régua** — nem no print, nem na API.
+> (A regra global do W, `retorno ÷ stake`, continua valendo onde há retorno REAL; aqui não há.)
 
-> ⚠️ O campo `Retorno R$ XX,XX` exibido no bilhete é o **retorno potencial** — sempre igual a `Stake × Odd`. Num bilhete `Perdeu`, o retorno real é R$0. Nunca usar o retorno potencial para inferir resultado.
+> ⚠️ O campo `Retorno R$ XX,XX` do card é o **retorno potencial** — sempre `Stake × Odd`. Num
+> bilhete `Perdeu`, o retorno real é R$ 0. O bloco capturado por isso emite `Retorno potencial:`
+> com o aviso junto, e só emite `Retorno:` quando `status = WON`.
 
 **Gatilho de meia-liquidação (HW/HL):** aguarda amostra. Usar assinatura financeira: `HL → retorno = stake/2` · `HW → retorno = (stake/2) × (odd + 1)`.
 
@@ -371,6 +414,11 @@ Resolvido em: 19/06/2026 22:27
 ---
 
 VERSÃO: 2026
-STATUS: ATIVA
+STATUS: CAPTURA COMPLETA (harness verde · 2 bilhetes reais + 2 controles negativos, dente
+provado por mutação em 5 asserções) · ⚠️ **NÃO validada ao vivo** (nenhum lote extraído pela
+IA ainda) · **sem amostra** de: aposta em aberto, múltipla de jogos diferentes, boost,
+bônus, custom bet, cashout e bilhete anulado — a conta tem 152 bilhetes e TODOS são
+Desafio simples resolvido (WON/LOST)
 CASA: `Lottu`
-ATUALIZADO: 2026-06-21 (sessão 41)
+ATUALIZADO: 2026-08-24 (sessão 289 — captura por API; §5 corrigido: não há conferência
+financeira nesta casa)

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.6.51",
+  "version": "0.6.52",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -161,6 +161,12 @@
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
+    },
+    {
+      "matches": ["*://*.lottu.bet.br/*", "*://lottu.bet.br/*"],
+      "js": ["lt_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "icons": {

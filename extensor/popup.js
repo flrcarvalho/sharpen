@@ -50,6 +50,7 @@ const CASA_HOSTS = {
   // Plataforma própria (gateway BlueBrown). A API mora no MESMO host da casa (`/spt/api/…`).
   "Novibet":    ["novibet.bet.br"],
   "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject PRÓPRIO, sem espelho
+  "Lottu":      ["lottu.bet.br"],         // motor NGBras (s290) · API em alpha-sb.ngbras.com
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -214,7 +215,9 @@ async function capturar() {
                 : casa === "Novibet" ? "nv_inject.js"
                 // SportingBet: 1º motor bwin/Entain do Sharpen — inject próprio.
                 // `spb_`, e não `sb_`, porque `sb_inject.js` já é da Superbet.
-                : casa === "SportingBet" ? "spb_inject.js" : null;
+                : casa === "SportingBet" ? "spb_inject.js"
+                // Lottu: motor NGBras. `lt_`, e não `l_`, para não colidir com nada.
+                : casa === "Lottu" ? "lt_inject.js" : null;
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
       if (inj) { try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [inj], world: "MAIN" }); } catch (_) {} }
