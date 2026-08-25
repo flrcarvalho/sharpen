@@ -1339,9 +1339,21 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
 
 @app.get("/")
 async def root(request: Request):
-    # Sem sessão válida → tela de login.
+    """Visitante → landing pública. Sessão válida → o Planilhador, como sempre.
+
+    Até a s294 esta rota mandava o visitante direto para `/login`, o que dava a
+    sharpen.bet uma porta de entrada que só serve para quem JÁ é cliente: nada a
+    indexar, nada a mostrar, nada a vender. A landing (`static/landing.html`) é
+    a única página pública do produto além de `/privacidade` e `/extensao`.
+
+    A sessão continua mandando: quem já está logado nunca vê a landing ao digitar
+    o domínio — cai no app, que é o comportamento que os usuários atuais têm hoje.
+    """
     if not usuario_do_request(request):
-        return RedirectResponse("/login", status_code=303)
+        conteudo = (Path(__file__).parent / "static" / "landing.html").read_text(encoding="utf-8")
+        # Página pública e estável: pode ser cacheada. As imagens são versionadas
+        # pelo nome do arquivo, então um cache curto não segura print antigo.
+        return HTMLResponse(content=conteudo, headers={"Cache-Control": "public, max-age=300"})
     content = (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
     return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 

@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sharpen — o seu resultado, depois dos custos</title>
+<meta name="description" content="O Sharpen lê seus bilhetes dentro de 23 fontes, padroniza tudo num registro só e prova, estatisticamente, se o resultado é vantagem ou é sorte — com a camada de operação que nenhum tracker tem: contas, fornecedores e custo por conta.">
+<meta name="robots" content="index, follow">
+<link rel="icon" href="/static/favicon/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sharpen">
+<meta property="og:title" content="Sharpen — o seu resultado, depois dos custos">
+<meta property="og:description" content="Captura automática em 23 fontes, padronização e prova estatística. Mais a camada que nenhum tracker tem: contas, fornecedores e custo por conta.">
+<meta property="og:image" content="/static/landing/img/02-visao-geral.webp">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/fonts.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   LANDING PÚBLICA (sharpen.bet/) — s294
+
+   DARK ONLY, por regra de marca (docs/marketing/README.md). Não existe bloco
+   `prefers-color-scheme: light` nem `[data-theme="light"]` aqui: `tokens.css` só
+   inverte com o atributo explícito, e o <html> acima crava `dark`. Quem abrir com
+   o SO em tema claro continua vendo a marca, não um documento branco.
+
+   Toda cor sai de token (`var(--…)`). Números em JetBrains Mono com `tabular-nums`;
+   texto corrido em Manrope — pack/CLAUDE.md §Tipografia.
+
+   Dinheiro: a página quase não tem R$ em texto — os valores vivem DENTRO dos
+   prints. Onde há, usa a estrutura do componente `.money` (`money-sign` neutro e
+   menor + `money-val` colorido), espelhando `fmtR`/`fmtPL` do dashboard
+   (UI_REFERENCE §5). Nada de formatador caseiro e nada de milhar abreviado.
+
+   Escada de Tinta (CLAUDE.md): identidade e valor em `--ink`; label e eyebrow em
+   `--ink-soft`; metadado em `--ink-mute` e NUNCA abaixo de 10px. Sem `opacity`
+   sobre tom apagado — quando o texto precisa recuar, ele desce um degrau.
+
+   Breakpoints: 900px e 760px, só.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--accent-2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { width: min(1160px, calc(100% - 48px)); margin-inline: auto; }
+
+/* ── Tipografia de seção ─────────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);            /* 11px — piso de label respeitado */
+  font-weight: var(--weight-medium);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.eyebrow::before {
+  content: "";
+  width: 18px; height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  flex: none;
+}
+h1, h2, h3 { margin: 0; letter-spacing: -.02em; line-height: 1.15; }
+h2 { font-size: var(--text-3xl); font-weight: var(--weight-extrabold); }
+h3 { font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.lead { color: var(--ink-soft); font-size: var(--text-lg); line-height: 1.55; margin: var(--sp-4) 0 0; }
+p { margin: var(--sp-4) 0 0; }
+strong { color: var(--ink); font-weight: var(--weight-bold); }
+
+/* Números em texto corrido: mono + tabular, para não dançarem entre linhas. */
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold); color: var(--ink); }
+
+/* ── Componente .money — espelha o dashboard (UI_REFERENCE §5.1) ─────────── */
+.money { font-family: var(--font-mono); font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; gap: 3px; }
+.money-sign { font-size: .78em; color: var(--ink-soft); }
+.money-val { font-weight: var(--weight-bold); }
+.money.pos .money-val { color: var(--pos); }
+.money.neg .money-val { color: var(--neg); }
+
+/* ── Topo ────────────────────────────────────────────────────────────────── */
+.topo {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(10, 13, 18, .82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line-2);
+}
+.topo-in { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) 0; }
+.topo img { height: 30px; width: auto; }
+.topo-acoes { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  padding: 11px var(--sp-5);
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease);
+  white-space: nowrap;
+}
+/* Tinta ESCURA sobre fundo de acento — a Escada de Tinta do CLAUDE.md mede
+   `var(--bg)` sobre `--accent` em 5,8:1, contra 3,36:1 do branco (que reprova).
+   A exceção `#fff` citada no README de marketing é anterior a essa regra; em
+   conflito, vale o CLAUDE.md. De quebra, some mais uma cor literal do arquivo. */
+.btn-primario { background: var(--accent); color: var(--bg); }
+.btn-primario:hover { background: var(--accent-2); text-decoration: none; }
+.btn-fantasma { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-fantasma:hover { border-color: var(--accent); text-decoration: none; }
+.btn-grande { font-size: var(--text-md); padding: 14px var(--sp-8); }
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.hero { padding: var(--sp-20) 0 var(--sp-14); }
+.hero h1 { font-size: clamp(34px, 5.2vw, 60px); font-weight: var(--weight-extrabold); max-width: 17ch; }
+.hero .lead { max-width: 62ch; }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-8); }
+.hero-nota { margin-top: var(--sp-4); font-size: var(--text-sm); color: var(--ink-mute); }
+
+/* ── Moldura de print ────────────────────────────────────────────────────── */
+/* O print é o argumento; a moldura só o apresenta. Telas inteiras passam de
+   2.000px — a janela corta com altura máxima e desvanece no fim, para o leitor
+   ver que ali continua, em vez de achar que a tela acaba no corte. */
+.janela {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.janela--tese { box-shadow: var(--shadow-card); }   /* único --shadow-card da página */
+.janela-barra {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 9px var(--sp-4);
+  border-bottom: 1px solid var(--line-2);
+  background: var(--surface-2);
+}
+.janela-ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-mute); flex: none; }
+.janela-rotulo {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);           /* 10px — piso do metadado */
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  /* Sobe para --ink-soft: e' aqui que mora o aviso "dados de demonstracao", e
+     discricao nao pode custar a legibilidade de uma ressalva de honestidade.
+     Em --ink-mute isto daria 3,0:1 em caixa alta de 10px com tracking — o
+     desenho exato que a Escada de Tinta reprovou no cabecalho de grupo. */
+  color: var(--ink-soft);
+}
+.janela-corpo { position: relative; }
+.janela--corta .janela-corpo { max-height: 560px; overflow: hidden; }
+.janela--corta .janela-corpo::after {
+  content: "";
+  position: absolute; inset: auto 0 0 0; height: 140px;
+  background: linear-gradient(to bottom, transparent, var(--surface));
+  pointer-events: none;
+}
+.legenda {
+  margin-top: var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);              /* label: um degrau acima do metadado */
+}
+
+/* ── Seções ──────────────────────────────────────────────────────────────── */
+section { padding: var(--sp-20) 0; border-top: 1px solid var(--line-2); }
+.sec-cabeca { max-width: 66ch; margin-bottom: var(--sp-10); }
+
+.duas { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-10); align-items: center; }
+.duas--inverte .duas-texto { order: 2; }
+
+/* ── Faixa de provas ─────────────────────────────────────────────────────── */
+.provas { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
+.prova {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  padding: var(--sp-5);
+}
+.prova-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-extrabold);
+  color: var(--ink);
+  line-height: 1.1;
+}
+.prova-rot { margin-top: var(--sp-2); font-size: var(--text-sm); color: var(--ink); font-weight: var(--weight-semibold); }
+.prova-sub { margin-top: 2px; font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.45; }
+
+/* ── Lista de casas ──────────────────────────────────────────────────────── */
+.casas { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-6); }
+.casa-chip {
+  font-family: var(--font-mono);
+  /* 13px, nao 11: nome de casa e' IDENTIDADE, e o piso da Escada de Tinta para
+     identidade e' --text-sm com --ink. */
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  padding: 5px var(--sp-3);
+}
+.casa-chip--api { border-color: var(--border-blue); color: var(--accent-2); }
+
+/* ── Grade de recursos ───────────────────────────────────────────────────── */
+.recursos { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
+.recurso {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  padding: var(--sp-6);
+}
+.recurso h3 { font-size: var(--text-md); }
+.recurso p { margin-top: var(--sp-2); font-size: var(--text-sm); color: var(--ink-soft); }
+
+/* ── Comparativo ─────────────────────────────────────────────────────────── */
+.tabela-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-md); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; }
+th, td { padding: var(--sp-4); text-align: left; border-bottom: 1px solid var(--line-2); font-size: var(--text-sm); }
+thead th {
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);               /* thead = label (Escada de Tinta) */
+  font-weight: var(--weight-semibold);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td:first-child { color: var(--ink); font-weight: var(--weight-semibold); }
+.marca-sim { color: var(--pos); font-weight: var(--weight-bold); }
+.marca-nao { color: var(--neg); font-weight: var(--weight-bold); }
+ /* --ink-soft, nao --ink-mute: a ressalva ("Parcial — ROI e unidades") e' CONTEUDO
+   da comparacao, nao enfeite. Recua um degrau em relacao ao Sim/Nao e para por ai. */
+.marca-na  { color: var(--ink-soft); }
+
+/* ── Não somos ───────────────────────────────────────────────────────────── */
+.naos { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-4); }
+.nao {
+  display: flex; gap: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-left: 2px solid var(--neg);
+  border-radius: var(--r-sm);
+  padding: var(--sp-5);
+}
+.nao h3 { font-size: var(--text-sm); }
+.nao p { margin-top: 4px; font-size: var(--text-sm); color: var(--ink-soft); }
+
+/* ── FAQ ─────────────────────────────────────────────────────────────────── */
+details {
+  border-bottom: 1px solid var(--line-2);
+  padding: var(--sp-5) 0;
+}
+summary {
+  cursor: pointer;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-md);
+  color: var(--ink);
+  list-style: none;
+  display: flex; align-items: center; gap: var(--sp-3);
+}
+summary::-webkit-details-marker { display: none; }
+summary::after {
+  content: "+";
+  margin-left: auto;
+  font-family: var(--font-mono);
+  color: var(--ink-soft);
+  font-size: var(--text-lg);
+}
+details[open] summary::after { content: "−"; }
+details p { color: var(--ink-soft); font-size: var(--text-sm); max-width: 78ch; }
+
+/* ── Fechamento ──────────────────────────────────────────────────────────── */
+.fechar { text-align: center; }
+.fechar h2 { max-width: 20ch; margin-inline: auto; }
+.fechar .hero-ctas { justify-content: center; }
+
+/* ── Rodapé ──────────────────────────────────────────────────────────────── */
+footer { border-top: 1px solid var(--line-2); padding: var(--sp-10) 0 var(--sp-14); }
+.rodape-in { display: flex; flex-wrap: wrap; gap: var(--sp-6); align-items: flex-start; }
+footer img { height: 40px; width: auto; }
+.rodape-txt { max-width: 62ch; font-size: var(--text-sm); color: var(--ink-soft); }
+.rodape-links { margin-left: auto; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--text-sm); }
+.idade {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  color: var(--bg);
+  background: var(--ink-soft);
+  border-radius: var(--r-xs);
+  padding: 2px var(--sp-2);
+  margin-right: var(--sp-2);
+}
+
+/* ── Responsivo — 900px e 760px, só ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .wrap { width: calc(100% - 32px); }
+  .duas { grid-template-columns: 1fr; gap: var(--sp-8); }
+  .duas--inverte .duas-texto { order: 0; }
+  .provas { grid-template-columns: repeat(2, 1fr); }
+  .recursos { grid-template-columns: repeat(2, 1fr); }
+  section { padding: var(--sp-14) 0; }
+  .hero { padding: var(--sp-14) 0 var(--sp-10); }
+}
+@media (max-width: 760px) {
+  h2 { font-size: var(--text-2xl); }
+  .provas, .recursos, .naos { grid-template-columns: 1fr; }
+  .topo-acoes .btn-fantasma { display: none; }
+  .rodape-links { margin-left: 0; }
+  .janela--corta .janela-corpo { max-height: 380px; }
+}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="wrap topo-in">
+    <a href="/" aria-label="Sharpen — início">
+      <img src="/static/brand-sharpen/blade/lockup-dark.svg" alt="Sharpen">
+    </a>
+    <div class="topo-acoes">
+      <a class="btn btn-fantasma" href="/login">Entrar</a>
+      <a class="btn btn-primario" href="/login#cadastro">Criar conta</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══ HERO ═══ -->
+  <div class="wrap hero">
+    <p class="eyebrow">Sharpen · plataforma de dados para apostas</p>
+    <h1>O seu resultado, depois dos custos que a planilha não desconta.</h1>
+    <p class="lead">
+      O Sharpen lê os seus bilhetes <strong>dentro da casa</strong>, padroniza tudo num
+      registro só e prova, estatisticamente, se o que você tem é vantagem ou é sorte.
+      Com a camada que nenhum rastreador de apostas tem: <strong>contas, fornecedores e
+      custo por conta</strong>.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn btn-primario btn-grande" href="/login#cadastro">Criar conta</a>
+      <a class="btn btn-fantasma btn-grande" href="#como-funciona">Ver como funciona</a>
+    </div>
+    <p class="hero-nota">Não pedimos a senha das suas casas. A extensão não aposta, não deposita e não movimenta saldo.</p>
+  </div>
+
+  <!-- ═══ PRINT DE CAPA ═══ -->
+  <div class="wrap" style="padding-bottom: var(--sp-20)">
+    <figure style="margin: 0">
+      <div class="janela janela--tese janela--corta">
+        <div class="janela-barra">
+          <span class="janela-ponto"></span>
+          <span class="janela-ponto"></span>
+          <span class="janela-ponto"></span>
+          <span class="janela-rotulo">Visão Geral · dados de demonstração</span>
+        </div>
+        <div class="janela-corpo">
+          <img src="/static/landing/img/02-visao-geral.webp" width="1400" height="2100"
+               decoding="async" fetchpriority="high"
+               alt="Painel Visão Geral do Sharpen: P/L bruto, custo de contas, custo de tipsters e P/L líquido, com curva de resultado acumulado e diagnóstico de risco.">
+        </div>
+      </div>
+      <figcaption class="legenda">
+        Do bruto ao líquido, na mesma linha de KPIs: o que a operação rendeu,
+        o que as contas custaram, o que os tipsters custaram — e o que sobrou.
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- ═══ PROVAS ═══ -->
+  <section id="como-funciona">
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">O que já está no ar</p>
+        <h2>Três camadas: capturar, padronizar, provar.</h2>
+        <p class="lead">
+          A captura roda na sessão que você já abriu, dentro da casa. A padronização
+          traduz o nome que cada casa dá ao mesmo mercado. A prova responde a única
+          pergunta que importa depois de mil apostas.
+        </p>
+      </div>
+      <div class="provas">
+        <div class="prova">
+          <div class="prova-val">23</div>
+          <div class="prova-rot">fontes lidas na origem</div>
+          <div class="prova-sub">22 casas por captura automática + 1 exchange on-chain. Fora dessa lista, o print resolve — em qualquer idioma.</div>
+        </div>
+        <div class="prova">
+          <div class="prova-val">30</div>
+          <div class="prova-rot">categorias de mercado</div>
+          <div class="prova-sub">Vocabulário fechado, em 21 esportes. É o que faz Bet365 e Betano virarem a mesma linha comparável.</div>
+        </div>
+        <div class="prova">
+          <div class="prova-val">94,5%</div>
+          <div class="prova-rot">acerto de categoria</div>
+          <div class="prova-sub">Em casa <strong>nunca vista</strong>, sem nenhuma configuração prévia. Mede a classificação do mercado, não o resultado da aposta.</div>
+        </div>
+        <div class="prova">
+          <div class="prova-val">25 mil+</div>
+          <div class="prova-rot">apostas processadas</div>
+          <div class="prova-sub">Base real migrada e reconciliada de planilha antiga, sem perder histórico.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 1. SCANNER ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="duas">
+        <div class="duas-texto">
+          <p class="eyebrow">Captura automática</p>
+          <h2>Um robô por casa, lendo o que a casa já mostra a você.</h2>
+          <p>
+            A maioria das casas não escreve a própria plataforma — licencia um motor.
+            Ler o <strong>motor</strong> em vez da marca faz a casa seguinte virar
+            cadastro, não projeto: já aconteceu de uma casa nova entrar sem uma linha
+            de código nova. Mais de <span class="num">150</span> marcas no mundo rodam
+            nesses motores — é alcance potencial, não lista de suportadas.
+          </p>
+          <p>
+            A extensão trabalha na sessão que <strong>você</strong> abriu. Ela não faz
+            login, não guarda senha, não aposta e não movimenta saldo. Traz também as
+            apostas ainda <strong>em aberto</strong>, que é o que a planilha nunca sabe.
+          </p>
+          <div class="casas">
+            <span class="casa-chip">Bet365</span><span class="casa-chip">Betano</span>
+            <span class="casa-chip">Betfair</span><span class="casa-chip">Pinnacle</span>
+            <span class="casa-chip">Superbet</span><span class="casa-chip">Stake</span>
+            <span class="casa-chip">KTO</span><span class="casa-chip">Novibet</span>
+            <span class="casa-chip">SportingBet</span><span class="casa-chip">Betboom</span>
+            <span class="casa-chip">Jonbet</span><span class="casa-chip">BETesporte</span>
+            <span class="casa-chip">Betnacional</span><span class="casa-chip">Betpix365</span>
+            <span class="casa-chip">Pitaco</span><span class="casa-chip">Lottu</span>
+            <span class="casa-chip">VaideBet</span><span class="casa-chip">Esportiva</span>
+            <span class="casa-chip">Jogo de Ouro</span><span class="casa-chip">Tivo</span>
+            <span class="casa-chip">Betfast</span><span class="casa-chip">Faz1bet</span>
+            <span class="casa-chip casa-chip--api">Polymarket · on-chain</span>
+          </div>
+        </div>
+        <figure style="margin: 0">
+          <div class="janela janela--corta">
+            <div class="janela-barra">
+              <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+              <span class="janela-rotulo">Extração e Captura · demonstração</span>
+            </div>
+            <div class="janela-corpo">
+              <img src="/static/landing/img/14-extracao.webp" width="1400" height="1225"
+                   loading="lazy" decoding="async"
+                   alt="Tela de Extração e Captura, com o total de contas ativas e a distribuição de contas por casa.">
+            </div>
+          </div>
+          <figcaption class="legenda">Cada casa com as suas contas — e o painel sabe quantas são, uma a uma.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 2. FORNECEDORES ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Controle de fornecedores</p>
+        <h2>Quanto cada fornecedor te custou — e quanto ele te devolveu.</h2>
+        <p class="lead">
+          Conta comprada tem custo antes da primeira aposta. O Sharpen guarda o custo
+          de aquisição por fornecedor e por casa, e cruza com o que aquelas contas
+          produziram. Fornecedor caro que entrega ROI alto é barato; o contrário
+          também aparece.
+        </p>
+      </div>
+      <figure style="margin: 0">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Custo de contas por fornecedor · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/r6-custo-fornecedor.webp" width="1200" height="632"
+                 loading="lazy" decoding="async"
+                 alt="Cards de custo de contas por fornecedor, cada um com o total investido, o número de contas e o custo médio por conta, detalhado por casa.">
+          </div>
+        </div>
+        <figcaption class="legenda">
+          Seis fornecedores, o custo de cada um e a abertura por casa. O total é
+          <span class="money"><span class="money-sign">R$</span><span class="money-val">29.400</span></span>
+          — e ele desce inteiro no P/L líquido da visão geral.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ═══ 3. CONTAS + LIMITAÇÃO ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Conta a conta</p>
+        <h2>Quanto tempo cada conta durou antes de parar.</h2>
+        <p class="lead">
+          Conta limitada não avisa: ela só para de aceitar o que interessa. Por isso
+          cada conta tem <strong>turnover</strong>, P/L, ROI, data da primeira aposta,
+          data da última e o <strong>período</strong> entre as duas. É a régua de
+          vida útil — dá para ver qual fornecedor entrega conta que dura e qual
+          entrega conta que morre em três semanas.
+        </p>
+      </div>
+      <figure style="margin: 0 0 var(--sp-8)">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Contas individuais · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/r4-contas-periodo.webp" width="1200" height="577"
+                 loading="lazy" decoding="async"
+                 alt="Tabela de contas individuais com as colunas fornecedor, conta, casa, bets, turnover, profit, ROI, primeira aposta, última aposta e período em dias.">
+          </div>
+        </div>
+        <figcaption class="legenda">
+          As colunas <strong>1ª Aposta</strong>, <strong>Última</strong> e
+          <strong>Período</strong> respondem sozinhas quando a conta parou de rodar.
+        </figcaption>
+      </figure>
+      <figure style="margin: 0">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Contas por casa × fornecedor · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/r5-casa-fornecedor.webp" width="1200" height="577"
+                 loading="lazy" decoding="async"
+                 alt="Matriz cruzando casas e fornecedores, com o número de contas em cada cruzamento e os totais por coluna.">
+          </div>
+        </div>
+        <figcaption class="legenda">Onde a sua operação está concentrada, num cruzamento só.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ═══ 4. IA / TIPSTER ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="duas duas--inverte">
+        <figure style="margin: 0">
+          <div class="janela janela--corta">
+            <div class="janela-barra">
+              <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+              <span class="janela-rotulo">Atribuição por casa · demonstração</span>
+            </div>
+            <div class="janela-corpo">
+              <img src="/static/landing/img/r7-atribuicao-casa.webp" width="1200" height="707"
+                   loading="lazy" decoding="async"
+                   alt="Painel de atribuição por casa: cada casa com o volume, o tipster dominante na base, o percentual de concentração e a marcação dedicada ou compartilhada.">
+            </div>
+          </div>
+          <figcaption class="legenda">
+            Casa de nicho costuma ser de um tipster só. O sistema mede a concentração
+            e sugere — você confirma.
+          </figcaption>
+        </figure>
+        <div class="duas-texto">
+          <p class="eyebrow">Atribuição automática</p>
+          <h2>Ele aprende com o que você já rotulou — e cala a boca quando não sabe.</h2>
+          <p>
+            Depois de algumas centenas de bilhetes marcados à mão, o Sharpen passa a
+            reconhecer <strong>de quem</strong> é cada aposta nova: pelo esporte, pelo
+            mercado, pela casa e pelo final da stake, que costuma ser a assinatura mais
+            teimosa de um método.
+          </p>
+          <p>
+            O que separa isso de um chute é a <strong>abstenção</strong>. Sem folga
+            clara entre o primeiro e o segundo colocado, ele não sugere nada. E tipster
+            recém-criado, que ainda não tem histórico, não concorre — senão todo bilhete
+            novo cairia no nome mais parecido, com cara de certeza.
+          </p>
+          <p>
+            O modelo treina só nos rótulos <strong>humanos</strong>. Ele nunca aprende
+            com as próprias sugestões: seria ensinar o sistema a repetir o próprio erro.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 5. CUSTO ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">O líquido</p>
+        <h2>ROI bruto não paga conta.</h2>
+        <p class="lead">
+          A aquisição das contas, as assinaturas dos tipsters e o custo fixo da operação
+          entram no cálculo. O painel mostra os quatro números lado a lado, para o
+          desconto ficar visível em vez de virar surpresa no fim do mês.
+        </p>
+      </div>
+      <figure style="margin: 0 0 var(--sp-8)">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Do bruto ao líquido · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/r1-pl-liquido.webp" width="1200" height="203"
+                 loading="lazy" decoding="async"
+                 alt="Linha de KPIs mostrando P/L bruto, custo de contas, custo de tipsters e P/L líquido.">
+          </div>
+        </div>
+      </figure>
+      <div class="recursos">
+        <div class="recurso">
+          <h3>Custo por conta</h3>
+          <p>O que você pagou por cada conta, por fornecedor e por casa. O custo pertence ao período em que a conta foi adquirida, não ao mês em que você lançou.</p>
+        </div>
+        <div class="recurso">
+          <h3>Custo por tipster</h3>
+          <p>Assinaturas e serviços, mês a mês. Dá para responder se aquele tipster paga a própria mensalidade — e a resposta às vezes desagrada.</p>
+        </div>
+        <div class="recurso">
+          <h3>Conta sem aposta também existe</h3>
+          <p>Conta comprada e ainda parada aparece na tela para receber o custo. Ela não some só porque ainda não apostou — e continua fora de qualquer janela de P/L.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 6. PROVA ESTATÍSTICA ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Vantagem ou sorte</p>
+        <h2>A régua não existe para elogiar quem a usa.</h2>
+        <p class="lead">
+          ROI positivo em mil apostas pode ser variância. O Sharpen roda reamostragem
+          para estimar a chance de o seu resultado ser acaso, simula dez mil trajetórias
+          alternativas para dimensionar o drawdown que você <em>ainda não viveu</em>, e
+          fecha num nível de solidez que junta as quatro coisas.
+        </p>
+      </div>
+      <figure style="margin: 0 0 var(--sp-8)">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Diagnóstico de risco · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/r2-risco.webp" width="1200" height="152"
+                 loading="lazy" decoding="async"
+                 alt="Painel de diagnóstico de risco com p-value, drawdown médio projetado, drawdown extremo e nível de solidez.">
+          </div>
+        </div>
+        <figcaption class="legenda">
+          A operação da demonstração tira <strong>Média</strong> na nossa própria régua —
+          a odd média alta cobra o preço dela em variância. Uma ferramenta que só dá
+          nota alta não está medindo nada.
+        </figcaption>
+      </figure>
+      <div class="recursos">
+        <div class="recurso">
+          <h3>P-value por reamostragem</h3>
+          <p>Sem assumir distribuição teórica: reembaralha o seu próprio histórico milhares de vezes e conta quantas vezes o acaso chegaria lá.</p>
+        </div>
+        <div class="recurso">
+          <h3>Drawdown Monte Carlo</h3>
+          <p>O pior que já aconteceu é uma amostra de um. A simulação mostra a queda média e a queda de 1 em 100 com as suas apostas.</p>
+        </div>
+        <div class="recurso">
+          <h3>Fator de recuperação</h3>
+          <p>Lucro dividido pelo tombo necessário para consegui-lo. Responde se a operação é sustentável ou se depende de aguentar o insuportável.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 7. COMPARATIVO ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Onde ganhamos e onde perdemos</p>
+        <h2>Comparativo que ganha tudo é propaganda.</h2>
+        <p class="lead">
+          Os rastreadores globais sincronizam bem dentro da lista de casas que integram
+          e têm aplicativo de celular, que nós ainda não temos. Fora da lista deles,
+          vira digitação. Abaixo, o escopo de cada um — e as duas linhas em que
+          perdemos.
+        </p>
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Recurso</th>
+              <th scope="col">Sharpen</th>
+              <th scope="col">Rastreadores globais</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Captura automática nas casas integradas</td><td class="marca-sim">Sim</td><td class="marca-sim">Sim</td></tr>
+            <tr><td>Casa fora da lista, sem digitar</td><td class="marca-sim">Sim — por print, em qualquer idioma</td><td class="marca-nao">Não — digitação manual</td></tr>
+            <tr><td>Contas, fornecedores e custo de aquisição</td><td class="marca-sim">Sim</td><td class="marca-nao">Não</td></tr>
+            <tr><td>Custo de tipster no resultado líquido</td><td class="marca-sim">Sim</td><td class="marca-nao">Não</td></tr>
+            <tr><td>Operador com acesso à base do dono</td><td class="marca-sim">Sim</td><td class="marca-nao">Não</td></tr>
+            <tr><td>Prova estatística (p-value, Monte Carlo)</td><td class="marca-sim">Sim</td><td class="marca-na">Parcial — ROI e unidades</td></tr>
+            <tr><td><strong>CLV (closing line value)</strong></td><td class="marca-nao">Não temos</td><td class="marca-sim">Sim</td></tr>
+            <tr><td><strong>Busca de aposta de valor e arbitragem</strong></td><td class="marca-nao">Fora do escopo</td><td class="marca-sim">Sim, em parte do mercado</td></tr>
+            <tr><td><strong>Aplicativo de celular</strong></td><td class="marca-nao">Não temos</td><td class="marca-sim">Sim</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="legenda" style="margin-top: var(--sp-4)">
+        Não fazemos CLV porque ele exige uma linha de fechamento confiável, que não
+        existe bem nos mercados que atendemos. Publicar um CLV ruim seria pior que não
+        ter — e este público sabe disso.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ 8. O QUE NÃO É ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Para evitar mal-entendido</p>
+        <h2>O que o Sharpen não é.</h2>
+      </div>
+      <div class="naos">
+        <div class="nao">
+          <div>
+            <h3>Não é tipster e não vende palpite</h3>
+            <p>Nenhuma aposta é sugerida aqui. O produto olha para trás, para o que você já fez.</p>
+          </div>
+        </div>
+        <div class="nao">
+          <div>
+            <h3>Não procura aposta de valor nem arbitragem</h3>
+            <p>Não é um scanner de odds. Quem precisa disso deve procurar outra categoria de ferramenta.</p>
+          </div>
+        </div>
+        <div class="nao">
+          <div>
+            <h3>Não aposta, não deposita, não saca</h3>
+            <p>A extensão lê a página que você já abriu. Não tem permissão para agir na sua conta.</p>
+          </div>
+        </div>
+        <div class="nao">
+          <div>
+            <h3>Não promete lucro</h3>
+            <p>A maioria das pessoas perde dinheiro apostando. O Sharpen mede o seu caso, com rigor — não muda o seu resultado.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 9. FAQ ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Perguntas</p>
+        <h2>Inclusive as que preferíamos não responder.</h2>
+      </div>
+      <details>
+        <summary>Vocês precisam da senha das minhas casas?</summary>
+        <p>Não, em nenhum momento. A extensão trabalha dentro da sessão que você mesmo abriu no navegador, lendo o histórico que a casa já está te mostrando. Ela não faz login, não guarda credencial, não aposta e não movimenta saldo.</p>
+      </details>
+      <details>
+        <summary>Eu aposto num país que nenhum rastreador cobre. Funciona?</summary>
+        <p>Funciona. Se a casa roda um dos motores que já lemos, a captura é automática. Se não roda, você manda o print, o PDF, o texto ou a planilha — a leitura é por imagem e não depende do idioma da casa. Em teste com casa nunca vista e sem nenhuma configuração prévia, a classificação de categoria de mercado acertou 94,5%.</p>
+      </details>
+      <details>
+        <summary>Meu histórico antigo entra?</summary>
+        <p>Entra. Já migramos e reconciliamos bases de mais de 25 mil apostas vindas de planilha, preservando o histórico inteiro. Não é preciso começar do zero para os números fazerem sentido.</p>
+      </details>
+      <details>
+        <summary>A leitura erra alguma vez?</summary>
+        <p>Erra. Por isso toda linha é editável, o sistema marca as apostas que ficaram incompletas em vez de escondê-las, e a captura automática nas casas que lemos na origem não depende de leitura de imagem. Ferramenta que afirma nunca errar está escondendo o erro, não evitando.</p>
+      </details>
+      <details>
+        <summary>Preciso de quantas apostas para os números fazerem sentido?</summary>
+        <p>Os KPIs funcionam desde a primeira. A camada estatística é outra conversa: abaixo de algumas centenas de apostas o p-value e o drawdown simulado dizem pouco, e o próprio nível de solidez desconta isso — ele pontua o tamanho da amostra como um dos quatro critérios.</p>
+      </details>
+      <details>
+        <summary>Quanto custa?</summary>
+        <p>O preço ainda não está fechado e nós preferimos não publicar um número que vai mudar. A entrada hoje é por cadastro com aprovação — crie a conta e nós falamos com você.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ═══ FECHAMENTO ═══ -->
+  <section class="fechar">
+    <div class="wrap">
+      <h2>Pare de anotar. Comece a medir.</h2>
+      <p class="lead" style="max-width: 56ch; margin-inline: auto">
+        Crie a conta, conecte a primeira casa e veja o seu próprio histórico na régua.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primario btn-grande" href="/login#cadastro">Criar conta</a>
+        <a class="btn btn-fantasma btn-grande" href="/login">Já tenho conta</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap rodape-in">
+    <div>
+      <img src="/static/brand-sharpen/base/lockup-endorsed.svg" alt="Sharpen — by FDC Capital">
+      <p class="rodape-txt" style="margin-top: var(--sp-4)">
+        <span class="idade">18+</span>
+        Apostas envolvem risco financeiro e podem causar dependência. A maioria das
+        pessoas perde dinheiro apostando. O Sharpen é uma ferramenta de análise: não
+        aceita apostas, não intermedia pagamento e não promete retorno. Jogue com
+        responsabilidade.
+      </p>
+      <!-- O <p> herda --ink-soft de .rodape-txt e o <strong> sobe para --ink.
+           A versao anterior tinha o pai em --ink-mute e o filho em --ink-soft:
+           filho mais legivel que o pai e' inversao de hierarquia, barrada pela
+           Escada de Tinta — e ainda por cima num aviso que precisa ser lido. -->
+      <p class="rodape-txt" style="margin-top: var(--sp-4)">
+        As imagens desta página são capturas reais do produto, com uma
+        <strong>base de demonstração fictícia</strong>.
+        Nenhum dado de cliente aparece aqui.
+      </p>
+    </div>
+    <div class="rodape-links">
+      <a href="/login">Entrar</a>
+      <a href="/login#cadastro">Criar conta</a>
+      <a href="/extensao">Extensão SharpenUp</a>
+      <a href="/privacidade">Privacidade</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

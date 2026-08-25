@@ -37,20 +37,76 @@ RESUMO = dados_demo.resumo(LINHAS)
 app = FastAPI(title="Sharpen — servidor de demonstração", docs_url=None, redoc_url=None)
 
 
-# ── Contas ficticias, derivadas do proprio feed para nao divergir dele ────────
-def _parceiros():
-    vistos, saida, i = set(), [], 1
+# ── Contas: vem do ELENCO, nunca derivadas do feed ───────────────────────────
+# Ate a s294 esta funcao varria as apostas e criava uma conta para cada par
+# (parceiro, casa) que aparecesse. Como o gerador sorteava pessoa e casa de forma
+# independente, o resultado eram 1.830 contas contra as 102 reais -- e a tela de
+# Fornecedores repetia essa lista embaixo de cada casa. O erro nao era de contagem,
+# era de DIRECAO: na producao a conta e' uma linha de `parceiros` e a aposta aponta
+# para ela; aqui a aposta estava inventando a conta. Agora o cadastro e' a fonte,
+# como no sistema de verdade (ver o comentario de `_contasCadastro` no gestao.js).
+PARCEIROS = [
+    {"id": i, "nome": c["parceiro"], "casa": c["casa"], "arquivado": False}
+    for i, c in enumerate(dados_demo.ELENCO, start=1)
+]
+
+CUSTO_CONTA, CUSTO_TIPSTER, CUSTO_GERAL = dados_demo.custos()
+CADASTRO_TIPSTERS = dados_demo.cadastro_tipsters()
+
+
+# ── Atribuicao por casa (aba Tipster / Metodo > Casas) ───────────────────────
+# Espelha `repository.casas_visao`, que na producao roda em SQL sobre `bilhetes`.
+# Reimplementar aqui e' inevitavel (nao ha banco) -- e por isso as constantes
+# abaixo sao copiadas com o nome original: se a regra mudar la, procure por elas.
+_CASA_MIN_VOL, _CASA_SHARE, _CASA_COVER = 8, 0.10, 0.85
+
+
+def _casas_visao():
+    ativos = {t["nome"] for t in CADASTRO_TIPSTERS if not t["arquivado"]}
+    por_casa = {}
     for r in LINHAS:
-        chave = (r["parceiro"], r["casa"])
-        if chave in vistos:
+        if not r["tipster"]:
             continue
-        vistos.add(chave)
-        saida.append({"id": i, "nome": r["parceiro"], "casa": r["casa"], "arquivado": False})
-        i += 1
+        d = por_casa.setdefault(r["casa"], {"total": 0, "dist": {}})
+        d["total"] += 1
+        d["dist"][r["tipster"]] = d["dist"].get(r["tipster"], 0) + 1
+    saida = []
+    for casa, d in por_casa.items():
+        total = d["total"]
+        dist = sorted(d["dist"].items(), key=lambda x: -x[1])
+        top_nome, top_n = dist[0]
+        donos = [n for n, k in dist if n in ativos and k / total >= _CASA_SHARE][:2]
+        cobertura = sum(d["dist"][n] for n in donos) / total if donos else 0
+        if total < _CASA_MIN_VOL:
+            sug_modo, sug_tipsters = None, []
+        elif donos and cobertura >= _CASA_COVER:
+            sug_modo, sug_tipsters = "dedicada", donos
+        else:
+            sug_modo, sug_tipsters = "multi", []
+        saida.append({
+            "casa": casa, "total": total, "n_tipsters": len(d["dist"]),
+            "top": top_nome, "top_share": round(100 * top_n / total),
+            "sugestao_modo": sug_modo, "sugestao_tipsters": sug_tipsters,
+            # `modo=None` = casa ainda NAO curada. Deixamos a maioria assim de
+            # proposito: a tela tem um botao "Aplicar N sugestoes" que so aparece
+            # com pendencia, e print sem ele esconderia o recurso.
+            "modo": None, "tipsters": "", "origem": None,
+        })
+    saida.sort(key=lambda x: -x["total"])
+    # Duas casas ja CURADAS, para o print mostrar os tres estados (dedicada,
+    # compartilhada, a definir) em vez de uma coluna so. A curadoria copia a
+    # sugestao que a regra acima produziu -- nunca inventa um modo que o dado
+    # nao sustenta, que seria print mentiroso.
+    for c in saida:
+        if c["casa"] == "BETesporte" and c["sugestao_modo"] == "dedicada":
+            c.update({"modo": "dedicada", "tipsters": ", ".join(c["sugestao_tipsters"]),
+                      "origem": "sharpen"})
+        elif c["casa"] == "Bet365" and c["sugestao_modo"] == "multi":
+            c.update({"modo": "multi", "tipsters": "", "origem": "custom"})
     return saida
 
 
-PARCEIROS = _parceiros()
+CASAS_VISAO = _casas_visao()
 
 # ── Apostas em aberto: painel da tela inicial + tela "Em Aberto" do dash ─────
 # Desde a s215 elas saem NO FEED (resultado='ABERTA', lucro=0), igual em producao
@@ -117,7 +173,18 @@ def bilhetes(extraction_state: str = "", archived: str = "", limit: int = 100, o
 
 
 @app.get("/parceiros")
-def parceiros(arquivados: bool = False):
+def parceiros(casa: str = None, arquivados: bool = False):
+    """`casa` FILTRA -- e ignorar isso foi o bug das 2.958 contas (s294).
+
+    A rota de producao e' `list_parceiros(dono, casa=casa or None, ...)`: o Painel
+    de Contas pede uma vez POR CASA e conta o que volta. O mock devolvia a lista
+    inteira em toda chamada, entao cada uma das 29 casas exibia as 102 contas e o
+    total virava 102 x 29. O STATUS registrava esse numero como "medido, nao
+    diagnosticado" e mandava conferir a forma do payload antes de mexer no front
+    -- estava certo: o front nunca teve defeito nenhum aqui.
+    """
+    if casa:
+        return {"parceiros": [p for p in PARCEIROS if p["casa"] == casa]}
     return {"parceiros": PARCEIROS}
 
 
@@ -143,11 +210,14 @@ def tipsters():
     return {"tipsters": sorted({r["tipster"] for r in LINHAS if r["tipster"]})}
 
 
-# ── Rotas de gestao: forma valida e vazia. Nao entram nos prints escolhidos,
-#    mas se o front pedir e receber 404 ele quebra a tela inteira. ────────────
+# ── Camada de OPERACAO: custos, cadastro de tipster e atribuicao por casa ────
+# Ate a s294 este bloco devolvia forma valida e VAZIA. Funcionava para nao quebrar
+# a tela, mas custo R$ 0 deixa o "P/L Liquido" identico ao bruto e as abas de custo
+# em branco -- ou seja, o print escondia exatamente a camada que separa o Sharpen
+# de um app de apostador individual. Agora tudo aqui vem do `dados_demo`.
 @app.get("/casas/config")
 def casas_config():
-    return {"config": {}}
+    return {"casas": CASAS_VISAO}
 
 
 @app.get("/casas/meta")
@@ -157,27 +227,44 @@ def casas_meta():
 
 @app.get("/custos/conta")
 def custos_conta():
-    return {"custos": {}}
+    # `existe` False faz o front cair no cache do navegador e ignorar o servidor.
+    return {"existe": True, "custo_conta": CUSTO_CONTA}
 
 
 @app.get("/custos/store")
 def custos_store():
-    return {"custos": {}}
+    return {"existe": True, "custo_tipster": CUSTO_TIPSTER, "custo_geral": CUSTO_GERAL}
 
 
 @app.get("/tipsters/cadastro")
-def tipsters_cadastro():
-    return {"tipsters": []}
+def tipsters_cadastro(arquivados: bool = False):
+    return {"tipsters": CADASTRO_TIPSTERS}
 
 
 @app.get("/tipsters/unidades")
-def tipsters_unidades():
-    return {"unidades": {}}
+def tipsters_unidades(tipster: str = ""):
+    return {"escada": []}
 
 
 @app.get("/tipsters/escadas")
 def tipsters_escadas():
     return {"escadas": {}}
+
+
+@app.get("/taxonomia")
+def taxonomia():
+    # Esportes e categorias canonicos. Na producao saem dos MASTER via
+    # `app/taxonomia.py`; aqui bastam os do feed -- a tela usa a UNIAO dos dois e
+    # o que importa no print e' o menu ter conteudo, nao ser a lista inteira.
+    return {
+        "esportes": sorted({r["esporte"] for r in LINHAS}),
+        "categorias": sorted({r["aposta"] for r in LINHAS}),
+    }
+
+
+@app.get("/mercados")
+def mercados():
+    return {"mercados": sorted({r["aposta"] for r in LINHAS})}
 
 
 @app.get("/conta/resumo")

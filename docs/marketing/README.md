@@ -85,14 +85,33 @@ Padrão monetário: `../UI_REFERENCE.md §5`.
 
 ---
 
+## ⚠️ A landing do produto agora é uma ROTA, não um documento (s294)
+
+A reescrita aprovada na s214 foi feita — mas **noutro lugar**, e é isso que importa
+saber antes de mexer aqui:
+
+| Arquivo | Onde vive | Para quem |
+|---|---|---|
+| `../../app/static/landing.html` | **rota `/` de sharpen.bet**, pública e indexável | quem ainda não é cliente |
+| `landing-usuario-final.html` (aqui) | Artifact privado | histórico / apresentação avulsa |
+
+A página pública nasceu com print real (14 telas + 7 recortes de elemento, gerados
+por `../../scripts/demo/`), sem detalhe de arquitetura e sem JavaScript nenhum. Ela
+é a peça viva. **Este documento aqui virou histórico** — não o edite achando que
+está mexendo no que o público vê.
+
+As 4 correções que travavam o uso dos prints foram fechadas na s294 (contas irreais,
+Monte Carlo em "calculando…", custos zerados e a faixa de Solidez).
+
+---
+
 ## Pendências conhecidas
 
-- **Landing do usuário final vai ser reescrita.** Sai o detalhe de arquitetura (motores,
-  payload da API, pesos da Solidez); entra print real do sistema. **Print primeiro,
-  texto depois:** hoje a página se defende explicando o mecanismo porque não mostra
-  nada. Lista completa do que sai no `STATUS.md`, backlog da s214.
-- **Prints prontos, com 4 correções abertas** — ferramenta em `../../scripts/demo/`
-  (perfil de produção → base fictícia → servidor → captura). Detalhe no `STATUS.md`.
+- **A seção 12 do briefing está DESATUALIZADA e é a fonte obrigatória de número.**
+  Medido na s294: *fontes lidas na origem* passou de 11 para **23** (22 casas com robô
+  + Polymarket on-chain) e *categorias de mercado* de 27 para **30** (contadas pelo
+  extrator canônico, `app/taxonomia.py`). A landing pública já usa os números novos.
+  Atualizar o §12 para os dois voltarem a bater.
 - **Versão em inglês** não foi feita — o posicionamento é worldwide, mas as duas
   páginas estão em pt-BR. Foram escritas para que a troca seja só de copy (nenhum
   texto está preso em imagem ou SVG).

@@ -255,6 +255,12 @@ document.getElementById('ir-login').addEventListener('click', () => {
   document.getElementById('usuario').focus();
 });
 
+// Deep-link `/login#cadastro` — o CTA da landing pública precisa cair direto no
+// cadastro. Sem isto ele largava o visitante no formulário de LOGIN, que é a tela
+// errada para quem acabou de decidir criar conta. Reusa o mesmo clique em vez de
+// duplicar a lógica de alternância (que também controla os botões sociais).
+if (location.hash === '#cadastro') document.getElementById('ir-cadastro').click();
+
 // Olhinho do cadastro
 const cadOlho = document.getElementById('cad-olho');
 const cadSenha = document.getElementById('cad-senha');

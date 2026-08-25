@@ -17,6 +17,10 @@ build/
 # Backups (gerenciados manualmente — não entram no git)
 Backups/
 
+# Node — dependencia de FERRAMENTA, nao do app (o deploy e' Python puro).
+# Nasce do `npm install puppeteer-core`, usado so por scripts/demo/capturar.mjs.
+node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
