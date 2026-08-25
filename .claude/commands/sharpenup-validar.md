@@ -15,6 +15,7 @@ no backend. Read-only: **nao corrige nada sem aprovacao**. Rode tudo, depois rep
 node extensor/harness/run.mjs $ARGUMENTS
 python tools/audit_sharpenup.py
 python tools/audit_casas.py
+python tools/audit_changelog.py
 node --check extensor/content.js
 node --check extensor/popup.js
 node --check extensor/background.js
@@ -33,6 +34,9 @@ Mostre a saida integral de cada FAIL. Para cada um, diga **o que corrigir e onde
 Leia o diff (`git diff`) e confira item a item:
 
 - [ ] **`manifest.json` com `version` bumpada** — sem isso ninguem e avisado da versao nova.
+- [ ] **Nota da versao nova no changelog da home** — `python scripts/avisar_testers.py --versao <X.Y.Z> ...`
+      publica no grupo E grava em `app/changelog.json` no mesmo ato. O `audit_changelog` acima
+      fica vermelho enquanto a versao publicada nao tiver nota.
 - [ ] Inject emite `hook:true` + `respostas` **mesmo com 0 bilhetes** (senao falha vira silencio).
 - [ ] Inject **re-envia sob demanda** (`__sharpenupXXReq`) — a 1a pagina chega antes do content ouvir.
 - [ ] Replay usa o `fetch` **original** guardado, nao o wrapper.

@@ -65,6 +65,16 @@ casa que parou → `/sharpenup-diagnostico`.
 
 O `@sharpenbetbot` é admin do grupo e serve de canal de **novas versões e atualizações**.
 
+**O aviso e a home são o MESMO ato — `python scripts/avisar_testers.py`.** Ele mostra a
+prévia (ensaio é o padrão; só envia com `--enviar`), confere o destino por `getChat`,
+publica no grupo e grava a mesma nota em `app/changelog.json`, que é o que a home lê pela
+rota `/changelog`. **Nunca edite o changelog à mão e nunca mande a mensagem por fora** —
+foi assim que a caixa "SharpenUp — versão a versão" ficou 8 versões atrás duas vezes
+(s254 e s292), porque bumpar o `manifest.json` é obrigatório para a extensão funcionar e
+escrever a nota não era obrigatório para nada. Hoje é: `tests/test_changelog.py` fica
+**vermelho** quando a versão do manifest não tem nota (dispensa só declarada, em
+`sharpenup_sem_nota`). Gate manual: `python tools/audit_changelog.py`.
+
 **Só informamos. Não damos detalhes.** A mensagem diz o que mudou em **uma linha** e o que o
 tester precisa **fazer**. Ficam de fora: mecânica interna, nome de campo, causa raiz, número de
 bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STATUS.md`.

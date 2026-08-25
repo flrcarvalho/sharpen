@@ -1,0 +1,287 @@
+{
+  "_leia": [
+    "FONTE ÚNICA dos dois changelogs da home (/inicio): a caixa 'Novidades' (o Sharpen)",
+    "e a caixa 'SharpenUp — versão a versão' (a extensão). O inicio.html LÊ daqui pela",
+    "rota GET /changelog; não existe mais array no HTML.",
+    "COMO PUBLICAR: nunca edite este arquivo à mão. Use `python scripts/avisar_testers.py`,",
+    "que publica no grupo `Sharpen - Testers` E grava a MESMA nota aqui na mesma operação —",
+    "é o que impede a home de divergir do que o tester foi avisado.",
+    "REGRA DE CONTEÚDO (Feca): só informamos, sem detalhes. Uma linha do que mudou e o que",
+    "o tester precisa FAZER. Fica de fora: mecânica interna, nome de campo, causa raiz,",
+    "número de bilhete, arquivo, commit. Nível de nota de release, nunca o do STATUS.md.",
+    "GATE: tests/test_changelog.py + tools/audit_changelog.py quebram se a versão do",
+    "manifest.json não tiver entrada aqui (ou em `sharpenup_sem_nota`).",
+    "FORMATO: `texto` e `itens[]` aceitam **negrito** — e só ele; o render não faz itálico,",
+    "asterisco solto sai literal na tela. `data` = AAAA-MM-DD.",
+    "ORDEM: entrada nova sempre no TOPO da lista."
+  ],
+  "novidades": [
+    {
+      "id": "sharpen-minha-conta",
+      "data": "2026-08-24",
+      "tag": "Sharpen",
+      "titulo": "Minha conta — troque sua senha e cadastre seu e-mail",
+      "texto": "Em **Configurações › Minha conta** você troca a própria senha e cadastra um e-mail de contato, sem depender de ninguém.",
+      "itens": [
+        "Trocar a senha **desconecta as outras sessões** — se você entrou num computador que não é seu, é assim que fecha o acesso de lá.",
+        "O e-mail é o que vai permitir recuperar a conta quando você esquecer a senha."
+      ]
+    },
+    {
+      "id": "sharpen-sugerir-tipsters-base",
+      "data": "2026-08-24",
+      "tag": "Sharpen",
+      "titulo": "Sugerir tipsters aprende com as suas apostas",
+      "texto": "O botão **Sugerir tipsters**, na Extração, passou a decidir olhando o que você já atribuiu à mão — casa, esporte, mercado e o jeito da stake de cada tipster saem do seu próprio histórico, não só do que está escrito no perfil.",
+      "itens": [
+        "Esporte que é praticamente de um tipster só (o único que aposta Badminton, por exemplo) já é indicação direta.",
+        "Tipster **novo** não concorre enquanto não tiver histórico — é o que evita jogar o bilhete dele no nome mais parecido."
+      ],
+      "fecho": "Ele continua **deixando em branco quando fica na dúvida**: errar o dono é pior que não preencher. Quanto mais bilhete você atribui, melhor ele fica."
+    },
+    {
+      "id": "sharpen-mercado-menu-edicao-aberta",
+      "data": "2026-08-24",
+      "tag": "Sharpen",
+      "titulo": "Mercado por menu, e edição direto na aba Em Aberto",
+      "itens": [
+        "Na coluna **Aposta** (Extração e Minha Base): **duplo-clique** abre os seus mercados favoritos e o modal traz a lista completa — acabou de digitar na mão.",
+        "A aba **Em Aberto** virou editável na própria linha. Aposta que ainda vai liquidar e vem de captura automática pode ter a edição desfeita pela próxima captura — a tela avisa quando é o caso."
+      ]
+    },
+    {
+      "id": "sharpen-navegacao-contas-grupos",
+      "data": "2026-08-20",
+      "tag": "Sharpen",
+      "titulo": "Pular de conta em conta, e a lista de tipsters agrupada",
+      "itens": [
+        "Na Extração, as **setas** do cartão da conta passam para a próxima sem voltar ao seletor.",
+        "Em **Tipster / Método**, Ativos e Inativos viram grupos que você minimiza."
+      ]
+    },
+    {
+      "id": "sharpen-tipster-lista-custos",
+      "data": "2026-08-17",
+      "tag": "Sharpen",
+      "titulo": "Tipster vem de lista, e o custo mostra todo mundo",
+      "itens": [
+        "Ao editar uma aposta, o tipster sai de uma **lista dos já cadastrados** em vez de ser digitado — chega de duas grafias do mesmo nome.",
+        "A aba **Custo de Tipsters** lista quem está cadastrado, mesmo sem aposta liquidada ainda. Antes, quem tinha custo lançado e nenhuma aposta fechada sumia da tabela e continuava contando no total."
+      ]
+    },
+    {
+      "id": "sharpen-desfazer-analise",
+      "data": "2026-08-13",
+      "tag": "Sharpen",
+      "titulo": "Desfazer análise avisa quantos bilhetes vai apagar",
+      "texto": "O **Desfazer análise** passou a dizer quantos bilhetes serão removidos antes de você confirmar, e oferece desfazer logo depois. Ele apaga de verdade: o que volta, volta pela casa, numa captura nova."
+    },
+    {
+      "id": "sharpen-extracao-badges-ponte",
+      "data": "2026-08-10",
+      "tag": "Sharpen",
+      "titulo": "Na Extração, os contadores viram filtro",
+      "itens": [
+        "Clique num contador da barra (sem tipster, em aberto, sem código) e a grade filtra só aqueles bilhetes.",
+        "O aviso do **RAIO-X** leva até a linha e marca a célula que está faltando — em vez de você caçar na mão."
+      ]
+    },
+    {
+      "id": "sharpen-sharpencal",
+      "data": "2026-08-04",
+      "tag": "Sharpen",
+      "titulo": "Calendário do Sharpen em todo campo de data",
+      "texto": "Todo campo de data do painel abre o calendário do Sharpen — e aceita **digitação direta em DD/MM/AAAA**, sem precisar do calendário."
+    },
+    {
+      "id": "sharpen-tempo-real",
+      "data": "2026-08-03",
+      "tag": "Sharpen",
+      "titulo": "A base atualiza sozinha",
+      "texto": "Captura nova aparece nas telas **sem F5**. Voltar para a aba depois de um tempo também revalida o que está na tela."
+    }
+  ],
+  "sharpenup": [
+    {
+      "id": "su-0652",
+      "v": "v0.6.52",
+      "data": "2026-08-24",
+      "texto": "Nova casa: **Lottu**.",
+      "itens": [
+        "Capture com **Minhas Apostas** aberta e clique em **Aplicar** no filtro de datas — é a busca que a casa exige.",
+        "A primeira captura demora mais que nas outras casas. Não está travada."
+      ]
+    },
+    {
+      "id": "su-0651",
+      "v": "v0.6.51",
+      "data": "2026-08-24",
+      "texto": "Nova casa: **SportingBet**. Se o lote voltar vazio, troque de aba (**Liquidadas ↔ Em Aberto**) para a casa disparar a busca."
+    },
+    {
+      "id": "su-0650",
+      "v": "v0.6.50",
+      "data": "2026-08-24",
+      "texto": "**Esportiva** e **VaideBet**: aposta anulada agora sai como **V** (anulada), em vez de ficar aguardando resultado."
+    },
+    {
+      "id": "su-0649",
+      "v": "v0.6.49",
+      "data": "2026-08-23",
+      "texto": "Nova casa: **Faz1bet**."
+    },
+    {
+      "id": "su-0648",
+      "v": "v0.6.48",
+      "data": "2026-08-18",
+      "texto": "**bet365**: o **Mostrar mais** ficou automático — não precisa mais clicar até o fim da lista antes de capturar."
+    },
+    {
+      "id": "su-0647",
+      "v": "v0.6.47",
+      "data": "2026-08-17",
+      "texto": "Nova casa: **Novibet**. Capture com o painel **Apostas** aberto (o ícone no rodapé) — é ele que dispara a busca."
+    },
+    {
+      "id": "su-0646",
+      "v": "v0.6.46",
+      "data": "2026-08-16",
+      "texto": "Nova casa: **Pitaco**. Capture com **Minhas Apostas** aberta; se o lote voltar vazio, recarregue a página (Ctrl+Shift+R)."
+    },
+    {
+      "id": "su-0645",
+      "v": "v0.6.45",
+      "data": "2026-08-13",
+      "texto": "**bet365**: bilhete de sistema (ex.: **3 x Duplas**) passa a subir com a odd certa."
+    },
+    {
+      "id": "su-0644",
+      "v": "v0.6.44",
+      "data": "2026-08-12",
+      "texto": "**Pinnacle**: as apostas em aberto deixam de sumir da captura."
+    },
+    {
+      "id": "su-0643",
+      "v": "v0.6.43",
+      "data": "2026-08-09",
+      "texto": "Nova casa: **Betpix365**. Capture com a tela **Minhas Apostas** aberta."
+    },
+    {
+      "id": "su-0642",
+      "v": "v0.6.42",
+      "data": "2026-08-09",
+      "texto": "Correção na captura de casas com nome de duas palavras (**Jogo de Ouro**), que voltava com blocos de texto do site em vez dos bilhetes."
+    },
+    {
+      "id": "su-0641",
+      "v": "v0.6.41",
+      "data": "2026-08-09",
+      "texto": "Novas casas: **Jogo de Ouro** e **Stake**.",
+      "itens": [
+        "Na **Jogo de Ouro**, capture com o histórico completo na tela (**Minhas apostas › Mostrar mais apostas**) — pelo painel lateral o lote volta vazio."
+      ]
+    },
+    {
+      "id": "su-0639",
+      "v": "v0.6.39",
+      "data": "2026-08-09",
+      "texto": "Nova casa: **Esportiva**."
+    },
+    {
+      "id": "su-0638",
+      "v": "v0.6.38",
+      "data": "2026-08-06",
+      "texto": "Nova casa: **Betboom**."
+    },
+    {
+      "id": "su-0637",
+      "v": "v0.6.37",
+      "data": "2026-08-06",
+      "texto": "Nova casa: **Jonbet**."
+    },
+    {
+      "id": "su-0636",
+      "v": "v0.6.36",
+      "data": "2026-08-04",
+      "texto": "Melhorias na extração da **bet365**.",
+      "itens": [
+        "Bilhete cujos detalhes não chegaram a carregar fica **retido**, e a tela avisa quantos foram.",
+        "**Nada se perde:** ele volta inteiro na próxima captura. Pode repetir sem medo — não duplica."
+      ]
+    },
+    {
+      "id": "su-0635",
+      "v": "v0.6.35",
+      "data": "2026-08-01",
+      "texto": "**BetNacional**: aposta cancelada com a stake devolvida por inteiro agora sai como **V** (anulada), não como perda."
+    },
+    {
+      "id": "su-0634",
+      "v": "v0.6.34",
+      "data": "2026-08-01",
+      "texto": "Nova casa: **BetNacional**."
+    },
+    {
+      "id": "su-0633",
+      "v": "v0.6.33",
+      "data": "2026-07-27",
+      "texto": "**Tivo** e **Betfast**: a captura vai além dos 50 bilhetes que a tela mostra e busca também o histórico mais antigo."
+    },
+    {
+      "id": "su-0632",
+      "v": "v0.6.32",
+      "data": "2026-07-27",
+      "texto": "Nova casa: **Betfast**."
+    },
+    {
+      "id": "su-0631",
+      "v": "v0.6.31",
+      "data": "2026-07-27",
+      "texto": "Melhorias na extração da **VaideBet**."
+    },
+    {
+      "id": "su-0630",
+      "v": "v0.6.30",
+      "data": "2026-07-26",
+      "texto": "Nova casa: **VaideBet**."
+    },
+    {
+      "id": "su-0626",
+      "v": "v0.6.26",
+      "data": "2026-07-26",
+      "texto": "**Betfair**: abertas e encerradas na mesma captura."
+    },
+    {
+      "id": "su-0625",
+      "v": "v0.6.25",
+      "data": "2026-07-25",
+      "texto": "Nova casa: **Tivo**."
+    },
+    {
+      "id": "su-0623",
+      "v": "v0.6.23",
+      "data": "2026-07-25",
+      "texto": "Melhorias na extração da **KTO**."
+    },
+    {
+      "id": "su-0622",
+      "v": "v0.6.22",
+      "data": "2026-07-24",
+      "texto": "Nova casa: **bet365**. A captura é pelo **Histórico de Apostas**, uma janela por vez.",
+      "itens": [
+        "Na bet365, escolha a janela: **Últimas 24 horas**, **Últimas 48 horas** ou **Período**. Cada uma é uma captura.",
+        "As janelas de 24 e 48 horas trazem as apostas **feitas** naquele intervalo. Aposta mais antiga que só liquidou agora não aparece ali.",
+        "Pra fechar bilhete que ficou preso em \"aguardando resultado\", rode **Período** cobrindo desde o dia em que a aposta foi feita. Pode repetir sem medo: não duplica."
+      ]
+    },
+    {
+      "id": "su-050",
+      "v": "v0.5.0",
+      "data": "2026-07-21",
+      "texto": "Nova casa: **Pinnacle**."
+    }
+  ],
+  "sharpenup_sem_nota": {
+    "0.6.40": "número pulado — nunca foi publicado (0.6.39 → 0.6.41 no mesmo dia)"
+  }
+}

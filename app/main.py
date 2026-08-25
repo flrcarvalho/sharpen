@@ -1444,6 +1444,49 @@ async def extensao_versao():
     return {"versao": _versao_extensao()}
 
 
+_CHANGELOG_PATH = Path(__file__).parent / "changelog.json"
+_changelog_cache: tuple[float, dict] | None = None   # (mtime, payload)
+
+
+def _ler_changelog() -> dict:
+    """Changelog das duas caixas da home, lido do disco com cache por mtime.
+
+    Servido por rota (e não como arquivo estático) por dois motivos: o navegador nunca
+    fica com uma versão velha em cache — o `?v=` do estático dependeria de alguém lembrar
+    de bumpar, que é exatamente o hábito que deixou a home 8 versões atrás — e um JSON
+    quebrado vira lista vazia em vez de 500 na home inteira."""
+    global _changelog_cache
+    try:
+        mtime = _CHANGELOG_PATH.stat().st_mtime
+    except OSError:
+        return {"novidades": [], "sharpenup": []}
+    if _changelog_cache and _changelog_cache[0] == mtime:
+        return _changelog_cache[1]
+    try:
+        dados = json.loads(_CHANGELOG_PATH.read_text(encoding="utf-8"))
+        payload = {
+            "novidades": dados.get("novidades") or [],
+            "sharpenup": dados.get("sharpenup") or [],
+        }
+    except (OSError, ValueError):
+        logger.exception("changelog: arquivo ilegível — a home fica sem as caixas")
+        payload = {"novidades": [], "sharpenup": []}
+    _changelog_cache = (mtime, payload)
+    return payload
+
+
+@app.get("/changelog")
+async def changelog(request: Request):
+    # Fonte única das caixas "Novidades" e "SharpenUp — versão a versão" do /inicio.
+    # Exige sessão: é changelog interno (expõe casa em desenvolvimento e número de versão).
+    if not usuario_do_request(request):
+        raise HTTPException(401, "Não autenticado.")
+    return JSONResponse(
+        _ler_changelog(),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
 @app.get("/extensao/download")
 async def extensao_download():
     # .zip da extensão gerado on-the-fly a partir de extensor/ no deploy → é sempre,
