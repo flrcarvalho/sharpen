@@ -357,7 +357,7 @@ function _acRender(filtrar){
   // Ancoragem: `position:fixed` + rect do input. Vira para CIMA quando não cabe
   // abaixo — sem isso, editar uma linha do rodapé da tabela abriria o menu fora da tela.
   const r=_acInp.getBoundingClientRect();
-  // Teto de largura: o editor inline ocupa a CÉLULA, e na Minha Base ela chega a ~1700px —
+  // Teto de largura: o editor inline ocupa a CÉLULA, e na Base Completa ela chega a ~1700px —
   // o menu virava uma faixa atravessando a tela, com a contagem no outro extremo do olho.
   m.style.minWidth=Math.min(Math.max(r.width,160),AC_MAX_W)+'px';
   m.style.left=Math.max(4,Math.min(r.left,window.innerWidth-m.offsetWidth-4))+'px';
@@ -548,7 +548,7 @@ function _apInlineStart(cell){
   if(_apInlineEditing)return;
   const field=cell.dataset.field;
   if(!field)return;
-  // `[data-id]` e não `.btbl-data-row`: a mesma edição inline serve a Minha Base e à aba
+  // `[data-id]` e não `.btbl-data-row`: a mesma edição inline serve a Base Completa e à aba
   // Em Aberto, cujas linhas são `.abrt-row`. O que as duas têm em comum é o id no wrapper.
   const rowEl=cell.closest('[data-id]');
   if(!rowEl||!rowEl.dataset.id)return;

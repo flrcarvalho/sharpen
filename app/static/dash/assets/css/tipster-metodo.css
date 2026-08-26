@@ -13,6 +13,7 @@
 .tm-wrap .panel__head h2{font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:0;color:var(--accent-2)}
 .tm-wrap .panel__head .meta{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-mute);margin-left:auto;letter-spacing:.04em}
 .tm-wrap .panel__head .meta b{color:var(--ink-soft)}
+.tm-wrap .panel__head .meta .w{color:var(--warn)}
 .tm-wrap .intro{padding:15px 20px;border-bottom:1px solid var(--line-2);font-size:13px;color:var(--ink-soft);line-height:1.6;background:linear-gradient(180deg,rgba(var(--accent-rgb),.04),transparent)}
 .tm-wrap .intro b{color:var(--ink)} .tm-wrap .intro .em{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-xs);padding:2px 6px;text-transform:uppercase}
 .tm-wrap .toolbar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -61,18 +62,6 @@
 /* 12px de folga em cima e nas laterais; embaixo 4px + os 8px de margin do último box = 12px. */
 .tm-wrap .tm-grp__body{padding:12px 12px 4px}
 
-/* ---------- TAB BAR (2 botões) + KPIs ---------- */
-/* .tm-kpi (renomeado de .kpi do pack): o dash já tem .kpi = card min-height:120px (vira
-   círculo). Nome próprio + display/min-height explícitos evitam a colisão de vez. */
-.tm-wrap .tm-kpi{display:inline-flex;align-items:center;min-height:0;font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);border:1px solid var(--line);border-radius:var(--r-pill);padding:8px 13px;background:var(--surface);white-space:nowrap}
-.tm-wrap .tm-kpi b{color:var(--ink)} .tm-wrap .tm-kpi .w{color:var(--warn)}
-.tabbar{display:flex;gap:6px;padding:5px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--surface);width:max-content;margin-bottom:22px}
-.tabbar button{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.03em;color:var(--ink-mute);background:transparent;border:0;cursor:pointer;padding:11px 22px;border-radius:var(--r-pill);white-space:nowrap;display:flex;align-items:center;gap:9px;transition:.18s var(--ease)}
-.tabbar button .n{font-family:var(--font-mono);font-size:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-pill);padding:2px 8px;color:var(--ink-soft)}
-.tabbar button:hover{color:var(--ink-soft)}
-.tabbar button.on{background:var(--accent);color:var(--bg)}
-.tabbar button.on .n{background:rgba(0,0,0,.16);border-color:transparent;color:var(--bg)}
-.pane[hidden]{display:none}
 
 /* ---------- CASAS — tabela alinhada por grade ---------- */
 .chead,.crow{display:grid;grid-template-columns:minmax(170px,1fr) minmax(0,1.25fr) 176px 190px 112px;gap:14px;align-items:center;padding:0 18px}

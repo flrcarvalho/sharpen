@@ -2,7 +2,7 @@
 // Popover de seleção de dia desenhado com os tokens do design system, no lugar
 // do popup nativo do Chrome (que não aceita estilo nenhum — fica branco no app
 // dark). Um único popover por página, reutilizado por todos os campos de data:
-// modais de edição, edição inline da Minha Base e inputs type=date (nestes, o
+// modais de edição, edição inline da Base Completa e inputs type=date (nestes, o
 // indicador nativo some via CSS e o botão da página chama o SharpenCal).
 //
 // API:

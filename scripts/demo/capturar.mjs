@@ -48,11 +48,16 @@ const TELAS = [
   { nome: "05-em-aberto",        hash: "dash/abertas",        frame: "fr-dash",   h: 1400 },  // novo
   { nome: "06-tipsters",         hash: "dash/tipsters",       frame: "fr-dash",   h: 1900 },
   // As duas telas da atribuicao automatica. A lista fechada de tipsters nao
-  // mostra o recurso -- ele vive no box ABERTO e na aba Casas.
+  // mostra o recurso -- ele vive no box ABERTO e no painel de atribuicao, que
+  // na s293 saiu da aba "Casas" do Tipster / Metodo e virou parte da tela Bookies.
   { nome: "07-tipster-perfil",   hash: "dash/tipster_metodo", frame: "fr-dash",   h: 1700,   // novo
     acao: () => window.tmToggle("Método Ártico") },
-  { nome: "08-casas-atribuicao", hash: "dash/tipster_metodo", frame: "fr-dash",   h: 1700,   // novo
-    acao: () => window.tmTab("casas") },
+  // Bookies e uma pagina longa (um card por casa antes do painel), entao aqui a
+  // `acao` ROLA ate a atribuicao. Ela espera `.panel` -- que so existe depois do
+  // render assincrono --, nao o `#paneCasas` vazio do template: o retry de `navegar`
+  // transforma essa espera em gate, senao a foto sairia do card de ROI.
+  { nome: "08-casas-atribuicao", hash: "dash/casas",          frame: "fr-dash",   h: 1700,   // novo
+    acao: () => document.querySelector("#paneCasas .panel").scrollIntoView({ block: "start" }) },
   { nome: "09-bookies",          hash: "dash/casas",          frame: "fr-dash",   h: 1800 },
   { nome: "10-esportes",         hash: "dash/sports",         frame: "fr-dash",   h: 1800 },
   { nome: "11-fornecedores",     hash: "dash/parceiros",      frame: "fr-dash",   h: 2000 },  // novo
@@ -79,8 +84,7 @@ const RECORTES = [
   { nome: "r4-contas-periodo",   hash: "dash/parceiros",      frame: "fr-dash", sel: "#card-parc_table",        maxH: 620 },
   { nome: "r5-casa-fornecedor",  hash: "dash/parceiros",      frame: "fr-dash", sel: "#card-cross_table",       maxH: 620 },
   { nome: "r6-custo-fornecedor", hash: "dash/parceiros",      frame: "fr-dash", sel: "#card-forn_custo_cards",  maxH: 700 },
-  { nome: "r7-atribuicao-casa",  hash: "dash/tipster_metodo", frame: "fr-dash", sel: "#paneCasas",              maxH: 760,
-    acao: () => window.tmTab("casas") },
+  { nome: "r7-atribuicao-casa",  hash: "dash/casas",          frame: "fr-dash", sel: "#paneCasas",              maxH: 760 },
 ];
 
 const LARGURA = 1600;

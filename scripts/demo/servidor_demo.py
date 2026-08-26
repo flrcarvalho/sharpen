@@ -54,7 +54,7 @@ CUSTO_CONTA, CUSTO_TIPSTER, CUSTO_GERAL = dados_demo.custos()
 CADASTRO_TIPSTERS = dados_demo.cadastro_tipsters()
 
 
-# ── Atribuicao por casa (aba Tipster / Metodo > Casas) ───────────────────────
+# ── Atribuicao por casa (tela Bookies; era aba do Tipster / Metodo) ─────────────────────
 # Espelha `repository.casas_visao`, que na producao roda em SQL sobre `bilhetes`.
 # Reimplementar aqui e' inevitavel (nao ha banco) -- e por isso as constantes
 # abaixo sao copiadas com o nome original: se a regra mudar la, procure por elas.

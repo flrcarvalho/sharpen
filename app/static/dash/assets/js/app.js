@@ -419,15 +419,15 @@ function mkCard(id,title,bodyHTML,extraHdrHTML=''){
 const PAGE_META={
   'overview':       ['Visão Geral',              'performance consolidada'],
   'sports':         ['Esportes',                 'performance por modalidade esportiva'],
-  'casas':          ['Bookies',                  'performance e ROI por bookmaker'],
-  'apostas':        ['Minha Base',               'espelho completo da base de dados'],
+  'casas':          ['Bookies',                  'performance, ROI e atribuição por bookmaker'],
+  'apostas':        ['Base Completa',            'espelho completo da base de dados'],
   'abertas':        ['Em Aberto',                'apostas ainda não liquidadas — exposição viva'],
   'tipsters':       ['Tipsters',                 'análise comparativa e individual'],
   'resultados':     ['Resultados',               'matriz por período, calendário e análises'],
   'parceiros':      ['Fornecedores & Parceiros', 'turnover, lucro e período por conta'],
   'custos':         ['Custos de Contas',         'custo de aquisição por conta e fornecedor'],
   'custos_tipster': ['Custo de Tipsters',        'assinaturas, serviços e pagamentos'],
-  'tipster_metodo': ['Tipster / Método',         'cadastro, unidades e detecção do tipster'],
+  'tipster_metodo': ['Tipsters & Métodos',       'cadastro, unidades e detecção do tipster'],
   'metrics':        ['Métricas',                 'base de conhecimento e valores atuais'],
 };
 // Deep-link: os atalhos do Planilhador chegam como /dashboard/#<id>. Sem âncora
@@ -465,7 +465,10 @@ function renderPage(id){
   const rows=filtrarPagina(id);
   if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(filtrarSemData('overview'),_refMonthKey('overview'));renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();}
   else if(id==='sports'){renderSport(rows);}
-  else if(id==='casas'){renderCasa(rows);}
+  // Bookies = performance (renderCasa) + Atribuição por casa (veio da aba "Casas" do
+  // Tipster / Método na s293). A segunda carrega o cadastro de tipsters antes de pintar:
+  // sem ele o multi-select nasce vazio quando esta é a primeira tela aberta.
+  else if(id==='casas'){renderCasa(rows);renderCasasAtribuicao();}
   else if(id==='tipsters'){renderTipsters();}
   else if(id==='apostas'){renderApostas();}
   else if(id==='abertas'){renderAbertas();}
@@ -514,30 +517,39 @@ function buildHTML(){
         <!-- SharpenUp: página pública/standalone da extensão. Abre em nova aba (sai do
              app) e nunca fica "ativo" — não é página do dashboard. Espelha app.html. -->
         <a class="nav-item" id="navSharpenUp" href="/extensao" target="_blank" rel="noopener" style="text-decoration:none" title="Instalar ou atualizar o SharpenUp — abre em nova aba"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 11.3V5"/><path d="M5.5 7.5 8 5l2.5 2.5"/></svg>SharpenUp<svg class="nav-out" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10 10.5 5.5"/><path d="M6.6 5.5h3.9v3.9"/></svg></a>
-        <!-- Minhas Apostas: a base crua. "Minha Base" = tudo (era "Apostas");
+        <!-- Minhas Apostas: a base crua. "Base Completa" = tudo (era "Apostas", depois "Minha Base");
              "Em Aberto" = só o que ainda não liquidou. -->
         <div class="nav-group">Minhas Apostas</div>
         ${[
-          ['apostas','Minha Base','<path d="M2 4h12M2 8h12M2 12h8"/><rect x="1" y="2" width="14" height="12" rx="1"/>'],
+          ['apostas','Base Completa','<path d="M2 4h12M2 8h12M2 12h8"/><rect x="1" y="2" width="14" height="12" rx="1"/>'],
           ['abertas','Em Aberto','<circle cx="8" cy="8" r="6.2"/><path d="M8 4.4V8l2.6 1.6"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Análise</div>
         ${[
           ['overview','Visão Geral','<rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>'],
           ['sports','Esportes','<path d="M2 12l4-4 3 3 5-6"/>'],
-          ['casas','Bookies','<rect x="1" y="3" width="14" height="10" rx="1"/><path d="M1 8h14M5 3v10"/>'],
           ['tipsters','Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.5 2.2-4 5-4s5 1.5 5 4"/><circle cx="12" cy="5" r="2"/><path d="M12 9c1.5.3 3 1.2 3 4"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Resultados</div>
         ${[
           ['resultados','Resultados','<rect x="1" y="1" width="14" height="14" rx="1"/><path d="M1 6h14M1 11h14M6 1v14M11 1v14"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
+        <!-- Gestão / Custos / Configurações (s293): a sidebar passou a separar o que se
+             CADASTRA do que se LANÇA. Bookies veio de Análise porque a tela agora também
+             cura a atribuição casa→tipster, que era uma aba do Tipster / Método. -->
         <div class="nav-group">Gestão</div>
         ${[
+          ['tipster_metodo','Tipsters & Métodos','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12.5" cy="10.5" r="3"/><path d="M12.5 9v3M11 10.5h3"/>'],
+          ['casas','Bookies','<rect x="1" y="3" width="14" height="10" rx="1"/><path d="M1 8h14M5 3v10"/>'],
           ['parceiros','Fornecedores & Parceiros','<rect x="2" y="4" width="12" height="9" rx="1"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/>'],
+        ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
+        <div class="nav-group">Custos</div>
+        ${[
           ['custos','Custos de Contas','<path d="M8 2v12M5 5h4.5a2 2 0 010 4H5m0 0h5a2 2 0 010 4H5"/>'],
-          ['custos_tipster','Custo de Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12" cy="5" r="2"/><path d="M10 13.2c.6-.5 2-.7 2-.7"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="10" y1="10" x2="14" y2="10"/>'],
-          ['tipster_metodo','Tipster / Método','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12.5" cy="10.5" r="3"/><path d="M12.5 9v3M11 10.5h3"/>'],
+          ['custos_tipster','Custos de Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12" cy="5" r="2"/><path d="M10 13.2c.6-.5 2-.7 2-.7"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="10" y1="10" x2="14" y2="10"/>'],
+        ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
+        <div class="nav-group">Configurações</div>
+        ${[
           ['metrics','Métricas','<path d="M8 2v2M8 12v2M2 8h2m8 0h2"/><circle cx="8" cy="8" r="3"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
       </nav>
@@ -578,6 +590,11 @@ function buildHTML(){
       <div class="page" id="page-casas">
         ${buildFilters('casas',sports,casas)}
         ${mkCard('casa_kpi','Bookies — Visão Geral','<div id="casaPortfolioKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:.75rem;margin-bottom:.75rem"></div><div class="tcard-sort"><span class="tcard-sort__lbl">Ordenar</span><div class="tcard-seg" id="casaSeg"><button data-k="pl" class="active" onclick="casaSortBy(this.dataset.k)">P/L</button><button data-k="roi" onclick="casaSortBy(this.dataset.k)">ROI</button><button data-k="to" onclick="casaSortBy(this.dataset.k)">Turnover</button><button data-k="wr" onclick="casaSortBy(this.dataset.k)">Win Rate</button><button data-k="vol" onclick="casaSortBy(this.dataset.k)">Volume</button></div><button class="tcard-dir" id="casaDir" onclick="casaSortDir()">↓</button></div><div class="tcard-grid" id="casaKpiCards"></div>')}
+        <!-- Atribuição por casa (s293): markup pintado por renderCasasFeudo (gestao.js).
+             O CSS do pack é todo escopado em .tm-wrap — o wrapper é obrigatório.
+             Sem crase nem cifrão neste comentário: ele vive DENTRO do template literal
+             de buildHTML, e o node --check aceita a crase calada — quebra só no runtime. -->
+        <div class="tm-wrap"><section class="pane" id="paneCasas"></section></div>
       </div>
 
       <!-- APOSTAS -->
@@ -963,15 +980,28 @@ function buildHTML(){
   // template privado fica intocado). Sem nav-item nem dispatch, as páginas de
   // gestão viram cascas inertes; o modal de edição sai do DOM inteiro.
   if(PUBLICO){
-    document.querySelectorAll('.sidebar-nav .nav-group').forEach(g=>{
-      if(['Operação','Resultados','Gestão'].includes(g.textContent.trim()))g.remove();
-    });
     // Links externos do grupo Operação — removidos por ID, nunca por posição: o
     // querySelector antigo pegava só o PRIMEIRO <a> e o 2º vazava para a página
     // pública do tipster assim que um link novo entrasse no grupo.
     ['nav-extracao-link','navSharpenUp'].forEach(id=>document.getElementById(id)?.remove());
     ['resultados','parceiros','custos','custos_tipster','tipster_metodo','metrics']
       .forEach(id=>document.getElementById('nav-'+id)?.remove());
+    // Bookies é conteúdo público (performance por casa), mas o grupo que passou a
+    // abrigá-lo — Gestão — não sobrevive à poda. Reparenta para Análise ANTES de podar,
+    // senão o item fica órfão sob um cabeçalho que sumiu.
+    const _navTip=document.getElementById('nav-tipsters'),_navCasas=document.getElementById('nav-casas');
+    if(_navTip&&_navCasas)_navTip.after(_navCasas);
+    // Cabeçalho de grupo é podado por estar VAZIO, nunca por nome: assim grupo novo na
+    // sidebar privada não precisa ser lembrado aqui para deixar de vazar na vitrine.
+    document.querySelectorAll('.sidebar-nav .nav-group').forEach(g=>{
+      let n=g.nextElementSibling,vazio=true;
+      while(n&&!n.classList.contains('nav-group')){
+        if(n.classList.contains('nav-item')){vazio=false;break;}
+        n=n.nextElementSibling;
+      }
+      if(vazio)g.remove();
+    });
+    document.querySelector('#page-casas .tm-wrap')?.remove();   // atribuição por casa (curadoria privada)
     document.querySelector('#page-apostas a[href="/exportar.csv"]')?.remove(); // download da base
     document.getElementById('apEditOverlay')?.remove();                        // modal de edição
     document.querySelector('#page-tipsters .tip-unit-row')?.remove();          // switch R$⇄u (já é u)

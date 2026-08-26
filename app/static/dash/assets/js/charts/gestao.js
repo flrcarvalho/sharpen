@@ -761,9 +761,11 @@ function _tmStakeTipica(stakes){
   return {top:top,dominante:top[0].share>=0.5,n:tot};
 }
 
-async function renderTipsterMetodo(){
-  const cont=document.getElementById('tipsterMetodoContent');
-  if(!cont)return;
+// Universo da tela: cadastro de tipsters + contas + taxonomia + agregado da base. Virou
+// função própria na s293 porque passou a ter DOIS chamadores — a Atribuição por casa saiu
+// daqui e foi para a tela Bookies, e lá pode ser a PRIMEIRA tela aberta. Sem esta carga o
+// multi-select de tipster da atribuição nasceria vazio, em silêncio.
+async function _tmCadastroCarregar(){
   let lista=[];
   try{const r=await fetch('/tipsters/cadastro?arquivados=1');const d=await r.json();lista=d.tipsters||[];}catch(e){lista=[];}
   _tmCadastro={};lista.forEach(t=>{_tmCadastro[t.nome]=t;});
@@ -772,6 +774,22 @@ async function renderTipsterMetodo(){
   // duas cargas são idempotentes (cacheiam por sessão) e vão juntas, em paralelo.
   try{await Promise.all([typeof contasLoad==='function'?contasLoad():null,_tmTaxoLoad()]);}catch(e){}
   _tmAgg=_tmBuildAgg();
+  return lista;
+}
+
+// Entrada da "Atribuição por casa" na tela Bookies (s293). O guard do pane vem ANTES da
+// carga: na vitrine pública o bloco é podado do DOM e não se gasta fetch nenhum.
+async function renderCasasAtribuicao(){
+  if(!document.getElementById('paneCasas'))return;
+  await _tmCadastroCarregar();
+  return renderCasasFeudo();
+}
+window.renderCasasAtribuicao=renderCasasAtribuicao;
+
+async function renderTipsterMetodo(){
+  const cont=document.getElementById('tipsterMetodoContent');
+  if(!cont)return;
+  const lista=await _tmCadastroCarregar();
   const nomes=_tmSortNomes(lista.map(t=>t.nome));
   const nInc=lista.filter(t=>!t.completo&&!t.arquivado).length;   // só ativos incompletos
 
@@ -789,27 +807,14 @@ async function renderTipsterMetodo(){
     const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
     corpo=_tmListaHTML(vis,!!filtro);
   }
-  const paneTP=`<section class="pane" id="paneTP"><div class="panel"><div class="panel__head"><span class="tick"></span><h2>Tipster / Método</h2></div>${intro}${toolbar}<div id="tmLista" style="padding:6px 14px 14px">${corpo}</div></div></section>`;
-  const paneCasas=`<section class="pane" id="paneCasas" hidden></section>`;
-  const kpis=`<span class="tm-kpi" id="kpiTP"><b>${nAtivos}</b> tipsters${nInc?` · <span class="w">${nInc} sem info</span>`:''}</span>`
-    +`<span class="tm-kpi" id="kpiCasas" style="display:none"><b id="kpiCasasN">—</b> casas · <span class="w" id="kpiCasasSug">—</span></span>`;
-  const tabs=`<div class="tabbar" role="tablist">`
-    +`<button data-tab="tp" class="on" onclick="tmTab('tp')"><span>Tipster / Método</span><span class="n">${nAtivos}</span></button>`
-    +`<button data-tab="casas" onclick="tmTab('casas')"><span>Casas</span><span class="n" id="tabCasasN">—</span></button></div>`;
-  cont.innerHTML=`<div class="tm-wrap"><div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:6px">${tabs}<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">${kpis}</span></div>${paneTP}${paneCasas}</div>`;
+  // Contagem no `.meta` do cabeçalho, e não numa pill acima do painel: a tabbar saiu junto
+  // com a aba "Casas" (s293) e o topo da página passou a ser só o título. Mesmo lugar em
+  // que o painel de Atribuição já mostra o dele (_casaMetaTxt).
+  const meta=`<span class="meta"><b>${nAtivos}</b> tipsters${nInc?` · <span class="w">${nInc} sem info</span>`:''}</span>`;
+  const paneTP=`<section class="pane" id="paneTP"><div class="panel"><div class="panel__head"><span class="tick"></span><h2>Tipsters &amp; Métodos</h2>${meta}</div>${intro}${toolbar}<div id="tmLista" style="padding:6px 14px 14px">${corpo}</div></div></section>`;
+  cont.innerHTML=`<div class="tm-wrap">${paneTP}</div>`;
   if(_tmOpen&&_tmCadastro[_tmOpen])tmRenderEditor(_tmOpen);
-  renderCasasFeudo();
 }
-// Troca de aba: alterna panes + KPIs no header.
-function tmTab(t){
-  const isTP=t==='tp';
-  document.querySelectorAll('.tm-wrap .tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
-  const p1=document.getElementById('paneTP'),p2=document.getElementById('paneCasas');
-  if(p1)p1.hidden=!isTP; if(p2)p2.hidden=isTP;
-  const k1=document.getElementById('kpiTP'),k2=document.getElementById('kpiCasas');
-  if(k1)k1.style.display=isTP?'':'none'; if(k2)k2.style.display=isTP?'none':'';
-}
-window.tmTab=tmTab;
 window.renderTipsterMetodo=renderTipsterMetodo;
 
 // ── Casas · aba "Atribuição por casa" (pack Tipster/Método do Feca) ────────────
@@ -862,10 +867,6 @@ async function renderCasasFeudo(){
   const nDed=_casasVisao.filter(c=>c.modo==='dedicada').length;
   const nComp=_casasVisao.filter(c=>c.modo==='multi').length;
   const nSem=_casasVisao.length-nDed-nComp;   // ainda não curadas — não valem no matcher
-  const set=(id,html)=>{const e=document.getElementById(id);if(e)e.innerHTML=html;};
-  set('tabCasasN',String(_casasVisao.length));
-  set('kpiCasasN',String(_casasVisao.length));
-  set('kpiCasasSug',pend?(pend+' sugestões'):'curado');
   const sSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>';
   const intro='<div class="intro">Casa de nicho costuma ser de <b>um tipster só</b> — na BETesporte é sempre o mesmo, independente do valor. Marque cada casa como <b>Dedicada</b> (1-2 tipsters) ou <b>Compartilhada</b>. As sugestões vêm da sua própria base. <span class="em">só vale no atribuidor depois que você curar</span></div>';
   const toolbar='<div class="toolbar"><div class="search">'+sSvg+'<input id="casaSearch" value="'+esc(_casasQ)+'" oninput="casasBusca(this.value)" placeholder="Buscar casa…"></div>'
@@ -909,8 +910,9 @@ function _orgTag(c){
 }
 // Meta do cabeçalho. "a definir" só aparece quando existe — casa não curada é pendência, e
 // pendência escondida é a que nunca é resolvida.
+// Total à frente: era o pill `N casas` do topo do Tipster / Método, que saiu na s293.
 function _casaMetaTxt(nDed,nComp,nSem){
-  return '<b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas'+(nSem?(' · <b>'+nSem+'</b> a definir'):'');
+  return '<b>'+(nDed+nComp+nSem)+'</b> casas · <b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas'+(nSem?(' · <b>'+nSem+'</b> a definir'):'');
 }
 function _casaRowGrid(c){
   const st=_casaState(c),cj=_tmJs(c.casa),isD=st.modo==='dedicada',sug=_casaSug(c);

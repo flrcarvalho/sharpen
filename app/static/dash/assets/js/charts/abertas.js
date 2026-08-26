@@ -1,6 +1,6 @@
 // ── abertas.js — "Em Aberto": exposição viva das apostas não liquidadas ───────
 //
-// Tela irmã da "Minha Base" (charts/apostas.js). A base é DADOS_ABERTAS — as linhas
+// Tela irmã da "Base Completa" (charts/apostas.js). A base é DADOS_ABERTAS — as linhas
 // que `aplicarFeed` separa por resultado==='ABERTA' e que NENHUMA métrica do
 // dashboard soma (não há P/L: nada resolveu ainda).
 //
@@ -65,7 +65,7 @@ function _abrtAgrupar(rows, chave) {
 }
 
 // ── Render principal ────────────────────────────────────────────────────────
-// A guarda de edição é a mesma da Minha Base (`renderApostasVirt`): a revalidação em
+// A guarda de edição é a mesma da Base Completa (`renderApostasVirt`): a revalidação em
 // 2º plano (`loadData`) reconstrói a tela sozinha, e no meio de uma edição inline isso
 // mataria o input com o valor já digitado dentro — sem erro, como se o clique não tivesse
 // acontecido. Fica na ENTRADA, não só na lista: repintar KPI e calendário enquanto a
@@ -248,7 +248,7 @@ function _abrtBarras(hostId, rows, chave, comChip) {
 // ── 4) Lista completa ──────────────────────────────────────────────────────
 // Ordem: data do evento CRESCENTE — o que resolve primeiro fica no topo (numa tela
 // de exposição viva, o próximo a liquidar é o que importa). Editar/deletar reusam
-// o modal e os endpoints da Minha Base (abrirEdicaoApostas / deletarApostas);
+// o modal e os endpoints da Base Completa (abrirEdicaoApostas / deletarApostas);
 // `_apRowById` já procura em DADOS_ABERTAS, então a linha é encontrada.
 function _abrtLista(rows) {
   const host = document.getElementById('abertasLista');
@@ -266,7 +266,7 @@ function _abrtLista(rows) {
     const q = _abrtQuando(r.data);
     const parceiro = r.parceiro && r.parceiro !== '—' ? r.parceiro : '';
     const ret = _abrtRetorno(r);
-    // Editável só com id (Postgres) E linha do dono efetivo — mesma régua da Minha Base.
+    // Editável só com id (Postgres) E linha do dono efetivo — mesma régua da Base Completa.
     const editavel = r.id != null && r.operador === window.__dono;
     // Duplo-clique edita in loco (motor em apostas.js, `_apInlineStart`, que já procura a
     // linha em DADOS_ABERTAS). `df()` marca o campo e `ec` põe o cursor de texto — só nas
