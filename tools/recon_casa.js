@@ -73,7 +73,14 @@
 
   // Chaves de identidade pessoal, apagadas do corpo e da resposta por NOME. Best-effort,
   // e assumidamente incompleto — ver o aviso do cabeçalho.
-  const PII = /^(?:e?-?mail|cpf|cnpj|rg|documento|document|documentnumber|phone|telefone|celular|mobile|msisdn|firstname|lastname|fullname|nome|nomecompleto|name|username|login|birth\w*|nascimento|address|endereco|zip\w*|cep|ip|ipaddress|password|senha)$/i;
+  //
+  // ⚠ `lat`/`long` entraram aqui DEPOIS, por medição: a 1xBet manda
+  // `x-location-latitude: -25.4278` / `x-location-longitude: -49.2731` em TODA requisição.
+  // São as coordenadas de quem coletou (deu Curitiba, ao quarteirão), viajavam no recon e
+  // iriam parar numa fixture versionada no git. Nenhum header de credencial casava com elas
+  // e nenhum campo de identidade se chamava assim — geolocalização é uma TERCEIRA família,
+  // e não estava coberta. Vale procurá-la em casa nova: é silenciosa e não parece segredo.
+  const PII = /^(?:e?-?mail|cpf|cnpj|rg|documento|document|documentnumber|phone|telefone|celular|mobile|msisdn|firstname|lastname|fullname|nome|nomecompleto|name|username|login|birth\w*|nascimento|address|endereco|zip\w*|cep|ip|ipaddress|password|senha|(?:x-)?(?:location-)?(?:lat|latitude|lon|lng|long|longitude|geo|coords?)|.*-(?:latitude|longitude))$/i;
 
   const est = {
     capturas: [],
@@ -112,9 +119,12 @@
     const o = {};
     try {
       if (!h) return o;
+      // Dois crivos, não um. `HEADER_SEGREDO` pega credencial; `PII` pega identidade — e é
+      // por ele que a geolocalização cai (`x-location-latitude`), que não é segredo nenhum
+      // e mesmo assim é dado pessoal. Header só passa inteiro se escapar dos dois.
       const por = (k, v) => {
         const nome = String(k).toLowerCase();
-        o[nome] = HEADER_SEGREDO.test(nome)
+        o[nome] = (HEADER_SEGREDO.test(nome) || PII.test(nome))
           ? "<REDIGIDO · " + String(v == null ? "" : v).length + " chars>"
           : String(v);
       };

@@ -1,0 +1,16 @@
+{
+ "BonusUserId": "<REDIGIDO — id da conta de quem coletou; o inject aprende o corpo verbatim em runtime>",
+ "CalculateSaleInfo": false,
+ "CalculateSummaryInfo": true,
+ "CfView": 3,
+ "Count": 1000,
+ "DateFrom": 1787331384,
+ "DateTo": 1787782039,
+ "IsTerminal": false,
+ "Language": "pt",
+ "OnlyBetsForSale": false,
+ "PartnerGroupId": 123,
+ "PartnerId": 394,
+ "UseArchive": true,
+ "Whence": 55
+}
