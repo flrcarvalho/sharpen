@@ -320,6 +320,7 @@ assinatura única" de "é um dos vários que aposto".
 2. **Reusar helper existente, nunca criar formatador.** `grep` por `fmtPL`/`fmtR`/`moneyStake`/`.money` no arquivo e reusar. Todo R$ usa o componente `.money`; só muda as casas por contexto (ver `UI_REFERENCE §5`): **P/L → `fmtPL` (2 casas**, `R$` menor `--ink-soft`, cor SÓ no número, minus U+2212, zero neutro); **agregado/KPI/turnover/custo → `fmtR` (inteiro)**. **Nunca abreviar milhar (`k`/`M`) — barrado pelo `check-tokens §d`.** `.toFixed`/`.replace` só nas exceções documentadas (odd/USD), nunca em R$.
 3. **Cor sempre de token** (`var(--…)`), nunca literal. `.money-sign`/sinal ficam neutros.
 4. **Auto-auditar item a item contra §5 ANTES do commit** + rodar `node scripts/tokens/check-tokens.mjs`.
+5. **Abrir a tela num navegador antes do commit.** `node --check` é falso verde para o que vive dentro de template literal: na s296 uma **crase** num comentário HTML dentro do `buildHTML` passou no check e deixou o dash **em branco** (`ReferenceError`). Suba o `scripts/demo/servidor_demo.py` e renderize headless — medir a tela é o único gate que pega isso.
 
 > Dúvida de qual convenção (tabela vs card)? Pergunte ao Feca — não invente uma terceira. Use `/nova-ui` para rodar este checklist guiado.
 
@@ -620,5 +621,5 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-24 (sessão 287 — regra nova: teste verde não é teste que detecta; gate novo se prova por mutação)
+ATUALIZADO: 2026-08-26 (sessão 296 — regra nova no checklist de UI: abrir a tela num navegador antes do commit; node --check é falso verde para template literal)
 identificar mensagem por `editMessageText` com texto idêntico)
