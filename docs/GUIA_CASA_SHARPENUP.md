@@ -13,10 +13,24 @@ Nenhuma fase começa antes de a anterior estar verde.
 
 ---
 
-## Fase 0 — Reconhecimento (o Feca no F12, 10 minutos)
+## Fase 0 — Reconhecimento (10 minutos de quem TEM a conta)
 
 **Nunca comece pelo código.** O que decide o modo é o que a casa entrega, e isso se descobre
 olhando. Roteiro, na página "Minhas Apostas" logada:
+
+> 💡 **Não precisa ser conta nossa.** `tools/recon_casa.js` faz os 7 passos abaixo sozinho:
+> o dono da conta cola no console, usa a casa por 30 s e baixa um `.json` com url, método,
+> corpo, resposta e os **nomes** dos headers — com valor de credencial e campo de identidade
+> já apagados. Roteiro pronto para repassar a um tester:
+> [`GUIA_RECON_TESTER.md`](GUIA_RECON_TESTER.md).
+>
+> **Isso é o que permite ligar casa em que ninguém aqui tem conta.** Da Fase 0 à 6 não é
+> preciso sessão nenhuma — o harness roda sem navegador e sem rede. Só a **Fase 7** volta a
+> exigir o tester, uma vez, por cinco minutos.
+>
+> O que ele NÃO resolve: dizer qual das requisições é a certa. Ele **ordena** as candidatas
+> (marca ◆ por palavra no caminho), e a ordenação é palpite — na 1xBet, ranquear por tamanho
+> punha o feed de odds (`Get1x2_VZip`, 77 KB) acima de tudo. Quem decide é quem lê o arquivo.
 
 1. F12 → **Network** → filtro **Fetch/XHR** → recarregue a página.
 2. Ache a requisição que traz a **lista de bilhetes** (ordene por *Size*; costuma ser a maior).

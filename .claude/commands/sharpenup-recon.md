@@ -12,10 +12,19 @@ NAO escrever codigo de producao. Segue `docs/GUIA_CASA_SHARPENUP.md` Fases 0 e 1
 Antes de comecar, leia `docs/GUIA_CASA_SHARPENUP.md` (Fases 0-1) e
 `docs/SHARPENUP_ARQUITETURA.md` (secoes 2 e 3).
 
-## 1. Peca o reconhecimento ao Feca (ele esta no navegador, voce nao)
+## 1. Peca o reconhecimento a quem TEM a conta (voce nao esta no navegador)
 
-Entregue o roteiro em 7 passos da Fase 0 do guia, adaptado ao nome da casa. O que
-precisa voltar:
+**Nao precisa ser o Feca, e nao precisa ser conta nossa.** Casa em que ninguem aqui tem
+conta se liga do mesmo jeito: quem tem a conta roda `tools/recon_casa.js` no console e
+manda UM arquivo. O roteiro pronto para repassar a um tester esta em
+`docs/GUIA_RECON_TESTER.md` — inclui a autorizacao que ele precisa dar antes.
+
+O coletor ja apaga valor de header de credencial e campo de identidade. **Nunca aceite
+senha, cookie ou `Copy as cURL` cru** — o inject aprende os headers sozinho, em tempo de
+execucao, dentro do navegador do dono (`nv_inject.js::capturarReq`).
+
+Se o Feca mesmo for fazer, o roteiro em 7 passos da Fase 0 do guia serve igual. O que
+precisa voltar, por qualquer um dos dois caminhos:
 
 - metodo + URL da requisicao da **lista de bilhetes** (e o corpo, se POST);
 - o **response salvo** em `extensor/harness/fixtures/<casa>.<endpoint>.json`;
