@@ -489,3 +489,58 @@ def test_flags_so_consulta_o_que_foi_editado_e_respeita_o_dono():
         f = await repository.flags_pos_edicao(ids[0], "TDonoA", {"aposta", "stake"})
         assert f == {"sem_codigo": True, "volatil": True}
     _run(body())
+
+
+# ── Modo sombra (Fase 0 do tradutor, s297) ───────────────────────────────────
+# Estes dois exercem a camada que `tests/test_sombra.py` declara NÃO cobrir: o
+# INSERT em lote e a PURGA por retenção. Existem porque o defeito real da s297 só
+# aparecia com Postgres de verdade — o intervalo ia como `$1::interval` e o asyncpg
+# recusa string crua nesse tipo. Como o INSERT já tinha commitado, a função devolvia
+# 0 com as 4 linhas gravadas: erro invisível, do tipo meio-atualizado.
+
+def test_sombra_grava_e_pareia_no_banco():
+    """O corpo de treino chega ao banco com o bloco colado na decisão certa."""
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE sombra_rotulos RESTART IDENTITY")
+        texto = ("[Código: AAA1]\nEsporte (casa): Soccer\nSeleções:\n  • Time A\n\n"
+                 "[Código: BBB2]\nEsporte (casa): Tennis\nSeleções:\n  • Sinner\n")
+        tsv = ("01/07/2026\tFutebol\t\tPinnacle\tc1\tML\tTime A\t10,00\t1,50\tW\tAAA1\n"
+               "01/07/2026\tTênis\t\tPinnacle\tc1\tML\tSinner\t10,00\t1,75\tW\tBBB2")
+        n = await repository.registrar_sombra("TDonoA", "Pinnacle", texto, tsv)
+        assert n == 2, "o INSERT precisa relatar o que gravou (a purga não pode zerar isso)"
+        async with pool.acquire() as conn:
+            linhas = await conn.fetch(
+                "SELECT codigo, bruto, ia_esporte FROM sombra_rotulos "
+                "WHERE dono='TDonoA' ORDER BY id")
+        assert [l["codigo"] for l in linhas] == ["AAA1", "BBB2"]
+        # cada bloco é o do próprio bilhete — cruzar aqui envenena o corpo de treino
+        assert "Time A" in linhas[0]["bruto"] and "Sinner" not in linhas[0]["bruto"]
+        assert "Sinner" in linhas[1]["bruto"] and "Time A" not in linhas[1]["bruto"]
+        assert [l["ia_esporte"] for l in linhas] == ["Futebol", "Tênis"]
+    _run(body())
+
+
+def test_sombra_purga_o_velho_e_preserva_o_novo():
+    """A purga por retenção roda de verdade (o bug da s297 era exatamente ela)."""
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE sombra_rotulos RESTART IDENTITY")
+            # linha plantada ALÉM da janela de retenção
+            await conn.execute(
+                "INSERT INTO sombra_rotulos (criado_em, dono, casa, codigo, bruto) "
+                "VALUES (NOW() - ($1 || ' days')::interval, 'TDonoA', 'Pinnacle', 'VELHO', 'x')",
+                str(repository._SOMBRA_DIAS + 5))
+        texto = "[Código: NOVO1]\nSeleções:\n  • Time A\n"
+        tsv = "01/07/2026\tFutebol\t\tPinnacle\tc1\tML\tTime A\t10,00\t1,50\tW\tNOVO1"
+        assert await repository.registrar_sombra("TDonoA", "Pinnacle", texto, tsv) == 1
+        async with pool.acquire() as conn:
+            codigos = [r["codigo"] for r in await conn.fetch(
+                "SELECT codigo FROM sombra_rotulos WHERE dono='TDonoA'")]
+        assert "NOVO1" in codigos, "a linha nova tem de sobreviver à própria purga"
+        assert "VELHO" not in codigos, "a purga por retenção não rodou"
+    _run(body())

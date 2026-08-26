@@ -379,6 +379,44 @@ DROP TRIGGER IF EXISTS trg_bilhetes_base_mudou ON bilhetes;
 CREATE TRIGGER trg_bilhetes_base_mudou
     AFTER INSERT OR UPDATE OR DELETE ON bilhetes
     FOR EACH ROW EXECUTE FUNCTION notificar_base_mudou();
+
+-- ── Fase 0 do tradutor determinístico: MODO SOMBRA (s297) ─────────────────────
+-- Grava, por bilhete extraído, o BLOCO BRUTO que o robô da casa emitiu ao lado da
+-- DECISÃO que a IA tomou. É o corpo de treino do tradutor — hoje esse par não
+-- existe em lugar nenhum: `bilhetes` guarda só a categoria canônica (o resultado),
+-- nunca o rótulo que a casa usou (a entrada), e o `§9` dos arquivos de casa lista
+-- de 4 a 35 mercados confirmados, longe de cobrir o mundo real.
+--
+-- ⚠️ ISTO NÃO É O MAPA — é a OBSERVAÇÃO de onde o mapa vai sair. O nome é
+-- `sombra_rotulos` de propósito: quem procurar uma tabela de-para pronta não vai
+-- achar aqui, e é bom que não ache.
+--
+-- POR QUE O BLOCO INTEIRO, e não o rótulo do mercado já isolado: medido na s297,
+-- **só 4 dos 16 formatadores emitem o mercado como campo próprio** (`Mercado:` na
+-- BETesporte e na Superbet, `Rótulo da casa:` no Pitaco, `Marcação da casa:` na
+-- KTO). Nos outros 12 — a Bet365 inclusive, que é 43% do custo — ele vem
+-- POSICIONAL, concatenado na linha de seleção (`jogo · mercado · seleção`), com
+-- formato próprio de cada casa. Isolar isso no backend AGORA seria escrever o
+-- parser por casa antes de ter o dado que diz como ele deve ser — exatamente o
+-- trabalho que esta fase existe para informar. Gravamos cru; a agregação sai em
+-- SQL depois, e errar a agregação não custa nada porque a matéria-prima ficou.
+--
+-- Uma linha por bilhete por extração (re-extração do mesmo bilhete grava de novo,
+-- de propósito: é assim que se vê a IA decidir DIFERENTE para a mesma entrada).
+-- Sem FK para `bilhetes`: a sombra observa a EXTRAÇÃO, e sobrevive a bilhete
+-- apagado. Volume esperado ~15 mil linhas/mês; a purga preguiçosa abaixo segura.
+CREATE TABLE IF NOT EXISTS sombra_rotulos (
+    id           BIGSERIAL PRIMARY KEY,
+    criado_em    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono         TEXT NOT NULL,
+    casa         TEXT,
+    codigo       TEXT,             -- código do bilhete; é o que pareia bruto × decisão
+    bruto        TEXT NOT NULL,    -- o bloco do robô, verbatim (entrada da IA)
+    ia_esporte   TEXT,             -- decisão 1: esporte canônico
+    ia_aposta    TEXT,             -- decisão 2: categoria de mercado
+    ia_descricao TEXT              -- decisão 3: a descrição montada (o campo de risco)
+);
+CREATE INDEX IF NOT EXISTS sombra_rotulos_casa_criado ON sombra_rotulos (casa, criado_em);
 """
 
 

@@ -1,10 +1,12 @@
 # PLANO — Tradutor determinístico + estudo de custo e viabilidade
 
-> **Status:** plano proposto em 2026-08-25 (sessão 295).
-> **As correções A e C do §V já foram APLICADAS nesta sessão** (TTL de cache de 1h + aquecedor
-> a cada 55 min + preço do `cache_write` ajustado; escalonamento do 1º chunk). **A correção B
-> está BLOQUEADA** por um achado — ver §IV.6. As fases do tradutor (§II.4) seguem **não
-> iniciadas**.
+> **Status:** plano proposto em 2026-08-25 (sessão 295); **Fase 0 aplicada em 2026-08-26 (s297)**.
+> **As correções A e C do §V foram APLICADAS na s295** (TTL de cache de 1h + aquecedor
+> a cada 55 min + preço do `cache_write` ajustado; escalonamento do 1º chunk) e o efeito já foi
+> **medido em produção**: regravação do manual por chamada 17.416 → 5.153 (−70 %), chamadas
+> chegando com cache frio 44,5 % → 6,5 %, custo por chamada −23 %. **A correção B segue
+> BLOQUEADA** — ver §IV.6. **A Fase 0 do tradutor está no ar** (modo sombra, §II.6); as fases 1 a
+> 4 seguem não iniciadas.
 > Todos os números vêm de medição direta: Postgres de produção (`uso_tokens`, `bilhetes`,
 > `correcoes`), `messages.count_tokens` da API Anthropic, e `git log` do repositório.
 > Janela de custo: 30 dias (25/07–24/08/2026) · janela de casa: 60 dias · PTAX 24/08 = **R$ 5,1512**.
@@ -125,6 +127,11 @@ O rótulo bruto já viaja no bloco de texto (`Esporte (casa): Tennis · ATP Cinc
 seleção com o mercado). O que falta é gravá-lo junto da decisão. Isso é **uma tabela nova e um
 gancho no `done`** de cada extração — o mesmo lugar onde `registrar_uso` já grava hoje.
 
+> ⚠️ **Este parágrafo foi corrigido pela medição da s297 — leia o §II.6 antes de agir por ele.**
+> Para o ESPORTE a premissa vale; para o MERCADO, não: só 4 dos 16 formatadores o emitem como
+> campo próprio. Nos outros 12 ele é posicional, dentro da linha de seleção. Por isso a sombra
+> grava o bloco INTEIRO, e a tabela chama `sombra_rotulos` — ela não é o mapa.
+
 Em duas a quatro semanas de tráfego real o mapa se escreve sozinho, **com contagem de frequência**,
 que é justamente o que diz quando uma casa está pronta para virar a chave.
 
@@ -148,7 +155,7 @@ candidata natural a ganhar captura, não a justificar um projeto.
 
 | Fase | O que entrega | Como se prova pronta |
 |---|---|---|
-| **0 · Sombra** | tabela `mapa_rotulos` + gancho no `done`; nada muda para o usuário | o mapa existe e tem contagem por casa |
+| **0 · Sombra** ✅ | tabela `sombra_rotulos` + gancho nos dois caminhos de extração; nada muda para o usuário | **FEITA na s297** — ver §II.6 |
 | **1 · Tradutor** | motor de tradução + fallback por linha, **desligado** | roda em paralelo à IA; grava só o diff |
 | **2 · Diff** | relatório casa a casa: em quantas linhas tradutor ≠ IA, e em qual campo | **taxa de divergência < 1% em ≥ 500 bilhetes** daquela casa |
 | **3 · Virada** | flag por casa: tradutor manda, IA vira fallback | custo da casa cai a zero no `uso_tokens` |
@@ -173,7 +180,45 @@ continua sendo a verdade gravada até o diff provar que dá para trocar. Nada é
 `extensor/harness/fixtures/` — a bancada de teste do tradutor **já existe**, com 20 casos e 304
 bilhetes.
 
-### II.6 Como o harness prova cada casa
+### II.6 Fase 0 aplicada (s297) — e o que a medição mudou no desenho
+
+**A premissa do §II.2 estava meio certa.** O plano dizia que "o rótulo bruto já viaja no bloco
+de texto". Para o **esporte**, sim. Para o **mercado**, não: medindo os 16 formatadores do
+`content.js`, **só 4 emitem o mercado como campo próprio** — `Mercado:` (BETesporte, Superbet),
+`Rótulo da casa:` (Pitaco) e `Marcação da casa:` (KTO). Nos outros 12, a **Bet365 inclusive**
+(43 % do custo), ele vem **posicional**, concatenado na linha de seleção
+(`jogo · mercado · seleção`), em formato próprio de cada casa.
+
+E há variação dentro da mesma casa: o bilhete **múltiplo** da Pinnacle não tem a linha
+`Esporte (casa):` — ali o esporte só existe dentro das seleções.
+
+**Consequência de desenho:** isolar o rótulo no backend agora seria escrever o parser por casa
+**antes** de ter o dado que diz como ele deve ser — exatamente o trabalho que esta fase existe
+para informar. A sombra grava o **bloco inteiro, verbatim**, ao lado das três decisões da IA
+(esporte, categoria, descrição), pareados pelo código do bilhete. A agregação sai em SQL depois;
+errar a agregação não custa nada porque a matéria-prima fica.
+
+Por isso a tabela chama `sombra_rotulos`, e **não** `mapa_rotulos`: ela é a *observação* de onde
+o mapa vai sair, não o mapa. Quem procurar um de-para pronto ali não vai achar — e é bom que não
+ache.
+
+**O que ficou de fora, de propósito:** bilhete **sem código** não entra (o pareamento é por
+código, e sem ele não há como saber qual linha do TSV corresponde a qual bloco). Print e casa sem
+marcador ficam fora — o que é justo, porque print também fica fora do tradutor: não há payload
+para traduzir.
+
+**Um defeito encontrado no caminho, e ele é da família mais perigosa do projeto.** O teste
+unitário passou verde e o teste de ponta a ponta contra o Postgres real reprovou: a purga por
+retenção passava o intervalo como `$1::interval`, que o asyncpg recusa. Como o `INSERT` já tinha
+commitado, `registrar_sombra` devolvia **0 com as 4 linhas gravadas** — a linha meio-atualizada,
+agora no registro de quanto se observou. A purga ganhou `try` próprio: **faxina nunca pode
+desmentir a escrita.**
+
+> **Método que pagou:** o teste unitário declara no cabeçalho o que **não** cobre (a camada de
+> I/O). Foi ler essa declaração e ir exercitar exatamente aquilo que achou o defeito. Limite
+> escrito é limite que alguém vai fechar; limite implícito vira promessa falsa.
+
+### II.7 Como o harness prova cada casa
 
 O `extensor/harness/run.mjs` hoje prova que o **inject** produz o bloco de texto certo a partir do
 payload congelado. O tradutor entra no mesmo lugar, com uma asserção a mais por caso:

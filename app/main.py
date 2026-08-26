@@ -76,7 +76,7 @@ from repository import (
     reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
     resumo_parceiro, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
-    registrar_uso, uso_resumo,
+    registrar_uso, uso_resumo, registrar_sombra,
     conferir_cobertura, codigos_do_texto,
 )
 
@@ -1215,6 +1215,12 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         if sis_fix["sistemas"]:
             logger.info("seq sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
         _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens))
+        # Fase 0 do tradutor (modo sombra): guarda bruto×decisão para o mapa se
+        # escrever sozinho. Vem DEPOIS de `anexar_sistema_tsv` porque o corpo de
+        # treino tem de ser o TSV FINAL — o mesmo que foi para o banco, não um
+        # intermediário. Fire-and-forget, igual ao uso: observar não pode custar
+        # a extração de ninguém.
+        _fire(registrar_sombra(dono, casa, texto, accumulated))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
@@ -1391,6 +1397,8 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         if sis_fix["sistemas"]:
             logger.info("par sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
+        # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
+        _fire(registrar_sombra(dono, casa, texto, resultado))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura})}\n\n"
     except Exception:
         logger.exception("par-final error")

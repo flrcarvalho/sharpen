@@ -2787,6 +2787,100 @@ async def registrar_uso(dono: str, casa: str, modelo: str, chunks: int,
         logger.warning("registrar_uso falhou (uso não gravado)", exc_info=True)
 
 
+# ── Fase 0 do tradutor: MODO SOMBRA ───────────────────────────────────────────
+# Guarda o par (bloco bruto do robô) → (o que a IA decidiu), pareado pelo CÓDIGO
+# do bilhete. Ver o comentário da tabela `sombra_rotulos` em database.py para o
+# porquê de gravar o bloco inteiro em vez do rótulo já isolado.
+#
+# O QUE ESTA FUNÇÃO NÃO COBRE, e é de propósito:
+#   • bilhete SEM código não entra. O pareamento bruto×decisão é por código, e sem
+#     ele não há como saber qual linha do TSV corresponde a qual bloco. Print e
+#     casa sem marcador ficam de fora — que é justo, porque print também fica de
+#     fora do tradutor (não há payload para traduzir).
+#   • código que a IA devolveu mas não existe no texto não entra (e vice-versa):
+#     só o que casa dos dois lados vira linha.
+_SOMBRA_DIAS = 120          # janela de retenção; purga preguiçosa, sem cron
+_SOMBRA_BRUTO_MAX = 4000    # teto por bloco: corta bilhete-monstro, não a coluna
+
+
+def parear_sombra(dono: str, casa: str, texto: str | None, tsv: str) -> list[tuple]:
+    """Pareia bloco bruto × decisão da IA pelo CÓDIGO do bilhete. Função PURA.
+
+    Devolve a lista de tuplas prontas para o INSERT, na ordem do TSV. Vazia quando
+    não há nada que case dos dois lados — que é o caso normal de print e de casa
+    sem marcador de código.
+    """
+    if not texto or not tsv:
+        return []
+    # Fatia o texto pelo MESMO marcador que o chunker usa para partir e que a
+    # conferência de cobertura usa para cobrar. Reusar a fronteira é o que mantém
+    # as três leituras do texto de acordo entre si.
+    partes = _ID_MARCADOR_RE.split(texto)
+    # split com 1 grupo de captura → [antes, cod1, bloco1, cod2, bloco2, …]
+    blocos: dict[str, str] = {}
+    for i in range(1, len(partes) - 1, 2):
+        codigo = (partes[i] or "").strip()
+        if codigo and codigo not in blocos:      # 1ª ocorrência manda
+            blocos[codigo] = (partes[i + 1] or "")[:_SOMBRA_BRUTO_MAX]
+    if not blocos:
+        return []
+
+    linhas = []
+    for row in parse_tsv(tsv):
+        codigo = (row.get("codigo_bilhete") or "").strip()
+        bruto = blocos.get(codigo)
+        if not codigo or bruto is None:
+            continue
+        linhas.append((dono, casa, codigo, bruto,
+                       row.get("esporte") or "", row.get("aposta") or "",
+                       row.get("descricao") or ""))
+    return linhas
+
+
+async def registrar_sombra(dono: str, casa: str, texto: str | None, tsv: str) -> int:
+    """Grava o corpo de treino do tradutor. Fire-and-forget: NUNCA derruba o stream.
+
+    Devolve quantas linhas gravou (0 quando não há o que parear) — o retorno existe
+    para o chamador poder logar sem ir ao banco.
+    """
+    try:
+        linhas = parear_sombra(dono, casa, texto, tsv)
+        if not linhas:
+            return 0
+
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                """INSERT INTO sombra_rotulos
+                     (dono, casa, codigo, bruto, ia_esporte, ia_aposta, ia_descricao)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7)""",
+                linhas,
+            )
+            # Purga preguiçosa (mesmo idioma da lixeira de contas): sem cron, sem
+            # serviço novo. Roda barato porque o índice é (casa, criado_em).
+            #
+            # ⚠️ `try` PRÓPRIO, e não é zelo: o INSERT acima já COMMITOU quando esta
+            # linha roda. Um erro aqui dentro do mesmo `except` faria a função
+            # devolver 0 **com as linhas gravadas** — a linha meio-atualizada que o
+            # CLAUDE.md descreve, agora no registro de quanto se observou. Foi
+            # exatamente o que aconteceu na s297: o intervalo ia como `$1::interval`
+            # (asyncpg recusa string crua aí), as 4 linhas entraram e a função
+            # relatou 0. Faxina nunca pode desmentir a escrita.
+            try:
+                await conn.execute(
+                    "DELETE FROM sombra_rotulos WHERE criado_em < NOW() - ($1 || ' days')::interval",
+                    str(_SOMBRA_DIAS),
+                )
+            except Exception:
+                logger.warning("sombra: purga falhou (as linhas novas ESTÃO gravadas)",
+                               exc_info=True)
+        logger.info("sombra: %d linha(s) de %s", len(linhas), casa or "?")
+        return len(linhas)
+    except Exception:
+        logger.warning("registrar_sombra falhou (sombra não gravada)", exc_info=True)
+        return 0
+
+
 async def uso_resumo(dono: str, dias: int = 30, todos: bool = False) -> dict:
     """Resumo de uso/custo dos últimos `dias`. Se `todos`, agrega TODOS os donos
     (visão da carteira inteira, p/ o dono do projeto) e inclui quebra por dono."""
