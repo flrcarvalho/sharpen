@@ -127,7 +127,11 @@ def main(argv: list[str]) -> int:
     main_txt = MAIN_PY.read_text(encoding="utf-8")
     html_txt = INDEX_HTML.read_text(encoding="utf-8")
     chaves_main = set(re.findall(r'"([A-Z0-9]+)":\s*"', main_txt))
-    chaves_html = set(re.findall(r'\b([A-Z0-9]+):\s*[\'"]', html_txt))
+    # ⚠ A chave pode estar ENTRE ASPAS, e às vezes ela é obrigada a estar. A 1xBet (s298) é a
+    # primeira casa cujo nome começa com dígito, e `1XBET: '1xBet'` é erro de sintaxe em JS —
+    # identificador não começa com número. Sem o `['\"]?` opcional antes dos dois-pontos, o
+    # audit acusaria "ausente em NOMES" para uma chave que está lá e funciona.
+    chaves_html = set(re.findall(r'\b([A-Z0-9]+)[\'"]?:\s*[\'"]', html_txt))
 
     if argv:
         alvos = [CASAS_DIR / a for a in argv]

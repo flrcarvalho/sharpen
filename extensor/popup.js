@@ -49,6 +49,7 @@ const CASA_HOSTS = {
   "Pitaco":     ["pitaco.bet.br"],
   // Plataforma própria (gateway BlueBrown). A API mora no MESMO host da casa (`/spt/api/…`).
   "Novibet":    ["novibet.bet.br"],
+  "1xBet":      ["1xbet.bet.br"],
   "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject PRÓPRIO, sem espelho
   "Lottu":      ["lottu.bet.br"],         // motor NGBras (s290) · API em alpha-sb.ngbras.com
 };
@@ -213,6 +214,9 @@ async function capturar() {
                 : (casa === "Jonbet" || casa === "Betboom") ? "jb_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
+                // 1xBet: plataforma própria (app Vue, API em `/service/`). `x1_`, e não
+                // `1x_`, para o nome não começar por dígito.
+                : casa === "1xBet" ? "x1_inject.js"
                 // SportingBet: 1º motor bwin/Entain do Sharpen — inject próprio.
                 // `spb_`, e não `sb_`, porque `sb_inject.js` já é da Superbet.
                 : casa === "SportingBet" ? "spb_inject.js"

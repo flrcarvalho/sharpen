@@ -202,6 +202,12 @@ _CASA_DISPLAY: dict[str, str] = {
     # registrar: 59 grafias distintas em `parceiros`, 0 quebradas. Ver o aviso de mudança
     # RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5 — é o defeito que matou a Jonbet na s249.
     "NOVIBET":        "Novibet",
+    # A base JÁ usava esta grafia antes do registro: 267 bilhetes e 1 conta (dono `arrudex`,
+    # conta `Eu`, `origem='import'`), todos com `codigo_bilhete` vazio. Grafia ÚNICA — a
+    # varredura das 7 tabelas onde `casa` é texto não achou `1XBET`, `1x Bet` nem variante
+    # nenhuma (s298). Round-trip conferido antes de registrar. Ver o aviso de mudança
+    # RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5 — é o defeito que matou a Jonbet na s249.
+    "1XBET":          "1xBet",
     "POLYMARKET":     "Polymarket",
     # A base já usava esta grafia antes do registro (1 conta e 8 bilhetes do LavaPessoal,
     # medidos na s257) — então o round-trip `_casa_display(_display_to_key("Stake"))` continua
@@ -589,6 +595,7 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "NOVIBET",
     "SPORTINGBET",
     "LOTTU",
+    "1XBET",
 })
 
 

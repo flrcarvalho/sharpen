@@ -249,6 +249,40 @@
     }
   });
 
+  // Bilhetes da 1xBET capturados pelo x1_inject.js (mundo MAIN) — o `POST
+  // /service/bethistory/GetBetInfoHistoryWithSummaryByDates`, já normalizado. Plataforma
+  // PRÓPRIA (app Vue, API em `/service/`), sem parentesco com Altenar/BetBy/Kambi/
+  // BetConstruct/BlueBrown.
+  //
+  // Aqui o PASSIVO FUNCIONA (o `clone()` da resposta resolve, ao contrário de Pitaco e
+  // Novibet), então `x1Respostas` conta a da página E as do replay. O replay existe porque a
+  // TELA É ESTREITA: ela pede uma janela fixa de ~5,2 dias e reconsulta a mesma janela a cada
+  // ~5 s, para sempre — quem alarga para 12 meses é o inject.
+  //
+  // `x1ById` guarda 1 bilhete por `BetId` (o número que o card estampa). A versão RESOLVIDA
+  // vence a ABERTA: `liquidada` (`BetSettlingDate`) só existe depois de liquidar.
+  const x1ById = new Map();          // BetId(string) → bilhete
+  let x1FimReal = false;
+  let x1HookVivo = false, x1Respostas = 0;   // autodiagnóstico
+  let x1Total = 0, x1Erro = "";              // `BetsSummaryInfo.Count` e o erro do replay
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupX1Data) {
+      if (d.hook) x1HookVivo = true;
+      if (typeof d.respostas === "number") x1Respostas = d.respostas;
+      if (typeof d.total === "number") x1Total = d.total;
+      if (d.erro) x1Erro = String(d.erro);
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.ref) continue;
+          const ex = x1ById.get(b.ref);
+          if (!ex || (ex.liquidada == null && b.liquidada != null)) x1ById.set(b.ref, b);
+        }
+      }
+      if (d.fim) x1FimReal = true;
+    }
+  });
+
   // Bilhetes da JONBET capturados pelo jb_inject.js (mundo MAIN) — as RESPOSTAS de
   // `my_bets/list` (BetBy / sptpub), já normalizadas pelo inject. Mesmo modelo passivo +
   // REPLAY ATIVO: o inject repagina por `skip` até `skip >= count`, então o operador NÃO
@@ -927,6 +961,23 @@
       // branco entre bilhetes, então o roboScroll genérico viraria um bloco só e a IA
       // perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboNVPassive(ctx);
+    } else if (casa === "1xbet") {
+      // PASSIVO + REPLAY (x1_inject). Plataforma própria da casa (app Vue, API em
+      // `/service/`), sem parentesco com Altenar/BetBy/Kambi/BetConstruct/BlueBrown.
+      //
+      // Aqui o passivo FUNCIONA — o `clone().text()` resolve limpo (34 de 34 no recon), ao
+      // contrário de Pitaco e Novibet. Ainda assim o replay é obrigatório, por um motivo só,
+      // medido: A TELA PEDE UMA JANELA FIXA DE ~5,2 DIAS e reconsulta essa MESMA janela a
+      // cada ~5 segundos, para sempre. Um passivo perfeito pegaria 91 bilhetes de 95 e
+      // pareceria completo — o replay alarga para 12 meses.
+      //
+      // Não há paginação nesta casa (sem `skip`/`page`/cursor): o replay escala o `Count` até
+      // o lote alcançar o `BetsSummaryInfo.Count`, que é fim autoritativo DE VERDADE — não
+      // muda com o tamanho pedido (medido: `Count:10` devolve 10 e segue dizendo 95).
+      //
+      // SEM fallback de texto: os cards da lista ficam colados, sem linha em branco entre
+      // bilhetes, e o roboScroll genérico viraria um bloco só (lição da KTO, s192).
+      blocos = await robo1XPassive(ctx);
     } else if (casa === "pitaco") {
       // Replay puro (pt_inject) sobre gRPC-Web/protobuf binário — plataforma própria da casa,
       // sem parentesco com Altenar/BetBy/Kambi/BetConstruct. Duas particularidades desta casa:
@@ -1056,6 +1107,13 @@
         pitaco:     { nome: "Pitaco",     hook: ptcHookVivo, resp: ptcRespostas, vistos: ptcById.size,
                       extra: ptcErro ? " · " + ptcErro
                            : (ptcRespostas === 0 ? " · abra Minhas Apostas e recarregue a página (Ctrl+Shift+R); se persistir, refaça o login" : "") },
+        // 1xBet: `respostas` conta a da PÁGINA e as do replay (o passivo funciona aqui). Hook
+        // ATIVO com 0 respostas significa que o inject nunca viu a requisição — quase sempre
+        // a página de histórico não foi aberta, e sem uma requisição real o replay não tem o
+        // corpo para aprender (`PartnerId`, `Whence`, `BonusUserId` são da conta).
+        "1xbet":    { nome: "1xBet",      hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size,
+                      extra: x1Erro ? " · " + x1Erro
+                           : (x1Respostas === 0 ? " · abra Minhas apostas (Histórico de apostas) e rode de novo" : "") },
         betnacional: { nome: "BetNacional", hook: bncHookVivo, resp: bncRespostas, vistos: bncById.size },
         tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         // Espelho da Tivo: mesmo inject, mesmos contadores. Só o nome muda, para o
@@ -2644,6 +2702,231 @@
     console.log("[SharpenUp] Novibet: " + blocos.length + " bilhete(s) · nvById=" + nvById.size +
                 " · hook=" + nvHookVivo + " · respostas=" + nvRespostas + " · fimReal=" + nvFimReal +
                 (nvTruncado ? " · janela truncada em 12 meses pela casa" : ""));
+    return blocos;
+  }
+
+  // ── 1xBet modo API (passivo + replay que ALARGA a janela) ────────────────────
+  // De-para do status do BILHETE, medido em 95 bilhetes de 12 meses: `BetStatus` só assume
+  // 1, 2 e 4. O canônico vive na `CASA_1XBET.md §5`; aqui é só a leitura. Enum fora deste
+  // mapa sobe CRU e não é liquidado.
+  const _ST_X1 = { 1: "aberta", 2: "perdida", 4: "ganha" };
+  const _abertaX1 = (b) => _ST_X1[b.status] === "aberta";
+
+  // ⚠ A ANULADA NÃO TEM STATUS PRÓPRIO NESTA CASA. Ela vem como `BetStatus: 4` (ganha), com o
+  // stake devolvido inteiro (`WinSum == BetSum`) e `Coef == 1` — o bilhete 16001193: apostou
+  // R$ 10, recebeu R$ 10. Quem lê o enum cru marca V como VITÓRIA e infla o P/L em toda
+  // anulação. É o inverso exato da lição da Stake (s257): lá o dinheiro não separava V de L e
+  // o enum tinha de mandar; aqui o ENUM não separa V de W e o DINHEIRO manda.
+  //
+  // O critério é o dinheiro, não a odd: `Coef == 1` sozinho aconteceria numa múltipla em que
+  // todas as pernas fossem anuladas, e aí o retorno também seria o stake — os dois concordam.
+  function _anuladaX1(b) {
+    return b.status === 4 && typeof b.pagou === "number" && typeof b.stake === "number" &&
+           b.stake > 0 && Math.abs(b.pagou - b.stake) <= 0.005;
+  }
+
+  // Odd ESTRUTURAL (a que vale em L, V e aberta).
+  //
+  // ⚠ O `Coef` do bilhete MENTE NA PERDIDA. Quando uma perna é anulada, a casa recalcula o
+  // `Coef` se o bilhete GANHOU (7 de 7 medidos: `Coef` == produto das pernas, e `stake × Coef`
+  // == `WinSum` ao centavo) e NÃO recalcula se PERDEU (9 de 9 ficam com o valor PRÉ-anulação:
+  // o 16101007 declara 8,607956 onde a estrutura real é 2,11 × 1 × 2,17 = 4,5787).
+  //
+  // O GATILHO É A PERNA ANULADA, NUNCA A DIVERGÊNCIA SOZINHA — e isso é deliberado. Num
+  // bilhete perdido, "Coef inflado por anulação" e "Coef turbinado por boost" são
+  // INDISTINGUÍVEIS: nos dois o `Coef` fica acima do produto e não há dinheiro para arbitrar.
+  // Corrigir por divergência pura destruiria uma odd de boost legítima. Nesta casa não se
+  // observou boost em 95 bilhetes; se aparecer, este gatilho já evita o falso positivo.
+  //
+  // A tolerância de 1% é folga de ponto flutuante, não de negócio: os 9 casos reais divergem
+  // entre 47% e 311%, enquanto o produto em float erra na 7ª casa (o 16094935 dá 7,509859
+  // contra 7,50986 declarado, e NÃO deve ser "corrigido").
+  function _oddEstruturalX1(b) {
+    const decl = (typeof b.odd === "number" && b.odd > 0) ? b.odd : null;
+    const prod = (typeof b.oddProduto === "number" && b.oddProduto > 0) ? b.oddProduto : null;
+    if (decl == null) return prod;
+    if (prod == null || !b.temAnulada) return decl;
+    return (Math.abs(decl - prod) / prod > 0.01) ? prod : decl;
+  }
+
+  // Odd efetiva. Em W é SEMPRE `Retorno ÷ Stake` (`MASTER_RESULTADO §2`) — o `Coef` declarado
+  // explica o retorno ao centavo em 15 de 15, mas diverge na 5ª casa (4,14164 × 4,14166667) e
+  // regra global não se negocia por casa. Em L, V e aberta vale a estrutural.
+  function _oddX1(b) {
+    if (b.status === 4 && !_anuladaX1(b) && typeof b.pagou === "number" &&
+        typeof b.stake === "number" && b.stake > 0) {
+      return b.pagou / b.stake;
+    }
+    return _oddEstruturalX1(b);
+  }
+
+  function _statusX1(b) {
+    if (_anuladaX1(b)) return "Anulada → V";
+    const s = _ST_X1[b.status];
+    if (s === "aberta") return "Em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (s === "perdida") return "Perdeu → L";
+    if (s === "ganha") return "Ganhou → W";
+    return String(b.status) + " (a conferir — não liquidar automaticamente)";
+  }
+
+  // ⚠ A 1xBet MISTURA HOMÓGLIFOS CIRÍLICOS no próprio dicionário. Medido na amostra real:
+  // `Handiсap 1 (-2.5) Sets` usa `с` (U+0441 CYRILLIC SMALL LETTER ES) no lugar do `c` latino,
+  // e o mesmo acontece em `Superсopa - Alemanha` e no clube francês `АС Lorient` (as DUAS
+  // letras cirílicas). São visualmente idênticos ao latino e são strings DIFERENTES: nenhum
+  // mapa do `§9`, nenhum grep e nenhuma comparação de descrição casaria com eles, e o defeito
+  // é invisível na tela. É a mesma família da grafia de casa (`Bet365` × `BET365`), só que
+  // dentro do texto do mercado.
+  //
+  // A troca só acontece quando a string é PREDOMINANTEMENTE LATINA. Isso protege um nome
+  // legitimamente cirílico (um clube russo escrito em russo) de ser mutilado: ali não há
+  // letra latina para comparar, e o texto sobe verbatim — a mesma política de nunca
+  // title-casear nome de casa.
+  const _HOMOGLIFOS_X1 = {
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y",
+    "х": "x", "і": "i", "ј": "j", "ѕ": "s",
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H",
+    "О": "O", "Р": "P", "С": "C", "Т": "T", "У": "Y", "Х": "X",
+    "І": "I", "Ј": "J", "Ѕ": "S",
+  };
+  function _latinX1(s) {
+    const t = String(s || "");
+    const cir = (t.match(/[Ѐ-ӿ]/g) || []).length;
+    if (!cir) return t;
+    const lat = (t.match(/[A-Za-z]/g) || []).length;
+    if (lat <= cir) return t;                        // texto de fato cirílico → verbatim
+    return t.replace(/[Ѐ-ӿ]/g, (c) => (_HOMOGLIFOS_X1[c] != null ? _HOMOGLIFOS_X1[c] : c));
+  }
+
+  // O esporte vem em pt-BR, mas SUJO: medido na amostra real, `"Badminton "` sai com espaço
+  // no fim e `"Tenis de Mesa"` sem acento (enquanto o individual é `"Tênis"`, com). Normalizar
+  // aqui é só limpar espaço e homóglifo — a tradução canônica é da `CASA_1XBET.md §9`, nunca
+  // do código.
+  const _espX1 = (s) => _latinX1(String(s || "").replace(/\s+/g, " ").trim());
+
+  function formatTicket1X(b) {
+    const L = [];
+    L.push("[Código: " + b.ref + "]");
+    // `_dhJB` é reusado de propósito: epoch em SEGUNDOS → America/Sao_Paulo, exatamente a
+    // mesma conversão da Jonbet. Duplicar criaria duas verdades para o mesmo fuso.
+    const dev = _dhJB(b.evento);
+    // `UnixGameStartDate` == o MAIOR `StartDate` das pernas em 91 de 91 — a casa já entrega o
+    // "evento mais recente", que é a convenção da coluna Data.
+    if (dev) L.push("Data (evento): " + dev);
+    const dcol = _dhJB(b.colocada);
+    if (dcol) L.push("Colocada: " + dcol);
+    L.push("Stake: " + _brl(b.stake));
+
+    const n = (b.sels || []).length;
+    if (n === 1) L.push("Tipo: Simples");
+    else if (n > 1) L.push("Tipo: Múltipla (" + n + " seleções)");
+
+    const odd = _oddX1(b);
+    if (odd != null) {
+      const porDinheiro = b.status === 4 && !_anuladaX1(b);
+      L.push("Odd: " + _oddTxtKTO(odd) + (porDinheiro ? " (= Retorno ÷ Stake)" : ""));
+    }
+    L.push("Status: " + _statusX1(b));
+    // Status CRU da API — é ele que a CASA_1XBET.md traduz, e é o que permite reconhecer um
+    // valor novo (cashout, meia-liquidação) em vez de chutá-lo.
+    L.push("Status (API): BetStatus=" + String(b.status) +
+           " · BetTypeName=" + String(b.tipoNome || "") +
+           " · BetSystemType=" + String(b.sistema));
+
+    // Retorno de bilhete ABERTO é POTENCIAL, nunca "retorno". Nesta casa os dois campos
+    // NUNCA coexistem (`PossibleWinSum` só em aberta, `WinSum` só em resolvida — medido em
+    // 10/15/66 sem interseção), então não há a vitória fantasma da VaideBet. Ainda assim o
+    // rótulo é explícito: o guarda custa nada e a casa pode mudar.
+    if (_abertaX1(b)) {
+      if (typeof b.potencial === "number" && b.potencial > 0) {
+        L.push("Retorno potencial: R$ " + _brl(b.potencial) + " (POTENCIAL — a aposta não liquidou)");
+      }
+    } else if (typeof b.pagou === "number") {
+      L.push("Retorno: R$ " + _brl(b.pagou));
+    }
+
+    if (_anuladaX1(b)) {
+      L.push("Obs. da casa: a API marca este bilhete como BetStatus=4 (ganho), mas o retorno " +
+             "é IGUAL ao stake — é ANULAÇÃO/devolução, não vitória. Esta casa não tem código " +
+             "próprio para anulada (MASTER_RESULTADO §5.1.2 → V).");
+    }
+
+    // Quando o `Coef` declarado foi descartado por estar velho, o bloco DIZ isso — a IA não
+    // pode ficar em dúvida entre dois números, e o operador precisa poder conferir no card.
+    const decl = (typeof b.odd === "number") ? b.odd : null;
+    if (b.temAnulada && decl != null && odd != null && Math.abs(decl - odd) / (odd || 1) > 0.01) {
+      L.push("Obs. da casa: o card mostra a cotação " + _oddTxtKTO(decl) + ", que é a de ANTES " +
+             "da anulação de perna — a casa só a recalcula quando o bilhete ganha. A odd " +
+             "estrutural real é " + _oddTxtKTO(odd) + " (produto das pernas, com a anulada valendo 1).");
+    }
+
+    if (n) {
+      L.push("Seleções:");
+      (b.sels || []).forEach((s, i) => {
+        const partes = [];
+        const jogo = _latinX1(s.jogo || [s.opp1, s.opp2].filter(Boolean).join(" x "));
+        if (jogo) partes.push(jogo);
+        if (s.mercado) partes.push(_latinX1(s.mercado));
+        let ln = "  " + (i + 1) + ". " + partes.join(" // ");
+        if (s.odd != null) ln += " @ " + _oddTxtKTO(s.odd);
+        const meta = [];
+        if (s.esporte) meta.push(_espX1(s.esporte));
+        if (s.camp) meta.push(_latinX1(s.camp));
+        if (s.aoVivo) meta.push("ao vivo");
+        if (meta.length) ln += " [" + meta.join(" · ") + "]";
+        if (s.anulada) {
+          ln += " (PERNA ANULADA — devolvida, vale 1" +
+                (s.razao ? ": " + s.razao : "") + ")";
+        }
+        if (s.placar) ln += " · placar " + s.placar;
+        L.push(ln);
+      });
+    }
+    return L.join("\n");
+  }
+
+  async function robo1XPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro, pela data do EVENTO (que é a coluna Data desta
+      // casa), para o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(x1ById.values()).sort((a, b) => (b.evento || 0) - (a.evento || 0));
+      for (const b of todos) {
+        const cod = String(b.ref || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // A janela de dias corta só as RESOLVIDAS. Aberta nunca corta — senão uma resolvida
+        // velha interromperia a varredura antes de chegar nelas.
+        const dt = (b.evento || 0) * 1000;
+        const passou = !_abertaX1(b) && dt && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicket1X(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Pede ao x1_inject o acumulado + arranca o replay (alarga a janela de ~5 dias para 12
+    // meses e escala o `Count` até o lote alcançar o `BetsSummaryInfo.Count`).
+    try { window.postMessage({ __sharpenupX1Req: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !x1FimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (x1ById.size > ultTotal) { ultTotal = x1ById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] 1xBet: " + blocos.length + " bilhete(s) · x1ById=" + x1ById.size +
+                " · hook=" + x1HookVivo + " · respostas=" + x1Respostas + " · fimReal=" + x1FimReal +
+                " · total da casa=" + x1Total + (x1Erro ? " · " + x1Erro : ""));
     return blocos;
   }
 

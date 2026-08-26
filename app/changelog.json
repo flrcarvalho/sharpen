@@ -103,6 +103,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0653",
+      "v": "v0.6.53",
+      "data": "2026-08-26",
+      "texto": "**A 1xBet entrou no SharpenUp.** Quem tem conta na casa já captura os bilhetes direto de lá, sem print.",
+      "itens": [
+        "Atualize a extensão em sharpen.bet/extensao."
+      ]
+    },
+    {
       "id": "su-0652",
       "v": "v0.6.52",
       "data": "2026-08-24",

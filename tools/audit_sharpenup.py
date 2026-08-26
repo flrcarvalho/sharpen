@@ -111,6 +111,11 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # `_ID_BETESPORTE_RE` (\d{6,12}), e o gate `_ID_MINLEN=16` barra o snap por edit-distance
     # nesses códigos curtos: código errado vira "incerto", nunca é corrompido.
     "NOVIBET":    "474269610",
+    # BetId real da conta (a W de 26/08 com perna anulada: stake 150 -> retorno 621,25).
+    # Numerico de 8 digitos, o mesmo numero que o card estampa. Cai no `_ID_BETESPORTE_RE`
+    # (\d{6,12}), e o gate `_ID_MINLEN=16` barra o snap por edit-distance nesses codigos
+    # curtos: codigo errado vira "incerto", nunca e corrompido.
+    "1XBET":      "16108953",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do
@@ -274,7 +279,11 @@ def content_diag() -> set[str]:
     """Casas com entrada no mapa de autodiagnóstico (0 bilhetes → causa provável)."""
     src = _txt(CONTENT_JS)
     m = re.search(r"const diag = \{(.*?)\}\[casa\]", src, re.DOTALL)
-    return set(re.findall(r"(?m)^\s*(\w+):\s*\{", m.group(1))) if m else set()
+    # ⚠ A chave pode vir ENTRE ASPAS, e às vezes ela é obrigada a vir. A 1xBet (s298) é a
+    # primeira casa cujo nome começa com dígito, e `1xbet: {` é erro de sintaxe em JS —
+    # identificador não começa com número. Sem aceitar a forma citada, o audit acusaria
+    # "sem entrada no autodiagnóstico" para uma entrada que está lá e funciona.
+    return set(re.findall(r"(?m)^\s*[\"']?(\w+)[\"']?:\s*\{", m.group(1))) if m else set()
 
 
 def codigo_reconhecido(exemplo: str) -> bool:

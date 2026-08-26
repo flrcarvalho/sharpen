@@ -2436,7 +2436,7 @@ const NOMES = {
   JOGODEOURO: 'Jogo de Ouro', KTO: 'KTO',
   POLYMARKET: 'Polymarket', VITORIABET: 'Vitória Bet', TIVO: 'Tivo', VAIDEBET: 'VaideBet',
   BETFAST: 'Betfast', FAZ1BET: 'Faz1bet', JONBET: 'Jonbet', BETBOOM: 'Betboom', ESPORTIVA: 'Esportiva',
-  STAKE: 'Stake', BETPIX365: 'Betpix365', NOVIBET: 'Novibet', SPORTINGBET: 'SportingBet',
+  STAKE: 'Stake', BETPIX365: 'Betpix365', NOVIBET: 'Novibet', '1XBET': '1xBet', SPORTINGBET: 'SportingBet',
   // Antiga "Rei do Pitaco". `Pitaco` é o nome padrão desde a s270, e a grafia velha foi
   // unificada NO BANCO na mesma sessão — por isso o alias de exibição que existia aqui saiu:
   // não há mais linha alguma em `Rei do Pitaco` para traduzir.
@@ -2476,7 +2476,7 @@ const DOMINIOS = {
   Bet365: 'bet365.com', Betano: 'betano.com', Betfair: 'betfair.com',
   Pinnacle: 'pinnacle.com', Superbet: 'superbet.com', Betnacional: 'betnacional.com',
   KTO: 'kto.com', 'Casa de Apostas': 'casadeapostas.com', 'Estrela Bet': 'estrelabet.com',
-  MatchBook: 'matchbook.com', Novibet: 'novibet.com', 'Esportes da Sorte': 'esportesdasorte.com',
+  MatchBook: 'matchbook.com', Novibet: 'novibet.com', '1xBet': '1xbet.com', 'Esportes da Sorte': 'esportesdasorte.com',
   // PixBet: o domínio é `pix.bet.br` (regulada BR, informado pelo Feca). O `pixbet.com`
   // servia o logo ANTIGO — X azul em círculo, em vez do X verde/branco atual.
   PixBet: 'pix.bet.br', Polymarket: 'polymarket.com',
@@ -3694,7 +3694,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'FAZ1BET', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'FAZ1BET', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o

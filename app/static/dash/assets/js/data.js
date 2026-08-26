@@ -55,6 +55,7 @@ const CASA_ICONS={
   'MatchBook':'https://www.google.com/s2/favicons?sz=128&domain=matchbook.com',
   'MultiBet':'https://www.google.com/s2/favicons?sz=128&domain=multi.bet.br',
   'Novibet':'https://www.google.com/s2/favicons?sz=128&domain=novibet.com',
+  '1xBet':'https://www.google.com/s2/favicons?sz=128&domain=1xbet.com',
   // Faltavam SÓ aqui (os outros dois mapas já tinham) — o dash caía no fallback.
   'Aposta Ganha':'https://www.google.com/s2/favicons?sz=128&domain=apostaganha.bet.br',
   'Pagol':'https://www.google.com/s2/favicons?sz=128&domain=pagol.bet.br',
@@ -115,6 +116,7 @@ const HOUSE_DOMAIN={
   'MatchBook':'matchbook.com',
   'MultiBet':'multi.bet.br',
   'Novibet':'novibet.com',
+  '1xBet':'1xbet.com',
   'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br',   // faltavam só aqui
   'Pinnacle':'pinnacle.com',
   'PixBet':'pix.bet.br',
