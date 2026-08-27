@@ -287,13 +287,30 @@ function fmtK(v){
   return(v<0?'−':'')+(PUBLICO?s+'u':'R$ '+s);
 }
 const sortState={};
+// Lê o número BRASILEIRO que está NA TELA (ponto = milhar, vírgula = decimal) para
+// ordenar coluna. Duas armadilhas, as duas medidas em produção na s300:
+//   1. O sinal de menos do padrão monetário é U+2212 (−), não o hífen ASCII. `parseFloat`
+//      devolvia NaN → 0, e TODO P/L e ROI negativo empilhava num bloco no meio da tabela.
+//   2. `fmtR` imprime inteiro sem decimal ("R$ 5.180"). A regra antiga só tirava o ponto
+//      quando vinha vírgula depois, então "5.180" virava 5,18 — e a conta de R$ 80 subia
+//      ao topo do Turnover.
+// Por isso limpamos a moeda/sufixo por SUBTRAÇÃO (fica só dígito, ponto, vírgula e sinal) e
+// decidimos o papel do ponto pela forma do número, nunca pelo que vem depois dele.
 function parseNum(raw){
-  // Remove R$ (e o sufixo "u" do modo público), spaces, %, +, then handle
-  // Brazilian number format (dot=thousand, comma=decimal)
-  const s=raw.replace(/R\$\s*/g,'').replace(/u\s*$/,'').replace(/[+\s%]/g,'').trim();
-  // Remove thousand separators (dots before groups of 3 digits) then replace comma with dot
-  const n=parseFloat(s.replace(/\.(?=\d{3}[,\.])/g,'').replace(',','.'));
-  return isNaN(n)?0:n;
+  let s=String(raw??'')
+    .replace(/[−‒–—―]/g,'-')   // menos/traços tipográficos → hífen
+    .replace(/[^\d.,\-]/g,'')                           // some R$, %, "u", "d", espaço, ícone
+    .trim();
+  if(!s)return 0;                                       // célula "—" e vazias valem 0
+  const neg=s.startsWith('-');
+  s=s.replace(/-/g,'');
+  if(s.includes(',')){
+    s=s.replace(/\./g,'').replace(',','.');             // vírgula manda: ponto é milhar
+  }else if(/^\d{1,3}(\.\d{3})+$/.test(s)){
+    s=s.replace(/\./g,'');                              // só pontos, todos em grupos de 3
+  }
+  const n=parseFloat(s);
+  return isNaN(n)?0:(neg?-n:n);
 }
 function sortTable(tableId,colIdx,numeric){
   if(!sortState[tableId])sortState[tableId]={col:-1,asc:true};
@@ -308,7 +325,11 @@ function sortTable(tableId,colIdx,numeric){
     const ac=a.cells[colIdx],bc=b.cells[colIdx];
     const at=ac?.dataset.sort||ac?.textContent||'';
     const bt=bc?.dataset.sort||bc?.textContent||'';
-    const res=numeric?(parseNum(at)-parseNum(bt)):(at.trim().localeCompare(bt.trim()));
+    // Texto: pt-BR, insensível a caixa/acento e com ordenação natural de dígito
+    // ("conta2" antes de "conta10"). Sem isso "MichelCleiton" e "maysacarol01" caem em
+    // blocos separados só por causa da caixa.
+    const res=numeric?(parseNum(at)-parseNum(bt))
+                     :at.trim().localeCompare(bt.trim(),'pt-BR',{sensitivity:'base',numeric:true});
     return st.asc?res:-res;
   });
   const totalRow=tbody.querySelector('.total-row');
