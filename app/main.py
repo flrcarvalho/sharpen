@@ -93,13 +93,37 @@ def _fire(coro):
     _bg_tasks.add(t)
     t.add_done_callback(_bg_tasks.discard)
 
-_MAX_CHUNKS = 4
+_MAX_CHUNKS = 4         # PISO de paralelismo, não teto de tamanho: lote pequeno continua
+                        # fatiado em até 4 pedaços (ver `_BILHETES_POR_CHUNK`).
 _MAX_CONCURRENT = 8      # requests simultâneos à API (semáforo). Subiu de 4 p/ 8 para PDF
                         # grande: mais chunks pequenos em paralelo → o chunk mais lento
                         # termina antes e a extração não estoura o timeout de borda.
 _IMGS_POR_CHUNK = 3     # páginas de PDF / imagens por chunk. Chunk enxuto = resposta rápida;
                         # 50 páginas viram ~17 chunks pequenos (concorrência limitada pelo
                         # semáforo) em vez de 4 chunks gordos de ~13 páginas que travavam.
+# Teto de BILHETES por chunk quando o split é por marcador de bilhete — o gêmeo do
+# `_IMGS_POR_CHUNK` para o caminho de texto, que não tinha teto nenhum.
+#
+# Com `_MAX_CHUNKS` sozinho o número de chunks era fixo em 4, então lote grande não virava
+# mais chunks: virava chunks mais GORDOS. Medido na s301 com os 91 bilhetes reais da 1xBet
+# (`extensor/harness/fixtures/1xbet.bethistory.json`), mesmo modelo e mesmo prompt:
+#
+#   bilhetes/chunk │ tempo  │ saída  │ tokens por bilhete │ blocos ```tsv
+#          6       │  26,5s │  1.214 │        202         │ 1
+#         12       │ 105,3s │  6.900 │        575         │ 1
+#         23 (era) │ 272,0s │ 17.500 │        761         │ 2  ← e 10 linhas sem stake
+#
+# O custo por bilhete EXPLODE com o tamanho do chunk: acima de ~12 o modelo para de extrair
+# e começa a deliberar em voz alta (no chunk de 23, só 14,6% da saída era o bloco TSV; o
+# resto era rascunho, e ele ainda se corrigia num SEGUNDO bloco ```tsv que o parser descarta).
+# Chunk enxuto é mais rápido E mais barato — 91 bilhetes saem de ~270s para ~60s e de 70k
+# para ~18k tokens de saída.
+#
+# ⚠️ O teto NUNCA reduz o número de chunks — é `min()` contra o tamanho que o `_MAX_CHUNKS`
+# já daria. Isso é deliberado e é o que respeita o aviso logo abaixo: um "piso de bilhetes"
+# que agrupasse lote pequeno num chunk só o mandaria para o `_stream_sequential`, e a
+# Superbet-texto sairia na ordem trocada sem erro nenhum.
+_BILHETES_POR_CHUNK = 6
 # Teto da espera do escalonamento de cache (s295, ver `_stream_parallel`). É rede de
 # segurança, não cronômetro: o caso normal libera em ~2–5s, no 1º token do chunk 0. O
 # número existe só para que um chunk 0 travado não segure a extração inteira — expirar
@@ -824,6 +848,12 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
         # filtragem do CSV por ID do bilhete (chunk pequeno), não com CSV duplicado.
         if "DADOS CSV:" in full_text:
             return [base_content + [instrucao_block]]
+        # `por_bilhete` = o split caiu num marcador que é fronteira REAL de bilhete
+        # (`[Código: …]`, `=== Aposta ID`, `ID da aposta: O/…`). Só aí o teto de
+        # `_BILHETES_POR_CHUNK` pode valer: no fallback "\n\n" um bloco é um PARÁGRAFO, e
+        # apertar o chunk multiplicaria as fronteiras que cortam bilhete no meio (colagem de
+        # 200 parágrafos passaria de 3 cortes para 33).
+        por_bilhete = True
         if "=== Aposta ID" in full_text:
             blocks = re.split(r'(?=^=== Aposta ID)', full_text, flags=re.MULTILINE)
         elif casa_key.upper() in _CASAS_MARCADOR_CODIGO:
@@ -844,10 +874,15 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
                 blocks = _split_betfair_bilhetes(full_text)
         else:
             blocks = full_text.split("\n\n")
+            por_bilhete = False
         blocks = [b.strip() for b in blocks if b.strip()]
         if len(blocks) >= 2:
             n = min(_MAX_CHUNKS, len(blocks))
             size = math.ceil(len(blocks) / n)
+            if por_bilhete:
+                # `min()`, nunca substituição: o teto só APERTA o chunk (acima de ~24
+                # bilhetes), jamais agrupa lote pequeno em menos chunks.
+                size = min(size, _BILHETES_POR_CHUNK)
             return [
                 [{"type": "text", "text": "\n\n".join(blocks[i:i+size])}, instrucao_block]
                 for i in range(0, len(blocks), size)
