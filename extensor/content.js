@@ -187,6 +187,53 @@
     }
   });
 
+  // BOLSA DE APOSTA — DUAS plataformas, dois injects, uma casa só na planilha (s299).
+  // O Exchange (`bda_inject`, LayBack/FulltBet) e o Sportsbook (`bds_inject`, msjxk) não têm
+  // parentesco nenhum: JSON kebab-case × PascalCase, status texto × enum numérico. Os dois
+  // rodam DENTRO de iframes e emitem no topo — a casca Angular não faz uma única requisição
+  // de bilhete, então não há nada para escutar aqui no frame de cima.
+  const bdaById = new Map();         // id(string) → oferta do Exchange
+  let bdaFimReal = false;
+  let bdaHookVivo = false, bdaRespostas = 0, bdaNaoCasadas = 0, bdaErro = "";
+  const bdsById = new Map();         // TicketId(string) → bilhete do Sportsbook
+  let bdsFimReal = false;
+  let bdsHookVivo = false, bdsRespostas = 0, bdsErro = "";
+  // Aberta do Exchange: a oferta ainda não resolveu. `push`/`win`/`lose` são finais;
+  // `failed` nunca chega aqui (o inject descarta e conta). Status desconhecido conta como
+  // ABERTO de propósito — a janela de dias nunca pode cortar o que não sabemos ler.
+  const _abertaBDA = (b) => !/^(win|lose|push|push_win|push_lose)$/i.test(String(b.status || ""));
+  const _abertaBDS = (b) => !String(b.status || "") || String(b.status) === "0";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupBDAData) {
+      if (d.hook) bdaHookVivo = true;
+      if (typeof d.respostas === "number") bdaRespostas = d.respostas;
+      if (typeof d.naoCasadas === "number") bdaNaoCasadas = d.naoCasadas;
+      if (d.erro) bdaErro = String(d.erro);
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.ref) continue;
+          const ex = bdaById.get(b.ref);
+          if (!ex || (_abertaBDA(ex) && !_abertaBDA(b))) bdaById.set(b.ref, b);
+        }
+      }
+      if (d.fim) bdaFimReal = true;
+    }
+    if (d && d.__sharpenupBDSData) {
+      if (d.hook) bdsHookVivo = true;
+      if (typeof d.respostas === "number") bdsRespostas = d.respostas;
+      if (d.erro) bdsErro = String(d.erro);
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.ref) continue;
+          const ex = bdsById.get(b.ref);
+          if (!ex || (_abertaBDS(ex) && !_abertaBDS(b))) bdsById.set(b.ref, b);
+        }
+      }
+      if (d.fim) bdsFimReal = true;
+    }
+  });
+
   // Bilhetes da STAKE capturados pelo stk_inject.js (mundo MAIN) — as RESPOSTAS de
   // `POST /restapi/v1/betslip/history|active`, já normalizadas pelo inject. Mesmo modelo
   // passivo + REPLAY ATIVO: o inject repagina por `range_start` até `next_page_exists:false`,
@@ -944,6 +991,26 @@
       // sem linha em branco entre bilhetes, então o roboScroll genérico viraria um bloco só e
       // a IA perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboSTKPassive(ctx);
+    } else if (casa === "bolsadeaposta") {
+      // DOIS AMBIENTES NUMA CASA SÓ. O Exchange e o Sportsbook são plataformas diferentes,
+      // em iframes de origens diferentes, e **só um deles está no DOM por vez** — o iframe
+      // que existe é o da tela em que o operador está. Sem tratar isso, "capturar tudo"
+      // viraria "visite as duas telas e clique duas vezes", que é o tipo de passo que se
+      // esquece e faz metade do histórico sumir sem ninguém notar.
+      //
+      // Por isso o robô MONTA o ambiente que falta num iframe oculto. Os endereços são
+      // APRENDIDOS de um iframe real (nunca inventados): os dois hosts são versionados e
+      // chumbados no bundle da casca (`mexchange2.` · `prod20454-176166000.msjxk.com`), e um
+      // endereço fixo aqui apodreceria em silêncio no primeiro bump da casa.
+      await _bolsaAprenderFrames();
+      const montados = await _bolsaMontarFaltantes();
+      try {
+        const ex = await roboBDAPassive(ctx);
+        const sb = await roboBDSPassive(ctx);
+        blocos = ex.concat(sb);
+      } finally {
+        for (const f of montados) { try { f.remove(); } catch (e) {} }
+      }
     } else if (casa === "novibet") {
       // REPLAY PURO (nv_inject) — o passivo é impossível, como na Pitaco. Plataforma própria
       // da casa (gateway BlueBrown), sem parentesco com Altenar/BetBy/Kambi/BetConstruct.
@@ -1094,6 +1161,19 @@
         pinnacle:   { nome: "Pinnacle",   hook: pnHookVivo, resp: pnRespostas, vistos: pnById.size },
         kto:        { nome: "KTO",        hook: ktoHookVivo, resp: ktoRespostas, vistos: ktoById.size },
         stake:      { nome: "Stake",      hook: stkHookVivo, resp: stkRespostas, vistos: stkById.size },
+        // Bolsa de Aposta: DUAS plataformas, e o diagnóstico precisa dizer QUAL falhou —
+        // "nada coletado" com um dos dois vivo mandaria o operador procurar no lugar errado.
+        // `hook` só é verdade se os DOIS injects deram sinal; o `extra` nomeia o que faltou.
+        bolsadeaposta: {
+          nome: "Bolsa de Aposta",
+          hook: bdaHookVivo && bdsHookVivo,
+          resp: bdaRespostas + bdsRespostas,
+          vistos: bdaById.size + bdsById.size,
+          extra: (bdaErro || bdsErro ? " · " + [bdaErro, bdsErro].filter(Boolean).join(" · ") : "") +
+                 (!bdaHookVivo ? " · Exchange não respondeu (abra Minhas Apostas no Exchange uma vez e rode de novo)" : "") +
+                 (!bdsHookVivo ? " · Sportsbook não respondeu (abra o Sportsbook uma vez e rode de novo)" : "") +
+                 (bdaNaoCasadas ? " · " + bdaNaoCasadas + " oferta(s) do Exchange não chegaram a casar e ficaram de fora" : ""),
+        },
         // Novibet: `respostas` conta a da página + as do replay. Hook ATIVO com 0 respostas
         // significa que o inject nunca viu a requisição — quase sempre a tela de apostas não
         // foi aberta (é ela que dispara o `historytickets/search`), e sem uma requisição real
@@ -2292,6 +2372,288 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] KTO: " + blocos.length + " bilhete(s) · ktoById=" + ktoById.size +
                 " · hook=" + ktoHookVivo + " · respostas=" + ktoRespostas + " · fimReal=" + ktoFimReal);
+    return blocos;
+  }
+
+  // ── Bolsa de Aposta · EXCHANGE (bda_inject) ───────────────────────────────────
+  // O de-para de status vive AQUI e está documentado em `casas/CASA_BOLSADEAPOSTA.md §5`.
+  // O inject sobe o status CRU; quem traduz é este bloco, e só ele.
+  function _resultadoBDA(b) {
+    const s = String(b.status || "").toLowerCase();
+    if (s === "win") return "Ganho → W";
+    if (s === "lose") return "Perdeu → L";
+    // `push` = anulada. Vem SEM `profit-and-loss` (campo ausente) e com a stake devolvida.
+    if (s === "push") return "Anulada → V";
+    if (/^(matched|unmatched|open|edited|delayed|created)$/.test(s)) {
+      return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    }
+    // `push_win`/`push_lose` (meia-vitória/meia-derrota) existem no código da casa mas nunca
+    // apareceram numa amostra real. Caem aqui de propósito: chutar HW/HL sem ter visto um
+    // bilhete de verdade é o erro que a regra de tradução existe para impedir.
+    return (b.status || "?") + " (a conferir — não liquidar automaticamente)";
+  }
+
+  // Odd do Exchange. Em W manda o dinheiro (`retorno ÷ stake`, que é a regra global e
+  // absorve qualquer promoção); nos demais, a odd estrutural que casou.
+  // ⚠ `profit-and-loss` é LUCRO, não retorno: o retorno é `stake + pl`.
+  function _oddBDA(b) {
+    const s = String(b.status || "").toLowerCase();
+    if (s === "win" && typeof b.pl === "number" && typeof b.stake === "number" && b.stake > 0) {
+      return { odd: (b.stake + b.pl) / b.stake, porDinheiro: true };
+    }
+    return { odd: (typeof b.odd === "number" ? b.odd : b.oddPedida), porDinheiro: false };
+  }
+
+  function formatTicketBDA(b) {
+    const L = [];
+    L.push("[Código: " + b.ref + "]");
+    // Data do EVENTO é a autoridade da coluna Data (CASA_BOLSADEAPOSTA §4). UTC com `Z`.
+    const dEv = _dhKTO(b.inicio);
+    if (dEv) L.push("Data (evento): " + dEv);
+    const dCol = _dhKTO(b.colocada);
+    if (dCol) L.push("Data (colocação): " + dCol);
+    // ⚠ `stake-matched`, nunca `stake`: só o que CASOU esteve em risco.
+    if (typeof b.stake === "number") L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _resultadoBDA(b));
+    L.push("Status (API): " + (b.status || ""));
+    const o = _oddBDA(b);
+    if (o.odd != null) L.push("Odd: " + _oddTxtKTO(o.odd) + (o.porDinheiro ? " (= Retorno ÷ Stake)" : ""));
+    // Exchange: `back` = a favor, `lay` = contra. Em `lay` o L/P se inverte, e não há amostra
+    // — por isso o lado sobe explícito, para a leitura não assumir "a favor" por omissão.
+    if (b.lado) L.push("Lado: " + (b.lado === "back" ? "A favor (Back)" : b.lado === "lay" ? "CONTRA (Lay) — o L/P se inverte" : b.lado));
+    if (typeof b.pl === "number") {
+      L.push("L/P: " + (b.pl > 0 ? "+" : "") + _brl(b.pl));
+      if (typeof b.stake === "number") L.push("Retorno: " + _brl(b.stake + b.pl));
+    } else if (String(b.status || "").toLowerCase() === "push" && typeof b.stake === "number") {
+      L.push("L/P: a casa não informou (anulada — stake devolvida)");
+      L.push("Retorno: " + _brl(b.stake));
+    }
+    if (typeof b.restante === "number" && b.restante > 0) {
+      L.push("Não casado (ainda no mercado): " + _brl(b.restante));
+    }
+    if (b.evento) L.push("Evento: " + b.evento);
+    if (b.mercado) L.push("Mercado: " + b.mercado);
+    // ⚠ "Sim"/"Não" INVERTEM o sentido do mercado: `Não` em "Arsenal over 3.5 gols" é apostar
+    // que NÃO passa de 3.5. Sobe rotulado para a leitura não ler o mercado como a aposta.
+    if (b.selecao) L.push("Seleção: " + b.selecao + (/^(sim|não|nao)$/i.test(b.selecao) ? " (resposta ao mercado acima — \"Não\" NEGA o mercado)" : ""));
+    if (b.esporte) L.push("Esporte: " + b.esporte);
+    if (b.tipoMercado === "custom") L.push("Obs. da casa: mercado do Criador de Eventos (custom).");
+    if (b.aoVivo) L.push("Marcação da casa: aceita ao vivo (keep in play)");
+    return L.join("\n");
+  }
+
+  // ── Bolsa de Aposta · SPORTSBOOK (bds_inject) ─────────────────────────────────
+  // De-para conferido contra os badges da tela (CASA_BOLSADEAPOSTA §5). `BetStatus` é enum
+  // NUMÉRICO; qualquer valor fora dos três medidos sobe cru e vai para conferência humana.
+  function _resultadoBDS(b) {
+    const s = String(b.status || "");
+    if (s === "2") return "Ganho → W";
+    if (s === "1") return "Perdeu → L";
+    if (s === "4") return "Anulada → V";
+    if (!s || s === "0") return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    return s + " (a conferir — não liquidar automaticamente)";
+  }
+
+  // ⚠ AQUI MORA A ARMADILHA DA CASA. `potencial` (`GainDecimal`) é o retorno POTENCIAL
+  // SEMPRE — inclusive em bilhete perdido, onde ele vale stake × odd e o card diz 0,00.
+  // O realizado é `retorno` (`CurrentBetBalanceDecimal`). Em W a odd sai do dinheiro; em V
+  // NÃO pode sair (a stake devolvida daria odd 1,00, que é justamente a odd proibida em V).
+  function _oddBDS(b) {
+    const s = String(b.status || "");
+    if (s === "2" && typeof b.retorno === "number" && typeof b.stake === "number" && b.stake > 0) {
+      return { odd: b.retorno / b.stake, porDinheiro: true };
+    }
+    return { odd: (typeof b.odd === "number" ? b.odd : null), porDinheiro: false };
+  }
+
+  function formatTicketBDS(b) {
+    const L = [];
+    L.push("[Código: " + b.ref + "]");
+    const sels = b.sels || [];
+    // Múltipla: a data é a do evento MAIS RECENTE (regra global do MASTER_OUTPUT).
+    let maisTarde = 0;
+    for (const s of sels) { const t = Date.parse(s.inicio || ""); if (!isNaN(t) && t > maisTarde) maisTarde = t; }
+    const dEv = maisTarde ? _dhKTO(new Date(maisTarde).toISOString()) : "";
+    if (dEv) L.push("Data (evento): " + dEv);
+    const dCol = _dhKTO(b.criado);
+    if (dCol) L.push("Data (colocação): " + dCol);
+    if (typeof b.stake === "number") L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _resultadoBDS(b));
+    L.push("Status (API): " + (b.status || ""));
+    const o = _oddBDS(b);
+    if (o.odd != null) L.push("Odd: " + _oddTxtKTO(o.odd) + (o.porDinheiro ? " (= Retorno ÷ Stake)" : ""));
+    const aberta = !String(b.status || "") || String(b.status) === "0";
+    if (aberta) {
+      // Só em ABERTA o potencial pode aparecer — e sempre rotulado como potencial, nunca
+      // como retorno. Em bilhete resolvido ele fica FORA do bloco: escrever "720" num
+      // bilhete perdido é convite para a leitura marcá-lo como ganho.
+      if (typeof b.potencial === "number") L.push("Retorno potencial (ainda não liquidado): " + _brl(b.potencial));
+    } else if (typeof b.retorno === "number") {
+      L.push("Retorno: " + _brl(b.retorno));
+      if (typeof b.stake === "number") {
+        const pl = b.retorno - b.stake;
+        L.push("L/P: " + (pl > 0 ? "+" : "") + _brl(pl));
+      }
+    }
+    if (b.cashoutParcial) L.push("Marcação da casa: cashout parcial (Retirada) — conferir contra o card");
+    if (b.freebet) L.push("Marcação da casa: aposta grátis (freebet)");
+    if (b.aoVivo) L.push("Marcação da casa: ao vivo");
+    const multipla = sels.length > 1 || (typeof b.combo === "number" && b.combo > 0);
+    L.push("Tipo: " + (multipla ? "Múltipla (" + sels.length + " seleções)" : "Simples") +
+           (b.tipo ? " · " + b.tipo : ""));
+    L.push("Seleções:");
+    for (const s of sels) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.selecao || "");
+      if (s.linha != null) bits.push("(linha " + String(s.linha).replace(".", ",") + ")");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.evento) ctx2.push("Jogo: " + s.evento);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.liga) ctx2.push("Liga: " + s.liga);
+      if (s.inicio) ctx2.push("Início: " + _dhKTO(s.inicio));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null && sels.length > 1) L.push("    Odd da perna: " + _oddTxtKTO(s.odd));
+      if (s.placar) L.push("    Placar final segundo a casa: " + s.placar);
+    }
+    return L.join("\n");
+  }
+
+  // Endereços dos dois iframes da Bolsa, APRENDIDOS de um iframe real e lembrados entre
+  // sessões. Nunca constantes: `"defaultExchangeVerion": "https://mexchange2."` e
+  // `"fbookProdUrl": "https://prod20454-176166000.msjxk.com/"` são valores de build da casca,
+  // e o dia em que ela subir `mexchange3.` um endereço fixo aqui morre calado.
+  const BOLSA_MEM = "bolsaFrames";
+  const _RX_BOLSA_EX = /^https:\/\/mexchange\d*\.[^/]+\//i;
+  const _RX_BOLSA_SB = /^https:\/\/[^/]*msjxk\.com\//i;
+
+  async function _bolsaLembrados() {
+    try {
+      const c = await chrome.storage.local.get([BOLSA_MEM]);
+      return (c[BOLSA_MEM] && typeof c[BOLSA_MEM] === "object") ? c[BOLSA_MEM] : {};
+    } catch (e) { return {}; }
+  }
+
+  // Varre os iframes DESTA página e guarda a origem de cada ambiente que aparecer. Guardamos
+  // só a ORIGEM + o caminho da tela de apostas, nunca a URL inteira com query de sessão.
+  async function _bolsaAprenderFrames() {
+    const achados = {};
+    try {
+      for (const f of document.querySelectorAll("iframe")) {
+        const src = String(f.src || "");
+        if (_RX_BOLSA_EX.test(src)) { try { achados.exchange = new URL(src).origin + "/account/mybets"; } catch (e) {} }
+        else if (_RX_BOLSA_SB.test(src)) { try { achados.sportsbook = new URL(src).origin + "/br-pt/spbkv4/my-bets/sports"; } catch (e) {} }
+      }
+      if (Object.keys(achados).length) {
+        const mapa = await _bolsaLembrados();
+        for (const k in achados) mapa[k] = achados[k];
+        await chrome.storage.local.set({ [BOLSA_MEM]: mapa });
+      }
+    } catch (e) {}
+    return achados;
+  }
+
+  // Monta, oculto, o ambiente cujo inject ainda não deu sinal de vida. Devolve os elementos
+  // criados para o chamador removê-los no fim — iframe esquecido no DOM da casa é lixo que
+  // fica rodando na página do operador.
+  async function _bolsaMontarFaltantes() {
+    const mapa = await _bolsaLembrados();
+    const criados = [];
+    const montar = (url) => {
+      try {
+        const f = document.createElement("iframe");
+        f.src = url;
+        f.setAttribute("aria-hidden", "true");
+        f.style.cssText = "position:fixed;left:-10000px;top:0;width:1200px;height:900px;border:0;opacity:0;pointer-events:none";
+        document.body.appendChild(f);
+        criados.push(f);
+      } catch (e) {}
+    };
+    if (!bdaHookVivo && mapa.exchange) montar(mapa.exchange);
+    if (!bdsHookVivo && mapa.sportsbook) montar(mapa.sportsbook);
+    if (!criados.length) return criados;
+    // Espera o inject do frame recém-montado dar o heartbeat. Teto curto: se ele não vier,
+    // o robô segue com o que tem e o autodiagnóstico explica o que faltou.
+    for (let i = 0; i < 40 && (!bdaHookVivo || !bdsHookVivo); i++) await sleep(250);
+    return criados;
+  }
+
+  // Pede o acumulado aos dois injects. Vai para a própria janela E para os iframes: os
+  // injects vivem DENTRO deles (um é de outra origem), e `postMessage` do topo não desce.
+  function _bdaPedir(chave, dias) {
+    const msg = { [chave]: true, dias: dias };
+    try { window.postMessage(msg, "*"); } catch (e) {}
+    for (let i = 0; i < window.frames.length && i < 24; i++) {
+      try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
+    }
+  }
+
+  // Robô genérico dos dois ambientes: a mecânica é idêntica (pedir → esperar o `fim` real →
+  // consumir o que chegou), só mudam o mapa, o formatador e o teste de "aberta".
+  async function _roboBolsa(ctx, cfg) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+    const dias = Math.max(1, Math.ceil((Date.now() - ctx.cutoff) / 86400000));
+
+    const processar = () => {
+      const todos = Array.from(cfg.mapa.values()).sort((a, b) =>
+        (Date.parse(cfg.quando(b)) || 0) - (Date.parse(cfg.quando(a)) || 0));
+      for (const b of todos) {
+        const cod = String(b.ref || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // A janela de dias corta só as RESOLVIDAS. Aberta nunca corta — senão uma resolvida
+        // velha interromperia a varredura antes de as abertas aparecerem.
+        const dt = Date.parse(cfg.quando(b) || "");
+        const passou = !cfg.aberta(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(cfg.fmt(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    _bdaPedir(cfg.pedido, dias);
+    await sleep(400);
+    processar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !cfg.fim() && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (cfg.mapa.size > ultTotal) { ultTotal = cfg.mapa.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 20000) break;   // 20s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();
+    return blocos;
+  }
+
+  async function roboBDAPassive(ctx) {
+    // Janela do corte pela data de COLOCAÇÃO (é o que "últimos N dias" significa para o
+    // operador); a coluna Data da planilha continua saindo do evento, no formatador.
+    const blocos = await _roboBolsa(ctx, {
+      mapa: bdaById, fmt: formatTicketBDA, aberta: _abertaBDA,
+      quando: (b) => b.colocada || b.inicio, pedido: "__sharpenupBDAReq",
+      fim: () => bdaFimReal,
+    });
+    console.log("[SharpenUp] Bolsa/Exchange: " + blocos.length + " bilhete(s) · bdaById=" + bdaById.size +
+                " · hook=" + bdaHookVivo + " · respostas=" + bdaRespostas +
+                " · não casadas=" + bdaNaoCasadas + " · fimReal=" + bdaFimReal);
+    return blocos;
+  }
+
+  async function roboBDSPassive(ctx) {
+    const blocos = await _roboBolsa(ctx, {
+      mapa: bdsById, fmt: formatTicketBDS, aberta: _abertaBDS,
+      quando: (b) => b.criado, pedido: "__sharpenupBDSReq",
+      fim: () => bdsFimReal,
+    });
+    console.log("[SharpenUp] Bolsa/Sportsbook: " + blocos.length + " bilhete(s) · bdsById=" + bdsById.size +
+                " · hook=" + bdsHookVivo + " · respostas=" + bdsRespostas + " · fimReal=" + bdsFimReal);
     return blocos;
   }
 

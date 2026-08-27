@@ -52,6 +52,10 @@ const CASA_HOSTS = {
   "1xBet":      ["1xbet.bet.br"],
   "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject PRÓPRIO, sem espelho
   "Lottu":      ["lottu.bet.br"],         // motor NGBras (s290) · API em alpha-sb.ngbras.com
+  // Bolsa de Aposta (s299) — DOIS ambientes em iframes de origens diferentes. Aqui vai só o
+  // domínio da CASCA, que é a página em que o operador está; os hosts dos iframes
+  // (`mexchange*.bolsadeaposta.bet.br` e `*.msjxk.com`) vivem no manifest.
+  "Bolsa de Aposta": ["bolsadeaposta.bet.br"],
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -221,10 +225,20 @@ async function capturar() {
                 // `spb_`, e não `sb_`, porque `sb_inject.js` já é da Superbet.
                 : casa === "SportingBet" ? "spb_inject.js"
                 // Lottu: motor NGBras. `lt_`, e não `l_`, para não colidir com nada.
-                : casa === "Lottu" ? "lt_inject.js" : null;
+                : casa === "Lottu" ? "lt_inject.js"
+                // Bolsa de Aposta: DOIS ambientes, DOIS injects, e nenhum deles roda no frame
+                // de topo — a casca Angular não faz uma única requisição de bilhete. Por isso
+                // a lista, e por isso o `allFrames` abaixo. Cada arquivo tem trava de host e
+                // sai fora sozinho do frame que não é dele.
+                : casa === "Bolsa de Aposta" ? ["bda_inject.js", "bds_inject.js"] : null;
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
-      if (inj) { try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [inj], world: "MAIN" }); } catch (_) {} }
+      // Casa cujo inject vive em SUB-FRAME entra como lista e vai com `allFrames: true`.
+      if (inj) {
+        const arquivos = Array.isArray(inj) ? inj : [inj];
+        const emFrames = Array.isArray(inj);
+        try { await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: emFrames }, files: arquivos, world: "MAIN" }); } catch (_) {}
+      }
       // Dispara o robô (rola/pagina + colhe + envia texto).
       try { await chrome.tabs.sendMessage(tab.id, { type: "START_ROBOT" }); } catch (_) {}
     } else {

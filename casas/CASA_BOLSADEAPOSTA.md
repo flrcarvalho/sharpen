@@ -62,11 +62,62 @@ ID da Aposta: [ID]
 
 ---
 
+### 2.5 Captura por API — DOIS ambientes (SharpenUp 0.7.0, s299)
+
+A casa serve **dois produtos de fornecedores diferentes**, cada um num iframe de origem
+própria. A casca `bolsadeaposta.bet.br` é Angular e **não faz uma única requisição de
+bilhete** — quem captura são os injects, dentro dos iframes.
+
+| | Exchange | Sportsbook |
+|---|---|---|
+| iframe | `mexchange*.bolsadeaposta.bet.br` | `*.msjxk.com` |
+| plataforma | LayBack / FulltBet (Next.js) | fornecedor próprio (Express) |
+| endpoint | `GET mexchange-api.<domínio>/api/offers/reportsv2` | `GET <origem>/api/master/my-bets/history` |
+| inject | `bda_inject.js` | `bds_inject.js` |
+| formatador | `formatTicketBDA` | `formatTicketBDS` |
+| ID | `id` — 9 dígitos | `TicketId` — 18 dígitos |
+| paginação | `offset` / `per-page`, fim por `total` | `offset` / `limit`, fim por `totalCount` |
+
+> A Bolsa é **plataforma, não casa**: o mesmo bundle atende `matchbook.bet.br`,
+> `verdinhabet`, `fulltbet.bet.br`, `betespecial.bet.br` e `bet-bra.bet.br`.
+
+**Campos do Exchange** (JSON kebab-case, valores em reais, **sem milésimos**):
+
+| Campo | Vem de | Observação |
+|---|---|---|
+| Stake | `stake-matched` | ⚠️ **nunca `stake`** — a oferta `failed` traz `stake: 100` com risco zero |
+| Odd | `avg-decimal-odds-matched` | correta inclusive na perdida |
+| L/P | `profit-and-loss` | é **lucro**, não retorno → retorno = `stake + pl` |
+| Data | `event-start-time` | **UTC com `Z`** → America/Sao_Paulo |
+| Seleção | `runner-name` | ⚠️ `Sim`/`Não` — ver §9 |
+
+**Campos do Sportsbook** (PascalCase, dinheiro e odd como **string com ponto decimal**):
+
+| Campo | Vem de | Observação |
+|---|---|---|
+| Stake | `StakeDecimal` | `"400"` → 400,00 |
+| Odd | `ClientOdds` | `"1.80"` → 1,80 |
+| Retorno | `CurrentBetBalanceDecimal` | ⚠️ **`GainDecimal` é o POTENCIAL**, inclusive em perdida |
+| Data | `Selections[].EventDate` | UTC com `Z`; múltipla usa a perna mais recente |
+| Seleções | `Selections[].Translations` | o nível de cima vem em inglês (`"Custom QA"`) |
+
+**Janelas — as duas telas perguntam ERRADO, e o replay existe para corrigir:**
+
+- Exchange: a tela oferece no máximo 30 dias e o servidor recusa acima de **95**
+  (`Max allowed interval is 95 days`, HTTP 400). O replay fatia em 90 dias.
+  E **sem `status` a casa devolve só as liquidadas** — aposta em aberto exige
+  `status=matched,unmatched`.
+- Sportsbook: a tela manda `lastHours=1M` e, com histórico mais velho que 30 dias, isso
+  devolve **`totalCount: 0`** — captura zero parecendo sucesso. **Omitir `lastHours`** traz
+  tudo. O campo não aceita número: `8760` devolve 0, `12M` devolve tudo.
+
 ## 3. ID do bilhete
 
 - Caso: **visível**
-- Formato: numérico, ~8 dígitos (ex.: `98293971`, `98223547`)
-- Localização: linha 7 do bloco de detalhe — `ID da Aposta: XXXXX`
+- Formato **Exchange**: numérico, 8–9 dígitos (ex.: `98293971` em jun/2026, `119530135` em ago/2026 — a série cresce)
+- Formato **Sportsbook**: numérico, 18 dígitos (ex.: `867908924308574209`) — série distinta, sem risco de colidir com a do Exchange
+- Localização na tela: linha 7 do bloco de detalhe — `ID da Aposta: XXXXX`
+- Na captura por API: `id` (Exchange) e `TicketId` (Sportsbook); o robô emite os dois como `[Código: …]`
 - Nunca vai no output; serve para dedup e auditoria (11ª coluna interna)
 
 ---
@@ -95,6 +146,45 @@ ID da Aposta: [ID]
 | Meia derrota | HL (aguarda amostra) |
 
 Conferência financeira (segunda linha de defesa): `L/P = −stake` → L · `L/P = 0` → V · `L/P > 0` → W.
+
+### 5.1 De-para de status na CAPTURA por API (s299)
+
+O inject sobe o status **cru**; quem traduz é o `content.js`. Os dois ambientes têm
+vocabulários diferentes e nenhum deles é texto de tela.
+
+**Exchange** (`status`, texto) — medido em 213 bilhetes de um trimestre:
+
+| Bruto | n | `profit-and-loss` | Nosso |
+|---|---|---|---|
+| `win` | 113 | presente | **W** (odd = `(stake+pl) ÷ stake`) |
+| `lose` | 92 | `−stake` | **L** |
+| `push` | 5 | **ausente** (não é zero) | **V** |
+| `failed` | 3 | ausente, e **sem `stake-matched`** | **nenhum — não é bilhete** |
+| `matched` · `unmatched` · `open` · `edited` · `delayed` | — | — | aberta |
+| `push_win` · `push_lose` | 0 | — | **sobem crus** (a conferir) |
+
+> `failed` é oferta que **nunca casou**: dinheiro que jamais esteve em risco. O inject a
+> descarta e **conta** em `naoCasadas`, que aparece no autodiagnóstico. Ela reaparece tanto
+> em `status=liquidated` quanto em `status=cancelled` — a contagem é por id, não por
+> ocorrência.
+>
+> `push_win`/`push_lose` existem no código da casa (meia-vitória / meia-derrota) mas **não
+> houve amostra real**. Ficam sem tradução de propósito: chutar HW/HL sem ter visto um
+> bilhete é exatamente o que esta seção existe para impedir.
+
+**Sportsbook** (`BetStatus`, enum numérico) — conferido contra os badges da tela:
+
+| Bruto | Badge na tela | Nosso |
+|---|---|---|
+| `2` | VENCEU | **W** (odd = `CurrentBetBalanceDecimal ÷ StakeDecimal`) |
+| `1` | PERDIDO | **L** |
+| `4` | CANCELADA | **V** — odd é o `ClientOdds`, **nunca** retorno÷stake (daria 1,00) |
+| vazio / `0` | — | aberta |
+| qualquer outro | — | sobe cru (a conferir) |
+
+> ⚠️ **`GainDecimal` é o retorno POTENCIAL, sempre.** O bilhete `857454677280481281` traz
+> `"720"` e a tela dele diz **PERDIDO, Ganho Potencial 0,00**. Ler esse campo como retorno
+> marca **toda perda como ganho**. O realizado é `CurrentBetBalanceDecimal`.
 
 **Gatilho de meia-liquidação (HW/HL):**
 - Primário: aguarda amostra (rótulo explícito da plataforma não confirmado)
@@ -149,6 +239,13 @@ Apostas abertas → `extraction_state = aberta`.
 **Notas de reconstrução:**
 - Confronto: a Bolsa exibe `Time A vs Time B` (inglês, com "s" em "vs") → normalizar para `[Time A v Time B]` (sem "s").
 - Seleção `Sim` = resultado booleano ("sim/não") — indica mercado de BTTS, Over/Under etc.; usar a categoria do mercado (não "Sim").
+- ⚠️ **Seleção `Não` NEGA o mercado — não é o mercado.** Bilhete real (`119530135`, s299):
+  mercado `Arsenal over 3.5 gols`, seleção **`Não`**, odd 1,35. A aposta é que o Arsenal
+  **NÃO** faz mais de 3,5 gols, então a descrição correta é `Under 3,5 [Arsenal v Coventry
+  City]` — traduzir como "Over 3,5" inverte o bilhete. A regra vale para todo mercado
+  booleano: `Não` + `Ambas Marcam` → `Ambas Não Marcam`; `Não` + `Over X` → `Under X`;
+  `Não` + `<jogador> marca` → o jogador **não** marca.
+  Na captura o campo é `runner-name`, e o `formatTicketBDA` já sobe a seleção rotulada.
 - Seleção = nome de time → ML; usar nome como mostrado no bilhete (ex.: `Alemanha`).
 - `Enner Valencia: Ready to Score at Any Moment` → Anytime; jogador = `Enner Valencia`; descrição = `Enner Valencia [Confronto]`.
 - `Over X Goals` / `Under X Goals` → Gols; descrição = `Over X,Y [Confronto]` (ponto → vírgula no número).
@@ -335,5 +432,5 @@ ID da Aposta: 98293971
 ---
 
 VERSÃO: 2026
-STATUS: ATIVO (v1 — 4 goldens reais, 21/06/2026)
+STATUS: ATIVO (v2 — captura por API nos dois ambientes, s299/26-08-2026; leitura v1 com 4 goldens reais de 21/06/2026)
 CASA: `Bolsa de Aposta`

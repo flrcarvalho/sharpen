@@ -63,7 +63,8 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # BETPIX365: 4ª casa Altenar (s258). ⚠ É a única que NÃO dispara o `widgetExpandedBetHistory`
 # por conta própria — a tela dela chama só o widget compacto, e o inject aprende url+headers
 # dele para então buscar o expandido. Também usa o MESMO `vb_inject.js`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto"}
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
+                   "BOLSADEAPOSTA": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -100,6 +101,12 @@ _HOSTS_POR_CASA = {
     # a API mora noutro host (`alpha-sb.ngbras.com`), que o inject alcança a partir desta
     # página e por isso não entra neste mapa.
     "LOTTU":      ("lottu.bet.br",),
+    # Bolsa de Aposta (s299) — DOIS ambientes, dois fornecedores, e nenhum dos dois serve
+    # a lista a partir do host da casa: o Exchange responde em `mexchange-api.<domínio>` e
+    # o Sportsbook em `prod<N>-<N>.msjxk.com`. Aqui vai o domínio da CASA, que é o que a
+    # amarração casa↔site compara (a página em que o operador está é a casca); os hosts de
+    # API não entram neste mapa, como já acontece na Lottu.
+    "BOLSADEAPOSTA": ("bolsadeaposta.bet.br",),
     # Pitaco (s270) — plataforma PRÓPRIA, gRPC-Web/protobuf. Antiga "Rei do Pitaco"; a grafia
     # velha foi unificada no banco na mesma sessão. O domínio antigo (`reidopitaco.com.br`)
     # NÃO entra: a operação regulada é a `.bet.br`.

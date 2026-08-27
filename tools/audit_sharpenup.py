@@ -116,6 +116,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # (\d{6,12}), e o gate `_ID_MINLEN=16` barra o snap por edit-distance nesses codigos
     # curtos: codigo errado vira "incerto", nunca e corrompido.
     "1XBET":      "16108953",
+    # Bolsa de Aposta: o Exchange usa 9 dígitos e o Sportsbook 18. Séries distintas na mesma
+    # casa — o gabarito aqui é o do Exchange, que é onde estão 418 dos 435 bilhetes.
+    "BOLSADEAPOSTA": "119530135",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do

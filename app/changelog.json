@@ -103,6 +103,16 @@
   ],
   "sharpenup": [
     {
+      "id": "su-070",
+      "v": "v0.7.0",
+      "data": "2026-08-26",
+      "texto": "A **Bolsa de Aposta** entrou na captura automática — Exchange e Sportsbook, os dois de uma vez.",
+      "itens": [
+        "Atualize a extensão em sharpen.bet/extensao.",
+        "Antes da primeira captura, passe uma vez pela tela de apostas do Exchange e uma pela do Sportsbook."
+      ]
+    },
+    {
       "id": "su-0653",
       "v": "v0.6.53",
       "data": "2026-08-26",

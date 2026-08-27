@@ -596,6 +596,11 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "SPORTINGBET",
     "LOTTU",
     "1XBET",
+    # Bolsa de Aposta (s299) — vale para os DOIS ambientes: o Exchange emite
+    # `[Código: 119530135]` (9 dígitos) e o Sportsbook `[Código: 867908924308574209]`
+    # (18). Séries distintas, sem risco de colisão, e o marcador é o mesmo — então uma
+    # entrada só cobre os dois.
+    "BOLSADEAPOSTA",
 })
 
 
