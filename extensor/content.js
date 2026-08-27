@@ -2433,9 +2433,23 @@
     }
     if (b.evento) L.push("Evento: " + b.evento);
     if (b.mercado) L.push("Mercado: " + b.mercado);
-    // ⚠ "Sim"/"Não" INVERTEM o sentido do mercado: `Não` em "Arsenal over 3.5 gols" é apostar
-    // que NÃO passa de 3.5. Sobe rotulado para a leitura não ler o mercado como a aposta.
-    if (b.selecao) L.push("Seleção: " + b.selecao + (/^(sim|não|nao)$/i.test(b.selecao) ? " (resposta ao mercado acima — \"Não\" NEGA o mercado)" : ""));
+    // ⚠ "Sim"/"Não" decidem o SENTIDO da aposta: `Não` em "Arsenal over 3.5 gols" é apostar
+    // que NÃO passa de 3,5. Sobe rotulado para a leitura não confundir o mercado com a aposta.
+    //
+    // As duas anotações são DIFERENTES de propósito. Até a s299 as duas caíam no mesmo texto
+    // ("…\"Não\" NEGA o mercado"), então um bilhete de `Sim` carregava uma frase sobre negar
+    // o mercado — ruído exatamente no campo que decide o sentido, e ruído que a IA lê. Só
+    // apareceu quando a captura trouxe 21 bilhetes; a fixture tinha um de cada e o harness
+    // não olhava esta linha (agora olha).
+    if (b.selecao) {
+      const sel = String(b.selecao).trim().toLowerCase();
+      const nota = (sel === "não" || sel === "nao")
+        ? " (resposta ao mercado — NEGA o mercado acima: a aposta é que ele NÃO acontece)"
+        : sel === "sim"
+        ? " (resposta ao mercado — CONFIRMA o mercado acima)"
+        : "";
+      L.push("Seleção: " + b.selecao + nota);
+    }
     if (b.esporte) L.push("Esporte: " + b.esporte);
     if (b.tipoMercado === "custom") L.push("Obs. da casa: mercado do Criador de Eventos (custom).");
     if (b.aoVivo) L.push("Marcação da casa: aceita ao vivo (keep in play)");
@@ -2604,13 +2618,15 @@
         if (!cod || usados.has(cod)) continue;
         if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
         usados.add(cod);
-        // A janela de dias corta só as RESOLVIDAS. Aberta nunca corta — senão uma resolvida
-        // velha interromperia a varredura antes de as abertas aparecerem.
-        const dt = Date.parse(cfg.quando(b) || "");
-        const passou = !cfg.aberta(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        // ⚠ A JANELA DE DIAS **NÃO CORTA** NESTA CASA — e isso é decisão, não esquecimento.
+        // O `lookbackDias` existe para casas onde raspar é caro; aqui a API entrega o
+        // histórico inteiro em ~5 s e a recaptura não paga IA de novo (a Bolsa está no
+        // pré-dedup por código do backend). Na 1ª captura ao vivo (s299) o corte padrão de
+        // 30 dias trouxe 21 de 418 bilhetes e parou na borda exata do cutoff — o operador
+        // leu como "travou na primeira página". O freio incremental continua sendo o
+        // `stopId` acima, que é preciso; janela de tempo aqui só escondia bilhete.
         blocos.push(cfg.fmt(b));
         ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
-        if (passou) { travado = true; return; }
       }
     };
 

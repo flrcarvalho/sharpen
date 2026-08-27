@@ -178,6 +178,18 @@ export async function rodarInject(cfg) {
   // `jaTem`, e é a `acao:"detalhar"` que arranca a expansão da lista. Postado depois do simples
   // porque alguns injects usam o 1º como "acorda" e o 2º como comando.
   if (cfg.pedidoMsg) { janela.postMessage(cfg.pedidoMsg); }
+  // 2b) Pedido TARDIO: postado só DEPOIS que o inject sinalizou `fim`. Os dois posts acima
+  // chegam com a varredura ainda em curso, então provam a fila de re-pedido — e NÃO provam o
+  // caso real de uso, que é o operador rodar o robô outra vez com o replay já encerrado.
+  // Sem isto, um inject que trave o `fim` para sempre (e devolva o mesmo acumulado sem tocar
+  // a rede) passa verde: medido na Bolsa de Aposta, s299.
+  if (cfg.pedidoTardio) {
+    for (let i = 0; i < 400; i++) {
+      if (mensagens.some((m) => m && m.fim)) break;
+      await espera(10);
+    }
+    janela.postMessage(cfg.pedidoTardio);
+  }
   await espera(cfg.ms || 400);
 
   const meus = mensagens.filter((m) => m && Object.keys(m).some((k) => k.endsWith("Data")));

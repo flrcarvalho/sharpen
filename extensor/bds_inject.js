@@ -56,6 +56,7 @@
   let pedido = false;
   let loopAtivo = false;
   let fimReplay = false;
+  let repetir = false;                         // pedido chegou durante a varredura → roda de novo
   let erro = "";
   const LOG = (...a) => { try { console.log("[SharpenUp bds_inject]", ...a); } catch (e) {} };
   LOG("hook instalado em", location.href);
@@ -216,7 +217,8 @@
   }
 
   async function arrancarReplay() {
-    if (loopAtivo || fimReplay) return;
+    if (loopAtivo) { repetir = true; return; }
+    if (fimReplay) return;
     loopAtivo = true;
     try {
       await varrerHistorico();
@@ -225,6 +227,7 @@
       loopAtivo = false;
       fimReplay = true;
       enviar();
+      if (repetir) { repetir = false; fimReplay = false; arrancarReplay(); }
     }
   }
 
@@ -232,6 +235,8 @@
     const d = ev.data;
     if (!d || !d.__sharpenupBDSReq) return;
     pedido = true;
+    // ⚠ DESTRAVA A SEGUNDA RODADA — ver a nota gêmea no `bda_inject.js`.
+    if (!loopAtivo) fimReplay = false;
     enviar();
     arrancarReplay();
   });

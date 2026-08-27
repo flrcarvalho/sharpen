@@ -111,6 +111,18 @@ bilhete** — quem captura são os injects, dentro dos iframes.
   devolve **`totalCount: 0`** — captura zero parecendo sucesso. **Omitir `lastHours`** traz
   tudo. O campo não aceita número: `8760` devolve 0, `12M` devolve tudo.
 
+**A janela de dias do painel (`lookbackDias`) NÃO corta nesta casa.** O robô varre o
+histórico inteiro (horizonte fixo de ~3 anos no Exchange, ~13 fatias de 90 dias; o
+Sportsbook traz tudo numa chamada) e o freio incremental é o `stopId`, não o tempo.
+Medido na 1ª captura ao vivo: com o padrão de 30 dias o robô varria 27/07→26/08, parava na
+borda exata e trazia **21 de 418 bilhetes** — e como ele não lê a tela, a data escolhida no
+calendário da casa nunca chegava até ele. O operador lia isso como "travou na primeira
+página". Capturar tudo é barato porque a casa está no pré-dedup por código do backend:
+bilhete já resolvido não paga IA de novo numa recaptura.
+
+> **A data selecionada na tela da casa é irrelevante para a captura.** Ela muda só o que o
+> operador **vê**; o robô fala com a API por conta própria.
+
 ## 3. ID do bilhete
 
 - Caso: **visível**

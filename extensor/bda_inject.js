@@ -71,6 +71,7 @@
   let diasPedidos = 0;                         // janela que o robô pediu (0 = padrão)
   let loopAtivo = false;
   let fimReplay = false;
+  let repetir = false;                         // pedido chegou durante a varredura → roda de novo
   let erro = "";
   const LOG = (...a) => { try { console.log("[SharpenUp bda_inject]", ...a); } catch (e) {} };
   LOG("hook instalado em", location.href);
@@ -79,8 +80,15 @@
 
   const PAGINA = 500;          // aceito e respeitado (500 pedidos → 213 devolvidos, sem corte)
   const FATIA = 90;            // dias por requisição — a casa recusa acima de 95
-  const DIAS_PADRAO = 400;     // ~13 meses; o robô sobrescreve pelo `dias` do painel
   const TETO_PAGINAS = 200;
+  // HORIZONTE FIXO — 3 anos, ~13 fatias × 2 chamadas ≈ 5 s. Não sai do `lookbackDias` do
+  // painel, e isso é deliberado: na 1ª captura ao vivo (s299) a janela padrão de 30 dias
+  // fez o robô varrer 27/07→26/08 e parar na borda exata, trazendo 21 de 418 bilhetes. O
+  // operador leu como "travou na primeira página", porque a data que ele tinha escolhido NA
+  // TELA nunca chegou até aqui — o robô não lê a tela, ele varre a API. Aqui a varredura
+  // completa é barata (uma chamada por fatia) e a recaptura não paga IA de novo: a casa está
+  // no pré-dedup por código do backend. O `dias` do painel só é respeitado quando pede MAIS.
+  const DIAS_HISTORICO = 1095;
 
   // Base da API. A casa deriva o domínio removendo o prefixo `mexchange<N>.` do próprio host —
   // é a regra dela, lida no bundle, não invenção nossa. `new URL` em vez de `location.host`
@@ -244,10 +252,12 @@
   }
 
   async function arrancarReplay() {
-    if (loopAtivo || fimReplay) return;
+    // Pedido que chega com a varredura em curso não se perde: fica marcado e roda ao fim.
+    if (loopAtivo) { repetir = true; return; }
+    if (fimReplay) return;
     loopAtivo = true;
     try {
-      const fatias = _fatias(diasPedidos > 0 ? diasPedidos : DIAS_PADRAO);
+      const fatias = _fatias(Math.max(diasPedidos, DIAS_HISTORICO));
       for (const f of fatias) {
         await varrer(f, "");                      // liquidadas (o padrão da casa)
         await varrer(f, "matched,unmatched");     // em aberto — a tela nunca pede as duas juntas
@@ -256,6 +266,7 @@
       loopAtivo = false;
       fimReplay = true;
       enviar();
+      if (repetir) { repetir = false; fimReplay = false; arrancarReplay(); }
     }
   }
 
@@ -266,6 +277,10 @@
     if (!d || !d.__sharpenupBDAReq) return;
     pedido = true;
     if (typeof d.dias === "number" && d.dias > 0) diasPedidos = d.dias;
+    // ⚠ DESTRAVA A SEGUNDA RODADA. `fimReplay` latchava em `true` para sempre: rodar o robô
+    // outra vez na mesma aba devolvia o mesmo acumulado e não varria nada — indistinguível
+    // de "a casa não tem mais bilhete". Pedido novo é rodada nova.
+    if (!loopAtivo) fimReplay = false;
     enviar();
     arrancarReplay();
   });
