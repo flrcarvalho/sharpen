@@ -192,6 +192,16 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 2. Commit + push (deploy Railway automático). `STATUS.md` na mesma sessão.
 3. Peça ao operador: **recarregar a extensão** e **Ctrl+Shift+R na aba da casa** — recarregar
    a extensão *não* re-injeta em aba já aberta (armadilha recorrente).
+3.1. **E um F5 na aba do DASHBOARD.** A casa nova não aparece no seletor de "Nova conta" numa
+   aba que já estava aberta: `carregarCasas()` roda uma vez, no load, e guarda a lista do
+   `GET /casas` em memória (`casasCarregadas`). O filtro do combo busca nessa lista, então ele
+   responde **"nenhuma casa encontrada"** com todo direito — e o sintoma é idêntico ao de um
+   registro faltando. Aconteceu na s298, com os 12 pontos completos e o `audit_sharpenup`
+   verde. É a irmã da armadilha do item 3, do lado do dashboard.
+
+   > **Antes de suspeitar do registro, meça o servidor**, não a tela: `GET /casas` na sessão do
+   > operador diz se a casa está lá. Se estiver, o problema é a aba, e um F5 comum resolve — o
+   > `index.html` é servido com `no-cache`.
 4. Conectar → "Copiar bilhetes" → conferir no dashboard: contagem, datas, odds, código.
 5. Marque no STATUS o que **não** foi validado ao vivo. Enquanto não rodou na casa, não rodou.
 
