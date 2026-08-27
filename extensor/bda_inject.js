@@ -111,7 +111,13 @@
     const status = _s(o.status);
     // Oferta que nunca casou. Não é bilhete: não há dinheiro em risco, não há resultado, e
     // planilhá-la criaria uma linha de aposta que não existiu. Contada, nunca calada.
-    if (status === "failed") { naoCasadas.add(_s(o.id)); return; }
+    //
+    // São DOIS status, não um — `flushed` escapou na 1ª captura ao vivo e virou linha com
+    // stake 0. Medido depois em 834 ofertas de 3 anos: `failed` (13) e `flushed` (1) são os
+    // ÚNICOS com `stake-matched` zero, e win/lose/push têm casamento em 100% dos casos. A
+    // lista é fechada de propósito: cortar por "stake casada = 0" pegaria também a oferta
+    // `unmatched` ainda VIVA no mercado, que é aposta de verdade esperando par.
+    if (status === "failed" || status === "flushed") { naoCasadas.add(_s(o.id)); return; }
     out.push({
       ref: _s(o.id),                                  // o [Código:] e a chave de dedup
       lado: _s(o.side),                               // back / lay (CRU — só há amostra de back)

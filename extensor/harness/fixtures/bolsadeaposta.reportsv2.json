@@ -1,8 +1,8 @@
 {
-  "_nota": "Amostra recortada da resposta real de GET mexchange-api.bolsadeaposta.bet.br/api/offers/reportsv2 (26/08/2026). Um bilhete por status. login-id anonimizado (o harness nao le esse campo).",
+  "_nota": "Amostra recortada da resposta real de GET mexchange-api.bolsadeaposta.bet.br/api/offers/reportsv2 (26/08/2026). Um bilhete por status (win, lose, push, failed, flushed). login-id anonimizado (o harness nao le esse campo).",
   "currency": "BRL",
   "offset": 0,
-  "total": 4,
+  "total": 5,
   "offers": [
     {
       "id": "119530135",
@@ -122,6 +122,35 @@
       "created-at": "2026-06-24T19:57:53.991208Z",
       "last-modified-time": "2026-06-24T19:57:54.010779Z",
       "keep-in-play": true
+    },
+    {
+      "_nota": "`flushed` — o SEGUNDO estado sem stake casada, e o que vazou para a planilha na 1ª captura ao vivo. Repare no `stake: 99` com `stake-matched: 0`: é a ilustração exata de por que a stake sai do campo casado. Medido em 834 ofertas de 3 anos: `failed` (13) e `flushed` (1) são os ÚNICOS status com casamento zero; win/lose/push têm stake casada em 100% dos casos.",
+      "id": "18418555",
+      "side": "back",
+      "odds": 2.4,
+      "stake": 99,
+      "remaining": 0,
+      "currency": "BRL",
+      "status": "flushed",
+      "delay": 0,
+      "sportName": "enhanced-specials",
+      "login-id": "00000005",
+      "event-id": "30635958230300076",
+      "event-name": "Sunday Soccer Special 3 (90 Mins)",
+      "event-start-time": "2025-07-13T19:00:00Z",
+      "market-id": "30635958233100076",
+      "market-name": "Vencedor",
+      "market-type": "place",
+      "runner-id": "30635958233400076",
+      "runner-name": "Ousmane Dembele & Joao Pedro Both To Have Over 0.5 Shots On Target Each",
+      "exchange-type": "back-lay",
+      "odds-type": "DECIMAL",
+      "decimal-odds": 2.4,
+      "stake-matched": 0,
+      "created-at": "2025-07-13T18:34:01.322Z",
+      "last-modified-time": "2025-07-13T19:00:00.356Z",
+      "in-play": false,
+      "keep-in-play": false
     }
   ]
 }

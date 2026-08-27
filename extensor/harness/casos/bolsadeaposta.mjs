@@ -39,6 +39,12 @@
 //      pega (mutação confirmada) é o potencial VAZANDO para bilhete resolvido e a odd de V
 //      saindo do dinheiro — que são os dois modos pelos quais essa confusão vira lucro
 //      fantasma. Um W com cashout parcial ou boost fecharia o buraco.
+//   3. O CORTE POR STATUS × o corte por "stake casada = 0". Na fixture as duas regras dão o
+//      mesmo resultado, porque as únicas ofertas sem casamento são justamente a `failed` e a
+//      `flushed`. Trocar o corte por `!o["stake-matched"]` passa VERDE aqui e quebraria em
+//      produção: oferta `unmatched` ainda viva no mercado também tem casado zero e é aposta
+//      de verdade, esperando par. Fechar isso exige uma aposta EM ABERTO na amostra, e a
+//      conta do recon não tem nenhuma (medido: `status=matched,unmatched` devolve 0).
 import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
 
 export const casa = "Bolsa de Aposta";
@@ -67,10 +73,18 @@ const ESPERADO_EX = {
 
 // ── SPORTSBOOK ──────────────────────────────────────────────────────────────────────────
 // Conferido contra Minhas Apostas → Resolvidas, com os badges VENCEU/PERDIDO/CANCELADA.
+// `card` é o número que a CASA estampa no bilhete — e ele NÃO é o nosso `[Código:]`: a casa
+// mostra o id da COMPRA, que é `TicketId − 1` (conferido em 6 cards e em 17 de 17 pela API).
+// A chave de dedup segue sendo o `TicketId`, porque uma compra com duas apostas daria o mesmo
+// número às duas e o UPSERT fundiria bilhetes distintos. A linha existe para o operador
+// cruzar com a tela; este teste trava que ela não some nem passa a repetir o `[Código:]`.
 const ESPERADO_SB = {
-  "857454677280481281": { odd: "1,8",  status: /^Perdeu → L$/,  bruto: "1", data: "23/06/2026 23:00:00" },
-  "867908924308574209": { odd: "1,99 (= Retorno ÷ Stake)", status: /^Ganho → W$/, bruto: "2", data: "22/07/2026 20:30:00" },
-  "857407480614727681": { odd: "4,5",  status: /^Anulada → V$/, bruto: "4", data: "23/06/2026 20:00:00" },
+  "857454677280481281": { odd: "1,8",  status: /^Perdeu → L$/,  bruto: "1", data: "23/06/2026 23:00:00",
+                          card: "857454677280481280" },
+  "867908924308574209": { odd: "1,99 (= Retorno ÷ Stake)", status: /^Ganho → W$/, bruto: "2", data: "22/07/2026 20:30:00",
+                          card: "867908924308574208" },
+  "857407480614727681": { odd: "4,5",  status: /^Anulada → V$/, bruto: "4", data: "23/06/2026 20:00:00",
+                          card: "857407480614727680" },
 };
 
 function conferir(falhas, fmt, bilhetes, esperado, rotulo) {
@@ -92,6 +106,11 @@ function conferir(falhas, fmt, bilhetes, esperado, rotulo) {
     if (e.sel != null) {
       const sel = linha(txt, "Seleção:");
       if (sel !== e.sel) falhas.push(`${rotulo} ${b.ref}: seleção esperada "${e.sel}", veio "${sel}"`);
+    }
+    if (e.card != null) {
+      const card = linha(txt, "ID no card da casa:");
+      if (card !== e.card) falhas.push(`${rotulo} ${b.ref}: ID do card esperado ${e.card}, veio "${card}"`);
+      if (card === b.ref) falhas.push(`${rotulo} ${b.ref}: o ID do card virou cópia do [Código:] — a diferença de 1 sumiu`);
     }
   }
   return testes;
@@ -169,9 +188,11 @@ export async function rodar() {
       }
     }
 
+    // 5 ofertas na fixture, 2 sem casamento (`failed` e `flushed`) → 3 bilhetes.
+    // O `flushed` é o que vazou na 1ª captura ao vivo e virou linha com stake 0.
     const bilhetes = ex.ultima.bilhetes || [];
-    if (bilhetes.length !== 3) falhas.push(`EXCHANGE: esperava 3 bilhetes (a 4ª é \`failed\`), vieram ${bilhetes.length}`);
-    if (ex.ultima.naoCasadas !== 1) falhas.push(`EXCHANGE: esperava naoCasadas=1, veio ${ex.ultima.naoCasadas}`);
+    if (bilhetes.length !== 3) falhas.push(`EXCHANGE: esperava 3 bilhetes (\`failed\` e \`flushed\` não são bilhete), vieram ${bilhetes.length}`);
+    if (ex.ultima.naoCasadas !== 2) falhas.push(`EXCHANGE: esperava naoCasadas=2 (failed + flushed), veio ${ex.ultima.naoCasadas}`);
 
     const fmtEx = content.pegar("formatTicketBDA");
     testes += conferir(falhas, fmtEx, bilhetes, ESPERADO_EX, "EXCHANGE");

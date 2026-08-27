@@ -108,6 +108,13 @@
     if (!t || t.TicketId == null) return;
     out.push({
       ref: _s(t.TicketId),                              // o [Código:] e a chave de dedup
+      // ⚠ O NÚMERO QUE O CARD ESTAMPA É ESTE, e ele é `TicketId − 1` (conferido em 6 cards e
+      // em 17 de 17 pela API). A chave de dedup continua sendo o `TicketId` de propósito:
+      // `PurchaseTicketID` é da COMPRA, e uma compra com duas apostas daria o mesmo número
+      // para as duas — o UPSERT fundiria bilhetes distintos e um sumiria sem erro nenhum
+      // (o incidente da s276). Duplicata se vê e se apaga; bilhete absorvido, não.
+      // Sobe assim para o operador conseguir cruzar com a tela.
+      refCard: _s(t.PurchaseTicketID),
       status: (t.BetStatus == null ? "" : String(t.BetStatus)),   // 1/2/4 — CRU
       odd: _num(t.ClientOdds),                          // odd estrutural do bilhete
       stake: _num(t.StakeDecimal != null ? t.StakeDecimal : t.Stake),

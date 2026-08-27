@@ -103,6 +103,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-072",
+      "v": "v0.7.2",
+      "data": "2026-08-26",
+      "texto": "Ajuste fino na **Bolsa de Aposta**: ofertas que nunca chegaram a casar não viram mais linha na planilha.",
+      "itens": [
+        "Atualize a extensão em sharpen.bet/extensao."
+      ]
+    },
+    {
       "id": "su-071",
       "v": "v0.7.1",
       "data": "2026-08-26",

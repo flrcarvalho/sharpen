@@ -130,6 +130,12 @@ bilhete já resolvido não paga IA de novo numa recaptura.
 - Formato **Sportsbook**: numérico, 18 dígitos (ex.: `867908924308574209`) — série distinta, sem risco de colidir com a do Exchange
 - Localização na tela: linha 7 do bloco de detalhe — `ID da Aposta: XXXXX`
 - Na captura por API: `id` (Exchange) e `TicketId` (Sportsbook); o robô emite os dois como `[Código: …]`
+- ⚠️ **No Sportsbook o card mostra OUTRO número.** A tela estampa o id da COMPRA
+  (`PurchaseTicketID`), que é sempre `TicketId − 1` (conferido em 6 cards e em 17 de 17 pela
+  API). O `[Código:]` continua saindo do `TicketId` **de propósito**: `PurchaseTicketID` é da
+  compra, e uma compra com duas apostas daria o mesmo número às duas — o UPSERT fundiria
+  bilhetes distintos e um sumiria sem erro (incidente da s276). Duplicata se vê e se apaga;
+  bilhete absorvido, não. O bloco traz `ID no card da casa: …` para cruzar com a tela.
 - Nunca vai no output; serve para dedup e auditoria (11ª coluna interna)
 
 ---
@@ -164,18 +170,19 @@ Conferência financeira (segunda linha de defesa): `L/P = −stake` → L · `L/
 O inject sobe o status **cru**; quem traduz é o `content.js`. Os dois ambientes têm
 vocabulários diferentes e nenhum deles é texto de tela.
 
-**Exchange** (`status`, texto) — medido em 213 bilhetes de um trimestre:
+**Exchange** (`status`, texto) — medido em **834 ofertas de 3 anos** (a contagem por status é dessa base):
 
 | Bruto | n | `profit-and-loss` | Nosso |
 |---|---|---|---|
-| `win` | 113 | presente | **W** (odd = `(stake+pl) ÷ stake`) |
-| `lose` | 92 | `−stake` | **L** |
-| `push` | 5 | **ausente** (não é zero) | **V** |
-| `failed` | 3 | ausente, e **sem `stake-matched`** | **nenhum — não é bilhete** |
+| `win` | 371 | presente | **W** (odd = `(stake+pl) ÷ stake`) |
+| `lose` | 374 | `−stake` | **L** |
+| `push` | 75 | **ausente** (não é zero) | **V** |
+| `failed` | 13 | ausente, e **sem `stake-matched`** | **nenhum — não é bilhete** |
+| `flushed` | 1 | ausente, `stake-matched` = **0** | **nenhum — não é bilhete** |
 | `matched` · `unmatched` · `open` · `edited` · `delayed` | — | — | aberta |
 | `push_win` · `push_lose` | 0 | — | **sobem crus** (a conferir) |
 
-> `failed` é oferta que **nunca casou**: dinheiro que jamais esteve em risco. O inject a
+> `failed` e `flushed` são ofertas que **nunca casaram**: dinheiro que jamais esteve em risco. O inject a
 > descarta e **conta** em `naoCasadas`, que aparece no autodiagnóstico. Ela reaparece tanto
 > em `status=liquidated` quanto em `status=cancelled` — a contagem é por id, não por
 > ocorrência.

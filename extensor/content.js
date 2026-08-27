@@ -2483,6 +2483,11 @@
   function formatTicketBDS(b) {
     const L = [];
     L.push("[Código: " + b.ref + "]");
+    // O card da casa estampa OUTRO número (a compra, `TicketId − 1`). Sobe rotulado para o
+    // operador conseguir cruzar com a tela — e para a diferença ficar registrada em vez de
+    // virar mistério na primeira conferência. A chave de dedup é a de cima; o porquê está
+    // no `bds_inject.js`.
+    if (b.refCard && b.refCard !== b.ref) L.push("ID no card da casa: " + b.refCard);
     const sels = b.sels || [];
     // Múltipla: a data é a do evento MAIS RECENTE (regra global do MASTER_OUTPUT).
     let maisTarde = 0;
