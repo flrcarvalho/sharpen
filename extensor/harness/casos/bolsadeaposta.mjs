@@ -277,5 +277,45 @@ export async function rodar() {
     falhas.push(`JANELA: com stopId=B o laço deveria parar depois de C (1 bloco) — saíram ${blocosStop.length}`);
   }
 
+  // ── O pedido tem de alcançar o NETO ──────────────────────────────────────────────────
+  // Segunda regressão ao vivo da s299 (820 bilhetes em vez de 837): o robô montava o
+  // ambiente que faltava num iframe oculto apontado para o HOST do ambiente, e o do
+  // Sportsbook subia deslogado, porque a sessão dele viaja num `operatorToken` na query —
+  // que a gente joga fora de propósito, para não gravar credencial. A correção é montar a
+  // ROTA DA CASCA e deixar que ela monte o ambiente com a sessão.
+  //
+  // O efeito colateral é este teste: com a casca no meio, o inject deixa de ser filho e
+  // vira NETO. Um `_bdaPedir` que só desce um nível entrega o pedido à casca — que não
+  // escuta nada — e o Sportsbook responde zero de novo, pelo mesmo sintoma e por outra
+  // causa. Aqui a árvore é dublada: topo → casca → ambiente.
+  //
+  // Cross-origin de verdade só deixa ler `frames`, `length` e `postMessage`; o dublê
+  // expõe exatamente esses três, para o teste não passar por um caminho que o navegador
+  // proíbe. O que ele NÃO cobre: o `postMessage` real entre origens, e o fato de a casca
+  // aceitar ser iframada por ela mesma (medido no navegador em 26/08/2026, não aqui).
+  const contentFrames = carregarContent();
+  const janela = contentFrames.pegar("window");
+  const recebidos = [];
+  const dublar = (nome, filhos) => ({
+    postMessage: (m) => recebidos.push({ frame: nome, chave: Object.keys(m)[0] }),
+    frames: filhos, length: filhos.length,
+  });
+  const ambiente = dublar("ambiente", []);
+  const casca = dublar("casca", [ambiente]);
+  janela.postMessage = (m) => recebidos.push({ frame: "topo", chave: Object.keys(m)[0] });
+  janela.frames = [casca];
+  janela.length = 1;
+  contentFrames.pegar("_bdaPedir")("__sharpenupBDSReq", 1095);
+  testes++;
+  const alcancados = recebidos.map((r) => r.frame);
+  for (const alvo of ["topo", "casca", "ambiente"]) {
+    if (!alcancados.includes(alvo)) {
+      falhas.push(`FRAMES: o pedido não chegou ao frame "${alvo}" — alcançados: ${alcancados.join(", ") || "nenhum"}`);
+    }
+  }
+  if (recebidos.some((r) => r.chave !== "__sharpenupBDSReq")) {
+    falhas.push("FRAMES: algum frame recebeu uma mensagem com chave diferente da pedida");
+  }
+
   return { falhas, testes };
 }

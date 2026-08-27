@@ -81,6 +81,26 @@ bilhete** — quem captura são os injects, dentro dos iframes.
 > A Bolsa é **plataforma, não casa**: o mesmo bundle atende `matchbook.bet.br`,
 > `verdinhabet`, `fulltbet.bet.br`, `betespecial.bet.br` e `bet-bra.bet.br`.
 
+**A sessão viaja diferente em cada ambiente — e isso decide como o robô monta o que falta.**
+Medido em 26/08/2026, lendo o `src` real dos dois iframes:
+
+| | Exchange | Sportsbook |
+|---|---|---|
+| `src` do iframe | `mexchange2.<domínio>/exchange` | `prod…msjxk.com/br-pt/spbk?…&operatorToken=…` |
+| parâmetros | **nenhum** | 4, um deles o token (86 caracteres) |
+| sessão | **cookie** (é subdomínio do site) | **na URL**, renovada a cada carga |
+
+Por isso o robô monta a **rota da casca** (`/b/exchange` · `/fbook`) e não o endereço do
+ambiente: guardar a URL do Sportsbook sem a query é guardar a porta sem a chave — o frame
+sobe deslogado e a API responde `{data: []}` **sem erro nenhum** (foi o que exportou 820 em
+vez de 837 na 2ª captura ao vivo). E guardar a query seria gravar credencial em disco, que
+ainda vence. Pedindo à casca, o token nasce novo e nunca passa pelo SharpenUp.
+
+Consequência de forma: com a casca no meio, o inject deixa de ser filho do topo e vira
+**neto** — `_bdaPedir` desce dois níveis. Entre origens só `frames`, `length` e
+`postMessage` são legíveis, e a descida usa exatamente esses três. A volta não depende
+disso (o `enviar()` responde direto ao `window.top`).
+
 **Campos do Exchange** (JSON kebab-case, valores em reais, **sem milésimos**):
 
 | Campo | Vem de | Observação |

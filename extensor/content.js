@@ -998,11 +998,10 @@
       // viraria "visite as duas telas e clique duas vezes", que é o tipo de passo que se
       // esquece e faz metade do histórico sumir sem ninguém notar.
       //
-      // Por isso o robô MONTA o ambiente que falta num iframe oculto. Os endereços são
-      // APRENDIDOS de um iframe real (nunca inventados): os dois hosts são versionados e
-      // chumbados no bundle da casca (`mexchange2.` · `prod20454-176166000.msjxk.com`), e um
-      // endereço fixo aqui apodreceria em silêncio no primeiro bump da casa.
-      await _bolsaAprenderFrames();
+      // Por isso o robô MONTA o ambiente que falta num iframe oculto — apontando para a ROTA
+      // DA CASCA (`/b/exchange` · `/fbook`), não para o host do ambiente. Quem sabe montar
+      // cada um, com a sessão que ele exige, é a casca; os hosts internos são versionados
+      // (`mexchange2.` · `prod20454-176166000.msjxk.com`) e não são nossos para adivinhar.
       const montados = await _bolsaMontarFaltantes();
       try {
         const ex = await roboBDAPassive(ctx);
@@ -2539,73 +2538,66 @@
     return L.join("\n");
   }
 
-  // Endereços dos dois iframes da Bolsa, APRENDIDOS de um iframe real e lembrados entre
-  // sessões. Nunca constantes: `"defaultExchangeVerion": "https://mexchange2."` e
-  // `"fbookProdUrl": "https://prod20454-176166000.msjxk.com/"` são valores de build da casca,
-  // e o dia em que ela subir `mexchange3.` um endereço fixo aqui morre calado.
-  const BOLSA_MEM = "bolsaFrames";
-  const _RX_BOLSA_EX = /^https:\/\/mexchange\d*\.[^/]+\//i;
-  const _RX_BOLSA_SB = /^https:\/\/[^/]*msjxk\.com\//i;
-
-  async function _bolsaLembrados() {
-    try {
-      const c = await chrome.storage.local.get([BOLSA_MEM]);
-      return (c[BOLSA_MEM] && typeof c[BOLSA_MEM] === "object") ? c[BOLSA_MEM] : {};
-    } catch (e) { return {}; }
-  }
-
-  // Varre os iframes DESTA página e guarda a origem de cada ambiente que aparecer. Guardamos
-  // só a ORIGEM + o caminho da tela de apostas, nunca a URL inteira com query de sessão.
-  async function _bolsaAprenderFrames() {
-    const achados = {};
-    try {
-      for (const f of document.querySelectorAll("iframe")) {
-        const src = String(f.src || "");
-        if (_RX_BOLSA_EX.test(src)) { try { achados.exchange = new URL(src).origin + "/account/mybets"; } catch (e) {} }
-        else if (_RX_BOLSA_SB.test(src)) { try { achados.sportsbook = new URL(src).origin + "/br-pt/spbkv4/my-bets/sports"; } catch (e) {} }
-      }
-      if (Object.keys(achados).length) {
-        const mapa = await _bolsaLembrados();
-        for (const k in achados) mapa[k] = achados[k];
-        await chrome.storage.local.set({ [BOLSA_MEM]: mapa });
-      }
-    } catch (e) {}
-    return achados;
-  }
+  // Montamos a ROTA DA PRÓPRIA CASCA, nunca o endereço do ambiente. É mesma origem
+  // (`location.origin`), a casca aceita ser iframada por ela mesma, e é ELA quem monta o
+  // ambiente lá dentro — com a sessão que ele exige.
+  //
+  // Isso não é preferência de estilo, é a única forma que funciona para os dois. A sessão
+  // viaja diferente em cada um (medido em 26/08/2026):
+  //   Exchange   → `mexchange2.<dominio>/exchange`, SEM parâmetro nenhum: vai por cookie.
+  //   Sportsbook → `prod…msjxk.com/br-pt/spbk?…&operatorToken=<86 chars>`: vai na URL.
+  // Guardar o endereço do Sportsbook sem a query é guardar a porta sem a chave — o frame
+  // sobe deslogado e a API responde `{data:[]}`, sem erro nenhum (foi o que deu 820 em vez
+  // de 837). E guardar a query seria gravar credencial em disco, que ainda por cima vence.
+  // Pedindo à casca, o token nasce novo a cada montagem e nunca passa por aqui.
+  const BOLSA_ROTA_EX = "/b/exchange";
+  const BOLSA_ROTA_SB = "/fbook";
 
   // Monta, oculto, o ambiente cujo inject ainda não deu sinal de vida. Devolve os elementos
   // criados para o chamador removê-los no fim — iframe esquecido no DOM da casa é lixo que
   // fica rodando na página do operador.
   async function _bolsaMontarFaltantes() {
-    const mapa = await _bolsaLembrados();
     const criados = [];
-    const montar = (url) => {
+    const montar = (rota) => {
       try {
         const f = document.createElement("iframe");
-        f.src = url;
+        f.src = location.origin + rota;
         f.setAttribute("aria-hidden", "true");
         f.style.cssText = "position:fixed;left:-10000px;top:0;width:1200px;height:900px;border:0;opacity:0;pointer-events:none";
         document.body.appendChild(f);
         criados.push(f);
       } catch (e) {}
     };
-    if (!bdaHookVivo && mapa.exchange) montar(mapa.exchange);
-    if (!bdsHookVivo && mapa.sportsbook) montar(mapa.sportsbook);
+    if (!bdaHookVivo) montar(BOLSA_ROTA_EX);
+    if (!bdsHookVivo) montar(BOLSA_ROTA_SB);
     if (!criados.length) return criados;
-    // Espera o inject do frame recém-montado dar o heartbeat. Teto curto: se ele não vier,
-    // o robô segue com o que tem e o autodiagnóstico explica o que faltou.
-    for (let i = 0; i < 40 && (!bdaHookVivo || !bdsHookVivo); i++) await sleep(250);
+    // Espera o inject do frame recém-montado dar o heartbeat. Agora são DUAS cargas até ele
+    // (casca + ambiente), então o teto é mais longo que o de um iframe direto.
+    for (let i = 0; i < 80 && (!bdaHookVivo || !bdsHookVivo); i++) await sleep(250);
     return criados;
   }
 
   // Pede o acumulado aos dois injects. Vai para a própria janela E para os iframes: os
   // injects vivem DENTRO deles (um é de outra origem), e `postMessage` do topo não desce.
+  //
+  // Desce DOIS níveis. Quando o ambiente é montado pela casca, o inject fica no NETO — o
+  // filho é a casca e o pedido morreria nela. `frames`/`length`/`postMessage` são as três
+  // coisas legíveis entre origens, então a descida funciona sem acesso ao documento. A volta
+  // não depende disso: o `enviar()` do inject responde direto ao `window.top`.
   function _bdaPedir(chave, dias) {
     const msg = { [chave]: true, dias: dias };
-    try { window.postMessage(msg, "*"); } catch (e) {}
-    for (let i = 0; i < window.frames.length && i < 24; i++) {
-      try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
-    }
+    const entregar = (alvo, nivel) => {
+      try { alvo.postMessage(msg, "*"); } catch (e) {}
+      if (nivel >= 2) return;
+      let n = 0;
+      try { n = alvo.length; } catch (e) { return; }
+      for (let i = 0; i < n && i < 24; i++) {
+        let filho = null;
+        try { filho = alvo.frames[i]; } catch (e) { continue; }
+        if (filho) entregar(filho, nivel + 1);
+      }
+    };
+    entregar(window, 0);
   }
 
   // Robô genérico dos dois ambientes: a mecânica é idêntica (pedir → esperar o `fim` real →

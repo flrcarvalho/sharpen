@@ -103,6 +103,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-073",
+      "v": "v0.7.3",
+      "data": "2026-08-26",
+      "texto": "**Bolsa de Aposta:** a cópia traz a Exchange e o Sportsbook juntos, a partir de qualquer tela da casa.",
+      "itens": [
+        "Atualize a extensão em sharpen.bet/extensao e dê Ctrl+Shift+R na aba da casa."
+      ]
+    },
+    {
       "id": "su-072",
       "v": "v0.7.2",
       "data": "2026-08-26",
