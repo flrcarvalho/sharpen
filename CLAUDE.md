@@ -322,6 +322,19 @@ assinatura única" de "é um dos vários que aposto".
 4. **Auto-auditar item a item contra §5 ANTES do commit** + rodar `node scripts/tokens/check-tokens.mjs`.
 5. **Abrir a tela num navegador antes do commit.** `node --check` é falso verde para o que vive dentro de template literal: na s296 uma **crase** num comentário HTML dentro do `buildHTML` passou no check e deixou o dash **em branco** (`ReferenceError`). Suba o `scripts/demo/servidor_demo.py` e renderize headless — medir a tela é o único gate que pega isso.
 
+6. **Quem LÊ o número de volta da tela tem de conhecer o padrão que o imprimiu.** O item 2
+   cobre a escrita; a metade que faltava é a leitura. Ordenação de coluna, filtro e
+   qualquer código que reparseie o que `fmtR`/`fmtPL`/`fmtPct` renderizaram enfrenta duas
+   armadilhas, as duas medidas em produção na s300: o sinal negativo é **U+2212 (`−`)**,
+   não hífen — `parseFloat` devolve `NaN`, que vira 0, e **todo valor negativo ordena como
+   zero**; e `fmtR` imprime milhar **sem decimal** (`R$ 5.180`), então a regra de milhar
+   decide pela **forma** do número (`^\d{1,3}(\.\d{3})+$`), nunca pelo que vem depois do
+   ponto. Reuse `parseNum` (`dash/assets/js/app.js`) — não escreva um segundo parser.
+7. **Coluna ordenável cujo texto não ordena sozinho leva `data-sort`.** `sortTable` lê o
+   `dataset.sort` antes do `textContent`. Data em `dd/mm/aa` ordena pelo **dia do mês**;
+   célula com chip/ícone carrega a letra do chip no `textContent`. Nos dois casos o valor
+   canônico (ISO, nome limpo) vai no `data-sort` e o texto bonito fica na tela.
+
 > Dúvida de qual convenção (tabela vs card)? Pergunte ao Feca — não invente uma terceira. Use `/nova-ui` para rodar este checklist guiado.
 
 ---
@@ -621,5 +634,5 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-26 (sessão 296 — regra nova no checklist de UI: abrir a tela num navegador antes do commit; node --check é falso verde para template literal)
+ATUALIZADO: 2026-08-27 (sessão 300 — duas regras novas no checklist de UI: quem lê o número de volta da tela conhece o padrão que o imprimiu (menos U+2212, milhar sem decimal); coluna ordenável que não ordena por texto leva data-sort)
 identificar mensagem por `editMessageText` com texto idêntico)
