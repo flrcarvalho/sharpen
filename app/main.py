@@ -79,6 +79,7 @@ from repository import (
     registrar_uso, uso_resumo, registrar_sombra,
     conferir_cobertura, codigos_do_texto,
 )
+from descricao_check import checar_fidelidade
 
 logger = logging.getLogger("scanner")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -1036,6 +1037,120 @@ async def _garantir_cobertura(system: list[dict], resultado: str, texto: str | N
     return resultado, {**cobertura, "recuperados": recuperados}, tokens
 
 
+# ── Fidelidade: a linha pertence ao bilhete dela? (s302) ──────────────────────
+# A cobertura acima cobra QUANTIDADE — todo bilhete virou linha. Esta cobra
+# PROCEDÊNCIA: a linha do código X foi escrita a partir do bloco do código X?
+#
+# O caso que abriu a regra (Betfair O/…/0001941): o bloco dizia `Norwich x Burnley ·
+# Mais/Menos de 3,5 Cartões` e a linha saiu `Matthew Dennant [Norwich v Burnley]`,
+# Dardos, ML — a seleção do bilhete VIZINHO no mesmo chunk. Cobertura: 65 de 65, verde.
+# `checar_descricao`: verde (a forma é impecável). O defeito só aparece comparando a
+# linha com o texto que a gerou, que é o que `checar_fidelidade` faz.
+#
+# A REPESCAGEM É A CORREÇÃO, não só o aviso: o bloco suspeito volta ao modelo SOZINHO
+# (`_repescar_faltantes` recorta só os códigos pedidos), e bilhete sem vizinho no chunk
+# não tem de quem copiar. Medido na sombra: das 3 leituras do 0001941 na mesma extração,
+# 2 saíram certas — a IA acerta quando relê, e o que faltava era alguém perguntar de novo.
+#
+# CONSERVADORA POR DESENHO: a linha nova só entra se ela PASSAR no gate. Nunca troca
+# uma linha que passa por outra que passa (isso seria trocar estilo por estilo, o ruído
+# que o congelamento do UPSERT existe para barrar) e nunca troca certo por errado.
+
+
+def _blocos_por_codigo(texto: str) -> dict[str, str]:
+    """Mapa código → bloco cru, pela MESMA fronteira que o chunker usa para fatiar.
+
+    Casa sem marcador `[Código: …]` devolve {} → todo o gate vira no-op. É o
+    comportamento certo: sem código não há como saber qual bloco gerou qual linha, e
+    suspeitar no escuro custaria repescagem paga em cima de bilhete correto.
+    """
+    if not texto:
+        return {}
+    blocos: dict[str, str] = {}
+    for b in _SUPERBET_SPLIT_RE.split(texto):
+        if not b.strip():
+            continue
+        m = _SUPERBET_ID_RE.search(b)
+        if m:
+            blocos.setdefault(m.group(1).strip(), b)
+    return blocos
+
+
+def _linhas_infieis(resultado: str, blocos: dict[str, str]) -> dict[str, list]:
+    """Códigos cuja linha não bate com o próprio bloco → {código: [Problema, …]}."""
+    suspeitos: dict[str, list] = {}
+    for linha in _extract_tsv_rows(resultado):
+        celulas = linha.split("\t")
+        if len(celulas) <= 10:
+            continue
+        codigo = celulas[10].strip()
+        bruto = blocos.get(codigo)
+        if not codigo or bruto is None:
+            continue
+        probs = checar_fidelidade(celulas[6].strip(), bruto)
+        if probs:
+            suspeitos[codigo] = probs
+    return suspeitos
+
+
+async def _garantir_fidelidade(system: list[dict], resultado: str, texto: str | None,
+                               modelo: str, instrucao_block: dict | None
+                               ) -> tuple[str, dict, dict]:
+    """Repesca a linha que não pertence ao próprio bilhete. Retorna
+    (resultado, fidelidade, tokens_extras).
+
+    `fidelidade` = {suspeitas, corrigidas, restantes, exemplos} — vai no `done` do
+    stream para o rail mostrar o que sobrou sem que o operador tenha de conferir à mão.
+    """
+    tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    vazio = {"suspeitas": 0, "corrigidas": 0, "restantes": 0, "exemplos": []}
+    if not texto or instrucao_block is None:
+        return resultado, vazio, tokens
+
+    blocos = _blocos_por_codigo(texto)
+    if not blocos:
+        return resultado, vazio, tokens
+
+    suspeitos = _linhas_infieis(resultado, blocos)
+    if not suspeitos:
+        return resultado, vazio, tokens
+
+    logger.warning("fidelidade: %d linha(s) não batem com o próprio bloco — repescando: %s",
+                   len(suspeitos), ", ".join(list(suspeitos)[:10]))
+    novas, tokens = await _repescar_faltantes(system, texto, list(suspeitos), modelo,
+                                              instrucao_block)
+
+    # Indexa a repescagem por código e troca SÓ o que passa a valer.
+    nova_por_codigo: dict[str, str] = {}
+    for linha in novas:
+        celulas = linha.split("\t")
+        if len(celulas) <= 10:
+            continue
+        cod = celulas[10].strip()
+        if cod in suspeitos and not checar_fidelidade(celulas[6].strip(), blocos[cod]):
+            nova_por_codigo.setdefault(cod, linha)
+
+    if nova_por_codigo:
+        trocadas = []
+        for linha in _extract_tsv_rows(resultado):
+            celulas = linha.split("\t")
+            cod = celulas[10].strip() if len(celulas) > 10 else ""
+            trocadas.append(nova_por_codigo.get(cod, linha))
+        resultado = _set_tsv_rows(resultado, trocadas)
+
+    restantes = {c: p for c, p in suspeitos.items() if c not in nova_por_codigo}
+    fidelidade = {
+        "suspeitas": len(suspeitos),
+        "corrigidas": len(nova_por_codigo),
+        "restantes": len(restantes),
+        "exemplos": [{"codigo": c, "problemas": [x.msg for x in p]}
+                     for c, p in list(restantes.items())[:5]],
+    }
+    logger.info("fidelidade: %d corrigida(s) na repescagem · %d ainda suspeita(s)",
+                len(nova_por_codigo), len(restantes))
+    return resultado, fidelidade, tokens
+
+
 def _apply_betfair_dates(tsv: str, date_map: dict) -> str:
     """Preenche a coluna Data (col 0) de cada linha pelo Código = ID `O/…` (data de
     liquidação do extrato, `date_map`). Perda (que não gera linha no extrato) → interpola
@@ -1252,6 +1367,13 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
             system, accumulated, texto, modelo, content[-1] if content else None, reverse_rows)
         for k in total_tokens:
             total_tokens[k] += tk_extra.get(k, 0)
+        # Fidelidade: a linha do código X saiu do bloco do código X? Roda DEPOIS da
+        # cobertura porque a repescagem de lá acrescenta linhas — que também precisam
+        # passar por aqui.
+        accumulated, fidelidade, tk_fid = await _garantir_fidelidade(
+            system, accumulated, texto, modelo, content[-1] if content else None)
+        for k in total_tokens:
+            total_tokens[k] += tk_fid.get(k, 0)
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
         if betfair_dates:
             accumulated = _apply_betfair_dates(accumulated, betfair_dates)
@@ -1268,7 +1390,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # intermediário. Fire-and-forget, igual ao uso: observar não pode custar
         # a extração de ninguém.
         _fire(registrar_sombra(dono, casa, texto, accumulated))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -1431,7 +1553,13 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             chunks[0][-1] if chunks and chunks[0] else None, reverse_rows_casa)
         for k in total_tokens:
             total_tokens[k] += tk_extra.get(k, 0)
-        if cobertura.get("recuperados"):
+        # Fidelidade: a linha do código X saiu do bloco do código X? Ver a nota no seq.
+        resultado, fidelidade, tk_fid = await _garantir_fidelidade(
+            system, resultado, texto, modelo,
+            chunks[0][-1] if chunks and chunks[0] else None)
+        for k in total_tokens:
+            total_tokens[k] += tk_fid.get(k, 0)
+        if cobertura.get("recuperados") or fidelidade.get("corrigidas"):
             # A lista de linhas mudou → os índices de sobreposição de scroll não valem
             # mais. São só um badge azul de dica; descartar é seguro (e casa com código
             # nunca é marcada como sobreposição — ver `_scroll_key`).
@@ -1446,7 +1574,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
         # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
         _fire(registrar_sombra(dono, casa, texto, resultado))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"

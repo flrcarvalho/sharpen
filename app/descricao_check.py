@@ -17,6 +17,7 @@ proibido/obrigatório de forma inequívoca. Regras que não dá pra checar deter
 Cada Problema tem `nivel` ('erro' | 'aviso'), `regra` (slug) e `msg` (texto pt-BR).
 """
 import re
+import unicodedata
 from typing import NamedTuple
 
 
@@ -121,3 +122,129 @@ def resumo_lote(rows: list[dict]) -> dict:
                 "problemas": [p.msg for p in probs],
             })
     return {"com_erro": com_erro, "com_aviso": com_aviso, "exemplos": exemplos}
+
+
+# ── Fidelidade ao bloco cru (s302) ────────────────────────────────────────────
+# O checador acima olha a FORMA da descrição. Esta metade olha a PROCEDÊNCIA: a
+# descrição pertence mesmo ao bilhete daquele código?
+#
+# O caso que abriu a regra (s302, Betfair O/…/0001941): o robô mandou
+# `Norwich x Burnley · Mais/Menos de 3,5 Cartões` e a IA gravou
+# `Matthew Dennant [Norwich v Burnley]`, esporte Dardos, categoria ML — a seleção do
+# bilhete VIZINHO no mesmo chunk. A linha é impecável de forma: separador certo, sem
+# conteúdo proibido, confronto bem formado com ' v '. `checar_descricao` passa nela
+# sem um arranhão, e nada mais no sistema comparava a linha com o texto que a gerou.
+#
+# A conferência é possível porque a tradução NÃO INVENTA NOME. Ela traduz rótulo de
+# mercado (`Mais de` → `Over`), canoniza separador e escolhe categoria — mas time,
+# jogador e competição são copiados. Então: **todo nome próprio da descrição tem de
+# existir no bloco cru daquele código**. O mesmo vale para a LINHA da aposta (o
+# decimal do handicap/total): `Under 1.5 Rounds` num bilhete cujo bloco não contém
+# `1.5` é número inventado, e número inventado muda o que foi apostado.
+#
+# ALTA PRECISÃO por desenho, medido sobre a sombra inteira (1.058 bilhetes com linha
+# no banco, 11 casas): 1.051 passam. Das 7 reprovações, 6 eram erro real de conteúdo.
+# É gate de AVISO e de repescagem — nunca bloqueia salvar.
+#
+# O QUE ELE NÃO PEGA, e está aqui escrito para o verde não virar promessa falsa:
+#   • troca entre bilhetes que compartilham os mesmos nomes (duas apostas no mesmo
+#     jogo trocadas entre si passam: os nomes existem nos dois blocos);
+#   • rótulo de mercado traduzido para a categoria errada (`Vence o 3º Set` virando
+#     ML) — ali nenhum token é estranho ao bloco, só falta um. É o buraco que a regra
+#     de período do `MASTER_DESCRICAO §12.8` fecha, por outro caminho;
+#   • bilhete sem código: sem código não há bloco para comparar, e a função devolve [].
+
+# Vocabulário que a TRADUÇÃO introduz legitimamente — vem do MASTER, não da casa.
+# Palavra daqui nunca é cobrada do bloco cru. Manter enxuto: cada entrada é um nome
+# que o gate deixa de conferir.
+_VOCAB_TRADUCAO = frozenset("""
+over under v e de do da no na o a em por com sem ao aos das dos
+gols gol cartoes cartao escanteios escanteio pontos ponto sets set games game
+rounds round chutes chute assistencias assistencia rebotes rebote roubos faltas
+triplos cestas aces quarto quartos tempo periodo half inning corridas wickets
+batidas handicap mais menos acima abaixo total totais individual equipe ambos
+nenhum nenhuma sim nao race primeiro segundo terceiro ultimo proximo marcar
+marcador vencedor vence empate casa fora visitante mandante prorrogacao
+penaltis penalties tie breaks vitoria derrota submissao nocaute decisao dupla
+chance resultado impedimentos outros classificacao finalizacoes desarmes defesas
+legs metade feminino masculino women men am reb ast pts min
+""".split())
+
+# Tokens alfabéticos de 3+ letras. Hífen, apóstrofo, `&` e ponto ficam DENTRO do
+# token: `Al-Hilal`, `Brighton & Hove`, `St Patrick's` são um nome, não três.
+_RE_TOKEN_NOME = re.compile(r"[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'&.\-]{2,}")
+# Só o decimal: é a LINHA da aposta. Inteiro solto fica de fora — a tradução o
+# introduz legitimamente (`Segundo Tempo` → `2º Tempo`, `Race 7`).
+_RE_DECIMAL = re.compile(r"\d+[.,]\d+")
+
+
+def _fold(s: str) -> str:
+    """Minúscula, sem acento, com as três aspas agudas unificadas.
+
+    O acento agudo tipográfico é armadilha real: a Pinnacle escreve `St Patrick´s`
+    (U+00B4) e a IA devolve `St Patrick's` (U+0027). Sem unificar, o gate acusa nome
+    inventado num bilhete perfeito.
+    """
+    s = (s or "").replace("\u00b4", "'").replace("\u2019", "'").replace("`", "'")
+    s = unicodedata.normalize("NFD", s)
+    return "".join(c for c in s if unicodedata.category(c) != "Mn").lower()
+
+
+def _no_bloco(token: str, bloco: str) -> bool:
+    """O token aparece no bloco cru, tolerando as variações que a casa faz no NOME.
+
+    Três tolerâncias, todas medidas na sombra e todas necessárias — tirar qualquer
+    uma reintroduz falso positivo em bilhete correto:
+      • hífen com espaços: a 1xBet escreve `Ararat - Armênia`, a IA `Ararat-Armênia`;
+      • hífen ausente: `Al-Ahli` × `Al Ahli`;
+      • plural: a 1xBet escreve `Tiro de meta`, a IA `Tiros de Meta`.
+    """
+    if token in bloco:
+        return True
+    if "-" in token and (token.replace("-", " - ") in bloco or token.replace("-", " ") in bloco):
+        return True
+    for sufixo in ("es", "s"):
+        if token.endswith(sufixo) and len(token) > len(sufixo) + 2:
+            if token[: -len(sufixo)] in bloco:
+                return True
+    return False
+
+
+def checar_fidelidade(descricao: str, bruto: str) -> list[Problema]:
+    """A descrição pertence ao bilhete cujo bloco cru é `bruto`? Vazio = pertence.
+
+    Função PURA, sem I/O, microssegundos. `bruto` vazio devolve [] — sem bloco não há
+    o que comparar, e calar é a resposta certa (o gate nunca inventa suspeita).
+    """
+    d = (descricao or "").strip()
+    b = (bruto or "").strip()
+    if not d or not b:
+        return []
+
+    fb = _fold(b)
+    fb_num = fb.replace(",", ".")
+    problemas: list[Problema] = []
+
+    fora = []
+    for tok in _RE_TOKEN_NOME.findall(d):
+        ft = _fold(tok)
+        if ft in _VOCAB_TRADUCAO or _no_bloco(ft, fb):
+            continue
+        if ft not in fora:
+            fora.append(tok)
+    if fora:
+        problemas.append(Problema(
+            "erro", "nome-fora-do-bloco",
+            "nome não existe no bilhete: " + ", ".join(f"'{t}'" for t in fora[:5])
+            + " — descrição pode ser de OUTRO bilhete"))
+
+    linhas = []
+    for num in _RE_DECIMAL.findall(d):
+        if num.replace(",", ".") not in fb_num and num not in linhas:
+            linhas.append(num)
+    if linhas:
+        problemas.append(Problema(
+            "erro", "linha-fora-do-bloco",
+            "linha da aposta não existe no bilhete: " + ", ".join(f"'{n}'" for n in linhas[:5])))
+
+    return problemas

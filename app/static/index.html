@@ -4664,9 +4664,18 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
       const cobMsg = perdidos > 0
         ? ` · ⚠️ ${perdidos} de ${cob.esperados} bilhete(s) do texto NÃO foram extraídos — REPROCESSE`
         : (cob.recuperados > 0 ? ` · ${cob.recuperados} repescado(s)` : '');
-      const tipo = (ds.alertas && ds.alertas.length) || data.chunks_falhos > 0 || perdidos > 0 ? 'warn' : 'ok';
+      // Fidelidade (s302): linha cuja descrição não bate com o bloco do PRÓPRIO código —
+      // a IA copiou do bilhete vizinho no chunk. O servidor já repescou o bloco sozinho e
+      // trocou o que voltou limpo; o que sobrou aparece aqui, porque é o único aviso que
+      // existe (a linha é bem-formada, então nenhum outro gate a acusa).
+      const fid = data.fidelidade || {};
+      const fidMsg = fid.restantes > 0
+        ? ` · ⚠️ ${fid.restantes} bilhete(s) com descrição de OUTRO bilhete — CONFIRA antes de salvar`
+        : (fid.corrigidas > 0 ? ` · ${fid.corrigidas} descrição(ões) corrigida(s)` : '');
+      const tipo = (ds.alertas && ds.alertas.length) || data.chunks_falhos > 0 || perdidos > 0
+                   || fid.restantes > 0 ? 'warn' : 'ok';
 
-      markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}${cobMsg}`, tipo);
+      markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg}`, tipo);
 
       // Rail "Análise IA": KPIs + notas estruturadas + observação livre da IA
       renderRail(ds.analise, parsed.notas, modeloLabel(data.modelo), _elapsed,
@@ -4687,7 +4696,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         } else if (ds.parceiro && ds.parceiro !== parceiro.nome) {
           // Caso benigno: a conta foi renomeada durante o lote e o servidor resolveu pelo
           // ID — os bilhetes caíram na conta certa. Registrado só para não parecer mágica.
-          markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}${cobMsg} · conta renomeada `
+          markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg} · conta renomeada `
                    + `durante a extração — salvo em «${ds.parceiro}»`, 'warn');
         }
       }

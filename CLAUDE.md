@@ -441,6 +441,43 @@ verdade. Escreva o limite no cabeçalho do arquivo, senão o verde vira promessa
 
 ---
 
+## Linha bem-formada pode ser de OUTRO bilhete. Confira a procedência, não só a forma.
+
+A IA lê o lote em chunks de 6 bilhetes e **copia trecho do vizinho**. O resultado não
+parece defeito: `Matthew Dennant [Norwich v Burnley]` tem separador certo, confronto bem
+formado e nada proibido — passa em `checar_descricao` sem um arranhão, e a cobertura
+conta 65 de 65. O bilhete era `Norwich x Burnley · Mais/Menos de 3,5 Cartões` (s302).
+
+**O financeiro não viaja junto**, e é por isso que ninguém percebe: stake, odd e
+resultado são COPIADOS do bloco, então o P/L fica certo. Erra só o que a IA decide —
+esporte, categoria e descrição.
+
+A conferência é possível porque **a tradução não inventa NOME**: ela traduz rótulo,
+canoniza separador e escolhe categoria, mas time, jogador e competição são cópia. Então
+todo nome próprio e todo DECIMAL da descrição têm de existir no bloco cru **daquele
+código** (`descricao_check.checar_fidelidade`, sem IA, microssegundos). Medido na sombra:
+1.327 de 1.337 passam; das 10 reprovações, 9 eram erro real.
+
+**A correção é perguntar de novo, sozinho.** `_garantir_fidelidade` devolve o bloco
+suspeito ao modelo isolado — bilhete sem vizinho no chunk não tem de quem copiar — e
+**só aceita a resposta nova se ELA passar no gate**. Nunca troca uma linha que passa por
+outra que passa: isso seria o ruído de estilo que o congelamento do UPSERT existe para
+barrar.
+
+> **Recapturar a casa NÃO conserta linha assim.** O `ON CONFLICT` nunca atualiza
+> `esporte`/`aposta`/`descricao` fora de `origem='sync'` — **nem com a linha `aberta`**,
+> ao contrário de odd/data/stake. A sombra do `0001941` mostra a IA lendo o mesmo bilhete
+> três vezes na MESMA extração e acertando nas duas últimas; o banco ficou com a primeira.
+> Linha já gravada errada sai por edição na grade ou por script.
+
+Três tolerâncias do gate são load-bearing, todas nascidas de falso positivo medido:
+acento agudo tipográfico (`St Patrick´s` × `St Patrick's`), hífen com espaços
+(`Ararat - Armênia` × `Ararat-Armênia`) e plural (`Tiro de meta` × `Tiros de Meta`).
+E **só o DECIMAL conta como linha da aposta**: a conferência de número é por substring,
+e inteiro curto é achado dentro de qualquer odd (`2` vive dentro de `2,05`).
+
+---
+
 ## ⚠️ REGRA DE PROPAGAÇÃO OBRIGATÓRIA
 
 **Toda vez que uma categoria for criada, renomeada ou removida do `MASTER_APOSTAS_2026.md`, os seguintes arquivos DEVEM ser atualizados na mesma sessão, sem exceção:**
@@ -634,5 +671,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-27 (sessão 300 — duas regras novas no checklist de UI: quem lê o número de volta da tela conhece o padrão que o imprimiu (menos U+2212, milhar sem decimal); coluna ordenável que não ordena por texto leva data-sort)
-identificar mensagem por `editMessageText` com texto idêntico)
+ATUALIZADO: 2026-08-29 (sessão 302 — regra nova: linha bem-formada pode ser de OUTRO bilhete; confira a procedência contra o bloco cru, e saiba que recapturar não conserta porque o UPSERT congela esporte/aposta/descrição)

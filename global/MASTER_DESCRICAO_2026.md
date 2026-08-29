@@ -472,6 +472,47 @@ Usar sempre o símbolo (`1X`, `X2`, `12`), nunca a descrição textual — o sí
 
 ---
 
+## 12.10 Recorte de Período
+
+Quando o mercado da casa se refere a um **trecho** da partida — e não à partida inteira — o recorte entra na descrição como **sufixo**, imediatamente antes do confronto.
+
+Formato:
+
+```text
+Mercado Período [Confronto]
+```
+
+Exemplos:
+
+```text
+Under 39.5 Pontos 3º Set [Trinidad & Tobago Women v Costa Rica Women]
+Suécia 3º Set [Suécia v Croácia]
+Over 40.5 Pontos 1º Quarto [Washington Mystics v Phoenix Mercury]
+Over 3.5 Cartões 2º Tempo [Blackburn v Middlesbrough]
+Under 8.5 Games 2º Set [Clement Chidekh v Federico Coria]
+```
+
+**A ausência de sufixo significa PARTIDA INTEIRA.** Essa é a metade que carrega a regra: sem ela, `Total de Pontos no 3º Set` e `Total de Pontos` produzem a mesma descrição, e duas apostas diferentes ficam indistinguíveis na planilha, no matcher e na dedup. Foi o que aconteceu em três bilhetes da sessão 302 (`Vence o 3º Set` saindo como ML de partida; `Total de Pontos no 3º Set` e `Total de pontos no 1º quarto` saindo como total do jogo).
+
+Vocabulário canônico — usar sempre a forma **ordinal**, nunca a numerada ao final (`3º Set`, jamais `Set 3`):
+
+```text
+1º Tempo · 2º Tempo            (futebol, handebol, futsal)
+1ª Metade · 2ª Metade          (basquete, futebol americano)
+1º Quarto … 4º Quarto          (basquete, futebol americano)
+1º Set … 5º Set                (tênis, vôlei, e-sports)
+1º Round … 5º Round            (MMA, boxe)
+1ª Entrada … 9ª Entrada        (beisebol)
+Prorrogação                    (qualquer esporte)
+Pênaltis                       (futebol)
+```
+
+O sufixo é **do mercado**, não do resultado: `Vence o 3º Set` vira `Entidade 3º Set [Confronto]` (§12.7 mais o recorte), e `Total de Pontos no 3º Set` vira `Over/Under N Pontos 3º Set [Confronto]` (§12.5 mais o recorte). O template base não muda — o recorte só o completa.
+
+> Quando o recorte já vem embutido no objeto contado e o mercado não existe fora dele (`Legs` no dardo, `Rounds` na luta), **não** repetir: `Over 5.5 Legs` já é do jogo inteiro. O sufixo existe para desambiguar trecho × partida, e onde não há partida inteira a desambiguar ele vira ruído.
+
+---
+
 # 13. Templates Específicos por Esporte
 
 ---
@@ -820,6 +861,8 @@ Antes de retornar a saída, o extrator deve validar:
 10. confronto não foi inventado
 11. ordem original das seleções foi preservada
 12. em eBasket e eSoccer, o handle do gamer foi preservado no confronto (§13.3 / §13.5)
+13. mercado de trecho da partida (set, quarto, tempo, round, prorrogação) carrega o sufixo de período (§12.10) — sem sufixo a descrição afirma PARTIDA INTEIRA
+14. todo nome próprio da descrição (time, jogador, competição) existe no texto-fonte daquele bilhete — nome que não está lá é de OUTRO bilhete (§9)
 
 Caso o confronto não possa ser identificado com segurança, a descrição permanece válida sem confronto.
 
