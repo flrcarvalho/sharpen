@@ -127,6 +127,18 @@ _MERCADOS_BET365: dict = {
     "pontos (mais de/menos de)": {"cat": "Player Props", "objeto": "Pontos"},
 }
 
+# Famílias de rótulo PARAMETRIZADO — o que a tabela plana não alcança. Aqui a categoria
+# vem do §9 ("outros props estatísticos individuais de jogador (Futebol) → Player Props")
+# e o objeto vem do PRÓPRIO rótulo, verbatim: `Jogador - Faltas Cometidas - Alternativas`
+# entrega `Faltas Cometidas`. Sem isso, cada estatística nova de jogador que a casa
+# inventa (faltas, passes, desarmes…) seria uma linha nova de tabela — e uma chamada de
+# IA até alguém notar. Regra só entra aqui quando o §9 já decide a categoria da família;
+# adivinhar a categoria a partir do formato do rótulo seria inventar.
+_REGRAS_BET365 = [
+    (re.compile(r"^Jogador - (.+?)(?: - Alternativas)?$", re.I),
+     lambda m: {"cat": "Player Props", "objeto": m.group(1).strip()}),
+]
+
 # Qualificadores de contexto: mudam QUANDO/ONDE a aposta vale, nunca a categoria
 # (`CASA_BET365 §9`). Saem antes da consulta ao mapa.
 _QUALIFICADORES = ("ao-vivo - ", "prorrogação - ", "time visitante - ", "time da casa - ")
@@ -183,24 +195,36 @@ def _pernas(bloco: str) -> list:
     return out
 
 
-def _norm_mercado(rotulo: str) -> str:
-    """Minúscula, espaço colapsado e sem qualificador de contexto."""
-    r = re.sub(r"\s+", " ", (rotulo or "").strip()).lower()
+def _sem_qualificador(rotulo: str) -> str:
+    """Espaço colapsado e sem qualificador de contexto, **preservando a caixa** — as
+    regras parametrizadas abaixo recortam o objeto do próprio rótulo e ele vai para a
+    descrição do jeito que a casa escreveu."""
+    r = re.sub(r"\s+", " ", (rotulo or "").strip())
     r = _QUALIF_MAPA.sub("", r)
     mudou = True
     while mudou:
         mudou = False
         for q in _QUALIFICADORES:
-            if r.startswith(q):
+            if r.lower().startswith(q):
                 r, mudou = r[len(q):].strip(), True
     return r
 
 
+def _norm_mercado(rotulo: str) -> str:
+    """A chave do mapa: `_sem_qualificador` em minúscula."""
+    return _sem_qualificador(rotulo).lower()
+
+
 def _spec(mapa: dict, mercado: str, esporte: str) -> dict:
-    """Resolve o rótulo no mapa. Rótulo genérico exige o esporte para decidir o objeto —
-    sem esporte conhecido devolve `None` (fallback), nunca um chute."""
+    """Resolve o rótulo: primeiro a tabela, depois as famílias parametrizadas. Rótulo
+    genérico exige o esporte para decidir o objeto — sem esporte conhecido devolve
+    `None` (fallback), nunca um chute."""
     spec = mapa.get(_norm_mercado(mercado))
     if spec is None:
+        for regra, monta in _REGRAS_BET365 if mapa is _MERCADOS_BET365 else ():
+            m = regra.match(_sem_qualificador(mercado))
+            if m:
+                return monta(m)
         return None
     if "por_esporte" in spec:
         return spec["por_esporte"].get(esporte or "")

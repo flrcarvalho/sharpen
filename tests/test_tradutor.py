@@ -190,6 +190,39 @@ def test_tres_jogos_distintos_viram_multiplos():
     assert tradutor._esporte({}, pernas) == "Múltiplos", "MASTER_ESPORTES §2"
 
 
+def test_familia_parametrizada_de_prop_de_jogador():
+    """`Jogador - <objeto> - Alternativas` é FAMÍLIA, não linha de tabela: a categoria
+    vem do §9 e o objeto sai do próprio rótulo, verbatim e com a caixa da casa. Perna
+    real (`Nico O'Reilly`, Crystal Palace × Man City, 28/08).
+
+    Ela ainda não aparece na cobertura: o único bilhete que a contém traz junto um
+    `2º Tempo - Cartões - 3 Opções`, que segue desconhecido, e o bilhete inteiro cai no
+    fallback — que é o comportamento certo (fallback é por bilhete, não por perna)."""
+    p = tradutor.Perna("Crystal Palace x Man City",
+                       "Jogador - Faltas Cometidas - Alternativas",
+                       "Nico O'Reilly - Mais de 0.5", "1,90", "ENG-PREM")
+    spec = tradutor._spec(tradutor._MERCADOS_BET365, p.mercado, "Futebol")
+    assert spec is not None and spec["cat"] == "Player Props"
+    assert tradutor._descricao_perna(p, spec) == (
+        "Nico O'Reilly - Over 0.5 Faltas Cometidas [Crystal Palace v Man City]")
+
+
+def test_familia_parametrizada_depois_do_qualificador():
+    """Qualificador sai ANTES da família, não só antes da tabela. Sem isso, o mesmo
+    prop de jogador ao vivo cairia na IA e o de pré-jogo não — mesma aposta, custo
+    diferente conforme a hora. (Rótulo composto CONSTRUÍDO: a sombra ainda não trouxe
+    um prop de jogador ao vivo; os dois pedaços são reais e o §9 lista os dois.)"""
+    spec = tradutor._spec(tradutor._MERCADOS_BET365,
+                          "Ao-Vivo - Jogador - Faltas Cometidas - Alternativas", "Futebol")
+    assert spec is not None and spec["objeto"] == "Faltas Cometidas"
+
+
+def test_familia_parametrizada_nao_engole_rotulo_de_outra_casa():
+    """A regra é do mapa da Bet365 e não pode vazar para casa nenhuma — `_spec` só
+    consulta as famílias quando o mapa É o da Bet365."""
+    assert tradutor._spec({}, "Jogador - Faltas Cometidas", "Futebol") is None
+
+
 def test_bet_builder_nao_e_multiplos():
     """A outra metade da regra, e a que a mutação pegou faltando: 3+ pernas do MESMO
     confronto é bet builder, e bet builder usa o esporte do jogo, NUNCA `Múltiplos`
