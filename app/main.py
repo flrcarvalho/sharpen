@@ -209,6 +209,15 @@ _CASA_DISPLAY: dict[str, str] = {
     # title-case descrito acima; ele NÃO entra no mapa, então o round-trip das duas grafias
     # fecha em identidade e nenhuma conta existente é reinterpretada.)
     "ESPORTIVA":      "Esportiva",
+    # ⚠ A MARCA escreve "EstrelaBet" (logo e título), mas a canônica aqui é "Estrela Bet" —
+    # MEDIDO antes de registrar (s303), nas 7 tabelas onde `casa` é texto: 41 bilhetes
+    # (26 do dono `passapano`, 15 do `Feca`), 3 contas em `parceiros`, 1 `casas_meta` e
+    # 1 `casa_config`, TODOS em `Estrela Bet` e nenhuma variante (`ilike '%estrela%'` deu
+    # uma única grafia). Round-trip conferido nas 69 grafias distintas de `parceiros`: 0
+    # quebradas. Ver o aviso de mudança RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5 —
+    # é o defeito que matou a Jonbet na s249. A casa já era usada por PRINT, então isto é
+    # upgrade de print para API, não cadastro.
+    "ESTRELABET":     "Estrela Bet",
     "JOGODEOURO":     "Jogo de Ouro",
     "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
@@ -616,6 +625,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
     "BETFAST", "FAZ1BET", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
     "BETPIX365",
+    # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
+    # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.
+    "ESTRELABET",
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",

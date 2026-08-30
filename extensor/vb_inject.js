@@ -1,15 +1,18 @@
-// Mundo MAIN (plataforma Altenar/BIA — VaideBet, Esportiva, Jogo de Ouro e Betpix365):
+// Mundo MAIN (plataforma Altenar/BIA — VaideBet, Esportiva, Jogo de Ouro, Betpix365 e
+// Estrela Bet):
 // lê as RESPOSTAS da API de bilhetes
 // (`POST https://sb2bethistory-gateway-altenar2.biahosted.com/api/WidgetReports/widgetExpandedBetHistory`)
 // e **PAGINA ATIVAMENTE**: a partir de uma requisição real, re-emite o POST avançando
 // `pageNumber` até `isLastPage:true`, nas DUAS abas.
 //
-// AS QUATRO CASAS COMPARTILHAM ESTE ARQUIVO. O que separa as marcas é UM campo do corpo
+// AS CINCO CASAS COMPARTILHAM ESTE ARQUIVO. O que separa as marcas é UM campo do corpo
 // (`integration`), que vem junto na requisição aprendida — por isso o `RX` casa por PATH e
 // nenhum host aparece aqui. Mas "mesmo motor" não garante "mesma superfície":
 //   • Jogo de Ouro — serve os DOIS widgets; só a TELA CHEIA dispara o expandido;
-//   • Betpix365   — serve SÓ o compacto; o expandido existe e responde, mas ninguém o chama.
-// Daí os dois regexes logo abaixo.
+//   • Betpix365   — serve SÓ o compacto; o expandido existe e responde, mas ninguém o chama;
+//   • Estrela Bet — dispara o expandido direto, na window de TOPO (a mais lisa das cinco),
+//                   mas o gateway recusa `credentials:"include"` (ver `pedirPagina`).
+// Daí os dois regexes logo abaixo e o fallback de credencial no replay.
 //
 // POR QUE REPLAY E NÃO PASSIVO (s209): a lista NÃO carrega sozinha — a tela tem um botão
 // "Mostrar mais apostas" e o histórico vem de 10 em 10. Paginar por API dispensa o botão
@@ -169,6 +172,38 @@
     return JSON.stringify(o);
   }
 
+  // ⚠ `credentials:"include"` NÃO é universal neste gateway — e a falha é TOTAL, não parcial.
+  //
+  // O CORS proíbe credencial quando a resposta traz `Access-Control-Allow-Origin: *`, e o
+  // gateway responde `*` para pelo menos um tenant: na **Estrela Bet** (s303) a chamada com
+  // `include` é recusada pelo navegador ANTES de sair — `TypeError: Failed to fetch`, medido
+  // 3 de 3, com a MESMA requisição voltando 200 sem credencial, também 3 de 3. Como o replay
+  // inteiro passa por aqui, um `include` recusado não degrada nada: ele zera a captura da casa.
+  //
+  // Perder a credencial não custa autenticação: quem autentica aqui é o `Authorization: Bearer`
+  // dos headers aprendidos (ver o cabeçalho do arquivo), não cookie — foi por isso que a
+  // chamada sem credencial voltou 200 com os bilhetes da conta.
+  //
+  // A ordem é deliberada: `include` PRIMEIRO, que é o que as 4 casas anteriores usam hoje e
+  // sabidamente funciona nelas; só quem for recusado cai para a chamada sem credencial. Assim
+  // esta mudança é ADITIVA — VaideBet, Esportiva, Jogo de Ouro e Betpix365 nunca alcançam o
+  // segundo ramo, e nenhuma delas teve o comportamento alterado por dedução (não temos conta
+  // nas quatro para medir o CORS de cada tenant).
+  let semCredencial = false;                     // memoriza a escolha: 1 tentativa perdida por captura
+  async function pedirPagina(corpo) {
+    const base = { method: reqCtx.method, headers: reqCtx.headers, body: corpo };
+    if (!semCredencial) {
+      try {
+        return await of.call(window, reqCtx.url, Object.assign({}, base, { credentials: "include" }));
+      } catch (e) {
+        semCredencial = true;
+        LOG("credentials:include recusado pelo CORS do gateway (", e && e.message,
+            ") — repetindo sem credencial; o Bearer dos headers é que autentica");
+      }
+    }
+    return of.call(window, reqCtx.url, base);
+  }
+
   // Pagina UMA aba até o fim autoritativo (`isLastPage:true`). Nunca desiste no 1º obstáculo:
   // só para por fim declarado, página sem bilhete novo (anti-loop) ou teto.
   async function paginarAba(abertas) {
@@ -177,10 +212,7 @@
     for (let pagina = 1; pagina <= TETO_PAGINAS; pagina++) {
       let info = null;
       try {
-        const r = await of.call(window, reqCtx.url, {
-          method: reqCtx.method, headers: reqCtx.headers,
-          body: corpoPara(abertas, pagina), credentials: "include",
-        });
+        const r = await pedirPagina(corpoPara(abertas, pagina));
         info = forward(reqCtx.url, await r.text());
       } catch (e) { LOG("erro no replay", rotulo, "pág", pagina, ":", e && e.message); return; }
       if (!info) { LOG(rotulo, "pág", pagina, ": resposta inesperada → para"); return; }

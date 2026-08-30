@@ -63,7 +63,11 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # BETPIX365: 4ª casa Altenar (s258). ⚠ É a única que NÃO dispara o `widgetExpandedBetHistory`
 # por conta própria — a tela dela chama só o widget compacto, e o inject aprende url+headers
 # dele para então buscar o expandido. Também usa o MESMO `vb_inject.js`.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
+# ESTRELABET: 5ª casa Altenar (s303) e a mais LISA da família na SUPERFÍCIE — a tela cheia do
+# histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
+# resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
+# para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
                    "BOLSADEAPOSTA": "texto"}
 
 
@@ -129,6 +133,11 @@ _HOSTS_POR_CASA = {
     # (`widgetBetHistory`); quem busca o `widgetExpandedBetHistory` é o replay do inject,
     # reusando o `Authorization` aprendido. A ABA continua sendo o site da casa.
     "BETPIX365":  ("betpix365.bet.br",),
+    # 5ª casa Altenar (s303). O histórico sai do mesmo gateway `biahosted.com`, que não entra
+    # aqui — a amarração casa↔site olha o host da ABA, e a aba é o site da casa. Só o
+    # `.bet.br` regulado: o `estrelabet.com` do mapa de favicons é a operação antiga e NÃO
+    # autoriza captura (mesmo critério da Pitaco e da 1xBet).
+    "ESTRELABET": ("estrelabet.bet.br",),
     # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
     # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
     "BETFAST":    ("betfast.bet.br",),

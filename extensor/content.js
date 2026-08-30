@@ -1084,7 +1084,8 @@
       // outras duas — zero campo novo. `casos/faz1bet.mjs` roda a fixture dela pelos TRÊS
       // hosts e exige bloco idêntico; amarrar o domínio deixa o caso vermelho.
       blocos = await roboTVPassive(ctx);
-    } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" || casa === "betpix365") {
+    } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" ||
+               casa === "betpix365" || casa === "estrelabet") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
@@ -1106,6 +1107,12 @@
       // compacto, em "Minhas Apostas". O inject aprende url+headers dele (`RX_APRENDE`) e
       // reescreve o path para o expandido no replay — o compacto entra como molde, nunca
       // como dado, porque medimos que ele não traz `selections`.
+      //
+      // ⚠ A Estrela Bet (s303) é a 5ª e a mais LISA das cinco: "Ver minhas apostas" abre a
+      // tela cheia, que dispara o `widgetExpandedBetHistory` direto e na window de TOPO (não
+      // em iframe), e o clone passivo resolve. O que ela tem de próprio não está na tela e
+      // sim no CORS do gateway — `credentials:"include"` é recusado para o tenant dela e
+      // zeraria o replay inteiro; quem trata é o `pedirPagina` do `vb_inject.js`.
       blocos = await roboVBPassive(ctx);
     } else if (casa === "sportingbet") {
       // Passivo + replay paginado (spb_inject, motor bwin/Entain — o primeiro deste motor
@@ -1232,6 +1239,14 @@
         betpix365:  { nome: "Betpix365",  hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
                       extra: vbRespostas === 0
                         ? " · abra Minhas Apostas e recarregue a página (Ctrl+Shift+R); se persistir, refaça o login"
+                        : "" },
+        // Estrela Bet: 5ª casa Altenar, mesmo inject/contadores. A tela dela dispara o
+        // expandido sozinha, então `respostas: 0` com hook ATIVO aqui NÃO é "abra outra tela"
+        // (Jogo de Ouro) nem molde que falhou (Betpix365): é a tela do histórico nunca ter
+        // sido aberta nesta aba, ou sessão vencida.
+        estrelabet: { nome: "Estrela Bet", hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
+                      extra: vbRespostas === 0
+                        ? " · clique em \"Ver minhas apostas\" e capture com o histórico na tela; se persistir, refaça o login"
                         : "" },
         jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o
@@ -4192,8 +4207,34 @@
   // oficial) e o banco saiu com as duas grafias: 3 linhas "Beisebol" + 1 "Baseball", que o
   // sistema conta como esportes DIFERENTES. O oficial é `Baseball` (`MASTER_ESPORTES §Baseball`,
   // onde BEISEBOL aparece como sinônimo de entrada, nunca como saída).
-  const _ESPORTE_VB = { 1: "Futebol", 13: "Baseball" };
+  //
+  // O `12` entrou na s303, provado por DOIS eixos independentes na Estrela Bet, nenhum deles
+  // dedução a partir do nome do time: (a) toda seleção com `sportTypeId:12` traz `sportId:67`,
+  // e a própria API da casa nomeia esse id — `GetHighlights` devolve `{"id":67,"name":"Basquete"}`
+  // (assim como 66=Futebol e 76=Beisebol, que batem com os `sportTypeId` 1 e 13 já mapeados);
+  // (b) as 8 seleções da amostra são basquete real (WNBA, LNBP, CIBACOPA, FIBA Asia), com
+  // mercados de basquete (`1º tempo - total Mais de 83.5`, `Handicap (+11.5)`).
+  //
+  // ⚠ `Basquete` ≠ `eBasket` (`MASTER_ESPORTES §Regra Crítica — Basquete vs eBasket`). O risco
+  // seria a casa enfiar basquete VIRTUAL no mesmo id; ela não o faz — `E-Basquete` é sport
+  // próprio no menu dela, ao lado de `Basquete`. Sem amostra de eBasket, isso fica declarado
+  // como limite no `CASA_ESTRELABET §9`, não escondido.
+  const _ESPORTE_VB = { 1: "Futebol", 12: "Basquete", 13: "Baseball" };
   const _RESULT_PERNA_VB = { 0: "pendente", 1: "ganhou", 2: "perdeu" };
+
+  // Nome vindo do dicionário da casa, higienizado para o BLOCO. Não é cosmética: o dicionário
+  // deste motor entrega TAB literal dentro do nome do time — medido na Estrela Bet (s303),
+  // `"Real Sociedad vs. RCD Espanyol\t\t"` e `"RCD Espanyol\t\t"`, e o próprio menu dela traz
+  // `"E-sports +\t\t"`. O TAB é o SEPARADOR DE COLUNA do TSV (`MASTER_OUTPUT`): a IA copia
+  // nome próprio verbatim (é isso que o gate de fidelidade da s302 assume), então um TAB
+  // copiado para a coluna Descrição empurra Stake/Odd/Resultado uma casa à direita e o
+  // `parse_tsv` lê o código do bilhete no lugar do resultado — a família do bug da s193.
+  //
+  // A linha "- " das seleções já colapsava espaço por outro motivo (juntar rótulo + nome);
+  // isto estende a mesma higiene aos campos que saíam crus. Colapsa QUALQUER corrida de
+  // espaço em branco em um espaço só e apara as pontas — as irmãs têm nome com espaço final
+  // (`"Náutico vs. Ceará "`) e passam a sair aparadas, que é o certo.
+  const _limpoVB = (s) => String(s == null ? "" : s).replace(/\s+/g, " ").trim();
 
   // ISO UTC ("2026-07-26T17:34:39.79Z") → epoch ms. Data inválida vira null (nunca 0, que
   // viraria 01/01/1970 no bloco).
@@ -4353,7 +4394,10 @@
 
     const sels = b.selections || [];
     if (sels.length >= 2) {
-      const jogos = new Set(sels.map((s) => String(s.eventName || s.eventId || "")));
+      // `_limpoVB` aqui não é enfeite: sem ele, `"Mirassol  vs. Palmeiras"` e
+      // `"Mirassol vs. Palmeiras"` contariam como jogos DIFERENTES e o aviso de mesmo jogo
+      // sumiria — o dicionário desta plataforma tem espaço duplo de verdade (s303).
+      const jogos = new Set(sels.map((s) => _limpoVB(s.eventName) || String(s.eventId || "")));
       if (jogos.size === 1) L.push("Mesmo jogo: as " + sels.length + " seleções são do mesmo evento");
     }
 
@@ -4377,12 +4421,13 @@
                       .join(" ").replace(/\s+/g, " ").trim());
       }
       const ctx2 = [];
-      if (s.eventName) ctx2.push("Jogo: " + s.eventName);
+      const jogo = _limpoVB(s.eventName);
+      if (jogo) ctx2.push("Jogo: " + jogo);
       const ini = _dhVB(_msVB(s.eventDate));
       if (ini) ctx2.push("Início: " + ini);
       if (s.isLive) ctx2.push("Ao vivo");
       if (ctx2.length) L.push("    " + ctx2.join(" · "));
-      if (s.eventScore) L.push("    Placar: " + s.eventScore);
+      if (s.eventScore) L.push("    Placar: " + _limpoVB(s.eventScore));
       if (s.price != null && sels.length > 1) L.push("    Odd da seleção: " + _oddTxtVB(s.price));
     }
     return L.join("\n");

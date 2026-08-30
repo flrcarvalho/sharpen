@@ -27,6 +27,21 @@ export function fixture(nome) {
   return ler(path.join(RAIZ, "fixtures", nome));
 }
 
+/**
+ * Sentinela de FALHA DE REDE. O `responder` de um caso pode devolvê-la no lugar de um corpo
+ * para que aquela requisição **rejeite**, como o navegador faz — `TypeError: Failed to fetch`.
+ *
+ * Existe porque `null` já significa "404 com corpo vazio", e 404 é uma resposta: o inject a
+ * recebe e segue. Requisição BARRADA pelo navegador é outra coisa — a promise nem resolve —
+ * e é justamente esse caminho que o fallback de CORS da Estrela Bet precisa exercitar
+ * (`credentials:"include"` contra um gateway que responde `Access-Control-Allow-Origin: *`
+ * é recusado antes de sair, medido 3 de 3 na casa). Sem poder rejeitar aqui, o teste do
+ * fallback provaria só que o código compila.
+ *
+ * Aditiva: os casos anteriores nunca devolvem esta sentinela e enxergam o sandbox de antes.
+ */
+export const FALHA_DE_REDE = Symbol("falha-de-rede");
+
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -105,7 +120,13 @@ export async function rodarInject(cfg) {
       // Entrega também aos ouvintes do próprio inject (é assim que o content dispara o replay).
       for (const cb of ouvintes) { try { cb({ data: msg, source: janela }); } catch (e) {} }
     },
-    fetch(url, opts) { return Promise.resolve(resposta(url, responder(url, opts))); },
+    fetch(url, opts) {
+      const corpo = responder(url, opts);
+      // Requisição barrada pelo navegador (CORS, rede) rejeita — não devolve 404. Ver
+      // `FALHA_DE_REDE` no topo.
+      if (corpo === FALHA_DE_REDE) return Promise.reject(new TypeError("Failed to fetch"));
+      return Promise.resolve(resposta(url, corpo));
+    },
   };
   janela.top = janela;
   janela.window = janela;
@@ -118,6 +139,12 @@ export async function rodarInject(cfg) {
     addEventListener(t, cb) { (this._ouvintes[t] ||= []).push(cb); },
     send(body) {
       const corpo = responder(this._u, { method: this._m, body: body });
+      // Mesmo contrato do fetch: barrada pelo navegador dispara `error`, não `load` com 404.
+      if (corpo === FALHA_DE_REDE) {
+        this.status = 0; this.responseText = "";
+        setTimeout(() => { for (const cb of (this._ouvintes.error || [])) cb.call(this); }, 0);
+        return;
+      }
       const bin = corpo != null && typeof corpo !== "string";
       this.responseText = corpo == null ? "" : (bin ? Buffer.from(corpo).toString("utf8") : corpo);
       if (bin) { const b = Buffer.from(corpo); this.response = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); }

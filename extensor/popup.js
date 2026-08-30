@@ -39,6 +39,9 @@ const CASA_HOSTS = {
   "Esportiva":  ["esportiva.bet.br"],  // espelho da VaideBet · mesmo motor Altenar/BIA
   "Jogo de Ouro": ["jogodeouro.bet.br"],  // 3ª casa Altenar · captura na TELA CHEIA do histórico
   "Betpix365":  ["betpix365.bet.br"],  // 4ª casa Altenar · captura em Minhas Apostas (replay busca o expandido)
+  // 5ª casa Altenar (s303) · a tela cheia do histórico já dispara o expandido sozinha; o que
+  // ela tem de próprio é o gateway recusar `credentials:"include"` (tratado no vb_inject).
+  "Estrela Bet": ["estrelabet.bet.br"],
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Faz1bet":    ["faz1.bet.br"],      // 3ª casa BetConstruct (s284) · o domínio não tem o "bet"
   "Betnacional": ["betnacional.bet.br"],

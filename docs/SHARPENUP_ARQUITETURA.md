@@ -137,6 +137,7 @@ Regras que valem para todos:
 | **Esportiva** | **espelho da VaideBet** — mesmo motor Altenar/BIA | idem, **mesmo host de gateway** | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jogo de Ouro** | **espelho da VaideBet** — 3ª casa Altenar | idem ⚠ **só na TELA CHEIA** (o painel lateral usa `widgetBetHistory`) | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Betpix365** | **espelho da VaideBet** — 4ª casa Altenar | idem ⚠ **a casa só dispara o `widgetBetHistory` compacto**; o replay aprende dele e busca o Expanded | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
+| **Estrela Bet** | **espelho da VaideBet** — 5ª casa Altenar | idem · a mais LISA das cinco: dispara o Expanded sozinha, na window de TOPO ⚠ **mas o gateway recusa `credentials:"include"`** | **`vb_inject.js`** (o mesmo) | `id` | `isLastPage:true` | evento mais recente (UTC→SP) |
 | **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
 | **Pitaco** | **replay puro** (o passivo é impossível) | `POST /…UiMyBetsService/GetUiMyBetsTabContent` — **gRPC-Web / protobuf binário** | `pt_inject.js` | `.4.1.1` (17 díg.) | campo `.5` ausente na resposta | evento mais recente ⚠ **sem ano** — derivado da colocação |
 | **Novibet** | **replay puro** (o passivo é impossível) | `POST /spt/api/historytickets/search` (gateway BlueBrown, host da casa) | `nv_inject.js` | `ticketId` (9 díg.) | `skip >= statistics.count` | `placedAt` (colocação, UTC→SP) ⚠ **não há data de evento** |
@@ -181,6 +182,56 @@ Regras que valem para todos:
 > **A lição geral: "a casa expõe o endpoint" e "a casa usa o endpoint" são perguntas
 > diferentes.** Vale testar o endpoint conhecido com os headers da página antes de concluir
 > que a casa não o tem.
+>
+> ⚠️ **A Estrela Bet (s303) tem a superfície mais LISA das cinco Altenar — e mesmo assim não
+> é lisa. O que ela muda não está na tela, está no CORS.** "Ver minhas apostas" abre a tela
+> cheia, que dispara o `widgetExpandedBetHistory` sozinha, na window de **topo** (não em
+> iframe), com o clone passivo resolvendo: nem o molde do compacto (Betpix365) nem ensinar o
+> operador a achar outra tela (Jogo de Ouro). Mas o gateway responde
+> `Access-Control-Allow-Origin: *` para este tenant, e o navegador **recusa a requisição com
+> `credentials:"include"` antes de ela sair** — `TypeError: Failed to fetch`, medido **3 de
+> 3**, com a mesma requisição voltando **200** sem credencial, também 3 de 3 (o XHR com
+> `withCredentials` falha igual).
+>
+> **A falha é TOTAL, não parcial, e é por isso que ela merece parágrafo:** o replay inteiro
+> passa por esse fetch, então um `include` recusado não degrada a casa — some com a metade
+> que só o replay busca. Medido restaurando o código antigo por mutação: chegam **8 de 12**
+> bilhetes, porque as resolvidas vêm pelo caminho passivo (a própria página as baixou) e **as
+> 4 abertas desaparecem em silêncio**.
+>
+> **Perder a credencial não custa autenticação** — quem autentica neste gateway é o
+> `Authorization: Bearer` dos headers aprendidos, não cookie. O `pedirPagina` tenta `include`
+> primeiro (o que as 4 irmãs usam hoje) e cai para a chamada sem credencial em quem for
+> recusado, memorizando a escolha. **A ordem é deliberada:** não temos conta nas outras quatro
+> para medir o CORS de cada tenant, e inverter "porque o Bearer basta" seria mudar 4 casas em
+> produção por dedução. Validado AO VIVO com o código de produção recortado do arquivo: a
+> 1ª chamada é recusada, a 2ª volta 200, e as duas abas fecham em `isLastPage:true`.
+>
+> **Lição geral: `credentials:"include"` não é grátis nem universal.** Ele é *incompatível*
+> com `Access-Control-Allow-Origin: *`, e a política de CORS pode variar **por tenant dentro
+> do mesmo gateway**. Numa casa nova, teste os dois modos antes de assumir que o replay
+> herda o que funciona na irmã.
+>
+> ⚠️ **E o dicionário deste tenant tem TAB LITERAL dentro do nome do time** —
+> `"Real Sociedad vs. RCD Espanyol\t\t"`, além de `"Mirassol  vs. Palmeiras"` com espaço
+> duplo (o próprio menu da casa traz `"E-sports +\t\t"`). **TAB é o separador de coluna do
+> TSV**, e a IA copia nome próprio verbatim — é a premissa em que o gate de fidelidade da
+> s302 se apoia. Copiado para a Descrição, ele empurra Stake/Odd/Resultado uma casa à direita
+> e o `parse_tsv` lê o código do bilhete no lugar do resultado (a família do bug da s193).
+> **Nenhum gate existente pegaria:** `checar_descricao` olha forma, `checar_fidelidade`
+> confere nome por substring (e o nome com TAB contém o nome sem TAB) e o financeiro fica
+> certo, porque stake/odd/resultado são copiados do bloco. O `_limpoVB` do `content.js`
+> higieniza antes de o nome entrar no bloco. **Dado sujo da casa é problema de FRONTEIRA:
+> normalize na entrada, não confie que o formato do TSV protege sozinho.**
+>
+> Outros achados da Estrela Bet: **`bonus` = "SuperMúltipla"**, bônus de múltipla pago **por
+> fora da odd** — `totalWin ÷ stake` (11,516) ≠ `totalOdds` (11,015269), com os R$ 75,11
+> fechando a conta ao centavo; é o mesmo campo que a Betpix365 estampa como "Ganhos extra"
+> (**o nome do selo é da marca, o campo é do motor**) · **`sportTypeId 12` = `Basquete`**,
+> enum novo para a família, provado por dois eixos independentes (todo `12` traz `sportId:67`,
+> e o `GetHighlights` da própria casa devolve `{"id":67,"name":"Basquete"}`) · tela trunca a
+> odd em 2 casas, no bilhete e na seleção · `cashOutValue: 0` com botão de cashout ativo,
+> como nas irmãs · **união de chaves: 60 chaves, zero nova** contra as 77 das quatro irmãs.
 >
 > Outros achados da Betpix365: **"Ganhos extra"** (`bets[].bonus`) é bônus de múltipla pago
 > **por fora da odd** — `totalWin ÷ stake` (4,23) ≠ `totalOdds` (4,08345), a 1ª casa Altenar

@@ -83,6 +83,10 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # id real da conta (a múltipla W de 02/08 com "Ganhos extra" de R$ 0,15). 4ª casa do
     # motor Altenar: mesmo espaço de IDs, numérico de 10 dígitos.
     "BETPIX365":  "5255274526",
+    # id real da conta (o W de 28/08 que pagou R$ 1.727,40 sobre R$ 150 — o mesmo bilhete em
+    # que a "SuperMúltipla" de R$ 75,11 faz a odd do card não explicar o retorno). 5ª casa do
+    # motor Altenar: mesmo espaço de IDs, numérico de 10 dígitos.
+    "ESTRELABET": "5346391363",
     "BET365":     "JR8714690761I",
     # ticket_id real da conta (a Super Odds aberta de 01/08) — formato NXBNAC + 24 dígitos.
     "BETNACIONAL": "NXBNAC000142211281785609607878",
