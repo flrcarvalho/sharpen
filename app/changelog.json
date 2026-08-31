@@ -17,6 +17,18 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-exportar-csv-agora-traz-o-lucro",
+      "data": "2026-08-31",
+      "tag": "Sharpen",
+      "titulo": "Exportar CSV agora traz o lucro",
+      "texto": "O **CSV** exportado passou a trazer uma coluna com o **lucro de cada aposta**, já calculado — inclusive nos casos de meio green e meio red, onde a conta na mão não fecha.",
+      "itens": [
+        "Vale nos dois: o Exportar da tela de Extração e o Baixar base (CSV) do painel.",
+        "O TSV continua igual, com as mesmas 10 colunas de sempre."
+      ],
+      "fecho": "Nada a atualizar: basta exportar de novo."
+    },
+    {
       "id": "sharpen-minha-conta",
       "data": "2026-08-24",
       "tag": "Sharpen",
