@@ -62,6 +62,27 @@ Se qualquer coluna extra aparecer, o TSV deve ser considerado inválido.
 
 ---
 
+## 2.1 P/L — coluna do arquivo CSV, nunca da extração
+
+O botão **Exportar → CSV** (tela de Extração) e o **Baixar base (CSV)** (Dashboard)
+acrescentam uma coluna final com o **P/L líquido** da aposta. Ela não contradiz o §2:
+não é emitida pela IA, é **calculada pelo app na hora de gerar o arquivo**
+(`repository.calcular_pl`, campo derivado que não existe no banco).
+
+- **Só no CSV.** O TSV segue com **10 colunas**, imutável — ele é colado direto na
+  planilha do usuário, e uma coluna a mais cairia em cima do que ele já tem ao lado
+  do `Resultado`.
+- **Formato:** decimal vírgula, 2 casas, hífen comum no negativo (`-18,50`). O minus
+  tipográfico U+2212 do padrão de tela viraria **texto** no Excel.
+- **Vazia** quando a aposta está aberta ou o P/L não é calculável (vitória sem odd
+  legível) — o mesmo `None` de `calcular_pl`.
+
+Existe porque em **meio green / meio red** (`HW`/`HL`) o lucro é de meia aposta
+(`MASTER_RESULTADO §7`) e não dá para refazer a conta na planilha a partir de stake e
+odd. Pedido do grupo de testers, 31/08/2026.
+
+---
+
 # 3. Separador de Colunas
 
 O TSV deve utilizar exclusivamente:

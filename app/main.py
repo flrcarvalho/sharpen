@@ -61,6 +61,7 @@ from repository import (
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
     get_custo_conta, salvar_custo_conta,
+    calcular_pl,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
@@ -3276,16 +3277,27 @@ async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo), re
 @app.get("/exportar.csv")
 async def exportar_csv(dono: str = Depends(dono_efetivo)):
     """Backup completo da base do dono: todas as linhas, todas as colunas, em CSV
-    (separador ';' + BOM → abre limpo no Excel pt-BR, decimal vírgula preservado)."""
+    (separador ';' + BOM → abre limpo no Excel pt-BR, decimal vírgula preservado).
+
+    A última coluna, `pl`, NÃO existe no banco: o P/L é derivado na leitura
+    (`calcular_pl`), então o `SELECT *` do `export_bilhetes` nunca a traria. Vai no
+    arquivo porque em meio green/red (HW/HL) o lucro é de meia aposta e não dá para
+    refazer a conta na planilha a partir de stake e odd. Vazia = aposta aberta ou P/L
+    não calculável (vitória sem odd legível)."""
     rows = await export_bilhetes(dono)
     buf = io.StringIO()
     buf.write("﻿")  # BOM p/ Excel reconhecer UTF-8
     if rows:
-        campos = list(rows[0].keys())
+        campos = list(rows[0].keys()) + ["pl"]
         w = csv.DictWriter(buf, fieldnames=campos, delimiter=";", extrasaction="ignore")
         w.writeheader()
         for r in rows:
-            w.writerow({k: ("" if v is None else str(v)) for k, v in r.items()})
+            linha = {k: ("" if v is None else str(v)) for k, v in r.items()}
+            pl = calcular_pl(r.get("stake"), r.get("odd"), r.get("resultado"))
+            # Decimal vírgula, como o resto do arquivo. Hífen comum no negativo — o
+            # minus U+2212 do padrão de tela viraria texto no Excel.
+            linha["pl"] = "" if pl is None else f"{pl:.2f}".replace(".", ",")
+            w.writerow(linha)
     from datetime import datetime as _dt
     nome = f"sharpen_base_{dono}_{_dt.now().strftime('%Y-%m-%d_%H%M')}.csv"
     return StreamingResponse(

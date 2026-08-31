@@ -6228,17 +6228,35 @@ function _linhaExport(b) {
          .map(v => v ?? '');
 }
 // TSV: separado por TAB (colar direto na planilha). Sem cabeçalho.
+// 10 colunas, SEMPRE — é o caminho de colar direto na planilha do usuário, onde uma
+// 11ª coluna cairia em cima do que ele já tem ao lado do Resultado. Coluna nova de
+// export vai só no CSV (arquivo separado), nunca aqui.
 function montarTSV(arr) {
   return arr.map(b => _linhaExport(b).join('\t')).join('\n');
 }
+
+// P/L para ARQUIVO, não para tela. O backend já entrega `b.pl` calculado
+// (repository.calcular_pl) — não recalcular aqui: HW/HL são meia-aposta e um segundo
+// cálculo em JS divergiria do banco no dia em que a regra mudasse. `fmtPL` não serve:
+// devolve HTML e usa o minus U+2212, que o Excel lê como TEXTO. Aqui é hífen comum,
+// decimal vírgula, sem separador de milhar. Vazio = aposta aberta ou P/L não
+// calculável (vitória sem odd legível).
+function _plExport(v) {
+  if (v == null || v === '') return '';
+  const n = Number(v);
+  return isFinite(n) ? n.toFixed(2).replace('.', ',') : '';
+}
+
 // CSV: separado por ';' (Excel pt-BR, que usa vírgula como decimal). Campos com
-// ';', aspas ou quebra de linha são escapados entre aspas duplas.
+// ';', aspas ou quebra de linha são escapados entre aspas duplas. Leva uma 11ª
+// coluna com o P/L (pedido do grupo de testers, s303): em meio green/red o lucro
+// não é `stake × odd − stake` e ninguém calcula à mão.
 function montarCSV(arr) {
   const esc = v => {
     const s = String(v);
     return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
-  return arr.map(b => _linhaExport(b).map(esc).join(';')).join('\r\n');
+  return arr.map(b => [..._linhaExport(b), _plExport(b.pl)].map(esc).join(';')).join('\r\n');
 }
 
 // ── Exportar (item 5): menu TSV/CSV → baixa o arquivo pro PC ───────────────────
