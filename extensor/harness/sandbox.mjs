@@ -42,6 +42,24 @@ export function fixture(nome) {
  */
 export const FALHA_DE_REDE = Symbol("falha-de-rede");
 
+/**
+ * Envelope de RESPOSTA CUJO CLONE MORRE. O `responder` de um caso pode devolver
+ * `cloneAbortado(corpo)` para que a resposta chegue inteira ao chamador (status 200, `text()`
+ * normal) mas `clone().text()` **rejeite** com `AbortError` — que é o que o navegador faz
+ * quando a página dispara o `fetch` com `AbortSignal` e aborta logo após consumir o corpo.
+ *
+ * Existe porque essa é a realidade da SportingBet (s305, medido 2 de 2 na conta): a leitura
+ * passiva do hook é impossível ali, e o inject precisa provar que continua entregando o lote
+ * **pelo replay**, sem o clone. Sem isto aqui, o harness leria o clone de boa vontade e um
+ * inject que dependesse da leitura passiva passaria verde — falso verde do tipo 2 do
+ * `CLAUDE.md` ("o dado sintético não exerce a regra").
+ *
+ * Aditiva: quem não usa a função enxerga o sandbox de antes.
+ */
+export function cloneAbortado(corpo) {
+  return { __cloneAborta: true, corpo: corpo };
+}
+
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -91,15 +109,23 @@ export async function rodarInject(cfg) {
   // esse corpo por `text()` passaria pelo decode UTF-8 e **corromperia os bytes** — todo
   // 0x80-0xFF inválido vira U+FFFD e o payload nunca mais volta. Por isso a resposta dublada
   // ganhou `arrayBuffer()`. Para corpo de texto nada muda (`text()` continua sendo a fonte).
-  const resposta = (url, corpo) => {
+  const resposta = (url, corpoOuEnvelope) => {
+    // Envelope de clone abortado (ver `cloneAbortado`): a resposta é normal, só o CLONE morre.
+    const aborta = !!(corpoOuEnvelope && corpoOuEnvelope.__cloneAborta);
+    const corpo = aborta ? corpoOuEnvelope.corpo : corpoOuEnvelope;
     const bin = corpo != null && typeof corpo !== "string";
     const buf = () => (corpo == null ? Buffer.alloc(0) : (bin ? Buffer.from(corpo) : Buffer.from(corpo, "utf8")));
     const text = () => Promise.resolve(corpo == null ? "" : (bin ? buf().toString("utf8") : corpo));
     const arrayBuffer = () => { const b = buf(); return Promise.resolve(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
+    const abortErr = () => {
+      const e = new Error("The user aborted a request.");
+      e.name = "AbortError";
+      return Promise.reject(e);
+    };
     return {
       ok: corpo != null, status: corpo == null ? 404 : 200, url: String(url),
       text, arrayBuffer,
-      clone: () => ({ text, arrayBuffer }),
+      clone: () => (aborta ? { text: abortErr, arrayBuffer: abortErr } : { text, arrayBuffer }),
     };
   };
 
@@ -185,10 +211,18 @@ export async function rodarInject(cfg) {
   // depende dos HEADERS da requisição real (Jonbet/BetBy — o `Authorization: Bearer` é a única
   // coisa que separa a chamada útil daquela que a página dispara antes de autenticar e toma
   // 401). Sem ele o harness não conseguiria exercitar a guarda do token.
-  await janela.fetch(cfg.urlInicial || cfg.href,
-                     cfg.optsInicial ||
-                     (cfg.corpoInicial ? { method: "POST", body: cfg.corpoInicial } : undefined));
-  await espera(30);
+  //
+  // `cfg.semRequisicaoInicial` PULA esta etapa: a página não faz requisição nenhuma. Não é
+  // hipótese — é o comportamento medido da SportingBet (s305): carga direta de Minhas
+  // Apostas vem renderizada pelo SERVIDOR e nenhuma chamada de API acontece. Todo inject
+  // que só sabe repaginar a partir de uma requisição aprendida entrega ZERO nesse cenário,
+  // e é isso que este modo precisa deixar vermelho.
+  if (!cfg.semRequisicaoInicial) {
+    await janela.fetch(cfg.urlInicial || cfg.href,
+                       cfg.optsInicial ||
+                       (cfg.corpoInicial ? { method: "POST", body: cfg.corpoInicial } : undefined));
+    await espera(30);
+  }
   // 1b) respostas que a PÁGINA busca depois (detalhe por rota, na bet365) — ver `cfg.urlsExtra`.
   // Cada item é uma URL ou `{url, opts}` — a forma com `opts` existe para reproduzir a
   // sequência real da Jonbet: a 1ª chamada sai sem `Authorization` e toma 401, a 2ª já vai

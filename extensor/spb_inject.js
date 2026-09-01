@@ -1,23 +1,41 @@
-// Mundo MAIN (SportingBet — motor bwin/Entain): lê as RESPOSTAS da API de bilhetes
-// (`POST https://www.sportingbet.bet.br/pt-br/sports/api/mybets/betslips`) e **PAGINA
-// ATIVAMENTE**: a partir de uma requisição real, re-emite o POST avançando `index` até a
-// casa devolver lista vazia, nas DUAS abas (`Settled` e `Open`).
+// Mundo MAIN (SportingBet — motor bwin/Entain): PAGINA ATIVAMENTE a API de bilhetes
+// (`POST https://www.sportingbet.bet.br/pt-br/sports/api/mybets/betslips`), avançando
+// `index` até a casa devolver lista vazia, nas DUAS abas (`Settled` e `Open`).
 //
-// POR QUE REPLAY E NÃO PASSIVO (s289): a tela pede `maxItems: 6` por vez e só busca mais
-// quando o operador rola. Paginar por API dispensa a rolagem — e aqui isso pesa mais que
-// nas outras casas, porque o histórico inteiro sai numa chamada só com `maxItems` alto
-// (`CLAUDE.md`: "API externa por item = latência E falha multiplicadas. Peça a FAIXA.").
+// ⚠️ ARRANQUE A FRIO (s305) — ESTE INJECT NÃO ESPERA VER REQUISIÇÃO NENHUMA.
+// Até a 0.7.4 o replay só arrancava depois de aprender uma requisição real da página
+// (`reqCtx`). Medido ao vivo na conta do Feca em 31/08, com dois testers travados em
+// "0 bilhetes":
+//
+//   • ABRIR A PÁGINA DE MINHAS APOSTAS NÃO FAZ REQUISIÇÃO. Carga direta (ou F5) de
+//     `/pt-br/sports/minhas-apostas/liquidada` renderiza a lista inteira pelo SERVIDOR:
+//     **zero** chamadas a `betslips`. O POST só sai na PRIMEIRA vez que cada aba é aberta
+//     dentro daquela carga — reabrir a mesma aba não dispara nada, a SPA já tem o dado.
+//     Ou seja: quem dá F5 e roda o robô nunca gerou requisição, e o replay antigo voltava
+//     na primeira linha (`if (!reqCtx) return`) — hook ATIVO, respostas 0, vistos 0.
+//   • E A LEITURA PASSIVA É IMPOSSÍVEL AQUI. A SPA dispara o `fetch` com `AbortSignal` e
+//     ABORTA assim que termina de consumir a resposta, o que mata o stream do clone:
+//     `r.clone().text()` **rejeita** com `AbortError: The user aborted a request` (medido
+//     2 de 2, status 200 nas duas). Sem handler de rejeição isso morria em silêncio.
+//
+// Por isso o replay hoje monta a requisição SOZINHO, com os cabeçalhos do motor como
+// constantes + os cookies da sessão. Provado na conta: `Settled` p1 = 33 bilhetes, p2 = 0;
+// `Open` p1 = 4, p2 = 0 — sem aprender nada da página.
+//
+// ⚠️ AUTENTICAÇÃO NÃO É SÓ COOKIE, e a falha NÃO GRITA. Sem os cabeçalhos do motor o
+// servidor devolve **200 com o HTML da SPA** (medido: 135 KB de HTML). Por isso o
+// `forward` exige `betslips` como array antes de aceitar qualquer resposta, e por isso
+// `HEADERS_MOTOR` não é enfeite. Medido um a um: sem eles → HTML; com eles → JSON. O
+// `X-XSRF-TOKEN` é o único dispensável (mandei vazio e passou; nem existe cookie de XSRF
+// na sessão), então ele não entra nas constantes.
+//
+// A requisição real, quando aparece, continua sendo APRENDIDA — ela traz campos que a
+// gente não conhece (`openEventIds`, `liveEventIds`, `summaryBetNumbers`) e que preferimos
+// preservar. Mas ela virou melhoria, não pré-requisito.
 //
 // UMA URL, DUAS ABAS: o discriminador é o `typeFilter` do CORPO (`Settled` · `Open`). O
 // estado real vem no PRÓPRIO bilhete (`state`), então não dependemos de saber qual aba
 // disparou: `guardar()` aplica "resolvida vence aberta" pelo dado.
-//
-// ⚠️ AUTENTICAÇÃO NÃO É SÓ COOKIE. O endpoint exige headers próprios do motor
-// (`x-xsrf-token`, `x-bwin-sports-api`, `sports-api-version`, `x-from-product`,
-// `x-device-type`, `x-bwin-browser-url`). Medido na conta: **um GET no mesmo path devolve
-// o HTML da SPA, com HTTP 200** — ou seja, a falha não grita, ela devolve lixo que não
-// parseia. Por isso o replay reusa os headers EXATOS da requisição que a página fez, e o
-// `forward` exige `betslips` como array antes de aceitar qualquer resposta.
 //
 // ⚠️ FIM AUTORITATIVO = LISTA VAZIA. Esta casa não manda `isLastPage`, `more` nem
 // `hasNext`. Medido: `index:2, maxItems:50` devolveu `betslips: []`. E `index` é a
@@ -27,8 +45,10 @@
 // está; quem traduz é o `content.js` + `casas/CASA_SPORTINGBET.md`.
 (function () {
   const RX = /\/mybets\/betslips/i;
+  const PATH_API = "/pt-br/sports/api/mybets/betslips";
   const porId = new Map();                       // betSlipNumber(string) → bilhete cru
   let respostas = 0;                             // respostas do endpoint que o hook viu (autodiagnóstico)
+  let abortos = 0;                               // leituras passivas mortas pelo AbortSignal da SPA
   let reqCtx = null;                             // {url, method, headers, body} de um POST real (p/ replay)
   let pedido = false;                            // o robô já pediu → pode arrancar o replay
   let loopAtivo = false;                         // trava: um replay por vez
@@ -39,6 +59,18 @@
   LOG("hook instalado em", location.href);
 
   const of = window.fetch;                       // fetch ORIGINAL — o replay usa este (não re-dispara o wrapper)
+
+  // Cabeçalhos do motor bwin/Entain, medidos na requisição real da casa (31/08). São o que
+  // separa JSON de "200 com o HTML da SPA" — ver o aviso de autenticação no topo.
+  const HEADERS_MOTOR = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/plain, */*",
+    "cache-control": "no-cache",
+    "x-bwin-sports-api": "prod",
+    "Sports-Api-Version": "SportsAPIv2",
+    "X-Device-Type": "desktop",
+    "X-From-Product": "host-app",
+  };
 
   // As duas abas, como a própria tela as nomeia no corpo.
   const ABAS = ["Settled", "Open"];
@@ -56,11 +88,13 @@
   }
 
   // Emite SEMPRE hook:true + respostas (heartbeat), mesmo com 0 bilhetes — é o que separa
-  // "não injetei" de "endpoint mudou" de "conta vazia" no autodiagnóstico.
+  // "não injetei" de "endpoint mudou" de "conta vazia" no autodiagnóstico. `abortos` conta
+  // as leituras passivas que o AbortSignal da casa matou: elas são NORMAIS aqui e não
+  // significam falha (o replay é a fonte), mas sem o número ninguém saberia disso.
   function enviar() {
     try {
       window.postMessage({
-        __sharpenupSPBData: true, hook: true, respostas: respostas,
+        __sharpenupSPBData: true, hook: true, respostas: respostas, abortos: abortos,
         bets: Array.from(porId.values()), fim: fimReal,
       }, "*");
     } catch (e) {}
@@ -104,7 +138,8 @@
   }
 
   // Guarda a 1ª requisição REAL com corpo. Só POST serve de molde — um GET aprendido
-  // devolveria HTML no replay (ver o aviso de autenticação no topo).
+  // devolveria HTML no replay (ver o aviso de autenticação no topo). Isto é MELHORIA, não
+  // pré-requisito: sem ela o replay usa as constantes (ver `headersDoReplay`/`baseDoCorpo`).
   function capturarReq(url, method, headers, body) {
     if (reqCtx || !RX.test(String(url)) || !body) return;
     if (String(method || "").toUpperCase() !== "POST") return;
@@ -113,12 +148,39 @@
     if (pedido) arrancarReplay();
   }
 
-  // Corpo de uma aba/página, derivado do corpo REAL aprendido (preserva os campos que a
-  // casa manda e que não conhecemos). Só sobrescreve aba, página e tamanho.
+  function urlDoReplay() {
+    return (reqCtx && reqCtx.url) || (location.origin + PATH_API);
+  }
+
+  // Só aceita os cabeçalhos aprendidos se eles trouxerem o do motor. Um molde aprendido
+  // incompleto (ex.: a página chamando `fetch(new Request(...))`, onde headers/corpo não
+  // vêm no 2º argumento) levaria o replay direto para o HTML da SPA — e o sintoma seria
+  // "respostas 0" de novo, agora sem causa visível.
+  function headersDoReplay() {
+    if (reqCtx && reqCtx.headers) {
+      for (const k in reqCtx.headers) {
+        if (String(k).toLowerCase() === "x-bwin-sports-api") return reqCtx.headers;
+      }
+    }
+    const h = {};
+    for (const k in HEADERS_MOTOR) h[k] = HEADERS_MOTOR[k];
+    h["x-bwin-browser-url"] = location.href;
+    return h;
+  }
+
+  // Corpo REAL aprendido, quando houver (preserva campos que não conhecemos:
+  // `openEventIds`, `liveEventIds`, `summaryBetNumbers`). Sem ele, objeto vazio — os
+  // campos que importam são escritos por `corpoPara`.
+  function baseDoCorpo() {
+    if (reqCtx) {
+      try { const o = JSON.parse(reqCtx.body); if (o && typeof o === "object") return o; } catch (e) {}
+    }
+    return {};
+  }
+
+  // Corpo de uma aba/página. Só sobrescreve aba, página e tamanho.
   function corpoPara(aba, pagina) {
-    let o = null;
-    try { o = JSON.parse(reqCtx.body); } catch (e) { o = null; }
-    if (!o || typeof o !== "object") o = {};
+    const o = baseDoCorpo();
     o.typeFilter = aba;
     o.index = pagina;
     o.maxItems = POR_PAGINA;
@@ -136,18 +198,18 @@
     for (let pagina = 1; pagina <= TETO_PAGINAS; pagina++) {
       let info = null;
       try {
-        const r = await of.call(window, reqCtx.url, {
-          method: "POST", headers: reqCtx.headers,
+        const r = await of.call(window, urlDoReplay(), {
+          method: "POST", headers: headersDoReplay(),
           body: corpoPara(aba, pagina), credentials: "include",
         });
-        info = forward(reqCtx.url, await r.text());
+        info = forward(urlDoReplay(), await r.text());
       } catch (e) { LOG("erro no replay", aba, "pág", pagina, ":", e && e.message); return; }
       if (!info) { LOG(aba, "pág", pagina, ": resposta inesperada → para"); return; }
       // ESTE é o fim que a casa declara. Nada de heurística por rolagem.
       if (info.n === 0) { LOG(aba, ": fim (lista vazia) na pág", pagina); return; }
-      // "0 bilhete NOVO" não é fim: a página 1 costuma já ter chegado passivamente (a
-      // própria tela a pediu ao abrir). Só depois de DUAS páginas seguidas sem novidade a
-      // gente assume que a casa está repetindo — o fim de verdade é a lista vazia.
+      // "0 bilhete NOVO" não é fim: a página 1 pode já ter chegado por outra aba. Só depois
+      // de DUAS páginas seguidas sem novidade a gente assume que a casa está repetindo — o
+      // fim de verdade é a lista vazia.
       if (info.novos === 0) {
         if (++semNovos >= 2) { LOG(aba, "pág", pagina, ": 2 páginas seguidas sem bilhete novo → para"); return; }
       } else semNovos = 0;
@@ -155,10 +217,11 @@
     LOG(aba, ": teto de", TETO_PAGINAS, "páginas atingido");
   }
 
-  // As DUAS abas a partir de UMA requisição, não importa qual o operador abriu primeiro.
+  // As DUAS abas a partir de UMA chamada, tenha a página feito requisição ou não.
   async function arrancarReplay() {
-    if (loopAtivo || fimReal || !reqCtx) return;
+    if (loopAtivo || fimReal) return;
     loopAtivo = true;
+    LOG("replay arrancando ·", reqCtx ? "com requisição aprendida" : "A FRIO (sem requisição da página)");
     try {
       for (const aba of ABAS) await paginarAba(aba);
     } finally {
@@ -168,8 +231,7 @@
     }
   }
 
-  // O content pede o acumulado ao iniciar o robô → re-envia tudo E arranca o replay. A 1ª
-  // página chega no load, antes de o content estar ouvindo: sem este re-envio ela se perderia.
+  // O content pede o acumulado ao iniciar o robô → re-envia tudo E arranca o replay.
   //
   // Não há janela de dias aqui: o corpo desta casa **não tem filtro de data** (a tela filtra
   // por outro caminho). O corte por dias é do content, como já acontece com as abertas das
@@ -183,13 +245,25 @@
   });
 
   // ── fetch ──
+  //
+  // A leitura passiva daqui quase sempre REJEITA (o `AbortSignal` da SPA mata o clone) —
+  // ver o bloco do topo. O handler de rejeição existe para isso virar contador, não silêncio:
+  // sem ele a promise morria como unhandled rejection e ninguém sabia por que `respostas`
+  // ficava em 0. Quando ela funciona, é bônus: a fonte desta casa é o replay.
   if (of && !of.__suSPBW) {
     const w = function (...a) {
       const url = (a[0] && a[0].url) || a[0];
       const opts = a[1] || (a[0] && typeof a[0] === "object" ? a[0] : null);
       try { if (opts && opts.body) capturarReq(url, opts.method, _hdrsToObj(opts.headers), opts.body); } catch (e) {}
       return of.apply(this, a).then((r) => {
-        try { if (RX.test(String(url))) r.clone().text().then((t) => forward(url, t)); } catch (e) {}
+        try {
+          if (RX.test(String(url))) {
+            r.clone().text().then(
+              (t) => forward(url, t),
+              (e) => { abortos++; LOG("leitura passiva abortada pela casa (normal aqui):", e && e.message); }
+            );
+          }
+        } catch (e) {}
         return r;
       });
     };

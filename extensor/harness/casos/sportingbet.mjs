@@ -20,7 +20,7 @@
 // TEXTO está descartado com medição, não por gosto: o `innerText` da lista tem **6 bilhetes
 // e 0 linhas em branco** — o `roboScroll` juntaria tudo num bloco só e a IA perderia o resto
 // em silêncio (a lição da KTO, s192). E o card colapsado não mostra o ID nem as pernas.
-import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
+import { rodarInject, carregarContent, fixture, linha, cloneAbortado } from "../sandbox.mjs";
 
 export const casa = "SportingBet";
 
@@ -80,26 +80,58 @@ const HREF = "https://www.sportingbet.bet.br/pt-br/sports/minhas-apostas/liquida
 const CORPO_LIQUIDADAS = '{"index":1,"maxItems":6,"typeFilter":"Settled","pinnedBetslipIds":"","eventIds":[],"useGroupedView":false}';
 const CORPO_ABERTAS    = '{"index":1,"maxItems":6,"typeFilter":"Open","pinnedBetslipIds":"","eventIds":[],"useGroupedView":false}';
 
+// Cabeçalhos que a PÁGINA manda (colados do F12, 31/08). Sem o `x-bwin-sports-api` a casa
+// devolve 200 com o HTML da SPA — por isso o servidor de mentira abaixo faz o mesmo.
+const HEADERS_PAGINA = {
+  "x-bwin-sports-api": "prod",
+  "cache-control": "no-cache",
+  "X-XSRF-TOKEN": "0".repeat(32),
+  "x-bwin-browser-url": HREF,
+  "X-Device-Type": "desktop_Windows 11",
+  "X-From-Product": "host-app",
+  "Sports-Api-Version": "SportsAPIv2",
+  "Accept": "application/json, text/plain, */*",
+  "Content-Type": "application/json",
+};
+
+// Pedaço do HTML que a casa devolve — com status 200! — para quem chama sem os cabeçalhos
+// do motor. A falha não grita: ela vem 200 e não parseia (medido: 135 KB de HTML).
+const HTML_DA_SPA = "<!DOCTYPE html><html><head><title>Sportingbet</title></head><body>SPA</body></html>";
+
 // Servidor de mentira: responde pelo `typeFilter` e pelo `index` do CORPO, como a casa faz.
 // A página 1 das liquidadas devolve 5 bilhetes; a 2 devolve VAZIO — que é o único jeito
 // desta casa dizer "acabou". Se o inject não parar aí, ele pagina para sempre.
+//
+// Duas fidelidades que este servidor precisa ter, as duas medidas na casa em 31/08 (s305):
+//   • quem chama SEM `x-bwin-sports-api` recebe **HTML com status 200**, não erro;
+//   • a PRIMEIRA resposta (a que a página buscou) chega com o CLONE MORTO — a SPA aborta o
+//     `fetch` logo após consumir o corpo, e `clone().text()` rejeita com `AbortError`.
+//     Sem isto o harness leria o clone de boa vontade e um inject que dependesse da leitura
+//     passiva passaria verde, que é exatamente o defeito que travou dois testers.
 function servidor() {
   const liquidadas = fixture("sportingbet.settled.json");
   const abertas = fixture("sportingbet.open.json");
   const vazio = JSON.stringify({ summary: {}, betslips: [], typeFilter: "Settled", errorLoadingBets: false });
   const pedidos = [];
+  const cabecalhos = [];
+  let primeira = true;
   const resp = (url, opts) => {
     if (!String(url).includes("/mybets/betslips")) return null;
     const body = String((opts && opts.body) || "");
+    const hdrs = (opts && opts.headers) || {};
     pedidos.push(body);
+    cabecalhos.push(hdrs);
     let o = null;
     try { o = JSON.parse(body); } catch (e) { return null; }
     if ((opts && opts.method) !== "POST") return null;          // GET devolveria o HTML da SPA
+    const temMotor = Object.keys(hdrs).some((k) => String(k).toLowerCase() === "x-bwin-sports-api");
+    if (!temMotor) return HTML_DA_SPA;                          // 200 com HTML, como a casa faz
     const pag = Number(o.index) || 1;
-    if (pag > 1) return vazio;
-    return o.typeFilter === "Open" ? abertas : liquidadas;
+    const corpo = pag > 1 ? vazio : (o.typeFilter === "Open" ? abertas : liquidadas);
+    if (primeira) { primeira = false; return cloneAbortado(corpo); }
+    return corpo;
   };
-  return { resp, pedidos };
+  return { resp, pedidos, cabecalhos };
 }
 
 async function umClique(corpoInicial) {
@@ -108,13 +140,27 @@ async function umClique(corpoInicial) {
     inject: "spb_inject.js",
     href: HREF,
     urlInicial: URL_API,
-    corpoInicial: corpoInicial,
-    metodoInicial: "POST",
+    optsInicial: { method: "POST", headers: HEADERS_PAGINA, body: corpoInicial },
     pedido: "__sharpenupSPBReq",
     ms: 1200,
     responder: srv.resp,
   });
-  return { ultima, pedidos: srv.pedidos, urls };
+  return { ultima, pedidos: srv.pedidos, cabecalhos: srv.cabecalhos, urls };
+}
+
+// O cenário que derrubou a casa em produção: a página NÃO faz requisição nenhuma (carga
+// direta de Minhas Apostas vem renderizada pelo servidor) e o operador roda o robô.
+async function semRequisicaoDaPagina() {
+  const srv = servidor();
+  const { ultima } = await rodarInject({
+    inject: "spb_inject.js",
+    href: HREF,
+    semRequisicaoInicial: true,
+    pedido: "__sharpenupSPBReq",
+    ms: 1200,
+    responder: srv.resp,
+  });
+  return { ultima, pedidos: srv.pedidos, cabecalhos: srv.cabecalhos };
 }
 
 export async function rodar() {
@@ -124,7 +170,7 @@ export async function rodar() {
   // ── 1. Um clique = as duas listas, partindo de QUALQUER aba ───────────────────
   let colhido = null;
   for (const [rotulo, corpo] of [["aba Liquidadas", CORPO_LIQUIDADAS], ["aba Em Aberto", CORPO_ABERTAS]]) {
-    const { ultima, pedidos } = await umClique(corpo);
+    const { ultima, pedidos, cabecalhos } = await umClique(corpo);
     testes++;
     if (!ultima) { falhas.push(`${rotulo}: o inject não emitiu nenhuma mensagem`); continue; }
     if (!ultima.hook) falhas.push(`${rotulo}: não sinalizou 'hook' — o autodiagnóstico fica cego`);
@@ -151,7 +197,36 @@ export async function rodar() {
       if (!("useGroupedView" in o)) falhas.push(`${rotulo}: o corpo perdeu campos do formato real → ${b}`);
     }
 
+    // Todo pedido tem de levar o cabeçalho do motor. Sem ele a casa responde 200 com o HTML
+    // da SPA — o replay "funciona", o `forward` descarta e o lote volta vazio sem erro nenhum.
+    const semMotor = cabecalhos.filter((h) => !Object.keys(h || {}).some((k) => String(k).toLowerCase() === "x-bwin-sports-api"));
+    if (semMotor.length) falhas.push(`${rotulo}: ${semMotor.length} requisição(ões) sem 'x-bwin-sports-api' — a casa devolveria HTML com status 200`);
+
     if (!colhido && bets.length) colhido = bets;
+  }
+
+  // ── 1b. ARRANQUE A FRIO: a página não fez requisição nenhuma ──────────────────
+  // Este é o cenário real que travou os testers em 31/08 (s305) e que o caso antigo não
+  // exercia: carga direta de Minhas Apostas vem do SERVIDOR, sem nenhuma chamada de API.
+  // O inject antigo dependia de aprender uma requisição (`if (!reqCtx) return`) e entregava
+  // ZERO aqui, com hook ATIVO e respostas 0 — indistinguível de "endpoint mudou".
+  {
+    const { ultima, pedidos, cabecalhos } = await semRequisicaoDaPagina();
+    testes++;
+    if (!ultima) falhas.push("a frio: o inject não emitiu nenhuma mensagem");
+    else {
+      if (!ultima.hook) falhas.push("a frio: não sinalizou 'hook'");
+      if (!(ultima.respostas >= 1)) falhas.push("a frio: 'respostas' ficou em 0 — o replay não arrancou sem requisição aprendida");
+      if (!ultima.fim) falhas.push("a frio: não sinalizou 'fim' — o robô esperaria o teto de inatividade");
+      const n = (ultima.bets || []).length;
+      if (n !== 6) falhas.push(`a frio: esperava 6 bilhetes, vieram ${n} — sem requisição da página o lote precisa sair igual`);
+    }
+    testes++;
+    // As duas abas, e com os cabeçalhos do motor montados pelo próprio inject.
+    const pediu = (f) => pedidos.some((b) => { try { return JSON.parse(b).typeFilter === f; } catch (e) { return false; } });
+    if (!pediu("Settled") || !pediu("Open")) falhas.push("a frio: alguma aba não foi pedida");
+    if (!cabecalhos.length || !cabecalhos.every((h) => Object.keys(h || {}).some((k) => String(k).toLowerCase() === "x-bwin-sports-api")))
+      falhas.push("a frio: requisição sem 'x-bwin-sports-api' — a casa devolveria HTML com status 200");
   }
 
   if (!colhido) return { falhas: falhas.concat(["nenhum bilhete colhido — o resto do caso não roda"]), testes };

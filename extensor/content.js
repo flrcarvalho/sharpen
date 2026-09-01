@@ -428,11 +428,16 @@
   const spbById = new Map();         // betSlipNumber(string) → bilhete cru
   let spbFimReal = false;
   let spbHookVivo = false, spbRespostas = 0;   // autodiagnóstico
+  // Leituras passivas que o `AbortSignal` da casa matou. Nesta casa isso é o NORMAL (a SPA
+  // aborta o fetch assim que consome a resposta), não defeito — quem traz o lote é o replay.
+  // O número existe para o log não sugerir falha onde não há (s305).
+  let spbAbortos = 0;
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (d && d.__sharpenupSPBData) {
       if (d.hook) spbHookVivo = true;
       if (typeof d.respostas === "number") spbRespostas = d.respostas;
+      if (typeof d.abortos === "number") spbAbortos = d.abortos;
       if (Array.isArray(d.bets)) {
         // Resolvida vence aberta (o inject já aplica; aqui é a mesma regra do lado do
         // content, porque as mensagens chegam intercaladas e a última não é a mais completa).
@@ -1212,17 +1217,20 @@
         // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.
         esportiva:  { nome: "Esportiva",  hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
-        // SportingBet (bwin/Entain): `respostas: 0` com hook ATIVO tem causa específica aqui
-        // — sem os headers do motor o endpoint responde **200 com o HTML da SPA**, e o
-        // `forward` descarta (exige `betslips` como array). Ou seja, "respondeu" e "trouxe
-        // bilhete" são coisas diferentes nesta casa, e o extra diz o que fazer.
+        // SportingBet (bwin/Entain): desde a s305 o replay ARRANCA A FRIO — não depende mais
+        // de ver a página fazer requisição (carga direta de Minhas Apostas vem renderizada
+        // pelo servidor e não faz chamada nenhuma; era isso que travava os testers). Então
+        // "troque de aba" deixou de ser a instrução: `respostas: 0` aqui só sobra para sessão
+        // caída ou endpoint mudado. E "respondeu" ≠ "trouxe bilhete" continua valendo — sem
+        // os headers do motor o endpoint devolve **200 com o HTML da SPA**, e o `forward`
+        // descarta (exige `betslips` como array).
         lottu:      { nome: "Lottu",      hook: ltHookVivo, resp: ltRespostas, vistos: ltByCode.size,
                       extra: ltRespostas === 0
                         ? "Abra Minhas Apostas e clique em Aplicar no filtro de datas — é a busca que a casa exige."
                         : "" },
         sportingbet: { nome: "SportingBet", hook: spbHookVivo, resp: spbRespostas, vistos: spbById.size,
                        extra: spbRespostas === 0
-                         ? "Abra Minhas Apostas e troque de aba (Liquidadas ↔ Em Aberto) para a casa disparar a busca."
+                         ? " · a casa recusou a consulta: recarregue a página (Ctrl+Shift+R) e, se persistir, refaça o login"
                          : "" },
         // Jogo de Ouro: mesmo inject/contadores das irmãs Altenar, mas com um extra que só
         // ela precisa. Esta casa tem DOIS widgets de histórico e o inject só casa o da tela
@@ -4733,7 +4741,8 @@
     await sleep(400);
     processar();
     console.log("[SharpenUp] SportingBet: " + blocos.length + " bilhete(s) · spbById=" + spbById.size +
-                " · hook=" + spbHookVivo + " · respostas=" + spbRespostas + " · fimReal=" + spbFimReal);
+                " · hook=" + spbHookVivo + " · respostas=" + spbRespostas + " · abortos=" + spbAbortos +
+                " · fimReal=" + spbFimReal);
     avisarEstadoNaoMapeadoSPB();
     return blocos;
   }

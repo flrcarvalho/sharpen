@@ -238,8 +238,24 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 - **O modo passivo pode ser impossível** — a Pitaco cancela o stream da própria resposta
   (`AbortController`) e o `clone().arrayBuffer()` morre com *"The user aborted a request"*
   (5 de 5). A **Novibet** repete o sintoma sem nenhum parentesco técnico: é Angular, e o
-  `HttpClient` aborta o request ao desinscrever. Antes de assumir o passivo, confira se o
-  clone resolve de verdade; se não, o inject só aprende url+headers e busca o dado ele mesmo.
+  `HttpClient` aborta o request ao desinscrever. A **SportingBet** é a terceira (s305, medido
+  2 de 2: status 200 e `clone().text()` rejeitando com *AbortError*) — e lá o defeito ficou
+  **mudo por uma semana** porque o `.then` não tinha handler de rejeição: a promise morria
+  como *unhandled rejection* e `respostas` ficava em 0 sem uma linha no console. Antes de
+  assumir o passivo, confira se o clone resolve de verdade; se não, o inject só aprende
+  url+headers e busca o dado ele mesmo. **E sempre passe o 2º argumento do `.then`** — sem
+  ele, "o passivo é impossível" e "o endpoint mudou" ficam indistinguíveis.
+- **A PÁGINA PODE NÃO FAZER REQUISIÇÃO NENHUMA.** Não é o passivo falhando: é não existir o
+  que escutar. A SportingBet renderiza Minhas Apostas **no servidor** — carga direta ou F5 de
+  `/minhas-apostas/liquidada` mostra a lista inteira com **zero** chamadas de API, e o POST só
+  sai na *primeira* vez que cada aba é aberta dentro daquela carga (reabrir a mesma aba não
+  dispara nada). Todo replay que só arranca a partir de uma requisição aprendida entrega
+  **zero** nesse cenário — e o sintoma é o pior possível: hook ATIVO, respostas 0, sem erro.
+  Pior ainda, é o F5 (o conselho padrão para extensão travada) que garante o cenário. Se os
+  cabeçalhos de autenticação forem constantes + cookie, **monte a requisição você mesmo** e
+  trate a requisição aprendida como melhoria, nunca como pré-requisito. Prova barata: com o
+  hook instalado, dê F5 na tela de histórico e conte as requisições — se der zero, o passivo
+  e o replay-aprendido estão os dois fora.
 - **A REQUISIÇÃO DA TELA PODE SER ESTREITA** — e aí o replay existe para *alargar o filtro*,
   não para repaginar. A Novibet pede ~24h **e** só as fechadas; um passivo perfeito pegaria
   11 de 42 bilhetes, **sem nenhuma aposta em aberto**, parecendo funcionar. Pergunte sempre
