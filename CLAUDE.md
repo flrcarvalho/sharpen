@@ -206,6 +206,43 @@ invisível no Painel de Contas e reenvio não conserta, porque a casa entra na a
 
 ---
 
+## Perfil de tipster: a casa é SAÍDA da leitura. Nunca nomeie uma no prompt.
+
+Todo perfil com visão fecha o prompt com `Print ilegível → {"erro": …}`. Se o prompt
+também abre nomeando uma casa, o modelo lê as duas instruções como uma só e trata
+**casa diferente como imagem ilegível**. O `vision.js` vira `throw` e o apoio publica
+`⚠️ Não consegui ler o print`, culpando a foto.
+
+Medido no dia 1 do 6º tenant (s309): o prompt do Rogerin dizia "Você lê prints da casa
+de apostas Betano"; ele mandou três prints de bet365 e tomou três recusas seguidas.
+
+**A amostra diz o que o tipster FEZ, nunca o que ele FAZ.** Perfil nasce de um export
+medido daquele canal, e escrever a casa observada no prompt transforma uma medição
+datada em condição de entrada. Mesma família de "assinatura tem ERA".
+
+**Como escrever:** liste `NOMES_CASAS` (`src/casas.js`), peça `"casa"` no JSON e diga
+explicitamente que *casa, layout ou formato diferente NÃO é motivo de erro — "ilegível"
+é sobre a IMAGEM*. No código, a precedência é **legenda → print → default**, passando o
+que a visão devolveu por `casaPorTexto` (canoniza a grafia; verbatim ali cria conta
+paralela) e **avisando no apoio quando é o default que decide** — casa errada não dá
+erro, dá conta paralela.
+
+Gate barato: o teste assere que a **1ª linha do prompt** não contém nome de casa nenhum.
+Exporte o `SYSTEM` só para isso.
+
+**O FORMATO do bilhete também não se herda da amostra.** Casa que vende N apostas
+simples num print só (stake e retorno **por seleção**, "Aposta Total" no rodapé) quebra
+o perfil que assume "1 print = 1 bilhete": as pernas viram uma múltipla, sem erro
+nenhum. No caso medido, odd 1,66 × 4,00 × 11,00 ≈ 73 no lugar de três apostas.
+
+Quando o print traz N simples, a stake **continua vindo da legenda, em unidades** — o
+print traz R$ e o tamanho da unidade do tipster raramente foi medido. A stake em R$ do
+print serve para conferir a **ORDEM**: as proporções não dependem da unidade, e legenda
+escrita fora de ordem é o único jeito de o valor certo cair na aposta errada **sem o
+total mudar**.
+
+---
+
 ## Planilha e bot escrevem na MESMA série de código. Só um pode ser a fonte.
 
 Import de planilha e bot de tipster geram o mesmo `XX<aaaamm>-<n>`, e o código entra na
@@ -671,4 +708,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-29 (sessão 302 — regra nova: linha bem-formada pode ser de OUTRO bilhete; confira a procedência contra o bloco cru, e saiba que recapturar não conserta porque o UPSERT congela esporte/aposta/descrição)
+ATUALIZADO: 2026-09-01 (sessão 309 — regra nova: perfil de tipster não pode nomear casa no prompt da visão; a casa é saída da leitura, e o formato do bilhete também não se herda da amostra)
