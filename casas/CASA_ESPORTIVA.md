@@ -131,8 +131,9 @@ De-para do `status` do bilhete — **confirmado contra a faixa colorida do card*
 | 1 + retorno **igual** à stake | Devolvida / void | `V` |
 | 2 | Perdeu (faixa `PERDIDO`) | `L` |
 | **8** | **Anulada** (faixa `ANULADA`) — `totalWin == totalStake` | **`V`** |
+| **4** e **18** | **Cashout** (faixa `CASHOUT`) — valor encerrado no `totalWin` | **`V` ou `W`, pelo valor** (§5.4) |
 | **7** | **Órfão** — fora de todos os filtros da casa; sobe cru | — |
-| 3 · 4 · 10 · 17 · 18 · 20 | Sem amostra — sobem crus, não liquidar automaticamente | — |
+| 3 · 10 · 17 · 20 | Sem amostra — sobem crus, não liquidar automaticamente | — |
 
 ### 5.1 O `status 8` é ANULADA (s285)
 
@@ -170,8 +171,48 @@ o bilhete some dos dois lados, sem erro nenhum. O inject passou a pedir o `7` de
 ### 5.3 Medição que sustenta a tabela
 
 **250 bilhetes, 2026 inteiro, conta `anapetry03`, 23/08/2026:** `0` (9) · `1` (117) ·
-`2` (119) · `7` (1) · `8` (4). Os outros seis valores dos filtros seguem **sem uma única
-amostra** — continuam subindo crus, e é assim que devem ficar.
+`2` (119) · `7` (1) · `8` (4). Os outros seis valores dos filtros seguiam **sem uma única
+amostra** — até a s310 trazer os três primeiros cashouts (§5.4). Os quatro restantes
+(`3` · `10` · `17` · `20`) continuam subindo crus, e é assim que devem ficar.
+
+### 5.4 `status 4` e `18` são CASHOUT (s310)
+
+Provado por três eixos que se fecham, na conta, em 01/09/2026:
+
+1. **O filtro da própria tela.** A aba **Cashout** manda `statuses:[4,18]` no corpo e devolve
+   **exatamente** três bilhetes, nenhum a mais: `5341163017`/18 · `5339901091`/18 ·
+   `5339889186`/4. Os cinco filtros já estavam registrados no §5.2 desde a s285 — faltava a
+   amostra para batizar os dois.
+2. **O card.** Os três estampam a faixa azul **CASHOUT**.
+3. **O dinheiro.** O `5339889186` **ganhou** a perna a odd 1,5 (pagaria R$ 5,00) e recebeu
+   **R$ 2,83 — menos que a própria stake** (R$ 3,33). Nenhum outro desfecho produz isso.
+
+> ⚠️ **A armadilha que escondeu o cashout por duas versões: `cashOutValue` e `partialCashOut`
+> vêm ZERO nos três** (e `partialCashouts: []`). O valor encerrado mora no **`totalWin`**.
+> Quem procurar cashout por aqueles dois campos conclui que a casa não tem cashout — e era
+> por isso que o `4` subia "a conferir", a IA devolvia resultado vazio e a linha nascia
+> `aguardando` **para sempre**: a mesma morte silenciosa das 4 anuladas da s285.
+
+O desfecho sai da régua global (`MASTER_RESULTADO §5.1.2` e `§5.6`), que olha o **valor**, não
+o enum:
+
+| Caso | Amostra | Resultado | Odd |
+|---|---|---|---|
+| valor encerrado **=** stake | `5341163017` (1,31/1,31) · `5339901091` (3,03/3,03) | **`V`** | a **exibida** |
+| valor encerrado **≠** stake | `5339889186` (2,83 sobre 3,33) | **`W`** | **cashout ÷ stake** = `0,84984985` |
+
+O `5341163017` é o que mais engana: as **três** pernas ganharam (placar 5:1) e a odd 3,8
+pagaria R$ 4,98 — quem olhar as pernas em vez do dinheiro grava um W fantasma. E no
+`5339889186`, manter a odd exibida (1,5) gravaria **+R$ 1,67 onde o real é −R$ 0,50**.
+
+**O que NÃO está provado: a diferença entre o `4` e o `18`.** A conta inteira de 2026 tem
+três cashouts — um `4` e dois `18` —, e nessa amostra todo `18` veio com valor igual à stake
+e o `4` com valor menor. É pouco para batizar, e não precisa: quem decide é o valor. O enum
+cru segue saindo no bloco (`Status (API): status=…`) para o dia em que houver amostra.
+
+> A linha de boost também mudou por causa daqui: o "valendo" é a odd **contratada**
+> (`totalOdds`), não a que o bloco imprime em `Odd:`. Antes o `5339889186` saía
+> "odd antes do boost 1,3847 · valendo 0,84984985" — a casa turbinando a odd para baixo.
 
 O `status` também existe **por perna** (`bbOdds[].status`), com os mesmos valores: `0` pendente · `1` ganhou · `2` perdeu. Confere com o ✓ verde / ✗ vermelho do card. **Um bet builder perde com uma perna ganha** — o `5277858243` tem `Chance dupla ✓` e `Mais de 0.5 ✗` e o bilhete é `L`.
 
@@ -195,15 +236,32 @@ Nos 2 `W` da amostra a odd declarada explica o retorno ao centavo (49,50 ÷ 30 =
 
 ## 7. Cashout
 
-A casa **tem** cashout (a aba `Cashout` existe, e os abertos mostram botão verde `Cashout R$37.25` / `R$23.31`), mas **nenhum bilhete da amostra foi cashouteado**.
+A casa tem cashout, ele cai em **`status 4` ou `18`**, e os três primeiros bilhetes reais
+estão medidos e travados no harness — o de-para e as três provas vivem no **§5.4**.
 
-⚠️ **`cashOutValue` do histórico veio `0` inclusive nos abertos com botão ativo** — exatamente como na VaideBet. O valor oferecido vem de outro endpoint (`GetOpenBetsCashoutValues`). Ou seja: o campo só significa algo **depois** de o cashout ser executado, e isso ainda não foi observado em nenhuma das duas casas do motor.
+**A conclusão que ninguém esperava: os campos com "cashout" no nome não servem.**
 
-> Isso é uma **proteção**, não um defeito: se a oferta viesse no payload, um bilhete aberto sairia com "Cash Out" e viraria liquidação fantasma (a armadilha do `cashout_amount` da Betboom, s250). O harness trava que ela não sai.
+| Campo | Bilhete **aberto** com botão de venda | Bilhete **cashouteado** de verdade |
+|---|---|---|
+| `cashOutValue` | `0` | **`0`** |
+| `partialCashOut` | `0` | **`0`** |
+| `partialCashouts[]` | `[]` | **`[]`** |
+| `totalWin` | retorno **potencial** | **o valor encerrado** ← a fonte |
 
-Quando aparecer, vale a regra global: cashout **=** stake → `V`; cashout **≠** stake → `W` com `Odd = Cashout ÷ Stake` (`MASTER_RESULTADO §5.1.2` e `§5.6`).
+A metade de cima já era conhecida (a oferta de venda vem de outro endpoint,
+`GetOpenBetsCashoutValues`) e é uma **proteção**: se a oferta viesse no payload, um bilhete
+aberto sairia com "Cash Out" e viraria liquidação fantasma — a armadilha do `cashout_amount`
+da Betboom (s250). O harness trava que ela não sai.
 
-<!-- TODO: capturar um bilhete com cashout real, ver em que `status` ele cai e travar no harness. -->
+A metade de baixo é a novidade da s310, e é o que fazia o cashout passar despercebido: quem
+procura cashout por `cashOutValue` conclui que a casa não tem nenhum. O valor está no
+`totalWin`, e é o `status` (4/18) que diz que aquele `totalWin` é um encerramento, não um
+prêmio. O formatador tenta `cashOutValue` → `partialCashOut` → `totalWin` nessa ordem, e o
+harness fica **vermelho** se a casa um dia passar a preencher os dois primeiros — aí o número
+tem de ser reconferido contra o card antes de virar fonte.
+
+Vale a regra global: cashout **=** stake → `V` (odd exibida); cashout **≠** stake → `W` com
+`Odd = Cashout ÷ Stake` (`MASTER_RESULTADO §5.1.2` e `§5.6`).
 
 ---
 
@@ -256,12 +314,63 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 
 ## 12. Ruído a ignorar
 
-- **`sportTypeId` é o esporte, mas só como número.** Nesta amostra só apareceu `1` = **`Futebol`** (valor oficial do `MASTER_ESPORTES_2026`). O mapa é compartilhado com a VaideBet, que confirmou também `13` = **`Baseball`** (⚠️ "Beisebol" é sinônimo de *entrada*, nunca de saída). Há ainda `sportId` (66), numeração paralela do motor — usar `sportTypeId`. Id fora do mapa sobe cru e a IA resolve pelo evento/mercado.
+- **`sportTypeId` é o esporte, mas só como número** — e desde a s310 o de-para **não sai mais de amostra**: ver §12.1. Há ainda `sportId` (66), numeração paralela do motor — usar `sportTypeId`. Id fora do mapa sobe cru e a IA resolve pelo evento/mercado.
 - `spec` (`{"1":"2.5"}`, `{"24":"2"}`, `{"65":"111604"}`) — a linha já vem legível no `oddName`/`name`.
 - `marketTypeId`, `sportMarketId`, `childMarketTypeId`, `selectionTypeId`, `marketId`, `dbId` — internos do motor.
 - `champId` (11318) / `catId` (593) — liga e país, **só como id**. Não há campo de liga legível no payload.
 - `device`, `priceType`, `isBanker`, `isVirtual`, `linesCount`, `combLength` — internos.
 - `gameTime` / `eventScore` — estado do jogo no momento da consulta, não é dado do bilhete (mas ajudam a explicar por que um aberto tem placar).
+
+### 12.1 O esporte a própria casa publica — sem login (s310)
+
+Até aqui o mapa de `sportTypeId` crescia de bilhete em bilhete, e cada id novo custava uma
+amostra. Não precisa: **`GET /api/widget/GetAllSports`** (mesmo host e mesma query do resto
+do motor, **sem sessão**) devolve os 25 esportes com os três campos no mesmo objeto —
+
+```json
+{"typeId": 4, "id": 68, "name": "Tênis"}
+```
+
+`typeId` é o `sportTypeId` do bilhete, `id` é o `sportId`, `name` é como a casa chama. Não é
+dedução por nome de time nem por mercado: é a casa dizendo como ela mesma nomeia o id.
+`GetSportMenu` e `GetClickableSportMenu` devolvem a mesma lista, e ela bate com o menu da tela.
+
+**Mapeados** (nome da casa ≡ valor oficial do `MASTER_ESPORTES_2026`):
+
+| `sportTypeId` | `sportId` | Nome na casa | Sai como |
+|---|---|---|---|
+| 1 | 66 | Futebol | `Futebol` |
+| **4** | 68 | Tênis | **`Tênis`** |
+| 5 · 9 · 14 · 15 · 16 · 17 | 102 · 78 · 89 · 85 · 70 · 73 | Rugby · Dardos · Ciclismo · Golfe · Hóquei · Handebol | `Rugby` · `Dardos` · `Ciclismo` · **`Golf`** · `Hóquei` · `Handebol` |
+| 12 | 67 | Basquete | `Basquete` |
+| 13 | 76 | **Beisebol** | **`Baseball`** ⚠️ |
+| 19 · 20 · 35 · 40 | 69 · 75 · 72 · 84 | Vôlei · Futebol Americano · Badminton · MMA | idem |
+| **317** | 145 | **`E-sports +\t\t`** | **`E-Sports`** ⚠️ |
+| **318** | 146 | E-Footbal | **`eSoccer`** |
+
+> ⚠️ Três armadilhas de grafia, todas do tipo que cria **duas colunas para o mesmo esporte**:
+> o `13` a casa chama de "Beisebol" (o oficial é `Baseball`); o `318` é "E-Footbal"
+> (eFootball/FIFA → `eSoccer`); e o **`317` vem com TAB literal no nome** — mais uma da
+> família da s303 (`casa_dado_sujo_tab_corrompe_tsv`), e TAB é separador de coluna no TSV.
+> Mapeado, o TAB nunca chega ao bloco.
+
+**Deixados CRUS de propósito** — a casa os oferece, mas nenhum tem valor oficial no MASTER, e
+batizá-los aqui seria criar taxonomia por conta do arquivo de casa: `6` Sinuca · `7`
+Automobilismo · `11` Boxe · `18` Floorball · `23` Futsal · `31` Cricket · `34` Tênis de mesa ·
+`43` Biatlo · `82` Rugby League. O `7` é o que mais engana: **"Automobilismo" não é `F1`** — o
+valor oficial cobre só a F1. Quando algum deles aparecer num bilhete, a decisão é de MASTER.
+
+### 12.2 `sportTypeId 300` NÃO é esporte — é a gaveta de ESPECIAIS
+
+Mapeá-lo para qualquer esporte erraria metade dos bilhetes. Medido nas **16 seleções** que a
+conta tem: todas em `sportId 115` / `champId 61714` / `catId 1365` (uma gaveta só),
+`marketName === eventName` em **100%** (o evento *é* a campanha), e o conteúdo mistura CS2
+(`BLAST Open Fall 2026 (26/08)`, `Keyd Stars vs Fluxo | FURIA vs LOUD`) com futebol
+(`Libertadores Hoje 🔥`, `Copa do Brasil - Sábado (01/08)`) — uma delas se chama literalmente
+`Especiais Copa do Brasil | 05/08`. O `115` não aparece em **nenhum** menu de esporte da casa.
+
+Por isso o bloco o marca como `aposta ESPECIAL da casa (sportTypeId 300 — não é esporte…)` em
+vez de "id não mapeado": o esporte real está no nome do evento, e é a IA que o resolve de lá.
 
 ---
 

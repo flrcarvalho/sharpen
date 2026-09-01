@@ -148,8 +148,16 @@ colorida do card** (s256) — mesmo enum das casas irmãs:
 | 1 + retorno = stake | — | V |
 | 2 | `PERDIDO` | L |
 | **8** | faixa `ANULADA` (`totalWin == totalStake`) | **V** — odd exibida |
+| **4** e **18** | faixa `CASHOUT` — valor encerrado no `totalWin` | **V ou W, pelo valor** |
 | **7** | **fora de todos os filtros da casa** | **sobe CRU** — não liquidar |
-| 3 · 4 · 10 · 17 · 18 · 20 | só nos filtros das abas | **sobem CRUS** — não liquidar |
+| 3 · 10 · 17 · 20 | só nos filtros das abas | **sobem CRUS** — não liquidar |
+
+> O **cashout** (`4`/`18`) foi batizado na **Esportiva** (s310), com três bilhetes reais, a
+> faixa do card e o filtro `statuses:[4,18]` que a própria tela envia — [`CASA_ESPORTIVA
+> §5.4`](CASA_ESPORTIVA.md). ⚠️ **`cashOutValue` e `partialCashOut` vêm ZERO mesmo no bilhete
+> cashouteado**: o valor encerrado mora no `totalWin`. Cashout = stake → **V** com a odd
+> exibida; ≠ stake → **W** com `Odd = cashout ÷ stake`. O que separa o `4` do `18` segue sem
+> prova.
 
 > O `8` e o `7` foram batizados na **Esportiva** (s285) e valem aqui porque o enum é do
 > **motor** (Altenar/BIA), não da marca — o de-para com os 4 bilhetes reais e a medição de

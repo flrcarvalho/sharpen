@@ -133,10 +133,15 @@ Enum `status` do bilhete (o bloco emite cru em `Status (API): status=N`):
 | `1` | Ganhou / Vencido | `W` |
 | `2` | Perdido | `L` |
 | `8` | Anulada | `V` (stake devolvido) |
+| `4` e `18` | **Cashout** | `V` se o valor encerrado = stake · `W` com `Odd = cashout ÷ stake` se ≠ |
 | outro | desconhecido | sobe cru, "a conferir" — **nunca** vira W/L |
 
-Na amostra desta conta só apareceram `0`, `1` e `2`. O `8` e os demais vêm do código
-compartilhado, provados na Esportiva (`CASA_ESPORTIVA §5`, s285).
+Na amostra desta conta só apareceram `0`, `1` e `2`. O `8` vem do código compartilhado,
+provado na Esportiva (`CASA_ESPORTIVA §5`, s285); o **cashout** (`4`/`18`) também, na s310
+(`CASA_ESPORTIVA §5.4`), com três bilhetes reais e o filtro `statuses:[4,18]` da própria tela.
+
+⚠️ **No cashout, `cashOutValue` e `partialCashOut` vêm ZERO** — o valor encerrado mora no
+`totalWin`. É o `status` que diz que aquele `totalWin` é encerramento e não prêmio.
 
 ⚠️ **`totalWin` de bilhete ABERTO é o retorno POTENCIAL**, e vem preenchido. Os 4 abertos da
 amostra estampam "Ganho total R$897.36 / R$1,115.39 / R$1,596.18 / R$1,797.15" com os jogos
@@ -270,6 +275,11 @@ O payload **não traz o nome** do esporte, só ids. Mapa confirmado nesta casa:
 | `12` | `67` | `Basquete` |
 | `13` | `76` | `Baseball` |
 
+São os três **com amostra nesta casa**. O mapa do código é do **motor** e hoje tem **16 ids**
+— a lista inteira, os 9 deixados crus de propósito e o `sportTypeId 300` (que **não é
+esporte**, é a gaveta de especiais) estão em
+[`CASA_ESPORTIVA §12.1` e `§12.2`](CASA_ESPORTIVA.md).
+
 O `12` entrou na s303, provado por **dois eixos independentes**, nenhum deles dedução a
 partir do nome do time:
 
@@ -278,6 +288,10 @@ partir do nome do time:
    que batem com os `sportTypeId` 1 e 13 já mapeados);
 2. as 8 seleções da amostra são basquete real (WNBA, LNBP, CIBACOPA, FIBA Asia), com mercados
    de basquete (`1º tempo - total Mais de 83.5`, `Handicap (+11.5)`).
+
+> O eixo 1 virou método na s310: **`GetAllSports` devolve `{typeId, id, name}` no mesmo
+> objeto**, sem login, para os 25 esportes de uma vez. O mapa parou de crescer de bilhete em
+> bilhete — id novo não precisa mais esperar amostra.
 
 ⚠️ **O rótulo escrito no bloco TEM de ser o valor OFICIAL do MASTER — a IA copia verbatim.**
 A casa exibe `Beisebol` no menu, que é **sinônimo de entrada**; a saída é `Baseball`. Foi
@@ -354,7 +368,7 @@ alguém "limpar" o JSON, o caso acusa que deixou de testar).
 - [ ] W com `bonus` > 0 sai com odd = `Retorno ÷ Stake`, não `totalOdds`.
 - [ ] Odd nunca truncada em 2 casas.
 - [ ] Data da coluna 1 = evento mais recente, convertido para Brasília.
-- [ ] `sportTypeId` fora de {1, 12, 13} sai marcado "a conferir".
+- [ ] `sportTypeId` fora dos 16 mapeados (`CASA_ESPORTIVA §12.1`) sai marcado "a conferir" — e o `300` sai como **aposta especial**, nunca como esporte.
 - [ ] `Hits Mais de/Menos de` continua caindo em `Outros` enquanto a categoria não for decidida.
 
 ---

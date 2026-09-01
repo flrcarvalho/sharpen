@@ -82,7 +82,7 @@ Cards em **grid de 2 colunas**, com faixa colorida de status no topo (`ABERTO` /
 | `selections[].eventName` | confronto (`Bahia vs. Corinthians`) | |
 | `selections[].eventScore` | **placar** (`"1:1"`) | ausente em bilhete aberto |
 | `selections[].spec` | linha/handicap em JSON (`{"1":"0.5"}`) | ruído — a linha já vem no `oddName` |
-| `selections[].sportTypeId` | esporte, **só o id** | `1` = `Futebol` · `13` = `Baseball` (confirmados) — ver §12 |
+| `selections[].sportTypeId` | esporte, **só o id** | de-para completo (16 ids) em [`CASA_ESPORTIVA §12.1`](CASA_ESPORTIVA.md) — ver §12 |
 | `cashOutValue` / `partialCashOut` / `partialCashouts[]` | cashout | **sempre 0 na amostra** — ver §7 |
 | `bonus` / `bonusPart` / `bonusInsurance` | bônus | sem caso na amostra (§8) |
 | `isLastPage` (raiz) | **fim autoritativo** da paginação | |
@@ -123,8 +123,16 @@ De-para do `status` do bilhete:
 | 1 + retorno **igual** à stake | Devolvida / void | `V` |
 | 2 | Perdeu (faixa `PERDIDO`) | `L` |
 | **8** | **Anulada** (faixa `ANULADA`) — `totalWin == totalStake` | **`V`** |
+| **4** e **18** | **Cashout** (faixa `CASHOUT`) — o valor encerrado mora no `totalWin` | **`V` ou `W`, pelo valor** |
 | **7** | **Órfão** — fora de todos os filtros da casa; sobe cru | — |
-| 3 · 4 · 10 · 17 · 18 · 20 | Sem amostra — sobem crus, não liquidar automaticamente | — |
+| 3 · 10 · 17 · 20 | Sem amostra — sobem crus, não liquidar automaticamente | — |
+
+> **O `4`/`18` (cashout) foi batizado na ESPORTIVA (s310)**, com os três bilhetes reais, a
+> faixa do card e o filtro `statuses:[4,18]` da própria tela — ver
+> [`CASA_ESPORTIVA §5.4`](CASA_ESPORTIVA.md). A armadilha vale igual aqui: **`cashOutValue` e
+> `partialCashOut` vêm ZERO**, o valor encerrado está no `totalWin`, e o desfecho sai da régua
+> do `MASTER_RESULTADO §5.1.2/§5.6` (= stake → `V` com a odd exibida · ≠ stake → `W` com
+> odd = cashout ÷ stake). O que separa o `4` do `18` segue **sem prova**.
 
 **O `8` e o `7` foram batizados na ESPORTIVA (s285), não aqui** — e valem para as duas casas
 porque o enum é do **motor** (Altenar/BIA), não da marca, exatamente como o `boostProperty: 3`
@@ -168,13 +176,15 @@ Nos 3 bilhetes `W` da amostra a odd declarada explica o retorno ao centavo (40÷
 
 ## 7. Cashout
 
-A casa **tem** cashout (as abertas mostram botão `Cashout R$30,00`), mas **nenhum bilhete da amostra foi cashouteado**.
+A casa **tem** cashout (as abertas mostram botão `Cashout R$30,00`) e **nenhum bilhete desta amostra foi cashouteado** — mas o de-para deixou de ser incógnita: os três primeiros cashouts reais do motor foram capturados na **Esportiva** (s310), e o enum é do motor, não da marca.
 
-⚠️ **`cashOutValue` do histórico veio `0` inclusive nas abertas com botão ativo** — o valor oferecido vem de outro endpoint (`GetOpenBetsCashoutValues`). Ou seja: esse campo só deve significar alguma coisa **depois** de o cashout ser executado, e isso ainda não foi observado.
+Cashout cai em **`status 4` ou `18`**. E o campo que resolve **não** é o que tem "cashout" no nome:
 
-Quando aparecer, vale a regra global: cashout **=** stake → `V`; cashout **≠** stake → `W` com `Odd = Cashout ÷ Stake` (`MASTER_RESULTADO §5.1.2` e `§5.6`).
+⚠️ **`cashOutValue`, `partialCashOut` e `partialCashouts[]` vêm ZERO até num bilhete cashouteado de verdade.** O valor encerrado mora no **`totalWin`** — é o `status` que diz que aquele `totalWin` é encerramento, e não prêmio. Quem procurar cashout pelos campos homônimos conclui que a casa não tem nenhum, que foi exatamente o que aconteceu aqui por duas versões.
 
-<!-- TODO: capturar um bilhete com cashout real, ver em que `status` ele cai e travar no harness. -->
+O `cashOutValue` zerado **na aberta** segue sendo uma proteção, não um defeito: a oferta de venda vem de outro endpoint (`GetOpenBetsCashoutValues`), e se viesse no payload um bilhete aberto sairia com "Cash Out" e viraria liquidação fantasma (a armadilha da Betboom, s250). O harness trava que ela não sai.
+
+Detalhe e prova em [`CASA_ESPORTIVA §5.4` e `§7`](CASA_ESPORTIVA.md). Vale a regra global: cashout **=** stake → `V` (odd exibida); cashout **≠** stake → `W` com `Odd = Cashout ÷ Stake` (`MASTER_RESULTADO §5.1.2` e `§5.6`).
 
 ---
 
@@ -231,7 +241,7 @@ Só os mercados **confirmados** no dado real (camada fina — mercado nunca vist
 
 ## 12. Ruído a ignorar
 
-- **`sportTypeId` é o esporte, mas só como número.** Confirmados: `1` = **`Futebol`**, `13` = **`Baseball`** — os valores **oficiais** do `MASTER_ESPORTES_2026` (⚠️ "Beisebol" é sinônimo de *entrada*, nunca de saída: no 1º lote real o bloco escreveu "Beisebol" e o banco ficou com **duas grafias do mesmo esporte**, contadas como esportes diferentes). Há ainda `sportId` (66 / 76), numeração paralela do motor — usar `sportTypeId`. Id fora do mapa sobe cru e a IA resolve pelo evento/mercado.
+- **`sportTypeId` é o esporte, mas só como número** — e o de-para **não sai de amostra**: a própria casa o publica **sem login** em `GET /api/widget/GetAllSports`, que devolve `{typeId, id, name}` no mesmo objeto. A tabela dos 16 ids mapeados, os 9 deixados crus de propósito e as três armadilhas de grafia (`Beisebol`→`Baseball`, `E-Footbal`→`eSoccer`, e o **TAB literal** no nome do e-sports) estão em [`CASA_ESPORTIVA §12.1`](CASA_ESPORTIVA.md) — o mapa é do **motor**, então vale igual aqui, trocando só o `integration` da query. O `sportTypeId 300` **não é esporte**: é a gaveta de especiais da casa (§12.2 de lá). Há ainda `sportId` (66 / 76), numeração paralela do motor — usar `sportTypeId`. Id fora do mapa sobe cru e a IA resolve pelo evento/mercado.
 - `spec` (`{"1":"0.5"}`, `{"30":"4"}`) — a linha já vem legível no `oddName`/`name`.
 - `marketTypeId`, `sportMarketId`, `childMarketTypeId`, `selectionTypeId`, `marketId`, `dbId` — internos do motor.
 - `champId` / `catId` — liga e país, **só como id** (sem nome). Não há campo de liga legível no payload.

@@ -4227,7 +4227,43 @@
   // seria a casa enfiar basquete VIRTUAL no mesmo id; ela não o faz — `E-Basquete` é sport
   // próprio no menu dela, ao lado de `Basquete`. Sem amostra de eBasket, isso fica declarado
   // como limite no `CASA_ESTRELABET §9`, não escondido.
-  const _ESPORTE_VB = { 1: "Futebol", 12: "Basquete", 13: "Baseball" };
+  //
+  // s310 — o mapa deixou de crescer de bilhete em bilhete: a PRÓPRIA casa publica a ponte,
+  // sem login. `GET /api/widget/GetAllSports` (o mesmo host/query do resto do motor) devolve
+  // os 25 esportes com os TRÊS campos no mesmo objeto — `{typeId, id, name}`, ex.
+  // `{"typeId":4,"id":68,"name":"Tênis"}`. Não é dedução por nome de time nem por mercado: é
+  // a casa dizendo como ela mesma chama o id. `GetSportMenu` e `GetClickableSportMenu`
+  // devolvem a mesma lista, e ela bate com o menu que o operador vê na tela.
+  //
+  // Só entram aqui os ids cujo nome na casa casa **1:1 com valor oficial do
+  // `MASTER_ESPORTES_2026`**. Os outros 9 que a casa oferece (`6` Sinuca · `7` Automobilismo ·
+  // `11` Boxe · `18` Floorball · `23` Futsal · `31` Cricket · `34` Tênis de mesa · `43` Biatlo ·
+  // `82` Rugby League) seguem CRUS de propósito: nenhum deles tem valor oficial no MASTER, e
+  // batizá-los aqui seria criar taxonomia por conta própria — decisão de MASTER, não de casa.
+  // O `7` é o caso que mais engana: "Automobilismo" NÃO é `F1` (o oficial cobre só a F1).
+  //
+  // ⚠️ Dois ids em que a casa usa SINÔNIMO e o mapa traduz para o oficial — é a diferença
+  // entre uma coluna e duas: `13` a casa chama de "Beisebol" e o oficial é `Baseball`;
+  // `318` ela chama de "E-Footbal" (eFootball/FIFA) e o oficial é `eSoccer`. O `317` vem
+  // com TAB literal no nome (`"E-sports +\t\t"`) — mais uma da família da s303; mapeado,
+  // o TAB nunca chega ao bloco.
+  const _ESPORTE_VB = {
+    1: "Futebol", 4: "Tênis", 5: "Rugby", 9: "Dardos", 12: "Basquete", 13: "Baseball",
+    14: "Ciclismo", 15: "Golf", 16: "Hóquei", 17: "Handebol", 19: "Vôlei",
+    20: "Futebol Americano", 35: "Badminton", 40: "MMA", 317: "E-Sports", 318: "eSoccer",
+  };
+
+  // `sportTypeId 300` NÃO é esporte — é a gaveta de **aposta especial** da casa, e mapeá-la
+  // para qualquer esporte estaria errado em metade dos bilhetes. Medido nas 16 seleções que a
+  // conta tem (s310): todas em `sportId 115` / `champId 61714` / `catId 1365` (uma gaveta só),
+  // `marketName === eventName` em 100% (o evento É a campanha), e o conteúdo mistura CS2
+  // (`BLAST Open Fall 2026`, `Keyd Stars vs Fluxo | FURIA vs LOUD`) com futebol (`Libertadores
+  // Hoje 🔥`, `Copa do Brasil - Sábado (01/08)`) — uma delas se chama literalmente
+  // `Especiais Copa do Brasil | 05/08`. O `115` não aparece em nenhum dos menus de esporte.
+  // Por isso ele sai NOMEADO como especial (não como "id não mapeado"): o esporte real está
+  // no evento, e é a IA que o resolve de lá.
+  const _ESPECIAL_VB = 300;
+
   const _RESULT_PERNA_VB = { 0: "pendente", 1: "ganhou", 2: "perdeu" };
 
   // Nome vindo do dicionário da casa, higienizado para o BLOCO. Não é cosmética: o dicionário
@@ -4281,6 +4317,16 @@
     const dec = (typeof b.totalOdds === "number" && isFinite(b.totalOdds)) ? b.totalOdds : null;
     if (_abertaVB(b)) return dec;
     const st = b.totalStake || 0, ret = b.totalWin || 0;
+    // Cashout que NÃO devolveu a stake é W, e no W a odd é o dinheiro (`MASTER_RESULTADO §5.6`:
+    // odd = cashout ÷ stake). Manter a `totalOdds` aqui gravaria a odd que a aposta TERIA se
+    // tivesse ido até o fim — no `5339889186`, 1,5 no lugar de 0,8498: um P/L de +R$1,67 onde
+    // o real é −R$0,50. Quando o cashout devolve a stake exata o desfecho é V, e aí a odd
+    // exibida é que vale — por isso este ramo exige a diferença.
+    if (_CASHOUT_VB.has(b.status) && st > 0) {
+      const co = _valorCashoutVB(b);
+      if (co > 0 && Math.abs(co - st) >= 0.005) return co / st;
+      return dec;
+    }
     if (b.status === 1 && st > 0 && ret > 0) {
       if (dec != null && Math.abs(ret - dec * st) <= 0.01) return dec;
       return ret / st;
@@ -4294,10 +4340,46 @@
   // esses bilhetes dentro do filtro **Ganho** (`statuses:[1,8]`), não num filtro de anuladas.
   const _VOID_VB = new Set([8]);
 
-  // Família PROCESSADO — o array que a própria tela envia na aba "Processado". Só quem está
-  // aqui teve o dinheiro REALIZADO; na família aberta o `totalWin` ainda é potencial, e ler o
-  // dinheiro dela é a vitória fantasma que esta casa quase produziu (`CASA_VAIDEBET §5`).
-  const _ST_PROCESSADO_VB = new Set([1, 8, 2, 4, 18]);
+  // CASHOUT. Provado ao vivo na s310, na conta, por três eixos que se fecham:
+  //   (a) o filtro **Cashout** da própria tela manda `statuses:[4,18]` e devolve EXATAMENTE
+  //       estes três bilhetes, nenhum a mais — `5341163017`/18 · `5339901091`/18 ·
+  //       `5339889186`/4 (a mesma medição que já estava no `CASA_ESPORTIVA §5.2` como lista
+  //       de filtros; faltava a amostra);
+  //   (b) cada um dos três cards estampa a faixa azul **CASHOUT**;
+  //   (c) o dinheiro só fecha assim: o `5339889186` GANHOU a perna a odd 1,5 (pagaria 5,00)
+  //       e recebeu R$ 2,83 — menos que a própria stake. Nenhum outro desfecho faz isso.
+  //
+  // ⚠️ A ARMADILHA: `cashOutValue` e `partialCashOut` vêm **ZERO** nos três. O valor
+  // encerrado mora em `totalWin`. Quem procurar cashout por aqueles dois campos conclui que a
+  // casa não tem cashout — e era exatamente por isso que o ramo do `pre` ("Cash Out · ") nunca
+  // disparava e o `4` subia sem resultado.
+  //
+  // O que NÃO está provado: a diferença entre o `4` e o `18`. A conta inteira de 2026 tem
+  // três cashouts (um `4`, dois `18`), e nessa amostra todo `18` veio com `totalWin` igual à
+  // stake e o `4` com valor menor — o que é pouco para batizar. Não precisa: quem decide o
+  // desfecho é a régua financeira do `MASTER_RESULTADO §5.1.2/§5.6`, que olha o VALOR, não o
+  // enum. O enum cru continua saindo no bloco para o dia em que houver amostra.
+  const _CASHOUT_VB = new Set([4, 18]);
+
+  // Valor efetivamente encerrado no cashout. `cashOutValue`/`partialCashOut` só entram se um
+  // dia vierem preenchidos; hoje a fonte é o `totalWin` (ver a armadilha acima).
+  const _valorCashoutVB = (b) =>
+    (b.cashOutValue > 0) ? b.cashOutValue
+      : (b.partialCashOut > 0) ? b.partialCashOut
+        : (b.totalWin || 0);
+
+  // Família ABERTA — o array que a própria tela envia na aba "Aberto". Aqui o `totalWin` é
+  // retorno POTENCIAL, e lê-lo como realizado é a vitória fantasma que esta casa quase
+  // produziu (`CASA_VAIDEBET §5`).
+  //
+  // ⚠️ Na s310 a rede de segurança logo abaixo trocou de lado, e a troca não é cosmética.
+  // Ela testava a lista de PROCESSADOS (`[1,8,2,4,18]`); ao batizar o `4` e o `18` como
+  // cashout, os cinco passaram a ser interceptados antes — e a rede virou **código morto**,
+  // sem nenhum teste ficar vermelho por isso (foi o harness da s310 que a pegou, por
+  // tabela). Testando a família ABERTA em vez da processada, ela volta a cobrir o que
+  // sempre quis cobrir: um enum **novo**, que a casa ainda não usava e que por definição
+  // não está em lista nenhuma. O `17` segue sem liquidar, que é o limite que importa.
+  const _ST_ABERTA_VB = new Set([0, 10, 3, 20, 17]);
 
   function _resultadoVB(b) {
     if (_abertaVB(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
@@ -4306,6 +4388,23 @@
     // preenchido. Se vier, o desfecho é marcado e o valor sai na linha própria — quem aplica
     // a regra (cashout = stake → V · ≠ stake → W com odd = cashout ÷ stake) é a IA com o MASTER.
     const pre = (b.cashOutValue > 0 || b.partialCashOut > 0) ? "Cash Out · " : "";
+
+    // Cashout ANTES do ramo genérico: a régua é o valor encerrado, não o enum (`MASTER_RESULTADO
+    // §5.1.2` cashout = stake → V · `§5.6` cashout ≠ stake → W com odd = cashout ÷ stake).
+    // Sai com o desfecho já resolvido porque a conta é global e determinística — deixá-la para
+    // a IA era o que mantinha o `5339889186` sem resultado, em `aguardando` para sempre.
+    if (_CASHOUT_VB.has(b.status)) {
+      const co = _valorCashoutVB(b);
+      if (st > 0 && Math.abs(co - st) < 0.005) {
+        return "Cash Out pelo valor da stake (status " + b.status + ") → V · odd = a exibida";
+      }
+      if (st > 0 && co > 0) {
+        return "Cash Out (status " + b.status + ") · encerrada por R$ " + _brl(co) +
+               " → W · Odd = cashout ÷ stake = " + _oddTxtVB(co / st);
+      }
+      return "Cash Out (status " + b.status + ") sem valor encerrado legível " +
+             "(a conferir — não liquidar automaticamente)";
+    }
 
     if (_VOID_VB.has(b.status)) {
       if (st > 0 && Math.abs(ret - st) < 0.005) return pre + "Anulada/void (stake devolvido) → V";
@@ -4321,7 +4420,7 @@
       // §5.1.2`, e `V` não move P/L, então errar aqui custa uma linha neutra. Deliberadamente
       // NÃO existe atalho equivalente para W/L: retorno zero com perna ganha existe nesta casa
       // (o `status 7` do 5310191599) e viraria "perdeu" por dedução.
-      if (_ST_PROCESSADO_VB.has(b.status) && st > 0 && Math.abs(ret - st) < 0.005) {
+      if (!_ST_ABERTA_VB.has(b.status) && st > 0 && Math.abs(ret - st) < 0.005) {
         return pre + "Devolvida/void (retorno = stake · status " + b.status +
                " ainda não batizado) → V";
       }
@@ -4349,6 +4448,10 @@
     const s = (b.selections || [])[0];
     const id = s ? s.sportTypeId : null;
     if (id == null) return "";
+    if (id === _ESPECIAL_VB) {
+      return "aposta ESPECIAL da casa (sportTypeId 300 — não é esporte; o esporte real está " +
+             "no nome do evento/mercado)";
+    }
     const nome = _ESPORTE_VB[id];
     return nome ? nome + " (sportTypeId " + id + ")"
                 : "sportTypeId " + id + " (a conferir — id não mapeado no arquivo da casa)";
@@ -4380,6 +4483,13 @@
     if (_abertaVB(b)) {
       const pot = (b.remainingTotalWin != null) ? b.remainingTotalWin : b.totalWin;
       if (pot != null) L.push("Retorno potencial: R$ " + _brl(pot));
+    } else if (_CASHOUT_VB.has(b.status)) {
+      // No cashout o "Ganho total" do card é o valor ENCERRADO, não o prêmio da aposta. Com o
+      // rótulo "Retorno:" a IA aplicaria a régua do W normal sobre a odd exibida; o rótulo
+      // próprio impede isso e diz de onde veio o número.
+      const co = _valorCashoutVB(b);
+      if (co) L.push("Valor do Cash Out: R$ " + _brl(co) + " (encerrada pelo apostador — " +
+                     "não é o retorno cheio da aposta)");
     } else if (_VOID_VB.has(b.status) && b.totalWin) {
       // Na ANULADA o "Ganho total" do card é a DEVOLUÇÃO do stake, não prêmio. Chamá-lo de
       // "Retorno" faria a IA aplicar a régua do W (retorno ÷ stake) e gravar odd 1,00 no lugar
@@ -4394,10 +4504,17 @@
 
     // Boost: o card mostra "2.33 » 3.00" (o riscado é a odd ANTES do boost, truncada na
     // tela). Sai como marcação para a IA não confundir com a odd válida, que é a de cima.
+    //
+    // O "valendo" é a odd CONTRATADA (`totalOdds`), nunca a que o bloco imprime em "Odd:".
+    // As duas divergem sempre que o desfecho manda o dinheiro decidir — e no cashout a
+    // diferença fica absurda: o `5339889186` saía "odd antes do boost 1,3847 · valendo
+    // 0,84984985", como se a casa tivesse turbinado a odd para BAIXO. O boost é um par de
+    // odds contratadas (`preBoostedPrice` → `totalOdds`); a odd efetiva é outra conta.
     const s0 = (b.selections || [])[0];
     const pre = s0 && s0.boostedSelection ? s0.boostedSelection.preBoostedPrice : null;
-    if (pre != null && odd != null && Math.abs(pre - odd) > 0.0001) {
-      L.push("Marcação da casa: odd turbinada — odd antes do boost " + _oddTxtVB(pre) + " · valendo " + _oddTxtVB(odd));
+    const contratada = (typeof b.totalOdds === "number" && isFinite(b.totalOdds)) ? b.totalOdds : odd;
+    if (pre != null && contratada != null && Math.abs(pre - contratada) > 0.0001) {
+      L.push("Marcação da casa: odd turbinada — odd antes do boost " + _oddTxtVB(pre) + " · valendo " + _oddTxtVB(contratada));
     }
 
     const sels = b.selections || [];
@@ -4508,7 +4625,7 @@
     const porStatus = new Map();
     for (const b of vbById.values()) {
       const s = b && b.status;
-      if (s === 0 || s === 1 || s === 2 || _VOID_VB.has(s)) continue;
+      if (s === 0 || s === 1 || s === 2 || _VOID_VB.has(s) || _CASHOUT_VB.has(s)) continue;
       if (!porStatus.has(s)) porStatus.set(s, []);
       porStatus.get(s).push(String(b.id));
     }

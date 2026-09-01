@@ -115,6 +115,16 @@
   ],
   "sharpenup": [
     {
+      "id": "su-076",
+      "v": "v0.7.6",
+      "data": "2026-09-01",
+      "texto": "A **Esportiva** passa a planilhar as apostas encerradas por **cash out** — antes elas subiam sem resultado e ficavam paradas em \"aguardando\".",
+      "itens": [
+        "Tênis e e-sports deixam de sair sem esporte na Esportiva e nas casas irmãs (VaideBet, Estrela Bet, Jogo de Ouro, BetPix365).",
+        "As apostas especiais da casa (as do tipo \"Libertadores Hoje\") param de ser classificadas como esporte."
+      ]
+    },
+    {
       "id": "su-075",
       "v": "v0.7.5",
       "data": "2026-08-31",

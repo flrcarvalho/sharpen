@@ -322,15 +322,144 @@ export async function rodar() {
     // A rede de segurança do PRÓXIMO enum: processado + retorno = stake → V. E o limite dela,
     // que é o que impede a vitória fantasma de voltar por outra porta: o MESMO dinheiro num
     // enum da família ABERTA (17) continua sem liquidar, porque ali `totalWin` é potencial.
+    // ⚠️ O enum usado aqui tem de ser um que a casa AINDA NÃO USA. Até a s310 este teste
+    // usava o `4` — que virou cashout batizado, e com isso a rede deixou de ser exercida
+    // (ela testava a lista de processados, que passou a ser interceptada antes). É o falso
+    // verde do CLAUDE.md: "o dado sintético não exerce a regra". O `19` não está em nenhum
+    // dos cinco filtros da casa, que é exatamente o caso que a rede existe para cobrir.
     const base = anuladas.find((b) => String(b.id) === "5296262805");
     testes++;
-    const inedito = fmt({ ...base, status: 4 });
+    const inedito = fmt({ ...base, status: 19 });
     if (!/→ V$/.test(linha(inedito, "Status:")))
-      falhas.push("rede de segurança: status 4 (processado) com retorno = stake não virou V");
+      falhas.push("rede de segurança: enum inédito (19) com retorno = stake não virou V");
     testes++;
     const aberto = fmt({ ...base, status: 17 });
     if (/→ [WLV]\b/.test(linha(aberto, "Status:")))
       falhas.push("status 17 é da família ABERTA (totalWin é potencial) e não pode liquidar por retorno = stake");
+  }
+
+  // ── 5.1 CASHOUT (`status 4` e `18`) — bilhetes REAIS, s310 ───────────────────
+  // Os três cashouts que a conta inteira de 2026 tem. Provados por três eixos que se fecham:
+  // o filtro **Cashout** da tela manda `statuses:[4,18]` e devolve EXATAMENTE estes três;
+  // cada card estampa a faixa azul CASHOUT; e o dinheiro do `5339889186` só fecha assim —
+  // a perna GANHOU a odd 1,5 (pagaria R$5,00) e ele recebeu R$2,83, menos que a stake.
+  //
+  // Antes disso o `4` subia "a conferir", a IA devolvia resultado vazio e a linha nascia
+  // `aguardando` para sempre — a mesma morte silenciosa das 4 anuladas da s285.
+  {
+    const cash = JSON.parse(fixture("esportiva.cashout.json")).bets;
+    testes++;
+    if (cash.length !== 3) falhas.push(`cashout: a fixture devia ter os 3 bilhetes reais, tem ${cash.length}`);
+
+    // A ARMADILHA que escondeu o cashout por duas versões: os campos com "cashout" no nome
+    // vêm ZERO nos três. O valor encerrado mora no `totalWin`. Se um dia a casa passar a
+    // preencher `cashOutValue`, este teste vira vermelho — e aí é bom que vire, porque o
+    // `_valorCashoutVB` muda de fonte e o número tem de ser reconferido contra o card.
+    for (const b of cash) {
+      testes++;
+      if (b.cashOutValue !== 0 || b.partialCashOut !== 0)
+        falhas.push(`${b.id}: a casa passou a preencher cashOutValue/partialCashOut — reconferir a fonte do valor contra o card`);
+    }
+
+    // `18` com valor encerrado IGUAL à stake → V, odd = a exibida (`MASTER_RESULTADO §5.1.2`).
+    // O `5341163017` é o que mais engana: as TRÊS pernas ganharam (placar 5:1) e a odd 3,8
+    // pagaria R$4,98 — quem olhar as pernas em vez do dinheiro grava um W fantasma.
+    for (const id of ["5341163017", "5339901091"]) {
+      const b = cash.find((x) => String(x.id) === id);
+      const txt = fmt(b);
+      testes++;
+      const st = linha(txt, "Status:");
+      if (!/^Cash Out pelo valor da stake \(status 18\) → V/.test(st))
+        falhas.push(`${id}: cashout = stake devia sair "→ V", veio "${st}"`);
+      const odd = linha(txt, "Odd:").split(" ")[0];
+      const oddCard = String(Math.round(b.totalOdds * 1e8) / 1e8).replace(".", ",");
+      if (odd !== oddCard) falhas.push(`${id}: no V a odd é a EXIBIDA (${oddCard}), veio "${odd}"`);
+      if (linha(txt, "Retorno:")) falhas.push(`${id}: cashout não pode emitir "Retorno:" — não é o prêmio da aposta`);
+    }
+
+    // `4` com valor encerrado MENOR que a stake → W, odd = cashout ÷ stake (`§5.6`).
+    // 2,83 ÷ 3,33 = 0,84984985 → P/L −R$0,50. Manter a odd exibida (1,5) gravaria +R$1,67.
+    {
+      const b = cash.find((x) => String(x.id) === "5339889186");
+      const txt = fmt(b);
+      testes++;
+      const st = linha(txt, "Status:");
+      if (!/^Cash Out \(status 4\) · encerrada por R\$ 2,83 → W · Odd = cashout ÷ stake = 0,84984985$/.test(st))
+        falhas.push(`5339889186: cashout ≠ stake devia sair W com a odd do dinheiro, veio "${st}"`);
+      testes++;
+      const odd = linha(txt, "Odd:").split(" ")[0];
+      if (odd !== "0,84984985")
+        falhas.push(`5339889186: a odd do W de cashout é 2,83 ÷ 3,33 = 0,84984985, veio "${odd}" (a exibida gravaria lucro onde houve prejuízo)`);
+      testes++;
+      const co = linha(txt, "Valor do Cash Out:");
+      if (co !== "R$ 2,83 (encerrada pelo apostador — não é o retorno cheio da aposta)")
+        falhas.push(`5339889186: rótulo do dinheiro do cashout errado — veio "${co}"`);
+      if (linha(txt, "Retorno:")) falhas.push("5339889186: emitiu \"Retorno:\" num cashout");
+      // A linha de boost fala de odds CONTRATADAS (1,3847 → 1,5). Enquanto ela usava a odd
+      // efetiva, o bloco dizia "valendo 0,84984985" — a casa turbinando a odd para baixo.
+      testes++;
+      const boost = linha(txt, "Marcação da casa:");
+      if (boost !== "odd turbinada — odd antes do boost 1,3847 · valendo 1,5")
+        falhas.push(`5339889186: o "valendo" do boost é a odd contratada (1,5), veio "${boost}"`);
+    }
+
+    // O enum cru NÃO pode sumir do bloco: é ele que o `CASA_ESPORTIVA §5` traduz, e a
+    // diferença entre o `4` e o `18` segue SEM prova (n=1 e n=2 na conta inteira).
+    for (const b of cash) {
+      testes++;
+      if (!new RegExp("status=" + b.status + "\\b").test(linha(fmt(b), "Status (API):")))
+        falhas.push(`${b.id}: perdeu o enum cru — o de-para da casa fica cego`);
+    }
+
+    // MUTAÇÃO: cashout de UM CENTAVO a mais que a stake continua sendo W. É o corte que
+    // separa o V do W, e ele mora na comparação de valor, não no enum.
+    {
+      const b = cash.find((x) => String(x.id) === "5341163017");
+      testes++;
+      const quase = fmt({ ...b, totalWin: b.totalStake + 0.01 });
+      if (!/→ W · Odd = cashout ÷ stake/.test(linha(quase, "Status:")))
+        falhas.push("cashout um centavo acima da stake tinha de ser W — o corte V/W não está no valor");
+    }
+  }
+
+  // ── 5.2 Esporte: a ponte veio da PRÓPRIA casa (`GetAllSports`), s310 ──────────
+  // `{typeId, id, name}` no mesmo objeto — não é dedução por nome de time. O `4` (Tênis) e o
+  // `317` (E-Sports) estavam subindo crus; o `300` NÃO é esporte e não pode virar um.
+  {
+    const cash = JSON.parse(fixture("esportiva.cashout.json")).bets;
+    const tenis = cash.find((x) => String(x.id) === "5339889186");
+    testes++;
+    if (linha(fmt(tenis), "Esporte:") !== "Tênis (sportTypeId 4)")
+      falhas.push(`sportTypeId 4 devia sair "Tênis (sportTypeId 4)", veio "${linha(fmt(tenis), "Esporte:")}"`);
+
+    // O `317` chega com TAB literal no nome da casa (`"E-sports +\t\t"`, medido no
+    // `GetAllSports`) — o TAB é separador de coluna do TSV. Mapeado, ele nunca chega ao bloco.
+    const base = cash[0];
+    const comSport = (id) => fmt({ ...base, selections: [{ ...base.selections[0], sportTypeId: id }] });
+    for (const [id, esperado] of [[317, "E-Sports (sportTypeId 317)"], [318, "eSoccer (sportTypeId 318)"],
+                                  [13, "Baseball (sportTypeId 13)"], [12, "Basquete (sportTypeId 12)"]]) {
+      testes++;
+      const saiu = linha(comSport(id), "Esporte:");
+      if (saiu !== esperado) falhas.push(`sportTypeId ${id} devia sair "${esperado}", veio "${saiu}"`);
+      testes++;
+      if (/\t/.test(comSport(id))) falhas.push(`sportTypeId ${id}: TAB literal vazou para o bloco — parte a coluna do TSV`);
+    }
+
+    // O `300` é a gaveta de ESPECIAIS da casa: as 16 seleções da conta vivem todas em
+    // `sportId 115`/`champId 61714`, com `marketName === eventName`, e misturam CS2 (BLAST
+    // Open) com futebol (Libertadores). Batizá-lo como esporte erraria metade dos bilhetes.
+    testes++;
+    const esp = linha(comSport(300), "Esporte:");
+    if (!/^aposta ESPECIAL da casa \(sportTypeId 300 — não é esporte/.test(esp))
+      falhas.push(`sportTypeId 300 devia sair marcado como especial, veio "${esp}"`);
+    testes++;
+    if (/\(sportTypeId 300\)$/.test(esp)) falhas.push("sportTypeId 300 foi tratado como esporte nomeado — proibido");
+
+    // Id que a casa oferece mas o MASTER não batiza (`7` Automobilismo ≠ `F1`) segue CRU.
+    testes++;
+    const cru = linha(comSport(7), "Esporte:");
+    if (!/a conferir — id não mapeado/.test(cru))
+      falhas.push(`sportTypeId 7 (Automobilismo, sem valor oficial no MASTER) devia subir cru, veio "${cru}"`);
   }
 
   // ── 6. O `status 7` tem de ser PEDIDO, senão o bilhete não existe ─────────────
