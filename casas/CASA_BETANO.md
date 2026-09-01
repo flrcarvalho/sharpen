@@ -89,7 +89,42 @@ Conferência financeira: `Ganhos = 0` → L · `Ganhos = Aposta` → V · `Ganho
 
 ## 6. Boost / promoção
 
-<!-- TODO: a Betano tem boost? Como sinaliza? Sem amostra nos bilhetes enviados. -->
+Tem. Chama-se **`Criar Aposta Turbinada +N%`** e aparece como **rodapé** do card,
+abaixo das seleções, só em bilhete `Criar Aposta` (bet builder). Valores vistos:
+`+25%` e `+50%`.
+
+> ⚠️ **O bônus é pago POR FORA da odd exibida.** A odd grande do topo do card é a
+> odd SEM o bônus, e o card mostra os dois valores separados. A odd real é:
+>
+> ```
+> odd_real = 1 + (odd_exibida − 1) × (1 + N/100)
+> ```
+>
+> O bônus incide sobre o **lucro**, não sobre o retorno.
+
+**Medido no card com valor em R$ (31/08/2026):**
+
+| campo do card | valor |
+|---|---|
+| Aposta | R$557,00 |
+| Ganhos Potenciais | R$1.364,65 (= 557 × 2,45) |
+| Criar Aposta Turbinada +50% | **+R$403,83** |
+| retorno real | R$1.768,48 → odd **3,175** |
+
+`403,83` é exatamente 50 % do lucro de `807,65`. Confirmado por outros dois
+bilhetes, contra o que o próprio apostador registrou: `2,18 +25% → 2,475` (ele
+anotou 2,47) e `2,60 +25% → 3,00` (anotou 3,00).
+
+**Consequência prática:** planilhar a odd do card num bilhete turbinado
+subestima toda vitória. É a mesma família do `SuperMúltipla` da Estrela Bet
+(`CASA_ESTRELABET §Bônus`) — o selo é da marca, o mecanismo é o mesmo.
+
+Isso **não** contradiz o `§11`: em `W` a regra continua sendo `Ganhos ÷ Aposta`,
+e ela já resolve o boost sozinha quando o card traz os valores em R$. A fórmula
+acima é para o caso em que o card mostra **só a odd e o `+N%`**, sem dinheiro —
+que é como o bilhete aparece quando a stake está oculta.
+
+Em `L` a odd não entra no P/L, então recalcular é indiferente.
 
 ---
 
@@ -246,6 +281,6 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-06-20 (sessão 29) — §12 seleção dupla = 1 bilhete · §9 180s → Legs
-STATUS: QUASE COMPLETO (pendências: §5 rótulo void/anulada, §6 boost — aguardam amostra)
+ATUALIZADO: 2026-09-01 (sessão 306) — §6 boost preenchido: `Criar Aposta Turbinada +N%` paga por fora da odd exibida
+STATUS: QUASE COMPLETO (pendência: §5 rótulo void/anulada — aguarda amostra)
 CASA: Betano
