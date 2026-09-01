@@ -3986,6 +3986,15 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # `usuarios` — ativo, cadastro em autosserviço em 17/08/2026). Base
     # MULTIESPORTE em unidades: 911 apostas em 20 esportes, 02/06 → 17/08/2026.
     "passatipsvip": {"dono": "passapano", "nome": "PassaTips VIP"},
+    # 6º tipster (s306). Marca e username DIVERGEM de novo: a marca é
+    # `RogerinComeuMeuSaldo` e o username é `Rogeringambler` (conferido na tabela
+    # `usuarios` — ativo, hash de 60 chars, cadastro em autosserviço em
+    # 31/08/2026, e-mail maodevaca.precos@gmail.com). O arquivo importado se
+    # chama `sobolas.csv` e a marca chegou a ser "SoBolas" no começo da conversa:
+    # nem o nome do arquivo nem o apelido inicial são fonte de nada. Base de
+    # 393 apostas em unidades, 10/04 → 31/08/2026, em DUAS eras que não se
+    # parecem (props de NBA até 30/05; multiesporte a partir de 27/07).
+    "rogerincomeumeusaldo": {"dono": "Rogeringambler", "nome": "RogerinComeuMeuSaldo"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres
