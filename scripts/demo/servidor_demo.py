@@ -103,6 +103,14 @@ def _casas_visao():
                       "origem": "sharpen"})
         elif c["casa"] == "Bet365" and c["sugestao_modo"] == "multi":
             c.update({"modo": "multi", "tipsters": "", "origem": "custom"})
+    # Curadoria vencida (s310) — espelha `repository.casas_visao`. Aqui dá SEMPRE falso, porque a
+    # curadoria acima copia a sugestão que a própria regra produziu; o campo existe para a tela
+    # não receber `undefined` e para o print continuar mostrando o produto, não uma maquete.
+    for c in saida:
+        curados = [t.strip() for t in (c["tipsters"] or "").split(",") if t.strip()]
+        c["curadoria_vencida"] = bool(c["modo"] == "dedicada" and c["sugestao_modo"] == "multi")
+        c["fora_do_pool"] = (sum(n for nm, n in por_casa[c["casa"]]["dist"].items()
+                                 if nm not in curados) if c["curadoria_vencida"] else 0)
     return saida
 
 

@@ -77,6 +77,20 @@
 .casa .nm{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cstats{font-family:var(--font-mono);font-size:11px;color:var(--ink-mute);line-height:1.5}
 .cstats b{color:var(--ink-soft)}
+/* Curadoria vencida (s310): a linha salva não passa mais na regra que a sugeriu. Fica na célula
+   da EVIDÊNCIA porque é a evidência que mudou. Escada de Tinta: 11px em --warn sobre o tint de
+   10% dá 6,9:1 na .crow e 6,6:1 na .crow.dedic — acima do piso de 4,5:1 de label. NÃO usar
+   --ink-mute aqui: é aviso, não metadado. */
+.crow .cwarn{display:inline-flex;align-items:center;gap:6px;margin-top:5px;padding:3px 8px;
+  border-radius:var(--r-pill);border:1px solid rgba(var(--warn-rgb),.28);
+  background:rgba(var(--warn-rgb),.10);color:var(--warn);
+  font-family:var(--font-mono);font-size:11px;font-weight:500;line-height:1.35}
+.crow .cwarn svg{width:13px;height:13px;flex:none}
+.crow .cwarn b{color:var(--warn);font-weight:700}
+/* Marca a linha por BORDA, nunca por fundo: qualquer tint aqui (medido de .020 a .045) empurra
+   o --ink-mute do .cstats de 3,06:1 para ~2,95:1, abaixo do piso de 3,0 do papel metadado.
+   Borda não entra no fundo efetivo do texto, então sinaliza sem cobrar contraste. */
+.crow.vencida{box-shadow:inset 2px 0 0 rgba(var(--warn-rgb),.55)}
 /* atribuição segmentada (Dedicada / Compartilhada) */
 .attr{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--field)}
 .attr button{font-family:var(--font-mono);font-size:10px;letter-spacing:.02em;color:var(--ink-soft);background:transparent;border:0;cursor:pointer;padding:7px 13px;border-radius:var(--r-pill);white-space:nowrap;transition:.15s}

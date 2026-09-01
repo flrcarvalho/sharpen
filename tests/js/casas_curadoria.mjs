@@ -32,7 +32,7 @@ const src = [
   corte('function _casaState(c){', LF + '}'),
   corte('function _casaSug(c){', LF + '}'),
   corte('function _orgTag(c){', LF + '}'),
-  corte('function _casaMetaTxt(nDed,nComp,nSem){', LF + '}'),
+  corte('function _casaMetaTxt(nDed,nComp,nSem,nVenc){', LF + '}'),
   corte('function _casaRowGrid(c){', LF + '}'),
 ].join(LF);
 
@@ -117,8 +117,44 @@ console.log('3) casa curada como compartilhada');
 console.log('4) o contador do cabeçalho conta o que está CURADO');
 {
   const G = mk();
-  ok(/2<\/b> a definir/.test(G._casaMetaTxt(1, 3, 2)), 'pendência aparece quando existe');
-  ok(!/a definir/.test(G._casaMetaTxt(1, 3, 0)), 'some quando tudo está curado');
+  ok(/2<\/b> a definir/.test(G._casaMetaTxt(1, 3, 2, 0)), 'pendência aparece quando existe');
+  ok(!/a definir/.test(G._casaMetaTxt(1, 3, 0, 0)), 'some quando tudo está curado');
+}
+
+// ── s310 ────────────────────────────────────────────────────────────────────────────────────
+// CURADORIA VENCIDA: a linha salva não passa mais na regra que a sugeriu. O backend decide
+// (`repository.casas_visao`) e manda `curadoria_vencida`; aqui se prova que a TELA a mostra.
+//
+// Por que importa: casa dedicada é resolvida ANTES do matcher e, com 2 nomes, restringe o pool
+// a eles — o resto da carteira sai da cédula sem o modelo ser ouvido. Medido na s310, a
+// `Betnacional` do Feca (curada em 25/08, caída para 82%) fazia 24 erros em 143 bilhetes contra
+// 2 do modelo livre, e NADA na tela dizia isso. O aviso é o que torna o silêncio audível.
+console.log('5) curadoria VENCIDA aparece na linha e no cabeçalho');
+{
+  const G = mk();
+  const vencida = {
+    casa: 'Betnacional', total: 223, n_tipsters: 10, top: 'Peixe', top_share: 60,
+    sugestao_modo: 'multi', sugestao_tipsters: [],
+    modo: 'dedicada', tipsters: 'Peixe,Arrudex', origem: 'sharpen',
+    curadoria_vencida: true, fora_do_pool: 40,
+  };
+  const html = G._casaRowGrid(vencida);
+  ok(/class="cwarn"/.test(html), 'o aviso é renderizado');
+  ok(/40<\/b> de <b>223<\/b>/.test(html), 'nomeia o CUSTO em apostas (40 de 223), não só "vencida"');
+  ok(/crow dedic vencida/.test(html), 'a linha ganha a marca de vencida sem perder a de feudo');
+  ok(/data-attr="dedicated" class="on"/.test(html), 'o toggle segue mostrando o que está SALVO');
+  ok(/org--sharpen/.test(html), 'a origem da curadoria continua visível');
+
+  G.reset();
+  const sadia = { ...vencida, sugestao_modo: 'dedicada', sugestao_tipsters: ['Peixe'],
+                  curadoria_vencida: false, fora_do_pool: 0 };
+  const htmlOk = G._casaRowGrid(sadia);
+  ok(!/class="cwarn"/.test(htmlOk), 'casa que ainda se sustenta NÃO acende o aviso');
+  ok(!/vencida/.test(htmlOk), 'e não ganha a marca na linha');
+
+  ok(/1 a revisar/.test(G._casaMetaTxt(1, 3, 0, 1)), 'o cabeçalho conta as vencidas');
+  ok(!/a revisar/.test(G._casaMetaTxt(1, 3, 0, 0)), 'e some quando não há nenhuma');
+  ok(/class="w"/.test(G._casaMetaTxt(1, 3, 0, 1)), 'usa a classe `.w` de warn que já existia');
 }
 
 console.log(falhas ? `\n${falhas} FALHA(S)` : '\nTUDO VERDE');

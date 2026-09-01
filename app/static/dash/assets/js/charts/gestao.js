@@ -871,13 +871,14 @@ async function renderCasasFeudo(){
   const nDed=_casasVisao.filter(c=>c.modo==='dedicada').length;
   const nComp=_casasVisao.filter(c=>c.modo==='multi').length;
   const nSem=_casasVisao.length-nDed-nComp;   // ainda não curadas — não valem no matcher
+  const nVenc=_casasVisao.filter(c=>c.curadoria_vencida).length;
   const sSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>';
   const intro='<div class="intro">Casa de nicho costuma ser de <b>um tipster só</b> — na BETesporte é sempre o mesmo, independente do valor. Marque cada casa como <b>Dedicada</b> (1-2 tipsters) ou <b>Compartilhada</b>. As sugestões vêm da sua própria base. <span class="em">só vale no atribuidor depois que você curar</span></div>';
   const toolbar='<div class="toolbar"><div class="search">'+sSvg+'<input id="casaSearch" value="'+esc(_casasQ)+'" oninput="casasBusca(this.value)" placeholder="Buscar casa…"></div>'
     +(pend?'<button class="btn btn--primary" id="applySug" onclick="casasAplicarSugestoes()">Aplicar '+pend+' sugestões</button>':'')+'</div>';
   const chead='<div class="chead"><div>Casa</div><div>Volume · dono na base</div><div>Atribuição</div><div>Tipster dedicado</div><div class="r">Origem</div></div>';
   pane.innerHTML='<div class="panel"><div class="panel__head"><span class="tick"></span><h2>Atribuição por casa</h2>'
-    +'<span class="meta">'+_casaMetaTxt(nDed,nComp,nSem)+'</span></div>'+intro+toolbar+chead+'<div id="casasList"></div></div>';
+    +'<span class="meta">'+_casaMetaTxt(nDed,nComp,nSem,nVenc)+'</span></div>'+intro+toolbar+chead+'<div id="casasList"></div></div>';
   renderCasasLista();
 }
 window.renderCasasFeudo=renderCasasFeudo;
@@ -889,7 +890,11 @@ function _casaEhFeudo(c){return c.modo==='dedicada'||(!c.modo&&c.sugestao_modo==
 function renderCasasLista(){
   const box=document.getElementById('casasList');if(!box)return;
   const q=_casasQ.trim().toLowerCase();
+  // Curadoria VENCIDA sobe ao topo, antes de qualquer outro critério. O contador no cabeçalho
+  // diz quantas são; sem a linha ao lado dele, contar vira caça manual numa lista de 40 casas.
   const vis=_casasVisao.filter(c=>!q||(c.casa||'').toLowerCase().includes(q)).slice().sort((a,b)=>{
+    const va=a.curadoria_vencida?0:1,vb=b.curadoria_vencida?0:1;
+    if(va!==vb)return va-vb;
     const fa=_casaEhFeudo(a)?0:1,fb=_casaEhFeudo(b)?0:1;
     return fa!==fb?fa-fb:(fa===0?(b.top_share-a.top_share):(b.total-a.total));
   });
@@ -915,14 +920,26 @@ function _orgTag(c){
 // Meta do cabeçalho. "a definir" só aparece quando existe — casa não curada é pendência, e
 // pendência escondida é a que nunca é resolvida.
 // Total à frente: era o pill `N casas` do topo do Tipster / Método, que saiu na s293.
-function _casaMetaTxt(nDed,nComp,nSem){
-  return '<b>'+(nDed+nComp+nSem)+'</b> casas · <b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas'+(nSem?(' · <b>'+nSem+'</b> a definir'):'');
+// `nVenc` = curadorias que a evidência não sustenta mais. Só aparece quando existe, e as linhas
+// dela sobem ao topo da lista (`renderCasasLista`) — contador sem ponte para a linha vira caça
+// manual, e é justamente esse aviso que precisa ser encontrado.
+function _casaMetaTxt(nDed,nComp,nSem,nVenc){
+  return '<b>'+(nDed+nComp+nSem)+'</b> casas · <b>'+nDed+'</b> dedicadas · <b>'+nComp+'</b> compartilhadas'+(nSem?(' · <b>'+nSem+'</b> a definir'):'')
+    +(nVenc?(' · <span class="w">'+nVenc+' a revisar</span>'):'');   // `.w` = warn do meta, já existente
 }
 function _casaRowGrid(c){
   const st=_casaState(c),cj=_tmJs(c.casa),isD=st.modo==='dedicada',sug=_casaSug(c);
   const dom=(typeof _houseDomain==='function')?_houseDomain(c.casa):'';
   const ic=dom?('<img src="'+favicon(dom)+'" alt="">'):esc((c.casa||'?').slice(0,2).toUpperCase());
   const cstats='<b>'+fmt(c.total,0)+'</b> apostas · '+esc(c.top||'—')+' '+fmtPct(c.top_share,0,false)+' · '+c.n_tipsters+' tipsters';
+  // Aviso de curadoria VENCIDA — vai na célula da EVIDÊNCIA, que é justamente o que mudou.
+  // Nomeia o custo em apostas (o que a curadoria salva deixa de fora) em vez de falar em
+  // "pureza": é o número que decide se vale mexer. Ver `casas_visao` para a regra.
+  const alerta=c.curadoria_vencida
+    ? '<div class="cwarn" title="A evidência da sua base não sustenta mais esta curadoria. Enquanto ela existir, casa dedicada crava antes do atribuidor e os outros tipsters não concorrem.">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 8v5"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>'
+      +'evidência mudou · <b>'+fmt(c.fora_do_pool,0)+'</b> de <b>'+fmt(c.total,0)+'</b> apostas são de fora — hoje seria compartilhada</div>'
+    : '';
   // Não curada = NENHUM botão aceso. O toggle mostra o que está salvo, nunca o que o Sharpen acha.
   const attr='<div class="attr"><button data-attr="dedicated" class="'+(isD?'on':'')+'" onclick="casaModo(\''+cj+'\',\'dedicada\')">Dedicada</button>'
     +'<button data-attr="shared" class="'+(st.modo==='multi'?'on':'')+'" onclick="casaModo(\''+cj+'\',\'multi\')">Compartilhada</button></div>';
@@ -937,9 +954,9 @@ function _casaRowGrid(c){
   }else{
     ded='<span class="dedmut">— a definir —</span>';
   }
-  return '<div class="crow'+(isD?' dedic':'')+'" data-name="'+esc((c.casa||'').toLowerCase())+'">'
+  return '<div class="crow'+(isD?' dedic':'')+(c.curadoria_vencida?' vencida':'')+'" data-name="'+esc((c.casa||'').toLowerCase())+'">'
     +'<div class="casa"><span class="ic">'+ic+'</span><span class="nm" title="'+esc(c.casa)+'">'+esc(c.casa)+'</span></div>'
-    +'<div class="cstats">'+cstats+'</div>'
+    +'<div class="cstats">'+cstats+alerta+'</div>'
     +'<div>'+attr+'</div>'
     +'<div>'+ded+'</div>'
     +'<div class="r">'+_orgTag(c)+'</div>'

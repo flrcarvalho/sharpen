@@ -1948,6 +1948,26 @@ async def casas_visao(dono: str) -> list[dict]:
         else:
             sug_modo, sug_tipsters = "multi", []
         c = cfg.get(casa)
+        # CURADORIA VENCIDA — a linha salva não passa mais na regra que a sugeriu (s310).
+        #
+        # `casa_config` é um RETRATO DATADO: uma vez curada, a linha crava para sempre, e casa
+        # dedicada é resolvida ANTES do matcher (`/tipsters/sugerir`) — com 2 nomes ela restringe
+        # o pool a eles, então todo o resto da carteira sai da cédula sem o modelo ser ouvido.
+        # Quando um tipster novo entra na casa depois da curadoria, a pureza cai, a curadoria
+        # deixa de se sustentar e **o erro é silencioso**: nada na tela muda.
+        #
+        # Medido na s310: `Feca · Betnacional · dedicada · Peixe,Arrudex`, salva em 25/08 quando
+        # passava nos 85%. Iranian, Sonny e TC Insider entraram depois e ela caiu para 82% — e
+        # seguiu cravando Peixe em basquete, vôlei e escanteios. Em 143 bilhetes de 60 dias isso
+        # era 24 erros contra 2 do modelo livre.
+        #
+        # O aviso reusa `sug_modo`, calculado logo acima: a regra que SUGERE e a que AVISA são a
+        # mesma, e não podem divergir. Só acende no caso inequívoco — curada 'dedicada' e a
+        # evidência de hoje dizendo 'multi'. `sug_modo is None` (volume < CASA_MIN_VOL) nunca
+        # acende: pouco dado não é evidência de nada. Medido em 49 casas curadas de 2 donos:
+        # acende só na Betnacional, e fica apagada até na Tivo (89,6%, perto do corte).
+        vencida = bool(c and c["modo"] == "dedicada" and sug_modo == "multi")
+        curados = [t.strip() for t in (c["tipsters"] or "").split(",") if t.strip()] if c else []
         out.append({
             "casa": casa, "total": total, "n_tipsters": len(d["dist"]),
             "top": top_nome, "top_share": round(100 * top_n / total),
@@ -1955,6 +1975,11 @@ async def casas_visao(dono: str) -> list[dict]:
             "modo": c["modo"] if c else None,             # None = ainda não curada
             "tipsters": c["tipsters"] if c else "",
             "origem": c["origem"] if c else None,         # 'sharpen' | 'custom' | None (não curada)
+            "curadoria_vencida": vencida,
+            # Quanto a curadoria salva deixa de fora HOJE. É o custo dela em apostas, não uma
+            # medida de pureza: conta contra os tipsters CURADOS, não contra os 2 maiores.
+            "fora_do_pool": (sum(n for nm, n in d["dist"].items() if nm not in curados)
+                             if vencida else 0),
         })
     out.sort(key=lambda x: -x["total"])
     return out
