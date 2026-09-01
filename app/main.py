@@ -58,6 +58,7 @@ from repository import (
     casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendencias,
     anexar_sistema_tsv,
     corrigir_codigos_tsv,
+    corrigir_stake_tsv,
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
     get_custo_conta, salvar_custo_conta,
@@ -1390,6 +1391,13 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
         if betfair_dates:
             accumulated = _apply_betfair_dates(accumulated, betfair_dates)
+        # Stake determinística (s311): a coluna 8 vem do bloco daquele código, não da IA.
+        # Mesma posição da 12ª coluna e pelo mesmo motivo — depois da cobertura e da
+        # fidelidade, para que linha nascida numa repescagem também passe por aqui.
+        accumulated, stake_fix = corrigir_stake_tsv(accumulated, texto)
+        if stake_fix["stakes"]:
+            logger.warning("seq stake: %d linha(s) com stake do bilhete errado — corrigidas "
+                           "pelo bloco cru: %s", stake_fix["stakes"], stake_fix["exemplos"])
         # 12ª coluna (estrutura de SISTEMA) — determinística, lida do texto do robô e casada
         # pelo código. POR ÚLTIMO de propósito: depois da repesca de cobertura e da inversão,
         # senão linha nascida ali ficaria sem a coluna, em silêncio.
@@ -1403,7 +1411,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # intermediário. Fire-and-forget, igual ao uso: observar não pode custar
         # a extração de ninguém.
         _fire(registrar_sombra(dono, casa, texto, accumulated))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -1580,6 +1588,12 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
         if betfair_dates:
             resultado = _apply_betfair_dates(resultado, betfair_dates)
+        # Stake determinística (s311) — ver nota no caminho sequencial. Aqui é onde ela
+        # mais importa: o carryover de stake nasce da vizinhança DENTRO de um chunk.
+        resultado, stake_fix = corrigir_stake_tsv(resultado, texto)
+        if stake_fix["stakes"]:
+            logger.warning("par stake: %d linha(s) com stake do bilhete errado — corrigidas "
+                           "pelo bloco cru: %s", stake_fix["stakes"], stake_fix["exemplos"])
         # 12ª coluna (estrutura de SISTEMA) — ver nota no caminho sequencial.
         resultado, sis_fix = anexar_sistema_tsv(resultado, texto)
         if sis_fix["sistemas"]:
@@ -1587,7 +1601,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
         # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
         _fire(registrar_sombra(dono, casa, texto, resultado))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"

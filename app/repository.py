@@ -407,6 +407,133 @@ def anexar_sistema_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
     return "\n".join(linhas), {"sistemas": n}
 
 
+# ── Stake determinística: do texto-fonte para a coluna 8 ──────────────────────
+# A stake NUNCA é calculada — ela é CÓPIA. O robô já a lê da API da casa e a imprime no
+# bloco daquele código; pedir que a IA a transcreva é dar a um modelo uma tarefa em que
+# ele não pode acrescentar nada e só pode errar. E erra: na s311 a Pinnacle 3113103675
+# (LOUD v MIBR) foi gravada com `400,00`, a stake do bilhete `3114339695` **duas linhas
+# acima no mesmo chunk** — o carryover que a s302 documentou na descrição, agora no
+# financeiro. (O `CLAUDE.md` dizia que "o financeiro não viaja junto". Era observação
+# medida, não garantia.)
+#
+# POR QUE ISSO PASSA POR TODOS OS GATES: a stake errada não deixa rastro. A descrição é
+# a certa, então `checar_descricao` e `checar_fidelidade` passam; o código está lá, então
+# a cobertura conta o bilhete; e a odd de W, derivada de `Retorno ÷ Stake`, é recalculada
+# **sobre a stake errada** — `(400 + 330,48) ÷ 400 = 1,8262` — o que mantém o P/L EXATO.
+# Sobra errado só o que ninguém confere: turnover, ROI e a assinatura de stake que o
+# matcher de tipster usa (o bilhete perdeu o Zora porque 400 não é a stake dele).
+#
+# Medida da cirurgia, na sombra inteira (26/08–01/09, 5.128 blocos, 20 casas): a linha
+# `Stake:` casa a regex ancorada em **100%** dos blocos, sempre com UM valor. E a
+# divergência bloco × banco eram 3 linhas em 3.700 (0,08%) — as três, carryover de vizinho.
+#
+# Escopo: só o caminho de TEXTO (casas de API, onde o robô monta o bloco). Extração por
+# print não tem `[Código: …]` com `Stake:` e passa intacta.
+_STAKE_TXT_RE = re.compile(r"^[ \t]*Stake:[ \t]*R?\$?[ \t]*([\d.,]+)[ \t]*\r?$", re.MULTILINE)
+_ODD_TOTAL_TXT_RE = re.compile(r"^[ \t]*Odd total:[ \t]*([\d.,]+)[ \t]*\r?$", re.MULTILINE)
+_PL_TXT_RE = re.compile(r"P/L\s*(-?[\d.,]+)")
+
+
+def _financeiro_do_texto(texto: str | None) -> dict[str, dict]:
+    """Mapa `código → {stake, odd_total, pl}` lido do texto do robô.
+
+    Só entra bilhete cujo bloco traz UM valor de `Stake:` — bloco com dois valores
+    distintos é ambíguo e fica de fora (fail-closed: sem prova, não se corrige nada).
+    `odd_total`/`pl` são opcionais e só existem nas casas que os imprimem.
+    """
+    if not texto or "Stake:" not in texto:
+        return {}
+    mapa: dict[str, dict] = {}
+    # Mesmo marcador que o chunker usa para fatiar (`_ID_MARCADOR_RE`), então a fronteira
+    # do bloco aqui é a mesma que a IA enxergou.
+    blocos = _ID_MARCADOR_RE.split(texto)
+    # split com 1 grupo de captura → [antes, cod1, bloco1, cod2, bloco2, …]
+    for i in range(1, len(blocos) - 1, 2):
+        codigo = (blocos[i] or "").strip()
+        corpo = blocos[i + 1] or ""
+        valores = _STAKE_TXT_RE.findall(corpo)
+        if not codigo or len(set(valores)) != 1:
+            continue
+        if _num_or_none(valores[0]) is None:
+            continue
+        odd = _ODD_TOTAL_TXT_RE.search(corpo)
+        pl = _PL_TXT_RE.search(corpo)
+        mapa[codigo] = {
+            "stake": valores[0],
+            "odd_total": odd.group(1) if odd else None,
+            "pl": pl.group(1) if pl else None,
+        }
+    return mapa
+
+
+def _odd_da_stake(info: dict, resultado: str, stake: float) -> str | None:
+    """Odd que a stake correta produz em W. None = não há como provar, não mexe.
+
+    Em W a odd é `Retorno ÷ Stake` e o Retorno sai do P/L (`CASA_PINNACLE §11`) — então
+    ela muda junto com a stake e deixá-la para trás seria pior que o erro original: a
+    linha ficaria com o P/L errado, que é justamente o que hoje continua certo. Em L/V a
+    odd não depende da stake, e sem `P/L` no bloco não há de onde derivar: nos dois casos
+    devolve None.
+
+    Quando o `Odd total:` do bloco bate com a conta (±0,005), devolve o texto do bloco —
+    preserva a precisão original em vez de imprimir um float (`MASTER_OUTPUT`: odd sem
+    limite de casas decimais).
+    """
+    if (resultado or "").strip().upper() != "W" or not stake:
+        return None
+    pl = _num_or_none(info.get("pl"))
+    if pl is None:
+        return None
+    calculada = (stake + pl) / stake
+    exibida = info.get("odd_total")
+    if exibida is not None:
+        n = _num_or_none(exibida)
+        if n is not None and abs(n - calculada) <= 0.005:
+            return exibida
+    return f"{calculada:.6f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
+    """Sobrescreve a coluna 8 (Stake) com o valor do bloco daquele código.
+
+    Irmão do `anexar_sistema_tsv`: determinístico, casado pelo código, sem IA no caminho.
+    Roda DEPOIS da cobertura e da fidelidade — linha nascida numa repescagem também
+    precisa passar por aqui. Linha sem código, ou código ausente do texto, passa intacta.
+
+    Retorna (tsv, {"stakes": n, "exemplos": [...]}) — (código, o que a IA escreveu, o que
+    o bloco diz). Vai para o log em WARNING e viaja no `done` do stream: correção
+    silenciosa conserta o número e não ensina nada a quem opera. O rail ainda NÃO mostra
+    esses exemplos (mudança de UI passa pelo `/nova-ui`); o campo existe para quando isso
+    for feito.
+    """
+    mapa = _financeiro_do_texto(texto)
+    if not mapa:
+        return tsv, {"stakes": 0, "exemplos": []}
+    linhas = tsv.split("\n")
+    n, exemplos = 0, []
+    for i, line in enumerate(linhas):
+        parts = line.split("\t")
+        if len(parts) < 10:
+            continue                                  # nota/texto livre: passa intacto
+        codigo = parts[10].strip() if len(parts) > 10 else ""
+        info = mapa.get(codigo)
+        if not codigo or not info:
+            continue
+        stake_bloco, stake_ia = info["stake"], parts[7].strip()
+        n_bloco, n_ia = _num_or_none(stake_bloco), _num_or_none(stake_ia)
+        if n_bloco is None or (n_ia is not None and abs(n_bloco - n_ia) <= 0.005):
+            continue                                  # já bate: nada a fazer
+        parts[7] = stake_bloco
+        odd_nova = _odd_da_stake(info, parts[9].strip(), n_bloco)
+        if odd_nova:
+            parts[8] = odd_nova
+        linhas[i] = "\t".join(parts)
+        n += 1
+        if len(exemplos) < 5:
+            exemplos.append({"codigo": codigo, "ia": stake_ia, "bloco": stake_bloco})
+    return "\n".join(linhas), {"stakes": n, "exemplos": exemplos}
+
+
 # ── Correção determinística do ID contra o texto-fonte ────────────────────────
 # O ID do bilhete é a IDENTIDADE (dedup por ID; regra do CLAUDE.md). Porém a IA
 # NÃO reproduz um número de 18–19 dígitos com fidelidade: transpõe/inventa dígitos

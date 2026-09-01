@@ -485,9 +485,26 @@ parece defeito: `Matthew Dennant [Norwich v Burnley]` tem separador certo, confr
 formado e nada proibido — passa em `checar_descricao` sem um arranhão, e a cobertura
 conta 65 de 65. O bilhete era `Norwich x Burnley · Mais/Menos de 3,5 Cartões` (s302).
 
-**O financeiro não viaja junto**, e é por isso que ninguém percebe: stake, odd e
-resultado são COPIADOS do bloco, então o P/L fica certo. Erra só o que a IA decide —
-esporte, categoria e descrição.
+**O financeiro TAMBÉM viaja — e aí é pior, porque o P/L continua certo.** Até a s311 esta
+regra dizia que só esporte/categoria/descrição erravam, porque stake, odd e resultado são
+cópia. Era observação medida, não garantia: na Pinnacle `3113103675` a stake veio `400,00`
+— a do `3114339695`, **duas linhas acima no mesmo chunk**. E como em W a odd é derivada
+(`Retorno ÷ Stake`), ela foi recalculada **sobre a stake errada**: `(400 + 330,48) ÷ 400 =
+1,8262`, mantendo o P/L exato em R$ 330,48. Descrição certa, código certo, resultado
+certo, P/L certo — erram só turnover, ROI e a assinatura de stake do matcher (o bilhete
+perdeu o tipster porque 400 não é a stake dele).
+
+Por isso a **stake saiu da mão da IA** (`repository.corrigir_stake_tsv`, irmão do
+`anexar_sistema_tsv`): a coluna 8 vem do `Stake:` do bloco daquele código, e a odd de W é
+refeita junto quando o bloco traz o `P/L` — determinístico, sem modelo no caminho. Vale só
+onde há bloco (casas de API); **print continua 100% por conta da IA**. Bloco com dois
+valores de `Stake:` é ambíguo e não autoriza escrita nenhuma. Medido na sombra: a linha
+`Stake:` casa em 100% dos 5.128 blocos (20 casas) e o replay do gate mexe em 3 linhas de
+3.820 — as 3 divergências reais, zero falso positivo. Gate: `tests/test_stake_determinista.py`.
+
+> O gate copia o bloco **fielmente**, inclusive quando o bloco está errado na origem (a
+> KTO manda `Stake: 1,00`). Isso é defeito de captura, não de tradução — e a correção
+> humana numa linha já resolvida sobrevive, porque o UPSERT congela stake em `resolvida`.
 
 A conferência é possível porque **a tradução não inventa NOME**: ela traduz rótulo,
 canoniza separador e escolhe categoria, mas time, jogador e competição são cópia. Então
@@ -708,4 +725,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-01 (sessão 309 — regra nova: perfil de tipster não pode nomear casa no prompt da visão; a casa é saída da leitura, e o formato do bilhete também não se herda da amostra)
+ATUALIZADO: 2026-09-01 (sessão 311 — o carryover de chunk atinge o FINANCEIRO: a stake pula para o bilhete vizinho e a odd de W, derivada dela, preserva o P/L — erro invisível. A stake saiu da mão da IA e passou a vir do bloco cru)
