@@ -93,13 +93,55 @@ por palpite é inventar. Mesmo precedente do `import_passatips_xlsx.py`.
 O `MASTER_DESCRICAO §2` pede `Entidade - Mercado [Confronto]`; esta fonte não
 tem o terceiro termo, e fabricá-lo seria pior que omiti-lo.
 
-⚠️ **Nos títulos `A / B` da ERA 2 a barra NÃO é separador de seleção.** É o
-formato que ele usou para anotar o confronto ou o par de escolhas, e ele
-frequentemente pareia entidades de esportes diferentes (`Altrincham / Hurkacz`
-sob Ténis; `Grécia / Swiatek` sob Basquetebol; `Kocaelispor / Sabalenka` sob
-Futebol). Não dá para saber se o errado é o rótulo ou o título — **e por isso os
-dois entram como estão**. O ` // ` do `#19` (separador de bet builder) continua
-sendo o único separador de seleção do sistema, e ele não aparece aqui.
+⚠️ **CORREÇÃO (mesma sessão, depois dos prints do canal).** Eu tinha escrito aqui
+que a barra dos títulos `A / B` da ERA 2 "NÃO é separador de seleção" e que ele
+pareava entidades de esportes diferentes por engano. **Está errado.** Os prints
+do Telegram provam que ` / ` **É o separador de PERNA de uma DUPLA**, abreviada
+pelo sobrenome de cada seleção — e a prova é a odd, que bate exato em 4 de 4:
+
+    Egito / Mensik        @3,70 = Egito -3,5 (2,00) × Jakub Mensik -7,5 (1,85)
+    Altrincham / Hurkacz  @3,02 = Altrincham +0,75 (2,10) × Hurkacz -5,5 (1,44)
+    Virtanen /Sabalenka   @1,84 = Virtanen +7,5 (1,50) × Sabalenka +15,5 (1,23)
+    Mezxa / Arsenal       @2,36 = A. G. **Meza** +6,5 (1,30) × **Arsenal** (1,82)
+
+`Mezxa / Arsenal` é o caso que mata a hipótese antiga: "Meza" é tenista e o
+Arsenal é clube de futebol — não é dado embaralhado, é uma dupla de duas
+modalidades. **182 das 212 linhas da ERA 2 (86 %) têm a barra.**
+
+**Consequência para o que já foi importado, e ela NÃO foi aplicada:** essas
+linhas são bilhetes de 2 pernas, então a categoria deveria ser `Múltipla` (não
+`ML`), e onde as duas pernas são de esportes diferentes o `MASTER_ESPORTES §2`
+manda `Múltiplos`. **Não reclassifiquei porque não é decidível pelo título:**
+`A / B` também pode ser um confronto de verdade (`Kostanay / Kaisar` são dois
+clubes cazaques que se enfrentam), e sem o print não dá para separar os dois
+casos. Fica como decisão, com o caminho medido: ou os prints do canal, ou ele
+confirmando. **O P/L não é afetado** — stake, odd e resultado estão certos; o que
+está errado é `esporte`/`aposta` num subconjunto dessas 182.
+
+O ` // ` do `#19` (separador de bet builder) continua sendo o único separador de
+seleção do sistema, e ele não aparece nesta fonte.
+
+── A odd "aumentada" é a TURBINADA, não a do print ───────────────────────────
+
+As 13 linhas `aumentada`/`booster` são o **Criar Aposta Turbinada** da Betano —
+bet builder com bônus de odd. O bônus é pago **POR FORA da odd exibida**, mesma
+família do `SuperMúltipla` da Estrela Bet (s303), e ele já registra a odd certa:
+
+    Barcelona    print 2,18 +25% → 1 + 1,18 × 1,25 = 2,475   ele registrou 2,47 ✔
+    Real Madrid  print 2,60 +25% → 1 + 1,60 × 1,25 = 3,000   ele registrou 3,00 ✔
+    Arsenal      print 3,05 +25% → 1 + 2,05 × 1,25 = 3,562   ele registrou 3,05 ✘
+
+O Arsenal é a exceção que confirma a regra: **é PERDIDA**, e em L o P/L é −stake
+e não depende da odd, então ele não refez a conta. É exatamente o
+`MASTER_RESULTADO` — em W a odd é `Retorno ÷ Stake`.
+
+Confirmado por um terceiro caminho, o print com valor em R$: aposta R$557,00,
+"Ganhos Potenciais" R$1.364,65 (= 557 × 2,45) e "Turbinada +50%" **+R$403,83**,
+que é exatamente 50 % do lucro de R$807,65. Retorno real R$1.768,48 → odd
+efetiva **3,175** = 1 + (2,45 − 1) × 1,5.
+
+**Isto é requisito do bot:** planilhar a odd do print num bilhete turbinado
+subestima toda vitória dele.
 
 ── ⚠️ A coluna `Esporte` NÃO é confiável ─────────────────────────────────────
 
