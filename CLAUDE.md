@@ -633,11 +633,18 @@ liquidação. A edição à mão vale sozinha em linha já resolvida e em casa n
 `casa` e `parceiro` entram no hash de `_assinatura` (com ou sem código de bilhete). Trocar
 qualquer um dos dois sem recalcular deixa a linha com o hash antigo: a próxima captura
 gera uma assinatura nova, não colide com nada, o UPSERT não dedupa e **o histórico
-duplica inteiro**. Vale para renomear conta, unificar casa, mover bilhete e backfill.
+duplica inteiro**. Vale para renomear conta, **mover conta de casa**, unificar casa,
+mover bilhete e backfill.
 
-Quem já faz certo: `renomear_parceiro()`, `atualizar_bilhete()` (via `_assinatura_pos_edicao`),
-`scripts/unificar_casas.py` e `scripts/reparar_orfaos_parceiro.py`. Reuse o laço de
-`_counter` deles — duas linhas de conteúdo idêntico precisam escalar, não colidir.
+Quem já faz certo: `editar_parceiro()` (nome e/ou casa; `renomear_parceiro()` é wrapper dele),
+`atualizar_bilhete()` (via `_assinatura_pos_edicao`), `scripts/unificar_casas.py` e
+`scripts/reparar_orfaos_parceiro.py`. Reuse o laço de `_counter` deles — duas linhas de
+conteúdo idêntico precisam escalar, não colidir.
+
+**Os dois campos mudam JUNTOS, numa transação só.** O modal de edição de conta oferece
+nome e casa na mesma tela, e gravar um de cada vez deixaria uma assinatura intermediária
+que não corresponde a bilhete nenhum. Pelo mesmo motivo a colisão de nome é conferida na
+casa de **destino**, nunca na de origem.
 
 `casa` é **texto** em `bilhetes`, `parceiros`, `casas_meta`, `casa_config`, `correcoes`,
 `uso_tokens` e `tipsters.casas`: cada grafia é uma casa **diferente** no sistema. Ao criar
@@ -725,4 +732,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-01 (sessão 311 — o carryover de chunk atinge o FINANCEIRO: a stake pula para o bilhete vizinho e a odd de W, derivada dela, preserva o P/L — erro invisível. A stake saiu da mão da IA e passou a vir do bloco cru)
+ATUALIZADO: 2026-09-01 (sessão 312 — editar conta virou o modal completo da criação; mover a conta de casa arrasta os bilhetes e recalcula a assinatura de cada um, porque `casa` e `parceiro` são o mesmo hash)
