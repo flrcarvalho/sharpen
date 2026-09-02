@@ -5855,7 +5855,7 @@ function _declaraStake(S, sig, casaK) {
 }
 // Núcleo do ranqueamento. `allowed` (Set de nomes) restringe o pool de candidatos — usado
 // pela casa-feudo de 2 donos. Sem `allowed` = todos os perfis (baseline).
-function _sugRanqueia(b, idx, allowed) {
+function _sugRanqueia(b, idx, allowed, folga = 7) {
   const casaK = _sugSlug(b.casa), espK = _sugNorm(b.esporte), mktK = _sugNorm(b.aposta);
   const wOf = (set, excl) => (set && set.size === 1) ? excl : 1;   // exclusivo=excl, senão 1
   const pool = allowed ? tipsterProfiles.filter(p => allowed.has(p.nome)) : tipsterProfiles;
@@ -5887,17 +5887,19 @@ function _sugRanqueia(b, idx, allowed) {
     if (oe && oe.has(ranked[0].nome)) return ranked[0].nome;
   }
   const top = ranked[0].score, second = ranked[1] ? ranked[1].score : 0;
-  return (top - second >= 7) ? ranked[0].nome : null;   // folga clara → sugere; senão vazio
+  // Folga clara → sugere; senão vazio. O padrão 7 é o do caminho principal (dono sem histórico).
+  // Na segunda passada da s310 o servidor manda uma folga bem maior — ver `_sugNovatos`.
+  return (top - second >= folga) ? ranked[0].nome : null;
 }
 // Casa-feudo (curadoria do Feca em casa_config, via /casas/config): casa DEDICADA a 1 tipster
 // CRAVA; a 2 tipsters RESTRINGE o pool a eles e o resto do matcher (stake) desempata. ADITIVO:
 // casa nunca SUPRIME — se não decidir, cai no matcher normal. Só usa o que o Feca CUROU
 // (modo='dedicada'); casa 'multi' ou não curada não entra. Ver STATUS Etapa 2.
-function _sugParaBilhete(b, idx) {
+function _sugParaBilhete(b, idx, folga = 7) {
   const ded = (_casasDedicadas[_sugSlug(b.casa)] || []).filter(n => idx.sig[n]);   // só donos que são perfil ativo
   if (ded.length === 1) return ded[0];                                             // 1 dono → crava
-  if (ded.length === 2) { const r = _sugRanqueia(b, idx, new Set(ded)); if (r) return r; }   // 2 donos → restringe + stake desempata
-  return _sugRanqueia(b, idx, null);                                               // baseline (aditivo: não suprime)
+  if (ded.length === 2) { const r = _sugRanqueia(b, idx, new Set(ded), folga); if (r) return r; }   // 2 donos → restringe + stake desempata
+  return _sugRanqueia(b, idx, null, folga);                                        // baseline (aditivo: não suprime)
 }
 // Pergunta ao servidor (`POST /tipsters/sugerir`, ver app/matcher.py). Devolve
 // {sugestoes, fonte} ou null se a rota não responder — offline nunca tira o botão do ar.
@@ -5934,8 +5936,30 @@ async function sugerirTipstersLote() {
   let n = 0;
   if (resp && resp.fonte === 'evidencia') {
     const sug = resp.sugestoes || {};
-    for (const b of vazios) { const nome = sug[String(b.id)]; if (nome) { await salvarTipsterVal(b.id, nome, 'sugerido'); n++; } }
-    setExpStatus(n ? `${n} de ${vazios.length} sugerido(s) — revise antes de exportar`
+    const sobrou = [];
+    for (const b of vazios) {
+      const nome = sug[String(b.id)];
+      if (nome) { await salvarTipsterVal(b.id, nome, 'sugerido'); n++; }
+      else sobrou.push(b);
+    }
+    // 2ª passada (s310): o que VOCÊ declarou fala onde a base é cega — nunca por cima dela.
+    // A base não conhece quem entrou semana passada, e é justamente esse perfil que a coluna
+    // deixava vazio em silêncio. Dois cortes, os dois vindos do servidor: só sobre `novatos`
+    // (a base mal os viu) e com folga ALTA, que na prática exige a assinatura de stake decidir
+    // sozinha. Medido no Feca: +139 acertos para +28 erros; no Jonathan, +32 e ZERO erro.
+    const novatos = new Set(resp.novatos || []);
+    let d = 0;
+    if (sobrou.length && novatos.size) {
+      await Promise.all([carregarPerfisTipster(), carregarCasasDedicadas()]);
+      if (tipsterProfiles.length) {
+        const idx = _buildSugIndex();
+        for (const b of sobrou) {
+          const nome = _sugParaBilhete(b, idx, resp.folga_declarada || 25);
+          if (nome && novatos.has(nome)) { await salvarTipsterVal(b.id, nome, 'sugerido'); n++; d++; }
+        }
+      }
+    }
+    setExpStatus(n ? `${n} de ${vazios.length} sugerido(s)${d ? ` · ${d} pelo perfil declarado` : ''} — revise antes de exportar`
                    : 'Nenhuma sugestão confiante — os bilhetes não se parecem com o que você já classificou', n ? 'ok' : '');
     return;
   }

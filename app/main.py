@@ -3839,7 +3839,14 @@ async def sugerir_tipsters_route(body: SugerirTipstersRequest, dono: str = Depen
                                dominio=dominio)
         if nome:
             sugestoes[b.id] = nome
-    return {"sugestoes": sugestoes, "fonte": fonte, "treino": modelo.treino}
+    # `novatos` + `folga_declarada` abrem a segunda passada NA TELA (s310): onde este modelo se
+    # calou, o matcher declarativo do `index.html` pode falar — mas só sobre quem a base mal
+    # conhece e só com folga alta. A decisão de QUEM é novato e de QUANTA folga exigir é do
+    # servidor de propósito: o declarativo já vive no front, e replicar os dois cortes lá criaria
+    # dois números para a mesma regra. Ver `app/matcher.py` para a medição.
+    return {"sugestoes": sugestoes, "fonte": fonte, "treino": modelo.treino,
+            "novatos": matcher.novatos(modelo, ativos) if fonte == "evidencia" else [],
+            "folga_declarada": matcher.FOLGA_DECLARADA}
 
 
 class CasaConfigRequest(BaseModel):

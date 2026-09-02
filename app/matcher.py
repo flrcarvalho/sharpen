@@ -83,6 +83,35 @@ MAX_INEDITAS = 0
 CORTE_IGNORA = ("casa=", "val=")
 # Abaixo disto o modelo não se sustenta e a rota devolve o dono ao matcher declarativo.
 MIN_TREINO = 200
+# ── O que o dono DECLAROU volta a falar — só onde a base é cega (s310) ──────────────────────
+#
+# A s289 trocou o declarativo pela base e resolveu metade do problema: a base sabe do Peixe, que
+# ela viu milhares de vezes, e **não sabe nada** do tipster que entrou semana passada. Perfil sem
+# histórico não concorre (`sugerir` pula quem tem `cls == 0`) e nunca constrói a folga — a coluna
+# fica vazia em silêncio, e o dono conclui, com razão, que preencher o perfil não serve para nada.
+#
+# Medido na carteira do Feca (prequential 30d), separando perfis GRANDES de PEQUENOS:
+#
+#     perfis          base (hoje)        só o declarado
+#     grandes         61 % certo          55 % certo
+#     pequenos         4 % certo          64 % certo
+#
+# Os dois são fortes em lugares OPOSTOS, e é isso que autoriza somá-los. O declarado fala apenas
+# onde a base se cala E sobre quem a base mal conhece — nunca por cima dela.
+#
+# **`NOVATO_MAX` é contado em bilhetes rotulados à mão, não em features.** Acima disto a base já
+# tem o que dizer e o declarado só atrapalha: liberar para todos ("sempre") leva o Feca a
+# +331 acertos e +134 erros (2,5:1), contra +139 e +28 (5,0:1) com este corte.
+NOVATO_MAX = 60
+# Folga que o matcher DECLARATIVO precisa ter para falar aqui — bem acima dos 7 que ele usa
+# quando é o caminho principal. Não é conservadorismo genérico: os pesos dele são stake 25-50,
+# esporte/mercado exclusivos 10, casa 5, então exigir 25 significa, na prática, **"só fale quando
+# a assinatura de stake decidir sozinha"**. Somar esporte + mercado não basta, e é justamente daí
+# que vinha o ruído do declarativo (SóChutes→Arrudex, 83 confusões na janela).
+# Medido no Feca: folga 7 dá +148 acertos e +72 erros (2,1:1); folga 25 dá +139 e +28 (5,0:1) —
+# quase o mesmo ganho por um terço do erro. O número vai para a tela na resposta da rota: o
+# declarativo vive no `index.html`, e um segundo literal lá viraria divergência silenciosa.
+FOLGA_DECLARADA = 25
 # ESPORTE PRATICAMENTE EXCLUSIVO de um tipster → é ele, sem passar pelo modelo.
 #
 # Feedback do Feca (s289): "as do Bad Milton são muito fáceis de caracterizar, são as únicas do
@@ -246,6 +275,14 @@ def sugerir(m: Modelo, ativos: Iterable[str], casa: Any, esporte: Any, aposta: A
         return topo
     # Confiança RELATIVA: sem folga sobre o 2º, fica vazio.
     return topo if (ranked[0][0] - ranked[1][0]) >= MARGEM else None
+
+
+def novatos(m: Modelo, ativos: Iterable[str]) -> list[str]:
+    """Tipsters ativos que a base mal conhece — onde o perfil declarado pode falar (s310).
+
+    Inclui quem tem ZERO bilhete rotulado: é o caso que mais importa (tipster que entrou esta
+    semana e que o modelo nem coloca na disputa). Ver `NOVATO_MAX` para o porquê do corte."""
+    return [n for n in ativos if m.cls.get(n, 0) < NOVATO_MAX]
 
 
 def modelo_em_cache(dono: str) -> Optional[Modelo]:

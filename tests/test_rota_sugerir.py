@@ -256,3 +256,51 @@ def test_casa_dedicada_ganha_do_esporte_exclusivo(cenario):
     d = _post([{"id": "1", "casa": "Betboom", "esporte": "Badminton", "aposta": "ML",
                 "stake": "300,00", "descricao": "x"}])
     assert d["sugestoes"] == {"1": "Alfa"}
+
+
+# ── s310: a rota abre a 2ª passada do declarado, mas não a executa ──────────────────────────
+#
+# A rota não decide quem o perfil declarado sugere — isso é do matcher declarativo, que vive no
+# `index.html`. O que ela decide, e o que se trava aqui, são os DOIS CORTES: sobre QUEM ele pode
+# falar (`novatos`) e com QUANTA folga (`folga_declarada`). Replicar esses números no front
+# criaria dois valores para a mesma regra, divergindo em silêncio.
+
+def test_novatos_lista_quem_a_base_mal_conhece(cenario):
+    """Perfil com pouco rótulo entra; o que a base já conhece, não."""
+    cenario["ativos"] = ["Alfa", "Beta"]
+    # 300 no Alfa também mantém o treino acima de MIN_TREINO — senão a rota cai no
+    # declarativo e a lista de novatos nem é montada.
+    cenario["rotulos"] = ([_bilhete(tipster="Alfa")] * 300
+                          + [_bilhete(tipster="Beta")] * 3)
+    d = _post([{"id": "1", "casa": "Bet365", "esporte": "Futebol", "aposta": "Múltipla",
+                "stake": "100,00", "descricao": "A // B"}])
+    assert d["fonte"] == "evidencia"
+    assert d["novatos"] == ["Beta"], "só quem a base mal viu abre espaço para o declarado"
+
+
+def test_tipster_sem_nenhum_rotulo_e_novato(cenario):
+    """O caso que mais importa: quem entrou esta semana e o modelo nem coloca na disputa."""
+    cenario["ativos"] = ["Alfa", "Fusion"]
+    cenario["rotulos"] = [_bilhete(tipster="Alfa")] * 300
+    d = _post([{"id": "1", "casa": "Bet365", "esporte": "Futebol", "aposta": "Múltipla",
+                "stake": "503,00", "descricao": "A // B"}])
+    assert "Fusion" in d["novatos"]
+
+
+def test_folga_declarada_vai_na_resposta(cenario):
+    """A tela não pode ter um segundo número para a mesma regra."""
+    cenario["rotulos"] = [_bilhete()] * 300
+    d = _post([{"id": "1", "casa": "Bet365", "esporte": "Futebol", "aposta": "Múltipla",
+                "stake": "100,00", "descricao": "A // B"}])
+    assert d["folga_declarada"] == matcher.FOLGA_DECLARADA
+    assert matcher.FOLGA_DECLARADA > 7, "a 2ª passada exige MAIS folga que o caminho principal"
+
+
+def test_dono_no_declarativo_nao_recebe_novatos(cenario):
+    """Base pequena já usa o declarativo como caminho PRINCIPAL — abrir a 2ª passada ali seria
+    aplicá-lo duas vezes, uma delas com corte que não é dele."""
+    cenario["rotulos"] = [_bilhete()] * 3
+    d = _post([{"id": "1", "casa": "Bet365", "esporte": "Futebol", "aposta": "Múltipla",
+                "stake": "100,00", "descricao": "A // B"}])
+    assert d["fonte"] == "declarativo"
+    assert d["novatos"] == []

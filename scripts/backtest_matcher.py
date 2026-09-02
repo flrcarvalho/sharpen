@@ -238,9 +238,29 @@ async def main():
             if modelo.treino < matcher.MIN_TREINO:
                 print(f"   {'evidência':<14}{'—':>10}{'—':>10}  (treino abaixo de {matcher.MIN_TREINO} → o app usa o declarativo)")
             else:
-                _linha("evidência", *_placar(bilhetes, lambda b: matcher.sugerir(
-                    modelo, ativos, b["casa"], b["esporte"], b["aposta"], b["stake"], b["descricao"],
-                    dominio=dominio)))
+                def _evid(b):
+                    return matcher.sugerir(modelo, ativos, b["casa"], b["esporte"], b["aposta"],
+                                           b["stake"], b["descricao"], dominio=dominio)
+                _linha("evidência", *_placar(bilhetes, _evid))
+
+                # PRODUÇÃO (s310) = evidência + 2ª passada do declarado. Sem esta linha o backtest
+                # mediria duas metades que o app não usa isoladamente, e o placar passaria a
+                # descrever outra coisa. A folga alta e o corte de novato vêm do `matcher`, os
+                # mesmos que a rota manda para a tela — nenhum número é redigitado aqui.
+                novos = set(matcher.novatos(modelo, ativos))
+
+                def _hibrido(b):
+                    nome = _evid(b)
+                    if nome:
+                        return nome
+                    global FOLGA
+                    antes, FOLGA = FOLGA, matcher.FOLGA_DECLARADA
+                    try:
+                        d = suggest(b, idx, profs, dedicadas)
+                    finally:
+                        FOLGA = antes
+                    return d if (d in novos) else None
+                _linha("PRODUÇÃO", *_placar(bilhetes, _hibrido))
             print()
     finally:
         await conn.close()
