@@ -71,6 +71,15 @@ dele é a hora de conferir quatro coisas:** as três linhas 🎯 no canal com
 2u/1u/0.25u, as três linhas `RG…-S1/-S2/-S3` na planilha, a casa gravada como
 **Bet365** (não Betano) e a categoria **Chutes** (não Outros).
 
+**Aberto da sessão 311, e é decisão do Feca porque mexe em `extensor/`:** Betano
+(`Tipo: Dupla`) e Betfast (`Tipo: Sistema (3 seleções)`) não emitem o marcador
+canônico `Tipo: SISTEMA <rótulo> — <N> apostas de <k> seleção(ões)` nem a
+`Odd (estrutural do sistema)` já calculada. Bet365 e Novibet emitem os dois e
+acertaram 15 de 15; sem eles a IA deduz a regra da odd (média × produto) e errou
+3 vezes, e o `anexar_sistema_tsv` nunca preenche a coluna 12 nessas casas — a base
+não distingue um `3 x Duplas` de uma tripla. Fazer as duas emitirem o marcador tira
+a dedução do caminho. Exige `node extensor/harness/run.mjs` e caso novo no harness.
+
 **Pendências, em ordem de quem decide:**
 
 0. **`MASTER_RESULTADO §5.3/5.4` merece um adendo sobre MÚLTIPLA** — decisão do
