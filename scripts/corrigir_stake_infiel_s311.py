@@ -70,16 +70,17 @@ from repository import atualizar_bilhete  # noqa: E402
 DESTINO = ROOT / "Backups" / "s311-stake-infiel" / "bilhetes_antes.json"
 
 # (código, dono, stake que o bloco cru manda, motivo)
-# Os dois do WilliamOliveira estão listados mas DESLIGADOS: são base de outro dono e a
-# decisão é dele. Ligar = tirar o comentário (o script reconfere o bloco antes de gravar).
+# As três divergências que a varredura da sombra achou. As duas do WilliamOliveira são
+# base de outro dono; o Feca autorizou ("se tem erro precisa ser corrigido"). As duas são
+# `L`, então só a stake muda — a odd de uma perda não depende dela.
 CORRECOES = [
     ("3113103675", "Feca", "204,00",
      "carryover de stake: 400,00 é do 3114339695 (Patrick Rivera), 2 linhas acima no chunk"),
 
-    # ("195072327", "WilliamOliveira", "20,00",
-    #  "carryover: 18,00 é do 195134703, vizinho imediato COM A MESMA descrição"),
-    # ("20951200252", "WilliamOliveira", "164,09",
-    #  "carryover: 60,00 é do 20951198152, vizinho que também começa por Cameron Norrie"),
+    ("195072327", "WilliamOliveira", "20,00",
+     "carryover: 18,00 é do 195134703, vizinho imediato COM A MESMA descrição"),
+    ("20951200252", "WilliamOliveira", "164,09",
+     "carryover: 60,00 é do 20951198152, vizinho que também começa por Cameron Norrie"),
 ]
 
 
