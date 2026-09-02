@@ -75,7 +75,7 @@ from repository import (
     get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     casa_canonica, excluir_parceiro, get_parceiro, list_parceiros, parse_tsv,
-    reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
+    editar_parceiro, reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
     resumo_parceiro, upsert_bilhetes,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
@@ -3693,6 +3693,32 @@ async def renomear_parceiro_route(parceiro_id: int, body: ParceiroRenomearReques
     res = await renomear_parceiro(parceiro_id, body.nome, dono)
     if not res.get("ok"):
         raise HTTPException(400, res.get("motivo", "Não foi possível renomear."))
+    return res
+
+
+class ParceiroEditarRequest(BaseModel):
+    # `nome` já vem no modelo canônico "Parceiro [Fornecedor]": o fornecedor NÃO é coluna,
+    # mora dentro do nome (ver `_PARCEIRO_RE` no repositório). O modal de edição monta os
+    # dois campos de volta num nome só, exatamente como o de criação.
+    nome: str
+    # Ausente = mantém a casa atual. Presente = MOVE a conta e todas as apostas dela.
+    casa: Optional[str] = None
+
+
+@app.post("/parceiros/{parceiro_id}/editar")
+async def editar_parceiro_route(parceiro_id: int, body: ParceiroEditarRequest,
+                                dono: str = Depends(dono_efetivo)):
+    """Edita nome e/ou casa da conta. Mover de casa arrasta os bilhetes e recalcula a
+    assinatura de cada um — `casa` entra no hash junto com `parceiro`."""
+    casa = (body.casa or "").strip()
+    if casa:
+        # Mesma trava do POST /parceiros: a casa é texto, e uma gêmea por caixa/espaço
+        # ("Pixbet" quando já existe "PixBet") nasceria aqui se passasse verbatim.
+        casa = await casa_canonica(_casa_display(_display_to_key(casa)))
+    res = await editar_parceiro(parceiro_id, body.nome, casa or None, dono)
+    if not res.get("ok"):
+        motivo = res.get("motivo", "Não foi possível editar a conta.")
+        raise HTTPException(404 if "não encontrada" in motivo else 400, motivo)
     return res
 
 

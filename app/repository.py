@@ -2759,21 +2759,35 @@ async def excluir_parceiro(parceiro_id: int, dono: str, confirmar_nome: str) -> 
 
 
 async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict:
-    """Renomeia a conta, propaga o novo nome aos bilhetes dela E recalcula a assinatura.
+    """Renomeia a conta mantendo a casa. Wrapper fino de `editar_parceiro`."""
+    return await editar_parceiro(parceiro_id, novo_nome, None, dono)
 
-    Os bilhetes referenciam o parceiro por NOME (`bilhetes.casa + bilhetes.parceiro`), então
-    sem propagar o nome as apostas ficariam órfãs. E o `parceiro` também entra no hash de
-    `_assinatura` — com ou sem código de bilhete —, então sem RECALCULAR a assinatura toda
-    conta renomeada ficava com o hash do nome ANTIGO: a próxima captura da mesma conta
-    calculava uma assinatura nova, não colidia com nada, o UPSERT não dedupava e o histórico
-    inteiro DUPLICAVA. Mesma família do `_assinatura_pos_edicao` (s145), que cobriu a edição
-    de bilhete e deixou o rename de conta de fora.
 
-    Tudo numa transação. Retorna {ok, motivo?, bilhetes_atualizados, assinaturas_recalculadas}.
+async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | None,
+                          dono: str) -> dict:
+    """Edita a conta (nome e/ou casa), propaga aos bilhetes E recalcula a assinatura.
+
+    Os bilhetes referenciam o parceiro por TEXTO (`bilhetes.casa + bilhetes.parceiro`), então
+    sem propagar os dois as apostas ficariam órfãs. E `casa` e `parceiro` entram JUNTOS no hash
+    de `_assinatura` — com ou sem código de bilhete —, então sem RECALCULAR a assinatura toda
+    conta editada ficava com o hash antigo: a próxima captura da mesma conta calculava uma
+    assinatura nova, não colidia com nada, o UPSERT não dedupava e o histórico inteiro
+    DUPLICAVA. Mesma família do `_assinatura_pos_edicao` (s145), que cobriu a edição de
+    bilhete e deixou a conta de fora.
+
+    `nova_casa=None` (ou igual à atual) = só rename — o caminho que a rota /renomear usa desde
+    a s198. Mover de casa é a extensão da s312: o modal de edição passou a oferecer a casa
+    porque "fornecedor" e "casa errada" eram os dois motivos reais de mexer numa conta, e o
+    fornecedor mora DENTRO do nome (modelo "Parceiro [Fornecedor]"). Quem chama resolve a
+    grafia por `casa_canonica` ANTES — casa é texto, e uma gêmea por caixa nasceria aqui.
+
+    Tudo numa transação. Retorna {ok, motivo?, casa, nome, bilhetes_atualizados,
+    assinaturas_recalculadas}.
     """
     novo_nome = (novo_nome or "").strip()
     if not novo_nome:
         return {"ok": False, "motivo": "Nome vazio."}
+    nova_casa = (nova_casa or "").strip() or None
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -2783,18 +2797,20 @@ async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict
             if not row:
                 return {"ok": False, "motivo": "Conta não encontrada."}
             casa, antigo = row["casa"], row["nome"]
-            if antigo == novo_nome:
-                return {"ok": True, "bilhetes_atualizados": 0, "assinaturas_recalculadas": 0}
-            # Colisão: já existe outra conta com esse nome nesta casa (viola UNIQUE).
+            destino = nova_casa or casa
+            if antigo == novo_nome and destino == casa:
+                return {"ok": True, "casa": casa, "nome": antigo,
+                        "bilhetes_atualizados": 0, "assinaturas_recalculadas": 0}
+            # Colisão: já existe outra conta com esse nome na casa de DESTINO (viola UNIQUE).
             existe = await conn.fetchval(
                 "SELECT 1 FROM parceiros WHERE dono = $1 AND casa = $2 AND nome = $3 AND id <> $4",
-                dono, casa, novo_nome, parceiro_id,
+                dono, destino, novo_nome, parceiro_id,
             )
             if existe:
                 return {"ok": False, "motivo": "Já existe uma conta com esse nome nesta casa."}
             await conn.execute(
-                "UPDATE parceiros SET nome = $1 WHERE id = $2 AND dono = $3",
-                novo_nome, parceiro_id, dono,
+                "UPDATE parceiros SET casa = $1, nome = $2 WHERE id = $3 AND dono = $4",
+                destino, novo_nome, parceiro_id, dono,
             )
             # Lê ANTES de mexer: o recálculo precisa do conteúdo que entra no hash.
             antes = await conn.fetch(
@@ -2806,24 +2822,26 @@ async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict
                 dono, casa, antigo,
             )
             res = await conn.execute(
-                "UPDATE bilhetes SET parceiro = $1 WHERE dono = $2 AND casa = $3 AND parceiro = $4",
-                novo_nome, dono, casa, antigo,
+                "UPDATE bilhetes SET casa = $1, parceiro = $2 "
+                "WHERE dono = $3 AND casa = $4 AND parceiro = $5",
+                destino, novo_nome, dono, casa, antigo,
             )
-            # Recálculo DEPOIS do UPDATE do nome: a checagem de colisão do
-            # `_assinatura_pos_edicao` procura irmãs "na mesma conta", que só agora é a nova.
+            # Recálculo DEPOIS do UPDATE: a checagem de colisão do `_assinatura_pos_edicao`
+            # procura irmãs "na mesma conta", que só agora é a nova (casa E nome).
             # Uma consulta por bilhete — a conta é a unidade de trabalho do operador (dezenas
-            # a poucas centenas de linhas), e roda uma vez por rename, não por extração.
+            # a poucas centenas de linhas), e roda uma vez por edição, não por extração.
             recalculadas = 0
             for b in antes:
                 nova = await _assinatura_pos_edicao(
-                    conn, b, {"parceiro": novo_nome}, dono, b["id"])
+                    conn, b, {"casa": destino, "parceiro": novo_nome}, dono, b["id"])
                 if nova:
                     await conn.execute(
                         "UPDATE bilhetes SET assinatura = $1 WHERE id = $2 AND dono = $3",
                         nova, b["id"], dono,
                     )
                     recalculadas += 1
-    return {"ok": True, "bilhetes_atualizados": int(res.split()[-1]),
+    return {"ok": True, "casa": destino, "nome": novo_nome,
+            "bilhetes_atualizados": int(res.split()[-1]),
             "assinaturas_recalculadas": recalculadas}
 
 

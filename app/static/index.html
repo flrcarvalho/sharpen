@@ -1376,6 +1376,12 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 .nc-combo-item:hover, .nc-combo-item.active { background: var(--surface-2); color: var(--ink); }
 .nc-combo-item.nova { color: var(--accent-2); border-bottom: 1px solid var(--line); border-radius: 0; margin-bottom: 4px; padding-bottom: 9px; }
+/* Variante de ATENÇÃO do .nc-hint: mover a conta de casa arrasta os bilhetes dela.
+   Só troca o acento (azul = instrução → --warn = atenção); não é perigo (--neg fica
+   reservado ao irreversível do modal de exclusão). O NÚMERO de apostas fica neutro
+   pelo mesmo motivo do .xc-body: cor em número é semântica de resultado (UI_REFERENCE §1). */
+.nc-hint.warn { background: rgba(var(--warn-rgb),.08); border-color: rgba(var(--warn-rgb),.28); }
+
 /* Esconde de verdade (vence o display:flex de .modal-field/.nc-hint/.nc-combo-menu,
    que o atributo [hidden] da UA não consegue sobrepor). */
 .nc-off { display: none !important; }
@@ -1842,11 +1848,11 @@ td.c-res.res-HL { color: var(--warn); }
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
         </div>
-        <!-- Ações rápidas da conta ativa (item 1): editar nome + arquivar. Reusam
-             contasRenomear()/contasArquivar() — as mesmas do hub. Só aparecem quando
+        <!-- Ações rápidas da conta ativa (item 1): editar + arquivar. Reusam
+             contasEditar()/contasArquivar() — as mesmas do hub. Só aparecem quando
              há conta ativa (toggle em atualizarQuickActs()). -->
         <div class="acct-quickacts" id="acctQuickActs" style="display:none">
-          <button class="chgbtn p" id="acctEditName" type="button" title="Editar nome da conta">
+          <button class="chgbtn p" id="acctEditName" type="button" title="Editar conta (casa, parceiro e fornecedor)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
           </button>
           <button class="chgbtn p danger" id="acctArchive" type="button" title="Arquivar conta">
@@ -2177,6 +2183,13 @@ td.c-res.res-HL { color: var(--warn); }
       <div class="modal-field">
         <label>Fornecedor <span class="nc-opt">(opcional)</span></label>
         <input type="text" id="nc-forn" placeholder="Ex.: JoãoContas" autocomplete="off" spellcheck="false">
+      </div>
+      <!-- Só no modo edição, e só quando a casa escolhida difere da atual: mover a conta
+           leva TODOS os bilhetes dela junto (e recalcula a assinatura de cada um). O
+           número vem do mesmo GET /parceiros/{id}/resumo que o modal de exclusão usa. -->
+      <div class="nc-hint warn nc-off" id="nc-mover">
+        <span class="nc-hint-icon">⚠️</span>
+        <span class="nc-hint-txt">Mover para <b id="nc-mover-casa">—</b> leva junto <b id="nc-mover-n">—</b> desta conta.</span>
       </div>
     </div>
     <div class="modal-foot">
@@ -2893,7 +2906,7 @@ function renderPainelLista() {
       const stop = clic ? 'event.stopPropagation();' : '';
       const ds = 'this.closest(\'.conta-row\').dataset.';
       const acoes =
-        '<button class="conta-act" onclick="' + stop + 'contasRenomear(' + p.id + ',' + ds + 'casa,' + ds + 'nome)">Renomear</button>'
+        '<button class="conta-act" onclick="' + stop + 'contasEditar(' + p.id + ',' + ds + 'casa,' + ds + 'nome)">Editar</button>'
         + '<button class="conta-act" onclick="' + stop + (clic ? 'contasArquivar' : 'contasReativar') + '(' + p.id + ',' + ds + 'casa)">' + (clic ? 'Arquivar' : 'Reativar') + '</button>'
         + '<button class="conta-act danger" onclick="' + stop + 'contasExcluir(' + p.id + ',' + ds + 'casa)">Excluir</button>';
       html += '<div class="conta-row' + (clic ? ' clickable' : '') + '" data-casa="' + esc(casa) + '" data-nome="' + esc(p.nome || '') + '"'
@@ -2920,24 +2933,11 @@ function contasAbrir(id, casa) {
   if (p) { selecionarParceiro(p); mostrarView('extracao'); }
 }
 
-async function contasRenomear(id, casa, nomeAtual) {
-  const novo = prompt('Novo nome da conta:', nomeAtual);
-  if (novo == null) return;
-  const nome = novo.trim();
-  if (!nome || nome === nomeAtual) return;
-  try {
-    const r = await fetch('/parceiros/' + id + '/renomear', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome }),
-    });
-    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao renomear.'); return; }
-    await carregarParceiros(casa);   // recarrega o cache desta casa com o novo nome
-    if (parceiroSelecionado && parceiroSelecionado.id === id) {
-      parceiroSelecionado.nome = nome;
-      if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
-    }
-    _actPush('renomeacao', casa, nome);
-    renderPainelContas();   // nome/fornecedor podem mudar → re-render completo do hub
-  } catch { alert('Erro de rede.'); }
+// Editar conta: abre o modal completo (casa + parceiro + fornecedor). Até a s312 isto era
+// um prompt() nativo do navegador que só alcançava o nome — fornecedor só dava para mudar
+// digitando os colchetes do modelo canônico na mão, e casa errada não tinha saída pela UI.
+function contasEditar(id, casa, nomeAtual) {
+  abrirModalEditarConta(id, casa, nomeAtual);
 }
 
 async function contasArquivar(id, casa) { await arquivarParceiro(id, casa); renderPainelContas(); }
@@ -3253,8 +3253,23 @@ function _dominioFromUrl(u) {
     .replace(/^https?:\/\//, '').replace(/^www\./, '')
     .split('/')[0].split('?')[0].split('#')[0].trim();
 }
-// ── Modal "Nova conta" (unifica dropdown + painel; substitui os forms inline) ──
+// ── Modal de conta: CRIAR e EDITAR são a mesma tela ───────────────────────────
+// Os campos de uma conta são três — casa, parceiro e fornecedor — e o modal de criação
+// já os tinha todos. A edição vivia num prompt() nativo que só alcançava o nome; quem
+// precisasse corrigir o fornecedor tinha de digitar os colchetes do modelo canônico na
+// mão, e quem cadastrasse na casa errada não tinha saída pela UI. Mesmo formulário,
+// dois modos — nada de um segundo formulário que envelhece separado.
 let _ncOrigem = 'dropdown';
+let _ncModo = 'criar';        // 'criar' | 'editar'
+let _ncAlvo = null;           // {id, casa, nome, bilhetes} — só no modo editar
+
+// "Parceiro [Fornecedor]" → as duas metades. Espelha o `_PARCEIRO_RE` do repositório
+// (repository.py), que é quem parte o mesmo texto para o feed do dashboard.
+function _ncParteNome(nome) {
+  const m = String(nome || '').match(/^(.+?)\s*\[(.+?)\]$/);
+  return m ? { parceiro: m[1].trim(), fornecedor: m[2].trim() }
+           : { parceiro: String(nome || '').trim(), fornecedor: '' };
+}
 // Combo custom da casa (dropdown on-brand + buscável, no lugar do <select> nativo).
 function _ncComboRender(filtro) {
   const list = document.getElementById('nc-combo-list');
@@ -3289,6 +3304,7 @@ function _ncComboSet(val) {
 }
 function abrirModalNovaConta(origem) {
   _ncOrigem = origem || 'dropdown';
+  _ncModo = 'criar'; _ncAlvo = null;
   const ov = document.getElementById('novaconta-modal');
   if (!ov) return;
   ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -3301,16 +3317,70 @@ function abrirModalNovaConta(origem) {
   const foco = document.getElementById(def === '__nova__' ? 'nc-casa-nome' : 'nc-parceiro');
   if (foco) setTimeout(() => foco.focus(), 30);
 }
+
+// Editar conta existente: mesma tela, pré-preenchida. O nome do banco chega no modelo
+// canônico e é PARTIDO nos dois campos — o operador nunca vê nem digita colchetes.
+function abrirModalEditarConta(id, casa, nome) {
+  const ov = document.getElementById('novaconta-modal');
+  if (!ov) return;
+  _ncModo = 'editar';
+  _ncAlvo = { id, casa, nome, bilhetes: null };
+  const partes = _ncParteNome(nome);
+  ['nc-casa-nome', 'nc-casa-url'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+  document.getElementById('nc-parceiro').value = partes.parceiro;
+  document.getElementById('nc-forn').value = partes.fornecedor;
+  _ncComboOpen(false);
+  _ncComboSet(casa);   // preenche label + hidden + dispara ncOnCasaChange (rótulos + aviso)
+  const wrap = document.getElementById('acctSelWrap'); if (wrap) wrap.classList.remove('open');
+  ov.classList.add('open');
+  // Baseline DEPOIS de preencher: no modo edição "intocado" é o estado salvo, não o vazio —
+  // senão a guarda de fechamento acidental leria todo campo pré-preenchido como digitado.
+  _modalBaseline(ov);
+  const foco = document.getElementById('nc-parceiro');
+  if (foco) setTimeout(() => { foco.focus(); foco.select(); }, 30);
+  // A contagem de apostas só importa se a casa mudar; buscá-la na abertura evita um
+  // spinner no meio do formulário quando ela muda. Falha de rede não bloqueia a edição:
+  // o aviso some, o restante segue (mover continua possível — só sem o número).
+  fetch('/parceiros/' + id + '/resumo')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d && _ncAlvo && _ncAlvo.id === id) { _ncAlvo.bilhetes = d.bilhetes; ncOnCasaChange(); } })
+    .catch(() => {});
+}
+
 function fecharModalNovaConta() {
   const ov = document.getElementById('novaconta-modal'); if (ov) ov.classList.remove('open');
+  _ncModo = 'criar'; _ncAlvo = null;
 }
-// Revela Nome/URL/instruções só quando "+ nova casa" está selecionada.
+// Revela Nome/URL/instruções só quando "+ nova casa" está selecionada; ajusta título e
+// rótulo do botão ao modo; e, no modo edição, mostra o aviso de mudança de casa.
 function ncOnCasaChange() {
-  const novo = ((document.getElementById('nc-casa') || {}).value) === '__nova__';
+  const sel = (document.getElementById('nc-casa') || {}).value;
+  const novo = sel === '__nova__';
   ['nc-casa-nome-field', 'nc-casa-url-field', 'nc-hint'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('nc-off', !novo); });
-  const t = document.getElementById('nc-title'); if (t) t.textContent = novo ? 'Cadastrar nova casa' : 'Nova conta';
+  const editar = _ncModo === 'editar';
+  const t = document.getElementById('nc-title');
+  if (t) t.textContent = novo ? 'Cadastrar nova casa' : (editar ? 'Editar conta' : 'Nova conta');
+  const b = document.getElementById('nc-criar');
+  if (b) b.textContent = editar ? 'Salvar alterações' : 'Criar conta';
+  // Aviso de mover: só quando a casa escolhida difere da atual E é uma casa que já existe
+  // (para "+ cadastrar nova casa" o destino ainda não tem nome — o painel de instruções
+  // dela é que ocupa o espaço).
+  const av = document.getElementById('nc-mover');
+  const mover = editar && _ncAlvo && !novo && sel && sel !== _ncAlvo.casa;
+  if (av) {
+    av.classList.toggle('nc-off', !mover);
+    if (mover) {
+      document.getElementById('nc-mover-casa').textContent = casaDisplay(NOMES[sel] || sel);
+      const n = _ncAlvo.bilhetes;
+      // Contagem de apostas = unidades, não dinheiro → milhar pt-BR, nunca abreviado.
+      document.getElementById('nc-mover-n').textContent =
+        n == null ? 'as apostas' : (n === 1 ? '1 aposta' : n.toLocaleString('pt-BR') + ' apostas');
+    }
+  }
 }
-async function ncCriarConta() {
+// Lê e valida o formulário (comum aos dois modos). Devolve null se algo falta —
+// já tendo avisado e posto o foco no campo culpado.
+function _ncLerForm() {
   const sel = document.getElementById('nc-casa');
   const novo = sel && sel.value === '__nova__';
   const casa = novo ? (document.getElementById('nc-casa-nome').value || '').trim() : (sel ? sel.value : '');
@@ -3321,26 +3391,39 @@ async function ncCriarConta() {
   // que produziu os 22 bilhetes órfãos da Tivo (s198). Saneia na origem.
   const forn = (document.getElementById('nc-forn').value || '').replace(/[\[\]]/g, '').trim();
   const nome = forn ? `${parceiro} [${forn}]` : parceiro;   // modelo canônico "Parceiro [Fornecedor]"
-  if (!casa) { alert(novo ? 'Informe o nome da casa nova.' : 'Selecione a casa.'); const n = document.getElementById('nc-casa-nome'); if (novo && n) n.focus(); return; }
-  if (novo && !url) { alert('Informe a URL da casa (ex.: novacasa.bet.br).'); const u = document.getElementById('nc-casa-url'); if (u) u.focus(); return; }
-  if (!parceiro) { const pi = document.getElementById('nc-parceiro'); if (pi) pi.focus(); return; }
+  if (!casa) { alert(novo ? 'Informe o nome da casa nova.' : 'Selecione a casa.'); const n = document.getElementById('nc-casa-nome'); if (novo && n) n.focus(); return null; }
+  if (novo && !url) { alert('Informe a URL da casa (ex.: novacasa.bet.br).'); const u = document.getElementById('nc-casa-url'); if (u) u.focus(); return null; }
+  if (!parceiro) { const pi = document.getElementById('nc-parceiro'); if (pi) pi.focus(); return null; }
+  return { novo, casa, url, parceiro, forn, nome };
+}
+
+// Casa nova com URL → domínio p/ o favicon (chip padrão em todo o sistema). `casaFinal` é
+// a grafia CANÔNICA devolvida pelo backend, não a digitada: registrar o favicon na grafia
+// crua criaria um mapa que nenhuma tela consulta.
+function _ncRegistrarDominio(casaFinal) {
+  const dom = _dominioFromUrl((document.getElementById('nc-casa-url') || {}).value || '');
+  if (!dom) return;
+  DOMINIOS[casaFinal] = dom;
+  _DOMINIOS_LC.set(String(casaFinal || '').toLowerCase(), dom);   // casa nova entra nos DOIS
+  fetch('/casas/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa: casaFinal, dominio: dom }) }).catch(() => {});
+}
+
+// Botão único do modal — o modo decide o destino.
+function ncSalvarConta() { return _ncModo === 'editar' ? ncEditarConta() : ncCriarConta(); }
+
+async function ncCriarConta() {
+  const f = _ncLerForm();
+  if (!f) return;
   const btn = document.getElementById('nc-criar'); if (btn) btn.disabled = true;
   try {
-    const r = await fetch('/parceiros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa, nome }) });
+    const r = await fetch('/parceiros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa: f.casa, nome: f.nome }) });
     if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar conta'); return; }
     const p = await r.json();
-    _actPush('criacao', p.casa, nome);
+    _actPush('criacao', p.casa, f.nome);
     if (!(casasCarregadas || []).includes(p.casa)) {
       casasCarregadas = [...(casasCarregadas || []), p.casa].sort((a, b) => a.localeCompare(b));
     }
-    if (novo) {   // casa nova com URL → domínio p/ o favicon (chip padrão em todo o sistema)
-      const dom = _dominioFromUrl((document.getElementById('nc-casa-url') || {}).value || '');
-      if (dom) {
-        DOMINIOS[p.casa] = dom;
-        _DOMINIOS_LC.set(String(p.casa || '').toLowerCase(), dom);   // casa nova entra nos DOIS
-        fetch('/casas/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa: p.casa, dominio: dom }) }).catch(() => {});
-      }
-    }
+    if (f.novo) _ncRegistrarDominio(p.casa);
     await carregarParceiros(p.casa);   // recarrega cache da casa (ativas + arquivadas)
     renderCasaList();
     renderPainelContas();
@@ -3354,6 +3437,55 @@ async function ncCriarConta() {
   } catch { alert('Erro de rede.'); }
   finally { if (btn) btn.disabled = false; }
 }
+
+// Salva a edição. Nome e casa vão JUNTOS numa chamada só: o backend precisa dos dois para
+// recalcular a assinatura de cada bilhete uma única vez (`casa` e `parceiro` entram no mesmo
+// hash). Duas chamadas fariam o recálculo duas vezes e deixariam um estado intermediário
+// gravado se a segunda falhasse.
+async function ncEditarConta() {
+  if (!_ncAlvo) return;
+  const f = _ncLerForm();
+  if (!f) return;
+  const alvo = _ncAlvo;
+  const casaAntiga = alvo.casa;
+  const btn = document.getElementById('nc-criar'); if (btn) btn.disabled = true;
+  try {
+    const r = await fetch('/parceiros/' + alvo.id + '/editar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome: f.nome, casa: f.casa }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao salvar a conta.'); return; }
+    const res = await r.json();
+    const casaNova = res.casa || f.casa;
+    if (!(casasCarregadas || []).includes(casaNova)) {
+      casasCarregadas = [...(casasCarregadas || []), casaNova].sort((a, b) => a.localeCompare(b));
+    }
+    if (f.novo) _ncRegistrarDominio(casaNova);
+    // Recarrega as DUAS casas: a conta saiu de uma e entrou na outra. Sem recarregar a de
+    // origem, a lista seguiria mostrando a conta na casa velha até o F5.
+    await carregarParceiros(casaNova);
+    if (casaAntiga !== casaNova) await carregarParceiros(casaAntiga);
+    if (parceiroSelecionado && parceiroSelecionado.id === alvo.id) {
+      parceiroSelecionado.nome = res.nome || f.nome;
+      parceiroSelecionado.casa = casaNova;
+      casaSelecionada = casaNova;
+      if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
+      // Mover de casa muda o que a Extração oferece (upload × sync da Polymarket, botão
+      // do SharpenUp): sem reaplicar o modo, a conta ativa ficaria com a casca da casa
+      // velha até a próxima troca de conta.
+      aplicarModoCasa(casaNova);
+    }
+    // Os bilhetes mudaram de casa/parceiro no banco → o feed cacheado do painel de
+    // atividade envelheceu na hora (mesma invalidação da exclusão de conta).
+    painelDashRows = null; _painelDashPromise = null;
+    _actPush('renomeacao', casaNova, res.nome || f.nome);
+    fecharModalNovaConta();
+    renderCasaList();
+    renderPainelContas();
+  } catch { alert('Erro de rede.'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
 (function initModalNovaConta() {
   const ov = document.getElementById('novaconta-modal');
   if (!ov) return;
@@ -3361,7 +3493,7 @@ async function ncCriarConta() {
   const criar = document.getElementById('nc-criar');
   if (close) close.addEventListener('click', fecharModalNovaConta);
   if (cancel) cancel.addEventListener('click', fecharModalNovaConta);
-  if (criar) criar.addEventListener('click', ncCriarConta);
+  if (criar) criar.addEventListener('click', ncSalvarConta);
   // combo custom da casa
   const trig = document.getElementById('nc-combo-trigger'), srch = document.getElementById('nc-combo-srch'), list = document.getElementById('nc-combo-list');
   if (trig) trig.addEventListener('click', () => {
@@ -3383,7 +3515,7 @@ async function ncCriarConta() {
   });
   ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ncCriarConta(); } });
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ncSalvarConta(); } });
   });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || !ov.classList.contains('open')) return;
@@ -3402,7 +3534,7 @@ async function ncCriarConta() {
   const edit = document.getElementById('acctEditName');
   if (edit) edit.addEventListener('click', () => {
     if (!parceiroSelecionado) return;
-    contasRenomear(parceiroSelecionado.id, parceiroSelecionado.casa, parceiroSelecionado.nome);
+    contasEditar(parceiroSelecionado.id, parceiroSelecionado.casa, parceiroSelecionado.nome);
   });
   // Setas ‹ ›: andam na lista sem abrir o dropdown (fecha-o se estiver aberto, para a
   // conta nova aparecer no idcard e não atrás do painel).

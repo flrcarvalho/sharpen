@@ -19,9 +19,10 @@ _A = repository._assinatura
 class _FakeConn:
     """Conn de mentira com o mínimo que `renomear_parceiro` usa."""
 
-    def __init__(self, conta, bilhetes):
+    def __init__(self, conta, bilhetes, outras=()):
         self.conta = conta                 # {"casa": ..., "nome": ...}
         self.bilhetes = bilhetes           # lista de dicts (colunas do SELECT)
+        self.outras = set(outras)          # {(casa, nome)} de OUTRAS contas do dono
         self.execs = []
 
     # --- transação ---------------------------------------------------------
@@ -43,7 +44,10 @@ class _FakeConn:
 
     async def fetchval(self, sql, *a):
         if "FROM parceiros" in sql:
-            return None                    # nunca colide com outra conta
+            # Colisão de nome: (dono, casa, nome, id≠self). A casa consultada é a de
+            # DESTINO — conferir na de origem deixaria passar um nome já ocupado lá.
+            _dono, casa, nome, _id = a
+            return 1 if (casa, nome) in self.outras else None
         # NOT EXISTS da colisão de assinatura: (dono, casa, parceiro, sig, id)
         dono, casa, parceiro, sig, bid = a
         return not any(
@@ -57,10 +61,10 @@ class _FakeConn:
 
     async def execute(self, sql, *a):
         self.execs.append((sql, a))
-        if "UPDATE bilhetes SET parceiro" in sql:
-            novo = a[0]
+        if "UPDATE bilhetes SET casa" in sql:
+            casa, novo = a[0], a[1]
             for b in self.bilhetes:
-                b["parceiro"] = novo
+                b["casa"], b["parceiro"] = casa, novo
             return f"UPDATE {len(self.bilhetes)}"
         if "UPDATE bilhetes SET assinatura" in sql:
             nova, bid, _dono = a
@@ -97,13 +101,13 @@ def _bilhete(bid, **kw):
     return b
 
 
-def _renomear(bilhetes, novo="Feca [Eu]"):
-    conn = _FakeConn({"casa": "Tivo", "nome": "Feca [[Eu]]"}, bilhetes)
+def _renomear(bilhetes, novo="Feca [Eu]", casa=None, outras=()):
+    conn = _FakeConn({"casa": "Tivo", "nome": "Feca [[Eu]]"}, bilhetes, outras)
     # patch como CONTEXTO (não atribuição solta): no CI, com TEST_DATABASE_URL, o
     # `test_repository_db.py` usa o `get_pool` de verdade — um stub vazado o derrubaria.
     with patch.object(repository, "get_pool",
                       lambda: asyncio.sleep(0, result=_FakePool(conn))):
-        res = asyncio.run(repository.renomear_parceiro(351, novo, "Feca"))
+        res = asyncio.run(repository.editar_parceiro(351, novo, casa, "Feca"))
     return res, conn
 
 
@@ -144,3 +148,72 @@ def test_nome_igual_nao_mexe_em_nada():
     assert res["assinaturas_recalculadas"] == 0
     assert conn.bilhetes[0]["assinatura"] == velha
     assert conn.execs == []
+
+
+# ── Mover de casa (s312) ─────────────────────────────────────────────────────
+# O modal de edição passou a oferecer a CASA, não só o nome. `casa` está no hash de
+# `_assinatura` lado a lado com `parceiro`: uma conta movida sem recálculo ficaria com o
+# hash da casa velha e a próxima captura duplicaria o histórico inteiro — a mesma falha da
+# s198, com a outra metade da chave.
+
+def test_mover_de_casa_recalcula_assinatura():
+    b = _bilhete(1)
+    velha = b["assinatura"]
+    res, conn = _renomear([b], novo="Feca [[Eu]]", casa="Betano")
+    esperada = _A({**b, "casa": "Betano", "codigo_bilhete": ""})
+    assert conn.bilhetes[0]["casa"] == "Betano", "o bilhete não seguiu a conta"
+    assert conn.bilhetes[0]["assinatura"] == esperada
+    assert conn.bilhetes[0]["assinatura"] != velha
+    assert res["casa"] == "Betano"
+    assert res["bilhetes_atualizados"] == 1
+    assert res["assinaturas_recalculadas"] == 1
+
+
+def test_mover_e_renomear_de_uma_vez():
+    # Os dois campos entram no MESMO hash: mudar um de cada vez gravaria uma assinatura
+    # intermediária que não corresponde a bilhete nenhum.
+    b = _bilhete(1, codigo_bilhete="298782220")
+    _renomear([b], novo="Feca [Eu]", casa="Betano")
+    assert b["casa"] == "Betano" and b["parceiro"] == "Feca [Eu]"
+    assert b["assinatura"] == _A({**b, "casa": "Betano", "parceiro": "Feca [Eu]",
+                                  "codigo_bilhete": "298782220"})
+
+
+def test_casa_none_mantem_a_atual():
+    # É o caminho do /renomear de sempre: sem casa no corpo, a conta não sai do lugar.
+    b = _bilhete(1)
+    res, conn = _renomear([b], novo="Feca [Eu]", casa=None)
+    assert conn.bilhetes[0]["casa"] == "Tivo"
+    assert res["casa"] == "Tivo"
+
+
+def test_nada_muda_nao_mexe_em_nada():
+    # Nome igual E casa igual à atual (o operador abriu o modal e salvou sem editar).
+    b = _bilhete(1)
+    velha = b["assinatura"]
+    res, conn = _renomear([b], novo="Feca [[Eu]]", casa="Tivo")
+    assert res["bilhetes_atualizados"] == 0
+    assert res["assinaturas_recalculadas"] == 0
+    assert conn.bilhetes[0]["assinatura"] == velha
+    assert conn.execs == []
+
+
+def test_colisao_conferida_na_casa_de_DESTINO():
+    # O nome está livre na Tivo (origem) e OCUPADO na Betano (destino): mover tem de
+    # falhar. Conferir a colisão na casa de origem passaria batido e o UPDATE violaria o
+    # UNIQUE (dono, casa, nome) — erro de banco no meio da transação, não recusa limpa.
+    b = _bilhete(1)
+    res, conn = _renomear([b], novo="Feca [Eu]", casa="Betano",
+                          outras={("Betano", "Feca [Eu]")})
+    assert res["ok"] is False
+    assert "Já existe" in res["motivo"]
+    assert conn.execs == [], "recusou mas mexeu no banco"
+
+
+def test_mesmo_nome_livre_no_destino_move():
+    # Contraprova da anterior: o nome ocupado na ORIGEM não pode barrar a mudança —
+    # senão nenhuma conta conseguiria mudar só de casa, mantendo o nome.
+    b = _bilhete(1)
+    res, _ = _renomear([b], novo="Feca [[Eu]]", casa="Betano",
+                       outras={("Tivo", "Feca [[Eu]]")})
+    assert res["ok"] is True and res["casa"] == "Betano"
