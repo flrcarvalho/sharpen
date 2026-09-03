@@ -105,7 +105,7 @@ sinal**, conforme o contexto:
 | **P/L** (célula de tabela **e** KPI) | `fmtPL(v)` | **2** | `+R$`/`−R$` colado, minus **U+2212**, **zero neutro** (`R$ 0,00` sem sinal/cor) |
 | **Agregado / KPI / resumo** — turnover, totais, custos | `fmtR(v)` | **0 (inteiro)** | sem sinal |
 | **Stake / valor unitário** | `moneyStake(v)` / `.money` | 2 | sem sinal |
-| **Saldo de conta** (Caixa) | `fmtSaldo(v[, sinal])` | **2** | sem sinal; com `sinal=true` para movimento (`+R$`/`−R$`, minus **U+2212**), **zero neutro** |
+| **Saldo de conta** (Caixa Inteligente) | `fmtSaldo(v[, sinal])` | **2** | sem sinal; com `sinal=true` para movimento (`+R$`/`−R$`, minus **U+2212**), **zero neutro** |
 
 > **Regra de decisão (fim da ambiguidade):** é P/L? → `fmtPL` (2 casas). É um
 > agregado/total/turnover/custo? → `fmtR` (**inteiro**). É saldo de conta? →
@@ -119,7 +119,7 @@ sinal**, conforme o contexto:
 >
 > **E saldo NÃO tem cor.** Verde e vermelho são semântica de **resultado**: saque não é
 > prejuízo e depósito não é lucro. O sinal fica no `.money-sign`, que já é neutro por
-> construção. Na Caixa, a única linha colorida é o **Resultado**, que é P/L de verdade e
+> construção. Na Caixa Inteligente, a única linha colorida é o **Resultado**, que é P/L de verdade e
 > usa o `fmtPL`. **Divergência de conferência é `--warn`** (aviso), nunca `--neg`:
 > dinheiro que saiu sem registro é alerta, não resultado negativo.
 

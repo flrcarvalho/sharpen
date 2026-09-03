@@ -25,6 +25,8 @@
 <script src="/static/sharpen-cal.js?v=1"></script><!-- calendário da marca (todo campo de data) -->
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* Altura dos cabeçalhos de painel (Caixa Inteligente | RAIO-X) — ver .cx__hd. */
+:root { --hd-h: 54px; }
 /* Scrollbar de marca FDC — fina, thumb steel, track na superfície. */
 * { scrollbar-width: thin; scrollbar-color: var(--fdc-steel) var(--surface); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -606,29 +608,35 @@ html.embedded .sidebar { display: none; }
 .tile .val.custo-wrap { display: flex; align-items: center; gap: 5px; padding-top: 8px; }
 .tile .val .money-sign { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); flex: none; }
 
-/* ── Caixa (s314): auditoria de saldo da conta ────────────────────────────────
+/* ── Caixa Inteligente (s314): auditoria de saldo da conta ───────────────────
    Coluna de 300px à direita da faixa de tiles + da área de captura, DENTRO da
    .colmain (não encosta no rail). Some inteira quando não há conta ativa.
    Dinheiro sempre pelo componente .money (UI_REFERENCE §5) — nada de string crua. */
 .cx { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 /* Divergência aberta é AVISO, não resultado negativo: âmbar, nunca vermelho. */
 .cx.alerta { border-color: rgba(var(--warn-rgb),.45); box-shadow: inset 0 0 0 1px rgba(var(--warn-rgb),.10); }
-.cx__hd { display: flex; align-items: center; gap: 9px; padding: 12px 14px 10px; border-bottom: 1px solid var(--line-2); flex: none; }
-.cx__hd .t { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+/* Cabeçalho GÊMEO do RAIO-X: as duas colunas começam no mesmo y (mesma linha do
+   grid do .workfull), então padding e borda IDÊNTICOS aos do .right-panel-header
+   fazem as duas linhas caírem no mesmo pixel. Mexer num sem o outro desalinha. */
+.cx__hd { display: flex; align-items: center; gap: 9px; padding: 16px 18px; border-bottom: 1px solid var(--line); flex: none; min-height: var(--hd-h); }
+/* Piso comum aos DOIS cabeçalhos: os pills (aqui e no RAIO-X) aparecem e somem, e sem
+   piso a linha subiria e desceria conforme o estado. O alinhamento tem de valer sempre. */
+.right-panel-header { min-height: var(--hd-h); }
+.cx__hd .t { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-2); }
 .cx__pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; border-radius: var(--r-pill); padding: 3px 8px; border: 1px solid var(--line); color: var(--ink-soft); background: var(--surface-2); white-space: nowrap; }
 .cx__pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-mute); flex: none; }
 .cx__pill.ok { color: var(--pos); border-color: rgba(var(--pos-rgb),.4); background: rgba(var(--pos-rgb),.07); }
 .cx__pill.ok .dot { background: var(--pos); }
 .cx__pill.al { color: var(--warn); border-color: rgba(var(--warn-rgb),.45); background: rgba(var(--warn-rgb),.09); }
 .cx__pill.al .dot { background: var(--warn); }
-.cx__hero { padding: 13px 14px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--line-2); flex: none; }
+.cx__hero { padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--line-2); flex: none; }
 .cx__hero .k { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
 .cx__hero .v { font-family: var(--font-mono); font-size: 25px; font-weight: 800; letter-spacing: -.03em; color: var(--ink); line-height: 1.05; }
 .cx__hero .v .money-sign { font-size: 13px; }
 /* Saldo projetado NEGATIVO não é prejuízo — é lançamento faltando. Âmbar (aviso). */
 .cx__hero .v.aviso .money-val { color: var(--warn); }
 .cx__hero .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
-.cx__body { padding: 9px 14px 11px; display: flex; flex-direction: column; overflow-y: auto; min-height: 0; }
+.cx__body { padding: 10px 18px 12px; display: flex; flex-direction: column; overflow-y: auto; min-height: 0; }
 .cx__row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; }
 .cx__row + .cx__row { border-top: 1px solid var(--line-2); }
 .cx__row .k { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-soft); flex: 1; min-width: 0; }
@@ -637,7 +645,7 @@ html.embedded .sidebar { display: none; }
 .cx__row.sum { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
 .cx__row.sum .k { color: var(--ink); font-weight: 700; }
 .cx__row.sum .v { font-size: 13.5px; font-weight: 700; }
-.cx__conf { border-top: 1px solid var(--line-2); padding: 11px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); flex: none; }
+.cx__conf { border-top: 1px solid var(--line-2); padding: 12px 18px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); flex: none; }
 .cx__conf .k { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
 .cx__inrow { display: grid; grid-template-columns: 1fr 104px auto; gap: 6px; }
 .cx__inp { display: flex; align-items: center; gap: 5px; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 5px 8px; min-width: 0; }
@@ -653,10 +661,10 @@ html.embedded .sidebar { display: none; }
 .cx__diver.nt { background: var(--surface); border: 1px solid var(--line); color: var(--ink-soft); }
 .cx__diver b { font-size: 12px; font-weight: 700; }
 .cx__diver .cx__aceitar { align-self: flex-start; margin-top: 4px; background: none; border: 1px solid currentColor; color: inherit; border-radius: var(--r-sm); padding: 3px 8px; font-family: var(--font-mono); font-size: 10px; cursor: pointer; }
-.cx__foot { display: flex; gap: 6px; padding: 9px 14px 11px; border-top: 1px solid var(--line-2); flex: none; }
+.cx__foot { display: flex; gap: 7px; padding: 10px 18px 14px; border-top: 1px solid var(--line-2); flex: none; }
 .cx__act { flex: 1; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); border-radius: var(--r-sm); padding: 7px 0; cursor: pointer; transition: border-color .15s, color .15s; }
 .cx__act:hover { color: var(--ink); border-color: rgba(var(--accent-rgb),.4); }
-.cx__empty { padding: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.cx__empty { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .cx__empty p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin: 0; }
 .cx__empty .sm { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); line-height: 1.5; }
 .cx__link { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
@@ -679,6 +687,13 @@ body.cap-off .cx__body { display: none; }
 .cxm-seg button.on { border-color: rgba(var(--accent-rgb),.5); background: rgba(var(--accent-rgb),.10); color: var(--accent-2); font-weight: 700; }
 .cxm-hint { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); line-height: 1.55; }
 .cxm-hint b { color: var(--ink-soft); font-weight: 700; }
+.cxm-head { align-items: flex-start; }
+.cxm-head-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* Alinhado ao texto do título, não à tarja azul de 3px + gap 9px que o precede. */
+.cxm-sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); padding-left: 12px; }
+.cxm-erro { grid-column: 1 / -1; display: flex; gap: 8px; padding: 10px 12px; border-radius: var(--r-sm);
+  background: rgba(var(--neg-rgb),.08); border: 1px solid rgba(var(--neg-rgb),.35);
+  color: var(--neg); font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5; }
 /* O .ed-data-btn é position:absolute POR DESENHO — mora dentro do campo, como na
    barra de captura (.dref-wrap). Sem o `relative` aqui ele se ancorava no modal e
    caía fora do campo; o padding-right é o que reserva o lugar dele. */
@@ -700,7 +715,7 @@ body.cap-off .cx__body { display: none; }
 .cxe-tag.al { border-color: rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
 .cxe-tag.ok { border-color: rgba(var(--pos-rgb),.35); background: rgba(var(--pos-rgb),.08); color: var(--pos); }
 
-/* ── Banca no Painel de Contas (s314) — reusa .painel-kpis/.painel-kpi ── */
+/* ── Banca no Painel de Contas (s314, Caixa Inteligente) — reusa .painel-kpi ── */
 .painel-kpi-val.aviso { color: var(--warn); }
 .painel-kpis.banca { margin-bottom: 16px; }
 .painel-casa-tag { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border-radius: var(--r-pill); padding: 2px 8px; border: 1px solid rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
@@ -2057,7 +2072,7 @@ td.c-res.res-HL { color: var(--warn); }
   </div><!-- #capwrap -->
   </div><!-- #topleft -->
 
-  <!-- Caixa (s314): auditoria de saldo da conta ativa. Preenchida por renderCaixa();
+  <!-- Caixa Inteligente (s314): auditoria de saldo da conta ativa. Por renderCaixa();
        nasce escondida e só aparece com conta selecionada (a .colmain ganha .tem-caixa). -->
   <aside class="cx" id="caixaBox" style="display:none" aria-live="polite"></aside>
 
@@ -2327,13 +2342,16 @@ td.c-res.res-HL { color: var(--warn); }
   </div>
 </div>
 
-<!-- Caixa (s314): um formulário, três tipos (+ o modo "saldo inicial"). Dois formulários
+<!-- Caixa Inteligente (s314): um formulário, três tipos (+ o modo "saldo inicial"). Dois
      que envelhecem separado é o que a s312 acabou de desfazer no modal de conta — aqui
      já nasce um só. A data usa o SharpenCal, como todo campo de data desde a s246. -->
 <div class="modal-overlay" id="caixa-modal">
   <div class="modal modal-narrow">
-    <div class="modal-head">
-      <span class="modal-title" id="cxm-title">Novo movimento</span>
+    <div class="modal-head cxm-head">
+      <span class="cxm-head-txt">
+        <span class="modal-title" id="cxm-title">Novo movimento</span>
+        <span class="cxm-sub" id="cxm-sub"></span>
+      </span>
       <button class="modal-close" id="cxm-close" type="button">✕</button>
     </div>
     <div class="modal-body cxm-body">
@@ -2361,6 +2379,10 @@ td.c-res.res-HL { color: var(--warn); }
         <input type="text" id="cxm-obs" placeholder="Ex.: PIX do fornecedor" autocomplete="off" spellcheck="false" maxlength="280">
       </div>
       <div class="cxm-hint" id="cxm-hint"></div>
+      <!-- Falha do servidor aparece AQUI, ao lado do botão que falhou. Antes ela ia
+           para o #status-msg da barra de captura, longe do modal: da cadeira de quem
+           clicou, "não acontece nada" — foi assim que o 500 do Decimal passou. -->
+      <div class="cxm-erro" id="cxm-erro" hidden></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="cxm-cancel" type="button">Cancelar</button>
@@ -3094,7 +3116,7 @@ function renderPainelLista() {
       // s314: conta com divergência ABERTA na caixa ganha um aviso aqui — alerta que só
       // aparece quando o operador já está olhando a conta certa não previne nada. Conta
       // sem caixa NÃO acende: aviso que acende demais é aviso que ninguém lê.
-      const cxSt = (_caixaEstadoPorConta() || {})[p.id];
+      const cxSt = (_caixaEstadoPorConta() || {})[p.id];   // Caixa Inteligente
       const badges = (ab > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (ab > 99 ? '99+' : ab) + '</span>' : '')
                    + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '')
                    + (cxSt === 'divergente' ? '<span class="painel-casa-tag" title="A casa mostrou saldo diferente do projetado">a conferir</span>' : '');
@@ -3144,7 +3166,7 @@ async function renderPainelBanca(force) {
   if (!kh || !th) return;   // painel pode ter re-renderizado durante o fetch
   const t = v.totais || {};
   const nf = n => (n || 0).toLocaleString('pt-BR');
-  const kpi = (lbl, val, sub, cls) =>
+  const kpi = (lbl, val, sub, cls) =>   // KPIs da Caixa Inteligente
     '<div class="painel-kpi"><span class="painel-kpi-lbl">' + lbl + '</span>'
     + '<span class="painel-kpi-val' + (cls ? ' ' + cls : '') + '">' + val + '</span>'
     + '<span class="painel-kpi-sub">' + sub + '</span></div>';
@@ -3153,8 +3175,8 @@ async function renderPainelBanca(force) {
     // Nenhuma caixa ligada: o painel não finge um total de zero — ele explica o que falta.
     kh.innerHTML = kpi('Banca total', '<span style="color:var(--ink-mute)">—</span>',
       nf(t.contas) + (t.contas === 1 ? ' conta ativa · nenhuma com caixa' : ' contas ativas · nenhuma com caixa'));
-    th.innerHTML = '<div class="painel-empty">Abra uma conta na Extração e informe o saldo inicial dela. '
-      + 'A partir daí o Sharpen projeta o saldo sozinho e mostra a banca somada aqui.</div>';
+    th.innerHTML = '<div class="painel-empty">Abra uma conta na Extração e ative a Caixa Inteligente dela. '
+      + 'A partir daí o Sharpen projeta o saldo e mostra a banca somada aqui.</div>';
     const c = document.getElementById('painelBancaCount'); if (c) c.textContent = '';
     return;
   }
@@ -4003,10 +4025,10 @@ function renderPainelContas() {
   // procura primeiro) e o saldo casa a casa fica logo abaixo da lista.
   const bancaKpis = '<div class="painel-kpis banca" id="painelBancaKpis"></div>';
   const bancaCard = '<div class="painel-card"><div class="painel-card-head">'
-    + '<span class="painel-card-titulo">Saldo por casa</span>'
+    + '<span class="painel-card-titulo">Caixa Inteligente · saldo por casa</span>'
     + '<span class="painel-card-count" id="painelBancaCount"></span></div>'
     + '<div class="painel-card-body" id="painelBancaCasas">'
-    + '<div class="painel-empty">Carregando saldos…</div></div></div>';
+    + '<div class="painel-empty">Carregando os saldos da Caixa Inteligente…</div></div></div>';
 
   host.innerHTML =
     bancaKpis +
@@ -5432,7 +5454,7 @@ function _renderCtxKpis(d, casa, parceiro) {
   }
 }
 
-// ── Caixa (s314): auditoria de saldo da conta ────────────────────────────────
+// ── Caixa Inteligente (s314): auditoria de saldo da conta ───────────────────
 // Dinheiro aqui é SALDO — 3ª variação documentada do .money (UI_REFERENCE §5.1):
 // 2 casas como o stake, porque o número existe para ser conferido contra o extrato
 // da casa e o centavo é justamente a divergência que se procura; e SEM cor, porque
@@ -5516,7 +5538,7 @@ function renderCaixa(d) {
   if (!box || !d) return;
   box.classList.toggle('alerta', d.estado === 'divergente');
   const [pcls, ptxt] = _CX_PILL[d.estado] || ['', ''];
-  const head = '<div class="cx__hd"><span class="t">Caixa</span>'
+  const head = '<div class="cx__hd"><span class="t">Caixa Inteligente</span>'
     + (d.ligada ? '<button class="cx__link" type="button" onclick="caixaAbrirExtrato()">extrato</button>' : '')
     + (d.ligada ? `<span class="cx__pill ${pcls}"><span class="dot"></span>${ptxt}</span>` : '')
     + '</div>';
@@ -5524,9 +5546,9 @@ function renderCaixa(d) {
   if (!d.ligada) {
     box.innerHTML = head
       + '<div class="cx__empty">'
-      + '<p>Informe o saldo que esta conta tinha numa data e o Sharpen passa a projetar o saldo dela sozinho — e a avisar quando a casa mostrar outro número.</p>'
-      + '<button class="btn btn-primary btn-sm" type="button" onclick="caixaAbrirModal(&quot;inicial&quot;)">Informar saldo inicial</button>'
-      + '<span class="sm">Enquanto isso a auditoria fica desligada: o saldo não é deduzido do histórico. Número inventado numa tela de conferência vale menos que campo vazio.</span>'
+      + '<p>Informe o saldo que esta conta tinha numa data. A partir daí o Sharpen projeta o saldo dela sozinho — e avisa quando a casa mostrar outro número.</p>'
+      + '<button class="btn btn-primary btn-sm" type="button" onclick="caixaAbrirModal(&quot;inicial&quot;)">Ativar Caixa Inteligente</button>'
+      + '<span class="sm">Enquanto a Caixa Inteligente estiver desligada nada é projetado — o saldo não se deduz do histórico. Número inventado numa tela de conferência vale menos que campo vazio.</span>'
       + '</div>';
     return;
   }
@@ -5598,7 +5620,7 @@ function _cxDiver(d) {
 
 // ── Lançamento ───────────────────────────────────────────────────────────────
 const _CX_TITULO = {
-  inicial: 'Saldo inicial da conta', deposito: 'Novo depósito',
+  inicial: 'Ativar Caixa Inteligente', deposito: 'Novo depósito',
   saque: 'Novo saque', ajuste: 'Novo ajuste',
 };
 const _CX_HINT = {
@@ -5613,11 +5635,14 @@ function caixaAbrirModal(tipo) {
   _cxModo = tipo;
   const ov = document.getElementById('caixa-modal');
   const ini = tipo === 'inicial';
-  document.getElementById('cxm-title').textContent =
-    (_CX_TITULO[tipo] || 'Novo movimento') + ' · ' + (NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa);
+  document.getElementById('cxm-title').textContent = _CX_TITULO[tipo] || 'Novo movimento';
+  // A conta inteira (casa · parceiro [fornecedor]) fica no subtítulo: com dois
+  // parceiros na mesma casa, só o nome da casa não diz em qual conta se está lançando.
+  document.getElementById('cxm-sub').textContent = _cxConta();
   document.getElementById('cxm-tipo-field').style.display = ini ? 'none' : '';
   document.getElementById('cxm-hint').innerHTML = _CX_HINT[tipo] || '';
-  document.getElementById('cxm-ok').textContent = ini ? 'Ligar a caixa' : 'Lançar';
+  _cxErro('');
+  document.getElementById('cxm-ok').textContent = ini ? 'Ativar Caixa Inteligente' : 'Lançar';
   document.querySelectorAll('#cxm-seg button').forEach(b => b.classList.toggle('on', b.dataset.tipo === tipo));
   document.getElementById('cxm-data').value = _cxDataBR4(hojeISO());
   document.getElementById('cxm-valor').value = '';
@@ -5628,14 +5653,30 @@ function caixaAbrirModal(tipo) {
 }
 function caixaFecharModal() { document.getElementById('caixa-modal').classList.remove('open'); }
 
+// Identidade da conta ativa, como ela aparece na lista: Casa · Parceiro [Fornecedor].
+function _cxConta() {
+  if (!parceiroSelecionado) return '';
+  const casa = casaDisplay(NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa);
+  return casa + ' · ' + (parceiroSelecionado.nome || '');
+}
+
+// O erro fica ao lado do botão que falhou (e some ao reabrir o modal).
+function _cxErro(msg) {
+  const el = document.getElementById('cxm-erro');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.hidden = !msg;
+}
+
 async function caixaSalvar() {
   if (!parceiroSelecionado) return;
   const data = _cxIso(document.getElementById('cxm-data').value);
   const bruto = document.getElementById('cxm-valor').value.trim();
   const valor = _numBR(bruto);
   const btn = document.getElementById('cxm-ok');
-  if (!data) { setStatus('Data inválida — use dd/mm/aaaa.', 'err'); return; }
-  if (!bruto || (!valor && _cxModo !== 'ajuste')) { setStatus('Informe um valor maior que zero.', 'err'); return; }
+  if (!data) { _cxErro('Data inválida — use dd/mm/aaaa.'); return; }
+  if (!bruto || (!valor && _cxModo !== 'ajuste')) { _cxErro('Informe um valor maior que zero.'); return; }
+  _cxErro('');
   btn.disabled = true;
   try {
     const r = await fetch('/caixa/lancar', {
@@ -5651,6 +5692,9 @@ async function caixaSalvar() {
     caixaFecharModal();
     setStatus(_cxModo === 'inicial' ? 'Caixa ligada.' : 'Lançamento registrado.', 'ok');
   } catch (e) {
+    // Dois lugares de propósito: no modal (onde o operador está olhando) e no
+    // status da barra, que é onde o resto da tela reporta.
+    _cxErro(e.message || 'Não foi possível lançar.');
     setStatus(e.message || 'Não foi possível lançar.', 'err');
   } finally { btn.disabled = false; }
 }
@@ -5767,9 +5811,9 @@ async function caixaExcluirMov(id, tipo) {
   document.querySelectorAll('#cxm-seg button').forEach(b => b.addEventListener('click', () => {
     _cxModo = b.dataset.tipo;
     document.querySelectorAll('#cxm-seg button').forEach(o => o.classList.toggle('on', o === b));
-    document.getElementById('cxm-title').textContent =
-      (_CX_TITULO[_cxModo] || 'Novo movimento') + ' · ' + (NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa);
+    document.getElementById('cxm-title').textContent = _CX_TITULO[_cxModo] || 'Novo movimento';
     document.getElementById('cxm-hint').innerHTML = _CX_HINT[_cxModo] || '';
+    _cxErro('');
   }));
   document.getElementById('cxm-valor').addEventListener('keydown', e => { if (e.key === 'Enter') caixaSalvar(); });
   // Data pelo SharpenCal (UI_REFERENCE §4): nunca o popup nativo do Chrome.

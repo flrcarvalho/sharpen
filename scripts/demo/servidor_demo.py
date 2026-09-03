@@ -22,6 +22,7 @@ import sys
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -340,6 +341,42 @@ def _caixa_de(pid):
 @app.get("/caixa/conta")
 def caixa_conta_demo(parceiro_id: int):
     return _caixa_de(parceiro_id)
+
+
+class _CaixaLancar(BaseModel):
+    parceiro_id: int
+    tipo: str
+    data: str
+    valor: float
+    obs: str | None = None
+
+
+@app.post("/caixa/lancar")
+def caixa_lancar_demo(body: _CaixaLancar):
+    """Grava EM MEMORIA (o demo nao tem banco). Existe para o fluxo de ativar/lancar
+    poder ser exercido num navegador de verdade antes do commit -- foi um clique que
+    "nao fazia nada" em producao que abriu esta rota."""
+    iso = body.data if len(body.data) == 10 and body.data[4] == "-" else (
+        f"{body.data[6:10]}-{body.data[3:5]}-{body.data[0:2]}" if "/" in body.data else body.data)
+    movs = CAIXA_DEMO.setdefault(body.parceiro_id, [])
+    novo = {"id": 900 + len(movs), "tipo": body.tipo, "data": iso, "valor": round(body.valor, 2),
+            "obs": (body.obs or "").strip(), "projetado": None, "abertas_corte": None,
+            "criado_em": datetime.now().isoformat()}
+    if body.tipo == "inicial":
+        movs[:] = [m for m in movs if m["tipo"] != "inicial"]
+    elif body.tipo == "conferencia":
+        novo["projetado"] = _caixa_de(body.parceiro_id)["disponivel"]
+    movs.append(novo)
+    return {"ok": True, "caixa": _caixa_de(body.parceiro_id)}
+
+
+@app.delete("/caixa/movimento/{mov_id}")
+def caixa_excluir_demo(mov_id: int):
+    for pid, movs in CAIXA_DEMO.items():
+        if any(m["id"] == mov_id for m in movs):
+            movs[:] = [m for m in movs if m["id"] != mov_id]
+            return {"ok": True, "caixa": _caixa_de(pid)}
+    return JSONResponse({"detail": "Lançamento não encontrado."}, status_code=404)
 
 
 @app.get("/caixa/visao")

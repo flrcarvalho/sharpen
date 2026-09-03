@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 import asyncpg
 
@@ -1875,11 +1876,17 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
                 apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
                 projetado = _caixa_projetar(movs, apostas)["disponivel"]
 
+            # NUMERIC do Postgres é Decimal no asyncpg: passar float aqui levanta
+            # DataError e a rota devolve 500. Foi assim que o primeiro "Ativar" da
+            # produção não fez nada — o erro existia, só não estava na frente de quem
+            # clicou. `str()` antes do Decimal preserva o valor já arredondado em 2
+            # casas, sem o lixo binário do float (Decimal(1950.1) ≠ Decimal("1950.1")).
             await conn.execute(
                 "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, "
                 "projetado, abertas_corte) VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8)",
-                dono, parceiro_id, tipo, data, valor, (obs or "").strip()[:280],
-                projetado, abertas,
+                dono, parceiro_id, tipo, data, Decimal(str(valor)),
+                (obs or "").strip()[:280],
+                None if projetado is None else Decimal(str(projetado)), abertas,
             )
     logger.info("caixa: %s dono=%s conta=%s valor=%.2f data=%s",
                 tipo, dono, parceiro_id, valor, data)
