@@ -643,6 +643,12 @@ html.embedded .sidebar { display: none; }
 .cx__row .k i { font-style: normal; color: var(--ink-mute); }
 .cx__row .v { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
 .cx__row.sum { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+/* Linha editável (saldo inicial): o lápis é ÍCONE, exceção documentada da Escada de Tinta. */
+.cx__row--edit { cursor: pointer; margin: -2px -6px; padding: 7px 6px; border-radius: var(--r-sm); transition: background .12s; }
+.cx__row--edit:hover, .cx__row--edit:focus-visible { background: rgba(var(--accent-rgb),.07); outline: none; }
+.cx__row--edit .k { display: flex; align-items: center; gap: 6px; }
+.cx__lapis { width: 11px; height: 11px; color: var(--ink-mute); flex: none; }
+.cx__row--edit:hover .cx__lapis { color: var(--accent-2); }
 /* Nota do corte: metadado, no piso de 10px da Escada de Tinta. */
 .cx__nota { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line-2); font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); line-height: 1.6; }
 .cx__row.sum .k { color: var(--ink); font-weight: 700; }
@@ -5563,7 +5569,15 @@ function renderCaixa(d) {
     + `<span class="v">${v}</span></div>`;
   const n = x => (x || 0).toLocaleString('pt-BR');
 
-  let corpo = linha('Saldo inicial', _cxDataBR(d.data_corte), fmtSaldo(d.inicial));
+  // O corte é editável: quem informa o saldo de hoje e depois lembra que ele era de
+  // ontem não pode ficar sem saída a não ser desligar a caixa pelo extrato.
+  let corpo = '<div class="cx__row cx__row--edit" role="button" tabindex="0"'
+    + ' title="Editar o saldo inicial e a data do corte" onclick="caixaAbrirModal(&quot;inicial&quot;)">'
+    + '<span class="k">Saldo inicial <i>' + _cxDataBR(d.data_corte) + '</i>'
+    + '<svg class="cx__lapis" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
+    + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'
+    + '<span class="v">' + fmtSaldo(d.inicial) + '</span></div>';
   if (d.preso_corte > 0)
     corpo += linha('Abertas no corte', n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta' : ' apostas'),
                    fmtSaldo(d.preso_corte, true));
@@ -5642,9 +5656,10 @@ const _CX_TITULO = {
   saque: 'Novo saque', ajuste: 'Novo ajuste',
 };
 const _CX_HINT = {
-  inicial: 'O saldo <b>disponível</b> que a casa mostrava nessa data — sem contar o que estava preso em aposta aberta. A data é o <b>corte</b>: só o que veio depois entra na conta. Apostas que já estavam abertas nesse dia são reconhecidas e voltam inteiras ao liquidar.',
+  inicial: 'O saldo <b>disponível</b> que a casa mostrava nessa data — sem contar o que estava preso em aposta aberta. A data é o <b>corte</b>: entra na conta tudo a partir dela, <b>inclusive as apostas do próprio dia</b>. Apostas que já estavam abertas nesse dia são reconhecidas e voltam inteiras ao liquidar.',
   deposito: 'Dinheiro que <b>entrou</b> na conta — PIX, transferência, cartão.',
   saque: 'Dinheiro que <b>saiu</b> da conta. Lance com o valor positivo: o sinal está no tipo.',
+  editando: ' <b>Mudar a data recalcula quais apostas entram na conta</b> — e refaz a lista de apostas que estavam abertas no corte.',
   ajuste: 'Tudo que muda o saldo e não é aposta, depósito nem saque: <b>bônus creditado, freebet, cashback, promoção ou correção</b>. Fica separado do depósito para o total depositado continuar sendo só dinheiro de verdade. Aceita valor negativo para corrigir para baixo.',
 };
 
@@ -5653,18 +5668,27 @@ function caixaAbrirModal(tipo) {
   _cxModo = tipo;
   const ov = document.getElementById('caixa-modal');
   const ini = tipo === 'inicial';
-  document.getElementById('cxm-title').textContent = _CX_TITULO[tipo] || 'Novo movimento';
+  // Editar = a caixa JÁ está ligada. O mesmo formulário, pré-preenchido — dois
+  // formulários que envelhecem separado é o que a s312 desfez no modal de conta.
+  const editando = ini && caixaAtual && caixaAtual.ligada;
+  const movIni = editando ? (caixaAtual.movimentos || []).find(m => m.tipo === 'inicial') : null;
+  document.getElementById('cxm-title').textContent =
+    editando ? 'Editar o saldo inicial' : (_CX_TITULO[tipo] || 'Novo movimento');
   // A conta inteira (casa · parceiro [fornecedor]) fica no subtítulo: com dois
   // parceiros na mesma casa, só o nome da casa não diz em qual conta se está lançando.
   document.getElementById('cxm-sub').textContent = _cxConta();
   document.getElementById('cxm-tipo-field').style.display = ini ? 'none' : '';
-  document.getElementById('cxm-hint').innerHTML = _CX_HINT[tipo] || '';
+  document.getElementById('cxm-hint').innerHTML =
+    (_CX_HINT[tipo] || '') + (editando ? _CX_HINT.editando : '');
   _cxErro('');
-  document.getElementById('cxm-ok').textContent = ini ? 'Ativar Caixa Inteligente' : 'Lançar';
+  document.getElementById('cxm-ok').textContent =
+    editando ? 'Salvar' : (ini ? 'Ativar Caixa Inteligente' : 'Lançar');
   document.querySelectorAll('#cxm-seg button').forEach(b => b.classList.toggle('on', b.dataset.tipo === tipo));
-  document.getElementById('cxm-data').value = _cxDataBR4(hojeISO());
-  document.getElementById('cxm-valor').value = '';
-  document.getElementById('cxm-obs').value = '';
+  document.getElementById('cxm-data').value = _cxDataBR4(editando ? caixaAtual.data_corte : hojeISO());
+  document.getElementById('cxm-valor').value = editando
+    ? Math.abs(caixaAtual.inicial).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '';
+  document.getElementById('cxm-obs').value = (movIni && movIni.obs) || '';
   ov.classList.add('open');
   _modalBaseline(ov);
   setTimeout(() => document.getElementById('cxm-valor').focus(), 30);
@@ -5834,6 +5858,11 @@ async function caixaExcluirMov(id, tipo) {
     _cxErro('');
   }));
   document.getElementById('cxm-valor').addEventListener('keydown', e => { if (e.key === 'Enter') caixaSalvar(); });
+  // `role=button` só é botão de verdade se responder ao teclado.
+  document.getElementById('caixaBox').addEventListener('keydown', e => {
+    const alvo = e.target.closest && e.target.closest('.cx__row--edit');
+    if (alvo && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); alvo.click(); }
+  });
   // Data pelo SharpenCal (UI_REFERENCE §4): nunca o popup nativo do Chrome.
   const dt = document.getElementById('cxm-data');
   const abrirCal = () => SharpenCal.abrir(dt, _cxIso(dt.value), v => { dt.value = _cxDataBR4(v); }, { saida: 'iso' });
