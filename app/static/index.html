@@ -665,17 +665,28 @@ html.embedded .sidebar { display: none; }
    guarda o extrato e mantém o saldo + a conferência, que é o que ela existe para dizer. */
 body.cap-off .cx__body { display: none; }
 
-/* Modal de lançamento — reusa a casca .modal/.modal-field; só o segmento de tipo é novo. */
+/* Modal de lançamento — reusa a casca .modal/.modal-field; só o segmento de tipo é novo.
+   Largura própria (440px) e campos que ENCOLHEM: `1fr` sozinho não encolhe abaixo do
+   min-content do input, e o modal de 400px nascia com rolagem horizontal e o título
+   cortado. Os outros modais estreitos não passam por isso porque empilham em coluna. */
+#caixa-modal .modal { width: 440px; }
+.cxm-body { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.cxm-body .modal-field { min-width: 0; }
+.cxm-body input { width: 100%; min-width: 0; box-sizing: border-box; }
 .cxm-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .cxm-seg button { font-family: var(--font-mono); font-size: 11px; padding: 8px 0; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer; transition: border-color .15s, color .15s; }
 .cxm-seg button:hover { color: var(--ink); }
 .cxm-seg button.on { border-color: rgba(var(--accent-rgb),.5); background: rgba(var(--accent-rgb),.10); color: var(--accent-2); font-weight: 700; }
 .cxm-hint { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); line-height: 1.55; }
 .cxm-hint b { color: var(--ink-soft); font-weight: 700; }
-.cxm-datewrap { display: flex; gap: 6px; align-items: stretch; }
-.cxm-datewrap input { flex: 1; min-width: 0; }
+/* O .ed-data-btn é position:absolute POR DESENHO — mora dentro do campo, como na
+   barra de captura (.dref-wrap). Sem o `relative` aqui ele se ancorava no modal e
+   caía fora do campo; o padding-right é o que reserva o lugar dele. */
+.cxm-datewrap { position: relative; display: flex; align-items: center; min-width: 0; }
+.cxm-datewrap input { width: 100%; min-width: 0; padding-right: 34px; }
 /* Extrato: tabela no padrão .painel-tbl, dentro do mesmo modal. */
-.cxe-wrap { grid-column: 1 / -1; max-height: 52vh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.cxe-wrap { grid-column: 1 / -1; min-width: 0; max-height: 52vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.cxe-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .cxe-tbl { width: 100%; border-collapse: collapse; }
 .cxe-tbl th { position: sticky; top: 0; z-index: 1; font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); text-align: left; padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
 .cxe-tbl td { padding: 9px 12px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; color: var(--ink); }
@@ -710,12 +721,13 @@ body.cap-off .cx__body { display: none; }
    não existe (a classe .tem-caixa é que a cria) — nada de coluna fantasma. */
 .colmain { min-width: 0; min-height: 0; display: grid; gap: 12px;
   grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-.colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 300px; }
+.colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 450px; }
 #topleft { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 #capwrap { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 #caixaBox { grid-column: 2; grid-row: 1; }
 #empty-state, #partner-page { grid-column: 1 / -1; grid-row: 2; min-height: 0; }
-@media (max-width: 1360px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 270px; } }
+@media (max-width: 1620px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 360px; } }
+@media (max-width: 1360px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 300px; } }
 @media (max-width: 1180px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr); }
   #caixaBox { grid-column: 1; grid-row: 2; } #empty-state, #partner-page { grid-row: 3; }
   .colmain.tem-caixa { grid-template-rows: auto auto minmax(0, 1fr); } }
@@ -2324,7 +2336,7 @@ td.c-res.res-HL { color: var(--warn); }
       <span class="modal-title" id="cxm-title">Novo movimento</span>
       <button class="modal-close" id="cxm-close" type="button">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body cxm-body">
       <div class="modal-field full" id="cxm-tipo-field">
         <label>Tipo</label>
         <div class="cxm-seg" id="cxm-seg">
@@ -2364,7 +2376,7 @@ td.c-res.res-HL { color: var(--warn); }
       <span class="modal-title" id="cxe-title">Extrato da conta</span>
       <button class="modal-close" id="cxe-close" type="button">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body cxe-body">
       <div class="cxe-wrap" id="cxe-wrap"></div>
       <div class="cxm-hint" id="cxe-nota"></div>
     </div>
