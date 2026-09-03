@@ -246,3 +246,62 @@ def test_observacao_e_truncada_e_nao_vaza_espaco():
     conn = _FakeConn(CONTA)
     _lancar(conn, obs="  " + "x" * 400 + "  ")
     assert len(conn.inserts[0][1][5]) == 280
+
+
+# ── Quais apostas já tinham tirado o stake da conta no corte ──────────────────
+# A regra ingênua (só `data < corte`) está errada porque `data` é a data do EVENTO.
+# Aposta feita ontem para um jogo da próxima semana tem data DEPOIS do corte, e o
+# stake dela já saiu — descontá-lo de novo faz a conta nascer com divergência, no
+# fluxo que a própria tela recomenda ("informe o saldo de hoje").
+from datetime import datetime
+
+from repository import _caixa_abertas_ids
+
+HOJE = "2026-09-03"
+
+
+def _ap(id_, data, criado, resultado="", stake="151,00"):
+    return {"id": id_, "data": data, "stake": stake, "resultado": resultado,
+            "criado_em": datetime.fromisoformat(criado)}
+
+
+def test_corte_hoje_pega_TODA_aposta_aberta_inclusive_a_de_evento_futuro():
+    """O saldo foi lido AGORA: se a aposta está aberta agora, o stake já saiu.
+    Vale para evento de amanhã, da semana que vem ou de ontem — sem exceção."""
+    ids = _caixa_abertas_ids([
+        _ap(1, "10/09/2026", "2026-09-02T10:00:00"),   # evento na semana que vem
+        _ap(2, "03/09/2026", "2026-09-03T09:00:00"),   # evento hoje
+        _ap(3, "01/09/2026", "2026-09-01T09:00:00"),   # evento anterior, ainda aberta
+    ], HOJE, HOJE)
+    assert ids == [1, 2, 3]
+
+
+def test_corte_hoje_ignora_liquidada_e_stake_zero():
+    ids = _caixa_abertas_ids([
+        _ap(1, "10/09/2026", "2026-09-02T10:00:00", resultado="W"),
+        _ap(2, "10/09/2026", "2026-09-02T10:00:00", stake="0"),
+        _ap(3, "10/09/2026", "2026-09-02T10:00:00"),
+    ], HOJE, HOJE)
+    assert ids == [3]
+
+
+def test_corte_no_passado_usa_o_que_PROVADAMENTE_ja_existia():
+    """Sem reconstruir o passado: entra o que tem evento anterior ao corte ou linha
+    que o Sharpen já tinha antes dele. O resto fica de fora — é um piso, não o exato."""
+    ids = _caixa_abertas_ids([
+        _ap(1, "28/08/2026", "2026-09-03T10:00:00"),   # evento antes do corte → entra
+        _ap(2, "10/09/2026", "2026-08-30T10:00:00"),   # Sharpen já tinha antes → entra
+        _ap(3, "10/09/2026", "2026-09-02T10:00:00"),   # nasceu depois do corte → fica fora
+    ], "2026-09-01", HOJE)
+    assert ids == [1, 2]
+
+
+def test_a_regra_ingenua_deixaria_a_aposta_futura_de_fora():
+    """Contraprova do defeito: com corte = hoje, filtrar por `data < corte` devolveria
+    lista VAZIA para uma conta que tem aposta futura aberta — e o stake dela seria
+    descontado duas vezes."""
+    abertas = [_ap(1, "10/09/2026", "2026-09-02T10:00:00")]
+    ingenua = [a["id"] for a in abertas
+               if (repository._data_iso(a["data"]) or "") < HOJE]   # a regra antiga
+    assert ingenua == []
+    assert _caixa_abertas_ids(abertas, HOJE, HOJE) == [1]

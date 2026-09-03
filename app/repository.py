@@ -1800,8 +1800,10 @@ async def _caixa_conta_row(conn, parceiro_id: int, dono: str):
 
 
 async def _caixa_apostas(conn, dono: str, casa: str, parceiro: str) -> list[dict]:
+    # `criado_em` entra porque `_caixa_abertas_no_corte` precisa saber o que o Sharpen
+    # JÁ CONHECIA antes do corte — a data do bilhete é a do EVENTO, não a da aposta.
     rows = await conn.fetch(
-        "SELECT id, stake, odd, resultado, data FROM bilhetes "
+        "SELECT id, stake, odd, resultado, data, criado_em FROM bilhetes "
         "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
         dono, casa, parceiro,
     )
@@ -1917,15 +1919,45 @@ def _caixa_valida(tipo: str, data: str, valor) -> tuple[str, float] | dict:
     return iso, valor
 
 
+def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str) -> list[int]:
+    """Quais apostas ABERTAS já tinham tirado o stake da conta quando o saldo foi lido.
+
+    PURA, para poder ser testada — e ela precisa ser, porque a regra ingênua está
+    errada de um jeito que só aparece na conta de quem tem aposta futura:
+
+    `data` no Sharpen é a data do EVENTO, não a da aposta. Uma aposta feita ONTEM
+    para um jogo da PRÓXIMA SEMANA tem `data` DEPOIS do corte — e mesmo assim o
+    stake dela já saiu da conta, logo já está descontado do saldo que o operador
+    acabou de ler. Filtrar só por `data < corte` deixava essa aposta de fora, a
+    projeção descontava o stake DE NOVO e a conta nascia com divergência.
+
+    Duas situações, dois critérios:
+
+      · corte = HOJE (o caminho que a tela recomenda) → TODA aposta aberta entra:
+        se ela está aberta agora, o stake saiu antes de agora, ponto. É exato.
+      · corte no PASSADO → não dá para reconstruir o que estava aberto naquele dia;
+        entram as que PROVADAMENTE já existiam: evento anterior ao corte, ou linha
+        que o Sharpen já tinha antes do corte (`criado_em`). É um piso, não o exato
+        — e é por isso que o modal recomenda informar o saldo de hoje.
+    """
+    out = []
+    for a in abertas:
+        if (a.get("resultado") or "").strip() or _num(a.get("stake")) <= 0:
+            continue
+        if corte >= hoje:
+            out.append(a["id"])
+            continue
+        criado = a.get("criado_em")
+        criado_iso = criado.date().isoformat() if hasattr(criado, "date") else str(criado or "")[:10]
+        if (_data_iso(a.get("data")) or "") < corte or (criado_iso and criado_iso < corte):
+            out.append(a["id"])
+    return out
+
+
 async def _caixa_abertas_no_corte(conn, dono: str, casa: str, parceiro: str,
                                   corte: str) -> list[int]:
-    """Bilhetes ABERTOS hoje e datados antes do corte: o dinheiro deles já tinha saído
-    quando o saldo foi observado, e volta inteiro ao liquidar."""
     todas = await _caixa_apostas(conn, dono, casa, parceiro)
-    return [a["id"] for a in todas
-            if not (a.get("resultado") or "").strip()
-            and (_data_iso(a.get("data")) or "") < corte
-            and _num(a.get("stake")) > 0]
+    return _caixa_abertas_ids(todas, corte, date.today().isoformat())
 
 
 async def caixa_editar_mov(dono: str, mov_id: int, data: str, valor: float,
