@@ -320,7 +320,23 @@ CAIXA_DEMO = {
 }
 
 
+# Caso REAL da conta #748 (s314), remontado aqui: 12 perdas de ontem, corte de hoje
+# e uma aposta que estava ABERTA no corte e liquidou W. E' o caso que fez o Feca dizer
+# "o resultado nao esta sendo contabilizado" -- e o unico jeito de ver a tela explicar
+# isso e' ter o caso na bancada.
+_ONTEM = _d(1)
+CAIXA_FIXTURE = {
+    4: [{"id": 90001, "data": _ONTEM, "stake": "100,00", "odd": "12,28684", "resultado": "W"}]
+       + [{"id": 90002 + i, "data": _ONTEM, "stake": "200,00", "odd": "27,45", "resultado": "L"}
+          for i in range(12)],
+}
+CAIXA_DEMO[4] = [_mov(20, "inicial", 0, 1950.0, obs="Deposito Inicial")]
+CAIXA_DEMO[4][0]["abertas_corte"] = [90001]
+
+
 def _apostas_da_conta(pid):
+    if pid in CAIXA_FIXTURE:
+        return CAIXA_FIXTURE[pid]
     p = next((x for x in PARCEIROS if x["id"] == pid), None)
     if not p:
         return []

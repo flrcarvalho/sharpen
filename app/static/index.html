@@ -643,6 +643,8 @@ html.embedded .sidebar { display: none; }
 .cx__row .k i { font-style: normal; color: var(--ink-mute); }
 .cx__row .v { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
 .cx__row.sum { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+/* Nota do corte: metadado, no piso de 10px da Escada de Tinta. */
+.cx__nota { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line-2); font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); line-height: 1.6; }
 .cx__row.sum .k { color: var(--ink); font-weight: 700; }
 .cx__row.sum .v { font-size: 13.5px; font-weight: 700; }
 .cx__conf { border-top: 1px solid var(--line-2); padding: 12px 18px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); flex: none; }
@@ -694,6 +696,9 @@ body.cap-off .cx__body { display: none; }
 .cxm-erro { grid-column: 1 / -1; display: flex; gap: 8px; padding: 10px 12px; border-radius: var(--r-sm);
   background: rgba(var(--neg-rgb),.08); border: 1px solid rgba(var(--neg-rgb),.35);
   color: var(--neg); font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5; }
+/* `display:flex` acima VENCE o atributo `hidden` (que só vale pela folha do agente),
+   e a faixa vermelha aparecia vazia no modal limpo. Regra explícita, não !important. */
+.cxm-erro[hidden] { display: none; }
 /* O .ed-data-btn é position:absolute POR DESENHO — mora dentro do campo, como na
    barra de captura (.dref-wrap). Sem o `relative` aqui ele se ancorava no modal e
    caía fora do campo; o padding-right é o que reserva o lugar dele. */
@@ -5560,14 +5565,27 @@ function renderCaixa(d) {
 
   let corpo = linha('Saldo inicial', _cxDataBR(d.data_corte), fmtSaldo(d.inicial));
   if (d.preso_corte > 0)
-    corpo += linha('Preso no corte', n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta' : ' apostas'),
+    corpo += linha('Abertas no corte', n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta' : ' apostas'),
                    fmtSaldo(d.preso_corte, true));
   corpo += linha('Depósitos', n(d.n_depositos), fmtSaldo(d.depositos, true));
   corpo += linha('Saques', n(d.n_saques), fmtSaldo(-d.saques, true));
   if (d.n_ajustes) corpo += linha('Ajustes', n(d.n_ajustes), fmtSaldo(d.ajustes, true));
-  corpo += linha('Resultado', n(d.n_liquidadas) + ' liquidadas', fmtPL(d.pl));
+  corpo += linha('Resultado', 'desde ' + _cxDataBR(d.data_corte) + ' · ' + n(d.n_liquidadas)
+                 + (d.n_liquidadas === 1 ? ' liquidada' : ' liquidadas'), fmtPL(d.pl));
   corpo += linha('Em aberto', n(d.n_abertas) + (d.n_abertas === 1 ? ' aposta' : ' apostas'), fmtSaldo(-d.aberto, true));
   corpo += linha('Saldo disponível', '', fmtSaldo(d.disponivel), 'sum');
+
+  // Por que o "Resultado" da caixa não é o P/L da conta: as apostas anteriores ao
+  // corte já estão DENTRO do saldo informado. Sem dizer isso, o operador compara o
+  // tile de cima (P/L da conta) com esta linha e conclui, com razão, que está errado.
+  const notas = [];
+  if (d.n_anteriores)
+    notas.push(n(d.n_anteriores) + (d.n_anteriores === 1 ? ' aposta anterior a ' : ' apostas anteriores a ')
+      + _cxDataBR(d.data_corte) + ' (' + _cxTxt(d.pl_anterior) + ') já estão dentro do saldo informado — por isso ficam fora desta conta.');
+  if (d.n_preso_corte)
+    notas.push(n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta estava aberta' : ' apostas estavam abertas')
+      + ' nesse dia: o stake saiu da casa antes do corte e volta inteiro ao liquidar.');
+  const nota = notas.length ? '<div class="cx__nota">' + notas.join(' ') + '</div>' : '';
 
   // Saldo projetado negativo não é prejuízo — é lançamento faltando. Âmbar (aviso).
   const heroCls = d.disponivel < 0 ? ' aviso' : '';
@@ -5590,7 +5608,7 @@ function renderCaixa(d) {
     + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;ajuste&quot;)">Ajuste</button>'
     + '</div>';
 
-  box.innerHTML = head + hero + '<div class="cx__body">' + corpo + '</div>' + conf + foot;
+  box.innerHTML = head + hero + '<div class="cx__body">' + corpo + nota + '</div>' + conf + foot;
 }
 
 // Dinheiro em texto corrido (subtítulo do herói) — sem o componente .money, que é

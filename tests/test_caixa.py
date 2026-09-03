@@ -328,3 +328,46 @@ def test_o_gate_detecta_saldo_colorido(tmp_path):
                           "<span class=\"money-val\">${abs}</span></span>`;")
     )
     assert _node(mutante).returncode != 0, "o gate passou com o saldo colorido"
+
+
+# ── O que o corte deixou de fora (s314, depois do relato do Feca) ─────────────
+# O tile de cima diz "P/L · conta −R$ 1.608,00" e a Caixa dizia "Resultado R$ 0,00".
+# Os dois estavam certos — as 12 apostas eram anteriores ao corte, logo já estavam
+# dentro do saldo informado —, mas a tela não dizia isso, e quem lê conclui que o
+# número está quebrado. Estes campos existem só para a frase ser possível.
+
+def test_conta_o_que_ficou_fora_do_corte():
+    """Caso REAL medido na conta #748 (Superbet · ricksa03): 12 perdas de 02/09,
+    corte em 03/09, e uma aposta que estava aberta no corte e liquidou W."""
+    movs = [mov("inicial", "2026-09-03", 1950.0, abertas_corte=[218127])]
+    apostas = [ap(218127, "02/09/2026", "100,00", "W", "12,28684")]
+    apostas += [ap(218128 + i, "02/09/2026", "200,00", "L") for i in range(8)]
+    r = _caixa_projetar(movs, apostas)
+    assert (r["n_anteriores"], r["pl_anterior"]) == (8, -1600.0)
+    # e o que ficou de fora NÃO entra em soma nenhuma
+    assert r["preso_corte"] == 100.0
+    assert r["pl"] == 1128.68 and r["n_liquidadas"] == 1
+    assert r["disponivel"] == 3178.68        # 1950 + 100 (stake preso) + 1128,68
+
+
+def test_aposta_do_corte_nao_conta_como_anterior():
+    """A que estava aberta no corte entra na conta — não pode ser contada também
+    como 'já embutida no saldo', ou a tela diria duas coisas sobre a mesma linha."""
+    movs = [mov("inicial", "2026-09-03", 1000.0, abertas_corte=[7])]
+    r = _caixa_projetar(movs, [ap(7, "02/09/2026", 100.0, "L")])
+    assert r["n_anteriores"] == 0 and r["pl_anterior"] == 0.0
+    assert r["n_liquidadas"] == 1
+
+
+def test_sem_nada_antes_do_corte_a_nota_nao_aparece():
+    movs = [mov("inicial", "2026-08-01", 1000.0)]
+    r = _caixa_projetar(movs, [ap(1, "2026-08-10", 100.0, "L")])
+    assert r["n_anteriores"] == 0 and r["pl_anterior"] == 0.0
+
+
+def test_aposta_anterior_ainda_ABERTA_nao_entra_na_nota():
+    """Aberta antes do corte e fora do `abertas_corte` (caso raro: caixa reconfigurada)
+    não é resultado nenhum — não pode virar 'já está no saldo informado'."""
+    movs = [mov("inicial", "2026-09-03", 1000.0)]
+    r = _caixa_projetar(movs, [ap(9, "02/09/2026", 100.0, "")])
+    assert r["n_anteriores"] == 0 and r["n_abertas"] == 0

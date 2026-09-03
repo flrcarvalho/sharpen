@@ -25,8 +25,8 @@ MUTACOES = [
      '        if False:\n            continue'),
 
     ("aposta anterior ao corte volta a contar",
-     '        if not no_corte and not (corte and data_iso and data_iso >= corte):\n            continue',
-     '        if not no_corte and not data_iso:\n            continue'),
+     '        if not no_corte and not (corte and data_iso and data_iso >= corte):',
+     '        if False:'),
 
     ("disponível deixa de descontar o que está em aberto",
      '    out["disponivel"] = round(banca - out["aberto"], 2)',
@@ -47,6 +47,15 @@ MUTACOES = [
     ("tolerância afrouxada para 2 centavos",
      "CAIXA_TOL = 0.005",
      "CAIXA_TOL = 0.02"),
+
+    ("o que ficou fora do corte deixa de ser contado (a tela perde a explicacao)",
+     '                    out["pl_anterior"] += lucro_ant\n'
+     '                    out["n_anteriores"] += 1',
+     '                    pass'),
+
+    ("a aposta do corte e contada TAMBEM como anterior",
+     '        if not no_corte and not (corte and data_iso and data_iso >= corte):',
+     '        if not (corte and data_iso and data_iso >= corte):'),
 
     ("saque somado em vez de subtraído",
      '    banca = (out["inicial"] + out["preso_corte"] + out["depositos"]\n'

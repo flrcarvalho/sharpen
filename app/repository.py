@@ -1672,6 +1672,10 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
         "saques": 0.0, "n_saques": 0,
         "ajustes": 0.0, "n_ajustes": 0,
         "pl": 0.0, "n_liquidadas": 0,
+        # O que o corte DEIXOU DE FORA. Não entra em soma nenhuma: existe para a tela
+        # poder dizer por que o "Resultado" da caixa não é o P/L da conta — quem
+        # compara os dois sem essa frase conclui, com razão, que o número está errado.
+        "pl_anterior": 0.0, "n_anteriores": 0,
         "aberto": 0.0, "n_abertas": 0,
         "banca": 0.0, "disponivel": 0.0,
         "conferencia": None, "divergencia": None,
@@ -1712,6 +1716,14 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
         no_corte = bid is not None and int(bid) in abertas_corte
         data_iso = _data_iso(a.get("data"))
         if not no_corte and not (corte and data_iso and data_iso >= corte):
+            # Fora da janela: já está embutida no saldo informado. Contamos só para
+            # poder DIZER isso na tela (ver `pl_anterior` no dicionário acima).
+            res_ant = (a.get("resultado") or "").strip().upper()
+            if res_ant in _RESULTADOS_VALIDOS:
+                lucro_ant = calcular_pl(a.get("stake"), a.get("odd"), res_ant)
+                if lucro_ant is not None:
+                    out["pl_anterior"] += lucro_ant
+                    out["n_anteriores"] += 1
             continue
         if no_corte:
             # O stake saiu da conta ANTES do corte: entra na banca inicial, e sai de
@@ -1734,7 +1746,7 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
     out["banca"] = round(banca, 2)
     out["aberto"] = round(out["aberto"], 2)
     out["disponivel"] = round(banca - out["aberto"], 2)
-    for k in ("preso_corte", "depositos", "saques", "ajustes", "pl"):
+    for k in ("preso_corte", "depositos", "saques", "ajustes", "pl", "pl_anterior"):
         out[k] = round(out[k], 2)
 
     # ── Estado da conferência ──────────────────────────────────────────────────
