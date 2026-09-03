@@ -1,17 +1,26 @@
 """Gravação da Caixa Inteligente (s314) — o que vai para o banco, e em que TIPO.
 
-Este arquivo nasceu de um defeito de produção: o primeiro "Ativar" do Feca não fez
-nada. `valor` e `projetado` são `NUMERIC`, e o asyncpg **recusa float** nessas
-colunas — exige `Decimal`. A rota devolvia 500, o front mostrava o erro no
-`status-msg` lá na barra de captura, longe do modal, e da cadeira de quem clicou
-não aconteceu nada. A matemática (`test_caixa.py`) estava certa o tempo todo: o
-erro morava no TIPO do argumento, que nenhum teste olhava.
+Este arquivo nasceu de um defeito de produção que aconteceu DUAS vezes, com dois
+argumentos diferentes do MESMO INSERT: o "Ativar" do Feca não fazia nada.
+
+  1ª — `valor`/`projetado` são `NUMERIC`, e o asyncpg recusa `float` (exige `Decimal`).
+  2ª — `data` é `DATE`, e ele recusa `str` (exige `datetime.date`).
+
+Nas duas o 500 acontecia **dentro do driver**, antes de qualquer SQL rodar; a
+matemática (`test_caixa.py`) estava certa o tempo todo. E na 1ª rodada este arquivo
+até olhou o tipo de `valor` — mas afirmava a STRING como o certo para `data`, ou
+seja, gravou o segundo defeito como se fosse a regra. Por isso agora existe **um
+teste que percorre os 8 argumentos de uma vez**: gate por lista, não por lembrança.
 
 Roda sem Postgres: o conftest stuba asyncpg/database e o pool aqui é de mentira —
 mesmo molde de `test_excluir_parceiro.py`. O que este teste NÃO cobre: o SQL de
-verdade (só o CI com banco exercita `::date`, o índice único do `inicial` e a FK).
+verdade (o índice único do `inicial`, a FK e o CASCADE), que só o CI com banco
+exercita. Os tipos acima foram **medidos** contra o Postgres de produção numa
+transação com ROLLBACK: `date`+`Decimal` passa, `str` em `data` levanta
+`DataError: 'str' object has no attribute 'toordinal'`.
 """
 import asyncio
+from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -131,12 +140,41 @@ def test_lancamento_comum_grava_projetado_nulo():
     assert conn.inserts[0][1][7] is None    # abertas_corte só existe no `inicial`
 
 
+def test_cada_argumento_do_insert_vai_no_tipo_da_coluna():
+    """O gate por LISTA. Duas vezes um argumento saiu no tipo errado e o driver
+    derrubou a rota antes de qualquer SQL; olhar um argumento por vez foi o que
+    deixou o segundo passar. Aqui a tabela inteira é conferida de uma vez.
+
+    Ordem do INSERT: dono, parceiro_id, tipo, data, valor, obs, projetado, abertas_corte.
+    """
+    esperado = [
+        ("dono", str), ("parceiro_id", int), ("tipo", str), ("data", date),
+        ("valor", Decimal), ("obs", str),
+        ("projetado", (Decimal, type(None))), ("abertas_corte", (list, type(None))),
+    ]
+    conn = _FakeConn(CONTA, movs=[_mov("inicial", "2026-08-01", Decimal("1000"))])
+    _lancar(conn, tipo="conferencia", valor=900.0)          # preenche `projetado`
+    conn2 = _FakeConn(CONTA, bilhetes=[
+        {"id": 11, "data": "28/07/2026", "stake": "400,00", "odd": None, "resultado": ""}])
+    _lancar(conn2, tipo="inicial", data="01/08/2026", valor=3000.0)   # preenche `abertas_corte`
+
+    for args in (conn.inserts[0][1], conn2.inserts[0][1]):
+        assert len(args) == len(esperado), "o INSERT mudou de forma — reveja esta lista"
+        for valor_arg, (nome, tipo_ok) in zip(args, esperado):
+            assert isinstance(valor_arg, tipo_ok), (
+                f"{nome} foi {type(valor_arg).__name__}; a coluna exige "
+                f"{getattr(tipo_ok, '__name__', tipo_ok)}")
+    # bool é subclasse de int: parceiro_id nunca pode chegar como True/False
+    assert not isinstance(conn.inserts[0][1][1], bool)
+
+
 # ── Regras de gravação ────────────────────────────────────────────────────────
 
-def test_data_br_vira_iso():
+def test_data_br_vira_date():
+    """dd/mm/aaaa (o que a tela manda) → `datetime.date` (o que a coluna exige)."""
     conn = _FakeConn(CONTA)
     _lancar(conn, data="02/09/2026")
-    assert conn.inserts[0][1][3] == "2026-09-02"
+    assert conn.inserts[0][1][3] == date(2026, 9, 2)
 
 
 def test_inicial_apaga_o_anterior_antes_de_gravar():

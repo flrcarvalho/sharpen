@@ -1881,10 +1881,19 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
             # produção não fez nada — o erro existia, só não estava na frente de quem
             # clicou. `str()` antes do Decimal preserva o valor já arredondado em 2
             # casas, sem o lixo binário do float (Decimal(1950.1) ≠ Decimal("1950.1")).
+            # TODO argumento vai no TIPO da coluna — o asyncpg não converte nada:
+            #   DATE     → datetime.date  (string levanta DataError; sem o `::date`
+            #              o tipo vem da coluna e não há ambiguidade)
+            #   NUMERIC  → Decimal        (float levanta DataError)
+            #   INTEGER[]→ list[int] | None
+            # Foram os dois primeiros que deixaram o "Ativar" mudo em produção, um em
+            # cada tentativa: o 500 acontecia no driver, antes de qualquer SQL rodar.
+            # `tests/test_caixa_lancar.py::test_cada_argumento_do_insert_vai_no_tipo_da_coluna`
+            # trava a lista inteira de uma vez, para não haver uma terceira rodada.
             await conn.execute(
                 "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, "
-                "projetado, abertas_corte) VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8)",
-                dono, parceiro_id, tipo, data, Decimal(str(valor)),
+                "projetado, abertas_corte) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+                dono, parceiro_id, tipo, date.fromisoformat(data), Decimal(str(valor)),
                 (obs or "").strip()[:280],
                 None if projetado is None else Decimal(str(projetado)), abertas,
             )
