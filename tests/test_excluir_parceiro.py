@@ -27,9 +27,10 @@ class _FakeConn:
     que faz o teste de escopo valer alguma coisa.
     """
 
-    def __init__(self, conta, bilhetes):
+    def __init__(self, conta, bilhetes, caixa=None):
         self.conta = conta                 # None = conta inexistente
         self.bilhetes = bilhetes
+        self.caixa = caixa if caixa is not None else []   # lançamentos da Caixa (s314)
         self.execs = []
         self.lixeira = []
 
@@ -49,6 +50,15 @@ class _FakeConn:
         return self.conta
 
     async def fetch(self, sql, *a):
+        # Duas varreduras destrutivas, cada uma devolvendo o próprio snapshot: as
+        # apostas e (s314) os lançamentos da Caixa, que sairiam sozinhos pelo CASCADE.
+        if "DELETE FROM caixa_mov" in sql:
+            dono, pid = a
+            fica, sai = [], []
+            for m in self.caixa:
+                (sai if (m["dono"] == dono and m["parceiro_id"] == pid) else fica).append(m)
+            self.caixa[:] = fica
+            return [{"linha": json.dumps(m)} for m in sai]
         assert "DELETE FROM bilhetes" in sql
         dono, casa, parceiro = a
         fica, sai = [], []
@@ -87,8 +97,13 @@ def _bilhete(bid, dono="Feca", casa="Tivo", parceiro="Feca [Eu]"):
             "stake": "51,00", "odd": "27,55", "resultado": "W"}
 
 
-def _excluir(conta, bilhetes, confirmar="Feca [Eu]", dono="Feca"):
-    conn = _FakeConn(conta, bilhetes)
+def _mov(mid, tipo="deposito", dono="Feca", parceiro_id=351, valor=500.0):
+    return {"id": mid, "dono": dono, "parceiro_id": parceiro_id, "tipo": tipo,
+            "data": "2026-08-01", "valor": valor, "obs": "PIX"}
+
+
+def _excluir(conta, bilhetes, confirmar="Feca [Eu]", dono="Feca", caixa=None):
+    conn = _FakeConn(conta, bilhetes, caixa)
     # patch como CONTEXTO (não atribuição solta): no CI, com TEST_DATABASE_URL, o
     # `test_repository_db.py` usa o `get_pool` de verdade — um stub vazado o derrubaria.
     with patch.object(repository, "get_pool",
@@ -127,13 +142,37 @@ def test_snapshot_da_lixeira_bate_com_o_que_saiu():
     base = [_bilhete(1), _bilhete(2)]
     res, conn = _excluir(_CONTA, base)
     assert len(conn.lixeira) == 1
-    dono, casa, parceiro, arquivado, n, payload = conn.lixeira[0]
+    dono, casa, parceiro, arquivado, n, payload, caixa_payload = conn.lixeira[0]
     assert (dono, casa, parceiro, n) == ("Feca", "Tivo", "Feca [Eu]", 2)
     assert arquivado is False
     linhas = json.loads(payload)          # tem de ser JSON válido p/ o cast ::jsonb
     assert [x["id"] for x in linhas] == [1, 2]
     assert linhas[0]["odd"] == "27,55", "snapshot perdeu coluna da linha original"
+    assert json.loads(caixa_payload) == []
     assert res["lixeira_dias"] == repository.LIXEIRA_DIAS
+
+
+# ── Caixa (s314) ──────────────────────────────────────────────────────────────
+# Os lançamentos da conta sairiam sozinhos pelo ON DELETE CASCADE de `parceiros`.
+# Se não entrarem no MESMO snapshot, restaurar a conta devolve as apostas e perde o
+# dinheiro — a lixeira meio-cheia, irmã do UPSERT meio-atualizado.
+
+def test_lixeira_leva_junto_os_lancamentos_da_caixa():
+    caixa = [_mov(1, "inicial", valor=3000.0), _mov(2, "deposito")]
+    _, conn = _excluir(_CONTA, [_bilhete(1)], caixa=caixa)
+    payload = conn.lixeira[0][6]
+    linhas = json.loads(payload)
+    assert [x["id"] for x in linhas] == [1, 2]
+    assert linhas[0]["valor"] == 3000.0, "snapshot perdeu campo do lançamento"
+    assert caixa == [], "a caixa da conta não foi apagada junto"
+
+
+def test_nao_apaga_caixa_de_outra_conta_ou_de_outro_dono():
+    minha = _mov(1)
+    caixa = [minha, _mov(2, parceiro_id=999), _mov(3, dono="Jonathan")]
+    _, conn = _excluir(_CONTA, [_bilhete(1)], caixa=caixa)
+    assert [m["id"] for m in caixa] == [2, 3], "vazou escopo do DELETE da caixa"
+    assert [x["id"] for x in json.loads(conn.lixeira[0][6])] == [1]
 
 
 def test_purga_o_vencido_antes_de_gravar():

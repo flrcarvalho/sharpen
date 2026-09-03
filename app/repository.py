@@ -1626,6 +1626,353 @@ async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
     return _resumir_apostas([dict(r) for r in rows])
 
 
+# ── Caixa: auditoria de saldo por conta (s314) ────────────────────────────────
+# A pergunta que a Caixa responde é "quanto esta conta DEVERIA ter na casa hoje" —
+# e a resposta só vale confrontada com o que a casa mostra de verdade. É esse
+# confronto (a conferência) que denuncia dinheiro saindo sem registro.
+#
+# A conta, e por que ela é esta:
+#
+#   banca      = saldo inicial + preso no corte + depósitos − saques ± ajustes + P/L
+#   em aberto  = Σ stake das apostas elegíveis ainda não liquidadas
+#   disponível = banca − em aberto        ← é ESTE que a casa mostra na tela
+#
+# Toda aposta mexe no saldo DUAS vezes: −stake quando é feita, +retorno quando
+# liquida. Para a aposta que nasce depois do corte as duas pontas estão dentro da
+# janela, e o líquido é exatamente o P/L (ou −stake, enquanto aberta). Para a
+# aposta que já estava ABERTA no corte, só a segunda ponta está: o stake saiu do
+# saldo antes da data informada, então ele não está no saldo informado e volta
+# INTEIRO (stake + P/L) quando liquidar. É por isso que `abertas_corte` existe —
+# sem ela, toda conta com aposta viva no dia da configuração nasceria com uma
+# divergência permanente do tamanho desses retornos, e a auditoria acusaria a si
+# mesma para sempre.
+CAIXA_TIPOS = ("inicial", "deposito", "saque", "ajuste", "conferencia")
+_CAIXA_LANCAMENTOS = ("deposito", "saque", "ajuste")
+# Abaixo de um centavo é ruído de arredondamento, não divergência.
+CAIXA_TOL = 0.005
+
+
+def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
+    """Projeção da caixa de UMA conta. PURA (sem DB) — é o núcleo testável.
+
+    `movs`   : lançamentos, cada um {tipo, data (ISO), valor, obs, projetado,
+               abertas_corte, criado_em, id}.
+    `apostas`: bilhetes da conta, cada um {id, stake, odd, resultado, data}.
+
+    Sem lançamento `inicial` a caixa está DESLIGADA e nada é projetado: o saldo
+    não se deduz do histórico. Número inventado numa tela de auditoria vale menos
+    que célula vazia.
+    """
+    vazio = {
+        "ligada": False, "estado": "desligada",
+        "inicial": 0.0, "data_corte": None,
+        "preso_corte": 0.0, "n_preso_corte": 0,
+        "depositos": 0.0, "n_depositos": 0,
+        "saques": 0.0, "n_saques": 0,
+        "ajustes": 0.0, "n_ajustes": 0,
+        "pl": 0.0, "n_liquidadas": 0,
+        "aberto": 0.0, "n_abertas": 0,
+        "banca": 0.0, "disponivel": 0.0,
+        "conferencia": None, "divergencia": None,
+    }
+    ini = next((m for m in movs if m.get("tipo") == "inicial"), None)
+    if not ini:
+        return vazio
+
+    corte = ini.get("data")
+    abertas_corte = {int(i) for i in (ini.get("abertas_corte") or [])}
+
+    out = dict(vazio)
+    out["ligada"] = True
+    out["inicial"] = round(float(ini.get("valor") or 0.0), 2)
+    out["data_corte"] = corte
+
+    for m in movs:
+        tipo = m.get("tipo")
+        if tipo not in _CAIXA_LANCAMENTOS:
+            continue
+        # Lançamento anterior ao corte já está embutido no saldo informado — somá-lo
+        # seria contar o mesmo dinheiro duas vezes.
+        if corte and (m.get("data") or "") < corte:
+            continue
+        v = float(m.get("valor") or 0.0)
+        if tipo == "deposito":
+            out["depositos"] += v; out["n_depositos"] += 1
+        elif tipo == "saque":
+            out["saques"] += v; out["n_saques"] += 1
+        else:
+            out["ajustes"] += v; out["n_ajustes"] += 1
+
+    for a in apostas:
+        stake = _num(a.get("stake"))
+        if stake <= 0:
+            continue
+        bid = a.get("id")
+        no_corte = bid is not None and int(bid) in abertas_corte
+        data_iso = _data_iso(a.get("data"))
+        if not no_corte and not (corte and data_iso and data_iso >= corte):
+            continue
+        if no_corte:
+            # O stake saiu da conta ANTES do corte: entra na banca inicial, e sai de
+            # novo em "em aberto" enquanto a aposta não liquidar.
+            out["preso_corte"] += stake
+            out["n_preso_corte"] += 1
+        resultado = (a.get("resultado") or "").strip().upper()
+        if not resultado:
+            out["aberto"] += stake; out["n_abertas"] += 1
+            continue
+        if resultado not in _RESULTADOS_VALIDOS:
+            continue
+        lucro = calcular_pl(a.get("stake"), a.get("odd"), resultado)
+        if lucro is None:
+            continue
+        out["pl"] += lucro; out["n_liquidadas"] += 1
+
+    banca = (out["inicial"] + out["preso_corte"] + out["depositos"]
+             - out["saques"] + out["ajustes"] + out["pl"])
+    out["banca"] = round(banca, 2)
+    out["aberto"] = round(out["aberto"], 2)
+    out["disponivel"] = round(banca - out["aberto"], 2)
+    for k in ("preso_corte", "depositos", "saques", "ajustes", "pl"):
+        out[k] = round(out[k], 2)
+
+    # ── Estado da conferência ──────────────────────────────────────────────────
+    # A divergência é a que foi MEDIDA na conferência (valor observado − projetado
+    # naquele momento), nunca recalculada contra a projeção de hoje: a de hoje já
+    # inclui aposta que nem existia lá atrás.
+    confs = [m for m in movs if m.get("tipo") == "conferencia"]
+    if not confs:
+        out["estado"] = "nunca"
+        return out
+    ult = max(confs, key=lambda m: (m.get("criado_em") or "", m.get("id") or 0))
+    proj = ult.get("projetado")
+    div = None if proj is None else round(float(ult.get("valor") or 0.0) - float(proj), 2)
+    out["conferencia"] = {
+        "data": ult.get("data"), "valor": round(float(ult.get("valor") or 0.0), 2),
+        "projetado": None if proj is None else round(float(proj), 2), "divergencia": div,
+    }
+    out["divergencia"] = div
+    if div is None or abs(div) < CAIXA_TOL:
+        out["estado"] = "confere"
+        return out
+    # Divergência endereçada depois (o operador lançou o que faltava) deixa de gritar
+    # e passa a pedir uma reconferência — o número antigo já não descreve a conta.
+    depois = [m for m in movs
+              if m.get("tipo") in _CAIXA_LANCAMENTOS
+              and (m.get("criado_em") or "") > (ult.get("criado_em") or "")]
+    out["estado"] = "reconferir" if depois else "divergente"
+    return out
+
+
+def _caixa_mov_dict(r) -> dict:
+    """Linha de `caixa_mov` → dict JSON-serializável (DATE→ISO, NUMERIC→float)."""
+    data = r["data"]
+    criado = r["criado_em"]
+    return {
+        "id": r["id"], "tipo": r["tipo"],
+        "data": data.isoformat() if hasattr(data, "isoformat") else str(data),
+        "valor": float(r["valor"]),
+        "obs": r["obs"] or "",
+        "projetado": None if r["projetado"] is None else float(r["projetado"]),
+        "abertas_corte": list(r["abertas_corte"] or []),
+        "criado_em": criado.isoformat() if hasattr(criado, "isoformat") else str(criado),
+    }
+
+
+async def _caixa_conta_row(conn, parceiro_id: int, dono: str):
+    return await conn.fetchrow(
+        "SELECT id, casa, nome, arquivado FROM parceiros WHERE id = $1 AND dono = $2",
+        parceiro_id, dono,
+    )
+
+
+async def _caixa_apostas(conn, dono: str, casa: str, parceiro: str) -> list[dict]:
+    rows = await conn.fetch(
+        "SELECT id, stake, odd, resultado, data FROM bilhetes "
+        "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
+        dono, casa, parceiro,
+    )
+    return [dict(r) for r in rows]
+
+
+async def caixa_conta(dono: str, parceiro_id: int) -> dict | None:
+    """Caixa de UMA conta: projeção + extrato completo. None se a conta não é do dono."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        p = await _caixa_conta_row(conn, parceiro_id, dono)
+        if not p:
+            return None
+        movs = [_caixa_mov_dict(r) for r in await conn.fetch(
+            "SELECT * FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 "
+            "ORDER BY data, id", dono, parceiro_id)]
+        apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
+    res = _caixa_projetar(movs, apostas)
+    res["parceiro_id"] = parceiro_id
+    res["casa"] = p["casa"]
+    res["parceiro"] = p["nome"]
+    res["movimentos"] = movs
+    return res
+
+
+async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
+                       valor: float, obs: str = "") -> dict:
+    """Grava um lançamento e devolve a caixa recalculada.
+
+    Dois tipos carregam dado que só existe NO MOMENTO do lançamento e por isso é
+    gravado, nunca recalculado depois:
+      · `inicial`     → a lista de bilhetes já abertos na data do corte;
+      · `conferencia` → o saldo que o Sharpen projetava quando o operador conferiu.
+    """
+    tipo = (tipo or "").strip().lower()
+    if tipo not in CAIXA_TIPOS:
+        return {"ok": False, "motivo": "Tipo de lançamento inválido."}
+    if not _data_iso(data):
+        return {"ok": False, "motivo": "Data inválida."}
+    data = _data_iso(data)
+    try:
+        valor = round(float(valor), 2)
+    except (TypeError, ValueError):
+        return {"ok": False, "motivo": "Valor inválido."}
+    # Só o ajuste pode ser negativo (correção para baixo). Depósito e saque têm o
+    # sinal no TIPO — aceitar negativo ali deixaria o mesmo fato com duas grafias.
+    if tipo != "ajuste" and valor < 0:
+        return {"ok": False, "motivo": "Valor não pode ser negativo."}
+    if tipo in ("deposito", "saque") and valor == 0:
+        return {"ok": False, "motivo": "Informe um valor maior que zero."}
+    if abs(valor) > 100_000_000:
+        return {"ok": False, "motivo": "Valor fora da faixa."}
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            p = await _caixa_conta_row(conn, parceiro_id, dono)
+            if not p:
+                return {"ok": False, "motivo": "Conta não encontrada."}
+
+            abertas: list[int] | None = None
+            projetado: float | None = None
+
+            if tipo == "inicial":
+                # Bilhetes ABERTOS hoje e datados antes do corte: o dinheiro deles já
+                # tinha saído quando o saldo foi observado, e volta inteiro ao liquidar.
+                todas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
+                abertas = [
+                    a["id"] for a in todas
+                    if not (a.get("resultado") or "").strip()
+                    and (_data_iso(a.get("data")) or "") < data
+                    and _num(a.get("stake")) > 0
+                ]
+                await conn.execute(
+                    "DELETE FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 AND tipo = 'inicial'",
+                    dono, parceiro_id,
+                )
+            elif tipo == "conferencia":
+                movs = [_caixa_mov_dict(r) for r in await conn.fetch(
+                    "SELECT * FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 "
+                    "ORDER BY data, id", dono, parceiro_id)]
+                if not any(m["tipo"] == "inicial" for m in movs):
+                    return {"ok": False, "motivo": "Informe o saldo inicial antes de conferir."}
+                apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
+                projetado = _caixa_projetar(movs, apostas)["disponivel"]
+
+            await conn.execute(
+                "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, "
+                "projetado, abertas_corte) VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8)",
+                dono, parceiro_id, tipo, data, valor, (obs or "").strip()[:280],
+                projetado, abertas,
+            )
+    logger.info("caixa: %s dono=%s conta=%s valor=%.2f data=%s",
+                tipo, dono, parceiro_id, valor, data)
+    res = await caixa_conta(dono, parceiro_id)
+    return {"ok": True, "caixa": res}
+
+
+async def caixa_excluir_mov(dono: str, mov_id: int) -> dict:
+    """Apaga um lançamento. Apagar o `inicial` DESLIGA a caixa (a projeção perde o
+    corte) — a UI avisa; aqui a regra é só não deixar apagar de outro dono."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "DELETE FROM caixa_mov WHERE id = $1 AND dono = $2 RETURNING parceiro_id, tipo",
+            mov_id, dono,
+        )
+    if not row:
+        return {"ok": False, "motivo": "Lançamento não encontrado."}
+    res = await caixa_conta(dono, row["parceiro_id"])
+    return {"ok": True, "tipo": row["tipo"], "caixa": res}
+
+
+async def caixa_visao(dono: str) -> dict:
+    """Caixa de TODAS as contas do dono, agregada por casa — o Painel de Contas.
+
+    Uma varredura só (bilhetes + lançamentos do dono), agrupada em memória: pedir
+    conta por conta seria a mesma armadilha do câmbio da Polymarket (s247), com a
+    latência e a chance de falha crescendo com o número de contas.
+
+    Conta sem caixa configurada NÃO vira zero: entra com `ligada:false` e fica fora
+    de toda soma, com o contador dizendo quantas faltam. Total que engole conta
+    desconhecida mente com cara de exatidão.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        parceiros = await conn.fetch(
+            "SELECT id, casa, nome, arquivado FROM parceiros WHERE dono = $1", dono)
+        movs = [(_caixa_mov_dict(r), r["parceiro_id"]) for r in await conn.fetch(
+            "SELECT * FROM caixa_mov WHERE dono = $1 ORDER BY data, id", dono)]
+        apostas = await conn.fetch(
+            "SELECT id, casa, parceiro, stake, odd, resultado, data FROM bilhetes "
+            "WHERE dono = $1", dono)
+
+    por_conta: dict[int, list[dict]] = {}
+    for m, pid in movs:
+        por_conta.setdefault(pid, []).append(m)
+    por_chave: dict[tuple, list[dict]] = {}
+    for a in apostas:
+        por_chave.setdefault((a["casa"], a["parceiro"]), []).append(dict(a))
+
+    contas, casas = [], {}
+    tot = {"banca": 0.0, "disponivel": 0.0, "aberto": 0.0,
+           "contas": 0, "ligadas": 0, "sem_caixa": 0, "a_conferir": 0}
+    for p in parceiros:
+        res = _caixa_projetar(por_conta.get(p["id"], []),
+                              por_chave.get((p["casa"], p["nome"]), []))
+        linha = {
+            "parceiro_id": p["id"], "casa": p["casa"], "parceiro": p["nome"],
+            "arquivado": p["arquivado"], "ligada": res["ligada"], "estado": res["estado"],
+            "banca": res["banca"], "disponivel": res["disponivel"],
+            "aberto": res["aberto"], "divergencia": res["divergencia"],
+            "conferencia": res["conferencia"],
+        }
+        contas.append(linha)
+        if p["arquivado"]:
+            continue   # arquivada não entra na banca: é conta fora de operação
+        c = casas.setdefault(p["casa"], {
+            "casa": p["casa"], "contas": 0, "ligadas": 0, "sem_caixa": 0,
+            "banca": 0.0, "disponivel": 0.0, "aberto": 0.0, "a_conferir": 0,
+            "conferencia": None})
+        c["contas"] += 1
+        tot["contas"] += 1
+        if not res["ligada"]:
+            c["sem_caixa"] += 1; tot["sem_caixa"] += 1
+            continue
+        c["ligadas"] += 1; tot["ligadas"] += 1
+        for k in ("banca", "disponivel", "aberto"):
+            c[k] += res[k]; tot[k] += res[k]
+        if res["estado"] == "divergente":
+            c["a_conferir"] += 1; tot["a_conferir"] += 1
+        conf = res.get("conferencia")
+        if conf and (c["conferencia"] is None or conf["data"] > c["conferencia"]):
+            c["conferencia"] = conf["data"]
+
+    for c in casas.values():
+        for k in ("banca", "disponivel", "aberto"):
+            c[k] = round(c[k], 2)
+    for k in ("banca", "disponivel", "aberto"):
+        tot[k] = round(tot[k], 2)
+    lista = sorted(casas.values(), key=lambda c: (-c["banca"], c["casa"]))
+    return {"casas": lista, "contas": contas, "totais": tot}
+
+
 async def dashboard_rows(donos: list[str]) -> list[dict]:
     """Feed do Betting Dashboard no MESMO contrato do Code.gs/Apps Script.
 
@@ -2741,13 +3088,23 @@ async def excluir_parceiro(parceiro_id: int, dono: str, confirmar_nome: str) -> 
                 dono, casa, nome,
             )
             linhas = [r["linha"] for r in snap]
+            # A caixa da conta sairia sozinha pelo ON DELETE CASCADE de `parceiros`.
+            # Ela entra no MESMO snapshot, pela MESMA operação que apaga: restaurar a
+            # conta e perder o dinheiro lançado seria a lixeira meio-cheia.
+            snap_caixa = await conn.fetch(
+                "DELETE FROM caixa_mov c WHERE c.dono = $1 AND c.parceiro_id = $2 "
+                "RETURNING to_jsonb(c.*) AS linha",
+                dono, parceiro_id,
+            )
+            caixa = [r["linha"] for r in snap_caixa]
             # asyncpg devolve jsonb como str (sem codec global registrado); o array
             # inteiro entra como texto + cast ::jsonb — mesmo padrão de salvar_casa_config.
             await conn.execute(
-                "INSERT INTO lixeira_contas (dono, casa, parceiro, arquivado, n_bilhetes, bilhetes) "
-                "VALUES ($1, $2, $3, $4, $5, $6::jsonb)",
+                "INSERT INTO lixeira_contas (dono, casa, parceiro, arquivado, n_bilhetes, bilhetes, caixa) "
+                "VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)",
                 dono, casa, nome, row["arquivado"], len(linhas),
                 "[" + ",".join(linhas) + "]",
+                "[" + ",".join(caixa) + "]",
             )
             await conn.execute(
                 "DELETE FROM parceiros WHERE id = $1 AND dono = $2", parceiro_id, dono

@@ -285,6 +285,103 @@ def poly():
     return {"data": []}
 
 
+# ── Caixa (s314) ─────────────────────────────────────────────────────────────
+# Aqui a matematica NAO e' reimplementada: importamos o `_caixa_projetar` de
+# producao e so inventamos os lancamentos. E' a parte do arquivo que mais correria
+# risco de divergir em silencio -- projecao de saldo errada num print de venda e'
+# pior que print nenhum.
+sys.path.insert(0, str(RAIZ / "app"))
+from repository import _caixa_projetar  # noqa: E402
+
+_HOJE = datetime.now().date()
+
+
+def _d(dias):
+    return (_HOJE - timedelta(days=dias)).isoformat()
+
+
+def _mov(mid, tipo, dias, valor, **kw):
+    return {"id": mid, "tipo": tipo, "data": _d(dias), "valor": valor,
+            "obs": kw.get("obs", ""), "projetado": kw.get("projetado"),
+            "abertas_corte": None,
+            "criado_em": (datetime.now() - timedelta(days=dias)).isoformat()}
+
+
+# Tres contas com caixa: uma que confere, uma nunca conferida e uma com divergencia
+# ABERTA -- um print com tudo verde esconderia o recurso que a Caixa existe para dar.
+CAIXA_DEMO = {
+    1: [_mov(1, "inicial", 32, 3000.0), _mov(2, "deposito", 27, 1500.0, obs="PIX"),
+        _mov(3, "saque", 19, 800.0), _mov(4, "ajuste", 13, 50.0, obs="bônus de recarga"),
+        _mov(5, "conferencia", 0, 3750.0, projetado=3750.0)],
+    2: [_mov(6, "inicial", 24, 1800.0), _mov(7, "deposito", 11, 700.0, obs="PIX")],
+    3: [_mov(8, "inicial", 40, 5000.0), _mov(9, "saque", 21, 1200.0),
+        _mov(10, "conferencia", 2, 2950.0, projetado=3800.0)],
+}
+
+
+def _apostas_da_conta(pid):
+    p = next((x for x in PARCEIROS if x["id"] == pid), None)
+    if not p:
+        return []
+    return [{"id": 10_000 + i, "data": r["data"], "stake": r["stake"],
+             "odd": r.get("odd"), "resultado": "" if r["resultado"] == "ABERTA" else r["resultado"]}
+            for i, r in enumerate(LINHAS)
+            if r["casa"] == p["casa"] and r["parceiro"] == p["nome"]]
+
+
+def _caixa_de(pid):
+    res = _caixa_projetar(CAIXA_DEMO.get(pid, []), _apostas_da_conta(pid))
+    p = next((x for x in PARCEIROS if x["id"] == pid), None)
+    res.update({"parceiro_id": pid, "casa": p["casa"] if p else "",
+                "parceiro": p["nome"] if p else "", "movimentos": CAIXA_DEMO.get(pid, [])})
+    return res
+
+
+@app.get("/caixa/conta")
+def caixa_conta_demo(parceiro_id: int):
+    return _caixa_de(parceiro_id)
+
+
+@app.get("/caixa/visao")
+def caixa_visao_demo():
+    contas, casas = [], {}
+    tot = {"banca": 0.0, "disponivel": 0.0, "aberto": 0.0,
+           "contas": 0, "ligadas": 0, "sem_caixa": 0, "a_conferir": 0}
+    for p in PARCEIROS:
+        r = _caixa_de(p["id"])
+        contas.append({"parceiro_id": p["id"], "casa": p["casa"], "parceiro": p["nome"],
+                       "arquivado": False, "ligada": r["ligada"], "estado": r["estado"],
+                       "banca": r["banca"], "disponivel": r["disponivel"],
+                       "aberto": r["aberto"], "divergencia": r["divergencia"],
+                       "conferencia": r["conferencia"]})
+        c = casas.setdefault(p["casa"], {"casa": p["casa"], "contas": 0, "ligadas": 0,
+                                         "sem_caixa": 0, "banca": 0.0, "disponivel": 0.0,
+                                         "aberto": 0.0, "a_conferir": 0, "conferencia": None})
+        c["contas"] += 1
+        tot["contas"] += 1
+        if not r["ligada"]:
+            c["sem_caixa"] += 1
+            tot["sem_caixa"] += 1
+            continue
+        c["ligadas"] += 1
+        tot["ligadas"] += 1
+        for k in ("banca", "disponivel", "aberto"):
+            c[k] += r[k]
+            tot[k] += r[k]
+        if r["estado"] == "divergente":
+            c["a_conferir"] += 1
+            tot["a_conferir"] += 1
+        if r["conferencia"]:
+            c["conferencia"] = r["conferencia"]["data"]
+    for c in casas.values():
+        for k in ("banca", "disponivel", "aberto"):
+            c[k] = round(c[k], 2)
+    for k in ("banca", "disponivel", "aberto"):
+        tot[k] = round(tot[k], 2)
+    return {"casas": sorted(casas.values(), key=lambda c: (-c["banca"], c["casa"])),
+            "contas": contas, "totais": tot}
+
+
 # ── Paginas ──────────────────────────────────────────────────────────────────
 @app.get("/")
 def raiz():

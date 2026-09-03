@@ -395,6 +395,8 @@ html.embedded .sidebar { display: none; }
 .painel-tbl tr:last-child td { border-bottom: 0; }
 .painel-tbl th.r, .painel-tbl td.r { text-align: right; }
 .painel-tbl td.mono, .painel-tbl th.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* s314: linha de total (só a tabela de saldo por casa usa tfoot). */
+.painel-tbl tfoot td { border-top: 1px solid var(--line); border-bottom: 0; font-weight: 700; padding-top: 10px; }
 
 /* ── Partner page ── */
 .partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -604,6 +606,95 @@ html.embedded .sidebar { display: none; }
 .tile .val.custo-wrap { display: flex; align-items: center; gap: 5px; padding-top: 8px; }
 .tile .val .money-sign { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); flex: none; }
 
+/* ── Caixa (s314): auditoria de saldo da conta ────────────────────────────────
+   Coluna de 300px à direita da faixa de tiles + da área de captura, DENTRO da
+   .colmain (não encosta no rail). Some inteira quando não há conta ativa.
+   Dinheiro sempre pelo componente .money (UI_REFERENCE §5) — nada de string crua. */
+.cx { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+/* Divergência aberta é AVISO, não resultado negativo: âmbar, nunca vermelho. */
+.cx.alerta { border-color: rgba(var(--warn-rgb),.45); box-shadow: inset 0 0 0 1px rgba(var(--warn-rgb),.10); }
+.cx__hd { display: flex; align-items: center; gap: 9px; padding: 12px 14px 10px; border-bottom: 1px solid var(--line-2); flex: none; }
+.cx__hd .t { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.cx__pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; border-radius: var(--r-pill); padding: 3px 8px; border: 1px solid var(--line); color: var(--ink-soft); background: var(--surface-2); white-space: nowrap; }
+.cx__pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-mute); flex: none; }
+.cx__pill.ok { color: var(--pos); border-color: rgba(var(--pos-rgb),.4); background: rgba(var(--pos-rgb),.07); }
+.cx__pill.ok .dot { background: var(--pos); }
+.cx__pill.al { color: var(--warn); border-color: rgba(var(--warn-rgb),.45); background: rgba(var(--warn-rgb),.09); }
+.cx__pill.al .dot { background: var(--warn); }
+.cx__hero { padding: 13px 14px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--line-2); flex: none; }
+.cx__hero .k { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.cx__hero .v { font-family: var(--font-mono); font-size: 25px; font-weight: 800; letter-spacing: -.03em; color: var(--ink); line-height: 1.05; }
+.cx__hero .v .money-sign { font-size: 13px; }
+/* Saldo projetado NEGATIVO não é prejuízo — é lançamento faltando. Âmbar (aviso). */
+.cx__hero .v.aviso .money-val { color: var(--warn); }
+.cx__hero .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
+.cx__body { padding: 9px 14px 11px; display: flex; flex-direction: column; overflow-y: auto; min-height: 0; }
+.cx__row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; }
+.cx__row + .cx__row { border-top: 1px solid var(--line-2); }
+.cx__row .k { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-soft); flex: 1; min-width: 0; }
+.cx__row .k i { font-style: normal; color: var(--ink-mute); }
+.cx__row .v { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+.cx__row.sum { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+.cx__row.sum .k { color: var(--ink); font-weight: 700; }
+.cx__row.sum .v { font-size: 13.5px; font-weight: 700; }
+.cx__conf { border-top: 1px solid var(--line-2); padding: 11px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); flex: none; }
+.cx__conf .k { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.cx__inrow { display: grid; grid-template-columns: 1fr 104px auto; gap: 6px; }
+.cx__inp { display: flex; align-items: center; gap: 5px; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 5px 8px; min-width: 0; }
+.cx__inp .sg { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); flex: none; }
+.cx__inp input { flex: 1; min-width: 0; width: 100%; background: transparent; border: none; outline: none; color: var(--ink); font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; padding: 0; }
+.cx__inp input::placeholder { color: var(--ink-mute); font-weight: 400; }
+.cx__inp:focus-within { border-color: var(--accent); box-shadow: var(--glow); }
+.cx__go { border: 1px solid rgba(var(--accent-rgb),.45); background: rgba(var(--accent-rgb),.12); color: var(--accent-2); border-radius: var(--r-sm); padding: 0 11px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .15s; }
+.cx__go:hover { background: rgba(var(--accent-rgb),.2); }
+.cx__diver { display: flex; flex-direction: column; gap: 2px; border-radius: var(--r-sm); padding: 8px 10px; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.45; }
+.cx__diver.ok { background: rgba(var(--pos-rgb),.08); border: 1px solid rgba(var(--pos-rgb),.28); color: var(--pos); }
+.cx__diver.al { background: rgba(var(--warn-rgb),.09); border: 1px solid rgba(var(--warn-rgb),.35); color: var(--warn); }
+.cx__diver.nt { background: var(--surface); border: 1px solid var(--line); color: var(--ink-soft); }
+.cx__diver b { font-size: 12px; font-weight: 700; }
+.cx__diver .cx__aceitar { align-self: flex-start; margin-top: 4px; background: none; border: 1px solid currentColor; color: inherit; border-radius: var(--r-sm); padding: 3px 8px; font-family: var(--font-mono); font-size: 10px; cursor: pointer; }
+.cx__foot { display: flex; gap: 6px; padding: 9px 14px 11px; border-top: 1px solid var(--line-2); flex: none; }
+.cx__act { flex: 1; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); border-radius: var(--r-sm); padding: 7px 0; cursor: pointer; transition: border-color .15s, color .15s; }
+.cx__act:hover { color: var(--ink); border-color: rgba(var(--accent-rgb),.4); }
+.cx__empty { padding: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.cx__empty p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin: 0; }
+.cx__empty .sm { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); line-height: 1.5; }
+.cx__link { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+.cx__link:hover { color: var(--accent-2); }
+/* Captura recolhida = o operador pediu altura para a grade. A Caixa acompanha:
+   guarda o extrato e mantém o saldo + a conferência, que é o que ela existe para dizer. */
+body.cap-off .cx__body { display: none; }
+
+/* Modal de lançamento — reusa a casca .modal/.modal-field; só o segmento de tipo é novo. */
+.cxm-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cxm-seg button { font-family: var(--font-mono); font-size: 11px; padding: 8px 0; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer; transition: border-color .15s, color .15s; }
+.cxm-seg button:hover { color: var(--ink); }
+.cxm-seg button.on { border-color: rgba(var(--accent-rgb),.5); background: rgba(var(--accent-rgb),.10); color: var(--accent-2); font-weight: 700; }
+.cxm-hint { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); line-height: 1.55; }
+.cxm-hint b { color: var(--ink-soft); font-weight: 700; }
+.cxm-datewrap { display: flex; gap: 6px; align-items: stretch; }
+.cxm-datewrap input { flex: 1; min-width: 0; }
+/* Extrato: tabela no padrão .painel-tbl, dentro do mesmo modal. */
+.cxe-wrap { grid-column: 1 / -1; max-height: 52vh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.cxe-tbl { width: 100%; border-collapse: collapse; }
+.cxe-tbl th { position: sticky; top: 0; z-index: 1; font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); text-align: left; padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.cxe-tbl td { padding: 9px 12px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; color: var(--ink); }
+.cxe-tbl tr:last-child td { border-bottom: none; }
+.cxe-tbl td.r, .cxe-tbl th.r { text-align: right; }
+.cxe-tbl td.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cxe-obs { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
+.cxe-del { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: var(--r-xs); font-size: 11px; line-height: 1; padding: 4px 7px; cursor: pointer; }
+.cxe-del:hover { color: var(--neg); border-color: rgba(var(--neg-rgb),.45); }
+.cxe-tag { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border-radius: var(--r-pill); padding: 2px 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); margin-left: 6px; }
+.cxe-tag.al { border-color: rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
+.cxe-tag.ok { border-color: rgba(var(--pos-rgb),.35); background: rgba(var(--pos-rgb),.08); color: var(--pos); }
+
+/* ── Banca no Painel de Contas (s314) — reusa .painel-kpis/.painel-kpi ── */
+.painel-kpi-val.aviso { color: var(--warn); }
+.painel-kpis.banca { margin-bottom: 16px; }
+.painel-casa-tag { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border-radius: var(--r-pill); padding: 2px 8px; border: 1px solid rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
+.painel-casa-tag.mute { border-color: var(--line); background: var(--surface-2); color: var(--ink-soft); }
+
 /* ── Rail v2 "RAIO-X" (handoff-rail-v2) — área de trabalho = grid colmain | rail full lateral.
    O ctxbar e a KPI bar passam a viver DENTRO da colmain (não cruzam mais o rail).
    Adaptação: o SPEC usa scroll de página + rail sticky/100vh; aqui mantemos o modelo
@@ -613,7 +704,21 @@ html.embedded .sidebar { display: none; }
    conteúdo — partner-page/grade ficam sem altura definida, o scroll interno não se forma e
    a grade é cortada em telas baixas (só ~3 linhas). No modo 1-coluna (≤1180) volta a auto. */
 .workfull { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 372px; grid-template-rows: minmax(0, 1fr); gap: 16px; align-items: stretch; padding-bottom: 18px; }
-.colmain { min-width: 0; display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+/* s314: a .colmain virou GRID de 2 colunas para a Caixa ficar à direita da faixa de
+   tiles E da área de captura (as duas moram no #topleft), sem encostar no rail e sem
+   estreitar a grade, que segue ocupando as duas colunas. Sem conta ativa a 2ª coluna
+   não existe (a classe .tem-caixa é que a cria) — nada de coluna fantasma. */
+.colmain { min-width: 0; min-height: 0; display: grid; gap: 12px;
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+.colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 300px; }
+#topleft { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+#capwrap { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+#caixaBox { grid-column: 2; grid-row: 1; }
+#empty-state, #partner-page { grid-column: 1 / -1; grid-row: 2; min-height: 0; }
+@media (max-width: 1360px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 270px; } }
+@media (max-width: 1180px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr); }
+  #caixaBox { grid-column: 1; grid-row: 2; } #empty-state, #partner-page { grid-row: 3; }
+  .colmain.tem-caixa { grid-template-rows: auto auto minmax(0, 1fr); } }
 /* Rail = 2 cards separados: Raio-X (70%) sobre Histórico da conta (30%). */
 .rail { min-width: 0; min-height: 0; display: grid; grid-template-rows: 7fr 3fr; gap: 14px; }
 .rail-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
@@ -1810,6 +1915,7 @@ td.c-res.res-HL { color: var(--warn); }
   <!-- account row (Etapa 1 repaginação): idcard (identidade + operador + trocar/editar/arquivar)
        + tiles uniformes. Reusa os MESMOS ids/handlers — operador-bar, acctSelWrap/acctSelBtn/
        acctPop, acctQuickActs, poly-head-sync, ctxKpis. Só muda a moldura. -->
+  <div id="topleft">
   <div class="arow">
     <div class="idcard">
       <!-- Operador (identidade + trocador "ver base de" + Sair) MOVIDO para o rodapé da
@@ -1866,6 +1972,9 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="ktiles" id="ctxKpis" style="display:none"></div>
   </div>
 
+  <!-- s314: captura + sync da Polymarket vivem no #topleft, à esquerda da Caixa. -->
+  <div id="capwrap" style="display:none">
+
   <!-- Sync da Polymarket (só aparece na Polymarket; toggle por JS em atualizarContextoCasa).
        wrapper display:contents → não cria gap na coluna quando escondido. Modelo de IA NÃO é
        escolha do usuário (backend DEFAULT_MODEL); o front não envia 'modelo'. -->
@@ -1879,6 +1988,67 @@ td.c-res.res-HL { color: var(--warn); }
       <button class="btn btn-primary btn-sm" id="btn-poly-sync">↻ Sincronizar</button>
     </div>
   </div>
+
+    <!-- Inputs -->
+    <div class="input-section" id="upload-section">
+      <!-- Etapa 2: duas caixas iguais lado a lado (Colar texto | Print ou imagem) + barra de ação abaixo -->
+      <div class="cap__inputs">
+        <!-- Colar texto (textarea #texto preservado) -->
+        <div class="capbox capbox--txt">
+          <div class="capbox__hd">
+            <div class="capbox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h13"/></svg></div>
+            <div>
+              <div class="t">Colar texto</div>
+              <div class="h">copie o texto do bilhete na casa de apostas e cole aqui para extração</div>
+            </div>
+          </div>
+          <textarea class="text-area capbox__area" id="texto"
+            placeholder='Ex.: "Múltipla · Over 2.5 [River v Boca] @ 1.85 · Stake R$ 100 · Bet365"…'></textarea>
+        </div>
+        <!-- Print ou imagem = #drop-zone (mesmos handlers: click / drop / paste global) -->
+        <div class="capbox" id="drop-zone">
+          <div class="capbox__hd">
+            <div class="capbox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></div>
+            <div>
+              <div class="t">Print ou imagem</div>
+              <div class="h">arraste, cole (Ctrl+V) ou clique · prints, .csv e .xls</div>
+            </div>
+          </div>
+          <div class="capbox__body">
+            <span class="capbox__hint">Solte aqui · <b>Escolher arquivo</b></span>
+            <div class="upload-preview" id="preview"></div>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="file-input" multiple accept="image/*,application/pdf,.csv,text/csv,.xls,.xlsx">
+
+      <!-- Barra de ação alinhada à esquerda: Processar · Limpar · SharpenUp · Captura -->
+      <div class="actions cap__bar">
+        <button class="btn btn-primary" id="btn-extrair" disabled><span class="ai-glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>Processar Bilhetes</button>
+        <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
+        <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
+        <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
+        <button class="btn btn-ghost" id="btn-conectar-ext" title="Gera um código para conectar o SharpenUp a esta conta"><span id="ext-btn-label">Conectar</span><span class="su-mark" aria-label="SharpenUp"><span class="su-tile"><svg viewBox="40 10 40 100" aria-hidden="true"><defs><linearGradient id="suBladeMk" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeMk)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><span class="su-up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span></span><span class="su-wm">Sharpen<span class="su-u">Up</span></span></span></button>
+        <button class="btn btn-ghost btn-danger" id="btn-desconectar-ext" style="display:none">Desconectar</button>
+        <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
+          <span>Captura</span>
+          <span class="dref-wrap"><input type="date" id="data-ref" class="data-ref-input"><button type="button" id="data-ref-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button></span>
+        </label>
+        <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
+        <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
+        <span class="status-msg" id="status-msg"></span>
+        <!-- Item 5: recolher/expandir a área de captura (mais linhas na grade em telas baixas). -->
+        <span class="cap__sp"></span>
+        <button class="btn btn-ghost btn-sm" id="btn-recolher-cap" type="button" aria-expanded="true" title="Recolher a área de captura para dar mais espaço à lista de apostas">Recolher captura</button>
+      </div>
+    </div>
+  </div><!-- #capwrap -->
+  </div><!-- #topleft -->
+
+  <!-- Caixa (s314): auditoria de saldo da conta ativa. Preenchida por renderCaixa();
+       nasce escondida e só aparece com conta selecionada (a .colmain ganha .tem-caixa). -->
+  <aside class="cx" id="caixaBox" style="display:none" aria-live="polite"></aside>
+
 
   <!-- Estado sem conta ativa = Painel de Contas (dashboard operacional + criador).
        Renderizado por renderPainelContas() a partir de parceirosCache/…Arquivados. -->
@@ -1894,60 +2064,6 @@ td.c-res.res-HL { color: var(--warn); }
 
       <!-- LEFT: inputs + grade -->
       <div class="left-panel">
-
-        <!-- Inputs -->
-        <div class="input-section" id="upload-section">
-          <!-- Etapa 2: duas caixas iguais lado a lado (Colar texto | Print ou imagem) + barra de ação abaixo -->
-          <div class="cap__inputs">
-            <!-- Colar texto (textarea #texto preservado) -->
-            <div class="capbox capbox--txt">
-              <div class="capbox__hd">
-                <div class="capbox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h13"/></svg></div>
-                <div>
-                  <div class="t">Colar texto</div>
-                  <div class="h">copie o texto do bilhete na casa de apostas e cole aqui para extração</div>
-                </div>
-              </div>
-              <textarea class="text-area capbox__area" id="texto"
-                placeholder='Ex.: "Múltipla · Over 2.5 [River v Boca] @ 1.85 · Stake R$ 100 · Bet365"…'></textarea>
-            </div>
-            <!-- Print ou imagem = #drop-zone (mesmos handlers: click / drop / paste global) -->
-            <div class="capbox" id="drop-zone">
-              <div class="capbox__hd">
-                <div class="capbox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></div>
-                <div>
-                  <div class="t">Print ou imagem</div>
-                  <div class="h">arraste, cole (Ctrl+V) ou clique · prints, .csv e .xls</div>
-                </div>
-              </div>
-              <div class="capbox__body">
-                <span class="capbox__hint">Solte aqui · <b>Escolher arquivo</b></span>
-                <div class="upload-preview" id="preview"></div>
-              </div>
-            </div>
-          </div>
-          <input type="file" id="file-input" multiple accept="image/*,application/pdf,.csv,text/csv,.xls,.xlsx">
-
-          <!-- Barra de ação alinhada à esquerda: Processar · Limpar · SharpenUp · Captura -->
-          <div class="actions cap__bar">
-            <button class="btn btn-primary" id="btn-extrair" disabled><span class="ai-glifo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 L12 16.5 L6.5 21 Z"/><path d="M12 3 L17.5 21 L12 16.5 Z"/></svg></span>Processar Bilhetes</button>
-            <button class="btn btn-ghost" id="btn-limpar">Limpar</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cancelar" style="display:none">✕ Cancelar</button>
-            <button class="btn btn-ghost btn-sm" id="btn-limpar-imgs" style="display:none">Limpar imagens</button>
-            <button class="btn btn-ghost" id="btn-conectar-ext" title="Gera um código para conectar o SharpenUp a esta conta"><span id="ext-btn-label">Conectar</span><span class="su-mark" aria-label="SharpenUp"><span class="su-tile"><svg viewBox="40 10 40 100" aria-hidden="true"><defs><linearGradient id="suBladeMk" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs><path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeMk)"/><path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg><span class="su-up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span></span><span class="su-wm">Sharpen<span class="su-u">Up</span></span></span></button>
-            <button class="btn btn-ghost btn-danger" id="btn-desconectar-ext" style="display:none">Desconectar</button>
-            <label class="data-ref-label" title="Data em que os prints foram capturados (usada para resolver Hoje/Ontem/Amanhã)">
-              <span>Captura</span>
-              <span class="dref-wrap"><input type="date" id="data-ref" class="data-ref-input"><button type="button" id="data-ref-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button></span>
-            </label>
-            <span id="img-count" style="display:none;font-size:11px;color:var(--ink-soft);font-family:var(--font-mono)"></span>
-            <span id="ext-status" style="font-size:11px;color:var(--ink-soft)"></span>
-            <span class="status-msg" id="status-msg"></span>
-            <!-- Item 5: recolher/expandir a área de captura (mais linhas na grade em telas baixas). -->
-            <span class="cap__sp"></span>
-            <button class="btn btn-ghost btn-sm" id="btn-recolher-cap" type="button" aria-expanded="true" title="Recolher a área de captura para dar mais espaço à lista de apostas">Recolher captura</button>
-          </div>
-        </div>
 
         <!-- Polymarket: dashboard ao vivo (KPIs de saldo da carteira). As posições
              ATIVAS não moram mais aqui: viram bilhete aberto na grade (badge âmbar
@@ -2195,6 +2311,65 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="nc-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="nc-criar" type="button">Criar conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Caixa (s314): um formulário, três tipos (+ o modo "saldo inicial"). Dois formulários
+     que envelhecem separado é o que a s312 acabou de desfazer no modal de conta — aqui
+     já nasce um só. A data usa o SharpenCal, como todo campo de data desde a s246. -->
+<div class="modal-overlay" id="caixa-modal">
+  <div class="modal modal-narrow">
+    <div class="modal-head">
+      <span class="modal-title" id="cxm-title">Novo movimento</span>
+      <button class="modal-close" id="cxm-close" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field full" id="cxm-tipo-field">
+        <label>Tipo</label>
+        <div class="cxm-seg" id="cxm-seg">
+          <button type="button" data-tipo="deposito" class="on">Depósito</button>
+          <button type="button" data-tipo="saque">Saque</button>
+          <button type="button" data-tipo="ajuste">Ajuste</button>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Data</label>
+        <div class="cxm-datewrap">
+          <input type="text" id="cxm-data" placeholder="dd/mm/aaaa" autocomplete="off" spellcheck="false">
+          <button type="button" id="cxm-data-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Valor (R$)</label>
+        <input type="text" id="cxm-valor" placeholder="0,00" autocomplete="off" spellcheck="false" inputmode="decimal">
+      </div>
+      <div class="modal-field full">
+        <label>Observação <span class="nc-opt">(opcional)</span></label>
+        <input type="text" id="cxm-obs" placeholder="Ex.: PIX do fornecedor" autocomplete="off" spellcheck="false" maxlength="280">
+      </div>
+      <div class="cxm-hint" id="cxm-hint"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="cxm-cancel" type="button">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="cxm-ok" type="button">Lançar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Extrato da caixa: os lançamentos e as conferências na MESMA linha do tempo. -->
+<div class="modal-overlay" id="extrato-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="cxe-title">Extrato da conta</span>
+      <button class="modal-close" id="cxe-close" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="cxe-wrap" id="cxe-wrap"></div>
+      <div class="cxm-hint" id="cxe-nota"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="cxe-fechar" type="button">Fechar</button>
     </div>
   </div>
 </div>
@@ -2879,6 +3054,15 @@ function mostrarView(v) {
 // .contas-* e as ações contas*(); é re-renderizada sozinha (preserva o foco da
 // busca no hero). Lê contasTab (aba) + painelBusca (state, não o DOM).
 let painelBusca = '';
+// Estado da caixa por conta, a partir do /caixa/visao já cacheado. Não dispara
+// fetch: a lista renderiza antes da banca chegar e re-renderiza quando ela chega.
+function _caixaEstadoPorConta() {
+  if (!caixaVisaoCache) return null;
+  const m = {};
+  (caixaVisaoCache.contas || []).forEach(c => { m[c.parceiro_id] = c.estado; });
+  return m;
+}
+
 function renderPainelLista() {
   const host = document.getElementById('painelGestaoList');
   if (!host) return;
@@ -2895,8 +3079,13 @@ function renderPainelLista() {
     ps.forEach(p => {
       const ab = abertasDe(casa, p.nome);
       const st = (semTipsterPorParceiro[casa] || {})[p.nome] || 0;
+      // s314: conta com divergência ABERTA na caixa ganha um aviso aqui — alerta que só
+      // aparece quando o operador já está olhando a conta certa não previne nada. Conta
+      // sem caixa NÃO acende: aviso que acende demais é aviso que ninguém lê.
+      const cxSt = (_caixaEstadoPorConta() || {})[p.id];
       const badges = (ab > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (ab > 99 ? '99+' : ab) + '</span>' : '')
-                   + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '');
+                   + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '')
+                   + (cxSt === 'divergente' ? '<span class="painel-casa-tag" title="A casa mostrou saldo diferente do projetado">a conferir</span>' : '');
       const clic = contasTab === 'ativas';   // ativa = tem perfil na Extração → linha inteira abre lá
       // Na aba Ativas a linha inteira abre a conta na Extração, então toda ação precisa
       // parar a propagação. Excluir aparece nas DUAS abas — conta arquivada é justamente
@@ -2918,6 +3107,86 @@ function renderPainelLista() {
   host.innerHTML = html || '<div class="painel-empty">Nenhuma conta nesta aba' + (q ? ' para "' + esc(q) + '"' : '') + '.</div>';
   const cnt = document.getElementById('painelGestaoCount');
   if (cnt) cnt.textContent = total + (total === 1 ? ' conta' : ' contas');
+}
+
+// ── Banca consolidada no Painel de Contas (s314) ─────────────────────────────
+// Uma chamada só para TODAS as contas (`/caixa/visao`), cacheada na sessão como o
+// feed de atividade: pedir conta a conta seria a armadilha do câmbio da Polymarket
+// (s247) — latência e chance de falha crescendo com o número de contas.
+let caixaVisaoCache = null, _caixaVisaoPromise = null;
+function ensureCaixaVisao(force) {
+  if (force) { caixaVisaoCache = null; _caixaVisaoPromise = null; }
+  if (caixaVisaoCache) return Promise.resolve(caixaVisaoCache);
+  if (_caixaVisaoPromise) return _caixaVisaoPromise;
+  _caixaVisaoPromise = fetch('/caixa/visao')
+    .then(r => r.ok ? r.json() : { casas: [], contas: [], totais: {} })
+    .then(j => { caixaVisaoCache = j; return j; })
+    .catch(() => { caixaVisaoCache = { casas: [], contas: [], totais: {} }; return caixaVisaoCache; });
+  return _caixaVisaoPromise;
+}
+
+async function renderPainelBanca(force) {
+  const v = await ensureCaixaVisao(force);
+  const kh = document.getElementById('painelBancaKpis');
+  const th = document.getElementById('painelBancaCasas');
+  if (!kh || !th) return;   // painel pode ter re-renderizado durante o fetch
+  const t = v.totais || {};
+  const nf = n => (n || 0).toLocaleString('pt-BR');
+  const kpi = (lbl, val, sub, cls) =>
+    '<div class="painel-kpi"><span class="painel-kpi-lbl">' + lbl + '</span>'
+    + '<span class="painel-kpi-val' + (cls ? ' ' + cls : '') + '">' + val + '</span>'
+    + '<span class="painel-kpi-sub">' + sub + '</span></div>';
+
+  if (!t.ligadas) {
+    // Nenhuma caixa ligada: o painel não finge um total de zero — ele explica o que falta.
+    kh.innerHTML = kpi('Banca total', '<span style="color:var(--ink-mute)">—</span>',
+      nf(t.contas) + (t.contas === 1 ? ' conta ativa · nenhuma com caixa' : ' contas ativas · nenhuma com caixa'));
+    th.innerHTML = '<div class="painel-empty">Abra uma conta na Extração e informe o saldo inicial dela. '
+      + 'A partir daí o Sharpen projeta o saldo sozinho e mostra a banca somada aqui.</div>';
+    const c = document.getElementById('painelBancaCount'); if (c) c.textContent = '';
+    return;
+  }
+
+  kh.innerHTML =
+    kpi('Banca total', fmtSaldo(t.banca),
+        nf(t.ligadas) + (t.ligadas === 1 ? ' conta com caixa' : ' contas com caixa')
+        + ' · ' + nf((v.casas || []).length) + ((v.casas || []).length === 1 ? ' casa' : ' casas'))
+    + kpi('Saldo disponível', fmtSaldo(t.disponivel), 'o que dá para sacar hoje')
+    + kpi('Em aberto', fmtSaldo(t.aberto), 'preso em aposta não liquidada')
+    + kpi('A conferir', nf(t.a_conferir),
+          t.a_conferir ? 'conta com divergência aberta' : 'nenhuma divergência aberta',
+          t.a_conferir ? 'aviso' : '');
+
+  if (document.getElementById('painelGestaoList')) renderPainelLista();   // avisos na lista
+  const cnt = document.getElementById('painelBancaCount');
+  if (cnt) cnt.textContent = nf(t.sem_caixa) + (t.sem_caixa === 1 ? ' conta sem caixa' : ' contas sem caixa');
+
+  const dash = '<span style="color:var(--ink-mute)">—</span>';
+  th.innerHTML = '<div class="painel-tbl-wrap"><table class="painel-tbl"><thead><tr>'
+    + '<th>Casa</th><th class="r mono">Contas</th><th class="r mono">Em aberto</th>'
+    + '<th class="r mono">Disponível</th><th class="r mono">Banca</th><th>Conferência</th>'
+    + '</tr></thead><tbody>'
+    + (v.casas || []).map(c => {
+        const semC = c.sem_caixa ? ' <span style="color:var(--ink-mute)">(' + nf(c.sem_caixa) + ' sem caixa)</span>' : '';
+        const tag = c.a_conferir
+          ? '<span class="painel-casa-tag">' + nf(c.a_conferir) + ' a conferir</span>'
+          : (c.conferencia
+             ? '<span class="painel-casa-tag mute">conferida em ' + _cxDataBR(c.conferencia) + '</span>'
+             : '<span class="painel-casa-tag mute">nunca conferida</span>');
+        return '<tr><td>' + esc(casaDisplay(NOMES[c.casa] || c.casa)) + '</td>'
+          + '<td class="r mono">' + nf(c.contas) + semC + '</td>'
+          + '<td class="r mono">' + (c.ligadas ? fmtSaldo(c.aberto) : dash) + '</td>'
+          + '<td class="r mono">' + (c.ligadas ? fmtSaldo(c.disponivel) : dash) + '</td>'
+          + '<td class="r mono">' + (c.ligadas ? fmtSaldo(c.banca) : dash) + '</td>'
+          + '<td>' + (c.ligadas ? tag : '<span class="painel-casa-tag mute">sem caixa</span>') + '</td></tr>';
+      }).join('')
+    + '</tbody><tfoot><tr>'
+    + '<td>Total</td><td class="r mono">' + nf(t.contas) + '</td>'
+    + '<td class="r mono">' + fmtSaldo(t.aberto) + '</td>'
+    + '<td class="r mono">' + fmtSaldo(t.disponivel) + '</td>'
+    + '<td class="r mono">' + fmtSaldo(t.banca) + '</td>'
+    + '<td>' + (t.sem_caixa ? nf(t.sem_caixa) + ' fora da soma' : 'todas na soma') + '</td>'
+    + '</tr></tfoot></table></div>';
 }
 
 // Troca de aba (Ativas/Arquivadas) — só re-renderiza a lista (mantém KPIs/busca).
@@ -3088,6 +3357,7 @@ function selecionarParceiro(p) {
   // bar "Conta ativa" — atualizada por atualizarBotaoConta() ao fim desta função.
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('partner-page').style.display = 'flex';
+  document.getElementById('capwrap').style.display = '';   // s314: captura vive no #topleft
 
   ultimaAnaliseIds = [];
   ultimaDuplicatas = {};
@@ -3717,13 +3987,24 @@ function renderPainelContas() {
 
   // Topo: ESQUERDA = painel de lista (resumo Contas no topo + lista) | DIREITA = Contas por casa.
   // Abaixo (informativo de contas, sem métricas de aposta): custos + atividade.
+  // s314 — Caixa: a banca consolidada abre o painel (é o número que o operador
+  // procura primeiro) e o saldo casa a casa fica logo abaixo da lista.
+  const bancaKpis = '<div class="painel-kpis banca" id="painelBancaKpis"></div>';
+  const bancaCard = '<div class="painel-card"><div class="painel-card-head">'
+    + '<span class="painel-card-titulo">Saldo por casa</span>'
+    + '<span class="painel-card-count" id="painelBancaCount"></span></div>'
+    + '<div class="painel-card-body" id="painelBancaCasas">'
+    + '<div class="painel-empty">Carregando saldos…</div></div></div>';
+
   host.innerHTML =
+    bancaKpis +
     '<div class="painel-top">' +
       listaPanel +
       casaCard +
     '</div>' +
-    custoCard + atividadeCard;
+    bancaCard + custoCard + atividadeCard;
   renderPainelLista();       // preenche a lista de gestão (grupos por casa + ações)
+  renderPainelBanca();       // preenche a banca (KPIs + saldo por casa) — /caixa/visao
   renderPainelAtividade();   // preenche a tabela de atividade (duração/dias/apostas)
 }
 
@@ -3762,7 +4043,9 @@ window.loadData = function (force) {
   // o `force` só decide se o backend reconstrói a planilha (`?refresh=1`) ou serve o
   // cache de 120s que o 1º da fila acabou de encher.
   painelDashRows = null; _painelDashPromise = null;
+  caixaVisaoCache = null; _caixaVisaoPromise = null;   // s314: a banca também envelhece
   if (!document.getElementById('painelAtividade')) return Promise.resolve();  // painel fechado
+  renderPainelBanca(force).catch(function () {});
   return renderPainelAtividade(force).catch(function () {});
 };
 
@@ -3810,6 +4093,13 @@ async function renderPainelAtividade(force) {
 function mostrarEmptyState() {
   document.getElementById('empty-state').style.display = '';
   document.getElementById('partner-page').style.display = 'none';
+  // s314: sem conta ativa não há captura nem Caixa — e a .colmain volta a 1 coluna,
+  // senão o Painel de Contas nasceria com uma coluna vazia de 300px ao lado.
+  document.getElementById('capwrap').style.display = 'none';
+  const cx = document.getElementById('caixaBox');
+  if (cx) cx.style.display = 'none';
+  caixaAtual = null; _caixaToken++;
+  document.querySelector('.colmain').classList.remove('tem-caixa');
   const kpis = document.getElementById('ctxKpis');
   if (kpis) kpis.style.display = 'none';
   atualizarQuickActs();
@@ -5074,6 +5364,9 @@ function _pctK(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFra
 
 async function atualizarResumoConta() {
   const bar = document.getElementById('ctxKpis');
+  // s314: a Caixa acompanha o MESMO ciclo dos KPIs — os dois descrevem a conta ativa
+  // e um deles atrasado seria pior que os dois atrasados (a projeção usa o P/L).
+  carregarCaixa();
   if (!bar || !parceiroSelecionado) { if (bar) bar.style.display = 'none'; return; }
   const casa = parceiroSelecionado.casa, parceiro = parceiroSelecionado.nome;
   const token = ++_resumoToken;
@@ -5126,6 +5419,359 @@ function _renderCtxKpis(d, casa, parceiro) {
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   }
 }
+
+// ── Caixa (s314): auditoria de saldo da conta ────────────────────────────────
+// Dinheiro aqui é SALDO — 3ª variação documentada do .money (UI_REFERENCE §5.1):
+// 2 casas como o stake, porque o número existe para ser conferido contra o extrato
+// da casa e o centavo é justamente a divergência que se procura; e SEM cor, porque
+// verde/vermelho é semântica de resultado e saque não é prejuízo. A única linha
+// colorida da caixa é o "Resultado", que é P/L de verdade e usa o fmtPL.
+function fmtSaldo(n, sinal) {
+  const v = Number(n) || 0;
+  const abs = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sg = (v < 0 ? '−' : (sinal && v > 0 ? '+' : '')) + 'R$';   // minus U+2212
+  return `<span class="money"><span class="money-sign">${sg}</span><span class="money-val">${abs}</span></span>`;
+}
+// Duas grafias, de propósito: a LEITURA é compacta (dd/mm/aa, cabe na coluna de
+// 300px) e o CAMPO é por extenso (dd/mm/aaaa, que é o que o operador digita e o
+// que o parser aceita sem adivinhar século). Foi exatamente aqui que o primeiro
+// lançamento falhou no navegador: o campo nascia com o ano curto e o parser, que
+// exigia 4 dígitos, devolvia "Data inválida" num valor que a própria tela escreveu.
+function _cxDataBR(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : '—';
+}
+function _cxDataBR4(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+function _cxIso(txt) {
+  const s = (txt || '').trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return s;
+  // Ano de 2 dígitos também entra: quem digita à mão escreve os dois, e recusar
+  // seria recusar o formato que a própria caixa imprime ao lado.
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(s);
+  if (!m) return '';
+  const ano = m[3].length === 2 ? '20' + m[3] : m[3];
+  return `${ano}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+}
+
+let caixaAtual = null;      // /caixa/conta da conta ativa
+let _caixaToken = 0;        // descarta resposta de uma seleção que já mudou
+let _cxModo = 'deposito';   // tipo escolhido no modal
+
+async function carregarCaixa() {
+  const box = document.getElementById('caixaBox');
+  const col = document.querySelector('.colmain');
+  // Polymarket fica de fora: ela lê o saldo REAL on-chain no /polymarket/sync — tem a
+  // resposta que aqui é estimada, e em dólar. Estimar por cima do medido só cria um
+  // segundo número para a mesma pergunta.
+  const fora = !parceiroSelecionado || casaSelecionada === 'Polymarket';
+  if (!box || fora) {
+    caixaAtual = null;
+    if (box) box.style.display = 'none';
+    if (col) col.classList.remove('tem-caixa');
+    return;
+  }
+  const token = ++_caixaToken;
+  try {
+    const r = await fetch('/caixa/conta?parceiro_id=' + encodeURIComponent(parceiroSelecionado.id));
+    if (!r.ok) throw new Error('caixa');
+    const d = await r.json();
+    if (token !== _caixaToken) return;
+    caixaAtual = d;
+    renderCaixa(d);
+    box.style.display = '';
+    if (col) col.classList.add('tem-caixa');
+  } catch (e) {
+    if (token !== _caixaToken) return;
+    caixaAtual = null;
+    box.style.display = 'none';
+    if (col) col.classList.remove('tem-caixa');
+  }
+}
+
+const _CX_PILL = {
+  nunca:      ['',   'nunca conferida'],
+  confere:    ['ok', 'confere'],
+  divergente: ['al', 'a conferir'],
+  reconferir: ['',   'reconferir'],
+};
+
+function renderCaixa(d) {
+  const box = document.getElementById('caixaBox');
+  if (!box || !d) return;
+  box.classList.toggle('alerta', d.estado === 'divergente');
+  const [pcls, ptxt] = _CX_PILL[d.estado] || ['', ''];
+  const head = '<div class="cx__hd"><span class="t">Caixa</span>'
+    + (d.ligada ? '<button class="cx__link" type="button" onclick="caixaAbrirExtrato()">extrato</button>' : '')
+    + (d.ligada ? `<span class="cx__pill ${pcls}"><span class="dot"></span>${ptxt}</span>` : '')
+    + '</div>';
+
+  if (!d.ligada) {
+    box.innerHTML = head
+      + '<div class="cx__empty">'
+      + '<p>Informe o saldo que esta conta tinha numa data e o Sharpen passa a projetar o saldo dela sozinho — e a avisar quando a casa mostrar outro número.</p>'
+      + '<button class="btn btn-primary btn-sm" type="button" onclick="caixaAbrirModal(&quot;inicial&quot;)">Informar saldo inicial</button>'
+      + '<span class="sm">Enquanto isso a auditoria fica desligada: o saldo não é deduzido do histórico. Número inventado numa tela de conferência vale menos que campo vazio.</span>'
+      + '</div>';
+    return;
+  }
+
+  const linha = (k, meta, v, cls) =>
+    `<div class="cx__row${cls ? ' ' + cls : ''}"><span class="k">${k}${meta ? ' <i>' + meta + '</i>' : ''}</span>`
+    + `<span class="v">${v}</span></div>`;
+  const n = x => (x || 0).toLocaleString('pt-BR');
+
+  let corpo = linha('Saldo inicial', _cxDataBR(d.data_corte), fmtSaldo(d.inicial));
+  if (d.preso_corte > 0)
+    corpo += linha('Preso no corte', n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta' : ' apostas'),
+                   fmtSaldo(d.preso_corte, true));
+  corpo += linha('Depósitos', n(d.n_depositos), fmtSaldo(d.depositos, true));
+  corpo += linha('Saques', n(d.n_saques), fmtSaldo(-d.saques, true));
+  if (d.n_ajustes) corpo += linha('Ajustes', n(d.n_ajustes), fmtSaldo(d.ajustes, true));
+  corpo += linha('Resultado', n(d.n_liquidadas) + ' liquidadas', fmtPL(d.pl));
+  corpo += linha('Em aberto', n(d.n_abertas) + (d.n_abertas === 1 ? ' aposta' : ' apostas'), fmtSaldo(-d.aberto, true));
+  corpo += linha('Saldo disponível', '', fmtSaldo(d.disponivel), 'sum');
+
+  // Saldo projetado negativo não é prejuízo — é lançamento faltando. Âmbar (aviso).
+  const heroCls = d.disponivel < 0 ? ' aviso' : '';
+  const hero = '<div class="cx__hero"><span class="k">Saldo disponível projetado</span>'
+    + `<span class="v${heroCls}">${fmtSaldo(d.disponivel)}</span>`
+    + `<span class="s">Banca ${_cxTxt(d.banca)} · ${_cxTxt(d.aberto)} em aberto</span></div>`;
+
+  const hoje = hojeISO();
+  const conf = '<div class="cx__conf"><span class="k">Conferência</span>'
+    + '<div class="cx__inrow">'
+    + '<span class="cx__inp"><span class="sg">R$</span>'
+    + '<input id="cx-conf-val" type="text" inputmode="decimal" placeholder="saldo na casa" autocomplete="off" spellcheck="false"></span>'
+    + `<span class="cx__inp"><input id="cx-conf-data" type="text" value="${_cxDataBR4(hoje)}" autocomplete="off" spellcheck="false" title="Data da conferência"></span>`
+    + '<button class="cx__go" type="button" onclick="caixaConferir()">Conferir</button>'
+    + '</div>' + _cxDiver(d) + '</div>';
+
+  const foot = '<div class="cx__foot">'
+    + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;deposito&quot;)">+ Depósito</button>'
+    + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;saque&quot;)">− Saque</button>'
+    + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;ajuste&quot;)">Ajuste</button>'
+    + '</div>';
+
+  box.innerHTML = head + hero + '<div class="cx__body">' + corpo + '</div>' + conf + foot;
+}
+
+// Dinheiro em texto corrido (subtítulo do herói) — sem o componente .money, que é
+// inline-flex e não emenda dentro de uma frase. Mesma máscara de 2 casas.
+function _cxTxt(v) {
+  const n = Number(v) || 0;
+  return (n < 0 ? '−R$ ' : 'R$ ') + Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _cxDiver(d) {
+  const c = d.conferencia;
+  if (!c) return '<div class="cx__diver nt">Nunca conferida. Abra a casa, veja o saldo disponível e digite acima — é esse confronto que denuncia dinheiro saindo sem registro.</div>';
+  const quando = _cxDataBR(c.data);
+  if (d.estado === 'confere')
+    return `<div class="cx__diver ok"><b>Bate com a casa</b>diferença ${_cxTxt(0)} · conferido em ${quando}</div>`;
+  if (d.estado === 'reconferir')
+    return `<div class="cx__diver nt">Houve lançamento depois da conferência de ${quando}. Confira de novo para fechar.</div>`;
+  const div = c.divergencia || 0;
+  const falta = div < 0;
+  return '<div class="cx__diver al">'
+    + `<b>${falta ? 'Faltam' : 'Sobram'} ${_cxTxt(Math.abs(div))} na conta</b>`
+    + `a casa mostrava ${_cxTxt(c.valor)} em ${quando} e o Sharpen projetava ${_cxTxt(c.projetado)}.`
+    + ` ${falta ? 'Confira se houve saque não lançado.' : 'Confira se houve depósito ou aposta não capturada.'}`
+    + '<button class="cx__aceitar" type="button" onclick="caixaAceitarDivergencia()">Lançar como ajuste</button>'
+    + '</div>';
+}
+
+// ── Lançamento ───────────────────────────────────────────────────────────────
+const _CX_TITULO = {
+  inicial: 'Saldo inicial da conta', deposito: 'Novo depósito',
+  saque: 'Novo saque', ajuste: 'Novo ajuste',
+};
+const _CX_HINT = {
+  inicial: 'O saldo <b>disponível</b> que a casa mostrava nessa data — sem contar o que estava preso em aposta aberta. A data é o <b>corte</b>: só o que veio depois entra na conta. Apostas que já estavam abertas nesse dia são reconhecidas e voltam inteiras ao liquidar.',
+  deposito: 'Dinheiro que <b>entrou</b> na conta — PIX, transferência, cartão.',
+  saque: 'Dinheiro que <b>saiu</b> da conta. Lance com o valor positivo: o sinal está no tipo.',
+  ajuste: 'Tudo que muda o saldo e não é aposta, depósito nem saque: <b>bônus creditado, freebet, cashback, promoção ou correção</b>. Fica separado do depósito para o total depositado continuar sendo só dinheiro de verdade. Aceita valor negativo para corrigir para baixo.',
+};
+
+function caixaAbrirModal(tipo) {
+  if (!parceiroSelecionado) return;
+  _cxModo = tipo;
+  const ov = document.getElementById('caixa-modal');
+  const ini = tipo === 'inicial';
+  document.getElementById('cxm-title').textContent =
+    (_CX_TITULO[tipo] || 'Novo movimento') + ' · ' + (NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa);
+  document.getElementById('cxm-tipo-field').style.display = ini ? 'none' : '';
+  document.getElementById('cxm-hint').innerHTML = _CX_HINT[tipo] || '';
+  document.getElementById('cxm-ok').textContent = ini ? 'Ligar a caixa' : 'Lançar';
+  document.querySelectorAll('#cxm-seg button').forEach(b => b.classList.toggle('on', b.dataset.tipo === tipo));
+  document.getElementById('cxm-data').value = _cxDataBR4(hojeISO());
+  document.getElementById('cxm-valor').value = '';
+  document.getElementById('cxm-obs').value = '';
+  ov.classList.add('open');
+  _modalBaseline(ov);
+  setTimeout(() => document.getElementById('cxm-valor').focus(), 30);
+}
+function caixaFecharModal() { document.getElementById('caixa-modal').classList.remove('open'); }
+
+async function caixaSalvar() {
+  if (!parceiroSelecionado) return;
+  const data = _cxIso(document.getElementById('cxm-data').value);
+  const bruto = document.getElementById('cxm-valor').value.trim();
+  const valor = _numBR(bruto);
+  const btn = document.getElementById('cxm-ok');
+  if (!data) { setStatus('Data inválida — use dd/mm/aaaa.', 'err'); return; }
+  if (!bruto || (!valor && _cxModo !== 'ajuste')) { setStatus('Informe um valor maior que zero.', 'err'); return; }
+  btn.disabled = true;
+  try {
+    const r = await fetch('/caixa/lancar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        parceiro_id: parceiroSelecionado.id, tipo: _cxModo, data, valor,
+        obs: document.getElementById('cxm-obs').value.trim(),
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || 'Não foi possível lançar.');
+    caixaAtual = j.caixa; renderCaixa(j.caixa);
+    caixaFecharModal();
+    setStatus(_cxModo === 'inicial' ? 'Caixa ligada.' : 'Lançamento registrado.', 'ok');
+  } catch (e) {
+    setStatus(e.message || 'Não foi possível lançar.', 'err');
+  } finally { btn.disabled = false; }
+}
+
+async function caixaConferir() {
+  if (!parceiroSelecionado) return;
+  const val = document.getElementById('cx-conf-val');
+  const data = _cxIso(document.getElementById('cx-conf-data').value);
+  const bruto = (val.value || '').trim();
+  if (!bruto) { val.focus(); setStatus('Digite o saldo que a casa está mostrando.', 'err'); return; }
+  if (!data) { setStatus('Data inválida — use dd/mm/aaaa.', 'err'); return; }
+  try {
+    const r = await fetch('/caixa/lancar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parceiro_id: parceiroSelecionado.id, tipo: 'conferencia', data, valor: _numBR(bruto), obs: '' }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || 'Não foi possível conferir.');
+    caixaAtual = j.caixa; renderCaixa(j.caixa);
+    const div = (j.caixa && j.caixa.divergencia) || 0;
+    setStatus(Math.abs(div) < 0.005 ? 'Conferido: bate com a casa.'
+              : 'Conferido: divergência de ' + _cxTxt(Math.abs(div)) + '.',
+              Math.abs(div) < 0.005 ? 'ok' : 'warn');
+  } catch (e) { setStatus(e.message || 'Não foi possível conferir.', 'err'); }
+}
+
+// A divergência NÃO some sozinha: ela vira um Ajuste nomeado, que fica no extrato.
+// Absorver em silêncio apagaria a trilha do caso que a Caixa existe para pegar.
+async function caixaAceitarDivergencia() {
+  const d = caixaAtual;
+  if (!d || !d.conferencia || !d.conferencia.divergencia) return;
+  const div = d.conferencia.divergencia;
+  if (!confirm('Lançar um ajuste de ' + _cxTxt(div) + ' para a projeção passar a bater com a casa?\n\nA conferência de '
+      + _cxDataBR(d.conferencia.data) + ' continua no extrato — o ajuste não apaga o histórico.')) return;
+  try {
+    const r = await fetch('/caixa/lancar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        parceiro_id: d.parceiro_id, tipo: 'ajuste', data: d.conferencia.data, valor: div,
+        obs: 'Ajuste da conferência de ' + _cxDataBR(d.conferencia.data),
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || 'Não foi possível ajustar.');
+    caixaAtual = j.caixa; renderCaixa(j.caixa);
+    setStatus('Ajuste lançado. Confira de novo para fechar.', 'ok');
+  } catch (e) { setStatus(e.message || 'Não foi possível ajustar.', 'err'); }
+}
+
+// ── Extrato ──────────────────────────────────────────────────────────────────
+const _CX_NOME = { inicial: 'Saldo inicial', deposito: 'Depósito', saque: 'Saque',
+                   ajuste: 'Ajuste', conferencia: 'Conferência' };
+
+function caixaAbrirExtrato() {
+  const d = caixaAtual;
+  if (!d) return;
+  document.getElementById('cxe-title').textContent =
+    'Extrato · ' + (NOMES[d.casa] || d.casa) + ' · ' + d.parceiro;
+  const movs = (d.movimentos || []).slice().sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : b.id - a.id));
+  const host = document.getElementById('cxe-wrap');
+  if (!movs.length) {
+    host.innerHTML = '<div class="painel-empty">Nenhum lançamento ainda.</div>';
+  } else {
+    host.innerHTML = '<table class="cxe-tbl"><thead><tr>'
+      + '<th>Data</th><th>Movimento</th><th>Observação</th><th class="r">Valor</th><th></th>'
+      + '</tr></thead><tbody>'
+      + movs.map(m => {
+          const sinal = m.tipo === 'saque' ? -1 : 1;
+          const conf = m.tipo === 'conferencia';
+          const div = conf && m.projetado != null ? m.valor - m.projetado : null;
+          let tag = '';
+          if (div != null) tag = Math.abs(div) < 0.005
+            ? '<span class="cxe-tag ok">bateu</span>'
+            : '<span class="cxe-tag al">' + esc(_cxTxt(div)) + '</span>';
+          const valor = conf ? fmtSaldo(m.valor) : fmtSaldo(sinal * m.valor, m.tipo !== 'inicial');
+          const obs = conf && m.projetado != null
+            ? 'projetado ' + _cxTxt(m.projetado)
+            : (m.obs || '');
+          return '<tr><td class="mono">' + _cxDataBR(m.data) + '</td>'
+            + '<td>' + (_CX_NOME[m.tipo] || m.tipo) + tag + '</td>'
+            + '<td class="cxe-obs">' + esc(obs) + '</td>'
+            + '<td class="r mono">' + valor + '</td>'
+            + '<td class="r"><button class="cxe-del" type="button" title="Excluir lançamento" onclick="caixaExcluirMov(' + m.id + ',\'' + m.tipo + '\')">✕</button></td></tr>';
+        }).join('')
+      + '</tbody></table>';
+  }
+  document.getElementById('cxe-nota').innerHTML =
+    'O saldo projetado combina estes lançamentos com o P/L das apostas da conta — por isso não há uma coluna de saldo por linha: entre dois lançamentos o saldo muda a cada aposta que liquida.';
+  document.getElementById('extrato-modal').classList.add('open');
+}
+
+async function caixaExcluirMov(id, tipo) {
+  const aviso = tipo === 'inicial'
+    ? 'Excluir o saldo inicial DESLIGA a caixa desta conta (a projeção perde o corte). Continuar?'
+    : 'Excluir este lançamento?';
+  if (!confirm(aviso)) return;
+  try {
+    const r = await fetch('/caixa/movimento/' + id, { method: 'DELETE' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || 'Não foi possível excluir.');
+    caixaAtual = j.caixa; renderCaixa(j.caixa);
+    caixaAbrirExtrato();
+    setStatus('Lançamento excluído.', 'ok');
+  } catch (e) { setStatus(e.message || 'Não foi possível excluir.', 'err'); }
+}
+
+(function setupCaixaModais() {
+  const ov = document.getElementById('caixa-modal');
+  if (!ov) return;
+  document.getElementById('cxm-close').addEventListener('click', caixaFecharModal);
+  document.getElementById('cxm-cancel').addEventListener('click', caixaFecharModal);
+  document.getElementById('cxm-ok').addEventListener('click', caixaSalvar);
+  ov.addEventListener('click', e => { if (e.target === ov) _modalFecharSeLimpo(ov, caixaFecharModal); });
+  document.querySelectorAll('#cxm-seg button').forEach(b => b.addEventListener('click', () => {
+    _cxModo = b.dataset.tipo;
+    document.querySelectorAll('#cxm-seg button').forEach(o => o.classList.toggle('on', o === b));
+    document.getElementById('cxm-title').textContent =
+      (_CX_TITULO[_cxModo] || 'Novo movimento') + ' · ' + (NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa);
+    document.getElementById('cxm-hint').innerHTML = _CX_HINT[_cxModo] || '';
+  }));
+  document.getElementById('cxm-valor').addEventListener('keydown', e => { if (e.key === 'Enter') caixaSalvar(); });
+  // Data pelo SharpenCal (UI_REFERENCE §4): nunca o popup nativo do Chrome.
+  const dt = document.getElementById('cxm-data');
+  const abrirCal = () => SharpenCal.abrir(dt, _cxIso(dt.value), v => { dt.value = _cxDataBR4(v); }, { saida: 'iso' });
+  document.getElementById('cxm-data-btn').addEventListener('click', abrirCal);
+  dt.addEventListener('dblclick', abrirCal);
+
+  const ex = document.getElementById('extrato-modal');
+  const fechar = () => ex.classList.remove('open');
+  document.getElementById('cxe-close').addEventListener('click', fechar);
+  document.getElementById('cxe-fechar').addEventListener('click', fechar);
+  ex.addEventListener('click', e => { if (e.target === ex) fechar(); });
+})();
 
 function atualizarContador() {
   const el = document.getElementById('btbl-counter');
@@ -6730,6 +7376,7 @@ carregarCasas();
   }
   function aplicar(recolhida, persistir){
     sec.classList.toggle('cap-recolhida', recolhida);
+    document.body.classList.toggle('cap-off', recolhida);   // s314: a Caixa acompanha
     pintar(recolhida);
     if (persistir) { try { localStorage.setItem(KEY, recolhida ? '1' : '0'); } catch(e){} }
   }

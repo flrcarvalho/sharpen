@@ -105,10 +105,23 @@ sinal**, conforme o contexto:
 | **P/L** (célula de tabela **e** KPI) | `fmtPL(v)` | **2** | `+R$`/`−R$` colado, minus **U+2212**, **zero neutro** (`R$ 0,00` sem sinal/cor) |
 | **Agregado / KPI / resumo** — turnover, totais, custos | `fmtR(v)` | **0 (inteiro)** | sem sinal |
 | **Stake / valor unitário** | `moneyStake(v)` / `.money` | 2 | sem sinal |
+| **Saldo de conta** (Caixa) | `fmtSaldo(v[, sinal])` | **2** | sem sinal; com `sinal=true` para movimento (`+R$`/`−R$`, minus **U+2212**), **zero neutro** |
 
 > **Regra de decisão (fim da ambiguidade):** é P/L? → `fmtPL` (2 casas). É um
-> agregado/total/turnover/custo? → `fmtR` (**inteiro**). Não existe terceira
-> máscara de R$; contexto novo que não se encaixe → **perguntar ao Feca**.
+> agregado/total/turnover/custo? → `fmtR` (**inteiro**). É saldo de conta? →
+> `fmtSaldo` (2 casas). Não existe outra máscara de R$; contexto novo que não se
+> encaixe → **perguntar ao Feca**.
+
+> **Por que saldo tem 2 casas e não é `fmtR`** (decidido com o Feca na s314): o número
+> existe para ser **conferido contra o extrato da casa**, e o centavo é exatamente a
+> divergência que se procura — arredondar para inteiro esconderia o que a tela existe
+> para achar. Entra na régua do `moneyStake`, não na dos agregados.
+>
+> **E saldo NÃO tem cor.** Verde e vermelho são semântica de **resultado**: saque não é
+> prejuízo e depósito não é lucro. O sinal fica no `.money-sign`, que já é neutro por
+> construção. Na Caixa, a única linha colorida é o **Resultado**, que é P/L de verdade e
+> usa o `fmtPL`. **Divergência de conferência é `--warn`** (aviso), nunca `--neg`:
+> dinheiro que saiu sem registro é alerta, não resultado negativo.
 
 ### 5.2 — Invariantes (valem nas duas variações)
 

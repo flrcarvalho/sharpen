@@ -417,6 +417,57 @@ CREATE TABLE IF NOT EXISTS sombra_rotulos (
     ia_descricao TEXT              -- decisão 3: a descrição montada (o campo de risco)
 );
 CREATE INDEX IF NOT EXISTS sombra_rotulos_casa_criado ON sombra_rotulos (casa, criado_em);
+
+-- ── Caixa: auditoria de saldo por conta (s314) ────────────────────────────────
+-- O extrato de dinheiro da conta na casa: saldo inicial, depósitos, saques,
+-- ajustes e conferências. O saldo PROJETADO nunca é gravado — é derivado destes
+-- lançamentos mais o P/L dos bilhetes, na mesma família do `calcular_pl`: campo
+-- derivado envelhece; lançamento não.
+--
+-- Chave é `parceiro_id`, NÃO o par (casa, parceiro) em texto. `casa` já é texto em
+-- 7 tabelas e cada grafia é uma casa diferente; mover a conta de casa (s312) teria
+-- de propagar para cá também. Com a FK, renomear e mover não tocam nada aqui.
+--
+--   tipo:
+--     inicial     → o saldo informado numa data. É o CORTE: só o que veio depois
+--                   entra na conta. Um por conta (índice único parcial abaixo).
+--     deposito    → dinheiro que entrou (positivo).
+--     saque       → dinheiro que saiu (positivo; o sinal está no tipo).
+--     ajuste      → bônus, freebet creditada, cashback, correção (pode ser negativo).
+--     conferencia → o saldo que a CASA mostrava naquele dia. Não muda a projeção:
+--                   é o confronto que denuncia dinheiro saindo sem registro.
+--
+--   projetado     → só em `conferencia`: o que o Sharpen projetava NAQUELE momento.
+--                   Gravado, não recalculado: a projeção de hoje inclui aposta que
+--                   nem existia na data da conferência, e o registro tem de continuar
+--                   dizendo o que foi conferido, não o que seria conferido hoje.
+--   abertas_corte → só em `inicial`: ids dos bilhetes que já estavam ABERTOS na data
+--                   do corte. O dinheiro deles saiu ANTES do corte (logo não está no
+--                   saldo informado) e volta INTEIRO — stake + P/L — quando liquidam.
+--                   Sem essa lista, toda conta com aposta viva no dia da configuração
+--                   nascia com uma divergência permanente do tamanho desses retornos.
+CREATE TABLE IF NOT EXISTS caixa_mov (
+    id            BIGSERIAL PRIMARY KEY,
+    dono          TEXT NOT NULL,
+    parceiro_id   INTEGER NOT NULL REFERENCES parceiros(id) ON DELETE CASCADE,
+    tipo          TEXT NOT NULL
+                    CHECK (tipo IN ('inicial','deposito','saque','ajuste','conferencia')),
+    data          DATE NOT NULL,
+    valor         NUMERIC(14,2) NOT NULL,
+    obs           TEXT,
+    projetado     NUMERIC(14,2),
+    abertas_corte INTEGER[],
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS caixa_mov_dono_parceiro ON caixa_mov (dono, parceiro_id, data);
+CREATE UNIQUE INDEX IF NOT EXISTS caixa_mov_um_inicial ON caixa_mov (parceiro_id)
+    WHERE tipo = 'inicial';
+
+-- A exclusão de conta é hard delete com snapshot (ver `lixeira_contas` acima). Os
+-- lançamentos da caixa saem junto pelo ON DELETE CASCADE, então precisam entrar no
+-- MESMO snapshot — senão restaurar a conta devolveria as apostas e perderia o
+-- dinheiro. JSONB pelo mesmo motivo dos bilhetes: imune a coluna nova.
+ALTER TABLE lixeira_contas ADD COLUMN IF NOT EXISTS caixa JSONB NOT NULL DEFAULT '[]'::jsonb;
 """
 
 

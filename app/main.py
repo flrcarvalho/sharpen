@@ -77,6 +77,7 @@ from repository import (
     casa_canonica, excluir_parceiro, get_parceiro, list_parceiros, parse_tsv,
     editar_parceiro, reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
     resumo_parceiro, upsert_bilhetes,
+    CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_excluir_mov, caixa_visao,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
     conferir_cobertura, codigos_do_texto,
@@ -3362,6 +3363,53 @@ async def resumo_da_conta(
     extrator: P/L, turnover, apostas, ROI, win rate, duração e dias ativos.
     Números batem com o card da casa no Dashboard (mesmos filtros)."""
     return await resumo_conta(dono, casa, parceiro)
+
+
+# ── Caixa: auditoria de saldo por conta (s314) ────────────────────────────────
+# Escrita usa `dono_efetivo`, como TODA rota de dados: o supervisor que está vendo
+# a base de um operador escreve nela — é assim que renomear, excluir e editar conta
+# já funcionam, e um segundo critério só para a caixa criaria uma regra de acesso
+# que ninguém lembraria de manter.
+class CaixaLancarRequest(BaseModel):
+    parceiro_id: int
+    tipo: str
+    data: str
+    valor: float
+    obs: Optional[str] = None
+
+
+@app.get("/caixa/conta")
+async def caixa_conta_route(parceiro_id: int, dono: str = Depends(dono_efetivo)):
+    """Projeção + extrato da caixa de UMA conta (o box da tela de Extração)."""
+    res = await caixa_conta(dono, parceiro_id)
+    if res is None:
+        raise HTTPException(404, "Conta não encontrada.")
+    return res
+
+
+@app.get("/caixa/visao")
+async def caixa_visao_route(dono: str = Depends(dono_efetivo)):
+    """Banca consolidada: por casa, por conta e os totais (Painel de Contas)."""
+    return await caixa_visao(dono)
+
+
+@app.post("/caixa/lancar")
+async def caixa_lancar_route(body: CaixaLancarRequest, dono: str = Depends(dono_efetivo)):
+    if body.tipo not in CAIXA_TIPOS:
+        raise HTTPException(400, "Tipo de lançamento inválido.")
+    res = await caixa_lancar(dono, body.parceiro_id, body.tipo, body.data,
+                             body.valor, body.obs or "")
+    if not res.get("ok"):
+        raise HTTPException(400, res.get("motivo", "Não foi possível lançar."))
+    return res
+
+
+@app.delete("/caixa/movimento/{mov_id}")
+async def caixa_excluir_mov_route(mov_id: int, dono: str = Depends(dono_efetivo)):
+    res = await caixa_excluir_mov(dono, mov_id)
+    if not res.get("ok"):
+        raise HTTPException(404, res.get("motivo", "Lançamento não encontrado."))
+    return res
 
 
 @app.get("/incompletos")
