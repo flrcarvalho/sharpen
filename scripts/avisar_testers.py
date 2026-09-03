@@ -47,6 +47,7 @@ import sys
 import unicodedata
 import urllib.error
 import urllib.request
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -99,6 +100,47 @@ def chamar(token: str, metodo: str, payload: dict) -> dict:
         except Exception:
             return {"ok": False, "description": f"HTTP {e.code} sem corpo legível"}
     except Exception as e:                          # rede: não sabemos se publicou — não reenviar
+        return {"ok": False, "description": f"falha de transporte: {e}"}
+
+
+# Legenda de foto tem limite PRÓPRIO na Bot API (1024 caracteres, contra 4096 de
+# mensagem). Estourar não trunca: a chamada FALHA — e falhar depois do getChat, com o
+# humano achando que publicou, é o pior lugar para descobrir isso. Conferido no ensaio.
+CAPTION_MAX = 1024
+
+
+def chamar_multipart(token: str, metodo: str, campos: dict, arquivo: tuple) -> dict:
+    """POST multipart/form-data — único jeito de subir um arquivo LOCAL pela Bot API.
+
+    `arquivo` = (campo, nome, bytes, mime). Montado à mão para não trazer dependência
+    nova; o corpo é bytes de ponta a ponta, e só os campos de texto viram UTF-8.
+    """
+    marca = "----sharpen" + uuid.uuid4().hex
+    corpo = bytearray()
+    for k, v in campos.items():
+        corpo += (
+            f'--{marca}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'
+        ).encode("utf-8")
+    campo, nome, dados, mime = arquivo
+    corpo += (
+        f'--{marca}\r\nContent-Disposition: form-data; name="{campo}"; '
+        f'filename="{nome}"\r\nContent-Type: {mime}\r\n\r\n'
+    ).encode("utf-8")
+    corpo += dados
+    corpo += f"\r\n--{marca}--\r\n".encode("utf-8")
+    req = urllib.request.Request(
+        API.format(token=token, metodo=metodo), data=bytes(corpo),
+        headers={"Content-Type": f"multipart/form-data; boundary={marca}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read().decode("utf-8"))
+        except Exception:
+            return {"ok": False, "description": f"HTTP {e.code} sem corpo legível"}
+    except Exception as e:
         return {"ok": False, "description": f"falha de transporte: {e}"}
 
 
@@ -183,6 +225,9 @@ def main() -> None:
     ap.add_argument("--enviar", action="store_true", help="publica de verdade. Sem isto, é ensaio.")
     ap.add_argument("--so-changelog", action="store_true", help="grava a nota SEM avisar o grupo.")
     ap.add_argument("--token", help="BOT_TOKEN (padrão: .env do sharpen-bot).")
+    ap.add_argument("--foto", help="imagem a publicar JUNTO (a mensagem vira a legenda). "
+                                   "Um ato só: a foto sem a nota é a mesma dessincronia "
+                                   "que este script existe para impedir.")
     a = ap.parse_args()
 
     if not a.versao and not a.novidade:
@@ -220,9 +265,23 @@ def main() -> None:
     if a.fecho:
         entrada["fecho"] = a.fecho
 
+    foto = None
+    if a.foto:
+        foto = Path(a.foto)
+        if not foto.is_file():
+            sair(f"não achei a imagem {foto}.")
+
     msg = montar_mensagem(entrada, a.versao)
+    # A Bot API mede a legenda DEPOIS de interpretar as entidades: <b> não conta.
+    n_legenda = len(re.sub(r"<[^>]+>", "", msg))
+    if foto and n_legenda > CAPTION_MAX:
+        sair(f"a legenda tem {n_legenda} caracteres e o limite da Bot API é {CAPTION_MAX}. "
+             "Encurte o texto (o detalhe é papel da imagem) ou publique sem --foto.")
     print("\n─── mensagem ao grupo ───")
     print(msg)
+    if foto:
+        print(f"\n[como LEGENDA de {foto.name} · {n_legenda}/{CAPTION_MAX} caracteres · "
+              f"{foto.stat().st_size // 1024} KB]")
     print("--- item da home ---")
     print(json.dumps(entrada, ensure_ascii=False, indent=2))
     print()
@@ -236,12 +295,23 @@ def main() -> None:
     else:
         token = a.token or ler_token()
         conferir_destino(token)
-        r = chamar(token, "sendMessage",
-                   {"chat_id": CHAT_ID, "text": msg, "parse_mode": "HTML",
-                    "disable_web_page_preview": True})
+        if foto:
+            # A foto e a nota são o MESMO ato: publicar a imagem por fora deixaria a
+            # home com um texto que ninguém viu e o grupo com uma imagem sem nota.
+            r = chamar_multipart(
+                token, "sendPhoto",
+                {"chat_id": CHAT_ID, "caption": msg, "parse_mode": "HTML"},
+                ("photo", foto.name, foto.read_bytes(), "image/png"),
+            )
+            metodo = "sendPhoto"
+        else:
+            r = chamar(token, "sendMessage",
+                       {"chat_id": CHAT_ID, "text": msg, "parse_mode": "HTML",
+                        "disable_web_page_preview": True})
+            metodo = "sendMessage"
         if not r.get("ok"):
             # NÃO reenviar e NÃO "testar" de novo: o description já diz a causa.
-            sair(f"sendMessage falhou: {r.get('description')} — nada foi gravado no changelog.")
+            sair(f"{metodo} falhou: {r.get('description')} — nada foi gravado no changelog.")
         print(f"publicado · message_id {r.get('result', {}).get('message_id')}")
         gravar(entrada, a.versao)
 
