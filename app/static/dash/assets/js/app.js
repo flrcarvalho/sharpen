@@ -262,12 +262,39 @@ function calcTopoDrawdown(rows){
   // aposta-por-aposta criava picos intradiários fantasmas: um dia positivo podia
   // "bater topo" no meio e depois cair, gerando drawdown que nunca existiu. Agregar
   // por dia é a única régua fiel ao dado e alinha com calcDrawdownReal e o gráfico.
+  //
+  // O `peak` parte de ZERO, nunca de -Infinity: a curva começa no zero ANTES da primeira
+  // aposta, e esse é o mesmo ponto de partida do calcDrawdownReal. As duas funções
+  // descrevem a MESMA curva — discordar da origem deixava metade do card certa (o Max
+  // Drawdown, que já partia de 0) e metade errada. Com -Infinity o primeiro dia virava o
+  // topo fosse ele qual fosse: carteira que mergulha e depois só sobe exibia topo
+  // NEGATIVO (impossível — o topo nunca esteve abaixo do início) e `dd = peak - acc` dava
+  // 0 por construção, com a banca no vermelho. E não dependia de "começar negativo":
+  // bastava o acumulado atual ser o máximo da série e ainda estar abaixo de zero (s313,
+  // relato do tester Gabriel; a carteira dele mostrava topo −1.605,30 e DD atual R$ 0,00).
   var byDay={};for(var i=0;i<rows.length;i++){var k=(rows[i].data||'').slice(0,10);if(!k)continue;byDay[k]=(byDay[k]||0)+(rows[i].lucro||0);}
   var days=Object.keys(byDay).sort();
-  var acc=0,peak=-Infinity,peakDate=null;
+  var acc=0,peak=0,peakDate=null;
   for(var j=0;j<days.length;j++){acc+=byDay[days[j]];if(acc>peak){peak=acc;peakDate=days[j];}}
   var dd=peak-acc;
-  return{topo:peak,topoData:peakDate,atual:acc,ddAtual:dd,ddAtualPct:peak>0?dd/peak:0};
+  // `topoData` fica null quando o topo é o próprio início (a série nunca ficou positiva).
+  // Quem renderiza escreve "no início da série" — nunca uma data, que seria inventada.
+  //
+  // A % é a queda sobre o VALOR DA BANCA no topo (BASE_BANK+peak) — a mesma régua do
+  // mddPct em calcDrawdownReal, então os dois cards, que ficam lado a lado, passam a ser
+  // comparáveis. O antigo `dd/peak` era % do lucro acumulado (outra grandeza) e dividia
+  // por zero justamente no caso corrigido acima.
+  return{topo:peak,topoData:peakDate,atual:acc,ddAtual:dd,ddAtualPct:dd/(BASE_BANK+peak)};
+}
+// Subtítulo do card "Topo Histórico" — fonte única dos 4 renders que o exibem (Visão Geral
+// + as três telas de Performance: casa, esporte e geral). Quando o topo é o próprio início
+// da série (topoData null), não há data a mostrar: "atingido em —" faria o leitor ler dado
+// faltando, quando o fato é que a curva nunca superou o zero de partida.
+function topoSub(td){
+  var d=td&&td.topoData;
+  if(!d)return'no início da série';
+  var p=d.slice(0,10).split('-');
+  return'atingido em '+p[2]+'/'+p[1]+'/'+p[0];
 }
 function calcSolidez(o){
   var sEdge=o.pValue<0.001?1:o.pValue<0.05?0.5:0;

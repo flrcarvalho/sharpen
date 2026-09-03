@@ -248,8 +248,8 @@ function renderOvStreaks(rows){
     `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">`+
       `<div class="kpi" style="${kS}">`+
         `<div class="kpi-label"><span class="kpi-pipe"></span>Topo Histórico ${_mkTipAnchor('Topo Histórico','','Maior saldo que a banca <b>já atingiu</b> no período.','<span class="lbl">marco</span>')}</div>`+
-        `<div class="fdc-kpi__value" data-state="pos" style="${vS}">${fmtPL(_td.topo)}</div>`+
-        `<div class="kpi-sub" style="${sbS}">atingido em ${_fmtD(_td.topoData)}</div>`+
+        `<div class="fdc-kpi__value"${_td.topo>0?' data-state="pos"':''} style="${vS}">${fmtPL(_td.topo)}</div>`+
+        `<div class="kpi-sub" style="${sbS}">${topoSub(_td)}</div>`+
       `</div>`+
       `<div class="kpi" style="${kS}">`+
         `<div class="kpi-label"><span class="kpi-pipe"></span>Drawdown Atual ${_mkTipAnchor('Drawdown Atual','<span class="lbl">DD</span> <span class="op">=</span> Topo <span class="op">→</span> Saldo atual','Quanto a banca está <b>abaixo do último pico</b>, agora.','<span class="thr">perto de 0</span> <span class="good">é o ideal</span>')}</div>`+
