@@ -17,6 +17,20 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-caixa-inteligente-confira-o-saldo-das-suas-conta",
+      "data": "2026-09-03",
+      "tag": "Sharpen",
+      "titulo": "🧾 Caixa Inteligente: confira o saldo das suas contas",
+      "texto": "O Sharpen agora calcula **quanto cada conta deveria ter na casa** e avisa quando o saldo de verdade não bate. É a sua defesa contra dinheiro saindo sem você ver.",
+      "itens": [
+        "💰 **Ative a Caixa Inteligente** da conta informando o saldo que a casa mostra hoje. É o ponto de partida.",
+        "➕ **Depósito** e ➖ **Saque**: **quem lança é você**. O Sharpen não enxerga o que entra e sai da casa — o que ele já sabe é o **resultado das suas apostas**, e é isso que ele soma ao que você lançou.",
+        "⚖️ **Ajuste**: bônus, freebet, cashback, promoção, estorno ou uma correção sua. Fica separado do depósito para o total depositado continuar sendo só dinheiro seu; aceita valor negativo.",
+        "🔎 **Conferência**: digite o saldo que a casa está mostrando. Se não bater, ela diz **quanto falta** e fica acesa até você resolver.",
+        "🏦 Em **Contas & Parceiros**: a banca total e o saldo casa a casa. Conta sem a Caixa ligada fica fora da soma."
+      ]
+    },
+    {
       "id": "sharpen-correcao-no-cenario-atual",
       "data": "2026-09-02",
       "tag": "Sharpen",
