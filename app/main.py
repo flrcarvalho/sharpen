@@ -77,7 +77,7 @@ from repository import (
     casa_canonica, excluir_parceiro, get_parceiro, list_parceiros, parse_tsv,
     editar_parceiro, reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
     resumo_parceiro, upsert_bilhetes,
-    CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_excluir_mov, caixa_visao,
+    CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_editar_mov, caixa_excluir_mov, caixa_visao,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
     conferir_cobertura, codigos_do_texto,
@@ -3401,6 +3401,24 @@ async def caixa_lancar_route(body: CaixaLancarRequest, dono: str = Depends(dono_
                              body.valor, body.obs or "")
     if not res.get("ok"):
         raise HTTPException(400, res.get("motivo", "Não foi possível lançar."))
+    return res
+
+
+class CaixaEditarRequest(BaseModel):
+    data: str
+    valor: float
+    obs: Optional[str] = None
+
+
+@app.patch("/caixa/movimento/{mov_id}")
+async def caixa_editar_mov_route(mov_id: int, body: CaixaEditarRequest,
+                                 dono: str = Depends(dono_efetivo)):
+    """Edita data, valor e observação de um lançamento. O TIPO não muda: trocar um
+    depósito em saque é apagar um fato e criar outro."""
+    res = await caixa_editar_mov(dono, mov_id, body.data, body.valor, body.obs or "")
+    if not res.get("ok"):
+        motivo = res.get("motivo", "Não foi possível editar.")
+        raise HTTPException(404 if "não encontrado" in motivo else 400, motivo)
     return res
 
 

@@ -720,7 +720,11 @@ body.cap-off .cx__body { display: none; }
 .cxe-tbl td.r, .cxe-tbl th.r { text-align: right; }
 .cxe-tbl td.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .cxe-obs { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
-.cxe-del { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: var(--r-xs); font-size: 11px; line-height: 1; padding: 4px 7px; cursor: pointer; }
+.cxe-acoes { white-space: nowrap; }
+.cxe-del, .cxe-edit { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: var(--r-xs); font-size: 11px; line-height: 1; padding: 4px 7px; cursor: pointer; }
+.cxe-edit { margin-right: 5px; display: inline-flex; align-items: center; }
+.cxe-edit svg { width: 12px; height: 12px; }   /* ícone, não texto (Escada de Tinta) */
+.cxe-edit:hover { color: var(--accent-2); border-color: rgba(var(--accent-rgb),.45); }
 .cxe-del:hover { color: var(--neg); border-color: rgba(var(--neg-rgb),.45); }
 .cxe-tag { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border-radius: var(--r-pill); padding: 2px 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); margin-left: 6px; }
 .cxe-tag.al { border-color: rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
@@ -731,6 +735,14 @@ body.cap-off .cx__body { display: none; }
 .painel-kpis.banca { margin-bottom: 16px; }
 .painel-casa-tag { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border-radius: var(--r-pill); padding: 2px 8px; border: 1px solid rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
 .painel-casa-tag.mute { border-color: var(--line); background: var(--surface-2); color: var(--ink-soft); }
+/* Saldo da casa no cabeçalho do grupo da lista (substituiu a tabela de travessões).
+   O valor é IDENTIDADE numérica: --ink, nunca apagado. A tag é label: --ink-soft. */
+.contas-casa-saldo { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.casa-tag { flex: none; display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; border-radius: var(--r-pill); padding: 3px 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); white-space: nowrap; }
+.casa-tag.ok { color: var(--pos); border-color: rgba(var(--pos-rgb),.35); background: rgba(var(--pos-rgb),.08); }
+.casa-tag.al { color: var(--warn); border-color: rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); }
+.contas-casa-head .contas-casa-count { margin-left: 0; }
+.contas-casa-head .contas-casa-nome + .contas-casa-count { margin-left: auto; }
 
 /* ── Rail v2 "RAIO-X" (handoff-rail-v2) — área de trabalho = grid colmain | rail full lateral.
    O ctxbar e a KPI bar passam a viver DENTRO da colmain (não cruzam mais o rail).
@@ -3108,6 +3120,25 @@ function _caixaEstadoPorConta() {
   return m;
 }
 
+// Saldo da casa no cabeçalho do grupo, com a tag que diz de onde ele vem:
+//   batido    → todas as contas com caixa foram conferidas contra a casa e bateram;
+//   calculado → projetado pelos lançamentos + P/L, ainda sem conferência;
+//   a conferir→ alguma conferência não bateu (âmbar, o único aviso da lista).
+// Casa sem nenhuma caixa ligada não ganha nada: era a coluna de travessões que
+// o Feca mandou tirar.
+function _caixaDaCasa(casa) {
+  if (!caixaVisaoCache || contasTab !== 'ativas') return '';
+  const c = (caixaVisaoCache.casas || []).find(x => x.casa === casa);
+  if (!c || !c.ligadas) return '';
+  const parcial = c.sem_caixa ? ' · ' + c.ligadas + ' de ' + c.contas : '';
+  const tag = c.a_conferir
+    ? '<span class="casa-tag al">a conferir</span>'
+    : (c.batidas === c.ligadas
+       ? '<span class="casa-tag ok">batido' + parcial + '</span>'
+       : '<span class="casa-tag">calculado' + parcial + '</span>');
+  return '<span class="contas-casa-saldo">' + fmtSaldo(c.banca) + '</span>' + tag;
+}
+
 function renderPainelLista() {
   const host = document.getElementById('painelGestaoList');
   if (!host) return;
@@ -3120,7 +3151,7 @@ function renderPainelLista() {
     if (q) ps = ps.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
     if (!ps.length) return;
     total += ps.length;
-    html += '<div class="contas-casa"><div class="contas-casa-head"><span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span><span class="contas-casa-nome">' + esc(nomeCasa) + '</span><span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span></div>';
+    html += '<div class="contas-casa"><div class="contas-casa-head"><span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span><span class="contas-casa-nome">' + esc(nomeCasa) + '</span>' + _caixaDaCasa(casa) + '<span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span></div>';
     ps.forEach(p => {
       const ab = abertasDe(casa, p.nome);
       const st = (semTipsterPorParceiro[casa] || {})[p.nome] || 0;
@@ -3130,7 +3161,7 @@ function renderPainelLista() {
       const cxSt = (_caixaEstadoPorConta() || {})[p.id];   // Caixa Inteligente
       const badges = (ab > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (ab > 99 ? '99+' : ab) + '</span>' : '')
                    + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '')
-                   + (cxSt === 'divergente' ? '<span class="painel-casa-tag" title="A casa mostrou saldo diferente do projetado">a conferir</span>' : '');
+                   + (cxSt === 'divergente' ? '<span class="casa-tag al" title="A casa mostrou saldo diferente do projetado">a conferir</span>' : '');
       const clic = contasTab === 'ativas';   // ativa = tem perfil na Extração → linha inteira abre lá
       // Na aba Ativas a linha inteira abre a conta na Extração, então toda ação precisa
       // parar a propagação. Excluir aparece nas DUAS abas — conta arquivada é justamente
@@ -3173,8 +3204,8 @@ function ensureCaixaVisao(force) {
 async function renderPainelBanca(force) {
   const v = await ensureCaixaVisao(force);
   const kh = document.getElementById('painelBancaKpis');
-  const th = document.getElementById('painelBancaCasas');
-  if (!kh || !th) return;   // painel pode ter re-renderizado durante o fetch
+  if (!kh) return;   // painel pode ter re-renderizado durante o fetch
+  _renderCaixaTotal(v);
   const t = v.totais || {};
   const nf = n => (n || 0).toLocaleString('pt-BR');
   const kpi = (lbl, val, sub, cls) =>   // KPIs da Caixa Inteligente
@@ -3185,10 +3216,9 @@ async function renderPainelBanca(force) {
   if (!t.ligadas) {
     // Nenhuma caixa ligada: o painel não finge um total de zero — ele explica o que falta.
     kh.innerHTML = kpi('Banca total', '<span style="color:var(--ink-mute)">—</span>',
-      nf(t.contas) + (t.contas === 1 ? ' conta ativa · nenhuma com caixa' : ' contas ativas · nenhuma com caixa'));
-    th.innerHTML = '<div class="painel-empty">Abra uma conta na Extração e ative a Caixa Inteligente dela. '
-      + 'A partir daí o Sharpen projeta o saldo e mostra a banca somada aqui.</div>';
-    const c = document.getElementById('painelBancaCount'); if (c) c.textContent = '';
+      nf(t.contas) + (t.contas === 1 ? ' conta ativa · nenhuma com caixa' : ' contas ativas · nenhuma com caixa'))
+      + kpi('Como ligar', '<span style="color:var(--ink-mute)">—</span>',
+            'abra a conta na Extração e informe o saldo');
     return;
   }
 
@@ -3203,35 +3233,23 @@ async function renderPainelBanca(force) {
           t.a_conferir ? 'aviso' : '');
 
   if (document.getElementById('painelGestaoList')) renderPainelLista();   // avisos na lista
-  const cnt = document.getElementById('painelBancaCount');
-  if (cnt) cnt.textContent = nf(t.sem_caixa) + (t.sem_caixa === 1 ? ' conta sem caixa' : ' contas sem caixa');
+}
 
-  const dash = '<span style="color:var(--ink-mute)">—</span>';
-  th.innerHTML = '<div class="painel-tbl-wrap"><table class="painel-tbl"><thead><tr>'
-    + '<th>Casa</th><th class="r mono">Contas</th><th class="r mono">Em aberto</th>'
-    + '<th class="r mono">Disponível</th><th class="r mono">Banca</th><th>Conferência</th>'
-    + '</tr></thead><tbody>'
-    + (v.casas || []).map(c => {
-        const semC = c.sem_caixa ? ' <span style="color:var(--ink-mute)">(' + nf(c.sem_caixa) + ' sem caixa)</span>' : '';
-        const tag = c.a_conferir
-          ? '<span class="painel-casa-tag">' + nf(c.a_conferir) + ' a conferir</span>'
-          : (c.conferencia
-             ? '<span class="painel-casa-tag mute">conferida em ' + _cxDataBR(c.conferencia) + '</span>'
-             : '<span class="painel-casa-tag mute">nunca conferida</span>');
-        return '<tr><td>' + esc(casaDisplay(NOMES[c.casa] || c.casa)) + '</td>'
-          + '<td class="r mono">' + nf(c.contas) + semC + '</td>'
-          + '<td class="r mono">' + (c.ligadas ? fmtSaldo(c.aberto) : dash) + '</td>'
-          + '<td class="r mono">' + (c.ligadas ? fmtSaldo(c.disponivel) : dash) + '</td>'
-          + '<td class="r mono">' + (c.ligadas ? fmtSaldo(c.banca) : dash) + '</td>'
-          + '<td>' + (c.ligadas ? tag : '<span class="painel-casa-tag mute">sem caixa</span>') + '</td></tr>';
-      }).join('')
-    + '</tbody><tfoot><tr>'
-    + '<td>Total</td><td class="r mono">' + nf(t.contas) + '</td>'
-    + '<td class="r mono">' + fmtSaldo(t.aberto) + '</td>'
-    + '<td class="r mono">' + fmtSaldo(t.disponivel) + '</td>'
-    + '<td class="r mono">' + fmtSaldo(t.banca) + '</td>'
-    + '<td>' + (t.sem_caixa ? nf(t.sem_caixa) + ' fora da soma' : 'todas na soma') + '</td>'
-    + '</tr></tfoot></table></div>';
+// Caixa total no rodapé do card Contas + saldo por casa na lista. Os dois lêem o
+// MESMO /caixa/visao já cacheado — dois números da mesma pergunta em telas
+// diferentes é como se cria divergência sem ninguém mexer em nada.
+function _renderCaixaTotal(v) {
+  const host = document.getElementById('painelCaixaTotal');
+  if (!host) return;
+  const t = (v && v.totais) || {};
+  const n = (x) => (x || 0).toLocaleString('pt-BR');
+  host.innerHTML = '<span class="n">'
+    + (t.ligadas ? fmtSaldo(t.banca) : '<span style="color:var(--ink-mute)">—</span>')
+    + '</span><span class="l">Caixa total'
+    + (t.ligadas ? ' · ' + n(t.ligadas) + ' de ' + n(t.contas) : '') + '</span>';
+  host.title = t.ligadas
+    ? n(t.sem_caixa) + (t.sem_caixa === 1 ? ' conta ainda sem caixa' : ' contas ainda sem caixa')
+    : 'Nenhuma conta com a Caixa Inteligente ligada.';
 }
 
 // Troca de aba (Ativas/Arquivadas) — só re-renderiza a lista (mantém KPIs/busca).
@@ -3980,6 +3998,7 @@ function renderPainelContas() {
           '<div class="painel-foot-stat"><span class="n">' + nf(totContas) + '</span><span class="l">Total de contas</span></div>' +
           '<div class="painel-foot-stat"><span class="n">' + nf(casasComConta) + '</span><span class="l">Casas</span></div>' +
           '<div class="painel-foot-stat"><span class="n">' + nf(forns.length) + '</span><span class="l">Fornecedores</span></div>' +
+          '<div class="painel-foot-stat" id="painelCaixaTotal"><span class="n">—</span><span class="l">Caixa total</span></div>' +
           '<button class="btn btn-primary btn-sm painel-nova-conta" type="button" onclick="abrirModalNovaConta(&quot;painel&quot;)">+ Nova conta</button>' +
         '</div>' +
       '</div>' +
@@ -4035,11 +4054,9 @@ function renderPainelContas() {
   // s314 — Caixa: a banca consolidada abre o painel (é o número que o operador
   // procura primeiro) e o saldo casa a casa fica logo abaixo da lista.
   const bancaKpis = '<div class="painel-kpis banca" id="painelBancaKpis"></div>';
-  const bancaCard = '<div class="painel-card"><div class="painel-card-head">'
-    + '<span class="painel-card-titulo">Caixa Inteligente · saldo por casa</span>'
-    + '<span class="painel-card-count" id="painelBancaCount"></span></div>'
-    + '<div class="painel-card-body" id="painelBancaCasas">'
-    + '<div class="painel-empty">Carregando os saldos da Caixa Inteligente…</div></div></div>';
+  // A tabela "saldo por casa" foi retirada (s314, feedback do Feca): com 26 de 27
+  // contas sem caixa ela era uma coluna de travessões. O saldo passou a viver na
+  // LISTA, no cabeçalho de cada casa, onde já se está olhando a conta.
 
   host.innerHTML =
     bancaKpis +
@@ -4047,7 +4064,7 @@ function renderPainelContas() {
       listaPanel +
       casaCard +
     '</div>' +
-    bancaCard + custoCard + atividadeCard;
+    custoCard + atividadeCard;
   renderPainelLista();       // preenche a lista de gestão (grupos por casa + ações)
   renderPainelBanca();       // preenche a banca (KPIs + saldo por casa) — /caixa/visao
   renderPainelAtividade();   // preenche a tabela de atividade (duração/dias/apostas)
@@ -5505,6 +5522,7 @@ function _cxIso(txt) {
 let caixaAtual = null;      // /caixa/conta da conta ativa
 let _caixaToken = 0;        // descarta resposta de uma seleção que já mudou
 let _cxModo = 'deposito';   // tipo escolhido no modal
+let _cxEditId = null;       // id do lançamento em edição (null = lançamento novo)
 
 async function carregarCaixa() {
   const box = document.getElementById('caixaBox');
@@ -5651,6 +5669,8 @@ function _cxDiver(d) {
 }
 
 // ── Lançamento ───────────────────────────────────────────────────────────────
+const _CX_NOME = { inicial: 'Saldo inicial', deposito: 'Depósito', saque: 'Saque',
+                   ajuste: 'Ajuste', conferencia: 'Conferência' };
 const _CX_TITULO = {
   inicial: 'Ativar Caixa Inteligente', deposito: 'Novo depósito',
   saque: 'Novo saque', ajuste: 'Novo ajuste',
@@ -5663,37 +5683,59 @@ const _CX_HINT = {
   ajuste: 'Tudo que muda o saldo e não é aposta, depósito nem saque: <b>bônus creditado, freebet, cashback, promoção ou correção</b>. Fica separado do depósito para o total depositado continuar sendo só dinheiro de verdade. Aceita valor negativo para corrigir para baixo.',
 };
 
-function caixaAbrirModal(tipo) {
+// Editar um lançamento do extrato: o MESMO formulário, com o tipo travado. Trocar
+// um depósito em saque é apagar um fato e criar outro — para isso existem o ✕ e o
+// botão de lançar.
+function caixaEditarMov(id) {
+  const m = ((caixaAtual || {}).movimentos || []).find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('extrato-modal').classList.remove('open');
+  if (m.tipo === 'inicial') { caixaAbrirModal('inicial'); return; }
+  caixaAbrirModal(m.tipo, m);
+}
+
+function caixaAbrirModal(tipo, mov) {
   if (!parceiroSelecionado) return;
   _cxModo = tipo;
+  _cxEditId = mov ? mov.id : null;
   const ov = document.getElementById('caixa-modal');
   const ini = tipo === 'inicial';
   // Editar = a caixa JÁ está ligada. O mesmo formulário, pré-preenchido — dois
   // formulários que envelhecem separado é o que a s312 desfez no modal de conta.
-  const editando = ini && caixaAtual && caixaAtual.ligada;
-  const movIni = editando ? (caixaAtual.movimentos || []).find(m => m.tipo === 'inicial') : null;
-  document.getElementById('cxm-title').textContent =
-    editando ? 'Editar o saldo inicial' : (_CX_TITULO[tipo] || 'Novo movimento');
+  const editando = !!mov || (ini && caixaAtual && caixaAtual.ligada);
+  const movIni = mov || (editando && ini ? (caixaAtual.movimentos || []).find(m => m.tipo === 'inicial') : null);
+  document.getElementById('cxm-title').textContent = editando
+    ? (ini ? 'Editar o saldo inicial' : 'Editar ' + (_CX_NOME[tipo] || 'lançamento').toLowerCase())
+    : (_CX_TITULO[tipo] || 'Novo movimento');
   // A conta inteira (casa · parceiro [fornecedor]) fica no subtítulo: com dois
   // parceiros na mesma casa, só o nome da casa não diz em qual conta se está lançando.
   document.getElementById('cxm-sub').textContent = _cxConta();
-  document.getElementById('cxm-tipo-field').style.display = ini ? 'none' : '';
-  document.getElementById('cxm-hint').innerHTML =
-    (_CX_HINT[tipo] || '') + (editando ? _CX_HINT.editando : '');
+  // No modo edição o segmento some: o tipo é o fato, e ele não se troca por aqui.
+  document.getElementById('cxm-tipo-field').style.display = (ini || editando) ? 'none' : '';
+  document.getElementById('cxm-hint').innerHTML = (_CX_HINT[tipo] || '')
+    + (editando && ini ? _CX_HINT.editando : '');
   _cxErro('');
   document.getElementById('cxm-ok').textContent =
     editando ? 'Salvar' : (ini ? 'Ativar Caixa Inteligente' : 'Lançar');
+  _cxVoltarExtrato = !!mov;   // veio do extrato → volta para ele ao salvar
   document.querySelectorAll('#cxm-seg button').forEach(b => b.classList.toggle('on', b.dataset.tipo === tipo));
-  document.getElementById('cxm-data').value = _cxDataBR4(editando ? caixaAtual.data_corte : hojeISO());
+  const valorEdit = movIni ? movIni.valor : (editando ? caixaAtual.inicial : 0);
+  document.getElementById('cxm-data').value = _cxDataBR4(
+    movIni ? movIni.data : (editando ? caixaAtual.data_corte : hojeISO()));
   document.getElementById('cxm-valor').value = editando
-    ? Math.abs(caixaAtual.inicial).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    ? valorEdit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '';
   document.getElementById('cxm-obs').value = (movIni && movIni.obs) || '';
   ov.classList.add('open');
   _modalBaseline(ov);
   setTimeout(() => document.getElementById('cxm-valor').focus(), 30);
 }
-function caixaFecharModal() { document.getElementById('caixa-modal').classList.remove('open'); }
+let _cxVoltarExtrato = false;
+function caixaFecharModal() {
+  document.getElementById('caixa-modal').classList.remove('open');
+  _cxEditId = null;
+  if (_cxVoltarExtrato) { _cxVoltarExtrato = false; caixaAbrirExtrato(); }
+}
 
 // Identidade da conta ativa, como ela aparece na lista: Casa · Parceiro [Fornecedor].
 function _cxConta() {
@@ -5721,18 +5763,25 @@ async function caixaSalvar() {
   _cxErro('');
   btn.disabled = true;
   try {
-    const r = await fetch('/caixa/lancar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        parceiro_id: parceiroSelecionado.id, tipo: _cxModo, data, valor,
-        obs: document.getElementById('cxm-obs').value.trim(),
-      }),
-    });
+    const obs = document.getElementById('cxm-obs').value.trim();
+    const r = _cxEditId
+      ? await fetch('/caixa/movimento/' + _cxEditId, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data, valor, obs }),
+        })
+      : await fetch('/caixa/lancar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parceiro_id: parceiroSelecionado.id, tipo: _cxModo, data, valor, obs,
+          }),
+        });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || 'Não foi possível lançar.');
+    const editou = !!_cxEditId;
     caixaAtual = j.caixa; renderCaixa(j.caixa);
     caixaFecharModal();
-    setStatus(_cxModo === 'inicial' ? 'Caixa ligada.' : 'Lançamento registrado.', 'ok');
+    setStatus(editou ? 'Lançamento atualizado.'
+              : (_cxModo === 'inicial' ? 'Caixa ligada.' : 'Lançamento registrado.'), 'ok');
   } catch (e) {
     // Dois lugares de propósito: no modal (onde o operador está olhando) e no
     // status da barra, que é onde o resto da tela reporta.
@@ -5787,8 +5836,6 @@ async function caixaAceitarDivergencia() {
 }
 
 // ── Extrato ──────────────────────────────────────────────────────────────────
-const _CX_NOME = { inicial: 'Saldo inicial', deposito: 'Depósito', saque: 'Saque',
-                   ajuste: 'Ajuste', conferencia: 'Conferência' };
 
 function caixaAbrirExtrato() {
   const d = caixaAtual;
@@ -5819,7 +5866,10 @@ function caixaAbrirExtrato() {
             + '<td>' + (_CX_NOME[m.tipo] || m.tipo) + tag + '</td>'
             + '<td class="cxe-obs">' + esc(obs) + '</td>'
             + '<td class="r mono">' + valor + '</td>'
-            + '<td class="r"><button class="cxe-del" type="button" title="Excluir lançamento" onclick="caixaExcluirMov(' + m.id + ',\'' + m.tipo + '\')">✕</button></td></tr>';
+            + '<td class="r cxe-acoes">'
+            + '<button class="cxe-edit" type="button" title="Editar lançamento" onclick="caixaEditarMov(' + m.id + ')">'
+            + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>'
+            + '<button class="cxe-del" type="button" title="Excluir lançamento" onclick="caixaExcluirMov(' + m.id + ',\'' + m.tipo + '\')">✕</button></td></tr>';
         }).join('')
       + '</tbody></table>';
   }
@@ -5850,6 +5900,8 @@ async function caixaExcluirMov(id, tipo) {
   document.getElementById('cxm-cancel').addEventListener('click', caixaFecharModal);
   document.getElementById('cxm-ok').addEventListener('click', caixaSalvar);
   ov.addEventListener('click', e => { if (e.target === ov) _modalFecharSeLimpo(ov, caixaFecharModal); });
+  // O extrato reabre ao fechar quando a edição veio dele — inclusive no ✕ e no Esc,
+  // senão o operador perde o lugar onde estava.
   document.querySelectorAll('#cxm-seg button').forEach(b => b.addEventListener('click', () => {
     _cxModo = b.dataset.tipo;
     document.querySelectorAll('#cxm-seg button').forEach(o => o.classList.toggle('on', o === b));

@@ -386,6 +386,26 @@ def caixa_lancar_demo(body: _CaixaLancar):
     return {"ok": True, "caixa": _caixa_de(body.parceiro_id)}
 
 
+class _CaixaEditar(BaseModel):
+    data: str
+    valor: float
+    obs: str | None = None
+
+
+@app.patch("/caixa/movimento/{mov_id}")
+def caixa_editar_demo(mov_id: int, body: _CaixaEditar):
+    for pid, movs in CAIXA_DEMO.items():
+        for m in movs:
+            if m["id"] == mov_id:
+                d = body.data
+                m["data"] = d if (len(d) == 10 and d[4] == "-") else (
+                    f"{d[6:10]}-{d[3:5]}-{d[0:2]}" if "/" in d else d)
+                m["valor"] = round(body.valor, 2)
+                m["obs"] = (body.obs or "").strip()
+                return {"ok": True, "tipo": m["tipo"], "caixa": _caixa_de(pid)}
+    return JSONResponse({"detail": "Lançamento não encontrado."}, status_code=404)
+
+
 @app.delete("/caixa/movimento/{mov_id}")
 def caixa_excluir_demo(mov_id: int):
     for pid, movs in CAIXA_DEMO.items():

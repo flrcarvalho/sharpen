@@ -1837,23 +1837,10 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
       · `conferencia` → o saldo que o Sharpen projetava quando o operador conferiu.
     """
     tipo = (tipo or "").strip().lower()
-    if tipo not in CAIXA_TIPOS:
-        return {"ok": False, "motivo": "Tipo de lançamento inválido."}
-    if not _data_iso(data):
-        return {"ok": False, "motivo": "Data inválida."}
-    data = _data_iso(data)
-    try:
-        valor = round(float(valor), 2)
-    except (TypeError, ValueError):
-        return {"ok": False, "motivo": "Valor inválido."}
-    # Só o ajuste pode ser negativo (correção para baixo). Depósito e saque têm o
-    # sinal no TIPO — aceitar negativo ali deixaria o mesmo fato com duas grafias.
-    if tipo != "ajuste" and valor < 0:
-        return {"ok": False, "motivo": "Valor não pode ser negativo."}
-    if tipo in ("deposito", "saque") and valor == 0:
-        return {"ok": False, "motivo": "Informe um valor maior que zero."}
-    if abs(valor) > 100_000_000:
-        return {"ok": False, "motivo": "Valor fora da faixa."}
+    v = _caixa_valida(tipo, data, valor)
+    if isinstance(v, dict):
+        return v
+    data, valor = v
 
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -1866,15 +1853,7 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
             projetado: float | None = None
 
             if tipo == "inicial":
-                # Bilhetes ABERTOS hoje e datados antes do corte: o dinheiro deles já
-                # tinha saído quando o saldo foi observado, e volta inteiro ao liquidar.
-                todas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
-                abertas = [
-                    a["id"] for a in todas
-                    if not (a.get("resultado") or "").strip()
-                    and (_data_iso(a.get("data")) or "") < data
-                    and _num(a.get("stake")) > 0
-                ]
+                abertas = await _caixa_abertas_no_corte(conn, dono, p["casa"], p["nome"], data)
                 await conn.execute(
                     "DELETE FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 AND tipo = 'inicial'",
                     dono, parceiro_id,
@@ -1913,6 +1892,84 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
                 tipo, dono, parceiro_id, valor, data)
     res = await caixa_conta(dono, parceiro_id)
     return {"ok": True, "caixa": res}
+
+
+def _caixa_valida(tipo: str, data: str, valor) -> tuple[str, float] | dict:
+    """Fronteira comum de `caixa_lancar` e `caixa_editar_mov`. Duas validações que
+    envelhecem separado seriam duas regras para o mesmo fato."""
+    if tipo not in CAIXA_TIPOS:
+        return {"ok": False, "motivo": "Tipo de lançamento inválido."}
+    iso = _data_iso(data)
+    if not iso:
+        return {"ok": False, "motivo": "Data inválida."}
+    try:
+        valor = round(float(valor), 2)
+    except (TypeError, ValueError):
+        return {"ok": False, "motivo": "Valor inválido."}
+    # Só o ajuste pode ser negativo (correção para baixo). Depósito e saque têm o
+    # sinal no TIPO — aceitar negativo ali deixaria o mesmo fato com duas grafias.
+    if tipo != "ajuste" and valor < 0:
+        return {"ok": False, "motivo": "Valor não pode ser negativo."}
+    if tipo in ("deposito", "saque") and valor == 0:
+        return {"ok": False, "motivo": "Informe um valor maior que zero."}
+    if abs(valor) > 100_000_000:
+        return {"ok": False, "motivo": "Valor fora da faixa."}
+    return iso, valor
+
+
+async def _caixa_abertas_no_corte(conn, dono: str, casa: str, parceiro: str,
+                                  corte: str) -> list[int]:
+    """Bilhetes ABERTOS hoje e datados antes do corte: o dinheiro deles já tinha saído
+    quando o saldo foi observado, e volta inteiro ao liquidar."""
+    todas = await _caixa_apostas(conn, dono, casa, parceiro)
+    return [a["id"] for a in todas
+            if not (a.get("resultado") or "").strip()
+            and (_data_iso(a.get("data")) or "") < corte
+            and _num(a.get("stake")) > 0]
+
+
+async def caixa_editar_mov(dono: str, mov_id: int, data: str, valor: float,
+                           obs: str = "") -> dict:
+    """Edita um lançamento já gravado (data, valor e observação).
+
+    O TIPO não muda: trocar um depósito em saque é apagar um fato e criar outro, e a
+    tela reflete isso — o segmento de tipo some no modo edição.
+
+    Duas conservações deliberadas:
+      · `inicial` → a lista `abertas_corte` é REFEITA, porque mudar a data do corte
+        muda quais apostas estavam abertas nele;
+      · `conferencia` → o `projetado` é PRESERVADO. Ele registra o que o Sharpen
+        projetava naquele dia; recalculá-lo com a projeção de hoje reescreveria o
+        passado e apagaria a divergência que a conferência mediu.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT c.tipo, c.parceiro_id, p.casa, p.nome FROM caixa_mov c "
+                "JOIN parceiros p ON p.id = c.parceiro_id "
+                "WHERE c.id = $1 AND c.dono = $2", mov_id, dono)
+            if not row:
+                return {"ok": False, "motivo": "Lançamento não encontrado."}
+            v = _caixa_valida(row["tipo"], data, valor)
+            if isinstance(v, dict):
+                return v
+            iso, valor = v
+            abertas = None
+            if row["tipo"] == "inicial":
+                abertas = await _caixa_abertas_no_corte(
+                    conn, dono, row["casa"], row["nome"], iso)
+            await conn.execute(
+                "UPDATE caixa_mov SET data = $1, valor = $2, obs = $3, "
+                "abertas_corte = CASE WHEN tipo = 'inicial' THEN $4::int[] ELSE abertas_corte END "
+                "WHERE id = $5 AND dono = $6",
+                date.fromisoformat(iso), Decimal(str(valor)),
+                (obs or "").strip()[:280], abertas, mov_id, dono,
+            )
+    logger.info("caixa: editado #%s (%s) dono=%s valor=%.2f data=%s",
+                mov_id, row["tipo"], dono, valor, iso)
+    return {"ok": True, "tipo": row["tipo"],
+            "caixa": await caixa_conta(dono, row["parceiro_id"])}
 
 
 async def caixa_excluir_mov(dono: str, mov_id: int) -> dict:
@@ -1960,7 +2017,7 @@ async def caixa_visao(dono: str) -> dict:
 
     contas, casas = [], {}
     tot = {"banca": 0.0, "disponivel": 0.0, "aberto": 0.0,
-           "contas": 0, "ligadas": 0, "sem_caixa": 0, "a_conferir": 0}
+           "contas": 0, "ligadas": 0, "sem_caixa": 0, "a_conferir": 0, "batidas": 0}
     for p in parceiros:
         res = _caixa_projetar(por_conta.get(p["id"], []),
                               por_chave.get((p["casa"], p["nome"]), []))
@@ -1977,7 +2034,9 @@ async def caixa_visao(dono: str) -> dict:
         c = casas.setdefault(p["casa"], {
             "casa": p["casa"], "contas": 0, "ligadas": 0, "sem_caixa": 0,
             "banca": 0.0, "disponivel": 0.0, "aberto": 0.0, "a_conferir": 0,
-            "conferencia": None})
+            # `batidas` = contas cujo saldo foi CONFERIDO contra a casa e bateu. É o que
+            # separa, na tela, o saldo "batido" do meramente "calculado".
+            "batidas": 0, "conferencia": None})
         c["contas"] += 1
         tot["contas"] += 1
         if not res["ligada"]:
@@ -1988,6 +2047,8 @@ async def caixa_visao(dono: str) -> dict:
             c[k] += res[k]; tot[k] += res[k]
         if res["estado"] == "divergente":
             c["a_conferir"] += 1; tot["a_conferir"] += 1
+        if res["estado"] == "confere":
+            c["batidas"] += 1; tot["batidas"] = tot.get("batidas", 0) + 1
         conf = res.get("conferencia")
         if conf and (c["conferencia"] is None or conf["data"] > c["conferencia"]):
             c["conferencia"] = conf["data"]
