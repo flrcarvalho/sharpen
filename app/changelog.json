@@ -17,6 +17,14 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-correcao-no-cenario-atual",
+      "data": "2026-09-02",
+      "tag": "Sharpen",
+      "titulo": "Correção no Cenário Atual",
+      "texto": "Quem estava no vermelho via **Drawdown Atual R$ 0,00** e um **Topo Histórico negativo**. Agora o topo parte do zero e o drawdown mostra a queda real.",
+      "fecho": "Obrigado ao Gabriel pelo reporte 🙏"
+    },
+    {
       "id": "sharpen-exportar-csv-agora-traz-o-lucro",
       "data": "2026-08-31",
       "tag": "Sharpen",
