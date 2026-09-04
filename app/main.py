@@ -1734,6 +1734,18 @@ async def extensao_page():
     return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
 
 
+@app.get("/bot")
+async def bot_page():
+    # Pública (sem login): manual de operação do @sharpenbetbot nos grupos —
+    # o dia a dia, os comandos e o passo a passo de colocar um tipster no ar.
+    # Sem login de propósito: quem precisa dela abre no celular, no meio do
+    # grupo, e exigir sessão ali é o atrito que faz ninguém ler. Não há dado de
+    # ninguém na página; ela descreve comandos que só funcionam para quem já
+    # está cadastrado como tipster do apoio.
+    content = (Path(__file__).parent / "static" / "bot.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/extensao/versao")
 async def extensao_versao():
     # Versão publicada — a página /extensao e a extensão comparam contra a instalada.
