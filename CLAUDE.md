@@ -243,6 +243,42 @@ total mudar**.
 
 ---
 
+## Zero não é ausência. E "o app recusou" não é detalhe do app.
+
+A casa nem sempre precifica as PERNAS. Bilhete de **mesmo jogo** ("Criar Aposta" /
+Bet Builder / SGM) traz uma odd só, a do conjunto, e as seleções aparecem sem
+número nenhum ao lado. Quem monta a combinação como produto das pernas faz
+`0 × 0 = 0` e grava um zero onde havia um vazio.
+
+**Zero é uma odd que não existe, e por isso ninguém a trata como ausência.** Ela
+passa por toda checagem de forma: a linha tem stake, tem resultado, tem P/L. Só
+que o P/L de W é `stake × (odd − 1)` — com odd 0 o bilhete GANHO vira `−1u`
+(s318: Só Chutes #12, Osimhen + Shomurodov @ 5.50, os dois ✅). A regra vale
+para qualquer número derivado: se a fonte não tem o valor, a ausência viaja como
+`null`/vazio até quem sabe decidir. `0` se disfarça de conta feita.
+
+Onde há odd de conjunto, ela é a odd da aposta que cobre o **cupom inteiro** —
+nunca de uma combinação parcial, que não é derivável de lugar nenhum.
+
+**A outra metade: quem escreve na planilha tem de LER a resposta.** O `/salvar`
+valida na fronteira (`validar_linhas`) e recusa stake/odd que não sejam número
+> 0, devolvendo as recusadas em `rejeitados` e gravando só as boas — a resposta
+é `200`, não erro. O bot ignorava o campo: marcou "planilhado", publicou no
+canal e seguiu. A linha do #12 **nunca existiu** na planilha, e a única pista
+apareceu um dia depois, como um "não tenho o id no Sharpen" na hora de corrigir.
+
+- Recusa **total** é falha de planilha: erro alto, e o registro diz que não
+  planilhou. Recusa **parcial** é aviso por linha, dizendo qual número caiu.
+- O mapa `código → id` se remonta pelas linhas **aceitas** (`rejeitados[].linha`
+  é a posição 1-based no TSV). Sem isso, uma recusa faz as apostas BOAS perderem
+  o id junto — e é o id que o `PATCH` usa para corrigir linha já resolvida.
+
+> Sintoma para reconhecer isso noutro escritor: o log diz "0 novas, 0
+> atualizadas" e ninguém lê o log. Contagem devolvida pela API é dado, não
+> enfeite — compare com o que você mandou.
+
+---
+
 ## Planilha e bot escrevem na MESMA série de código. Só um pode ser a fonte.
 
 Import de planilha e bot de tipster geram o mesmo `XX<aaaamm>-<n>`, e o código entra na
@@ -758,4 +794,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-04 (sessao 317 - itens 8 e 9 da regra de UI: o /nova-ui valida o ATOMO e nao a composicao (uma superficie por funcao; dois estilos para o mesmo papel e o sintoma), e recorte por DESFECHO corta a tabela, nunca a regua dos KPIs)
+ATUALIZADO: 2026-09-04 (sessao 318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
