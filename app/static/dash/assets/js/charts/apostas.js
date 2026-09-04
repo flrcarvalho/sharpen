@@ -3,9 +3,37 @@
 let apostasFiltered=[], apostasSortCol=0, apostasSortAsc=false;
 let apostasColFilters={};
 let apostasTabela=[], apostasAbertasFiltered=[]; // tabela = abertas (topo) + encerradas
+let apostasKpiRows=[];      // recorte da tela SEM o corte por resultado — régua dos KPIs
 let _apInlineEditing=false; // enquanto true, o virtual-scroll não re-renderiza (não mata o editor da célula)
 
 const BTBL_ROW_H=68; // altura de linha da tabela de apostas
+
+// ── Filtros locais da Base Completa (s317) ──────────────────────────────────
+// Pedido do tester João Henrique (03/09): "um filtro de resultado nesta tela ajuda
+// bastante para conferir e corrigir valores". O que havia era a barra da página
+// (período/esporte/casa/tipster) mais seis caixas de texto — três delas duplicando,
+// com um `includes` cru, o multiselect que fica 20px acima.
+//
+// ⚠ O DESFECHO CORTA A TABELA, NÃO A RÉGUA (decisão do Feca). Filtrar por W e ver
+// Win Rate 100% é um número certo pela conta e mentiroso pela leitura, então os KPIs
+// leem `apostasKpiRows` — o mesmo recorte da tela, sem o corte por resultado. Faixa de
+// stake/odd/P/L é recorte (como casa ou esporte) e entra nos KPIs normalmente; só o
+// resultado fica de fora, e a tela DIZ isso enquanto o filtro estiver ligado.
+//
+// O código é o rótulo do chip (W/HW/L/HL/V), nunca um apelido cosmético: é o mesmo
+// vocabulário da coluna Resultado e do MASTER_OUTPUT. O nome humano vai no title.
+const APOSTAS_RES=[['W','Green'],['HW','Meio green'],['L','Red'],['HL','Meio red'],['V','Void'],['ABERTA','Em aberto']];
+// Ordem SEMÂNTICA do desfecho (ganhou → devolvida → perdeu → em jogo). A alfabética
+// daria HL, HW, L, V, W — que não diz nada para quem está conferindo a base.
+const APOSTAS_RES_ORDEM={W:0,HW:1,V:2,HL:3,L:4,ABERTA:5};
+let apostasResSel=new Set();  // vazio = todos os desfechos
+let apostasFaixas={stakeMin:'',stakeMax:'',oddMin:'',oddMax:'',plMin:'',plMax:''};
+let _apFaixaT=null;           // debounce dos campos de faixa (dígito a dígito recortaria a tela)
+
+// Limite de faixa: vazio → null (sem corte). O resto passa pelo `parseNum`, que já lê o
+// número como ele é DIGITADO em pt-BR ("1.250,50") e entende o minus U+2212 — escrever
+// um segundo parser aqui repetiria o bug da s300.
+function _apFaixa(k){const v=(apostasFaixas[k]||'').trim();return v===''?null:parseNum(v);}
 
 // Match dos filtros de coluna (texto por coluna) — reusado p/ encerradas e abertas.
 function _apostasColMatch(r){
@@ -16,43 +44,75 @@ function _apostasColMatch(r){
     return v.toLowerCase().includes(f);
   });
 }
+// Conta (parceiro): multiselect próprio DESTA tela — a barra da página não tem esse eixo,
+// e o que existia era uma caixa de texto (`includes`) que casava "Vinicius" com "Vinicius2".
+function _apostasParcMatch(r){const pa=msGet('pa_apostas');return pa.size===0||pa.has(r.parceiro);}
+
+// Faixas numéricas. Aposta ABERTA sai de qualquer corte por P/L: ela não tem P/L nenhum,
+// e tratar "sem valor" como zero a colocaria dentro de toda faixa que cruze o zero.
+function _apostasFaixaMatch(r,aberta){
+  const sMin=_apFaixa('stakeMin'),sMax=_apFaixa('stakeMax');
+  if(sMin!==null&&!(r.stake>=sMin))return false;
+  if(sMax!==null&&!(r.stake<=sMax))return false;
+  const oMin=_apFaixa('oddMin'),oMax=_apFaixa('oddMax');
+  if(oMin!==null&&!(r.odd>=oMin))return false;
+  if(oMax!==null&&!(r.odd<=oMax))return false;
+  const pMin=_apFaixa('plMin'),pMax=_apFaixa('plMax');
+  if(pMin===null&&pMax===null)return true;
+  if(aberta)return false;
+  if(pMin!==null&&!(r.lucro>=pMin))return false;
+  if(pMax!==null&&!(r.lucro<=pMax))return false;
+  return true;
+}
+function _apostasResMatch(r){return apostasResSel.size===0||apostasResSel.has(r.resultado);}
+// Tudo que NÃO é desfecho — o recorte que os KPIs enxergam.
+function _apostasRecorte(r,aberta){return _apostasColMatch(r)&&_apostasParcMatch(r)&&_apostasFaixaMatch(r,aberta);}
+
+// Comparador único da tabela: encerradas e abertas ordenam pela MESMA coluna.
+function _apostasCmp(a,b){
+  const col=APOSTAS_COLS[apostasSortCol];
+  if(col==='resultado'){return (APOSTAS_RES_ORDEM[a.resultado]??9)-(APOSTAS_RES_ORDEM[b.resultado]??9);}
+  if(APOSTAS_NUM.includes(apostasSortCol))return (parseFloat(a[col]||0)||0)-(parseFloat(b[col]||0)||0);
+  // pt-BR, insensível a caixa/acento e com dígito natural — sem isso "KTO" e "Kto"
+  // caem em blocos separados só pela caixa (mesma régua do sortTable do app.js).
+  return String(a[col]||'').localeCompare(String(b[col]||''),'pt-BR',{sensitivity:'base',numeric:true});
+}
 
 function renderApostas(){
   const baseRows=filtrarPagina('apostas');
-  apostasFiltered=baseRows.filter(_apostasColMatch);
+  // Recorte da tela SEM o desfecho: é ele que alimenta os KPIs e as contagens dos chips
+  // (um chip que só contasse o que já está selecionado nasceria sempre em zero).
+  apostasKpiRows=baseRows.filter(r=>_apostasRecorte(r,false));
+  const abertasRecorte=filtrarAbertas('apostas').filter(r=>_apostasRecorte(r,true));
   // Abertas: mesmos filtros da página; NÃO entram nos KPIs (ainda sem resultado).
-  // Ficam no topo da tabela, mais recentes primeiro.
-  apostasAbertasFiltered=filtrarAbertas('apostas').filter(_apostasColMatch)
-    .sort((a,b)=>a.data<b.data?1:a.data>b.data?-1:0);
-  apostasFiltered.sort((a,b)=>{
-    const col=APOSTAS_COLS[apostasSortCol];
-    const av=APOSTAS_NUM.includes(apostasSortCol)?parseFloat(a[col]||0):String(a[col]||'');
-    const bv=APOSTAS_NUM.includes(apostasSortCol)?parseFloat(b[col]||0):String(b[col]||'');
-    const res=APOSTAS_NUM.includes(apostasSortCol)?(av-bv):av.localeCompare(bv);
-    return apostasSortAsc?res:-res;
-  });
+  // Ficam no topo da tabela.
+  apostasFiltered=apostasKpiRows.filter(_apostasResMatch);
+  apostasAbertasFiltered=abertasRecorte.filter(_apostasResMatch);
+  const dir=(a,b)=>{const res=_apostasCmp(a,b);return apostasSortAsc?res:-res;};
+  apostasFiltered.sort(dir);
+  apostasAbertasFiltered.sort(dir); // no default (Data ↓) dá exatamente a ordem de antes
   apostasTabela=apostasAbertasFiltered.concat(apostasFiltered); // abertas no topo
-  // KPI
-  const pl=apostasFiltered.reduce((a,r)=>a+r.lucro,0);
-  const stake=calcTurnover(apostasFiltered);   // turnover exclui Void
+  // KPI — leem apostasKpiRows, nunca apostasFiltered (ver nota no topo do arquivo)
+  const pl=apostasKpiRows.reduce((a,r)=>a+r.lucro,0);
+  const stake=calcTurnover(apostasKpiRows);   // turnover exclui Void
   const roi=stake>0?(pl/stake*100):0;
-  const wins=apostasFiltered.filter(r=>['W','HW'].includes(r.resultado)).length;
-  const settled=apostasFiltered.filter(r=>r.resultado!=='V').length;
-  const wr=wrPctRows(apostasFiltered);
-  const avgOddAp=calcAvgOdd(apostasFiltered);
+  const settled=apostasKpiRows.filter(r=>r.resultado!=='V').length;
+  const wr=wrPctRows(apostasKpiRows);
+  const avgOddAp=calcAvgOdd(apostasKpiRows);
   const avgStakeAp=settled>0?stake/settled:0;   // turnover ÷ encerradas (exclui Void)
   const kpiEl=document.getElementById('apostasKPI');
   if(kpiEl){
     const mkKA=(l,v,c,sub,bar)=>`<div class="kpi" style="height:110px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-start;padding:14px 16px;overflow:hidden"><div class="kpi-label" style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);margin-bottom:8px;white-space:nowrap;flex-shrink:0">${l}</div><div class="kpi-val ${c}" style="font-size:22px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0">${v}</div>${bar!==undefined?`<div class="wrc"><div class="t"><div class="f" style="width:${Math.min(100,Math.max(0,bar)).toFixed(1)}%"></div></div></div>`:''}<div class="kpi-sub" style="font-size:10px;margin-top:8px;font-family:'JetBrains Mono',monospace;display:flex;flex-wrap:wrap;gap:2px 5px;overflow:hidden">${sub||''}</div></div>`;
+    const nRes=c=>apostasKpiRows.filter(r=>r.resultado===c).length;
     const betsBreak=[
-      apostasFiltered.filter(r=>r.resultado==='W').length?`<span class="res-w">W:${apostasFiltered.filter(r=>r.resultado==='W').length}</span>`:'',
-      apostasFiltered.filter(r=>r.resultado==='HW').length?`<span class="res-hw">HW:${apostasFiltered.filter(r=>r.resultado==='HW').length}</span>`:'',
-      apostasFiltered.filter(r=>r.resultado==='L').length?`<span class="res-l">L:${apostasFiltered.filter(r=>r.resultado==='L').length}</span>`:'',
-      apostasFiltered.filter(r=>r.resultado==='HL').length?`<span class="res-hl">HL:${apostasFiltered.filter(r=>r.resultado==='HL').length}</span>`:'',
-      apostasFiltered.filter(r=>r.resultado==='V').length?`<span class="res-v">V:${apostasFiltered.filter(r=>r.resultado==='V').length}</span>`:'',
-      apostasAbertasFiltered.length?`<span style="color:var(--warn)">Abertas:${apostasAbertasFiltered.length}</span>`:''
+      nRes('W')?`<span class="res-w">W:${nRes('W')}</span>`:'',
+      nRes('HW')?`<span class="res-hw">HW:${nRes('HW')}</span>`:'',
+      nRes('L')?`<span class="res-l">L:${nRes('L')}</span>`:'',
+      nRes('HL')?`<span class="res-hl">HL:${nRes('HL')}</span>`:'',
+      nRes('V')?`<span class="res-v">V:${nRes('V')}</span>`:'',
+      abertasRecorte.length?`<span style="color:var(--warn)">Abertas:${abertasRecorte.length}</span>`:''
     ].filter(Boolean).join('');
-    const activeTips=[...new Set(apostasFiltered.map(r=>r.tipster).filter(Boolean))];
+    const activeTips=[...new Set(apostasKpiRows.map(r=>r.tipster).filter(Boolean))];
     const row1=[
       mkKA('P/L', fmtPL(pl), pl>=0?'pos':'neg', ''),
       mkKA('Turnover', fmtR(stake), 'neu', ''),
@@ -60,15 +120,25 @@ function renderApostas(){
       mkKA('Tipsters Ativos', activeTips.length.toString(), 'neu', activeTips.slice(0,3).map(esc).join(', ')+(activeTips.length>3?'...':'')),
     ];
     const row2=[
-      mkKA('Apostas', apostasFiltered.length.toLocaleString('pt-BR'), 'neu', betsBreak),
+      mkKA('Apostas', apostasKpiRows.length.toLocaleString('pt-BR'), 'neu', betsBreak),
       mkKA('Stake Média', fmtR(avgStakeAp), 'neu', 'por aposta'),
       mkKA('Odd Média', fmtOdd(avgOddAp), 'neu', 'ponderada'),
       mkKA('Win Rate', fmtPct(wr,1,false), 'neu', settled+' encerradas', wr),
     ];
+    // Enquanto o filtro de desfecho está ligado, a tela DIZ que os KPIs não o seguem.
+    // Sem esta linha, filtrar por L e ler P/L positivo parece defeito — e o certo seria
+    // pior: um Win Rate de 100% que ninguém sabe que é recorte.
+    const nota=apostasResSel.size
+      ? `<div class="apf-nota"><span class="apf-nota__dot"></span>Os KPIs acima seguem o período inteiro. O filtro de resultado (${[...apostasResSel].map(c=>c==='ABERTA'?'Aberta':c).join(' · ')}) recorta só a tabela.</div>`
+      : '';
     kpiEl.innerHTML=
       `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;width:100%">${row1.join('')}</div>`+
-      `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;width:100%">${row2.join('')}</div>`;
+      `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%">${row2.join('')}</div>`+
+      nota;
   }
+  // Chips de desfecho (com a contagem do recorte) e chips de filtro ativo
+  renderApostasResChips(abertasRecorte);
+  renderApostasAtivos();
   // Contador e sort arrows no header da tabela
   const counter=document.getElementById('apostasCounter');
   if(counter){
@@ -157,10 +227,125 @@ function apostasSort(colIdx){
   renderApostas();
 }
 function apostasFilter(colIdx,val){apostasColFilters[colIdx]=val;renderApostas();}
+
+// ── Chips de desfecho (W · HW · L · HL · V · Aberta) ────────────────────────
+// A contagem sai do recorte SEM o corte por resultado: é ela que diz "tenho 267 red
+// aqui" antes de o usuário clicar, que é justamente o gesto de conferência pedido.
+function renderApostasResChips(abertasRecorte){
+  const el=document.getElementById('apostasResChips');
+  if(!el)return;
+  const cont={};
+  for(const r of apostasKpiRows)cont[r.resultado]=(cont[r.resultado]||0)+1;
+  cont.ABERTA=abertasRecorte.length;
+  const total=apostasKpiRows.length+abertasRecorte.length;
+  const n=v=>`<span class="apf-chip__n">${v.toLocaleString('pt-BR')}</span>`;
+  const chips=[`<button type="button" class="apf-chip${apostasResSel.size?'':' on'}" title="Todos os desfechos" onclick="apostasResToggle('')">Todos${n(total)}</button>`];
+  for(const [cod,nome] of APOSTAS_RES){
+    const q=cont[cod]||0;
+    chips.push(`<button type="button" class="apf-chip apf-chip--${cod}${apostasResSel.has(cod)?' on':''}${q?'':' apf-chip--vazio'}" title="${nome}${q?'':' — nenhuma neste recorte'}" onclick="apostasResToggle('${cod}')">${cod==='ABERTA'?'Aberta':cod}${n(q)}</button>`);
+  }
+  el.innerHTML=chips.join('');
+}
+function apostasResToggle(cod){
+  if(!cod)apostasResSel.clear();
+  else if(apostasResSel.has(cod))apostasResSel.delete(cod);
+  else apostasResSel.add(cod);
+  renderApostas();
+}
+
+// ── Faixas numéricas (stake / odd / P/L) ────────────────────────────────────
+// Debounce: sem ele, digitar "1250" recorta a tela quatro vezes — e a primeira
+// ("1") esconde quase tudo, o que parece defeito no meio da digitação.
+function apostasFaixa(k,val){
+  apostasFaixas[k]=val;
+  clearTimeout(_apFaixaT);
+  _apFaixaT=setTimeout(renderApostas,200);
+}
+function apostasLimparFaixa(k){
+  apostasFaixas[k]='';
+  const el=document.getElementById('apf_'+k);
+  if(el)el.value='';
+  clearTimeout(_apFaixaT);
+  renderApostas();
+}
+
+// ── Chips de filtro ativo ───────────────────────────────────────────────────
+// A tela dizia o que estava filtrado só pelo contador ("400 de 400"): quem voltava
+// depois de um café não sabia que havia um recorte ligado, nem onde desligá-lo.
+// Cobre os DOIS níveis — a barra da página (período/esporte/casa/tipster/operador,
+// que vive em gfs/MSS) e os filtros locais desta tela.
+// Valor dentro de onclick="...": JSON.stringify entrega um literal JS valido (barra
+// invertida e aspas ja escapadas) e o esc() o torna seguro dentro do atributo, que o
+// parser HTML devolve intacto ao JS. Escapar a mao aqui e reescrever um parser pior.
+function _apJsArg(v){return esc(JSON.stringify(String(v)));}
+function _apPeriodoLbl(){
+  const st=gfs('apostas');
+  const br=iso=>{const p=String(iso).split('-');return `${p[2]}/${p[1]}/${p[0]}`;};
+  if(st.qd>0)return `últimos ${st.qd} dias`;
+  if(st.df&&st.dt)return st.df===st.dt?br(st.df):`${br(st.df)} → ${br(st.dt)}`;
+  if(st.df)return `de ${br(st.df)}`;
+  if(st.dt)return `até ${br(st.dt)}`;
+  return '';
+}
+function renderApostasAtivos(){
+  const el=document.getElementById('apostasAtivos');
+  if(!el)return;
+  const tags=[];
+  const tag=(lbl,val,onclick,titulo)=>tags.push(
+    `<span class="apf-tag"><span class="apf-tag__k">${lbl}</span><span class="apf-tag__v">${val}</span>`+
+    `<button type="button" class="apf-tag__x" title="${titulo||'Remover este filtro'}" aria-label="${titulo||'Remover este filtro'}" onclick="${onclick}">✕</button></span>`);
+  const per=_apPeriodoLbl();
+  if(per)tag('Período',esc(per),"clearDate('apostas')",'Voltar para todo o período');
+  [['sp_apostas','Esporte'],['ca_apostas','Casa'],['ti_apostas','Tipster'],['op_apostas','Operador'],['pa_apostas','Conta']].forEach(([id,lbl])=>{
+    const sel=[...msGet(id)];
+    if(!sel.length)return;
+    if(sel.length<=2)sel.forEach(v=>tag(lbl,esc(v),`apostasTirarMS('${id}',${_apJsArg(v)})`));
+    else tag(lbl,`${sel.length} selecionados`,`apostasTirarMS('${id}','')`);
+  });
+  [...apostasResSel].forEach(c=>tag('Resultado',c==='ABERTA'?'Aberta':c,`apostasResToggle('${c}')`));
+  // Dinheiro sempre pelo componente .money (UI_REFERENCE §5.1): limite de stake é valor
+  // unitário → moneyStake (2 casas); limite de P/L é P/L → fmtPL; odd → fmtOdd.
+  const fx=[
+    ['stakeMin','Stake ≥',v=>moneyStake(v)],['stakeMax','Stake ≤',v=>moneyStake(v)],
+    ['oddMin','Odd ≥',v=>fmtOdd(v)],       ['oddMax','Odd ≤',v=>fmtOdd(v)],
+    ['plMin','P/L ≥',v=>fmtPL(v)],         ['plMax','P/L ≤',v=>fmtPL(v)],
+  ];
+  fx.forEach(([k,lbl,f])=>{const v=_apFaixa(k);if(v!==null)tag(lbl,f(v),`apostasLimparFaixa('${k}')`);});
+  [[5,'Aposta'],[6,'Descrição']].forEach(([i,lbl])=>{
+    const v=(apostasColFilters[i]||'').trim();
+    if(v)tag(lbl,esc(v),`apostasTirarTexto(${i})`);
+  });
+  el.innerHTML=tags.length
+    ? `<span class="apf-ativos__k">Filtros ativos</span>${tags.join('')}`
+      +`<button type="button" class="apf-limpar" onclick="clearApostasFilters()">Limpar tudo</button>`
+    : '';
+  el.classList.toggle('apf-ativos--on',tags.length>0);
+}
+function apostasTirarMS(id,val){
+  msToggle(id,val===''?'__all__':val);
+  refreshMS(id);
+  // Conta é eixo local desta tela; os outros passam pelo filtrarPagina, cujo cache
+  // só cai dentro do renderPage — chamar renderApostas direto devolveria o recorte velho.
+  if(id==='pa_apostas')renderApostas();else renderPage('apostas');
+}
+function apostasTirarTexto(i){
+  apostasColFilters[i]='';
+  const el=document.querySelector(`.acf[data-col="${i}"]`);
+  if(el)el.value='';
+  renderApostas();
+}
 function clearApostasFilters(){
   apostasColFilters={};
-  document.querySelectorAll('.acf').forEach(el=>el.value='');
-  renderApostas();
+  apostasResSel.clear();
+  apostasFaixas={stakeMin:'',stakeMax:'',oddMin:'',oddMax:'',plMin:'',plMax:''};
+  clearTimeout(_apFaixaT);
+  document.querySelectorAll('.acf, .apf-num').forEach(el=>el.value='');
+  ['sp_apostas','ca_apostas','ti_apostas','op_apostas','pa_apostas'].forEach(id=>{
+    if(!MSS[id])return;
+    msToggle(id,'__all__');
+    refreshMS(id);
+  });
+  clearDate('apostas'); // fecha com o período: ele já dispara o renderPage (debounced)
 }
 
 // ── Autocomplete de tipster (modal + edição inline) ─────────────────────────

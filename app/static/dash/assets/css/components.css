@@ -1795,3 +1795,206 @@ select.ap-inline-inp { padding: 2px 4px; }
   letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
   padding:2px 18px 10px; border-bottom:1px solid var(--line); margin-bottom:8px;
 }
+
+/* ══ BASE COMPLETA — barra de filtros (s317) ═══════════════════════════════════
+   Escada de Tinta aplicada elemento a elemento, medida sobre o fundo EFETIVO:
+     · label/eyebrow      → --ink-soft, 9,5px      (6,3:1)
+     · valor/identidade   → --ink, 13px            (14,7:1)
+     · metadado (contagem)→ --ink-mute, 10px       (3,0:1 — no piso, não abaixo)
+     · placeholder        → --ink-mute, 12px
+   NÃO copiar o .filter-label / .btbl-th / .btbl-counter daqui de cima: os três usam
+   --ink-mute em 9px (label em tom de metadado, abaixo do piso) e são desvio anterior
+   a esta regra — estão registrados para correção própria, não para servir de modelo.
+
+   O estado "ligado" do chip é BORDA + TINTA no tom do resultado, sem tingir o fundo:
+   fundo tingido derruba o contraste justamente do --neg (mede 4,06:1 com o véu de
+   13% do .bet-res-L, contra 4,57:1 sobre o --surface-2 limpo). Cor de fundo aqui
+   custaria legibilidade para não dizer nada que a borda já não diga. */
+.apf-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.apf-row { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+.apf-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.apf-group--cresce { flex: 1 1 320px; }
+.apf-lbl {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+}
+
+/* ── Chips de desfecho ──────────────────────────────────────────────────── */
+.apf-chips { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.apf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.apf-chip:hover { border-color: var(--line); color: var(--ink); }
+/* Zero neste recorte: sinal por FORMA (traço), nunca por tom rebaixado — apagar a
+   cor de um chip pequeno o tiraria da escada em vez de informá-lo. */
+.apf-chip--vazio { border-style: dashed; }
+.apf-chip__n {
+  font-size: var(--text-xxs);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mute);
+}
+.apf-chip.on { background: var(--surface-2); }
+.apf-chip.on .apf-chip__n { color: inherit; }
+.apf-chip.on             { border-color: var(--accent);   color: var(--accent); }
+.apf-chip--W.on          { border-color: var(--pos);      color: var(--pos); }
+.apf-chip--HW.on         { border-color: var(--hw);       color: var(--hw); }
+.apf-chip--L.on          { border-color: var(--neg);      color: var(--neg); }
+.apf-chip--HL.on         { border-color: var(--hl);       color: var(--hl); }
+.apf-chip--V.on          { border-color: var(--ink-soft); color: var(--ink-soft); }
+.apf-chip--ABERTA.on     { border-color: var(--warn);     color: var(--warn); }
+
+/* ── Faixas numéricas e busca ───────────────────────────────────────────── */
+.apf-range { display: flex; align-items: center; gap: 5px; }
+.apf-range__sep { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-mute); }
+.apf-num {
+  width: 74px;
+  padding: 5px var(--sp-2);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.apf-num:focus { border-color: var(--accent); }
+.apf-num::placeholder { color: var(--ink-mute); }
+.apf-busca { display: flex; gap: 6px; flex-wrap: wrap; }
+.apf-busca .apostas-filter-inp { width: 190px; }
+.apf-csv {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.apf-csv:hover { border-color: rgba(var(--accent-rgb), 0.4); color: var(--ink); }
+
+/* ── Chips de filtro ativo ──────────────────────────────────────────────── */
+.apf-ativos { display: none; }
+.apf-ativos--on {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-2);
+}
+.apf-ativos__k {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+  margin-right: 2px;
+}
+.apf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px 3px 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+}
+.apf-tag__k {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+/* O valor pode ser nome próprio (casa, tipster, conta) — papel de identidade na
+   escada: --ink em 13px, nunca um tom de metadado. */
+.apf-tag__v { font-size: var(--text-sm); color: var(--ink); white-space: nowrap; }
+.apf-tag__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.apf-tag__x:hover { background: rgba(var(--neg-rgb), 0.14); color: var(--neg); }
+/* .money dentro do chip: mesma relaxada documentada nas telas Em Aberto — o
+   min-width:10ch do .money-val existe para alinhar COLUNA de tabela e aqui estoura.
+   Nenhuma regra de marca muda: R$ segue menor/neutro, cor só no número, mono. */
+.apf-tag .money { width: auto; gap: 2px; }
+.apf-tag .money-val, .apf-tag .money-sign { min-width: 0; }
+.apf-limpar {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.apf-limpar:hover { border-color: rgba(var(--neg-rgb), 0.45); color: var(--neg); }
+
+/* ── Aviso: os KPIs não seguem o filtro de resultado ────────────────────── */
+.apf-nota {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.apf-nota__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex-shrink: 0;
+}

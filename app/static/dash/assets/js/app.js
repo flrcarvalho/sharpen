@@ -13,6 +13,9 @@ function applyAparencia(){
 function fmt(v,d=2){return Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});}
 function fmtPL(v){const cls=v>0?'pos':(v<0?'neg':'');const sign=v>0?'+':(v<0?'−':'');return`<span class="money ${cls}"><span class="money-sign">${sign}R$</span><span class="money-val">${fmt(Math.abs(v))}</span></span>`;}
 function fmtR(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(v,0)}</span></span>`;}
+// Stake / valor unitário: .money com 2 casas e SEM sinal (UI_REFERENCE §5.1). Mesma
+// máscara do moneyStake do index.html — aqui o valor chega como número, não string.
+function moneyStake(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(v,2)}</span></span>`;}
 function fmtPct(v,d=2,signed=true){const abs=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});if(!signed)return abs+'%';return(v>=0?'+':'−')+abs+'%';}
 function fmtOdd(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 // fmtU — resultado em UNIDADES (Perfil de Tipster). Espelha fmtPL trocando R$→"u" como
@@ -543,6 +546,10 @@ function buildHTML(){
   const tipsters=[...new Set(_todas.map(r=>r.tipster).filter(Boolean))].sort();
   const sports=[...new Set(_todas.map(r=>r.esporte).filter(Boolean))].sort();
   const casas=[...new Set(_todas.map(r=>r.casa).filter(Boolean))].sort();
+  // Contas (parceiro) — eixo que a barra da página não tem e que a Base Completa
+  // oferece como multiselect próprio. Fora da lista o '—' das linhas sem conta:
+  // ele é ausência de dado, não uma conta chamada travessão.
+  const parceiros=[...new Set(_todas.map(r=>r.parceiro).filter(p=>p&&p!=='—'))].sort((a,b)=>a.localeCompare(b,'pt-BR',{sensitivity:'base',numeric:true}));
   ['overview','sports','casas','apostas','abertas','tipsters','resultados','parceiros','custos','metrics'].forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
   msInit('tipsters');
 
@@ -649,26 +656,72 @@ function buildHTML(){
       <div class="page" id="page-apostas">
         ${buildFilters('apostas',sports,casas,tipsters)}
         <div id="apostasKPI" style="margin-bottom:1rem"></div>
-        <!-- Busca rápida por coluna -->
-        <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;padding:16px 22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">
-            ${[['Aposta/Tipo',5],['Descrição/Evento',6],['Esporte',1],['Tipster',2],['Casa',3],['Parceiro',4]].map(([lbl,i])=>`<input class="apostas-filter-inp acf" type="text" placeholder="${lbl}..." oninput="apostasFilter(${i},this.value)">`).join('')}
+        <!-- Barra de filtros da tela (s317). NÃO repete os eixos da barra da página
+             acima: Esporte/Tipster/Casa já são multiselect lá, e as caixas de texto que
+             os duplicavam casavam por substring ("Vinicius" pegava "Vinicius2"). Aqui
+             ficam só os eixos que a barra de cima não tem: desfecho, faixas, conta e
+             busca textual. -->
+        <div class="apf-bar">
+          <div class="apf-row">
+            <div class="apf-group apf-group--cresce">
+              <div class="apf-lbl">Resultado</div>
+              <div class="apf-chips" id="apostasResChips"></div>
+            </div>
+            <div class="apf-group">
+              <div class="apf-lbl">Stake (R$)</div>
+              <div class="apf-range">
+                <input class="apf-num" id="apf_stakeMin" type="text" inputmode="decimal" placeholder="mín" aria-label="Stake mínima" oninput="apostasFaixa('stakeMin',this.value)">
+                <span class="apf-range__sep">–</span>
+                <input class="apf-num" id="apf_stakeMax" type="text" inputmode="decimal" placeholder="máx" aria-label="Stake máxima" oninput="apostasFaixa('stakeMax',this.value)">
+              </div>
+            </div>
+            <div class="apf-group">
+              <div class="apf-lbl">Odd</div>
+              <div class="apf-range">
+                <input class="apf-num" id="apf_oddMin" type="text" inputmode="decimal" placeholder="mín" aria-label="Odd mínima" oninput="apostasFaixa('oddMin',this.value)">
+                <span class="apf-range__sep">–</span>
+                <input class="apf-num" id="apf_oddMax" type="text" inputmode="decimal" placeholder="máx" aria-label="Odd máxima" oninput="apostasFaixa('oddMax',this.value)">
+              </div>
+            </div>
+            <div class="apf-group">
+              <div class="apf-lbl">P/L (R$)</div>
+              <div class="apf-range">
+                <input class="apf-num" id="apf_plMin" type="text" inputmode="decimal" placeholder="mín" aria-label="P/L mínimo" oninput="apostasFaixa('plMin',this.value)">
+                <span class="apf-range__sep">–</span>
+                <input class="apf-num" id="apf_plMax" type="text" inputmode="decimal" placeholder="máx" aria-label="P/L máximo" oninput="apostasFaixa('plMax',this.value)">
+              </div>
+            </div>
           </div>
-          <button onclick="clearApostasFilters()" style="font-size:10px;padding:5px 10px;background:transparent;border:1px solid var(--line);color:var(--ink-mute);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;white-space:nowrap;flex-shrink:0">✕ Limpar</button>
-          <a href="/exportar.csv" title="Baixar toda a base como CSV (backup)" style="display:inline-flex;align-items:center;gap:6px;font-size:10px;padding:5px 10px;background:transparent;border:1px solid var(--line);color:var(--ink-mute);border-radius:5px;text-decoration:none;font-family:'JetBrains Mono',monospace;white-space:nowrap;flex-shrink:0;transition:border-color .2s,color .2s" onmouseover="this.style.borderColor='rgba(var(--accent-rgb),.4)';this.style.color='var(--ink)'" onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--ink-mute)'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base (CSV)</a>
+          <div class="apf-row">
+            <div class="apf-group apf-group--cresce">
+              <div class="apf-lbl">Buscar no texto</div>
+              <div class="apf-busca">
+                ${[['Aposta / mercado',5],['Descrição / evento',6]].map(([lbl,i])=>`<input class="apostas-filter-inp acf" data-col="${i}" type="text" placeholder="${lbl}..." aria-label="${lbl}" oninput="apostasFilter(${i},this.value)">`).join('')}
+              </div>
+            </div>
+            <div class="apf-group">
+              <div class="apf-lbl">Conta</div>
+              ${buildMS('pa_apostas',parceiros,'Todas as contas','apostas','renderApostas')}
+            </div>
+            <div class="apf-group">
+              <div class="apf-lbl">Base</div>
+              <a class="apf-csv" href="/exportar.csv" title="Baixa a base COMPLETA do dono (backup) — não é o recorte que está na tela"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base completa (CSV)</a>
+            </div>
+          </div>
+          <div class="apf-ativos" id="apostasAtivos"></div>
         </div>
         <!-- Tabela de apostas -->
         <div class="btbl-wrap">
           <!-- Header fixo da tabela -->
           <div class="btbl-cols btbl-hdr-row">
             <div class="btbl-th sortable" data-col="0" onclick="apostasSort(0)">Data <span class="sort-arrow">↓</span></div>
-            <div class="btbl-th">Aposta / Evento</div>
-            <div class="btbl-th">Esporte</div>
-            <div class="btbl-th">Tipster</div>
-            <div class="btbl-th">Casa · Parceiro</div>
+            <div class="btbl-th sortable" data-col="5" onclick="apostasSort(5)" title="Ordena pelo mercado (a linha azul), não pela descrição">Aposta / Evento <span class="sort-arrow">↕</span></div>
+            <div class="btbl-th sortable" data-col="1" onclick="apostasSort(1)">Esporte <span class="sort-arrow">↕</span></div>
+            <div class="btbl-th sortable" data-col="2" onclick="apostasSort(2)">Tipster <span class="sort-arrow">↕</span></div>
+            <div class="btbl-th sortable" data-col="3" onclick="apostasSort(3)">Casa · Parceiro <span class="sort-arrow">↕</span></div>
             <div class="btbl-th sortable" data-col="7" onclick="apostasSort(7)">Stake <span class="sort-arrow">↕</span></div>
             <div class="btbl-th sortable" data-col="8" onclick="apostasSort(8)">Odd <span class="sort-arrow">↕</span></div>
-            <div class="btbl-th">Resultado</div>
+            <div class="btbl-th sortable" data-col="9" onclick="apostasSort(9)" title="Ordem semântica: W · HW · V · HL · L · Aberta">Resultado <span class="sort-arrow">↕</span></div>
             <div class="btbl-th sortable" data-col="10" onclick="apostasSort(10)" style="text-align:right">P/L <span class="sort-arrow">↕</span></div>
             <div class="btbl-th" style="text-align:center">Ações</div>
           </div>
