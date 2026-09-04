@@ -331,11 +331,15 @@ function abrirCalFiltro(id){
   if(!inp||!window.SharpenCal)return;
   SharpenCal.abrir(inp,inp.value,v=>{inp.value=v;inp.dispatchEvent(new Event('change',{bubbles:true}));},{saida:'iso'});
 }
-function buildFilters(p,sports,casas,tipsters){
+// ── Peças da barra de filtros ───────────────────────────────────────────────
+// Extraídas na s317. A Base Completa monta UMA barra só (período + eixos + desfecho +
+// faixas + busca) e precisava dos mesmos grupos que as outras telas usam — copiar o
+// markup criaria dois períodos que divergem no primeiro ajuste. Toda página segue
+// chamando `buildFilters`; ninguém redesenhou nada.
+function _grupoPeriodo(p){
   const st=gfs(p);
   const isAll=st.qd===0&&!st.qt&&!st.df&&!st.dt;
-  return`<div class="filters">
-    <div class="filter-group">
+  return`    <div class="filter-group">
       <div class="filter-label">Período</div>
       <div class="date-row">
         <span class="shcal-datewrap"><input type="date" id="df_f_${p}" value="${st.df}" onchange="setDateF('${p}','f',this.value)"><button type="button" class="shcal-databtn" title="Abrir calendário" aria-label="Abrir calendário" onclick="abrirCalFiltro('df_f_${p}')">${_calSVG()}</button></span>
@@ -362,11 +366,26 @@ function buildFilters(p,sports,casas,tipsters){
         <span class="day-nav-label" id="monthNavLbl_${p}">${_monthNavLabel(st.monthOff||0)}</span>
         <button class="day-nav-arrow" id="monthNavFwd_${p}" onclick="navMonth('${p}',1)" aria-label="Próximo mês"${(st.monthOff||0)>=0?' disabled':''}>&#9654;</button>
       </div>
-    </div>
-    <div class="filter-group"><div class="filter-label">Esporte</div>${buildMS('sp_'+p,sports,'Todos os esportes',p)}</div>
-    <div class="filter-group"><div class="filter-label">Casa</div>${buildMS('ca_'+p,casas,'Todas as casas',p,'',true)}</div>
-    ${tipsters?`<div class="filter-group"><div class="filter-label">Tipster</div>${buildMS('ti_'+p,tipsters,'Todos os tipsters',p)}</div>`:''}
-    ${(()=>{const ops=[...new Set(DADOS.map(r=>r.operador).filter(Boolean))].sort();return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p)}</div>`:'';})()}
+    </div>`;
+}
+// Os quatro eixos de recorte da carteira. `cb` deixa a tela mandar quem repinta — a
+// Base Completa repinta só a si mesma; o resto cai no renderPage debounced.
+function _grupoEsporte(p,sports,cb){return`<div class="filter-group"><div class="filter-label">Esporte</div>${buildMS('sp_'+p,sports,'Todos os esportes',p,cb||'')}</div>`;}
+function _grupoCasa(p,casas,cb){return`<div class="filter-group"><div class="filter-label">Casa</div>${buildMS('ca_'+p,casas,'Todas as casas',p,cb||'',true)}</div>`;}
+function _grupoTipster(p,tipsters,cb){return tipsters?`<div class="filter-group"><div class="filter-label">Tipster</div>${buildMS('ti_'+p,tipsters,'Todos os tipsters',p,cb||'')}</div>`:'';}
+// Operador só aparece para quem supervisiona mais de um — dono solo não tem esse eixo.
+function _grupoOperador(p,cb){
+  const ops=[...new Set(DADOS.map(r=>r.operador).filter(Boolean))].sort();
+  return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p,cb||'')}</div>`:'';
+}
+
+function buildFilters(p,sports,casas,tipsters){
+  return`<div class="filters">
+${_grupoPeriodo(p)}
+    ${_grupoEsporte(p,sports)}
+    ${_grupoCasa(p,casas)}
+    ${_grupoTipster(p,tipsters)}
+    ${_grupoOperador(p)}
   </div>`;
 }
 
@@ -377,9 +396,9 @@ function buildFilters(p,sports,casas,tipsters){
 // filtrarAbertas() nunca dispara — a página vê sempre TODA a exposição viva.
 function buildFiltersSemData(p,sports,casas,tipsters){
   return`<div class="filters">
-    <div class="filter-group"><div class="filter-label">Esporte</div>${buildMS('sp_'+p,sports,'Todos os esportes',p)}</div>
-    <div class="filter-group"><div class="filter-label">Casa</div>${buildMS('ca_'+p,casas,'Todas as casas',p,'',true)}</div>
-    ${tipsters?`<div class="filter-group"><div class="filter-label">Tipster</div>${buildMS('ti_'+p,tipsters,'Todos os tipsters',p)}</div>`:''}
-    ${(()=>{const ops=[...new Set(DADOS.map(r=>r.operador).filter(Boolean))].sort();return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p)}</div>`:'';})()}
+    ${_grupoEsporte(p,sports)}
+    ${_grupoCasa(p,casas)}
+    ${_grupoTipster(p,tipsters)}
+    ${_grupoOperador(p)}
   </div>`;
 }

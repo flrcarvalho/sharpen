@@ -914,17 +914,19 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
 }
+/* thead: papel "label" da Escada de Tinta (--ink-soft, piso 9,5px). Vinha em 9px
+   --ink-mute — tom de metadado, abaixo do piso. Corrigido na s317. */
 .btbl-th {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--ink-mute);
+  color: var(--ink-soft);
   white-space: nowrap;
   user-select: none;
 }
 .btbl-th.sortable { cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
-.btbl-th.sortable:hover { color: var(--ink-soft); }
+.btbl-th.sortable:hover { color: var(--ink); }
 .btbl-th.sort-active { color: var(--ink); }
 .btbl-th .sort-arrow { font-size: 8px; }
 .btbl-data-row {
@@ -1140,9 +1142,11 @@ select.ap-inline-inp { padding: 2px 4px; }
   white-space: nowrap;
   text-align: right;
 }
+/* Contador: papel "metadado secundário" — --ink-mute é o tom certo, mas o piso dele é
+   10px (vinha em 9px). Corrigido na s317. */
 .btbl-counter {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--ink-mute);
   letter-spacing: 0.08em;
   text-align: right;
@@ -1797,43 +1801,43 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 
 /* ══ BASE COMPLETA — barra de filtros (s317) ═══════════════════════════════════
-   Escada de Tinta aplicada elemento a elemento, medida sobre o fundo EFETIVO:
-     · label/eyebrow      → --ink-soft, 9,5px      (6,3:1)
-     · valor/identidade   → --ink, 13px            (14,7:1)
-     · metadado (contagem)→ --ink-mute, 10px       (3,0:1 — no piso, não abaixo)
-     · placeholder        → --ink-mute, 12px
-   NÃO copiar o .filter-label / .btbl-th / .btbl-counter daqui de cima: os três usam
-   --ink-mute em 9px (label em tom de metadado, abaixo do piso) e são desvio anterior
-   a esta regra — estão registrados para correção própria, não para servir de modelo.
+   UMA barra, não duas. Os filtros nasceram numa segunda caixa embaixo dos KPIs, com
+   período/esporte/casa/tipster continuando lá em cima: quem mexia no de baixo perdia o
+   de cima do campo de visão e a tela parecia não ter o filtro que tinha.
+
+   Os grupos são os mesmos `.filter-group` / `.filter-label` das outras telas — não há
+   label próprio aqui. Um segundo estilo de label na mesma tela é a origem da sensação
+   de "fora do padrão", mesmo quando as duas metades estão certas isoladamente.
+
+   Escada de Tinta do que é próprio desta barra, medida sobre o fundo EFETIVO:
+     · chip                → --ink-soft, 11px   (6,3:1)
+     · contagem do chip    → --ink-mute, 10px   (3,0:1 — no piso, não abaixo)
+     · valor do chip ativo → --ink, 13px        (14,7:1)
+     · placeholder         → --ink-mute, 12px
 
    O estado "ligado" do chip é BORDA + TINTA no tom do resultado, sem tingir o fundo:
-   fundo tingido derruba o contraste justamente do --neg (mede 4,06:1 com o véu de
-   13% do .bet-res-L, contra 4,57:1 sobre o --surface-2 limpo). Cor de fundo aqui
-   custaria legibilidade para não dizer nada que a borda já não diga. */
+   fundo tingido derruba o contraste justamente do --neg (mede 4,06:1 com o véu de 13%
+   do .bet-res-L, contra 4,57:1 sobre o --surface-2 limpo). Cor de fundo aqui custaria
+   legibilidade para não dizer nada que a borda já não diga. */
 .apf-bar {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
   margin-bottom: var(--sp-4);
-  padding: var(--sp-3) 22px;
+  padding: var(--sp-4) 22px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
+  position: relative;
+  z-index: 100;          /* os dropdowns de multiselect abrem por cima dos KPIs */
 }
-.apf-row { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
-.apf-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.apf-group--cresce { flex: 1 1 320px; }
-.apf-lbl {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: var(--weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--ink-soft);
-}
+.apf-linha { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+/* Divisória entre o recorte da CARTEIRA (quem/quando/onde) e o da APOSTA (desfecho,
+   faixas, texto). São dois gestos diferentes; a linha diz isso sem precisar de título. */
+.apf-linha--carteira { padding-bottom: var(--sp-3); border-bottom: 1px solid var(--line-2); }
 
 /* ── Chips de desfecho ──────────────────────────────────────────────────── */
-.apf-chips { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.apf-chips { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-height: 26px; }
 .apf-chip {
   display: inline-flex;
   align-items: center;
@@ -1851,8 +1855,8 @@ select.ap-inline-inp { padding: 2px 4px; }
   transition: border-color 0.12s, color 0.12s;
 }
 .apf-chip:hover { border-color: var(--line); color: var(--ink); }
-/* Zero neste recorte: sinal por FORMA (traço), nunca por tom rebaixado — apagar a
-   cor de um chip pequeno o tiraria da escada em vez de informá-lo. */
+/* Zero neste recorte: sinal por FORMA (traço), nunca por tom rebaixado — apagar a cor
+   de um chip pequeno o tiraria da escada em vez de informá-lo. */
 .apf-chip--vazio { border-style: dashed; }
 .apf-chip__n {
   font-size: var(--text-xxs);
@@ -1860,21 +1864,20 @@ select.ap-inline-inp { padding: 2px 4px; }
   font-variant-numeric: tabular-nums;
   color: var(--ink-mute);
 }
-.apf-chip.on { background: var(--surface-2); }
 .apf-chip.on .apf-chip__n { color: inherit; }
-.apf-chip.on             { border-color: var(--accent);   color: var(--accent); }
-.apf-chip--W.on          { border-color: var(--pos);      color: var(--pos); }
-.apf-chip--HW.on         { border-color: var(--hw);       color: var(--hw); }
-.apf-chip--L.on          { border-color: var(--neg);      color: var(--neg); }
-.apf-chip--HL.on         { border-color: var(--hl);       color: var(--hl); }
-.apf-chip--V.on          { border-color: var(--ink-soft); color: var(--ink-soft); }
-.apf-chip--ABERTA.on     { border-color: var(--warn);     color: var(--warn); }
+.apf-chip.on         { border-color: var(--accent);   color: var(--accent); }
+.apf-chip--W.on      { border-color: var(--pos);      color: var(--pos); }
+.apf-chip--HW.on     { border-color: var(--hw);       color: var(--hw); }
+.apf-chip--L.on      { border-color: var(--neg);      color: var(--neg); }
+.apf-chip--HL.on     { border-color: var(--hl);       color: var(--hl); }
+.apf-chip--V.on      { border-color: var(--ink-soft); color: var(--ink-soft); }
+.apf-chip--ABERTA.on { border-color: var(--warn);     color: var(--warn); }
 
 /* ── Faixas numéricas e busca ───────────────────────────────────────────── */
 .apf-range { display: flex; align-items: center; gap: 5px; }
 .apf-range__sep { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-mute); }
 .apf-num {
-  width: 74px;
+  width: 72px;
   padding: 5px var(--sp-2);
   background: var(--field);
   border: 1px solid var(--line);
@@ -1888,11 +1891,13 @@ select.ap-inline-inp { padding: 2px 4px; }
 .apf-num:focus { border-color: var(--accent); }
 .apf-num::placeholder { color: var(--ink-mute); }
 .apf-busca { display: flex; gap: 6px; flex-wrap: wrap; }
-.apf-busca .apostas-filter-inp { width: 190px; }
+.apf-busca .apostas-filter-inp { width: 200px; padding: 5px var(--sp-2); }
 .apf-csv {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
+  align-self: flex-end;
   padding: 5px 10px;
   background: transparent;
   border: 1px solid var(--line);
@@ -1916,15 +1921,7 @@ select.ap-inline-inp { padding: 2px 4px; }
   padding-top: var(--sp-3);
   border-top: 1px solid var(--line-2);
 }
-.apf-ativos__k {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: var(--weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--ink-soft);
-  margin-right: 2px;
-}
+.apf-ativos .filter-label { margin-right: 2px; }
 .apf-tag {
   display: inline-flex;
   align-items: center;

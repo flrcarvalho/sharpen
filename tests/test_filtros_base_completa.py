@@ -99,27 +99,48 @@ def test_faixa_reusa_o_parse_numerico_da_tela():
     assert "parseFloat" not in corpo.group(0), "parseFloat na faixa: pt-BR e U+2212 se perdem"
 
 
-def test_a_barra_nao_duplica_os_eixos_da_pagina():
-    """Esporte, Tipster e Casa são multiselect na barra da página. As caixas de texto que
-    os repetiam casavam por substring ("Vinicius" pegava "Vinicius2") e ocupavam metade
-    da barra entregando menos. A busca textual ficou só onde não há multiselect."""
+def test_a_tela_tem_UMA_barra_de_filtros():
+    """Os filtros nasceram em DUAS caixas — a da página em cima, a nova embaixo dos KPIs —
+    e o Feca leu a tela: *"alguns filtros ficaram lá no topo, bem confuso"*. Filtro é uma
+    superfície só: partido em dois cartões, o de cima sai do campo de visão de quem mexe
+    no de baixo e a tela parece não ter o filtro que tem.
+
+    A página de apostas NÃO pode voltar a chamar `buildFilters` — quem monta a barra dela
+    é o `buildFiltrosApostas`, com as mesmas peças (`_grupoPeriodo` e cia.)."""
     src = APP_JS.read_text(encoding="utf-8")
-    barra = src[src.index('<div class="apf-bar">'):src.index("<!-- Tabela de apostas -->")]
-    # Os inputs saem de um .map sobre pares [rótulo, índice de coluna]; o índice é o que
-    # amarra o input à coluna de APOSTAS_COLS, então é ele que o teste confere.
-    colunas = sorted(int(n) for n in re.findall(r"',\s*(\d+)\]", barra))
+    pagina = src[src.index('<div class="page" id="page-apostas">'):src.index("<!-- EM ABERTO")]
+    assert "buildFilters('apostas'" not in pagina, "voltou a segunda barra de filtros na tela"
+    assert "buildFiltrosApostas(" in pagina, "a barra única sumiu da página"
+
+    barra = APOSTAS_JS.read_text(encoding="utf-8")
+    corpo = barra[barra.index("function buildFiltrosApostas("):barra.index("// Match dos filtros de coluna")]
+    for peca in ("_grupoPeriodo(", "_grupoEsporte(", "_grupoCasa(", "_grupoTipster(", "_grupoOperador("):
+        assert peca in corpo, f"{peca} saiu da barra — o eixo sumiu ou o markup foi copiado"
+
+
+def test_a_barra_nao_duplica_os_eixos_da_pagina():
+    """Esporte, Tipster e Casa são multiselect na barra. As caixas de texto que os
+    repetiam casavam por substring ("Vinicius" pegava "Vinicius2") e ocupavam metade da
+    barra entregando menos. A busca textual ficou só onde não há multiselect."""
+    src = APOSTAS_JS.read_text(encoding="utf-8")
+    barra = src[src.index("function buildFiltrosApostas("):src.index("// Match dos filtros de coluna")]
+    # O índice é o que amarra cada input à coluna de APOSTAS_COLS — é ele que o teste
+    # confere, não o rótulo.
+    colunas = sorted(int(n) for n in re.findall(r"apostasFilter\((\d+),", barra))
     assert colunas == [5, 6], (
         f"a busca textual mudou de colunas: {colunas}. 5=aposta e 6=descrição são as duas "
-        "sem multiselect na barra da página; 1/2/3 (esporte/tipster/casa) duplicariam"
+        "sem multiselect na barra; 1/2/3 (esporte/tipster/casa) duplicariam o seletor"
     )
-    assert "buildMS('pa_apostas'" in barra, "o multiselect de conta sumiu da barra"
+    # Conta é o único multiselect montado aqui; os outros quatro vêm das peças
+    # compartilhadas, e quem confere que eles estão na barra é o teste da barra única.
+    assert "buildMS('pa_" in barra, "o multiselect de conta sumiu da barra"
 
 
 def test_csv_diz_que_baixa_a_base_inteira():
     """`/exportar.csv` é backup do dono, não o recorte da tela. O botão fica ao lado de
     filtros que acabaram de recortar 400 linhas em 12 — o rótulo é o que impede a
     leitura errada."""
-    src = APP_JS.read_text(encoding="utf-8")
+    src = APOSTAS_JS.read_text(encoding="utf-8")
     # O rótulo VISÍVEL, não o title: quem lê o botão no meio de um recorte não passa o
     # mouse nele. Texto do <a>, tudo que vem depois do </svg>.
     trecho = src[src.index('class="apf-csv"'):src.index('class="apf-csv"') + 900]

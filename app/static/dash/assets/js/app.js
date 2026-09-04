@@ -654,62 +654,12 @@ function buildHTML(){
 
       <!-- APOSTAS -->
       <div class="page" id="page-apostas">
-        ${buildFilters('apostas',sports,casas,tipsters)}
+        <!-- UMA barra de filtros, não duas. Período/esporte/casa/tipster/conta,
+             desfecho, faixas e busca no mesmo cartão — ver buildFiltrosApostas em
+             charts/apostas.js. Esta tela NÃO chama buildFilters: os filtros nasceram
+             em duas caixas com os KPIs no meio e a de cima sumia do campo de visão. -->
+        ${buildFiltrosApostas(sports,casas,tipsters,parceiros)}
         <div id="apostasKPI" style="margin-bottom:1rem"></div>
-        <!-- Barra de filtros da tela (s317). NÃO repete os eixos da barra da página
-             acima: Esporte/Tipster/Casa já são multiselect lá, e as caixas de texto que
-             os duplicavam casavam por substring ("Vinicius" pegava "Vinicius2"). Aqui
-             ficam só os eixos que a barra de cima não tem: desfecho, faixas, conta e
-             busca textual. -->
-        <div class="apf-bar">
-          <div class="apf-row">
-            <div class="apf-group apf-group--cresce">
-              <div class="apf-lbl">Resultado</div>
-              <div class="apf-chips" id="apostasResChips"></div>
-            </div>
-            <div class="apf-group">
-              <div class="apf-lbl">Stake (R$)</div>
-              <div class="apf-range">
-                <input class="apf-num" id="apf_stakeMin" type="text" inputmode="decimal" placeholder="mín" aria-label="Stake mínima" oninput="apostasFaixa('stakeMin',this.value)">
-                <span class="apf-range__sep">–</span>
-                <input class="apf-num" id="apf_stakeMax" type="text" inputmode="decimal" placeholder="máx" aria-label="Stake máxima" oninput="apostasFaixa('stakeMax',this.value)">
-              </div>
-            </div>
-            <div class="apf-group">
-              <div class="apf-lbl">Odd</div>
-              <div class="apf-range">
-                <input class="apf-num" id="apf_oddMin" type="text" inputmode="decimal" placeholder="mín" aria-label="Odd mínima" oninput="apostasFaixa('oddMin',this.value)">
-                <span class="apf-range__sep">–</span>
-                <input class="apf-num" id="apf_oddMax" type="text" inputmode="decimal" placeholder="máx" aria-label="Odd máxima" oninput="apostasFaixa('oddMax',this.value)">
-              </div>
-            </div>
-            <div class="apf-group">
-              <div class="apf-lbl">P/L (R$)</div>
-              <div class="apf-range">
-                <input class="apf-num" id="apf_plMin" type="text" inputmode="decimal" placeholder="mín" aria-label="P/L mínimo" oninput="apostasFaixa('plMin',this.value)">
-                <span class="apf-range__sep">–</span>
-                <input class="apf-num" id="apf_plMax" type="text" inputmode="decimal" placeholder="máx" aria-label="P/L máximo" oninput="apostasFaixa('plMax',this.value)">
-              </div>
-            </div>
-          </div>
-          <div class="apf-row">
-            <div class="apf-group apf-group--cresce">
-              <div class="apf-lbl">Buscar no texto</div>
-              <div class="apf-busca">
-                ${[['Aposta / mercado',5],['Descrição / evento',6]].map(([lbl,i])=>`<input class="apostas-filter-inp acf" data-col="${i}" type="text" placeholder="${lbl}..." aria-label="${lbl}" oninput="apostasFilter(${i},this.value)">`).join('')}
-              </div>
-            </div>
-            <div class="apf-group">
-              <div class="apf-lbl">Conta</div>
-              ${buildMS('pa_apostas',parceiros,'Todas as contas','apostas','renderApostas')}
-            </div>
-            <div class="apf-group">
-              <div class="apf-lbl">Base</div>
-              <a class="apf-csv" href="/exportar.csv" title="Baixa a base COMPLETA do dono (backup) — não é o recorte que está na tela"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base completa (CSV)</a>
-            </div>
-          </div>
-          <div class="apf-ativos" id="apostasAtivos"></div>
-        </div>
         <!-- Tabela de apostas -->
         <div class="btbl-wrap">
           <!-- Header fixo da tabela -->

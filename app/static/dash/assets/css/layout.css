@@ -269,9 +269,15 @@ html[data-theme="light"].t-page-gradient .page-title {
   backdrop-filter: blur(8px);
 }
 .filter-group { display: flex; flex-direction: column; gap: 4px; }
+/* Label de filtro — papel "label/eyebrow" da Escada de Tinta: --ink-soft com piso de
+   9,5px. Vinha em --text-nano (9px) + --ink-mute (3,0:1), que é o tom de METADADO e
+   abaixo do piso: caixa alta com tracking nesse tamanho deixa de ser texto e vira
+   textura. Corrigido na s317, junto com a barra da Base Completa — ela reusa este
+   mesmo label, e dois estilos de label na mesma tela é o que faz a tela parecer fora
+   do padrão mesmo com as duas metades certas isoladamente. */
 .filter-label {
-  font-size: var(--text-nano);
-  color: var(--ink-mute);
+  font-size: 9.5px;
+  color: var(--ink-soft);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-family: var(--font-mono);

@@ -35,6 +35,53 @@ let _apFaixaT=null;           // debounce dos campos de faixa (dígito a dígito
 // um segundo parser aqui repetiria o bug da s300.
 function _apFaixa(k){const v=(apostasFaixas[k]||'').trim();return v===''?null:parseNum(v);}
 
+// ── A barra de filtros da tela é UMA só ─────────────────────────────────────
+// Na primeira volta da s317 os filtros nasceram numa segunda caixa, embaixo dos KPIs,
+// com a barra da página continuando lá em cima: Esporte, Casa e Tipster ficaram
+// separados de Resultado, Stake e Odd por um bloco inteiro de KPI. O Feca leu a tela e
+// resumiu — *"alguns filtros ficaram lá no topo, bem confuso"*. Filtro é uma superfície
+// só; partido em dois cartões, o de cima some do campo de visão de quem está mexendo
+// no de baixo, e a tela passa a parecer que não tem o filtro que ela tem.
+//
+// Os grupos vêm das MESMAS peças que as outras telas usam (`_grupoPeriodo` e cia., em
+// filters.js): copiar o markup criaria dois períodos que divergem no primeiro ajuste.
+// O `cb` faz os multiselects repintarem só esta tela.
+function buildFiltrosApostas(sports,casas,tipsters,parceiros){
+  const p='apostas';
+  const faixa=(k,lbl,ph)=>`<input class="apf-num" id="apf_${k}" type="text" inputmode="decimal" placeholder="${ph}" aria-label="${lbl}" oninput="apostasFaixa('${k}',this.value)">`;
+  const grupoFaixa=(base,lbl)=>`<div class="filter-group">
+        <div class="filter-label">${lbl}</div>
+        <div class="apf-range">${faixa(base+'Min',lbl+' mínima','mín')}<span class="apf-range__sep">–</span>${faixa(base+'Max',lbl+' máxima','máx')}</div>
+      </div>`;
+  return`<div class="apf-bar">
+    <div class="apf-linha apf-linha--carteira">
+${_grupoPeriodo(p)}
+      ${_grupoEsporte(p,sports,'renderApostas')}
+      ${_grupoCasa(p,casas,'renderApostas')}
+      ${_grupoTipster(p,tipsters,'renderApostas')}
+      <div class="filter-group"><div class="filter-label">Conta</div>${buildMS('pa_'+p,parceiros,'Todas as contas',p,'renderApostas')}</div>
+      ${_grupoOperador(p,'renderApostas')}
+    </div>
+    <div class="apf-linha">
+      <div class="filter-group"><div class="filter-label">Resultado</div><div class="apf-chips" id="apostasResChips"></div></div>
+      ${grupoFaixa('stake','Stake (R$)')}
+      ${grupoFaixa('odd','Odd')}
+      ${grupoFaixa('pl','P/L (R$)')}
+    </div>
+    <div class="apf-linha">
+      <div class="filter-group">
+        <div class="filter-label">Buscar no texto</div>
+        <div class="apf-busca">
+          <input class="apostas-filter-inp acf" data-col="5" type="text" placeholder="Aposta / mercado..." aria-label="Buscar na aposta" oninput="apostasFilter(5,this.value)">
+          <input class="apostas-filter-inp acf" data-col="6" type="text" placeholder="Descrição / evento..." aria-label="Buscar na descrição" oninput="apostasFilter(6,this.value)">
+        </div>
+      </div>
+      <a class="apf-csv" href="/exportar.csv" title="Baixa a base COMPLETA do dono (backup) — não é o recorte que está na tela"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar base completa (CSV)</a>
+    </div>
+    <div class="apf-ativos" id="apostasAtivos"></div>
+  </div>`;
+}
+
 // Match dos filtros de coluna (texto por coluna) — reusado p/ encerradas e abertas.
 function _apostasColMatch(r){
   return APOSTAS_COLS.every((col,i)=>{
@@ -316,7 +363,7 @@ function renderApostasAtivos(){
     if(v)tag(lbl,esc(v),`apostasTirarTexto(${i})`);
   });
   el.innerHTML=tags.length
-    ? `<span class="apf-ativos__k">Filtros ativos</span>${tags.join('')}`
+    ? `<span class="filter-label">Filtros ativos</span>${tags.join('')}`
       +`<button type="button" class="apf-limpar" onclick="clearApostasFilters()">Limpar tudo</button>`
     : '';
   el.classList.toggle('apf-ativos--on',tags.length>0);
