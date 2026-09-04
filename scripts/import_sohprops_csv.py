@@ -206,11 +206,21 @@ script ABORTA se um código que ele geraria já existir sob outra origem.
 
 ── O que este script NÃO resolve ─────────────────────────────────────────────
 
-- **`set1`/`set2` (27 linhas)** — mercado não identificado. São prop de jogador
-  de futebol (`de ketelaere set1` @3,55 / `set2` @6,50, escada igual à de
-  `shot1`/`shot2`), mas nada no arquivo diz de QUE. Vão para `Player Props`, a
-  gaveta do §5 para estatística individual sem categoria própria, e saem
-  listadas no DRY. Só ele sabe; corrige-se na grade depois.
+- ~~`set1`/`set2`~~ — **RESOLVIDO em 03/09/2026, pelo tipster.** Ficam aqui o
+  que ele respondeu e o que a medição já sugeria, porque é o glossário da ERA 2
+  inteira e não existe em lugar nenhum além da cabeça dele:
+
+      chute = shot1 · chute ao gol = SOT1 · jogador marcar = any1
+      falta cometida = FC1 · falta sofrida = FS1 · desarme = tack1
+      marcar ou assistir = M/A · assistência = ass
+      set<n> = chutes + chutes ao gol   ← combinação, não mercado único
+      CA = "Criar Aposta", o bet builder antigo da bet365
+
+  As duas últimas eram as que faltavam, e as duas são **combinação do mesmo
+  jogo** → `Múltipla` com esporte `Futebol`. A escada de odds já apontava para
+  isso antes da resposta: `set1` mediana 3,15 e `set2` 8,62, ao lado de `sot1`
+  2,75 e `sot2` 9,00 — perto demais de SOT para ser mercado novo, e acima dele
+  como uma combinação correlacionada tem de ser.
 - **A odd de 57.834** (`tripla 2`, 28/04, stake 0,05) e as **2 odds de 0,75**.
   Odd < 1 é impossível para aposta real e 57.834 é implausível até para tripla
   de props. As três são `Perdida`, então o P/L é −stake e **não depende da odd**
@@ -219,12 +229,13 @@ script ABORTA se um código que ele geraria já existir sob outra origem.
 - **Favicon de casa nova**, que vive em TRÊS mapas (`app/static/index.html`,
   `dash/assets/js/data.js`, `inicio.html`). O DRY lista as 15 casas que não
   existem no banco; o favicon é passo separado, depois do import.
-- **27 linhas em `Outros` (0,4 %)**, e é onde elas devem ficar. Metade são
-  NOME SOLTO, sem mercado nenhum (`quintana`, `J Torres`, `toni fruk`); 5 são
-  `CA` (`CA Rapinha`, `Szoboslai CA 1`), que pode ser cartão amarelo ou chute
-  ao alvo e a odd não decide — @7 é alto demais para SOT e `CA 3` @326 não
-  existe em cartão; e 2 são artilheiro de torneio (`H Kane golden boot copa`).
-  Chutar mercado a partir de um nome é inventar; o DRY lista as 27 uma a uma.
+- **22 linhas em `Outros` (0,3 %)**, e é onde elas devem ficar. A maioria é
+  NOME SOLTO, sem mercado nenhum (`quintana`, `J Torres`, `toni fruk`,
+  `aleksandr mrynskiy ???`); 2 são artilheiro de torneio (`H Kane golden boot
+  copa`), que é outright e não tem categoria no §3; 1 é `Cashout M. Vojvoda`,
+  sem mercado; e sobram `Patrick HS1` e `Palacios 2more`, dois códigos que nem
+  ele decifrou. Chutar mercado a partir de um nome é inventar — o DRY lista as
+  22 uma a uma para quem quiser perguntar de novo.
 - **UMA linha em que a própria fonte se contradiz:** `SO202601-1097`,
   `Tripla (D. Sertanejo)`, `Estado=Perdida` mas `Lucro=0,00` com stake 0,30.
   Nas outras 7.238 o `Lucro` do arquivo bate com o P/L derivado. O `Estado` é a
@@ -391,7 +402,16 @@ def norm_esporte(v) -> str:
 # `multipla`/`tripla`/`bingo` declaram 3+ → esporte `Múltiplos` (§2).
 # `dupla` declara DUAS e mantém `Futebol`.
 _RE_ACUMULADA = re.compile(r'\b(multipla\w*|mult|multpl\w*|tripla\w*|bingo|trixie)\b')
-_RE_DUPLA = re.compile(r'\b(duplas?|duas bets|combo)\b')
+# `CA` = **Criar Aposta** (o bet builder antigo da bet365) e `set<n>` = chutes +
+# chutes ao gol do mesmo jogador — os dois confirmados pelo tipster em
+# 03/09/2026. São combinação do MESMO jogo, então entram como `dupla`: categoria
+# `Múltipla` e esporte `Futebol` (só `multipla`/`tripla`/`bingo` sobem para
+# `Múltiplos`, que o §2 reserva a 3+ seleções de jogos diferentes).
+#
+# `\bca\b` assusta por ser curto, mas foi MEDIDO: acerta as 5 linhas de `CA` e
+# mais nada em 7.278 — nenhum nome de jogador, time ou mercado tem `ca` solto.
+# `set` estava em `_RE_PLAYER` como mercado não identificado; saiu de lá.
+_RE_DUPLA = re.compile(r'\b(duplas?|duas bets|combo|ca|sets?\d+)\b')
 # `Dupla Chance` é mercado de RESULTADO, não cupom — sai antes de tudo.
 _RE_DUPLA_CHANCE = re.compile(r'dupla chance')
 # ` / ` COM espaço dos dois lados = separador de bet builder (ERA 1).
@@ -548,8 +568,11 @@ _RE_MARCA = re.compile(r'\bmarcar?\b|\bmarca\b|\bany\d*\b|\banytime\b|marcador')
 _RE_FORA_AREA = re.compile(r'fora\s*(d[ae]?\s*)?(grande\s*)?area')
 _RE_CHUTE_NO_GOL = re.compile(r'chutes? (no |a |ao )?gol')
 _RE_CHUTE = re.compile(r'\bchu\w*')
-# Mercado não identificado, mas inequivocamente estatística de jogador.
-_RE_PLAYER = re.compile(r'\bsets?\d+\b|\bdefesas?\d*\b|\bpasses?\d*\b|\bdribles?\d*\b')
+# Estatística de jogador SEM categoria própria no `MASTER_APOSTAS §3` — defesas de
+# goleiro, passes, dribles. É a gaveta do §5, não "não sei o que é": o objeto está
+# nomeado, só não tem categoria. (`set` saiu daqui na s316: o tipster confirmou que
+# é chutes + chutes ao gol, ou seja combinação — ver `_RE_DUPLA`.)
+_RE_PLAYER = re.compile(r'\bdefesas?\d*\b|\bpasses?\d*\b|\bdribles?\d*\b')
 
 
 def norm_categoria(titulo: str, combo: str) -> str:
