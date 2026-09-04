@@ -372,6 +372,32 @@ assinatura única" de "é um dos vários que aposto".
    célula com chip/ícone carrega a letra do chip no `textContent`. Nos dois casos o valor
    canônico (ISO, nome limpo) vai no `data-sort` e o texto bonito fica na tela.
 
+8. **O checklist valida o ÁTOMO, não a composição — confira a tela inteira depois dele.**
+   Os itens 1–7 cobrem número, cor, tom, tamanho e componente. Não cobrem quantos cartões
+   a tela tem nem onde mora cada controle. Componente novo passa item a item e ainda
+   briga com a tela. Duas perguntas, sempre, depois do `/nova-ui`:
+   - **Este controle tem irmão em outro lugar da mesma tela?** Se tem, é *uma* superfície
+     só. Na s317 os filtros novos foram para um segundo cartão, embaixo dos KPIs, com a
+     barra da página seguindo em cima: partido em dois, o de cima sai do campo de visão
+     de quem mexe no de baixo e **a tela passa a parecer que não tem o filtro que tem**
+     (o Feca pediu "filtro para Tipster, Casa e Esporte" — os três já existiam, no outro
+     cartão). Antes de escrever markup que já existe, quebre o compartilhado em peças
+     (`_grupoPeriodo` e cia., em `filters.js`) e componha; copiar cria dois Períodos que
+     divergem no primeiro ajuste.
+   - **Há dois estilos para o mesmo papel aqui?** É o sintoma barato de "fora do padrão",
+     e ele aparece mesmo quando uma das metades está certa: `.apf-lbl` (correto pela
+     Escada) ao lado do `.filter-label` (errado) — o olho lê as duas como inconsistentes
+     sem saber qual é qual. Resolva pela raiz: **exclua o estilo novo, reuse o existente
+     e suba o existente** para o papel certo.
+
+9. **Recorte por DESFECHO não redefine a régua que mede a carteira.** Filtrar a tela por
+   casa, esporte ou período é recortar carteira, e os KPIs seguem junto. Filtrar por
+   resultado é outra natureza: `W` sozinho daria **Win Rate 100%** e ROI positivo —
+   números certos pela conta e mentirosos pela leitura. Quem filtra desfecho corta a
+   **tabela**; os KPIs leem o mesmo recorte **sem** esse corte (`apostasKpiRows`), e a
+   tela **diz isso** enquanto o filtro está ligado. Sem o aviso, ler P/L positivo
+   filtrando `L` parece defeito. Vale para qualquer tela que ofereça as duas coisas.
+
 > Dúvida de qual convenção (tabela vs card)? Pergunte ao Feca — não invente uma terceira. Use `/nova-ui` para rodar este checklist guiado.
 
 ---
@@ -732,4 +758,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-01 (sessão 312 — editar conta virou o modal completo da criação; mover a conta de casa arrasta os bilhetes e recalcula a assinatura de cada um, porque `casa` e `parceiro` são o mesmo hash)
+ATUALIZADO: 2026-09-04 (sessao 317 - itens 8 e 9 da regra de UI: o /nova-ui valida o ATOMO e nao a composicao (uma superficie por funcao; dois estilos para o mesmo papel e o sintoma), e recorte por DESFECHO corta a tabela, nunca a regua dos KPIs)
