@@ -4108,6 +4108,17 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # 393 apostas em unidades, 10/04 → 31/08/2026, em DUAS eras que não se
     # parecem (props de NBA até 30/05; multiesporte a partir de 27/07).
     "rogerincomeumeusaldo": {"dono": "Rogeringambler", "nome": "RogerinComeuMeuSaldo"},
+    # 7º tipster (s316). Marca, slug e username são TRÊS strings diferentes, e
+    # nenhuma delas é o nome do arquivo: os CSV se chamam `SOH PROPS`, a marca
+    # que o Feca fechou é `Soh Props - Vip`, o slug é `sohpropsvips` e o username
+    # do cadastro é `sohprops` (conferido na tabela `usuarios` — e-mail
+    # jabuticabaxp@gmail.com, hash de 60 chars, cadastro em autosserviço e
+    # aprovado para `ativo` em 03/09/2026). Base de 7.276 apostas em unidades,
+    # 05/01 → 03/09/2026, **100 % prop de jogador de FUTEBOL** — a primeira
+    # carteira monomodal do registro. Duas eras de escrita, não de aposta: até
+    # 31/03 o título traz o confronto por extenso, de 01/04 em diante é só
+    # sobrenome + mercado em código (`olise shot3`).
+    "sohpropsvips": {"dono": "sohprops", "nome": "Soh Props - Vip"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres
