@@ -672,6 +672,31 @@ def norm_resultado(v) -> str:
     return r if r in VALID else ''
 
 
+def resultado_com_financeiro(estado, ganho, lucro) -> tuple[str, bool]:
+    """`Estado` diz o rótulo; `Lucro` diz o que aconteceu com o dinheiro. Quando
+    os dois discordam, o dinheiro ganha.
+
+    **Perda de verdade tem `Lucro = −stake`.** `Perdida` com `Lucro = 0,00`
+    quer dizer que a stake voltou — é void (`V`), não perda. Decisão do Feca
+    (03/09/2026), e ela resolve as DUAS únicas linhas em que esta fonte se
+    contradiz, medidas em 7.278:
+
+        28/01  `Tripla (D. Sertanejo)`   stake 0,30  Ganho 0,00  Lucro 0,00
+        04/03  `Dupla (Sem Van Dujin)`   stake 0,00  Ganho 0,00  Lucro 0,00
+
+    A segunda é a que tinha stake 0 e sumia do feed (`dashboard_rows` corta
+    stake <= 0). Vira `V`, e em `V` o P/L é 0 qualquer que seja a stake — então
+    a stake desconhecida deixa de distorcer o que quer que seja; ela continua
+    invisível na tela, mas agora invisível e inofensiva.
+
+    Devolve (resultado, corrigido) — o DRY lista as corrigidas uma a uma.
+    """
+    r = norm_resultado(estado)
+    if r == 'L' and lucro is not None and abs(lucro) < 0.005:
+        return 'V', True
+    return r, False
+
+
 # ---------- carga do CSV ----------
 def carregar_rows(csv_paths: list[str], casa_vazia: str) -> tuple[list[dict], list[dict]]:
     """Devolve (bilhetes, pernas_descartadas)."""
@@ -713,6 +738,9 @@ def carregar_rows(csv_paths: list[str], casa_vazia: str) -> tuple[list[dict], li
 
         esporte_bruto = limpa(b[COL_ESPORTE])
         combo = _combo(titulo)
+        lucro = _para_float(b[COL_LUCRO])
+        resultado, res_corrigido = resultado_com_financeiro(
+            b[COL_ESTADO], _para_float(b[COL_GANHO]), lucro)
         # `Multipla`/`Tripla`/`Bingo` = 3+ seleções → esporte `Múltiplos` (§2).
         # `dupla` declara DUAS e mantém o esporte do jogo.
         esporte = 'Múltiplos' if combo == 'acumulada' else norm_esporte(esporte_bruto)
@@ -730,8 +758,9 @@ def carregar_rows(csv_paths: list[str], casa_vazia: str) -> tuple[list[dict], li
             'descricao': titulo,
             'stake': fmt_stake(b[COL_STAKE]),
             'odd': norm_odd(b[COL_ODD]),
-            'resultado': norm_resultado(b[COL_ESTADO]),
-            '_lucro': _para_float(b[COL_LUCRO]),     # conferência do DRY
+            'resultado': resultado,
+            '_res_corrigido': res_corrigido,
+            '_lucro': lucro,                         # conferência do DRY
             '_ganho': _para_float(b[COL_GANHO]),
             '_esporte_bruto': esporte_bruto,
             '_casa_bruta': limpa(b[COL_CASA]),
@@ -1083,6 +1112,15 @@ def _relatorio(rows, pernas, dono, casa_vazia, casas_banco):
             print(f'    {r["codigo"]} | {r["data"]} | @{r["odd"]:<9} | {r["descricao"][:50]}')
         if len(sets) > 20:
             print(f'    … e mais {len(sets) - 20}')
+
+    # ── rótulo × dinheiro ────────────────────────────────────────────────────
+    corr = [r for r in rows if r.get('_res_corrigido')]
+    if corr:
+        print(f'\n⚠ {len(corr)} linha(s) com `Estado=Perdida` mas `Lucro=0,00` na '
+              f'fonte → gravadas como `V` (perda de verdade tem Lucro = −stake):')
+        for r in corr:
+            print(f'    {r["codigo"]} | {r["data"]} | {r["descricao"][:38]:<38} | '
+                  f'u={r["stake"]} @{r["odd"]} | fonte dizia Perdida, Lucro={r["_lucro"]}')
 
     # ── odds impossíveis ─────────────────────────────────────────────────────
     odd_ruim = [r for r in rows if (_para_float(r['odd']) or 0) < 1.01
