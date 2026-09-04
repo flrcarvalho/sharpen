@@ -317,7 +317,34 @@ const CASA_DOMAIN={
   // `Faz1be`, `7k Bet`, `Esportiva Bet`) SAÍRAM na s206: as casas foram unificadas no banco
   // (s204) e a `casa_canonica` impede que voltem. Diferença só de CAIXA também não precisa
   // de linha — o `casaFavicon` casa por caixa-baixa.
-  'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br'
+  'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br',
+  // Casas da base do Soh Props - Vip (s316). Domínio MEDIDO, não deduzido: o
+  // `.bet.br` trunca o nome uma hora sim (`SeguroBet`→`seguro`, `BravoBet`→`bravo`,
+  // `VeraBet`→`vera`, `Br4bet`→`br4`) e outra não (`betgo`, `goldebet`, `bandbet`).
+  // Cada um respondeu 200 e o S2 devolveu ícone de MARCA — conferido contra o hash
+  // do globo genérico e a olho. `4Play`, `Apostou`, `BRBet` e `Mcgames` já existiam
+  // no banco de outras bases e nunca tinham entrado aqui: vinham caindo no globo.
+  // ⚠ `Outra` fica DE FORA de propósito — é a casa fictícia das linhas sem casa,
+  //   e ela deve cair na inicial mesmo, senão finge ser uma casa de verdade.
+  '4Play':'4play.bet.br',
+  '7Games':'7games.bet.br',
+  'ApostaMax':'apostamax.bet.br',
+  'Apostou':'apostou.bet.br',
+  'BandBet':'bandbet.bet.br',
+  'BetGo':'betgo.bet.br',
+  'Br4bet':'br4.bet.br',
+  'BRBet':'brbet.bet.br',
+  'BravoBet':'bravo.bet.br',
+  'F12':'f12.bet.br',
+  'GoldeBet':'goldebet.bet.br',
+  'Lotogreen':'lotogreen.bet.br',
+  'Mcgames':'mcgames.bet.br',
+  'SeguroBet':'seguro.bet.br',
+  'Sortenabet':'sortenabet.bet.br',
+  'VBet':'vbet.bet.br',
+  'VeraBet':'vera.bet.br',
+  'Versus':'versus.bet.br',
+  'Vupi':'vupi.bet.br',
 };
 // Índice por caixa-baixa: a mesma casa convive no banco em variantes de caixa ("Faz1bet" ×
 // "Faz1Bet", "PixBet" × "Pixbet"), e o lookup exato caía no palpite `.com`. Espelha o

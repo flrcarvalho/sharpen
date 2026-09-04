@@ -79,6 +79,33 @@ const CASA_ICONS={
   'Jogo de Ouro':'https://www.google.com/s2/favicons?sz=128&domain=jogodeouro.bet.br',
   // ⚠ Betpix365 ≠ PixBet (casas diferentes, domínios diferentes)
   'Betpix365':'https://www.google.com/s2/favicons?sz=128&domain=betpix365.bet.br',
+  // Casas da base do Soh Props - Vip (s316). Domínio MEDIDO, não deduzido: o
+  // `.bet.br` trunca o nome uma hora sim (`SeguroBet`→`seguro`, `BravoBet`→`bravo`,
+  // `VeraBet`→`vera`, `Br4bet`→`br4`) e outra não (`betgo`, `goldebet`, `bandbet`).
+  // Cada um respondeu 200 e o S2 devolveu ícone de MARCA — conferido contra o hash
+  // do globo genérico e a olho. `4Play`, `Apostou`, `BRBet` e `Mcgames` já existiam
+  // no banco de outras bases e nunca tinham entrado aqui: vinham caindo no globo.
+  // ⚠ `Outra` fica DE FORA de propósito — é a casa fictícia das linhas sem casa,
+  //   e ela deve cair na inicial mesmo, senão finge ser uma casa de verdade.
+  '4Play':'https://www.google.com/s2/favicons?sz=128&domain=4play.bet.br',
+  '7Games':'https://www.google.com/s2/favicons?sz=128&domain=7games.bet.br',
+  'ApostaMax':'https://www.google.com/s2/favicons?sz=128&domain=apostamax.bet.br',
+  'Apostou':'https://www.google.com/s2/favicons?sz=128&domain=apostou.bet.br',
+  'BandBet':'https://www.google.com/s2/favicons?sz=128&domain=bandbet.bet.br',
+  'BetGo':'https://www.google.com/s2/favicons?sz=128&domain=betgo.bet.br',
+  'Br4bet':'https://www.google.com/s2/favicons?sz=128&domain=br4.bet.br',
+  'BRBet':'https://www.google.com/s2/favicons?sz=128&domain=brbet.bet.br',
+  'BravoBet':'https://www.google.com/s2/favicons?sz=128&domain=bravo.bet.br',
+  'F12':'https://www.google.com/s2/favicons?sz=128&domain=f12.bet.br',
+  'GoldeBet':'https://www.google.com/s2/favicons?sz=128&domain=goldebet.bet.br',
+  'Lotogreen':'https://www.google.com/s2/favicons?sz=128&domain=lotogreen.bet.br',
+  'Mcgames':'https://www.google.com/s2/favicons?sz=128&domain=mcgames.bet.br',
+  'SeguroBet':'https://www.google.com/s2/favicons?sz=128&domain=seguro.bet.br',
+  'Sortenabet':'https://www.google.com/s2/favicons?sz=128&domain=sortenabet.bet.br',
+  'VBet':'https://www.google.com/s2/favicons?sz=128&domain=vbet.bet.br',
+  'VeraBet':'https://www.google.com/s2/favicons?sz=128&domain=vera.bet.br',
+  'Versus':'https://www.google.com/s2/favicons?sz=128&domain=versus.bet.br',
+  'Vupi':'https://www.google.com/s2/favicons?sz=128&domain=vupi.bet.br',
 };
 // Mapa de domínios para chips de casa (favicon via favicon())
 // Para produção offline/nítida: substituir favicon() por assets/casas/NOME.png
@@ -135,6 +162,33 @@ const HOUSE_DOMAIN={
   'Lottu':'lottu.bet.br',
   'Jogo de Ouro':'jogodeouro.bet.br',
   'Betpix365':'betpix365.bet.br',
+  // Casas da base do Soh Props - Vip (s316). Domínio MEDIDO, não deduzido: o
+  // `.bet.br` trunca o nome uma hora sim (`SeguroBet`→`seguro`, `BravoBet`→`bravo`,
+  // `VeraBet`→`vera`, `Br4bet`→`br4`) e outra não (`betgo`, `goldebet`, `bandbet`).
+  // Cada um respondeu 200 e o S2 devolveu ícone de MARCA — conferido contra o hash
+  // do globo genérico e a olho. `4Play`, `Apostou`, `BRBet` e `Mcgames` já existiam
+  // no banco de outras bases e nunca tinham entrado aqui: vinham caindo no globo.
+  // ⚠ `Outra` fica DE FORA de propósito — é a casa fictícia das linhas sem casa,
+  //   e ela deve cair na inicial mesmo, senão finge ser uma casa de verdade.
+  '4Play':'4play.bet.br',
+  '7Games':'7games.bet.br',
+  'ApostaMax':'apostamax.bet.br',
+  'Apostou':'apostou.bet.br',
+  'BandBet':'bandbet.bet.br',
+  'BetGo':'betgo.bet.br',
+  'Br4bet':'br4.bet.br',
+  'BRBet':'brbet.bet.br',
+  'BravoBet':'bravo.bet.br',
+  'F12':'f12.bet.br',
+  'GoldeBet':'goldebet.bet.br',
+  'Lotogreen':'lotogreen.bet.br',
+  'Mcgames':'mcgames.bet.br',
+  'SeguroBet':'seguro.bet.br',
+  'Sortenabet':'sortenabet.bet.br',
+  'VBet':'vbet.bet.br',
+  'VeraBet':'vera.bet.br',
+  'Versus':'versus.bet.br',
+  'Vupi':'vupi.bet.br',
 };
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES_CURTOS=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
