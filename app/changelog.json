@@ -17,6 +17,19 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-filtros-da-base-completa",
+      "data": "2026-09-04",
+      "tag": "Sharpen",
+      "titulo": "Filtros da Base Completa",
+      "texto": "A **Base Completa** ganhou filtros de verdade — e todos numa barra só, no topo da tela.",
+      "itens": [
+        "Filtre por **resultado**: green, red, void, meio green/red e em aberto — com a contagem de cada um.",
+        "Faixas de **stake**, **odd** e **P/L**, e filtro por **conta**.",
+        "Os filtros ligados ficam à vista, com um ✕ para tirar cada um. Todas as colunas ordenam."
+      ],
+      "fecho": "Ao filtrar por resultado, os números do topo seguem o período inteiro — a própria tela avisa."
+    },
+    {
       "id": "sharpen-caixa-inteligente-confira-o-saldo-das-suas-conta",
       "data": "2026-09-03",
       "tag": "Sharpen",
