@@ -1919,7 +1919,7 @@ def _caixa_valida(tipo: str, data: str, valor) -> tuple[str, float] | dict:
     return iso, valor
 
 
-def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str) -> list[int]:
+def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str, ate=None) -> list[int]:
     """Quais apostas ABERTAS já tinham tirado o stake da conta quando o saldo foi lido.
 
     PURA, para poder ser testada — e ela precisa ser, porque a regra ingênua está
@@ -1944,10 +1944,16 @@ def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str) -> list[int]:
     for a in abertas:
         if (a.get("resultado") or "").strip() or _num(a.get("stake")) <= 0:
             continue
+        criado = a.get("criado_em")
+        # `ate` = o instante em que o saldo foi lido. Só o backfill passa isso: rodando
+        # DEPOIS da ativação, sem esse corte ele adotaria apostas feitas mais tarde no
+        # mesmo dia — cujo stake saiu DEPOIS da leitura — e inflaria a projeção. Na
+        # ativação `ate` é None (o agora), e nenhuma aposta pode ser mais nova que ele.
+        if ate is not None and criado is not None and criado > ate:
+            continue
         if corte >= hoje:
             out.append(a["id"])
             continue
-        criado = a.get("criado_em")
         criado_iso = criado.date().isoformat() if hasattr(criado, "date") else str(criado or "")[:10]
         if (_data_iso(a.get("data")) or "") < corte or (criado_iso and criado_iso < corte):
             out.append(a["id"])

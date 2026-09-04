@@ -62,7 +62,7 @@ async def main(aplicar: bool) -> int:
     mudou = 0
     try:
         iniciais = await conn.fetch(
-            "SELECT c.id, c.parceiro_id, c.dono, c.data, c.abertas_corte, "
+            "SELECT c.id, c.parceiro_id, c.dono, c.data, c.abertas_corte, c.criado_em, "
             "p.casa, p.nome FROM caixa_mov c JOIN parceiros p ON p.id = c.parceiro_id "
             "WHERE c.tipo = 'inicial' ORDER BY c.id")
         print(f"{len(iniciais)} caixa(s) ligada(s)\n")
@@ -71,7 +71,11 @@ async def main(aplicar: bool) -> int:
             apostas = await repository._caixa_apostas(
                 conn, ini["dono"], ini["casa"], ini["nome"])
             antes = sorted(ini["abertas_corte"] or [])
-            novo = sorted(repository._caixa_abertas_ids(apostas, corte, hoje))
+            # `ate` = o instante da ATIVAÇÃO. Sem ele, este script rodando mais tarde
+            # adotaria apostas feitas depois da leitura do saldo e inflaria a projeção —
+            # medido em 3 contas do Gabriel, +R$ 10.477 de saldo que não existia.
+            novo = sorted(repository._caixa_abertas_ids(
+                apostas, corte, hoje, ate=ini["criado_em"]))
             # nunca REMOVE: a ativação original reconheceu aquelas apostas e o saldo
             # informado foi lido com elas já descontadas.
             final = sorted(set(antes) | set(novo))

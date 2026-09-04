@@ -305,3 +305,18 @@ def test_a_regra_ingenua_deixaria_a_aposta_futura_de_fora():
                if (repository._data_iso(a["data"]) or "") < HOJE]   # a regra antiga
     assert ingenua == []
     assert _caixa_abertas_ids(abertas, HOJE, HOJE) == [1]
+
+
+def test_backfill_nao_adota_aposta_nascida_DEPOIS_da_leitura_do_saldo():
+    """O `ate` é o instante em que o saldo foi lido. Rodando o backfill mais tarde no
+    mesmo dia, sem esse corte ele adotaria apostas feitas DEPOIS — cujo stake saiu
+    depois da leitura — e inflaria a projeção. Medido em produção antes de existir:
+    3 contas do Gabriel, +R$ 10.477 de saldo que não existia."""
+    ativacao = datetime.fromisoformat("2026-09-03T10:00:00")
+    abertas = [
+        _ap(1, "10/09/2026", "2026-09-03T09:00:00"),   # existia na ativação → entra
+        _ap(2, "10/09/2026", "2026-09-03T15:00:00"),   # nasceu depois → NÃO entra
+    ]
+    assert _caixa_abertas_ids(abertas, HOJE, HOJE, ate=ativacao) == [1]
+    # sem o `ate` (o caminho da ativação, onde "agora" é o limite) as duas entram
+    assert _caixa_abertas_ids(abertas, HOJE, HOJE) == [1, 2]
