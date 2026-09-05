@@ -43,29 +43,43 @@
       padding: var(--sp-14) var(--sp-5) var(--sp-20); }
 
     /* ── cabeçalho ─────────────────────────────────────────────────────────── */
-    .brand { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-8); }
-    .tile {
-      width: var(--sp-10); height: var(--sp-10); border-radius: var(--r-md); flex: none;
-      background: linear-gradient(160deg, var(--surface-2), var(--bg));
-      border: 1px solid var(--line); display: grid; place-items: center;
-      font-size: var(--text-lg);
+    /* Marca: o LOCKUP de verdade (`brand-sharpen/blade`), como a landing e o
+       login. A primeira versão tinha um 🤖 dentro de um tile e um wordmark
+       "SharpenBot" que eu inventei — as duas coisas contra o `pack/CLAUDE.md`:
+       "❌ emojis decorativos" é regra inegociável do §2, e a marca tem símbolo
+       próprio ("Sinal Ascendente"), que o §5 manda não recolorir nem substituir. */
+    .brand { margin-bottom: var(--sp-10); }
+    .brand img { height: var(--sp-8); width: auto; display: block; }
+
+    /* Título: o padrão da casca (`SHELL_SPEC §2` · `.pagehead-title`) —
+       `--text-xl`, 800, ls -.035em, lh 1 e o GRADIENTE azul em clip. O meu era
+       28px chapado em `--ink`, que não é o título de lugar nenhum do produto. */
+    h1 {
+      font-size: var(--text-xl); font-weight: 800; letter-spacing: -.035em;
+      line-height: 1; margin: 0 0 var(--sp-3);
+      background: linear-gradient(100deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
     }
-    .wm { font-weight: var(--weight-extrabold); font-size: var(--text-xl); letter-spacing: -.04em; }
-    .wm span { color: var(--accent-2); }
-
-    h1 { font-size: var(--text-2xl); margin: 0 0 var(--sp-2); letter-spacing: -.02em; line-height: 1.2; }
-    .sub { color: var(--ink-soft); font-size: var(--text-base); margin: 0 0 var(--sp-10); max-width: 62ch; }
-
-    /* Eyebrow de seção: LABEL, então `--ink-soft` e nunca abaixo de 9,5px
-       (Escada de Tinta — `--ink-mute` em caixa alta pequena vira textura). */
+    /* Eyebrow: assinatura FDC (mono + caixa alta + tracking). O `SHELL_SPEC §2`
+       pede `--text-nano` (9px) + `--ink-mute`; aqui vai 11px + `--ink-soft`
+       porque a **Escada de Tinta** (CLAUDE.md) põe piso de 9,5px em label e
+       proíbe `--ink-mute` em caixa alta pequena — é o conflito já registrado
+       entre os dois documentos, e a Escada é a regra mais nova. */
     .eyebrow {
       font-family: var(--font-mono); font-size: var(--text-xs); font-weight: var(--weight-bold);
-      letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft);
-      margin: var(--sp-14) 0 var(--sp-3);
+      letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft);
+      margin: var(--sp-14) 0 var(--sp-2);
     }
-    .eyebrow:first-of-type { margin-top: 0; }
-    h2 { font-size: var(--text-xl); margin: 0 0 var(--sp-4); letter-spacing: -.02em; }
-    h3 { font-size: var(--text-md); margin: var(--sp-6) 0 var(--sp-2); color: var(--ink); }
+    .eyebrow.topo { margin: 0 0 var(--sp-2); }
+    .sub { color: var(--ink-soft); font-size: var(--text-base); margin: 0 0 var(--sp-10); max-width: 62ch; }
+
+    /* Abaixo do h1: a hierarquia tem de DESCER. Antes o h2 era 22px, o mesmo do
+       título canônico — dois níveis com o mesmo peso não são hierarquia. */
+    h2 { font-size: var(--text-lg); font-weight: var(--weight-bold);
+      margin: 0 0 var(--sp-4); letter-spacing: -.02em; color: var(--ink); }
+    h3 { font-size: var(--text-md); font-weight: var(--weight-semibold);
+      margin: var(--sp-6) 0 var(--sp-2); color: var(--ink); }
     p { margin: 0 0 var(--sp-3); color: var(--ink-soft); }
     b, strong { color: var(--ink); font-weight: var(--weight-semibold); }
     a { color: var(--accent-2); }
@@ -144,10 +158,10 @@
 <div class="wrap">
 
   <div class="brand">
-    <div class="tile">🤖</div>
-    <div class="wm">Sharpen<span>Bot</span></div>
+    <img src="/static/brand-sharpen/blade/lockup-dark.svg" alt="Sharpen">
   </div>
 
+  <div class="eyebrow topo">Manual do bot</div>
   <h1>Como cuidar do bot nos grupos</h1>
   <p class="sub">
     O <b>@sharpenbetbot</b> lê a aposta que o tipster posta no grupo de apoio, publica o
