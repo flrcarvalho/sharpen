@@ -294,6 +294,13 @@ aviso, sem linha nova.**
 - Os importadores **abortam** quando um código que gerariam já existe sob outra origem.
 - No dia em que o bot entra, **suba o contador** (`/contador N` no apoio) para além do
   último código da planilha, antes da primeira aposta.
+- **Prefixo novo se confere contra TODO `codigo_bilhete`, não contra a série.** Códigos
+  nativos de casa também são duas letras mais dígitos (a Superbet grava `SP8399910931W`),
+  e um regex ancorado no formato `XX<aaaamm>-<n>` **não os enxerga**: o prefixo aparece
+  livre quando não está. Use `LIKE '<PFX>%'` sobre a coluna inteira. Na s316 isso quase
+  deu `SP` ao `Soh Props`, que é o prefixo da Superbet — `SH`, `SS`, `PR` e `HP` também
+  estavam ocupados assim. Não há colisão de assinatura (o formato difere e `casa` entra no
+  hash), mas um `SP` na base lê como Superbet para qualquer humano depois.
 - E decida qual é a fonte: **a partir daí o bot planilha e a planilha vira histórico
   congelado.** Manter os dois escrevendo é conviver com colisão a cada import.
 
@@ -871,4 +878,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-04 (sessao 314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
+ATUALIZADO: 2026-09-05 (sessao 316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
