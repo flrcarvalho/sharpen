@@ -70,13 +70,17 @@ def test_kpi_le_o_recorte_sem_desfecho():
 
 def test_tela_avisa_quando_os_kpis_nao_seguem_o_filtro():
     """A nota é a metade humana da decisão: sem ela, filtrar L e ler P/L positivo parece
-    defeito. É o mesmo princípio do aviso que tem de apontar a linha."""
+    defeito. É o mesmo princípio do aviso que tem de apontar a linha.
+
+    A classe era `.apf-nota` e virou `.nota-escopo` na s319, quando o calendário da Visão
+    Geral precisou do mesmo papel — o estilo subiu para compartilhado em vez de ganhar um
+    gêmeo (CLAUDE.md §8)."""
     src = APOSTAS_JS.read_text(encoding="utf-8")
-    assert "apf-nota" in src, "a nota dos KPIs sumiu do render"
+    assert "nota-escopo" in src, "a nota dos KPIs sumiu do render"
     assert "apostasResSel.size" in src[src.index("const nota="):src.index("kpiEl.innerHTML=")], (
         "a nota deixou de ser condicionada ao filtro de resultado ativo"
     )
-    assert ".apf-nota" in CSS.read_text(encoding="utf-8"), "a nota ficou sem estilo"
+    assert ".nota-escopo" in CSS.read_text(encoding="utf-8"), "a nota ficou sem estilo"
 
 
 def test_chip_usa_o_codigo_canonico_do_resultado():

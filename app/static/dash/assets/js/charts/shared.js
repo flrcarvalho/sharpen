@@ -2,9 +2,12 @@
 
 // ── Calendar Heatmap Helper ─────────────────────────────────────────────────
 function mkCalendarHeatmap(selMonth, allDados, opts){
-  // opts: {showNav, onPrev, onNext, onSelect}  — compact ignorado (design único)
+  // opts: {showNav, onPrev, onNext, onSelect, range}  — compact ignorado (design único)
   opts = opts || {};
-  const months = [...new Set(allDados.map(r=>r.data.slice(0,7)))].sort().reverse();
+  // O mês selecionado entra na lista mesmo sem linha nenhuma: com filtro de casa/
+  // tipster ligado ele pode esvaziar, e sem isso `indexOf` daria −1 e a navegação
+  // ‹ › travaria num cartão em branco, sem dizer por quê.
+  const months = [...new Set([...allDados.map(r=>r.data.slice(0,7)), selMonth].filter(Boolean))].sort().reverse();
   if(!months.length) return mkEmpty('Sem dados de apostas');
   const cur = selMonth || months[0];
   const [yr, mo] = cur.split('-');
@@ -37,6 +40,18 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
   const mAvgOdd = calcAvgOdd(mRows);     // ponderada pela stake, filtra odd>0 && stake>0
   const mSettled = mRows.filter(r=>r.resultado!=='V').length;
   const mAvgStake = mSettled>0 ? mTurnover/mSettled : 0;  // turnover ÷ encerradas
+
+  // Fora do período selecionado. Este cartão soma o MÊS fechado — quem passa
+  // `opts.range` (a Visão Geral) tem um período menor escolhido lá em cima, e os
+  // KPIs da página leem esse recorte. `bilhetes.data` é a data do EVENTO, então
+  // void da casa e liquidação antecipada resolvem bilhete com data futura: ele cai
+  // no mês e fica fora do MTD. Sem esta linha os dois P/L da mesma tela divergem
+  // sem explicação (s319: 12.033,68 no KPI × 11.833 aqui, uma perdida de R$ 201
+  // com evento em 06/09 e três voids).
+  const foraRows = opts.range
+    ? mRows.filter(r=>{const d=r.data.slice(0,10); return d<opts.range.from || d>opts.range.to;})
+    : [];
+  const foraPL = foraRows.reduce((a,r)=>a+r.lucro,0);
 
   // Heatmap: opacidade proporcional ao |P/L|, escala 0.07→0.49
   const maxAbs = Math.max(1, ...Object.values(dayMap).map(d=>Math.abs(d.pl)));
@@ -99,6 +114,15 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
 
   // Toolbar
   const idxCur = months.indexOf(cur);
+  // A nota vive na barra, ao lado do seletor de mês: ela qualifica o cartão
+  // inteiro (hero + 5 KPIs + grade), não um número só. P/L pelo fmtPL (§5.1) —
+  // que em modo público já rende unidades.
+  // A frase inteira vai num <span> só: `.nota-escopo` é flex com gap, e sem o
+  // invólucro cada trecho de texto vira um item e o gap abre buraco em volta do
+  // `.money` — "( −R$ 201,00 )" no lugar de "(−R$ 201,00)".
+  const notaHTML = foraRows.length
+    ? `<div class="nota-escopo"><span class="nota-escopo__dot"></span><span>Mês inteiro · ${foraRows.length} aposta${foraRows.length===1?'':'s'} (${fmtPL(foraPL)}) fora do período selecionado</span></div>`
+    : '';
   let toolbarHTML;
   if(opts.showNav){
     const selectOpts = months.map(m=>{
@@ -112,9 +136,10 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
         <select onchange="${opts.onSelect||''}" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">${selectOpts}</select>
       </div>
       <button class="cal__nav" onclick="${opts.onNext||''}" aria-label="Próximo mês"${idxCur<=0?' disabled':''}>›</button>
+      ${notaHTML}
     </div>`;
   } else {
-    toolbarHTML = `<div class="cal__bar"><div class="cal__month" style="pointer-events:none">${moLabel}</div></div>`;
+    toolbarHTML = `<div class="cal__bar"><div class="cal__month" style="pointer-events:none">${moLabel}</div>${notaHTML}</div>`;
   }
 
   // Hero P/L

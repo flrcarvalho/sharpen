@@ -710,6 +710,36 @@
   color: var(--ink-soft);
   margin: 0.5rem 0;
 }
+/* ── Nota de ESCOPO ────────────────────────────────────────────────────────
+   Uma linha dizendo que os números ao lado leem um recorte DIFERENTE do que o
+   usuário acabou de escolher. Nasceu na página Apostas (`.apf-nota`, os KPIs que
+   não seguem o filtro de resultado) e subiu para cá quando o calendário da Visão
+   Geral precisou do mesmo papel — dois estilos para o mesmo papel é o sintoma de
+   "fora do padrão" do CLAUDE.md §8. Ponto em `--warn` porque é aviso, não
+   resultado; texto em `--ink-soft` (papel de label na Escada de Tinta). */
+.nota-escopo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.nota-escopo__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex-shrink: 0;
+}
+/* .money dentro da nota: o min-width:10ch do .money-val alinha COLUNA de tabela e
+   aqui abriria um vão no meio da frase. Mesma relaxada do .apf-tag — nenhuma regra
+   de marca muda (R$ menor/neutro, cor só no número, mono). */
+.nota-escopo .money { width: auto; gap: 2px; display: inline-flex; }
+.nota-escopo .money-val, .nota-escopo .money-sign { min-width: 0; }
+
 /* Badge de valor ao vivo no header do card de métrica (preenchido por renderMetrics) */
 .metric-live-wrap { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .metric-live {
@@ -1509,6 +1539,10 @@ select.ap-inline-inp { padding: 2px 4px; }
   color:var(--ink); position:relative;
 }
 .cal__month .caret { color:var(--ink-mute); font-size:var(--text-xxs); pointer-events:none; }
+/* Nota de escopo na barra do calendário: o cartão soma o MÊS fechado, então
+   quando o período selecionado não cobre o mês inteiro ela diz o que ficou de
+   fora. Só o posicionamento é local — tipografia e cor vêm da .nota-escopo. */
+.cal__bar .nota-escopo { margin-top:0; margin-left:auto; text-align:right; }
 .cal__legend {
   margin-left:auto; display:flex; align-items:center; gap:9px;
   font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-mute); letter-spacing:.05em;
@@ -1977,21 +2011,5 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 .apf-limpar:hover { border-color: rgba(var(--neg-rgb), 0.45); color: var(--neg); }
 
-/* ── Aviso: os KPIs não seguem o filtro de resultado ────────────────────── */
-.apf-nota {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-.apf-nota__dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--warn);
-  flex-shrink: 0;
-}
+/* O aviso "os KPIs não seguem o filtro de resultado" usa a `.nota-escopo`
+   compartilhada (definida junto da `.metric-note`) — era a `.apf-nota`. */

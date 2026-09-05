@@ -176,7 +176,7 @@ function renderApostas(){
     // Sem esta linha, filtrar por L e ler P/L positivo parece defeito — e o certo seria
     // pior: um Win Rate de 100% que ninguém sabe que é recorte.
     const nota=apostasResSel.size
-      ? `<div class="apf-nota"><span class="apf-nota__dot"></span>Os KPIs acima seguem o período inteiro. O filtro de resultado (${[...apostasResSel].map(c=>c==='ABERTA'?'Aberta':c).join(' · ')}) recorta só a tabela.</div>`
+      ? `<div class="nota-escopo"><span class="nota-escopo__dot"></span>Os KPIs acima seguem o período inteiro. O filtro de resultado (${[...apostasResSel].map(c=>c==='ABERTA'?'Aberta':c).join(' · ')}) recorta só a tabela.</div>`
       : '';
     kpiEl.innerHTML=
       `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;width:100%">${row1.join('')}</div>`+

@@ -200,24 +200,38 @@ function renderHeatmap(rows){
 }
 
 // ── Overview Heatmap Calendar ─────────────────────────────────────────────────
+// Linhas que alimentam o calendário: respeitam Esporte / Casa / Tipster / Operador,
+// mas NÃO o corte por data — o cartão é um calendário de MÊS, com navegação própria,
+// e recortá-lo pelo período o esvaziaria fora do intervalo. Mesmo motivo do ROI
+// Mensal (filters.js:filtrarSemData).
+// Até a s319 ele recebia DADOS cru e ignorava também os quatro filtros: escolher um
+// tipster mudava os KPIs de cima e não mudava nada aqui.
+function _ovCalRows(){return filtrarSemData('overview');}
+// Espelha a lista de meses do mkCalendarHeatmap (que inclui o mês selecionado mesmo
+// sem linha), senão a nav ‹ › e o cartão discordam sobre onde estão as pontas.
+function _ovCalMeses(){
+  return [...new Set([..._ovCalRows().map(r=>r.data.slice(0,7)),window._ovHeatMonth].filter(Boolean))].sort().reverse();
+}
 function renderOvHeatmap(){
   const cont=document.getElementById('ovHeatmapContent');if(!cont)return;
   if(!DADOS||!DADOS.length){cont.innerHTML=mkEmpty('Sem dados carregados');return;}
+  const rows=_ovCalRows();
+  if(!rows.length){cont.innerHTML=mkEmpty('Sem apostas no filtro');return;}
   // Acompanha o filtro: quando o mês de referência do período MUDA, o calendário
   // pula p/ esse mês. Enquanto o mês não muda, a nav própria (‹ ›) segue livre.
   const st=gfs('overview');
   const refM=st.dt?st.dt.slice(0,7):(st.qd>0?_today().slice(0,7):null);
   if(refM&&refM!==window._ovHeatRefLast){window._ovHeatMonth=refM;window._ovHeatRefLast=refM;}
   if(!window._ovHeatMonth){
-    const months=[...new Set(DADOS.map(r=>r.data.slice(0,7)))].sort().reverse();
+    const months=[...new Set(rows.map(r=>r.data.slice(0,7)))].sort().reverse();
     window._ovHeatMonth=months[0]||'';
   }
   const range=_selRange('overview');   // dias dentro do período → contorno azul
   window._calHeatCb=null; // no click action on overview
-  cont.innerHTML=mkCalendarHeatmap(window._ovHeatMonth,DADOS,{
+  cont.innerHTML=mkCalendarHeatmap(window._ovHeatMonth,rows,{
     showNav:true,
-    onPrev:"window._ovHeatMonth=(function(){const m=[...new Set(DADOS.map(r=>r.data.slice(0,7)))].sort().reverse();const i=m.indexOf(window._ovHeatMonth);return i<m.length-1?m[i+1]:window._ovHeatMonth;})();renderOvHeatmap()",
-    onNext:"window._ovHeatMonth=(function(){const m=[...new Set(DADOS.map(r=>r.data.slice(0,7)))].sort().reverse();const i=m.indexOf(window._ovHeatMonth);return i>0?m[i-1]:window._ovHeatMonth;})();renderOvHeatmap()",
+    onPrev:"window._ovHeatMonth=(function(){const m=_ovCalMeses();const i=m.indexOf(window._ovHeatMonth);return i<m.length-1?m[i+1]:window._ovHeatMonth;})();renderOvHeatmap()",
+    onNext:"window._ovHeatMonth=(function(){const m=_ovCalMeses();const i=m.indexOf(window._ovHeatMonth);return i>0?m[i-1]:window._ovHeatMonth;})();renderOvHeatmap()",
     onSelect:"window._ovHeatMonth=this.value;renderOvHeatmap()",
     range,
     compact:true
