@@ -6,7 +6,9 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-04 (sessão 318 — **`/bot`: o manual de operação do @sharpenbetbot nos grupos**, página pública e standalone (`app/static/bot.html`), no molde da `/extensao`. Três partes: o **dia a dia** (uma linha de stake por aposta, link da casa, data+hora; marcar é **editar a própria mensagem**), os **13 comandos** com a sintaxe real recortada do `index.js`, e o **passo a passo de colocar um tipster no ar** — os oito passos que a s316/s317 mostraram serem necessários, com as duas armadilhas que morderam em produção destacadas: **grupo que vira supergrupo troca de id e deixa o bot SURDO** (sem erro nenhum) e **contador não semeado engole a aposta** pelo UPSERT. Duas distinções que a página existe para fixar: `🔁` (void da casa, FICA na planilha como V) × `/anular` (a aposta nunca valeu, SAI), e `/repostar` (só o texto do post) × `/redescrever` (ESCREVE na planilha por PATCH). Sem R$ nenhum, então o `UI_REFERENCE §5` não se aplica; a Escada de Tinta sim — `--ink-mute` usado uma vez só, em 13px, no rodapé. Linka o `/static/tokens.css` sincronizado em vez de redeclarar cor, que é o que a `extensao.html` faz e é o desvio, não a regra. check-tokens verde, zero cor literal, zero script inline, e a tela foi renderizada headless de ponta a ponta antes do commit. **Revisada no mesmo dia, com três correções do Feca:** o `👽` SAIU do padrão — ele não é do Sharpen e o próprio Soh Props passa a usar o `🔁` (o código segue **aceitando** o alien de propósito: são 82 apostas de hábito no histórico dele, e se o dedo escorregar é melhor a aposta ser marcada do que ficar aberta em silêncio — documentar é uma coisa, tolerar é outra); o `/anular` ganhou destaque na nota que o separa do `🔁`; e **a seção de pôr um tipster no ar saiu da página pública** — ela é de quem opera, não do tipster, e foi para `docs/GUIA_BOT_TIPSTER.md` em vez de sumir. **E o `/nova-ui` foi rodado DE VERDADE depois de o Feca cobrar** — eu tinha invocado a skill e pulado o passo 1 (ler `UI_REFERENCE` e `pack/CLAUDE.md`), decidindo por dedução que "não tem dinheiro, §5 não se aplica", que é exatamente o argumento que a memória diz não dispensar. Lendo, o checklist pegou **cinco** coisas: faltava o **grid de fundo** (`§3` e `SHELL_SPEC §0`, idêntico nos dois apps) e o **estilo de scrollbar**; o `.card` usava `--r-lg` onde o `§4` pede `--r-sm/md` e não tinha `--shadow-card`; havia **espaço fora da escala `--sp-*`** (38px, paddings de 1px/2px); e o `.nota.aviso` virou CSS morto ao remover a seção interna — âmbar sem aviso é cor sem semântica (`§1`). O único ponto em que a página já estava certa por acaso é o conflito conhecido `UI_REFERENCE §2` × Escada de Tinta na cor do eyebrow: o §2 pede `--ink-mute` e a Escada manda `--ink-soft`, que é o que está lá. **Mais três, e essas eram de MARCA, não de CSS:** o tile do cabeçalho tinha um 🤖 e um wordmark "SharpenBot" que eu inventei — o `pack/CLAUDE.md §2` lista **"❌ emojis decorativos"** como regra inegociável e o §5 diz que a marca tem símbolo próprio, que não se substitui; virou o lockup de verdade (`brand-sharpen/blade/lockup-dark.svg`), como a landing e o login. E **nenhum título estava no padrão**: o `SHELL_SPEC §2` define `.pagehead-title` como `--text-xl` (22px), weight 800, ls `-.035em`, lh 1 e **gradiente azul em clip** — o meu era 28px chapado em `--ink`, e o `h2` vinha em 22px, ou seja no mesmo peso do título (dois níveis iguais não são hierarquia). Nenhuma das três apareceria em grep nenhum: só lendo.)_
+_Atualizado: 2026-09-05 (sessões 316 e 318 — **7º tipster público no ar: `Soh Props - Vip`**, 7.276 apostas importadas e o bot dele como 6º tenant. Junto vieram a página `/bot` com o manual de operação e um dia de correções tiradas do uso real. Detalhe em "Ainda aberto da sessão 316".)_
+
+_Anterior: 2026-09-04 (sessão 318 — **`/bot`: o manual de operação do @sharpenbetbot nos grupos**, página pública e standalone (`app/static/bot.html`), no molde da `/extensao`. Três partes: o **dia a dia** (uma linha de stake por aposta, link da casa, data+hora; marcar é **editar a própria mensagem**), os **13 comandos** com a sintaxe real recortada do `index.js`, e o **passo a passo de colocar um tipster no ar** — os oito passos que a s316/s317 mostraram serem necessários, com as duas armadilhas que morderam em produção destacadas: **grupo que vira supergrupo troca de id e deixa o bot SURDO** (sem erro nenhum) e **contador não semeado engole a aposta** pelo UPSERT. Duas distinções que a página existe para fixar: `🔁` (void da casa, FICA na planilha como V) × `/anular` (a aposta nunca valeu, SAI), e `/repostar` (só o texto do post) × `/redescrever` (ESCREVE na planilha por PATCH). Sem R$ nenhum, então o `UI_REFERENCE §5` não se aplica; a Escada de Tinta sim — `--ink-mute` usado uma vez só, em 13px, no rodapé. Linka o `/static/tokens.css` sincronizado em vez de redeclarar cor, que é o que a `extensao.html` faz e é o desvio, não a regra. check-tokens verde, zero cor literal, zero script inline, e a tela foi renderizada headless de ponta a ponta antes do commit. **Revisada no mesmo dia, com três correções do Feca:** o `👽` SAIU do padrão — ele não é do Sharpen e o próprio Soh Props passa a usar o `🔁` (o código segue **aceitando** o alien de propósito: são 82 apostas de hábito no histórico dele, e se o dedo escorregar é melhor a aposta ser marcada do que ficar aberta em silêncio — documentar é uma coisa, tolerar é outra); o `/anular` ganhou destaque na nota que o separa do `🔁`; e **a seção de pôr um tipster no ar saiu da página pública** — ela é de quem opera, não do tipster, e foi para `docs/GUIA_BOT_TIPSTER.md` em vez de sumir. **E o `/nova-ui` foi rodado DE VERDADE depois de o Feca cobrar** — eu tinha invocado a skill e pulado o passo 1 (ler `UI_REFERENCE` e `pack/CLAUDE.md`), decidindo por dedução que "não tem dinheiro, §5 não se aplica", que é exatamente o argumento que a memória diz não dispensar. Lendo, o checklist pegou **cinco** coisas: faltava o **grid de fundo** (`§3` e `SHELL_SPEC §0`, idêntico nos dois apps) e o **estilo de scrollbar**; o `.card` usava `--r-lg` onde o `§4` pede `--r-sm/md` e não tinha `--shadow-card`; havia **espaço fora da escala `--sp-*`** (38px, paddings de 1px/2px); e o `.nota.aviso` virou CSS morto ao remover a seção interna — âmbar sem aviso é cor sem semântica (`§1`). O único ponto em que a página já estava certa por acaso é o conflito conhecido `UI_REFERENCE §2` × Escada de Tinta na cor do eyebrow: o §2 pede `--ink-mute` e a Escada manda `--ink-soft`, que é o que está lá. **Mais três, e essas eram de MARCA, não de CSS:** o tile do cabeçalho tinha um 🤖 e um wordmark "SharpenBot" que eu inventei — o `pack/CLAUDE.md §2` lista **"❌ emojis decorativos"** como regra inegociável e o §5 diz que a marca tem símbolo próprio, que não se substitui; virou o lockup de verdade (`brand-sharpen/blade/lockup-dark.svg`), como a landing e o login. E **nenhum título estava no padrão**: o `SHELL_SPEC §2` define `.pagehead-title` como `--text-xl` (22px), weight 800, ls `-.035em`, lh 1 e **gradiente azul em clip** — o meu era 28px chapado em `--ink`, e o `h2` vinha em 22px, ou seja no mesmo peso do título (dois níveis iguais não são hierarquia). Nenhuma das três apareceria em grep nenhum: só lendo.)_
 
 _Anterior: 2026-09-04 (sessão 317 — **filtros da Base Completa, agora numa barra SÓ.** A primeira volta entregou os filtros novos num segundo cartão embaixo dos KPIs, com a barra da página lá em cima; o Feca leu a tela — *"faltou filtro para Tipster, Casa e Esporte"* (existiam, estavam no outro cartão) e *"alguns filtros ficaram lá no topo, bem confuso"*. **Partido em dois cartões, o de cima sai do campo de visão e a tela parece não ter o filtro que tem.** Hoje é um cartão com três zonas — carteira (período/esporte/casa/tipster/conta/operador), aposta (chips de resultado com contagem + faixas de stake/odd/P/L) e texto —, montado das MESMAS peças que as outras 8 telas usam (`buildFilters` foi quebrado em `_grupoPeriodo` e cia.). **Achado sobre o gate:** o `/nova-ui` rodou e acertou o átomo (`.money`, tokens, Escada nos 3 critérios) — ele **não cobre composição**, que é o que quebrou. O sintoma barato: dois estilos para o mesmo papel na mesma tela. `.apf-lbl` foi excluído e a barra reusa `.filter-label`, que subiu para `--ink-soft` 9,5px; junto foram `.btbl-th` e `.btbl-counter`, os dois desvios que a s317 tinha só registrado. **A decisão que continua valendo: o desfecho corta a TABELA, não a régua** — filtrar `W` faria o Win Rate virar 100%, então os KPIs leem `apostasKpiRows` e a tela avisa enquanto o filtro está ligado. Aposta aberta sai de qualquer faixa de P/L: o zero dela é ausência, não valor. Resultado ordena em ordem semântica (`W · HW · V · HL · L`), nunca alfabética. Gates provados por mutação: **17/17** no `.mjs` que executa o código recortado, **10/10** no pytest estrutural.)_
 
@@ -28,7 +30,79 @@ _Anterior: 2026-09-01 (sessão 310, parte 2 — **A curadoria de casa vencida de
 
 ---
 
-## Onde parei (fim da sessão 318)
+## Onde parei (fim da sessão 319)
+
+### O #10 do Só Chutes estava planilhado — com a data de ontem
+
+O Feca relatou que o bilhete #10 do Só Chutes de hoje não foi planilhado.
+Não é isso. A linha existe:
+
+```
+#10  dJZmL-D1  id=219606  data=03/09/2026  Bet365  stake=1  odd=3,612  W  resolvida
+     #10 Mikael de Sousa [CRB v América-MG] // Victor Osimhen [Istanbul Basaksehir v Galatasaray SK]
+```
+
+O que está errado é a coluna Data: **03/09/2026**, onde os irmãos do mesmo lote
+estão em **04/09/2026**.
+
+Os quatro bilhetes #10 a #13 são três duplas e uma tripla das mesmas três
+seleções, postados em 03/09 às 20:04–20:06 BRT para jogos de 04/09. A legenda
+não trazia linha de data, então todos nasceram com a data da MENSAGEM. É o
+comportamento normal do `datas.js`, não um defeito.
+
+### O que o log mostrou, e o banco não mostrava
+
+A correção foi feita em três dos quatro:
+
+```
+[data:sochutes] bilhete #13: 03/09/2026 → 04/09/2026
+[data:sochutes] bilhete #11: 03/09/2026 → 04/09/2026
+[data:sochutes] bilhete #12: 03/09/2026 → 04/09/2026
+```
+
+O `/ajustar #10` nunca rodou. Quem olha o dia 04/09 vê #7, #8, #9, #11, #12 e
+#13, e um buraco no lugar do #10. Da cadeira de quem olha, "sumiu da tela" e
+"não foi planilhado" são a mesma coisa.
+
+O banco sozinho mostra a data divergente, mas não diz que houve correção manual
+parcial. Quem fecha o caso é o log do serviço.
+
+### O lote de hoje bate
+
+#14 a #19 (jogos de 05/09): o log diz `4, 4, 4, 4, 4, 3 novas` e o banco tem as
+mesmas 23 linhas. Zero recusa.
+
+### Método
+
+Sessão de diagnóstico. Nenhum arquivo de código tocado. A conferência foi banco
+(`bilhetes` do dono `SoChutes`) × log do serviço (`railway logs`).
+
+### Próximo passo
+
+1. Rodar no apoio do Só Chutes: **`/ajustar #10 04/09`**. Ele reenvia ao Sharpen
+   e depois faz o `PATCH` — necessário porque a linha já está `resolvida` e o
+   UPSERT sozinho não mexe mais em `data`. Mesmo comando que consertou #11, #12
+   e #13.
+2. Conferir depois: `data` do id 219606 tem de virar `04/09/2026`.
+
+### Anotado, não decidido
+
+Nenhuma regra nova foi decidida nesta sessão, então nada foi escrito em
+`CLAUDE.md` nem nos MASTER.
+
+Fica a observação para quando houver decisão: bilhete que nasce com a data da
+mensagem nasce assim o **lote inteiro**, e corrigir um a um deixa buraco. Hoje
+nada confere se os irmãos de um mesmo lote ficaram com datas divergentes.
+
+### Pendência que não é desta sessão
+
+`app/static/landing.html` está modificado no working tree desde **26/08** (mtime),
+sem commit, e o diff cita a s296. Não foi tocado aqui e ficou FORA do commit,
+como nas sessões 310, 312, 313 e 314.
+
+---
+
+## Sessão 318 — o zero que não era ausência
 
 ### Bilhete de mesmo jogo: a casa precifica só o CONJUNTO
 
@@ -180,6 +254,61 @@ escapou porque no caso combinado a faixa sozinha já dava o mesmo número (dado 
 exerce a regra).
 
 ### Ainda aberto da sessão 316
+
+**7º tipster público: `Soh Props - Vip`** (`/tipsters/sohpropsvips`). Marca, slug e username
+são três strings diferentes, e nenhuma é o nome do arquivo (`SOH PROPS`). Base de 7.276
+apostas em unidades, 05/01 a 03/09, `+474,35u` e ROI `+8,21%`. É a primeira carteira
+**monomodal** do registro: 100 % prop de jogador de futebol.
+
+O import veio em três CSV disjuntos (`scripts/import_sohprops_csv.py`). Prefixo `SO`, não `SP`:
+`SP` parece o óbvio para "Soh Props" e está ocupado pelos códigos NATIVOS da Superbet. Só
+apareceu porque a primeira medição usou o regex da série `XX<aaaamm>-n` e ficou cega para eles.
+
+**A barra `/` tem dois sentidos no mesmo título.** Em `1+ Chutes p/ fora` ela abrevia "para";
+em `Marcar / 1+ Chutes no gol` separa bet builder. Só ` / ` com espaço dos dois lados é
+separador. Havia mais dois (` e `, ` - `), cada um com contraexemplo na própria base
+(`Brighton e Hove Albion`; `BN -`; `- CASHOUT`), resolvidos por posição e por mercado.
+
+**O rótulo perdeu para o dinheiro:** `Perdida` com `Lucro=0,00` quer dizer que a stake voltou.
+São void, não perda. Depois disso o P/L derivado bate com a coluna `Lucro` em 7.276 de 7.276.
+
+**O bot (`sharpen-bot`), 6º tenant.** A LEGENDA declara quantas apostas há: uma linha de stake
+por aposta, na ordem das seleções do print. A marcação mora na linha da stake e chega por
+EDIÇÃO. A combinada é resolvida pelas PERNAS, não pela legenda, e a ARIDADE é o portão dela.
+
+Antes do perfil, dois pré-requisitos: **48 casas por HOST** no `casas.js` (84,8 % para 99,4 %
+dos links dele; nome não entra porque metade é palavra comum de legenda) e a **data do evento
+com a hora colada**, que o núcleo não lia.
+
+**A página `/bot`** (`app/static/bot.html`) é o manual de operação: dia a dia, os 13 comandos e
+os avisos. O passo a passo de pôr um tipster no ar saiu dela e foi para
+`docs/GUIA_BOT_TIPSTER.md`, que é interno.
+
+**O que caiu em produção, e por quê:**
+
+- O deploy do tenant novo entrou em **crash-loop e derrubou os outros cinco**. O `config.js`
+  tinha o bloco e o perfil existia, mas faltava a linha no registro `PERFIS` do `index.js`.
+  O guard de boot é fail-closed. Nada acusava: `npm test` e `node --check` passavam. Hoje há
+  teste, com o bloco recortado do `index.js` real.
+- O id do apoio **envelheceu** quando o grupo virou supergrupo. O roteamento compara
+  `msg.chat.id` com o `apoioId`, então o tenant ficava **surdo**: sem erro, sem resposta.
+- O JSON da visão veio malformado e **matou o bilhete**. Hoje repara quebra de linha crua,
+  pergunta de novo, e o erro diz se foi truncada (`stop_reason`).
+- O nome do jogador **sumia** do post e da planilha. O `rotuloPerna` descartava o mercado
+  quando a seleção não era número, e no layout de prop da bet365 a seleção é o jogador.
+
+**Pendente:**
+
+- `/repostar` e `/redescrever` no apoio do Soh Props, para o #64 ao #88 pegarem o formato novo
+  e a descrição corrigida. São comandos do tipster; não dá para disparar daqui.
+- `dia 13 19h` e `domingo 17h` ainda não viram data (cerca de 60 mensagens no histórico dele).
+  `amanhã` e `hoje` já viram.
+- 22 linhas em `Outros` e 10 em `Player Props` sem mercado identificado, mais os 5 `CA`
+  ambíguos. Dependem do tipster dizer o que é.
+- **Autosserviço.** Hoje pôr um tipster no ar exige env var no Railway e deploy, ou seja passa
+  por nós. O caminho proposto está no fim do `docs/GUIA_BOT_TIPSTER.md`: registro do tenant em
+  tabela com tela no `/admin`, e um `/vincular` no apoio para o id se resolver sozinho (o bot
+  já sabe o próprio `chat.id`, e ele chega já migrado).
 
 
 ### Ainda aberto da sessão 314
