@@ -715,6 +715,83 @@ conta, `repository.casa_canonica()` reusa a grafia que já existe; casa nova ent
 
 ---
 
+## Caixa Inteligente: o saldo é DERIVADO, e o corte é o que o torna verdadeiro
+
+A Caixa responde "quanto esta conta deveria ter na casa hoje" e confronta com o que a
+casa mostra. Nada de saldo é persistido — ele é derivado, como o `calcular_pl`:
+
+    banca      = saldo inicial + abertas no corte + depósitos − saques ± ajustes + P/L
+    em aberto  = Σ stake das apostas elegíveis ainda não liquidadas
+    disponível = banca − em aberto        ← é ESTE que a casa mostra na tela
+
+**Toda aposta mexe no saldo DUAS vezes:** −stake quando é feita, +retorno quando
+liquida. É daí que sai tudo o que segue.
+
+**`bilhetes.data` é a data do EVENTO, não a da aposta.** Aposta feita ontem para um
+jogo da próxima semana tem `data` depois do corte, e mesmo assim o stake dela já saiu
+da conta. Qualquer conta de dinheiro que trate `data` como data da aposta erra —
+descontando o stake duas vezes e fazendo a conta nascer com divergência.
+
+**O corte não é um filtro de data, é o instante em que o saldo foi lido.** Por isso
+`abertas_corte` grava os ids das apostas abertas naquele instante: o stake delas saiu
+ANTES da leitura (logo não está no saldo informado) e volta INTEIRO ao liquidar.
+Regra em `repository._caixa_abertas_ids`, um lugar só:
+
+- **corte = hoje** (o caminho que a tela recomenda) → toda aposta aberta entra. Se
+  está aberta agora, o stake saiu antes de agora. É exato.
+- **corte no passado** → não dá para reconstruir; entra o que provadamente já existia
+  (evento anterior ao corte, ou linha que o Sharpen já tinha, por `criado_em`). É um
+  piso, não o exato.
+- **script que recalcula depois** passa `ate` = o instante da ativação. Sem isso ele
+  adota aposta feita mais tarde no mesmo dia e infla a projeção (medido: +R$ 10.477).
+
+**A conferência REGISTRA, não absorve.** Ela grava o `projetado` daquele momento e
+nunca o recalcula: a projeção de hoje já inclui aposta que não existia lá atrás, e
+recalcular reescreveria o passado, apagando a divergência que foi medida. O box
+continua acusando até alguém lançar o que faltava ou pedir o ajuste nomeado.
+
+**Conta sem caixa não vira zero:** entra como "—", fica fora de toda soma, e a tela
+diz quantas faltam. Total que engole conta desconhecida mente com cara de exatidão.
+
+> **Número que parece contradizer o vizinho na mesma tela é defeito, mesmo estando
+> certo.** O tile dizia `P/L · conta −R$ 1.608,00` e a Caixa `Resultado R$ 0,00`: os
+> dois certos (as apostas eram anteriores ao corte, logo já estavam no saldo
+> informado), e ainda assim a tela parecia quebrada. Ela passou a dizer o corte —
+> `Resultado · desde 03/09` e a nota do que ficou de fora.
+
+**Fonte canônica:** `app/repository.py` (`_caixa_projetar`, `_caixa_abertas_ids`,
+`caixa_lancar`, `caixa_editar_mov`, `caixa_visao`) e `caixa_mov` no `database.py`.
+Máscara do dinheiro: `fmtSaldo` (2 casas, sem cor) — `UI_REFERENCE §5.1`.
+
+---
+
+## O asyncpg não converte tipo: o argumento vai no TIPO DA COLUNA
+
+`NUMERIC` exige `Decimal` (float levanta `DataError`), `DATE` exige `datetime.date`
+(string levanta `'str' object has no attribute 'toordinal'`), `INTEGER[]` exige
+`list[int]`. O erro nasce **dentro do driver**, antes de qualquer SQL rodar, e vira
+500 na rota. Foi assim que o "Ativar" da Caixa não fez nada **duas vezes seguidas**,
+com dois argumentos diferentes do mesmo INSERT.
+
+Três coisas que a segunda vez ensinou:
+
+- **`Decimal(str(v))`, nunca `Decimal(v)`** — o float carrega lixo binário.
+- **Sem `::date` no SQL.** Com o cast, o tipo do parâmetro fica ambíguo; sem ele vem
+  da coluna e não há dúvida sobre o que o driver espera.
+- **Gate por LISTA, não por lembrança.** Olhar um argumento por vez foi o que deixou o
+  segundo passar; `test_cada_argumento_do_insert_vai_no_tipo_da_coluna` percorre os
+  oito de uma vez e quebra se o INSERT mudar de forma.
+
+> **E o erro precisa aparecer onde o clique foi dado.** O 500 ia para o `#status-msg`
+> da barra de captura, longe do modal: da cadeira de quem clicou, "não acontece nada".
+> Falha de servidor aparece no formulário que falhou.
+>
+> ⚠️ **`display:flex` vence o atributo `hidden`** (que só vale pela folha do agente), e
+> a faixa de erro nascia vermelha e vazia. Todo elemento escondido por `hidden` que
+> tenha `display` próprio precisa de `[hidden] { display: none }` explícito.
+
+---
+
 ## Excluir dado: mova para tabela isolada, nunca soft-delete
 
 Exclusão destrutiva **move** as linhas para uma tabela que mais nada no sistema lê
@@ -794,4 +871,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-04 (sessao 318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
+ATUALIZADO: 2026-09-04 (sessao 314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
