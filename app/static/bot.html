@@ -61,23 +61,6 @@
       border-radius: var(--r-lg); padding: var(--sp-5) var(--sp-6); margin-bottom: var(--sp-4);
     }
 
-    /* ── passo a passo ─────────────────────────────────────────────────────── */
-    ol.passos { list-style: none; counter-reset: p; margin: 0; padding: 0; }
-    ol.passos > li {
-      counter-increment: p; position: relative;
-      padding: 0 0 var(--sp-5) var(--sp-10); border-left: 1px solid var(--line-2);
-      margin-left: 15px;
-    }
-    ol.passos > li:last-child { border-left-color: transparent; padding-bottom: 0; }
-    ol.passos > li::before {
-      content: counter(p); position: absolute; left: -15px; top: -2px;
-      width: 30px; height: 30px; border-radius: var(--r-pill);
-      background: var(--surface-2); border: 1px solid var(--line);
-      color: var(--ink); font-family: var(--font-mono); font-size: var(--text-sm);
-      font-weight: var(--weight-bold); display: grid; place-items: center;
-    }
-    ol.passos h3 { margin-top: 0; }
-
     /* ── comandos ──────────────────────────────────────────────────────────── */
     .cmds { display: grid; gap: var(--sp-2); }
     .cmd {
@@ -101,6 +84,13 @@
       margin: var(--sp-4) 0; color: var(--ink-soft);
     }
     .nota.aviso { border-left-color: var(--warn); background: rgba(var(--warn-rgb), .08); }
+    /* Comando em EVIDÊNCIA dentro do texto: mesmo papel de identidade do nome de
+       comando na tabela, então `--ink` e corpo cheio — nunca um tom apagado. */
+    code.destaque {
+      background: rgba(var(--accent-rgb), .16); border-color: rgba(var(--accent-rgb), .45);
+      color: var(--ink); font-weight: var(--weight-bold); font-size: var(--text-md);
+      padding: 2px 8px;
+    }
     .nota b { color: var(--ink); }
 
     /* Bloco de exemplo (mensagem do Telegram) */
@@ -176,7 +166,7 @@ https://www.bet365.bet.br/dl/sportsbookredirect?bet=1&amp;bs=…
   <div class="card">
     <p style="margin:0">
       <code>✅</code> ganhou &nbsp;·&nbsp; <code>❌</code> perdeu &nbsp;·&nbsp;
-      <code>🔁</code> a casa devolveu a stake (void) &nbsp;·&nbsp; <code>👽</code> também vale como devolvida
+      <code>🔁</code> a casa devolveu a stake (void)
     </p>
   </div>
   <p>
@@ -186,8 +176,10 @@ https://www.bet365.bet.br/dl/sportsbookredirect?bet=1&amp;bs=…
 
   <div class="nota">
     <b>🔁 não é a mesma coisa que anular.</b> O 🔁 é <b>void da casa</b>: a aposta existiu, a casa
-    devolveu a stake, e ela <b>fica</b> na planilha como V. O <code>/anular</code> é para a aposta
-    que <b>nunca valeu</b> — ela sai da planilha.
+    devolveu a stake, e ela <b>fica</b> na planilha como V.
+    <br>
+    O <code class="destaque">/anular</code> é outra coisa — é para a aposta que
+    <b>nunca valeu</b>, e ela <b>sai</b> da planilha.
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════════════ -->
@@ -297,59 +289,6 @@ https://www.bet365.bet.br/dl/sportsbookredirect?bet=1&amp;bs=…
     <li><b>“não dá para montar a combinada”</b> — a dupla/tripla não fecha com o número de
       seleções do print. Mande a combinada em mensagem separada, com o print só dela.</li>
   </ul>
-
-  <!-- ══════════════════════════════════════════════════════════════════════ -->
-  <div class="eyebrow">Para quem coloca no ar</div>
-  <h2>Um tipster novo, do zero</h2>
-
-  <ol class="passos">
-    <li>
-      <h3>Aprovar a conta</h3>
-      <p>O tipster se cadastra sozinho em <code>sharpen.bet</code>. Em <code>/admin</code>, o
-        status vai para <b>ativo</b>.</p>
-    </li>
-    <li>
-      <h3>Ligar o bot</h3>
-      <p>Ainda no <code>/admin</code>, o botão <b>Ligar bot</b> naquele usuário. Sem isso toda
-        escrita do robô é recusada — e o sintoma engana: o canal mostra ✅/❌ e a planilha não
-        acompanha, sem erro nenhum.</p>
-    </li>
-    <li>
-      <h3>Criar os dois grupos</h3>
-      <p>Um <b>grupo de apoio</b> (onde o tipster posta e os comandos são digitados) e o
-        <b>canal oficial</b> (onde os seguidores leem). São coisas separadas de propósito.</p>
-    </li>
-    <li>
-      <h3>Adicionar o @sharpenbetbot nos dois</h3>
-      <p>No canal ele precisa ser <b>administrador</b>, com permissão de publicar <i>e de editar</i>
-        — é a edição que atualiza o post quando o resultado é marcado.</p>
-    </li>
-    <li>
-      <h3>Pegar os ids</h3>
-      <p>O id do apoio e o do canal.</p>
-      <div class="nota aviso">
-        <b>⚠️ Grupo que vira supergrupo troca de id.</b> O número antigo para de funcionar e o
-        bot fica <b>surdo</b> naquele grupo: ninguém recebe erro, o tipster posta e nada acontece.
-        Sempre confira o id <b>depois</b> de terminar de mexer no grupo.
-      </div>
-    </li>
-    <li>
-      <h3>Cadastrar o tenant</h3>
-      <p>As variáveis do tipster no serviço do bot: id do apoio, id do canal, ids de quem pode
-        mandar comando, e o username da conta no Sharpen.</p>
-    </li>
-    <li>
-      <h3>Semear o contador</h3>
-      <p>Se o histórico dele já foi importado, a numeração precisa <b>continuar de onde parou</b>.
-        Um bilhete novo com número já usado é tratado como o mesmo bilhete e <b>engole a aposta,
-        sem aviso</b>. Confira com <code>/contador</code> e reponha se preciso.</p>
-    </li>
-    <li>
-      <h3>Primeiro dia em modo teste</h3>
-      <p>Com o modo teste ligado, o bot publica <b>no apoio</b> em vez do canal. Dá para conferir
-        o formato do post antes de os seguidores verem. Depois é só desligar.</p>
-    </li>
-  </ol>
 
   <footer>
     Sharpen · manual do bot nos grupos. Dúvida que esta página não responde, fale com o suporte —
