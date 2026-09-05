@@ -12,6 +12,16 @@
   <link rel="stylesheet" href="/static/tokens.css">
   <style>
     * { box-sizing: border-box; }
+
+    /* Chrome da marca (UI_REFERENCE §3 · SHELL_SPEC §0) — copiado do canônico,
+       não reescrito: o grid é IDÊNTICO nos dois apps e a scrollbar segue o
+       `index.html`. Faltavam os dois na primeira versão desta página. */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--fdc-steel); border-radius: var(--r-xs); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--ink-mute); }
+    ::-webkit-scrollbar-corner { background: var(--surface); }
+
     body {
       margin: 0;
       background: var(--bg);
@@ -20,12 +30,22 @@
       letter-spacing: -.01em;
       -webkit-text-size-adjust: 100%;
     }
-    .wrap { max-width: 860px; margin: 0 auto; padding: var(--sp-14) var(--sp-5) var(--sp-20); }
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      opacity: 0.55; pointer-events: none;
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+    .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto;
+      padding: var(--sp-14) var(--sp-5) var(--sp-20); }
 
     /* ── cabeçalho ─────────────────────────────────────────────────────────── */
     .brand { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-8); }
     .tile {
-      width: 38px; height: 38px; border-radius: var(--r-md); flex: none;
+      width: var(--sp-10); height: var(--sp-10); border-radius: var(--r-md); flex: none;
       background: linear-gradient(160deg, var(--surface-2), var(--bg));
       border: 1px solid var(--line); display: grid; place-items: center;
       font-size: var(--text-lg);
@@ -53,12 +73,15 @@
     code, .mono { font-family: var(--font-mono); font-size: .92em; }
     p code, li code, td code {
       background: var(--field); border: 1px solid var(--line);
-      border-radius: var(--r-xs); padding: 1px 5px; color: var(--ink);
+      border-radius: var(--r-xs); padding: 0 var(--sp-1); color: var(--ink);
     }
 
+    /* §4: card é `--surface` + 1px `--line` + raio `--r-sm/md` (eu tinha posto
+       `--r-lg`, que é 18px e está fora do que a referência pede) + sombra. */
     .card {
       background: var(--surface); border: 1px solid var(--line);
-      border-radius: var(--r-lg); padding: var(--sp-5) var(--sp-6); margin-bottom: var(--sp-4);
+      border-radius: var(--r-md); box-shadow: var(--shadow-card);
+      padding: var(--sp-5) var(--sp-6); margin-bottom: var(--sp-4);
     }
 
     /* ── comandos ──────────────────────────────────────────────────────────── */
@@ -83,13 +106,12 @@
       border-radius: 0 var(--r-sm) var(--r-sm) 0; padding: var(--sp-3) var(--sp-5);
       margin: var(--sp-4) 0; color: var(--ink-soft);
     }
-    .nota.aviso { border-left-color: var(--warn); background: rgba(var(--warn-rgb), .08); }
     /* Comando em EVIDÊNCIA dentro do texto: mesmo papel de identidade do nome de
        comando na tabela, então `--ink` e corpo cheio — nunca um tom apagado. */
     code.destaque {
       background: rgba(var(--accent-rgb), .16); border-color: rgba(var(--accent-rgb), .45);
       color: var(--ink); font-weight: var(--weight-bold); font-size: var(--text-md);
-      padding: 2px 8px;
+      padding: 0 var(--sp-2);
     }
     .nota b { color: var(--ink); }
 
