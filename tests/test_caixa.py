@@ -22,7 +22,14 @@ pura, que é onde o erro sairia caro e silencioso.
 """
 import pytest
 
-from app.repository import _caixa_projetar
+# Import FLAT, como todos os outros testes: o `conftest.py` põe `app/` no sys.path e os
+# módulos entram como `repository`, `main`, `auth`. `from app.repository` só funcionava
+# localmente, por `python -m pytest` pôr o CWD no path (namespace package implícito, já que
+# não existe `app/__init__.py`); no CI o comando é `pytest -q` e a coleta MORRIA com
+# `ModuleNotFoundError: No module named 'app'`, derrubando o job inteiro — inclusive o de
+# banco, que é o único que roda o SCHEMA_SQL. Além disso, os dois nomes carregariam o mesmo
+# módulo DUAS vezes, com dois jogos de estado de módulo.
+from repository import _caixa_projetar
 
 
 def mov(tipo, data, valor, **kw):
