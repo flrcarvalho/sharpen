@@ -17,6 +17,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import sys
 import time
 
@@ -306,11 +307,34 @@ def test_btn_social_hidden_esconde_de_verdade():
 
 
 def test_botoes_sociais_nascem_escondidos_no_markup():
-    """Fail-safe também no HTML: se o fetch de /auth/metodos falhar, nada aparece."""
+    """Fail-safe também no HTML: se o fetch de /auth/metodos falhar, nada aparece.
+
+    Vale para TODO botão social que exista no markup — o teste não lista ids, para
+    não quebrar quando um botão sai (Telegram, s324) nem passar batido quando um
+    entra."""
     html = _login_html()
-    for alvo in ('id="btn-google"', 'id="btn-telegram"'):
-        tag = html.split(alvo, 1)[1].split(">", 1)[0]
-        assert "hidden" in tag, f"{alvo} tem de nascer hidden no markup"
+    ids = re.findall(r'class="btn-social"\s+id="([^"]+)"', html)
+    assert ids, "nenhum botão social encontrado — o seletor do teste envelheceu"
+    for alvo in ids:
+        tag = html.split(f'id="{alvo}"', 1)[1].split(">", 1)[0]
+        assert "hidden" in tag, f"id={alvo} tem de nascer hidden no markup"
+
+
+def test_botao_telegram_esta_fora_da_tela():
+    """s324: o fluxo do Telegram não conclui — clicar não leva a lugar nenhum — e
+    botão morto confunde mais que ausência. O BACKEND segue inteiro (os testes
+    acima continuam valendo); o que saiu foi só o botão.
+
+    Quando o login por Telegram voltar a funcionar: devolva o <a id="btn-telegram">
+    ao login.html, volte `temSocial` a olhar `m.telegram` e APAGUE este teste."""
+    html = _login_html()
+    assert 'id="btn-telegram"' not in html
+    # Sem tirar os comentários o guard casaria com a PROSA que explica a remoção
+    # (mesma armadilha de test_ponte_telegram_serve_o_caminho_utf8).
+    codigo = "\n".join(
+        l for l in html.splitlines() if not l.strip().startswith(("//", "<!--", "*", "/*"))
+    )
+    assert "m.telegram" not in codigo, "`temSocial` não pode acender o 'ou' sem botão"
 
 
 # ── Callback do Google: guards antes de qualquer rede ─────────────────────────
