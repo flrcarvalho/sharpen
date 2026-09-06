@@ -544,3 +544,121 @@ def test_sombra_purga_o_velho_e_preserva_o_novo():
         assert "NOVO1" in codigos, "a linha nova tem de sobreviver à própria purga"
         assert "VELHO" not in codigos, "a purga por retenção não rodou"
     _run(body())
+
+
+# ── Janela de vida da conta (s322/s323) ──────────────────────────────────────
+# Estes três exercem o SCHEMA_SQL de verdade. Sem eles o job de banco só provava que a
+# migração NÃO EXPLODE: o backfill roda dentro de um `DO ... EXCEPTION WHEN others` (um erro
+# ali faria rollback do schema inteiro), então uma falha sairia como WARNING e o CI ficaria
+# verde com a coluna vazia. Engolir a exceção transforma falha em dado ausente — a mesma
+# armadilha do `_ptax` da s247; a saída é medir o RESULTADO, não a ausência de erro.
+
+def test_backfill_de_adquirida_em_le_a_data_no_formato_do_BANCO():
+    """`bilhetes.data` é TEXT e guarda DD/MM/YYYY (ISO também passa direto — as duas formas
+    convivem na coluna). Ler só ISO faria o backfill não achar quase nada e toda conta antiga
+    nascer com a janela começando no `criado_em`, que em base importada é a data do IMPORT."""
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoJanela'")
+            # Cadastro criado HOJE (como num import), com apostas bem anteriores.
+            await conn.execute(
+                "INSERT INTO parceiros (dono, casa, nome, adquirida_em) "
+                "VALUES ('TDonoJanela', 'Betano', 'Velha [Eu]', NULL)")
+            for data in ("15/03/2026", "20/04/2026"):          # formato do banco
+                await conn.execute(
+                    "INSERT INTO bilhetes (dono, casa, parceiro, assinatura, data, stake, odd, resultado) "
+                    "VALUES ('TDonoJanela', 'Betano', 'Velha [Eu]', $1, $2, '10,00', '1,50', 'W')",
+                    "sigjanela" + data, data)
+            # Conta ISO, para provar que o outro ramo do CASE também é lido.
+            await conn.execute(
+                "INSERT INTO parceiros (dono, casa, nome, adquirida_em) "
+                "VALUES ('TDonoJanela', 'Bet365', 'Iso [Eu]', NULL)")
+            await conn.execute(
+                "INSERT INTO bilhetes (dono, casa, parceiro, assinatura, data, stake, odd, resultado) "
+                "VALUES ('TDonoJanela', 'Bet365', 'Iso [Eu]', 'sigjaneliso', '2026-02-09', '10,00', '1,50', 'W')")
+            # Conta que nunca apostou: a janela começa no cadastro.
+            await conn.execute(
+                "INSERT INTO parceiros (dono, casa, nome, adquirida_em) "
+                "VALUES ('TDonoJanela', 'Superbet', 'SemAposta [Eu]', NULL)")
+
+        await init_db()   # é aqui que o backfill roda
+
+        async with pool.acquire() as conn:
+            linhas = {r["nome"]: r for r in await conn.fetch(
+                "SELECT nome, adquirida_em, criado_em::date AS cad FROM parceiros "
+                "WHERE dono = 'TDonoJanela'")}
+        assert str(linhas["Velha [Eu]"]["adquirida_em"]) == "2026-03-15", (
+            "o backfill não leu DD/MM/YYYY — toda conta antiga nasceria com a janela "
+            "começando na data do import")
+        assert str(linhas["Iso [Eu]"]["adquirida_em"]) == "2026-02-09", "o ramo ISO não foi lido"
+        assert linhas["SemAposta [Eu]"]["adquirida_em"] == linhas["SemAposta [Eu]"]["cad"], (
+            "conta sem aposta nenhuma deveria cair no criado_em")
+    _run(body())
+
+
+def test_arquivar_carimba_o_fim_da_janela_e_reativar_apaga():
+    """O carimbo é o que faz o custo parar nos períodos seguintes. Arquivar duas vezes não
+    pode empurrar o fim para a frente (COALESCE), e reativar tem de reabrir a janela — senão
+    a conta volta a ser usada com o custo sumido dos dias em que ela já está em uso."""
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoJanela2'")
+            pid = await conn.fetchval(
+                "INSERT INTO parceiros (dono, casa, nome, adquirida_em) "
+                "VALUES ('TDonoJanela2', 'Betano', 'Conta [Eu]', CURRENT_DATE) RETURNING id")
+
+        assert await repository.arquivar_parceiro(pid, "TDonoJanela2")
+        async with pool.acquire() as conn:
+            r = await conn.fetchrow("SELECT arquivado, arquivada_em FROM parceiros WHERE id=$1", pid)
+        assert r["arquivado"] and r["arquivada_em"] is not None, "arquivar não carimbou o fim"
+        primeiro = r["arquivada_em"]
+
+        # Recuar o carimbo e arquivar de novo: o COALESCE tem de PRESERVAR o original.
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE parceiros SET arquivada_em = DATE '2026-01-05' WHERE id=$1", pid)
+        assert await repository.arquivar_parceiro(pid, "TDonoJanela2")
+        async with pool.acquire() as conn:
+            de_novo = await conn.fetchval("SELECT arquivada_em FROM parceiros WHERE id=$1", pid)
+        assert str(de_novo) == "2026-01-05", "arquivar de novo empurrou o fim da janela"
+
+        assert await repository.reativar_parceiro(pid, "TDonoJanela2")
+        async with pool.acquire() as conn:
+            r = await conn.fetchrow("SELECT arquivado, arquivada_em FROM parceiros WHERE id=$1", pid)
+        assert not r["arquivado"] and r["arquivada_em"] is None, "reativar não reabriu a janela"
+        assert primeiro is not None
+    _run(body())
+
+
+def test_editar_parceiro_grava_a_data_de_compra_sem_mexer_em_nada_mais():
+    """A data entra como `datetime.date`: coluna DATE + asyncpg que não converte tipo, então
+    string crua estouraria DENTRO do driver e viraria 500 na rota (s314). E a escrita mora
+    ANTES do atalho de "nada mudou" — trocar só a data é uma edição legítima."""
+    from datetime import date
+
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoJanela3'")
+            pid = await conn.fetchval(
+                "INSERT INTO parceiros (dono, casa, nome, adquirida_em) "
+                "VALUES ('TDonoJanela3', 'Betano', 'Conta [Eu]', CURRENT_DATE) RETURNING id")
+
+        res = await repository.editar_parceiro(pid, "Conta [Eu]", None, "TDonoJanela3", date(2026, 2, 1))
+        assert res["ok"], res
+        async with pool.acquire() as conn:
+            r = await conn.fetchrow("SELECT nome, casa, adquirida_em FROM parceiros WHERE id=$1", pid)
+        assert str(r["adquirida_em"]) == "2026-02-01", "a data de compra não foi gravada"
+        assert r["nome"] == "Conta [Eu]" and r["casa"] == "Betano", "a edição mexeu no que não devia"
+
+        # None = não mexe (é o que a rota manda quando o campo vem vazio).
+        assert (await repository.editar_parceiro(pid, "Conta [Eu]", None, "TDonoJanela3", None))["ok"]
+        async with pool.acquire() as conn:
+            mantida = await conn.fetchval("SELECT adquirida_em FROM parceiros WHERE id=$1", pid)
+        assert str(mantida) == "2026-02-01", "None deveria PRESERVAR a data, não apagá-la"
+    _run(body())
