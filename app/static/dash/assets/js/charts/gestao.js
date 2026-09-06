@@ -68,53 +68,109 @@ function saveCusto(forn,casa,val){
 }
 let _costState={allForns:[],allCasas:[],contaCount:{}};
 
-// Mapa de primeira aposta por conta: _firstBetMap["forn||casa"]["conta"] = "YYYY-MM-DD"
-let _firstBetMap=null;
-function _buildFirstBetMap(){
-  _firstBetMap={};
-  if(typeof DADOS==='undefined'||!DADOS.length)return;
-  DADOS.forEach(r=>{
-    const k=normForn(r.fornecedor)+'||'+r.casa;
-    if(!_firstBetMap[k])_firstBetMap[k]={};
-    const c=r.conta||'__default__';
-    if(!_firstBetMap[k][c]||r.data<_firstBetMap[k][c])_firstBetMap[k][c]=r.data;
+// ── Janela de vida da conta (s322) ────────────────────────────────────────────
+// _contaVida["Fornecedor||Casa"]["Conta"] = {ini, fim, op}
+//
+// O custo de aquisição é um valor ÚNICO, pago na compra, e ele EXISTE enquanto a conta
+// existe: todo período filtrado que cruzar [ini, fim] cobra o custo cheio dela. Até aqui a
+// Visão Geral lançava o custo num único DIA — o da primeira aposta liquidada —, então
+// filtrar qualquer outro dia dava R$ 0 com o parque inteiro em uso (vídeo do tester Jaao26:
+// *"ele mostra que o meu custo de conta é zero, mas ele não necessariamente é zero porque
+// eu ainda estou usando essas contas"*).
+//
+//   ini = a MENOR entre `adquirida_em` (cadastro) e a 1ª aposta. O cadastro sozinho não
+//         basta: 130 contas do Feca só existem em bilhete. A 1ª aposta sozinha também não:
+//         conta comprada e ainda sem aposta ficava invisível no KPI e presente na aba
+//         Custos — os dois números discordavam por construção.
+//   fim = a MAIOR entre a ÚLTIMA aposta e `arquivada_em`. Arquivar é ato explícito e
+//         encerra a janela; sem carimbo, o fim é a última aposta (conta limitada ou caída
+//         em desuso). Conta cadastrada, ATIVA e ainda sem aposta nenhuma vale até HOJE —
+//         ela está comprada e esperando, e é assim que ela aparece.
+//
+// Consequência aceita (decisão do Feca): a régua NÃO é aditiva. Filtrar um dia mostra o
+// custo cheio de todas as contas vivas naquele dia, e somar os dias do mês dá muito mais
+// que o custo do mês. É o preço de "o custo está lá enquanto a conta está viva".
+//
+// As datas viajam em ISO (AAAA-MM-DD), então toda comparação aqui é de STRING de propósito
+// — nada de `new Date`, que reintroduz o fuso que o `_ymd` existe para evitar.
+let _contaVida=null;
+let _contasVida=null;   // cadastro COM datas, arquivadas incluídas (contasLoad)
+function _buildContaVida(){
+  _contaVida={};
+  const hoje=(typeof _ymd==='function')?_ymd(new Date()):'';
+  const _slot=(forn,casa,conta)=>{
+    const k=normForn(forn)+'||'+casa;
+    if(!_contaVida[k])_contaVida[k]={};
+    const c=conta||'__default__';
+    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:''};
+    return _contaVida[k][c];
+  };
+  // 1) bilhetes — LIQUIDADOS e ABERTOS. Só `DADOS` deixaria de fora a conta que tem
+  //    aposta viva e nenhuma encerrada: ela leria como morta (mesmo ponto cego da s239).
+  const bilhetes=[].concat(
+    (typeof DADOS!=='undefined'&&DADOS)?DADOS:[],
+    (typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[]);
+  bilhetes.forEach(r=>{
+    if(!r.data)return;
+    const v=_slot(r.fornecedor,r.casa,r.conta);
+    if(!v.ini||r.data<v.ini)v.ini=r.data;
+    if(!v.fim||r.data>v.fim)v.fim=r.data;
+    if(!v.op&&r.operador)v.op=r.operador;
+  });
+  // 2) cadastro — antecipa o início e fecha (ou abre) o fim.
+  (_contasVida||[]).forEach(p=>{
+    if(!p.casa||!p.conta)return;
+    const v=_slot(p.fornecedor,p.casa,p.conta);
+    if(p.adquirida_em&&(!v.ini||p.adquirida_em<v.ini))v.ini=p.adquirida_em;
+    if(p.arquivada_em){if(!v.fim||p.arquivada_em>v.fim)v.fim=p.arquivada_em;}
+    else if(!p.arquivado&&!v.fim)v.fim=hoje;   // comprada, ativa e ainda sem aposta
+    if(!v.op)v.op=window.__dono||'';
   });
 }
 
-// Custo filtrado por data E escopo: só contas cuja primeira aposta esteja em
-// [minDate, maxDate] (custo pertence ao período de aquisição) E que apareçam nos
-// rows filtrados (respeita filtros de casa/tipster/esporte — auditoria A3)
-function calcCostFiltered(rows){
-  if(!rows||!rows.length)return{costConta:0};
-  if(!_firstBetMap)_buildFirstBetMap();
-  const minDate=rows.reduce((m,r)=>r.data<m?r.data:m,'9999-99-99');
-  const maxDate=rows.reduce((m,r)=>r.data>m?r.data:m,'0000-00-00');
-  // Contas presentes no recorte filtrado (mesma chave de _firstBetMap)
-  const scope=new Set();
-  rows.forEach(r=>scope.add(normForn(r.fornecedor)+'||'+r.casa+'||'+(r.conta||'__default__')));
-  let total=0;
-  Object.entries(custoData).forEach(([k,custoPorConta])=>{
-    const contaMap=_firstBetMap[k]||{};
-    Object.entries(contaMap).forEach(([conta,firstDate])=>{
-      if(firstDate>=minDate&&firstDate<=maxDate&&scope.has(k+'||'+conta))total+=custoPorConta;
-    });
-  });
-  return{costConta:total};
-}
-
-// Custo filtrado para uma casa específica: para uso no popup drill-down de Bookies
-function calcCasaCost(nomeCasa,minDate,maxDate){
-  if(!_firstBetMap)_buildFirstBetMap();
+// Contas cujo custo vale no intervalo [de, ate] (ISO), com o custo já somado.
+// `casasSel`/`opsSel` são Sets vazios = "todas". Puro sobre `custoData` + `_contaVida`.
+function _custoNaJanela(de,ate,casasSel,opsSel,soCasa){
+  if(!_contaVida)_buildContaVida();
   let total=0,nContas=0;
   Object.entries(custoData).forEach(([k,custoPorConta])=>{
-    const[,casa]=k.split('||');
-    if(casa!==nomeCasa)return;
-    const contaMap=_firstBetMap[k]||{};
-    Object.values(contaMap).forEach(firstDate=>{
-      if(firstDate>=minDate&&firstDate<=maxDate){total+=custoPorConta;nContas++;}
+    if(!(custoPorConta>0))return;
+    const casa=k.split('||')[1];
+    if(soCasa&&casa!==soCasa)return;
+    if(casasSel&&casasSel.size&&!casasSel.has(casa))return;
+    Object.values(_contaVida[k]||{}).forEach(v=>{
+      if(!v.ini||!v.fim)return;
+      if(opsSel&&opsSel.size&&v.op&&!opsSel.has(v.op))return;
+      if(v.fim<de||v.ini>ate)return;   // janelas disjuntas → conta não vivia no período
+      total+=custoPorConta;nContas++;
     });
   });
   return{total,nContas};
+}
+
+// Custo de contas do período SELECIONADO na página `p` (default 'overview').
+//
+// Duas coisas mudaram de fonte junto com a régua (s322):
+//   · a janela vem do PERÍODO escolhido (`_selRange`), não do intervalo das linhas que
+//     sobraram. Recorte sem aposta nenhuma tinha custo 0 mesmo com o período na tela, e
+//     um mês filtrado encolhia até a última aposta dele;
+//   · o escopo vem do FILTRO, não das linhas. Casa e Operador descrevem a CONTA e seguem
+//     recortando; Esporte e Tipster descrevem a APOSTA e saíram — a conta Bet365 custou
+//     R$ 900 quer você olhe tênis ou futebol (decisão do Feca, s322).
+function calcCostFiltered(p){
+  const pag=p||'overview';
+  const range=(typeof _selRange==='function')?_selRange(pag):null;
+  const casasSel=(typeof msGet==='function')?msGet('ca_'+pag):null;
+  const opsSel=(typeof msGet==='function')?msGet('op_'+pag):null;
+  const{total,nContas}=_custoNaJanela(
+    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '');
+  return{costConta:total,nContas};
+}
+
+// Custo de UMA casa no intervalo — popup drill-down de Bookies. Mesma régua de janela de
+// vida do KPI: duas contas de custo na mesma tela não podem medir coisas diferentes.
+function calcCasaCost(nomeCasa,de,ate){
+  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa);
 }
 
 // ── Cadastro de contas (tabela `parceiros`) ───────────────────────────────────
@@ -130,18 +186,27 @@ function _splitParceiro(nome){
   const s=(nome||'').trim();const m=_PARCEIRO_RE.exec(s);
   return m?{conta:m[1].trim(),fornecedor:m[2].trim()}:{conta:s,fornecedor:''};
 }
-// Carga do cadastro (uma vez por sessão). /parceiros já vem escopado pelo dono e,
-// sem `?arquivados=1`, traz só as contas ATIVAS — conta arquivada não entra na
-// tabela de custos, mas se ela tiver bilhete continua contando pelo lado dos bilhetes.
+// Carga do cadastro (uma vez por sessão). /parceiros já vem escopado pelo dono.
+//
+// Pede `?arquivados=1` e separa em duas listas de propósito (s322):
+//   · `_contasCadastro` — só as ATIVAS, que é o universo da TABELA de custos (conta
+//     arquivada não entra lá; se tiver bilhete, segue contando pelo lado dos bilhetes);
+//   · `_contasVida` — TODAS, com `adquirida_em`/`arquivada_em`. A janela de vida precisa
+//     das arquivadas: o custo delas valeu enquanto elas viveram, e é justamente o carimbo
+//     de arquivamento que faz esse custo parar nos períodos seguintes.
 async function contasLoad(){
   if(_contasCadastro)return _contasCadastro;
   try{
-    const r=await fetch('/parceiros');
+    const r=await fetch('/parceiros?arquivados=1');
     const d=r.ok?await r.json():{};
-    _contasCadastro=(d.parceiros||[])
-      .map(p=>({casa:(p.casa||'').trim(),..._splitParceiro(p.nome)}))
+    const todas=(d.parceiros||[])
+      .map(p=>({casa:(p.casa||'').trim(),arquivado:!!p.arquivado,
+                adquirida_em:p.adquirida_em||'',arquivada_em:p.arquivada_em||'',
+                ..._splitParceiro(p.nome)}))
       .filter(p=>p.casa&&p.conta);
-  }catch(e){_contasCadastro=[];}   // offline: cai no comportamento antigo (só bilhetes)
+    _contasVida=todas;
+    _contasCadastro=todas.filter(p=>!p.arquivado).map(p=>({casa:p.casa,conta:p.conta,fornecedor:p.fornecedor}));
+  }catch(e){_contasCadastro=[];_contasVida=[];}   // offline: só bilhetes, como antes
   // O cadastro chega DEPOIS do primeiro render (é um fetch): reconstrói o estado e
   // repinta o card de custo da visão geral, igual ao que loadCusto() já faz.
   try{
@@ -152,7 +217,9 @@ async function contasLoad(){
 }
 
 function buildCostState(rows){
-  if(typeof DADOS!=='undefined'&&DADOS.length)_buildFirstBetMap();
+  // A janela de vida se refaz aqui: é o ponto por onde passam as duas chegadas tardias —
+  // o feed (app.js) e o cadastro (contasLoad, que é fetch e chega depois do 1º render).
+  _buildContaVida();
   const normRows=(rows||[]).map(r=>({...r,fornecedor:normForn(r.fornecedor)}));
   // União CADASTRO ∪ BILHETES: o cadastro traz a conta comprada que ainda não
   // apostou; os bilhetes trazem a conta antiga que nunca foi cadastrada (na base do

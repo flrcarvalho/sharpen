@@ -46,8 +46,29 @@ app = FastAPI(title="Sharpen — servidor de demonstração", docs_url=None, red
 # era de DIRECAO: na producao a conta e' uma linha de `parceiros` e a aposta aponta
 # para ela; aqui a aposta estava inventando a conta. Agora o cadastro e' a fonte,
 # como no sistema de verdade (ver o comentario de `_contasCadastro` no gestao.js).
+# Janela de vida da conta (s322): a rota de producao devolve `adquirida_em` e
+# `arquivada_em`, e e' delas que sai o Custo de Contas de cada periodo filtrado. O mock
+# precisa das duas -- sem `adquirida_em` o front cai no comeco de janela inferido (a 1a
+# aposta) e a demo passa a mostrar um custo diferente do que a producao mostraria.
+# A demo compra a conta 30 dias antes da 1a aposta dela; nenhuma conta e' arquivada.
+_1A_APOSTA = {}
+for _l in LINHAS:
+    _k = (_l["casa"], _l["parceiro"])
+    _d = _l.get("data") or ""
+    if _d and (_k not in _1A_APOSTA or _d < _1A_APOSTA[_k]):
+        _1A_APOSTA[_k] = _d
+
+
+def _comprada_em(casa, parceiro):
+    d = _1A_APOSTA.get((casa, parceiro))
+    if not d:
+        return None
+    return (datetime.strptime(d, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
+
+
 PARCEIROS = [
-    {"id": i, "nome": c["parceiro"], "casa": c["casa"], "arquivado": False}
+    {"id": i, "nome": c["parceiro"], "casa": c["casa"], "arquivado": False,
+     "adquirida_em": _comprada_em(c["casa"], c["parceiro"]), "arquivada_em": None}
     for i, c in enumerate(dados_demo.ELENCO, start=1)
 ]
 

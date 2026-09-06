@@ -2350,6 +2350,19 @@ td.c-res.res-HL { color: var(--warn); }
         <label>Fornecedor <span class="nc-opt">(opcional)</span></label>
         <input type="text" id="nc-forn" placeholder="Ex.: JoãoContas" autocomplete="off" spellcheck="false">
       </div>
+      <!-- Só no modo EDIÇÃO (s322): na criação a data é hoje, que é o caso normal. Ela abre
+           a janela de vida da conta — o custo de aquisição aparece na Visão Geral em todo
+           período que cruzar [esta data, arquivamento/última aposta]. Contas antigas vieram
+           de um backfill que chuta pela menor entre o cadastro e a 1ª aposta; este campo é
+           o único jeito de corrigir o chute. Mesmo par input+botão da Caixa: SharpenCal,
+           nunca o popup nativo (UI_REFERENCE §4). -->
+      <div class="modal-field nc-off" id="nc-adq-field">
+        <label>Data de compra da conta</label>
+        <div class="cxm-datewrap">
+          <input type="text" id="nc-adq" placeholder="dd/mm/aaaa" autocomplete="off" spellcheck="false">
+          <button type="button" id="nc-adq-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button>
+        </div>
+      </div>
       <!-- Só no modo edição, e só quando a casa escolhida difere da atual: mover a conta
            leva TODOS os bilhetes dela junto (e recalcula a assinatura de cada um). O
            número vem do mesmo GET /parceiros/{id}/resumo que o modal de exclusão usa. -->
@@ -3667,7 +3680,10 @@ function abrirModalNovaConta(origem) {
   _ncModo = 'criar'; _ncAlvo = null;
   const ov = document.getElementById('novaconta-modal');
   if (!ov) return;
-  ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn', 'nc-adq'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  // Data de compra só na edição: conta criada agora foi comprada hoje (o backend carimba
+  // CURRENT_DATE). Comprada antes e cadastrada hoje se ajusta abrindo a edição.
+  const adqF = document.getElementById('nc-adq-field'); if (adqF) adqF.classList.add('nc-off');
   const def = (casasCarregadas && casasCarregadas.length) ? casasCarregadas[0] : '__nova__';
   _ncComboOpen(false);
   _ncComboSet(def);   // preenche label + hidden + dispara ncOnCasaChange
@@ -3689,6 +3705,12 @@ function abrirModalEditarConta(id, casa, nome) {
   ['nc-casa-nome', 'nc-casa-url'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
   document.getElementById('nc-parceiro').value = partes.parceiro;
   document.getElementById('nc-forn').value = partes.fornecedor;
+  // Data de compra (s322) — do MESMO cache que a lista pinta (ativas + arquivadas).
+  const _pAdq = (parceirosCache[casa] || []).find(x => x.id === id)
+             || (parceirosArquivadosCache[casa] || []).find(x => x.id === id);
+  const adqEl = document.getElementById('nc-adq');
+  if (adqEl) adqEl.value = _cxDataBR4((_pAdq && _pAdq.adquirida_em) || '');
+  const adqF = document.getElementById('nc-adq-field'); if (adqF) adqF.classList.remove('nc-off');
   _ncComboOpen(false);
   _ncComboSet(casa);   // preenche label + hidden + dispara ncOnCasaChange (rótulos + aviso)
   const wrap = document.getElementById('acctSelWrap'); if (wrap) wrap.classList.remove('open');
@@ -3751,10 +3773,15 @@ function _ncLerForm() {
   // que produziu os 22 bilhetes órfãos da Tivo (s198). Saneia na origem.
   const forn = (document.getElementById('nc-forn').value || '').replace(/[\[\]]/g, '').trim();
   const nome = forn ? `${parceiro} [${forn}]` : parceiro;   // modelo canônico "Parceiro [Fornecedor]"
+  // Data de compra (s322): vazio = não mexe. Texto que não é data recusa em vez de virar
+  // vazio — apagar em silêncio a data que abre a janela de vida some com o custo da conta.
+  const adqTxt = (document.getElementById('nc-adq') || {}).value || '';
+  const adq = _cxIso(adqTxt);
   if (!casa) { alert(novo ? 'Informe o nome da casa nova.' : 'Selecione a casa.'); const n = document.getElementById('nc-casa-nome'); if (novo && n) n.focus(); return null; }
   if (novo && !url) { alert('Informe a URL da casa (ex.: novacasa.bet.br).'); const u = document.getElementById('nc-casa-url'); if (u) u.focus(); return null; }
   if (!parceiro) { const pi = document.getElementById('nc-parceiro'); if (pi) pi.focus(); return null; }
-  return { novo, casa, url, parceiro, forn, nome };
+  if (adqTxt.trim() && !adq) { alert('Data de compra inválida — use dd/mm/aaaa.'); const a = document.getElementById('nc-adq'); if (a) a.focus(); return null; }
+  return { novo, casa, url, parceiro, forn, nome, adq };
 }
 
 // Casa nova com URL → domínio p/ o favicon (chip padrão em todo o sistema). `casaFinal` é
@@ -3812,7 +3839,7 @@ async function ncEditarConta() {
   try {
     const r = await fetch('/parceiros/' + alvo.id + '/editar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome: f.nome, casa: f.casa }),
+      body: JSON.stringify({ nome: f.nome, casa: f.casa, adquirida_em: f.adq || undefined }),
     });
     if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao salvar a conta.'); return; }
     const res = await r.json();
@@ -3873,10 +3900,19 @@ async function ncEditarConta() {
     if (combo && !combo.contains(e.target)) _ncComboOpen(false);   // clique fora do combo fecha o menu
     if (e.target === ov) _modalFecharSeLimpo(ov, fecharModalNovaConta);   // fundo: só fecha se nada foi digitado
   });
-  ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn'].forEach(id => {
+  ['nc-casa-nome', 'nc-casa-url', 'nc-parceiro', 'nc-forn', 'nc-adq'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ncSalvarConta(); } });
   });
+  // Data de compra pelo SharpenCal (UI_REFERENCE §4) — nunca o popup nativo do Chrome.
+  // Mesmo par input+botão da Caixa: digitar continua valendo, o calendário é atalho.
+  const _adq = document.getElementById('nc-adq');
+  const _adqBtn = document.getElementById('nc-adq-btn');
+  if (_adq && _adqBtn) {
+    const abrirCalAdq = () => SharpenCal.abrir(_adq, _cxIso(_adq.value), v => { _adq.value = _cxDataBR4(v); }, { saida: 'iso' });
+    _adqBtn.addEventListener('click', abrirCalAdq);
+    _adq.addEventListener('dblclick', abrirCalAdq);
+  }
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || !ov.classList.contains('open')) return;
     const combo = document.getElementById('nc-combo');

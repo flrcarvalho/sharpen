@@ -6,7 +6,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-06 (sessão 322 — **o filtro dizia que estava ligado e a tabela não obedecia: selecionar `Tipster: Fatuch` na Base Completa deixava o chip em Filtros ativos e a tabela com MarcoF1, LBB e F1DP.** A causa é de forma, não de regra: o `_filterCache` do `filtrarPagina` é indexado por página, mas as entradas dele (`gfs` + `MSS`) mudam POR FORA dele — e o único caminho que o zerava era o `renderPage`. A s317 deu à Base Completa uma barra própria cujos multiselects repintam só aquela tela (`cb`), e `applyMS → renderApostas` passou a ler o recorte anterior à seleção. **O contorno num chamador é o que esconde o defeito no outro:** o ✕ do chip (`apostasTirarMS`) já desviava para `renderPage` e funcionava; quem mentia era o caminho sem contorno, o botão OK do dropdown. A correção mora no MUTADOR — `msToggle` zera o cache na entrada, antes do `return` do ramo `__all__` — e o contorno saiu junto. Medido na tela real com puppeteer: com o fix, 24.000 linhas/24 tipsters → 238/1; sem o fix, 24.000/24 → 24.000/24 (o print do Feca reproduzido). Gates: `tests/js/filtro_multiselect_cache.mjs` recorta e executa o código real, **3 mutações e 3 detectadas**; `pytest` 702 passed. ⚠️ O contador "336 de 336" NÃO era sintoma — os dois lados saem do mesmo `filtrarPagina`.)_
+_Atualizado: 2026-09-06 (sessão 323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
 
 _Anterior: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
 
@@ -38,7 +38,108 @@ _Anterior: 2026-09-01 (sessão 310, parte 2 — **A curadoria de casa vencida de
 
 ---
 
-## Onde parei (fim da sessão 322)
+## Onde parei (fim da sessão 323)
+
+### "Filtrei um dia e o custo de contas zerou — mas eu ainda uso essas contas"
+
+Sugestão do tester **Jaao26**, em vídeo. Com o período em **Tudo**, o KPI dizia
+`Custo de Contas −R$ 3.100,00`; filtrando **05/09 → 05/09**, virava **R$ 0**, com
+o parque inteiro em uso. Nas palavras dele: *"ele acaba contabilizando esse custo
+de contas só no dia que você cadastrou essa conta, então não no todo período (…)
+ele mostra que o meu custo de conta é zero, mas ele não necessariamente é zero
+porque eu ainda estou usando essas contas."*
+
+> **Método:** o vídeo tem áudio, e a tela sozinha apontava para o alvo ERRADO. Os
+> frames mostram o custo de tipster cobrando o mês inteiro ao lado do zero, e a
+> primeira leitura foi que a queixa era esse contraste. Era o oposto: ele queria
+> que o custo de CONTA não zerasse. `imageio-ffmpeg` + `faster-whisper` transcrevem
+> offline nesta máquina — ver [[video-audio-transcricao-local]].
+
+### A régua velha lançava o custo em UM dia
+
+`calcCostFiltered` cobrava a conta quando a **primeira aposta liquidada** dela
+caía no intervalo `[menor, maior]` data das **linhas filtradas**. Três defeitos
+saíam de um desenho só:
+
+- filtrar qualquer dia que não fosse o da estreia dava **R$ 0**;
+- recorte **sem aposta nenhuma** zerava o custo, mesmo com o período na tela;
+- conta **comprada e ainda não usada** não existia nesse mapa — entrava nos
+  R$ 3.100 da aba Custos e **nunca** no KPI. Os dois números discordavam por
+  construção, e o tester elogiou o comportamento da aba sem saber disso.
+
+### A régua nova: o custo existe enquanto a conta existe
+
+Decisão do Feca, escolhida contra uma alternativa de rateio que ele recusou —
+*"o custo da conta é único, ele é pago na compra"*:
+
+```
+ini = menor(adquirida_em, 1ª aposta)
+fim = maior(última aposta, arquivada_em)   — e HOJE p/ conta ativa ainda sem aposta
+```
+
+Todo período que **cruza** `[ini, fim]` cobra o custo **cheio** daquela conta.
+Comprou dia 01 e usou até o 22: qualquer recorte dentro disso cobra; o dia 28 não
+cobra; o mês inteiro cobra uma vez. **Não há constante arbitrária** — o fim vem do
+uso, que é dado que já existia.
+
+> ⚠️ **A régua NÃO é aditiva, e isso foi aceito com o preço na mesa.** Somar os
+> dias de setembro dá muito mais que o custo de setembro, e o P/L Líquido de um dia
+> passa a carregar o custo cheio das contas vivas. O Feca confirmou depois de ver a
+> conta feita (`3.884,83 − ~3.100 − 577,32`). É o preço de "o custo está lá enquanto
+> a conta está viva" — não dá para ter as duas coisas.
+
+### Duas fontes novas, e um escopo que mudou de natureza
+
+`parceiros.adquirida_em` e `parceiros.arquivada_em` (`DATE`). O backfill de
+`adquirida_em` é a menor entre `criado_em` e a 1ª aposta — em base importada o
+`criado_em` é a data do **import**, bem posterior às apostas que vieram junto. O
+`bilhetes.data` guarda **DD/MM/YYYY e ISO na mesma coluna**, então o backfill lê as
+duas formas com `to_date` (tolerante, nunca levanta) e roda dentro de um `DO` com
+`EXCEPTION`: erro no `SCHEMA_SQL` faz rollback do schema **inteiro**, e este
+backfill é conveniência — o init não é.
+
+O escopo saiu das linhas e foi para o **filtro**: **Casa** e **Operador** descrevem a
+conta e recortam o custo; **Esporte** e **Tipster** descrevem a aposta e **não**
+recortam mais — a conta Bet365 custou R$ 900 quer se olhe tênis ou futebol.
+
+Arquivar carimba `arquivada_em` (`COALESCE`, para arquivar duas vezes não empurrar o
+fim); reativar zera o carimbo, senão a conta voltaria viva com o custo sumido dos
+dias em que já está em uso. A data de compra ficou **editável no modal** da conta
+(só no modo edição, SharpenCal, `POST /parceiros/{id}/editar`) — o backfill é chute
+e sem esse campo não haveria como corrigi-lo.
+
+### Medido na tela real (puppeteer + servidor demo)
+
+| recorte | antes | depois |
+|---|---|---|
+| Tudo | −R$ 29.400 | **−R$ 29.400** · 102 contas — bate com a aba Custos |
+| 1 dia (10/06) | R$ 0 | **−R$ 29.400** · 102 contas |
+| 1 dia + Esporte=Tênis | recortava | **−R$ 29.400** (esporte não mexe) |
+| 1 dia + Casa=Bet365 | — | **−R$ 17.700** · 43 contas |
+| Jan/2027 (sem conta viva) | R$ 0 | **R$ 0** · "nenhuma conta no período" |
+
+Gates: `tests/js/custo_janela_vida.mjs` recorta e executa o `calcCostFiltered`, o
+`calcCasaCost` e o `_buildContaVida` reais (mais o `_selRange` do `filters.js`) —
+**9 mutações aplicadas, 9 detectadas**; `tests/test_custo_janela_vida.py` guarda a
+lista e os gates de leitura; `pytest tests/` **716 passed**; `check-tokens` verde.
+
+### Anotado, não corrigido
+
+`.modal-field label` é `--ink-mute` 10px caixa alta com tracking `.16em` — a Escada
+de Tinta manda **`--ink-soft`** para label. É violação **preexistente da classe
+compartilhada**, herdada por todos os modais. Dar `--ink-soft` só ao campo novo
+criaria dois estilos para o mesmo papel (o que a regra 8 do CLAUDE.md proíbe), então
+o campo reusa a classe como está. A correção é de uma linha e vale para todos os
+modais — decisão do Feca. Ver [[ui_reference_vs_escada_tinta_label]].
+
+### Pendência que não é desta sessão
+
+`app/static/landing.html` segue modificado no working tree desde **26/08**, sem
+commit, e ficou FORA deste commit — como nas sessões 310, 312, 313, 314, 319 e 322.
+
+---
+
+## Sessão 322 — o filtro dizia que estava ligado, e a tabela não obedecia
 
 ### O filtro dizia que estava ligado, e a tabela não obedecia
 

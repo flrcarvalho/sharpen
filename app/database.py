@@ -105,6 +105,58 @@ UPDATE parceiros SET casa = 'Betfair'  WHERE casa = 'BETFAIR';
 UPDATE parceiros SET casa = 'Pinnacle' WHERE casa = 'PINNACLE';
 UPDATE parceiros SET casa = 'Superbet' WHERE casa = 'SUPERBET';
 
+-- Janela de vida da conta (s322). O custo de aquisição é um valor ÚNICO, pago na compra,
+-- e ele "existe" enquanto a conta existe: todo período filtrado que cruzar [adquirida_em,
+-- fim] cobra o custo cheio dessa conta. Antes a Visão Geral lançava o custo num ÚNICO dia
+-- — o da primeira aposta LIQUIDADA —, então filtrar qualquer outro dia dava R$ 0 mesmo com
+-- a conta em uso (reclamação do tester Jaao26, em vídeo).
+--   adquirida_em → começo da janela. Sem ela sobrava inferir pela 1ª aposta, que ignora a
+--                  conta comprada e ainda não usada (invisível no KPI, mas presente nos
+--                  R$ 3.100 da aba Custos — os dois números discordavam por construção).
+--   arquivada_em → fim da janela quando a conta é encerrada de propósito. Sem carimbo, o
+--                  fim é a ÚLTIMA aposta (conta limitada / caída em desuso).
+-- Ambas DATE (não TIMESTAMPTZ): a janela é comparada com `bilhetes.data`, que é dia.
+ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS adquirida_em DATE;
+ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS arquivada_em DATE;
+
+-- Backfill de `adquirida_em`: a MENOR entre o `criado_em` do cadastro e a 1ª aposta da
+-- conta. Em base importada o `criado_em` é a data do IMPORT, bem posterior às apostas que
+-- vieram junto — usar só ele daria a toda conta antiga uma janela que começa ontem.
+--
+-- `bilhetes.data` é TEXT e guarda DD/MM/YYYY (o `_data_iso` do repositório converte na
+-- saída; ISO também passa direto, então as DUAS formas convivem na coluna). Ler só uma
+-- delas encontraria quase nada. `to_date` é tolerante e nunca levanta — importante aqui,
+-- porque um erro dentro do SCHEMA_SQL faz rollback do schema INTEIRO e trava o init de
+-- zero (mesma armadilha do UPDATE de nomes de casa acima).
+--
+-- Roda uma vez: o guard do IF EXISTS evita varrer `bilhetes` a cada start.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM parceiros WHERE adquirida_em IS NULL) THEN
+        WITH primeira AS (
+            SELECT b.dono, b.casa, b.parceiro,
+                   MIN(CASE
+                        WHEN b.data ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN to_date(b.data, 'YYYY-MM-DD')
+                        WHEN b.data ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN to_date(b.data, 'DD/MM/YYYY')
+                       END) AS d
+              FROM bilhetes b
+             GROUP BY b.dono, b.casa, b.parceiro
+        )
+        UPDATE parceiros p
+           SET adquirida_em = LEAST(p.criado_em::date, COALESCE(pr.d, p.criado_em::date))
+          FROM primeira pr
+         WHERE p.adquirida_em IS NULL
+           AND pr.dono = p.dono AND pr.casa = p.casa AND pr.parceiro = p.nome;
+        -- Conta cadastrada que nunca apostou: a janela começa no cadastro.
+        UPDATE parceiros SET adquirida_em = criado_em::date WHERE adquirida_em IS NULL;
+    END IF;
+EXCEPTION WHEN others THEN
+    -- Rede de segurança: este backfill é CONVENIÊNCIA, o init do banco não é. Sem ele a
+    -- coluna fica NULL e o front cai no começo de janela antigo (a 1ª aposta) — degradação
+    -- silenciosa e reversível. Deixar estourar trocaria isso por um app que não sobe.
+    RAISE WARNING 'backfill de parceiros.adquirida_em falhou: %', SQLERRM;
+END$$;
+
 -- Origem do registro: extracao (IA) | sync (Polymarket API) | import (migração da planilha).
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'extracao';
 

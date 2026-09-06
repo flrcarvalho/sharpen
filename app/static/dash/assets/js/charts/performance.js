@@ -413,9 +413,13 @@ function renderCasaDrill(rows){
   const avgOdd=stk>0?wt/stk:0;
   const plCls=pl>=0?'pos':'neg';
   const roiCls=roi>=0?'pos':'neg';
-  const _minDate=rows.length?rows.reduce((m,r)=>r.data<m?r.data:m,'9999-99-99'):'';
-  const _maxDate=rows.length?rows.reduce((m,r)=>r.data>m?r.data:m,'0000-00-00'):'';
-  const{total:custoTotal,nContas:nContasCusto}=(_minDate&&typeof calcCasaCost==='function')?calcCasaCost(nome,_minDate,_maxDate):{total:0,nContas:0};
+  // Custo da casa no PERÍODO SELECIONADO — não no intervalo das linhas (s322). Com a
+  // janela de vida, uma conta viva custa no período mesmo sem ter apostado nele, e derivar
+  // das linhas encolhia o período até a última aposta que sobrou no recorte.
+  const _sel=(typeof _selRange==='function')?_selRange('casas'):null;
+  const _minDate=_sel?_sel.from:'0000-01-01';
+  const _maxDate=_sel?_sel.to:'9999-12-31';
+  const{total:custoTotal,nContas:nContasCusto}=(typeof calcCasaCost==='function')?calcCasaCost(nome,_minDate,_maxDate):{total:0,nContas:0};
   const plLiq=pl-custoTotal;
   const roiLiq=s>0?plLiq/s*100:0;
 

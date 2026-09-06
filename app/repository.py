@@ -2993,10 +2993,11 @@ async def criar_parceiro(casa: str, nome: str, dono: str) -> dict:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO parceiros (dono, casa, nome)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (dono, casa, nome) DO UPDATE SET arquivado = FALSE
-            RETURNING id, casa, nome, arquivado, criado_em
+            INSERT INTO parceiros (dono, casa, nome, adquirida_em)
+            VALUES ($1, $2, $3, CURRENT_DATE)
+            ON CONFLICT (dono, casa, nome) DO UPDATE
+                SET arquivado = FALSE, arquivada_em = NULL
+            RETURNING id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em
             """,
             dono, casa, nome,
         )
@@ -3066,17 +3067,27 @@ async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados:
     where = "WHERE " + " AND ".join(filters)
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            f"SELECT id, casa, nome, arquivado, criado_em FROM parceiros {where} ORDER BY criado_em ASC",
+            f"SELECT id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em "
+            f"FROM parceiros {where} ORDER BY criado_em ASC",
             *params,
         )
     return [dict(r) for r in rows]
 
 
 async def arquivar_parceiro(parceiro_id: int, dono: str) -> bool:
+    """Arquiva a conta e CARIMBA o fim da janela de vida dela (s322).
+
+    O carimbo é o que faz o custo de aquisição parar de aparecer nos períodos seguintes:
+    sem ele o fim da janela cai na última aposta, que serve para conta limitada / em desuso
+    mas não distingue "parei de usar" de "encerrei". Só carimba se ainda não havia carimbo
+    — arquivar duas vezes não deve mover o fim para a frente.
+    """
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
-            "UPDATE parceiros SET arquivado = TRUE WHERE id = $1 AND dono = $2", parceiro_id, dono
+            "UPDATE parceiros SET arquivado = TRUE, "
+            "arquivada_em = COALESCE(arquivada_em, CURRENT_DATE) "
+            "WHERE id = $1 AND dono = $2", parceiro_id, dono
         )
     return result.split()[-1] == "1"
 
@@ -3303,10 +3314,14 @@ async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:
 
 
 async def reativar_parceiro(parceiro_id: int, dono: str) -> bool:
+    """Reativar reabre a janela de vida: o fim volta a ser NULL (s322). Sem isso a conta
+    voltaria a existir carregando um fim antigo, e o custo dela sumiria de todo período
+    posterior ao arquivamento — inclusive dos dias em que ela já está em uso de novo."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
-            "UPDATE parceiros SET arquivado = FALSE WHERE id = $1 AND dono = $2", parceiro_id, dono
+            "UPDATE parceiros SET arquivado = FALSE, arquivada_em = NULL "
+            "WHERE id = $1 AND dono = $2", parceiro_id, dono
         )
     return result.split()[-1] == "1"
 
@@ -3422,7 +3437,7 @@ async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict
 
 
 async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | None,
-                          dono: str) -> dict:
+                          dono: str, adquirida_em: date | None = None) -> dict:
     """Edita a conta (nome e/ou casa), propaga aos bilhetes E recalcula a assinatura.
 
     Os bilhetes referenciam o parceiro por TEXTO (`bilhetes.casa + bilhetes.parceiro`), então
@@ -3438,6 +3453,12 @@ async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | Non
     porque "fornecedor" e "casa errada" eram os dois motivos reais de mexer numa conta, e o
     fornecedor mora DENTRO do nome (modelo "Parceiro [Fornecedor]"). Quem chama resolve a
     grafia por `casa_canonica` ANTES — casa é texto, e uma gêmea por caixa nasceria aqui.
+
+    `adquirida_em` (s322) é opcional e `None` = NÃO MEXE. Ela abre a janela de vida que
+    decide em quais períodos o custo da conta aparece, e o valor que o backfill chutou (a
+    menor entre `criado_em` e a 1ª aposta) erra sempre que a conta foi comprada bem antes de
+    apostar — é o único jeito de corrigir isso à mão. Escrita ANTES da checagem de "nada
+    mudou": trocar só a data é uma edição legítima, e o atalho de saída a engoliria.
 
     Tudo numa transação. Retorna {ok, motivo?, casa, nome, bilhetes_atualizados,
     assinaturas_recalculadas}.
@@ -3455,6 +3476,13 @@ async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | Non
             if not row:
                 return {"ok": False, "motivo": "Conta não encontrada."}
             casa, antigo = row["casa"], row["nome"]
+            if adquirida_em is not None:
+                # Coluna DATE: o asyncpg não converte — string aqui levanta
+                # "'str' object has no attribute 'toordinal'" DENTRO do driver (s314).
+                await conn.execute(
+                    "UPDATE parceiros SET adquirida_em = $1 WHERE id = $2 AND dono = $3",
+                    adquirida_em, parceiro_id, dono,
+                )
             destino = nova_casa or casa
             if antigo == novo_nome and destino == casa:
                 return {"ok": True, "casa": casa, "nome": antigo,

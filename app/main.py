@@ -13,7 +13,7 @@ import re
 import time
 import zipfile
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date as _date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode, urlsplit
@@ -3789,6 +3789,9 @@ class ParceiroEditarRequest(BaseModel):
     nome: str
     # Ausente = mantém a casa atual. Presente = MOVE a conta e todas as apostas dela.
     casa: Optional[str] = None
+    # Data de compra da conta (AAAA-MM-DD). Ausente = não mexe. Abre a janela de vida que
+    # decide em quais períodos o custo de aquisição aparece na Visão Geral (s322).
+    adquirida_em: Optional[str] = None
 
 
 @app.post("/parceiros/{parceiro_id}/editar")
@@ -3801,7 +3804,16 @@ async def editar_parceiro_route(parceiro_id: int, body: ParceiroEditarRequest,
         # Mesma trava do POST /parceiros: a casa é texto, e uma gêmea por caixa/espaço
         # ("Pixbet" quando já existe "PixBet") nasceria aqui se passasse verbatim.
         casa = await casa_canonica(_casa_display(_display_to_key(casa)))
-    res = await editar_parceiro(parceiro_id, body.nome, casa or None, dono)
+    # Converte na FRONTEIRA: a coluna é DATE e o asyncpg exige datetime.date — string
+    # crua estoura dentro do driver e vira 500 na rota (s314).
+    adquirida = (body.adquirida_em or "").strip()
+    adquirida_dt = None
+    if adquirida:
+        try:
+            adquirida_dt = _date.fromisoformat(adquirida)
+        except ValueError:
+            raise HTTPException(400, "Data de aquisição inválida (use AAAA-MM-DD).")
+    res = await editar_parceiro(parceiro_id, body.nome, casa or None, dono, adquirida_dt)
     if not res.get("ok"):
         motivo = res.get("motivo", "Não foi possível editar a conta.")
         raise HTTPException(404 if "não encontrada" in motivo else 400, motivo)

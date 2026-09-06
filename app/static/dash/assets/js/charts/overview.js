@@ -11,7 +11,9 @@ function renderKPI(rows){
   const settled=rows.filter(r=>r.resultado!=='V').length;
   const wins=W+HW;
   const wr=wrFrac(wins,HW,HL,settled);
-  const{costConta}=calcCostFiltered(rows);
+  // Custo de contas — janela de vida (s322). Não deriva mais de `rows`: uma conta viva
+  // custa no período mesmo que ela não tenha apostado NELE. Ver `calcCostFiltered`.
+  const{costConta,nContas:nContasCusto}=calcCostFiltered('overview');
   // Custo de tipster — soma SÓ os meses dentro do período filtrado (assinatura é mensal;
   // espelha o custo de conta, que já respeita a data via calcCostFiltered). Mês "YYYY-MM"
   // entra se estiver no intervalo [menor, maior] mês das apostas filtradas. Sem filtro (tudo),
@@ -37,7 +39,12 @@ function renderKPI(rows){
     {l:'P/L',v:fmtPL(lucro),c:lucro>=0?'pos':'neg',s:'resultado da carteira',accent:'hero',span:true},
   ]:[
     {l:'P/L Bruto',v:fmtPL(lucro),c:lucro>=0?'pos':'neg',s:'antes de custos',accent:''},
-    {l:'Custo de Contas',v:costConta>0?fmtPL(-costConta):fmtR(0),c:costConta>0?'neg':'neu',s:'total aquisição',accent:''},
+    // A legenda passou a CONTAR as contas (s322): com a janela de vida o número deixou de
+    // ser "o que estreou aqui" e virou "o que estava vivo aqui" — sem o contador não há
+    // como conferir de onde saiu o valor. Papel de metadado (contador) na Escada de Tinta:
+    // `.kpi-sub` já é --ink-mute em 10px, exatamente o piso desse papel.
+    {l:'Custo de Contas',v:costConta>0?fmtPL(-costConta):fmtR(0),c:costConta>0?'neg':'neu',
+     s:nContasCusto?(nContasCusto===1?'1 conta no período':nContasCusto+' contas no período'):'nenhuma conta no período',accent:''},
     {l:'Custo de Tipsters',v:costTipster>0?fmtPL(-costTipster):fmtR(0),c:costTipster>0?'neg':'neu',s:'assinaturas / serviços',accent:''},
     {l:'P/L Líquido',v:fmtPL(lucroLiq),c:lucroLiq>=0?'pos':'neg',s:'resultado final',accent:'hero'},
   ];
