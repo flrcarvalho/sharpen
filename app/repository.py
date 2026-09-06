@@ -1827,6 +1827,19 @@ _CAIXA_LANCAMENTOS = ("deposito", "saque", "ajuste")
 CAIXA_TOL = 0.005
 
 
+def _caixa_criado_iso(criado) -> str:
+    """`criado_em` (datetime do banco ou string ISO) → 'AAAA-MM-DD'. '' se não der.
+
+    Um lugar só: `_caixa_projetar` e `_caixa_abertas_ids` comparam a mesma coisa
+    (quando o Sharpen conheceu a linha) e não podem discordar sobre como lê-la.
+    """
+    if criado is None:
+        return ""
+    if hasattr(criado, "date"):
+        return criado.date().isoformat()
+    return str(criado)[:10]
+
+
 def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
     """Projeção da caixa de UMA conta. PURA (sem DB) — é o núcleo testável.
 
@@ -1888,7 +1901,15 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
             continue
         bid = a.get("id")
         no_corte = bid is not None and int(bid) in abertas_corte
-        data_iso = _data_iso(a.get("data"))
+        # Aposta ABERTA pode não ter data nenhuma, e isso não é defeito: onde a coluna
+        # Data é a data de RESOLUÇÃO (Betfair, `extensor/content.js`), a aberta sobe com
+        # ela vazia de propósito — a resolução ainda não existe. Sem fallback, `data_iso`
+        # None derruba a condição abaixo e a linha é lida como ANTERIOR ao corte: some
+        # das duas pontas (não entra na banca, não entra em "em aberto") e o stake nunca
+        # é descontado, deixando a projeção alta em exatamente um stake (s326: Betfair
+        # `Duka [Eu]`, R$ 301,00 — a Caixa acusava divergência que era dela). Sem data, o
+        # único sinal de QUANDO o stake saiu da conta é `criado_em`.
+        data_iso = _data_iso(a.get("data")) or _caixa_criado_iso(a.get("criado_em"))
         if not no_corte and not (corte and data_iso and data_iso >= corte):
             # Fora da janela: já está embutida no saldo informado. Contamos só para
             # poder DIZER isso na tela (ver `pl_anterior` no dicionário acima).
@@ -2128,7 +2149,7 @@ def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str, ate=None) -> 
         if corte >= hoje:
             out.append(a["id"])
             continue
-        criado_iso = criado.date().isoformat() if hasattr(criado, "date") else str(criado or "")[:10]
+        criado_iso = _caixa_criado_iso(criado)
         if (_data_iso(a.get("data")) or "") < corte or (criado_iso and criado_iso < corte):
             out.append(a["id"])
     return out
@@ -2216,9 +2237,12 @@ async def caixa_visao(dono: str) -> dict:
             "SELECT id, casa, nome, arquivado FROM parceiros WHERE dono = $1", dono)
         movs = [(_caixa_mov_dict(r), r["parceiro_id"]) for r in await conn.fetch(
             "SELECT * FROM caixa_mov WHERE dono = $1 ORDER BY data, id", dono)]
+        # `criado_em` é obrigatório: `_caixa_projetar` o usa como data efetiva quando a
+        # aposta não tem data (aberta de casa cuja Data é a de resolução). Omiti-lo aqui
+        # faria o Painel de Contas projetar DIFERENTE da tela da conta, com a mesma conta.
         apostas = await conn.fetch(
-            "SELECT id, casa, parceiro, stake, odd, resultado, data FROM bilhetes "
-            "WHERE dono = $1", dono)
+            "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em "
+            "FROM bilhetes WHERE dono = $1", dono)
 
     por_conta: dict[int, list[dict]] = {}
     for m, pid in movs:

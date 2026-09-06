@@ -40,8 +40,9 @@ def mov(tipo, data, valor, **kw):
     return m
 
 
-def ap(id_, data, stake, resultado="", odd=None):
-    return {"id": id_, "data": data, "stake": stake, "odd": odd, "resultado": resultado}
+def ap(id_, data, stake, resultado="", odd=None, criado_em=None):
+    return {"id": id_, "data": data, "stake": stake, "odd": odd,
+            "resultado": resultado, "criado_em": criado_em}
 
 
 # ── Caixa desligada ───────────────────────────────────────────────────────────
@@ -149,6 +150,83 @@ def test_aposta_no_corte_nao_e_contada_duas_vezes():
     r = _caixa_projetar(movs, [ap(7, "2026-08-10", 400.0, "W", 2.0)])
     assert r["preso_corte"] == 400.0 and r["n_preso_corte"] == 1
     assert r["disponivel"] == 1800.0
+
+
+# ── Aposta ABERTA sem data: `criado_em` é a data efetiva (s326) ───────────────
+# Onde a coluna Data é a data de RESOLUÇÃO (Betfair), a aposta aberta sobe com ela
+# VAZIA de propósito. Sem fallback, a linha era lida como anterior ao corte e sumia
+# das duas pontas — nem banca, nem "em aberto" — e a projeção ficava alta em
+# exatamente um stake, fazendo a Caixa acusar uma divergência que era dela.
+
+def test_aposta_aberta_sem_data_criada_depois_do_corte_desconta_o_stake():
+    movs = [mov("inicial", "2026-09-05", 1000.0)]
+    r = _caixa_projetar(movs, [ap(9, "", 301.0, criado_em="2026-09-06T15:42:35")])
+    assert r["n_abertas"] == 1 and r["aberto"] == 301.0
+    assert r["banca"] == 1000.0
+    assert r["disponivel"] == 699.0
+    assert r["n_anteriores"] == 0     # não é histórico embutido no saldo
+
+
+def test_aposta_aberta_sem_data_no_corte_continua_neutra():
+    """Já estava na lista do corte: entra na banca e sai em 'em aberto'. O fallback
+    não pode transformar isso num desconto a mais."""
+    movs = [mov("inicial", "2026-09-05", 1000.0, abertas_corte=[9])]
+    r = _caixa_projetar(movs, [ap(9, "", 301.0, criado_em="2026-09-04T10:00:00")])
+    assert r["preso_corte"] == 301.0 and r["aberto"] == 301.0
+    assert r["disponivel"] == 1000.0
+
+
+def test_aposta_sem_data_conhecida_antes_do_corte_e_fora_da_lista_fica_de_fora():
+    """Linha que o Sharpen já tinha ANTES do corte e que não entrou no `abertas_corte`
+    é histórico: o stake dela já está descontado do saldo informado. Descontar de novo
+    é o erro simétrico — a mesma família do lançamento anterior ao corte."""
+    movs = [mov("inicial", "2026-09-05", 1000.0)]
+    r = _caixa_projetar(movs, [ap(9, "", 301.0, criado_em="2026-09-01T10:00:00")])
+    assert r["n_abertas"] == 0 and r["aberto"] == 0.0
+    assert r["disponivel"] == 1000.0
+
+
+def test_criado_em_datetime_do_banco_tambem_serve():
+    """O `criado_em` chega como `datetime` do asyncpg na tela da conta e no Painel —
+    ler só string faria as duas telas divergirem da suíte."""
+    from datetime import datetime, timezone
+    movs = [mov("inicial", "2026-09-05", 1000.0)]
+    r = _caixa_projetar(movs, [ap(9, "", 301.0,
+                                  criado_em=datetime(2026, 9, 6, 15, 42, tzinfo=timezone.utc))])
+    assert r["aberto"] == 301.0 and r["disponivel"] == 699.0
+
+
+def test_sem_data_e_sem_criado_em_a_linha_nao_e_adotada():
+    """Sem nenhum dos dois não há como saber quando o stake saiu — e chutar que saiu
+    depois do corte inventaria um desconto. Fica fora, como antes."""
+    movs = [mov("inicial", "2026-09-05", 1000.0)]
+    r = _caixa_projetar(movs, [ap(9, "", 301.0)])
+    assert r["aberto"] == 0.0 and r["disponivel"] == 1000.0
+
+
+def test_caso_medido_betfair_duka():
+    """A conta real da s326, com os números da tela: 1.000 inicial + 421 preso no corte
+    + 2.784,84 de ajuste + 1.250,58 de resultado = 5.456,42 de banca. A aberta de 301
+    sem data tem de derrubar o disponível para 5.155,42 — o Principal que a Betfair
+    mostrava enquanto a Caixa dizia 5.456,42 e acusava divergência."""
+    movs = [mov("inicial", "2026-09-05", 1000.0, abertas_corte=[1, 2, 3, 4]),
+            mov("ajuste", "2026-09-05", 2784.84, id=2)]
+    apostas = [
+        # as 4 que estavam abertas no corte (421 de stake), já liquidadas
+        ap(1, "2026-09-05", 100.0, "W", 2.0, criado_em="2026-09-04T10:00:00"),
+        ap(2, "2026-09-05", 100.0, "W", 2.0, criado_em="2026-09-04T10:00:00"),
+        ap(3, "2026-09-05", 100.0, "W", 2.0, criado_em="2026-09-04T10:00:00"),
+        ap(4, "2026-09-05", 121.0, "W", 2.0, criado_em="2026-09-04T10:00:00"),
+        # o resto do resultado da janela
+        ap(5, "2026-09-06", 829.58, "W", 2.0, criado_em="2026-09-06T09:00:00"),
+        # a aberta de hoje, sem data (Betfair)
+        ap(9, "", 301.0, criado_em="2026-09-06T15:42:35"),
+    ]
+    r = _caixa_projetar(movs, apostas)
+    assert r["preso_corte"] == 421.0 and r["pl"] == 1250.58
+    assert r["banca"] == 5456.42
+    assert r["n_abertas"] == 1 and r["aberto"] == 301.0
+    assert r["disponivel"] == 5155.42
 
 
 # ── Linhas que não entram na conta ────────────────────────────────────────────
@@ -378,3 +456,21 @@ def test_aposta_anterior_ainda_ABERTA_nao_entra_na_nota():
     movs = [mov("inicial", "2026-09-03", 1000.0)]
     r = _caixa_projetar(movs, [ap(9, "02/09/2026", 100.0, "")])
     assert r["n_anteriores"] == 0 and r["n_abertas"] == 0
+
+
+# ── As duas telas leem a MESMA projeção — logo precisam do mesmo dado ──────────
+# `caixa_conta` (tela da conta) e `caixa_visao` (Painel de Contas) chamam o mesmo
+# `_caixa_projetar`, mas cada uma monta sua própria query de bilhetes. Uma delas
+# esquecer `criado_em` faz o Painel projetar diferente da conta — o mesmo número,
+# dois valores, sem erro nenhum. O que este gate NÃO cobre: se as queries mudarem
+# de forma (nome de tabela, join), ele acusa e é para ser relido, não silenciado.
+
+def test_as_duas_queries_de_bilhetes_da_caixa_trazem_criado_em():
+    src = (RAIZ / "app" / "repository.py").read_text(encoding="utf-8")
+    # Casa contra as duas queries REAIS do arquivo de produção, sem reimplementá-las.
+    alvos = [
+        "SELECT id, stake, odd, resultado, data, criado_em FROM bilhetes ",   # _caixa_apostas
+        "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em ",  # caixa_visao
+    ]
+    for a in alvos:
+        assert src.count(a) == 1, f"query da caixa mudou de forma (ou perdeu criado_em): {a!r}"
