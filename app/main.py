@@ -4151,6 +4151,17 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # 31/03 o título traz o confronto por extenso, de 01/04 em diante é só
     # sobrenome + mercado em código (`olise shot3`).
     "sohpropsvips": {"dono": "sohprops", "nome": "Soh Props - Vip"},
+    # 8º tipster (s325). Marca e username DIVERGEM pela quinta vez: a marca é
+    # `Grego Tips - VIP` (o nome do canal) e o username do cadastro é
+    # `gregozxrd` (conferido na tabela `usuarios` — e-mail
+    # alyssongrego587@gmail.com, hash de 60 chars, cadastro em autosserviço e
+    # aprovado para `ativo` em 06/09/2026). Base de 956 apostas em unidades,
+    # 01/08 → 01/09/2026, quase toda **prop de jogador de futebol** (Chutes 472,
+    # Anytime 229) — a segunda carteira quase monomodal do registro, depois do
+    # Soh Props. O fechamento de agosto que ele publicou no canal (924 apostas,
+    # +127,84u, ROI 13,02%) reconcilia com o import: conferência contra fonte
+    # externa, não só contra a própria planilha.
+    "gregotipsvip": {"dono": "gregozxrd", "nome": "Grego Tips - VIP"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres

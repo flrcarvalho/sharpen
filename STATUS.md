@@ -6,7 +6,9 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
+_Atualizado: 2026-09-06 (sessão 325 — **8º tipster público: `Grego Tips - VIP`, e a fonte externa é o gate mais forte que a planilha tem.** Conta `gregozxrd` aprovada no `/admin`; 956 apostas importadas (01/08 → 01/09/2026, `GV202608-1` … `GV202609-32`), 12 contas `Padrão`, uma por casa. A base é quase monomodal como a do Soh Props — **prop de jogador de futebol** (Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25). **O que valida este import não é a conferência interna: é o fechamento que ELE publicou no canal em 01/09** (`924 apostas · P/L +127,84u · ROI 13,02%`), contra o qual o derivado dá **924 · +127,73u · 13,00%** — a diferença de 0,11u é o arredondamento a centavo da coluna `Ganho` acumulado em 267 vitórias. A reconciliação interna (P/L derivado × coluna `Lucro`) fecha em **0 divergências nas 956**. **As 6 linhas sem casa saíram do export do Telegram, não de uma decisão:** as mensagens de 01/09 dizem Bet365 (msgs 938 e 940) e Betano (msg 942), e o script **ABORTA** se aparecer linha sem casa fora do mapa citado — casa chutada não dá erro, dá conta paralela. Três leituras de categoria não eram óbvias e estão medidas: **`<Nome> +2 Gols` é `Anytime`**, não `Gols` (§3 põe marcador 2+ na família Anytime; as odds de 11 a 81 e a escada do canal — `Tresoldi Anytime` + `Tresoldi +2 Gols` — confirmam), **`25%`/`50%` no título é odd TURBINADA** e não mercado (ele escreve a conta no canal: `2.02 + 25% = 2,27@`), e **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla". **O `%` tem DOIS papéis nesta fonte** e por isso a categoria lê o texto já limpo: em 2 títulos o `0.50%` é a própria STAKE vazando, e lida como turbinada ela transformaria duas apostas de Chutes em bet builder; a limpeza só corta o sufixo quando o número **é** a stake da linha, que é o que mantém `cruzeiro -1` (handicap, stake 2,50) intocado. Prefixo **`GV`**, conferido com `LIKE` sobre a coluna inteira: `GR`, `GT`, `GG`, `GX` e `GP` estão todos ocupados por **código NATIVO da bet365** (`GR3383912251I`), que um regex ancorado em `XX<aaaamm>-<n>` não enxerga (regra da s316). **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon, com o domínio MEDIDO no link do canal (`betsson.bet.br`), não deduzido do nome. Anotado e **não resolvido**: 18 linhas `Nome N+` sem mercado (nem o canal diz qual) vão para `Player Props`, nunca para o total do esporte; e **`SOA` lido como `Chutes no Gol` é INFERÊNCIA** — 5 linhas, a sigla não aparece por extenso em lugar nenhum do export, e ele usa `SOA` exatamente como usa `SOT`. Suíte: **717 passed, 26 skipped**. `data.js?v=18`. Backup em `Backups/s325-import-grego/`. **O perfil do bot (8º tenant) NÃO foi feito** — escopo desta sessão era só o import.)_
+
+_Anterior: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
 
 _Anterior: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
 
@@ -38,7 +40,104 @@ _Anterior: 2026-09-01 (sessão 310, parte 2 — **A curadoria de casa vencida de
 
 ---
 
-## Onde parei (fim da sessão 324)
+## Onde parei (fim da sessão 325)
+
+### 8º tipster público — `Grego Tips - VIP`
+
+Conta `gregozxrd` (alyssongrego587@gmail.com) aprovada no `/admin` e **956 apostas
+importadas** (`scripts/import_grego_csv.py`), 01/08 → 01/09/2026, stake em
+unidades, 12 contas `Padrão` — uma por casa.
+
+| | |
+|---|---|
+| Slug / marca | `/tipsters/gregotipsvip` · `Grego Tips - VIP` (o username diverge pela 5ª vez) |
+| Códigos | `GV202608-1` … `GV202609-32` |
+| Carteira | prop de jogador de futebol: Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25 |
+| Resultado | L 675 · W 267 · **V 14** (`Reembolsada` → void, `Ganho` e `Lucro` zerados) |
+| Total | 1.008,48u de turnover · **+132,79u** · ROI **+13,17%** |
+
+### O gate mais forte não veio da planilha — veio do canal
+
+Ele publicou o fechamento de agosto no grupo em 01/09: **924 apostas, P/L
++127,84u, ROI 13,02%**. O import, lendo só o CSV, deriva **924 apostas, +127,73u,
+13,00%**. A diferença de 0,11u é o arredondamento a centavo da coluna `Ganho`,
+acumulado em 267 vitórias — o derivado usa a odd inteira.
+
+Isso é diferente da reconciliação interna (que também fecha: **0 divergências em
+956** entre P/L derivado e a coluna `Lucro`). O número do canal saiu da boca do
+dono **antes de existir import**: ele não pode estar errado pelo mesmo motivo que
+a planilha estaria.
+
+### As 6 linhas sem casa foram MEDIDAS, não decididas
+
+O Rogerin resolveu isso com uma decisão do Feca (126 linhas → Betano). Aqui a
+resposta estava no export do Telegram, nas mensagens do próprio dia:
+
+    Nesta Elphege chutes 3+/4+/5+   01/09  → Bet365   (msg 938)
+    Forson +2 Chutes / +3 Chutes    01/09  → Bet365   (msg 940)
+    Summerville Ast                 01/09  → Betano   (msg 942)
+
+O mapa é fechado e casado por (data, título): linha sem casa fora dele **aborta o
+script**. Casa chutada não dá erro — dá conta paralela.
+
+### Três leituras de categoria que não eram óbvias
+
+- **`<Nome> +2 Gols` é `Anytime`, não `Gols`.** O `MASTER_APOSTAS §3` põe
+  "marcar 2 ou mais gols (marcador 2+)" na família Anytime, e o limiar vai na
+  descrição. As odds confirmam (11,0 a 81,0 — total de jogo não paga isso), e o
+  canal mostra a escada: `Tresoldi Anytime 1.50%` + `Tresoldi +2 Gols 0.50%`,
+  mesmo jogador. `Gols` ficou com o que é do JOGO: gol em ambos os tempos,
+  próximo gol, linha decimal.
+- **`25%` / `50%` no título é odd TURBINADA, não mercado** (24 linhas). Ele
+  escreve a conta no canal: `2.02 + 25% = 2,27@`. Mesma família do `aumentada`
+  do Rogerin e do `SuperMúltipla` da Estrela Bet.
+- **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla"
+  (`Priske e Tolaj` @24,96). Com 3 pernas declaradas o esporte vira `Múltiplos`.
+
+### O `%` tem DOIS papéis na mesma fonte — e o segundo é a stake vazando
+
+`Cuevas Christian Chutes +2 0.50%` não é bet builder: o `0.50%` é a **stake**
+(u=0,50) escrita dentro do título. Lido como turbinada, ele transformava duas
+apostas de `Chutes` em `Múltipla`. O mesmo vale para `- 1.50` no fim de
+`Forson +2 Chutes - 1.50`, que viraria **handicap** (nesta fonte é o SINAL que
+declara handicap).
+
+A limpeza só corta o sufixo **quando o número é exatamente a stake da linha**, e
+é essa condição que mantém `cruzeiro -1` (stake 2,50, handicap de verdade)
+intocado. A categoria lê o texto já limpo — senão o mesmo caractere decide duas
+coisas contraditórias.
+
+### Prefixo `GV`, conferido contra a coluna INTEIRA
+
+`GR` (233), `GT` (35), `GG` (8), `GX` (35) e `GP` (34) estão todos ocupados por
+**código NATIVO da bet365** (`GR3383912251I`) — duas letras mais dígitos, que um
+regex ancorado em `XX<aaaamm>-<n>` **não enxerga** (regra da s316). `GV` é o
+único par com G livre: 0 linhas.
+
+⚠️ **Ele vai usar o bot** (canal `-1003928624343`, apoio `-5577016989`). No dia em
+que o bot entrar, suba o contador (`/contador N`) para além de **`GV202609-32`**
+antes da primeira aposta — planilha e bot escrevem na MESMA série.
+
+### Anotado, não resolvido
+
+- **18 linhas `Nome N+` sem mercado** (`Julio Enciso 3+`, `Sebastian 2+`): nem o
+  canal diz qual é. Vão para `Player Props` — a gaveta do §3 —, nunca para o
+  total do esporte, que inventaria um objeto que ninguém escreveu.
+- **`SOA` lido como `Chutes no Gol` é INFERÊNCIA** (5 linhas). A sigla não
+  aparece por extenso em lugar nenhum do export; ele a usa exatamente como usa
+  `SOT` (mesma escada, mesmo par com `Anytime`). Vale perguntar a ele — é uma
+  linha de mapa.
+- **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon
+  (`data.js` tem `CASA_ICONS` **e** `HOUSE_DOMAIN`), com o domínio **medido** no
+  link do canal (`betsson.bet.br`), não deduzido do nome.
+- **O perfil do bot (8º tenant) NÃO foi feito** — o escopo desta sessão era só o
+  import. O recon do canal já está medido: 1.074 mensagens, 31/07 → 06/09, 621
+  com print, formato irmão do Soh Props (1 linha por aposta, stake em `%`, marca
+  `✅`/`✔️`/`❌`/`⌛` na própria linha, casa no rodapé, `⏰` com a hora do evento).
+
+---
+
+## Sessão 324 — botão que não leva a lugar nenhum
 
 ### Botão que não leva a lugar nenhum confunde mais que botão ausente
 

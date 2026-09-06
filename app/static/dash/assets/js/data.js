@@ -42,6 +42,9 @@ const CASA_ICONS={
   'BetMGM':'https://www.google.com/s2/favicons?sz=128&domain=betmgm.bet.br',
   'Betnacional':'https://www.google.com/s2/favicons?sz=128&domain=betnacional.com',
   'Betpontobet':'https://www.google.com/s2/favicons?sz=128&domain=bet.com.br',
+  // Casa nova da base do Grego Tips - VIP (s325). Domínio MEDIDO no link que ele
+  // postou no canal (`www.betsson.bet.br`), não deduzido do nome.
+  'Betsson':'https://www.google.com/s2/favicons?sz=128&domain=betsson.bet.br',
   'Bolsa de Aposta':'https://www.google.com/s2/favicons?sz=128&domain=bolsadeaposta.bet.br',
   'Casa de Apostas':'https://www.google.com/s2/favicons?sz=128&domain=casadeapostas.com',
   'Donald Bet':'https://www.google.com/s2/favicons?sz=128&domain=donald.bet.br',
@@ -130,6 +133,7 @@ const HOUSE_DOMAIN={
   'BetMGM':'betmgm.bet.br',
   'Betnacional':'betnacional.com',
   'Betpontobet':'betpontobet.bet.br',
+  'Betsson':'betsson.bet.br',          // s325 — ver CASA_ICONS acima
   'Bolsa de Aposta':'bolsadeaposta.bet.br',
   'Casa de Apostas':'casadeapostas.com',
   'Donald Bet':'donald.bet.br',
