@@ -431,16 +431,69 @@ def anexar_sistema_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
 # Escopo: só o caminho de TEXTO (casas de API, onde o robô monta o bloco). Extração por
 # print não tem `[Código: …]` com `Stake:` e passa intacta.
 _STAKE_TXT_RE = re.compile(r"^[ \t]*Stake:[ \t]*R?\$?[ \t]*([\d.,]+)[ \t]*\r?$", re.MULTILINE)
-_ODD_TOTAL_TXT_RE = re.compile(r"^[ \t]*Odd total:[ \t]*([\d.,]+)[ \t]*\r?$", re.MULTILINE)
+# `Odd total:` (casas que dão a odd combinada) OU `Odd:` (bet365 e cia., seleção única).
+# SEM âncora de fim de linha: a Betano imprime `Odd total: 2,596 (= Retorno ÷ Stake)`, e a
+# âncora que existia aqui fazia a odd do bloco ser ignorada justamente nela.
+_ODD_TOTAL_TXT_RE = re.compile(r"^[ \t]*Odd(?: total)?:[ \t]*([\d.,]+)", re.MULTILINE)
 _PL_TXT_RE = re.compile(r"P/L\s*(-?[\d.,]+)")
+# RETORNO REALIZADO — o valor que a casa pagou. É o que fecha o gate da odd e do resultado
+# (s321): dele saem as cinco fórmulas do `calcular_pl` ao contrário. O lookbehind mantém
+# `Retorno potencial:` de fora de propósito — potencial não é retorno, e confundir os dois
+# liquidaria aposta VIVA pelo valor que ela ainda poderia pagar.
+_RETORNO_TXT_RE = re.compile(r"(?<!potencial )\bretornos?\b[: ]*(?:R\$[ \t]*)?([\d][\d.,]*)",
+                             re.IGNORECASE)
+_STATUS_TXT_RE = re.compile(r"^[ \t]*Status:[ \t]*(.+)$", re.MULTILINE)
+# Linha asiática PARTIDA (`3.0,3.5` · `2,5/3,0` · `4.0-4.5`) ou quarter (`+0.25`). É o
+# ÚNICO lugar onde meia vitória/derrota existe: sem ela, retorno = stake/2 é cashout de
+# metade, não HL. Ver `MASTER_RESULTADO §7`.
+_LINHA_PARTIDA_RE = re.compile(
+    r"\d+[.,]\d+[ \t]*[,/\-][ \t]*[-+]?\d+[.,]\d+|[-+]?\d+[.,](?:25|75)\b")
+
+
+def _num_bloco(s) -> float | None:
+    """Número lido do BLOCO CRU, em BR (`1.642,38`) ou EN (`1,642.38`).
+
+    Existe separado do `_num_or_none` porque a **Betfair mistura as duas convenções no
+    mesmo bloco**: stake e odd saem em BR (`300,00`, `5,4746`) e o retorno em EN
+    (`Retorno 1,642.38`). O `_num_or_none` é BR-first ("se há vírgula, ela manda") e leria
+    1,64238 — o que faria o gate "corrigir" a odd 5,4746 para 0,0054 e destruir cinco
+    linhas certas (medido na s321). Aqui o ÚLTIMO separador é o decimal, decidido por token.
+
+    Um separador só é SEMPRE decimal, mesmo com 3 dígitos depois: a regra "3 dígitos =
+    milhar" serve a dinheiro e destrói ODD (`1,775` viraria 1775). Não há ambiguidade a
+    perder — todo valor monetário nos blocos sai do `_brl`, que sempre imprime 2 casas.
+
+    NÃO substitui o `_num_or_none` fora daqui: aquele é a convenção do BANCO e do TSV.
+    """
+    if s is None:
+        return None
+    s = str(s).strip()
+    if not s:
+        return None
+    i_ponto, i_virg = s.rfind("."), s.rfind(",")
+    if i_ponto >= 0 and i_virg >= 0:
+        dec, mil = (".", ",") if i_ponto > i_virg else (",", ".")
+    elif i_virg >= 0:
+        dec, mil = ",", "."
+    elif i_ponto >= 0:
+        dec, mil = ".", ","
+    else:
+        try:
+            return float(s)
+        except ValueError:
+            return None
+    try:
+        return float(s.replace(mil, "").replace(dec, "."))
+    except ValueError:
+        return None
 
 
 def _financeiro_do_texto(texto: str | None) -> dict[str, dict]:
-    """Mapa `código → {stake, odd_total, pl}` lido do texto do robô.
+    """Mapa `código → {stake, odd_total, pl, retorno, status}` lido do texto do robô.
 
     Só entra bilhete cujo bloco traz UM valor de `Stake:` — bloco com dois valores
     distintos é ambíguo e fica de fora (fail-closed: sem prova, não se corrige nada).
-    `odd_total`/`pl` são opcionais e só existem nas casas que os imprimem.
+    `odd_total`/`pl`/`retorno` são opcionais e só existem nas casas que os imprimem.
     """
     if not texto or "Stake:" not in texto:
         return {}
@@ -459,12 +512,42 @@ def _financeiro_do_texto(texto: str | None) -> dict[str, dict]:
             continue
         odd = _ODD_TOTAL_TXT_RE.search(corpo)
         pl = _PL_TXT_RE.search(corpo)
+        # O `Status:` é a linha onde o retorno realizado viaja em quase todas as casas
+        # ("Ganho → W (retorno R$ 195,53)", "Perdido → L · Retorno R$0,00", "win · retorno
+        # 2520,13"). Guardamos o texto inteiro: o VALOR fecha o gate, e as palavras cobrem
+        # os dois extremos que algumas casas escrevem sem número.
+        status = _STATUS_TXT_RE.search(corpo)
+        stt = status.group(1) if status else None
+        ret = _RETORNO_TXT_RE.search(stt) if stt else None
         mapa[codigo] = {
             "stake": valores[0],
             "odd_total": odd.group(1) if odd else None,
             "pl": pl.group(1) if pl else None,
+            "retorno": ret.group(1) if ret else None,
+            "status": stt,
         }
     return mapa
+
+
+def _retorno_do_bloco(info: dict, stake: float) -> float | None:
+    """Retorno REALIZADO que o bloco prova. None = não dá para provar → não se mexe em nada.
+
+    Aposta em aberto sai daqui como None por desenho: `Retorno potencial:` já não casa a
+    regex, e o texto "em aberto" barra o resto. Liquidar aposta viva pelo retorno potencial
+    seria o pior estrago possível deste gate.
+    """
+    stt = (info.get("status") or "").lower()
+    if not stt or "em aberto" in stt:
+        return None
+    valor = _num_bloco(info.get("retorno"))
+    if valor is not None:
+        return valor
+    # Sem número explícito, só os dois extremos saem do rótulo sem ambiguidade.
+    if "perdido" in stt or "perdeu" in stt or "lost" in stt:
+        return 0.0
+    if "devolvid" in stt or "void" in stt or "anulad" in stt:
+        return stake
+    return None
 
 
 def _odd_da_stake(info: dict, resultado: str, stake: float) -> str | None:
@@ -494,6 +577,59 @@ def _odd_da_stake(info: dict, resultado: str, stake: float) -> str | None:
     return f"{calculada:.6f}".rstrip("0").rstrip(".").replace(".", ",")
 
 
+def _veredito_do_retorno(stake: float, odd: float, retorno: float, descricao: str,
+                         odd_bloco: str | None) -> tuple[str, str | None]:
+    """(resultado, odd nova ou None) que o RETORNO do bloco determina. Determinístico.
+
+    São as cinco fórmulas de `calcular_pl` lidas ao contrário — dado o retorno, qual código
+    o produz. A ordem importa:
+
+        retorno == 0                         → L
+        retorno == stake                     → V     (void/cashout = stake)
+        retorno == stake × odd               → W
+        retorno == (stake/2) × odd + stake/2 → HW
+        retorno == stake/2                   → HL    (só com linha asiática partida)
+        nenhuma delas                        → cashout: W, odd = retorno ÷ stake
+
+    V antes de W porque cashout igual à stake é V pelo MASTER, ainda que `stake × 1,00`
+    também dê o mesmo número. W antes de HW porque as duas fórmulas coincidem em odd 1,00.
+    HL por último e só com linha partida: sem ela, metade da stake de volta é cashout.
+
+    ⚠️ O TEXTO DO STATUS NÃO SERVE DE FONTE PARA O RESULTADO, só o número. `_resultadoB3`
+    (`extensor/content.js`) escreve `Ganho → W` para QUALQUER retorno maior que a stake —
+    meia vitória inclusive. Um gate que lesse o rótulo reescreveria como W os 14 bilhetes
+    HW que estão certos (medido na s321).
+    """
+    def bate(a: float, b: float) -> bool:
+        # R$ 0,10 ou 0,5%, o que for maior. Absoluta sozinha reprova odd de muitas casas
+        # decimais (a exibida vem arredondada, o retorno não); relativa sozinha é frouxa
+        # demais em valor baixo.
+        return abs(a - b) <= max(0.10, abs(b) * 0.005)
+
+    if retorno == 0:
+        return "L", None
+    if bate(retorno, stake):
+        return "V", None
+    if odd > 0 and bate(retorno, stake * odd):
+        return "W", None
+    if odd > 0 and bate(retorno, (stake / 2) * odd + stake / 2):
+        return "HW", None
+    if bate(retorno, stake / 2) and _LINHA_PARTIDA_RE.search(descricao or ""):
+        return "HL", None
+    # Nada bateu: ou houve cashout, ou a IA errou a odd. Nos dois casos a odd que vale é a
+    # que o dinheiro provou (`MASTER_RESULTADO §5.6` e §7.1: em W, odd = Retorno ÷ Stake).
+    calculada = retorno / stake
+    # Quando o bloco IMPRIME a odd e ela bate com a conta, vale o texto do bloco — mesma
+    # preferência do `_odd_da_stake`. Preserva a precisão original da casa em vez de gravar
+    # a dízima do retorno arredondado ao centavo: no caso que abriu a s321 é `1,975`, não
+    # `1,9750505051`.
+    if odd_bloco:
+        n = _num_bloco(odd_bloco)
+        if n is not None and abs(n - calculada) <= 0.005:
+            return "W", odd_bloco
+    return "W", f"{calculada:.10f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
 def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
     """Sobrescreve a coluna 8 (Stake) com o valor do bloco daquele código.
 
@@ -508,10 +644,12 @@ def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
     for feito.
     """
     mapa = _financeiro_do_texto(texto)
+    vazio = {"stakes": 0, "exemplos": [], "financeiro": 0, "exemplos_fin": []}
     if not mapa:
-        return tsv, {"stakes": 0, "exemplos": []}
+        return tsv, vazio
     linhas = tsv.split("\n")
     n, exemplos = 0, []
+    n_fin, exemplos_fin = 0, []
     for i, line in enumerate(linhas):
         parts = line.split("\t")
         if len(parts) < 10:
@@ -520,19 +658,55 @@ def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
         info = mapa.get(codigo)
         if not codigo or not info:
             continue
+        mexeu = False
         stake_bloco, stake_ia = info["stake"], parts[7].strip()
         n_bloco, n_ia = _num_or_none(stake_bloco), _num_or_none(stake_ia)
-        if n_bloco is None or (n_ia is not None and abs(n_bloco - n_ia) <= 0.005):
-            continue                                  # já bate: nada a fazer
-        parts[7] = stake_bloco
-        odd_nova = _odd_da_stake(info, parts[9].strip(), n_bloco)
-        if odd_nova:
-            parts[8] = odd_nova
-        linhas[i] = "\t".join(parts)
-        n += 1
-        if len(exemplos) < 5:
-            exemplos.append({"codigo": codigo, "ia": stake_ia, "bloco": stake_bloco})
-    return "\n".join(linhas), {"stakes": n, "exemplos": exemplos}
+        if n_bloco is not None and (n_ia is None or abs(n_bloco - n_ia) > 0.005):
+            parts[7] = stake_bloco
+            odd_nova = _odd_da_stake(info, parts[9].strip(), n_bloco)
+            if odd_nova:
+                parts[8] = odd_nova
+            mexeu = True
+            n += 1
+            if len(exemplos) < 5:
+                exemplos.append({"codigo": codigo, "ia": stake_ia, "bloco": stake_bloco})
+
+        # ── ODD e RESULTADO contra o retorno do bloco (s321) ──────────────────────────
+        # Roda SEMPRE que o bloco prova o retorno, e não só quando a stake diverge. Era
+        # esse o buraco: até aqui a odd só era reconferida como efeito colateral da
+        # correção de stake (`_odd_da_stake`, dentro do `if` acima), então stake certa +
+        # odd errada passava reto. Foi assim que `Under 4.0 Gols [Loiske v TP-T]` foi
+        # gravado com odd 195,53 — o RETORNO, que o bloco imprime na linha do Status — e
+        # virou um P/L de +R$ 19.258,47 onde o real era +R$ 96,53. O `resultado` nunca
+        # teve conferência nenhuma; ganha uma agora, pela mesma prova.
+        stake_final = _num_or_none(parts[7].strip())
+        retorno = _retorno_do_bloco(info, stake_final) if stake_final else None
+        if stake_final and stake_final > 0 and retorno is not None:
+            res_ia, odd_ia = parts[9].strip().upper(), _num_or_none(parts[8].strip())
+            res_novo, odd_nova = _veredito_do_retorno(
+                stake_final, odd_ia or 0.0, retorno, parts[6], info.get("odd_total"))
+            # Só escreve quando o DINHEIRO muda. Onde o retorno é exatamente stake/2 o
+            # rótulo lê como HL ou como cashout de metade — ambíguo — mas o P/L é idêntico
+            # nos dois; trocar ali seria ruído por ruído. Mesmo motivo pelo qual o UPSERT
+            # congela a extração por IA em vez de reescrevê-la a cada releitura.
+            pl_ia = calcular_pl(parts[7], parts[8], res_ia)
+            pl_novo = calcular_pl(parts[7], odd_nova or parts[8], res_novo)
+            if pl_ia is not None and pl_novo is not None and abs(pl_novo - pl_ia) >= 0.01:
+                if len(exemplos_fin) < 5:
+                    exemplos_fin.append({"codigo": codigo, "res_ia": res_ia,
+                                         "res_bloco": res_novo, "odd_ia": parts[8].strip(),
+                                         "odd_bloco": odd_nova or parts[8].strip(),
+                                         "retorno": info.get("retorno")})
+                parts[9] = res_novo
+                if odd_nova:
+                    parts[8] = odd_nova
+                mexeu = True
+                n_fin += 1
+
+        if mexeu:
+            linhas[i] = "\t".join(parts)
+    return "\n".join(linhas), {"stakes": n, "exemplos": exemplos,
+                               "financeiro": n_fin, "exemplos_fin": exemplos_fin}
 
 
 # ── Correção determinística do ID contra o texto-fonte ────────────────────────

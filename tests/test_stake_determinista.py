@@ -166,7 +166,11 @@ def test_bloco_ambiguo_nao_corrige_nada():
 def test_sem_texto_nada_acontece():
     """Extração por print: sem texto do robô, não há bloco — a stake segue com a IA."""
     tsv = _tsv()
-    assert R.corrigir_stake_tsv(tsv, None) == (tsv, {"stakes": 0, "exemplos": []})
+    out, info = R.corrigir_stake_tsv(tsv, None)
+    assert out == tsv
+    # Contagens, não igualdade de dict: o `info` ganhou as chaves do gate financeiro
+    # (s321) e ganhará outras. O que o teste garante é que NADA foi corrigido.
+    assert info["stakes"] == 0 and info["financeiro"] == 0
     assert R.corrigir_stake_tsv(tsv, "")[0] == tsv
 
 

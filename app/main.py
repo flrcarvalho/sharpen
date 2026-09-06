@@ -1399,6 +1399,10 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         if stake_fix["stakes"]:
             logger.warning("seq stake: %d linha(s) com stake do bilhete errado — corrigidas "
                            "pelo bloco cru: %s", stake_fix["stakes"], stake_fix["exemplos"])
+        if stake_fix["financeiro"]:
+            logger.warning("seq financeiro: %d linha(s) com odd/resultado que o RETORNO do "
+                           "bloco desmente — corrigidas: %s",
+                           stake_fix["financeiro"], stake_fix["exemplos_fin"])
         # 12ª coluna (estrutura de SISTEMA) — determinística, lida do texto do robô e casada
         # pelo código. POR ÚLTIMO de propósito: depois da repesca de cobertura e da inversão,
         # senão linha nascida ali ficaria sem a coluna, em silêncio.
@@ -1595,6 +1599,10 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         if stake_fix["stakes"]:
             logger.warning("par stake: %d linha(s) com stake do bilhete errado — corrigidas "
                            "pelo bloco cru: %s", stake_fix["stakes"], stake_fix["exemplos"])
+        if stake_fix["financeiro"]:
+            logger.warning("par financeiro: %d linha(s) com odd/resultado que o RETORNO do "
+                           "bloco desmente — corrigidas: %s",
+                           stake_fix["financeiro"], stake_fix["exemplos_fin"])
         # 12ª coluna (estrutura de SISTEMA) — ver nota no caminho sequencial.
         resultado, sis_fix = anexar_sistema_tsv(resultado, texto)
         if sis_fix["sistemas"]:

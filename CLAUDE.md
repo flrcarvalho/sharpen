@@ -279,6 +279,61 @@ apareceu um dia depois, como um "não tenho o id no Sharpen" na hora de corrigir
 
 ---
 
+## Gate que confere UM campo deixa os vizinhos livres. E o rótulo não é a prova — o número é.
+
+A s311 tornou a **stake** determinística: ela vem do `Stake:` do bloco, sem IA no
+caminho. A odd só era reconferida como **efeito colateral** disso — a chamada de
+`_odd_da_stake` vivia dentro do `if` que só roda quando a stake diverge. Então
+**stake certa + odd errada passava reto**, e o `resultado` não tinha conferência
+nenhuma.
+
+Foi assim que `Under 4.0 Gols [Loiske v TP-T]` (bet365, stake 99,00) entrou com
+**odd 195,53** — o RETORNO, que o bloco imprime na linha do Status. P/L de
+**+R$ 19.258,47** onde o real era +R$ 96,53, e o caixa da conta não bateu. O mais
+duro: o bloco imprime `Odd: 1,975` **duas linhas abaixo**. O número certo estava
+lá; ninguém o comparava.
+
+**A prova é o RETORNO, contra as cinco fórmulas do `calcular_pl` lidas ao
+contrário** (`repository._veredito_do_retorno`): `0 → L` · `= stake → V` ·
+`= stake×odd → W` · `= (stake/2)×odd + stake/2 → HW` · `= stake/2 → HL` (só com
+linha asiática **partida**) · nenhuma → cashout, `W` com `odd = retorno ÷ stake`.
+
+> ⚠️ **O TEXTO do Status não serve de fonte, só o número.** `_resultadoB3`
+> (`extensor/content.js`) escreve `Ganho → W` para **qualquer** retorno maior que a
+> stake — meia vitória inclusive. Um gate que lesse o rótulo reescreveria como W os
+> 14 bilhetes `HW` que estavam **certos**.
+
+**Só se escreve onde o DINHEIRO muda.** Retorno igual a stake/2 lê como `HL` ou como
+cashout de metade — ambíguo — mas o P/L é idêntico; trocar ali é ruído por ruído.
+Pelo mesmo motivo há piso de R$ 1,00 no script de correção: abaixo dele a "correção"
+troca a odd limpa da casa (`1,925`) pela dízima do retorno arredondado ao centavo
+(`1,925087108`).
+
+**Formato de número é por TOKEN, não por casa.** A Betfair mistura as duas convenções
+no mesmo bloco: stake e odd em BR (`300,00`, `5,4746`), retorno em EN
+(`Retorno 1,642.38`). Ler tudo como BR dá 1,64 e "corrige" a odd para 0,0054 —
+5 linhas certas destruídas. Daí o `_num_bloco`, separado do `_num_or_none`: o último
+separador é o decimal, e **um separador só é sempre decimal** (a regra "3 dígitos =
+milhar", correta para dinheiro, multiplica toda odd de 3 casas por mil: `1,775` → 1775).
+
+**Correção humana MANDA sobre a captura.** O script de reparo pula bilhete cujo
+`resultado`/`odd` já tenha registro em `correcoes` — foi o caso de 3 bilhetes Betano
+em que alguém inverteu `W→L` e `L→W` no mesmo minuto. Certo ou errado, é decisão do
+dono. **O gate em tempo de extração NÃO tem essa trava** (roda antes do banco), e
+`resultado` nunca foi congelado pelo UPSERT: recaptura de linha assim desfaz a edição
+manual. Mesma família de "edição manual em casa sincronizada não sobrevive".
+
+Medido: replay em **5.316 blocos** da sombra (20 casas) mexe em **3** — as 3 de
+edição humana. Zero falso positivo. E o gate reproduziu, sozinho, as **33** correções
+que o script já tinha feito. Gates: `tests/test_odd_resultado_determinista.py`
+(5 mutações aplicadas e pegas) e `scripts/corrigir_resultado_odd_s321.py`.
+
+> Sintoma para reconhecer isto noutro campo: um valor que é **outro campo do mesmo
+> bloco**. Odd que é o retorno, stake que é a do vizinho (s311), descrição que é a do
+> vizinho (s302). Quando a fonte imprime os dois, comparar é de graça.
+
+---
+
 ## Planilha e bot escrevem na MESMA série de código. Só um pode ser a fonte.
 
 Import de planilha e bot de tipster geram o mesmo `XX<aaaamm>-<n>`, e o código entra na
@@ -878,4 +933,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-05 (sessao 316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
+ATUALIZADO: 2026-09-05 (sessao 321 - gate que confere UM campo deixa os vizinhos livres: a odd so era reconferida como efeito colateral da correcao de stake, entao stake certa + odd errada passava reto e o RETORNO do bloco foi gravado como odd (P/L +19.258,47 onde o real era +96,53). A prova e o numero, nao o rotulo do Status - a extensao chama de W qualquer retorno maior que a stake, meia vitoria inclusive. Antes, s316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
