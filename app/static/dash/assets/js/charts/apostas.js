@@ -371,9 +371,10 @@ function renderApostasAtivos(){
 function apostasTirarMS(id,val){
   msToggle(id,val===''?'__all__':val);
   refreshMS(id);
-  // Conta é eixo local desta tela; os outros passam pelo filtrarPagina, cujo cache
-  // só cai dentro do renderPage — chamar renderApostas direto devolveria o recorte velho.
-  if(id==='pa_apostas')renderApostas();else renderPage('apostas');
+  // Um caminho só: o `msToggle` já invalida o `_filterCache` (s322), então o eixo local
+  // (conta) e os quatro da página repintam do mesmo jeito. Antes daqui saíam DOIS
+  // caminhos — e era o outro, o do botão OK do multiselect, que lia o recorte velho.
+  renderApostas();
 }
 function apostasTirarTexto(i){
   apostasColFilters[i]='';

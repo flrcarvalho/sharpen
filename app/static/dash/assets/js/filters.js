@@ -185,7 +185,17 @@ function rqb(p){
 const MSS={};
 function msGet(id){return MSS[id]||new Set();}
 function msInit(id){MSS[id]=new Set();}
-function msToggle(id,val){if(!MSS[id])MSS[id]=new Set();if(val==='__all__'){MSS[id]=new Set();return;}if(MSS[id].has(val))MSS[id].delete(val);else MSS[id].add(val);}
+// ⚠ Mexer na seleção INVALIDA o recorte cacheado, aqui e não em quem repinta.
+// O `_filterCache` é indexado por página, mas as entradas dele (gfs + MSS) mudam por
+// FORA dele. Até a s317 isso não aparecia porque o único caminho de volta era o
+// `renderPage`, que zera o cache na primeira linha. A Base Completa passou a repintar
+// só a si mesma (o `cb` dos multiselects), e `applyMS → renderApostas` lia o recorte
+// VELHO: a barra dizia "Tipster Fatuch", o chip de filtro ativo aparecia, o contador
+// dizia "336 de 336" — e a tabela seguia com todos os tipsters (s322). Nenhum erro,
+// nenhum aviso; o filtro simplesmente não filtrava.
+// A invalidação mora no MUTADOR do estado, não em cada chamador: quem escrever a
+// próxima tela com `cb` próprio não precisa saber que existe cache.
+function msToggle(id,val){_filterCache={};if(!MSS[id])MSS[id]=new Set();if(val==='__all__'){MSS[id]=new Set();return;}if(MSS[id].has(val))MSS[id].delete(val);else MSS[id].add(val);}
 
 function buildMS(id,items,ph,page,cb,withIcons=false){
   if(!MSS[id])MSS[id]=new Set();

@@ -6,7 +6,9 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
+_Atualizado: 2026-09-06 (sessão 322 — **o filtro dizia que estava ligado e a tabela não obedecia: selecionar `Tipster: Fatuch` na Base Completa deixava o chip em Filtros ativos e a tabela com MarcoF1, LBB e F1DP.** A causa é de forma, não de regra: o `_filterCache` do `filtrarPagina` é indexado por página, mas as entradas dele (`gfs` + `MSS`) mudam POR FORA dele — e o único caminho que o zerava era o `renderPage`. A s317 deu à Base Completa uma barra própria cujos multiselects repintam só aquela tela (`cb`), e `applyMS → renderApostas` passou a ler o recorte anterior à seleção. **O contorno num chamador é o que esconde o defeito no outro:** o ✕ do chip (`apostasTirarMS`) já desviava para `renderPage` e funcionava; quem mentia era o caminho sem contorno, o botão OK do dropdown. A correção mora no MUTADOR — `msToggle` zera o cache na entrada, antes do `return` do ramo `__all__` — e o contorno saiu junto. Medido na tela real com puppeteer: com o fix, 24.000 linhas/24 tipsters → 238/1; sem o fix, 24.000/24 → 24.000/24 (o print do Feca reproduzido). Gates: `tests/js/filtro_multiselect_cache.mjs` recorta e executa o código real, **3 mutações e 3 detectadas**; `pytest` 702 passed. ⚠️ O contador "336 de 336" NÃO era sintoma — os dois lados saem do mesmo `filtrarPagina`.)_
+
+_Anterior: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
 
 _Anterior: 2026-09-05 (sessão 320 — **o cupom tem DOIS NÍVEIS, e agora isso é do núcleo do bot, não de um perfil.** Print do Soh Props (Betano, bookingcode `AAUKTQUQ`): dois blocos `Criar Aposta` de 2 pernas cada, com odd PRÓPRIA (12,50 e 7,40), e o rodapé `Dupla = 1 · 92,50` combinando os dois — três apostas, legenda `0.5u / 0.5u / 0.25u`. O bot respondeu **"⚠️ Li o print mas não consegui montar nenhuma aposta"**, e a causa foi provada por replay antes de tocar em código: a regra do bet builder manda `odd: null` por perna (certo — a casa não precifica perna), a montagem consome perna por perna e `if (!odd) return` dispara três vezes. **O pedido do Feca foi que isso valesse para TODOS os tipsters, não virar mais uma ferramenta exclusiva** — e a queixa tem número: o mesmo problema já tinha sido resolvido **três vezes separado** (`reidocriquete.reconciliar` na s272, nascida do bilhete KTO que também saiu com zero apostas; `rogerin` na s306, 22 pontos de `betBuilder`; `sohprops` na s316, 20 pontos, cópia do anterior), e as três compartilhavam o **mesmo ponto cego**: um bet builder por cupom. **`src/cupom.js`** passa a ser o lugar único: `REGRAS_CUPOM` (o parágrafo de prompt que os três reescreviam à mão, agora com `bloco`/`oddBloco`/`acumulador`), `normalizarCupom` (colapsa cada bloco numa seleção com a odd dele) e `encaixarAcumulador` (a regra do N+1 promovida do Rei do Criquete, mais o 4º portão que este print oferece de graça: 12,50 × 7,40 = 92,50 — divergiu, a odd do print manda e sai aviso). **O que NÃO foi unificado, de propósito:** `categoriaDaPerna`/`esporteDe` do `rogerin` e do `sohprops` parecem gêmeos e **não são** (um classifica Gols/Games/Pontos/Sets multi-esporte, o outro Faltas/Desarmes/Impedimentos de props de futebol) — unificar mudaria a classificação de um dos dois em silêncio, trocando a ferramenta exclusiva por um erro compartilhado. Genérico é a leitura do CUPOM (propriedade da casa); a gramática da LEGENDA continua de cada tipster. **Duas armadilhas achadas ao ligar, as duas de perda calada:** o colapso só vale de **dois** blocos para cima — colapsar um bloco só mudaria a descrição planilhada e apagaria os botões de perna do painel (`aplicarMarcas` indexa SELEÇÕES); e o `pernasDe` do `rogerin` usa `.pernas` para reconhecer a forma antiga de registro dele (≤ s306), então `ehBloco` exige o **número** do bloco — sem isso um cupom de dois blocos seria lido como registro velho e o **segundo bloco sumiria sem erro nenhum**. **GATES:** `npm test` inteiro verde (era 1.024 asserts; nada mudou onde não havia bloco múltiplo) · gate novo exercendo a montagem nos **3 perfis** (as três chegam em `0,5u@12,50 · 0,5u@7,40 · 0,25u@92,50`, com o acumulador ligado aos dois blocos por `idxs`) · **mutação 8 de 8** (colapso desligado · `ehBloco` sem o número do bloco · portão do N+1 removido · colapso de bloco único · categoria do bloco deixando de ser Múltipla · ramo do acumulador removido no `sohprops` · `multiBloco` removido do `rogerin` · `pernasDe` desembrulhando o bloco). O `zora` ficou **fora e por medição**: a visão dele não lê cupom nenhum — só acha a odd de uma seleção já declarada na legenda —, então não há onde encaixar as regras; o `passatips` é sem visão. **O que o gate NÃO cobre, e está escrito nele:** que o MODELO leia `bloco`/`oddBloco`/`acumulador` de um print de verdade — a visão é dublada, e isso só se mede mandando o print. ⚠️ O bilhete de hoje continua **não planilhado**: a correção vale do próximo em diante. Backup em `sharpen-bot/Backups/s320-cupom-dois-niveis/`.)_
 
@@ -36,7 +38,75 @@ _Anterior: 2026-09-01 (sessão 310, parte 2 — **A curadoria de casa vencida de
 
 ---
 
-## Onde parei (fim da sessão 319)
+## Onde parei (fim da sessão 322)
+
+### O filtro dizia que estava ligado, e a tabela não obedecia
+
+O Feca selecionou **Tipster: Fatuch** na Base Completa e mandou o print: o chip
+`TIPSTER Fatuch` aparecendo em Filtros ativos, o contador em "336 de 336" e a
+tabela listando MarcoF1, LBB, F1DP e Fatuch juntos. Nenhum erro, nenhum aviso —
+o filtro simplesmente não filtrava.
+
+### A causa é de FORMA, não de regra
+
+`filtrarPagina` (`dash/assets/js/filters.js`) guarda o recorte num `_filterCache`
+indexado por página. As entradas desse cache — o `gfs` do período e os Sets do
+`MSS` — mudam **por fora** dele. Isso nunca apareceu porque o único caminho de
+volta era o `renderPage`, que zera o cache na primeira linha: todo multiselect
+caía no `_renderPageDebounced`.
+
+A s317 deu à Base Completa uma barra de filtros própria, cujos multiselects
+repintam **só aquela tela** (o `cb`, para não re-renderizar o dash inteiro a cada
+clique). A partir daí `applyMS → renderApostas` passou a ler o recorte anterior
+à seleção. O período seguia funcionando (ele passa pelo `renderPage`), e é por
+isso que a tela parecia meio certa.
+
+> **O contorno num chamador é o que esconde o defeito no outro.** O
+> `apostasTirarMS` — o ✕ do chip — já desviava para `renderPage('apostas')`, com
+> um comentário explicando o cache. Ele funcionava. Quem mentia era o caminho
+> **sem** contorno: o botão OK do dropdown. Fechar o buraco em um dos dois
+> chamadores é a mesma família de "blindar metade dos campos é pior que blindar
+> todos ou nenhum".
+
+### A correção mora no MUTADOR do estado
+
+Uma linha: `msToggle` zera o `_filterCache` **na entrada**, antes do `return` do
+ramo `__all__` (invalidar depois dele deixaria o "Limpar" sem efeito). Quem
+escrever a próxima tela com `cb` próprio não precisa saber que existe cache. O
+contorno do `apostasTirarMS` saiu junto — dois caminhos de repintura viraram um.
+
+### Medido na tela real, com e sem o fix
+
+Contra o `servidor_demo.py` com puppeteer, clicando no dropdown como um usuário
+(botão → opção → OK):
+
+```
+com o fix   ANTES 24.000 linhas / 24 tipsters → DEPOIS 238 linhas / 1 tipster
+sem o fix   ANTES 24.000 linhas / 24 tipsters → DEPOIS 24.000 linhas / 24 tipsters
+```
+
+A segunda linha é o print do Feca reproduzido.
+
+**Gates:** `tests/js/filtro_multiselect_cache.mjs` recorta e executa o
+`filtrarPagina`, o `MSS` e o `msToggle` **reais** — **3 mutações, 3 detectadas**
+(invalidação removida, invalidação depois do `return` do `__all__`, cache
+removido de vez). `pytest tests/` **702 passed, 23 skipped**; `check-tokens`
+verde; `node --check` nos dois arquivos. `?v=` bumpado (`filters.js?v=11`,
+`apostas.js?v=23`). Backup em `Backups/s322-cache-filtro-base-completa/`.
+
+> **Nota de leitura:** o contador "336 de 336" **não** era sintoma. Ele é
+> `apostasFiltered de baseRows`, e os dois lados saem do mesmo `filtrarPagina` —
+> filtro de página ligado dá "X de X" mesmo funcionando. O sintoma era a coluna
+> Tipster.
+
+### Pendência que não é desta sessão
+
+`app/static/landing.html` segue modificado no working tree desde **26/08**, sem
+commit, e ficou FORA deste commit — como nas sessões 310, 312, 313, 314 e 319.
+
+---
+
+## Sessão 319 — o #10 do Só Chutes estava planilhado, com a data de ontem
 
 ### O #10 do Só Chutes estava planilhado — com a data de ontem
 
