@@ -6,7 +6,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-06 (sessão 325 — **8º tipster público: `Grego Tips - VIP`, e a fonte externa é o gate mais forte que a planilha tem.** Conta `gregozxrd` aprovada no `/admin`; 956 apostas importadas (01/08 → 01/09/2026, `GV202608-1` … `GV202609-32`), 12 contas `Padrão`, uma por casa. A base é quase monomodal como a do Soh Props — **prop de jogador de futebol** (Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25). **O que valida este import não é a conferência interna: é o fechamento que ELE publicou no canal em 01/09** (`924 apostas · P/L +127,84u · ROI 13,02%`), contra o qual o derivado dá **924 · +127,73u · 13,00%** — a diferença de 0,11u é o arredondamento a centavo da coluna `Ganho` acumulado em 267 vitórias. A reconciliação interna (P/L derivado × coluna `Lucro`) fecha em **0 divergências nas 956**. **As 6 linhas sem casa saíram do export do Telegram, não de uma decisão:** as mensagens de 01/09 dizem Bet365 (msgs 938 e 940) e Betano (msg 942), e o script **ABORTA** se aparecer linha sem casa fora do mapa citado — casa chutada não dá erro, dá conta paralela. Três leituras de categoria não eram óbvias e estão medidas: **`<Nome> +2 Gols` é `Anytime`**, não `Gols` (§3 põe marcador 2+ na família Anytime; as odds de 11 a 81 e a escada do canal — `Tresoldi Anytime` + `Tresoldi +2 Gols` — confirmam), **`25%`/`50%` no título é odd TURBINADA** e não mercado (ele escreve a conta no canal: `2.02 + 25% = 2,27@`), e **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla". **O `%` tem DOIS papéis nesta fonte** e por isso a categoria lê o texto já limpo: em 2 títulos o `0.50%` é a própria STAKE vazando, e lida como turbinada ela transformaria duas apostas de Chutes em bet builder; a limpeza só corta o sufixo quando o número **é** a stake da linha, que é o que mantém `cruzeiro -1` (handicap, stake 2,50) intocado. Prefixo **`GV`**, conferido com `LIKE` sobre a coluna inteira: `GR`, `GT`, `GG`, `GX` e `GP` estão todos ocupados por **código NATIVO da bet365** (`GR3383912251I`), que um regex ancorado em `XX<aaaamm>-<n>` não enxerga (regra da s316). **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon, com o domínio MEDIDO no link do canal (`betsson.bet.br`), não deduzido do nome. Anotado e **não resolvido**: 18 linhas `Nome N+` sem mercado (nem o canal diz qual) vão para `Player Props`, nunca para o total do esporte; e **`SOA` lido como `Chutes no Gol` é INFERÊNCIA** — 5 linhas, a sigla não aparece por extenso em lugar nenhum do export, e ele usa `SOA` exatamente como usa `SOT`. Suíte: **717 passed, 26 skipped**. `data.js?v=18`. Backup em `Backups/s325-import-grego/`. **O perfil do bot (8º tenant) NÃO foi feito** — escopo desta sessão era só o import.)_
+_Atualizado: 2026-09-06 (sessão 325 — **8º tipster público: `Grego Tips - VIP`, e a fonte externa é o gate mais forte que a planilha tem.** Conta `gregozxrd` aprovada no `/admin`; 956 apostas importadas (01/08 → 01/09/2026, `GV202608-1` … `GV202609-32`), 12 contas `Padrão`, uma por casa. A base é quase monomodal como a do Soh Props — **prop de jogador de futebol** (Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25). **O que valida este import não é a conferência interna: é o fechamento que ELE publicou no canal em 01/09** (`924 apostas · P/L +127,84u · ROI 13,02%`), contra o qual o derivado dá **924 · +127,73u · 13,00%** — a diferença de 0,11u é o arredondamento a centavo da coluna `Ganho` acumulado em 267 vitórias. A reconciliação interna (P/L derivado × coluna `Lucro`) fecha em **0 divergências nas 956**. **As 6 linhas sem casa saíram do export do Telegram, não de uma decisão:** as mensagens de 01/09 dizem Bet365 (msgs 938 e 940) e Betano (msg 942), e o script **ABORTA** se aparecer linha sem casa fora do mapa citado — casa chutada não dá erro, dá conta paralela. Três leituras de categoria não eram óbvias e estão medidas: **`<Nome> +2 Gols` é `Anytime`**, não `Gols` (§3 põe marcador 2+ na família Anytime; as odds de 11 a 81 e a escada do canal — `Tresoldi Anytime` + `Tresoldi +2 Gols` — confirmam), **`25%`/`50%` no título é odd TURBINADA** e não mercado (ele escreve a conta no canal: `2.02 + 25% = 2,27@`), e **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla". **O `%` tem DOIS papéis nesta fonte** e por isso a categoria lê o texto já limpo: em 2 títulos o `0.50%` é a própria STAKE vazando, e lida como turbinada ela transformaria duas apostas de Chutes em bet builder; a limpeza só corta o sufixo quando o número **é** a stake da linha, que é o que mantém `cruzeiro -1` (handicap, stake 2,50) intocado. Prefixo **`GV`**, conferido com `LIKE` sobre a coluna inteira: `GR`, `GT`, `GG`, `GX` e `GP` estão todos ocupados por **código NATIVO da bet365** (`GR3383912251I`), que um regex ancorado em `XX<aaaamm>-<n>` não enxerga (regra da s316). **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon, com o domínio MEDIDO no link do canal (`betsson.bet.br`), não deduzido do nome. Anotado e **não resolvido**: 18 linhas `Nome N+` sem mercado (nem o canal diz qual) vão para `Player Props`, nunca para o total do esporte. **`SOA` eu havia lido como `Chutes no Gol`, e estava ERRADO** — perguntado, ele respondeu no mesmo dia: é **"score or assist", marcar OU assistir**, e as 5 linhas foram para `Player Props` junto com o `G/A` do mesmo arquivo (base reimportada; o script é idempotente por `origem='import'`, reconciliação segue em 0). A inferência era razoável e ainda assim falhou — `SOA` e `SOT` aparecem na MESMA escada, os dois pareados com `Anytime`: **vizinhança tipográfica não é significado**, e o que fez a pergunta acontecer foi ela estar marcada como inferência declarada no relatório em vez de passar como fato. Ids conferidos por `getChat`: canal `-1003928624343` (`channel`, bot **administrator**) e apoio `-5577016989` (`group`, bot **membro**, sem migração para supergrupo — a armadilha da s316 não se aplica). **Renomear o apoio para `Apoio - Grego` falhou** (`not enough rights to change chat title`) e não foi insistido: o bot precisa ser admin ali, ou o Feca renomeia na mão. Suíte: **717 passed, 26 skipped**. `data.js?v=18`. Backup em `Backups/s325-import-grego/`. **O perfil do bot (8º tenant) NÃO foi feito** — escopo desta sessão era só o import.)_
 
 _Anterior: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
 
@@ -123,17 +123,48 @@ antes da primeira aposta — planilha e bot escrevem na MESMA série.
 - **18 linhas `Nome N+` sem mercado** (`Julio Enciso 3+`, `Sebastian 2+`): nem o
   canal diz qual é. Vão para `Player Props` — a gaveta do §3 —, nunca para o
   total do esporte, que inventaria um objeto que ninguém escreveu.
-- **`SOA` lido como `Chutes no Gol` é INFERÊNCIA** (5 linhas). A sigla não
-  aparece por extenso em lugar nenhum do export; ele a usa exatamente como usa
-  `SOT` (mesma escada, mesmo par com `Anytime`). Vale perguntar a ele — é uma
-  linha de mapa.
 - **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon
   (`data.js` tem `CASA_ICONS` **e** `HOUSE_DOMAIN`), com o domínio **medido** no
   link do canal (`betsson.bet.br`), não deduzido do nome.
-- **O perfil do bot (8º tenant) NÃO foi feito** — o escopo desta sessão era só o
-  import. O recon do canal já está medido: 1.074 mensagens, 31/07 → 06/09, 621
-  com print, formato irmão do Soh Props (1 linha por aposta, stake em `%`, marca
-  `✅`/`✔️`/`❌`/`⌛` na própria linha, casa no rodapé, `⏰` com a hora do evento).
+
+### `SOA` era `score or assist` — a inferência razoável estava errada
+
+Perguntado, respondido no mesmo dia: **`SOA` = "marcar OU assistir"**, não chute
+no gol. As 5 linhas foram para `Player Props`, junto com o `G/A` do mesmo arquivo
+— é o mesmo mercado escrito de dois jeitos, o §3 não tem categoria para ele, e
+escolher `Anytime` ou `Assistência` sozinhas jogaria metade do mercado fora.
+Base reimportada (o script é idempotente por `origem='import'`): 956 linhas, a
+reconciliação segue em **0 divergências**.
+
+A inferência era razoável e ainda assim falhou: `SOA` e `SOT` aparecem na MESMA
+escada e os dois pareados com `Anytime` (`Kvam SOA 2.00%` + `Kvam Anytime
+1.00%`), o que fazia um parecer variação do outro. **Vizinhança tipográfica não é
+significado.** Sigla que não aparece por extenso em lugar nenhum da fonte só se
+resolve perguntando ao dono — e o que fez a pergunta acontecer foi ela estar
+marcada como inferência declarada no relatório, em vez de passar como fato.
+
+### Os dois ids do Telegram, conferidos por `getChat`
+
+    canal oficial  -1003928624343  channel  'Grego Tips - VIP'  bot = administrator ✔
+    apoio          -5577016989     group    'sharpenbot'        bot = MEMBER
+
+O apoio **não migrou para supergrupo** (o id `-5…` responde, sem
+`migrate_to_chat_id`), então o tenant não nasce surdo — a armadilha da s316 não
+se aplica aqui.
+
+**Renomear o apoio para `Apoio - Grego` FALHOU** e não foi insistido:
+`setChatTitle` → `Bad Request: not enough rights to change chat title`. O bot é
+membro comum ali. Ou ele é promovido a admin com "alterar informações do grupo",
+ou o Feca renomeia na mão.
+
+### Pendência que não é desta sessão
+
+**O perfil do bot (8º tenant) NÃO foi feito** — o escopo desta sessão era só o
+import. O recon do canal já está medido: 1.074 mensagens, 31/07 → 06/09, 621 com
+print, formato irmão do Soh Props (1 linha por aposta, stake em `%`, marca
+`✅`/`✔️`/`❌`/`⌛` na própria linha, casa pelo NOME no rodapé, `⏰` com a hora do
+evento). Falta medir se ele EDITA a mensagem para marcar depois — é o que decide
+`legendaOpcional`/`recompoePorLegenda`.
 
 ---
 

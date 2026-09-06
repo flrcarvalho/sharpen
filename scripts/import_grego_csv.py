@@ -110,11 +110,19 @@ A carteira é quase toda **prop de jogador de futebol** (Chutes 467 · Anytime 2
    (`A, B e C`, `tripla`, `multipla`) o esporte vira `Múltiplos` (§2); com duas,
    o esporte do arquivo é mantido.
 
-**`SOA` é lido como `Chutes no Gol`, e isso é INFERÊNCIA.** Ele usa `SOA` (5
-linhas) exatamente como usa `SOT` (6 linhas) — mesma escada, mesmo par com
-`Anytime` (`Kvam SOA 2.00%` + `Kvam Anytime 1.00%`, msg de 06/08). A sigla não
-aparece escrita por extenso em lugar nenhum do export. O DRY lista as 5 para
-conferência com ele; se `SOA` for outra coisa, é uma linha de mapa.
+**`SOA` = "score or assist" — marcar OU assistir** (respondido pelo Feca em
+06/09/2026, vindo do tipster). São 5 linhas, e elas vão para `Player Props`,
+junto com o `G/A` do mesmo arquivo: é o mesmo mercado escrito de dois jeitos, o
+`§3` não tem categoria para ele, e escolher `Anytime` ou `Assistência` sozinhas
+jogaria metade do mercado fora.
+
+⚠️ **A primeira leitura foi `Chutes no Gol`, e estava errada.** A inferência era
+razoável e mesmo assim falhou: `SOA` e `SOT` aparecem na MESMA escada e os dois
+pareados com `Anytime` (`Kvam SOA 2.00%` + `Kvam Anytime 1.00%`, msg de 06/08),
+o que fazia `SOA` parecer variação de `SOT`. Vizinhança tipográfica não é
+significado — **sigla que não aparece por extenso em lugar nenhum do export só
+se resolve perguntando ao dono.** Ficou marcada como inferência declarada no
+relatório, que foi o que fez a pergunta acontecer.
 
 **Defesas de goleiro → `Player Props`** (10 linhas): não há categoria própria no
 `MASTER_APOSTAS §3` para defesa, mesmo precedente do `import_sohprops_csv.py`.
@@ -179,7 +187,6 @@ sob outra origem.
   cruzam futebol e tênis, e o §2 pediria `Múltiplos`; o arquivo as rotula
   `Futebol` e separar time de tenista exigiria conhecer os nomes. Ficam como
   `Futebol`/`Múltipla` e saem listadas no DRY.
-- **`SOA`**, que é inferência declarada (ver acima).
 
 Uso:
     python scripts/import_grego_csv.py --csv "C:\\...\\gregotips.csv" --dono gregozxrd
@@ -388,9 +395,19 @@ def norm_categoria(esporte: str, titulo: str, combo: str, data: str) -> str:
         return 'Cartões'
     if re.search(r'\bimpedimento', d):
         return 'Impedimentos'
-    # SOT/SOA antes de "chutes": `Rasmus sot 2+` é chute NO GOL, não chute.
-    # ⚠ `soa` é INFERÊNCIA (ver docstring) — o DRY lista as linhas.
-    if re.search(r'\bsots?\b|\bsoa\b|chutes? (a|ao) gol|no alvo', d):
+    # `SOA` = **score or assist** — "marcar ou assistir" (respondido por ele em
+    # 06/09/2026). NÃO é chute no gol, e a sigla nunca apareceu por extenso no
+    # export: eu havia inferido `Chutes no Gol` pela vizinhança (`SOA` e `SOT`
+    # aparecem na mesma escada, os dois pareados com `Anytime`) e estava errado.
+    # Vai para `Player Props` junto com o `G/A`: é o MESMO mercado escrito de
+    # dois jeitos, e o §5 manda estatística composta de JOGADOR para lá — não
+    # existe categoria "marcar ou assistir" no §3, e escolher `Anytime` ou
+    # `Assistência` sozinhas descartaria metade do mercado.
+    # Vem ANTES do Anytime de propósito: "marcar ou assist" casa com `marcar`.
+    if re.search(r'\bsoa\b|\bg\s*/\s*a\b|\bm\s*/\s*a\b|marcar ou assist', d):
+        return 'Player Props'
+    # SOT antes de "chutes": `Rasmus sot 2+` é chute NO GOL, não chute.
+    if re.search(r'\bsots?\b|chutes? (a|ao) gol|no alvo', d):
         return 'Chutes no Gol'
     if re.search(r'chutes?|\bshots?\b|\bsots\b|finaliza', d):
         return 'Chutes'
@@ -815,13 +832,14 @@ def _relatorio(rows: list[dict], dono: str):
             if len(sub) > 8:
                 print(f'      … +{len(sub) - 8}')
 
-    soa = [r for r in rows if re.search(r'\bsoa\b', _chave(r['descricao']))]
+    soa = [r for r in rows if re.search(r'\bsoa\b|\bg\s*/\s*a\b',
+                                        _chave(r['descricao']))]
     if soa:
-        print(f'\n⚠ {len(soa)} linha(s) com `SOA` → lidas como `Chutes no Gol`. '
-              f'É INFERÊNCIA (a sigla não aparece por extenso no export); '
-              f'confirmar com ele:')
+        print(f'\n  {len(soa)} linha(s) `SOA`/`G-A` = "score or assist" (marcar OU '
+              f'assistir, confirmado pelo tipster em 06/09/2026) → `Player Props`:')
         for r in soa:
-            print(f'    {r["codigo"]:<14} {r["data"]} | {r["descricao"][:45]}')
+            print(f'    {r["codigo"]:<14} {r["data"]} | {r["aposta"]:<13} | '
+                  f'{r["descricao"][:45]}')
 
     pp = [r for r in rows if r['aposta'] == 'Player Props'
           and not re.search(r'defesas?', _chave(r['descricao']))]
