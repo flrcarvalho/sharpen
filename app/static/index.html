@@ -363,6 +363,11 @@ html.embedded .sidebar { display: none; }
 .painel-bar-fill { height: 100%; border-radius: var(--r-pill); background: var(--accent); transition: width .35s var(--ease); }
 .painel-bar-fill.alt { background: var(--accent-2); }
 .painel-bar-val { font-family: var(--font-mono); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; min-width: 30px; }
+/* Cauda das casas de 1–2 contas (s330): dobrada por padrão, atrás de um botão. */
+.painel-bar-mais { display: flex; flex-direction: column; gap: 12px; }
+.painel-bar-mais[hidden] { display: none; }
+.painel-bar-toggle { align-self: stretch; text-align: left; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em; color: var(--ink-soft); background: transparent; border: 0; border-top: 1px solid var(--line-2); padding: 11px 0 1px; margin-top: 2px; cursor: pointer; }
+.painel-bar-toggle:hover { color: var(--ink); }
 
 /* s330 — o medidor Ativas × Inativas e a legenda dele saíram junto com o bloco que
    os continha: uma barra de 100% azul sobre "102 ativas / 0 inativas" não informava
@@ -1887,6 +1892,18 @@ td.c-res.res-HL { color: var(--warn); }
 .hist__head { padding: 12px 18px 8px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
 .hist__head::before { content: ""; width: 4px; height: 13px; background: var(--accent); border-radius: 2px; flex: none; }
 .hist__head .cnt { margin-left: auto; letter-spacing: .04em; }
+/* Rail em modo Pendências (s330): o tick do cabeçalho troca de azul para âmbar —
+   o painel deixou de ser "o que aconteceu" e passou a ser "o que falta conferir". */
+.rail-card--pend .hist__head::before { background: var(--d-proj); }
+.hrow.pend { cursor: default; }
+.hrow.pend:hover { background: transparent; }
+.pend-chip { width: 22px; height: 22px; border-radius: 7px; background: var(--fdc-steel); display: grid; place-items: center; overflow: hidden; flex: none; }
+.pend-chip img { width: 14px; height: 14px; object-fit: contain; }
+.hrow.pend .ha { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.hrow.pend .hb { font-size: 10.5px; color: var(--ink-soft); }
+/* Rodapé: leva ao log completo, que continua existindo sem alteração nenhuma. */
+.hist-verlog { margin: 6px 2px 0; padding: 9px 6px 2px; text-align: left; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em; color: var(--ink-soft); background: transparent; border: 0; border-top: 1px solid var(--line-2); cursor: pointer; }
+.hist-verlog:hover { color: var(--ink); }
 .hist__list { padding: 0 10px 10px; display: flex; flex-direction: column; max-height: 34vh; overflow-y: auto; }
 .hrow { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); cursor: pointer; transition: background .15s; }
 .hrow:hover, .hrow.on { background: var(--surface-2); }
@@ -3257,6 +3274,11 @@ let contasTab = 'ativas';
 // Contas & Parceiros foi unificada no Painel de Contas: não há mais view separada.
 // 'contas' = abrir o hub (desmarca a conta ativa e mostra o Painel); 'extracao' =
 // extrator (mantém a conta ativa se houver, senão cai no hub).
+// `viewAtual` existe porque o rail é COMPARTILHADO pelas duas visões e precisa saber
+// em qual está: na gestão de contas ele é a fila de pendências, na Extração é o log.
+// Deduzir isso de `parceiroSelecionado` daria errado — na Extração sem conta ativa
+// também não há conta selecionada.
+let viewAtual = 'extracao';
 function mostrarView(v) {
   const ext = document.getElementById('view-extracao');
   const title = document.querySelector('.pagehead-title');
@@ -3265,6 +3287,7 @@ function mostrarView(v) {
   const navC = document.getElementById('nav-contas');
   if (!ext) return;
   ext.style.display = '';
+  viewAtual = (v === 'contas') ? 'contas' : 'extracao';
   if (v === 'contas') {
     if (parceiroSelecionado) salvarEstadoExtrator();   // preserva o lote em montagem
     parceiroSelecionado = null; casaSelecionada = null;
@@ -3274,6 +3297,7 @@ function mostrarView(v) {
     if (title) title.textContent = 'Gestão de Contas & Parceiros';
     if (eyebrow) eyebrow.textContent = 'Operação · gestão de contas';
     // RAIO-X só faz sentido na Extração → nesta visão o rail mostra só o histórico.
+    railLogCompleto = false;   // volta à fila de pendências a cada entrada na visão
     const railEl = document.getElementById('rail'); if (railEl) railEl.classList.add('rail--histonly');
     // O idcard (conta ativa + tiles) não serve à gestão de contas → esconde o .arow
     // e sobe o painel (sem box nem espaço vazio). Selecionar conta = clicar na lista.
@@ -3574,6 +3598,19 @@ function _irParaDivergencia() {
   alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
   alvo.classList.add('pisca');
   setTimeout(() => alvo.classList.remove('pisca'), 1600);
+}
+
+// Abre/fecha a cauda de "Contas por casa". O rótulo do botão troca de "+ N casas com
+// X–Y contas" para "ver menos" — e volta ao texto original ao fechar, que fica guardado
+// no próprio botão: rótulo recalculado na hora erraria se a base mudasse no meio.
+function painelCasasVerMais(btn) {
+  const cauda = document.getElementById('painelCasasCauda');
+  if (!cauda) return;
+  const abrir = cauda.hidden;
+  if (abrir && !btn.dataset.rotulo) btn.dataset.rotulo = btn.textContent;
+  cauda.hidden = !abrir;
+  btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  btn.textContent = abrir ? 'ver menos' : (btn.dataset.rotulo || 'ver mais');
 }
 
 // ── Menu "⋯" da linha da conta (s330) ────────────────────────────────────────
@@ -4403,15 +4440,37 @@ function renderPainelContas() {
     '</div>';
 
   // ── Informativo: contas por casa + custos por fornecedor + atividade ──
+  // s330 — só as 6 primeiras por contagem; a cauda colapsa num botão. Com 29 casas
+  // (47 na base do Feca) a lista virava dezenas de barras de 1px: uma barra que não
+  // varia não compara nada, e a que importa (a maior) se perdia no meio delas.
+  // A escala é normalizada pela MAIOR de todas, não pela maior das visíveis — senão
+  // expandir mudaria o comprimento das barras que já estavam na tela.
+  const CASAS_VISIVEIS = 6;
   const maxCasa = Math.max(1, ...porCasa.map(c => c.total));
-  const casaRows = porCasa.map(c =>
+  const barra = c =>
     '<div class="painel-bar-row">' +
       '<span class="painel-bar-chip"><img src="' + faviconUrl(c.casa) + '" alt="" loading="lazy"></span>' +
       '<span class="painel-bar-main"><span class="painel-bar-nome">' + esc(c.nome) + '</span>' +
       '<span class="painel-bar-track"><span class="painel-bar-fill" style="width:' + (c.total / maxCasa * 100).toFixed(1) + '%"></span></span></span>' +
       '<span class="painel-bar-val">' + nf(c.total) + '</span>' +
-    '</div>'
-  ).join('');
+    '</div>';
+  const topo = porCasa.slice(0, CASAS_VISIVEIS);
+  const cauda = porCasa.slice(CASAS_VISIVEIS);
+  // O rótulo do botão diz a FAIXA real da cauda, nunca uma faixa fixa: "1–2" só é
+  // verdade nesta base. Faixa inventada é do mesmo tipo de mentira que o "+99".
+  let rotuloCauda = '';
+  if (cauda.length) {
+    const mn = cauda[cauda.length - 1].total, mx = cauda[0].total;
+    rotuloCauda = '+ ' + nf(cauda.length) + (cauda.length === 1 ? ' casa com ' : ' casas com ')
+      + (mn === mx ? nf(mn) + (mn === 1 ? ' conta' : ' contas')
+                   : nf(mn) + '–' + nf(mx) + ' contas');
+  }
+  const casaRows = topo.map(barra).join('')
+    + (cauda.length
+       ? '<div class="painel-bar-mais" id="painelCasasCauda" hidden>' + cauda.map(barra).join('') + '</div>'
+         + '<button class="painel-bar-toggle" type="button" id="painelCasasToggle" aria-expanded="false"'
+         + ' aria-controls="painelCasasCauda" onclick="painelCasasVerMais(this)">' + esc(rotuloCauda) + '</button>'
+       : '');
 
   const dash = '<span style="color:var(--ink-mute)">—</span>';
   const custoTbl = custoRows.length ? (
@@ -5304,11 +5363,49 @@ function _feedRow(e) {
   return '<div class="hrow"><span class="hact ' + cls + '">' + (_ACT_ICONE[e.tipo] || '') + '</span>'
     + '<div class="hwho"><div class="ha">' + quem + '</div><div class="hb">' + esc(detalhe) + '</div></div></div>';
 }
+// Linha do painel Pendências: favicon + `Casa · conta` em --ink + total de itens.
+// Sem o `N%` da direita — 37 de 40 linhas diziam "100%", e número que quase nunca
+// varia deixa de ser informação e vira textura: rotina não vira linha.
+function _pendRow(e) {
+  const quem = esc(e.casa || '—') + (e.parceiro ? ' · ' + esc(e.parceiro) : '');
+  const n = e.itens || 0;
+  return '<div class="hrow pend">'
+    + '<span class="pend-chip"><img src="' + faviconUrl(e.casa || '') + '" alt="" loading="lazy"></span>'
+    + '<div class="hwho"><div class="ha">' + quem + '</div>'
+    + '<div class="hb">' + _quando(e.ts) + ' · ' + n + (n === 1 ? ' item' : ' itens') + '</div></div></div>';
+}
+
+// Estado do rail na visão Contas: `false` = só exceções (padrão), `true` = log inteiro.
+let railLogCompleto = false;
+function railVerLogCompleto() { railLogCompleto = true; renderHist(); }
+
 function _renderFeedGlobal(list, cnt, title) {
-  if (title) title.textContent = 'Últimas ações';
   // Extrações de TODAS as contas do dono + eventos de ciclo de vida, por tempo.
   const ext = _histLoad().map(h => ({ ts: h.ts, tipo: 'extracao', casa: h.casa, parceiro: h.parceiro, itens: h.itens, st: h.st, conf: h.conf, dup: h.dup }));
   const eventos = ext.concat(_actLoad()).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 40);
+  const card = document.getElementById('rail-hist');
+
+  // s330 — na gestão de contas o rail deixa de ser um log e vira uma FILA: só as
+  // exceções. Um log de 40 linhas em que 37 dizem "100%" não é registro, é ruído —
+  // e o que o operador procura ali são as 3 que não dizem. Na Extração o rail segue
+  // sendo o log completo: lá o histórico é o produto da tela, não a exceção dele.
+  if (viewAtual === 'contas' && !railLogCompleto) {
+    const excecoes = eventos.filter(e => e.tipo === 'extracao' && e.st === 'warn');
+    if (title) title.textContent = 'Pendências';
+    if (card) card.classList.add('rail-card--pend');
+    if (cnt) cnt.textContent = eventos.length ? (excecoes.length + ' de ' + eventos.length + ' ações') : '';
+    const rodape = eventos.length
+      ? '<button class="hist-verlog" type="button" onclick="railVerLogCompleto()">ver log completo (' + eventos.length + ')</button>'
+      : '';
+    list.innerHTML = (excecoes.length
+      ? excecoes.map(_pendRow).join('')
+      : '<div class="hist-empty">' + (eventos.length ? 'Nenhuma pendência — todas as extrações fecharam limpas.' : 'Nenhuma ação registrada ainda.') + '</div>')
+      + rodape;
+    return;
+  }
+
+  if (title) title.textContent = 'Últimas ações';
+  if (card) card.classList.remove('rail-card--pend');
   if (cnt) cnt.textContent = eventos.length ? (eventos.length + (eventos.length === 1 ? ' ação' : ' ações')) : '';
   if (!eventos.length) { list.innerHTML = '<div class="hist-empty">Nenhuma ação registrada ainda.</div>'; return; }
   list.innerHTML = eventos.map(_feedRow).join('');
