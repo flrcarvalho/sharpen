@@ -268,17 +268,10 @@ apareceu um dia depois, como um "não tenho o id no Sharpen" na hora de corrigir
 
 ## Gate que confere UM campo deixa os vizinhos livres. E o rótulo não é a prova — o número é.
 
-A s311 tornou a **stake** determinística: ela vem do `Stake:` do bloco, sem IA no
-caminho. A odd só era reconferida como **efeito colateral** disso — a chamada de
-`_odd_da_stake` vivia dentro do `if` que só roda quando a stake diverge. Então
-**stake certa + odd errada passava reto**, e o `resultado` não tinha conferência
-nenhuma.
-
-Foi assim que `Under 4.0 Gols [Loiske v TP-T]` (bet365, stake 99,00) entrou com
-**odd 195,53** — o RETORNO, que o bloco imprime na linha do Status. P/L de
-**+R$ 19.258,47** onde o real era +R$ 96,53, e o caixa da conta não bateu. O mais
-duro: o bloco imprime `Odd: 1,975` **duas linhas abaixo**. O número certo estava
-lá; ninguém o comparava.
+**Confira cada campo por si.** A stake é determinística (vem do `Stake:` do bloco, sem IA);
+a odd e o `resultado` precisam de conferência **própria**, nunca de carona no `if` da
+stake — senão stake certa + odd errada passa reto.
+→ [o caso](docs/CASOS.md#a-odd-que-era-o-retorno--bet365-s321)
 
 **A prova é o RETORNO, contra as cinco fórmulas do `calcular_pl` lidas ao
 contrário** (`repository._veredito_do_retorno`): `0 → L` · `= stake → V` ·
@@ -287,15 +280,14 @@ linha asiática **partida**) · nenhuma → cashout, `W` com `odd = retorno ÷ s
 
 > ⚠️ **O TEXTO do Status não serve de fonte, só o número.** `_resultadoB3`
 > (`extensor/content.js`) escreve `Ganho → W` para **qualquer** retorno maior que a
-> stake — meia vitória inclusive. Um gate que lesse o rótulo reescreveria como W os
-> 14 bilhetes `HW` que estavam **certos**.
+> stake — meia vitória inclusive, e um gate que lesse o rótulo reescreveria `HW` correto
+> como `W`. → [o caso](docs/CASOS.md#os-14-hw-que-um-gate-de-rótulo-teria-destruído)
 
 **A outra ponta: o que a extensão escreve no bloco é uma ORDEM, não um recado.** O de-para
 de rótulo sempre tem um `else`, e o `else` costuma dizer "a conferir — não liquidar
 automaticamente". A IA obedece. Rótulo que ninguém cadastrou deixa de virar resultado e a
-linha fica `aberta` para sempre, sem erro em lugar nenhum. Foi assim que o push da Pinnacle
-(`DRAW`, s328) ficou pendente depois de liquidado: o modelo até anotou no RAIO-X que o
-`P/L 0,00` indicava reembolso, e não podia agir.
+linha fica `aberta` para sempre, sem erro em lugar nenhum.
+→ [o caso](docs/CASOS.md#o-push-da-pinnacle-que-ficou-pendente-depois-de-liquidado--draw-s328)
 
 **Quando o número já prova, decida no formatador; não delegue.** Todo de-para de rótulo
 precisa de rede por baixo, feita do dinheiro: resolvido + rótulo desconhecido + P/L
@@ -310,28 +302,26 @@ um rótulo que não se conhece é chute.
 
 **Só se escreve onde o DINHEIRO muda.** Retorno igual a stake/2 lê como `HL` ou como
 cashout de metade — ambíguo — mas o P/L é idêntico; trocar ali é ruído por ruído.
-Pelo mesmo motivo há piso de R$ 1,00 no script de correção: abaixo dele a "correção"
-troca a odd limpa da casa (`1,925`) pela dízima do retorno arredondado ao centavo
-(`1,925087108`).
+Pelo mesmo motivo há **piso de R$ 1,00** no script de correção: abaixo dele a "correção"
+troca a odd limpa da casa pela dízima do retorno arredondado ao centavo.
+→ [o caso](docs/CASOS.md#o-piso-de-r-100--a-correção-que-sujava-a-odd)
 
-**Formato de número é por TOKEN, não por casa.** A Betfair mistura as duas convenções
-no mesmo bloco: stake e odd em BR (`300,00`, `5,4746`), retorno em EN
-(`Retorno 1,642.38`). Ler tudo como BR dá 1,64 e "corrige" a odd para 0,0054 —
-5 linhas certas destruídas. Daí o `_num_bloco`, separado do `_num_or_none`: o último
-separador é o decimal, e **um separador só é sempre decimal** (a regra "3 dígitos =
-milhar", correta para dinheiro, multiplica toda odd de 3 casas por mil: `1,775` → 1775).
+**Formato de número é por TOKEN, não por casa** — a mesma casa mistura as duas convenções
+no mesmo bloco. Daí o `_num_bloco`, separado do `_num_or_none`: o último separador é o
+decimal, e **um separador só é sempre decimal**. A regra "3 dígitos = milhar", correta para
+dinheiro, **multiplica toda odd de 3 casas por mil**.
+→ [o caso](docs/CASOS.md#a-betfair-que-mistura-br-e-en-no-mesmo-bloco)
 
 **Correção humana MANDA sobre a captura.** O script de reparo pula bilhete cujo
-`resultado`/`odd` já tenha registro em `correcoes` — foi o caso de 3 bilhetes Betano
-em que alguém inverteu `W→L` e `L→W` no mesmo minuto. Certo ou errado, é decisão do
-dono. **O gate em tempo de extração NÃO tem essa trava** (roda antes do banco), e
-`resultado` nunca foi congelado pelo UPSERT: recaptura de linha assim desfaz a edição
-manual. Mesma família de "edição manual em casa sincronizada não sobrevive".
+`resultado`/`odd` já tenha registro em `correcoes` — certo ou errado, é decisão do dono.
+**O gate em tempo de extração NÃO tem essa trava** (roda antes do banco), e `resultado`
+nunca foi congelado pelo UPSERT: recaptura de linha assim **desfaz a edição manual**.
+Mesma família de "edição manual em casa sincronizada não sobrevive".
+→ [o caso](docs/CASOS.md#os-3-bilhetes-betano-em-que-alguém-inverteu-w-e-l)
 
-Medido: replay em **5.316 blocos** da sombra (20 casas) mexe em **3** — as 3 de
-edição humana. Zero falso positivo. E o gate reproduziu, sozinho, as **33** correções
-que o script já tinha feito. Gates: `tests/test_odd_resultado_determinista.py`
-(5 mutações aplicadas e pegas) e `scripts/corrigir_resultado_odd_s321.py`.
+Gates: `tests/test_odd_resultado_determinista.py` e `scripts/corrigir_resultado_odd_s321.py`
+— autorizados por um replay que mexeu em **3 de 5.316 blocos**, com zero falso positivo.
+→ [a medição](docs/CASOS.md#a-medição-que-autorizou-o-gate)
 
 > Sintoma para reconhecer isto noutro campo: um valor que é **outro campo do mesmo
 > bloco**. Odd que é o retorno, stake que é a do vizinho (s311), descrição que é a do

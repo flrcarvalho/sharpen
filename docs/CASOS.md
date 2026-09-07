@@ -235,3 +235,64 @@ cobrado, visível no total, e sem linha onde se pudesse editar.
 
 O agravante que torna esse defeito difícil de ver: **o total continua certo.** Só a linha
 some.
+
+---
+
+## Gate que confere UM campo deixa os vizinhos livres
+
+### A odd que era o retorno — bet365, s321
+
+`Under 4.0 Gols [Loiske v TP-T]`, bet365, stake **99,00**, entrou com **odd 195,53** — que
+era o **RETORNO**, impresso pelo bloco na linha do Status. P/L de **+R$ 19.258,47** onde o
+real era **+R$ 96,53**. O caixa da conta não bateu, e foi por aí que apareceu.
+
+O mais duro: o bloco imprime `Odd: 1,975` **duas linhas abaixo**. O número certo estava lá;
+ninguém o comparava.
+
+**Por que passou:** a s311 tornou a stake determinística, e a odd só era reconferida como
+**efeito colateral** — a chamada de `_odd_da_stake` vivia dentro do `if` que só roda quando
+a stake diverge. Stake certa + odd errada passava reto, e o `resultado` não tinha
+conferência nenhuma.
+
+### Os 14 HW que um gate de rótulo teria destruído
+
+`_resultadoB3` (`extensor/content.js`) escreve `Ganho → W` para **qualquer** retorno maior
+que a stake, meia vitória inclusive. Um gate que lesse o rótulo em vez do número
+reescreveria como `W` os **14 bilhetes `HW` que estavam certos**.
+
+### O push da Pinnacle que ficou pendente depois de liquidado — `DRAW`, s328
+
+O de-para de rótulo tinha um `else` dizendo "a conferir — não liquidar automaticamente", e a
+IA **obedeceu**. O rótulo `DRAW` não estava cadastrado, então a linha ficou `aberta` para
+sempre, sem erro em lugar nenhum.
+
+O modelo até anotou no RAIO-X que o `P/L 0,00` indicava reembolso — **e não podia agir**,
+porque a instrução do bloco mandava o contrário.
+
+A tela da Pinnacle exibe `REEMBOLSADO`; a API manda `DRAW`. Documentar só o que a tela
+mostra esconderia o caso.
+
+### A Betfair que mistura BR e EN no mesmo bloco
+
+Stake e odd em convenção BR (`300,00`, `5,4746`), retorno em EN (`Retorno 1,642.38`). Ler
+tudo como BR dá **1,64** e "corrige" a odd para **0,0054** — **5 linhas certas destruídas**.
+
+E a regra "3 dígitos = milhar", correta para dinheiro, multiplica toda odd de 3 casas por
+mil: `1,775` vira **1775**.
+
+### O piso de R$ 1,00 — a "correção" que sujava a odd
+
+Abaixo de R$ 1,00 de diferença, corrigir troca a odd limpa da casa (`1,925`) pela dízima do
+retorno arredondado ao centavo (`1,925087108`). Ruído por ruído.
+
+### Os 3 bilhetes Betano em que alguém inverteu W e L
+
+Três bilhetes com `W→L` e `L→W` trocados **no mesmo minuto** — edição humana deliberada.
+Certo ou errado, é decisão do dono, e por isso o script de reparo pula bilhete cujo
+`resultado`/`odd` já tenha registro em `correcoes`.
+
+### A medição que autorizou o gate
+
+Replay em **5.316 blocos** da sombra (**20 casas**): mexe em **3** — exatamente as 3 de
+edição humana. **Zero falso positivo.** E o gate reproduziu, sozinho, as **33** correções
+que o script já tinha feito. Os testes: **5 mutações aplicadas e pegas**.
