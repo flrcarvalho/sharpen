@@ -731,6 +731,29 @@ async def gravar(rows: list[dict], dono: str):
                         SET criado_em = NOW() - ((o.total - o.rn) * INTERVAL '1 second')
                         FROM ordered o WHERE b.id = o.id
                         """, dono, codigos)
+                # ── A CONTAGEM É GATE, não enfeite ──────────────────────────
+                # O `ON CONFLICT DO NOTHING` engole linha em silêncio, e a
+                # contagem TOTAL do dono não denuncia isso — ela cresce de
+                # qualquer jeito. Confira a FAIXA contra o que foi mandado.
+                #
+                # Isto não é hipótese: numa medição posterior à primeira
+                # gravação faltavam 6 desta faixa (190 de 196) com o total
+                # parecendo certo, e quem acusou foi o script de atribuição de
+                # autor, que confere código a código. A causa não ficou provada;
+                # o gate fica de qualquer forma, porque o modo de falha (linha
+                # que some sem erro) é o que importa.
+                gravadas = await conn.fetchval(
+                    'SELECT COUNT(*) FROM bilhetes WHERE dono=$1 AND codigo_bilhete = ANY($2::text[])',
+                    dono, codigos)
+                if gravadas != len(registros):
+                    faltam = await conn.fetch(
+                        'SELECT c FROM unnest($2::text[]) AS c WHERE NOT EXISTS ('
+                        '  SELECT 1 FROM bilhetes b WHERE b.dono=$1 AND b.codigo_bilhete=c)',
+                        dono, codigos)
+                    raise SystemExit(
+                        f'✋ ABORTADO — mandei {len(registros)} linhas e o banco ficou com '
+                        f'{gravadas}. Faltando: {[r["c"] for r in faltam][:10]}'
+                    )
                 n = await conn.fetchval('SELECT COUNT(*) FROM bilhetes WHERE dono=$1', dono)
                 ab = await conn.fetchval(
                     "SELECT COUNT(*) FROM bilhetes WHERE dono=$1 AND extraction_state='aberta'", dono)
