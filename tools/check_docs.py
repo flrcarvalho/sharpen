@@ -14,14 +14,27 @@ Este script e o gate.
 O QUE ELE CHECA
 ---------------
   1. STATUS.md nao passa de STATUS_MAX_KB.
-  2. Backups/ nao guarda copia de STATUS.md nem de HISTORICO.md (o git ja tem).
-  3. Nenhum link markdown relativo aponta para arquivo inexistente.
+  2. STATUS.md nao tem mais de MAX_BLOCOS_SESSAO blocos "## Sessao".
+  3. STATUS.md nao tem mais de MAX_ANTERIOR paragrafos "_Anterior:".
+  4. Backups/ nao guarda arquivo que comece com STATUS ou HISTORICO.
+  5. Nenhum link markdown relativo aponta para arquivo inexistente.
+
+Por que (2) e (3) existem, se ja ha (1): **byte sozinho e gate fraco.** Um
+STATUS de 49 KB so de historia passa no teto e ja perdeu o proposito. As duas
+checagens estruturais medem a FORMA que o /encerrar manda (estado atual + no
+maximo 3 sessoes), e um STATUS que volte a crescer estoura elas antes do byte.
+
+Por que (4) e por PREFIXO e nao por nome exato: uma copia renomeada
+(`STATUS.md-antes-do-corte`) e a mesma copia. Backup deliberado de cirurgia
+tambem reprova, e isso e o comportamento certo — o invariante #4 manda nunca
+copiar estes dois para `Backups/`, e o git guarda o estado anterior.
 
 O QUE ELE **NAO** CHECA (limite declarado, para o verde nao virar promessa falsa)
 --------------------------------------------------------------------------------
-  * Nao le CONTEUDO: um STATUS.md de 39 KB cheio de historia passa.
+  * Nao le CONTEUDO: 3 blocos de sessao gigantes dentro do teto passam.
   * Nao valida ancora (`#secao`) — so a existencia do arquivo alvo.
-  * A checagem (2) e VAZIA no CI: `Backups/` e gitignored, entao a pasta nem
+  * Nao olha o BACKLOG.md: nada aqui percebe pendencia que sumiu dele.
+  * A checagem (4) e VAZIA no CI: `Backups/` e gitignored, entao a pasta nem
     existe no checkout. Ela so tem efeito rodando local. Quando a pasta falta,
     o script DIZ que nao exerceu a checagem, em vez de contar como verde.
 
@@ -38,26 +51,30 @@ import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-STATUS_MAX_KB = 40
-ARQUIVOS_PROIBIDOS_EM_BACKUPS = ("STATUS.md", "HISTORICO.md")
+STATUS_MAX_KB = 50
+MAX_BLOCOS_SESSAO = 3
+MAX_ANTERIOR = 2
+PREFIXOS_PROIBIDOS_EM_BACKUPS = ("STATUS", "HISTORICO")
 IGNORAR = {"node_modules", "Backups", ".git", ".pytest_cache", "_backups", "__pycache__", "venv", ".venv"}
 
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
+BLOCO_SESSAO_RE = re.compile(r"(?m)^## Sess[aã]o\b")
+ANTERIOR_RE = re.compile(r"(?m)^_Anterior:")
 
 falhas: list[str] = []
 avisos: list[str] = []
 
 
-def _kb(caminho: str) -> float:
-    return os.path.getsize(caminho) / 1024
-
-
-def checar_tamanho_status() -> None:
+def _status() -> str | None:
     caminho = os.path.join(RAIZ, "STATUS.md")
     if not os.path.exists(caminho):
         falhas.append("STATUS.md nao existe na raiz.")
-        return
-    kb = _kb(caminho)
+        return None
+    return open(caminho, encoding="utf-8", errors="replace").read()
+
+
+def checar_tamanho_status(txt: str) -> None:
+    kb = len(txt.encode("utf-8")) / 1024
     if kb > STATUS_MAX_KB:
         falhas.append(
             f"STATUS.md tem {kb:.1f} KB — o teto e {STATUS_MAX_KB} KB.\n"
@@ -66,6 +83,28 @@ def checar_tamanho_status() -> None:
         )
     else:
         print(f"  OK   STATUS.md: {kb:.1f} KB (teto {STATUS_MAX_KB} KB)")
+
+
+def checar_forma_status(txt: str) -> None:
+    """As duas checagens ESTRUTURAIS. Byte sozinho e gate fraco."""
+    blocos = len(BLOCO_SESSAO_RE.findall(txt))
+    if blocos > MAX_BLOCOS_SESSAO:
+        falhas.append(
+            f"STATUS.md tem {blocos} blocos '## Sessao' — o maximo e {MAX_BLOCOS_SESSAO}.\n"
+            f"       Mova o mais antigo para docs/historico/, preservando o texto integral."
+        )
+    else:
+        print(f"  OK   STATUS.md: {blocos} bloco(s) '## Sessao' (maximo {MAX_BLOCOS_SESSAO})")
+
+    anteriores = len(ANTERIOR_RE.findall(txt))
+    if anteriores > MAX_ANTERIOR:
+        falhas.append(
+            f"STATUS.md tem {anteriores} paragrafos '_Anterior:' — o maximo e {MAX_ANTERIOR}.\n"
+            f"       A cadeia '_Anterior:' cobre a sessao que NAO tem mais bloco proprio;\n"
+            f"       o excedente vai para a cadeia do docs/historico/."
+        )
+    else:
+        print(f"  OK   STATUS.md: {anteriores} paragrafo(s) '_Anterior:' (maximo {MAX_ANTERIOR})")
 
 
 def checar_backups() -> None:
@@ -80,20 +119,20 @@ def checar_backups() -> None:
     achados: list[str] = []
     for dp, dns, fns in os.walk(pasta):
         for fn in fns:
-            if fn in ARQUIVOS_PROIBIDOS_EM_BACKUPS:
+            if fn.startswith(PREFIXOS_PROIBIDOS_EM_BACKUPS):
                 achados.append(os.path.relpath(os.path.join(dp, fn), RAIZ).replace(os.sep, "/"))
     if achados:
         total = sum(os.path.getsize(os.path.join(RAIZ, a)) for a in achados) / 1024 / 1024
         amostra = "\n".join(f"         {a}" for a in achados[:5])
         falhas.append(
-            f"Backups/ guarda {len(achados)} copia(s) de STATUS.md/HISTORICO.md "
-            f"({total:.1f} MB).\n"
+            f"Backups/ guarda {len(achados)} arquivo(s) comecando por "
+            f"{' / '.join(PREFIXOS_PROIBIDOS_EM_BACKUPS)} ({total:.1f} MB).\n"
             f"       O git ja versiona os dois — copiar de novo e peso puro "
             f"(invariante #4).\n{amostra}"
             + (f"\n         ... e mais {len(achados) - 5}" if len(achados) > 5 else "")
         )
     else:
-        print(f"  OK   Backups/: nenhuma copia de {' / '.join(ARQUIVOS_PROIBIDOS_EM_BACKUPS)}")
+        print(f"  OK   Backups/: nada comecando por {' / '.join(PREFIXOS_PROIBIDOS_EM_BACKUPS)}")
 
 
 def checar_links() -> None:
@@ -126,7 +165,10 @@ def checar_links() -> None:
 
 def main() -> int:
     print("check_docs — gate de documentacao\n")
-    checar_tamanho_status()
+    txt = _status()
+    if txt is not None:
+        checar_tamanho_status(txt)
+        checar_forma_status(txt)
     checar_backups()
     checar_links()
 
