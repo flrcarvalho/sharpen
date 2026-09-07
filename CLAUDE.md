@@ -774,11 +774,10 @@ O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem
 
 ### Linha sem código, em casa que TEM código, é órfã. E órfã vira fantasma.
 
-Quando a IA devolve o bilhete mas perde a 11ª coluna, a linha entra sem código — e sem
-código ela **nunca dedupa**. Ao liquidar, o mesmo bilhete volta com código, entra como
-linha NOVA, e a velha fica `aberta` para sempre. Sem erro e sem aviso: a pista é um
-`AGUARDANDO RESULTADO` na grade e um stake "em aberto" na Caixa num dia em que a casa
-não tem pendente nenhuma (s327, a múltipla do Falkirk na Betnacional).
+Linha sem código **nunca dedupa**. Ao liquidar, o mesmo bilhete volta com código e entra
+como linha NOVA — a velha fica `aberta` para sempre, sem erro e sem aviso. **A pista é um
+`AGUARDANDO RESULTADO` na grade + stake "em aberto" na Caixa num dia em que a casa não tem
+pendente nenhuma.** → [o caso](docs/CASOS.md#a-órfã-que-virou-fantasma--a-múltipla-do-falkirk-betnacional-s327)
 
 Três lugares seguram isso, e cada um cobre o que o outro não vê:
 
@@ -788,8 +787,8 @@ Três lugares seguram isso, e cada um cobre o que o outro não vê:
   cópia). `conferir_cobertura` sozinha não resolve: ela cobra QUANTIDADE por código e a
   repescagem só ACRESCENTA.
 - **Migração B do UPSERT** — no banco. A órfã já gravada é adotada quando o bilhete volta
-  com código. A odd é comparada pela régua do sistema (`chave_orfa` → `_norm_odd`):
-  comparando string crua, `14` não era `14,00` e a adoção falhava.
+  com código. **Compare a odd pela régua do sistema** (`chave_orfa` → `_norm_odd`): em
+  string crua, `14` não é `14,00` e a adoção falha.
 - **NO-OP obrigatório** onde a coluna 11 vazia é **legítima**: casa sem marcador (prints,
   texto colado) e texto com qualquer `[Código: ]` vazio — é o que a bet365 manda quando o
   detalhe não chegou, e descartar ali apagaria bilhete real.
@@ -801,24 +800,21 @@ aposta resolve. Isso protege a extração por IA: a re-leitura é ruidosa e sobr
 pior que manter. **Exceção: `origem='sync'`** (fonte determinística — hoje só o
 `/polymarket/sync`, que lê a API on-chain). Para ela esses campos são sempre refrescados.
 
-**Por que a exceção existe:** `resultado` nunca foi congelado. Com fonte determinística isso
-deixava a linha **meio atualizada** — ao corrigir o cálculo do mercado anulado, o resultado
-passou de `L` para `W` e a odd ficou a antiga, dobrada: 28 linhas viraram lucro fantasma
-(+R$578 onde o real era −R$11,80). **Blindar metade dos campos é pior que blindar todos ou
-nenhum.** O mesmo valia para `esporte`/`aposta`, que só entravam no INSERT e trancaram 40
-linhas mal classificadas fora de qualquer correção.
+**Por que a exceção existe:** `resultado` **nunca foi congelado**. Com fonte determinística
+isso deixava a linha **meio atualizada** — resultado novo, odd velha — e virava lucro
+fantasma. **Blindar metade dos campos é pior que blindar todos ou nenhum.**
+→ [o caso](docs/CASOS.md#blindar-metade-dos-campos-28-linhas-de-lucro-fantasma)
 
 Contrapartida: edição manual de data/stake/odd/esporte/categoria/descrição numa casa
 sincronizada **não sobrevive** ao sync. O `tipster` sobrevive.
 
 **E o congelamento só começa quando a linha RESOLVE.** Enquanto `extraction_state =
 'aberta'`, `data`, `odd` e `stake` são refrescados por qualquer reenvio, de qualquer
-origem. Quem escreve por robô reenvia a cada marcação (o bot de tipster manda sempre o
-mesmo timestamp do print), então **editar esses campos à mão no dashboard antes da
-liquidação é desfeito sem aviso**: a tela aceita, salva, e o próximo reenvio devolve o
-valor antigo. Para corrigir linha viva de fonte automática, corrija NA FONTE (no caso do
-bot, `/ajustar #N <data>`, que reenvia e depois faz `PATCH /bilhetes/{id}`) ou espere a
-liquidação. A edição à mão vale sozinha em linha já resolvida e em casa não sincronizada.
+origem — e quem escreve por robô reenvia a cada marcação. Então **editar esses campos à mão
+no dashboard antes da liquidação é desfeito sem aviso**: a tela aceita, salva, e o próximo
+reenvio devolve o valor antigo. Corrija NA FONTE (no bot, `/ajustar #N <data>`, que reenvia
+e depois faz `PATCH /bilhetes/{id}`) ou espere a liquidação. A edição à mão vale sozinha em
+linha já resolvida e em casa não sincronizada.
 
 > **Método:** melhorar o cálculo não basta — confira se ele **chega ao banco**. Depois de
 > corrigir qualquer fórmula, diffe `banco × coletor` linha a linha.
@@ -832,7 +828,7 @@ liquidação. A edição à mão vale sozinha em linha já resolvida e em casa n
 qualquer um dos dois sem recalcular deixa a linha com o hash antigo: a próxima captura
 gera uma assinatura nova, não colide com nada, o UPSERT não dedupa e **o histórico
 duplica inteiro**. Vale para renomear conta, **mover conta de casa**, unificar casa,
-mover bilhete e backfill.
+mover bilhete e backfill. → [o caso](docs/CASOS.md#a-assinatura-que-ficou-para-trás--s198-e-s312)
 
 Quem já faz certo: `editar_parceiro()` (nome e/ou casa; `renomear_parceiro()` é wrapper dele),
 `atualizar_bilhete()` (via `_assinatura_pos_edicao`), `scripts/unificar_casas.py` e

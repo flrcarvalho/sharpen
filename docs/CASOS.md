@@ -171,3 +171,41 @@ isso, o re-sync mexeria em stake já gravado, porque `origem='sync'` é `_ORIGEM
 e refresca `stake`/`odd`/`data` mesmo em bilhete resolvido. Detalhe que quase passou: o BCB
 republica alguns dias com **dois** boletins, e o endpoint antigo pegava o primeiro
 (`$top=1`) — o mapa novo mantém a mesma escolha (`setdefault`) de propósito.
+
+---
+
+## Regras de deduplicação (sistema)
+
+### A órfã que virou fantasma — a múltipla do Falkirk, Betnacional, s327
+
+A IA devolveu o bilhete mas **perdeu a 11ª coluna**, e a linha entrou sem código. Sem
+código ela nunca dedupou: ao liquidar, o mesmo bilhete voltou com código e entrou como
+**linha nova**, deixando a velha `aberta` para sempre. Sem erro e sem aviso.
+
+As duas pistas que denunciaram: um `AGUARDANDO RESULTADO` na grade e um stake "em aberto"
+na Caixa **num dia em que a casa não tinha pendente nenhuma**.
+
+Na primeira tentativa de conserto, a Migração B ainda falhava: ela comparava a odd como
+**string crua**, e `14` não era `14,00`. A adoção só passou a funcionar comparando pela
+régua do sistema (`_norm_odd`).
+
+### Blindar metade dos campos: 28 linhas de lucro fantasma
+
+`resultado` nunca foi congelado pelo UPSERT. Com fonte determinística isso deixava a linha
+**meio atualizada**: ao corrigir o cálculo do mercado anulado da Polymarket, o resultado
+passou de `L` para `W` e a odd ficou a antiga, **dobrada**. **28 linhas viraram
++R$ 578 onde o real era −R$ 11,80.**
+
+O mesmo vício, ao contrário, valia para `esporte`/`aposta`: eles só entravam no INSERT, e
+isso trancou **40 linhas mal classificadas** fora de qualquer correção.
+
+É daí que vem a regra: **blindar metade dos campos é pior que blindar todos ou nenhum.**
+
+### A assinatura que ficou para trás — s198 e s312
+
+`casa` e `parceiro` entram no hash de `_assinatura`. Trocar qualquer um dos dois sem
+recalcular deixa a linha com o hash antigo — a próxima captura gera assinatura nova, não
+colide com nada, o UPSERT não dedupa e **o histórico duplica inteiro**.
+
+Mordeu duas vezes: no `renomear_parceiro` (s198) e no modal de edição de conta (s312), que
+oferece nome e casa na mesma tela.
