@@ -41,7 +41,7 @@ casa que parou → `/sharpenup-diagnostico`.
      arquivo que fica esperando entre um e outro é levado por quem commitar primeiro.
      Confira com `git show --stat` depois de commitar; se levou arquivo alheio, **não
      reescreva histórico já pushado** — registre no `STATUS.md` e siga.
-     → [o caso](docs/CASOS.md#8-duas-sessões-commitando-ao-mesmo-tempo-24082026)
+     → [o caso](docs/CASOS.md#8--duas-sessões-commitando-ao-mesmo-tempo-24082026)
 9. **Toda atualização fechada = perguntar se avisa os testers**, já com a mensagem pronta (ver abaixo). O Feca escolhe informar ou não. Nunca enviar sem o "pode mandar".
 10. **Um arquivo, uma pergunta — e o gate é `python tools/check_docs.py`.**
     `CLAUDE.md` = regras vinculantes · [`STATUS.md`](STATUS.md) = estado atual **+ no máximo as 3
@@ -53,7 +53,7 @@ casa que parou → `/sharpenup-diagnostico`.
     canônico (`MASTER_*` / `CASA_*` / este arquivo), história vai para o `HISTORICO.md` e o
     **caso** que originou uma regra vai para o [`docs/CASOS.md`](docs/CASOS.md).
     **Regra sem gate não é cumprida neste repo — está medido**
-    ([o caso](docs/CASOS.md#10-o-inchaço-que-originou-o-gate)). O `check_docs.py` **não lê
+    ([o caso](docs/CASOS.md#10--o-inchaço-que-originou-o-gate)). O `check_docs.py` **não lê
     conteúdo**: um `STATUS.md` de 49 KB só de história passa. Ele cobre tamanho, forma
     (≤3 blocos de sessão, ≤2 `_Anterior:`), cópia em `Backups/` e link quebrado.
 
@@ -114,7 +114,7 @@ bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STA
 > marca não dá erro nenhum, só entrega tela vazia para o usuário certo. Confirme o username
 > **na tabela**, nunca pelo nome do arquivo, do canal ou da planilha. A ponte entre os dois
 > nomes é o registro `TIPSTERS_PUBLICOS` (`app/main.py`), onde o **slug** é a marca e o
-> `dono` é o username. → [o caso](docs/CASOS.md#a-marca-não-é-o-username-fleury-flurray)
+> `dono` é o username. → [o caso](docs/CASOS.md#a-marca-não-é-o-username--fleury--flurray)
 
 O caminho abaixo vale só para as contas **antigas** (semente) ou criadas à mão.
 
@@ -476,7 +476,7 @@ entre o 1º e o 2º colocado. Em empate ele fica **vazio de propósito** — nã
 A consequência é o modo de falha: **um perfil novo pode matar um perfil antigo em silêncio.**
 Nada aparece no rail nem no console, só a coluna vazia. O parser deriva o **final** de todo
 valor não-redondo (`49 → 9`, `99 → 9`), então dois perfis podem virar donos do mesmo final e
-se anularem. → [o caso](docs/CASOS.md#o-perfil-novo-que-matou-o-antigo-multilbb-lbb)
+se anularem. → [o caso](docs/CASOS.md#o-perfil-novo-que-matou-o-antigo--multilbb--lbb)
 
 **Diagnóstico, nesta ordem:**
 
@@ -635,7 +635,7 @@ escada**, não aplique opacidade.
 Gate novo só vale depois de provado por **mutação**: quebre o código de propósito e
 confira que o teste falha. Verde sem essa prova não prova nada.
 
-Dois modos de falso verde, ambos medidos ([os casos](docs/CASOS.md#o-teste-que-reimplementava-o-código-s286)):
+Dois modos de falso verde, ambos medidos ([os casos](docs/CASOS.md#o-teste-que-reimplementava-o-código--s286)):
 
 1. **O teste reimplementa o código sob teste.** Recorte o código real do arquivo; nunca
    copie o trecho para o teste.
@@ -983,7 +983,7 @@ N chamadas são N chances de derrubar o processo, cada uma carregando o backoff 
 
 **Antes de otimizar o laço, procure o endpoint de faixa.** A pergunta certa quase nunca é
 "como paralelizo N chamadas?", e sim "por que são N?".
-→ [o caso: 113 chamadas ao BCB](docs/CASOS.md#113-chamadas-ao-banco-central-s247)
+→ [o caso: 113 chamadas ao BCB](docs/CASOS.md#113-chamadas-ao-banco-central--s247)
 
 **Dado histórico é imutável — cacheie entre requisições.** Cotação de dia passado nunca
 muda: o mapa é de módulo (`polymarket._PTAX_MAPA`) e o 2º sync não gasta rede nenhuma.

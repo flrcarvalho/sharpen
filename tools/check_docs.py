@@ -19,6 +19,7 @@ O QUE ELE CHECA
   3. STATUS.md nao tem mais de MAX_ANTERIOR paragrafos "_Anterior:".
   4. Backups/ nao guarda arquivo que comece com STATUS ou HISTORICO.
   5. Nenhum link markdown relativo aponta para arquivo inexistente.
+  6. Toda ANCORA (`arquivo.md#secao`) resolve contra um titulo real do alvo.
 
 Por que (2) e (3) existem, se ja ha (1): **byte sozinho e gate fraco.** Um
 STATUS de 49 KB so de historia passa no teto e ja perdeu o proposito. As duas
@@ -33,7 +34,7 @@ copiar estes dois para `Backups/`, e o git guarda o estado anterior.
 O QUE ELE **NAO** CHECA (limite declarado, para o verde nao virar promessa falsa)
 --------------------------------------------------------------------------------
   * Nao le CONTEUDO: 3 blocos de sessao gigantes dentro do teto passam.
-  * Nao valida ancora (`#secao`) — so a existencia do arquivo alvo.
+  * A checagem de ancora cobre so os .md vivos; ancora para fora do repo nao e vista.
   * Nao olha o BACKLOG.md: nada aqui percebe pendencia que sumiu dele.
   * A checagem (4) e VAZIA no CI: `Backups/` e gitignored, entao a pasta nem
     existe no checkout. Ela so tem efeito rodando local. Quando a pasta falta,
@@ -49,6 +50,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import unicodedata
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -159,12 +161,90 @@ def checar_backups() -> None:
         print(f"  OK   Backups/: nada comecando por {' / '.join(PREFIXOS_PROIBIDOS_EM_BACKUPS)}")
 
 
-def checar_links() -> None:
+def _slug(titulo: str) -> str:
+    """Ancora no estilo GitHub: minusculas, remove o que nao e letra/digito/espaco/hifen,
+    e troca CADA espaco por UM hifen.
+
+    ⚠️ Nao colapse espacos. O caractere removido que estava ENTRE dois espacos deixa os
+    dois para tras, e eles viram `--`:
+
+        "5. Superficie de registro — os 12 pontos"  ->  5-superficie-de-registro--os-12-pontos
+        "3. Contrato de mensagens (inject ⇄ content)" -> 3-contrato-de-mensagens-inject--content
+
+    Colapsar com `\\s+` gera `-` onde o GitHub gera `--`, e o gate passa a REPROVAR ancora
+    correta e APROVAR ancora quebrada. Foi o que aconteceu no bloco 1 do Lote E: eu
+    "consertei" 5 ancoras que estavam certas.
+    """
+    s = re.sub(r"[`*_]", "", titulo.strip().lower())
+    s = "".join(c for c in s if unicodedata.category(c)[0] in "LNZ" or c in "- ")
+    return s.strip().replace(" ", "-")
+
+
+_TITULO_RE = re.compile(r"(?m)^#{1,6}\s+(.*?)\s*$")
+
+
+def checar_ancoras(mds: list[str]) -> None:
+    """Link `alvo.md#ancora` tem de casar um titulo real do alvo.
+
+    Sem isto, renomear um titulo do CASOS.md quebra a navegacao do CLAUDE.md sem
+    ninguem perceber — o mesmo defeito (#24 da auditoria de 19/07) que esta faxina
+    fechou no HISTORICO.
+    """
+    cache: dict[str, set[str]] = {}
+
+    def ancoras_de(caminho: str) -> set[str]:
+        if caminho not in cache:
+            try:
+                txt = open(caminho, encoding="utf-8", errors="replace").read()
+            except OSError:
+                cache[caminho] = set()
+            else:
+                cache[caminho] = {_slug(t) for t in _TITULO_RE.findall(txt)}
+        return cache[caminho]
+
+    quebradas: list[str] = []
+    total = 0
+    for caminho in mds:
+        try:
+            txt = open(caminho, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        for _rotulo, alvo in LINK_RE.findall(txt):
+            if "#" not in alvo:
+                continue
+            destino, _, ancora = alvo.partition("#")
+            destino, ancora = destino.strip(), ancora.strip()
+            if not destino or not ancora:
+                continue
+            if destino.startswith(("http://", "https://", "mailto:", "data:")):
+                continue
+            absoluto = os.path.normpath(os.path.join(os.path.dirname(caminho), destino))
+            if not absoluto.endswith(".md") or not os.path.exists(absoluto):
+                continue          # arquivo inexistente ja e pego por checar_links
+            total += 1
+            if ancora not in ancoras_de(absoluto):
+                origem = os.path.relpath(caminho, RAIZ).replace(os.sep, "/")
+                quebradas.append(f"{origem} -> {alvo}")
+
+    if quebradas:
+        lista = "\n".join(f"         {q}" for q in quebradas)
+        falhas.append(
+            f"{len(quebradas)} de {total} ancora(s) nao resolvem contra um titulo do alvo:\n"
+            f"{lista}"
+        )
+    else:
+        print(f"  OK   ancoras: {total} conferidas contra os titulos do alvo")
+
+
+def _todos_md() -> list[str]:
     mds: list[str] = []
     for dp, dns, fns in os.walk(RAIZ):
         dns[:] = [d for d in dns if d not in IGNORAR]
         mds.extend(os.path.join(dp, fn) for fn in fns if fn.endswith(".md"))
+    return mds
 
+
+def checar_links(mds: list[str]) -> None:
     quebrados: list[str] = []
     for caminho in mds:
         try:
@@ -195,7 +275,9 @@ def main() -> int:
         checar_tamanho_status(txt)
         checar_forma_status(txt)
     checar_backups()
-    checar_links()
+    mds = _todos_md()
+    checar_links(mds)
+    checar_ancoras(mds)
 
     for a in avisos:
         print(f"\n  AVISO  {a}")
