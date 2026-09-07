@@ -338,3 +338,23 @@ Na mesma tela, dois estilos para o mesmo papel: `.apf-lbl` (correto pela Escada 
 lado de `.filter-label` (errado). O olho lê as duas como inconsistentes **sem saber qual é
 qual** — é o sintoma barato de "fora do padrão", e ele aparece mesmo quando uma das metades
 está certa.
+
+---
+
+## Escada de Tinta
+
+### O cabeçalho que virou textura — Painel de Contas
+
+O cabeçalho de grupo usava `--ink-mute` em **9,5px caixa alta com tracking .16em** sobre
+fundo efetivo `#1A1F26` — **2,9:1**. Reprova AA (4,5:1) e reprova até o piso de texto grande
+(3:1).
+
+**O feedback que abriu o caso foi de USO, não de auditoria:** *"essas letras nesse cinza
+claro fica muito claro"*. Nenhum lint tinha acusado.
+
+Três causas somaram — tom baixo, corpo minúsculo e tracking largo em caixa alta — e o que
+escondeu o problema de quem media foi o **overlay de `.025`**: o contraste calculado sobre o
+token do CSS passava; sobre o fundo efetivo, não.
+
+Junto veio **inversão de hierarquia**: o e-mail da conta (13,5px / 700 / `--ink`) pesava
+mais que o nome da casa, então a varredura da lista lia **endereços em vez de casas**.

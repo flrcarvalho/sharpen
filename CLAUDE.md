@@ -548,22 +548,20 @@ aposto". → [o caso](docs/CASOS.md#os-dois-cortes-que-já-quebraram-o-matcher-e
 
 ## Escada de Tinta — a cor do texto vem do PAPEL, não do espaço
 
-> **Motivo:** o cabeçalho de grupo do Painel de Contas usava `--ink-mute` em 9,5px caixa
-> alta com tracking .16em sobre fundo efetivo `#1A1F26` — **2,9:1**. Reprova AA (4,5:1) e
-> reprova até o piso de texto grande (3:1). O feedback que abriu o caso foi de uso, não de
-> auditoria: *"essas letras nesse cinza claro fica muito claro"*.
+> **Este defeito chega por USO, não por auditoria** — o lint não acusa e o olho acusa.
+> → [o caso](docs/CASOS.md#o-cabeçalho-que-virou-textura--painel-de-contas)
 
-Três causas somaram: tom baixo, corpo minúsculo e tracking largo em caixa alta. Junto
-veio **inversão de hierarquia** — o e-mail da conta (13,5px/700/`--ink`) pesava mais que o
-nome da casa, então a varredura da lista lia endereços em vez de casas.
+**Três causas somam, e é o trio que se procura:** tom baixo, corpo minúsculo e tracking
+largo em caixa alta. Junto costuma vir **inversão de hierarquia** — filho mais pesado que o
+pai, e a varredura da lista passa a ler o dado errado.
 
 A regra que faltava: **`--ink-mute` nunca teve piso de tamanho.** Ele é legítimo em 12px
 sobre `--surface`; em 9,5px caixa alta sobre `--surface-2` deixa de ser texto e vira
 textura.
 
 **Contraste sempre medido sobre o FUNDO EFETIVO** — somando os overlays de
-`rgba(255,255,255,…)`, não sobre o token de superfície que está no CSS. Foi o overlay de
-`.025` que escondeu o problema.
+`rgba(255,255,255,…)`, não sobre o token de superfície que está no CSS. **É o overlay que
+esconde o problema de quem mede pelo CSS.**
 
 | Papel | Exemplo | Cor | Corpo mín. | Contraste mín. |
 |---|---|---|---|---|
