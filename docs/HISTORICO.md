@@ -1,5 +1,658 @@
 ﻿# HISTÓRICO — Sessões anteriores (Planilhador / FDC Capital)
 
+## Sessões 324 → 317 — arquivadas do STATUS na faxina de 2026-09-06
+
+> Blocos movidos INTACTOS do `STATUS.md` (Lote B da faxina de documentação). O STATUS passou
+> a guardar só o estado atual e as 3 últimas sessões, como o ritual `/encerrar` já mandava.
+
+## Sessão 324 — botão que não leva a lugar nenhum
+
+### Botão que não leva a lugar nenhum confunde mais que botão ausente
+
+O relato veio do uso: *"cadastro com telegram ainda não está funcionando… as pessoas
+apertam e nada acontece"*. O `Entrar com Telegram` do `/login` saiu da tela.
+
+- **Só o botão saiu.** O backend segue inteiro — `/auth/telegram/ir`,
+  `/auth/telegram/retorno`, `POST /auth/telegram`, `/auth/metodos` e os 27 testes
+  do fluxo. Não é rollback do login social, é tirar da vitrine o que não conclui.
+- `temSocial` deixou de olhar `m.telegram`: senão o separador **ou** acenderia
+  sozinho, sem botão nenhum embaixo (a mesma família do `display` vencendo o
+  `hidden`, anotada logo acima no CSS).
+- O gate de fail-safe (`test_botoes_sociais_nascem_escondidos_no_markup`) parou de
+  listar ids na mão — varre `class="btn-social" id="…"` por regex, para não
+  quebrar quando um botão sai nem passar batido quando um entra.
+- `test_botao_telegram_esta_fora_da_tela` trava a decisão e **diz como desfazê-la**
+  (devolver o `<a>`, voltar o `temSocial`, apagar o teste).
+
+Provado por mutação: devolvendo o `<a id="btn-telegram">` os **dois** gates
+falham. Suíte: **717 passed, 26 skipped**.
+
+### Causa raiz não investigada — de propósito
+
+Por que o clique não leva a lugar nenhum continua **aberto**. O suspeito de
+sempre é o `/setdomain` do BotFather (o `oauth.telegram.org` recusa domínio não
+registrado e a página não sai do lugar), mas **não foi medido nesta sessão** — o
+pedido era tirar o botão, e diagnosticar mexeria noutro escopo.
+
+---
+
+## Sessão 323 — filtrar um dia zerava o Custo de Contas
+
+### "Filtrei um dia e o custo de contas zerou — mas eu ainda uso essas contas"
+
+Sugestão do tester **Jaao26**, em vídeo. Com o período em **Tudo**, o KPI dizia
+`Custo de Contas −R$ 3.100,00`; filtrando **05/09 → 05/09**, virava **R$ 0**, com
+o parque inteiro em uso. Nas palavras dele: *"ele acaba contabilizando esse custo
+de contas só no dia que você cadastrou essa conta, então não no todo período (…)
+ele mostra que o meu custo de conta é zero, mas ele não necessariamente é zero
+porque eu ainda estou usando essas contas."*
+
+> **Método:** o vídeo tem áudio, e a tela sozinha apontava para o alvo ERRADO. Os
+> frames mostram o custo de tipster cobrando o mês inteiro ao lado do zero, e a
+> primeira leitura foi que a queixa era esse contraste. Era o oposto: ele queria
+> que o custo de CONTA não zerasse. `imageio-ffmpeg` + `faster-whisper` transcrevem
+> offline nesta máquina — ver [[video-audio-transcricao-local]].
+
+### A régua velha lançava o custo em UM dia
+
+`calcCostFiltered` cobrava a conta quando a **primeira aposta liquidada** dela
+caía no intervalo `[menor, maior]` data das **linhas filtradas**. Três defeitos
+saíam de um desenho só:
+
+- filtrar qualquer dia que não fosse o da estreia dava **R$ 0**;
+- recorte **sem aposta nenhuma** zerava o custo, mesmo com o período na tela;
+- conta **comprada e ainda não usada** não existia nesse mapa — entrava nos
+  R$ 3.100 da aba Custos e **nunca** no KPI. Os dois números discordavam por
+  construção, e o tester elogiou o comportamento da aba sem saber disso.
+
+### A régua nova: o custo existe enquanto a conta existe
+
+Decisão do Feca, escolhida contra uma alternativa de rateio que ele recusou —
+*"o custo da conta é único, ele é pago na compra"*:
+
+```
+ini = menor(adquirida_em, 1ª aposta)
+fim = maior(última aposta, arquivada_em)   — e HOJE p/ conta ativa ainda sem aposta
+```
+
+Todo período que **cruza** `[ini, fim]` cobra o custo **cheio** daquela conta.
+Comprou dia 01 e usou até o 22: qualquer recorte dentro disso cobra; o dia 28 não
+cobra; o mês inteiro cobra uma vez. **Não há constante arbitrária** — o fim vem do
+uso, que é dado que já existia.
+
+> ⚠️ **A régua NÃO é aditiva, e isso foi aceito com o preço na mesa.** Somar os
+> dias de setembro dá muito mais que o custo de setembro, e o P/L Líquido de um dia
+> passa a carregar o custo cheio das contas vivas. O Feca confirmou depois de ver a
+> conta feita (`3.884,83 − ~3.100 − 577,32`). É o preço de "o custo está lá enquanto
+> a conta está viva" — não dá para ter as duas coisas.
+
+### Duas fontes novas, e um escopo que mudou de natureza
+
+`parceiros.adquirida_em` e `parceiros.arquivada_em` (`DATE`). O backfill de
+`adquirida_em` é a menor entre `criado_em` e a 1ª aposta — em base importada o
+`criado_em` é a data do **import**, bem posterior às apostas que vieram junto. O
+`bilhetes.data` guarda **DD/MM/YYYY e ISO na mesma coluna**, então o backfill lê as
+duas formas com `to_date` (tolerante, nunca levanta) e roda dentro de um `DO` com
+`EXCEPTION`: erro no `SCHEMA_SQL` faz rollback do schema **inteiro**, e este
+backfill é conveniência — o init não é.
+
+O escopo saiu das linhas e foi para o **filtro**: **Casa** e **Operador** descrevem a
+conta e recortam o custo; **Esporte** e **Tipster** descrevem a aposta e **não**
+recortam mais — a conta Bet365 custou R$ 900 quer se olhe tênis ou futebol.
+
+Arquivar carimba `arquivada_em` (`COALESCE`, para arquivar duas vezes não empurrar o
+fim); reativar zera o carimbo, senão a conta voltaria viva com o custo sumido dos
+dias em que já está em uso. A data de compra ficou **editável no modal** da conta
+(só no modo edição, SharpenCal, `POST /parceiros/{id}/editar`) — o backfill é chute
+e sem esse campo não haveria como corrigi-lo.
+
+### Medido na tela real (puppeteer + servidor demo)
+
+| recorte | antes | depois |
+|---|---|---|
+| Tudo | −R$ 29.400 | **−R$ 29.400** · 102 contas — bate com a aba Custos |
+| 1 dia (10/06) | R$ 0 | **−R$ 29.400** · 102 contas |
+| 1 dia + Esporte=Tênis | recortava | **−R$ 29.400** (esporte não mexe) |
+| 1 dia + Casa=Bet365 | — | **−R$ 17.700** · 43 contas |
+| Jan/2027 (sem conta viva) | R$ 0 | **R$ 0** · "nenhuma conta no período" |
+
+Gates: `tests/js/custo_janela_vida.mjs` recorta e executa o `calcCostFiltered`, o
+`calcCasaCost` e o `_buildContaVida` reais (mais o `_selRange` do `filters.js`) —
+**9 mutações aplicadas, 9 detectadas**; `tests/test_custo_janela_vida.py` guarda a
+lista e os gates de leitura; `pytest tests/` **716 passed**; `check-tokens` verde.
+
+### Anotado, não corrigido
+
+`.modal-field label` é `--ink-mute` 10px caixa alta com tracking `.16em` — a Escada
+de Tinta manda **`--ink-soft`** para label. É violação **preexistente da classe
+compartilhada**, herdada por todos os modais. Dar `--ink-soft` só ao campo novo
+criaria dois estilos para o mesmo papel (o que a regra 8 do CLAUDE.md proíbe), então
+o campo reusa a classe como está. A correção é de uma linha e vale para todos os
+modais — decisão do Feca. Ver [[ui_reference_vs_escada_tinta_label]].
+
+### Próximo passo (aprovado em conceito, texto NÃO aprovado)
+
+Explicar a régua NA TELA. O Feca pediu ("vamos explicar melhor como o custo se aplica
+ao filtro") e a redação ficou esperando o ok dele. Três peças, todas com componente
+que já existe nesta tela — nenhum CSS novo, nenhum formatador novo:
+
+1. um **ⓘ** no card Custo de Contas (`_mkTipAnchor`, o mesmo do Cenário Atual):
+   fórmula `custo × contas vivas no período`; texto "Custo de aquisição de cada conta
+   que EXISTIA no período — da compra até o arquivamento (ou a última aposta). Não é
+   rateado: conta que viveu um dia do recorte custa inteiro."; selo "não soma entre
+   períodos";
+2. uma **`.nota-escopo`** sob o Andar 1, só com período filtrado: "Custo de Contas e de
+   Tipsters não são proporcionais ao período — mostram o que existia nele, inteiro. Só
+   o P/L acompanha o recorte." Com "Tudo" não aparece;
+3. legenda `N contas no período` → `N contas **vivas** no período`.
+
+A regra em si já está no canônico (`CLAUDE.md`, seção "Custo de aquisição tem JANELA DE
+VIDA"), escrita no encerramento — não estava lá quando a mudança subiu.
+
+### Anotado, não aberto
+
+O **Custo de Tipsters** segue com a régua antiga: cobra o mês inteiro e ignora todo
+filtro, inclusive o de tipster. Os dois cards ficam lado a lado medindo com réguas
+diferentes. Não foi tocado nesta sessão, de propósito.
+
+### Pendência que não é desta sessão
+
+`app/static/landing.html` segue modificado no working tree desde **26/08**, sem
+commit, e ficou FORA deste commit — como nas sessões 310, 312, 313, 314, 319 e 322.
+
+---
+
+## Sessão 322 — o filtro dizia que estava ligado, e a tabela não obedecia
+
+### O filtro dizia que estava ligado, e a tabela não obedecia
+
+O Feca selecionou **Tipster: Fatuch** na Base Completa e mandou o print: o chip
+`TIPSTER Fatuch` aparecendo em Filtros ativos, o contador em "336 de 336" e a
+tabela listando MarcoF1, LBB, F1DP e Fatuch juntos. Nenhum erro, nenhum aviso —
+o filtro simplesmente não filtrava.
+
+### A causa é de FORMA, não de regra
+
+`filtrarPagina` (`dash/assets/js/filters.js`) guarda o recorte num `_filterCache`
+indexado por página. As entradas desse cache — o `gfs` do período e os Sets do
+`MSS` — mudam **por fora** dele. Isso nunca apareceu porque o único caminho de
+volta era o `renderPage`, que zera o cache na primeira linha: todo multiselect
+caía no `_renderPageDebounced`.
+
+A s317 deu à Base Completa uma barra de filtros própria, cujos multiselects
+repintam **só aquela tela** (o `cb`, para não re-renderizar o dash inteiro a cada
+clique). A partir daí `applyMS → renderApostas` passou a ler o recorte anterior
+à seleção. O período seguia funcionando (ele passa pelo `renderPage`), e é por
+isso que a tela parecia meio certa.
+
+> **O contorno num chamador é o que esconde o defeito no outro.** O
+> `apostasTirarMS` — o ✕ do chip — já desviava para `renderPage('apostas')`, com
+> um comentário explicando o cache. Ele funcionava. Quem mentia era o caminho
+> **sem** contorno: o botão OK do dropdown. Fechar o buraco em um dos dois
+> chamadores é a mesma família de "blindar metade dos campos é pior que blindar
+> todos ou nenhum".
+
+### A correção mora no MUTADOR do estado
+
+Uma linha: `msToggle` zera o `_filterCache` **na entrada**, antes do `return` do
+ramo `__all__` (invalidar depois dele deixaria o "Limpar" sem efeito). Quem
+escrever a próxima tela com `cb` próprio não precisa saber que existe cache. O
+contorno do `apostasTirarMS` saiu junto — dois caminhos de repintura viraram um.
+
+### Medido na tela real, com e sem o fix
+
+Contra o `servidor_demo.py` com puppeteer, clicando no dropdown como um usuário
+(botão → opção → OK):
+
+```
+com o fix   ANTES 24.000 linhas / 24 tipsters → DEPOIS 238 linhas / 1 tipster
+sem o fix   ANTES 24.000 linhas / 24 tipsters → DEPOIS 24.000 linhas / 24 tipsters
+```
+
+A segunda linha é o print do Feca reproduzido.
+
+**Gates:** `tests/js/filtro_multiselect_cache.mjs` recorta e executa o
+`filtrarPagina`, o `MSS` e o `msToggle` **reais** — **3 mutações, 3 detectadas**
+(invalidação removida, invalidação depois do `return` do `__all__`, cache
+removido de vez). `pytest tests/` **702 passed, 23 skipped**; `check-tokens`
+verde; `node --check` nos dois arquivos. `?v=` bumpado (`filters.js?v=11`,
+`apostas.js?v=23`). Backup em `Backups/s322-cache-filtro-base-completa/`.
+
+> **Nota de leitura:** o contador "336 de 336" **não** era sintoma. Ele é
+> `apostasFiltered de baseRows`, e os dois lados saem do mesmo `filtrarPagina` —
+> filtro de página ligado dá "X de X" mesmo funcionando. O sintoma era a coluna
+> Tipster.
+
+### Pendência que não é desta sessão
+
+`app/static/landing.html` segue modificado no working tree desde **26/08**, sem
+commit, e ficou FORA deste commit — como nas sessões 310, 312, 313, 314 e 319.
+
+---
+
+## Sessão 319 — o #10 do Só Chutes estava planilhado, com a data de ontem
+
+### O #10 do Só Chutes estava planilhado — com a data de ontem
+
+O Feca relatou que o bilhete #10 do Só Chutes de hoje não foi planilhado.
+Não é isso. A linha existe:
+
+```
+#10  dJZmL-D1  id=219606  data=03/09/2026  Bet365  stake=1  odd=3,612  W  resolvida
+     #10 Mikael de Sousa [CRB v América-MG] // Victor Osimhen [Istanbul Basaksehir v Galatasaray SK]
+```
+
+O que está errado é a coluna Data: **03/09/2026**, onde os irmãos do mesmo lote
+estão em **04/09/2026**.
+
+Os quatro bilhetes #10 a #13 são três duplas e uma tripla das mesmas três
+seleções, postados em 03/09 às 20:04–20:06 BRT para jogos de 04/09. A legenda
+não trazia linha de data, então todos nasceram com a data da MENSAGEM. É o
+comportamento normal do `datas.js`, não um defeito.
+
+### O que o log mostrou, e o banco não mostrava
+
+A correção foi feita em três dos quatro:
+
+```
+[data:sochutes] bilhete #13: 03/09/2026 → 04/09/2026
+[data:sochutes] bilhete #11: 03/09/2026 → 04/09/2026
+[data:sochutes] bilhete #12: 03/09/2026 → 04/09/2026
+```
+
+O `/ajustar #10` nunca rodou. Quem olha o dia 04/09 vê #7, #8, #9, #11, #12 e
+#13, e um buraco no lugar do #10. Da cadeira de quem olha, "sumiu da tela" e
+"não foi planilhado" são a mesma coisa.
+
+O banco sozinho mostra a data divergente, mas não diz que houve correção manual
+parcial. Quem fecha o caso é o log do serviço.
+
+### O lote de hoje bate
+
+#14 a #19 (jogos de 05/09): o log diz `4, 4, 4, 4, 4, 3 novas` e o banco tem as
+mesmas 23 linhas. Zero recusa.
+
+### Método
+
+Sessão de diagnóstico. Nenhum arquivo de código tocado. A conferência foi banco
+(`bilhetes` do dono `SoChutes`) × log do serviço (`railway logs`).
+
+### Próximo passo
+
+1. Rodar no apoio do Só Chutes: **`/ajustar #10 04/09`**. Ele reenvia ao Sharpen
+   e depois faz o `PATCH` — necessário porque a linha já está `resolvida` e o
+   UPSERT sozinho não mexe mais em `data`. Mesmo comando que consertou #11, #12
+   e #13.
+2. Conferir depois: `data` do id 219606 tem de virar `04/09/2026`.
+
+### Anotado, não decidido
+
+Nenhuma regra nova foi decidida nesta sessão, então nada foi escrito em
+`CLAUDE.md` nem nos MASTER.
+
+Fica a observação para quando houver decisão: bilhete que nasce com a data da
+mensagem nasce assim o **lote inteiro**, e corrigir um a um deixa buraco. Hoje
+nada confere se os irmãos de um mesmo lote ficaram com datas divergentes.
+
+### Pendência que não é desta sessão
+
+`app/static/landing.html` está modificado no working tree desde **26/08** (mtime),
+sem commit, e o diff cita a s296. Não foi tocado aqui e ficou FORA do commit,
+como nas sessões 310, 312, 313 e 314.
+
+---
+
+## Sessão 318 — o zero que não era ausência
+
+### Bilhete de mesmo jogo: a casa precifica só o CONJUNTO
+
+O Feca mandou o print do Só Chutes #12 (04/09). Dupla de mesmo jogo na bet365
+(Osimhen + Shomurodov, Istanbul Basaksehir x Galatasaray SK). O cupom mostra
+`5.50` no topo e **nenhuma odd ao lado das seleções**. O bot montava a dupla como
+produto das pernas: `0 × 0 = 0`.
+
+**Zero passou por tudo.** Post do canal "@ 0.00", planilha com odd 0 e, com as
+duas pernas ✅, o P/L de W (`stake × (odd − 1)`) deu **−1u num bilhete ganho**. A
+linha tinha stake, tinha resultado, tinha P/L: nenhuma conferência de forma tinha
+como reprovar. Quem viu foi o Feca, olhando o post.
+
+Feito no `sharpen-bot` (`8f9f697`): a ausência de odd viaja como `null` (0 se
+disfarça de conta feita); a combinação que cobre o **cupom inteiro** recebe a odd
+do conjunto (valia só para `tipo === 'tripla'`, e a dupla de mesmo jogo ficava de
+fora justamente onde a odd do print é a única que existe); combinação **parcial**
+de cupom sem preço por perna fica sem odd e vira aviso no apoio; o post não
+imprime `@ 0` nem P/L de W sem odd; o TSV manda a coluna odd **vazia**; o prompt
+da visão ensina o formato SGM. Cinco de seis mutações pegas — a sexta é inócua
+(`0` e `null` são falsy nos dois consumidores) e está registrada no teste.
+
+Fora do alcance do gate: o prompt da visão. Só print de verdade prova que o
+modelo devolve `null` no lugar de `0`.
+
+### O "não tenho o id no Sharpen" era a linha nunca ter existido
+
+O `/atualizaodd #12 5,50` corrigiu o canal, e o bot respondeu que não tinha o id
+da aposta. A causa não era o id perdido.
+
+O `/salvar` valida na fronteira (`validar_linhas`), recusa `odd` que não seja
+número > 0, devolve as recusadas em `rejeitados` e responde **200**. O bot
+ignorava o campo: marcou `planilhado = true`, publicou no canal e seguiu. **A
+linha do #12 nunca entrou na planilha**, e a única pista apareceu um dia depois.
+
+Feito (`cf3f620`): recusa **total** vira erro (o apoio avisa e o registro diz que
+não planilhou); recusa **parcial** vira aviso persistente por linha; e o mapa
+`código → id` se remonta pelas linhas **aceitas** (`rejeitados[].linha` é a
+posição no TSV). Antes, uma recusa fazia as apostas BOAS perderem o id junto, e é
+o id que o `PATCH` usa para corrigir linha já resolvida. Quatro de quatro
+mutações pegas. A regra foi promovida ao `CLAUDE.md` ("Zero não é ausência").
+
+### Estado do bilhete #12
+
+Planilha **certa**, medido no Postgres: id `242225`, código `dJZrL-D1`, stake 1,
+odd `5,5`, `W`, P/L **+4,50u**. Uma linha só, sem duplicata. Foi o reenvio do
+`/atualizaodd` que a criou — antes dele não havia linha nenhuma.
+
+**Falta um comando**, depois que o Railway terminar de subir: `/repostar #12` no
+apoio. O post do VIP foi reeditado com o código antigo, então as duas linhas de
+perna ainda mostram `@ 0`. O `/repostar` só redesenha o texto do post.
+
+### Anotado, não aberto
+
+- O aviso "corrigi no canal, mas não tenho o id no Sharpen — ajuste manual no
+  dashboard" foi verdade pela metade: o reenvio seguinte criou a linha, e o
+  ajuste manual não era preciso. Com o fix de hoje o caso não se repete, mas a
+  frase segue sugerindo trabalho que pode não existir.
+- Testers não avisados. A mudança é do lado do robô e não pede ação do tester.
+- `app/static/landing.html` está modificado no repo desde antes desta sessão.
+  Não é desta sessão e não foi commitado aqui.
+
+## Sessão 317 — filtro é UMA superfície, não duas
+
+### Correção: filtro é UMA superfície, não duas
+
+Primeira volta da s317 entregou os filtros novos numa **segunda caixa**, embaixo dos KPIs,
+com a barra da página continuando lá em cima. O Feca leu a tela: *"faltou bastante coisa
+né? Ex: filtro para Tipster, Casa e Esporte"* — e eles **existiam**, só estavam no outro
+cartão. Depois: *"na verdade alguns filtros ficaram lá no topo. Bem confuso"*.
+
+O diagnóstico: partido em dois cartões com um bloco de KPI no meio, o de cima sai do campo
+de visão de quem está mexendo no de baixo, e a tela passa a **parecer que não tem o filtro
+que tem**. Não era falta de filtro, era falta de superfície única.
+
+Corrigido: a Base Completa monta **uma barra só** (`buildFiltrosApostas`, em
+`charts/apostas.js`) e **não chama mais `buildFilters`**. Três zonas no mesmo cartão, com
+uma divisória entre as duas primeiras:
+
+1. **carteira** — período · esporte · casa · tipster · conta · operador;
+2. **aposta** — resultado (chips) · faixas de stake, odd e P/L;
+3. **texto** — busca em aposta/descrição, e o CSV à direita.
+   Abaixo, a faixa de filtros ativos com ✕ individual e `Limpar tudo`.
+
+**As peças são as MESMAS das outras 8 telas.** `buildFilters` foi quebrado em
+`_grupoPeriodo`/`_grupoEsporte`/`_grupoCasa`/`_grupoTipster`/`_grupoOperador`
+(`filters.js`) e as duas barras compõem a partir delas — copiar o markup criaria dois
+períodos que divergem no primeiro ajuste. Medido depois do refactor: as 8 telas com
+exatamente **1** barra cada, grupos corretos, `abertas` seguindo sem período, zero
+`pageerror`.
+
+### O que o /nova-ui não pegou — e por quê
+
+O checklist rodou e fez o trabalho dele: `.money`/`fmtPL`/`moneyStake`, zero cor literal,
+Escada de Tinta nos três critérios. Mesmo assim a tela saiu *"fora do padrão"* aos olhos de
+quem usa. **O gate cobre o átomo (número, cor, tom, tamanho) e não cobre a composição** —
+quantos cartões, onde mora cada controle, se a tela tem uma ou duas superfícies para a
+mesma função. Um componente novo pode passar item a item e ainda assim brigar com a tela.
+
+O sintoma barato de reconhecer: **dois estilos para o mesmo papel na mesma tela.** A barra
+nova nasceu com `.apf-lbl` (`--ink-soft` 9,5px, correto pela Escada) ao lado do
+`.filter-label` da barra antiga (`--ink-mute` 9px, **errado** pela Escada). Duas metades,
+uma certa e uma errada, e o olho lê as duas como "inconsistente" sem saber qual é qual.
+
+Resolvido pela raiz, não por cima: `.apf-lbl` e `.apf-ativos__k` foram **excluídos** e a
+barra reusa `.filter-label`, que subiu para o papel certo (`--ink-soft`, 9,5px). Junto
+foram os outros dois desvios que a s317 tinha só registrado: `.btbl-th` (9px `--ink-mute`
+→ 9,5px `--ink-soft`) e `.btbl-counter` (9px → 10px, piso do metadado). Hoje há **um**
+estilo de label no dashboard inteiro.
+
+### Nota de método
+
+O `_dataBuiltMs` é setado em `app.js:1296` e o `buildHTML()` só roda em `1327`: script de
+captura que espera o flag e renderiza em seguida pinta um DOM que é **substituído logo
+depois**, e a tela sai em branco de forma intermitente. Foi o que aconteceu duas vezes na
+conferência headless — artefato do script, não do app (o `capturar.mjs` já documenta a
+mesma armadilha e resolve com "bounce"). Esperar o `#page-*` existir, e não o flag.
+
+### Sessão 317 (primeira volta) — o desfecho corta a TABELA, não a régua
+
+Filtro de resultado na Base Completa (pedido do tester João Henrique: *"ajuda bastante para
+conferir e corrigir valores"*). A decisão que ficou, do Feca: os filtros de texto já mexiam
+nos KPIs e está certo — recortar por casa é recortar carteira. O resultado é outra natureza:
+filtrar `W` daria **Win Rate 100%**. Então os KPIs leem `apostasKpiRows` (o recorte da tela
+sem o corte por desfecho), a tabela lê `apostasFiltered`, e **a tela diz isso numa nota**
+enquanto o filtro está ligado — sem ela, ler P/L positivo filtrando `L` parece defeito.
+
+- **Chips de resultado** `W · HW · L · HL · V · Aberta`, multi-seleção, **com a contagem do
+  recorte** (é ela que responde "quantas red tenho aqui" antes do clique). Rótulo é o código
+  canônico; o nome humano fica no `title`.
+- **Faixas** de stake, odd e P/L. Passam pelo `parseNum`, então aceitam `1.250,50` e o minus
+  U+2212 de um copiar/colar da própria tela. **Aposta aberta sai de qualquer faixa de P/L**:
+  o zero que o feed traz é ausência, e a colocaria dentro de toda faixa que cruze o zero.
+- **Conta virou multiselect**; as caixas de texto que duplicavam esporte/tipster/casa por
+  substring (`Vinicius` pegava `Vinicius2`) saíram.
+- **10 colunas ordenáveis** (eram 4). Resultado em ordem **semântica** — `W · HW · V · HL ·
+  L · Aberta` —, nunca a alfabética (`HL, HW, L, V, W`), que não diz nada para quem confere.
+- `moneyStake` entrou no dash: §5.1 previa a máscara de 2 casas para valor unitário e o
+  dashboard não tinha nenhuma.
+
+Gates: `tests/js/filtros_base_completa.mjs` **recorta e executa** o código real (parseNum,
+os cinco matches, o comparador e o bloco de repartição de dentro do `renderApostas`) —
+**17/17 mutações detectadas**; `tests/test_filtros_base_completa.py` trava as decisões
+estruturais, inclusive a barra única — **10/10**. Duas mutações escaparam na primeira rodada
+e as duas eram cegueira do teste, não mutação inócua: faltava ordem natural de dígito
+(`conta2` × `conta10`) e P/L **negativo** — sem negativo, o `localeCompare` com
+`numeric:true` acertava a ordem sozinho e o ramo numérico não era load-bearing. Uma terceira
+escapou porque no caso combinado a faixa sozinha já dava o mesmo número (dado que não
+exerce a regra).
+
+### Ainda aberto da sessão 316
+
+**7º tipster público: `Soh Props - Vip`** (`/tipsters/sohpropsvips`). Marca, slug e username
+são três strings diferentes, e nenhuma é o nome do arquivo (`SOH PROPS`). Base de 7.276
+apostas em unidades, 05/01 a 03/09, `+474,35u` e ROI `+8,21%`. É a primeira carteira
+**monomodal** do registro: 100 % prop de jogador de futebol.
+
+O import veio em três CSV disjuntos (`scripts/import_sohprops_csv.py`). Prefixo `SO`, não `SP`:
+`SP` parece o óbvio para "Soh Props" e está ocupado pelos códigos NATIVOS da Superbet. Só
+apareceu porque a primeira medição usou o regex da série `XX<aaaamm>-n` e ficou cega para eles.
+
+**A barra `/` tem dois sentidos no mesmo título.** Em `1+ Chutes p/ fora` ela abrevia "para";
+em `Marcar / 1+ Chutes no gol` separa bet builder. Só ` / ` com espaço dos dois lados é
+separador. Havia mais dois (` e `, ` - `), cada um com contraexemplo na própria base
+(`Brighton e Hove Albion`; `BN -`; `- CASHOUT`), resolvidos por posição e por mercado.
+
+**O rótulo perdeu para o dinheiro:** `Perdida` com `Lucro=0,00` quer dizer que a stake voltou.
+São void, não perda. Depois disso o P/L derivado bate com a coluna `Lucro` em 7.276 de 7.276.
+
+**O bot (`sharpen-bot`), 6º tenant.** A LEGENDA declara quantas apostas há: uma linha de stake
+por aposta, na ordem das seleções do print. A marcação mora na linha da stake e chega por
+EDIÇÃO. A combinada é resolvida pelas PERNAS, não pela legenda, e a ARIDADE é o portão dela.
+
+Antes do perfil, dois pré-requisitos: **48 casas por HOST** no `casas.js` (84,8 % para 99,4 %
+dos links dele; nome não entra porque metade é palavra comum de legenda) e a **data do evento
+com a hora colada**, que o núcleo não lia.
+
+**A página `/bot`** (`app/static/bot.html`) é o manual de operação: dia a dia, os 13 comandos e
+os avisos. O passo a passo de pôr um tipster no ar saiu dela e foi para
+`docs/GUIA_BOT_TIPSTER.md`, que é interno.
+
+**O que caiu em produção, e por quê:**
+
+- O deploy do tenant novo entrou em **crash-loop e derrubou os outros cinco**. O `config.js`
+  tinha o bloco e o perfil existia, mas faltava a linha no registro `PERFIS` do `index.js`.
+  O guard de boot é fail-closed. Nada acusava: `npm test` e `node --check` passavam. Hoje há
+  teste, com o bloco recortado do `index.js` real.
+- O id do apoio **envelheceu** quando o grupo virou supergrupo. O roteamento compara
+  `msg.chat.id` com o `apoioId`, então o tenant ficava **surdo**: sem erro, sem resposta.
+- O JSON da visão veio malformado e **matou o bilhete**. Hoje repara quebra de linha crua,
+  pergunta de novo, e o erro diz se foi truncada (`stop_reason`).
+- O nome do jogador **sumia** do post e da planilha. O `rotuloPerna` descartava o mercado
+  quando a seleção não era número, e no layout de prop da bet365 a seleção é o jogador.
+
+**Pendente:**
+
+- `/repostar` e `/redescrever` no apoio do Soh Props, para o #64 ao #88 pegarem o formato novo
+  e a descrição corrigida. São comandos do tipster; não dá para disparar daqui.
+- `dia 13 19h` e `domingo 17h` ainda não viram data (cerca de 60 mensagens no histórico dele).
+  `amanhã` e `hoje` já viram.
+- 22 linhas em `Outros` e 10 em `Player Props` sem mercado identificado, mais os 5 `CA`
+  ambíguos. Dependem do tipster dizer o que é.
+- **Autosserviço.** Hoje pôr um tipster no ar exige env var no Railway e deploy, ou seja passa
+  por nós. O caminho proposto está no fim do `docs/GUIA_BOT_TIPSTER.md`: registro do tenant em
+  tabela com tela no `/admin`, e um `/vincular` no apoio para o id se resolver sozinho (o bot
+  já sabe o próprio `chat.id`, e ele chega já migrado).
+
+
+### Ainda aberto da sessão 314
+
+A Caixa Inteligente está no ar. Cada conta pode dizer quanto tinha numa data; a partir daí o
+Sharpen projeta o saldo sozinho (lançamentos + P/L das apostas) e confronta com o
+que a casa mostra. Divergência acende em âmbar na conta, na lista do Painel e no
+KPI "A conferir".
+
+Feito: `caixa_mov` (+ coluna `caixa` na lixeira), `_caixa_projetar` (puro),
+`caixa_conta`/`caixa_lancar`/`caixa_excluir_mov`/`caixa_visao`, as 4 rotas
+`/caixa/*`, o box na Extração com modal e extrato, a banca no Painel de Contas,
+`fmtSaldo` documentado no `UI_REFERENCE §5.1`, `tests/test_caixa.py` (27),
+`tests/test_caixa_lancar.py` (14),
+`tests/js/caixa_front.mjs` e `scripts/mutar_caixa.py` (9 de 9).
+
+**Anotado, não aberto:** (1) o corte informado numa data PASSADA não consegue
+reconstruir quais apostas estavam abertas naquele dia — só as que ainda estão
+abertas hoje entram no `abertas_corte`, e o texto do modal diz isso; informar o
+saldo de HOJE é sempre exato; (2) o extrato não tem coluna de "saldo após" de
+propósito: entre dois lançamentos o saldo muda a cada aposta que liquida, e a
+coluna mentiria; (3) conta que muda de dono não existe hoje, mas se existir a
+`caixa_mov` precisa do mesmo cuidado que `casa`/`parceiro`.
+
+### Ainda aberto da sessão 313
+
+O card "Cenário Atual" parou de mentir para quem está no vermelho. `Topo
+Histórico` nunca mais fica abaixo de zero e `Drawdown Atual` deixou de dar 0 por
+construção em toda carteira que mergulhou e está se recuperando. As duas funções
+que descrevem a curva partem do MESMO ponto (`peak = 0`).
+
+**Decisão do Feca, anotada e não aberta:** dois desvios do padrão monetário
+anteriores àquela sessão ficaram no lugar — o `Drawdown Atual` em R$ 0,00 herda o
+vermelho do `data-state="real"` e o `Recovery Factor` negativo imprime hífen ASCII
+em vez do minus U+2212.
+
+### Ainda aberto da sessão 312
+
+O modal de conta passou a ser um só para criar e editar. O `prompt()` nativo do
+navegador saiu do caminho: `contasEditar` abre o `novaconta-modal` em modo
+edição, pré-preenchido, com o nome já partido em Parceiro + Fornecedor — o
+operador nunca mais vê nem digita os colchetes do modelo canônico.
+
+Feito: `repository.editar_parceiro` (transação única: `parceiros` + `casa`/
+`parceiro` dos bilhetes + assinatura recalculada de cada um), `POST
+/parceiros/{id}/editar`, `renomear_parceiro` reduzido a wrapper, o modo edição
+no front com aviso de mover, e `tests/test_renomear_parceiro_assinatura.py`
+crescido de 4 para 10 casos com as 3 mutações provadas.
+
+**Ficou anotado, não aberto:** contas movidas de casa não têm desfazer — a
+operação é reversível na mão (mover de volta), mas não há lixeira como na
+exclusão. Só vale construir uma se o Feca vir alguém errando na prática.
+
+### Ainda aberto da sessão 311
+
+**Próximo passo, e é decisão do Feca:** as duas linhas do **WilliamOliveira** que
+a medição achou (BETesporte `195072327`, stake 20,00 lida como 18,00; Betano
+`20951200252`, stake 164,09 lida como 60,00). Estão erradas no banco, são base de
+outro dono, e o script já as traz listadas e comentadas — ligar é tirar o
+comentário. O gate novo impede que aconteça de novo, mas não conserta o passado.
+
+**Duas frentes menores que ficaram anotadas, não abertas:**
+
+- O aviso no rail não mostra a correção de stake (o `stake_fix` já viaja no `done`
+  do stream). Mudança de UI passa pelo `/nova-ui`.
+- A KTO manda `Stake: 1,00` no bloco (bilhete `13062628977`, corrigido à mão pelo
+  Jaao26 para 175). É defeito de **captura**, não de tradução — o gate copia o
+  bloco fielmente e reproduz o erro da casa.
+
+### Ainda aberto da sessão 309
+
+O perfil do Rogerin deixou de recusar print que não seja da Betano — e, junto,
+deixou de transformar N apostas simples num bilhete só. Commitado e pushado no
+`sharpen-bot` (`ed14a58`).
+
+O gatilho foi ao vivo, no dia 1 do tenant: ele mandou três prints da bet365 e o
+bot respondeu "⚠️ Não consegui ler o print" nas três, porque o prompt da visão
+abria nomeando a Betano e fechava com "print ilegível → erro". Atrás desse
+sintoma havia dois defeitos que **não** produziriam mensagem nenhuma: a casa do
+bilhete nunca vinha do print (ia para o Sharpen como Betano) e as três apostas
+simples do print virariam **uma múltipla de odd ~73** com a stake da primeira.
+
+**O que ainda não foi exercido ao vivo:** a visão lendo um print de bet365 de
+verdade. O `chamarVisao` está dublado nos testes, e o cabeçalho do bloco diz
+isso — o gate prova a montagem, não a leitura da imagem. **O próximo bilhete
+dele é a hora de conferir quatro coisas:** as três linhas 🎯 no canal com
+2u/1u/0.25u, as três linhas `RG…-S1/-S2/-S3` na planilha, a casa gravada como
+**Bet365** (não Betano) e a categoria **Chutes** (não Outros).
+
+**Aberto da sessão 311, e é decisão do Feca porque mexe em `extensor/`:** Betano
+(`Tipo: Dupla`) e Betfast (`Tipo: Sistema (3 seleções)`) não emitem o marcador
+canônico `Tipo: SISTEMA <rótulo> — <N> apostas de <k> seleção(ões)` nem a
+`Odd (estrutural do sistema)` já calculada. Bet365 e Novibet emitem os dois e
+acertaram 15 de 15; sem eles a IA deduz a regra da odd (média × produto) e errou
+3 vezes, e o `anexar_sistema_tsv` nunca preenche a coluna 12 nessas casas — a base
+não distingue um `3 x Duplas` de uma tripla. Fazer as duas emitirem o marcador tira
+a dedução do caminho. Exige `node extensor/harness/run.mjs` e caso novo no harness.
+
+**Pendências, em ordem de quem decide:**
+
+0. **`MASTER_RESULTADO §5.3/5.4` merece um adendo sobre MÚLTIPLA** — decisão do
+   Feca, herdada da s307. O MASTER descreve meia vitória/derrota como situação
+   de aposta **única**, e a fórmula que a planilha usa (`(stake/2) × odd +
+   stake/2`) assume que a metade devolvida devolve a **stake**. Numa dupla ela
+   ainda corre a outra perna, então `HW` ali pagaria a mais. O bot resolve por
+   `W` com `Odd = Retorno ÷ Stake`, que é o mecanismo do cashout (`§5.6`) — mas
+   isso hoje está escrito no `sharpen-bot/README.md` e no código, não no MASTER.
+   **Mudança em MASTER exige diff revisado e aprovação humana (invariante 1).**
+1. **Stake do post: ponto ou vírgula?** — decisão do Feca. O post de N apostas
+   mostra `0.25u` (ponto) na linha da aposta e `+2,82u` (vírgula) no total, na
+   mesma tela. O ponto é convenção **declarada** do `stakeFmt` (`"stake como no
+   mockup do canal"`) e vale nos **cinco** perfis; a vírgula do total vem do
+   `plFmt`. Unificar é uma linha, mas muda o post de todos os tipsters — por
+   isso não mexi.
+2. **Reclassificar as duplas da base do Rogerin** — decisão do Feca. 182 das 212
+   linhas da ERA 2 são duplas de 2 pernas (o ` / ` é separador de perna), mas
+   entraram como `ML` no esporte de uma das pernas. O certo seria `Múltipla`, e
+   `Múltiplos` onde as pernas são de esportes diferentes. Não dá para separar
+   pelo título — `A / B` também pode ser confronto real —, então precisa dos
+   prints ou da palavra dele. **O P/L não é afetado.**
+3. **Duas odds de `0,500`** na base (`Robinson 10+ pt`, `wendell carter jr 3+
+   3pt`) são impossíveis. As duas em apostas perdidas, então não mexem no P/L.
+   Só ele sabe o valor; corrige na grade.
+4. **Avisar o grupo de testers** da página pública nova — perguntei, sem resposta
+   ainda. Não é versão de SharpenUp; seria novidade do painel.
+5. **`/atualizastake` e `/atualizaodd` nunca rodaram em bilhete real** (s308). O
+   caminho está provado por fixture e por mutação; a ida ao Telegram e ao
+   Sharpen é justamente o que os testes declaram não cobrir. O PassaTips já foi
+   avisado no apoio dele (`message_id 2565`), então o primeiro uso pode vir a
+   qualquer momento.
+6. **O `#205` ficou no formato antigo** no canal. Do #206 em diante sai no novo.
+   Re-renderizar exigiria adaptar o `scripts/rerender_canal.js`, que é da era
+   mono-tenant, e rodar contra o volume do Railway. Não vale por um post.
+
+**Também não exercido:** meia asiática (`½✅`/`½❌`) em bilhete real. Ela é rara
+por natureza (4 linhas em 813 asiáticas no sistema inteiro, 0 nas 402 dele), e a
+regra vem do MASTER e da fórmula do `app/repository.py`, não de bilhete pago.
+
+---
+
+
+---
+
+
 ## Sessão 315 — separador em parser de valor TROCA o número
 
 **Uma lista de separadores é pior que inútil num parser de valor: ela não perde o
@@ -180,6 +833,46 @@ _Anterior: 2026-08-04 (sessão 245 — **"Apostas de badminton que não consegui
 _Anterior: 2026-08-04 (sessão 244 — **"Essas bets são muito mais antigas, e não de hoje": 139 dos 206 bilhetes de uma captura da Bet365 subiram sem o `confirmation` — sem código, datados de HOJE e com a descrição decapitada. Um defeito só, três sintomas, +R$ 3.721,45 de lucro fantasma.** Reportado pelo Feca com print da grade (conta `marloncezar01 [Richard]`): datas todas em 04/08 e descrições que eram só a seleção (`HNK Gorica`, `Basel`, `Under 5.5`), sem o confronto `[A v B]`. **Causa única, lida no código e confirmada no banco:** na Bet365 o `/sportshistoryapi/summary` traz só seleção crua, odd, stake e resultado; **código BR, kickoff (a data) e jogo/mercado/liga só existem no `/confirmation`** (`b3_inject.js §18`). Quando o detalhe não chegava, `formatTicketB3` (`content.js`) emitia o bilhete assim mesmo: `[Código: ]` vazio, **nenhuma linha "Data (encerramento)"** (ela só nasce das `legs`) e a seleção pelada. Sem data no bloco, o backend cai na **data de referência** (`main.py::_INSTRUCAO` / `data_referencia`), que é hoje; sem código, a assinatura vira conteúdo, **não dedupa** e entra como INSERT. **Medido no Postgres, não deduzido:** lote de 04/08 15:51 (um único segundo) = 206 bilhetes · **139 sem código** · os **MESMOS 139** com data de hoje · 136 sem confronto na descrição · **139/139 liquidados** (67 W · 65 L · 3 V · 2 HL · 2 HW), ou seja todos dentro do P/L. **113 casavam stake+odd+resultado** e **84 casavam também a seleção** com um bilhete que já existia na base **com** código (ex.: `Over 101.5 Pontos` R$300 @1,8 = id 78833 de 28/07, cod `ER2896244001F`) — duplicata com data errada. Impacto medido pela fórmula canônica `repository.calcular_pl`: **R$ 41.807,63 de turnover fantasma e +R$ 3.721,45 de P/L fantasma**, tudo empilhado no dia de hoje. **Escopo medido na base inteira:** só essa conta. Os outros 7 lotes Bet365 do dia (Taliacoelho, gleicecacia, denisesampa + 4 do Gabriel, 216 bilhetes) vieram com **zero** sem-código. **Fix (extensão v0.6.36):** `b3Emissivel(t)` exige `code` **E** `legs`; quem não passa é **retido** e contado em `b3Retidos`. Nada se perde — o bilhete retido volta inteiro na próxima rodada (`jaTentados` é por ciclo; a memória `b3Detalhes` só guarda quem tem código). **O aviso mudou de canal, e essa é a lição:** o robô **já detectava** isso e logava *"N bilhete(s) SEM código BR"* — **só no console**, e por isso passou em silêncio por 139 linhas. Agora vai para a **tela** (toast, deslocado 64px para não empilhar no toast do envio — `toastLocal` ganhou o parâmetro `alturaExtra`) e para o **popup** (`lastError`), e o autodiagnóstico de "0 bilhetes" passa a separar "não vi nada" de "vi N e todos vieram sem confirmação". **Harness: a bet365 era a ÚNICA casa de robô sem regressão travada** (pendência aberta desde a s202, com o parser já quebrado 3 vezes) — entrou `casos/bet365.mjs`, travando 5 coisas contra as fixtures reais: (1) `summary` sozinho **não** produz bilhete emissível; (2) o merge summary+confirmation entrega código BR, liga e as 3 pernas de bet builder; (3) o bloco **KYC** (`01;TY=DI`: nome, endereço, CPF) **não vaza** para o texto do bilhete; (4) odd fracionária `3/1` vira `4` com precisão completa; (5) o buraco conhecido da data (abaixo). `sandbox.mjs` ganhou `cfg.urlsExtra` (opcional, aditivo): na bet365 quem busca o detalhe é a **página**, por `location.hash`, que não existe fora do navegador — sem isso o harness só alcançaria o `summary`. **Guarda provada por REMOÇÃO, não por dedução:** quebrando `b3Emissivel` de propósito, o caso falha exatamente nos 2 bilhetes só-summary. **Gates:** `node --check` · harness **verde, 8 casos, 154 bilhetes** (era 7 casos) · `audit_sharpenup` sem FAIL · `check-tokens` verde. **Limpeza:** `scripts/limpar_bet365_sem_confirmation.py` (novo) — critério **exato, não heurístico** (na bet365 o código BR só vem do `confirmation`, que é a mesma resposta da data e do evento → dentro de um lote de robô, `codigo_bilhete` vazio ⇔ o detalhe não chegou); `--desde` obrigatório e aviso quando a janela cobre >1 dia, porque bilhete antigo capturado por **print** também não tem código e é legítimo; padrão é **relatório**, só `--aplicar` escreve; snapshot e DELETE são a **mesma operação** (`DELETE … RETURNING to_jsonb(b.*)`), em JSONB e não tabela-espelho. **As 64 `correcoes` ligadas aos 139 são PRESERVADAS de propósito** (viram órfãs): a tabela é trilha de auditoria **write-only** — nenhum código do app a lê (grep em `app/`, `scripts/`, `tools/`) e a base já convive com 967 órfãs; apagar auditoria para deixar a tabela limpa sumiria com a prova de que a edição aconteceu. **APLICADO na própria sessão** (o classificador do Claude Code barra escrita destrutiva em produção, então o Feca rodou via `!`, mesmo caminho da s238): **139 removidos**, snapshot em `Backups/s244-bet365-sem-confirmation/removidos-Feca-20260804T194239Z.json`. **Conferido por fora, não pela saída do script:** o snapshot tem 139 linhas de 22 colunas, todas sem código e todas do parceiro certo, somando exatos R$ 3.721,45 — o mesmo valor medido antes do DELETE; base 4447 → 4308, sem-código 3586 → 3447, `data = hoje` 168 → **29** (os legítimos, que têm código), lote do dia 206 → 67. Todos os deltas = 139. **Tropeço no caminho, com lição:** a 1ª execução do `--aplicar` **morreu de `UnicodeEncodeError`** ao imprimir `→` (U+2192) — o console do Windows abre em **cp1252** e não encoda o caractere. Passou nos testes desta sessão porque eu setava `PYTHONIOENCODING=utf-8`; a execução real, sem isso, quebrou. **Nada foi apagado nessa tentativa** (a exceção caiu antes da transação — comprovado: a contagem seguia 139), mas **num script destrutivo esse é o pior lugar para morrer**: o operador vê meia contagem e não sabe se algo saiu. Fix em duas camadas: `stdout`/`stderr` com `errors="replace"` (degrada o caractere, nunca aborta) e os 2 símbolos fora do cp1252 (`→`, `⚠️`) trocados por ASCII **na saída**. Deliberadamente **não** força utf-8 no console: isso faria os acentos virarem mojibake, o remédio virando doença. Verificado reproduzindo a condição de falha (`PYTHONIOENCODING=cp1252`): roda inteiro, exit 0. **Regra que fica: script destrutivo não pode depender da codificação do terminal — teste na condição do operador, não na sua.** **Achado NÃO corrigido, aguardando decisão do Feca (ver §5):** bet builder de **mesmo jogo** vem com `TP=00010101000000` no confirmation (sem kickoff) → `_dataFimB3` devolve vazio → o bloco sai **sem linha de data mesmo com o confirmation OK** → cai na data de referência. O bilhete tem `da` (confirmation) e `tp` (summary), ambos data de **colocação** e ambos sem uso — mas `CASA_BET365 §4` decide explicitamente *"colocação nunca"*, então usá-los é **mudança de regra** e precisa de aprovação humana. O caso de harness trava o estado atual: mexer nisso falha o gate e obriga a decisão consciente. **No fim da sessão o Feca reportou o sintoma por conta própria** ("apostas de dias anteriores aparecendo como de hoje", dizendo-se possivelmente enviesado pelo caso da Bet365) e a medição **confirmou o achado**: com controle dentro do mesmo lote, `data == dia da captura` dá **51,9% no bet builder de mesmo jogo** contra 13,8% nos simples e 22,5% nas múltiplas entre jogos; no lote de 18:53:31 foram **0/20 simples e 2/2 mesmo-jogo**. A 1ª medição (41,5% × 24,1%) foi **descartada** — o marcador `' // '` misturava as duas classes. Escala pequena: 6 bilhetes hoje, ~18 desde 01/07. **O Feca leu o resultado e decidiu não corrigir agora** — segue como pendência no §5, com o enquadramento da decisão. **Anterior: s243 em `docs/HISTORICO.md`.**)_
 
 _Anterior: 2026-08-04 (sessão 243 — **Campo de data editável vira híbrido em todo o sistema: botão de calendário visível + digitação DD/MM/AAAA.** Pedido do Feca: onde se edita data, o calendário tem que abrir para escolher o dia E continuar dando para digitar a data completa. Levantados os **5 pontos de data** do sistema. **Extração — modal de edição** (`#ed-data`, `index.html`): já era híbrido, mas o calendário só abria por duplo-clique não-descobrível (a dica vivia escondida num `title`); ganhou **botão de ícone dentro do campo** (`.ed-data-btn`) chamando o mesmo `showPicker()` — o duplo-clique continua valendo e o input ganhou placeholder `DD/MM/AAAA`. **Dashboard — editor de apostas** (`#ap-ed-data`, template no `app.js`): era o caso defasado, **só texto**; ganhou o mesmo padrão da Extração (wrap + botão + `input date` invisível) — `apEdAbrirCalendario()` no `apostas.js` **reusa** `_apIsoToBR` e ganha o inverso `_apBRToIso`; escolher no calendário devolve `DD/MM/AAAA` ao input de texto, que o fluxo do `salvarEdicaoApostas` já valida (o PATCH continua só levando o que mudou). **Os 3 campos nativos `type=date` conferidos e INTOCADOS** (`#data-ref` da Extração, filtros de período do dashboard em `filters.js`, `#tmData` da escada de unidade em `gestao.js`): o controle nativo do Chrome já cumpre os dois requisitos (segmentos digitáveis + ícone de calendário). Ícone de calendário em `--ink-mute` → hover `--ink-soft` = exceção "ícone não é texto" da Escada de Tinta, **comentada nos 2 CSS** para não virar precedente; zero formatador novo, zero cor literal, nenhum texto novo criado. **Gates (`/nova-ui`):** `check-tokens` verde · `node --check` em `app.js`/`apostas.js` · 3 blocos inline do `index.html` validados por `vm.Script` · varredura de Escada pelos três critérios nos trechos novos. Cache-bust: `components.css?v=20` · `apostas.js?v=13` · `app.js?v=32` (o `index.html` da Extração é inline, sem bump). Backup `Backups/data-calendario-hibrido/`. **Anterior: s242 em `docs/HISTORICO.md`.**)_
+
+---
+
+## Changelog — sessões 320 → 310 (cadeia `_Anterior_`, arquivada em 2026-09-06)
+
+> Os 12 parágrafos `_Anterior:` que saíram do cabeçalho do `STATUS.md` no mesmo Lote B.
+> Ficam aqui verbatim.
+>
+> Os de **s327** e **s325** não vieram para cá de propósito: eles resumem sessões cujo
+> **bloco completo continua no `STATUS.md`**, logo abaixo do cabeçalho. Arquivar o resumo de
+> um texto que segue vivo duas telas adiante é duplicar, não preservar — e eram 6,6 KB. Os
+> parágrafos de **s324** e **s321** ficaram no STATUS, porque são as duas sessões mais
+> recentes que deixaram de ter bloco próprio lá.
+
+_Anterior: 2026-09-05 (sessão 320 — **o cupom tem DOIS NÍVEIS, e agora isso é do núcleo do bot, não de um perfil.** Print do Soh Props (Betano, bookingcode `AAUKTQUQ`): dois blocos `Criar Aposta` de 2 pernas cada, com odd PRÓPRIA (12,50 e 7,40), e o rodapé `Dupla = 1 · 92,50` combinando os dois — três apostas, legenda `0.5u / 0.5u / 0.25u`. O bot respondeu **"⚠️ Li o print mas não consegui montar nenhuma aposta"**, e a causa foi provada por replay antes de tocar em código: a regra do bet builder manda `odd: null` por perna (certo — a casa não precifica perna), a montagem consome perna por perna e `if (!odd) return` dispara três vezes. **O pedido do Feca foi que isso valesse para TODOS os tipsters, não virar mais uma ferramenta exclusiva** — e a queixa tem número: o mesmo problema já tinha sido resolvido **três vezes separado** (`reidocriquete.reconciliar` na s272, nascida do bilhete KTO que também saiu com zero apostas; `rogerin` na s306, 22 pontos de `betBuilder`; `sohprops` na s316, 20 pontos, cópia do anterior), e as três compartilhavam o **mesmo ponto cego**: um bet builder por cupom. **`src/cupom.js`** passa a ser o lugar único: `REGRAS_CUPOM` (o parágrafo de prompt que os três reescreviam à mão, agora com `bloco`/`oddBloco`/`acumulador`), `normalizarCupom` (colapsa cada bloco numa seleção com a odd dele) e `encaixarAcumulador` (a regra do N+1 promovida do Rei do Criquete, mais o 4º portão que este print oferece de graça: 12,50 × 7,40 = 92,50 — divergiu, a odd do print manda e sai aviso). **O que NÃO foi unificado, de propósito:** `categoriaDaPerna`/`esporteDe` do `rogerin` e do `sohprops` parecem gêmeos e **não são** (um classifica Gols/Games/Pontos/Sets multi-esporte, o outro Faltas/Desarmes/Impedimentos de props de futebol) — unificar mudaria a classificação de um dos dois em silêncio, trocando a ferramenta exclusiva por um erro compartilhado. Genérico é a leitura do CUPOM (propriedade da casa); a gramática da LEGENDA continua de cada tipster. **Duas armadilhas achadas ao ligar, as duas de perda calada:** o colapso só vale de **dois** blocos para cima — colapsar um bloco só mudaria a descrição planilhada e apagaria os botões de perna do painel (`aplicarMarcas` indexa SELEÇÕES); e o `pernasDe` do `rogerin` usa `.pernas` para reconhecer a forma antiga de registro dele (≤ s306), então `ehBloco` exige o **número** do bloco — sem isso um cupom de dois blocos seria lido como registro velho e o **segundo bloco sumiria sem erro nenhum**. **GATES:** `npm test` inteiro verde (era 1.024 asserts; nada mudou onde não havia bloco múltiplo) · gate novo exercendo a montagem nos **3 perfis** (as três chegam em `0,5u@12,50 · 0,5u@7,40 · 0,25u@92,50`, com o acumulador ligado aos dois blocos por `idxs`) · **mutação 8 de 8** (colapso desligado · `ehBloco` sem o número do bloco · portão do N+1 removido · colapso de bloco único · categoria do bloco deixando de ser Múltipla · ramo do acumulador removido no `sohprops` · `multiBloco` removido do `rogerin` · `pernasDe` desembrulhando o bloco). O `zora` ficou **fora e por medição**: a visão dele não lê cupom nenhum — só acha a odd de uma seleção já declarada na legenda —, então não há onde encaixar as regras; o `passatips` é sem visão. **O que o gate NÃO cobre, e está escrito nele:** que o MODELO leia `bloco`/`oddBloco`/`acumulador` de um print de verdade — a visão é dublada, e isso só se mede mandando o print. ⚠️ O bilhete de hoje continua **não planilhado**: a correção vale do próximo em diante. Backup em `sharpen-bot/Backups/s320-cupom-dois-niveis/`.)_
+
+_Anterior: 2026-09-05 (sessão 319 — **o calendário da Visão Geral passou a seguir os filtros e a dizer o próprio escopo.** O Feca abriu com dois P/L na mesma tela: com o período em MTD (01/09 → 05/09) o KPI dizia `+R$ 12.033,68 · 483 apostas` e o calendário logo abaixo dizia `+R$ 11.833 · 487 apostas`. **Os dois estavam certos** — o cartão soma o MÊS fechado, os KPIs somam o PERÍODO —, e a diferença eram **4 bilhetes com data de EVENTO depois do corte**: três voids da Bet365 (P/L 0, mas contam na contagem) e uma perdida de R$ 201 no GP da Itália. Todos já resolvidos antes do jogo, que é o que `bilhetes.data` ser a data do evento permite. Medido contra o banco antes de tocar em código, e as três casas fecham nos centavos (turnover 81.377,66 × 81.578,66). **Duas correções.** (1) `renderOvHeatmap` passava `DADOS` **cru** e por isso o cartão ignorava também Esporte, Casa, Tipster e Operador — escolher um tipster mudava os KPIs de cima e não mudava nada no calendário; agora ele recebe `filtrarSemData('overview')`, o mesmo helper do ROI Mensal (os quatro filtros valem, só o corte por data não — o cartão é um calendário de mês, com nav própria). Junto, o mês selecionado entrou na lista de meses do `mkCalendarHeatmap` mesmo quando o filtro o esvazia, senão o `indexOf` dá −1 e as setas ‹ › travam num cartão em branco. (2) Quando o período não cobre o mês inteiro, a barra do cartão **diz** o que ficou de fora, com contagem e P/L em `fmtPL`. Essa nota **não é um estilo novo**: a `.apf-nota` da Base Completa (os KPIs que não seguem o filtro de resultado) é o mesmo papel, então ela subiu para `.nota-escopo` compartilhada em vez de ganhar um gêmeo — CLAUDE.md §8. Gate novo `tests/test_calendario_escopo.py` + `tests/js/calendario_escopo.mjs`, recortando o `mkCalendarHeatmap` e o `filtrarSemData` reais; **provado por mutação, 9/9 detectadas**. Suíte inteira verde (682), check-tokens verde, e a tela foi renderizada headless contra a base real do Feca antes do commit — as três leituras (sem filtro, só DartsVader, só Peixe) batem com o KPI ao lado. **Nota de método:** para tirar esse print eu subi o `app.main` local contra o `DATABASE_URL` de produção e ele acordou o scanner e o extrator — matei em minutos e conferi que nada anômalo foi escrito (o que apareceu era captura real do Jaao26 em curso), mas o certo é o que ficou: servidor **só-leitura**, servindo os estáticos e um `dashboard_rows` lido uma vez. Detalhe em "Ainda aberto da sessão 316".)_
+
+_Anterior: 2026-09-05 (sessões 316 e 318 — **7º tipster público no ar: `Soh Props - Vip`**, 7.276 apostas importadas e o bot dele como 6º tenant. Junto vieram a página `/bot` com o manual de operação e um dia de correções tiradas do uso real. Detalhe em "Ainda aberto da sessão 316".)_
+
+_Anterior: 2026-09-04 (sessão 318 — **`/bot`: o manual de operação do @sharpenbetbot nos grupos**, página pública e standalone (`app/static/bot.html`), no molde da `/extensao`. Três partes: o **dia a dia** (uma linha de stake por aposta, link da casa, data+hora; marcar é **editar a própria mensagem**), os **13 comandos** com a sintaxe real recortada do `index.js`, e o **passo a passo de colocar um tipster no ar** — os oito passos que a s316/s317 mostraram serem necessários, com as duas armadilhas que morderam em produção destacadas: **grupo que vira supergrupo troca de id e deixa o bot SURDO** (sem erro nenhum) e **contador não semeado engole a aposta** pelo UPSERT. Duas distinções que a página existe para fixar: `🔁` (void da casa, FICA na planilha como V) × `/anular` (a aposta nunca valeu, SAI), e `/repostar` (só o texto do post) × `/redescrever` (ESCREVE na planilha por PATCH). Sem R$ nenhum, então o `UI_REFERENCE §5` não se aplica; a Escada de Tinta sim — `--ink-mute` usado uma vez só, em 13px, no rodapé. Linka o `/static/tokens.css` sincronizado em vez de redeclarar cor, que é o que a `extensao.html` faz e é o desvio, não a regra. check-tokens verde, zero cor literal, zero script inline, e a tela foi renderizada headless de ponta a ponta antes do commit. **Revisada no mesmo dia, com três correções do Feca:** o `👽` SAIU do padrão — ele não é do Sharpen e o próprio Soh Props passa a usar o `🔁` (o código segue **aceitando** o alien de propósito: são 82 apostas de hábito no histórico dele, e se o dedo escorregar é melhor a aposta ser marcada do que ficar aberta em silêncio — documentar é uma coisa, tolerar é outra); o `/anular` ganhou destaque na nota que o separa do `🔁`; e **a seção de pôr um tipster no ar saiu da página pública** — ela é de quem opera, não do tipster, e foi para `docs/GUIA_BOT_TIPSTER.md` em vez de sumir. **E o `/nova-ui` foi rodado DE VERDADE depois de o Feca cobrar** — eu tinha invocado a skill e pulado o passo 1 (ler `UI_REFERENCE` e `pack/CLAUDE.md`), decidindo por dedução que "não tem dinheiro, §5 não se aplica", que é exatamente o argumento que a memória diz não dispensar. Lendo, o checklist pegou **cinco** coisas: faltava o **grid de fundo** (`§3` e `SHELL_SPEC §0`, idêntico nos dois apps) e o **estilo de scrollbar**; o `.card` usava `--r-lg` onde o `§4` pede `--r-sm/md` e não tinha `--shadow-card`; havia **espaço fora da escala `--sp-*`** (38px, paddings de 1px/2px); e o `.nota.aviso` virou CSS morto ao remover a seção interna — âmbar sem aviso é cor sem semântica (`§1`). O único ponto em que a página já estava certa por acaso é o conflito conhecido `UI_REFERENCE §2` × Escada de Tinta na cor do eyebrow: o §2 pede `--ink-mute` e a Escada manda `--ink-soft`, que é o que está lá. **Mais três, e essas eram de MARCA, não de CSS:** o tile do cabeçalho tinha um 🤖 e um wordmark "SharpenBot" que eu inventei — o `pack/CLAUDE.md §2` lista **"❌ emojis decorativos"** como regra inegociável e o §5 diz que a marca tem símbolo próprio, que não se substitui; virou o lockup de verdade (`brand-sharpen/blade/lockup-dark.svg`), como a landing e o login. E **nenhum título estava no padrão**: o `SHELL_SPEC §2` define `.pagehead-title` como `--text-xl` (22px), weight 800, ls `-.035em`, lh 1 e **gradiente azul em clip** — o meu era 28px chapado em `--ink`, e o `h2` vinha em 22px, ou seja no mesmo peso do título (dois níveis iguais não são hierarquia). Nenhuma das três apareceria em grep nenhum: só lendo.)_
+
+_Anterior: 2026-09-04 (sessão 317 — **filtros da Base Completa, agora numa barra SÓ.** A primeira volta entregou os filtros novos num segundo cartão embaixo dos KPIs, com a barra da página lá em cima; o Feca leu a tela — *"faltou filtro para Tipster, Casa e Esporte"* (existiam, estavam no outro cartão) e *"alguns filtros ficaram lá no topo, bem confuso"*. **Partido em dois cartões, o de cima sai do campo de visão e a tela parece não ter o filtro que tem.** Hoje é um cartão com três zonas — carteira (período/esporte/casa/tipster/conta/operador), aposta (chips de resultado com contagem + faixas de stake/odd/P/L) e texto —, montado das MESMAS peças que as outras 8 telas usam (`buildFilters` foi quebrado em `_grupoPeriodo` e cia.). **Achado sobre o gate:** o `/nova-ui` rodou e acertou o átomo (`.money`, tokens, Escada nos 3 critérios) — ele **não cobre composição**, que é o que quebrou. O sintoma barato: dois estilos para o mesmo papel na mesma tela. `.apf-lbl` foi excluído e a barra reusa `.filter-label`, que subiu para `--ink-soft` 9,5px; junto foram `.btbl-th` e `.btbl-counter`, os dois desvios que a s317 tinha só registrado. **A decisão que continua valendo: o desfecho corta a TABELA, não a régua** — filtrar `W` faria o Win Rate virar 100%, então os KPIs leem `apostasKpiRows` e a tela avisa enquanto o filtro está ligado. Aposta aberta sai de qualquer faixa de P/L: o zero dela é ausência, não valor. Resultado ordena em ordem semântica (`W · HW · V · HL · L`), nunca alfabética. Gates provados por mutação: **17/17** no `.mjs` que executa o código recortado, **10/10** no pytest estrutural.)_
+
+_Anterior: 2026-09-03 (sessão 314 — **A Caixa Inteligente: a conta agora diz quanto DEVERIA ter na casa, e acusa quando não bate.** Pedido do Feca, e o motivo é fraude, não contabilidade: terceiro que saca de pouquinho numa conta de alto turnover passa despercebido por semanas. A tela de Extração ganhou uma coluna de 300px à direita dos tiles e da captura (dentro da `.colmain`, sem encostar no rail; a grade segue ocupando a largura inteira), e o Painel de Contas ganhou a banca consolidada com o saldo casa a casa. **A conta é `banca = saldo inicial + preso no corte + depósitos − saques ± ajustes + P/L`, `disponível = banca − em aberto`** — e é o *disponível* que a casa mostra na tela, então é contra ele que a conferência bate. Vocabulário reusado da Polymarket (*Saldo Disponível · Saldo em Aberto · Saldo Total*), que já falava isso dentro do produto. **A METADE DIFÍCIL É O CORTE, e ela não estava no desenho aprovado — apareceu ao escrever a matemática:** toda aposta mexe no saldo DUAS vezes (−stake ao apostar, +retorno ao liquidar), e para a aposta que já estava ABERTA no dia em que o operador informa o saldo só a segunda ponta cai dentro da janela — o stake saiu ANTES, logo não está no saldo informado, e volta INTEIRO ao liquidar. Contar só o P/L dela deixaria **toda conta com aposta viva no dia da configuração** (ou seja, praticamente todas) com uma divergência permanente do tamanho desses retornos: a auditoria acusando a si mesma para sempre. Por isso o lançamento `inicial` grava `abertas_corte` — os ids dos bilhetes abertos naquele dia —, e o teste que trava isso tem uma **contraprova** (`test_sem_a_lista_a_aposta_velha_some_e_o_saldo_fica_baixo`) mostrando o erro que a lista existe para impedir. **A conferência REGISTRA, não absorve:** ela grava o `projetado` do momento (nunca recalculado contra a projeção de hoje, que já inclui aposta que nem existia lá atrás) e o box continua acusando até o operador lançar o que faltava ou clicar em "Lançar como ajuste", que grava um Ajuste **nomeado** e visível no extrato. Rebaselinar em silêncio apagaria a trilha do único caso que a função existe para pegar. Estado da conferência em 4 valores — nunca · confere · divergente · **reconferir** (houve lançamento depois de uma conferência que não bateu: o número velho já não descreve a conta, mas também não se pode dizer que bate). **DECISÕES:** dinheiro **por conta**, chaveado por `parceiro_id` e não pelo par (casa, parceiro) em texto — `casa` já é texto em 7 tabelas e mover conta de casa (s312) teria de propagar para cá também; a lixeira leva os lançamentos no MESMO snapshot do `DELETE ... RETURNING` dos bilhetes (restaurar a conta e perder o dinheiro seria a lixeira meio-cheia); **Polymarket fica de fora** (ela lê saldo real on-chain — estimar por cima do medido cria um segundo número para a mesma pergunta); escrita por `dono_efetivo` como toda rota de dados — **a proposta de restringir ao dono foi ABANDONADA na medição**: quem usa "ver como" é o supervisor olhando a base do operador, não o contrário, então o critério extra só bloquearia o supervisor e criaria uma regra de acesso órfã. **CONTA SEM CAIXA NÃO VIRA ZERO:** entra como "—", fica fora de toda soma e o painel diz quantas faltam — total que engole conta desconhecida mente com cara de exatidão (é a família do `DADOS só tem aposta liquidada`). **MARCA (`/nova-ui` item a item):** saldo é a **3ª variação documentada do `.money`** (UI_REFERENCE §5.1, escrito nesta mudança) — 2 casas como o stake, **decidido com o Feca**, porque o número existe para ser conferido contra o extrato e o centavo é a divergência que se procura; **saldo não tem cor** (verde/vermelho é semântica de resultado — saque não é prejuízo), o sinal fica no `.money-sign` neutro com minus U+2212, e a única linha colorida da caixa é o *Resultado*, que usa o `fmtPL` de sempre; **divergência é `--warn`**, nunca `--neg`. Escada de Tinta conferida nos 3 critérios: nenhum `--ink-mute` abaixo de 10px, nenhum `opacity` sobre tom apagado, nenhum nome próprio apagado. **GATES:** suíte **646 passed, 23 skipped** (era 617) · `check-tokens` verde · **mutação 9 de 9** (`scripts/mutar_caixa.py`: preso no corte fora da banca, corte ignorado nos lançamentos e nas apostas, disponível sem descontar o aberto, lista de abertas ignorada, divergência recalculada hoje, staleness sem olhar a data, tolerância afrouxada, saque somado) · `tests/js/caixa_front.mjs` **recorta** `fmtSaldo`/`_cxIso` do `index.html` real, com 2 mutações provadas · **a tela foi ABERTA em navegador headless** contra o `servidor_demo.py`, nos três estados (desligada, confere, divergente) e no Painel: caixa em 300px a x=782, grade **inteira** em 1.056px, 8 tiles, `rgb(224,162,26)` no aviso, **zero `pageerror`**. **E foi o navegador que pegou o único bug real:** o campo de data nascia com `dd/mm/aa` e o parser exigia 4 dígitos, então o primeiro lançamento seria recusado com "Data inválida" **num valor escrito pela própria tela** — `node --check` e a suíte passavam. Hoje há `_cxDataBR4` para campo, `_cxDataBR` para leitura, e o gate JS testa a ida e volta nos **366 dias** do ano. O `servidor_demo.py` ganhou as rotas da Caixa **importando o `_caixa_projetar` de produção** em vez de reimplementá-lo — projeção errada num print de venda é pior que print nenhum. Backup em `Backups/s314-caixa/`. Dois desvios **PRÉ-EXISTENTES** anotados e não tocados: `.pagehead-eyebrow` e `.rail-c .rail-k` usam `--text-nano` (9px) em `--ink-mute`, abaixo do piso da Escada — é mudança separada, e nenhuma das duas é minha. **REVIEW DO FECA, dois ajustes:** a Caixa passou de 300 para **450px** (ele viu que sobrava espaço; 360px entre 1180 e 1620); e o **modal de lançamento nascia com rolagem horizontal e o título cortado** — print dele. Causa: `.modal-narrow` tem 400px e eu pus DOIS campos lado a lado; `1fr` não encolhe abaixo do min-content de um `<input>` (~206px), então duas colunas nunca caberiam. Os outros modais estreitos escapam disso porque empilham em coluna (`.nc-body`, `.xc-body`). Conserto: largura própria de 440px + `min-width:0` nos campos. **E o mesmo print escondia um segundo defeito**: o `.ed-data-btn` é `position:absolute` POR DESENHO (mora dentro do campo, como no `.dref-wrap` da barra de captura) e meu wrapper não era `relative` — o botão do calendário se ancorava no modal e caía fora do campo. Os dois medidos no navegador antes e depois (`scrollWidth == clientWidth`, botão dentro do campo). **E ENTÃO O 'ATIVAR' NÃO FEZ NADA EM PRODUÇÃO — e o defeito era de TIPO, não de lógica:** `valor` e `projetado` são `NUMERIC`, e o asyncpg **recusa `float`** nessas colunas (exige `Decimal`). A rota devolvia 500 e o front mandava o erro para o `#status-msg` da **barra de captura**, longe do modal — da cadeira de quem clicou, nada acontecia. Dois consertos, porque um só repetiria o problema: `Decimal(str(valor))` na gravação (a string preserva as 2 casas sem o lixo binário do float) **e o erro passou a aparecer DENTRO do modal**, ao lado do botão que falhou. A matemática (`test_caixa.py`) estava certa o tempo todo: nenhum teste olhava o TIPO do argumento — agora `tests/test_caixa_lancar.py` olha (14 casos, com um `_FakeConn` que captura os args do INSERT), e as **2 mutações** que devolvem o float são pegas. **RENOMEADA para `Caixa Inteligente`** a pedido do Feca, em tela, docs, folder e mensagem; o botão virou **Ativar Caixa Inteligente** e o modal passou a nomear a conta inteira (`Casa · Parceiro [Fornecedor]`) num subtítulo — com dois parceiros na mesma casa, só o nome da casa não diz onde se está lançando. **O cabeçalho virou GÊMEO do RAIO-X** (mesmo `--accent-2`, 11px/600/.2em, mesmo padding 16/18 e mesma borda `--line`), com `--hd-h: 54px` de piso nos DOIS: os pills aparecem e somem, e sem piso a linha subiria e desceria. Medido no DOM: topo 90/90, linha 144/144, altura 54/54, `rgb(127,178,255)` nos dois. **E o fluxo inteiro foi exercido num Chrome de verdade** — ativar → lançar → conferir, com o `servidor_demo.py` ganhando `POST /caixa/lancar` em memória só para isso: um clique que 'não faz nada' não aparece em teste de unidade nenhum. **E MESMO ASSIM FALHOU DE NOVO — o MESMO INSERT, outro argumento:** `data` é `DATE` e eu mandava `str`; o asyncpg exige `datetime.date`. Pior: o teste da rodada anterior **afirmava a string como correta**, ou seja, gravou o segundo defeito como se fosse a regra. Nas duas vezes o 500 nasceu DENTRO do driver, antes de qualquer SQL. Conserto: `date.fromisoformat(data)` e o `::date` fora do SQL (sem cast o tipo do parâmetro vem da coluna e não há ambiguidade). **O gate deixou de ser por lembrança e passou a ser por LISTA**: `test_cada_argumento_do_insert_vai_no_tipo_da_coluna` percorre os 8 argumentos de uma vez (`str, int, str, date, Decimal, str, Decimal|None, list|None`) e quebra se o INSERT mudar de forma. **E desta vez foi MEDIDO contra o Postgres de produção**, em transação com `ROLLBACK`: `date`+`Decimal` passa; as duas tentativas anteriores levantam `DataError: 'str' object has no attribute 'toordinal'`. Depois o fluxo REAL (`caixa_lancar` → `caixa_conta` → `caixa_visao` → `caixa_excluir_mov`) rodou inteiro sobre uma conta de 2.584 apostas — ativar, depositar, conferir (divergência −418,75), excluir — e o rollback deixou **0 linhas**. Afirmar sem medir uma terceira vez não era opção. **E A TERCEIRA COISA NÃO ERA BUG DE CONTA — ERA A TELA NÃO EXPLICANDO A CONTA.** O Feca ligou a Caixa na conta #748 (Superbet · ricksa03) e viu `P/L · conta −R$ 1.608,00` no tile de cima e `Resultado R$ 0,00` na Caixa logo ao lado. **Medido no banco, os dois estavam certos:** as 13 apostas são de 02/09, o corte é 03/09, então as 12 perdidas já estavam dentro do R$ 1.950,00 informado, e a 13ª (`#218127`, aberta no corte) liquidou **W com odd 12,28684** — retorno de R$ 1.228,68 sobre um stake que saiu antes do corte, exatamente o caso que o `abertas_corte` existe para pegar. Projeção correta: **R$ 3.178,68**. Mas número que parece contradizer o vizinho na mesma tela é defeito, mesmo estando certo — então a Caixa passou a **dizer o corte**: o rótulo virou `Resultado · desde 03/09/26`, `Preso no corte` virou `Abertas no corte`, e uma nota fecha o ledger — *'12 apostas anteriores a 03/09/26 (−R$ 1.608,00) já estão dentro do saldo informado — por isso ficam fora desta conta'*. `pl_anterior`/`n_anteriores` existem SÓ para essa frase e não entram em soma nenhuma (2 mutações provam). **E junto veio um defeito de verdade, do meu jeito favorito de errar:** a faixa de erro do modal aparecia **vermelha e vazia** no modal limpo — `.cxm-erro` declara `display:flex`, que **vence o atributo `hidden`** (só a folha do agente o aplica). Regra explícita `.cxm-erro[hidden]{display:none}`, medida nos dois estados no navegador (limpo: `display:none`, altura 0; com falha: `display:flex` com o texto). Gates: **665 passed**, mutação **11 de 11**, e o caso da #748 remontado no `servidor_demo` para a tela poder ser LIDA na bancada.  **E o corte ficou SEM SAÍDA pela tela:** o Feca informou o saldo com a data de hoje quando ele era de ontem, e não havia como editar — só desligar a caixa pelo extrato e ligar de novo. O backend sempre soube (`inicial` é UPSERT: apaga o anterior e recalcula `abertas_corte`); faltava a porta. Agora a **linha do Saldo inicial é o botão** — lápis, `role=button` com teclado, e o MESMO formulário abrindo pré-preenchido (valor, data e observação), com título `Editar o saldo inicial`, botão `Salvar` e o aviso de que **mudar a data recalcula quais apostas entram**. Medido no navegador: mover o corte de 03/09 para 02/09 leva a caixa de `1 liquidada / R$ 3.178,68` para `13 liquidadas / R$ 678,68` e some com a nota do corte — que é exatamente o que tem de acontecer. O texto do modal também passou a dizer que entra **tudo a partir da data, inclusive as apostas do próprio dia**: é essa frase que decide qual saldo o operador digita. **DEPOIS DA PUBLICAÇÃO, mais três do Feca.** (1) A tabela *saldo por casa* saiu: com 26 de 27 contas sem caixa, ela era uma coluna de travessões — *"desorganizada"*. O saldo foi para onde já se olha a conta: o **cabeçalho de cada casa na lista**, com o valor e uma tag que diz DE ONDE ele vem — `batido` (todas as contas daquela casa conferidas e batendo, verde), `calculado` (projetado, ainda sem conferência, neutro) ou `a conferir` (âmbar, o único aviso da lista). Casa sem caixa nenhuma não ganha nada, que é o que apaga o ruído. O **caixa total** virou a 4ª estatística do rodapé do card Contas (`R$ … · 4 de 102`), lendo o MESMO `/caixa/visao` já cacheado — dois números para a mesma pergunta é como se cria divergência sem ninguém mexer em nada. (2) **Editar movimentação pelo extrato**: lápis em cada linha, abrindo o MESMO formulário com o tipo TRAVADO — trocar um depósito em saque é apagar um fato e criar outro, e para isso existem o ✕ e o botão de lançar. `PATCH /caixa/movimento/{id}` → `caixa_editar_mov`, com duas conservações deliberadas: editar o `inicial` **refaz** o `abertas_corte` (mudou o corte, mudou quem estava aberto nele) e editar uma `conferencia` **preserva o `projetado`** — ele registra o que o Sharpen projetava naquele dia, e recalculá-lo com a projeção de hoje reescreveria o passado e apagaria a divergência medida. O extrato **reabre** ao fechar o modal, para o operador não perder o lugar. (3) A validação virou `_caixa_valida`, uma só para lançar e editar — duas regras para o mesmo fato envelhecem separado. Medido no navegador de ponta a ponta: lançar → abrir extrato → lápis → editar 500 para 1.234,56 → salvar → box em R$ 4.413,24 e extrato reaberto com o valor novo, zero `pageerror`. **E A CONTA DO GABRIEL ACHOU UM BURACO MEU.** A SportingBet dele (#684) projetava R$ 2.482,67 e a casa mostrava R$ 2.571,79 — **R$ 89,12 a mais na casa**. Medido linha a linha: os 53 bilhetes, os 3 lançamentos e o saldo dia a dia (mínimo R$ 494,37 em 01/09, nunca negativo, logo o inicial de R$ 2.000 é compatível). **Naquela conta a diferença é externa mesmo** — cashout, bônus ou saldo inicial arredondado —, que é exatamente o que a Caixa existe para achar; o ajuste já foi lançado. **Mas procurando eu achei um defeito meu, de sinal IGUAL a esse:** `data` no Sharpen é a data do EVENTO, não a da aposta. Aposta feita ONTEM para um jogo da PRÓXIMA SEMANA tem `data` depois do corte — e mesmo assim o stake dela já saiu da conta, logo já está descontado do saldo que o operador acabou de ler. `abertas_corte` filtrava só por `data < corte`, essa aposta ficava de fora e a projeção descontava o stake **duas vezes**: conta nascendo com divergência no fluxo que a própria tela recomenda. Conserto em `_caixa_abertas_ids` (pura, testável): **corte = HOJE → toda aposta aberta entra** (se está aberta agora, o stake saiu antes de agora — é exato); **corte no passado → entra o que PROVADAMENTE já existia** (evento anterior ao corte, ou linha que o Sharpen já tinha antes dele, por `criado_em`), um piso honesto, e é por isso que o modal recomenda o saldo de hoje. 4 testes novos, incluindo a **contraprova** que mostra a regra antiga devolvendo lista vazia, e 2 mutações pegas. Suíte **669 passed**. **E as caixas JÁ LIGADAS foram corrigidas por script, não por pedido ao usuário** (`scripts/recalcular_abertas_corte_s314.py`, que CHAMA o `_caixa_abertas_ids` em vez de reimplementá-lo — dois cálculos do mesmo fato divergem em silêncio). Ensaio é o padrão; a lista só CRESCE, nunca encolhe: a ativação original reconheceu aquelas apostas e o saldo informado foi lido com elas já descontadas. **Medido em 31 caixas de 5 donos: 4 estavam erradas, todas com corte = hoje** — Jaao26 `#693` (+R$ 200,00), `#691` (+R$ 400,00) e `#692` (+R$ 1.955,00, com 19 apostas abertas de fora), e Marques19981 `#720` (+R$ 200,08). Todas as correções são para CIMA, que é o sinal previsto pelo defeito. Reexecução dá **0 a corrigir** (idempotente) e a varredura de invariantes passa em toda a base (total = soma das contas · disponível = banca − aberto · aberto ≥ 0). **No dia seguinte o próprio script tentou errar, e o ensaio pegou:** rodado de novo, ele queria adotar apostas com id `241xxx` em 3 contas do Gabriel — feitas HORAS DEPOIS da ativação, cujo stake saiu depois da leitura do saldo. Adotá-las inflaria a projeção em **+R$ 10.477 que não existem**. `_caixa_abertas_ids` ganhou o parâmetro `ate` (o instante em que o saldo foi lido): na ativação é o agora e nada muda; o backfill passa o `criado_em` do lançamento inicial. Regra num lugar só, mutação pega, ensaio limpo. **Estado no fim da sessão: 39 caixas ligadas em 5 donos** (Jaao26 24, Gabriel 12, Jonathan 1, Marques19981 1, Feca 1), **zero divergência aberta** e os invariantes passando na base inteira. `app/static/landing.html` seguiu FORA do commit.)_
+
+_Anterior: 2026-09-02 (sessão 313 — **O "Drawdown Atual" marcava R$ 0,00 com a banca no vermelho, e o "Topo Histórico" exibia um valor NEGATIVO — um topo que nunca existiu.** Relato do tester Gabriel, com print: *"quando um grupo/método começa o primeiro dia negativo, ele desconsidera esse negativo no cálculo de drawdown"*. **Duas funções descrevem a MESMA curva e discordavam de onde ela começa:** `calcDrawdownReal` (o Max Drawdown) partia de `peak = 0` — a banca no zero, antes da primeira aposta — e por isso contava o mergulho inicial e acertava; `calcTopoDrawdown` (Topo + DD Atual) partia de **`peak = -Infinity`**, então o PRIMEIRO dia virava o topo fosse ele qual fosse. Numa série que só sobe depois do mergulho, o topo passava a ser o **último** ponto e `dd = peak - acc` dava **0 por construção**. É a família do UPSERT meio-atualizado: **metade do card certa, metade errada**, sem erro nenhum aparecendo. **O alcance era maior que o relato** — não dependia de "começar negativo": bastava o acumulado atual ser o máximo da série e ainda estar abaixo de zero, ou seja **qualquer carteira, casa ou esporte no vermelho vindo de recuperação**, em 4 renders (Visão Geral + as três telas de Performance). Reproduzido 1:1 antes de tocar em código: 3 dias (−2.514 / +500 / +408,70) devolvem os **quatro** números do print do Gabriel, RF `−0,64×` inclusive. **Conserto: `peak = 0`, o mesmo ponto de partida das duas funções.** Duas consequências tratadas junto, porque um conserto pela metade seria o defeito de novo: (1) `topoData` fica **null** quando o topo é o próprio início, e os 4 renders passaram a usar um `topoSub` único que escreve **"no início da série"** — `_fmtD(null)` imprimia `atingido em —`, que o leitor lê como dado faltando; (2) a % do DD atual era `dd/peak` (% do **lucro** acumulado) e **dividiria por zero** no caso corrigido — virou `dd/(BASE_BANK+peak)`, a **mesma régua do `mddPct`** do card vizinho, então os dois percentuais lado a lado passaram a ser comparáveis (na base demo: 9,5% e 16,3%, antes 12,6% e 16,3%). Junto veio um caso de cor **novo**: com topo = R$ 0,00, o `data-state="pos"` fixo pintaria o zero de **verde** (o `fmtPL` não tem classe para revidar e o valor herda a cor do KPI) — o atributo virou condicional a `topo > 0`, e o zero sai neutro (`UI_REFERENCE §5.1`). **GATES:** suíte inteira verde (**617 passed, 23 skipped**, era 611) · `check-tokens` verde · `/nova-ui` item a item (nenhum formatador novo — `fmtPL`/`fmtPct` reusados; `.kpi-sub` é 10px `--ink-mute`, **exatamente no piso** do papel metadado da Escada de Tinta, e nenhum CSS foi tocado) · **mutação 7 de 8** em `tests/js/topo_drawdown.mjs`, que **recorta** as três funções do `app.js` real (peak=-Infinity nas duas funções, denominador antigo, subtítulo do topo=início, data invertida, `>` virando `>=` no empate, topoData virando o último dia). **A 8ª é INÓCUA e está registrada como tal:** `dd=peak-acc` → `Math.max(0,peak-acc)` — `peak` é o máximo da série e inclui o `acc` atual, então o clamp é redundante, não é buraco de teste. **E duas armadilhas de teste morderam antes de eu fechar:** o gate de leitura reprovou a função **já corrigida** por causa do próprio comentário que cita `-Infinity` (mesmo falso positivo do `test_monte_carlo_worker.py`; resolvido com o `_sem_comentarios` dele), e o gate de cor **passou verde com a mutação aplicada** — o `.{80}` exigia 80 caracteres antes na mesma linha e a do `overview.js` tem ~70, então o `findall` vinha vazio; virou varredura por linha com contagem exata dos 4 renders. **A TELA foi aberta em navegador headless nos DOIS estados** contra o `servidor_demo.py` — `node --check` é falso verde para o que vive em template literal (s296). Medido no DOM real: carteira positiva **inalterada** (topo +R$ 305.451,22 verde, com data) e o caso do Gabriel agora com **Topo R$ 0,00 neutro** (`rgb(238,242,247)`, não o mint), "no início da série" e **DD Atual −R$ 1.605,30** onde antes lia R$ 0,00; zero `pageerror`. Descoberta de bancada anotada: trocar o hash da casca **não** troca a aba dentro do iframe — quem faz isso é o `showPage` do próprio iframe, senão `#page-overview` fica `display:none` e o card sai com rect 0×0. `?v=` bumpado nos três assets (`app.js?v=40`, `overview.js?v=15`, `performance.js?v=16`). Backup em `Backups/s313-drawdown-topo-peak-zero/`. **Dois desvios PRÉ-EXISTENTES achados e NÃO tocados** (mudança separada, decisão do Feca): o `Drawdown Atual` zerado herda o vermelho do `data-state="real"` — zero deveria ser neutro pelo §5.1 —, e o `Recovery Factor` negativo sai com **hífen ASCII** (`-0,64×`) em vez do minus U+2212, porque o `fmtOdd` usa `toLocaleString` cru. `app/static/landing.html` seguiu FORA do commit — é de outra sessão.)_
+
+_Anterior: 2026-09-01 (sessão 310, parte 3 — escrita depois da s312 de outra sessão simultânea; a numeração é da sessão que fez o trabalho, não da ordem do arquivo — **O que o dono DECLARA voltou a falar, só onde a base é cega. A ideia é do Feca, e a medição bancou.** A s289 trocou o matcher declarativo pelo de evidência e resolveu metade do problema: a base sabe do Peixe, que viu milhares de vezes, e **não sabe nada de quem entrou semana passada**. Perfil sem histórico nem entra na disputa (`sugerir` pula quem tem `cls == 0`), nunca constrói a folga, e a coluna fica vazia **em silêncio** — o dono conclui, com razão, que preencher o perfil não serve para nada. O caso que abriu: o Feca tinha `Stake Final 3` escrito no perfil do **Fusion**, a base confirma (503/403/303/203), e o Fusion era sugerido **0 %** das vezes. **A MEDIÇÃO QUE AUTORIZA SOMAR OS DOIS** (carteira do Feca, prequential 30d, separando perfis grandes de pequenos): grandes → base **61 %** certo × declarado 55 %; **pequenos → base 4 % certo × declarado 64 %**. Os dois são fortes em lugares **opostos**, e é isso — não uma média — que justifica juntá-los. O declarado fala **apenas** onde a base se cala e **apenas** sobre quem a base mal conhece. **DOIS CORTES, os dois no servidor de propósito** (`app/matcher.py`): `NOVATO_MAX = 60` bilhetes rotulados à mão — acima disso a base já tem o que dizer e o declarado só atrapalha (liberar para todos leva o Feca a +331 acertos e **+134 erros**, 2,5:1, contra +139 e +28, **5,0:1**, com o corte); e `FOLGA_DECLARADA = 25`, **muito acima dos 7** que o declarativo usa como caminho principal. **A folga alta não é conservadorismo genérico — é escolha de SINAL:** os pesos do declarativo são stake 25-50, esporte/mercado exclusivos 10, casa 5, então exigir 25 significa na prática **"só fale quando a assinatura de STAKE decidir sozinha"**; somar esporte + mercado (10+10) deixa de bastar, e era exatamente daí que vinha o ruído histórico dele (`SóChutes→Arrudex`, 83 confusões na janela). Medido: folga 7 dá +148 acertos/+72 erros; folga 25 dá +139/+28 — **quase o mesmo ganho por um terço do erro**. **A rota devolve `novatos` + `folga_declarada` e a 2ª passada roda na TELA**, reusando o `_sugParaBilhete` que já vive no `index.html`. Deliberado: uma terceira implementação do declarativo (já existem a do front e a porta do backtest) divergiria em silêncio, e os dois cortes vêm do servidor para não haver um segundo número para a mesma regra. `_sugRanqueia`/`_sugParaBilhete` ganharam o parâmetro `folga` com **default 7** — o caminho principal não muda. **PLACAR DE PRODUÇÃO** (`scripts/backtest_matcher.py` ganhou a linha `PRODUÇÃO` = evidência + 2ª passada, porque medir duas metades que o app não usa isoladamente passaria a descrever outra coisa): **Feca 58 %/86 % → 64 %/86 %** (seis pontos de cobertura com a precisão **idêntica**, e sem confusão nova na lista) · **Jonathan 22 %/92 % → 62 %/97 %** (cobertura quase tripla e precisão **subindo**) · Gabriel, Lava, LavaPessoal, SóChutes e perereca **inalterados**. **NENHUMA carteira regride.** **E isso responde melhor à pergunta do Feca sobre os outros usuários do que a proposta anterior:** a mudança de peso da parte 1 dava +2 pontos e **piorava o arrudex em 8 e o LavaPessoal em 10** — foi **abandonada**. Esta não pode tocar quem não escreveu nada, e é medição, não dedução: **arrudex 0 de 34 perfis com info, LavaPessoal 0 de 15, perereca 0 de 7**; Gabriel (1 de 10) e Diogo (6 de 43) têm info e ainda assim registram **zero** mudança. Efeito colateral que importa: **preencher o perfil passa a pagar**, e paga mais no tipster novo, que é quando a base não tem nada. **GATES:** suíte **611 passed, 23 skipped** (era 586) · 8 testes de `tests/js/` verdes · `check-tokens` verde · **mutação 7 de 7** (`scripts/mutar_2a_passada.py`, quebrando os dois lados: folga voltando a ser o 7 fixo, folga não repassada ao ranqueador, default deixando de ser 7, casa dedicada parando de cravar, `novatos` incluindo todo mundo, `novatos` vazio, folga caindo para 7) · o teste do front **recorta** as funções do `index.html` real e o `tests/test_rota_sugerir.py` trava o CONTRATO da rota · tela de Extração **aberta em navegador headless**, zero `pageerror`, assinaturas novas no ar e botão ligado. **DOIS COMPORTAMENTOS ANTIGOS PRESERVADOS DE PROPÓSITO, e agora travados por teste:** casa dedicada a 1 dono **crava acima de qualquer folga** (curadoria humana explícita), e **dono único do esporte dispensa a folga** — é esse atalho que faz o Bad Milton e o MMA (únicos de Badminton e de MMA na carteira) serem sugeridos sem assinatura de stake. Os dois derrubaram asserções minhas antes de eu entender que a expectativa errada era a minha, não o código. **O que os testes NÃO cobrem, e está escrito neles:** o `salvarTipsterVal` (rede), e a decisão de quem é novato é do servidor por desenho, não do front. O `index.html` já sai com `Cache-Control: no-cache, must-revalidate`, então a mudança chega **sem Ctrl+F5** (o matcher é inline). Backup em `Backups/s310-hibrido-declarado/`. `app/static/landing.html` e os arquivos de outra sessão seguiram FORA do commit.)_
+
+_Anterior: 2026-09-01 (sessão 312 — **Editar conta era um `prompt()` do navegador que só alcançava o nome; virou o MESMO modal completo da criação — casa, parceiro e fornecedor.** O gatilho foi um print do Feca da caixa branca do Chrome sobre o dashboard: *"o botão editar de uma casa precisa abrir um popup completo"*. **O modal completo já existia** (`novaconta-modal`, com combo de casa buscável + "cadastrar nova casa") — só nunca tinha sido reusado na edição, então quem precisasse corrigir o fornecedor tinha de digitar os **colchetes do modelo canônico na mão** (`Parceiro [Fornecedor]` — fornecedor não é coluna, mora dentro do nome; é o mesmo `_PARCEIRO_RE` que parte o texto no feed do dashboard), e quem cadastrasse na casa errada **não tinha saída nenhuma pela UI**. Um formulário, dois modos (`_ncModo`), nada de um segundo formulário que envelhece separado. **A metade cara é a casa.** `casa` e `parceiro` entram JUNTOS no hash de `_assinatura` — mover a conta sem recalcular deixaria todo bilhete dela com o hash da casa velha, a próxima captura não colidiria com nada, o UPSERT não deduparia e o **histórico duplicaria inteiro**: exatamente a falha da s198, com a outra metade da chave. `renomear_parceiro` virou wrapper de **`editar_parceiro`**, que numa transação só atualiza `parceiros`, propaga `casa`+`parceiro` aos bilhetes e recalcula a assinatura de cada um; os dois campos vão numa chamada só (`POST /parceiros/{id}/editar`) porque mudar um de cada vez gravaria uma assinatura intermediária que não corresponde a bilhete nenhum. A colisão de nome é conferida na casa de **destino**, não na de origem, e a grafia passa por `casa_canonica` como no `POST /parceiros` — casa é texto, e uma gêmea por caixa nasceria aqui. **Mover é destrutivo o bastante para ser dito, não descoberto:** trocando a casa no combo o modal acende um aviso `--warn` nomeando o custo (`Mover para Aposta1 leva junto 1.234 apostas desta conta`), com o número vindo do mesmo `GET /parceiros/{id}/resumo` que o modal de exclusão consome. **GATES:** suíte inteira verde (**607 passed, 23 skipped**) · `check-tokens` verde · `/nova-ui` conferido item a item (nenhum R$ novo; a contagem de apostas é unidade → `toLocaleString('pt-BR')`, nunca abreviada; `.nc-hint.warn` só troca o acento do `.nc-hint` que já existia, e o número fica neutro porque cor em número é semântica de resultado) · **mutação 3 de 3** (assinatura ignorando a casa nova; bilhete ficando na casa velha; colisão conferida na casa de origem). **A terceira mutação ESCAPOU na primeira tentativa** — o `_FakeConn` respondia "nunca colide" para qualquer consulta de `parceiros`, então a checagem não era exercida por teste nenhum; o defeito era do teste, e ele ganhou o par de casos que faltava (nome ocupado no destino recusa **sem tocar no banco**; nome ocupado só na origem não pode barrar). **E a tela foi ABERTA num navegador antes do commit**, contra o `servidor_demo.py` com puppeteer — `node --check` é falso verde para o que vive em template literal (s296). Medido no DOM real: `Davi [Norte]` chega partido em `Davi` + `Norte`, título e botão trocam com o modo, o aviso de mover acende só quando a casa difere, o modo criar não herda nada da edição, o botão da lista virou `Editar` → `contasEditar`, **zero `pageerror`**. Backup em `Backups/s312-editar-conta-modal/`. Sem versão de SharpenUp e sem nota de changelog — é tela do app, não extensão; **testers a avisar é decisão do Feca**. `app/static/landing.html` e os arquivos de outra sessão simultânea seguiram FORA do commit.)
+
+_Anterior: 2026-09-01 (sessão 311 — **A stake de um bilhete pulou para outro e nada acusou, porque a odd derivada preservou o P/L.** A Pinnacle `3113103675` (LOUD v MIBR) foi gravada com `400,00`, a stake do `3114339695` **duas linhas acima no mesmo chunk** — e como em W a odd é `Retorno ÷ Stake`, ela foi recalculada sobre a stake errada (`(400 + 330,48) ÷ 400 = 1,8262`), devolvendo o P/L EXATO de R$ 330,48. Descrição certa, código certo, resultado certo: `checar_descricao`, `checar_fidelidade` e a cobertura passam todos. Erram só turnover, ROI e a assinatura de stake do matcher — foi por isso que a linha perdeu o tipster `Zora`. **É o carryover da s302 no financeiro**, e a regra do `CLAUDE.md` que dizia "o financeiro não viaja junto" era observação medida, não garantia. **Conserto: a stake saiu da mão da IA.** `repository.corrigir_stake_tsv`, irmão do `anexar_sistema_tsv` — a coluna 8 vem do `Stake:` do bloco daquele código, e a odd de W é refeita junto quando o bloco traz o `P/L`. Determinístico, sem modelo no caminho. **Medido antes de escrever:** a linha `Stake:` casa a regex ancorada em **100% dos 5.128 blocos** da sombra (20 casas), sempre com um valor só; e o replay do gate sobre **3.820 bilhetes** mexe em **3** — as 3 divergências reais, **zero falso positivo**. Bloco ambíguo (dois `Stake:`) não autoriza escrita; print, que não tem bloco, segue 100% com a IA. Dado: a linha do Feca corrigida por `scripts/corrigir_stake_infiel_s311.py` (204,00 · 2,620 · P/L 330,48). Gate: `tests/test_stake_determinista.py`, 15 casos, **6 mutações aplicadas e todas pegas**. **Adendo ("se tem erro precisa ser corrigido"): a varredura foi até o fim e 7 linhas foram corrigidas, em 4 donos.** Stake (3): Pinnacle `3113103675` [Feca], BETesporte `195072327` e Betano `20951200252` [WilliamOliveira]. Odd (4), da varredura que veio junto — 3.692 odds conferidas contra o bloco cru e classificadas pelas regras legítimas (verbatim 3.648 · `Retorno ÷ Stake` 27 · média de sistema 17): Betano `20926898412`, Betfast `301490938` e `301491163` [Gabriel], Bet365 `JR3841878921I` [Jonathan]. Hoje sobra **zero sem explicação**; nenhuma das 4 mexe em dinheiro (`L`/`HL`, onde `calcular_pl` não usa a odd). Os dois Betfast são os **mesmos gêmeos que a s302 corrigiu na descrição** — o carryover atingiu os dois campos e na época só a descrição foi olhada. **Raiz dos 4 erros de odd, ainda ABERTA e mexe em `extensor/`:** Bet365 e Novibet emitem o marcador canônico `Tipo: SISTEMA … — N apostas de k seleção(ões)` mais a `Odd (estrutural do sistema)` e acertaram 15 de 15; **Betano** (`Tipo: Dupla`) e **Betfast** (`Tipo: Sistema (3 seleções)`) não emitem nenhum dos dois, então a IA deduz a regra da odd (média × produto) e errou 3 vezes — e a coluna 12 (`sistema`) nunca é preenchida nessas casas. Script: `scripts/corrigir_odd_infiel_s311.py`.)_
+
+_Anterior: 2026-09-01 (sessão 310, parte 3 — **O `status 4` da Esportiva subia sem resultado porque a casa esconde o cashout no campo errado: `cashOutValue`, `partialCashOut` e `partialCashouts[]` vêm ZERO até num bilhete cashouteado de verdade — o valor encerrado mora no `totalWin`.** Quem procura cashout pelos campos homônimos conclui que a casa não tem nenhum, e foi isso por duas versões. **Provado por três eixos que se fecham:** a aba Cashout da tela manda `statuses:[4,18]` e devolve **exatamente** os três bilhetes da conta (`5341163017`/18 · `5339901091`/18 · `5339889186`/4); os três cards estampam a faixa **CASHOUT**; e o dinheiro do `5339889186` só fecha assim — a perna **ganhou** a odd 1,5 (pagaria R$5,00) e ele recebeu **R$2,83, menos que a stake**. Agora sai `W` com odd 2,83÷3,33 = **0,84984985** (P/L −R$0,50; a odd exibida gravaria +R$1,67); os dois `18` seguem `V`, agora nomeados. **O que separa o `4` do `18` continua SEM prova** (n=1 e n=2 na conta inteira) — e não precisa, porque quem decide é o valor, não o enum. **Esporte: o mapa parou de crescer de bilhete em bilhete.** A própria casa publica a ponte **sem login** — `GetAllSports` devolve `{typeId, id, name}` no mesmo objeto para os 25 esportes; 16 ids mapeados (Tênis e E-Sports eram os que sangravam), **9 deixados crus de propósito** porque não têm valor oficial no MASTER (`7` "Automobilismo" **não** é `F1`). O `317` vem com **TAB literal** no nome (`"E-sports +		"`), família da s303. **E o `sportTypeId 300` NÃO é esporte:** as 16 seleções vivem todas em `sportId 115`/`champId 61714`, com `marketName === eventName`, misturando CS2 (BLAST Open) e futebol (Libertadores) — uma se chama `Especiais Copa do Brasil | 05/08`; sai marcado como **aposta especial**, e o esporte real fica com a IA. **Dois defeitos que só apareceram ao mexer:** a rede de segurança testava a lista de PROCESSADOS `[1,8,2,4,18]` e, com o `4`/`18` batizados, **virou código morto sem nenhum teste ficar vermelho** — passou a testar a família ABERTA, que é o que ela sempre quis cobrir (o teste dela usava o `4` e não exercia mais nada; trocado por `19`); e a linha de boost usava a odd **efetiva**, fazendo o `5339889186` sair "odd antes do boost 1,3847 · valendo 0,84984985" — a casa turbinando a odd para baixo. Doc propagado nas 5 casas do motor. Gates: harness **verde (23 casos, 395 bilhetes)**, `audit_casas` e `audit_sharpenup` sem FAILs, `pytest` 586 passed, e **5 mutações todas detectadas**. SharpenUp **0.7.6**; a pedido do Feca a nota foi só para a home — **o grupo de testers não foi avisado**. ⚠️ Pendência: as linhas JÁ gravadas de tênis/e-sports/especiais **não se consertam por recaptura** (o `ON CONFLICT` congela `esporte`/`aposta`/`descricao` fora de `origem='sync'`); o cashout, sim, porque `resultado` não é congelado.)_
+
+_Anterior: 2026-09-01 (sessão 310, parte 2 — **A curadoria de casa vencida deixou de ser silenciosa: a tela agora acusa a linha que a própria evidência do dono não sustenta mais.** É a pendência aberta na parte 1, e ela existe porque `casa_config` é um **retrato datado que nunca se reavalia** — curada uma vez, a linha crava para sempre, e casa dedicada é resolvida **antes** do matcher (com 2 nomes ela restringe o pool a eles, e o resto da carteira sai da cédula sem o modelo ser ouvido). **A regra do aviso mora em `casas_visao`, colada na que já calcula a sugestão** (`repository.py`): a que SUGERE e a que AVISA são a mesma e não podem divergir — se morassem em lugares diferentes, o aviso passaria a discordar da regra em silêncio, que é exatamente o defeito que ele existe para pegar. Acende só no caso inequívoco: **curada `dedicada` + evidência de hoje dizendo `multi`**. `sug_modo is None` (volume < `CASA_MIN_VOL`) nunca acende — pouco dado não é evidência de nada. **MEDIDO antes de desenhar, que é o que garante que o aviso seja quieto:** em **49 casas curadas de 2 donos**, a regra acende em **zero** hoje, e fica apagada até na `Tivo` (89,6%, perto do corte de 85%); rodada contra o estado de 25/08 ela acende **só na Betnacional** (82%). Aviso que acende demais é aviso que ninguém lê. **O que a tela mostra:** um chip na célula da **evidência** — é a evidência que mudou, não a curadoria —, nomeando o **custo em apostas** (`40 de 223 apostas são de fora`) em vez de falar em "pureza", porque é esse número que decide se vale mexer; a linha sobe ao **topo** da lista e ganha uma marca; e o cabeçalho ganha `· N a revisar`. **Contador sem ponte para a linha vira caça manual**, então a ordenação é parte do aviso, não enfeite. **DUAS CORREÇÕES QUE SÓ APARECERAM NA CONFERÊNCIA DA ESCADA DE TINTA, e as duas eram desvio real:** (1) o tint de fundo que eu tinha posto na linha vencida empurrava o `--ink-mute` do `.cstats` de **3,06:1 para ~2,95:1** — abaixo do piso de 3,0 do papel metadado —, e isso vale para **qualquer** alpha testado (.020, .030, .045); a linha passou a ser marcada por **borda** (`box-shadow: inset`), que não entra no fundo efetivo do texto e sinaliza sem cobrar contraste. (2) eu havia criado uma classe `.meta-warn` quando **já existia `.w`** no mesmo bloco (`.tm-wrap .panel__head .meta .w`), usada pelo `N sem info` — reusada, e o teste trava isso. O chip é `--warn` em 11px sobre tint de 10%: **6,4:1**, acima do piso de 4,5 de label, e nunca `--ink-mute` (é aviso, não metadado). **GATES:** `/nova-ui` executado item a item · **suíte inteira verde (586 passed, 23 skipped)** · os 7 testes de `tests/js/` verdes · `check-tokens` verde · **mutação 6 de 6** (`scripts/mutar_casas_curadoria.py`: aviso nunca renderiza, aviso renderiza sempre, linha perde a marca, aviso deixa de nomear o custo, cabeçalho para de contar, cabeçalho conta fora da classe de warn) — o teste **recorta** as funções do `gestao.js` real, e a troca de assinatura de `_casaMetaTxt` **quebrou o recorte antes de eu atualizá-lo**, que é o gate funcionando. **E a tela foi ABERTA num navegador antes do commit**, contra o `servidor_demo.py` com puppeteer: `node --check` é falso verde para o que vive dentro de template literal. Medido no DOM real — chip renderizado, `rgb(224,162,26)`, 11px, linha vencida em 1º, `box-shadow` inset aplicado, meta com `1 a revisar`, **zero `pageerror`**. O `servidor_demo` ganhou os dois campos novos espelhando a regra (dá sempre falso lá, de propósito: print de venda não mostra aviso). **O QUE NÃO ESTÁ COBERTO, e está escrito no teste:** o gate de mutação é do FRONT; a regra do backend em `casas_visao` não tem teste unitário (a função toca o pool), e sua evidência é a **medição contra o Postgres real** descrita acima. `?v=` bumpado nos dois assets (`gestao.js?v=36`, `tipster-metodo.css?v=10`). Backup em `Backups/s310-curadoria-vencida/`. `app/static/landing.html` seguiu FORA do commit, e **os arquivos de `extensor/` também — são de outra sessão simultânea**.)_
+
+---
+
 
 ---
 
