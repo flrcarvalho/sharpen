@@ -789,13 +789,35 @@ body.cap-off .cx__body { display: none; }
    `margin-left:auto` que empurravam saldo e contador para a direita saíram com o
    flex: em grade, o que alinha é a trilha, e um `auto` sobrevivente esticava a
    célula do nome e CLIPAVA o nome da casa. */
-/* `justify-self:start` é load-bearing: como item de grade o inline-flex ESTICA para a
+/* ── Coluna Conciliação: lista FECHADA de rótulos (s330) ──────────────────────
+   Nada de abreviar dentro da tag (`pend.`, `conc.`, `+99`): frase inteira em pt-BR,
+   número real sem teto, caixa alta só por CSS — nunca no dado, senão mutila nome
+   próprio. Uma tag por linha; havendo divergência E pendência, ganha a divergência.
+
+   `justify-self:start` é load-bearing: como item de grade o inline-flex ESTICA para a
    trilha inteira, e a pílula virava uma barra de 190px. Com `start` todas as tags
    começam no mesmo x qualquer que seja o comprimento do rótulo — que é o motivo de a
-   coluna existir. */
-.casa-tag { flex: none; justify-self: start; max-width: 100%; display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; border-radius: var(--r-pill); padding: 3px 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.casa-tag.ok { color: var(--pos); border-color: rgba(var(--pos-rgb),.35); background: rgba(var(--pos-rgb),.08); }
-.casa-tag.al { color: var(--warn); border-color: rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); }
+   coluna existir.
+
+   ⚠️ Corpo 10px, e não os 9,5px do handoff: dois rótulos da lista (`Sem caixa`,
+   `Arquivada`) são --ink-mute, e a Escada de Tinta proíbe --ink-mute abaixo de 10px
+   em qualquer superfície. Subir meio pixel preserva a distinção de cor que o handoff
+   pede; baixar a cor apagaria a diferença entre "Calculado" e "Sem caixa". */
+.tag-concil { justify-self: start; max-width: 100%; display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; border-radius: var(--r-xs); padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid transparent; }
+/* Batido / Conciliada — conferido contra o extrato. */
+.tag-concil.ok   { color: var(--d-pos);  background: var(--d-pos-soft); }
+/* Batido em N de M / N pendências — FATO A CONFERIR. Âmbar, nunca vermelho. */
+.tag-concil.proj { color: var(--d-proj); background: var(--d-proj-soft); }
+/* Divergência — erro realizado. O ÚNICO vermelho da coluna. */
+.tag-concil.neg  { color: var(--neg);    background: var(--d-neg-soft); }
+/* Sincronizando — transitório, não é erro. */
+.tag-concil.info { color: var(--d-info); background: var(--d-info-soft); }
+/* Calculado — derivado do histórico, sem batida manual. Neutro: nem bom nem ruim. */
+.tag-concil.calc { color: var(--ink-soft); background: var(--surface-2); border-color: var(--line); }
+/* Sem caixa — nada a conciliar. */
+.tag-concil.mute { color: var(--ink-mute); background: transparent; border-color: var(--line); }
+/* Arquivada — fora de operação. */
+.tag-concil.arq  { color: var(--ink-mute); background: var(--surface-2); border-color: var(--line-2); }
 
 /* ── Rail v2 "RAIO-X" (handoff-rail-v2) — área de trabalho = grid colmain | rail full lateral.
    O ctxbar e a KPI bar passam a viver DENTRO da colmain (não cruzam mais o rail).
@@ -3289,21 +3311,91 @@ function _caixaPorConta() {
 //   a conferir→ alguma conferência não bateu (âmbar, o único aviso da lista).
 // Casa sem nenhuma caixa ligada não ganha nada: era a coluna de travessões que
 // o Feca mandou tirar.
+// ── Tag de conciliação: UM helper, os dois contextos (s330) ───────────────────
+// Vocabulário FECHADO. Nada fora desta tabela entra na coluna, e nenhum rótulo é
+// montado por template solto na linha — string replicada é como as duas metades de
+// uma lista de estados passam a divergir sem ninguém perceber.
+//
+//   casa    → batido · parcial · calculado · semcaixa · divergencia · arquivada
+//   conta   → conciliada · pendencia · divergencia · sincronizando · semcaixa ·
+//             arquivada · calculado
+//
+// `sincronizando` está aqui e não é emitido por ninguém: a extração em curso não é
+// publicada por conta hoje. Fica no mapa para que o dia em que houver a fonte seja
+// uma linha, e não um rótulo novo inventado na linha.
+//
+// ⚠️ Nunca abreviar e nunca pôr teto no número: `pend.`, `+99` e afins estão fora.
+// A caixa alta é do CSS (`text-transform`), nunca do dado.
+const _TAG_CONCIL = {
+  batido:        { cls: 'ok',   txt: () => 'Batido' },
+  parcial:       { cls: 'proj', txt: (n, m) => 'Batido em ' + n + ' de ' + m + (m === 1 ? ' conta' : ' contas') },
+  calculado:     { cls: 'calc', txt: () => 'Calculado' },
+  // `vazio` = estado que existe no vocabulário mas NÃO vira tinta. Na base do Feca a
+  // Caixa está ligada em 4 de 102 contas: a tag "Sem caixa" pintaria 98 linhas com o
+  // mesmo rótulo — o defeito que este handoff existe para matar (os 37 "100%" do log),
+  // reencenado noutra coluna. A ausência já está dita pelo travessão da coluna Caixa;
+  // repetir por extenso ensina o operador a varrer a coluna com o olho desligado.
+  // O estado continua nomeado aqui para que ninguém invente um rótulo novo no dia em
+  // que a Caixa estiver ligada em quase tudo e "Sem caixa" voltar a ser exceção.
+  semcaixa:      { cls: 'mute', txt: () => 'Sem caixa', vazio: true },
+  divergencia:   { cls: 'neg',  txt: () => 'Divergência' },
+  arquivada:     { cls: 'arq',  txt: () => 'Arquivada' },
+  conciliada:    { cls: 'ok',   txt: () => 'Conciliada' },
+  pendencia:     { cls: 'proj', txt: (n) => n + (n === 1 ? ' pendência' : ' pendências') },
+  sincronizando: { cls: 'info', txt: () => 'Sincronizando' },
+};
+const _TAG_TITULO = {
+  batido: 'Todas as contas desta casa foram conferidas contra o extrato e bateram.',
+  parcial: 'Parte das contas desta casa já foi conferida contra o extrato.',
+  calculado: 'Saldo derivado do histórico do app, ainda sem conferência manual.',
+  semcaixa: 'Caixa Inteligente não ligada — nada a conciliar aqui.',
+  divergencia: 'A casa mostrou saldo diferente do projetado.',
+  arquivada: 'Conta fora de operação.',
+  conciliada: 'Sem nenhum item pendente.',
+  pendencia: 'Apostas não liquidadas e/ou bilhetes sem tipster nesta conta.',
+  sincronizando: 'Extração em curso — estado transitório, não é erro.',
+};
+function tagConciliacao(estado, n, m) {
+  const d = _TAG_CONCIL[estado];
+  if (!d || d.vazio) return '<span></span>';      // fora da lista, ou estado sem tinta
+  return '<span class="tag-concil ' + d.cls + '" data-concil="' + estado + '"'
+    + ' title="' + esc(_TAG_TITULO[estado] || '') + '">' + esc(d.txt(n, m)) + '</span>';
+}
+
 // Devolve as DUAS células fixas da linha de casa — [tag, saldo] — já como HTML. São
 // devolvidas separadas de propósito: cada uma é uma coluna da grade, e concatená-las
 // num só span era o que tirava a tag da trilha dela.
 function _caixaDaCasa(casa) {
-  const vazio = ['<span></span>', '<span></span>'];
-  if (!caixaVisaoCache || contasTab !== 'ativas') return vazio;
-  const c = (caixaVisaoCache.casas || []).find(x => x.casa === casa);
-  if (!c || !c.ligadas) return vazio;
-  const parcial = c.sem_caixa ? ' · ' + c.ligadas + ' de ' + c.contas : '';
-  const tag = c.a_conferir
-    ? '<span class="casa-tag al">a conferir</span>'
-    : (c.batidas === c.ligadas
-       ? '<span class="casa-tag ok">batido' + parcial + '</span>'
-       : '<span class="casa-tag">calculado' + parcial + '</span>');
-  return [tag, '<span class="contas-casa-saldo">' + fmtSaldo(c.banca) + '</span>'];
+  if (contasTab !== 'ativas') return [tagConciliacao('arquivada'), '<span></span>'];
+  const c = caixaVisaoCache && (caixaVisaoCache.casas || []).find(x => x.casa === casa);
+  // Sem caixa ligada não há o que conciliar — e o saldo entra vazio, nunca zero.
+  if (!c || !c.ligadas) return [tagConciliacao('semcaixa'), '<span></span>'];
+  // Divergência antes de tudo: erro realizado ganha de batida parcial.
+  const estado = c.a_conferir ? 'divergencia'
+    : (c.batidas === c.ligadas ? 'batido'
+       : (c.batidas > 0 ? 'parcial' : 'calculado'));
+  // Em `parcial` o denominador são as contas COM caixa: dizer "batido em 2 de 3"
+  // contando uma conta que nem tem caixa cobraria uma conferência impossível.
+  const saldoCls = c.banca ? 'contas-casa-saldo' : 'contas-casa-saldo vazio';
+  return [tagConciliacao(estado, c.batidas, c.ligadas),
+          '<span class="' + saldoCls + '">' + fmtSaldo(c.banca) + '</span>'];
+}
+
+// Estado de conciliação de UMA conta. Prioridade: arquivada → divergência →
+// pendência → conciliada → sem caixa → calculado. Divergência ganha de pendência
+// porque erro realizado é mais urgente que fato a conferir (regra do handoff).
+// `pend` = itens em aberto na conta: apostas não liquidadas + bilhetes sem tipster,
+// mais a reconferência quando uma divergência já foi endereçada e ainda não foi
+// rebatida. São os mesmos números dos badges — uma fonte só, para os dois não
+// divergirem na mesma linha.
+function _concilDaConta(cx, pend) {
+  if (contasTab !== 'ativas') return ['arquivada', 0];
+  if (cx && cx.estado === 'divergente') return ['divergencia', 0];
+  const n = pend + (cx && cx.estado === 'reconferir' ? 1 : 0);
+  if (n > 0) return ['pendencia', n];
+  if (cx && cx.estado === 'confere') return ['conciliada', 0];
+  if (!cx || !cx.ligada) return ['semcaixa', 0];
+  return ['calculado', 0];        // ligada, sem pendência, ainda sem conferência
 }
 
 function renderPainelLista() {
@@ -3337,10 +3429,11 @@ function renderPainelLista() {
       // aparece quando o operador já está olhando a conta certa não previne nada. Conta
       // sem caixa NÃO acende: aviso que acende demais é aviso que ninguém lê.
       const cx = cxMap[p.id] || null;   // Caixa Inteligente (linha inteira)
-      const badges = (ab > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (ab > 99 ? '99+' : ab) + '</span>' : '')
-                   + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '');
-      const tag = (cx && cx.estado === 'divergente')
-        ? '<span class="casa-tag al" title="A casa mostrou saldo diferente do projetado">a conferir</span>' : '<span></span>';
+      // Os badges `99+` saíram: a coluna Conciliação diz a MESMA coisa por extenso e
+      // com o número real. Dois avisos para o mesmo fato, um deles com teto, é como se
+      // ensina o operador a não confiar em nenhum dos dois.
+      const [estado, nPend] = _concilDaConta(cx, ab + st);
+      const tag = tagConciliacao(estado, nPend);
       // Caixa da conta: conta sem caixa entra como "—" em --ink-mute, nunca como zero.
       // Total que engole conta desconhecida mente com cara de exatidão.
       const caixa = (cx && cx.ligada)
@@ -3373,7 +3466,6 @@ function renderPainelLista() {
         + '><span class="conta-nomewrap">'
           + '<span class="conta-nome">' + esc(nomeLimpo || '—') + '</span>'
           + (forn ? '<span class="conta-forn">' + esc(forn) + '</span>' : '')
-          + badges
         + '</span>'
         + tag + caixa
         + '<span class="conta-acoes">' + acoes + '</span></div>';
@@ -3475,7 +3567,9 @@ function _irParaDivergencia() {
     if (tabs) tabs.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 0));
     renderPainelLista();
   }
-  const alvo = document.querySelector('.conta-row[data-concil="divergencia"]');
+  // O `data-concil` vive na TAG; a linha é o ancestral dela.
+  const tag = document.querySelector('#painelGestaoList .tag-concil[data-concil="divergencia"]');
+  const alvo = tag && tag.closest('.conta-row');
   if (!alvo) return;
   alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
   alvo.classList.add('pisca');
