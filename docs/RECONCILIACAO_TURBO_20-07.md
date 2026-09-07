@@ -81,11 +81,18 @@ Auditoria feita 100 % por leitura de código deixa a UI em suspenso por constru�
 
 ### O achado mais grave que segue aberto
 
-**`#129` — dois MASTERs mandam coisas diferentes sobre a odd, e a odd entra no P/L.**
+**`#129` — a coluna `Odd` guarda duas grandezas e nenhum MASTER as nomeia.**
 O `MASTER_PIPELINE:114` diz `L ou V → ODDS TOTAIS do bilhete`; o `MASTER_RESULTADO §5.1.1`
 diz para *preservar a odd estrutural original, sem remover seleções anuladas*. Em múltipla
-com perna anulada, os dois textos levam a números diferentes. **`global/` está fora do
-escopo desta faxina** — fica registrado, medido, para uma sessão que possa tocar o MASTER.
+com perna anulada, os dois textos levam a números diferentes.
+
+> ⚠️ **Corrigido em 07/09, depois de medir.** Eu escrevi aqui que "a odd entra no P/L".
+> **Não entra:** `calcular_pl` só lê odd em `W`/`HW` (`L → 0.0`, `V → stake`), e a Caixa
+> prende stake, não retorno potencial. E o risco de **dedup** (odd na `_assinatura` →
+> duplicata em linha sem código) foi medido e deu **ZERO de `extracao`**, em 528 múltiplas
+> sem código expostas. Os 192 grupos divergentes que existem são **todos `origem='import'`**,
+> que copia a odd da planilha sem passar pelos MASTERs. **É dívida de documentação, não
+> incidente.** Detalhe completo no [`BACKLOG §4.4`](../BACKLOG.md).
 
 Depois dele, por impacto: **`#114`** (o `bf_inject` dispara até 400 requisições autenticadas
 na Betfair — é o único inject que **cria** tráfego em vez de só ler) e **`#116`**

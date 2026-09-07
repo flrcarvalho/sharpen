@@ -439,10 +439,70 @@ achado.** Cada um remedido contra o código de 07/09, nunca copiado.
 
 **O que ficou como trabalho, em ordem de impacto:**
 
-1. **`#129` — dois MASTERs mandam coisas diferentes sobre a odd.** `MASTER_PIPELINE:114`
-   diz `L ou V → ODDS TOTAIS do bilhete`; `MASTER_RESULTADO §5.1.1` manda preservar a odd
-   estrutural sem remover perna anulada. Em múltipla com anulada os dois dão números
-   diferentes, e a odd entra no P/L. Mexe em `global/`, então é sessão própria.
+1. **`#129` — a coluna `Odd` guarda DUAS grandezas e nenhum MASTER as nomeia.**
+   `MASTER_PIPELINE:114` diz `L ou V → ODDS TOTAIS do bilhete`; `MASTER_RESULTADO §5.1.1`
+   manda *"preservar a odd estrutural original… não remover automaticamente seleções
+   anuladas"*. Em múltipla com perna anulada os dois dão números diferentes.
+
+   **Não é dinheiro — é consistência de coluna.** `calcular_pl` (`app/repository.py`) só lê
+   a odd em `W` e `HW`; o comentário é explícito: *"Para L/V/HL a odd é irrelevante ao
+   P/L"*. `L → 0.0`, `V → stake`. E a Caixa Inteligente prende **stake**, não retorno
+   potencial, então odd de aberta também não toca caixa. O que sai errado é a **leitura**:
+   em `W` a coluna guarda a odd **liquidada** (`Retorno ÷ Stake`, imposta pelo gate
+   determinístico da s321), e em `L`/`V`/aberta ela pode guardar a **contratada**. Duas
+   grandezas na mesma coluna, sem rótulo — e é isso que envenena odd média, odd média de
+   sistema (`MASTER_RESULTADO §7.3`) e qualquer comparação de odd entre bilhetes.
+
+   **O risco de dedup foi MEDIDO e deu ZERO** (07/09, só `SELECT`). A odd entra na
+   `_assinatura` via `_norm_odd`, então duas leituras da mesma múltipla sem código
+   gerariam assinaturas distintas e **duplicariam** — a mecânica do `14` × `14,00` da s327.
+   Procurei: múltiplas sem código, agrupadas pela chave real da assinatura
+   (`casa|parceiro|data|aposta|descricao|stake`), com odd divergente de valor.
+   **192 grupos / 387 linhas, e os 192 são `origem='import'` — ZERO de `extracao`**,
+   apesar de haver **528** múltiplas sem código vindas de extração na base. A superfície
+   existe e nunca foi exercida. Com código: 19 grupos, **0** com o mesmo `codigo_bilhete`
+   (são bilhetes distintos — o código está protegendo).
+
+   Os 192 do import não são este defeito: o importador copia a odd da coluna da planilha
+   verbatim, sem passar pelos MASTERs.
+
+   **Portanto: dívida de DOCUMENTAÇÃO, não incidente.** Mexe em `global/`, que está fora
+   do escopo da faxina. A decisão de regra pode esperar — e ela é sobre **nomear as duas
+   grandezas**, não sobre escolher entre dois textos.
+
+   > População em risco, para dimensionar quando a sessão acontecer: **23.398 múltiplas
+   > `L`/`V` (20,19 % da base)** — Bet365 10.163 · Betano 4.950 · Superbet 3.719. A fatia
+   > com perna anulada de fato **não é medível**: `bilhetes` não guarda perna, e só 3
+   > linhas em toda a base trazem a palavra na descrição. O único percentual real é o da
+   > `CASA_1XBET`: **9 em 66 perdidos (13,6 %)**.
+   ### As casas NÃO discordam entre si — elas descrevem casas diferentes
+
+   Eu tinha reportado que quatro arquivos de casa "legislaram sozinhos e discordam". **Está
+   errado, e a correção muda o desenho da solução.** Relendo os quatro, cada um descreve o
+   comportamento **daquela casa**, e os quatro comportamentos são genuinamente distintos:
+
+   | Casa | O que a casa faz com a odd quando há perna anulada | Onde |
+   |---|---|---|
+   | **Pitaco** | **Recalcula** e publica a vigente; a original só aparece **quando mudou** — dois campos, um deles condicional | `CASA_PITACO §…` (`.1.3` odd vigente, `.1.4` odd original) |
+   | **Novibet** · **Betfast/Tivo** | **Expõem as duas, sempre**, em campos separados | `placedPrice.value` × `finalPrice.value` · `Koef` × `WinKoef` |
+   | **1xBet** | **Recalcula só em `W`**; em `L` o `Coef` fica **pré-anulação** (9 de 9 perdidos) | `CASA_1XBET §5` |
+   | **Betano** | **Não expõe odd total** no texto resolvido — só as odds por seleção | `CASA_BETANO:192-196` |
+
+   As "escolhas divergentes" que eu li como conflito são, na verdade, **cada arquivo
+   traduzindo a sua casa** — que é exatamente o invariante #2 (*a casa traduz, não redefine*)
+   funcionando. A `CASA_BETFAST` manda ficar com o `Koef` cheio em `L` porque é o único
+   número que a casa dá ali; a `CASA_BET365` colapsa a perna para `1,00` porque a Bet365 não
+   dá odd combinada resolvida. Não há discordância a arbitrar.
+
+   **O conflito real é outro, e é global:** `PIPELINE` e `RESULTADO` falam de **UMA** odd, e
+   existem **DUAS** grandezas — a **contratada** (no momento da aposta) e a **liquidada** (o
+   que a casa de fato usou para pagar). Nenhum dos seis MASTERs nomeia essa distinção, então
+   cada casa foi obrigada a inventar a sua no `§5`. A saída não é escolher entre
+   `PIPELINE §3.1` e `RESULTADO §5.1.1` — é **nomear as duas grandezas no global** e dizer
+   qual vai para a coluna `Odd` em cada resultado. Aí os quatro arquivos de casa deixam de
+   ser exceções e viram o que deveriam ser: o mapa de qual campo da casa alimenta qual
+   grandeza.
+
 2. **`#114` — o `bf_inject` dispara até 400 requisições autenticadas** na Betfair
    (`bf_inject.js:176`), sem backoff. É o único inject que **cria** tráfego em vez de só ler.
 3. **`#116` — `postMessage` sem validação de origem** no `content.js`, que roda em `*://*/*`.
