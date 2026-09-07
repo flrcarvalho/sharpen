@@ -306,10 +306,28 @@ dúvida técnica — os três são decisão de produto.
 - **Tag `Sincronizando`.** Está no vocabulário fechado de `tagConciliacao` e **não é
   emitida por ninguém**: o app não publica "extração em curso" por conta. Fica no mapa
   para o dia em que houver a fonte ser uma linha, e não um rótulo novo inventado na linha.
-- **A lista ocupa a linha inteira desde a s330**, e `Contas por casa` desceu para fazer par
-  com `Custos por fornecedor`. Foi o mínimo que fez as trilhas fixas do handoff caberem
-  (media 539px em 1600px de viewport, com 500px de coluna fixa). Se o Feca preferir os dois
-  lado a lado, o caminho é encolher o rail da casca nesta visão — não estreitar a lista.
+- **A lista ocupa a linha inteira desde a s330**, com teto de 960px, e `Contas por casa`
+  desceu para fazer par com `Custos por fornecedor`. Foi o mínimo que fez as trilhas fixas
+  do handoff caberem (media 539px em 1600px de viewport, com 500px de coluna fixa). Se o
+  Feca preferir os dois lado a lado, o caminho é encolher o rail da casca nesta visão —
+  não estreitar a lista.
+
+### 3.5 O log de extrações repete `100%` em quase toda linha (s330). VIVA.
+
+**Isto é a queixa do handoff que continua de pé**, e a tentativa de resolvê-la na s330
+foi desfeita por resolver a coisa errada: o painel virou `Pendências`, e ele não é uma
+fila de tarefa — é o **histórico de extrações**, o RAIO-X. Rótulo errado é pior que
+rótulo repetido, então o rename saiu inteiro.
+
+O problema real permanece: num log de 40 linhas, ~37 imprimem `100%` de confiança.
+Número que quase nunca varia deixa de ser informação e vira textura, e a linha que
+importa (a que traz `82%` e `pendência`) não se destaca de nada.
+
+**O que NÃO fazer:** trocar o nome do painel; filtrar o log por padrão (esconde
+histórico, que é o produto daquela tela). **Caminhos plausíveis, nenhum medido:**
+imprimir a confiança só quando ela **não** é 100%, deixando a coluna vazia no caso
+rotineiro; ou manter as 40 linhas e dar peso visual só às que têm pendência. Decisão de
+produto — a coluna é do RAIO-X, que também vive na tela de Extração.
 
 ---
 

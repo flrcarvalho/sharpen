@@ -74,6 +74,51 @@ Comportamento conferido no navegador, não deduzido: 6 barras visíveis / 23 na 
 rótulo `+ 23 casas com 1–2 contas` com a faixa real / abre e fecha nos dois sentidos com
 `aria-expanded` correto; menu `⋯` abre, fecha em `Esc` e devolve o foco a quem abriu.
 
+### A revisão do Feca, depois de ver a tela na base real
+
+As cinco fases subiram e a tela foi olhada com 177 contas e 47 casas. Quatro coisas
+não sobreviveram ao teste, e **uma delas era bug antigo**:
+
+- **O painel da direita não é fila de pendências — é o histórico de extrações (o
+  RAIO-X).** A fase 5.2 foi desfeita. O que ele lista são extrações **já feitas**;
+  rotular isso de `Pendências`, com contador `14 de 40 ações`, promete tarefa onde há
+  registro. **Rótulo errado é pior que rótulo repetido.** A queixa do handoff (37 de 40
+  dizem `100%`) continua válida e voltou para o `BACKLOG`.
+- **A lista tinha teto de largura nenhum.** A coluna 1 é `minmax(0,1fr)`, e num monitor
+  de 2.500px ela chegava a ~1.100px: a linha deixava de ler como linha e virava duas
+  ilhas, nome numa ponta e tag na outra. Teto de **960px**, que sai da conta: 32 de
+  padding + 42 de recuo + 500 das trilhas fixas + 30 de gap = 604, sobrando ~356px para
+  o nome.
+- **Casa e conta tinham o mesmo peso.** `R$ 47.376,90` da Bet365 e os quatro valores
+  abaixo caíam na mesma coluna, no mesmo corpo, na mesma cor — lidos pela primeira vez,
+  cinco parcelas a somar. Agora são três sinais dizendo a mesma frase: fundo próprio no
+  cabeçalho, a palavra `total` antes do valor, e guia vertical recuando as contas.
+
+### O bug que estava lá antes de hoje: a barra media 0px
+
+A barra de `Contas por casa` tinha `fill` de **0px em todas as linhas**, inclusive na
+maior. O que aparecia na tela era só o trilho vazio — **43 contas e 2 contas desenhavam
+exatamente a mesma barra**, e era isso que fazia o card "não dizer nada".
+
+`.painel-bar-fill` é um `<span>`, e em elemento **inline** `width`/`height` em `%`
+simplesmente não se aplicam. O trilho escapou por ser filho de um flex
+(`.painel-bar-main`) — flex item é blocado automaticamente; o neto não é. Com
+`display:block`: 43 → 100%, 15 → 34,9%, 2 → 4,7%.
+
+> Sintoma para reconhecer isto noutro lugar: uma barra proporcional em que **todas** as
+> linhas parecem iguais. Antes de suspeitar do cálculo, meça o elemento — `getBoundingClientRect`
+> na barra responde em uma linha, e `%` sobre inline é falha silenciosa: não há erro,
+> não há aviso, e o CSS parece correto na leitura.
+
+### A parte de baixo passou pelo `/nova-ui` — nunca tinha passado
+
+- **Custos por fornecedor** ganhou o **total** no rodapé (o card se chama "custos" e
+  nunca somava), `sem custo lançado` no lugar do travessão mudo, e peso relativo atrás
+  do total. A linha sem custo **não some da tela**: é nela que o custo se lança.
+- **Atividade das contas** ganhou favicon na coluna Casa, o fornecedor saiu do colchete
+  colado ao nome e virou label, e o peso atrás de `Apostas` deixa a ordem visível sem
+  obrigar a ler 25 números.
+
 ### Ficou de fora, e está no `BACKLOG.md`
 
 - **`Duplicar cadastro` e `Transferir de parceiro`** no menu `⋯`: o handoff os lista, mas
