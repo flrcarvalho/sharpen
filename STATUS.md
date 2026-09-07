@@ -292,6 +292,81 @@ duas vezes. Suíte: **724 passed, 26 skipped**.
 
 ## Sessão 325 — 8º tipster público: `Grego Tips - VIP`
 
+> **Parte 2 (07/09): o tenant do bot entrou em produção.** O que está escrito
+> abaixo é o import; o resto da sessão está resumido aqui e mora no
+> `sharpen-bot` (commits `5cd8c6b`, `eb1bca4`, `d283ed8`, `36b29ce`).
+
+### O 8º tenant do bot, no ar
+
+`src/perfis/grego.js` forkado do `sohprops`, bloco `GV_*`, linha no registro
+`PERFIS` (a que faltando derruba TODOS em crash-loop, s316). Boot com **7
+tenants**, suíte verde, **12 mutações aplicadas e 10 pegas** — as 2 inócuas
+estão escritas no teste.
+
+Cinco diferenças do irmão, todas medidas no export do canal: a stake é `%` e
+**não abre a linha** (1.043 de 1.305 no meio/fim — ancorar em `^` perderia 80%
+das apostas), o que obrigou a reconhecer a linha por CONTER stake e a criar
+guardas, porque o `%` tem outros três papéis (`2.02 + 25% = 2,27@`, `só vale com
+25% odd final`, `ROI: 15.28%`); `⌛` = aberta; casa por **apelido** (`mgm`,
+`365`, `Super`, `Betan` devolvem null no `casas.js`); **34% das legendas cegas**;
+e `Quadra`.
+
+### O bloqueio não era código: era o bot ser MEMBRO do grupo
+
+`getMe` diz `can_read_all_group_messages: false` — privacy mode ligado. Bot com
+privacy, como membro comum, **recebe só comandos**: as mensagens com print não
+chegam, e o tenant nasceria **surdo, sem erro nenhum**. Medido, não deduzido: os
+6 apoios que funcionam têm o bot como `administrator`; o do Grego era o único
+fora do padrão. Promovido, o log provou a virada
+(`[apoio:grego] msg — foto=false texto=false`).
+
+### A coluna `Tipster` passou a sair por AUTOR
+
+O canal tem DOIS admins, e o **Sign messages** está ligado: cada post carrega
+quem escreveu (`grego` 958 · `ricklxrd` 110). Isso tornou a atribuição do atraso
+**determinística** — 148 `Grego` e 48 `Rick`, sem heurística.
+
+Daqui pra frente quem resolve é o núcleo, por `msg.from.id` → `XX_TIPSTER_NOMES`
+(genérico; vazio = comportamento de sempre; **inerte em canal**, onde não existe
+`msg.from`). Autor fora do mapa cai na marca **com aviso dizendo o id**. Os dois
+ids foram provados contra o grupo por `getChatMember`, e o `first_name` de cada
+um é **exatamente a assinatura do canal** — a mesma pessoa chega pelo mesmo nome
+pelos dois caminhos, e por isso as duas metades da coluna se somam.
+
+**As 956 do tracker ficam sob a marca**, e é decisão com número atrás: o join
+por (título, stake, data) fecha em **704 de 956 (73,6%), zero ambíguas**. Um
+quarto sem autor faria um ROI "por admin" **parecer completo sem ser**.
+
+### Dois defeitos que apareceram no uso
+
+- **`/anular` dizia "3 apostas removidas" tendo removido 0.** O aviso repetia
+  `ids.length` — o que foi MANDADO — e ignorava `resp.deletados`. Mesma família
+  do `rejeitados` do `/salvar`: contagem devolvida pela API é dado, não enfeite.
+  Hoje acusa (`removeu 0 de 3`), e resposta sem número vira `?`, nunca `0`.
+- **Modo de teste desvia o POST, não o planilhamento.** Os dois bilhetes de
+  teste entraram na base de verdade. Só não sobrescreveram o histórico porque o
+  bot põe sufixo `-S<n>` quando há N apostas: `GV202609-1-S1` ≠ `GV202609-1`.
+  **Teste de UMA aposta só, na mesma casa, teria batido a assinatura** — é a
+  colisão que o `/contador` existe para evitar, e ela quase aconteceu.
+
+### O post, como o tipster pediu
+
+`🧠 <Nome>` na última linha, depois do total — o cabeçalho só diz a marca, igual
+para os dois. É o **mesmo valor** que vai para a coluna `Tipster`: o núcleo
+resolve uma vez e entrega nos dois caminhos, então canal e planilha não podem
+divergir sobre de quem é a aposta. Autor desconhecido não imprime linha nenhuma
+— repetir a marca ali seria fingir resposta.
+
+E o **P/L saiu de `u` para `%`**, a régua que eles usam. Derivado do `plFmt`
+compartilhado, não copiado: o sinal continua sendo **U+2212**, e a mutação que
+copia o formatador perde exatamente isso.
+
+### Estado final
+
+    base gregozxrd   1.152 · Grego Tips - VIP 956 · Grego 148 · Rick 48
+    série            GV202609-228 · contador 228 → próximo #229
+    bot              publicando no canal (GV_MODO_TESTE=0), 2 autores mapeados
+
 ### 8º tipster público — `Grego Tips - VIP`
 
 Conta `gregozxrd` (alyssongrego587@gmail.com) aprovada no `/admin` e **956 apostas
