@@ -58,6 +58,40 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
 - **`LavaPessoal`: 30 apostas com stake 0** (s222) — importadas, mas **invisíveis no dashboard** (`dashboard_rows` corta `stake <= 0`). 23 delas têm resultado. Aparecem na grade da **Extração** (`list_bilhetes` não filtra), então a correção é humana: preencher a stake lá e elas entram no P/L. Todas do tipster `Peixe`, abr–jul.
 - **`LavaPessoal`: duas contas pré-existentes vazias** (s222) — `Bet365 | monster@2025 [Richard]` e `Betano | karlmarxrosa@aurainteligente.com [221193Cy*]`, criadas em 30/07, arquivadas, **zero** bilhetes. Não vieram do import e não foram tocadas. Se forem lixo de teste, apagar pelo botão Excluir do Painel de Contas (s219).
 
+*(movidos da §2 em 06/09 — mesma marca HUMANA, texto intacto.)*
+
+- **PassaTips VIP — o bot está pronto e PARADO num passo humano (s273). HUMANA.** Falta
+  `PT_APOIO_ID`: **a Bot API do Telegram não cria grupo** (só cliente MTProto), então o
+  apoio tem de ser criado à mão — Feca + `@passapano` (id `8290339271`) + `@sharpenbetbot`
+  como **admin** (apagar mensagens e fixar). Falta também `SHARPEN_SENHA_PT` no Railway.
+  O destino já está conferido por `getChat` (`-1003907895270`, `type: channel`) e o bot já
+  é admin lá com `can_post_messages`/`can_edit_messages`. O tenant é **inerte** sem
+  `PT_APOIO_ID`, então o código já em produção não faz nada até isso existir. **A 1ª
+  captura ao vivo tem duas leituras críticas:** o bilhete tem de sair com o **esporte
+  certo** (o padrão novo põe na 1ª linha) e a **casa vinda do host do link** — é o que a
+  correção do `embutirLinks` destravou, e nenhum lote real atravessou a ponte ainda.
+  Contador semeado em `data/passatips/contador.json` = **258**; a próxima do canal é a
+  **#259**.
+- **PassaTips — 3 passos humanos para fechar o buraco do #259 (s276). HUMANA.** O
+  `/contador 271` já foi feito (18/08 09:33), então daqui para frente está limpo. Falta:
+  **(1)** o tipster **repostar a aposta de hoje** no apoio (`Futebol` / `Over 3.5 gols -
+  @2,25 (1,00u)` / link Betnacional) — ela virá como **#272**, porque hoje ela **não está
+  na base**: o bot salvou às 09:20 sobre a linha importada `PT202608-259` e foi absorvida;
+  **(2)** `/anular #259` para desarmar o painel antigo — ⚠️ isso **apaga** a linha
+  `Under 1.5 cartões Elche` (17/08, id 186709), porque o bot guardou o id dela por engano;
+  **(3)** reimportar a planilha, que recria essa linha exata. **Ordem importa: (1) antes de
+  (2).** Enquanto o painel do #259 estiver armado, um clique ✅ vira o `L` do dia 17 em `W`
+  (`resultado` não é congelado).
+- **Zora — falta `/ressincronizar` (s276). HUMANA.** Só Chutes (62/62) e Rei do Criquete
+  (65/67, 114 linhas repostas) já foram. A Zora é o único tenant que não passou; ela tem 17
+  bilhetes e a última escrita é de 02/08, então provavelmente não há nada a repor — mas isso
+  é dedução, não medição.
+- **As 3 senhas de tipster no Railway podem sair (s276). HUMANA.** `SHARPEN_SENHA`,
+  `SHARPEN_SENHA_ZORA` e `SHARPEN_SENHA_RC` só servem de fallback agora. Com os quatro
+  botões ligados no `/admin`, apagá-las fecha a porta velha. Confirmar antes no log do boot:
+  cada tenant loga `[sharpen:<user>] token de serviço`.
+- **Bot Sharpen no Railway (s251) — falta o smoke test de ponta a ponta, que é do Feca.** O serviço está no ar e verificado por fora (contador conferido de volta do volume, `login ok` nas duas contas, fila do Telegram drenando), mas **nada passou pelo Telegram ainda** — eu não tenho acesso ao app. Fazer: mandar `/status` no apoio do Só Chutes; se responder com os bilhetes do mês, o caminho todo fechou. Sobraram dois diretórios aninhados de uma tentativa de upload (inofensivos, o `storage.js` não os lê), e **o CLI recusa deleção pedida por agente** — rodar `railway volume files delete --volume sharpen-bot-volume /sochutes/sochutes` e o mesmo para `/zora/zora`. **Solto (segurança):** o `SHARPEN_SENHA` do `SoChutes` tem **4 caracteres** numa conta de produção exposta na internet; trocar é `.env` → `scripts\exportar_env_railway.ps1` → `railway redeploy`. Detalhes de operação vivem no `README.md` do repo do bot, não aqui.
+
 ### 1.1 Rotação da senha do Postgres — `AUDITORIA_2026 #1`. HUMANA.
 
 Runbook pronto e sem segredo nenhum dentro:
@@ -156,43 +190,12 @@ outro caminho: *"a extração print→TSV nunca é verificada ponta a ponta"*.
   (`withholdingTax` 0 em 35 de 35) · freebet · `costDiscount` · `isBanker` ·
   `overriddenResult` · e qualquer `result` fora de {Won, Lost, Pending} — **não há
   anulada/void na amostra**. O `§9` tem 34 rótulos confirmados de 123 pernas reais.
-
-- **PassaTips VIP — o bot está pronto e PARADO num passo humano (s273). HUMANA.** Falta
-  `PT_APOIO_ID`: **a Bot API do Telegram não cria grupo** (só cliente MTProto), então o
-  apoio tem de ser criado à mão — Feca + `@passapano` (id `8290339271`) + `@sharpenbetbot`
-  como **admin** (apagar mensagens e fixar). Falta também `SHARPEN_SENHA_PT` no Railway.
-  O destino já está conferido por `getChat` (`-1003907895270`, `type: channel`) e o bot já
-  é admin lá com `can_post_messages`/`can_edit_messages`. O tenant é **inerte** sem
-  `PT_APOIO_ID`, então o código já em produção não faz nada até isso existir. **A 1ª
-  captura ao vivo tem duas leituras críticas:** o bilhete tem de sair com o **esporte
-  certo** (o padrão novo põe na 1ª linha) e a **casa vinda do host do link** — é o que a
-  correção do `embutirLinks` destravou, e nenhum lote real atravessou a ponte ainda.
-  Contador semeado em `data/passatips/contador.json` = **258**; a próxima do canal é a
-  **#259**.
 - **`Cobranças de lateral` e `Tiro de meta`: a régua ficou desalinhada de propósito
   (s273). NÃO-MEDIDA.** São a mesma família de `Faltas` (estatística de jogo), mas caem em
   lugares diferentes — lateral em `Outros` e tiro de meta em `Team Props`, por sinônimo
   explícito do `MASTER_APOSTAS §4`. A s273 criou **só** `Faltas`, que era o aprovado.
   Decidir se as duas viram categoria ou as duas viram `Outros` é mudança própria, com a
   regra de propagação inteira. Registrada no Feedback #2 da `CASA_BETFAST`.
-- **PassaTips — 3 passos humanos para fechar o buraco do #259 (s276). HUMANA.** O
-  `/contador 271` já foi feito (18/08 09:33), então daqui para frente está limpo. Falta:
-  **(1)** o tipster **repostar a aposta de hoje** no apoio (`Futebol` / `Over 3.5 gols -
-  @2,25 (1,00u)` / link Betnacional) — ela virá como **#272**, porque hoje ela **não está
-  na base**: o bot salvou às 09:20 sobre a linha importada `PT202608-259` e foi absorvida;
-  **(2)** `/anular #259` para desarmar o painel antigo — ⚠️ isso **apaga** a linha
-  `Under 1.5 cartões Elche` (17/08, id 186709), porque o bot guardou o id dela por engano;
-  **(3)** reimportar a planilha, que recria essa linha exata. **Ordem importa: (1) antes de
-  (2).** Enquanto o painel do #259 estiver armado, um clique ✅ vira o `L` do dia 17 em `W`
-  (`resultado` não é congelado).
-- **Zora — falta `/ressincronizar` (s276). HUMANA.** Só Chutes (62/62) e Rei do Criquete
-  (65/67, 114 linhas repostas) já foram. A Zora é o único tenant que não passou; ela tem 17
-  bilhetes e a última escrita é de 02/08, então provavelmente não há nada a repor — mas isso
-  é dedução, não medição.
-- **As 3 senhas de tipster no Railway podem sair (s276). HUMANA.** `SHARPEN_SENHA`,
-  `SHARPEN_SENHA_ZORA` e `SHARPEN_SENHA_RC` só servem de fallback agora. Com os quatro
-  botões ligados no `/admin`, apagá-las fecha a porta velha. Confirmar antes no log do boot:
-  cada tenant loga `[sharpen:<user>] token de serviço`.
 - **O auto-deploy do `sharpen-bot` não está disparando com o push (s276). NÃO-MEDIDA.** O
   `casaPorHost` foi commitado às 12:07 e o bilhete `#131` falhou às 12:20 dizendo "não achei
   a casa" — código commitado e não rodando. É a mesma causa do `PT_APOIO_ID` não ser lido.
@@ -205,10 +208,6 @@ outro caminho: *"a extração print→TSV nunca é verificada ponta a ponta"*.
   de servidor. Custou 4 minutos de "quebrou tudo" na s276. Duas saídas, decisão do Feca:
   esconder o botão no modo público (com rótulo "atualiza a cada 5 min") ou deixar o refresh
   furar o cache com teto por slug.
-- **`Faltas` abriu uma régua desalinhada, de propósito (s273). NÃO-MEDIDA.** `Cobranças de
-  lateral` e `Tiro de meta` são a mesma família e caem em lugares diferentes (`Outros` ×
-  `Team Props`). Decidir se as duas viram categoria ou as duas viram `Outros` é mudança
-  própria, com a regra de propagação inteira. Registrada no Feedback #2 da `CASA_BETFAST`.
 - **Imposto no `W`: bruto ou líquido? A decisão continua ADIADA, agora com duas casas
   esperando (s271).** A Novibet é a **primeira casa nossa com imposto explícito no payload**
   (`settlement.withholdingTax` + `taxBonus`), mas veio **0 em 35 de 35** — então dá para
@@ -218,9 +217,6 @@ outro caminho: *"a extração print→TSV nunca é verificada ponta a ponta"*.
   verdades para a mesma regra global.
 
 - **Bot Sharpen — bilhete #21 do Só Chutes ainda está SEM a dupla (s252).** O fix está no ar (`dde8141`), mas ele não age sozinho sobre o passado: a recomposição roda quando o Telegram entrega um `edited_message`. **Fazer: editar a legenda do #21 no apoio outra vez.** Ela já diz `0,25u dupla`, então basta uma edição qualquer (pôr e tirar um espaço serve) para o bot responder `➕ Bilhete #21: acrescentei Sanguinetti + Sen 0.25u @ 9.75`, atualizar o post e planilhar. **O post do canal não é anulado nem renumerado** — os 28 👍 ficam. Qualquer pessoa com permissão de editar a mensagem serve; o bot escuta a edição, não quem editou. A dupla nasce **aberta** e a odd sai como produto das pernas (3,25 × 3 = 9,75), que é o que o card mostra; se algum dia divergir por boost ou arredondamento da casa, `/ajustar #21` com a foto crava a odd certa. **Sem amostra ainda:** a recomposição nunca rodou contra o Telegram de verdade, só contra o registro reconstruído no teste.
-
-- **Bot Sharpen no Railway (s251) — falta o smoke test de ponta a ponta, que é do Feca.** O serviço está no ar e verificado por fora (contador conferido de volta do volume, `login ok` nas duas contas, fila do Telegram drenando), mas **nada passou pelo Telegram ainda** — eu não tenho acesso ao app. Fazer: mandar `/status` no apoio do Só Chutes; se responder com os bilhetes do mês, o caminho todo fechou. Sobraram dois diretórios aninhados de uma tentativa de upload (inofensivos, o `storage.js` não os lê), e **o CLI recusa deleção pedida por agente** — rodar `railway volume files delete --volume sharpen-bot-volume /sochutes/sochutes` e o mesmo para `/zora/zora`. **Solto (segurança):** o `SHARPEN_SENHA` do `SoChutes` tem **4 caracteres** numa conta de produção exposta na internet; trocar é `.env` → `scripts\exportar_env_railway.ps1` → `railway redeploy`. Detalhes de operação vivem no `README.md` do repo do bot, não aqui.
-
 - **Betpix365 (s258):** ⚠️ **captura NÃO validada ao vivo** — o harness e a API foram exercitados (inclusive o replay e a paginação, contra o gateway real), mas nenhum lote passou pela extensão. Fazer: recarregar a extensão (**0.6.43**), **Ctrl+Shift+R** em `betpix365.bet.br`, abrir **Minhas Apostas**, Conectar → "Copiar bilhetes". **A leitura crítica é a ODD DA MÚLTIPLA `5255274526`: tem de sair `4,23`, não `4,08345` nem `4,08`** — a casa paga "Ganhos extra" (R$ 0,15) por fora da odd, e é a 1ª casa Altenar em que a odd declarada não explica o retorno. Conferir também que o lote tem **9 bilhetes** (a conta inteira) e não 0 — se vier 0 com hook ATIVO, o aprendizado do molde falhou (sessão expirada ou path mudado), **não** é tela errada. Sem amostra (a conta tem 9 resolvidas e **zero abertas**): **aposta em aberto** (a armadilha do `totalWin` potencial não pôde ser verificada aqui — segue travada nos harnesses da VaideBet e da Esportiva) · cashout executado (`cashOutValue: 0` em 9/9) · V/HW/HL · freebet · aposta ao vivo (`isLive: false` em todas) · qualquer esporte além de **futebol** (`sportTypeId: 1` em 9/9) · os 7 valores de `status` fora de {0,1,2}. O `§9` tem 9 rótulos confirmados, de **uma** conta pequena — a lista vai crescer.
 
 - **Jogo de Ouro — 1ª tentativa ao vivo FALHOU (10/08). Diagnóstico feito, conserto NÃO aplicado.** O Feca capturou e recebeu `Jogo de Ouro: 0 bilhetes. Hook: ATIVO · respostas da API: 0 · bilhetes vistos: 0 · abra o histórico COMPLETO`. **A causa raiz do lote vazio ainda não foi medida** (falta a versão da extensão e o console do Feca), mas a investigação achou um defeito certo: **a s258 mudou o mecanismo e deixou 3 lugares mentindo.** O `vb_inject.js` ganhou `RX_APRENDE = /widget(?:Expanded)?BetHistory/i`, que aprende url+headers de **qualquer um** dos dois widgets e reescreve o path no replay. Ou seja, desde a **0.6.43 o painel lateral já serve de molde e a tela cheia deixou de ser obrigatória**. Só que o `git show b59c3cc --stat` confirma que a s258 **não tocou** `extensor/content.js`, `casas/CASA_JOGODEOURO.md` nem `extensor/harness/casos/jogodeouro.mjs`. Então: o toast (`content.js:867`) manda abrir a tela cheia, o comentário do ramo (`content.js:811-815`) afirma que só o expandido é casado, e a tabela do `CASA_JOGODEOURO §2.1.1` diz que o compacto **não** é capturado. Os três são pré-s258. **O `vb_inject.js` está certo; a documentação e a dica é que ficaram para trás.** Pior: `respostas: 0` hoje **mistura três causas** e o toast escolhe uma delas às cegas — (a) aba aberta antes da 0.6.43, sem POST novo (o SPA já tinha os dados em memória); (b) molde aprendido e **replay falhou** (Bearer expirado → 401); (c) endpoint mudou. **Medição que separa as três, e que só o Feca pode fazer:** versão em `chrome://extensions` + console filtrado por `[SharpenUp`, onde `hook instalado em`, `requisição capturada p/ replay` e `erro no replay` decidem. **Conserto proposto, aguardando aprovação:** (1) trocar o `extra` da Jogo de Ouro pelo texto da Betpix365 (recarregar / refazer login); (2) mandar no heartbeat se o **molde foi aprendido** (`reqCtx != null`) e o **último erro do replay**, para o toast apontar a causa em vez de chutar; (3) corrigir a tabela do `§2.1.1`; (4) travar o caminho novo no `casos/jogodeouro.mjs`, servindo **só** o compacto e exigindo lote cheio (hoje só o `betpix365.mjs` cobre isso, e o caso da Jogo de Ouro ainda entrega o expandido em `urlsExtra`). **✅ A metade documental do diagnóstico foi RECONFIRMADA na varredura da s261**, contra o código: `vb_inject.js:47` tem mesmo o `RX_APRENDE = /widget(?:Expanded)?BetHistory/i` (e `:133` aprende por ele), enquanto o toast (`content.js:869`) segue mandando *"abra o histórico COMPLETO"* e a tabela do `CASA_JOGODEOURO §2.1.1:59` segue marcando o compacto como **"Não"** capturado. Os dois estão errados desde a 0.6.43. **A causa raiz do lote vazio continua NÃO-MEDIDA** — isso não muda sem o console do Feca. **Não aplicado de propósito:** mexe em `vb_inject.js` e `content.js`, compartilhados pelas 4 casas Altenar, e o harness está verde (14 casos, 237 bilhetes) — mudança própria, com gates, depois da medição. Ao capturar de novo, conferir contagem/datas/odds/código contra o card; a odd é sempre a **pós-boost** (10 de 10 turbinados). Sem amostra: **aposta em aberto** (a conta tinha zero) · cashout executado · V/HW/HL · bônus · múltipla de jogos diferentes · qualquer esporte além de futebol · os 7 `status` fora de {0,1,2}. O **§9 (mapa de mercados) é herdado da era print e NÃO foi revisado** contra o payload: a amostra da API trouxe rótulos que ele não lista (`1º tempo - 1x2`, `1º tempo - total de escanteios`, `Chance dupla`); revisar quando houver lote real.
@@ -278,7 +274,7 @@ O card fechado não expõe o detalhe. Segue pausado; não reabrir sem pedido.
 
 ### 3.3 O botão "Atualizar dados" mente na página pública `/tipsters/<slug>` (s276). VIVA.
 
-Detalhado no §4 (dívida técnica). A decisão é de produto: esconder o botão no modo público
+O item está na §2 (é da varredura da s261). A decisão é de produto: esconder o botão no modo público
 (com rótulo "atualiza a cada 5 min") ou deixar o refresh furar o cache com teto por slug.
 
 ---
