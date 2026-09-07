@@ -405,10 +405,12 @@ html.embedded .sidebar { display: none; }
 .painel-gestao-count { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
 
 /* ── Layout unificado: topo (resumo | lista) + informativo abaixo ── */
-.painel-top { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+/* .painel-top saiu na s330: a lista ocupa a linha inteira (ver renderPainelContas). */
+.painel-lista-panel + .painel-info { margin-top: 16px; }
+.painel-info + .painel-card { margin-top: 16px; }
 .painel-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .painel-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 1100px) { .painel-top, .painel-info { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .painel-info { grid-template-columns: 1fr; } }
 
 /* s330 — .painel-resumo-* e .painel-foot-stat saíram com o rodapé "177 · 47 · 5 ·
    caixa total". O "Caixa total" era duplicata literal do KPI "Banca total": dois
@@ -781,13 +783,19 @@ body.cap-off .cx__body { display: none; }
 .painel-casa-tag { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border-radius: var(--r-pill); padding: 2px 8px; border: 1px solid rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
 .painel-casa-tag.mute { border-color: var(--line); background: var(--surface-2); color: var(--ink-soft); }
 /* Saldo da casa no cabeçalho do grupo da lista (substituiu a tabela de travessões).
-   O valor é IDENTIDADE numérica: --ink, nunca apagado. A tag é label: --ink-soft. */
-.contas-casa-saldo { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-.casa-tag { flex: none; display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; border-radius: var(--r-pill); padding: 3px 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); white-space: nowrap; }
+   O valor é IDENTIDADE numérica: --ink, nunca apagado. A tag é label: --ink-soft.
+   s330 — .contas-casa-saldo passou a ser CÉLULA da grade e vive junto das outras
+   trilhas (busque por `.contas-casa-saldo` mais abaixo). As duas regras de
+   `margin-left:auto` que empurravam saldo e contador para a direita saíram com o
+   flex: em grade, o que alinha é a trilha, e um `auto` sobrevivente esticava a
+   célula do nome e CLIPAVA o nome da casa. */
+/* `justify-self:start` é load-bearing: como item de grade o inline-flex ESTICA para a
+   trilha inteira, e a pílula virava uma barra de 190px. Com `start` todas as tags
+   começam no mesmo x qualquer que seja o comprimento do rótulo — que é o motivo de a
+   coluna existir. */
+.casa-tag { flex: none; justify-self: start; max-width: 100%; display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; border-radius: var(--r-pill); padding: 3px 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .casa-tag.ok { color: var(--pos); border-color: rgba(var(--pos-rgb),.35); background: rgba(var(--pos-rgb),.08); }
 .casa-tag.al { color: var(--warn); border-color: rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); }
-.contas-casa-head .contas-casa-count { margin-left: 0; }
-.contas-casa-head .contas-casa-nome + .contas-casa-count { margin-left: auto; }
 
 /* ── Rail v2 "RAIO-X" (handoff-rail-v2) — área de trabalho = grid colmain | rail full lateral.
    O ctxbar e a KPI bar passam a viver DENTRO da colmain (não cruzam mais o rail).
@@ -1923,24 +1931,88 @@ td.c-res.res-HL { color: var(--warn); }
 .contas-search input { background: transparent; border: 0; outline: 0; color: var(--ink); font-size: 13px; width: 100%; font-family: var(--font-sans); }
 .contas-search input::placeholder { color: var(--ink-mute); }
 .contas-casa { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 14px; }
-.contas-casa-head { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); min-width: 0; }
+
+/* ── Colunas fixas na linha da casa E na linha da conta (s330) ────────────────
+   A lista era flex com `margin-left:auto`: tag e valor caíam num x diferente a cada
+   linha, conforme o comprimento do nome, e a coluna inteira dançava. Grid com trilhas
+   FIXAS — as MESMAS nos dois — é o que faz tag e valor sempre caírem no mesmo lugar.
+     nome · tag · caixa · ações
+   A 4ª trilha fica RESERVADA mesmo vazia (linha de casa, linha em repouso): é por isso
+   que nada se desloca quando as ações aparecem no hover.
+   O padding direito é igual nas duas linhas, então o recuo da conta encolhe só a
+   coluna 1 — as três fixas continuam alinhadas entre casa e conta. */
+.contas-casa-head,
+.conta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px 100px 152px;
+  align-items: center; gap: 10px;
+}
+/* Trilhas do handoff (190/108/202) exigem ~1.000px de lista, que é o que a maquete
+   tinha. Aqui a lista divide a linha com o card "Contas por casa" E com o rail da
+   casca, e cai a 539px em 1600px de viewport — com as trilhas cheias sobraria ~9px
+   para o nome. Container query (e não media query) porque quem manda é a largura do
+   PAINEL, não a da janela: a lista tem 679px em 1440px e 539px em 1600px, porque é
+   entre os dois que o rail aparece. Dentro de cada faixa as trilhas seguem fixas —
+   o alinhamento, que é o objetivo da regra, vale nas duas. */
+.painel-lista-panel { container-type: inline-size; container-name: lista; }
+@container lista (min-width: 720px) {
+  .contas-casa-head,
+  .conta-row { grid-template-columns: minmax(0, 1fr) 190px 108px 202px; }
+  .conta-row { padding-left: 42px; }
+}
+
+.contas-casa-head { padding: 11px 16px; border-bottom: 1px solid var(--line); min-width: 0; }
 .contas-casa-head .ctx-hchip { width: 24px; height: 24px; }
-.contas-casa-nome { font-size: 14px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Mesmo componente do .acct-gcount noutro contexto: contador = chip mute, 10px. */
-.contas-casa-count { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-mute); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 3px 9px; }
-.conta-row { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line-2); }
+/* Célula 1 = tudo que é NOME (favicon, nome, pílula de contagem / fornecedor). Nada
+   de nome pode ser irmão da grade, senão vira coluna e desalinha as três fixas. */
+.contas-casa-nomewrap,
+.conta-nomewrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.conta-nomewrap { gap: 8px; }
+.contas-casa-nome { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Contador = metadado em pílula. 10px é o piso do --ink-mute; não desce daqui. */
+.contas-casa-count { flex: none; font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-mute); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 3px 9px; }
+
+.conta-row { padding: 9px 16px 9px 30px; border-bottom: 1px solid var(--line-2); }
 .conta-row:last-child { border-bottom: 0; }
-.conta-row:hover { background: rgba(var(--accent-rgb),.04); }
+.conta-row:hover { background: var(--surface-2); }
 .conta-row.clickable { cursor: pointer; }
-.conta-row.clickable:hover { background: rgba(var(--accent-rgb),.07); }
 .conta-row.clickable:hover .conta-nome { color: var(--accent-2); }
 .conta-nome { font-size: 13px; color: var(--ink); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.conta-badges { display: flex; align-items: center; gap: 5px; }
-.conta-acoes { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.conta-act { font-family: var(--font-mono); font-size: 11px; padding: 6px 11px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer; transition: .15s; }
-.conta-act:hover { border-color: var(--accent); color: var(--ink); }
-.conta-act.danger { color: var(--neg); }
-.conta-act.danger:hover { border-color: var(--neg); background: rgba(var(--neg-rgb),.08); }
+/* Fornecedor/parceiro: LABEL, não nome próprio — --ink-soft 10px mono, no piso da
+   escada. Estava colado ao nome dentro do mesmo texto ("Davi [Norte]"), o que fazia
+   um metadado disputar peso com a identidade da conta. */
+.conta-forn { flex: none; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Caixa da conta: valor numérico → --ink, mono, tabular, à direita. Vírgulas alinhadas
+   na vertical é o que permite comparar duas linhas sem ler número por número. */
+.conta-caixa { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.conta-caixa.vazio { color: var(--ink-mute); }
+.contas-casa-saldo { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.contas-casa-saldo.vazio { color: var(--ink-mute); font-weight: 600; }
+
+/* Ações só no hover/foco. Elas ocupavam 3 botões × ~100 linhas = ~300 botões acesos
+   permanentemente, com um vermelho em cada uma; a coluna reservada garante que
+   aparecer não empurra nada. */
+.conta-acoes { display: flex; align-items: center; justify-content: flex-end; gap: 6px; opacity: 0; transition: opacity .14s var(--ease); }
+.conta-row:hover .conta-acoes,
+.conta-row:focus-within .conta-acoes,
+.conta-acoes.aberto { opacity: 1; }
+/* Sem hover (toque) não há como revelar: ali as ações ficam sempre visíveis. */
+@media (hover: none) { .conta-acoes { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .conta-acoes { transition: none; } }
+.conta-act { font-family: var(--font-mono); font-size: 11.5px; padding: 5px 10px; border-radius: var(--r-sm); border: 1px solid var(--line); background: transparent; color: var(--ink-soft); cursor: pointer; transition: .15s; white-space: nowrap; }
+.conta-act:hover { border-color: var(--ink-mute); color: var(--ink); }
+
+/* Menu "⋯" — abriga o que é raro ou irreversível. */
+.conta-menu { position: relative; display: inline-flex; }
+.conta-kebab { padding: 5px 8px; line-height: 1; }
+.conta-menu-pop { position: absolute; right: 0; top: calc(100% + 5px); z-index: 40; min-width: 196px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: 0 12px 28px rgba(0,0,0,.42); padding: 5px; display: flex; flex-direction: column; }
+.conta-menu-pop[hidden] { display: none; }
+.conta-mi { text-align: left; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink-soft); background: transparent; border: 0; border-radius: var(--r-xs); padding: 8px 10px; cursor: pointer; white-space: nowrap; }
+.conta-mi:hover { background: var(--surface-2); color: var(--ink); }
+.conta-mi-sep { height: 1px; background: var(--line-2); margin: 4px 2px; }
+/* Excluir só fica vermelho no hover: em repouso o --neg de ~100 linhas transformava
+   a cor de "irreversível" em textura de fundo. */
+.conta-mi.danger:hover { color: var(--neg); background: rgba(var(--neg-rgb),.08); }
 .contas-empty { padding: 48px 24px; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); border: 1px dashed var(--line); border-radius: var(--r-lg); }
 </style>
 </head>
@@ -3201,10 +3273,13 @@ function mostrarView(v) {
 let painelBusca = '';
 // Estado da caixa por conta, a partir do /caixa/visao já cacheado. Não dispara
 // fetch: a lista renderiza antes da banca chegar e re-renderiza quando ela chega.
-function _caixaEstadoPorConta() {
+// Retorna a LINHA inteira do /caixa/visao (estado + banca), não só o estado: a coluna
+// Caixa da conta e a tag de conciliação saem do mesmo objeto, e buscá-los em dois
+// lugares é o começo de dois números discordando na mesma linha.
+function _caixaPorConta() {
   if (!caixaVisaoCache) return null;
   const m = {};
-  (caixaVisaoCache.contas || []).forEach(c => { m[c.parceiro_id] = c.estado; });
+  (caixaVisaoCache.contas || []).forEach(c => { m[c.parceiro_id] = c; });
   return m;
 }
 
@@ -3214,17 +3289,21 @@ function _caixaEstadoPorConta() {
 //   a conferir→ alguma conferência não bateu (âmbar, o único aviso da lista).
 // Casa sem nenhuma caixa ligada não ganha nada: era a coluna de travessões que
 // o Feca mandou tirar.
+// Devolve as DUAS células fixas da linha de casa — [tag, saldo] — já como HTML. São
+// devolvidas separadas de propósito: cada uma é uma coluna da grade, e concatená-las
+// num só span era o que tirava a tag da trilha dela.
 function _caixaDaCasa(casa) {
-  if (!caixaVisaoCache || contasTab !== 'ativas') return '';
+  const vazio = ['<span></span>', '<span></span>'];
+  if (!caixaVisaoCache || contasTab !== 'ativas') return vazio;
   const c = (caixaVisaoCache.casas || []).find(x => x.casa === casa);
-  if (!c || !c.ligadas) return '';
+  if (!c || !c.ligadas) return vazio;
   const parcial = c.sem_caixa ? ' · ' + c.ligadas + ' de ' + c.contas : '';
   const tag = c.a_conferir
     ? '<span class="casa-tag al">a conferir</span>'
     : (c.batidas === c.ligadas
        ? '<span class="casa-tag ok">batido' + parcial + '</span>'
        : '<span class="casa-tag">calculado' + parcial + '</span>');
-  return '<span class="contas-casa-saldo">' + fmtSaldo(c.banca) + '</span>' + tag;
+  return [tag, '<span class="contas-casa-saldo">' + fmtSaldo(c.banca) + '</span>'];
 }
 
 function renderPainelLista() {
@@ -3239,32 +3318,65 @@ function renderPainelLista() {
     if (q) ps = ps.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
     if (!ps.length) return;
     total += ps.length;
-    html += '<div class="contas-casa"><div class="contas-casa-head"><span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span><span class="contas-casa-nome">' + esc(nomeCasa) + '</span>' + _caixaDaCasa(casa) + '<span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span></div>';
+    const [casaTag, casaSaldo] = _caixaDaCasa(casa);
+    // Linha da casa: as MESMAS 4 trilhas da linha de conta. A 4ª vai vazia — reservada,
+    // não ausente: é o que impede a lista de dançar quando as ações aparecem.
+    html += '<div class="contas-casa"><div class="contas-casa-head">'
+      + '<span class="contas-casa-nomewrap">'
+        + '<span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span>'
+        + '<span class="contas-casa-nome">' + esc(nomeCasa) + '</span>'
+        + '<span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span>'
+      + '</span>'
+      + casaTag + casaSaldo + '<span></span>'
+      + '</div>';
+    const cxMap = _caixaPorConta() || {};
     ps.forEach(p => {
       const ab = abertasDe(casa, p.nome);
       const st = (semTipsterPorParceiro[casa] || {})[p.nome] || 0;
       // s314: conta com divergência ABERTA na caixa ganha um aviso aqui — alerta que só
       // aparece quando o operador já está olhando a conta certa não previne nada. Conta
       // sem caixa NÃO acende: aviso que acende demais é aviso que ninguém lê.
-      const cxSt = (_caixaEstadoPorConta() || {})[p.id];   // Caixa Inteligente
+      const cx = cxMap[p.id] || null;   // Caixa Inteligente (linha inteira)
       const badges = (ab > 0 ? '<span class="acct-badge open" title="Apostas abertas (sem resultado)">' + (ab > 99 ? '99+' : ab) + '</span>' : '')
-                   + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '')
-                   + (cxSt === 'divergente' ? '<span class="casa-tag al" title="A casa mostrou saldo diferente do projetado">a conferir</span>' : '');
+                   + (st > 0 ? '<span class="acct-badge pend" title="Bilhetes sem tipster">' + (st > 99 ? '99+' : st) + '</span>' : '');
+      const tag = (cx && cx.estado === 'divergente')
+        ? '<span class="casa-tag al" title="A casa mostrou saldo diferente do projetado">a conferir</span>' : '<span></span>';
+      // Caixa da conta: conta sem caixa entra como "—" em --ink-mute, nunca como zero.
+      // Total que engole conta desconhecida mente com cara de exatidão.
+      const caixa = (cx && cx.ligada)
+        ? '<span class="conta-caixa">' + fmtSaldo(cx.banca) + '</span>'
+        : '<span class="conta-caixa vazio" title="Caixa Inteligente não ligada nesta conta">—</span>';
+      // Nome e fornecedor deixam de ser uma string só ("Davi [Norte]"): o nome é
+      // identidade (--ink 13px) e o fornecedor é label (--ink-soft 10px mono).
+      const forn = _painelParseForn(p.nome);
+      const nomeLimpo = forn ? (p.nome || '').replace(/\s*\[[^\]]*\]\s*$/, '') : (p.nome || '');
       const clic = contasTab === 'ativas';   // ativa = tem perfil na Extração → linha inteira abre lá
       // Na aba Ativas a linha inteira abre a conta na Extração, então toda ação precisa
-      // parar a propagação. Excluir aparece nas DUAS abas — conta arquivada é justamente
-      // a que mais se quer apagar — e é a ÚNICA em vermelho: Arquivar saiu do `.danger`
-      // porque é reversível. Aqui o --neg passa a significar "irreversível", não
-      // "cuidado genérico"; se as duas fossem vermelhas, a cor não avisaria nada.
+      // parar a propagação. Excluir saiu da linha e virou o último item do menu "⋯":
+      // ~100 linhas × 1 botão vermelho aceso transformava a cor de "irreversível" em
+      // textura de fundo, e a que mais se clica por engano é justamente a que não volta.
       const stop = clic ? 'event.stopPropagation();' : '';
       const ds = 'this.closest(\'.conta-row\').dataset.';
       const acoes =
         '<button class="conta-act" onclick="' + stop + 'contasEditar(' + p.id + ',' + ds + 'casa,' + ds + 'nome)">Editar</button>'
         + '<button class="conta-act" onclick="' + stop + (clic ? 'contasArquivar' : 'contasReativar') + '(' + p.id + ',' + ds + 'casa)">' + (clic ? 'Arquivar' : 'Reativar') + '</button>'
-        + '<button class="conta-act danger" onclick="' + stop + 'contasExcluir(' + p.id + ',' + ds + 'casa)">Excluir</button>';
+        + '<span class="conta-menu">'
+          + '<button class="conta-act conta-kebab" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Mais ações" onclick="' + stop + 'contasMenu(this)">⋯</button>'
+          + '<span class="conta-menu-pop" role="menu" hidden>'
+            + '<button class="conta-mi" role="menuitem" onclick="' + stop + 'contasFecharMenus();contasAbrir(' + p.id + ',' + ds + 'casa)">Ver extrato da conta</button>'
+            + '<span class="conta-mi-sep"></span>'
+            + '<button class="conta-mi danger" role="menuitem" onclick="' + stop + 'contasFecharMenus();contasExcluir(' + p.id + ',' + ds + 'casa)">Excluir conta…</button>'
+          + '</span>'
+        + '</span>';
       html += '<div class="conta-row' + (clic ? ' clickable' : '') + '" data-casa="' + esc(casa) + '" data-nome="' + esc(p.nome || '') + '"'
         + (clic ? ' onclick="contasAbrir(' + p.id + ',this.dataset.casa)" title="Abrir na Extração"' : '')
-        + '><span class="conta-nome">' + esc(p.nome || '—') + '</span><span class="conta-badges">' + badges + '</span><span class="conta-acoes">' + acoes + '</span></div>';
+        + '><span class="conta-nomewrap">'
+          + '<span class="conta-nome">' + esc(nomeLimpo || '—') + '</span>'
+          + (forn ? '<span class="conta-forn">' + esc(forn) + '</span>' : '')
+          + badges
+        + '</span>'
+        + tag + caixa
+        + '<span class="conta-acoes">' + acoes + '</span></div>';
     });
     html += '</div>';
   });
@@ -3369,6 +3481,45 @@ function _irParaDivergencia() {
   alvo.classList.add('pisca');
   setTimeout(() => alvo.classList.remove('pisca'), 1600);
 }
+
+// ── Menu "⋯" da linha da conta (s330) ────────────────────────────────────────
+// Abriga o que é raro (ver extrato) ou irreversível (excluir). Fecha em Esc e em
+// clique fora, e o `.aberto` segura a coluna de ações visível enquanto o menu está
+// aberto — sem isso o mouse sai da linha para escolher o item e o menu some junto.
+function contasFecharMenus() {
+  document.querySelectorAll('.conta-menu-pop:not([hidden])').forEach(pop => {
+    pop.hidden = true;
+    const btn = pop.parentElement && pop.parentElement.querySelector('.conta-kebab');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    const acts = pop.closest('.conta-acoes');
+    if (acts) acts.classList.remove('aberto');
+  });
+}
+
+function contasMenu(btn) {
+  const pop = btn.parentElement.querySelector('.conta-menu-pop');
+  const abrir = pop.hidden;
+  contasFecharMenus();          // um menu por vez
+  if (!abrir) return;
+  pop.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  const acts = btn.closest('.conta-acoes');
+  if (acts) acts.classList.add('aberto');
+  const primeiro = pop.querySelector('.conta-mi');
+  if (primeiro) primeiro.focus();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest || !e.target.closest('.conta-menu')) contasFecharMenus();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const aberto = document.querySelector('.conta-menu-pop:not([hidden])');
+  if (!aberto) return;
+  const btn = aberto.parentElement.querySelector('.conta-kebab');
+  contasFecharMenus();
+  if (btn) btn.focus();          // devolve o foco a quem abriu
+});
 
 // s330 — `_renderCaixaTotal` saiu com o rodapé que o hospedava. Ele imprimia o MESMO
 // `totais.banca` do KPI "Banca total", a dois cards de distância: duplicata não é
@@ -4195,14 +4346,20 @@ function renderPainelContas() {
   // contas sem caixa ela era uma coluna de travessões. O saldo passou a viver na
   // LISTA, no cabeçalho de cada casa, onde já se está olhando a conta.
 
+  // s330 — a lista passou a ocupar a linha inteira. Ela dividia a linha com "Contas por
+  // casa" e caía a 539px em 1600px de viewport (o rail da casca entra entre 1440 e 1600
+  // e come ~300px). As trilhas fixas da Opção A somam 500px: com 539 sobravam 9px para o
+  // nome, e o nome da casa era CLIPADO — medido no headless, não deduzido. A maquete dava
+  // ~1.000px à lista porque lá "Contas por casa" mora no rail, que aqui já é do RAIO-X.
+  // Com a lista inteira sobram ≥620px em toda largura medida (748 · 892 · 1120 · 1852).
+  // "Contas por casa" desce e faz par com "Custos por fornecedor" — dois cards de
+  // breakdown lado a lado, que é o que os dois são.
   host.innerHTML =
     hero +
     bancaKpis +
-    '<div class="painel-top">' +
-      listaPanel +
-      casaCard +
-    '</div>' +
-    custoCard + atividadeCard;
+    listaPanel +
+    '<div class="painel-info">' + casaCard + custoCard + '</div>' +
+    atividadeCard;
   renderPainelLista();       // preenche a lista de gestão (grupos por casa + ações)
   renderPainelBanca();       // preenche a banca (KPIs + saldo por casa) — /caixa/visao
   renderPainelAtividade();   // preenche a tabela de atividade (duração/dias/apostas)
