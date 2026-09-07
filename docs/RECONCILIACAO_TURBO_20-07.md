@@ -134,3 +134,69 @@ _(preenchido ao fim; ver §Cobertura)_
 
 **Lote 3: 4 fechados · 1 parcial (#40) · 11 abertos · 2 a confirmar (#37, #49).**
 **Mais uma duplicata interna: #50 ≡ #51.**
+
+---
+
+## Lote 4 — dedup, UPSERT e o front do dashboard (#55 a #76)
+
+| # | Sev | Achado | Veredicto em 07/09 |
+|---|---|---|---|
+| 55 | médio | Tabela de dedup do `CLAUDE.md` divergia do código ("mesmo lote idêntico salva UMA vez") | **FECHADO** — o `CLAUDE.md:796` hoje diz exatamente o que o código faz: "salva **ambas** as linhas (assinaturas distintas via `_counter`: `B`, `B\|2`, …) + aviso amarelo; delete se for sobreposição real". |
+| 56 | médio | `repository.py` mistura domínio puro e acesso a dados | **FECHADO POR DECISÃO, não por código.** O `domain.py` era o `#14` de 19/07 e foi **morto na s160**: a premissa caiu quando o harness de DB real (`#11`) destravou o teste sem precisar do split, e mover 550 linhas do núcleo de dinheiro seria risco por ganho cosmético. Registrar como decisão, não como pendência. |
+| 57 | baixo | Guard cross-dono pode descartar aposta idêntica legítima em conta compartilhada sem ID | **ABERTO, e a recomendação era "manter como está".** O que ela pedia junto — documentar o trade-off no `CLAUDE.md` — **foi feito**: a memória `dedup_cruzada_conta_compartilhada` e a tabela de dedup cobrem o caso. O descarte silencioso continua. |
+| 58 | médio | Migrações A e B rodam 2 `UPDATE` por bilhete com código em **toda** extração | **ABERTO** — as duas seguem dentro do laço (`repository.py:1304` e `:1325`), sem gate de lote legado. O mergulho de 20/07 chegou a listar "gatear a Migração A/B no hot path" na Onda 3 e não foi feito. **Nota:** a Migração B ganhou trabalho novo na s327 (comparar odd por `_norm_odd`), então o custo por bilhete subiu, não desceu. |
+| 59 | baixo | Migração A/B fora do `try/except` do INSERT: corrida de unique aborta o lote inteiro | **ABERTO** — mesmo bloco do #58; o `except asyncpg.UniqueViolationError` segue protegendo só o INSERT. Probabilidade baixa, modo de falha péssimo (lote inteiro). |
+| 60 | médio | Regressão do bug case-sensitive do resultado cobria só a LEITURA | **A CONFIRMAR** — o harness de DB real existe agora (`tests/test_repository_db.py`), mas eu não conferi se ele tem o caso `resultado='w'` → persistido `'W'`. Decidível, só não por `grep`. |
+| 61 | médio | Dashboard sem responsividade: `layout.css` sem uma `@media` | **ABERTO** — `grep -c @media layout.css` = **0**, igual a julho. É o **D1** do mergulho, que o classificou como a única área **vermelha**. |
+| 62 | médio | `fmtPL` do dashboard pintava zero de verde com `+` | **FECHADO** — hoje é `cls = v>0?'pos':(v<0?'neg':'')` e `sign = v>0?'+':(v<0?'−':'')`. Zero neutro, minus U+2212. Corrigido em `31166ad`. |
+| 63 | médio | Unidade de fallback depende do filtro da tela — "u" não é comparável entre views | **A CONFIRMAR** — o cálculo mudou de forma desde julho (a escada de unidade evoluiu com o P1 do tipster). Exige leitura do caminho, não `grep`. |
+| 64 | médio | Rótulos de eixo com contraste abaixo do mínimo (`tc()` = `#505060` no dark) | **FECHADO** — `tc()` hoje devolve `#5E6775`, que é exatamente o `--ink-mute` que a recomendação pedia. |
+| 65 | baixo | "Baixar base (CSV)" ignora os filtros ativos | **ABERTO** — segue sem recorte filtrado. É UX, não dado errado: a base completa é o que o botão promete. |
+| 66 | **alto** | Custo de Tipsters e Custos Gerais vazavam entre donos (`localStorage` sem escopo) | **FECHADO** — a fonte de verdade virou **Postgres por dono** via `/custos/store`; o `localStorage` ficou só como cache de pintura instantânea, e o comentário no código cita o incidente do Jonathan (19/07) por nome. Foi o `#1`/`#2` de 19/07. |
+| 67 | médio | `BASE_BANK = 100000` fixo torna o Drawdown % arbitrário entre donos | **ABERTO** — `BASE_BANK` segue no cálculo (`app.js:179`, `:290`). O rótulo honesto que a recomendação sugeria como paliativo também não existe. |
+| 68 | médio | MDD agregado por dia esconde drawdown intradiário | **PARCIALMENTE FECHADO** — a s313 unificou Topo e Drawdown na **mesma curva e mesma régua**, dia a dia, partindo do mesmo zero (é a regra que está no `CLAUDE.md`). O que a recomendação pedia além disso — um motor **bet-a-bet** com hora real — não foi feito, e sem hora no dado não dá para fazer. |
+| 69 | baixo | p-value testa yield **com** Void, mas o ROI exibido é **sem** Void | **A CONFIRMAR** — o Monte Carlo foi para um Web Worker desde então e o código mudou de lugar. Não conferi o denominador. |
+| 70 | médio | p-value e Monte Carlo assumem apostas i.i.d. (viés otimista) | **ABERTO por decisão** — é o `#30` da `AUDITORIA_2026`, fechado lá como "heurística por design, e assim declarada" no tooltip. O *bootstrap* em blocos nunca foi feito. |
+| 71, 72 | baixo + médio | Solidez infla para edge trivial · Solidez tem piso de 0,40 para book perdedor | **ABERTO** — são o `#15`/`#16` de 19/07: implementados e **revertidos no mesmo dia** (`9394553`), porque o gate rebaixava um tipster sólido por um drawdown normal. Precisa de redesenho, não de ajuste (`BACKLOG §3.1`). |
+| 73 | baixo | `sFolga` da Solidez usa DD **simulado** mas compartilha o benchmark do Recovery Factor **real** | **ABERTO** — entra no mesmo redesenho do #71/#72, e é o detalhe mais concreto dos três: dois números com o mesmo nome ("folga") e denominadores diferentes. |
+| 74 | médio | Edição inline por duplo-clique sem pista visual (`class` duplicado no mesmo `div`) | **A CONFIRMAR NA TELA** — atributo duplicado é o tipo de coisa que o navegador resolve em silêncio; o gate é abrir a tela, como manda a regra de UI. |
+| 75 | baixo | Literais hex duplicam tokens `--d-*` já definidos | **ABERTO** — o `check-tokens` mede o drift (615 cores literais / 177 valores) e passa: ele barra cor **banida** e drift **novo**, não afirma conformidade. Está escrito assim na saída do próprio gate. |
+| 76 | baixo | KPIs do `gestao.js` montam dinheiro com string crua `'R$ '+fmt` | **ABERTO e igual** — **28** ocorrências de `'R$ '+`, o mesmo número que a auditoria contou em julho. Viola o `UI_REFERENCE §5` (o `R$` tem de ser neutro, a cor só no número). |
+
+**Lote 4: 5 fechados · 2 parciais (#68, #57) · 11 abertos · 4 a confirmar (#60, #63, #69, #74).**
+**Mais uma duplicata interna: #71 ≡ #72 ≡ (#15/#16 de 19/07).**
+
+---
+
+## Lote 5 — gráficos, UI da extração e casas (#77 a #99)
+
+| # | Sev | Achado | Veredicto em 07/09 |
+|---|---|---|---|
+| 77 | baixo | Barras de Fornecedores dependem só de cor para o sinal | **A CONFIRMAR NA TELA** — acessibilidade de gráfico não se mede por `grep`. |
+| 78 | médio | Distribuição de Odds: dois eixos % independentes sobrepostos enganam | **A CONFIRMAR NA TELA.** |
+| 79 | **alto** | P/L Líquido subtraía custo de tipster do histórico inteiro, ignorando o filtro | **FECHADO** — `overview.js:23-27` hoje calcula `_ymMin`/`_ymMax` do recorte e pula o mês fora dele, com o comentário citando o achado. Foi o `#2` de 19/07 (`570bd89`). |
+| 80 | médio | Cards da Visão Geral mostram números velhos quando o filtro zera resultados | **A CONFIRMAR NA TELA** — é justamente o tipo de defeito que só aparece renderizando. |
+| 81, 82 | baixo ×2 | Gráfico de banca sem legenda/títulos de eixo · curva acumulada sem âncora no zero | **A CONFIRMAR NA TELA** — os dois são decisões de leitura visual, e o #82 a auditoria já colocava como "decidir a convenção com o Feca". |
+| 83, 86 | médio ×2 | Cores de série verde/rosa fora de qualquer token, inconsistentes entre gráficos | **ABERTO — e são o mesmo achado.** O `check-tokens` mede o drift (615 literais / 177 valores) e **passa**, porque ele barra cor banida e drift novo, não afirma conformidade. Está escrito na saída do próprio gate. |
+| 84 | info | Variável `roi` morta no plugin de rótulos do gráfico de Esportes | **FECHADO** — a linha do `roi` hoje **é usada**: entra no `return [_txtPL(…), 'ROI: …', 'Apostas: …']` do tooltip. |
+| 85 | médio | Tooltip do gráfico de Esportes mostrava HTML cru (`fmtPL` num tooltip de canvas) | **FECHADO** — `performance.js:156` usa `_txtPL(e[1].l)`, exatamente o formatador de texto puro que a recomendação pedia. ⚠️ **Isto corrige o `BACKLOG §4.2`**, onde eu tinha deixado o `#6` do TURBO 19/07 como "a confirmar na tela": ele está fechado. |
+| 87 | baixo | Dead code: `const wins=settled.filter(['W','HW'])` (resíduo do bug #27) | **ABERTO** — as **3** declarações mortas seguem lá, o mesmo número de julho. |
+| 88 | baixo | Gráficos de evolução sem estado vazio quando há <2 dias | **A CONFIRMAR NA TELA.** |
+| 89 | info | Matriz de correlação inverte a convenção de cor (verde = correlação negativa) | **ABERTO por decisão** — a própria recomendação dizia "manter se for decisão de marca"; o reforço de rótulo no topo é o que falta. |
+| 90 | baixo | Filtros não persistem ao trocar de aba | **ABERTO** — `gfs(p)` segue com estado por página (`filters.js:3`). Vale notar que a s317 **unificou a barra** de filtros numa superfície só; a persistência entre abas é outro eixo e continua aberta. |
+| 91, 97 | baixo ×2 | Edição inline e atalhos da coluna Tipster sem dica visível | **A CONFIRMAR NA TELA** — pura descoberta de UI. |
+| 92 | médio | Campo Resultado: texto livre no modal vs `select` no inline | **FECHADO** — `index.html:2277` hoje é `<select id="ed-resultado">` com `— aberta —` e as 5 opções. Fecha a porta que gerou o bug histórico do `'v'` minúsculo. |
+| 93 | baixo | "Limpar" apaga texto+imagens do lote sem confirmação | **A CONFIRMAR NA TELA.** |
+| 94 | baixo | Onboarding promete "confere e confirma", mas a extração salva direto | **A CONFIRMAR NA TELA** — texto de onboarding, precisa ser lido renderizado. |
+| 95 | médio | Erro cru do servidor (HTML/stacktrace) despejado no card de extração | **A CONFIRMAR** — o caminho de erro mudou muito (a s314 levou o 500 da Caixa para o formulário que falhou). Não conferi este ponto específico. |
+| 96 | baixo | Peso de stake (25) domina e pode sugerir com um único sinal | **ABERTO, e agora com nuance** — `index.html:6671`/`:6686` seguem com `w: 25` e `25/√finais.size`. Mas o achado envelheceu por cima: a s221 provou que **dois cortes viraram load-bearing** (valor redondo e `valores.size === 1`) e o `CLAUDE.md` os documenta. Recalibrar o 25 sem respeitar esses dois cortes quebra o matcher em produção — já quebrou. |
+| 98 | médio | Separador de bet-builder diverge entre casas (`&` fora do global) | **PARCIALMENTE FECHADO** — a `CASA_JOGODEOURO` tem **0** ocorrências de ` & ` hoje; a `CASA_LOTTU` ainda tem **4**. A decisão global foi tomada (` // ` é o separador único, e está no `CLAUDE.md` — achado `#19` de 19/07); a propagação para a Lottu não terminou. ⚠️ `casas/` está fora do escopo desta faxina. |
+| 99 | baixo | Contagem hardcoded "27 categorias" drifou | **ABERTO e pior do que o achado dizia.** Medido pelo parser canônico (`audit_casas.categorias_oficiais()`): o `§3` tem **30** categorias hoje — não 27, e nem as 28 que a auditoria supunha. A string "27 categorias" segue em 4 arquivos de casa **e no `CLAUDE.md`**. A recomendação continua a certa: tirar o número, já que a lista canônica vive no `§3`. ⚠️ `casas/` fora do escopo. |
+
+**Lote 5: 5 fechados · 1 parcial (#98) · 6 abertos · 11 a confirmar na tela.**
+**Correção ao `BACKLOG §4.2`: o `#6` do TURBO 19/07 está FECHADO (achado #85 acima).**
+
+> **Padrão que aparece neste lote:** 11 dos 23 itens só se decidem **abrindo a tela**. Isso
+> não é limitação do método — é a mesma coisa que a regra de UI do `CLAUDE.md` já manda
+> ("abrir a tela num navegador antes do commit", item 5). Uma auditoria feita 100 % por
+> leitura de código deixa um terço dos achados de UI em suspenso por construção.
