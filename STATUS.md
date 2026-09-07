@@ -6,7 +6,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-06 (sessao 327 - **ligar a Caixa no meio da captura nasce com a divergencia que ela existe para denunciar.** A conta `Betnacional / renanfernando01 [Richard]` projetava R$ 3.195,83 e a casa mostrava R$ 4.558,09. `abertas_corte` e um retrato do que o SHARPEN SABIA naquele segundo, nao do que a CASA TINHA: a Caixa foi ligada as 03:17:32, o /salvar so gravou as 3 abertas (R$ 600,00) as 03:18:19, e a conferencia das 03:18:35 mediu projetado -599,00 - o Ajuste entao cimentou o erro em +R$ 600,00. Junto veio um segundo defeito, independente: a captura devolveu a multipla do Falkirk SEM a 11a coluna, e a Migracao B do UPSERT (que adota linha sem codigo) exige `odd` identica - "14" nao e "14,00" -, entao o bilhete liquidado entrou como linha NOVA e a velha ficou aberta para sempre. A diferenca de R$ 1.362,26 e exatamente +1.662,26 (retorno da aberta no corte que a Caixa nao conta) -300,00 (Falkirk descontado duas vezes), conferido contra a casa bilhete a bilhete no Chrome - 11 cards, 11 linhas, zero pendente. Corrigido por `scripts/corrigir_caixa_fantasma_s327.py`: disponivel 4.558,09, divergencia 0,00. **Nenhum defeito na exportacao da Betnacional.** Backup em `Backups/s327-caixa-betnacional-fantasma/`.)_
+_Atualizado: 2026-09-06 (sessao 327 - **ligar a Caixa no meio da captura nasce com a divergencia que ela existe para denunciar.** A conta `Betnacional / renanfernando01 [Richard]` projetava R$ 3.195,83 e a casa mostrava R$ 4.558,09. `abertas_corte` e um retrato do que o SHARPEN SABIA naquele segundo, nao do que a CASA TINHA: a Caixa foi ligada as 03:17:32, o /salvar so gravou as 3 abertas (R$ 600,00) as 03:18:19, e a conferencia das 03:18:35 mediu projetado -599,00 - o Ajuste entao cimentou o erro em +R$ 600,00. Junto veio um segundo defeito, independente: a captura devolveu a multipla do Falkirk SEM a 11a coluna, e a Migracao B do UPSERT (que adota linha sem codigo) exige `odd` identica - "14" nao e "14,00" -, entao o bilhete liquidado entrou como linha NOVA e a velha ficou aberta para sempre. A diferenca de R$ 1.362,26 e exatamente +1.662,26 (retorno da aberta no corte que a Caixa nao conta) -300,00 (Falkirk descontado duas vezes), conferido contra a casa bilhete a bilhete no Chrome - 11 cards, 11 linhas, zero pendente. Corrigido por `scripts/corrigir_caixa_fantasma_s327.py`: disponivel 4.558,09, divergencia 0,00. **Nenhum defeito na exportacao da Betnacional.** Os DOIS defeitos de produto foram corrigidos na mesma sessao: a Migracao B do UPSERT passa a comparar a odd pela regua do sistema (_norm_odd, extraida em chave_orfa), e a aposta que nasce aberta com captura anterior a ativacao entra sozinha no abertas_corte. Gates provados por mutacao (6+1+1+1+2 vermelhos), com gate proprio para a LIGACAO no harness de DB. Suite 748 passed, 30 skipped. Backup em `Backups/s327-caixa-betnacional-fantasma/`.)_
 
 _Anterior: 2026-09-06 (sessão 325 — **8º tipster público: `Grego Tips - VIP`, e a fonte externa é o gate mais forte que a planilha tem.** Conta `gregozxrd` aprovada no `/admin`; 956 apostas importadas (01/08 → 01/09/2026, `GV202608-1` … `GV202609-32`), 12 contas `Padrão`, uma por casa. A base é quase monomodal como a do Soh Props — **prop de jogador de futebol** (Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25). **O que valida este import não é a conferência interna: é o fechamento que ELE publicou no canal em 01/09** (`924 apostas · P/L +127,84u · ROI 13,02%`), contra o qual o derivado dá **924 · +127,73u · 13,00%** — a diferença de 0,11u é o arredondamento a centavo da coluna `Ganho` acumulado em 267 vitórias. A reconciliação interna (P/L derivado × coluna `Lucro`) fecha em **0 divergências nas 956**. **As 6 linhas sem casa saíram do export do Telegram, não de uma decisão:** as mensagens de 01/09 dizem Bet365 (msgs 938 e 940) e Betano (msg 942), e o script **ABORTA** se aparecer linha sem casa fora do mapa citado — casa chutada não dá erro, dá conta paralela. Três leituras de categoria não eram óbvias e estão medidas: **`<Nome> +2 Gols` é `Anytime`**, não `Gols` (§3 põe marcador 2+ na família Anytime; as odds de 11 a 81 e a escada do canal — `Tresoldi Anytime` + `Tresoldi +2 Gols` — confirmam), **`25%`/`50%` no título é odd TURBINADA** e não mercado (ele escreve a conta no canal: `2.02 + 25% = 2,27@`), e **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla". **O `%` tem DOIS papéis nesta fonte** e por isso a categoria lê o texto já limpo: em 2 títulos o `0.50%` é a própria STAKE vazando, e lida como turbinada ela transformaria duas apostas de Chutes em bet builder; a limpeza só corta o sufixo quando o número **é** a stake da linha, que é o que mantém `cruzeiro -1` (handicap, stake 2,50) intocado. Prefixo **`GV`**, conferido com `LIKE` sobre a coluna inteira: `GR`, `GT`, `GG`, `GX` e `GP` estão todos ocupados por **código NATIVO da bet365** (`GR3383912251I`), que um regex ancorado em `XX<aaaamm>-<n>` não enxerga (regra da s316). **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon, com o domínio MEDIDO no link do canal (`betsson.bet.br`), não deduzido do nome. Anotado e **não resolvido**: 18 linhas `Nome N+` sem mercado (nem o canal diz qual) vão para `Player Props`, nunca para o total do esporte. **`SOA` eu havia lido como `Chutes no Gol`, e estava ERRADO** — perguntado, ele respondeu no mesmo dia: é **"score or assist", marcar OU assistir**, e as 5 linhas foram para `Player Props` junto com o `G/A` do mesmo arquivo (base reimportada; o script é idempotente por `origem='import'`, reconciliação segue em 0). A inferência era razoável e ainda assim falhou — `SOA` e `SOT` aparecem na MESMA escada, os dois pareados com `Anytime`: **vizinhança tipográfica não é significado**, e o que fez a pergunta acontecer foi ela estar marcada como inferência declarada no relatório em vez de passar como fato. **E o ATRASO DO CANAL foi planilhado a partir dos PRINTS:** ele parou de registrar no tracker na msg 969 (01/09 22:04), e daí até a última do export são **79 mensagens / 196 linhas**, agora em `GV202609-33 … -228` (base do dono: 1.152 bilhetes, 83 em aberto — sem marca entra sem resultado e ele completa à mão). A legenda dá stake e marca; **o print dá odd, seleção e confronto**, e 67 das 196 linhas (34%) têm legenda CEGA (`1.50%`, sem nome) — sem a imagem elas não existiriam. O pareamento stake↔seleção, que é onde isso erra em silêncio, tem três conferências e todas foram usadas: **a caixa de valor do print traz o R$ igual ao `%` da legenda**, a escada de odd, e **o nome MANDA sobre a posição** (msg 986: legenda `+2/+4/+3` fora de ordem contra print em ordem — parear por posição erraria duas das três). O gate que não depende de eu ter lido certo: as marcas contadas por regex no export (`❌ 73 · ✔️ 40 · ⌛ 15 · sem marca 68`) fecham exatas com a leitura dos prints (73 L · 40 W · 83 abertas), **4 de 5 mutações pegas** — e a que escapa está escrita no código: trocar a STAKE passa reto, o gate conta marcas e linhas, não valor. Descrição no formato do MASTER, com a forma da linha seguindo a CASA (Betano discreto `3+ Chutes`, bet365 contínuo `Over 2.5 Chutes`). **`origem='extracao'` e idempotência por FAIXA DE CÓDIGO** — com `origem='import'` um reimport do tracker levaria as 196 junto, em silêncio. Ids conferidos por `getChat`: canal `-1003928624343` (`channel`, bot **administrator**) e apoio `-5577016989` (`group`, bot **membro**, sem migração para supergrupo — a armadilha da s316 não se aplica). **Renomear o apoio para `Apoio - Grego` falhou** (`not enough rights to change chat title`) e não foi insistido: o bot precisa ser admin ali, ou o Feca renomeia na mão. Suíte: **717 passed, 26 skipped**. `data.js?v=18`. Backup em `Backups/s325-import-grego/`. **O perfil do bot (8º tenant) NÃO foi feito** — escopo desta sessão era só o import.)_
 
@@ -108,10 +108,43 @@ não se recalcula. O que ele registrou aconteceu de verdade.
 > está sendo preenchida. Vale para todo campo que congela estado no instante do clique —
 > se a escrita que o alimenta é assíncrona, o clique pode chegar antes dela.
 
-**Pendente (proposto, não feito):** os dois defeitos de produto seguem abertos — a Caixa
-ainda aceita ser ligada durante uma captura, e a repescagem de `_garantir_cobertura`
-**acrescenta** a linha repescada sem remover a órfã sem código (`todas =
-_extract_tsv_rows(resultado) + novas`), então sobra linha sem código nos dois desfechos.
+### Os dois defeitos de produto, corrigidos
+
+**1. A órfã não era adotada porque `"14"` não era `"14,00"`.** A Migração B do UPSERT
+adota a linha sem código quando o mesmo bilhete volta COM código — e comparava a odd como
+**string crua**. `_assinatura` já normaliza a odd (`_norm_odd`) para decidir se duas
+linhas são o mesmo bilhete; a Migração B contradizia a própria régua do sistema. Agora as
+duas usam `chave_orfa()`, onde o porquê e o caso medido estão escritos. `descricao` fica
+de fora **de propósito** — a Migração B nasceu para casar import por imagem com captura da
+casa, e é justamente a descrição que diverge entre as duas; há teste para essa ausência
+ser decisão registrada, não esquecimento.
+
+De quebra, o índice de órfãs virou **uma consulta por conta** em vez de um
+UPDATE-com-subconsulta por linha do lote, e cada órfã só é adotada **uma vez** (`pop`):
+sem isso dois bilhetes iguais reivindicariam a mesma linha antiga — e a Migração B, quando
+erra, não duplica: ela **sequestra**.
+
+**2. A Caixa ligada no meio da captura gravava `abertas_corte` vazio.** Ao INSERIR uma
+aposta que **nasce** aberta e cuja captura (`criado_em`) antecede a ativação, o id agora
+entra no `abertas_corte`. Não é heurística: a aposta não pode ter liquidado e
+desliquidado, então o stake já tinha saído quando o saldo foi lido. Três travas — só linha
+recém-**inserida**; a decisão é do próprio `_caixa_abertas_ids` com `ate` = instante da
+ativação (um segundo critério divergiria do original em silêncio); e a lista **só cresce**,
+porque tirar um id descontaria o stake duas vezes. `criado_em` nulo ou sem fuso fica de
+fora: sem ele não há prova, e comparar um naive estouraria **dentro** do `/salvar`,
+derrubando a gravação inteira por causa de uma linha de caixa.
+
+**Gates, provados por mutação** (cada uma pega por exatamente o teste que devia pegá-la):
+`_norm_odd` → string crua deixa **6** vermelhos, incluindo o caso medido `14`/`14,00`;
+tirar `aposta` da chave, **1**; tirar o `ate`, **1**; sobrescrever `abertas_corte` em vez
+de unir, **1**; tirar a guarda de `criado_em`, **2**.
+
+> A **ligação** tem gate próprio no harness de DB (`test_upsert_adota_aberta_que_chegou_
+> depois_da_caixa_ligada`). O dublê testa a função, não a chamada: removendo o
+> `await _caixa_adotar_abertas_tardias(...)` do `upsert_bilhetes`, o arquivo de dublê fica
+> **todo verde** e a Caixa volta a nascer torta. Foi o modo de falso verde nº 1 da s286.
+
+Suíte: **748 passed, 30 skipped**.
 
 ---
 
