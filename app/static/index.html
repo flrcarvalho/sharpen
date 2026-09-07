@@ -317,6 +317,31 @@ html.embedded .sidebar { display: none; }
 .painel-kpi-val { font-family: var(--font-mono); font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
 .painel-kpi-sub { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-mute); }
 
+/* ── KPIs da Caixa, ordenados por CERTEZA DO DINHEIRO (s330) ──────────────────
+   Disponível é garantido, Em aberto é projeção, Banca total é soma. A ordem na
+   tela é a da certeza, e o sinal acompanha: quem não é garantia não pode abrir a
+   linha nem herdar o tom do dinheiro real. */
+.painel-kpis.banca { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+/* 1 — Saldo disponível: o único número que dá para sacar hoje. */
+.painel-kpi.livre { background: linear-gradient(180deg, rgba(var(--pos-rgb),.055), transparent), var(--surface); border-color: rgba(var(--pos-rgb),.22); }
+.painel-kpi.livre .painel-kpi-lbl { color: var(--pos); }
+.painel-kpi.livre .painel-kpi-lbl::before { background: var(--pos); }
+/* O VALOR fica em --ink de propósito (UI_REFERENCE §5.1): verde e vermelho são
+   semântica de RESULTADO (P/L, ROI) e saldo não é resultado — pintar saldo de verde
+   desgasta o significado das duas cores. O destaque vem da moldura, não da tinta. */
+.painel-kpi.livre .painel-kpi-val { font-size: 27px; }
+
+/* 2 — Em aberto: projeção. Âmbar, NUNCA vermelho: dinheiro que ainda pode voltar
+   não é perda realizada. Aqui a cor no número é legítima porque não é saldo
+   disponível, é aviso — a mesma régua da divergência de conferência (§5.1). */
+.painel-kpi.aberto .painel-kpi-lbl,
+.painel-kpi.aberto .painel-kpi-val { color: var(--d-proj); }
+.painel-kpi.aberto .painel-kpi-lbl::before { background: var(--d-proj); }
+
+/* 3 — Banca total: soma, não caixa. Fecha a linha em tom neutro, sem tarja azul. */
+.painel-kpi.total .painel-kpi-lbl::before { background: var(--ink-mute); }
+
 /* Cards de breakdown */
 .painel-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; align-items: start; }
 .painel-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
@@ -339,18 +364,10 @@ html.embedded .sidebar { display: none; }
 .painel-bar-fill.alt { background: var(--accent-2); }
 .painel-bar-val { font-family: var(--font-mono); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; min-width: 30px; }
 
-/* Medidor Ativas × Inativas (segmentado). Azul = ativas; neutro = inativas
-   (verde/vermelho reservados p/ semântica de resultado, UI_REFERENCE §1). */
-.painel-meter { display: flex; height: 14px; border-radius: var(--r-pill); overflow: hidden; background: var(--surface-2); }
-.painel-meter-seg { height: 100%; }
-.painel-meter-seg.ativas { background: var(--accent); }
-.painel-meter-seg.inativas { background: var(--ink-mute); }
-.painel-legend { display: flex; gap: 22px; margin-top: 14px; flex-wrap: wrap; }
-.painel-legend-item { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
-.painel-legend-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
-.painel-legend-dot.ativas { background: var(--accent); }
-.painel-legend-dot.inativas { background: var(--ink-mute); }
-.painel-legend-val { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* s330 — o medidor Ativas × Inativas e a legenda dele saíram junto com o bloco que
+   os continha: uma barra de 100% azul sobre "102 ativas / 0 inativas" não informava
+   nada que o próprio par de números já não dissesse. .painel-meter/.painel-legend
+   foram removidos aqui por não terem outro uso no arquivo. */
 
 /* Criador de conta + ações */
 .painel-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -393,17 +410,16 @@ html.embedded .sidebar { display: none; }
 .painel-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 1100px) { .painel-top, .painel-info { grid-template-columns: 1fr; } }
 
-/* Resumo consolidado (Ativas + Inativas + medidor + rodapé) */
-.painel-resumo-nums { display: flex; margin-bottom: 16px; }
-.painel-resumo-num { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.painel-resumo-num + .painel-resumo-num { border-left: 1px solid var(--line); padding-left: 18px; }
-.painel-resumo-num .l { display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
-.painel-resumo-num .n { font-family: var(--font-mono); font-size: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
-.painel-resumo-foot { display: flex; gap: 26px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-.painel-resumo-foot .painel-nova-conta { margin-left: auto; align-self: center; }
-.painel-foot-stat { display: flex; flex-direction: column; gap: 4px; }
-.painel-foot-stat .n { font-family: var(--font-mono); font-size: 16px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
-.painel-foot-stat .l { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+/* s330 — .painel-resumo-* e .painel-foot-stat saíram com o rodapé "177 · 47 · 5 ·
+   caixa total". O "Caixa total" era duplicata literal do KPI "Banca total": dois
+   números da MESMA pergunta na mesma tela é como se cria divergência sem ninguém
+   mexer em nada. A contagem foi para a meta do cabeçalho e para o segmentado. */
+/* Contagem dentro do segmentado Ativas/Arquivadas. É metadado do label, então desce
+   um degrau na escada (--ink-mute) — e não um véu de `opacity`, que é multiplicador,
+   não degrau. Na aba ligada herda o rótulo: sobre azul sólido a escada não vale, e
+   rebaixar ali só borraria o número. Corpo = 11px do botão, acima do piso de 10px. */
+.contas-tabs .tab-n { font-variant-numeric: tabular-nums; color: var(--ink-mute); margin-left: 2px; }
+.contas-tabs button.on .tab-n { color: inherit; }
 
 /* Painel de lista (direita) — card único; as .contas-casa viram seções planas */
 .painel-lista-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
@@ -3278,32 +3294,38 @@ async function renderPainelBanca(force) {
   const kh = document.getElementById('painelBancaKpis');
   if (!kh) return;   // painel pode ter re-renderizado durante o fetch
   _renderConferirChip(v);
-  _renderCaixaTotal(v);
   const t = v.totais || {};
   const nf = n => (n || 0).toLocaleString('pt-BR');
-  const kpi = (lbl, val, sub, cls) =>   // KPIs da Caixa Inteligente
-    '<div class="painel-kpi"><span class="painel-kpi-lbl">' + lbl + '</span>'
-    + '<span class="painel-kpi-val' + (cls ? ' ' + cls : '') + '">' + val + '</span>'
+  // `cls` agora é do CARD, não do valor: o sinal do KPI (véu, borda, tarja) descreve a
+  // certeza do número inteiro — pintar só o dígito diria menos e diria pior.
+  const kpi = (cls, lbl, val, sub) =>
+    '<div class="painel-kpi' + (cls ? ' ' + cls : '') + '"><span class="painel-kpi-lbl">' + lbl + '</span>'
+    + '<span class="painel-kpi-val">' + val + '</span>'
     + '<span class="painel-kpi-sub">' + sub + '</span></div>';
 
   if (!t.ligadas) {
     // Nenhuma caixa ligada: o painel não finge um total de zero — ele explica o que falta.
-    kh.innerHTML = kpi('Banca total', '<span style="color:var(--ink-mute)">—</span>',
+    kh.innerHTML = kpi('total', 'Banca total', '<span style="color:var(--ink-mute)">—</span>',
       nf(t.contas) + (t.contas === 1 ? ' conta ativa · nenhuma com caixa' : ' contas ativas · nenhuma com caixa'))
-      + kpi('Como ligar', '<span style="color:var(--ink-mute)">—</span>',
+      + kpi('', 'Como ligar', '<span style="color:var(--ink-mute)">—</span>',
             'abra a conta na Extração e informe o saldo');
     return;
   }
 
+  // Nº de apostas não liquidadas: a MESMA fonte do badge âmbar da lista
+  // (`abertasPorParceiro`), para os dois nunca divergirem na mesma tela.
+  let nAbertas = 0;
+  (casasCarregadas || []).forEach(c => (parceirosCache[c] || []).forEach(p => { nAbertas += abertasDe(c, p.nome); }));
+  const nCasas = (v.casas || []).length;
+
+  // Ordem OBRIGATÓRIA, da esquerda para a direita: disponível → aberto → total.
   kh.innerHTML =
-    kpi('Banca total', fmtSaldo(t.banca),
-        nf(t.ligadas) + (t.ligadas === 1 ? ' conta com caixa' : ' contas com caixa')
-        + ' · ' + nf((v.casas || []).length) + ((v.casas || []).length === 1 ? ' casa' : ' casas'))
-    + kpi('Saldo disponível', fmtSaldo(t.disponivel), 'o que dá para sacar hoje')
-    + kpi('Em aberto', fmtSaldo(t.aberto), 'preso em aposta não liquidada')
-    + kpi('A conferir', nf(t.a_conferir),
-          t.a_conferir ? 'conta com divergência aberta' : 'nenhuma divergência aberta',
-          t.a_conferir ? 'aviso' : '');
+    kpi('livre', 'Saldo disponível', fmtSaldo(t.disponivel),
+        'é seu agora · ' + nf(t.ligadas) + (t.ligadas === 1 ? ' conta com caixa' : ' contas com caixa'))
+    + kpi('aberto', 'Em aberto', fmtSaldo(t.aberto),
+          nf(nAbertas) + (nAbertas === 1 ? ' aposta não liquidada' : ' apostas não liquidadas') + ' · pode não voltar')
+    + kpi('total', 'Banca total', fmtSaldo(t.banca),
+          'disponível + em aberto · ' + nf(nCasas) + (nCasas === 1 ? ' casa' : ' casas'));
 
   if (document.getElementById('painelGestaoList')) renderPainelLista();   // avisos na lista
 }
@@ -3348,22 +3370,9 @@ function _irParaDivergencia() {
   setTimeout(() => alvo.classList.remove('pisca'), 1600);
 }
 
-// Caixa total no rodapé do card Contas + saldo por casa na lista. Os dois lêem o
-// MESMO /caixa/visao já cacheado — dois números da mesma pergunta em telas
-// diferentes é como se cria divergência sem ninguém mexer em nada.
-function _renderCaixaTotal(v) {
-  const host = document.getElementById('painelCaixaTotal');
-  if (!host) return;
-  const t = (v && v.totais) || {};
-  const n = (x) => (x || 0).toLocaleString('pt-BR');
-  host.innerHTML = '<span class="n">'
-    + (t.ligadas ? fmtSaldo(t.banca) : '<span style="color:var(--ink-mute)">—</span>')
-    + '</span><span class="l">Caixa total'
-    + (t.ligadas ? ' · ' + n(t.ligadas) + ' de ' + n(t.contas) : '') + '</span>';
-  host.title = t.ligadas
-    ? n(t.sem_caixa) + (t.sem_caixa === 1 ? ' conta ainda sem caixa' : ' contas ainda sem caixa')
-    : 'Nenhuma conta com a Caixa Inteligente ligada.';
-}
+// s330 — `_renderCaixaTotal` saiu com o rodapé que o hospedava. Ele imprimia o MESMO
+// `totais.banca` do KPI "Banca total", a dois cards de distância: duplicata não é
+// redundância inofensiva, é a semente de uma divergência que ninguém consegue explicar.
 
 // Troca de aba (Ativas/Arquivadas) — só re-renderiza a lista (mantém KPIs/busca).
 function painelSetTab(tab, btn) {
@@ -4079,7 +4088,6 @@ function renderPainelContas() {
   const casasComConta = porCasa.length;
   const forns = Object.entries(fornMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   porCasa.sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
-  const pctAtivas = totContas ? Math.round(totAtivas / totContas * 100) : 0;
 
   // Custo por fornecedor (localStorage dash_custos_v2, por fornecedor||casa) das
   // contas ATIVAS — mesma fonte do card de custo por conta (não é métrica de aposta).
@@ -4115,32 +4123,19 @@ function renderPainelContas() {
     return;
   }
 
-  // ── Card resumo consolidado (Ativas + Inativas + medidor + rodapé) ──
-  const pctA = totContas ? (totAtivas / totContas * 100) : 0;
-  const meter =
-    '<div class="painel-meter">' +
-      (totAtivas ? '<span class="painel-meter-seg ativas" style="width:' + pctA.toFixed(1) + '%"></span>' : '') +
-      (totInativas ? '<span class="painel-meter-seg inativas" style="width:' + (100 - pctA).toFixed(1) + '%"></span>' : '') +
-    '</div>' +
-    '<div class="painel-legend">' +
-      '<span class="painel-legend-item"><span class="painel-legend-dot ativas"></span>Ativas <span class="painel-legend-val">' + nf(totAtivas) + '</span></span>' +
-      '<span class="painel-legend-item"><span class="painel-legend-dot inativas"></span>Inativas <span class="painel-legend-val">' + nf(totInativas) + '</span></span>' +
-    '</div>';
-  // Resumo CONTAS é o CABEÇALHO do painel de lista (não um card solto).
+  // ── Cabeçalho do painel de lista ─────────────────────────────────────────────
+  // s330: o bloco "ATIVAS 102 / INATIVAS 0" com barra e legenda saiu, e o rodapé
+  // "177 · 47 · 5 · caixa total" com ele. Eram TRÊS lugares dizendo a mesma coisa —
+  // e o "Caixa total" era duplicata literal do KPI "Banca total", dois números da
+  // mesma pergunta na mesma tela (é assim que se cria divergência sem mexer em nada).
+  // O dado passa a viver em dois lugares só: o segmentado da lista (Ativas N /
+  // Arquivadas N) e esta meta.
   const resumoHead =
     '<div class="painel-lista-resumo">' +
-      '<div class="painel-card-head"><span class="painel-card-titulo">Contas</span><span class="painel-card-count">' + pctAtivas + '% ativas</span></div>' +
-      '<div class="painel-card-body">' +
-        '<div class="painel-resumo-nums">' +
-          '<div class="painel-resumo-num"><span class="l">Ativas</span><span class="n">' + nf(totAtivas) + '</span></div>' +
-          '<div class="painel-resumo-num"><span class="l">Inativas</span><span class="n">' + nf(totInativas) + '</span></div>' +
-        '</div>' + meter +
-        '<div class="painel-resumo-foot">' +
-          '<div class="painel-foot-stat"><span class="n">' + nf(totContas) + '</span><span class="l">Total de contas</span></div>' +
-          '<div class="painel-foot-stat"><span class="n">' + nf(casasComConta) + '</span><span class="l">Casas</span></div>' +
-          '<div class="painel-foot-stat"><span class="n">' + nf(forns.length) + '</span><span class="l">Fornecedores</span></div>' +
-          '<div class="painel-foot-stat" id="painelCaixaTotal"><span class="n">—</span><span class="l">Caixa total</span></div>' +
-        '</div>' +
+      '<div class="painel-card-head">' +
+        '<span class="painel-card-titulo">Contas</span>' +
+        '<span class="painel-card-count">' + nf(totAtivas) + ' ativas · ' + nf(totContas) + ' no total · '
+          + nf(casasComConta) + (casasComConta === 1 ? ' casa' : ' casas') + '</span>' +
       '</div>' +
     '</div>';
 
@@ -4151,9 +4146,11 @@ function renderPainelContas() {
       '<div class="painel-lista-toolbar">' +
         '<div class="contas-search" style="margin-left:0;min-width:150px;flex:1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
         '<input id="painel-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
+        // O segmentado passa a CARREGAR a contagem (s330): é onde se escolhe entre as
+        // duas listas, então é onde o tamanho de cada uma pertence.
         '<div class="contas-tabs">' +
-          '<button class="' + (tabAtiva ? 'on' : '') + '" type="button" onclick="painelSetTab(&quot;ativas&quot;,this)">Ativas</button>' +
-          '<button class="' + (tabAtiva ? '' : 'on') + '" type="button" onclick="painelSetTab(&quot;arquivadas&quot;,this)">Arquivadas</button>' +
+          '<button class="' + (tabAtiva ? 'on' : '') + '" type="button" onclick="painelSetTab(&quot;ativas&quot;,this)">Ativas <span class="tab-n">' + nf(totAtivas) + '</span></button>' +
+          '<button class="' + (tabAtiva ? '' : 'on') + '" type="button" onclick="painelSetTab(&quot;arquivadas&quot;,this)">Arquivadas <span class="tab-n">' + nf(totInativas) + '</span></button>' +
         '</div>' +
         '<span class="painel-gestao-count" id="painelGestaoCount" style="margin-left:auto"></span>' +
       '</div>' +
