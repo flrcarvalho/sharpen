@@ -354,6 +354,30 @@ html.embedded .sidebar { display: none; }
 
 /* Criador de conta + ações */
 .painel-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* .btn não traz display nem text-decoration (nasceu para <button>): um <a class="btn">
+   herdaria o sublinhado do link. Corrigido aqui, no escopo, sem mexer no .btn da casca. */
+.painel-actions a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+/* "A conferir" (s330) — deixou de ser card de KPI. Um card que passa 99% do tempo
+   escrevendo "0" ensina a ignorar o lugar onde o aviso ia aparecer; como chip ele
+   ocupa o espaço de um aviso e só grita quando há o que conferir. */
+.painel-conferir {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em;
+  color: var(--ink-soft); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--r-pill); padding: 6px 12px;
+}
+.painel-conferir::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--pos); flex: none; }
+/* Com fila: âmbar. Pendência de conferência é FATO A CONFERIR, não erro realizado —
+   vermelho aqui gastaria o sinal que a coluna Conciliação reserva à divergência. */
+.painel-conferir.tem { color: var(--d-proj); background: var(--d-proj-soft); border-color: var(--d-proj); cursor: pointer; }
+.painel-conferir.tem::before { background: var(--d-proj); }
+.painel-conferir.tem:hover { background: var(--surface-2); }
+/* display:flex vence o atributo `hidden` (que só vale pela folha do agente): sem esta
+   linha o chip nasceria visível e vazio. Mesma armadilha da faixa de erro da Caixa. */
+.painel-conferir[hidden] { display: none; }
+/* Realce ao chegar pelo chip — âmbar, o tom de "confira isto", some sozinho. */
+.conta-row.pisca { background: var(--d-proj-soft); box-shadow: inset 2px 0 0 var(--d-proj); }
+@media (prefers-reduced-motion: reduce) { .conta-row.pisca { transition: none; } }
 .painel-hint { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-mute); }
 .painel-empty { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); padding: 6px 0; }
 
@@ -411,16 +435,21 @@ html.embedded .sidebar { display: none; }
   flex-shrink: 0; margin: -22px -26px 16px; padding: 16px 26px;
   background: var(--bg); border-bottom: 1px solid var(--line-2);
 }
+/* Opção A (s330) — o título da página saiu do azul. O gradiente --accent/--accent-2
+   pintava o maior texto da tela em acento, e com isso o azul deixava de significar
+   "clique aqui / é isto que importa": tudo que é acento vira ruído quando o próprio
+   título já é acento. Título em --ink devolve o azul ao papel de SINAL. */
 .pagehead-title {
   font-size: var(--text-xl); font-weight: 800; letter-spacing: -.035em;
-  line-height: 1; margin: 0 0 6px;
-  background: linear-gradient(100deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
+  line-height: 1; margin: 0 0 6px; color: var(--ink);
 }
+/* Escada de Tinta: eyebrow é LABEL — piso 9,5px em --ink-soft. Estava em 9px
+   (--text-nano) com --ink-mute, que é 3,0:1 sobre o fundo efetivo: abaixo do 4,5:1
+   do papel. Não é ajuste estético, é o piso da tabela. 9,5px não existe na escada
+   do SHELL_SPEC (9 · 10 · 11 · 13 …), então sobe para o degrau seguinte, --text-xxs. */
 .pagehead-eyebrow {
-  font-family: var(--font-mono); font-size: var(--text-nano); font-weight: 600;
-  letter-spacing: .18em; text-transform: uppercase; color: var(--ink-mute);
+  font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 600;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft);
 }
 /* .partner-favicon: dead após o item A (header removido), mas o seletor é
    compartilhado com .casa-chip/.btbl-casa nos overrides de favicon por casa abaixo. */
@@ -3248,6 +3277,7 @@ async function renderPainelBanca(force) {
   const v = await ensureCaixaVisao(force);
   const kh = document.getElementById('painelBancaKpis');
   if (!kh) return;   // painel pode ter re-renderizado durante o fetch
+  _renderConferirChip(v);
   _renderCaixaTotal(v);
   const t = v.totais || {};
   const nf = n => (n || 0).toLocaleString('pt-BR');
@@ -3276,6 +3306,46 @@ async function renderPainelBanca(force) {
           t.a_conferir ? 'aviso' : '');
 
   if (document.getElementById('painelGestaoList')) renderPainelLista();   // avisos na lista
+}
+
+// Chip "a conferir" do topo direito (s330). Substitui o 4º card de KPI, que dizia "0"
+// quase sempre. Em repouso é um chip neutro com dot --pos ("nada a conferir"); com fila
+// vira âmbar, traz o número REAL (sem teto, sem abreviação) e leva à primeira conta
+// divergente da lista — aviso que não aponta a linha vira caça manual.
+function _renderConferirChip(v) {
+  const el = document.getElementById('painelConferirChip');
+  if (!el) return;
+  const n = ((v && v.totais) || {}).a_conferir || 0;
+  el.hidden = false;
+  el.classList.toggle('tem', n > 0);
+  el.textContent = n > 0 ? n + ' a conferir' : 'nada a conferir';   // "a conferir" não flexiona
+  if (n > 0) {
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.title = 'Ir para a primeira conta com divergência';
+    el.onclick = _irParaDivergencia;
+    el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); _irParaDivergencia(); } };
+  } else {
+    el.removeAttribute('role'); el.removeAttribute('tabindex');
+    el.title = 'Nenhuma conferência em aberto';
+    el.onclick = null; el.onkeydown = null;
+  }
+}
+
+// Divergência só existe na aba Ativas (conta arquivada está fora de operação), então o
+// chip troca de aba antes de procurar — senão o clique não faz nada e parece quebrado.
+function _irParaDivergencia() {
+  if (contasTab !== 'ativas') {
+    contasTab = 'ativas';
+    const tabs = document.querySelector('.painel-lista-toolbar .contas-tabs');
+    if (tabs) tabs.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 0));
+    renderPainelLista();
+  }
+  const alvo = document.querySelector('.conta-row[data-concil="divergencia"]');
+  if (!alvo) return;
+  alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  alvo.classList.add('pisca');
+  setTimeout(() => alvo.classList.remove('pisca'), 1600);
 }
 
 // Caixa total no rodapé do card Contas + saldo por casa na lista. Os dois lêem o
@@ -4027,10 +4097,15 @@ function renderPainelContas() {
   const casaOpts = casas.map(c => '<option value="' + esc(c) + '">' + esc(NOMES[c] || c) + '</option>').join('');
   const tabAtiva = contasTab === 'ativas';
   // Título único: o pagehead ("Gestão de Contas & Parceiros") já titula a tela.
-  // O hero vira só a barra de ação (+ Nova conta), alinhada à direita.
+  // O hero vira a barra de ação, alinhada à direita: chip "a conferir" + Fornecedores
+  // (ghost) + Nova conta (primário). O "+ Nova conta" que morava no rodapé do card
+  // Contas saiu de lá — botão de criação no MEIO da lista some do campo de visão de
+  // quem chega para criar, e virava um segundo lugar competindo com este.
   const hero =
     '<div class="painel-hero" style="justify-content:flex-end">' +
       '<div class="painel-actions">' +
+        '<span class="painel-conferir" id="painelConferirChip" hidden></span>' +
+        '<a class="btn btn-ghost btn-sm" href="/dashboard/#parceiros">Fornecedores</a>' +
         '<button class="btn btn-primary btn-sm" type="button" onclick="abrirModalNovaConta(&quot;painel&quot;)">+ Nova conta</button>' +
       '</div>' +
     '</div>';
@@ -4065,7 +4140,6 @@ function renderPainelContas() {
           '<div class="painel-foot-stat"><span class="n">' + nf(casasComConta) + '</span><span class="l">Casas</span></div>' +
           '<div class="painel-foot-stat"><span class="n">' + nf(forns.length) + '</span><span class="l">Fornecedores</span></div>' +
           '<div class="painel-foot-stat" id="painelCaixaTotal"><span class="n">—</span><span class="l">Caixa total</span></div>' +
-          '<button class="btn btn-primary btn-sm painel-nova-conta" type="button" onclick="abrirModalNovaConta(&quot;painel&quot;)">+ Nova conta</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -4125,6 +4199,7 @@ function renderPainelContas() {
   // LISTA, no cabeçalho de cada casa, onde já se está olhando a conta.
 
   host.innerHTML =
+    hero +
     bancaKpis +
     '<div class="painel-top">' +
       listaPanel +

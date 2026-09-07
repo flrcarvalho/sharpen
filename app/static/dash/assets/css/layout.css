@@ -232,13 +232,17 @@ html.embedded .topbar { left: 0; }
   line-height: 1;
   color: var(--ink);
 }
+/* Escada de Tinta (s330): eyebrow é LABEL — 9px em --ink-mute dá 3,0:1 sobre o fundo
+   efetivo, abaixo do 4,5:1 do papel. Sobe um degrau na escada (--text-xxs/--ink-soft),
+   espelhando o .pagehead-eyebrow do Planilhador — é o MESMO papel nas duas telas. */
 .page-sub {
-  font-size: var(--text-nano);
-  color: var(--ink-mute);
+  font-size: var(--text-xxs);
+  color: var(--ink-soft);
   margin-top: 0;
   font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
+  font-weight: 600;
 }
 
 /* ── Aparência — page-title (gradiente fixo) ──────────────────────────────── */

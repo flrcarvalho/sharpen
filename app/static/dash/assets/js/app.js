@@ -5,7 +5,9 @@ function applyAparencia(){
   const h=document.documentElement;
   h.setAttribute('data-theme','dark');
   h.setAttribute('data-density','compact');
-  h.classList.add('t-page-gradient');
+  // s330 — o gradiente do título saiu: pintar o MAIOR texto da tela de acento fazia o
+  // azul deixar de significar "sinal". A regra `html.t-page-gradient .page-title` fica
+  // dormente na layout.css (como o [data-theme=light]); ninguém liga a classe.
   h.classList.add('kpi-azul');
 }
 

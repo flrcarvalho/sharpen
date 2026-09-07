@@ -89,7 +89,9 @@ const SHELL_FILES = [
 const SHELL_RULES = [
   { sel: 'body',              prop: 'font-size', expect: 'var(--text-sm)' },
   { sel: '.pagehead-title',   prop: 'font-size', expect: 'var(--text-xl)' },
-  { sel: '.pagehead-eyebrow', prop: 'font-size', expect: 'var(--text-nano)' },
+  // s330 — eyebrow subiu um degrau na Escada de Tinta: 9px/--ink-mute dava 3,0:1 sobre
+  // o fundo efetivo, abaixo do 4,5:1 do papel Label. Espelhado no .page-sub do Dashboard.
+  { sel: '.pagehead-eyebrow', prop: 'font-size', expect: 'var(--text-xxs)' },
   { sel: '.nav-group',        prop: 'font-size', expect: 'var(--text-nano)' },
   { sel: '.nav-item',         prop: 'font-size', expect: 'var(--text-sm)' },
 ];

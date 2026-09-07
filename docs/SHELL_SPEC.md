@@ -63,9 +63,20 @@
 |---|---|---|
 | Título (`.page-title` / `.pagehead-title`) | font-size | **`--text-xl` (22px)** |
 | | weight / ls / line-height | `800` · `-.035em` · `1` |
-| | cor | gradiente `linear-gradient(100deg, var(--accent), var(--accent-2))` (clip text) |
-| Eyebrow (`.page-sub` / `.pagehead-eyebrow`) | font-size | **`--text-nano` (9px)** |
-| | família / transform / ls | `--font-mono` · uppercase · `.18em` · `--ink-mute` |
+| | cor | **`--ink`** (s330 — sem gradiente) |
+| Eyebrow (`.page-sub` / `.pagehead-eyebrow`) | font-size | **`--text-xxs` (10px)** |
+| | família / transform / ls / cor | `--font-mono` · `600` · uppercase · `.16em` · **`--ink-soft`** |
+
+> **Por que o título saiu do azul (s330, handoff "Contas & Parceiros Opção A"):** o
+> gradiente `--accent`/`--accent-2` pintava o **maior texto da tela** em acento, e o azul
+> deixava de significar *sinal* — tudo que é acento vira ruído quando o título já é
+> acento. A regra `html.t-page-gradient .page-title` continua na `layout.css`, **dormente**
+> (como o bloco `[data-theme=light]`): nenhum boot liga a classe.
+>
+> **Por que o eyebrow subiu um degrau:** `--text-nano` (9px) em `--ink-mute` mede **3,0:1**
+> sobre o fundo efetivo — abaixo do **4,5:1** que a Escada de Tinta exige do papel *Label*.
+> `--text-xxs` + `--ink-soft` leva a **6,3:1**. O handoff pedia 9,5px, que **não existe na
+> escada** abaixo; subir para 10px é o degrau seguinte, não uma medida nova.
 | Faixa | background / borda | `--bg` · `border-bottom 1px var(--line-2)` |
 
 ---
