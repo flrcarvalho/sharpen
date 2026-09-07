@@ -1,5 +1,11 @@
 # Matriz de Confiabilidade das Casas — Planilhador (FDC Capital)
 
+> ⚠️ **ESPELHO DATADO — 13 de 28 casas.** Conferido em **2026-09-07**: `casas/` tem **28**
+> arquivos `CASA_*.md` (fora o `CASA_MODELO`), e esta matriz cobre 13. As casas ausentes
+> **não estão em melhor nem em pior estado** — só nunca entraram aqui. Atualizar é sessão
+> própria, registrada em [`../BACKLOG.md`](../BACKLOG.md) §5. Para o estado real de uma casa,
+> leia o `casas/CASA_<NOME>.md` dela e rode `python tools/audit_casas.py`.
+
 > Documento de leitura. Classifica cada casa por **prontidão de extração**, com base
 > exclusivamente nas pendências (TODOs / "aguarda amostra" / ⚠) abertas nos próprios
 > manuais em `casas/CASA_*.md`. Não altera nenhuma regra — é um espelho do estado atual.

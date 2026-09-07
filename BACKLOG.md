@@ -310,7 +310,7 @@ O item está na §2 (é da varredura da s261). A decisão é de produto: esconde
 
 ### 4.1 `AUDITORIA_2026` — os achados que continuam abertos
 
-> Origem: [`docs/AUDITORIA_2026.md`](docs/AUDITORIA_2026.md) (vai para
+> Origem: [`docs/AUDITORIA_2026.md`](docs/arquivo/2026-07-10_AUDITORIA_2026.md) (vai para
 > `docs/arquivo/2026-07-10_AUDITORIA_2026.md` no Lote D desta faxina). **O número original
 > foi preservado** — `#32` aqui é o `#32` de lá, para o rastro não se perder.
 >
@@ -365,7 +365,7 @@ Verificados por `grep` em **06/09/2026**. Estão aqui para ninguém gastar sess�
 
 ### 4.2 `AUDITORIA TURBO 19/07` — os que sobraram vivos
 
-> Origem: [`docs/AUDITORIA_TURBO_2026-07-19.md`](docs/AUDITORIA_TURBO_2026-07-19.md) (vai
+> Origem: [`docs/AUDITORIA_TURBO_2026-07-19.md`](docs/arquivo/2026-07-19_AUDITORIA_TURBO.md) (vai
 > para `docs/arquivo/` no Lote D). Dos 25 achados, **19 fecharam** — o tracker interno do
 > próprio documento registra as ondas das sessões 158 e 160, e conferi os principais no
 > código hoje (`custo_tipster JSONB` em `database.py:334`, índices, `.dockerignore`,
@@ -386,7 +386,7 @@ Verificados por `grep` em **06/09/2026**. Estão aqui para ninguém gastar sess�
 
 ### 4.3 `AUDITORIA TURBO 20/07` — os 17 ALTOS, **remedidos hoje**
 
-> Origem: [`docs/AUDITORIA_TURBO_2026-07-20.md`](docs/AUDITORIA_TURBO_2026-07-20.md) (vai
+> Origem: [`docs/AUDITORIA_TURBO_2026-07-20.md`](docs/arquivo/2026-07-20_AUDITORIA_TURBO_PROFUNDA.md) (vai
 > para `docs/arquivo/` no Lote D). 219 agentes, 104 achados brutos, **95 confirmados** após
 > verificação adversarial (9 refutados) — e **nenhum tracker**.
 >

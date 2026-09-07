@@ -1,7 +1,7 @@
 # Desambiguação — Badminton × Tênis × Dardos (rosters Tier 1/2)
 
 > **Status:** RELATÓRIO / BLOCOS PRONTOS PRA COLAR (não aplicado). Nada foi escrito nos MASTERs.
-> Companheiro de [`PESQUISA_BADMINTON_2026.md`](PESQUISA_BADMINTON_2026.md).
+> Companheiro de [`PESQUISA_BADMINTON_2026.md`](2026-07-21_PESQUISA_BADMINTON.md).
 > Rosters verificados por 3 agentes nos rankings **oficiais** (BWF jun/2026, PDC Order of Merit jul/2026).
 > Objetivo: dar ao extrator listas de nomes + regras estruturais para separar os **3 esportes de alta colisão** (todos usam ML/H2H/Handicap/Over-Under entre dois indivíduos).
 

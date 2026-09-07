@@ -1,5 +1,13 @@
 # GUIA — Credenciais do login social (Google + Telegram)
 
+> ⚠️ **O BOTÃO DO TELEGRAM SAIU DA TELA NA s324** — colar as env vars dele **não** o traz de
+> volta. O relato foi de uso ("aperta e não acontece nada") e o `Entrar com Telegram` foi
+> retirado do `/login`; o backend continua inteiro (`/auth/telegram/*`, `/auth/metodos`,
+> `tests/test_login_social.py`). **A causa raiz nunca foi medida** — o suspeito é o
+> `/setdomain` do BotFather nunca ter apontado para `www.sharpen.bet`. Está em
+> [`../BACKLOG.md`](../BACKLOG.md) §1, com o procedimento de medição e o de devolver o botão.
+> **A parte do Google abaixo vale como está.** Conferido em 2026-09-07.
+
 > **Contexto:** a Fase 3 do multiusuário (s236) está no ar em modo **dormente**.
 > O código já sabe fazer tudo; os botões "Entrar com Google/Telegram" só aparecem
 > na tela de login quando as env vars abaixo existirem no Railway. **Nenhum

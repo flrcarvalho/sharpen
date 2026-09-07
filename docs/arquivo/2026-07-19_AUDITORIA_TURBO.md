@@ -3,7 +3,7 @@
 > **Maior auditoria já feita no projeto.** Rodada na madrugada de **18→19/07/2026** a pedido do Feca ("modo turbo, tudo precisa estar perfeito").
 > **CEO** (orquestrador) → **9 gerências** → **26 especialistas** em paralelo, com **verificação adversarial** dos achados críticos/altos.
 > Tudo **READ-ONLY** — nenhum arquivo de código, master ou casa foi editado. Os achados são propostas para o Feca aprovar ponto a ponto.
-> Relatórios completos por área: [`docs/auditoria_turbo/`](auditoria_turbo/). Dados brutos: [`docs/auditoria_turbo/findings.json`](auditoria_turbo/findings.json).
+> Relatórios completos por área: [`docs/auditoria_turbo/`](auditoria_turbo_2026-07-19/). Dados brutos: [`docs/auditoria_turbo/findings.json`](auditoria_turbo_2026-07-19/findings.json).
 
 ---
 
@@ -139,33 +139,33 @@ O Feca rodou **vários terminais em paralelo** antes de dormir. Diagnóstico:
 
 ## 4. Relatórios por gerência (digest + link)
 
-> Cada gerência tem o relatório completo em [`docs/auditoria_turbo/gerente_<Area>.md`](auditoria_turbo/).
+> Cada gerência tem o relatório completo em [`docs/auditoria_turbo/gerente_<Area>.md`](auditoria_turbo_2026-07-19/).
 
-### 🟡 Código — [`gerente_Codigo.md`](auditoria_turbo/gerente_Codigo.md)
-**Sólido.** Núcleo de dedup/persistência, tenancy e segurança maduro, sem bug crítico de correção. Urgência única: ordem do SCHEMA_SQL (banco novo). Reforço do `main.py`: **loop de continuação sem teto de tokens** (custo ilimitado), `texto`/`csv_content` sem limite de tamanho, chunker `\n\n` fragmenta casa em modo cego, `_cache_warmer` sem referência (GC) e sem timeout total no modelo. Reforço do **Polymarket** ([`gerente_Codigo_reforco_polymarket.md`](auditoria_turbo/gerente_Codigo_reforco_polymarket.md)): odd entrada vs realizada (decisão #5), paginação sem teto, `_portfolio` engolindo erro; **câmbio guard exemplar** (falha em vez de mentir). **Positivos:** P/L correto, SQL 100% parametrizado, canonização de resultado, isolamento por dono, retry idempotente, hardening de perímetro.
+### 🟡 Código — [`gerente_Codigo.md`](auditoria_turbo_2026-07-19/gerente_Codigo.md)
+**Sólido.** Núcleo de dedup/persistência, tenancy e segurança maduro, sem bug crítico de correção. Urgência única: ordem do SCHEMA_SQL (banco novo). Reforço do `main.py`: **loop de continuação sem teto de tokens** (custo ilimitado), `texto`/`csv_content` sem limite de tamanho, chunker `\n\n` fragmenta casa em modo cego, `_cache_warmer` sem referência (GC) e sem timeout total no modelo. Reforço do **Polymarket** ([`gerente_Codigo_reforco_polymarket.md`](auditoria_turbo_2026-07-19/gerente_Codigo_reforco_polymarket.md)): odd entrada vs realizada (decisão #5), paginação sem teto, `_portfolio` engolindo erro; **câmbio guard exemplar** (falha em vez de mentir). **Positivos:** P/L correto, SQL 100% parametrizado, canonização de resultado, isolamento por dono, retry idempotente, hardening de perímetro.
 
-### 🟡 Fórmulas — [`gerente_Formulas.md`](auditoria_turbo/gerente_Formulas.md)
+### 🟡 Fórmulas — [`gerente_Formulas.md`](auditoria_turbo_2026-07-19/gerente_Formulas.md)
 **Precisa atenção.** O dinheiro (P/L) está correto e espelha a planilha; o problema é o índice composto **"Solidez"** (dois modos de falha: sela perdedor e infla edge trivial) e o **backtest de tipster que não mede o que promete** (sem split temporal, ignora carteiras importadas). Win rate diverge front↔backend. **Positivos:** P/L centralizado e correto, odd com precisão plena, Monte Carlo/bootstrap bem construídos, unidades corretas e testadas, disclaimers honestos.
 
-### 🟡 UI — [`gerente_UI.md`](auditoria_turbo/gerente_UI.md)
-**Sólido com atenção.** Fundação (guardrail + tokens) robusta. Defeitos: `fmtPL` pinta zero de verde, tooltip vaza HTML, **4 verdes + 3 vermelhos hardcoded** fora de token nos gráficos, ticks de eixo abaixo do mínimo WCAG. Reforço do `components.css` ([`gerente_UI_reforco_components.md`](auditoria_turbo/gerente_UI_reforco_components.md)): **`.dot.hw/.hl` âmbar idêntico** (bug visível), **`.seg-btn` órfão** + segmented-button/pill/KPI-number duplicados, contraste `--ink-mute` 3.2:1 em labels pequenos, z-index sem sistema, falta `:focus-visible`. **Positivos:** `check-tokens` bloqueante, `.money` implementa o §5, colisão `.kpi` resolvida com disciplina, heatmaps daltônico-safe, tokens theme-aware.
+### 🟡 UI — [`gerente_UI.md`](auditoria_turbo_2026-07-19/gerente_UI.md)
+**Sólido com atenção.** Fundação (guardrail + tokens) robusta. Defeitos: `fmtPL` pinta zero de verde, tooltip vaza HTML, **4 verdes + 3 vermelhos hardcoded** fora de token nos gráficos, ticks de eixo abaixo do mínimo WCAG. Reforço do `components.css` ([`gerente_UI_reforco_components.md`](auditoria_turbo_2026-07-19/gerente_UI_reforco_components.md)): **`.dot.hw/.hl` âmbar idêntico** (bug visível), **`.seg-btn` órfão** + segmented-button/pill/KPI-number duplicados, contraste `--ink-mute` 3.2:1 em labels pequenos, z-index sem sistema, falta `:focus-visible`. **Positivos:** `check-tokens` bloqueante, `.money` implementa o §5, colisão `.kpi` resolvida com disciplina, heatmaps daltônico-safe, tokens theme-aware.
 
-### 🟡 UX — [`gerente_UX.md`](auditoria_turbo/gerente_UX.md)
+### 🟡 UX — [`gerente_UX.md`](auditoria_turbo_2026-07-19/gerente_UX.md)
 **Sólido no núcleo.** Fluxo de extração/análise resiliente e bem feito. 2 altos de dinheiro (vazamento de custo + filtro de data), edição inline sem pista visual (`class` duplicado descarta `.ap-edit`), dashboard sem responsividade (`layout.css` sem `@media`). **Positivos:** contador 15/15, cards paralelos com progresso granular, carimbo de hora, datas em fuso local, virtual scroll, boot instantâneo.
 
-### 🟡 Arquitetura — [`gerente_Arquitetura.md`](auditoria_turbo/gerente_Arquitetura.md)
+### 🟡 Arquitetura — [`gerente_Arquitetura.md`](auditoria_turbo_2026-07-19/gerente_Arquitetura.md)
 **Sólido no núcleo, dívida crescente.** Sem crítico/alto. Topo: autodiagnóstico das casas-robô, índices na `bilhetes`, split `domain.py`. Comportamento por casa hardcoded em Python contradiz o invariante "casa localiza, global calcula". Sessão de pareamento em memória = cliff de escala. **Positivos:** P/L nunca persistido (decisão mais elegante do sistema), multi-tenancy fail-closed, extensão passiva de leitura de API, `corrigir_codigos_tsv` determinístico.
 
-### 🟢 Segurança — [`gerente_Seguranca.md`](auditoria_turbo/gerente_Seguranca.md)
+### 🟢 Segurança — [`gerente_Seguranca.md`](auditoria_turbo_2026-07-19/gerente_Seguranca.md)
 **Verde.** A varredura dedicada voltou quase vazia (1 achado placeholder de baixa confiança). **A cobertura de segurança real veio das gerências Código/Infra e Arquitetura** e foi positiva: CSRF por Origin, CSP + headers, SQL parametrizado, isolamento por dono fail-closed, cookie HMAC. Os itens acionáveis de segurança são o **trio barato** da Onda 2 (SESSION_SECRET, X-Forwarded-For, .dockerignore).
 
-### 🟡 Dados — [`gerente_Dados.md`](auditoria_turbo/gerente_Dados.md)
+### 🟡 Dados — [`gerente_Dados.md`](auditoria_turbo_2026-07-19/gerente_Dados.md)
 **Sólido.** 6 masters maduros, 14 casas passam no auditor determinístico. Sem crítico/alto. Degraus que a IA tropeça: separador de bet builder, marcadores órfãos, dessincronia OUTPUT↔RESULTADO, `Múltiplos` fora da whitelist. **Positivos:** auditor determinístico verde, cashout padrão-ouro de propagação, guardas anti-colapso de dedup, casas atípicas bem traduzidas, **CASA_BETANO já não descreve scraping** (dívida da memória resolvida).
 
-### 🔴→🟡 Testes — [`gerente_Testes.md`](auditoria_turbo/gerente_Testes.md)
+### 🔴→🟡 Testes — [`gerente_Testes.md`](auditoria_turbo_2026-07-19/gerente_Testes.md)
 **Atenção (2 dos 4 altos da auditoria).** Núcleo matemático exemplarmente coberto, mas **as bordas de maior risco estão 100% descobertas**: `auth.py` sem nenhum teste (isolação/forja de sessão) e o caminho de escrita de dinheiro (`upsert_bilhetes` + queries por dono) sem teste porque o conftest stuba o banco. **Positivos:** `test_formulas`/`test_dedup`/`test_assinatura_edicao` amarram cada caso ao bug real — o padrão a replicar.
 
-### 🟡 Organização — [`gerente_Organizacao.md`](auditoria_turbo/gerente_Organizacao.md)
+### 🟡 Organização — [`gerente_Organizacao.md`](auditoria_turbo_2026-07-19/gerente_Organizacao.md)
 **Atenção.** Sistema técnico sólido e higiene de repo boa (`.gitignore` correto, 0 lixo versionado), mas a camada de backlog derivou ~35 sessões e aponta para o retrato errado. **Positivos:** consolidação em doc único vivo, janela deslizante STATUS→HISTORICO disciplinada, hub de ideias com dono-fonte, `PLANO_CONSTRUCAO` corretamente sinalizado como histórico.
 
 ---

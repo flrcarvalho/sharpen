@@ -9,7 +9,7 @@
 > ## 🔄 ATUALIZAÇÃO 19/07/2026 (sessões 158-159) — LEIA PRIMEIRO
 > O corpo abaixo é o retrato de **10-11/07 (sessão 122)**. Desde então rolou a **Auditoria Turbo**
 > (a maior do projeto — 26 especialistas / 9 áreas) + execução de **6 ondas**. **Fonte de verdade
-> ATUAL do backlog:** [`docs/AUDITORIA_TURBO_2026-07-19.md`](docs/AUDITORIA_TURBO_2026-07-19.md) (com tracker de progresso).
+> ATUAL do backlog:** [`docs/AUDITORIA_TURBO_2026-07-19.md`](2026-07-19_AUDITORIA_TURBO.md) (com tracker de progresso).
 >
 > **Saúde hoje:** 0 críticos na auditoria · **172 testes** passam (eram 65) · no ar.
 > **Feito (sessões 158-159):** schema-init de banco vazio · tenancy do `/polymarket/sync` · §5 P/L
@@ -22,7 +22,7 @@
 > de camada-DB real** (Postgres no CI, gateado em `TEST_DATABASE_URL`, nunca prod) · **#20** 3 lacunas
 > de propagação nos masters (aprovado) · ~~#15/#16 Solidez~~ (revertido `9394553` — rumo errado; → sessão dedicada de redesenho).
 > **Migalhas MORTAS (sessão 160):** #14 domain.py (fechado — premissa obsoleta, #11 já destravou) · #18 backtest → frente tipster · #21 golden → precisa prints do Feca · #25 Backups → convenção no CLAUDE.md #4. #19 ✅ (` // ` único separador).
-> **Backlog restante = só 3 sessões próprias:** (1) **Custo tipster → Postgres** (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) · (2) **Sessão só-Poly** ([`docs/PLANO_POLY_INCREMENTAL.md`](docs/PLANO_POLY_INCREMENTAL.md) — incremental + #5 odd + `_portfolio`, precisa a carteira do Feca) · (3) **Sessão só-Solidez** (redesenho do KPI, ver [[solidez_kpi_proposito]]).
+> **Backlog restante = só 3 sessões próprias:** (1) **Custo tipster → Postgres** (com Jonathan, ver [[custo_tipster_incidente_jonathan]]) · (2) **Sessão só-Poly** ([`docs/PLANO_POLY_INCREMENTAL.md`](../PLANO_POLY_INCREMENTAL.md) — incremental + #5 odd + `_portfolio`, precisa a carteira do Feca) · (3) **Sessão só-Solidez** (redesenho do KPI, ver [[solidez_kpi_proposito]]).
 
 ---
 

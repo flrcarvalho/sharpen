@@ -1,5 +1,14 @@
 # PLANO — Inteligência de atribuição de tipster (o resolvedor)
 
+> ⚠️ **O TEXTO É DE 15/07 E O MATCHER ANDOU.** A tese deste documento — construir o
+> resolvedor de atribuição — **segue aberta** (`BACKLOG §5`). O que envelheceu é a descrição
+> do estado: ele fala do matcher **v5**, e desde então vieram o corte de valor redondo e o
+> `valores.size === 1` (s221), o peso declarativo (s289) e a volta do declarado onde a base é
+> cega (s310). **Não leia as descrições de comportamento daqui como o de hoje** — o código é
+> a verdade (`_sugParaBilhete`, inline no `app/static/index.html`), e o `CLAUDE.md` tem a
+> seção "Sugerir tipsters parou?" com as regras que ficaram load-bearing.
+> Conferido em 2026-09-07.
+
 > **Status:** rascunho para revisão conjunta (Feca + Claude), 2026-07-15 (sessão 146). **Sem código.**
 >
 > Este documento aprofunda o **resolvedor de atribuição** — a P2 do [`PLANO_TIPSTER.md`](PLANO_TIPSTER.md),
