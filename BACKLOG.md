@@ -374,7 +374,7 @@ Verificados por `grep` em **06/09/2026**. Estão aqui para ninguém gastar sess�
 
 | # | Achado | Estado medido em 06/09 |
 |---|---|---|
-| **#6** | Tooltip do gráfico de Esportes vaza HTML cru | **A CONFIRMAR NA TELA** — a função mudou de lugar; `charts/performance.js:1165-1166` monta o `.money` como string. Não dá para decidir por `grep`: exige abrir a tela (a regra de UI já manda abrir o navegador antes do commit) |
+| ~~#6~~ | ~~Tooltip do gráfico de Esportes vaza HTML cru~~ | **FECHADO (07/09)** — `charts/performance.js:156` usa `_txtPL(e[1].l)`, o formatador de texto puro que a recomendação pedia. Eu o tinha deixado como "a confirmar"; a reconciliação achou o `grep` certo. Ver [`docs/RECONCILIACAO_TURBO_20-07.md`](docs/RECONCILIACAO_TURBO_20-07.md) #85 |
 | **#15/#16** | Solidez | **ABERTO** — ver §3.1 (revertido, precisa de redesenho) |
 | **#18** | Backtest do matcher sem split temporal | **ABERTO** — a regra "assinatura tem ERA" já está no `CLAUDE.md`; o **holdout temporal** nunca foi construído. Roteado à frente de tipster |
 | **#21** | `golden_set/bilhetes/` vazio | **VIVA** — ver §1.2 |
@@ -421,21 +421,38 @@ Verificados por `grep` em **06/09/2026**. Estão aqui para ninguém gastar sess�
 | **D2** | Pareamento + rate-limit em memória de processo | **VIVA** — `_SESSOES` é um `dict` de processo (`app/captura.py:201`). Subir para 2+ réplicas no Railway mata o handshake da captura e multiplica o orçamento de brute-force | alto |
 | **D4** | Feed `SELECT *` sem `LIMIT` + P/L em Python por request | **VIVA** — `app/repository.py:1774`, `SELECT * FROM bilhetes WHERE dono = $1 ORDER BY criado_em` sem teto. É a raiz do A3 | alto |
 
-### 4.4 Reconciliar os 78 achados MÉDIO/BAIXO do TURBO 20/07
+### 4.4 O que sobrou da Auditoria Turbo — reconciliado em 07/09
 
-São os **95 confirmados** menos os 17 ALTOS acima. Nunca tiveram tracker e **nunca foram
-reverificados**. Antes de medir os 17, amostrei 4 deles: **3 estavam abertos** — a taxa diz
-que há coisa real ali, e não dá para presumir nem que fecharam nem que continuam.
+> Feito: [`docs/RECONCILIACAO_TURBO_20-07.md`](docs/RECONCILIACAO_TURBO_20-07.md).
 
-Junto vem a parte que a própria auditoria chamou de mais valiosa: as **31 lacunas de
-completude** — superfícies que ninguém nunca auditou. As nomeadas por ela: os 4 injects que
-viram P/L (`sb`/`be`/`bn`/`bf_inject.js`), `postMessage` sem validação de origem, os
-`import_*.py` que fazem `DELETE FROM bilhetes` contra o `DATABASE_URL` de produção sem
-dry-run, prompt-injection no texto colado, e o vendor JS sem SRI/versão. Mais as **5 cadeias
-de risco de 2ª ordem**.
+**Os 78 do mergulho de 20/07 não existem por escrito.** O documento enumera 16 itens
+(`A1-A5`, `B1-B4`, `C1-C3`, `D1-D4`) e reporta "36 médios + 34 baixos + 8 info" **só como
+contagem** no sumário. Não há `findings.json` do dia 20 — o único é o de 19/07. E o rodapé
+do próprio documento diz por quê: **"Deliverables uncommitted."**
 
-**Custo estimado: uma sessão própria.** Até ela acontecer, isto fica aqui como item vivo —
-não como nota dentro de um arquivo morto, que é o padrão que produziu a `AUDITORIA_2026`.
+Em vez deles foi reconciliado o corpus que **existe**: os **139 achados enumerados** do
+`findings.json` de 19/07, com arquivo, linha, evidência e recomendação — dos quais o
+relatório daquele dia só promoveu 25 para a tabela de prioridades.
+
+**Placar: 40 fechados · 68 abertos · 20 a confirmar na tela · 8 parciais · 3 que não eram
+achado.** Cada um remedido contra o código de 07/09, nunca copiado.
+
+**O que ficou como trabalho, em ordem de impacto:**
+
+1. **`#129` — dois MASTERs mandam coisas diferentes sobre a odd.** `MASTER_PIPELINE:114`
+   diz `L ou V → ODDS TOTAIS do bilhete`; `MASTER_RESULTADO §5.1.1` manda preservar a odd
+   estrutural sem remover perna anulada. Em múltipla com anulada os dois dão números
+   diferentes, e a odd entra no P/L. Mexe em `global/`, então é sessão própria.
+2. **`#114` — o `bf_inject` dispara até 400 requisições autenticadas** na Betfair
+   (`bf_inject.js:176`), sem backoff. É o único inject que **cria** tráfego em vez de só ler.
+3. **`#116` — `postMessage` sem validação de origem** no `content.js`, que roda em `*://*/*`.
+4. Os outros 65 abertos e os 20 de tela estão listados um a um no documento.
+
+**Ainda sem endereço: as 31 lacunas de completude** do mergulho de 20/07 — as superfícies
+que ninguém nunca auditou. Seguem em prosa, sem id. As duas mais quentes (os 4 injects que
+viram P/L e os `import_*.py` que fazem `DELETE FROM bilhetes` contra o `DATABASE_URL` de
+produção sem dry-run) **não** foram cobertas: auditá-las é leitura de código novo, não
+reconciliação. É a próxima sessão desta frente.
 
 ---
 

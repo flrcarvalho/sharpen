@@ -45,7 +45,60 @@ está reconciliado abaixo.
 
 ## Placar
 
-_(preenchido ao fim; ver §Cobertura)_
+**Os 139 achados enumerados foram remedidos, um a um.**
+
+| Veredicto | Qtd | % |
+|---|---:|---:|
+| **FECHADO** (com a prova no código de hoje) | **40** | 29 % |
+| **ABERTO** (com a evidência de hoje) | **68** | 49 % |
+| **A CONFIRMAR NA TELA** (não decidível por `grep`) | **20** | 14 % |
+| **PARCIAL** (metade feita, metade não) | **8** | 6 % |
+| **NÃO É ACHADO** (recomendação era "manter", ou entrada de teste) | **3** | 2 % |
+
+Por lote: 1) 12F/4A · 2) 3F/13A · 3) 4F/11A · 4) 5F/11A · 5) 5F/6A · 6) 6F/13A · 7) 5F/10A.
+
+### O que o placar diz, e que a contagem sozinha não diz
+
+**1. Um terço do que "fechou" fechou HOJE, nesta faxina.** Dos 40 fechados, **7** são
+consequência direta dos Lotes B, C e D (#1, #5, #6, #8, #103, #104, #108) — e o caso de #103
+é literal: a recomendação de julho era *"criar `docs/arquivo/` e mover os relatórios datados
+encerrados"*. Sete semanas depois, foi o Lote D.
+
+**2. O corpus tem duplicatas de verdade — 11 achados são 5 assuntos.**
+`#18 ≡ #19 ≡ D2` (sessão em memória) · `#23 ≡ #24 ≡ #25` (schema sem migrations) ·
+`#50 ≡ #51` (assinatura com stake cru) · `#71 ≡ #72 ≡ #15/#16` (Solidez) ·
+`#135 ≡ #136 ≡ #138` (backtest sem eixo temporal). Contar achados de agentes paralelos sem
+deduplicar infla o total; o `findings.json` não tem campo de relação, o que a própria
+auditoria de 20/07 identificou como a **Cadeia 5** ("lista plana não enxerga cadeias").
+
+**3. Um dos "achados" era um placeholder do pipeline.** O `#31` entrou no `findings.json`
+com severidade `medio` e o conteúdo `titulo: "Teste"`, `recomendacao: "rec"`,
+`evidencia: "ev"`. Passou pela verificação adversarial e entrou na contagem.
+
+**4. Vinte itens (14 %) só se decidem abrindo a tela.** Não é limite do método —
+é o que a regra de UI do `CLAUDE.md` já manda ("abra a tela num navegador antes do commit").
+Auditoria feita 100 % por leitura de código deixa a UI em suspenso por construção.
+
+### O achado mais grave que segue aberto
+
+**`#129` — dois MASTERs mandam coisas diferentes sobre a odd, e a odd entra no P/L.**
+O `MASTER_PIPELINE:114` diz `L ou V → ODDS TOTAIS do bilhete`; o `MASTER_RESULTADO §5.1.1`
+diz para *preservar a odd estrutural original, sem remover seleções anuladas*. Em múltipla
+com perna anulada, os dois textos levam a números diferentes. **`global/` está fora do
+escopo desta faxina** — fica registrado, medido, para uma sessão que possa tocar o MASTER.
+
+Depois dele, por impacto: **`#114`** (o `bf_inject` dispara até 400 requisições autenticadas
+na Betfair — é o único inject que **cria** tráfego em vez de só ler) e **`#116`**
+(`postMessage` sem validação de origem no `content.js`, que roda em `*://*/*`).
+
+### O que continua sem endereço
+
+As **31 lacunas de completude** do mergulho de 20/07 — as superfícies que ninguém nunca
+auditou — seguem em prosa, sem id. As duas que o Feca priorizaria (os 4 injects que viram
+P/L e os `import_*.py` que fazem `DELETE FROM bilhetes` contra o `DATABASE_URL` de produção
+sem dry-run) **não** foram cobertas aqui: o `findings.json` de 19/07 não as enumera, e
+auditá-las é trabalho de leitura de código novo, não de reconciliação. Fica como item
+próprio no `BACKLOG §4.4`.
 
 ---
 
@@ -200,3 +253,62 @@ _(preenchido ao fim; ver §Cobertura)_
 > não é limitação do método — é a mesma coisa que a regra de UI do `CLAUDE.md` já manda
 > ("abrir a tela num navegador antes do commit", item 5). Uma auditoria feita 100 % por
 > leitura de código deixa um terço dos achados de UI em suspenso por construção.
+
+---
+
+## Lote 6 — planos, docs e a extensão (#100 a #120)
+
+| # | Sev | Achado | Veredicto em 07/09 |
+|---|---|---|---|
+| 100 | baixo | ADR-001 adiado por design, com gate | **NÃO É ACHADO** — a recomendação era "manter adiado conscientemente". Continua registrado como dívida consciente (`BACKLOG §5`). |
+| 101 | médio | Self-host das fontes (#36) — CSP ainda aberto, migração pela metade | **FECHADO** — `index.html:22` e `dash/index.html:30` carregam `/static/fonts.css`; **zero** ocorrências de `fonts.googleapis` nos dois, e a CSP do `main.py` também não tem mais o host. A migração terminou. |
+| 102 | médio | Observabilidade zero (#44) | **ABERTO** — `BACKLOG §4.1`. E a nota da recomendação envelheceu para pior: ela dizia "pré-requisito antes de abrir cadastro self-service (SaaS Fase 2)". **A Fase 2 abriu na s235, sem a observabilidade.** |
+| 103 | baixo | Relatórios datados acumulam soltos em `docs/` sem sinal de vivo/histórico | **FECHADO (por esta faxina)** — a recomendação era, literalmente, "criar `docs/arquivo/` e mover os relatórios datados encerrados". É o Lote D, 7 semanas depois. |
+| 104 | baixo | Link markdown quebrado em `docs/HISTORICO.md` | **FECHADO** — no Lote C. A varredura hoje: 115 arquivos, zero quebrado. |
+| 105 | baixo | Fatia 3 da casca: plano não reconciliado com o que as sessões 153-157 entregaram | **ABERTO** — o `PLANO_CASCA_UNIFICADA` segue sem reconciliação, e o `BACKLOG §5` só sabe dizer "Fatia 3". Decidir se ela está concluída é conversa com o Feca. |
+| 106 | baixo | ADR-002 Fase 2 / Dashboard C, condicional a medição | **ABERTO por desenho** — mas a recomendação trazia um item barato que se perdeu: **a "Fase 0 de revalidação 304"**, independente do C, que cortaria o re-fetch de 8 MB a cada abertura. Nunca foi feita nem registrada. |
+| 107 | baixo | Extração worldwide Fase 1 | **ABERTO** — `BACKLOG §5`. |
+| 108 | info | `PLANO_INFERENCIA_POR_CAMPO` órfão, sem nenhuma referência | **FECHADO (por esta faxina)** — a recomendação pedia "adicionar a frente ao índice"; hoje ele está no `docs/README.md` e no `BACKLOG §5`. |
+| 109 | baixo | Inferência por campo precisa de OK do Feca antes de codar | **ABERTO** — o gate é do plano, não do código. |
+| 110 | médio | Camada de evidência de tipster (Fase 1) — "medir antes de construir" | **ABERTO** — e a recomendação continua exatamente certa. Vale notar que a s221 fez uma medição vizinha (prova por remoção do perfil suspeito) e ela virou regra no `CLAUDE.md`; o backtest por carteira, que é o que este item pede, não. |
+| 111 | médio | Persistir posições ativas do Polymarket | **FECHADO** — `_derivar_ativas` no ar (ver `docs/arquivo/README.md`). |
+| 112 | info | `UI_REFERENCE §1` não documenta a camada de tokens `--d-*` usada nos gráficos | **ABERTO** — **0** menções a `--d-pos`/`--d-proj`/`--d-info` no `UI_REFERENCE.md`, e os tokens existem no `tokens.css`. É o mesmo buraco doc↔token que alimenta os achados #83/#86 (cores de série fora de token): não há onde consultar qual verde é o oficial. |
+| 113 | baixo | Rotação da senha do Postgres | **ABERTO** — `BACKLOG §1.1`. Arrasta desde a s82. |
+| 114 | médio | `bf_inject` foge do modelo passivo: até 400 requisições autenticadas com paginação adivinhada | **ABERTO** — `bf_inject.js:176` segue `while (!fimReal && idx != null && replays < 400)`. Nem backoff, nem teto menor. É o único inject que **cria** tráfego na casa em vez de só ler. |
+| 115 | médio | Scraping acoplado a seletores hardcoded quebra em SILÊNCIO quando a casa muda o DOM | **FECHADO** — o autodiagnóstico universal que a recomendação pedia foi feito (`#13` de 19/07, s160): **25** ocorrências de `hook:` no `content.js`, com o heartbeat e o toast diferencial em todas as casas-robô. |
+| 116 | baixo | `content script` aceita `postMessage` de qualquer origem; injects postam com `targetOrigin '*'` | **ABERTO** — nenhuma checagem de `ev.source` ou `ev.origin` no `content.js`. Está entre as **31 lacunas de completude** que o mergulho de 20/07 nomeou e ninguém auditou. |
+| 117 | baixo | Robôs genéricos fazem `querySelectorAll('*')` + `getComputedStyle` por elemento | **ABERTO** — performance do robô genérico; casas com seletor dedicado não passam por aí. |
+| 118 | baixo | `host_permissions: ["*://*/*"]` + content script em toda página | **ABERTO** — o `manifest.json:18-20` é idêntico. Nota de contexto: a extensão **não** passa por loja (a distribuição é manual por link fixo), então não há revisor a satisfazer — o custo é de confiança do tester, não de aprovação. |
+| 119 | médio | Sem handshake de versão extensão↔backend | **PARCIALMENTE FECHADO** — a versão **já viaja**: `popup.js:150` e `:294` mandam `versao: VERSAO` no corpo do `/conectar`. O que falta é a outra metade — o backend **responder capacidades** (quais casas-robô aquela versão suporta) ou avisar que exige versão mais nova. |
+| 120 | baixo | Mapa casa↔host duplicado em 3+ lugares | **ABERTO** — `CASA_HOSTS` no `popup.js`, `_HOSTS_POR_CASA` no `captura.py`, `matches` no `manifest.json`. É a mesma família dos "12 pontos de registro" que o `GUIA_CASA_SHARPENUP` documenta e o `audit_sharpenup.py` **gateia** — o gate não elimina a duplicação, mas impede que ela drife em silêncio. |
+
+**Lote 6: 6 fechados · 1 parcial (#119) · 13 abertos · 1 que não é achado (#100).**
+
+---
+
+## Lote 7 — os MASTER e os scripts (#121 a #139)
+
+> ⚠️ **`global/` e `casas/` estão fora do escopo desta faxina** (regra do Feca). Aqui eu só
+> **meço e registro**; nada foi editado.
+
+| # | Sev | Achado | Veredicto em 07/09 |
+|---|---|---|---|
+| 121 | médio | "Primeiro/Último Marcador" órfãos: só existiam na DESCRIÇÃO, nunca em APOSTAS | **FECHADO** — o `MASTER_APOSTAS` tem **3** ocorrências hoje (eram 0). Foi o `#20` de 19/07 (`40deee0`, aprovado pelo Feca). |
+| 122 | baixo | Regra "Sets Vôlei/Tênis" duplicada entre APOSTAS §9 e ESPORTES §8 | **ABERTO** — a regra segue nos dois (27 menções a "Sets" em APOSTAS, 3 em ESPORTES). O risco é drift, não erro atual. |
+| 123 | médio | Assimetria `Múltipla` (Aposta, ≥2) vs `Múltiplos` (Esporte, ≥3) mal cross-referenciada | **A CONFIRMAR** — o `#20` mexeu na whitelist de `Múltiplos`; se ele também acrescentou o lembrete cruzado no §5 de APOSTAS, eu não conferi. |
+| 124, 125 | baixo ×2 | Descrição de "Corridas" ampla demais · colisão lexical "Corridas" × "Race" | **ABERTO** — o `§3` ainda diz `Corridas \| Mercados de corridas e estatísticas de Baseball`, exatamente a string que a auditoria citou. |
+| 126 | baixo | Referência cruzada quebrada em ESPORTES §6 Vôlei ("seção anterior" que está adiante) | **A CONFIRMAR** — exige ler as duas seções em ordem; `grep` não decide. |
+| 127 | médio | Valor `Múltiplos` ausente da tabela oficial §7 e dos exemplos válidos §4 | **FECHADO** — 10 ocorrências de `Múltiplos` no `MASTER_ESPORTES` hoje (eram 2, só no §2 e no §8). Foi o `#20` de 19/07. |
+| 128 | médio | OUTPUT §13/§18 dessincronizado com "aposta aberta → Resultado vazio" | **FECHADO** — o `MASTER_OUTPUT` tem 5 menções a célula vazia/vazio, e o `CLAUDE.md` já cita `MASTER_OUTPUT §13.1` como a fonte da regra. Também foi o `#20`. |
+| 129 | médio | PIPELINE §3.1 ("L ou V → ODDS TOTAIS") conflita com RESULTADO ("odd estrutural") | **ABERTO** — `MASTER_PIPELINE:114` segue literalmente `L ou V → ODDS TOTAIS do bilhete`. **É o mais grave deste lote**: dois MASTERs mandam coisas diferentes sobre a odd de múltipla com perna anulada, e a odd entra no P/L. |
+| 130 | info | PIPELINE §6.3 omite o passo "conhecimento próprio do modelo" que ESPORTES §5 tem | **A CONFIRMAR** — comparação de duas listas, precisa de leitura. |
+| 131 | médio | Regra de cashout (dinheiro) sem nenhum guard automatizado | **PARCIALMENTE FECHADO** — a s321 trouxe o `tests/test_odd_resultado_determinista.py`, que prova o veredicto pelo **retorno** contra as cinco fórmulas do `calcular_pl` lidas ao contrário, cashout incluído (5 mutações aplicadas e pegas). O que a recomendação pedia e **não** existe é o par golden (bilhete real de cashout + TSV esperado) — o `test_formulas.py` só toca cashout de raspão, numa asserção de `estado_extracao`. |
+| 132 | médio | `golden_set/bilhetes` vazio — sem regressão print→TSV por casa | **ABERTO** — `golden_set/` tem só `descricoes.jsonl` e o `README`. É o `#21` de 19/07, bloqueado em prints do Feca (`BACKLOG §1.2`). |
+| 133 | baixo | Bytecode órfão em `scripts/__pycache__` (`import_diogo`) | **FECHADO** — o `.pyc` órfão não existe mais; o que há é o do `import_diogo_sharktrack_xlsx`, que **tem** fonte. |
+| 134 | info | Divergência de nomenclatura do matcher (v4 vs v5) | **FECHADO por reescrita** — a docstring hoje é "Backtest holdout dos **DOIS** matchers, lado a lado", sem etiqueta de versão. O problema (etiqueta divergente) deixou de existir porque a etiqueta saiu. |
+| 135, 136, 138 | médio + baixo + médio | Backtest: carteiras importadas degeneram · sem split temporal real · holdout impossível sem assinatura datada | **ABERTOS, os três, e o script SABE.** As linhas 29-32 dizem: *"usa `criado_em` como eixo de tempo… para bases importadas todas iguais → o holdout degenera; nessas, o split correto usa a coluna `data`. **Refino pendente.**"* É o `#18` de 19/07 (`BACKLOG §4.2`) e a regra **"assinatura tem ERA"** do `CLAUDE.md` nasceu exatamente daqui — a regra foi escrita, o harness não. |
+| 137 | baixo | Precisão penalizada por casos insolúveis (tipster real arquivado) | **ABERTO** — `com_perfil` conta mas não filtra; a precisão segue incluindo bilhete cujo tipster real está fora do conjunto de candidatos. Mede o modelo pior do que ele é. |
+| 139 | baixo | `import_lava.py` com caminho pessoal | **ABERTO** — `:23` idêntico. Duplicata do `#10` da `AUDITORIA_2026` (`BACKLOG §4.1`). |
+
+**Lote 7: 5 fechados · 1 parcial (#131) · 10 abertos · 3 a confirmar (#123, #126, #130).**
+**Duplicatas internas: #135 ≡ #136 ≡ #138 (o mesmo buraco do backtest) e #139 ≡ `AUDITORIA_2026 #10`.**
