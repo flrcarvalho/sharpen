@@ -55,7 +55,14 @@ casa que parou → `/sharpenup-diagnostico`.
     **Regra sem gate não é cumprida neste repo — está medido**
     ([o caso](docs/CASOS.md#10--o-inchaço-que-originou-o-gate)). O `check_docs.py` **não lê
     conteúdo**: um `STATUS.md` de 49 KB só de história passa. Ele cobre tamanho, forma
-    (≤3 blocos de sessão, ≤2 `_Anterior:`), cópia em `Backups/` e link quebrado.
+    (≤3 blocos de sessão, ≤2 `_Anterior:`), cópia em `Backups/`, link quebrado e âncora.
+    > **Os tetos travam CRESCIMENTO; não mandam cortar.** Ao encostar num deles, mova
+    > **caso** para o [`docs/CASOS.md`](docs/CASOS.md) ou **sessão** para o
+    > `docs/historico/`. **Nunca corte os blocos "sintoma para reconhecer isto noutro
+    > campo"** — são eles que fazem uma sessão nova reconhecer a **família** de um defeito
+    > antes de repeti-la (a s321 e a s327 são a mesma família, e é isso que está escrito
+    > ali). Subir um teto para não cortar é pior ainda: foi assim que o `STATUS.md` chegou
+    > a 187 KB.
 
 ---
 
@@ -487,7 +494,9 @@ aposto". → [o caso](docs/CASOS.md#os-dois-cortes-que-já-quebraram-o-matcher-e
 
 ## ⚠️ REGRA DE UI / MARCA OBRIGATÓRIA (antes de criar QUALQUER visual novo)
 
-> **Motivo:** na sessão 83, cards de KPI foram criados com formatadores caseiros que abreviavam (`1,4k`) e coloriam o valor inteiro — violando 4 regras do padrão monetário. O Feca teve que voltar em detalhe já documentado. A causa: **regra escrita sem hábito de conferir = pulada.** Esta seção torna a conferência obrigatória.
+> **Motivo: regra escrita sem hábito de conferir = pulada.** Esta seção é um checklist
+> numerado, e não um texto, exatamente por isso.
+> → [o caso](docs/CASOS.md#os-cards-de-kpi-com-formatador-caseiro--s83)
 
 **Antes de escrever qualquer render de número, dinheiro, cor, tipografia ou componente visual, NESTA ordem:**
 
@@ -495,16 +504,16 @@ aposto". → [o caso](docs/CASOS.md#os-dois-cortes-que-já-quebraram-o-matcher-e
 2. **Reusar helper existente, nunca criar formatador.** `grep` por `fmtPL`/`fmtR`/`moneyStake`/`.money` no arquivo e reusar. Todo R$ usa o componente `.money`; só muda as casas por contexto (ver `UI_REFERENCE §5`): **P/L → `fmtPL` (2 casas**, `R$` menor `--ink-soft`, cor SÓ no número, minus U+2212, zero neutro); **agregado/KPI/turnover/custo → `fmtR` (inteiro)**. **Nunca abreviar milhar (`k`/`M`) — barrado pelo `check-tokens §d`.** `.toFixed`/`.replace` só nas exceções documentadas (odd/USD), nunca em R$.
 3. **Cor sempre de token** (`var(--…)`), nunca literal. `.money-sign`/sinal ficam neutros.
 4. **Auto-auditar item a item contra §5 ANTES do commit** + rodar `node scripts/tokens/check-tokens.mjs`.
-5. **Abrir a tela num navegador antes do commit.** `node --check` é falso verde para o que vive dentro de template literal: na s296 uma **crase** num comentário HTML dentro do `buildHTML` passou no check e deixou o dash **em branco** (`ReferenceError`). Suba o `scripts/demo/servidor_demo.py` e renderize headless — medir a tela é o único gate que pega isso.
+5. **Abrir a tela num navegador antes do commit.** `node --check` é **falso verde para tudo que vive dentro de template literal** — uma crase perdida num comentário derruba a página inteira e passa no check. Suba o `scripts/demo/servidor_demo.py` e renderize headless: medir a tela é o único gate que pega isso. → [o caso](docs/CASOS.md#a-crase-que-deixou-o-dash-em-branco--s296)
 
 6. **Quem LÊ o número de volta da tela tem de conhecer o padrão que o imprimiu.** O item 2
-   cobre a escrita; a metade que faltava é a leitura. Ordenação de coluna, filtro e
-   qualquer código que reparseie o que `fmtR`/`fmtPL`/`fmtPct` renderizaram enfrenta duas
-   armadilhas, as duas medidas em produção na s300: o sinal negativo é **U+2212 (`−`)**,
-   não hífen — `parseFloat` devolve `NaN`, que vira 0, e **todo valor negativo ordena como
-   zero**; e `fmtR` imprime milhar **sem decimal** (`R$ 5.180`), então a regra de milhar
-   decide pela **forma** do número (`^\d{1,3}(\.\d{3})+$`), nunca pelo que vem depois do
-   ponto. Reuse `parseNum` (`dash/assets/js/app.js`) — não escreva um segundo parser.
+   cobre a escrita; a metade que faltava é a leitura. Ordenação, filtro e qualquer código
+   que reparseie o que `fmtR`/`fmtPL`/`fmtPct` renderizaram enfrenta duas armadilhas: o
+   sinal negativo é **U+2212 (`−`)**, não hífen — `parseFloat` devolve `NaN`, que vira 0, e
+   **todo valor negativo ordena como zero**; e `fmtR` imprime milhar **sem decimal**, então
+   a regra de milhar decide pela **forma** do número (`^\d{1,3}(\.\d{3})+$`), nunca pelo que
+   vem depois do ponto. Reuse `parseNum` (`dash/assets/js/app.js`) — não escreva um segundo
+   parser. → [o caso](docs/CASOS.md#as-duas-armadilhas-de-reparsear-o-que-a-tela-imprimiu--s300)
 7. **Coluna ordenável cujo texto não ordena sozinho leva `data-sort`.** `sortTable` lê o
    `dataset.sort` antes do `textContent`. Data em `dd/mm/aa` ordena pelo **dia do mês**;
    célula com chip/ícone carrega a letra do chip no `textContent`. Nos dois casos o valor
@@ -515,18 +524,15 @@ aposto". → [o caso](docs/CASOS.md#os-dois-cortes-que-já-quebraram-o-matcher-e
    a tela tem nem onde mora cada controle. Componente novo passa item a item e ainda
    briga com a tela. Duas perguntas, sempre, depois do `/nova-ui`:
    - **Este controle tem irmão em outro lugar da mesma tela?** Se tem, é *uma* superfície
-     só. Na s317 os filtros novos foram para um segundo cartão, embaixo dos KPIs, com a
-     barra da página seguindo em cima: partido em dois, o de cima sai do campo de visão
-     de quem mexe no de baixo e **a tela passa a parecer que não tem o filtro que tem**
-     (o Feca pediu "filtro para Tipster, Casa e Esporte" — os três já existiam, no outro
-     cartão). Antes de escrever markup que já existe, quebre o compartilhado em peças
-     (`_grupoPeriodo` e cia., em `filters.js`) e componha; copiar cria dois Períodos que
-     divergem no primeiro ajuste.
-   - **Há dois estilos para o mesmo papel aqui?** É o sintoma barato de "fora do padrão",
-     e ele aparece mesmo quando uma das metades está certa: `.apf-lbl` (correto pela
-     Escada) ao lado do `.filter-label` (errado) — o olho lê as duas como inconsistentes
-     sem saber qual é qual. Resolva pela raiz: **exclua o estilo novo, reuse o existente
-     e suba o existente** para o papel certo.
+     só. Partida em dois, a de cima **sai do campo de visão** de quem mexe na de baixo, e
+     **a tela passa a parecer que não tem o filtro que tem**. Antes de escrever markup que
+     já existe, quebre o compartilhado em peças (`_grupoPeriodo` e cia., em `filters.js`) e
+     componha; copiar cria dois Períodos que divergem no primeiro ajuste.
+   - **Há dois estilos para o mesmo papel aqui?** É o sintoma barato de "fora do padrão", e
+     ele aparece **mesmo quando uma das metades está certa** — o olho lê as duas como
+     inconsistentes sem saber qual é qual. Resolva pela raiz: **exclua o estilo novo, reuse
+     o existente e suba o existente** para o papel certo.
+   → [o caso das duas](docs/CASOS.md#o-filtro-que-a-tela-já-tinha--s317)
 
 9. **Recorte por DESFECHO não redefine a régua que mede a carteira.** Filtrar a tela por
    casa, esporte ou período é recortar carteira, e os KPIs seguem junto. Filtrar por

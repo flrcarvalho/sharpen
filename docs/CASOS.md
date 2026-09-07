@@ -296,3 +296,45 @@ Certo ou errado, é decisão do dono, e por isso o script de reparo pula bilhete
 Replay em **5.316 blocos** da sombra (**20 casas**): mexe em **3** — exatamente as 3 de
 edição humana. **Zero falso positivo.** E o gate reproduziu, sozinho, as **33** correções
 que o script já tinha feito. Os testes: **5 mutações aplicadas e pegas**.
+
+---
+
+## REGRA DE UI / MARCA OBRIGATÓRIA
+
+### Os cards de KPI com formatador caseiro — s83
+
+Cards de KPI foram criados com formatadores próprios que **abreviavam** (`1,4k`) e
+**coloriam o valor inteiro** — violando 4 regras do padrão monetário de uma vez. O Feca teve
+de voltar em detalhe **já documentado**.
+
+A causa não foi falta de regra: **regra escrita sem hábito de conferir = pulada.** É por isso
+que a seção do `CLAUDE.md` é um checklist numerado e não um texto.
+
+### A crase que deixou o dash em branco — s296
+
+Uma **crase** dentro de um comentário HTML, dentro do `buildHTML`, passou no `node --check` e
+derrubou o dashboard inteiro com `ReferenceError`. O `node --check` é **falso verde** para
+tudo que vive dentro de template literal.
+
+Medir a tela é o único gate que pega isso.
+
+### As duas armadilhas de reparsear o que a tela imprimiu — s300
+
+Medidas em produção:
+
+- O sinal negativo do `fmtPL` é **U+2212 (`−`)**, não hífen. `parseFloat` devolve `NaN`, que
+  vira 0 — e **todo valor negativo ordena como zero**.
+- O `fmtR` imprime milhar **sem decimal** (`R$ 5.180`). Uma regra de milhar que olhe o que
+  vem depois do ponto erra; ela tem de decidir pela **forma** do número.
+
+### O filtro que a tela já tinha — s317
+
+Os filtros novos foram para um **segundo cartão**, embaixo dos KPIs, com a barra da página
+seguindo em cima. Partido em dois, o de cima **sai do campo de visão** de quem mexe no de
+baixo, e a tela passa a parecer que não tem o filtro que tem: o Feca pediu *"filtro para
+Tipster, Casa e Esporte"* — **os três já existiam**, no outro cartão.
+
+Na mesma tela, dois estilos para o mesmo papel: `.apf-lbl` (correto pela Escada de Tinta) ao
+lado de `.filter-label` (errado). O olho lê as duas como inconsistentes **sem saber qual é
+qual** — é o sintoma barato de "fora do padrão", e ele aparece mesmo quando uma das metades
+está certa.
