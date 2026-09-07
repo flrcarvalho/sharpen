@@ -58,6 +58,20 @@ casa que parou → `/sharpenup-diagnostico`.
      subiu). Confira com `git show --stat` depois de commitar; se levou arquivo alheio,
      **não reescreva histórico já pushado** — registre no `STATUS.md` e siga.
 9. **Toda atualização fechada = perguntar se avisa os testers**, já com a mensagem pronta (ver abaixo). O Feca escolhe informar ou não. Nunca enviar sem o "pode mandar".
+10. **Um arquivo, uma pergunta — e o gate é `python tools/check_docs.py`.**
+    `CLAUDE.md` = regras vinculantes · [`STATUS.md`](STATUS.md) = estado atual **+ no máximo as 3
+    últimas sessões** · [`BACKLOG.md`](BACKLOG.md) = **tudo que está aberto** ·
+    [`docs/HISTORICO.md`](docs/HISTORICO.md) = o resto. **Pendência nova vai para o `BACKLOG.md`,
+    nunca para o `STATUS.md`** — foi de lá que ela virou 51 KB escondidos dentro de um changelog,
+    e quatro arquivos passaram a disputar o papel de "onde o projeto está".
+    Ao fechar um item, **tire-o do `BACKLOG.md` na mesma sessão**: regra nova vai para o lugar
+    canônico (`MASTER_*` / `CASA_*` / este arquivo), história vai para o `HISTORICO.md`.
+    > **Por que existe gate para isto.** O invariante #4 estava escrito, era claro, e foi
+    > ignorado até `Backups/` chegar a 551 pastas e 128 MB com 165 cópias de
+    > `STATUS.md`/`HISTORICO.md` dentro; o `/encerrar` mandava manter 3 sessões e o `STATUS.md`
+    > chegou a 187 KB. **Regra sem gate não é cumprida neste repo — está medido.**
+    > O `check_docs.py` **não lê conteúdo**: um `STATUS.md` de 39 KB só de história passa. Ele
+    > cobre tamanho, cópia em `Backups/` e link quebrado.
 
 ---
 

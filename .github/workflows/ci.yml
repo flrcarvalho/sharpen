@@ -66,3 +66,10 @@ jobs:
 
       - name: Check de tokens de marca
         run: node scripts/tokens/check-tokens.mjs
+
+      # Gate de documentação (invariante #10): tamanho do STATUS.md, cópias de
+      # STATUS/HISTORICO dentro de Backups/, e links markdown quebrados.
+      # ⚠️ `Backups/` é gitignored → no CI a pasta não existe e essa checagem sai como
+      # AVISO ("não exercida"), nunca como verde. Ela só tem efeito rodando local.
+      - name: Gate de documentação
+        run: python tools/check_docs.py
