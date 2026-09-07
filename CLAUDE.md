@@ -433,6 +433,54 @@ reformatado quebrar o CI em vez da tela.
 
 ---
 
+## Custo de aquisição tem JANELA DE VIDA. Um dia e um mês da mesma conta custam igual.
+
+O custo da conta é **único, pago na compra**, e existe enquanto a conta existe. Todo
+período filtrado que **cruza** a janela cobra o custo **cheio** daquela conta:
+
+```
+ini = menor(adquirida_em, 1ª aposta)
+fim = maior(última aposta, arquivada_em)   · HOJE p/ conta ativa ainda sem aposta
+```
+
+Comprou dia 01 e usou até o 22: qualquer recorte dentro disso cobra, o dia 28 não cobra,
+o mês inteiro cobra uma vez. Antes o custo era lançado num **único dia** — o da primeira
+aposta liquidada — e filtrar qualquer outro dia dava **R$ 0** com o parque em uso.
+
+> ⚠️ **A régua NÃO é aditiva, e o preço foi aceito com a conta na mesa.** Somar os dias
+> de setembro dá muito mais que o custo de setembro, e o P/L Líquido de UM dia carrega o
+> custo cheio das contas vivas. Não "conserte" isso achando que é defeito. A alternativa
+> (ratear pelos dias) foi recusada de propósito: rateio exige um horizonte arbitrário, e
+> a janela pelo uso não tem constante nenhuma.
+
+**O escopo vem do FILTRO, não das linhas.** `Casa` e `Operador` descrevem a CONTA e
+recortam o custo; `Esporte` e `Tipster` descrevem a APOSTA e não recortam — a conta
+Bet365 custou R$ 900 quer se olhe tênis ou futebol. Pelo mesmo motivo `calcCostFiltered`
+não recebe mais `rows`: recorte sem aposta nenhuma tinha custo 0 com o período na tela, e
+um mês filtrado encolhia até a última aposta dele.
+
+**O fim da janela vem do USO, então ele existe sem ninguém declarar nada.** `arquivada_em`
+só melhora o caso em que a conta foi encerrada de propósito. Arquivar carimba com
+`COALESCE` (arquivar duas vezes não empurra o fim); reativar **zera** o carimbo, senão a
+conta volta viva com o custo sumido dos dias em que já está em uso.
+
+**`bilhetes.data` guarda DD/MM/YYYY e ISO na MESMA coluna** (`_data_iso` converte só na
+saída). Todo backfill que leia data por SQL precisa dos dois ramos — ler só ISO acha quase
+nada e faz toda conta antiga nascer com a janela começando na data do **import**.
+
+**Fonte canônica:** `calcCostFiltered` / `_buildContaVida` / `_custoNaJanela`
+(`dash/assets/js/charts/gestao.js`) e `parceiros.adquirida_em` / `arquivada_em`
+(`database.py`). Gates: `tests/test_custo_janela_vida.py` (9 mutações, 9 detectadas) e os
+três testes de janela em `tests/test_repository_db.py`, que medem o RESULTADO do backfill
+— ele roda dentro de um `DO … EXCEPTION`, então erro sai como WARNING e o CI ficaria verde
+com a coluna vazia.
+
+> **Assimetria conhecida, ainda de pé:** o **Custo de Tipsters** (inline no `renderKPI`)
+> segue com a régua antiga — cobra o **mês inteiro** e **ignora todo filtro**, inclusive o
+> de tipster. Os dois cards ficam lado a lado medindo com réguas diferentes.
+
+---
+
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 
 O matcher (`_sugParaBilhete`, inline no `app/static/index.html`) só sugere com **folga ≥ 7**

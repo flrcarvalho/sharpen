@@ -640,6 +640,31 @@ criaria dois estilos para o mesmo papel (o que a regra 8 do CLAUDE.md proíbe), 
 o campo reusa a classe como está. A correção é de uma linha e vale para todos os
 modais — decisão do Feca. Ver [[ui_reference_vs_escada_tinta_label]].
 
+### Próximo passo (aprovado em conceito, texto NÃO aprovado)
+
+Explicar a régua NA TELA. O Feca pediu ("vamos explicar melhor como o custo se aplica
+ao filtro") e a redação ficou esperando o ok dele. Três peças, todas com componente
+que já existe nesta tela — nenhum CSS novo, nenhum formatador novo:
+
+1. um **ⓘ** no card Custo de Contas (`_mkTipAnchor`, o mesmo do Cenário Atual):
+   fórmula `custo × contas vivas no período`; texto "Custo de aquisição de cada conta
+   que EXISTIA no período — da compra até o arquivamento (ou a última aposta). Não é
+   rateado: conta que viveu um dia do recorte custa inteiro."; selo "não soma entre
+   períodos";
+2. uma **`.nota-escopo`** sob o Andar 1, só com período filtrado: "Custo de Contas e de
+   Tipsters não são proporcionais ao período — mostram o que existia nele, inteiro. Só
+   o P/L acompanha o recorte." Com "Tudo" não aparece;
+3. legenda `N contas no período` → `N contas **vivas** no período`.
+
+A regra em si já está no canônico (`CLAUDE.md`, seção "Custo de aquisição tem JANELA DE
+VIDA"), escrita no encerramento — não estava lá quando a mudança subiu.
+
+### Anotado, não aberto
+
+O **Custo de Tipsters** segue com a régua antiga: cobra o mês inteiro e ignora todo
+filtro, inclusive o de tipster. Os dois cards ficam lado a lado medindo com réguas
+diferentes. Não foi tocado nesta sessão, de propósito.
+
 ### Pendência que não é desta sessão
 
 `app/static/landing.html` segue modificado no working tree desde **26/08**, sem
