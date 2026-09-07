@@ -215,17 +215,46 @@ porque tirar um id descontaria o stake duas vezes. `criado_em` nulo ou sem fuso 
 fora: sem ele não há prova, e comparar um naive estouraria **dentro** do `/salvar`,
 derrubando a gravação inteira por causa de uma linha de caixa.
 
+**3. A raiz: a repescagem acrescentava a linha e deixava a órfã.** `conferir_cobertura`
+cobra **quantidade por código** — ela não sabe que o bilhete "faltante" pode estar ali
+como uma linha que perdeu a 11ª coluna. E a repescagem só ACRESCENTA
+(`_extract_tsv_rows(resultado) + novas`); ninguém removia a órfã. Os dois desfechos
+deixavam linha sem código: repescagem OK dava **duas** linhas do mesmo bilhete no lote;
+repescagem falha (o que aconteceu em 05/09) deixava a órfã — e sem código ela nunca dedupa.
+
+`_reconciliar_orfas` faz duas coisas, ambas conservadoras:
+
+- **Adoção** — a órfã recebe o código do bloco faltante de que ela é **fiel**
+  (`checar_fidelidade`, o gate de procedência da s302: todo nome próprio e todo decimal da
+  descrição existem naquele bloco). Só quando o par é único **nos dois sentidos** — a órfã
+  casa com um único bloco livre, e aquele bloco casa com uma única órfã. Ambíguo não vira
+  chute.
+- **Descarte** — sobrando órfã depois disso, e não havendo mais bilhete do texto sem linha
+  própria, ela é cópia de alguém que já tem a sua. Sai.
+
+**NO-OP integral onde a coluna 11 vazia é legítima:** casa sem marcador (prints, texto
+colado) e texto que traga **qualquer** `[Código: ]` vazio — é o que a bet365 manda quando o
+detalhe não chegou, e descartar ali apagaria bilhete real.
+
+Roda em **todos** os caminhos de saída, inclusive quando não houve repescagem: era esse o
+desfecho que deixava fantasma. O sort por posição no texto-fonte passou a rodar **só quando
+este passo mexeu no TSV** — reordenar de graça mudaria calado a ordem que o resto do
+sistema lê como hora de envio.
+
 **Gates, provados por mutação** (cada uma pega por exatamente o teste que devia pegá-la):
 `_norm_odd` → string crua deixa **6** vermelhos, incluindo o caso medido `14`/`14,00`;
 tirar `aposta` da chave, **1**; tirar o `ate`, **1**; sobrescrever `abertas_corte` em vez
-de unir, **1**; tirar a guarda de `criado_em`, **2**.
+de unir, **1**; tirar a guarda de `criado_em`, **2**; e nas órfãs — trava de par único, guarda do marcador
+vazio, descarte, adoção e a **ligação** dentro do `_garantir_cobertura`, **1** cada.
 
 > A **ligação** tem gate próprio no harness de DB (`test_upsert_adota_aberta_que_chegou_
 > depois_da_caixa_ligada`). O dublê testa a função, não a chamada: removendo o
 > `await _caixa_adotar_abertas_tardias(...)` do `upsert_bilhetes`, o arquivo de dublê fica
-> **todo verde** e a Caixa volta a nascer torta. Foi o modo de falso verde nº 1 da s286.
+> **todo verde** e a Caixa volta a nascer torta. Foi o modo de falso verde nº 1 da s286. O mesmo vale para a
+> reconciliação de órfãs: removendo a chamada de dentro do `_garantir_cobertura`, os 7
+> testes de `_reconciliar_orfas` seguem verdes — só o teste da ligação pega.
 
-Suíte: **748 passed, 30 skipped**.
+Suíte: **756 passed, 30 skipped**.
 
 ---
 
