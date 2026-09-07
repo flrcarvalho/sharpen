@@ -6,20 +6,6 @@
 
 ---
 
-## Estrutura do projeto
-
-```
-Planilhador/
-├── global/          ← 6 masters globais (fonte única de verdade)
-├── casas/           ← 1 arquivo por casa (traduz; nunca redefine)
-├── golden_set/      ← bilhetes reais + TSV esperado (validação)
-├── extensor/        ← SharpenUp (extensão de captura) + harness/ de regressão
-├── Backups/         ← snapshots antes de cada edição
-└── STATUS.md        ← estado atual; ler antes de qualquer sessão
-```
-
----
-
 ## ⚠️ CASA NOVA — leia antes de começar
 
 Casa tem **duas camadas independentes**. Confira qual você vai mexer:
@@ -45,18 +31,17 @@ casa que parou → `/sharpenup-diagnostico`.
 1. O app **lê** os masters, **nunca escreve**. Mudança = diff revisado + aprovação humana.
 2. Arquivo de casa **traduz**; nunca redefine regra global.
 3. **Cálculo é global, localização é da casa.**
-4. Backup em `Planilhador/Backups/<nome-descritivo>/` antes de qualquer edição. Nunca usar `FDC Capital/Backups/`. **Retenção (#25 auditoria):** copiar para o backup **só os arquivos que serão editados** — nunca `docs/HISTORICO.md` (500KB, já versionado no git) nem diretórios inteiros. `Backups/` é gitignored/manual; podar snapshots além de ~últimas sessões / 90 dias quando incomodar (o git cobre o histórico versionado).
+4. Backup em `Planilhador/Backups/<nome-descritivo>/` antes de qualquer edição. Nunca usar `FDC Capital/Backups/`. **Copie só os arquivos que serão editados** — nunca `STATUS.md`, nunca `docs/HISTORICO.md` (o git já os versiona), nunca diretórios inteiros. `Backups/` é gitignored/manual; podar além de ~últimas sessões / 90 dias. Gate: `python tools/check_docs.py`.
 5. Arquivos completos, nunca diffs parciais.
 6. Uma mudança por vez. Propor → aguardar confirmação → executar.
 7. Atualizar `STATUS.md` ao fim de cada mudança aplicada.
 8. **Commit e push sempre juntos.** Após cada mudança aprovada: `git add` → `git commit` → `git push`. Deploy automático via Railway. Nunca deixar commit sem push.
-   - **Com mais de uma sessão aberta, `add` e `commit` vão no MESMO comando.** O index é
-     compartilhado: arquivo que fica esperando entre um e outro é levado por quem commitar
-     primeiro. Aconteceu duas vezes em 24/08, nos dois sentidos — em `75d93dc` uma sessão
-     levou 17 arquivos da outra, e em `6cb8037` a mensagem era de uma sessão e o conteúdo
-     do `STATUS.md` era da outra, **fazendo a narrativa do matcher se perder** (só o código
-     subiu). Confira com `git show --stat` depois de commitar; se levou arquivo alheio,
-     **não reescreva histórico já pushado** — registre no `STATUS.md` e siga.
+   - **Com mais de uma sessão aberta, `add` e `commit` vão no MESMO comando**, e faça `add`
+     dos seus arquivos **por nome** — nunca `git add -A`/`.`. O index é compartilhado:
+     arquivo que fica esperando entre um e outro é levado por quem commitar primeiro.
+     Confira com `git show --stat` depois de commitar; se levou arquivo alheio, **não
+     reescreva histórico já pushado** — registre no `STATUS.md` e siga.
+     → [o caso](docs/CASOS.md#8-duas-sessões-commitando-ao-mesmo-tempo-24082026)
 9. **Toda atualização fechada = perguntar se avisa os testers**, já com a mensagem pronta (ver abaixo). O Feca escolhe informar ou não. Nunca enviar sem o "pode mandar".
 10. **Um arquivo, uma pergunta — e o gate é `python tools/check_docs.py`.**
     `CLAUDE.md` = regras vinculantes · [`STATUS.md`](STATUS.md) = estado atual **+ no máximo as 3
@@ -65,13 +50,12 @@ casa que parou → `/sharpenup-diagnostico`.
     nunca para o `STATUS.md`** — foi de lá que ela virou 51 KB escondidos dentro de um changelog,
     e quatro arquivos passaram a disputar o papel de "onde o projeto está".
     Ao fechar um item, **tire-o do `BACKLOG.md` na mesma sessão**: regra nova vai para o lugar
-    canônico (`MASTER_*` / `CASA_*` / este arquivo), história vai para o `HISTORICO.md`.
-    > **Por que existe gate para isto.** O invariante #4 estava escrito, era claro, e foi
-    > ignorado até `Backups/` chegar a 551 pastas e 128 MB com 165 cópias de
-    > `STATUS.md`/`HISTORICO.md` dentro; o `/encerrar` mandava manter 3 sessões e o `STATUS.md`
-    > chegou a 187 KB. **Regra sem gate não é cumprida neste repo — está medido.**
-    > O `check_docs.py` **não lê conteúdo**: um `STATUS.md` de 39 KB só de história passa. Ele
-    > cobre tamanho, cópia em `Backups/` e link quebrado.
+    canônico (`MASTER_*` / `CASA_*` / este arquivo), história vai para o `HISTORICO.md` e o
+    **caso** que originou uma regra vai para o [`docs/CASOS.md`](docs/CASOS.md).
+    **Regra sem gate não é cumprida neste repo — está medido**
+    ([o caso](docs/CASOS.md#10-o-inchaço-que-originou-o-gate)). O `check_docs.py` **não lê
+    conteúdo**: um `STATUS.md` de 49 KB só de história passa. Ele cobre tamanho, forma
+    (≤3 blocos de sessão, ≤2 `_Anterior:`), cópia em `Backups/` e link quebrado.
 
 ---
 
@@ -83,29 +67,27 @@ O `@sharpenbetbot` é admin do grupo e serve de canal de **novas versões e atua
 prévia (ensaio é o padrão; só envia com `--enviar`), confere o destino por `getChat`,
 publica no grupo e grava a mesma nota em `app/changelog.json`, que é o que a home lê pela
 rota `/changelog`. **Nunca edite o changelog à mão e nunca mande a mensagem por fora** —
-foi assim que a caixa "SharpenUp — versão a versão" ficou 8 versões atrás duas vezes
-(s254 e s292), porque bumpar o `manifest.json` é obrigatório para a extensão funcionar e
-escrever a nota não era obrigatório para nada. Hoje é: `tests/test_changelog.py` fica
-**vermelho** quando a versão do manifest não tem nota (dispensa só declarada, em
-`sharpenup_sem_nota`). Gate manual: `python tools/audit_changelog.py`.
+senão a home fica versões atrás em silêncio ([o caso](docs/CASOS.md#o-changelog-ficou-8-versões-atrás-duas-vezes)).
+`tests/test_changelog.py` fica **vermelho** quando a versão do manifest não tem nota
+(dispensa só declarada, em `sharpenup_sem_nota`). Gate manual: `python tools/audit_changelog.py`.
 
 **Só informamos. Não damos detalhes.** A mensagem diz o que mudou em **uma linha** e o que o
 tester precisa **fazer**. Ficam de fora: mecânica interna, nome de campo, causa raiz, número de
 bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STATUS.md`.
 
-> ⚠️ **`Sharpen` é o SISTEMA; `SharpenUp` é a EXTENSÃO.** O número de versão (`0.6.46`) é do
+> ⚠️ **`Sharpen` é o SISTEMA; `SharpenUp` é a EXTENSÃO.** O número de versão é do
 > **SharpenUp** — é ele que o tester atualiza. Escrever "Sharpen 0.6.46" versiona o produto
-> inteiro e confunde quem lê (corrigido em produção na s270, com a mensagem já publicada).
-> A regra vale para release note, changelog e qualquer texto voltado ao usuário.
+> inteiro. Vale para release note, changelog e qualquer texto voltado ao usuário.
+> → [o caso](docs/CASOS.md#sharpen-0646-versionou-o-produto-inteiro)
 
 - `chat_id` = `-5172183099` · `BOT_TOKEN` no `.env` de `Downloads/BOTS/sharpen-bot`.
 - **Confirmar o destino com `getChat` antes de publicar.** Mensagem em grupo não tem desfazer.
 - **Nunca `getUpdates`** — briga com o polling do bot em produção.
 - **Nunca diagnostique envio chamando `sendMessage` de novo.** Grupo real não tem desfazer,
   e a segunda chamada publica o teste. Na primeira falha, **imprima o `description` da
-  resposta**: ele já diz a causa. Na s282 o `ok=false` era o `curl` do Windows não lendo path
-  do Git Bash, e o teste de diagnóstico foi parar no grupo. Chame a API por Python, que
-  controla o UTF-8 de ponta a ponta. Para testar de verdade, use um chat seu, nunca o grupo.
+  resposta**: ele já diz a causa ([o caso](docs/CASOS.md#o-teste-de-diagnóstico-foi-parar-no-grupo)).
+  Chame a API por Python, que controla o UTF-8 de ponta a ponta. Para testar de verdade, use
+  um chat seu, nunca o grupo.
 - **Identificar mensagem já enviada, sem `getUpdates`:** a Bot API não tem `getMessage`. Use
   `editMessageText` com o texto **idêntico**. O erro `message is not modified` só aparece
   quando o conteúdo bate exatamente, então ele confirma a identidade **sem alterar a
@@ -128,12 +110,11 @@ bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STA
 > `select username, status, length(senha_hash) from usuarios where …`.
 >
 > **E o `dono` TEM de ser o username — não o nome de marca.** Os dois divergem com
-> frequência (s260: a marca é `Fleury`, o username é `Flurray`) e o isolamento por
-> `dono` **falha em silêncio**: import feito sob o nome de marca não dá erro nenhum,
-> só entrega tela vazia para o usuário certo. Confirme o username **na tabela**, nunca
-> pelo nome do arquivo, do canal ou da planilha. A ponte entre os dois nomes é o
-> registro `TIPSTERS_PUBLICOS` (`app/main.py`), onde o **slug** é a marca e o `dono` é
-> o username.
+> frequência, e o isolamento por `dono` **falha em silêncio**: import feito sob o nome de
+> marca não dá erro nenhum, só entrega tela vazia para o usuário certo. Confirme o username
+> **na tabela**, nunca pelo nome do arquivo, do canal ou da planilha. A ponte entre os dois
+> nomes é o registro `TIPSTERS_PUBLICOS` (`app/main.py`), onde o **slug** é a marca e o
+> `dono` é o username. → [o caso](docs/CASOS.md#a-marca-não-é-o-username-fleury-flurray)
 
 O caminho abaixo vale só para as contas **antigas** (semente) ou criadas à mão.
 
@@ -151,13 +132,12 @@ devolvendo **401** tem origem única (`verificar_credenciais` falso) — 429 é 
 500 é erro do app. Usuário existindo + 401 = env var ausente, env var truncada **ou a
 senha simplesmente não é aquela**.
 
-**Essa terceira causa é a mais provável em conta de autosserviço, e foi a da s264.** O
-supervisor passa a senha que ele *planejou* (`fredpelado`); quem se cadastrou pelo site
-escolheu outra, e o hash guardado é da dele. A var estava presente e íntegra, e mesmo
-assim dava 401. **Não trate senha dita por terceiro como fato: prove contra o hash**, é
-uma linha e é leitura pura —
+**Essa terceira causa é a mais provável em conta de autosserviço.** O supervisor passa a
+senha que ele *planejou*; quem se cadastrou pelo site escolheu outra. **Não trate senha dita
+por terceiro como fato: prove contra o hash**, é uma linha e é leitura pura —
 `bcrypt.checkpw(b"<senha>", (select senha_hash from usuarios where username=…))`. Isso
 separa "senha errada" de "transporte quebrou" antes de mexer em qualquer coisa.
+→ [o caso](docs/CASOS.md#a-senha-simplesmente-não-era-aquela)
 
 **Resetar a senha de quem se cadastrou sozinho é decisão do dono da conta, não sua.** Não
 existe rota de troca no app (só `/admin/usuarios/{u}/aprovar` e `/suspender`), então
@@ -178,12 +158,7 @@ a valer entre os dois.
 
 ## Bot de tipster: NUNCA peça a senha dele. Aprove a conta e ligue o botão.
 
-Até a s276 o bot fazia **login como o tipster**, então cada tipster novo obrigava a
-guardar a **senha dele** numa env var do Railway (chegou a três) e a subir deploy. Não
-escalava, punha credencial de terceiro sob nossa guarda — e a senha nem é nossa para
-pedir: quem se cadastra pelo site escolhe a própria.
-
-Hoje é **um token de serviço só, para sempre** (`SHARPEN_BOT_TOKEN`, o mesmo valor nos
+É **um token de serviço só, para sempre** (`SHARPEN_BOT_TOKEN`, o mesmo valor nos
 dois serviços do Railway: o app e o `sharpen-bot`). O bot se identifica assim:
 
 ```
@@ -205,13 +180,11 @@ Ela vive em `usuario_atual_ou_bot` / `dono_efetivo_ou_bot`, aplicadas só nas 4 
 bot usa. `grep -n "_ou_bot" app/main.py` lista tudo o que o token alcança, e
 `tests/test_bot_token.py` **quebra** se alguém aplicar numa rota nova.
 
-> **Ao migrar um tenant, ligue o botão ANTES de o token existir no Railway.** Na s276 eu
-> subi o token com só um dos quatro habilitados: os quatro trocaram de caminho juntos e os
-> três sem botão passaram a tomar 401 em cada operação. Nenhum bilhete se perdeu (o
-> `/salvar` é UPSERT por código), mas **a marcação de resultado parou de chegar** — o canal
-> mostra ✅/❌ e a planilha não acompanha, sem erro nenhum. Hoje o 401 do token cai para a
-> senha **daquele tenant** se ela ainda existir, mas a ordem certa continua sendo botão
-> primeiro.
+> **Ao migrar um tenant, ligue o botão ANTES de o token existir no Railway.** Os tenants
+> trocam de caminho de autenticação **juntos**, e quem não tem botão passa a tomar 401 em
+> cada operação — sem perder bilhete (o `/salvar` é UPSERT por código), mas **a marcação de
+> resultado para de chegar**, sem erro nenhum.
+> → [o caso](docs/CASOS.md#o-token-subiu-antes-dos-botões)
 
 **Dado dessincronizado se conserta com `/ressincronizar [AAAA-MM]`** no apoio: o bot
 reempurra ao Sharpen o que já está no storage dele. Seguro de repetir (UPSERT por código,
@@ -501,9 +474,9 @@ O matcher (`_sugParaBilhete`, inline no `app/static/index.html`) só sugere com 
 entre o 1º e o 2º colocado. Em empate ele fica **vazio de propósito** — não chuta.
 
 A consequência é o modo de falha: **um perfil novo pode matar um perfil antigo em silêncio.**
-Nada aparece no rail nem no console, só a coluna vazia. Foi a s221: `MultiLBB` nasceu com a
-dica `49, 99`, o parser deriva o final de todo valor não-redondo (`49 → 9`, `99 → 9`), ele
-virou dono do final 9 inteiro e empatou com o `199` do LBB (28 × 27) — os dois se anularam.
+Nada aparece no rail nem no console, só a coluna vazia. O parser deriva o **final** de todo
+valor não-redondo (`49 → 9`, `99 → 9`), então dois perfis podem virar donos do mesmo final e
+se anularem. → [o caso](docs/CASOS.md#o-perfil-novo-que-matou-o-antigo-multilbb-lbb)
 
 **Diagnóstico, nesta ordem:**
 
@@ -514,14 +487,14 @@ virou dono do final 9 inteiro e empatou com o `199` do LBB (28 × 27) — os doi
    Isola a causa sem editar nada.
 3. Só então mexa no peso. E **meça**: backtest contra bilhetes já rotulados, antes e depois.
 
-**Ao calibrar peso de stake, dois cortes são load-bearing** (tirar qualquer um já quebrou o
-matcher em produção): valor **redondo** (50/100/250/800) não é digital, é valor comum — sem
-esse corte o M&M rouba os 50/100 do Peixe; e `valores.size === 1` separa "este valor É minha
-assinatura única" de "é um dos vários que aposto".
+**Ao calibrar peso de stake, dois cortes são load-bearing** — tirar qualquer um já quebrou o
+matcher em produção: valor **redondo** (50/100/250/800) não é digital, é valor comum; e
+`valores.size === 1` separa "este valor É minha assinatura única" de "é um dos vários que
+aposto". → [o caso](docs/CASOS.md#os-dois-cortes-que-já-quebraram-o-matcher-em-produção)
 
-> **Assinatura tem ERA.** O `199` foi do SóTudo até junho e virou do LBB em julho. Backtest
-> in-sample pune o acerto de hoje com bilhete velho — leia o placar sabendo disso, e use
-> holdout **temporal** para qualquer regra que aprenda da base.
+> **Assinatura tem ERA** — o mesmo valor troca de dono entre meses. Backtest in-sample pune
+> o acerto de hoje com bilhete velho; use holdout **temporal** para qualquer regra que
+> aprenda da base. → [o caso](docs/CASOS.md#assinatura-tem-era)
 
 ---
 
@@ -662,23 +635,22 @@ escada**, não aplique opacidade.
 Gate novo só vale depois de provado por **mutação**: quebre o código de propósito e
 confira que o teste falha. Verde sem essa prova não prova nada.
 
-Dois modos de falso verde, os dois medidos na s286 e na s287:
+Dois modos de falso verde, ambos medidos ([os casos](docs/CASOS.md#o-teste-que-reimplementava-o-código-s286)):
 
-1. **O teste reimplementa o código sob teste.** O harness reescrevia a ligação do
-   listener em vez de recortá-la do arquivo. A mutação que removia o guard passou
-   verde. Recorte o código real do arquivo; nunca copie o trecho para o teste.
-2. **O dado sintético não exerce a regra.** Feed com 5 itens nunca atinge um corte de
-   12. Sem empate, o desempate não decide nada. Se o item "só da base" também está no
-   MASTER, a união não foi provada. E cuidado com ordem: o sort do V8 é estável, então
-   um empate pode "acertar" sem regra nenhuma se a ordem natural já for a esperada.
+1. **O teste reimplementa o código sob teste.** Recorte o código real do arquivo; nunca
+   copie o trecho para o teste.
+2. **O dado sintético não exerce a regra.** Dado pequeno demais nunca atinge o corte; sem
+   empate, o desempate não decide nada; se o item "só da base" também está no MASTER, a
+   união não foi provada. E o sort do V8 é **estável** — um empate pode "acertar" sem regra
+   nenhuma, se a ordem natural já for a esperada.
 
 Quando uma mutação escapa, o defeito quase sempre está no teste, não no código.
 
 **Mutação inócua existe.** Se o código segue correto sem aquela linha, ela é redundante
 e não é buraco de teste. Registre a diferença em vez de inventar asserção para ela.
 
-**Diga o que o teste NÃO cobre.** DOM dublado sempre "clica" (s279) e nunca rola de
-verdade. Escreva o limite no cabeçalho do arquivo, senão o verde vira promessa falsa.
+**Diga o que o teste NÃO cobre**, no cabeçalho do arquivo — senão o verde vira promessa
+falsa. DOM dublado sempre "clica" e nunca rola de verdade.
 
 ---
 
@@ -1005,39 +977,29 @@ engano (histórico do navegador, script, curl) não pode apagar histórico.
 
 ## API externa por item = latência E falha multiplicadas. Peça a FAIXA.
 
-> **Motivo:** o sync da Polymarket levava mais de 3 minutos e "muitas vezes nem
-> funcionava". A Polymarket respondia em 3s. O resto era o **Banco Central**: o câmbio
-> era pedido **uma data por vez**, e 76 datas de bilhete viravam **113 chamadas
-> sequenciais** (s247).
+Duas coisas escalam juntas quando se chama uma API externa em laço, e a segunda é a que
+morde: a **latência** (cresce com o histórico, sem teto) e a **probabilidade de falha** —
+N chamadas são N chances de derrubar o processo, cada uma carregando o backoff do retry.
 
-Duas coisas escalam juntas quando se chama uma API externa em laço, e a segunda é a
-que morde:
-
-- **Latência** — 113 × 179ms = 25s com o BCB saudável. Cresce com o histórico, sem teto.
-- **Probabilidade de falha** — com o BCB oscilando (medido: 1 falha em 6), 113 chamadas
-  são 113 chances de derrubar o sync. Cada falha ainda carrega o backoff do `_get_retry`
-  (3 tentativas + 3s), e minutos viram a norma.
-
-**Antes de otimizar o laço, procure o endpoint de faixa.** O BCB entrega 3 anos de PTAX
-em **uma** chamada de 1,3s. A pergunta certa quase nunca é "como paralelizo 113
-chamadas?", e sim "por que são 113?".
+**Antes de otimizar o laço, procure o endpoint de faixa.** A pergunta certa quase nunca é
+"como paralelizo N chamadas?", e sim "por que são N?".
+→ [o caso: 113 chamadas ao BCB](docs/CASOS.md#113-chamadas-ao-banco-central-s247)
 
 **Dado histórico é imutável — cacheie entre requisições.** Cotação de dia passado nunca
 muda: o mapa é de módulo (`polymarket._PTAX_MAPA`) e o 2º sync não gasta rede nenhuma.
 Vale para qualquer dado datado e fechado; não vale para saldo, preço ou posição aberta.
 
-**Engolir a exceção transforma falha de rede em dado ausente.** O `_ptax` antigo devolvia
-`None` tanto para "não houve boletim nesse dia" quanto para "o BCB caiu" — os dois
-indistinguíveis. O laço então tratava o timeout como feriado, recuava 10 dias e só no
-fim derrubava o sync inteiro. **Se o chamador precisa distinguir os dois casos, o
-`except` não pode achatá-los.**
+**Engolir a exceção transforma falha de rede em dado ausente.** **Se o chamador precisa
+distinguir "não existe" de "a fonte caiu", o `except` não pode achatar os dois** — senão o
+laço trata timeout como feriado e só derruba tudo no fim.
+→ [o caso](docs/CASOS.md#o-except-que-achatava-dois-casos)
 
-> **Trocar a fonte de um número exige provar que o número não mudou.** A cotação nova
-> foi comparada com a antiga **nas 76 datas, uma a uma**: 0 divergências. Sem isso o
-> re-sync mexeria em stake já gravado — `origem='sync'` é `_ORIGEM_AUTORITATIVA` e
-> refresca `stake`/`odd`/`data` mesmo em bilhete resolvido. Repare no detalhe que quase
-> passou: o BCB republica alguns dias com **dois** boletins, e o endpoint antigo pegava
-> o primeiro (`$top=1`) — o mapa mantém a mesma escolha (`setdefault`) de propósito.
+> **Trocar a fonte de um número exige provar que o número não mudou** — comparando valor a
+> valor, em todas as datas. Sem isso o re-sync mexe em stake já gravado: `origem='sync'` é
+> `_ORIGEM_AUTORITATIVA` e refresca `stake`/`odd`/`data` mesmo em bilhete resolvido. E a
+> fonte nova tem de repetir as escolhas de desempate da velha (o BCB republica alguns dias
+> com **dois** boletins; o mapa mantém o `setdefault` de propósito).
+> → [o caso](docs/CASOS.md#a-conferência-antes-de-trocar-a-fonte)
 
 ---
 
@@ -1046,8 +1008,3 @@ fim derrubava o sync inteiro. **Se o chamador precisa distinguir os dois casos, 
 > **Fonte canônica:** `global/MASTER_RESULTADO_2026.md §5.1.2` (cashout = stake → V) e `§5.6` (cashout ≠ stake → W), com resumo em `MASTER_OUTPUT_2026.md §14`. **Mudou? Mude no MASTER, nunca aqui.**
 
 Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ Stake`. Cashout **=** stake, void ou cancelada → **V**, odd exibida no bilhete.
-
----
-
-VERSÃO: 2026
-ATUALIZADO: 2026-09-06 (sessao 328 - o que a extensao escreve no bloco e uma ORDEM, nao um recado: o `else` do de-para de rotulo diz "a conferir - nao liquidar automaticamente" e a IA obedece, entao rotulo que ninguem cadastrou vira linha `aberta` para sempre, sem erro nenhum. O push da Pinnacle chega como `DRAW` (a TELA diz REEMBOLSADO - tela e API falam vocabularios diferentes) e ficou pendente depois de liquidado; o modelo ate anotou no RAIO-X que o P/L 0,00 indicava reembolso, e nao podia agir. Todo de-para de rotulo precisa de rede por baixo, feita do dinheiro: resolvido + rotulo desconhecido + P/L exatamente 0 => retorno = stake => V. Antes, s327 - abertas_corte mede o que o Sharpen SABE, nao o que a casa TEM: ligar a Caixa no meio da captura grava lista vazia e o Ajuste da conferencia cimenta o erro (Betnacional, projecao R$ 1.362,26 abaixo da casa); hoje a aposta que nasce aberta com criado_em anterior a ativacao entra sozinha. E linha sem codigo em casa que TEM codigo e orfa - nunca dedupa, e ao liquidar vira linha nova com a velha `aberta` para sempre; agora a extracao adota ou descarta (_reconciliar_orfas) e a Migracao B compara a odd pela regua do sistema (14 e 14,00 sao a mesma odd). Antes, s321 - gate que confere UM campo deixa os vizinhos livres: a odd so era reconferida como efeito colateral da correcao de stake, entao stake certa + odd errada passava reto e o RETORNO do bloco foi gravado como odd (P/L +19.258,47 onde o real era +96,53). A prova e o numero, nao o rotulo do Status - a extensao chama de W qualquer retorno maior que a stake, meia vitoria inclusive. Antes, s316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)

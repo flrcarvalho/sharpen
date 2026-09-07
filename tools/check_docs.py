@@ -13,6 +13,7 @@ Este script e o gate.
 
 O QUE ELE CHECA
 ---------------
+  0. docs/CASOS.md nao passa de CASOS_MAX_KB.
   1. STATUS.md nao passa de STATUS_MAX_KB.
   2. STATUS.md nao tem mais de MAX_BLOCOS_SESSAO blocos "## Sessao".
   3. STATUS.md nao tem mais de MAX_ANTERIOR paragrafos "_Anterior:".
@@ -52,6 +53,7 @@ import sys
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STATUS_MAX_KB = 50
+CASOS_MAX_KB = 60
 MAX_BLOCOS_SESSAO = 3
 MAX_ANTERIOR = 2
 PREFIXOS_PROIBIDOS_EM_BACKUPS = ("STATUS", "HISTORICO")
@@ -71,6 +73,28 @@ def _status() -> str | None:
         falhas.append("STATUS.md nao existe na raiz.")
         return None
     return open(caminho, encoding="utf-8", errors="replace").read()
+
+
+def checar_tamanho_casos() -> None:
+    """docs/CASOS.md — o deposito de casos que o CLAUDE.md deixou de carregar.
+
+    Ele nasceu com ~26 KB no Lote E da faxina. O teto existe para avisar quando ele
+    virar o proximo HISTORICO e precisar de particao — nao para impedir que cresca.
+    Ele NAO e auto-carregado em sessao nenhuma; ler e ato deliberado.
+    """
+    caminho = os.path.join(RAIZ, "docs", "CASOS.md")
+    if not os.path.exists(caminho):
+        avisos.append("docs/CASOS.md ainda nao existe — checagem de tamanho NAO exercida.")
+        return
+    kb = os.path.getsize(caminho) / 1024
+    if kb > CASOS_MAX_KB:
+        falhas.append(
+            f"docs/CASOS.md tem {kb:.1f} KB — o teto e {CASOS_MAX_KB} KB.\n"
+            f"       Hora de partir por assunto, como o docs/historico/ ja foi partido.\n"
+            f"       O teto e sinal de particao, nao de excesso: caso nao se apaga."
+        )
+    else:
+        print(f"  OK   docs/CASOS.md: {kb:.1f} KB (teto {CASOS_MAX_KB} KB)")
 
 
 def checar_tamanho_status(txt: str) -> None:
@@ -165,6 +189,7 @@ def checar_links() -> None:
 
 def main() -> int:
     print("check_docs — gate de documentacao\n")
+    checar_tamanho_casos()
     txt = _status()
     if txt is not None:
         checar_tamanho_status(txt)
