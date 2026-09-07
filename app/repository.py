@@ -33,6 +33,29 @@ def _norm_odd(v: str) -> str:
         return v
 
 
+def chave_orfa(casa, parceiro, data, aposta, stake, odd) -> tuple:
+    """Identidade de uma linha SEM código, para a Migração B do UPSERT.
+
+    Quando um bilhete chega COM código e já existe no banco uma linha do mesmo bilhete
+    SEM código (re-extração que perdeu o ID, import por imagem anterior ao XLS), a
+    Migração B adota a linha antiga em vez de inserir uma nova. Esta é a chave que
+    decide "é o mesmo bilhete".
+
+    A odd entra NORMALIZADA, pela mesma régua de `_assinatura` — que é quem define, no
+    resto do sistema, se duas linhas são o mesmo bilhete. Comparando a string CRUA,
+    `14` e `14,00` eram odds diferentes: a órfã não era adotada, o bilhete liquidado
+    entrava como linha NOVA e a velha ficava `aberta` para sempre, sem erro e sem aviso
+    (s327 — a múltipla do Falkirk na Betnacional, que ainda apareceu na Caixa como
+    R$ 150,00 "em aberto" num dia em que a casa não tinha pendente nenhuma).
+
+    `descricao` fica DE FORA de propósito: a Migração B nasceu para casar linha de
+    import por imagem com a captura da casa, e é justamente a descrição que diverge
+    entre as duas. Quem restringe é data+aposta+stake+odd, na mesma conta e no mesmo dono.
+    """
+    return (casa or "", parceiro or "", data or "", aposta or "",
+            stake or "", _norm_odd(odd or ""))
+
+
 def _num_or_none(v) -> float | None:
     """Converte número ("1.234,50" / "1,81" / "75.2606") para float; None se ilegível.
 
@@ -1177,6 +1200,27 @@ async def upsert_bilhetes(
                 k = (casa_k, parc_k, round(st, 2), _norm_odd(rr["odd"] or ""))
                 coded_por_conta.setdefault(k, []).append(rr["codigo_bilhete"])
 
+        # Índice da Migração B (ver adiante): linhas que JÁ estão no banco SEM código,
+        # por (casa, parceiro, data, aposta, stake, odd NORMALIZADA). Uma consulta por
+        # conta, em vez de um UPDATE-com-subconsulta por linha do lote — e, principalmente,
+        # a odd entra aqui pela MESMA régua da assinatura (`_norm_odd`).
+        sem_cod_no_banco: dict[tuple, list[int]] = {}
+        contas_com_cod = {
+            (row.get("casa", ""), row.get("parceiro", ""))
+            for row in rows if row.get("codigo_bilhete", "").strip()
+        }
+        for casa_k, parc_k in contas_com_cod:
+            recs = await conn.fetch(
+                """SELECT id, data, aposta, stake, odd FROM bilhetes
+                   WHERE dono = $1 AND casa = $2 AND parceiro = $3
+                     AND codigo_bilhete IS NULL""",
+                dono, casa_k, parc_k,
+            )
+            for rr in recs:
+                k = chave_orfa(casa_k, parc_k, rr["data"], rr["aposta"],
+                               rr["stake"], rr["odd"])
+                sem_cod_no_banco.setdefault(k, []).append(rr["id"])
+
         # Dedup CRUZADA (linhagem supervisor↔operadores): assinaturas que JÁ existem
         # sob um co-proprietário para as contas deste lote. Contas físicas são
         # compartilhadas dentro da linhagem — um supervisor pode repassar ao operador
@@ -1277,29 +1321,28 @@ async def upsert_bilhetes(
                 # (bets importadas via imagem antes do suporte a XLS). Mesmo guard
                 # NOT EXISTS da Migração A: só adota se a assinatura de destino estiver
                 # livre, evitando colisão não tratada que mataria o lote.
-                await conn.execute(
-                    """
-                    WITH candidate AS (
-                        SELECT id FROM bilhetes
-                        WHERE casa = $2 AND parceiro = $3
-                          AND codigo_bilhete IS NULL
-                          AND data = $4 AND aposta = $5 AND stake = $6 AND odd = $7
-                          AND dono = $9
-                        LIMIT 1
+                #
+                # A identidade da órfã é `chave_orfa` (odd NORMALIZADA — ver lá o porquê
+                # e o caso que abriu a regra). Cada órfã é adotada UMA vez (`pop`): dois
+                # bilhetes do lote com o mesmo data+aposta+stake+odd não podem
+                # reivindicar a mesma linha antiga.
+                candidatos = sem_cod_no_banco.get(chave_orfa(
+                    row.get("casa"), row.get("parceiro"), row.get("data"),
+                    row.get("aposta"), row.get("stake"), row.get("odd")))
+                if candidatos:
+                    await conn.execute(
+                        """
+                        UPDATE bilhetes SET assinatura = $1, codigo_bilhete = $2
+                        WHERE id = $3 AND assinatura != $1
+                          AND NOT EXISTS (
+                              SELECT 1 FROM bilhetes b2
+                              WHERE b2.dono = $4 AND b2.casa = $5
+                                AND b2.parceiro = $6 AND b2.assinatura = $1
+                          )
+                        """,
+                        sig, codigo, candidatos.pop(0), dono,
+                        row.get("casa", ""), row.get("parceiro", ""),
                     )
-                    UPDATE bilhetes SET assinatura = $1, codigo_bilhete = $8
-                    FROM candidate
-                    WHERE bilhetes.id = candidate.id AND bilhetes.assinatura != $1
-                      AND NOT EXISTS (
-                          SELECT 1 FROM bilhetes b2
-                          WHERE b2.dono = $9 AND b2.casa = $2
-                            AND b2.parceiro = $3 AND b2.assinatura = $1
-                      )
-                    """,
-                    sig, row.get("casa", ""), row.get("parceiro", ""),
-                    row.get("data", ""), row.get("aposta", ""),
-                    row.get("stake", ""), row.get("odd", ""), codigo, dono,
-                )
 
             # .upper() canoniza o código (W/L/V/HW/HL). Sem isso, um 'v'/'w' minúsculo
             # (extração/edição) não bate em _RESULTADOS_VALIDOS e o bilhete fica 'aberta'

@@ -662,3 +662,62 @@ def test_editar_parceiro_grava_a_data_de_compra_sem_mexer_em_nada_mais():
             mantida = await conn.fetchval("SELECT adquirida_em FROM parceiros WHERE id=$1", pid)
         assert str(mantida) == "2026-02-01", "None deveria PRESERVAR a data, não apagá-la"
     _run(body())
+
+
+def test_migracao_b_adota_orfa_quando_a_odd_so_muda_de_FORMATO():
+    """s327 — o fantasma da Betnacional, ponta a ponta.
+
+    A captura de 05/09 perdeu a 11ª coluna e gravou a múltipla do Falkirk SEM código,
+    `aberta`, com `odd = "14"`. Em 06/09 o MESMO bilhete voltou liquidado, agora com
+    código e `odd = "14,00"`. A Migração B comparava a odd como string CRUA, não adotou
+    a órfã, e o bilhete entrou como linha NOVA — a velha ficou `aberta` para sempre.
+    """
+    async def body():
+        await _reset()
+        orfa = dict(codigo_bilhete="", resultado="", odd="14",
+                    descricao="Falkirk // Wycombe // Preston")
+        await repository.upsert_bilhetes([_row(**orfa)], "TDonoOrfa")
+        assert await _count("TDonoOrfa") == 1
+
+        # Mesmo bilhete, agora COM código e a odd escrita noutro formato.
+        liquidado = dict(codigo_bilhete="NXBNAC1", resultado="L", odd="14,00",
+                         descricao="Falkirk // Wycombe // Preston")
+        await repository.upsert_bilhetes([_row(**liquidado)], "TDonoOrfa")
+
+        assert await _count("TDonoOrfa") == 1, "duplicou: a órfã não foi adotada"
+        r = await _get("TDonoOrfa", "NXBNAC1")
+        assert r["resultado"] == "L"
+        assert r["extraction_state"] != "aberta", "sobrou fantasma aberto"
+    _run(body())
+
+
+def test_migracao_b_nao_deixa_dois_bilhetes_adotarem_a_mesma_orfa():
+    """Uma órfã só pode ser adotada UMA vez (o `pop` do índice).
+
+    Sem isso, dois bilhetes do mesmo lote com data+aposta+stake+odd iguais reivindicariam
+    a MESMA linha antiga: a segunda adoção reescreveria a assinatura recém-gravada pela
+    primeira. A Migração B não duplica quando erra — ela sequestra.
+    """
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_row(codigo_bilhete="", resultado="", odd="14", descricao="Órfã única")],
+            "TDonoOrfa2")
+        assert await _count("TDonoOrfa2") == 1
+
+        # Dois bilhetes COM código, indistinguíveis pela chave da Migração B.
+        await repository.upsert_bilhetes([
+            _row(codigo_bilhete="COD-A", resultado="L", odd="14,00", descricao="Bilhete A"),
+            _row(codigo_bilhete="COD-B", resultado="W", odd="14,00", descricao="Bilhete B"),
+        ], "TDonoOrfa2")
+
+        assert await _count("TDonoOrfa2") == 2, "um adota a órfã, o outro insere"
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            sem_codigo = await conn.fetchval(
+                "SELECT COUNT(*) FROM bilhetes WHERE dono='TDonoOrfa2' AND codigo_bilhete IS NULL")
+            assinaturas = await conn.fetchval(
+                "SELECT COUNT(DISTINCT assinatura) FROM bilhetes WHERE dono='TDonoOrfa2'")
+        assert sem_codigo == 0, "sobrou linha sem código — o fantasma que a s327 caçou"
+        assert assinaturas == 2, "as duas linhas colidiram na mesma assinatura"
+    _run(body())
