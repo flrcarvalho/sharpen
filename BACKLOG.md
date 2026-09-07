@@ -291,6 +291,26 @@ O card fechado não expõe o detalhe. Segue pausado; não reabrir sem pedido.
 O item está na §2 (é da varredura da s261). A decisão é de produto: esconder o botão no modo público
 (com rótulo "atualiza a cada 5 min") ou deixar o refresh furar o cache com teto por slug.
 
+### 3.4 O que o handoff `Contas e Parceiros Opção A` pede e ficou fora (s330). VIVA.
+
+As 5 fases estão aplicadas. Três pontos ficaram de fora **de propósito**, e nenhum é
+dúvida técnica — os três são decisão de produto.
+
+- **`Duplicar cadastro` e `Transferir de parceiro` no menu `⋯`.** O handoff lista os dois
+  como itens do menu, mas **não existe nada por trás deles** no app: não há rota, não há
+  função, não há tela. Item de menu que não faz nada é pior que item ausente, então o
+  menu entrou com `Ver extrato da conta` e `Excluir conta…`, que são reais. Implementar
+  qualquer um dos dois é feature nova, não hierarquia — e "Transferir de parceiro" mexe em
+  `parceiro`, que entra na assinatura (`_assinatura`): exige recalcular o hash na mesma
+  transação, senão o histórico duplica inteiro.
+- **Tag `Sincronizando`.** Está no vocabulário fechado de `tagConciliacao` e **não é
+  emitida por ninguém**: o app não publica "extração em curso" por conta. Fica no mapa
+  para o dia em que houver a fonte ser uma linha, e não um rótulo novo inventado na linha.
+- **A lista ocupa a linha inteira desde a s330**, e `Contas por casa` desceu para fazer par
+  com `Custos por fornecedor`. Foi o mínimo que fez as trilhas fixas do handoff caberem
+  (media 539px em 1600px de viewport, com 500px de coluna fixa). Se o Feca preferir os dois
+  lado a lado, o caminho é encolher o rail da casca nesta visão — não estreitar a lista.
+
 ---
 
 ## 4. Dívida técnica medida

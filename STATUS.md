@@ -7,17 +7,85 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
 
-_Atualizado: 2026-09-07 (sessao 329 — **a faxina de documentacao achou 14 regras que governavam o comportamento e nao estavam escritas.** Esse e o resultado, nao os KB. Quatro arquivos disputavam o papel de "onde o projeto esta" e tres descreviam o projeto de julho; a varredura da s261 ja tinha medido o custo disso ("a primeira pendencia que eu fui atacar ja estava feita desde 26/07"). Cinco lotes fechados. **F** — nasce o `BACKLOG.md` (70 KB), que absorve o §5 do STATUS VERBATIM: as 192 linhas nao-vazias conferidas uma a uma, zero perdida, com contraprova por canario. **B** — STATUS de 183 para 44 KB; as 1.157 linhas de antes reprocuradas uma a uma (483 ficaram, 491 foram para o HISTORICO, 183 para o BACKLOG, ZERO perdidas). **C** — HISTORICO de 1,21 MB vira indice de 3 KB + 6 particoes, com as 1.445 linhas conferidas. **D** — 16 docs + 11 anexos para `docs/arquivo/`, `docs/` cai de 43 para 27 vivos, 20 links consertados. **E** — CLAUDE.md de 68,3 para 62,7 KB e nasce o `docs/CASOS.md` (22,9 KB), que NAO e auto-carregado: a regra fica no CLAUDE, o bilhete/casa/valor/sessao vai para o CASOS. **O gate final de regras deu ZERO perdidas**: das 434 ancoras verificaveis, 384 seguem no CLAUDE e 57 migraram para o CASOS; dos 50 numeros que decidem comportamento, 36 ficaram e 11 migraram. 255 regras contadas item a item em 12 secoes. **E 14 regras foram ACRESCENTADAS** — o `git add` por nome, os tres 'os tetos travam crescimento', o trio de causas da Escada de Tinta, a inversao de hierarquia, o 'node --check e falso verde para tudo em template literal', e mais 7. Elas ja governavam o comportamento; so nao estavam escritas como regra. **Gate novo:** `tools/check_docs.py`, no CI, com 7 checagens todas provadas por mutacao — tetos de CLAUDE (65 KB), CASOS (60) e STATUS (50), forma do STATUS (<=3 blocos, <=2 _Anterior), copia em Backups por PREFIXO, link quebrado e ANCORA. Regra sem gate nao e cumprida neste repo: o invariante #4 estava escrito e claro, e Backups chegou a 551 pastas com 165 copias de STATUS/HISTORICO. **Reconciliacao da Auditoria Turbo:** os 78 achados MEDIO/BAIXO do mergulho de 20/07 NAO EXISTEM por escrito (o doc enumera 16 e o rodape diz "Deliverables uncommitted"); reconciliei os 139 do findings.json de 19/07 — 40 fechados, 68 abertos, 20 a confirmar na tela, 3 parciais e 3 que nao eram achado, um deles um placeholder de teste. **#129 medido e rebaixado:** a odd nao entra no calcular_pl em L/V e o risco de dedup deu ZERO de extracao em 528 multiplas sem codigo expostas; virou divida de documentacao. **Lote A ABERTO** — podar Backups (223 arquivos, 28,7 MB), com o zip para fora do repo ANTES de qualquer coisa apagada.)
+_Atualizado: 2026-09-07 (sessao 330 — **handoff de design aplicado: `FDC - Contas e Parceiros Opcao A`, 5 fases, 5 commits, todos pushados.** A tela tratava tudo com o mesmo peso: 4 KPIs (um deles sempre `0`), 3 colunas concorrentes, `Editar/Arquivar/Excluir` acesos nas ~100 linhas com um vermelho em cada uma, 29 casas em barras de escala inutil e um log de 40 acoes onde 37 diziam `100%`. **Fase 1** — titulo sai do gradiente azul (o maior texto da tela era acento, e com isso o azul deixava de significar sinal); eyebrow sobe um degrau na Escada de Tinta (9px/--ink-mute media 3,0:1, abaixo do 4,5:1 do papel Label). Aplicado tambem no Dashboard, com `SHELL_SPEC.md` e `check-tokens.mjs` atualizados junto. **Fase 2** — 4 KPIs viram 3, ordenados por CERTEZA DO DINHEIRO: disponivel (garantido) → em aberto (projecao, ambar) → banca total (soma, neutro). Sai o medidor ATIVAS/INATIVAS e o `Caixa total`, que imprimia o MESMO `totais.banca` do KPI ao lado. **Fase 3** — linha da casa e da conta na MESMA grade de 4 trilhas, com a coluna de acoes reservada mesmo vazia; acoes so no hover; `Excluir` sai da linha e vira o ultimo item do menu `⋯`. **Fase 4** — coluna Conciliacao com vocabulario FECHADO num helper so (`tagConciliacao`), sem abreviacao e sem teto no numero; vermelho so em `Divergencia` (erro realizado), ambar em pendencia (fato a conferir). **Fase 5** — `Contas por casa` mostra 6 e colapsa a cauda; na gestao de contas o rail vira fila de `Pendencias` (so excecoes, com `ver log completo`), e na Extracao segue sendo o log. **Dois desvios do handoff, ambos medidos no render, nao deduzidos:** (1) as trilhas fixas do handoff somam 500px e a lista caia a 539px em 1600px de viewport — o nome da casa era CLIPADO; a lista passou a ocupar a linha inteira e `Contas por casa` desceu para fazer par com `Custos por fornecedor`; (2) a tag `Sem caixa` NAO vira tinta — a Caixa esta ligada em 4 de 102 contas e ela pintaria 98 linhas com o mesmo rotulo, que e o defeito que o handoff existe para matar. Tag em 10px e nao 9,5px porque dois rotulos sao --ink-mute e a Escada proibe --ink-mute abaixo de 10px. **Gates:** check-tokens verde, 3 blocos inline compilados por `vm.Script`, **756 passed / 30 skipped**, e render headless contra o `servidor_demo` a cada fase. Varredura da Escada em 3 criterios: os 3 achados sao excecoes ja documentadas (caret/seta e `opacity` como estado), nenhum e codigo novo.)
+
+_Anterior: 2026-09-07 (sessao 329 — **a faxina de documentacao achou 14 regras que governavam o comportamento e nao estavam escritas.** Esse e o resultado, nao os KB. Quatro arquivos disputavam o papel de "onde o projeto esta" e tres descreviam o projeto de julho; a varredura da s261 ja tinha medido o custo disso ("a primeira pendencia que eu fui atacar ja estava feita desde 26/07"). Cinco lotes fechados. **F** — nasce o `BACKLOG.md` (70 KB), que absorve o §5 do STATUS VERBATIM: as 192 linhas nao-vazias conferidas uma a uma, zero perdida, com contraprova por canario. **B** — STATUS de 183 para 44 KB; as 1.157 linhas de antes reprocuradas uma a uma (483 ficaram, 491 foram para o HISTORICO, 183 para o BACKLOG, ZERO perdidas). **C** — HISTORICO de 1,21 MB vira indice de 3 KB + 6 particoes, com as 1.445 linhas conferidas. **D** — 16 docs + 11 anexos para `docs/arquivo/`, `docs/` cai de 43 para 27 vivos, 20 links consertados. **E** — CLAUDE.md de 68,3 para 62,7 KB e nasce o `docs/CASOS.md` (22,9 KB), que NAO e auto-carregado: a regra fica no CLAUDE, o bilhete/casa/valor/sessao vai para o CASOS. **O gate final de regras deu ZERO perdidas**: das 434 ancoras verificaveis, 384 seguem no CLAUDE e 57 migraram para o CASOS; dos 50 numeros que decidem comportamento, 36 ficaram e 11 migraram. 255 regras contadas item a item em 12 secoes. **E 14 regras foram ACRESCENTADAS** — o `git add` por nome, os tres 'os tetos travam crescimento', o trio de causas da Escada de Tinta, a inversao de hierarquia, o 'node --check e falso verde para tudo em template literal', e mais 7. Elas ja governavam o comportamento; so nao estavam escritas como regra. **Gate novo:** `tools/check_docs.py`, no CI, com 7 checagens todas provadas por mutacao — tetos de CLAUDE (65 KB), CASOS (60) e STATUS (50), forma do STATUS (<=3 blocos, <=2 _Anterior), copia em Backups por PREFIXO, link quebrado e ANCORA. Regra sem gate nao e cumprida neste repo: o invariante #4 estava escrito e claro, e Backups chegou a 551 pastas com 165 copias de STATUS/HISTORICO. **Reconciliacao da Auditoria Turbo:** os 78 achados MEDIO/BAIXO do mergulho de 20/07 NAO EXISTEM por escrito (o doc enumera 16 e o rodape diz "Deliverables uncommitted"); reconciliei os 139 do findings.json de 19/07 — 40 fechados, 68 abertos, 20 a confirmar na tela, 3 parciais e 3 que nao eram achado, um deles um placeholder de teste. **#129 medido e rebaixado:** a odd nao entra no calcular_pl em L/V e o risco de dedup deu ZERO de extracao em 528 multiplas sem codigo expostas; virou divida de documentacao. **Lote A ABERTO** — podar Backups (223 arquivos, 28,7 MB), com o zip para fora do repo ANTES de qualquer coisa apagada.)
 
 _Anterior: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
-
-_Anterior: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
 
 > **Histórico completo das sessões 325 → 14** → [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
 ---
 
-## Onde parei (fim da sessão 329)
+## Onde parei (fim da sessão 330)
+
+### O handoff `Contas e Parceiros Opção A` está aplicado, nas 5 fases
+
+Um commit por fase, todos pushados. A tarefa era de **hierarquia**, não de redesenho:
+nada de grid geral, raio, sombra, largura de sidebar, rota ou dado persistido.
+
+| Fase | O que mudou |
+|---|---|
+| 1 | Título sai do gradiente azul · eyebrow sobe um degrau na Escada · `+ Nova conta` e `Fornecedores` no topo direito · `A conferir` vira chip |
+| 2 | 4 KPIs viram 3, ordenados por certeza do dinheiro · sai o medidor e o `Caixa total` duplicado |
+| 3 | Casa e conta na mesma grade de 4 trilhas · ações só no hover · `Excluir` vai para o menu `⋯` |
+| 4 | Coluna Conciliação com vocabulário fechado num helper só · sem abreviação · uma tag por linha |
+| 5 | `Contas por casa` mostra 6 e colapsa a cauda · rail vira fila de `Pendências` |
+
+### O que o render pegou e a leitura do spec não pegaria
+
+Duas coisas só apareceram porque cada fase foi fotografada headless contra o
+`scripts/demo/servidor_demo.py`. Nenhuma das duas dá erro em lugar nenhum.
+
+- **As trilhas fixas não cabiam.** O handoff pede `minmax(0,1fr) 190px 108px 202px`,
+  que são 500px de coluna fixa. A maquete dava ~1.000px à lista; aqui ela dividia a
+  linha com `Contas por casa` **e** com o rail da casca, e media **539px em 1600px de
+  viewport**. Sobravam 9px para o nome, e o nome da casa saía **clipado**. Medido em
+  quatro larguras: 679px em 1440, 539px em 1600, 736px em 1920. **Não é monotônico** —
+  o rail entra entre 1440 e 1600 e come ~300px. Por isso a trilha compacta é
+  `@container`, não `@media`: quem manda é a largura do painel, não a da janela.
+- **Duas regras de `margin-left:auto` da era flex sobreviveram** e esticavam a célula do
+  nome. Foi o que clipou o nome da casa na primeira tentativa, com o CSS novo correto.
+
+### Os dois desvios do handoff, e por quê
+
+- **`Sem caixa` não vira tinta.** A Caixa está ligada em **4 de 102 contas**: a tag
+  pintaria 98 linhas com o mesmo rótulo, que é exatamente o defeito que o handoff
+  existe para matar (os 37 `100%` do log) reencenado noutra coluna. A ausência já está
+  dita pelo travessão da coluna Caixa. O estado segue nomeado no mapa, com a flag
+  `vazio`, para ninguém inventar rótulo novo quando ele voltar a ser exceção.
+- **Tag em 10px, não em 9,5px.** Dois rótulos da lista são `--ink-mute`, e a Escada de
+  Tinta proíbe `--ink-mute` abaixo de 10px em qualquer superfície. Meio pixel preserva a
+  distinção de cor; baixar a cor apagaria a diferença entre `Calculado` e `Sem caixa`.
+
+O mesmo vale para o título: o handoff pede 20px e 9,5px, que **não existem na escada** do
+`SHELL_SPEC` (9 · 10 · 11 · 13 · 14 · 15 · 18 · 22). O `check-tokens` barra px literal de
+propósito. Ficou `--text-xl` no título (a mudança que carrega o argumento é a **cor**) e
+`--text-xxs` no eyebrow, que é o degrau seguinte.
+
+### Gates
+
+`check-tokens` verde · 3 blocos inline compilados por `vm.Script` · **756 passed, 30
+skipped** · render headless a cada fase · varredura da Escada em 3 critérios (px literal,
+tamanho por token e `opacity` sobre tom apagado): 3 achados, **todos** exceções já
+documentadas (caret/seta e `opacity` como estado), nenhum de código novo.
+
+Comportamento conferido no navegador, não deduzido: 6 barras visíveis / 23 na cauda /
+rótulo `+ 23 casas com 1–2 contas` com a faixa real / abre e fecha nos dois sentidos com
+`aria-expanded` correto; menu `⋯` abre, fecha em `Esc` e devolve o foco a quem abriu.
+
+### Ficou de fora, e está no `BACKLOG.md`
+
+- **`Duplicar cadastro` e `Transferir de parceiro`** no menu `⋯`: o handoff os lista, mas
+  não existe nada por trás dos dois. Item de menu que não faz nada é pior que item
+  ausente, então entraram só `Ver extrato da conta` e `Excluir conta…`.
+- **`Sincronizando`**: está no vocabulário e não é emitido — a extração em curso não é
+  publicada por conta hoje. Fica no mapa para o dia em que houver a fonte.
+- **Assimetria do `Custo de Tipsters`** (já aberta desde a s323) segue de pé.
+
+---
+
+## Sessão 329 — a faxina de documentação
 
 ### A faxina fechou em F, B, C, D, E. O Lote A ficou aberto, de propósito.
 
@@ -302,48 +370,6 @@ deliberado** de corte no passado — o `_caixa_abertas_ids` as exclui de propós
    um mês. Duas linhas; resolver à mão é mais barato que esperar.
 2. **Aviso aos testers não foi enviado.** Sem bump do SharpenUp, o tester não tem ação a
    tomar. Decisão do Feca; a pergunta ficou em aberto.
-
----
-
-## Sessão 326 — data ausente não é data antiga
-
-O relato veio da tela: a Caixa da `Betfair · Duka [Eu]` projetava **R$ 5.456,42** e a
-casa mostrava **R$ 5.155,42** — divergência de R$ 301,00, exatamente o stake da única
-aposta em aberto (`O/25146258/0001998`, Botafogo × Palmeiras). A conta do painel batia
-consigo mesma; o que faltava era a linha **"Em aberto"**, que dizia `0 apostas`
-enquanto a grade logo abaixo dizia `AGUARDANDO RESULTADO 1`.
-
-- **A causa é a data VAZIA, e ela é vazia de propósito.** Onde a coluna `Data` é a data
-  de **resolução** (Betfair, `extensor/content.js`), a aposta aberta sobe sem data — a
-  resolução ainda não existe. O `_caixa_projetar` decidia a janela por
-  `data_iso >= corte`; com `data_iso = None` a condição caía e a linha era lida como
-  **anterior ao corte**.
-- **Sumir de uma ponta é erro; sumir das DUAS é o erro silencioso.** Fora da janela e
-  fora do `abertas_corte` (nasceu depois da ativação), o stake não entrava na banca
-  **nem** em "em aberto". Nada acusava: os totais continuavam coerentes, só altos em
-  exatamente um stake — e a auditoria acusava uma divergência que era **dela**.
-- **Correção:** sem data, a data efetiva é `criado_em` — o único sinal restante de
-  quando o stake saiu da conta. Onde há data, nada muda. Extraí `_caixa_criado_iso`
-  para `_caixa_projetar` e `_caixa_abertas_ids` não discordarem sobre como ler o campo.
-- **A query do Painel de Contas não trazia `criado_em`.** `caixa_conta` e `caixa_visao`
-  chamam o mesmo núcleo mas montam queries próprias: sem o campo, o Painel projetaria
-  **diferente** da tela da conta, com a mesma conta e sem erro nenhum.
-
-**Alcance medido em produção:** 193 bilhetes sem data no sistema inteiro (187 Lottu,
-5 Betfair, 1 Bet365), e **1 só** em conta com caixa ligada — a do relato. Nenhuma conta
-Lottu tem caixa hoje; ligar uma cairia no mesmo buraco.
-
-**Prova contra o dado real** (leitura pura, nada escrito): `preso_corte 421,00 ·
-pl 1.250,58 (18 liquidadas) · aberto 301,00 (1) · banca 5.456,42 · **disponível
-5.155,42**` — igual ao Principal da Betfair. A conta segue em `reconferir` porque o
-ajuste de 05/09 endereçou a divergência antiga; a próxima conferência fecha.
-
-**Gates, provados por mutação:** removendo o fallback, 3 testes ficam vermelhos
-(incluindo `test_caso_medido_betfair_duka`, que reproduz os números da tela);
-removendo `criado_em` da query do Painel, o gate de forma das duas queries fica
-vermelho. O simétrico também está travado — aberta que o Sharpen **já conhecia** antes
-do corte e ficou fora do `abertas_corte` continua fora, senão o stake seria descontado
-duas vezes. Suíte: **724 passed, 26 skipped**.
 
 ---
 

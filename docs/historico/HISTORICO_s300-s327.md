@@ -1,6 +1,6 @@
 # HISTÓRICO — Sessões 327 → 300
 
-> Os blocos completos que saíram do `STATUS.md` (324 → 317), a Sessão 315 e a cadeia `_Anterior_` de 320 até 300.
+> Os blocos completos que saíram do `STATUS.md` (326 → 317), a Sessão 315 e a cadeia `_Anterior_` de 321 até 300.
 >
 > Partição do `docs/HISTORICO.md`, criada na faxina de documentação de 2026-09-07 (Lote C). **O texto é o original, verbatim** — só foi partido.
 
@@ -8,10 +8,52 @@
 
 ---
 
-## Blocos completos — sessões 324 → 317
+## Blocos completos — sessões 326 → 317
 
 > Blocos movidos INTACTOS do `STATUS.md` (Lote B da faxina de documentação). O STATUS passou
 > a guardar só o estado atual e as 3 últimas sessões, como o ritual `/encerrar` já mandava.
+
+## Sessão 326 — data ausente não é data antiga
+
+O relato veio da tela: a Caixa da `Betfair · Duka [Eu]` projetava **R$ 5.456,42** e a
+casa mostrava **R$ 5.155,42** — divergência de R$ 301,00, exatamente o stake da única
+aposta em aberto (`O/25146258/0001998`, Botafogo × Palmeiras). A conta do painel batia
+consigo mesma; o que faltava era a linha **"Em aberto"**, que dizia `0 apostas`
+enquanto a grade logo abaixo dizia `AGUARDANDO RESULTADO 1`.
+
+- **A causa é a data VAZIA, e ela é vazia de propósito.** Onde a coluna `Data` é a data
+  de **resolução** (Betfair, `extensor/content.js`), a aposta aberta sobe sem data — a
+  resolução ainda não existe. O `_caixa_projetar` decidia a janela por
+  `data_iso >= corte`; com `data_iso = None` a condição caía e a linha era lida como
+  **anterior ao corte**.
+- **Sumir de uma ponta é erro; sumir das DUAS é o erro silencioso.** Fora da janela e
+  fora do `abertas_corte` (nasceu depois da ativação), o stake não entrava na banca
+  **nem** em "em aberto". Nada acusava: os totais continuavam coerentes, só altos em
+  exatamente um stake — e a auditoria acusava uma divergência que era **dela**.
+- **Correção:** sem data, a data efetiva é `criado_em` — o único sinal restante de
+  quando o stake saiu da conta. Onde há data, nada muda. Extraí `_caixa_criado_iso`
+  para `_caixa_projetar` e `_caixa_abertas_ids` não discordarem sobre como ler o campo.
+- **A query do Painel de Contas não trazia `criado_em`.** `caixa_conta` e `caixa_visao`
+  chamam o mesmo núcleo mas montam queries próprias: sem o campo, o Painel projetaria
+  **diferente** da tela da conta, com a mesma conta e sem erro nenhum.
+
+**Alcance medido em produção:** 193 bilhetes sem data no sistema inteiro (187 Lottu,
+5 Betfair, 1 Bet365), e **1 só** em conta com caixa ligada — a do relato. Nenhuma conta
+Lottu tem caixa hoje; ligar uma cairia no mesmo buraco.
+
+**Prova contra o dado real** (leitura pura, nada escrito): `preso_corte 421,00 ·
+pl 1.250,58 (18 liquidadas) · aberto 301,00 (1) · banca 5.456,42 · **disponível
+5.155,42**` — igual ao Principal da Betfair. A conta segue em `reconferir` porque o
+ajuste de 05/09 endereçou a divergência antiga; a próxima conferência fecha.
+
+**Gates, provados por mutação:** removendo o fallback, 3 testes ficam vermelhos
+(incluindo `test_caso_medido_betfair_duka`, que reproduz os números da tela);
+removendo `criado_em` da query do Painel, o gate de forma das duas queries fica
+vermelho. O simétrico também está travado — aberta que o Sharpen **já conhecia** antes
+do corte e ficou fora do `abertas_corte` continua fora, senão o stake seria descontado
+duas vezes. Suíte: **724 passed, 26 skipped**.
+
+---
 
 ## Sessão 325 — 8º tipster público: `Grego Tips - VIP`
 
@@ -936,9 +978,11 @@ regra vem do MASTER e da fórmula do `app/repository.py`, não de bilhete pago.
 
 ---
 
-## Cadeia `_Anterior_` — sessões 320 → 310
+## Cadeia `_Anterior_` — sessões 321 → 310
 
-> Os 12 parágrafos `_Anterior:` que saíram do cabeçalho do `STATUS.md` no mesmo Lote B.
+_Anterior: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
+
+_Anterior:` que saíram do cabeçalho do `STATUS.md` no mesmo Lote B.
 > Ficam aqui verbatim.
 >
 > Os de **s327** e **s325** não vieram para cá de propósito: eles resumem sessões cujo
