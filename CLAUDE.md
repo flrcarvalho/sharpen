@@ -303,6 +303,24 @@ linha asiática **partida**) · nenhuma → cashout, `W` com `odd = retorno ÷ s
 > stake — meia vitória inclusive. Um gate que lesse o rótulo reescreveria como W os
 > 14 bilhetes `HW` que estavam **certos**.
 
+**A outra ponta: o que a extensão escreve no bloco é uma ORDEM, não um recado.** O de-para
+de rótulo sempre tem um `else`, e o `else` costuma dizer "a conferir — não liquidar
+automaticamente". A IA obedece. Rótulo que ninguém cadastrou deixa de virar resultado e a
+linha fica `aberta` para sempre, sem erro em lugar nenhum. Foi assim que o push da Pinnacle
+(`DRAW`, s328) ficou pendente depois de liquidado: o modelo até anotou no RAIO-X que o
+`P/L 0,00` indicava reembolso, e não podia agir.
+
+**Quando o número já prova, decida no formatador; não delegue.** Todo de-para de rótulo
+precisa de rede por baixo, feita do dinheiro: resolvido + rótulo desconhecido + P/L
+**exatamente 0** ⇒ retorno = stake ⇒ `V`. Isso fecha a família inteira em vez de um nome de
+cada vez. Com P/L ≠ 0 o desconhecido continua subindo como "a conferir": inferir `W`/`L` de
+um rótulo que não se conhece é chute.
+
+> Sintoma para reconhecer isto em qualquer casa: a nota da IA explica o caso **certo** e
+> mesmo assim nada muda. Procure o `else` de quem formatou o bloco antes de suspeitar da
+> extração. E lembre que a **tela** e a **API** falam vocabulários diferentes — a Pinnacle
+> exibe `REEMBOLSADO` e manda `DRAW`; documentar só o que a tela mostra esconde o caso.
+
 **Só se escreve onde o DINHEIRO muda.** Retorno igual a stake/2 lê como `HL` ou como
 cashout de metade — ambíguo — mas o P/L é idêntico; trocar ali é ruído por ruído.
 Pelo mesmo motivo há piso de R$ 1,00 no script de correção: abaixo dele a "correção"
@@ -807,6 +825,21 @@ Regra em `repository._caixa_abertas_ids`, um lugar só:
 - **script que recalcula depois** passa `ate` = o instante da ativação. Sem isso ele
   adota aposta feita mais tarde no mesmo dia e infla a projeção (medido: +R$ 10.477).
 
+**"Toda aposta aberta entra" só vale para a aposta que o Sharpen JÁ CONHECE.**
+`abertas_corte` é um retrato do que o **banco** tinha naquele segundo, não do que a
+**casa** tinha — e o dinheiro sai da conta na casa. Entre a captura começar e o
+`/salvar` gravar há ~1 minuto: ligar a Caixa dentro dessa janela grava lista **vazia**,
+e o Ajuste da conferência seguinte cimenta o erro com cara de número conferido (s327:
+Betnacional, R$ 600,00 de stake fora da conta, projeção R$ 1.362,26 abaixo da casa).
+Hoje o `/salvar` conserta sozinho: aposta que **nasce** aberta e cuja `criado_em`
+antecede a ativação entra no `abertas_corte` (`_caixa_adotar_abertas_tardias`) — não é
+heurística, a aposta não pode ter liquidado e desliquidado. A lista **só cresce**, e
+`criado_em` nulo ou sem fuso fica de fora.
+
+> Sintoma para reconhecer isto noutro campo: um retrato tirado de uma fonte que ainda
+> está sendo preenchida. Vale para todo campo que congela estado no instante do clique —
+> se a escrita que o alimenta é assíncrona, o clique pode chegar antes dela.
+
 **A conferência REGISTRA, não absorve.** Ela grava o `projetado` daquele momento e
 nunca o recalcula: a projeção de hoje já inclui aposta que não existia lá atrás, e
 recalcular reescreveria o passado, apagando a divergência que foi medida. O box
@@ -933,4 +966,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-05 (sessao 321 - gate que confere UM campo deixa os vizinhos livres: a odd so era reconferida como efeito colateral da correcao de stake, entao stake certa + odd errada passava reto e o RETORNO do bloco foi gravado como odd (P/L +19.258,47 onde o real era +96,53). A prova e o numero, nao o rotulo do Status - a extensao chama de W qualquer retorno maior que a stake, meia vitoria inclusive. Antes, s316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
+ATUALIZADO: 2026-09-06 (sessao 328 - o que a extensao escreve no bloco e uma ORDEM, nao um recado: o `else` do de-para de rotulo diz "a conferir - nao liquidar automaticamente" e a IA obedece, entao rotulo que ninguem cadastrou vira linha `aberta` para sempre, sem erro nenhum. O push da Pinnacle chega como `DRAW` (a TELA diz REEMBOLSADO - tela e API falam vocabularios diferentes) e ficou pendente depois de liquidado; o modelo ate anotou no RAIO-X que o P/L 0,00 indicava reembolso, e nao podia agir. Todo de-para de rotulo precisa de rede por baixo, feita do dinheiro: resolvido + rotulo desconhecido + P/L exatamente 0 => retorno = stake => V. Antes, s321 - gate que confere UM campo deixa os vizinhos livres: a odd so era reconferida como efeito colateral da correcao de stake, entao stake certa + odd errada passava reto e o RETORNO do bloco foi gravado como odd (P/L +19.258,47 onde o real era +96,53). A prova e o numero, nao o rotulo do Status - a extensao chama de W qualquer retorno maior que a stake, meia vitoria inclusive. Antes, s316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
