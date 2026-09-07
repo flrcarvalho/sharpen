@@ -13,7 +13,7 @@ Este script e o gate.
 
 O QUE ELE CHECA
 ---------------
-  0. docs/CASOS.md nao passa de CASOS_MAX_KB.
+  0. CLAUDE.md nao passa de CLAUDE_MAX_KB e docs/CASOS.md nao passa de CASOS_MAX_KB.
   1. STATUS.md nao passa de STATUS_MAX_KB.
   2. STATUS.md nao tem mais de MAX_BLOCOS_SESSAO blocos "## Sessao".
   3. STATUS.md nao tem mais de MAX_ANTERIOR paragrafos "_Anterior:".
@@ -55,6 +55,7 @@ import unicodedata
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STATUS_MAX_KB = 50
+CLAUDE_MAX_KB = 65
 CASOS_MAX_KB = 60
 MAX_BLOCOS_SESSAO = 3
 MAX_ANTERIOR = 2
@@ -75,6 +76,30 @@ def _status() -> str | None:
         falhas.append("STATUS.md nao existe na raiz.")
         return None
     return open(caminho, encoding="utf-8", errors="replace").read()
+
+
+def checar_tamanho_claude() -> None:
+    """CLAUDE.md — o arquivo de regras, auto-carregado em toda sessao.
+
+    ⚠️ O TETO TRAVA CRESCIMENTO; ELE NAO MANDA CORTAR. Ao encostar nele, mova o CASO
+    para o docs/CASOS.md. NUNCA corte os blocos "sintoma para reconhecer isto noutro
+    campo": sao eles que fazem uma sessao nova reconhecer a FAMILIA de um defeito antes
+    de repeti-la. E nunca suba o teto para nao cortar — foi assim que o STATUS.md
+    chegou a 187 KB.
+    """
+    caminho = os.path.join(RAIZ, "CLAUDE.md")
+    if not os.path.exists(caminho):
+        falhas.append("CLAUDE.md nao existe na raiz.")
+        return
+    kb = os.path.getsize(caminho) / 1024
+    if kb > CLAUDE_MAX_KB:
+        falhas.append(
+            f"CLAUDE.md tem {kb:.1f} KB — o teto e {CLAUDE_MAX_KB} KB.\n"
+            f"       Mova CASO para docs/CASOS.md (bilhete, casa, valor em R$, numero da\n"
+            f"       sessao). NAO corte regra, NAO corte bloco de sintoma, NAO suba o teto."
+        )
+    else:
+        print(f"  OK   CLAUDE.md: {kb:.1f} KB (teto {CLAUDE_MAX_KB} KB)")
 
 
 def checar_tamanho_casos() -> None:
@@ -269,6 +294,7 @@ def checar_links(mds: list[str]) -> None:
 
 def main() -> int:
     print("check_docs — gate de documentacao\n")
+    checar_tamanho_claude()
     checar_tamanho_casos()
     txt = _status()
     if txt is not None:

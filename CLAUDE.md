@@ -341,11 +341,10 @@ Import de planilha e bot de tipster geram o mesmo `XX<aaaamm>-<n>`, e o código 
 assinatura (`ID|casa|parceiro|codigo`). Dois escritores, uma série, nenhum sabendo do
 outro.
 
-Na s276 isso custou uma aposta: o import gravou `PT202608-259` às 09:19 e o bot criou o
-bilhete #259 às 09:20, mesma casa e mesma conta. A assinatura bateu, o `/salvar` tratou
-como o **mesmo bilhete**, o congelamento manteve descrição/odd/stake da linha importada e
-"vazio nunca rebaixa" manteve o resultado. **A aposta do dia foi absorvida — sem erro, sem
-aviso, sem linha nova.**
+Quando os dois escrevem o mesmo código, a assinatura bate e o `/salvar` trata como o
+**mesmo bilhete**: o congelamento mantém descrição/odd/stake da linha importada e "vazio
+nunca rebaixa" mantém o resultado. **A aposta é absorvida — sem erro, sem aviso, sem linha
+nova.** → [o caso](docs/CASOS.md#a-aposta-que-foi-absorvida--passatips-259-s276)
 
 - Os importadores **abortam** quando um código que gerariam já existe sob outra origem.
 - No dia em que o bot entra, **suba o contador** (`/contador N` no apoio) para além do
@@ -353,10 +352,10 @@ aviso, sem linha nova.**
 - **Prefixo novo se confere contra TODO `codigo_bilhete`, não contra a série.** Códigos
   nativos de casa também são duas letras mais dígitos (a Superbet grava `SP8399910931W`),
   e um regex ancorado no formato `XX<aaaamm>-<n>` **não os enxerga**: o prefixo aparece
-  livre quando não está. Use `LIKE '<PFX>%'` sobre a coluna inteira. Na s316 isso quase
-  deu `SP` ao `Soh Props`, que é o prefixo da Superbet — `SH`, `SS`, `PR` e `HP` também
-  estavam ocupados assim. Não há colisão de assinatura (o formato difere e `casa` entra no
-  hash), mas um `SP` na base lê como Superbet para qualquer humano depois.
+  livre quando não está. **Use `LIKE '<PFX>%'` sobre a coluna inteira.** Não há colisão de
+  assinatura (o formato difere e `casa` entra no hash), mas um prefixo já usado por casa lê
+  como aquela casa para qualquer humano depois.
+  → [o caso](docs/CASOS.md#o-prefixo-que-parecia-livre-e-não-estava--sp-s316)
 - E decida qual é a fonte: **a partir daí o bot planilha e a planilha vira histórico
   congelado.** Manter os dois escrevendo é conviver com colisão a cada import.
 
@@ -424,8 +423,8 @@ fim = maior(última aposta, arquivada_em)   · HOJE p/ conta ativa ainda sem apo
 ```
 
 Comprou dia 01 e usou até o 22: qualquer recorte dentro disso cobra, o dia 28 não cobra,
-o mês inteiro cobra uma vez. Antes o custo era lançado num **único dia** — o da primeira
-aposta liquidada — e filtrar qualquer outro dia dava **R$ 0** com o parque em uso.
+o mês inteiro cobra uma vez.
+→ [a régua antiga, e por que mudou](docs/CASOS.md#a-régua-antiga-r-0-de-custo-com-o-parque-inteiro-em-uso)
 
 > ⚠️ **A régua NÃO é aditiva, e o preço foi aceito com a conta na mesa.** Somar os dias
 > de setembro dá muito mais que o custo de setembro, e o P/L Líquido de UM dia carrega o
@@ -647,26 +646,24 @@ falsa. DOM dublado sempre "clica" e nunca rola de verdade.
 ## Linha bem-formada pode ser de OUTRO bilhete. Confira a procedência, não só a forma.
 
 A IA lê o lote em chunks de 6 bilhetes e **copia trecho do vizinho**. O resultado não
-parece defeito: `Matthew Dennant [Norwich v Burnley]` tem separador certo, confronto bem
-formado e nada proibido — passa em `checar_descricao` sem um arranhão, e a cobertura
-conta 65 de 65. O bilhete era `Norwich x Burnley · Mais/Menos de 3,5 Cartões` (s302).
+parece defeito: separador certo, confronto bem formado, nada proibido — **passa em
+`checar_descricao` sem um arranhão, e a cobertura fecha**.
+→ [o caso](docs/CASOS.md#a-descrição-que-era-do-vizinho--s302)
 
-**O financeiro TAMBÉM viaja — e aí é pior, porque o P/L continua certo.** Até a s311 esta
-regra dizia que só esporte/categoria/descrição erravam, porque stake, odd e resultado são
-cópia. Era observação medida, não garantia: na Pinnacle `3113103675` a stake veio `400,00`
-— a do `3114339695`, **duas linhas acima no mesmo chunk**. E como em W a odd é derivada
-(`Retorno ÷ Stake`), ela foi recalculada **sobre a stake errada**: `(400 + 330,48) ÷ 400 =
-1,8262`, mantendo o P/L exato em R$ 330,48. Descrição certa, código certo, resultado
-certo, P/L certo — erram só turnover, ROI e a assinatura de stake do matcher (o bilhete
-perdeu o tipster porque 400 não é a stake dele).
+**O financeiro TAMBÉM viaja — e aí é pior, porque o P/L continua certo.** "Stake, odd e
+resultado são cópia" era **observação medida, não garantia**: a stake pode vir do vizinho, e
+como em `W` a odd é derivada (`Retorno ÷ Stake`), ela é recalculada **sobre a stake errada**
+e o P/L fecha exato. Descrição certa, código certo, resultado certo, P/L certo — **erram só
+turnover, ROI e a assinatura de stake do matcher**, e o bilhete perde o tipster.
+→ [o caso](docs/CASOS.md#a-stake-que-era-do-vizinho-com-o-pl-intacto--pinnacle-s311)
 
 Por isso a **stake saiu da mão da IA** (`repository.corrigir_stake_tsv`, irmão do
 `anexar_sistema_tsv`): a coluna 8 vem do `Stake:` do bloco daquele código, e a odd de W é
 refeita junto quando o bloco traz o `P/L` — determinístico, sem modelo no caminho. Vale só
 onde há bloco (casas de API); **print continua 100% por conta da IA**. Bloco com dois
-valores de `Stake:` é ambíguo e não autoriza escrita nenhuma. Medido na sombra: a linha
-`Stake:` casa em 100% dos 5.128 blocos (20 casas) e o replay do gate mexe em 3 linhas de
-3.820 — as 3 divergências reais, zero falso positivo. Gate: `tests/test_stake_determinista.py`.
+valores de `Stake:` é ambíguo e não autoriza escrita nenhuma. Gate:
+`tests/test_stake_determinista.py`, autorizado por medição na sombra.
+→ [as medições](docs/CASOS.md#as-medições-que-autorizaram-o-gate-de-stake)
 
 > O gate copia o bloco **fielmente**, inclusive quando o bloco está errado na origem (a
 > KTO manda `Stake: 1,00`). Isso é defeito de captura, não de tradução — e a correção
@@ -675,8 +672,7 @@ valores de `Stake:` é ambíguo e não autoriza escrita nenhuma. Medido na sombr
 A conferência é possível porque **a tradução não inventa NOME**: ela traduz rótulo,
 canoniza separador e escolhe categoria, mas time, jogador e competição são cópia. Então
 todo nome próprio e todo DECIMAL da descrição têm de existir no bloco cru **daquele
-código** (`descricao_check.checar_fidelidade`, sem IA, microssegundos). Medido na sombra:
-1.327 de 1.337 passam; das 10 reprovações, 9 eram erro real.
+código** (`descricao_check.checar_fidelidade`, sem IA, microssegundos).
 
 **A correção é perguntar de novo, sozinho.** `_garantir_fidelidade` devolve o bloco
 suspeito ao modelo isolado — bilhete sem vizinho no chunk não tem de quem copiar — e
@@ -686,9 +682,10 @@ barrar.
 
 > **Recapturar a casa NÃO conserta linha assim.** O `ON CONFLICT` nunca atualiza
 > `esporte`/`aposta`/`descricao` fora de `origem='sync'` — **nem com a linha `aberta`**,
-> ao contrário de odd/data/stake. A sombra do `0001941` mostra a IA lendo o mesmo bilhete
-> três vezes na MESMA extração e acertando nas duas últimas; o banco ficou com a primeira.
-> Linha já gravada errada sai por edição na grade ou por script.
+> ao contrário de odd/data/stake. **A IA pode ler o mesmo bilhete várias vezes na MESMA
+> extração e acertar só nas últimas — o banco fica com a primeira.** Linha já gravada errada
+> sai por edição na grade ou por script.
+> → [o caso](docs/CASOS.md#a-ia-que-acertou-nas-duas-últimas-e-o-banco-ficou-com-a-primeira--0001941)
 
 Três tolerâncias do gate são load-bearing, todas nascidas de falso positivo medido:
 acento agudo tipográfico (`St Patrick´s` × `St Patrick's`), hífen com espaços
@@ -869,14 +866,15 @@ Regra em `repository._caixa_abertas_ids`, um lugar só:
   (evento anterior ao corte, ou linha que o Sharpen já tinha, por `criado_em`). É um
   piso, não o exato.
 - **script que recalcula depois** passa `ate` = o instante da ativação. Sem isso ele
-  adota aposta feita mais tarde no mesmo dia e infla a projeção (medido: +R$ 10.477).
+  adota aposta feita mais tarde no mesmo dia e **infla a projeção**.
+  → [o caso](docs/CASOS.md#o-script-que-inflou-a-projeção-em-r-10477)
 
 **"Toda aposta aberta entra" só vale para a aposta que o Sharpen JÁ CONHECE.**
 `abertas_corte` é um retrato do que o **banco** tinha naquele segundo, não do que a
 **casa** tinha — e o dinheiro sai da conta na casa. Entre a captura começar e o
-`/salvar` gravar há ~1 minuto: ligar a Caixa dentro dessa janela grava lista **vazia**,
-e o Ajuste da conferência seguinte cimenta o erro com cara de número conferido (s327:
-Betnacional, R$ 600,00 de stake fora da conta, projeção R$ 1.362,26 abaixo da casa).
+`/salvar` gravar há **~1 minuto**: ligar a Caixa dentro dessa janela grava lista
+**vazia**, e o Ajuste da conferência seguinte **cimenta o erro com cara de número
+conferido**. → [o caso](docs/CASOS.md#a-caixa-ligada-no-meio-da-captura--betnacional-s327)
 Hoje o `/salvar` conserta sozinho: aposta que **nasce** aberta e cuja `criado_em`
 antecede a ativação entra no `abertas_corte` (`_caixa_adotar_abertas_tardias`) — não é
 heurística, a aposta não pode ter liquidado e desliquidado. A lista **só cresce**, e
@@ -895,10 +893,9 @@ continua acusando até alguém lançar o que faltava ou pedir o ajuste nomeado.
 diz quantas faltam. Total que engole conta desconhecida mente com cara de exatidão.
 
 > **Número que parece contradizer o vizinho na mesma tela é defeito, mesmo estando
-> certo.** O tile dizia `P/L · conta −R$ 1.608,00` e a Caixa `Resultado R$ 0,00`: os
-> dois certos (as apostas eram anteriores ao corte, logo já estavam no saldo
-> informado), e ainda assim a tela parecia quebrada. Ela passou a dizer o corte —
-> `Resultado · desde 03/09` e a nota do que ficou de fora.
+> certo.** A saída não é mudar número nenhum: é a tela **dizer o corte** (`Resultado ·
+> desde <data>`) e o que ficou de fora.
+> → [o caso](docs/CASOS.md#os-dois-números-certos-que-pareciam-defeito)
 
 **Fonte canônica:** `app/repository.py` (`_caixa_projetar`, `_caixa_abertas_ids`,
 `caixa_lancar`, `caixa_editar_mov`, `caixa_visao`) e `caixa_mov` no `database.py`.

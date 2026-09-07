@@ -414,3 +414,108 @@ bot **ignorou o campo**: marcou "planilhado", publicou no canal e seguiu.
 
 A linha do #12 **nunca existiu** na planilha. A única pista apareceu **um dia depois**, como
 um *"não tenho o id no Sharpen"* na hora de corrigir.
+
+---
+
+## Planilha e bot escrevem na MESMA série de código
+
+### A aposta que foi absorvida — PassaTips #259, s276
+
+O import gravou `PT202608-259` às **09:19**; o bot criou o bilhete **#259** às **09:20**,
+mesma casa e mesma conta. A assinatura bateu, o `/salvar` tratou como o **mesmo bilhete**, o
+congelamento manteve descrição/odd/stake da linha importada, e "vazio nunca rebaixa" manteve
+o resultado.
+
+**A aposta do dia foi absorvida — sem erro, sem aviso, sem linha nova.**
+
+### O prefixo que parecia livre e não estava — `SP`, s316
+
+`SP` quase foi dado ao `Soh Props`. É o prefixo da **Superbet**, que grava código nativo no
+formato `SP8399910931W` — duas letras mais dígitos, igual à nossa série, mas **sem** o
+`<aaaamm>-<n>`. Um regex ancorado no formato da série **não os enxerga**, e o prefixo
+aparece livre quando não está.
+
+`SH`, `SS`, `PR` e `HP` também estavam ocupados assim.
+
+Não havia colisão de assinatura (o formato difere e `casa` entra no hash), mas um `SP` na
+base lê como Superbet para qualquer humano depois.
+
+---
+
+## Linha bem-formada pode ser de OUTRO bilhete
+
+### A descrição que era do vizinho — s302
+
+`Matthew Dennant [Norwich v Burnley]`: separador certo, confronto bem formado, nada
+proibido. Passou em `checar_descricao` **sem um arranhão**, e a cobertura contou 65 de 65.
+
+O bilhete era `Norwich x Burnley · Mais/Menos de 3,5 Cartões`.
+
+### A stake que era do vizinho, com o P/L intacto — Pinnacle, s311
+
+Até a s311 a regra dizia que só esporte/categoria/descrição erravam, porque stake, odd e
+resultado eram cópia. Era **observação medida, não garantia**.
+
+Na Pinnacle `3113103675` a stake veio `400,00` — a do `3114339695`, **duas linhas acima no
+mesmo chunk**. E como em `W` a odd é derivada (`Retorno ÷ Stake`), ela foi recalculada
+**sobre a stake errada**: `(400 + 330,48) ÷ 400 = 1,8262`, mantendo o P/L **exato** em
+R$ 330,48.
+
+Descrição certa, código certo, resultado certo, P/L certo. Erraram só turnover, ROI e a
+assinatura de stake do matcher — **o bilhete perdeu o tipster, porque 400 não é a stake
+dele**.
+
+### As medições que autorizaram o gate de stake
+
+A linha `Stake:` casa em **100% dos 5.128 blocos** da sombra (20 casas), e o replay do gate
+mexe em **3 linhas de 3.820** — as 3 divergências reais, zero falso positivo.
+
+Na fidelidade de descrição: **1.327 de 1.337** passam; das 10 reprovações, **9 eram erro
+real**.
+
+### A IA que acertou nas duas últimas e o banco ficou com a primeira — `0001941`
+
+A sombra mostra o mesmo bilhete lido **três vezes na MESMA extração**, com acerto nas duas
+últimas. O banco ficou com a primeira: o `ON CONFLICT` nunca atualiza
+`esporte`/`aposta`/`descricao` fora de `origem='sync'` — **nem com a linha `aberta`**, ao
+contrário de odd/data/stake.
+
+---
+
+## Caixa Inteligente
+
+### A Caixa ligada no meio da captura — Betnacional, s327
+
+Entre a captura começar e o `/salvar` gravar há **~1 minuto**. A Caixa foi ligada dentro
+dessa janela e gravou `abertas_corte` **vazio**: **R$ 600,00** de stake ficaram fora da
+conta, e a projeção saiu **R$ 1.362,26 abaixo** do que a casa mostrava. O Ajuste da
+conferência seguinte cimentou o erro **com cara de número conferido**.
+
+### O script que inflou a projeção em R$ 10.477
+
+Um script que recalcula depois precisa passar `ate` = o instante da ativação. Sem isso ele
+adota aposta feita **mais tarde no mesmo dia** e infla a projeção — medido: **+R$ 10.477**.
+
+### Os dois números certos que pareciam defeito
+
+O tile dizia `P/L · conta −R$ 1.608,00` e a Caixa dizia `Resultado R$ 0,00`. **Os dois
+certos**: as apostas eram anteriores ao corte, logo já estavam no saldo informado. E ainda
+assim a tela parecia quebrada.
+
+A saída não foi mudar número nenhum — foi a tela **dizer o corte** — `Resultado · desde 03/09` — mais a nota do que ficou de
+fora.
+
+---
+
+## Custo de aquisição tem JANELA DE VIDA
+
+### A régua antiga: R$ 0 de custo com o parque inteiro em uso
+
+Antes, o custo da conta era lançado num **único dia** — o da **primeira aposta liquidada**.
+Filtrar qualquer outro dia dava **R$ 0**, mesmo com o parque de contas em pleno uso.
+
+A régua nova cobra o custo **cheio** em todo período que **cruza** a janela de vida da conta.
+Ela **não é aditiva**, e isso foi aceito com a conta na mesa: somar os dias de setembro dá
+muito mais que o custo de setembro. A alternativa — ratear pelos dias — foi **recusada de
+propósito**, porque rateio exige um horizonte arbitrário e a janela pelo uso não tem
+constante nenhuma.
