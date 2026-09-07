@@ -6,7 +6,9 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-06 (sessao 327 - **ligar a Caixa no meio da captura nasce com a divergencia que ela existe para denunciar.** A conta `Betnacional / renanfernando01 [Richard]` projetava R$ 3.195,83 e a casa mostrava R$ 4.558,09. `abertas_corte` e um retrato do que o SHARPEN SABIA naquele segundo, nao do que a CASA TINHA: a Caixa foi ligada as 03:17:32, o /salvar so gravou as 3 abertas (R$ 600,00) as 03:18:19, e a conferencia das 03:18:35 mediu projetado -599,00 - o Ajuste entao cimentou o erro em +R$ 600,00. Junto veio um segundo defeito, independente: a captura devolveu a multipla do Falkirk SEM a 11a coluna, e a Migracao B do UPSERT (que adota linha sem codigo) exige `odd` identica - "14" nao e "14,00" -, entao o bilhete liquidado entrou como linha NOVA e a velha ficou aberta para sempre. A diferenca de R$ 1.362,26 e exatamente +1.662,26 (retorno da aberta no corte que a Caixa nao conta) -300,00 (Falkirk descontado duas vezes), conferido contra a casa bilhete a bilhete no Chrome - 11 cards, 11 linhas, zero pendente. Corrigido por `scripts/corrigir_caixa_fantasma_s327.py`: disponivel 4.558,09, divergencia 0,00. **Nenhum defeito na exportacao da Betnacional.** Os DOIS defeitos de produto foram corrigidos na mesma sessao: a Migracao B do UPSERT passa a comparar a odd pela regua do sistema (_norm_odd, extraida em chave_orfa), e a aposta que nasce aberta com captura anterior a ativacao entra sozinha no abertas_corte. Gates provados por mutacao (6+1+1+1+2 vermelhos), com gate proprio para a LIGACAO no harness de DB. Suite 748 passed, 30 skipped. Backup em `Backups/s327-caixa-betnacional-fantasma/`.)_
+_Atualizado: 2026-09-06 (sessao 328 - **a Pinnacle chama o PUSH de "DRAW", e o rotulo desconhecido virava pendente eterno.** O bilhete `3117191609` (Aguila 0.0 no 1o tempo contra o Alianza, 1:1 no intervalo, R$ 408) liquidou como REEMBOLSADO na casa e ficou com "?" na grade. A tela mostra "Decidido / REEMBOLSADO" e `Vitoria/derrota 0.00`, mas o rotulo CRU que a API devolve e `DRAW` - que nao estava no de-para do `formatTicketPN`. O bloco saia `Status: DRAW (a conferir - nao liquidar automaticamente)`, **a IA obedeceu a instrucao** (e ainda registrou no RAIO-X que o P/L 0,00 indicava reembolso, sem poder agir) e o backend gravou `aberta`. Nao foi a IA errando: foi a extensao mandando nao liquidar. Duas travas, e a segunda e a que importa: `DRAW`/`TIE` entraram no de-para, e **por baixo dele** ficou a rede do DINHEIRO - resolvido + rotulo desconhecido + P/L exatamente 0 => retorno = stake => V, pelas cinco formulas de `_veredito_do_retorno` lidas ao contrario. Fecha a familia inteira: o proximo nome que a casa inventar para push ja nasce coberto. Com P/L != 0 o rotulo desconhecido continua indo para a IA como "a conferir" - inferir W/L de um nome que ninguem conhece e chute. Provado por mutacao: tirar `DRAW` PEGOU, tirar a rede PEGOU, e as duas juntas reproduzem o bug palavra por palavra. Uma 3a mutacao ESCAPOU e esta anotada no caso como inocua - o `!t.aberta` dentro do `plZero` e defesa dupla, quem decide a aberta e o `if (t.aberta)` de cima. SharpenUp 0.7.7; a linha presa fecha sozinha na proxima captura, sem script no banco.)
+
+_Anterior: 2026-09-06 (sessao 327 - **ligar a Caixa no meio da captura nasce com a divergencia que ela existe para denunciar.** A conta `Betnacional / renanfernando01 [Richard]` projetava R$ 3.195,83 e a casa mostrava R$ 4.558,09. `abertas_corte` e um retrato do que o SHARPEN SABIA naquele segundo, nao do que a CASA TINHA: a Caixa foi ligada as 03:17:32, o /salvar so gravou as 3 abertas (R$ 600,00) as 03:18:19, e a conferencia das 03:18:35 mediu projetado -599,00 - o Ajuste entao cimentou o erro em +R$ 600,00. Junto veio um segundo defeito, independente: a captura devolveu a multipla do Falkirk SEM a 11a coluna, e a Migracao B do UPSERT (que adota linha sem codigo) exige `odd` identica - "14" nao e "14,00" -, entao o bilhete liquidado entrou como linha NOVA e a velha ficou aberta para sempre. A diferenca de R$ 1.362,26 e exatamente +1.662,26 (retorno da aberta no corte que a Caixa nao conta) -300,00 (Falkirk descontado duas vezes), conferido contra a casa bilhete a bilhete no Chrome - 11 cards, 11 linhas, zero pendente. Corrigido por `scripts/corrigir_caixa_fantasma_s327.py`: disponivel 4.558,09, divergencia 0,00. **Nenhum defeito na exportacao da Betnacional.** Os DOIS defeitos de produto foram corrigidos na mesma sessao: a Migracao B do UPSERT passa a comparar a odd pela regua do sistema (_norm_odd, extraida em chave_orfa), e a aposta que nasce aberta com captura anterior a ativacao entra sozinha no abertas_corte. Gates provados por mutacao (6+1+1+1+2 vermelhos), com gate proprio para a LIGACAO no harness de DB. Suite 748 passed, 30 skipped. Backup em `Backups/s327-caixa-betnacional-fantasma/`.)_
 
 _Anterior: 2026-09-06 (sessão 325 — **8º tipster público: `Grego Tips - VIP`, e a fonte externa é o gate mais forte que a planilha tem.** Conta `gregozxrd` aprovada no `/admin`; 956 apostas importadas (01/08 → 01/09/2026, `GV202608-1` … `GV202609-32`), 12 contas `Padrão`, uma por casa. A base é quase monomodal como a do Soh Props — **prop de jogador de futebol** (Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25). **O que valida este import não é a conferência interna: é o fechamento que ELE publicou no canal em 01/09** (`924 apostas · P/L +127,84u · ROI 13,02%`), contra o qual o derivado dá **924 · +127,73u · 13,00%** — a diferença de 0,11u é o arredondamento a centavo da coluna `Ganho` acumulado em 267 vitórias. A reconciliação interna (P/L derivado × coluna `Lucro`) fecha em **0 divergências nas 956**. **As 6 linhas sem casa saíram do export do Telegram, não de uma decisão:** as mensagens de 01/09 dizem Bet365 (msgs 938 e 940) e Betano (msg 942), e o script **ABORTA** se aparecer linha sem casa fora do mapa citado — casa chutada não dá erro, dá conta paralela. Três leituras de categoria não eram óbvias e estão medidas: **`<Nome> +2 Gols` é `Anytime`**, não `Gols` (§3 põe marcador 2+ na família Anytime; as odds de 11 a 81 e a escada do canal — `Tresoldi Anytime` + `Tresoldi +2 Gols` — confirmam), **`25%`/`50%` no título é odd TURBINADA** e não mercado (ele escreve a conta no canal: `2.02 + 25% = 2,27@`), e **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla". **O `%` tem DOIS papéis nesta fonte** e por isso a categoria lê o texto já limpo: em 2 títulos o `0.50%` é a própria STAKE vazando, e lida como turbinada ela transformaria duas apostas de Chutes em bet builder; a limpeza só corta o sufixo quando o número **é** a stake da linha, que é o que mantém `cruzeiro -1` (handicap, stake 2,50) intocado. Prefixo **`GV`**, conferido com `LIKE` sobre a coluna inteira: `GR`, `GT`, `GG`, `GX` e `GP` estão todos ocupados por **código NATIVO da bet365** (`GR3383912251I`), que um regex ancorado em `XX<aaaamm>-<n>` não enxerga (regra da s316). **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon, com o domínio MEDIDO no link do canal (`betsson.bet.br`), não deduzido do nome. Anotado e **não resolvido**: 18 linhas `Nome N+` sem mercado (nem o canal diz qual) vão para `Player Props`, nunca para o total do esporte. **`SOA` eu havia lido como `Chutes no Gol`, e estava ERRADO** — perguntado, ele respondeu no mesmo dia: é **"score or assist", marcar OU assistir**, e as 5 linhas foram para `Player Props` junto com o `G/A` do mesmo arquivo (base reimportada; o script é idempotente por `origem='import'`, reconciliação segue em 0). A inferência era razoável e ainda assim falhou — `SOA` e `SOT` aparecem na MESMA escada, os dois pareados com `Anytime`: **vizinhança tipográfica não é significado**, e o que fez a pergunta acontecer foi ela estar marcada como inferência declarada no relatório em vez de passar como fato. **E o ATRASO DO CANAL foi planilhado a partir dos PRINTS:** ele parou de registrar no tracker na msg 969 (01/09 22:04), e daí até a última do export são **79 mensagens / 196 linhas**, agora em `GV202609-33 … -228` (base do dono: 1.152 bilhetes, 83 em aberto — sem marca entra sem resultado e ele completa à mão). A legenda dá stake e marca; **o print dá odd, seleção e confronto**, e 67 das 196 linhas (34%) têm legenda CEGA (`1.50%`, sem nome) — sem a imagem elas não existiriam. O pareamento stake↔seleção, que é onde isso erra em silêncio, tem três conferências e todas foram usadas: **a caixa de valor do print traz o R$ igual ao `%` da legenda**, a escada de odd, e **o nome MANDA sobre a posição** (msg 986: legenda `+2/+4/+3` fora de ordem contra print em ordem — parear por posição erraria duas das três). O gate que não depende de eu ter lido certo: as marcas contadas por regex no export (`❌ 73 · ✔️ 40 · ⌛ 15 · sem marca 68`) fecham exatas com a leitura dos prints (73 L · 40 W · 83 abertas), **4 de 5 mutações pegas** — e a que escapa está escrita no código: trocar a STAKE passa reto, o gate conta marcas e linhas, não valor. Descrição no formato do MASTER, com a forma da linha seguindo a CASA (Betano discreto `3+ Chutes`, bet365 contínuo `Over 2.5 Chutes`). **`origem='extracao'` e idempotência por FAIXA DE CÓDIGO** — com `origem='import'` um reimport do tracker levaria as 196 junto, em silêncio. Ids conferidos por `getChat`: canal `-1003928624343` (`channel`, bot **administrator**) e apoio `-5577016989` (`group`, bot **membro**, sem migração para supergrupo — a armadilha da s316 não se aplica). **Renomear o apoio para `Apoio - Grego` falhou** (`not enough rights to change chat title`) e não foi insistido: o bot precisa ser admin ali, ou o Feca renomeia na mão. Suíte: **717 passed, 26 skipped**. `data.js?v=18`. Backup em `Backups/s325-import-grego/`. **O perfil do bot (8º tenant) NÃO foi feito** — escopo desta sessão era só o import.)_
 
@@ -42,7 +44,86 @@ _Anterior: 2026-09-01 (sessão 310, parte 2 — **A curadoria de casa vencida de
 
 ---
 
-## Onde parei (fim da sessão 327)
+## Onde parei (fim da sessão 328)
+
+### A Pinnacle chama o push de `DRAW` — e o rótulo desconhecido virava pendente eterno
+
+O relato foi de uma linha só: *"Pinnacle não atualizou o resultado do void na última
+extração"*. O bilhete `3117191609` — Aguila `0.0` no 1º tempo contra o Alianza, `1:1` no
+intervalo, R$ 408 — estava **liquidado na casa** (`Decidido / REEMBOLSADO`,
+`Vitória/derrota 0.00`) e com `?` na grade do Sharpen.
+
+**O rótulo que a tela mostra não é o que a API devolve.** A tela diz `REEMBOLSADO`; o campo
+cru do resultado (93 e 6) traz **`DRAW`**, que não estava no de-para do `formatTicketPN`. O
+bloco entregue à IA saía:
+
+```
+Status: DRAW (a conferir — não liquidar automaticamente) · P/L 0,00
+```
+
+**A IA não errou — ela obedeceu.** Ainda registrou no RAIO-X que o `DRAW` ali não era empate
+de jogo e que o P/L 0,00 confirmava reembolso; só não tinha autorização para liquidar. O
+backend gravou `aberta` e a linha ficou pendente para sempre. Vale como sintoma: quando a
+nota da IA explica o caso certo e mesmo assim nada acontece, a instrução veio de quem
+formatou o bloco, não do modelo.
+
+`DRAW` é o **push**: handicap ou total que bate exato na linha (`0.0`, `2.0`) devolve a
+stake. Não é o empate do jogo — numa Moneyline de 3 vias o empate dá `LOST`. O campo nomeia
+o desfecho da **aposta**, não o do jogo.
+
+### A trava que vale é a de baixo: o dinheiro decide, não o rótulo
+
+Duas foram para o código, e a segunda é a que fecha a família:
+
+1. `DRAW`/`TIE` entraram no de-para junto de `PUSHED`/`VOID`/`REFUNDED`/`CANCELLED`.
+2. **Rede por baixo dele:** resolvido + rótulo desconhecido + P/L **exatamente 0** ⇒
+   retorno = stake ⇒ `V`, que é a 2ª das cinco fórmulas de `_veredito_do_retorno` lidas ao
+   contrário. O próximo nome que a casa inventar para push já nasce coberto.
+
+Com **P/L ≠ 0** o rótulo desconhecido continua subindo como "a conferir": inferir `W`/`L`
+de um nome que ninguém conhece é chute, e a rede não pode alcançar a **aberta** (o payload
+traz P/L 0 nela também — mesmo número, significado oposto).
+
+### As mutações, incluindo a que escapou
+
+| Mutação | Resultado |
+|---|---|
+| tirar `DRAW` do de-para | **PEGOU** |
+| tirar a rede do P/L | **PEGOU** |
+| as duas juntas | **PEGOU** — e reproduz o bug palavra por palavra: `DRAW (a conferir — não liquidar automaticamente) · P/L 0,00` |
+| tirar o `!t.aberta` de dentro do `plZero` | **ESCAPOU** |
+
+A que escapou está anotada no caso como **inócua**, não como buraco: quem decide a aberta é
+o `if (t.aberta)` de cima, então o `!t.aberta` dentro do `plZero` é defesa dupla. O teste
+trava o *comportamento* (aberta com P/L 0 não liquida), não aquela linha.
+
+Anotado também que as duas travas **se cobrem de propósito** — tirar `DRAW` sozinho ainda
+daria `V`, pela rede; o que a mutação pegou foi o texto do status mudar. É defesa em
+profundidade, não independência.
+
+### O que ficou
+
+- `extensor/content.js` (`formatTicketPN`), `casas/CASA_PINNACLE.md §5.1` (o de-para do
+  rótulo **cru**, que a tabela antiga não tinha), fixture + caso no harness.
+- Fixture `9000000003` é **derivada** do `3099205574` — só o resultado mudou; nenhum campo
+  inventado. O JSON cru do `3117191609` não foi capturado, e o cabeçalho do caso pede a
+  troca quando aparecer.
+- Harness verde (23 casos, 399 bilhetes) · `audit_sharpenup` e `audit_casas` sem FAIL.
+- **SharpenUp 0.7.7.** A linha presa **fecha sozinha na próxima captura** — ela está
+  `aberta`, e o UPSERT atualiza resultado em linha aberta. Nenhum script no banco.
+
+### Anotado, não resolvido (não é desta sessão)
+
+O mesmo bilhete entrou na grade como **ML**, não como Handicap Asiático `0.0`. A causa é
+outra e é de descrição: `_linhaPN` devolve `""` quando a linha é `0`, então o `0.0` some do
+bloco e a IA classifica pelo que sobrou. Some a informação que **distingue** DNB de
+Moneyline — e é justamente a linha que explica o push. Não mexi: é mudança de descrição,
+com o congelamento do UPSERT no caminho (linha já resolvida não reescreve `aposta`/
+`descricao`), e merece sessão própria.
+
+---
+
+## Sessão 327 — a Caixa ligada no meio da captura
 
 ### `abertas_corte` mede o que o Sharpen SABE, não o que a casa TEM
 

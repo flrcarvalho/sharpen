@@ -1819,12 +1819,25 @@
       stTxt = "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
     } else {
       const rot = String(t.resultLabel || t.resultRaw || "").toUpperCase();
+      // P/L líquido EXATAMENTE 0 numa aposta resolvida prova V sozinho: P/L 0 ⇒ retorno =
+      // stake, a 2ª das cinco fórmulas lidas ao contrário (`repository._veredito_do_retorno`).
+      const plZero = !t.aberta && t.plNet != null && Number(t.plNet) === 0;
       if (rot === "WON" || rot === "WIN") stTxt = "Ganho (WON) → W";
       else if (rot === "LOST" || rot === "LOSE") stTxt = "Perdeu (LOST) → L";
       // "REFUNDED"/"CANCELLED" vêm da aposta ANULADA (campo 18 = CANCELLED, motivo no 43) —
-      // provados no id 3088982702, s262. "PUSHED"/"VOID"/"REFUND" seguem sem amostra real.
-      else if (rot === "PUSHED" || rot === "PUSH" || rot === "VOID" || rot === "REFUND" ||
-               rot === "REFUNDED" || rot === "CANCELLED") stTxt = rot + " → V";
+      // provados no id 3088982702, s262. "DRAW" é o PUSH: handicap/total que bate EXATO na
+      // linha (0.0, 2.0…) devolve a stake — a tela mostra "REEMBOLSADO", mas o rótulo cru vem
+      // "DRAW" (id 3117191609, s328: Aguila 0.0 no 1º tempo, 1:1). Sem ele o bloco saía
+      // "a conferir — não liquidar automaticamente", a IA obedecia à instrução (e ainda
+      // explicava o porquê no RAIO-X) e a linha ficava aberta para sempre.
+      // "PUSHED"/"VOID"/"REFUND"/"TIE" seguem sem amostra real.
+      else if (rot === "DRAW" || rot === "TIE" || rot === "PUSHED" || rot === "PUSH" ||
+               rot === "VOID" || rot === "REFUND" || rot === "REFUNDED" ||
+               rot === "CANCELLED") stTxt = rot + " → V";
+      // Rede POR BAIXO do de-para: rótulo que ninguém conhece, mas o dinheiro já decidiu.
+      // Fecha a família inteira — o próximo nome que a casa inventar para push não vira mais
+      // um pendente eterno. O rótulo cru sobe junto para a IA conferir.
+      else if (plZero) stTxt = (rot || "sem rótulo") + " → V (P/L 0 ⇒ retorno = stake)";
       else stTxt = (rot || "?") + " (a conferir — não liquidar automaticamente)";
     }
     // P/L líquido (Vitória/derrota) — cross-check p/ a IA distinguir HW/HL de W/L cheio.

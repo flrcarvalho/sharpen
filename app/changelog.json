@@ -150,6 +150,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-077",
+      "v": "v0.7.7",
+      "data": "2026-09-06",
+      "texto": "A **Pinnacle** deixava aposta **reembolsada** parada como pendente, mesmo já liquidada. Corrigido.",
+      "itens": [
+        "Depois de atualizar, capture a Pinnacle uma vez — as linhas presas fecham sozinhas."
+      ]
+    },
+    {
       "id": "su-076",
       "v": "v0.7.6",
       "data": "2026-09-01",

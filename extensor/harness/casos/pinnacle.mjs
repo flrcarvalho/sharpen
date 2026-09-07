@@ -28,6 +28,18 @@
 // ("REFUNDED"), com o 4 confirmando ("1:Cancelled,0:Cancelled"). A anulada virava um
 // pendente que nunca fecha. Caso real na fixture: 3088982702, R$800 em tênis, P/L 0.
 //
+// ── 3. PUSH ("DRAW") caía no "a conferir" e virava pendente eterno (s328) ────────────
+// Handicap/total que bate EXATO na linha (0.0, 2.0…) devolve a stake. A tela da Pinnacle
+// mostra "Decidido / REEMBOLSADO" e `Vitória/derrota 0.00`, mas o rótulo CRU do resultado
+// vem "DRAW" — que não estava no de-para do `formatTicketPN`. O bloco saía
+// `Status: DRAW (a conferir — não liquidar automaticamente)`, a IA obedecia à instrução
+// (e ainda registrava no RAIO-X que o P/L 0,00 indicava reembolso) e o backend gravava
+// `aberta`. Caso real: 3117191609, Aguila 0.0 no 1º tempo contra o Alianza, 1:1 no
+// intervalo, R$ 408 — ficou com "?" na grade depois de liquidado.
+// Duas travas foram para o código, e as duas são exercidas aqui: o rótulo `DRAW` no de-para
+// e, por baixo dele, a REDE do P/L — resolvido + rótulo desconhecido + P/L exatamente 0 ⇒
+// retorno = stake ⇒ V, sem depender de a casa avisar como vai chamar o próximo push.
+//
 // ── De-para posicional, reconferido contra o JSON real desta fixture ─────────────────
 // Bilhete: 0=P/L · 6=WIN/LOSE · 7=id · 9=confronto · 14=colocação · 15=data do evento ·
 // 16=odd(str) · 18=SETTLED/CANCELLED · 22=seleção · 24=linha · 28=liga · 29=stake ·
@@ -40,7 +52,13 @@
 //     a forma que a casa usa na não-decidida. A conta usada para levantar a fixture não tinha
 //     nenhuma aposta em aberto no dia (a própria Pinnacle respondeu lista vazia nas três
 //     variantes de corpo testadas). Quando aparecer uma de verdade, troque as duas linhas.
-//   • `PUSHED`/`VOID`/`REFUND` continuam sem amostra — só `CANCELLED`/`REFUNDED` são reais.
+//   • O bilhete `DRAW` (9000000003) é DERIVADO do 3099205574: só o resultado mudou (6 e 93
+//     → "DRAW", P/L → 0, placar empatado, linha → 0.0). O rótulo "DRAW" está provado pelo
+//     caso real 3117191609 — o bloco que a IA leu trazia essa palavra —, mas o JSON cru dele
+//     não foi capturado. Time, liga, stake e odd são os da linha-mãe, e nenhum campo foi
+//     inventado. Quando o JSON real aparecer, troque a linha (e o `dataEvento` do ESPERADO).
+//   • `PUSHED`/`VOID`/`REFUND`/`TIE` continuam sem amostra — reais são `CANCELLED`/
+//     `REFUNDED` e, agora, `DRAW`.
 //   • HW/HL (handicap de quarto) segue sem amostra, como o STATUS já registrava.
 //   • O campo 45 (categoria, "Props de Jogadores") é null em todas as 8 linhas — o de-para
 //     dele segue sem prova nesta fixture.
@@ -57,7 +75,8 @@ const CORPO_PAGINA = "f=2026-08-12 00:00:00&t=2026-08-12 00:00:00&d=-1&s=OPEN&sd
                      "&timeZoneId=America/Sao_Paulo";
 
 const ABERTAS = ["9000000001", "9000000002"];
-const LIQUIDADAS = ["3099722204", "3099205574", "3099033945", "3088982702", "3078338702", "3078337766"];
+const LIQUIDADAS = ["3099722204", "3099205574", "3099033945", "3088982702", "9000000003",
+                    "3078338702", "3078337766"];
 
 // Valores conferidos contra a tela da casa (`my-bets-full`) e o JSON da mesma requisição.
 const ESPERADO = {
@@ -80,6 +99,11 @@ const ESPERADO = {
   "3088982702": { data: "22/07/2026", stake: "800,00", odd: "1,571",
                   status: /^REFUNDED → V · P\/L 0,00$/,
                   contem: ["Esporte (casa): Tennis · ATP Estoril - Doubles", "(Sets)"] },
+  // PUSH: handicap 0.0 que bateu exato. Rótulo cru "DRAW" (a tela diz "REEMBOLSADO") e P/L 0.
+  // Tem de sair V — nunca "a conferir", que é o que deixava a linha aberta para sempre.
+  "9000000003": { data: "08/08/2026", stake: "208,00", odd: "1,662",
+                  status: /^DRAW → V · P\/L 0,00$/,
+                  contem: ["• Real Espana · Real Espana v Genesis (Regular)"] },
   // As duas do dia da borda: são elas que disparam o freio da janela.
   "3078338702": { data: "03/07/2026", stake: "300,00", odd: "1,704",
                   status: /^Ganho \(WON\) → W · P\/L 211,20$/ },
@@ -125,7 +149,7 @@ export async function rodar() {
   testes += 2;
 
   const bets = r.ultima.bets || [];
-  if (bets.length !== 8) falhas.push(`esperava 8 bilhetes (6 liquidados + 2 abertos), vieram ${bets.length}`);
+  if (bets.length !== 9) falhas.push(`esperava 9 bilhetes (7 liquidados + 2 abertos), vieram ${bets.length}`);
 
   const porId = new Map(bets.map((b) => [String(b.id), b]));
   for (const id of ABERTAS) {
@@ -226,6 +250,44 @@ export async function rodar() {
       if (!txt.includes(trecho)) falhas.push(`${id}: faltou no bloco → "${trecho}"`);
     }
   }
+
+  // ── 4. A rede do P/L: rótulo DESCONHECIDO, mas o dinheiro já decidiu ─────────────────
+  // Sintético de propósito — o ponto é justamente um rótulo que ninguém cadastrou. Se a
+  // casa inventar amanhã outro nome para push, ele não pode virar pendente eterno.
+  // A trava do de-para (`DRAW`) já foi exercida acima, no bilhete 9000000003.
+  //
+  // ── O que as mutações mediram (s328), incluindo o que NÃO provaram ──────────────────
+  //   • tirar `DRAW` do de-para          → PEGOU (bilhete 9000000003)
+  //   • tirar a rede do P/L (`plZero`)   → PEGOU (os dois sintéticos abaixo)
+  //   • tirar o `!t.aberta` do `plZero`  → ESCAPOU, e escapa por estar CERTO: quem decide a
+  //     aberta é o `if (t.aberta)` lá em cima, então o `!t.aberta` dentro do `plZero` é
+  //     defesa dupla, não guarda load-bearing. A mutação é inócua; o 3º teste abaixo trava o
+  //     COMPORTAMENTO (aberta com P/L 0 não liquida), não aquela linha.
+  // Honestidade sobre a 1ª: as duas travas se cobrem de propósito, então tirar `DRAW`
+  // sozinho ainda daria V — pela rede. O que a mutação pegou foi o TEXTO do status mudar
+  // de `DRAW → V` para `DRAW → V (P/L 0 ⇒ …)`. É defesa em profundidade, não independência:
+  // para provar cada trava sozinha, mute as duas juntas.
+  const base = { id: "T1", aberta: false, resultRaw: "", esporte: "Soccer", liga: "Teste",
+                 stake: 100, odd: "1.900", dataEvento: "2026-09-06", dataColoc: "",
+                 confronto: "A -vs- B", selecao: "A", linha: null, pernas: null };
+  testes += 3;
+
+  // P/L 0 + rótulo que o de-para não conhece → V, com o rótulo cru preservado para a IA.
+  const semRotulo = linha(fmt({ ...base, resultLabel: "MEIA_ANULACAO_XYZ", plNet: 0 }), "Status:");
+  if (!/^MEIA_ANULACAO_XYZ → V \(P\/L 0 ⇒ retorno = stake\) · P\/L 0,00$/.test(semRotulo))
+    falhas.push(`rótulo desconhecido com P/L 0 tinha de sair V pela rede; veio "${semRotulo}"`);
+
+  // ...mas a rede é SÓ para P/L 0. Rótulo desconhecido com dinheiro em jogo continua indo
+  // para a IA como "a conferir" — inferir W/L de um rótulo que não se conhece é chute.
+  const comPL = linha(fmt({ ...base, resultLabel: "MEIA_ANULACAO_XYZ", plNet: 90 }), "Status:");
+  if (!/a conferir — não liquidar automaticamente/.test(comPL))
+    falhas.push(`rótulo desconhecido com P/L ≠ 0 não pode ser liquidado sozinho; veio "${comPL}"`);
+
+  // E a rede não pode alcançar a ABERTA: o payload traz P/L 0 nela, e liquidar seria inventar
+  // resultado para aposta que nem começou (é o mesmo número, com significado oposto).
+  const abertaTxt = linha(fmt({ ...base, aberta: true, resultLabel: "", plNet: 0 }), "Status:");
+  if (!/^em aberto \(aguardando resultado/.test(abertaTxt))
+    falhas.push(`aberta com P/L 0 não pode cair na rede do P/L; veio "${abertaTxt}"`);
 
   return { falhas, testes };
 }

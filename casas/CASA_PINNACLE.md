@@ -108,6 +108,29 @@ Formato fonte: `YYYY-MM-DD HH:MM:SS` → converter para `DD/MM/AAAA`, descartar 
 
 Handicaps asiáticos de quarto (`0.25` / `0.75` / `1.25` / `1.75`) podem gerar `HW` / `HL` / `V`. Nunca rebaixar `HW→W` nem `HL→L`.
 
+### 5.1 O rótulo CRU não é o que a tela exibe
+
+A tabela acima descreve o que a **tela** mostra. Na captura por API o que chega é outro
+vocabulário, e os dois divergem justamente no `V`:
+
+| Rótulo cru (API) | Onde mora | Tela exibe | Código |
+|---|---|---|---|
+| `WON` / `WIN` | 93 / 6 | Ganho | W |
+| `LOST` / `LOSE` | 93 / 6 | Perdeu | L |
+| `DRAW` | 93 e 6 | **Reembolsado** | V |
+| `REFUNDED` | 43 (com 18 = `CANCELLED`) | Reembolsado | V |
+
+`DRAW` é o **push**, não empate de jogo: handicap ou total que bate exato na linha (`0.0`,
+`2.0`, `2.5` nunca) devolve a stake. O resultado do *jogo* pode até ter sido empate, mas o
+que o campo nomeia é o desfecho da *aposta* — numa Moneyline de 3 vias o empate dá `LOST`,
+nunca `DRAW`. Medido no `3117191609` (s328): Aguila `0.0` no 1º tempo, `1:1` no intervalo,
+R$ 408 devolvidos.
+
+> ⚠️ **Rótulo desconhecido não vira "a conferir" quando o P/L é 0.** Liquidada com
+> `Vitória/derrota = 0,00` prova `V` sozinha (retorno = stake), sem depender de a casa avisar
+> como vai chamar o próximo push. Com P/L ≠ 0 o rótulo desconhecido continua subindo como
+> "a conferir": inferir `W`/`L` de um nome que ninguém conhece é chute.
+
 <!-- TODO: confirmar o rótulo EXATO que o export usa para HW/HL numa linha quarter liquidada (nos exemplos enviados só apareceu Ganho/Perdeu cheios). -->
 
 ---
