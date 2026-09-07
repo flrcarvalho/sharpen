@@ -64,6 +64,7 @@ Todos estão listados, com o que falta e o horizonte, em **[`BACKLOG.md §5`](..
 | Arquivo | O que é |
 |---|---|
 | [`FAXINA_PROPOSTA.md`](FAXINA_PROPOSTA.md) | O inventário e a proposta que originaram a faxina de 2026-09-07, com o que foi medido e como. |
+| [`RECONCILIACAO_TURBO_20-07.md`](RECONCILIACAO_TURBO_20-07.md) | A remedição dos achados da Auditoria Turbo contra o código de hoje — e a descoberta de que os 78 do mergulho de 20/07 nunca foram escritos. |
 
 ---
 
