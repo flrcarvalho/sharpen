@@ -721,3 +721,75 @@ def test_migracao_b_nao_deixa_dois_bilhetes_adotarem_a_mesma_orfa():
         assert sem_codigo == 0, "sobrou linha sem código — o fantasma que a s327 caçou"
         assert assinaturas == 2, "as duas linhas colidiram na mesma assinatura"
     _run(body())
+
+
+def test_upsert_adota_aberta_que_chegou_depois_da_caixa_ligada():
+    """s327 — a LIGAÇÃO: `upsert_bilhetes` chama `_caixa_adotar_abertas_tardias`.
+
+    A decisão de quem entra é testada com dublê em `tests/test_caixa_abertas_tardias.py`;
+    o que só este harness pega é o fio solto — se alguém remover a chamada do
+    `upsert_bilhetes`, lá tudo continua verde e a Caixa volta a nascer torta.
+
+    Cenário medido: Caixa ligada às 03:17:32 com o banco ainda sem aberta nenhuma; o
+    `/salvar` das 03:18:19 grava uma aposta capturada às 03:17:27 — antes da ativação.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        agora = datetime.now(timezone.utc)
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoTardia'")
+            pid = await conn.fetchval(
+                "INSERT INTO parceiros (dono, casa, nome) "
+                "VALUES ('TDonoTardia', 'Betnacional', 'Conta [Eu]') RETURNING id")
+            # Caixa ligada AGORA, sem nenhuma aberta no banco → abertas_corte vazio.
+            mov = await conn.fetchval(
+                "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, abertas_corte) "
+                "VALUES ('TDonoTardia', $1, 'inicial', CURRENT_DATE, 1, '{}') RETURNING id", pid)
+
+        # A captura é ANTERIOR à ativação; o /salvar chega depois.
+        ins, _upd, ids, _a, _d = await repository.upsert_bilhetes(
+            [_row(casa="Betnacional", parceiro="Conta [Eu]", codigo_bilhete="TARDIA1",
+                  resultado="", odd="14")],
+            "TDonoTardia", criado_base=agora - timedelta(seconds=5))
+        assert ins == 1
+
+        async with pool.acquire() as conn:
+            lista = await conn.fetchval("SELECT abertas_corte FROM caixa_mov WHERE id=$1", mov)
+        assert list(lista or []) == ids, (
+            "a aberta que já estava viva no corte não entrou no abertas_corte")
+
+    _run(body())
+
+
+def test_upsert_nao_adota_aberta_feita_DEPOIS_da_caixa_ligada():
+    """O simétrico, e é ele que impede a correção de virar outro erro: o stake dessa
+    saiu depois da leitura do saldo, então ela entra pelo P/L — adotá-la faria a
+    projeção nascer alta em exatamente um stake."""
+    from datetime import datetime, timedelta, timezone
+
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        agora = datetime.now(timezone.utc)
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoTardia2'")
+            pid = await conn.fetchval(
+                "INSERT INTO parceiros (dono, casa, nome) "
+                "VALUES ('TDonoTardia2', 'Betnacional', 'Conta [Eu]') RETURNING id")
+            mov = await conn.fetchval(
+                "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, abertas_corte) "
+                "VALUES ('TDonoTardia2', $1, 'inicial', CURRENT_DATE, 1, '{}') RETURNING id", pid)
+
+        await repository.upsert_bilhetes(
+            [_row(casa="Betnacional", parceiro="Conta [Eu]", codigo_bilhete="TARDIA2",
+                  resultado="", odd="14")],
+            "TDonoTardia2", criado_base=agora + timedelta(minutes=5))
+
+        async with pool.acquire() as conn:
+            lista = await conn.fetchval("SELECT abertas_corte FROM caixa_mov WHERE id=$1", mov)
+        assert list(lista or []) == [], "adotou aposta feita depois da leitura do saldo"
+
+    _run(body())

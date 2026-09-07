@@ -1173,6 +1173,9 @@ async def upsert_bilhetes(
     sig_to_first_row: dict[str, int] = {}       # base_sig → índice da 1ª ocorrência
     dup_row_info: dict[int, tuple[int, int]] = {}   # row_idx → (occurrence, total)
     id_per_row: list[int | None] = []           # db_id por posição de row
+    # (casa, parceiro, aposta) das abertas INSERIDAS agora, no formato que
+    # `_caixa_abertas_ids` lê — ver `_caixa_adotar_abertas_tardias`.
+    abertas_tardias: list[tuple[str, str, dict]] = []
 
     async with pool.acquire() as conn:
         # Rede de segurança (camada 2): índice dos bilhetes que JÁ estão no banco COM
@@ -1483,10 +1486,21 @@ async def upsert_bilhetes(
                 id_per_row.append(db_id)
                 if rec["was_inserted"]:
                     inseridos += 1
+                    # Aposta que NASCE aberta e cuja captura é anterior a uma Caixa já
+                    # ligada: candidata a ter ficado de fora do `abertas_corte` pela
+                    # corrida descrita em `_caixa_adotar_abertas_tardias`.
+                    if extraction_state == "aberta" and _num(row.get("stake")) > 0:
+                        abertas_tardias.append((
+                            row.get("casa", ""), row.get("parceiro", ""),
+                            {"id": db_id, "stake": row.get("stake"), "resultado": "",
+                             "data": row.get("data"), "criado_em": criado_em_val},
+                        ))
                 else:
                     atualizados += 1
             else:
                 id_per_row.append(None)
+
+        await _caixa_adotar_abertas_tardias(conn, dono, abertas_tardias)
 
     # Monta mapa duplicatas: str(db_id) → [occurrence, total]
     duplicatas: dict[str, list[int]] = {}
@@ -2196,6 +2210,70 @@ def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str, ate=None) -> 
         if (_data_iso(a.get("data")) or "") < corte or (criado_iso and criado_iso < corte):
             out.append(a["id"])
     return out
+
+
+async def _caixa_adotar_abertas_tardias(conn, dono: str, novas: list[tuple]) -> int:
+    """Adota no `abertas_corte` a aposta que já estava viva no corte e só CHEGOU depois.
+
+    `abertas_corte` mede o que o SHARPEN SABIA no instante da ativação — não o que a
+    CASA TINHA. Entre a captura começar e o `/salvar` gravar existe uma janela de ~1
+    minuto, e ligar a Caixa dentro dela grava uma lista VAZIA que nunca mais se revisita.
+    Medido (s327, Betnacional / renanfernando01 [Richard]):
+
+        03:17:32  Caixa ligada     → abertas_corte = []   (o banco não tinha aberta ainda)
+        03:18:19  /salvar grava    → 3 apostas nascem ABERTAS: R$ 600,00
+        03:18:35  Conferência      → projetado −599,00, e o Ajuste CIMENTOU os R$ 600,00
+
+    O dinheiro sai da conta na casa, não no nosso banco. Uma linha que **nasce** aberta
+    (logo, não liquidada quando foi capturada) e cuja captura (`criado_em`) é anterior à
+    ativação estava, comprovadamente, viva quando o saldo foi lido — o stake já tinha
+    saído. Não é heurística: a aposta não pode ter liquidado e desliquidado.
+
+    Três travas:
+      · só linha recém-INSERIDA (a que já existia na ativação, ou entrou na lista ou
+        ficou fora por decisão do `_caixa_abertas_ids` — não se reabre aquilo);
+      · a decisão é do próprio `_caixa_abertas_ids`, com `ate` = instante da ativação —
+        um segundo critério aqui divergiria do original em silêncio;
+      · a lista só CRESCE. Tirar id nenhum: quem já estava lá foi reconhecido na
+        ativação, e removê-lo descontaria o stake duas vezes.
+
+    Sem `criado_em` (import/sync, que caem no `NOW()` do INSERT) a linha nasce depois da
+    ativação por construção e nunca é adotada.
+    """
+    if not novas:
+        return 0
+    hoje = date.today().isoformat()
+    total = 0
+    for casa, parceiro in {(c, p) for c, p, _ in novas}:
+        ini = await conn.fetchrow(
+            """SELECT m.id, m.data, m.criado_em, m.abertas_corte
+                 FROM caixa_mov m JOIN parceiros p ON p.id = m.parceiro_id
+                WHERE m.tipo = 'inicial' AND m.dono = $1 AND p.casa = $2 AND p.nome = $3
+                ORDER BY m.criado_em DESC LIMIT 1""",
+            dono, casa, parceiro)
+        if not ini:
+            continue                      # conta sem Caixa ligada: nada a fazer
+        ja = {int(i) for i in (ini["abertas_corte"] or [])}
+        # Só entra quem tem `criado_em` COMPARÁVEL com o instante da ativação: sem ele
+        # (import/sync, que caem no NOW() do INSERT) não há prova de que a aposta
+        # antecede o corte, e sem fuso a comparação levantaria TypeError dentro do
+        # `/salvar` — derrubando a gravação inteira por causa de uma linha de caixa.
+        candidatas = [a for c, p, a in novas
+                      if (c, p) == (casa, parceiro)
+                      and getattr(a.get("criado_em"), "tzinfo", None) is not None]
+        if not candidatas:
+            continue
+        eleitas = _caixa_abertas_ids(candidatas, ini["data"].isoformat(), hoje,
+                                     ate=ini["criado_em"])
+        add = [i for i in eleitas if i not in ja]
+        if not add:
+            continue
+        await conn.execute("UPDATE caixa_mov SET abertas_corte = $1 WHERE id = $2",
+                           sorted(ja | set(add)), ini["id"])
+        total += len(add)
+        logger.info("caixa: %d aposta(s) aberta(s) chegaram depois da ativação e entraram "
+                    "no abertas_corte de %s / %s", len(add), casa, parceiro)
+    return total
 
 
 async def _caixa_abertas_no_corte(conn, dono: str, casa: str, parceiro: str,
