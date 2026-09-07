@@ -209,3 +209,29 @@ colide com nada, o UPSERT não dedupa e **o histórico duplica inteiro**.
 
 Mordeu duas vezes: no `renomear_parceiro` (s198) e no modal de edição de conta (s312), que
 oferece nome e casa na mesma tela.
+
+---
+
+## `DADOS` só tem aposta LIQUIDADA
+
+### A tela em branco do Diogo — s239
+
+O Diogo cadastrou **16 contas** e tinha **12 bilhetes, todos em aberto**. A aba Custos de
+Contas ficou **em branco**. Não houve erro: `DADOS` recebe só `W/L/V/HW/HL`, então um
+usuário novo — que por definição só tem aposta em aberto — chega com `DADOS` vazio, e toda
+tela derivada dele fica parada num "aguardando" que nunca resolve.
+
+Na mesma sessão foram medidas as duas divergências que duplicariam linha ao unir cadastro e
+bilhete — grafia de casa (`Bet365` × `BET365`) e fornecedor divergente para a mesma conta.
+**As duas deram zero em todos os donos.** É medição datada, não garantia: meça de novo antes
+de confiar.
+
+### O tipster cobrado e ineditável — s274, feedback do tester João Henrique
+
+A aba Custo de Tipsters listava a partir de `DADOS`, enquanto o `renderOvCusto`
+(`overview.js`) somava o `ctData` **inteiro**, sem olhar a lista. Um tipster que ainda não
+tinha aposta liquidada **saía da tabela com o custo dele seguindo no KPI da visão geral**:
+cobrado, visível no total, e sem linha onde se pudesse editar.
+
+O agravante que torna esse defeito difícil de ver: **o total continua certo.** Só a linha
+some.

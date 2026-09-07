@@ -100,6 +100,20 @@ blip no app durante o redeploy; fazer em horário de baixo uso. As variáveis de
 Railway são **literais** (não referências `${{}}`), então cada uma precisa ser atualizada à
 mão.
 
+### 1.3 O `STATUS.md` está a 1,8 KB do teto — o próximo `/encerrar` estoura o gate. **VIVA (07/09)**
+
+Medido em 07/09: **48,2 KB** contra o teto de **50 KB** do `tools/check_docs.py`, com 3
+blocos de sessão e 2 `_Anterior:` (ambos no máximo). O bloco da próxima sessão reprova o
+gate, e é para isso que ele existe.
+
+**A saída é rodar o corte, não subir o teto.** O procedimento é o do Lote B da faxina e o
+`/encerrar` já o descreve: move o bloco de sessão mais antigo e o `_Anterior:` excedente
+para `docs/historico/HISTORICO_s300-s327.md`, preservando o texto integral. Subir o teto
+uma segunda vez é como o arquivo chegou a 187 KB na primeira.
+
+> Não é escopo da faxina de documentação — ela fecha no Lote A. Fica aqui porque o gate vai
+> reprovar e alguém vai precisar saber o que fazer.
+
 ### 1.2 `golden_set/bilhetes/` está vazio — `TURBO 19/07 #21`. HUMANA. **VIVA (06/09)**
 
 Medido hoje: `golden_set/` tem só o `descricoes.jsonl` e o `README.md`. **Não existe
