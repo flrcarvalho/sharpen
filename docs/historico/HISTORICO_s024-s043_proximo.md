@@ -1,0 +1,279 @@
+# HISTÓRICO — Sessões 43 → 24 (log de “Próxima sessão”)
+
+> **Log paralelo**, não a continuação da cadeia acima: é o antigo §6 “Próxima sessão” do STATUS, com a sua própria numeração.
+>
+> Partição do `docs/HISTORICO.md`, criada na faxina de documentação de 2026-09-07 (Lote C). **O texto é o original, verbatim** — só foi partido.
+
+[↑ Índice](../HISTORICO.md) · [← mais recente: Sessões 62 → 14 (log de “Estado atual”)](HISTORICO_s014-s062_estado.md)
+
+---
+
+## Log de sessões 43 → 24 (antigo §6 "Próxima sessão")
+
+**Sessão 30 (20/06/2026) — Auditoria de performance (Opus) + paralelismo de chunks:**
+
+- **Auditoria com agente Opus:** identificou 7 oportunidades de performance. Ranking executado: UptimeRobot descartado (Railway Serverless OFF; o evento de 12 min foi tempo de processamento, nao cold start — registrado em `PLANO_CONSTRUCAO.md §10`).
+- **Cache warming (commit `36d185a`):** `main.py` — background task `_cache_warmer()` pinga a cada 4 min para manter TTL de 5 min do cache Anthropic vivo.
+- **In-memory cache com mtime (commit `b48701b`):** `prompts.py` — `_file_cache` armazena `(conteudo, mtime)`; relê o arquivo só se o mtime mudar. `reload_masters()` para invalidacao forcada.
+- **Logs de tempo (commit `b48701b`):** `main.py` — `logging.basicConfig` + logs `extrair inicio`, `seq chunk N`, `seq total`, `par chunk N/M`, `par total` com duracao e tokens. Confirma causa real no proximo evento.
+- **Sonnet 4.5 no dropdown (commit `36d185a`):** `config.py` + `index.html` — opcao "Sonnet 4.5 · mais rapido" disponivel para teste. Padrao continua Sonnet 4.6.
+- **Paralelismo de chunks (commit `9f630a4`):** `main.py` — `_build_chunks()` divide imagens em grupos de `ceil(N/4)` ou texto por paragrafos/blocos XLS. `_stream_parallel()` roda N chamadas async com `asyncio.Semaphore(4)`, reassembla por indice, combina TSV, trata erro por chunk sem derrubar a request. Frontend: evento `chunk_progress` mostra "chunk N/M" no card.
+  - Ganho esperado: 12 imgs → ~4 chunks paralelos → tempo cai ~4x. 40 bets Betano texto → 4 chunks → ~1,5 min vs ~6 min sequencial.
+- **Auditoria de consistencia 10 vs 11 colunas (commit `801e983`):** pipeline confirmado consistente. `MASTER_OUTPUT_2026.md §2, §17, §18` — excecao documentada para coluna `Codigo` (11a coluna interna de dedup, nao vai para planilha do usuario).
+
+**Proximos passos imediatos:**
+- **Testar paralelismo em producao:** submeter lote de 8+ imagens e confirmar que chunks coexistem, grade sai em ordem correta, dedup funciona.
+- **Avaliar Sonnet 4.5:** testar mesmo lote com Sonnet 4.5 e Sonnet 4.6 e comparar qualidade linha a linha.
+- ~~Adicionar `Steve Johnstone` e `Oliver Mitchell` a lista de Dardos em `MASTER_ESPORTES_2026.md`~~ — **feito** (commit `8bd99d6`).
+- ~~Limpar duplicatas no banco~~ — **cancelado** (sessao 30): duplicatas pontuais sao tratadas individualmente quando surgem; nao ha limpeza retroativa em batch.
+
+**Sessão 33 (20/06/2026) — KingPanda consolidado + GUIA_NOVA_CASA:**
+
+- **KingPanda §4 (data):** tabela explícita evento vs colocação; regra: `Compartilhar` = delimitador; data após "Compartilhar" + antes de "ID:" = colocação (ignorar).
+- **KingPanda §9:** expandido para todas as 27 categorias do `MASTER_APOSTAS_2026 §3`. Colunas reordenadas para padrão do template: `KingPanda exibe | Aposta global | Status`.
+- **KingPanda §2.3 (ordem de output):** REGRA DEFINITIVA documentada — grid exibe esquerda→direita, cima→baixo; TSV sai na ordem inversa. Exemplo: Florian Wirtz (pos 1 no texto) = ultima linha TSV; Paises Baixos Resultado 1ºT (pos 8) = primeira linha.
+- **KingPanda §13/§14:** pegadinhas e validacoes atualizadas com regra de ordem e ID ausente no ultimo bilhete (normal).
+- **KingPanda §15:** 8 goldens reordenados em ordem de output (G1 = primeira linha TSV = pos 8 no texto). +3 novos goldens de Alemanha vs Costa do Marfim: Dupla Chance, Escanteios, Ambas Marcam, Resultado 2ºT, Team Props confirmados.
+- **`GUIA_NOVA_CASA.md` criado:** 6 etapas + checklist + referencia de padroes para cadastrar qualquer casa nova.
+- Backups: `Backups/pre_kingpanda_v2_2026-06-20/`. Commits: `051ae9b`, `2535a2f`, `b4e8a0f`, `9360882`.
+
+**Proximo passo: cadastrar novas casas usando `GUIA_NOVA_CASA.md`.**
+
+**Sessão 34 (20/06/2026) — Fix scroll overlap + normalização de odd:**
+
+- **Contexto herdado:** sessão anterior aplicou detecção de sobreposição de scroll (badge azul) e correção de ordem cronológica (chunks paralelos). O badge não aparecia.
+- **Root cause:** `_scroll_key` em `_combine_parallel_results` (`main.py`) comparava a odd como string bruta. Chunks paralelos podem calcular a mesma odd de formas diferentes: um lê `"1,83"` do cabeçalho do bilhete; outro calcula `RO ÷ Stake = "1,8331168..."`. Strings diferentes = chave diferente = overlap não detectado.
+- **Fix 1 — `main.py` `_scroll_key`:** odd normalizada para 2 casas decimais antes da comparação de chave. `"1,83"` e `"1,8331..."` viram `1.83` e batem. Commit `b3afde3`.
+- **Fix 2 — `CASA_BET365.md`, `CASA_BETANO.md`, `CASA_SUPERBET.md` §11:** aviso explícito adicionado logo abaixo da regra W: "a odd exibida no cabeçalho é decorativa para W — ignorar; calcular sempre com RO real." Commit `7e1321c`.
+- **Fix 3 — `repository.py` `_assinatura`:** odd normalizada para 2dp antes de gerar o hash (`_norm_odd`). Previne duplicatas silenciosas no banco quando o AI produz precisões diferentes em sessões distintas (ex.: re-upload da mesma aposta). Commit `7e1321c`.
+- **Fix 4 — `index.html`:** coluna de badge (duplicata/scroll) movida do final da grade para ao lado da coluna Esporte. Commit `ca7e5fb`.
+- Casas afetadas pelos fixes de odd: Bet365, Betano, Superbet (têm boost; odd exibida pode diferir do calculado). Pinnacle, Betfair e KingPanda não afetadas (odd exibida = autoritativa ou = calculado).
+
+**Sessão 32 (20/06/2026) — Nova casa: KingPanda:**
+
+- **`casas/CASA_KINGPANDA.md` criada** — 15 seções, 5 goldens reais (Países Baixos vs Suécia, 20/06/2026).
+- **Modo de ingestão:** texto colado (primário) + screenshot (fallback).
+- **ID:** visível, numérico longo (18–19 dígitos), ex.: `856196311719649280`.
+- **Boost:** formato `[odd original] >> [odd final]` (texto: duas linhas consecutivas); usar sempre a segunda = `Total de Odds`.
+- **Ganho Potencial:** retorno bruto (stake × odd); locale en-US (ponto decimal) → converter para vírgula.
+- **Criador de apostas** = Bet Builder → `Múltipla`.
+- **Pendências documentadas:** rótulos V/HW/HL, cashout, bônus. Categoria `Resultado Correto` ausente do `MASTER_APOSTAS_2026` → flagged no §Feedback como proposta.
+- **`app/main.py`:** `KINGPANDA: 'KingPanda'` adicionado ao `_CASA_DISPLAY`.
+- **`app/static/index.html`:** `KingPanda` adicionado a `NOMES` e `DOMINIOS` (favicon via `kingpanda.bet.br`).
+- Backup: `Backups/pre_kingpanda_2026-06-20/`. Commit: `ed60f15`.
+
+**Sessão 31 (20/06/2026) — Arquivamento automático de apostas antigas:**
+
+- **Feature:** após cada `/salvar`, o sistema arquiva automaticamente as apostas antigas de cada parceiro, mantendo visíveis apenas `max(tamanho_do_lote, 40)` apostas mais recentes.
+- **Regra:** apostas arquivadas (`archived=TRUE`) permanecem no banco e são acessíveis — nunca deletadas. A grade oculta arquivadas por padrão.
+- **UI:** chip "⊞ N arquivados" aparece na stats bar quando há arquivadas; clique alterna para mostrar tudo (arquivadas com estilo esmaecido `row-arc`); "Copiar pendentes" e "Baixar TSV" operam apenas sobre apostas ativas.
+- **Arquivos alterados:**
+  - `database.py`: coluna `archived BOOLEAN NOT NULL DEFAULT FALSE` + migração `ALTER TABLE IF NOT EXISTS`.
+  - `repository.py`: `auto_arquivar()`, `contar_arquivados()`, `list_bilhetes()` com parâmetro `archived`.
+  - `main.py`: `/salvar` chama `auto_arquivar` e retorna `arquivados`; `/bilhetes` aceita `?archived=false|true|all`.
+  - `index.html`: chip toggle, estilo `.row-arc`, filtros de cópia/download excluem arquivadas.
+- Backup: `Backups/pre_arquivamento_auto_2026-06-20/`. Commit: `7e4b76a`.
+
+**Sessão 29 (20/06/2026) — Bugs CASA_BETANO + UI multi-cards:**
+
+- **Auditoria de performance (investigado, sem fix estrutural possivel):**
+  - Evento: 40+ bets Betano em texto levou 12 min. GPT-4o fez o mesmo em 27s. Claude Web (Opus 4.8) fez em menos de 3 min.
+  - Causa raiz do evento de 12 min: Railway pod frio + lentidao pontual da API Anthropic simultaneos. Nao e o comportamento normal.
+  - Expectativa realista com arquitetura atual: **3–6 min (cache frio) / 1–2 min (cache quente)**. Cache TTL = 5 min; reinicio de pod zera o cache.
+  - `max_tokens=64000` NAO e o gargalo — e um teto, o modelo para quando termina. Nao reduzir (foi aumentado para resolver leitura incompleta de imagens).
+  - Gap vs GPT-4o e estrutural: GPT-4o e intrinsecamente mais rapido, sem overhead de Railway, sem TTL de cache. Fechar esse gap exigiria trocar de provider — nao planejado.
+  - **O que melhora o UX sem trocar provider:** multi-cards (implementado nesta sessao) — o usuario nao fica bloqueado enquanto espera.
+  - **Proxima alavanca possivel de velocidade:** Sonnet 4.5 (mais rapido que 4.6; nao testado ainda em extracao de bets) — avaliar em sessao futura.
+
+- **Auditoria de qualidade Betano:** comparação do output do sistema vs GPT-4o em 40+ bets reais (15/06–20/06). Sistema acertou mais que o GPT-com-masters: GPT perdeu 1 bet inteiro (Lyndon Dykes), classificou tripla multi-esporte como "Baseball" e usou nomes errados em Player Props. Sistema tinha apenas 2 bugs reais — ambos corrigidos.
+- **Bug 1 — REKONIX duplicado:** texto copiado de bilhete simples Betano repete a seleção duas vezes (linha-resumo antes do `sport-icon` + linha-detalhe com odd/mercado/confronto). O modelo interpretava como 2 bilhetes. **Fix:** `CASA_BETANO.md §12` — regra "Seleção repetida em bilhetes simples = 1 bilhete" adicionada com exemplo concreto.
+- **Bug 2 — 180s Dardos → Outras:** mercados `Total de 180s` / `Mais/Menos 180s` / `H2H 180s` caíam em `Outras` mesmo com a categoria `Legs` já definida no MASTER_APOSTAS. **Fix:** `CASA_BETANO.md §9` — mapeamento explícito `Total de 180s / Mais/Menos 180s / H2H 180s (Dardos) → Legs` adicionado à tabela.
+- Backup: `Backups/CASA_BETANO_pre_sessao29/`. Commit: `e755045`.
+- **Feature — UI multi-cards de extração paralela:** `app/static/index.html` — clicar em "Processar Bilhetes" cria um card independente no painel direito, limpa o formulário imediatamente e re-habilita o botão. Múltiplos cards processam em paralelo (backend já suportava; zero mudança em main.py). Cada card: header (casa·parceiro·horário·tokens+%cache), contador `Processando… (Xs · N chars)`, botão ✕ individual para cancelar, status final colorido (`✓ N novo(s)`, `⚠️`, `✗`). Troca de parceiro limpa o painel; "Limpar" só limpa o formulário. `_abortCtrl` → `_activeStreams Map`. Backup: `Backups/pre-multi-cards-sessao29.html`. Commit: `6795b63`.
+
+**Estado após sessão 28 (cont. 20/06/2026):** MASTER_ESPORTES_2026.md — 3 melhorias de identificação de esporte:
+- §5 nova regra (item 4): modelo deve usar **conhecimento próprio de treinamento** quando atleta não estiver nas listas auxiliares — só usar `Outro` quando genuinamente incerto após esgotar esse recurso.
+- §7 Tênis: sinônimos ITF/Challenger adicionados; sublistas `ATP Challenger / ITF` e `WTA / ITF` com jogadores identificados nesta sessão (Keshav Chopra, Kerem Yilmaz, Mate Valkusz, Pietro Orlando Fellin, Mickael Kaouk, Filiberto Fumagalli, Vignesh Gogineni, Bryce Nakashima, Tanguy Genier, Noah Karma, Gaeul Jang, Aishi Das, Marie Vogt, Mia Slama, Elsa Bonelli, Emily Seibold).
+- §7 Dardos: sinônimos MODUS/MODUS Super Series adicionados; sublista `MODUS Super Series` com Dylan Slevin, Sam Spivey.
+- Backup: `MASTER_ESPORTES_2026_pre-sessao28.md`.
+
+**Convencao de terminal (registrada em 20/06/2026):** PowerShell 5.1 ConstrainedLanguage. Proibido heredoc bash, New-Object .NET, Out-File -Encoding utf8 (gera BOM). Commits multilinha: multiplos `-m`. Regra documentada em `FDC Capital/CLAUDE.md` (fora do repo, sem versionamento git).
+
+**Próximo passo imediato (ver sessão 30 acima).**
+
+**Sessão 27 (17/06/2026):**
+- **Contexto:** extração Betfair com bets já processadas gerava confusão — contador dizia "25 salvos" sem distinguir updates de inserts; regra de ordenação §2 usava "texto colado" como referência, ambígua quando havia imagens + CSV.
+- **Fix insert vs update:** `app/repository.py` — `upsert_bilhetes` usa `xmax = 0` para detectar INSERT real; retorna `(inseridos, atualizados, ids, alertas)`. `app/main.py` — `/salvar` retorna `inseridos`/`atualizados` separados. `app/static/index.html` — status bar mostra `"X novo(s) · Y atualizado(s)"`.
+- **Fix ordenação Betfair:** `casas/CASA_BETFAIR.md §2` — regra reescrita com tabela explícita: Fonte A (prints/imagens) é a autoridade de ordem; CSV apenas para join de data, nunca reordena.
+- Commit: `2d98ca1`.
+
+**Sessão 28 (17/06/2026):**
+- **Bug:** re-upload de XLS Pinnacle gerava duplicatas — bets já copiadas voltavam como pendentes sem tick.
+- **Root cause:** `upsert_bilhetes()` deduplicava só por `assinatura` (SHA-256). Bets importadas sem código (via imagem ou extração anterior sem 11ª coluna) têm hash baseado em conteúdo. Nova extração via XLS gera hash baseado em ID → assinaturas diferentes → INSERT em vez de UPSERT → linha duplicada com `copy_state='pendente'`.
+- **Fix:** duas migrações antes do INSERT em `upsert_bilhetes()`:
+  - Migração A: se linha existente tem mesmo `codigo_bilhete` mas assinatura diferente → atualiza assinatura (normaliza formato antigo).
+  - Migração B: se linha existente tem `codigo_bilhete IS NULL` e bate em `data+aposta+stake+odd` → adopta: atribui assinatura e código à linha existente.
+- **Também:** `DO UPDATE SET` agora propaga `codigo_bilhete` via `COALESCE` se a linha existente não tinha código.
+- Backup: `Backups/repository_pre_dedup_fix_2026-06-17.py`.
+- Commit: (este).
+
+**Sessão 26 (17/06/2026):**
+- **Notas Críticas full-height:** `app/static/index.html` — `.analysis-box` `flex-shrink:0` → `flex:1`; `.box-body` `max-height:220px` removido, `flex:1` adicionado. Painel de análise agora é totalmente ocupado pelas notas. Commits `801c9e0`.
+- **Fix esporte Dardos:** `global/MASTER_ESPORTES_2026.md` — `Bradley O'Connor` e `Nico Plovier` adicionados à lista de referência de jogadores de Dardos. Sem esses nomes, o modelo inferia Golf pelo sobrenome irlandês. Commit `f253a5e`.
+
+**Sessão 25 (16/06/2026):**
+- **Fix keepalive SSE:** chamada Anthropic migrada para `asyncio.Task` paralela. Loop aguarda itens da fila com timeout de 20s; ao expirar emite comentário SSE `": keepalive"` para manter conexão viva no Railway enquanto o modelo processa. Elimina erro "Resposta incompleta — sem evento 'done'". Commit `5eda00f`.
+- **Remoção do Haiku:** removido de `ALLOWED_MODELS` em `config.py`, do dropdown em `index.html` e da validação de imagem em `main.py`. Dropdown agora só tem Sonnet 4.6 (padrão) e Opus 4.8. Commit `d08ec96`.
+- **Output enxuto:** `_INSTRUCAO` reescrita — removidas seções `## Confiança` (por linha) e `## Recomendações`. Mantida apenas `## Notas Críticas` (máx 5 itens, "Nenhuma" se não houver). Frontend: boxes de confiança e recomendações removidas; painel direito mostra só Notas Críticas. Redução estimada de 50-60% nos tokens de saída. Commit `0a07baa`.
+- **Sidebar expandida:** largura `216px → 292px` (+35%), padding `10 → 14px`. Logo escala junto (usa `width:100%`). Todas as casas carregam abertas por padrão (toggle ainda funciona). Commit `8ef221e`.
+
+**Sessão 24 (15/06/2026):**
+- **Continuation automática:** `max_tokens=64000`; quando `stop_reason == "max_tokens"` o backend reinicia com o texto acumulado como turno do assistente — o modelo continua sem regeração. Frontend exibe "Continuando… parte N".
+- **Botão Cancelar:** AbortController no frontend; aparece durante processamento; `AbortError` exibe "Análise cancelada." em amarelo.
+- **Fix SUBSTITUIÇÃO+:** `CASA_BET365 §12` reforçado com bloco visual explícito (▲=substituto IGNORAR / ▼=original USAR) e dois avisos ⚠️. Golden #9 adicionado (Bruno Guimarães vs Danilo dos Santos).
+- **H2H 180's Dardos:** novo mercado documentado em: `MASTER_APOSTAS §4` (sinônimos), `§5` (regra H2H), `§6 Dardos` (distinção Player Props individual vs H2H comparativo), `§7` (prioridade), `§9` (validação #17). `MASTER_DESCRICAO §13.2` (template + nota de reconstrução de confronto). `CASA_BET365 §9` (mapeamento + nota de layout). `CASA_BETFAIR §9` (nota de layout adicionada ao mapeamento existente).
+
+- **Sessão 35 (21/06/2026) — Fixes de streaming, estado do extrator e ordem Pinnacle:**
+  - `app/main.py` — `_stream_parallel`: `asyncio.wait_for(timeout=20)` + keepalive a cada 20s para evitar timeout do proxy Railway durante espera de chunks. Adicionado try/except em torno de `_combine_parallel_results`.
+  - `app/main.py` — `_build_chunks`: se "DADOS CSV:" estiver no texto, retorna modo sequencial (CSV+texto Betfair precisam ficar juntos para o join).
+  - `app/main.py` — `_stream_parallel`: sort dos chunks agora é `reverse=False` para modo texto/XLS (Pinnacle oldest-first) e `reverse=True` para imagens. Corrige ordem aleatória no export XLS da Pinnacle.
+  - `app/static/index.html` — `salvarEstadoExtrator`: auto-save do texto em tempo real (listener `input`). `limparExtrator(explicit)`: quando chamada pela submissao, salva estado antes de limpar (permite retry via navegacao). `salvarEstadoExtrator`: nao sobrescreve estado existente com formulario vazio (impede navegacao apagar o estado salvo antes da submissao).
+  - Commits: `8ef765d`, `d22b73a`, `5fb8b6d`, `06f1455`.
+
+**Sessão 36 (21/06/2026) — Nova casa: Bolsa de Aposta:**
+
+- **`casas/CASA_BOLSADEAPOSTA.md` criada** — 15 seções, 4 goldens reais (20/06/2026).
+- **Modo de ingestão:** texto colado (primário) + screenshot (fallback).
+- **Particularidade crítica:** L/P = lucro/prejuízo, **não** retorno total. Para W: odd = (Stake + L/P) ÷ Stake. Para L: odd lida diretamente do campo `@odd`.
+- **Odd campo:** `@odd` na linha de detalhe (ex.: `Sim @1.90 • R$100,00`) — autoritativo; usa ponto decimal (en-US) → converter para vírgula.
+- **ID:** `ID da Aposta: XXXXX` — numérico, ~8 dígitos, visível na linha de detalhe.
+- **Confronto:** em inglês com "vs" → normalizar para "v" no output: `[Time A v Time B]`.
+- **Seleção "Sim":** resposta booleana (BTTS, Over/Under) — não vai na descrição; usar padrão global.
+- **"BEST ODDS IN BRAZIL":** rótulo promocional no campo Descrição — ruído, ignorar.
+- **Goldens confirmados:** W Ambas Marcam (98223602) · W ML com boost label (98318394) · L Gols (98223547) · L Anytime/Enner Valencia (98293971).
+- **Pendências documentadas:** §5 V/HW/HL (sem amostra) · §6 boost real · §7 cashout · §8 bônus · apostas Lay (A contra) · comissão sobre ganhos · Resultado Correto (Correct Score) flagged no §Feedback.
+- **`app/main.py`:** `BOLSADEAPOSTA: "Bolsa de Aposta"` adicionado ao `_CASA_DISPLAY`.
+- **`app/static/index.html`:** `BOLSADEAPOSTA` adicionado a `NOMES`; `'Bolsa de Aposta'` adicionado a `DOMINIOS` com domínio `bolsadeaposta.bet.br`.
+- Backup: `Backups/pre_bolsadeaposta_2026-06-21/`. Commit: `2217206`.
+
+**Sessão 37 (21/06/2026) — Auditoria de ordem de extração + fix definitivo de chunks paralelos:**
+
+- **Auditoria com agente Opus:** comparação histórica git entre ~16/06 e 21/06 em todos os `casas/CASA_*.md`. Conclusão: as regras de planilhamento (§9) **não foram alteradas** no período. O único problema era no backend (`app/main.py`), não nos docs das casas.
+- **Root cause identificado:** `_stream_parallel` usava `is_image_mode` (bool) para decidir `reverse`. Isso não distinguia os 4 casos reais:
+  - Betano **texto**: `is_image_mode=False` → `reverse=False` → TSV invertido (apostas recentes primeiro) — **ERRADO**
+  - Superbet **imagens**: `is_image_mode=True` → `reverse=True` → TSV invertido (última imagem colada saía primeiro) — **ERRADO**
+  - Pinnacle XLS: `is_image_mode=False` → `reverse=False` — correto (parser já inverte)
+  - BET365/Betano imgs/KingPanda/Betfair: `is_image_mode=True` → `reverse=True` — correto
+- **Regressão rastreada:** commit `06f1455` (fix Pinnacle de hoje cedo) introduziu a regressão no Betano texto; o bug da Superbet existia desde o commit `9f630a4` (paralelismo, 20/06).
+- **Fix (`app/main.py`, commit `cb5573c`):** substituiu `is_image_mode` por duas verificações independentes:
+  - `is_xls_mode`: detecta texto com `"=== Aposta ID"` (marcador exclusivo do parser XLS Pinnacle)
+  - `casa_key.upper() == "SUPERBET"`: Superbet sempre `reverse=False`
+  - Todos os outros casos: `reverse=True`
+  - `casa_key` passado como parâmetro para `_stream_parallel`
+- **Regra consolidada (confirmada pelo usuário):**
+  - `reverse=False`: Pinnacle XLS (pré-invertido pelo parser) · Superbet (colagem na ordem certa)
+  - `reverse=True`: Betano texto · Betfair texto · BET365 imgs · Betano imgs · KingPanda imgs
+- **Validado em produção:** Betano texto ✅ · KingPanda ✅ · Betfair ✅ · Superbet (lógica confirmada pelo usuário).
+- Backup: `Backups/main_pre_fix_sort_order_21jun.py`. Commit: `cb5573c`.
+
+**Sessão 41 (21/06/2026) — Nova casa: Lottu:**
+
+- **`casas/CASA_LOTTU.md` criada** — 15 seções, 5 goldens reais (19–21/06/2026).
+- **Modo de ingestão:** texto colado (primário) + screenshot (fallback).
+- **Particularidade crítica:** apostas em aberto ficam misturadas no histórico (sem filtro disponível). Badge amarelo `Aberto` identifica-as — **ignorar completamente**. Extrair apenas `Ganhou` e `Perdeu`.
+- **Produto Desafio:** a Lottu exibe como `Simples de X.XX` mas combina condições via `&` na Resposta = **Múltipla** (Bet Builder intra-jogo). Sinal discriminante: presença de `&` na Resposta.
+- **ID:** numérico ~7 dígitos (ex.: `4842688`), primeira linha do bilhete.
+- **Data:** usar `Resolvido em: DD/MM/AAAA` (descartar horário e data de início do jogo).
+- **Odd:** en-US (ponto decimal) → converter para vírgula. Para W: `Retorno ÷ Stake`. Para L: odd exibida em `Simples de X.XX`.
+- **Resultado:** `Ganhou` → W · `Perdeu` → L · `Aberto` → IGNORAR.
+- **Goldens confirmados:** W Múltipla (4842688 · Tunisia v Japão, 7,60) · L Player Props (4841836 · Vozinha Defesas, 2,20) · W Múltipla (4769545 · Tunisia v Japão, 4,20) · L Múltipla (4770248 · Alemanha v Costa do Marfim, 3,50) · L Múltipla multi-player (4680704 · Brasil v Haiti, 4,50).
+- **Pendências:** §5 V/HW/HL · §6 boost individual · §7 cashout · §8 bônus.
+- **`app/main.py`:** `"LOTTU": "Lottu"` adicionado ao `_CASA_DISPLAY` (entre KINGPANDA e PINNACLE).
+- **`app/static/index.html`:** `LOTTU: 'Lottu'` adicionado a `NOMES`; `Lottu: 'lottu.bet.br'` adicionado a `DOMINIOS`.
+- Backup: `Backups/pre_lottu_2026-06-21/`. Commit: `32d40d0`.
+
+**Sessão 40 (21/06/2026) — Fix MASTER_ESPORTES: tenistas ITF classificados como Dardos:**
+
+- **Bug:** 8 confrontos de Tênis (Bet365, ML) extraídos como Dardos. Causa: o modelo não reconhece jogadores de nicho do circuito ITF (M25/Juniors/WTA feminino de baixo escalão) e chutava Dardos por similaridade estrutural de mercado ML.
+- **Fix 1 — regra de desempate:** `MASTER_ESPORTES §Regra Crítica — Dardos vs Tênis` — novo bloco: atleta não identificado em ML/H2H sem sinal positivo de Dardos (`legs`, `PDC`, `BDO`, `MODUS`, etc.) → padrão **Tênis**, nunca Dardos. Nunca usar Dardos como desempate.
+- **Fix 2 — referências ampliadas:** 12 tenistas masculinos ITF adicionados (Jan Kluczynski, Zian Vanderstappen, Felix Romeo, Lucien Forrestier, Dennis Andre Dutine, Yoav Versloot, Nand Vandepoele, Melvin Vix, Maximo Nagele, Jorge Alonso-Cortes, Juan Bautista Otegui, Joao Victor Couto Loureiro).
+- **Fix 3 — referências femininas:** 4 tenistas adicionadas (Monika Ekstrand, Alina Shcherbinina, Andrea Palazon Lacasa, Min Liu).
+- **Fix 4 — desambiguação:** nota "Min Liu (tênis de quadra, chinesa) ≠ Ming Liu (tênis de mesa)" adicionada à lista WTA/ITF.
+- Backup: `Backups/MASTER_ESPORTES_2026_pre_regra_desempate_tenis.md`. Commit: `347fddd`.
+
+**Sessão 39 (21/06/2026) — Nova casa: Betnacional:**
+
+- **`casas/CASA_BETNACIONAL.md` criada** — 15 seções, 7 goldens reais (20/06/2026).
+- **Modo de ingestão:** texto colado — aba "Histórico de apostas" com filtro **"Liquidadas"** aplicado antes de copiar (primário). Screenshot da aba "Apostas" (últimas 24h) como fallback.
+- **ID:** sem ID impresso → dedup por **Código sintético** = `BN-DD/MM/AAAA-HH:MM-<odd exibida>` a partir do horário de colocação (estável entre reprocessamentos). _Atualizado na sessão 46 — antes era assinatura de conteúdo, que duplicava._
+- **Data:** campo `DD/MM/AAAA, às HH:MM` no Histórico = data do evento/liquidação → coluna `Data` usa DD/MM/AAAA; o **horário** vai para o Código (não descartar por completo).
+- **Resultado:** `Retorno = 0 → L` · `Retorno = Aposta → V` · `Retorno > Aposta → W`.
+- **Odd para W:** `Retorno ÷ Aposta` (confirmado em todos os 7 goldens). Para L/V: Odd exibida no campo `Odd` (ponto decimal → vírgula).
+- **Confronto:** separador `x` (ex.: "Holanda x Suécia") → normalizar para `[Time A v Time B]`. Abreviações expandidas: HOL→Holanda · SUE→Suécia · Ale→Alemanha · CdM→Costa do Marfim.
+- **Promoções:** "Super Odds" e "Turbinaço CazéTV" = rótulos de promoção; ignorar para classificação de categoria.
+- **Confronto ausente (Layout A):** algumas apostas Turbinaço não incluem confronto no Histórico → AI infere do contexto; documentado como pegadinha.
+- **Goldens confirmados:** V·ML (D S Stricker/A Hunziker) · L·Múltipla (3 condições Holanda×Suécia) · W·Player Props (Cody Gakpo) · W·Cartões (Tunísia×Japão) · W·Ambas Marcam 2ºT (Holanda×Suécia) · L·Player Props (Kai Havertz) · W·Player Props (Vozinha).
+- **`app/main.py`:** `"BETNACIONAL": "Betnacional"` adicionado a `_CASA_DISPLAY` (ordem alfabética, entre BETFAIR e BOLSADEAPOSTA).
+- **`app/static/index.html`:** `BETNACIONAL: 'Betnacional'` adicionado a `NOMES`; `Betnacional: 'betnacional.bet.br'` adicionado a `DOMINIOS`.
+- Backup: `Backups/pre_betnacional_2026-06-21/`. Commit: `c05ef80`.
+
+**Sessão 38 (21/06/2026) — Fix UI: copiar/baixar pendentes arquivados:**
+
+- **`app/static/index.html`:** botoes "Copiar pendentes" e "Baixar .tsv" removeram filtro `!b.archived`. Agora incluem apostas arquivadas pendentes quando a visao de arquivados esta ativa. Aviso amarelo exibido quando ha arquivados mas a visao esta desligada. Commits: `0d22f0e`, `fb71076`.
+
+**Sessão 39 (21/06/2026, continuacao) — Docs Dardos ML:**
+
+- **`casas/CASA_SUPERBET.md`:** §9 nota explicita — nome de jogador em esporte individual (Dardos, Tenis) = `ML`, nunca `Outras`. §13 pegadinha equivalente. §15 golden #8 `Alec Small [Joe Croft v Alec Small]` (Dardos ML L). Commit: `8433259`.
+- **`global/MASTER_ESPORTES_2026.md`:** `Joe Croft` e `Alec Small` adicionados a lista de referências auxiliares de Dardos (secao MODUS/outros circuitos). Commit: `2291149`.
+
+**Sessão 40 (21/06/2026) — Fix: cadastro de parceiro Bolsa de Aposta:**
+
+- **Bug:** ao criar parceiro com casa "Bolsa de Aposta", o app retornava "Casa desconhecida: Bolsa de Aposta".
+- **Causa raiz:** `body.casa.upper()` convertia `"Bolsa de Aposta"` → `"BOLSA DE APOSTA"`, e o sistema buscava `CASA_BOLSA DE APOSTA.md` (inexistente). O arquivo correto e `CASA_BOLSADEAPOSTA.md`.
+- **Fix:** `app/main.py` — funcao `_display_to_key()` adicionada. Faz reverse lookup no `_CASA_DISPLAY` antes de usar fallback `upper().replace(' ','')`. Corrigidos os 3 pontos: `/extrair`, `/salvar` e `/parceiros` (POST).
+- Backup: `Backups/pre_bolsadeaposta_fix_2026-06-21/`. Commit: `6636106`.
+
+**Sessão 42 (22/06/2026) — Fix lentidão da Betano (auditoria independente):**
+
+- **Sintoma:** Betano era a única casa lenta — extração de TEXTO de 30-50 bets levava 8-12 min (475s medidos em produção, print do usuário), enquanto Bet365 (15 imgs), Pinnacle (XLS) e Betfair (texto+CSV) eram rápidas.
+- **Causa raiz (provada com teste local):** `_build_chunks` (`app/main.py`), para texto puro, dividia por linha em branco (`split("\n\n")`). O colar da Betano vem **grudado** (sem linha em branco entre bilhetes) → caía em **1 bloco → 1 chunk → chamada 100% sequencial** com ~90 bilhetes. Era a única casa de alto volume sem separador de bilhete reconhecido pelo chunker (Pinnacle usa `=== Aposta ID`, Bet365 usa 1 chunk/imagem).
+- **Fix 1 — split por bilhete:** `_build_chunks` recebe `casa_key`; para Betano divide na linha-tipo (`Simples`/`Dupla`/`Tripla`/`N-seleções`) via `_BETANO_SPLIT_RE` — a fronteira real do bilhete (análogo ao `=== Aposta ID` da Pinnacle). ~90 bilhetes → 4 chunks equilibrados → paralelismo 4× real.
+- **Fix 2 — pré-dedup por ID:** `_dedup_betano_text` + `repository.get_codigos_resolvidos()` descartam, antes do modelo, bilhetes já **liquidados** no banco (`extraction_state='resolvida'`) + duplicatas de scroll dentro do colar. Mantém os salvos como `aberta` (transição aberta→liquidada ainda processa). No caso real: 90 lidos → 37 novos, corta >50% do trabalho.
+- **Validação:** teste local lado a lado confirmou — colar grudado: split atual = 1 chunk (sequencial); split novo = N blocos → chunks equilibrados, IDs detectados. Sintaxe OK (`py_compile`).
+- Backup: `Backups/betano_chunker_dedup_2026-06-22/`. Commit: `34b7cf1`.
+- ⚠️ **Nota de histórico:** a edição de `app/main.py` da tarefa Over/Under abaixo ("instrução layout horizontal") foi feita em paralelo e pegou carona neste commit `34b7cf1` (não no `abf8860`). Conteúdo correto; só a atribuição git ficou junta.
+
+**Sessão 42 (22/06/2026) — Fix Over/Under em golden sets + instrução layout horizontal:**
+
+- **Auditoria Over/Under:** varredura em todos os `casas/CASA_*.md`. Regra do `MASTER_DESCRICAO §11` é absoluta: "Mais de"/"Menos de" são inputs, nunca output válido. 4 ocorrências corrigidas:
+  - `CASA_KINGPANDA.md §15 G3`: `Mais de 2,5 [Total de Gols...]` → `Over 2,5 [Total de Gols...]`.
+  - `CASA_KINGPANDA.md §15 G7`: `Mais de 9,5 [Escanteios]` → `Over 9,5 [Escanteios]`.
+  - `CASA_LOTTU.md §15 G1`: `Mais de 4,5 Escanteios` → `Over 4,5 Escanteios`.
+  - `CASA_LOTTU.md §15 G2`: `Mais de 3,5 Defesas do Goleiro` → `Over 3,5 Defesas do Goleiro`.
+  - As outras 7 casas (Bet365, Betano, Betfair, Betnacional, Bolsa de Aposta, Pinnacle, Superbet) estão corretas.
+- **Fix instrução de extração (`app/main.py`):** regra 2 de "LEITURA DAS IMAGENS" reescrita — agora explica que bilhetes podem estar lado a lado (horizontal) e instrui o modelo a CONTAR todos os bilhetes visíveis antes de extrair. Corrige caso de terceiro bilhete não detectado quando layout é horizontal (3 tickets side-by-side).
+- **Auditoria de referências globais nas casas:** todas as casas verificadas quanto ao cabeçalho de autoridades e à regra Over/Under. Princípio arquitetural reforçado: arquivos de casa traduzem especificidades da casa; regras universais ficam nos masters globais e as casas **referenciam**, não redefinem.
+  - `CASA_LOTTU.md`: cabeçalho sem lista de autoridades globais → adicionado bloco `Autoridades globais: MASTER_OUTPUT_2026, ...` (padrão de todas as casas). Também adicionada referência a `MASTER_DESCRICAO_2026 §11` para conversão `Mais de → Over`.
+  - `CASA_BETFAIR.md §10`: sem regra Over/Under → adicionada referência a `MASTER_DESCRICAO_2026 §11` (inclui variante `N ou mais X` da Betfair).
+  - `CASA_BETNACIONAL.md §10`: sem regra Over/Under → adicionada referência a `MASTER_DESCRICAO_2026 §11`.
+  - `CASA_BOLSADEAPOSTA.md §9`: cobria apenas `Over X Goals` → generalizado para qualquer mercado + referência a `MASTER_DESCRICAO_2026 §11`.
+  - Casas corretas (sem alteração): Bet365, Betano, KingPanda, Pinnacle, Superbet.
+- Backups: `CASA_KINGPANDA_pre_over_under_*.md`, `CASA_LOTTU_pre_over_under_*.md`, `main_pre_instrucao_layout_horizontal_*.py`, `CASA_LOTTU_pre_refs_globais_*.md`, `CASA_BETFAIR_pre_refs_globais_*.md`, `CASA_BETNACIONAL_pre_refs_globais_*.md`, `CASA_BOLSADEAPOSTA_pre_refs_globais_*.md`.
+
+**Sessão 43 (22/06/2026) — Nova casa: Jogo de Ouro:**
+
+- **`casas/CASA_JOGODEOURO.md` criada** — 15 seções, 2 goldens reais (22/06/2026).
+- **Modo de ingestão:** screenshot (primário — cards em grid de duas colunas); texto colado como fallback (aguarda confirmação). Abas de filtro `Aberto · Processado · Ganhou · Perdida · Cashout` — extrair só os resolvidos, ignorar `Aberto`.
+- **Formato numérico en-US:** dinheiro e odds com **ponto** decimal (`R$30.00`, `3.50`) → converter para vírgula.
+- **ID:** visível, numérico ~10 dígitos (ex.: `5093265488`), na linha do `ID:` (rodapé do card).
+- **Boost:** sim — formato `[orig] >> [final]` + badge verde `ODDS DE OURO`. `Cotações totais` = odd final (boosted). W: `Ganho total ÷ Stake`. L: `Cotações totais` direto.
+- **Criar Aposta (badge `CA`)** = Bet Builder intra-jogo → `Múltipla`.
+- **Status:** `GANHOU / VENCIDO` (header verde) → W · `PERDIDO` (header vermelho) → L · `Aberto` → IGNORAR.
+- **Data:** duas ocorrências `DD/MM • HH:MM` — evento (acima de `Cotações totais`, usar) vs colocação (linha do `ID:`, ignorar). Ano inferido de `data_referencia`.
+- **`Ganho total`:** retorno bruto (só em W); vazio em L. Stake = `Valor total de aposta`.
+- **Mapa §9 confirmado:** `Vencedor do encontro`→ML · `Total de gols`→Gols · `Total de escanteios` / `1º tempo - total de escanteios`→Escanteios · `Criar Aposta` (badge `CA`)→Múltipla. Demais 23 categorias aguardam amostra.
+- **Goldens confirmados:** L·Gols (`5093260948` · Noruega v Senegal · Under 3,5 · 1,70) · W·Múltipla Criar Aposta (`5093265488` · Noruega v Senegal · ML+Escanteios 1ºT · 3,50).
+- **Pendências:** §5 V/HW/HL · §5 rótulo do card na aba Cashout · §7 cashout (valor recebido) · §8 bônus.
+- **`app/main.py`:** `"JOGODEOURO": "Jogo de Ouro"` adicionado ao `_CASA_DISPLAY` (entre BOLSADEAPOSTA e KINGPANDA).
+- **`app/static/index.html`:** `JOGODEOURO: 'Jogo de Ouro'` adicionado a `NOMES`; `'Jogo de Ouro': 'jogodeouro.bet.br'` adicionado a `DOMINIOS`.
+- Backup: `Backups/pre_jogodeouro_2026-06-22/`. Commit: (este).
