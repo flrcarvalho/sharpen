@@ -6,17 +6,73 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
-_Atualizado: 2026-09-06 (sessao 328 - **a Pinnacle chama o PUSH de "DRAW", e o rotulo desconhecido virava pendente eterno.** O bilhete `3117191609` (Aguila 0.0 no 1o tempo contra o Alianza, 1:1 no intervalo, R$ 408) liquidou como REEMBOLSADO na casa e ficou com "?" na grade. A tela mostra "Decidido / REEMBOLSADO" e `Vitoria/derrota 0.00`, mas o rotulo CRU que a API devolve e `DRAW` - que nao estava no de-para do `formatTicketPN`. O bloco saia `Status: DRAW (a conferir - nao liquidar automaticamente)`, **a IA obedeceu a instrucao** (e ainda registrou no RAIO-X que o P/L 0,00 indicava reembolso, sem poder agir) e o backend gravou `aberta`. Nao foi a IA errando: foi a extensao mandando nao liquidar. Duas travas, e a segunda e a que importa: `DRAW`/`TIE` entraram no de-para, e **por baixo dele** ficou a rede do DINHEIRO - resolvido + rotulo desconhecido + P/L exatamente 0 => retorno = stake => V, pelas cinco formulas de `_veredito_do_retorno` lidas ao contrario. Fecha a familia inteira: o proximo nome que a casa inventar para push ja nasce coberto. Com P/L != 0 o rotulo desconhecido continua indo para a IA como "a conferir" - inferir W/L de um nome que ninguem conhece e chute. Provado por mutacao: tirar `DRAW` PEGOU, tirar a rede PEGOU, e as duas juntas reproduzem o bug palavra por palavra. Uma 3a mutacao ESCAPOU e esta anotada no caso como inocua - o `!t.aberta` dentro do `plZero` e defesa dupla, quem decide a aberta e o `if (t.aberta)` de cima. SharpenUp 0.7.7; a linha presa fecha sozinha na proxima captura, sem script no banco.)
+
+_Atualizado: 2026-09-07 (sessao 329 — **a faxina de documentacao achou 14 regras que governavam o comportamento e nao estavam escritas.** Esse e o resultado, nao os KB. Quatro arquivos disputavam o papel de "onde o projeto esta" e tres descreviam o projeto de julho; a varredura da s261 ja tinha medido o custo disso ("a primeira pendencia que eu fui atacar ja estava feita desde 26/07"). Cinco lotes fechados. **F** — nasce o `BACKLOG.md` (70 KB), que absorve o §5 do STATUS VERBATIM: as 192 linhas nao-vazias conferidas uma a uma, zero perdida, com contraprova por canario. **B** — STATUS de 183 para 44 KB; as 1.157 linhas de antes reprocuradas uma a uma (483 ficaram, 491 foram para o HISTORICO, 183 para o BACKLOG, ZERO perdidas). **C** — HISTORICO de 1,21 MB vira indice de 3 KB + 6 particoes, com as 1.445 linhas conferidas. **D** — 16 docs + 11 anexos para `docs/arquivo/`, `docs/` cai de 43 para 27 vivos, 20 links consertados. **E** — CLAUDE.md de 68,3 para 62,7 KB e nasce o `docs/CASOS.md` (22,9 KB), que NAO e auto-carregado: a regra fica no CLAUDE, o bilhete/casa/valor/sessao vai para o CASOS. **O gate final de regras deu ZERO perdidas**: das 434 ancoras verificaveis, 384 seguem no CLAUDE e 57 migraram para o CASOS; dos 50 numeros que decidem comportamento, 36 ficaram e 11 migraram. 255 regras contadas item a item em 12 secoes. **E 14 regras foram ACRESCENTADAS** — o `git add` por nome, os tres 'os tetos travam crescimento', o trio de causas da Escada de Tinta, a inversao de hierarquia, o 'node --check e falso verde para tudo em template literal', e mais 7. Elas ja governavam o comportamento; so nao estavam escritas como regra. **Gate novo:** `tools/check_docs.py`, no CI, com 7 checagens todas provadas por mutacao — tetos de CLAUDE (65 KB), CASOS (60) e STATUS (50), forma do STATUS (<=3 blocos, <=2 _Anterior), copia em Backups por PREFIXO, link quebrado e ANCORA. Regra sem gate nao e cumprida neste repo: o invariante #4 estava escrito e claro, e Backups chegou a 551 pastas com 165 copias de STATUS/HISTORICO. **Reconciliacao da Auditoria Turbo:** os 78 achados MEDIO/BAIXO do mergulho de 20/07 NAO EXISTEM por escrito (o doc enumera 16 e o rodape diz "Deliverables uncommitted"); reconciliei os 139 do findings.json de 19/07 — 40 fechados, 68 abertos, 20 a confirmar na tela, 3 parciais e 3 que nao eram achado, um deles um placeholder de teste. **#129 medido e rebaixado:** a odd nao entra no calcular_pl em L/V e o risco de dedup deu ZERO de extracao em 528 multiplas sem codigo expostas; virou divida de documentacao. **Lote A ABERTO** — podar Backups (223 arquivos, 28,7 MB), com o zip para fora do repo ANTES de qualquer coisa apagada.)
 
 _Anterior: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
 
 _Anterior: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
 
-> **Histórico completo das sessões 324 → 14** → [`docs/HISTORICO.md`](docs/HISTORICO.md)
+> **Histórico completo das sessões 325 → 14** → [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
 ---
 
-## Onde parei (fim da sessão 328)
+## Onde parei (fim da sessão 329)
+
+### A faxina fechou em F, B, C, D, E. O Lote A ficou aberto, de propósito.
+
+O que mudou de forma, e o custo de abrir uma sessão:
+
+| Arquivo | Antes | Depois |
+|---|---:|---:|
+| `CLAUDE.md` (auto-carregado) | 68,3 KB | **62,7 KB** |
+| `STATUS.md` | 187,6 KB | **~39 KB** |
+| `docs/HISTORICO.md` | 1,21 MB | **3,0 KB** (índice + 6 partições) |
+| `BACKLOG.md` | não existia | **70 KB** |
+| `docs/CASOS.md` | não existia | **22,9 KB** (lido por escolha) |
+
+**O resultado não é o corte de bytes — é que 14 regras que já governavam o comportamento
+passaram a estar escritas.** Elas não vieram de análise nova: vieram de ler cada parágrafo
+perguntando *"um agente que leia só isto faz a coisa certa?"*. As mais úteis: o `git add`
+por nome (prática combinada, nunca escrita), os três "os tetos travam crescimento, não
+mandam cortar", o trio de causas da Escada de Tinta e a inversão de hierarquia (as duas
+narradas dentro de um caso), e o `node --check` ser falso verde para **tudo** que vive em
+template literal (era o exemplo de uma crase).
+
+**Nenhuma regra se perdeu**, e isso foi medido, não afirmado: das 434 âncoras verificáveis
+do `CLAUDE.md`, 384 seguem lá e 57 migraram para o `docs/CASOS.md` — zero sumiram. O gate
+automático achou **uma perda real** que a conferência manual não veria: uma âncora partida
+por quebra de linha no `CASOS.md`.
+
+### O que fica valendo daqui em diante
+
+- **Um arquivo, uma pergunta** (invariante #10). Pendência nova vai para o `BACKLOG.md`,
+  nunca para o `STATUS.md`; caso que originou regra vai para o `docs/CASOS.md`.
+- **`python tools/check_docs.py`** roda no CI, com 7 checagens **todas provadas por
+  mutação**. Ele declara no cabeçalho o que **não** cobre — não lê conteúdo, e a checagem
+  de `Backups/` sai como AVISO no CI, nunca como verde vazio.
+- **Os tetos travam crescimento; não mandam cortar.** Ao encostar num deles, mova caso ou
+  sessão. Nunca corte bloco de "sintoma", nunca suba o teto.
+
+### Este encerramento exerceu o `BACKLOG §1.3` pela primeira vez
+
+O `STATUS.md` estava em 48,2 KB, a 1,8 KB do teto. O bloco desta sessão o estouraria. A
+saída foi a que a regra manda: **mover o bloco mais antigo** (`Sessão 325`, 14,5 KB) para
+`docs/historico/HISTORICO_s300-s327.md` **antes** de escrever o novo — não subir o teto.
+
+### Ainda aberto
+
+- **Lote A da faxina.** Podar `Backups/`: 223 arquivos `STATUS*`/`HISTORICO*`, 28,7 MB, num
+  total de 551 pastas / 128 MB. Corte em **s ≥ 300**, e para as 396 pastas sem prefixo
+  `sNNN` a mesma data de corte. ⚠️ **`Backups/` é gitignored — apagar é IRREVERSÍVEL.**
+  Zipar a pasta inteira para **fora do repo** e confirmar que o zip abre **antes** de
+  apagar qualquer coisa.
+- **O resto está no [`BACKLOG.md`](BACKLOG.md)**, agora em um lugar só.
+
+---
+
+## Sessão 328 — a Pinnacle chama o push de `DRAW`
+
 
 ### A Pinnacle chama o push de `DRAW` — e o rótulo desconhecido virava pendente eterno
 
@@ -94,6 +150,7 @@ com o congelamento do UPSERT no caminho (linha já resolvida não reescreve `apo
 `descricao`), e merece sessão própria.
 
 ---
+
 
 ## Sessão 327 — a Caixa ligada no meio da captura
 
@@ -290,278 +347,6 @@ duas vezes. Suíte: **724 passed, 26 skipped**.
 
 ---
 
-## Sessão 325 — 8º tipster público: `Grego Tips - VIP`
-
-> **Parte 2 (07/09): o tenant do bot entrou em produção.** O que está escrito
-> abaixo é o import; o resto da sessão está resumido aqui e mora no
-> `sharpen-bot` (commits `5cd8c6b`, `eb1bca4`, `d283ed8`, `36b29ce`).
-
-### O 8º tenant do bot, no ar
-
-`src/perfis/grego.js` forkado do `sohprops`, bloco `GV_*`, linha no registro
-`PERFIS` (a que faltando derruba TODOS em crash-loop, s316). Boot com **7
-tenants**, suíte verde, **12 mutações aplicadas e 10 pegas** — as 2 inócuas
-estão escritas no teste.
-
-Cinco diferenças do irmão, todas medidas no export do canal: a stake é `%` e
-**não abre a linha** (1.043 de 1.305 no meio/fim — ancorar em `^` perderia 80%
-das apostas), o que obrigou a reconhecer a linha por CONTER stake e a criar
-guardas, porque o `%` tem outros três papéis (`2.02 + 25% = 2,27@`, `só vale com
-25% odd final`, `ROI: 15.28%`); `⌛` = aberta; casa por **apelido** (`mgm`,
-`365`, `Super`, `Betan` devolvem null no `casas.js`); **34% das legendas cegas**;
-e `Quadra`.
-
-### O bloqueio não era código: era o bot ser MEMBRO do grupo
-
-`getMe` diz `can_read_all_group_messages: false` — privacy mode ligado. Bot com
-privacy, como membro comum, **recebe só comandos**: as mensagens com print não
-chegam, e o tenant nasceria **surdo, sem erro nenhum**. Medido, não deduzido: os
-6 apoios que funcionam têm o bot como `administrator`; o do Grego era o único
-fora do padrão. Promovido, o log provou a virada
-(`[apoio:grego] msg — foto=false texto=false`).
-
-### A coluna `Tipster` passou a sair por AUTOR
-
-O canal tem DOIS admins, e o **Sign messages** está ligado: cada post carrega
-quem escreveu (`grego` 958 · `ricklxrd` 110). Isso tornou a atribuição do atraso
-**determinística** — 148 `Grego` e 48 `Rick`, sem heurística.
-
-Daqui pra frente quem resolve é o núcleo, por `msg.from.id` → `XX_TIPSTER_NOMES`
-(genérico; vazio = comportamento de sempre; **inerte em canal**, onde não existe
-`msg.from`). Autor fora do mapa cai na marca **com aviso dizendo o id**. Os dois
-ids foram provados contra o grupo por `getChatMember`, e o `first_name` de cada
-um é **exatamente a assinatura do canal** — a mesma pessoa chega pelo mesmo nome
-pelos dois caminhos, e por isso as duas metades da coluna se somam.
-
-**As 956 do tracker ficam sob a marca**, e é decisão com número atrás: o join
-por (título, stake, data) fecha em **704 de 956 (73,6%), zero ambíguas**. Um
-quarto sem autor faria um ROI "por admin" **parecer completo sem ser**.
-
-### Dois defeitos que apareceram no uso
-
-- **`/anular` dizia "3 apostas removidas" tendo removido 0.** O aviso repetia
-  `ids.length` — o que foi MANDADO — e ignorava `resp.deletados`. Mesma família
-  do `rejeitados` do `/salvar`: contagem devolvida pela API é dado, não enfeite.
-  Hoje acusa (`removeu 0 de 3`), e resposta sem número vira `?`, nunca `0`.
-- **Modo de teste desvia o POST, não o planilhamento.** Os dois bilhetes de
-  teste entraram na base de verdade. Só não sobrescreveram o histórico porque o
-  bot põe sufixo `-S<n>` quando há N apostas: `GV202609-1-S1` ≠ `GV202609-1`.
-  **Teste de UMA aposta só, na mesma casa, teria batido a assinatura** — é a
-  colisão que o `/contador` existe para evitar, e ela quase aconteceu.
-
-### O post, como o tipster pediu
-
-`🧠 <Nome>` na última linha, depois do total — o cabeçalho só diz a marca, igual
-para os dois. É o **mesmo valor** que vai para a coluna `Tipster`: o núcleo
-resolve uma vez e entrega nos dois caminhos, então canal e planilha não podem
-divergir sobre de quem é a aposta. Autor desconhecido não imprime linha nenhuma
-— repetir a marca ali seria fingir resposta.
-
-E o **P/L saiu de `u` para `%`**, a régua que eles usam. Derivado do `plFmt`
-compartilhado, não copiado: o sinal continua sendo **U+2212**, e a mutação que
-copia o formatador perde exatamente isso.
-
-### Estado final
-
-    base gregozxrd   1.152 · Grego Tips - VIP 956 · Grego 148 · Rick 48
-    série            GV202609-228 · contador 228 → próximo #229
-    bot              publicando no canal (GV_MODO_TESTE=0), 2 autores mapeados
-
-### 8º tipster público — `Grego Tips - VIP`
-
-Conta `gregozxrd` (alyssongrego587@gmail.com) aprovada no `/admin` e **956 apostas
-importadas** (`scripts/import_grego_csv.py`), 01/08 → 01/09/2026, stake em
-unidades, 12 contas `Padrão` — uma por casa.
-
-| | |
-|---|---|
-| Slug / marca | `/tipsters/gregotipsvip` · `Grego Tips - VIP` (o username diverge pela 5ª vez) |
-| Códigos | `GV202608-1` … `GV202609-32` |
-| Carteira | prop de jogador de futebol: Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25 |
-| Resultado | L 675 · W 267 · **V 14** (`Reembolsada` → void, `Ganho` e `Lucro` zerados) |
-| Total | 1.008,48u de turnover · **+132,79u** · ROI **+13,17%** |
-
-### O gate mais forte não veio da planilha — veio do canal
-
-Ele publicou o fechamento de agosto no grupo em 01/09: **924 apostas, P/L
-+127,84u, ROI 13,02%**. O import, lendo só o CSV, deriva **924 apostas, +127,73u,
-13,00%**. A diferença de 0,11u é o arredondamento a centavo da coluna `Ganho`,
-acumulado em 267 vitórias — o derivado usa a odd inteira.
-
-Isso é diferente da reconciliação interna (que também fecha: **0 divergências em
-956** entre P/L derivado e a coluna `Lucro`). O número do canal saiu da boca do
-dono **antes de existir import**: ele não pode estar errado pelo mesmo motivo que
-a planilha estaria.
-
-### As 6 linhas sem casa foram MEDIDAS, não decididas
-
-O Rogerin resolveu isso com uma decisão do Feca (126 linhas → Betano). Aqui a
-resposta estava no export do Telegram, nas mensagens do próprio dia:
-
-    Nesta Elphege chutes 3+/4+/5+   01/09  → Bet365   (msg 938)
-    Forson +2 Chutes / +3 Chutes    01/09  → Bet365   (msg 940)
-    Summerville Ast                 01/09  → Betano   (msg 942)
-
-O mapa é fechado e casado por (data, título): linha sem casa fora dele **aborta o
-script**. Casa chutada não dá erro — dá conta paralela.
-
-### Três leituras de categoria que não eram óbvias
-
-- **`<Nome> +2 Gols` é `Anytime`, não `Gols`.** O `MASTER_APOSTAS §3` põe
-  "marcar 2 ou mais gols (marcador 2+)" na família Anytime, e o limiar vai na
-  descrição. As odds confirmam (11,0 a 81,0 — total de jogo não paga isso), e o
-  canal mostra a escada: `Tresoldi Anytime 1.50%` + `Tresoldi +2 Gols 0.50%`,
-  mesmo jogador. `Gols` ficou com o que é do JOGO: gol em ambos os tempos,
-  próximo gol, linha decimal.
-- **`25%` / `50%` no título é odd TURBINADA, não mercado** (24 linhas). Ele
-  escreve a conta no canal: `2.02 + 25% = 2,27@`. Mesma família do `aumentada`
-  do Rogerin e do `SuperMúltipla` da Estrela Bet.
-- **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla"
-  (`Priske e Tolaj` @24,96). Com 3 pernas declaradas o esporte vira `Múltiplos`.
-
-### O `%` tem DOIS papéis na mesma fonte — e o segundo é a stake vazando
-
-`Cuevas Christian Chutes +2 0.50%` não é bet builder: o `0.50%` é a **stake**
-(u=0,50) escrita dentro do título. Lido como turbinada, ele transformava duas
-apostas de `Chutes` em `Múltipla`. O mesmo vale para `- 1.50` no fim de
-`Forson +2 Chutes - 1.50`, que viraria **handicap** (nesta fonte é o SINAL que
-declara handicap).
-
-A limpeza só corta o sufixo **quando o número é exatamente a stake da linha**, e
-é essa condição que mantém `cruzeiro -1` (stake 2,50, handicap de verdade)
-intocado. A categoria lê o texto já limpo — senão o mesmo caractere decide duas
-coisas contraditórias.
-
-### Prefixo `GV`, conferido contra a coluna INTEIRA
-
-`GR` (233), `GT` (35), `GG` (8), `GX` (35) e `GP` (34) estão todos ocupados por
-**código NATIVO da bet365** (`GR3383912251I`) — duas letras mais dígitos, que um
-regex ancorado em `XX<aaaamm>-<n>` **não enxerga** (regra da s316). `GV` é o
-único par com G livre: 0 linhas.
-
-⚠️ **Ele vai usar o bot** (canal `-1003928624343`, apoio `-5577016989`). No dia em
-que o bot entrar, suba o contador (`/contador N`) para além de **`GV202609-32`**
-antes da primeira aposta — planilha e bot escrevem na MESMA série.
-
-### Anotado, não resolvido
-
-- **18 linhas `Nome N+` sem mercado** (`Julio Enciso 3+`, `Sebastian 2+`): nem o
-  canal diz qual é. Vão para `Player Props` — a gaveta do §3 —, nunca para o
-  total do esporte, que inventaria um objeto que ninguém escreveu.
-- **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon
-  (`data.js` tem `CASA_ICONS` **e** `HOUSE_DOMAIN`), com o domínio **medido** no
-  link do canal (`betsson.bet.br`), não deduzido do nome.
-
-### `SOA` era `score or assist` — a inferência razoável estava errada
-
-Perguntado, respondido no mesmo dia: **`SOA` = "marcar OU assistir"**, não chute
-no gol. As 5 linhas foram para `Player Props`, junto com o `G/A` do mesmo arquivo
-— é o mesmo mercado escrito de dois jeitos, o §3 não tem categoria para ele, e
-escolher `Anytime` ou `Assistência` sozinhas jogaria metade do mercado fora.
-Base reimportada (o script é idempotente por `origem='import'`): 956 linhas, a
-reconciliação segue em **0 divergências**.
-
-A inferência era razoável e ainda assim falhou: `SOA` e `SOT` aparecem na MESMA
-escada e os dois pareados com `Anytime` (`Kvam SOA 2.00%` + `Kvam Anytime
-1.00%`), o que fazia um parecer variação do outro. **Vizinhança tipográfica não é
-significado.** Sigla que não aparece por extenso em lugar nenhum da fonte só se
-resolve perguntando ao dono — e o que fez a pergunta acontecer foi ela estar
-marcada como inferência declarada no relatório, em vez de passar como fato.
-
-### O atraso do canal: 196 apostas que nunca chegaram ao tracker
-
-Ele parou de planilhar na msg **969** (01/09 22:04) — a fronteira veio do Feca e
-confere: nenhum bilhete de lá em diante aparece no CSV, que termina no lote de
-01/09 23:28–23:35. Do 969 até a última mensagem do export (1110, 06/09 15:51) são
-**79 mensagens de aposta e 196 linhas**, agora em `GV202609-33 … GV202609-228`
-(`scripts/import_grego_canal_s325.py`). Base do dono: **1.152 bilhetes**, 83 em
-aberto — o que não tinha marca entra sem resultado e ele completa à mão.
-
-**A fonte aqui não é planilha nenhuma: são os 79 PRINTS.** A legenda dá stake e
-marca; o print dá odd, seleção e confronto. E o print carrega mais do que a
-legenda: **67 das 196 linhas (34%) têm legenda CEGA** (`1.50%`, sem nome) — sem a
-imagem elas não existiriam.
-
-### O pareamento stake ↔ seleção tem três conferências, e todas foram usadas
-
-É onde esse tipo de trabalho erra em silêncio: legenda fora de ordem põe o valor
-certo na aposta errada **sem o total mudar**.
-
-1. **A caixa de valor do print traz o R$ igual ao `%` da legenda.** Na msg 990 o
-   print mostra R$ 2,00 / 0,50 / 0,50 / 0,25 e a legenda diz `2.00% / 0.50% /
-   0.50% / 0.25%`. Pareamento vira conferência, não suposição.
-2. **A escada de odd** — limiar maior, odd maior, stake menor.
-3. **O nome, quando a legenda o traz, MANDA sobre a posição.** Na msg 986 a
-   legenda está fora de ordem (`+2`, `+4`, `+3`) e o print em ordem: quem pareia
-   por posição erra duas das três.
-
-Para a combinada, o produto das pernas confere a odd do cupom — msg 1085 dá
-`1.95 × 1.98 × 2.50 = 9.65` exato. No `Criar Aposta` da Betano o produto fica
-ACIMA do pago (a casa corta a combinação do mesmo jogo): ali vale o print.
-
-### O gate que não depende de eu ter lido certo
-
-As marcas foram contadas por regex sobre as 79 mensagens, **sem olhar print
-nenhum**: `❌ 73 · ✔️ 40 · ⌛ 15 · sem marca 68`. A leitura dos prints produziu
-**73 L, 40 W e 83 abertas (15 + 68)** — fecha nos três.
-
-Provado por mutação, **4 de 5**: trocar `W` por `L`, trocar `L` por aberta,
-remover uma linha e duplicar uma linha quebram o gate. **A 5ª escapou e está
-escrita no código:** trocar a *stake* de uma linha passa reto. O gate conta
-MARCAS e LINHAS, não confere valor — a conferência de stake é a do item 1 acima,
-feita a olho, e não é automatizável sem reler as 79 imagens.
-
-### Três coisas que só o print contou
-
-- **Bet builder disfarçado de simples.** A legenda diz `Tyreece chutes 2+`; o
-  print mostra `Criar Aposta @1.70 = 2+ Chutes + Over 0.5 Gols`. São 26 múltiplas
-  no lote, e várias chegam assim — nomeadas pela perna que interessa a ele.
-- **Cupom que a legenda NÃO menciona não entra.** Nas msgs 1046 e 1055 o print
-  mostra o construtor montado, mas a legenda declara duas SIMPLES com odd própria
-  (`1.25% @2,42❌ | 1.25% @1.95✔️`). São duas apostas, não um cupom.
-- **A odd do print vence a da legenda quando o dinheiro depende dela.** Msg 1062:
-  legenda `@3.5`, print `3.60` — e o print se prova sozinho (`R$4,50 ÷ R$1,25`).
-  É `W`, então a odd entra no P/L. Já na msg 1057 (legenda `@1.39` × print
-  `2.22`) o bilhete é `L` e a odd não muda nada: fica a da legenda, com a
-  divergência anotada.
-
-**Descrição no formato do MASTER** (decisão do Feca): `Entidade - Mercado
-[Confronto]`, com `v` no confronto e a conversão `Mais de 2.5 → Over 2.5`. **A
-forma da linha segue a CASA** (§10.1 × §10.2): Betano/MGM vendem discreto
-(`3+ Chutes`), bet365/Superbet vendem contínuo (`Over 2.5 Chutes`) — reescrever
-uma na outra seria inventar apresentação.
-
-⚠️ **`origem='extracao'`, e a idempotência é por FAIXA DE CÓDIGO.** Com
-`origem='import'` um reimport do tracker levaria estas 196 junto, em silêncio (o
-importador apaga por origem antes de reescrever). O `DELETE ... WHERE
-codigo_bilhete = ANY(...)` não depende de origem e não encosta no que o bot vier
-a escrever.
-
-### Os dois ids do Telegram, conferidos por `getChat`
-
-    canal oficial  -1003928624343  channel  'Grego Tips - VIP'  bot = administrator ✔
-    apoio          -5577016989     group    'sharpenbot'        bot = MEMBER
-
-O apoio **não migrou para supergrupo** (o id `-5…` responde, sem
-`migrate_to_chat_id`), então o tenant não nasce surdo — a armadilha da s316 não
-se aplica aqui.
-
-**Renomear o apoio para `Apoio - Grego` FALHOU** e não foi insistido:
-`setChatTitle` → `Bad Request: not enough rights to change chat title`. O bot é
-membro comum ali. Ou ele é promovido a admin com "alterar informações do grupo",
-ou o Feca renomeia na mão.
-
-### Pendência que não é desta sessão
-
-**O perfil do bot (8º tenant) NÃO foi feito** — o escopo desta sessão era só o
-import. O recon do canal já está medido: 1.074 mensagens, 31/07 → 06/09, 621 com
-print, formato irmão do Soh Props (1 linha por aposta, stake em `%`, marca
-`✅`/`✔️`/`❌`/`⌛` na própria linha, casa pelo NOME no rodapé, `⏰` com a hora do
-evento). Falta medir se ele EDITA a mensagem para marcar depois — é o que decide
-`legendaOpcional`/`recompoePorLegenda`.
-
----
-
 ## 1. O que estamos construindo
 
 A base de conhecimento (masters) do scanner de bets. Camada **global** (regra única, muda devagar) + camada **por casa** (traduz cada casa para a língua global). A saída final é **TSV**.
@@ -616,9 +401,16 @@ A base de conhecimento (masters) do scanner de bets. Camada **global** (regra ú
     CASA_VITORIABET.md
 /golden_set/
     bilhetes/              (print + TSV esperado)
-/docs/                   (referências, ADRs, planos, HISTORICO.md)
-STATUS.md                  (este arquivo)
+/docs/                   (guias, referências, ADRs, planos VIVOS — índice em docs/README.md)
+    CASOS.md               (os casos que originaram as regras do CLAUDE.md; não auto-carregado)
+    HISTORICO.md           (índice) → historico/  (6 partições por faixa de sessão)
+    arquivo/               (o que virou registro; índice em arquivo/README.md)
+CLAUDE.md                  (regras vinculantes)
+STATUS.md                  (este arquivo — estado atual + as 3 últimas sessões)
+BACKLOG.md                 (tudo que está aberto)
 ```
+
+**Um arquivo, uma pergunta** (invariante #10), com gate em `python tools/check_docs.py`.
 
 Os 6 MASTER_*.md vivem em `/global/`; as **28** casas em `/casas/` (Polymarket por API, as demais por IA/texto), mais o gabarito `CASA_MODELO.md`.
 

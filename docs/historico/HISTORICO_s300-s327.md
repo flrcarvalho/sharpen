@@ -13,6 +13,280 @@
 > Blocos movidos INTACTOS do `STATUS.md` (Lote B da faxina de documentação). O STATUS passou
 > a guardar só o estado atual e as 3 últimas sessões, como o ritual `/encerrar` já mandava.
 
+## Sessão 325 — 8º tipster público: `Grego Tips - VIP`
+
+> **Parte 2 (07/09): o tenant do bot entrou em produção.** O que está escrito
+> abaixo é o import; o resto da sessão está resumido aqui e mora no
+> `sharpen-bot` (commits `5cd8c6b`, `eb1bca4`, `d283ed8`, `36b29ce`).
+
+### O 8º tenant do bot, no ar
+
+`src/perfis/grego.js` forkado do `sohprops`, bloco `GV_*`, linha no registro
+`PERFIS` (a que faltando derruba TODOS em crash-loop, s316). Boot com **7
+tenants**, suíte verde, **12 mutações aplicadas e 10 pegas** — as 2 inócuas
+estão escritas no teste.
+
+Cinco diferenças do irmão, todas medidas no export do canal: a stake é `%` e
+**não abre a linha** (1.043 de 1.305 no meio/fim — ancorar em `^` perderia 80%
+das apostas), o que obrigou a reconhecer a linha por CONTER stake e a criar
+guardas, porque o `%` tem outros três papéis (`2.02 + 25% = 2,27@`, `só vale com
+25% odd final`, `ROI: 15.28%`); `⌛` = aberta; casa por **apelido** (`mgm`,
+`365`, `Super`, `Betan` devolvem null no `casas.js`); **34% das legendas cegas**;
+e `Quadra`.
+
+### O bloqueio não era código: era o bot ser MEMBRO do grupo
+
+`getMe` diz `can_read_all_group_messages: false` — privacy mode ligado. Bot com
+privacy, como membro comum, **recebe só comandos**: as mensagens com print não
+chegam, e o tenant nasceria **surdo, sem erro nenhum**. Medido, não deduzido: os
+6 apoios que funcionam têm o bot como `administrator`; o do Grego era o único
+fora do padrão. Promovido, o log provou a virada
+(`[apoio:grego] msg — foto=false texto=false`).
+
+### A coluna `Tipster` passou a sair por AUTOR
+
+O canal tem DOIS admins, e o **Sign messages** está ligado: cada post carrega
+quem escreveu (`grego` 958 · `ricklxrd` 110). Isso tornou a atribuição do atraso
+**determinística** — 148 `Grego` e 48 `Rick`, sem heurística.
+
+Daqui pra frente quem resolve é o núcleo, por `msg.from.id` → `XX_TIPSTER_NOMES`
+(genérico; vazio = comportamento de sempre; **inerte em canal**, onde não existe
+`msg.from`). Autor fora do mapa cai na marca **com aviso dizendo o id**. Os dois
+ids foram provados contra o grupo por `getChatMember`, e o `first_name` de cada
+um é **exatamente a assinatura do canal** — a mesma pessoa chega pelo mesmo nome
+pelos dois caminhos, e por isso as duas metades da coluna se somam.
+
+**As 956 do tracker ficam sob a marca**, e é decisão com número atrás: o join
+por (título, stake, data) fecha em **704 de 956 (73,6%), zero ambíguas**. Um
+quarto sem autor faria um ROI "por admin" **parecer completo sem ser**.
+
+### Dois defeitos que apareceram no uso
+
+- **`/anular` dizia "3 apostas removidas" tendo removido 0.** O aviso repetia
+  `ids.length` — o que foi MANDADO — e ignorava `resp.deletados`. Mesma família
+  do `rejeitados` do `/salvar`: contagem devolvida pela API é dado, não enfeite.
+  Hoje acusa (`removeu 0 de 3`), e resposta sem número vira `?`, nunca `0`.
+- **Modo de teste desvia o POST, não o planilhamento.** Os dois bilhetes de
+  teste entraram na base de verdade. Só não sobrescreveram o histórico porque o
+  bot põe sufixo `-S<n>` quando há N apostas: `GV202609-1-S1` ≠ `GV202609-1`.
+  **Teste de UMA aposta só, na mesma casa, teria batido a assinatura** — é a
+  colisão que o `/contador` existe para evitar, e ela quase aconteceu.
+
+### O post, como o tipster pediu
+
+`🧠 <Nome>` na última linha, depois do total — o cabeçalho só diz a marca, igual
+para os dois. É o **mesmo valor** que vai para a coluna `Tipster`: o núcleo
+resolve uma vez e entrega nos dois caminhos, então canal e planilha não podem
+divergir sobre de quem é a aposta. Autor desconhecido não imprime linha nenhuma
+— repetir a marca ali seria fingir resposta.
+
+E o **P/L saiu de `u` para `%`**, a régua que eles usam. Derivado do `plFmt`
+compartilhado, não copiado: o sinal continua sendo **U+2212**, e a mutação que
+copia o formatador perde exatamente isso.
+
+### Estado final
+
+    base gregozxrd   1.152 · Grego Tips - VIP 956 · Grego 148 · Rick 48
+    série            GV202609-228 · contador 228 → próximo #229
+    bot              publicando no canal (GV_MODO_TESTE=0), 2 autores mapeados
+
+### 8º tipster público — `Grego Tips - VIP`
+
+Conta `gregozxrd` (alyssongrego587@gmail.com) aprovada no `/admin` e **956 apostas
+importadas** (`scripts/import_grego_csv.py`), 01/08 → 01/09/2026, stake em
+unidades, 12 contas `Padrão` — uma por casa.
+
+| | |
+|---|---|
+| Slug / marca | `/tipsters/gregotipsvip` · `Grego Tips - VIP` (o username diverge pela 5ª vez) |
+| Códigos | `GV202608-1` … `GV202609-32` |
+| Carteira | prop de jogador de futebol: Chutes 472 · Anytime 229 · Múltipla 120 · Desarmes 30 · Faltas 29 · Assistência 25 |
+| Resultado | L 675 · W 267 · **V 14** (`Reembolsada` → void, `Ganho` e `Lucro` zerados) |
+| Total | 1.008,48u de turnover · **+132,79u** · ROI **+13,17%** |
+
+### O gate mais forte não veio da planilha — veio do canal
+
+Ele publicou o fechamento de agosto no grupo em 01/09: **924 apostas, P/L
++127,84u, ROI 13,02%**. O import, lendo só o CSV, deriva **924 apostas, +127,73u,
+13,00%**. A diferença de 0,11u é o arredondamento a centavo da coluna `Ganho`,
+acumulado em 267 vitórias — o derivado usa a odd inteira.
+
+Isso é diferente da reconciliação interna (que também fecha: **0 divergências em
+956** entre P/L derivado e a coluna `Lucro`). O número do canal saiu da boca do
+dono **antes de existir import**: ele não pode estar errado pelo mesmo motivo que
+a planilha estaria.
+
+### As 6 linhas sem casa foram MEDIDAS, não decididas
+
+O Rogerin resolveu isso com uma decisão do Feca (126 linhas → Betano). Aqui a
+resposta estava no export do Telegram, nas mensagens do próprio dia:
+
+    Nesta Elphege chutes 3+/4+/5+   01/09  → Bet365   (msg 938)
+    Forson +2 Chutes / +3 Chutes    01/09  → Bet365   (msg 940)
+    Summerville Ast                 01/09  → Betano   (msg 942)
+
+O mapa é fechado e casado por (data, título): linha sem casa fora dele **aborta o
+script**. Casa chutada não dá erro — dá conta paralela.
+
+### Três leituras de categoria que não eram óbvias
+
+- **`<Nome> +2 Gols` é `Anytime`, não `Gols`.** O `MASTER_APOSTAS §3` põe
+  "marcar 2 ou mais gols (marcador 2+)" na família Anytime, e o limiar vai na
+  descrição. As odds confirmam (11,0 a 81,0 — total de jogo não paga isso), e o
+  canal mostra a escada: `Tresoldi Anytime 1.50%` + `Tresoldi +2 Gols 0.50%`,
+  mesmo jogador. `Gols` ficou com o que é do JOGO: gol em ambos os tempos,
+  próximo gol, linha decimal.
+- **`25%` / `50%` no título é odd TURBINADA, não mercado** (24 linhas). Ele
+  escreve a conta no canal: `2.02 + 25% = 2,27@`. Mesma família do `aumentada`
+  do Rogerin e do `SuperMúltipla` da Estrela Bet.
+- **` e ` separa PERNAS** em 12 títulos que combinam sem dizer "dupla"
+  (`Priske e Tolaj` @24,96). Com 3 pernas declaradas o esporte vira `Múltiplos`.
+
+### O `%` tem DOIS papéis na mesma fonte — e o segundo é a stake vazando
+
+`Cuevas Christian Chutes +2 0.50%` não é bet builder: o `0.50%` é a **stake**
+(u=0,50) escrita dentro do título. Lido como turbinada, ele transformava duas
+apostas de `Chutes` em `Múltipla`. O mesmo vale para `- 1.50` no fim de
+`Forson +2 Chutes - 1.50`, que viraria **handicap** (nesta fonte é o SINAL que
+declara handicap).
+
+A limpeza só corta o sufixo **quando o número é exatamente a stake da linha**, e
+é essa condição que mantém `cruzeiro -1` (stake 2,50, handicap de verdade)
+intocado. A categoria lê o texto já limpo — senão o mesmo caractere decide duas
+coisas contraditórias.
+
+### Prefixo `GV`, conferido contra a coluna INTEIRA
+
+`GR` (233), `GT` (35), `GG` (8), `GX` (35) e `GP` (34) estão todos ocupados por
+**código NATIVO da bet365** (`GR3383912251I`) — duas letras mais dígitos, que um
+regex ancorado em `XX<aaaamm>-<n>` **não enxerga** (regra da s316). `GV` é o
+único par com G livre: 0 linhas.
+
+⚠️ **Ele vai usar o bot** (canal `-1003928624343`, apoio `-5577016989`). No dia em
+que o bot entrar, suba o contador (`/contador N`) para além de **`GV202609-32`**
+antes da primeira aposta — planilha e bot escrevem na MESMA série.
+
+### Anotado, não resolvido
+
+- **18 linhas `Nome N+` sem mercado** (`Julio Enciso 3+`, `Sebastian 2+`): nem o
+  canal diz qual é. Vão para `Player Props` — a gaveta do §3 —, nunca para o
+  total do esporte, que inventaria um objeto que ninguém escreveu.
+- **`Betsson` é casa nova no banco** e entrou nos 4 mapas de favicon
+  (`data.js` tem `CASA_ICONS` **e** `HOUSE_DOMAIN`), com o domínio **medido** no
+  link do canal (`betsson.bet.br`), não deduzido do nome.
+
+### `SOA` era `score or assist` — a inferência razoável estava errada
+
+Perguntado, respondido no mesmo dia: **`SOA` = "marcar OU assistir"**, não chute
+no gol. As 5 linhas foram para `Player Props`, junto com o `G/A` do mesmo arquivo
+— é o mesmo mercado escrito de dois jeitos, o §3 não tem categoria para ele, e
+escolher `Anytime` ou `Assistência` sozinhas jogaria metade do mercado fora.
+Base reimportada (o script é idempotente por `origem='import'`): 956 linhas, a
+reconciliação segue em **0 divergências**.
+
+A inferência era razoável e ainda assim falhou: `SOA` e `SOT` aparecem na MESMA
+escada e os dois pareados com `Anytime` (`Kvam SOA 2.00%` + `Kvam Anytime
+1.00%`), o que fazia um parecer variação do outro. **Vizinhança tipográfica não é
+significado.** Sigla que não aparece por extenso em lugar nenhum da fonte só se
+resolve perguntando ao dono — e o que fez a pergunta acontecer foi ela estar
+marcada como inferência declarada no relatório, em vez de passar como fato.
+
+### O atraso do canal: 196 apostas que nunca chegaram ao tracker
+
+Ele parou de planilhar na msg **969** (01/09 22:04) — a fronteira veio do Feca e
+confere: nenhum bilhete de lá em diante aparece no CSV, que termina no lote de
+01/09 23:28–23:35. Do 969 até a última mensagem do export (1110, 06/09 15:51) são
+**79 mensagens de aposta e 196 linhas**, agora em `GV202609-33 … GV202609-228`
+(`scripts/import_grego_canal_s325.py`). Base do dono: **1.152 bilhetes**, 83 em
+aberto — o que não tinha marca entra sem resultado e ele completa à mão.
+
+**A fonte aqui não é planilha nenhuma: são os 79 PRINTS.** A legenda dá stake e
+marca; o print dá odd, seleção e confronto. E o print carrega mais do que a
+legenda: **67 das 196 linhas (34%) têm legenda CEGA** (`1.50%`, sem nome) — sem a
+imagem elas não existiriam.
+
+### O pareamento stake ↔ seleção tem três conferências, e todas foram usadas
+
+É onde esse tipo de trabalho erra em silêncio: legenda fora de ordem põe o valor
+certo na aposta errada **sem o total mudar**.
+
+1. **A caixa de valor do print traz o R$ igual ao `%` da legenda.** Na msg 990 o
+   print mostra R$ 2,00 / 0,50 / 0,50 / 0,25 e a legenda diz `2.00% / 0.50% /
+   0.50% / 0.25%`. Pareamento vira conferência, não suposição.
+2. **A escada de odd** — limiar maior, odd maior, stake menor.
+3. **O nome, quando a legenda o traz, MANDA sobre a posição.** Na msg 986 a
+   legenda está fora de ordem (`+2`, `+4`, `+3`) e o print em ordem: quem pareia
+   por posição erra duas das três.
+
+Para a combinada, o produto das pernas confere a odd do cupom — msg 1085 dá
+`1.95 × 1.98 × 2.50 = 9.65` exato. No `Criar Aposta` da Betano o produto fica
+ACIMA do pago (a casa corta a combinação do mesmo jogo): ali vale o print.
+
+### O gate que não depende de eu ter lido certo
+
+As marcas foram contadas por regex sobre as 79 mensagens, **sem olhar print
+nenhum**: `❌ 73 · ✔️ 40 · ⌛ 15 · sem marca 68`. A leitura dos prints produziu
+**73 L, 40 W e 83 abertas (15 + 68)** — fecha nos três.
+
+Provado por mutação, **4 de 5**: trocar `W` por `L`, trocar `L` por aberta,
+remover uma linha e duplicar uma linha quebram o gate. **A 5ª escapou e está
+escrita no código:** trocar a *stake* de uma linha passa reto. O gate conta
+MARCAS e LINHAS, não confere valor — a conferência de stake é a do item 1 acima,
+feita a olho, e não é automatizável sem reler as 79 imagens.
+
+### Três coisas que só o print contou
+
+- **Bet builder disfarçado de simples.** A legenda diz `Tyreece chutes 2+`; o
+  print mostra `Criar Aposta @1.70 = 2+ Chutes + Over 0.5 Gols`. São 26 múltiplas
+  no lote, e várias chegam assim — nomeadas pela perna que interessa a ele.
+- **Cupom que a legenda NÃO menciona não entra.** Nas msgs 1046 e 1055 o print
+  mostra o construtor montado, mas a legenda declara duas SIMPLES com odd própria
+  (`1.25% @2,42❌ | 1.25% @1.95✔️`). São duas apostas, não um cupom.
+- **A odd do print vence a da legenda quando o dinheiro depende dela.** Msg 1062:
+  legenda `@3.5`, print `3.60` — e o print se prova sozinho (`R$4,50 ÷ R$1,25`).
+  É `W`, então a odd entra no P/L. Já na msg 1057 (legenda `@1.39` × print
+  `2.22`) o bilhete é `L` e a odd não muda nada: fica a da legenda, com a
+  divergência anotada.
+
+**Descrição no formato do MASTER** (decisão do Feca): `Entidade - Mercado
+[Confronto]`, com `v` no confronto e a conversão `Mais de 2.5 → Over 2.5`. **A
+forma da linha segue a CASA** (§10.1 × §10.2): Betano/MGM vendem discreto
+(`3+ Chutes`), bet365/Superbet vendem contínuo (`Over 2.5 Chutes`) — reescrever
+uma na outra seria inventar apresentação.
+
+⚠️ **`origem='extracao'`, e a idempotência é por FAIXA DE CÓDIGO.** Com
+`origem='import'` um reimport do tracker levaria estas 196 junto, em silêncio (o
+importador apaga por origem antes de reescrever). O `DELETE ... WHERE
+codigo_bilhete = ANY(...)` não depende de origem e não encosta no que o bot vier
+a escrever.
+
+### Os dois ids do Telegram, conferidos por `getChat`
+
+    canal oficial  -1003928624343  channel  'Grego Tips - VIP'  bot = administrator ✔
+    apoio          -5577016989     group    'sharpenbot'        bot = MEMBER
+
+O apoio **não migrou para supergrupo** (o id `-5…` responde, sem
+`migrate_to_chat_id`), então o tenant não nasce surdo — a armadilha da s316 não
+se aplica aqui.
+
+**Renomear o apoio para `Apoio - Grego` FALHOU** e não foi insistido:
+`setChatTitle` → `Bad Request: not enough rights to change chat title`. O bot é
+membro comum ali. Ou ele é promovido a admin com "alterar informações do grupo",
+ou o Feca renomeia na mão.
+
+### Pendência que não é desta sessão
+
+**O perfil do bot (8º tenant) NÃO foi feito** — o escopo desta sessão era só o
+import. O recon do canal já está medido: 1.074 mensagens, 31/07 → 06/09, 621 com
+print, formato irmão do Soh Props (1 linha por aposta, stake em `%`, marca
+`✅`/`✔️`/`❌`/`⌛` na própria linha, casa pelo NOME no rodapé, `⏰` com a hora do
+evento). Falta medir se ele EDITA a mensagem para marcar depois — é o que decide
+`legendaOpcional`/`recompoePorLegenda`.
+
+---
+
+---
+
 ## Sessão 324 — botão que não leva a lugar nenhum
 
 ### Botão que não leva a lugar nenhum confunde mais que botão ausente
