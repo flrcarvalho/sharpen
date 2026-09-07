@@ -244,17 +244,35 @@ sistema lê como hora de envio.
 **Gates, provados por mutação** (cada uma pega por exatamente o teste que devia pegá-la):
 `_norm_odd` → string crua deixa **6** vermelhos, incluindo o caso medido `14`/`14,00`;
 tirar `aposta` da chave, **1**; tirar o `ate`, **1**; sobrescrever `abertas_corte` em vez
-de unir, **1**; tirar a guarda de `criado_em`, **2**; e nas órfãs — trava de par único, guarda do marcador
-vazio, descarte, adoção e a **ligação** dentro do `_garantir_cobertura`, **1** cada.
+de unir, **1**; tirar a guarda de `criado_em`, **2**. Nas órfãs, **1** cada: trava de
+par único, guarda do marcador vazio, descarte, adoção e a **ligação** dentro do
+`_garantir_cobertura`.
 
 > A **ligação** tem gate próprio no harness de DB (`test_upsert_adota_aberta_que_chegou_
 > depois_da_caixa_ligada`). O dublê testa a função, não a chamada: removendo o
 > `await _caixa_adotar_abertas_tardias(...)` do `upsert_bilhetes`, o arquivo de dublê fica
-> **todo verde** e a Caixa volta a nascer torta. Foi o modo de falso verde nº 1 da s286. O mesmo vale para a
-> reconciliação de órfãs: removendo a chamada de dentro do `_garantir_cobertura`, os 7
-> testes de `_reconciliar_orfas` seguem verdes — só o teste da ligação pega.
+> **todo verde** e a Caixa volta a nascer torta. Foi o modo de falso verde nº 1 da
+> s286. O mesmo vale para as órfãs: removendo a chamada de dentro do
+> `_garantir_cobertura`, os 7 testes de `_reconciliar_orfas` seguem verdes — só o
+> teste da ligação pega.
 
-Suíte: **756 passed, 30 skipped**.
+Suíte: **756 passed, 30 skipped**. CI verde em `863f67c`, com os 30 do harness de
+Postgres (é lá que o SQL novo do UPSERT é exercido de verdade).
+
+**Backfill: nada a fazer.** `recalcular_abertas_corte_s314.py` em ensaio sobre todas as
+caixas ligadas devolve **0 a corrigir**. As 3 contas que uma primeira query apontou
+(`Gabriel/Pinnacle`, `Gabriel/1xBet`, `Feca/Bet365 marloncezar01`) são o **piso
+deliberado** de corte no passado — o `_caixa_abertas_ids` as exclui de propósito.
+
+**Pendente para a próxima sessão:**
+
+1. **Duas órfãs antigas**, anteriores à correção: `passapica / BETesporte` (04/09,
+   R$ 0,75) e `Diogo / Betfair` (12/08, R$ 400,00). São linhas abertas sem código em
+   conta que usa código. A Migração B as adota quando o bilhete voltar liquidado, **se**
+   data, categoria e stake baterem — não é garantido, e a do Diogo está aberta há quase
+   um mês. Duas linhas; resolver à mão é mais barato que esperar.
+2. **Aviso aos testers não foi enviado.** Sem bump do SharpenUp, o tester não tem ação a
+   tomar. Decisão do Feca; a pergunta ficou em aberto.
 
 ---
 

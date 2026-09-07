@@ -738,6 +738,28 @@ O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem
 
 **Fonte canônica (implementação):** `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. Esta tabela documenta o comportamento do código; ao mudar a lógica de dedup, **o código é a verdade** (atualize a tabela depois).
 
+### Linha sem código, em casa que TEM código, é órfã. E órfã vira fantasma.
+
+Quando a IA devolve o bilhete mas perde a 11ª coluna, a linha entra sem código — e sem
+código ela **nunca dedupa**. Ao liquidar, o mesmo bilhete volta com código, entra como
+linha NOVA, e a velha fica `aberta` para sempre. Sem erro e sem aviso: a pista é um
+`AGUARDANDO RESULTADO` na grade e um stake "em aberto" na Caixa num dia em que a casa
+não tem pendente nenhuma (s327, a múltipla do Falkirk na Betnacional).
+
+Três lugares seguram isso, e cada um cobre o que o outro não vê:
+
+- **`_reconciliar_orfas` (`app/main.py`)** — na extração. **Adota** (dá à órfã o código do
+  bloco faltante de que ela é fiel, por `checar_fidelidade`, só com par único **nos dois
+  sentidos**) ou **descarta** (sobrou órfã e nenhum bilhete está sem linha própria → é
+  cópia). `conferir_cobertura` sozinha não resolve: ela cobra QUANTIDADE por código e a
+  repescagem só ACRESCENTA.
+- **Migração B do UPSERT** — no banco. A órfã já gravada é adotada quando o bilhete volta
+  com código. A odd é comparada pela régua do sistema (`chave_orfa` → `_norm_odd`):
+  comparando string crua, `14` não era `14,00` e a adoção falhava.
+- **NO-OP obrigatório** onde a coluna 11 vazia é **legítima**: casa sem marcador (prints,
+  texto colado) e texto com qualquer `[Código: ]` vazio — é o que a bet365 manda quando o
+  detalhe não chegou, e descartar ali apagaria bilhete real.
+
 ### Fonte determinística manda; extração por IA congela.
 
 O UPSERT **congela** `odd`, `data`, `stake`, `esporte`, `aposta` e `descricao` assim que a
@@ -966,4 +988,4 @@ Resumo: cashout **≠** stake (maior **ou** menor) → **W**, `Odd = Cashout ÷ 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-09-06 (sessao 328 - o que a extensao escreve no bloco e uma ORDEM, nao um recado: o `else` do de-para de rotulo diz "a conferir - nao liquidar automaticamente" e a IA obedece, entao rotulo que ninguem cadastrou vira linha `aberta` para sempre, sem erro nenhum. O push da Pinnacle chega como `DRAW` (a TELA diz REEMBOLSADO - tela e API falam vocabularios diferentes) e ficou pendente depois de liquidado; o modelo ate anotou no RAIO-X que o P/L 0,00 indicava reembolso, e nao podia agir. Todo de-para de rotulo precisa de rede por baixo, feita do dinheiro: resolvido + rotulo desconhecido + P/L exatamente 0 => retorno = stake => V. Antes, s321 - gate que confere UM campo deixa os vizinhos livres: a odd so era reconferida como efeito colateral da correcao de stake, entao stake certa + odd errada passava reto e o RETORNO do bloco foi gravado como odd (P/L +19.258,47 onde o real era +96,53). A prova e o numero, nao o rotulo do Status - a extensao chama de W qualquer retorno maior que a stake, meia vitoria inclusive. Antes, s316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
+ATUALIZADO: 2026-09-06 (sessao 328 - o que a extensao escreve no bloco e uma ORDEM, nao um recado: o `else` do de-para de rotulo diz "a conferir - nao liquidar automaticamente" e a IA obedece, entao rotulo que ninguem cadastrou vira linha `aberta` para sempre, sem erro nenhum. O push da Pinnacle chega como `DRAW` (a TELA diz REEMBOLSADO - tela e API falam vocabularios diferentes) e ficou pendente depois de liquidado; o modelo ate anotou no RAIO-X que o P/L 0,00 indicava reembolso, e nao podia agir. Todo de-para de rotulo precisa de rede por baixo, feita do dinheiro: resolvido + rotulo desconhecido + P/L exatamente 0 => retorno = stake => V. Antes, s327 - abertas_corte mede o que o Sharpen SABE, nao o que a casa TEM: ligar a Caixa no meio da captura grava lista vazia e o Ajuste da conferencia cimenta o erro (Betnacional, projecao R$ 1.362,26 abaixo da casa); hoje a aposta que nasce aberta com criado_em anterior a ativacao entra sozinha. E linha sem codigo em casa que TEM codigo e orfa - nunca dedupa, e ao liquidar vira linha nova com a velha `aberta` para sempre; agora a extracao adota ou descarta (_reconciliar_orfas) e a Migracao B compara a odd pela regua do sistema (14 e 14,00 sao a mesma odd). Antes, s321 - gate que confere UM campo deixa os vizinhos livres: a odd so era reconferida como efeito colateral da correcao de stake, entao stake certa + odd errada passava reto e o RETORNO do bloco foi gravado como odd (P/L +19.258,47 onde o real era +96,53). A prova e o numero, nao o rotulo do Status - a extensao chama de W qualquer retorno maior que a stake, meia vitoria inclusive. Antes, s316 - prefixo de codigo se confere contra TODO codigo_bilhete, nao contra a serie: codigo NATIVO de casa tambem e duas letras mais digitos, entao o regex do formato XX<aaaamm>-n nao os enxerga e o prefixo parece livre sem estar. Antes, s314 - Caixa Inteligente: o saldo e derivado e o corte e o instante em que ele foi lido, nao um filtro de data; e o asyncpg nao converte tipo, o argumento vai no TIPO DA COLUNA ou o 500 nasce dentro do driver. Antes, s318 - zero nao e ausencia: bilhete de mesmo jogo tem odd so do conjunto, e a ausencia viaja como null; quem escreve na planilha tem de ler o `rejeitados` do /salvar, que recusa linha e devolve 200)
