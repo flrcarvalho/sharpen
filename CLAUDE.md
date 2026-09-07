@@ -205,10 +205,8 @@ invisível no Painel de Contas e reenvio não conserta, porque a casa entra na a
 Todo perfil com visão fecha o prompt com `Print ilegível → {"erro": …}`. Se o prompt
 também abre nomeando uma casa, o modelo lê as duas instruções como uma só e trata
 **casa diferente como imagem ilegível**. O `vision.js` vira `throw` e o apoio publica
-`⚠️ Não consegui ler o print`, culpando a foto.
-
-Medido no dia 1 do 6º tenant (s309): o prompt do Rogerin dizia "Você lê prints da casa
-de apostas Betano"; ele mandou três prints de bet365 e tomou três recusas seguidas.
+`⚠️ Não consegui ler o print`, **culpando a foto**.
+→ [o caso](docs/CASOS.md#as-três-recusas-seguidas-do-rogerin--s309-dia-1-do-6º-tenant)
 
 **A amostra diz o que o tipster FEZ, nunca o que ele FAZ.** Perfil nasce de um export
 medido daquele canal, e escrever a casa observada no prompt transforma uma medição
@@ -226,8 +224,9 @@ Exporte o `SYSTEM` só para isso.
 
 **O FORMATO do bilhete também não se herda da amostra.** Casa que vende N apostas
 simples num print só (stake e retorno **por seleção**, "Aposta Total" no rodapé) quebra
-o perfil que assume "1 print = 1 bilhete": as pernas viram uma múltipla, sem erro
-nenhum. No caso medido, odd 1,66 × 4,00 × 11,00 ≈ 73 no lugar de três apostas.
+o perfil que assume "1 print = 1 bilhete": **as pernas viram uma múltipla, sem erro
+nenhum** — o produto delas no lugar de N apostas.
+→ [o caso](docs/CASOS.md#as-três-simples-que-viraram-uma-múltipla-de-73)
 
 Quando o print traz N simples, a stake **continua vindo da legenda, em unidades** — o
 print traz R$ e o tamanho da unidade do tipster raramente foi medido. A stake em R$ do
@@ -246,20 +245,20 @@ número nenhum ao lado. Quem monta a combinação como produto das pernas faz
 
 **Zero é uma odd que não existe, e por isso ninguém a trata como ausência.** Ela
 passa por toda checagem de forma: a linha tem stake, tem resultado, tem P/L. Só
-que o P/L de W é `stake × (odd − 1)` — com odd 0 o bilhete GANHO vira `−1u`
-(s318: Só Chutes #12, Osimhen + Shomurodov @ 5.50, os dois ✅). A regra vale
-para qualquer número derivado: se a fonte não tem o valor, a ausência viaja como
-`null`/vazio até quem sabe decidir. `0` se disfarça de conta feita.
+que o P/L de W é `stake × (odd − 1)` — **com odd 0 o bilhete GANHO vira `−1u`**.
+A regra vale para qualquer número derivado: se a fonte não tem o valor, a ausência
+viaja como `null`/vazio até quem sabe decidir. `0` se disfarça de conta feita.
+→ [o caso](docs/CASOS.md#o-bilhete-ganho-que-virou-1u--só-chutes-12-s318)
 
 Onde há odd de conjunto, ela é a odd da aposta que cobre o **cupom inteiro** —
 nunca de uma combinação parcial, que não é derivável de lugar nenhum.
 
 **A outra metade: quem escreve na planilha tem de LER a resposta.** O `/salvar`
 valida na fronteira (`validar_linhas`) e recusa stake/odd que não sejam número
-> 0, devolvendo as recusadas em `rejeitados` e gravando só as boas — a resposta
-é `200`, não erro. O bot ignorava o campo: marcou "planilhado", publicou no
-canal e seguiu. A linha do #12 **nunca existiu** na planilha, e a única pista
-apareceu um dia depois, como um "não tenho o id no Sharpen" na hora de corrigir.
+> 0, devolvendo as recusadas em `rejeitados` e gravando só as boas — **a resposta
+é `200`, não erro**. Escritor que ignora o campo marca "planilhado" e publica uma
+linha que **nunca existiu**.
+→ [o caso](docs/CASOS.md#a-linha-que-nunca-existiu-e-a-pista-que-apareceu-um-dia-depois)
 
 - Recusa **total** é falha de planilha: erro alto, e o registro diz que não
   planilhou. Recusa **parcial** é aviso por linha, dizendo qual número caiu.
@@ -717,7 +716,11 @@ e inteiro curto é achado dentro de qualquer odd (`2` vive dentro de `2,05`).
 > Os menus de esporte e mercado do editor de tipster **não** entram nesta lista: eles leem
 > o MASTER em tempo de execução (`/taxonomia`). Categoria criada aparece lá sozinha.
 
-> **Motivo:** em 13/06/2026 as categorias `Dupla Chance`, `Impedimentos` e `Chutes no Gol` foram criadas no MASTER mas os mapas das casas ficaram desatualizados apontando para `Outros ⚠️`. A **causa raiz** era a duplicação: cada casa reescrevia as 27 categorias. Desde a sessão 49 (camada fina), o §9 lista só o que a casa confirma → a superfície de propagação encolheu para as casas realmente afetadas.
+> **Motivo:** categoria criada no MASTER e mapa de casa apontando para `Outros ⚠️`. A
+> **causa raiz era a DUPLICAÇÃO** — cada casa reescrevia a lista inteira de categorias.
+> Desde a camada fina, o §9 lista só o que a casa confirma, e a superfície de propagação
+> encolheu para as casas realmente afetadas.
+> → [o caso](docs/CASOS.md#as-três-categorias-que-ficaram-apontando-para-outros--13062026)
 
 **Checklist rápido ao criar/renomear/remover uma categoria:**
 

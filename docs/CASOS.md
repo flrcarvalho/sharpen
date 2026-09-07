@@ -358,3 +358,59 @@ token do CSS passava; sobre o fundo efetivo, não.
 
 Junto veio **inversão de hierarquia**: o e-mail da conta (13,5px / 700 / `--ink`) pesava
 mais que o nome da casa, então a varredura da lista lia **endereços em vez de casas**.
+
+---
+
+## REGRA DE PROPAGAÇÃO OBRIGATÓRIA
+
+### As três categorias que ficaram apontando para `Outros` — 13/06/2026
+
+`Dupla Chance`, `Impedimentos` e `Chutes no Gol` foram criadas no MASTER, e os mapas das
+casas ficaram desatualizados apontando para `Outros ⚠️`.
+
+**A causa raiz era a DUPLICAÇÃO:** cada arquivo de casa reescrevia a lista inteira de
+categorias. Desde a **sessão 49** (camada fina), o `§9` lista só o que aquela casa confirma
+— e a superfície de propagação encolheu para as casas realmente afetadas.
+
+> ⚠️ Este parágrafo, no `CLAUDE.md`, dizia "as 27 categorias". Medido em 07/09 pelo parser
+> canônico (`audit_casas.categorias_oficiais()`), o `§3` tem **30**. A contagem literal saiu
+> do `CLAUDE.md` de propósito: a lista canônica vive no `§3` e number solto apodrece. A
+> string errada ainda está em 4 arquivos de casa — registrado no `BACKLOG` (`#99`).
+
+---
+
+## Perfil de tipster: a casa é SAÍDA da leitura
+
+### As três recusas seguidas do Rogerin — s309, dia 1 do 6º tenant
+
+O prompt dizia *"Você lê prints da casa de apostas Betano"*. Ele mandou **três prints de
+bet365** e tomou **três recusas seguidas** — `⚠️ Não consegui ler o print`, culpando a foto.
+
+O modelo leu as duas instruções como uma só: o prompt abria nomeando uma casa e fechava com
+`Print ilegível → {"erro": …}`, então **casa diferente virou imagem ilegível**.
+
+### As três simples que viraram uma múltipla de 73
+
+Casa que vende N apostas simples num print só — stake e retorno **por seleção**, "Aposta
+Total" no rodapé — quebra o perfil que assume "1 print = 1 bilhete". As pernas viram uma
+múltipla, **sem erro nenhum**: odd `1,66 × 4,00 × 11,00 ≈ 73` no lugar de três apostas.
+
+---
+
+## Zero não é ausência
+
+### O bilhete ganho que virou −1u — Só Chutes #12, s318
+
+`Osimhen + Shomurodov @ 5.50`, bilhete de mesmo jogo, **os dois ✅**. A casa não precificou
+as pernas — trouxe só a odd do conjunto —, e quem montou a combinação como produto das
+pernas fez `0 × 0 = 0`.
+
+O P/L de `W` é `stake × (odd − 1)`. Com odd 0, o bilhete **ganho** virou **−1u**.
+
+### A linha que nunca existiu, e a pista que apareceu um dia depois
+
+O `/salvar` recusou a linha na fronteira e devolveu **200** com a recusa em `rejeitados`. O
+bot **ignorou o campo**: marcou "planilhado", publicou no canal e seguiu.
+
+A linha do #12 **nunca existiu** na planilha. A única pista apareceu **um dia depois**, como
+um *"não tenho o id no Sharpen"* na hora de corrigir.
