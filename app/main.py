@@ -80,7 +80,7 @@ from repository import (
     CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_editar_mov, caixa_excluir_mov, caixa_visao,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
-    conferir_cobertura, codigos_do_texto,
+    conferir_cobertura, codigos_do_texto, codigos_do_tsv,
 )
 from descricao_check import checar_fidelidade
 
@@ -1003,6 +1003,86 @@ async def _repescar_faltantes(system: list[dict], texto: str, faltantes: list[st
         return [], tokens
 
 
+# Marcador de bilhete SEM id (bet365 cujo detalhe não chegou). Onde ele aparece, uma
+# linha com a 11ª coluna vazia é LEGÍTIMA e a reconciliação abaixo não pode tocá-la.
+_MARCADOR_VAZIO_RE = re.compile(r"(?m)^\[Código:\s*\]")
+
+
+def _reconciliar_orfas(resultado: str, texto: str | None) -> tuple[str, dict]:
+    """A linha que voltou SEM código: devolve o dono a ela, ou descarta a cópia.
+
+    `conferir_cobertura` cobra QUANTIDADE por código — ela não sabe que o bilhete
+    "faltante" pode estar ali, como uma linha que perdeu a 11ª coluna. E a repescagem
+    só ACRESCENTA (`_extract_tsv_rows(resultado) + novas`); ninguém removia a órfã. Os
+    dois desfechos deixavam linha sem código:
+
+      · repescagem funciona → DUAS linhas do mesmo bilhete no mesmo lote;
+      · repescagem falha    → a órfã fica, e sem código ela nunca dedupa: quando o
+                              bilhete liquida, entra linha NOVA e a velha fica `aberta`
+                              para sempre (s327, a múltipla do Falkirk na Betnacional).
+
+    Duas operações, ambas conservadoras:
+
+    1. **Adoção** — a órfã recebe o código do bloco faltante com que ela é fiel
+       (`checar_fidelidade`: todo nome próprio e todo decimal da descrição existem
+       naquele bloco). Só quando o par é único NOS DOIS SENTIDOS: a órfã casa com um
+       único bloco livre, e aquele bloco casa com uma única órfã. Ambíguo não vira chute.
+    2. **Descarte** — sobrando órfã depois disso, e não havendo mais nenhum bilhete do
+       texto sem linha própria, ela é cópia de alguém que já tem a sua. Sai.
+
+    NO-OP integral onde a coluna 11 vazia é normal: casa sem marcador (prints, texto
+    colado à mão) e texto que traga QUALQUER `[Código: ]` vazio.
+    """
+    vazio = {"orfas": 0, "orfas_adotadas": 0, "orfas_descartadas": 0}
+    if not texto:
+        return resultado, vazio
+    esperados = codigos_do_texto(texto)
+    if not esperados or _MARCADOR_VAZIO_RE.search(texto):
+        return resultado, vazio
+
+    linhas = _extract_tsv_rows(resultado)
+    orfas = [i for i, l in enumerate(linhas)
+             if len(l.split("\t")) > 10 and not l.split("\t")[10].strip()]
+    if not orfas:
+        return resultado, vazio
+
+    vistos = codigos_do_tsv(resultado)
+    livres = [c for c in esperados if c not in vistos]
+    blocos = _blocos_por_codigo(texto)
+
+    # 1) Adoção — candidatos por órfã, e só o par 1-a-1 é aceito.
+    cand: dict[int, list[str]] = {}
+    for i in orfas:
+        desc = linhas[i].split("\t")[6].strip()
+        cand[i] = [c for c in livres
+                   if blocos.get(c) and not checar_fidelidade(desc, blocos[c])] if desc else []
+    adotadas = 0
+    for i, cs in cand.items():
+        if len(cs) != 1:
+            continue
+        cod = cs[0]
+        if sum(1 for outros in cand.values() if cod in outros) != 1:
+            continue                      # o bloco serve a mais de uma órfã: ambíguo
+        celulas = linhas[i].split("\t")
+        celulas[10] = cod
+        linhas[i] = "\t".join(celulas)
+        livres.remove(cod)
+        adotadas += 1
+
+    # 2) Descarte — só quando todo bilhete do texto já tem linha própria.
+    descartadas = 0
+    if not livres:
+        sobrando = {i for i in orfas if not linhas[i].split("\t")[10].strip()}
+        if sobrando:
+            linhas = [l for j, l in enumerate(linhas) if j not in sobrando]
+            descartadas = len(sobrando)
+
+    if adotadas or descartadas:
+        resultado = _set_tsv_rows(resultado, linhas)
+    return resultado, {"orfas": len(orfas), "orfas_adotadas": adotadas,
+                       "orfas_descartadas": descartadas}
+
+
 async def _garantir_cobertura(system: list[dict], resultado: str, texto: str | None,
                               modelo: str, instrucao_block: dict | None,
                               reverse_rows: bool) -> tuple[str, dict, dict]:
@@ -1020,36 +1100,57 @@ async def _garantir_cobertura(system: list[dict], resultado: str, texto: str | N
     tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     cobertura = conferir_cobertura(resultado, texto)
     faltantes = cobertura["faltantes"]
+
+    def _fechar(res: str, cob: dict, faltavam: list[str],
+                repescou: bool = False) -> tuple[str, dict, dict]:
+        """Reconcilia as órfãs e recalcula a cobertura DEPOIS delas.
+
+        Roda em todos os caminhos de saída, inclusive quando não houve repescagem: o
+        bilhete "faltante" pode já estar ali como linha sem a 11ª coluna, e é
+        justamente esse desfecho que deixava fantasma no banco.
+        """
+        res, orfas = _reconciliar_orfas(res, texto)
+        mexeu = orfas["orfas_adotadas"] or orfas["orfas_descartadas"]
+        if mexeu:
+            cob = conferir_cobertura(res, texto)
+            logger.info("cobertura: %d órfã(s) adotada(s) · %d descartada(s)",
+                        orfas["orfas_adotadas"], orfas["orfas_descartadas"])
+        # Reordena pela posição no texto-fonte, mas SÓ quando toda linha tem código
+        # conhecido (caso das casas com marcador). Se alguma linha não tem, mantém a
+        # ordem de chegada e deixa as repescadas no fim — nunca embaralha o que já
+        # estava certo. Depois da adoção, porque é ela que dá código à órfã.
+        #
+        # Só quando ESTE passo mexeu no TSV: sem linha nova nem órfã reconciliada, a
+        # ordem que chegou é a que o combine montou, e reordená-la aqui seria mudar
+        # calado o que o resto do sistema lê como ordem de envio.
+        if repescou or mexeu:
+            ordem = {c: i for i, c in enumerate(codigos_do_texto(texto))}
+            def _pos(linha: str):
+                parts = linha.split("\t")
+                return ordem.get(parts[10].strip()) if len(parts) > 10 else None
+            linhas = _extract_tsv_rows(res)
+            if linhas and all(_pos(l) is not None for l in linhas):
+                linhas.sort(key=lambda l: -_pos(l) if reverse_rows else _pos(l))
+                res = _set_tsv_rows(res, linhas)
+        return res, {**cob, "recuperados": len(faltavam) - len(cob["faltantes"]), **orfas}, tokens
+
     if not faltantes or not texto or instrucao_block is None:
-        return resultado, {**cobertura, "recuperados": 0}, tokens
+        return _fechar(resultado, cobertura, faltantes)
 
     logger.warning("cobertura: %d de %d bilhete(s) não voltaram — repescando: %s",
                    len(faltantes), cobertura["esperados"], ", ".join(faltantes[:10]))
     novas, tokens = await _repescar_faltantes(system, texto, faltantes, modelo, instrucao_block)
     if not novas:
-        return resultado, {**cobertura, "recuperados": 0}, tokens
+        return _fechar(resultado, cobertura, faltantes)
 
     # Ordem: o texto-fonte vem newest-first e a planilha exige oldest→newest — a mesma
     # inversão que o combine já aplicou às linhas originais.
     if reverse_rows:
         novas = list(reversed(novas))
     todas = _extract_tsv_rows(resultado) + novas
-    # Reordena pela posição no texto-fonte, mas SÓ quando toda linha tem código
-    # conhecido (caso das casas com marcador). Se alguma linha não tem, mantém a ordem
-    # de chegada e deixa as repescadas no fim — nunca embaralha o que já estava certo.
-    ordem = {c: i for i, c in enumerate(codigos_do_texto(texto))}
-    def _pos(linha: str):
-        parts = linha.split("\t")
-        return ordem.get(parts[10].strip()) if len(parts) > 10 else None
-    if all(_pos(l) is not None for l in todas):
-        todas.sort(key=lambda l: -_pos(l) if reverse_rows else _pos(l))
-
     resultado = _set_tsv_rows(resultado, todas)
-    cobertura = conferir_cobertura(resultado, texto)
-    recuperados = len(faltantes) - len(cobertura["faltantes"])
-    logger.info("cobertura: %d recuperado(s) na repescagem · %d ainda faltando",
-                recuperados, len(cobertura["faltantes"]))
-    return resultado, {**cobertura, "recuperados": recuperados}, tokens
+    logger.info("cobertura: %d linha(s) repescada(s)", len(novas))
+    return _fechar(resultado, conferir_cobertura(resultado, texto), faltantes, repescou=True)
 
 
 # ── Fidelidade: a linha pertence ao bilhete dela? (s302) ──────────────────────

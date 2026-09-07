@@ -245,3 +245,120 @@ def test_garantir_cobertura_avisa_quando_repescagem_nao_traz_tudo(monkeypatch):
     _, cob, _ = asyncio.run(main._garantir_cobertura(
         [], parcial, _texto(), "modelo", {"type": "text", "text": "i"}, True))
     assert cob["recuperados"] == 1 and cob["faltantes"] == ["891J-YNUVM0"]
+
+
+# ── órfãs: a linha que voltou SEM a 11ª coluna (s327) ─────────────────────────
+#
+# `conferir_cobertura` cobra QUANTIDADE por código — ela não sabe que o bilhete
+# "faltante" pode estar ali como uma linha que perdeu a coluna do código. E a repescagem
+# só ACRESCENTA; ninguém removia a órfã. Os dois desfechos deixavam linha sem código, e
+# sem código ela nunca dedupa: quando o bilhete liquida, entra linha NOVA e a velha fica
+# `aberta` para sempre (o fantasma da Betnacional que abriu a s327).
+#
+# O QUE ESTES TESTES NÃO COBREM: a chamada à IA. `_reconciliar_orfas` é pura — decide com
+# `checar_fidelidade` sobre o texto-fonte, sem rede.
+
+_TXT_ORFA = (
+    "[Código: NXBNAC001]\nData: 05/09/2026\nStake: 150,00\nOdd: 14\n"
+    "Seleções:\n- Mais Escanteios: Falkirk\n    Jogo: Dundee Utd x Falkirk\n"
+    "\n"
+    "[Código: NXBNAC002]\nData: 06/09/2026\nStake: 301,00\nOdd: 2,05\n"
+    "Seleções:\n- Cartões: Mais de 3,5\n    Jogo: Remo x Flamengo\n"
+)
+_D1 = "Falkirk - Mais Escanteios [Dundee Utd v Falkirk]"
+_D2 = "Mais de 3,5 Cartões [Remo v Flamengo]"
+
+
+def _ln(desc, cod=""):
+    return (f"05/09/2026\tFutebol\t\tBetnacional\tconta\tEscanteios\t{desc}"
+            f"\t150,00\t14\t\t{cod}")
+
+
+def _tsv_orfa(*linhas):
+    return "```tsv\n" + "\n".join([main._TSV_HEADER] + list(linhas)) + "\n```\n"
+
+
+def test_orfa_adota_o_bloco_faltante_de_que_ela_e_fiel():
+    """O caso medido: a linha do Falkirk voltou sem o código. O bloco faltante é um só e
+    a descrição é fiel a ele — logo a órfã é daquele bilhete."""
+    tsv = _tsv_orfa(_ln(_D1), _ln(_D2, "NXBNAC002"))
+    out, info = main._reconciliar_orfas(tsv, _TXT_ORFA)
+    assert info["orfas_adotadas"] == 1
+    assert info["orfas_descartadas"] == 0
+    assert _cods_do(out) == ["NXBNAC001", "NXBNAC002"]
+    assert conferir_cobertura(out, _TXT_ORFA)["faltantes"] == []
+
+
+def test_orfa_duplicada_e_descartada_quando_todos_ja_tem_linha():
+    """Repescagem funcionou: os dois bilhetes já têm linha COM código. A órfã que sobrou
+    é cópia — sem isso o lote grava duas linhas do mesmo bilhete."""
+    tsv = _tsv_orfa(_ln(_D1), _ln(_D1, "NXBNAC001"), _ln(_D2, "NXBNAC002"))
+    out, info = main._reconciliar_orfas(tsv, _TXT_ORFA)
+    assert info["orfas_descartadas"] == 1
+    assert info["orfas_adotadas"] == 0
+    assert _cods_do(out) == ["NXBNAC001", "NXBNAC002"]
+
+
+def test_ambiguidade_nao_vira_chute():
+    """Duas órfãs fiéis ao MESMO bloco livre: não dá para saber qual é qual. Nada é
+    adotado, e nada é descartado enquanto o bilhete não tiver linha própria."""
+    tsv = _tsv_orfa(_ln(_D1), _ln(_D1), _ln(_D2, "NXBNAC002"))
+    out, info = main._reconciliar_orfas(tsv, _TXT_ORFA)
+    assert (info["orfas_adotadas"], info["orfas_descartadas"]) == (0, 0)
+    assert out == tsv, "o TSV foi alterado num caso ambíguo"
+
+
+def test_orfa_infiel_a_todos_os_blocos_fica_como_esta():
+    """A descrição não pertence a bloco faltante nenhum → não se adivinha o dono. E não
+    se descarta: o bilhete faltante segue sem linha própria."""
+    tsv = _tsv_orfa(_ln("Vitória [Barcelona v Real Madrid]"), _ln(_D2, "NXBNAC002"))
+    out, info = main._reconciliar_orfas(tsv, _TXT_ORFA)
+    assert (info["orfas_adotadas"], info["orfas_descartadas"]) == (0, 0)
+    assert out == tsv
+
+
+def test_marcador_vazio_torna_tudo_no_op():
+    """bet365 cujo detalhe não chegou manda `[Código: ]` vazio — ali a coluna 11 vazia é
+    LEGÍTIMA, e descartar a linha apagaria um bilhete real."""
+    txt = _TXT_ORFA + "\n[Código: ]\nData: 06/09/2026\nStake: 50,00\n"
+    tsv = _tsv_orfa(_ln(_D1), _ln(_D1, "NXBNAC001"), _ln(_D2, "NXBNAC002"))
+    out, info = main._reconciliar_orfas(tsv, txt)
+    assert info == {"orfas": 0, "orfas_adotadas": 0, "orfas_descartadas": 0}
+    assert out == tsv
+
+
+def test_casa_sem_marcador_e_no_op():
+    """Print / texto colado à mão não tem gabarito — a coluna 11 vazia é o normal."""
+    tsv = _tsv_orfa(_ln(_D1), _ln(_D2))
+    out, info = main._reconciliar_orfas(tsv, "texto colado sem marcador nenhum")
+    assert info["orfas"] == 0
+    assert out == tsv
+
+
+def test_sem_orfa_nada_acontece():
+    tsv = _tsv_orfa(_ln(_D1, "NXBNAC001"), _ln(_D2, "NXBNAC002"))
+    out, info = main._reconciliar_orfas(tsv, _TXT_ORFA)
+    assert info["orfas"] == 0
+    assert out == tsv
+
+
+def test_garantir_cobertura_reconcilia_a_orfa_mesmo_sem_repescagem():
+    """A LIGAÇÃO: `_garantir_cobertura` tem de chamar a reconciliação.
+
+    Sem `instrucao_block` não há chamada à IA — e é justamente esse o caminho em que a
+    órfã ficava (na s327 a repescagem não devolveu nada e a linha sem código sobreviveu).
+    Os testes de `_reconciliar_orfas` acima seguiriam TODOS verdes se alguém removesse a
+    chamada de dentro do `_garantir_cobertura`; só este pega.
+    """
+    import asyncio
+
+    tsv = _tsv_orfa(_ln(_D1), _ln(_D2, "NXBNAC002"))
+    assert conferir_cobertura(tsv, _TXT_ORFA)["faltantes"] == ["NXBNAC001"]
+
+    out, cob, _tk = asyncio.run(
+        main._garantir_cobertura([], tsv, _TXT_ORFA, "modelo", None, False))
+
+    assert cob["orfas_adotadas"] == 1
+    assert cob["faltantes"] == [], "a cobertura não foi recalculada depois da adoção"
+    assert cob["recuperados"] == 1
+    assert _cods_do(out) == ["NXBNAC001", "NXBNAC002"]
