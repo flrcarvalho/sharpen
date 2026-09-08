@@ -306,11 +306,11 @@ dúvida técnica — os três são decisão de produto.
 - **Tag `Sincronizando`.** Está no vocabulário fechado de `tagConciliacao` e **não é
   emitida por ninguém**: o app não publica "extração em curso" por conta. Fica no mapa
   para o dia em que houver a fonte ser uma linha, e não um rótulo novo inventado na linha.
-- **A lista ocupa a linha inteira desde a s330**, com teto de 960px, e `Contas por casa`
-  desceu para fazer par com `Custos por fornecedor`. Foi o mínimo que fez as trilhas fixas
-  do handoff caberem (media 539px em 1600px de viewport, com 500px de coluna fixa). Se o
-  Feca preferir os dois lado a lado, o caminho é encolher o rail da casca nesta visão —
-  não estreitar a lista.
+- **`Contas por casa` e `Custos por fornecedor` saíram da página** (s330, rev. 2). O
+  contador por casa já vive no cabeçalho de cada grupo da lista, e o custo por fornecedor
+  tem casa própria no Dashboard (`Fornecedores & Parceiros` / `Custos de Contas`). Se
+  algum dos dois voltar, a pergunta a responder antes é *o que ele diz que a lista já não
+  diz* — foi por não responder isso que os dois viraram enfeite.
 
 ### 3.5 O log de extrações repete `100%` em quase toda linha (s330). VIVA.
 

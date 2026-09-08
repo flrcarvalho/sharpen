@@ -7,7 +7,7 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
 
-_Atualizado: 2026-09-07 (sessao 330 — **handoff de design aplicado: `FDC - Contas e Parceiros Opcao A`, 5 fases, 5 commits, todos pushados.** A tela tratava tudo com o mesmo peso: 4 KPIs (um deles sempre `0`), 3 colunas concorrentes, `Editar/Arquivar/Excluir` acesos nas ~100 linhas com um vermelho em cada uma, 29 casas em barras de escala inutil e um log de 40 acoes onde 37 diziam `100%`. **Fase 1** — titulo sai do gradiente azul (o maior texto da tela era acento, e com isso o azul deixava de significar sinal); eyebrow sobe um degrau na Escada de Tinta (9px/--ink-mute media 3,0:1, abaixo do 4,5:1 do papel Label). Aplicado tambem no Dashboard, com `SHELL_SPEC.md` e `check-tokens.mjs` atualizados junto. **Fase 2** — 4 KPIs viram 3, ordenados por CERTEZA DO DINHEIRO: disponivel (garantido) → em aberto (projecao, ambar) → banca total (soma, neutro). Sai o medidor ATIVAS/INATIVAS e o `Caixa total`, que imprimia o MESMO `totais.banca` do KPI ao lado. **Fase 3** — linha da casa e da conta na MESMA grade de 4 trilhas, com a coluna de acoes reservada mesmo vazia; acoes so no hover; `Excluir` sai da linha e vira o ultimo item do menu `⋯`. **Fase 4** — coluna Conciliacao com vocabulario FECHADO num helper so (`tagConciliacao`), sem abreviacao e sem teto no numero; vermelho so em `Divergencia` (erro realizado), ambar em pendencia (fato a conferir). **Fase 5** — `Contas por casa` mostra 6 e colapsa a cauda; na gestao de contas o rail vira fila de `Pendencias` (so excecoes, com `ver log completo`), e na Extracao segue sendo o log. **Dois desvios do handoff, ambos medidos no render, nao deduzidos:** (1) as trilhas fixas do handoff somam 500px e a lista caia a 539px em 1600px de viewport — o nome da casa era CLIPADO; a lista passou a ocupar a linha inteira e `Contas por casa` desceu para fazer par com `Custos por fornecedor`; (2) a tag `Sem caixa` NAO vira tinta — a Caixa esta ligada em 4 de 102 contas e ela pintaria 98 linhas com o mesmo rotulo, que e o defeito que o handoff existe para matar. Tag em 10px e nao 9,5px porque dois rotulos sao --ink-mute e a Escada proibe --ink-mute abaixo de 10px. **Gates:** check-tokens verde, 3 blocos inline compilados por `vm.Script`, **756 passed / 30 skipped**, e render headless contra o `servidor_demo` a cada fase. Varredura da Escada em 3 criterios: os 3 achados sao excecoes ja documentadas (caret/seta e `opacity` como estado), nenhum e codigo novo.)
+_Atualizado: 2026-09-07 (sessao 330 — **handoff de design aplicado: `FDC - Contas e Parceiros Opcao A`, 5 fases, 5 commits, todos pushados.** A tela tratava tudo com o mesmo peso: 4 KPIs (um deles sempre `0`), 3 colunas concorrentes, `Editar/Arquivar/Excluir` acesos nas ~100 linhas com um vermelho em cada uma, 29 casas em barras de escala inutil e um log de 40 acoes onde 37 diziam `100%`. **Fase 1** — titulo sai do gradiente azul (o maior texto da tela era acento, e com isso o azul deixava de significar sinal); eyebrow sobe um degrau na Escada de Tinta (9px/--ink-mute media 3,0:1, abaixo do 4,5:1 do papel Label). Aplicado tambem no Dashboard, com `SHELL_SPEC.md` e `check-tokens.mjs` atualizados junto. **Fase 2** — 4 KPIs viram 3, ordenados por CERTEZA DO DINHEIRO: disponivel (garantido) → em aberto (projecao, ambar) → banca total (soma, neutro). Sai o medidor ATIVAS/INATIVAS e o `Caixa total`, que imprimia o MESMO `totais.banca` do KPI ao lado. **Fase 3** — linha da casa e da conta na MESMA grade de 4 trilhas, com a coluna de acoes reservada mesmo vazia; acoes so no hover; `Excluir` sai da linha e vira o ultimo item do menu `⋯`. **Fase 4** — coluna Conciliacao com vocabulario FECHADO num helper so (`tagConciliacao`), sem abreviacao e sem teto no numero; vermelho so em `Divergencia` (erro realizado), ambar em pendencia (fato a conferir). **Fase 5** — `Contas por casa` colapsa a cauda e o rail vira fila de `Pendencias`. **As duas foram DESFEITAS na revisao** (abaixo). **A REVISAO, depois de o Feca ver a tela na base real (177 contas, 47 casas):** o rail voltou a ser `Ultimas acoes` — aquele painel e o historico de EXTRACOES (o RAIO-X), e rotular registro de fila promete tarefa que nao existe; rotulo errado e pior que rotulo repetido. A casa virou SOMA (fundo proprio + a palavra `total` + guia recuando as contas), porque o total da casa e o saldo das contas caiam na mesma coluna e liam como cinco parcelas a somar. E os TRES cards de baixo sairam: duracao, dias ativos e apostas viraram COLUNAS da lista, que passou a ter 7 trilhas com cabecalho. **O vao no monitor largo nao era da largura da lista — era de ela ter UMA coluna flexivel**; com todas em `minmax(min, Nfr)` a sobra se distribui entre todas. **Bug antigo achado medindo:** a barra de `Contas por casa` tinha `fill` de 0px em TODA linha (`%` sobre elemento inline nao se aplica), entao 43 contas e 2 contas desenhavam a mesma barra — era isso que fazia o card nao dizer nada. **Desvio do handoff que ficou:** a tag `Sem caixa` NAO vira tinta — a Caixa esta ligada em 4 de 102 contas e ela pintaria 98 linhas com o mesmo rotulo, que e o defeito que o handoff existe para matar. Tag em 10px e nao 9,5px porque dois rotulos sao --ink-mute e a Escada proibe --ink-mute abaixo de 10px. **Gates:** check-tokens verde, 3 blocos inline compilados por `vm.Script`, **756 passed / 30 skipped**, e render headless contra o `servidor_demo` a cada fase. Varredura da Escada em 3 criterios: os 3 achados sao excecoes ja documentadas (caret/seta e `opacity` como estado), nenhum e codigo novo.)
 
 _Anterior: 2026-09-07 (sessao 329 — **a faxina de documentacao achou 14 regras que governavam o comportamento e nao estavam escritas.** Esse e o resultado, nao os KB. Quatro arquivos disputavam o papel de "onde o projeto esta" e tres descreviam o projeto de julho; a varredura da s261 ja tinha medido o custo disso ("a primeira pendencia que eu fui atacar ja estava feita desde 26/07"). Cinco lotes fechados. **F** — nasce o `BACKLOG.md` (70 KB), que absorve o §5 do STATUS VERBATIM: as 192 linhas nao-vazias conferidas uma a uma, zero perdida, com contraprova por canario. **B** — STATUS de 183 para 44 KB; as 1.157 linhas de antes reprocuradas uma a uma (483 ficaram, 491 foram para o HISTORICO, 183 para o BACKLOG, ZERO perdidas). **C** — HISTORICO de 1,21 MB vira indice de 3 KB + 6 particoes, com as 1.445 linhas conferidas. **D** — 16 docs + 11 anexos para `docs/arquivo/`, `docs/` cai de 43 para 27 vivos, 20 links consertados. **E** — CLAUDE.md de 68,3 para 62,7 KB e nasce o `docs/CASOS.md` (22,9 KB), que NAO e auto-carregado: a regra fica no CLAUDE, o bilhete/casa/valor/sessao vai para o CASOS. **O gate final de regras deu ZERO perdidas**: das 434 ancoras verificaveis, 384 seguem no CLAUDE e 57 migraram para o CASOS; dos 50 numeros que decidem comportamento, 36 ficaram e 11 migraram. 255 regras contadas item a item em 12 secoes. **E 14 regras foram ACRESCENTADAS** — o `git add` por nome, os tres 'os tetos travam crescimento', o trio de causas da Escada de Tinta, a inversao de hierarquia, o 'node --check e falso verde para tudo em template literal', e mais 7. Elas ja governavam o comportamento; so nao estavam escritas como regra. **Gate novo:** `tools/check_docs.py`, no CI, com 7 checagens todas provadas por mutacao — tetos de CLAUDE (65 KB), CASOS (60) e STATUS (50), forma do STATUS (<=3 blocos, <=2 _Anterior), copia em Backups por PREFIXO, link quebrado e ANCORA. Regra sem gate nao e cumprida neste repo: o invariante #4 estava escrito e claro, e Backups chegou a 551 pastas com 165 copias de STATUS/HISTORICO. **Reconciliacao da Auditoria Turbo:** os 78 achados MEDIO/BAIXO do mergulho de 20/07 NAO EXISTEM por escrito (o doc enumera 16 e o rodape diz "Deliverables uncommitted"); reconciliei os 139 do findings.json de 19/07 — 40 fechados, 68 abertos, 20 a confirmar na tela, 3 parciais e 3 que nao eram achado, um deles um placeholder de teste. **#129 medido e rebaixado:** a odd nao entra no calcular_pl em L/V e o risco de dedup deu ZERO de extracao em 528 multiplas sem codigo expostas; virou divida de documentacao. **Lote A ABERTO** — podar Backups (223 arquivos, 28,7 MB), com o zip para fora do repo ANTES de qualquer coisa apagada.)
 
@@ -110,14 +110,44 @@ simplesmente não se aplicam. O trilho escapou por ser filho de um flex
 > na barra responde em uma linha, e `%` sobre inline é falha silenciosa: não há erro,
 > não há aviso, e o CSS parece correto na leitura.
 
-### A parte de baixo passou pelo `/nova-ui` — nunca tinha passado
+### A 2ª revisão: uma tabela completa no lugar de três cards pobres
 
-- **Custos por fornecedor** ganhou o **total** no rodapé (o card se chama "custos" e
-  nunca somava), `sem custo lançado` no lugar do travessão mudo, e peso relativo atrás
-  do total. A linha sem custo **não some da tela**: é nela que o custo se lança.
-- **Atividade das contas** ganhou favicon na coluna Casa, o fornecedor saiu do colchete
-  colado ao nome e virou label, e o peso atrás de `Apostas` deixa a ordem visível sem
-  obrigar a ler 25 números.
+O teto de 960px **consertou a linha e quebrou a página** — sobrava mais de mil pixels
+de nada entre a lista e o rail. E os três cards de baixo diziam pouco, cada um por um
+motivo diferente: `Contas por casa` repetia o contador que já vive no cabeçalho de cada
+grupo; `Custos por fornecedor` tinha 3 de 5 linhas sem custo lançado, e o custo já tem
+casa própria no Dashboard; `Atividade das contas` era uma **segunda tabela das mesmas
+contas** da lista logo acima.
+
+Duração, dias ativos e apostas viraram **colunas da lista**, e os três cards saíram. A
+lista tem 7 trilhas e um cabeçalho de colunas — com 7 colunas o rótulo deixa de ser
+opcional: `210d` e `165` lado a lado não se explicam sozinhos.
+
+> **O vão não era da largura da lista — era de a lista ter UMA coluna flexível.** Num
+> monitor largo ela vira 1.100px de nada e as demais não crescem junto. Com todas as
+> trilhas em `minmax(min, Nfr)` a sobra se distribui entre todas, e o teto pôde sair: a
+> tabela ocupa a largura porque tem o que pôr nela, não para preencher espaço.
+
+**A margem é de 18px, e está medida.** A soma dos mínimos das 7 trilhas é 740px contra
+758px de espaço útil na menor largura (painel de 892px em 1600px de viewport, o mais
+apertado por causa do rail). Subir qualquer mínimo sem baixar outro estoura a linha lá —
+e o estouro **não aparece no monitor em que se está editando**. Conferido em
+1280/1440/1600/1920/2560, sem transbordo em nenhuma.
+
+> Sintoma para reconhecer isto noutra grade: transbordo de célula é **silencioso**. O
+> texto vaza por baixo da coluna vizinha, não há erro, e só aparece na largura em que
+> ninguém estava olhando. Compare `scrollWidth` com a largura da célula em várias
+> larguras — é uma linha, e é o que separa "cabe" de "coube aqui".
+
+**Apostas da casa soma; duração e dias ativos não.** São janelas por conta, e somar dia
+ativo de duas contas contaria o mesmo dia duas vezes. Onde não há agregado honesto a
+célula fica vazia — não inventa número. E conta sem histórico entra como travessão,
+nunca zero: ela não apostou zero vezes, ela não tem histórico.
+
+> Os dois cards que a 1ª revisão melhorou (`Custos por fornecedor` e `Atividade das
+> contas`) **saíram na 2ª**. O trabalho não foi perdido: a atividade virou coluna, e o
+> custo já tinha casa no Dashboard. Ficou a lição de que melhorar um card não responde
+> à pergunta de se ele devia existir naquela página.
 
 ### Ficou de fora, e está no `BACKLOG.md`
 
