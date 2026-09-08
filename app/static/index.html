@@ -352,33 +352,8 @@ html.embedded .sidebar { display: none; }
 .painel-card-count { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
 .painel-card-body { padding: 15px 18px; display: flex; flex-direction: column; gap: 12px; }
 
-/* Barra de contagem horizontal */
-.painel-bar-row { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 11px; }
-.painel-bar-row.nochip { grid-template-columns: 1fr auto; }
-.painel-bar-chip { width: 22px; height: 22px; border-radius: 7px; background: var(--fdc-steel); display: grid; place-items: center; overflow: hidden; }
-.painel-bar-chip img { width: 15px; height: 15px; object-fit: contain; filter: grayscale(1) opacity(.85); }
-.painel-bar-main { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-.painel-bar-nome { font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* ⚠️ `display:block` no fill é o que faz a barra EXISTIR. O `.painel-bar-fill` é um
-   <span>, e em elemento inline `width`/`height` em % simplesmente não se aplicam: o
-   fill media 0px em TODAS as linhas, inclusive na maior. O que se via na tela era só
-   o trilho — 52 contas e 2 contas desenhavam exatamente a mesma barra. O trilho
-   escapou porque é filho de um flex (`.painel-bar-main`), e flex item é blocado
-   automaticamente; o neto não é. Medido no headless, não deduzido. */
-.painel-bar-track { height: 6px; border-radius: var(--r-pill); background: rgba(var(--accent-rgb),.10); overflow: hidden; }
-.painel-bar-fill { display: block; height: 100%; min-width: 2px; border-radius: var(--r-pill); background: var(--accent); transition: width .35s var(--ease); }
-.painel-bar-fill.alt { background: var(--accent-2); }
-.painel-bar-val { font-family: var(--font-mono); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; min-width: 30px; }
-/* Cauda das casas de 1–2 contas (s330): dobrada por padrão, atrás de um botão. */
-.painel-bar-mais { display: flex; flex-direction: column; gap: 12px; }
-.painel-bar-mais[hidden] { display: none; }
-.painel-bar-toggle { align-self: stretch; text-align: left; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em; color: var(--ink-soft); background: transparent; border: 0; border-top: 1px solid var(--line-2); padding: 11px 0 1px; margin-top: 2px; cursor: pointer; }
-.painel-bar-toggle:hover { color: var(--ink); }
-
-/* s330 — o medidor Ativas × Inativas e a legenda dele saíram junto com o bloco que
-   os continha: uma barra de 100% azul sobre "102 ativas / 0 inativas" não informava
-   nada que o próprio par de números já não dissesse. .painel-meter/.painel-legend
-   foram removidos aqui por não terem outro uso no arquivo. */
+/* s330 (rev.2) - as barras de "Contas por casa" sairam com o card: o contador
+   por casa ja vive no cabecalho de cada grupo da lista. (.painel-bar-*) */
 
 /* Criador de conta + ações */
 .painel-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -417,11 +392,8 @@ html.embedded .sidebar { display: none; }
 
 /* ── Layout unificado: topo (resumo | lista) + informativo abaixo ── */
 /* .painel-top saiu na s330: a lista ocupa a linha inteira (ver renderPainelContas). */
-.painel-lista-panel + .painel-info { margin-top: 16px; }
-.painel-info + .painel-card { margin-top: 16px; }
-.painel-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.painel-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 1100px) { .painel-info { grid-template-columns: 1fr; } }
+/* s330 (rev.2) - .painel-info e .painel-col sairam com os dois cards de
+   breakdown que elas dispunham lado a lado. */
 
 /* s330 — .painel-resumo-* e .painel-foot-stat saíram com o rodapé "177 · 47 · 5 ·
    caixa total". O "Caixa total" era duplicata literal do KPI "Banca total": dois
@@ -438,46 +410,21 @@ html.embedded .sidebar { display: none; }
    ⚠️ `max-width` é load-bearing, não enfeite: a coluna 1 é `minmax(0,1fr)` e num
    monitor de 2.500px ela chegava a ~1.100px. A linha parava de ler como uma linha e
    virava duas ilhas soltas — nome numa ponta, tag e valor na outra, com um vão de mil
-   pixels no meio. O teto trava a lista numa largura em que o olho ainda percorre a
-   linha inteira; a sobra fica à direita do card, de propósito.
-   O número sai da conta, não do gosto: 32 de padding + 42 de recuo da conta + 500 das
-   três trilhas fixas + 30 de gap = 604px, e o resto é a coluna do nome. Em 960 ela
-   fica com ~356px — folgada para `gleicecacia01 RICHARD` (~130px) sem virar vão. */
-.painel-lista-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; max-width: 960px; }
+   pixels no meio.
+   ⚠️ O teto de 960px que existiu aqui por uma revisão foi REMOVIDO: ele consertava a
+   linha e quebrava a página — sobrava mais de mil pixels de nada entre a lista e o
+   rail. O vão não era da largura da lista, era de a lista ter UMA coluna flexível.
+   Com 7 trilhas em `minmax(min, fr)` a sobra se distribui entre todas, e a tabela
+   ocupa a largura porque tem o que pôr nela — não para preencher espaço. */
+.painel-lista-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
 .painel-lista-resumo { border-bottom: 1px solid var(--line); }
 .painel-lista-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .painel-lista-toolbar .contas-search { padding: 7px 11px; }
 .painel-lista-panel .contas-casa { background: transparent; border: 0; border-radius: 0; margin: 0; border-bottom: 1px solid var(--line); }
 .painel-lista-panel .contas-casa:last-child { border-bottom: 0; }
 
-/* Tabelas do informativo (custos, atividade) */
-.painel-tbl-wrap { overflow-x: auto; }
-.painel-tbl { width: 100%; border-collapse: collapse; }
-.painel-tbl th { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.painel-tbl td { font-size: 12px; color: var(--ink); padding: 8px 10px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
-.painel-tbl tr:last-child td { border-bottom: 0; }
-.painel-tbl th.r, .painel-tbl td.r { text-align: right; }
-.painel-tbl td.mono, .painel-tbl th.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-/* s314: linha de total (só a tabela de saldo por casa usa tfoot). */
-.painel-tbl tfoot td { border-top: 1px solid var(--line); border-bottom: 0; font-weight: 700; padding-top: 10px; }
-/* s330 — o que falta é ESTADO, não vazio: "sem custo lançado" no lugar do travessão
-   mudo. --ink-mute em 11px, acima do piso de 10px do papel metadado. */
-.painel-tbl td.nada { color: var(--ink-mute); font-size: 11px; letter-spacing: .04em; }
-.painel-tbl tr.sem-custo td:first-child { color: var(--ink-soft); }
-/* Peso relativo atrás do número: ordena o olho sem pedir leitura. Fica no fundo da
-   célula, então não disputa tinta com o valor — o número segue em --ink. */
-.tbl-peso { position: relative; display: inline-block; padding: 2px 5px; }
-.tbl-peso::before {
-  content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: var(--peso, 0%);
-  background: rgba(var(--accent-rgb),.16); border-radius: var(--r-xs); z-index: 0;
-}
-.tbl-peso > * { position: relative; z-index: 1; }
-/* Casa na tabela: favicon + nome, como no resto da tela. */
-.tbl-casa { display: inline-flex; align-items: center; gap: 8px; }
-.tbl-casa .painel-bar-chip { width: 18px; height: 18px; border-radius: 5px; }
-.tbl-casa .painel-bar-chip img { width: 12px; height: 12px; filter: none; }
-/* Fornecedor é LABEL, não parte do nome — mesma régua da lista de contas. */
-.tbl-forn { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); margin-left: 6px; }
+/* s330 (rev.2) - .painel-tbl* / .tbl-peso / .tbl-casa / .tbl-forn sairam com as
+   tabelas de custos e de atividade. A atividade virou COLUNA da lista. */
 
 /* ── Partner page ── */
 .partner-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -2003,12 +1950,36 @@ td.c-res.res-HL { color: var(--warn); }
    que nada se desloca quando as ações aparecem no hover.
    O padding direito é igual nas duas linhas, então o recuo da conta encolhe só a
    coluna 1 — as três fixas continuam alinhadas entre casa e conta. */
+/* s330 (revisão 2) — 7 trilhas: nome · conciliação · duração · dias · apostas ·
+   caixa · ações. As três do meio vieram do card "Atividade das contas", que era uma
+   SEGUNDA tabela das mesmas contas desta lista.
+   Todas as trilhas usam `minmax(min, Nfr)`: o mínimo garante que a linha caiba em
+   ~890px (a menor largura medida) e o `fr` distribui a sobra entre TODAS, em vez de
+   despejá-la na coluna do nome. Era isso que produzia o vão: uma única coluna
+   flexível num monitor largo vira 1.100px de nada, e as demais não crescem junto.
+   ⚠️ A soma dos MÍNIMOS é 740px e o espaço útil na menor largura medida é 758 — a
+   margem é de 18px. Subir qualquer mínimo sem baixar outro estoura a linha lá, e o
+   estouro não aparece no monitor em que se está editando. O mínimo da Caixa é 150 e
+   não 104 porque a linha da casa escreve `total R$ 28.108,88`: o rótulo entra na
+   conta da largura, e com 104 o valor transbordava por baixo da coluna vizinha. */
 .contas-casa-head,
+.conta-lista-head,
 .conta-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 128px 100px 152px;
+  grid-template-columns:
+    minmax(130px, 1.4fr)   /* nome + fornecedor  */
+    minmax(120px, 1fr)     /* conciliação        */
+    minmax(54px,  .5fr)    /* duração            */
+    minmax(60px,  .5fr)    /* dias ativos        */
+    minmax(66px,  .5fr)    /* apostas            */
+    minmax(150px, .8fr)    /* caixa              */
+    minmax(160px, 202px);  /* ações (teto fixo)  */
   align-items: center; gap: 10px;
 }
+/* Cabeçalho de colunas: com 7 colunas o rótulo deixa de ser opcional. Papel Label —
+   --ink-soft, 9,5px, no piso da escada. */
+.conta-lista-head { padding: 9px 16px; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.conta-lista-head .r { text-align: right; }
 /* Trilhas do handoff (190/108/202) exigem ~1.000px de lista, que é o que a maquete
    tinha. Aqui a lista divide a linha com o card "Contas por casa" E com o rail da
    casca, e cai a 539px em 1600px de viewport — com as trilhas cheias sobraria ~9px
@@ -2017,9 +1988,10 @@ td.c-res.res-HL { color: var(--warn); }
    entre os dois que o rail aparece. Dentro de cada faixa as trilhas seguem fixas —
    o alinhamento, que é o objetivo da regra, vale nas duas. */
 .painel-lista-panel { container-type: inline-size; container-name: lista; }
+/* Só o recuo da conta depende da largura: abaixo disso ele come nome demais. As
+   trilhas não trocam mais de definição — o `minmax(min, fr)` acima já cobre a faixa
+   inteira sozinho, e uma definição só é uma coisa a menos para divergir. */
 @container lista (min-width: 720px) {
-  .contas-casa-head,
-  .conta-row { grid-template-columns: minmax(0, 1fr) 190px 108px 202px; }
   .conta-row { padding-left: 42px; }
 }
 
@@ -2073,6 +2045,12 @@ td.c-res.res-HL { color: var(--warn); }
 /* Caixa da conta: valor numérico → --ink, mono, tabular, à direita. Vírgulas alinhadas
    na vertical é o que permite comparar duas linhas sem ler número por número. */
 .conta-caixa { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+/* Duração · dias · apostas. Papel "valor numérico" pela Escada: --ink no piso de 13px
+   só no que se compara (apostas, com `.forte`); duração e dias são contexto da conta e
+   ficam um degrau abaixo, em --ink-soft 11,5px — acima do piso do papel Label. */
+.conta-num { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.conta-num.forte { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.conta-num.vazio { color: var(--ink-mute); }
 .conta-caixa.vazio { color: var(--ink-mute); }
 .contas-casa-saldo { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .contas-casa-saldo.vazio { color: var(--ink-mute); font-weight: 600; }
@@ -3477,6 +3455,8 @@ function renderPainelLista() {
   if (!host) return;
   const q = (painelBusca || '').toLowerCase().trim();
   const fonte = contasTab === 'ativas' ? parceirosCache : parceirosArquivadosCache;
+  const atv = painelAtvCache;        // null enquanto o feed não chegou → colunas com "—"
+  const nfl = n => (n || 0).toLocaleString('pt-BR');
   let html = '', total = 0;
   (casasCarregadas || []).forEach(casa => {
     const nomeCasa = casaDisplay(NOMES[casa] || casa);
@@ -3485,15 +3465,22 @@ function renderPainelLista() {
     if (!ps.length) return;
     total += ps.length;
     const [casaTag, casaSaldo] = _caixaDaCasa(casa);
-    // Linha da casa: as MESMAS 4 trilhas da linha de conta. A 4ª vai vazia — reservada,
-    // não ausente: é o que impede a lista de dançar quando as ações aparecem.
+    // Apostas da CASA = soma das contas dela. Duração e dias ativos não somam: são
+    // janelas por conta, e somar dia ativo de duas contas contaria o mesmo dia duas
+    // vezes. Onde não há agregado honesto a célula fica vazia, não inventa número.
+    const apCasa = atv ? ps.reduce((s, p) => s + ((atv[casa + '||' + p.nome] || {}).n || 0), 0) : 0;
+    // Linha da casa: as MESMAS 7 trilhas da linha de conta. A última vai vazia —
+    // reservada, não ausente: é o que impede a lista de dançar no hover.
     html += '<div class="contas-casa"><div class="contas-casa-head">'
       + '<span class="contas-casa-nomewrap">'
         + '<span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span>'
         + '<span class="contas-casa-nome">' + esc(nomeCasa) + '</span>'
         + '<span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span>'
       + '</span>'
-      + casaTag + casaSaldo + '<span></span>'
+      + casaTag
+      + '<span></span><span></span>'
+      + '<span class="conta-num forte">' + (apCasa ? nfl(apCasa) : '') + '</span>'
+      + casaSaldo + '<span></span>'
       + '</div>';
     const cxMap = _caixaPorConta() || {};
     ps.forEach(p => {
@@ -3515,6 +3502,17 @@ function renderPainelLista() {
         : '<span class="conta-caixa vazio" title="Caixa Inteligente não ligada nesta conta">—</span>';
       // Nome e fornecedor deixam de ser uma string só ("Davi [Norte]"): o nome é
       // identidade (--ink 13px) e o fornecedor é label (--ink-soft 10px mono).
+      // Duração · dias ativos · apostas — as três colunas que vieram do card removido.
+      // Sem histórico é "—", nunca 0: conta que nunca apostou não apostou zero vezes,
+      // ela não tem histórico. E enquanto o feed não chegou, TODAS ficam em "—" — a
+      // lista não espera por ele para desenhar.
+      const a = atv && atv[casa + '||' + p.nome];
+      const vazio = '<span class="conta-num vazio">—</span>';
+      const colsAtv = a
+        ? '<span class="conta-num">' + nfl(_diasEntre(a.min, a.max)) + 'd</span>'
+          + '<span class="conta-num">' + nfl(a.dias.size) + '</span>'
+          + '<span class="conta-num forte">' + nfl(a.n) + '</span>'
+        : vazio + vazio + vazio;
       const forn = _painelParseForn(p.nome);
       const nomeLimpo = forn ? (p.nome || '').replace(/\s*\[[^\]]*\]\s*$/, '') : (p.nome || '');
       const clic = contasTab === 'ativas';   // ativa = tem perfil na Extração → linha inteira abre lá
@@ -3541,7 +3539,7 @@ function renderPainelLista() {
           + '<span class="conta-nome">' + esc(nomeLimpo || '—') + '</span>'
           + (forn ? '<span class="conta-forn">' + esc(forn) + '</span>' : '')
         + '</span>'
-        + tag + caixa
+        + tag + colsAtv + caixa
         + '<span class="conta-acoes">' + acoes + '</span></div>';
     });
     html += '</div>';
@@ -3648,19 +3646,6 @@ function _irParaDivergencia() {
   alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
   alvo.classList.add('pisca');
   setTimeout(() => alvo.classList.remove('pisca'), 1600);
-}
-
-// Abre/fecha a cauda de "Contas por casa". O rótulo do botão troca de "+ N casas com
-// X–Y contas" para "ver menos" — e volta ao texto original ao fechar, que fica guardado
-// no próprio botão: rótulo recalculado na hora erraria se a base mudasse no meio.
-function painelCasasVerMais(btn) {
-  const cauda = document.getElementById('painelCasasCauda');
-  if (!cauda) return;
-  const abrir = cauda.hidden;
-  if (abrir && !btn.dataset.rotulo) btn.dataset.rotulo = btn.textContent;
-  cauda.hidden = !abrir;
-  btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-  btn.textContent = abrir ? 'ver menos' : (btn.dataset.rotulo || 'ver mais');
 }
 
 // ── Menu "⋯" da linha da conta (s330) ────────────────────────────────────────
@@ -4486,78 +4471,25 @@ function renderPainelContas() {
         '</div>' +
         '<span class="painel-gestao-count" id="painelGestaoCount" style="margin-left:auto"></span>' +
       '</div>' +
+      // Com 7 colunas o rótulo deixa de ser opcional: "172d" e "153" lado a lado não
+      // se explicam sozinhos. Usa a MESMA grade das linhas, então nunca desalinha.
+      '<div class="conta-lista-head">' +
+        '<span>Conta</span><span>Conciliação</span>' +
+        '<span class="r">Duração</span><span class="r">Dias ativos</span><span class="r">Apostas</span>' +
+        '<span class="r">Caixa</span><span></span>' +
+      '</div>' +
       '<div id="painelGestaoList"></div>' +
     '</div>';
 
-  // ── Informativo: contas por casa + custos por fornecedor + atividade ──
-  // s330 — só as 6 primeiras por contagem; a cauda colapsa num botão. Com 29 casas
-  // (47 na base do Feca) a lista virava dezenas de barras de 1px: uma barra que não
-  // varia não compara nada, e a que importa (a maior) se perdia no meio delas.
-  // A escala é normalizada pela MAIOR de todas, não pela maior das visíveis — senão
-  // expandir mudaria o comprimento das barras que já estavam na tela.
-  const CASAS_VISIVEIS = 6;
-  const maxCasa = Math.max(1, ...porCasa.map(c => c.total));
-  const barra = c =>
-    '<div class="painel-bar-row">' +
-      '<span class="painel-bar-chip"><img src="' + faviconUrl(c.casa) + '" alt="" loading="lazy"></span>' +
-      '<span class="painel-bar-main"><span class="painel-bar-nome">' + esc(c.nome) + '</span>' +
-      '<span class="painel-bar-track"><span class="painel-bar-fill" style="width:' + (c.total / maxCasa * 100).toFixed(1) + '%"></span></span></span>' +
-      '<span class="painel-bar-val">' + nf(c.total) + '</span>' +
-    '</div>';
-  const topo = porCasa.slice(0, CASAS_VISIVEIS);
-  const cauda = porCasa.slice(CASAS_VISIVEIS);
-  // O rótulo do botão diz a FAIXA real da cauda, nunca uma faixa fixa: "1–2" só é
-  // verdade nesta base. Faixa inventada é do mesmo tipo de mentira que o "+99".
-  let rotuloCauda = '';
-  if (cauda.length) {
-    const mn = cauda[cauda.length - 1].total, mx = cauda[0].total;
-    rotuloCauda = '+ ' + nf(cauda.length) + (cauda.length === 1 ? ' casa com ' : ' casas com ')
-      + (mn === mx ? nf(mn) + (mn === 1 ? ' conta' : ' contas')
-                   : nf(mn) + '–' + nf(mx) + ' contas');
-  }
-  const casaRows = topo.map(barra).join('')
-    + (cauda.length
-       ? '<div class="painel-bar-mais" id="painelCasasCauda" hidden>' + cauda.map(barra).join('') + '</div>'
-         + '<button class="painel-bar-toggle" type="button" id="painelCasasToggle" aria-expanded="false"'
-         + ' aria-controls="painelCasasCauda" onclick="painelCasasVerMais(this)">' + esc(rotuloCauda) + '</button>'
-       : '');
-
-  // s330 — a tabela dizia pouco: 3 de 5 linhas eram só travessão, não havia total, e
-  // nada dava peso ao número. Três acréscimos, nenhuma coluna nova:
-  //   · o TOTAL da carteira no rodapé (o card se chama "custos" e nunca somava);
-  //   · "sem custo lançado" no lugar do travessão mudo — a linha passa a dizer o que
-  //     falta, e não some da tela: é nela que o custo se lança (a mesma regra do
-  //     Painel de Contas — chave com valor nunca se esconde, e chave sem valor é
-  //     justamente a que precisa aparecer para receber);
-  //   · barra de peso no Total, para o olho ordenar sem ler número por número.
-  const custoTot = custoRows.reduce((s, [, a]) => s + a.total, 0);
-  const custoMax = Math.max(1, ...custoRows.map(([, a]) => a.total));
-  const semCusto = custoRows.filter(([, a]) => !(a.total > 0)).length;
-  const custoTbl = custoRows.length ? (
-    '<div class="painel-tbl-wrap"><table class="painel-tbl"><thead><tr>' +
-      '<th>Fornecedor</th><th class="r mono">Contas</th><th class="r mono">Custo/conta</th><th class="r mono">Total</th>' +
-    '</tr></thead><tbody>' +
-    custoRows.map(([f, a]) => {
-      const tem = a.total > 0;
-      return '<tr' + (tem ? '' : ' class="sem-custo"') + '><td>' + esc(f) + '</td>' +
-        '<td class="r mono">' + nf(a.contas) + '</td>' +
-        (tem
-          ? '<td class="r mono">' + _moneyInt(a.total / a.contas) + '</td>'
-            + '<td class="r mono"><span class="tbl-peso" style="--peso:' + (a.total / custoMax * 100).toFixed(1) + '%">' + _moneyInt(a.total) + '</span></td>'
-          : '<td class="r mono nada" colspan="2">sem custo lançado</td>') +
-        '</tr>';
-    }).join('') +
-    '</tbody><tfoot><tr>' +
-      '<td>Total</td>' +
-      '<td class="r mono">' + nf(custoRows.reduce((s, [, a]) => s + a.contas, 0)) + '</td>' +
-      '<td class="r mono nada">' + (semCusto ? nf(semCusto) + (semCusto === 1 ? ' sem custo' : ' sem custo') : '') + '</td>' +
-      '<td class="r mono">' + _moneyInt(custoTot) + '</td>' +
-    '</tr></tfoot></table></div>'
-  ) : '<div class="painel-empty">Nenhum fornecedor identificado (formato “Conta [Fornecedor]”).</div>';
-
-  const casaCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Contas por casa</span><span class="painel-card-count">' + nf(casasComConta) + ' casas</span></div><div class="painel-card-body">' + casaRows + '</div></div>';
-  const custoCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Custos por fornecedor</span><span class="painel-card-count">' + nf(custoRows.length) + ' fornecedores</span></div><div class="painel-card-body">' + custoTbl + '</div></div>';
-  const atividadeCard = '<div class="painel-card"><div class="painel-card-head"><span class="painel-card-titulo">Atividade das contas</span><span class="painel-card-count" id="painelAtividadeCount"></span></div><div class="painel-card-body" id="painelAtividade"><div class="painel-empty">Carregando atividade…</div></div></div>';
+  // ── s330 (revisão 2): os três cards de baixo saíram ──────────────────────────
+  // O Feca leu a tela na base real e os três diziam pouco, cada um por um motivo:
+  //   · "Contas por casa" repetia o contador que já vive no cabeçalho de cada grupo;
+  //   · "Custos por fornecedor" tinha 3 de 5 linhas sem custo lançado, e o custo já
+  //     tem casa própria no Dashboard (Fornecedores & Parceiros / Custos de Contas);
+  //   · "Atividade das contas" era uma SEGUNDA tabela das MESMAS contas da lista.
+  // Duração, dias ativos e apostas viraram COLUNAS da lista. Uma tabela completa no
+  // lugar de uma tabela pobre mais três cards — e é isso que enche a largura que
+  // sobrava à direita, sem inventar conteúdo para preencher espaço.
 
   // Topo: ESQUERDA = painel de lista (resumo Contas no topo + lista) | DIREITA = Contas por casa.
   // Abaixo (informativo de contas, sem métricas de aposta): custos + atividade.
@@ -4576,15 +4508,10 @@ function renderPainelContas() {
   // Com a lista inteira sobram ≥620px em toda largura medida (748 · 892 · 1120 · 1852).
   // "Contas por casa" desce e faz par com "Custos por fornecedor" — dois cards de
   // breakdown lado a lado, que é o que os dois são.
-  host.innerHTML =
-    hero +
-    bancaKpis +
-    listaPanel +
-    '<div class="painel-info">' + casaCard + custoCard + '</div>' +
-    atividadeCard;
+  host.innerHTML = hero + bancaKpis + listaPanel;
   renderPainelLista();       // preenche a lista de gestão (grupos por casa + ações)
-  renderPainelBanca();       // preenche a banca (KPIs + saldo por casa) — /caixa/visao
-  renderPainelAtividade();   // preenche a tabela de atividade (duração/dias/apostas)
+  renderPainelBanca();       // preenche a banca (KPIs) — /caixa/visao
+  carregarAtividade();       // duração/dias/apostas por conta → colunas da lista
 }
 
 // Base de apostas resolvidas, buscada UMA vez e cacheada na sessão (feed do
@@ -4622,58 +4549,45 @@ window.loadData = function (force) {
   // o `force` só decide se o backend reconstrói a planilha (`?refresh=1`) ou serve o
   // cache de 120s que o 1º da fila acabou de encher.
   painelDashRows = null; _painelDashPromise = null;
+  painelAtvCache = null;                               // as colunas de atividade também
   caixaVisaoCache = null; _caixaVisaoPromise = null;   // s314: a banca também envelhece
-  if (!document.getElementById('painelAtividade')) return Promise.resolve();  // painel fechado
+  // s330 (revisão 2): o portão passou a ser a LISTA. O `#painelAtividade` era o card
+  // que saiu — deixá-lo aqui faria o ↻ virar no-op silencioso no painel inteiro.
+  if (!document.getElementById('painelGestaoList')) return Promise.resolve();  // painel fechado
   renderPainelBanca(force).catch(function () {});
-  return renderPainelAtividade(force).catch(function () {});
+  return carregarAtividade(force).catch(function () {});
 };
 
-async function renderPainelAtividade(force) {
+// ── Atividade por conta: agora ALIMENTA a lista, não uma segunda tabela ───────
+// s330 (revisão 2). Duração, dias ativos e nº de apostas eram um card separado que
+// repetia as MESMAS contas da lista logo acima. Viraram colunas de lá. Aqui ficou só
+// o que sempre foi: a agregação do feed por conta.
+//
+// O cache é preenchido de forma ASSÍNCRONA e a lista renderiza antes dele chegar —
+// mesmo contrato do `caixaVisaoCache`: as colunas nascem com travessão e a lista
+// re-renderiza quando o feed responde. Ausência entra como "—", nunca como zero:
+// conta sem histórico não apostou zero vezes, ela não tem histórico.
+let painelAtvCache = null;   // 'casa||parceiro' -> { n, dias:Set, min, max }
+
+async function carregarAtividade(force) {
   const rows = await ensureDashRows(force);
-  const host = document.getElementById('painelAtividade');
-  if (!host) return;   // painel pode ter re-renderizado durante o fetch
-  const map = {};   // casa||parceiro -> agregado por conta
+  const map = {};
   rows.forEach(r => {
     if (!r || !r.casa || !r.data) return;
     // Desde a s215 o feed carrega também as ABERTAS (para a tela "Em Aberto" do
-    // dashboard). Este painel conta histórico RESOLVIDO — sem o corte, a coluna
-    // "Apostas" e a duração da conta passariam a somar aposta ainda não liquidada.
+    // dashboard). Aqui se conta histórico RESOLVIDO — sem o corte, "Apostas" e a
+    // duração passariam a somar aposta ainda não liquidada.
     if ((r.resultado || '').toUpperCase() === 'ABERTA') return;
     const key = r.casa + '||' + r.parceiro;
     let a = map[key];
-    if (!a) a = map[key] = { casa: r.casa, parceiro: r.parceiro, conta: r.conta || r.parceiro, forn: r.fornecedor || '', n: 0, min: r.data, max: r.data, dias: new Set() };
+    if (!a) a = map[key] = { n: 0, min: r.data, max: r.data, dias: new Set() };
     a.n++; a.dias.add(r.data);
     if (r.data < a.min) a.min = r.data;
     if (r.data > a.max) a.max = r.data;
   });
-  const ativos = new Set();
-  (casasCarregadas || []).forEach(c => (parceirosCache[c] || []).forEach(p => ativos.add(c + '||' + p.nome)));
-  const arr = Object.values(map).filter(a => ativos.has(a.casa + '||' + a.parceiro))
-    .sort((x, y) => y.n - x.n || y.dias.size - x.dias.size);
-  const cnt = document.getElementById('painelAtividadeCount');
-  if (cnt) cnt.textContent = arr.length + (arr.length === 1 ? ' conta com histórico' : ' contas com histórico');
-  if (!arr.length) { host.innerHTML = '<div class="painel-empty">Sem histórico de apostas resolvidas nas contas ativas.</div>'; return; }
-  const nf = n => (n || 0).toLocaleString('pt-BR');
-  // s330 — a tabela era 5 colunas monocromáticas. O favicon devolve à coluna Casa o
-  // mesmo reconhecimento que ela tem no resto da tela (a marca se lê antes do nome), e
-  // o peso atrás de "Apostas" deixa a ordem visível sem obrigar a ler 25 números.
-  // O fornecedor sai do colchete colado ao nome e vira label, como na lista.
-  const maxAp = Math.max(1, ...arr.map(a => a.n));
-  host.innerHTML = '<div class="painel-tbl-wrap"><table class="painel-tbl"><thead><tr>' +
-    '<th>Conta</th><th>Casa</th><th class="r mono">Duração</th><th class="r mono">Dias ativos</th><th class="r mono">Apostas</th>' +
-    '</tr></thead><tbody>' +
-    arr.map(a =>
-      '<tr><td>' + esc(a.conta) + (a.forn ? ' <span class="tbl-forn">' + esc(a.forn) + '</span>' : '') + '</td>' +
-      '<td><span class="tbl-casa"><span class="painel-bar-chip"><img src="' + faviconUrl(a.casa) + '" alt="" loading="lazy"></span>'
-        + esc(casaDisplay(NOMES[a.casa] || a.casa)) + '</span></td>' +
-      '<td class="r mono">' + nf(_diasEntre(a.min, a.max)) + 'd</td>' +
-      '<td class="r mono">' + nf(a.dias.size) + '</td>' +
-      '<td class="r mono"><span class="tbl-peso" style="--peso:' + (a.n / maxAp * 100).toFixed(1) + '%">' + nf(a.n) + '</span></td></tr>'
-    ).join('') +
-    '</tbody></table></div>';
+  painelAtvCache = map;
+  if (document.getElementById('painelGestaoList')) renderPainelLista();
 }
-
-
 
 function mostrarEmptyState() {
   document.getElementById('empty-state').style.display = '';
