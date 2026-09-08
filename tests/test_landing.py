@@ -47,7 +47,10 @@ def _landing_txt() -> str:
     return LANDING.read_text(encoding="utf-8")
 
 
-TITULO = "O seu resultado, depois dos custos"
+# Frase do <h1>. Trocada na s331: o topo deixou de prometer uma SUBTRAÇÃO
+# ("você lucra menos do que pensa") e passou a prometer CONTROLE, que é o
+# argumento que o dono do produto usa quando explica de viva-voz.
+TITULO = "O mapa de onde está o seu dinheiro"
 
 
 # ── 1. ninguém de fora alcança ───────────────────────────────────────────────
