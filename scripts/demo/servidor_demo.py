@@ -17,8 +17,11 @@ NAO importa `app.main`: nada de banco, de chave de API ou de sessao. Nao ha
 autenticacao aqui porque nao ha o que proteger -- o dado e' inventado. Por isso
 mesmo: e' um servidor LOCAL de captura, nunca para expor na rede.
 """
+import os
 import pathlib
+import re
 import sys
+import time
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI
@@ -34,6 +37,10 @@ ESTATICO = RAIZ / "app" / "static"
 
 LINHAS = dados_demo.gerar()
 RESUMO = dados_demo.resumo(LINHAS)
+
+# Latencia simulada do PATCH de bilhete (ver `patch_bilhete`). 70 ms e' a faixa do
+# round-trip real em producao; em localhost seria ~2 ms.
+LATENCIA_PATCH_S = int(os.environ.get("DEMO_LATENCIA_PATCH_MS", "70")) / 1000.0
 
 app = FastAPI(title="Sharpen — servidor de demonstração", docs_url=None, redoc_url=None)
 
@@ -173,9 +180,143 @@ LINHAS_FEED = LINHAS + ABERTAS
 ABERTAS_BILHETES = [dict(r, stake=f"{r['stake']:.2f}".replace(".", ",")) for r in ABERTAS]
 
 
+# ── Grade da Extração (s331) ─────────────────────────────────────────────────
+# Ate aqui `/bilhetes` devolvia lista VAZIA para qualquer conta: so respondia ao
+# filtro `extraction_state=aberta`. A tela de Extracao ficava com a grade em
+# "Nenhum bilhete salvo", os KPIs da conta zerados e o botao "Sugerir tipsters"
+# sem nada para sugerir -- ou seja, o print/clipe mostrava a moldura do produto e
+# escondia o produto. Este bloco monta o MESMO contrato de `list_bilhetes`
+# (repository.py) sobre a base ficticia, por conta.
+#
+# Tres diferencas de forma em relacao ao feed, e as tres importam para a tela:
+#   · `data` em DD/MM/AAAA -- e' assim que a coluna `bilhetes.data` guarda em
+#     producao, e o `_dataRevisao` do front so reconhece esse formato;
+#   · `stake`/`odd` em texto pt-BR (virgula decimal) -- o front parseia com
+#     `_numBR`; numero cru viraria NaN na assinatura de stake do matcher;
+#   · `pl` derivado (nunca persistido) e `resultado` VAZIO na aposta aberta,
+#     com `extraction_state='aberta'` -- e' esse par que alimenta o badge ambar.
+sys.path.insert(0, str(RAIZ / "app"))
+from repository import _caixa_projetar, _resumir_apostas  # noqa: E402
+
+
+def _br(v, casas=2):
+    """Numero -> texto pt-BR (virgula decimal), como o banco guarda."""
+    return f"{float(v):.{casas}f}".replace(".", ",")
+
+
+def _data_br(iso):
+    a, m, d = (iso or "0000-00-00").split("-")
+    return f"{d}/{m}/{a}"
+
+
+def _linha_grade(r):
+    aberta = r["resultado"] == "ABERTA"
+    return {
+        "id": r["id"],
+        "data": _data_br(r["data"]),
+        "esporte": r["esporte"],
+        "tipster": r["tipster"] or "",
+        "casa": r["casa"],
+        "parceiro": r["parceiro"],
+        "aposta": r["aposta"],
+        "descricao": r["descricao"],
+        "stake": _br(r["stake"]),
+        "odd": _br(r["odd"], 3),
+        "resultado": "" if aberta else r["resultado"],
+        "pl": None if aberta else round(r["lucro"], 2),
+        "extraction_state": "aberta" if aberta else "resolvida",
+        "arquivado": False,
+        "codigo_bilhete": f"DM{r['id']}",
+        "origem": "demo",
+    }
+
+
+GRADE = [_linha_grade(r) for r in LINHAS_FEED]
+# Indice por conta: a grade SEMPRE pergunta por (casa, parceiro), nunca pela base
+# inteira -- e' o isolamento por conta que a tela de Extracao assume.
+GRADE_POR_CONTA = {}
+for _g in GRADE:
+    GRADE_POR_CONTA.setdefault((_g["casa"], _g["parceiro"]), []).append(_g)
+GRADE_POR_ID = {g["id"]: g for g in GRADE}
+
+
+def _sem_tipster(b):
+    return not (b.get("tipster") or "").strip()
+
+
+# ── Matcher por evidencia (espelha `main.sugerir_tipsters_route`) ────────────
+# O modelo e' treinado sobre os rotulos HUMANOS da base ficticia (aqui: tudo que
+# nao veio do proprio botao, isto e' `origem_tipster != 'sugerido'`) -- mesma
+# regra do `repository.rotulos_humanos`, e pelo mesmo motivo: treinar no proprio
+# chute ensina o sistema a repetir o erro dele.
+import matcher  # noqa: E402
+
+# `dominio_esportes` sem SQL: para cada esporte, quem e' o maior tipster nele,
+# quantos sao dele e quantos o esporte tem (contrato de `matcher.dono_do_esporte`).
+_tot_esp, _cont_esp = {}, {}
+for _g in GRADE:
+    _e, _t = (_g["esporte"] or "").strip().lower(), (_g["tipster"] or "").strip()
+    if not _e or not _t:
+        continue
+    _tot_esp[_e] = _tot_esp.get(_e, 0) + 1
+    _cont_esp[(_e, _t)] = _cont_esp.get((_e, _t), 0) + 1
+_melhor_esp = {}
+for (_e, _t), _n in _cont_esp.items():
+    if _n > _melhor_esp.get(_e, ("", 0))[1]:
+        _melhor_esp[_e] = (_t, _n)
+_DOMINIO_ESPORTES = {e: (_melhor_esp[e][0], _melhor_esp[e][1], _tot_esp[e]) for e in _tot_esp}
+
+# Casas curadas como DEDICADA (slug -> tipsters). Curadoria humana crava antes do
+# modelo, igual em producao (`repository.casas_dedicadas`).
+_CASAS_DEDICADAS = {
+    re.sub(r"\s+", "", c["casa"].strip().lower()):
+        [t.strip() for t in (c["tipsters"] or "").split(",") if t.strip()][:2]
+    for c in CASAS_VISAO if c["modo"] == "dedicada" and c["tipsters"]
+}
+
+
+def _modelo_matcher():
+    """Modelo treinado, com o cache de 5 min do proprio `matcher` (TTL_MODELO).
+    O PATCH invalida (`matcher.invalidar`) para o rotulo novo entrar no lote
+    seguinte -- e' o comportamento de producao, nao um atalho da demo."""
+    m = matcher.modelo_em_cache(dados_demo.DONO)
+    if m is None:
+        m = matcher.treinar([g for g in GRADE if g.get("origem_tipster") != "sugerido"])
+        matcher.guardar_modelo(dados_demo.DONO, m)
+    return m
+
+
+def _aaaammdd(b):
+    """DD/MM/AAAA -> inteiro AAAAMMDD (comparavel). Data malformada vai para o fim."""
+    d = b["data"]
+    try:
+        return int(f"{d[6:10]}{d[3:5]}{d[0:2]}")
+    except ValueError:
+        return 0
+
+
+def _ordenar_grade(linhas, order):
+    """Espelha o ORDER BY de `list_bilhetes`. `data_desc` = grade da Extracao:
+    ABERTAS no topo, depois resolvidas por data do EVENTO desc, id desc no empate.
+    O menos no numero e' o que faz o desc -- ordenar string de data por reverse
+    inverteria tambem o grupo das abertas, que tem de ficar em cima."""
+    if order == "data_desc":
+        return sorted(linhas, key=lambda b: (0 if not b["resultado"] else 1,
+                                             -_aaaammdd(b), -b["id"]))
+    return sorted(linhas, key=lambda b: b["id"], reverse=(order != "asc"))
+
+
 @app.get("/me")
 def me():
-    return {"usuario": dados_demo.DONO, "dono_efetivo": dados_demo.DONO, "operadores": []}
+    """Dono COM operadores (s331).
+
+    Estava `operadores: []`, e com a lista vazia a casca nao desenha o trocador
+    "Ver base de" no rodape da sidebar. A landing precisa mostrar operacao em
+    equipe, e nao da para fotografar um controle que nasce escondido.
+
+    Os nomes sao ficticios, como o resto da base."""
+    return {"usuario": dados_demo.DONO, "dono_efetivo": dados_demo.DONO,
+            "operadores": [dados_demo.DONO, "Marina", "Téo"]}
 
 
 @app.get("/dashboard/data")
@@ -196,10 +337,73 @@ def dashboard_data(refresh: bool = False):
 
 
 @app.get("/bilhetes")
-def bilhetes(extraction_state: str = "", archived: str = "", limit: int = 100, order: str = "desc"):
-    if extraction_state == "aberta":
-        return {"bilhetes": ABERTAS_BILHETES, "total": len(ABERTAS_BILHETES)}
-    return {"bilhetes": [], "total": 0}
+def bilhetes(casa: str = "", parceiro: str = "", extraction_state: str = "",
+             archived: str = "", limit: int = 100, offset: int = 0,
+             order: str = "desc", pendencia: str = ""):
+    """Espelha `list_bilhetes` + `contar_bilhetes` sobre a base ficticia.
+
+    Sem `casa`/`parceiro` a resposta continua sendo a lista de ABERTAS (e' o que a
+    tela inicial pede, com `extraction_state=aberta` e sem conta): o painel "Em
+    aberto" da home nao filtra por conta e regredi-lo quebraria o print da home.
+    """
+    if not casa and not parceiro:
+        if extraction_state == "aberta":
+            return {"bilhetes": ABERTAS_BILHETES, "total": len(ABERTAS_BILHETES)}
+        return {"bilhetes": [], "total": 0, "arquivados": 0}
+
+    linhas = GRADE_POR_CONTA.get((casa, parceiro), [])
+    if extraction_state:
+        linhas = [b for b in linhas if b["extraction_state"] == extraction_state]
+    # `pendencia` usa o MESMO predicado que produz o numero do badge (ver
+    # `/incompletos`): badge dizendo 7 com a grade mostrando 5 e' o defeito que a
+    # s262 registrou, e ele nasce justamente de dois predicados diferentes.
+    if pendencia == "sem_tipster":
+        linhas = [b for b in linhas if _sem_tipster(b)]
+    total = len(linhas)
+    linhas = _ordenar_grade(linhas, order)[offset:offset + max(1, min(limit, 1000))]
+    return {"bilhetes": linhas, "total": total, "arquivados": 0,
+            "limit": limit, "offset": offset}
+
+
+class _PatchBilhete(BaseModel):
+    tipster: str | None = None
+    origem_tipster: str | None = None
+    esporte: str | None = None
+    aposta: str | None = None
+    descricao: str | None = None
+    data: str | None = None
+    stake: str | None = None
+    odd: str | None = None
+    resultado: str | None = None
+    casa: str | None = None
+    parceiro: str | None = None
+
+
+@app.patch("/bilhetes/{bid}")
+def patch_bilhete(bid: int, body: _PatchBilhete):
+    """Edicao de campo na grade -- grava EM MEMORIA (o demo nao tem banco).
+
+    Existe pelo botao "Sugerir tipsters": ele chama `salvarTipsterVal` uma vez por
+    bilhete e faz ROLLBACK visual quando o PATCH falha. Sem esta rota o clipe
+    mostraria a coluna preenchendo e voltando a vazio, que e' pior que nao mostrar.
+    """
+    # Latencia deliberada. Em producao cada PATCH e' um round-trip HTTP + Postgres
+    # (dezenas de ms); em 127.0.0.1 sao ~2 ms, e as 30 linhas do "Sugerir tipsters"
+    # preenchiam num piscar -- o clipe mostrava a coluna cheia sem mostrar o
+    # preenchimento. Nao e' enfeite: e' o tempo que a rota REALMENTE leva no ar.
+    # Zere com DEMO_LATENCIA_PATCH_MS=0 se estiver depurando outra coisa.
+    if LATENCIA_PATCH_S:
+        time.sleep(LATENCIA_PATCH_S)
+    b = GRADE_POR_ID.get(bid)
+    if not b:
+        return JSONResponse({"detail": "Bilhete não encontrado."}, status_code=404)
+    for campo, valor in body.model_dump(exclude_none=True).items():
+        b[campo] = valor
+    if body.tipster is not None:
+        # Rotulo novo invalida o modelo, como em producao: a proxima chamada
+        # retreina ja com a correcao humana dentro.
+        matcher.invalidar(dados_demo.DONO)
+    return {"ok": True, "bilhete": b}
 
 
 @app.get("/parceiros")
@@ -220,9 +424,24 @@ def parceiros(casa: str = None, arquivados: bool = False):
 
 @app.get("/incompletos")
 def incompletos():
-    # Duas pendencias, de proposito: a tela inicial tem um painel "Precisa de
-    # voce" e um print com ele VAZIO esconderia um recurso do produto.
-    return {"por_casa_tipster": {"bet365": 2, "Betano": 1}}
+    """Espelha `contar_incompletos`: pendencia por casa+parceiro.
+
+    `por_parceiro` faltava, e sem ele o badge azul "Aguardando tipster" da barra da
+    conta nascia com 0 e ficava `hidden` -- ou seja, o filtro que existe justamente
+    para achar as linhas sem tipster nao aparecia na tela.
+    """
+    por_parceiro, por_casa_t, por_casa_a = [], {}, {}
+    for (casa, parceiro), linhas in GRADE_POR_CONTA.items():
+        sem_tip = sum(1 for b in linhas if _sem_tipster(b))
+        abertas = sum(1 for b in linhas if b["extraction_state"] == "aberta")
+        if not sem_tip and not abertas:
+            continue
+        por_parceiro.append({"casa": casa, "parceiro": parceiro,
+                             "sem_tipster": sem_tip, "abertas": abertas})
+        por_casa_t[casa] = por_casa_t.get(casa, 0) + sem_tip
+        por_casa_a[casa] = por_casa_a.get(casa, 0) + abertas
+    return {"por_parceiro": por_parceiro, "por_casa_tipster": por_casa_t,
+            "por_casa_aberta": por_casa_a}
 
 
 @app.get("/casas")
@@ -271,6 +490,59 @@ def tipsters_cadastro(arquivados: bool = False):
     return {"tipsters": CADASTRO_TIPSTERS}
 
 
+class _SugBilhete(BaseModel):
+    id: str
+    casa: str = ""
+    esporte: str = ""
+    aposta: str = ""
+    stake: str = ""
+    descricao: str = ""
+
+
+class _SugRequest(BaseModel):
+    bilhetes: list[_SugBilhete] = []
+
+
+@app.post("/tipsters/sugerir")
+def sugerir_tipsters_demo(body: _SugRequest):
+    """Espelha a rota de producao (`main.sugerir_tipsters_route`) chamando o MESMO
+    `app/matcher.py` -- Naive-Bayes treinado no que o dono ja rotulou.
+
+    Sem esta rota o `fetch` do front dava 405, `_sugPeloServidor` devolvia `null` e
+    a tela caia no matcher DECLARATIVO do `index.html`. O declarativo e' a rede de
+    segurança para dono novo, nao o caminho principal: ele so decide quando o
+    perfil e' exclusivo no mercado, o que aqui cobria 9 de 30 linhas. A demo
+    mostrava o botao rodando o caminho de fallback.
+
+    READ-ONLY, como em producao: quem grava e' o PATCH de cada bilhete.
+    """
+    if not body.bilhetes:
+        return {"sugestoes": {}, "fonte": "evidencia", "treino": 0}
+    modelo = _modelo_matcher()
+    ativos = [t["nome"] for t in CADASTRO_TIPSTERS if not t["arquivado"]]
+    ativos_set = set(ativos)
+    fonte = "evidencia" if modelo.treino >= matcher.MIN_TREINO else "declarativo"
+    sugestoes = {}
+    for b in body.bilhetes:
+        dono_casa = _CASAS_DEDICADAS.get(re.sub(r"\s+", "", b.casa.strip().lower()), [])
+        if len(dono_casa) == 1 and dono_casa[0] in ativos_set:
+            sugestoes[b.id] = dono_casa[0]
+            continue
+        if fonte != "evidencia":
+            dono_esp = matcher.dono_do_esporte(_DOMINIO_ESPORTES, b.esporte, ativos)
+            if dono_esp:
+                sugestoes[b.id] = dono_esp
+            continue
+        pool = [n for n in dono_casa if n in ativos_set] if len(dono_casa) == 2 else ativos
+        nome = matcher.sugerir(modelo, pool, b.casa, b.esporte, b.aposta, b.stake,
+                               b.descricao, dominio=_DOMINIO_ESPORTES)
+        if nome:
+            sugestoes[b.id] = nome
+    return {"sugestoes": sugestoes, "fonte": fonte, "treino": modelo.treino,
+            "novatos": matcher.novatos(modelo, ativos) if fonte == "evidencia" else [],
+            "folga_declarada": matcher.FOLGA_DECLARADA}
+
+
 @app.get("/tipsters/unidades")
 def tipsters_unidades(tipster: str = ""):
     return {"escada": []}
@@ -298,8 +570,15 @@ def mercados():
 
 
 @app.get("/conta/resumo")
-def conta_resumo():
-    return {"resumo": {}}
+def conta_resumo(casa: str = "", parceiro: str = ""):
+    """Faixa de KPIs da conta ativa (P/L, turnover, apostas, win rate, ROI…).
+
+    A matematica NAO e' reimplementada: `_resumir_apostas` e' o mesmo codigo de
+    producao (`repository.resumo_conta` so busca as linhas e delega). Antes daqui a
+    rota devolvia `{"resumo": {}}` e a faixa saia com tudo zerado -- oito tiles
+    dizendo 0 em cima de uma conta com centenas de apostas.
+    """
+    return _resumir_apostas(GRADE_POR_CONTA.get((casa, parceiro), []))
 
 
 @app.get("/polymarket/dashboard")
@@ -312,9 +591,7 @@ def poly():
 # producao e so inventamos os lancamentos. E' a parte do arquivo que mais correria
 # risco de divergir em silencio -- projecao de saldo errada num print de venda e'
 # pior que print nenhum.
-sys.path.insert(0, str(RAIZ / "app"))
-from repository import _caixa_projetar  # noqa: E402
-
+# (`_caixa_projetar` e' importado la em cima, junto com `_resumir_apostas`.)
 _HOJE = datetime.now().date()
 
 
@@ -333,12 +610,60 @@ def _mov(mid, tipo, dias, valor, **kw):
 # ABERTA -- um print com tudo verde esconderia o recurso que a Caixa existe para dar.
 CAIXA_DEMO = {
     1: [_mov(1, "inicial", 32, 3000.0), _mov(2, "deposito", 27, 1500.0, obs="PIX"),
-        _mov(3, "saque", 19, 800.0), _mov(4, "ajuste", 13, 50.0, obs="bônus de recarga"),
-        _mov(5, "conferencia", 0, 3750.0, projetado=3750.0)],
+        _mov(3, "saque", 19, 800.0), _mov(4, "ajuste", 13, 50.0, obs="bônus de recarga")],
     2: [_mov(6, "inicial", 24, 1800.0), _mov(7, "deposito", 11, 700.0, obs="PIX")],
-    3: [_mov(8, "inicial", 40, 5000.0), _mov(9, "saque", 21, 1200.0),
-        _mov(10, "conferencia", 2, 2950.0, projetado=3800.0)],
+    3: [_mov(8, "inicial", 40, 5000.0), _mov(9, "saque", 21, 1200.0)],
 }
+# A conferencia entra DEPOIS, com o numero que a propria projecao produziu (ver
+# `_semear_conferencias`). Cravar `valor`/`projetado` a mao dava um box verde
+# dizendo "diferenca R$ 0,00" ao lado de um "Saldo disponivel projetado" de outro
+# valor: a base ficticia e' gerada relativa a HOJE, entao qualquer numero fixo
+# aqui envelhece em um dia. Print de tela de CONFERENCIA que nao confere consigo
+# mesma e' o pior lugar possivel para um numero desencontrado.
+_CONFERENCIAS = [(1, 0, 0.0), (3, 2, -850.0)]   # (parceiro_id, dias atras, divergencia)
+
+
+def _espalhar_caixa():
+    """Liga a Caixa em mais contas, distribuidas entre as casas (s331).
+
+    Escolhe ATE 2 contas por casa, nas casas com mais contas, e pula as quatro
+    que ja tem semente propria. O saldo inicial vem do id da conta para ficar
+    estavel entre execucoes: base de demonstracao que muda de numero a cada boot
+    torna print antigo e print novo incomparaveis.
+
+    A cada tres contas ligadas, uma fica sem conferencia (estado `nunca`) e uma
+    fica divergente. Sem essa mistura o Painel sai com uma tag so repetida em
+    todas as linhas, que e' o defeito que o redesenho da s330 existiu para matar.
+    """
+    ja = set(CAIXA_DEMO)
+    por_casa = {}
+    for p in PARCEIROS:
+        por_casa.setdefault(p["casa"], []).append(p)
+    casas = sorted(por_casa.values(), key=len, reverse=True)
+
+    mid = 300
+    novos = []
+    for contas in casas:
+        for p in contas[:2]:
+            if p["id"] in ja or len(novos) >= 22:
+                continue
+            novos.append(p["id"])
+    for n, pid in enumerate(novos):
+        inicial = 1200.0 + (pid % 17) * 250.0
+        movs = [_mov(mid, "inicial", 45, inicial)]
+        mid += 1
+        if pid % 3 == 0:
+            movs.append(_mov(mid, "deposito", 20, 500.0 + (pid % 7) * 100.0, obs="PIX"))
+            mid += 1
+        CAIXA_DEMO[pid] = movs
+        # 1 em 3 fica sem conferencia; 1 em 7 diverge. O resto confere.
+        if n % 3 == 1:
+            continue
+        div = -120.0 - (pid % 5) * 40.0 if n % 7 == 3 else 0.0
+        _CONFERENCIAS.append((pid, n % 4, div))
+
+
+_espalhar_caixa()
 
 
 # Caso REAL da conta #748 (s314), remontado aqui: 12 perdas de ontem, corte de hoje
@@ -373,6 +698,18 @@ def _caixa_de(pid):
     res.update({"parceiro_id": pid, "casa": p["casa"] if p else "",
                 "parceiro": p["nome"] if p else "", "movimentos": CAIXA_DEMO.get(pid, [])})
     return res
+
+
+def _semear_conferencias():
+    """Fecha a conferencia de cada conta com o `disponivel` que a projecao acabou
+    de calcular, mais a divergencia desejada. Roda uma vez, no boot."""
+    for pid, dias, div in _CONFERENCIAS:
+        projetado = round(_caixa_de(pid)["disponivel"], 2)
+        CAIXA_DEMO[pid].append(_mov(900 + pid, "conferencia", dias,
+                                    round(projetado + div, 2), projetado=projetado))
+
+
+_semear_conferencias()
 
 
 @app.get("/caixa/conta")

@@ -47,10 +47,10 @@ def _landing_txt() -> str:
     return LANDING.read_text(encoding="utf-8")
 
 
-# Frase do <h1>. Trocada na s331: o topo deixou de prometer uma SUBTRAÇÃO
-# ("você lucra menos do que pensa") e passou a prometer CONTROLE, que é o
-# argumento que o dono do produto usa quando explica de viva-voz.
-TITULO = "O mapa de onde está o seu dinheiro"
+# Frase do <h1>. Na s331 o topo passou a prometer PRATICIDADE, que é o que o
+# apostador quer saber: um robô que planilha por ele. As versões anteriores
+# prometiam uma subtração ("você lucra menos do que pensa") e depois controle.
+TITULO = "30 minutos por semana"
 
 
 # ── 1. ninguém de fora alcança ───────────────────────────────────────────────
@@ -133,3 +133,54 @@ def test_cta_de_cadastro_tem_quem_o_atenda_no_login():
     assert re.search(r"location\.hash\s*===\s*'#cadastro'", login), (
         "o handler do #cadastro sumiu ou mudou de forma no login.html"
     )
+
+# ── 6. sem travessão: a voz não pode soar de robô ────────────────────────────
+def test_nenhum_travessao_no_texto():
+    """Regra de marca do Feca (s331): *"não utilizamos traço largo em frases.
+
+    Não temos linguagem artificial de ChatGPT."* O travessão virou assinatura de
+    texto gerado por IA, e uma peça de venda que o leitor identifica como escrita
+    por robô perde a confiança antes do argumento.
+
+    O gate existe porque regra sem gate não se cumpre neste repo: a página tinha
+    **69** travessões quando a regra foi dita.
+
+    Três caracteres parecidos convivem no arquivo e só UM é proibido. Os outros
+    dois são load-bearing e o teste prova que continuam lá:
+      U+2014 EM DASH      —   proibido
+      U+2212 MINUS SIGN   −   o menos do dinheiro (UI_REFERENCE §5.1)
+      U+2500 BOX DRAWING  ─   as réguas dos comentários de CSS
+    """
+    txt = _landing_txt()
+    assert "\u2014" not in txt, (
+        "travessão (U+2014) voltou à landing: use ponto, vírgula ou parênteses. "
+        "Se a frase só funciona com travessão, ela está comprida demais."
+    )
+    assert "\u2212" in txt, "o menos do dinheiro (U+2212) sumiu junto: era para ficar"
+
+
+# ── 7. vídeo referenciado existe no disco ────────────────────────────────────
+def test_todo_video_referenciado_existe():
+    """Irmão do teste 3, para a mídia que entrou na s331.
+
+    O teste 3 cobre `<img>`. Os clipes entraram como `<video>` com dois `<source>`
+    e um `poster`, e nada disso passa por lá. `<video>` quebrado é PIOR que `<img>`
+    quebrado: não deixa buraco na página, simplesmente não toca, e o visitante não
+    tem como saber que devia haver movimento ali.
+
+    NÃO cobre: se o clipe mostra o que a legenda promete. Isso é olho humano.
+    """
+    txt = _landing_txt()
+    refs = re.findall(r'(?:src|poster)="(/static/landing/video/[^"]+)"', txt)
+    assert refs, "a landing não referencia vídeo nenhum: o teste virou no-op"
+    for ref in refs:
+        caminho = ESTATICO / ref.removeprefix("/static/")
+        assert caminho.exists(), f"vídeo referenciado e ausente no disco: {ref}"
+        assert caminho.stat().st_size > 1024, f"vídeo vazio ou truncado: {ref}"
+
+    # Todo <video> precisa dos DOIS formatos: webm não toca em Safari antigo e o
+    # visitante ficaria com o poster parado, sem erro nenhum.
+    assert txt.count("<video") == txt.count('type="video/webm"'), \
+        "algum <video> ficou sem source webm"
+    assert txt.count("<video") == txt.count('type="video/mp4"'), \
+        "algum <video> ficou sem source mp4 (Safari não toca só webm)"

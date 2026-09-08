@@ -368,6 +368,7 @@ def _descricao(rng, esporte, mercado):
 def gerar(semente=SEMENTE, n=N_APOSTAS, dias=DIAS, ate=None):
     """Devolve a lista de linhas no contrato de `repository.dashboard_rows`."""
     rng = random.Random(semente)
+    rng_tip = random.Random(semente ^ 0x2D19)   # fluxo proprio: nao desloca o das apostas
     fim = ate or date.today()
     linhas = []
     for i in range(n):
@@ -386,6 +387,14 @@ def gerar(semente=SEMENTE, n=N_APOSTAS, dias=DIAS, ate=None):
         cad = rng.choice(POR_CASA[casa])
         parceiro, conta, forn = cad["parceiro"], cad["conta"], cad["fornecedor"]
         tipster = _sorteia(rng, TIPSTERS)
+        # O tipster segue o PERFIL dele (ver `_donos_do_bilhete`). Fluxo de sorteio
+        # PROPRIO (`rng_tip`): consumir do `rng` aqui deslocaria todo o resto da
+        # base -- odd, stake, resultado e descricao das apostas SEGUINTES -- e a
+        # calibragem do EDGE (medida contra esta semente) iria junto.
+        if tipster:
+            donos = _donos_do_bilhete(esporte, mercado)
+            if donos and rng_tip.random() < _PUREZA_TIPSTER:
+                tipster = rng_tip.choices([n for n, _ in donos], [w for _, w in donos])[0]
         # Casa de nicho -> quase sempre o mesmo tipster (ver CASA_FEUDO).
         if casa in CASA_FEUDO and rng.random() < _FEUDO_PUREZA:
             tipster = CASA_FEUDO[casa]
@@ -504,6 +513,88 @@ _PERFIS = {
     "Quadra Rápida":  ("Betfair", "ML, Sets", "Tênis", ""),
     "Bloco Norte":    ("Bet365, Novibet", "Cartões, Escanteios", "Futebol", ""),
 }
+
+
+# ── O tipster segue o perfil dele (s331) ─────────────────────────────────────
+# Ate aqui `gerar()` sorteava o tipster de forma INDEPENDENTE de esporte, mercado
+# e casa. O efeito colateral nao era feio, era um MODELO errado -- o mesmo defeito
+# de direcao que `_montar_elenco` corrigiu para as contas na s294:
+#
+#   · "NBA Edge" (perfil: Basquete, props de armador) aparecia apostando futebol;
+#   · e, pior, o botao "Sugerir tipsters" ficava sem NADA para achar. Os dois
+#     matchers do produto procuram exatamente essa relacao -- o declarativo
+#     (`_sugParaBilhete`, no index.html) casa perfil x bilhete, e o de evidencia
+#     (`app/matcher.py`) aprende dela. Numa base onde a relacao nao existe, o
+#     certo e' os dois se calarem: e' o que faziam. A demonstracao mostrava o
+#     botao e escondia o recurso.
+#
+# Injetamos o FENOMENO no dado e deixamos o produto descobrir sozinho -- mesma
+# regra do CASA_FEUDO, e pelo mesmo motivo: cravar o rotulo na tela seria print
+# mentiroso. Esporte sem nenhum tipster de perfil (E-Sports, Dardos, F1…) segue
+# no sorteio global de antes, e o tipster VAZIO (~10% da base) nunca e' tocado --
+# e' ele que alimenta o badge "Aguardando tipster".
+# CALIBRADO, nao chutado (s331). A pureza e' o unico parametro que move o
+# "Sugerir tipsters" desta base, e ele foi ajustado para a demo REPRODUZIR o
+# desempenho MEDIDO do produto -- nunca para super-lo. Varredura com o proprio
+# `app/matcher.py`, 400 bilhetes sorteados, cobertura/precisao contra o rotulo da
+# base:
+#
+#   pureza   cobertura   precisao
+#   0.78        24 %        72 %
+#   0.88        35 %        88 %
+#   0.93        43 %        91 %   <- escolhido
+#   0.97        56 %        97 %
+#
+# A faixa medida em producao (docstring do `app/matcher.py`, holdout temporal) e'
+# Feca 61%/89%, Gabriel 44%/91%, Jonathan 26%/97%. 0.93 cai em cima do Gabriel.
+# 0.97 seria uma demo que acerta mais que o produto — e clipe que promete 97% de
+# precisao e' pior que clipe nenhum. 7% de ruido tambem e' realista: ninguem opera
+# 100% dentro do proprio nicho.
+_PUREZA_TIPSTER = 0.93
+
+
+def _norm_txt(s):
+    return (s or "").strip().lower()
+
+
+_PESO_TIPSTER = dict(TIPSTERS)
+_DONOS_ESP, _DONOS_ESP_MKT = {}, {}
+for _nome, (_casas, _mkts, _esps, _obs) in _PERFIS.items():
+    _peso = _PESO_TIPSTER.get(_nome, 0.01)
+    for _e in [x.strip() for x in (_esps or "").split(",") if x.strip()]:
+        _DONOS_ESP.setdefault(_norm_txt(_e), []).append((_nome, _peso))
+        for _m in [x.strip() for x in (_mkts or "").split(",") if x.strip()]:
+            _DONOS_ESP_MKT.setdefault((_norm_txt(_e), _norm_txt(_m)), []).append((_nome, _peso))
+
+
+# Mercado que NENHUM perfil declara (Multipla de Futebol, Player Props de Futebol,
+# Outros de Tenis…) ganha UM dono, escolhido de forma estavel entre os donos do
+# esporte. Sem isso ele fica no sorteio global e vira ruido puro: 14,6% da base
+# inteira e' Futebol/Multipla, e um pedaco desse tamanho sem dono nenhum e' o que
+# fazia o "Sugerir tipsters" se calar na maior fatia do dado. Numa carteira real
+# um par (esporte, mercado) quase sempre TEM um dono dominante -- e' exatamente
+# por isso que o matcher por evidencia mede 61%/89% na base do Feca.
+# Estavel (`sorted` + indice pelo nome), nunca `hash()`: o hash de string do
+# Python muda a cada processo e a base sairia diferente a cada boot do servidor.
+_DONO_UNICO = {}
+for _esp, _mkts in MERCADOS.items():
+    _pool = sorted(_DONOS_ESP.get(_norm_txt(_esp), []))
+    if not _pool:
+        continue
+    for _i, (_mkt, _) in enumerate(sorted(_mkts)):
+        _k = (_norm_txt(_esp), _norm_txt(_mkt))
+        if _k not in _DONOS_ESP_MKT:
+            _DONO_UNICO[_k] = [_pool[_i % len(_pool)]]
+
+
+def _donos_do_bilhete(esporte, mercado):
+    """Tipsters cujo perfil cobre este (esporte, mercado).
+
+    Quando dois perfis declaram o mesmo par (Escanteios e' de Corner Value E de
+    Bloco Norte) os dois ficam na disputa -- e o matcher se cala ali, que e' o
+    comportamento correto e vale a pena a demo mostrar."""
+    k = (_norm_txt(esporte), _norm_txt(mercado))
+    return _DONOS_ESP_MKT.get(k) or _DONO_UNICO.get(k)
 
 
 def cadastro_tipsters(semente=SEMENTE):

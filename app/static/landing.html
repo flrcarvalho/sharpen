@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sharpen — o mapa de onde está o seu dinheiro</title>
+<title>Sharpen · o robô que planilha as suas apostas</title>
 <meta name="description" content="O Sharpen lê seus bilhetes dentro de 23 fontes, projeta o saldo de cada conta e confronta com o que a casa mostra. Mais a camada de operação que nenhum tracker tem: contas, fornecedores, operadores e custo por conta.">
 <!-- PRÉVIA, não publicada (s294). A página vive em `/landing`, que exige sessão.
      Ao publicar de verdade: trocar para `index, follow` E devolver a landing à
-     rota `/` em app/main.py. Os dois gestos andam juntos — travado em
+     rota `/` em app/main.py. Os dois gestos andam juntos, travado em
      tests/test_landing.py, que reprova se um for feito sem o outro. -->
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/static/favicon/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Sharpen">
-<meta property="og:title" content="Sharpen — o mapa de onde está o seu dinheiro">
+<meta property="og:title" content="Sharpen · o robô que planilha as suas apostas">
 <meta property="og:description" content="Captura automática em 23 fontes, saldo de cada conta conferido contra a casa e prova estatística. Mais a camada que nenhum tracker tem: contas, fornecedores, operadores e custo por conta.">
 <meta property="og:image" content="/static/landing/img/02-visao-geral.webp">
 <meta name="twitter:card" content="summary_large_image">
@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="/static/fonts.css">
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
-   LANDING PÚBLICA (sharpen.bet/) — s294
+   LANDING PÚBLICA (sharpen.bet/), s294
 
    DARK ONLY, por regra de marca (docs/marketing/README.md). Não existe bloco
    `prefers-color-scheme: light` nem `[data-theme="light"]` aqui: `tokens.css` só
@@ -30,16 +30,16 @@
    o SO em tema claro continua vendo a marca, não um documento branco.
 
    Toda cor sai de token (`var(--…)`). Números em JetBrains Mono com `tabular-nums`;
-   texto corrido em Manrope — pack/CLAUDE.md §Tipografia.
+   texto corrido em Manrope, pack/CLAUDE.md §Tipografia.
 
-   Dinheiro: a página quase não tem R$ em texto — os valores vivem DENTRO dos
+   Dinheiro: a página quase não tem R$ em texto, os valores vivem DENTRO dos
    prints. Onde há, usa a estrutura do componente `.money` (`money-sign` neutro e
    menor + `money-val` colorido), espelhando `fmtR`/`fmtPL` do dashboard
    (UI_REFERENCE §5). Nada de formatador caseiro e nada de milhar abreviado.
 
    Escada de Tinta (CLAUDE.md): identidade e valor em `--ink`; label e eyebrow em
    `--ink-soft`; metadado em `--ink-mute` e NUNCA abaixo de 10px. Sem `opacity`
-   sobre tom apagado — quando o texto precisa recuar, ele desce um degrau.
+   sobre tom apagado, quando o texto precisa recuar, ele desce um degrau.
 
    Breakpoints: 900px e 760px, só.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -65,7 +65,7 @@ a:hover { text-decoration: underline; }
 /* ── Tipografia de seção ─────────────────────────────────────────────────── */
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: var(--text-xs);            /* 11px — piso de label respeitado */
+  font-size: var(--text-xs);            /* 11px, piso de label respeitado */
   font-weight: var(--weight-medium);
   letter-spacing: .16em;
   text-transform: uppercase;
@@ -95,7 +95,7 @@ strong { color: var(--ink); font-weight: var(--weight-bold); }
 /* Números em texto corrido: mono + tabular, para não dançarem entre linhas. */
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold); color: var(--ink); }
 
-/* ── Componente .money — espelha o dashboard (UI_REFERENCE §5.1) ─────────── */
+/* ── Componente .money, espelha o dashboard (UI_REFERENCE §5.1) ─────────── */
 .money { font-family: var(--font-mono); font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; gap: 3px; }
 .money-sign { font-size: .78em; color: var(--ink-soft); }
 .money-val { font-weight: var(--weight-bold); }
@@ -103,9 +103,9 @@ strong { color: var(--ink); font-weight: var(--weight-bold); }
 .money.neg .money-val { color: var(--neg); }
 /* Divergência de conferência é AVISO, não resultado negativo (UI_REFERENCE §5.1):
    dinheiro que saiu sem registro é algo a apurar, não prejuízo apurado. Por isso
-   `--warn` e não `--neg` — a distinção é a mesma que a Caixa faz no produto. */
+   `--warn` e não `--neg`, a distinção é a mesma que a Caixa faz no produto. */
 .money.aviso .money-val { color: var(--warn); }
-/* Percentual — mesma família do `.money` (mono + tabular), sem sinal de moeda.
+/* Percentual, mesma família do `.money` (mono + tabular), sem sinal de moeda.
    Espelha o `fmtPct` do dashboard: cor no número e minus U+2212, nunca hífen. */
 .pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: var(--weight-bold); }
 .pct.pos { color: var(--pos); }
@@ -136,7 +136,7 @@ strong { color: var(--ink); font-weight: var(--weight-bold); }
   transition: background .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease);
   white-space: nowrap;
 }
-/* Tinta ESCURA sobre fundo de acento — a Escada de Tinta do CLAUDE.md mede
+/* Tinta ESCURA sobre fundo de acento, a Escada de Tinta do CLAUDE.md mede
    `var(--bg)` sobre `--accent` em 5,8:1, contra 3,36:1 do branco (que reprova).
    A exceção `#fff` citada no README de marketing é anterior a essa regra; em
    conflito, vale o CLAUDE.md. De quebra, some mais uma cor literal do arquivo. */
@@ -149,23 +149,23 @@ strong { color: var(--ink); font-weight: var(--weight-bold); }
 /* ── Hero ────────────────────────────────────────────────────────────────── */
 /* Hero CENTRALIZADO (s296). A parte inicial deixou de ser coluna à esquerda e virou
    peça de capa: eyebrow, título, subtítulo e CTAs no mesmo eixo.
-   O título quebra em dois tons — a tese em `--ink`, a qualificação em `--ink-soft`.
+   O título quebra em dois tons, a tese em `--ink`, a qualificação em `--ink-soft`.
    Isso é DESCER UM DEGRAU na Escada de Tinta, não `opacity` sobre tom apagado; em
    60px o `--ink-soft` mede 6,3:1, muito acima de qualquer piso. */
 .hero { padding: var(--sp-20) 0 var(--sp-14); text-align: center; }
-/* O eyebrow centralizado carrega o slogan da marca — hero e fechamento, os dois
+/* O eyebrow centralizado carrega o slogan da marca, hero e fechamento, os dois
    pontos em que a página se apresenta. */
 .hero .eyebrow, .fechar .eyebrow {
   justify-content: center;
   letter-spacing: .22em;
-  color: var(--accent);        /* 5,8:1 sobre --bg — acima do piso de 4,5:1 do papel label */
+  color: var(--accent);        /* 5,8:1 sobre --bg, acima do piso de 4,5:1 do papel label */
 }
 /* O traço do eyebrow é âncora de seção alinhada à esquerda. Centralizado, ele vira
-   sujeira no meio da linha — some só aqui, o resto da página continua com ele. */
+   sujeira no meio da linha, some só aqui, o resto da página continua com ele. */
 .hero .eyebrow::before, .fechar .eyebrow::before { display: none; }
 /* `max-width` em ch deixava "custos" órfão numa linha só: cada metade do título é
    um bloco e a caixa cortava no meio da primeira. Aqui a largura é a do `.wrap` e
-   quem equilibra as linhas é o `text-wrap: balance` — sem ele, centralizar título
+   quem equilibra as linhas é o `text-wrap: balance`, sem ele, centralizar título
    grande produz rio e viúva em quase toda largura de tela. */
 .hero h1 { font-size: clamp(34px, 5.2vw, 60px); font-weight: var(--weight-extrabold); text-wrap: balance; }
 .hero h1 .h1-eco { display: block; color: var(--ink-soft); }
@@ -176,7 +176,7 @@ strong { color: var(--ink); font-weight: var(--weight-bold); }
 
 /* ── Moldura de print ────────────────────────────────────────────────────── */
 /* O print é o argumento; a moldura só o apresenta. Telas inteiras passam de
-   2.000px — a janela corta com altura máxima e desvanece no fim, para o leitor
+   2.000px, a janela corta com altura máxima e desvanece no fim, para o leitor
    ver que ali continua, em vez de achar que a tela acaba no corte. */
 .janela {
   position: relative;
@@ -196,12 +196,12 @@ strong { color: var(--ink); font-weight: var(--weight-bold); }
 .janela-rotulo {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: var(--text-xxs);           /* 10px — piso do metadado */
+  font-size: var(--text-xxs);           /* 10px, piso do metadado */
   letter-spacing: .12em;
   text-transform: uppercase;
   /* Sobe para --ink-soft: e' aqui que mora o aviso "dados de demonstracao", e
      discricao nao pode custar a legibilidade de uma ressalva de honestidade.
-     Em --ink-mute isto daria 3,0:1 em caixa alta de 10px com tracking — o
+     Em --ink-mute isto daria 3,0:1 em caixa alta de 10px com tracking, o
      desenho exato que a Escada de Tinta reprovou no cabecalho de grupo. */
   color: var(--ink-soft);
 }
@@ -256,82 +256,11 @@ section { padding: var(--sp-20) 0; border-top: 1px solid var(--line-2); }
 .recurso h3 { font-size: var(--text-md); }
 .recurso p { margin-top: var(--sp-2); font-size: var(--text-sm); color: var(--ink-soft); }
 
-/* ── Etapas numeradas — 01 capture / 02 organize / 03 meça ───────────────── */
+/* ── Etapas numeradas, 01 capture / 02 organize / 03 meça ───────────────── */
 .etapas { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
 .etapas--quatro { grid-template-columns: repeat(4, 1fr); }
 
-/* Conferência da Caixa (s331) — os dois desfechos lado a lado.
-   Reusa a caixa do `.recurso` (mesmo raio, mesma borda, mesma superfície): é o
-   mesmo papel visual, e criar um segundo estilo de cartão seria o defeito que o
-   item 8 do checklist de UI existe para pegar. Só o que é PRÓPRIO daqui mora
-   abaixo: a linha rótulo-a-valor e a faixa de veredito. */
-.confere { display: grid; gap: var(--sp-4); }
-.confere-card {
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-md);
-  padding: var(--sp-5);
-}
-.confere-card--alerta { border-color: rgba(var(--warn-rgb), .30); }
-.confere-rot {
-  margin: 0 0 var(--sp-4);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.confere-linha {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: var(--sp-4);
-  margin: 0 0 var(--sp-2);
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-}
-.confere-veredito {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2);
-  margin: var(--sp-4) 0 0;
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line-2);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
-}
-.confere-veredito--ok { color: var(--pos); }
-.confere-veredito--alerta { color: var(--warn); }
-/* O contexto do veredito é metadado — desce um degrau na Escada e volta ao peso
-   normal, senão ele compete com o veredito que está logo ao lado. 12px, acima do
-   piso de 10px que a Escada impõe a `--ink-mute`. */
-.confere-nota {
-  flex-basis: 100%;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-regular);
-  color: var(--ink-mute);
-}
-.etapa {
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-md);
-  padding: var(--sp-6);
-}
-/* Papel LABEL da Escada de Tinta: mono, caixa alta, 11px. Em `--accent` mede
-   5,4:1 sobre `--surface` — acima do piso de 4,5:1. */
-.etapa-num {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0 0 var(--sp-4);
-}
-.etapa h3 { font-size: var(--text-lg); }
-.etapa p { margin-top: var(--sp-3); font-size: var(--text-sm); color: var(--ink-soft); }
-.etapa ul { margin: var(--sp-5) 0 0; padding-left: var(--sp-5); }
-.etapa li { font-size: var(--text-sm); color: var(--ink-soft); margin-top: var(--sp-2); line-height: 1.5; }
-.etapa li::marker { color: var(--accent); }
-.etapa li strong { color: var(--ink); }
-
-/* ── KPIs do líquido — bruto − custos = líquido ──────────────────────────── */
+/* ── KPIs do líquido: bruto − custos = líquido ──────────────────────────── */
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
 .kpi {
   background: var(--surface);
@@ -353,16 +282,12 @@ section { padding: var(--sp-20) 0; border-top: 1px solid var(--line-2); }
 .kpi-sub { margin-top: var(--sp-2); font-size: var(--text-xs); color: var(--ink-soft); }
 /* A conta que a linha faz ("o que rendeu − o que custou = o que sobrou") fica
    FORA do card: é legenda da operação, não valor. */
-.kpi-conta {
-  margin-top: var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-xxs);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
 
-/* ── Segurança ───────────────────────────────────────────────────────────── */
+/* Clipe de produto (s331). Video no lugar de GIF: o mesmo movimento pesa ~15x
+   menos, e o poster cobre quem tem autoplay bloqueado. Sem som, sem controle,
+   sem nada para o visitante decidir. */
+.clipe { width: 100%; height: auto; display: block; background: var(--surface); }
+
 .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-6); }
 .seg-item { border-left: 2px solid var(--accent); padding-left: var(--sp-4); }
 .seg-item h3 { font-size: var(--text-md); }
@@ -475,7 +400,7 @@ footer img { height: 40px; width: auto; }
   margin-right: var(--sp-2);
 }
 
-/* ── Responsivo — 900px e 760px, só ──────────────────────────────────────── */
+/* ── Responsivo, 900px e 760px, só ──────────────────────────────────────── */
 @media (max-width: 900px) {
   .wrap { width: calc(100% - 32px); }
   .duas { grid-template-columns: 1fr; gap: var(--sp-8); }
@@ -498,7 +423,7 @@ footer img { height: 40px; width: auto; }
 
 <header class="topo">
   <div class="wrap topo-in">
-    <a href="/" aria-label="Sharpen — início">
+    <a href="/" aria-label="Sharpen, início">
       <img src="/static/brand-sharpen/blade/lockup-dark.svg" alt="Sharpen">
     </a>
     <div class="topo-acoes">
@@ -510,15 +435,30 @@ footer img { height: 40px; width: auto; }
 
 <main>
 
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       REESCRITA DA s331. O que mudou e por que, para ninguem desfazer sem saber:
+
+       1. COM QUEM A PAGINA FALA. Era um documento tecnico para quem ja entende de
+          operacao multi-conta. Passou a falar com o APOSTADOR, que quer um robo
+          que planilha por ele. "Casa licencia motor, a gente le o motor" saiu:
+          nao interessa a ninguem de fora daqui.
+       2. ORCAMENTO DE TEXTO. Uma frase por secao, bullets de 3 a 5 palavras, o
+          resto por print ou video. A versao anterior tinha 6 paragrafos numa
+          secao so, e o dono do produto nao leu a propria pagina ate o fim.
+       3. SEM TRAVESSAO. Regra de marca: traco largo em frase virou assinatura de
+          texto gerado por IA. Ponto, virgula ou parenteses no lugar. Se a frase
+          so funciona com travessao, ela esta comprida demais.
+       4. PRINT REAL, NUNCA DESENHO. A conferencia da Caixa era HTML imitando a
+          tela. Agora e' captura do produto rodando contra a base ficticia.
+       ══════════════════════════════════════════════════════════════════════ -->
+
   <!-- ═══ HERO ═══ -->
   <div class="wrap hero">
     <p class="eyebrow">Sharpen your edge</p>
-    <h1>O mapa de onde está o seu dinheiro, <span class="h1-eco">em todas as contas espalhadas.</span></h1>
+    <h1>30 minutos por semana. <span class="h1-eco">20 casas e mais de 2 mil apostas planilhadas.</span></h1>
     <p class="lead">
-      O Sharpen lê os seus bilhetes <strong>dentro da casa</strong>, projeta o saldo de cada
-      conta e confronta com o que a casa mostra. Desconta o que as contas e os tipsters
-      custaram, e prova se o que sobrou é vantagem ou é sorte. <strong>Quando falta
-      dinheiro, você descobre em dois dias</strong> — não em dois meses.
+      O robô abre a casa, copia os seus bilhetes e monta a planilha.
+      Você confere e segue a vida.
     </p>
     <div class="hero-ctas">
       <a class="btn btn-primario btn-grande" href="/login#cadastro">Criar conta</a>
@@ -528,519 +468,332 @@ footer img { height: 40px; width: auto; }
   </div>
 
   <!-- ═══ PRINT DE CAPA ═══ -->
-  <div class="wrap" style="padding-bottom: var(--sp-20)">
+  <div class="wrap">
     <figure style="margin: 0">
       <div class="janela janela--tese janela--corta">
         <div class="janela-barra">
-          <span class="janela-ponto"></span>
-          <span class="janela-ponto"></span>
-          <span class="janela-ponto"></span>
-          <span class="janela-rotulo">Visão Geral · dados de demonstração</span>
+          <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+          <span class="janela-rotulo">Visão geral · dados de demonstração</span>
         </div>
         <div class="janela-corpo">
           <img src="/static/landing/img/02-visao-geral.webp" width="1400" height="2100"
                decoding="async" fetchpriority="high"
-               alt="Painel Visão Geral do Sharpen: P/L bruto, custo de contas, custo de tipsters e P/L líquido, com curva de resultado acumulado e diagnóstico de risco.">
+               alt="Painel Visão Geral do Sharpen, com P/L bruto, custo de contas, custo de tipsters, P/L líquido e a curva de resultado acumulado.">
         </div>
       </div>
-      <figcaption class="legenda">
-        Do bruto ao líquido, na mesma linha de KPIs: o que a operação rendeu,
-        o que as contas custaram, o que os tipsters custaram — e o que sobrou.
-      </figcaption>
+      <figcaption class="legenda">Tudo o que você apostou, em todas as casas, num lugar só.</figcaption>
     </figure>
   </div>
 
-  <!-- ═══ PROVAS ═══ -->
+  <!-- ═══ 1. PRATICIDADE ═══ -->
+  <!-- Quatro numeros no lugar da parede de texto que estava aqui. Cada um responde
+       uma pergunta de quem chega: quanto tempo custa, quantas casas pega, quanto
+       trabalho manual sobra. -->
   <section id="como-funciona">
     <div class="wrap">
       <div class="sec-cabeca">
-        <p class="eyebrow">O que já está no ar</p>
-        <h2>Quatro camadas: capturar, padronizar, conferir, provar.</h2>
-        <p class="lead">
-          A captura roda na sessão que você já abriu, dentro da casa. A padronização
-          traduz o nome que cada casa dá ao mesmo mercado. A conferência diz se o
-          dinheiro que deveria estar na conta ainda está lá. E a prova responde a
-          única pergunta que importa depois de mil apostas.
-        </p>
+        <p class="eyebrow">Praticidade</p>
+        <h2>Praticidade e controle em poucos cliques.</h2>
       </div>
-      <!-- Os quatro números que viviam em cards soltos (23 fontes, 30 categorias,
-           94,5% de acerto) não sumiram: cada um desceu para a etapa que ele prova.
-           Número solto é enfeite; número dentro da etapa é evidência.
-
-           A 4ª camada (`conferir`) entrou na s331: a Caixa Inteligente deixou de ser
-           detalhe de uma tela e virou o argumento que o Feca usa quando explica o
-           produto de viva-voz. Modificador `--quatro` em vez de componente novo —
-           abaixo de 900px o próprio `.etapas` já cai para 2 colunas. -->
-      <div class="etapas etapas--quatro">
-        <div class="etapa">
-          <p class="etapa-num">01 · capture</p>
-          <h3>As apostas entram.</h3>
-          <p>O SharpenUp lê a sessão que você já abriu nas casas suportadas. Fora delas, o print, o PDF, o texto ou a planilha resolvem.</p>
-          <ul>
-            <li><strong>23 fontes</strong> lidas na origem</li>
-            <li>Abertas <strong>e</strong> encerradas</li>
-            <li>Histórico antigo também entra</li>
-          </ul>
+      <div class="kpis">
+        <div class="kpi">
+          <p class="kpi-rot">Por semana</p>
+          <p class="kpi-val"><span class="num">30 min</span></p>
+          <p class="kpi-sub">para 20 casas</p>
         </div>
-        <div class="etapa">
-          <p class="etapa-num">02 · organize</p>
-          <h3>O caos vira uma base.</h3>
-          <p>Cada casa escreve o mesmo mercado de um jeito. A padronização traduz tudo para um vocabulário só, e cada aposta ganha conta, casa, fornecedor e tipster.</p>
-          <ul>
-            <li><strong>30 categorias</strong> de mercado, em 21 esportes</li>
-            <li><strong>94,5%</strong> de acerto em casa nunca vista</li>
-            <li>Atribuição de tipster assistida por IA</li>
-          </ul>
+        <div class="kpi">
+          <p class="kpi-rot">Casas</p>
+          <p class="kpi-val"><span class="num">23</span></p>
+          <p class="kpi-sub">lidas na origem</p>
         </div>
-        <div class="etapa">
-          <p class="etapa-num">03 · confira</p>
-          <h3>O dinheiro tem que estar lá.</h3>
-          <p>Cada conta tem um saldo projetado a partir do que entrou, do que saiu e do que já foi apostado. Você confronta com o que a casa mostra — e a diferença aparece sozinha.</p>
-          <ul>
-            <li>Saldo <strong>projetado</strong>, não digitado</li>
-            <li>Aposta em aberto conta como dinheiro parado</li>
-            <li>Divergência apontada <strong>conta a conta</strong></li>
-          </ul>
+        <div class="kpi">
+          <p class="kpi-rot">Tipster</p>
+          <p class="kpi-val"><span class="num">1 clique</span></p>
+          <p class="kpi-sub">no lote inteiro</p>
         </div>
-        <div class="etapa">
-          <p class="etapa-num">04 · prove</p>
-          <h3>O resultado vira decisão.</h3>
-          <p>P/L líquido, ROI, vida útil de conta, custo e evidência estatística na mesma régua — a resposta para a única pergunta que importa depois de mil apostas.</p>
-          <ul>
-            <li>P/L <strong>depois dos custos</strong></li>
-            <li>P-value por reamostragem e Monte Carlo</li>
-            <li>Drawdown simulado e fator de recuperação</li>
-          </ul>
+        <div class="kpi kpi--final">
+          <p class="kpi-rot">Digitação</p>
+          <p class="kpi-val"><span class="num">zero</span></p>
+          <p class="kpi-sub">nenhuma linha à mão</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ═══ 1. SCANNER ═══ -->
-  <section>
-    <div class="wrap">
-      <div class="duas">
-        <div class="duas-texto">
-          <p class="eyebrow">SharpenUp · captura automática</p>
-          <h2>Um robô por casa, lendo o que a casa já mostra a você.</h2>
-          <p>
-            A maioria das casas não escreve a própria plataforma — licencia um motor.
-            Ler o <strong>motor</strong> em vez da marca faz a casa seguinte virar
-            cadastro, não projeto: já aconteceu de uma casa nova entrar sem uma linha
-            de código nova. Mais de <span class="num">150</span> marcas no mundo rodam
-            nesses motores — é alcance potencial, não lista de suportadas.
-          </p>
-          <p>
-            O <strong>SharpenUp</strong> trabalha na sessão que você abriu. Ele não faz
-            login, não guarda senha, não aposta e não movimenta saldo. Traz também as
-            apostas ainda <strong>em aberto</strong>, que é o que a planilha nunca sabe.
-          </p>
-          <div class="casas">
-            <span class="casa-chip">Bet365</span><span class="casa-chip">Betano</span>
-            <span class="casa-chip">Betfair</span><span class="casa-chip">Pinnacle</span>
-            <span class="casa-chip">Superbet</span><span class="casa-chip">Stake</span>
-            <span class="casa-chip">KTO</span><span class="casa-chip">Novibet</span>
-            <span class="casa-chip">SportingBet</span><span class="casa-chip">Betboom</span>
-            <span class="casa-chip">Jonbet</span><span class="casa-chip">BETesporte</span>
-            <span class="casa-chip">Betnacional</span><span class="casa-chip">Betpix365</span>
-            <span class="casa-chip">Pitaco</span><span class="casa-chip">Lottu</span>
-            <span class="casa-chip">VaideBet</span><span class="casa-chip">Esportiva</span>
-            <span class="casa-chip">Jogo de Ouro</span><span class="casa-chip">Tivo</span>
-            <span class="casa-chip">Betfast</span><span class="casa-chip">Faz1bet</span>
-            <span class="casa-chip">1xBet</span>
-            <span class="casa-chip casa-chip--api">Polymarket · on-chain</span>
-          </div>
-        </div>
-        <figure style="margin: 0">
-          <div class="janela janela--corta">
-            <div class="janela-barra">
-              <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
-              <span class="janela-rotulo">Extração e Captura · demonstração</span>
-            </div>
-            <div class="janela-corpo">
-              <img src="/static/landing/img/14-extracao.webp" width="1400" height="1225"
-                   loading="lazy" decoding="async"
-                   alt="Tela de Extração e Captura, com o total de contas ativas e a distribuição de contas por casa.">
-            </div>
-          </div>
-          <figcaption class="legenda">Cada casa com as suas contas — e o painel sabe quantas são, uma a uma.</figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ 2. CAIXA INTELIGENTE / CONCILIAÇÃO ═══ -->
-  <!-- Entrou na s331. Origem: os áudios em que o Feca explica o produto a um amigo —
-       ele não abriu por ROI nem por p-value, abriu por CONTROLE, e o exemplo que ele
-       deu (o operador que saca de pouquinho e demora meses para aparecer, porque as
-       apostas estão ganhando) é o argumento mais forte que este produto tem. Não
-       estava escrito em lugar nenhum da página.
-
-       Os dois quadros de conferência são HTML, não print — mesmo motivo da seção do
-       líquido: legível em qualquer largura e não envelhece junto com a UI. Dinheiro
-       segue `fmtSaldo` (UI_REFERENCE §5.1): 2 casas, SEM cor. A única cor aqui é a
-       da divergência, e ela é `--warn` — aviso, não prejuízo. -->
+  <!-- ═══ 2. O ROBÔ ═══ -->
   <section>
     <div class="wrap">
       <div class="sec-cabeca">
-        <p class="eyebrow">Caixa inteligente · conciliação</p>
-        <h2>Se o dinheiro sumiu, você fica sabendo em dois dias.</h2>
+        <p class="eyebrow">Captura automática</p>
+        <h2>Você abre a casa. Ele copia os bilhetes sozinho.</h2>
         <p class="lead">
-          Cada conta tem um saldo inicial, depósitos, saques e todas as apostas que o
-          Sharpen já leu. Com isso ele projeta quanto aquela conta <em>deveria</em> ter
-          agora. Você abre a casa, olha o saldo e confere.
-        </p>
-      </div>
-
-      <div class="duas duas--topo">
-        <div class="duas-texto">
-          <p style="margin-top: 0">
-            Quem opera com contas de terceiros conhece o problema: o dinheiro sai
-            de pouquinho, e como as apostas estão ganhando, a conta demora meses
-            para dar sinal. <strong>Não é o prejuízo que denuncia — é a diferença.</strong>
-            E a diferença só existe se alguém estiver projetando o saldo.
-          </p>
-          <p>
-            O Sharpen projeta. A conferência é um campo e um botão, e o resultado
-            fica registrado com data: <strong>o que foi conferido não é recalculado
-            depois</strong>, senão a projeção de hoje apagaria a divergência de ontem.
-          </p>
-          <p>
-            A mesma conta que denuncia desvio também denuncia <strong>o seu próprio
-            esquecimento</strong>: aposta sem resultado lançado, bilhete que não entrou,
-            saque que ninguém registrou. O caixa não sabe de quem é a culpa — ele só
-            sabe que a conta não fecha.
-          </p>
-        </div>
-
-        <div>
-          <div class="confere">
-            <div class="confere-card">
-              <p class="confere-rot">Conta que bate</p>
-              <p class="confere-linha">
-                <span>Projetado</span>
-                <span class="money"><span class="money-sign">R$</span><span class="money-val">14.654,74</span></span>
-              </p>
-              <p class="confere-linha">
-                <span>Saldo na casa</span>
-                <span class="money"><span class="money-sign">R$</span><span class="money-val">14.654,74</span></span>
-              </p>
-              <p class="confere-veredito confere-veredito--ok">
-                Bate com a casa
-                <span class="confere-nota">diferença R$ 0,00 · conferido hoje</span>
-              </p>
-            </div>
-            <div class="confere-card confere-card--alerta">
-              <p class="confere-rot">Conta que não bate</p>
-              <p class="confere-linha">
-                <span>Projetado</span>
-                <span class="money"><span class="money-sign">R$</span><span class="money-val">8.114,20</span></span>
-              </p>
-              <p class="confere-linha">
-                <span>Saldo na casa</span>
-                <span class="money"><span class="money-sign">R$</span><span class="money-val">7.934,20</span></span>
-              </p>
-              <p class="confere-veredito confere-veredito--alerta">
-                Divergência de
-                <span class="money aviso"><span class="money-sign">R$</span><span class="money-val">180,00</span></span>
-                <span class="confere-nota">apurar antes de seguir</span>
-              </p>
-            </div>
-          </div>
-          <p class="legenda">Números da base de demonstração fictícia. Nenhum dado de cliente aparece aqui.</p>
-        </div>
-      </div>
-
-      <div class="recursos" style="margin-top: var(--sp-10)">
-        <div class="recurso">
-          <h3>Aposta aberta é dinheiro parado</h3>
-          <p>O stake de uma aposta em aberto já saiu da conta e ainda não voltou. Ele entra na banca e sai do disponível — que é justamente o número que a casa mostra na tela.</p>
-        </div>
-        <div class="recurso">
-          <h3>Conta sem caixa não vira zero</h3>
-          <p>Conta que você ainda não ligou entra como “—”, fica fora de toda soma, e a tela diz quantas faltam. Total que engole conta desconhecida mente com cara de exatidão.</p>
-        </div>
-        <div class="recurso">
-          <h3>Do caixa da conta à sua banca</h3>
-          <p>Somados os caixas de todas as contas, você tem a banca — e quanto dela está parada em aposta que ainda não resolveu. É o mapa de onde o dinheiro está agora.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ 3. FORNECEDORES ═══ -->
-  <section>
-    <div class="wrap">
-      <div class="sec-cabeca">
-        <p class="eyebrow">Controle de fornecedores</p>
-        <h2>Quanto cada fornecedor te custou — e quanto ele te devolveu.</h2>
-        <p class="lead">
-          Conta comprada tem custo antes da primeira aposta. O Sharpen guarda o custo
-          de aquisição por fornecedor e por casa, e cruza com o que aquelas contas
-          produziram. Fornecedor caro que entrega ROI alto é barato; o contrário
-          também aparece.
+          Um clique e a extensão varre o seu histórico, bilhete por bilhete, e devolve
+          tudo já classificado.
         </p>
       </div>
       <figure style="margin: 0">
         <div class="janela">
           <div class="janela-barra">
             <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
-            <span class="janela-rotulo">Custo de contas por fornecedor · demonstração</span>
+            <span class="janela-rotulo">Extração e captura · demonstração</span>
           </div>
           <div class="janela-corpo">
-            <img src="/static/landing/img/r6-custo-fornecedor.webp" width="1200" height="632"
-                 loading="lazy" decoding="async"
-                 alt="Cards de custo de contas por fornecedor, cada um com o total investido, o número de contas e o custo médio por conta, detalhado por casa.">
+            <video class="clipe" autoplay muted loop playsinline preload="metadata"
+                   width="1440" height="900"
+                   poster="/static/landing/video/extracao.poster.jpg"
+                   aria-label="Troca de conta na tela de Extração: a grade e os indicadores da conta se atualizam junto.">
+              <source src="/static/landing/video/extracao.webm" type="video/webm">
+              <source src="/static/landing/video/extracao.mp4" type="video/mp4">
+            </video>
           </div>
         </div>
-        <figcaption class="legenda">
-          Seis fornecedores, o custo de cada um e a abertura por casa. O total é
-          <span class="money"><span class="money-sign">R$</span><span class="money-val">29.400</span></span>
-          — e ele desce inteiro no P/L líquido da visão geral.
-        </figcaption>
+        <figcaption class="legenda">Cada conta com a sua grade, o seu P/L e o seu custo.</figcaption>
       </figure>
+      <div class="casas">
+        <span class="casa-chip">Bet365</span><span class="casa-chip">Betano</span><span class="casa-chip">Betfair</span>
+        <span class="casa-chip">Pinnacle</span><span class="casa-chip">Superbet</span><span class="casa-chip">Stake</span>
+        <span class="casa-chip">KTO</span><span class="casa-chip">Novibet</span><span class="casa-chip">SportingBet</span>
+        <span class="casa-chip">Betboom</span><span class="casa-chip">Jonbet</span><span class="casa-chip">BETesporte</span>
+        <span class="casa-chip">Betnacional</span><span class="casa-chip">Betpix365</span><span class="casa-chip">Pitaco</span>
+        <span class="casa-chip">Lottu</span><span class="casa-chip">VaideBet</span><span class="casa-chip">Esportiva</span>
+        <span class="casa-chip">Jogo de Ouro</span><span class="casa-chip">Tivo</span><span class="casa-chip">Betfast</span>
+        <span class="casa-chip">Faz1bet</span><span class="casa-chip">1xBet</span>
+        <span class="casa-chip casa-chip--api">Polymarket · on-chain</span>
+      </div>
+      <p class="legenda">Fora dessas, o print, o PDF, o texto ou a planilha resolvem.</p>
     </div>
   </section>
 
-  <!-- ═══ 4. CONTAS + LIMITAÇÃO ═══ -->
+  <!-- ═══ 3. SUGERIR TIPSTERS ═══ -->
+  <!-- Promovida a secao propria na s331. A pagina falava disto mostrando a tela de
+       ATRIBUICAO POR CASA, que e' configuracao: quem chega de fora nao entende o que
+       esta vendo. O que vende e' o clique tirando trabalho manual. -->
   <section>
     <div class="wrap">
-      <!-- Duas colunas (s296). Antes eram DOIS prints de tabela em largura cheia: a
-           `r4` sozinha tem 10 colunas e, encolhida para caber na página, virava
-           textura — ninguém lê ROI em 8px de imagem. A tabela agora é HTML de
-           verdade, com 4 colunas, e o texto ganha a metade esquerda. -->
-      <div class="duas">
-        <div class="duas-texto">
-          <p class="eyebrow">Conta a conta</p>
-          <h2>Quanto tempo cada conta durou antes de parar.</h2>
-          <p class="lead">
-            Conta limitada não avisa: ela só para de aceitar o que interessa. Por isso
-            cada conta tem <strong>turnover</strong>, P/L, ROI, data da primeira aposta,
-            data da última e o <strong>período</strong> entre as duas.
-          </p>
-          <p>
-            É a régua de vida útil — dá para ver qual fornecedor entrega conta que dura
-            e qual entrega conta que morre em três semanas. Fornecedor, conta e tipster
-            viram <strong>unidades mensuráveis</strong> da operação, não despesa solta.
-          </p>
-        </div>
-        <div>
-          <div class="janela">
-            <div class="janela-barra">
-              <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
-              <span class="janela-rotulo">Contas · demonstração</span>
-            </div>
-            <div class="janela-corpo">
-              <table class="tabela--compacta">
-                <thead>
-                  <tr>
-                    <th scope="col">Conta / casa</th>
-                    <th scope="col">Período</th>
-                    <th scope="col">ROI</th>
-                    <th scope="col">P/L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Bet365 · #184</td>
-                    <td>91 dias</td>
-                    <td><span class="pct pos">+8,4%</span></td>
-                    <td><span class="money pos"><span class="money-sign">R$</span><span class="money-val">+12.840,00</span></span></td>
-                  </tr>
-                  <tr>
-                    <td>Betano · #092</td>
-                    <td>63 dias</td>
-                    <td><span class="pct pos">+5,1%</span></td>
-                    <td><span class="money pos"><span class="money-sign">R$</span><span class="money-val">+7.220,00</span></span></td>
-                  </tr>
-                  <tr>
-                    <td>Pinnacle · #031</td>
-                    <td>182 dias</td>
-                    <td><span class="pct pos">+1,7%</span></td>
-                    <td><span class="money pos"><span class="money-sign">R$</span><span class="money-val">+3.910,00</span></span></td>
-                  </tr>
-                  <tr>
-                    <td>Superbet · #047</td>
-                    <td>22 dias</td>
-                    <td><span class="pct neg">−3,2%</span></td>
-                    <td><span class="money neg"><span class="money-sign">R$</span><span class="money-val">−1.480,00</span></span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+      <div class="sec-cabeca">
+        <p class="eyebrow">Um clique</p>
+        <h2>Um clique diz de quem é cada aposta.</h2>
+        <p class="lead">
+          O Sharpen aprende com o que você já marcou e preenche a coluna Tipster do
+          lote inteiro.
+        </p>
+      </div>
+      <figure style="margin: 0">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Sugerir tipsters · demonstração</span>
           </div>
-          <p class="legenda">
-            As colunas <strong>1ª Aposta</strong>, <strong>Última</strong> e
-            <strong>Período</strong> respondem sozinhas quando a conta parou de rodar.
-          </p>
+          <div class="janela-corpo">
+            <video class="clipe" autoplay muted loop playsinline preload="metadata"
+                   width="1440" height="900"
+                   poster="/static/landing/video/sugerir-tipsters.poster.jpg"
+                   aria-label="As apostas sem tipster são filtradas e, num clique, a coluna Tipster preenche sozinha.">
+              <source src="/static/landing/video/sugerir-tipsters.webm" type="video/webm">
+              <source src="/static/landing/video/sugerir-tipsters.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+        <figcaption class="legenda">As apostas sem dono, e a coluna preenchendo num clique.</figcaption>
+      </figure>
+      <div class="seg" style="margin-top: var(--sp-10)">
+        <div class="seg-item">
+          <h3>Aprende do seu histórico</h3>
+          <p>Esporte, mercado, casa e o final da stake.</p>
+        </div>
+        <div class="seg-item">
+          <h3>Não chuta</h3>
+          <p>Sem certeza, ele deixa em branco.</p>
+        </div>
+        <div class="seg-item">
+          <h3>Você revisa antes</h3>
+          <p>A sugestão fica marcada até você confirmar.</p>
+        </div>
+      </div>
+      <p class="legenda">
+        Muita gente assina a própria aposta pelos centavos: grupo 1 em
+        <span class="num">R$ 401</span>, grupo 2 em <span class="num">R$ 402</span>,
+        grupo 3 em <span class="num">R$ 403</span>. O Sharpen lê isso sozinho.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ 4. CAIXA INTELIGENTE ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Caixa inteligente</p>
+        <h2>O Sharpen sabe quanto deveria ter na conta.</h2>
+        <p class="lead">
+          Saldo inicial, depósitos, saques e tudo o que você apostou. Ele projeta,
+          você compara com a casa.
+        </p>
+      </div>
+      <div class="duas duas--topo">
+        <figure style="margin: 0">
+          <img src="/static/landing/img/r8-caixa-confere.webp" width="600" height="1356"
+               loading="lazy" decoding="async"
+               alt="Painel da Caixa Inteligente de uma conta que confere, com o selo verde Confere e a diferença em R$ 0,00.">
+          <figcaption class="legenda">Bate com a casa.</figcaption>
+        </figure>
+        <figure style="margin: 0">
+          <img src="/static/landing/img/r9-caixa-divergente.webp" width="600" height="1416"
+               loading="lazy" decoding="async"
+               alt="Painel da Caixa Inteligente de uma conta divergente, apontando que faltam R$ 850,00 e sugerindo conferir se houve saque não lançado.">
+          <figcaption class="legenda">Não bate, e ele diz de quanto é a diferença.</figcaption>
+        </figure>
+      </div>
+      <div class="recursos" style="margin-top: var(--sp-10)">
+        <div class="recurso">
+          <h3>Conta a conta</h3>
+          <p>A divergência aparece na conta em que aconteceu.</p>
+        </div>
+        <div class="recurso">
+          <h3>Aposta aberta conta</h3>
+          <p>Dinheiro preso numa aposta não some do seu saldo.</p>
+        </div>
+        <div class="recurso">
+          <h3>Fica registrado</h3>
+          <p>O que foi conferido guarda a data e não se apaga depois.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ═══ 5. OPERADORES ═══ -->
-  <!-- Entrou na s331, do áudio em que o Feca chama isto de "a chave de ouro". É o
-       único recurso da página que descreve OPERAÇÃO EM EQUIPE, e ele é o que separa
-       o Sharpen de um rastreador pessoal: sem ele, quem opera com terceiros não tem
-       o que fazer aqui. Três visões, e é a terceira que não existe em lugar nenhum. -->
+  <!-- ═══ 5. CUSTOS ═══ -->
+  <!-- Era "quanto cada fornecedor te devolveu", e o angulo estava errado: ninguem
+       controla se a Betano do fornecedor A bate mais aposta que a do B. O que
+       importa e' preco por fornecedor e o custo entrando sozinho. O custo de
+       TIPSTER veio para ca, porque a secao e' sobre custo. -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Custos</p>
+        <h2>Tabela de preço por fornecedor. O custo entra sozinho.</h2>
+        <p class="lead">
+          Você diz quanto cada fornecedor cobra por conta em cada casa. Toda conta
+          nova já nasce com o custo lançado.
+        </p>
+      </div>
+      <figure style="margin: 0">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Tabela de preços · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/r10-tabela-precos.webp" width="1200" height="541"
+                 loading="lazy" decoding="async"
+                 alt="Tabela de custos por casa e fornecedor: o preço de cada conta preenchido por casa, com o total calculado pelo número de contas.">
+          </div>
+        </div>
+        <figcaption class="legenda">O preço de cada conta, por casa e por fornecedor.</figcaption>
+      </figure>
+
+      <div class="kpis" style="margin-top: var(--sp-10)">
+        <div class="kpi">
+          <p class="kpi-rot">P/L bruto</p>
+          <p class="kpi-val"><span class="money pos"><span class="money-sign">R$</span><span class="money-val">+267.002</span></span></p>
+          <p class="kpi-sub">24.000 apostas</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-rot">Custo de contas</p>
+          <p class="kpi-val"><span class="money neg"><span class="money-sign">R$</span><span class="money-val">−29.400</span></span></p>
+          <p class="kpi-sub">6 fornecedores</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-rot">Custo de tipsters</p>
+          <p class="kpi-val"><span class="money neg"><span class="money-sign">R$</span><span class="money-val">−23.760</span></span></p>
+          <p class="kpi-sub">assinaturas e serviços</p>
+        </div>
+        <div class="kpi kpi--final">
+          <p class="kpi-rot">P/L líquido</p>
+          <p class="kpi-val"><span class="money pos"><span class="money-sign">R$</span><span class="money-val">+213.842</span></span></p>
+          <p class="kpi-sub">o que sobrou</p>
+        </div>
+      </div>
+      <p class="legenda">Números da base de demonstração fictícia. Nenhum dado de cliente aparece aqui.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 6. CONTAS ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-cabeca">
+        <p class="eyebrow">Conta a conta</p>
+        <h2>Quanto a conta durou até limitar, e se ela se pagou.</h2>
+        <p class="lead">
+          Turnover, ROI, primeira aposta, última e o período entre as duas.
+        </p>
+      </div>
+      <figure style="margin: 0">
+        <div class="janela">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Contas individuais · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/r4-contas-periodo.webp" width="1200" height="577"
+                 loading="lazy" decoding="async"
+                 alt="Lista de contas individuais com casa, fornecedor, turnover, ROI, P/L, primeira aposta, última aposta e período.">
+          </div>
+        </div>
+        <figcaption class="legenda">Conta limitada não avisa. O período entre a primeira e a última aposta avisa.</figcaption>
+      </figure>
+      <div class="seg" style="margin-top: var(--sp-10)">
+        <div class="seg-item">
+          <h3>Tempo até limitar</h3>
+          <p>Quantos dias a conta aceitou aposta.</p>
+        </div>
+        <div class="seg-item">
+          <h3>ROI por conta</h3>
+          <p>O que cada conta rendeu, contra o que custou.</p>
+        </div>
+        <div class="seg-item">
+          <h3>Se a operação se paga</h3>
+          <p>Fornecedor que entrega conta de três semanas aparece.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 7. OPERADORES ═══ -->
   <section>
     <div class="wrap">
       <div class="sec-cabeca">
         <p class="eyebrow">Operação em equipe</p>
-        <h2>O seu operador trabalha na conta dele. Você enxerga as duas.</h2>
+        <h2>O operador trabalha. Você vê tudo.</h2>
         <p class="lead">
-          Você cadastra o operador e ele usa o Sharpen como se fosse dele: extrai,
-          lança, corrige, confere o caixa das contas que estão com ele. Ninguém
-          divide senha e ninguém depende de você para trabalhar.
+          Ele usa o Sharpen como se fosse dele. Você tem a visão dele, a sua, e as
+          duas somadas.
         </p>
       </div>
-      <div class="seg">
+      <figure style="margin: 0">
+        <div class="janela janela--corta">
+          <div class="janela-barra">
+            <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
+            <span class="janela-rotulo">Contas e parceiros · demonstração</span>
+          </div>
+          <div class="janela-corpo">
+            <img src="/static/landing/img/15-contas.webp" width="1400" height="1488"
+                 loading="lazy" decoding="async"
+                 alt="Painel de Contas e Parceiros: saldo disponível, valor em aberto e banca total, com as contas agrupadas por casa.">
+          </div>
+        </div>
+        <figcaption class="legenda">Saldo disponível, em aberto e banca total, somando todas as contas.</figcaption>
+      </figure>
+      <div class="seg" style="margin-top: var(--sp-10)">
         <div class="seg-item">
           <h3>A visão dele</h3>
-          <p>Ele entra na conta dele e vê as contas que são dele. É a tela de trabalho de quem opera — não uma versão reduzida da sua.</p>
+          <p>Ele entra na conta dele e vê as contas dele.</p>
         </div>
         <div class="seg-item">
           <h3>A sua visão</h3>
-          <p>Você continua com a sua operação separada, sem a dele misturada dentro. Uma coisa é o que você faz; outra é o que a equipe faz.</p>
+          <p>A sua operação separada, sem a dele misturada.</p>
         </div>
         <div class="seg-item">
           <h3>O consolidado</h3>
-          <p>E o mapa dos dois juntos: banca total, o que está em aberto, o custo de cada conta e onde o dinheiro está agora. É esta visão que não existe em planilha nenhuma.</p>
-        </div>
-      </div>
-      <p class="legenda" style="margin-top: var(--sp-8)">
-        A conferência de caixa vale por conta, então ela atravessa a equipe inteira:
-        a divergência aparece na conta em que ela aconteceu, com o nome de quem opera aquela conta.
-      </p>
-    </div>
-  </section>
-
-  <!-- ═══ 6. IA / TIPSTER ═══ -->
-  <section>
-    <div class="wrap">
-      <div class="duas duas--inverte">
-        <figure style="margin: 0">
-          <div class="janela janela--corta">
-            <div class="janela-barra">
-              <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
-              <span class="janela-rotulo">Atribuição por casa · demonstração</span>
-            </div>
-            <div class="janela-corpo">
-              <img src="/static/landing/img/r7-atribuicao-casa.webp" width="1200" height="707"
-                   loading="lazy" decoding="async"
-                   alt="Painel de atribuição por casa: cada casa com o volume, o tipster dominante na base, o percentual de concentração e a marcação dedicada ou compartilhada.">
-            </div>
-          </div>
-          <figcaption class="legenda">
-            Casa de nicho costuma ser de um tipster só. O sistema mede a concentração
-            e sugere — você confirma.
-          </figcaption>
-        </figure>
-        <div class="duas-texto">
-          <p class="eyebrow">Atribuição automática</p>
-          <h2>Ele aprende com o que você já rotulou — e cala a boca quando não sabe.</h2>
-          <p>
-            Depois de algumas centenas de bilhetes marcados à mão, o Sharpen passa a
-            reconhecer <strong>de quem</strong> é cada aposta nova: pelo esporte, pelo
-            mercado, pela casa e pelo final da stake, que costuma ser a assinatura mais
-            teimosa de um método.
-          </p>
-          <!-- O exemplo concreto entrou na s331. A frase acima descrevia o mecanismo
-               ("o final da stake") e ninguém se reconhecia nela; quem opera assim
-               reconhece na hora quando vê os centavos escritos. Saiu da boca do Feca
-               e da do Jonathan, quase igual, sem combinarem. -->
-          <p>
-            Na prática vira um hábito barato: três grupos, e a stake carrega quem mandou —
-            <span class="num">R$ 401</span>, <span class="num">R$ 402</span>,
-            <span class="num">R$ 403</span>. Quem tem dez tipsters costuma reservar
-            <strong>uma dezena de centavos por esporte</strong>. A aposta já sai da casa
-            assinada, e o Sharpen só lê o que você escreveu.
-          </p>
-          <p>
-            O ganho não é o clique economizado — é poder <strong>ficar uma semana sem
-            planilhar</strong>. A informação de quem mandou a aposta ficou registrada no
-            momento em que ela foi feita, e não na sua memória.
-          </p>
-          <p>
-            O que separa isso de um chute é a <strong>abstenção</strong>. Sem folga
-            clara entre o primeiro e o segundo colocado, ele não sugere nada. E tipster
-            recém-criado, que ainda não tem histórico, não concorre — senão todo bilhete
-            novo cairia no nome mais parecido, com cara de certeza.
-          </p>
-          <p>
-            O modelo treina só nos rótulos <strong>humanos</strong>. Ele nunca aprende
-            com as próprias sugestões: seria ensinar o sistema a repetir o próprio erro.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ 7. CUSTO ═══ -->
-  <section>
-    <div class="wrap">
-      <!-- Esta seção já era "do bruto ao líquido", mas como PRINT (`r1-pl-liquido`).
-           Virou HTML de verdade na pegada pedida na s296: os mesmos quatro números
-           da base de demonstração, agora legíveis em qualquer largura e com a conta
-           que a linha faz escrita embaixo. Agregado/KPI usa `fmtR` — INTEIRO, sem
-           centavos (UI_REFERENCE §5); a versão com 2 casas é do P/L em tabela. -->
-      <div class="sec-cabeca">
-        <p class="eyebrow">Para quem opera várias contas</p>
-        <h2>Todo tracker te mostra o bruto. Aqui você vê o <span class="realce">líquido</span>.</h2>
-        <p class="lead">
-          Captura dentro da casa, um registro só, e os custos que a planilha não desconta:
-          aquisição de contas, assinatura de tipster, custo fixo da operação.
-        </p>
-      </div>
-      <div class="kpis">
-        <div>
-          <div class="kpi">
-            <p class="kpi-rot">P/L bruto</p>
-            <p class="kpi-val"><span class="money pos"><span class="money-sign">R$</span><span class="money-val">+267.002</span></span></p>
-            <p class="kpi-sub">24.000 apostas</p>
-          </div>
-          <p class="kpi-conta">o que rendeu</p>
-        </div>
-        <div>
-          <div class="kpi">
-            <p class="kpi-rot">Custo de contas</p>
-            <p class="kpi-val"><span class="money neg"><span class="money-sign">R$</span><span class="money-val">−29.400</span></span></p>
-            <p class="kpi-sub">6 fornecedores</p>
-          </div>
-          <p class="kpi-conta">− o que custou</p>
-        </div>
-        <div>
-          <div class="kpi">
-            <p class="kpi-rot">Custo de tipsters</p>
-            <p class="kpi-val"><span class="money neg"><span class="money-sign">R$</span><span class="money-val">−23.760</span></span></p>
-            <p class="kpi-sub">assinaturas e serviços</p>
-          </div>
-          <p class="kpi-conta">− o que custou</p>
-        </div>
-        <div>
-          <div class="kpi kpi--final">
-            <p class="kpi-rot">P/L líquido</p>
-            <p class="kpi-val"><span class="money pos"><span class="money-sign">R$</span><span class="money-val">+213.842</span></span></p>
-            <p class="kpi-sub">resultado final</p>
-          </div>
-          <p class="kpi-conta">= o que sobrou</p>
-        </div>
-      </div>
-      <p class="legenda" style="margin-bottom: var(--sp-8)">
-        Números da base de demonstração fictícia. Nenhum dado de cliente aparece aqui.
-      </p>
-      <div class="recursos">
-        <div class="recurso">
-          <h3>Custo por conta</h3>
-          <p>O que você pagou por cada conta, por fornecedor e por casa. O custo pertence ao período em que a conta foi adquirida, não ao mês em que você lançou.</p>
-        </div>
-        <div class="recurso">
-          <h3>Custo por tipster</h3>
-          <p>Assinaturas e serviços, mês a mês. Dá para responder se aquele tipster paga a própria mensalidade — e a resposta às vezes desagrada.</p>
-        </div>
-        <div class="recurso">
-          <h3>Conta sem aposta também existe</h3>
-          <p>Conta comprada e ainda parada aparece na tela para receber o custo. Ela não some só porque ainda não apostou — e continua fora de qualquer janela de P/L.</p>
+          <p>Os dois juntos, com o dinheiro todo no mapa.</p>
         </div>
       </div>
     </div>
@@ -1050,34 +803,30 @@ footer img { height: 40px; width: auto; }
   <section>
     <div class="wrap">
       <div class="sec-cabeca">
-        <p class="eyebrow">Operação multi-conta · multi-fornecedor</p>
+        <p class="eyebrow">Planilha ou Sharpen</p>
         <h2>A sua planilha não sabe quanto custou a conta que gerou aquele lucro.</h2>
         <p class="lead">O Sharpen sabe. E desconta.</p>
       </div>
       <div class="versus">
         <div class="versus-col">
-          <p class="versus-rot">O que a planilha registra</p>
+          <p class="versus-rot">Na planilha</p>
           <ul>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Stake, odd e retorno — <strong>digitados à mão</strong></span></li>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Nada de apostas <strong>em aberto</strong></span></li>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Mercado escrito como cada casa escreve</span></li>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Custo de aquisição da conta: <strong>fora</strong></span></li>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Assinatura de tipster: <strong>fora</strong></span></li>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Saldo da conta: <strong>o que a casa disser</strong></span></li>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Desvio de dinheiro descoberto quando falta</span></li>
-            <li><span class="marca-nao" aria-hidden="true">✗</span><span>ROI positivo sem saber se é sorte</span></li>
+            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Tudo digitado à mão</span></li>
+            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Nada de apostas em aberto</span></li>
+            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Custo das contas de fora</span></li>
+            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Custo dos tipsters de fora</span></li>
+            <li><span class="marca-nao" aria-hidden="true">✗</span><span>Saldo é o que a casa disser</span></li>
+            <li><span class="marca-nao" aria-hidden="true">✗</span><span>ROI sem saber se é sorte</span></li>
           </ul>
         </div>
         <div class="versus-col versus-col--sim">
-          <p class="versus-rot">O que o Sharpen registra</p>
+          <p class="versus-rot">No Sharpen</p>
           <ul>
-            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Bilhete lido <strong>dentro da casa</strong>, em 23 fontes</span></li>
-            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Em aberto <strong>e</strong> encerradas, no mesmo lugar</span></li>
-            <li><span class="marca-sim" aria-hidden="true">✓</span><span>30 categorias — Bet365 e Betano comparáveis</span></li>
-            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Custo por conta, por fornecedor e por casa</span></li>
+            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Bilhete lido dentro da casa</span></li>
+            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Em aberto e encerradas juntas</span></li>
+            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Custo por conta e por casa</span></li>
             <li><span class="marca-sim" aria-hidden="true">✓</span><span>Custo por tipster, mês a mês</span></li>
-            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Saldo <strong>projetado</strong> e conferido contra a casa</span></li>
-            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Divergência apontada em dois dias, conta a conta</span></li>
+            <li><span class="marca-sim" aria-hidden="true">✓</span><span>Saldo projetado e conferido</span></li>
             <li><span class="marca-sim" aria-hidden="true">✓</span><span>P-value e drawdown simulado</span></li>
           </ul>
         </div>
@@ -1090,15 +839,13 @@ footer img { height: 40px; width: auto; }
     <div class="wrap">
       <div class="sec-cabeca">
         <p class="eyebrow">Vantagem ou sorte</p>
-        <h2>A régua não existe para elogiar quem a usa.</h2>
+        <h2>ROI positivo em mil apostas pode ser variância.</h2>
         <p class="lead">
-          ROI positivo em mil apostas pode ser variância. O Sharpen roda reamostragem
-          para estimar a chance de o seu resultado ser acaso, simula dez mil trajetórias
-          alternativas para dimensionar o drawdown que você <em>ainda não viveu</em>, e
-          fecha num nível de solidez que junta as quatro coisas.
+          O Sharpen simula dez mil trajetórias com o seu histórico e diz a chance de o
+          seu resultado ser acaso.
         </p>
       </div>
-      <figure style="margin: 0 0 var(--sp-8)">
+      <figure style="margin: 0">
         <div class="janela">
           <div class="janela-barra">
             <span class="janela-ponto"></span><span class="janela-ponto"></span><span class="janela-ponto"></span>
@@ -1107,29 +854,11 @@ footer img { height: 40px; width: auto; }
           <div class="janela-corpo">
             <img src="/static/landing/img/r2-risco.webp" width="1200" height="152"
                  loading="lazy" decoding="async"
-                 alt="Painel de diagnóstico de risco com p-value, drawdown médio projetado, drawdown extremo e nível de solidez.">
+                 alt="Diagnóstico de risco: p-value, drawdown médio projetado, drawdown extremo e o nível de solidez da operação.">
           </div>
         </div>
-        <figcaption class="legenda">
-          A operação da demonstração tira <strong>Média</strong> na nossa própria régua —
-          a odd média alta cobra o preço dela em variância. Uma ferramenta que só dá
-          nota alta não está medindo nada.
-        </figcaption>
+        <figcaption class="legenda">A operação da demonstração tira Média na nossa própria régua.</figcaption>
       </figure>
-      <div class="recursos">
-        <div class="recurso">
-          <h3>P-value por reamostragem</h3>
-          <p>Sem assumir distribuição teórica: reembaralha o seu próprio histórico milhares de vezes e conta quantas vezes o acaso chegaria lá.</p>
-        </div>
-        <div class="recurso">
-          <h3>Drawdown Monte Carlo</h3>
-          <p>O pior que já aconteceu é uma amostra de um. A simulação mostra a queda média e a queda de 1 em 100 com as suas apostas.</p>
-        </div>
-        <div class="recurso">
-          <h3>Fator de recuperação</h3>
-          <p>Lucro dividido pelo tombo necessário para consegui-lo. Responde se a operação é sustentável ou se depende de aguentar o insuportável.</p>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -1142,43 +871,32 @@ footer img { height: 40px; width: auto; }
       </div>
       <details>
         <summary>Vocês precisam da senha das minhas casas?</summary>
-        <p>Não, em nenhum momento. O SharpenUp trabalha dentro da sessão que você mesmo abriu no navegador, lendo o histórico que a casa já está te mostrando. Ele não faz login, não guarda credencial, não aposta e não movimenta saldo.</p>
+        <p>Não. A extensão trabalha dentro da sessão que você mesmo abriu, lendo o que a casa já está te mostrando. Ela não faz login, não guarda senha, não aposta e não movimenta saldo.</p>
       </details>
       <details>
-        <summary>Eu aposto num país que nenhum rastreador cobre. Funciona?</summary>
-        <p>Funciona. Se a casa roda um dos motores que já lemos, a captura é automática. Se não roda, você manda o print, o PDF, o texto ou a planilha — a leitura é por imagem e não depende do idioma da casa. Em teste com casa nunca vista e sem nenhuma configuração prévia, a classificação de categoria de mercado acertou 94,5%.</p>
-      </details>
-      <details>
-        <summary>Como o sistema sabe que sumiu dinheiro de uma conta?</summary>
-        <p>Ele não sabe — ele calcula. A partir do saldo inicial que você informou, dos depósitos, dos saques e de todas as apostas que já leu, o Sharpen projeta quanto aquela conta deveria ter agora. Você olha o saldo na casa e confere. Se os dois números não batem, a diferença é registrada com data e continua aparecendo até alguém explicar de onde ela veio — seja um saque não lançado, um resultado que faltou marcar ou dinheiro que saiu sem registro.</p>
-      </details>
-      <details>
-        <summary>Eu opero com contas de terceiros. Cada um vê o quê?</summary>
-        <p>O operador tem a conta dele e vê as contas dele — trabalha sozinho, sem senha compartilhada e sem depender de você. Você tem a sua operação separada e o consolidado dos dois: banca total, o que está em aberto e o custo de cada conta. A conferência de caixa é por conta, então a divergência aparece exatamente onde aconteceu.</p>
+        <summary>A minha casa está na lista?</summary>
+        <p>Se estiver, a captura é automática. Se não estiver, você manda o print, o PDF, o texto ou a planilha, e a leitura funciona igual. A lista cresce conforme a demanda.</p>
       </details>
       <details>
         <summary>Meu histórico antigo entra?</summary>
-        <p>Entra. Já migramos e reconciliamos bases de mais de 25 mil apostas vindas de planilha, preservando o histórico inteiro. Não é preciso começar do zero para os números fazerem sentido.</p>
+        <p>Entra. Já migramos bases de mais de 25 mil apostas vindas de planilha, sem perder nada.</p>
       </details>
       <details>
         <summary>A leitura erra alguma vez?</summary>
-        <p>Erra. Por isso toda linha é editável, o sistema marca as apostas que ficaram incompletas em vez de escondê-las, e a captura automática nas casas que lemos na origem não depende de leitura de imagem. Ferramenta que afirma nunca errar está escondendo o erro, não evitando.</p>
+        <p>Erra. Por isso toda linha é editável e o sistema marca as apostas incompletas em vez de escondê-las. Ferramenta que afirma nunca errar está escondendo o erro.</p>
       </details>
       <details>
-        <summary>Preciso de quantas apostas para os números fazerem sentido?</summary>
-        <p>Os KPIs funcionam desde a primeira. A camada estatística é outra conversa: abaixo de algumas centenas de apostas o p-value e o drawdown simulado dizem pouco, e o próprio nível de solidez desconta isso — ele pontua o tamanho da amostra como um dos quatro critérios.</p>
+        <summary>Eu opero com contas de terceiros. Cada um vê o quê?</summary>
+        <p>O operador vê as contas dele e trabalha sozinho, sem senha compartilhada. Você vê a sua operação, a dele e o consolidado.</p>
       </details>
       <details>
         <summary>Quanto custa?</summary>
-        <p>O preço ainda não está fechado e nós preferimos não publicar um número que vai mudar. A entrada hoje é por cadastro com aprovação — crie a conta e nós falamos com você.</p>
+        <p>O preço ainda não está fechado e preferimos não publicar um número que vai mudar. Crie a conta e nós falamos com você.</p>
       </details>
     </div>
   </section>
 
   <!-- ═══ 11. SEGURANÇA ═══ -->
-  <!-- Entrou na s296 no lugar do "O que o Sharpen não é", que saiu. Mesma função
-       de confiança — o que a ferramenta NÃO faz — em três linhas em vez de quatro
-       cards. A borda de acento à esquerda substitui a caixa. -->
   <section>
     <div class="wrap">
       <div class="sec-cabeca">
@@ -1188,15 +906,15 @@ footer img { height: 40px; width: auto; }
       <div class="seg">
         <div class="seg-item">
           <h3>Não pede sua senha</h3>
-          <p>Trabalha na sessão que você mesmo abriu, lendo o histórico que a casa já está te mostrando.</p>
+          <p>Trabalha na sessão que você mesmo abriu.</p>
         </div>
         <div class="seg-item">
-          <h3>Não aposta nem movimenta saldo</h3>
-          <p>O SharpenUp é de leitura, não de execução. Não tem permissão para agir na sua conta.</p>
+          <h3>Não aposta nem move saldo</h3>
+          <p>É leitura. Não tem permissão para agir na sua conta.</p>
         </div>
         <div class="seg-item">
           <h3>Não promete lucro</h3>
-          <p>A maioria das pessoas perde dinheiro apostando. O sistema mede os seus dados; não altera o seu resultado.</p>
+          <p>Mede os seus dados. Não altera o seu resultado.</p>
         </div>
       </div>
     </div>
@@ -1206,10 +924,8 @@ footer img { height: 40px; width: auto; }
   <section class="fechar">
     <div class="wrap">
       <p class="eyebrow">Sharpen your edge</p>
-      <h2>Pare de anotar. Comece a medir.</h2>
-      <p class="lead" style="max-width: 56ch; margin-inline: auto">
-        Crie a conta, conecte a primeira casa e veja o seu próprio histórico na régua.
-      </p>
+      <h2>Pare de digitar. Comece a medir.</h2>
+      <p class="lead">Crie a conta, conecte a primeira casa e veja o seu histórico na régua.</p>
       <div class="hero-ctas">
         <a class="btn btn-primario btn-grande" href="/login#cadastro">Criar conta</a>
         <a class="btn btn-fantasma btn-grande" href="/login">Já tenho conta</a>
@@ -1222,7 +938,7 @@ footer img { height: 40px; width: auto; }
 <footer>
   <div class="wrap rodape-in">
     <div>
-      <img src="/static/brand-sharpen/base/lockup-endorsed.svg" alt="Sharpen — by FDC Capital">
+      <img src="/static/brand-sharpen/base/lockup-endorsed.svg" alt="Sharpen by FDC Capital">
       <p class="rodape-slogan">Sharpen your edge</p>
       <p class="rodape-txt" style="margin-top: var(--sp-4)">
         <span class="idade">18+</span>
@@ -1234,7 +950,7 @@ footer img { height: 40px; width: auto; }
       <!-- O <p> herda --ink-soft de .rodape-txt e o <strong> sobe para --ink.
            A versao anterior tinha o pai em --ink-mute e o filho em --ink-soft:
            filho mais legivel que o pai e' inversao de hierarquia, barrada pela
-           Escada de Tinta — e ainda por cima num aviso que precisa ser lido. -->
+           Escada de Tinta, e ainda por cima num aviso que precisa ser lido. -->
       <p class="rodape-txt" style="margin-top: var(--sp-4)">
         As imagens desta página são capturas reais do produto, com uma
         <strong>base de demonstração fictícia</strong>.

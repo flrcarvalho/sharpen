@@ -64,6 +64,10 @@ const TELAS = [
   { nome: "12-custos-contas",    hash: "dash/custos",         frame: "fr-dash",   h: 1520 },  // novo
   { nome: "13-custos-tipsters",  hash: "dash/custos_tipster", frame: "fr-dash",   h: 1500 },  // novo
   { nome: "14-extracao",         hash: "plan",                frame: "fr-plan",   h: 1400 },
+  // s331: a landing passou a prometer "o mapa de onde esta o seu dinheiro", e a tela
+  // que E' esse mapa e' o Painel de Contas, redesenhado na s330. Ele nao estava no
+  // pipeline: a pagina de vendas mostrava a Visao Geral e falava de contas.
+  { nome: "15-contas",           hash: "plan/contas",         frame: "fr-plan",   h: 1700 },
 ];
 
 // RECORTES: foto de UM elemento, para a landing usar como destaque de recurso.
@@ -85,6 +89,56 @@ const RECORTES = [
   { nome: "r5-casa-fornecedor",  hash: "dash/parceiros",      frame: "fr-dash", sel: "#card-cross_table",       maxH: 620 },
   { nome: "r6-custo-fornecedor", hash: "dash/parceiros",      frame: "fr-dash", sel: "#card-forn_custo_cards",  maxH: 700 },
   { nome: "r7-atribuicao-casa",  hash: "dash/casas",          frame: "fr-dash", sel: "#paneCasas",              maxH: 760 },
+
+  // ── s331: os recortes que a landing passou a precisar ────────────────────
+  //
+  // A Caixa Inteligente e' o argumento que o dono do produto usa quando explica o
+  // Sharpen de viva-voz, e a landing a desenhava em HTML. "Falta print real" foi a
+  // resposta dele. `#caixaBox` nasce escondido (`display:none`) e so aparece com
+  // conta ativa, por isso os dois recortes abrem uma conta antes pelo `acao`.
+  //
+  // As contas sao escolhidas pelo ESTADO, nao pelo nome: no mock a 1 confere e a 3
+  // esta divergente (`/caixa/conta?parceiro_id=N` devolve `estado`). Sao os dois
+  // desfechos que a pagina precisa mostrar lado a lado.
+  { nome: "r8-caixa-confere",    hash: "plan",                frame: "fr-plan", sel: "#caixaBox",               maxH: 720,
+    acao: () => window.contasAbrir(1, "Bet365") },
+  { nome: "r9-caixa-divergente", hash: "plan",                frame: "fr-plan", sel: "#caixaBox",               maxH: 720,
+    acao: () => window.contasAbrir(3, "Bet365") },
+  // Tabela de preco por fornecedor: o Feca cortou o angulo "quanto o fornecedor te
+  // devolveu" (ninguem controla se a Betano do fornecedor A bate mais aposta que a
+  // do B) e apontou o que importa: preco por fornecedor e custo entrando sozinho.
+  { nome: "r10-tabela-precos",   hash: "dash/custos",         frame: "fr-dash", sel: "#card-custos_table",      maxH: 700, padLeft: 16 },
+
+  // ANTES e DEPOIS do "Sugerir tipsters", o par que prova o argumento.
+  //
+  // A landing mostrava a tela de ATRIBUICAO POR CASA para falar disto, e o Feca foi
+  // direto: "essa e' uma tela de configuracao, ela nao entende nada. O segredo e' o
+  // sugerir tipster". Um print do resultado tambem nao serve: sem a coluna vazia ao
+  // lado, ninguem sabe que houve trabalho poupado. O par e' o argumento.
+  //
+  // O `acao` do DEPOIS espera de verdade (promise), porque a sugestao faz um PATCH
+  // por bilhete: os 1400 ms fixos do `navegar` fotografariam a coluna metade cheia.
+  //
+  // Os dois FILTRAM a grade pelo badge "Aguardando tipster" (`#s-info`) antes de
+  // fotografar. Sem isso o par nao prova nada: a conta tem 327 apostas e a maioria
+  // ja veio com tipster da base, entao o antes e o depois saem identicos na tela.
+  // O que se quer mostrar sao as linhas VAZIAS virando linhas preenchidas.
+  { nome: "r11-tipster-antes",   hash: "plan",                frame: "fr-plan", sel: ".grade-section",          maxH: 640,
+    acao: async () => {
+      window.contasAbrir(1, "Bet365");
+      await new Promise((r) => setTimeout(r, 3000));
+      document.getElementById("s-info").click();
+      await new Promise((r) => setTimeout(r, 2000));
+    } },
+  { nome: "r12-tipster-depois",  hash: "plan",                frame: "fr-plan", sel: ".grade-section",          maxH: 640,
+    acao: async () => {
+      window.contasAbrir(1, "Bet365");
+      await new Promise((r) => setTimeout(r, 3000));
+      document.getElementById("s-info").click();
+      await new Promise((r) => setTimeout(r, 2000));
+      document.getElementById("btn-sugerir-tip").click();
+      await new Promise((r) => setTimeout(r, 7000));
+    } },
 ];
 
 const LARGURA = 1600;
@@ -264,9 +318,20 @@ async function capturar() {
     // acontecia com os dois cards do fim da pagina de Fornecedores; o card do
     // topo (custo por fornecedor) saia bem, e foi esse contraste que entregou
     // a causa. `block:"start"` sobe o elemento para o alto do scroller.
-    await frame.evaluate((sel) => {
-      document.querySelector(sel).scrollIntoView({ block: "start" });
-    }, rec.sel);
+    await frame.evaluate((sel, pad) => {
+      const n = document.querySelector(sel);
+      n.scrollIntoView({ block: "start" });
+      // O `maxHeight` acima vem com `overflow:hidden`, que corta nos DOIS eixos. O
+      // card de titulo com barra de acento a esquerda perdia a primeira letra: a
+      // `Tabela de Custos por Casa x Fornecedor` fotografava "ABELA DE CUSTOS".
+      // Nao da erro e so aparece quando alguem olha a peca publicada.
+      //
+      // Tentei antes zerar `scrollLeft` do alvo e de toda a cadeia de ancestrais:
+      // NAO resolveu, medido duas vezes. Nao era rolagem, era recorte. `padLeft`
+      // empurra o conteudo para dentro da caixa e e' opt-in, para nao deslocar os
+      // recortes que ja saem certos.
+      if (pad) n.style.paddingLeft = pad + "px";
+    }, rec.sel, rec.padLeft || 0);
     await espera(900);
 
     // Checa a CAUSA (elemento fora do viewport), nao so o sintoma (arquivo
