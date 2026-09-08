@@ -114,6 +114,34 @@ serve para `mouse.click` na página, então o duplo-clique vai por evento sinté
 > quem termina primeiro leva o trabalho do outro junto, e a única defesa é a segunda
 > sessão conferir o `git show --stat` e registrar, como está aqui.
 
+### A 2ª rodada de ajustes: laterais +40%, banca total e cards
+
+Concentração e `Últimas ações` **+40%** (285→399 e 300→420), rosca de 110 para **150** ·
+a **banca total** entra na Concentração · `Ativas`/`Arquivadas` viram **cards** que são o
+próprio filtro · as colunas da tabela se aproximam.
+
+**A banca total mora na Concentração porque é o denominador dela.** Cada "% da banca" da
+lista é uma fração daquele número; sem ele o percentual fica sem régua. É o mesmo valor
+do KPI `Banca total`, mas ali ele é resultado e aqui é a base da conta que se está lendo.
+
+**Os cards existem porque o mesmo dado estava em três lugares** — meta do cabeçalho,
+segmentado e um `N contas` à direita — e nenhum dizia com clareza qual estava
+selecionado. Agora o número vive uma vez só, no lugar onde também se escolhe. Trocar de
+aba passou a **soltar** o recorte por casa: sem isso o usuário troca de aba e a lista
+segue filtrada por uma casa que ele não vê mais marcada.
+
+**A 5ª trilha é sobra, e conserta uma leitura.** O nome estava em `1fr` e engolia toda a
+folga do monitor largo, empurrando Status e Caixa para longe da identidade — a linha lia
+como duas ilhas. Agora o nome tem teto (340px) e a sobra fica **entre a Caixa e as
+Ações**: as três primeiras colunas andam juntas à esquerda e os botões seguem encostados
+na borda direita, que é onde se procura ação.
+
+> 819px de painéis laterais pedem monitor largo, e isso não se espreme. O lado a lado
+> exige 1.555px de **iframe** (399 + 12 + 712 de piso da tabela + 12 + 420) — cerca de
+> 1.870px de janela. Abaixo disso a concentração sobe para cima da tabela, e lá ela ganha
+> container query própria (rosca e frase lado a lado, lista em duas colunas) para o
+> estado empilhado não parecer acidente.
+
 ### Ficou de fora, e está no `BACKLOG.md`
 
 - **Título da página em 19px.** `.pagehead-title` é casca: o `SHELL_SPEC` e o
