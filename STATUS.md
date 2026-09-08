@@ -65,6 +65,30 @@ Bilhete sem tipster somava com aposta aberta num número só. São coisas difere
 pendência eu resolvo olhando; tipster **depende de terceiro**. Agora é uma pílula azul —
 espera externa não é erro, e âmbar diria "confira" onde não há o que conferir.
 
+### Os seis ajustes depois de ver a v2 na base real
+
+Concentração **+25%** (228 → 285) com a rosca proporcional (88 → 110) · `Últimas ações`
+**+25%** (240 → 300) · favicon do log dessaturado, no padrão do `.ctx-hchip` · saíram o
+chip `nada a conferir` e o botão `Fornecedores` · `+ Nova conta` desceu para o cabeçalho
+de Contas · ícone nos três botões da linha.
+
+**Ícone é SVG em `currentColor`, não emoji.** Emoji é glifo colorido do sistema: não
+aceita tom e destoaria da paleta — o mesmo motivo de os favicons das casas irem
+dessaturados. Em `currentColor` eles herdam `--ink-soft` do botão, viram `--ink` no
+hover, e o de Excluir herda o vermelho apagado da classe.
+
+### O defeito que o ícone revelou: transbordo para a ESQUERDA não aparece no `scrollWidth`
+
+Com os ícones os três botões passaram a medir 208px, e a trilha de ações dava 158. A
+linha **não** estourava: `justify-content: flex-end` empurra o excesso para a
+**esquerda**, e transbordo à esquerda não entra no `scrollWidth`. O resultado era o botão
+passando por cima da coluna Caixa, sem erro nenhum e sem o gate de largura acusar.
+
+> Sintoma para reconhecer isto noutra grade: uma medição de transbordo que dá zero numa
+> linha que visivelmente se sobrepõe. `scrollWidth` só enxerga o excesso do lado do fluxo
+> — com `flex-end` (ou `direction: rtl`) ele é cego. Compare a **borda** do item com a do
+> contêiner, e não a largura com o `scrollWidth`.
+
 ### Ficou de fora, e está no `BACKLOG.md`
 
 - **Título da página em 19px.** `.pagehead-title` é casca: o `SHELL_SPEC` e o
