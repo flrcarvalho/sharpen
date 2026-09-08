@@ -142,6 +142,35 @@ na borda direita, que é onde se procura ação.
 > container query própria (rosca e frase lado a lado, lista em duas colunas) para o
 > estado empilhado não parecer acidente.
 
+### `Aguardando resultado`, não `Pendências` — e o que o rótulo novo revelou
+
+Correção do Feca, e ele está certo: aquilo vem de `abertasDe()`, são apostas **não
+liquidadas**. *Pendência* promete algo a fazer; ali não há o que fazer — espera-se o
+jogo acabar. O rótulo passou a descrever o fato.
+
+A classe virou `.aguard` e **não** `.pend` de propósito: `.pend` continua existindo para
+o log, onde *pendência* é pendência de **extração** — essa sim é algo a resolver. Mesmo
+tom âmbar, fatos diferentes; reusar o nome misturaria os dois. A precedência também
+mudou: entre as duas esperas, a de **resultado** vem antes da de **tipster**, porque a
+primeira resolve sozinha com o tempo e a segunda depende de alguém agir.
+
+> **O rótulo mais longo revelou um truncamento silencioso.** `Aguardando resultado 13`
+> mede 175px e a trilha de Status dava 148. A pílula tinha `overflow:hidden` +
+> `text-overflow: ellipsis`, então **o que caía fora era o NÚMERO** — exatamente a
+> mentira que a regra "nunca abreviar, número sempre real" existe para impedir, e sem
+> erro nenhum. A trilha foi para `minmax(160px, 200px)` e a pílula **perdeu o ellipsis**:
+> se um dia não couber, o defeito aparece na tela em vez de virar dado errado.
+>
+> Sintoma para reconhecer isto noutro lugar: `text-overflow: ellipsis` num componente
+> que carrega **dado**, e não só rótulo. Ellipsis é honesto num nome próprio (o `title`
+> devolve o resto); num número ele apaga a informação e não deixa rastro.
+
+Junto: rosca **+50%** (150 → 225) e a **banca total destacada** — faixa própria em
+`--surface-2` com tarja de acento, valor em 22px, o maior número do painel porque é o
+denominador de todos os outros. Crescer a rosca ainda corrigiu de graça uma violação
+herdada do handoff: o rótulo do centro estava em 7,5px, abaixo do piso de 9,5px do papel
+*Label*; agora cabe em 11px.
+
 ### Ficou de fora, e está no `BACKLOG.md`
 
 - **Título da página em 19px.** `.pagehead-title` é casca: o `SHELL_SPEC` e o
