@@ -1,6 +1,6 @@
-# HISTÓRICO — Sessões 327 → 300
+# HISTÓRICO — Sessões 329 → 300
 
-> Os blocos completos que saíram do `STATUS.md` (327 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
+> Os blocos completos que saíram do `STATUS.md` (329 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
 >
 > Partição do `docs/HISTORICO.md`, criada na faxina de documentação de 2026-09-07 (Lote C). **O texto é o original, verbatim** — só foi partido.
 
@@ -8,10 +8,144 @@
 
 ---
 
-## Blocos completos — sessões 327 → 317
+## Blocos completos — sessões 329 → 317
 
 > Blocos movidos INTACTOS do `STATUS.md` (Lote B da faxina de documentação). O STATUS passou
 > a guardar só o estado atual e as 3 últimas sessões, como o ritual `/encerrar` já mandava.
+
+## Sessão 329 — a faxina de documentação
+
+### A faxina fechou em F, B, C, D, E. O Lote A ficou aberto, de propósito.
+
+O que mudou de forma, e o custo de abrir uma sessão:
+
+| Arquivo | Antes | Depois |
+|---|---:|---:|
+| `CLAUDE.md` (auto-carregado) | 68,3 KB | **62,7 KB** |
+| `STATUS.md` | 187,6 KB | **~39 KB** |
+| `docs/HISTORICO.md` | 1,21 MB | **3,0 KB** (índice + 6 partições) |
+| `BACKLOG.md` | não existia | **70 KB** |
+| `docs/CASOS.md` | não existia | **22,9 KB** (lido por escolha) |
+
+**O resultado não é o corte de bytes — é que 14 regras que já governavam o comportamento
+passaram a estar escritas.** Elas não vieram de análise nova: vieram de ler cada parágrafo
+perguntando *"um agente que leia só isto faz a coisa certa?"*. As mais úteis: o `git add`
+por nome (prática combinada, nunca escrita), os três "os tetos travam crescimento, não
+mandam cortar", o trio de causas da Escada de Tinta e a inversão de hierarquia (as duas
+narradas dentro de um caso), e o `node --check` ser falso verde para **tudo** que vive em
+template literal (era o exemplo de uma crase).
+
+**Nenhuma regra se perdeu**, e isso foi medido, não afirmado: das 434 âncoras verificáveis
+do `CLAUDE.md`, 384 seguem lá e 57 migraram para o `docs/CASOS.md` — zero sumiram. O gate
+automático achou **uma perda real** que a conferência manual não veria: uma âncora partida
+por quebra de linha no `CASOS.md`.
+
+### O que fica valendo daqui em diante
+
+- **Um arquivo, uma pergunta** (invariante #10). Pendência nova vai para o `BACKLOG.md`,
+  nunca para o `STATUS.md`; caso que originou regra vai para o `docs/CASOS.md`.
+- **`python tools/check_docs.py`** roda no CI, com 7 checagens **todas provadas por
+  mutação**. Ele declara no cabeçalho o que **não** cobre — não lê conteúdo, e a checagem
+  de `Backups/` sai como AVISO no CI, nunca como verde vazio.
+- **Os tetos travam crescimento; não mandam cortar.** Ao encostar num deles, mova caso ou
+  sessão. Nunca corte bloco de "sintoma", nunca suba o teto.
+
+### Este encerramento exerceu o `BACKLOG §1.3` pela primeira vez
+
+O `STATUS.md` estava em 48,2 KB, a 1,8 KB do teto. O bloco desta sessão o estouraria. A
+saída foi a que a regra manda: **mover o bloco mais antigo** (`Sessão 325`, 14,5 KB) para
+`docs/historico/HISTORICO_s300-s327.md` **antes** de escrever o novo — não subir o teto.
+
+### Ainda aberto
+
+- **Lote A da faxina.** Podar `Backups/`: 223 arquivos `STATUS*`/`HISTORICO*`, 28,7 MB, num
+  total de 551 pastas / 128 MB. Corte em **s ≥ 300**, e para as 396 pastas sem prefixo
+  `sNNN` a mesma data de corte. ⚠️ **`Backups/` é gitignored — apagar é IRREVERSÍVEL.**
+  Zipar a pasta inteira para **fora do repo** e confirmar que o zip abre **antes** de
+  apagar qualquer coisa.
+- **O resto está no [`BACKLOG.md`](../../BACKLOG.md)**, agora em um lugar só.
+
+---
+
+## Sessão 328 — a Pinnacle chama o push de `DRAW`
+
+
+### A Pinnacle chama o push de `DRAW` — e o rótulo desconhecido virava pendente eterno
+
+O relato foi de uma linha só: *"Pinnacle não atualizou o resultado do void na última
+extração"*. O bilhete `3117191609` — Aguila `0.0` no 1º tempo contra o Alianza, `1:1` no
+intervalo, R$ 408 — estava **liquidado na casa** (`Decidido / REEMBOLSADO`,
+`Vitória/derrota 0.00`) e com `?` na grade do Sharpen.
+
+**O rótulo que a tela mostra não é o que a API devolve.** A tela diz `REEMBOLSADO`; o campo
+cru do resultado (93 e 6) traz **`DRAW`**, que não estava no de-para do `formatTicketPN`. O
+bloco entregue à IA saía:
+
+```
+Status: DRAW (a conferir — não liquidar automaticamente) · P/L 0,00
+```
+
+**A IA não errou — ela obedeceu.** Ainda registrou no RAIO-X que o `DRAW` ali não era empate
+de jogo e que o P/L 0,00 confirmava reembolso; só não tinha autorização para liquidar. O
+backend gravou `aberta` e a linha ficou pendente para sempre. Vale como sintoma: quando a
+nota da IA explica o caso certo e mesmo assim nada acontece, a instrução veio de quem
+formatou o bloco, não do modelo.
+
+`DRAW` é o **push**: handicap ou total que bate exato na linha (`0.0`, `2.0`) devolve a
+stake. Não é o empate do jogo — numa Moneyline de 3 vias o empate dá `LOST`. O campo nomeia
+o desfecho da **aposta**, não o do jogo.
+
+### A trava que vale é a de baixo: o dinheiro decide, não o rótulo
+
+Duas foram para o código, e a segunda é a que fecha a família:
+
+1. `DRAW`/`TIE` entraram no de-para junto de `PUSHED`/`VOID`/`REFUNDED`/`CANCELLED`.
+2. **Rede por baixo dele:** resolvido + rótulo desconhecido + P/L **exatamente 0** ⇒
+   retorno = stake ⇒ `V`, que é a 2ª das cinco fórmulas de `_veredito_do_retorno` lidas ao
+   contrário. O próximo nome que a casa inventar para push já nasce coberto.
+
+Com **P/L ≠ 0** o rótulo desconhecido continua subindo como "a conferir": inferir `W`/`L`
+de um nome que ninguém conhece é chute, e a rede não pode alcançar a **aberta** (o payload
+traz P/L 0 nela também — mesmo número, significado oposto).
+
+### As mutações, incluindo a que escapou
+
+| Mutação | Resultado |
+|---|---|
+| tirar `DRAW` do de-para | **PEGOU** |
+| tirar a rede do P/L | **PEGOU** |
+| as duas juntas | **PEGOU** — e reproduz o bug palavra por palavra: `DRAW (a conferir — não liquidar automaticamente) · P/L 0,00` |
+| tirar o `!t.aberta` de dentro do `plZero` | **ESCAPOU** |
+
+A que escapou está anotada no caso como **inócua**, não como buraco: quem decide a aberta é
+o `if (t.aberta)` de cima, então o `!t.aberta` dentro do `plZero` é defesa dupla. O teste
+trava o *comportamento* (aberta com P/L 0 não liquida), não aquela linha.
+
+Anotado também que as duas travas **se cobrem de propósito** — tirar `DRAW` sozinho ainda
+daria `V`, pela rede; o que a mutação pegou foi o texto do status mudar. É defesa em
+profundidade, não independência.
+
+### O que ficou
+
+- `extensor/content.js` (`formatTicketPN`), `casas/CASA_PINNACLE.md §5.1` (o de-para do
+  rótulo **cru**, que a tabela antiga não tinha), fixture + caso no harness.
+- Fixture `9000000003` é **derivada** do `3099205574` — só o resultado mudou; nenhum campo
+  inventado. O JSON cru do `3117191609` não foi capturado, e o cabeçalho do caso pede a
+  troca quando aparecer.
+- Harness verde (23 casos, 399 bilhetes) · `audit_sharpenup` e `audit_casas` sem FAIL.
+- **SharpenUp 0.7.7.** A linha presa **fecha sozinha na próxima captura** — ela está
+  `aberta`, e o UPSERT atualiza resultado em linha aberta. Nenhum script no banco.
+
+### Anotado, não resolvido (não é desta sessão)
+
+O mesmo bilhete entrou na grade como **ML**, não como Handicap Asiático `0.0`. A causa é
+outra e é de descrição: `_linhaPN` devolve `""` quando a linha é `0`, então o `0.0` some do
+bloco e a IA classifica pelo que sobrou. Some a informação que **distingue** DNB de
+Moneyline — e é justamente a linha que explica o push. Não mexi: é mudança de descrição,
+com o congelamento do UPSERT no caminho (linha já resolvida não reescreve `aposta`/
+`descricao`), e merece sessão própria.
+
+---
 
 ## Sessão 327 — a Caixa ligada no meio da captura
 
@@ -1131,7 +1265,10 @@ regra vem do MASTER e da fórmula do `app/repository.py`, não de bilhete pago.
 
 ---
 
-## Cadeia `_Anterior_` — sessões 324 → 310
+## Cadeia `_Anterior_` — sessões 329 → 310
+
+_Anterior: 2026-09-07 (sessao 329 — **a faxina de documentacao achou 14 regras que governavam o comportamento e nao estavam escritas.** Esse e o resultado, nao os KB. Quatro arquivos disputavam o papel de "onde o projeto esta" e tres descreviam o projeto de julho; a varredura da s261 ja tinha medido o custo disso ("a primeira pendencia que eu fui atacar ja estava feita desde 26/07"). Cinco lotes fechados. **F** — nasce o `BACKLOG.md` (70 KB), que absorve o §5 do STATUS VERBATIM: as 192 linhas nao-vazias conferidas uma a uma, zero perdida, com contraprova por canario. **B** — STATUS de 183 para 44 KB; as 1.157 linhas de antes reprocuradas uma a uma (483 ficaram, 491 foram para o HISTORICO, 183 para o BACKLOG, ZERO perdidas). **C** — HISTORICO de 1,21 MB vira indice de 3 KB + 6 particoes, com as 1.445 linhas conferidas. **D** — 16 docs + 11 anexos para `docs/arquivo/`, `docs/` cai de 43 para 27 vivos, 20 links consertados. **E** — CLAUDE.md de 68,3 para 62,7 KB e nasce o `docs/CASOS.md` (22,9 KB), que NAO e auto-carregado: a regra fica no CLAUDE, o bilhete/casa/valor/sessao vai para o CASOS. **O gate final de regras deu ZERO perdidas**: das 434 ancoras verificaveis, 384 seguem no CLAUDE e 57 migraram para o CASOS; dos 50 numeros que decidem comportamento, 36 ficaram e 11 migraram. 255 regras contadas item a item em 12 secoes. **E 14 regras foram ACRESCENTADAS** — o `git add` por nome, os tres 'os tetos travam crescimento', o trio de causas da Escada de Tinta, a inversao de hierarquia, o 'node --check e falso verde para tudo em template literal', e mais 7. Elas ja governavam o comportamento; so nao estavam escritas como regra. **Gate novo:** `tools/check_docs.py`, no CI, com 7 checagens todas provadas por mutacao — tetos de CLAUDE (65 KB), CASOS (60) e STATUS (50), forma do STATUS (<=3 blocos, <=2 _Anterior), copia em Backups por PREFIXO, link quebrado e ANCORA. Regra sem gate nao e cumprida neste repo: o invariante #4 estava escrito e claro, e Backups chegou a 551 pastas com 165 copias de STATUS/HISTORICO. **Reconciliacao da Auditoria Turbo:** os 78 achados MEDIO/BAIXO do mergulho de 20/07 NAO EXISTEM por escrito (o doc enumera 16 e o rodape diz "Deliverables uncommitted"); reconciliei os 139 do findings.json de 19/07 — 40 fechados, 68 abertos, 20 a confirmar na tela, 3 parciais e 3 que nao eram achado, um deles um placeholder de teste. **#129 medido e rebaixado:** a odd nao entra no calcular_pl em L/V e o risco de dedup deu ZERO de extracao em 528 multiplas sem codigo expostas; virou divida de documentacao. **Lote A ABERTO** — podar Backups (223 arquivos, 28,7 MB), com o zip para fora do repo ANTES de qualquer coisa apagada.)
+
 
 _Anterior: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
 

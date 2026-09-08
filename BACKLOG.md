@@ -346,6 +346,26 @@ imprimir a confiança só quando ela **não** é 100%, deixando a coluna vazia n
 rotineiro; ou manter as 40 linhas e dar peso visual só às que têm pendência. Decisão de
 produto — a coluna é do RAIO-X, que também vive na tela de Extração.
 
+### 3.7 O tradutor determinístico virou pré-condição de DUAS casas, não de uma (s332). VIVA.
+
+Medição de 08/09 ([`ESTUDO_PRECIFICACAO §7`](docs/ESTUDO_PRECIFICACAO_2026.md#7-revisão-de-08092026-s332--o-que-aconteceu-depois-de-a-e-c)):
+as correções A e C fecharam o vazamento **fixo** (aquecedor de US$ 173 para US$ 12,5/mês)
+mas o custo **variável** por bilhete subiu 12 % (R$ 0,078 para R$ 0,087). Com isso a
+escada do §4 do estudo não fecha só com a Bet365 determinística: Pro e Operação ficariam
+em 12 % de margem bruta.
+
+- **Bet365 + Betano = 64,3 % da conta e 58 % dos bilhetes por IA.** Com as duas, a escada
+  fecha em 41–64 %.
+- **A Fase 0 já tem massa:** `sombra_rotulos` acumulou 13.965 pares em 21 casas em 13 dias
+  (Bet365 8.691, Betano 2.065). Não falta amostra.
+- **Decisão do Feca:** abrir a Fase 1 do [`PLANO_TRADUTOR_DETERMINISTICO`](docs/PLANO_TRADUTOR_DETERMINISTICO.md) pelas duas
+  casas, ou só pela Bet365 e remedir depois.
+
+> **Cuidado que a própria s332 ensina:** o `_BILHETES_POR_CHUNK = 6` da s301 acertou o que
+> mirava (output e latência) e piorou o custo variável, porque cada pedaço relê o manual
+> inteiro (`cache_read` por chamada de 156k para 231k). Toda otimização daqui em diante
+> precisa declarar **qual** custo ela mira e medir o outro depois.
+
 ---
 
 ## 4. Dívida técnica medida
@@ -367,6 +387,9 @@ produto — a coluna é do RAIO-X, que também vive na tela de Extração.
 - ~~**`renomear_parceiro` não recalcula a assinatura** (s198)~~ **VENCIDA — feito em `50e68ee` (26/07)**, achado na varredura da s261. A função recalcula via `_assinatura_pos_edicao` com escalada de `_counter`, dentro da mesma transação (`repository.py:2439-2448`), e tem 4 testes em `tests/test_renomear_parceiro_assinatura.py`. O `CLAUDE.md` já a listava sob *"Quem já faz certo"* — **o §5 é que ficou para trás por duas semanas**, e eu quase gastei uma sessão "consertando" o que estava pronto.
 - **41 apostas com odd truncada em reticências** (`2.50001664442...`): 22 Bet365, 6 Novibet, 6 Bolsa, 4 Betfair, 3 Esportiva Bet. A instrução proíbe reticências e uma odd assim não converte para número — mexe em P/L, não é cosmético. **NÃO-MEDIDA desde então (s261): a contagem é a do dia em que foi escrita e só o banco diz se ainda são 41** — `SELECT casa, count(*) FROM bilhetes WHERE odd LIKE '%...%' GROUP BY casa`.
 - **165 bilhetes sem odd no sistema — MEDIDO na s262, não é defeito, não corrigir às cegas.** 149 são `origem='import'` (a planilha de origem trazia `0,00` na coluna Odd das perdidas; o import copia verbatim) e a esmagadora maioria é `L`, onde a odd não entra no P/L. Por dono: Feca 144 · LavaPessoal 8 · Lava 6 · ViniciusOliveira 4 · Jonathan 3. **A única classe que machuca é `W`/`HW`,** onde P/L vira não-calculável, e são **2**: `#18205` (Feca, KTO, 16/04, stake 331,57) e uma do LavaPessoal — as duas já em `extraction_state='aberta'` desde o backfill da s259. Backfill da odd das antigas **não é viável**: a Bet365 não mostra mais bilhete de abril/maio. Se for mexer, mexer só nas 2 de `W`.
+- **`/uso/tokens` mostra um "custo por item" errado por ~10× (s295 §5.2, reconferido na s332 e ainda de pé).** `n_itens` é `len(base_content)` (`app/main.py:3069`), o número de **imagens/blocos de texto do lote**, não de bilhetes. A tela acusa US$ 0,14–0,22 por "item" enquanto o custo real por bilhete é US$ 0,017. **Quem olhar aquela tela para decidir preço decide errado.** Conserto: renomear a coluna para o que ela é (`blocos`), ou passar a contagem real de linhas do TSV para o `registrar_uso`. Enquanto não for feito, o número confiável sai do join `uso_tokens × bilhetes` por (dono, casa, dia), que é como o §7 do estudo mediu.
+- **Remedir o custo em 30 dias (a partir de 08/10/2026).** A janela do §7 tem 15 dias e é volátil: a semana de 31/08 custou US$ 128,22 (ritmo de US$ 550/mês) e a de 24/08 custou US$ 54,88 (ritmo de US$ 235/mês). Os scripts de medição da s332 não foram versionados (são read-only, rodaram do scratchpad); o método está descrito no §7 e se refaz em minutos.
+- **Infra do Railway continua não medida** (estudo §5.3): app + Postgres + `sharpen-bot`. É custo fixo, dilui com escala, mas define o piso do tier de entrada. Medir antes de publicar preço.
 - Preencher pendências das casas existentes assim que amostras reais chegarem (ver lista acima).
 - **Solto (cosmético): favicon da KTO aponta para `kto.com`; o domínio real é `kto.bet.br`. ✅ VIVA (s261) — e são QUATRO arquivos, cinco ocorrências, não os "3 mapas" que esta linha dizia:** `extensor/popup.js:16` · `app/static/index.html:2432` · `app/static/dash/assets/js/data.js:52` **e** `:107` (o mesmo arquivo grafa duas vezes, uma na URL do serviço de favicon e outra no mapa de domínio) · `app/static/inicio.html:297`. É a mesma armadilha da memória *"Favicons: 3 mapas"* — o contador estava desatualizado, então **corrigir por `grep` de `kto.com`, nunca pela lista**.
 - **Tela "Em Aberto" fora do material de venda** (s215): `scripts/demo/capturar.mjs` não captura a tela nova — o servidor de demonstração já a serve, falta só decidir se ela entra no showcase (e a numeração dos arquivos existentes muda). **Decisão do Feca: entra, mas só depois de a tela estar finalizada.**
@@ -593,7 +616,7 @@ reconciliação. É a próxima sessão desta frente.
 | Frente | Doc-fonte | O que falta | Horizonte |
 |---|---|---|---|
 | **SaaS multiusuário** | [`docs/PLANO_MULTIUSUARIO_2026.md`](docs/PLANO_MULTIUSUARIO_2026.md) | **Fase 4 (pagamento)**: gate `assinatura_ativa` + webhook. As Fases 1, 2 e 3 estão no ar (s233–s236) | 🟡 |
-| **Tradutor determinístico** | [`docs/PLANO_TRADUTOR_DETERMINISTICO.md`](docs/PLANO_TRADUTOR_DETERMINISTICO.md) | Fases 1 a 4. A Fase 0 roda em **modo sombra**. A correção **B** do estudo de custo segue **bloqueada** (`§IV.6`) | 🟢 |
+| **Tradutor determinístico** | [`docs/PLANO_TRADUTOR_DETERMINISTICO.md`](docs/PLANO_TRADUTOR_DETERMINISTICO.md) | Fases 1 a 4. A Fase 0 roda em **modo sombra** (13.965 pares, 21 casas, em 13 dias). A correção **B** segue **bloqueada** (`§IV.6`). **Remedição de 08/09** ([`ESTUDO_PRECIFICACAO §7`](docs/ESTUDO_PRECIFICACAO_2026.md#7-revisão-de-08092026-s332--o-que-aconteceu-depois-de-a-e-c)): a pré-condição do preço virou **Bet365 + Betano**, não a Bet365 sozinha | 🔴 |
 | **Perfil de Tipster** | [`docs/PLANO_TIPSTER.md`](docs/PLANO_TIPSTER.md) | **P1** resultado em unidades (backend pronto; a UI trava no formato "u", passa pelo `/nova-ui`) · **P2** atribuição por watermark · **P3** Telegram como fonte. Fase 0 no ar (`origem_tipster`) | 🟢 / 🟡 / 🔵 |
 | **Resolvedor de atribuição** | [`docs/PLANO_INTELIGENCIA_TIPSTER.md`](docs/PLANO_INTELIGENCIA_TIPSTER.md) | ⚠️ **doc defasado** — descreve o matcher **v5, de 15/07**; ele mudou muito desde então (corte de valor redondo e `valores.size===1` na s221, peso declarativo na s289, volta do declarado onde a base é cega na s310). A tese (o resolvedor) segue aberta; o texto precisa de banner de data | 🟡 |
 | **Extração worldwide** | [`docs/PLANO_EXTRACAO_WORLDWIDE.md`](docs/PLANO_EXTRACAO_WORLDWIDE.md) | Fases 1 a 5 (confidence da IA + guardrail de enum). Fase 0 validada | 🟡 |

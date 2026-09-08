@@ -1,5 +1,11 @@
 # ESTUDO — Precificação do apostador (Sharpen SaaS)
 
+> ⚠️ **REMEDIDO EM 08/09/2026 (s332). Leia o [§7](#7-revisão-de-08092026-s332--o-que-aconteceu-depois-de-a-e-c) antes de usar qualquer número
+> deste documento para decidir preço.** O custo real por bilhete caiu 34 % (R$ 0,137 para
+> R$ 0,090), mas o custo **variável** subiu 12 %, e a escada de preço do §4 **não fecha**
+> com uma casa determinística só. As tabelas do §1 ao §4 descrevem 24/08 e ficam como
+> registro da medição daquele dia.
+>
 > **Status:** estudo concluído em 2026-08-24 (sessão 295). **As correções A e C já foram
 > APLICADAS** (s295); a **B está bloqueada** — ver `PLANO_TRADUTOR_DETERMINISTICO.md §IV.6`.
 > A decisão de produto que saiu deste estudo é o **tradutor determinístico** (plano ao lado):
@@ -303,5 +309,113 @@ montar outro.
 
 ---
 
+## 7. Revisão de 08/09/2026 (s332) — o que aconteceu depois de A e C
+
+> Medição direta no Postgres de produção, read-only. Janela comparada: a do estudo
+> (25/07 a 24/08, 31 dias) contra a pós-correções (25/08 a 08/09, 15 dias).
+> PTAX de venda de 04/09/2026 = **R$ 5,1253**.
+>
+> **Validação do método:** refazendo a conta na janela original deu **US$ 0,0152/bilhete**
+> contra os 0,0150 do §1.1. Bate. O resto desta seção é comparável.
+
+### 7.1 O placar
+
+| | Estudo (25/07 a 24/08) | Agora (25/08 a 08/09) | |
+|---|---|---|---|
+| Custo registrado em `uso_tokens` | US$ 230/mês | **US$ 379/mês** | +65 % |
+| `_cache_warmer` (invisível na tabela) | US$ 173/mês | **US$ 12,5/mês** | −93 % |
+| **Conta real de API** | US$ 404/mês | **US$ 391/mês** | −3 % |
+| Bilhetes novos por IA (`origem='extracao'`) | 15.150/mês | **22.316/mês** | **+47 %** |
+| **Custo real por bilhete** | R$ 0,137 | **R$ 0,090** | **−34 %** |
+| Custo **variável** por bilhete | R$ 0,078 | **R$ 0,087** | **+12 %** |
+
+Em uma linha: **capturamos 47 % mais bilhete pagando 3 % menos**, e mesmo assim o número
+que decide o preço piorou.
+
+### 7.2 A correção A entregou o que prometeu
+
+Três medições independentes, todas na direção prevista pelo §2.1:
+
+| Indicador | Antes | Depois |
+|---|---|---|
+| `cache_write` por chamada | 13.745 tok | **3.371 tok** (−75 %) |
+| Chamadas chegando frias (`cache_write > 20k`) | 34,8 % | **1,9 %** |
+| Custo do aquecedor | US$ 173/mês | **US$ 12,5/mês** |
+| Custo médio por chamada | US$ 0,2202 | US$ 0,1971 (−10 %) |
+
+O vazamento de US$ 173/mês está fechado. Só que ele era **custo fixo**, e custo fixo
+dilui com escala. Não era ele que impedia vender assinatura.
+
+### 7.3 O custo variável subiu 12 %, e as duas causas estão medidas
+
+**(i) Mais pedaços por chamada.** Chunks médios de 3,27 para **4,02**, com cauda até 55
+pedaços numa chamada só. Cada pedaço relê o manual inteiro, então o `cache_read` por
+chamada foi de 156.133 para **231.205 tokens** (+48 %). O pedágio por bilhete subiu de
+US$ 0,0068 para 0,0077. Isso é o `_BILHETES_POR_CHUNK = 6` da s301: ele barateou o output
+(o modelo parou de deliberar) e encareceu a releitura. Foi troca, não ganho.
+
+**(ii) Mais recaptura.** Bilhetes novos por chamada caiu de **14,5 para 11,6**, e o input
+por bilhete subiu 43 % (768 para 1.095 tokens). São chamadas relendo bilhete que o banco
+já tem. Onde aparece cru: `Jaao26` fez 306 chamadas para 1.205 bilhetes novos (3,9 por
+chamada, US$ 0,0237 cada) e `Marques19981` gastou US$ 0,35 por bilhete.
+
+> Sintoma para reconhecer isto noutra frente: uma otimização que melhora o indicador que
+> ela mira e piora o que decide o preço. A correção A mirou o custo fixo e acertou; o
+> `_BILHETES_POR_CHUNK` mirou output e latência e acertou; nenhum dos dois mirou o
+> custo variável por bilhete, e é ele que a tabela de planos consome.
+
+### 7.4 Por casa, a concentração aumentou
+
+Custo por bilhete por casa, casando `uso_tokens` e `bilhetes` por (dono, casa, dia):
+
+| Casa | US$ (15 d) | % da conta | Bilhetes | US$/bilhete |
+|---|---|---|---|---|
+| **Bet365** | 84,32 | **45,6 %** | 4.663 | 0,0181 |
+| **Betano** | 34,58 | **18,7 %** | 1.782 | 0,0194 |
+| Betfast | 9,87 | 5,3 % | 438 | 0,0225 |
+| Superbet | 7,49 | 4,0 % | 589 | 0,0127 |
+| Betfair | 7,30 | 4,0 % | 172 | 0,0425 |
+| Pinnacle | 6,35 | 3,4 % | 206 | 0,0308 |
+
+**Bet365 mais Betano = 64,3 % da conta e 58 % dos bilhetes por IA.** Nenhuma terceira
+casa passa de 5,3 %. Por dono, quatro pessoas (Gabriel 31,2 %, Feca 27,2 %, Jaao26
+15,1 %, Jonathan 13,3 %) somam **87 %** da fatura.
+
+### 7.5 A escada de preço, refeita com o custo de hoje
+
+A referência de **180 bilhetes por conta ativa** continua válida (remedida em 30 dias:
+Gabriel 215, Feca 163, Jonathan 282, WilliamOliveira 155, Tonelada 227).
+
+| Plano | Preço | Custo hoje | Pós Bet365 determinística | Pós Bet365 + Betano |
+|---|---|---|---|---|
+| Solo (540 bilhetes) | R$ 49 | R$ 47,0 (margem 4 %) | R$ 26,1 (**47 %**) | R$ 17,5 (**64 %**) |
+| Pro (1.800) | R$ 99 | R$ 156,8 ❌ | R$ 86,9 (12 %) | R$ 58,3 (**41 %**) |
+| Operação (2.700) | R$ 149 | R$ 235,2 ❌ | R$ 130,4 (12 %) | R$ 87,5 (**41 %**) |
+
+**A correção ao §4.2 é esta:** o estudo projetava que A+B+C levariam o custo a
+R$ 0,050/bilhete e que só o parser da Bet365 fecharia a escada em 48–69 %. Na prática
+**A e C não mexeram no custo variável** (ele subiu 12 %), então uma casa só já não basta:
+com apenas a Bet365 determinística, Pro e Operação fecham em 12 % de margem bruta, que
+não paga infra nem gateway. **A pré-condição do modelo de preço passou a ser Bet365 e
+Betano**, não a Bet365 sozinha.
+
+### 7.6 A Fase 0 do tradutor já tem massa para a Fase 1
+
+O modo sombra (`sombra_rotulos`, no ar desde 26/08) acumulou **13.965 pares
+bruto × decisão da IA em 21 casas, em 13 dias**: Bet365 8.691, Betano 2.065, Superbet
+644, Betfast 519. É volume de sobra para validar o tradutor das duas casas de topo
+contra o que a IA decidiu, sem depender de amostra nova.
+
+### 7.7 Três ressalvas
+
+1. **A janela pós-correção tem 15 dias e é volátil.** A semana de 31/08 sozinha custou
+   US$ 128,22 (ritmo de US$ 550/mês) e a de 24/08 custou US$ 54,88 (ritmo de US$ 235/mês).
+   O US$ 379/mês é o ponto médio dessa janela, não um número estável. Remedir em 30 dias.
+2. **O §5.2 continua de pé.** `n_itens` ainda é `len(base_content)` (`app/main.py:3069`),
+   então a tela `/uso/tokens` segue mostrando um "custo por item" errado por cerca de 10×.
+3. **Infra do Railway continua não medida** (§5.3), igual ao estudo original.
+
+---
+
 VERSÃO: 2026
-ATUALIZADO: 2026-08-24 (sessão 295 — estudo criado; nenhuma alteração de código)
+ATUALIZADO: 2026-09-08 (sessão 332 — §7: remedição pós-correções A e C; nenhuma alteração de código)
