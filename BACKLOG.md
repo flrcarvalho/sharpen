@@ -291,7 +291,7 @@ O card fechado não expõe o detalhe. Segue pausado; não reabrir sem pedido.
 O item está na §2 (é da varredura da s261). A decisão é de produto: esconder o botão no modo público
 (com rótulo "atualiza a cada 5 min") ou deixar o refresh furar o cache com teto por slug.
 
-### 3.4 O que o handoff `Contas e Parceiros Opção A` pede e ficou fora (s330). VIVA.
+### 3.4 O que o handoff `Contas e Parceiros Opção A` pede e ficou fora (s330). **Em parte superado pelo v2 (s331)** — o menu `⋯` saiu (os três botões voltaram para a linha) e `Sincronizando` deixou de existir no vocabulário.
 
 As 5 fases estão aplicadas. Três pontos ficaram de fora **de propósito**, e nenhum é
 dúvida técnica — os três são decisão de produto.
@@ -311,6 +311,23 @@ dúvida técnica — os três são decisão de produto.
   tem casa própria no Dashboard (`Fornecedores & Parceiros` / `Custos de Contas`). Se
   algum dos dois voltar, a pergunta a responder antes é *o que ele diz que a lista já não
   diz* — foi por não responder isso que os dois viraram enfeite.
+
+### 3.6 Duas medidas do handoff v2 que a escada do SHELL_SPEC não tem (s331). VIVA.
+
+O handoff pede **título 19px** e **eyebrow 9px**. Nenhuma das duas existe na escada do
+`SHELL_SPEC` (9 · 10 · 11 · 13 · 14 · 15 · 18 · 22), e o `check-tokens` barra px literal
+nesses selectors de propósito — foi assim que o título virou 30px na s80d.
+
+- **Título:** ficou em `--text-xl` (22px). O degrau abaixo é `--text-lg` (18px). Mexer
+  aqui muda o topo de **todas** as telas, o Dashboard incluído, porque o `SHELL_SPEC`
+  amarra `.pagehead-title` a `.page-title`. A parte do handoff que carregava o argumento
+  (sair do azul) já foi feita na s330.
+- **Eyebrow:** ficou em `--text-xxs` (10px). 9px em `--ink-soft` fica **abaixo** do piso
+  de 9,5px que a Escada de Tinta — a regra-mãe que o próprio handoff cita — exige do
+  papel *Label*.
+
+Decisão de produto: descer o título para 18px em todo o app, ou manter 22. Não é dúvida
+técnica.
 
 ### 3.5 O log de extrações repete `100%` em quase toda linha (s330). VIVA.
 

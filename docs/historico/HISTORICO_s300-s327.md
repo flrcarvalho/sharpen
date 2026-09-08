@@ -1,6 +1,6 @@
 # HISTÓRICO — Sessões 327 → 300
 
-> Os blocos completos que saíram do `STATUS.md` (326 → 317), a Sessão 315 e a cadeia `_Anterior_` de 321 até 300.
+> Os blocos completos que saíram do `STATUS.md` (327 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
 >
 > Partição do `docs/HISTORICO.md`, criada na faxina de documentação de 2026-09-07 (Lote C). **O texto é o original, verbatim** — só foi partido.
 
@@ -8,10 +8,163 @@
 
 ---
 
-## Blocos completos — sessões 326 → 317
+## Blocos completos — sessões 327 → 317
 
 > Blocos movidos INTACTOS do `STATUS.md` (Lote B da faxina de documentação). O STATUS passou
 > a guardar só o estado atual e as 3 últimas sessões, como o ritual `/encerrar` já mandava.
+
+## Sessão 327 — a Caixa ligada no meio da captura
+
+### `abertas_corte` mede o que o Sharpen SABE, não o que a casa TEM
+
+O relato veio em três sintomas que pareciam três problemas: "a Betnacional não exporta",
+"uma aposta de ontem não resolve" e "preenchi a Caixa e ela não bate". Era **um só**, e
+nenhum deles estava na casa — os 11 bilhetes do período estão lá, completos, com odd e
+retorno corretos (conferidos card a card no Chrome; a casa diz **"Sem apostas
+pendentes"**).
+
+**Defeito 1 — a Caixa foi ligada no meio da captura.** Cronologia medida no banco:
+
+```
+03:17:32  Caixa ligada     → abertas_corte = []   (o banco ainda não tinha aberta)
+03:17:59  IA termina       (uso_tokens id 2163)
+03:18:19  /salvar grava    → 3 apostas nascem ABERTAS: R$ 600,00
+03:18:35  Conferência      → projetado −599,00 · saldo real 2.379,87
+                           → Ajuste +2.978,87  (R$ 600,00 a mais do que devia)
+```
+
+`_caixa_abertas_ids` diz que com `corte = hoje` "toda aposta aberta entra: se ela está
+aberta agora, o stake saiu antes de agora, é exato". **É exato só se o Sharpen já souber
+da aposta.** O dinheiro sai da conta na casa, não no nosso banco — e entre a captura
+começar e o `/salvar` gravar existe uma janela de ~1 minuto em que a Caixa enxerga zero
+abertas e grava esse zero para sempre. Pior: o Ajuste da conferência, que existe para
+fechar a conta, **cimenta o erro** com cara de número conferido.
+
+**Defeito 2 — a linha órfã sem código.** A captura de 05/09 devolveu a múltipla do
+Falkirk sem a 11ª coluna. Sem código a dedup cai na assinatura por conteúdo, e a
+"Migração B" do UPSERT (que adota linha sem código) exige `odd` **idêntica**: `14` não é
+`14,00`. Quando o bilhete liquidou em 06/09, entrou linha **nova** (246454) e a velha
+(243667) ficou `aberta` para sempre — o `AGUARDANDO RESULTADO 1` da grade.
+
+**A prova, contra a casa:**
+
+```
+Saldo no corte (05/09)                              2.379,87
++ retorno das 3 abertas no corte                    1.662,26
+    243665  R$300 @2,834    L  →        0,00
+    243666  R$150 @11,08173 W  →    1.662,26   ← card da casa: "Retorno R$ 1.662,26"
+    243667  R$150 @14       L  →        0,00
++ líquido das 8 apostadas depois do corte             515,96
+                                                 ──────────
+= saldo esperado hoje                               4.558,09   ← bate com a casa
+```
+
+A Caixa projetava 3.195,83. A diferença de **1.362,26** é exatamente **+1.662,26** (o
+retorno que ela não conta — a `data` 04/09 é anterior ao corte, então ela lê a linha como
+"já embutida no saldo informado"; só o **stake** estava, o **retorno** não) **−300,00** (o
+Falkirk descontado duas vezes: R$ 150 como fantasma em aberto e R$ 150 como L liquidado).
+
+**Correção aplicada** (`scripts/corrigir_caixa_fantasma_s327.py`, ensaio → `--aplicar`):
+apaga o fantasma, grava `abertas_corte = [243665, 243666, 246454]` (o id que carrega
+**hoje** cada bilhete — o do Falkirk é o 246454) e baixa o Ajuste em exatamente o
+`preso_corte` que faltou, `2.978,87 → 2.378,87`. O script **aborta** se a projeção
+corrigida não fechar com o saldo lido na casa. Resultado, relido da API de produção:
+`preso_corte 600,00 (3) · pl 1.578,22 (11) · aberto 0,00 (0) · banca 4.558,09 ·
+disponível 4.558,09` — divergência **0,00** depois da nova conferência.
+
+O lançamento `conferencia` de 05/09 **não** foi tocado: ele é a medição daquele momento e
+não se recalcula. O que ele registrou aconteceu de verdade.
+
+> **Sintoma para reconhecer isto noutro lugar:** um retrato tirado de uma fonte que ainda
+> está sendo preenchida. Vale para todo campo que congela estado no instante do clique —
+> se a escrita que o alimenta é assíncrona, o clique pode chegar antes dela.
+
+### Os dois defeitos de produto, corrigidos
+
+**1. A órfã não era adotada porque `"14"` não era `"14,00"`.** A Migração B do UPSERT
+adota a linha sem código quando o mesmo bilhete volta COM código — e comparava a odd como
+**string crua**. `_assinatura` já normaliza a odd (`_norm_odd`) para decidir se duas
+linhas são o mesmo bilhete; a Migração B contradizia a própria régua do sistema. Agora as
+duas usam `chave_orfa()`, onde o porquê e o caso medido estão escritos. `descricao` fica
+de fora **de propósito** — a Migração B nasceu para casar import por imagem com captura da
+casa, e é justamente a descrição que diverge entre as duas; há teste para essa ausência
+ser decisão registrada, não esquecimento.
+
+De quebra, o índice de órfãs virou **uma consulta por conta** em vez de um
+UPDATE-com-subconsulta por linha do lote, e cada órfã só é adotada **uma vez** (`pop`):
+sem isso dois bilhetes iguais reivindicariam a mesma linha antiga — e a Migração B, quando
+erra, não duplica: ela **sequestra**.
+
+**2. A Caixa ligada no meio da captura gravava `abertas_corte` vazio.** Ao INSERIR uma
+aposta que **nasce** aberta e cuja captura (`criado_em`) antecede a ativação, o id agora
+entra no `abertas_corte`. Não é heurística: a aposta não pode ter liquidado e
+desliquidado, então o stake já tinha saído quando o saldo foi lido. Três travas — só linha
+recém-**inserida**; a decisão é do próprio `_caixa_abertas_ids` com `ate` = instante da
+ativação (um segundo critério divergiria do original em silêncio); e a lista **só cresce**,
+porque tirar um id descontaria o stake duas vezes. `criado_em` nulo ou sem fuso fica de
+fora: sem ele não há prova, e comparar um naive estouraria **dentro** do `/salvar`,
+derrubando a gravação inteira por causa de uma linha de caixa.
+
+**3. A raiz: a repescagem acrescentava a linha e deixava a órfã.** `conferir_cobertura`
+cobra **quantidade por código** — ela não sabe que o bilhete "faltante" pode estar ali
+como uma linha que perdeu a 11ª coluna. E a repescagem só ACRESCENTA
+(`_extract_tsv_rows(resultado) + novas`); ninguém removia a órfã. Os dois desfechos
+deixavam linha sem código: repescagem OK dava **duas** linhas do mesmo bilhete no lote;
+repescagem falha (o que aconteceu em 05/09) deixava a órfã — e sem código ela nunca dedupa.
+
+`_reconciliar_orfas` faz duas coisas, ambas conservadoras:
+
+- **Adoção** — a órfã recebe o código do bloco faltante de que ela é **fiel**
+  (`checar_fidelidade`, o gate de procedência da s302: todo nome próprio e todo decimal da
+  descrição existem naquele bloco). Só quando o par é único **nos dois sentidos** — a órfã
+  casa com um único bloco livre, e aquele bloco casa com uma única órfã. Ambíguo não vira
+  chute.
+- **Descarte** — sobrando órfã depois disso, e não havendo mais bilhete do texto sem linha
+  própria, ela é cópia de alguém que já tem a sua. Sai.
+
+**NO-OP integral onde a coluna 11 vazia é legítima:** casa sem marcador (prints, texto
+colado) e texto que traga **qualquer** `[Código: ]` vazio — é o que a bet365 manda quando o
+detalhe não chegou, e descartar ali apagaria bilhete real.
+
+Roda em **todos** os caminhos de saída, inclusive quando não houve repescagem: era esse o
+desfecho que deixava fantasma. O sort por posição no texto-fonte passou a rodar **só quando
+este passo mexeu no TSV** — reordenar de graça mudaria calado a ordem que o resto do
+sistema lê como hora de envio.
+
+**Gates, provados por mutação** (cada uma pega por exatamente o teste que devia pegá-la):
+`_norm_odd` → string crua deixa **6** vermelhos, incluindo o caso medido `14`/`14,00`;
+tirar `aposta` da chave, **1**; tirar o `ate`, **1**; sobrescrever `abertas_corte` em vez
+de unir, **1**; tirar a guarda de `criado_em`, **2**. Nas órfãs, **1** cada: trava de
+par único, guarda do marcador vazio, descarte, adoção e a **ligação** dentro do
+`_garantir_cobertura`.
+
+> A **ligação** tem gate próprio no harness de DB (`test_upsert_adota_aberta_que_chegou_
+> depois_da_caixa_ligada`). O dublê testa a função, não a chamada: removendo o
+> `await _caixa_adotar_abertas_tardias(...)` do `upsert_bilhetes`, o arquivo de dublê fica
+> **todo verde** e a Caixa volta a nascer torta. Foi o modo de falso verde nº 1 da
+> s286. O mesmo vale para as órfãs: removendo a chamada de dentro do
+> `_garantir_cobertura`, os 7 testes de `_reconciliar_orfas` seguem verdes — só o
+> teste da ligação pega.
+
+Suíte: **756 passed, 30 skipped**. CI verde em `863f67c`, com os 30 do harness de
+Postgres (é lá que o SQL novo do UPSERT é exercido de verdade).
+
+**Backfill: nada a fazer.** `recalcular_abertas_corte_s314.py` em ensaio sobre todas as
+caixas ligadas devolve **0 a corrigir**. As 3 contas que uma primeira query apontou
+(`Gabriel/Pinnacle`, `Gabriel/1xBet`, `Feca/Bet365 marloncezar01`) são o **piso
+deliberado** de corte no passado — o `_caixa_abertas_ids` as exclui de propósito.
+
+**Pendente para a próxima sessão:**
+
+1. **Duas órfãs antigas**, anteriores à correção: `passapica / BETesporte` (04/09,
+   R$ 0,75) e `Diogo / Betfair` (12/08, R$ 400,00). São linhas abertas sem código em
+   conta que usa código. A Migração B as adota quando o bilhete voltar liquidado, **se**
+   data, categoria e stake baterem — não é garantido, e a do Diogo está aberta há quase
+   um mês. Duas linhas; resolver à mão é mais barato que esperar.
+2. **Aviso aos testers não foi enviado.** Sem bump do SharpenUp, o tester não tem ação a
+   tomar. Decisão do Feca; a pergunta ficou em aberto.
+
+---
 
 ## Sessão 326 — data ausente não é data antiga
 
@@ -978,7 +1131,9 @@ regra vem do MASTER e da fórmula do `app/repository.py`, não de bilhete pago.
 
 ---
 
-## Cadeia `_Anterior_` — sessões 321 → 310
+## Cadeia `_Anterior_` — sessões 324 → 310
+
+_Anterior: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
 
 _Anterior: 2026-09-05 (sessão 321 — **gate que confere UM campo deixa os vizinhos livres: a odd só era reconferida como efeito colateral da stake, e o RETORNO do bloco foi gravado como ODD.** O Feca abriu com o caixa da `denisesampa01` não batendo e dois bilhetes absurdos: um `HL` num Player Props de F1 (meia derrota exige linha asiática partida) e um `Under 4.0 Gols [Loiske v TP-T]` com **odd 195,53**. Medido antes de tocar em código: `195,53 ÷ 99,00 = 1,9751`, a MESMA aposta noutra conta tinha odd `1,975`, e o bloco cru diz `Status: Ganho → W (retorno R$ 195,53)` com `Odd: 1,975` **duas linhas abaixo**. A IA copiou o retorno para a coluna Odd; P/L de **+R$ 19.258,47** onde o real era +R$ 96,53. **A raiz é de desenho:** desde a s311 a stake vem do bloco, mas a odd só era recalculada DENTRO do `if` que roda quando a stake diverge (`_odd_da_stake`) — stake certa + odd errada passava reto — e o `resultado` não tinha conferência nenhuma. **A prova é o RETORNO**, contra as cinco fórmulas do `calcular_pl` lidas ao contrário (`repository._veredito_do_retorno`), agora rodando SEMPRE que o bloco prova o retorno. **O rótulo do Status não serve de fonte:** `_resultadoB3` escreve `Ganho → W` para qualquer retorno maior que a stake, meia vitória inclusive — ler o texto reescreveria como W 14 bilhetes `HW` que estavam certos. **Varredura da sombra (5.316 blocos, 20 casas): 33 linhas com dinheiro errado, Δ −R$ 19.711,29** (Feca −19.796,51 · Gabriel +69,39 · Jonathan +15,83), corrigidas por `scripts/corrigir_resultado_odd_s321.py` (ensaio por padrão, snapshot que APENSA em `Backups/s321-odd-resultado-contra-bloco/`). O P/L da `denisesampa01` caiu de R$ 28.001,63 para **R$ 8.321,45** — ⚠️ a Caixa precisa ser RECONFERIDA, a conferência registrada não se recalcula sozinha. **Três armadilhas medidas, todas load-bearing:** (1) a Betfair mistura BR e EN no mesmo bloco (stake `300,00`, retorno `1,642.38`) e um parser BR lê 1,64 e destrói 5 odds certas → `_num_bloco` decide pelo ÚLTIMO separador, e **um separador só é sempre decimal** (a regra `3 dígitos = milhar` faz `1,775` virar 1775); (2) **correção humana manda** — 3 bilhetes Betano em que alguém inverteu `W→L` e `L→W` no mesmo minuto são PULADOS pelo script (o gate em extração NÃO tem essa trava, e `resultado` nunca foi congelado pelo UPSERT: recaptura desfaz a edição); (3) só se escreve onde o **dinheiro** muda — piso de R$ 1,00, senão a 'correção' troca `1,925` pela dízima `1,925087108`. **GATES:** `tests/test_odd_resultado_determinista.py` (17 testes, **5 mutações aplicadas e todas pegas** — 2 escaparam na 1ª rodada e o defeito era do teste, registrado no cabeçalho junto com a mutação INÓCUA do lookbehind `(?<!potencial )`), suíte inteira verde (**699**), e **replay do gate na sombra real**: reproduz sozinho as 33 correções do script e mexe em **3** dos 5.316 blocos — exatamente as 3 de edição humana, zero falso positivo. **Bug meu, achado pelo replay e registrado:** o script pulava em silêncio odd truncada com reticências (`1,45070184...`), porque só o `_num_or_none` do repo faz `.rstrip('.')` — 1 bilhete ficou de fora da 1ª aplicação e entrou na 2ª.)_
 

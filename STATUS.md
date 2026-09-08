@@ -7,17 +7,74 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
 
-_Atualizado: 2026-09-07 (sessao 330 — **handoff de design aplicado: `FDC - Contas e Parceiros Opcao A`, 5 fases, 5 commits, todos pushados.** A tela tratava tudo com o mesmo peso: 4 KPIs (um deles sempre `0`), 3 colunas concorrentes, `Editar/Arquivar/Excluir` acesos nas ~100 linhas com um vermelho em cada uma, 29 casas em barras de escala inutil e um log de 40 acoes onde 37 diziam `100%`. **Fase 1** — titulo sai do gradiente azul (o maior texto da tela era acento, e com isso o azul deixava de significar sinal); eyebrow sobe um degrau na Escada de Tinta (9px/--ink-mute media 3,0:1, abaixo do 4,5:1 do papel Label). Aplicado tambem no Dashboard, com `SHELL_SPEC.md` e `check-tokens.mjs` atualizados junto. **Fase 2** — 4 KPIs viram 3, ordenados por CERTEZA DO DINHEIRO: disponivel (garantido) → em aberto (projecao, ambar) → banca total (soma, neutro). Sai o medidor ATIVAS/INATIVAS e o `Caixa total`, que imprimia o MESMO `totais.banca` do KPI ao lado. **Fase 3** — linha da casa e da conta na MESMA grade de 4 trilhas, com a coluna de acoes reservada mesmo vazia; acoes so no hover; `Excluir` sai da linha e vira o ultimo item do menu `⋯`. **Fase 4** — coluna Conciliacao com vocabulario FECHADO num helper so (`tagConciliacao`), sem abreviacao e sem teto no numero; vermelho so em `Divergencia` (erro realizado), ambar em pendencia (fato a conferir). **Fase 5** — `Contas por casa` colapsa a cauda e o rail vira fila de `Pendencias`. **As duas foram DESFEITAS na revisao** (abaixo). **A REVISAO, depois de o Feca ver a tela na base real (177 contas, 47 casas):** o rail voltou a ser `Ultimas acoes` — aquele painel e o historico de EXTRACOES (o RAIO-X), e rotular registro de fila promete tarefa que nao existe; rotulo errado e pior que rotulo repetido. A casa virou SOMA (fundo proprio + a palavra `total` + guia recuando as contas), porque o total da casa e o saldo das contas caiam na mesma coluna e liam como cinco parcelas a somar. E os TRES cards de baixo sairam: duracao, dias ativos e apostas viraram COLUNAS da lista, que passou a ter 7 trilhas com cabecalho. **O vao no monitor largo nao era da largura da lista — era de ela ter UMA coluna flexivel**; com todas em `minmax(min, Nfr)` a sobra se distribui entre todas. **Bug antigo achado medindo:** a barra de `Contas por casa` tinha `fill` de 0px em TODA linha (`%` sobre elemento inline nao se aplica), entao 43 contas e 2 contas desenhavam a mesma barra — era isso que fazia o card nao dizer nada. **Desvio do handoff que ficou:** a tag `Sem caixa` NAO vira tinta — a Caixa esta ligada em 4 de 102 contas e ela pintaria 98 linhas com o mesmo rotulo, que e o defeito que o handoff existe para matar. Tag em 10px e nao 9,5px porque dois rotulos sao --ink-mute e a Escada proibe --ink-mute abaixo de 10px. **Gates:** check-tokens verde, 3 blocos inline compilados por `vm.Script`, **756 passed / 30 skipped**, e render headless contra o `servidor_demo` a cada fase. Varredura da Escada em 3 criterios: os 3 achados sao excecoes ja documentadas (caret/seta e `opacity` como estado), nenhum e codigo novo.)
+_Atualizado: 2026-09-07 (sessao 331 — **handoff v2 aplicado: `Contas e Parceiros v2`, 6 fases num commit so.** A tela deixa de ser tres colunas concorrendo e passa a ter QUATRO leituras: dinheiro no topo estreito · `Ultimas acoes` na lateral inteira comecando na MESMA linha dos KPIs · `Concentracao de caixa` ao lado da tabela de Contas. **O rail da casca saiu desta tela** — ele e o RAIO-X, que pertence a Extracao. **Concentracao substitui `Contas por casa`, que contava CONTAS:** contar conta nao diz risco nenhum, e 52 contas numa casa com R$ 0 desenhavam uma barra maior que 1 conta com metade da banca. Agora e rosca por `stroke-dasharray` sobre perimetro 100 (cada arco e literalmente "P por cento"), rampa FIXA de 8 tons — tom calculado do valor faria a MESMA casa mudar de cor entre duas aberturas, e a cor e a chave que liga rosca e lista. Clicar filtra a tabela; clicar de novo solta. **Pilulas de status** num helper unico, lista fechada, numero em `<b>`, com o estado NOVO `Aguardando tipster N` em AZUL: bilhete sem tipster e espera externa, nao erro, e antes ele somava com as apostas abertas num numero so — apagando a diferenca entre "eu resolvo" e "depende de alguem". **Tabela:** 4 trilhas, chip `TOTAL` na trilha da Caixa, `.acct-group` fechando o bloco, SEM traco/arvore, e os tres botoes de volta na linha. Sairam as colunas Duracao/Dias ativos/Apostas (descreviam ATIVIDADE; a tela responde "quanto tem e esta conciliado?"). **Duas armadilhas de largura, as duas invisiveis na leitura e medidas no headless:** (1) media query DENTRO do iframe le a largura do IFRAME, e a sidebar (~300px) fica fora dele — num monitor de 1440 a pagina tem 1120, e o breakpoint de 1180 do handoff disparava sempre, jogando o log para baixo em TODA largura; (2) com as trilhas em px cravado sobravam 130px para o nome em 1440 e "Esportes da Sorte" saia cortado — as tres viraram `minmax(min, alvo)` e cedem antes do NOME ceder. Conferido em 1366/1440/1600/1920/2560. **Gates:** check-tokens verde, 756 passed / 30 skipped, Escada em 3 criterios sem achado novo, fumaca no navegador (zero tag na casa, 29 chips TOTAL, sem arvore, filtro ligando e soltando) e a rosca provada com 12 casas sinteticas: 9 arcos somando exatamente 100.)
+
+_Anterior: 2026-09-07 (sessao 330 — **handoff de design aplicado: `FDC - Contas e Parceiros Opcao A`, 5 fases, 5 commits, todos pushados.** A tela tratava tudo com o mesmo peso: 4 KPIs (um deles sempre `0`), 3 colunas concorrentes, `Editar/Arquivar/Excluir` acesos nas ~100 linhas com um vermelho em cada uma, 29 casas em barras de escala inutil e um log de 40 acoes onde 37 diziam `100%`. **Fase 1** — titulo sai do gradiente azul (o maior texto da tela era acento, e com isso o azul deixava de significar sinal); eyebrow sobe um degrau na Escada de Tinta (9px/--ink-mute media 3,0:1, abaixo do 4,5:1 do papel Label). Aplicado tambem no Dashboard, com `SHELL_SPEC.md` e `check-tokens.mjs` atualizados junto. **Fase 2** — 4 KPIs viram 3, ordenados por CERTEZA DO DINHEIRO: disponivel (garantido) → em aberto (projecao, ambar) → banca total (soma, neutro). Sai o medidor ATIVAS/INATIVAS e o `Caixa total`, que imprimia o MESMO `totais.banca` do KPI ao lado. **Fase 3** — linha da casa e da conta na MESMA grade de 4 trilhas, com a coluna de acoes reservada mesmo vazia; acoes so no hover; `Excluir` sai da linha e vira o ultimo item do menu `⋯`. **Fase 4** — coluna Conciliacao com vocabulario FECHADO num helper so (`tagConciliacao`), sem abreviacao e sem teto no numero; vermelho so em `Divergencia` (erro realizado), ambar em pendencia (fato a conferir). **Fase 5** — `Contas por casa` colapsa a cauda e o rail vira fila de `Pendencias`. **As duas foram DESFEITAS na revisao** (abaixo). **A REVISAO, depois de o Feca ver a tela na base real (177 contas, 47 casas):** o rail voltou a ser `Ultimas acoes` — aquele painel e o historico de EXTRACOES (o RAIO-X), e rotular registro de fila promete tarefa que nao existe; rotulo errado e pior que rotulo repetido. A casa virou SOMA (fundo proprio + a palavra `total` + guia recuando as contas), porque o total da casa e o saldo das contas caiam na mesma coluna e liam como cinco parcelas a somar. E os TRES cards de baixo sairam: duracao, dias ativos e apostas viraram COLUNAS da lista, que passou a ter 7 trilhas com cabecalho. **O vao no monitor largo nao era da largura da lista — era de ela ter UMA coluna flexivel**; com todas em `minmax(min, Nfr)` a sobra se distribui entre todas. **Bug antigo achado medindo:** a barra de `Contas por casa` tinha `fill` de 0px em TODA linha (`%` sobre elemento inline nao se aplica), entao 43 contas e 2 contas desenhavam a mesma barra — era isso que fazia o card nao dizer nada. **Desvio do handoff que ficou:** a tag `Sem caixa` NAO vira tinta — a Caixa esta ligada em 4 de 102 contas e ela pintaria 98 linhas com o mesmo rotulo, que e o defeito que o handoff existe para matar. Tag em 10px e nao 9,5px porque dois rotulos sao --ink-mute e a Escada proibe --ink-mute abaixo de 10px. **Gates:** check-tokens verde, 3 blocos inline compilados por `vm.Script`, **756 passed / 30 skipped**, e render headless contra o `servidor_demo` a cada fase. Varredura da Escada em 3 criterios: os 3 achados sao excecoes ja documentadas (caret/seta e `opacity` como estado), nenhum e codigo novo.)
 
 _Anterior: 2026-09-07 (sessao 329 — **a faxina de documentacao achou 14 regras que governavam o comportamento e nao estavam escritas.** Esse e o resultado, nao os KB. Quatro arquivos disputavam o papel de "onde o projeto esta" e tres descreviam o projeto de julho; a varredura da s261 ja tinha medido o custo disso ("a primeira pendencia que eu fui atacar ja estava feita desde 26/07"). Cinco lotes fechados. **F** — nasce o `BACKLOG.md` (70 KB), que absorve o §5 do STATUS VERBATIM: as 192 linhas nao-vazias conferidas uma a uma, zero perdida, com contraprova por canario. **B** — STATUS de 183 para 44 KB; as 1.157 linhas de antes reprocuradas uma a uma (483 ficaram, 491 foram para o HISTORICO, 183 para o BACKLOG, ZERO perdidas). **C** — HISTORICO de 1,21 MB vira indice de 3 KB + 6 particoes, com as 1.445 linhas conferidas. **D** — 16 docs + 11 anexos para `docs/arquivo/`, `docs/` cai de 43 para 27 vivos, 20 links consertados. **E** — CLAUDE.md de 68,3 para 62,7 KB e nasce o `docs/CASOS.md` (22,9 KB), que NAO e auto-carregado: a regra fica no CLAUDE, o bilhete/casa/valor/sessao vai para o CASOS. **O gate final de regras deu ZERO perdidas**: das 434 ancoras verificaveis, 384 seguem no CLAUDE e 57 migraram para o CASOS; dos 50 numeros que decidem comportamento, 36 ficaram e 11 migraram. 255 regras contadas item a item em 12 secoes. **E 14 regras foram ACRESCENTADAS** — o `git add` por nome, os tres 'os tetos travam crescimento', o trio de causas da Escada de Tinta, a inversao de hierarquia, o 'node --check e falso verde para tudo em template literal', e mais 7. Elas ja governavam o comportamento; so nao estavam escritas como regra. **Gate novo:** `tools/check_docs.py`, no CI, com 7 checagens todas provadas por mutacao — tetos de CLAUDE (65 KB), CASOS (60) e STATUS (50), forma do STATUS (<=3 blocos, <=2 _Anterior), copia em Backups por PREFIXO, link quebrado e ANCORA. Regra sem gate nao e cumprida neste repo: o invariante #4 estava escrito e claro, e Backups chegou a 551 pastas com 165 copias de STATUS/HISTORICO. **Reconciliacao da Auditoria Turbo:** os 78 achados MEDIO/BAIXO do mergulho de 20/07 NAO EXISTEM por escrito (o doc enumera 16 e o rodape diz "Deliverables uncommitted"); reconciliei os 139 do findings.json de 19/07 — 40 fechados, 68 abertos, 20 a confirmar na tela, 3 parciais e 3 que nao eram achado, um deles um placeholder de teste. **#129 medido e rebaixado:** a odd nao entra no calcular_pl em L/V e o risco de dedup deu ZERO de extracao em 528 multiplas sem codigo expostas; virou divida de documentacao. **Lote A ABERTO** — podar Backups (223 arquivos, 28,7 MB), com o zip para fora do repo ANTES de qualquer coisa apagada.)
-
-_Anterior: 2026-09-06 (sessão 324 — **botão que não leva a lugar nenhum confunde mais que botão ausente.** O `Entrar com Telegram` saiu do `/login`: o fluxo não conclui e o relato de uso era gente apertando sem retorno. Só o BOTÃO saiu — backend, rotas e os 27 testes do login social seguem inteiros, e o teste que trava a remoção diz como desfazê-la. `temSocial` deixou de olhar `m.telegram` para o separador **ou** não acender sozinho. 2 mutações aplicadas e 2 detectadas; 717 passed. Causa raiz do clique morto segue ABERTA (suspeito: `/setdomain` do BotFather) — não medida, o pedido era tirar o botão. Antes, s323 — **filtrar um dia zerava o Custo de Contas com o parque inteiro em uso.** A régua velha lançava o custo de aquisição num ÚNICO dia — o da primeira aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha aquele dia; recorte sem aposta zerava, e conta comprada e ainda não usada não existia no mapa (entrava nos R$ 3.100 da aba Custos e nunca no KPI). Agora o custo tem JANELA DE VIDA: `ini = menor(adquirida_em, 1ª aposta)`, `fim = maior(última aposta, arquivada_em)`, e todo período que CRUZA a janela cobra o custo cheio. Colunas novas `parceiros.adquirida_em` / `arquivada_em`, editável no modal. O escopo saiu das linhas e foi para o filtro: Casa e Operador recortam o custo, Esporte e Tipster não. ⚠️ A régua NÃO é aditiva e o preço foi aceito na mesa: o P/L Líquido de um dia carrega o custo cheio das contas vivas. 9 mutações aplicadas e 9 detectadas; 716 passed. Método: o vídeo do tester tinha ÁUDIO e a tela sozinha apontava para o alvo errado. Antes, s322 — mexer no multiselect invalida o recorte cacheado: o `_filterCache` só era zerado pelo `renderPage`, e a barra própria da Base Completa não passava por ele.)_
 
 > **Histórico completo das sessões 325 → 14** → [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
 ---
 
-## Onde parei (fim da sessão 330)
+## Onde parei (fim da sessão 331)
+
+### O handoff `Contas e Parceiros v2` está aplicado, nas 6 fases
+
+A tela deixa de ser três colunas concorrendo e passa a ter **quatro leituras**: os três
+números de dinheiro no topo estreito · `Últimas ações` na lateral inteira, começando na
+mesma linha dos KPIs · `Concentração de caixa` ao lado da tabela de `Contas`.
+
+**O rail da casca saiu desta tela.** Ele é o RAIO-X, que pertence à Extração — e
+escondê-lo sem colapsar a trilha abriria 372px vazios (`.workfull.sem-rail`).
+
+### Concentração de caixa: contar conta não diz risco
+
+O painel que saiu (`Contas por casa`) contava **contas**. Isso desenhava uma barra maior
+para 52 contas numa casa com R$ 0 do que para 1 conta com metade da banca — o oposto do
+que importa. A pergunta certa é onde o **dinheiro** está.
+
+A rosca usa `stroke-dasharray` sobre um círculo de perímetro 100, então cada arco é
+literalmente "P por cento", sem conversão. A rampa de 8 tons é **fixa**: tom calculado a
+partir do valor faria a mesma casa mudar de cor entre duas aberturas, e a cor é a chave
+que liga a rosca à lista. Clicar numa casa filtra a tabela; clicar de novo solta —
+filtro que só liga vira armadilha.
+
+### Duas armadilhas de largura, as duas invisíveis na leitura
+
+Nenhuma das duas dá erro, e as duas só apareceram medindo no headless.
+
+1. **Media query dentro do iframe lê a largura do IFRAME, não da janela.** Esta página
+   vive no `#fr-plan` da casca, e a sidebar (~300px) fica **fora** dele: num monitor de
+   1440px a página tem ~1120. O breakpoint de 1180px do handoff disparava **sempre**, e o
+   log caía para baixo em toda largura — parecendo que a coluna lateral não tinha sido
+   implementada.
+2. **Trilha em px cravado não cede — o nome cede.** Com `148/118/172` fixos sobravam
+   130px para o nome em 1440, e `Esportes da Sorte` saía cortado. As três viraram
+   `minmax(min, alvo)` e cedem **antes** do nome: nome é identidade, as outras são
+   rótulo, valor e botão. A concentração também cede (`minmax(0,228px)`) e a tabela é
+   quem declara piso (666px). Conferido em 1366/1440/1600/1920/2560.
+
+> Sintoma para reconhecer o primeiro noutro lugar: um breakpoint que "não funciona" numa
+> tela dentro de iframe. Meça `document.documentElement.clientWidth` **dentro** do frame
+> antes de mexer no número — a janela mente sobre a largura que o CSS vê.
+
+### `Aguardando tipster` virou estado próprio
+
+Bilhete sem tipster somava com aposta aberta num número só. São coisas diferentes:
+pendência eu resolvo olhando; tipster **depende de terceiro**. Agora é uma pílula azul —
+espera externa não é erro, e âmbar diria "confira" onde não há o que conferir.
+
+### Ficou de fora, e está no `BACKLOG.md`
+
+- **Título da página em 19px.** `.pagehead-title` é casca: o `SHELL_SPEC` e o
+  `check-tokens` prendem o tamanho a um token, a escada não tem 19px (18 · 22) e o
+  Dashboard usa o mesmo contrato. Ficou em `--text-xl`; a cor, que é o que carregava o
+  argumento, já tinha ido para `--ink` na s330.
+- **Eyebrow em 9px.** O handoff pede 9px/`--ink-soft`, e o piso do papel *Label* na
+  Escada é 9,5px. Ficou em `--text-xxs` (10px).
+
+## Sessão 330 — o handoff Opção A, em duas revisões
 
 ### O handoff `Contas e Parceiros Opção A` está aplicado, nas 5 fases
 
@@ -294,159 +351,6 @@ com o congelamento do UPSERT no caminho (linha já resolvida não reescreve `apo
 
 ---
 
-
-## Sessão 327 — a Caixa ligada no meio da captura
-
-### `abertas_corte` mede o que o Sharpen SABE, não o que a casa TEM
-
-O relato veio em três sintomas que pareciam três problemas: "a Betnacional não exporta",
-"uma aposta de ontem não resolve" e "preenchi a Caixa e ela não bate". Era **um só**, e
-nenhum deles estava na casa — os 11 bilhetes do período estão lá, completos, com odd e
-retorno corretos (conferidos card a card no Chrome; a casa diz **"Sem apostas
-pendentes"**).
-
-**Defeito 1 — a Caixa foi ligada no meio da captura.** Cronologia medida no banco:
-
-```
-03:17:32  Caixa ligada     → abertas_corte = []   (o banco ainda não tinha aberta)
-03:17:59  IA termina       (uso_tokens id 2163)
-03:18:19  /salvar grava    → 3 apostas nascem ABERTAS: R$ 600,00
-03:18:35  Conferência      → projetado −599,00 · saldo real 2.379,87
-                           → Ajuste +2.978,87  (R$ 600,00 a mais do que devia)
-```
-
-`_caixa_abertas_ids` diz que com `corte = hoje` "toda aposta aberta entra: se ela está
-aberta agora, o stake saiu antes de agora, é exato". **É exato só se o Sharpen já souber
-da aposta.** O dinheiro sai da conta na casa, não no nosso banco — e entre a captura
-começar e o `/salvar` gravar existe uma janela de ~1 minuto em que a Caixa enxerga zero
-abertas e grava esse zero para sempre. Pior: o Ajuste da conferência, que existe para
-fechar a conta, **cimenta o erro** com cara de número conferido.
-
-**Defeito 2 — a linha órfã sem código.** A captura de 05/09 devolveu a múltipla do
-Falkirk sem a 11ª coluna. Sem código a dedup cai na assinatura por conteúdo, e a
-"Migração B" do UPSERT (que adota linha sem código) exige `odd` **idêntica**: `14` não é
-`14,00`. Quando o bilhete liquidou em 06/09, entrou linha **nova** (246454) e a velha
-(243667) ficou `aberta` para sempre — o `AGUARDANDO RESULTADO 1` da grade.
-
-**A prova, contra a casa:**
-
-```
-Saldo no corte (05/09)                              2.379,87
-+ retorno das 3 abertas no corte                    1.662,26
-    243665  R$300 @2,834    L  →        0,00
-    243666  R$150 @11,08173 W  →    1.662,26   ← card da casa: "Retorno R$ 1.662,26"
-    243667  R$150 @14       L  →        0,00
-+ líquido das 8 apostadas depois do corte             515,96
-                                                 ──────────
-= saldo esperado hoje                               4.558,09   ← bate com a casa
-```
-
-A Caixa projetava 3.195,83. A diferença de **1.362,26** é exatamente **+1.662,26** (o
-retorno que ela não conta — a `data` 04/09 é anterior ao corte, então ela lê a linha como
-"já embutida no saldo informado"; só o **stake** estava, o **retorno** não) **−300,00** (o
-Falkirk descontado duas vezes: R$ 150 como fantasma em aberto e R$ 150 como L liquidado).
-
-**Correção aplicada** (`scripts/corrigir_caixa_fantasma_s327.py`, ensaio → `--aplicar`):
-apaga o fantasma, grava `abertas_corte = [243665, 243666, 246454]` (o id que carrega
-**hoje** cada bilhete — o do Falkirk é o 246454) e baixa o Ajuste em exatamente o
-`preso_corte` que faltou, `2.978,87 → 2.378,87`. O script **aborta** se a projeção
-corrigida não fechar com o saldo lido na casa. Resultado, relido da API de produção:
-`preso_corte 600,00 (3) · pl 1.578,22 (11) · aberto 0,00 (0) · banca 4.558,09 ·
-disponível 4.558,09` — divergência **0,00** depois da nova conferência.
-
-O lançamento `conferencia` de 05/09 **não** foi tocado: ele é a medição daquele momento e
-não se recalcula. O que ele registrou aconteceu de verdade.
-
-> **Sintoma para reconhecer isto noutro lugar:** um retrato tirado de uma fonte que ainda
-> está sendo preenchida. Vale para todo campo que congela estado no instante do clique —
-> se a escrita que o alimenta é assíncrona, o clique pode chegar antes dela.
-
-### Os dois defeitos de produto, corrigidos
-
-**1. A órfã não era adotada porque `"14"` não era `"14,00"`.** A Migração B do UPSERT
-adota a linha sem código quando o mesmo bilhete volta COM código — e comparava a odd como
-**string crua**. `_assinatura` já normaliza a odd (`_norm_odd`) para decidir se duas
-linhas são o mesmo bilhete; a Migração B contradizia a própria régua do sistema. Agora as
-duas usam `chave_orfa()`, onde o porquê e o caso medido estão escritos. `descricao` fica
-de fora **de propósito** — a Migração B nasceu para casar import por imagem com captura da
-casa, e é justamente a descrição que diverge entre as duas; há teste para essa ausência
-ser decisão registrada, não esquecimento.
-
-De quebra, o índice de órfãs virou **uma consulta por conta** em vez de um
-UPDATE-com-subconsulta por linha do lote, e cada órfã só é adotada **uma vez** (`pop`):
-sem isso dois bilhetes iguais reivindicariam a mesma linha antiga — e a Migração B, quando
-erra, não duplica: ela **sequestra**.
-
-**2. A Caixa ligada no meio da captura gravava `abertas_corte` vazio.** Ao INSERIR uma
-aposta que **nasce** aberta e cuja captura (`criado_em`) antecede a ativação, o id agora
-entra no `abertas_corte`. Não é heurística: a aposta não pode ter liquidado e
-desliquidado, então o stake já tinha saído quando o saldo foi lido. Três travas — só linha
-recém-**inserida**; a decisão é do próprio `_caixa_abertas_ids` com `ate` = instante da
-ativação (um segundo critério divergiria do original em silêncio); e a lista **só cresce**,
-porque tirar um id descontaria o stake duas vezes. `criado_em` nulo ou sem fuso fica de
-fora: sem ele não há prova, e comparar um naive estouraria **dentro** do `/salvar`,
-derrubando a gravação inteira por causa de uma linha de caixa.
-
-**3. A raiz: a repescagem acrescentava a linha e deixava a órfã.** `conferir_cobertura`
-cobra **quantidade por código** — ela não sabe que o bilhete "faltante" pode estar ali
-como uma linha que perdeu a 11ª coluna. E a repescagem só ACRESCENTA
-(`_extract_tsv_rows(resultado) + novas`); ninguém removia a órfã. Os dois desfechos
-deixavam linha sem código: repescagem OK dava **duas** linhas do mesmo bilhete no lote;
-repescagem falha (o que aconteceu em 05/09) deixava a órfã — e sem código ela nunca dedupa.
-
-`_reconciliar_orfas` faz duas coisas, ambas conservadoras:
-
-- **Adoção** — a órfã recebe o código do bloco faltante de que ela é **fiel**
-  (`checar_fidelidade`, o gate de procedência da s302: todo nome próprio e todo decimal da
-  descrição existem naquele bloco). Só quando o par é único **nos dois sentidos** — a órfã
-  casa com um único bloco livre, e aquele bloco casa com uma única órfã. Ambíguo não vira
-  chute.
-- **Descarte** — sobrando órfã depois disso, e não havendo mais bilhete do texto sem linha
-  própria, ela é cópia de alguém que já tem a sua. Sai.
-
-**NO-OP integral onde a coluna 11 vazia é legítima:** casa sem marcador (prints, texto
-colado) e texto que traga **qualquer** `[Código: ]` vazio — é o que a bet365 manda quando o
-detalhe não chegou, e descartar ali apagaria bilhete real.
-
-Roda em **todos** os caminhos de saída, inclusive quando não houve repescagem: era esse o
-desfecho que deixava fantasma. O sort por posição no texto-fonte passou a rodar **só quando
-este passo mexeu no TSV** — reordenar de graça mudaria calado a ordem que o resto do
-sistema lê como hora de envio.
-
-**Gates, provados por mutação** (cada uma pega por exatamente o teste que devia pegá-la):
-`_norm_odd` → string crua deixa **6** vermelhos, incluindo o caso medido `14`/`14,00`;
-tirar `aposta` da chave, **1**; tirar o `ate`, **1**; sobrescrever `abertas_corte` em vez
-de unir, **1**; tirar a guarda de `criado_em`, **2**. Nas órfãs, **1** cada: trava de
-par único, guarda do marcador vazio, descarte, adoção e a **ligação** dentro do
-`_garantir_cobertura`.
-
-> A **ligação** tem gate próprio no harness de DB (`test_upsert_adota_aberta_que_chegou_
-> depois_da_caixa_ligada`). O dublê testa a função, não a chamada: removendo o
-> `await _caixa_adotar_abertas_tardias(...)` do `upsert_bilhetes`, o arquivo de dublê fica
-> **todo verde** e a Caixa volta a nascer torta. Foi o modo de falso verde nº 1 da
-> s286. O mesmo vale para as órfãs: removendo a chamada de dentro do
-> `_garantir_cobertura`, os 7 testes de `_reconciliar_orfas` seguem verdes — só o
-> teste da ligação pega.
-
-Suíte: **756 passed, 30 skipped**. CI verde em `863f67c`, com os 30 do harness de
-Postgres (é lá que o SQL novo do UPSERT é exercido de verdade).
-
-**Backfill: nada a fazer.** `recalcular_abertas_corte_s314.py` em ensaio sobre todas as
-caixas ligadas devolve **0 a corrigir**. As 3 contas que uma primeira query apontou
-(`Gabriel/Pinnacle`, `Gabriel/1xBet`, `Feca/Bet365 marloncezar01`) são o **piso
-deliberado** de corte no passado — o `_caixa_abertas_ids` as exclui de propósito.
-
-**Pendente para a próxima sessão:**
-
-1. **Duas órfãs antigas**, anteriores à correção: `passapica / BETesporte` (04/09,
-   R$ 0,75) e `Diogo / Betfair` (12/08, R$ 400,00). São linhas abertas sem código em
-   conta que usa código. A Migração B as adota quando o bilhete voltar liquidado, **se**
-   data, categoria e stake baterem — não é garantido, e a do Diogo está aberta há quase
-   um mês. Duas linhas; resolver à mão é mais barato que esperar.
-2. **Aviso aos testers não foi enviado.** Sem bump do SharpenUp, o tester não tem ação a
-   tomar. Decisão do Feca; a pergunta ficou em aberto.
-
----
 
 ## 1. O que estamos construindo
 
