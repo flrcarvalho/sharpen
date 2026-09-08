@@ -320,11 +320,11 @@ html.embedded .sidebar { display: none; }
    vem DEPOIS no arquivo e, com a mesma especificidade, ganharia — a faixa nascia com
    6 trilhas (3 reais + 3 de 0px). Empatar na cascata e' contar com a ordem do arquivo. */
 .painel-kpis.pc-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
-/* A tabela declara o mínimo (712px = 28 de padding + 30 de gaps + as 4 trilhas nos
+/* A tabela declara o mínimo (762px = 28 de padding + 40 de gaps + as trilhas nos
    mínimos delas) e a concentração cede o que faltar, até o alvo de 228px do handoff.
    Com `228px` cravado a concentração levava a largura toda e o nome da casa era
    cortado em 1440 — que é a largura mais comum. Quem tem alvo cede; quem tem piso não. */
-.pc-tri { display: grid; grid-template-columns: minmax(0, 399px) minmax(712px, 1fr); gap: 12px; align-items: stretch; }
+.pc-tri { display: grid; grid-template-columns: minmax(0, 399px) minmax(762px, 1fr); gap: 12px; align-items: stretch; }
 /* ⚠️ Estes breakpoints medem a largura do IFRAME, não a da janela: esta página vive
    dentro do `#fr-plan` da casca, e a sidebar (~300px) fica FORA dele. Num monitor de
    1440px a página tem ~1120 — um breakpoint de 1180 dispararia sempre, e foi
@@ -336,11 +336,11 @@ html.embedded .sidebar { display: none; }
    equivale a uma JANELA de ~1.430px, porque a sidebar (~300) fica fora do iframe.
    Abaixo disso a concentração desce; abaixo de 870 o log desce também. */
 /* Recalculado para as colunas de 399/420: lado a lado exige
-   399 + 12 + 712 (piso da tabela) + 12 + 420 = 1.555px de IFRAME, e a concentração não
+   399 + 12 + 762 (piso da tabela) + 12 + 420 = 1.605px de IFRAME, e a concentração não
    deve cair abaixo de ~330 (a rosca sozinha tem 150). Abaixo disso ela sobe para cima
    da tabela, em largura cheia. 819px de painéis laterais pedem monitor largo — não há
    como espremer os três. */
-@media (max-width: 1485px) {
+@media (max-width: 1600px) {
   .pc-tri { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 870px) {
@@ -372,12 +372,14 @@ html.embedded .sidebar { display: none; }
    1440px de janela (a sidebar é 62px mais larga que a da maquete), e lado a lado a
    frase ficaria com ~90px. Empilhado funciona nas duas larguras. */
 .conc-topo { display: flex; flex-direction: column; align-items: center; gap: 11px; padding: 15px 13px 13px; }
-.conc-rosca { position: relative; width: 150px; height: 150px; flex: none; }
-.conc-rosca svg { width: 150px; height: 150px; transform: rotate(-90deg); }
-.conc-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; }
-.conc-centro .n { font-family: var(--font-mono); font-size: 27px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
-/* 7,5px é LABEL, e label vive em --ink-soft — abaixo de 10px o --ink-mute reprovaria. */
-.conc-centro .l { font-family: var(--font-mono); font-size: 7.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-soft); max-width: 124px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conc-rosca { position: relative; width: 225px; height: 225px; flex: none; }
+.conc-rosca svg { width: 225px; height: 225px; transform: rotate(-90deg); }
+.conc-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+.conc-centro .n { font-family: var(--font-mono); font-size: 40px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+/* 11px: com a rosca a 225px o rótulo coube no piso do papel Label (9,5px). Ele
+   estava em 7,5px, herdado do handoff — abaixo do piso, e a Escada é a regra-mãe
+   que o próprio handoff cita. Crescer a rosca resolveu a violação de graça. */
+.conc-centro .l { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-soft); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conc-risco { min-width: 0; text-align: center; }
 .conc-risco .eb { display: block; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .conc-risco p { margin: 5px 0 0; font-size: 11.5px; line-height: 1.42; color: var(--ink-soft); }
@@ -395,9 +397,14 @@ html.embedded .sidebar { display: none; }
 .conc-row.on { background: rgba(var(--accent-rgb),.10); box-shadow: inset 2px 0 0 var(--accent); }
 /* Banca total: é o DENOMINADOR do painel — cada "% da banca" abaixo é fração dele.
    Fica entre a frase de risco e a lista, que é onde a régua precisa estar. */
-.conc-banca { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 13px; border-top: 1px solid var(--line); }
-.conc-banca .eb { font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
-.conc-banca .v { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* Destacada: ela é o número que a lista inteira divide. Faixa própria em --surface-2
+   com tarja de acento à esquerda (o mesmo sinal dos cabeçalhos de card), rótulo em
+   cima e valor em 22px — o maior número do painel, porque é o denominador de todos os
+   outros. Sem cor no valor: banca é saldo, e verde/vermelho são de RESULTADO. */
+.conc-banca { display: flex; flex-direction: column; gap: 5px; padding: 13px 13px 13px 16px; background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); position: relative; }
+.conc-banca::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+.conc-banca .eb { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.conc-banca .v { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
 .conc-foot { padding: 10px 13px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .04em; color: var(--ink-soft); }
 
 /* ── Cards de Ativas / Arquivadas (s331c) ─────────────────────────────────────
@@ -902,15 +909,21 @@ body.cap-off .cx__body { display: none; }
   border: 1px solid var(--line); border-radius: var(--r-pill);
   background: var(--surface-2); color: var(--ink-soft);
   padding: 4px 11px; white-space: nowrap;
-  justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  justify-self: start;
 }
+/* ⚠️ SEM `overflow:hidden` + ellipsis. Truncar aqui corta o NÚMERO, que é o dado — e
+   número cortado é a mesma mentira do "+99" que a lista fechada proíbe. Se um dia não
+   couber, o defeito aparece na tela em vez de virar um dado errado silencioso. */
 .tag-status b { font-weight: 700; }
 /* Conciliada — conferido, sem item pendente. */
 .tag-status.limpa { border-color: rgba(79,199,154,.42); background: rgba(79,199,154,.08); color: #86BBA6; }
 .tag-status.limpa b { color: var(--d-pos); }
-/* Pendência(s) — FATO A CONFERIR. Âmbar, nunca vermelho. */
-.tag-status.pend { border-color: rgba(214,164,90,.46); background: rgba(214,164,90,.08); color: #BC9E6E; }
-.tag-status.pend b { color: var(--d-proj-strong); }
+/* Aguardando resultado — ESPERA, não erro. Âmbar, nunca vermelho.
+   ⚠️ A classe é `.aguard` e não `.pend` de propósito: `.pend` continua existindo
+   para o log, onde `pendência` é pendência de EXTRAÇÃO — essa sim é algo a
+   resolver. Mesmo tom, fatos diferentes; reusar o nome misturaria os dois. */
+.tag-status.aguard { border-color: rgba(214,164,90,.46); background: rgba(214,164,90,.08); color: #BC9E6E; }
+.tag-status.aguard b { color: var(--d-proj-strong); }
 /* Aguardando tipster — espera EXTERNA, não erro. Por isso azul, e não âmbar: âmbar diz
    "confira", e aqui não há o que conferir até a informação de terceiro chegar. */
 .tag-status.tips { border-color: rgba(77,163,255,.46); background: rgba(77,163,255,.08); color: #82A4CE; }
@@ -2095,7 +2108,7 @@ td.c-res.res-HL { color: var(--warn); }
      ganharam ícone: os três botões medem 204px juntos, e com a trilha em 158 eles
      vazavam por cima da coluna Caixa — sem erro, porque `justify-content:flex-end`
      transborda para a ESQUERDA e isso não entra no `scrollWidth` da linha. */
-  grid-template-columns: minmax(228px, 340px) minmax(120px, 148px) minmax(96px, 118px) minmax(0, 1fr) minmax(210px, 232px);
+  grid-template-columns: minmax(228px, 340px) minmax(160px, 200px) minmax(96px, 118px) minmax(0, 1fr) minmax(210px, 232px);
   align-items: center; gap: 10px; padding: 0 14px;
 }
 .acct-head { padding: 9px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
@@ -3472,7 +3485,10 @@ function _caixaPorConta() {
 // abreviar (`pend.`, `+99`), nunca pôr teto, e caixa alta só via CSS.
 const _TAG_STATUS = {
   conciliada: { cls: 'limpa', txt: () => 'Conciliada' },
-  pendencia:  { cls: 'pend',  txt: (n) => (n === 1 ? 'Pendência <b>1</b>' : 'Pendências <b>' + n + '</b>') },
+  // NÃO é "pendência": estas são apostas ainda NÃO LIQUIDADAS (`abertasDe`).
+  // "Pendência" promete algo a fazer; aqui não há o que fazer — espera-se o jogo
+  // acabar. O rótulo descreve o fato, não a sensação de que algo está atrasado.
+  aguardando: { cls: 'aguard', txt: (n) => 'Aguardando resultado <b>' + n + '</b>' },
   tipster:    { cls: 'tips',  txt: (n) => 'Aguardando tipster <b>' + n + '</b>' },
   divergencia:{ cls: 'dive',  txt: () => 'Divergência' },
   semcaixa:   { cls: 'zero',  txt: () => 'Sem caixa' },
@@ -3480,7 +3496,7 @@ const _TAG_STATUS = {
 };
 const _TAG_TITULO = {
   conciliada: 'Sem nenhum item pendente.',
-  pendencia: 'Apostas não liquidadas nesta conta.',
+  aguardando: 'Apostas ainda não liquidadas — o resultado do evento não saiu.',
   tipster: 'Bilhetes sem tipster — falta informação de terceiro, não é erro.',
   divergencia: 'A casa mostrou saldo diferente do projetado.',
   semcaixa: 'Caixa Inteligente não ligada — nada a conciliar aqui.',
@@ -3494,16 +3510,17 @@ function tagStatus(estado, n) {
 }
 
 // Estado de UMA conta. Precedência do handoff:
-//   Divergência › Pendências › Aguardando tipster › Sem caixa › Conciliada
-// Divergência ganha porque erro realizado é mais urgente que fato a conferir; e
-// pendência ganha de tipster porque a primeira depende só de quem olha a tela.
+//   Divergência › Aguardando resultado › Aguardando tipster › Sem caixa › Conciliada
+// Divergência ganha porque erro realizado é mais urgente que espera. Entre as duas
+// esperas, a de RESULTADO vem primeiro: ela resolve sozinha com o tempo, a de
+// tipster depende de alguém agir.
 function _statusDaConta(cx, abertas, semTipster) {
   if (contasTab !== 'ativas') return ['arquivada', 0];
   if (cx && cx.estado === 'divergente') return ['divergencia', 0];
-  // `reconferir` = divergência endereçada que ainda não foi rebatida: é UM item a
-  // conferir, não um erro em aberto.
+  // `reconferir` = divergência endereçada que ainda não foi rebatida: entra como
+  // mais um item em espera, não como erro em aberto.
   const pend = (abertas || 0) + (cx && cx.estado === 'reconferir' ? 1 : 0);
-  if (pend > 0) return ['pendencia', pend];
+  if (pend > 0) return ['aguardando', pend];
   if (semTipster > 0) return ['tipster', semTipster];
   if (!cx || !cx.ligada || !cx.banca) return ['semcaixa', 0];
   return ['conciliada', 0];
