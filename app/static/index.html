@@ -312,7 +312,7 @@ html.embedded .sidebar { display: none; }
    começando NA MESMA LINHA dos KPIs, e abaixo concentração ao lado das contas.
    ⚠️ `grid-column`/`grid-row` explícitos nas duas colunas: sem eles o auto-placement
    joga o log para a coluna 1, embaixo, e a lateral nasce vazia. */
-.pc-top     { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: stretch; }
+.pc-top     { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; align-items: stretch; }
 .pc-topleft { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .pc-logcol  { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; min-width: 0; }
 .pc-logcol > .painel-card { flex: 1; overflow: hidden; }   /* log ocupa a lateral inteira */
@@ -324,7 +324,7 @@ html.embedded .sidebar { display: none; }
    mínimos delas) e a concentração cede o que faltar, até o alvo de 228px do handoff.
    Com `228px` cravado a concentração levava a largura toda e o nome da casa era
    cortado em 1440 — que é a largura mais comum. Quem tem alvo cede; quem tem piso não. */
-.pc-tri { display: grid; grid-template-columns: minmax(0, 285px) minmax(712px, 1fr); gap: 12px; align-items: stretch; }
+.pc-tri { display: grid; grid-template-columns: minmax(0, 399px) minmax(712px, 1fr); gap: 12px; align-items: stretch; }
 /* ⚠️ Estes breakpoints medem a largura do IFRAME, não a da janela: esta página vive
    dentro do `#fr-plan` da casca, e a sidebar (~300px) fica FORA dele. Num monitor de
    1440px a página tem ~1120 — um breakpoint de 1180 dispararia sempre, e foi
@@ -335,7 +335,12 @@ html.embedded .sidebar { display: none; }
    `.pc-tri` em 2 colunas exige iframe ≥ 228 + 12 + 620 + 12 + 240 = 1.112px — o que
    equivale a uma JANELA de ~1.430px, porque a sidebar (~300) fica fora do iframe.
    Abaixo disso a concentração desce; abaixo de 870 o log desce também. */
-@media (max-width: 1265px) {
+/* Recalculado para as colunas de 399/420: lado a lado exige
+   399 + 12 + 712 (piso da tabela) + 12 + 420 = 1.555px de IFRAME, e a concentração não
+   deve cair abaixo de ~330 (a rosca sozinha tem 150). Abaixo disso ela sobe para cima
+   da tabela, em largura cheia. 819px de painéis laterais pedem monitor largo — não há
+   como espremer os três. */
+@media (max-width: 1485px) {
   .pc-tri { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 870px) {
@@ -349,7 +354,16 @@ html.embedded .sidebar { display: none; }
 .workfull.sem-rail > .rail { display: none; }
 
 /* ── Concentração de caixa (Fase 4) ── */
-.pc-conc { display: flex; flex-direction: column; min-width: 0; }
+.pc-conc { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; container-name: conc; }
+/* Empilhado (tela estreita) o painel fica LARGO, e aí rosca e frase voltam a caber lado
+   a lado — e a lista vira duas colunas. Container query, não media: quem manda é a
+   largura do PAINEL, que muda por causa do layout e não da janela. */
+@container conc (min-width: 520px) {
+  .conc-topo { flex-direction: row; justify-content: center; gap: 26px; padding: 18px 16px; }
+  .conc-risco { text-align: left; max-width: 340px; }
+  .conc-lista { display: grid; grid-template-columns: 1fr 1fr; }
+  .conc-row:nth-child(2) { border-top: 0; }
+}
 /* Numa coluna de ~200px o título e a meta não cabem lado a lado — o `space-between`
    do cabeçalho padrão espremia a meta em três linhas por cima do título. Aqui eles
    empilham. */
@@ -358,12 +372,12 @@ html.embedded .sidebar { display: none; }
    1440px de janela (a sidebar é 62px mais larga que a da maquete), e lado a lado a
    frase ficaria com ~90px. Empilhado funciona nas duas larguras. */
 .conc-topo { display: flex; flex-direction: column; align-items: center; gap: 11px; padding: 15px 13px 13px; }
-.conc-rosca { position: relative; width: 110px; height: 110px; flex: none; }
-.conc-rosca svg { width: 110px; height: 110px; transform: rotate(-90deg); }
+.conc-rosca { position: relative; width: 150px; height: 150px; flex: none; }
+.conc-rosca svg { width: 150px; height: 150px; transform: rotate(-90deg); }
 .conc-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; }
-.conc-centro .n { font-family: var(--font-mono); font-size: 21px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.conc-centro .n { font-family: var(--font-mono); font-size: 27px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
 /* 7,5px é LABEL, e label vive em --ink-soft — abaixo de 10px o --ink-mute reprovaria. */
-.conc-centro .l { font-family: var(--font-mono); font-size: 7.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-soft); max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conc-centro .l { font-family: var(--font-mono); font-size: 7.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-soft); max-width: 124px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conc-risco { min-width: 0; text-align: center; }
 .conc-risco .eb { display: block; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .conc-risco p { margin: 5px 0 0; font-size: 11.5px; line-height: 1.42; color: var(--ink-soft); }
@@ -379,7 +393,28 @@ html.embedded .sidebar { display: none; }
 .conc-row .pct { grid-column: 2 / 4; margin-top: 3px; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; color: var(--accent-2); font-variant-numeric: tabular-nums; }
 /* Casa filtrando a tabela: o realce diz QUAL recorte está no ar. */
 .conc-row.on { background: rgba(var(--accent-rgb),.10); box-shadow: inset 2px 0 0 var(--accent); }
+/* Banca total: é o DENOMINADOR do painel — cada "% da banca" abaixo é fração dele.
+   Fica entre a frase de risco e a lista, que é onde a régua precisa estar. */
+.conc-banca { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 13px; border-top: 1px solid var(--line); }
+.conc-banca .eb { font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.conc-banca .v { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
 .conc-foot { padding: 10px 13px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .04em; color: var(--ink-soft); }
+
+/* ── Cards de Ativas / Arquivadas (s331c) ─────────────────────────────────────
+   O card É o filtro: antes o mesmo número aparecia na meta do cabeçalho, no
+   segmentado e num "N contas" à direita. Três lugares para um dado é como se cria
+   divergência sem mexer em nada — e nenhum dos três dizia qual estava selecionado
+   com clareza. */
+.contas-cards { display: flex; gap: 8px; flex: none; }
+.conta-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 92px; padding: 7px 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer; transition: .15s; text-align: left; }
+.conta-card:hover { border-color: var(--ink-mute); }
+.conta-card .l { font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.conta-card .n { font-family: var(--font-mono); font-size: 17px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+/* Selecionado: borda e véu de acento. O número sobe para --ink cheio — é ele que
+   descreve a lista que está na tela. */
+.conta-card.on { border-color: var(--accent); background: rgba(var(--accent-rgb),.10); }
+.conta-card.on .l { color: var(--accent-2); }
+.painel-gestao-count[hidden] { display: none; }
 
 /* ── Últimas ações (Fase 6) ── */
 .pc-log { flex: 1; min-height: 0; overflow-y: auto; }
@@ -482,12 +517,8 @@ html.embedded .sidebar { display: none; }
    caixa total". O "Caixa total" era duplicata literal do KPI "Banca total": dois
    números da MESMA pergunta na mesma tela é como se cria divergência sem ninguém
    mexer em nada. A contagem foi para a meta do cabeçalho e para o segmentado. */
-/* Contagem dentro do segmentado Ativas/Arquivadas. É metadado do label, então desce
-   um degrau na escada (--ink-mute) — e não um véu de `opacity`, que é multiplicador,
-   não degrau. Na aba ligada herda o rótulo: sobre azul sólido a escada não vale, e
-   rebaixar ali só borraria o número. Corpo = 11px do botão, acima do piso de 10px. */
-.contas-tabs .tab-n { font-variant-numeric: tabular-nums; color: var(--ink-mute); margin-left: 2px; }
-.contas-tabs button.on .tab-n { color: inherit; }
+/* s331c — .contas-tabs saiu: o segmentado virou os cards `.conta-card`, que são o
+   próprio filtro e carregam a contagem. */
 
 /* Painel de lista (direita) — card único; as .contas-casa viram seções planas.
    ⚠️ `max-width` é load-bearing, não enfeite: a coluna 1 é `minmax(0,1fr)` e num
@@ -2026,9 +2057,6 @@ td.c-res.res-HL { color: var(--warn); }
 /* ── Contas & Parceiros (gestão) — unificada no Painel de Contas (sessão 85b) ──
    A view separada #view-contas foi aposentada; a lista de gestão vive dentro do
    Painel de Contas (#painelContas). As classes .contas-* abaixo são reusadas lá. */
-.contas-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface); }
-.contas-tabs button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--ink-mute); background: transparent; border: 0; cursor: pointer; padding: 7px 14px; border-radius: var(--r-pill); transition: .15s; }
-.contas-tabs button.on { background: var(--accent); color: #fff; }
 .contas-search { display: flex; align-items: center; gap: 7px; margin-left: auto; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 12px; min-width: 240px; }
 .contas-search input { background: transparent; border: 0; outline: 0; color: var(--ink); font-size: 13px; width: 100%; font-family: var(--font-sans); }
 .contas-search input::placeholder { color: var(--ink-mute); }
@@ -2048,7 +2076,12 @@ td.c-res.res-HL { color: var(--warn); }
    e Apostas saíram — elas descreviam a ATIVIDADE da conta, e esta tela responde
    "quanto tem e está conciliado?". Cabeçalho, linha da casa e linha da conta usam a
    MESMA grade: é isso que mantém status e valor sempre no mesmo x.
-   A 4ª trilha fica reservada mesmo vazia — nada se desloca quando as ações aparecem. */
+   A trilha de AÇÕES fica reservada mesmo vazia — nada se desloca quando elas aparecem.
+   ⚠️ A 4ª trilha é SOBRA, e existe por causa de um defeito de leitura: com o nome em
+   `1fr` ele engolia toda a folga do monitor largo e empurrava Status e Caixa para longe
+   da identidade — a linha lia como duas ilhas. Agora o nome tem TETO (340px — cabe o mais longo, `Esportes da Sorte` + pílula), a sobra
+   fica entre a Caixa e as Ações, e as três primeiras colunas andam juntas à esquerda
+   enquanto os botões seguem encostados na borda direita, que é onde se procura ação. */
 .acct-head,
 .contas-casa-head,
 .conta-row {
@@ -2062,7 +2095,7 @@ td.c-res.res-HL { color: var(--warn); }
      ganharam ícone: os três botões medem 204px juntos, e com a trilha em 158 eles
      vazavam por cima da coluna Caixa — sem erro, porque `justify-content:flex-end`
      transborda para a ESQUERDA e isso não entra no `scrollWidth` da linha. */
-  grid-template-columns: minmax(228px, 1fr) minmax(120px, 148px) minmax(96px, 118px) minmax(210px, 232px);
+  grid-template-columns: minmax(228px, 340px) minmax(120px, 148px) minmax(96px, 118px) minmax(0, 1fr) minmax(210px, 232px);
   align-items: center; gap: 10px; padding: 0 14px;
 }
 .acct-head { padding: 9px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
@@ -3524,7 +3557,7 @@ function renderPainelLista() {
         + '<span class="contas-casa-nome" title="' + esc(nomeCasa) + '">' + esc(nomeCasa) + '</span>'
         + '<span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span>'
       + '</span>'
-      + '<span></span>' + casaTotal + '<span></span>'
+      + '<span></span>' + casaTotal + '<span></span><span></span>'
       + '</div><div class="acct-group">';
     const cxMap = _caixaPorConta() || {};
     ps.forEach(p => {
@@ -3565,7 +3598,7 @@ function renderPainelLista() {
           + '<span class="conta-nome">' + esc(nomeLimpo || '—') + '</span>'
           + (forn ? '<span class="conta-forn">' + esc(forn) + '</span>' : '')
         + '</span>'
-        + tag + caixa
+        + tag + caixa + '<span></span>'
         + '<span class="conta-acoes">' + acoes + '</span></div>';
     });
     html += '</div></div>';
@@ -3747,6 +3780,12 @@ function renderPainelConcentracao(v) {
       '<div class="conc-risco"><span class="eb">Concentração</span>'
         + '<p>' + esc(_fraseRisco(comCaixa, total)) + '</p></div>' +
     '</div>' +
+    // A banca total mora aqui porque é o DENOMINADOR do painel: cada "% da banca" da
+    // lista abaixo é uma fração deste número, e sem ele o percentual fica sem régua.
+    // É o mesmo valor do KPI "Banca total" — mas ali ele é resultado, e aqui é a base
+    // da conta que se está lendo.
+    '<div class="conc-banca"><span class="eb">Banca total</span>'
+      + '<span class="v">' + fmtSaldo(total) + '</span></div>' +
     '<div class="conc-lista">' +
       fatias.map(f => {
         const pct = (f.v / total * 100);
@@ -3783,6 +3822,7 @@ function painelSetTab(tab, btn) {
   contasTab = tab;
   const box = btn && btn.parentElement;
   if (box) box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === btn));
+  if (typeof painelCasaFiltro !== 'undefined') painelCasaFiltro = '';   // troca de aba solta o recorte por casa
   renderPainelLista();
 }
 
@@ -4527,24 +4567,27 @@ function renderPainelContas() {
     '<div class="painel-card painel-lista-panel">' +
       '<div class="painel-card-head">' +
         '<span class="painel-card-titulo">Contas</span>' +
-        '<span class="painel-card-count">' + nf(totAtivas) + ' ativas · ' + nf(totContas) + ' no total</span>' +
+        '<span class="painel-card-count">' + nf(totContas) + ' no total · ' + nf(casasComConta) + (casasComConta === 1 ? ' casa' : ' casas') + '</span>' +
         '<button class="btn btn-primary btn-sm painel-nova" type="button" onclick="abrirModalNovaConta(&quot;painel&quot;)">+ Nova conta</button>' +
       '</div>' +
       '<div class="painel-lista-toolbar">' +
         '<div class="contas-search" style="margin-left:0;min-width:150px;flex:1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
         '<input id="painel-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
-        // O segmentado CARREGA a contagem: é onde se escolhe entre as duas listas,
-        // então é onde o tamanho de cada uma pertence.
-        '<div class="contas-tabs">' +
-          '<button class="' + (tabAtiva ? 'on' : '') + '" type="button" onclick="painelSetTab(&quot;ativas&quot;,this)">Ativas <span class="tab-n">' + nf(totAtivas) + '</span></button>' +
-          '<button class="' + (tabAtiva ? '' : 'on') + '" type="button" onclick="painelSetTab(&quot;arquivadas&quot;,this)">Arquivadas <span class="tab-n">' + nf(totInativas) + '</span></button>' +
+        // s331c — o segmentado virou CARD, e o card É o filtro. Antes o mesmo dado
+        // aparecia em três lugares (meta do cabeçalho, segmentado e "N contas" à
+        // direita); agora o número vive uma vez só, no lugar onde também se escolhe.
+        '<div class="contas-cards">' +
+          '<button class="conta-card' + (tabAtiva ? ' on' : '') + '" type="button" onclick="painelSetTab(&quot;ativas&quot;,this)">' +
+            '<span class="l">Ativas</span><span class="n">' + nf(totAtivas) + '</span></button>' +
+          '<button class="conta-card' + (tabAtiva ? '' : ' on') + '" type="button" onclick="painelSetTab(&quot;arquivadas&quot;,this)">' +
+            '<span class="l">Arquivadas</span><span class="n">' + nf(totInativas) + '</span></button>' +
         '</div>' +
-        '<span class="painel-gestao-count" id="painelGestaoCount" style="margin-left:auto"></span>' +
+        '<span class="painel-gestao-count" id="painelGestaoCount" hidden></span>' +
       '</div>' +
       // Cabeçalho de colunas — a MESMA grade das linhas, então nunca desalinha.
       // "Caixa", não "Caixa da conta": o rótulo da coluna não repete o da tabela.
       '<div class="acct-head">' +
-        '<span>Conta</span><span>Status</span><span class="r">Caixa</span><span></span>' +
+        '<span>Conta</span><span>Status</span><span class="r">Caixa</span><span></span><span></span>' +
       '</div>' +
       '<div id="painelGestaoList"></div>' +
     '</div>';
