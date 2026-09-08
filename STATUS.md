@@ -89,6 +89,31 @@ passando por cima da coluna Caixa, sem erro nenhum e sem o gate de largura acusa
 > — com `flex-end` (ou `direction: rtl`) ele é cego. Compare a **borda** do item com a do
 > contêiner, e não a largura com o `scrollWidth`.
 
+### O SharpenCal chegou à grade de Extração (e viajou dentro do commit da s331b)
+
+Duplo-clique na coluna `Data` da grade de Extração abre o calendário da marca, que era o
+único campo de data do sistema ainda sem ele (`UI_REFERENCE §4`). É a mesma chamada de
+`_apInlineStart` (`charts/apostas.js:848`), que já servia a `Base Completa` e `Em Aberto`:
+digitar continua valendo, escolher um dia preenche e salva. O `finish()` ganhou o
+`SharpenCal.fechar()` junto, senão Enter e blur deixariam o popover aberto sem dono,
+porque nenhum dos dois passa pelo "clicar fora" que fecha o calendário.
+
+Provado em tela contra o `servidor_demo.py` com puppeteer headless, e não só por
+`node --check`: o calendário abre no mês da própria célula com o dia dela selecionado ·
+clicar num dia dispara `PATCH /bilhetes/{id}` e a célula fecha com a data nova · `Esc`
+fecha só o calendário e mantém o editor. Duas armadilhas do arnês, nenhuma do produto:
+`screenshot` com `clip` dispara `resize`, e o SharpenCal fecha no `resize` por desenho
+(o print vai depois da medição); e `elementHandle.boundingBox()` de dentro do iframe não
+serve para `mouse.click` na página, então o duplo-clique vai por evento sintético.
+
+> **Registro do caso 8:** esta mudança **não tem commit próprio**. Ela estava no
+> `index.html` esperando aprovação quando a sessão da s331b commitou o mesmo arquivo, e
+> foi levada dentro do `eb0b342`. O histórico já estava pushado, então não foi reescrito.
+> As duas sessões editaram o **mesmo arquivo**, e aí o `git add` por nome não separa nada
+> — é o limite da regra do invariante 8, e vale escrevê-lo: com o arquivo compartilhado,
+> quem termina primeiro leva o trabalho do outro junto, e a única defesa é a segunda
+> sessão conferir o `git show --stat` e registrar, como está aqui.
+
 ### Ficou de fora, e está no `BACKLOG.md`
 
 - **Título da página em 19px.** `.pagehead-title` é casca: o `SHELL_SPEC` e o
