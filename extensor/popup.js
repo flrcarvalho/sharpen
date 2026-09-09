@@ -47,6 +47,9 @@ const CASA_HOSTS = {
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
   "Betboom":    ["betboom.bet.br"],   // espelho da Jonbet · mesmo motor BetBy (sptpub.com)
+  // 3ª casa BetBy (s336) · MESMO cluster e MESMO hash de operador da Jonbet
+  // (`api-31-sp-c7818b61-…`). O sportsbook vive em `/pt/sports`.
+  "Blaze":      ["blaze.bet.br"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -228,6 +231,11 @@ async function capturar() {
                 // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
                 // `/api/v1/my_bets/list`): MESMO inject, de propósito.
                 : (casa === "Jonbet" || casa === "Betboom") ? "jb_inject.js"
+                // Blaze: 3ª casa BetBy (s336) — MESMO inject. Linha PRÓPRIA de propósito:
+                // o `injects_popup()` do audit casa por `casa === "X" ? "y.js"` e não
+                // enxerga a forma com `||` (por isso Jonbet/Betboom passam sem a checagem
+                // de manifest, e a Blaze não vai passar).
+                : casa === "Blaze" ? "jb_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.

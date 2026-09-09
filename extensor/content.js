@@ -1197,7 +1197,7 @@
       // ⚠ É a casa mais LENTA da base por desenho: o detalhe é sequencial. A janela de dias
       // é o freio que impede isso virar 152 chamadas toda vez.
       blocos = await roboLTPassive(ctx);
-    } else if (casa === "jonbet" || casa === "betboom") {
+    } else if (casa === "jonbet" || casa === "betboom" || casa === "blaze") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
       // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
       // de texto: os cards da Jonbet ficam num grid de 3 colunas, sem linha em branco entre
@@ -1208,6 +1208,13 @@
       // (`sptpub.com`), mesmo `GET /api/v1/my_bets/list`, mesmos nomes de campo, mesmo enum de
       // status. Só muda o cluster do host (`api-32-…` × `api-31-…`), que o inject nunca
       // hardcoda: o `RX` casa por PATH. Um ramo, um inject, um formatador — como Tivo/Betfast.
+      //
+      // A BLAZE é a 3ª da família (s336) e cai aqui pelo mesmo motivo, com um detalhe a
+      // mais: ela roda no MESMO cluster e no MESMO hash de operador da Jonbet
+      // (`api-31-sp-c7818b61-…`). Aqui o BetBy vive dentro de um SHADOW ROOT, o que não
+      // atrapalha o inject (ele engancha `window.fetch` no mundo MAIN, antes do DOM) mas
+      // mataria qualquer leitura por `innerText` — mais um motivo para não haver fallback
+      // de texto neste ramo.
       blocos = await roboJBPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
@@ -1347,6 +1354,9 @@
         // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "Jonbet: 0 bilhetes" estando na Betboom.
         betboom:    { nome: "Betboom",    hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
+        // 3ª casa BetBy (s336) — mesma razão da Betboom: contadores compartilhados, nome
+        // próprio, para o operador não ler "Jonbet: 0 bilhetes" estando na Blaze.
+        blaze:      { nome: "Blaze",      hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -3901,9 +3911,37 @@
 
   // Odd DECLARADA pela casa (a exibida no card). `oddTotal` é a do bilhete inteiro, mas zera
   // na perdida — aí a verdadeira está em `oddBilhete`. NUNCA usar `oddTotal` sozinha.
+  //
+  // ⚠ TERCEIRO DEGRAU (Blaze, s336): os DOIS campos do topo podem vir zerados ao mesmo
+  // tempo — 4 das 86 perdidas da conta do recon. Aí a odd existe apenas dentro da seleção,
+  // e **o card deixa a linha "Total de odds" VAZIA**: a casa também não tem o número e não
+  // escreve zero nenhum. Parar no `oddBilhete` gravaria `0` numa coluna Odd, que é a família
+  // do "zero não é ausência" (CLAUDE.md) — passa em toda checagem de forma porque tem cara
+  // de conta feita, e num bilhete GANHO faria `stake × (0 − 1)` virar −1u.
+  //
+  // O degrau só pode disparar com os dois zerados, e é isso que o separa do `refund`/
+  // `canceled`: lá a casa achata `k`/`total_k` para **1** e o card estampa 1 — o produto das
+  // seleções (2,5 · 1,5 na fixture da Blaze) seria invenção nossa por cima da tela.
+  //
+  // Sem odd em NENHUM lugar, devolve `null` — nunca 0. Ausência viaja como ausência.
   function _oddDeclJB(b) {
     if (b.oddTotal != null && b.oddTotal !== 0) return b.oddTotal;
-    return b.oddBilhete != null ? b.oddBilhete : null;
+    if (b.oddBilhete != null && b.oddBilhete !== 0) return b.oddBilhete;
+    return _oddPorSelecoesJB(b);
+  }
+
+  // Odd do bilhete reconstruída pelas pernas: produto das odds das seleções. Só vale se
+  // TODAS trouxerem odd > 0 — uma perna sem número tornaria o produto uma conta parcial,
+  // que não é derivável de lugar nenhum (é a mesma regra da odd de conjunto do bet builder).
+  function _oddPorSelecoesJB(b) {
+    const sels = b.sels || [];
+    if (!sels.length) return null;
+    let p = 1;
+    for (const s of sels) {
+      if (s.odd == null || !isFinite(s.odd) || s.odd <= 0) return null;
+      p *= s.odd;
+    }
+    return p;
   }
 
   // Retorno EFETIVO do bilhete resolvido. A ordem é a do próprio app da casa:
@@ -4061,7 +4099,7 @@
     }
     await sleep(400);
     processar();   // consome o que chegou por último
-    console.log("[SharpenUp] Jonbet/Betboom: " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
+    console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze): " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
                 " · hook=" + jbHookVivo + " · respostas=" + jbRespostas + " · fimReal=" + jbFimReal);
     return blocos;
   }

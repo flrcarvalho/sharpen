@@ -1,6 +1,6 @@
-# HISTÓRICO — Sessões 331 → 300
+# HISTÓRICO — Sessões 333 → 300
 
-> Os blocos completos que saíram do `STATUS.md` (331 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
+> Os blocos completos que saíram do `STATUS.md` (333 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
 >
 > Partição do `docs/HISTORICO.md`, criada na faxina de documentação de 2026-09-07 (Lote C). **O texto é o original, verbatim** — só foi partido.
 
@@ -174,10 +174,41 @@ herdada do handoff: o rótulo do centro estava em 7,5px, abaixo do piso de 9,5px
 
 ---
 
-## Blocos completos — sessões 332 → 317
+## Blocos completos — sessões 333 → 317
 
 > Blocos movidos INTACTOS do `STATUS.md` (Lote B da faxina de documentação). O STATUS passou
 > a guardar só o estado atual e as 3 últimas sessões, como o ritual `/encerrar` já mandava.
+
+## Sessão 333 — Contas e Parceiros v2, Fases 7 e 8
+
+### Contas & Parceiros: a folga do monitor largo virou informação
+
+As Fases 7 e 8 do handoff v2 estão aplicadas. A tela tem cinco leituras: quatro
+números de dinheiro no topo, `Últimas ações` na lateral inteira e, embaixo,
+`Concentração de caixa` · `Contas` · `Fornecedores`.
+
+| Área do app | Zonas | Colunas da tabela | Ações |
+|---|---|---|---|
+| < 1.094px | tudo empilhado, log embaixo | Conta (fornecedor ao lado) · Status · Caixa | no hover |
+| 1.094–1.333 | log ao lado, zonas empilhadas | idem, e a de Fornecedor abre se a tabela ≥ 990 | no hover |
+| 1.334–1.737 | Concentração ao lado da tabela | + **Fornecedor** como coluna própria | no hover |
+| ≥ 1.738 | as três zonas lado a lado | + **Última captura** com a tabela ≥ 1.150 | sempre visíveis |
+
+> **O que esta sessão ensinou, e vale para qualquer tela com degrau:** o corte não
+> sai do número do handoff, sai da conta do conteúdo — e a conta muda conforme o
+> que está ao lado. Por isso são DOIS containers e não um: o `pc` mede a área do
+> app e decide as zonas; o `acct` mede a tabela e decide as colunas. Com um só,
+> o mesmo monitor abriria a coluna numa largura e a fecharia noutra sem motivo
+> visível. E encostar num corte cedo demais **não dá erro**: a tabela transborda
+> para dentro do `overflow:hidden` do painel e some do `scrollWidth`.
+
+### O que ficou aberto desta sessão
+
+Os dois `Banca total` divergentes ([`BACKLOG §4`](../../BACKLOG.md#4-dívida-técnica-medida)) —
+medido, não corrigido, porque o conserto muda o significado de um dos dois e essa
+escolha é do Feca.
+
+---
 
 ## Sessão 332 — a remedição do custo
 

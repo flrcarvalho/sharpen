@@ -34,6 +34,9 @@ const CASA_ICONS={
   // linha o favicon da R7 caia no globo generico.
   'R7':'https://www.google.com/s2/favicons?sz=128&domain=r7.bet.br',
   'Betboom':'https://www.google.com/s2/favicons?sz=128&domain=betboom.bet.br',
+  // 3a casa BetBy (s336). Ja havia 86 bilhetes em `Blaze` na base, capturados por
+  // print — sem esta linha o favicon deles caia no globo generico.
+  'Blaze':'https://www.google.com/s2/favicons?sz=128&domain=blaze.bet.br',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
   'Betboo':'https://www.google.com/s2/favicons?sz=128&domain=betboo.com',
@@ -125,6 +128,7 @@ const HOUSE_DOMAIN={
   'Betão':'betao.bet.br',
   'R7':'r7.bet.br',
   'Betboom':'betboom.bet.br',
+  'Blaze':'blaze.bet.br',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo
   'Polymarket':'polymarket.com',

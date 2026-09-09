@@ -67,7 +67,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
                    "BOLSADEAPOSTA": "texto",
                    # Motor Rogue (s335) — tres casas espelho, um inject so.
                    "BETAO": "texto", "R7": "texto", "7GAMES": "texto"}
@@ -166,6 +166,9 @@ _HOSTS_POR_CASA = {
     # Espelho da Jonbet: mesmo BetBy, outro cluster (`api-32-…` × `api-31-…`) e outro tenant
     # do renderer (betboombr.sptpub.com). A ABA continua sendo o site da casa.
     "BETBOOM":    ("betboom.bet.br",),
+    # 3ª casa BetBy (s336). O renderer sai de `blaze.sptpub.com` e a API de
+    # `api-31-sp-c7818b61-….sptpub.com`, mas a ABA continua sendo o site da casa.
+    "BLAZE":      ("blaze.bet.br",),
 }
 
 

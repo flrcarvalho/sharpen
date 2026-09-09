@@ -7,18 +7,103 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
 
-_Atualizado: 2026-09-09 (sessao 336: **Fase 0 da BARREIRA DE RECAPTURA no ar, e o estudo de custo remedido por usuario e por casa.** Origem: pergunta do Feca — extrair as ultimas 48h e repetir 2h depois paga hoje pelos MESMOS bilhetes, porque toda captura vai inteira para a IA e a dedup so acontece DEPOIS, no upsert. **Medido sobre 15.318 blocos reais da sombra (13 dias, 21 casas): 32,5% de tudo que pagamos e releitura de bloco IDENTICO**; na Bet365 e 39,9%. Alcance quase total: 99,3% dos bilhetes de extracao tem codigo. **A chave e o HASH DO BLOCO, nao o par (codigo, resultado) que seria o obvio:** as duas decidem igual em 97,7% dos casos e nos 2,3% restantes o bloco mudou COM o `Status:` igual, entao a chave por rotulo pularia e perderia a mudanca. Alem disso o texto de status nao e fonte confiavel de estado (`_resultadoB3` escreve `Ganho → W` para QUALQUER retorno maior que a stake, meia vitoria inclusive) — comparar bytes nao herda esse defeito porque nao interpreta nada. E liquidar nao mexe so no status: a odd muda junto, de potencial para `Retorno ÷ Stake`. **Simulado lote a lote e VALIDADO contra a conta real (erro +4,5%): −29,3% da conta, R$ 0,092 → R$ 0,065 por bilhete.** **Velocidade quase nao muda** e isso esta escrito no plano para ninguem prometer o que nao vai acontecer: a mediana fica em 30,5s (os pedacos ja correm em paralelo, o relogio e UM pedaco vezes o numero de ondas), so o p99 cai 43,7%; o ganho de verdade e a extracao que fica VAZIA, 30s viram menos de 1. **Esta fase NAO FILTRA NADA** — tabela `bloco_visto`, gravacao do hash no `done` e um log dizendo quantos blocos SERIAM pulados, para conferir o numero em producao antes de qualquer byte deixar de ser processado. **O custo remedido por usuario e por casa mostrou o driver unico:** o custo por bilhete e quase inteiramente funcao de BILHETES POR CHAMADA, porque o manual de 48k tokens e relido a cada pedaco. perereca faz 55,9 bilhetes/chamada e paga R$ 0,037; Marques19981 faz 2,4 e paga R$ 0,414. **E a Bet365 NAO e cara, ela e grande:** R$ 0,080/bilhete, ABAIXO da media de R$ 0,092 e a mais barata entre as casas de volume. A cara e a KTO, R$ 0,429 com 1,7 bilhete por chamada. **Gates:** 11 testes novos, 783 passed / 30 skipped, mutacao provada por fora (hash constante derruba 4 casos, restaurar devolve o verde) e uma mutacao INOCUA registrada como tal em vez de disfarcada. A s335 rodou em PARALELO, noutra sessao.)
+_Atualizado: 2026-09-09 (sessao 337: **Blaze na captura automatica — 3a casa BetBy, sem uma linha de inject nova, e um defeito de odd que ela expos nas OUTRAS duas.** O espelho foi provado ANTES de escrever codigo e **sem login**: `/pt/sports` carrega `blaze.sptpub.com/bt-renderer` e o trafego sai em `api-31-sp-c7818b61-584` — **mesmo cluster e mesmo hash de operador da Jonbet**. Reusa `jb_inject.js`, `formatTicketJB` e `roboJBPassive`; mudou o ramo do `iniciarRobo`, o autodiagnostico e os 12 registros. **A varredura ao vivo deu 165 bilhetes** (`status` vazio, 5 cards lidos verbatim) e trouxe quatro achados que o espelho nao dispensava. (1) **A casa IGNORA o `limit` pedido**: pedi 100 e vieram 21 por pagina, oito paginas — quem avanca o `skip` pelo que PEDIU pula 79 por pagina, e o loop so nao quebra porque avanca pelo que VOLTOU. (2) **`total_k` zerou em 86 de 86 perdidas**, a armadilha conhecida da familia. (3) **A NOVA: em 4 dessas 86 o `k` TAMBEM vem zero** e a odd so existe dentro da selecao — **e o card deixa a linha "Total de odds" VAZIA**, ou seja a casa tambem nao tem o numero e nao escreve zero nenhum. Parar no `k` gravaria `0` numa coluna Odd, que e a familia do "zero nao e ausencia": passa em toda checagem de forma porque tem cara de conta feita, e num bilhete GANHO faria `stake x (0-1)` virar -1u. **O `_oddDeclJB` ganhou um terceiro degrau** (`total_k` -> `k` -> produto das selecoes -> `null`, nunca 0) e **conserta as tres casas de uma vez**. (4) `refund`/`canceled` achatam a odd para **1** — e ali o `1` e a VERDADE da tela, entao o degrau novo so pode disparar com os dois campos zerados; o caso trava os DOIS lados. **Gates:** harness 27 casos / 436 bilhetes verde, `audit_sharpenup` sem FAIL, `audit_casas` limpo (**e ele pegou uma categoria que eu inventei** — `Placar Exato` nao existe no MASTER; virou `Outros` mais um item de feedback, sem criar categoria por conta propria), e **mutacao provada nos dois sentidos**: o gate nasceu VERMELHO no bilhete certo e, com o produto vencendo sempre, acende 7 falhas, 2 delas nos `V`. A mesma mutacao passa **inocua** na Jonbet e na Betboom — espelho compartilha o conserto, nao compartilha a prova. **NAO coberto, medido e declarado no cabecalho do caso:** a conta nao tinha aposta ABERTA, cashout, boost, freebet nem sistema (`combinations` vazio em 165 de 165), e 3 dos 8 esperados vieram do corpo da resposta porque os cards de marco estavam ~100 posicoes abaixo e o filtro "Personalizado" da casa travou. **Descoberta de lado:** o BetBy da Blaze renderiza dentro de um **shadow root** — `document.body.innerText` traz 2,9 KB de casca e zero bilhete; casa assim nunca pode ter fallback de texto, porque o robo generico nao falha, ele manda a casca para a IA. **Os dois registros de `app/main.py` foram levados pelo commit da s336**, que estava com o arquivo — o caso 8 de novo, registrado e nao reescrito. Falta a validacao ao vivo, que so o operador faz. A s336 rodou em PARALELO, noutra sessao.)
+
+_Anterior: 2026-09-09 (sessao 336: **Fase 0 da BARREIRA DE RECAPTURA no ar, e o estudo de custo remedido por usuario e por casa.** Origem: pergunta do Feca — extrair as ultimas 48h e repetir 2h depois paga hoje pelos MESMOS bilhetes, porque toda captura vai inteira para a IA e a dedup so acontece DEPOIS, no upsert. **Medido sobre 15.318 blocos reais da sombra (13 dias, 21 casas): 32,5% de tudo que pagamos e releitura de bloco IDENTICO**; na Bet365 e 39,9%. Alcance quase total: 99,3% dos bilhetes de extracao tem codigo. **A chave e o HASH DO BLOCO, nao o par (codigo, resultado) que seria o obvio:** as duas decidem igual em 97,7% dos casos e nos 2,3% restantes o bloco mudou COM o `Status:` igual, entao a chave por rotulo pularia e perderia a mudanca. Alem disso o texto de status nao e fonte confiavel de estado (`_resultadoB3` escreve `Ganho → W` para QUALQUER retorno maior que a stake, meia vitoria inclusive) — comparar bytes nao herda esse defeito porque nao interpreta nada. E liquidar nao mexe so no status: a odd muda junto, de potencial para `Retorno ÷ Stake`. **Simulado lote a lote e VALIDADO contra a conta real (erro +4,5%): −29,3% da conta, R$ 0,092 → R$ 0,065 por bilhete.** **Velocidade quase nao muda** e isso esta escrito no plano para ninguem prometer o que nao vai acontecer: a mediana fica em 30,5s (os pedacos ja correm em paralelo, o relogio e UM pedaco vezes o numero de ondas), so o p99 cai 43,7%; o ganho de verdade e a extracao que fica VAZIA, 30s viram menos de 1. **Esta fase NAO FILTRA NADA** — tabela `bloco_visto`, gravacao do hash no `done` e um log dizendo quantos blocos SERIAM pulados, para conferir o numero em producao antes de qualquer byte deixar de ser processado. **O custo remedido por usuario e por casa mostrou o driver unico:** o custo por bilhete e quase inteiramente funcao de BILHETES POR CHAMADA, porque o manual de 48k tokens e relido a cada pedaco. perereca faz 55,9 bilhetes/chamada e paga R$ 0,037; Marques19981 faz 2,4 e paga R$ 0,414. **E a Bet365 NAO e cara, ela e grande:** R$ 0,080/bilhete, ABAIXO da media de R$ 0,092 e a mais barata entre as casas de volume. A cara e a KTO, R$ 0,429 com 1,7 bilhete por chamada. **Gates:** 11 testes novos, 783 passed / 30 skipped, mutacao provada por fora (hash constante derruba 4 casos, restaurar devolve o verde) e uma mutacao INOCUA registrada como tal em vez de disfarcada. A s335 rodou em PARALELO, noutra sessao.)
 
 _Anterior: 2026-09-09 (sessao 335: **tres casas novas no SharpenUp, num motor novo: Rogue.** Betao, R7 e 7Games sao espelho de verdade, servido do PROPRIO dominio da casa em `/api/sportsbook/rogue/...`, como a Novibet. Nao e Altenar, nao e BetBy, nao e Kambi, nao e BetConstruct. Um `rg_inject.js` e um `formatTicketRG` servem as tres, e a irmandade foi MEDIDA antes de escrever codigo (mesma stack Next.js, mesmo conjunto de hosts, mesmo mapa de endpoints extraido dos bundles das tres). **O contrato:** `GET /v1/betsreporting/purchases?status=all&take=<1..100>&skip=<n>&fromDate&toDate` com `authorization: Bearer`, devolvendo `{Purchases, PurchasesCount}`; `take` tem teto de 100 e a casa DIZ o limite (`ErrorCode 2003`) em vez de truncar calada. **A semantica saiu do DINHEIRO, nao do rotulo** (a API manda enum numerico puro), provada em 27 de 27 bilhetes: `BetStatusId` 0 com saldo 0 e sem `Result` e aberta, 1 e L, 2 com `saldo = stake x odd` e W, 4 com `saldo = stake` exato e V. **A armadilha central e o `Gain`:** ele e o retorno POTENCIAL e vale `stake x odd` em 27/27, INCLUSIVE em perdida e em aberta; o realizado e `CurrentBetBalance`. Quem le o campo obvio marca toda perda como ganho, que e o `totalWin` da VaideBet (s210) com o terceiro nome. **Dois achados mudaram o codigo:** (1) a TELA E ESTREITA, abre em `Ult. 24 horas` com `take=10` e no recon o filtro de 30 dias do Betao devolvia `PurchasesCount: 0` numa conta com 9 bilhetes, entao o replay alarga para 36 meses e pede `status=all`; (2) **o Bearer EXPIRA**, medido testando o inject contra a casa real (token de ~1h responde 401), e guardar so a PRIMEIRA requisicao fazia o contexto envelhecer junto com a aba. **A gemea `r7.bet` foi unificada ANTES do registro** (a base decidiu: 40 bilhetes de 2 donos contra 1), senao o bilhete do Jaao26 ficaria numa casa que a conta dele nao enxerga, o defeito da s249. **O gate pegou um defeito meu antes de subir:** `_casaConectavel()` normalizava espaco mas nao ACENTO, e a chave e `BETAO` enquanto o display e `Betao` com til, entao o botao Conectar nasceria desabilitado (o bug da s191 na terceira encarnacao). **Gates:** harness 26 casos / 428 bilhetes, `audit_sharpenup` 31 casas sem FAIL nem WARN, `audit_casas` limpo, check-tokens verde, 772 passed, e **mutacao 12 de 12 detectadas** (as duas que escaparam de primeira eram buraco de TESTE, nao de codigo, e viraram caso proprio). **NAO coberto, medido:** as 27 apostas sao todas simples, sem multipla, sistema, cashout, freebet nem meia-liquidacao. Falta a Fase 7, que so o operador faz.)
-
-_Anterior: 2026-09-09 (sessao 334: **Fase 1 do tradutor deterministico avancada na Bet365. Cobertura de 66,6% para 70,7% COM a divergencia de descricao caindo de 21,4% para 20,5%** — subir uma e baixar a outra e a unica combinacao que autoriza seguir. **A sombra medida:** 15.181 pares, 13 dias, 21 casas. A Bet365 usa 228 rotulos de mercado, ou 180 depois de normalizar; **40 cobrem 90% das linhas** e a cauda e 0,18%. Um dicionario por voto de maioria concorda com a IA em **97,66%**. A Betano usa 686 rotulos porque **embute nome proprio no rotulo** (`Josh Coburn Total de chutes`); normalizando por sufixo eles colapsam 60%, mas ela so tem 552 bilhetes de 1 selecao contra 7.779 da Bet365, entao ela ESPERA. **A regra que a medicao obrigou a criar:** dezessete rotulos passaram na regua de categoria (maioria >=95%, n>=5) e **so sete ficaram**, porque acertar a categoria nao basta, a DESCRICAO tem de bater junto — aplicando os dezessete, a cobertura ia a 73,5% e a divergencia de descricao SUBIA para 22,8%. Os dez cortados sao duas familias que pedem codigo e nao linha de tabela: prop de SIM/NAO, onde a selecao e `Sim` e quem carrega a aposta e o ROTULO (`Terminar com Pontos` sai `Franco Colapinto - Sim` e a IA escreve `Franco Colapinto - Terminar com Pontos`, 98% de divergencia em 52 casos), e escopo de tempo, onde o periodo muda a aposta e precisa aparecer (`1º Tempo - Escanteios Asiaticos`, 98% em 41). **Entrou o corte do sufixo `- N Opcoes`** como ULTIMA tentativa: `Total - 2 Opcoes` esta no mapa por inteiro e cortar antes deixaria a chave em `total`, derrubando 498 blocos de uma vez. **Tres achados de desenho:** (1) o esporte NAO sai do codigo da casa, `CL=18` deu eBasket 607 e Basquete 223 e quem decide e a liga; (2) a normalizacao de prefixo e obrigatoria e difere por casa; (3) `Tipo: … (N selecoes)` conta PERNAS, nao mercados. **A triagem que muda a leitura dos 20%:** das 1.376 divergencias de descricao, 657 sao nome de time localizado (limitacao declarada), 538 sao notacao de numero e 81 sao a IA escrevendo `Mais de` onde o MASTER manda `Over`. Das 538, **520 (96,7%) sao NOTACAO e nao valor** — o MASTER nao fixa a forma da linha partida e e ali que a IA improvisa em tres formatos. **Buraco de MASTER, nao defeito de tradutor** (`BACKLOG §3.8`, decisao do Feca). **Gates:** 24 passed, mutacao provada nos dois sentidos do corte do sufixo, e replay contra os 9.641 blocos reais da sombra. Registrado no `PLANO_TRADUTOR_DETERMINISTICO §II.8`. A s333 rodou em PARALELO, noutra sessao.)
 
 
 > **Histórico completo das sessões 332 → 14** → [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
 ---
 
-## Onde parei (fim da sessão 336)
+## Onde parei (fim da sessão 337)
+
+### Blaze: a terceira casa BetBy, e o degrau de odd que ela expôs nas outras duas
+
+Detalhes em [`casas/CASA_BLAZE.md`](casas/CASA_BLAZE.md). O espelho foi **provado antes de
+escrever código e sem login**: `/pt/sports` carrega `blaze.sptpub.com/bt-renderer`, e o
+tráfego sai em `api-31-sp-c7818b61-584` — **mesmo cluster e mesmo hash de operador da
+Jonbet**. Zero arquivo de captura novo: reusa `jb_inject.js`, `formatTicketJB` e
+`roboJBPassive`.
+
+Varredura ao vivo de **165 bilhetes** (`status` vazio), com 5 cards lidos verbatim na tela.
+
+### O achado que muda código: a odd que a casa NÃO tem
+
+`total_k` veio `"0"` em **86 de 86 perdidas** — a armadilha conhecida da família. A nova é
+que **em 4 dessas 86 o `k` também vem zero**, e a odd só existe dentro da seleção.
+
+E o card concorda com a API: a linha **"Total de odds" aparece VAZIA**. A casa também não
+tem o número, e não escreve zero nenhum.
+
+Parar no `k` gravaria `0` numa coluna Odd. É a família do *"zero não é ausência"*: o `0`
+passa em toda checagem de forma porque tem cara de conta feita — e num bilhete **ganho**
+faria `stake × (0 − 1)` virar `−1u`. O `_oddDeclJB` ganhou um terceiro degrau:
+
+```
+total_k, se ≠ 0  →  k, se ≠ 0  →  produto das seleções, se todas > 0  →  null (nunca 0)
+```
+
+**Conserta as três casas de uma vez.** E o degrau só pode disparar com os dois campos
+zerados: em `refund`/`canceled` a casa achata a odd para **1** e ali o `1` é a verdade da
+tela — o produto das pernas (2,5 · 1,5) seria invenção nossa por cima do card. O caso do
+harness trava os **dois** lados.
+
+### O que a paginação ensinou
+
+Pedi `limit=100` e a Blaze devolveu **21 por página**, oito páginas, `count` constante em
+165. A casa **ignora o `limit` pedido**. Quem avança o `skip` pelo que pediu pula 79
+bilhetes por página; o loop do `jb_inject` só não quebra porque avança pelo tamanho que
+**voltou**.
+
+### Gates, e as duas coisas que eles pegaram
+
+| Gate | Resultado |
+|---|---|
+| `node extensor/harness/run.mjs` | verde — 27 casos, **436 bilhetes** |
+| `python tools/audit_sharpenup.py` | sem FAIL |
+| `python tools/audit_casas.py` | limpo |
+| `pytest tests/` | 773 passed (as falhas restantes são da s336, em curso noutra sessão) |
+
+O `audit_casas` **pegou uma categoria que eu inventei**: `Placar Exato` não existe no
+`MASTER_APOSTAS §3`. Virou `Outros ⚠️` mais um item de feedback no rodapé do arquivo da
+casa — criar categoria é decisão do Feca e arrasta a propagação inteira.
+
+E a **mutação foi provada nos dois sentidos**: o gate nasceu **vermelho** no bilhete certo
+e, com o produto vencendo sempre, acende 7 falhas — 2 delas exatamente nos `V`. A mesma
+mutação passa **inócua** na Jonbet e na Betboom: espelho compartilha o conserto, não
+compartilha a prova.
+
+### O que NÃO está coberto (medido, e escrito no cabeçalho do caso)
+
+A conta não tinha **aposta aberta**, **cashout**, **boost**, **freebet** nem **sistema**
+(`combinations` vazio em 165 de 165). E 3 dos 8 valores esperados vieram do corpo da
+resposta, não do card: os bilhetes de março estão ~100 posições abaixo na lista e o filtro
+"Personalizado" da casa travou carregando nas duas tentativas.
+
+**Descoberta de lado:** o BetBy da Blaze renderiza dentro de um **shadow root** —
+`document.body.innerText` traz 2,9 KB de casca e nenhum bilhete. Casa assim nunca pode ter
+fallback de texto: o robô genérico não falharia, ele mandaria a casca para a IA.
+
+**Pendente:** a validação ao vivo (recarregar a extensão, Ctrl+Shift+R na aba da Blaze e
+capturar), que só o operador faz.
+
+### Duas sessões, um index: os registros de `app/main.py` foram levados pela s336
+
+Aconteceu de novo o [caso 8](docs/CASOS.md#8--duas-sessões-commitando-ao-mesmo-tempo-24082026),
+e desta vez a favor: os dois registros da Blaze em `app/main.py` (`_CASA_DISPLAY` e
+`_CASAS_MARCADOR_CODIGO`) entraram no commit `2143c06` da s336, que estava com o arquivo
+para a Fase 1 da barreira. **Histórico já enviado não se reescreve** — fica registrado aqui
+e segue. O resto dos 12 pontos veio no commit desta sessão.
+
+Vale a lição inversa da regra: quando o arquivo é o MESMO, `git add` por nome não separa
+nada. Antes de editar `main.py` com outra sessão aberta, o barato é combinar quem leva.
+
+---
+
+## Sessão 336 — a barreira de recaptura, Fase 0
 
 ### A barreira de recaptura: Fase 0 no ar, medindo sem filtrar
 
@@ -261,37 +346,6 @@ Ela usa 686 rótulos contra 228 da Bet365 porque **embute nome próprio no rótu
 colapsam 60%, de 686 para 271, o que resolve o vocabulário. O que não resolve é a amostra:
 ela tem **552 bilhetes de uma seleção contra 7.779 da Bet365**, porque é dominada por
 `Criar Aposta` e múltipla, onde a categoria é estrutural e não diz nada sobre o rótulo.
-
----
-
-## Sessão 333 — Contas e Parceiros v2, Fases 7 e 8
-
-### Contas & Parceiros: a folga do monitor largo virou informação
-
-As Fases 7 e 8 do handoff v2 estão aplicadas. A tela tem cinco leituras: quatro
-números de dinheiro no topo, `Últimas ações` na lateral inteira e, embaixo,
-`Concentração de caixa` · `Contas` · `Fornecedores`.
-
-| Área do app | Zonas | Colunas da tabela | Ações |
-|---|---|---|---|
-| < 1.094px | tudo empilhado, log embaixo | Conta (fornecedor ao lado) · Status · Caixa | no hover |
-| 1.094–1.333 | log ao lado, zonas empilhadas | idem, e a de Fornecedor abre se a tabela ≥ 990 | no hover |
-| 1.334–1.737 | Concentração ao lado da tabela | + **Fornecedor** como coluna própria | no hover |
-| ≥ 1.738 | as três zonas lado a lado | + **Última captura** com a tabela ≥ 1.150 | sempre visíveis |
-
-> **O que esta sessão ensinou, e vale para qualquer tela com degrau:** o corte não
-> sai do número do handoff, sai da conta do conteúdo — e a conta muda conforme o
-> que está ao lado. Por isso são DOIS containers e não um: o `pc` mede a área do
-> app e decide as zonas; o `acct` mede a tabela e decide as colunas. Com um só,
-> o mesmo monitor abriria a coluna numa largura e a fecharia noutra sem motivo
-> visível. E encostar num corte cedo demais **não dá erro**: a tabela transborda
-> para dentro do `overflow:hidden` do painel e some do `scrollWidth`.
-
-### O que ficou aberto desta sessão
-
-Os dois `Banca total` divergentes ([`BACKLOG §4`](BACKLOG.md#4-dívida-técnica-medida)) —
-medido, não corrigido, porque o conserto muda o significado de um dos dois e essa
-escolha é do Feca.
 
 ---
 
