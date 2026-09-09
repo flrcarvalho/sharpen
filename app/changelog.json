@@ -17,6 +17,21 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-contas-parceiros",
+      "data": "2026-09-09",
+      "tag": "Sharpen",
+      "titulo": "Contas & Parceiros",
+      "texto": "A tela **Contas & Parceiros** ficou nova. Ela agora mostra onde está o seu dinheiro, conta por conta.",
+      "itens": [
+        "Quatro números no topo: disponível, em aberto, banca total e quanto está em contas de fornecedores.",
+        "**Concentração de caixa**: em quais casas o dinheiro está parado. Clique na casa para filtrar a lista.",
+        "**Fornecedores**: quanto de caixa está com cada um. Clique para ver só as contas dele.",
+        "Cada conta mostra o status dela, e conta ativa sem captura há mais de 30 dias passa a avisar.",
+        "Em tela grande aparecem também as colunas de fornecedor e da última captura."
+      ],
+      "fecho": "Nada para instalar. Abra **Contas & Parceiros** no menu e atualize a página com Ctrl+Shift+R."
+    },
+    {
       "id": "sharpen-filtros-da-base-completa",
       "data": "2026-09-04",
       "tag": "Sharpen",
