@@ -368,6 +368,60 @@ em 12 % de margem bruta.
 > inteiro (`cache_read` por chamada de 156k para 231k). Toda otimização daqui em diante
 > precisa declarar **qual** custo ela mira e medir o outro depois.
 
+### 3.10 O prompt de sistema: três hipóteses testadas, três negativas (s336). FECHADA como medição, aberta como decisão.
+
+O prompt de sistema é **45.904 tokens de masters mais 11.055 da Bet365**, relidos uma vez
+por pedaço. Isso é **US$ 123/mês só de `cache_read` dos masters**, um terço da conta. Eu
+apostei que boa parte fosse gordura. **Não é.** As três hipóteses baratas morreram:
+
+| Hipótese | O que se mediu | Economia |
+|---|---|---|
+| Aparato editorial (rodapé de versão, ponteiro para caso, link) | **19 linhas em 8 arquivos** | **US$ 0,76/mês** |
+| Cada casa carregar só os esportes que vê | a Bet365 usa **24 de 22 seções** | **US$ 7,30/mês** |
+| Cortar os esportes de nicho | quebraria 4,4 % dos bilhetes | US$ 26/mês, inaceitável |
+
+`build_system` manda o **arquivo cru, verbatim** (`app/prompts.py`), e mesmo assim quase
+tudo ali é regra. **Os masters estão densos, não inchados.**
+
+> **Fatiar por chamada está fora, e o motivo é o cache.** Todas as casas compartilham o
+> mesmo prefixo de 45.904 tokens, e é isso que faz a releitura custar US$ 0,30/MTok em vez
+> de US$ 3,00. Dar a cada casa um prefixo próprio multiplicaria as escritas de cache e o
+> aquecedor só aquece um. **Mover conteúdo entre os dois breakpoints também não economiza
+> nada:** os dois são lidos em toda chamada.
+
+#### O que sobrou para decisão humana, e não é urgente
+
+**A desproporção entre peso e volume**, que é achado de manutenção, não de custo:
+
+| Esporte | % dos bilhetes | % do `MASTER_ESPORTES` |
+|---|---|---|
+| Futebol | **49,9 %** | 0,8 % (117 tokens) |
+| Múltiplos | 23,3 % | 0,7 % |
+| **Badminton** | 2,4 % | **25,2 %** (3.917 tok) |
+| **Dardos** | 2,0 % | **29,5 %** (4.592 tok) |
+| **Atletismo** | **0,01 %** (2 bilhetes na base inteira) | **7,3 %** (1.130 tok) |
+
+Dardos, Badminton e Atletismo são **62 % do arquivo para 4,4 % dos bilhetes**.
+
+**Isso provavelmente está certo**: o tamanho segue a AMBIGUIDADE, não o volume. Futebol
+resolve em 117 tokens porque é óbvio; badminton inverte a ordem do nome e dardos tem
+`legs`, `sets` e `180s`. Mas o **Atletismo com 1.130 tokens para 2 bilhetes em toda a
+história** merece uma olhada de quem mantém o arquivo, e vale US$ 3/mês.
+
+#### A única alavanca grande que sobrou, e ela tem preço
+
+**Compilar os masters**: enviar ao modelo uma forma operacional compacta e manter o
+documento completo para humanos. Levaria os 45.904 para talvez 20 mil, uns US$ 55/mês.
+
+**Custo real disso:** cria uma SEGUNDA fonte de verdade, contra o invariante nº 1
+(*"o app LÊ os masters, nunca escreve"*) e a regra de propagação. Toda categoria nova
+passaria a ter dois lugares para atualizar, e o segundo é o que o modelo lê. É a família
+do defeito que a camada fina existe para não repetir.
+
+**Decisão do Feca**, e a minha recomendação é **não fazer agora**: o tradutor tira a IA do
+caminho e torna o tamanho do prompt irrelevante para a parte que ele cobre. Comprimir o
+manual para depois não precisar dele é trabalhar duas vezes.
+
 ### 3.9 O output que o parser descarta: medido, e menor do que a estimativa (s336). VIVA.
 
 **A estimativa que eu dei ao Feca estava alta e está corrigida aqui.** A conta offline
