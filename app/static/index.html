@@ -304,48 +304,82 @@ html.embedded .sidebar { display: none; }
 /* ── Painel de Contas ─────────────────────────────────────────────────────────
    Dashboard operacional (contagens, não financeiro). Cor só de token; números
    mono + tabular-nums, sem abreviação (UI_REFERENCE §5). Azul = único acento. */
-.painel { display: flex; flex-direction: column; gap: 18px; }
+/* ⚠️ `container-type: inline-size` AQUI, e não numa media query: esta página vive
+   dentro do `#fr-plan` da casca e a sidebar (~300px) fica FORA do iframe — media
+   query mediria a janela e erraria por ~300px em toda largura (o defeito da s331,
+   em que o breakpoint de 1180 disparava sempre). O container mede a ÁREA DO APP,
+   que é a largura que de fato sobra para o conteúdo. */
+.painel { display: flex; flex-direction: column; gap: 18px; container-type: inline-size; container-name: pc; }
 
-/* ── s331 · Grade da página (Contas & Parceiros v2) ───────────────────────────
-   A tela deixa de ser três colunas concorrendo e passa a ter quatro leituras
-   hierarquizadas: dinheiro no topo estreito, log em altura cheia à direita
-   começando NA MESMA LINHA dos KPIs, e abaixo concentração ao lado das contas.
+/* ── s331/s333 · Grade da página (Contas & Parceiros v2, Fase 7) ──────────────
+   Cinco leituras hierarquizadas: quatro números de dinheiro no topo estreito, log em
+   altura cheia à direita começando NA MESMA LINHA dos KPIs, e abaixo as três zonas
+   — Concentração de caixa · Contas · Fornecedores.
    ⚠️ `grid-column`/`grid-row` explícitos nas duas colunas: sem eles o auto-placement
    joga o log para a coluna 1, embaixo, e a lateral nasce vazia. */
-.pc-top     { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; align-items: stretch; }
+.pc-top     { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 12px; align-items: stretch; }
 .pc-topleft { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .pc-logcol  { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; min-width: 0; }
 .pc-logcol > .painel-card { flex: 1; overflow: hidden; }   /* log ocupa a lateral inteira */
 /* `.painel-kpis.pc-kpis` e nao so `.pc-kpis`: a regra base `.painel-kpis` (auto-fit)
    vem DEPOIS no arquivo e, com a mesma especificidade, ganharia — a faixa nascia com
-   6 trilhas (3 reais + 3 de 0px). Empatar na cascata e' contar com a ordem do arquivo. */
-.painel-kpis.pc-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
-/* A tabela declara o mínimo (762px = 28 de padding + 40 de gaps + as trilhas nos
-   mínimos delas) e a concentração cede o que faltar, até o alvo de 228px do handoff.
-   Com `228px` cravado a concentração levava a largura toda e o nome da casa era
-   cortado em 1440 — que é a largura mais comum. Quem tem alvo cede; quem tem piso não. */
-.pc-tri { display: grid; grid-template-columns: minmax(0, 399px) minmax(762px, 1fr); gap: 12px; align-items: stretch; }
-/* ⚠️ Estes breakpoints medem a largura do IFRAME, não a da janela: esta página vive
-   dentro do `#fr-plan` da casca, e a sidebar (~300px) fica FORA dele. Num monitor de
-   1440px a página tem ~1120 — um breakpoint de 1180 dispararia sempre, e foi
-   exatamente o que aconteceu: o log caía para baixo em toda largura.
-   Os números saem da conta do conteúdo: log 240 + conc 228 + 2 gaps + tabela útil. */
-/* Os cortes saem da conta do conteúdo, medida no headless:
-   a tabela precisa de ~620px para as 4 trilhas caberem sem cortar nome de casa.
-   `.pc-tri` em 2 colunas exige iframe ≥ 228 + 12 + 620 + 12 + 240 = 1.112px — o que
-   equivale a uma JANELA de ~1.430px, porque a sidebar (~300) fica fora do iframe.
-   Abaixo disso a concentração desce; abaixo de 870 o log desce também. */
-/* Recalculado para as colunas de 399/420: lado a lado exige
-   399 + 12 + 762 (piso da tabela) + 12 + 420 = 1.605px de IFRAME, e a concentração não
-   deve cair abaixo de ~330 (a rosca sozinha tem 150). Abaixo disso ela sobe para cima
-   da tabela, em largura cheia. 819px de painéis laterais pedem monitor largo — não há
-   como espremer os três. */
-@media (max-width: 1600px) {
-  .pc-tri { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 870px) {
+   trilhas de 0px sobrando. Empatar na cascata e' contar com a ordem do arquivo. */
+.painel-kpis.pc-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }
+/* Base sem fornecedor: o 4º KPI não existe (imprimir R$ 0,00 para sempre foi o que a
+   s330 tirou daqui), e a faixa volta a três trilhas em vez de deixar um vão. */
+.painel-kpis.pc-kpis.tres { grid-template-columns: repeat(3, 1fr); }
+
+/* ── Fase 7 · As zonas crescem POR DEGRAU, nunca por `%` ──────────────────────
+   Porcentagem faz a lista de concentração ficar com 500px de nome vazio no ultrawide.
+   Só a coluna da TABELA é elástica; as laterais têm largura declarada em cada degrau,
+   e a colocação é explícita para a zona de Fornecedores poder DESCER (e não sumir)
+   quando não há largura para as três lado a lado. */
+.pc-tri { display: grid; grid-template-columns: 228px minmax(0, 1fr); gap: 12px; align-items: start; }
+.pc-tri > .pc-conc { grid-column: 1; grid-row: 1; }
+.pc-tri > .pc-sup  { grid-column: 1; grid-row: 2; }
+/* A tabela ocupa as duas linhas: sem isso a zona de Fornecedores desceria deixando
+   ~700px de nada à direita dela. */
+.pc-tri > .painel-lista-panel { grid-column: 2; grid-row: 1 / span 2; }
+/* Base sem fornecedor: não há 2ª linha, e o span deixaria uma faixa vazia + gap. */
+.pc-tri.sem-sup > .painel-lista-panel { grid-row: 1; }
+
+/* ── Os cortes saem da CONTA DO CONTEÚDO, medida no headless ─────────────────
+   Piso da tabela = 228 + 196 + 130 + 210 (trilhas) + 50 (gaps) + 28 (padding) = 842.
+     zona lateral única  →  240 (log) + 12 + 842 = 1.094
+     duas zonas          →  228 + 12 + 842 + 12 + 240 = 1.334
+     três zonas          →  268 + 12 + 842 + 12 + 292 + 12 + 300 = 1.738
+   Encostar num corte antes da conta fechar não dá erro: a tabela transborda para
+   dentro do `overflow:hidden` do painel e some do `scrollWidth` (s331d). */
+@container pc (max-width: 1093px) {
   .pc-top { grid-template-columns: minmax(0, 1fr); }
   .pc-logcol { grid-column: 1; grid-row: 2; }
+}
+@container pc (max-width: 869px) {
+  .painel-kpis.pc-kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@container pc (max-width: 1333px) {
+  .pc-tri { grid-template-columns: minmax(0, 1fr); }
+  .pc-tri > .pc-conc { grid-column: 1; grid-row: 1; }
+  .pc-tri > .painel-lista-panel { grid-column: 1; grid-row: 2; }
+  .pc-tri > .pc-sup { grid-column: 1; grid-row: 3; }
+}
+/* Três zonas — a de Fornecedores sobe para a terceira coluna e a de Concentração
+   respira. Nenhuma faixa FIXA da tabela muda de valor entre degraus: é isso que
+   mantém a leitura vertical de Status e Caixa idêntica em qualquer monitor. */
+@container pc (min-width: 1738px) {
+  .pc-top { grid-template-columns: minmax(0, 1fr) 300px; }
+  .pc-tri { grid-template-columns: 268px minmax(0, 1fr) 292px; }
+  .pc-tri.sem-sup { grid-template-columns: 268px minmax(0, 1fr); }
+  .pc-tri > .pc-sup { grid-column: 3; grid-row: 1; }
+  .pc-tri > .painel-lista-panel { grid-column: 2; grid-row: 1; }
+}
+/* 32" — a folga vira INFORMAÇÃO, não ar: as laterais respiram e a tabela larga o
+   suficiente abre a coluna de Última captura (isso quem decide é o container
+   `acct`, logo abaixo). */
+@container pc (min-width: 2030px) {
+  .pc-top { grid-template-columns: minmax(0, 1fr) 340px; }
+  .pc-tri { grid-template-columns: 288px minmax(0, 1fr) 292px; }
+  .pc-tri.sem-sup { grid-template-columns: 288px minmax(0, 1fr); }
 }
 /* O rail da casca é o RAIO-X, que é da Extração — nesta tela ele não entra, e o log
    passa a viver DENTRO da página (`.pc-logcol`). Sem colapsar a trilha, sobraria uma
@@ -372,8 +406,13 @@ html.embedded .sidebar { display: none; }
    1440px de janela (a sidebar é 62px mais larga que a da maquete), e lado a lado a
    frase ficaria com ~90px. Empilhado funciona nas duas larguras. */
 .conc-topo { display: flex; flex-direction: column; align-items: center; gap: 11px; padding: 15px 13px 13px; }
-.conc-rosca { position: relative; width: 225px; height: 225px; flex: none; }
-.conc-rosca svg { width: 225px; height: 225px; transform: rotate(-90deg); }
+/* s333 — a rosca virou FLUIDA com teto de 225px. A zona de Concentração passou a ter
+   largura por degrau (228 / 268 / 288), e com 225px cravado ela vazava no degrau
+   estreito. O teto preserva o ganho da s331d: a 225px o rótulo do centro cabe em 11px,
+   que é o piso do papel Label na Escada de Tinta — encolher a rosca de volta para os
+   88px do handoff traria de volta o rótulo de 7,5px, que a Escada reprova. */
+.conc-rosca { position: relative; width: 100%; max-width: 225px; aspect-ratio: 1; flex: none; }
+.conc-rosca svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
 .conc-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
 .conc-centro .n { font-family: var(--font-mono); font-size: 40px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
 /* 11px: com a rosca a 225px o rótulo coube no piso do papel Label (9,5px). Ele
@@ -406,6 +445,55 @@ html.embedded .sidebar { display: none; }
 .conc-banca .eb { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
 .conc-banca .v { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
 .conc-foot { padding: 10px 13px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .04em; color: var(--ink-soft); }
+
+/* ── s333 · Zona Fornecedores (Fase 8.1) ──────────────────────────────────────
+   A tela se chama Contas & Parceiros e não dizia nada sobre FORNECEDOR. O risco de
+   fornecedor é de outra natureza que o risco de casa: se a Bet365 travar saque, é
+   burocracia; se um fornecedor sumir, é o dinheiro. Nenhum dado novo — é agregação
+   do "[Fornecedor]" que já vive no nome da conta, cruzado com a Caixa.
+   O usuário entra na lista como `Eu`, com avatar de acento e barra verde: o caixa
+   próprio é o CONTRAPONTO do risco, não mais uma linha igual às outras. */
+.pc-sup { display: flex; flex-direction: column; min-width: 0; }
+.sup-lista { border-top: 1px solid var(--line); }
+.sup-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+           padding: 10px 13px; border-top: 1px solid var(--line-2); cursor: pointer; }
+.sup-row:first-child { border-top: 0; }
+.sup-row:hover { background: var(--surface-2); }
+.sup-row.on { background: rgba(var(--accent-rgb),.10); box-shadow: inset 2px 0 0 var(--accent); }
+.sup-row .av { width: 26px; height: 26px; border-radius: 50%; background: var(--fdc-steel);
+               border: 1px solid rgba(255,255,255,.08); display: grid; place-items: center; }
+.sup-row .av::after { content: attr(data-i); font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--ink-soft); }
+.sup-row .av.me { background: rgba(var(--accent-rgb),.18); border-color: rgba(var(--accent-rgb),.4); }
+.sup-row .av.me::after { color: var(--accent-2); }
+/* Nome do fornecedor é NOME PRÓPRIO — identidade, então --ink 12,5px/700. É aqui que
+   ele é identidade; na coluna da tabela ele é categoria e vive um degrau abaixo. */
+.sup-row .nome { font-size: 12.5px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sup-row .val { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.sup-row .val.vazio { color: var(--ink-mute); font-weight: 400; }
+.sup-row .meta { grid-column: 2 / 4; margin-top: 3px; display: flex; gap: 7px; flex-wrap: wrap;
+                 font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
+.sup-row .meta .sh { color: var(--accent-2); font-weight: 600; }   /* % da banca */
+.sup-row .meta .pd { color: var(--d-proj); }                       /* em espera */
+/* Barra NORMALIZADA pelo maior caixa — comparação entre fornecedores, não progresso
+   rumo a meta nenhuma. É a mesma razão pela qual a coluna Caixa da tabela não tem
+   barra: lá não há com o que comparar dentro da própria linha. */
+.sup-bar { grid-column: 1 / 4; height: 3px; border-radius: 3px; background: var(--line-2); overflow: hidden; margin-top: 7px; }
+.sup-bar i { display: block; height: 100%; border-radius: 3px; background: rgba(var(--accent-rgb),.6); }
+.sup-bar i.me { background: rgba(var(--pos-rgb),.6); }             /* o seu próprio caixa */
+.sup-foot { padding: 11px 13px; border-top: 1px solid var(--line); background: var(--surface-2);
+            display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+.sup-foot .eb { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.sup-foot .v { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--accent-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Segmentado de fornecedor na barra da tabela — o mesmo mecanismo do clique na zona
+   e no painel de Concentração: filtra a lista e diz qual recorte está no ar. */
+.sup-seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.sup-seg button { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+                  color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-pill);
+                  padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.sup-seg button:hover { color: var(--ink); border-color: var(--ink-mute); }
+.sup-seg button.on { color: var(--accent-2); border-color: var(--accent); background: rgba(var(--accent-rgb),.10); }
+.sup-seg button b { font-weight: 700; color: var(--ink); }
 
 /* ── Cards de Ativas / Arquivadas (s331c) ─────────────────────────────────────
    O card É o filtro: antes o mesmo número aparecia na meta do cabeçalho, no
@@ -482,6 +570,20 @@ html.embedded .sidebar { display: none; }
 
 /* 3 — Banca total: soma, não caixa. Fecha a linha em tom neutro, sem tarja azul. */
 .painel-kpi.total .painel-kpi-lbl::before { background: var(--ink-mute); }
+
+/* 4 — Em contas de fornecedores (s333, Fase 8.2): quanto do caixa está na mão de
+   terceiros. Acento, não verde nem âmbar — não é garantia nem projeção, é EXPOSIÇÃO,
+   e o azul é a cor com que esta tela já marca recorte e concentração. */
+.painel-kpi.terc { border-color: rgba(var(--accent-rgb),.26); }
+.painel-kpi.terc .painel-kpi-lbl { color: var(--accent-2); }
+.painel-kpi.terc .painel-kpi-lbl::before { background: var(--accent); }
+/* Sufixo do valor (` · 72%`): metadado colado ao número, um degrau abaixo dele.
+   12px sustenta --ink-mute (o piso é 10px). */
+.painel-kpi-val .sfx { font-size: 12px; font-weight: 600; color: var(--ink-mute); letter-spacing: 0; }
+/* Micro-barra: a MESMA rampa da Concentração para os fornecedores, e --pos para a
+   fatia própria — a cor é o que liga o KPI à zona de Fornecedores lá embaixo. */
+.painel-kpi .mini-stack { display: flex; height: 5px; gap: 2px; border-radius: 3px; overflow: hidden; margin-top: 9px; }
+.painel-kpi .mini-stack i { display: block; height: 100%; border-radius: 2px; }
 
 /* Cards de breakdown */
 .painel-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; align-items: start; }
@@ -931,6 +1033,13 @@ body.cap-off .cx__body { display: none; }
 /* Divergência — erro realizado. O ÚNICO vermelho da coluna. */
 .tag-status.dive { border-color: rgba(229,82,75,.46); background: rgba(229,82,75,.08); color: #CD8B86; }
 .tag-status.dive b { color: var(--d-neg); }
+/* Parada há N dias — conta ativa sem captura há mais de 30 dias. CINZA, não âmbar:
+   não é erro nem pendência, é abandono, e não pode competir com pendência de verdade.
+   Sem esta tag a conta se disfarça de `Conciliada` — está limpa porque ninguém a usa. */
+.tag-status.parada { border-color: rgba(174,183,194,.34); background: rgba(174,183,194,.07); color: #9AA4B1; }
+/* O número é o dado, então sobe um degrau na Escada — nas outras pílulas ele ganha a
+   cor forte do estado; aqui, que não tem cor de estado, ganha --ink. */
+.tag-status.parada b { color: var(--ink); }
 /* Sem caixa — nada a conciliar. */
 .tag-status.zero { border-color: var(--line); background: transparent; color: var(--ink-mute); }
 /* Arquivada — fora de operação. */
@@ -2084,32 +2193,68 @@ td.c-res.res-HL { color: var(--warn); }
    que nada se desloca quando as ações aparecem no hover.
    O padding direito é igual nas duas linhas, então o recuo da conta encolhe só a
    coluna 1 — as três fixas continuam alinhadas entre casa e conta. */
-/* ── s331 · Tabela de Contas (v2) ─────────────────────────────────────────────
-   Quatro trilhas: nome · status · caixa · ações. As colunas de Duração, Dias ativos
-   e Apostas saíram — elas descreviam a ATIVIDADE da conta, e esta tela responde
-   "quanto tem e está conciliado?". Cabeçalho, linha da casa e linha da conta usam a
-   MESMA grade: é isso que mantém status e valor sempre no mesmo x.
-   A trilha de AÇÕES fica reservada mesmo vazia — nada se desloca quando elas aparecem.
-   ⚠️ A 4ª trilha é SOBRA, e existe por causa de um defeito de leitura: com o nome em
-   `1fr` ele engolia toda a folga do monitor largo e empurrava Status e Caixa para longe
-   da identidade — a linha lia como duas ilhas. Agora o nome tem TETO (340px — cabe o mais longo, `Esportes da Sorte` + pílula), a sobra
-   fica entre a Caixa e as Ações, e as três primeiras colunas andam juntas à esquerda
-   enquanto os botões seguem encostados na borda direita, que é onde se procura ação. */
+/* ── s333 · Tabela de Contas (Fase 7.1) ───────────────────────────────────────
+   Uma declaração só para cabeçalho, linha de casa, linha de conta e rodapé de total —
+   é isso que mantém Status, Caixa e o total do rodapé sempre no MESMO x.
+
+     nome (elástica) · fornecedor · última captura · status · caixa · ações
+                       └─ as duas OPCIONAIS nascem em 0 e abrem por degrau ─┘
+
+   O vão de ~800px que sobrava num monitor de 32" não era margem errada: era coluna
+   sobrando. A folga vivia numa faixa ANTES das ações, então nome/status/caixa ficavam
+   ancorados à esquerda e os botões na borda direita, com nada no meio. Agora a única
+   coluna elástica é a PRIMEIRA (o nome, que é identidade e sempre tem o que mostrar),
+   e em tela larga a folga vira INFORMAÇÃO — as duas faixas opcionais abrem.
+
+   ⚠️ Nenhuma faixa fixa muda de valor entre degraus (196 / 130 / 176): a leitura
+   vertical de Status e Caixa fica idêntica em qualquer monitor. E 196px é a MAIOR
+   pílula possível ("AGUARDANDO RESULTADO 199"), não a média — trilha dimensionada
+   pela média é trilha que estoura no dia em que o número cresce.
+   ⚠️ Se um dia entrar mais uma coluna, ela NASCE colapsada e abre num degrau novo.
+   Não redistribua as existentes. */
+/* ⚠️ As colunas da tabela abrem pela largura da TABELA, não pela da página: quem
+   decide se cabe mais uma faixa é a trilha em que a tabela caiu, e ela varia com o
+   número de zonas ao lado. Container próprio, então — o `pc` mede a área do app e
+   governa as ZONAS; o `acct` mede a tabela e governa as COLUNAS. */
+.painel-lista-panel { container-type: inline-size; container-name: acct; }
 .acct-head,
 .contas-casa-head,
-.conta-row {
+.conta-row,
+.acct-foot {
   display: grid;
-  /* As três fixas são `minmax(min, alvo)` e não px cravado: com px cravado elas
-     tomavam 438px sempre, e em 1440 sobravam 130px para o nome — "Esportes da Sorte"
-     saía cortado. Assim elas cedem antes de o NOME ceder, que é a ordem certa: o
-     nome é identidade, as outras três são rótulo, valor e botão. O mínimo da coluna 1
-     (228px) sai da medição: favicon 24 + gap 10 + "Esportes da Sorte" 112 + gap 10 +
-     pílula "1 CONTA" 62 = 218, com folga. E o das AÇÕES subiu para 210 quando elas
-     ganharam ícone: os três botões medem 204px juntos, e com a trilha em 158 eles
-     vazavam por cima da coluna Caixa — sem erro, porque `justify-content:flex-end`
-     transborda para a ESQUERDA e isso não entra no `scrollWidth` da linha. */
-  grid-template-columns: minmax(228px, 340px) minmax(160px, 200px) minmax(96px, 118px) minmax(0, 1fr) minmax(210px, 232px);
+  /* Os pisos são MEDIDOS no headless contra a base real, não copiados do handoff:
+       228px  nome  — favicon 24 + a casa mais longa + a pílula de contagem = 220
+       196px  status— a MAIOR pílula ("Aguardando resultado 199"), não a média
+       130px  caixa — `R$ 100.000,00` em mono tabular
+       210px  ações — os três botões com ícone medem 208 juntos
+     O handoff pedia 170/176 nas pontas; nos dois a trilha ficava menor que o
+     conteúdo, e `justify-content:flex-end` transborda para a ESQUERDA — some do
+     `scrollWidth` e o defeito não aparece em medição nenhuma (s331d). */
+  grid-template-columns: minmax(228px, 1fr) 0 0 196px 130px 210px;
   align-items: center; gap: 10px; padding: 0 14px;
+}
+/* As duas opcionais, colapsadas por padrão. `overflow:hidden` é OBRIGATÓRIO: uma
+   trilha de 0px não recorta o conteúdo sozinha — sem ele o texto vaza por cima do
+   vizinho e some do `scrollWidth`, que é justamente o defeito que não aparece em
+   nenhuma medição automática. */
+.acct-col-fornecedor,
+.acct-col-ultima { opacity: 0; width: 0; overflow: hidden; pointer-events: none; white-space: nowrap; }
+/* 990px = 228+132+196+130+210 (trilhas) + 50 (gaps) + 28 (padding) + folga. */
+@container acct (min-width: 990px) {
+  .acct-head, .contas-casa-head, .conta-row, .acct-foot {
+    grid-template-columns: minmax(228px, 1fr) 132px 0 196px 130px 210px;
+  }
+  .acct-col-fornecedor { opacity: 1; width: auto; overflow: visible; pointer-events: auto; }
+  /* O fornecedor não aparece DUAS vezes: acima deste corte ele sai de dentro da
+     célula de nome e passa a ser coluna própria. Abaixo, o contrário. */
+  .acct-supplier-inline { display: none; }
+}
+/* 1150px = a conta acima + a trilha de 152 da última captura + folga. */
+@container acct (min-width: 1150px) {
+  .acct-head, .contas-casa-head, .conta-row, .acct-foot {
+    grid-template-columns: minmax(228px, 1fr) 132px 152px 196px 130px 210px;
+  }
+  .acct-col-ultima { opacity: 1; width: auto; overflow: visible; pointer-events: auto; }
 }
 .acct-head { padding: 9px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
 .acct-head span { font-family: var(--font-mono); font-size: 8.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
@@ -2129,10 +2274,15 @@ td.c-res.res-HL { color: var(--warn); }
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
 }
 .contas-casa-head .ctx-hchip { width: 24px; height: 24px; }
-/* Chip do total: fica na trilha da CAIXA (3ª), encostado à direita como os valores
-   das contas — mesma coluna, mesma borda direita, para comparar sem procurar. */
+/* Chip do total: fica na trilha da CAIXA, encostado à direita como os valores das
+   contas — mesma coluna, mesma borda direita, para comparar sem procurar.
+   ⚠️ A coluna EXPLÍCITA é obrigatória desde a Fase 7: sem ela o chip cai na coluna de
+   fornecedor assim que as faixas opcionais abrem, e o total da casa deixa de estar
+   sobre os saldos que ele soma. Ele abre em `4 / 6` e não só em `5` porque mede 143px
+   contra os 130 da trilha da Caixa — a borda direita é a mesma, e a sobra cai na
+   trilha de status, que na linha da casa é vazia por desenho (nenhuma tag na casa). */
 .acct-total {
-  grid-column: 3; justify-self: end; display: inline-flex; align-items: center; gap: 8px;
+  grid-column: 4 / 6; justify-self: end; display: inline-flex; align-items: center; gap: 8px;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 5px 9px;
 }
 /* O rótulo é `TOTAL`, não "TOTAL DA CASA": o nome da casa está na mesma linha, a três
@@ -2170,7 +2320,30 @@ td.c-res.res-HL { color: var(--warn); }
 .conta-caixa { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .conta-caixa.vazio { color: var(--ink-mute); font-weight: 400; }
 
-/* ── Ações: os três botões, na coluna reservada de 172px ──────────────────────
+/* ── s333 · Linha de total no rodapé (Fase 8.4) ───────────────────────────────
+   Herda a MESMA grade das linhas (está na lista de seletores da Fase 7.1): o total
+   cai exatamente sob os saldos que ele soma. Rodapé com grade própria desalinharia
+   no primeiro degrau, e um total desalinhado lê como mais uma linha. */
+.acct-foot { padding: 11px 14px; border-top: 1px solid var(--line); background: var(--surface-2); }
+/* O rótulo atravessa as trilhas de nome/fornecedor/última/status: ele descreve a
+   lista inteira, não uma coluna. Só a trilha da Caixa fica reservada ao valor. */
+.acct-foot .lbl { grid-column: 1 / 5; font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.acct-foot .val { grid-column: 5; text-align: right; font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.acct-foot .val.vazio { color: var(--ink-mute); font-weight: 400; }
+
+/* ── Colunas opcionais (Fase 7) ───────────────────────────────────────────────
+   Fornecedor como COLUNA (≥1500) e Última captura (≥1900). O conteúdo é o mesmo dado
+   que já existe na linha; o que muda é onde ele cabe. Papel LABEL nas duas, então
+   --ink-soft: nome de fornecedor aqui é categoria da conta, não identidade da pessoa
+   — a identidade dela mora na zona de Fornecedores, em --ink. */
+.acct-col-fornecedor { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); text-overflow: ellipsis; }
+/* Metadado (data + contagem de dias) → --ink-soft em 10px. 10px é o piso do
+   --ink-mute e este texto tem duas partes; um degrau acima mantém as duas legíveis. */
+.acct-col-ultima { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
+.acct-col-ultima .d { color: var(--ink-mute); }   /* a contagem de dias é o secundário */
+.acct-col-ultima.parada .d { color: #9AA4B1; }    /* abandono: cinza, nunca âmbar */
+
+/* ── Ações: os três botões, na coluna reservada de 176px ──────────────────────
    Aparecem no hover E no `:focus-within` (teclado), mas a coluna existe mesmo vazia:
    é isso que impede a linha de se deslocar quando eles surgem. */
 .conta-acoes { display: flex; align-items: center; justify-content: flex-end; gap: 6px; opacity: 0; transition: opacity .14s var(--ease); }
@@ -2179,6 +2352,10 @@ td.c-res.res-HL { color: var(--warn); }
 /* Sem hover (toque) não há como revelar: ali as ações ficam sempre visíveis. */
 @media (hover: none) { .conta-acoes { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .conta-acoes { transition: none; } }
+/* Tabela larga — espaço não falta: os botões ficam sempre visíveis. Precisa vir
+   DEPOIS da declaração base: mesma especificidade, e aí quem ganha é a ordem no
+   arquivo. */
+@container acct (min-width: 1150px) { .conta-acoes { opacity: 1; } }
 .btn-mini { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-sans); font-size: 10.5px; font-weight: 500; color: var(--ink-soft); background: transparent; border: 1px solid var(--line); border-radius: var(--r-xs); padding: 5px 7px; cursor: pointer; white-space: nowrap; }
 .btn-mini svg { width: 11px; height: 11px; flex: none; }
 .btn-mini:hover { color: var(--ink); border-color: var(--ink-mute); }
@@ -3491,6 +3668,9 @@ const _TAG_STATUS = {
   aguardando: { cls: 'aguard', txt: (n) => 'Aguardando resultado <b>' + n + '</b>' },
   tipster:    { cls: 'tips',  txt: (n) => 'Aguardando tipster <b>' + n + '</b>' },
   divergencia:{ cls: 'dive',  txt: () => 'Divergência' },
+  // Abandono, não erro: CINZA. Âmbar diria "confira" e competiria com pendência de
+  // verdade — e o que esta conta tem não é item a resolver, é falta de uso.
+  parada:     { cls: 'parada', txt: (n) => 'Parada há <b>' + n + '</b> dias' },
   semcaixa:   { cls: 'zero',  txt: () => 'Sem caixa' },
   arquivada:  { cls: 'arq',   txt: () => 'Arquivada' },
 };
@@ -3499,9 +3679,19 @@ const _TAG_TITULO = {
   aguardando: 'Apostas ainda não liquidadas — o resultado do evento não saiu.',
   tipster: 'Bilhetes sem tipster — falta informação de terceiro, não é erro.',
   divergencia: 'A casa mostrou saldo diferente do projetado.',
+  parada: 'Conta ativa sem captura há mais de 30 dias — limpa porque ninguém a usa.',
   semcaixa: 'Caixa Inteligente não ligada — nada a conciliar aqui.',
   arquivada: 'Conta fora de operação.',
 };
+// Dias corridos desde um ISO do servidor. Fuso LOCAL (a régua do app é a do usuário,
+// nunca UTC) e piso em 0 — relógio adiantado não pode gerar "há -1 dias".
+function _diasDesde(iso) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!isFinite(t)) return null;
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000));
+}
+const _PARADA_DIAS = 30;   // o corte do handoff: "ativa sem captura há +30 dias"
 function tagStatus(estado, n) {
   const d = _TAG_STATUS[estado];
   if (!d) return '<span></span>';                 // estado fora da lista não vira tag
@@ -3510,10 +3700,13 @@ function tagStatus(estado, n) {
 }
 
 // Estado de UMA conta. Precedência do handoff:
-//   Divergência › Aguardando resultado › Aguardando tipster › Sem caixa › Conciliada
+//   Divergência › Aguardando resultado › Aguardando tipster › Parada há N dias ›
+//   Sem caixa › Conciliada
 // Divergência ganha porque erro realizado é mais urgente que espera. Entre as duas
 // esperas, a de RESULTADO vem primeiro: ela resolve sozinha com o tempo, a de
-// tipster depende de alguém agir.
+// tipster depende de alguém agir. `Parada` vem depois das três porque conta parada
+// COM item pendente ainda tem o que resolver — o abandono só é a leitura principal
+// quando não sobrou mais nada na frente.
 function _statusDaConta(cx, abertas, semTipster) {
   if (contasTab !== 'ativas') return ['arquivada', 0];
   if (cx && cx.estado === 'divergente') return ['divergencia', 0];
@@ -3522,8 +3715,47 @@ function _statusDaConta(cx, abertas, semTipster) {
   const pend = (abertas || 0) + (cx && cx.estado === 'reconferir' ? 1 : 0);
   if (pend > 0) return ['aguardando', pend];
   if (semTipster > 0) return ['tipster', semTipster];
+  // Parada: conta ATIVA que parou de produzir bilhete. Sem esta tag ela se disfarça
+  // de `Conciliada` — está limpa porque ninguém a usa, e a tela lia abandono como
+  // saúde. Conta que nunca capturou nada não entra aqui: nunca começou, não parou.
+  const dias = _diasDesde(cx && cx.ultima_captura);
+  if (dias !== null && dias > _PARADA_DIAS) return ['parada', dias];
   if (!cx || !cx.ligada || !cx.banca) return ['semcaixa', 0];
   return ['conciliada', 0];
+}
+
+// ── Fornecedor: quem é o dono da conta ───────────────────────────────────────
+// Vocabulário FECHADO da tela: a pessoa dona da conta é FORNECEDOR — nunca
+// "parceiro", nunca "operador". `_painelParseForn` lê o "[Fornecedor]" do nome;
+// conta sem colchete é do próprio usuário.
+const _FORN_EU = '__eu__';                      // chave interna, nunca vai para a tela
+function _painelFornDe(nome) { return _painelParseForn(nome) || _FORN_EU; }
+function _painelRotuloEu() {
+  const d = (window.__donoEfetivo || '').trim();
+  return d ? 'Eu (' + d + ')' : 'Eu';
+}
+// A pílula/coluna de fornecedor só aparece quando a base TEM fornecedor: numa base
+// solo ela imprimiria "Eu" em toda linha — rótulo sem contraste é textura, não dado.
+function _painelTemFornecedor() {
+  return (casasCarregadas || []).some(c =>
+    (parceirosCache[c] || []).some(p => !!_painelParseForn(p.nome)));
+}
+
+// Coluna "Última captura" (abre no degrau de 1900px). O rótulo diz CAPTURA e não
+// "extração" porque o dado é o último bilhete gravado daquela conta — uma extração
+// que não achou nada não aparece aqui, e prometer "extração" seria prometer uma
+// medição que este campo não faz.
+function _colUltima(cx) {
+  const iso = cx && cx.ultima_captura;
+  const dias = _diasDesde(iso);
+  if (dias === null) return '<span class="acct-col-ultima"></span>';
+  const d = new Date(iso);
+  const data = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const cls = dias > _PARADA_DIAS ? ' parada' : '';
+  // "0 dias" é uma contagem que ninguém escreve: hoje é "hoje".
+  const quanto = dias === 0 ? 'hoje' : dias + (dias === 1 ? ' dia' : ' dias');
+  return '<span class="acct-col-ultima' + cls + '">' + data
+    + ' <span class="d">· ' + quanto + '</span></span>';
 }
 
 // Chip `TOTAL` da linha da casa. É a 3ª célula da grade (a trilha da Caixa), então o
@@ -3555,28 +3787,41 @@ function renderPainelLista() {
   const fonte = contasTab === 'ativas' ? parceirosCache : parceirosArquivadosCache;
   // Filtro vindo da Concentração de caixa (clique numa casa). Vazio = tudo.
   const soCasa = painelCasaFiltro;
+  // Filtro vindo da zona de Fornecedores (clique numa linha). Mesmo mecanismo.
+  const soForn = painelFornFiltro;
   const nfl = n => (n || 0).toLocaleString('pt-BR');
-  let html = '', total = 0;
+  // A coluna/pílula de fornecedor só faz sentido quando existe fornecedor na base:
+  // numa base solo ela imprimiria "EU" em toda linha, que é rótulo sem contraste.
+  const temForn = _painelTemFornecedor();
+  const cxMap = _caixaPorConta() || {};
+  let html = '', total = 0, somaCaixa = 0, casasComCaixa = 0;
   (casasCarregadas || []).forEach(casa => {
     if (soCasa && casa !== soCasa) return;
     const nomeCasa = casaDisplay(NOMES[casa] || casa);
     let ps = (fonte[casa] || []);
+    // A busca é por casa OU fornecedor OU nome da conta — o placeholder promete as
+    // duas primeiras, e prometer busca que não busca é pior que não oferecer.
     if (q) ps = ps.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
+    if (soForn) ps = ps.filter(p => _painelFornDe(p.nome) === soForn);
     if (!ps.length) return;
     total += ps.length;
     const casaTotal = _totalDaCasa(casa);
-    // Linha da casa: as MESMAS 4 trilhas da conta, e a última fica reservada mesmo
-    // vazia — é o que impede a lista de dançar quando as ações aparecem no hover.
-    // NENHUMA tag aqui: a casa é totalizadora, e pendência mora na conta.
+    let caixaDaCasa = 0;
+    // Linha da casa: as MESMAS 6 trilhas da conta, e as opcionais/ações ficam
+    // reservadas mesmo vazias — é o que impede a lista de dançar no hover e nos
+    // degraus de largura. NENHUMA tag aqui: a casa é totalizadora, e pendência mora
+    // na conta.
     html += '<div class="contas-casa"><div class="contas-casa-head">'
       + '<span class="contas-casa-nomewrap">'
         + '<span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span>'
         + '<span class="contas-casa-nome" title="' + esc(nomeCasa) + '">' + esc(nomeCasa) + '</span>'
         + '<span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span>'
       + '</span>'
-      + '<span></span>' + casaTotal + '<span></span><span></span>'
+      // As trilhas vazias NÃO precisam de `<span>` de enchimento: elas existem pela
+      // `grid-template-columns`, e o chip tem coluna explícita. Spans de enchimento
+      // com um item posicionado por cima é como se cria sobreposição silenciosa.
+      + casaTotal
       + '</div><div class="acct-group">';
-    const cxMap = _caixaPorConta() || {};
     ps.forEach(p => {
       const ab = abertasDe(casa, p.nome);
       const st = (semTipsterPorParceiro[casa] || {})[p.nome] || 0;
@@ -3591,12 +3836,15 @@ function renderPainelLista() {
       const tag = tagStatus(estado, nPend);
       // Caixa da conta: sem caixa entra como "—", nunca como zero. Total que engole
       // conta desconhecida mente com cara de exatidão.
-      const caixa = (cx && cx.ligada && cx.banca)
+      const temCaixa = !!(cx && cx.ligada && cx.banca);
+      if (temCaixa) { somaCaixa += cx.banca; caixaDaCasa += cx.banca; }
+      const caixa = temCaixa
         ? '<span class="conta-caixa">' + fmtSaldo(cx.banca) + '</span>'
         : '<span class="conta-caixa vazio" title="Caixa Inteligente não ligada nesta conta">—</span>';
-      // Nome e parceiro deixam de ser uma string só ("Davi [Norte]"): o nome é
-      // identidade (--ink 12,5px) e o parceiro é label (--ink-soft 9,5px mono).
+      // Nome e fornecedor deixam de ser uma string só ("Davi [Norte]"): o nome é
+      // identidade (--ink 12,5px) e o fornecedor é label (--ink-soft 9,5px mono).
       const forn = _painelParseForn(p.nome);
+      const fornRot = temForn ? (forn || _painelRotuloEu()) : forn;
       const nomeLimpo = forn ? (p.nome || '').replace(/\s*\[[^\]]*\]\s*$/, '') : (p.nome || '');
       const clic = contasTab === 'ativas';   // ativa = tem perfil na Extração → a linha abre lá
       // Na aba Ativas a linha inteira abre a conta na Extração, então toda ação precisa
@@ -3613,13 +3861,30 @@ function renderPainelLista() {
         + (clic ? ' onclick="contasAbrir(' + p.id + ',this.dataset.casa)" title="Abrir na Extração"' : '')
         + '><span class="conta-nomewrap">'
           + '<span class="conta-nome">' + esc(nomeLimpo || '—') + '</span>'
-          + (forn ? '<span class="conta-forn">' + esc(forn) + '</span>' : '')
+          // `.acct-supplier-inline`: acima de 1500px de área de app o fornecedor sai
+          // daqui e vira COLUNA. Um só por degrau — nunca os dois.
+          + (fornRot ? '<span class="conta-forn acct-supplier-inline">' + esc(fornRot) + '</span>' : '')
         + '</span>'
-        + tag + caixa + '<span></span>'
+        + '<span class="acct-col-fornecedor"' + (fornRot ? ' title="' + esc(fornRot) + '"' : '') + '>' + esc(fornRot || '') + '</span>'
+        + _colUltima(cx)
+        + tag + caixa
         + '<span class="conta-acoes">' + acoes + '</span></div>';
     });
+    if (caixaDaCasa > 0) casasComCaixa++;
     html += '</div></div>';
   });
+  // ── Linha de total no rodapé (Fase 8.4) ────────────────────────────────────
+  // Descreve o que está NA TELA: com filtro ligado ela acompanha o recorte, senão o
+  // rodapé afirmaria um total que a tabela acima não mostra.
+  if (total) {
+    const rotulo = total + (total === 1 ? ' conta' : ' contas') + (contasTab === 'ativas' ? ' ativas' : ' arquivadas')
+      + ' · ' + casasComCaixa + (casasComCaixa === 1 ? ' casa com caixa' : ' casas com caixa');
+    html += '<div class="acct-foot"><span class="lbl">' + esc(rotulo) + '</span>'
+      + (somaCaixa > 0
+          ? '<span class="val">' + fmtSaldo(somaCaixa) + '</span>'
+          : '<span class="val vazio" title="Nenhuma conta desta lista tem a Caixa Inteligente ligada">—</span>')
+      + '</div>';
+  }
   host.innerHTML = html || '<div class="painel-empty">Nenhuma conta nesta aba' + (q ? ' para "' + esc(q) + '"' : '') + '.</div>';
   const cnt = document.getElementById('painelGestaoCount');
   if (cnt) cnt.textContent = total + (total === 1 ? ' conta' : ' contas');
@@ -3646,6 +3911,8 @@ async function renderPainelBanca(force) {
   const kh = document.getElementById('painelBancaKpis');
   if (!kh) return;   // painel pode ter re-renderizado durante o fetch
   renderPainelConcentracao(v);
+  renderPainelFornecedores(v);
+  renderPainelSegForn();
   const t = v.totais || {};
   const nf = n => (n || 0).toLocaleString('pt-BR');
   // `cls` agora é do CARD, não do valor: o sinal do KPI (véu, borda, tarja) descreve a
@@ -3670,14 +3937,44 @@ async function renderPainelBanca(force) {
   (casasCarregadas || []).forEach(c => (parceirosCache[c] || []).forEach(p => { nAbertas += abertasDe(c, p.nome); }));
   const nCasas = (v.casas || []).length;
 
-  // Ordem OBRIGATÓRIA, da esquerda para a direita: disponível → aberto → total.
+  // ── 4º KPI — Em contas de fornecedores (Fase 8.2) ─────────────────────────
+  // Risco de fornecedor não é risco de casa: casa que trava saque é burocracia,
+  // fornecedor que some é o dinheiro. Só entra quando a base TEM fornecedor — um
+  // KPI que imprime R$ 0,00 para sempre foi exatamente o que a s330 tirou daqui.
+  const agg = _painelAggForn(v);
+  const temForn = agg.nForn > 0;
+  const pctTerc = t.banca > 0 ? (agg.terceiros / t.banca * 100) : 0;
+  let kpiTerc = '';
+  if (temForn) {
+    // Micro-barra com a MESMA rampa da Concentração para os fornecedores e --pos
+    // para a fatia própria: a cor é o que liga este KPI à zona lá embaixo.
+    const stack = agg.linhas.filter(l => l.caixa > 0).map((l, i) => {
+      const w = t.banca > 0 ? (l.caixa / t.banca * 100) : 0;
+      const cor = l.eu ? 'rgba(var(--pos-rgb),.55)' : _CONC_RAMPA[i % _CONC_RAMPA.length];
+      return '<i style="width:' + w.toFixed(1) + '%;background:' + cor + '"></i>';
+    }).join('');
+    const pctEu = Math.max(0, 100 - pctTerc);
+    kpiTerc =
+      '<div class="painel-kpi terc"><span class="painel-kpi-lbl">Em contas de fornecedores</span>'
+      + '<span class="painel-kpi-val">' + fmtSaldo(agg.terceiros)
+        + '<span class="sfx"> · ' + pctTerc.toFixed(0) + '%</span></span>'
+      + '<span class="painel-kpi-sub">' + nf(agg.nForn) + (agg.nForn === 1 ? ' fornecedor' : ' fornecedores')
+        + ' · ' + pctEu.toFixed(0) + '% em contas suas</span>'
+      + (stack ? '<span class="mini-stack">' + stack + '</span>' : '')
+      + '</div>';
+  }
+  kh.classList.toggle('tres', !temForn);
+
+  // Ordem OBRIGATÓRIA, da esquerda para a direita: disponível → aberto → total →
+  // exposição a fornecedor. É a ordem da CERTEZA DO DINHEIRO.
   kh.innerHTML =
     kpi('livre', 'Saldo disponível', fmtSaldo(t.disponivel),
         'é seu agora · ' + nf(t.ligadas) + (t.ligadas === 1 ? ' conta com caixa' : ' contas com caixa'))
     + kpi('aberto', 'Em aberto', fmtSaldo(t.aberto),
           nf(nAbertas) + (nAbertas === 1 ? ' aposta não liquidada' : ' apostas não liquidadas') + ' · pode não voltar')
     + kpi('total', 'Banca total', fmtSaldo(t.banca),
-          'disponível + em aberto · ' + nf(nCasas) + (nCasas === 1 ? ' casa' : ' casas'));
+          'disponível + em aberto · ' + nf(nCasas) + (nCasas === 1 ? ' casa' : ' casas'))
+    + kpiTerc;
 
   if (document.getElementById('painelGestaoList')) renderPainelLista();   // avisos na lista
 }
@@ -3823,11 +4120,111 @@ function renderPainelConcentracao(v) {
 // Clicar numa casa da concentração FILTRA a tabela de Contas. Clicar de novo solta —
 // filtro que só liga vira armadilha: o usuário some com as outras casas e não acha
 // como voltar.
+// ── s333 · Zona Fornecedores (Fase 8.1) ──────────────────────────────────────
+// Agregação pura do que já existe: o "[Fornecedor]" do nome da conta cruzado com a
+// Caixa Inteligente. Nenhum dado novo, nenhuma chamada nova.
+//
+// ⚠️ Só contas ATIVAS. Arquivada é conta fora de operação: contá-la aqui diria que o
+// fornecedor guarda um dinheiro que ele não guarda mais.
+function _painelAggForn(v) {
+  const cxMap = _caixaPorConta() || {};
+  const map = {};   // chave -> { chave, nome, eu, caixa, contas, espera }
+  (casasCarregadas || []).forEach(casa => {
+    (parceirosCache[casa] || []).forEach(p => {
+      const k = _painelFornDe(p.nome);
+      const a = map[k] || (map[k] = {
+        chave: k, nome: k === _FORN_EU ? _painelRotuloEu() : k,
+        eu: k === _FORN_EU, caixa: 0, contas: 0, espera: 0,
+      });
+      a.contas++;
+      a.espera += abertasDe(casa, p.nome) || 0;
+      const cx = cxMap[p.id];
+      if (cx && cx.ligada && cx.banca) a.caixa += cx.banca;
+    });
+  });
+  const linhas = Object.values(map).sort((a, b) => b.caixa - a.caixa || a.nome.localeCompare(b.nome));
+  const banca = ((v && v.totais) || {}).banca || 0;
+  const terceiros = linhas.filter(l => !l.eu).reduce((s, l) => s + l.caixa, 0);
+  return { linhas, banca, terceiros, nForn: linhas.filter(l => !l.eu).length };
+}
+
+// Iniciais do avatar. Duas letras no máximo, e sempre do NOME — nunca um índice ou
+// uma cor derivada do valor, que faria a mesma pessoa trocar de identidade visual
+// entre duas aberturas da tela.
+function _iniciais(nome) {
+  const s = (nome || '').replace(/\(.*?\)/g, ' ').trim();
+  const ps = s.split(/\s+/).filter(Boolean);
+  if (!ps.length) return '—';
+  if (ps.length === 1) return ps[0].slice(0, 2).toUpperCase();
+  return (ps[0][0] + ps[1][0]).toUpperCase();
+}
+
+function renderPainelFornecedores(v) {
+  const body = document.getElementById('painelSupBody');
+  if (!body) return;
+  const cnt = document.getElementById('painelSupCount');
+  const { linhas, banca, terceiros, nForn } = _painelAggForn(v);
+  if (cnt) cnt.textContent = nForn + (nForn === 1 ? ' fornecedor' : ' fornecedores');
+  if (!linhas.length) {
+    body.innerHTML = '<div class="painel-empty">Nenhuma conta ativa.</div>';
+    return;
+  }
+  const maior = linhas.reduce((m, l) => Math.max(m, l.caixa), 0);
+  const pctTerc = banca > 0 ? (terceiros / banca * 100) : 0;
+  body.innerHTML =
+    '<div class="sup-lista">' + linhas.map(l => {
+      const pct = banca > 0 ? (l.caixa / banca * 100) : 0;
+      const larg = maior > 0 ? (l.caixa / maior * 100) : 0;
+      const on = painelFornFiltro === l.chave ? ' on' : '';
+      return '<div class="sup-row' + on + '" role="button" tabindex="0"'
+        + ' onclick="painelFiltrarForn(this.dataset.forn)" data-forn="' + esc(l.chave) + '">'
+        + '<span class="av' + (l.eu ? ' me' : '') + '" data-i="' + esc(_iniciais(l.nome)) + '"></span>'
+        + '<span class="nome" title="' + esc(l.nome) + '">' + esc(l.nome) + '</span>'
+        + (l.caixa > 0
+            ? '<span class="val">' + fmtSaldo(l.caixa) + '</span>'
+            : '<span class="val vazio" title="Nenhuma conta deste fornecedor tem a Caixa Inteligente ligada">—</span>')
+        + '<span class="meta">'
+          + (l.caixa > 0 ? '<span class="sh">' + pct.toFixed(1).replace('.', ',') + '% da banca</span>' : '')
+          + '<span>' + l.contas + (l.contas === 1 ? ' conta' : ' contas') + '</span>'
+          + (l.espera ? '<span class="pd">' + l.espera + ' em espera</span>' : '')
+        + '</span>'
+        + '<span class="sup-bar"><i class="' + (l.eu ? 'me' : '') + '" style="width:' + larg.toFixed(1) + '%"></i></span>'
+        + '</div>';
+    }).join('') + '</div>'
+    + '<div class="sup-foot"><span class="eb">Em contas de terceiros</span>'
+    + '<span class="v">' + pctTerc.toFixed(0) + '% · ' + fmtSaldo(terceiros) + '</span></div>';
+}
+
+// Segmentado de fornecedor na barra da tabela. Mora ali, e não na zona, porque é um
+// filtro DA lista — e a zona já filtra pelo clique na linha. Os dois escrevem no
+// mesmo `painelFornFiltro`, então nunca divergem.
+function renderPainelSegForn() {
+  const host = document.getElementById('painelSegForn');
+  if (!host) return;
+  const { linhas } = _painelAggForn(caixaVisaoCache);
+  const btn = (chave, rot, n) =>
+    '<button type="button" class="' + (painelFornFiltro === chave ? 'on' : '') + '"'
+    + ' onclick="painelFiltrarForn(this.dataset.f)" data-f="' + esc(chave) + '">'
+    + esc(rot) + (n === null ? '' : ' <b>' + n + '</b>') + '</button>';
+  host.innerHTML = btn('', 'Todos', null) + linhas.map(l => btn(l.chave, l.nome, l.contas)).join('');
+}
+
 let painelCasaFiltro = '';
 function painelFiltrarCasa(casa) {
   painelCasaFiltro = (painelCasaFiltro === casa) ? '' : casa;
   renderPainelLista();
   if (caixaVisaoCache) renderPainelConcentracao(caixaVisaoCache);
+}
+
+// Clicar num FORNECEDOR filtra a tabela — o mesmo mecanismo do clique na casa,
+// inclusive o soltar no segundo clique. Os dois filtros se acumulam de propósito:
+// "as contas do Richard na Bet365" é uma pergunta legítima da tela.
+let painelFornFiltro = '';
+function painelFiltrarForn(forn) {
+  painelFornFiltro = (painelFornFiltro === forn) ? '' : forn;
+  renderPainelLista();
+  renderPainelSegForn();
+  if (caixaVisaoCache) renderPainelFornecedores(caixaVisaoCache);
 }
 
 // s330 — `_renderCaixaTotal` saiu com o rodapé que o hospedava. Ele imprimia o MESMO
@@ -4565,6 +4962,9 @@ function renderPainelContas() {
 
   const casaOpts = casas.map(c => '<option value="' + esc(c) + '">' + esc(NOMES[c] || c) + '</option>').join('');
   const tabAtiva = contasTab === 'ativas';
+  // A zona de Fornecedores, o 4º KPI e o segmentado só existem quando a base TEM
+  // fornecedor. Numa base solo eles seriam uma coluna inteira dizendo "Eu · 100%".
+  const temFornBase = forns.length > 0;
   // s331b — o hero saiu. O chip "nada a conferir" passava a vida dizendo que não havia
   // nada (e a divergência já tem pílula própria na linha), o "Fornecedores" duplicava um
   // item que a sidebar já tem, e o "+ Nova conta" desceu para o cabeçalho de Contas —
@@ -4588,8 +4988,10 @@ function renderPainelContas() {
         '<button class="btn btn-primary btn-sm painel-nova" type="button" onclick="abrirModalNovaConta(&quot;painel&quot;)">+ Nova conta</button>' +
       '</div>' +
       '<div class="painel-lista-toolbar">' +
+        // "fornecedor", nunca "parceiro": o vocabulário desta tela é fechado, e o
+        // placeholder é onde ele aparece primeiro para quem chega.
         '<div class="contas-search" style="margin-left:0;min-width:150px;flex:1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>' +
-        '<input id="painel-search" placeholder="buscar casa ou parceiro…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
+        '<input id="painel-search" placeholder="buscar casa ou fornecedor…" autocomplete="off" spellcheck="false" value="' + esc(painelBusca) + '" oninput="painelBusca=this.value;renderPainelLista()"></div>' +
         // s331c — o segmentado virou CARD, e o card É o filtro. Antes o mesmo dado
         // aparecia em três lugares (meta do cabeçalho, segmentado e "N contas" à
         // direita); agora o número vive uma vez só, no lugar onde também se escolhe.
@@ -4601,10 +5003,18 @@ function renderPainelContas() {
         '</div>' +
         '<span class="painel-gestao-count" id="painelGestaoCount" hidden></span>' +
       '</div>' +
+      // Segmentado de fornecedor (Fase 8.1). Preenchido por renderPainelSegForn()
+      // depois do /caixa/visao; base sem fornecedor não desenha nada.
+      (temFornBase ? '<div class="painel-lista-toolbar"><div class="sup-seg" id="painelSegForn"></div></div>' : '') +
       // Cabeçalho de colunas — a MESMA grade das linhas, então nunca desalinha.
       // "Caixa", não "Caixa da conta": o rótulo da coluna não repete o da tabela.
+      // As duas opcionais levam os MESMOS modificadores das células: rótulo que não
+      // colapsa junto com a coluna reaparece flutuando sobre o vizinho.
       '<div class="acct-head">' +
-        '<span>Conta</span><span>Status</span><span class="r">Caixa</span><span></span><span></span>' +
+        '<span>Conta</span>' +
+        '<span class="acct-col-fornecedor">Fornecedor</span>' +
+        '<span class="acct-col-ultima">Última captura</span>' +
+        '<span>Status</span><span class="r">Caixa</span><span></span>' +
       '</div>' +
       '<div id="painelGestaoList"></div>' +
     '</div>';
@@ -4620,6 +5030,18 @@ function renderPainelContas() {
       '<div id="painelConcBody"><div class="painel-empty">Carregando caixa…</div></div>' +
     '</div>';
 
+  // Fornecedores (Fase 8.1) — terceira zona. Preenchida por renderPainelFornecedores(),
+  // que também depende do /caixa/visao.
+  const supPanel = temFornBase
+    ? '<div class="painel-card pc-sup" id="painelSup">' +
+        '<div class="painel-card-head">' +
+          '<span class="painel-card-titulo">Fornecedores</span>' +
+          '<span class="painel-card-count" id="painelSupCount"></span>' +
+        '</div>' +
+        '<div id="painelSupBody"><div class="painel-empty">Carregando caixa…</div></div>' +
+      '</div>'
+    : '';
+
   // Últimas ações (Fase 6) — o log saiu do rail da casca e virou coluna da página.
   const logPanel =
     '<div class="painel-card">' +
@@ -4634,7 +5056,10 @@ function renderPainelContas() {
     '<div class="pc-top">' +
       '<div class="pc-topleft">' +
         '<div class="painel-kpis banca pc-kpis" id="painelBancaKpis"></div>' +
-        '<div class="pc-tri">' + concPanel + listaPanel + '</div>' +
+        // Ordem no DOM: concentração · contas · fornecedores. A colocação na grade é
+        // explícita (CSS), então a zona de Fornecedores DESCE para baixo da
+        // Concentração quando não há largura para as três — nunca some.
+        '<div class="pc-tri' + (temFornBase ? '' : ' sem-sup') + '">' + concPanel + listaPanel + supPanel + '</div>' +
       '</div>' +
       '<div class="pc-logcol">' + logPanel + '</div>' +
     '</div>';

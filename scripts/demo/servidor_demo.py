@@ -59,11 +59,19 @@ app = FastAPI(title="Sharpen — servidor de demonstração", docs_url=None, red
 # aposta) e a demo passa a mostrar um custo diferente do que a producao mostraria.
 # A demo compra a conta 30 dias antes da 1a aposta dela; nenhuma conta e' arquivada.
 _1A_APOSTA = {}
+# Ultima captura da conta (s333): na producao e' o maior `criado_em` dos bilhetes
+# daquela conta, e e' dela que sai a tag `Parada ha N dias` e a coluna do degrau de
+# 32". Aqui usamos a data da aposta -- a demo nao tem `criado_em`, e para o efeito
+# que a tela mostra (conta ativa que parou de produzir) as duas contam a mesma
+# historia.
+_ULT_APOSTA = {}
 for _l in LINHAS:
     _k = (_l["casa"], _l["parceiro"])
     _d = _l.get("data") or ""
     if _d and (_k not in _1A_APOSTA or _d < _1A_APOSTA[_k]):
         _1A_APOSTA[_k] = _d
+    if _d and (_k not in _ULT_APOSTA or _d > _ULT_APOSTA[_k]):
+        _ULT_APOSTA[_k] = _d
 
 
 def _comprada_em(casa, parceiro):
@@ -784,7 +792,8 @@ def caixa_visao_demo():
                        "arquivado": False, "ligada": r["ligada"], "estado": r["estado"],
                        "banca": r["banca"], "disponivel": r["disponivel"],
                        "aberto": r["aberto"], "divergencia": r["divergencia"],
-                       "conferencia": r["conferencia"]})
+                       "conferencia": r["conferencia"],
+                       "ultima_captura": _ULT_APOSTA.get((p["casa"], p["nome"]))})
         c = casas.setdefault(p["casa"], {"casa": p["casa"], "contas": 0, "ligadas": 0,
                                          "sem_caixa": 0, "banca": 0.0, "disponivel": 0.0,
                                          "aberto": 0.0, "a_conferir": 0, "conferencia": None})

@@ -2372,18 +2372,42 @@ async def caixa_visao(dono: str) -> dict:
     for a in apostas:
         por_chave.setdefault((a["casa"], a["parceiro"]), []).append(dict(a))
 
+    # Última CAPTURA da conta = maior `criado_em` entre os bilhetes dela. É agregação
+    # do que já veio na varredura acima — nenhuma consulta nova, nenhum dado novo.
+    #
+    # ⚠️ O nome é `ultima_captura` e não `ultima_extracao` de propósito: o que se mede
+    # aqui é quando o último BILHETE daquela conta foi gravado, não quando a extração
+    # rodou. Uma extração que não achou bilhete novo não aparece — e é exatamente esse
+    # o sinal que a tag `Parada há N dias` procura (conta ativa que parou de produzir).
+    # Rotular de "extração" prometeria uma medição que este campo não faz.
+    #
+    # `criado_em` mistura tz-aware e naive na mesma coluna (linha antiga de import), e
+    # comparar os dois levanta TypeError — a naive entra como UTC para o max valer.
+    ultima: dict[tuple, datetime] = {}
+    for a in apostas:
+        ts = a["criado_em"]
+        if not ts:
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        k = (a["casa"], a["parceiro"])
+        if k not in ultima or ts > ultima[k]:
+            ultima[k] = ts
+
     contas, casas = [], {}
     tot = {"banca": 0.0, "disponivel": 0.0, "aberto": 0.0,
            "contas": 0, "ligadas": 0, "sem_caixa": 0, "a_conferir": 0, "batidas": 0}
     for p in parceiros:
         res = _caixa_projetar(por_conta.get(p["id"], []),
                               por_chave.get((p["casa"], p["nome"]), []))
+        uc = ultima.get((p["casa"], p["nome"]))
         linha = {
             "parceiro_id": p["id"], "casa": p["casa"], "parceiro": p["nome"],
             "arquivado": p["arquivado"], "ligada": res["ligada"], "estado": res["estado"],
             "banca": res["banca"], "disponivel": res["disponivel"],
             "aberto": res["aberto"], "divergencia": res["divergencia"],
             "conferencia": res["conferencia"],
+            "ultima_captura": uc.isoformat() if uc else None,
         }
         contas.append(linha)
         if p["arquivado"]:
