@@ -3828,6 +3828,104 @@ _SOMBRA_DIAS = 120          # janela de retenção; purga preguiçosa, sem cron
 _SOMBRA_BRUTO_MAX = 4000    # teto por bloco: corta bilhete-monstro, não a coluna
 
 
+def blocos_por_codigo(texto: str | None, teto: int | None = None) -> dict[str, str]:
+    """`{código do bilhete: bloco cru}`. Função PURA.
+
+    Parte o texto pelo **mesmo marcador** que o chunker usa para fatiar e que a
+    conferência de cobertura usa para cobrar. Reusar a fronteira é o que mantém as
+    leituras do texto de acordo entre si — três parsers do mesmo texto com fronteiras
+    diferentes é como se perde bilhete sem erro nenhum.
+
+    `teto` corta cada bloco: a sombra corta em `_SOMBRA_BRUTO_MAX` para não guardar
+    bilhete-monstro. **A barreira de recaptura NÃO corta**, e isso é load-bearing: um
+    byte diferente depois do teto é uma mudança que ela precisa enxergar, e cortar a
+    entrada do hash faria dois blocos diferentes virarem o mesmo hash.
+    """
+    if not texto:
+        return {}
+    # split com 1 grupo de captura → [antes, cod1, bloco1, cod2, bloco2, …]
+    partes = _ID_MARCADOR_RE.split(texto)
+    blocos: dict[str, str] = {}
+    for i in range(1, len(partes) - 1, 2):
+        codigo = (partes[i] or "").strip()
+        if codigo and codigo not in blocos:      # 1ª ocorrência manda
+            bruto = partes[i + 1] or ""
+            blocos[codigo] = bruto[:teto] if teto else bruto
+    return blocos
+
+
+def hash_bloco(bruto: str | None) -> str:
+    """sha1 hex do bloco cru. É a chave da barreira de recaptura.
+
+    `errors="replace"` porque a barreira nunca pode levantar: bloco com byte estranho
+    tem de gerar UM hash estável, não uma exceção no caminho da extração."""
+    return hashlib.sha1((bruto or "").encode("utf-8", "replace")).hexdigest()
+
+
+def triar_blocos(texto: str | None, conhecidos: dict[str, str]) -> tuple[dict, dict]:
+    """`(a_processar, ja_vistos)`, dos blocos do texto. Função PURA.
+
+    `conhecidos` é `{código: hash da última leitura}`. Bloco cujo hash bate é
+    `ja_visto`; **todo o resto é `a_processar`**, inclusive código nunca visto e
+    bloco que mudou um byte. Na dúvida processa: o modo de falha aceitável é "custou
+    dinheiro", o inaceitável é "deixou de gravar mudança".
+    """
+    a_processar, ja_vistos = {}, {}
+    for codigo, bruto in blocos_por_codigo(texto).items():
+        h = hash_bloco(bruto)
+        if conhecidos.get(codigo) == h:
+            ja_vistos[codigo] = bruto
+        else:
+            a_processar[codigo] = bruto
+    return a_processar, ja_vistos
+
+
+async def blocos_conhecidos(dono: str, casa: str, codigos) -> dict[str, str]:
+    """`{código: hash}` do que já foi lido para este dono nesta casa. Falha devolve
+    `{}` — sem memória a barreira não pula nada, que é o lado seguro."""
+    codigos = [c for c in (codigos or []) if c]
+    if not codigos:
+        return {}
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            linhas = await conn.fetch(
+                """SELECT codigo, bloco_hash FROM bloco_visto
+                   WHERE dono = $1 AND casa = $2 AND codigo = ANY($3)""",
+                dono, casa, codigos)
+        return {r["codigo"]: r["bloco_hash"] for r in linhas}
+    except Exception:
+        logger.warning("barreira: leitura de bloco_visto falhou (segue sem pular nada)",
+                       exc_info=True)
+        return {}
+
+
+async def registrar_blocos_vistos(dono: str, casa: str, texto: str | None) -> int:
+    """Grava o hash de cada bloco do texto. Fire-and-forget: NUNCA derruba o stream.
+
+    Roda no `done` da extração, ao lado da sombra. Grava **depois** de a IA responder,
+    não antes: bloco que entrou mas cuja extração falhou não pode ficar marcado como
+    lido — senão a barreira o pularia na próxima e o bilhete nunca entraria.
+    """
+    try:
+        blocos = blocos_por_codigo(texto)
+        if not blocos:
+            return 0
+        linhas = [(dono, casa, cod, hash_bloco(b)) for cod, b in blocos.items()]
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                """INSERT INTO bloco_visto (dono, casa, codigo, bloco_hash)
+                   VALUES ($1,$2,$3,$4)
+                   ON CONFLICT (dono, casa, codigo) DO UPDATE
+                     SET bloco_hash = EXCLUDED.bloco_hash, atualizado_em = NOW()""",
+                linhas)
+        return len(linhas)
+    except Exception:
+        logger.warning("barreira: registro de bloco_visto falhou", exc_info=True)
+        return 0
+
+
 def parear_sombra(dono: str, casa: str, texto: str | None, tsv: str) -> list[tuple]:
     """Pareia bloco bruto × decisão da IA pelo CÓDIGO do bilhete. Função PURA.
 
@@ -3837,16 +3935,7 @@ def parear_sombra(dono: str, casa: str, texto: str | None, tsv: str) -> list[tup
     """
     if not texto or not tsv:
         return []
-    # Fatia o texto pelo MESMO marcador que o chunker usa para partir e que a
-    # conferência de cobertura usa para cobrar. Reusar a fronteira é o que mantém
-    # as três leituras do texto de acordo entre si.
-    partes = _ID_MARCADOR_RE.split(texto)
-    # split com 1 grupo de captura → [antes, cod1, bloco1, cod2, bloco2, …]
-    blocos: dict[str, str] = {}
-    for i in range(1, len(partes) - 1, 2):
-        codigo = (partes[i] or "").strip()
-        if codigo and codigo not in blocos:      # 1ª ocorrência manda
-            blocos[codigo] = (partes[i + 1] or "")[:_SOMBRA_BRUTO_MAX]
+    blocos = blocos_por_codigo(texto, teto=_SOMBRA_BRUTO_MAX)
     if not blocos:
         return []
 

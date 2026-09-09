@@ -470,6 +470,37 @@ CREATE TABLE IF NOT EXISTS sombra_rotulos (
 );
 CREATE INDEX IF NOT EXISTS sombra_rotulos_casa_criado ON sombra_rotulos (casa, criado_em);
 
+-- ── Barreira de recaptura (Fase 0 do `docs/PLANO_BARREIRA_RECAPTURA.md`) ──────
+-- O hash do último bloco cru que a IA leu para cada bilhete. Serve a UMA pergunta:
+-- "este bloco é byte a byte o mesmo que eu já paguei para ler?". Se for, não há o
+-- que reprocessar; se não for, alguma coisa mudou e o bilhete volta para a IA.
+--
+-- POR QUE O HASH DO BLOCO, e não o par (código, resultado) que seria o óbvio:
+-- medido na s334 sobre 15.318 blocos reais, as duas chaves decidem igual em 97,7%
+-- dos casos, e nos 2,3% restantes o bloco mudou COM o `Status:` igual — a chave por
+-- rótulo pularia e perderia a mudança. Além disso o texto de status não é fonte
+-- confiável de estado: `_resultadoB3` (`extensor/content.js`) escreve `Ganho → W`
+-- para QUALQUER retorno maior que a stake, meia vitória inclusive. Comparar bytes
+-- não herda esse defeito porque não interpreta nada.
+--
+-- POR QUE TABELA PRÓPRIA, e não coluna em `bilhetes` nem reuso de `sombra_rotulos`:
+-- a sombra tem retenção de 120 dias, grava uma linha por EXTRAÇÃO (o mesmo bilhete
+-- N vezes, de propósito) e desaparece quando o tradutor virar. Aqui é UMA linha por
+-- bilhete, permanente. E ficar fora de `bilhetes` mantém o `ON CONFLICT` da dedup
+-- intocado — acoplamento zero por construção, mesmo princípio da lixeira de contas.
+--
+-- A CHAVE NÃO INCLUI `parceiro`, ao contrário da assinatura de dedup: código de
+-- bilhete é único dentro da casa, e o mesmo dono ter duas contas na mesma casa com o
+-- mesmo código não é cenário real. Limitação declarada, não esquecimento.
+CREATE TABLE IF NOT EXISTS bloco_visto (
+    dono          TEXT NOT NULL,
+    casa          TEXT NOT NULL,
+    codigo        TEXT NOT NULL,
+    bloco_hash    TEXT NOT NULL,     -- sha1 do bloco cru, hex
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (dono, casa, codigo)
+);
+
 -- ── Caixa: auditoria de saldo por conta (s314) ────────────────────────────────
 -- O extrato de dinheiro da conta na casa: saldo inicial, depósitos, saques,
 -- ajustes e conferências. O saldo PROJETADO nunca é gravado — é derivado destes

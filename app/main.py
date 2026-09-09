@@ -80,6 +80,7 @@ from repository import (
     CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_editar_mov, caixa_excluir_mov, caixa_visao,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
+    blocos_por_codigo, blocos_conhecidos, triar_blocos, registrar_blocos_vistos,
     conferir_cobertura, codigos_do_texto, codigos_do_tsv,
 )
 from descricao_check import checar_fidelidade
@@ -353,6 +354,32 @@ async def _cache_warmer():
         except Exception:
             pass
         await asyncio.sleep(_WARMER_INTERVALO)
+
+
+async def _barreira_escuro(dono: str, casa: str, texto: str | None) -> None:
+    """Fase 0 do `docs/PLANO_BARREIRA_RECAPTURA.md`: **mede sem filtrar nada**.
+
+    Lê o hash da leitura anterior, conta quantos blocos SERIAM pulados, e só então
+    grava os hashes novos. A ordem é obrigatória: gravar antes de ler zeraria a
+    medição, porque todo bloco bateria consigo mesmo.
+
+    Roda depois de a IA responder e é fire-and-forget, igual ao uso e à sombra:
+    medir não pode custar a extração de ninguém. Enquanto esta fase durar, o número
+    do log é a conferência em PRODUÇÃO da simulação do §3 do plano — que deu
+    32,5% dos blocos com código, medida sobre 13 dias de sombra.
+    """
+    try:
+        blocos = blocos_por_codigo(texto)
+        if not blocos:
+            return
+        conhecidos = await blocos_conhecidos(dono, casa, list(blocos))
+        _, ja_vistos = triar_blocos(texto, conhecidos)
+        if ja_vistos:
+            logger.info("barreira (escuro): %d de %d blocos SERIAM pulados · %s/%s",
+                        len(ja_vistos), len(blocos), dono, casa)
+        await registrar_blocos_vistos(dono, casa, texto)
+    except Exception:
+        logger.warning("barreira (escuro) falhou — nada muda na extração", exc_info=True)
 
 
 async def _usuarios_refresher():
@@ -1547,6 +1574,8 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # intermediário. Fire-and-forget, igual ao uso: observar não pode custar
         # a extração de ninguém.
         _fire(registrar_sombra(dono, casa, texto, accumulated))
+        # Fase 0 da barreira de recaptura — mede, não filtra. Ver `_barreira_escuro`.
+        _fire(_barreira_escuro(dono, casa, texto))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
@@ -1741,6 +1770,8 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
         # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
         _fire(registrar_sombra(dono, casa, texto, resultado))
+        # Fase 0 da barreira de recaptura — mede, não filtra. Ver `_barreira_escuro`.
+        _fire(_barreira_escuro(dono, casa, texto))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
     except Exception:
         logger.exception("par-final error")
