@@ -366,6 +366,47 @@ em 12 % de margem bruta.
 > inteiro (`cache_read` por chamada de 156k para 231k). Toda otimização daqui em diante
 > precisa declarar **qual** custo ela mira e medir o outro depois.
 
+### 3.9 O output que o parser descarta: medido, e menor do que a estimativa (s336). VIVA.
+
+**A estimativa que eu dei ao Feca estava alta e está corrigida aqui.** A conta offline
+(TSV real contado no `count_tokens`, que é gratuito) deu **70,8 % do output descartado**,
+o equivalente a ~US$ 110/mês. O experimento controlado, com 4 chamadas reais sobre 6
+bilhetes de Bet365, mostra que o número verdadeiro é **bem menor e muito ruidoso**.
+
+O desperdício são **duas coisas de naturezas opostas**, e só uma é removível de graça:
+
+| | O que é | Tamanho medido | Dá para cortar? |
+|---|---|---|---|
+| **Preâmbulo** | raciocínio bilhete a bilhete ANTES do bloco | 935 a 2.227 chars, varia 2,4× entre rodadas | **não sem risco** |
+| **Notas** | análise escrita DEPOIS do bloco | 518 a 1.497 chars | **sim, de graça** |
+
+**As notas não têm como melhorar o que já foi decidido** — elas vêm depois da resposta.
+Já o preâmbulo é cadeia de raciocínio, e a s301 já viu que tirar espaço de deliberação
+piora a extração.
+
+**Duas medições que fecham o caminho e valem por si:**
+
+1. **`claude-sonnet-4-6` NÃO aceita prefill de assistente.** A API responde
+   `This model does not support assistant message prefill. The conversation must end
+   with a user message.` Então a técnica clássica de forçar o início da resposta com a
+   cerca ```` ```tsv ```` **está fora**. Fica registrado para ninguém tentar de novo.
+2. **`stop_sequences=["\n```\n"]` funciona e é seguro.** Nas duas rodadas com ele o
+   texto depois do bloco foi a **zero**, o `stop_reason` veio `stop_sequence`, e **o TSV
+   saiu IDÊNTICO ao das rodadas sem ele, nas 4 execuções**.
+
+⚠️ **A costura:** `_extract_tsv_rows` casa `` ```tsv\n(.*?)\n``` `` e **exige a cerca de
+fechamento**, que a sequência de parada NÃO devolve na resposta. Quem implementar tem de
+remontar a cerca antes de parsear, senão o parser devolve `[]` e a extração inteira some
+sem erro — a família do §179 (chunk sem bloco ```tsv).
+
+**Quanto vale:** as notas somam ~260 tokens por chamada. Com o ritmo atual (~2.240
+chamadas/mês) isso é da ordem de **US$ 9/mês**, não os US$ 110 da estimativa. É barato de
+fazer e não tem risco medido, mas **não é a alavanca que eu tinha anunciado** — a
+economia grande continua sendo o tradutor e a barreira.
+
+**Decisão do Feca:** ligar o `stop_sequences` (ganho pequeno, risco medido como zero, mas
+mexe no caminho quente da extração) ou deixar para quando outra coisa já for tocar ali.
+
 ### 3.8 O MASTER não fixa a notação da LINHA PARTIDA, e é ali que a IA improvisa (s333). VIVA.
 
 Medido na sombra: das 538 divergências de número entre tradutor e IA na Bet365,
