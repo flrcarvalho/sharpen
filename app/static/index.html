@@ -3170,6 +3170,10 @@ const NOMES = {
   // unificada NO BANCO na mesma sessão — por isso o alias de exibição que existia aqui saiu:
   // não há mais linha alguma em `Rei do Pitaco` para traduzir.
   PITACO: 'Pitaco',
+  // Motor Rogue (s335) — tres casas espelho. Grafias MEDIDAS no banco antes do
+  // registro: `Betao` (44 bilhetes), `R7` (40, contra 1 da gemea `r7.bet` que foi
+  // unificada antes) e `7Games` (7). A chave do Betao nao tem til; o display tem.
+  BETAO: 'Betão', R7: 'R7', '7GAMES': '7Games',
 };
 // Caixa de exibição da casa no cabeçalho de grupo. O CSS não força mais uppercase
 // (Escada de Tinta: caixa alta só em CATEGORIA; nome próprio vai em caixa própria),
@@ -3255,6 +3259,9 @@ const DOMINIOS = {
   // Casa nova da base do Grego Tips - VIP (s325). Domínio MEDIDO no link que ele
   // postou no canal (`www.betsson.bet.br`), não deduzido do nome.
   'Betsson': 'betsson.bet.br',
+  // Motor Rogue (s335). Betao e 7Games ja estavam aqui (a casa era usada por print);
+  // so a R7 faltava, e sem ela o favicon caia no globo generico.
+  'R7': 'r7.bet.br',
   '4Play': '4play.bet.br',
   '7Games': '7games.bet.br',
   'ApostaMax': 'apostamax.bet.br',
@@ -5143,7 +5150,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'FAZ1BET', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'BOLSADEAPOSTA']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'FAZ1BET', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'BOLSADEAPOSTA', 'BETAO', 'R7', '7GAMES']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o
@@ -5151,7 +5158,12 @@ const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR'
 // "Conectar" nasceu desabilitado — o bug da s191 de novo, por outro caminho.
 // O `replace` espelha o que o `_display_to_key` do backend já fazia (casar pelo display), e
 // tanto faz receber o display (`Jogo de Ouro`) quanto a chave (`JOGODEOURO`).
-function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').toUpperCase().replace(/\s+/g, '')); }
+// ⚠ O `normalize('NFD')` tira ACENTO, e ele entrou pela MESMA porta que o `replace` de
+// espaço: a chave do `_CASA_DISPLAY` é ASCII (`BETAO`) e o display tem til (`Betão`), então
+// sem isto o `Betão` nasceria com o botão "Conectar" DESABILITADO — o bug da s191, terceira
+// encarnação (s256 foi o espaço, s335 é o acento). Medido antes de mudar: nas 31 grafias de
+// display conhecidas, a normalização não altera o resultado de nenhuma casa já existente.
+function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, '')); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
 function aplicarModoCasa(casa) {

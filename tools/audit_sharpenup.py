@@ -25,6 +25,7 @@ import json
 import pathlib
 import re
 import sys
+import unicodedata
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -88,6 +89,14 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # motor Altenar: mesmo espaço de IDs, numérico de 10 dígitos.
     "ESTRELABET": "5346391363",
     "BET365":     "JR8714690761I",
+    # Motor Rogue (s335) — ids reais das três contas, todos `PurchaseTicketId` numérico de
+    # 18 dígitos, reconhecidos pela regex GENÉRICA do repository (não há regex por casa).
+    # ⚠ O espaço de ids é COMPARTILHADO entre as três: o `885255718436737024` (7Games) e o
+    # `885255808819798016` (R7) nasceram com 22 segundos de diferença. Isso não gera colisão
+    # de dedup (`casa` entra na assinatura), mas um id sozinho não diz de que casa é.
+    "BETAO":      "872134288308391936",   # o W de futebol, 598,00 → 1.004,64
+    "R7":         "885258522240761856",   # o W de 09/09, 250,00 → 612,50 (conferido no card)
+    "7GAMES":     "885255718436737024",   # o W de 09/09, 200,00 → 368,00
     # ticket_id real da conta (a Super Odds aberta de 01/08) — formato NXBNAC + 24 dígitos.
     "BETNACIONAL": "NXBNAC000142211281785609607878",
     # id real do BetBy (a ganha de 04/08, R$ 623,01) — numérico de 19 dígitos. ⚠ Os ids da
@@ -191,9 +200,20 @@ def normaliza_conectavel() -> str:
 
 
 def display_casa_conectavel(display: str) -> bool:
-    """Simula `_casaConectavel(display)` do front — o teste que faltava."""
+    """Simula `_casaConectavel(display)` do front — o teste que faltava.
+
+    As transformações são LIDAS da expressão real (`normaliza_conectavel`), nunca
+    presumidas: quando o front ganhou o `normalize('NFD')` para tratar acento (s335, o
+    `Betão`), este simulador tinha de acompanhar — senão ele reprovaria uma casa que o
+    runtime aceita, que é o falso VERMELHO simétrico do bug que ele existe para pegar.
+    """
     expr = normaliza_conectavel()
-    chave = display.upper()
+    chave = display
+    # Remove diacríticos, como o front faz desde a s335 (`Betão` → `BETAO`).
+    if "normalize" in expr:
+        chave = "".join(c for c in unicodedata.normalize("NFD", chave)
+                        if not unicodedata.combining(c))
+    chave = chave.upper()
     if "replace" in expr:                      # tira espaços, como o front faz hoje
         chave = re.sub(r"\s+", "", chave)
     return chave in conectaveis()

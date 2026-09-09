@@ -59,6 +59,15 @@ const CASA_HOSTS = {
   // domínio da CASCA, que é a página em que o operador está; os hosts dos iframes
   // (`mexchange*.bolsadeaposta.bet.br` e `*.msjxk.com`) vivem no manifest.
   "Bolsa de Aposta": ["bolsadeaposta.bet.br"],
+  // Motor Rogue (s335) — TRES casas espelho, um inject so (`rg_inject.js`). Como na
+  // Novibet, a API mora no proprio dominio da casa (`/api/sportsbook/rogue/v1/...`),
+  // entao nao ha host de gateway para listar. A amarracao casa<->site importa mais
+  // aqui do que de costume: o payload nao traz nada que identifique a casa (o espaco
+  // de ids e compartilhado entre as tres), entao capturar na aba errada gravaria os
+  // bilhetes na casa errada sem nenhum sinal.
+  "Betão":      ["betao.bet.br"],
+  "R7":         ["r7.bet.br"],
+  "7Games":     ["7games.bet.br"],
 };
 function hostBate(host, casa) {
   const hosts = CASA_HOSTS[casa];
@@ -221,6 +230,12 @@ async function capturar() {
                 : (casa === "Jonbet" || casa === "Betboom") ? "jb_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
+                // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.
+                // Linhas PROPRIAS de proposito, nao `(a || b || c) ?`: o `injects_popup()`
+                // do audit casa por `casa === "X" ? "y.js"` e nao enxerga a forma com `||`.
+                : casa === "Betão" ? "rg_inject.js"
+                : casa === "R7" ? "rg_inject.js"
+                : casa === "7Games" ? "rg_inject.js"
                 // 1xBet: plataforma própria (app Vue, API em `/service/`). `x1_`, e não
                 // `1x_`, para o nome não começar por dígito.
                 : casa === "1xBet" ? "x1_inject.js"

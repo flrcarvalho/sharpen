@@ -68,7 +68,9 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
 _MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
-                   "BOLSADEAPOSTA": "texto"}
+                   "BOLSADEAPOSTA": "texto",
+                   # Motor Rogue (s335) — tres casas espelho, um inject so.
+                   "BETAO": "texto", "R7": "texto", "7GAMES": "texto"}
 
 
 def modo_da_casa(casa_key: str) -> str:
@@ -115,6 +117,14 @@ _HOSTS_POR_CASA = {
     # velha foi unificada no banco na mesma sessão. O domínio antigo (`reidopitaco.com.br`)
     # NÃO entra: a operação regulada é a `.bet.br`.
     "PITACO":     ("pitaco.bet.br",),
+    # Motor Rogue (s335) — três casas espelho. Como na Novibet e na 1xBet, a API de bilhetes
+    # vive no MESMO host da casa (`/api/sportsbook/rogue/v1/…`), então não há gateway
+    # separado para listar aqui. A amarração casa↔site é justamente o que impede capturar a
+    # R7 estando no Betão: são domínios diferentes rodando o mesmo motor, e o payload não
+    # traz nada que identifique a casa (o espaço de ids é compartilhado — ver CASA_7GAMES §3).
+    "BETAO":      ("betao.bet.br",),
+    "R7":         ("r7.bet.br",),
+    "7GAMES":     ("7games.bet.br",),
     # Stake (s257). Roda a MESMA Kambi da KTO, mas atrás de um REST próprio
     # (`web-api.stake.bet.br/restapi/v1/betslip/*`) — por isso NÃO é casa espelho: tem inject
     # e formatador próprios. A ABA continua sendo o site da casa.

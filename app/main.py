@@ -185,6 +185,17 @@ _TSV_HEADER = "Data\tEsporte\tTipster\tCasa\tParceiro\tAposta\tDescrição\tStak
 
 _CASA_DISPLAY: dict[str, str] = {
     "BET365":         "Bet365",
+    # ⚠ A CHAVE é `BETAO` (sem til) e o DISPLAY é `Betão` (com til) — o `_display_to_key`
+    # acha a chave pelo display, então o round-trip fecha. Mas o `content.js` compara o
+    # DISPLAY em minúsculas para escolher o robô, e por isso o ramo dele aceita `"betão"` E
+    # `"betao"`: aceitar só um lado é o defeito silencioso da Jogo de Ouro (s256).
+    #
+    # Grafia MEDIDA antes de registrar (s335), nas tabelas onde `casa` é texto: 44 bilhetes,
+    # 5 contas, 3 `casas_meta`, 1 `casa_config` e 17 correções, TODOS em `Betão`, sem
+    # nenhuma variante. Round-trip conferido nas 94 grafias distintas de `parceiros`: 0
+    # quebradas antes e 0 depois. Ver o aviso de mudança RETROATIVA em
+    # docs/SHARPENUP_ARQUITETURA.md §5 — é o defeito que matou a Jonbet na s249.
+    "BETAO":          "Betão",
     "BETANO":         "Betano",
     # ⚠ A MARCA escreve "BetBoom", mas a canônica aqui é "Betboom" — medido antes de
     # registrar (s250): a base já tem 172 bilhetes, 3 contas e 3 perfis de tipster nessa
@@ -246,6 +257,19 @@ _CASA_DISPLAY: dict[str, str] = {
     # RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5 — é o defeito que matou a Jonbet na s249.
     "1XBET":          "1xBet",
     "POLYMARKET":     "Polymarket",
+    # 2ª e 3ª casas do motor Rogue (s335), espelho do Betão acima.
+    #
+    # ⚠ A R7 tinha GÊMEA no banco: `R7` (40 bilhetes de 2 donos, 3 contas, 17 correções)
+    # contra `r7.bet` (1 bilhete, 2 contas) — um domínio cadastrado à mão como se fosse nome
+    # de casa. A base decidiu, não a marca. A gêmea foi unificada ANTES desta linha entrar
+    # (`scripts/unificar_casas.py --somente r7.bet --aplicar`): na ordem inversa, o bilhete
+    # do outro dono ficaria numa casa que a conta dele não enxerga — grade vazia, sem erro
+    # nenhum, o defeito da s249.
+    "R7":             "R7",
+    # Grafia única, medida: 7 bilhetes (2 donos), 2 contas, 1 `casas_meta`, 2 correções,
+    # todos em `7Games`. O nome começa com dígito — a chave equivalente no mapa de
+    # autodiagnóstico do content.js precisa de aspas (`"7games":`), como a "1xbet".
+    "7GAMES":         "7Games",
     # A base já usava esta grafia antes do registro (1 conta e 8 bilhetes do LavaPessoal,
     # medidos na s257) — então o round-trip `_casa_display(_display_to_key("Stake"))` continua
     # identidade e nenhuma conta existente deixa de casar com os bilhetes. Ver o aviso de
@@ -641,6 +665,12 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # (18). Séries distintas, sem risco de colisão, e o marcador é o mesmo — então uma
     # entrada só cobre os dois.
     "BOLSADEAPOSTA",
+    # Motor Rogue (s335) — as TRÊS casas espelho emitem `[Código: …]` pelo mesmo
+    # `formatTicketRG`. O id é numérico de 18 dígitos (`PurchaseTicketId`) e o espaço de ids
+    # é COMPARTILHADO entre elas (são sequenciais por instante de criação no motor, não por
+    # casa) — o que não gera colisão de dedup, porque `casa` entra na assinatura, mas
+    # significa que um código sozinho não diz de que casa é.
+    "BETAO", "R7", "7GAMES",
 })
 
 

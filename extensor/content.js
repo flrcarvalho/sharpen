@@ -296,6 +296,42 @@
     }
   });
 
+  // Bilhetes do motor **Rogue** capturados pelo rg_inject.js (mundo MAIN) — o
+  // `GET /api/sportsbook/rogue/v1/betsreporting/purchases`, já normalizado. TRÊS casas
+  // espelho compartilham este estado: Betão, R7 e 7Games (s335). Só uma delas está aberta
+  // por vez, então um mapa serve às três — como Tivo/Betfast/Faz1bet e a família Altenar.
+  //
+  // Plataforma própria servida do domínio da casa, como a Novibet: não é Altenar/BIA, não é
+  // BetBy, não é Kambi, não é BetConstruct.
+  //
+  // Passivo + replay: aqui o `clone()` resolve (ao contrário de Novibet/Pitaco), mas a TELA
+  // É ESTREITA — abre em "Últ. 24 horas" com `take=10`. Quem garante cobertura é o replay,
+  // alargando a janela para 36 meses e pedindo `status=all`.
+  //
+  // `rgById` guarda 1 bilhete por `PurchaseTicketId` — o mesmo código que o card estampa em
+  // "ID:". A versão RESOLVIDA vence a ABERTA (`statusBilhete === 0` é o "ainda aberta").
+  const rgById = new Map();          // PurchaseTicketId(string) → bilhete
+  let rgFimReal = false;
+  let rgHookVivo = false, rgRespostas = 0;   // autodiagnóstico (espelha KTO/Novibet)
+  let rgSemReq = false, rgErro = "";         // sem requisição aprendida; e o erro do replay
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupRGData) {
+      if (d.hook) rgHookVivo = true;
+      if (typeof d.respostas === "number") rgRespostas = d.respostas;
+      rgSemReq = !!d.semReq;
+      if (d.erro) rgErro = String(d.erro);
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.ref) continue;
+          const ex = rgById.get(b.ref);
+          if (!ex || (ex.statusBilhete === 0 && b.statusBilhete !== 0)) rgById.set(b.ref, b);
+        }
+      }
+      if (d.fim) rgFimReal = true;
+    }
+  });
+
   // Bilhetes da 1xBET capturados pelo x1_inject.js (mundo MAIN) — o `POST
   // /service/bethistory/GetBetInfoHistoryWithSummaryByDates`, já normalizado. Plataforma
   // PRÓPRIA (app Vue, API em `/service/`), sem parentesco com Altenar/BetBy/Kambi/
@@ -1032,6 +1068,27 @@
       // branco entre bilhetes, então o roboScroll genérico viraria um bloco só e a IA
       // perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboNVPassive(ctx);
+    } else if (casa === "betão" || casa === "betao" || casa === "r7" || casa === "7games") {
+      // PASSIVO + REPLAY (rg_inject) — motor **Rogue**, TRÊS casas espelho num inject só
+      // (s335). Plataforma própria servida do domínio da casa, como a Novibet: não é
+      // Altenar/BIA, não é BetBy, não é Kambi, não é BetConstruct.
+      //
+      // ⚠ `"betão"` E `"betao"` estão os dois aqui de propósito. O `casa` acima é o NOME DE
+      // EXIBIÇÃO em minúsculas, e o display desta casa tem til (`Betão`); a chave do
+      // `_CASA_DISPLAY` não tem (`BETAO`). Aceitar só uma das formas é exatamente o defeito
+      // silencioso da Jogo de Ouro (s256): a casa não casa ramo nenhum, cai no `roboScroll`
+      // genérico e raspa o rodapé institucional do site como se fossem bilhetes.
+      //
+      // Aqui o passivo FUNCIONA (o `clone().text()` resolve, ao contrário de Novibet/Pitaco/
+      // SportingBet), mas sozinho ele quase não entrega: A TELA ABRE EM "ÚLT. 24 HORAS" com
+      // `take=10`. No recon, o filtro de 30 dias do Betão devolvia `PurchasesCount: 0` numa
+      // conta com 9 bilhetes. O replay alarga para 36 meses e pede `status=all`, que traz
+      // abertas e liquidadas de uma vez.
+      //
+      // SEM fallback de texto: os cards ficam colados na lista, sem linha em branco garantida
+      // entre bilhetes, então o roboScroll genérico viraria um bloco só e a IA perderia o
+      // resto em silêncio (lição da KTO, s192).
+      blocos = await roboRGPassive(ctx);
     } else if (casa === "1xbet") {
       // PASSIVO + REPLAY (x1_inject). Plataforma própria da casa (app Vue, API em
       // `/service/`), sem parentesco com Altenar/BetBy/Kambi/BetConstruct/BlueBrown.
@@ -1164,6 +1221,16 @@
       // 0 respostas) de "formato mudou / conta vazia" (respostas>0, 0 vistos). Antes tudo isso
       // caía num "Nada coletado" genérico → falha silenciosa quando a casa troca o DOM/endpoint.
       // Casas sem inject (genéricos) seguem no aviso genérico.
+      // Dica das três casas Rogue. Separa os dois modos de falha em vez de mandar o operador
+      // "recarregar" quando o problema é outro: sem requisição aprendida não há Bearer, e
+      // sem Bearer a casa responde 403 mesmo com a sessão viva.
+      const _extraRG = () => {
+        if (rgErro) return " · " + rgErro;
+        if (rgSemReq) return " · abra Perfil › Histórico de Esportes e clique num filtro de " +
+                             "período (ex.: Últ. 30 dias); é essa busca que o robô aprende";
+        if (rgRespostas === 0) return " · recarregue a página (Ctrl+Shift+R); se persistir, refaça o login";
+        return "";
+      };
       const diag = {
         betfair:    { nome: "Betfair",    hook: bfHookVivo, resp: bfRespostas, vistos: bfTickets.length + bfAbertas.length },
         superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbById.size },
@@ -1205,6 +1272,26 @@
         "1xbet":    { nome: "1xBet",      hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size,
                       extra: x1Erro ? " · " + x1Erro
                            : (x1Respostas === 0 ? " · abra Minhas apostas (Histórico de apostas) e rode de novo" : "") },
+        // Motor Rogue — três casas espelho, mesmo inject e mesmos contadores. Só o nome muda,
+        // para o operador não ler "Betão: 0 bilhetes" estando na R7.
+        //
+        // `respostas` conta a da PÁGINA e as do replay (o passivo funciona aqui). O que
+        // distingue os dois modos de falha é o `rgSemReq`: sem uma requisição REAL o inject
+        // não tem o `authorization: Bearer` da sessão, e a mesma URL só com cookie responde
+        // 403 (medido). Por isso a dica muda conforme o caso, em vez de mandar o operador
+        // "recarregar" quando o problema é outro.
+        // ⚠ A chave deste mapa é o valor de RUNTIME (`cfg.casa.toLowerCase()`), e o display
+        // tem til: é `"betão"`, não `"betao"`. As DUAS entram — a com til é a que o runtime
+        // alcança hoje, a sem til é a rede para o caso de o pareamento devolver a chave do
+        // `_CASA_DISPLAY` em vez do display. Mesma dupla que o ramo do `iniciarRobo` aceita.
+        "betão":    { nome: "Betão",      hook: rgHookVivo, resp: rgRespostas, vistos: rgById.size,
+                      extra: _extraRG() },
+        betao:      { nome: "Betão",      hook: rgHookVivo, resp: rgRespostas, vistos: rgById.size,
+                      extra: _extraRG() },
+        r7:         { nome: "R7",         hook: rgHookVivo, resp: rgRespostas, vistos: rgById.size,
+                      extra: _extraRG() },
+        "7games":   { nome: "7Games",     hook: rgHookVivo, resp: rgRespostas, vistos: rgById.size,
+                      extra: _extraRG() },
         betnacional: { nome: "BetNacional", hook: bncHookVivo, resp: bncRespostas, vistos: bncById.size },
         tivo:       { nome: "Tivo",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         // Espelho da Tivo: mesmo inject, mesmos contadores. Só o nome muda, para o
@@ -3113,6 +3200,225 @@
     console.log("[SharpenUp] Novibet: " + blocos.length + " bilhete(s) · nvById=" + nvById.size +
                 " · hook=" + nvHookVivo + " · respostas=" + nvRespostas + " · fimReal=" + nvFimReal +
                 (nvTruncado ? " · janela truncada em 12 meses pela casa" : ""));
+    return blocos;
+  }
+
+  // ── Motor Rogue: Betão · R7 · 7Games (passivo + replay que ALARGA a janela) ──
+  //
+  // De-para do `BetStatusId`, PROVADO PELO DINHEIRO em 27 de 27 bilhetes das três contas
+  // (recon s335) — não pelo rótulo, que aqui nem existe: a API manda enum numérico puro.
+  //
+  //     0 → CurrentBetBalance 0  e SEM `Result`      → aberta
+  //     1 → CurrentBetBalance 0                      → perdida
+  //     2 → CurrentBetBalance = stake × odd          → ganha
+  //     4 → CurrentBetBalance = stake exato          → anulada (Result: "")
+  //
+  // O canônico vive nas `casas/CASA_BETAO.md` · `CASA_R7.md` · `CASA_7GAMES.md §5`; aqui é
+  // só a leitura. Enum fora deste mapa sobe CRU e NÃO é liquidado — a casa tem `/v1/cashout/*`
+  // no bundle e nenhum cashout apareceu na amostra, então o valor novo vai aparecer um dia.
+  const _ST_RG = { 0: "aberta", 1: "perdida", 2: "ganha", 4: "anulada" };
+  const _abertaRG = (b) => _ST_RG[b.statusBilhete] === "aberta";
+
+  // A odd que vai ao TSV.
+  //
+  //   • GANHO → `Retorno ÷ Stake`, com precisão total (regra global do W, MASTER_RESULTADO
+  //     §2). Nesta casa a divisão reproduz a odd declarada ao centavo — 1004,64 ÷ 598 =
+  //     1,68 exato —, mas a regra é global e não se negocia por casa; e é ela que absorve
+  //     de graça qualquer boost ou cashout que apareça no futuro.
+  //
+  //   • ABERTA / PERDIDA / ANULADA → a odd DECLARADA (`BetClientOdds`). Aqui isso não é
+  //     preferência, é a diferença entre gravar a odd certa e gravar lixo: em L o retorno é
+  //     0 e a divisão daria **odd 0** — o zero que faz um bilhete ganho virar −1u (CLAUDE.md,
+  //     "Zero não é ausência"); em V o retorno é a própria stake e a divisão daria 1,00,
+  //     apagando a odd real do bilhete (MASTER_RESULTADO §5.1.2 manda usar a odd exibida).
+  const _oddPorDinheiroRG = (b) =>
+    b.statusBilhete === 2 && typeof b.retorno === "number" && b.retorno > 0 &&
+    typeof b.stake === "number" && b.stake > 0;
+
+  function _oddRG(b) {
+    if (_oddPorDinheiroRG(b)) return b.retorno / b.stake;
+    // `oddTexto` preserva a precisão que a casa escreveu ("2.50"); o numérico é a rede.
+    const t = Number(b.oddTexto);
+    if (isFinite(t) && t > 0) return t;
+    return (typeof b.odd === "number" && b.odd > 0) ? b.odd : null;
+  }
+
+  function _statusRG(b) {
+    const s = _ST_RG[b.statusBilhete];
+    if (s === "aberta") return "Em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (s === "ganha") return "Ganhou → W";
+    if (s === "perdida") return "Perdeu → L";
+    if (s === "anulada") return "Anulada → V";
+    // Enum novo (cashout, meia-liquidação): sobe cru e NÃO vira W/L por chute.
+    //
+    // A rede por baixo, feita do DINHEIRO (CLAUDE.md, "o rótulo não é a prova — o número
+    // é"): resolvido + enum desconhecido + retorno IGUAL à stake ⇒ devolução ⇒ V. Isso
+    // fecha a família inteira em vez de um enum de cada vez. Com retorno diferente da
+    // stake o desconhecido continua subindo como "a conferir": inferir W/L de um enum que
+    // não se conhece é chute.
+    if (typeof b.retorno === "number" && typeof b.stake === "number" && b.stake > 0 &&
+        Math.abs(b.retorno - b.stake) <= 0.005) {
+      return "Anulada → V (enum " + String(b.statusBilhete) + " desconhecido; o retorno é " +
+             "igual à stake, então houve devolução)";
+    }
+    return "BetStatusId " + String(b.statusBilhete) +
+           " (a conferir — não liquidar automaticamente)";
+  }
+
+  // Data do EVENTO: a mais recente entre as seleções (MASTER_OUTPUT §4, "em apostas
+  // múltiplas: usar a data da perna mais recente"). Em aposta AO VIVO ela pode ser ANTERIOR
+  // à colocação — medido no vôlei da R7 (evento 19:58, colocada 20:23) —, então nada aqui
+  // pode assumir que evento vem depois.
+  function _dtEventoRG(b) {
+    let melhor = 0;
+    for (const s of (b.sels || [])) {
+      const t = s.inicio ? Date.parse(s.inicio) : NaN;
+      if (!isNaN(t) && t > melhor) melhor = t;
+    }
+    return melhor ? new Date(melhor).toISOString() : "";
+  }
+
+  // Outright/futuro (`EventTypeId: 8`, medido na F1 do Betão). Importa porque nesse tipo
+  // `Team1name`/`Team2name` NÃO são adversários — montar "A vs B" com eles inventaria um
+  // confronto que não existe — e o `Result` vem como FRASE, não como placar.
+  const _outrightRG = (s) => s && s.tipoEvento === 8;
+
+  function formatTicketRG(b) {
+    const L = [];
+    L.push("[Código: " + b.ref + "]");
+    // `_dhKTO` é reusado de propósito: é exatamente a mesma conversão (ISO UTC → America/
+    // Sao_Paulo). Duplicar criaria duas verdades para o mesmo fuso.
+    const dev = _dhKTO(_dtEventoRG(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dco = _dhKTO(b.colocada);
+    if (dco) L.push("Data (colocação): " + dco);
+    L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _statusRG(b));
+    // Enums CRUS — é o que as CASA_*.md traduzem, e o que permite reconhecer um status novo
+    // em vez de chutá-lo. `PurchaseStatusId` acompanhou `BetStatusId` em 27/27, mas os dois
+    // sobem: o dia em que divergirem é exatamente o dia em que isto vai importar.
+    L.push("Status (API): BetStatusId=" + String(b.statusBilhete) +
+           " · PurchaseStatusId=" + String(b.statusCompra) +
+           " · BetName=" + String(b.tipo));
+
+    const n = (b.sels || []).length;
+    if ((b.linhas || 1) > 1) {
+      // SISTEMA — nunca visto na amostra (`NumberOfLines` é 1 em 27/27). Se aparecer, a odd
+      // é a MÉDIA das linhas (MASTER_RESULTADO §7.3) e NÃO o produto das seleções. Aqui a
+      // gente entrega o dado e a regra em vez de um número chutado, como na bet365.
+      L.push("Tipo: SISTEMA — " + b.linhas + " linhas sobre " + n + " seleções · aposta " +
+             "unitária R$ " + _brl(b.stakeLinha) + " · total R$ " + _brl(b.stake) +
+             " (a Stake acima é o TOTAL — é ela que vale). Odd: calcule pela " +
+             "MASTER_RESULTADO §7 (média das linhas). NUNCA o produto simples das odds.");
+    } else if (n === 1) {
+      L.push("Tipo: Simples");
+    } else if (n > 1) {
+      L.push("Tipo: Múltipla (" + n + " seleções)");
+    }
+
+    const odd = _oddRG(b);
+    if (odd != null) {
+      L.push("Odd: " + _oddTxtKTO(odd) + (_oddPorDinheiroRG(b) ? " (= Retorno ÷ Stake)" : ""));
+    }
+    // A casa revisou a odd depois da colocação (perna anulada dentro de múltipla, p.ex.).
+    if (typeof b.oddOriginal === "number" && typeof b.odd === "number" &&
+        b.oddOriginal > 0 && Math.abs(b.oddOriginal - b.odd) > 0.0001) {
+      L.push("Odd revisada pela casa: " + _oddTxtKTO(b.oddOriginal) + " → " + _oddTxtKTO(b.odd) +
+             " (alguma seleção foi anulada — ver as pernas)");
+    }
+
+    // ⚠ AQUI MORA A ARMADILHA DA CASA. `Gain` é o retorno POTENCIAL e vale `stake × odd` em
+    // 27 de 27 — inclusive em PERDIDA e em ABERTA. O realizado é `CurrentBetBalance`. Emitir
+    // o primeiro como "Retorno" marcaria toda perda como ganho: é a vitória fantasma do
+    // `totalWin` da VaideBet (s210) e do `finalFinancials.payout` da Novibet (s271).
+    if (_abertaRG(b)) {
+      if (typeof b.potencial === "number" && b.potencial > 0) {
+        L.push("Retorno potencial: R$ " + _brl(b.potencial) + " (POTENCIAL — a aposta não liquidou)");
+      }
+    } else if (typeof b.retorno === "number") {
+      L.push("Retorno: R$ " + _brl(b.retorno));
+    }
+    if (!_abertaRG(b) && b.atualizada) L.push("Liquidado em: " + _dhKTO(b.atualizada));
+
+    L.push("Seleções:");
+    for (const s of (b.sels || [])) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.selecao || "");
+      // `resultado` é AUSENTE em aberta, VAZIO em anulada, placar em resolvida e FRASE em
+      // outright. Só entra entre colchetes quando tem conteúdo — vazio viraria "[]" e a IA
+      // leria um resultado que não existe.
+      if (s.resultado) bits.push("[" + s.resultado + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      // Em OUTRIGHT os dois "times" não são adversários: o jogo é a prova inteira.
+      if (s.jogo) ctx2.push((_outrightRG(s) ? "Evento (futuro/outright): " : "Jogo: ") + s.jogo);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.liga) ctx2.push("Liga: " + s.liga);
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (typeof s.odd === "number" && s.odd > 0) L.push("    Odd da perna: " + _oddTxtKTO(s.odd));
+      // Linha de handicap/total. `0` é linha LEGÍTIMA (handicap zero), por isso o teste é
+      // contra null e nunca truthy.
+      if (s.pontos != null) L.push("    Linha (handicap/total): " + String(s.pontos).replace(".", ","));
+      const marcas = [];
+      if (s.aoVivo) marcas.push("ao vivo");
+      if (_outrightRG(s)) marcas.push("outright (não é confronto entre dois times)");
+      // Placar NO MOMENTO da aposta — só faz sentido ao vivo, e NÃO é o resultado.
+      if (s.aoVivo && (s.placar1 || s.placar2)) {
+        marcas.push("placar na hora da aposta: " + String(s.placar1) + " x " + String(s.placar2));
+      }
+      if (s.mercadoEn && s.mercadoEn !== s.mercado) marcas.push("mercado (en): " + s.mercadoEn);
+      if (marcas.length) L.push("    " + marcas.join(" · "));
+    }
+    return L.join("\n");
+  }
+
+  async function roboRGPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Ordem estável: mais recente primeiro (a casa devolve Descending por colocação), para
+      // o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(rgById.values()).sort((a, b) =>
+        (Date.parse(b.colocada) || 0) - (Date.parse(a.colocada) || 0));
+      for (const b of todos) {
+        const cod = String(b.ref || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }   // último já extraído
+        usados.add(cod);
+        // A janela de dias corta só as RESOLVIDAS (pela colocação, que é a que o card mostra).
+        // Aberta nunca corta — senão uma resolvida velha interromperia antes delas.
+        const dt = b.colocada ? Date.parse(b.colocada) : NaN;
+        const passou = !_abertaRG(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketRG(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }   // passou da janela → para
+      }
+    };
+
+    // Pede ao rg_inject o acumulado + arranca o replay (alarga para 36 meses e pede
+    // `status=all`, que traz abertas e liquidadas juntas).
+    try { window.postMessage({ __sharpenupRGReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    // Espera o replay terminar (rgFimReal), consumindo o que for chegando. Não para no 1º
+    // obstáculo: só desiste por teto depois de muitos segundos sem crescer.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !rgFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (rgById.size > ultTotal) { ultTotal = rgById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();   // consome o que chegou por último
+    console.log("[SharpenUp] Rogue: " + blocos.length + " bilhete(s) · rgById=" + rgById.size +
+                " · hook=" + rgHookVivo + " · respostas=" + rgRespostas + " · fimReal=" + rgFimReal +
+                (rgSemReq ? " · nenhuma requisição aprendida (abra o histórico uma vez)" : ""));
     return blocos;
   }
 

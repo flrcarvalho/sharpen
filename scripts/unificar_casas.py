@@ -85,6 +85,14 @@ MAPA = {
     # `REIDOPITACO` na mesma sessão, então quem ficasse na grafia velha perderia o botão
     # "Conectar" e cairia em modo print, em silêncio.
     "Rei do Pitaco": "Pitaco",
+    # s335 — mesma família da Faz1bet e da SportingBet acima, e pela mesma razão: a R7 entra
+    # no `_CASA_DISPLAY` ao ganhar captura pelo SharpenUp (motor Rogue), e a partir daí o
+    # round-trip do `/salvar` impõe UMA grafia. A base decidiu, não a marca: `R7` tem 40
+    # bilhetes / 3 contas / 2 donos (arrudex 25, Feca 15) contra 1 bilhete / 2 contas em
+    # `r7.bet` (Jaao26 e Gabriel). A grafia velha é um domínio, não um nome de casa — nasceu
+    # do cadastro à mão. Sem esta linha, o bilhete do Jaao26 continuaria gravado numa casa
+    # que a conta dele não enxerga: grade vazia, sem erro nenhum, o bug da s249.
+    "r7.bet":        "R7",
 }
 
 # Contas de typo que ficaram vazias. Só some se tiver ZERO bilhete (conferido em tempo de execução).

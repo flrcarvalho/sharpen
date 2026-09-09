@@ -30,6 +30,9 @@ const CASA_ICONS={
   'Betano':'https://www.google.com/s2/favicons?sz=128&domain=betano.com',
   'Betao':'https://www.google.com/s2/favicons?sz=128&domain=betao.bet.br',
   'Betão':'https://www.google.com/s2/favicons?sz=128&domain=betao.bet.br',
+  // Motor Rogue (s335), irma do Betao e da 7Games (que ja estavam aqui). Sem esta
+  // linha o favicon da R7 caia no globo generico.
+  'R7':'https://www.google.com/s2/favicons?sz=128&domain=r7.bet.br',
   'Betboom':'https://www.google.com/s2/favicons?sz=128&domain=betboom.bet.br',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
@@ -120,6 +123,7 @@ const HOUSE_DOMAIN={
   'Betano':'betano.com',
   'Betao':'betao.bet.br',
   'Betão':'betao.bet.br',
+  'R7':'r7.bet.br',
   'Betboom':'betboom.bet.br',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo

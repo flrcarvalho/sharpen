@@ -1,10 +1,176 @@
-# HISTÓRICO — Sessões 330 → 300
+# HISTÓRICO — Sessões 331 → 300
 
-> Os blocos completos que saíram do `STATUS.md` (330 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
+> Os blocos completos que saíram do `STATUS.md` (331 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
 >
 > Partição do `docs/HISTORICO.md`, criada na faxina de documentação de 2026-09-07 (Lote C). **O texto é o original, verbatim** — só foi partido.
 
 [↑ Índice](../HISTORICO.md) · [mais antigo: Sessões 299 → 243 →](HISTORICO_s243-s299.md)
+
+---
+
+## Sessão 331 — Contas e Parceiros v2, em 6 fases
+
+### O handoff `Contas e Parceiros v2` está aplicado, nas 6 fases
+
+A tela deixa de ser três colunas concorrendo e passa a ter **quatro leituras**: os três
+números de dinheiro no topo estreito · `Últimas ações` na lateral inteira, começando na
+mesma linha dos KPIs · `Concentração de caixa` ao lado da tabela de `Contas`.
+
+**O rail da casca saiu desta tela.** Ele é o RAIO-X, que pertence à Extração — e
+escondê-lo sem colapsar a trilha abriria 372px vazios (`.workfull.sem-rail`).
+
+### Concentração de caixa: contar conta não diz risco
+
+O painel que saiu (`Contas por casa`) contava **contas**. Isso desenhava uma barra maior
+para 52 contas numa casa com R$ 0 do que para 1 conta com metade da banca — o oposto do
+que importa. A pergunta certa é onde o **dinheiro** está.
+
+A rosca usa `stroke-dasharray` sobre um círculo de perímetro 100, então cada arco é
+literalmente "P por cento", sem conversão. A rampa de 8 tons é **fixa**: tom calculado a
+partir do valor faria a mesma casa mudar de cor entre duas aberturas, e a cor é a chave
+que liga a rosca à lista. Clicar numa casa filtra a tabela; clicar de novo solta —
+filtro que só liga vira armadilha.
+
+### Duas armadilhas de largura, as duas invisíveis na leitura
+
+Nenhuma das duas dá erro, e as duas só apareceram medindo no headless.
+
+1. **Media query dentro do iframe lê a largura do IFRAME, não da janela.** Esta página
+   vive no `#fr-plan` da casca, e a sidebar (~300px) fica **fora** dele: num monitor de
+   1440px a página tem ~1120. O breakpoint de 1180px do handoff disparava **sempre**, e o
+   log caía para baixo em toda largura — parecendo que a coluna lateral não tinha sido
+   implementada.
+2. **Trilha em px cravado não cede — o nome cede.** Com `148/118/172` fixos sobravam
+   130px para o nome em 1440, e `Esportes da Sorte` saía cortado. As três viraram
+   `minmax(min, alvo)` e cedem **antes** do nome: nome é identidade, as outras são
+   rótulo, valor e botão. A concentração também cede (`minmax(0,228px)`) e a tabela é
+   quem declara piso (666px). Conferido em 1366/1440/1600/1920/2560.
+
+> Sintoma para reconhecer o primeiro noutro lugar: um breakpoint que "não funciona" numa
+> tela dentro de iframe. Meça `document.documentElement.clientWidth` **dentro** do frame
+> antes de mexer no número — a janela mente sobre a largura que o CSS vê.
+
+### `Aguardando tipster` virou estado próprio
+
+Bilhete sem tipster somava com aposta aberta num número só. São coisas diferentes:
+pendência eu resolvo olhando; tipster **depende de terceiro**. Agora é uma pílula azul —
+espera externa não é erro, e âmbar diria "confira" onde não há o que conferir.
+
+### Os seis ajustes depois de ver a v2 na base real
+
+Concentração **+25%** (228 → 285) com a rosca proporcional (88 → 110) · `Últimas ações`
+**+25%** (240 → 300) · favicon do log dessaturado, no padrão do `.ctx-hchip` · saíram o
+chip `nada a conferir` e o botão `Fornecedores` · `+ Nova conta` desceu para o cabeçalho
+de Contas · ícone nos três botões da linha.
+
+**Ícone é SVG em `currentColor`, não emoji.** Emoji é glifo colorido do sistema: não
+aceita tom e destoaria da paleta — o mesmo motivo de os favicons das casas irem
+dessaturados. Em `currentColor` eles herdam `--ink-soft` do botão, viram `--ink` no
+hover, e o de Excluir herda o vermelho apagado da classe.
+
+### O defeito que o ícone revelou: transbordo para a ESQUERDA não aparece no `scrollWidth`
+
+Com os ícones os três botões passaram a medir 208px, e a trilha de ações dava 158. A
+linha **não** estourava: `justify-content: flex-end` empurra o excesso para a
+**esquerda**, e transbordo à esquerda não entra no `scrollWidth`. O resultado era o botão
+passando por cima da coluna Caixa, sem erro nenhum e sem o gate de largura acusar.
+
+> Sintoma para reconhecer isto noutra grade: uma medição de transbordo que dá zero numa
+> linha que visivelmente se sobrepõe. `scrollWidth` só enxerga o excesso do lado do fluxo
+> — com `flex-end` (ou `direction: rtl`) ele é cego. Compare a **borda** do item com a do
+> contêiner, e não a largura com o `scrollWidth`.
+
+### O SharpenCal chegou à grade de Extração (e viajou dentro do commit da s331b)
+
+Duplo-clique na coluna `Data` da grade de Extração abre o calendário da marca, que era o
+único campo de data do sistema ainda sem ele (`UI_REFERENCE §4`). É a mesma chamada de
+`_apInlineStart` (`charts/apostas.js:848`), que já servia a `Base Completa` e `Em Aberto`:
+digitar continua valendo, escolher um dia preenche e salva. O `finish()` ganhou o
+`SharpenCal.fechar()` junto, senão Enter e blur deixariam o popover aberto sem dono,
+porque nenhum dos dois passa pelo "clicar fora" que fecha o calendário.
+
+Provado em tela contra o `servidor_demo.py` com puppeteer headless, e não só por
+`node --check`: o calendário abre no mês da própria célula com o dia dela selecionado ·
+clicar num dia dispara `PATCH /bilhetes/{id}` e a célula fecha com a data nova · `Esc`
+fecha só o calendário e mantém o editor. Duas armadilhas do arnês, nenhuma do produto:
+`screenshot` com `clip` dispara `resize`, e o SharpenCal fecha no `resize` por desenho
+(o print vai depois da medição); e `elementHandle.boundingBox()` de dentro do iframe não
+serve para `mouse.click` na página, então o duplo-clique vai por evento sintético.
+
+> **Registro do caso 8:** esta mudança **não tem commit próprio**. Ela estava no
+> `index.html` esperando aprovação quando a sessão da s331b commitou o mesmo arquivo, e
+> foi levada dentro do `eb0b342`. O histórico já estava pushado, então não foi reescrito.
+> As duas sessões editaram o **mesmo arquivo**, e aí o `git add` por nome não separa nada
+> — é o limite da regra do invariante 8, e vale escrevê-lo: com o arquivo compartilhado,
+> quem termina primeiro leva o trabalho do outro junto, e a única defesa é a segunda
+> sessão conferir o `git show --stat` e registrar, como está aqui.
+
+### A 2ª rodada de ajustes: laterais +40%, banca total e cards
+
+Concentração e `Últimas ações` **+40%** (285→399 e 300→420), rosca de 110 para **150** ·
+a **banca total** entra na Concentração · `Ativas`/`Arquivadas` viram **cards** que são o
+próprio filtro · as colunas da tabela se aproximam.
+
+**A banca total mora na Concentração porque é o denominador dela.** Cada "% da banca" da
+lista é uma fração daquele número; sem ele o percentual fica sem régua. É o mesmo valor
+do KPI `Banca total`, mas ali ele é resultado e aqui é a base da conta que se está lendo.
+
+**Os cards existem porque o mesmo dado estava em três lugares** — meta do cabeçalho,
+segmentado e um `N contas` à direita — e nenhum dizia com clareza qual estava
+selecionado. Agora o número vive uma vez só, no lugar onde também se escolhe. Trocar de
+aba passou a **soltar** o recorte por casa: sem isso o usuário troca de aba e a lista
+segue filtrada por uma casa que ele não vê mais marcada.
+
+**A 5ª trilha é sobra, e conserta uma leitura.** O nome estava em `1fr` e engolia toda a
+folga do monitor largo, empurrando Status e Caixa para longe da identidade — a linha lia
+como duas ilhas. Agora o nome tem teto (340px) e a sobra fica **entre a Caixa e as
+Ações**: as três primeiras colunas andam juntas à esquerda e os botões seguem encostados
+na borda direita, que é onde se procura ação.
+
+> 819px de painéis laterais pedem monitor largo, e isso não se espreme. O lado a lado
+> exige 1.555px de **iframe** (399 + 12 + 712 de piso da tabela + 12 + 420) — cerca de
+> 1.870px de janela. Abaixo disso a concentração sobe para cima da tabela, e lá ela ganha
+> container query própria (rosca e frase lado a lado, lista em duas colunas) para o
+> estado empilhado não parecer acidente.
+
+### `Aguardando resultado`, não `Pendências` — e o que o rótulo novo revelou
+
+Correção do Feca, e ele está certo: aquilo vem de `abertasDe()`, são apostas **não
+liquidadas**. *Pendência* promete algo a fazer; ali não há o que fazer — espera-se o
+jogo acabar. O rótulo passou a descrever o fato.
+
+A classe virou `.aguard` e **não** `.pend` de propósito: `.pend` continua existindo para
+o log, onde *pendência* é pendência de **extração** — essa sim é algo a resolver. Mesmo
+tom âmbar, fatos diferentes; reusar o nome misturaria os dois. A precedência também
+mudou: entre as duas esperas, a de **resultado** vem antes da de **tipster**, porque a
+primeira resolve sozinha com o tempo e a segunda depende de alguém agir.
+
+> **O rótulo mais longo revelou um truncamento silencioso.** `Aguardando resultado 13`
+> mede 175px e a trilha de Status dava 148. A pílula tinha `overflow:hidden` +
+> `text-overflow: ellipsis`, então **o que caía fora era o NÚMERO** — exatamente a
+> mentira que a regra "nunca abreviar, número sempre real" existe para impedir, e sem
+> erro nenhum. A trilha foi para `minmax(160px, 200px)` e a pílula **perdeu o ellipsis**:
+> se um dia não couber, o defeito aparece na tela em vez de virar dado errado.
+>
+> Sintoma para reconhecer isto noutro lugar: `text-overflow: ellipsis` num componente
+> que carrega **dado**, e não só rótulo. Ellipsis é honesto num nome próprio (o `title`
+> devolve o resto); num número ele apaga a informação e não deixa rastro.
+
+Junto: rosca **+50%** (150 → 225) e a **banca total destacada** — faixa própria em
+`--surface-2` com tarja de acento, valor em 22px, o maior número do painel porque é o
+denominador de todos os outros. Crescer a rosca ainda corrigiu de graça uma violação
+herdada do handoff: o rótulo do centro estava em 7,5px, abaixo do piso de 9,5px do papel
+*Label*; agora cabe em 11px.
+
+### Ficou de fora, e está no `BACKLOG.md`
+
+- **Título da página em 19px.** `.pagehead-title` é casca: o `SHELL_SPEC` e o
+  `check-tokens` prendem o tamanho a um token, a escada não tem 19px (18 · 22) e o
+  Dashboard usa o mesmo contrato. Ficou em `--text-xl`; a cor, que é o que carregava o
+  argumento, já tinha ido para `--ink` na s330.
+- **Eyebrow em 9px.** O handoff pede 9px/`--ink-soft`, e o piso do papel *Label* na
+  Escada é 9,5px. Ficou em `--text-xxs` (10px).
+
 
 ---
 

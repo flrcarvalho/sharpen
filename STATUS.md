@@ -7,18 +7,118 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
 
-_Atualizado: 2026-09-09 (sessao 334: **Fase 1 do tradutor deterministico avancada na Bet365. Cobertura de 66,6% para 70,7% COM a divergencia de descricao caindo de 21,4% para 20,5%** — subir uma e baixar a outra e a unica combinacao que autoriza seguir. **A sombra medida:** 15.181 pares, 13 dias, 21 casas. A Bet365 usa 228 rotulos de mercado, ou 180 depois de normalizar; **40 cobrem 90% das linhas** e a cauda e 0,18%. Um dicionario por voto de maioria concorda com a IA em **97,66%**. A Betano usa 686 rotulos porque **embute nome proprio no rotulo** (`Josh Coburn Total de chutes`); normalizando por sufixo eles colapsam 60%, mas ela so tem 552 bilhetes de 1 selecao contra 7.779 da Bet365, entao ela ESPERA. **A regra que a medicao obrigou a criar:** dezessete rotulos passaram na regua de categoria (maioria >=95%, n>=5) e **so sete ficaram**, porque acertar a categoria nao basta, a DESCRICAO tem de bater junto — aplicando os dezessete, a cobertura ia a 73,5% e a divergencia de descricao SUBIA para 22,8%. Os dez cortados sao duas familias que pedem codigo e nao linha de tabela: prop de SIM/NAO, onde a selecao e `Sim` e quem carrega a aposta e o ROTULO (`Terminar com Pontos` sai `Franco Colapinto - Sim` e a IA escreve `Franco Colapinto - Terminar com Pontos`, 98% de divergencia em 52 casos), e escopo de tempo, onde o periodo muda a aposta e precisa aparecer (`1º Tempo - Escanteios Asiaticos`, 98% em 41). **Entrou o corte do sufixo `- N Opcoes`** como ULTIMA tentativa: `Total - 2 Opcoes` esta no mapa por inteiro e cortar antes deixaria a chave em `total`, derrubando 498 blocos de uma vez. **Tres achados de desenho:** (1) o esporte NAO sai do codigo da casa, `CL=18` deu eBasket 607 e Basquete 223 e quem decide e a liga; (2) a normalizacao de prefixo e obrigatoria e difere por casa; (3) `Tipo: … (N selecoes)` conta PERNAS, nao mercados. **A triagem que muda a leitura dos 20%:** das 1.376 divergencias de descricao, 657 sao nome de time localizado (limitacao declarada), 538 sao notacao de numero e 81 sao a IA escrevendo `Mais de` onde o MASTER manda `Over`. Das 538, **520 (96,7%) sao NOTACAO e nao valor** — o MASTER nao fixa a forma da linha partida e e ali que a IA improvisa em tres formatos. **Buraco de MASTER, nao defeito de tradutor** (`BACKLOG §3.8`, decisao do Feca). **Gates:** 24 passed, mutacao provada nos dois sentidos do corte do sufixo, e replay contra os 9.641 blocos reais da sombra. Registrado no `PLANO_TRADUTOR_DETERMINISTICO §II.8`. A s333 rodou em PARALELO, noutra sessao.)
+_Atualizado: 2026-09-09 (sessao 335: **tres casas novas no SharpenUp, num motor novo: Rogue.** Betao, R7 e 7Games sao espelho de verdade, servido do PROPRIO dominio da casa em `/api/sportsbook/rogue/...`, como a Novibet. Nao e Altenar, nao e BetBy, nao e Kambi, nao e BetConstruct. Um `rg_inject.js` e um `formatTicketRG` servem as tres, e a irmandade foi MEDIDA antes de escrever codigo (mesma stack Next.js, mesmo conjunto de hosts, mesmo mapa de endpoints extraido dos bundles das tres). **O contrato:** `GET /v1/betsreporting/purchases?status=all&take=<1..100>&skip=<n>&fromDate&toDate` com `authorization: Bearer`, devolvendo `{Purchases, PurchasesCount}`; `take` tem teto de 100 e a casa DIZ o limite (`ErrorCode 2003`) em vez de truncar calada. **A semantica saiu do DINHEIRO, nao do rotulo** (a API manda enum numerico puro), provada em 27 de 27 bilhetes: `BetStatusId` 0 com saldo 0 e sem `Result` e aberta, 1 e L, 2 com `saldo = stake x odd` e W, 4 com `saldo = stake` exato e V. **A armadilha central e o `Gain`:** ele e o retorno POTENCIAL e vale `stake x odd` em 27/27, INCLUSIVE em perdida e em aberta; o realizado e `CurrentBetBalance`. Quem le o campo obvio marca toda perda como ganho, que e o `totalWin` da VaideBet (s210) com o terceiro nome. **Dois achados mudaram o codigo:** (1) a TELA E ESTREITA, abre em `Ult. 24 horas` com `take=10` e no recon o filtro de 30 dias do Betao devolvia `PurchasesCount: 0` numa conta com 9 bilhetes, entao o replay alarga para 36 meses e pede `status=all`; (2) **o Bearer EXPIRA**, medido testando o inject contra a casa real (token de ~1h responde 401), e guardar so a PRIMEIRA requisicao fazia o contexto envelhecer junto com a aba. **A gemea `r7.bet` foi unificada ANTES do registro** (a base decidiu: 40 bilhetes de 2 donos contra 1), senao o bilhete do Jaao26 ficaria numa casa que a conta dele nao enxerga, o defeito da s249. **O gate pegou um defeito meu antes de subir:** `_casaConectavel()` normalizava espaco mas nao ACENTO, e a chave e `BETAO` enquanto o display e `Betao` com til, entao o botao Conectar nasceria desabilitado (o bug da s191 na terceira encarnacao). **Gates:** harness 26 casos / 428 bilhetes, `audit_sharpenup` 31 casas sem FAIL nem WARN, `audit_casas` limpo, check-tokens verde, 772 passed, e **mutacao 12 de 12 detectadas** (as duas que escaparam de primeira eram buraco de TESTE, nao de codigo, e viraram caso proprio). **NAO coberto, medido:** as 27 apostas sao todas simples, sem multipla, sistema, cashout, freebet nem meia-liquidacao. Falta a Fase 7, que so o operador faz.)
+
+_Anterior: 2026-09-09 (sessao 334: **Fase 1 do tradutor deterministico avancada na Bet365. Cobertura de 66,6% para 70,7% COM a divergencia de descricao caindo de 21,4% para 20,5%** — subir uma e baixar a outra e a unica combinacao que autoriza seguir. **A sombra medida:** 15.181 pares, 13 dias, 21 casas. A Bet365 usa 228 rotulos de mercado, ou 180 depois de normalizar; **40 cobrem 90% das linhas** e a cauda e 0,18%. Um dicionario por voto de maioria concorda com a IA em **97,66%**. A Betano usa 686 rotulos porque **embute nome proprio no rotulo** (`Josh Coburn Total de chutes`); normalizando por sufixo eles colapsam 60%, mas ela so tem 552 bilhetes de 1 selecao contra 7.779 da Bet365, entao ela ESPERA. **A regra que a medicao obrigou a criar:** dezessete rotulos passaram na regua de categoria (maioria >=95%, n>=5) e **so sete ficaram**, porque acertar a categoria nao basta, a DESCRICAO tem de bater junto — aplicando os dezessete, a cobertura ia a 73,5% e a divergencia de descricao SUBIA para 22,8%. Os dez cortados sao duas familias que pedem codigo e nao linha de tabela: prop de SIM/NAO, onde a selecao e `Sim` e quem carrega a aposta e o ROTULO (`Terminar com Pontos` sai `Franco Colapinto - Sim` e a IA escreve `Franco Colapinto - Terminar com Pontos`, 98% de divergencia em 52 casos), e escopo de tempo, onde o periodo muda a aposta e precisa aparecer (`1º Tempo - Escanteios Asiaticos`, 98% em 41). **Entrou o corte do sufixo `- N Opcoes`** como ULTIMA tentativa: `Total - 2 Opcoes` esta no mapa por inteiro e cortar antes deixaria a chave em `total`, derrubando 498 blocos de uma vez. **Tres achados de desenho:** (1) o esporte NAO sai do codigo da casa, `CL=18` deu eBasket 607 e Basquete 223 e quem decide e a liga; (2) a normalizacao de prefixo e obrigatoria e difere por casa; (3) `Tipo: … (N selecoes)` conta PERNAS, nao mercados. **A triagem que muda a leitura dos 20%:** das 1.376 divergencias de descricao, 657 sao nome de time localizado (limitacao declarada), 538 sao notacao de numero e 81 sao a IA escrevendo `Mais de` onde o MASTER manda `Over`. Das 538, **520 (96,7%) sao NOTACAO e nao valor** — o MASTER nao fixa a forma da linha partida e e ali que a IA improvisa em tres formatos. **Buraco de MASTER, nao defeito de tradutor** (`BACKLOG §3.8`, decisao do Feca). **Gates:** 24 passed, mutacao provada nos dois sentidos do corte do sufixo, e replay contra os 9.641 blocos reais da sombra. Registrado no `PLANO_TRADUTOR_DETERMINISTICO §II.8`. A s333 rodou em PARALELO, noutra sessao.)
 
 _Anterior: 2026-09-09 (sessao 333: **handoff `Contas e Parceiros v2` — Fases 7 e 8 aplicadas.** A Fase 7 e distribuicao por LARGURA e a Fase 8 e a zona de Fornecedores. **O vao de ~800px no monitor de 32" nao era margem errada, era COLUNA SOBRANDO:** a folga vivia numa faixa antes das acoes, entao nome/status/caixa ficavam ancorados a esquerda e os botoes na borda direita, com nada no meio. Agora a unica coluna elastica e a PRIMEIRA (o nome, que sempre tem o que mostrar) e a folga vira INFORMACAO: duas faixas nascem em 0px e abrem por degrau — `Fornecedor` e `Ultima captura`. **Dois containers, cada um medindo o que governa:** o `pc` mede a AREA DO APP e decide quantas zonas cabem lado a lado; o `acct` mede a TABELA e decide quantas colunas cabem nela. Um container so nao resolveria: o mesmo monitor da larguras diferentes a tabela conforme o numero de zonas ao lado, e foi por isso que a coluna de fornecedor abriu em 1366 (log embaixo, tabela inteira) e nao em 1440 (log ao lado). **Os cortes do handoff (1500/1900/170/176) NAO foram copiados — foram MEDIDOS, e tres deles nao fechavam:** as acoes medem 208px e a trilha proposta era 176; a linha da CASA precisa de 220px de nome (favicon + `Esportes da Sorte` + pilula de contagem) e a proposta era 170; e com os cortes de pagina em 1500/1900 a tabela caia abaixo do proprio piso em 1440, 1600 e 1920 — sem erro, porque `justify-content:flex-end` transborda para a ESQUERDA e isso some do `scrollWidth` (a armadilha da s331d). Os cortes agora saem da conta do conteudo: 842px de piso de tabela, 1094 / 1334 / 1738 / 2030 de area de app. **Fase 8 — a tela se chama Contas & Parceiros e nao dizia nada sobre FORNECEDOR.** Risco de fornecedor nao e risco de casa: casa que trava saque e burocracia, fornecedor que some e o dinheiro. Entrou a terceira zona (ordenada por caixa, com o proprio usuario como contraponto), o 4o KPI `Em contas de fornecedores`, o segmentado de fornecedor na barra da tabela e a linha de total no rodape, na MESMA grade das linhas. Nenhum dado novo: tudo e agregacao do `[Fornecedor]` que ja vive no nome da conta. **Estado novo `Parada ha N dias`, em CINZA:** conta ativa sem captura ha mais de 30 dias se disfarcava de `Conciliada` — estava limpa porque ninguem a usava. Cinza e nao ambar de proposito: abandono nao e pendencia e nao pode competir com pendencia de verdade. O unico campo novo e o `ultima_captura` do `/caixa/visao`, que e o maior `criado_em` dos bilhetes da conta — e o rotulo diz **captura**, nao "extracao", porque extracao que nao achou bilhete novo nao aparece ali. **Gates:** check-tokens verde, 767 passed / 30 skipped, o gate novo `tests/test_contas_status.py` com **8 mutacoes, 8 detectadas**, e `scripts/demo/medir_contas.mjs` medindo a tela em 1366/1440/1600/1920/2560 (transbordo 0 em todas, zero tag na casa, 29 chips TOTAL, nenhuma abreviacao). **Achado medindo, NAO corrigido:** ha dois `Banca total` na mesma tela e eles divergem — o KPI soma toda conta ligada, a faixa da Concentracao soma so casas com `banca > 0`. Foi para o `BACKLOG §4`.)
-
-_Anterior: 2026-09-08 (sessao 332: **remedicao do estudo de custo. Nenhuma alteracao de codigo.** Medicao read-only no Postgres de producao, comparando a janela do estudo (25/07 a 24/08) com a pos-correcoes (25/08 a 08/09). **Validacao do metodo:** refazendo a conta na janela original deu US$ 0,0152 por bilhete contra os 0,0150 do documento, entao o resto e comparavel. **As correcoes A e C entregaram o que prometiam:** `cache_write` por chamada de 13.745 para 3.371 tokens, chamadas chegando frias de 34,8% para 1,9%, aquecedor de US$ 173 para US$ 12,5 por mes. **E mesmo assim o numero que decide o preco piorou:** o custo VARIAVEL por bilhete subiu 12% (R$ 0,078 para R$ 0,087), porque A e C mexeram no custo FIXO, e custo fixo dilui com escala. Duas causas, as duas medidas: (1) o `_BILHETES_POR_CHUNK = 6` da s301 levou os chunks de 3,27 para 4,02 por chamada, com cauda ate 55, e cada pedaco rele o manual inteiro, entao o `cache_read` por chamada foi de 156k para 231k; (2) bilhetes novos por chamada caiu de 14,5 para 11,6 e o input por bilhete subiu 43%, que e recaptura de bilhete que o banco ja tem. **O saldo liquido e bom:** capturamos 47% mais bilhete pagando 3% menos, e o custo REAL por bilhete caiu 34% (R$ 0,137 para R$ 0,090). **A consequencia para o preco e a correcao do estudo:** a escada do §4 nao fecha so com a Bet365 deterministica, porque Pro e Operacao ficariam em 12% de margem bruta. Bet365 mais Betano sao 64,3% da conta e 58% dos bilhetes por IA, e com as duas a escada fecha em 41 a 64%. A Fase 0 do tradutor ja tem massa para a Fase 1: 13.965 pares bruto x decisao da IA, em 21 casas, em 13 dias. Registrado no `docs/ESTUDO_PRECIFICACAO_2026.md §7` e no `BACKLOG §3.7`, com tres pendencias novas no `BACKLOG §4` (o rotulo errado do `/uso/tokens`, a remedicao em 30 dias e a infra do Railway). O STATUS voltou de 46,9 para 36 KB, com as sessoes 329 e 328 arquivadas verbatim na particao do historico.)
 
 
 > **Histórico completo das sessões 331 → 14** → [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
 ---
 
-## Onde parei (fim da sessão 334)
+## Onde parei (fim da sessão 335)
+
+### Três casas novas no SharpenUp, e um motor novo: **Rogue**
+
+Betão, R7 e 7Games são espelho de verdade. Rodam a mesma plataforma, servida do **próprio
+domínio da casa** em `/api/sportsbook/rogue/…`, como a Novibet. Não é Altenar, não é BetBy,
+não é Kambi, não é BetConstruct. Um `rg_inject.js` e um `formatTicketRG` servem às três.
+
+A irmandade foi medida antes de escrever código: mesma stack Next.js, mesmo conjunto de
+hosts, mesmo mapa de endpoints extraído dos bundles das três, mesma rota de histórico
+(`/account/sports-history`), mesmos campos.
+
+**O contrato:**
+
+```
+GET /api/sportsbook/rogue/v1/betsreporting/purchases
+    ?status=all&take=<1..100>&skip=<n>&locale=br-pt&fromDate=<ISO>&toDate=<ISO>
+    header: authorization: Bearer <JWT da sessão>
+→ {"Purchases":[…], "PurchasesCount": <total da janela>}
+```
+
+`take` tem teto de 100 e a casa **diz** o limite (`ErrorCode 2003`) em vez de truncar calada.
+`PurchasesCount` é o fim autoritativo da paginação por `skip`.
+
+### A semântica saiu do dinheiro, não do rótulo
+
+A API manda enum numérico puro. O de-para foi provado em **27 de 27** bilhetes das três
+contas:
+
+| `BetStatusId` | `CurrentBetBalance` | → |
+|---|---|---|
+| 0 | `0` e sem `Result` | aberta |
+| 1 | `0` | L |
+| 2 | `= stake × odd` | W |
+| 4 | `= stake` exato | V |
+
+**A armadilha central é o `Gain`:** ele é o retorno POTENCIAL e vale `stake × odd` em 27/27,
+inclusive em perdida e em aberta. O realizado é `CurrentBetBalance`. Quem lê o campo óbvio
+marca toda perda como ganho: é o `totalWin` da VaideBet (s210) e o `finalFinancials.payout`
+da Novibet (s271), com o terceiro nome de campo.
+
+### Dois achados que mudaram o código
+
+**A tela é ESTREITA.** O histórico abre em "Últ. 24 horas" com `take=10`. No dia do recon, o
+filtro de 30 dias do Betão devolvia `PurchasesCount: 0` numa conta com 9 bilhetes. Um
+passivo puro pareceria funcionar (hook ativo, respostas > 0) e entregaria quase nada. O
+replay alarga para 36 meses e pede `status=all`.
+
+**O Bearer EXPIRA.** Achado testando o inject contra a casa real: token de ~1h responde
+**401**, não 403. A primeira versão guardava só a PRIMEIRA requisição, então numa aba aberta
+desde a manhã o replay sairia com token vencido e voltaria vazio, com 401 e "endpoint mudou"
+lendo igual no painel. Agora o contexto é renovado a cada busca da página, e há gate travando
+isso nos dois sentidos (sobrescrever com token melhor, nunca com token nenhum).
+
+### A gêmea `r7.bet` foi unificada ANTES do registro
+
+A base decidiu, não a marca: `R7` tinha 40 bilhetes de 2 donos, 3 contas e 17 correções,
+contra 1 bilhete e 2 contas em `r7.bet`, que é um domínio cadastrado à mão. Na ordem inversa,
+o bilhete do Jaao26 ficaria numa casa que a conta dele não enxerga: grade vazia, sem erro
+nenhum, o defeito da s249. Aplicado com `--somente r7.bet`, 1 bilhete e 1 assinatura
+recalculada, 10 outras linhas, zero colisão. Round-trip nas 94 grafias de `parceiros`: 0
+quebradas antes e depois.
+
+### O gate pegou um defeito meu antes de subir
+
+`_casaConectavel()` normalizava espaço mas não ACENTO, e a chave é `BETAO` enquanto o display
+é `Betão`. O botão "Conectar" nasceria desabilitado: o bug da s191 na terceira encarnação
+(s256 foi o espaço). Corrigido na raiz com `normalize('NFD')`, medido antes de mudar: nas 31
+grafias de display conhecidas, zero mudança de comportamento.
+
+### Gates
+
+Harness **26 casos / 428 bilhetes**, `audit_sharpenup` 31 casas sem FAIL nem WARN,
+`audit_casas` limpo, `check_docs` sem âncora quebrada, check-tokens verde, **772 passed**.
+
+**Mutação: 12 de 12 detectadas.** Duas escaparam de primeira e as duas eram buraco de TESTE,
+não de código: a regra "data da perna mais recente" não é exercível por fixture nenhuma
+(todos os 27 bilhetes são de uma perna só) e nada disparava requisição sem `authorization`.
+As duas viraram caso próprio.
+
+### O que NÃO foi coberto
+
+As 27 apostas são **todas simples**. Sem múltipla, sistema, cashout, freebet, bet builder ou
+meia-liquidação: `BetTypeId` 1, `ComboSize` 0 e `NumberOfLines` 1 em 27/27, `AdditionalTickets`
+vazio em todos, `PromotionIds` vazio em todos. Os endpoints `/v1/cashout/*` existem no bundle
+e nenhum bilhete passou por eles. Está registrado como **não medido** nos três `CASA_*.md`,
+não como resolvido.
+
+### Próximo passo
+
+**Fase 7, que só o operador faz.** Recarregar a extensão, dar Ctrl+Shift+R na aba de cada
+casa, F5 no dashboard, conectar e conferir contagem, datas, odds e código. A validação ponta
+a ponta com a extensão carregada é a única coisa que o harness não alcança: o hook precisa
+rodar em `document_start`, antes de o bundle capturar o `fetch`.
+
+Quando aparecer a primeira múltipla ou o primeiro cashout numa das três, a fixture volta para
+`extensor/harness/fixtures/` e o caso trava a leitura nova.
+
+---
+
+## Sessão 334 — o tradutor determinístico da Bet365, Fase 1
 
 ### O mapa da Bet365 cresceu, e a régua de aceite cresceu junto
 
@@ -152,170 +252,6 @@ infra do Railway, que segue não medida.
 
 ---
 
-## Sessão 331 — Contas e Parceiros v2, em 6 fases
-
-### O handoff `Contas e Parceiros v2` está aplicado, nas 6 fases
-
-A tela deixa de ser três colunas concorrendo e passa a ter **quatro leituras**: os três
-números de dinheiro no topo estreito · `Últimas ações` na lateral inteira, começando na
-mesma linha dos KPIs · `Concentração de caixa` ao lado da tabela de `Contas`.
-
-**O rail da casca saiu desta tela.** Ele é o RAIO-X, que pertence à Extração — e
-escondê-lo sem colapsar a trilha abriria 372px vazios (`.workfull.sem-rail`).
-
-### Concentração de caixa: contar conta não diz risco
-
-O painel que saiu (`Contas por casa`) contava **contas**. Isso desenhava uma barra maior
-para 52 contas numa casa com R$ 0 do que para 1 conta com metade da banca — o oposto do
-que importa. A pergunta certa é onde o **dinheiro** está.
-
-A rosca usa `stroke-dasharray` sobre um círculo de perímetro 100, então cada arco é
-literalmente "P por cento", sem conversão. A rampa de 8 tons é **fixa**: tom calculado a
-partir do valor faria a mesma casa mudar de cor entre duas aberturas, e a cor é a chave
-que liga a rosca à lista. Clicar numa casa filtra a tabela; clicar de novo solta —
-filtro que só liga vira armadilha.
-
-### Duas armadilhas de largura, as duas invisíveis na leitura
-
-Nenhuma das duas dá erro, e as duas só apareceram medindo no headless.
-
-1. **Media query dentro do iframe lê a largura do IFRAME, não da janela.** Esta página
-   vive no `#fr-plan` da casca, e a sidebar (~300px) fica **fora** dele: num monitor de
-   1440px a página tem ~1120. O breakpoint de 1180px do handoff disparava **sempre**, e o
-   log caía para baixo em toda largura — parecendo que a coluna lateral não tinha sido
-   implementada.
-2. **Trilha em px cravado não cede — o nome cede.** Com `148/118/172` fixos sobravam
-   130px para o nome em 1440, e `Esportes da Sorte` saía cortado. As três viraram
-   `minmax(min, alvo)` e cedem **antes** do nome: nome é identidade, as outras são
-   rótulo, valor e botão. A concentração também cede (`minmax(0,228px)`) e a tabela é
-   quem declara piso (666px). Conferido em 1366/1440/1600/1920/2560.
-
-> Sintoma para reconhecer o primeiro noutro lugar: um breakpoint que "não funciona" numa
-> tela dentro de iframe. Meça `document.documentElement.clientWidth` **dentro** do frame
-> antes de mexer no número — a janela mente sobre a largura que o CSS vê.
-
-### `Aguardando tipster` virou estado próprio
-
-Bilhete sem tipster somava com aposta aberta num número só. São coisas diferentes:
-pendência eu resolvo olhando; tipster **depende de terceiro**. Agora é uma pílula azul —
-espera externa não é erro, e âmbar diria "confira" onde não há o que conferir.
-
-### Os seis ajustes depois de ver a v2 na base real
-
-Concentração **+25%** (228 → 285) com a rosca proporcional (88 → 110) · `Últimas ações`
-**+25%** (240 → 300) · favicon do log dessaturado, no padrão do `.ctx-hchip` · saíram o
-chip `nada a conferir` e o botão `Fornecedores` · `+ Nova conta` desceu para o cabeçalho
-de Contas · ícone nos três botões da linha.
-
-**Ícone é SVG em `currentColor`, não emoji.** Emoji é glifo colorido do sistema: não
-aceita tom e destoaria da paleta — o mesmo motivo de os favicons das casas irem
-dessaturados. Em `currentColor` eles herdam `--ink-soft` do botão, viram `--ink` no
-hover, e o de Excluir herda o vermelho apagado da classe.
-
-### O defeito que o ícone revelou: transbordo para a ESQUERDA não aparece no `scrollWidth`
-
-Com os ícones os três botões passaram a medir 208px, e a trilha de ações dava 158. A
-linha **não** estourava: `justify-content: flex-end` empurra o excesso para a
-**esquerda**, e transbordo à esquerda não entra no `scrollWidth`. O resultado era o botão
-passando por cima da coluna Caixa, sem erro nenhum e sem o gate de largura acusar.
-
-> Sintoma para reconhecer isto noutra grade: uma medição de transbordo que dá zero numa
-> linha que visivelmente se sobrepõe. `scrollWidth` só enxerga o excesso do lado do fluxo
-> — com `flex-end` (ou `direction: rtl`) ele é cego. Compare a **borda** do item com a do
-> contêiner, e não a largura com o `scrollWidth`.
-
-### O SharpenCal chegou à grade de Extração (e viajou dentro do commit da s331b)
-
-Duplo-clique na coluna `Data` da grade de Extração abre o calendário da marca, que era o
-único campo de data do sistema ainda sem ele (`UI_REFERENCE §4`). É a mesma chamada de
-`_apInlineStart` (`charts/apostas.js:848`), que já servia a `Base Completa` e `Em Aberto`:
-digitar continua valendo, escolher um dia preenche e salva. O `finish()` ganhou o
-`SharpenCal.fechar()` junto, senão Enter e blur deixariam o popover aberto sem dono,
-porque nenhum dos dois passa pelo "clicar fora" que fecha o calendário.
-
-Provado em tela contra o `servidor_demo.py` com puppeteer headless, e não só por
-`node --check`: o calendário abre no mês da própria célula com o dia dela selecionado ·
-clicar num dia dispara `PATCH /bilhetes/{id}` e a célula fecha com a data nova · `Esc`
-fecha só o calendário e mantém o editor. Duas armadilhas do arnês, nenhuma do produto:
-`screenshot` com `clip` dispara `resize`, e o SharpenCal fecha no `resize` por desenho
-(o print vai depois da medição); e `elementHandle.boundingBox()` de dentro do iframe não
-serve para `mouse.click` na página, então o duplo-clique vai por evento sintético.
-
-> **Registro do caso 8:** esta mudança **não tem commit próprio**. Ela estava no
-> `index.html` esperando aprovação quando a sessão da s331b commitou o mesmo arquivo, e
-> foi levada dentro do `eb0b342`. O histórico já estava pushado, então não foi reescrito.
-> As duas sessões editaram o **mesmo arquivo**, e aí o `git add` por nome não separa nada
-> — é o limite da regra do invariante 8, e vale escrevê-lo: com o arquivo compartilhado,
-> quem termina primeiro leva o trabalho do outro junto, e a única defesa é a segunda
-> sessão conferir o `git show --stat` e registrar, como está aqui.
-
-### A 2ª rodada de ajustes: laterais +40%, banca total e cards
-
-Concentração e `Últimas ações` **+40%** (285→399 e 300→420), rosca de 110 para **150** ·
-a **banca total** entra na Concentração · `Ativas`/`Arquivadas` viram **cards** que são o
-próprio filtro · as colunas da tabela se aproximam.
-
-**A banca total mora na Concentração porque é o denominador dela.** Cada "% da banca" da
-lista é uma fração daquele número; sem ele o percentual fica sem régua. É o mesmo valor
-do KPI `Banca total`, mas ali ele é resultado e aqui é a base da conta que se está lendo.
-
-**Os cards existem porque o mesmo dado estava em três lugares** — meta do cabeçalho,
-segmentado e um `N contas` à direita — e nenhum dizia com clareza qual estava
-selecionado. Agora o número vive uma vez só, no lugar onde também se escolhe. Trocar de
-aba passou a **soltar** o recorte por casa: sem isso o usuário troca de aba e a lista
-segue filtrada por uma casa que ele não vê mais marcada.
-
-**A 5ª trilha é sobra, e conserta uma leitura.** O nome estava em `1fr` e engolia toda a
-folga do monitor largo, empurrando Status e Caixa para longe da identidade — a linha lia
-como duas ilhas. Agora o nome tem teto (340px) e a sobra fica **entre a Caixa e as
-Ações**: as três primeiras colunas andam juntas à esquerda e os botões seguem encostados
-na borda direita, que é onde se procura ação.
-
-> 819px de painéis laterais pedem monitor largo, e isso não se espreme. O lado a lado
-> exige 1.555px de **iframe** (399 + 12 + 712 de piso da tabela + 12 + 420) — cerca de
-> 1.870px de janela. Abaixo disso a concentração sobe para cima da tabela, e lá ela ganha
-> container query própria (rosca e frase lado a lado, lista em duas colunas) para o
-> estado empilhado não parecer acidente.
-
-### `Aguardando resultado`, não `Pendências` — e o que o rótulo novo revelou
-
-Correção do Feca, e ele está certo: aquilo vem de `abertasDe()`, são apostas **não
-liquidadas**. *Pendência* promete algo a fazer; ali não há o que fazer — espera-se o
-jogo acabar. O rótulo passou a descrever o fato.
-
-A classe virou `.aguard` e **não** `.pend` de propósito: `.pend` continua existindo para
-o log, onde *pendência* é pendência de **extração** — essa sim é algo a resolver. Mesmo
-tom âmbar, fatos diferentes; reusar o nome misturaria os dois. A precedência também
-mudou: entre as duas esperas, a de **resultado** vem antes da de **tipster**, porque a
-primeira resolve sozinha com o tempo e a segunda depende de alguém agir.
-
-> **O rótulo mais longo revelou um truncamento silencioso.** `Aguardando resultado 13`
-> mede 175px e a trilha de Status dava 148. A pílula tinha `overflow:hidden` +
-> `text-overflow: ellipsis`, então **o que caía fora era o NÚMERO** — exatamente a
-> mentira que a regra "nunca abreviar, número sempre real" existe para impedir, e sem
-> erro nenhum. A trilha foi para `minmax(160px, 200px)` e a pílula **perdeu o ellipsis**:
-> se um dia não couber, o defeito aparece na tela em vez de virar dado errado.
->
-> Sintoma para reconhecer isto noutro lugar: `text-overflow: ellipsis` num componente
-> que carrega **dado**, e não só rótulo. Ellipsis é honesto num nome próprio (o `title`
-> devolve o resto); num número ele apaga a informação e não deixa rastro.
-
-Junto: rosca **+50%** (150 → 225) e a **banca total destacada** — faixa própria em
-`--surface-2` com tarja de acento, valor em 22px, o maior número do painel porque é o
-denominador de todos os outros. Crescer a rosca ainda corrigiu de graça uma violação
-herdada do handoff: o rótulo do centro estava em 7,5px, abaixo do piso de 9,5px do papel
-*Label*; agora cabe em 11px.
-
-### Ficou de fora, e está no `BACKLOG.md`
-
-- **Título da página em 19px.** `.pagehead-title` é casca: o `SHELL_SPEC` e o
-  `check-tokens` prendem o tamanho a um token, a escada não tem 19px (18 · 22) e o
-  Dashboard usa o mesmo contrato. Ficou em `--text-xl`; a cor, que é o que carregava o
-  argumento, já tinha ido para `--ink` na s330.
-- **Eyebrow em 9px.** O handoff pede 9px/`--ink-soft`, e o piso do papel *Label* na
-  Escada é 9,5px. Ficou em `--text-xxs` (10px).
-
----
 
 ## 1. O que estamos construindo
 
