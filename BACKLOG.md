@@ -366,6 +366,33 @@ em 12 % de margem bruta.
 > inteiro (`cache_read` por chamada de 156k para 231k). Toda otimização daqui em diante
 > precisa declarar **qual** custo ela mira e medir o outro depois.
 
+### 3.8 O MASTER não fixa a notação da LINHA PARTIDA, e é ali que a IA improvisa (s333). VIVA.
+
+Medido na sombra: das 538 divergências de número entre tradutor e IA na Bet365,
+**520 (96,7 %) são notação, não valor**. O `MASTER_DESCRICAO` mostra `Over 2.5 Gols`
+(decimal com **ponto**) e **não diz nada sobre linha partida**. Sem regra, a IA escreve o
+mesmo caso de três jeitos:
+
+| A casa manda | A IA escreveu | O tradutor escreve |
+|---|---|---|
+| `Menos de 2.5,3.0` | `Under 2,5/3,0` | `Under 2.5,3.0` |
+| `Menos de 4.0,4.5` | `Under 4,25` (média) | `Under 4.0,4.5` |
+| `Menos de 3.0,3.5` | `Under 3.25` (média, com ponto) | `Under 3.0,3.5` |
+
+**Decisão do Feca:** qual é a forma canônica. Três candidatas, e a escolha vale para os
+dois lados (a IA passa a ser corrigida pelo MASTER, o tradutor passa a ter contra o que
+conferir):
+
+- **`3.0,3.5`** (as duas linhas, vírgula) — é o que a casa manda e o que o tradutor copia.
+- **`3.0/3.5`** (as duas linhas, barra) — mais legível, e a barra não colide com decimal.
+- **`3.25`** (a média) — mais curta, mas **perde informação**: não dá para reconstruir se
+  a aposta era `3.0,3.5` ou uma linha cheia de 3.25, e é isso que decide HW/HL.
+
+A terceira é a que a IA mais usa e a única que apaga dado. Fechada a regra, ela entra no
+`MASTER_DESCRICAO` e o `descricao_check` ganha a checagem. Enquanto não fechar, **não
+conte essas 520 linhas como divergência do tradutor** — não são.
+→ [`PLANO_TRADUTOR_DETERMINISTICO §II.8`](docs/PLANO_TRADUTOR_DETERMINISTICO.md#ii8-a-sombra-medida-s333-0909--e-os-três-achados-que-mudaram-o-desenho)
+
 ---
 
 ## 4. Dívida técnica medida

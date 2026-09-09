@@ -1,6 +1,10 @@
 # PLANO — Tradutor determinístico + estudo de custo e viabilidade
 
 > **Status:** plano proposto em 2026-08-25 (sessão 295); **Fase 0 aplicada em 2026-08-26 (s297)**.
+> **Fase 1 avançada em 2026-09-09 (s333)** — o mapa da Bet365 cresceu com o que a sombra
+> mediu e a cobertura foi de 66,6 % para **70,7 %** com a divergência de descrição caindo
+> de 21,4 % para 20,5 %. Leia o **§II.8** antes de mexer no motor: ele traz a régua que
+> cortou dez rótulos e a triagem que mostra que quase nada dos 20 % é o tradutor errando.
 > **As correções A e C do §V foram APLICADAS na s295** (TTL de cache de 1h + aquecedor
 > a cada 55 min + preço do `cache_write` ajustado; escalonamento do 1º chunk) e o efeito já foi
 > **medido em produção**: regravação do manual por chamada 17.416 → 5.153 (−70 %), chamadas
@@ -237,6 +241,97 @@ Duas regras vindas da regra "teste verde não é teste que detecta" (`CLAUDE.md`
 
 E uma terceira, específica deste projeto: **o caso tem de conter pelo menos uma linha que cai no
 fallback**, senão nunca se prova que o fallback funciona.
+
+---
+
+### II.8 A sombra medida (s333, 09/09) — e os três achados que mudaram o desenho
+
+> Medição direta sobre 15.181 pares da `sombra_rotulos` (13 dias, 21 casas), read-only.
+> Os scripts rodaram do scratchpad; o método está descrito aqui e se refaz em minutos.
+
+#### O vocabulário das duas casas de topo
+
+| | Bet365 | Betano |
+|---|---|---|
+| Blocos na sombra | 9.641 | 2.128 |
+| De 1 seleção (onde o rótulo decide a categoria) | 7.779 | **552** |
+| De N seleções (categoria vem da estrutura) | 1.862 | 1.576 |
+| Rótulos de mercado distintos | 228 | 686 |
+| Depois de normalizar por sufixo | **180** | **271** (−60 %) |
+| Rótulos que cobrem 90 % das linhas | **40** | 58 |
+| Cauda (1 aparição) | 21 rótulos = **0,18 %** das linhas | 92 = 1,75 % |
+| Dicionário por voto de maioria concorda com a IA em | **97,66 %** | 92,75 % |
+
+**A Bet365 sustenta o tradutor; a Betano ainda não.** Ela embute nome próprio no rótulo
+(`Josh Coburn Total de chutes`, `Coritiba Total de Cartões`), então o vocabulário dela só
+satura depois da normalização, e sobra pouca amostra de bilhete simples para calibrar.
+
+#### Os três achados de desenho
+
+1. **O esporte não sai do código da casa.** `CL=18` deu **eBasket 607 vezes e Basquete
+   223**. Quem decide é a liga (`B-EBASKBLITZ4X5` contra `B-CLUBF`), não o código. O
+   `_e_ebasket` já cobre isso pelo handle nos dois lados; o registro fica para que
+   ninguém "simplifique" o de-para para código puro depois.
+2. **A normalização de prefixo é obrigatória e é diferente por casa.** Bet365 usa prefixo
+   de escopo (`1º Tempo -`, `Time Visitante -`, `Ao-Vivo -`); Betano usa nome próprio.
+3. **`Tipo: … (N seleções)` conta PERNAS, não mercados.** Um bet builder dentro de uma
+   perna são três mercados numa seleção só. Serve de conferência, nunca de fonte.
+
+#### O que entrou no motor, e a régua que cortou dez rótulos
+
+Dezessete rótulos passaram na régua de categoria (maioria ≥ 95 %, n ≥ 5). **Só sete
+ficaram**, porque a medição obrigou uma segunda régua: **acertar a categoria não basta,
+a descrição tem de bater também.** Os dez cortados caem em duas famílias, e as duas
+pedem código em vez de linha de tabela:
+
+- **Prop de SIM/NÃO**, onde a seleção é `Sim` e quem carrega a aposta é o rótulo:
+  `Terminar com Pontos` sai `Franco Colapinto - Sim` e a IA escreve `Franco Colapinto -
+  Terminar com Pontos` (52 casos, 98 % de divergência). Idem `Para marcar dois ou mais
+  Gols` (vira `2+ Gols`), `Finalização no Pódio`, `Classificatórias … Q3`.
+- **Escopo de tempo**, onde o período muda a aposta e precisa aparecer:
+  `1º Tempo - Escanteios Asiáticos` sai `Over 3.5 Escanteios` e a IA escreve
+  `Over 3.5 Escanteios 1º Tempo` (41 casos, 98 %).
+
+Entrou também o corte do sufixo **`- N Opções`** (conta as saídas do mercado, com ou sem
+empate; não muda a categoria), como **última** tentativa de resolução. A ordem é
+load-bearing: `Total - 2 Opções` está no mapa por inteiro, e cortar o sufixo antes
+deixaria a chave em `total`, derrubando 498 blocos de uma vez. Há teste de mutação para
+os dois sentidos.
+
+#### O efeito medido, contra os 9.641 blocos
+
+| | Antes (s301) | Depois (s333) |
+|---|---|---|
+| Cobertura | 66,6 % | **70,7 %** |
+| Bateu tudo | 76,1 % | **77,0 %** |
+| Divergência de **esporte** | 1,1 % | 1,2 % |
+| Divergência de **aposta** | 3,1 % | **3,0 %** |
+| Divergência de **descrição** | 21,4 % | **20,5 %** |
+
+Cobertura subiu e divergência caiu junto, que é a única combinação que autoriza seguir.
+
+#### A triagem dos 21 % de descrição: quase nada é o tradutor errando
+
+As 1.376 divergências de descrição da medição de entrada, classificadas por família:
+
+| Família | n | % | De quem é |
+|---|---|---|---|
+| Nome de time/jogador localizado (`USA (W)` × `EUA (F)`) | 657 | 47,7 % | limitação declarada do motor |
+| Notação de número (`Under 2,5/3,0` × `Under 2.5,3.0`) | 538 | 39,1 % | **o MASTER não fixa a forma da linha partida** |
+| `Mais de` onde o MASTER manda `Over` | 81 | 5,9 % | a IA desvia |
+| Hífen no nome (`PSV Reservas` × `PSV - Reservas`) | 61 | 4,4 % | tolerância cosmética já conhecida |
+| Resto | 39 | 2,8 % | a apurar |
+
+Das 538 de número, **520 (96,7 %) são notação**, não valor: a IA escreve decimal com
+vírgula e linha partida com barra, o tradutor escreve com ponto e vírgula. O MASTER
+mostra `Over 2.5 Gols` (ponto) e **não diz nada sobre linha partida** — e é exatamente
+ali que a IA improvisa, escrevendo `2,5/3,0`, `4,25` e `3.25` para o mesmo caso. **É
+buraco de MASTER, não defeito de tradutor**, e está no `BACKLOG`.
+
+> **Sintoma para reconhecer isto noutro gate:** a régua de aceite mediu um campo (a
+> categoria) e deixou o vizinho livre (a descrição). Dez rótulos passaram no primeiro e
+> teriam gravado descrição errada em silêncio. É a mesma família do "gate que confere UM
+> campo deixa os vizinhos livres" do `CLAUDE.md`.
 
 ---
 

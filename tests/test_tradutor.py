@@ -330,3 +330,102 @@ def test_mutacao_handle_de_um_lado_so_nao_e_ebasket():
     t = tradutor.traduzir("BET365", bloco)
     assert t.ok, t.motivo
     assert t.esporte == "Basquete"
+
+
+# ── Sufixo `- N Opções` e os rótulos medidos na sombra de 09/09 (s333) ────────
+#
+# Blocos reais da `sombra_rotulos`, como os de cima. O `\r\n` original é artefato de
+# transporte e `splitlines()` o normaliza, então aqui vão com `\n` só.
+
+ESCANTEIOS_2_OPCOES = """
+Data (encerramento): 05/09/2026
+Stake: 300,00
+Status: Devolvida/void (retorno = stake) → V
+Odd: 1,8
+Esporte (casa): CL=1 (Futebol)
+Seleções:
+  • Deutschlandsberger SC x LASK Linz · Escanteios - 2 Opções · Menos de 10.5 @ 1,8 · Austrian Cup
+"""
+
+TOTAL_2_OPCOES_EBASKET = """
+Data (encerramento): 26/08/2026
+Stake: 200,87
+Status: Ganho → W (retorno R$ 368,27)
+Odd: 1,8333333333333335
+Esporte (casa): CL=18 (Basquete)
+Seleções:
+  • NY Knicks (JACKAL) @ OKC Thunder (CURSE) · Total - 2 Opções · Mais de 105.5 @ 1,8333333333333335 · B-EBASKBLITZ4X5
+"""
+
+FALTA_DO_JOGADOR = """
+Data (encerramento): 01/09/2026
+Stake: 200,00
+Status: Devolvida/void (retorno = stake) → V
+Odd: 4,5
+Esporte (casa): CL=1 (Futebol)
+Seleções:
+  • Atlético-MG x Cruzeiro · Para Sofrer Falta · Maycon Barberan - Mais de 1.5 @ 4,5 · Copa do Brasil
+"""
+
+
+def test_sufixo_opcoes_nao_muda_a_categoria():
+    """`- 2 Opções` conta as SAÍDAS do mercado (com ou sem empate), não do que ele
+    trata. `Escanteios - 2 Opções` tem de resolver pela entrada `escanteios`."""
+    t = tradutor.traduzir("BET365", ESCANTEIOS_2_OPCOES)
+    assert t.ok, t.motivo
+    assert t.aposta == "Escanteios"
+    assert t.descricao == "Under 10.5 Escanteios [Deutschlandsberger SC v LASK Linz]"
+
+
+def test_rotulo_inteiro_vence_o_corte_do_sufixo():
+    """`Total - 2 Opções` está no mapa POR INTEIRO. Se o corte do sufixo rodasse antes
+    da consulta, a chave viraria `total`, que não existe, e este bilhete cairia no
+    fallback — 498 blocos da sombra de uma vez. O corte é a última tentativa.
+
+    De quebra este bloco cobre a arroba no NOME do jogo (`NY Knicks (JACKAL) @ OKC
+    Thunder (CURSE)`, formato americano) junto com a arroba da odd."""
+    t = tradutor.traduzir("BET365", TOTAL_2_OPCOES_EBASKET)
+    assert t.ok, t.motivo
+    assert t.esporte == "eBasket"
+    assert t.aposta == "Pontos"
+    assert t.descricao == "Over 105.5 Pontos [NY Knicks (JACKAL) v OKC Thunder (CURSE)]"
+
+
+def test_falta_sofrida_e_prop_com_objeto():
+    """`Para Sofrer Falta` traz jogador e linha na mesma seleção; o objeto `Faltas`
+    fecha a descrição."""
+    t = tradutor.traduzir("BET365", FALTA_DO_JOGADOR)
+    assert t.ok, t.motivo
+    assert t.aposta == "Faltas"
+    assert t.descricao == "Maycon Barberan - Over 1.5 Faltas [Atlético-MG v Cruzeiro]"
+
+
+def test_mutacao_o_corte_do_sufixo_e_o_ultimo_recurso():
+    """A prova da ORDEM, que nenhum dos testes acima sozinho dá: sem a entrada inteira
+    `total - 2 opções`, o corte do sufixo não salva o bilhete (a chave `total` não
+    existe no mapa). Verde aqui com a entrada removida significaria que quem resolve é
+    o corte, e aí `Total - 2 Opções` viraria refém de uma entrada que ninguém escreveu."""
+    original = copy.deepcopy(tradutor._MERCADOS_BET365)
+    try:
+        del tradutor._MERCADOS_BET365["total - 2 opções"]
+        t = tradutor.traduzir("BET365", TOTAL_2_OPCOES_EBASKET)
+        assert not t.ok, "mapa mutilado e o corte do sufixo traduziu assim mesmo"
+        assert "Total - 2 Opções" in t.motivo
+    finally:
+        tradutor._MERCADOS_BET365.clear()
+        tradutor._MERCADOS_BET365.update(original)
+    assert tradutor.traduzir("BET365", TOTAL_2_OPCOES_EBASKET).ok
+
+
+def test_mutacao_remover_escanteios_derruba_o_sufixo_opcoes():
+    """O espelho do de cima: aqui quem resolve É o corte do sufixo, então tirar a
+    entrada-base `escanteios` tem de derrubar `Escanteios - 2 Opções` junto."""
+    original = copy.deepcopy(tradutor._MERCADOS_BET365)
+    try:
+        del tradutor._MERCADOS_BET365["escanteios"]
+        t = tradutor.traduzir("BET365", ESCANTEIOS_2_OPCOES)
+        assert not t.ok, "entrada-base removida e o tradutor traduziu assim mesmo"
+    finally:
+        tradutor._MERCADOS_BET365.clear()
+        tradutor._MERCADOS_BET365.update(original)
+    assert tradutor.traduzir("BET365", ESCANTEIOS_2_OPCOES).ok

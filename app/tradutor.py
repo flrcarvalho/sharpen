@@ -85,6 +85,8 @@ _PONTOS = {"cat": "Pontos", "objeto": "Pontos"}
 _CARTOES = {"cat": "Cartões", "objeto": "Cartões"}
 _ML = {"cat": "ML", "objeto": None}
 _HANDICAP = {"cat": "Handicap", "objeto": None}
+_ANYTIME = {"cat": "Anytime", "objeto": None}
+_FALTAS = {"cat": "Faltas", "objeto": "Faltas"}
 
 # Handicap carrega a UNIDADE no texto quando ela não é o placar do jogo:
 # `Alcaraz -2.5 Games` (`MASTER_DESCRICAO §12.6`) e `Shi Yuqi -1.5 Sets` (§13.4, que diz
@@ -125,7 +127,47 @@ _MERCADOS_BET365: dict = {
     "handicap do jogo (sets)": _HANDICAP_SETS,                         # sombra
     "handicap - games ganhos - 2 opções": _HANDICAP_GAMES,             # sombra
     "pontos (mais de/menos de)": {"cat": "Player Props", "objeto": "Pontos"},
+    # ── medidos na sombra em 09/09 (s333), 9.641 blocos ───────────────────────
+    # DUAS RÉGUAS, e a segunda foi aprendida aqui. A primeira: entra rótulo cuja
+    # maioria do que a IA decidiu seja >= 95%, com >= 5 casos de bilhete de UMA
+    # seleção (na múltipla a categoria é `Múltipla`, estrutural, e não diz nada sobre
+    # o rótulo). A segunda: **acertar a categoria não basta — a entrada só fica se a
+    # DESCRIÇÃO dela também bater.** Dezessete rótulos passaram na primeira régua e
+    # dez foram removidos pela segunda; ver a nota `PROPS DE SIM/NÃO` abaixo.
+    # Abaixo das duas o rótulo fica de fora DE PROPÓSITO e o bilhete cai no fallback:
+    # fallback custa dinheiro, chute grava errado.
+    "para marcar a qualquer momento": _ANYTIME,                        # sombra 831
+    "escanteios": _ESCANTEIOS,                                         # sombra 194
+    "total de pontos - 2 opções": _PONTOS,                             # sombra  63
+    "para ganhar a luta": _ML,                                         # sombra  26
+    "para sofrer falta": _FALTAS,                                      # sombra  25
+    "total de 180s": {"cat": "Player Props", "objeto": "180s"},        # sombra  11
+    "total de jogos": {"cat": "Legs", "objeto": "Legs"},               # sombra  11
 }
+
+# ── PROPS DE SIM/NÃO E ESCOPO DE TEMPO: por que dez rótulos NÃO entraram ──────
+# Medido na sombra em 09/09 (s333). Os dez abaixo têm categoria estável (maioria de
+# 95% a 100%) e mesmo assim ficaram de fora, porque **a descrição deles não sai da
+# seleção**. Duas famílias, e as duas pedem código, não linha de tabela:
+#
+#  1. **Prop de SIM/NÃO.** A seleção é `Sim`, e quem carrega a aposta é o RÓTULO:
+#     `Terminar com Pontos` (52 casos, 98% de divergência na descrição) sai daqui
+#     como `Franco Colapinto - Sim` e a IA escreve `Franco Colapinto - Terminar com
+#     Pontos`. Mesma coisa em `Classificatórias - Para o Piloto Alcançar o Q3` (19),
+#     `Finalização no Pódio` (22) e `Para marcar dois ou mais Gols` (19, onde o
+#     rótulo vira `2+ Gols`). Falta ao motor um campo "o rótulo entra na descrição".
+#
+#  2. **Escopo de tempo.** `1º Tempo - Escanteios Asiáticos` (41, 98% de divergência)
+#     sai `Over 3.5 Escanteios` e a IA escreve `Over 3.5 Escanteios 1º Tempo`. O
+#     período NÃO é qualificador descartável como `Time da Casa -`: ele muda a aposta
+#     e precisa aparecer. Enquanto `_QUALIFICADORES` só sabe descartar, período fica
+#     de fora.
+#
+# Os outros quatro (`Handicap - 2 Opções` 36%, `Total de Pontos` 50%, `Primeiro Set -
+# Vencedor` 55%, `Corrida - Handicap` 64%, `Qualificação - Apostas Comparativas` e
+# `Corrida - Apostas Comparativas (Equipe)` 100%) misturam as duas famílias com
+# nome de piloto e sufixo de unidade. Todos voltam quando o motor souber montar
+# descrição a partir do rótulo — e cada um volta com a medição dele.
 
 # Famílias de rótulo PARAMETRIZADO — o que a tabela plana não alcança. Aqui a categoria
 # vem do §9 ("outros props estatísticos individuais de jogador (Futebol) → Player Props")
@@ -143,6 +185,9 @@ _REGRAS_BET365 = [
 # (`CASA_BET365 §9`). Saem antes da consulta ao mapa.
 _QUALIFICADORES = ("ao-vivo - ", "prorrogação - ", "time visitante - ", "time da casa - ")
 _QUALIF_MAPA = re.compile(r"^mapa \d+ - ", re.I)
+# Sufixo de CONTAGEM DE SAÍDAS (`- 2 Opções` = sem empate, `- 3 Opções` = com empate).
+# Diz quantos resultados o mercado tem, não de que ele trata.
+_OPCOES = re.compile(r"\s*-\s*\d+\s*op[çc][õo]es\s*$", re.I)
 
 _MAPAS: dict = {"BET365": _MERCADOS_BET365}
 
@@ -225,7 +270,15 @@ def _spec(mapa: dict, mercado: str, esporte: str) -> dict:
             m = regra.match(_sem_qualificador(mercado))
             if m:
                 return monta(m)
-        return None
+        # `- N Opções` conta as SAÍDAS do mercado (com ou sem o empate), nunca muda a
+        # categoria: `Total de Gols - 3 Opções` é Gols do mesmo jeito. É a última
+        # tentativa, nunca a primeira — `Total - 2 Opções` está no mapa por inteiro, e
+        # cortar o sufixo antes deixaria a chave em `total`, que não existe.
+        sem_op = _OPCOES.sub("", _norm_mercado(mercado)).strip()
+        if sem_op != _norm_mercado(mercado):
+            spec = mapa.get(sem_op)
+        if spec is None:
+            return None
     if "por_esporte" in spec:
         return spec["por_esporte"].get(esporte or "")
     return spec
