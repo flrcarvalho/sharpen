@@ -3855,44 +3855,55 @@ def blocos_por_codigo(texto: str | None, teto: int | None = None) -> dict[str, s
 
 
 def hash_bloco(bruto: str | None) -> str:
-    """sha1 hex do bloco cru. É a chave da barreira de recaptura.
+    """sha1 hex do bloco. É a chave da barreira de recaptura.
+
+    **`strip()` antes de hashear, e isso é load-bearing.** O mesmo bilhete passa por
+    DOIS recortes diferentes no caminho: `blocos_por_codigo` (que corta pelo marcador e
+    devolve o que vem DEPOIS dele) e `_split_superbet_bilhetes` (que corta por outra
+    fronteira e devolve o bloco COM o marcador), e o texto ainda é re-emendado com
+    `"\\n\\n".join(...)` no pré-dedup. Só o miolo é estável entre as três formas; a borda
+    não é. Sem o `strip()` o hash gravado nunca bateria com o hash conferido, e a
+    barreira **não pularia nada, em silêncio** — o modo de falha caro seria "não
+    economizou e ninguém notou".
+
+    Espaço na borda não carrega dado, então normalizá-lo não esconde mudança nenhuma.
 
     `errors="replace"` porque a barreira nunca pode levantar: bloco com byte estranho
     tem de gerar UM hash estável, não uma exceção no caminho da extração."""
-    return hashlib.sha1((bruto or "").encode("utf-8", "replace")).hexdigest()
+    return hashlib.sha1((bruto or "").strip().encode("utf-8", "replace")).hexdigest()
 
 
-def triar_blocos(texto: str | None, conhecidos: dict[str, str]) -> tuple[dict, dict]:
-    """`(a_processar, ja_vistos)`, dos blocos do texto. Função PURA.
+async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None = None) -> dict[str, str]:
+    """`{código: hash}` do que a barreira pode pular. Falha devolve `{}` — sem memória
+    ela não pula nada, que é o lado seguro.
 
-    `conhecidos` é `{código: hash da última leitura}`. Bloco cujo hash bate é
-    `ja_visto`; **todo o resto é `a_processar`**, inclusive código nunca visto e
-    bloco que mudou um byte. Na dúvida processa: o modo de falha aceitável é "custou
-    dinheiro", o inaceitável é "deixou de gravar mudança".
+    ⚠️ **O `JOIN` com `bilhetes` é a costura 3 do plano, não zelo.** `/extrair` e
+    `/salvar` são endpoints SEPARADOS: a extração devolve o TSV e o front chama o
+    `/salvar` depois. O hash é gravado no fim da extração, então ele pode existir para
+    um bilhete que **nunca chegou ao banco** (aba fechada, erro de rede, linha recusada
+    por `validar_linhas`). Sem o JOIN, esse bilhete ficaria invisível para sempre.
+
+    De quebra o JOIN cobre bilhete apagado pelo usuário, conta movida de casa e base
+    restaurada de backup: em todos, a barreira volta a processar sozinha.
+
+    O escopo de conta segue o mesmo de `get_codigos_resolvidos` — "já tenho este
+    bilhete" significa "já tenho NESTA conta".
     """
-    a_processar, ja_vistos = {}, {}
-    for codigo, bruto in blocos_por_codigo(texto).items():
-        h = hash_bloco(bruto)
-        if conhecidos.get(codigo) == h:
-            ja_vistos[codigo] = bruto
-        else:
-            a_processar[codigo] = bruto
-    return a_processar, ja_vistos
-
-
-async def blocos_conhecidos(dono: str, casa: str, codigos) -> dict[str, str]:
-    """`{código: hash}` do que já foi lido para este dono nesta casa. Falha devolve
-    `{}` — sem memória a barreira não pula nada, que é o lado seguro."""
     codigos = [c for c in (codigos or []) if c]
     if not codigos:
         return {}
     try:
+        params = [codigos, dono]
+        sql = """SELECT b.codigo_bilhete AS codigo, v.bloco_hash
+                   FROM bilhetes b
+                   JOIN bloco_visto v
+                     ON v.dono = b.dono AND v.casa = b.casa AND v.codigo = b.codigo_bilhete
+                  WHERE b.codigo_bilhete = ANY($1::text[])
+                    AND b.dono = $2"""
+        sql += _filtro_conta(params, casa, parceiro)
         pool = await get_pool()
         async with pool.acquire() as conn:
-            linhas = await conn.fetch(
-                """SELECT codigo, bloco_hash FROM bloco_visto
-                   WHERE dono = $1 AND casa = $2 AND codigo = ANY($3)""",
-                dono, casa, codigos)
+            linhas = await conn.fetch(sql, *params)
         return {r["codigo"]: r["bloco_hash"] for r in linhas}
     except Exception:
         logger.warning("barreira: leitura de bloco_visto falhou (segue sem pular nada)",

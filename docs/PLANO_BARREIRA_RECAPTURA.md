@@ -154,11 +154,15 @@ que recapturar é caro. Barateando, o hábito muda.
 | Fase | O que entrega | Como se prova pronta |
 |---|---|---|
 | **0 · Registro escuro** ✅ | tabela `bloco_visto` + gravação do hash a cada extração; **nada é filtrado** | linhas aparecendo em produção; o log diz quantos blocos SERIAM pulados |
-| **1 · Filtro** | o filtro liga, com as três costuras do §6 | replay do harness verde + cobertura intacta |
+| **1 · Filtro** ✅ | o filtro liga, dentro do pré-dedup que **já existia** | 12 testes sobre o código que roda + harness verde (27 casos, 436 bilhetes) |
 | **2 · Medição** | comparar `uso_tokens` antes/depois em 30 dias | custo por bilhete cai ~29 % sem bilhete perdido |
 
-A Fase 0 existe para que o número do §3 seja **conferido em produção antes** de qualquer
-byte deixar de ser processado. Ela não muda comportamento nenhum.
+**A Fase 0 não é pré-requisito da Fase 1, e o Feca acertou ao dizer isso.** Ela confere a
+ECONOMIA, que já era contagem direta sobre 15.318 blocos reais, não estimativa. O que
+decide o risco são as costuras do §6, e **nenhuma delas é exercitada esperando dado** —
+as duas piores foram achadas lendo o código. A Fase 0 fica no ar porque o registro do
+hash é o mesmo que a Fase 1 usa; ela deixa de ser uma espera e passa a ser a metade de
+baixo do mecanismo.
 
 ---
 
@@ -171,18 +175,73 @@ este repo mais paga caro.
    quantidade por código: mandou N, tem de voltar N. Filtrando blocos antes do chunker sem
    avisá-la, ela acusa perda que não houve. O esperado passa a ser o **filtrado**.
 
-2. **A reconciliação de órfãs precisa ver TODOS os blocos, não só os filtrados.**
-   `_reconciliar_orfas` adota linha antiga sem código casando com o bloco que chegou
-   (`checar_fidelidade`). Escondendo dela os blocos já conhecidos, uma órfã perde a chance
-   de ser adotada e **vira fantasma** — exatamente o caso do Falkirk (s327). O filtro é
-   sobre o que vai para a IA, **nunca** sobre o que a reconciliação enxerga.
+2. **A reconciliação de órfãs tem de ver o texto FILTRADO, não o completo.**
+   ⚠️ **Esta costura estava escrita AO CONTRÁRIO na primeira versão deste plano, e o
+   erro foi achado lendo o código antes de ligar a Fase 1.** Ficam aqui as duas
+   versões, porque a errada é a intuitiva.
 
-3. **Bilhete sem código não passa pela barreira.** Print, texto colado e casa sem marcador
+   `_reconciliar_orfas` casa a linha que voltou **sem código** com os **blocos
+   faltantes**, isto é, os códigos que estão no texto e não estão no TSV. Com a
+   barreira, todo bloco filtrado é "faltante" **por construção** — ele nunca foi para a
+   IA. Passando o texto completo, um bloco filtrado entra na disputa como bloco livre,
+   e a órfã (que pertence a outro bilhete) pode ser **adotada com o código errado**, ou
+   o par vira ambíguo e mata uma adoção legítima. Gravar bilhete com o código de outro
+   é pior que tudo que a barreira economiza.
+
+   A regra certa: **a reconciliação enxerga exatamente o que a IA enxergou.**
+
+3. **Hash gravado não é bilhete salvo — e `/extrair` não salva.** `/extrair` e
+   `/salvar` são endpoints **separados**: a extração devolve o TSV e o front chama o
+   `/salvar` depois. Gravar o hash no fim da extração marca como "já vi" um bilhete que
+   ainda não chegou ao banco, e se o `/salvar` não acontecer (aba fechada, erro de
+   rede, recusa) o bilhete fica **invisível para sempre**.
+
+   Solução, que sai mais barata do que mudar o protocolo: **só pula quando o hash bate
+   E o bilhete existe em `bilhetes`** para aquele dono e casa. Uma junção a mais na
+   mesma consulta. De quebra, isso cobre bilhete apagado pelo usuário, conta movida de
+   casa e base restaurada de backup — em todos, a barreira volta a processar sozinha.
+
+4. **Bilhete sem código não passa pela barreira.** Print, texto colado e casa sem marcador
    não têm chave. Continuam indo inteiros para a IA, como hoje. São 0,7 % do volume.
 
-4. **Lote que fica VAZIO não pode virar erro.** Extração em que nada mudou é sucesso, não
-   falha: a resposta é "nada novo", com o `done` normal. Tratar como erro treinaria o
-   usuário a desconfiar do caso mais comum depois da barreira.
+5. **Lote que fica VAZIO não pode virar erro.** Extração em que nada mudou é sucesso, não
+   falha: a resposta é "nada novo", com o `done` normal e **sem chamar o modelo**. Tratar
+   como erro treinaria o usuário a desconfiar do caso mais comum depois da barreira.
+
+> **O que estas duas correções ensinam sobre a Fase 0.** Ela mede a ECONOMIA, que já era
+> uma contagem sobre 15.318 blocos reais e não precisava de confirmação. O que ela **não**
+> exercita é nenhuma das costuras acima — e as duas piores foram achadas lendo o código,
+> não esperando dado. Fase de medição só vale quando o que ela mede é o que pode dar
+> errado.
+
+---
+
+## 6b. Uma barreira JÁ EXISTIA, e isso encolheu a Fase 1 inteira
+
+Achado lendo o código antes de escrever a Fase 1: `_dedup_superbet_text` (`app/main.py`)
+**já descarta bilhete antes de gastar IA**, para toda casa com marcador de código. Só que
+ela descarta por **estado**: sai o que está `resolvida` no banco, e **fica** o que está
+aberto — de propósito, porque bilhete aberto tem de ser reprocessado, senão nunca liquida.
+
+**É exatamente esse o buraco que os 32,5% ocupam:** aposta ABERTA relida sem ter mudado
+nada. Nenhum critério de estado poderia pegá-la; só a comparação byte a byte.
+
+Consequência para o desenho, e ela é grande: a Fase 1 virou **uma condição a mais no
+laço que já existe**, não um filtro paralelo. E com isso **duas das cinco costuras já
+estavam resolvidas de graça**:
+
+- a costura **2** (órfãs), porque o pré-dedup reatribui `texto`, e é esse `texto`
+  filtrado que segue para `conferir_cobertura`, `_reconciliar_orfas` e a ordenação;
+- a costura **5** (lote vazio), porque `_dedup_superbet_text` já devolve `""` e o
+  `if not base_content:` logo abaixo já tem o caminho de saída sem chamar o modelo.
+
+> **A armadilha que sobrou, e ela é a mais cara deste mecanismo.** O
+> `_dedup_superbet_text` tem **dois recortes do mesmo texto**: o `block` de
+> `_split_superbet_bilhetes` (que inclui o marcador) e o de `blocos_por_codigo` (que
+> não). O gravador usa o segundo. Hashear o primeiro faria a barreira **nunca disparar,
+> sem erro nenhum** — e ninguém abre chamado por economia que não aconteceu. Daí o
+> `strip()` dentro de `hash_bloco` e o teste de mutação que monta a memória pelo recorte
+> errado e cobra zero salto.
 
 ---
 

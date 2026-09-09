@@ -80,7 +80,7 @@ from repository import (
     CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_editar_mov, caixa_excluir_mov, caixa_visao,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
-    blocos_por_codigo, blocos_conhecidos, triar_blocos, registrar_blocos_vistos,
+    blocos_por_codigo, blocos_conhecidos, hash_bloco, registrar_blocos_vistos,
     conferir_cobertura, codigos_do_texto, codigos_do_tsv,
 )
 from descricao_check import checar_fidelidade
@@ -204,6 +204,11 @@ _CASA_DISPLAY: dict[str, str] = {
     # que já existe na grafia gêmea); foi assim que a Jonbet quebrou na s249. Aqui o
     # round-trip `_casa_display(_display_to_key("Betboom"))` fecha em identidade.
     "BETBOOM":        "Betboom",
+    # 3ª casa BetBy (s336). Grafia MEDIDA antes do registro, e Única em toda a base:
+    # `Blaze` em bilhetes (86), parceiros (3), casas_meta (4), correcoes (92), uso_tokens
+    # (10) e tipsters.casas. Round-trip `_casa_display(_display_to_key("Blaze"))` fecha em
+    # identidade — nenhuma conta muda de casa por causa deste registro.
+    "BLAZE":          "Blaze",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -356,30 +361,23 @@ async def _cache_warmer():
         await asyncio.sleep(_WARMER_INTERVALO)
 
 
-async def _barreira_escuro(dono: str, casa: str, texto: str | None) -> None:
-    """Fase 0 do `docs/PLANO_BARREIRA_RECAPTURA.md`: **mede sem filtrar nada**.
+async def _barreira_lembrar(dono: str, casa: str, texto: str | None) -> None:
+    """Grava o hash dos blocos que ACABARAM de ser lidos pela IA. A leitura da barreira
+    é lá no `_dedup_superbet_text`; aqui só a memória.
 
-    Lê o hash da leitura anterior, conta quantos blocos SERIAM pulados, e só então
-    grava os hashes novos. A ordem é obrigatória: gravar antes de ler zeraria a
-    medição, porque todo bloco bateria consigo mesmo.
+    ⚠️ **`texto` aqui é o texto FILTRADO**, o mesmo que foi para o modelo. Bloco que a
+    barreira pulou não entra: o hash dele já está gravado e é justamente o que fez o
+    salto acontecer. Gravar o texto original apagaria a distinção entre "li isto" e
+    "vi passar".
 
-    Roda depois de a IA responder e é fire-and-forget, igual ao uso e à sombra:
-    medir não pode custar a extração de ninguém. Enquanto esta fase durar, o número
-    do log é a conferência em PRODUÇÃO da simulação do §3 do plano — que deu
-    32,5% dos blocos com código, medida sobre 13 dias de sombra.
+    Fire-and-forget, igual ao uso e à sombra: lembrar não pode custar a extração de
+    ninguém. Falha aqui significa que o bilhete será relido na próxima — caro, nunca
+    errado, que é o lado certo de errar neste mecanismo.
     """
     try:
-        blocos = blocos_por_codigo(texto)
-        if not blocos:
-            return
-        conhecidos = await blocos_conhecidos(dono, casa, list(blocos))
-        _, ja_vistos = triar_blocos(texto, conhecidos)
-        if ja_vistos:
-            logger.info("barreira (escuro): %d de %d blocos SERIAM pulados · %s/%s",
-                        len(ja_vistos), len(blocos), dono, casa)
         await registrar_blocos_vistos(dono, casa, texto)
     except Exception:
-        logger.warning("barreira (escuro) falhou — nada muda na extração", exc_info=True)
+        logger.warning("barreira: memória não gravada (o bilhete será relido)", exc_info=True)
 
 
 async def _usuarios_refresher():
@@ -678,6 +676,9 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
     "BETFAST", "FAZ1BET", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
+    # Blaze (s336) — 3ª casa BetBy. Mesmo espaço de IDs do motor da Jonbet/Betboom:
+    # numérico de 19 dígitos, o mesmo número que o card estampa em "ID da aposta".
+    "BLAZE",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.
@@ -776,6 +777,19 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     Remove bilhetes já liquidados no banco + duplicatas dentro do colar. A chave é o
     código do marcador `[Código: ...]`, que vem exato do DOM (sem OCR). Mantém a ordem
     original. Bilhetes sem marcador legível são sempre mantidos.
+
+    **Fase 1 da barreira de recaptura** (`docs/PLANO_BARREIRA_RECAPTURA.md`): além do
+    que já está `resolvida`, sai também o bilhete cujo **bloco é byte a byte o mesmo**
+    da última leitura. Isso pega o buraco que sobrava: aposta ABERTA relida sem ter
+    mudado nada. Ela nunca pôde ser descartada por estado (bilhete aberto TEM de ser
+    reprocessado, senão nunca liquida) e por isso era 32,5% de tudo que se pagava,
+    medido em 15.318 blocos reais na s334/s336.
+
+    ⚠️ **O hash é sempre do bloco de `blocos_por_codigo`, NUNCA do `block` daqui.** Os
+    dois recortes cortam em fronteiras diferentes (aqui o bloco vem COM o marcador; lá,
+    sem) e o gravador usa o de lá. Hashear o bloco errado faria a barreira nunca
+    disparar, em silêncio — que é o modo de falha caro deste mecanismo, porque ninguém
+    reclama de economia que não aconteceu.
     """
     blocks = _split_superbet_bilhetes(text)
     if len(blocks) < 2:
@@ -786,20 +800,34 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         m = _SUPERBET_ID_RE.search(b)
         ids.append(m.group(1).strip().upper() if m else None)
 
+    codigos = [i for i in ids if i]
     # Escopado na CONTA: bilhete que já existe em OUTRA conta do mesmo dono não pode
     # sumir do lote desta aqui (ver a nota em `repository.py`).
-    ja_resolvidos = await get_codigos_resolvidos([i for i in ids if i], dono, casa, parceiro)
+    ja_resolvidos = await get_codigos_resolvidos(codigos, dono, casa, parceiro)
+    conhecidos = await blocos_conhecidos(dono, casa, codigos, parceiro)
+    # O de-para de hash usa o MESMO recorte do gravador. Ver o aviso do docstring.
+    por_codigo = {c.upper(): h for c, h in
+                  ((k, hash_bloco(v)) for k, v in blocos_por_codigo(text).items())}
 
     mantidos: list[str] = []
     vistos: set[str] = set()
-    skipped = 0
+    skipped = inalterados = 0
     for block, bid in zip(blocks, ids):
         if bid:
             if bid in vistos or bid in ja_resolvidos:
                 skipped += 1
                 continue
+            atual = por_codigo.get(bid)
+            if atual is not None and conhecidos.get(bid) == atual:
+                inalterados += 1
+                skipped += 1
+                continue
             vistos.add(bid)
         mantidos.append(block)
+
+    if inalterados:
+        logger.info("barreira: %d bilhete(s) sem nenhuma mudança desde a última leitura "
+                    "· %s/%s", inalterados, dono, casa)
 
     if not mantidos:
         return "", skipped
@@ -1574,8 +1602,8 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # intermediário. Fire-and-forget, igual ao uso: observar não pode custar
         # a extração de ninguém.
         _fire(registrar_sombra(dono, casa, texto, accumulated))
-        # Fase 0 da barreira de recaptura — mede, não filtra. Ver `_barreira_escuro`.
-        _fire(_barreira_escuro(dono, casa, texto))
+        # Memória da barreira de recaptura — ver `_barreira_lembrar`.
+        _fire(_barreira_lembrar(dono, casa, texto))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
@@ -1770,8 +1798,8 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
         # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
         _fire(registrar_sombra(dono, casa, texto, resultado))
-        # Fase 0 da barreira de recaptura — mede, não filtra. Ver `_barreira_escuro`.
-        _fire(_barreira_escuro(dono, casa, texto))
+        # Memória da barreira de recaptura — ver `_barreira_lembrar`.
+        _fire(_barreira_lembrar(dono, casa, texto))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
     except Exception:
         logger.exception("par-final error")
