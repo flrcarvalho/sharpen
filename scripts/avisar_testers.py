@@ -150,7 +150,7 @@ def conferir_destino(token: str) -> None:
         sair(f"getChat falhou: {r.get('description')}")
     chat = r.get("result") or {}
     if str(chat.get("id")) != CHAT_ID or (chat.get("title") or "") != CHAT_TITULO:
-        sair(f"DESTINO DIVERGE — id={chat.get('id')} título={chat.get('title')!r}. Abortado.")
+        sair(f"DESTINO DIVERGE. id={chat.get('id')} título={chat.get('title')!r}. Abortado.")
     print(f"destino conferido: {chat.get('title')} · id {chat.get('id')} · type {chat.get('type')}")
 
 
@@ -182,7 +182,7 @@ def montar_mensagem(entrada: dict, versao: str | None) -> str:
     linhas.append("")
     linhas.append(
         "Atualize em sharpen.bet/extensao" if versao
-        else "Já está no ar — é só recarregar a página."
+        else "Já está no ar. É só recarregar a página."
     )
     return "\n".join(linhas)
 
@@ -290,7 +290,7 @@ def main() -> None:
         gravar(entrada, a.versao)
         print("nada foi enviado ao grupo (--so-changelog).")
     elif not a.enviar:
-        print("ENSAIO — nada foi enviado e nada foi gravado. Repita com --enviar.")
+        print("ENSAIO. Nada foi enviado e nada foi gravado. Repita com --enviar.")
         return
     else:
         token = a.token or ler_token()
@@ -311,7 +311,7 @@ def main() -> None:
             metodo = "sendMessage"
         if not r.get("ok"):
             # NÃO reenviar e NÃO "testar" de novo: o description já diz a causa.
-            sair(f"{metodo} falhou: {r.get('description')} — nada foi gravado no changelog.")
+            sair(f"{metodo} falhou: {r.get('description')}. Nada foi gravado no changelog.")
         print(f"publicado · message_id {r.get('result', {}).get('message_id')}")
         gravar(entrada, a.versao)
 
