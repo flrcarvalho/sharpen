@@ -405,7 +405,8 @@ duas vezes, `Under 3.25 Gols` uma). Mesmo bilhete, mesma casa, mesmo dia: é a f
 
 > **Correção de uma afirmação minha da mesma sessão:** eu escrevi que a forma média
 > quebraria HW/HL. **Não quebra.** O `_LINHA_PARTIDA_RE` (`repository.py:472`) aceita
-> quarter (`\d+[.,](?:25|75)`), e toda média de duas meias-linhas consecutivas cai em
+> quarter (o ramo que casa decimal terminado em 25 ou 75), e toda média de duas
+> meias-linhas consecutivas cai em
 > `.25` ou `.75`. O que ela quebra é o gate de fidelidade, acima — argumento mais forte,
 > e conferido.
 
