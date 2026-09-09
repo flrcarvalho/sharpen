@@ -385,12 +385,33 @@ conferir):
 
 - **`3.0,3.5`** (as duas linhas, vírgula) — é o que a casa manda e o que o tradutor copia.
 - **`3.0/3.5`** (as duas linhas, barra) — mais legível, e a barra não colide com decimal.
-- **`3.25`** (a média) — mais curta, mas **perde informação**: não dá para reconstruir se
-  a aposta era `3.0,3.5` ou uma linha cheia de 3.25, e é isso que decide HW/HL.
+- **`3.25`** (a média) — mais curta, e **o sistema já a rejeita** (ver abaixo).
 
-A terceira é a que a IA mais usa e a única que apaga dado. Fechada a regra, ela entra no
-`MASTER_DESCRICAO` e o `descricao_check` ganha a checagem. Enquanto não fechar, **não
-conte essas 520 linhas como divergência do tradutor** — não são.
+**A terceira já é ERRO hoje, e isso não é opinião: foi medido.** `checar_fidelidade`
+exige que todo decimal da descrição exista no bloco cru daquele código, e `4,25` não
+existe num bloco que diz `Menos de 4.0,4.5`. Rodando o gate contra os casos reais da
+sombra:
+
+| Descrição que a IA escreveu | `descricao_check` |
+|---|---|
+| `Under 3.0,3.5 [KRC Harelbeke v RFC Mandel Utd]` | passa |
+| `Under 2,5/3,0 Gols [CD Coopsol v Juventud Huracán]` | passa |
+| `Under 4,25 Gols [Auckland United (F) v …]` | **erro · `linha-fora-do-bloco`** |
+| `Under 3.25 Gols [Wiener Sportclub (F) v …]` | **erro · `linha-fora-do-bloco`** |
+
+**E o bilhete `FR8047691271I` aparece na sombra escrito dos DOIS jeitos** (`Under 3.0,3.5`
+duas vezes, `Under 3.25 Gols` uma). Mesmo bilhete, mesma casa, mesmo dia: é a família do
+"a IA acertou nas duas últimas e o banco ficou com a primeira", agora medida na notação.
+
+> **Correção de uma afirmação minha da mesma sessão:** eu escrevi que a forma média
+> quebraria HW/HL. **Não quebra.** O `_LINHA_PARTIDA_RE` (`repository.py:472`) aceita
+> quarter (`\d+[.,](?:25|75)`), e toda média de duas meias-linhas consecutivas cai em
+> `.25` ou `.75`. O que ela quebra é o gate de fidelidade, acima — argumento mais forte,
+> e conferido.
+
+Fechada a regra, ela entra no `MASTER_DESCRICAO` e o `descricao_check` ganha a checagem
+positiva (hoje ele só reprova o que não está no bloco; não exige uma forma). Enquanto não
+fechar, **não conte as 520 linhas de notação como divergência do tradutor** — não são.
 → [`PLANO_TRADUTOR_DETERMINISTICO §II.8`](docs/PLANO_TRADUTOR_DETERMINISTICO.md#ii8-a-sombra-medida-s333-0909--e-os-três-achados-que-mudaram-o-desenho)
 
 ---
