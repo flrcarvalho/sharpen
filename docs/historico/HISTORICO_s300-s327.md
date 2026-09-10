@@ -361,6 +361,91 @@ escolha é do Feca.
 
 ---
 
+## Sessão 337 — a Blaze na captura
+
+### Blaze: a terceira casa BetBy, e o degrau de odd que ela expôs nas outras duas
+
+Detalhes em [`casas/CASA_BLAZE.md`](../../casas/CASA_BLAZE.md). O espelho foi **provado antes de
+escrever código e sem login**: `/pt/sports` carrega `blaze.sptpub.com/bt-renderer`, e o
+tráfego sai em `api-31-sp-c7818b61-584` — **mesmo cluster e mesmo hash de operador da
+Jonbet**. Zero arquivo de captura novo: reusa `jb_inject.js`, `formatTicketJB` e
+`roboJBPassive`.
+
+Varredura ao vivo de **165 bilhetes** (`status` vazio), com 5 cards lidos verbatim na tela.
+
+### O achado que muda código: a odd que a casa NÃO tem
+
+`total_k` veio `"0"` em **86 de 86 perdidas** — a armadilha conhecida da família. A nova é
+que **em 4 dessas 86 o `k` também vem zero**, e a odd só existe dentro da seleção.
+
+E o card concorda com a API: a linha **"Total de odds" aparece VAZIA**. A casa também não
+tem o número, e não escreve zero nenhum.
+
+Parar no `k` gravaria `0` numa coluna Odd. É a família do *"zero não é ausência"*: o `0`
+passa em toda checagem de forma porque tem cara de conta feita — e num bilhete **ganho**
+faria `stake × (0 − 1)` virar `−1u`. O `_oddDeclJB` ganhou um terceiro degrau:
+
+```
+total_k, se ≠ 0  →  k, se ≠ 0  →  produto das seleções, se todas > 0  →  null (nunca 0)
+```
+
+**Conserta as três casas de uma vez.** E o degrau só pode disparar com os dois campos
+zerados: em `refund`/`canceled` a casa achata a odd para **1** e ali o `1` é a verdade da
+tela — o produto das pernas (2,5 · 1,5) seria invenção nossa por cima do card. O caso do
+harness trava os **dois** lados.
+
+### O que a paginação ensinou
+
+Pedi `limit=100` e a Blaze devolveu **21 por página**, oito páginas, `count` constante em
+165. A casa **ignora o `limit` pedido**. Quem avança o `skip` pelo que pediu pula 79
+bilhetes por página; o loop do `jb_inject` só não quebra porque avança pelo tamanho que
+**voltou**.
+
+### Gates, e as duas coisas que eles pegaram
+
+| Gate | Resultado |
+|---|---|
+| `node extensor/harness/run.mjs` | verde — 27 casos, **436 bilhetes** |
+| `python tools/audit_sharpenup.py` | sem FAIL |
+| `python tools/audit_casas.py` | limpo |
+| `pytest tests/` | 773 passed (as falhas restantes são da s336, em curso noutra sessão) |
+
+O `audit_casas` **pegou uma categoria que eu inventei**: `Placar Exato` não existe no
+`MASTER_APOSTAS §3`. Virou `Outros ⚠️` mais um item de feedback no rodapé do arquivo da
+casa — criar categoria é decisão do Feca e arrasta a propagação inteira.
+
+E a **mutação foi provada nos dois sentidos**: o gate nasceu **vermelho** no bilhete certo
+e, com o produto vencendo sempre, acende 7 falhas — 2 delas exatamente nos `V`. A mesma
+mutação passa **inócua** na Jonbet e na Betboom: espelho compartilha o conserto, não
+compartilha a prova.
+
+### O que NÃO está coberto (medido, e escrito no cabeçalho do caso)
+
+A conta não tinha **aposta aberta**, **cashout**, **boost**, **freebet** nem **sistema**
+(`combinations` vazio em 165 de 165). E 3 dos 8 valores esperados vieram do corpo da
+resposta, não do card: os bilhetes de março estão ~100 posições abaixo na lista e o filtro
+"Personalizado" da casa travou carregando nas duas tentativas.
+
+**Descoberta de lado:** o BetBy da Blaze renderiza dentro de um **shadow root** —
+`document.body.innerText` traz 2,9 KB de casca e nenhum bilhete. Casa assim nunca pode ter
+fallback de texto: o robô genérico não falharia, ele mandaria a casca para a IA.
+
+**Pendente:** a validação ao vivo (recarregar a extensão, Ctrl+Shift+R na aba da Blaze e
+capturar), que só o operador faz.
+
+### Duas sessões, um index: os registros de `app/main.py` foram levados pela s336
+
+Aconteceu de novo o [caso 8](../CASOS.md#8--duas-sessões-commitando-ao-mesmo-tempo-24082026),
+e desta vez a favor: os dois registros da Blaze em `app/main.py` (`_CASA_DISPLAY` e
+`_CASAS_MARCADOR_CODIGO`) entraram no commit `2143c06` da s336, que estava com o arquivo
+para a Fase 1 da barreira. **Histórico já enviado não se reescreve** — fica registrado aqui
+e segue. O resto dos 12 pontos veio no commit desta sessão.
+
+Vale a lição inversa da regra: quando o arquivo é o MESMO, `git add` por nome não separa
+nada. Antes de editar `main.py` com outra sessão aberta, o barato é combinar quem leva.
+
+---
+
 ## Sessão 332 — a remedição do custo
 
 ### A remedição do custo: as correções acertaram o alvo, e o alvo era o outro
@@ -1798,7 +1883,10 @@ regra vem do MASTER e da fórmula do `app/repository.py`, não de bilhete pago.
 
 ---
 
-## Cadeia `_Anterior_` — sessões 333 → 310
+## Cadeia `_Anterior_` — sessões 338 → 310
+
+_Anterior: 2026-09-09 (sessao 338: **a Blaze duplicando bilhete, e a causa nao era a Blaze: era a PROCEDENCIA do codigo.** Relato do Jonathan: "a blaze ta puxando bet duplicada, tinha feito isso ontem com prints e agora com a extensao". Medido no banco ANTES de tocar em codigo: o bilhete do Susanto (31/08) estava **5 vezes** na base dele, com **5 codigos diferentes**, um deles gravado literalmente como `270625314492244...` e outros dois com espaco no meio do numero. **Nao e defeito da captura: a Blaze so entrou na captura nesta mesma noite** (commit `d3f2233`, 19:24), entao 100% do que estava no banco veio de PRINT. O discriminador foi o `uso_tokens.n_itens`, que conta imagens + blocos de texto: toda extracao de Blaze anterior tem `n_itens` de imagem, e so a de 20:43 e texto. **O id do BetBy tem 19 digitos e a IA lendo o card erra quase sempre:** 53 dos 55 codigos de Blaze no banco tem comprimento errado (17, 18, 20, 21). Para comparar, Betboom (77 de 77) e Jonbet (18 de 18), que so entram por captura, acertam os 19 digitos em 100%. **Como o codigo entra na assinatura, cada leitura vira um bilhete novo** e o pre-dedup por codigo nunca casa: ao ligar a extensao, o historico inteiro da casa duplicaria. Nao e so o Jonathan (germano tem 20 linhas assim, Jaao26 uma). **Tres frentes.** (1) A coluna `codigo_ocr` carrega a PROCEDENCIA do codigo, decidida no servidor (o `/extrair` e quem sabe se o lote tinha imagem) e transportada pelo front ate o `/salvar`. A formula do ON CONFLICT e um **AND das duas pontas**, entao a confianca so DESCE: basta uma leitura confiavel para o codigo deixar de ser suspeito, e nenhum print o rebaixa de volta. O backfill da Blaze e **deterministico, nao heuristico**: toda linha criada antes do deploy da captura veio de print porque nao existia outro caminho. (2) A **Migracao B'** do UPSERT adota essa linha quando o mesmo bilhete volta pela captura com o codigo verdadeiro, em vez de inserir a sexta. Duas travas que a Migracao B nao tem, porque aqui o candidato CARREGA um codigo e adotar o errado nao duplica, **sequestra** a identidade de outro bilhete: candidato UNICO, e o indice so e montado quando o lote que chega e confiavel (print nao adota print). (3) `scripts/reparar_duplicatas_codigo_ocr.py` une o que ja esta duplicado: ensaio por padrao, escolha pelo valor **MODAL** de stake e odd (com N leituras do mesmo card, a moda e a melhor estimativa que o banco tem, e isso importa porque o UPSERT congela stake/odd em linha resolvida), e snapshot em `lixeira_bilhetes` pelo `DELETE ... RETURNING to_jsonb`, uma operacao so. **Gates:** 789 passed / 36 skipped, **7 de 7 mutacoes detectadas** (`scripts/mutar_codigo_ocr.py`), 6 testes de ponta a ponta no harness de DB, `check-tokens` e `audit_sharpenup` verdes.)
+
 
 _Anterior: 2026-09-09 (sessao 333: **handoff `Contas e Parceiros v2` — Fases 7 e 8 aplicadas.** A Fase 7 e distribuicao por LARGURA e a Fase 8 e a zona de Fornecedores. **O vao de ~800px no monitor de 32" nao era margem errada, era COLUNA SOBRANDO:** a folga vivia numa faixa antes das acoes, entao nome/status/caixa ficavam ancorados a esquerda e os botoes na borda direita, com nada no meio. Agora a unica coluna elastica e a PRIMEIRA (o nome, que sempre tem o que mostrar) e a folga vira INFORMACAO: duas faixas nascem em 0px e abrem por degrau — `Fornecedor` e `Ultima captura`. **Dois containers, cada um medindo o que governa:** o `pc` mede a AREA DO APP e decide quantas zonas cabem lado a lado; o `acct` mede a TABELA e decide quantas colunas cabem nela. Um container so nao resolveria: o mesmo monitor da larguras diferentes a tabela conforme o numero de zonas ao lado, e foi por isso que a coluna de fornecedor abriu em 1366 (log embaixo, tabela inteira) e nao em 1440 (log ao lado). **Os cortes do handoff (1500/1900/170/176) NAO foram copiados — foram MEDIDOS, e tres deles nao fechavam:** as acoes medem 208px e a trilha proposta era 176; a linha da CASA precisa de 220px de nome (favicon + `Esportes da Sorte` + pilula de contagem) e a proposta era 170; e com os cortes de pagina em 1500/1900 a tabela caia abaixo do proprio piso em 1440, 1600 e 1920 — sem erro, porque `justify-content:flex-end` transborda para a ESQUERDA e isso some do `scrollWidth` (a armadilha da s331d). Os cortes agora saem da conta do conteudo: 842px de piso de tabela, 1094 / 1334 / 1738 / 2030 de area de app. **Fase 8 — a tela se chama Contas & Parceiros e nao dizia nada sobre FORNECEDOR.** Risco de fornecedor nao e risco de casa: casa que trava saque e burocracia, fornecedor que some e o dinheiro. Entrou a terceira zona (ordenada por caixa, com o proprio usuario como contraponto), o 4o KPI `Em contas de fornecedores`, o segmentado de fornecedor na barra da tabela e a linha de total no rodape, na MESMA grade das linhas. Nenhum dado novo: tudo e agregacao do `[Fornecedor]` que ja vive no nome da conta. **Estado novo `Parada ha N dias`, em CINZA:** conta ativa sem captura ha mais de 30 dias se disfarcava de `Conciliada` — estava limpa porque ninguem a usava. Cinza e nao ambar de proposito: abandono nao e pendencia e nao pode competir com pendencia de verdade. O unico campo novo e o `ultima_captura` do `/caixa/visao`, que e o maior `criado_em` dos bilhetes da conta — e o rotulo diz **captura**, nao "extracao", porque extracao que nao achou bilhete novo nao aparece ali. **Gates:** check-tokens verde, 767 passed / 30 skipped, o gate novo `tests/test_contas_status.py` com **8 mutacoes, 8 detectadas**, e `scripts/demo/medir_contas.mjs` medindo a tela em 1366/1440/1600/1920/2560 (transbordo 0 em todas, zero tag na casa, 29 chips TOTAL, nenhuma abreviacao). **Achado medindo, NAO corrigido:** ha dois `Banca total` na mesma tela e eles divergem — o KPI soma toda conta ligada, a faixa da Concentracao soma so casas com `banca > 0`. Foi para o `BACKLOG §4`.)
 
