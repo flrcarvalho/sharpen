@@ -8,6 +8,102 @@
 
 ---
 
+## Sessão 341 — duas frentes da outra sessão
+
+### As duas frentes que o Feca pediu, e a propagação incompleta que as duas expuseram
+
+Pedido em uma mensagem: **selecionar várias apostas e editar em massa** (não só o tipster),
+e **renomear o tipster** na página Tipsters & Métodos, com uma tela de confirmação da marca
+no meio da tela, não a faixa branca do navegador.
+
+As duas entraram. E as duas encontraram, por baixo, o mesmo tipo de defeito: **uma
+referência que ficou para trás e não dá erro nenhum**.
+
+### 1. Renomear tipster: a rota existia, o botão não, e faltavam 3 das 6 pontas
+
+`POST /tipsters/{id}/renomear` está no repo desde sempre e **nunca teve interface**. Pior:
+ela propagava para `tipsters`, `bilhetes` e `tipster_unidade`, e deixava três de fora.
+
+O tipster **não tem id em lugar nenhum**. Seis tabelas o referenciam pelo **nome**:
+
+| Ficava para trás | O que quebrava, sem erro |
+|---|---|
+| `casa_config.tipsters` (CSV) | a casa dedicada aponta para um nome inexistente e **o matcher para de cravar** |
+| `custo_store.custo_tipster` (chave de JSONB) | o custo segue **cobrado no KPI e sumido da tabela onde se lança** (s274) |
+| `polymarket_ativos_tipster` | a atribuição das posições ativas |
+
+E uma sétima ponta que não é tabela: **`matcher.invalidar(dono)` na rota**. Sem ela o
+modelo em cache guarda o nome velho e o `/bilhetes/tipster` o **regrava** na base
+recém-renomeada.
+
+Três decisões que valem repetir:
+
+- o CSV troca o **elemento**, nunca a substring — `Zé` vive dentro de `Zé Turbo`;
+- no custo os meses **se fundem com a origem vencendo**: chave com o nome novo só pode ser
+  órfã (é UNIQUE), e quem tem tipster vivo por trás é a origem;
+- o `DELETE` das colidentes da escada vem **antes** do `UPDATE`. `tipster_unidade` é
+  `UNIQUE (dono, tipster, vigente_desde)` e um degrau órfão no destino derrubaria a rota
+  com 500.
+
+A contagem do modal (`34 apostas`) vem de `GET /tipsters/{id}/resumo`, que conta na **mesma
+cláusula que o UPDATE usa** — a régua do `resumo_parceiro`. Se ela falhar, o modal **diz que
+não conseguiu contar**, em vez de mostrar um número do feed cacheado com cara de conferido.
+
+### 2. Editar em massa: o atalho tentador era o defeito
+
+O `UPDATE ... WHERE id = ANY(ids)` pularia, em silêncio, a **assinatura** (`casa`,
+`parceiro`, `data` e `aposta` estão em `_SIG_COLS`), o `extraction_state`, o
+`origem_tipster` e o registro em `correcoes`. Assinatura velha não dá erro: só faz a próxima
+captura da casa não deduplicar e **duplicar o histórico inteiro** (s198/s312). Num lote de
+300 linhas é 300 vezes o mesmo defeito — e é exatamente a **mutação 1** do gate.
+
+Então o lote chama o **mesmo miolo de uma edição só**, id a id, numa conexão só
+(`_atualizar_bilhete_conn`, extraído do `atualizar_bilhete`: uma implementação, não duas).
+
+Aplicação **por linha**, sem tudo-ou-nada, com `atualizados` + `ignorados` na resposta —
+mesma régua do `/salvar`. Tudo-ou-nada trocaria 297 edições boas por zero por causa de 3 ids
+que não são deste dono.
+
+**Campo ausente = não mexe; string vazia = limpa.** São coisas diferentes, e o front manda
+campo a campo (o tique de cada linha do modal) em vez de inferir por "está vazio" — senão
+não há como apagar um tipster errado em massa.
+
+A seleção vive num **Set fora do DOM**: a Base Completa é virtualizada e um checkbox marcado
+que rola para fora da janela seria perdido sem erro nenhum.
+
+### 3. A tela de confirmação da marca
+
+`shConfirm()` (`dash/assets/js/app.js`) substitui o `confirm()` nativo: abre no meio da tela,
+com o lockup do Sharpen, sobre o mesmo véu dos outros modais. Erro do servidor aparece
+**dentro** do modal, com o texto digitado intacto — uma recusa como "já existe um tipster com
+esse nome" não pode obrigar a refazer tudo.
+
+### Gates
+
+- `tests/test_renomear_tipster.py` — 16 testes, **12 de 12 mutações detectadas**.
+- `tests/test_editar_lote.py` — 16 testes, **10 de 10 mutações detectadas**.
+- 829 passed / 36 skipped · `check-tokens` verde.
+- As 4 telas **renderizadas headless** antes do commit: cabeçalho e linha com o mesmo número
+  de células e colunas alinhadas ao pixel (11 e 11 na Base, 10 e 10 nas Abertas), modal
+  centrado, botão travado com o campo vazio, zero erro de console.
+
+> **A mutação que escapou, e por quê.** Na 1ª rodada do gate do rename, a mutação "conta a
+> casa por substring em vez de por elemento" passou verde. O dado sintético é que estava
+> frouxo: eu usara `Peixe` × `Peixinho`, e **`Peixe` não é substring de `Peixinho`** (é
+> Peix‑**i**‑nho). O par virou `Peixe` × `Peixe Turbo`. É a família "o dado sintético não
+> exerce a regra", do `CLAUDE.md`.
+
+### Fica aberto
+
+Duas dívidas achadas de lado, registradas no [`BACKLOG.md`](../../BACKLOG.md) §4 e **não mexidas**
+(mudança própria): `var(--text1)` não existe em token nenhum e tem 4 usos no
+`dash/assets/js/app.js`; e `@app.post("/tipsters/sugerir")` está registrado **duas vezes** em
+`app/main.py`, com a segunda inalcançável.
+
+_Anterior: 2026-09-10 (sessao 341: **duas frentes pedidas pelo Feca, e as duas expuseram PROPAGACAO INCOMPLETA por baixo.** (1) **Renomear tipster** na tela Tipsters & Metodos. A rota `POST /tipsters/{id}/renomear` existia desde sempre e **nunca teve botao** — e propagava a **3 das 6** referencias. O tipster nao tem id em lugar nenhum: seis tabelas o apontam pelo NOME, e as tres esquecidas falhavam **em silencio**. `casa_config.tipsters` (CSV) deixava a casa dedicada apontando para um nome inexistente e **o matcher parava de cravar**; `custo_store.custo_tipster` (chave de JSONB) mantinha o custo **cobrado no KPI e sumido da tabela onde se lanca** (familia do "tipster cobrado e ineditavel", s274); e `polymarket_ativos_tipster`. Mais a **7a ponta, na rota**: `matcher.invalidar(dono)`, senao o modelo cacheado sugere o nome velho e o `/bilhetes/tipster` o **regrava** na base recem-renomeada. Tres decisoes: o CSV troca o **ELEMENTO**, nunca a substring ("Ze" vive dentro de "Ze Turbo"); no custo os meses se fundem com a **ORIGEM vencendo**, porque so ela tem tipster vivo por tras; e o `DELETE` das colidentes da escada vem **ANTES** do `UPDATE`, senao `UNIQUE (dono, tipster, vigente_desde)` derruba a rota com 500. A contagem do modal vem de `GET /tipsters/{id}/resumo`, que conta na **MESMA clausula que o UPDATE usa** — regua do `resumo_parceiro`; se ela falhar, o modal **diz que nao conseguiu contar** em vez de mostrar um numero do feed cacheado com cara de conferido. **12 de 12 mutacoes detectadas**, e a 10a **ESCAPOU na 1a rodada por dado sintetico frouxo**: eu usei "Peixe" x "Peixinho" para provar "conta por elemento, nao por substring", e **"Peixe" nao e substring de "Peixinho"** (e Peix-I-nho); o par virou "Peixe" x "Peixe Turbo". (2) **Editar apostas em massa** nas 3 telas (Extracao, Base Completa, Em Aberto), com Data, Resultado, Tipster, Esporte, Casa, Parceiro e Aposta — stake, odd e descricao ficam de fora de proposito. `POST /bilhetes/lote` chama o **MESMO miolo de uma edicao so**, id a id (`_atualizar_bilhete_conn`, extraido do `atualizar_bilhete`): o atalho `UPDATE ... WHERE id = ANY(ids)` pularia **assinatura**, `extraction_state`, `origem_tipster` e `correcoes`, e assinatura velha **nao da erro** — so faz a proxima captura da casa nao deduplicar e **duplicar o historico** (s198/s312). Num lote de 300 linhas e 300 vezes o mesmo defeito, e a **mutacao 1 do gate e justamente esse atalho**. Aplicacao **POR LINHA**, sem tudo-ou-nada, com `atualizados` + `ignorados` na resposta (regua do `/salvar`, que grava as boas e devolve as recusadas): tudo-ou-nada trocaria 297 edicoes boas por zero por causa de 3 ids que nao sao do dono. Campo **AUSENTE = nao mexe**, string **VAZIA = LIMPA** — sao coisas diferentes e o front manda campo a campo em vez de inferir por "esta vazio". `flags_pos_edicao_lote` devolve **CONTAGEM, nao booleano**: "algumas podem ser desfeitas" sem dizer quantas vira caca manual numa selecao de 300 linhas. A selecao vive num **Set FORA do DOM** porque a Base Completa e virtualizada, e a coluna nova mexeu na grade posicional (`BTBL_W_KEY` para v3; celula VAZIA, nunca ausente, na vitrine publica). **10 de 10 mutacoes detectadas.** **UI:** `shConfirm()` no dash substitui o `confirm()` nativo — a faixa branca no topo do navegador vira modal **centrado com o lockup do Sharpen**, e erro de servidor aparece **DENTRO** do modal, com o texto digitado intacto. **Gates:** 829 passed / 36 skipped, `check-tokens` verde, e as 4 telas **renderizadas headless** antes do commit (cabecalho e linha com o mesmo numero de celulas e colunas alinhadas ao pixel — 11 e 11 na Base, 10 e 10 nas Abertas —, modal centrado, botao travado com o campo vazio, zero erro de console). **Fica aberto (BACKLOG §4):** `var(--text1)` nao existe em token nenhum, com 4 usos no `dash/assets/js/app.js`; e `@app.post("/tipsters/sugerir")` esta registrado **duas vezes** em `app/main.py`, com a segunda inalcancavel. Outra sessao rodou em PARALELO nesta noite.)
+
+---
+
 ## Sessão 339 — o mês que fechou negativo porque a folga datou 8 vitórias em amanhã
 
 ### O mês que fechava negativo porque a captura datava 8 vitórias em "amanhã"
@@ -105,6 +201,85 @@ que são exatamente as 129 da tela mais as 8 recuperadas. O delta previsto e o m
 ---
 
 _Anterior: 2026-09-09 (sessao 339: **o mes do Ctrl Alt Green fechava negativo porque a captura datava 8 vitorias em AMANHA.** Relato do Feca as 22:50 de 09/09, com duas perguntas que eram o MESMO defeito: "o resultado nao parece atualizado" e "por que voce finalizou apostas com 10/09?". As 8 linhas estavam no banco, todas `W`, somando **+R$ 928,00** — mas datadas de **10/09**, um dia que ainda nao tinha chegado. O MTD recorta `[1o do mes, hoje]` (`filters.js`, `st.dt = today`), entao bilhete datado de amanha cai fora da conta do mes: com elas dentro o mes vai de **-R$ 892,87 para +R$ 35,02** (medido no banco DEPOIS do reparo: 137 apostas, exatamente as 129 da tela mais as 8), ou seja **o filtro trocava o SINAL do resultado**. **A causa:** `_dataFimB3` somava ao kickoff uma "folga de encerramento" por esporte (`_OFF_B3`: 2,5 h em basquete, 3 h em tenis) para estimar a liquidacao. eBasket chega da bet365 como `CL=18` — Basquete, porque a casa nao separa os dois; quem separa e o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos dois lados — e levava **2,5 h de folga num jogo que dura ~4 minutos**. **A assinatura, medida:** as 8 foram capturadas entre 22:30 e 22:40 e as 8 ganharam data +1; nenhum dos outros 397 eBasket da base, fora dessa faixa de horario, foi deslocado. **A escala:** todo esporte tinha folga, entao havia uma janela diaria de ~21h a meia-noite. Piso medido (data = dia da captura + 1, capturado depois das 21h): **188 linhas** da Bet365 (73 Multiplos, 54 Futebol, 37 Badminton, 8 Basquete, 8 eBasket, 5 Tenis, 2 Dardos, 1 E-Sports) — e e PISO, porque quem foi capturado no lote da manha seguinte carrega o mesmo deslocamento e o banco nao guarda o kickoff para conferir. **Por que sobreviveu tanto tempo:** o efeito no KPI se desfaz sozinho (amanha 10/09 entra no MTD), so o DIA errado fica — defeito que se apaga da tela toda madrugada nao vira reclamacao, vira desconfianca difusa. **Decisao do Feca: `Data = kickoff`, para todos os esportes** — e o que a tela da bet365 mostra, o que as outras casas gravam e a unica data que o payload tem. A conversao UK->Brasilia NAO e a folga e continua obrigatoria (hora de parede de Londres). O rotulo do bloco virou `Data (evento):`, que ja era o das outras casas de API. **Gate novo** (bloco 9 do `extensor/harness/casos/bet365.mjs`), **provado por 5 mutacoes** — e a 3a ESCAPOU na primeira rodada: fixar `ukToBr = 4` deixava tudo verde porque nos casos escolhidos a diferenca entre UK-3 e UK-4 caia dentro do MESMO dia. O horario de verao britanico so troca o dia na faixa **03:00-04:00 UK**, entao foram precisos um caso em janeiro e outro em julho, ambos as 03:30, para prender o erro nos dois sentidos. **Reparo aplicado:** `scripts/corrigir_data_folga_s339.py` (ensaio por padrao) corrigiu as 8 linhas do Ctrl Alt Green e registrou cada uma em `correcoes`; a prova de que a data certa e o dia da captura e que a linha entrou no banco **ja resolvida**, e bilhete so resolve depois de o evento acabar. Harness 27 casos / 436 bilhetes verde. **Fica aberto (BACKLOG 1.6 e 1.8):** o `CLAUDE.md` ESTOUROU o teto (65,4 contra 65) e nao ha mais duplicacao para mover — qual regra sai e decisao do Feca; e sobraram **21 linhas ARQUIVADAS** ja resolvidas com data no futuro, de outros tipsters, que o reparo nao tocou porque filtra `archived = FALSE` e o escopo aprovado foi um tipster so. Outra sessao rodou em PARALELO nesta noite.)
+
+---
+
+## Sessão 338 — a Blaze e a procedência do código
+
+### A Blaze duplicando bilhete, e a causa não era a Blaze
+
+O relato do Jonathan: *"a blaze ta puxando bet duplicada, tinha feito isso ontem com
+prints e agora com a extensao"*. A causa não é a captura nova: é **quem leu o número do
+código**.
+
+O `codigo_bilhete` entra na assinatura (`ID|casa|parceiro|codigo`), então um dígito trocado
+é um bilhete NOVO. Só que ele nem sempre vem da mesma fonte:
+
+| Fonte | De onde sai o código | Acerto medido |
+|---|---|---|
+| captura (texto do robô) | `[Código: …]`, exato da API | Betboom 77/77, Jonbet 18/18 |
+| print (imagem) | a IA lê o número no card | Blaze **2 de 55** |
+
+Na base do Jonathan o mesmo bilhete estava **5 vezes**, com 5 códigos diferentes:
+
+```
+Susanto, Yulia Yosephine · 31/08 · stake 200 · odd 1,85 · W
+  #212907 [20] 27063531449244906924   01/09   print
+  #216590 [19] 2706253144924498034    02/09   print
+  #218223 [18] 270625314492244...     03/09   print   ← a IA escreveu as reticências
+  #257345 [20] 27062531440244968824   09/09   print
+  #258494 [19] 2706253144924496624    09/09   print
+```
+
+**Nada disso veio da extensão.** A Blaze entrou na captura nesta mesma noite (`d3f2233`,
+19:24), e o discriminador é o `uso_tokens.n_itens`, que conta imagens + blocos de texto:
+toda extração de Blaze anterior é de imagem, e só a de 20:43 é texto. Foi ela que o
+Jonathan viu duplicar na tela, e ele parou antes de salvar (nenhuma linha nova entrou).
+
+### O que mudou
+
+**1. A procedência do código passa a existir** (`bilhetes.codigo_ocr`). Quem decide é o
+servidor, no `/extrair`, que é quem sabe se o lote tinha imagem; o front só transporta o
+flag até o `/salvar`. A fórmula do `ON CONFLICT` é um **AND das duas pontas**, então a
+confiança só desce: uma leitura confiável limpa o código para sempre, e nenhum print o
+rebaixa de volta. O backfill da Blaze é **determinístico**, não heurístico: linha criada
+antes do deploy da captura veio de print porque não existia outro caminho.
+
+**2. A Migração B' adota em vez de duplicar.** Quando o bilhete volta pela captura com o
+código verdadeiro, a linha antiga é adotada (código novo + assinatura nova + `codigo_ocr`
+limpo). Duas travas que a Migração B não precisa ter: **candidato único** e **índice só com
+lote confiável**. O motivo é que o candidato daqui CARREGA um código próprio, então adotar
+o errado não duplica, sequestra a identidade de outro bilhete.
+
+**3. O que já está duplicado sai pelo script**, com olho humano:
+`scripts/reparar_duplicatas_codigo_ocr.py` (ensaio é o padrão). Ele agrupa por descrição
+normalizada, mostra o P/L de cada linha e escolhe pelo valor **modal** de stake e odd, que
+importa porque o UPSERT congela stake/odd em linha resolvida: o valor da linha que fica é o
+que permanece. Saída para `lixeira_bilhetes`, pelo `DELETE … RETURNING to_jsonb` numa
+operação só.
+
+### Aplicado em produção
+
+A migração marcou as **55** linhas de Blaze e o reparo moveu **4** para `lixeira_bilhetes`:
+o grupo do Susanto, na conta do Jonathan, que eram **R$ 679,62 de lucro que nunca existiu**.
+Quatro leituras concordavam em 200,00 / 1,85 e uma divergia, então a moda decidiu sozinha.
+O ensaio agora devolve `0 grupo(s) duplicado(s)`, e sobrou **candidato único** para a
+Migração B' adotar quando a captura passar.
+
+germano (20 linhas com código torto) e Jaao26 (1) **não** tinham duplicata: leram cada
+bilhete uma vez só. Código errado não é duplicata, é dívida esperando a captura.
+
+### Gates
+
+| Gate | Resultado |
+|---|---|
+| `pytest tests/` | 789 passed / 36 skipped |
+| `python scripts/mutar_codigo_ocr.py` | **7 de 7** mutações detectadas |
+| `tests/test_repository_db.py` | 6 casos novos de ponta a ponta (só no CI) |
+| `check-tokens` · `audit_sharpenup` | verdes |
+
+O que os testes de forma **não** cobrem está escrito no cabeçalho deles: adotar, recusar o
+ambíguo e não rebaixar o confirmado exigem Postgres e vivem no harness de DB.
 
 ---
 
