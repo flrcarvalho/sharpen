@@ -802,11 +802,18 @@ def test_upsert_nao_adota_aberta_feita_DEPOIS_da_caixa_ligada():
 # 5 linhas. Quando a captura chegou, com o código verdadeiro, ia virar a 6ª.
 
 def _blaze(**kw):
-    """Bilhete da Blaze — o formato do caso real (id numérico longo)."""
-    return _row(casa="Blaze", parceiro="jonathan@x [Pessoal]",
+    """Bilhete da Blaze — o formato do caso real (id numérico longo).
+
+    Os campos entram por `dict.update` e não por `**kw` direto: passar `data=` no teste
+    colidiria com o `data=` do default (`got multiple values`), e é justamente `data` que
+    um dos casos precisa mudar para provar que a adoção não atravessa bilhetes.
+    """
+    base = dict(casa="Blaze", parceiro="jonathan@x [Pessoal]",
                 data="31/08/2026", esporte="Badminton", aposta="ML",
                 descricao="Susanto, Yulia Yosephine [Susanto v Pancasari]",
-                stake="200,00", odd="1,85", resultado="W", **kw)
+                stake="200,00", odd="1,85", resultado="W")
+    base.update(kw)
+    return _row(**base)
 
 
 def test_captura_adota_a_linha_cujo_codigo_veio_de_print():
