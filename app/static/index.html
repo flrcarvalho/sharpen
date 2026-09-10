@@ -1868,6 +1868,65 @@ select.ap-inline-inp { padding: 2px 4px; }
 .modal-field input:focus, .modal-field textarea:focus, .modal-field select:focus { outline: none; border-color: var(--accent); }
 .modal-field textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--line); }
+
+/* ── s345 · Modal de CONFIRMAÇÃO (`shConfirm`) ────────────────────────────────
+   Porte do `.sh-cfm` que a s341 criou no dashboard para matar o `confirm()` nativo
+   (a faixa branca do Chrome no topo da janela). Mesmo nome e mesmo contrato de lá:
+   um padrão de confirmação para os dois apps, não um terceiro.
+   ⚠️ Não é duplicata do `.modal` acima: aquele é modal de FORMULÁRIO (título à
+   esquerda, ✕, corpo em grade de 2 colunas) e este é de DECISÃO — marca no topo,
+   texto centrado, dois botões. Papéis diferentes, e é por isso que os dois convivem
+   sem cair no "dois estilos para o mesmo papel" do checklist. */
+.sh-cfm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65);
+  z-index: 2100; overflow-y: auto; padding: 32px 16px; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px); }
+.sh-cfm-overlay.on { display: flex; }
+.sh-cfm { width: 100%; max-width: 460px; margin: 0 auto; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-card);
+  max-height: 85vh; overflow-y: auto; }
+.sh-cfm.modal--shake { animation: modal-shake .32s var(--ease); }
+@media (prefers-reduced-motion: reduce) { .sh-cfm.modal--shake { animation: none; } }
+/* A marca vai INLINE, como na sidebar desta página (o dash usa <img> porque lá o
+   lockup é arquivo). Reusa o gradiente global `#suBladeSelo`. */
+.sh-cfm__brand { display: flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 22px 24px 0; }
+.sh-cfm__brand svg { width: 15px; height: 38px; flex: none; display: block; }
+.sh-cfm__brand .w { font-weight: 800; font-size: 23px; letter-spacing: -.04em; color: var(--ink); }
+.sh-cfm__brand .w .e { color: var(--accent-2); }
+.sh-cfm__head { display: flex; flex-direction: column; gap: 3px; padding: 16px 24px 0; text-align: center; }
+.sh-cfm__eyebrow { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-soft); }
+.sh-cfm__titulo { font-family: var(--font-sans); font-size: 19px; font-weight: 800;
+  letter-spacing: -.02em; line-height: 1.15; color: var(--ink); }
+.sh-cfm__corpo { display: flex; flex-direction: column; gap: 12px; padding: 20px 24px 0;
+  font-family: var(--font-sans); font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); }
+.sh-cfm__corpo p { margin: 0; }
+.sh-cfm__corpo b { color: var(--ink); font-weight: 600; }
+/* Falha de servidor aparece no formulário que falhou, nunca numa barra distante.
+   `display:flex` venceria o atributo `hidden`, daí o `[hidden]` explícito. */
+.sh-cfm__erro { margin: 16px 24px 0; padding: 10px 12px; border-radius: var(--r-sm);
+  background: rgba(var(--neg-rgb),.09); border: 1px solid rgba(var(--neg-rgb),.25);
+  color: var(--neg); font-size: 12px; }
+.sh-cfm__erro[hidden] { display: none; }
+.sh-cfm__foot { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+  padding: 22px 24px 24px; }
+.sh-cfm__btn { padding: 10px 16px; border-radius: var(--r-sm); font-family: var(--font-sans);
+  font-size: 13px; font-weight: 700; letter-spacing: -.01em; cursor: pointer;
+  border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px;
+  transition: all .12s var(--ease); }
+/* ⚠️ DESVIO CONHECIDO, herdado — não copiar como precedente. A Escada de Tinta manda
+   tinta ESCURA sobre fundo de acento (`var(--bg)` sobre `--accent` = 5,8:1; `#fff` = 3,36:1),
+   mas TODO botão primário do app usa `#fff` (`.btn-primary` aqui e `.sh-cfm__btn--primary`
+   no dash). Divergir só aqui criaria dois estilos para o mesmo papel, que é o defeito que o
+   item 8 do checklist manda evitar. Trocar os dois de uma vez é decisão de marca, do Feca. */
+.sh-cfm__btn--primary { background: var(--accent); color: #fff; }
+.sh-cfm__btn--primary:hover:not(:disabled) { box-shadow: var(--glow); }
+.sh-cfm__btn--primary:disabled { opacity: .4; cursor: not-allowed; }
+.sh-cfm__btn--ghost { background: transparent; border-color: var(--line); color: var(--ink-soft); }
+.sh-cfm__btn--ghost:hover { border-color: var(--accent); color: var(--ink); background: var(--surface-2); }
+.sh-cfm__btn--perigo { background: var(--neg); color: #fff; }
+/* O selo dentro do botão primário: o anel do "up" acompanha o fundo de acento. */
+.sh-cfm__btn .su-badge .su-up { box-shadow: 0 0 0 2px var(--accent); }
 /* Modal "Nova conta" — coluna única + bloco de instruções da casa nova. */
 .nc-body { display: flex; flex-direction: column; gap: 14px; }
 .nc-opt { color: var(--ink-mute); }
@@ -3399,13 +3458,16 @@ function casaDisplay(nome) {
 // cá recriaria a armadilha dos três mapas de favicon.
 const CASAS_CAPTURA = new Set();
 function temCaptura(casa) { return CASAS_CAPTURA.has(casa); }
-// `modo`: 'pill' (marca escrita, só onde sobra largura) | 'icon' (só a lâmina).
+// `modo`: 'pill' (marca escrita, só onde sobra largura) | 'icon' (só a lâmina) |
+// 'decor' (lâmina DECORATIVA, dentro de um botão que já se explica por escrito).
+// O 'decor' existe por acessibilidade: com o rótulo próprio, o botão "Usar o
+// SharpenUp" era anunciado como "SharpenUp Usar o SharpenUp".
 // Devolve '' para casa sem captura — quem chama concatena sem `if`.
 function seloCaptura(casa, modo) {
   if (!temCaptura(casa)) return '';
   const t = 'Casa habilitada para extração automática via SharpenUp';
-  return '<span class="su-badge' + (modo === 'icon' ? ' su-badge--icon' : '') + '"'
-    + ' title="' + t + '" aria-label="' + t + '">'
+  const rotulo = modo === 'decor' ? ' aria-hidden="true"' : ' title="' + t + '" aria-label="' + t + '"';
+  return '<span class="su-badge' + (modo === 'pill' ? '' : ' su-badge--icon') + '"' + rotulo + '>'
     + '<span class="su-tile"><svg viewBox="40 10 40 100" aria-hidden="true">'
     + '<path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeSelo)"/>'
     + '<path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg>'
@@ -3413,6 +3475,85 @@ function seloCaptura(casa, modo) {
     + '<path d="M12 19V5M6 11l6-6 6 6"/></svg></span></span>'
     + '<span class="su-wm">Sharpen<span class="su-u">Up</span></span></span>';
 }
+
+// ── s345 · shConfirm — confirmação com a cara da marca ───────────────────────
+// Mesmo nome e mesmo contrato do `shConfirm` do dashboard (s341): `{eyebrow, titulo,
+// corpo, acao, cancelar, perigo}` → Promise<bool>. Existe para o `confirm()` nativo
+// (a faixa branca do Chrome, colada no topo da janela) parar de ser a cara de uma
+// decisão do produto. Os outros `confirm()` deste arquivo migram para cá numa
+// mudança própria; este nasce servindo o aviso de captura, abaixo.
+let _shCfmResolver = null;
+function _shCfmDOM() {
+  let ov = document.getElementById('shCfmOverlay');
+  if (ov) return ov;
+  ov = document.createElement('div');
+  ov.className = 'sh-cfm-overlay';
+  ov.id = 'shCfmOverlay';
+  ov.innerHTML =
+    '<div class="sh-cfm" id="shCfmBox" role="dialog" aria-modal="true" aria-labelledby="shCfmTitulo">'
+    + '<div class="sh-cfm__brand">'
+      + '<svg viewBox="40 10 40 100" aria-hidden="true">'
+      + '<path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeSelo)"/>'
+      + '<path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg>'
+      + '<span class="w">Sharp<span class="e">en.</span></span>'
+    + '</div>'
+    + '<div class="sh-cfm__head">'
+      + '<span class="sh-cfm__eyebrow" id="shCfmEyebrow"></span>'
+      + '<span class="sh-cfm__titulo" id="shCfmTitulo"></span>'
+    + '</div>'
+    + '<div class="sh-cfm__corpo" id="shCfmCorpo"></div>'
+    + '<div class="sh-cfm__erro" id="shCfmErro" hidden></div>'
+    + '<div class="sh-cfm__foot">'
+      + '<button type="button" class="sh-cfm__btn sh-cfm__btn--ghost" id="shCfmCancelar">Cancelar</button>'
+      + '<button type="button" class="sh-cfm__btn sh-cfm__btn--primary" id="shCfmOk">Confirmar</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) _shCfmFim(false); });
+  document.getElementById('shCfmCancelar').addEventListener('click', () => _shCfmFim(false));
+  document.getElementById('shCfmOk').addEventListener('click', () => _shCfmFim(true));
+  return ov;
+}
+function _shCfmFim(ok) {
+  const r = _shCfmResolver;
+  shConfirmFechar();
+  if (r) r(ok);
+}
+function shConfirmErro(msg) {
+  const e = document.getElementById('shCfmErro');
+  if (!e) return;
+  e.textContent = msg || '';
+  e.hidden = !msg;
+}
+function shConfirmFechar() {
+  const ov = document.getElementById('shCfmOverlay');
+  if (ov) ov.classList.remove('on');
+  document.body.style.overflow = '';
+  _shCfmResolver = null;
+}
+function shConfirm(opts) {
+  opts = opts || {};
+  const ov = _shCfmDOM();
+  document.getElementById('shCfmEyebrow').textContent = opts.eyebrow || 'CONFIRMAR';
+  document.getElementById('shCfmTitulo').textContent = opts.titulo || '';
+  document.getElementById('shCfmCorpo').innerHTML = opts.corpo || '';
+  const ok = document.getElementById('shCfmOk');
+  ok.innerHTML = opts.acao || 'Confirmar';
+  ok.className = 'sh-cfm__btn ' + (opts.perigo ? 'sh-cfm__btn--perigo' : 'sh-cfm__btn--primary');
+  ok.disabled = false;
+  document.getElementById('shCfmCancelar').textContent = opts.cancelar || 'Cancelar';
+  shConfirmErro('');
+  ov.classList.add('on');
+  document.body.style.overflow = 'hidden';
+  ok.focus();
+  return new Promise(res => { _shCfmResolver = res; });
+}
+// Esc fecha como "não" — nada aqui é destrutivo, e um modal que só sai pelo mouse
+// trava quem usa teclado.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !_shCfmResolver) return;
+  const ov = document.getElementById('shCfmOverlay');
+  if (ov && ov.classList.contains('on')) { e.preventDefault(); _shCfmFim(false); }
+});
 
 // Chaveado pelo NOME DE EXIBIÇÃO (igual ao valor de `casa` que /casas devolve),
 // nunca pela chave UPPERCASE — faviconUrl() recebe sempre o display name.
@@ -6457,8 +6598,44 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
 }
 
 // ── Extrair ───────────────────────────────────────────────────────────────────
+// s345 — Aviso de casa com captura, antes de processar texto/print.
+// Devolve `true` = pode processar · `false` = o operador preferiu a extensão.
+// ⚠️ A pergunta é sobre a CASA, não sobre a conta: quem responde é o `captura` de
+// `GET /casas`, a mesma fonte do selo. Se o campo não veio (servidor antigo), o Set
+// nasce vazio e isto some da frente — nunca bloqueia uma extração legítima.
+async function _avisarSeTemCaptura() {
+  const casa = parceiroSelecionado && parceiroSelecionado.casa;
+  if (!casa || !temCaptura(casa)) return true;
+  const txt = (document.getElementById('texto').value || '').trim();
+  const temTextoOuPrint = !!txt || arquivos.length > 0 || pdfFiles.length > 0;
+  if (!temTextoOuPrint) return true;
+
+  const nome = casaDisplay(NOMES[casa] || casa);
+  const usarExtensao = await shConfirm({
+    eyebrow: 'Extração automática',
+    titulo: 'A ' + nome + ' tem captura automática',
+    corpo: '<p>O SharpenUp lê os bilhetes direto da casa: <b>código, stake, odd e '
+         + 'resultado vêm exatos</b>, sem passar por leitura de imagem.</p>',
+    // Mesmo componente do cabeçalho de casa, mas DECORATIVO: o botão já diz o nome.
+    acao: seloCaptura(casa, 'decor') + 'Usar o SharpenUp',
+    cancelar: 'Processar mesmo assim',
+  });
+  if (!usarExtensao) return true;   // "Processar mesmo assim" — segue o fluxo normal
+
+  // O que falta para usar a extensão é o pareamento; quando ele já existe, a captura
+  // acontece na aba da casa e aqui não há o que fazer além de sair da frente.
+  const cbtn = document.getElementById('btn-conectar-ext');
+  if (cbtn && !cbtn.classList.contains('su-on')) cbtn.click();
+  return false;
+}
+
 document.getElementById('btn-extrair').addEventListener('click', async () => {
   if (!parceiroSelecionado) return;
+
+  // s345 — casa com captura: avisa antes de gastar leitura de IA num bilhete que a
+  // extensão traria exato. Só para TEXTO e PRINT: CSV/XLS é import de planilha, outro
+  // caminho, e a extensão não o substitui.
+  if (!(await _avisarSeTemCaptura())) return;
 
   // Instante do ENVIO (clique), carimbado antes de qualquer processamento. Vai até o
   // /salvar e vira o criado_em do lote → o feed respeita a ORDEM DE ENVIO mesmo quando
