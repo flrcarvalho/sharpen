@@ -724,6 +724,74 @@ def _split_superbet_bilhetes(text: str) -> list[str]:
     return [b.strip() for b in _SUPERBET_SPLIT_RE.split(text) if b.strip()]
 
 
+# ── Corte de histórico por casa: anterior ao corte não se planilha ─────────────
+#
+# Casa que exporta o histórico inteiro traz junto o que o dono NÃO quer na base. E apagar
+# as linhas do banco não resolve: a captura reencontra os mesmos códigos na varredura
+# seguinte e regrava tudo, sem erro nenhum. Exclusão sem corte é exclusão que dura até a
+# próxima captura — a mesma família de "volta pela CASA, nunca pelo banco".
+#
+# O corte vive AQUI, e não na extensão, por dois motivos medidos:
+#   • o `bda_inject` varre 3 anos por DESENHO (`DIAS_HISTORICO = 1095`, fixo: a janela
+#     curta do painel trouxe 21 de 418 bilhetes na s299) e é COMPARTILHADO com a Bolsa de
+#     Aposta e com todo dono. Encurtar o horizonte lá quebraria a casa que ele protege;
+#   • aqui a régua é por (dono, casa) e roda ANTES da IA: o bloco cortado não paga leitura,
+#     não vira TSV e não chega ao `/salvar`.
+#
+# FAIL-OPEN por desenho: bloco sem data legível é MANTIDO. Esconder bilhete é o modo de
+# falha caro deste mecanismo (ninguém reclama do que não apareceu); reprocessar um a mais
+# custa só o que a barreira de recaptura já devolve.
+_CORTE_HISTORICO: dict[tuple[str, str], _date] = {
+    # Feca × Betbra (s344). A 1ª captura da casa (s343) gravou 411 bilhetes de uma vez, dos
+    # quais 298 eram de 01/06/2025 a 31/10/2025 — e a Betbra é a ÚNICA casa deste dono com
+    # bilhete de 2025, toda a base dele começa em 2026. Decisão do dono, 10/09/2026.
+    ("feca", "betbra"): _date(2026, 1, 1),
+}
+
+# A data que manda é a MESMA que decide a coluna Data do bilhete: o EVENTO, não a colocação
+# (`CASA_BOLSADEAPOSTA §4`). Ler a outra faria o corte discordar da linha que ele filtra —
+# aposta colocada em dezembro para um jogo de janeiro é do dia do jogo.
+_DATA_EVENTO_BLOCO_RE = re.compile(r'^Data \(evento\):\s*(\d{2})/(\d{2})/(\d{4})', re.MULTILINE)
+_DATA_COLOCACAO_BLOCO_RE = re.compile(r'^Data \(colocação\):\s*(\d{2})/(\d{2})/(\d{4})', re.MULTILINE)
+
+
+def _data_do_bloco(bloco: str) -> _date | None:
+    """Data do bloco cru pela régua da coluna Data. `None` = sem data legível."""
+    m = _DATA_EVENTO_BLOCO_RE.search(bloco) or _DATA_COLOCACAO_BLOCO_RE.search(bloco)
+    if not m:
+        return None
+    try:
+        return _date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+    except ValueError:
+        return None
+
+
+def _corte_historico_text(text: str, dono: str, casa: str) -> tuple[str, int]:
+    """Descarta o bloco anterior ao corte declarado para (dono, casa).
+
+    Devolve `(texto, n_cortados)`. Sem corte declarado o texto sai intacto: a busca é por
+    par EXATO, então nenhuma casa entra aqui sem uma decisão escrita no mapa acima.
+    """
+    corte = _CORTE_HISTORICO.get(((dono or "").strip().lower(),
+                                  (casa or "").strip().lower()))
+    if not corte or not text:
+        return text, 0
+    blocos = _split_superbet_bilhetes(text)
+    if not blocos:
+        return text, 0
+    mantidos = []
+    for bloco in blocos:
+        d = _data_do_bloco(bloco)
+        if d is not None and d < corte:
+            continue
+        mantidos.append(bloco)
+    n = len(blocos) - len(mantidos)
+    if n:
+        logger.info("corte de histórico: %d bilhete(s) anteriores a %s descartados · %s/%s",
+                    n, corte.strftime("%d/%m/%Y"), dono, casa)
+    return ("\n\n".join(mantidos) if mantidos else ""), n
+
+
 # ── Betfair: join determinístico bilhete↔extrato pelo ID O/… ────────────────────
 # O bilhete traz o ID (O/25146258/XXXX) mas NÃO a data; o extrato CSV traz a data de
 # liquidação por ID. Antes o CSV INTEIRO ia pro modelo fazer o join → chamada única
@@ -1483,7 +1551,8 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows
 
 async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
                              dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False,
-                             betfair_dates: dict | None = None, codigo_ocr: bool = False):
+                             betfair_dates: dict | None = None, codigo_ocr: bool = False,
+                             fora_corte: int = 0):
     t_start = time.perf_counter()
     try:
         accumulated = ""
@@ -1621,7 +1690,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         _fire(registrar_sombra(dono, casa, texto, accumulated))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -1629,7 +1698,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
 
 async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None,
                            dono: str = "", casa: str = "", n_itens: int = 0, betfair_dates: dict | None = None,
-                           codigo_ocr: bool = False):
+                           codigo_ocr: bool = False, fora_corte: int = 0):
     n_chunks = len(chunks)
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
@@ -1818,7 +1887,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_sombra(dono, casa, texto, resultado))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
@@ -2782,7 +2851,13 @@ async def listar_casas(dono: str = Depends(dono_efetivo)):
     # inclui casas inativas importadas (têm parceiros/dados, mas não têm manual)
     com_dados = set(await casas_com_parceiros(dono))
     dominios = await get_casas_dominios(dono)
-    return {"casas": sorted(manuais | com_dados), "dominios": dominios}
+    casas = sorted(manuais | com_dados)
+    # `captura` = as casas DESTA resposta que o SharpenUp lê por API, na MESMA grafia em
+    # que elas vão em `casas`. É subconjunto, não lista paralela: o front compara por
+    # igualdade e não normaliza nada — `casa` é TEXTO e cada grafia é uma casa diferente
+    # no sistema, então quem sabe converter é `_display_to_key`, que mora aqui.
+    captura = [c for c in casas if _captura.casa_tem_captura(_display_to_key(c))]
+    return {"casas": casas, "dominios": dominios, "captura": captura}
 
 
 class CasaMetaRequest(BaseModel):
@@ -3092,6 +3167,15 @@ async def extrair(
         raise HTTPException(413, f"Máximo de {_MAX_PDF_PAGES} imagens/páginas por envio (recebidas {_n_imgs}).")
 
     xls_skipped = 0
+    fora_corte = 0
+
+    if texto:
+        # Corte de histórico da casa (ver `_corte_historico_text`): sai ANTES do pré-dedup e
+        # antes da IA. O que é anterior ao corte não se lê, não se paga e não se grava — e
+        # é isto que faz a exclusão do histórico velho sobreviver à próxima captura.
+        # Contado à parte de `xls_skipped` de propósito: "ignorada porque já está salva" e
+        # "ignorada porque é anterior ao corte" são coisas diferentes na tela.
+        texto, fora_corte = _corte_historico_text(texto, dono, _casa_display(casa_key))
 
     if texto:
         # Betano (texto): pré-dedup por ID antes de chamar o modelo — descarta
@@ -3141,9 +3225,9 @@ async def extrair(
             base_content.append({"type": "text", "text": xls_text})
 
     if not base_content:
-        if xls_skipped > 0:
+        if xls_skipped > 0 or fora_corte > 0:
             _payload = json.dumps({"done": True, "resultado": "", "modelo": modelo,
-                                   "xls_skipped": xls_skipped,
+                                   "xls_skipped": xls_skipped, "fora_corte": fora_corte,
                                    "tokens": {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}})
             async def _only_skipped():
                 yield f"data: {_payload}\n\n"
@@ -3183,14 +3267,15 @@ async def extrair(
     if use_parallel:
         generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto,
                                      dono=dono, casa=_casa_disp, n_itens=_n_itens, betfair_dates=betfair_dates,
-                                     codigo_ocr=_codigo_ocr)
+                                     codigo_ocr=_codigo_ocr, fora_corte=fora_corte)
     else:
         # Bet365/Betano/Betfair são feed newest-first: no chunk único, o sistema inverte p/
         # oldest→newest (ex.: 1 bilhete só, ou o fallback de texto antigo em bloco único).
         seq_reverse = casa_key.upper() in ("BET365", "BETANO", "BETFAIR")
         generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto,
                                        dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse,
-                                       betfair_dates=betfair_dates, codigo_ocr=_codigo_ocr)
+                                       betfair_dates=betfair_dates, codigo_ocr=_codigo_ocr,
+                                       fora_corte=fora_corte)
 
     return StreamingResponse(
         generator,

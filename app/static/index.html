@@ -6205,6 +6205,12 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
     }
 
     const skipInfo = data.xls_skipped > 0 ? ` · ${data.xls_skipped} ignorada(s)` : '';
+    // s344 — bilhete anterior ao corte da casa (`_CORTE_HISTORICO`) é descartado no
+    // servidor, ANTES da IA. Contagem PRÓPRIA, nunca somada em `xls_skipped`: "já salva"
+    // afirma que existe uma linha no banco, e esta nunca existiu (ou foi apagada de
+    // propósito). Somar as duas faria a tela mentir justamente sobre o que o corte fez.
+    const corteInfo = data.fora_corte > 0
+      ? ` · ${data.fora_corte} anterior(es) ao corte da casa` : '';
 
     if (parsed.tsv) {
       const rs = await fetch('/salvar', {
@@ -6262,7 +6268,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
       const tipo = (ds.alertas && ds.alertas.length) || data.chunks_falhos > 0 || perdidos > 0
                    || fid.restantes > 0 ? 'warn' : 'ok';
 
-      markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg}`, tipo);
+      markDone(`✓ ${parts.join(' · ')}${skipInfo}${corteInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg}`, tipo);
 
       // Rail "Análise IA": KPIs + notas estruturadas + observação livre da IA
       renderRail(ds.analise, parsed.notas, modeloLabel(data.modelo), _elapsed,
@@ -6283,13 +6289,19 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         } else if (ds.parceiro && ds.parceiro !== parceiro.nome) {
           // Caso benigno: a conta foi renomeada durante o lote e o servidor resolveu pelo
           // ID — os bilhetes caíram na conta certa. Registrado só para não parecer mágica.
-          markDone(`✓ ${parts.join(' · ')}${skipInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg} · conta renomeada `
+          markDone(`✓ ${parts.join(' · ')}${skipInfo}${corteInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg} · conta renomeada `
                    + `durante a extração — salvo em «${ds.parceiro}»`, 'warn');
         }
       }
       atualizarIncompletos();
-    } else if (data.xls_skipped > 0) {
-      markDone(`✓ ${data.xls_skipped} apostas já salvas — nada novo${skipInfo}`, 'ok');
+    } else if (data.xls_skipped > 0 || data.fora_corte > 0) {
+      // Nada sobrou para a IA. Cada contagem diz o PROPRIO motivo: "já salva" (existe
+      // no banco) e "anterior ao corte" (descartada de propósito) são coisas diferentes,
+      // e o texto antigo repetia o mesmo número duas vezes ao colar o `skipInfo` no fim.
+      const motivos = [];
+      if (data.xls_skipped > 0) motivos.push(`${data.xls_skipped} já salva(s)`);
+      if (data.fora_corte > 0) motivos.push(`${data.fora_corte} anterior(es) ao corte da casa`);
+      markDone(`✓ ${motivos.join(' · ')} — nada novo`, 'ok');
     } else {
       markDone('⚠️ Nenhum bilhete extraído — veja Notas acima', 'warn');
     }
