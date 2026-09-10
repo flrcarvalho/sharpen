@@ -43,6 +43,34 @@ ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT 
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS sistema TEXT;
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS sistema_linhas INTEGER;
 
+-- PROCEDÊNCIA DO CÓDIGO (s338). O `codigo_bilhete` entra na assinatura, então um dígito
+-- trocado é um bilhete NOVO. Só que o código nem sempre foi LIDO da mesma fonte:
+--   · captura (texto do robô) → vem do `[Código: …]`, exato da API/DOM. Confiável.
+--   · print (imagem)          → a IA lê o número do card. Num id de 19 dígitos ela erra
+--                               quase sempre, e cada leitura erra DIFERENTE.
+-- Medido na Blaze (s338): 53 dos 55 códigos gravados por print têm comprimento errado
+-- (17, 18, 20, 21 dígitos), um foi gravado como `270625314492244...` e dois com espaço no
+-- meio. O mesmo bilhete do Jonathan estava 5 vezes na base, com 5 códigos diferentes.
+-- Comparação: Betboom (77 de 77) e Jonbet (18 de 18), que só entram por captura, têm os
+-- 19 dígitos exatos em 100% dos casos.
+--
+-- TRUE = o código desta linha foi lido de IMAGEM e não é de confiança. É o que autoriza a
+-- Migração B' do UPSERT (`repository.upsert_bilhetes`) a ADOTAR a linha quando o mesmo
+-- bilhete voltar pela captura com o código verdadeiro, em vez de inserir uma segunda.
+-- Uma vez confirmado por fonte confiável, nunca volta a TRUE (ver o ON CONFLICT).
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS codigo_ocr BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Backfill da Blaze — determinístico, não heurístico: a Blaze só entrou na captura em
+-- 09/09/2026 19:24 BRT (commit d3f2233). Toda linha de Blaze criada ANTES desse instante
+-- veio de print, porque não existia outro caminho. Não vale para Jonbet/Betboom, cuja
+-- captura é anterior às linhas delas, nem para casa nenhuma sem essa prova de data.
+-- Idempotente: o WHERE já exclui o que foi marcado.
+UPDATE bilhetes SET codigo_ocr = TRUE
+ WHERE casa = 'Blaze'
+   AND codigo_bilhete IS NOT NULL AND btrim(codigo_bilhete) <> ''
+   AND codigo_ocr = FALSE
+   AND criado_em < TIMESTAMPTZ '2026-09-09 22:24:00+00';
+
 -- Aposentado o fluxo de copiar/marcar para a planilha (sessão 89): a coluna
 -- copy_state ('pendente'|'copiada') não é mais usada por nenhum código. DROP é
 -- metadados no Postgres (rápido, não reescreve a tabela) e idempotente (IF EXISTS).
@@ -551,6 +579,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS caixa_mov_um_inicial ON caixa_mov (parceiro_id
 -- MESMO snapshot — senão restaurar a conta devolveria as apostas e perderia o
 -- dinheiro. JSONB pelo mesmo motivo dos bilhetes: imune a coluna nova.
 ALTER TABLE lixeira_contas ADD COLUMN IF NOT EXISTS caixa JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- LIXEIRA DE BILHETE (s338). Mesma regra da `lixeira_contas`, um degrau abaixo: reparo em
+-- massa que apaga LINHA (não conta inteira) move o que sai para cá, e mais nada no sistema
+-- lê esta tabela. Nasceu do reparo das duplicatas por código de OCR
+-- (`scripts/reparar_duplicatas_codigo_ocr.py`), onde o mesmo bilhete tinha 5 linhas com 5
+-- códigos diferentes e só uma podia ficar.
+--   · JSONB, nunca tabela-espelho: `bilhetes` ganha coluna via ALTER de tempos em tempos e
+--     um espelho pararia de copiar a coluna nova em silêncio.
+--   · `motivo` diz qual reparo tirou a linha, e `mantido_id` para qual linha ela foi
+--     fundida — sem isso o snapshot não se explica sozinho meses depois.
+-- Sem retenção automática: apagar daqui é decisão humana, e o volume é de reparo, não de uso.
+CREATE TABLE IF NOT EXISTS lixeira_bilhetes (
+    id           BIGSERIAL PRIMARY KEY,
+    dono         TEXT NOT NULL,
+    motivo       TEXT NOT NULL,
+    mantido_id   INT,
+    bilhete      JSONB NOT NULL,
+    excluido_em  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS lixeira_bilhetes_dono_excluido
+    ON lixeira_bilhetes (dono, excluido_em);
 """
 
 

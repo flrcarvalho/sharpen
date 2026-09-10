@@ -6104,8 +6104,13 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         // cópia rasa feita no clique, então renomear a conta com o lote em voo mandava o
         // nome VELHO e os bilhetes viravam órfãos, invisíveis (s195, Tivo). O texto segue
         // junto como fallback (extensão/import não têm id).
+        // `codigo_ocr` vem do /extrair (s338): o servidor e' quem sabe se o lote tinha
+        // IMAGEM, e nesse caso o codigo da 11a coluna foi LIDO do card pela IA. O front
+        // so transporta. Sem ele, o mesmo bilhete lido por print e depois pela captura
+        // vira DUAS linhas -- o codigo torto nao bate com o verdadeiro e a dedup passa reto.
         body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome,
-                               parceiro_id: parceiro.id, submitted_at: submittedAt }),
+                               parceiro_id: parceiro.id, submitted_at: submittedAt,
+                               codigo_ocr: !!data.codigo_ocr }),
       });
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar (HTTP ${rs.status})`);

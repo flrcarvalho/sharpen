@@ -100,6 +100,42 @@ blip no app durante o redeploy; fazer em horário de baixo uso. As variáveis de
 Railway são **literais** (não referências `${{}}`), então cada uma precisa ser atualizada à
 mão.
 
+### 1.4 O reparo das duplicatas por código de OCR, e a validação da adoção (s338). **VIVA**
+
+A regra e a barreira estão no ar (`codigo_ocr` + Migração B'). Falta o que só roda **depois
+do deploy**, porque a coluna nasce na migração:
+
+1. **Ensaio do reparo**, por dono: `python scripts/reparar_duplicatas_codigo_ocr.py --dono
+   Jonathan` (idem `germano`, `Jaao26`). Ele lista grupo a grupo, com o P/L de cada linha, e
+   **não muda nada sem `--aplicar`**. Medido em 09/09: Jonathan tem o grupo do Susanto com
+   5 linhas; germano tem 20 linhas de Blaze com códigos de comprimento errado; Jaao26, uma.
+2. **Aplicar** depois de o Feca olhar a lista. Onde as leituras discordarem no dinheiro o
+   script avisa, e `--manter <id>` força outra escolha.
+3. **Validar ao vivo:** rodar a captura da Blaze numa dessas contas e conferir que a linha
+   é ADOTADA (mesma linha física, código passa a ter 19 dígitos, `codigo_ocr` vira FALSE),
+   em vez de nascer outra. É a única parte que o harness de DB não alcança.
+
+> ⚠️ Enquanto o passo 1 não roda, **avisar o Jonathan para não planilhar a captura da
+> Blaze**: com duas ou mais candidatas a B' não adota (candidato único, de propósito), e o
+> bilhete entra como linha nova.
+
+### 1.5 Casa nova na captura herda a dívida de código por print (s338). **VIVA, não medida**
+
+O backfill de `codigo_ocr` cobriu **só a Blaze**, e por prova de DATA (a captura não existia
+antes de 09/09 19:24). Toda outra casa que já era planilhada por print antes de ganhar
+captura tem a mesma dívida, e ninguém a mediu: a pista barata é o **comprimento do código
+variando entre linhas da MESMA casa**, que id de casa não faz.
+
+Não dá para backfillar por palpite de formato: `_CASAS_MARCADOR_CODIGO` documenta o formato
+de algumas casas em comentário, não em código, e errar aqui marca como suspeito um código
+que está certo.
+
+### 1.6 O `CLAUDE.md` está a 0,6 KB do teto (s338). **VIVA**
+
+64,4 KB contra os 65 KB do `tools/check_docs.py`. A regra do próprio arquivo diz o que
+fazer: **os tetos travam crescimento, não mandam cortar** — mova um **caso** para o
+`docs/CASOS.md`, nunca suba o teto. A próxima regra que precisar entrar reprova o gate.
+
 ### 1.3 O `STATUS.md` está a 1,8 KB do teto — o próximo `/encerrar` estoura o gate. **VIVA (07/09)**
 
 Medido em 07/09: **48,2 KB** contra o teto de **50 KB** do `tools/check_docs.py`, com 3

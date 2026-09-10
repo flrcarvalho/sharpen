@@ -784,6 +784,32 @@ Três lugares seguram isso, e cada um cobre o que o outro não vê:
   texto colado) e texto com qualquer `[Código: ]` vazio — é o que a bet365 manda quando o
   detalhe não chegou, e descartar ali apagaria bilhete real.
 
+### Código lido de IMAGEM não é código. Marque a procedência.
+
+O `codigo_bilhete` entra na assinatura, então um dígito trocado é um bilhete NOVO. Mas ele
+tem duas origens de confiabilidade oposta: da captura vem do `[Código: …]`, exato; do PRINT
+vem da IA lendo o card, e **em id longo ela erra quase sempre, diferente a cada leitura**.
+Medido: Blaze **2 de 55** códigos certos por print, contra 100% por captura na Betboom
+(77/77) e na Jonbet (18/18). Um bilhete chegou a **5 linhas**.
+→ [o caso](docs/CASOS.md#o-mesmo-bilhete-com-5-códigos--blaze-s338)
+
+**A coluna `codigo_ocr` carrega essa procedência**, e quem decide é o servidor: o
+`/extrair` sabe se o lote tinha imagem, o front só transporta o flag até o `/salvar`. No
+`ON CONFLICT` a fórmula é um **AND das duas pontas** — a confiança só DESCE. Uma leitura
+confiável limpa o código para sempre; nenhum print o rebaixa de volta.
+
+Com ela, a **Migração B'** adota a linha quando o mesmo bilhete volta pela captura com o
+código verdadeiro. Duas travas que a Migração B não precisa ter, porque aqui o candidato
+**carrega um código próprio** e adotar o errado não duplica, **sequestra** a identidade de
+outro bilhete: candidato **único**, e índice montado só quando o lote que chega é confiável
+(print não adota print). O que já está duplicado sai por
+`scripts/reparar_duplicatas_codigo_ocr.py`, com ensaio por padrão e olho humano.
+
+> **Casa nova na captura = o histórico dela por print vira dívida.** Antes de ligar, meça o
+> comprimento dos códigos já gravados: variar entre linhas da MESMA casa é a assinatura do
+> defeito, e o backfill de `codigo_ocr` só é legítimo com prova de DATA (a captura não
+> existia), nunca por palpite de formato.
+
 ### Fonte determinística manda; extração por IA congela.
 
 O UPSERT **congela** `odd`, `data`, `stake`, `esporte`, `aposta` e `descricao` assim que a

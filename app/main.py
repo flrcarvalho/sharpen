@@ -1466,7 +1466,7 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows
 
 async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
                              dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False,
-                             betfair_dates: dict | None = None):
+                             betfair_dates: dict | None = None, codigo_ocr: bool = False):
     t_start = time.perf_counter()
     try:
         accumulated = ""
@@ -1604,14 +1604,15 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         _fire(registrar_sombra(dono, casa, texto, accumulated))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
 
 
 async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None,
-                           dono: str = "", casa: str = "", n_itens: int = 0, betfair_dates: dict | None = None):
+                           dono: str = "", casa: str = "", n_itens: int = 0, betfair_dates: dict | None = None,
+                           codigo_ocr: bool = False):
     n_chunks = len(chunks)
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
@@ -1800,7 +1801,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_sombra(dono, casa, texto, resultado))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
@@ -3156,16 +3157,23 @@ async def extrair(
 
     _casa_disp = _casa_display(casa_key)
     _n_itens = len(base_content)   # imagens + blocos de texto (proxy de itens do lote)
+    # PROCEDENCIA DO CODIGO (s338). Lote com imagem = o codigo da 11a coluna foi LIDO do
+    # card pela IA, e num id longo ela erra quase sempre (Blaze: 53 de 55 com comprimento
+    # errado). O flag viaja no `done` e volta no /salvar, onde vira a coluna `codigo_ocr`
+    # -- e e ela que autoriza a captura a ADOTAR a linha depois, em vez de duplicar.
+    # Lote misto (imagem + texto) conta como imagem: procedencia se decide pelo pior caso.
+    _codigo_ocr = any(b.get("type") == "image" for b in base_content)
     if use_parallel:
         generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto,
-                                     dono=dono, casa=_casa_disp, n_itens=_n_itens, betfair_dates=betfair_dates)
+                                     dono=dono, casa=_casa_disp, n_itens=_n_itens, betfair_dates=betfair_dates,
+                                     codigo_ocr=_codigo_ocr)
     else:
         # Bet365/Betano/Betfair são feed newest-first: no chunk único, o sistema inverte p/
         # oldest→newest (ex.: 1 bilhete só, ou o fallback de texto antigo em bloco único).
         seq_reverse = casa_key.upper() in ("BET365", "BETANO", "BETFAIR")
         generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto,
                                        dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse,
-                                       betfair_dates=betfair_dates)
+                                       betfair_dates=betfair_dates, codigo_ocr=_codigo_ocr)
 
     return StreamingResponse(
         generator,
@@ -3193,6 +3201,13 @@ class SalvarRequest(BaseModel):
     # (extrações paralelas: a mais lenta salvava por último e furava a fila). Ausente/
     # inválido → fallback NOW() no banco (sync/import/extensão seguem como antes).
     submitted_at: Optional[str] = None
+    # PROCEDÊNCIA DO CÓDIGO (s338): True quando a extração que gerou este TSV tinha
+    # IMAGEM, ou seja, o código da 11ª coluna foi lido do card pela IA e não do
+    # `[Código: …]` da captura. Vem do `done` do /extrair, que é quem sabe o que entrou
+    # no lote. Vira a coluna `codigo_ocr` e é o que autoriza a Migração B' a adotar a
+    # linha quando o bilhete voltar pela captura. Ausente → False (import, bot,
+    # Polymarket e /bilhetes/manual não passam por OCR de código).
+    codigo_ocr: bool = False
 
 
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
@@ -3244,7 +3259,7 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
     if rows:
         inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(
             rows, dono, confianca=body.confianca, criado_base=criado_base,
-            coproprietarios=coproprietarios(dono),
+            coproprietarios=coproprietarios(dono), codigo_ocr=body.codigo_ocr,
         )
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}

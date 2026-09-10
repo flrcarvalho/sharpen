@@ -1150,11 +1150,16 @@ _ORIGEM_AUTORITATIVA = "sync"
 async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
     origem: str = "extracao", criado_base: datetime | None = None,
-    coproprietarios: list[str] | None = None,
+    coproprietarios: list[str] | None = None, codigo_ocr: bool = False,
 ) -> tuple[int, int, list[int], list[str], dict]:
     """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
 
     duplicatas: {str(db_id): [occurrence, total]} — bets suspeitas de duplicidade no lote.
+
+    `codigo_ocr` marca a PROCEDÊNCIA do código deste lote: True quando ele foi lido de
+    IMAGEM (a IA lendo o número no card) e não do `[Código: …]` da captura. É o que
+    autoriza a Migração B' a adotar a linha depois, quando o mesmo bilhete voltar pela
+    captura com o código verdadeiro. Ver a coluna `codigo_ocr` no `database.py`.
     """
     pool = await get_pool()
     ids: list[int] = []
@@ -1223,6 +1228,28 @@ async def upsert_bilhetes(
                 k = chave_orfa(casa_k, parc_k, rr["data"], rr["aposta"],
                                rr["stake"], rr["odd"])
                 sem_cod_no_banco.setdefault(k, []).append(rr["id"])
+
+        # Índice da Migração B' (s338): linhas que já estão no banco com um código lido de
+        # IMAGEM (`codigo_ocr = TRUE`). Elas são órfãs de fato — o código que carregam não
+        # é o do bilhete, é o que a IA achou que leu —, mas a Migração B não as enxerga
+        # porque `codigo_bilhete IS NULL` é falso para elas.
+        #
+        # Só monta quando o lote que chega é CONFIÁVEL (`not codigo_ocr`): dois prints não
+        # se adotam. Print contra print é incerto contra incerto, e trocar um código
+        # duvidoso por outro só embaralharia qual dos dois é o dono da linha.
+        ocr_no_banco: dict[tuple, list[int]] = {}
+        if not codigo_ocr:
+            for casa_k, parc_k in contas_com_cod:
+                recs = await conn.fetch(
+                    """SELECT id, data, aposta, stake, odd FROM bilhetes
+                       WHERE dono = $1 AND casa = $2 AND parceiro = $3
+                         AND codigo_ocr = TRUE""",
+                    dono, casa_k, parc_k,
+                )
+                for rr in recs:
+                    k = chave_orfa(casa_k, parc_k, rr["data"], rr["aposta"],
+                                   rr["stake"], rr["odd"])
+                    ocr_no_banco.setdefault(k, []).append(rr["id"])
 
         # Dedup CRUZADA (linhagem supervisor↔operadores): assinaturas que JÁ existem
         # sob um co-proprietário para as contas deste lote. Contas físicas são
@@ -1346,6 +1373,40 @@ async def upsert_bilhetes(
                         sig, codigo, candidatos.pop(0), dono,
                         row.get("casa", ""), row.get("parceiro", ""),
                     )
+                # Migração B' (s338): adota a linha cujo código foi lido de IMAGEM quando
+                # o MESMO bilhete volta pela captura com o código verdadeiro. Sem isto o
+                # código novo não bate com o código torto, a assinatura não colide, e o
+                # bilhete entra de novo — foi como um bilhete da Blaze chegou a 5 linhas.
+                #
+                # Roda DEPOIS da Migração A (mesmo código, quando o OCR por acaso acertou)
+                # e da B (linha sem código): as duas são certezas, esta é uma inferência.
+                #
+                # Duas travas que a Migração B não tem, porque aqui o candidato carrega um
+                # código próprio e adotar errado REESCREVE a identidade de outro bilhete:
+                #   · candidato ÚNICO — dois prints com o mesmo data+aposta+stake+odd não
+                #     dizem qual é este bilhete. Ambíguo não vira chute (o reparo em massa
+                #     é do `scripts/reparar_duplicatas_codigo_ocr.py`, com olho humano).
+                #   · nada a fazer se a Migração B já adotou nesta linha, senão o mesmo
+                #     bilhete puxaria duas linhas antigas para a mesma assinatura.
+                elif ocr_no_banco:
+                    cand_ocr = ocr_no_banco.get(chave_orfa(
+                        row.get("casa"), row.get("parceiro"), row.get("data"),
+                        row.get("aposta"), row.get("stake"), row.get("odd")))
+                    if cand_ocr and len(cand_ocr) == 1:
+                        await conn.execute(
+                            """
+                            UPDATE bilhetes
+                               SET assinatura = $1, codigo_bilhete = $2, codigo_ocr = FALSE
+                             WHERE id = $3 AND assinatura != $1
+                               AND NOT EXISTS (
+                                   SELECT 1 FROM bilhetes b2
+                                   WHERE b2.dono = $4 AND b2.casa = $5
+                                     AND b2.parceiro = $6 AND b2.assinatura = $1
+                               )
+                            """,
+                            sig, codigo, cand_ocr.pop(0), dono,
+                            row.get("casa", ""), row.get("parceiro", ""),
+                        )
 
             # .upper() canoniza o código (W/L/V/HW/HL). Sem isso, um 'v'/'w' minúsculo
             # (extração/edição) não bate em _RESULTADOS_VALIDOS e o bilhete fica 'aberta'
@@ -1365,9 +1426,9 @@ async def upsert_bilhetes(
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                          aposta, descricao, stake, odd, resultado,
                          extraction_state, confianca, stake_usd, origem, criado_em,
-                         sistema, sistema_linhas)
+                         sistema, sistema_linhas, codigo_ocr)
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-                            COALESCE($18::timestamptz, NOW()), $19, $20)
+                            COALESCE($18::timestamptz, NOW()), $19, $20, $21)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -1426,6 +1487,11 @@ async def upsert_bilhetes(
                         -- tocar em nada de financeiro nem violar o congelamento (s265).
                         sistema          = COALESCE(bilhetes.sistema, EXCLUDED.sistema),
                         sistema_linhas   = COALESCE(bilhetes.sistema_linhas, EXCLUDED.sistema_linhas),
+                        -- Procedência do código: só continua "lido de imagem" enquanto as
+                        -- DUAS pontas forem imagem. Um AND, e não um COALESCE, porque isto
+                        -- é confiança: basta uma leitura confiável para o código deixar de
+                        -- ser suspeito, e nenhuma leitura de print o rebaixa de volta.
+                        codigo_ocr       = bilhetes.codigo_ocr AND EXCLUDED.codigo_ocr,
                         atualizado_em    = NOW()
                     RETURNING id, (xmax = 0) AS was_inserted
                     """,
@@ -1437,6 +1503,7 @@ async def upsert_bilhetes(
                     extraction_state, confianca, row.get("stake_usd"), origem,
                     criado_em_val,
                     row.get("sistema") or None, row.get("sistema_linhas"),
+                    bool(codigo) and codigo_ocr,
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
@@ -1470,6 +1537,8 @@ async def upsert_bilhetes(
                         -- estrutura imutável: só preenche (espelha o ON CONFLICT acima)
                         sistema          = COALESCE(sistema, $16),
                         sistema_linhas   = COALESCE(sistema_linhas, $17),
+                        -- espelha o ON CONFLICT: confiança só desce, nunca sobe
+                        codigo_ocr       = codigo_ocr AND $18,
                         atualizado_em    = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
                     RETURNING id, FALSE AS was_inserted
@@ -1479,6 +1548,7 @@ async def upsert_bilhetes(
                     row.get("odd"), row.get("data"), row.get("stake"), origem,
                     row.get("esporte"), row.get("aposta"), row.get("descricao"),
                     row.get("sistema") or None, row.get("sistema_linhas"),
+                    bool(codigo) and codigo_ocr,
                 )
             if rec:
                 db_id = rec["id"]

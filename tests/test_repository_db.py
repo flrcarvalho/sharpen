@@ -793,3 +793,116 @@ def test_upsert_nao_adota_aberta_feita_DEPOIS_da_caixa_ligada():
         assert list(lista or []) == [], "adotou aposta feita depois da leitura do saldo"
 
     _run(body())
+
+
+# ── Migração B' (s338): o código lido de IMAGEM é adotado pelo código da captura ────
+# O caso que abriu a regra: a Blaze do Jonathan. O card estampa um id de 19 dígitos, a
+# IA lendo o PRINT erra quase sempre (53 de 55 códigos com comprimento errado) e erra
+# DIFERENTE a cada leitura. Como o código entra na assinatura, o mesmo bilhete virou
+# 5 linhas. Quando a captura chegou, com o código verdadeiro, ia virar a 6ª.
+
+def _blaze(**kw):
+    """Bilhete da Blaze — o formato do caso real (id numérico longo)."""
+    return _row(casa="Blaze", parceiro="jonathan@x [Pessoal]",
+                data="31/08/2026", esporte="Badminton", aposta="ML",
+                descricao="Susanto, Yulia Yosephine [Susanto v Pancasari]",
+                stake="200,00", odd="1,85", resultado="W", **kw)
+
+
+def test_captura_adota_a_linha_cujo_codigo_veio_de_print():
+    """Print grava `codigo_ocr=TRUE` com o código torto; a captura chega com o código
+    verdadeiro e ADOTA a linha — uma linha só, agora com o código certo e confiável."""
+    async def body():
+        await _reset()
+        ins, _u, ids, _a, _d = await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="27062531440244968824")], "TOcrA", codigo_ocr=True)
+        assert ins == 1
+        r = await _get("TOcrA", "27062531440244968824")
+        assert r["codigo_ocr"] is True, "print tem de gravar a procedência do código"
+
+        ins2, upd2, ids2, _a2, _d2 = await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="2706253144924490123")], "TOcrA")
+        assert (ins2, upd2) == (0, 1), "a captura inseriu de novo em vez de adotar"
+        assert ids2 == ids, "adotou outra linha física"
+        assert await _count("TOcrA") == 1
+        novo = await _get("TOcrA", "2706253144924490123")
+        assert novo is not None and novo["id"] == ids[0]
+        assert novo["codigo_ocr"] is False, "código confirmado pela captura continua suspeito"
+    _run(body())
+
+
+def test_print_nao_adota_print():
+    """Duas leituras de imagem são duas incertezas: trocar um código duvidoso por outro
+    não torna nenhum dos dois verdadeiro, e escolheria no escuro qual é o dono da linha.
+    Aqui as duas linhas coexistem — é o `reparar_duplicatas_codigo_ocr.py` que resolve,
+    com olho humano."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="27062531440244968824")], "TOcrB", codigo_ocr=True)
+        await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="2706253144924498034")], "TOcrB", codigo_ocr=True)
+        assert await _count("TOcrB") == 2
+    _run(body())
+
+
+def test_captura_nao_adota_quando_ha_dois_candidatos():
+    """Ambíguo não vira chute. Duas linhas de print com o mesmo data+aposta+stake+odd não
+    dizem qual delas é este bilhete, e adotar a errada não duplica: SEQUESTRA a identidade
+    de outro bilhete (o UPDATE reescreve código e assinatura de uma linha existente)."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="27062531440244968824")], "TOcrC", codigo_ocr=True)
+        await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="2706253144924498034")], "TOcrC", codigo_ocr=True)
+        ins, _u, _i, _a, _d = await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="2706253144924490123")], "TOcrC")
+        assert ins == 1, "adotou uma das duas candidatas no escuro"
+        assert await _count("TOcrC") == 3
+    _run(body())
+
+
+def test_captura_nao_adota_linha_de_outro_bilhete():
+    """A chave da adoção é `chave_orfa` (casa+conta+data+aposta+stake+odd). Bilhete de
+    outro dia, ou de outra stake, não é este — e adotá-lo apagaria o código de uma linha
+    que não tem nada a ver."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="27062531440244968824", data="30/08/2026")],
+            "TOcrD", codigo_ocr=True)
+        ins, _u, _i, _a, _d = await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="2706253144924490123")], "TOcrD")
+        assert ins == 1
+        assert await _count("TOcrD") == 2
+        velha = await _get("TOcrD", "27062531440244968824")
+        assert velha is not None, "a linha do outro dia perdeu o código"
+    _run(body())
+
+
+def test_linha_sem_codigo_nao_e_marcada_como_ocr():
+    """Casa sem marcador grava linha SEM código; ela já é da Migração B. Marcá-la aqui
+    encheria o índice da B' de linha que ela nunca vai adotar."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_blaze(codigo_bilhete="")], "TOcrE", codigo_ocr=True)
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            r = await conn.fetchrow("SELECT * FROM bilhetes WHERE dono='TOcrE'")
+        assert r["codigo_bilhete"] is None and r["codigo_ocr"] is False
+    _run(body())
+
+
+def test_confianca_do_codigo_so_desce():
+    """Linha confirmada pela captura não volta a ser suspeita porque alguém colou um print
+    depois. A fórmula é um AND das duas pontas, não um COALESCE."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_blaze(codigo_bilhete="COD9")], "TOcrF")
+        await repository.upsert_bilhetes([_blaze(codigo_bilhete="COD9")], "TOcrF",
+                                         codigo_ocr=True)
+        r = await _get("TOcrF", "COD9")
+        assert r["codigo_ocr"] is False
+    _run(body())

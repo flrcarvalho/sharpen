@@ -201,6 +201,35 @@ isso trancou **40 linhas mal classificadas** fora de qualquer correção.
 
 É daí que vem a regra: **blindar metade dos campos é pior que blindar todos ou nenhum.**
 
+### O mesmo bilhete com 5 códigos — Blaze, s338
+
+Relato do tester Jonathan: *"a blaze ta puxando bet duplicada, tinha feito isso ontem com
+prints e agora com a extensao"*. Na base dele o bilhete do Susanto (31/08) estava **cinco
+vezes**, cada uma com um código diferente:
+
+```
+#212907 [20] 27063531449244906924   01/09
+#216590 [19] 2706253144924498034    02/09
+#218223 [18] 270625314492244...     03/09   ← a IA escreveu as reticências
+#257345 [20] 27062531440244968824   09/09
+#258494 [19] 2706253144924496624    09/09
+```
+
+Todas de PRINT. **A Blaze só entrou na captura naquela mesma noite** (`d3f2233`, 19:24), e
+o que separou print de captura foi o `uso_tokens.n_itens` (imagens + blocos de texto), não
+a suposição: toda extração anterior é de imagem, só a de 20:43 é texto.
+
+O id do BetBy tem 19 dígitos. Lendo o card, a IA errou em **53 dos 55** códigos de Blaze
+do banco (17, 18, 20, 21 dígitos; dois com espaço no meio). Lendo o `[Código: …]` da
+captura, a mesma IA acerta: Betboom **77 de 77**, Jonbet **18 de 18**.
+
+Como o código entra na assinatura, cada leitura virou um bilhete novo, e o pré-dedup por
+código nunca casou. Ao ligar a extensão, o histórico inteiro da casa duplicaria. Não era
+só o Jonathan: germano tinha 20 linhas assim e Jaao26 uma.
+
+> A pista para reconhecer isto noutra casa: o comprimento do código varia entre linhas da
+> **mesma** casa. Id de casa é de tamanho fixo; leitura de imagem, não.
+
 ### A assinatura que ficou para trás — s198 e s312
 
 `casa` e `parceiro` entram no hash de `_assinatura`. Trocar qualquer um dos dois sem

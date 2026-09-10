@@ -174,6 +174,72 @@ herdada do handoff: o rótulo do centro estava em 7,5px, abaixo do piso de 9,5px
 
 ---
 
+## Sessão 334 — o tradutor determinístico da Bet365, Fase 1
+
+### O mapa da Bet365 cresceu, e a régua de aceite cresceu junto
+
+A Fase 1 do tradutor já existia desde a s301. Esta sessão mediu o que ele cobre, achou o
+buraco e fechou parte dele com evidência.
+
+| | Antes | Depois |
+|---|---|---|
+| Cobertura | 66,6% | **70,7%** |
+| Bateu tudo | 76,1% | **77,0%** |
+| Divergência de descrição | 21,4% | **20,5%** |
+
+### A régua que a medição obrigou a criar
+
+Eu ia aceitar rótulo por **categoria estável** (maioria ≥ 95% do que a IA decidiu, com
+≥ 5 casos). Dezessete passaram. Aplicando, a cobertura subiu para 73,5% e **a divergência
+de descrição subiu junto**, de 21,4% para 22,8%. Foi aí que a segunda régua apareceu:
+**acertar a categoria não basta, a descrição tem de bater também.**
+
+Dez rótulos saíram, e caem em duas famílias que pedem código, não linha de tabela:
+
+- **Prop de SIM/NÃO.** A seleção é `Sim` e quem carrega a aposta é o rótulo.
+  `Terminar com Pontos` sai daqui `Franco Colapinto - Sim` e a IA escreve
+  `Franco Colapinto - Terminar com Pontos`. 52 casos, 98% de divergência.
+- **Escopo de tempo.** `1º Tempo - Escanteios Asiáticos` sai `Over 3.5 Escanteios` e a IA
+  escreve `Over 3.5 Escanteios 1º Tempo`. O período **não** é qualificador descartável
+  como `Time da Casa -`: ele muda a aposta.
+
+> Sintoma para reconhecer isto noutro gate: a régua mediu um campo e deixou o vizinho
+> livre. É a mesma família do "gate que confere UM campo deixa os vizinhos livres" do
+> `CLAUDE.md`, e aqui ela quase gravou descrição errada em silêncio em dez rótulos.
+
+### A ordem do corte `- N Opções` é load-bearing
+
+`- 2 Opções` e `- 3 Opções` contam as **saídas** do mercado (com ou sem o empate) e nunca
+mudam a categoria, então cortar o sufixo resolve `Escanteios - 2 Opções` pela entrada
+`escanteios`. Mas o corte é a **última** tentativa, nunca a primeira: `Total - 2 Opções`
+está no mapa por inteiro, e cortar antes deixaria a chave em `total`, que não existe,
+derrubando 498 blocos de uma vez. Há teste de mutação para os dois sentidos.
+
+### O que a triagem dos 20% revelou
+
+Quase nada é o tradutor errando. Das 1.376 divergências de descrição: **657 (47,7%)** são
+nome de time localizado (`USA (W)` contra `EUA (F)`, limitação declarada no cabeçalho do
+módulo), **538 (39,1%)** são notação de número e **81 (5,9%)** são a IA escrevendo
+`Mais de` onde o MASTER manda `Over`.
+
+Das 538, **520 (96,7%) são notação, não valor**: o MASTER mostra `Over 2.5 Gols` com ponto
+e **não diz nada sobre linha partida**. É ali que a IA improvisa, escrevendo o mesmo caso
+de três jeitos (`2,5/3,0`, `4,25`, `3.25`). Buraco de MASTER, não defeito de tradutor, e
+virou decisão no [`BACKLOG §3.8`](../../BACKLOG.md).
+
+### A Betano espera, e o motivo é amostra
+
+Ela usa 686 rótulos contra 228 da Bet365 porque **embute nome próprio no rótulo**
+(`Josh Coburn Total de chutes`, `Coritiba Total de Cartões`). Normalizando por sufixo eles
+colapsam 60%, de 686 para 271, o que resolve o vocabulário. O que não resolve é a amostra:
+ela tem **552 bilhetes de uma seleção contra 7.779 da Bet365**, porque é dominada por
+`Criar Aposta` e múltipla, onde a categoria é estrutural e não diz nada sobre o rótulo.
+
+
+_Anterior: 2026-09-09 (sessao 335: **tres casas novas no SharpenUp, num motor novo: Rogue.** Betao, R7 e 7Games sao espelho de verdade, servido do PROPRIO dominio da casa em `/api/sportsbook/rogue/...`, como a Novibet. Nao e Altenar, nao e BetBy, nao e Kambi, nao e BetConstruct. Um `rg_inject.js` e um `formatTicketRG` servem as tres, e a irmandade foi MEDIDA antes de escrever codigo (mesma stack Next.js, mesmo conjunto de hosts, mesmo mapa de endpoints extraido dos bundles das tres). **O contrato:** `GET /v1/betsreporting/purchases?status=all&take=<1..100>&skip=<n>&fromDate&toDate` com `authorization: Bearer`, devolvendo `{Purchases, PurchasesCount}`; `take` tem teto de 100 e a casa DIZ o limite (`ErrorCode 2003`) em vez de truncar calada. **A semantica saiu do DINHEIRO, nao do rotulo** (a API manda enum numerico puro), provada em 27 de 27 bilhetes: `BetStatusId` 0 com saldo 0 e sem `Result` e aberta, 1 e L, 2 com `saldo = stake x odd` e W, 4 com `saldo = stake` exato e V. **A armadilha central e o `Gain`:** ele e o retorno POTENCIAL e vale `stake x odd` em 27/27, INCLUSIVE em perdida e em aberta; o realizado e `CurrentBetBalance`. Quem le o campo obvio marca toda perda como ganho, que e o `totalWin` da VaideBet (s210) com o terceiro nome. **Dois achados mudaram o codigo:** (1) a TELA E ESTREITA, abre em `Ult. 24 horas` com `take=10` e no recon o filtro de 30 dias do Betao devolvia `PurchasesCount: 0` numa conta com 9 bilhetes, entao o replay alarga para 36 meses e pede `status=all`; (2) **o Bearer EXPIRA**, medido testando o inject contra a casa real (token de ~1h responde 401), e guardar so a PRIMEIRA requisicao fazia o contexto envelhecer junto com a aba. **A gemea `r7.bet` foi unificada ANTES do registro** (a base decidiu: 40 bilhetes de 2 donos contra 1), senao o bilhete do Jaao26 ficaria numa casa que a conta dele nao enxerga, o defeito da s249. **O gate pegou um defeito meu antes de subir:** `_casaConectavel()` normalizava espaco mas nao ACENTO, e a chave e `BETAO` enquanto o display e `Betao` com til, entao o botao Conectar nasceria desabilitado (o bug da s191 na terceira encarnacao). **Gates:** harness 26 casos / 428 bilhetes, `audit_sharpenup` 31 casas sem FAIL nem WARN, `audit_casas` limpo, check-tokens verde, 772 passed, e **mutacao 12 de 12 detectadas** (as duas que escaparam de primeira eram buraco de TESTE, nao de codigo, e viraram caso proprio). **NAO coberto, medido:** as 27 apostas sao todas simples, sem multipla, sistema, cashout, freebet nem meia-liquidacao. Falta a Fase 7, que so o operador faz.)
+
+---
+
 ## Blocos completos — sessões 333 → 317
 
 > Blocos movidos INTACTOS do `STATUS.md` (Lote B da faxina de documentação). O STATUS passou
