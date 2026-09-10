@@ -112,6 +112,26 @@ que fica com 5 blocos ainda paga os mesmos 4 pedaços de uma que tinha 20.
 O corte é proporcional a **quanto aquela casa é recapturada**, não ao tamanho dela. A
 Bet365 lidera porque é onde está o hábito de conferir resultado.
 
+### Ela bate exatamente em quem custa caro (s336)
+
+O custo por bilhete varia **11×** entre usuários: perereca paga R$ 0,037 e Marques19981
+R$ 0,414. A explicação óbvia seria tamanho de lote, porque o pedágio de 57 k tokens é
+por pedaço e dilui em lote grande. **Medido, não é isso.**
+
+Os lotes já são grandes: os de **61+ bilhetes são 15,2 % dos lotes e 59,7 % do gasto**,
+e todos os lotes de até 6 bilhetes somados são **4,2 % do gasto**. Simular o mesmo volume
+reagrupado em lotes de 12 sai **27,8 % mais caro**, porque quebraria os lotes grandes que
+já existem. Ensinar o usuário a capturar em lote maior é uma alavanca de ~4 %, não de 11×.
+
+**O que explica os 11× é RECAPTURA.** Marques19981 leu **457 blocos** na janela da sombra
+e produziu **63 bilhetes novos** em 30 dias: 86 % do que ele paga é releitura. perereca,
+o mais barato, lê quase só o que é novo.
+
+> Consequência: o corte de 29,3 % é a **média**. Em quem recaptura muito ele é muito
+> maior, e são exatamente esses que puxam o custo por bilhete da carteira para cima.
+> A barreira não achata só a conta, achata a **variância** entre usuários — que é o que
+> torna um plano por faixa possível.
+
 ### Somada ao tradutor
 
 As duas atacam metades diferentes: a barreira mata a **releitura** (32,5 %), o tradutor
