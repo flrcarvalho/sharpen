@@ -660,6 +660,24 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 **Próximo passo (backlog vivo, um por vez):**
+- **`var(--text1)` não existe em token nenhum, e tem 4 usos (s341). VIVA, sem defeito visível.**
+  `dash/assets/js/app.js` usa `color:var(--text1)` nos títulos dos drills de **tipster**, **casa**
+  e **esporte** e no cabeçalho do modal de editar aposta. O token **não está definido** em
+  `dash/assets/css/tokens.css`, em `app/static/tokens.css` nem no `pack/`. Hoje isso **não dá
+  defeito**: sem valor, a propriedade cai no `color` herdado, e `html, body` já é `--ink`
+  (`layout.css:8`) — exatamente a cor certa. É token MORTO, e o problema é que ele **passa em
+  qualquer grep de cor** e sobrevive a auditoria: quem trocar a cor do body um dia leva os quatro
+  títulos junto, sem aviso. **Conserto: trocar por `var(--ink)` nos 4 pontos** (`grep -n "var(--text1)"
+  app/static/dash/assets/js/app.js`). Achado na s341, ao escrever o `shConfirm()` — que **nasceu
+  com `--ink`, sem replicar a violação**.
+- **`@app.post("/tipsters/sugerir")` está registrado DUAS vezes (s341). VIVA — a 2a é inalcançável.**
+  `app/main.py:4094` (`sugerir_tipsters_route`, o matcher por evidência da s289) e `:4236`
+  (`sugerir_tipster_route`, que o próprio docstring chama de *"de gaveta/teste"*). O FastAPI casa
+  na ordem de registro, então **a primeira vence sempre** e a segunda é código morto que ainda
+  carrega um `SugerirTipsterRequest` e uma chamada a `sugerir_tipster`. **Perigo real: quem editar
+  a de baixo achando que é a rota em uso não vê efeito nenhum** — e não há erro que denuncie.
+  Conserto: apagar a segunda, ou renomeá-la para um path próprio se o teste de gaveta ainda
+  servir. Conferir antes se `tests/test_rota_sugerir.py` mira alguma das duas.
 - **A Jonbet é a única das três casas do `jb_inject` sem o CORS medido (s340). VIVA.** Betboom
   (`api-32-sp-c7818b61-598`) e Blaze (`api-31-sp-c7818b61-584`) foram medidas no navegador e
   **as duas recusam `credentials:"include"`**. A Jonbet roda no MESMO cluster e MESMO hash da
