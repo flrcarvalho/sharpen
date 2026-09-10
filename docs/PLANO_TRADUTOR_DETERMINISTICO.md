@@ -374,6 +374,43 @@ a IA** — e consistência é o que ele existe para dar.
 3. **Estabilidade como critério próprio:** a mesma entrada tem de dar sempre a mesma
    saída. O tradutor passa nisso por construção; a IA não passa.
 
+#### De onde vêm os doze formatos: não é a casa, e não é só o buraco do MASTER
+
+Pergunta do Feca: *"em que momento uma aposta simples causa 12 tipos de descrição?"*
+Medido, e a resposta desmonta as duas explicações fáceis.
+
+**Não é a casa.** Os 796 pares comparados têm a **seleção crua byte a byte idêntica**.
+A entrada não mudou; tudo o que variou nasceu dentro da leitura.
+
+**E não é só a falta de template.** A instabilidade não segue o MASTER, segue **quantas
+decisões o modelo precisa tomar para MONTAR a frase**:
+
+| O que a descrição exige | Pares | Instáveis | Pior caso |
+|---|---|---|---|
+| **Copiar um nome** (`Vencedor`, `Para Marcar a Qualquer Momento`) | 257 | **18 %** | |
+| Montar com linha inteira (`X+`, §10.2 **tem** template) | 132 | 39 % | 6 formatos |
+| Montar com linha meia (`X.5`, §10.1 **tem** template) | 393 | **42 %** | 6 formatos |
+| Montar com linha **partida** (sem template nenhum) | 14 | **100 %** | **16 formatos** |
+
+Os mercados **0 % instáveis** são todos da primeira linha da tabela: `Para Ganhar a
+Partida`, `Vencedor`, `Chutes`, `Jogador - Desarmes`. Neles a descrição é a seleção
+copiada, e copiar não tem grau de liberdade.
+
+**Ter template no MASTER não bastou.** O §10.1 mostra `Over 2.5 Gols` e o de-para manda
+`Mais de 2.5 → Over 2.5`, e mesmo assim 42 % variam. Porque montar `Over 2.5 Gols` exige
+**três decisões que o MASTER não fecha**: a palavra (`Over` × `Mais de`, que o de-para
+resolve e o modelo desobedece), o decimal (o §10.1 mostra ponto, o `MASTER_OUTPUT` manda
+vírgula para o TSV — **dois sinais em conflito**) e se o objeto `Gols` é obrigatório.
+
+> **A conclusão estrutural, e ela é maior que este plano:** descrição **montada** por um
+> modelo estocástico não converge para um formato só, por melhor que fique o MASTER. Cada
+> grau de liberdade que a regra deixa aberto é preenchido por amostragem, uma vez por
+> leitura. Melhorar o MASTER reduz a variação; **só compor em CÓDIGO a elimina.**
+>
+> Isso muda a justificativa do tradutor. Ele entrou na fila como economia de token e
+> continua sendo. Mas ele é **o único mecanismo capaz de dar um formato único ao dado** —
+> e isso vale independente do que a API custar.
+
 #### As quatro decisões que destravam quase tudo
 
 Os mercados instáveis colapsam em quatro buracos de MASTER, não em dezenas:
