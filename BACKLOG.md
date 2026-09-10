@@ -150,6 +150,16 @@ duplicação **declarada** que restou no arquivo.
 
 > ⚠️ Não suba o teto. Foi assim que o `STATUS.md` chegou a 187 KB.
 
+**Atualização s344: 66,3 KB.** A regra do corte de histórico por casa entrou (casa que
+exporta o histórico inteiro não some só apagando o banco) e custou ~0,9 KB, já comprimida
+ao núcleo, com o caso inteiro escrito no `docs/CASOS.md`. Procurei de novo o que mover e
+**confirmo a medição da s339: não há caso solto no arquivo**, só regra. A dívida está em
+~1,3 KB.
+
+O candidato do parágrafo acima segue de pé e **depende de um "pode" do Feca**: virar
+`## Convenções de output` num ponteiro de 3 linhas para o `MASTER_OUTPUT_2026.md`, que ela
+mesma declara ser a fonte canônica.
+
 ### 1.8 Sobraram 21 linhas ARQUIVADAS datadas no futuro pela folga (s339). **VIVA, medida**
 
 O reparo da s339 (`scripts/corrigir_data_folga_s339.py`) filtra `archived = FALSE`, e o

@@ -768,6 +768,22 @@ e inteiro curto é achado dentro de qualquer odd (`2` vive dentro de `2,05`).
 
 ---
 
+## Casa que exporta HISTÓRICO só some com corte. Apagar do banco não basta.
+
+A captura varre o horizonte DELA (o `bda_inject` faz 3 anos por desenho: `DIAS_HISTORICO
+= 1095`, e o painel só é obedecido quando pede MAIS). **Linha apagada volta inteira na
+varredura seguinte, sem erro nenhum.**
+
+A régua é `main._CORTE_HISTORICO`, mapa **(dono, casa) → data** aplicado no `/extrair`
+**antes da IA** — o bloco cortado não paga leitura nem chega ao `/salvar`. Nunca na
+extensão, que é compartilhada entre casas espelho e vale para todo dono. Manda a data do
+**evento** (a da coluna Data) e bloco sem data legível **FICA**: esconder bilhete é o erro
+caro. **E o corte sobe e se confere no ar ANTES de apagar** — na ordem inversa, uma
+captura na janela entre as duas metades desfaz a exclusão.
+→ [o caso](docs/CASOS.md#as-298-de-2025-que-voltariam-na-captura-seguinte-s344)
+
+---
+
 ## Regras de deduplicação (sistema)
 
 O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem de prioridade:

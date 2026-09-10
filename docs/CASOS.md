@@ -599,3 +599,42 @@ Ela **não é aditiva**, e isso foi aceito com a conta na mesa: somar os dias de
 muito mais que o custo de setembro. A alternativa — ratear pelos dias — foi **recusada de
 propósito**, porque rateio exige um horizonte arbitrário e a janela pelo uso não tem
 constante nenhuma.
+
+---
+
+## Casa que exporta HISTÓRICO só some com corte
+
+### As 298 de 2025 que voltariam na captura seguinte, s344
+
+A Betbra entrou na captura em 10/09/2026 e a primeira varredura gravou **411 bilhetes de
+uma vez**. **298 eram de 2025** (01/06 a 31/10), e a Betbra era a **única** casa daquele
+dono com bilhete daquele ano: toda a base dele começa em 2026. A exportação da casa trouxe
+o histórico inteiro junto, e o dono não queria nada disso na base.
+
+O pedido foi apagar. Apagar sozinho **não resolvia**, e essa é a parte que não se vê:
+
+`extensor/bda_inject.js` varre **3 anos** para trás por desenho (`DIAS_HISTORICO = 1095`),
+e o `lookbackDias` do painel só é respeitado quando pede **mais**. Isso é deliberado desde
+a s299, quando a janela curta fez o robô trazer **21 de 418** bilhetes da Bolsa de Aposta e
+o operador leu como "travou na primeira página". Ou seja: apagadas as 298, a varredura
+seguinte reencontra os mesmos códigos e regrava tudo, **sem erro nenhum**.
+
+Nada no sistema segurava isso. A `lixeira_bilhetes` é snapshot de reparo e ninguém a
+consulta no `/salvar`; não havia tombstone nem data de corte por casa.
+
+**Por que o corte não ficou na extensão.** O `bda_inject` é o mesmo da Bolsa de Aposta e
+roda para todo dono. Encurtar o horizonte lá quebraria justamente a casa que o horizonte
+longo existe para proteger, e o efeito seria global quando a decisão era de um dono só.
+
+**Números do dia:** 298 linhas movidas para `lixeira_bilhetes` com motivo nomeado, saindo
+da base **R$ 10.125,25 de turnover** e **+R$ 5.262,25 de P/L**. Restaram 113 bilhetes na
+casa, todos de 2026, e zero bilhete de 2025 em qualquer casa daquele dono. As contas dos
+outros quatro donos na Betbra não foram tocadas.
+
+**A ordem importou:** o corte subiu primeiro e foi conferido no ar (o `/static/index.html`
+de produção já servia o campo novo) **antes** de qualquer linha ser apagada. Na ordem
+inversa, uma captura na janela entre as duas metades desfaz a exclusão inteira.
+
+O gate mediu 6 de 7 mutações, e a que interessa é a **nº 5: a chamada removida da rota**.
+Sem ela o corte fica verde e inútil, que é como esse tipo de regra costuma morrer.
+
