@@ -143,6 +143,18 @@ _MERCADOS_BET365: dict = {
     "para sofrer falta": _FALTAS,                                      # sombra  25
     "total de 180s": {"cat": "Player Props", "objeto": "180s"},        # sombra  11
     "total de jogos": {"cat": "Legs", "objeto": "Legs"},               # sombra  11
+    # ── ABSOLVIDOS na s336, depois que a régua deixou de ser "concorda com a IA" ──
+    # Os dois foram podados na s334 por divergirem 50% e 64% da IA. Relidos com o gate
+    # novo, **as duas divergências inteiras são ruído da IA** e o tradutor está conforme
+    # o MASTER em 100% dos casos:
+    #   · `total de pontos` — a IA alterna `181,5` (vírgula, agora ERRO pelo §10.1) e
+    #     localiza nome de país (`Sérbia` do bloco vira `Sérvia`). Nome é a limitação
+    #     declarada no cabeçalho deste módulo, não defeito.
+    #   · `corrida - handicap` — o tradutor copia `(Tempo de Finalização Menos 0 min 18
+    #     segs)` verbatim e a IA abrevia de TRÊS jeitos (`-0:18`, `-0min18segs`,
+    #     e o verbatim). Verboso do nosso lado, mas correto e estável.
+    "total de pontos": _PONTOS,                                        # sombra  16
+    "corrida - handicap": _HANDICAP,                                   # sombra  11
 }
 
 # ── PROPS DE SIM/NÃO E ESCOPO DE TEMPO: por que dez rótulos NÃO entraram ──────
@@ -163,11 +175,28 @@ _MERCADOS_BET365: dict = {
 #     e precisa aparecer. Enquanto `_QUALIFICADORES` só sabe descartar, período fica
 #     de fora.
 #
-# Os outros quatro (`Handicap - 2 Opções` 36%, `Total de Pontos` 50%, `Primeiro Set -
-# Vencedor` 55%, `Corrida - Handicap` 64%, `Qualificação - Apostas Comparativas` e
-# `Corrida - Apostas Comparativas (Equipe)` 100%) misturam as duas famílias com
-# nome de piloto e sufixo de unidade. Todos voltam quando o motor souber montar
-# descrição a partir do rótulo — e cada um volta com a medição dele.
+# ── REAVALIADOS na s336, com o gate novo (conformidade com o MASTER) ─────────
+# Dois voltaram e estão no mapa acima (`total de pontos`, `corrida - handicap`).
+# Os QUATRO abaixo continuam de fora, e agora cada um tem um motivo próprio e nomeado
+# em vez do genérico "diverge da IA":
+#
+#  · **`Handicap - 2 Opções`** (55 casos, o maior). A IA escreve `Andy Hamilton -1.5
+#    Legs` e o tradutor `-1.5`. **A IA está certa:** handicap carrega a UNIDADE quando
+#    ela não é o placar (`MASTER_DESCRICAO §12.6/§13.4`), e em dardos a unidade é
+#    `Legs`. Só que o mesmo rótulo aparece em outros esportes com outra unidade, e o
+#    sufixo aqui é **por RÓTULO, nunca por esporte** (ver `_HANDICAP_SETS` acima).
+#    Fazer sufixo por esporte é mudança de desenho, não linha de tabela.
+#
+#  · **`Primeiro Set - Vencedor`** (12). A IA acrescenta `1º Set` e o tradutor não.
+#    Depende da **decisão D** (escopo de tempo), ainda aberta no `BACKLOG §3.8`.
+#
+#  · **`Qualificação - Apostas Comparativas`** e **`Corrida - Apostas Comparativas
+#    (Equipe)`** (29 juntos). O tradutor escreve `George Russell (v Kimi Antonelli)`; a
+#    IA move o adversário para o confronto. **A IA está estruturalmente certa:** H2H é
+#    um confronto entre dois, e o adversário pertence ao `[A v B]`. Entrar exige montar
+#    o confronto a partir da seleção, que é código novo.
+#
+# Os de prop de SIM/NÃO e escopo de tempo seguem na nota anterior: dependem de C e D.
 
 # Famílias de rótulo PARAMETRIZADO — o que a tabela plana não alcança. Aqui a categoria
 # vem do §9 ("outros props estatísticos individuais de jogador (Futebol) → Player Props")
