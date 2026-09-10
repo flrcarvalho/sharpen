@@ -73,6 +73,17 @@ importa porque o UPSERT congela stake/odd em linha resolvida: o valor da linha q
 que permanece. Saída para `lixeira_bilhetes`, pelo `DELETE … RETURNING to_jsonb` numa
 operação só.
 
+### Aplicado em produção
+
+A migração marcou as **55** linhas de Blaze e o reparo moveu **4** para `lixeira_bilhetes`:
+o grupo do Susanto, na conta do Jonathan, que eram **R$ 679,62 de lucro que nunca existiu**.
+Quatro leituras concordavam em 200,00 / 1,85 e uma divergia, então a moda decidiu sozinha.
+O ensaio agora devolve `0 grupo(s) duplicado(s)`, e sobrou **candidato único** para a
+Migração B' adotar quando a captura passar.
+
+germano (20 linhas com código torto) e Jaao26 (1) **não** tinham duplicata: leram cada
+bilhete uma vez só. Código errado não é duplicata, é dívida esperando a captura.
+
 ### Gates
 
 | Gate | Resultado |

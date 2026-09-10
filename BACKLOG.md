@@ -100,24 +100,23 @@ blip no app durante o redeploy; fazer em horário de baixo uso. As variáveis de
 Railway são **literais** (não referências `${{}}`), então cada uma precisa ser atualizada à
 mão.
 
-### 1.4 O reparo das duplicatas por código de OCR, e a validação da adoção (s338). **VIVA**
+### 1.4 A validação ao vivo da adoção do código (s338). **VIVA — o reparo já foi APLICADO**
 
-A regra e a barreira estão no ar (`codigo_ocr` + Migração B'). Falta o que só roda **depois
-do deploy**, porque a coluna nasce na migração:
+A regra, a barreira e o reparo estão no ar. **Feito em 09/09/2026:** a migração marcou as
+**55** linhas de Blaze como `codigo_ocr`, e o reparo (autorizado pelo Feca) moveu **4**
+linhas para `lixeira_bilhetes` — o grupo do Susanto na conta do Jonathan, que eram
+**R$ 679,62 de lucro que nunca existiu**. Sobrou uma linha por bilhete e o ensaio agora
+devolve `0 grupo(s) duplicado(s)`. germano (20 linhas com código torto) e Jaao26 (1) não
+tinham duplicata: leram cada bilhete uma vez só.
 
-1. **Ensaio do reparo**, por dono: `python scripts/reparar_duplicatas_codigo_ocr.py --dono
-   Jonathan` (idem `germano`, `Jaao26`). Ele lista grupo a grupo, com o P/L de cada linha, e
-   **não muda nada sem `--aplicar`**. Medido em 09/09: Jonathan tem o grupo do Susanto com
-   5 linhas; germano tem 20 linhas de Blaze com códigos de comprimento errado; Jaao26, uma.
-2. **Aplicar** depois de o Feca olhar a lista. Onde as leituras discordarem no dinheiro o
-   script avisa, e `--manter <id>` força outra escolha.
-3. **Validar ao vivo:** rodar a captura da Blaze numa dessas contas e conferir que a linha
-   é ADOTADA (mesma linha física, código passa a ter 19 dígitos, `codigo_ocr` vira FALSE),
-   em vez de nascer outra. É a única parte que o harness de DB não alcança.
+**Falta a validação ao vivo, que só o operador faz:** rodar a captura da Blaze numa dessas
+contas e conferir que a linha é **ADOTADA** (mesma linha física, código passa a ter 19
+dígitos, `codigo_ocr` vira FALSE), em vez de nascer outra. É a única parte que o harness de
+DB não alcança.
 
-> ⚠️ Enquanto o passo 1 não roda, **avisar o Jonathan para não planilhar a captura da
-> Blaze**: com duas ou mais candidatas a B' não adota (candidato único, de propósito), e o
-> bilhete entra como linha nova.
+> A conferência é uma consulta: `select id, codigo_bilhete, codigo_ocr from bilhetes where
+> dono='Jonathan' and casa='Blaze' and descricao ilike '%Susanto%'`. Continuar sendo
+> `#212907` é o sinal de que a B' funcionou.
 
 ### 1.5 Casa nova na captura herda a dívida de código por print (s338). **VIVA, não medida**
 
