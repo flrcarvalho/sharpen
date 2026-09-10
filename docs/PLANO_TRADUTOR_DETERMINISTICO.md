@@ -333,6 +333,66 @@ buraco de MASTER, não defeito de tradutor**, e está no `BACKLOG`.
 > teriam gravado descrição errada em silêncio. É a mesma família do "gate que confere UM
 > campo deixa os vizinhos livres" do `CLAUDE.md`.
 
+### II.9 O gate da Fase 3 é impossível como está escrito (s336)
+
+> Medição direta sobre a `sombra_rotulos`: 796 pares (casa, mercado, seleção) que foram
+> lidos duas ou mais vezes, 8.255 leituras.
+
+O §II.4 manda a Fase 3 esperar **"taxa de divergência < 1% em ≥ 500 bilhetes"** contra a
+IA. **Esse alvo não existe.** A IA não tem formato estável:
+
+| | |
+|---|---|
+| Pares lidos 2+ vezes | 796 |
+| Pares em que a IA escreveu descrições **diferentes** | **279 (35,1 %)** |
+| Leituras envolvidas | **6.331 de 8.255 (76,7 %)** |
+| **Teto de acerto de QUALQUER tradutor determinístico** | **~23 %** |
+
+Ninguém casa com um alvo que se mexe. E o pior caso é o **maior mercado da base**:
+`Gols + -`, 4.123 leituras, **100 % instável**. A mesma seleção `Mais de 2.0,2.5` saiu
+de **doze** jeitos:
+
+```
+Mais de 2.0,2.5        Over 2,0,2,5 Gols      Over 2,0/2,5
+Mais de 2.0,2.5 Gols   Over 2,0,2.5 Gols      Over 2,0/2,5 Gols
+Over 2,0 Gols          Over 2,0-2,5           Over 2.0 Gols
+Over 2.0,2.5           Over 2,0-2,5 Gols      Over 2.0,2.5 Gols
+```
+
+**Consequência imediata para a leitura dos números da s334:** os 20,5 % de divergência de
+descrição do tradutor **não são defeito dele**. Contra um juiz que discorda de si mesmo em
+76,7 % das releituras, 20,5 % é bom. O tradutor provavelmente já é **mais consistente que
+a IA** — e consistência é o que ele existe para dar.
+
+#### O gate certo
+
+**Trocar o juiz.** A régua não pode ser "concorda com a IA", tem de ser:
+
+1. **Concorda com o `MASTER_DESCRICAO`** onde ele decide.
+2. **Onde o MASTER é silencioso, a decisão vem antes do código.** É o silêncio que produz
+   os doze formatos: o modelo improvisa exatamente onde não há regra.
+3. **Estabilidade como critério próprio:** a mesma entrada tem de dar sempre a mesma
+   saída. O tradutor passa nisso por construção; a IA não passa.
+
+#### As quatro decisões que destravam quase tudo
+
+Os mercados instáveis colapsam em quatro buracos de MASTER, não em dezenas:
+
+| # | Decisão | Leituras instáveis que ela resolve |
+|---|---|---|
+| **A** | Notação da linha: `Over` × `Mais de`, ponto × vírgula, e a forma da **linha partida** | ~5.000 (`Gols + -`, `Total - 2 Opções`, `Totais do Jogo`) |
+| **B** | O **objeto** (`Gols`, `Pontos`, `Escanteios`) é obrigatório na descrição? | ~700 (aparece e some no mesmo mercado) |
+| **C** | Prop de **SIM/NÃO**: o rótulo entra na descrição, e em que forma | ~100 (`Terminar com Pontos`, `Q3`, `Pódio`) |
+| **D** | **Escopo de tempo**: onde e como o período aparece (`… 1º Tempo`) | ~60 |
+
+A **A** já estava aberta como [`BACKLOG §3.8`](../BACKLOG.md) e é de longe a maior.
+
+> **O que isto muda de mais importante não é custo.** A base tem a mesma aposta descrita
+> de doze formas. Isso não quebra o P/L (que vem de stake, odd e resultado), mas envenena
+> qualquer leitura por descrição, e a dedup de bilhete **sem código** compara descrição
+> (`CLAUDE.md`: *"sem ID, só é duplicata se stake+odd+descrição baterem os três"*). O
+> tradutor deixou de ser só uma frente de custo: **ele é o que dá formato único ao dado.**
+
 ---
 
 ## PARTE III — Estudo de custo

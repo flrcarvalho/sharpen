@@ -463,7 +463,40 @@ economia grande continua sendo o tradutor e a barreira.
 **Decisão do Feca:** ligar o `stop_sequences` (ganho pequeno, risco medido como zero, mas
 mexe no caminho quente da extração) ou deixar para quando outra coisa já for tocar ali.
 
-### 3.8 O MASTER não fixa a notação da LINHA PARTIDA, e é ali que a IA improvisa (s333). VIVA.
+### 3.8 O MASTER é silencioso em 4 pontos, e a IA improvisa em 76,7 % das releituras (s333, ampliado na s336). VIVA.
+
+> ⚠️ **Este item cresceu.** Ele começou como "a notação da linha partida", que continua
+> abaixo e é a maior das quatro. A medição da s336 mostrou que o problema é geral, não de
+> um mercado: → [`PLANO_TRADUTOR §II.9`](docs/PLANO_TRADUTOR_DETERMINISTICO.md#ii9-o-gate-da-fase-3-é-impossível-como-está-escrito-s336)
+
+**Medido sobre 8.255 leituras da sombra: em 76,7 % delas a IA descreveu de forma
+DIFERENTE algo que ela já tinha descrito.** No maior mercado da base (`Gols + -`, 4.123
+leituras) a instabilidade é **100 %**, com doze formatos para a mesma seleção.
+
+Isso tem duas consequências que valem mais que a economia de token:
+
+1. **O gate da Fase 3 do tradutor é impossível como está escrito** ("< 1 % de divergência
+   contra a IA"): o teto de acerto de qualquer tradutor determinístico contra este juiz é
+   **~23 %**. A régua tem de passar a ser o MASTER, não a IA.
+2. **A base tem a mesma aposta descrita de doze formas.** Não quebra o P/L, mas envenena
+   leitura por descrição e a dedup de bilhete **sem código**, que compara descrição.
+
+**As quatro decisões, por tamanho:**
+
+| # | Decisão | Leituras que resolve |
+|---|---|---|
+| **A** | Notação da linha: `Over` × `Mais de`, ponto × vírgula, forma da linha partida | **~5.000** |
+| **B** | O objeto (`Gols`, `Pontos`, `Escanteios`) é obrigatório na descrição? | ~700 |
+| **C** | Prop de SIM/NÃO: o rótulo entra na descrição, e em que forma | ~100 |
+| **D** | Escopo de tempo: onde e como o período aparece | ~60 |
+
+Fechada cada uma, ela entra no `MASTER_DESCRICAO`, o `descricao_check` ganha a checagem
+positiva e o tradutor implementa. **Nenhuma linha de código do tradutor deveria ser
+escrita antes da A**, senão ela é escrita contra um alvo que ainda vai mudar.
+
+---
+
+#### A (detalhe): a notação da LINHA PARTIDA
 
 Medido na sombra: das 538 divergências de número entre tradutor e IA na Bet365,
 **520 (96,7 %) são notação, não valor**. O `MASTER_DESCRICAO` mostra `Over 2.5 Gols`
