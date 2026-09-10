@@ -23,7 +23,7 @@
 - **Modo de ingestão primário: TEXTO via API de Histórico (SharpenUp `b3_inject`).** O robô lê
   as respostas de `/sportshistoryapi/summary` + `/confirmation` (formato `F|00;…`) do
   **Histórico** (Resolvidas + Pendentes) — dado exato: código estável `BR`, resultado, stake,
-  odd, jogo/mercado, e **data de encerramento** (kickoff + folga por esporte, UK→Brasília).
+  odd, jogo/mercado, e **data do evento** (o kickoff, convertido UK→Brasília; ver §4).
   Detalhes em `docs/PLANO_BET365_CAPTURA_API.md`.
 - ⚠️ **Janela de captura: `Últimas 24/48 horas` não cobre aposta COLOCADA antes da janela, mesmo
   que ela tenha liquidado dentro dela (s203).** Consequência: um bilhete capturado ABERTO some da
@@ -90,14 +90,46 @@ Anatomia de um bilhete:
 
 ## 4. Data
 
-A Bet365 **não expõe a data do evento** no bilhete (confirmado). Como é a casa mais usada, a data segue uma cadeia de duas opções:
+**A data é o KICKOFF**, convertido de Londres para Brasília. É o que a captura emite na linha
+`Data (evento):` do bloco, e é o mesmo rótulo que as outras casas de API já usavam.
 
-1. **Data informada pela operação** — você passa a data do lote no momento da extração (a app fornece ao extrator). Fonte primária.
-2. **Fallback:** na ausência de data informada, usar a **data atual no fuso de Brasília** (`America/Sao_Paulo`, UTC−3).
+A cadeia, em ordem:
 
-> ⚠️ O fallback é fixado no fuso de Brasília **de propósito**: o sistema roda em servidor (Railway, provável UTC). Sem fixar o fuso, à noite a data sairia um dia adiantada.
+1. **Kickoff da perna mais recente**, do `confirmation` (`MASTER_OUTPUT §4`: em múltipla, a data
+   é a da perna mais recente). Fonte primária desde a captura por API.
+2. **Data informada pela operação** — a app passa a data do lote na extração. Vale quando o
+   bloco não traz kickoff (print, texto colado, bet builder de mesmo jogo com `TP=00010101000000`).
+3. **Fallback:** **data atual no fuso de Brasília** (`America/Sao_Paulo`, UTC−3).
 
 Nunca usar data de colocação/registro. Formato final: `DD/MM/AAAA`.
+
+> ⚠️ O fallback é fixado no fuso de Brasília **de propósito**: o sistema roda em servidor
+> (Railway, provável UTC). Sem fixar o fuso, à noite a data sairia um dia adiantada.
+
+> ⚠️ **A conversão UK→Brasília é obrigatória e não é opcional.** O payload traz hora de
+> **parede de Londres**, então um jogo às 02:35 UK é 22:35 do dia **anterior** em Brasília.
+> BST (fim de março a fim de outubro) = UTC+1, logo BR = UK−4; GMT = UTC+0, logo BR = UK−3.
+
+### Não existe "data de encerramento" (decisão da s339)
+
+Até a s339 a data era o kickoff **mais uma folga por esporte** (2,5 h em basquete, 3 h em tênis,
+1,5 h em dardos…), para estimar o instante da liquidação. **A folga foi removida.** Três razões,
+e a terceira é a que não se resolve calibrando as horas:
+
+1. Ela criava uma **janela diária de ~21h à meia-noite** em que o bilhete nascia datado de
+   amanhã. O MTD do dashboard recorta `[1º do mês, hoje]`, então o bilhete saía da conta do mês
+   inteiro. Medido: **188 linhas** da Bet365 com data um dia à frente, e isso é piso.
+2. **Duração não é derivável do CL.** eBasket chega como `CL=18` (Basquete — a casa não separa
+   os dois; quem separa é o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos dois
+   lados) e levava 2,5 h de folga num jogo que dura ~4 minutos.
+3. A folga estimava a hora de um evento que **o payload não informa**. Prorrogação, tie-break,
+   atraso e intervalo longo não cabem numa constante por esporte, e o erro só aparece no dia em
+   que a soma cruza a meia-noite — que é como ele sobreviveu tanto tempo.
+
+Um jogo que começa 22:00 do dia 09 e termina 00:30 do dia 10 é **do dia 09**.
+
+Gate: bloco 9 do `extensor/harness/casos/bet365.mjs` (provado por 5 mutações).
+→ [o caso](../docs/CASOS.md#o-mês-que-fechou-negativo-porque-a-folga-datou-8-vitórias-amanhã--s339)
 
 ---
 
@@ -360,7 +392,7 @@ Colunas: `Data \t Esporte \t Tipster \t Casa \t Parceiro \t Aposta \t Descriçã
 1. **Modo de ingestão (primário + fallback):** Bet365 = visão única; Pinnacle = export primário + visão fallback. O campo do MODELO precisa dos dois slots.
 2. **Padrão "tipo do bilhete no cabeçalho":** rótulo fixo declara simples/múltipla/sistema → define categoria e fórmula de odd. Registrar no §2 do MODELO.
 3. **Padrão "campo financeiro único":** Bet365 `Retorno Obtido`, Superbet `PRÊMIO`/`REEMBOLSO` resolvem todos os desfechos (incl. classificar HW/HL pela assinatura exata). Conceituar no §10 do MODELO.
-4. **Data — DECIDIDO:** cadeia `evento → informada → Brasília-hoje` (colocação nunca). Vira adição ao `MASTER_OUTPUT_2026 §4`.
+4. **Data — DECIDIDO:** cadeia `evento → informada → Brasília-hoje` (colocação nunca). Vira adição ao `MASTER_OUTPUT_2026 §4`. **s339:** "evento" é o **kickoff**, sem folga de encerramento (§4).
 5. **HW/HL — gatilho:** alguns layouts mostram a meia-liquidação como tags de metade (`½ Ganho`/`½ Perdido`/`½ Anulado`), não como rótulo único; a assinatura financeira (`RO = S/2` / `(S/2)(O+1)`) confirma e separa de cashout. Útil no §5 do MODELO.
 
 ---

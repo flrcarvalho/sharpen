@@ -5460,12 +5460,32 @@
   const _CL_B3 = { "1": "Futebol", "8": "Rugby", "10": "F1", "13": "Tênis", "15": "Dardos",
                    "18": "Basquete", "91": "Vôlei", "94": "Badminton", "151": "E-Sports",
                    "162": "MMA" };
-  // Folga kickoff→liquidação por esporte (horas) — só p/ acertar o DIA perto da meia-noite.
-  // Os três novos são ESTIMATIVA por duração típica do evento (E-Sports = série longa, como o
-  // tênis; MMA = luta curta, como dardos; rugby = 80min + intervalo). Só mudam a data quando o
-  // evento cai perto da meia-noite; na dúvida o default de 2.5 continua valendo.
-  const _OFF_B3 = { "1": 2.5, "8": 2, "10": 2.5, "13": 3, "15": 1.5, "18": 2.5, "91": 2,
-                    "94": 1.5, "151": 3, "162": 1.5 };
+  // ⚠️ A FOLGA kickoff→liquidação FOI REMOVIDA na s339. Ficou aqui como comentário porque a
+  // ideia volta sozinha à cabeça de quem lê o código, e ela custou um mês de P/L com o sinal
+  // trocado. Era um mapa de horas por esporte (`{"1": 2.5, "13": 3, "18": 2.5, …}`) somado ao
+  // kickoff para estimar o INSTANTE DA LIQUIDAÇÃO, com a intenção de acertar o dia de evento
+  // que atravessa a meia-noite.
+  //
+  // Três coisas estavam erradas nela, e a terceira é a que não tem conserto por ajuste fino:
+  //
+  //   1. A folga só MUDA a data perto da meia-noite, mas ela muda TODO DIA — cria uma janela
+  //      diária de ~21h→00h em que o bilhete nasce datado de amanhã. Medido na s339: 188
+  //      linhas da Bet365 com `data = dia da captura + 1` (73 Múltiplos · 54 Futebol · 37
+  //      Badminton · 8 Basquete · 8 eBasket · 5 Tênis · 2 Dardos · 1 E-Sports), e isso é PISO:
+  //      quem foi capturado no lote da manhã seguinte carrega o mesmo deslocamento e não
+  //      aparece na conta, porque o banco não guarda o kickoff para conferir.
+  //   2. O eBasket provou que a duração não é derivável do CL. eBasket chega como `CL=18`
+  //      (Basquete, a casa não os separa; quem separa é o `_e_ebasket` do `app/tradutor.py`,
+  //      pelo handle do gamer nos DOIS lados) e levava a folga do basquete real: 2,5 h num
+  //      jogo que dura ~4 minutos. Um jogo às 22:35 virava 01:05 do dia seguinte.
+  //   3. E o principal: a folga estimava a hora de um evento que não existe no dado. Duração
+  //      típica não é duração — prorrogação, tie-break, atraso e intervalo longo não cabem numa
+  //      constante por esporte, e o erro só aparece no dia em que a soma cruza a meia-noite.
+  //
+  // A regra vigente é `Data = KICKOFF`, decisão do Feca na s339: é o que a tela da própria
+  // bet365 mostra, é o que as outras casas gravam, e é a única data que o payload realmente
+  // tem. Um jogo que começa 22:00 do dia 09 e termina 00:30 do dia 10 é do dia 09.
+  // → o caso: docs/CASOS.md#o-mês-que-fechou-negativo-porque-a-folga-datou-8-vitórias-amanhã--s339
 
   // Odd Bet365: fracionária "num/den" → decimal (num/den + 1), precisão completa, vírgula.
   // `_oddNumB3` devolve o NÚMERO (NaN se ilegível) — quem precisa calcular usa esta; `_oddB3` é
@@ -5539,23 +5559,27 @@
   }
 
   // Reino Unido (Europe/London) → Brasília (UTC-3, sem horário de verão). BST (fim mar→fim out) =
-  // UTC+1 → BR = UK-4; GMT = UTC+0 → BR = UK-3. Retorna a DATA de Brasília (já com a folga).
+  // UTC+1 → BR = UK-4; GMT = UTC+0 → BR = UK-3. Retorna a DATA de Brasília do KICKOFF.
+  //
+  // ⚠️ A conversão de fuso CONTINUA sendo obrigatória e não tem nada a ver com a folga que saiu
+  // na s339: o payload traz hora de PAREDE de Londres, e um jogo às 02:00 UK é 22:00/23:00 do
+  // dia ANTERIOR em Brasília. Tirar isto junto reintroduziria o mesmo defeito pela outra ponta.
   function _ehBST(y, mo, d) {
     if (mo < 3 || mo > 10) return false;
     if (mo > 3 && mo < 10) return true;
     const ultimoDom = (yy, mm) => { const x = new Date(Date.UTC(yy, mm, 0)); return x.getUTCDate() - x.getUTCDay(); };
     return mo === 3 ? d >= ultimoDom(y, 3) : d < ultimoDom(y, 10);
   }
-  function _dataFimB3(kickoffTS, offsetH) {
+  function _dataKickoffB3(kickoffTS) {
     const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(kickoffTS || ""));
     if (!m) return "";
     const y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5];
     // Bet builder de mesmo jogo vem com TP=00010101000000 (sem kickoff). Sem esta guarda o
-    // bilhete ganhava "Data (encerramento): 01/01/0001" — data falsa é pior que data ausente.
+    // bilhete ganhava "Data: 01/01/0001" — data falsa é pior que data ausente.
     if (y < 2000) return "";
     const uk = Date.UTC(y, mo - 1, d, h, mi);                       // hora de parede UK como pseudo-UTC
     const ukToBr = _ehBST(y, mo, d) ? 4 : 3;
-    const br = new Date(uk - (ukToBr - offsetH) * 3600000);
+    const br = new Date(uk - ukToBr * 3600000);
     const p = (n) => String(n).padStart(2, "0");
     return p(br.getUTCDate()) + "/" + p(br.getUTCMonth() + 1) + "/" + br.getUTCFullYear();
   }
@@ -5574,7 +5598,7 @@
   // O `summary` sozinho NÃO tem: código BR (a identidade), kickoff (a data) nem jogo/mercado/liga.
   // Um bilhete assim não é "incompleto", é ERRADO em três eixos ao mesmo tempo:
   //   • sem código → a assinatura vira conteúdo → a próxima captura não reconhece → INSERT duplicado;
-  //   • sem linha "Data (encerramento)" → o backend cai na DATA DE REFERÊNCIA (= hoje, `main.py`
+  //   • sem linha "Data (evento)" → o backend cai na DATA DE REFERÊNCIA (= hoje, `main.py`
   //     `_INSTRUCAO`/`data_referencia`) → aposta de julho entra datada de hoje, no P/L de hoje;
   //   • sem `legs` → a descrição sai decapitada ("HNK Gorica" em vez de "… [A v B]").
   // Medido na s244, conta `marloncezar01`: lote de 206 → 139 sem confirmation · os MESMOS 139 com
@@ -5602,14 +5626,17 @@
     // para mascarar e o número errado vai direto para o banco.
     const nSel = base.length;
     const multiplo = jogos.size >= 3 || cls.length > 1;
-    // data de encerramento = maior kickoff+folga entre as pernas
-    let dataFim = "", maxMs = -Infinity;
+    // Data = o KICKOFF da perna mais recente (`MASTER_OUTPUT §4`: "em apostas múltiplas, usar a
+    // data da perna mais recente"). Sem folga desde a s339 — ver o bloco do `_OFF_B3` acima.
+    // O rótulo mudou junto (`(encerramento)` → `(evento)`): quem lê o bloco é a IA, e o rótulo
+    // antigo mandava ela datar o fim de um evento que o payload não tem. O tradutor casa a
+    // chave por PREFIXO (`app/tradutor.py`, `k.startswith("Data")`), então os dois entram.
+    let dataEv = "", maxMs = -Infinity;
     for (const l of legs) {
-      const off = _OFF_B3[l.cl] != null ? _OFF_B3[l.cl] : 2.5;
-      const dd = _dataFimB3(l.kickoff, off);
-      if (dd) { const p = dd.split("/"); const ms = Date.UTC(+p[2], +p[1] - 1, +p[0]); if (ms > maxMs) { maxMs = ms; dataFim = dd; } }
+      const dd = _dataKickoffB3(l.kickoff);
+      if (dd) { const p = dd.split("/"); const ms = Date.UTC(+p[2], +p[1] - 1, +p[0]); if (ms > maxMs) { maxMs = ms; dataEv = dd; } }
     }
-    if (dataFim) L.push("Data (encerramento): " + dataFim);
+    if (dataEv) L.push("Data (evento): " + dataEv);
     L.push("Stake: " + _brl(_numB3(t.ts != null ? t.ts : t.stake)));
     L.push("Status: " + _resultadoB3(t));
     // Sistema (BC > 1): as odds saem do SUMMARY quando houver — em bet builder as pernas do

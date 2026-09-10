@@ -446,6 +446,57 @@ um *"não tenho o id no Sharpen"* na hora de corrigir.
 
 ---
 
+## A data é a que a fonte TEM
+
+### O mês que fechou negativo porque a folga datou 8 vitórias amanhã — s339
+
+**22:50 de 09/09/2026.** O Feca abre o relatório do tipster `Ctrl Alt Green` e vê **MTD
+−R$ 892,87**, com a grade mostrando oito apostas de eBasket **datadas de 10/09** — um dia
+que ainda não chegou. Duas perguntas na mesma mensagem: *"o resultado não parece atualizado"*
+e *"por que você finalizou apostas com 10/09?"*. **Era o mesmo defeito nas duas.**
+
+As 8 linhas estavam no banco, todas `W`, somando **+R$ 928,00**. O MTD recorta
+`[1º do mês, hoje]` (`filters.js`, `st.dt = today`), então bilhete datado de amanhã cai fora.
+Com as 8 dentro, o mês vai de **−R$ 892,87 para +R$ 35,13**: o filtro trocou o **sinal** do
+resultado do mês.
+
+**A causa:** `_dataFimB3` somava ao kickoff uma folga por esporte (`_OFF_B3`) para estimar a
+liquidação. eBasket chega da bet365 como `CL=18` — **Basquete**, porque a casa não separa os
+dois; quem separa é o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos dois lados —
+e levava **2,5 h de folga num jogo que dura ~4 minutos**. Kickoff 22:35 + 2,5 h = 01:05 do dia
+seguinte.
+
+A assinatura, medida: as 8 foram capturadas entre **22:30 e 22:40** e as 8 ganharam data +1.
+Nenhum dos outros 397 eBasket da base, fora dessa faixa de horário, foi deslocado.
+
+**A escala.** Todo esporte tinha folga (1,5 h a 3 h), então havia uma janela diária de ~21h à
+meia-noite. Piso medido na base (data = dia da captura + 1, com captura depois das 21h):
+**188 linhas** da Bet365 — 73 Múltiplos · 54 Futebol · 37 Badminton · 8 Basquete · 8 eBasket ·
+5 Tênis · 2 Dardos · 1 E-Sports. É **piso**: quem foi capturado no lote da manhã seguinte
+carrega o mesmo deslocamento e não aparece na conta, porque o banco não guarda o kickoff.
+
+**Por que sobreviveu tanto tempo.** O efeito no KPI se desfaz sozinho: amanhã 10/09 entra no
+MTD e o número "conserta". O que não se desfaz é o **dia errado** — o P/L de terça fica
+lançado na quarta para sempre, e a coluna Data da planilha sai errada. Um defeito que se
+apaga da tela sozinha toda madrugada não gera reclamação, gera desconfiança difusa.
+
+**A decisão (Feca, s339):** `Data = kickoff`, para todos os esportes. É o que a tela da própria
+bet365 mostra, o que as outras casas gravam, e a única data que o payload realmente tem.
+
+### A mutação que passou verde
+
+O gate novo (bloco 9 do `extensor/harness/casos/bet365.mjs`) nasceu com 5 mutações; **4
+detectadas na primeira rodada.** A que escapou: fixar `ukToBr = 4` (ignorar o GMT do inverno
+britânico) deixava tudo verde, porque nos casos escolhidos a diferença entre UK−3 e UK−4 caía
+**dentro do mesmo dia**.
+
+O horário de verão britânico só troca o **dia** na faixa **03:00–04:00 UK**. Foi preciso um
+caso em janeiro e outro em julho, ambos às 03:30, para prender o erro **nos dois sentidos** —
+com um só, metade do defeito passa. É o segundo modo de falso verde do `CLAUDE.md` ("o dado
+sintético não exerce a regra") aparecendo num teste escrito **na mesma sessão** que a regra.
+
+---
+
 ## Planilha e bot escrevem na MESMA série de código
 
 ### A aposta que foi absorvida — PassaTips #259, s276

@@ -173,8 +173,99 @@ export async function rodar() {
   }
 
   falhas.push(...duplaEEsportes(fmt));
+  falhas.push(...dataDoEvento(fmt));
   falhas.push(...await expansao());
   return { falhas, testes: bets.length };
+}
+
+// ── 9. DATA = KICKOFF, sem folga (s339) ──────────────────────────────────────
+// O que este bloco trava, e por que ele não existia antes: até a s339 a data era o kickoff MAIS
+// uma "folga de encerramento" por esporte (2,5 h em basquete, 3 h em tênis…), para estimar o
+// instante da liquidação. O harness ficava verde porque nenhum caso conferia a data — o único
+// que a mencionava (`SEM_DATA`, acima) prova a AUSÊNCIA dela em bet builder de mesmo jogo.
+//
+// O preço: todo dia, entre ~21h e a meia-noite, o bilhete nascia datado de AMANHÃ. No dia
+// 09/09/2026 às 22:50 o tipster Ctrl Alt Green tinha 8 vitórias de eBasket (+R$ 928,00) datadas
+// de 10/09; o MTD recorta `[1º do mês, hoje]`, então as 8 caíam fora e o mês fechava
+// -R$ 892,87 em vez de +R$ 35,13. Sinal trocado. Piso medido na base: 188 linhas da Bet365.
+// O eBasket é o caso que fecha a discussão: ele chega como `CL=18` (Basquete — a casa não os
+// separa) e levava 2,5 h de folga num jogo que dura ~4 minutos.
+//
+// A conversão UK→Brasília NÃO é a folga e continua obrigatória: o payload traz hora de parede
+// de Londres. Os dois primeiros casos abaixo separam uma coisa da outra, e é essa separação que
+// impede o conserto de virar o defeito espelhado (data um dia ATRASADA).
+//
+// PROVADO POR MUTAÇÃO (s339) — 5 mutações, 5 detectadas:
+//   folga de 2,5 h de volta · conversão de fuso removida · `ukToBr` fixo em 4 · fixo em 3 ·
+//   guarda `y < 2000` removida.
+// A terceira ESCAPOU na primeira rodada e é o motivo dos dois casos de 03:30: fora da faixa
+// 03:00–04:00 UK, UK−3 e UK−4 caem no mesmo dia e o teste ficava verde com o fuso errado.
+//
+// O QUE ESTE BLOCO NÃO COBRE: bilhete de MÚLTIPLA com pernas em dias diferentes (a escolha da
+// perna mais recente é exercida pelas fixtures reais, não aqui) e a transição exata do BST no
+// último domingo de março/outubro — `_ehBST` decide por data, sem hora, então um jogo entre
+// 00:00 e 01:00 UK no próprio dia da virada pode sair uma hora deslocado. Só muda o DIA se cair
+// na faixa das 03h, e não houve amostra medida disso.
+function dataDoEvento(fmt) {
+  const falhas = [];
+  const bilhete = (kickoff) => ({
+    bsid: "9", code: "DT1", bc: "1", bt: "1", aberta: false, stake: "100", ts: "100", rt: "0",
+    oddFrac: "1/1", sels: [{ na: "A x B", od: "1/1", cl: "18" }],
+    legs: [{ sel: "S", jogo: "A x B", mercado: "M", oddFrac: "1/1", cl: "18", liga: "L",
+             kickoff, subs: [] }],
+  });
+  // Rótulo EXATO de propósito: se ele mudar, estes casos falham com `veio ""` e obrigam a
+  // decisão consciente — que é o mesmo que o teste de rótulo, logo abaixo, cobra por escrito.
+  const dataDe = (kickoff) => linha(fmt(bilhete(kickoff)), "Data (evento):");
+
+  // O caso REAL da s339, com a folga do basquete (CL=18). BST em setembro → BR = UK−4.
+  // Kickoff 02:35 UK = 22:35 BR do dia 09. Com a folga de 2,5 h dava 01:05 → "10/09/2026".
+  for (const [kickoff, esperado, porque] of [
+    ["20260910023500", "09/09/2026", "kickoff 02:35 UK em BST = 22:35 BR do dia ANTERIOR; " +
+      "com a folga de 2,5 h do CL=18 isto voltava a ser 10/09 e saía do MTD"],
+    ["20260909220000", "09/09/2026", "22:00 UK = 18:00 BR do MESMO dia; a folga empurrava " +
+      "para 20:30 BR, que por acaso ainda é o dia certo — é assim que o defeito se esconde"],
+    ["20260909233000", "09/09/2026", "23:30 UK = 19:30 BR; com folga, 22:00 BR. O dia só muda " +
+      "quando a soma cruza a meia-noite, e é por isso que a folga passava despercebida"],
+    ["20260115020000", "14/01/2026", "janeiro é GMT (BR = UK−3): 02:00 UK = 23:00 BR do dia 14. " +
+      "Se a conversão de fuso cair junto com a folga, a data vira 15/01 e o defeito volta pelo " +
+      "outro lado, com o P/L um dia ADIANTADO"],
+    // Os DOIS abaixo existem por uma mutação que ESCAPOU: fixar `ukToBr = 4` deixava o harness
+    // verde, porque nos casos acima a diferença entre UK−3 e UK−4 cai dentro do mesmo dia. O
+    // horário de verão britânico só troca o DIA na faixa 03:00–04:00 UK, então é ali que ele
+    // precisa ser medido — nos dois sentidos, senão só um dos erros é pego.
+    ["20260115033000", "15/01/2026", "GMT, 03:30 UK = 00:30 BR do MESMO dia 15. Com UK−4 fixo " +
+      "viraria 14/01: é a mutação que passou verde antes destes dois casos existirem"],
+    ["20260715033000", "14/07/2026", "BST, 03:30 UK = 23:30 BR do dia ANTERIOR. Com UK−3 fixo " +
+      "viraria 15/07 — o mesmo erro espelhado, do outro lado do calendário"],
+  ]) {
+    const veio = dataDe(kickoff);
+    if (veio !== esperado) falhas.push(`data: kickoff ${kickoff} devia sair "${esperado}", veio "${veio}" — ${porque}`);
+  }
+
+  // O rótulo é lido pela IA e casado por PREFIXO no `app/tradutor.py`. `(encerramento)` mandava
+  // a IA datar o fim de um evento que o payload não tem.
+  const txt = fmt(bilhete("20260910023500"));
+  if (/Data \(encerramento\)/.test(txt)) {
+    falhas.push('data: o bloco voltou a emitir "Data (encerramento):" — o rótulo é o que a IA ' +
+                "lê, e ele descreve um instante que a bet365 não informa. O vigente é " +
+                '"Data (evento):" (= kickoff). Se a regra mudou, atualize CASA_BET365 §4 junto');
+  }
+  // USO, não menção: o corpo da função cita `_OFF_B3` no comentário que explica por que a folga
+  // saiu. Procurar o nome cru acusaria o próprio aviso e o teste nasceria vermelho.
+  if (/_OFF_B3\s*\[|_dataFimB3\s*\(/.test(String(fmt))) {
+    falhas.push("data: a folga por esporte (`_OFF_B3`/`_dataFimB3`) voltou ao formatador. Ela " +
+                "cria uma janela diária de ~21h→00h em que o bilhete nasce datado de amanhã e " +
+                "some do MTD (s339, 188 linhas medidas). Data = kickoff, decisão registrada");
+  }
+
+  // Guarda antiga que NÃO pode cair junto: sem kickoff (`TP=00010101000000`) o bloco sai SEM
+  // linha de data, e o backend usa a data de referência. Data falsa é pior que data ausente.
+  if (dataDe("00010101000000")) {
+    falhas.push(`data: bilhete sem kickoff emitiu "${dataDe("00010101000000")}" — devia sair sem ` +
+                "linha de data nenhuma (a guarda `y < 2000`)");
+  }
+  return falhas;
 }
 
 // ── 7. EXPANSÃO DA LISTA — o "Mostrar Mais" automático (s279) ─────────────────

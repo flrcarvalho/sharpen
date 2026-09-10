@@ -272,6 +272,27 @@ linha que **nunca existiu**.
 
 ---
 
+## Data derivada por ESTIMATIVA é dado inventado. Use o instante que a fonte publica.
+
+Duração típica não é duração. Somar ao kickoff uma "folga por esporte" para estimar quando o
+evento acabou troca um instante **medido** por um **suposto** — e o suposto erra em prorrogação,
+atraso e intervalo longo. Onde a casa só publica o início, **a data é o início**
+(`CASA_BET365 §4`: jogo que começa 22:00 do dia 09 e acaba 00:30 do dia 10 é do dia 09).
+
+Erro de horas só muda a **data** quando a soma cruza a meia-noite: some o dia inteiro e
+aparece à noite. E como o MTD recorta `[1º do mês, hoje]`, o bilhete datado de amanhã **sai
+da conta do mês** — não some da grade, some do KPI, e o dia seguinte "conserta" sozinho.
+→ [o caso](docs/CASOS.md#o-mês-que-fechou-negativo-porque-a-folga-datou-8-vitórias-amanhã--s339)
+
+**Converter FUSO é o contrário e continua obrigatório** (função exata do instante dado);
+remover os dois juntos troca a data adiantada pela atrasada.
+
+> Sintoma noutro campo: valor derivado por **duração típica**, **média** ou **estimativa** de
+> algo que a fonte não publica. Mesma família do "zero se disfarça de conta feita", acima:
+> aqui o palpite se disfarça de precisão.
+
+---
+
 ## Gate que confere UM campo deixa os vizinhos livres. E o rótulo não é a prova — o número é.
 
 **Confira cada campo por si.** A stake é determinística (vem do `Stake:` do bloco, sem IA);
@@ -759,7 +780,7 @@ O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem
 | **Sem ID, conteúdo idêntico, mesmo lote** | Possível sobreposição de prints — salva **ambas** as linhas (assinaturas distintas via `_counter`: `B`, `B\|2`, …) + aviso amarelo ao usuário; delete se for sobreposição real |
 | **Sem ID, conteúdo idêntico, lotes diferentes** | Re-processamento do mesmo bilhete — UPSERT silencioso |
 
-**Limitação:** Para casas onde o ID não é visível no print (ou a AI não consegue lê-lo), dois bilhetes 100% idênticos (mesmos jogos, odds, stake, casa) não têm como ser distinguidos. O sistema salva **ambos** (assinaturas distintas via `_counter`) e avisa. Use o botão de deletar se for sobreposição real.
+**Limitação:** onde o ID não é visível no print, dois bilhetes 100% idênticos não têm como ser distinguidos — é a 4ª linha da tabela, e ela vale por desenho: salvar ambos e avisar.
 
 **Fonte canônica (implementação):** `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. Esta tabela documenta o comportamento do código; ao mudar a lógica de dedup, **o código é a verdade** (atualize a tabela depois).
 
@@ -788,9 +809,8 @@ Três lugares seguram isso, e cada um cobre o que o outro não vê:
 
 O `codigo_bilhete` entra na assinatura, então um dígito trocado é um bilhete NOVO. Mas ele
 tem duas origens de confiabilidade oposta: da captura vem do `[Código: …]`, exato; do PRINT
-vem da IA lendo o card, e **em id longo ela erra quase sempre, diferente a cada leitura**.
-Medido: Blaze **2 de 55** códigos certos por print, contra 100% por captura na Betboom
-(77/77) e na Jonbet (18/18). Um bilhete chegou a **5 linhas**.
+vem da IA lendo o card, e **em id longo ela erra quase sempre, diferente a cada leitura**
+(medido: 2 de 55 por print, contra 100% por captura).
 → [o caso](docs/CASOS.md#o-mesmo-bilhete-com-5-códigos--blaze-s338)
 
 **A coluna `codigo_ocr` carrega essa procedência**, e quem decide é o servidor: o

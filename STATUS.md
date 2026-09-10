@@ -7,11 +7,11 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
 
-_Atualizado: 2026-09-09 (sessao 338: **a Blaze duplicando bilhete, e a causa nao era a Blaze: era a PROCEDENCIA do codigo.** Relato do Jonathan: "a blaze ta puxando bet duplicada, tinha feito isso ontem com prints e agora com a extensao". Medido no banco ANTES de tocar em codigo: o bilhete do Susanto (31/08) estava **5 vezes** na base dele, com **5 codigos diferentes**, um deles gravado literalmente como `270625314492244...` e outros dois com espaco no meio do numero. **Nao e defeito da captura: a Blaze so entrou na captura nesta mesma noite** (commit `d3f2233`, 19:24), entao 100% do que estava no banco veio de PRINT. O discriminador foi o `uso_tokens.n_itens`, que conta imagens + blocos de texto: toda extracao de Blaze anterior tem `n_itens` de imagem, e so a de 20:43 e texto. **O id do BetBy tem 19 digitos e a IA lendo o card erra quase sempre:** 53 dos 55 codigos de Blaze no banco tem comprimento errado (17, 18, 20, 21). Para comparar, Betboom (77 de 77) e Jonbet (18 de 18), que so entram por captura, acertam os 19 digitos em 100%. **Como o codigo entra na assinatura, cada leitura vira um bilhete novo** e o pre-dedup por codigo nunca casa: ao ligar a extensao, o historico inteiro da casa duplicaria. Nao e so o Jonathan (germano tem 20 linhas assim, Jaao26 uma). **Tres frentes.** (1) A coluna `codigo_ocr` carrega a PROCEDENCIA do codigo, decidida no servidor (o `/extrair` e quem sabe se o lote tinha imagem) e transportada pelo front ate o `/salvar`. A formula do ON CONFLICT e um **AND das duas pontas**, entao a confianca so DESCE: basta uma leitura confiavel para o codigo deixar de ser suspeito, e nenhum print o rebaixa de volta. O backfill da Blaze e **deterministico, nao heuristico**: toda linha criada antes do deploy da captura veio de print porque nao existia outro caminho. (2) A **Migracao B'** do UPSERT adota essa linha quando o mesmo bilhete volta pela captura com o codigo verdadeiro, em vez de inserir a sexta. Duas travas que a Migracao B nao tem, porque aqui o candidato CARREGA um codigo e adotar o errado nao duplica, **sequestra** a identidade de outro bilhete: candidato UNICO, e o indice so e montado quando o lote que chega e confiavel (print nao adota print). (3) `scripts/reparar_duplicatas_codigo_ocr.py` une o que ja esta duplicado: ensaio por padrao, escolha pelo valor **MODAL** de stake e odd (com N leituras do mesmo card, a moda e a melhor estimativa que o banco tem, e isso importa porque o UPSERT congela stake/odd em linha resolvida), e snapshot em `lixeira_bilhetes` pelo `DELETE ... RETURNING to_jsonb`, uma operacao so. **Gates:** 789 passed / 36 skipped, **7 de 7 mutacoes detectadas** (`scripts/mutar_codigo_ocr.py`), 6 testes de ponta a ponta no harness de DB, `check-tokens` e `audit_sharpenup` verdes.)
+_Atualizado: 2026-09-09 (sessao 339: **o mes do Ctrl Alt Green fechava negativo porque a captura datava 8 vitorias em AMANHA.** Relato do Feca as 22:50 de 09/09, com duas perguntas que eram o MESMO defeito: "o resultado nao parece atualizado" e "por que voce finalizou apostas com 10/09?". As 8 linhas estavam no banco, todas `W`, somando **+R$ 928,00** — mas datadas de **10/09**, um dia que ainda nao tinha chegado. O MTD recorta `[1o do mes, hoje]` (`filters.js`, `st.dt = today`), entao bilhete datado de amanha cai fora da conta do mes: com elas dentro o mes vai de **-R$ 892,87 para +R$ 35,13**, ou seja **o filtro trocava o SINAL do resultado**. **A causa:** `_dataFimB3` somava ao kickoff uma "folga de encerramento" por esporte (`_OFF_B3`: 2,5 h em basquete, 3 h em tenis) para estimar a liquidacao. eBasket chega da bet365 como `CL=18` — Basquete, porque a casa nao separa os dois; quem separa e o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos dois lados — e levava **2,5 h de folga num jogo que dura ~4 minutos**. **A assinatura, medida:** as 8 foram capturadas entre 22:30 e 22:40 e as 8 ganharam data +1; nenhum dos outros 397 eBasket da base, fora dessa faixa de horario, foi deslocado. **A escala:** todo esporte tinha folga, entao havia uma janela diaria de ~21h a meia-noite. Piso medido (data = dia da captura + 1, capturado depois das 21h): **188 linhas** da Bet365 (73 Multiplos, 54 Futebol, 37 Badminton, 8 Basquete, 8 eBasket, 5 Tenis, 2 Dardos, 1 E-Sports) — e e PISO, porque quem foi capturado no lote da manha seguinte carrega o mesmo deslocamento e o banco nao guarda o kickoff para conferir. **Por que sobreviveu tanto tempo:** o efeito no KPI se desfaz sozinho (amanha 10/09 entra no MTD), so o DIA errado fica — defeito que se apaga da tela toda madrugada nao vira reclamacao, vira desconfianca difusa. **Decisao do Feca: `Data = kickoff`, para todos os esportes** — e o que a tela da bet365 mostra, o que as outras casas gravam e a unica data que o payload tem. A conversao UK->Brasilia NAO e a folga e continua obrigatoria (hora de parede de Londres). O rotulo do bloco virou `Data (evento):`, que ja era o das outras casas de API. **Gate novo** (bloco 9 do `extensor/harness/casos/bet365.mjs`), **provado por 5 mutacoes** — e a 3a ESCAPOU na primeira rodada: fixar `ukToBr = 4` deixava tudo verde porque nos casos escolhidos a diferenca entre UK-3 e UK-4 caia dentro do MESMO dia. O horario de verao britanico so troca o dia na faixa **03:00-04:00 UK**, entao foram precisos um caso em janeiro e outro em julho, ambos as 03:30, para prender o erro nos dois sentidos. **Reparo aplicado:** `scripts/corrigir_data_folga_s339.py` (ensaio por padrao) corrigiu as 8 linhas do Ctrl Alt Green e registrou cada uma em `correcoes`; a prova de que a data certa e o dia da captura e que a linha entrou no banco **ja resolvida**, e bilhete so resolve depois de o evento acabar. Harness 27 casos / 436 bilhetes verde. **Fica aberto:** o `CLAUDE.md` bateu no teto de 65 KB (65,5) e a regra nova nao cabe sem faxina — decisao do Feca, esta no BACKLOG. Outra sessao rodou em PARALELO nesta noite.)
+
+_Anterior: 2026-09-09 (sessao 338: **a Blaze duplicando bilhete, e a causa nao era a Blaze: era a PROCEDENCIA do codigo.** Relato do Jonathan: "a blaze ta puxando bet duplicada, tinha feito isso ontem com prints e agora com a extensao". Medido no banco ANTES de tocar em codigo: o bilhete do Susanto (31/08) estava **5 vezes** na base dele, com **5 codigos diferentes**, um deles gravado literalmente como `270625314492244...` e outros dois com espaco no meio do numero. **Nao e defeito da captura: a Blaze so entrou na captura nesta mesma noite** (commit `d3f2233`, 19:24), entao 100% do que estava no banco veio de PRINT. O discriminador foi o `uso_tokens.n_itens`, que conta imagens + blocos de texto: toda extracao de Blaze anterior tem `n_itens` de imagem, e so a de 20:43 e texto. **O id do BetBy tem 19 digitos e a IA lendo o card erra quase sempre:** 53 dos 55 codigos de Blaze no banco tem comprimento errado (17, 18, 20, 21). Para comparar, Betboom (77 de 77) e Jonbet (18 de 18), que so entram por captura, acertam os 19 digitos em 100%. **Como o codigo entra na assinatura, cada leitura vira um bilhete novo** e o pre-dedup por codigo nunca casa: ao ligar a extensao, o historico inteiro da casa duplicaria. Nao e so o Jonathan (germano tem 20 linhas assim, Jaao26 uma). **Tres frentes.** (1) A coluna `codigo_ocr` carrega a PROCEDENCIA do codigo, decidida no servidor (o `/extrair` e quem sabe se o lote tinha imagem) e transportada pelo front ate o `/salvar`. A formula do ON CONFLICT e um **AND das duas pontas**, entao a confianca so DESCE: basta uma leitura confiavel para o codigo deixar de ser suspeito, e nenhum print o rebaixa de volta. O backfill da Blaze e **deterministico, nao heuristico**: toda linha criada antes do deploy da captura veio de print porque nao existia outro caminho. (2) A **Migracao B'** do UPSERT adota essa linha quando o mesmo bilhete volta pela captura com o codigo verdadeiro, em vez de inserir a sexta. Duas travas que a Migracao B nao tem, porque aqui o candidato CARREGA um codigo e adotar o errado nao duplica, **sequestra** a identidade de outro bilhete: candidato UNICO, e o indice so e montado quando o lote que chega e confiavel (print nao adota print). (3) `scripts/reparar_duplicatas_codigo_ocr.py` une o que ja esta duplicado: ensaio por padrao, escolha pelo valor **MODAL** de stake e odd (com N leituras do mesmo card, a moda e a melhor estimativa que o banco tem, e isso importa porque o UPSERT congela stake/odd em linha resolvida), e snapshot em `lixeira_bilhetes` pelo `DELETE ... RETURNING to_jsonb`, uma operacao so. **Gates:** 789 passed / 36 skipped, **7 de 7 mutacoes detectadas** (`scripts/mutar_codigo_ocr.py`), 6 testes de ponta a ponta no harness de DB, `check-tokens` e `audit_sharpenup` verdes.)
 
 _Anterior: 2026-09-09 (sessao 337: **Blaze na captura automatica — 3a casa BetBy, sem uma linha de inject nova, e um defeito de odd que ela expos nas OUTRAS duas.** O espelho foi provado ANTES de escrever codigo e **sem login**: `/pt/sports` carrega `blaze.sptpub.com/bt-renderer` e o trafego sai em `api-31-sp-c7818b61-584` — **mesmo cluster e mesmo hash de operador da Jonbet**. Reusa `jb_inject.js`, `formatTicketJB` e `roboJBPassive`; mudou o ramo do `iniciarRobo`, o autodiagnostico e os 12 registros. **A varredura ao vivo deu 165 bilhetes** (`status` vazio, 5 cards lidos verbatim) e trouxe quatro achados que o espelho nao dispensava. (1) **A casa IGNORA o `limit` pedido**: pedi 100 e vieram 21 por pagina, oito paginas — quem avanca o `skip` pelo que PEDIU pula 79 por pagina, e o loop so nao quebra porque avanca pelo que VOLTOU. (2) **`total_k` zerou em 86 de 86 perdidas**, a armadilha conhecida da familia. (3) **A NOVA: em 4 dessas 86 o `k` TAMBEM vem zero** e a odd so existe dentro da selecao — **e o card deixa a linha "Total de odds" VAZIA**, ou seja a casa tambem nao tem o numero e nao escreve zero nenhum. Parar no `k` gravaria `0` numa coluna Odd, que e a familia do "zero nao e ausencia": passa em toda checagem de forma porque tem cara de conta feita, e num bilhete GANHO faria `stake x (0-1)` virar -1u. **O `_oddDeclJB` ganhou um terceiro degrau** (`total_k` -> `k` -> produto das selecoes -> `null`, nunca 0) e **conserta as tres casas de uma vez**. (4) `refund`/`canceled` achatam a odd para **1** — e ali o `1` e a VERDADE da tela, entao o degrau novo so pode disparar com os dois campos zerados; o caso trava os DOIS lados. **Gates:** harness 27 casos / 436 bilhetes verde, `audit_sharpenup` sem FAIL, `audit_casas` limpo (**e ele pegou uma categoria que eu inventei** — `Placar Exato` nao existe no MASTER; virou `Outros` mais um item de feedback, sem criar categoria por conta propria), e **mutacao provada nos dois sentidos**: o gate nasceu VERMELHO no bilhete certo e, com o produto vencendo sempre, acende 7 falhas, 2 delas nos `V`. A mesma mutacao passa **inocua** na Jonbet e na Betboom — espelho compartilha o conserto, nao compartilha a prova. **NAO coberto, medido e declarado no cabecalho do caso:** a conta nao tinha aposta ABERTA, cashout, boost, freebet nem sistema (`combinations` vazio em 165 de 165), e 3 dos 8 esperados vieram do corpo da resposta porque os cards de marco estavam ~100 posicoes abaixo e o filtro "Personalizado" da casa travou. **Descoberta de lado:** o BetBy da Blaze renderiza dentro de um **shadow root** — `document.body.innerText` traz 2,9 KB de casca e zero bilhete; casa assim nunca pode ter fallback de texto, porque o robo generico nao falha, ele manda a casca para a IA. **Os dois registros de `app/main.py` foram levados pelo commit da s336**, que estava com o arquivo — o caso 8 de novo, registrado e nao reescrito. Falta a validacao ao vivo, que so o operador faz. A s336 rodou em PARALELO, noutra sessao.)
-
-_Anterior: 2026-09-09 (sessao 336: **Fase 0 da BARREIRA DE RECAPTURA no ar, e o estudo de custo remedido por usuario e por casa.** Origem: pergunta do Feca — extrair as ultimas 48h e repetir 2h depois paga hoje pelos MESMOS bilhetes, porque toda captura vai inteira para a IA e a dedup so acontece DEPOIS, no upsert. **Medido sobre 15.318 blocos reais da sombra (13 dias, 21 casas): 32,5% de tudo que pagamos e releitura de bloco IDENTICO**; na Bet365 e 39,9%. Alcance quase total: 99,3% dos bilhetes de extracao tem codigo. **A chave e o HASH DO BLOCO, nao o par (codigo, resultado) que seria o obvio:** as duas decidem igual em 97,7% dos casos e nos 2,3% restantes o bloco mudou COM o `Status:` igual, entao a chave por rotulo pularia e perderia a mudanca. Alem disso o texto de status nao e fonte confiavel de estado (`_resultadoB3` escreve `Ganho → W` para QUALQUER retorno maior que a stake, meia vitoria inclusive) — comparar bytes nao herda esse defeito porque nao interpreta nada. E liquidar nao mexe so no status: a odd muda junto, de potencial para `Retorno ÷ Stake`. **Simulado lote a lote e VALIDADO contra a conta real (erro +4,5%): −29,3% da conta, R$ 0,092 → R$ 0,065 por bilhete.** **Velocidade quase nao muda** e isso esta escrito no plano para ninguem prometer o que nao vai acontecer: a mediana fica em 30,5s (os pedacos ja correm em paralelo, o relogio e UM pedaco vezes o numero de ondas), so o p99 cai 43,7%; o ganho de verdade e a extracao que fica VAZIA, 30s viram menos de 1. **Esta fase NAO FILTRA NADA** — tabela `bloco_visto`, gravacao do hash no `done` e um log dizendo quantos blocos SERIAM pulados, para conferir o numero em producao antes de qualquer byte deixar de ser processado. **O custo remedido por usuario e por casa mostrou o driver unico:** o custo por bilhete e quase inteiramente funcao de BILHETES POR CHAMADA, porque o manual de 48k tokens e relido a cada pedaco. perereca faz 55,9 bilhetes/chamada e paga R$ 0,037; Marques19981 faz 2,4 e paga R$ 0,414. **E a Bet365 NAO e cara, ela e grande:** R$ 0,080/bilhete, ABAIXO da media de R$ 0,092 e a mais barata entre as casas de volume. A cara e a KTO, R$ 0,429 com 1,7 bilhete por chamada. **Gates:** 11 testes novos, 783 passed / 30 skipped, mutacao provada por fora (hash constante derruba 4 casos, restaurar devolve o verde) e uma mutacao INOCUA registrada como tal em vez de disfarcada. A s335 rodou em PARALELO, noutra sessao.)
 
 
 
@@ -19,7 +19,91 @@ _Anterior: 2026-09-09 (sessao 336: **Fase 0 da BARREIRA DE RECAPTURA no ar, e o 
 
 ---
 
-## Onde parei (fim da sessão 338)
+## Onde parei (fim da sessão 339)
+
+### O mês que fechava negativo porque a captura datava 8 vitórias em "amanhã"
+
+**22:50 de 09/09/2026.** O relatório do tipster `Ctrl Alt Green` mostrava **MTD −R$ 892,87**
+e a grade trazia oito apostas de eBasket datadas de **10/09** — um dia que ainda não tinha
+chegado. Duas perguntas na mesma mensagem, *"o resultado não parece atualizado"* e *"por que
+você finalizou apostas com 10/09?"*, e **era o mesmo defeito nas duas**.
+
+As 8 estavam no banco, todas `W`, somando **+R$ 928,00**. O MTD recorta `[1º do mês, hoje]`
+(`filters.js`, `st.dt = today`), então bilhete datado de amanhã cai fora. Com elas dentro o
+mês vai para **+R$ 35,13**: o filtro trocava o **sinal** do resultado.
+
+### A causa: uma folga que estimava um instante que a casa não informa
+
+`_dataFimB3` somava ao kickoff uma folga de encerramento por esporte (`_OFF_B3`), para
+estimar a liquidação. eBasket chega da bet365 como `CL=18` — **Basquete**, porque a casa não
+separa os dois; quem separa é o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos
+dois lados — e levava **2,5 h de folga num jogo que dura ~4 minutos**.
+
+A assinatura bate: as 8 foram capturadas entre **22:30 e 22:40** e as 8 ganharam data +1.
+Nenhum dos outros 397 eBasket da base, fora dessa faixa de horário, foi deslocado.
+
+| Esporte (Bet365) | linhas com data = dia da captura + 1, capturadas após 21h |
+|---|---|
+| Múltiplos | 73 |
+| Futebol | 54 |
+| Badminton | 37 |
+| Basquete | 8 |
+| eBasket | 8 |
+| Tênis · Dardos · E-Sports | 8 |
+| **total** | **188** |
+
+É **piso**, não total: quem foi capturado no lote da manhã seguinte carrega o mesmo
+deslocamento e não entra nessa conta, porque o banco não guarda o kickoff para conferir.
+
+> **Por que sobreviveu tanto tempo:** o efeito no KPI se desfaz sozinho — amanhã 10/09 entra
+> no MTD e o número "conserta". O que não se desfaz é o **dia errado**. Um defeito que se
+> apaga da tela toda madrugada não vira reclamação, vira desconfiança difusa.
+
+### A decisão: `Data = kickoff`, para todos os esportes
+
+Do Feca. É o que a tela da própria bet365 mostra, o que as outras casas gravam e a única data
+que o payload realmente tem. Um jogo que começa 22:00 do dia 09 e termina 00:30 do dia 10 é
+do dia 09. A **conversão UK→Brasília não é a folga** e continua obrigatória (o payload traz
+hora de parede de Londres). O rótulo do bloco virou `Data (evento):`, que já era o das outras
+casas de API — o tradutor casa a chave por prefixo, então nada mais precisou mudar.
+
+Regra em `CASA_BET365 §4` e no `CLAUDE.md`; o caso em [`docs/CASOS.md`](docs/CASOS.md).
+
+### O gate, e a mutação que passou verde
+
+Bloco 9 do `extensor/harness/casos/bet365.mjs`, **provado por 5 mutações**. A terceira
+**escapou na primeira rodada**: fixar `ukToBr = 4` (ignorar o GMT do inverno britânico)
+deixava tudo verde, porque nos casos escolhidos a diferença entre UK−3 e UK−4 caía **dentro
+do mesmo dia**. O horário de verão britânico só troca o **dia** na faixa **03:00–04:00 UK**,
+então foram precisos um caso em janeiro e outro em julho, ambos às 03:30, para prender o erro
+**nos dois sentidos** — com um só, metade do defeito passa.
+
+É o segundo modo de falso verde do `CLAUDE.md` ("o dado sintético não exerce a regra")
+aparecendo num teste escrito **na mesma sessão** que a regra.
+
+### O reparo
+
+`scripts/corrigir_data_folga_s339.py`, ensaio por padrão. Corrigiu as **8 linhas** do
+Ctrl Alt Green e registrou cada uma em `correcoes`. A prova de que a data certa é o dia da
+captura, e não um palpite: a linha entrou no banco **já resolvida**, e bilhete só resolve
+depois de o evento acabar — logo o evento é anterior à captura.
+
+Quatro travas, todas fail-closed: só linha **com código** (sem código a `data` entra na
+assinatura), só onde a data é posterior ao dia da captura, pula bilhete com correção humana
+em `data`, e escopo explícito obrigatório (`--dono` + `--tipster`).
+
+O UPSERT congela `data` em linha resolvida, então **recapturar não conserta** o que já está
+gravado. Foi por isso que precisou de script.
+
+> **Fica aberto:** o `CLAUDE.md` bateu no teto de 65 KB (está em 65,5) e a regra nova não cabe
+> sem faxina. Não há duplicação a mover — medido: zero frases longas repetidas entre ele e o
+> `CASOS.md`. Qual regra sai é decisão do Feca. **Não foi para o `BACKLOG.md` de propósito:**
+> outra sessão estava com esse arquivo modificado na mesma noite, e levá-lo no commit seria o
+> caso 8 (invariante #8). Registrado aqui até o arquivo liberar.
+
+---
+
+## Sessão 338 — a Blaze e a procedência do código
 
 ### A Blaze duplicando bilhete, e a causa não era a Blaze
 
@@ -263,110 +347,6 @@ ineficiência. A cara é a KTO, R$ 0,429 com 1,7 bilhete por chamada.
 
 > Isso corrige a leitura do `ESTUDO_PRECIFICACAO §1.3`, que listava a Bet365 como o topo
 > do custo sem separar volume de eficiência.
-
----
-
-## Sessão 335 — três casas novas na captura
-
-### Três casas novas no SharpenUp, e um motor novo: **Rogue**
-
-Betão, R7 e 7Games são espelho de verdade. Rodam a mesma plataforma, servida do **próprio
-domínio da casa** em `/api/sportsbook/rogue/…`, como a Novibet. Não é Altenar, não é BetBy,
-não é Kambi, não é BetConstruct. Um `rg_inject.js` e um `formatTicketRG` servem às três.
-
-A irmandade foi medida antes de escrever código: mesma stack Next.js, mesmo conjunto de
-hosts, mesmo mapa de endpoints extraído dos bundles das três, mesma rota de histórico
-(`/account/sports-history`), mesmos campos.
-
-**O contrato:**
-
-```
-GET /api/sportsbook/rogue/v1/betsreporting/purchases
-    ?status=all&take=<1..100>&skip=<n>&locale=br-pt&fromDate=<ISO>&toDate=<ISO>
-    header: authorization: Bearer <JWT da sessão>
-→ {"Purchases":[…], "PurchasesCount": <total da janela>}
-```
-
-`take` tem teto de 100 e a casa **diz** o limite (`ErrorCode 2003`) em vez de truncar calada.
-`PurchasesCount` é o fim autoritativo da paginação por `skip`.
-
-### A semântica saiu do dinheiro, não do rótulo
-
-A API manda enum numérico puro. O de-para foi provado em **27 de 27** bilhetes das três
-contas:
-
-| `BetStatusId` | `CurrentBetBalance` | → |
-|---|---|---|
-| 0 | `0` e sem `Result` | aberta |
-| 1 | `0` | L |
-| 2 | `= stake × odd` | W |
-| 4 | `= stake` exato | V |
-
-**A armadilha central é o `Gain`:** ele é o retorno POTENCIAL e vale `stake × odd` em 27/27,
-inclusive em perdida e em aberta. O realizado é `CurrentBetBalance`. Quem lê o campo óbvio
-marca toda perda como ganho: é o `totalWin` da VaideBet (s210) e o `finalFinancials.payout`
-da Novibet (s271), com o terceiro nome de campo.
-
-### Dois achados que mudaram o código
-
-**A tela é ESTREITA.** O histórico abre em "Últ. 24 horas" com `take=10`. No dia do recon, o
-filtro de 30 dias do Betão devolvia `PurchasesCount: 0` numa conta com 9 bilhetes. Um
-passivo puro pareceria funcionar (hook ativo, respostas > 0) e entregaria quase nada. O
-replay alarga para 36 meses e pede `status=all`.
-
-**O Bearer EXPIRA.** Achado testando o inject contra a casa real: token de ~1h responde
-**401**, não 403. A primeira versão guardava só a PRIMEIRA requisição, então numa aba aberta
-desde a manhã o replay sairia com token vencido e voltaria vazio, com 401 e "endpoint mudou"
-lendo igual no painel. Agora o contexto é renovado a cada busca da página, e há gate travando
-isso nos dois sentidos (sobrescrever com token melhor, nunca com token nenhum).
-
-### A gêmea `r7.bet` foi unificada ANTES do registro
-
-A base decidiu, não a marca: `R7` tinha 40 bilhetes de 2 donos, 3 contas e 17 correções,
-contra 1 bilhete e 2 contas em `r7.bet`, que é um domínio cadastrado à mão. Na ordem inversa,
-o bilhete do Jaao26 ficaria numa casa que a conta dele não enxerga: grade vazia, sem erro
-nenhum, o defeito da s249. Aplicado com `--somente r7.bet`, 1 bilhete e 1 assinatura
-recalculada, 10 outras linhas, zero colisão. Round-trip nas 94 grafias de `parceiros`: 0
-quebradas antes e depois.
-
-### O gate pegou um defeito meu antes de subir
-
-`_casaConectavel()` normalizava espaço mas não ACENTO, e a chave é `BETAO` enquanto o display
-é `Betão`. O botão "Conectar" nasceria desabilitado: o bug da s191 na terceira encarnação
-(s256 foi o espaço). Corrigido na raiz com `normalize('NFD')`, medido antes de mudar: nas 31
-grafias de display conhecidas, zero mudança de comportamento.
-
-### Gates
-
-Harness **26 casos / 428 bilhetes**, `audit_sharpenup` 31 casas sem FAIL nem WARN,
-`audit_casas` limpo, `check_docs` sem âncora quebrada, check-tokens verde, **772 passed**.
-
-**Mutação: 12 de 12 detectadas.** Duas escaparam de primeira e as duas eram buraco de TESTE,
-não de código: a regra "data da perna mais recente" não é exercível por fixture nenhuma
-(todos os 27 bilhetes são de uma perna só) e nada disparava requisição sem `authorization`.
-As duas viraram caso próprio.
-
-### O que NÃO foi coberto
-
-As 27 apostas são **todas simples**. Sem múltipla, sistema, cashout, freebet, bet builder ou
-meia-liquidação: `BetTypeId` 1, `ComboSize` 0 e `NumberOfLines` 1 em 27/27, `AdditionalTickets`
-vazio em todos, `PromotionIds` vazio em todos. Os endpoints `/v1/cashout/*` existem no bundle
-e nenhum bilhete passou por eles. Está registrado como **não medido** nos três `CASA_*.md`,
-não como resolvido.
-
-### Próximo passo
-
-**Fase 7, que só o operador faz.** Recarregar a extensão, dar Ctrl+Shift+R na aba de cada
-casa, F5 no dashboard, conectar e conferir contagem, datas, odds e código. A validação ponta
-a ponta com a extensão carregada é a única coisa que o harness não alcança: o hook precisa
-rodar em `document_start`, antes de o bundle capturar o `fetch`.
-
-Quando aparecer a primeira múltipla ou o primeiro cashout numa das três, a fixture volta para
-`extensor/harness/fixtures/` e o caso trava a leitura nova.
-
----
-
----
 
 ---
 

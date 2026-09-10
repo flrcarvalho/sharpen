@@ -1828,3 +1828,111 @@ _Anterior: 2026-08-29 (sessão 302 — **A descrição de um bilhete pode perten
 _Anterior: 2026-08-28 (sessão 301 — **Fase 1 do tradutor determinístico entregue, DESLIGADA, e a primeira medição diz que ele erra menos que a IA.** O Feca: *"se tiver base, manda a ver no plano, vamos seguir"*. A base existia: a sombra da s297 juntou **877 linhas / 2.407 pares** (linha bruta → descrição canônica) em 2 dias, 10 casas, com pareamento de 96–100 %. O custo dos últimos 30 dias confirma a ordem do plano — **Bet365 = 38,4 %** (US$ 88,37 de US$ 230,25); seis casas cobrem 80 %. **Nasce `app/tradutor.py`:** motor puro, sem I/O, que traduz o bloco do inject nas três decisões que hoje custam IA (esporte, categoria, descrição) e copia o resto. **Invariante única: nunca inventa** — na dúvida devolve `ok=False` com o motivo e AQUELA linha vai para a IA. **Não está ligado em lugar nenhum**; a virada é a Fase 3, com gate de < 1 % em ≥ 500 bilhetes. **Medição contra a sombra inteira** (`scripts/diff_tradutor.py`, leitura pura, zero chamada de API): cobertura **84,1 %** (58 de 69) e, dos traduzidos, **esporte 0,0 % · aposta 1,7 % · descrição 12,1 %** de divergência. **As 8 divergências foram lidas uma a uma na linha crua e NENHUMA é defeito do tradutor.** Cinco são a IA escrevendo `Mais de 85.5 Pontos` em eBasket, violando o `MASTER_DESCRICAO §11` (converter para inglês é **obrigatório**); duas são localização de nome de time (`USA (W)` × `EUA (F)`) que **a própria IA faz de dois jeitos no mesmo dia** — o tradutor copia verbatim e a decisão é humana; e a de categoria é `Partida - Handicap (Pontos)` saindo `Pontos` em 1 de 4 amostras idênticas, contra `Handicap` nas outras 3 e contra o `§9` da casa. **Duas rodadas de diff consertaram o que era nosso:** handicap de Sets/Games leva a unidade no texto (`EUA -1.5 Sets` — `MASTER_DESCRICAO §12.6` e `§13.4`) e mercado ao vivo prefixa a seleção com o placar (`(0-0) Time -0.5`), que é estado do jogo e sai fora — a descrição caiu de 20,7 % para 12,1 %. **LIMITE MEDIDO, e ele muda a projeção: as 58 traduzidas são TODAS de perna única.** Nenhuma múltipla passou — rótulo genérico (`Totais do Jogo`) precisa do esporte para decidir o objeto, e numa múltipla de esportes misturados o inject não emite `Esporte (casa)`; deduzir pela linha do total (`154.5` "parece" basquete) seria exatamente o que este módulo não faz. Na Bet365 o preço disso é baixo (61 dos 69 são de perna única), mas **a economia projetada vale hoje para o bilhete simples, não para a múltipla**. **GATES:** `tests/test_tradutor.py`, 16 casos, blocos **verbatim da sombra de produção** — inclusive o espaço duplo de `Mais de  2.5` e o placar ao vivo · **provado por mutação: 10 de 10 detectadas** em duas rodadas, e a 1ª rodada achou um buraco real (contar pernas em vez de confrontos distintos passava **verde**, porque não havia bet builder na suíte; entrou o caso, e ele é o **único construído** do arquivo, marcado como tal, porque a sombra ainda não capturou um `Criar Aposta` de Bet365) · **553 passed, 23 skipped** na suíte inteira. **O que o teste NÃO cobre está escrito no cabeçalho dele:** não prova concordância com a IA (isso é o `diff_tradutor.py`, medição contínua), não cobre odd/stake/data além da cópia literal — onde a odd exige produto ou `Retorno ÷ Stake` o bilhete cai no fallback de propósito — e não conhece casa além da Bet365. **PENDENTE, decisão do Feca:** (1) localizar nome de time na descrição ou copiar verbatim, já que a IA faz os dois; (2) 9 rótulos que a sombra viu e o `CASA_BET365 §9` não lista entraram no mapa marcados `# sombra` e querem virar linha do §9; (3) a Fase 3 pede 500 bilhetes de Bet365 e a sombra tem 69 — a ~35/dia, o gate fecha em ~2 semanas. **ADENDO (mesma sessão, sombra 4× maior):** a sombra pulou de 69 para **284** bilhetes de Bet365 enquanto a sessão rodava, e tudo melhorou — cobertura **94,7 %** (era 84,1 %), esporte **0,0 %**, aposta **0,7 %**, descrição 15,6 %. **E a classificação das 42 divergências de descrição derruba o gate como o plano o escreveu:** 19 são a IA trocando ponto por vírgula no número (`Over 2,5 Gols`), 13 são a IA não normalizando `Mais de` → `Over`, 1 é a IA **calculando a média** de uma linha asiática partida (`4.0,4.5` → `4,25`), 2 são o hífen no nome do time (`PSV - Reservas` → `PSV Reservas`) e **só 2 são localização de nome** (`USA (W)` → `EUA (F)`). O golden set decide ponto × vírgula **7 a 0** e o `MASTER_DESCRICAO §11` obriga o `Over`. **Logo, "divergência < 1 % contra a IA" é inatingível por construção: a IA diverge do MASTER em ~13 % dos bilhetes.** O gate precisa passar a medir contra o MASTER/golden set, ou por triagem das divergências — decisão do Feca. Entrou a primeira família de rótulo **parametrizado** (`Jogador - <objeto> - Alternativas` → Player Props, objeto saindo do próprio rótulo, autorizado pelo §9); ela ainda não move a cobertura porque o único bilhete que a contém traz junto um rótulo desconhecido — fallback é por bilhete, não por perna. **Achado que vira pendência de MASTER: o sufixo de período na descrição (`… Cartões 2º Tempo`) não existe em nenhum dos 6 MASTERs** — a IA o escreve num bilhete e come o `Prorrogação` em outro. **Mutações: 13 de 13** no total da sessão · **556 passed, 23 skipped**. **Betano avaliada e NÃO iniciada:** 87 rótulos distintos em 493 pernas (contra 20 em 79 da Bet365), com estado embutido no rótulo (`Handicap Asiático (Resultado atual 0 - 0)`), número de set, nome de time dentro do rótulo e um `Criar Aposta` aninhado que o parser nem lê — é **gramática de rótulo, não tabela de-para**, e merece incremento próprio. Backup em `Backups/s301-tradutor-fase1/`. **Sem mudança no SharpenUp; grupo de testers não avisado.**)_
 
 _Anterior: 2026-08-27 (sessão 300 — **Nenhuma coluna de Fornecedores & Parceiros ordenava certo, e eram TRÊS causas independentes — todas mudas.** O Feca: *"nenhum desses filtros tá funcionando direito... não ordena nada da forma correta, nem datas, nem financeiro, ROI, nada"*. O sintoma engana porque **a tabela reordena** — só que errado; nada aparece no console. **(1) O menos do padrão monetário é U+2212 (`−`), não hífen ASCII.** `fmtPL` e `fmtPct` o emitem por regra de marca (UI_REFERENCE §5), o `parseNum` mandava direto ao `parseFloat`, que devolvia `NaN` → 0 — então **todo P/L e todo ROI negativo era ordenado como zero** e empilhava num bloco no meio da lista, com o mais negativo indistinguível do zerado. **(2) `fmtR` imprime inteiro sem decimal (`R$ 5.180`), e a regra antiga de milhar só tirava o ponto quando vinha vírgula depois** (`/\.(?=\d{3}[,\.])/`). Sem vírgula, `5.180` virava **5,18** — e a conta de **R$ 80 subia ao topo do Turnover**. Ordenar o resto "quase funcionava" por acaso: todo valor com um grupo de milhar era dividido por mil na mesma proporção, então o defeito só aparecia contra números pequenos. **(3) As duas colunas de data saem em `dd/mm/aa` e não eram numéricas — ordenavam como TEXTO, ou seja, pelo DIA DO MÊS.** `24/05/26` vinha depois de `09/08/26`. **As correções:** `parseNum` limpa a moeda **por subtração** (sobra dígito, ponto, vírgula e sinal) e decide o papel do ponto **pela FORMA do número** (`^\d{1,3}(\.\d{3})+$`), nunca pelo que vem depois dele · as datas passam a mandar por `data-sort` em ISO, que o `sortTable` já lia antes do `textContent` · a Casa ganhou `data-sort` também, porque o chip de inicial injeta uma letra a mais no `textContent` das casas sem favicon (`R7` virava `RR7`) · e o `localeCompare` do texto virou `pt-BR` com `sensitivity:'base'` e `numeric:true`, senão a caixa parte a lista em dois blocos (`MichelCleiton` longe de `maysacarol01`) e `conta10` vem antes de `conta2`. **O `parseNum` é compartilhado: o conserto vale para as 17 tabelas ordenáveis do dash**, não só esta — qualquer coluna de P/L, ROI ou Turnover em Esportes, Tipsters, Bookies e nos drills estava com o mesmo defeito. **GATES:** `tests/js/sort_tabelas.mjs` novo, recortando `parseNum`, `sortTable` e o construtor de linhas dos arquivos de PRODUÇÃO (teste que reimplementa não detecta a mutação que o quebra) · **provado por mutação: 11 de 11 detectadas** — menos tipográfico, milhar sem decimal, sinal perdido no retorno, `data-sort` ignorado, `localeCompare` sensível a caixa, `total-row` fora do fim, seta em todas as colunas, `data-sort` ausente na data e na casa, 1ª Aposta com a data errada, colunas numéricas trocadas · `tests/test_sort_tabelas.py` amarra o gate no CI · **532 passed, 23 skipped** · `check-tokens` sem FAIL · cache-bust `app.js?v=39` e `gestao.js?v=35`. **E a tela foi ABERTA NO CHROME antes do commit** (a regra da s296): puppeteer contra o `servidor_demo.py`, clicando os cabeçalhos de verdade — 9 de 9 conferências verdes em Turnover asc/desc, Profit desc com o mais negativo por último, ROI, as duas datas, Período e Conta. **O que o teste dublado NÃO cobre está escrito no cabeçalho do `.mjs`:** o `onclick` real, o resize de coluna e o CSS da seta. **Achado de lambuja, NÃO corrigido (uma mudança por vez):** no `servidor_demo`, o primeiro `location.hash` para `dash/parceiros` roda `renderParceiros` **antes** de a página montar e estoura `Cannot set properties of null` no `#fornTable` — medido idêntico com o `gestao.js` do backup, então é **pré-existente e não veio desta sessão**. No demo o bounce disfarça; em produção vale investigar se a corrida existe. Junto disso: o `makeSortable` instala o `onclick` num `setTimeout` de 100 ms, então há uma janela curta em que o cabeçalho está na tela e não é clicável — foi o que fez a primeira rodada do harness reprovar só na primeira coluna. Backup em `Backups/s300-sort-tabelas/`. **Sem mudança no SharpenUp; grupo de testers não avisado** — aguarda decisão do Feca.)_
+
+---
+
+## Sessão 335 — três casas novas na captura
+
+### Três casas novas no SharpenUp, e um motor novo: **Rogue**
+
+Betão, R7 e 7Games são espelho de verdade. Rodam a mesma plataforma, servida do **próprio
+domínio da casa** em `/api/sportsbook/rogue/…`, como a Novibet. Não é Altenar, não é BetBy,
+não é Kambi, não é BetConstruct. Um `rg_inject.js` e um `formatTicketRG` servem às três.
+
+A irmandade foi medida antes de escrever código: mesma stack Next.js, mesmo conjunto de
+hosts, mesmo mapa de endpoints extraído dos bundles das três, mesma rota de histórico
+(`/account/sports-history`), mesmos campos.
+
+**O contrato:**
+
+```
+GET /api/sportsbook/rogue/v1/betsreporting/purchases
+    ?status=all&take=<1..100>&skip=<n>&locale=br-pt&fromDate=<ISO>&toDate=<ISO>
+    header: authorization: Bearer <JWT da sessão>
+→ {"Purchases":[…], "PurchasesCount": <total da janela>}
+```
+
+`take` tem teto de 100 e a casa **diz** o limite (`ErrorCode 2003`) em vez de truncar calada.
+`PurchasesCount` é o fim autoritativo da paginação por `skip`.
+
+### A semântica saiu do dinheiro, não do rótulo
+
+A API manda enum numérico puro. O de-para foi provado em **27 de 27** bilhetes das três
+contas:
+
+| `BetStatusId` | `CurrentBetBalance` | → |
+|---|---|---|
+| 0 | `0` e sem `Result` | aberta |
+| 1 | `0` | L |
+| 2 | `= stake × odd` | W |
+| 4 | `= stake` exato | V |
+
+**A armadilha central é o `Gain`:** ele é o retorno POTENCIAL e vale `stake × odd` em 27/27,
+inclusive em perdida e em aberta. O realizado é `CurrentBetBalance`. Quem lê o campo óbvio
+marca toda perda como ganho: é o `totalWin` da VaideBet (s210) e o `finalFinancials.payout`
+da Novibet (s271), com o terceiro nome de campo.
+
+### Dois achados que mudaram o código
+
+**A tela é ESTREITA.** O histórico abre em "Últ. 24 horas" com `take=10`. No dia do recon, o
+filtro de 30 dias do Betão devolvia `PurchasesCount: 0` numa conta com 9 bilhetes. Um
+passivo puro pareceria funcionar (hook ativo, respostas > 0) e entregaria quase nada. O
+replay alarga para 36 meses e pede `status=all`.
+
+**O Bearer EXPIRA.** Achado testando o inject contra a casa real: token de ~1h responde
+**401**, não 403. A primeira versão guardava só a PRIMEIRA requisição, então numa aba aberta
+desde a manhã o replay sairia com token vencido e voltaria vazio, com 401 e "endpoint mudou"
+lendo igual no painel. Agora o contexto é renovado a cada busca da página, e há gate travando
+isso nos dois sentidos (sobrescrever com token melhor, nunca com token nenhum).
+
+### A gêmea `r7.bet` foi unificada ANTES do registro
+
+A base decidiu, não a marca: `R7` tinha 40 bilhetes de 2 donos, 3 contas e 17 correções,
+contra 1 bilhete e 2 contas em `r7.bet`, que é um domínio cadastrado à mão. Na ordem inversa,
+o bilhete do Jaao26 ficaria numa casa que a conta dele não enxerga: grade vazia, sem erro
+nenhum, o defeito da s249. Aplicado com `--somente r7.bet`, 1 bilhete e 1 assinatura
+recalculada, 10 outras linhas, zero colisão. Round-trip nas 94 grafias de `parceiros`: 0
+quebradas antes e depois.
+
+### O gate pegou um defeito meu antes de subir
+
+`_casaConectavel()` normalizava espaço mas não ACENTO, e a chave é `BETAO` enquanto o display
+é `Betão`. O botão "Conectar" nasceria desabilitado: o bug da s191 na terceira encarnação
+(s256 foi o espaço). Corrigido na raiz com `normalize('NFD')`, medido antes de mudar: nas 31
+grafias de display conhecidas, zero mudança de comportamento.
+
+### Gates
+
+Harness **26 casos / 428 bilhetes**, `audit_sharpenup` 31 casas sem FAIL nem WARN,
+`audit_casas` limpo, `check_docs` sem âncora quebrada, check-tokens verde, **772 passed**.
+
+**Mutação: 12 de 12 detectadas.** Duas escaparam de primeira e as duas eram buraco de TESTE,
+não de código: a regra "data da perna mais recente" não é exercível por fixture nenhuma
+(todos os 27 bilhetes são de uma perna só) e nada disparava requisição sem `authorization`.
+As duas viraram caso próprio.
+
+### O que NÃO foi coberto
+
+As 27 apostas são **todas simples**. Sem múltipla, sistema, cashout, freebet, bet builder ou
+meia-liquidação: `BetTypeId` 1, `ComboSize` 0 e `NumberOfLines` 1 em 27/27, `AdditionalTickets`
+vazio em todos, `PromotionIds` vazio em todos. Os endpoints `/v1/cashout/*` existem no bundle
+e nenhum bilhete passou por eles. Está registrado como **não medido** nos três `CASA_*.md`,
+não como resolvido.
+
+### Próximo passo
+
+**Fase 7, que só o operador faz.** Recarregar a extensão, dar Ctrl+Shift+R na aba de cada
+casa, F5 no dashboard, conectar e conferir contagem, datas, odds e código. A validação ponta
+a ponta com a extensão carregada é a única coisa que o harness não alcança: o hook precisa
+rodar em `document_start`, antes de o bundle capturar o `fetch`.
+
+Quando aparecer a primeira múltipla ou o primeiro cashout numa das três, a fixture volta para
+`extensor/harness/fixtures/` e o caso trava a leitura nova.
+
+---
+
+---
+
+---
+
+_Anterior: 2026-09-09 (sessao 336: **Fase 0 da BARREIRA DE RECAPTURA no ar, e o estudo de custo remedido por usuario e por casa.** Origem: pergunta do Feca — extrair as ultimas 48h e repetir 2h depois paga hoje pelos MESMOS bilhetes, porque toda captura vai inteira para a IA e a dedup so acontece DEPOIS, no upsert. **Medido sobre 15.318 blocos reais da sombra (13 dias, 21 casas): 32,5% de tudo que pagamos e releitura de bloco IDENTICO**; na Bet365 e 39,9%. Alcance quase total: 99,3% dos bilhetes de extracao tem codigo. **A chave e o HASH DO BLOCO, nao o par (codigo, resultado) que seria o obvio:** as duas decidem igual em 97,7% dos casos e nos 2,3% restantes o bloco mudou COM o `Status:` igual, entao a chave por rotulo pularia e perderia a mudanca. Alem disso o texto de status nao e fonte confiavel de estado (`_resultadoB3` escreve `Ganho → W` para QUALQUER retorno maior que a stake, meia vitoria inclusive) — comparar bytes nao herda esse defeito porque nao interpreta nada. E liquidar nao mexe so no status: a odd muda junto, de potencial para `Retorno ÷ Stake`. **Simulado lote a lote e VALIDADO contra a conta real (erro +4,5%): −29,3% da conta, R$ 0,092 → R$ 0,065 por bilhete.** **Velocidade quase nao muda** e isso esta escrito no plano para ninguem prometer o que nao vai acontecer: a mediana fica em 30,5s (os pedacos ja correm em paralelo, o relogio e UM pedaco vezes o numero de ondas), so o p99 cai 43,7%; o ganho de verdade e a extracao que fica VAZIA, 30s viram menos de 1. **Esta fase NAO FILTRA NADA** — tabela `bloco_visto`, gravacao do hash no `done` e um log dizendo quantos blocos SERIAM pulados, para conferir o numero em producao antes de qualquer byte deixar de ser processado. **O custo remedido por usuario e por casa mostrou o driver unico:** o custo por bilhete e quase inteiramente funcao de BILHETES POR CHAMADA, porque o manual de 48k tokens e relido a cada pedaco. perereca faz 55,9 bilhetes/chamada e paga R$ 0,037; Marques19981 faz 2,4 e paga R$ 0,414. **E a Bet365 NAO e cara, ela e grande:** R$ 0,080/bilhete, ABAIXO da media de R$ 0,092 e a mais barata entre as casas de volume. A cara e a KTO, R$ 0,429 com 1,7 bilhete por chamada. **Gates:** 11 testes novos, 783 passed / 30 skipped, mutacao provada por fora (hash constante derruba 4 casos, restaurar devolve o verde) e uma mutacao INOCUA registrada como tal em vez de disfarcada. A s335 rodou em PARALELO, noutra sessao.)
