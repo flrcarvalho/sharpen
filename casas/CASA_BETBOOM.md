@@ -79,6 +79,18 @@ outra origem, 401 antes do token, lista de 15 em 15, abas no parâmetro `status`
   3, 3, 1 (soma exata de `count`, sem id repetido nem pulado), `count` constante entre
   páginas, e **`skip=9` devolve 200 com lista VAZIA** — nunca erro, nunca repetição.
 - **`status` vazio = todas as abas**, confirmado ao vivo (`count: 7` com as 7 linhas).
+- **O gateway RECUSA `credentials:"include"` para este tenant** (medido ao vivo na s340, na
+  conta real). A recusa é do NAVEGADOR, antes de a chamada sair: `TypeError: Failed to fetch`.
+  A mesma requisição, no mesmo instante, volta **200 sem credencial** (`results: 21`,
+  `count: 68`), e o replay completo fecha `[21,21,21,5]` = **68 únicos**. Como todo o replay
+  passa por uma chamada só, um `include` recusado não perde um pedaço: ele **zera o replay**,
+  e o robô fica com as 15 que o hook passivo colheu da tela. Quem trata é o `pedirPagina`
+  (`jb_inject.js`), com fallback sem credencial — quem autentica aqui é o `Bearer`, não
+  cookie. **A Blaze foi medida na mesma sessão e recusa igual** (`api-31-sp-c7818b61-584`);
+  a **Jonbet não foi medida** (conta deslogada no navegador do teste), e por isso o fallback
+  segue aditivo: `include` primeiro, segundo ramo só para quem for recusado.
+- **A casa IGNORA o `limit` pedido**, como a Blaze: pedimos 100 e vieram 21 por página. O
+  loop avança pelo que VOLTOU, nunca pelo que pediu.
 
 > **Por que o F12 parece vazio:** o tráfego útil sai em `sptpub.com`, não em `betboom.bet.br`,
 > e fica soterrado sob um long-poll `api/v4/live|prematch` que dispara a cada ~2 s. Filtre o

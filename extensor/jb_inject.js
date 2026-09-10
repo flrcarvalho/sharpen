@@ -28,6 +28,12 @@
 // mostra (6 de 6 na base real). Aqui o inject NÃO decide nada: entrega os dois campos crus e
 // quem resolve é o `_oddJB` do content.js. É o mesmo desenho do `betOdds` da KTO.
 //
+// ⚠ ARMADILHA DO CORS (medida na Betboom ao vivo, s340): o gateway recusa
+// `credentials:"include"` para pelo menos um tenant, e a recusa é do NAVEGADOR — a chamada nem
+// sai, volta `TypeError: Failed to fetch`. Como todo o replay passa por ela, o efeito não é
+// perder um pedaço: é ficar só com as 15 da primeira tela. Quem trata é o `pedirPagina`, com
+// fallback sem credencial. Ver o comentário longo lá embaixo.
+//
 // PAGINAÇÃO (provada ao vivo forçando limit=3 sobre 10 bilhetes): `skip` é offset real, `count`
 // é constante entre páginas, a última página vem parcial e passar do fim devolve **200 com
 // lista vazia** — nunca erro, nunca repetição. Logo a parada é dupla: `skip >= count` OU lista
@@ -217,16 +223,52 @@
   const PAGINA = 100;      // pedimos 100; o avanço usa o tamanho que VOLTAR
   const TETO_PAGINAS = 200;
 
+  // ⚠ `credentials:"include"` NÃO é universal neste gateway — e a falha é TOTAL, não parcial.
+  //
+  // O CORS proíbe credencial quando a resposta traz `Access-Control-Allow-Origin: *`, e o
+  // sptpub responde `*` para pelo menos um tenant: na **Betboom** (s340) a chamada com
+  // `include` é recusada pelo navegador ANTES de sair — `TypeError: Failed to fetch`, com a
+  // MESMA requisição voltando 200 sem credencial no MESMO instante (`results: 21`,
+  // `count: 68`; o replay inteiro sem credencial fechou `[21,21,21,5]` = 68 únicos).
+  //
+  // Como o replay inteiro passa por aqui, um `include` recusado não degrada: ele ZERA o
+  // replay. O robô fica só com o que o hook passivo colheu da página, ou seja as 15 da
+  // primeira tela — que é exatamente o sintoma "a lista mostra 15 e tem de clicar em
+  // Mostrar mais". Não apareceu antes porque a Jonbet foi validada ao vivo com 13 bilhetes
+  // (cabiam na 1ª tela) e a varredura da Blaze rodou FORA do navegador, onde não há CORS.
+  //
+  // Perder a credencial não custa autenticação: quem autentica aqui é o `Authorization:
+  // Bearer` dos headers aprendidos, não cookie. Mesma correção do `vb_inject` (s303, Estrela
+  // Bet).
+  //
+  // MEDIDO nas três casas, na mesma sessão: Betboom (`api-32-sp-c7818b61-598`) e Blaze
+  // (`api-31-sp-c7818b61-584`) **recusam** o `include`, as duas com a mesma `Failed to
+  // fetch` e as duas voltando 200 sem credencial. A **Jonbet** roda no MESMO cluster e no
+  // MESMO hash de operador da Blaze, mas **não foi medida** (conta deslogada no navegador do
+  // teste) — por isso o fallback continua ADITIVO em vez de virar chamada única sem
+  // credencial: `include` primeiro, segundo ramo só para quem for recusado. Nenhuma casa
+  // muda de caminho por dedução.
+  let semCredencial = false;               // memoriza a escolha: 1 tentativa perdida por captura
+  async function pedirPagina(url) {
+    const base = { method: "GET", headers: (reqCtx && reqCtx.headers) || {} };
+    if (!semCredencial) {
+      try {
+        return await of.call(window, url, Object.assign({}, base, { credentials: "include" }));
+      } catch (e) {
+        semCredencial = true;
+        LOG("credentials:include recusado pelo CORS do gateway (", e && e.message,
+            ") — repetindo sem credencial; o Bearer dos headers é que autentica");
+      }
+    }
+    return of.call(window, url, base);
+  }
+
   async function paginar(baseUrl) {
     let skip = 0;
     for (let i = 0; i < TETO_PAGINAS; i++) {
       let r;
       try {
-        r = await of.call(window, comPagina(baseUrl, skip, PAGINA), {
-          method: "GET",
-          headers: (reqCtx && reqCtx.headers) || {},
-          credentials: "include",
-        });
+        r = await pedirPagina(comPagina(baseUrl, skip, PAGINA));
       } catch (e) { LOG("erro no replay:", e && e.message); return; }
       if (!r || !r.ok) { LOG("replay parou · HTTP", r && r.status); return; }
       let res;

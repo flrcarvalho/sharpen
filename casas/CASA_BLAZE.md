@@ -79,6 +79,16 @@ onde a medição da Blaze acrescenta algo:**
   nem pulado. Quem avançar o `skip` pelo `limit` **pedido** pula 79 bilhetes por página. O
   `jb_inject` avança pelo tamanho que **voltou** — é por isso que ele se autocorrige.
 - **`status` vazio = todas as abas**, confirmado ao vivo (`count: 165`).
+- ⚠️ **O gateway RECUSA `credentials:"include"` para este tenant** (medido ao vivo na s340,
+  no navegador, conta logada). A recusa é do NAVEGADOR, antes de a chamada sair:
+  `TypeError: Failed to fetch (api-31-sp-c7818b61-584.sptpub.com)`. A MESMA requisição, no
+  mesmo instante, volta **200 sem credencial**. Como todo o replay passa por uma chamada só,
+  o `include` recusado não perde um pedaço: ele **zera o replay**, e o robô fica com o
+  punhado que o hook passivo colheu da tela. **Foi por isso que a varredura da s337 deu 165
+  e a captura pela extensão nunca deu:** aquela varredura rodou FORA do navegador, onde não
+  existe CORS. Quem trata é o `pedirPagina` (`jb_inject.js`), com fallback sem credencial —
+  quem autentica aqui é o `Bearer`, não cookie. A [`CASA_BETBOOM`](CASA_BETBOOM.md) recusa
+  igual; a Jonbet, no mesmo cluster, **não foi medida**.
 - A 1ª chamada sem token (401) **não foi capturada** aqui — o gancho do recon entrou depois do
   load. A guarda existe no inject e é compartilhada.
 
