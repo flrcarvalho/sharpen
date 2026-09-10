@@ -136,6 +136,20 @@ que está certo.
 fazer: **os tetos travam crescimento, não mandam cortar** — mova um **caso** para o
 `docs/CASOS.md`, nunca suba o teto. A próxima regra que precisar entrar reprova o gate.
 
+### 1.7 O CI está VERMELHO por defeito do próprio gate, não do repo (s338). **VIVA**
+
+`check_docs.py` acusa 5 links quebrados no CI e **nenhum deles é quebrado**: são links para
+`../pack/…`, que existe na máquina do Feca (é a pasta irmã) e **nunca** existe no checkout,
+porque o repo publicado é só o `Planilhador/`. Confirmado em commits de sessões diferentes:
+a falha é a mesma antes e depois desta sessão.
+
+O custo não é cosmético. **CI cronicamente vermelho não é gate**: ninguém distingue a falha
+nova da de sempre, e foi por isso que a quebra real desta sessão (um kwarg colidindo num
+teste) passou despercebida até alguém abrir o log à mão.
+
+Conserto: o `check_docs.py` precisa tratar link que sai da raiz do repo como **fora de
+escopo**, não como quebrado. Um link para fora não é conferível de dentro.
+
 ### 1.3 O `STATUS.md` está a 1,8 KB do teto — o próximo `/encerrar` estoura o gate. **VIVA (07/09)**
 
 Medido em 07/09: **48,2 KB** contra o teto de **50 KB** do `tools/check_docs.py`, com 3
