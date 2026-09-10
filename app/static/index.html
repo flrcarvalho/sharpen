@@ -1257,6 +1257,77 @@ body.cap-off .cx__body { display: none; }
   stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
 #btn-conectar-ext .su-wm { font-weight: 800; font-size: 13px; letter-spacing: -.03em; color: var(--ink); }
 #btn-conectar-ext .su-wm .su-u { color: var(--accent-2); }
+
+/* ── s344 · Selo "esta casa tem captura automática" ───────────────────────────
+   Marca a CASA (não a conta): captura é propriedade da casa, então o selo vive no
+   cabeçalho de grupo, uma vez por casa. Repetido em cada conta viraria textura.
+   UMA peça, dois modos — a variante é de ESPAÇO, não de significado:
+     • `.su-badge`        pill com a marca escrita → Painel de Contas (tela cheia).
+     • `.su-badge--icon`  só a lâmina → dropdown de conta (340px) e idcard (250px),
+                          onde o nome da casa já trunca. Medido: a pill come ~95px e
+                          "Bolsa de Aposta" não sobrevive nos dois.
+   Os dois nunca dividem a mesma tela (o Painel só existe sem conta ativa; o dropdown
+   e o idcard, só com), então não são dois estilos para o mesmo papel.
+   Reusa a lâmina/lockup do #btn-conectar-ext acima — nenhum desenho novo. A lâmina é
+   ÍCONE (exceção da Escada de Tinta); a palavra vai em --ink/--accent-2 sobre tinta
+   de acento, medida em ~7,9:1, acima do piso de label. */
+.su-badge { display: inline-flex; align-items: center; gap: 6px; flex: none; cursor: help;
+  background: rgba(var(--accent-rgb),.10); border: 1px solid rgba(var(--accent-rgb),.24);
+  border-radius: var(--r-pill); padding: 2px 9px 2px 3px; }
+.su-badge .su-tile { position: relative; width: 16px; height: 16px; border-radius: 5px;
+  flex: none; background: linear-gradient(160deg, #1B222C, #0A0D12);
+  border: 1px solid var(--line); display: grid; place-items: center; }
+.su-badge .su-tile > svg { width: 6px; height: 11px; }
+.su-badge .su-up { position: absolute; top: -22%; right: -22%; width: 46%; height: 46%;
+  border-radius: 50%; background: var(--accent); color: #04122A; display: grid;
+  place-items: center; box-shadow: 0 0 0 2px var(--surface); }
+.su-badge .su-up svg { width: 54%; height: 54%; fill: none; stroke: currentColor;
+  stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.su-badge .su-wm { font-weight: 800; font-size: 11.5px; letter-spacing: -.03em; color: var(--ink); }
+.su-badge .su-wm .su-u { color: var(--accent-2); }
+/* Modo ícone: sem pill e sem palavra — só a lâmina, do tamanho do texto ao lado. */
+.su-badge--icon { background: none; border: 0; padding: 0; }
+.su-badge--icon .su-wm { display: none; }
+/* ⚠️ No Painel de Contas a pill só abre por DEGRAU, e isto não é preciosismo: a trilha
+   do nome é `minmax(228px, 1fr)` e o piso 228 foi medido (s331) como "favicon 24 + a
+   casa mais longa + a pílula de contagem = 220", SEM selo nenhum. A pill soma ~105px
+   e estoura o piso: medido no headless, ela truncava 6 nomes de casa — `Bolsa de
+   Aposta` virava `Bolsa d…` — com a tabela em 1.026px. Truncar nome próprio é o que o
+   `casaDisplay` existe para evitar, então abaixo do corte a pill vira lâmina. Subir o
+   piso da trilha seria recalibrar os cortes 990/1150 da tabela inteira, e transbordo
+   ali some do `scrollWidth` sem aparecer em medição (s331d).
+   ⚠️ E o degrau mede a CÉLULA DO NOME, não a tabela: medido, a largura da tabela não
+   prevê a da trilha (tabela 1.046px dá trilha de 298px, e 988px dá 372px), porque os
+   cortes 990/1150 ligam as colunas opcionais, que comem o `1fr`. Container na tabela
+   deixava a pill aparecer só em janela de 2.560px. */
+.contas-casa-head .contas-casa-nomewrap { container-type: inline-size; container-name: casanome; }
+.contas-casa-head .su-badge { background: none; border: 0; padding: 0; }
+.contas-casa-head .su-badge .su-wm { display: none; }
+/* Trilha no PISO (228px): nem a lâmina cabe — medido, `Bolsa de Aposta` truncava em
+   janela de 1.100px. Aí o selo sai da linha em vez de mutilar o nome; ele continua no
+   dropdown de conta e no idcard, que não dependem desta trilha. 254 = 228 + os 26 da
+   lâmina com o gap. */
+@container casanome (max-width: 253px) { .contas-casa-head .su-badge { display: none; } }
+/* 340px = 228 (piso da trilha, já com favicon + casa mais longa + contagem) + 105 da
+   pill + folga. Abaixo disso a lâmina sozinha, que mede 26px e não trunca ninguém. */
+@container casanome (min-width: 340px) {
+  .contas-casa-head .su-badge { background: rgba(var(--accent-rgb),.10);
+    border: 1px solid rgba(var(--accent-rgb),.24); padding: 2px 9px 2px 3px; }
+  .contas-casa-head .su-badge .su-wm { display: inline; }
+}
+/* O anel do "up" acompanha o fundo de cada superfície (o elevado do cabeçalho de casa,
+   o do dropdown, o do idcard) — anel na cor errada lê como recorte mal feito. */
+.contas-casa-head .su-badge .su-up { box-shadow: 0 0 0 2px var(--elevated); }
+.acct-gh .su-badge .su-up,
+.idcard .su-badge .su-up { box-shadow: 0 0 0 2px var(--surface); }
+/* No idcard o nome da casa é 16px: a lâmina sobe junto para não virar respingo. */
+.idcard .su-badge .su-tile { width: 18px; height: 18px; border-radius: 6px; }
+.idcard .su-badge .su-tile > svg { width: 6.5px; height: 12px; }
+/* O `.nm` original tem `overflow:hidden` para truncar o nome. Com o selo ao lado isso
+   DECEPA o "up", que por desenho sobe 22% acima do tile — medido no render headless. O
+   corte desce para o span do nome, que é quem precisa truncar; a linha fica visível. */
+.idcard__meta .nm { display: flex; align-items: center; gap: 7px; overflow: visible; }
+.idcard__meta .nm > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .status-msg { font-size: 12px; color: var(--ink-mute); font-family: var(--font-mono); }
 .status-msg.ok   { color: var(--pos); }
 .status-msg.err  { color: var(--neg); }
@@ -2407,6 +2478,13 @@ td.c-res.res-HL { color: var(--warn); }
 </style>
 </head>
 <body>
+<!-- s344 · Gradiente da lâmina do selo de captura. Fica UMA vez no documento porque o
+     selo se repete por casa e id de SVG repetido é HTML inválido (o browser resolve
+     pelo primeiro e o defeito só aparece se o primeiro sumir). Próprio, e não o
+     #sharpenBlade da marca ao lado: o selo não deve quebrar se a sidebar mudar. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs><linearGradient id="suBladeSelo" x1="60" y1="16" x2="60" y2="104" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/></linearGradient></defs>
+</svg>
 <div class="app">
 
 <!-- Sidebar -->
@@ -3313,6 +3391,29 @@ function casaDisplay(nome) {
     return low.charAt(0).toUpperCase() + low.slice(1);
   }).join('');
 }
+// ── s344 · Selo de captura automática ────────────────────────────────────────
+// Quais casas o SharpenUp lê por API. Vem PRONTO de `GET /casas` → `captura`, na
+// mesma grafia do array `casas`: quem normaliza é o servidor (`_display_to_key`), que
+// é onde a conversão mora. Aqui não se normaliza nada e não se mantém lista — casa
+// nova na captura acende o selo sozinha, sem tocar neste arquivo. Copiar a lista para
+// cá recriaria a armadilha dos três mapas de favicon.
+const CASAS_CAPTURA = new Set();
+function temCaptura(casa) { return CASAS_CAPTURA.has(casa); }
+// `modo`: 'pill' (marca escrita, só onde sobra largura) | 'icon' (só a lâmina).
+// Devolve '' para casa sem captura — quem chama concatena sem `if`.
+function seloCaptura(casa, modo) {
+  if (!temCaptura(casa)) return '';
+  const t = 'Casa habilitada para extração automática via SharpenUp';
+  return '<span class="su-badge' + (modo === 'icon' ? ' su-badge--icon' : '') + '"'
+    + ' title="' + t + '" aria-label="' + t + '">'
+    + '<span class="su-tile"><svg viewBox="40 10 40 100" aria-hidden="true">'
+    + '<path d="M60 16 L60 90 L42 104 Z" fill="url(#suBladeSelo)"/>'
+    + '<path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/></svg>'
+    + '<span class="su-up"><svg viewBox="0 0 24 24" aria-hidden="true">'
+    + '<path d="M12 19V5M6 11l6-6 6 6"/></svg></span></span>'
+    + '<span class="su-wm">Sharpen<span class="su-u">Up</span></span></span>';
+}
+
 // Chaveado pelo NOME DE EXIBIÇÃO (igual ao valor de `casa` que /casas devolve),
 // nunca pela chave UPPERCASE — faviconUrl() recebe sempre o display name.
 // Domínio = onde o Google S2 resolve o melhor favicon. Regra: padrão BR é
@@ -3431,8 +3532,13 @@ const RES_CLASS = { W: 'r-W', L: 'r-L', V: 'r-V', HW: 'r-HW', HL: 'r-HL' };
 async function carregarCasas() {
   try {
     const r = await fetch('/casas');
-    const { casas, dominios } = await r.json();
+    const { casas, dominios, captura } = await r.json();
     if (dominios) Object.assign(DOMINIOS, dominios);   // domínios das casas novas → favicon
+    // Selo de captura (s344). Repovoa em vez de recriar o Set: `temCaptura` é lida por
+    // renders que já podem estar montados. Servidor antigo sem o campo → Set vazio, e
+    // a tela fica exatamente como era (nenhum selo), nunca quebrada.
+    CASAS_CAPTURA.clear();
+    (captura || []).forEach(c => CASAS_CAPTURA.add(c));
     await Promise.all(casas.map(c => carregarParceiros(c)));
     casasCarregadas = casas;
     renderCasaList();
@@ -3937,6 +4043,9 @@ function renderPainelLista() {
       + '<span class="contas-casa-nomewrap">'
         + '<span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span>'
         + '<span class="contas-casa-nome" title="' + esc(nomeCasa) + '">' + esc(nomeCasa) + '</span>'
+        // Selo dentro do nomewrap (célula 1). Irmão da grade viraria coluna e
+        // desalinharia as três fixas — é o que o comentário da grade acima proíbe.
+        + seloCaptura(casa, 'pill')
         + '<span class="contas-casa-count">' + ps.length + (ps.length === 1 ? ' conta' : ' contas') + '</span>'
       + '</span>'
       // As trilhas vazias NÃO precisam de `<span>` de enchimento: elas existem pela
@@ -4562,7 +4671,10 @@ function atualizarBotaoConta() {
   const casaEl = document.getElementById('ctx-casa');
   if (!casaEl || !parceiroSelecionado) return;
   const nomeCasa = NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa;
-  casaEl.textContent = nomeCasa;
+  // s344: o nome vai num span próprio (é ele que trunca) e o selo fica ao lado. Em
+  // 250px a pill não cabe — aqui é sempre a lâmina, como no dropdown logo abaixo.
+  casaEl.innerHTML = '<span>' + esc(nomeCasa) + '</span>'
+    + seloCaptura(parceiroSelecionado.casa, 'icon');
   document.getElementById('ctx-parceiro').textContent = parceiroSelecionado.nome;
   const chip = document.getElementById('ctx-hchip');
   chip.innerHTML = '';
@@ -4634,6 +4746,7 @@ function renderAcctTree() {
     html += '<div class="acct-grp">'
       + '<div class="acct-gh"><span class="ctx-hchip"><img data-casa="' + esc(casa) + '" src="' + faviconUrl(casa) + '" alt=""></span>'
       + '<span class="acct-gname">' + esc(nomeCasa) + '</span>'
+      + seloCaptura(casa, 'icon')   // 340px: só a lâmina — a pill trunca o nome da casa
       + '<span class="acct-gcount">' + n + (n === 1 ? ' conta' : ' contas') + '</span></div>';
     parceiros.forEach(p => {
       const isSel = parceiroSelecionado && parceiroSelecionado.id === p.id;

@@ -180,6 +180,19 @@ _HOSTS_POR_CASA = {
 }
 
 
+# Casas que o SharpenUp captura, por casa_key. É uma VISTA do mapa acima, nunca uma
+# segunda lista: casa que entra na captura entra aqui junto, sem ninguém lembrar. O
+# dashboard usa isto para acender o selo "extração automática" ao lado do nome da casa
+# (`GET /casas` → `captura`). Gate: tests/test_casas_captura.py.
+CASAS_COM_CAPTURA: frozenset[str] = frozenset(_HOSTS_POR_CASA)
+
+
+def casa_tem_captura(casa_key: str) -> bool:
+    """A casa (chave canônica, ex.: 'BOLSADEAPOSTA') é lida pelo robô do SharpenUp?
+    Quem tem só o nome de exibição converte antes com `main._display_to_key`."""
+    return (casa_key or "").strip().upper() in CASAS_COM_CAPTURA
+
+
 def casa_de_host(host: str) -> str | None:
     """casa_key da casa CONHECIDA dona do domínio, ou None se não reconhecido.
     Casa o host exato ou subdomínio (ex.: myactivity.betfair.bet.br → BETFAIR)."""
