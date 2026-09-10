@@ -491,7 +491,10 @@ Antes de retornar o TSV, o GPT deve validar:
 2. nenhuma coluna extra foi criada (exceto `Código` se solicitada pela instrução — ver §2)
 3. ordem cronológica correta
 4. separador TAB (U+0009)
-5. decimal com `,`
+5. decimal com `,` **nas colunas numéricas** (`Stake` e `Odd`) — a **`Descrição` usa
+   PONTO** (`Over 2.5 Gols`), porque é texto e ninguém a lê como número; ver
+   `MASTER_DESCRICAO §10.1`. Este item dizia só "decimal com `,`", sem escopo, e foi
+   medido na s336 como uma das três causas de o mesmo mercado sair de doze formas
 6. categorias válidas de aposta
 7. esporte válido
 8. resultado válido (código oficial W/L/V/HW/HL, ou vazio quando a aposta está aberta — ver §13.1)

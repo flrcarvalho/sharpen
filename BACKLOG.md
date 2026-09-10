@@ -532,12 +532,35 @@ Isso tem duas consequências que valem mais que a economia de token:
 
 **As quatro decisões, por tamanho:**
 
-| # | Decisão | Leituras que resolve |
-|---|---|---|
-| **A** | Notação da linha: `Over` × `Mais de`, ponto × vírgula, forma da linha partida | **~5.000** |
-| **B** | O objeto (`Gols`, `Pontos`, `Escanteios`) é obrigatório na descrição? | ~700 |
-| **C** | Prop de SIM/NÃO: o rótulo entra na descrição, e em que forma | ~100 |
-| **D** | Escopo de tempo: onde e como o período aparece | ~60 |
+| # | Decisão | Leituras que resolve | Status |
+|---|---|---|---|
+| **A** | Notação da linha: `Over` × `Mais de`, ponto × vírgula, forma da linha partida | **~5.000** | ✅ **FECHADA (s336)** |
+| **B** | O objeto (`Gols`, `Pontos`, `Escanteios`) é obrigatório na descrição? | ~700 | ✅ **FECHADA (s336)** |
+| **C** | Prop de SIM/NÃO: o rótulo entra na descrição, e em que forma | ~100 | aberta |
+| **D** | Escopo de tempo: onde e como o período aparece | ~60 | aberta |
+
+#### A e B, como o Feca decidiu em 09/09
+
+1. **Linha asiática → sempre o QUARTO DE LINHA.** `Over 2.25 Gols`, nunca `Over 2.0,2.5`.
+   **A recomendação que eu tinha dado era outra, e estava errada:** eu otimizei para "zero
+   conversão no tradutor" e perdi o argumento que decide. Medido depois, **a Bet365 é a
+   ÚNICA casa que manda as duas linhas** (2.207 blocos); as outras 21 já mandam `2,25`
+   direto. Manter a forma dela faria a MESMA aposta ser descrita de dois jeitos conforme
+   a casa, que é a inconsistência que esta frente existe para matar.
+2. **Decimal da descrição é PONTO.** A vírgula do `MASTER_OUTPUT §12.1` vale para as
+   colunas numéricas, e o motivo dela (a planilha em pt-BR ler ponto como milhar) não
+   alcança texto. O item 5 do checklist do §19 dizia "decimal com `,`" **sem escopo**, e
+   foi corrigido.
+3. **O objeto é obrigatório, sempre.** `Over 2.5 Gols`, nunca `Over 2.5`, mesmo quando o
+   esporte torna óbvio: "é óbvio" é julgamento, e julgamento refeito a cada leitura é a
+   origem medida da variação.
+
+**Aplicado:** `MASTER_DESCRICAO §10.1` (as duas regras) e **§10.1.1** (novo, a linha
+asiática) · `MASTER_OUTPUT §19` item 5 (escopo) · `descricao_check` passou a derivar a
+média **exata** das duas linhas do bloco, senão toda descrição de asiática da Bet365
+reprovaria em `linha-fora-do-bloco`. Média errada continua reprovando, com teste para os
+dois lados e prova por mutação. **Um teste antigo foi INVERTIDO** de propósito
+(`test_media_de_linha_asiatica_partida_e_pega`), com o motivo escrito nele.
 
 Fechada cada uma, ela entra no `MASTER_DESCRICAO`, o `descricao_check` ganha a checagem
 positiva e o tradutor implementa. **Nenhuma linha de código do tradutor deveria ser

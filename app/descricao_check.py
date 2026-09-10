@@ -178,6 +178,46 @@ _RE_TOKEN_NOME = re.compile(r"[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'&.\-]{2,}")
 _RE_DECIMAL = re.compile(r"\d+[.,]\d+")
 
 
+# Linha asiática PARTIDA no bloco: `2.0,2.5` · `2,5/3,0` · `3.0-3.5`. Gêmea do
+# `repository._LINHA_PARTIDA_RE`, mas aqui só a forma de DUAS linhas — o quarto de linha
+# solto (`+0.25`) já existe no bloco e não precisa de conversão.
+#
+# ⚠️ São DOIS padrões porque a vírgula acumula os dois papéis. Quando ela é o SEPARADOR
+# (`4.0,4.5`), o decimal tem de ser ponto; quando o separador é `/` ou `-`, o decimal pode
+# ser qualquer um (`2,5/3,0`). Um padrão só, com `[.,]` dos dois lados, leria `1,5` como
+# um par. É a mesma armadilha do `_num_bloco` do `repository`: o mesmo caractere é decimal
+# ou separador conforme a companhia.
+_RE_PARTIDA_BARRA = re.compile(r"(\d+[.,]\d+)\s*[/\-]\s*(\d+[.,]\d+)")
+_RE_PARTIDA_VIRG = re.compile(r"(\d+\.\d+)\s*,\s*(\d+\.\d+)")
+
+
+def _quartos_de_linha(fb: str) -> set[str]:
+    """Os quartos de linha DERIVÁVEIS do bloco, e só eles.
+
+    `MASTER_DESCRICAO §10.1.1` fechou que a descrição usa sempre o quarto de linha
+    (`Over 2.25 Gols`), porque a Bet365 é a única casa que manda as duas linhas
+    (`2.0,2.5`) e as outras 21 já mandam `2,25` direto. Sem isto, toda descrição de
+    linha asiática da Bet365 reprovaria em `linha-fora-do-bloco`: `2.25` realmente não
+    está escrito no bloco.
+
+    **É a média EXATA, e nada além dela.** Média errada continua reprovando, que é o
+    ponto: o gate segue provando que o número da descrição veio DAQUELE bilhete. Um
+    frouxidão do tipo "aceita qualquer decimal próximo" reabriria a porta que a s302
+    fechou (a descrição que era do vizinho).
+    """
+    out: set[str] = set()
+    for regra in (_RE_PARTIDA_BARRA, _RE_PARTIDA_VIRG):
+        for a, b in regra.findall(fb):
+            try:
+                media = (float(a.replace(",", ".")) + float(b.replace(",", "."))) / 2
+            except ValueError:
+                continue
+            # `2.25`, e também `2.5` quando a média cai numa meia linha.
+            out.add(f"{media:g}")
+            out.add(f"{media:.2f}".rstrip("0").rstrip("."))
+    return out
+
+
 def _fold(s: str) -> str:
     """Minúscula, sem acento, com as três aspas agudas unificadas.
 
@@ -238,9 +278,13 @@ def checar_fidelidade(descricao: str, bruto: str) -> list[Problema]:
             "nome não existe no bilhete: " + ", ".join(f"'{t}'" for t in fora[:5])
             + " — descrição pode ser de OUTRO bilhete"))
 
+    # do bloco FOLDED, não do `fb_num`: o `replace(",", ".")` apaga o separador da
+    # linha partida (`4.0,4.5` viraria `4.0.4.5`) e nenhum par seria reconhecido.
+    quartos = _quartos_de_linha(fb)
     linhas = []
     for num in _RE_DECIMAL.findall(d):
-        if num.replace(",", ".") not in fb_num and num not in linhas:
+        alvo = num.replace(",", ".")
+        if alvo not in fb_num and alvo not in quartos and num not in linhas:
             linhas.append(num)
     if linhas:
         problemas.append(Problema(

@@ -201,6 +201,66 @@ Under 7.5 Assistências
 Over 22.5 Pontos
 ```
 
+### Duas regras fechadas na s336, e as duas são obrigatórias
+
+**1. O decimal da descrição é PONTO.** `Over 2.5 Gols`, nunca `Over 2,5 Gols`.
+
+> A vírgula do `MASTER_OUTPUT §12.1` vale para as colunas **numéricas** (stake e odd), e o
+> motivo dela é a planilha em pt-BR ler o ponto como separador de **milhar**. A descrição
+> é **texto**: nada a interpreta como número, e o ponto é o que a casa manda. O item 5 do
+> checklist do `MASTER_OUTPUT §19` foi corrigido junto para dizer o escopo.
+
+**2. O OBJETO é obrigatório, sempre.** `Over 2.5 Gols`, nunca `Over 2.5`.
+
+```text
+CORRETO:  Over 2.5 Gols   ·   Over 10.5 Escanteios   ·   Over 124.5 Pontos
+ERRADO:   Over 2.5        ·   Over 10.5              ·   Over 124.5
+```
+
+> Vale **mesmo quando o objeto parece óbvio** pelo esporte. "É óbvio" é julgamento, e
+> julgamento refeito a cada leitura é a origem medida da variação: sem esta regra o mesmo
+> mercado saía com e sem o objeto (s336, ~700 leituras instáveis). A descrição também
+> precisa se explicar sozinha em export, busca e relatório, longe da coluna `Esporte`.
+
+---
+
+## 10.1.1 Linha ASIÁTICA (quarto de linha) — regra fechada
+
+Mercado asiático divide a stake em **duas linhas vizinhas**, e é isso que permite meia
+vitória e meia derrota (`HW` / `HL`). Cada casa escreve esse mesmo mercado de um jeito.
+
+**A descrição usa SEMPRE o quarto de linha, nunca as duas linhas.**
+
+```text
+CORRETO:  Over 2.25 Gols   ·   Under 3.75 Gols   ·   Time -0.25
+ERRADO:   Over 2.0,2.5     ·   Over 2.0/2.5      ·   Over 2,0-2,5
+```
+
+**Conversão obrigatória, quando a casa manda as duas linhas:**
+
+| Casa exibe | Descrição correta |
+|---|---|
+| `Mais de 2.0,2.5` | `Over 2.25 Gols` |
+| `Menos de 3.0,3.5` | `Under 3.25 Gols` |
+| `Mais de 3.5,4.0` | `Over 3.75 Gols` |
+| `+0.25` · `-0.75` | copiar (já é quarto de linha) |
+
+> **Por que o quarto de linha, e não as duas.** Medido na s336 sobre 15.907 blocos reais:
+> **a Bet365 é a ÚNICA casa que manda `3.0,3.5`** (2.207 blocos). As outras 21 casas da
+> base já mandam `2,25` / `3,25` / `-0.25` direto. Manter a forma da Bet365 faria a MESMA
+> aposta ser descrita de dois jeitos conforme a casa — exatamente a inconsistência que
+> esta seção existe para matar. O quarto de linha é a notação da indústria e a única
+> comum a todas as casas.
+>
+> **Nada se perde.** `2.25` e `3.75` só existem em linha asiática, então o quarto de linha
+> continua provando que houve linha partida — que é o que autoriza `HW`/`HL`
+> (`repository._LINHA_PARTIDA_RE`, `MASTER_RESULTADO §7`).
+
+⚠️ **A conversão é aritmética simples e o gate cobra.** `descricao_check` exige que todo
+decimal da descrição exista no bloco cru; `2.25` **não** existe num bloco que diz
+`2.0,2.5`. Por isso o gate aceita, **e só**, a média exata de uma linha partida presente
+no bloco. Média errada continua reprovando.
+
 ---
 
 ## 10.2 Mercado Discreto (X+)

@@ -148,11 +148,31 @@ def test_numero_inventado_e_pego():
     assert "linha-fora-do-bloco" in _regras(probs)
 
 
-def test_media_de_linha_asiatica_partida_e_pega():
-    """Bet365: `Menos de 4.0,4.5` virou `Under 4,25` — a IA calculou a média."""
-    probs = checar_fidelidade("Under 4,25 Gols [Auckland United (F) v Fencibles United (F)]",
-                              BLOCO_BET365)
-    assert "linha-fora-do-bloco" in _regras(probs)
+def test_media_EXATA_de_linha_asiatica_agora_passa():
+    """**Este teste foi INVERTIDO na s336, e de propósito.**
+
+    Ele nasceu cobrando o contrário: `Menos de 4.0,4.5` virando `Under 4,25` era
+    `linha-fora-do-bloco`, porque `4.25` não está escrito no bloco. A regra mudou por
+    decisão do Feca, com medição: **a Bet365 é a ÚNICA casa que manda as duas linhas**
+    (2.207 blocos); as outras 21 já mandam `2,25` direto. Manter a forma da Bet365 faria
+    a MESMA aposta ser descrita de dois jeitos conforme a casa.
+
+    `MASTER_DESCRICAO §10.1.1` fechou o quarto de linha como forma oficial, e o gate
+    passou a derivar a média EXATA das duas linhas presentes no bloco.
+
+    O que NÃO afrouxou está no teste seguinte: média errada continua reprovando."""
+    assert checar_fidelidade(
+        "Under 4,25 Gols [Auckland United (F) v Fencibles United (F)]",
+        BLOCO_BET365) == []
+
+
+def test_media_ERRADA_de_linha_asiatica_continua_pega():
+    """A porta que a s336 abriu é estreita: só a média exata. Sem este par, o teste
+    acima seria indistinguível de ter desligado a checagem de linha."""
+    for errada in ("Under 4,30", "Under 4,75", "Under 4,2"):
+        probs = checar_fidelidade(
+            f"{errada} Gols [Auckland United (F) v Fencibles United (F)]", BLOCO_BET365)
+        assert "linha-fora-do-bloco" in _regras(probs), f"{errada} devia reprovar"
 
 
 def test_inteiro_solto_nao_e_cobrado():

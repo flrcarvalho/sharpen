@@ -110,3 +110,64 @@ def test_resumo_lote_conta_erros_e_avisos():
     assert r["com_erro"] == 1
     assert r["com_aviso"] == 1
     assert len(r["exemplos"]) == 2
+
+
+# ── Linha asiática: o quarto de linha (MASTER_DESCRICAO §10.1.1, decidido na s336) ──
+#
+# A descrição usa SEMPRE o quarto de linha (`Over 2.25 Gols`), porque a Bet365 é a única
+# casa que manda as duas linhas (`2.0,2.5`) e as outras 21 já mandam `2,25` direto.
+# `checar_fidelidade` exige que todo decimal da descrição exista no bloco cru, e `2.25`
+# não existe num bloco que diz `2.0,2.5` — daí a derivação por média EXATA.
+#
+# O QUE ESTES TESTES NÃO COBREM: não conferem o FORMATO (o gate cobra procedência, não
+# forma). Uma descrição no formato antigo `Under 4.0,4.5` continua passando aqui, porque
+# os dois números estão no bloco. Quem cobra a forma é o MASTER.
+
+BLOCO_PARTIDA = """[Código: X1]
+Stake: 99,00
+Seleções:
+  • Auckland (F) x Fencibles (F) · Gols + - · Menos de 4.0,4.5 @ 1,8 · NZL
+"""
+
+
+def test_quarto_de_linha_derivado_do_bloco_passa():
+    """`4.25` não está escrito no bloco, mas é a média EXATA de `4.0,4.5`."""
+    p = descricao_check.checar_fidelidade(
+        "Under 4.25 Gols [Auckland (F) v Fencibles (F)]", BLOCO_PARTIDA)
+    assert p == [], [tuple(x) for x in p]
+
+
+def test_media_ERRADA_continua_reprovando():
+    """A porta que se abriu é estreita de propósito: só a média exata. Frouxidão do tipo
+    'aceita decimal próximo' reabriria o caso da descrição que era do vizinho (s302)."""
+    for errada in ("Under 4.30 Gols", "Under 4.75 Gols", "Under 4.2 Gols"):
+        p = descricao_check.checar_fidelidade(
+            f"{errada} [Auckland (F) v Fencibles (F)]", BLOCO_PARTIDA)
+        assert p and p[0][1] == "linha-fora-do-bloco", f"{errada} devia reprovar"
+
+
+def test_as_tres_grafias_de_linha_partida_derivam_o_quarto():
+    """A casa escreve o par de três jeitos. Vírgula só conta como separador quando os
+    decimais são ponto — senão `1,5` sozinho viraria um par."""
+    q = descricao_check._quartos_de_linha
+    assert "2.25" in q("menos de 2.0,2.5")
+    assert "2.75" in q("menos de 2,5/3,0")
+    assert "3.75" in q("mais de 3.5-4.0")
+    assert q("odd 1,5") == set(), "número solto não pode virar par"
+    assert q("total 1.5") == set()
+
+
+def test_mutacao_sem_o_quarto_de_linha_a_bet365_reprovaria_inteira():
+    """Prova por mutação: desligando a derivação, a descrição no formato que o MASTER
+    manda passa a reprovar. Se este teste ficar verde com a derivação desligada, ela é
+    redundante e a decisão da s336 não está sendo sustentada por código nenhum."""
+    original = descricao_check._quartos_de_linha
+    try:
+        descricao_check._quartos_de_linha = lambda _fb: set()
+        p = descricao_check.checar_fidelidade(
+            "Under 4.25 Gols [Auckland (F) v Fencibles (F)]", BLOCO_PARTIDA)
+        assert p and p[0][1] == "linha-fora-do-bloco"
+    finally:
+        descricao_check._quartos_de_linha = original
+    assert descricao_check.checar_fidelidade(
+        "Under 4.25 Gols [Auckland (F) v Fencibles (F)]", BLOCO_PARTIDA) == []
