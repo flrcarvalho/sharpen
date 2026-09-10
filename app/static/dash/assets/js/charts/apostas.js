@@ -236,7 +236,8 @@ function renderApostasVirt(){
     // segundo class= era descartado pelo parser → o cursor de edição nunca aparecia.
     const df=f=>editavel?` data-field="${f}"`:'';
     const ec=editavel?' ap-edit':'';
-    return`<div class="btbl-cols btbl-data-row"${r.id!=null?` data-id="${r.id}"`:''} style="height:${BTBL_ROW_H}px">
+    return`<div class="btbl-cols btbl-data-row${_apSel.apostas.has(r.id)?' row-sel':''}"${r.id!=null?` data-id="${r.id}"`:''} style="height:${BTBL_ROW_H}px">
+      ${apSelCel('apostas',r)}
       <div class="btbl-cell btbl-date${ec}"${df('data')}>${dateStr}</div>
       <div class="btbl-cell">
         ${r.aposta?`<div class="btbl-tipo${ec}"${df('aposta')}>${esc(r.aposta)}</div>`:''}
@@ -266,6 +267,9 @@ function renderApostasVirt(){
     `<div class="virt-spacer" style="height:${topPad}px"></div>`+
     lines+
     `<div class="virt-spacer" style="height:${botPad}px"></div>`;
+  // A barra le o Set, nunca o DOM: linha marcada que rolou para fora da janela virtual
+  // nao existe mais como checkbox, e contar pelo DOM perderia todas elas em silencio.
+  apSelBarra('apostas');
 }
 
 function apostasSort(colIdx){
@@ -655,6 +659,229 @@ function _acLigar(inp,aoEscolher,fonte){
 function _acCarregar(){
   if(typeof tipstersCadastroLoad!=='function')return;
   tipstersCadastroLoad().then(()=>{if(_acAberto())_acRender(!!_acInp&&!!_acInp.value.trim());}).catch(()=>{});
+}
+
+// ── Seleção múltipla + edição em massa (Base Completa e Em Aberto) ──────────
+// Duas telas, um motor só. Elas mostram recortes diferentes da mesma base e a régua de
+// quem pode ser editado é a mesma (`r.id != null && r.operador === window.__dono`), então
+// duplicar isto criaria duas seleções que divergem no primeiro ajuste.
+//
+// A seleção vive num Set FORA do DOM porque a Base Completa é virtualizada: as linhas
+// são recicladas a cada rolagem, e um checkbox marcado que sai da janela seria perdido
+// sem erro nenhum. O render lê o Set; o Set nunca lê o render.
+const _apSel = { apostas: new Set(), abertas: new Set() };
+// Última leva RENDERIZADA de cada tela, para o "selecionar todas" operar sobre o
+// recorte que está na tela — nunca sobre a base inteira, que o filtro escondeu de
+// propósito. A Base Completa já tem `apostasTabela`; a de abertas guarda a sua aqui.
+let _abrtUltimas = [];
+const AP_LOTE_CAMPOS = ['data', 'resultado', 'tipster', 'esporte', 'casa', 'parceiro', 'aposta'];
+// Casa e parceiro não podem ser apagados: a casa entra na assinatura e bilhete sem casa
+// nasce invisível no Painel de Contas.
+const AP_LOTE_OBRIG = { casa: 'Casa', parceiro: 'Parceiro' };
+const AP_LOTE_ROTULO = { data: 'Data', resultado: 'Resultado', tipster: 'Tipster',
+  esporte: 'Esporte', casa: 'Casa', parceiro: 'Parceiro', aposta: 'Aposta' };
+
+function _apEditavel(r) { return r && r.id != null && r.operador === window.__dono; }
+function _apLinhasTela(tela) {
+  return (tela === 'abertas' ? _abrtUltimas : apostasTabela) || [];
+}
+// Só ids que ainda estão no recorte contam. Filtro trocado depois de marcar não pode
+// aplicar edição a linha que saiu da tela — o usuário deixou de vê-la.
+function _apSelIds(tela) {
+  const vis = new Set(_apLinhasTela(tela).filter(_apEditavel).map(r => r.id));
+  return [..._apSel[tela]].filter(id => vis.has(id));
+}
+function apSelToggle(tela, id, on) {
+  if (on) _apSel[tela].add(id); else _apSel[tela].delete(id);
+  apSelBarra(tela);
+}
+window.apSelToggle = apSelToggle;
+function apSelTodos(tela, on) {
+  const ed = _apLinhasTela(tela).filter(_apEditavel).map(r => r.id);
+  if (on) ed.forEach(id => _apSel[tela].add(id));
+  else ed.forEach(id => _apSel[tela].delete(id));
+  tela === 'abertas' ? renderAbertas() : renderApostas();
+}
+window.apSelTodos = apSelTodos;
+function apSelLimpar(tela) {
+  _apSel[tela].clear();
+  tela === 'abertas' ? renderAbertas() : renderApostas();
+}
+window.apSelLimpar = apSelLimpar;
+// HTML da célula de checkbox de UMA linha. Linha não editável entra com a caixa
+// desabilitada, e não vazia: a coluna some do alinhamento se algumas linhas não a têm.
+function apSelCel(tela, r) {
+  // Vitrine publica: a celula continua existindo, VAZIA. `.btbl-cols` e `.abrt-row` sao
+  // grades posicionais — devolver '' aqui daria uma celula a menos por linha e a
+  // tabela inteira sairia do lugar em relação ao cabeçalho, sem erro nenhum.
+  if (window.MODO_PUBLICO) return '<div class="btbl-cell ap-selcel"></div>';
+  if (!_apEditavel(r))
+    return `<div class="btbl-cell ap-selcel"><input type="checkbox" class="ap-rowchk" disabled title="Linha da planilha ao vivo ou de um operador — edite na origem"></div>`;
+  return `<div class="btbl-cell ap-selcel"><input type="checkbox" class="ap-rowchk"${_apSel[tela].has(r.id) ? ' checked' : ''} onchange="apSelToggle('${tela}',${r.id},this.checked)"></div>`;
+}
+// Barra de ações + estado do "selecionar todas". Um lugar só desenha as duas coisas:
+// contador e cabeçalho discordando é o sintoma clássico de duas fontes para o mesmo dado.
+function apSelBarra(tela) {
+  const box = document.getElementById(tela === 'abertas' ? 'abrtSelBar' : 'apSelBar');
+  const all = document.getElementById(tela === 'abertas' ? 'abrtSelAll' : 'apSelAll');
+  const n = _apSelIds(tela).length;
+  const totalEd = _apLinhasTela(tela).filter(_apEditavel).length;
+  if (all) {
+    all.checked = n > 0 && n === totalEd;
+    all.indeterminate = n > 0 && n < totalEd;
+    all.disabled = !totalEd;
+  }
+  if (!box) return;
+  box.hidden = !n;
+  if (n) box.innerHTML =
+    `<span class="ap-selbar__n">${n.toLocaleString('pt-BR')}</span>`
+    + `<span class="ap-selbar__l">selecionada${n === 1 ? '' : 's'}</span>`
+    + `<button type="button" class="ap-selbar__btn ap-selbar__btn--acao" onclick="abrirLoteApostas('${tela}')">✎ Editar em massa</button>`
+    + `<button type="button" class="ap-selbar__btn" onclick="apSelLimpar('${tela}')">Limpar seleção</button>`;
+}
+window.apSelBarra = apSelBarra;
+
+// ── Modal de edição em massa ────────────────────────────────────────────────
+// Mesma casca do modal de editar aposta (`apEditOverlay`), mesmos `.apedit-*`: é a mesma
+// superfície num modo diferente, não um segundo estilo para o mesmo papel.
+//
+// O tique de cada campo é o que separa NÃO MEXER de LIMPAR — "campo vazio" sozinho não
+// distingue as duas, e o backend precisa da diferença (campo ausente × string vazia).
+let _apLoteTela = 'apostas';
+function _apLoteEl(c) { return document.getElementById('ap-lote-' + c); }
+function _apLoteChk(c) { return document.getElementById('ap-lote-chk-' + c); }
+function _apLoteLigados() { return AP_LOTE_CAMPOS.filter(c => _apLoteChk(c).checked); }
+
+function apLoteSync() {
+  AP_LOTE_CAMPOS.forEach(c => {
+    const f = document.querySelector(`#apLoteModal .apedit-field[data-campo="${c}"]`);
+    if (f) f.classList.toggle('off', !_apLoteChk(c).checked);
+  });
+  document.getElementById('apLoteAvisoData').hidden = !_apLoteChk('data').checked;
+  document.getElementById('apLoteAvisoCasa').hidden =
+    !(_apLoteChk('casa').checked || _apLoteChk('parceiro').checked);
+  document.getElementById('apLoteAvisoAposta').hidden = !_apLoteChk('aposta').checked;
+  const ligados = _apLoteLigados();
+  const n = _apSelIds(_apLoteTela).length;
+  const falta = ligados.filter(c => AP_LOTE_OBRIG[c] && !_apLoteEl(c).value.trim());
+  const btn = document.getElementById('apLoteOk');
+  const res = document.getElementById('apLoteResumo');
+  btn.disabled = !ligados.length || !n || !!falta.length;
+  btn.textContent = ligados.length && n ? `Aplicar a ${n} aposta${n === 1 ? '' : 's'}` : 'Aplicar';
+  if (falta.length) res.textContent = `${falta.map(c => AP_LOTE_OBRIG[c]).join(' e ')} não pode ficar em branco`;
+  else if (!ligados.length) res.textContent = 'Nada selecionado para mudar';
+  else res.textContent = 'Vai mudar ' + ligados.map(c =>
+    AP_LOTE_ROTULO[c] + (_apLoteEl(c).value.trim() ? '' : ' (limpar)')).join(' · ');
+}
+window.apLoteSync = apLoteSync;
+// Campo com valor liga o tique sozinho. Tiquear à mão e deixar vazio continua valendo —
+// é assim que se LIMPA —, então o tique nunca é desligado aqui.
+function apLoteAutoTicar() {
+  AP_LOTE_CAMPOS.forEach(c => { if (_apLoteEl(c).value.trim()) _apLoteChk(c).checked = true; });
+  apLoteSync();
+}
+window.apLoteAutoTicar = apLoteAutoTicar;
+
+function abrirLoteApostas(tela) {
+  if (window.MODO_PUBLICO) return;   // vitrine pública: nunca escreve (nem via console)
+  const n = _apSelIds(tela).length;
+  if (!n) return;
+  _apLoteTela = tela;
+  document.getElementById('apLoteCount').textContent = n.toLocaleString('pt-BR');
+  AP_LOTE_CAMPOS.forEach(c => { _apLoteEl(c).value = ''; _apLoteChk(c).checked = false; });
+  // Dropdown de tipster/mercado: os mesmos do modal de edição, ligados UMA vez.
+  ['tipster', 'esporte'].forEach(c => {
+    const el = _apLoteEl(c);
+    if (el && !el.dataset.acOn) { el.dataset.acOn = '1'; _acLigar(el, apLoteAutoTicar); }
+  });
+  const mkt = _apLoteEl('aposta');
+  if (mkt && !mkt.dataset.acOn) { mkt.dataset.acOn = '1'; _acLigar(mkt, apLoteAutoTicar, AC_MKT_TODOS); }
+  _acCarregar(); _apMktCarregar();
+  _apLoteErro('');
+  apLoteSync();
+  const ov = document.getElementById('apLoteOverlay');
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  _apLoteEl('data').focus();
+}
+window.abrirLoteApostas = abrirLoteApostas;
+
+function fecharLoteApostas(e) {
+  if (e && e.target !== document.getElementById('apLoteOverlay')) return;
+  // Clique no fundo com algo preenchido sacode em vez de fechar (mesma régua do modal
+  // de edição): o modal reabre do zero e perder o que foi digitado é caro.
+  if (e && _apLoteLigados().length) {
+    const m = document.getElementById('apLoteModal');
+    if (m) { m.classList.remove('modal--shake'); void m.offsetWidth; m.classList.add('modal--shake'); setTimeout(() => m.classList.remove('modal--shake'), 400); }
+    return;
+  }
+  document.getElementById('apLoteOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+  _acSoltar();   // o menu vive no body: fechar sem soltá-lo o deixaria na tela
+}
+window.fecharLoteApostas = fecharLoteApostas;
+function _apLoteErro(msg) {
+  const e = document.getElementById('apLoteErr');
+  if (e) { e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; }
+}
+
+function apEdLoteAbrirCalendario() {
+  const t = _apLoteEl('data');
+  if (!t || !window.SharpenCal) return;
+  SharpenCal.abrir(t, t.value, v => { t.value = v; _apLoteChk('data').checked = true; apLoteSync(); });
+}
+window.apEdLoteAbrirCalendario = apEdLoteAbrirCalendario;
+
+async function apLoteAplicar() {
+  if (window.MODO_PUBLICO) return;
+  const ids = _apSelIds(_apLoteTela);
+  const ligados = _apLoteLigados();
+  if (!ids.length || !ligados.length) return;
+  const campos = {};
+  for (const c of ligados) {
+    const v = _apLoteEl(c).value.trim();
+    if (AP_LOTE_OBRIG[c] && !v) { _apLoteEl(c).focus(); return; }
+    campos[c] = v;      // string vazia = LIMPA; campo ausente = não mexe
+  }
+  const btn = document.getElementById('apLoteOk');
+  const rotulo = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Aplicando…';
+  try {
+    const r = await fetch('/bilhetes/lote', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, ...campos }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.detail || 'Erro ao aplicar a edição.');
+    if (!d.atualizados) throw new Error('Nenhuma aposta foi alterada.');
+    _apSel[_apLoteTela].clear();
+    document.getElementById('apLoteOverlay').style.display = 'none';
+    document.body.style.overflow = ''; _acSoltar();
+    _apAvisoLote(d, ligados);
+    await loadData(false);
+  } catch (err) {
+    _apLoteErro(err.message || 'Erro ao aplicar a edição.');
+  } finally {
+    btn.disabled = false; btn.textContent = rotulo;
+  }
+}
+window.apLoteAplicar = apLoteAplicar;
+
+// Contagem devolvida pela API é DADO, não enfeite. Os dois avisos vêm MEDIDOS do
+// servidor (`flags_pos_edicao_lote`) porque as duas armadilhas são invisíveis daqui —
+// e em lote elas deixam de ser detalhe: são o mesmo defeito vezes N.
+function _apAvisoLote(d, campos) {
+  const n = d.atualizados || 0;
+  const av = [];
+  const ign = (d.ignorados || []).length;
+  if (ign) av.push(`${ign} fora da sua base, ignorada${ign === 1 ? '' : 's'}`);
+  if (d.sem_codigo && campos.indexOf('aposta') >= 0)
+    av.push(`${d.sem_codigo} sem ID de bilhete: recapturar esse dia pode duplicar a linha`);
+  if (d.volatil)
+    av.push(`${d.volatil} em aberto de casa sincronizada: o próximo envio do robô desfaz a data`);
+  // Reusa o MESMO toast do aviso de edicao (`apAviso`) — uma caixa so, no mesmo canto.
+  apAviso(`${n.toLocaleString('pt-BR')} aposta${n === 1 ? '' : 's'} atualizada${n === 1 ? '' : 's'}`
+    + (av.length ? ' — ' + av.join(' · ') : '.'));
 }
 
 // ── Editar / deletar aposta (modal) ─────────────────────────────────────────

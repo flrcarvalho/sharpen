@@ -921,7 +921,10 @@
 /* Grid compartilhado: header e linhas de dado usam o mesmo template */
 .btbl-cols {
   display: grid;
-  grid-template-columns: var(--btbl-grid, 80px minmax(160px,1fr) 108px 114px 168px 92px 68px 80px 108px 72px);
+  /* 1ª coluna = seleção (34px). Grade posicional: o cabeçalho e a linha usam o MESMO
+     template, então toda linha precisa emitir a célula — inclusive vazia na vitrine
+     pública (ver `apSelCel`). */
+  grid-template-columns: var(--btbl-grid, 34px 80px minmax(160px,1fr) 108px 114px 168px 92px 68px 80px 108px 72px);
   gap: 0 12px;
   padding: 0 22px;
   box-sizing: border-box;
@@ -1778,7 +1781,7 @@ select.ap-inline-inp { padding: 2px 4px; }
 .abrt-tbl { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
 .abrt-row {
   display:grid;
-  grid-template-columns:96px minmax(180px,1fr) 104px 116px 168px 88px 66px 98px 60px;
+  grid-template-columns:34px 96px minmax(180px,1fr) 104px 116px 168px 88px 66px 98px 60px;
   gap:0 12px; padding:0 22px; box-sizing:border-box; align-items:center;
 }
 .abrt-hdr {
@@ -1824,7 +1827,7 @@ select.ap-inline-inp { padding: 2px 4px; }
   font-family:var(--font-mono); font-size:10px; color:var(--ink-mute); letter-spacing:.08em;
   text-align:right; padding:8px 22px 6px; text-transform:uppercase; border-bottom:1px solid var(--line);
 }
-@media(max-width:1100px) { .abrt-row { grid-template-columns:88px minmax(150px,1fr) 96px 108px 140px 80px 60px 90px 52px; } }
+@media(max-width:1100px) { .abrt-row { grid-template-columns:30px 88px minmax(150px,1fr) 96px 108px 140px 80px 60px 90px 52px; } }
 
 /* ── Modo público (vitrine de tipster em /tipsters/<slug>) ─────────────────── */
 /* Selo com o nome do tipster sob a logo — assinatura FDC (mono/upper/track). */
@@ -2214,3 +2217,76 @@ select.ap-inline-inp { padding: 2px 4px; }
 .sh-cfm__btn--perigo { background: var(--neg); border-color: var(--neg); color: #fff; }
 .sh-cfm__btn--perigo:hover { filter: brightness(1.08); }
 .sh-cfm__btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+
+/* ── Seleção múltipla + edição em massa (Base Completa e Em Aberto) ──────────
+   Duas telas, um estilo só: as grades diferem, a coluna de seleção e a barra de ações
+   não. Copiar isto para cada tela criaria duas superfícies que divergem no 1º ajuste. */
+.ap-selcel { display: flex; align-items: center; justify-content: center; }
+.ap-selcel input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+/* Caixa de linha não editável (planilha ao vivo / linha de operador): fica visível para
+   a coluna não "piscar" entre linhas, e desabilitada porque o servidor a recusaria.
+   `opacity` aqui é ESTADO (desabilitado), não hierarquia — a exceção que a Escada de
+   Tinta já reconhece. */
+.ap-selcel input:disabled { opacity: .28; cursor: not-allowed; }
+/* Linha marcada: véu de acento, o mesmo da `.row-sel` da Extração. Sem borda colorida —
+   verde/vermelho na linha é semântica de resultado (UI_REFERENCE §1). */
+.btbl-data-row.row-sel, .abrt-linha.row-sel { background: rgba(var(--accent-rgb), .07); }
+
+/* A barra de ações mora DENTRO da linha do contador — uma superfície só. Duas faixas
+   separadas para "quantas há" e "o que fazer com elas" saem do campo de visão uma da
+   outra (item 8 do checklist de UI). */
+.btbl-counter-row {
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.btbl-counter-row .btbl-counter,
+.btbl-counter-row .abrt-conta-count { margin-left: auto; border-bottom: 0; }
+.ap-selbar { display: flex; align-items: center; gap: 8px; padding: 6px 0 6px 22px; }
+.ap-selbar[hidden] { display: none !important; }
+/* Contagem = VALOR numérico → --ink, mono tabular. Sem cor: contagem de apostas não é
+   semântica de resultado e não é dinheiro. */
+.ap-selbar__n {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 13px; color: var(--ink);
+}
+.ap-selbar__l {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.ap-selbar__btn {
+  padding: 5px 11px; border-radius: var(--r-xs);
+  background: transparent; border: 1px solid var(--line); color: var(--ink-soft);
+  font-family: var(--font-sans); font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.ap-selbar__btn:hover { border-color: var(--ink-mute); color: var(--ink); }
+.ap-selbar__btn--acao { border-color: var(--accent); color: var(--accent); }
+.ap-selbar__btn--acao:hover { background: rgba(var(--accent-rgb), .1); color: var(--accent-2); }
+
+/* Modal de edição em massa — só o que ele acrescenta ao `.apedit-*`. */
+.ap-lote-dica {
+  padding: var(--sp-4) var(--sp-6) 0;
+  font-family: var(--font-sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft);
+}
+.ap-lote-dica b { color: var(--ink); font-weight: 600; }
+/* O tique mora dentro do label: clicar no nome do campo liga o campo. */
+.apedit-label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.ap-lote-chk { accent-color: var(--accent); cursor: pointer; margin: 0; flex: none; }
+/* Campo fora do lote fica apagado — mas segue digitável, e digitar liga o tique sozinho.
+   Desabilitar de verdade obrigaria a tiquar ANTES de digitar, a ordem inversa da que a
+   mão faz. `opacity` como ESTADO (ligado/desligado), não como hierarquia. */
+.apedit-field.off > label, .apedit-field.off .apedit-inp { opacity: .5; }
+.ap-lote-aviso {
+  grid-column: 1 / -1;
+  display: flex; gap: 9px; padding: 9px 11px; border-radius: var(--r-sm);
+  background: rgba(var(--warn-rgb), .08); border: 1px solid rgba(var(--warn-rgb), .28);
+  font-family: var(--font-sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft);
+}
+.ap-lote-aviso b { color: var(--ink); font-weight: 600; }
+.ap-lote-aviso__ico { flex: none; color: var(--warn); }
+/* `display:flex` vence o [hidden] da folha do agente: sem isto o aviso nasce visível e
+   vazio. Mesma armadilha já documentada no CLAUDE.md. */
+.ap-lote-aviso[hidden] { display: none !important; }
+.ap-lote-resumo {
+  margin-right: auto; font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft);
+}

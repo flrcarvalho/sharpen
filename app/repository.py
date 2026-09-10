@@ -3494,85 +3494,171 @@ async def _registrar_correcoes(conn, bilhete_id: int, dono: str, antes, safe: di
         logger.exception("registro de correção falhou (não-fatal)")
 
 
-async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
-    _EDITAVEIS = {"data", "esporte", "tipster", "casa", "parceiro",
-                  "aposta", "descricao", "stake", "odd", "resultado"}
-    safe = {k: v for k, v in campos.items() if k in _EDITAVEIS}
-    if not safe:
-        return False
-    # Canoniza o resultado para maiúscula ANTES de gravar e de derivar o estado: digitar
-    # 'v' precisa virar 'V' no banco, senão fica 'aberta' e conta como "aguardando resultado".
+_EDITAVEIS_BILHETE = frozenset({"data", "esporte", "tipster", "casa", "parceiro",
+                                "aposta", "descricao", "stake", "odd", "resultado"})
+
+
+def _campos_editaveis(campos: dict) -> dict:
+    """Filtra o patch e canoniza o `resultado` para maiúscula ANTES de gravar e de derivar
+    o estado: digitar 'v' precisa virar 'V' no banco, senão fica 'aberta' e conta como
+    "aguardando resultado" (ver `estado_extracao`)."""
+    safe = {k: v for k, v in campos.items() if k in _EDITAVEIS_BILHETE}
     if "resultado" in safe:
         safe["resultado"] = (safe["resultado"] or "").strip().upper()
+    return safe
+
+
+async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
+    safe = _campos_editaveis(campos)
+    if not safe:
+        return False
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # snapshot ANTES do update: registra a correção (rótulo→antigo→novo) E fornece
-        # resultado/odd atuais p/ recomputar o estado quando só um dos dois é editado.
-        # Defensivo: se o snapshot falhar, a edição segue normalmente.
-        antes = None
-        try:
-            antes = await conn.fetchrow(
-                "SELECT * FROM bilhetes WHERE id = $1 AND dono = $2", bilhete_id, dono)
-        except Exception:
-            logger.exception("snapshot p/ correção falhou (não-fatal)")
-        sets, params = [], []
-        for col, val in safe.items():
-            params.append(val)
-            sets.append(f"{col} = ${len(params)}")
-        # Recalcula extraction_state quando resultado OU odd muda, com o valor FINAL de
-        # cada um (novo se editado, senão o já gravado). Assim completar a odd de uma
-        # aposta 'aberta' (sem odd) promove p/ 'resolvida'; apagar a odd rebaixa.
-        if ("resultado" in safe or "odd" in safe) and antes is not None:
-            res_final = safe.get("resultado", antes["resultado"])
-            odd_final = safe.get("odd", antes["odd"])
-            params.append(estado_extracao(res_final, odd_final))
-            sets.append(f"extraction_state = ${len(params)}")
-        elif "resultado" in safe:  # snapshot falhou: regra antiga (só resultado)
-            params.append("resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta")
-            sets.append(f"extraction_state = ${len(params)}")
-
-        # Procedência do rótulo de tipster (Fase 0): grava origem_tipster quando o tipster
-        # muda. Sem origem declarada → 'humano' (só o botão de sugestão manda 'sugerido').
-        # Tipster limpo (vazio) → NULL. origem_tipster ∉ _SIG_COLS → não mexe na assinatura.
-        if "tipster" in safe:
-            _tip = (safe["tipster"] or "").strip()
-            params.append((campos.get("origem_tipster") or "humano") if _tip else None)
-            sets.append(f"origem_tipster = ${len(params)}")
-
-        # Ponto de retorno SEM assinatura: fallback se a corrida abaixo estourar a unique.
-        sets_base, params_base = list(sets), list(params)
-
-        # Recalcula a assinatura quando a edição toca o hash — senão a linha fica com a
-        # assinatura velha e uma re-extração do mesmo bilhete duplica.
-        if antes is not None and not _SIG_COLS.isdisjoint(safe):
-            nova_sig = await _assinatura_pos_edicao(conn, antes, safe, dono, bilhete_id)
-            if nova_sig:
-                params.append(nova_sig)
-                sets.append(f"assinatura = ${len(params)}")
-
-        async def _exec(sets_: list, params_: list) -> str:
-            p = list(params_)
-            p.append(bilhete_id)
-            id_ph = len(p)
-            p.append(dono)
-            return await conn.execute(
-                f"UPDATE bilhetes SET {', '.join(sets_)}, atualizado_em = NOW() "
-                f"WHERE id = ${id_ph} AND dono = ${len(p)}", *p)
-
-        try:
-            result = await _exec(sets, params)
-        except asyncpg.UniqueViolationError:
-            # Corrida: alguém ocupou a assinatura entre a checagem e o UPDATE. A edição do
-            # usuário não pode falhar por isso — regrava sem tocar na assinatura.
-            logger.warning("assinatura pós-edição colidiu em corrida no bilhete %s; "
-                           "edição aplicada mantendo a assinatura atual", bilhete_id)
-            result = await _exec(sets_base, params_base)
-        ok = result.split()[-1] == "1"
-        if ok and antes is not None:
-            await _registrar_correcoes(conn, bilhete_id, dono, antes, safe)
+        ok = await _atualizar_bilhete_conn(conn, bilhete_id, campos, safe, dono)
     # Cadastro automático: editar o tipster de um bilhete faz o tipster existir na base.
     if ok and safe.get("tipster"):
         await garantir_tipster(dono, safe["tipster"])
+    return ok
+
+
+async def atualizar_bilhetes_lote(ids: list[int], campos: dict, dono: str) -> dict:
+    """Aplica o MESMO patch a várias apostas de uma vez (edição em massa).
+
+    Chama o mesmo miolo do `atualizar_bilhete`, um id por vez, numa conexão só. Não é
+    um `UPDATE ... WHERE id = ANY(...)` de propósito: o UPDATE cru pularia o recálculo da
+    ASSINATURA (`casa`, `parceiro`, `data` e `aposta` estão em `_SIG_COLS`), o
+    `extraction_state`, o `origem_tipster` e o registro em `correcoes`. Assinatura velha
+    não dá erro — só faz a próxima captura da casa não deduplicar e **duplicar o histórico
+    inteiro** (s198/s312). Um lote de 300 linhas com a assinatura errada é 300 vezes o
+    mesmo defeito.
+
+    Aplicação é POR LINHA, sem transação envolvendo o lote todo, e a resposta diz quantas
+    entraram e quais ficaram de fora — mesma régua do `/salvar`, que grava as boas e
+    devolve as recusadas em `rejeitados`. Tudo-ou-nada aqui trocaria 297 edições boas por
+    zero por causa de 3 ids que não são deste dono. Quem chama TEM de ler a contagem: essa
+    é a metade que o CLAUDE.md cobra de quem escreve na planilha.
+    """
+    safe = _campos_editaveis(campos)
+    if not ids or not safe:
+        return {"atualizados": 0, "ignorados": list(ids or []), "total": len(ids or [])}
+    ignorados: list[int] = []
+    n = 0
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        for bid in ids:
+            if await _atualizar_bilhete_conn(conn, bid, campos, safe, dono):
+                n += 1
+            else:
+                # Linha inexistente ou de outro dono. Não é erro do lote — é escopo.
+                ignorados.append(bid)
+    if n and safe.get("tipster"):
+        await garantir_tipster(dono, safe["tipster"])
+    return {"atualizados": n, "ignorados": ignorados, "total": len(ids)}
+
+
+async def flags_pos_edicao_lote(ids: list[int], dono: str, campos: set[str]) -> dict:
+    """Irmão em lote do `flags_pos_edicao`: em vez de dois booleanos, duas CONTAGENS.
+
+    Um aviso que diz "algumas podem ser desfeitas" sem dizer quantas vira caça manual numa
+    seleção de 300 linhas. Uma consulta só, e apenas quando os campos editados interessam.
+    """
+    quer_codigo = "aposta" in campos
+    quer_volatil = bool(_CAMPOS_VOLATEIS & campos)
+    if not ids or not (quer_codigo or quer_volatil):
+        return {}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT
+                   COUNT(*) FILTER (
+                       WHERE COALESCE(TRIM(codigo_bilhete), '') = '') AS sem_codigo,
+                   COUNT(*) FILTER (
+                       WHERE extraction_state = 'aberta'
+                         AND COALESCE(origem, '') <> 'manual')        AS volatil
+               FROM bilhetes WHERE dono = $1 AND id = ANY($2::int[])""",
+            dono, ids,
+        )
+    out: dict = {}
+    if quer_codigo:
+        out["sem_codigo"] = int(row["sem_codigo"] or 0)
+    if quer_volatil:
+        out["volatil"] = int(row["volatil"] or 0)
+    return out
+
+
+async def _atualizar_bilhete_conn(conn, bilhete_id: int, campos: dict,
+                                  safe: dict, dono: str) -> bool:
+    """O miolo da edição de UM bilhete, sobre uma conexão já aberta.
+
+    Existe separado só para o lote poder reusá-lo sem abrir N conexões — e para haver UMA
+    implementação da regra, não duas. `safe` já vem filtrado/canonizado
+    (`_campos_editaveis`); `campos` cru segue junto porque `origem_tipster` não é campo
+    editável de bilhete e é lido de lá.
+    """
+    # snapshot ANTES do update: registra a correção (rótulo→antigo→novo) E fornece
+    # resultado/odd atuais p/ recomputar o estado quando só um dos dois é editado.
+    # Defensivo: se o snapshot falhar, a edição segue normalmente.
+    antes = None
+    try:
+        antes = await conn.fetchrow(
+            "SELECT * FROM bilhetes WHERE id = $1 AND dono = $2", bilhete_id, dono)
+    except Exception:
+        logger.exception("snapshot p/ correção falhou (não-fatal)")
+    sets, params = [], []
+    for col, val in safe.items():
+        params.append(val)
+        sets.append(f"{col} = ${len(params)}")
+    # Recalcula extraction_state quando resultado OU odd muda, com o valor FINAL de
+    # cada um (novo se editado, senão o já gravado). Assim completar a odd de uma
+    # aposta 'aberta' (sem odd) promove p/ 'resolvida'; apagar a odd rebaixa.
+    if ("resultado" in safe or "odd" in safe) and antes is not None:
+        res_final = safe.get("resultado", antes["resultado"])
+        odd_final = safe.get("odd", antes["odd"])
+        params.append(estado_extracao(res_final, odd_final))
+        sets.append(f"extraction_state = ${len(params)}")
+    elif "resultado" in safe:  # snapshot falhou: regra antiga (só resultado)
+        params.append("resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta")
+        sets.append(f"extraction_state = ${len(params)}")
+
+    # Procedência do rótulo de tipster (Fase 0): grava origem_tipster quando o tipster
+    # muda. Sem origem declarada → 'humano' (só o botão de sugestão manda 'sugerido').
+    # Tipster limpo (vazio) → NULL. origem_tipster ∉ _SIG_COLS → não mexe na assinatura.
+    if "tipster" in safe:
+        _tip = (safe["tipster"] or "").strip()
+        params.append((campos.get("origem_tipster") or "humano") if _tip else None)
+        sets.append(f"origem_tipster = ${len(params)}")
+
+    # Ponto de retorno SEM assinatura: fallback se a corrida abaixo estourar a unique.
+    sets_base, params_base = list(sets), list(params)
+
+    # Recalcula a assinatura quando a edição toca o hash — senão a linha fica com a
+    # assinatura velha e uma re-extração do mesmo bilhete duplica.
+    if antes is not None and not _SIG_COLS.isdisjoint(safe):
+        nova_sig = await _assinatura_pos_edicao(conn, antes, safe, dono, bilhete_id)
+        if nova_sig:
+            params.append(nova_sig)
+            sets.append(f"assinatura = ${len(params)}")
+
+    async def _exec(sets_: list, params_: list) -> str:
+        p = list(params_)
+        p.append(bilhete_id)
+        id_ph = len(p)
+        p.append(dono)
+        return await conn.execute(
+            f"UPDATE bilhetes SET {', '.join(sets_)}, atualizado_em = NOW() "
+            f"WHERE id = ${id_ph} AND dono = ${len(p)}", *p)
+
+    try:
+        result = await _exec(sets, params)
+    except asyncpg.UniqueViolationError:
+        # Corrida: alguém ocupou a assinatura entre a checagem e o UPDATE. A edição do
+        # usuário não pode falhar por isso — regrava sem tocar na assinatura.
+        logger.warning("assinatura pós-edição colidiu em corrida no bilhete %s; "
+                       "edição aplicada mantendo a assinatura atual", bilhete_id)
+        result = await _exec(sets_base, params_base)
+    ok = result.split()[-1] == "1"
+    if ok and antes is not None:
+        await _registrar_correcoes(conn, bilhete_id, dono, antes, safe)
     return ok
 
 

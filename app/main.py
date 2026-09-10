@@ -66,6 +66,7 @@ from repository import (
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
+    flags_pos_edicao, flags_pos_edicao_lote, atualizar_bilhetes_lote,
     flags_pos_edicao, limpar_ativos_tipster, list_bilhetes, list_esportes,
     list_mercados, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
@@ -3822,6 +3823,58 @@ async def informar_tipster_lote(body: TipsterLoteRequest, dono: str = Depends(do
         raise HTTPException(400, "Informe o tipster.")
     atualizados = await set_tipster_bulk(body.ids, tip, dono)
     return {"atualizados": atualizados}
+
+
+class EditarLoteRequest(BaseModel):
+    ids: list[int]
+    # Só os campos que fazem sentido aplicar IGUAIS a N apostas. Stake, odd e descrição
+    # ficam de fora de propósito: o mesmo valor em N linhas é quase sempre erro, e em
+    # linha ainda aberta de casa sincronizada o próximo envio do robô desfaz sem aviso
+    # (`_CAMPOS_VOLATEIS`). Editar esses três segue sendo linha a linha, no modal.
+    data: Optional[str] = None
+    esporte: Optional[str] = None
+    tipster: Optional[str] = None
+    casa: Optional[str] = None
+    parceiro: Optional[str] = None
+    aposta: Optional[str] = None
+    resultado: Optional[str] = None
+
+
+# Edição de dado existente → dono EFETIVO (mesma regra do PATCH single e do
+# /bilhetes/tipster, que este generaliza): atua sobre as apostas que estão na tela.
+@app.post("/bilhetes/lote")
+async def editar_bilhetes_lote(body: EditarLoteRequest, dono: str = Depends(dono_efetivo)):
+    """Aplica o mesmo patch a várias apostas. Generaliza o `/bilhetes/tipster`, que só
+    sabia um campo.
+
+    `None` = não mexe; string vazia = LIMPA o campo. Os dois casos são distintos e o
+    cliente precisa dos dois — "não mexer no tipster" e "apagar o tipster" não podem ser
+    a mesma coisa. Por isso o front marca campo a campo o que entra no patch, em vez de
+    inferir por "está vazio".
+
+    Devolve `atualizados` e `ignorados` (ids que não são deste dono ou não existem mais):
+    contagem devolvida pela API é dado, não enfeite — quem chama tem de lê-la antes de
+    dizer ao usuário que planilhou.
+    """
+    if not body.ids:
+        raise HTTPException(400, "Nenhuma aposta selecionada.")
+    campos = {k: v for k, v in body.model_dump(exclude={"ids"}).items() if v is not None}
+    if not campos:
+        raise HTTPException(400, "Nenhum campo para alterar.")
+    # `resultado_valido` já aceita vazio (= aposta aberta), que aqui significa LIMPAR.
+    if "resultado" in campos and not resultado_valido(campos["resultado"]):
+        raise HTTPException(400, f"Resultado inválido: {campos['resultado']}")
+    res = await atualizar_bilhetes_lote(body.ids, campos, dono)
+    # Rótulo HUMANO de tipster é treino novo para o matcher — e em lote é MUITO treino de
+    # uma vez. Derruba o modelo em cache para a próxima extração já aprender da correção.
+    if res["atualizados"] and "tipster" in campos:
+        matcher.invalidar(dono)
+    # Os dois avisos que só o banco sabe, agora como CONTAGEM (ver flags_pos_edicao_lote):
+    # mercado trocado em bilhete sem código duplica na próxima captura; data editada em
+    # aposta ainda ABERTA de fonte automática é desfeita pelo próximo envio do robô.
+    # Em lote os dois deixam de ser detalhe: são o resultado esperado vezes N.
+    avisos = await flags_pos_edicao_lote(body.ids, dono, set(campos))
+    return {**res, **avisos}
 
 
 @app.get("/tipsters")

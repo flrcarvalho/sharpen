@@ -498,6 +498,14 @@ def tipsters_cadastro(arquivados: bool = False):
     return {"tipsters": CADASTRO_TIPSTERS}
 
 
+@app.post("/bilhetes/lote")
+def bilhetes_lote_demo(body: dict = None):
+    """Espelha `main.editar_bilhetes_lote`. Demo nao escreve: devolve o FORMATO da
+    resposta (contagem + avisos) para o front seguir o fluxo inteiro na captura."""
+    ids = (body or {}).get("ids") or []
+    return {"atualizados": len(ids), "ignorados": [], "total": len(ids)}
+
+
 @app.get("/tipsters/{tipster_id}/resumo")
 def tipster_resumo_demo(tipster_id: int):
     """Espelha `main.resumo_tipster_route`: o que o rename vai tocar, contado na base.

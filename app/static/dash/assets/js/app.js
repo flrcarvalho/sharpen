@@ -414,8 +414,11 @@ function addColResizer(th,tableId,colIdx){
 // A largura de cada coluna fica numa CSS var (--btbl-grid) no .btbl-wrap; como o
 // header e as linhas virtuais compartilham .btbl-cols, todas seguem a var sozinhas.
 // 'flex' = coluna Aposta/Evento (minmax 1fr) — absorve o resto, sem alça própria.
-const BTBL_W_DEFAULT=[80,'flex',108,114,168,92,68,80,108,72];
-const BTBL_W_KEY='btbl_colw_v2';   // v2: +coluna Ações (10 col) — v1 (9 col) cai no default pelo length-check
+const BTBL_W_DEFAULT=[34,80,'flex',108,114,168,92,68,80,108,72];
+// v3: +coluna de SELEÇÃO na frente (11 col). O length-check faz a largura salva de v2
+// (10 col) cair no default sozinha — sem o bump, as larguras antigas entrariam
+// deslocadas em uma coluna e a grade inteira sairia do lugar, sem erro nenhum.
+const BTBL_W_KEY='btbl_colw_v3';
 let btblColW=BTBL_W_DEFAULT.slice();
 function _btblGridStr(){return btblColW.map(w=>w==='flex'?'minmax(160px,1fr)':w+'px').join(' ');}
 function _btblApplyGrid(){const wrap=document.querySelector('.btbl-wrap');if(wrap)wrap.style.setProperty('--btbl-grid',_btblGridStr());}
@@ -666,6 +669,9 @@ function buildHTML(){
         <div class="btbl-wrap">
           <!-- Header fixo da tabela -->
           <div class="btbl-cols btbl-hdr-row">
+            <!-- Coluna de seleção. Sem alça de resize (largura fixa em BTBL_W_DEFAULT) e
+                 sem sort: não é dado, é controle. -->
+            <div class="btbl-th ap-selcel"><input type="checkbox" id="apSelAll" title="Selecionar todas as editáveis do recorte" onchange="apSelTodos('apostas',this.checked)"></div>
             <div class="btbl-th sortable" data-col="0" onclick="apostasSort(0)">Data <span class="sort-arrow">↓</span></div>
             <div class="btbl-th sortable" data-col="5" onclick="apostasSort(5)" title="Ordena pelo mercado (a linha azul), não pela descrição">Aposta / Evento <span class="sort-arrow">↕</span></div>
             <div class="btbl-th sortable" data-col="1" onclick="apostasSort(1)">Esporte <span class="sort-arrow">↕</span></div>
@@ -677,8 +683,12 @@ function buildHTML(){
             <div class="btbl-th sortable" data-col="10" onclick="apostasSort(10)" style="text-align:right">P/L <span class="sort-arrow">↕</span></div>
             <div class="btbl-th" style="text-align:center">Ações</div>
           </div>
-          <!-- Contador -->
-          <div id="apostasCounter" class="btbl-counter"></div>
+          <!-- Contador + ações do lote. Uma linha só: contador e ação em faixas
+               separadas viram duas superfícies que divergem no primeiro ajuste. -->
+          <div class="btbl-counter-row">
+            <div class="ap-selbar" id="apSelBar" hidden></div>
+            <div id="apostasCounter" class="btbl-counter"></div>
+          </div>
           <!-- Linhas virtualizadas -->
           <div id="apostasCont" style="height:calc(100vh - 440px);overflow-y:auto">
             <div id="apostasCardWrap"></div>
@@ -698,8 +708,8 @@ function buildHTML(){
           ${mkCard('abrt_tipsters','Exposição por tipster','<div id="abertasTipsters"></div>')}
         </div>
         ${mkCard('abrt_lista','Apostas em aberto','<div class="abrt-tbl" style="margin-top:.5rem">'+
-          '<div class="abrt-row abrt-hdr"><div>Data do evento</div><div>Aposta / Evento</div><div>Esporte</div><div>Tipster</div><div>Casa · Parceiro</div><div style="text-align:right">Stake</div><div style="text-align:right">Odd</div><div style="text-align:right">Retorno</div><div style="text-align:center">Ações</div></div>'+
-          '<div id="abertasContagem" class="abrt-conta-count"></div>'+
+          '<div class="abrt-row abrt-hdr"><div class="ap-selcel"><input type="checkbox" id="abrtSelAll" title="Selecionar todas as editáveis do recorte" onchange="apSelTodos(&quot;abertas&quot;,this.checked)"></div><div>Data do evento</div><div>Aposta / Evento</div><div>Esporte</div><div>Tipster</div><div>Casa · Parceiro</div><div style="text-align:right">Stake</div><div style="text-align:right">Odd</div><div style="text-align:right">Retorno</div><div style="text-align:center">Ações</div></div>'+
+          '<div class="btbl-counter-row"><div class="ap-selbar" id="abrtSelBar" hidden></div><div id="abertasContagem" class="abrt-conta-count"></div></div>'+
           '<div id="abertasLista" style="max-height:calc(100vh - 320px);overflow-y:auto"></div>'+
         '</div>','<span style="margin-left:auto;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">quem liquida primeiro no topo</span>')}
       </div>
@@ -1027,6 +1037,73 @@ function buildHTML(){
         </div>
       </div>
     </div>
+
+    <!-- Editar em massa (Base Completa e Em Aberto). MESMA casca do modal acima e os
+         MESMOS .apedit-*: é a mesma superfície num modo diferente, não um segundo
+         estilo para o mesmo papel. O que muda é o tique por campo, que separa NÃO
+         MEXER de LIMPAR — distinção que "campo vazio" sozinho não faz e que o backend
+         precisa ter (campo ausente × string vazia).
+         Stake, odd e descrição não entram: o mesmo valor em N apostas é quase sempre
+         erro. Esses três seguem no ✎, linha a linha. -->
+    <div class="analise-popup-overlay" id="apLoteOverlay" onclick="fecharLoteApostas(event)">
+      <div class="analise-popup-modal" id="apLoteModal" style="max-width:620px" onclick="event.stopPropagation()">
+        <div class="analise-popup-hdr" style="align-items:center">
+          <div style="flex-shrink:0;display:flex;flex-direction:column;gap:2px">
+            <span style="font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft)">EDITAR EM MASSA</span>
+            <span style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--ink);font-family:var(--font-sans);line-height:1.1"><span id="apLoteCount">0</span> apostas</span>
+          </div>
+          <div style="flex:1"></div>
+          <button onclick="fecharLoteApostas()" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--fdc-steel);border:1px solid var(--line);color:var(--ink-soft);border-radius:8px;cursor:pointer;font-size:15px;flex-shrink:0" title="Fechar">✕</button>
+        </div>
+        <div class="ap-lote-dica">Tique o que quer mudar. O que ficar sem tique não é tocado; tique ligado com o campo vazio <b>apaga</b> o valor.</div>
+        <div style="padding:var(--sp-4) var(--sp-6) var(--sp-5);display:grid;grid-template-columns:1fr 1fr;gap:12px 14px" oninput="apLoteAutoTicar()">
+          <div class="apedit-field" data-campo="data">
+            <label class="apedit-label"><input type="checkbox" class="ap-lote-chk" id="ap-lote-chk-data" onchange="apLoteSync()">Data</label>
+            <div class="shcal-datewrap"><input class="apedit-inp" id="ap-lote-data" type="text" placeholder="DD/MM/AAAA" spellcheck="false" autocomplete="off"><button type="button" class="shcal-databtn" title="Abrir calendário" aria-label="Abrir calendário" onclick="apEdLoteAbrirCalendario()"><svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button></div>
+          </div>
+          <div class="apedit-field" data-campo="resultado">
+            <label class="apedit-label"><input type="checkbox" class="ap-lote-chk" id="ap-lote-chk-resultado" onchange="apLoteSync()">Resultado</label>
+            <select class="apedit-inp" id="ap-lote-resultado" onchange="apLoteSync()">
+              <option value="">— aberta (limpa o resultado) —</option>
+              <option value="W">W · Green</option>
+              <option value="L">L · Red</option>
+              <option value="V">V · Void</option>
+              <option value="HW">HW · Meio green</option>
+              <option value="HL">HL · Meio red</option>
+            </select>
+          </div>
+          <div class="apedit-field" data-campo="tipster">
+            <label class="apedit-label"><input type="checkbox" class="ap-lote-chk" id="ap-lote-chk-tipster" onchange="apLoteSync()">Tipster</label>
+            <input class="apedit-inp" id="ap-lote-tipster" type="text" spellcheck="false" autocomplete="off" placeholder="Digite ou escolha…">
+          </div>
+          <div class="apedit-field" data-campo="esporte">
+            <label class="apedit-label"><input type="checkbox" class="ap-lote-chk" id="ap-lote-chk-esporte" onchange="apLoteSync()">Esporte</label>
+            <input class="apedit-inp" id="ap-lote-esporte" type="text" spellcheck="false" autocomplete="off" placeholder="Digite ou escolha…">
+          </div>
+          <div class="apedit-field" data-campo="casa">
+            <label class="apedit-label"><input type="checkbox" class="ap-lote-chk" id="ap-lote-chk-casa" onchange="apLoteSync()">Casa</label>
+            <input class="apedit-inp" id="ap-lote-casa" type="text" spellcheck="false" autocomplete="off" placeholder="Nome da casa">
+          </div>
+          <div class="apedit-field" data-campo="parceiro">
+            <label class="apedit-label"><input type="checkbox" class="ap-lote-chk" id="ap-lote-chk-parceiro" onchange="apLoteSync()">Parceiro</label>
+            <input class="apedit-inp" id="ap-lote-parceiro" type="text" spellcheck="false" autocomplete="off" placeholder="Nome da conta">
+          </div>
+          <div class="apedit-field" data-campo="aposta" style="grid-column:1/-1">
+            <label class="apedit-label"><input type="checkbox" class="ap-lote-chk" id="ap-lote-chk-aposta" onchange="apLoteSync()">Aposta / Tipo</label>
+            <input class="apedit-inp" id="ap-lote-aposta" type="text" spellcheck="false" autocomplete="off" placeholder="Digite ou escolha…">
+          </div>
+          <div class="ap-lote-aviso" id="apLoteAvisoData" hidden><span class="ap-lote-aviso__ico">⚠</span><span>Aposta ainda <b>em aberto</b> de casa sincronizada tem a data <b>reescrita pelo próximo envio do robô</b>. Em linha já resolvida a edição fica.</span></div>
+          <div class="ap-lote-aviso" id="apLoteAvisoCasa" hidden><span class="ap-lote-aviso__ico">⚠</span><span>Casa e parceiro entram na <b>assinatura</b> do bilhete. Mudar aqui <b>move as apostas de conta</b>.</span></div>
+          <div class="ap-lote-aviso" id="apLoteAvisoAposta" hidden><span class="ap-lote-aviso__ico">⚠</span><span>O mercado entra na assinatura de bilhete <b>sem código visível</b>. Nessas casas, recapturar o mesmo dia depois disto pode <b>duplicar a linha</b>.</span></div>
+        </div>
+        <div id="apLoteErr" style="display:none;margin:0 var(--sp-6) 4px;color:var(--neg);font-size:12px;font-family:var(--font-sans)"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:var(--sp-4) var(--sp-6);border-top:1px solid var(--line)">
+          <span class="ap-lote-resumo" id="apLoteResumo">Nada selecionado para mudar</span>
+          <button class="apedit-btn-ghost" onclick="fecharLoteApostas()">Cancelar</button>
+          <button class="apedit-btn-primary" id="apLoteOk" onclick="apLoteAplicar()" disabled>Aplicar</button>
+        </div>
+      </div>
+    </div>
   </div>`;
 
   // Modo público: poda a casca DEPOIS do innerHTML (cirurgia por remoção — o
@@ -1057,6 +1134,9 @@ function buildHTML(){
     document.querySelector('#page-casas .tm-wrap')?.remove();   // atribuição por casa (curadoria privada)
     document.querySelector('#page-apostas a[href="/exportar.csv"]')?.remove(); // download da base
     document.getElementById('apEditOverlay')?.remove();                        // modal de edição
+    document.getElementById('apLoteOverlay')?.remove();                        // modal de edição em massa
+    document.getElementById('apSelAll')?.remove();                             // "selecionar todas"
+    document.getElementById('abrtSelAll')?.remove();
     document.querySelector('#page-tipsters .tip-unit-row')?.remove();          // switch R$⇄u (já é u)
     const brand=document.querySelector('.sidebar-brand');
     if(brand&&PUBLICO.nome)brand.insertAdjacentHTML('afterend',

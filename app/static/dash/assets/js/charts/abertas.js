@@ -260,7 +260,11 @@ function _abrtLista(rows) {
       ? `${rows.length.toLocaleString('pt-BR')} ${rows.length === 1 ? 'aposta' : 'apostas'} · ${fmtR(st)} em jogo`
       : 'nenhuma aposta em aberto';
   }
-  if (!rows.length) { host.innerHTML = mkEmpty('Nenhuma aposta em aberto no filtro'); return; }
+  // A seleção em massa opera sobre o RECORTE que está na tela, nunca sobre a base
+  // inteira — o filtro escondeu o resto de propósito. `_abrtUltimas` vive em apostas.js,
+  // junto do motor compartilhado pelas duas telas.
+  _abrtUltimas = rows;
+  if (!rows.length) { host.innerHTML = mkEmpty('Nenhuma aposta em aberto no filtro'); apSelBarra('abertas'); return; }
   const ord = rows.slice().sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : b.stake - a.stake));
   host.innerHTML = ord.map(r => {
     const q = _abrtQuando(r.data);
@@ -275,7 +279,8 @@ function _abrtLista(rows) {
     // e Resultado (não existe como coluna nesta tela; liquidar segue pelo ✎).
     const df = f => editavel ? ` data-field="${f}"` : '';
     const ec = editavel ? ' ap-edit' : '';
-    return `<div class="abrt-row abrt-linha"${r.id != null ? ` data-id="${r.id}"` : ''}>` +
+    return `<div class="abrt-row abrt-linha${_apSel.abertas.has(r.id) ? ' row-sel' : ''}"${r.id != null ? ` data-id="${r.id}"` : ''}>` +
+      apSelCel('abertas', r) +
       `<div class="abrt-quando${ec}"${df('data')}><span class="dia">${_abrtBR(r.data)}</span><span class="rel ${q.cls}">${q.txt}</span></div>` +
       `<div>${r.aposta ? `<div class="abrt-tipo${ec}"${df('aposta')}>${esc(r.aposta)}</div>` : ''}` +
         `<div class="abrt-desc${ec}"${df('descricao')} title="${esc(r.descricao || r.aposta || '')}">${esc(r.descricao || r.aposta || '—')}</div></div>` +
@@ -293,4 +298,5 @@ function _abrtLista(rows) {
         : `<span class="act-btn off" title="Linha da planilha ao vivo ou de um operador — edite na origem">✎</span>`)}</div>` +
     `</div>`;
   }).join('');
+  apSelBarra('abertas');
 }
