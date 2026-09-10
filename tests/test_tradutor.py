@@ -114,6 +114,17 @@ Seleções:
 # ── Tradução ──────────────────────────────────────────────────────────────────
 
 
+SIMPLES_TOTAL_GOLS_PARTIDA = """
+Data (encerramento): 05/09/2026
+Stake: 99,00
+Status: em aberto (aguardando resultado)
+Odd: 1,8
+Esporte (casa): CL=1 (Futebol)
+Seleções:
+  • Auckland United (F) x Fencibles United (F) · Gols + - · Mais de 4.0,4.5 @ 1,8 · NZL
+"""
+
+
 def test_ml_simples():
     t = tradutor.traduzir("BET365", SIMPLES_ML)
     assert t.ok, t.motivo
@@ -147,8 +158,12 @@ def test_handicap_ao_vivo_descarta_o_placar():
     t = tradutor.traduzir("BET365", HANDICAP_AO_VIVO)
     assert t.ok, t.motivo
     assert t.aposta == "Handicap", "`Ao-Vivo - ` é qualificador, não muda a categoria"
+    # `-0.5,-1.0` é handicap asiático PARTIDO, e vira o quarto de linha `-0.75`
+    # (`MASTER_DESCRICAO §10.1.1`, s336). **Esta linha do teste mudou junto com a regra.**
+    # Este bloco é a prova de que o caso com SINAL não é hipotético: ele é uma captura
+    # real, e há 3 dele em 15.907 blocos da sombra.
     assert t.descricao == (
-        "Independiente Rivadavia -0.5,-1.0 [Aldosivi v Independiente Rivadavia]")
+        "Independiente Rivadavia -0.75 [Aldosivi v Independiente Rivadavia]")
 
 
 def test_handicap_de_sets_leva_a_unidade():
@@ -255,9 +270,13 @@ def test_multipla_traduz_quando_todos_os_rotulos_sao_conhecidos():
         assert t.ok, t.motivo
         assert t.esporte == "Múltiplos"
         assert t.aposta == "Múltipla"
+        # A 2ª perna vem do bloco como `Mais de 2.0,2.5` e sai como `Over 2.25`:
+        # `MASTER_DESCRICAO §10.1.1`, fechado na s336. **Esta linha do teste mudou junto
+        # com a regra** — antes ela cobrava `Over 2.0,2.5 Gols`. Motivo medido: a Bet365
+        # é a única casa que manda as duas linhas; as outras 21 já mandam `2,25`.
         assert t.descricao == (
             "Over 154.5 Pontos [Paulistano v Osasco] // "
-            "Over 2.0,2.5 Gols [Herediano v Antigua GFC] // "
+            "Over 2.25 Gols [Herediano v Antigua GFC] // "
             "Over 2.5 Gols [Alajuelense v Plaza Amador]")
         assert t.odd == "3,2194444444444446"
     finally:
@@ -429,3 +448,42 @@ def test_mutacao_remover_escanteios_derruba_o_sufixo_opcoes():
         tradutor._MERCADOS_BET365.clear()
         tradutor._MERCADOS_BET365.update(original)
     assert tradutor.traduzir("BET365", ESCANTEIOS_2_OPCOES).ok
+
+
+# ── Linha asiática: o quarto de linha (MASTER_DESCRICAO §10.1.1, s336) ───────
+
+
+def test_quarto_de_linha_nos_quatro_separadores():
+    """A casa escreve o par de quatro jeitos, e a vírgula acumula os papéis de decimal
+    e de separador. Um padrão só leria `1,5` sozinho como um par."""
+    q = tradutor._quarto_de_linha
+    assert q("Mais de 2.0,2.5") == "Mais de 2.25"
+    assert q("Menos de 2,5/3,0") == "Menos de 2.75"
+    assert q("Mais de 3.5-4.0") == "Mais de 3.75"
+    assert q("Time -0.5,-1.0") == "Time -0.75", "handicap partido com sinal (3 na base)"
+
+
+def test_quarto_de_linha_nao_toca_no_que_nao_e_par():
+    """O que NÃO pode mexer é o que faz a função ser segura no caminho quente."""
+    for intocado in ("Mais de 2.5", "Danny van Trijp -1.5", "Set 1-0", "odd 1,5"):
+        assert tradutor._quarto_de_linha(intocado) == intocado
+
+
+def test_mutacao_sem_a_conversao_a_descricao_sai_fora_do_MASTER():
+    """Prova por mutação, e ela fecha o ciclo com o gate: desligando a conversão, a
+    descrição que o tradutor produz passa a ser REPROVADA pelo `checar_descricao` com
+    `linha-partida-nao-convertida`. Verde aqui com a conversão desligada significaria
+    que a decisão da s336 não está sendo sustentada por código nenhum."""
+    import descricao_check
+    original = tradutor._quarto_de_linha
+    try:
+        tradutor._quarto_de_linha = lambda t: t
+        t = tradutor.traduzir("BET365", SIMPLES_TOTAL_GOLS_PARTIDA)
+        assert t.ok, t.motivo
+        regras = [p[1] for p in descricao_check.checar_descricao("Gols", t.descricao)]
+        assert "linha-partida-nao-convertida" in regras
+    finally:
+        tradutor._quarto_de_linha = original
+    t = tradutor.traduzir("BET365", SIMPLES_TOTAL_GOLS_PARTIDA)
+    assert descricao_check.checar_descricao("Gols", t.descricao) == []
+    assert "Over 4.25 Gols" in t.descricao

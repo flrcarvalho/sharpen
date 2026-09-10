@@ -40,6 +40,10 @@ _RE_SEP_ERRADO = re.compile(r"\s(vs|x|@|-)\s", re.IGNORECASE)
 _RE_OU_PT = re.compile(r"\b(mais de|menos de|acima de|abaixo de)\b", re.IGNORECASE)
 # Conteúdo proibido (§17): dinheiro, data, hora.
 _RE_DINHEIRO = re.compile(r"R\$|\bUS\$", re.IGNORECASE)
+# §10.1.1 e §10.1, fechados na s336. Na DESCRIÇÃO (não no bloco): as duas linhas juntas
+# são erro, e vírgula entre dígitos é decimal errado.
+_RE_PARTIDA_DESC = re.compile(r"\d+[.,]\d+\s*[,/\-]\s*\d+[.,]\d+")
+_RE_DECIMAL_VIRGULA = re.compile(r"\d,\d")
 _RE_DATA = re.compile(r"\b\d{1,2}/\d{1,2}(/\d{2,4})?\b")
 _RE_HORA = re.compile(r"\b\d{1,2}:\d{2}\b")
 
@@ -79,6 +83,22 @@ def checar_descricao(aposta: str, descricao: str) -> list[Problema]:
     # §11: Over/Under tem de estar em inglês.
     if _RE_OU_PT.search(d):
         problemas.append(Problema("erro", "over-under-pt", "Over/Under em português — converter p/ inglês (§11)"))
+
+    # §10.1.1 (s336): linha asiática vai como QUARTO DE LINHA, nunca como as duas linhas.
+    # §10.1 (s336): o decimal da descrição é PONTO — a vírgula do `MASTER_OUTPUT §12.1`
+    # vale para as colunas numéricas, não para texto.
+    #
+    # A ordem importa e não é estética: `2.0,2.5` casa os dois padrões (a vírgula ali é
+    # SEPARADOR, não decimal), e reportar as duas coisas mandaria o leitor consertar a
+    # errada. Achando a linha partida, ela é o problema; o resto nem se pergunta.
+    if _RE_PARTIDA_DESC.search(d):
+        problemas.append(Problema(
+            "erro", "linha-partida-nao-convertida",
+            "linha asiática com as duas linhas — usar o quarto de linha (§10.1.1)"))
+    elif _RE_DECIMAL_VIRGULA.search(d):
+        problemas.append(Problema(
+            "erro", "decimal-virgula",
+            "decimal com vírgula — a descrição usa PONTO (§10.1)"))
 
     # §4/§5: cada confronto [A v B] com separador ' v '. Colchete com separador errado = erro.
     confrontos = _RE_CONFRONTO.findall(d)
@@ -187,8 +207,9 @@ _RE_DECIMAL = re.compile(r"\d+[.,]\d+")
 # ser qualquer um (`2,5/3,0`). Um padrão só, com `[.,]` dos dois lados, leria `1,5` como
 # um par. É a mesma armadilha do `_num_bloco` do `repository`: o mesmo caractere é decimal
 # ou separador conforme a companhia.
-_RE_PARTIDA_BARRA = re.compile(r"(\d+[.,]\d+)\s*[/\-]\s*(\d+[.,]\d+)")
-_RE_PARTIDA_VIRG = re.compile(r"(\d+\.\d+)\s*,\s*(\d+\.\d+)")
+_RE_PARTIDA_BARRA = re.compile(r"([-+]?\d+[.,]\d+)\s*/\s*([-+]?\d+[.,]\d+)")
+_RE_PARTIDA_HIFEN = re.compile(r"(?<![-+\d])(\d+[.,]\d+)\s*-\s*(\d+[.,]\d+)")
+_RE_PARTIDA_VIRG = re.compile(r"([-+]?\d+\.\d+)\s*,\s*([-+]?\d+\.\d+)")
 
 
 def _quartos_de_linha(fb: str) -> set[str]:
@@ -206,7 +227,7 @@ def _quartos_de_linha(fb: str) -> set[str]:
     fechou (a descrição que era do vizinho).
     """
     out: set[str] = set()
-    for regra in (_RE_PARTIDA_BARRA, _RE_PARTIDA_VIRG):
+    for regra in (_RE_PARTIDA_BARRA, _RE_PARTIDA_HIFEN, _RE_PARTIDA_VIRG):
         for a, b in regra.findall(fb):
             try:
                 media = (float(a.replace(",", ".")) + float(b.replace(",", "."))) / 2

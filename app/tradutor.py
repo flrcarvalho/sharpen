@@ -203,6 +203,17 @@ _JOGADOR_OU = re.compile(r"^(.+?)\s+-\s+(mais de|menos de)\s+(.+)$", re.I)
 _HANDLE = re.compile(r"\([A-Z0-9][A-Z0-9 _.-]*\)\s*$")
 _CL_NOME = re.compile(r"CL=\d+\s*\((.+?)\)")
 _PLACAR_AO_VIVO = re.compile(r"^\(\d+\s*[-x:]\s*\d+\)\s*")
+# Linha asiática partida — ver `_quarto_de_linha`. Gêmeos dos de `descricao_check`.
+#
+# TRÊS padrões, um por separador, e o motivo é que dois caracteres acumulam papéis:
+#   `/`  separador limpo   → sinal permitido dos dois lados (`-0.5/-1.0`)
+#   `,`  separador OU decimal → só conta como separador com decimais em PONTO
+#   `-`  separador OU sinal   → só sem sinal, senão `-0.5-1.0` é indecifrável
+# Handicap partido com sinal existe e é raro: 3 ocorrências (`-0.5,-1.0`) em 15.907
+# blocos, todas Bet365. Raro não é inexistente, e o custo de cobrir é um regex.
+_PARTIDA_BARRA = re.compile(r"([-+]?\d+[.,]\d+)\s*/\s*([-+]?\d+[.,]\d+)")
+_PARTIDA_HIFEN = re.compile(r"(?<![-+\d])(\d+[.,]\d+)\s*-\s*(\d+[.,]\d+)")
+_PARTIDA_VIRG = re.compile(r"([-+]?\d+\.\d+)\s*,\s*([-+]?\d+\.\d+)")
 _ODD_LINHA = re.compile(r"^Odd(?:\s+total)?(?:\s+\(estrutural do sistema\))?$", re.I)
 
 
@@ -321,12 +332,44 @@ def _esporte(cab: dict, pernas: list) -> str:
     return nome
 
 
+def _quarto_de_linha(texto: str) -> str:
+    """Troca toda linha asiática PARTIDA pelo quarto de linha. `MASTER_DESCRICAO §10.1.1`.
+
+    `Mais de 2.0,2.5` → `Mais de 2.25` · `Menos de 2,5/3,0` → `Menos de 2.75`
+
+    Fechado pelo Feca na s336, e o motivo é medição: **a Bet365 é a única casa que manda
+    as duas linhas** (2.207 blocos); as outras 21 já mandam `2,25` direto. Sem converter,
+    a MESMA aposta sairia descrita de dois jeitos conforme a casa.
+
+    ⚠️ São DOIS padrões porque a vírgula acumula os papéis de decimal e de separador.
+    Quando ela separa (`2.0,2.5`), o decimal é ponto; quando o separador é `/` ou `-`, o
+    decimal pode ser vírgula (`2,5/3,0`). Um padrão só, com `[.,]` dos dois lados, leria
+    `1,5` sozinho como um par. É a armadilha do `_num_bloco` do `repository`, e a gêmea
+    desta função vive no `descricao_check._quartos_de_linha` — **as duas têm de andar
+    juntas**: uma converte, a outra é o gate que aceita o convertido.
+    """
+    def troca(m):
+        try:
+            a = float(m.group(1).replace(",", "."))
+            b = float(m.group(2).replace(",", "."))
+        except ValueError:
+            return m.group(0)
+        return f"{(a + b) / 2:g}"
+
+    for regra in (_PARTIDA_BARRA, _PARTIDA_HIFEN, _PARTIDA_VIRG):
+        texto = regra.sub(troca, texto)
+    return texto
+
+
 def _descricao_perna(p, spec: dict) -> str:
     """Descrição de UMA perna, no formato do `MASTER_DESCRICAO`. `None` = não sei."""
     objeto = spec.get("objeto")
     # Mercado ao vivo prefixa a seleção com o placar do momento (`(0-0) Time -0.5`). É
     # estado do jogo, não parte da aposta: sai antes de qualquer template.
     sel = _PLACAR_AO_VIVO.sub("", re.sub(r"\s+", " ", p.selecao).strip()).strip()
+    # §10.1.1: o quarto de linha vale nos DOIS ramos abaixo — o handicap (sem objeto)
+    # também vem partido em algumas casas (`Time -0.0,-0.5`).
+    sel = _quarto_de_linha(sel)
     if objeto:
         # Player prop: "Fulano - Menos de 15.5" -> "Fulano - Under 15.5 Pontos"
         mj = _JOGADOR_OU.match(sel)

@@ -161,7 +161,7 @@ candidata natural a ganhar captura, não a justificar um projeto.
 |---|---|---|
 | **0 · Sombra** ✅ | tabela `sombra_rotulos` + gancho nos dois caminhos de extração; nada muda para o usuário | **FEITA na s297** — ver §II.6 |
 | **1 · Tradutor** | motor de tradução + fallback por linha, **desligado** | roda em paralelo à IA; grava só o diff |
-| **2 · Diff** | relatório casa a casa: em quantas linhas tradutor ≠ IA, e em qual campo | **taxa de divergência < 1% em ≥ 500 bilhetes** daquela casa |
+| **2 · Diff** | relatório casa a casa: cobertura, **conformidade com o MASTER dos dois lados** e divergência contra a IA | **conformidade com o MASTER ≥ a da IA, em ≥ 500 bilhetes** ⚠️ o critério antigo (*"divergência < 1 % contra a IA"*) foi **substituído na s336** — ver §II.9: ele é impossível, porque o juiz discorda de si mesmo em 76,7 % das releituras |
 | **3 · Virada** | flag por casa: tradutor manda, IA vira fallback | custo da casa cai a zero no `uso_tokens` |
 | **4 · Repete** | próxima casa da fila | — |
 
@@ -410,6 +410,27 @@ vírgula para o TSV — **dois sinais em conflito**) e se o objeto `Gols` é obr
 > Isso muda a justificativa do tradutor. Ele entrou na fila como economia de token e
 > continua sendo. Mas ele é **o único mecanismo capaz de dar um formato único ao dado** —
 > e isso vale independente do que a API custar.
+
+#### Medido com o gate certo, depois de A e B (10/09)
+
+As decisões **A** e **B** do `BACKLOG §3.8` foram fechadas pelo Feca e aplicadas
+(`MASTER_DESCRICAO §10.1` e **§10.1.1**, `MASTER_OUTPUT §19`). O `diff_tradutor` passou a
+medir os dois lados com a mesma régua, e o resultado é o teste da tese inteira:
+
+| Sobre os 7.550 bilhetes que o tradutor cobre | Conforme o MASTER |
+|---|---|
+| **IA** | **67,0 %** |
+| **Tradutor** | **100,0 %** |
+
+Os erros da IA, contados pelo `checar_descricao`: **2.106** linha asiática não convertida,
+**320** decimal com vírgula, **122** `Over/Under` em português e **76** conteúdo proibido
+(dinheiro, data ou hora dentro da descrição, §17).
+
+> **E a prova de que o juiz antigo era o problema:** ao aplicar A e B, a **divergência
+> contra a IA SUBIU** (de 20,5 % para 40,5 %), porque o tradutor passou a emitir
+> `Over 2.25` e a IA segue nos doze formatos. **As duas linhas andaram em direções
+> opostas.** Quando duas métricas discordam sobre a mesma mudança, uma delas não mede
+> qualidade — e aqui dá para dizer qual, porque só uma tem um documento por trás.
 
 #### As quatro decisões que destravam quase tudo
 
