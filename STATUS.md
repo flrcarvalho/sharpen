@@ -7,11 +7,12 @@ Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê ist
 Repo local: `C:\Users\Fernando\Downloads\FDC Capital\Planilhador`
 
 
-_Atualizado: 2026-09-10 (sessao 342: **dia inteiro de CUSTO e do TRADUTOR. Quatro coisas entraram no ar e uma tese caiu.** (1) **Estudo de custo remedido** (`ESTUDO_PRECIFICACAO §7`): as correcoes A e C da s295 entregaram o que prometiam (aquecedor de US$ 173 para 12,5/mes) mas o custo VARIAVEL por bilhete subiu 12%, porque elas mexeram no custo FIXO. Capturamos 47% mais bilhete pagando 3% menos, e mesmo assim a escada de preco piorou. (2) **BARREIRA DE RECAPTURA no ar, Fases 0 e 1** (`PLANO_BARREIRA_RECAPTURA.md`, novo): 32,5% de tudo que se pagava era releitura de bloco byte a byte IDENTICO; na Bet365, 39,9%. A chave e' o HASH DO BLOCO e nao o par (codigo, resultado), porque em 2,3% dos casos o bloco muda com o `Status:` igual e porque `_resultadoB3` escreve `Ganho → W` ate para meia vitoria. Simulado: −29,3% da conta, R$ 0,092 → R$ 0,065 por bilhete. **Velocidade quase nao muda** e isso esta escrito para ninguem prometer o contrario. (3) **O ACHADO DO DIA:** o gate do tradutor era impossivel. Medido sobre 8.255 releituras, **em 76,7% delas a IA descreveu de forma DIFERENTE algo que ela mesma ja tinha descrito**; no maior mercado da base (`Gols + -`, 4.123 leituras) a mesma selecao saiu de DOZE jeitos. Teto de acerto contra esse juiz: ~23%. E a causa nao e' a casa (a entrada e' byte a byte identica) nem so o buraco do MASTER: a instabilidade segue **quantas decisoes o modelo precisa tomar para MONTAR a frase** — copiar um nome da 18%, montar com linha meia da 42%, montar com linha partida da 100%. **Descricao montada por modelo estocastico nao converge; so compor em CODIGO elimina.** Isso deu ao tradutor uma segunda justificativa que nao depende do preco da API. (4) **Decisoes A e B fechadas pelo Feca** e aplicadas: linha asiatica vira sempre o QUARTO DE LINHA (`Over 2.25 Gols`), decimal da descricao e' PONTO e o OBJETO e' obrigatorio. **Eu tinha recomendado o contrario na linha asiatica e estava errado** — a Bet365 e' a UNICA casa que manda `3.0,3.5` (2.207 blocos), as outras 21 ja mandam `2,25`. **O gate trocou de juiz:** o `diff_tradutor` agora mede CONFORMIDADE COM O MASTER dos dois lados. Resultado: **IA 67,1%, tradutor 100,0%**. E a prova de que o juiz antigo era o problema: ao aplicar A e B a divergencia contra a IA SUBIU (20,5% → 40,4%) enquanto a conformidade foi a 100% — duas metricas em direcoes opostas sobre a mesma mudanca. **Tres hipoteses de corte de custo MORRERAM medidas** e estao no `BACKLOG §3.10`: aparato editorial no prompt (US$ 0,76/mes), fatiar esportes por casa (US$ 7,30) e o preambulo do output (o modelo NAO aceita prefill; sobra US$ 9/mes). **Gates:** 826 passed, mutacao provada em tudo que entrou. As 341/339/338/337 sao de outra sessao.)
+_Atualizado: 2026-09-10 (sessao 343: **BETBRA no ar como casa ESPELHO da Bolsa de Aposta — zero inject novo — e um cupom que virava MULTIPLA FALSA sem erro nenhum.** Medido no navegador: mesma plataforma, mesmas rotas de casca (`/b/exchange` · `/fbook`), Exchange LayBack em `mexchange.betbra.bet.br` (cookie, 0 parametros) e Sportsbook msjxk em `prod20454-176166310.msjxk.com` (`operatorToken` na URL). Os dois injects ja derivavam o endereco de `location`, entao **o unico bloqueio real era o `match` do manifest**, preso em `*.bolsadeaposta.bet.br`. Volume: **403 ofertas no Exchange** (mai/2025 → set/2026, varridas em 29 chamadas com ZERO erro) + 10 no Sportsbook. **O ACHADO:** `Selections` NAO e a lista do que foi apostado. No bet builder a casa manda, no MESMO array, as PERNAS soltas (cada uma com a odd de mercado dela, que nao foi apostada) e uma entrada AGREGADA do cupom (`MarketTypeId: "QA0"`) com a odd do conjunto e os textos concatenados por ` | `. Quem manda e `MappedSelections`. O codigo lia todas: uma aposta de **4,61** virava multipla de **26,72** (1,13 × 2,30 × 2,23 × 4,61) — **sem erro, e com o P/L intacto**, porque a odd do bilhete vem de outro campo; errariam so turnover, ROI e a assinatura de stake do matcher (familia da s311). Medido 10/10: a odd bate com o produto das MAPPED em 10/10 e com o de TODAS em **0/10**. **O defeito atravessou o recon da Bolsa sem aparecer** — la o campo e sempre `[0]` com uma selecao so, e o caso da Bolsa fica verde COM ou SEM a correcao. Isso foi PROVADO, nao deduzido: das **5 mutacoes, o caso Betbra pegou 5 e o caso Bolsa pegou 0**. Formato decidido contra a tela: ordem das pernas vem do TEXTO AGREGADO (o array traz outra — o `SelectionId` da agregada e `0VS0|2|1`), perna de cupom **nao tem odd propria** no bloco, e o tipo virou `Criador de Apostas (bet builder — N selecoes do MESMO jogo, odd unica do cupom)`. **BOOST confirmado** (era "nao confirmado" na Bolsa): `ClientOdds` e a odd COM boost e `DbTrueOdds` da agregada e a SEM (a tela risca `2.89` e estampa `3.36`); o percentual NAO se deduz do `Campaigns[].Type` (1,32 e 1,16 em tipos diferentes). **Medido antes de registrar:** a grafia canonica e `Betbra` — unica no banco nas 5 tabelas onde `casa` e texto (5 contas, 158 bilhetes), apesar de `import_dashboard_xlsx.py` mapear para a gemea `BetBra`; e as series de codigo sao POR CASA, nao por plataforma (7-8 digitos aqui, 9 na Bolsa) — **comprimento de codigo nao diz de que casa o bilhete e**. **Gates:** harness 28 casos / 447 bilhetes verde, `audit_sharpenup` e `audit_casas` sem FAIL, 826 passed, manifest 0.7.10 → **0.7.11** com aviso publicado no grupo (`message_id 3380`). **Pendente:** validacao ao vivo (recarregar a extensao + Ctrl+Shift+R na aba da casa + F5 no dashboard). SUPERBET e BETESPORTE seguem SEM caso no harness, e nenhuma das duas foi tocada. As 342/341/339 sao de outra sessao.)
+
+_Anterior: 2026-09-10 (sessao 342: **dia inteiro de CUSTO e do TRADUTOR. Quatro coisas entraram no ar e uma tese caiu.** (1) **Estudo de custo remedido** (`ESTUDO_PRECIFICACAO §7`): as correcoes A e C da s295 entregaram o que prometiam (aquecedor de US$ 173 para 12,5/mes) mas o custo VARIAVEL por bilhete subiu 12%, porque elas mexeram no custo FIXO. Capturamos 47% mais bilhete pagando 3% menos, e mesmo assim a escada de preco piorou. (2) **BARREIRA DE RECAPTURA no ar, Fases 0 e 1** (`PLANO_BARREIRA_RECAPTURA.md`, novo): 32,5% de tudo que se pagava era releitura de bloco byte a byte IDENTICO; na Bet365, 39,9%. A chave e' o HASH DO BLOCO e nao o par (codigo, resultado), porque em 2,3% dos casos o bloco muda com o `Status:` igual e porque `_resultadoB3` escreve `Ganho → W` ate para meia vitoria. Simulado: −29,3% da conta, R$ 0,092 → R$ 0,065 por bilhete. **Velocidade quase nao muda** e isso esta escrito para ninguem prometer o contrario. (3) **O ACHADO DO DIA:** o gate do tradutor era impossivel. Medido sobre 8.255 releituras, **em 76,7% delas a IA descreveu de forma DIFERENTE algo que ela mesma ja tinha descrito**; no maior mercado da base (`Gols + -`, 4.123 leituras) a mesma selecao saiu de DOZE jeitos. Teto de acerto contra esse juiz: ~23%. E a causa nao e' a casa (a entrada e' byte a byte identica) nem so o buraco do MASTER: a instabilidade segue **quantas decisoes o modelo precisa tomar para MONTAR a frase** — copiar um nome da 18%, montar com linha meia da 42%, montar com linha partida da 100%. **Descricao montada por modelo estocastico nao converge; so compor em CODIGO elimina.** Isso deu ao tradutor uma segunda justificativa que nao depende do preco da API. (4) **Decisoes A e B fechadas pelo Feca** e aplicadas: linha asiatica vira sempre o QUARTO DE LINHA (`Over 2.25 Gols`), decimal da descricao e' PONTO e o OBJETO e' obrigatorio. **Eu tinha recomendado o contrario na linha asiatica e estava errado** — a Bet365 e' a UNICA casa que manda `3.0,3.5` (2.207 blocos), as outras 21 ja mandam `2,25`. **O gate trocou de juiz:** o `diff_tradutor` agora mede CONFORMIDADE COM O MASTER dos dois lados. Resultado: **IA 67,1%, tradutor 100,0%**. E a prova de que o juiz antigo era o problema: ao aplicar A e B a divergencia contra a IA SUBIU (20,5% → 40,4%) enquanto a conformidade foi a 100% — duas metricas em direcoes opostas sobre a mesma mudanca. **Tres hipoteses de corte de custo MORRERAM medidas** e estao no `BACKLOG §3.10`: aparato editorial no prompt (US$ 0,76/mes), fatiar esportes por casa (US$ 7,30) e o preambulo do output (o modelo NAO aceita prefill; sobra US$ 9/mes). **Gates:** 826 passed, mutacao provada em tudo que entrou. As 341/339/338/337 sao de outra sessao.)
 
 _Anterior: 2026-09-10 (sessao 341: **duas frentes pedidas pelo Feca, e as duas expuseram PROPAGACAO INCOMPLETA por baixo.** (1) **Renomear tipster** na tela Tipsters & Metodos. A rota `POST /tipsters/{id}/renomear` existia desde sempre e **nunca teve botao** — e propagava a **3 das 6** referencias. O tipster nao tem id em lugar nenhum: seis tabelas o apontam pelo NOME, e as tres esquecidas falhavam **em silencio**. `casa_config.tipsters` (CSV) deixava a casa dedicada apontando para um nome inexistente e **o matcher parava de cravar**; `custo_store.custo_tipster` (chave de JSONB) mantinha o custo **cobrado no KPI e sumido da tabela onde se lanca** (familia do "tipster cobrado e ineditavel", s274); e `polymarket_ativos_tipster`. Mais a **7a ponta, na rota**: `matcher.invalidar(dono)`, senao o modelo cacheado sugere o nome velho e o `/bilhetes/tipster` o **regrava** na base recem-renomeada. Tres decisoes: o CSV troca o **ELEMENTO**, nunca a substring ("Ze" vive dentro de "Ze Turbo"); no custo os meses se fundem com a **ORIGEM vencendo**, porque so ela tem tipster vivo por tras; e o `DELETE` das colidentes da escada vem **ANTES** do `UPDATE`, senao `UNIQUE (dono, tipster, vigente_desde)` derruba a rota com 500. A contagem do modal vem de `GET /tipsters/{id}/resumo`, que conta na **MESMA clausula que o UPDATE usa** — regua do `resumo_parceiro`; se ela falhar, o modal **diz que nao conseguiu contar** em vez de mostrar um numero do feed cacheado com cara de conferido. **12 de 12 mutacoes detectadas**, e a 10a **ESCAPOU na 1a rodada por dado sintetico frouxo**: eu usei "Peixe" x "Peixinho" para provar "conta por elemento, nao por substring", e **"Peixe" nao e substring de "Peixinho"** (e Peix-I-nho); o par virou "Peixe" x "Peixe Turbo". (2) **Editar apostas em massa** nas 3 telas (Extracao, Base Completa, Em Aberto), com Data, Resultado, Tipster, Esporte, Casa, Parceiro e Aposta — stake, odd e descricao ficam de fora de proposito. `POST /bilhetes/lote` chama o **MESMO miolo de uma edicao so**, id a id (`_atualizar_bilhete_conn`, extraido do `atualizar_bilhete`): o atalho `UPDATE ... WHERE id = ANY(ids)` pularia **assinatura**, `extraction_state`, `origem_tipster` e `correcoes`, e assinatura velha **nao da erro** — so faz a proxima captura da casa nao deduplicar e **duplicar o historico** (s198/s312). Num lote de 300 linhas e 300 vezes o mesmo defeito, e a **mutacao 1 do gate e justamente esse atalho**. Aplicacao **POR LINHA**, sem tudo-ou-nada, com `atualizados` + `ignorados` na resposta (regua do `/salvar`, que grava as boas e devolve as recusadas): tudo-ou-nada trocaria 297 edicoes boas por zero por causa de 3 ids que nao sao do dono. Campo **AUSENTE = nao mexe**, string **VAZIA = LIMPA** — sao coisas diferentes e o front manda campo a campo em vez de inferir por "esta vazio". `flags_pos_edicao_lote` devolve **CONTAGEM, nao booleano**: "algumas podem ser desfeitas" sem dizer quantas vira caca manual numa selecao de 300 linhas. A selecao vive num **Set FORA do DOM** porque a Base Completa e virtualizada, e a coluna nova mexeu na grade posicional (`BTBL_W_KEY` para v3; celula VAZIA, nunca ausente, na vitrine publica). **10 de 10 mutacoes detectadas.** **UI:** `shConfirm()` no dash substitui o `confirm()` nativo — a faixa branca no topo do navegador vira modal **centrado com o lockup do Sharpen**, e erro de servidor aparece **DENTRO** do modal, com o texto digitado intacto. **Gates:** 829 passed / 36 skipped, `check-tokens` verde, e as 4 telas **renderizadas headless** antes do commit (cabecalho e linha com o mesmo numero de celulas e colunas alinhadas ao pixel — 11 e 11 na Base, 10 e 10 nas Abertas —, modal centrado, botao travado com o campo vazio, zero erro de console). **Fica aberto (BACKLOG §4):** `var(--text1)` nao existe em token nenhum, com 4 usos no `dash/assets/js/app.js`; e `@app.post("/tipsters/sugerir")` esta registrado **duas vezes** em `app/main.py`, com a segunda inalcancavel. Outra sessao rodou em PARALELO nesta noite.)
 
-_Anterior: 2026-09-09 (sessao 339: **o mes do Ctrl Alt Green fechava negativo porque a captura datava 8 vitorias em AMANHA.** Relato do Feca as 22:50 de 09/09, com duas perguntas que eram o MESMO defeito: "o resultado nao parece atualizado" e "por que voce finalizou apostas com 10/09?". As 8 linhas estavam no banco, todas `W`, somando **+R$ 928,00** — mas datadas de **10/09**, um dia que ainda nao tinha chegado. O MTD recorta `[1o do mes, hoje]` (`filters.js`, `st.dt = today`), entao bilhete datado de amanha cai fora da conta do mes: com elas dentro o mes vai de **-R$ 892,87 para +R$ 35,02** (medido no banco DEPOIS do reparo: 137 apostas, exatamente as 129 da tela mais as 8), ou seja **o filtro trocava o SINAL do resultado**. **A causa:** `_dataFimB3` somava ao kickoff uma "folga de encerramento" por esporte (`_OFF_B3`: 2,5 h em basquete, 3 h em tenis) para estimar a liquidacao. eBasket chega da bet365 como `CL=18` — Basquete, porque a casa nao separa os dois; quem separa e o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos dois lados — e levava **2,5 h de folga num jogo que dura ~4 minutos**. **A assinatura, medida:** as 8 foram capturadas entre 22:30 e 22:40 e as 8 ganharam data +1; nenhum dos outros 397 eBasket da base, fora dessa faixa de horario, foi deslocado. **A escala:** todo esporte tinha folga, entao havia uma janela diaria de ~21h a meia-noite. Piso medido (data = dia da captura + 1, capturado depois das 21h): **188 linhas** da Bet365 (73 Multiplos, 54 Futebol, 37 Badminton, 8 Basquete, 8 eBasket, 5 Tenis, 2 Dardos, 1 E-Sports) — e e PISO, porque quem foi capturado no lote da manha seguinte carrega o mesmo deslocamento e o banco nao guarda o kickoff para conferir. **Por que sobreviveu tanto tempo:** o efeito no KPI se desfaz sozinho (amanha 10/09 entra no MTD), so o DIA errado fica — defeito que se apaga da tela toda madrugada nao vira reclamacao, vira desconfianca difusa. **Decisao do Feca: `Data = kickoff`, para todos os esportes** — e o que a tela da bet365 mostra, o que as outras casas gravam e a unica data que o payload tem. A conversao UK->Brasilia NAO e a folga e continua obrigatoria (hora de parede de Londres). O rotulo do bloco virou `Data (evento):`, que ja era o das outras casas de API. **Gate novo** (bloco 9 do `extensor/harness/casos/bet365.mjs`), **provado por 5 mutacoes** — e a 3a ESCAPOU na primeira rodada: fixar `ukToBr = 4` deixava tudo verde porque nos casos escolhidos a diferenca entre UK-3 e UK-4 caia dentro do MESMO dia. O horario de verao britanico so troca o dia na faixa **03:00-04:00 UK**, entao foram precisos um caso em janeiro e outro em julho, ambos as 03:30, para prender o erro nos dois sentidos. **Reparo aplicado:** `scripts/corrigir_data_folga_s339.py` (ensaio por padrao) corrigiu as 8 linhas do Ctrl Alt Green e registrou cada uma em `correcoes`; a prova de que a data certa e o dia da captura e que a linha entrou no banco **ja resolvida**, e bilhete so resolve depois de o evento acabar. Harness 27 casos / 436 bilhetes verde. **Fica aberto (BACKLOG 1.6 e 1.8):** o `CLAUDE.md` ESTOUROU o teto (65,4 contra 65) e nao ha mais duplicacao para mover — qual regra sai e decisao do Feca; e sobraram **21 linhas ARQUIVADAS** ja resolvidas com data no futuro, de outros tipsters, que o reparo nao tocou porque filtra `archived = FALSE` e o escopo aprovado foi um tipster so. Outra sessao rodou em PARALELO nesta noite.)
 
 
 
@@ -92,6 +93,99 @@ o preâmbulo do output (**o modelo não aceita prefill de assistente**; sobra US
   `docs/CASOS.md`, nunca subir o teto.
 - **`test_changelog` com 3 falhas:** o `extensor/manifest.json` está numa versão sem nota
   de changelog. Resolve rodando o `scripts/avisar_testers.py`.
+
+---
+
+## Sessão 343 — Betbra: a casa espelho e o cupom que virava múltipla falsa
+
+### A casa
+
+A **Betbra** entrou na captura como **casa espelho da Bolsa de Aposta** — é a mesma
+plataforma com outra marca. Medido no navegador, lendo o `src` real dos dois iframes:
+rotas de casca idênticas (`/b/exchange` · `/fbook`), Exchange LayBack em
+`mexchange.betbra.bet.br` (cookie, 0 parâmetros) e Sportsbook msjxk em
+`prod20454-176166310.msjxk.com` (`operatorToken` na URL). **Zero inject novo, zero
+formatador novo:** os dois já derivavam o endereço de `location`.
+
+**O único bloqueio real era o `match` do manifest**, preso em `*.bolsadeaposta.bet.br` —
+o `bda_inject` nunca subiria em `mexchange.betbra.bet.br`. O Sportsbook já vinha coberto
+pelo curinga `*://*.msjxk.com/*`.
+
+Volume: **403 ofertas no Exchange** (mai/2025 → set/2026, varridas em 29 chamadas com zero
+erro) e 7 liquidadas + 3 abertas no Sportsbook.
+
+### O achado: `Selections` não é a lista do que foi apostado
+
+No Criador de Apostas (bet builder) o Sportsbook manda, dentro do MESMO array: as **pernas
+soltas**, cada uma com a odd de mercado dela — que não foi apostada —, e uma entrada
+**agregada** do cupom (`MarketTypeId: "QA0"`), com a odd do conjunto e os textos das pernas
+concatenados por ` | `. Quem diz o que entrou é **`MappedSelections`**, uma lista de índices.
+
+O código lia todas. Uma aposta de **4,61** virava uma múltipla de **26,72** (1,13 × 2,30 ×
+2,23 × 4,61) — **sem erro nenhum, e com o P/L continuando certo**, porque a odd do bilhete
+vem de outro campo. Errariam só turnover, ROI e a assinatura de stake do matcher. Mesma
+família de "a stake que era do vizinho, com o P/L intacto" (s311).
+
+Medido em **10 de 10** bilhetes: a odd bate com o produto das *mapped* em 10/10 e com o
+produto de todas em **0/10**.
+
+> **O defeito atravessou o recon da Bolsa sem aparecer.** Lá `MappedSelections` é sempre
+> `[0]` com uma seleção só: as duas leituras coincidem. O caso da Bolsa fica **verde com ou
+> sem a correção** — falso verde do tipo 2 do `CLAUDE.md` ("o dado sintético não exerce a
+> regra"), e está escrito no cabeçalho dos dois arquivos.
+
+**Decisões de formato**, todas contra a tela: a ordem das pernas vem do **texto agregado**
+(o array traz outra ordem — o `SelectionId` da agregada é `0VS0|2|1`); a perna de um cupom
+**não tem odd própria** no bloco (publicá-la seria oferecer à IA um número que parece conta
+feita e não é); e o tipo virou `Criador de Apostas (bet builder — N seleções do MESMO jogo,
+odd única do cupom)`, nunca "Múltipla", que mentiria em três frentes.
+
+### O boost, que a Bolsa tinha como "não confirmado"
+
+`ClientOdds` é a odd **com** boost e `DbTrueOdds` da agregada é a **sem**. A tela risca a
+segunda e estampa a primeira (`2.89 → 3.36`). A odd que vale é a `ClientOdds` do bilhete —
+200 × 3,36 = 672 = "Retorno Total" da tela. A regra global de W (`retorno ÷ stake`) absorve
+o boost sozinha; o percentual **não** se deduz do `Campaigns[].Type` (1,32 e 1,16 medidos em
+tipos diferentes).
+
+### Gates
+
+| | |
+|---|---|
+| Harness | **28 casos, 447 bilhetes** — verde |
+| Mutação | **5 de 5 detectadas** pelo caso Betbra · **0 de 5** pelo caso Bolsa |
+| `audit_sharpenup` / `audit_casas` / `audit_changelog` | sem FAIL |
+| `pytest` | 826 passed / 36 skipped |
+| Manifest | 0.7.10 → **0.7.11**, aviso publicado no grupo (`message_id 3380`) |
+
+As 5 mutações confirmam por medição o que o cabeçalho do caso dizia por dedução: **a fixture
+da Bolsa não protege esta regra.** Sem o caso da Betbra, a correção teria entrado parecendo
+coberta.
+
+### Duas coisas medidas antes de registrar
+
+**A grafia.** `_CASA_DISPLAY` é retroativo, e o código já tinha duas grafias divergentes
+(`import_arrudex_xlsx.py` grava `Betbra`, `import_dashboard_xlsx.py` grava `BetBra`). No
+banco só existe **`Betbra`**, em todas as cinco tabelas onde `casa` é texto: 5 contas, 158
+bilhetes, 1 em `casas_meta`, 23 em `correcoes`, 1 em `uso_tokens`. A decisão do Feca
+("Betbra para todos") confirmou a base.
+
+**As séries de código são por CASA, não por plataforma.** Exchange da Betbra: 7–8 dígitos.
+Exchange da Bolsa: 9. Mesma plataforma, contadores independentes — **comprimento de código
+não diz de que casa o bilhete é**.
+
+### Pendente
+
+**Validação ao vivo**, que não fecha sem o operador: recarregar a extensão, **Ctrl+Shift+R
+na aba da Betbra** (recarregar a extensão não re-injeta em aba já aberta) e **F5 no
+dashboard** (a casa nova não aparece no seletor numa aba que já estava aberta).
+
+**Sem cobertura automatizada no harness, e portanto ainda dependentes de teste ao vivo:**
+`SUPERBET` e `BETESPORTE` — nenhuma das duas tocada por este diff.
+
+**Não provado nesta casa** (medido, não suposto): `lay` (403 de 403 são `back`),
+cashout/Retirada, freebet, `push_win`/`push_lose`, casamento parcial no Exchange, e
+`MappedSelections` com 2+ índices (múltipla de eventos diferentes).
 
 ---
 
@@ -186,102 +280,6 @@ Duas dívidas achadas de lado, registradas no [`BACKLOG.md`](BACKLOG.md) §4 e *
 (mudança própria): `var(--text1)` não existe em token nenhum e tem 4 usos no
 `dash/assets/js/app.js`; e `@app.post("/tipsters/sugerir")` está registrado **duas vezes** em
 `app/main.py`, com a segunda inalcançável.
-
-## Sessão 339 — o mês que fechou negativo porque a folga datou 8 vitórias em amanhã
-
-### O mês que fechava negativo porque a captura datava 8 vitórias em "amanhã"
-
-**22:50 de 09/09/2026.** O relatório do tipster `Ctrl Alt Green` mostrava **MTD −R$ 892,87**
-e a grade trazia oito apostas de eBasket datadas de **10/09** — um dia que ainda não tinha
-chegado. Duas perguntas na mesma mensagem, *"o resultado não parece atualizado"* e *"por que
-você finalizou apostas com 10/09?"*, e **era o mesmo defeito nas duas**.
-
-As 8 estavam no banco, todas `W`, somando **+R$ 928,00**. O MTD recorta `[1º do mês, hoje]`
-(`filters.js`, `st.dt = today`), então bilhete datado de amanhã cai fora. Com elas dentro o
-mês vai para **+R$ 35,13**: o filtro trocava o **sinal** do resultado.
-
-### A causa: uma folga que estimava um instante que a casa não informa
-
-`_dataFimB3` somava ao kickoff uma folga de encerramento por esporte (`_OFF_B3`), para
-estimar a liquidação. eBasket chega da bet365 como `CL=18` — **Basquete**, porque a casa não
-separa os dois; quem separa é o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos
-dois lados — e levava **2,5 h de folga num jogo que dura ~4 minutos**.
-
-A assinatura bate: as 8 foram capturadas entre **22:30 e 22:40** e as 8 ganharam data +1.
-Nenhum dos outros 397 eBasket da base, fora dessa faixa de horário, foi deslocado.
-
-| Esporte (Bet365) | linhas com data = dia da captura + 1, capturadas após 21h |
-|---|---|
-| Múltiplos | 73 |
-| Futebol | 54 |
-| Badminton | 37 |
-| Basquete | 8 |
-| eBasket | 8 |
-| Tênis · Dardos · E-Sports | 8 |
-| **total** | **188** |
-
-É **piso**, não total: quem foi capturado no lote da manhã seguinte carrega o mesmo
-deslocamento e não entra nessa conta, porque o banco não guarda o kickoff para conferir.
-
-> **Por que sobreviveu tanto tempo:** o efeito no KPI se desfaz sozinho — amanhã 10/09 entra
-> no MTD e o número "conserta". O que não se desfaz é o **dia errado**. Um defeito que se
-> apaga da tela toda madrugada não vira reclamação, vira desconfiança difusa.
-
-### A decisão: `Data = kickoff`, para todos os esportes
-
-Do Feca. É o que a tela da própria bet365 mostra, o que as outras casas gravam e a única data
-que o payload realmente tem. Um jogo que começa 22:00 do dia 09 e termina 00:30 do dia 10 é
-do dia 09. A **conversão UK→Brasília não é a folga** e continua obrigatória (o payload traz
-hora de parede de Londres). O rótulo do bloco virou `Data (evento):`, que já era o das outras
-casas de API — o tradutor casa a chave por prefixo, então nada mais precisou mudar.
-
-Regra em `CASA_BET365 §4` e no `CLAUDE.md`; o caso em [`docs/CASOS.md`](docs/CASOS.md).
-
-### O gate, e a mutação que passou verde
-
-Bloco 9 do `extensor/harness/casos/bet365.mjs`, **provado por 5 mutações**. A terceira
-**escapou na primeira rodada**: fixar `ukToBr = 4` (ignorar o GMT do inverno britânico)
-deixava tudo verde, porque nos casos escolhidos a diferença entre UK−3 e UK−4 caía **dentro
-do mesmo dia**. O horário de verão britânico só troca o **dia** na faixa **03:00–04:00 UK**,
-então foram precisos um caso em janeiro e outro em julho, ambos às 03:30, para prender o erro
-**nos dois sentidos** — com um só, metade do defeito passa.
-
-É o segundo modo de falso verde do `CLAUDE.md` ("o dado sintético não exerce a regra")
-aparecendo num teste escrito **na mesma sessão** que a regra.
-
-### O reparo
-
-`scripts/corrigir_data_folga_s339.py`, ensaio por padrão. Corrigiu as **8 linhas** do
-Ctrl Alt Green e registrou cada uma em `correcoes`. A prova de que a data certa é o dia da
-captura, e não um palpite: a linha entrou no banco **já resolvida**, e bilhete só resolve
-depois de o evento acabar — logo o evento é anterior à captura.
-
-Quatro travas, todas fail-closed: só linha **com código** (sem código a `data` entra na
-assinatura), só onde a data é posterior ao dia da captura, pula bilhete com correção humana
-em `data`, e escopo explícito obrigatório (`--dono` + `--tipster`).
-
-O UPSERT congela `data` em linha resolvida, então **recapturar não conserta** o que já está
-gravado. Foi por isso que precisou de script.
-
-### O que ficou aberto, e o próximo passo
-
-**Medido depois do reparo:** o MTD do Ctrl Alt Green fechou em **+R$ 35,02** com 137 apostas,
-que são exatamente as 129 da tela mais as 8 recuperadas. O delta previsto e o medido batem.
-
-1. **`CLAUDE.md` estourou o teto** (65,4 contra 65). Não há mais duplicação para mover, e isso
-   foi medido: zero frases longas repetidas entre ele e o `CASOS.md`. Fechar significa escolher
-   qual regra sai, e é curadoria do Feca. → `BACKLOG.md 1.6`, que já traz o candidato
-   (`## Convenções de output`, espelho declarado do `MASTER_OUTPUT`).
-2. **Sobraram 21 linhas arquivadas**, já resolvidas, ainda datadas no futuro, de outros
-   tipsters (Coxadoido, Fatuch, Perereca NFL, MarcoF1 e outros). O script filtra
-   `archived = FALSE` e o escopo aprovado foi um tipster só. → `BACKLOG.md 1.8`.
-   **Próximo passo:** rodar o ensaio com o escopo que o Feca autorizar.
-
-> Cuidado ao ler o item 2: das 43 arquivadas com data no futuro, 22 estão ABERTAS e são
-> legítimas — aposta aberta em evento de amanhã tem data futura por direito. Só as 21
-> **resolvidas** é que são impossíveis.
-
----
 
 ## Sessão 338 — a Blaze e a procedência do código
 

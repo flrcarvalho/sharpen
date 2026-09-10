@@ -1,10 +1,110 @@
-# HISTÓRICO — Sessões 336 → 300
+# HISTÓRICO — Sessões 339 → 300
 
-> Os blocos completos que saíram do `STATUS.md` (336 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
+> Os blocos completos que saíram do `STATUS.md` (339 e 336 → 317), a Sessão 315 e a cadeia `_Anterior_` de 324 até 300.
 >
 > Partição do `docs/HISTORICO.md`, criada na faxina de documentação de 2026-09-07 (Lote C). **O texto é o original, verbatim** — só foi partido.
 
 [↑ Índice](../HISTORICO.md) · [mais antigo: Sessões 299 → 243 →](HISTORICO_s243-s299.md)
+
+---
+
+## Sessão 339 — o mês que fechou negativo porque a folga datou 8 vitórias em amanhã
+
+### O mês que fechava negativo porque a captura datava 8 vitórias em "amanhã"
+
+**22:50 de 09/09/2026.** O relatório do tipster `Ctrl Alt Green` mostrava **MTD −R$ 892,87**
+e a grade trazia oito apostas de eBasket datadas de **10/09** — um dia que ainda não tinha
+chegado. Duas perguntas na mesma mensagem, *"o resultado não parece atualizado"* e *"por que
+você finalizou apostas com 10/09?"*, e **era o mesmo defeito nas duas**.
+
+As 8 estavam no banco, todas `W`, somando **+R$ 928,00**. O MTD recorta `[1º do mês, hoje]`
+(`filters.js`, `st.dt = today`), então bilhete datado de amanhã cai fora. Com elas dentro o
+mês vai para **+R$ 35,13**: o filtro trocava o **sinal** do resultado.
+
+### A causa: uma folga que estimava um instante que a casa não informa
+
+`_dataFimB3` somava ao kickoff uma folga de encerramento por esporte (`_OFF_B3`), para
+estimar a liquidação. eBasket chega da bet365 como `CL=18` — **Basquete**, porque a casa não
+separa os dois; quem separa é o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos
+dois lados — e levava **2,5 h de folga num jogo que dura ~4 minutos**.
+
+A assinatura bate: as 8 foram capturadas entre **22:30 e 22:40** e as 8 ganharam data +1.
+Nenhum dos outros 397 eBasket da base, fora dessa faixa de horário, foi deslocado.
+
+| Esporte (Bet365) | linhas com data = dia da captura + 1, capturadas após 21h |
+|---|---|
+| Múltiplos | 73 |
+| Futebol | 54 |
+| Badminton | 37 |
+| Basquete | 8 |
+| eBasket | 8 |
+| Tênis · Dardos · E-Sports | 8 |
+| **total** | **188** |
+
+É **piso**, não total: quem foi capturado no lote da manhã seguinte carrega o mesmo
+deslocamento e não entra nessa conta, porque o banco não guarda o kickoff para conferir.
+
+> **Por que sobreviveu tanto tempo:** o efeito no KPI se desfaz sozinho — amanhã 10/09 entra
+> no MTD e o número "conserta". O que não se desfaz é o **dia errado**. Um defeito que se
+> apaga da tela toda madrugada não vira reclamação, vira desconfiança difusa.
+
+### A decisão: `Data = kickoff`, para todos os esportes
+
+Do Feca. É o que a tela da própria bet365 mostra, o que as outras casas gravam e a única data
+que o payload realmente tem. Um jogo que começa 22:00 do dia 09 e termina 00:30 do dia 10 é
+do dia 09. A **conversão UK→Brasília não é a folga** e continua obrigatória (o payload traz
+hora de parede de Londres). O rótulo do bloco virou `Data (evento):`, que já era o das outras
+casas de API — o tradutor casa a chave por prefixo, então nada mais precisou mudar.
+
+Regra em `CASA_BET365 §4` e no `CLAUDE.md`; o caso em [`docs/CASOS.md`](../CASOS.md).
+
+### O gate, e a mutação que passou verde
+
+Bloco 9 do `extensor/harness/casos/bet365.mjs`, **provado por 5 mutações**. A terceira
+**escapou na primeira rodada**: fixar `ukToBr = 4` (ignorar o GMT do inverno britânico)
+deixava tudo verde, porque nos casos escolhidos a diferença entre UK−3 e UK−4 caía **dentro
+do mesmo dia**. O horário de verão britânico só troca o **dia** na faixa **03:00–04:00 UK**,
+então foram precisos um caso em janeiro e outro em julho, ambos às 03:30, para prender o erro
+**nos dois sentidos** — com um só, metade do defeito passa.
+
+É o segundo modo de falso verde do `CLAUDE.md` ("o dado sintético não exerce a regra")
+aparecendo num teste escrito **na mesma sessão** que a regra.
+
+### O reparo
+
+`scripts/corrigir_data_folga_s339.py`, ensaio por padrão. Corrigiu as **8 linhas** do
+Ctrl Alt Green e registrou cada uma em `correcoes`. A prova de que a data certa é o dia da
+captura, e não um palpite: a linha entrou no banco **já resolvida**, e bilhete só resolve
+depois de o evento acabar — logo o evento é anterior à captura.
+
+Quatro travas, todas fail-closed: só linha **com código** (sem código a `data` entra na
+assinatura), só onde a data é posterior ao dia da captura, pula bilhete com correção humana
+em `data`, e escopo explícito obrigatório (`--dono` + `--tipster`).
+
+O UPSERT congela `data` em linha resolvida, então **recapturar não conserta** o que já está
+gravado. Foi por isso que precisou de script.
+
+### O que ficou aberto, e o próximo passo
+
+**Medido depois do reparo:** o MTD do Ctrl Alt Green fechou em **+R$ 35,02** com 137 apostas,
+que são exatamente as 129 da tela mais as 8 recuperadas. O delta previsto e o medido batem.
+
+1. **`CLAUDE.md` estourou o teto** (65,4 contra 65). Não há mais duplicação para mover, e isso
+   foi medido: zero frases longas repetidas entre ele e o `CASOS.md`. Fechar significa escolher
+   qual regra sai, e é curadoria do Feca. → `BACKLOG.md 1.6`, que já traz o candidato
+   (`## Convenções de output`, espelho declarado do `MASTER_OUTPUT`).
+2. **Sobraram 21 linhas arquivadas**, já resolvidas, ainda datadas no futuro, de outros
+   tipsters (Coxadoido, Fatuch, Perereca NFL, MarcoF1 e outros). O script filtra
+   `archived = FALSE` e o escopo aprovado foi um tipster só. → `BACKLOG.md 1.8`.
+   **Próximo passo:** rodar o ensaio com o escopo que o Feca autorizar.
+
+> Cuidado ao ler o item 2: das 43 arquivadas com data no futuro, 22 estão ABERTAS e são
+> legítimas — aposta aberta em evento de amanhã tem data futura por direito. Só as 21
+> **resolvidas** é que são impossíveis.
+
+---
+
+_Anterior: 2026-09-09 (sessao 339: **o mes do Ctrl Alt Green fechava negativo porque a captura datava 8 vitorias em AMANHA.** Relato do Feca as 22:50 de 09/09, com duas perguntas que eram o MESMO defeito: "o resultado nao parece atualizado" e "por que voce finalizou apostas com 10/09?". As 8 linhas estavam no banco, todas `W`, somando **+R$ 928,00** — mas datadas de **10/09**, um dia que ainda nao tinha chegado. O MTD recorta `[1o do mes, hoje]` (`filters.js`, `st.dt = today`), entao bilhete datado de amanha cai fora da conta do mes: com elas dentro o mes vai de **-R$ 892,87 para +R$ 35,02** (medido no banco DEPOIS do reparo: 137 apostas, exatamente as 129 da tela mais as 8), ou seja **o filtro trocava o SINAL do resultado**. **A causa:** `_dataFimB3` somava ao kickoff uma "folga de encerramento" por esporte (`_OFF_B3`: 2,5 h em basquete, 3 h em tenis) para estimar a liquidacao. eBasket chega da bet365 como `CL=18` — Basquete, porque a casa nao separa os dois; quem separa e o `_e_ebasket` do `app/tradutor.py`, pelo handle do gamer nos dois lados — e levava **2,5 h de folga num jogo que dura ~4 minutos**. **A assinatura, medida:** as 8 foram capturadas entre 22:30 e 22:40 e as 8 ganharam data +1; nenhum dos outros 397 eBasket da base, fora dessa faixa de horario, foi deslocado. **A escala:** todo esporte tinha folga, entao havia uma janela diaria de ~21h a meia-noite. Piso medido (data = dia da captura + 1, capturado depois das 21h): **188 linhas** da Bet365 (73 Multiplos, 54 Futebol, 37 Badminton, 8 Basquete, 8 eBasket, 5 Tenis, 2 Dardos, 1 E-Sports) — e e PISO, porque quem foi capturado no lote da manha seguinte carrega o mesmo deslocamento e o banco nao guarda o kickoff para conferir. **Por que sobreviveu tanto tempo:** o efeito no KPI se desfaz sozinho (amanha 10/09 entra no MTD), so o DIA errado fica — defeito que se apaga da tela toda madrugada nao vira reclamacao, vira desconfianca difusa. **Decisao do Feca: `Data = kickoff`, para todos os esportes** — e o que a tela da bet365 mostra, o que as outras casas gravam e a unica data que o payload tem. A conversao UK->Brasilia NAO e a folga e continua obrigatoria (hora de parede de Londres). O rotulo do bloco virou `Data (evento):`, que ja era o das outras casas de API. **Gate novo** (bloco 9 do `extensor/harness/casos/bet365.mjs`), **provado por 5 mutacoes** — e a 3a ESCAPOU na primeira rodada: fixar `ukToBr = 4` deixava tudo verde porque nos casos escolhidos a diferenca entre UK-3 e UK-4 caia dentro do MESMO dia. O horario de verao britanico so troca o dia na faixa **03:00-04:00 UK**, entao foram precisos um caso em janeiro e outro em julho, ambos as 03:30, para prender o erro nos dois sentidos. **Reparo aplicado:** `scripts/corrigir_data_folga_s339.py` (ensaio por padrao) corrigiu as 8 linhas do Ctrl Alt Green e registrou cada uma em `correcoes`; a prova de que a data certa e o dia da captura e que a linha entrou no banco **ja resolvida**, e bilhete so resolve depois de o evento acabar. Harness 27 casos / 436 bilhetes verde. **Fica aberto (BACKLOG 1.6 e 1.8):** o `CLAUDE.md` ESTOUROU o teto (65,4 contra 65) e nao ha mais duplicacao para mover — qual regra sai e decisao do Feca; e sobraram **21 linhas ARQUIVADAS** ja resolvidas com data no futuro, de outros tipsters, que o reparo nao tocou porque filtra `archived = FALSE` e o escopo aprovado foi um tipster so. Outra sessao rodou em PARALELO nesta noite.)
 
 ---
 

@@ -223,6 +223,15 @@ _CASA_DISPLAY: dict[str, str] = {
     # docs/SHARPENUP_ARQUITETURA.md §5.
     "BETPIX365":      "Betpix365",
     "BOLSADEAPOSTA":  "Bolsa de Aposta",
+    # Betbra (s343) — a MESMA plataforma da Bolsa de Aposta com outra marca (Exchange
+    # LayBack em `mexchange.betbra.bet.br` + Sportsbook msjxk em `/fbook`). A grafia foi
+    # MEDIDA antes de registrar, como manda o aviso de mudança RETROATIVA em
+    # docs/SHARPENUP_ARQUITETURA.md §5: `Betbra` é a ÚNICA grafia na base, em todas as
+    # tabelas onde `casa` é texto — 5 contas em `parceiros`, 158 bilhetes, 1 em
+    # `casas_meta`, 23 em `correcoes`, 1 em `uso_tokens`, 0 em `tipsters.casas`. Não há
+    # `BetBra` em lugar nenhum do banco, apesar de `scripts/import_dashboard_xlsx.py` mapear
+    # para essa grafia gêmea — o import nunca rodou com ela aqui.
+    "BETBRA":         "Betbra",
     # ⚠ A MARCA escreve "EsportivaBet" (logo) / "Esportiva Bet" (título), mas a canônica
     # aqui é "Esportiva" — MEDIDO antes de registrar (s254): a base já tinha 351 bilhetes,
     # 2 contas e 4 perfis de tipster nessa grafia, e nenhuma linha em "Esportiva Bet".
@@ -694,6 +703,13 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # (18). Séries distintas, sem risco de colisão, e o marcador é o mesmo — então uma
     # entrada só cobre os dois.
     "BOLSADEAPOSTA",
+    # Betbra (s343) — casa espelho da Bolsa: os mesmos dois formatadores, logo o mesmo
+    # marcador `[Código: …]`. As séries são as da plataforma, não as da Bolsa: Exchange
+    # numérico de 7–8 dígitos (medido: 5393061 … 12567916, a série cresce) e Sportsbook de
+    # 18. Não colidem com as da Bolsa para efeito de dedup, porque `casa` entra na
+    # assinatura — mas o Exchange da Betbra tem MENOS dígitos que o da Bolsa (9), então
+    # comprimento não serve para adivinhar de que casa é um código.
+    "BETBRA",
     # Motor Rogue (s335) — as TRÊS casas espelho emitem `[Código: …]` pelo mesmo
     # `formatTicketRG`. O id é numérico de 18 dígitos (`PurchaseTicketId`) e o espaço de ids
     # é COMPARTILHADO entre elas (são sequenciais por instante de criação no motor, não por

@@ -104,6 +104,68 @@
     };
   }
 
+  // ⚠ `Selections` NÃO é a lista do que foi apostado. Num cupom de mesmo jogo (Criador de
+  // Apostas / bet builder) a casa manda as PERNAS soltas — cada uma com a odd de MERCADO
+  // dela, que não foi apostada — e ainda uma entrada AGREGADA do cupom, com a odd do
+  // conjunto e os textos das pernas concatenados por " | ". Quem diz o que entrou na aposta
+  // é `MappedSelections`, uma lista de ÍNDICES dentro de `Selections`.
+  //
+  // Iterar tudo transforma UMA aposta de 4,61 numa múltipla de 26,72 (1,13 × 2,30 × 2,23 ×
+  // 4,61) — sem erro nenhum, com o P/L continuando certo, porque a odd do bilhete vem de
+  // outro campo. Errariam só turnover, ROI e a assinatura de stake do matcher.
+  //
+  // Medido na Betbra em 10/09/2026, 10 de 10 bilhetes: a odd do bilhete bate com o produto
+  // das MAPPED em 10/10 e com o produto de TODAS em 0/10. Na Bolsa de Aposta o campo é
+  // sempre `[0]` com uma seleção só — lá as duas leituras coincidem, e é por isso que o
+  // defeito atravessou o recon dela sem aparecer.
+  //
+  // Campo AUSENTE ou índice fora da faixa cai de volta em "todas": normalizar, nunca
+  // decidir. Casa que não fala sobre isso não autoriza a gente a descartar seleção.
+  function _selecoesApostadas(t) {
+    const sels = Array.isArray(t.Selections) ? t.Selections : [];
+    const m = t.MappedSelections;
+    if (!Array.isArray(m) || !m.length) return sels;
+    const escolhidas = [];
+    for (const i of m) {
+      const s = sels[i];
+      if (s) escolhidas.push(s);
+    }
+    return escolhidas.length ? escolhidas : sels;
+  }
+
+  // A entrada agregada é a que concatena as pernas. A marca é o separador " | " no texto —
+  // o `MarketTypeId: "QA0"` também identifica, mas é código interno da casa e um bump dele
+  // mataria a detecção em silêncio; o separador está no dado que a própria casa imprime.
+  const _CUPOM_SEP = " | ";
+  function _ehCupom(s) {
+    if (!s) return false;
+    const T = s.Translations || {};
+    return String(T.SelectionName || s.YourBet || "").includes(_CUPOM_SEP);
+  }
+
+  // Quebra a entrada agregada nas pernas que ela representa, pareando mercado com seleção.
+  // Devolve `null` quando as contagens divergem — nome próprio não se inventa, e parear
+  // errado seria pior que subir o texto cru (a família de "a descrição que era do vizinho").
+  function _pernasDoCupom(s) {
+    const T = (s && s.Translations) || {};
+    const sel = String(T.SelectionName || s.YourBet || "").split(_CUPOM_SEP);
+    const mkt = String(T.MarketName || s.LineTypeName || "").split(_CUPOM_SEP);
+    if (sel.length < 2 || sel.length !== mkt.length) return null;
+    const base = parseSelecao(s);
+    return sel.map((nome, i) => Object.assign({}, base, {
+      mercado: mkt[i].trim(),
+      mercadoTipo: mkt[i].trim(),
+      selecao: nome.trim(),
+      // A perna de um cupom NÃO tem odd própria: a casa precifica o conjunto. Publicar a
+      // odd de mercado dela seria oferecer um número que parece conta feita e não é —
+      // irmão do "zero se disfarça de conta feita" do CLAUDE.md.
+      odd: null,
+      // `Points` é da agregada (vem 0) e não descreve perna nenhuma. O número da linha já
+      // está dentro do texto ("Mais de 1.5").
+      linha: null,
+    }));
+  }
+
   function parseTicket(t, out) {
     if (!t || t.TicketId == null) return;
     out.push({
@@ -130,8 +192,32 @@
       cashoutParcial: !!t.IsPartialCashOut,
       criado: _s(t.CreationDate),                       // UTC com Z
       atualizado: _s(t.UpdateDate),
-      sels: (t.Selections || []).map(parseSelecao),
+      // ⚠ SÓ o que `MappedSelections` aponta — ver `_selecoesApostadas`. E, quando a entrada
+      // apontada é o AGREGADO de um cupom de mesmo jogo, ela vira as pernas que representa.
+      sels: _selsDoBilhete(t),
+      // Cupom de mesmo jogo (Criador de Apostas): N seleções, UMA odd. O formatador precisa
+      // saber disso para não rotular como "Múltipla", que sugere jogos diferentes e odd
+      // composta. Sobe como fato do dado, não como texto pronto: quem escreve é o content.
+      cupomMesmoJogo: _selecoesApostadas(t).some(_ehCupom),
     });
+  }
+
+  // As seleções que o bloco vai listar. Duas etapas, nesta ordem:
+  //   1. `MappedSelections` decide o que foi APOSTADO;
+  //   2. se a entrada apostada for o agregado de um cupom, ela é quebrada nas pernas.
+  // Quebra que não fecha (contagens divergentes) mantém a entrada agregada inteira — o texto
+  // cru da casa, sem invenção.
+  function _selsDoBilhete(t) {
+    const escolhidas = _selecoesApostadas(t);
+    const out = [];
+    for (const s of escolhidas) {
+      if (_ehCupom(s)) {
+        const pernas = _pernasDoCupom(s);
+        if (pernas) { for (const p of pernas) out.push(p); continue; }
+      }
+      out.push(parseSelecao(s));
+    }
+    return out;
   }
 
   function enviar() {

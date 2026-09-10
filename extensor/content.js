@@ -1032,7 +1032,16 @@
       // sem linha em branco entre bilhetes, então o roboScroll genérico viraria um bloco só e
       // a IA perderia o resto em silêncio (lição da KTO, s192).
       blocos = await roboSTKPassive(ctx);
-    } else if (casa === "bolsadeaposta") {
+    } else if (casa === "bolsadeaposta" || casa === "betbra") {
+      // DUAS CASAS, UMA PLATAFORMA (s343). A Betbra é a Bolsa de Aposta com outra marca:
+      // as ROTAS DA CASCA são as mesmas (`/b/exchange` · `/fbook`), os dois injects derivam
+      // o endereço de `location` e os formatadores são os mesmos. Por isso ela entra aqui em
+      // vez de ganhar inject próprio — duplicar criaria dois lugares para corrigir a mesma
+      // armadilha, e a do `MappedSelections` já mostrou que uma delas ficaria para trás.
+      // Diferenças medidas, todas absorvidas sem código condicional: o Exchange responde em
+      // `mexchange.` SEM número (a Bolsa é `mexchange2.`) e as séries de código são por
+      // casa, não por plataforma (7–8 dígitos aqui, 9 na Bolsa).
+      //
       // DOIS AMBIENTES NUMA CASA SÓ. O Exchange e o Sportsbook são plataformas diferentes,
       // em iframes de origens diferentes, e **só um deles está no DOM por vez** — o iframe
       // que existe é o da tela em que o operador está. Sem tratar isso, "capturar tudo"
@@ -1251,6 +1260,20 @@
         // `hook` só é verdade se os DOIS injects deram sinal; o `extra` nomeia o que faltou.
         bolsadeaposta: {
           nome: "Bolsa de Aposta",
+          hook: bdaHookVivo && bdsHookVivo,
+          resp: bdaRespostas + bdsRespostas,
+          vistos: bdaById.size + bdsById.size,
+          extra: (bdaErro || bdsErro ? " · " + [bdaErro, bdsErro].filter(Boolean).join(" · ") : "") +
+                 (!bdaHookVivo ? " · Exchange não respondeu (abra Minhas Apostas no Exchange uma vez e rode de novo)" : "") +
+                 (!bdsHookVivo ? " · Sportsbook não respondeu (abra o Sportsbook uma vez e rode de novo)" : "") +
+                 (bdaNaoCasadas ? " · " + bdaNaoCasadas + " oferta(s) do Exchange não chegaram a casar e ficaram de fora" : ""),
+        },
+        // Betbra: MESMA plataforma, mesmos dois injects, mesmos contadores — o diagnóstico
+        // é o mesmo objeto com outro nome. Duas entradas em vez de uma chave dupla porque a
+        // busca aqui é pelo slug da casa (`cfg.casa` normalizado), e as duas casas coexistem
+        // no mesmo dashboard: um operador pode ter conta nas duas.
+        betbra: {
+          nome: "Betbra",
           hook: bdaHookVivo && bdsHookVivo,
           resp: bdaRespostas + bdsRespostas,
           vistos: bdaById.size + bdsById.size,
@@ -2649,8 +2672,17 @@
     if (b.cashoutParcial) L.push("Marcação da casa: cashout parcial (Retirada) — conferir contra o card");
     if (b.freebet) L.push("Marcação da casa: aposta grátis (freebet)");
     if (b.aoVivo) L.push("Marcação da casa: ao vivo");
+    // ⚠ CUPOM DE MESMO JOGO ≠ MÚLTIPLA. No Criador de Apostas (bet builder) as N seleções
+    // são do MESMO jogo e a casa precifica só o conjunto — há uma odd, não um produto de
+    // odds. Rotular como "Múltipla" mente em três frentes de uma vez: sugere jogos
+    // diferentes, sugere odd composta, e (antes da correção do `MappedSelections`) contava a
+    // própria entrada agregada como se fosse mais uma perna. `b.tipo` continua ao lado
+    // porque é o rótulo CRU da casa ("single bet"), que aqui é o que ela chama a compra.
+    const cupom = !!b.cupomMesmoJogo;
     const multipla = sels.length > 1 || (typeof b.combo === "number" && b.combo > 0);
-    L.push("Tipo: " + (multipla ? "Múltipla (" + sels.length + " seleções)" : "Simples") +
+    L.push("Tipo: " + (cupom
+             ? "Criador de Apostas (bet builder — " + sels.length + " seleções do MESMO jogo, odd única do cupom)"
+             : multipla ? "Múltipla (" + sels.length + " seleções)" : "Simples") +
            (b.tipo ? " · " + b.tipo : ""));
     L.push("Seleções:");
     for (const s of sels) {

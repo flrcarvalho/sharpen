@@ -62,6 +62,10 @@ const CASA_HOSTS = {
   // domínio da CASCA, que é a página em que o operador está; os hosts dos iframes
   // (`mexchange*.bolsadeaposta.bet.br` e `*.msjxk.com`) vivem no manifest.
   "Bolsa de Aposta": ["bolsadeaposta.bet.br"],
+  // Betbra (s343) — a MESMA plataforma da Bolsa, com outra marca. Mesmas rotas de casca
+  // (`/b/exchange` · `/fbook`) e os mesmos dois injects; muda so o dominio. Os hosts dos
+  // iframes (`mexchange.betbra.bet.br` e `*.msjxk.com`) vivem no manifest.
+  "Betbra":     ["betbra.bet.br"],
   // Motor Rogue (s335) — TRES casas espelho, um inject so (`rg_inject.js`). Como na
   // Novibet, a API mora no proprio dominio da casa (`/api/sportsbook/rogue/v1/...`),
   // entao nao ha host de gateway para listar. A amarracao casa<->site importa mais

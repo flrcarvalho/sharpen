@@ -136,6 +136,11 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Bolsa de Aposta: o Exchange usa 9 dígitos e o Sportsbook 18. Séries distintas na mesma
     # casa — o gabarito aqui é o do Exchange, que é onde estão 418 dos 435 bilhetes.
     "BOLSADEAPOSTA": "119530135",
+    # Betbra (s343) — casa espelho da Bolsa, mesmas duas series. O gabarito e o Exchange,
+    # onde estao 403 dos 413 bilhetes da conta. ⚠ A serie do Exchange da Betbra tem 7-8
+    # digitos e a da Bolsa tem 9: mesma plataforma, contadores INDEPENDENTES por casa. O id
+    # abaixo e o `lose` de 08/09/2026 (Boca Juniors vs Sao Paulo, stake 40, odd 13).
+    "BETBRA":     "12536715",
 }
 
 # Casas de captura cuja ingestão é condicional no backend (o texto pode vir do

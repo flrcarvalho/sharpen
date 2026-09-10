@@ -176,6 +176,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0711",
+      "v": "v0.7.11",
+      "data": "2026-09-10",
+      "texto": "**Nova casa: Betbra.** Exchange e Sportsbook, com o histórico completo.",
+      "itens": [
+        "Atualize a extensão e conecte a Betbra."
+      ]
+    },
+    {
       "id": "su-0710",
       "v": "v0.7.10",
       "data": "2026-09-09",

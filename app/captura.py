@@ -69,6 +69,9 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
 _MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
                    "BOLSADEAPOSTA": "texto",
+                   # Betbra (s343) — casa ESPELHO da Bolsa: mesma plataforma, mesmas rotas de
+                   # casca (`/b/exchange` · `/fbook`), os mesmos dois injects. So muda a marca.
+                   "BETBRA": "texto",
                    # Motor Rogue (s335) — tres casas espelho, um inject so.
                    "BETAO": "texto", "R7": "texto", "7GAMES": "texto"}
 
@@ -113,6 +116,11 @@ _HOSTS_POR_CASA = {
     # amarração casa↔site compara (a página em que o operador está é a casca); os hosts de
     # API não entram neste mapa, como já acontece na Lottu.
     "BOLSADEAPOSTA": ("bolsadeaposta.bet.br",),
+    # Betbra (s343) — mesma plataforma da Bolsa, mesma logica: aqui vai o dominio da CASA.
+    # O Exchange responde em `mexchange-api.betbra.bet.br` e o Sportsbook em
+    # `prod20454-176166310.msjxk.com` (o sufixo do host difere do da Bolsa, e por isso o
+    # manifest usa curinga) — hosts de API nao entram neste mapa.
+    "BETBRA":     ("betbra.bet.br",),
     # Pitaco (s270) — plataforma PRÓPRIA, gRPC-Web/protobuf. Antiga "Rei do Pitaco"; a grafia
     # velha foi unificada no banco na mesma sessão. O domínio antigo (`reidopitaco.com.br`)
     # NÃO entra: a operação regulada é a `.bet.br`.
