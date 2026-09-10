@@ -498,6 +498,29 @@ def tipsters_cadastro(arquivados: bool = False):
     return {"tipsters": CADASTRO_TIPSTERS}
 
 
+@app.get("/tipsters/{tipster_id}/resumo")
+def tipster_resumo_demo(tipster_id: int):
+    """Espelha `main.resumo_tipster_route`: o que o rename vai tocar, contado na base.
+
+    Existe aqui porque o modal de confirmacao ABRE com este numero -- sem a rota ele
+    cairia no ramo "nao consegui contar" e o print sairia mostrando o caso de erro."""
+    t = next((x for x in CADASTRO_TIPSTERS if x["id"] == tipster_id), None)
+    if not t:
+        return JSONResponse({"detail": "Tipster nao encontrado."}, status_code=404)
+    nome = t["nome"]
+    n = sum(1 for l in LINHAS if l.get("tipster") == nome)
+    return {"id": tipster_id, "nome": nome, "arquivado": bool(t.get("arquivado")),
+            "n_bilhetes": n, "n_unidades": 2, "n_polymarket": 0,
+            "n_casas_config": 1, "tem_custo": True}
+
+
+@app.post("/tipsters/{tipster_id}/renomear")
+def tipster_renomear_demo(tipster_id: int):
+    """Demo nao escreve: devolve o formato da resposta para o front seguir o fluxo."""
+    return {"ok": True, "nome": "", "bilhetes_atualizados": 0, "unidades": 0,
+            "polymarket": 0, "casas_config": 0, "custo_movido": False}
+
+
 class _SugBilhete(BaseModel):
     id: str
     casa: str = ""

@@ -1234,6 +1234,79 @@ async function tmSetInativo(id,inativo,nome){
 }
 window.tmSetInativo=tmSetInativo;
 
+// ── Renomear tipster (propaga ao histórico inteiro) ──────────────────────────
+// O tipster é referenciado por NOME em seis lugares (bilhetes, escada de unidade,
+// atribuição por casa, custo mensal, posições da Polymarket e o cadastro em si) — a
+// lista e o porquê estão em `_TIPSTER_REFS_TEXTO`, no repository. Quem ficasse para
+// trás não daria erro: viraria órfão silencioso, com a casa dedicada apontando para um
+// nome que não existe e o custo cobrado no KPI sem linha na tela onde se lança.
+//
+// A contagem exibida vem de `/tipsters/{id}/resumo`, que conta na MESMA cláusula que o
+// UPDATE vai usar — não do feed (`_tmAgg`), que é cacheado e, em conta com planilha
+// viva, atrasa dezenas de minutos. Uma tela que promete "isto será atualizado" não pode
+// prometer com um número de outra fonte. Mesma régua do modal de excluir conta.
+async function tmRenomear(id,nome){
+  if(window.MODO_PUBLICO)return;   // vitrine pública: nunca escreve (nem via console)
+  let res=null;
+  try{const r=await fetch('/tipsters/'+id+'/resumo');if(r.ok)res=await r.json();}catch(e){}
+  const nfmt=v=>Number(v||0).toLocaleString('pt-BR');
+  // Sem o resumo, o modal abre SEM número e dizendo que não conseguiu contar. Cair no
+  // `_tmAgg` daria um número de outra fonte com cara de conferido — pior que não ter.
+  const placar=res
+    ?`<span class="sh-cfm__alvo-n"><span class="n">${nfmt(res.n_bilhetes)}</span><span class="l">apostas</span></span>`
+    :'';
+  const extras=[];
+  if(res&&res.n_unidades)extras.push(`<b>${nfmt(res.n_unidades)}</b> ${res.n_unidades===1?'degrau':'degraus'} da escada de unidade`);
+  if(res&&res.n_casas_config)extras.push(`<b>${nfmt(res.n_casas_config)}</b> ${res.n_casas_config===1?'casa dedicada':'casas dedicadas'}`);
+  if(res&&res.n_polymarket)extras.push(`<b>${nfmt(res.n_polymarket)}</b> ${res.n_polymarket===1?'posição ativa':'posições ativas'} da Polymarket`);
+  if(res&&res.tem_custo)extras.push('o <b>custo mensal</b> lançado para ele');
+  const corpo=
+    `<div class="sh-cfm__aviso"><span class="sh-cfm__aviso-ico">⚠️</span>`
+      +`<span class="sh-cfm__aviso-txt">O nome novo é gravado em <b>todas as apostas</b> deste tipster, de uma vez.`
+      +(extras.length?` Junto vão ${extras.join(' · ')}.`:'')
+      +` Para voltar atrás é renomear de novo — não há desfazer.</span></div>`
+    +`<div class="sh-cfm__alvo"><span class="sh-cfm__alvo-nome">${esc(nome)}</span>${placar}</div>`
+    +(res?'':`<div class="sh-cfm__aviso sh-cfm__aviso--perigo"><span class="sh-cfm__aviso-ico">⚠️</span>`
+      +`<span class="sh-cfm__aviso-txt">Não consegui contar as apostas agora. O rename atualiza todas mesmo assim, mas você segue sem o número na tela.</span></div>`)
+    +`<div class="sh-cfm__campo"><label class="sh-cfm__label" for="tmRenNome">Novo nome</label>`
+      +`<input class="sh-cfm__inp" id="tmRenNome" type="text" spellcheck="false" autocomplete="off" placeholder="Como ele passa a aparecer em toda a base"></div>`;
+  await shConfirm({
+    eyebrow:'RENOMEAR TIPSTER', titulo:nome, corpo:corpo,
+    acao:'Renomear', rodando:'Renomeando…', focar:'#tmRenNome',
+    // Espelha a recusa do servidor (UNIQUE dono+nome), sem endurecer: quem decide é ele.
+    validar:el=>{
+      const inp=el.querySelector('#tmRenNome');
+      const v=((inp&&inp.value)||'').trim();
+      if(!v)return 'vazio';
+      if(v===nome)return 'igual ao atual';
+      if(Object.prototype.hasOwnProperty.call(_tmCadastro||{},v))return 'já existe';
+      return '';
+    },
+    aoConfirmar:async el=>{
+      const novo=el.querySelector('#tmRenNome').value.trim();
+      const r=await fetch('/tipsters/'+id+'/renomear',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nome:novo})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.detail||'Não foi possível renomear.');
+      // Todo cache chaveado por NOME tem de cair junto, senão a tela segue mostrando o
+      // nome velho em algum canto e o próximo save regrava o órfão de volta.
+      if(_tmOpen===nome)_tmOpen=novo;
+      _tmCadastro=null;_tmAgg=null;
+      if(typeof _tipCadastro!=='undefined')_tipCadastro=null;
+      if(typeof _tipEscadas!=='undefined')_tipEscadas=null;
+      _casasVisao=[];_casasEdit={};                       // casa_config mudou de CSV
+      if(typeof ctLoad==='function')await ctLoad();       // o custo é chaveado por nome
+      // Os bilhetes mudaram de tipster: sem recarregar o feed, toda a análise (KPIs,
+      // relatórios, matcher da Extração) segue somando sob o nome antigo.
+      if(typeof loadData==='function')await loadData(false);
+      else renderTipsterMetodo();
+      return novo;
+    },
+  });
+}
+window.tmRenomear=tmRenomear;
+
 function tmRenderEditor(nome){
   const box=document.getElementById('tmEditor');
   if(!box)return;
@@ -1245,8 +1318,20 @@ function tmRenderEditor(nome){
   // remover degrau re-renderiza SÓ ela, sem apagar os inputs não salvos (bug do Feca).
   _tmSelCasas=_tmSplit(t.casas);_tmSelMkts=_tmSplit(t.mercados);_tmSelEsp=_tmSplit(t.esportes);
   const dlMkts=`<datalist id="tmMktDL">${_tmAllMkts.map(m=>`<option value="${esc(m)}">`).join('')}</datalist>`;
+  // O nome vive AQUI, e não como um ✎ na faixa do accordion, por duas razões do item 8
+  // do checklist de UI: o nome é a primeira "informação" do perfil (mesma superfície dos
+  // outros campos, sem inventar um segundo lugar de editar tipster), e a faixa já tem o
+  // bloco da direita alinhado ao milímetro (badge 92px · volume 104px · tick).
+  // O campo é só LEITURA de propósito: quem digita é o modal. Um input aqui seria salvo
+  // pelo "Salvar info" logo abaixo — que não renomeia nada — e o nome novo sumiria sem
+  // erro nenhum no próximo render.
   const esquerda=`<div>`
     +`<div style="${secTit};color:var(--ink-soft)">Suas informações</div>`
+    +`<div style="margin-bottom:12px"><label style="${lb}">Nome do tipster</label>`
+      +`<div style="display:flex;align-items:center;gap:8px">`
+        +`<span style="flex:1;min-width:0;font-family:var(--font-mono);font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nome)}</span>`
+        +`<button style="${_tmBTG};padding:6px 12px" onclick="tmRenomear(${t.id},'${_tmJs(nome)}')" title="Trocar o nome e atualizar o histórico inteiro">Renomear</button>`
+      +`</div></div>`
     +`<div style="margin-bottom:12px"><label style="${lb}">Casas principais</label><div id="tmCasasBox"></div></div>`
     +`<div style="margin-bottom:12px"><label style="${lb}">Esportes</label><div id="tmEspBox"></div></div>`
     +`<div style="margin-bottom:12px"><label style="${lb}">Mercados</label><div id="tmMktBox"></div>${dlMkts}</div>`

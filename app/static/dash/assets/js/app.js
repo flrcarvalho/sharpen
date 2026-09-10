@@ -1446,3 +1446,167 @@ document.addEventListener('mouseout',function(e){
   if(e.target.closest('.cal__cell'))_calTip.style.display='none';
 });
 
+
+
+// ── shConfirm — confirmação da marca (substitui o confirm() nativo) ──────────
+// O `confirm()` do navegador abre uma faixa BRANCA no topo da janela, sem uma cor da
+// marca e sem espaço para dizer o que a ação vai tocar. Este abre no MEIO da tela,
+// com o lockup do Sharpen, sobre o mesmo véu dos outros modais do dash.
+//
+// É uma superfície de modal só, num tamanho menor — não um segundo estilo para o mesmo
+// papel (item 8 do checklist de UI). CSS em components.css (.sh-cfm*).
+//
+// API:
+//   const corpo = await shConfirm({
+//     eyebrow:'RENOMEAR TIPSTER', titulo:'Peixe', corpo:'<html>', acao:'Renomear',
+//     perigo:false, validar:(el)=>'' , focar:'#id'
+//   });
+//   corpo === null  → cancelou (Cancelar, ✕, Esc ou clique no véu)
+//   corpo !== null  → confirmou; é o ELEMENTO do corpo, para o chamador ler os inputs.
+//
+// `validar(corpoEl)` devolve string vazia quando pode confirmar, ou o motivo. Roda a
+// cada tecla (habilita/desabilita o botão) e de novo no clique — o botão desabilitado
+// é conveniência, a checagem é que decide. Sem `validar`, o botão nasce habilitado.
+//
+// `aoConfirmar(corpoEl)` (opcional, async) executa a ação DENTRO do modal: enquanto
+// roda, o botão fica travado; se ela LANÇA, a mensagem aparece na faixa de erro e o
+// modal continua aberto com o que já estava digitado. Sem isso, uma recusa do backend
+// ("já existe um tipster com esse nome") obrigaria a refazer tudo do zero — e o erro
+// ainda apareceria longe do formulário que falhou, que é o defeito documentado no
+// CLAUDE.md (o 500 da Caixa indo para a barra de captura).
+let _shCfmResolver=null,_shCfmOpts=null,_shCfmRodando=false;
+function _shCfmDOM(){
+  let ov=document.getElementById('shCfmOverlay');
+  if(ov)return ov;
+  ov=document.createElement('div');
+  ov.className='sh-cfm-overlay';
+  ov.id='shCfmOverlay';
+  ov.innerHTML=
+    `<div class="sh-cfm" id="shCfmBox" role="dialog" aria-modal="true" aria-labelledby="shCfmTitulo">`
+    +`<div class="sh-cfm__brand">`
+      +`<img src="brand/sharpen-lockup-dark.svg" class="logo-dark" alt="Sharpen" draggable="false">`
+      +`<img src="brand/sharpen-lockup-light.svg" class="logo-light" alt="Sharpen" draggable="false">`
+    +`</div>`
+    +`<div class="sh-cfm__head">`
+      +`<span class="sh-cfm__eyebrow" id="shCfmEyebrow"></span>`
+      +`<span class="sh-cfm__titulo" id="shCfmTitulo"></span>`
+    +`</div>`
+    +`<div class="sh-cfm__corpo" id="shCfmCorpo"></div>`
+    +`<div class="sh-cfm__erro" id="shCfmErro" hidden></div>`
+    +`<div class="sh-cfm__foot">`
+      +`<button type="button" class="sh-cfm__btn sh-cfm__btn--ghost" id="shCfmCancelar">Cancelar</button>`
+      +`<button type="button" class="sh-cfm__btn sh-cfm__btn--primary" id="shCfmOk">Confirmar</button>`
+    +`</div>`
+  +`</div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)_shCfmCancelar(true);});
+  document.getElementById('shCfmCancelar').addEventListener('click',()=>_shCfmCancelar(false));
+  document.getElementById('shCfmOk').addEventListener('click',_shCfmOk);
+  document.getElementById('shCfmCorpo').addEventListener('input',_shCfmValidar);
+  document.getElementById('shCfmCorpo').addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();_shCfmOk();}
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&ov.classList.contains('on'))_shCfmCancelar(true);
+  });
+  return ov;
+}
+// Há algo digitado? Clique no véu e Esc são gestos fáceis de disparar sem querer, e o
+// modal reabre do zero — com o campo preenchido ele sacode em vez de fechar. Mesma
+// régua do `_modalFecharSeLimpo` da Extração. ✕/Cancelar fecham sempre.
+function _shCfmSujo(){
+  return [...document.querySelectorAll('#shCfmCorpo input')].some(i=>(i.value||'').trim()!=='');
+}
+function _shCfmSacode(){
+  const b=document.getElementById('shCfmBox');
+  if(!b)return;
+  b.classList.remove('modal--shake');void b.offsetWidth;b.classList.add('modal--shake');
+  setTimeout(()=>b.classList.remove('modal--shake'),400);
+}
+function _shCfmCancelar(gestoLeve){
+  // Ação em voo: nem Esc, nem véu, nem Cancelar fecham. Fechar aqui deixaria a escrita
+  // terminando no servidor com a tela já sem saber dela — o dado mudaria e a página
+  // continuaria mostrando o estado velho, sem erro nenhum.
+  if(_shCfmRodando){_shCfmSacode();return;}
+  if(gestoLeve&&_shCfmSujo()){_shCfmSacode();return;}
+  const r=_shCfmResolver;
+  shConfirmFechar();
+  if(r)r(null);
+}
+function _shCfmValidar(){
+  const btn=document.getElementById('shCfmOk');
+  if(!btn)return'';
+  const el=document.getElementById('shCfmCorpo');
+  const motivo=(_shCfmOpts&&typeof _shCfmOpts.validar==='function')?(_shCfmOpts.validar(el)||''):'';
+  btn.disabled=!!motivo;
+  return motivo;
+}
+async function _shCfmOk(){
+  if(_shCfmRodando)return;                // clique/Enter repetido não dispara a ação duas vezes
+  if(_shCfmValidar())return;              // o botão é conveniência; a checagem é que decide
+  const el=document.getElementById('shCfmCorpo');
+  const opts=_shCfmOpts||{};
+  if(typeof opts.aoConfirmar!=='function'){
+    const r=_shCfmResolver;
+    shConfirmFechar();
+    if(r)r(el);
+    return;
+  }
+  const rotulo=opts.acao||'Confirmar';
+  _shCfmRodando=true;
+  shConfirmErro('');
+  shConfirmOcupado(true,opts.rodando||'Aplicando…');
+  try{
+    const saida=await opts.aoConfirmar(el);
+    const r=_shCfmResolver;
+    shConfirmFechar();
+    if(r)r(saida===undefined?el:saida);
+  }catch(err){
+    // Falhou: o modal FICA aberto, com o que já estava digitado, e a mensagem aparece
+    // no próprio formulário. Só o botão volta a valer.
+    shConfirmOcupado(false,rotulo);
+    shConfirmErro((err&&err.message)||'Não foi possível concluir.');
+    _shCfmValidar();
+  }finally{_shCfmRodando=false;}
+}
+function shConfirmErro(msg){
+  const e=document.getElementById('shCfmErro');
+  if(!e)return;
+  if(msg){e.textContent=msg;e.hidden=false;}
+  else{e.textContent='';e.hidden=true;}
+}
+function shConfirmOcupado(ocupado,rotulo){
+  const b=document.getElementById('shCfmOk');
+  if(!b)return;
+  b.disabled=!!ocupado;
+  if(rotulo)b.textContent=rotulo;
+}
+function shConfirmFechar(){
+  const ov=document.getElementById('shCfmOverlay');
+  if(ov)ov.classList.remove('on');
+  document.body.style.overflow='';
+  _shCfmResolver=null;_shCfmOpts=null;
+}
+function shConfirm(opts){
+  opts=opts||{};
+  const ov=_shCfmDOM();
+  _shCfmOpts=opts;
+  document.getElementById('shCfmEyebrow').textContent=opts.eyebrow||'CONFIRMAR';
+  document.getElementById('shCfmTitulo').textContent=opts.titulo||'';
+  document.getElementById('shCfmCorpo').innerHTML=opts.corpo||'';
+  const ok=document.getElementById('shCfmOk');
+  ok.textContent=opts.acao||'Confirmar';
+  ok.className='sh-cfm__btn '+(opts.perigo?'sh-cfm__btn--perigo':'sh-cfm__btn--primary');
+  document.getElementById('shCfmCancelar').textContent=opts.cancelar||'Cancelar';
+  shConfirmErro('');
+  ov.classList.add('on');
+  document.body.style.overflow='hidden';
+  _shCfmValidar();
+  const foco=opts.focar?document.querySelector('#shCfmCorpo '+opts.focar):null;
+  if(foco)foco.focus();
+  return new Promise(res=>{_shCfmResolver=res;});
+}
+window.shConfirm=shConfirm;
+window.shConfirmErro=shConfirmErro;
+window.shConfirmFechar=shConfirmFechar;
+window.shConfirmOcupado=shConfirmOcupado;

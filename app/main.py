@@ -69,7 +69,7 @@ from repository import (
     flags_pos_edicao, limpar_ativos_tipster, list_bilhetes, list_esportes,
     list_mercados, list_tipsters,
     criar_tipster, list_tipsters_cadastro, arquivar_tipster, reativar_tipster,
-    atualizar_tipster_info, renomear_tipster,
+    atualizar_tipster_info, renomear_tipster, resumo_tipster,
     casas_visao, salvar_casa_config, casas_dedicadas, rotulos_humanos, dominio_esportes,
     get_escada_unidade, set_unidade, remover_unidade, resultado_em_unidades,
     get_escadas_todas, sugerir_tipster,
@@ -4258,12 +4258,28 @@ async def reativar_tipster_route(tipster_id: int, dono: str = Depends(dono_efeti
     return {"arquivado": False}
 
 
+@app.get("/tipsters/{tipster_id}/resumo")
+async def resumo_tipster_route(tipster_id: int, dono: str = Depends(dono_efetivo)):
+    """Identidade + o que o rename vai tocar. Só o modal de confirmação consome: o número
+    que a tela promete atualizar tem de vir da mesma consulta que o UPDATE usa."""
+    res = await resumo_tipster(tipster_id, dono)
+    if not res:
+        raise HTTPException(404, "Tipster não encontrado.")
+    return res
+
+
 @app.post("/tipsters/{tipster_id}/renomear")
 async def renomear_tipster_route(tipster_id: int, body: TipsterRenomearRequest,
                                  dono: str = Depends(dono_efetivo)):
     res = await renomear_tipster(tipster_id, body.nome, dono)
     if not res.get("ok"):
         raise HTTPException(400, res.get("motivo", "Não foi possível renomear."))
+    # O modelo do matcher é treinado dos rótulos HUMANOS da base e cacheado por dono —
+    # ele guarda o nome ANTIGO em todo perfil aprendido. Sem derrubar o cache, a próxima
+    # extração sugeriria um tipster que não existe mais, e o `/bilhetes/tipster` gravaria
+    # o nome velho de volta na base recém-renomeada (mesma família da casa dedicada
+    # apontando para o órfão). Não é opcional: é a 7ª ponta da propagação.
+    matcher.invalidar(dono)
     return res
 
 

@@ -3082,11 +3082,87 @@ async def salvar_casa_config(dono: str, casa: str, modo: str, tipsters: str,
     return True
 
 
+# Tudo o que referencia um tipster pelo NOME. O rename tem de varrer a lista INTEIRA:
+# quem ficar para trás não dá erro nenhum, vira órfão silencioso — a casa dedicada aponta
+# para um nome que não existe e o matcher para de cravar; o custo do tipster continua
+# cobrado no KPI sem linha na tela onde se lança (a família do "tipster cobrado e
+# ineditável"). `tipsters.nome` é a identidade; as outras cinco são referências.
+#
+#   tabela                      | coluna           | forma
+#   ----------------------------|------------------|---------------------------------
+#   tipsters                    | nome             | a própria identidade
+#   bilhetes                    | tipster          | texto direto
+#   tipster_unidade             | tipster          | texto direto (escada de unidade)
+#   polymarket_ativos_tipster   | tipster          | texto direto
+#   casa_config                 | tipsters         | CSV de 1-2 nomes
+#   custo_store                 | custo_tipster    | CHAVE de um blob JSONB
+#
+# `tipster` NÃO entra em `_SIG_COLS`, então renomear não invalida assinatura nenhuma —
+# ao contrário de `casa`/`parceiro`, que exigem recálculo (ver `_assinatura_pos_edicao`).
+_TIPSTER_REFS_TEXTO = (
+    ("bilhetes", "tipster"),
+    ("tipster_unidade", "tipster"),
+    ("polymarket_ativos_tipster", "tipster"),
+)
+
+
+def _csv_tipsters(csv: str) -> list[str]:
+    """CSV de nomes da `casa_config` → lista limpa. Mesma quebra do `salvar_casa_config`."""
+    return [t.strip() for t in (csv or "").split(",") if t.strip()]
+
+
+async def resumo_tipster(tipster_id: int, dono: str) -> dict | None:
+    """Identidade do tipster + o que o rename vai tocar, contado AGORA no banco.
+
+    Alimenta o modal de confirmação, e pela mesma régua do `resumo_parceiro`: o número
+    que a tela promete atualizar sai da mesma cláusula que o UPDATE vai usar, não de
+    `/dashboard/data` (que é cacheado e, em conta com planilha viva, atrasa dezenas de
+    minutos — mostraria uma contagem velha numa tela que promete "isto será atualizado").
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, nome, arquivado FROM tipsters WHERE id = $1 AND dono = $2",
+            tipster_id, dono,
+        )
+        if not row:
+            return None
+        nome = row["nome"]
+        n_bilhetes = await conn.fetchval(
+            "SELECT COUNT(*) FROM bilhetes WHERE dono = $1 AND tipster = $2", dono, nome)
+        n_unidades = await conn.fetchval(
+            "SELECT COUNT(*) FROM tipster_unidade WHERE dono = $1 AND tipster = $2", dono, nome)
+        n_poly = await conn.fetchval(
+            "SELECT COUNT(*) FROM polymarket_ativos_tipster WHERE dono = $1 AND tipster = $2",
+            dono, nome)
+        casas = await conn.fetch(
+            "SELECT casa, tipsters FROM casa_config WHERE dono = $1 AND tipsters <> ''", dono)
+        blob = await conn.fetchval(
+            "SELECT custo_tipster FROM custo_store WHERE dono = $1", dono)
+    # Conta pelo ELEMENTO do CSV, nunca por substring: "Peixe" vive dentro de "Peixinho",
+    # e o número que a tela promete não pode contar uma casa que o UPDATE não vai tocar.
+    n_casas = sum(1 for c in casas if nome in _csv_tipsters(c["tipsters"]))
+    ct = json.loads(blob) if isinstance(blob, str) else (blob or {})
+    return {
+        "id": row["id"], "nome": nome, "arquivado": row["arquivado"],
+        "n_bilhetes": int(n_bilhetes or 0), "n_unidades": int(n_unidades or 0),
+        "n_polymarket": int(n_poly or 0), "n_casas_config": n_casas,
+        "tem_custo": bool(isinstance(ct, dict) and ct.get(nome)),
+    }
+
+
 async def renomear_tipster(tipster_id: int, novo_nome: str, dono: str) -> dict:
-    """Renomeia o tipster E propaga aos bilhetes (que o referenciam por NOME em
-    bilhetes.tipster). Espelha renomear_parceiro. Colisão respeita UNIQUE (dono, nome):
-    se o novo nome já existe, recusa e explica — fundir dois tipsters é decisão manual
-    (reatribuir os bilhetes), não um efeito colateral silencioso do rename."""
+    """Renomeia o tipster e propaga a TODAS as referências por nome (`_TIPSTER_REFS_TEXTO`
+    + o CSV da `casa_config` + a chave do blob de custo). Espelha `renomear_parceiro`.
+
+    Colisão respeita UNIQUE (dono, nome): se o novo nome já existe, recusa e explica —
+    fundir dois tipsters é decisão manual (reatribuir os bilhetes), não efeito colateral
+    silencioso do rename.
+
+    Tudo numa transação só: um rename meio-aplicado é a família do UPSERT
+    meio-atualizado — o bilhete apontando para um nome e o custo para outro é pior que
+    não ter renomeado. Devolve a contagem POR PONTA, para a tela poder dizer o que mexeu.
+    """
     novo_nome = (novo_nome or "").strip()
     if not novo_nome:
         return {"ok": False, "motivo": "Nome vazio."}
@@ -3100,7 +3176,9 @@ async def renomear_tipster(tipster_id: int, novo_nome: str, dono: str) -> dict:
                 return {"ok": False, "motivo": "Tipster não encontrado."}
             antigo = row["nome"]
             if antigo == novo_nome:
-                return {"ok": True, "bilhetes_atualizados": 0}
+                return {"ok": True, "antigo": antigo, "nome": novo_nome,
+                        "bilhetes_atualizados": 0, "unidades": 0, "polymarket": 0,
+                        "casas_config": 0, "custo_movido": False}
             existe = await conn.fetchval(
                 "SELECT 1 FROM tipsters WHERE dono = $1 AND nome = $2 AND id <> $3",
                 dono, novo_nome, tipster_id,
@@ -3111,16 +3189,74 @@ async def renomear_tipster(tipster_id: int, novo_nome: str, dono: str) -> dict:
                 "UPDATE tipsters SET nome = $1 WHERE id = $2 AND dono = $3",
                 novo_nome, tipster_id, dono,
             )
-            res = await conn.execute(
-                "UPDATE bilhetes SET tipster = $1 WHERE dono = $2 AND tipster = $3",
-                novo_nome, dono, antigo,
-            )
-            # Propaga também para a escada de unidade (chaveada por nome).
+            # A escada é UNIQUE (dono, tipster, vigente_desde). Degrau já gravado sob o
+            # nome NOVO é órfão por definição (nenhum tipster se chamava assim até agora,
+            # é UNIQUE) e travaria o UPDATE com UniqueViolation. Sai antes, e só o que
+            # colidiria — nunca a escada inteira do destino.
             await conn.execute(
-                "UPDATE tipster_unidade SET tipster = $1 WHERE dono = $2 AND tipster = $3",
-                novo_nome, dono, antigo,
+                "DELETE FROM tipster_unidade WHERE dono = $1 AND tipster = $2 "
+                "AND vigente_desde IN (SELECT vigente_desde FROM tipster_unidade "
+                "                      WHERE dono = $1 AND tipster = $3)",
+                dono, novo_nome, antigo,
             )
-    return {"ok": True, "bilhetes_atualizados": int(res.split()[-1])}
+            contagens = {}
+            for tabela, coluna in _TIPSTER_REFS_TEXTO:
+                res = await conn.execute(
+                    f"UPDATE {tabela} SET {coluna} = $1 WHERE dono = $2 AND {coluna} = $3",
+                    novo_nome, dono, antigo,
+                )
+                contagens[tabela] = int(res.split()[-1])
+            # `casa_config.tipsters` é CSV: troca o ELEMENTO, não o texto. `replace` cru
+            # mutilaria "Zé" dentro de "Zé Turbo" e deixaria a lista sem sentido.
+            n_casas = 0
+            casas = await conn.fetch(
+                "SELECT casa, tipsters FROM casa_config WHERE dono = $1 AND tipsters <> ''",
+                dono)
+            for c in casas:
+                lista = _csv_tipsters(c["tipsters"])
+                if antigo not in lista:
+                    continue
+                nova = [novo_nome if t == antigo else t for t in lista]
+                # dedup preservando a ordem: a casa aceita 1-2 nomes e o novo pode já
+                # estar lá (curadoria feita com os dois nomes do mesmo tipster).
+                vistos, limpa = set(), []
+                for t in nova:
+                    if t not in vistos:
+                        vistos.add(t)
+                        limpa.append(t)
+                await conn.execute(
+                    "UPDATE casa_config SET tipsters = $1, atualizado_em = NOW() "
+                    "WHERE dono = $2 AND casa = $3",
+                    ",".join(limpa), dono, c["casa"])
+                n_casas += 1
+            # `custo_store.custo_tipster` é {tipster: {"AAAA-MM": valor}} — o nome é CHAVE.
+            # Chave já existente no destino é órfã (o tipster com esse nome não existe;
+            # a poda de `list_tipsters_cadastro` remove o cadastro, não o custo), então os
+            # meses se fundem e a ORIGEM vence: ela é a que tem tipster vivo por trás.
+            custo_movido = False
+            blob = await conn.fetchval(
+                "SELECT custo_tipster FROM custo_store WHERE dono = $1 FOR UPDATE", dono)
+            ct = json.loads(blob) if isinstance(blob, str) else blob
+            if isinstance(ct, dict) and antigo in ct:
+                destino = ct.get(novo_nome)
+                origem = ct.pop(antigo) or {}
+                if isinstance(destino, dict) and isinstance(origem, dict):
+                    fundido = dict(destino)
+                    fundido.update(origem)
+                else:
+                    fundido = origem
+                ct[novo_nome] = fundido
+                await conn.execute(
+                    "UPDATE custo_store SET custo_tipster = $1::jsonb, atualizado_em = NOW() "
+                    "WHERE dono = $2", json.dumps(ct), dono)
+                custo_movido = True
+    return {
+        "ok": True, "antigo": antigo, "nome": novo_nome,
+        "bilhetes_atualizados": contagens.get("bilhetes", 0),
+        "unidades": contagens.get("tipster_unidade", 0),
+        "polymarket": contagens.get("polymarket_ativos_tipster", 0),
+        "casas_config": n_casas, "custo_movido": custo_movido,
+    }
 
 
 # ── Escada de unidade (Perfil de Tipster, Fatia 1) ────────────────────────────
