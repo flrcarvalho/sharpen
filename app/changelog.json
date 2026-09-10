@@ -17,6 +17,17 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-editar-varias-apostas-de-uma-vez",
+      "data": "2026-09-10",
+      "tag": "Sharpen",
+      "titulo": "Editar várias apostas de uma vez",
+      "texto": "Agora dá para **selecionar várias apostas e editar em massa** (data, resultado, tipster, esporte, casa, conta e mercado) na Extração, na Base Completa e em Em Aberto.",
+      "itens": [
+        "Na página **Tipsters & Métodos**, dá para **renomear um tipster**: o nome novo entra em todas as apostas dele de uma vez."
+      ],
+      "fecho": "Nada muda na extensão. A versão do SharpenUp segue a mesma."
+    },
+    {
       "id": "sharpen-contas-parceiros",
       "data": "2026-09-09",
       "tag": "Sharpen",
