@@ -129,11 +129,45 @@ Não dá para backfillar por palpite de formato: `_CASAS_MARCADOR_CODIGO` docume
 de algumas casas em comentário, não em código, e errar aqui marca como suspeito um código
 que está certo.
 
-### 1.6 O `CLAUDE.md` está a 0,6 KB do teto (s338). **VIVA**
+### 1.6 O `CLAUDE.md` ESTOUROU o teto (s338 previu, s339 aconteceu). **VIVA — gate vermelho**
 
-64,4 KB contra os 65 KB do `tools/check_docs.py`. A regra do próprio arquivo diz o que
-fazer: **os tetos travam crescimento, não mandam cortar** — mova um **caso** para o
-`docs/CASOS.md`, nunca suba o teto. A próxima regra que precisar entrar reprova o gate.
+Estava em 64,4 KB contra 65 KB do `tools/check_docs.py`, e a s338 escreveu aqui que "a
+próxima regra que precisar entrar reprova o gate". Foi o que aconteceu: a regra da data por
+kickoff (s339) levou o arquivo a **65,4 KB**. O gate acusa desde o commit `db5b77c`.
+
+**O que já foi feito, para ninguém refazer:** movido o caso da Blaze (medição dos 55 códigos)
+para o `docs/CASOS.md`, encolhido o parágrafo "Limitação" que repetia a 4ª linha da tabela de
+dedup, e a própria regra nova comprimida ao núcleo. Rendeu ~0,8 KB e **não é suficiente**.
+
+**Medido: não há mais duplicação para mover.** Zero frases longas (> 45 caracteres) repetidas
+entre o `CLAUDE.md` e o `docs/CASOS.md`. O arquivo é regra pura, então fechar os 0,4 KB
+significa **decidir qual regra sai**, e isso é curadoria do Feca, não faxina mecânica.
+
+O candidato mais óbvio, se ele quiser um: a seção **`## Convenções de output`** (1,5 KB) se
+declara "espelho operacional" do `global/MASTER_OUTPUT_2026.md`, que é a fonte canônica.
+Virar um ponteiro de 3 linhas libera folga para esta regra e para as próximas. É a única
+duplicação **declarada** que restou no arquivo.
+
+> ⚠️ Não suba o teto. Foi assim que o `STATUS.md` chegou a 187 KB.
+
+### 1.8 Sobraram 21 linhas ARQUIVADAS datadas no futuro pela folga (s339). **VIVA, medida**
+
+O reparo da s339 (`scripts/corrigir_data_folga_s339.py`) filtra `archived = FALSE`, e o
+escopo aprovado pelo Feca foi só o `Ctrl Alt Green`. Contando as arquivadas, **21 linhas já
+resolvidas continuam com data posterior a hoje** — todas Bet365, de outros tipsters
+(Coxadoido 15+2, Fatuch 6, Perereca Tips NFL 6, Aumentadinhas 3+1, MarcoF1 2, DartsVader 1
+e outras). Nenhuma é do Ctrl Alt Green: as 8 dele estavam todas não arquivadas.
+
+**Só as resolvidas contam.** Havia 43 arquivadas com data no futuro, mas 22 delas estão
+ABERTAS, e aposta aberta em evento de amanhã tem data futura por direito. Resolvida com
+evento no futuro é que é impossível.
+
+O script já resolve: falta decidir o escopo. Ele exige `--dono` + `--tipster` de propósito
+(ou `--tudo` por escrito), e roda em ensaio por padrão. **Decisão do Feca.**
+
+> Isto é o retrato de HOJE, não o histórico. O piso de 188 linhas medido na s339 é maior e
+> não é reparável por aqui: sem o kickoff no banco, não há como provar o deslocamento de
+> uma linha cuja data já ficou no passado.
 
 ### 1.7 O CI está VERMELHO por defeito do próprio gate, não do repo (s338). **VIVA**
 
