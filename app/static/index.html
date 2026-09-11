@@ -1651,7 +1651,7 @@ body.cap-off .cx__body { display: none; }
   display: grid;
   /* Template via variável (setada em .btbl-wrap) → header e linhas redimensionam juntos.
      Todas px (redimensionáveis) + spacer 1fr final que preenche a sobra sem virar gap. */
-  grid-template-columns: var(--btbl-cols, 30px 74px minmax(240px,1fr) 108px 126px 162px 88px 62px 74px 100px 80px);
+  grid-template-columns: var(--btbl-cols, 30px 74px minmax(240px,1.2fr) 108px minmax(126px,0.9fr) minmax(162px,1fr) 88px 62px 74px 100px 80px);
   gap: 0 12px; padding: 0 18px; box-sizing: border-box; align-items: center;
 }
 /* Scroll: header+linhas rolam juntos na horizontal; header gruda no topo na vertical. */
@@ -7429,12 +7429,25 @@ let btblCols = (function () {
   try { const s = JSON.parse(localStorage.getItem(BTBL_COLS_KEY)); if (Array.isArray(s) && s.length === BTBL_DEFAULT.length) return s; } catch {}
   return [...BTBL_DEFAULT];
 })();
+// s346 — a sobra é REPARTIDA entre as colunas de TEXTO, não empilhada numa só.
+// Antes só a descrição era elástica: ela absorvia tudo e, em monitor grande, virava um vão
+// de ~685px entre o texto (curto na maioria das apostas) e as colunas de dinheiro. O buraco
+// estava dentro de UMA célula; repartido entre três, ele deixa de existir como buraco.
+// Fora daqui: Esporte é nome curto e conhecido (crescer não mostra mais nada) e as colunas
+// numéricas não ganham nada com largura. Os PISOS são os mesmos px de antes, então em tela
+// apertada o comportamento não muda — sem sobra, não há o que repartir.
+// Frações calibradas para o AR ficar uniforme, não proporcional ao conteúdo: com 524px de
+// sobra em 2560 o ar fica em ~229px na descrição, ~234 no tipster e ~229 na casa. Dar 1,5fr à
+// casa (1ª tentativa) deixava 286px de vazio nela, e o olho lia o salto até a coluna Stake.
+const BTBL_FR = { 2: '1.2fr', 4: '0.9fr', 5: '1fr' };   // Aposta/Evento · Tipster · Casa·Parceiro
+const BTBL_PISO_DESC = '240px';   // índice 2 não é arrastável (BTBL_FIXAS), então o piso é fixo
 function aplicarBtblCols() {
   const wrap = document.querySelector('.btbl-wrap');
   if (!wrap) return;
-  // Coluna Aposta/Evento (índice 2) é elástica: absorve a sobra e preenche a largura
-  // perfeitamente — sem spacer 1fr morto à direita das Ações (feedback do Feca).
-  const cols = btblCols.map((w, i) => (i === 2 ? 'minmax(240px,1fr)' : w));
+  const cols = btblCols.map((w, i) => {
+    if (!BTBL_FR[i]) return w;
+    return `minmax(${i === 2 ? BTBL_PISO_DESC : w}, ${BTBL_FR[i]})`;
+  });
   wrap.style.setProperty('--btbl-cols', cols.join(' '));
 }
 
