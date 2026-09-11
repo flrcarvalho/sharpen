@@ -2290,3 +2290,199 @@ select.ap-inline-inp { padding: 2px 4px; }
 .ap-lote-resumo {
   margin-right: auto; font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft);
 }
+
+
+/* ============================================================================
+   Custos (tela única) — FATIA 0, prévia só-leitura. Ver charts/custos2.js.
+   Escada de Tinta: identidade em --ink ≥13px, label/eyebrow em --ink-soft
+   ≥9,5px, metadado em --ink-mute ≥10px. Nenhuma opacidade como degrau.
+   ========================================================================= */
+.c2-eyebrow {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft);
+}
+.c2-meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
+.c2-ident { font-size: 13px; font-weight: 600; color: var(--ink); }
+.c2-dt { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); }
+.c2-total {
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.c2-vazio-cel { color: var(--ink-mute); font-size: 12px; }
+
+/* Aviso de prévia: a tela ainda não grava. */
+.c2-previa {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-4);
+  background: linear-gradient(150deg, rgba(var(--accent-rgb), .10), var(--surface) 60%);
+  border: 1px solid rgba(var(--accent-rgb), .34); border-radius: var(--r-lg);
+}
+.c2-previa svg { flex: none; }
+.c2-previa__txt { font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); }
+.c2-previa__txt strong { color: var(--ink); font-weight: 700; }
+
+/* KPI: legenda com o selo do bloco à direita. */
+.c2-kpi-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+
+.c2-badge {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border-radius: var(--r-pill); padding: 3px 9px;
+  border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-soft);
+}
+.c2-badge--ok   { color: var(--pos);  border-color: rgba(var(--pos-rgb), .40);  background: rgba(var(--pos-rgb), .10); }
+.c2-badge--wait { color: var(--warn); border-color: rgba(var(--warn-rgb), .40); background: rgba(var(--warn-rgb), .10); }
+
+/* Cascata em fita: o bruto é a barra inteira e o custo come dela. */
+.c2-cascata { padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-3); }
+.c2-cascata__hdr {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--sp-3); margin-bottom: var(--sp-3);
+}
+.c2-fita { display: flex; gap: 2px; height: 14px; margin-bottom: var(--sp-2); }
+.c2-fita__seg { border-radius: 3px; }
+.c2-fita__seg:first-child { border-radius: var(--r-xs) 3px 3px var(--r-xs); }
+.c2-fita__seg:last-child  { border-radius: 3px var(--r-xs) var(--r-xs) 3px; }
+.c2-legs { display: flex; gap: var(--sp-5); flex-wrap: wrap; align-items: center; }
+.c2-leg { display: flex; align-items: center; gap: 7px; }
+.c2-leg--fim { margin-left: auto; }
+.c2-leg__dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.c2-leg__lbl { font-size: 12px; color: var(--ink-soft); }
+.c2-leg__val {
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+/* Duas réguas de custo convivem no app: aqui é LANÇAMENTO, na Visão Geral é
+   JANELA DE VIDA. A tela diz o corte para um número não parecer defeito do outro. */
+.c2-corte {
+  margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--line-2);
+  font-size: 11.5px; line-height: 1.55; color: var(--ink-mute);
+}
+.c2-corte strong { color: var(--ink-soft); font-weight: 600; }
+
+.c2-aviso {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-3);
+  background: linear-gradient(150deg, rgba(var(--warn-rgb), .10), var(--surface) 60%);
+  border: 1px solid rgba(var(--warn-rgb), .38); border-radius: var(--r-lg);
+}
+.c2-aviso--ok {
+  background: linear-gradient(150deg, rgba(var(--pos-rgb), .10), var(--surface) 60%);
+  border-color: rgba(var(--pos-rgb), .34);
+}
+.c2-aviso svg { flex: none; }
+.c2-aviso__txt { display: flex; flex-direction: column; gap: 2px; }
+.c2-aviso__txt strong { font-size: 13px; font-weight: 700; color: var(--ink); }
+.c2-aviso__txt span { font-size: 12px; line-height: 1.5; color: var(--ink-soft); }
+
+/* Abas do conteúdo: navegação de bloco, não controle de layout. */
+.c2-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.c2-tab {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+  color: var(--ink-soft); background: transparent; cursor: pointer;
+  padding: 10px var(--sp-4); border: 1px solid transparent; border-bottom: 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0; position: relative; top: 1px;
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  transition: color .12s, background .12s;
+}
+.c2-tab:hover { color: var(--ink); }
+.c2-tab.is-on {
+  color: var(--ink); background: var(--surface);
+  border-color: var(--line); border-bottom: 1px solid var(--surface);
+}
+.c2-tab__ct { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
+.c2-tab.is-on .c2-tab__ct { color: var(--accent-2); }
+#c2Body > .card, #c2Body > .c2-raiox > .card { border-radius: 0 var(--r-lg) var(--r-lg) var(--r-lg); }
+
+/* O .money nasce com largura de COLUNA (width:100% + .money-val{min-width:10ch}),
+   que é o certo dentro de tabela e KPI. Numa FRASE ele empurra o vizinho para a
+   linha de baixo e joga o valor para o canto — medido no cabeçalho do Raio-X e na
+   composição. Mesma carve-out que o .kpi-sub já tem mais acima neste arquivo. */
+.c2-eyebrow .money, .c2-leg__val .money, .c2-total .money,
+.c2-comp__val .money, .c2-item__val .money, .c2-rodape .money { width: auto; gap: 3px; }
+.c2-eyebrow .money-val, .c2-leg__val .money-val, .c2-total .money-val,
+.c2-comp__val .money-val, .c2-item__val .money-val, .c2-rodape .money-val,
+.c2-eyebrow .money-sign, .c2-leg__val .money-sign, .c2-total .money-sign,
+.c2-comp__val .money-sign, .c2-item__val .money-sign, .c2-rodape .money-sign { min-width: 0; }
+/* Cabeçalho de card: o valor ao lado do rótulo, sem o valor virar label de 9,5px. */
+.c2-hdr-val { display: inline-flex; align-items: baseline; gap: var(--sp-2); }
+
+/* Tabela: célula de texto à esquerda; dinheiro em --ink com piso de 13px. */
+.c2-tbl td.th-l { text-align: left; }
+.c2-tbl td .money { font-size: 13px; color: var(--ink); }
+.c2-tbl td .money-sign { font-size: 10px; }
+.c2-tbl td.c2-ref .money { color: var(--ink-mute); }
+.c2-orig {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+  border-radius: var(--r-pill); padding: 4px 9px;
+  border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-soft);
+}
+.c2-orig--todo  { border-color: rgba(var(--warn-rgb), .45); color: var(--warn); }
+.c2-orig--vazio { color: var(--ink-mute); }
+
+.c2-rodape {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); padding-top: var(--sp-3); margin-top: var(--sp-2);
+  border-top: 1px solid var(--line-2);
+}
+.c2-prev { font-family: var(--font-mono); font-size: 11px; color: var(--warn); }
+.c2-nota {
+  font-size: 12px; line-height: 1.55; color: var(--ink-soft);
+  padding: var(--sp-3) 0;
+}
+.c2-nota strong { color: var(--ink); font-weight: 600; }
+.c2-nota--fim { padding-bottom: 0; margin-top: var(--sp-3); border-top: 1px solid var(--line-2); }
+.c2-empty {
+  padding: var(--sp-8) var(--sp-4); text-align: center;
+  font-size: 12.5px; line-height: 1.6; color: var(--ink-mute);
+}
+.c2-empty strong { color: var(--ink-soft); font-weight: 600; }
+
+/* Raio-X */
+.c2-raiox { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: var(--sp-4); align-items: start; }
+.c2-raiox__lado { display: flex; flex-direction: column; gap: var(--sp-4); }
+.c2-feed { padding-top: 0; }
+.c2-mes { margin-top: var(--sp-3); }
+.c2-mes__hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-2) 0; border-bottom: 1px solid var(--line);
+}
+.c2-dia { display: grid; grid-template-columns: 62px 1fr; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--line-2); }
+.c2-dia__data { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); padding-top: 4px; }
+.c2-dia__data--mes { color: var(--ink-soft); }
+.c2-item { display: flex; align-items: center; gap: var(--sp-3); padding: 4px 0; }
+.c2-item__ico {
+  width: 24px; height: 24px; border-radius: 7px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb), .12); border: 1px solid rgba(var(--accent-rgb), .30);
+}
+.c2-item__txt { min-width: 0; }
+.c2-item__val {
+  margin-left: auto; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.c2-item__val .money-sign { font-size: 10px; }
+
+/* Composição: magnitude é UM tom só, porque azul é o acento único de UI. */
+.c2-comp { margin-bottom: var(--sp-4); }
+.c2-comp:last-child { margin-bottom: 0; }
+.c2-comp__top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; }
+.c2-comp__nome { font-size: 13px; font-weight: 600; color: var(--ink); }
+.c2-comp__val { font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.c2-comp__trilho { height: 10px; background: var(--surface-2); border-radius: var(--r-xs); overflow: hidden; }
+.c2-comp__barra { height: 100%; background: var(--accent); border-radius: var(--r-xs); }
+
+.c2-cols { display: flex; align-items: flex-end; gap: var(--sp-2); height: 78px; }
+.c2-col { flex: 1; display: flex; align-items: flex-end; }
+.c2-col__barra { width: 100%; background: rgba(var(--accent-rgb), .35); border-radius: var(--r-xs) var(--r-xs) 0 0; }
+.c2-col__barra.is-on { background: var(--accent); }
+.c2-cols--lbl { height: auto; margin-top: var(--sp-2); }
+.c2-col__lbl { flex: 1; text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
+.c2-col__lbl.is-on { color: var(--accent-2); font-weight: 600; }
+
+@media (max-width: 1180px) {
+  .c2-raiox { grid-template-columns: minmax(0, 1fr); }
+}

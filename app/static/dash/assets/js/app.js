@@ -483,6 +483,10 @@ const PAGE_META={
   'parceiros':      ['Fornecedores & Parceiros', 'turnover, lucro e período por conta'],
   'custos':         ['Custos de Contas',         'custo de aquisição por conta e fornecedor'],
   'custos_tipster': ['Custo de Tipsters',        'assinaturas, serviços e pagamentos'],
+  // Tela única de custos (Fatia 0): PRÉVIA só-leitura das três telas acima. Ver
+  // charts/custos2.js. As antigas seguem no menu até a Fatia 5, porque a prévia
+  // ainda não grava — tirá-las agora deixaria o Feca sem onde lançar.
+  'custos_v2':      ['Custos',                   'tela única — prévia, ainda não grava'],
   'tipster_metodo': ['Tipsters & Métodos',       'cadastro, unidades e detecção do tipster'],
   'metrics':        ['Métricas',                 'base de conhecimento e valores atuais'],
 };
@@ -537,6 +541,10 @@ function renderPage(id){
   // bilhetes ∪ abertas ∪ custo lançado (gestao.js `_ctTipsters`). Vão em paralelo e são
   // idempotentes; se qualquer uma falhar, a tela cai no comportamento antigo.
   else if(id==='custos_tipster'){Promise.all([ctLoad(),tipstersCadastroLoad()]).then(()=>renderCustoTipster());}
+  // Custos (tela única): precisa das MESMAS três cargas das telas antigas antes de
+  // pintar — cadastro de contas (adquirida_em), custo do servidor e cadastro de
+  // tipsters. O render é síncrono e lê o cache que elas deixam.
+  else if(id==='custos_v2'){Promise.all([contasLoad(),ctLoad(),tipstersCadastroLoad()]).then(()=>renderCustos2());}
   else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
   else if(id==='resultados'){renderResultados();}
@@ -555,7 +563,8 @@ function buildHTML(){
   // oferece como multiselect próprio. Fora da lista o '—' das linhas sem conta:
   // ele é ausência de dado, não uma conta chamada travessão.
   const parceiros=[...new Set(_todas.map(r=>r.parceiro).filter(p=>p&&p!=='—'))].sort((a,b)=>a.localeCompare(b,'pt-BR',{sensitivity:'base',numeric:true}));
-  ['overview','sports','casas','apostas','abertas','tipsters','resultados','parceiros','custos','metrics'].forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
+  ['overview','sports','casas','apostas','abertas','tipsters','resultados','parceiros','custos','custos_v2','metrics'].forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
+  msInit('fo_custos_v2');   // Fornecedor: eixo próprio da tela de Custos (charts/custos2.js)
   msInit('tipsters');
 
   document.getElementById('root').innerHTML=`
@@ -607,6 +616,7 @@ function buildHTML(){
         ${[
           ['custos','Custos de Contas','<path d="M8 2v12M5 5h4.5a2 2 0 010 4H5m0 0h5a2 2 0 010 4H5"/>'],
           ['custos_tipster','Custos de Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12" cy="5" r="2"/><path d="M10 13.2c.6-.5 2-.7 2-.7"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="10" y1="10" x2="14" y2="10"/>'],
+          ['custos_v2','Custos (prévia)','<path d="M3 1.8h10v12.4l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2z"/><path d="M5.5 5.5h5M5.5 8.2h5M5.5 10.9h3"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Configurações</div>
         ${[
@@ -747,6 +757,23 @@ function buildHTML(){
       <!-- CUSTO DE TIPSTERS -->
       <div class="page" id="page-custos_tipster">
         <div id="custoTipsterContent"></div>
+      </div>
+
+      <!-- CUSTOS (tela única) — Fatia 0: prévia só-leitura. charts/custos2.js.
+           A barra de filtros é COMPOSTA com as peças de filters.js (Período +
+           Casa + Fornecedor): Esporte e Tipster descrevem a APOSTA e não
+           recortam custo, então ficam de fora de propósito. -->
+      <div class="page" id="page-custos_v2">
+        ${buildFiltersCustos('custos_v2',casas)}
+        <div class="c2-previa">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="var(--accent-2)" stroke-width="1.6"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.9v.9" stroke-linecap="round"/></svg>
+          <div class="c2-previa__txt"><strong>Prévia.</strong> Esta tela ainda não grava: ela lê o que já está no banco e mostra como a tela única fica. O lançamento segue em <strong>Custos de Contas</strong> e <strong>Custos de Tipsters</strong>.</div>
+        </div>
+        <div id="c2Kpi"></div>
+        <div id="c2Cascata"></div>
+        <div id="c2Aviso"></div>
+        <div id="c2Tabs"></div>
+        <div id="c2Body"></div>
       </div>
 
       <!-- TIPSTER / MÉTODO -->
