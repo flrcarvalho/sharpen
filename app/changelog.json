@@ -17,6 +17,20 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-a-tela-de-extracao-agora-se-encaixa-melhor-no-se",
+      "data": "2026-09-11",
+      "tag": "Sharpen",
+      "titulo": "A tela de Extração agora se encaixa melhor no seu monitor",
+      "texto": "Mexemos no encaixe da tela de **Extração e Captura** para ela funcionar bem em telas menores e em resoluções diferentes de monitor. Quem tem tela pequena via a lista de apostas cortada e precisava arrastar pro lado para enxergar stake, odd e resultado.",
+      "itens": [
+        "**O RAIO-X agora recolhe.** Clique na fita com o nome dele, na borda direita da tela, e o painel sai para dar mais espaço à lista. Clique de novo para trazer de volta.",
+        "**Ele se ajusta sozinho na primeira vez.** Se a sua tela for pequena, o RAIO-X já abre recolhido; se couber tudo, abre normal. Depois disso vale sempre a sua escolha, mesmo fechando o navegador.",
+        "**A fita tem uma bolinha:** verde é extração limpa, amarela é que tem algo para conferir. Assim dá para deixar o painel recolhido sem perder aviso.",
+        "**Em monitor grande a lista ficou mais bem distribuída.** Antes sobrava um vão enorme no meio da linha; agora as colunas ocupam a largura de forma pareja."
+      ],
+      "fecho": "É só atualizar a página (F5) que já está valendo. As colunas continuam as mesmas, na mesma ordem.\n\nA ideia é a tela encaixar bem em qualquer tamanho de monitor. Se na sua ainda não ficar bom, manda um print aqui no grupo que a gente vai ajustando — cada tela é de um tamanho, e é assim que a gente acerta.\n\nObrigado ao Jonathan, que avisou que o site não funcionava direito na tela do tamagochi dele. 😄"
+    },
+    {
       "id": "sharpen-selo-de-extracao-automatica",
       "data": "2026-09-10",
       "tag": "Sharpen",
