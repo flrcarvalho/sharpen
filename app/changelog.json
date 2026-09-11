@@ -17,6 +17,13 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-selo-de-extracao-automatica",
+      "data": "2026-09-10",
+      "tag": "Sharpen",
+      "titulo": "Selo de extração automática",
+      "texto": "As casas que têm extração automática agora aparecem marcadas no painel, com o selo do SharpenUp ao lado do nome a pedido do nosso querido Diogo."
+    },
+    {
       "id": "sharpen-editar-varias-apostas-de-uma-vez",
       "data": "2026-09-10",
       "tag": "Sharpen",
