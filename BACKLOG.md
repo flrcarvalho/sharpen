@@ -368,6 +368,33 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 - **A casca `/app` carrega 3 iframes e os 3 puxam `/dashboard/data`. ✅ VIVA (s261)** — as 3 chamadas conferidas: `inicio.html:483`, `index.html:3504` e `dash/assets/js/data.js:4`. `/inicio`, `/` (Extração) e `/dashboard/`, cada um montando o feed inteiro no servidor (3 × 11,6 MB por abertura). Um cache compartilhado entre os frames (ou o feed servido uma vez pela casca) cortaria 2/3 do trabalho.
 - **Deep-link a frio monta a tela vazia. ✅ VIVA (s261).** Abrir `/app#dash/metrics` sem cache local: a casca chama `showPage('metrics')` antes de o `buildHTML` existir, `_lastPage`/`_lastPageSig` já ficam marcados (`app.js:459`), e o **caminho frio** do `loadData` (`app.js:1233-1250`) chama `buildHTML()` + `applyAparencia()` e **nunca** `renderPage` — o `showPage` seguinte volta cedo pelo `if(id===_lastPage&&sig===_lastPageSig)return` (`:458`). A tela fica com os `—` do markup. **O caminho quente já faz certo** (`:1225`, `if(_lastPage)renderPage(_lastPage)`), o que dá o formato do conserto: espelhar essa linha no ramo frio. **Pré-existente**, não veio da s217.
 
+### 3.8 A Extração PERDE a grade em janela menor que ~1450px (s346). **VIVA, medida**
+
+**Sintoma:** com a área do iframe abaixo de 1180px o `.workfull` cai no modo empilhado
+(`@media (max-width:1180px)`) e o `#partner-page` fica com **altura 0** — a lista de
+apostas some da tela e o RAIO-X aparece **sobreposto** à área de captura. Medido headless
+contra o `servidor_demo`: em janela de 1366 o `#partner-page` mede `1050x0` e a
+`.grade-section` mede `1050x2`; em 1700 mede `996x240` e está correto.
+
+**Não é da dieta de colunas.** Provado por remoção, do jeito que o `CLAUDE.md` manda:
+o mesmo script contra o `index.html` do `HEAD` (antes da s346) devolve os **mesmos**
+`1050x0` e `1050x2`. Injetar `container-type: normal` também não muda nada — a causa não
+é o container query, é a linha do grid no modo empilhado.
+
+**Por que ninguém relatou:** a casca come 264px de sidebar, então o empilhamento só
+começa por volta de **1450px de janela**, e os testers que reportaram esta tela estão
+acima disso (o relato deles foi scroll horizontal, não tela em branco). Quem abrir o
+Sharpen num laptop de 1366 real cai nele.
+
+**Onde olhar:** `.workfull` e `.colmain` (`app/static/index.html`, o bloco
+`@media (max-width: 1180px)`) — a `.colmain` declara `grid-template-rows: auto minmax(0,1fr)`
+e no modo empilhado vira `auto auto minmax(0,1fr)`, mas o `.workfull` passa a
+`grid-template-rows: none`, e é aí que a linha do `#partner-page` perde a altura.
+
+**Decisão do Feca:** consertar o modo empilhado (dar altura à linha da grade) ou deixar o
+rail sempre lateral com a alça de recolher fazendo o papel. A segunda é mais barata e
+combina com a alça da s346, mas muda o comportamento em tela pequena.
+
 ### 3.1 Solidez — o redesenho do KPI. `TURBO 19/07 #15/#16`. **Já tentado e revertido.**
 
 O gate de rentabilidade e a separação "força do sinal × tamanho de amostra" foram
