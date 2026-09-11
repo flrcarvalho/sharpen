@@ -2393,7 +2393,8 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 .c2-tab__ct { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
 .c2-tab.is-on .c2-tab__ct { color: var(--accent-2); }
-#c2Body > .card, #c2Body > .c2-raiox > .card { border-radius: 0 var(--r-lg) var(--r-lg) var(--r-lg); }
+#c2Body > .card:first-child, #c2Body > .c2-raiox > .card:first-child { border-radius: 0 var(--r-lg) var(--r-lg) var(--r-lg); }
+#c2Body > .card + .card { margin-top: var(--sp-4); }
 
 /* O .money nasce com largura de COLUNA (width:100% + .money-val{min-width:10ch}),
    que é o certo dentro de tabela e KPI. Numa FRASE ele empurra o vizinho para a

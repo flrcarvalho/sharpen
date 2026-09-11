@@ -278,7 +278,8 @@ function renderCustos2(){
 function _c2viewContas(t, rotulo){
   if (!t.contas.length){
     return _c2card('Contas compradas em ' + rotulo, 'custo único, pago na compra',
-      _c2vazio('Nenhuma conta comprada neste recorte. O cadastro guarda a data de compra em <strong>Comprada em</strong>, no Painel de Contas.'));
+      _c2vazio('Nenhuma conta comprada neste recorte. O cadastro guarda a data de compra em <strong>Comprada em</strong>, no Painel de Contas.'))
+      + _c2viewPrecos();
   }
   const linhas = t.contas.map(c => {
     const temCusto = c.custo > 0;
@@ -304,7 +305,77 @@ function _c2viewContas(t, rotulo){
       <span class="c2-meta">${t.contas.length} ${t.contas.length === 1 ? 'conta' : 'contas'} no recorte${t.semCusto ? ' · ' + t.semCusto + ' sem preço' : ''}</span>
       <span class="c2-total">${fmtR(t.tContas)}</span>
     </div>`;
-  return _c2card('Contas compradas em ' + rotulo, 'custo único, pago na compra', corpo);
+  return _c2card('Contas compradas em ' + rotulo, 'custo único, pago na compra', corpo) + _c2viewPrecos();
+}
+
+// A tabela de precos, como ela existe HOJE: um valor por par `fornecedor||casa`.
+// Fonte: `custoData` (gestao.js). A contagem de contas usa a UNIAO cadastro ∪
+// bilhetes, que e a regra do `buildCostState` — 130 contas do Feca so existem em
+// bilhete, e contar so o cadastro as esconderia.
+function _c2precos(){
+  const sel = _c2sel();
+  const contas = {};   // "forn||casa" -> Set(conta)
+  const _add = (forn, casa, conta) => {
+    if (!casa) return;
+    const k = normForn(forn) + '||' + casa;
+    (contas[k] = contas[k] || new Set()).add(conta || '__sem_nome__');
+  };
+  (typeof _contasVida !== 'undefined' && _contasVida ? _contasVida : [])
+    .forEach(p => { if (!p.arquivado) _add(p.fornecedor, p.casa, p.conta); });
+  DADOS.concat(typeof DADOS_ABERTAS !== 'undefined' ? DADOS_ABERTAS : [])
+    .forEach(r => _add(r.fornecedor, r.casa, r.conta));
+
+  // Universo = par com preco lancado OU par com conta viva. Os dois lados importam:
+  // preco sem conta e resto de conta que saiu, conta sem preco e o que falta lancar.
+  const chaves = new Set(Object.keys(contas));
+  Object.keys(typeof custoData !== 'undefined' ? custoData : {}).forEach(k => chaves.add(k));
+
+  const linhas = [];
+  chaves.forEach(k => {
+    const i = k.indexOf('||');
+    const forn = k.slice(0, i), casa = k.slice(i + 2);
+    if (!_c2passa(sel, casa, forn)) return;
+    const preco = (typeof custoData !== 'undefined' && custoData[k]) || 0;
+    const n = contas[k] ? contas[k].size : 0;
+    linhas.push({ forn: forn, casa: casa, preco: preco, n: n, total: preco * n });
+  });
+  linhas.sort((a, b) => a.forn === b.forn
+    ? b.total - a.total || a.casa.localeCompare(b.casa, 'pt-BR')
+    : a.forn.localeCompare(b.forn, 'pt-BR'));
+  return linhas;
+}
+
+function _c2viewPrecos(){
+  const linhas = _c2precos();
+  if (!linhas.length){
+    return _c2card('Tabela de preços por fornecedor', 'o preço que vale hoje',
+      _c2vazio('Nenhum preço lançado e nenhuma conta viva. Os preços de hoje são lançados em <strong>Custos de Contas</strong>.'));
+  }
+  const semPreco = linhas.filter(l => !(l.preco > 0) && l.n > 0).length;
+  const total = linhas.reduce((a, l) => a + l.total, 0);
+  let ultimo = null;
+  const corpo = `<div class="c2-nota">Esta tabela <strong>não é do recorte</strong>: ela mostra o preço que vale hoje, enquanto a lista acima mostra as compras do período. O preço ainda é do <strong>par fornecedor e casa</strong>, então duas contas do mesmo par não podem custar diferente. Preço com <strong>data de vigência</strong> e custo <strong>por conta</strong> são as Fatias 1 e 2.</div>
+    <div class="tbl-wrap"><table class="tbl c2-tbl">
+      <thead><tr>
+        <th class="th-l">Fornecedor</th><th class="th-l">Casa</th>
+        <th class="td-num">Preço por conta</th><th class="td-num">Contas</th><th class="td-num">Total</th>
+      </tr></thead>
+      <tbody>${linhas.map(l => {
+        const novo = l.forn !== ultimo; ultimo = l.forn;
+        return `<tr>
+          <td class="th-l">${novo ? `<span class="c2-ident">${esc(l.forn)}</span>` : '<span class="c2-vazio-cel">&#8942;</span>'}</td>
+          <td class="th-l">${casaCell(l.casa)}</td>
+          <td class="td-num">${l.preco > 0 ? fmtR(l.preco) : '<span class="c2-orig c2-orig--todo">sem preço</span>'}</td>
+          <td class="td-num c2-ref">${l.n || '<span class="c2-vazio-cel">&#8212;</span>'}</td>
+          <td class="td-num">${l.total > 0 ? fmtR(l.total) : '<span class="c2-vazio-cel">&#8212;</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    <div class="c2-rodape">
+      <span class="c2-meta">${linhas.length} ${linhas.length === 1 ? 'par' : 'pares'} fornecedor e casa${semPreco ? ' · ' + semPreco + ' com conta viva e sem preço' : ''}</span>
+      <span class="c2-total">${fmtR(total)}</span>
+    </div>`;
+  return _c2card('Tabela de preços por fornecedor', 'o preço que vale hoje', corpo);
 }
 
 // ── Aba Tipsters ─────────────────────────────────────────────────────────────
