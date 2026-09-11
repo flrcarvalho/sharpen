@@ -1688,9 +1688,32 @@
   //   • Data = PlacedAt (colocação; proxy do evento p/ mesmo-dia — a casa não expõe a do jogo).
   //   • Status do bilhete: 2=Ganho→W · 3=Perdido→L · 0=Devolvido/Anulado→V. `Return` cruza
   //     (Ganhos=0→L, =Stake→V, >Stake→W) — quem decide W/L/V é o pipeline, não a extensão.
-  //   • Odd: W = Return÷Stake com precisão total (respeita boost, §11) · L/V = odd combinada
+  //   • Odd: W = Retorno÷Stake com precisão total (respeita boost, §11) · L/V = odd combinada
   //     estrutural (DecimalOdds; já é o produto das seleções nas múltiplas).
+  //   • RETORNO = `Return` + `BonusOffer.Winnings`. O boost `Criar Aposta Turbinada +N%`
+  //     (§6) é pago POR FORA do `Return` e vale N% do LUCRO — ver `_bonusBN`.
   const _TIPO_BN = { Single: "Simples", Double: "Dupla", Triple: "Tripla" };
+
+  // Dinheiro do boost `Criar Aposta Turbinada +N%` (`CASA_BETANO §6`), em `BonusOffer`:
+  //
+  //   { WinningPercentage: 25, Winnings: 149.175, IsMax: false, MaxValue: 25000, ... }
+  //
+  // Ele fica FORA do `Return` (bilhete 20712642016: 306 × 2,95 = `Return` 902,70, e o
+  // turbo 149,175 = 25% do lucro de 596,70, pago à parte). A casa mostra os dois valores
+  // separados no card, e o "Ganhos" do card é o `Return` PRÉ-boost — foi essa leitura que
+  // gravou o bilhete 21048480456 com odd 2,32 em vez de 2,65 (R$165 a menos de P/L).
+  //
+  // Fail-closed de propósito: só NÚMERO vira dinheiro aqui. `Winnings` como string entraria
+  // na ambiguidade BR×EN que o `_brlNum` resolve para dinheiro e que destruiria um decimal
+  // com ponto ("149.175" viraria 149175) — sem amostra dessa forma, não se adivinha.
+  // Valor CRU, sem arredondar: (902,70 + 149,175) ÷ 306 = 3,4375 exato, que é a odd limpa
+  // do boost (1 + 1,95 × 1,25). Arredondar antes trocaria isso por uma dízima.
+  function _bonusBN(t) {
+    const bo = t && t.BonusOffer;
+    if (!bo) return null;
+    const num = (x) => (typeof x === "number" && isFinite(x) && x > 0) ? x : null;
+    return num(bo.Winnings) || num(bo.WinningsWithCurrency && bo.WinningsWithCurrency.Amount);
+  }
   function formatTicketBN(t) {
     const L = [];
     // Bilhete da aba "Em aberto": ainda não liquidou. Sobe SEM resultado (a IA deixa a
@@ -1699,7 +1722,12 @@
     // atualiza resultado/odd. Nunca liquidar um bilhete aberto pelo Status numérico.
     const aberta = !!t.__aberta;
     const stake = _brlNum(t.Stake);
-    const ret = _brlNum(t.Return);
+    const ret = _brlNum(t.Return);                     // o que o `Return` da API diz (PRÉ-boost)
+    // Turbo pago por fora (§6). Em ABERTA o `Winnings` é potencial e NÃO entra em conta
+    // nenhuma: bilhete sem resultado não recebe número de retorno (regra travada no caso
+    // do harness). `retTot` é o retorno REALIZADO, e é ele que manda na odd e no Status.
+    const bonus = aberta ? null : _bonusBN(t);
+    const retTot = (ret != null && bonus) ? (ret + bonus) : ret;
     const legs = Array.isArray(t.Legs) ? t.Legs : [];
     const legItems = [];
     for (const lg of legs) for (const li of (lg.LegItems || [])) legItems.push(li);
@@ -1734,14 +1762,35 @@
     else if (t.Status === 0) stTxt = "Devolvido/Anulado → V";
     else stTxt = t.Status + " (a conferir — não liquidar automaticamente)";
     // Em aberto: `Return` é potencial (não realizado) → rotula como tal p/ a IA nunca
-    // confundir com vitória. Liquidado: `Return` é o retorno real.
-    L.push("Status: " + stTxt + (t.Return != null ? ((aberta ? " · Retorno potencial " : " · Retorno ") + t.Return) : ""));
+    // confundir com vitória. Liquidado: `Return` + o turbo = o retorno real.
+    //
+    // ⚠️ É ESTA LINHA que o gate determinístico do backend lê (`_financeiro_do_texto` só
+    // procura o retorno DENTRO do `Status:`). Se o turbo não entrasse aqui, o gate
+    // reescreveria de volta para a odd pré-boost toda vez que a IA acertasse a turbinada.
+    const retTxt = (bonus && retTot != null)
+      ? ("R$" + _brl(retTot) + " (pago " + t.Return + " + turbo R$" + _brl(bonus) + ")")
+      : t.Return;
+    L.push("Status: " + stTxt + (t.Return != null ? ((aberta ? " · Retorno potencial " : " · Retorno ") + retTxt) : ""));
     if (cashout && t.Return != null) L.push("Cash Out: " + t.Return);   // sinal explícito p/ o pipeline
+    // Rastro do boost em linha própria: a composição do dinheiro, para a IA e para quem
+    // confere o bloco contra o card. Em ABERTA sai SEM valor — o `+N%` é informação do
+    // bilhete, o dinheiro ainda não existe.
+    const boPct = (t.BonusOffer && typeof t.BonusOffer.WinningPercentage === "number")
+      ? " +" + t.BonusOffer.WinningPercentage + "%" : "";
+    if (bonus && retTot != null) {
+      L.push("Boost: Criar Aposta Turbinada" + boPct + " · pago pela casa R$" + _brl(ret) +
+             " + turbo R$" + _brl(bonus) + " = retorno R$" + _brl(retTot) +
+             (t.BonusOffer && t.BonusOffer.IsMax ? " (teto da campanha)" : ""));
+    } else if (aberta && boPct) {
+      L.push("Boost: Criar Aposta Turbinada" + boPct +
+             " (pago por fora da odd se ganhar — valor ainda não realizado)");
+    }
 
-    // Odd total: W (Ganho OU cashout≠stake) = Return÷Stake (respeita boost, §11); L/V/cashout=stake
-    // e ABERTA = odd combinada estrutural (DecimalOdds; já é o produto das pernas nas múltiplas).
-    const oddW = !aberta && ret != null && stake > 0 && (t.Status === 2 || (cashout && !cashoutEqStake));
-    const oddTot = oddW ? (ret / stake)
+    // Odd total: W (Ganho OU cashout≠stake) = Retorno÷Stake (retorno JÁ com o turbo, §6/§11);
+    // L/V/cashout=stake e ABERTA = odd combinada estrutural (DecimalOdds; já é o produto das
+    // pernas nas múltiplas). Em L o `Return` é 0 e o turbo não existe: a odd segue a exibida.
+    const oddW = !aberta && retTot != null && stake > 0 && (t.Status === 2 || (cashout && !cashoutEqStake));
+    const oddTot = oddW ? (retTot / stake)
                  : (typeof t.DecimalOdds === "number" ? t.DecimalOdds : _oddNum(t.Odds));
     L.push("Odd total: " + _odd(oddTot) + (oddW ? " (= Retorno ÷ Stake)" : ""));
 

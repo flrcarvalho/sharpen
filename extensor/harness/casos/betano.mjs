@@ -33,8 +33,10 @@
 //   • BOOST em dois sabores: `OddsBeforeEnhancement` na seleção (20707888096, 3.50 → 4.20) JÁ
 //     está dentro do `Return` (445,20 ÷ 106 = 4,20 exato) → nada a fazer. Já o `BonusOffer`
 //     (20712642016, "Criar Aposta Turbinada +25%", `Winnings: 149.175`) fica FORA do `Return`
-//     (902,70 = 306 × 2,95) — hoje esse dinheiro não entra em lugar nenhum. PENDENTE de
-//     decisão do Feca (é saldo real ou bônus?); `CASA_BETANO §6/§8` seguem em TODO.
+//     (902,70 = 306 × 2,95) e é **dinheiro real**: medido na conta do Diogo em 11/09/2026, o
+//     bilhete 21048480456 fechou com R$165 a MAIS do que o Sharpen tinha planilhado, exatamente
+//     o `Winnings`. Desde então o retorno do bloco é `Return + Winnings` e a odd de W sai de lá
+//     (§6) — era a decisão que faltava, e a fixture já tinha o caso esperando.
 //   • Em L a odd é a EXIBIDA, nunca derivada do `Return` (que é 0): 20707886166 é L com boost
 //     e vale 2,75, não 0.
 //   • `VoidNotStartingPlayersSelected` + `PlayerSubstitutions` (20708999896) é CONDIÇÃO, não
@@ -44,11 +46,17 @@
 //   • Fuso virando o dia: nenhum `PlacedAt` do lote cai entre 00:00 e 02:59 UTC, então o
 //     recuo de 3h nunca troca a data aqui. Cashout (`Status 6`) e anulado (`Status 0`) também
 //     não têm amostra. Quando aparecerem, salve o payload e some uma linha ao ESPERADO.
-//   • NENHUM W desta fixture tem `Retorno ÷ Stake` DIFERENTE da odd exibida (4,20 · 2,95 ·
-//     2,10 batem nos dois cálculos). Descoberto quebrando o `oddW` de propósito: o valor da
-//     odd continuou certo e só o rótulo "(= Retorno ÷ Stake)" sumiu. Por isso o caso confere o
-//     RÓTULO em separado — sem ele, essa regressão passaria batido. Um W onde os dois números
-//     divergem (o `BonusOffer` seria o candidato) ainda falta na fixture.
+//   • O W onde `Retorno ÷ Stake` DIVERGE da odd exibida é o 20712642016, e só desde que o
+//     turbo entrou na conta: 3,4375 contra os 2,95 do card. Os outros três W (4,20 · 2,95 ·
+//     2,10) batem nos dois cálculos, e foi por isso que o caso confere o RÓTULO
+//     "(= Retorno ÷ Stake)" em separado — quebrando o `oddW` de propósito o valor continuava
+//     certo e só o rótulo sumia. Hoje a mesma mutação também erra o NÚMERO, no turbinado.
+//   • ABERTA com `BonusOffer` continua sem amostra: o `Winnings` de um bilhete vivo é
+//     potencial, e o formatador imprime o `+N%` sem valor nenhum (`semRetorno` cobre isso
+//     de um lado; do outro, nada prova que a API preenche o campo antes de liquidar).
+//   • CASHOUT com `BonusOffer` também não tem amostra. O código soma o turbo em qualquer
+//     liquidado com `Winnings > 0` — se a casa algum dia pagar turbo num saque, o dinheiro
+//     entra; se não pagar, o campo não vem e nada muda.
 import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
 
 export const casa = "Betano";
@@ -76,11 +84,15 @@ const ESPERADO = {
   "20713079396": { data: "26/07/2026", tipo: "5-seleções", stake: "300,00", odd: "14,4677",
                    status: /^Perdido → L · Retorno R\$0,00$/,
                    contem: ["Futebol Americano · Montreal Alouettes - Hamilton Tiger-Cats"] },
-  // W: odd = Retorno ÷ Stake (902,70 ÷ 306 = 2,95). O +25% do BonusOffer NÃO está no Return.
+  // W TURBINADO — o único bilhete em que a odd derivada diverge da exibida. O `Return`
+  // (902,70 = 306 × 2,95) é PRÉ-boost e o `BonusOffer.Winnings` (149,175 = 25% do lucro de
+  // 596,70) é pago por fora: retorno 1.051,88 → odd 3,4375, que é 1 + 1,95 × 1,25 exato.
+  // Ler o `Return` sozinho aqui subestima o bilhete em R$149,18 de P/L.
   "20712642016": { data: "26/07/2026", tipo: "Simples (Criar Aposta)", stake: "306,00",
-                   odd: "2,95", oddDerivada: true,
-                   status: /^Ganho → W · Retorno R\$902,70$/,
-                   contem: ["[Criar Aposta @ 2,95] Bahia - Corinthians:", "Mais de 4.5 · Total de Cartões"] },
+                   odd: "3,4375", oddDerivada: true, boost: true,
+                   status: /^Ganho → W · Retorno R\$1051,88 \(pago R\$902,70 \+ turbo R\$149,18\)$/,
+                   contem: ["[Criar Aposta @ 2,95] Bahia - Corinthians:", "Mais de 4.5 · Total de Cartões",
+                            "Boost: Criar Aposta Turbinada +25% · pago pela casa R$902,70 + turbo R$149,18 = retorno R$1051,88"] },
   // L com jogador substituível: condição, não resultado. Odd = a exibida.
   "20708999896": { data: "25/07/2026", tipo: "Simples", stake: "100,00", odd: "5,1",
                    status: /^Perdido → L · Retorno R\$0,00$/ },
@@ -221,6 +233,17 @@ export async function rodar() {
     // Aberta não tem `Return` na API: nenhuma linha de retorno pode aparecer.
     if (e.semRetorno && /Retorno/.test(txt))
       falhas.push(`${id}: bilhete ABERTO não pode exibir retorno (a API não manda \`Return\`; só \`PossibleWinnings\`)`);
+
+    // O turbo pago por fora (`BonusOffer`) tem linha PRÓPRIA, e só onde a API manda dinheiro.
+    // Os dois sabores de boost desta casa não podem se confundir: o `OddsBeforeEnhancement`
+    // da seleção (20707888096) JÁ está dentro do `Return` e não ganha linha nenhuma.
+    const temBoost = /^Boost:/m.test(txt);
+    if (!!e.boost !== temBoost)
+      falhas.push(`${id}: linha "Boost:" ${temBoost ? "apareceu onde não há turbo pago por fora" : "faltou"}`);
+    // A odd do turbinado NÃO é a exibida no card. Trava explícita: 2,95 aqui é o valor que
+    // a leitura antiga gravava, e é o erro que custou R$149,18 de P/L neste bilhete.
+    if (e.boost && linha(txt, "Odd total:").startsWith("2,95"))
+      falhas.push(`${id}: odd saiu a PRÉ-boost (2,95) — o turbo do \`BonusOffer\` não entrou no retorno`);
 
     for (const trecho of (e.contem || [])) {
       if (!txt.includes(trecho)) falhas.push(`${id}: faltou no bloco → "${trecho}"`);

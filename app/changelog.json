@@ -197,6 +197,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0712",
+      "v": "v0.7.12",
+      "data": "2026-09-11",
+      "texto": "**Betano:** apostas com **Criar Aposta Turbinada** passam a ser planilhadas com a odd e o lucro certos, somando o bônus que a casa paga por fora da odd.",
+      "itens": [
+        "Atualize a extensão em sharpen.bet/extensao."
+      ]
+    },
+    {
       "id": "su-0711",
       "v": "v0.7.11",
       "data": "2026-09-10",

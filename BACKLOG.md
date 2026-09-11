@@ -260,7 +260,21 @@ outro caminho: *"a extração print→TSV nunca é verificada ponta a ponta"*.
   calcular pelo `MASTER_RESULTADO §7` em vez de emitir número. Nenhum apareceu nos payloads
   vistos até aqui; com um bilhete real dá para travar a fórmula deles no harness também.
 - **Betfair:** cashout **parcial** (`isPartialCashOut`) sem amostra — o total já está travado no harness (2 casos) · HW/HL sem amostra · Each Way com `0 < Retorno < Stake` (o §5 não cobre essa faixa; hoje sai "a conferir", sem chute)
-- **Betano:** §5 rótulo de void/anulada · §6 boost (existe?)
+- **Betano:** §5 rótulo de void/anulada · §8 bônus/freebet · `BonusOffer` em aposta **aberta** e em **cashout** (sem amostra dos dois)
+- **Betano — a dívida do turbo `Criar Aposta Turbinada`, três frentes (s349). ✅ RESOLVIDA para
+  frente, aberta para trás.** Desde a **0.7.12** o bloco soma o `BonusOffer.Winnings` ao retorno
+  e a odd de W sai certa. O que falta:
+  **(1) `CASA_BETANO §6` ainda afirma que *"em W a regra `Ganhos ÷ Aposta` já resolve o boost
+  sozinha quando o card traz os valores em R$"*.** Não resolve: o `Ganhos` do card é **pré-boost**
+  e o turbo aparece em linha separada, que foi exatamente o que a §6 mediu em 31/08 e concluiu ao
+  contrário. Corrigir o texto e documentar o campo da API (hoje a §6 só descreve o card).
+  **(2) MEDIR a dívida.** O UPSERT congela `odd` em linha resolvida, então **recapturar não
+  conserta bilhete turbinado já gravado** — e nenhuma coluna do banco registra o turbo, então a
+  contagem só sai comparando bloco × banco depois de uma recaptura. Todo W turbinado da Betano,
+  de todos os donos, está com odd e P/L subestimados desde sempre.
+  **(3) Script de reparo**, no molde do `scripts/corrigir_resultado_odd_s321.py`: ensaio por
+  padrão, piso de R$ 1,00 e respeito à tabela `correcoes` (correção humana manda sobre a captura).
+  Origem: bilhete `21048480456` do Diogo, R$165 a menos de P/L, medido contra o saldo da conta.
 - **Pinnacle:** §5 rótulo exato de HW/HL no export (precisa de Asian Handicap de quarto liquidado)
 - **Bolsa de Aposta:** §5 V/HW/HL · §6 boost · §7 cashout · §8 bônus · apostas Lay
 - **Betnacional:** §5 HW/HL · §5 V (rótulo visual de void) · §7 cashout · §8 bônus
