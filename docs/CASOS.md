@@ -25,6 +25,17 @@ nos dois sentidos**:
 - **`75d93dc`** — uma sessão levou **17 arquivos** da outra.
 - **`6cb8037`** — a mensagem era de uma sessão e o conteúdo do `STATUS.md` era da outra,
   **fazendo a narrativa do matcher se perder**: só o código subiu.
+- **`e343386`, s345** — a metade que faltava, e é a pior. A outra sessão levou o
+  `app/main.py` **sem levar o `app/captura.py`** do mesmo par: lá `main.py` chamava
+  `_captura.casa_tem_captura` e a função não existia, então `/casas` quebrou com
+  `AttributeError` **para todo dono**. Commit cruzado não divide só o crédito; ele parte
+  uma mudança ao meio e **publica a metade que não compila**.
+
+> **Conferir o `git status` DEPOIS de commitar não basta.** O arquivo pode ter ido no
+> commit ALHEIO, e aí ele some do seu diff sem estar no seu commit — quem lê "limpou,
+> então foi" não vê nada. O sintoma é esse: **sumiu do `git diff` e não está no seu
+> `git show --stat`**. Confira as duas coisas, e quando uma mudança tem mais de um
+> arquivo, confira se TODOS saíram juntos antes de considerar que subiu.
 
 ### #10 — o inchaço que originou o gate
 
