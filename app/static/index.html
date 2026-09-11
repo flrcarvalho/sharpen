@@ -1066,7 +1066,52 @@ body.cap-off .cx__body { display: none; }
   #caixaBox { grid-column: 1; grid-row: 2; } #empty-state, #partner-page { grid-row: 3; }
   .colmain.tem-caixa { grid-template-rows: auto auto minmax(0, 1fr); } }
 /* Rail = 2 cards separados: Raio-X (70%) sobre Histórico da conta (30%). */
-.rail { min-width: 0; min-height: 0; display: grid; grid-template-rows: 7fr 3fr; gap: 14px; }
+.rail { min-width: 0; min-height: 0; display: grid; grid-template-rows: 7fr 3fr; gap: 14px;
+  position: relative; }   /* relative: a alça é absoluta e não entra no grid */
+/* ── Alça do RAIO-X (s346) ──────────────────────────────────────────────────────
+   Aberta: 18px de fita no vão de 16px, presa à borda esquerda do rail. Recolhida: a
+   própria coluna, com o rótulo na vertical — só o caret seria um enfeite mudo. */
+.rx-alca {
+  position: absolute; left: -19px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 74px; padding: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  background: var(--surface-2); border: 1px solid var(--line); border-right: 0;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  color: var(--ink-soft); cursor: pointer; transition: color .12s, background .12s;
+}
+.rx-alca:hover { background: var(--elevated); color: var(--ink); }
+.rx-alca:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rx-car { font-size: 13px; line-height: 1; }
+/* Rótulo vertical: só existe no estado recolhido, onde a fita é a única pista do painel. */
+.rx-rot {
+  display: none; writing-mode: vertical-rl; font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: .18em; color: var(--ink-soft);
+}
+/* Estado da última extração. Verde = limpa, âmbar = pendência. É o que impede o
+   recolher de esconder trabalho pendente (mesma família do aviso que aponta a linha). */
+.rx-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-mute); flex: none; }
+.rx-dot.ok { background: var(--pos); }
+.rx-dot.warn { background: var(--warn); }
+/* Recolhido: os cards saem, a fita vira a coluna. `[hidden]` explícito porque .rail-card
+   tem `display:flex` próprio, que vence o hidden da folha do agente. */
+.rail.rail--off { display: block; }
+.rail.rail--off .rail-card { display: none; }
+.rail-card[hidden] { display: none; }
+.rail.rail--off .rx-alca {
+  position: static; transform: none; width: 100%; height: 100%; gap: 10px;
+  border-right: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.rail.rail--off .rx-rot { display: block; }
+.workfull.rx-off { grid-template-columns: minmax(0, 1fr) 22px; }
+/* No modo empilhado o rail deixa de ser coluna lateral e a alça não tem vão onde morar.
+   `.workfull.rx-off` precisa ser desfeito AQUI DENTRO: ele tem duas classes e venceria a
+   regra de uma classe do media query, deixando a coluna de 22px numa tela já empilhada. */
+@media (max-width: 1180px) {
+  .rx-alca { display: none; }
+  .rail.rail--off { display: grid; }
+  .rail.rail--off .rail-card { display: flex; }
+  .workfull.rx-off { grid-template-columns: 1fr; }
+}
 .rail-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .rail-card--hist .hist__list { max-height: none; flex: 1; min-height: 0; }
 /* Visão Contas & Parceiros: RAIO-X não faz sentido → só o histórico ocupa o rail. */
@@ -2870,6 +2915,18 @@ td.c-res.res-HL { color: var(--warn); }
        Sempre visível (concluído / processando / vazio). Fase 1 = layout; as camadas
        (veredito / notas / backoffice / histórico) e o glifo IA vêm nas fases seguintes. -->
   <aside class="rail" id="rail">
+    <!-- s346 — ALÇA do RAIO-X. Recolher um painel é ação sobre a TELA, não sobre a
+         aposta: o botão não entra na `.grade-actions` (inserir/exportar/sugerir), ele mora
+         na BORDA do painel que controla. Aberta, vive no vão de 16px entre a lista e o
+         rail; recolhida, é a coluna inteira (22px) com o rótulo na vertical.
+         O `.rx-dot` carrega o estado da última extração — recolher não pode esconder que
+         há pendência a conferir. -->
+    <button class="rx-alca" id="btn-rx" type="button" aria-expanded="true" aria-controls="rail"
+            title="Recolher o RAIO-X (mais largura para a lista de apostas)">
+      <span class="rx-car" aria-hidden="true">›</span>
+      <span class="rx-rot">RAIO-X</span>
+      <span class="rx-dot" id="rx-dot" hidden></span>
+    </button>
     <!-- ── Card 1: RAIO-X (70%) ── -->
     <div class="rail-card rail-card--raiox">
       <div class="right-panel-header">
@@ -6103,7 +6160,19 @@ function _quando(ts) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
+// s346 — pinta o ponto da alça do RAIO-X com o veredito da última extração. Verde =
+// limpa; qualquer outra coisa = âmbar, porque "não sei" não pode passar por "está tudo
+// certo" numa fita de 18px. Sem extração nenhuma, o ponto não existe.
+function setRxDot(cls) {
+  const dot = document.getElementById('rx-dot');
+  if (!dot) return;
+  if (!cls) { dot.hidden = true; dot.className = 'rx-dot'; return; }
+  dot.className = 'rx-dot ' + (cls === 'ok' ? 'ok' : 'warn');
+  dot.hidden = false;
+}
+
 function resetRail() {
+  setRxDot(null);
   const sum = document.getElementById('rail-sum');
   const pill = document.getElementById('rail-pill');
   const res = document.getElementById('rail-result');
@@ -6140,6 +6209,7 @@ function setRailRunning() {
 // (usado tanto pela extração ao vivo quanto ao reabrir uma entrada do histórico).
 function _railResultHtml(r) {
   const v = r.verdict || { cls: 'ok', k: '', h: '', p: '' };
+  setRxDot(v.cls);   // s346: o estado sobe para a alça — recolhido, ela é a única pista
   let html = '<div class="verdict ' + v.cls + '"><div class="vk">' + esc(v.k) + '</div><h3>' + esc(v.h) + '</h3><p>' + (v.p || '') + '</p></div>';
   const acao = (r.notas || []).filter(n => n.tipo === 'warn' || n.tipo === 'ok');
   if (acao.length) {
@@ -7610,6 +7680,9 @@ function renderGrade() {
   // "selecionar todos", que senão ficava marcado/indeterminado visualmente em falso.
   const chkTodos = document.getElementById('chk-todos');
   if (chkTodos) { chkTodos.checked = false; chkTodos.indeterminate = false; }
+  // s346: só aqui a lista tem largura medível — o default da alça do RAIO-X depende
+  // de a tabela caber ou não, e não de um breakpoint escrito na mão.
+  if (window.decidirRaioXInicial) requestAnimationFrame(window.decidirRaioXInicial);
 }
 
 // (O preenchimento de tipster da lista é gerido pelo controlador "planilha" mais abaixo.)
@@ -9089,6 +9162,47 @@ carregarCasas();
   btn.addEventListener('click', function(){
     aplicar(!sec.classList.contains('cap-recolhida'), true);
   });
+})();
+</script>
+<!-- s346: alça do RAIO-X — irmã do "Recolher captura" acima (mesmo contrato: preferência
+     em localStorage, default só na 1ª visita). A diferença é onde o controle mora: este
+     fica na BORDA do painel, não numa barra de ações. -->
+<script>
+(function(){
+  var rail = document.getElementById('rail');
+  var work = document.querySelector('.workfull');
+  var btn  = document.getElementById('btn-rx');
+  if (!rail || !work || !btn) return;
+  var KEY = 'sharpen_raiox_off';
+
+  function aplicar(off, persistir){
+    rail.classList.toggle('rail--off', off);
+    work.classList.toggle('rx-off', off);
+    btn.setAttribute('aria-expanded', off ? 'false' : 'true');
+    btn.title = off ? 'Mostrar o RAIO-X' : 'Recolher o RAIO-X (mais largura para a lista de apostas)';
+    btn.querySelector('.rx-car').textContent = off ? '‹' : '›';
+    if (persistir) { try { localStorage.setItem(KEY, off ? '1' : '0'); } catch(e){} }
+  }
+
+  var salvo = null;
+  try { salvo = localStorage.getItem(KEY); } catch(e){}
+  aplicar(salvo === '1', false);
+
+  btn.addEventListener('click', function(){
+    aplicar(!rail.classList.contains('rail--off'), true);
+  });
+
+  // Default da 1ª visita: NÃO é um breakpoint chutado — é a medida da própria lista.
+  // Se a tabela não couber na largura que ela tem, o RAIO-X nasce recolhido; couber,
+  // nasce aberto. Roda uma vez só, e nunca sobrepõe escolha já salva.
+  var decidido = false;
+  window.decidirRaioXInicial = function(){
+    if (decidido || salvo !== null) return;
+    var sc = document.querySelector('.btbl-scroll');
+    if (!sc || !sc.clientWidth) return;          // grade ainda não montou
+    decidido = true;
+    if (sc.scrollWidth > sc.clientWidth + 1) aplicar(true, false);
+  };
 })();
 </script>
 </body>

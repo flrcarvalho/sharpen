@@ -77,6 +77,21 @@
   vermelho, V neutro.
 - **Tabelas:** header mono uppercase `--ink-mute`; linhas separadas por `--line`; números
   mono + direita.
+- **Controle de LAYOUT vai na borda do painel, nunca na barra de ações (regra desde a
+  s346).** Recolher/mostrar um painel é ação sobre a **tela**; `+ Inserir aposta`,
+  `Exportar` e `Sugerir tipsters` são ações sobre a **aposta**. Misturar as duas faz a
+  barra parecer desorganizada mesmo com cada botão certo por si — foi o que o Feca leu como
+  *"bem estranho perto dos demais botões"*. O padrão é a **alça** (`.rx-alca`,
+  `app/static/index.html`): fita estreita presa à borda do painel, no vão entre ele e o
+  conteúdo; recolhida, vira a própria coluna com o rótulo na vertical (só um chevron é um
+  enfeite mudo). Três obrigações: **(a)** a alça carrega o **estado** do painel escondido
+  (ponto verde/âmbar) — recolher não pode esconder que há pendência; **(b)** a preferência
+  fica em `localStorage` e o default da 1ª visita é **medido**, não um breakpoint escrito na
+  mão (a decisão da s346 lê `scrollWidth > clientWidth` da própria lista); **(c)** a regra
+  de duas classes (`.workfull.rx-off`) tem de ser desfeita **dentro** do media query que
+  muda o mesmo grid, senão vence a de uma classe e sobra coluna fantasma.
+  *Desvio conhecido:* o `Recolher captura` (`#btn-recolher-cap`) é anterior a esta regra e
+  segue numa barra de ações — migra para alça quando aquela área for mexida.
 - **Campo de data (regra desde a s246):** todo campo de data usa o **SharpenCal**
   (`app/static/sharpen-cal.js`) — botão de ícone + `SharpenCal.abrir(anchor, valor, onPick,
   {saida:'br'|'iso'})`, input segue digitável. Em `type=date`, embrulhar em `.shcal-datewrap`
