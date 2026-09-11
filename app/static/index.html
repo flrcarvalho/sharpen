@@ -676,7 +676,7 @@ html.embedded .sidebar { display: none; }
   letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft);
 }
 /* .partner-favicon: dead após o item A (header removido), mas o seletor é
-   compartilhado com .casa-chip nos overrides de favicon por casa abaixo. */
+   compartilhado com .casa-chip/.btbl-casa nos overrides de favicon por casa abaixo. */
 .partner-favicon {
   width: 24px; height: 24px; border-radius: 7px;
   background: var(--fdc-steel); border: 1px solid rgba(255,255,255,0.08);
@@ -693,6 +693,9 @@ html.embedded .sidebar { display: none; }
 .casa-group[data-casa="Novibet"] .casa-chip img,
 .casa-group[data-casa="Esportiva"] .casa-chip img,
 .casa-group[data-casa="PixBet"] .casa-chip img,
+.btbl-casa .casa-chip[data-casa="Novibet"] img,
+.btbl-casa .casa-chip[data-casa="Esportiva"] img,
+.btbl-casa .casa-chip[data-casa="PixBet"] img,
 .partner-favicon img[data-casa="Novibet"],
 .partner-favicon img[data-casa="Esportiva"],
 .partner-favicon img[data-casa="PixBet"] { transform: scale(1.3); }
@@ -700,6 +703,8 @@ html.embedded .sidebar { display: none; }
 /* BetMGM e BETesporte: logo com margem transparente → amplia para preencher o quadradinho */
 .casa-group[data-casa="BetMGM"] .casa-chip img,
 .casa-group[data-casa="BETesporte"] .casa-chip img,
+.btbl-casa .casa-chip[data-casa="BetMGM"] img,
+.btbl-casa .casa-chip[data-casa="BETesporte"] img,
 .partner-favicon img[data-casa="BetMGM"],
 .partner-favicon img[data-casa="BETesporte"] { transform: scale(1.5); }
 /* Fallback quando o favicon não carrega: inicial da casa em mono (REFERENCIA §2) */
@@ -1641,31 +1646,12 @@ body.cap-off .cx__body { display: none; }
   flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
   /* Sem card próprio: o .grade-section já é o card (borda+raio). Aqui só o corpo rolável. */
   background: var(--surface);
-  /* s346: container da própria lista — o piso da coluna elástica mede a LISTA, não a
-     janela (lição da s345: o degrau mede a célula, não a tabela). A janela não sabe se
-     o RAIO-X está aberto nem se a casca cedeu largura; a lista sabe. */
-  container-type: inline-size; container-name: btbl;
 }
-/* s346 — DIETA DE COLUNAS (feedback do tester: "tenho que puxar pro lado" p/ ver
-   stake/resultado). A tabela pedia 1.300px fixos e a coluna que a hospeda recebe 662px
-   num laptop de 1366 — stake, odd, resultado e P/L viviam atrás do scroll horizontal,
-   em QUALQUER monitor (nem 1920 comportava). Agora ela pede 946px.
-   O que saiu e por quê: `Casa · Parceiro` (162px) era redundante — esta grade é sempre
-   de UMA conta (`carregarTodosBilhetes` filtra por casa+parceiro) e repetia a conta ativa
-   do topo em toda linha; `Esporte` ficou no chip (o nome vai no `title`); `Ações` perdeu
-   a folga; `Data` perdeu o século. A edição de casa/parceiro segue no modal ✎.
-   O piso da coluna elástica é token porque em tela estreita é melhor descrição curta que
-   scroll horizontal — e o vão de 1.366 não é o de 1.920. */
-.btbl-cols { --btbl-apo-min: 180px; }
-/* Quando a lista aperta, quem cede é a DESCRIÇÃO — ela trunca com reticências, tem o
-   texto inteiro no hover (`.desc-pop`) e no `data-full`. Stake, odd e resultado não têm
-   para onde ceder, e são o que o tester foi procurar. */
-@container btbl (max-width: 1000px) { .btbl-cols { --btbl-apo-min: 130px; } }
 .btbl-cols {
   display: grid;
   /* Template via variável (setada em .btbl-wrap) → header e linhas redimensionam juntos.
      Todas px (redimensionáveis) + spacer 1fr final que preenche a sobra sem virar gap. */
-  grid-template-columns: var(--btbl-cols, 30px 62px minmax(var(--btbl-apo-min),1fr) 40px 126px 88px 62px 74px 100px 48px);
+  grid-template-columns: var(--btbl-cols, 30px 74px minmax(240px,1fr) 108px 126px 162px 88px 62px 74px 100px 80px);
   gap: 0 12px; padding: 0 18px; box-sizing: border-box; align-items: center;
 }
 /* Scroll: header+linhas rolam juntos na horizontal; header gruda no topo na vertical. */
@@ -1748,9 +1734,7 @@ body.cap-off .cx__body { display: none; }
   box-shadow: var(--glow); padding: 9px 12px;
   font-size: 12px; line-height: 1.5; color: var(--ink); pointer-events: none;
 }
-/* s346: só o chip (o nome do esporte foi para o `title`). Ícone não é texto — é a
-   exceção já documentada da Escada de Tinta. */
-.btbl-sport { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.btbl-sport { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; }
 /* ── Autocomplete de tipster (dropdown custom — substitui o <datalist> nativo) ── */
 .ac-menu {
   position: fixed; z-index: 200; max-height: 240px; overflow-y: auto;
@@ -1821,10 +1805,10 @@ body.cap-off .cx__body { display: none; }
 .dref-wrap { position: relative; display: inline-flex; align-items: center; }
 .dref-wrap .data-ref-input { padding-right: 28px; }
 .data-ref-input::-webkit-calendar-picker-indicator { display: none; }
-/* s346: a coluna `Casa · Parceiro` saiu da grade (a tela é sempre de UMA conta) e com
-   ela as regras .btbl-casa*. A edição desses dois campos vive no modal ✎ — e os dois
-   entram no hash da assinatura, então quem mexer neles continua passando por
-   `atualizar_bilhete`, que recalcula. */
+.btbl-casa { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.btbl-casa-sub { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.btbl-casa-nome { font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btbl-casa-conta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .btbl-num { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; text-align: right; }
 .btbl-res { display: flex; align-items: center; justify-content: center; }
 .bet-res-pill {
@@ -2883,8 +2867,9 @@ td.c-res.res-HL { color: var(--warn); }
                   <div class="btbl-th btbl-sel"><input type="checkbox" id="chk-todos" title="Selecionar todos"></div>
                   <div class="btbl-th">Data</div>
                   <div class="btbl-th">Aposta / Evento</div>
-                  <div class="btbl-th center" title="Esporte">Esp.</div>
+                  <div class="btbl-th">Esporte</div>
                   <div class="btbl-th th-tip">Tipster</div>
+                  <div class="btbl-th">Casa · Parceiro</div>
                   <div class="btbl-th right">Stake</div>
                   <div class="btbl-th right">Odd</div>
                   <div class="btbl-th center">Resultado</div>
@@ -7436,12 +7421,9 @@ function renderPager() {
 
 // ── Colunas redimensionáveis da lista (.btbl) ─────────────────────────────────
 // O template fica numa CSS var em .btbl-wrap → header e TODAS as linhas redimensionam juntos.
-// v4 (s346): a dieta de colunas MUDA a contagem (11 → 10), e a chave precisa subir junto —
-// quem já mexeu numa borda tem 11 larguras salvas, e restaurá-las traria a tabela antiga de
-// volta em silêncio, justamente para quem mais usa a tela.
-const BTBL_COLS_KEY = 'fdc-btbl-cols-v4';   // v3: P/L adicionada · v4: Casa·Parceiro removida
-// 10 larguras px. A de Aposta/Evento (índice 2) é trocada por minmax() em aplicarBtblCols.
-const BTBL_DEFAULT = ['30px','62px','520px','40px','126px','88px','62px','74px','100px','48px'];
+const BTBL_COLS_KEY = 'fdc-btbl-cols-v3';   // v3: coluna P/L adicionada (entre Resultado e Ações)
+// 11 larguras px (incl. Aposta/Evento e P/L). Um spacer 1fr é anexado no fim p/ preencher a sobra.
+const BTBL_DEFAULT = ['30px','74px','520px','108px','126px','162px','88px','62px','74px','100px','80px'];
 const BTBL_FIXAS = new Set([0, 2]);   // seleção + Aposta/Evento (elástica, preenche a sobra) não redimensionam
 let btblCols = (function () {
   try { const s = JSON.parse(localStorage.getItem(BTBL_COLS_KEY)); if (Array.isArray(s) && s.length === BTBL_DEFAULT.length) return s; } catch {}
@@ -7452,7 +7434,7 @@ function aplicarBtblCols() {
   if (!wrap) return;
   // Coluna Aposta/Evento (índice 2) é elástica: absorve a sobra e preenche a largura
   // perfeitamente — sem spacer 1fr morto à direita das Ações (feedback do Feca).
-  const cols = btblCols.map((w, i) => (i === 2 ? 'minmax(var(--btbl-apo-min),1fr)' : w));
+  const cols = btblCols.map((w, i) => (i === 2 ? 'minmax(240px,1fr)' : w));
   wrap.style.setProperty('--btbl-cols', cols.join(' '));
 }
 
@@ -7610,20 +7592,6 @@ function _dataRevisao(b) {
   return d.getTime() > hoje.getTime();
 }
 
-// Data curta (s346, dieta de colunas): 10/09/2026 → 10/09/26. Só o DISPLAY encolhe —
-// a edição inline lê `b.data` do objeto, não o texto da célula, e o `title` carrega o
-// valor cheio. `bilhetes.data` guarda DD/MM/AAAA e ISO na MESMA coluna (o import antigo
-// gravou ISO), então os dois ramos existem; formato desconhecido volta VERBATIM, que é
-// a única saída honesta — mutilar data seria pior que uma célula larga.
-function _dataCurta(v) {
-  const s = (v == null ? '' : String(v)).trim();
-  let m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
-  if (m) return `${m[1]}/${m[2]}/${m[3].slice(2)}`;
-  m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (m) return `${m[3]}/${m[2]}/${m[1].slice(2)}`;
-  return s;
-}
-
 // Espelha repository._aposta_incerta: IA sinaliza incerteza via 'Outros' ou ⚠️.
 function _apostaIncerta(a) {
   if (!a) return false;
@@ -7651,6 +7619,7 @@ function renderGrade() {
     const badges = [];
     if (dupInfo) badges.push(`<span class="dup-badge" title="Suspeita de duplicidade — verifique se é aposta distinta ou erro de scroll">${dupInfo[0]}/${dupInfo[1]}</span>`);
     if (soSuspect) badges.push(`<span class="so-badge" title="Suspeita de sobreposição de scroll — esta aposta apareceu em imagens consecutivas. Verifique e delete se for duplicata.">scroll</span>`);
+    const nomeCasa = NOMES[b.casa] || b.casa;
     const tipoIncerta = _apostaIncerta(b.aposta);
     // A categoria vira célula editável (duplo-clique → menu dos mercados mais usados).
     // O `onclick` que abria o modal saiu da célula inteira e foi para o GLIFO: na
@@ -7660,12 +7629,17 @@ function renderGrade() {
     const tipoHtml = b.aposta
       ? `<div class="btbl-tipo ap-edit${tipoIncerta ? ' incerta' : ''}" data-field="aposta" title="Duplo-clique para trocar o mercado">${tipoIncerta ? `<span class="inc-glifo" aria-hidden="true" title="Categoria incerta — clique para confirmar ou corrigir" onclick="event.stopPropagation();abrirEdicao(${b.id})" style="cursor:pointer">${GLIFO_SVG}</span>` : ''}${esc(b.aposta)}</div>`
       : '';
+    const contaHtml = b.parceiro ? `<span class="btbl-casa-conta ap-edit" data-field="parceiro">${esc(b.parceiro)}</span>` : '';
     return `<div class="btbl-cols btbl-data-row" data-id="${b.id}">
       <div class="btbl-cell btbl-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></div>
-      <div class="btbl-cell btbl-date ap-edit" data-field="data" title="${esc(b.data)}">${esc(_dataCurta(b.data))}${_dataRevisao(b) ? `<span class="date-review" title="Data no futuro numa aposta já resolvida — confirme a data do jogo (a Superbet mostra a data do torneio em apostas 'Longo Prazo').">i</span>` : ''}</div>
+      <div class="btbl-cell btbl-date ap-edit" data-field="data">${esc(b.data)}${_dataRevisao(b) ? `<span class="date-review" title="Data no futuro numa aposta já resolvida — confirme a data do jogo (a Superbet mostra a data do torneio em apostas 'Longo Prazo').">i</span>` : ''}</div>
       <div class="btbl-cell">${tipoHtml}<div class="btbl-desc ap-edit" data-field="descricao" data-full="${esc(b.descricao)}">${esc(b.descricao)}${badges.join('')}</div></div>
-      <div class="btbl-cell btbl-sport ap-edit" data-field="esporte" title="${esc(b.esporte)}"><span class="sp-chip">${sportEmoji(b.esporte)}</span></div>
+      <div class="btbl-cell btbl-sport ap-edit" data-field="esporte"><span class="sp-chip">${sportEmoji(b.esporte)}</span><span>${esc(b.esporte)}</span></div>
       <div class="btbl-cell"><input class="btbl-tip-input js-ac-tipster${(b.tipster || '').trim() ? '' : ' tip-empty'}" type="text" data-tip-id="${b.id}" spellcheck="false" autocomplete="off" readonly value="${esc(b.tipster)}" placeholder="— tipster —"></div>
+      <div class="btbl-cell btbl-casa">
+        <span class="casa-chip" data-casa="${esc(b.casa)}"><img src="${faviconUrl(b.casa)}" alt="${esc(nomeCasa)}" loading="lazy"></span>
+        <div class="btbl-casa-sub"><span class="btbl-casa-nome ap-edit" data-field="casa">${esc(nomeCasa)}</span>${contaHtml}</div>
+      </div>
       <div class="btbl-cell btbl-num ap-edit" data-field="stake">${moneyStake(b.stake) || _faltando(b.id, 'Stake ausente — dê duplo-clique para preencher')}${b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : ''}</div>
       <div class="btbl-cell btbl-num ap-edit" data-field="odd">${_fmtOddDisplay(b.odd) || _faltando(b.id, 'Odd ausente ou ilegível no print — dê duplo-clique para preencher')}</div>
       <div class="btbl-cell btbl-res ap-edit" data-field="resultado">${resPill(b.resultado)}</div>

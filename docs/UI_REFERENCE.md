@@ -92,6 +92,14 @@
   muda o mesmo grid, senão vence a de uma classe e sobra coluna fantasma.
   *Desvio conhecido:* o `Recolher captura` (`#btn-recolher-cap`) é anterior a esta regra e
   segue numa barra de ações — migra para alça quando aquela área for mexida.
+- **Tela larga: medir o VAZIO, não só o overflow (s346).** Uma lista com **uma** coluna
+  elástica (`minmax(x,1fr)`) empurra toda a sobra para ela, e em monitor grande isso vira um
+  vão entre a descrição e as colunas de dinheiro. Tirar colunas de conteúdo **piora** — sobra
+  mais para a elástica absorver. Uma dieta de colunas na grade da Extração passou em todos os
+  gates de largura e foi **recusada na primeira olhada em tela grande**, porque "cabe" e
+  "fica bom" são critérios diferentes. Antes de mexer em coluna, fotografe a tela **larga**.
+  E prefira resolver aperto de largura no **layout** (que varia com a tela) a resolver na
+  **linha** (que é a mesma em todas).
 - **Campo de data (regra desde a s246):** todo campo de data usa o **SharpenCal**
   (`app/static/sharpen-cal.js`) — botão de ícone + `SharpenCal.abrir(anchor, valor, onPick,
   {saida:'br'|'iso'})`, input segue digitável. Em `type=date`, embrulhar em `.shcal-datewrap`
