@@ -697,6 +697,7 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 **Próximo passo (backlog vivo, um por vez):**
+- **O `/casas` do `servidor_demo` não devolve o campo `captura` (s347). VIVA, medida.** A rota real passou a devolver `captura` na s345 (`GET /casas`), e o mock em `scripts/demo/servidor_demo.py` ficou com `{"casas": [...]}` só. Consequência: no demo o **selo de captura** e o **aviso antes de processar** nunca acendem sozinhos — todo harness que os exercite tem de alimentar `CASAS_CAPTURA` à mão, e um print de material de venda sai sem o selo sem que nada acuse. É uma linha no mock. **Sintoma para reconhecer isto noutro campo:** o demo serve o front REAL, então campo novo na rota é dívida silenciosa do lado dele.
 - **`var(--text1)` não existe em token nenhum, e tem 4 usos (s341). VIVA, sem defeito visível.**
   `dash/assets/js/app.js` usa `color:var(--text1)` nos títulos dos drills de **tipster**, **casa**
   e **esporte** e no cabeçalho do modal de editar aposta. O token **não está definido** em

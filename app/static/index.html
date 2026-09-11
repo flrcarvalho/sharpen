@@ -5849,6 +5849,12 @@ document.addEventListener('paste', e => {
 let extSessao = null;          // { sessao_id, codigo }
 let extPollTimer = null;
 let extConectadoAviso = false;
+// s347 — PROCEDÊNCIA do lote no formulário: id do parceiro cujo conteúdo atual veio da
+// extensão. O texto que o SharpenUp despeja no textarea é indistinguível de um texto
+// colado à mão, e sem isto o aviso "esta casa tem captura" era oferecido a quem acabou
+// de usar a captura. Guardado por PARCEIRO: captura recebida em A não silencia o aviso
+// em B. Zera quando o lote sai do formulário (envio / Limpar) e ao desconectar a ponte.
+let extCapturaParceiro = null;
 
 function extStatus(msg, tipo) {
   const el = document.getElementById('ext-status');
@@ -5925,6 +5931,8 @@ async function pollExtensao() {
         }
       }
       if (imgs.length) adicionarArquivos(imgs);
+      // Marca a procedência: este lote (texto E/OU imagem) veio da captura.
+      if (parceiroSelecionado) extCapturaParceiro = parceiroSelecionado.id;
       extStatus(`Extensão conectada ✓ — ${d.capturas.length} captura(s) recebida(s). Processe abaixo.`, 'ok');
     }
   } catch (_) {}
@@ -5933,6 +5941,7 @@ async function pollExtensao() {
 function desconectarExtensao(avisar = true) {
   clearInterval(extPollTimer); extPollTimer = null;
   extConectadoAviso = false;
+  extCapturaParceiro = null;
   if (extSessao) {
     fetch(`/captura/sessao/${extSessao.sessao_id}/encerrar`, { method: 'POST' }).catch(() => {});
     extSessao = null;
@@ -6091,6 +6100,10 @@ function limparExtrator(explicit = false) {
   arquivos = []; csvFiles = []; xlsFiles = []; pdfFiles = []; renderPreviews();
   document.getElementById('texto').value = '';
   if (explicit && parceiroSelecionado) delete estadoExtrator[parceiroSelecionado.id];
+  // Só no `explicit`: o lote saiu de vez (envio ou "Limpar"). No implícito o conteúdo
+  // fica guardado em `estadoExtrator` e volta ao form — a procedência vai junto.
+  if (explicit && parceiroSelecionado && extCapturaParceiro === parceiroSelecionado.id)
+    extCapturaParceiro = null;
   setStatus('', ''); atualizarBotaoExtrair();
 }
 
@@ -6708,6 +6721,10 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
 async function _avisarSeTemCaptura() {
   const casa = parceiroSelecionado && parceiroSelecionado.casa;
   if (!casa || !temCaptura(casa)) return true;
+  // s347 — o lote VEIO da captura: oferecer a extensão a quem acabou de usá-la é o
+  // aviso batendo na porta de quem já entrou. A pergunta é sobre a CASA, mas a resposta
+  // já está dada quando o conteúdo tem procedência da ponte.
+  if (extCapturaParceiro === parceiroSelecionado.id) return true;
   const txt = (document.getElementById('texto').value || '').trim();
   const temTextoOuPrint = !!txt || arquivos.length > 0 || pdfFiles.length > 0;
   if (!temTextoOuPrint) return true;
