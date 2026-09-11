@@ -2693,16 +2693,18 @@ td.c-res.res-HL { color: var(--warn); }
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
         </div>
-        <!-- Ações rápidas da conta ativa (item 1): editar + arquivar. Reusam
-             contasEditar()/contasArquivar() — as mesmas do hub. Só aparecem quando
-             há conta ativa (toggle em atualizarQuickActs()). -->
+        <!-- Ações rápidas da conta ativa (item 1): editar + arquivar/reativar. Reusam
+             contasEditar()/contasArquivar()/contasReativar() — as mesmas do hub. Só
+             aparecem quando há conta ativa (toggle em atualizarQuickActs()).
+             O 2º botão é BIMODAL: com uma conta da aba Inativas selecionada ele vira
+             "Reativar" (ícone e title trocados, `danger` desligado — reativar não é
+             destrutivo). Ícone e estado saem de atualizarQuickActs(); aqui o markup
+             nasce vazio para não haver dois lugares dizendo qual é o modo. -->
         <div class="acct-quickacts" id="acctQuickActs" style="display:none">
           <button class="chgbtn p" id="acctEditName" type="button" title="Editar conta (casa, parceiro e fornecedor)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
           </button>
-          <button class="chgbtn p danger" id="acctArchive" type="button" title="Arquivar conta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
-          </button>
+          <button class="chgbtn p danger" id="acctArchive" type="button" title="Arquivar conta"></button>
         </div>
       </div>
     </div>
@@ -4883,10 +4885,29 @@ function atualizarBotaoConta() {
   atualizarQuickActs();
   try { renderHist(); atualizarRaioxVazio(); } catch (e) {}   // rail escopado pela conta ativa
 }
+// A conta ATIVA está arquivada? O teste é o mesmo de _acctListaPlana(): estar (ou não)
+// em parceirosCache é o que separa a aba Ativas da Inativas em todo o resto da tela —
+// um segundo critério aqui (p.arquivado) poderia divergir dele sem ninguém ver.
+function _contaAtivaArquivada() {
+  if (!parceiroSelecionado) return false;
+  const daCasa = parceirosCache[parceiroSelecionado.casa] || [];
+  return !daCasa.some(p => p.id === parceiroSelecionado.id);
+}
 // Ações rápidas (editar nome / arquivar) só existem quando há conta ativa.
+// O botão de arquivar é bimodal: em conta já arquivada ele oferece REATIVAR. Sem isso
+// a tela convidava a arquivar o que já estava arquivado (o clique chamava o endpoint
+// /arquivar de novo, sem efeito visível nenhum).
 function atualizarQuickActs() {
   const qa = document.getElementById('acctQuickActs');
   if (qa) qa.style.display = parceiroSelecionado ? 'flex' : 'none';
+  const arch = document.getElementById('acctArchive');
+  if (arch) {
+    const inativa = _contaAtivaArquivada();
+    arch.innerHTML = inativa ? _ICO_ACAO.reativar : _ICO_ACAO.arquivar;
+    arch.title = inativa ? 'Reativar conta' : 'Arquivar conta';
+    // `danger` acende o --neg no hover: é a intenção de arquivar, não a de reativar.
+    arch.classList.toggle('danger', !inativa);
+  }
   atualizarAcctNav();
 }
 // ── Setas ‹ › — andar pela lista de contas sem abrir o dropdown ───────────────
@@ -5311,10 +5332,21 @@ async function ncEditarConta() {
   const next = document.getElementById('acctNext');
   if (prev) prev.addEventListener('click', e => { e.stopPropagation(); abrirAcctPop(false); acctNavegar(-1); });
   if (next) next.addEventListener('click', e => { e.stopPropagation(); abrirAcctPop(false); acctNavegar(1); });
+  // Bimodal, igual ao rótulo: conta arquivada reativa. O estado é lido NO CLIQUE, pela
+  // mesma função que pinta o botão, para rótulo e ação nunca discordarem.
   const arch = document.getElementById('acctArchive');
-  if (arch) arch.addEventListener('click', () => {
+  if (arch) arch.addEventListener('click', async () => {
     if (!parceiroSelecionado) return;
-    contasArquivar(parceiroSelecionado.id, parceiroSelecionado.casa);
+    const { id, casa } = parceiroSelecionado;
+    if (_contaAtivaArquivada()) {
+      await contasReativar(id, casa);
+      // A conta segue selecionada (reativarParceiro não mexe em parceiroSelecionado):
+      // repinta para o botão voltar a "Arquivar" sem exigir troca de conta.
+      atualizarQuickActs();
+      renderAcctTree();
+    } else {
+      contasArquivar(id, casa);
+    }
   });
   document.getElementById('acct-search').addEventListener('input', renderAcctTree);
   document.querySelectorAll('.acct-tabs button').forEach(b => b.addEventListener('click', () => {
