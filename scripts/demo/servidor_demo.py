@@ -493,6 +493,85 @@ def custos_store():
     return {"existe": True, "custo_tipster": CUSTO_TIPSTER, "custo_geral": CUSTO_GERAL}
 
 
+# ── Preco do fornecedor com vigencia (s348, Fatia 1) ─────────────────────────
+# Em memoria, porque o demo nao tem banco. A regra de qual preco vale numa data e
+# a MESMA do repositorio: o ultimo degrau que ja comecou.
+_PRECOS = []
+_PRECO_SEQ = [0]
+
+
+def _preco_vigente_demo(fornecedor, casa, quando):
+    validos = [p for p in _PRECOS
+               if p["fornecedor"] == fornecedor and p["casa"] == casa
+               and p["vigente_desde"] <= quando]
+    if not validos:
+        return None
+    return max(validos, key=lambda p: p["vigente_desde"])["valor"]
+
+
+def _espelhar_demo(fornecedor, casa):
+    hoje = datetime.now().date().isoformat()
+    v = _preco_vigente_demo(fornecedor, casa, hoje)
+    k = f"{fornecedor}||{casa}"
+    if v is None:
+        CUSTO_CONTA.pop(k, None)
+    else:
+        CUSTO_CONTA[k] = v
+    return v
+
+
+@app.get("/custos/fornecedor")
+def listar_precos_fornecedor_demo():
+    return {"precos": sorted(_PRECOS, key=lambda p: (p["fornecedor"], p["casa"],
+                                                     p["vigente_desde"]), reverse=False)}
+
+
+class PrecoFornecedorDemo(BaseModel):
+    fornecedor: str
+    casa: str
+    valor: float | str
+    vigente_desde: str
+
+
+@app.post("/custos/fornecedor")
+def registrar_preco_fornecedor_demo(body: PrecoFornecedorDemo):
+    forn = (body.fornecedor or "").strip()
+    casa = (body.casa or "").strip()
+    if not forn or not casa:
+        return JSONResponse({"detail": "fornecedor e casa sao obrigatorios"}, status_code=400)
+    try:
+        v = float(str(body.valor).replace(",", "."))
+    except ValueError:
+        return JSONResponse({"detail": "valor invalido"}, status_code=400)
+    if v <= 0:
+        return JSONResponse({"detail": "o preco tem de ser maior que zero"}, status_code=400)
+    try:
+        datetime.strptime(body.vigente_desde, "%Y-%m-%d")
+    except ValueError:
+        return JSONResponse({"detail": "data invalida"}, status_code=400)
+
+    for p in _PRECOS:
+        if (p["fornecedor"], p["casa"], p["vigente_desde"]) == (forn, casa, body.vigente_desde):
+            p["valor"] = v
+            break
+    else:
+        _PRECO_SEQ[0] += 1
+        _PRECOS.append({"id": _PRECO_SEQ[0], "fornecedor": forn, "casa": casa,
+                        "valor": v, "vigente_desde": body.vigente_desde})
+    return {"fornecedor": forn, "casa": casa, "valor": v,
+            "vigente_desde": body.vigente_desde, "vigente_hoje": _espelhar_demo(forn, casa)}
+
+
+@app.delete("/custos/fornecedor/{preco_id}")
+def remover_preco_fornecedor_demo(preco_id: int):
+    alvo = next((p for p in _PRECOS if p["id"] == preco_id), None)
+    if alvo is None:
+        return JSONResponse({"detail": "preco nao encontrado"}, status_code=404)
+    _PRECOS.remove(alvo)
+    _espelhar_demo(alvo["fornecedor"], alvo["casa"])
+    return {"removido": True}
+
+
 @app.get("/tipsters/cadastro")
 def tipsters_cadastro(arquivados: bool = False):
     return {"tipsters": CADASTRO_TIPSTERS}

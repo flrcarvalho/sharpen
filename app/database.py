@@ -600,6 +600,37 @@ CREATE TABLE IF NOT EXISTS lixeira_bilhetes (
 );
 CREATE INDEX IF NOT EXISTS lixeira_bilhetes_dono_excluido
     ON lixeira_bilhetes (dono, excluido_em);
+
+-- ── Preço do fornecedor, com DATA DE VIGÊNCIA (s348, Fatia 1) ────────────────
+-- Uma linha por (fornecedor, casa, data em que o preço passou a valer). O preço
+-- muda com o tempo — "em agosto subiu o preço, ou fiz um deal melhor" (Feca) —, e
+-- um campo único não sabe disso: registrar R$ 950 a partir de agosto não pode
+-- reescrever o que as contas de janeiro custaram.
+--
+-- Por que tabela e não mais uma chave no JSONB de `custo_store`: as telas ANTIGAS
+-- leem `custo_conta` como {par: NUMERO} e quebrariam com uma lista aninhada. Elas
+-- seguem no ar até a Fatia 5, então o formato delas não pode mudar.
+--
+-- A ponte entre as duas formas: quem escreve aqui ESPELHA o preço vigente HOJE em
+-- `custo_store.custo_conta[fornecedor||casa]`, na mesma transação. Uma fonte de
+-- verdade (esta tabela) e uma vista derivada (o JSONB), nunca duas fontes.
+--
+-- SEM BACKFILL, de propósito: os preços que já existem no `custo_conta` não têm
+-- data, e inventar uma seria data derivada por estimativa — o que o CLAUDE.md
+-- barra. Par sem linha aqui lê como "preço sem data", e o histórico dele começa
+-- no primeiro preço que o dono registrar.
+CREATE TABLE IF NOT EXISTS fornecedor_preco (
+    id            SERIAL PRIMARY KEY,
+    dono          TEXT NOT NULL,
+    fornecedor    TEXT NOT NULL,
+    casa          TEXT NOT NULL,
+    valor         NUMERIC(12,2) NOT NULL,
+    vigente_desde DATE NOT NULL,
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (dono, fornecedor, casa, vigente_desde)
+);
+CREATE INDEX IF NOT EXISTS fornecedor_preco_dono_par
+    ON fornecedor_preco (dono, fornecedor, casa, vigente_desde DESC);
 """
 
 

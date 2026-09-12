@@ -177,6 +177,96 @@ ${_grupoPeriodo(p)}
   st.dt = _ymd(d);
 })();
 
+// ── Preço do fornecedor com vigência (Fatia 1) ───────────────────────────────
+// A régua de "qual preço valia quando" é a MESMA do servidor
+// (`repository._preco_vigente_em`): o último degrau que já começou. Duas réguas
+// para a mesma pergunta divergem no primeiro caso de borda.
+let _c2precosForn = null;      // [{id, fornecedor, casa, valor, vigente_desde}] — null = não carregado
+let _c2precoAberto = null;     // "fornecedor||casa" com o editor de preço aberto
+let _c2precoErro = '';         // mensagem do último POST recusado (aparece no formulário)
+
+async function precosFornLoad(forcar){
+  if (_c2precosForn && !forcar) return _c2precosForn;
+  try {
+    const r = await fetch('/custos/fornecedor');
+    const d = r.ok ? await r.json() : {};
+    _c2precosForn = d.precos || [];
+  } catch (e) { _c2precosForn = []; }   // offline: cai no preço sem data do custoData
+  return _c2precosForn;
+}
+
+// Degraus de um par, do mais novo para o mais velho.
+function _c2degraus(forn, casa){
+  return (_c2precosForn || [])
+    .filter(p => p.fornecedor === forn && p.casa === casa)
+    .sort((a, b) => b.vigente_desde.localeCompare(a.vigente_desde));
+}
+
+// O que vale numa data ISO. Espelha `_preco_vigente_em` do repositório.
+function _c2vigenteEm(degraus, quando){
+  const validos = degraus.filter(p => p.vigente_desde <= quando);
+  if (!validos.length) return null;
+  return validos.reduce((a, b) => a.vigente_desde >= b.vigente_desde ? a : b);
+}
+
+// Abre o calendário da marca — todo campo de data usa o SharpenCal (UI_REFERENCE §4).
+window.c2Cal = function(id){
+  const inp = document.getElementById(id);
+  if (!inp || !window.SharpenCal) return;
+  SharpenCal.abrir(inp, inp.value, v => { inp.value = v; }, { saida: 'iso' });
+};
+
+window.c2PrecoToggle = function(par){
+  _c2precoAberto = (_c2precoAberto === par) ? null : par;
+  _c2precoErro = '';
+  renderCustos2();
+};
+
+// Grava um degrau. O servidor reespelha o vigente de hoje em `custo_conta`, então
+// o `custoData` local é atualizado junto: sem isso o KPI de Contas e a aba Contas
+// seguiriam com o preço velho até o próximo F5.
+window.c2PrecoSalvar = async function(forn, casa){
+  const valor = (document.getElementById('c2pv') || {}).value || '';
+  const desde = (document.getElementById('c2pd') || {}).value || '';
+  const n = parseFloat(valor.toString().replace(/\./g, '').replace(',', '.'));
+  if (!(n > 0)) { _c2precoErro = 'O preço tem de ser maior que zero.'; renderCustos2(); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(desde)) { _c2precoErro = 'Escolha a data em que este preço passou a valer.'; renderCustos2(); return; }
+  try {
+    const r = await fetch('/custos/fornecedor', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fornecedor: forn, casa: casa, valor: n, vigente_desde: desde })
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      _c2precoErro = d.detail || 'Não consegui gravar o preço.';
+      renderCustos2(); return;
+    }
+    const d = await r.json();
+    if (typeof custoData !== 'undefined'){
+      const k = forn + '||' + casa;
+      if (d.vigente_hoje == null) delete custoData[k]; else custoData[k] = d.vigente_hoje;
+    }
+    _c2precoErro = '';
+    await precosFornLoad(true);
+    renderCustos2();
+  } catch (e) { _c2precoErro = 'Falha de rede ao gravar.'; renderCustos2(); }
+};
+
+window.c2PrecoRemover = async function(id, forn, casa){
+  try {
+    const r = await fetch('/custos/fornecedor/' + id, { method: 'DELETE' });
+    if (!r.ok) { _c2precoErro = 'Não consegui remover este degrau.'; renderCustos2(); return; }
+  } catch (e) { _c2precoErro = 'Falha de rede ao remover.'; renderCustos2(); return; }
+  await precosFornLoad(true);
+  // o espelho pode ter mudado: o degrau anterior volta a valer, ou o par fica sem preço
+  const vig = _c2vigenteEm(_c2degraus(forn, casa), _ymd(new Date()));
+  if (typeof custoData !== 'undefined'){
+    const k = forn + '||' + casa;
+    if (vig) custoData[k] = vig.valor; else delete custoData[k];
+  }
+  renderCustos2();
+};
+
 // ── Render ───────────────────────────────────────────────────────────────────
 
 window.c2Tab = function(aba){ _c2aba = aba; renderCustos2(); };
@@ -343,7 +433,10 @@ function _c2precos(){
     const i = k.indexOf('||');
     const forn = k.slice(0, i), casa = k.slice(i + 2);
     if (!_c2passa(sel, casa, forn)) return;
-    const preco = (typeof custoData !== 'undefined' && custoData[k]) || 0;
+    // O preço com data manda; o do `custoData` é o herdado, que ainda não tem
+    // vigência. Os dois convivem até o dono registrar o primeiro degrau.
+    const vig = _c2vigenteEm(_c2degraus(forn, casa), _ymd(new Date()));
+    const preco = vig ? vig.valor : ((typeof custoData !== 'undefined' && custoData[k]) || 0);
     const n = contas[k] ? contas[k].size : 0;
     linhas.push({ forn: forn, casa: casa, preco: preco, n: n });
   });
@@ -359,10 +452,10 @@ function _c2viewPrecos(){
   const linhas = _c2precos();
   if (!linhas.length){
     return _c2card('Tabela de pre\u00e7os por fornecedor', 'o pre\u00e7o que vale hoje',
-      _c2vazio('Nenhum pre\u00e7o lan\u00e7ado e nenhuma conta viva. Os pre\u00e7os de hoje s\u00e3o lan\u00e7ados em <strong>Custos de Contas</strong>.'));
+      _c2vazio('Nenhum pre\u00e7o lan\u00e7ado e nenhuma conta viva.'));
   }
+  const hoje = _ymd(new Date());
 
-  // agrupa por fornecedor, preservando a ordem que _c2precos ja deu
   const porForn = [];
   const idx = {};
   linhas.forEach(l => {
@@ -377,12 +470,26 @@ function _c2viewPrecos(){
     const selo = semPreco
       ? `<span class="c2-badge c2-badge--wait">${semPreco === 1 ? 'falta 1 pre\u00e7o' : 'faltam ' + semPreco + ' pre\u00e7os'}</span>`
       : `<span class="c2-badge c2-badge--ok">Completo</span>`;
-    const corpo = aberto ? `<div class="c2-acc__body">${g.casas.map(c => `<div class="c2-acc__linha">
-        <span class="c2-acc__casa">${casaCell(c.casa)}</span>
-        <span class="c2-acc__preco">${c.preco > 0
-          ? fmtR(c.preco)
-          : '<span class="c2-orig c2-orig--todo">sem pre\u00e7o</span>'}</span>
-      </div>`).join('')}</div>` : '';
+    const corpo = aberto ? `<div class="c2-acc__body">${g.casas.map(c => {
+      const par = c.forn + '||' + c.casa;
+      const degraus = _c2degraus(c.forn, c.casa);
+      const vig = _c2vigenteEm(degraus, hoje);
+      const editando = _c2precoAberto === par;
+      // "desde" só aparece quando existe degrau: preço herdado do custo_conta não
+      // tem data, e inventar uma seria dado derivado por estimativa.
+      const desde = vig
+        ? `<span class="c2-dt">desde ${_c2dataBR(vig.vigente_desde)}</span>`
+        : (c.preco > 0 ? '<span class="c2-dt">sem data</span>' : '');
+      return `<div class="c2-preco">
+        <div class="c2-acc__linha">
+          <span class="c2-acc__casa">${casaCell(c.casa)}</span>
+          ${desde}
+          <span class="c2-acc__preco">${c.preco > 0 ? fmtR(c.preco) : '<span class="c2-orig c2-orig--todo">sem pre\u00e7o</span>'}</span>
+          <button class="c2-preco__btn${editando ? ' is-on' : ''}" onclick="c2PrecoToggle('${_c2js(par)}')" title="Registrar um pre\u00e7o novo a partir de uma data">${editando ? 'Fechar' : 'Novo pre\u00e7o'}</button>
+        </div>
+        ${editando ? _c2precoEditor(c.forn, c.casa, degraus, hoje) : ''}
+      </div>`;
+    }).join('')}</div>` : '';
     return `<div class="c2-acc${aberto ? ' is-open' : ''}">
       <div class="c2-acc__head" onclick="c2FornToggle('${_c2js(g.forn)}')">
         <span class="c2-acc__caret">\u25b8</span>
@@ -396,13 +503,58 @@ function _c2viewPrecos(){
   }).join('');
 
   const totalSem = linhas.filter(l => !(l.preco > 0) && l.n > 0).length;
-  const corpo = `<div class="c2-nota">Esta tabela <strong>n\u00e3o \u00e9 do recorte</strong>: ela mostra o pre\u00e7o que vale hoje, enquanto a lista acima mostra as compras do per\u00edodo. \u00c9 s\u00f3 o <strong>lugar do pre\u00e7o</strong>, sem total: hoje ele vale para o <strong>par fornecedor e casa</strong>, e a partir da Fatia 2 cada conta pode ter o seu \u2014 somar o pre\u00e7o de tabela vezes o n\u00famero de contas daria um n\u00famero com cara de conta feita.</div>
+  const corpo = `<div class="c2-nota">Esta tabela <strong>n\u00e3o \u00e9 do recorte</strong>: ela mostra o pre\u00e7o que vale hoje, enquanto a lista acima mostra as compras do per\u00edodo. \u00c9 s\u00f3 o <strong>lugar do pre\u00e7o</strong>, sem total: hoje ele vale para o <strong>par fornecedor e casa</strong>, e a partir da Fatia 2 cada conta pode ter o seu. <strong>Pre\u00e7o novo n\u00e3o \u00e9 retroativo</strong>: quem foi comprado antes mant\u00e9m o que custou.</div>
     ${boxes}
     <div class="c2-rodape">
       <span class="c2-meta">${porForn.length} ${porForn.length === 1 ? 'fornecedor' : 'fornecedores'} \u00b7 ${linhas.length} ${linhas.length === 1 ? 'casa' : 'casas'}</span>
       ${totalSem ? `<span class="c2-prev">${totalSem} sem pre\u00e7o lan\u00e7ado</span>` : '<span class="c2-meta">todos com pre\u00e7o</span>'}
     </div>`;
   return _c2card('Tabela de pre\u00e7os por fornecedor', 'o pre\u00e7o que vale hoje', corpo);
+}
+
+// Editor de um par: o formulário de um degrau novo e o histórico do que já houve.
+function _c2precoEditor(forn, casa, degraus, hoje){
+  // O selo sai da MESMA régua que decide o preço da tela (`_c2vigenteEm`): o
+  // último degrau que já começou. Derivar de "tem alguém depois de mim na lista"
+  // marca o vigente como encerrado assim que existe um preço AGENDADO — medido.
+  const atual = _c2vigenteEm(degraus, hoje);
+  const hist = degraus.map((p, k) => {
+    const proximo = degraus[k - 1];   // degraus vêm do mais novo para o mais velho
+    const ate = proximo ? _c2dataBR(_c2diaAntes(proximo.vigente_desde)) : null;
+    const vigente = !!atual && atual.id === p.id;
+    const futuro = p.vigente_desde > hoje;
+    return `<div class="c2-degrau">
+      <span class="c2-degrau__val">${fmtR(p.valor)}</span>
+      <span class="c2-degrau__per">${ate
+        ? 'de ' + _c2dataBR(p.vigente_desde) + ' a ' + ate
+        : (futuro ? 'a partir de ' + _c2dataBR(p.vigente_desde) : 'desde ' + _c2dataBR(p.vigente_desde))}</span>
+      ${vigente ? '<span class="c2-badge c2-badge--ok">Vigente</span>' : (futuro ? '<span class="c2-badge c2-badge--wait">Futuro</span>' : '<span class="c2-badge">Encerrado</span>')}
+      <button class="c2-degrau__x" onclick="c2PrecoRemover(${p.id},'${_c2js(forn)}','${_c2js(casa)}')" title="Remover este registro">\u2715</button>
+    </div>`;
+  }).join('') || '<div class="c2-meta" style="padding:6px 0">Nenhum degrau com data ainda. O primeiro que voc\u00ea registrar come\u00e7a o hist\u00f3rico.</div>';
+
+  return `<div class="c2-preco__editor">
+    <div class="c2-preco__form">
+      <label class="c2-preco__campo">
+        <span class="c2-eyebrow">Pre\u00e7o por conta</span>
+        <span class="c2-preco__inp"><span class="cur">R$</span><input id="c2pv" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></span>
+      </label>
+      <label class="c2-preco__campo">
+        <span class="c2-eyebrow">Passa a valer em</span>
+        <span class="shcal-datewrap c2-preco__data"><input id="c2pd" type="date" value="${hoje}"><button type="button" class="shcal-databtn" onclick="c2Cal('c2pd')" aria-label="Abrir calend\u00e1rio"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12M4.5 1v3M10.5 1v3"/></svg></button></span>
+      </label>
+      <button class="c2-preco__ok" onclick="c2PrecoSalvar('${_c2js(forn)}','${_c2js(casa)}')">Registrar</button>
+    </div>
+    ${_c2precoErro ? `<div class="c2-preco__erro">${esc(_c2precoErro)}</div>` : ''}
+    <div class="c2-preco__hist">${hist}</div>
+  </div>`;
+}
+
+// Véspera de uma data ISO, para fechar o período do degrau anterior.
+function _c2diaAntes(iso){
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  return _ymd(d);
 }
 
 // ── Aba Tipsters ─────────────────────────────────────────────────────────────

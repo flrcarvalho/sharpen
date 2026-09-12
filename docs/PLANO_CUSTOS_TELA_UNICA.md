@@ -28,7 +28,8 @@ Decisões que vieram junto e não se rediscutem sem ele:
   percentual combinado fica registrado para a tela lembrar; o valor do mês é digitado.
 - **Contas e assinaturas nunca lado a lado**, mesmo na mesma página.
 - O antigo "Extrato da operação" chama-se **Raio-X**, no vocabulário da marca.
-- As três telas antigas **ficam no menu até a Fatia 5**, porque a prévia não grava.
+- As três telas antigas **ficam no menu até a Fatia 5**. Da Fatia 1 em diante a tela nova
+  já grava a tabela de preços, mas o lançamento de conta e de tipster segue lá.
 
 ## Como o custo se comporta, por família
 
@@ -63,7 +64,7 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
 | # | O que é | Estado |
 |---|---|---|
 | **0** | **Prévia só-leitura**: a tela montada de verdade, lendo `custoData`, `ctData`/`cgData` e `_contasVida`. Zero escrita, zero estrutura nova. | **no ar (s348)** |
-| **1** | Tabela de preços do fornecedor: fornecedor × casa × valor × `vigente_desde`. Conta nova nasce com o preço vigente. Nada é apagado. | aberta |
+| **1** | Tabela de preços do fornecedor: fornecedor × casa × valor × `vigente_desde`, em `fornecedor_preco`. Espelhada em `custo_conta` a cada escrita, para as telas antigas seguirem certas. Sem backfill: preço herdado lê como "sem data". | **no ar (s348)** |
 | **2** | Custo sai do par `fornecedor\|\|casa` e vai para a **conta**. Migração com backup, script com ensaio por padrão, e prova de que o total do KPI não se move. Aqui se decide a régua única. | aberta |
 | **3** | Tipster ganha **tipo de cobrança** e o arrasto por tipo. A grade de 6 meses sai. | aberta |
 | **4** | Gerais ganha **categoria** (três de fábrica mais as que o Feca criar) e recorrência. | aberta |
@@ -81,8 +82,21 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
   dinheiro dentro de um eyebrow de 9,5px joga o `.money-sign` para 7,2px, abaixo do piso da
   Escada; e um rodapé que somava o período enquanto a tabela mostrava o mês.
 
+## O que a Fatia 1 ensinou
+
+- **Duas formas do mesmo dado, nunca duas fontes.** `fornecedor_preco` é a fonte;
+  `custo_store.custo_conta` virou vista derivada, reespelhada na mesma transação. Foi o
+  que permitiu a tela nova escrever sem quebrar as três antigas, que seguem no ar.
+- **Não se inventa data para preço antigo.** O `custo_conta` que já existia não tem
+  vigência, e carimbar uma seria dado derivado por estimativa. Preço herdado lê como
+  "sem data" até o dono registrar o primeiro degrau.
+- **O rótulo tem de sair da mesma régua que decide o número.** Com um preço agendado para
+  o futuro, derivar "vigente" de *tem alguém mais novo na lista* marcava o preço atual
+  como encerrado. Duas réguas para a mesma pergunta divergem no primeiro caso de borda.
+
 ## Fonte canônica
 
+`app/database.py` (`fornecedor_preco`) · `app/repository.py` (`_preco_vigente_em`, `registrar_preco_fornecedor`, `_espelhar_custo_conta`) · `app/main.py` (rotas `/custos/fornecedor`) · `tests/test_fornecedor_preco.py` (gate, 10/10 mutações) ·
 `app/static/dash/assets/js/charts/custos2.js` (render e regras do recorte) ·
 `app/static/dash/assets/css/components.css` (bloco `.c2-*`) · registro da página em
 `app/static/dash/assets/js/app.js` **e** `app/static/app.html`, que são as duas cascas.

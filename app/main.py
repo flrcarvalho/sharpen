@@ -62,6 +62,7 @@ from repository import (
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
     get_custo_conta, salvar_custo_conta,
+    listar_precos_fornecedor, registrar_preco_fornecedor, remover_preco_fornecedor,
     calcular_pl,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
@@ -4377,6 +4378,39 @@ async def get_custo_conta_route(dono: str = Depends(dono_efetivo)):
 async def salvar_custo_conta_route(body: CustoContaRequest, dono: str = Depends(dono_efetivo)):
     await salvar_custo_conta(dono, body.custo_conta or {})
     return {"salvo": True}
+
+
+class PrecoFornecedorRequest(BaseModel):
+    """Um degrau da tabela de preço: quanto o fornecedor cobra por conta naquela
+    casa, a partir de qual data."""
+    fornecedor: str
+    casa: str
+    valor: float | str
+    vigente_desde: str
+
+
+@app.get("/custos/fornecedor")
+async def listar_precos_fornecedor_route(dono: str = Depends(dono_efetivo)):
+    """Histórico completo. O front deriva o vigente de hoje — a régua de qual preço
+    valia quando é a MESMA no servidor e na tela (`_preco_vigente_em`)."""
+    return {"precos": await listar_precos_fornecedor(dono)}
+
+
+@app.post("/custos/fornecedor")
+async def registrar_preco_fornecedor_route(body: PrecoFornecedorRequest,
+                                           dono: str = Depends(dono_efetivo)):
+    try:
+        return await registrar_preco_fornecedor(
+            dono, body.fornecedor, body.casa, body.valor, body.vigente_desde)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/custos/fornecedor/{preco_id}")
+async def remover_preco_fornecedor_route(preco_id: int, dono: str = Depends(dono_efetivo)):
+    if not await remover_preco_fornecedor(dono, preco_id):
+        raise HTTPException(status_code=404, detail="preço não encontrado")
+    return {"removido": True}
 
 
 class SugerirTipsterRequest(BaseModel):

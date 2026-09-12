@@ -2523,6 +2523,68 @@ select.ap-inline-inp { padding: 2px 4px; }
 .c2-acc__preco .money { font-size: 13px; color: var(--ink); }
 .c2-acc__preco .money-sign { font-size: 10px; }
 
+
+/* Editor de preço do fornecedor (Fatia 1). */
+.c2-preco { border-bottom: 1px solid var(--line-2); }
+.c2-preco:last-child { border-bottom: 0; }
+.c2-preco .c2-acc__linha { border-bottom: 0; }
+.c2-preco__btn {
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  color: var(--ink-soft); background: transparent; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 5px 11px; white-space: nowrap; transition: .15s;
+}
+.c2-preco__btn:hover { border-color: var(--accent); color: var(--accent); }
+.c2-preco__btn.is-on { border-color: var(--accent); color: var(--accent); background: rgba(var(--accent-rgb), .10); }
+.c2-preco__editor {
+  padding: 12px 14px 14px; margin: 0 0 10px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.c2-preco__form { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
+.c2-preco__campo { display: flex; flex-direction: column; gap: 5px; }
+.c2-preco__inp {
+  display: inline-flex; align-items: center; gap: var(--sp-2); height: 32px;
+  background: var(--field); border: 1px solid var(--line); border-radius: var(--r-xs); padding: 0 10px;
+}
+.c2-preco__inp:focus-within { border-color: var(--accent); }
+.c2-preco__inp .cur { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); }
+.c2-preco__inp input {
+  width: 96px; background: none; border: 0; outline: none; text-align: right;
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.c2-preco__inp input::placeholder { color: var(--ink-mute); }
+.c2-preco__data input[type=date] {
+  height: 32px; background: var(--field); border: 1px solid var(--line); border-radius: var(--r-xs);
+  padding: 0 10px; color: var(--ink); font-family: var(--font-mono); font-size: 13px; width: 142px;
+}
+.c2-preco__ok {
+  height: 32px; padding: 0 16px; border: 0; border-radius: var(--r-sm); cursor: pointer;
+  background: var(--accent); color: var(--bg);
+  font-family: var(--font-sans); font-size: 12.5px; font-weight: 700;
+}
+.c2-preco__ok:hover { box-shadow: var(--glow); }
+/* Falha de servidor aparece NO FORMULARIO que falhou, nunca numa barra distante. */
+.c2-preco__erro {
+  margin-top: var(--sp-3); padding: 8px 11px; border-radius: var(--r-xs);
+  border: 1px solid rgba(var(--neg-rgb), .38); background: rgba(var(--neg-rgb), .10);
+  color: var(--neg); font-size: 12px;
+}
+.c2-preco__hist { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--line-2); }
+.c2-degrau { display: flex; align-items: center; gap: var(--sp-3); padding: 6px 0; }
+.c2-degrau__val {
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+  font-variant-numeric: tabular-nums; min-width: 96px;
+}
+.c2-degrau__val .money { width: auto; gap: 3px; }
+.c2-degrau__val .money-val, .c2-degrau__val .money-sign { min-width: 0; }
+.c2-degrau__val .money-sign { font-size: 10px; }
+.c2-degrau__per { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); }
+.c2-degrau__x {
+  margin-left: auto; background: none; border: 0; cursor: pointer;
+  color: var(--ink-mute); font-size: 13px; line-height: 1; padding: 3px 5px; border-radius: var(--r-xs);
+}
+.c2-degrau__x:hover { color: var(--neg); background: rgba(var(--neg-rgb), .10); }
+
 @media (max-width: 1180px) {
   .c2-raiox { grid-template-columns: minmax(0, 1fr); }
 }

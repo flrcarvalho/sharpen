@@ -544,7 +544,7 @@ function renderPage(id){
   // Custos (tela única): precisa das MESMAS três cargas das telas antigas antes de
   // pintar — cadastro de contas (adquirida_em), custo do servidor e cadastro de
   // tipsters. O render é síncrono e lê o cache que elas deixam.
-  else if(id==='custos_v2'){Promise.all([contasLoad(),ctLoad(),tipstersCadastroLoad()]).then(()=>renderCustos2());}
+  else if(id==='custos_v2'){Promise.all([contasLoad(),ctLoad(),tipstersCadastroLoad(),precosFornLoad()]).then(()=>renderCustos2());}
   else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
   else if(id==='resultados'){renderResultados();}
@@ -767,7 +767,7 @@ function buildHTML(){
         ${buildFiltersCustos('custos_v2',casas)}
         <div class="c2-previa">
           <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="var(--accent-2)" stroke-width="1.6"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.9v.9" stroke-linecap="round"/></svg>
-          <div class="c2-previa__txt"><strong>Prévia.</strong> Esta tela ainda não grava: ela lê o que já está no banco e mostra como a tela única fica. O lançamento segue em <strong>Custos de Contas</strong> e <strong>Custos de Tipsters</strong>.</div>
+          <div class="c2-previa__txt"><strong>Prévia.</strong> Só a <strong>tabela de preços por fornecedor</strong> grava; o resto ainda é leitura. O lançamento de conta e de tipster segue em <strong>Custos de Contas</strong> e <strong>Custos de Tipsters</strong>.</div>
         </div>
         <div id="c2Kpi"></div>
         <div id="c2Cascata"></div>

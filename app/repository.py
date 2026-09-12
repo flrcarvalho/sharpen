@@ -3,7 +3,7 @@ import json
 import logging
 import re
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import asyncpg
 
@@ -3751,6 +3751,117 @@ async def salvar_custo_conta(dono: str, custo_conta: dict) -> None:
             "VALUES ($1, $2::jsonb, NOW()) "
             "ON CONFLICT (dono) DO UPDATE SET custo_conta = EXCLUDED.custo_conta, atualizado_em = NOW()",
             dono, cc)
+
+
+# ── Preço do fornecedor, com vigência (s348, Fatia 1) ────────────────────────
+# O preço mora em `fornecedor_preco`; `custo_store.custo_conta` vira VISTA dele.
+# Toda escrita aqui reespelha o vigente de hoje lá, na mesma transação — duas
+# formas do mesmo dado, nunca duas fontes.
+#
+# ⚠️ asyncpg não converte tipo: NUMERIC exige Decimal (float levanta DataError) e
+# DATE exige datetime.date. Sem `::numeric`/`::date` no SQL — com o cast o tipo do
+# parâmetro fica ambíguo; sem ele vem da coluna. Ver CLAUDE.md.
+
+def _preco_chave(fornecedor: str, casa: str) -> str:
+    """A chave do JSONB legado. Mesma grafia que o dashboard monta em custoData."""
+    return f"{(fornecedor or '').strip()}||{(casa or '').strip()}"
+
+
+def _preco_vigente_em(linhas: list[dict], quando: date) -> float | None:
+    """O valor que valia em `quando`: a linha de maior `vigente_desde` que não é
+    posterior a ele. Nenhuma → None (o preço ainda não existia naquela data)."""
+    validas = [l for l in linhas if l["vigente_desde"] <= quando]
+    if not validas:
+        return None
+    return float(max(validas, key=lambda l: l["vigente_desde"])["valor"])
+
+
+async def listar_precos_fornecedor(dono: str) -> list[dict]:
+    """Todo o histórico de preço do dono, mais novo primeiro. `valor` sai float e
+    `vigente_desde` sai ISO — a rota devolve JSON, não Decimal nem date."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, fornecedor, casa, valor, vigente_desde FROM fornecedor_preco "
+            "WHERE dono = $1 ORDER BY fornecedor, casa, vigente_desde DESC", dono)
+    return [{"id": r["id"], "fornecedor": r["fornecedor"], "casa": r["casa"],
+             "valor": float(r["valor"]), "vigente_desde": r["vigente_desde"].isoformat()}
+            for r in rows]
+
+
+async def _espelhar_custo_conta(conn, dono: str, fornecedor: str, casa: str) -> float | None:
+    """Reescreve `custo_store.custo_conta[par]` com o preço vigente HOJE. Roda dentro
+    da transação de quem chamou. Par que ficou sem preço nenhum sai da chave — deixar
+    o valor velho lá faria a tela antiga mostrar um preço que já não existe."""
+    rows = await conn.fetch(
+        "SELECT valor, vigente_desde FROM fornecedor_preco "
+        "WHERE dono = $1 AND fornecedor = $2 AND casa = $3", dono, fornecedor, casa)
+    vigente = _preco_vigente_em([dict(r) for r in rows], date.today())
+
+    row = await conn.fetchrow(
+        "SELECT custo_conta FROM custo_store WHERE dono = $1 FOR UPDATE", dono)
+    atual = row["custo_conta"] if row else {}
+    if isinstance(atual, str):
+        atual = json.loads(atual)
+    atual = dict(atual or {})
+
+    chave = _preco_chave(fornecedor, casa)
+    if vigente is None:
+        atual.pop(chave, None)
+    else:
+        atual[chave] = vigente
+
+    await conn.execute(
+        "INSERT INTO custo_store (dono, custo_conta, atualizado_em) "
+        "VALUES ($1, $2::jsonb, NOW()) "
+        "ON CONFLICT (dono) DO UPDATE SET custo_conta = EXCLUDED.custo_conta, atualizado_em = NOW()",
+        dono, json.dumps(atual))
+    return vigente
+
+
+async def registrar_preco_fornecedor(dono: str, fornecedor: str, casa: str,
+                                     valor, vigente_desde) -> dict:
+    """Grava um preço a partir de uma data. Dois registros na MESMA data são o mesmo
+    degrau (UPSERT), não dois — senão um erro de digitação viraria história."""
+    fornecedor = (fornecedor or "").strip()
+    casa = (casa or "").strip()
+    if not fornecedor or not casa:
+        raise ValueError("fornecedor e casa são obrigatórios")
+    try:
+        v = Decimal(str(valor))
+    except (InvalidOperation, TypeError):
+        raise ValueError("valor inválido")
+    if v <= 0:
+        raise ValueError("o preço tem de ser maior que zero")
+    d = vigente_desde if isinstance(vigente_desde, date) else date.fromisoformat(str(vigente_desde))
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "INSERT INTO fornecedor_preco (dono, fornecedor, casa, valor, vigente_desde) "
+                "VALUES ($1, $2, $3, $4, $5) "
+                "ON CONFLICT (dono, fornecedor, casa, vigente_desde) "
+                "DO UPDATE SET valor = EXCLUDED.valor RETURNING id",
+                dono, fornecedor, casa, v, d)
+            vigente = await _espelhar_custo_conta(conn, dono, fornecedor, casa)
+    return {"id": row["id"], "fornecedor": fornecedor, "casa": casa,
+            "valor": float(v), "vigente_desde": d.isoformat(), "vigente_hoje": vigente}
+
+
+async def remover_preco_fornecedor(dono: str, preco_id: int) -> bool:
+    """Apaga UM degrau do histórico (registro errado). O espelho é refeito a partir
+    do que sobrou, então apagar o degrau de hoje faz o anterior voltar a valer."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "DELETE FROM fornecedor_preco WHERE dono = $1 AND id = $2 "
+                "RETURNING fornecedor, casa", dono, preco_id)
+            if row is None:
+                return False
+            await _espelhar_custo_conta(conn, dono, row["fornecedor"], row["casa"])
+    return True
 
 
 async def set_tipster_bulk(ids: list[int], tipster: str, dono: str) -> int:
