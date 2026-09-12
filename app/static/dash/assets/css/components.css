@@ -2484,6 +2484,45 @@ select.ap-inline-inp { padding: 2px 4px; }
 .c2-col__lbl { flex: 1; text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
 .c2-col__lbl.is-on { color: var(--accent-2); font-weight: 600; }
 
+
+/* Accordion da tabela de preços. Os valores são os MESMOS do box de
+   `Tipsters & Métodos` (`_tmBox`, charts/gestao.js), copiados de propósito: dois
+   estilos para o mesmo papel é o que faz a tela parecer fora do padrão mesmo com
+   as duas metades certas isoladamente. */
+.c2-acc {
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r-md); margin-bottom: var(--sp-2); overflow: hidden;
+}
+.c2-acc__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: 12px 14px; cursor: pointer; user-select: none;
+}
+.c2-acc__head:hover { background: rgba(var(--accent-rgb), .04); }
+.c2-acc__caret {
+  color: var(--ink-mute); font-size: 12px; line-height: 1; flex: none;
+  display: inline-block; transition: transform .18s var(--ease);
+}
+.c2-acc.is-open .c2-acc__caret { transform: rotate(90deg); }
+.c2-acc__nome { font-size: 14px; font-weight: 700; color: var(--ink); }
+.c2-acc__dir { margin-left: auto; display: flex; align-items: center; gap: var(--sp-5); }
+.c2-acc__selo { min-width: 112px; text-align: right; white-space: nowrap; }
+.c2-acc__meta {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute);
+  white-space: nowrap; min-width: 132px; text-align: right;
+}
+.c2-acc__body { padding: 2px 14px 12px; border-top: 1px solid var(--line-2); }
+.c2-acc__linha {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: 9px 0; border-bottom: 1px solid var(--line-2);
+}
+.c2-acc__linha:last-child { border-bottom: 0; }
+.c2-acc__casa { font-size: 13px; color: var(--ink); }
+.c2-acc__preco { margin-left: auto; min-width: 132px; text-align: right; }
+.c2-acc__preco .money { width: auto; gap: 3px; }
+.c2-acc__preco .money-val, .c2-acc__preco .money-sign { min-width: 0; }
+.c2-acc__preco .money { font-size: 13px; color: var(--ink); }
+.c2-acc__preco .money-sign { font-size: 10px; }
+
 @media (max-width: 1180px) {
   .c2-raiox { grid-template-columns: minmax(0, 1fr); }
 }

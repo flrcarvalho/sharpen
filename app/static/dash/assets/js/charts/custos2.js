@@ -22,6 +22,7 @@
 //   defeito" do CLAUDE.md. Qual vira a régua única é decisão da Fatia 2.
 
 let _c2aba = 'contas';
+let _c2fornOpen = null;   // accordion da tabela de preços: um fornecedor aberto por vez
 
 // ── Peças de apoio ───────────────────────────────────────────────────────────
 
@@ -179,6 +180,9 @@ ${_grupoPeriodo(p)}
 // ── Render ───────────────────────────────────────────────────────────────────
 
 window.c2Tab = function(aba){ _c2aba = aba; renderCustos2(); };
+window.c2FornToggle = function(forn){ _c2fornOpen = (_c2fornOpen === forn) ? null : forn; renderCustos2(); };
+// nome dentro de onclick="…('…')" — escapa \ e ', como o _tmJs de gestao.js
+function _c2js(x){ return String(x).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
 function renderCustos2(){
   const host = document.getElementById('c2Body');
@@ -215,7 +219,11 @@ function renderCustos2(){
   const base = t.bruto > 0 ? t.bruto : (t.custo || 1);
   const pct = (v) => Math.max(0, Math.min(100, (v / base) * 100));
   const pLiq = t.bruto > 0 ? pct(t.liquido) : 0;
+  // Custo e AGREGADO (fmtR, inteiro e sem sinal); P/L e P/L (fmtPL, 2 casas, sinal
+  // colado e minus U+2212). Sao mascaras diferentes por PAPEL, nao por estilo:
+  // com fmtR um liquido negativo sai como se fosse lucro. UI_REFERENCE 5.1.
   const legenda = (cor, nome, valor) => `<div class="c2-leg"><span class="c2-leg__dot" style="background:${cor}"></span><span class="c2-leg__lbl">${nome}</span><span class="c2-leg__val">${fmtR(valor)}</span></div>`;
+  const legendaPL = (cor, nome, valor) => `<div class="c2-leg">${cor ? `<span class="c2-leg__dot" style="background:${cor}"></span>` : ''}<span class="c2-leg__lbl">${nome}</span><span class="c2-leg__val">${fmtPL(valor)}</span></div>`;
   document.getElementById('c2Cascata').innerHTML = `<div class="card c2-cascata">
     <div class="c2-cascata__hdr">
       <span class="c2-eyebrow">Do bruto ao líquido · ${rotuloPeriodo}</span>
@@ -228,11 +236,11 @@ function renderCustos2(){
       <div class="c2-fita__seg" style="width:${pct(t.tGer)}%;background:rgba(var(--accent-rgb),.40)"></div>
     </div>
     <div class="c2-legs">
-      ${legenda('var(--pos)', 'P/L Líquido', t.liquido)}
+      ${legendaPL('var(--pos)', 'P/L Líquido', t.liquido)}
       ${legenda('var(--accent)', 'Contas', t.tContas)}
       ${legenda('rgba(var(--accent-rgb),.68)', 'Tipsters', t.tTips)}
       ${legenda('rgba(var(--accent-rgb),.40)', 'Gerais', t.tGer)}
-      <div class="c2-leg c2-leg--fim"><span class="c2-leg__lbl">P/L Bruto</span><span class="c2-leg__val">${fmtR(t.bruto)}</span></div>
+      <div class="c2-leg c2-leg--fim"><span class="c2-leg__lbl">P/L Bruto</span><span class="c2-leg__val">${fmtPL(t.bruto)}</span></div>
     </div>
     <div class="c2-corte">Custo <strong>lançado</strong> no recorte, ou seja, conta comprada aqui dentro. A Visão Geral mede pela <strong>janela de vida</strong> e cobra toda conta viva no período: os dois números são diferentes de propósito.</div>
   </div>`;
@@ -337,10 +345,12 @@ function _c2precos(){
     if (!_c2passa(sel, casa, forn)) return;
     const preco = (typeof custoData !== 'undefined' && custoData[k]) || 0;
     const n = contas[k] ? contas[k].size : 0;
-    linhas.push({ forn: forn, casa: casa, preco: preco, n: n, total: preco * n });
+    linhas.push({ forn: forn, casa: casa, preco: preco, n: n });
   });
+  // Dentro do fornecedor a ordem e pelo PRECO, que e o que a tela mostra. Ordenar
+  // por `preco x contas` faria o total recusado pelo Feca voltar como criterio.
   linhas.sort((a, b) => a.forn === b.forn
-    ? b.total - a.total || a.casa.localeCompare(b.casa, 'pt-BR')
+    ? b.preco - a.preco || a.casa.localeCompare(b.casa, 'pt-BR')
     : a.forn.localeCompare(b.forn, 'pt-BR'));
   return linhas;
 }
@@ -348,34 +358,51 @@ function _c2precos(){
 function _c2viewPrecos(){
   const linhas = _c2precos();
   if (!linhas.length){
-    return _c2card('Tabela de preços por fornecedor', 'o preço que vale hoje',
-      _c2vazio('Nenhum preço lançado e nenhuma conta viva. Os preços de hoje são lançados em <strong>Custos de Contas</strong>.'));
+    return _c2card('Tabela de pre\u00e7os por fornecedor', 'o pre\u00e7o que vale hoje',
+      _c2vazio('Nenhum pre\u00e7o lan\u00e7ado e nenhuma conta viva. Os pre\u00e7os de hoje s\u00e3o lan\u00e7ados em <strong>Custos de Contas</strong>.'));
   }
-  const semPreco = linhas.filter(l => !(l.preco > 0) && l.n > 0).length;
-  const total = linhas.reduce((a, l) => a + l.total, 0);
-  let ultimo = null;
-  const corpo = `<div class="c2-nota">Esta tabela <strong>não é do recorte</strong>: ela mostra o preço que vale hoje, enquanto a lista acima mostra as compras do período. O preço ainda é do <strong>par fornecedor e casa</strong>, então duas contas do mesmo par não podem custar diferente. Preço com <strong>data de vigência</strong> e custo <strong>por conta</strong> são as Fatias 1 e 2.</div>
-    <div class="tbl-wrap"><table class="tbl c2-tbl">
-      <thead><tr>
-        <th class="th-l">Fornecedor</th><th class="th-l">Casa</th>
-        <th class="td-num">Preço por conta</th><th class="td-num">Contas</th><th class="td-num">Total</th>
-      </tr></thead>
-      <tbody>${linhas.map(l => {
-        const novo = l.forn !== ultimo; ultimo = l.forn;
-        return `<tr>
-          <td class="th-l">${novo ? `<span class="c2-ident">${esc(l.forn)}</span>` : '<span class="c2-vazio-cel">&#8942;</span>'}</td>
-          <td class="th-l">${casaCell(l.casa)}</td>
-          <td class="td-num">${l.preco > 0 ? fmtR(l.preco) : '<span class="c2-orig c2-orig--todo">sem preço</span>'}</td>
-          <td class="td-num c2-ref">${l.n || '<span class="c2-vazio-cel">&#8212;</span>'}</td>
-          <td class="td-num">${l.total > 0 ? fmtR(l.total) : '<span class="c2-vazio-cel">&#8212;</span>'}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>
-    <div class="c2-rodape">
-      <span class="c2-meta">${linhas.length} ${linhas.length === 1 ? 'par' : 'pares'} fornecedor e casa${semPreco ? ' · ' + semPreco + ' com conta viva e sem preço' : ''}</span>
-      <span class="c2-total">${fmtR(total)}</span>
+
+  // agrupa por fornecedor, preservando a ordem que _c2precos ja deu
+  const porForn = [];
+  const idx = {};
+  linhas.forEach(l => {
+    if (idx[l.forn] === undefined){ idx[l.forn] = porForn.length; porForn.push({ forn: l.forn, casas: [] }); }
+    porForn[idx[l.forn]].casas.push(l);
+  });
+
+  const boxes = porForn.map(g => {
+    const aberto = _c2fornOpen === g.forn;
+    const semPreco = g.casas.filter(c => !(c.preco > 0) && c.n > 0).length;
+    const nContas = g.casas.reduce((a, c) => a + c.n, 0);
+    const selo = semPreco
+      ? `<span class="c2-badge c2-badge--wait">${semPreco === 1 ? 'falta 1 pre\u00e7o' : 'faltam ' + semPreco + ' pre\u00e7os'}</span>`
+      : `<span class="c2-badge c2-badge--ok">Completo</span>`;
+    const corpo = aberto ? `<div class="c2-acc__body">${g.casas.map(c => `<div class="c2-acc__linha">
+        <span class="c2-acc__casa">${casaCell(c.casa)}</span>
+        <span class="c2-acc__preco">${c.preco > 0
+          ? fmtR(c.preco)
+          : '<span class="c2-orig c2-orig--todo">sem pre\u00e7o</span>'}</span>
+      </div>`).join('')}</div>` : '';
+    return `<div class="c2-acc${aberto ? ' is-open' : ''}">
+      <div class="c2-acc__head" onclick="c2FornToggle('${_c2js(g.forn)}')">
+        <span class="c2-acc__caret">\u25b8</span>
+        <span class="c2-acc__nome">${esc(g.forn)}</span>
+        <span class="c2-acc__dir">
+          <span class="c2-acc__selo">${selo}</span>
+          <span class="c2-acc__meta">${g.casas.length} ${g.casas.length === 1 ? 'casa' : 'casas'} \u00b7 ${nContas} ${nContas === 1 ? 'conta' : 'contas'}</span>
+        </span>
+      </div>${corpo}
     </div>`;
-  return _c2card('Tabela de preços por fornecedor', 'o preço que vale hoje', corpo);
+  }).join('');
+
+  const totalSem = linhas.filter(l => !(l.preco > 0) && l.n > 0).length;
+  const corpo = `<div class="c2-nota">Esta tabela <strong>n\u00e3o \u00e9 do recorte</strong>: ela mostra o pre\u00e7o que vale hoje, enquanto a lista acima mostra as compras do per\u00edodo. \u00c9 s\u00f3 o <strong>lugar do pre\u00e7o</strong>, sem total: hoje ele vale para o <strong>par fornecedor e casa</strong>, e a partir da Fatia 2 cada conta pode ter o seu \u2014 somar o pre\u00e7o de tabela vezes o n\u00famero de contas daria um n\u00famero com cara de conta feita.</div>
+    ${boxes}
+    <div class="c2-rodape">
+      <span class="c2-meta">${porForn.length} ${porForn.length === 1 ? 'fornecedor' : 'fornecedores'} \u00b7 ${linhas.length} ${linhas.length === 1 ? 'casa' : 'casas'}</span>
+      ${totalSem ? `<span class="c2-prev">${totalSem} sem pre\u00e7o lan\u00e7ado</span>` : '<span class="c2-meta">todos com pre\u00e7o</span>'}
+    </div>`;
+  return _c2card('Tabela de pre\u00e7os por fornecedor', 'o pre\u00e7o que vale hoje', corpo);
 }
 
 // ── Aba Tipsters ─────────────────────────────────────────────────────────────
