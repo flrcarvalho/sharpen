@@ -207,6 +207,19 @@ uma segunda vez é como o arquivo chegou a 187 KB na primeira.
 > Não é escopo da faxina de documentação — ela fecha no Lote A. Fica aqui porque o gate vai
 > reprovar e alguém vai precisar saber o que fazer.
 
+### 1.9 A validação ao vivo do corte da Bolsa de Aposta (s350). **VIVA — a exclusão já foi APLICADA**
+
+O corte está no ar (`main._CORTE_HISTORICO`, par `("feca", "bolsa de aposta")` → 01/01/2026) e
+as **477** linhas de 2025 já saíram para `lixeira_bilhetes`. **Falta a única prova que fecha
+isto, e só o operador faz:** recapturar a Bolsa de Aposta e conferir que elas **não voltam**.
+A casa varre 3 anos por desenho (`DIAS_HISTORICO = 1095`), então a captura reencontra os mesmos
+códigos; se alguma linha de 2025 reaparecer, o corte não está sendo aplicado ao texto daquela
+casa. É a mesma pendência que a Betbra deixou na s344.
+
+> A conferência é uma consulta: `select count(*) from bilhetes where lower(dono)='feca'
+> and lower(casa)='bolsa de aposta' and (data like '%/2025' or data like '2025-%')`.
+> Continuar **zero** depois da captura é o sinal.
+
 ### 1.2 `golden_set/bilhetes/` está vazio — `TURBO 19/07 #21`. HUMANA. **VIVA (06/09)**
 
 Medido hoje: `golden_set/` tem só o `descricoes.jsonl` e o `README.md`. **Não existe
@@ -712,6 +725,12 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 
 **Próximo passo (backlog vivo, um por vez):**
 - **O `/casas` do `servidor_demo` não devolve o campo `captura` (s347). VIVA, medida.** A rota real passou a devolver `captura` na s345 (`GET /casas`), e o mock em `scripts/demo/servidor_demo.py` ficou com `{"casas": [...]}` só. Consequência: no demo o **selo de captura** e o **aviso antes de processar** nunca acendem sozinhos — todo harness que os exercite tem de alimentar `CASAS_CAPTURA` à mão, e um print de material de venda sai sem o selo sem que nada acuse. É uma linha no mock. **Sintoma para reconhecer isto noutro campo:** o demo serve o front REAL, então campo novo na rota é dívida silenciosa do lado dele.
+- **O `motivo` da lixeira carrega o número da sessão FIXO no script (s350). VIVA, medida.**
+  `scripts/excluir_historico_fora_do_corte.py` monta o motivo com `s344` literal, então as 477
+  linhas da Bolsa de Aposta foram gravadas como *"histórico anterior ao corte da casa (bolsa de
+  aposta · 01/01/2026 · s344)"*. Casa e data estão certas; a sessão não. Ninguém perde dado por
+  isso, mas o motivo é o que explica a exclusão a quem for restaurar, e ele aponta para a sessão
+  errada. **Conserto: tirar a sessão do texto** (a régua e a data já identificam o ato).
 - **`var(--text1)` não existe em token nenhum, e tem 4 usos (s341). VIVA, sem defeito visível.**
   `dash/assets/js/app.js` usa `color:var(--text1)` nos títulos dos drills de **tipster**, **casa**
   e **esporte** e no cabeçalho do modal de editar aposta. O token **não está definido** em
