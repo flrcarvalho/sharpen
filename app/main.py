@@ -61,7 +61,7 @@ from repository import (
     corrigir_stake_tsv,
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
-    get_custo_conta, salvar_custo_conta, definir_custo_conta,
+    get_custo_conta, salvar_custo_conta, definir_custo_conta, salvar_cobranca_tipster,
     listar_precos_fornecedor, registrar_preco_fornecedor, remover_preco_fornecedor,
     calcular_pl,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
@@ -4371,7 +4371,7 @@ async def get_custo_store_route(dono: str = Depends(dono_efetivo)):
     usa o cache local e a página de importação oferece semear a partir do navegador."""
     dados = await get_custo_store(dono)
     if dados is None:
-        return {"existe": False, "custo_tipster": {}, "custo_geral": []}
+        return {"existe": False, "custo_tipster": {}, "custo_geral": [], "custo_tipster_meta": {}}
     return {"existe": True, **dados}
 
 
@@ -4386,6 +4386,25 @@ async def salvar_custo_store_route(body: CustoStoreRequest, dono: str = Depends(
 # de custo_store; endpoint PRÓPRIO p/ não colidir com o blob tipster/geral acima.
 class CustoContaRequest(BaseModel):
     custo_conta: dict = {}
+
+
+class CobrancaTipsterRequest(BaseModel):
+    """`cobranca` vazio apaga o tipo (volta a "a definir"), que é diferente de
+    `sem_cobranca` — um é ausência de resposta, o outro é a resposta."""
+    tipster: str
+    cobranca: Optional[str] = ""
+    parametro: Optional[str] = ""
+    ate: Optional[str] = ""
+
+
+@app.post("/custos/tipster/cobranca")
+async def salvar_cobranca_tipster_route(body: CobrancaTipsterRequest,
+                                        dono: str = Depends(dono_efetivo)):
+    try:
+        return await salvar_cobranca_tipster(dono, body.tipster, body.cobranca or "",
+                                             body.parametro or "", body.ate or "")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/custos/conta")

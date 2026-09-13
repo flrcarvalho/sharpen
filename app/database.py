@@ -379,6 +379,22 @@ CREATE TABLE IF NOT EXISTS custo_store (
 -- p/ a custo_store que JÁ existe em prod desde s165. Ver STATUS s167 / [[custo_conta_isolado_por_dono]].
 ALTER TABLE custo_store ADD COLUMN IF NOT EXISTS custo_conta JSONB NOT NULL DEFAULT '{}'::jsonb;
 
+-- Tipo de cobrança do tipster (s348, Fatia 3): {tipster: {cobranca, parametro, ate}}.
+--   mensalidade  → o valor do mês anterior SE ARRASTA (é o mesmo todo mês)
+--   staking      → NÃO se arrasta: o valor muda todo mês e o campo nasce vazio
+--   temporada    → pago de uma vez; os meses seguintes ficam COBERTOS até `ate`
+--   sem_cobranca → resolve o mês sem valor (tipster que não cobra)
+--
+-- `parametro` é RÓTULO, não motor: guarda o percentual ou o R$/unidade combinado
+-- para a tela lembrar. "O usuário apenas imputa o valor" (Feca) — não há cálculo
+-- de staking aqui, e não haver é a decisão, não uma pendência.
+--
+-- Fica na MESMA chave (o nome do tipster) que `custo_tipster` já usa, e não numa
+-- tabela à parte, porque nem todo tipster da tela tem cadastro em `tipsters`. O
+-- preço de manter a chave por nome é o rename: `renomear_tipster` move esta coluna
+-- junto, no mesmo lugar em que já move `custo_tipster`.
+ALTER TABLE custo_store ADD COLUMN IF NOT EXISTS custo_tipster_meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 -- ── Lixeira de contas excluídas (rede de segurança da exclusão) ───────────────
 -- A exclusão de conta é HARD DELETE: apaga a linha em `parceiros` e TODOS os
 -- bilhetes dela. Esta tabela guarda o snapshot por 7 dias para o caso de

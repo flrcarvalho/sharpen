@@ -680,6 +680,64 @@ function _ctTipsters(){
   return [...s].sort((a,b)=>a.localeCompare(b,'pt-BR'));
 }
 
+// ── Cobrança do tipster (s348, Fatia 3) ──────────────────────────────────────
+// O TIPO decide se o valor do mês anterior se arrasta. A regra mora aqui, junto do
+// `_ctTipsters`, porque a tela antiga e a nova leem a mesma coisa — duas cópias
+// divergiriam no primeiro caso de borda, que é o defeito que esta frente já
+// cometeu três vezes.
+//
+//   mensalidade  → arrasta: é o mesmo valor todo mês, e aceitar é um clique
+//   staking      → NÃO arrasta: o valor muda todo mês ("o usuário apenas imputa")
+//   temporada    → pago de uma vez; os meses seguintes ficam COBERTOS até `ate`
+//   sem_cobranca → resolve o mês sem valor
+//   '' (vazio)   → "a definir": ausência de resposta, que é diferente de sem_cobranca
+function _ctCobranca(nome){
+  const m=(typeof ctMeta!=='undefined'&&ctMeta&&ctMeta[nome])||null;
+  return (m&&m.cobranca)||'';
+}
+function _ctParametro(nome){
+  const m=(typeof ctMeta!=='undefined'&&ctMeta&&ctMeta[nome])||null;
+  return (m&&m.parametro)||'';
+}
+function _ctTemporadaAte(nome){
+  const m=(typeof ctMeta!=='undefined'&&ctMeta&&ctMeta[nome])||null;
+  return (m&&m.ate)||'';
+}
+function _ctValor(nome,ym){
+  const v=((typeof ctData!=='undefined'&&ctData[nome])||{})[ym];
+  const n=parseFloat((v==null?'':v).toString().replace(/\./g,'').replace(',','.'));
+  return isNaN(n)?0:n;
+}
+
+// O que o mês HERDA do anterior. Só a mensalidade arrasta; o resto nasce vazio, e
+// nascer vazio é a informação (o valor mudou, ou já foi pago, ou não existe).
+function _ctSugestao(nome,ym,ymAnterior){
+  return _ctCobranca(nome)==='mensalidade' ? _ctValor(nome,ymAnterior) : 0;
+}
+
+// Situação da linha no mês: 'confirmado' | 'coberto' | 'sem_custo' | 'pendente'.
+// `coberto` é da temporada: já foi paga antes e ainda vale, então a linha não pede
+// nada — e não somar de novo é o ponto, senão a temporada viraria mensalidade.
+function _ctSituacao(nome,ym){
+  if(_ctValor(nome,ym)>0)return 'confirmado';
+  const tipo=_ctCobranca(nome);
+  if(tipo==='sem_cobranca')return 'sem_custo';
+  if(tipo==='temporada'){
+    const ate=_ctTemporadaAte(nome);
+    if(!ate||ym<=ate){
+      const meses=Object.keys((typeof ctData!=='undefined'&&ctData[nome])||{});
+      if(meses.some(m=>m<ym&&_ctValor(nome,m)>0))return 'coberto';
+    }
+  }
+  return 'pendente';
+}
+
+// Quantos pendentes do mês ACEITARIAM o valor do mês anterior num clique. Só os de
+// mensalidade: oferecer "repetir" para staking seria repetir um número que mudou.
+function _ctRepetiveis(nomes,ym,ymAnterior){
+  return (nomes||[]).filter(n=>_ctSituacao(n,ym)==='pendente'&&_ctSugestao(n,ym,ymAnterior)>0);
+}
+
 // Build HTML
 function renderCustoTipster(){
   // Carga (cache local + servidor, fonte de verdade) é feita por ctLoad() no

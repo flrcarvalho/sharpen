@@ -494,9 +494,41 @@ def custos_conta():
     return {"existe": True, "custo_conta": CUSTO_CONTA}
 
 
+# Tipo de cobranca do tipster (s348, Fatia 3). Em memoria; ausente = "a definir".
+_COBRANCA = {}
+
+
 @app.get("/custos/store")
 def custos_store():
-    return {"existe": True, "custo_tipster": CUSTO_TIPSTER, "custo_geral": CUSTO_GERAL}
+    return {"existe": True, "custo_tipster": CUSTO_TIPSTER, "custo_geral": CUSTO_GERAL,
+            "custo_tipster_meta": _COBRANCA}
+
+
+class CobrancaTipsterDemo(BaseModel):
+    tipster: str
+    cobranca: str | None = ""
+    parametro: str | None = ""
+    ate: str | None = ""
+
+
+@app.post("/custos/tipster/cobranca")
+def salvar_cobranca_demo(body: CobrancaTipsterDemo):
+    nome = (body.tipster or "").strip()
+    if not nome:
+        return JSONResponse({"detail": "tipster e obrigatorio"}, status_code=400)
+    cob = (body.cobranca or "").strip()
+    if cob and cob not in ("mensalidade", "staking", "temporada", "sem_cobranca"):
+        return JSONResponse({"detail": "cobranca invalida"}, status_code=400)
+    if not cob:
+        _COBRANCA.pop(nome, None)
+    else:
+        item = {"cobranca": cob}
+        if (body.parametro or "").strip():
+            item["parametro"] = body.parametro.strip()
+        if cob == "temporada" and (body.ate or "").strip():
+            item["ate"] = body.ate.strip()
+        _COBRANCA[nome] = item
+    return {"tipster": nome, "cobranca": cob or None}
 
 
 # ── Preco do fornecedor com vigencia (s348, Fatia 1) ─────────────────────────

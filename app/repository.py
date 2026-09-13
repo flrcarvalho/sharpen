@@ -3250,6 +3250,17 @@ async def renomear_tipster(tipster_id: int, novo_nome: str, dono: str) -> dict:
                     "UPDATE custo_store SET custo_tipster = $1::jsonb, atualizado_em = NOW() "
                     "WHERE dono = $2", json.dumps(ct), dono)
                 custo_movido = True
+            # O TIPO de cobrança mora na mesma chave-nome (Fatia 3) e tem de viajar
+            # junto: renomear e deixar o tipo para trás faria o tipster voltar a
+            # "a definir" e parar de arrastar a mensalidade, sem erro nenhum.
+            blob_m = await conn.fetchval(
+                "SELECT custo_tipster_meta FROM custo_store WHERE dono = $1 FOR UPDATE", dono)
+            meta = json.loads(blob_m) if isinstance(blob_m, str) else blob_m
+            if isinstance(meta, dict) and antigo in meta:
+                meta[novo_nome] = meta.pop(antigo)
+                await conn.execute(
+                    "UPDATE custo_store SET custo_tipster_meta = $1::jsonb, atualizado_em = NOW() "
+                    "WHERE dono = $2", json.dumps(meta), dono)
     return {
         "ok": True, "antigo": antigo, "nome": novo_nome,
         "bilhetes_atualizados": contagens.get("bilhetes", 0),
@@ -3709,7 +3720,7 @@ async def get_casas_dominios(dono: str) -> dict:
 
 
 async def get_custo_store(dono: str) -> dict | None:
-    """Custos do dono (Custo por Tipster + Custos Gerais) — ver database.custo_store.
+    """Custos do dono (Custo por Tipster + Custos Gerais + o TIPO de cobrança) — ver database.custo_store.
     Retorna None se o dono AINDA NÃO tem registro (servidor "vazio" → o front sabe
     que precisa importar do navegador). custo_tipster = {tipster:{"YYYY-MM":val}};
     custo_geral = [{id,tipo,values}]. Espelha get_casas_dominios. JSONB volta como
@@ -3717,16 +3728,20 @@ async def get_custo_store(dono: str) -> dict | None:
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT custo_tipster, custo_geral FROM custo_store WHERE dono = $1", dono)
+            "SELECT custo_tipster, custo_geral, custo_tipster_meta FROM custo_store WHERE dono = $1", dono)
     if row is None:
         return None
     ct = row["custo_tipster"]
     cg = row["custo_geral"]
+    meta = row["custo_tipster_meta"]
     if isinstance(ct, str):
         ct = json.loads(ct)
     if isinstance(cg, str):
         cg = json.loads(cg)
-    return {"custo_tipster": ct or {}, "custo_geral": cg or []}
+    if isinstance(meta, str):
+        meta = json.loads(meta)
+    return {"custo_tipster": ct or {}, "custo_geral": cg or [],
+            "custo_tipster_meta": meta or {}}
 
 
 async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list) -> None:
@@ -3743,6 +3758,48 @@ async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list) 
             "ON CONFLICT (dono) DO UPDATE SET custo_tipster = EXCLUDED.custo_tipster, "
             "custo_geral = EXCLUDED.custo_geral, atualizado_em = NOW()",
             dono, ct, cg)
+
+
+COBRANCAS = ("mensalidade", "staking", "temporada", "sem_cobranca")
+
+
+async def salvar_cobranca_tipster(dono: str, tipster: str, cobranca: str,
+                                  parametro: str = "", ate: str = "") -> dict:
+    """Grava (ou apaga) o tipo de cobrança de UM tipster.
+
+    `cobranca` vazio apaga a chave e o tipster volta a "a definir" — que é diferente
+    de `sem_cobranca`, onde o dono AFIRMOU que não paga. Um é ausência de resposta,
+    o outro é a resposta."""
+    nome = (tipster or "").strip()
+    if not nome:
+        raise ValueError("tipster é obrigatório")
+    cob = (cobranca or "").strip()
+    if cob and cob not in COBRANCAS:
+        raise ValueError("cobrança inválida")
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            blob = await conn.fetchval(
+                "SELECT custo_tipster_meta FROM custo_store WHERE dono = $1 FOR UPDATE", dono)
+            meta = json.loads(blob) if isinstance(blob, str) else blob
+            meta = dict(meta or {})
+            if not cob:
+                meta.pop(nome, None)
+            else:
+                item = {"cobranca": cob}
+                if (parametro or "").strip():
+                    item["parametro"] = parametro.strip()
+                if cob == "temporada" and (ate or "").strip():
+                    item["ate"] = ate.strip()
+                meta[nome] = item
+            await conn.execute(
+                "INSERT INTO custo_store (dono, custo_tipster_meta, atualizado_em) "
+                "VALUES ($1, $2::jsonb, NOW()) "
+                "ON CONFLICT (dono) DO UPDATE SET custo_tipster_meta = EXCLUDED.custo_tipster_meta, "
+                "atualizado_em = NOW()",
+                dono, json.dumps(meta))
+    return {"tipster": nome, "cobranca": cob or None}
 
 
 async def get_custo_conta(dono: str) -> dict | None:

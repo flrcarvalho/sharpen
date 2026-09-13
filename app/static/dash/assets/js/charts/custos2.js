@@ -111,10 +111,14 @@ function _c2tipsters(){
   return (typeof _ctTipsters === 'function' ? _ctTipsters() : []).map(nome => {
     const meses = (typeof ctData !== 'undefined' && ctData[nome]) || {};
     const vRef = _c2num(meses[r.mesRef]);
-    const vAnt = _c2num(meses[ant]);
-    const temRef = !!(meses[r.mesRef] && vRef > 0);
+    // A situação e o arrasto saem do `gestao.js`, que é onde a regra mora — a tela
+    // antiga lê a mesma, e duas cópias divergiriam.
+    const sit = _ctSituacao(nome, r.mesRef);
     return {
-      nome: nome, valor: vRef, anterior: vAnt, resolvido: temRef,
+      nome: nome, valor: vRef, anterior: _c2num(meses[ant]),
+      cobranca: _ctCobranca(nome), parametro: _ctParametro(nome),
+      situacao: sit, resolvido: sit !== 'pendente',
+      sugestao: _ctSugestao(nome, r.mesRef, ant),
       noPeriodo: r.meses.reduce((a, m) => a + _c2num(meses[m]), 0)
     };
   });
@@ -151,9 +155,12 @@ function _c2totais(){
     tTipsMes: tips.reduce((a, t) => a + t.valor, 0),
     tGerMes: ger.reduce((a, g) => a + g.valor, 0),
     semCusto: contas.filter(c => !(c.custo > 0)).length,
-    tipsPend: tips.filter(t => !t.resolvido).length,
+    tipsPend: tips.filter(t => t.situacao === 'pendente').length,
     gerPend: ger.filter(g => !g.resolvido).length,
-    tipsPrev: tips.filter(t => !t.resolvido).reduce((a, t) => a + t.anterior, 0)
+    // Previsto = só o que o arrasto REALMENTE preencheria. Somar o mês anterior de
+    // um staking prometeria um número que muda todo mês.
+    tipsPrev: tips.filter(t => t.situacao === 'pendente').reduce((a, t) => a + t.sugestao, 0),
+    tipsRepetiveis: tips.filter(t => t.situacao === 'pendente' && t.sugestao > 0).length
   };
 }
 
@@ -193,6 +200,7 @@ let _c2precoAberto = null;     // "fornecedor||casa" com o editor de preço aber
 let _c2precoErro = '';         // mensagem do último POST recusado (aparece no formulário)
 let _c2contaEditando = null;   // id do parceiro com o custo próprio em edição
 let _c2contaErro = '';
+let _c2tipErro = '';       // falha ao gravar custo/cobrança de tipster
 
 // Abre o calendário da marca — todo campo de data usa o SharpenCal (UI_REFERENCE §4).
 window.c2Cal = function(id){
@@ -288,6 +296,64 @@ window.c2ContaSalvar = async function(id, limpar){
   _contaVida = null;
   _c2contaEditando = null;
   _c2contaErro = '';
+  renderCustos2();
+};
+
+// ── Custo de tipster: gravar o mês e o tipo de cobrança (Fatia 3) ────────────
+window.c2CobrancaSet = async function(nome, cobranca, ate){
+  const antes = (typeof ctMeta !== 'undefined' && ctMeta[nome]) ? { ...ctMeta[nome] } : null;
+  const ateFinal = (ate !== undefined) ? (ate || '') : ((antes && antes.ate) || '');
+  try {
+    const r = await fetch('/custos/tipster/cobranca', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipster: nome, cobranca: cobranca,
+                             parametro: (antes && antes.parametro) || '',
+                             ate: ateFinal })
+    });
+    if (!r.ok) { _c2tipErro = 'Não consegui gravar a cobrança.'; renderCustos2(); return; }
+  } catch (e) { _c2tipErro = 'Falha de rede ao gravar a cobrança.'; renderCustos2(); return; }
+  if (typeof ctMeta !== 'undefined'){
+    if (!cobranca) delete ctMeta[nome];
+    else ctMeta[nome] = Object.assign({}, antes, { cobranca: cobranca, ate: ateFinal });
+  }
+  _c2tipErro = '';
+  renderCustos2();
+};
+
+// O valor do MÊS. Reusa o `ctSave` do app.js, que é quem fala com /custos/store —
+// um segundo caminho de escrita para o mesmo blob criaria duas fontes.
+window.c2CustoTipsterSalvar = function(nome, bruto){
+  const txt = (bruto == null ? '' : bruto).toString().trim();
+  const ym = _c2range().mesRef;
+  if (typeof ctData === 'undefined') return;
+  if (!ctData[nome]) ctData[nome] = {};
+  if (txt){
+    const n = parseFloat(txt.replace(/\./g, '').replace(',', '.'));
+    if (!(n > 0)) { _c2tipErro = 'O custo do mês tem de ser maior que zero. Deixe vazio para limpar.'; renderCustos2(); return; }
+    ctData[nome][ym] = txt;
+  } else {
+    delete ctData[nome][ym];
+  }
+  _c2tipErro = '';
+  if (typeof ctSave === 'function') ctSave();
+  renderCustos2();
+};
+
+// Aceita o valor do mês anterior em TODOS os pendentes que arrastam. Só mensalidade
+// entra: `_ctSugestao` devolve 0 para staking e temporada, e o filtro é por isso.
+window.c2RepetirMes = function(){
+  const r = _c2range();
+  const ant = _c2mesAnterior(r.mesRef);
+  let n = 0;
+  (_c2tipsters() || []).forEach(t => {
+    if (t.situacao !== 'pendente') return;
+    const v = _ctSugestao(t.nome, r.mesRef, ant);
+    if (!(v > 0)) return;
+    if (!ctData[t.nome]) ctData[t.nome] = {};
+    ctData[t.nome][r.mesRef] = fmt(v, 2);
+    n++;
+  });
+  if (n && typeof ctSave === 'function') ctSave();
   renderCustos2();
 };
 
@@ -625,28 +691,66 @@ function _c2viewTipsters(t, mes, mesAnt, umMes, rotuloPeriodo){
     return _c2card('Tipsters em ' + mes, 'assinatura, staking ou temporada',
       _c2vazio('Nenhum tipster na base ainda.'));
   }
-  const linhas = t.tips.map(x => `<tr>
+  const COBRANCAS = [
+    ['', 'a definir'],
+    ['mensalidade', 'Mensalidade'],
+    ['staking', 'Staking'],
+    ['temporada', 'Temporada'],
+    ['sem_cobranca', 'Sem cobran\u00e7a'],
+  ];
+  const selo = {
+    confirmado: '<span class="c2-badge c2-badge--ok">Confirmado</span>',
+    coberto: '<span class="c2-badge c2-badge--ok">Coberto</span>',
+    sem_custo: '<span class="c2-badge">Sem custo</span>',
+    pendente: '<span class="c2-badge c2-badge--wait">Pendente</span>',
+  };
+
+  const linhas = t.tips.map(x => {
+    const sel = `<select class="c2-sel" onchange="c2CobrancaSet('${_c2js(x.nome)}', this.value)">${
+      COBRANCAS.map(([v, r]) => `<option value="${v}"${x.cobranca === v ? ' selected' : ''}>${r}</option>`).join('')
+    }</select>${x.cobranca === 'temporada'
+      ? `<input class="c2-ate" type="month" value="${esc(_ctTemporadaAte(x.nome))}" title="Cobre at\u00e9 que m\u00eas" onchange="c2CobrancaSet('${_c2js(x.nome)}', 'temporada', this.value)">`
+      : (x.parametro ? `<span class="c2-dt"> ${esc(x.parametro)}</span>` : '')}`;
+    // A coluna do mês anterior muda de PAPEL por tipo: na mensalidade ela é uma
+    // oferta clicável; no staking é só referência, e dizer isso é o ponto.
+    const ref = x.situacao === 'pendente' && x.sugestao > 0
+      ? `<button class="c2-usar" onclick="c2CustoTipsterSalvar('${_c2js(x.nome)}', '${fmt(x.sugestao, 2)}')">usar ${fmtR(x.sugestao)}</button>`
+      : (x.anterior > 0
+          ? `<span class="c2-ref-val">${fmtR(x.anterior)}${x.cobranca === 'staking' ? '<span class="c2-dt"> · n\u00e3o repete</span>' : ''}</span>`
+          : '<span class="c2-vazio-cel">\u2014</span>');
+    const campo = x.situacao === 'coberto' || x.situacao === 'sem_custo'
+      ? '<span class="c2-vazio-cel">\u2014</span>'
+      : `<span class="c2-preco__inp c2-inp-mes${x.valor > 0 ? ' is-ok' : ''}"><span class="cur">R$</span><input type="text" inputmode="decimal" placeholder="0,00" value="${x.valor > 0 ? fmt(x.valor, 2) : ''}" onblur="c2CustoTipsterSalvar('${_c2js(x.nome)}', this.value)" onkeydown="if(event.key==='Enter')this.blur()"></span>`;
+    return `<tr>
       <td class="th-l c2-ident">${esc(x.nome)}</td>
-      <td class="th-l"><span class="c2-orig c2-orig--vazio">a definir</span></td>
-      <td class="td-num c2-ref">${x.anterior > 0 ? fmtR(x.anterior) : '<span class="c2-vazio-cel">—</span>'}</td>
-      <td class="td-num">${x.resolvido ? fmtR(x.valor) : '<span class="c2-vazio-cel">—</span>'}</td>
-      <td class="th-l">${x.resolvido
-        ? '<span class="c2-badge c2-badge--ok">Confirmado</span>'
-        : '<span class="c2-badge c2-badge--wait">Pendente</span>'}</td>
-    </tr>`).join('');
-  const corpo = `<div class="c2-nota">${umMes ? '' : `O recorte é <strong>${rotuloPeriodo}</strong>, mas a lista abaixo é de <strong>${mes}</strong>: assinatura se lança mês a mês. O KPI lá em cima soma o período inteiro. `}A coluna <strong>Cobrança</strong> nasce vazia porque o tipo (mensalidade, staking, temporada) ainda não existe no banco: ele entra na Fatia 3, e é ele que decide se o valor do mês anterior se arrasta sozinho.</div>
+      <td class="th-l">${sel}</td>
+      <td class="td-num">${ref}</td>
+      <td class="td-num">${campo}</td>
+      <td class="th-l">${selo[x.situacao] || selo.pendente}</td>
+    </tr>`;
+  }).join('');
+
+  const corpo = `<div class="c2-nota">${umMes ? '' : `O recorte \u00e9 <strong>${rotuloPeriodo}</strong>, mas a lista abaixo \u00e9 de <strong>${mes}</strong>: assinatura se lan\u00e7a m\u00eas a m\u00eas. O KPI l\u00e1 em cima soma o per\u00edodo inteiro. `}<strong>Mensalidade</strong> traz o valor do m\u00eas anterior para voc\u00ea aceitar num clique. <strong>Staking</strong> nunca se arrasta, porque o valor muda todo m\u00eas. <strong>Temporada</strong> j\u00e1 foi paga e n\u00e3o pede nada at\u00e9 vencer.</div>
+    ${_c2tipErro ? `<div class="c2-preco__erro">${esc(_c2tipErro)}</div>` : ''}
     <div class="tbl-wrap"><table class="tbl c2-tbl">
       <thead><tr>
-        <th class="th-l">Tipster</th><th class="th-l">Cobrança</th>
-        <th class="td-num">${mesAnt}</th><th class="td-num">Custo de ${mes}</th><th class="th-l">Situação</th>
+        <th class="th-l">Tipster</th><th class="th-l">Cobran\u00e7a</th>
+        <th class="td-num">${mesAnt}</th><th class="td-num">Custo de ${mes}</th><th class="th-l">Situa\u00e7\u00e3o</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table></div>
     <div class="c2-rodape">
-      <span class="c2-meta">confirmado em ${mes} <span class="c2-total">${fmtR(t.tTipsMes)}</span>${umMes ? '' : ` · ${rotuloPeriodo} soma <span class="c2-total">${fmtR(t.tTips)}</span>`}</span>
-      ${t.tipsPrev > 0 ? `<span class="c2-prev">+ ${fmtR(t.tipsPrev)} previsto nos ${t.tipsPend} pendentes</span>` : ''}
+      <span class="c2-meta">confirmado em ${mes} <span class="c2-total">${fmtR(t.tTipsMes)}</span>${umMes ? '' : ` \u00b7 ${rotuloPeriodo} soma <span class="c2-total">${fmtR(t.tTips)}</span>`}</span>
+      ${t.tipsPrev > 0 ? `<span class="c2-prev">+ ${fmtR(t.tipsPrev)} previsto nos ${t.tipsRepetiveis} que repetem</span>` : ''}
     </div>`;
-  return _c2card('Tipsters em ' + mes, t.tips.length - t.tipsPend + ' de ' + t.tips.length + ' resolvidos', corpo);
+
+  const acao = t.tipsRepetiveis > 0
+    ? `<button class="c2-preco__ok" onclick="c2RepetirMes()">Repetir ${mesAnt} nos ${t.tipsRepetiveis}</button>`
+    : `<span class="c2-eyebrow">${t.tips.length - t.tipsPend} de ${t.tips.length} resolvidos</span>`;
+  return `<div class="card">
+    <div class="card-hdr"><div class="card-title">Tipsters em ${mes}</div>${acao}</div>
+    <div class="card-body">${corpo}</div>
+  </div>`;
 }
 
 // ── Aba Gerais ───────────────────────────────────────────────────────────────

@@ -66,7 +66,7 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
 | **0** | **Prévia só-leitura**: a tela montada de verdade, lendo `custoData`, `ctData`/`cgData` e `_contasVida`. Zero escrita, zero estrutura nova. | **no ar (s348)** |
 | **1** | Tabela de preços do fornecedor: fornecedor × casa × valor × `vigente_desde`, em `fornecedor_preco`. Espelhada em `custo_conta` a cada escrita, para as telas antigas seguirem certas. Sem backfill: preço herdado lê como "sem data". | **no ar (s348)** |
 | **2** | Custo sai do par `fornecedor\|\|casa` e vai para a **conta**: `parceiros.custo`, NULL = herda do fornecedor. Sem backfill, então o total não se move por construção (medido: 29.400 antes e depois). A derivação de três camadas mora no `gestao.js`. | **no ar (s352)** |
-| **3** | Tipster ganha **tipo de cobrança** e o arrasto por tipo. A grade de 6 meses sai. | aberta |
+| **3** | Tipster ganha **tipo de cobrança** (`custo_store.custo_tipster_meta`) e o arrasto por tipo; a aba passa a gravar o valor do mês. Temporada tem prazo (`ate`). | **no ar (s352)** |
 | **4** | Gerais ganha **categoria** (três de fábrica mais as que o Feca criar) e recorrência. | aberta |
 | **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | aberta |
 
@@ -107,10 +107,25 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
 - **Função com o mesmo nome em dois arquivos não dá erro em JS**: o último declarado vence,
   em silêncio. Ao mover uma função de casa, grepe o nome antes de terminar.
 
+## O que a Fatia 3 ensinou
+
+- **Vazio não é um tipo, é a ausência de resposta.** "A definir" não pode arrastar como
+  mensalidade, senão a tela preenche sozinha o mês de um tipster que ninguém classificou.
+  É a mesma família do `else` que vira "a conferir" no de-para de rótulo.
+- **Estado que cobre o futuro precisa de prazo.** Marcar "temporada" sem `ate` cobria o
+  tipster para sempre depois do primeiro pagamento, em silêncio. Sem o campo na tela, a
+  decisão não era do dono: era efeito de não haver onde digitar.
+- **A mesma coluna pode ter papéis diferentes por linha.** O mês anterior é uma oferta
+  clicável na mensalidade e só referência no staking, e dizer isso na própria célula
+  ("não repete") é o que impede o clique errado.
+- **Gate estrutural para o "outro lugar".** O tipo mora na chave-nome, então o rename tem
+  de movê-lo. Um teste que lê o corpo de `renomear_tipster` custa nada e pega a regressão
+  que não dá erro.
+
 ## Fonte canônica
 
-`app/database.py` (`fornecedor_preco`, `parceiros.custo`) · `app/repository.py` (`_preco_vigente_em`, `registrar_preco_fornecedor`, `_espelhar_custo_conta`) · `app/main.py` (rotas `/custos/fornecedor`) · `tests/test_fornecedor_preco.py` (gate, 10/10 mutações) ·
-`app/static/dash/assets/js/charts/gestao.js` (`_custoDaConta`, `_precoVigenteEm`, `_custoNaJanela` — a derivação canônica do custo) ·
+`app/database.py` (`fornecedor_preco`, `parceiros.custo`, `custo_store.custo_tipster_meta`) · `app/repository.py` (`_preco_vigente_em`, `registrar_preco_fornecedor`, `_espelhar_custo_conta`) · `app/main.py` (rotas `/custos/fornecedor`) · `tests/test_fornecedor_preco.py` (gate, 10/10 mutações) ·
+`app/static/dash/assets/js/charts/gestao.js` (`_custoDaConta`, `_precoVigenteEm`, `_custoNaJanela` — a derivação canônica do custo; `_ctSugestao`, `_ctSituacao` — a regra do arrasto) ·
 `app/static/dash/assets/js/charts/custos2.js` (render e regras do recorte) ·
 `app/static/dash/assets/css/components.css` (bloco `.c2-*`) · registro da página em
 `app/static/dash/assets/js/app.js` **e** `app/static/app.html`, que são as duas cascas.

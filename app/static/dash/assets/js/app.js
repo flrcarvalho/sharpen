@@ -1184,7 +1184,7 @@ function buildHTML(){
 // 2026-07-19). Ver database.custo_store / STATUS s165.
 const CT_KEY='custoTipsterData'; // {tipster: {YYYY-MM: value}, ...}
 const CG_KEY='custoGeralData';   // [{id, tipo, values: {YYYY-MM: value}}, ...]
-let ctData={}, cgData=[];
+let ctData={}, cgData=[], ctMeta={};   // ctMeta: {tipster:{cobranca,parametro,ate}} (Fatia 3)
 let _ctServerBacked=false; // true quando o servidor já tem registro deste dono
 let _ctHadLegacy=false;    // true quando havia custo legado no localStorage no load
 
@@ -1202,7 +1202,7 @@ async function ctLoad(){
     const r=await fetch('/custos/store');
     if(r.ok){
       const d=await r.json();
-      if(d.existe){ctData=d.custo_tipster||{};cgData=d.custo_geral||[];_ctServerBacked=true;_ctMirror();}
+      if(d.existe){ctData=d.custo_tipster||{};cgData=d.custo_geral||[];ctMeta=d.custo_tipster_meta||{};_ctServerBacked=true;_ctMirror();}
       else{_ctServerBacked=false;} // servidor vazio p/ este dono
     }
   }catch(e){/* offline: fica no cache local já carregado */}
