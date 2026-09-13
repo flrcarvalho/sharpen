@@ -747,6 +747,12 @@ _CORTE_HISTORICO: dict[tuple[str, str], _date] = {
     # quais 298 eram de 01/06/2025 a 31/10/2025 — e a Betbra é a ÚNICA casa deste dono com
     # bilhete de 2025, toda a base dele começa em 2026. Decisão do dono, 10/09/2026.
     ("feca", "betbra"): _date(2026, 1, 1),
+    # Feca × Bolsa de Aposta (s346). Mesma decisão, mesma data, mesma plataforma: depois da
+    # limpeza da Betbra esta era a ÚNICA casa do dono com bilhete anterior a 2026 — 477 das
+    # 905 linhas dele aqui, de 01/06/2025 a 31/12/2025, todas já resolvidas. Medido em
+    # 13/09/2026, antes de declarar. As contas dos outros donos nesta casa (Jonathan, 336;
+    # sohprops, 13) são só de 2026 e, de todo modo, a régua é por par exato.
+    ("feca", "bolsa de aposta"): _date(2026, 1, 1),
 }
 
 # A data que manda é a MESMA que decide a coluna Data do bilhete: o EVENTO, não a colocação

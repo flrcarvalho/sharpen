@@ -165,10 +165,12 @@ def test_outro_dono_na_mesma_casa_nao_tem_corte():
 
 
 def test_outra_casa_do_mesmo_dono_nao_tem_corte():
-    """A Bolsa de Aposta roda os MESMOS formatadores da Betbra. Se o corte pegasse por
-    formato em vez de por par declarado, ela perderia histórico sem ninguém pedir."""
+    """O Pitaco emite o MESMO marcador e a MESMA linha `Data (evento)` (`formatTicketPTC`).
+    Se o corte pegasse por formato em vez de por par declarado, ele perderia histórico sem
+    ninguém pedir. (Até a s346 este teste usava a Bolsa de Aposta; ela passou a ter corte
+    declarado, e casa com decisão escrita não serve mais de controle.)"""
     lote = _lote(BLOCO_2025_A, BLOCO_2026_A)
-    texto, n = main._corte_historico_text(lote, "Feca", "Bolsa de Aposta")
+    texto, n = main._corte_historico_text(lote, "Feca", "Pitaco")
     assert n == 0 and texto == lote
 
 
@@ -249,3 +251,102 @@ def test_o_corte_declarado_da_betbra_e_o_que_foi_decidido():
     """A régua vive num mapa, e mapa se edita sem querer. 01/01/2026, decisão do dono."""
     from datetime import date
     assert main._CORTE_HISTORICO[("feca", "betbra")] == date(2026, 1, 1)
+
+
+# ── Bolsa de Aposta (s346): mesma plataforma, mesma decisão, outra chave ───────
+#
+# Blocos REAIS da `sombra_rotulos` (dono Feca, casa Bolsa de Aposta), com o marcador
+# `[Código: …]` remontado na frente — é como o texto chega ao `/extrair`, e a sombra
+# guarda só o corpo. O de virada aqui NÃO é derivado: existe de verdade na base (evento
+# 01/01/2026, colocação 30/12/2025), então a escolha entre evento e colocação é exercida
+# por dado real nesta casa.
+
+BDA_2025 = """[Código: 47657550]
+Data (evento): 31/12/2025 21:00:00
+Data (colocação): 31/12/2025 00:40:29
+Stake: 100,00
+Status: Ganho → W
+Status (API): win
+Odd: 1,15 (= Retorno ÷ Stake)
+Lado: A favor (Back)
+L/P: +15,00
+Retorno: 115,00
+Evento: New Orleans Pelicans em Chicago Bulls
+Mercado: Chicago Bulls vencem por mais de 15,5 pontos ou Anula
+Seleção: Chicago Bulls vencem por mais de 15,5 pontos ou Anula
+Esporte: basketball
+Obs. da casa: mercado do Criador de Eventos (custom).
+Marcação da casa: aceita ao vivo (keep in play)"""
+
+BDA_2026 = """[Código: 100386622]
+Data (evento): 25/06/2026 23:00:00
+Data (colocação): 25/06/2026 10:50:43
+Stake: 100,00
+Status: Anulada → V
+Status (API): push
+Odd: 3
+Lado: A favor (Back)
+L/P: a casa não informou (anulada — stake devolvida)
+Retorno: 100,00
+Evento: Turquia vs EUA
+Mercado: Folarin Balogun para Marcar a Qualquer momento
+Seleção: Sim (resposta ao mercado — CONFIRMA o mercado acima)
+Esporte: soccer
+Obs. da casa: mercado do Criador de Eventos (custom).
+Marcação da casa: aceita ao vivo (keep in play)"""
+
+# Virada REAL: o evento cai depois do corte, a colocação antes. Pela régua do evento a
+# linha FICA; pela da colocação sairia.
+BDA_VIRADA = """[Código: 47589762]
+Data (evento): 01/01/2026 17:00:00
+Data (colocação): 30/12/2025 17:09:56
+Stake: 50,00
+Status: Perdeu → L
+Status (API): lose
+Odd: 2,38
+Lado: A favor (Back)
+L/P: -50,00
+Retorno: 0,00
+Evento: Sunderland vs Manchester City
+Mercado: Manchester City para vencer por 2 ou mais gols de diferença.
+Seleção: Sim (resposta ao mercado — CONFIRMA o mercado acima)
+Esporte: soccer
+Obs. da casa: mercado do Criador de Eventos (custom).
+Marcação da casa: aceita ao vivo (keep in play)"""
+
+
+def test_a_chave_do_mapa_e_a_QUE_A_ROTA_PASSA():
+    """O erro que a data certa não pega: chave canônica (`BOLSADEAPOSTA`) no lugar do nome
+    que a rota entrega. O `/extrair` chama `_corte_historico_text(..., _casa_display(key))`,
+    então quem tem de estar no mapa é o display em minúsculas. Chave torta = corte mudo."""
+    assert (main._casa_display("BOLSADEAPOSTA").strip().lower()
+            in {c for _, c in main._CORTE_HISTORICO})
+
+
+def test_bolsa_de_aposta_corta_2025_e_mantem_2026():
+    texto = "\n\n".join([BDA_2025, BDA_2026])
+    saida, n = main._corte_historico_text(texto, "Feca", main._casa_display("BOLSADEAPOSTA"))
+    assert n == 1
+    assert "47657550" not in saida
+    assert "100386622" in saida
+
+
+def test_bolsa_de_aposta_mantem_a_virada_real_pela_data_do_evento():
+    """Colocada em 30/12/2025 para um jogo de 01/01/2026: é bilhete de 2026 e fica."""
+    saida, n = main._corte_historico_text(BDA_VIRADA, "Feca",
+                                          main._casa_display("BOLSADEAPOSTA"))
+    assert n == 0 and "47589762" in saida
+
+
+def test_outro_dono_na_bolsa_de_aposta_nao_e_tocado():
+    """A régua é por par exato: Jonathan e sohprops também têm conta nesta casa."""
+    texto = "\n\n".join([BDA_2025, BDA_2026])
+    saida, n = main._corte_historico_text(texto, "Jonathan",
+                                          main._casa_display("BOLSADEAPOSTA"))
+    assert n == 0 and saida == texto
+
+
+def test_o_corte_declarado_da_bolsa_de_aposta_e_o_que_foi_decidido():
+    """477 das 905 linhas do Feca aqui eram de 2025. 01/01/2026, decisão do dono, 13/09/2026."""
+    from datetime import date
+    assert main._CORTE_HISTORICO[("feca", "bolsa de aposta")] == date(2026, 1, 1)
