@@ -203,9 +203,11 @@ def _origem():
              "sistema_linhas": None, "criado_em": None, "dono": "Feca"},
             {"casa": "Bet365", "parceiro": "Fulano [Norte]", "data": "02/02/2026",
              "esporte": "Futebol", "tipster": "Tipster Real", "aposta": "ML",
-             "descricao": "C x D", "stake": "200,00", "odd": "3,00",
+             # o codigo deste bilhete aparece TAMBEM dentro da descricao: e'
+             # a forma exata dos 63 casos medidos na base real.
+             "descricao": "C x D #20493487958", "stake": "200,00", "odd": "3,00",
              "resultado": "L", "extraction_state": "resolvida",
-             "codigo_bilhete": "", "archived": False, "sistema": None,
+             "codigo_bilhete": "20493487958", "archived": False, "sistema": None,
              "sistema_linhas": None, "criado_em": None, "dono": "Feca"},
         ],
         "parceiros": [{"dono": "Feca", "casa": "Bet365", "nome": "Fulano [Norte]",
@@ -215,6 +217,7 @@ def _origem():
                       "stake_min": 50.0, "stake_max": 500.0, "apelidos": "@canal",
                       "dica_stake": "unidade 500"}],
         "custos": [],
+        "donos_sistema": ["germano", "Jonathan", "Feca"],
     }
 
 
@@ -283,3 +286,108 @@ def test_transformar_nao_trava_com_codigo_repetido_na_mesma_conta():
         ex.transformar(origem, MEIO, 42)
     except RuntimeError:
         pass  # abortar e' aceitavel; travar nao e'
+
+# ── codigo real e rotulo interno DENTRO da descricao ─────────────────────────
+def test_codigo_real_citado_na_descricao_e_trocado():
+    """MEDIDO: 63 bilhetes trazem o codigo colado no texto (`... #20493487958`).
+    Anonimizar so a COLUNA deixava intacto o ultimo elo capaz de casar a linha
+    publica com o bilhete real na casa."""
+    origem = _origem()
+    saida = ex.transformar(origem, MEIO, 42)
+    descs = " ".join(b["descricao"] or "" for b in saida["bilhetes"])
+    assert "20493487958" not in descs
+
+
+def test_rotulo_interno_com_nome_de_dono_sai():
+    """"Multipla Germano" e' rotulo interno escrito no lugar do evento."""
+    origem = _origem()
+    origem["bilhetes"][0]["descricao"] = "Multipla Germano"
+    saida = ex.transformar(origem, MEIO, 42)
+    assert "germano" not in ex._sem_acento(saida["bilhetes"][0]["descricao"])
+
+
+def test_nome_de_dono_que_e_ATLETA_fica():
+    """Dos 324 casos medidos, 322 eram atleta: "Jonathan David [Suica v
+    Canada]", "Gabriel Diallo". Trocar ali destruiria a descricao do evento.
+    A FORMA e' o discriminador: com confronto, e' evento."""
+    origem = _origem()
+    origem["bilhetes"][0]["descricao"] = "Jonathan David [Suíça v Canadá]"
+    saida = ex.transformar(origem, MEIO, 42)
+    assert saida["bilhetes"][0]["descricao"] == "Jonathan David [Suíça v Canadá]"
+
+
+def test_parece_evento_separa_os_dois_casos():
+    assert ex.parece_evento("Jonathan David [Suíça v Canadá]")
+    assert ex.parece_evento("Over 2,5 // Under 1,5")
+    assert not ex.parece_evento("Multipla Germano")
+    assert not ex.parece_evento("Arrudex 1")
+
+
+def test_mutacao_codigo_real_na_descricao_e_detectada():
+    origem = _origem()
+    saida = ex.transformar(origem, MEIO, 42)
+    saida["bilhetes"][0]["descricao"] = "A x B #20493487958"
+    assert ex.conferir(origem, saida, MEIO), "codigo real na descricao passou"
+
+
+def test_mutacao_rotulo_interno_e_detectado():
+    origem = _origem()
+    saida = ex.transformar(origem, MEIO, 42)
+    saida["bilhetes"][0]["descricao"] = "Multipla Germano"
+    assert ex.conferir(origem, saida, MEIO), "rotulo interno passou"
+
+
+def test_identificador_que_nunca_virou_coluna_tambem_sai():
+    """A 1a correcao pegou so metade: procurava codigo que EXISTE na coluna
+    `codigo_bilhete`. MEDIDO: 495 bilhetes citam identificador que nunca virou
+    coluna (`Multipla - #291310574`, `Simples - #291367894`, e alguns em que o
+    numero E' a descricao inteira). A regra e por FORMA: so-digitos com 7+."""
+    origem = _origem()
+    origem["bilhetes"][0]["descricao"] = "Múltipla - #291310574"
+    origem["bilhetes"][0]["codigo_bilhete"] = ""
+    saida = ex.transformar(origem, MEIO, 42)
+    assert "291310574" not in (saida["bilhetes"][0]["descricao"] or "")
+
+
+def test_numero_curto_do_evento_nao_e_tocado():
+    """Odd, linha, placar e minuto tem 1 a 4 digitos: trocar ali destruiria a
+    descricao. O piso de 7 existe para isso."""
+    origem = _origem()
+    origem["bilhetes"][0]["descricao"] = "Over 2.5 Gols 1º Tempo [A v B] 3-0 aos 45"
+    saida = ex.transformar(origem, MEIO, 42)
+    assert saida["bilhetes"][0]["descricao"] == "Over 2.5 Gols 1º Tempo [A v B] 3-0 aos 45"
+
+
+def test_alfanumerico_sem_codigo_conhecido_fica():
+    """`4ikibabmoni` e' nome de jogador de e-sports. A forma nao discrimina
+    alfanumerico, entao ali so se troca o que bate com codigo conhecido."""
+    origem = _origem()
+    origem["bilhetes"][0]["descricao"] = "Mapa 1 [4ikibabmoni v outro]"
+    saida = ex.transformar(origem, MEIO, 42)
+    assert "4ikibabmoni" in saida["bilhetes"][0]["descricao"]
+
+
+def test_mutacao_identificador_solto_e_detectado():
+    origem = _origem()
+    origem["bilhetes"][0]["descricao"] = "Múltipla - #291310574"
+    saida = ex.transformar(origem, MEIO, 42)
+    saida["bilhetes"][0]["descricao"] = "Múltipla - #291310574"
+    assert ex.conferir(origem, saida, MEIO), "identificador solto passou"
+
+
+def test_codigo_alfanumerico_de_bilhete_POSTERIOR_tambem_e_trocado():
+    """Prova a PASSADA 1 (traduzir todos os codigos antes de limpar descricao).
+
+    O codigo de um bilhete aparece no texto de OUTRO, e nada garante que o dono
+    do codigo venha primeiro. Alfanumerico nao e' pego pela regra de forma
+    (`_RE_SO_DIGITOS`), entao depende do mapa estar COMPLETO: montar o mapa na
+    mesma passada deixaria de fora todo codigo ainda nao visto, em silencio.
+    Codigo nativo de casa existe de verdade -- a Superbet grava `SP8399910931W`.
+    """
+    origem = _origem()
+    origem["bilhetes"][0]["descricao"] = "A x B ref SP8399910931W"
+    origem["bilhetes"][0]["codigo_bilhete"] = "AB123"
+    origem["bilhetes"][1]["codigo_bilhete"] = "SP8399910931W"
+    origem["bilhetes"][1]["descricao"] = "C x D"
+    saida = ex.transformar(origem, MEIO, 42)
+    assert "SP8399910931W" not in (saida["bilhetes"][0]["descricao"] or "")

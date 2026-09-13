@@ -350,6 +350,9 @@ class CodigoFake:
         raise RuntimeError(
             f"sem codigo unico para molde de {len(codigo)} caracteres")
 
+    def __contains__(self, codigo: str) -> bool:
+        return (codigo or "").strip() in self._mapa
+
     @property
     def mapa(self) -> dict[str, str]:
         return dict(self._mapa)
@@ -394,6 +397,11 @@ async def ler_tudo(donos: list[str]) -> dict:
         # `fornecedor_preco` e `caixa_mov` variam de schema entre ambientes; se
         # nao existirem, a demo simplesmente nao tem aquela tela populada. Falha
         # de tabela ausente nao pode derrubar o export inteiro.
+        # Username de DONO nunca entrou na lista de nomes a proteger: a
+        # conferencia so conhecia tipster, conta e fornecedor. "Multipla
+        # Germano" passou por isso.
+        dados["donos_sistema"] = [
+            r["username"] for r in await conn.fetch("SELECT username FROM usuarios")]
         for chave, sql in (
             ("caixa", "SELECT * FROM caixa_mov WHERE dono = ANY($1)"),
             ("fornecedor_preco", "SELECT * FROM fornecedor_preco WHERE dono = ANY($1)"),
@@ -433,6 +441,23 @@ def transformar(dados: dict, fator: Decimal, semente: int) -> dict:
         if len(n) >= 4 and _sem_acento(n) not in _NOMES_PUBLICOS
     ]
 
+    # Username de dono e' troca FRACA: so vale em descricao que nao tem forma
+    # de evento. "Multipla Germano" e' rotulo interno e sai; "Jonathan David
+    # [Suica v Canada]" e "Gabriel Diallo" sao ATLETAS e ficam. Medido: dos 324
+    # casos, 322 eram atleta. A forma e' o unico discriminador honesto aqui.
+    trocas_fracas = [
+        (_re_nome(u), traduzir_tipster(anon, u))
+        for u in sorted(dados.get("donos_sistema") or [], key=len, reverse=True)
+        if len(u) >= 4 and _sem_acento(u) not in _NOMES_PUBLICOS
+    ]
+
+    # PASSADA 1, so os codigos: o mapa precisa estar COMPLETO antes de limpar
+    # descricao nenhuma, porque o codigo de um bilhete aparece no texto de
+    # OUTRO. Traduzir na mesma passada deixaria de fora todo codigo ainda nao
+    # visto, em silencio.
+    for b in dados["bilhetes"]:
+        cod.traduzir(b["codigo_bilhete"] or "")
+
     total = len(dados["bilhetes"])
     for i, b in enumerate(dados["bilhetes"], 1):
         if i % 10000 == 0:
@@ -442,7 +467,8 @@ def transformar(dados: dict, fator: Decimal, semente: int) -> dict:
             # verbatim: evento publico, e o que faz a demonstracao ser real
             "casa": b["casa"], "data": b["data"], "esporte": b["esporte"],
             "aposta": b["aposta"],
-            "descricao": limpar_descricao(b["descricao"], trocas),
+            "descricao": _descricao_limpa(
+                b["descricao"], cod, trocas, trocas_fracas),
             "odd": b["odd"], "resultado": b["resultado"],
             "extraction_state": b["extraction_state"], "archived": b["archived"],
             "sistema": b["sistema"], "sistema_linhas": b["sistema_linhas"],
@@ -549,6 +575,16 @@ def transformar(dados: dict, fator: Decimal, semente: int) -> dict:
     }
 
 
+def _descricao_limpa(desc, cod, trocas, trocas_fracas):
+    """Codigo real -> ficticio · nome de tipster/conta -> ficticio · e, SO em
+    descricao sem forma de evento, username de dono -> ficticio."""
+    desc = trocar_codigos(desc or "", cod)
+    desc = limpar_descricao(desc, trocas)
+    if desc and not parece_evento(desc):
+        desc = limpar_descricao(desc, trocas_fracas)
+    return desc
+
+
 def _escala_valor(v, fator: Decimal):
     """Escala numero vindo de JSONB (pode ser int, float ou string)."""
     if v is None:
@@ -607,6 +643,60 @@ def _sem_acento(s: str) -> str:
 def _re_nome(nome: str) -> re.Pattern:
     """Regex do nome com limite de palavra nas duas pontas, sem acento."""
     return re.compile(rf"(?<![0-9a-z]){re.escape(_sem_acento(nome))}(?![0-9a-z])")
+
+
+# A descricao legitima descreve evento PUBLICO, e quase sempre carrega o
+# confronto entre colchetes, o " v " de mandante x visitante ou o " // " que
+# separa selecoes de uma multipla. O que nao tem nada disso costuma ser rotulo
+# interno escrito no lugar do evento.
+_RE_CONFRONTO = re.compile(r"\[[^\]]+\]")
+_RE_VERSUS = re.compile(r"\sv\s")
+_RE_SEPARADOR = re.compile(r"\s//\s")
+
+
+def parece_evento(desc: str) -> bool:
+    return bool(_RE_CONFRONTO.search(desc) or _RE_VERSUS.search(desc)
+                or _RE_SEPARADOR.search(desc))
+
+
+# Token alfanumerico longo: e' a forma de um codigo de casa (`20493487958`,
+# `SP8399910931W`). 6 e' o piso porque abaixo disso a palavra comum entra.
+_RE_TOKEN_CODIGO = re.compile(r"[A-Za-z0-9]{6,}")
+
+
+# Identificador longo so de digitos. 7 e' o piso porque nada do EVENTO chega
+# perto: odd, linha, placar, minuto e numero de camisa tem 1 a 4 digitos.
+_RE_SO_DIGITOS = re.compile(r"^\d{7,}$")
+
+
+def trocar_codigos(desc: str, cod: "CodigoFake") -> str:
+    """Troca identificador de bilhete citado dentro da descricao pelo ficticio.
+
+    MEDIDO em duas rodadas, e a primeira so pegou metade:
+
+      · 63 bilhetes citam no texto um codigo que TAMBEM esta na coluna
+        `codigo_bilhete` de alguma linha. Esses saem pelo mapa.
+      · **495** bilhetes citam identificador que NUNCA virou coluna -- a IA leu
+        o numero do print e o deixou so na descricao (`Multipla - #291310574`,
+        `Simples - #291367894`, e alguns em que o codigo E' a descricao
+        inteira: `291543248.0`). Procurar "codigo que existe na coluna" e' cego
+        para esses, e eles identificam o bilhete real do mesmo jeito.
+
+    Por isso a regra e por FORMA e nao por pertencimento a lista: todo token
+    so-digitos com 7+ caracteres e' identificador. Alfanumerico segue trocado
+    apenas quando bate com codigo conhecido -- ali a forma nao discrimina, e
+    trocar por forma mutilaria nome de jogador de e-sports (`4ikibabmoni`).
+    """
+    if not desc:
+        return desc
+
+    def _troca(m: re.Match) -> str:
+        tok = m.group(0)
+        if tok in cod or _RE_SO_DIGITOS.match(tok):
+            return cod.traduzir(tok)
+        return tok
+
+    return _RE_TOKEN_CODIGO.sub(_troca, desc)
 
 
 def limpar_descricao(desc: str, trocas: list[tuple[re.Pattern, str]]) -> str:
@@ -720,6 +810,41 @@ def conferir(origem: dict, saida: dict, fator: Decimal) -> list[str]:
                 continue
             if padroes[r].search(v):
                 achados_desc.add(r)
+
+    # Codigo REAL citado dentro da descricao: 63 bilhetes traziam o codigo
+    # colado no texto, e anonimizar so a coluna deixava esse elo intacto.
+    cods_reais = {(b.get("codigo_bilhete") or "").strip()
+                  for b in origem["bilhetes"]}
+    cods_reais = {c for c in cods_reais if len(c) >= 6}
+    # Alem da coluna, TODO identificador longo que aparecia nas descricoes de
+    # origem: 495 bilhetes citam numero que nunca virou coluna, e procurar so
+    # na lista de codigos e' cego para eles.
+    for b in origem["bilhetes"]:
+        for tok in _RE_TOKEN_CODIGO.findall(b.get("descricao") or ""):
+            if _RE_SO_DIGITOS.match(tok):
+                cods_reais.add(tok)
+    cods_vazados = set()
+    for b in saida["bilhetes"]:
+        for tok in _RE_TOKEN_CODIGO.findall(b.get("descricao") or ""):
+            if tok in cods_reais:
+                cods_vazados.add(tok)
+    if cods_vazados:
+        falhas.append(f"{len(cods_vazados)} codigo(s) real(is) na descricao")
+
+    # Username de dono em descricao SEM forma de evento = rotulo interno.
+    donos = {u.strip() for u in (origem.get("donos_sistema") or []) if u}
+    donos = {u for u in donos if len(u) >= 4 and _sem_acento(u) not in _NOMES_PUBLICOS}
+    rotulos = set()
+    for b in saida["bilhetes"]:
+        d = b.get("descricao") or ""
+        if not d or parece_evento(d):
+            continue
+        plano = _sem_acento(d)
+        for u in donos:
+            if _re_nome(u).search(plano):
+                rotulos.add(u)
+    if rotulos:
+        falhas.append(f"{len(rotulos)} username(s) de dono em rotulo interno")
 
     if achados_anon:
         falhas.append(f"{len(achados_anon)} nome(s) real(is) em campo anonimizado")
