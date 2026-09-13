@@ -67,6 +67,56 @@ function saveCusto(forn,casa,val){
   if(allForns&&allForns.length)renderCustoCards(allForns,allCasas,contaCount);
 }
 let _costState={allForns:[],allCasas:[],contaCount:{}};
+// ── Preço do fornecedor, com vigência (s348, Fatia 1) ────────────────────────
+// Mora AQUI, e não na tela de Custos, porque o custo de conta deriva dele e o KPI
+// da Visão Geral usa a mesma derivação. Régua duplicada diverge no primeiro caso
+// de borda — já aconteceu duas vezes nesta frente.
+//
+// A régua é a mesma do servidor (`repository._preco_vigente_em`): o último degrau
+// que já começou. `null` quando nenhum começou — e null é diferente de zero, que
+// seria uma conta de graça.
+let _precosForn=null;   // [{id,fornecedor,casa,valor,vigente_desde}] — null = não carregado
+async function precosFornLoad(forcar){
+  if(_precosForn&&!forcar)return _precosForn;
+  if(window.MODO_PUBLICO){_precosForn=[];return _precosForn;}   // rota autenticada
+  try{
+    const r=await fetch('/custos/fornecedor');
+    const d=r.ok?await r.json():{};
+    _precosForn=d.precos||[];
+  }catch(e){_precosForn=[];}   // offline: cai no preço sem data do custoData
+  return _precosForn;
+}
+function _degrausPreco(forn,casa){
+  return (_precosForn||[]).filter(p=>p.fornecedor===forn&&p.casa===casa)
+    .sort((a,b)=>b.vigente_desde.localeCompare(a.vigente_desde));
+}
+function _precoVigenteEm(degraus,quando){
+  const validos=degraus.filter(p=>p.vigente_desde<=quando);
+  if(!validos.length)return null;
+  return validos.reduce((a,b)=>a.vigente_desde>=b.vigente_desde?a:b);
+}
+
+// ── Custo EFETIVO de uma conta (s348, Fatia 2) ───────────────────────────────
+// Três camadas, e a ORDEM é a regra:
+//   1) o custo PRÓPRIO da conta — a exceção que o dono digitou nela ("você pode
+//      comprar 10 contas a um valor x, e duas você acabou colocando outro preço");
+//   2) o preço do fornecedor VIGENTE na data em que ela foi comprada — preço novo
+//      não é retroativo, quem comprou antes mantém o que custou;
+//   3) o preço do par de HOJE (`custoData`) — o herdado, que é o que existia antes
+//      de o preço ter data. É esta camada que faz o total NÃO se mover na migração.
+// Sem nenhuma das três: 0, e a conta aparece como "sem preço" em vez de sumir.
+function _custoDaConta(forn,casa,conta){
+  if(!_contaVida)_buildContaVida();
+  const k=forn+'||'+casa;
+  const v=(_contaVida[k]||{})[conta||'__default__'];
+  if(v&&v.custo>0)return v.custo;
+  const quando=(v&&(v.adq||v.ini))||'';
+  if(quando){
+    const p=_precoVigenteEm(_degrausPreco(forn,casa),quando);
+    if(p&&p.valor>0)return p.valor;
+  }
+  return (typeof custoData!=='undefined'&&custoData[k])||0;
+}
 
 // ── Janela de vida da conta (s322) ────────────────────────────────────────────
 // _contaVida["Fornecedor||Casa"]["Conta"] = {ini, fim, op}
@@ -102,7 +152,7 @@ function _buildContaVida(){
     const k=normForn(forn)+'||'+casa;
     if(!_contaVida[k])_contaVida[k]={};
     const c=conta||'__default__';
-    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:''};
+    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:'',id:null,custo:0,adq:''};
     return _contaVida[k][c];
   };
   // 1) bilhetes — LIQUIDADOS e ABERTOS. Só `DADOS` deixaria de fora a conta que tem
@@ -121,6 +171,9 @@ function _buildContaVida(){
   (_contasVida||[]).forEach(p=>{
     if(!p.casa||!p.conta)return;
     const v=_slot(p.fornecedor,p.casa,p.conta);
+    if(p.id)v.id=p.id;
+    if(p.custo>0)v.custo=p.custo;      // exceção da conta; 0/ausente = herda do fornecedor
+    if(p.adquirida_em)v.adq=p.adquirida_em;
     if(p.adquirida_em&&(!v.ini||p.adquirida_em<v.ini))v.ini=p.adquirida_em;
     if(p.arquivada_em){if(!v.fim||p.arquivada_em>v.fim)v.fim=p.arquivada_em;}
     else if(!p.arquivado&&!v.fim)v.fim=hoje;   // comprada, ativa e ainda sem aposta
@@ -133,16 +186,22 @@ function _buildContaVida(){
 function _custoNaJanela(de,ate,casasSel,opsSel,soCasa){
   if(!_contaVida)_buildContaVida();
   let total=0,nContas=0;
-  Object.entries(custoData).forEach(([k,custoPorConta])=>{
-    if(!(custoPorConta>0))return;
-    const casa=k.split('||')[1];
+  // Percorre CONTAS, não pares com preço (s348, Fatia 2): o custo agora pode ser da
+  // conta, e uma conta com valor próprio num par sem preço de tabela existe. Com
+  // ninguém tendo valor próprio nem histórico, `_custoDaConta` cai no preço do par e
+  // o resultado é idêntico ao de antes — é o que mantém o total parado na migração.
+  Object.entries(_contaVida).forEach(([k,contas])=>{
+    const i=k.indexOf('||');
+    const forn=k.slice(0,i),casa=k.slice(i+2);
     if(soCasa&&casa!==soCasa)return;
     if(casasSel&&casasSel.size&&!casasSel.has(casa))return;
-    Object.values(_contaVida[k]||{}).forEach(v=>{
+    Object.entries(contas).forEach(([nome,v])=>{
       if(!v.ini||!v.fim)return;
       if(opsSel&&opsSel.size&&v.op&&!opsSel.has(v.op))return;
       if(v.fim<de||v.ini>ate)return;   // janelas disjuntas → conta não vivia no período
-      total+=custoPorConta;nContas++;
+      const c=_custoDaConta(forn,casa,nome);
+      if(!(c>0))return;
+      total+=c;nContas++;
     });
   });
   return{total,nContas};
@@ -200,8 +259,9 @@ async function contasLoad(){
     const r=await fetch('/parceiros?arquivados=1');
     const d=r.ok?await r.json():{};
     const todas=(d.parceiros||[])
-      .map(p=>({casa:(p.casa||'').trim(),arquivado:!!p.arquivado,
+      .map(p=>({id:p.id,casa:(p.casa||'').trim(),arquivado:!!p.arquivado,
                 adquirida_em:p.adquirida_em||'',arquivada_em:p.arquivada_em||'',
+                custo:(p.custo==null?0:Number(p.custo)||0),
                 ..._splitParceiro(p.nome)}))
       .filter(p=>p.casa&&p.conta);
     _contasVida=todas;

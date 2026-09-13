@@ -414,6 +414,12 @@ def patch_bilhete(bid: int, body: _PatchBilhete):
     return {"ok": True, "bilhete": b}
 
 
+def _com_custo_proprio(lista):
+    """Injeta o custo proprio POR REQUISICAO: PARCEIROS e montado uma vez, na carga
+    do modulo, entao um valor gravado depois nunca apareceria."""
+    return [dict(p, custo=_CUSTO_PROPRIO.get(p["id"])) for p in lista]
+
+
 @app.get("/parceiros")
 def parceiros(casa: str = None, arquivados: bool = False):
     """`casa` FILTRA -- e ignorar isso foi o bug das 2.958 contas (s294).
@@ -426,8 +432,8 @@ def parceiros(casa: str = None, arquivados: bool = False):
     -- estava certo: o front nunca teve defeito nenhum aqui.
     """
     if casa:
-        return {"parceiros": [p for p in PARCEIROS if p["casa"] == casa]}
-    return {"parceiros": PARCEIROS}
+        return {"parceiros": _com_custo_proprio([p for p in PARCEIROS if p["casa"] == casa])}
+    return {"parceiros": _com_custo_proprio(PARCEIROS)}
 
 
 @app.get("/incompletos")
@@ -518,6 +524,30 @@ def _espelhar_demo(fornecedor, casa):
     else:
         CUSTO_CONTA[k] = v
     return v
+
+
+# Custo PROPRIO por conta (s348, Fatia 2). Em memoria; ausente = herda do fornecedor.
+_CUSTO_PROPRIO = {}
+
+
+class CustoContaPropriaDemo(BaseModel):
+    custo: float | str | None = None
+
+
+@app.post("/parceiros/{parceiro_id}/custo")
+def definir_custo_conta_demo(parceiro_id: int, body: CustoContaPropriaDemo):
+    bruto = body.custo
+    if bruto in (None, ""):
+        _CUSTO_PROPRIO.pop(parceiro_id, None)
+        return {"salvo": True, "custo": None}
+    try:
+        v = float(str(bruto).replace(",", "."))
+    except ValueError:
+        return JSONResponse({"detail": "valor invalido"}, status_code=400)
+    if v <= 0:
+        return JSONResponse({"detail": "o custo tem de ser maior que zero"}, status_code=400)
+    _CUSTO_PROPRIO[parceiro_id] = v
+    return {"salvo": True, "custo": v}
 
 
 @app.get("/custos/fornecedor")

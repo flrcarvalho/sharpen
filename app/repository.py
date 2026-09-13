@@ -3442,11 +3442,34 @@ async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados:
     where = "WHERE " + " AND ".join(filters)
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            f"SELECT id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em "
+            f"SELECT id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em, custo "
             f"FROM parceiros {where} ORDER BY criado_em ASC",
             *params,
         )
-    return [dict(r) for r in rows]
+    # `custo` é NUMERIC → Decimal no asyncpg; o JSON da rota não serializa Decimal.
+    # None segue None de propósito: é "herda do fornecedor", que é diferente de zero.
+    return [dict(r, custo=(float(r["custo"]) if r["custo"] is not None else None)) for r in rows]
+
+
+async def definir_custo_conta(parceiro_id: int, dono: str, custo) -> bool:
+    """Grava o custo PRÓPRIO de uma conta, ou o apaga para ela voltar a herdar do
+    fornecedor. `custo=None` é a volta à herança — e é por isso que ele não pode ser
+    confundido com zero, que seria uma conta de graça."""
+    if custo is None or (isinstance(custo, str) and not custo.strip()):
+        v = None
+    else:
+        try:
+            v = Decimal(str(custo))
+        except (InvalidOperation, TypeError):
+            raise ValueError("valor inválido")
+        if v <= 0:
+            raise ValueError("o custo tem de ser maior que zero")
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE parceiros SET custo = $1 WHERE id = $2 AND dono = $3",
+            v, parceiro_id, dono)
+    return result.split()[-1] == "1"
 
 
 async def arquivar_parceiro(parceiro_id: int, dono: str) -> bool:

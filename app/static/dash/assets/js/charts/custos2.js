@@ -89,8 +89,15 @@ function _c2contas(){
     if (!p.adquirida_em || p.adquirida_em < r.de || p.adquirida_em > r.ate) return;
     const forn = normForn(p.fornecedor);
     if (!_c2passa(sel, p.casa, forn)) return;
-    const custo = (typeof custoData !== 'undefined' && custoData[forn + '||' + p.casa]) || 0;
-    out.push({ casa: p.casa, conta: p.conta, forn: forn, data: p.adquirida_em, custo: custo });
+    // As TRÊS camadas viajam separadas para a tela poder dizer de onde o número
+    // veio. O total sai de `_custoDaConta`, que é a mesma função do KPI.
+    const herdadoPar = (typeof custoData !== 'undefined' && custoData[forn + '||' + p.casa]) || 0;
+    const degrau = _precoVigenteEm(_degrausPreco(forn, p.casa), p.adquirida_em);
+    out.push({ id: p.id || null, casa: p.casa, conta: p.conta, forn: forn, data: p.adquirida_em,
+               proprio: p.custo > 0 ? p.custo : 0,
+               herdado: degrau ? degrau.valor : herdadoPar,
+               degrau: degrau || null,
+               custo: _custoDaConta(forn, p.casa, p.conta) });
   });
   out.sort((a, b) => (a.data === b.data ? a.casa.localeCompare(b.casa, 'pt-BR') : a.data.localeCompare(b.data)));
   return out;
@@ -177,37 +184,15 @@ ${_grupoPeriodo(p)}
   st.dt = _ymd(d);
 })();
 
-// ── Preço do fornecedor com vigência (Fatia 1) ───────────────────────────────
-// A régua de "qual preço valia quando" é a MESMA do servidor
-// (`repository._preco_vigente_em`): o último degrau que já começou. Duas réguas
-// para a mesma pergunta divergem no primeiro caso de borda.
-let _c2precosForn = null;      // [{id, fornecedor, casa, valor, vigente_desde}] — null = não carregado
+// ── Preço do fornecedor: a régua mora no gestao.js ───────────────────────────
+// `precosFornLoad`, `_degrausPreco` e `_precoVigenteEm` vivem junto do
+// `_custoNaJanela`, que é a fonte canônica do custo. Uma cópia aqui venceria a de
+// lá por ordem de carga e deixaria o KPI da Visão Geral sem histórico de preço,
+// sem erro nenhum.
 let _c2precoAberto = null;     // "fornecedor||casa" com o editor de preço aberto
 let _c2precoErro = '';         // mensagem do último POST recusado (aparece no formulário)
-
-async function precosFornLoad(forcar){
-  if (_c2precosForn && !forcar) return _c2precosForn;
-  try {
-    const r = await fetch('/custos/fornecedor');
-    const d = r.ok ? await r.json() : {};
-    _c2precosForn = d.precos || [];
-  } catch (e) { _c2precosForn = []; }   // offline: cai no preço sem data do custoData
-  return _c2precosForn;
-}
-
-// Degraus de um par, do mais novo para o mais velho.
-function _c2degraus(forn, casa){
-  return (_c2precosForn || [])
-    .filter(p => p.fornecedor === forn && p.casa === casa)
-    .sort((a, b) => b.vigente_desde.localeCompare(a.vigente_desde));
-}
-
-// O que vale numa data ISO. Espelha `_preco_vigente_em` do repositório.
-function _c2vigenteEm(degraus, quando){
-  const validos = degraus.filter(p => p.vigente_desde <= quando);
-  if (!validos.length) return null;
-  return validos.reduce((a, b) => a.vigente_desde >= b.vigente_desde ? a : b);
-}
+let _c2contaEditando = null;   // id do parceiro com o custo próprio em edição
+let _c2contaErro = '';
 
 // Abre o calendário da marca — todo campo de data usa o SharpenCal (UI_REFERENCE §4).
 window.c2Cal = function(id){
@@ -259,11 +244,50 @@ window.c2PrecoRemover = async function(id, forn, casa){
   } catch (e) { _c2precoErro = 'Falha de rede ao remover.'; renderCustos2(); return; }
   await precosFornLoad(true);
   // o espelho pode ter mudado: o degrau anterior volta a valer, ou o par fica sem preço
-  const vig = _c2vigenteEm(_c2degraus(forn, casa), _ymd(new Date()));
+  const vig = _precoVigenteEm(_degrausPreco(forn, casa), _ymd(new Date()));
   if (typeof custoData !== 'undefined'){
     const k = forn + '||' + casa;
     if (vig) custoData[k] = vig.valor; else delete custoData[k];
   }
+  renderCustos2();
+};
+
+// ── Custo PRÓPRIO da conta (Fatia 2) ─────────────────────────────────────────
+// Editar aqui vale SÓ para esta conta: o fornecedor não é tocado. Limpar o campo
+// devolve a conta à herança — e vazio é diferente de zero, que seria conta de graça.
+window.c2ContaEditar = function(id){
+  _c2contaEditando = (_c2contaEditando === id) ? null : id;
+  _c2contaErro = '';
+  renderCustos2();
+};
+
+window.c2ContaSalvar = async function(id, limpar){
+  const el = document.getElementById('c2cv');
+  const bruto = limpar ? '' : ((el && el.value) || '').toString().trim();
+  let custo = null;
+  if (bruto){
+    const n = parseFloat(bruto.replace(/\./g, '').replace(',', '.'));
+    if (!(n > 0)) { _c2contaErro = 'O custo tem de ser maior que zero. Deixe vazio para herdar do fornecedor.'; renderCustos2(); return; }
+    custo = n;
+  }
+  try {
+    const r = await fetch('/parceiros/' + id + '/custo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custo: custo })
+    });
+    if (!r.ok){
+      const d = await r.json().catch(() => ({}));
+      _c2contaErro = d.detail || 'Não consegui gravar o custo desta conta.';
+      renderCustos2(); return;
+    }
+  } catch (e) { _c2contaErro = 'Falha de rede ao gravar.'; renderCustos2(); return; }
+  // O cadastro é a fonte de `_contasVida`; recarregá-lo refaz a janela de vida e,
+  // com ela, o KPI. Sem isso a tela mostraria o valor novo e o total o antigo.
+  _contasCadastro = null;
+  await contasLoad();
+  _contaVida = null;
+  _c2contaEditando = null;
+  _c2contaErro = '';
   renderCustos2();
 };
 
@@ -375,41 +399,78 @@ function renderCustos2(){
 // Origem do valor · Valor.
 function _c2viewContas(t, rotulo){
   if (!t.contas.length){
-    return _c2card('Contas compradas em ' + rotulo, 'custo único, pago na compra',
+    return _c2card('Contas compradas em ' + rotulo, 'custo \u00fanico, pago na compra',
       _c2vazio('Nenhuma conta comprada neste recorte. O cadastro guarda a data de compra em <strong>Comprada em</strong>, no Painel de Contas.'))
       + _c2viewPrecos();
   }
   const linhas = t.contas.map(c => {
     const temCusto = c.custo > 0;
+    const editando = c.id && _c2contaEditando === c.id;
+    // A origem é derivada da MESMA cadeia que define o custo (`_custoDaConta`), nunca
+    // de um flag à parte: flag e valor divergem no primeiro caso de borda.
+    let origem, extra = '';
+    if (c.proprio > 0){
+      origem = '<span class="c2-orig c2-orig--edit">editado nesta conta</span>';
+      if (c.herdado > 0) extra = `<span class="c2-dt">fornecedor ${fmtR(c.herdado)}</span>`;
+    } else if (c.degrau){
+      origem = '<span class="c2-orig">tabela do fornecedor</span>';
+      extra = `<span class="c2-dt">desde ${_c2dataBR(c.degrau.vigente_desde)}</span>`;
+    } else if (temCusto){
+      origem = '<span class="c2-orig">tabela do fornecedor</span>';
+      extra = '<span class="c2-dt">sem data</span>';
+    } else {
+      origem = '<span class="c2-orig c2-orig--todo">sem pre\u00e7o lan\u00e7ado</span>';
+    }
     return `<tr>
       <td class="th-l">${casaCell(c.casa)}</td>
       <td class="th-l c2-ident">${esc(c.conta)}</td>
       <td class="th-l c2-ident">${esc(c.forn)}</td>
       <td class="th-l c2-dt">${_c2dataBR(c.data)}</td>
-      <td class="th-l">${temCusto
-        ? '<span class="c2-orig">tabela do fornecedor</span>'
-        : '<span class="c2-orig c2-orig--todo">sem preço lançado</span>'}</td>
-      <td class="td-num">${temCusto ? fmtR(c.custo) : '<span class="c2-vazio-cel">—</span>'}</td>
-    </tr>`;
+      <td class="th-l">${origem}${extra ? ' ' + extra : ''}</td>
+      <td class="td-num">${temCusto ? fmtR(c.custo) : '<span class="c2-vazio-cel">\u2014</span>'}</td>
+      <td class="td-num">${c.id
+        ? `<button class="c2-preco__btn${editando ? ' is-on' : ''}" onclick="c2ContaEditar(${c.id})">${editando ? 'Fechar' : 'Editar'}</button>`
+        : '<span class="c2-vazio-cel" title="Conta que s\u00f3 existe em bilhete, sem cadastro">\u2014</span>'}</td>
+    </tr>${editando ? `<tr><td colspan="7" class="c2-conta-edit">${_c2contaEditor(c)}</td></tr>` : ''}`;
   }).join('');
+
+  const proprios = t.contas.filter(c => c.proprio > 0).length;
   const corpo = `<div class="tbl-wrap"><table class="tbl c2-tbl">
       <thead><tr>
         <th class="th-l">Casa</th><th class="th-l">Conta</th><th class="th-l">Fornecedor</th>
-        <th class="th-l">Lançamento</th><th class="th-l">Origem do valor</th><th class="td-num">Valor</th>
+        <th class="th-l">Lan\u00e7amento</th><th class="th-l">Origem do valor</th>
+        <th class="td-num">Valor</th><th class="td-num"></th>
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table></div>
     <div class="c2-rodape">
-      <span class="c2-meta">${t.contas.length} ${t.contas.length === 1 ? 'conta' : 'contas'} no recorte${t.semCusto ? ' · ' + t.semCusto + ' sem preço' : ''}</span>
+      <span class="c2-meta">${t.contas.length} ${t.contas.length === 1 ? 'conta' : 'contas'} no recorte${t.semCusto ? ' \u00b7 ' + t.semCusto + ' sem pre\u00e7o' : ''}${proprios ? ' \u00b7 ' + proprios + ' com custo pr\u00f3prio' : ''}</span>
       <span class="c2-total">${fmtR(t.tContas)}</span>
     </div>`;
-  return _c2card('Contas compradas em ' + rotulo, 'custo único, pago na compra', corpo) + _c2viewPrecos();
+  return _c2card('Contas compradas em ' + rotulo, 'custo \u00fanico, pago na compra', corpo) + _c2viewPrecos();
 }
 
-// A tabela de precos, como ela existe HOJE: um valor por par `fornecedor||casa`.
-// Fonte: `custoData` (gestao.js). A contagem de contas usa a UNIAO cadastro ∪
-// bilhetes, que e a regra do `buildCostState` — 130 contas do Feca so existem em
-// bilhete, e contar so o cadastro as esconderia.
+// Editor do custo de UMA conta. O texto diz o que o campo vazio faz, porque
+// "limpar para herdar" não é adivinhável.
+function _c2contaEditor(c){
+  const herdado = c.herdado > 0
+    ? `<span class="c2-meta">Sem valor pr\u00f3prio, esta conta herda ${fmtR(c.herdado)} do fornecedor${c.degrau ? ' (desde ' + _c2dataBR(c.degrau.vigente_desde) + ')' : ''}.</span>`
+    : '<span class="c2-meta">O fornecedor ainda n\u00e3o tem pre\u00e7o para esta casa.</span>';
+  return `<div class="c2-preco__editor">
+    <div class="c2-preco__form">
+      <label class="c2-preco__campo">
+        <span class="c2-eyebrow">Custo desta conta</span>
+        <span class="c2-preco__inp"><span class="cur">R$</span><input id="c2cv" type="text" inputmode="decimal" placeholder="0,00" value="${c.proprio > 0 ? fmt(c.proprio, 2) : ''}" autocomplete="off"></span>
+      </label>
+      <button class="c2-preco__ok" onclick="c2ContaSalvar(${c.id}, false)">Salvar</button>
+      ${c.proprio > 0 ? `<button class="c2-preco__btn" onclick="c2ContaSalvar(${c.id}, true)">Voltar a herdar</button>` : ''}
+    </div>
+    ${_c2contaErro ? `<div class="c2-preco__erro">${esc(_c2contaErro)}</div>` : ''}
+    <div class="c2-preco__hist">${herdado} <span class="c2-meta">Mudar aqui vale <strong>s\u00f3 para esta conta</strong>; o fornecedor n\u00e3o \u00e9 tocado.</span></div>
+  </div>`;
+}
+
+// ── Aba Tipsters ─────────────────────────────────────────────────────────────
 function _c2precos(){
   const sel = _c2sel();
   const contas = {};   // "forn||casa" -> Set(conta)
@@ -435,7 +496,7 @@ function _c2precos(){
     if (!_c2passa(sel, casa, forn)) return;
     // O preço com data manda; o do `custoData` é o herdado, que ainda não tem
     // vigência. Os dois convivem até o dono registrar o primeiro degrau.
-    const vig = _c2vigenteEm(_c2degraus(forn, casa), _ymd(new Date()));
+    const vig = _precoVigenteEm(_degrausPreco(forn, casa), _ymd(new Date()));
     const preco = vig ? vig.valor : ((typeof custoData !== 'undefined' && custoData[k]) || 0);
     const n = contas[k] ? contas[k].size : 0;
     linhas.push({ forn: forn, casa: casa, preco: preco, n: n });
@@ -472,8 +533,8 @@ function _c2viewPrecos(){
       : `<span class="c2-badge c2-badge--ok">Completo</span>`;
     const corpo = aberto ? `<div class="c2-acc__body">${g.casas.map(c => {
       const par = c.forn + '||' + c.casa;
-      const degraus = _c2degraus(c.forn, c.casa);
-      const vig = _c2vigenteEm(degraus, hoje);
+      const degraus = _degrausPreco(c.forn, c.casa);
+      const vig = _precoVigenteEm(degraus, hoje);
       const editando = _c2precoAberto === par;
       // "desde" só aparece quando existe degrau: preço herdado do custo_conta não
       // tem data, e inventar uma seria dado derivado por estimativa.
@@ -514,10 +575,10 @@ function _c2viewPrecos(){
 
 // Editor de um par: o formulário de um degrau novo e o histórico do que já houve.
 function _c2precoEditor(forn, casa, degraus, hoje){
-  // O selo sai da MESMA régua que decide o preço da tela (`_c2vigenteEm`): o
+  // O selo sai da MESMA régua que decide o preço da tela (`_precoVigenteEm`): o
   // último degrau que já começou. Derivar de "tem alguém depois de mim na lista"
   // marca o vigente como encerrado assim que existe um preço AGENDADO — medido.
-  const atual = _c2vigenteEm(degraus, hoje);
+  const atual = _precoVigenteEm(degraus, hoje);
   const hist = degraus.map((p, k) => {
     const proximo = degraus[k - 1];   // degraus vêm do mais novo para o mais velho
     const ate = proximo ? _c2dataBR(_c2diaAntes(proximo.vigente_desde)) : null;
@@ -558,6 +619,7 @@ function _c2diaAntes(iso){
 }
 
 // ── Aba Tipsters ─────────────────────────────────────────────────────────────
+
 function _c2viewTipsters(t, mes, mesAnt, umMes, rotuloPeriodo){
   if (!t.tips.length){
     return _c2card('Tipsters em ' + mes, 'assinatura, staking ou temporada',

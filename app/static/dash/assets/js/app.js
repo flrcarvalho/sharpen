@@ -1396,6 +1396,9 @@ async function loadData(force){
     // e handlers de uma vez — apostas.js/abertas.js).
     window.__dono=PUBLICO?'§publico§':(json.dono||(json.operadores&&json.operadores[0])||'_');
     if(!PUBLICO&&typeof loadCusto==='function')loadCusto();
+    // O historico de preco do fornecedor alimenta o _custoDaConta, que e quem o KPI
+    // de Custo de Contas usa desde a Fatia 2 — precisa chegar junto com o custo.
+    if(!PUBLICO&&typeof precosFornLoad==='function')precosFornLoad();
     // Cadastro de contas: base da tabela de custos (conta comprada tem custo antes
     // da 1ª aposta). Carrega junto do feed e repinta o card de custo ao chegar.
     if(!PUBLICO&&typeof contasLoad==='function')contasLoad();

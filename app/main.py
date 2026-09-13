@@ -61,7 +61,7 @@ from repository import (
     corrigir_stake_tsv,
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
-    get_custo_conta, salvar_custo_conta,
+    get_custo_conta, salvar_custo_conta, definir_custo_conta,
     listar_precos_fornecedor, registrar_preco_fornecedor, remover_preco_fornecedor,
     calcular_pl,
     criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
@@ -4052,6 +4052,24 @@ async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(d
     # segue entrando verbatim (ver `casa_canonica`).
     row = await criar_parceiro(await casa_canonica(_casa_display(casa_key)), nome, dono)
     return row
+
+
+class CustoContaPropriaRequest(BaseModel):
+    """`custo=None` (ou vazio) apaga o valor próprio e a conta volta a herdar o preço
+    do fornecedor. Não é zero: zero seria uma conta de graça."""
+    custo: Optional[float | str] = None
+
+
+@app.post("/parceiros/{parceiro_id}/custo")
+async def definir_custo_conta_route(parceiro_id: int, body: CustoContaPropriaRequest,
+                                    dono: str = Depends(dono_efetivo)):
+    try:
+        ok = await definir_custo_conta(parceiro_id, dono, body.custo)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    return {"salvo": True, "custo": body.custo if body.custo not in ("", None) else None}
 
 
 @app.post("/parceiros/{parceiro_id}/arquivar")

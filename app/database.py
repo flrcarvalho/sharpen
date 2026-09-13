@@ -145,6 +145,16 @@ UPDATE parceiros SET casa = 'Superbet' WHERE casa = 'SUPERBET';
 --                  fim é a ÚLTIMA aposta (conta limitada / caída em desuso).
 -- Ambas DATE (não TIMESTAMPTZ): a janela é comparada com `bilhetes.data`, que é dia.
 ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS adquirida_em DATE;
+-- Custo PRÓPRIO da conta (s348, Fatia 2). NULL = herda do fornecedor, que é o caso
+-- normal: "você pode comprar 10 contas a um valor x, e duas você acabou colocando
+-- outro preço individual" (Feca). Só a EXCEÇÃO fica gravada aqui.
+--
+-- Por isso NÃO há backfill: preencher as 171 contas com o preço do par de hoje
+-- transformaria toda conta em exceção e congelaria o preço herdado — quando o
+-- fornecedor reajustasse, nenhuma conta acompanharia. Com NULL o total não se
+-- move na migração (a derivação cai no mesmo preço de par que já era usado) e a
+-- herança continua viva.
+ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS custo NUMERIC(12,2);
 ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS arquivada_em DATE;
 
 -- Backfill de `adquirida_em`: a MENOR entre o `criado_em` do cadastro e a 1ª aposta da

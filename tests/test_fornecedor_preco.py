@@ -261,3 +261,74 @@ def test_chave_do_espelho_e_fornecedor_pipe_pipe_casa():
     espaço a mais aqui não dá erro: dá um preço que a tela antiga nunca acha."""
     assert repository._preco_chave("Move", "Bet365") == "Move||Bet365"
     assert repository._preco_chave("  Move  ", " Bet365 ") == "Move||Bet365"
+
+# ── 6. Custo PRÓPRIO da conta (Fatia 2) ─────────────────────────────────────
+# A exceção: "você pode comprar 10 contas a um valor x, e duas você acabou colocando
+# outro preço individual". NULL não é zero — NULL é "herda do fornecedor" e zero
+# seria uma conta de graça.
+
+class _ContaConn(_FakeConn):
+    def __init__(self):
+        super().__init__()
+        self.updates = []
+
+    async def execute(self, sql, *a):
+        if "UPDATE parceiros" in sql:
+            self.updates.append(a)
+            return "UPDATE 1"
+        return await super().execute(sql, *a)
+
+
+class _SqlConn(_ContaConn):
+    """Guarda o SQL inteiro, para o teste do WHERE ler o que foi mandado de verdade."""
+    def __init__(self):
+        super().__init__()
+        self.sqls = []
+
+    async def execute(self, sql, *a):
+        if "UPDATE parceiros" in sql:
+            self.sqls.append(sql)
+        return await super().execute(sql, *a)
+
+
+def _definir(custo):
+    conn = _ContaConn()
+    _com_pool(conn, lambda: repository.definir_custo_conta(7, "Feca", custo))
+    return conn.updates[0]
+
+
+def test_custo_proprio_vai_como_decimal():
+    """NUMERIC no asyncpg é Decimal. Float aqui levanta DataError dentro do driver."""
+    args = _definir("1150,00".replace(",", "."))
+    assert isinstance(args[0], Decimal)
+    assert args[1] == 7 and args[2] == "Feca"
+
+
+@pytest.mark.parametrize("vazio", [None, "", "   "])
+def test_custo_vazio_grava_NULL_e_a_conta_volta_a_herdar(vazio):
+    """Limpar o campo é a volta à herança, e por isso grava NULL e não 0: zero seria
+    uma conta de graça, que é o tipo de número inventado que o CLAUDE.md barra."""
+    args = _definir(vazio)
+    assert args[0] is None
+
+
+@pytest.mark.parametrize("ruim", [0, -1, "0", "abc"])
+def test_custo_proprio_nao_positivo_ou_ilegivel_e_recusado(ruim):
+    conn = _ContaConn()
+    with pytest.raises(ValueError):
+        _com_pool(conn, lambda: repository.definir_custo_conta(7, "Feca", ruim))
+    assert not conn.updates, "recusou mas escreveu assim mesmo"
+
+
+def test_custo_proprio_so_toca_conta_do_proprio_dono():
+    """O `dono` entra no WHERE: sem ele um id chutado editaria a conta de outro.
+
+    O teste lê o SQL que a função REALMENTE mandou — afirmar uma string escrita aqui
+    seria reimplementar o código sob teste, que é o 1º modo de falso verde do
+    CLAUDE.md."""
+    conn = _SqlConn()
+    _com_pool(conn, lambda: repository.definir_custo_conta(7, "Feca", 900))
+    assert conn.sqls, "não mandou UPDATE nenhum"
+    sql = conn.sqls[0]
+    assert "UPDATE parceiros" in sql
+    assert "dono" in sql.split("WHERE", 1)[1], f"o dono ficou fora do WHERE: {sql}"

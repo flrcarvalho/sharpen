@@ -45,7 +45,8 @@ const recorteFn = (src, nome, arq) => {
 };
 
 const FONTE = [
-  ...['normForn', '_buildContaVida', '_custoNaJanela', 'calcCostFiltered', 'calcCasaCost']
+  ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_custoDaConta',
+      '_custoNaJanela', 'calcCostFiltered', 'calcCasaCost']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // Dependências REAIS do filters.js: `_selRange` é quem traduz o período escolhido na tela
   // (datas digitadas, atalho 7d/30d/90d, "Tudo") em {from,to}. Dublá-lo esconderia
@@ -57,12 +58,13 @@ const API = new Function(`
   const FS = {}, MSS = {};                 // recipientes de estado (filters.js), não lógica
   const window = { __dono: 'Feca' };
   let DADOS = [], DADOS_ABERTAS = [], custoData = {};
-  let _contaVida = null, _contasVida = null;
+  let _contaVida = null, _contasVida = null, _precosForn = null;
   ${FONTE}
   return {
     set(cfg) {
       DADOS = cfg.dados || []; DADOS_ABERTAS = cfg.abertas || [];
       custoData = cfg.custos || {}; _contasVida = cfg.cadastro || null;
+      _precosForn = cfg.precos || [];
       _contaVida = null;
       for (const k of Object.keys(FS)) delete FS[k];
       for (const k of Object.keys(MSS)) delete MSS[k];
@@ -270,6 +272,106 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   });
   const v = API.vida()['GN||Betano']['Nova'];
   ok(v.fim === hoje, 'conta ativa sem aposta deveria valer até hoje (' + hoje + '), veio ' + v.fim);
+}
+
+// ── N. Fatia 2: as TRES camadas do custo de uma conta ────────────────────────
+// A ordem e a regra. Errar a ordem nao da erro: da o numero errado, com cara de
+// numero certo — e o total do KPI e feito desta soma.
+
+// N1. INVARIANTE DA MIGRACAO: sem custo proprio e sem historico de preco, o custo
+// cai no preco do par, que e exatamente o que a tela cobrava ANTES da Fatia 2.
+// E este caso que garante que ligar a Fatia 2 nao mexe em nenhum numero.
+{
+  API.set({
+    custos: { 'GN||Betano': 1700 },
+    dados: [bilhete('Betano1', 'Betano', 'GN', '2026-09-01')],
+    cadastro: [cad('Betano1', 'Betano', 'GN', '2026-09-01')],
+    precos: [],
+    periodo: periodo('2026-09-01', '2026-09-30'),
+  });
+  const r = API.calcCostFiltered('overview');
+  ok(r.costConta === 1700, 'sem custo proprio e sem historico, vale o preco do par; veio ' + r.costConta);
+}
+
+// N2. O custo PROPRIO da conta manda em tudo: "voce pode comprar 10 contas a um
+// valor x, e duas voce acabou colocando outro preco individual".
+{
+  API.set({
+    custos: { 'GN||Betano': 1700 },
+    dados: [bilhete('Betano1', 'Betano', 'GN', '2026-09-01')],
+    cadastro: [Object.assign(cad('Betano1', 'Betano', 'GN', '2026-09-01'), { custo: 2500 })],
+    precos: [{ id: 1, fornecedor: 'GN', casa: 'Betano', valor: 900, vigente_desde: '2026-01-01' }],
+    periodo: periodo('2026-09-01', '2026-09-30'),
+  });
+  ok(API.calcCostFiltered('overview').costConta === 2500,
+     'o custo proprio da conta tem de vencer o preco do fornecedor e o do par');
+}
+
+// N3. Sem custo proprio, vale o preco VIGENTE NA DATA DE COMPRA — nao o de hoje.
+// Preco novo nao e retroativo: quem comprou em marco pagou o de marco.
+{
+  API.set({
+    custos: { 'GN||Betano': 9999 },   // o "preco de hoje" do par, que NAO pode ser usado
+    dados: [bilhete('Antiga', 'Betano', 'GN', '2026-03-10')],
+    cadastro: [cad('Antiga', 'Betano', 'GN', '2026-03-10')],
+    precos: [
+      { id: 1, fornecedor: 'GN', casa: 'Betano', valor: 850, vigente_desde: '2026-01-01' },
+      { id: 2, fornecedor: 'GN', casa: 'Betano', valor: 950, vigente_desde: '2026-08-01' },
+    ],
+    periodo: periodo('2026-03-01', '2026-03-31'),
+  });
+  ok(API.calcCostFiltered('overview').costConta === 850,
+     'conta comprada em marco tem de custar o preco de marco (850), veio ' +
+     API.calcCostFiltered('overview').costConta);
+}
+
+// N4. Duas contas do MESMO par, compradas em degraus diferentes, custam diferente.
+// E a razao inteira de o preco ter data.
+{
+  API.set({
+    custos: {},
+    dados: [bilhete('Velha', 'Betano', 'GN', '2026-03-10'), bilhete('Nova', 'Betano', 'GN', '2026-08-10')],
+    cadastro: [cad('Velha', 'Betano', 'GN', '2026-03-10'), cad('Nova', 'Betano', 'GN', '2026-08-10')],
+    precos: [
+      { id: 1, fornecedor: 'GN', casa: 'Betano', valor: 850, vigente_desde: '2026-01-01' },
+      { id: 2, fornecedor: 'GN', casa: 'Betano', valor: 950, vigente_desde: '2026-08-01' },
+    ],
+    periodo: periodo('2026-01-01', '2026-12-31'),
+  });
+  const r = API.calcCostFiltered('overview');
+  ok(r.costConta === 1800, 'as duas contas somam 850+950=1800, veio ' + r.costConta);
+  ok(r.nContas === 2, 'deveria contar 2 contas, veio ' + r.nContas);
+}
+
+// N5. Conta com custo PROPRIO num par SEM preco nenhum existe e conta. Antes da
+// Fatia 2 o laco percorria os pares COM preco, e uma conta assim seria invisivel.
+{
+  API.set({
+    custos: {},
+    dados: [bilhete('Solta', 'Pinnacle', 'GN', '2026-09-01')],
+    cadastro: [Object.assign(cad('Solta', 'Pinnacle', 'GN', '2026-09-01'), { custo: 400 })],
+    precos: [],
+    periodo: periodo('2026-09-01', '2026-09-30'),
+  });
+  const r = API.calcCostFiltered('overview');
+  ok(r.costConta === 400, 'conta com custo proprio sem preco de par deveria custar 400, veio ' + r.costConta);
+  ok(r.nContas === 1, 'e deveria ser contada, veio ' + r.nContas);
+}
+
+// N6. Preco AGENDADO para o futuro nao muda o que a conta ja comprada custou.
+{
+  API.set({
+    custos: {},
+    dados: [bilhete('Betano1', 'Betano', 'GN', '2026-09-01')],
+    cadastro: [cad('Betano1', 'Betano', 'GN', '2026-09-01')],
+    precos: [
+      { id: 1, fornecedor: 'GN', casa: 'Betano', valor: 500, vigente_desde: '2026-01-01' },
+      { id: 2, fornecedor: 'GN', casa: 'Betano', valor: 3000, vigente_desde: '2099-01-01' },
+    ],
+    periodo: periodo('2026-09-01', '2026-09-30'),
+  });
+  ok(API.calcCostFiltered('overview').costConta === 500,
+     'preco futuro nao pode encarecer conta ja comprada');
 }
 
 if (falhas) { console.error(LF + falhas + ' verificação(ões) falharam.'); process.exit(1); }

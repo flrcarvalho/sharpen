@@ -65,7 +65,7 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
 |---|---|---|
 | **0** | **Prévia só-leitura**: a tela montada de verdade, lendo `custoData`, `ctData`/`cgData` e `_contasVida`. Zero escrita, zero estrutura nova. | **no ar (s348)** |
 | **1** | Tabela de preços do fornecedor: fornecedor × casa × valor × `vigente_desde`, em `fornecedor_preco`. Espelhada em `custo_conta` a cada escrita, para as telas antigas seguirem certas. Sem backfill: preço herdado lê como "sem data". | **no ar (s348)** |
-| **2** | Custo sai do par `fornecedor\|\|casa` e vai para a **conta**. Migração com backup, script com ensaio por padrão, e prova de que o total do KPI não se move. Aqui se decide a régua única. | aberta |
+| **2** | Custo sai do par `fornecedor\|\|casa` e vai para a **conta**: `parceiros.custo`, NULL = herda do fornecedor. Sem backfill, então o total não se move por construção (medido: 29.400 antes e depois). A derivação de três camadas mora no `gestao.js`. | **no ar (s352)** |
 | **3** | Tipster ganha **tipo de cobrança** e o arrasto por tipo. A grade de 6 meses sai. | aberta |
 | **4** | Gerais ganha **categoria** (três de fábrica mais as que o Feca criar) e recorrência. | aberta |
 | **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | aberta |
@@ -94,9 +94,23 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
   o futuro, derivar "vigente" de *tem alguém mais novo na lista* marcava o preço atual
   como encerrado. Duas réguas para a mesma pergunta divergem no primeiro caso de borda.
 
+## O que a Fatia 2 ensinou
+
+- **Sem backfill não é preguiça, é o conserto.** Preencher toda conta com o preço de hoje
+  transformaria cada uma em exceção e congelaria a herança: no dia do reajuste nenhuma
+  acompanharia. `NULL = herda` mantém o total parado e a herança viva.
+- **A derivação mora junto do consumidor canônico.** `_custoDaConta` vive no `gestao.js`,
+  ao lado do `_custoNaJanela`, e o histórico de preço desceu junto para o feed. Régua na
+  tela faria a Visão Geral medir por outra.
+- **Recorte por âncora: a âncora de FIM tem de ser a função seguinte.** Usar um comentário
+  de seção lá adiante engoliu quatro funções, com sintaxe válida e erro só no navegador.
+- **Função com o mesmo nome em dois arquivos não dá erro em JS**: o último declarado vence,
+  em silêncio. Ao mover uma função de casa, grepe o nome antes de terminar.
+
 ## Fonte canônica
 
-`app/database.py` (`fornecedor_preco`) · `app/repository.py` (`_preco_vigente_em`, `registrar_preco_fornecedor`, `_espelhar_custo_conta`) · `app/main.py` (rotas `/custos/fornecedor`) · `tests/test_fornecedor_preco.py` (gate, 10/10 mutações) ·
+`app/database.py` (`fornecedor_preco`, `parceiros.custo`) · `app/repository.py` (`_preco_vigente_em`, `registrar_preco_fornecedor`, `_espelhar_custo_conta`) · `app/main.py` (rotas `/custos/fornecedor`) · `tests/test_fornecedor_preco.py` (gate, 10/10 mutações) ·
+`app/static/dash/assets/js/charts/gestao.js` (`_custoDaConta`, `_precoVigenteEm`, `_custoNaJanela` — a derivação canônica do custo) ·
 `app/static/dash/assets/js/charts/custos2.js` (render e regras do recorte) ·
 `app/static/dash/assets/css/components.css` (bloco `.c2-*`) · registro da página em
 `app/static/dash/assets/js/app.js` **e** `app/static/app.html`, que são as duas cascas.

@@ -2585,6 +2585,20 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 .c2-degrau__x:hover { color: var(--neg); background: rgba(var(--neg-rgb), .10); }
 
+
+/* Dinheiro CITADO dentro de um metadado ("fornecedor R$ 440"). Duas armadilhas
+   juntas: o .money e largura de COLUNA e empurra o resto para a linha de baixo, e
+   o .money-sign de .76em cairia para 8,4px em .c2-dt e 7,6px em .c2-meta, abaixo
+   do piso de 9,5px do papel de label. Volta a largura de conteudo e sobe o corpo.
+   (O .kpi-sub do app tem a mesma queda de sign e e desvio preexistente; nao copiar.) */
+.c2-dt .money, .c2-meta .money { width: auto; gap: 3px; font-size: 12px; }
+.c2-dt .money-val, .c2-meta .money-val { min-width: 0; }
+.c2-dt .money-sign, .c2-meta .money-sign { min-width: 0; font-size: 10px; }
+
+/* Edição do custo próprio de uma conta (Fatia 2). */
+.c2-conta-edit { padding: 0 12px 12px !important; background: rgba(var(--accent-rgb), .03); }
+.c2-orig--edit { border-color: rgba(var(--accent-rgb), .42); color: var(--accent-2); }
+
 @media (max-width: 1180px) {
   .c2-raiox { grid-template-columns: minmax(0, 1fr); }
 }

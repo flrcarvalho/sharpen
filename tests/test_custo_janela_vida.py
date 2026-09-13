@@ -151,13 +151,39 @@ MUTACOES = [
     ),
     (
         "conta sem custo cadastrado passa a entrar na contagem",
-        "if(!(custoPorConta>0))return;",
+        "      if(!(c>0))return;",
         "",
     ),
     (
         "'Tudo' deixa de significar o parque inteiro (janela nasce vazia)",
         "range?range.from:'0000-01-01', range?range.to:'9999-12-31'",
         "range?range.from:'9999-12-31', range?range.to:'0000-01-01'",
+    ),
+    # ── Fatia 2: as tres camadas do custo da conta ───────────────────────────
+    (
+        "o custo PROPRIO da conta deixa de vencer o preco do par",
+        "  if(v&&v.custo>0)return v.custo;",
+        "",
+    ),
+    (
+        "o preco do fornecedor passa a ser o de HOJE, e nao o da data de compra",
+        "  const quando=(v&&(v.adq||v.ini))||'';",
+        "  const quando='';",
+    ),
+    (
+        "a regua do vigente pega o PRIMEIRO degrau em vez do ultimo",
+        "  return validos.reduce((a,b)=>a.vigente_desde>=b.vigente_desde?a:b);",
+        "  return validos.reduce((a,b)=>a.vigente_desde<=b.vigente_desde?a:b);",
+    ),
+    (
+        "o vigente ignora a data e aceita degrau do futuro",
+        "  const validos=degraus.filter(p=>p.vigente_desde<=quando);",
+        "  const validos=degraus.slice();",
+    ),
+    (
+        "some a camada herdada (o preco do par), que e o que segura a migracao",
+        "  return (typeof custoData!=='undefined'&&custoData[k])||0;",
+        "  return 0;",
     ),
 ]
 
