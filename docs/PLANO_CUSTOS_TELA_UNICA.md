@@ -122,6 +122,22 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
   de movê-lo. Um teste que lê o corpo de `renomear_tipster` custa nada e pega a regressão
   que não dá erro.
 
+## ⚠️ «Tudo» tem de significar tudo
+
+Defeito **medido**, comparando a tela antiga com a nova sobre o mesmo dado: com
+«Tudo» ativo a aba Contas somava R$ 0 e a antiga somava R$ 29.400. A causa não era o
+dado, era o recorte —  caía no mês corrente quando  devolve
+, e  é justamente o que «Tudo» devolve. O rótulo prometia a série inteira
+e o número entregava um mês, sem erro nenhum.
+
+Agora «Tudo» começa no **primeiro custo que existe** (compra de conta, mês de custo de
+tipster ou de geral) e vai até hoje. Gate: , 8 de 8
+mutações detectadas.
+
+**Sintoma para reconhecer isto noutra tela:** um botão de período ativo cujo número não
+muda ao alternar com o vizinho. É a mesma família do selo do degrau e da máscara do
+P/L: rótulo e número discordando em silêncio.
+
 ## O que a Fatia 4 ensinou
 
 - **Regra com dois donos se escreve uma vez.** O arrasto passou a valer para tipster e

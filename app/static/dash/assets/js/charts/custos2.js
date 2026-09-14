@@ -55,12 +55,30 @@ function _c2mesRotulo(ym){
   return MESES_CURTOS[+ym.slice(5, 7) - 1].toLowerCase() + '/' + ym.slice(2, 4);
 }
 
-// O recorte da tela. Sem período escolhido ("Tudo") o fechamento não faz sentido,
-// então cai no mês corrente — e o rótulo diz qual é.
+// A data do primeiro custo que existe: compra de conta, mês de custo de tipster ou
+// de geral. É o começo de "Tudo" — inventar o mês corrente ali faria o botão prometer
+// a série inteira e entregar um mês (medido: a aba somava R$ 0 e a tela antiga
+// R$ 29.400 com o mesmo dado).
+function _c2primeiraData(){
+  let min = '';
+  const marca = (d) => { if (d && (!min || d < min)) min = d; };
+  (typeof _contasVida !== 'undefined' && _contasVida ? _contasVida : [])
+    .forEach(p => marca(p.adquirida_em));
+  Object.values((typeof ctData !== 'undefined' && ctData) || {})
+    .forEach(m => Object.keys(m || {}).forEach(ym => marca(ym + '-01')));
+  ((typeof cgData !== 'undefined' && cgData) || [])
+    .forEach(r => Object.keys((r && r.values) || {}).forEach(ym => marca(ym + '-01')));
+  return min;
+}
+
+// O recorte da tela. Sem período escolhido ("Tudo") vale desde o primeiro custo que
+// existe até hoje — o rótulo do botão e o número têm de dizer a mesma coisa. Só quando
+// não há dado nenhum é que "tudo" e "este mês" coincidem.
 function _c2range(){
   const r = (typeof _selRange === 'function') ? _selRange('custos_v2') : null;
   const hoje = _ymd(new Date());
-  const de = r ? r.from : _ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const mesCorrente = _ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const de = r ? r.from : (_c2primeiraData() || mesCorrente);
   const ate = r ? r.to : hoje;
   const meses = _c2meses(de.slice(0, 7) + '-01', ate);
   return { de: de, ate: ate, meses: meses, mesRef: meses[meses.length - 1] || hoje.slice(0, 7) };
