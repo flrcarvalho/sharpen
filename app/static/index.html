@@ -847,8 +847,20 @@ html.embedded .sidebar { display: none; }
 .chgbtn .ctx-chev { transition: transform .2s; }
 .idcard .acct-selwrap.open .ctx-chev { transform: rotate(180deg); color: var(--accent-2); }
 
-.ktiles { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 1fr; gap: 10px; }
-@media (max-width: 1120px) { .ktiles { grid-template-columns: repeat(2, 1fr); } }
+/* s357 — `auto-fit` com mínimo REAL, não `repeat(4,1fr)` fixo. Medido em 1445px de janela:
+   com 4 colunas fixas os tiles caíam a 116px e sobravam 2px de folga em três deles
+   (`P/L · conta`, `Dias Ativos`, `Custo · Pauta`) — o próximo rótulo mais longo passa a
+   transbordar. O piso de 145px vem da medição: o maior conteúdo precisa de 128px (101 de
+   texto + 27 de padding), e a folga de 17px é o que separa "cabe" de "encosta na borda".
+   Abaixo disso a faixa quebra em 3 e depois em 2 colunas, que é o comportamento pedido:
+   os 8 tiles continuam todos na tela, em mais linhas. O media query de 1120px saiu — o
+   `auto-fit` já faz o que ele fazia, e um breakpoint escrito à mão ao lado de uma regra
+   elástica é a segunda régua que diverge na primeira mudança. */
+/* O `max()` é o teto de 4 colunas: `auto-fit` sozinho subia para 5 em 1920px (medido), e
+   8 tiles em 5 colunas deixam dois buracos na 2ª linha. Enquanto um quarto da faixa for
+   maior que o piso, ele vence e a grade fica com as 4 de sempre; quando não for, o piso
+   vence e ela quebra em 3 e depois em 2. `30px` = os 3 gaps de 10px entre as 4 colunas. */
+.ktiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(145px, (100% - 30px) / 4), 1fr)); grid-auto-rows: 1fr; gap: 10px; }
 .tile { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); padding: 13px 14px; display: flex; flex-direction: column; min-height: 66px; }
 .tile .lab { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); display: flex; align-items: center; }
 /* Tarja azul antes do label — padrão de KPI da marca (SHELL_SPEC §3), igual à Visão Geral. */
@@ -1069,7 +1081,14 @@ body.cap-off .cx__body { display: none; }
 @media (max-width: 1360px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr) 300px; } }
 @media (max-width: 1180px) { .colmain.tem-caixa { grid-template-columns: minmax(0, 1fr); }
   #caixaBox { grid-column: 1; grid-row: 2; } #empty-state, #partner-page { grid-row: 3; }
-  .colmain.tem-caixa { grid-template-rows: auto auto minmax(0, 1fr); } }
+  /* s357 — linhas AUTO, nunca `minmax(0,1fr)`. Com espaço livre negativo (é sempre o caso
+     aqui: três blocos empilhados num container de altura fixa) o grid comprime a linha até
+     o MIN-CONTENT dela, e o min-content de quem tem `overflow:hidden` é ZERO. Era isto que
+     resolvia `396px 2px 0px` num notebook de 1366: a Caixa ficava com 2px carregando 333px
+     de conteúdo dentro, e a lista de apostas com 0. A altura vem do conteúdo e quem rola é
+     o `.workfull` (ver o bloco dele abaixo). */
+  .colmain, .colmain.tem-caixa { grid-template-rows: auto; }
+  .colmain.tem-caixa { grid-template-rows: auto auto auto; } }
 /* Rail = 2 cards separados: Raio-X (70%) sobre Histórico da conta (30%). */
 .rail { min-width: 0; min-height: 0; display: grid; grid-template-rows: 7fr 3fr; gap: 14px;
   position: relative; }   /* relative: a alça é absoluta e não entra no grid */
@@ -1127,7 +1146,32 @@ body.cap-off .cx__body { display: none; }
 .rail.rail--histonly { grid-template-rows: 1fr; }
 .rail.rail--histonly .rail-card--raiox { display: none; }
 .hist-empty { padding: 16px 12px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); text-align: center; line-height: 1.5; }
-@media (max-width: 1180px) { .workfull { grid-template-columns: 1fr; grid-template-rows: none; } .rail { min-height: 46vh; } }
+/* s357 — abaixo de 1180px o layout EMPILHA, e até aqui ele empilhava dentro de uma altura
+   FIXA (o `.workfull` é `flex:1` com `min-height:0`, ou seja, a altura do viewport). Três
+   blocos disputando ~398px: o topo levava tudo e os outros dois ficavam com 2px e 0px, sem
+   scrollbar e sem erro, porque `overflow:hidden` esconde. Medido num notebook de 1366 a
+   zoom 100%: `#partner-page` 1050x0, `.grade-section` 1050x2, `#caixaBox` 1050x2 com 333px
+   de conteúdo. A zoom 80% (viewport 1707) tudo volta — foi o que o usuário descobriu
+   sozinho, e é a assinatura do defeito, não a solução.
+   O conserto é deixar de espremer: as linhas ficam com a altura do conteúdo e o
+   `.workfull` ganha a rolagem. A grade mantém altura própria (`70vh`) para não despejar
+   6.577px de tabela na página — o scroll interno dela continua sendo o dela. */
+@media (max-width: 1180px) {
+  /* FLUXO EM COLUNA, não grid. Medido: com grid de linhas `auto` a `.colmain` continuava
+     comprimida à altura do flex pai e os filhos, já com altura própria, VAZAVAM para fora
+     dela — o RAIO-X nascia por cima da Caixa (rail em 372px, Caixa de 353 a 688). Em fluxo
+     normal um bloco nunca se sobrepõe ao seguinte nem colapsa por falta de espaço, e a
+     ordem passa a ser a do DOM: tiles e captura, Caixa, GRADE, e só então o RAIO-X. Quem
+     rola é o `.workfull`; `flex: none` em cada bloco é o que impede o achatamento de volta. */
+  .workfull { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+  .colmain, .colmain.tem-caixa { display: flex; flex-direction: column; gap: 12px; }
+  /* `.colmain` na lista NÃO é detalhe: sem ela o flex encolhe a coluna inteira (medido:
+     266px para 1.148px de conteúdo) e os filhos, esses sim com `flex:none`, vazam para
+     fora dela e caem por cima do rail. Quem tem altura própria não pode ter shrink. */
+  .colmain, #topleft, #caixaBox, .rail { flex: none; }
+  #empty-state, #partner-page { flex: none; height: 70vh; }
+  .rail { min-height: 46vh; }
+}
 
 /* ── Partner body: coluna única dentro da colmain (o rail saiu daqui p/ o grid) ── */
 .partner-body {

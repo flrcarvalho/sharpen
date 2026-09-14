@@ -377,6 +377,56 @@ conferência nenhuma.
 que a stake, meia vitória inclusive. Um gate que lesse o rótulo em vez do número
 reescreveria como `W` os **14 bilhetes `HW` que estavam certos**.
 
+### A meia vitória que a odd adulterada escondia — s356
+
+O Feca, depois de exportar os resultados: *"nao me parece fazer tanto sentido. aparentemente
+mto falso negativo principalmente na bet365"*. A suspeita era duplicidade. Não era.
+
+**Primeiro, a medição que ISENTOU o dinheiro.** Nos dias 09 a 13/09, na Bet365, 1.134 dos
+1.136 bilhetes resolvidos foram conferidos contra o retorno que a casa mandou no bloco cru:
+
+```
+turnover   R$ 146.916,68
+retorno    R$ 137.401,81   ← o que a bet365 pagou
+P/L casa   R$  -9.514,87
+P/L banco  R$  -9.538,08
+diferença  R$      23,21   (0,017% do turnover)
+```
+
+O prejuízo era **real**: o win rate caiu de 42,6% em 09/09 para 29,6% em 13/09. Duplicatas
+no período eram 11 linhas e −R$ 326, e a cobertura da casa estava em 100% (1.179 códigos
+emitidos pelo robô, 1.179 com linha no banco).
+
+**Mas a varredura achou outra coisa: 39 meias vitórias gravadas como `W`.**
+
+```
+bloco:  stake 99,00 · Odd 2 · Ganho → W (retorno R$ 148,50)
+banco:  stake 99,00 · odd 1,50 · W      ← 99 × 1,50 = 148,50, bate exato
+certo:  stake 99,00 · odd 2,00 · HW     ← (49,50 × 2) + 49,50 = 148,50, também bate
+```
+
+A cadeia: a extensão rotula meia vitória como `Ganho → W`, a IA obedece o rótulo (que é uma
+ORDEM, não um recado) e fecha a conta aplicando a regra de cashout do `MASTER_RESULTADO
+§5.6` — `odd = retorno ÷ stake`. O que sai é **internamente consistente**, e é isso que o
+torna invisível: `retorno == stake × odd` bate exato, o veredito confirma `W` e **nunca
+chega a testar `HW`**, porque a fórmula de HW é avaliada com a odd que a IA já adulterou.
+
+**A régua do P/L também não podia pegar.** `W @ 1,50` e `HW @ 2,00` pagam o MESMO dinheiro,
+então a porta "só escreve quando o P/L muda" nunca abre. Foi preciso uma segunda porta, a
+da **procedência**: uma das duas odds a casa imprimiu, a outra a IA derivou.
+
+Todas as 39 em linha asiática partida (`Under 3.0,3.5 Gols` e parentes), em 17 contas
+denise, 11 gleice, 10 marlon. Delta de P/L do lote inteiro: **+R$ 23,31**, e mesmo esse veio
+de um único bilhete que tinha `HW` com a odd derivada — combinação que erra o dinheiro de
+verdade. O que volta nos outros 38 é o rótulo, a odd, o win rate e a assinatura que o
+matcher lê.
+
+> **Duas medições erradas antes da certa, e as duas por régua incompleta.** A varredura de
+> duplicatas apontou 3,3% de códigos inventados (era 0,21%: a sombra só enxerga o que a IA
+> acertou, e faltava o `bloco_visto`); e a busca por aberta fantasma apontou 129 (eram 4:
+> faltava exigir a descrição). **Antes de reportar um número de defeito, procure a fonte
+> que prova o valor certo** em vez da que apenas correlaciona.
+
 ### O push da Pinnacle que ficou pendente depois de liquidado — `DRAW`, s328
 
 O de-para de rótulo tinha um `else` dizendo "a conferir — não liquidar automaticamente", e a
@@ -726,3 +776,51 @@ inversa, uma captura na janela entre as duas metades desfaz a exclusão inteira.
 O gate mediu 6 de 7 mutações, e a que interessa é a **nº 5: a chamada removida da rota**.
 Sem ela o corte fica verde e inútil, que é como esse tipo de regra costuma morrer.
 
+
+---
+
+## Tela estreita: o grid que comprime até o zero
+
+### O notebook de 1366 em que a grade, a Caixa e o RAIO-X tinham altura 0 — s357
+
+O relato do Feca veio com print: *"ta horrivel... melhorou com ele diminuindo o zoom...
+UX pessima"*. A leitura fácil era "tela pequena, layout apertado". A medição headless disse
+outra coisa: num notebook de **1366 a zoom 100%**, que é o padrão de fábrica,
+`#partner-page` media **1050x0**, `.grade-section` **1050x2** e `#caixaBox` **1050x2 com
+333px de conteúdo dentro**. Não era apertado. Estava com altura zero, sem scrollbar, sem
+erro no console e sem nada na tela que dissesse isso.
+
+**O ponto de virada é 1444px de janela.** A casca come 264px de sidebar, o iframe cai sob
+1180px e entra o `@media` que empilha. Acima disso ninguém vê o defeito, e foi por isso que
+ele sobreviveu de s346 a s357 no `BACKLOG` com o rótulo de "perde a grade": os testers que
+relataram a tela estavam todos acima de 1450px.
+
+**A causa é uma regra de grid que quase ninguém tem na cabeça.** O empilhado empilhava
+dentro de uma altura FIXA (o `.workfull` é `flex:1` com `min-height:0`, ou seja, a altura do
+viewport), com três blocos disputando ~398px. Quando o espaço livre é negativo, o grid não
+estoura o container: ele **comprime cada linha `auto` até o min-content dela**. E o
+min-content de um elemento com `overflow:hidden` é **zero**. Daí `grid-template-rows`
+resolver `396px 2px 0px` — o primeiro bloco leva tudo e os outros dois somem carregando o
+conteúdo inteiro dentro.
+
+**Duas tentativas de conserto falharam antes da terceira, e as duas foram pegas pela régua,
+não pela leitura:**
+
+1. Trocar as linhas por `auto` deu altura aos filhos, mas a `.colmain` continuou comprimida
+   e eles passaram a **vazar para fora dela**: o RAIO-X nasceu em 372px, por cima da Caixa
+   que ia de 353 a 688. Sobreposição silenciosa é pior que colapso, porque parece que
+   funciona.
+2. `flex: none` nos filhos, mas não no container: a `.colmain` encolheu para **266px
+   carregando 1.148px de conteúdo**, e o vazamento voltou idêntico.
+
+> **A regra que sobra: quem tem altura própria não pode ter shrink, e isso vale para o
+> container tanto quanto para os filhos.** Em tela estreita, fluxo em coluna resolve o que
+> grid não resolve — bloco em fluxo normal nunca se sobrepõe ao seguinte nem colapsa por
+> falta de espaço.
+
+**Sintoma para reconhecer isto em qualquer tela:** um painel que some sem erro enquanto o
+`scrollHeight` dele continua grande. Meça `getBoundingClientRect().height` contra
+`scrollHeight` do mesmo elemento; quando os dois divergem por ordem de grandeza, o conteúdo
+está lá e quem o apagou foi o layout. E **o zoom do usuário é diagnóstico, não conserto**:
+"melhora quando diminuo o zoom" quer dizer que existe um breakpoint mentindo, não que a
+tela seja pequena demais.

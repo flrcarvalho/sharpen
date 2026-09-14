@@ -92,6 +92,18 @@
   muda o mesmo grid, senão vence a de uma classe e sobra coluna fantasma.
   *Desvio conhecido:* o `Recolher captura` (`#btn-recolher-cap`) é anterior a esta regra e
   segue numa barra de ações — migra para alça quando aquela área for mexida.
+- **Tela estreita: quem tem altura propria nao pode ter SHRINK (regra desde a s357).** Abaixo
+  de 1444px de janela a Extracao empilha, e ate a s357 ela empilhava dentro de uma altura
+  FIXA. Com espaco livre negativo o grid nao estoura o container: ele comprime cada linha
+  `auto` ate o **min-content**, que para quem tem `overflow:hidden` e **ZERO**. Num notebook
+  de 1366 a zoom 100% isso dava `#partner-page` 1050x0 e `#caixaBox` 1050x2 com 333px de
+  conteudo dentro, sem scrollbar e sem erro. Em tela estreita use **fluxo em coluna**, nao
+  grid: bloco em fluxo normal nao se sobrepoe ao seguinte nem colapsa. E `flex: none` vai no
+  CONTAINER tambem, nao so nos filhos -- sem isso a coluna encolhe e os filhos vazam por cima
+  do vizinho. **Diagnostico:** `getBoundingClientRect().height` contra `scrollHeight` do mesmo
+  elemento; divergencia por ordem de grandeza = o conteudo esta la e quem o apagou foi o
+  layout. **"Melhora quando diminuo o zoom" e sintoma, nunca conserto.**
+  -> [o caso](CASOS.md#o-notebook-de-1366-em-que-a-grade-a-caixa-e-o-raio-x-tinham-altura-0--s357)
 - **Tela larga: medir o VAZIO, não só o overflow (s346).** Uma lista com **uma** coluna
   elástica (`minmax(x,1fr)`) empurra toda a sobra para ela, e em monitor grande isso vira um
   vão entre a descrição e as colunas de dinheiro. Tirar colunas de conteúdo **piora** — sobra
