@@ -551,19 +551,38 @@ function renderPage(id){
 }
 
 // KPI
+// Páginas que montam multiselect de filtro. Uma lista só, lida pelo `msInit` do
+// primeiro paint e pelo `atualizarOpcoesFiltros` de toda carga seguinte: duas listas
+// divergiriam e um seletor ficaria de fora da repintura sem ninguém notar.
+const _PAGS_FILTRO=['overview','sports','casas','apostas','abertas','tipsters','resultados','parceiros','custos','custos_v2','metrics'];
+
+// Opções dos filtros são um RETRATO do feed no instante em que a tela foi montada, e o
+// `buildHTML` roda só no primeiro paint. Com cache local ele monta as listas a partir do
+// dado CACHEADO; o feed fresco chega depois, troca `DADOS` e repinta a view — mas nenhum
+// seletor. Numa aba que fica dias aberta, todo tipster, casa, esporte ou conta que
+// aparecesse depois do boot ficava invisível em TODOS os filtros, enquanto os cards (que
+// leem `DADOS` ao vivo) seguiam mostrando ele. "Atualizar dados" também não os refazia.
+// Mesma família da invalidação de `_filterCache` (s322): a lista muda por FORA de quem a
+// pintou, então quem troca o dado é que precisa avisar.
+function atualizarOpcoesFiltros(){
+  if(!document.getElementById('page-overview'))return;   // DOM ainda não montado
+  const L=recalcListasFiltro();
+  _PAGS_FILTRO.forEach(p=>{
+    msRepintar('sp_'+p,L.sports);
+    msRepintar('ca_'+p,L.casas);
+    msRepintar('ti_'+p,L.tipsters);
+    msRepintar('op_'+p,L.operadores);
+  });
+  msRepintar('pa_apostas',L.parceiros);  // Conta: eixo próprio da Base Completa
+}
+
 function buildHTML(){
-  // Opções dos filtros saem de DADOS **+ DADOS_ABERTAS**: uma casa (ou tipster, ou
-  // esporte) que só tenha aposta EM ABERTO existe de verdade e precisa aparecer no
-  // seletor da tela "Em Aberto" — lendo só DADOS ela ficaria invisível e infiltrável.
-  const _todas=DADOS.concat(DADOS_ABERTAS);
-  const tipsters=[...new Set(_todas.map(r=>r.tipster).filter(Boolean))].sort();
-  const sports=[...new Set(_todas.map(r=>r.esporte).filter(Boolean))].sort();
-  const casas=[...new Set(_todas.map(r=>r.casa).filter(Boolean))].sort();
+  const _L=recalcListasFiltro();
+  const tipsters=_L.tipsters,sports=_L.sports,casas=_L.casas;
   // Contas (parceiro) — eixo que a barra da página não tem e que a Base Completa
-  // oferece como multiselect próprio. Fora da lista o '—' das linhas sem conta:
-  // ele é ausência de dado, não uma conta chamada travessão.
-  const parceiros=[...new Set(_todas.map(r=>r.parceiro).filter(p=>p&&p!=='—'))].sort((a,b)=>a.localeCompare(b,'pt-BR',{sensitivity:'base',numeric:true}));
-  ['overview','sports','casas','apostas','abertas','tipsters','resultados','parceiros','custos','custos_v2','metrics'].forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
+  // oferece como multiselect próprio.
+  const parceiros=_L.parceiros;
+  _PAGS_FILTRO.forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
   msInit('fo_custos_v2');   // Fornecedor: eixo próprio da tela de Custos (charts/custos2.js)
   msInit('tipsters');
 
@@ -1419,6 +1438,7 @@ async function loadData(force){
     if(!_fetchErr){
       window._dataLoadMs=Date.now();
       _setLastUpdate(window._dataBuiltMs,false);
+      atualizarOpcoesFiltros();           // nome novo no feed = opção nova no seletor
       if(_lastPage)renderPage(_lastPage); // redesenha a view ativa com o dado novo
     }else{
       _setLastUpdate(window._dataBuiltMs,false); // mantém o que já está na tela

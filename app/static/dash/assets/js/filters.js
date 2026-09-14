@@ -181,6 +181,38 @@ function rqb(p){
   }
 }
 
+// ── Listas de opção dos filtros ─────────────────────────────────────────────
+// Ordem de NOME na tela: pt-BR, insensível a caixa e a acento. O `.sort()` puro ordena
+// por código UTF-16, que joga minúscula e acento para DEPOIS do Z: medido na base do
+// Feca, 63 dos 76 tipsters ficavam fora do lugar — `Caçador Basquete` atrás de `Cantos`,
+// `Várzea` atrás de `VoleyStars` e `deLucca`, `eSoccer LBB`, `eSports LG` e `fullpicks`
+// exilados depois de `Zora`. Ninguém some, mas quem rola até onde o nome DEVERIA estar
+// conclui que ele sumiu. Um comparador só para todo eixo: tipster, esporte, casa,
+// operador, conta e fornecedor ordenam igual ou a tela ensina duas ordens diferentes.
+function cmpNome(a,b){return String(a).localeCompare(String(b),'pt-BR',{sensitivity:'base',numeric:true});}
+
+// As opções saem de DADOS **+ DADOS_ABERTAS**: uma casa (ou tipster, ou esporte) que só
+// tenha aposta EM ABERTO existe de verdade e precisa aparecer no seletor da tela "Em
+// Aberto" — lendo só DADOS ela ficaria invisível e infiltrável.
+// Recalculado em UM lugar e guardado em `_LISTAS` porque `_grupoOperador` é chamado uma
+// vez por página: varrer o feed inteiro a cada chamada custaria ~9 passadas em 40 mil
+// linhas por pintura.
+let _LISTAS={tipsters:[],sports:[],casas:[],operadores:[],parceiros:[]};
+function recalcListasFiltro(){
+  const t=DADOS.concat(DADOS_ABERTAS);
+  const uniq=(f,extra)=>[...new Set(t.map(f).filter(extra||Boolean))].sort(cmpNome);
+  _LISTAS={
+    tipsters:uniq(r=>r.tipster),
+    sports:uniq(r=>r.esporte),
+    casas:uniq(r=>r.casa),
+    operadores:uniq(r=>r.operador),
+    // Fora da lista o '—' das linhas sem conta: ele é ausência de dado, não uma conta
+    // chamada travessão.
+    parceiros:uniq(r=>r.parceiro,p=>p&&p!=='—'),
+  };
+  return _LISTAS;
+}
+
 // Multiselect
 const MSS={};
 function msGet(id){return MSS[id]||new Set();}
@@ -197,8 +229,10 @@ function msInit(id){MSS[id]=new Set();}
 // próxima tela com `cb` próprio não precisa saber que existe cache.
 function msToggle(id,val){_filterCache={};if(!MSS[id])MSS[id]=new Set();if(val==='__all__'){MSS[id]=new Set();return;}if(MSS[id].has(val))MSS[id].delete(val);else MSS[id].add(val);}
 
-function buildMS(id,items,ph,page,cb,withIcons=false){
-  if(!MSS[id])MSS[id]=new Set();
+// Corpo do dropdown ("Todos" + uma linha por item). Extraído do `buildMS` porque o
+// `msRepintar` precisa gerar exatamente o mesmo markup: duas cópias divergiriam no
+// primeiro ajuste, e a lista repintada deixaria de casar com a recém-criada.
+function _msCorpo(id,items,page,cb,withIcons){
   const hs=MSS[id]?.size>0;
   const optItems=items.map(it=>{
     const ico=withIcons?casaImg(it,13):'';
@@ -209,6 +243,24 @@ function buildMS(id,items,ph,page,cb,withIcons=false){
     const safeAttr=esc(it);
     return`<div class="ms-opt ${MSS[id]?.has(it)?'sel':''}" data-val="${safeAttr}" onclick="toggleMS('${id}','${safe}','${page}','${cb||''}')"><span class="ms-chk">${MSS[id]?.has(it)?'✓':''}</span><span style="display:inline-flex;align-items:center;gap:2px">${ico}${emo?`<span class="sport-emoji">${emo}</span>`:''}${esc(it)}</span></div>`;
   }).join('');
+  return`<div class="ms-opt ${!hs?'sel':''}" onclick="toggleMS('${id}','__all__','${page}','${cb||''}')"><span class="ms-chk">${!hs?'✓':''}</span><span>Todos</span></div>
+        ${optItems}`;
+}
+
+// Refaz as opções de um multiselect JÁ pintado, preservando a seleção (`MSS`) e a busca
+// digitada. Chamado por `atualizarOpcoesFiltros` (app.js) quando o feed fresco chega.
+// No-op silencioso quando o seletor não existe naquela página: a lista de páginas do
+// chamador é a mesma para os cinco eixos, e nem toda tela tem os cinco.
+function msRepintar(id,items){
+  const wrap=document.getElementById('ms-opts-'+id),btn=document.getElementById('msb_'+id);
+  if(!wrap||!btn)return;
+  wrap.innerHTML=_msCorpo(id,items,btn.dataset.page||'',btn.dataset.cb||'',btn.dataset.icons==='1');
+  filterMSOpts(id);   // reaplica a busca escrita; sem isso a lista nova nasce inteira por baixo dela
+}
+
+function buildMS(id,items,ph,page,cb,withIcons=false){
+  if(!MSS[id])MSS[id]=new Set();
+  const hs=MSS[id]?.size>0;
   const selLbl=hs?(MSS[id].size===1?esc([...MSS[id]][0]):MSS[id].size+' sel.'):ph;
   return`<div class="ms-wrap" id="msw_${id}">
     <div class="ms-btn ${hs?'asel':''}" id="msb_${id}" data-ph="${ph}" data-page="${page}" data-cb="${cb||''}" data-icons="${withIcons?1:0}" onclick="openMS(event,'${id}','${page}','${cb||''}')">
@@ -218,8 +270,7 @@ function buildMS(id,items,ph,page,cb,withIcons=false){
     <div class="ms-dd" id="msd_${id}">
       <input class="ms-search" style="margin:6px 10px 4px;font-size:11px;padding:4px 8px;background:var(--field);border:1px solid var(--line);color:var(--ink-soft);border-radius:4px;font-family:'JetBrains Mono',monospace;outline:none;flex-shrink:0" type="text" placeholder="Buscar..." oninput="filterMSOpts('${id}')" onclick="event.stopPropagation()">
       <div class="ms-opts-scroll" id="ms-opts-${id}">
-        <div class="ms-opt ${!hs?'sel':''}" onclick="toggleMS('${id}','__all__','${page}','${cb||''}')"><span class="ms-chk">${!hs?'✓':''}</span><span>Todos</span></div>
-        ${optItems}
+        ${_msCorpo(id,items,page,cb,withIcons)}
       </div>
       <div class="ms-footer">
         <span class="ms-cl" onclick="toggleMS('${id}','__all__','${page}','${cb||''}');event.stopPropagation()">Limpar</span>
@@ -384,8 +435,13 @@ function _grupoEsporte(p,sports,cb){return`<div class="filter-group"><div class=
 function _grupoCasa(p,casas,cb){return`<div class="filter-group"><div class="filter-label">Casa</div>${buildMS('ca_'+p,casas,'Todas as casas',p,cb||'',true)}</div>`;}
 function _grupoTipster(p,tipsters,cb){return tipsters?`<div class="filter-group"><div class="filter-label">Tipster</div>${buildMS('ti_'+p,tipsters,'Todos os tipsters',p,cb||'')}</div>`:'';}
 // Operador só aparece para quem supervisiona mais de um — dono solo não tem esse eixo.
+// Lê `_LISTAS.operadores` (DADOS ∪ DADOS_ABERTAS), como os outros quatro eixos: operador
+// que só tem aposta em aberto existe e precisa aparecer.
+// Limite conhecido: é o único eixo cuja EXISTÊNCIA do grupo depende do dado. Se no
+// primeiro paint havia um operador só, o grupo não é pintado e o `msRepintar` não tem
+// onde escrever — o 2º operador aparece no próximo boot, não na mesma sessão.
 function _grupoOperador(p,cb){
-  const ops=[...new Set(DADOS.map(r=>r.operador).filter(Boolean))].sort();
+  const ops=_LISTAS.operadores;
   return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p,cb||'')}</div>`:'';
 }
 
