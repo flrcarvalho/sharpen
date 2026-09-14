@@ -55,9 +55,13 @@ import datetime as dt
 import hashlib
 import os
 import re
+import sys
 from collections import Counter
 
 import openpyxl
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tipster_nomes as tn  # noqa: E402
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
 DONO = 'Diogo'
@@ -106,31 +110,51 @@ def _float_str(n: float) -> str:
 
 
 # ---------- casa ----------
-# Grafias CANÔNICAS: as que a base do Diogo já usa em `parceiros` (20 contas) e
-# as do `_CASA_DISPLAY` (app/main.py). Registrar grafia gêmea criaria casa
-# paralela — `casa` é TEXTO em 7 tabelas.
+# Grafias CANÔNICAS **medidas no banco** (s355), nas tabelas onde `casa` é texto:
+# a grafia que a base já usa vence sempre — registrar a gêmea cria casa paralela
+# (CLAUDE.md: `casa` é TEXTO em 7 tabelas). Entre parênteses, o que a medição deu
+# em `bilhetes` + `parceiros` no dia do import.
 _CASA_MAP = {
-    'bet365':          'Bet365',
-    'betano':          'Betano',
-    'pinnacle':        'Pinnacle',
-    'superbet':        'Superbet',
-    'betfair':         'Betfair',
-    'novibet':         'Novibet',
-    'jonbet':          'Jonbet',
-    'rei do pitaco':   'Rei do Pitaco',
-    'blaze':           'Blaze',
-    'vixe':            'VixeBet',
-    'bingo':           'BingoBet',
-    'bingoplus':       'BingoPlus',
-    'lance de sorte':  'Lance de Sorte',
-    'betboom':         'Betboom',
-    'polymarket':      'Polymarket',
-    'sportingbet':     'Sportingbet',
-    'betesporte':      'BETesporte',
-    'vaidebet':        'VaideBet',
-    'bolsa de aposta': 'Bolsa de Aposta',
-    'aposta ganha':    'Aposta Ganha',
-    'betão':           'Betão',
+    'bet365':          'Bet365',        # 95.949
+    'betano':          'Betano',        # 28.670
+    'pinnacle':        'Pinnacle',      # 4.079
+    'superbet':        'Superbet',      # 13.631
+    'betfair':         'Betfair',       # 5.300
+    'novibet':         'Novibet',       # 2.711
+    'jonbet':          'Jonbet',        # 45
+    # ⚠ `Rei do Pitaco` NÃO existe na base (0) e era o que este mapa dizia até a
+    # s355 — teria criado uma casa paralela com 35 bilhetes. O export escreve das
+    # duas formas (`rei do pitaco` e `pitaco`) e as duas são a MESMA casa, que o
+    # `_CASA_DISPLAY` (app/main.py) e a base do Diogo grafam `Pitaco` (481).
+    'rei do pitaco':   'Pitaco',
+    'pitaco':          'Pitaco',
+    'blaze':           'Blaze',         # 172
+    # ⚠ `VixeBet` (com B maiúsculo) também não existe na base: o Diogo já tem 8
+    # linhas em `Vixebet`, e era assim que o mapa errava antes da s355.
+    'vixe':            'Vixebet',
+    'bingo':           'BingoBet',      # 23
+    'bingoplus':       'BingoPlus',     # 'Bingoplus' (12) e 'BingoPlus' (2) convivem
+                                        # na base de OUTROS donos; o Diogo não tem
+                                        # nenhuma das duas, então vale a do mapa canônico.
+    'lance de sorte':  'Lance de Sorte',  # 42
+    'betboom':         'Betboom',       # 516
+    'polymarket':      'Polymarket',    # 1.159
+    # ⚠ `SportingBet` com B maiúsculo é a canônica do `_CASA_DISPLAY` e a única da
+    # base (467). O mapa antigo dizia `Sportingbet`, que não existe em lugar nenhum.
+    'sportingbet':     'SportingBet',
+    'betesporte':      'BETesporte',    # 1.716
+    'vaidebet':        'VaideBet',      # 267
+    'bolsa de aposta': 'Bolsa de Aposta',  # 1.452
+    'aposta ganha':    'Aposta Ganha',  # 83
+    'betão':           'Betão',         # 76
+    'bet mgm':         'BetMGM',        # 864
+    'ice bet':         'icebet',        # 76 — grafia minúscula é a que existe,
+                                        # inclusive nas 13 linhas do próprio Diogo
+    'bateubet':        'Bateu',         # 'Bateu' (136) contra 'Bateubet' (2)
+    # `Brasil da Sorte` não existe em tabela nenhuma do sistema (casa nova, 1 linha).
+    # Entra pelo nome da MARCA e não pelo `brasil da sorte` do export: o fallback é
+    # verbatim, e verbatim aqui significaria gravar a casa em caixa baixa para sempre.
+    'brasil da sorte': 'Brasil da Sorte',
 }
 
 
@@ -140,13 +164,15 @@ def norm_casa(v) -> str:
 
 
 # ---------- tipster ----------
+# O nome do tipster é canonizado pelo módulo compartilhado `tipster_nomes`, que é
+# a MESMA fonte usada pelo `normalizar_tipsters_diogo.py` (o script que arruma as
+# linhas já gravadas). Dois normalizadores separados concordam hoje e divergem no
+# primeiro acento — e aí o tipster nasce partido de novo.
+_MAPA_TIPSTER = tn.carregar_mapa()
+
+
 def norm_tipster(v) -> str:
-    """O SharkTrack guarda a caixa que o Diogo digitou ('peixe' e 'Peixe' são o
-    mesmo tipster). Unifica em Title Case — o dashboard trata tipster por texto."""
-    t = limpa(v)
-    if not t:
-        return ''
-    return ' '.join(p[:1].upper() + p[1:] for p in t.split(' '))
+    return tn.canonico(v, _MAPA_TIPSTER)
 
 
 # ---------- esporte ----------
@@ -158,6 +184,16 @@ _ESPORTE_MAP = {
     'badminton': 'Badminton', 'fórmula 1': 'F1', 'basquete': 'Basquete',
     'mma': 'MMA', 'rugby': 'Rugby', 'handebol': 'Handebol',
     'padel': 'Tênis', 'outros esportes': 'Outro', 'vários': '',
+    # O SharkTrack às vezes escreve o JOGO no lugar do esporte. `E-Sports` é o
+    # valor canônico do MASTER_ESPORTES §7 (CS2 é jogo eletrônico, §"Futebol vs
+    # E-Sports"); deixar `Counter-Strike 2` criaria um esporte de 5 linhas que
+    # nenhuma tela conhece.
+    'counter-strike 2': 'E-Sports', 'cs2': 'E-Sports',
+    # ⚠ `Automobilismo` (1 linha) NÃO vira F1: o bilhete é `CBPS Azul - Lagomar`,
+    # `Total de Pontos`, `Liga de Ascenso` — o rótulo está errado na origem. String
+    # vazia devolve a linha ao inferidor, que não acha nada e cai em `Outro` (§3).
+    # Traduzir para F1 seria inventar o esporte a partir de um rótulo que mente.
+    'automobilismo': '',
 }
 
 # Inferência de esporte quando o SharkTrack disse "Vários" (= vários mercados,
@@ -482,19 +518,25 @@ async def importar(rows: list[dict]):
                             """INSERT INTO parceiros (dono, casa, nome) VALUES ($1,$2,$3)
                                ON CONFLICT (dono, casa, nome) DO NOTHING""",
                             DONO, casa, PARCEIRO)
-                    # feed ordena por criado_em DESC; num import não existe
-                    # "envio" → ancora na data da aposta para sair cronológico
+                    # O feed ordena por criado_em DESC e num import não existe
+                    # "envio" — o carimbo é ancorado na DATA DA APOSTA (+ a posição
+                    # dentro do dia, para o desempate ficar estável).
+                    #
+                    # ⚠ Até a s355 isto era `NOW() - (total-rn) segundos`, escrito
+                    # quando a base do Diogo estava vazia. Com captura ao vivo já
+                    # rodando, ancorar em NOW() jogaria as 6.410 linhas históricas
+                    # para o TOPO do feed, acima dos bilhetes de hoje. Ancorado na
+                    # data, o histórico cai onde aconteceu.
                     await conn.execute(
                         """
                         WITH ordered AS (
-                            SELECT id,
-                                   ROW_NUMBER() OVER (ORDER BY to_date(data,'DD/MM/YYYY') ASC,
-                                                               id ASC) AS rn,
-                                   COUNT(*) OVER () AS total
+                            SELECT id, data,
+                                   ROW_NUMBER() OVER (PARTITION BY data ORDER BY id ASC) AS rn
                             FROM bilhetes WHERE dono=$1 AND origem=$2
                         )
                         UPDATE bilhetes b
-                        SET criado_em = NOW() - ((o.total - o.rn) * INTERVAL '1 second')
+                        SET criado_em = to_timestamp(o.data, 'DD/MM/YYYY')
+                                        + (o.rn * INTERVAL '1 second')
                         FROM ordered o WHERE b.id = o.id
                         """, DONO, ORIGEM)
                 n = await conn.fetchval("SELECT COUNT(*) FROM bilhetes WHERE dono=$1", DONO)
