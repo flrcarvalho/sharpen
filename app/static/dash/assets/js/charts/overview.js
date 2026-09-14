@@ -54,12 +54,30 @@ function renderKPI(rows){
     {l:'Odd Média',v:fmtOdd(calcAvgOdd(rows)),c:'neu',s:'ponderada'},
     {l:'Win Rate',v:fmtPct(wr,1,false),c:'neu',s:settled+' encerradas',bar:wr},
   ];
-  const divider=`<div style="grid-column:1/-1;height:1px;background:var(--line-2);margin:2px 0;opacity:.6"></div>`;
+  // ── Parque de contas (s358) ───────────────────────────────────────────────
+  // O card acima responde "quanto saiu do bolso no período"; este responde "quanto vale o
+  // que está rodando". Os dois são verdadeiros ao mesmo tempo, e num dia sem compra o
+  // primeiro é R$ 0 — foi exatamente disso que o tester Jaao26 reclamou em vídeo. A faixa
+  // existe para que esse R$ 0 seja LIDO como verdade e não como defeito, e ela diz na
+  // própria linha que o dinheiro já foi pago e não entra no P/L (senão o leitor soma os
+  // dois e cobra a conta duas vezes, que é o caso do Jonathan ao contrário).
+  //
+  // Não é card: card aqui viraria um 9º tile e quebraria o grid de 4. É faixa de apoio,
+  // com os valores em `--ink` (papel de VALOR na Escada de Tinta) e um único `--ink-mute`
+  // na linha, que é o corte ("em uso hoje, já pago").
+  const parque=(!window.MODO_PUBLICO&&typeof calcParqueFiltered==='function')?calcParqueFiltered('overview'):{total:0,nContas:0};
+  const parqueHTML=parque.total>0?`<div class="ov-parque">`
+      +`<span class="ov-parque-lbl">Parque de contas</span>`
+      +`<span class="ov-parque-val">${parque.nContas} ${parque.nContas===1?'conta com custo':'contas com custo'}</span>`
+      +`<span class="ov-parque-bar"></span>`
+      +`<span class="ov-parque-val">${fmtR(parque.total)} investidos</span>`
+      +`<span class="ov-parque-nota">em uso hoje, já pago (não entra no P/L)</span>`
+    +`</div>`:'';
   document.getElementById('kpiGrid').innerHTML=
-    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:stretch;margin-bottom:1.25rem">`+
+    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:stretch;margin-bottom:${parqueHTML?'10px':'1.25rem'}">`+
     row1.map(k=>`<div class="kpi ${k.accent||''}"${k.span?' style="grid-column:1/-1"':''}><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('')+
     row2.map(k=>`<div class="kpi"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div>${k.bar!==undefined?`<div class="wrc"><div class="t"><div class="f" style="width:${Math.min(100,Math.max(0,k.bar)).toFixed(1)}%"></div></div></div>`:''}<div class="kpi-sub">${k.s}</div></div>`).join('')+
-    `</div>`;
+    `</div>`+parqueHTML;
 }
 
 function renderBankroll(rows){

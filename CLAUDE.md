@@ -459,11 +459,20 @@ apostou · nenhuma das três: não dá para datar, e a conta não cobra em mês 
 > **DEDUZIDO** por backfill (`LEAST(criado_em, 1ª aposta)`) e não declara nada; mandando
 > sozinho, toda conta antiga dataria o custo no dia do **import**.
 
-**"Quanto vale o que está rodando" existe, FORA do P/L.** É o mesmo `_custoNaJanela` com
-`modo:'vivo'`: conta viva no recorte cobra cheio (`ini` = menor entre `adquirida_em` e a
-1ª aposta; `fim` = maior entre última aposta e `arquivada_em`, ou HOJE para conta ativa
-sem aposta). Foi a régua do P/L da s322 à s358 e **não soma** — a mesma conta reaparece em
-todo mês em que viveu. É **estoque**, nunca gasto: o **parque** na tela.
+**"Quanto vale o que está rodando" é o PARQUE, e ele fica FORA do P/L.** Mesmo
+`_custoNaJanela` com `modo:'vivo'`, sempre em [hoje, hoje] (`calcParqueFiltered`): conta
+viva cobra cheio, e a régua **não soma** — a mesma conta reaparece em todo mês em que
+viveu. É **estoque**, nunca gasto. `ini` = menor entre `adquirida_em` e a 1ª aposta;
+`fim` = **HOJE para conta cadastrada e ativa**, o carimbo para a arquivada, e a última
+aposta só para quem **não tem cadastro**, de quem não se sabe mais nada.
+
+> ⚠️ **Arquivada SEM carimbo fecha ONTEM.** `arquivado = true` com `arquivada_em` vazio é
+> quem foi arquivado antes de a coluna existir; como `bilhetes.data` é a data do EVENTO,
+> aposta em jogo futuro deixava a conta viva para sempre (4 contas, Jonathan e realtrial).
+
+> **Parque NUNCA segue o período da tela.** Estoque é do instante em que se olha; seguir o
+> filtro o faria variar como se fosse gasto, que é a confusão que a régua de caixa desfez.
+> Casa e Operador recortam; a legenda diz que o número é de hoje.
 → [por que ela saiu do P/L](docs/CASOS.md#a-régua-antiga-r-0-de-custo-com-o-parque-inteiro-em-uso)
 
 > **Duas réguas na mesma tela pedem RÓTULO, não escolha.** "R$ 0 de custo" e "12 contas
@@ -490,7 +499,7 @@ RESULTADO do backfill: ele roda num `DO … EXCEPTION`, então erro vira WARNING
 ficaria verde com a coluna vazia.
 
 > **Três telas ainda medem custo com a régua velha** (tipster, custos gerais e os resumos
-> em `custoData × contagem`): etapas 3 a 5 do redesenho da régua, no [`BACKLOG.md`](BACKLOG.md).
+> em `custoData × contagem`): etapas 3 a 5 da régua, no [`BACKLOG.md`](BACKLOG.md).
 
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 

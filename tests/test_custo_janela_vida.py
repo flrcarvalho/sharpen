@@ -96,6 +96,20 @@ def test_o_pl_usa_a_regua_de_caixa_e_nao_a_de_vida():
         )
 
 
+def test_o_parque_pergunta_por_hoje_e_nao_pelo_periodo():
+    """Parque é ESTOQUE: o que o dono tem agora. Deixá-lo seguir o filtro o faria variar
+    como se fosse gasto, que é a confusão que a s358 desfez."""
+    src = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
+    m = re.search(r"^function calcParqueFiltered\([^)]*\)\{.*?^\}", src, re.S | re.M)
+    assert m, "calcParqueFiltered sumiu do gestao.js"
+    corpo = m.group(0)
+    assert "'vivo'" in corpo, "o parque parou de usar a janela de vida"
+    assert "_selRange" not in corpo, (
+        "o parque voltou a olhar o período da tela: ele é estoque de HOJE (s358)"
+    )
+    assert "'ca_'" in corpo and "'op_'" in corpo, "o parque parou de respeitar casa/operador"
+
+
 def test_a_janela_de_vida_le_liquidadas_e_abertas():
     """Só `DADOS` deixaria de fora a conta que tem aposta viva e nenhuma encerrada: ela
     leria como morta. É o ponto cego da s239 numa roupa nova."""
@@ -148,6 +162,33 @@ def test_prova_por_execucao_da_janela():
 # Cada par (de, para) é uma reversão plausível da mudança. Verde aqui sem esta lista
 # não provaria nada — foi assim que a s286/s287 pegaram dois falsos verdes.
 MUTACOES = [
+    # ── s358: o PARQUE (estoque, fora do P/L) ───────────────────────────────
+    (
+        "o parque passa a seguir o periodo da tela (vira gasto disfarcado)",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');",
+        "  const r=(typeof _selRange==='function')?_selRange(pag):null;\n"
+        "  return _custoNaJanela(r?r.from:'0000-01-01',r?r.to:'9999-12-31',casasSel,opsSel,'','vivo');",
+    ),
+    (
+        "o parque passa a medir PAGAMENTO em vez de estoque",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','pago');",
+    ),
+    (
+        "o parque deixa de respeitar casa e operador",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');",
+        "  return _custoNaJanela(hoje,hoje,null,null,'','vivo');",
+    ),
+    (
+        "conta cadastrada e ativa volta a morrer na ultima aposta",
+        "    else if(!p.arquivado)v.fim=hoje;",
+        "    else if(!p.arquivado&&!v.fim)v.fim=hoje;",
+    ),
+    (
+        "arquivada SEM carimbo volta a ficar viva por aposta de evento futuro",
+        "    else if(p.arquivado){if(!v.fim||v.fim>ontem)v.fim=ontem;}",
+        "",
+    ),
     # ── s358: a régua de CAIXA (o que o P/L cobra) ──────────────────────────
     (
         "o P/L volta a cobrar toda conta VIVA (a regua ate a s358)",
@@ -222,7 +263,7 @@ MUTACOES = [
     ),
     (
         "conta ativa e ainda sem aposta deixa de valer até hoje",
-        "else if(!p.arquivado&&!v.fim)v.fim=hoje;",
+        "    else if(!p.arquivado)v.fim=hoje;",
         "",
     ),
     (

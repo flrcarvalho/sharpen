@@ -148,6 +148,7 @@ let _contasVida=null;   // cadastro COM datas, arquivadas incluídas (contasLoad
 function _buildContaVida(){
   _contaVida={};
   const hoje=(typeof _ymd==='function')?_ymd(new Date()):'';
+  const ontem=(typeof _ymd==='function')?_ymd(new Date(Date.now()-864e5)):'';
   const _slot=(forn,casa,conta)=>{
     const k=normForn(forn)+'||'+casa;
     if(!_contaVida[k])_contaVida[k]={};
@@ -177,7 +178,20 @@ function _buildContaVida(){
     if(p.adquirida_em)v.adq=p.adquirida_em;
     if(p.adquirida_em&&(!v.ini||p.adquirida_em<v.ini))v.ini=p.adquirida_em;
     if(p.arquivada_em){if(!v.fim||p.arquivada_em>v.fim)v.fim=p.arquivada_em;}
-    else if(!p.arquivado&&!v.fim)v.fim=hoje;   // comprada, ativa e ainda sem aposta
+    // Arquivada SEM carimbo (arquivada antes de a coluna existir): não se sabe quando ela
+    // fechou, só que ela não está aberta HOJE — então a janela fecha ontem. Sem isto ela
+    // ficava viva pelo `fim` da última aposta, e `bilhetes.data` é a data do EVENTO: quatro
+    // contas arquivadas do Jonathan e do realtrial tinham aposta em dezembro e apareciam
+    // no parque de hoje (s358).
+    else if(p.arquivado){if(!v.fim||v.fim>ontem)v.fim=ontem;}
+    // Conta cadastrada e ATIVA está viva até HOJE, tenha apostado ou não (s358). Até aqui
+    // o `hoje` só valia para quem nunca apostou, e o fim das demais era a última aposta —
+    // uma heurística de "caiu em desuso" que fazia sentido quando este número era o custo
+    // do P/L. Hoje ele é o PARQUE, e parque é o que o dono TEM: conta que não aposta há
+    // três dias continua comprada. Medido: o parque do germano dava 1 conta de 6 com a
+    // régua antiga em [hoje,hoje]. Quem declara o fim é o botão de arquivar; conta sem
+    // cadastro (só bilhete) segue com o fim na última aposta, que é tudo o que se sabe dela.
+    else if(!p.arquivado)v.fim=hoje;
     if(!v.op)v.op=window.__dono||'';
   });
 }
@@ -261,6 +275,23 @@ function calcCostFiltered(p){
   const{total,nContas}=_custoNaJanela(
     range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago');
   return{costConta:total,nContas};
+}
+
+// ── O PARQUE (s358) ──────────────────────────────────────────────────────────
+// "Quanto vale o que está rodando AGORA", que é a pergunta do vídeo do Jaao26 e a única
+// coisa que a janela de vida sempre respondeu bem. Não é custo do período e **não entra
+// no P/L**: esse dinheiro já foi descontado no mês em que saiu (`calcCostFiltered`).
+//
+// Sempre HOJE, nunca o período da tela. Parque é estoque, e estoque é do instante em que
+// se olha — deixá-lo seguir o filtro o faria variar como se fosse gasto, que é justamente
+// a confusão que a s358 desfez. Casa e Operador recortam, porque descrevem a CONTA; a
+// legenda da tela diz que o número é de hoje.
+function calcParqueFiltered(p){
+  const pag=p||'overview';
+  const hoje=(typeof _ymd==='function')?_ymd(new Date()):'9999-12-31';
+  const casasSel=(typeof msGet==='function')?msGet('ca_'+pag):null;
+  const opsSel=(typeof msGet==='function')?msGet('op_'+pag):null;
+  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');
 }
 
 // Custo de UMA casa no intervalo — popup drill-down de Bookies. Mesma régua do KPI da

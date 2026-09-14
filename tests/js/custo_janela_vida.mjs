@@ -53,7 +53,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_custoDaConta',
-      '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcCasaCost']
+      '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcParqueFiltered', 'calcCasaCost']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // Dependências REAIS do filters.js: `_selRange` é quem traduz o período escolhido na tela
   // (datas digitadas, atalho 7d/30d/90d, "Tudo") em {from,to}. Dublá-lo esconderia
@@ -79,9 +79,12 @@ const API = new Function(`
       if (cfg.ms) for (const k of Object.keys(cfg.ms)) MSS[k] = new Set(cfg.ms[k]);
     },
     vida() { if (!_contaVida) _buildContaVida(); return _contaVida; },
-    // O parque (Fatia 2) chama a mesma função com modo 'vivo'.
+    // O parque chama a mesma função com modo 'vivo'. O parque(de,ate) daqui exercita a
+    // janela em intervalo arbitrário; calcParqueFiltered é o que a tela usa (sempre HOJE).
+    // Sem crase neste comentário de propósito: ele vive DENTRO da template literal do
+    // new Function, e uma crase aqui fecha a string (o caso da s296).
     parque(de, ate) { return _custoNaJanela(de, ate, null, null, '', 'vivo'); },
-    calcCostFiltered, calcCasaCost,
+    calcCostFiltered, calcParqueFiltered, calcCasaCost,
   };
 `)();
 
@@ -309,21 +312,74 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
 }
 
 // ── M. A JANELA DE VIDA continua de pé, no modo 'vivo' (o parque) ────────
-// É a pergunta do Jaao26, que não sumiu: ela saiu do P/L e virou estoque. Mesmos dados
-// do caso B, onde o custo PAGO é zero.
+// É a pergunta do Jaao26, que não sumiu: ela saiu do P/L e virou estoque. Mesmos dados do
+// caso B, onde o custo PAGO é zero. Conta SEM cadastro de propósito: dela só se sabe o que
+// os bilhetes dizem, então a janela é [1ª aposta, última aposta].
 {
   const cfg = {
     custos: { 'GN||Betano': 1700 },
     dados: [bilhete('Betano1', 'Betano', 'GN', '2026-09-01'), bilhete('Betano1', 'Betano', 'GN', '2026-09-22')],
-    cadastro: [cad('Betano1', 'Betano', 'GN', '2026-09-01')],
+    cadastro: [],
     periodo: periodo('2026-09-05', '2026-09-05'),
   };
   API.set(cfg);
   ok(API.calcCostFiltered('overview').costConta === 0, 'pré-condição: no dia 05 nada foi PAGO');
   const p = API.parque('2026-09-05', '2026-09-05');
   ok(p.total === 1700 && p.nContas === 1, 'o parque do dia 05 tem a conta viva (1700), veio ' + p.total);
-  ok(API.parque('2026-09-28', '2026-09-28').total === 0, 'depois da última aposta a conta sai do parque');
+  ok(API.parque('2026-09-28', '2026-09-28').total === 0, 'conta só em bilhete sai do parque depois da última aposta');
   ok(API.parque('2026-08-20', '2026-08-25').total === 0, 'antes da compra a conta ainda não está no parque');
+}
+
+// ── M1b. Conta CADASTRADA e ativa fica no parque sem apostar hoje ────────
+// "fim = última aposta" é o que se sabe de quem não tem cadastro. Quem tem cadastro e não
+// foi arquivado continua COMPRADO: medido na base do germano, a régua antiga mostrava 1
+// conta de 6 no parque de hoje, só porque as outras 5 não apostaram naquele dia.
+{
+  API.set({
+    custos: { 'GN||Betano': 1700 },
+    dados: [bilhete('Betano1', 'Betano', 'GN', '2026-01-10')],   // última aposta em janeiro
+    cadastro: [cad('Betano1', 'Betano', 'GN', '2026-01-05')],
+  });
+  const v = API.vida()['GN||Betano']['Betano1'];
+  ok(v.fim === hoje, 'conta cadastrada e ativa deveria viver até hoje (' + hoje + '), veio ' + v.fim);
+  ok(API.parque(hoje, hoje).total === 1700, 'e ela tem de estar no parque de hoje');
+  ok(API.calcParqueFiltered('overview').total === 1700, 'calcParqueFiltered pergunta por HOJE sozinho');
+}
+
+// ── M1c. Arquivada SEM carimbo não está no parque de hoje ────────────────
+// `arquivado: true` com `arquivada_em` vazio é o estado de quem foi arquivado antes de a
+// coluna existir. Como `bilhetes.data` é a data do EVENTO, uma aposta em jogo futuro
+// deixava a conta "viva" para sempre: quatro contas do Jonathan e do realtrial apareciam
+// no parque de hoje com aposta datada de dezembro (s358).
+{
+  const futura = (() => { const d = new Date(Date.now() + 90 * 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+  API.set({
+    custos: { 'GN||Betano': 1700 },
+    dados: [bilhete('Velha', 'Betano', 'GN', futura)],
+    cadastro: [{ casa: 'Betano', conta: 'Velha', fornecedor: 'GN', adquirida_em: '2026-01-05', arquivada_em: '', arquivado: true }],
+  });
+  ok(API.parque(hoje, hoje).total === 0, 'conta arquivada sem carimbo não pode estar no parque de hoje');
+}
+
+// ── M1d. O parque respeita CASA e OPERADOR, e ignora o período da tela ───
+{
+  const cfg = {
+    custos: { 'GN||Betano': 1700, 'GN||Bet365': 900 },
+    dados: [bilhete('Betano1', 'Betano', 'GN', '2026-01-10'), bilhete('B365a', 'Bet365', 'GN', '2026-01-10')],
+    cadastro: [cad('Betano1', 'Betano', 'GN', '2026-01-05'), cad('B365a', 'Bet365', 'GN', '2026-01-05')],
+    // Período ANTERIOR à compra das duas contas, de propósito: é o único recorte que
+    // separa "parque de hoje" de "parque do período". Um período depois da compra daria
+    // o mesmo número nas duas réguas, e a mutação passaria verde (foi o que aconteceu).
+    periodo: periodo('2025-01-01', '2025-01-31'),
+  };
+  API.set(cfg);
+  ok(API.calcParqueFiltered('overview').total === 2600, 'o parque ignora o período da tela, veio ' + API.calcParqueFiltered('overview').total);
+  API.set({ ...cfg, ms: { ca_overview: ['Bet365'] } });
+  ok(API.calcParqueFiltered('overview').total === 900, 'filtro de CASA recorta o parque');
+  API.set({ ...cfg, ms: { op_overview: ['Lava'] } });
+  ok(API.calcParqueFiltered('overview').total === 0, 'filtro de OPERADOR recorta o parque');
+  API.set({ ...cfg, ms: { sp_overview: ['Tenis'], ti_overview: ['LBB'] } });
+  ok(API.calcParqueFiltered('overview').total === 2600, 'esporte e tipster NÃO recortam o parque');
 }
 
 // ── M2. Conta ativa e sem aposta nenhuma fica viva até HOJE ──────────────
@@ -334,7 +390,7 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   });
   const v = API.vida()['GN||Betano']['Nova'];
   ok(v.fim === hoje, 'conta ativa sem aposta deveria valer até hoje (' + hoje + '), veio ' + v.fim);
-  ok(API.parque('2026-01-01', hoje).total === 1700, 'e ela está no parque');
+  ok(API.parque(hoje, hoje).total === 1700, 'e ela está no parque de hoje');
 }
 
 // ── M3. Arquivar tira do parque, sem mexer no que já foi pago ───────────

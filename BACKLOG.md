@@ -745,8 +745,8 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 - **Régua de caixa, etapas 3 a 5: três telas ainda medem custo com a régua velha (s358). VIVA, medida.**
   (Numeração própria do redesenho da RÉGUA — não confundir com as Fatias do
   [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md), que são da TELA.)
-  A etapa 1 (custo de conta em regime de caixa) subiu; a etapa 2 (parque) fecha a Visão
-  Geral; o resto do sistema segue como estava:
+  As etapas 1 (custo de conta em regime de caixa) e 2 (o parque na Visão Geral) subiram;
+  o resto do sistema segue como estava:
   - **Etapa 3 — Custo de Tipsters.** `renderKPI` (`charts/overview.js`) soma `ctData` INTEIRO,
     ignorando o filtro de tipster, e tira a janela de meses do intervalo das LINHAS em vez do
     período (`_ymMin`/`_ymMax`). Consequência medida na base do germano: com 20 tipsters e
@@ -783,6 +783,15 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   O resto exige varrer seções que não estavam em jogo, e fazer isso no meio de uma correção
   urgente arrisca mexer em regra sem estudar o caso dela. **É uma faxina própria**, com o
   `CASOS.md` em 34 KB de 60 e espaço de sobra.
+- **A Visão Geral tem largura mínima de ~844px e estoura abaixo de ~1100 de janela (s358). VIVA, medida.**
+  Medido headless contra o `servidor_demo`, com a página carregada JÁ na largura (não por
+  resize): com a janela em 1024 o iframe do dash fica com 760px e **45 elementos** passam
+  da borda, a começar pela `.main` (844px) e pela `#page-overview` (798px). Em 1366 não há
+  overflow. **Não é da faixa do parque** — ela acompanha a `#page-overview` exatamente como
+  o grid de KPIs (mesma largura nas cinco medições). É a mesma família do caso de 1366 da
+  s357, que foi resolvido na Extração e no Painel de Contas e **não** na Visão Geral.
+  **Sintoma para reconhecer isto:** medir por `setViewport` DEPOIS do render dá número
+  errado (a página não reflui), e foi o que quase virou um falso positivo aqui.
 - **`Backups/` guarda 223 cópias de `STATUS`/`HISTORICO` (28,7 MB) e o gate acusa isso a cada
   rodada (s356). VIVA, medida.** O git já versiona os dois; o invariante #4 chama de peso puro
   e manda podar além das últimas sessões / 90 dias. O FAIL é antigo e convive com todo commit,
