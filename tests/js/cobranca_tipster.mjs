@@ -30,16 +30,25 @@ const recorteFn = (src, nome) => {
   return m[0];
 };
 
-const FONTE = ['_ctCobranca', '_ctParametro', '_ctTemporadaAte', '_ctValor',
-               '_ctSugestao', '_ctSituacao', '_ctRepetiveis']
-  .map(n => recorteFn(GESTAO, n)).join(LF);
+// `_ARRASTA` é const, não função: o recorte por assinatura não o pega. Ele é a
+// regra do arrasto escrita uma vez, compartilhada com o custo geral (Fatia 4).
+const recorteConst = (src, nome) => {
+  const m = src.match(new RegExp('^const ' + nome + '=.*$', 'm'));
+  if (!m) throw new Error('não achei a const ' + nome + ' no gestao.js');
+  return m[0];
+};
+
+const FONTE = [recorteConst(GESTAO, '_ARRASTA'),
+  ...['_arrasta', '_ctCobranca', '_ctParametro', '_ctTemporadaAte', '_ctValor',
+      '_ctSugestao', '_ctSituacao', '_ctRepetiveis'].map(n => recorteFn(GESTAO, n)),
+].join(LF);
 
 const API = new Function(`
   let ctData = {}, ctMeta = {};
   ${FONTE}
   return {
     set(cfg) { ctData = cfg.custos || {}; ctMeta = cfg.meta || {}; },
-    _ctSugestao, _ctSituacao, _ctRepetiveis, _ctCobranca, _ctValor,
+    _ctSugestao, _ctSituacao, _ctRepetiveis, _ctCobranca, _ctValor, _arrasta,
   };
 `)();
 
@@ -132,6 +141,17 @@ const MES = '2026-09', ANT = '2026-08';
 {
   API.set({ custos: { Ze: { [MES]: '1.234,50' } }, meta: {} });
   ok(API._ctValor('Ze', MES) === 1234.5, 'deveria ler 1.234,50 como 1234.5, veio ' + API._ctValor('Ze', MES));
+}
+
+// ── 12. A regra compartilhada do arrasto ────────────────────────────────────
+// `_arrasta` é usada pelo tipster E pelo custo geral (Fatia 4). Uma regra escrita
+// duas vezes divergiria no dia em que um terceiro tipo aparecesse.
+{
+  ok(API._arrasta('mensalidade') === true, 'mensalidade arrasta');
+  ok(API._arrasta('mensal') === true, 'mensal (custo geral) arrasta');
+  for (const t of ['staking', 'temporada', 'sem_cobranca', 'variavel', 'avulso', '', undefined]) {
+    ok(API._arrasta(t) === false, `«${t}» não pode arrastar`);
+  }
 }
 
 if (falhas) { console.error(LF + falhas + ' verificação(ões) falharam.'); process.exit(1); }

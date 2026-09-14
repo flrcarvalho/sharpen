@@ -2636,6 +2636,30 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 .c2-ate:focus { outline: none; border-color: var(--accent); }
 
+
+/* Custos gerais editaveis (Fatia 4). */
+.c2-inp-txt {
+  width: 100%; min-width: 120px; height: 28px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--ink);
+  background: var(--field); border: 1px solid var(--line); border-radius: var(--r-xs);
+  padding: 0 9px;
+}
+.c2-inp-txt::placeholder { color: var(--ink-mute); }
+.c2-inp-txt:focus { outline: none; border-color: var(--accent); }
+/* Categoria criada pelo dono: marcada, para nao se confundir com as de fabrica. */
+.c2-inp-cat { min-width: 132px; }
+.c2-inp-cat.is-propria { border-color: rgba(var(--accent-rgb), .42); color: var(--accent-2); }
+.c2-lixo {
+  background: none; border: 0; cursor: pointer; padding: 4px 6px;
+  border-radius: var(--r-xs); color: var(--ink-mute); font-size: 13px; line-height: 1;
+}
+.c2-lixo:hover { color: var(--neg); background: rgba(var(--neg-rgb), .10); }
+.c2-cats {
+  display: flex; gap: var(--sp-5); flex-wrap: wrap; align-items: center;
+  padding-top: var(--sp-3); margin-top: var(--sp-2); border-top: 1px solid var(--line-2);
+}
+.c2-cats__suas { color: var(--accent-2); }
+
 @media (max-width: 1180px) {
   .c2-raiox { grid-template-columns: minmax(0, 1fr); }
 }

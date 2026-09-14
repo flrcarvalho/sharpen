@@ -709,10 +709,19 @@ function _ctValor(nome,ym){
   return isNaN(n)?0:n;
 }
 
-// O que o mês HERDA do anterior. Só a mensalidade arrasta; o resto nasce vazio, e
-// nascer vazio é a informação (o valor mudou, ou já foi pago, ou não existe).
+// ── A regra do ARRASTO, escrita UMA vez (s348, Fatia 4) ──────────────────────
+// Vale para tipster e para custo geral. Dois `if` com a mesma regra divergem no dia
+// em que um terceiro tipo aparecer, e ninguém descobre pelo erro: descobre pelo
+// número preenchido sozinho.
+//
+// Arrasta só o que é o MESMO valor todo mês. O resto nasce vazio, e nascer vazio é
+// a informação (o valor mudou, ou já foi pago, ou não existe).
+const _ARRASTA={mensalidade:true,mensal:true};
+function _arrasta(tipo){return !!_ARRASTA[tipo];}
+
+// O que o mês HERDA do anterior, no custo de tipster.
 function _ctSugestao(nome,ym,ymAnterior){
-  return _ctCobranca(nome)==='mensalidade' ? _ctValor(nome,ymAnterior) : 0;
+  return _arrasta(_ctCobranca(nome)) ? _ctValor(nome,ymAnterior) : 0;
 }
 
 // Situação da linha no mês: 'confirmado' | 'coberto' | 'sem_custo' | 'pendente'.
@@ -737,6 +746,47 @@ function _ctSituacao(nome,ym){
 function _ctRepetiveis(nomes,ym,ymAnterior){
   return (nomes||[]).filter(n=>_ctSituacao(n,ym)==='pendente'&&_ctSugestao(n,ym,ymAnterior)>0);
 }
+
+// ── Custo geral: categoria e recorrência (s348, Fatia 4) ─────────────────────
+// `cgData` é [{id, tipo, categoria, recorrencia, values:{"AAAA-MM":valor}}]. Linha
+// antiga não tem `categoria` nem `recorrencia` — lê como "a definir", e a definir
+// NÃO arrasta: ausência de resposta não pode se comportar como resposta.
+//
+// As três categorias de fábrica cobrem o que a operação sempre tem; as outras
+// nascem de o dono digitar um nome. Uma categoria EXISTE porque alguma linha a usa,
+// então não há lista para manter nem categoria órfã para limpar.
+const CG_CATEGORIAS_BASE=['Infra','Ferramenta','Taxa'];
+
+function _cgLinha(i){return (typeof cgData!=='undefined'&&cgData&&cgData[i])||null;}
+function _cgCategoria(i){const r=_cgLinha(i);return ((r&&r.categoria)||'').trim();}
+function _cgRecorrencia(i){const r=_cgLinha(i);return ((r&&r.recorrencia)||'').trim();}
+function _cgValor(i,ym){
+  const r=_cgLinha(i);
+  const v=((r&&r.values)||{})[ym];
+  const n=parseFloat((v==null?'':v).toString().replace(/\./g,'').replace(',','.'));
+  return isNaN(n)?0:n;
+}
+function _cgSugestao(i,ym,ymAnterior){
+  return _arrasta(_cgRecorrencia(i)) ? _cgValor(i,ymAnterior) : 0;
+}
+// 'confirmado' | 'pendente'. O custo geral não tem "coberto" nem "sem custo": a
+// linha só existe porque alguém a criou para lançar alguma coisa.
+function _cgSituacao(i,ym){
+  return _cgValor(i,ym)>0 ? 'confirmado' : 'pendente';
+}
+// União das de fábrica com as que as linhas usam. Ordem: fábrica primeiro, na ordem
+// em que foram escritas; depois as do dono, em ordem alfabética pt-BR.
+function _cgCategorias(){
+  const usadas=new Set();
+  (typeof cgData!=='undefined'&&cgData?cgData:[]).forEach(r=>{
+    const c=((r&&r.categoria)||'').trim();
+    if(c)usadas.add(c);
+  });
+  const proprias=[...usadas].filter(c=>!CG_CATEGORIAS_BASE.includes(c))
+    .sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  return CG_CATEGORIAS_BASE.concat(proprias);
+}
+function _cgEhDeFabrica(c){return CG_CATEGORIAS_BASE.includes((c||'').trim());}
 
 // Build HTML
 function renderCustoTipster(){

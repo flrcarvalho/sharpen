@@ -128,12 +128,17 @@ function _c2tipsters(){
 function _c2gerais(){
   const r = _c2range();
   const ant = _c2mesAnterior(r.mesRef);
-  return (typeof cgData !== 'undefined' && cgData ? cgData : []).map(row => {
+  return (typeof cgData !== 'undefined' && cgData ? cgData : []).map((row, i) => {
     const vals = row.values || {};
-    const vRef = _c2num(vals[r.mesRef]);
+    // A situação e o arrasto saem do `gestao.js`, que é onde a regra mora — a mesma
+    // `_arrasta` do custo de tipster.
+    const sit = _cgSituacao(i, r.mesRef);
     return {
-      tipo: (row.tipo || '').trim(), valor: vRef, anterior: _c2num(vals[ant]),
-      resolvido: !!(vals[r.mesRef] && vRef > 0),
+      i: i, tipo: (row.tipo || '').trim(),
+      categoria: _cgCategoria(i), recorrencia: _cgRecorrencia(i),
+      valor: _c2num(vals[r.mesRef]), anterior: _c2num(vals[ant]),
+      situacao: sit, resolvido: sit !== 'pendente',
+      sugestao: _cgSugestao(i, r.mesRef, ant),
       noPeriodo: r.meses.reduce((a, m) => a + _c2num(vals[m]), 0)
     };
   });
@@ -201,6 +206,7 @@ let _c2precoErro = '';         // mensagem do último POST recusado (aparece no 
 let _c2contaEditando = null;   // id do parceiro com o custo próprio em edição
 let _c2contaErro = '';
 let _c2tipErro = '';       // falha ao gravar custo/cobrança de tipster
+let _c2geralErro = '';     // falha ao gravar custo geral
 
 // Abre o calendário da marca — todo campo de data usa o SharpenCal (UI_REFERENCE §4).
 window.c2Cal = function(id){
@@ -354,6 +360,70 @@ window.c2RepetirMes = function(){
     n++;
   });
   if (n && typeof ctSave === 'function') ctSave();
+  renderCustos2();
+};
+
+// ── Custo geral: descrição, categoria, recorrência e valor (Fatia 4) ─────────
+// Tudo grava pelo `ctSave` do app.js, que é quem fala com /custos/store — um
+// segundo caminho de escrita para o mesmo blob criaria duas fontes.
+function _c2cgSet(i, campo, valor){
+  if (typeof cgData === 'undefined' || !cgData[i]) return;
+  const v = (valor == null ? '' : valor).toString().trim();
+  if (v) cgData[i][campo] = v; else delete cgData[i][campo];
+  if (typeof ctSave === 'function') ctSave();
+}
+
+window.c2GeralCampo = function(i, campo, valor){
+  _c2cgSet(i, campo, valor);
+  _c2geralErro = '';
+  renderCustos2();
+};
+
+window.c2GeralValor = function(i, bruto){
+  if (typeof cgData === 'undefined' || !cgData[i]) return;
+  const ym = _c2range().mesRef;
+  const txt = (bruto == null ? '' : bruto).toString().trim();
+  if (!cgData[i].values) cgData[i].values = {};
+  if (txt){
+    const n = parseFloat(txt.replace(/\./g, '').replace(',', '.'));
+    if (!(n > 0)) { _c2geralErro = 'O valor do mês tem de ser maior que zero. Deixe vazio para limpar.'; renderCustos2(); return; }
+    cgData[i].values[ym] = txt;
+  } else {
+    delete cgData[i].values[ym];
+  }
+  _c2geralErro = '';
+  if (typeof ctSave === 'function') ctSave();
+  renderCustos2();
+};
+
+window.c2GeralAdd = function(){
+  if (typeof cgData === 'undefined') return;
+  // Nasce SEM categoria e SEM recorrência de propósito: um default ("mensal")
+  // faria a linha começar a arrastar sozinha um valor que ninguém classificou.
+  cgData.push({ id: Date.now(), tipo: '', values: {} });
+  if (typeof ctSave === 'function') ctSave();
+  renderCustos2();
+  // foca a descrição da linha nova, que é o único campo obrigatório na prática
+  setTimeout(() => { const el = document.getElementById('c2cg-desc-' + (cgData.length - 1)); if (el) el.focus(); }, 0);
+};
+
+// Apagar uma linha leva os meses dela junto, então passa pela confirmação da marca
+// — e ela diz quanto está sendo apagado, que é o que o dono precisa para decidir.
+window.c2GeralRemover = async function(i){
+  if (typeof cgData === 'undefined' || !cgData[i]) return;
+  const linha = cgData[i];
+  const nome = (linha.tipo || '').trim() || 'esta linha sem descrição';
+  const total = Object.values(linha.values || {}).reduce((a, v) => a + _c2num(v), 0);
+  const meses = Object.keys(linha.values || {}).filter(m => _c2num(linha.values[m]) > 0).length;
+  const corpo = meses
+    ? `Isto apaga <b>${esc(nome)}</b> e os <b>${meses} ${meses === 1 ? 'mês' : 'meses'}</b> lançados nela, somando ${fmtR(total)}.`
+    : `Isto apaga <b>${esc(nome)}</b>. Ela ainda não tem valor lançado.`;
+  if (typeof shConfirm !== 'function'){ return; }
+  const ok = await shConfirm({ eyebrow: 'REMOVER CUSTO GERAL', titulo: nome,
+                               corpo: corpo, acao: 'Remover', perigo: true });
+  if (ok === null) return;
+  cgData.splice(i, 1);
+  if (typeof ctSave === 'function') ctSave();
   renderCustos2();
 };
 
@@ -755,32 +825,62 @@ function _c2viewTipsters(t, mes, mesAnt, umMes, rotuloPeriodo){
 
 // ── Aba Gerais ───────────────────────────────────────────────────────────────
 function _c2viewGerais(t, mes, mesAnt, umMes, rotuloPeriodo){
-  if (!t.ger.length){
-    return _c2card('Custos gerais em ' + mes, 'infraestrutura, ferramentas, taxas',
-      _c2vazio('Nenhum custo geral lançado ainda.'));
-  }
-  const linhas = t.ger.map(g => `<tr>
-      <td class="th-l c2-ident">${esc(g.tipo || 'sem descrição')}</td>
-      <td class="th-l"><span class="c2-orig c2-orig--vazio">a definir</span></td>
-      <td class="td-num c2-ref">${g.anterior > 0 ? fmtR(g.anterior) : '<span class="c2-vazio-cel">—</span>'}</td>
-      <td class="td-num">${g.resolvido ? fmtR(g.valor) : '<span class="c2-vazio-cel">—</span>'}</td>
-      <td class="th-l">${g.resolvido
+  const cats = _cgCategorias();
+  const RECORRENCIAS = [
+    ['', 'a definir'],
+    ['mensal', 'Mensal'],
+    ['variavel', 'Vari\u00e1vel'],
+    ['avulso', 'Avulso'],
+  ];
+  const listaCats = `<datalist id="c2cats">${cats.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist>`;
+
+  const linhas = t.ger.map(g => {
+    const ref = g.situacao === 'pendente' && g.sugestao > 0
+      ? `<button class="c2-usar" onclick="c2GeralValor(${g.i}, '${fmt(g.sugestao, 2)}')">usar ${fmtR(g.sugestao)}</button>`
+      : (g.anterior > 0
+          ? `<span class="c2-ref-val">${fmtR(g.anterior)}${_arrasta(g.recorrencia) ? '' : '<span class="c2-dt"> · n\u00e3o repete</span>'}</span>`
+          : '<span class="c2-vazio-cel">\u2014</span>');
+    return `<tr>
+      <td class="th-l"><input id="c2cg-desc-${g.i}" class="c2-inp-txt" type="text" value="${esc(g.tipo)}" placeholder="Descri\u00e7\u00e3o do custo" onblur="c2GeralCampo(${g.i}, 'tipo', this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+      <td class="th-l"><input class="c2-inp-txt c2-inp-cat${g.categoria && !_cgEhDeFabrica(g.categoria) ? ' is-propria' : ''}" type="text" list="c2cats" value="${esc(g.categoria)}" placeholder="a definir" onchange="c2GeralCampo(${g.i}, 'categoria', this.value)"></td>
+      <td class="th-l"><select class="c2-sel" onchange="c2GeralCampo(${g.i}, 'recorrencia', this.value)">${
+        RECORRENCIAS.map(([v, r]) => `<option value="${v}"${g.recorrencia === v ? ' selected' : ''}>${r}</option>`).join('')
+      }</select></td>
+      <td class="td-num">${ref}</td>
+      <td class="td-num"><span class="c2-preco__inp c2-inp-mes${g.valor > 0 ? ' is-ok' : ''}"><span class="cur">R$</span><input type="text" inputmode="decimal" placeholder="0,00" value="${g.valor > 0 ? fmt(g.valor, 2) : ''}" onblur="c2GeralValor(${g.i}, this.value)" onkeydown="if(event.key==='Enter')this.blur()"></span></td>
+      <td class="th-l">${g.situacao === 'confirmado'
         ? '<span class="c2-badge c2-badge--ok">Confirmado</span>'
         : '<span class="c2-badge c2-badge--wait">Pendente</span>'}</td>
-    </tr>`).join('');
-  const corpo = `<div class="c2-nota">${umMes ? '' : `O recorte é <strong>${rotuloPeriodo}</strong>, mas a lista abaixo é de <strong>${mes}</strong>. O KPI lá em cima soma o período inteiro. `}Categoria e recorrência entram na Fatia 4, com as três de fábrica (Infra, Ferramenta, Taxa) mais as que você criar.</div>
-    <div class="tbl-wrap"><table class="tbl c2-tbl">
+      <td class="td-num"><button class="c2-lixo" title="Remover esta linha" onclick="c2GeralRemover(${g.i})">\u2715</button></td>
+    </tr>`;
+  }).join('');
+
+  const proprias = cats.filter(c => !_cgEhDeFabrica(c));
+  const corpo = `<div class="c2-nota">${umMes ? '' : `O recorte \u00e9 <strong>${rotuloPeriodo}</strong>, mas a lista abaixo \u00e9 de <strong>${mes}</strong>. O KPI l\u00e1 em cima soma o per\u00edodo inteiro. `}Tudo o que a opera\u00e7\u00e3o paga e n\u00e3o \u00e9 conta nem tipster. <strong>Mensal</strong> traz o valor do m\u00eas anterior num clique; <strong>vari\u00e1vel</strong> e <strong>avulso</strong> nunca repetem.</div>
+    ${_c2geralErro ? `<div class="c2-preco__erro">${esc(_c2geralErro)}</div>` : ''}
+    ${listaCats}
+    ${t.ger.length ? `<div class="tbl-wrap"><table class="tbl c2-tbl">
       <thead><tr>
-        <th class="th-l">Descrição</th><th class="th-l">Categoria</th>
-        <th class="td-num">${mesAnt}</th><th class="td-num">Custo de ${mes}</th><th class="th-l">Situação</th>
+        <th class="th-l">Descri\u00e7\u00e3o</th><th class="th-l">Categoria</th><th class="th-l">Recorr\u00eancia</th>
+        <th class="td-num">${mesAnt}</th><th class="td-num">Custo de ${mes}</th>
+        <th class="th-l">Situa\u00e7\u00e3o</th><th class="td-num"></th>
       </tr></thead>
       <tbody>${linhas}</tbody>
-    </table></div>
+    </table></div>` : _c2vazio('Nenhum custo geral ainda. Use <strong>Adicionar custo</strong> para lan\u00e7ar VPN, servidor, ferramenta ou taxa.')}
+    <div class="c2-cats">
+      <span class="c2-meta">De f\u00e1brica: ${CG_CATEGORIAS_BASE.join(' \u00b7 ')}</span>
+      ${proprias.length ? `<span class="c2-meta c2-cats__suas">Suas: ${esc(proprias.join(' \u00b7 '))}</span>` : '<span class="c2-meta">Digite um nome novo na coluna Categoria para criar a sua.</span>'}
+    </div>
     <div class="c2-rodape">
-      <span class="c2-meta">confirmado em ${mes} <span class="c2-total">${fmtR(t.tGerMes)}</span>${umMes ? '' : ` · ${rotuloPeriodo} soma <span class="c2-total">${fmtR(t.tGer)}</span>`}</span>
+      <span class="c2-meta">confirmado em ${mes} <span class="c2-total">${fmtR(t.tGerMes)}</span>${umMes ? '' : ` \u00b7 ${rotuloPeriodo} soma <span class="c2-total">${fmtR(t.tGer)}</span>`}</span>
       ${t.gerPend ? `<span class="c2-prev">${t.gerPend} pendente${t.gerPend > 1 ? 's' : ''}</span>` : ''}
     </div>`;
-  return _c2card('Custos gerais em ' + mes, 'infraestrutura, ferramentas, taxas', corpo);
+
+  return `<div class="card">
+    <div class="card-hdr"><div class="card-title">Custos gerais em ${mes}</div>
+      <button class="c2-preco__ok" onclick="c2GeralAdd()">+ Adicionar custo</button></div>
+    <div class="card-body">${corpo}</div>
+  </div>`;
 }
 
 // ── Aba Raio-X ───────────────────────────────────────────────────────────────

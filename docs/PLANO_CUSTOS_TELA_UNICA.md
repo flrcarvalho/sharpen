@@ -67,7 +67,7 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
 | **1** | Tabela de preços do fornecedor: fornecedor × casa × valor × `vigente_desde`, em `fornecedor_preco`. Espelhada em `custo_conta` a cada escrita, para as telas antigas seguirem certas. Sem backfill: preço herdado lê como "sem data". | **no ar (s348)** |
 | **2** | Custo sai do par `fornecedor\|\|casa` e vai para a **conta**: `parceiros.custo`, NULL = herda do fornecedor. Sem backfill, então o total não se move por construção (medido: 29.400 antes e depois). A derivação de três camadas mora no `gestao.js`. | **no ar (s352)** |
 | **3** | Tipster ganha **tipo de cobrança** (`custo_store.custo_tipster_meta`) e o arrasto por tipo; a aba passa a gravar o valor do mês. Temporada tem prazo (`ate`). | **no ar (s352)** |
-| **4** | Gerais ganha **categoria** (três de fábrica mais as que o Feca criar) e recorrência. | aberta |
+| **4** | Gerais ganha **categoria** (três de fábrica mais as do dono, derivadas das próprias linhas) e **recorrência**, que decide o arrasto pela mesma `_arrasta` do tipster. A aba passa a gravar. | **no ar (s352)** |
 | **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | aberta |
 
 ## O que a Fatia 0 já ensinou
@@ -122,10 +122,25 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
   de movê-lo. Um teste que lê o corpo de `renomear_tipster` custa nada e pega a regressão
   que não dá erro.
 
+## O que a Fatia 4 ensinou
+
+- **Regra com dois donos se escreve uma vez.** O arrasto passou a valer para tipster e
+  para custo geral, então virou `_arrasta(tipo)`. Dois `if` com a mesma regra divergem no
+  dia em que um terceiro tipo aparecer, e ninguém descobre pelo erro: descobre pelo número
+  preenchido sozinho.
+- **Lista derivada não tem órfão.** Uma categoria existe porque alguma linha a usa. Não há
+  cadastro para manter, nem categoria vazia sobrando depois que a última linha sai.
+- **Linha nova nasce sem classificação, de propósito.** Um default `mensal` faria a linha
+  começar a arrastar um valor que ninguém classificou — a mesma armadilha do "a definir"
+  da Fatia 3.
+- **Mutação inócua existe e se registra.** A guarda `typeof cgData !== 'undefined'` em
+  `_cgLinha` sobrevive à mutação porque o código segue correto sem ela. Está anotada no
+  gate como redundância medida, não como buraco de teste.
+
 ## Fonte canônica
 
 `app/database.py` (`fornecedor_preco`, `parceiros.custo`, `custo_store.custo_tipster_meta`) · `app/repository.py` (`_preco_vigente_em`, `registrar_preco_fornecedor`, `_espelhar_custo_conta`) · `app/main.py` (rotas `/custos/fornecedor`) · `tests/test_fornecedor_preco.py` (gate, 10/10 mutações) ·
-`app/static/dash/assets/js/charts/gestao.js` (`_custoDaConta`, `_precoVigenteEm`, `_custoNaJanela` — a derivação canônica do custo; `_ctSugestao`, `_ctSituacao` — a regra do arrasto) ·
+`app/static/dash/assets/js/charts/gestao.js` (`_custoDaConta`, `_precoVigenteEm`, `_custoNaJanela` — a derivação canônica do custo; `_arrasta` — a regra do arrasto, compartilhada; `_ctSugestao`/`_ctSituacao` e `_cgSugestao`/`_cgSituacao`/`_cgCategorias`) ·
 `app/static/dash/assets/js/charts/custos2.js` (render e regras do recorte) ·
 `app/static/dash/assets/css/components.css` (bloco `.c2-*`) · registro da página em
 `app/static/dash/assets/js/app.js` **e** `app/static/app.html`, que são as duas cascas.

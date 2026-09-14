@@ -41,13 +41,23 @@ def test_prova_por_execucao_da_cobranca():
 MUTACOES = [
     (
         "mensalidade deixa de arrastar",
-        "  return _ctCobranca(nome)==='mensalidade' ? _ctValor(nome,ymAnterior) : 0;",
+        "  return _arrasta(_ctCobranca(nome)) ? _ctValor(nome,ymAnterior) : 0;",
         "  return 0;",
     ),
     (
         "TODO tipo passa a arrastar (o staking volta a repetir)",
-        "  return _ctCobranca(nome)==='mensalidade' ? _ctValor(nome,ymAnterior) : 0;",
+        "  return _arrasta(_ctCobranca(nome)) ? _ctValor(nome,ymAnterior) : 0;",
         "  return _ctValor(nome,ymAnterior);",
+    ),
+    (
+        "a regra compartilhada passa a deixar o staking arrastar",
+        "const _ARRASTA={mensalidade:true,mensal:true};",
+        "const _ARRASTA={mensalidade:true,mensal:true,staking:true};",
+    ),
+    (
+        "a regra compartilhada para de reconhecer a mensalidade",
+        "const _ARRASTA={mensalidade:true,mensal:true};",
+        "const _ARRASTA={mensal:true};",
     ),
     (
         "temporada ignora o prazo e cobre para sempre",
@@ -75,9 +85,9 @@ MUTACOES = [
         "  return (nomes||[]).filter(n=>_ctSugestao(n,ym,ymAnterior)>0);",
     ),
     (
-        "o valor para de ler o decimal em virgula",
-        "  const n=parseFloat((v==null?'':v).toString().replace(/\\./g,'').replace(',','.'));",
-        "  const n=parseFloat((v==null?'':v).toString());",
+        "o valor do tipster para de ler o decimal em virgula",
+        "function _ctValor(nome,ym){\n  const v=((typeof ctData!=='undefined'&&ctData[nome])||{})[ym];\n  const n=parseFloat((v==null?'':v).toString().replace(/\\./g,'').replace(',','.'));",
+        "function _ctValor(nome,ym){\n  const v=((typeof ctData!=='undefined'&&ctData[nome])||{})[ym];\n  const n=parseFloat((v==null?'':v).toString());",
     ),
 ]
 
