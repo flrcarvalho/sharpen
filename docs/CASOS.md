@@ -296,12 +296,16 @@ defeito**, e separar isso foi metade do trabalho:
 | repetição na planilha de origem | 191 | dado de origem |
 | conta de demonstração `realtrial` | 406 | código anonimizado randomizado |
 | descrição genérica ("Dupla", "Napoli") | 152 | não prova nada |
-| **defeito, fora da demo** | **126** | **−R$ 6.198,10 de P/L, R$ 24.672 de turnover** |
+| **defeito, fora da demo** | **90** | **88 que o script remove (−R$ 3.810,22) + 2 que ele recusa** |
 
-O líquido esconde o tamanho: são **+R$ 8.185 de ganho falso e −R$ 14.383 de perda falsa**,
-em contas diferentes. Das 126, **120 duplicam com o mesmo resultado** (P/L em dobro), 3
+Quase todas duplicam com o **mesmo** resultado, isto é, P/L contado em dobro; 2 grupos
 divergem no resultado e 3 deixaram linha aberta na grade. `archived` não protege nada
 disso: ele só controla a grade da extração, não o feed, os KPIs nem a Caixa.
+
+> **Duas réguas, dois números, e vale o do script.** A classificação exploratória apontou
+> 126 linhas porque somava a conta demo dentro da família das órfãs; o
+> `reparar_duplicatas_codigo_fantasma.py` mede **90 fora dela** (289 com ela). Quem fica no
+> repo é o script — análise de sessão não roda de novo amanhã, script roda.
 
 **Abertas fantasma na base inteira: 4.** As duas do print e duas da Betano do Tonelada
 (`Fluminense // Frances Tiafoe` contra `Todos ganham: Fluminense e Frances Tiafoe`, órfãs
