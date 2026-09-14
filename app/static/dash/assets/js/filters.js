@@ -191,6 +191,17 @@ function rqb(p){
 // operador, conta e fornecedor ordenam igual ou a tela ensina duas ordens diferentes.
 function cmpNome(a,b){return String(a).localeCompare(String(b),'pt-BR',{sensitivity:'base',numeric:true});}
 
+// Dobra de BUSCA: minúscula e sem acento. Toda busca por nome do dashboard passa por
+// aqui (multiselects, busca de texto da Base Completa, autocomplete do editor, busca de
+// tipster e de casa da Gestão).
+// Medido na base inteira: 59 dos 334 tipsters, 10 dos 39 esportes, 45 das 474 contas e
+// 3 das 98 casas têm acento — `Críquete`, `Fórmula 1`, `Hóquei`, `Cartões`, `Araújo`,
+// `Caçador`, `Breno Pacheco [Órbita]`, `Betão`. Com `toLowerCase()` cru, quem digita
+// `criquete` ou `araujo` recebe LISTA VAZIA, e lista vazia na tela é indistinguível de
+// "não existe": o defeito não avisa, ele mente. Dobrar o acento sai de graça.
+// `̀-ͯ` é o bloco de diacríticos combinantes que o NFD separa da letra.
+function dobra(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+
 // As opções saem de DADOS **+ DADOS_ABERTAS**: uma casa (ou tipster, ou esporte) que só
 // tenha aposta EM ABERTO existe de verdade e precisa aparecer no seletor da tela "Em
 // Aberto" — lendo só DADOS ela ficaria invisível e infiltrável.
@@ -283,13 +294,13 @@ function buildMS(id,items,ph,page,cb,withIcons=false){
 function filterMSOpts(id){
   const inp=document.querySelector(`#msd_${id} .ms-search`);
   if(!inp)return;
-  const q=inp.value.toLowerCase();
+  const q=dobra(inp.value);
   const optsWrap=document.getElementById('ms-opts-'+id);
   if(!optsWrap)return;
   optsWrap.querySelectorAll('.ms-opt').forEach((o,i)=>{
     if(i===0){o.style.display='';return;}
     const v=o.querySelector('span:last-child')?.textContent||'';
-    o.style.display=v.toLowerCase().includes(q)?'':'none';
+    o.style.display=dobra(v).includes(q)?'':'none';
   });
 }
 

@@ -85,10 +85,13 @@ ${_grupoPeriodo(p)}
 // Match dos filtros de coluna (texto por coluna) — reusado p/ encerradas e abertas.
 function _apostasColMatch(r){
   return APOSTAS_COLS.every((col,i)=>{
-    const f=(apostasColFilters[i]||'').toLowerCase().trim();
+    // `dobra` (filters.js): minúscula E sem acento. A descrição e o mercado são o texto
+    // mais acentuado da base ("Cartões", "Não", "Críquete"), e era aqui que buscar sem
+    // acento devolvia zero linha.
+    const f=dobra(apostasColFilters[i]||'').trim();
     if(!f)return true;
     const v=col==='lucro'?r.lucro.toFixed(2):col==='stake'?r.stake.toString():col==='odd'?r.odd.toString():(r[col]||'').toString();
-    return v.toLowerCase().includes(f);
+    return dobra(v).includes(f);
   });
 }
 // Conta (parceiro): multiselect próprio DESTA tela — a barra da página não tem esse eixo,
@@ -419,6 +422,10 @@ let _acItens=[];       // opções visíveis agora
 let _acIdx=-1;         // índice destacado (navegação por teclado)
 let _acCb=null;        // callback de escolha do input ligado
 const AC_MAX_W=360;    // teto de largura do menu (ver _acRender)
+// Teto de ITENS do menu. O menu rola (max-height no CSS), então ele só existe para a
+// lista de mercados (MASTER ∪ base). 200 passa folgado por qualquer lista de nomes:
+// o maior dono da base tem 111 tipsters e 98 casas. Ver `_cortou` em _acRender.
+const _AC_TETO=200;
 let _acFonte=null;     // (filtrando)=>string[] — quem alimenta o menu do input ligado
 let _acCont=null;      // nome→contagem (só o menu de mercado usa); null = sem números
 
@@ -571,14 +578,20 @@ function _acAplicar(i){
 function _acRender(filtrar){
   if(!_acInp)return;
   const m=_acEl();
-  const q=_acInp.value.trim().toLowerCase();
+  const q=dobra(_acInp.value).trim();
   const filtrando=!!(filtrar&&q);
   let ops=(_acFonte||_apTipsterOpcoes)(filtrando);
   if(filtrar&&q){
-    ops=ops.filter(t=>t.toLowerCase().includes(q))
-      .sort((a,b)=>(b.toLowerCase().startsWith(q)?1:0)-(a.toLowerCase().startsWith(q)?1:0));
+    ops=ops.filter(t=>dobra(t).includes(q))
+      .sort((a,b)=>(dobra(b).startsWith(q)?1:0)-(dobra(a).startsWith(q)?1:0));
   }
-  ops=ops.slice(0,50);
+  // Teto do menu. Era 50 e CALADO: com 76 tipsters (base do Feca) ou 111 (realtrial),
+  // 26 nomes simplesmente não existiam para quem rolava a lista sem digitar. O menu
+  // rola (`max-height` no CSS), então o teto só precisa proteger a lista de MERCADOS,
+  // que é MASTER ∪ base e passa de centena. Quando corta, a lista DIZ que cortou —
+  // lista truncada em silêncio é indistinguível de nome que não existe.
+  const _cortou=Math.max(0,ops.length-_AC_TETO);
+  ops=ops.slice(0,_AC_TETO);
   _acItens=ops;
   if(!ops.length){_acFechar();return;}   // nome novo: sem menu, o campo segue livre
   // Contagem só no menu de mercado, e só em quem JÁ foi usado: item vindo do MASTER
@@ -589,7 +602,10 @@ function _acRender(filtrar){
     const n=_acCont[t];
     const cnt=n?`<span class="ac-count">${n.toLocaleString('pt-BR')}</span>`:'';
     return`<div class="ac-item ac-item--mkt" data-i="${i}"><span class="ac-nome">${esc(t)}</span>${cnt}</div>`;
-  }).join('');
+  }).join('')
+  // Sem a classe `.ac-item` de propósito: o clique e a navegação por teclado casam por
+  // ela, então este rodapé não é selecionável nem entra na contagem de `_acItens`.
+  +(_cortou?`<div class="ac-mais">+${_cortou} ${_cortou===1?'nome':'nomes'} · escreva para filtrar</div>`:'');
   m.style.display='block';
   // Ancoragem: `position:fixed` + rect do input. Vira para CIMA quando não cabe
   // abaixo — sem isso, editar uma linha do rodapé da tabela abriria o menu fora da tela.

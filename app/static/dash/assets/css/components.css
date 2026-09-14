@@ -235,6 +235,57 @@
 .kpi-sub .money { width: auto; gap: 2px; }
 .kpi-sub .money-val,
 .kpi-sub .money-sign { min-width: 0; }
+/* ── Parque de contas (s358) — faixa de apoio ABAIXO dos KPIs ──────────────
+   O card "Custo de Contas" diz o que saiu do bolso no período; esta faixa diz o que
+   está rodando agora. Em dia sem compra o card é R$ 0 e é a faixa que impede o R$ 0 de
+   ser lido como defeito (reclamação do tester Jaao26, em vídeo).
+
+   NÃO é um `.kpi`: um 9º tile quebraria o grid de 4. Papéis da Escada de Tinta:
+   label em --ink-soft, os dois VALORES em --ink 13px, e UM único --ink-mute na linha,
+   que é o corte ("em uso hoje, já pago"). O separador é uma barra de 1px em --line-2,
+   e não um "·" de texto, justamente para não gastar o segundo --ink-mute. */
+.ov-parque {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px var(--sp-6);
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.ov-parque-lbl {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.ov-parque-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.ov-parque-bar { width: 1px; height: 12px; background: var(--line-2); flex: none; }
+.ov-parque-nota {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  color: var(--ink-mute);
+  margin-left: auto;
+}
+/* Mesmo carve-out do `.kpi-sub`: o `.money` padrão é largura de COLUNA de tabela
+   (width:100% + min-width:10ch) e numa linha corrida empurraria o resto para baixo. */
+.ov-parque .money { width: auto; gap: 2px; }
+.ov-parque .money-val,
+.ov-parque .money-sign { min-width: 0; }
+/* No estreito a nota desgruda da direita e vira a última linha da faixa. */
+@media (max-width: 560px) {
+  .ov-parque-nota { margin-left: 0; width: 100%; }
+}
+
 /* Card principal (P/L Líquido) — brilho de destaque */
 .kpi.hero {
   background: linear-gradient(150deg, rgba(var(--accent-rgb),.12), var(--surface) 62%);
@@ -1071,6 +1122,15 @@ select.ap-inline-inp { padding: 2px 4px; }
   margin-left: auto; flex: none;
   font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
+}
+/* Rodapé "+N nomes" do menu que truncou. Mesmo degrau do `.ac-count` (--ink-soft 10px
+   mono) pelo mesmo motivo escrito acima: é METADADO SECUNDÁRIO, e o --ink-mute reprova
+   no menu gêmeo da Extração. Sem `.ac-item`: não é selecionável, então também não pode
+   parecer um item da lista — daí a borda que o separa e o `cursor:default`. */
+.ac-mais {
+  padding: 5px 10px 3px; margin-top: 3px; border-top: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft);
+  cursor: default; white-space: nowrap;
 }
 /* ── Aviso pós-edição (canto inferior direito) ──────────────────────────────
    O dashboard não tinha canal de aviso: só o `_errBanner`, que usa cor LITERAL

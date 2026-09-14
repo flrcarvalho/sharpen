@@ -1807,6 +1807,15 @@ body.cap-off .cx__body { display: none; }
   font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
 }
+/* Rodapé "+N nomes" do menu que truncou. Mesmo degrau do `.ac-count` (--ink-soft 10px
+   mono), pelo motivo medido logo acima: sobre --elevated o --ink-mute dá 2,86:1 e
+   reprova no piso do papel. Sem `.ac-item`: não é selecionável, então também não pode
+   parecer item da lista — daí a borda que separa e o cursor padrão. */
+.ac-mais {
+  padding: 5px 10px 3px; margin-top: 3px; border-top: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft);
+  cursor: default; white-space: nowrap;
+}
 /* Mesma casca do chip de casa (REFERENCIA_EMOJIS_ESPORTES §2): 24×24, raio 7px,
    fundo steel, emoji 14px dessaturado. */
 .sp-chip {
@@ -4255,7 +4264,7 @@ const _ICO_ACAO = {
 function renderPainelLista() {
   const host = document.getElementById('painelGestaoList');
   if (!host) return;
-  const q = (painelBusca || '').toLowerCase().trim();
+  const q = dobra(painelBusca).trim();
   const fonte = contasTab === 'ativas' ? parceirosCache : parceirosArquivadosCache;
   // Filtro vindo da Concentração de caixa (clique numa casa). Vazio = tudo.
   const soCasa = painelCasaFiltro;
@@ -4273,7 +4282,7 @@ function renderPainelLista() {
     let ps = (fonte[casa] || []);
     // A busca é por casa OU fornecedor OU nome da conta — o placeholder promete as
     // duas primeiras, e prometer busca que não busca é pior que não oferecer.
-    if (q) ps = ps.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
+    if (q) ps = ps.filter(p => dobra(p.nome).includes(q) || dobra(nomeCasa).includes(q));
     if (soForn) ps = ps.filter(p => _painelFornDe(p.nome) === soForn);
     if (!ps.length) return;
     total += ps.length;
@@ -4995,14 +5004,14 @@ function acctNavegar(passo) {
 function renderAcctTree() {
   const tree = document.getElementById('acctTree');
   if (!tree) return;
-  const q = (document.getElementById('acct-search').value || '').toLowerCase().trim();
+  const q = dobra(document.getElementById('acct-search').value).trim();
   const fonte = acctPopAba === 'ativas' ? parceirosCache : parceirosArquivadosCache;
   const inativa = acctPopAba !== 'ativas';   // aba Inativas → dot apagado (offline)
   let html = '';
   (casasCarregadas || []).forEach(casa => {
     const nomeCasa = casaDisplay(NOMES[casa] || casa);
     let parceiros = (fonte[casa] || []);
-    if (q) parceiros = parceiros.filter(p => (p.nome || '').toLowerCase().includes(q) || nomeCasa.toLowerCase().includes(q));
+    if (q) parceiros = parceiros.filter(p => dobra(p.nome).includes(q) || dobra(nomeCasa).includes(q));
     if (!parceiros.length) return;
     const n = parceiros.length;
     // Moldura do grupo (casa): banda-header não clicável + contagem de contas.
@@ -5085,8 +5094,8 @@ function _ncParteNome(nome) {
 function _ncComboRender(filtro) {
   const list = document.getElementById('nc-combo-list');
   if (!list) return;
-  const q = (filtro || '').trim().toLowerCase();
-  const casas = (casasCarregadas || []).filter(c => !q || String(NOMES[c] || c).toLowerCase().includes(q));
+  const q = dobra(filtro).trim();
+  const casas = (casasCarregadas || []).filter(c => !q || dobra(NOMES[c] || c).includes(q));
   let html = '<div class="nc-combo-item nova" data-val="__nova__">+ cadastrar nova casa</div>';
   html += casas.map(c => `<div class="nc-combo-item" data-val="${esc(c)}">${esc(NOMES[c] || c)}</div>`).join('');
   if (!casas.length && q) html += '<div class="nc-combo-item" style="color:var(--ink-mute);cursor:default">nenhuma casa encontrada</div>';
@@ -7604,6 +7613,16 @@ function setupBtblResize() {
   aplicarBtblCols();
 }
 
+// Dobra de BUSCA: minuscula e sem acento. Gemea da `dobra` do dashboard
+// (dash/assets/js/filters.js) -- sao dois DOCUMENTOS separados, entao a funcao existe
+// duas vezes por forca do meio, nao por escolha; mexeu numa, mexa na outra.
+// Medido na base: 59 dos 334 tipsters, 10 dos 39 esportes e 45 das 474 contas tem
+// acento. Com `toLowerCase()` cru, quem digita `criquete` ou `araujo` recebe LISTA
+// VAZIA -- e lista vazia na tela nao se distingue de "nao existe".
+function dobra(s) {
+  return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function esc(s) {
   if (s == null) return '';
   return String(s)
@@ -8385,6 +8404,9 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
   // completa: senão o mercado raro — ou o que só existe no MASTER — ficaria
   // inalcançável justamente por quem foi procurá-lo pelo nome.
   const MKT_FAV = 12;
+  // Ver `cortou` em renderMenu: 200 passa folgado por qualquer lista de NOMES (o maior
+  // dono da base tem 111 tipsters e 98 casas); o teto existe pela lista de mercados.
+  const AC_TETO = 200;
   const acSource = (el, filtrando) => {
     if (_tem(el, 'js-ac-mercado-todos')) return mercadosTodos;
     if (_tem(el, 'js-ac-mercado')) return filtrando ? mercadosTodos : mercadosFav.slice(0, MKT_FAV);
@@ -8401,15 +8423,20 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
   function closeMenu() { menu.style.display = 'none'; items = []; active = -1; }
   function renderMenu(useFilter) {
     if (!inp) return;
-    const q = inp.value.trim().toLowerCase();
+    const q = dobra(inp.value).trim();
     const filtrando = !!(useFilter && q);
     const src = acSource(inp, filtrando);
     let opts = src;
     if (useFilter && q) {
-      opts = src.filter(t => t.toLowerCase().includes(q))
-        .sort((a, b) => (b.toLowerCase().startsWith(q) ? 1 : 0) - (a.toLowerCase().startsWith(q) ? 1 : 0));
+      opts = src.filter(t => dobra(t).includes(q))
+        .sort((a, b) => (dobra(b).startsWith(q) ? 1 : 0) - (dobra(a).startsWith(q) ? 1 : 0));
     }
-    opts = opts.slice(0, 50);
+    // Teto do menu. Era 50 e CALADO: com 76 tipsters (base do Feca) ou 111 (realtrial),
+    // 26 nomes nao existiam para quem rolava a lista sem digitar. O menu rola
+    // (`max-height` no CSS), entao o teto so precisa proteger a lista de MERCADOS, que e
+    // MASTER uniao base. Quando corta, a lista DIZ que cortou.
+    const cortou = Math.max(0, opts.length - AC_TETO);
+    opts = opts.slice(0, AC_TETO);
     items = opts;
     if (!opts.length) { closeMenu(); return; }
     const r = inp.getBoundingClientRect();
@@ -8425,7 +8452,10 @@ document.getElementById('btn-sugerir-tip')?.addEventListener('click', sugerirTip
       const n = mercadosCont[t];
       const cnt = n ? `<span class="ac-count">${n.toLocaleString('pt-BR')}</span>` : '';
       return `<div class="ac-item ac-item--mkt" data-i="${i}"><span class="ac-nome">${esc(t)}</span>${cnt}</div>`;
-    }).join('');
+    }).join('')
+    // Sem a classe `.ac-item` de proposito: o clique e o teclado casam por ela, entao
+    // este rodape nao e selecionavel nem entra na contagem de `items`.
+    + (cortou ? `<div class="ac-mais">+${cortou} ${cortou === 1 ? 'nome' : 'nomes'} &middot; escreva para filtrar</div>` : '');
     menu.style.display = 'block';
     active = (useFilter && q) ? 0 : -1;   // melhor match já destacado → Enter aceita direto
     hi();
