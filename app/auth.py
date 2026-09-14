@@ -285,6 +285,70 @@ def planilha_ao_vivo(dono: str) -> str:
     return (entrada or {}).get("planilha_url") or ""
 
 
+# ── Demonstração pública (/realtrial) ────────────────────────────────────────
+# Quem abre o link ganha um dono EFÊMERO e vê a base de demonstração junto com
+# o que ele mesmo capturar. O dono efêmero é o que torna isso seguro: o
+# visitante usa o SharpenUp na casa DELE, com apostas reais dele, e dono
+# compartilhado faria o próximo visitante ver a carteira do anterior.
+DONO_DEMO = "realtrial"
+PREFIXO_TRIAL = "trial_"
+TRIAL_DIAS = 7          # depois disso o dono efêmero e tudo dele são apagados
+
+# Teto de extrações por visitante. O Feca pediu "5 prints + 5 capturas do
+# SharpenUp"; aqui é um BALCÃO ÚNICO de 10, porque `uso_tokens` não distingue
+# print de captura e separar exigiria coluna nova. A intenção é a mesma: o
+# visitante testa o sistema, não opera nele.
+#
+# O teto não é preciosismo: cada extração chama a API de IA e custa dinheiro
+# de verdade (~US$ 0,011 por bilhete), e a rota é PÚBLICA. Sem ele, quem achar
+# a URL tem um endpoint pago e ilimitado.
+TRIAL_MAX_EXTRACOES = 10
+
+# Sessões que um mesmo IP pode abrir por dia. Só o teto de extrações não
+# segura: limpar o cookie criaria um visitante novo com 10 créditos zerados.
+TRIAL_SESSOES_POR_IP = 3
+
+
+def eh_trial(usuario: str) -> bool:
+    return (usuario or "").startswith(PREFIXO_TRIAL)
+
+
+def escopo_de_leitura(usuario: str) -> list[str]:
+    """Donos que este usuário LÊ no feed consolidado.
+
+    Caso normal: ele + os operadores dele (supervisor enxerga a base de quem
+    está pendurado nele por `parent_owner`).
+
+    Trial: ele + a base de demonstração. **A direção é oposta à do par
+    supervisor/operador** — lá UM supervisor vê N operadores; aqui N visitantes
+    veem UMA base comum — e é por isso que `operadores_de` não serve:
+    `parent_owner` é uma coluna só, e não cabem N trials dentro dela.
+
+    Isto é LEITURA, e só. Escrita segue em `usuario_atual`/`dono_efetivo`, que
+    para o visitante são o dono efêmero dele: o que ele capturar cai na base
+    dele, e a base de demonstração não aceita edição vinda daqui, porque toda
+    rota de escrita filtra por dono e o dono não bate.
+    """
+    if eh_trial(usuario):
+        return [usuario, DONO_DEMO]
+    return [usuario] + operadores_de(usuario)
+
+
+def registrar_usuario_no_cache(username: str, entrada: dict) -> None:
+    """Põe UMA entrada no cache agora, sem esperar o refresher de 60 s.
+
+    Sem isto a sessão de trial nasce morta: `ler_token` exige `_usuario_ativo`,
+    que lê do cache, e o refresher só passa a cada minuto — o visitante clicaria
+    no link e tomaria 401 até o cache virar. É o mesmo TTL que já enganou a
+    sessão 44 ([[cache_identidade_ttl_60s]]).
+
+    Troca o dict INTEIRO em vez de mutar item a item, que é a invariante
+    declarada no topo deste módulo (leitura sem lock).
+    """
+    global _usuarios_cache
+    _usuarios_cache = {**_usuarios_cache, username: dict(entrada)}
+
+
 def pode_ver_como(real: str, alvo: str) -> bool:
     """O usuário logado `real` pode assumir a visão de `alvo`?
 

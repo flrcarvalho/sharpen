@@ -33,11 +33,16 @@ from pydantic import BaseModel, field_validator
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, atualizar_cache_usuarios,
     coproprietarios, criar_token, criar_token_curto, dono_efetivo,
+    escopo_de_leitura,
     dono_efetivo_ou_bot, eh_admin, email_de, gerar_hash_senha, operadores_de,
     planilha_ao_vivo, pode_ver_como, resultado_login, tem_senha, usuario_atual,
     usuario_atual_ou_bot, usuario_ativo, usuario_do_request, validar_token_curto,
     verificar_credenciais,
 )
+# O modulo inteiro, alem dos nomes acima: a rota /realtrial precisa de
+# PREFIXO_TRIAL, TRIAL_DIAS e registrar_usuario_no_cache, e importa-los soltos
+# so alongaria a lista sem ganhar nada.
+import auth as auth_mod
 import captura as _captura
 import eventos as _eventos
 import matcher
@@ -64,7 +69,9 @@ from repository import (
     get_custo_conta, salvar_custo_conta, definir_custo_conta, salvar_cobranca_tipster,
     listar_precos_fornecedor, registrar_preco_fornecedor, remover_preco_fornecedor,
     calcular_pl,
-    criar_parceiro, dashboard_rows, data_valida, deletar_bilhetes,
+    criar_parceiro, criar_sessao_trial, dashboard_rows, data_valida,
+    extracoes_do_trial,
+    deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
     flags_pos_edicao, flags_pos_edicao_lote, atualizar_bilhetes_lote,
@@ -1185,6 +1192,93 @@ async def _repescar_faltantes(system: list[dict], texto: str, faltantes: list[st
 _MARCADOR_VAZIO_RE = re.compile(r"(?m)^\[Código:\s*\]")
 
 
+def _corrigir_codigos_fantasma(resultado: str, texto: str | None,
+                               tem_imagem: bool) -> tuple[str, dict]:
+    """O código que a IA escreveu existe no texto do robô? Se não existe, é inventado.
+
+    O `codigo_bilhete` entra na assinatura (`_assinatura`), então UM caractere trocado
+    não é um erro de digitação: é um bilhete NOVO para o sistema. E quem escreve essa
+    coluna é a IA, copiando o `[Código: …]` do bloco — a única coluna de identidade que
+    nunca teve extração determinística, ao contrário da stake (`corrigir_stake_tsv`) e
+    da 12ª (`anexar_sistema_tsv`).
+
+    Medido na s354 com `bloco_visto`/`sombra_rotulos`, que guardam o código que o robô
+    REALMENTE emitiu: 20 códigos inventados em 9.475 bilhetes (0,21%). Na bet365 a letra
+    final real é só `I`, `W` ou `F`, e a troca é quase sempre `F ↔ I` — foi assim que
+    `TQ8770485441I` (resolvido L) virou também `TQ8770485441W`, aberto para sempre, com
+    o robô tendo mandado `…I` nas seis capturas.
+
+    O estrago tem duas metades, e a segunda é a que produz o par no MESMO lote: com o
+    código falso na 11ª coluna, `conferir_cobertura` acha que o bilhete verdadeiro não
+    voltou, repesca, e a linha repescada entra AO LADO da inventada. Daí 21 dos 22 pares
+    da bet365 terem nascido no mesmo segundo.
+
+    Duas saídas, as mesmas da reconciliação de órfãs e pela mesma prova (`checar_fidelidade`,
+    sem IA, microssegundos):
+
+    1. **Adoção** — o código falso é trocado pelo de um bloco ainda LIVRE de que a linha
+       é fiel, só quando o par é único nos dois sentidos. Não há snap por semelhança de
+       string aqui, e é de propósito: o código da bet365 é sequencial (`…381I`/`…382I`),
+       e semelhança trocaria um código válido pelo do bilhete vizinho — a mesma razão do
+       `_ID_MINLEN` no `corrigir_codigos_tsv`.
+    2. **Esvaziamento** — sem par único, a 11ª coluna vai a vazio e a linha vira órfã.
+       Órfã tem três travas depois desta (`_reconciliar_orfas`, Migração B do UPSERT,
+       adoção por recaptura); código inventado não tem nenhuma, e garante linha nova.
+
+    NO-OP integral quando o lote tem IMAGEM: ali o código vem do print, legitimamente
+    fora do texto, e é o `codigo_ocr` que trata a procedência (s338). Também no-op em
+    casa sem marcador, onde não há gabarito nenhum.
+    """
+    vazio = {"fantasmas": 0, "adotados": 0, "esvaziados": 0, "exemplos": []}
+    if not texto or tem_imagem:
+        return resultado, vazio
+    esperados = codigos_do_texto(texto)
+    if not esperados:
+        return resultado, vazio
+
+    linhas = _extract_tsv_rows(resultado)
+    reais = set(esperados)
+    fantasmas = [i for i, l in enumerate(linhas)
+                 if len(l.split("\t")) > 10 and l.split("\t")[10].strip()
+                 and l.split("\t")[10].strip() not in reais]
+    if not fantasmas:
+        return resultado, vazio
+
+    vistos = {l.split("\t")[10].strip() for l in linhas
+              if len(l.split("\t")) > 10 and l.split("\t")[10].strip()}
+    livres = [c for c in esperados if c not in vistos]
+    blocos = _blocos_por_codigo(texto)
+
+    cand: dict[int, list[str]] = {}
+    for i in fantasmas:
+        desc = linhas[i].split("\t")[6].strip()
+        cand[i] = [c for c in livres
+                   if blocos.get(c) and not checar_fidelidade(desc, blocos[c])] if desc else []
+
+    adotados, esvaziados, exemplos = 0, 0, []
+    for i in fantasmas:
+        celulas = linhas[i].split("\t")
+        falso = celulas[10].strip()
+        cs = cand[i]
+        # o bloco só é adotado quando serve a ESTA linha e a nenhuma outra fantasma
+        if len(cs) == 1 and sum(1 for outros in cand.values() if cs[0] in outros) == 1:
+            celulas[10] = cs[0]
+            livres.remove(cs[0])
+            adotados += 1
+            if len(exemplos) < 5:
+                exemplos.append({"ia": falso, "bloco": cs[0], "acao": "adotado"})
+        else:
+            celulas[10] = ""
+            esvaziados += 1
+            if len(exemplos) < 5:
+                exemplos.append({"ia": falso, "bloco": "", "acao": "esvaziado"})
+        linhas[i] = "\t".join(celulas)
+
+    resultado = _set_tsv_rows(resultado, linhas)
+    return resultado, {"fantasmas": len(fantasmas), "adotados": adotados,
+                       "esvaziados": esvaziados, "exemplos": exemplos}
+
+
 def _reconciliar_orfas(resultado: str, texto: str | None) -> tuple[str, dict]:
     """A linha que voltou SEM código: devolve o dono a ela, ou descarta a cópia.
 
@@ -1246,13 +1340,35 @@ def _reconciliar_orfas(resultado: str, texto: str | None) -> tuple[str, dict]:
         livres.remove(cod)
         adotadas += 1
 
-    # 2) Descarte — só quando todo bilhete do texto já tem linha própria.
+    # 2) Descarte — a órfã que sobrou é cópia de alguém que já tem a sua linha.
+    #
+    # Dois critérios, e o segundo nasceu de um fantasma real (s354, a múltipla do
+    # Lankshear na bet365, id 265429): o primeiro exige que NENHUM bilhete do texto
+    # tenha ficado sem linha, e num lote grande quase sempre sobra algum código livre —
+    # basta um para a órfã atravessar as duas portas e ficar `aberta` para sempre.
+    #
+    # O segundo julga a órfã por si: ela é fiel a UM único bloco do texto (entre todos,
+    # não só os livres) e aquele bloco JÁ tem linha própria, com código. Então ela é a
+    # segunda leitura do mesmo bilhete, e sai. Fiel a mais de um bloco não decide nada —
+    # é o caso de dois bilhetes de conteúdo idêntico, onde descartar apagaria aposta real.
     descartadas = 0
-    if not livres:
-        sobrando = {i for i in orfas if not linhas[i].split("\t")[10].strip()}
-        if sobrando:
-            linhas = [l for j, l in enumerate(linhas) if j not in sobrando]
-            descartadas = len(sobrando)
+    sobrando = {i for i in orfas if not linhas[i].split("\t")[10].strip()}
+    if sobrando and not livres:
+        copias = set(sobrando)
+    else:
+        com_linha = {l.split("\t")[10].strip() for l in linhas
+                     if len(l.split("\t")) > 10 and l.split("\t")[10].strip()}
+        copias = set()
+        for i in sobrando:
+            desc = linhas[i].split("\t")[6].strip()
+            if not desc:
+                continue
+            fieis = [c for c, b in blocos.items() if b and not checar_fidelidade(desc, b)]
+            if len(fieis) == 1 and fieis[0] in com_linha:
+                copias.add(i)
+    if copias:
+        linhas = [l for j, l in enumerate(linhas) if j not in copias]
+        descartadas = len(copias)
 
     if adotadas or descartadas:
         resultado = _set_tsv_rows(resultado, linhas)
@@ -1657,6 +1773,16 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
             accumulated = _reverse_tsv_rows(accumulated)
         # Cobertura: todo bilhete do texto virou linha? Roda DEPOIS da inversão para as
         # linhas repescadas entrarem na mesma ordem final.
+        # Código determinístico (s354): a 11ª coluna tem de ser um código que EXISTE no
+        # texto do robô. Roda ANTES da cobertura de propósito — código inventado faz o
+        # bilhete verdadeiro parecer faltante, e a repescagem então entrega a segunda
+        # linha do par no mesmo lote.
+        accumulated, cod_fix = _corrigir_codigos_fantasma(accumulated, texto, codigo_ocr)
+        if cod_fix["fantasmas"]:
+            logger.warning("seq código: %d código(s) que não existem no texto do robô — "
+                           "%d adotado(s) do bloco, %d esvaziado(s): %s",
+                           cod_fix["fantasmas"], cod_fix["adotados"],
+                           cod_fix["esvaziados"], cod_fix["exemplos"])
         accumulated, cobertura, tk_extra = await _garantir_cobertura(
             system, accumulated, texto, modelo, content[-1] if content else None, reverse_rows)
         for k in total_tokens:
@@ -1697,7 +1823,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         _fire(registrar_sombra(dono, casa, texto, accumulated))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -1854,6 +1980,14 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
+        # Código determinístico (s354): ver a nota no seq. Antes da cobertura pelo mesmo
+        # motivo — é a repescagem que transforma um código inventado em DUAS linhas.
+        resultado, cod_fix = _corrigir_codigos_fantasma(resultado, texto, codigo_ocr)
+        if cod_fix["fantasmas"]:
+            logger.warning("par código: %d código(s) que não existem no texto do robô — "
+                           "%d adotado(s) do bloco, %d esvaziado(s): %s",
+                           cod_fix["fantasmas"], cod_fix["adotados"],
+                           cod_fix["esvaziados"], cod_fix["exemplos"])
         # Cobertura: chunk que responde sem o bloco ```tsv some em silêncio (o
         # `chunks_falhos` só conta exceção). Confere pelo gabarito de códigos e repesca.
         resultado, cobertura, tk_extra = await _garantir_cobertura(
@@ -1894,7 +2028,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_sombra(dono, casa, texto, resultado))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'codigo_ocr': codigo_ocr})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
@@ -1957,6 +2091,64 @@ async def inicio_page(request: Request):
 
 
 # ── Autenticação ──────────────────────────────────────────────────────────────
+
+@app.get("/realtrial")
+async def realtrial(request: Request):
+    """Demonstração pública: entra como visitante, sem cadastro e sem senha.
+
+    Cada visitante ganha um dono EFÊMERO próprio e passa a ver a base de
+    demonstração (`auth.DONO_DEMO`) junto com o que ele mesmo capturar. O dono
+    efêmero é o que torna isto seguro: o visitante usa o SharpenUp na casa
+    DELE, com apostas reais dele, e um dono compartilhado faria o próximo
+    visitante ver a carteira do anterior.
+
+    Quem já tem sessão (trial ou conta de verdade) NÃO ganha outra: abrir o
+    link duas vezes criaria um trial órfão a cada clique, e um usuário logado
+    que clicasse por curiosidade perderia a própria sessão.
+    """
+    atual = usuario_do_request(request)
+    if atual:
+        return RedirectResponse("/app", status_code=303)
+
+    # Só o teto de extrações não segura: limpar o cookie criaria um visitante
+    # novo com o balcão zerado. O IP vem do ÚLTIMO valor do X-Forwarded-For
+    # (`_client_ip`), que é o que o proxy do Railway viu e o cliente não forja.
+    ip = _client_ip(request)
+    agora = time.time()
+    recentes = [t for t in _trial_por_ip.get(ip, []) if agora - t < 86400]
+    if len(recentes) >= auth_mod.TRIAL_SESSOES_POR_IP:
+        _trial_por_ip[ip] = recentes
+        raise HTTPException(429, (
+            "Você já abriu a demonstração hoje. Volte amanhã ou fale com a "
+            "gente para uma conta."))
+
+    try:
+        sessao = await criar_sessao_trial(auth_mod.PREFIXO_TRIAL, auth_mod.TRIAL_DIAS)
+    except Exception as e:                                   # noqa: BLE001
+        logger.exception("realtrial: falha ao criar sessão")
+        raise HTTPException(503, "Demonstração indisponível no momento.") from e
+
+    usuario = sessao["username"]
+    # O cache de identidade tem TTL de 60 s e `ler_token` exige usuário ATIVO
+    # nele. Sem registrar agora, a sessão nasce morta e o visitante toma 401
+    # por um minuto — justamente no clique que ele acabou de dar.
+    auth_mod.registrar_usuario_no_cache(usuario, {
+        "senha_hash": None, "status": "ativo", "role": "user",
+        "parent_owner": None, "planilha_url": None, "email": None,
+        "bot_habilitado": False,
+    })
+
+    recentes.append(agora)
+    _trial_por_ip[ip] = recentes
+
+    resp = RedirectResponse("/app", status_code=303)
+    resp.set_cookie(
+        key=COOKIE_NAME, value=criar_token(usuario),
+        max_age=auth_mod.TRIAL_DIAS * 24 * 3600,
+        httponly=True, samesite="lax", secure=True,
+    )
+    return resp
+
 
 @app.get("/login")
 async def login_page(request: Request):
@@ -2118,6 +2310,11 @@ class LoginRequest(BaseModel):
 _LOGIN_WINDOW = 300        # janela de 5 min
 _LOGIN_MAX_FAILS = 10      # falhas permitidas por IP na janela
 _login_fails: dict[str, list[float]] = {}
+
+# Sessões de demonstração abertas por IP (janela de 24 h). Em memória, como o
+# `_login_fails`: reinício zera, e isso é aceitável aqui porque o teto de
+# EXTRAÇÕES — que é o que custa dinheiro — vive no banco e não zera.
+_trial_por_ip: dict[str, list[float]] = {}
 
 
 def _client_ip(request: Request) -> str:
@@ -3119,6 +3316,17 @@ async def extrair(
     if modelo not in ALLOWED_MODELS:
         raise HTTPException(400, f"Modelo não permitido. Opções: {ALLOWED_MODELS}")
 
+    # Teto do visitante da demonstração. Vem ANTES de qualquer leitura de
+    # arquivo: a chamada à IA é o que custa, e recusar depois de processar o
+    # upload gastaria banda e memória à toa. 429 (e não 403) porque é limite de
+    # uso, e é o código que o front já sabe mostrar.
+    if auth_mod.eh_trial(dono):
+        gastas = await extracoes_do_trial(dono)
+        if gastas >= auth_mod.TRIAL_MAX_EXTRACOES:
+            raise HTTPException(429, (
+                f"Você usou as {auth_mod.TRIAL_MAX_EXTRACOES} extrações da "
+                "demonstração. Fale com a gente para liberar uma conta."))
+
     casa_key = _display_to_key(casa)
     if not casa_key.strip():
         raise HTTPException(400, "Casa não informada.")
@@ -3538,7 +3746,7 @@ async def eventos_sse(dono: str = Depends(dono_efetivo)):
     captura de um operador reflete na tela do supervisor na hora. O evento não
     carrega dado (só o dono que mudou); quem busca o dado é o loadData.
     """
-    entrada = _eventos.assinar([dono] + operadores_de(dono))
+    entrada = _eventos.assinar(escopo_de_leitura(dono))
     fila = entrada[1]
 
     async def gen():
@@ -3582,7 +3790,10 @@ async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo), re
     do arquivo), então o Starlette a resolve primeiro — /dashboard/data nunca cai
     no servidor de estáticos.
     """
-    escopo = [dono] + operadores_de(dono)   # dono + operadores dele (vazio p/ operador)
+    # Trial da demonstração lê a base `realtrial` junto com a própria; conta
+    # normal lê a dela + a dos operadores. Uma função só para os dois casos,
+    # porque a direção da união é oposta entre eles (ver `escopo_de_leitura`).
+    escopo = escopo_de_leitura(dono)
     # Cada dono do escopo lê da sua fonte: planilha AO VIVO (Apps Script /exec,
     # Fase 1) quando registrada, senão Postgres. O contrato de linha é idêntico
     # nos dois casos (o Code.gs espelha `dashboard_rows`), então o feed sai

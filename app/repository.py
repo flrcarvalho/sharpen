@@ -4534,3 +4534,77 @@ async def uso_resumo(dono: str, dias: int = 30, todos: bool = False) -> dict:
         "por_dia": [dict(r) for r in por_dia],
         "por_dono": [dict(r) for r in por_dono],
     }
+
+
+# ── Demonstração pública: dono efêmero por visitante (/realtrial) ────────────
+async def criar_sessao_trial(prefixo: str, dias: int) -> dict:
+    """Cria um dono EFÊMERO para um visitante da demonstração e o devolve.
+
+    A conta nasce ATIVA e SEM SENHA. Sem senha não é descuido: `verificar_
+    credenciais` é fail-closed (hash vazio nunca autentica), então a conta não
+    é logável pela tela de login — só pelo cookie que esta rota entrega. E a
+    `impressao_senha` de quem não tem hash é constante, então o cookie continua
+    válido pelos gates de `ler_token`.
+
+    Purga preguiçosa antes de criar, no mesmo padrão da lixeira de contas: sem
+    cron, o custo fica no caminho de quem chega.
+    """
+    import secrets
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        apagados = await _purgar_trials(conn, prefixo, dias)
+        for _ in range(8):
+            username = f"{prefixo}{secrets.token_hex(5)}"
+            criado = await conn.fetchval(
+                """INSERT INTO usuarios (username, status, role, nome)
+                   VALUES ($1, 'ativo', 'user', 'Visitante da demonstração')
+                   ON CONFLICT (username) DO NOTHING
+                   RETURNING username""",
+                username)
+            if criado:
+                return {"username": criado, "purgados": apagados}
+    raise RuntimeError("não consegui gerar um id de trial livre")
+
+
+async def _purgar_trials(conn, prefixo: str, dias: int) -> int:
+    """Apaga donos efêmeros vencidos e TUDO que eles geraram.
+
+    `starts_with` e não `LIKE '<prefixo>%'`: em LIKE o `_` do `trial_` é
+    curinga de um caractere, e o padrão pegaria `trialX…` também. É a mesma
+    família do prefixo que parecia livre e não estava (s316) — ali o regex
+    ancorado no formato não enxergava código nativo de casa.
+
+    Apaga o DADO antes do usuário: se a transação cair no meio, sobra usuário
+    sem dado (inofensivo) em vez de dado órfão sem dono (invisível e eterno).
+    """
+    velhos = [r["username"] for r in await conn.fetch(
+        """SELECT username FROM usuarios
+           WHERE starts_with(username, $1)
+             AND criado_em < NOW() - ($2 || ' days')::interval""",
+        prefixo, str(int(dias)))]
+    if not velhos:
+        return 0
+    async with conn.transaction():
+        for tabela in ("bilhetes", "parceiros", "tipsters", "custo_store", "caixa_mov"):
+            try:
+                await conn.execute(
+                    f"DELETE FROM {tabela} WHERE dono = ANY($1)", velhos)
+            except asyncpg.UndefinedTableError:
+                pass
+        await conn.execute("DELETE FROM usuarios WHERE username = ANY($1)", velhos)
+    logger.info("realtrial: purgados %d trial(s) vencido(s)", len(velhos))
+    return len(velhos)
+
+
+async def extracoes_do_trial(dono: str) -> int:
+    """Quantas extrações este visitante já gastou.
+
+    Conta `uso_tokens`, que tem uma linha por chamada a `/extrair` que consumiu
+    modelo — então extração que falhou antes da IA não queima crédito, e o
+    contador sobrevive a restart do serviço (o que um contador em memória não
+    faria: bastaria esperar um deploy para zerar).
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchval(
+            "SELECT count(*) FROM uso_tokens WHERE dono = $1", dono) or 0
