@@ -26,12 +26,28 @@ O QUE MUDA, E O QUE NÃO MUDA
 O que volta é o RÓTULO (`W` → `HW`) e a ODD (a derivada → a da casa). Com eles voltam o win
 rate, o ROI por faixa de odd e a assinatura de stake/odd que o matcher de tipster lê.
 
+O ERRO DA 1ª VERSÃO, e por que ele está escrito aqui
+---------------------------------------------------
+A 1ª versão deste script **reimplementou** a fórmula de HW em vez de chamar o veredito, e
+testou só ela: `retorno == (stake/2) × odd + stake/2`. Com **odd = 1,00** essa fórmula dá
+exatamente `stake` — a mesma conta do `V` —, e o `_veredito_do_retorno` só acerta porque
+testa `V` ANTES. Resultado: um void legítimo da Betboom (`#214973`, `Status:
+Devolvida/void (retorno = stake) → V`, stake 350, odd 1) foi reescrito como `HW`.
+
+O P/L é 0 nos dois casos, então nenhum número mudou — mas o rótulo passou a mentir. A lição
+é a mesma que o `CLAUDE.md` já dá para testes, valendo para script: **recorte o código real,
+não copie a fórmula.** Hoje a seleção chama `_veredito_do_retorno`, a mesma função do gate,
+então o script não pode divergir dele nem repetir esta classe de erro.
+
 SEGURANÇA
 ---------
-· Só toca linha cujo bloco cru está guardado em `sombra_rotulos` e cujo retorno bate com a
-  fórmula de HW **pela odd do bloco**, com a mesma tolerância do gate.
+· Só toca linha cujo bloco cru está guardado em `sombra_rotulos`, e o alvo é decidido pelo
+  **veredito canônico** (`_veredito_do_retorno`, com a odd do bloco), nunca por fórmula
+  reescrita aqui.
 · **Pula bilhete com correção humana** em `resultado` ou `odd`: decisão do dono manda sobre
-  captura, certa ou errada (regra do `CLAUDE.md`).
+  captura, certa ou errada (regra do `CLAUDE.md`). `--id <n>` restringe a bilhetes nomeados
+  e só ali a trava é ignorada — é assim que se desfaz o que ESTE script escreveu errado,
+  sem passar por cima de nenhuma edição de verdade do dono.
 · Grava por `atualizar_bilhete`, então a trilha fica em `correcoes` e a assinatura é
   reavaliada — `resultado` e `odd` não entram no hash, mas reusar o caminho oficial evita
   que a próxima coluna que entrar no hash nos pegue de surpresa.
@@ -41,6 +57,7 @@ USO:
     python scripts/corrigir_meia_vitoria_s356.py
     python scripts/corrigir_meia_vitoria_s356.py --dono Feca
     python scripts/corrigir_meia_vitoria_s356.py --dono Feca --aplicar
+    python scripts/corrigir_meia_vitoria_s356.py --id 214973 --aplicar
 """
 import argparse
 import asyncio
@@ -84,6 +101,9 @@ async def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dono", default=None, help="restringe a um dono (ex.: Feca)")
     ap.add_argument("--casa", default=None, help="restringe a uma casa (ex.: Bet365)")
+    ap.add_argument("--id", type=int, action="append", default=[], dest="ids",
+                    help="restringe a estes bilhetes (pode repetir). Só para eles a trava "
+                         "de correção humana é ignorada — ver o cabeçalho")
     ap.add_argument("--aplicar", action="store_true",
                     help="executa; sem isto é ENSAIO e nada no banco muda")
     args = ap.parse_args()
@@ -120,6 +140,10 @@ async def main() -> int:
                 "SELECT DISTINCT bilhete_id FROM correcoes WHERE campo IN ('resultado','odd')"):
             travados.add(r["bilhete_id"])
 
+        ids_pedidos = set(args.ids)
+        if ids_pedidos:
+            linhas = [l for l in linhas if l["id"] in ids_pedidos]
+            print(f"restrito a {len(ids_pedidos)} id(s) pedido(s): {sorted(ids_pedidos)}")
         alvos, pulados_humanos = [], 0
         for l in linhas:
             if l["sistema"]:
@@ -138,15 +162,21 @@ async def main() -> int:
             retorno = R._retorno_do_bloco(info, stake)
             if retorno is None:
                 continue
-            # é meia vitória pela odd da CASA, e a linha diz outra coisa?
-            if not _bate(retorno, (stake / 2) * odd_bloco + stake / 2):
-                continue
-            if l["resultado"] == "HW" and _bate(R._num_or_none(l["odd"]) or 0, odd_bloco):
+            # O VEREDITO CANÔNICO decide, não uma fórmula reescrita aqui. É ele que testa
+            # `V` antes de `HW` — e com odd 1,00 as duas contas dão o mesmo número, que foi
+            # como a 1ª versão deste script transformou um void da Betboom em meia vitória.
+            odd_ia = R._num_or_none(l["odd"]) or 0.0
+            res_novo, odd_nova = R._veredito_do_retorno(
+                stake, odd_ia, retorno, l["descricao"], info.get("odd_total"),
+                odd_bloco_manda=True)
+            odd_final = odd_nova or l["odd"]
+            n_final = R._num_or_none(odd_final) or 0.0
+            if res_novo == l["resultado"] and _bate(n_final, odd_ia):
                 continue                      # já está certo
-            if l["id"] in travados:
+            if l["id"] in travados and l["id"] not in ids_pedidos:
                 pulados_humanos += 1
                 continue
-            alvos.append((l, info.get("odd_total"), odd_bloco, retorno))
+            alvos.append((l, res_novo, odd_final, retorno))
 
         print(f"linhas conferidas: {len(linhas)} · a corrigir: {len(alvos)}"
               + (f" · puladas por correção humana: {pulados_humanos}" if pulados_humanos else ""))
@@ -156,26 +186,30 @@ async def main() -> int:
 
         print("\n" + "=" * 96)
         delta_pl = 0.0
-        for l, odd_txt, odd_bloco, retorno in alvos:
+        for l, res_novo, odd_txt, retorno in alvos:
             pl_a = R.calcular_pl(l["stake"], l["odd"], l["resultado"]) or 0.0
-            pl_n = R.calcular_pl(l["stake"], odd_txt, "HW") or 0.0
+            pl_n = R.calcular_pl(l["stake"], odd_txt, res_novo) or 0.0
             delta_pl += pl_n - pl_a
             print(f"#{l['id']:<7} {l['casa']:8} {l['parceiro'][:24]:24} {l['data']} "
                   f"stake={l['stake']:>9}  {l['resultado']} @ {str(l['odd'])[:12]:<12} "
-                  f"→  HW @ {odd_txt:<6}  (retorno {retorno:,.2f} · P/L {pl_a:,.2f}→{pl_n:,.2f})")
+                  f"→  {res_novo} @ {str(odd_txt):<6}  (retorno {retorno:,.2f} · "
+                  f"P/L {pl_a:,.2f}→{pl_n:,.2f})")
             print(f"          {(l['descricao'] or '')[:88]}")
         print("=" * 96)
         print(f"{len(alvos)} linha(s) · delta de P/L: R$ {delta_pl:+,.2f} "
               "(perto de zero por desenho — o que volta é o rótulo e a odd)")
         print("por conta:", Counter(l["parceiro"] for l, _, _, _ in alvos).most_common(8))
+        print("por veredito:",
+              Counter(f"{l['resultado']}→{r}" for l, r, _, _ in alvos).most_common())
 
         if not args.aplicar:
             print("\nENSAIO — nada foi alterado. Rode de novo com --aplicar.")
             return 0
 
         n = 0
-        for l, odd_txt, _ob, _r in alvos:
-            await R.atualizar_bilhete(l["id"], {"resultado": "HW", "odd": odd_txt}, l["dono"])
+        for l, res_novo, odd_txt, _r in alvos:
+            await R.atualizar_bilhete(l["id"], {"resultado": res_novo, "odd": odd_txt},
+                                      l["dono"])
             n += 1
         print(f"\n{n} linha(s) corrigida(s), com a trilha gravada em `correcoes`.")
         return 0

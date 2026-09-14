@@ -18,13 +18,14 @@ Mutações provadas — cada uma foi APLICADA ao código e o teste ao lado ficou
   4. tirar a exigência de linha partida no HL    → test_meia_derrota_exige_linha_partida
   5. escrever mesmo sem mudar o P/L              → test_nao_mexe_quando_o_dinheiro_nao_muda
 
-E as da s356, quando a odd do BLOCO passou a ser testada antes da odd da IA (6 de 7):
+E as da s356, quando a odd do BLOCO passou a ser testada antes da odd da IA (7 de 8):
   6. a odd do bloco perde a preferência    → test_meia_vitoria_com_a_odd_ja_adulterada…
   7. some a guarda de SISTEMA              → test_a_odd_do_bloco_nao_manda_em_bilhete_de_SISTEMA
   8. some a porta da PROCEDÊNCIA           → test_meia_vitoria_com_a_odd_ja_adulterada…
   9. a procedência não exige rótulo novo   → test_bilhete_PERDIDO_nao_tem_a_odd_reescrita…
  10. devolve a odd do bloco mesmo se igual → test_odd_igual_em_grafia_diferente_mantem…
  11. some o fallback para a odd da IA      → test_bloco_SEM_odd_cai_na_odd_da_linha
+ 12. `V` deixa de ser testado antes de HW  → test_void_com_odd_1_nao_vira_meia_vitoria
 
 Três coisas que as rodadas de mutação ensinaram e que ficam registradas:
 
@@ -39,7 +40,13 @@ Três coisas que as rodadas de mutação ensinaram e que ficam registradas:
     aritmético: `stake × o` e `(stake/2) × o + stake/2` só dão o mesmo número quando
     `o == 1,00`, e aí `retorno == stake` já devolveu `V` duas linhas antes — nenhuma das
     duas chega a ser testada. A ordem continua como está porque descreve a intenção, mas
-    não inventei asserção para ela.
+    não inventei asserção para ela. (A ordem do **`V`**, essa sim, tem gate: mutação 12.)
+  • **A função CRUA precisa de asserção própria, e não só o caminho do TSV.** A mutação 12
+    escapou enquanto o teste do void ia só por `corrigir_stake_tsv`: com `odd = 1,00` o
+    gate é inerte ali (V, W e HW pagam o mesmo, e ele só escreve quando o dinheiro ou a odd
+    mudam), então a ordem ficava sem cobertura nenhuma. **Foi exatamente por fora do TSV
+    que o defeito real aconteceu**: um script chamou `_veredito_do_retorno` direto. Onde
+    uma função é reusada por scripts, testar só o chamador principal é falso verde.
   • O lookbehind `(?<!potencial )` de `_RETORNO_TXT_RE` é MUTAÇÃO INÓCUA hoje: removê-lo
     não quebra nada, porque nenhum formato de casa escreve `retorno potencial <número>`
     colado. Não inventei asserção para ele — o porquê está em
@@ -214,6 +221,29 @@ def test_cashout_de_verdade_continua_virando_W_com_o_quociente():
     assert parts[9] == "W"
     assert parts[8] == "1,2121212121", "odd = retorno ÷ stake"
     assert info["financeiro"] == 1
+
+
+def test_void_com_odd_1_nao_vira_meia_vitoria():
+    """Com `odd = 1,00`, `(stake/2) × odd + stake/2` dá EXATAMENTE `stake` — a mesma conta
+    do `V`. As duas fórmulas colidem, e só a ORDEM separa: `V` é testado antes.
+
+    Não é hipótese: a 1ª versão do `corrigir_meia_vitoria_s356.py` reimplementou a fórmula
+    de HW sozinha, sem a ordem, e reescreveu como `HW` um void legítimo da Betboom (stake
+    350, odd 1, `Status: Devolvida/void (retorno = stake) → V`). O P/L é 0 nos dois, então
+    nenhum número denunciou — só o rótulo passou a mentir.
+    """
+    tsv = _linha({7: "350,00", 8: "1", 9: "V"})
+    parts, info = _saida(tsv, _bloco(stake="350,00", odd="1",
+                                     status="Devolvida/void (retorno = stake) → V"))
+    assert parts[9] == "V", "retorno igual à stake é void, não meia vitória"
+    assert parts[8] == "1"
+    assert info["financeiro"] == 0
+
+    # E a função CRUA, porque é ela que os scripts chamam. Pelo caminho do TSV a ordem é
+    # inerte com odd 1,00 (V, W e HW pagam o mesmo, e o gate só escreve quando o dinheiro
+    # ou a odd mudam), então testar só por ali deixaria a ordem sem gate nenhum — foi
+    # exatamente por fora do TSV que o void virou HW.
+    assert R._veredito_do_retorno(350.0, 1.0, 350.0, "Under 76,5 Pontos [A v B]", "1") == ("V", None)
 
 
 def test_bilhete_PERDIDO_nao_tem_a_odd_reescrita_pelo_bloco():
