@@ -13,10 +13,18 @@
 //   3. EXISTÊNCIA NÃO VEM DO BILHETE. O Fornecedor da tela de Custos é cadastro ∪ base:
 //      conta comprada custa antes da primeira aposta. Medido: 26 contas ativas
 //      cadastradas sem nenhum bilhete e 4 fornecedores só no cadastro.
+//   4. EIXO QUE NÃO RECORTA. O Operador entrou na barra da tela de Custos, porque a regra
+//      do projeto diz que ele e a Casa descrevem a CONTA e por isso os dois recortam
+//      custo — a tela aplicava metade. Filtro que aparece e não filtra é PIOR que filtro
+//      ausente: é o defeito da s322 com outra roupa.
 //
 // Tudo aqui é RECORTADO dos arquivos de produção — `cmpNome`/`recalcListasFiltro` do
-// filters.js e `_c2Fornecedores`/`normForn` do custos2.js/gestao.js. Teste que
-// reimplementa o código sob teste não detecta a mutação que o quebra (s286).
+// filters.js e `_c2Fornecedores`/`_c2sel`/`_c2passa`/`normForn` do custos2.js/gestao.js.
+// Teste que reimplementa o código sob teste não detecta a mutação que o quebra (s286).
+//
+// A seção 4 mora NESTE arquivo, e não no `recorte_custos.mjs`, que seria o vizinho
+// natural: aquele arquivo estava sendo editado por outra frente na mesma sessão. Se as
+// duas frentes se encontrarem de novo, o lugar certo dela é lá.
 //
 // O que este teste NÃO cobre, e é preciso dizer: o DOM. O `msRepintar` e o
 // `atualizarOpcoesFiltros` escrevem `innerHTML` e dependem de `msb_<id>`/`ms-opts-<id>`
@@ -135,6 +143,43 @@ console.log('3) Fornecedor da tela de Custos: cadastro UNIAO base');
   ok(comCad.join('|') === comCad.slice().sort(
     (a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true })).join('|'),
     'fornecedores em ordem pt-BR, veio: ' + comCad.join('|'));
+}
+
+console.log('4) o eixo Operador RECORTA de verdade na tela de Custos');
+{
+  // `_contaVida` (gestao.js) é quem sabe o operador de uma conta: ele sai do bilhete,
+  // não do cadastro. Aqui ele entra dublado porque o que se prova é o USO dele.
+  const VIDA = {
+    'Norte||KTO': { c1: { op: 'Feca' }, c2: { op: 'Lava' } },
+    'Âncora||Betão': { c3: { op: '' } },     // conta sem bilhete: operador desconhecido
+  };
+  const G = new Function('msGet', '_contaVida', [
+    recorte(CUSTOS2, 'function _c2sel(){', LF + '}', '_c2sel'),
+    recorte(CUSTOS2, 'function _c2opDaConta(', LF + '}', '_c2opDaConta'),
+    recorte(CUSTOS2, 'function _c2passa(', LF + '}', '_c2passa'),
+  ].join(LF + LF) + LF + 'return { _c2sel, _c2passa };');
+
+  const sel = (ops) => {
+    const S = { ca_custos_v2: new Set(), fo_custos_v2: new Set(), op_custos_v2: new Set(ops) };
+    return G(id => S[id] || new Set(), VIDA);
+  };
+
+  const semOp = sel([]);
+  ok(semOp._c2passa(semOp._c2sel(), 'KTO', 'Norte', 'c1'), 'sem selecao, tudo passa');
+  ok(semOp._c2passa(semOp._c2sel(), 'KTO', 'Norte', 'c2'), 'sem selecao, tudo passa (2)');
+
+  const soFeca = sel(['Feca']);
+  ok(soFeca._c2passa(soFeca._c2sel(), 'KTO', 'Norte', 'c1'),
+    'a conta do Feca passa com Feca selecionado');
+  ok(!soFeca._c2passa(soFeca._c2sel(), 'KTO', 'Norte', 'c2'),
+    'A CONTA DO LAVA TEM DE SAIR com Feca selecionado - senao o filtro nao filtra');
+  ok(!soFeca._c2passa(soFeca._c2sel(), 'Betão', 'Âncora', 'c3'),
+    'conta sem operador conhecido nao entra num recorte de operador');
+
+  // A omissão do 4º argumento é SIGNIFICATIVA: a tabela de preços é por par
+  // fornecedor × casa, e preço não pertence a operador nenhum.
+  ok(soFeca._c2passa(soFeca._c2sel(), 'KTO', 'Norte'),
+    'sem `conta`, o eixo Operador nao corta (tabela de precos)');
 }
 
 console.log(falhas ? LF + falhas + ' falha(s).' : 'opcoes_filtro: OK');

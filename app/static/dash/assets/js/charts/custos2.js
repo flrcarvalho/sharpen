@@ -98,11 +98,25 @@ function _c2range(){
 function _c2sel(){
   const ca = (typeof msGet === 'function') ? msGet('ca_custos_v2') : null;
   const fo = (typeof msGet === 'function') ? msGet('fo_custos_v2') : null;
-  return { ca: ca, fo: fo };
+  const op = (typeof msGet === 'function') ? msGet('op_custos_v2') : null;
+  return { ca: ca, fo: fo, op: op };
 }
-function _c2passa(sel, casa, forn){
+// Operador de uma CONTA. Ele nao e campo do cadastro: sai do bilhete, e quem ja o
+// resolve e o `_contaVida` (gestao.js), indexado por "fornecedor||casa" -> conta.
+// Reusar e obrigatorio -- derivar de novo aqui criaria uma segunda regua para a mesma
+// pergunta, e as duas divergiriam no primeiro ajuste.
+function _c2opDaConta(forn, casa, conta){
+  if (typeof _contaVida === 'undefined' || !_contaVida) return '';
+  const v = (_contaVida[forn + '||' + casa] || {})[conta || '__default__'];
+  return (v && v.op) || '';
+}
+// `conta` e OPCIONAL, e a omissao e significativa: o eixo Operador so recorta onde a
+// entidade TEM operador, que e a conta. A tabela de precos e por par
+// fornecedor x casa, e preco nao pertence a operador nenhum.
+function _c2passa(sel, casa, forn, conta){
   if (sel.ca && sel.ca.size && !sel.ca.has(casa)) return false;
   if (sel.fo && sel.fo.size && !sel.fo.has(forn)) return false;
+  if (conta !== undefined && sel.op && sel.op.size && !sel.op.has(_c2opDaConta(forn, casa, conta))) return false;
   return true;
 }
 
@@ -116,7 +130,7 @@ function _c2contas(){
   (typeof _contasVida !== 'undefined' && _contasVida ? _contasVida : []).forEach(p => {
     if (!p.adquirida_em || p.adquirida_em < r.de || p.adquirida_em > r.ate) return;
     const forn = normForn(p.fornecedor);
-    if (!_c2passa(sel, p.casa, forn)) return;
+    if (!_c2passa(sel, p.casa, forn, p.conta)) return;
     // As TRÊS camadas viajam separadas para a tela poder dizer de onde o número
     // veio. O total sai de `_custoDaConta`, que é a mesma função do KPI.
     const herdadoPar = (typeof custoData !== 'undefined' && custoData[forn + '||' + p.casa]) || 0;
@@ -219,10 +233,15 @@ function _c2Fornecedores(){
 
 function buildFiltersCustos(p, casas){
   const forns = _c2Fornecedores();
+  // Operador entra ao lado de Casa porque os dois descrevem a CONTA, e e por isso que
+  // os dois recortam custo (`CLAUDE.md`: Esporte e Tipster descrevem a APOSTA e ficam
+  // de fora). Ate a s358 a tela aplicava metade da regra. O `_grupoOperador` so desenha
+  // para quem supervisiona mais de um: dono solo nao ganha eixo nenhum.
   return `<div class="filters">
 ${_grupoPeriodo(p)}
     ${_grupoCasa(p, casas)}
     <div class="filter-group"><div class="filter-label">Fornecedor</div>${buildMS('fo_' + p, forns, 'Todos os fornecedores', p, '')}</div>
+    ${_grupoOperador(p)}
   </div>`;
 }
 
@@ -658,8 +677,11 @@ function _c2precos(){
   const contas = {};   // "forn||casa" -> Set(conta)
   const _add = (forn, casa, conta) => {
     if (!casa) return;
-    const k = normForn(forn) + '||' + casa;
-    (contas[k] = contas[k] || new Set()).add(conta || '__sem_nome__');
+    const f = normForn(forn);
+    // A CONTAGEM de contas do par tem de obedecer o recorte de Operador, senao a coluna
+    // "n contas" contaria conta que o filtro acabou de tirar da tela de cima.
+    if (!_c2passa(sel, casa, f, conta)) return;
+    (contas[f + '||' + casa] = contas[f + '||' + casa] || new Set()).add(conta || '__sem_nome__');
   };
   (typeof _contasVida !== 'undefined' && _contasVida ? _contasVida : [])
     .forEach(p => { if (!p.arquivado) _add(p.fornecedor, p.casa, p.conta); });

@@ -2,7 +2,8 @@
 
 Nasceu de um relato do Feca sobre a aba Tipsters: *"o filtro de Tipster está mto
 desatualizado. Falta dezenas de nomes"*. Medindo, eram três defeitos distintos, e
-nenhum deles gera erro — todos produzem uma lista que **parece** inteira:
+nenhum deles gera erro — todos produzem uma lista que **parece** inteira. Depois, com a
+auditoria das outras abas, entrou um quarto, da mesma família:
 
 1. **ORDEM.** `.sort()` puro ordena por código UTF-16, que joga minúscula e acento para
    depois do Z. Medido na base do Feca: **63 dos 76 tipsters fora do lugar** — `deLucca`,
@@ -20,8 +21,15 @@ nenhum deles gera erro — todos produzem uma lista que **parece** inteira:
    contas ativas cadastradas sem nenhum bilhete** e **4 fornecedores** (`Fernanda`,
    `amigo`, `richard`, `xxxx`) que só existem no cadastro.
 
+4. **EIXO QUE NÃO RECORTA.** O Operador entrou na barra da tela de Custos, porque a
+   regra do projeto diz que ele e a Casa descrevem a CONTA e por isso os dois recortam
+   custo — a tela aplicava metade. Filtro que aparece e não filtra é **pior** que filtro
+   ausente: é o defeito da s322 com outra roupa. O operador de uma conta não é campo do
+   cadastro, sai do bilhete, e quem já o resolve é o `_contaVida`.
+
 A prova de COMPORTAMENTO roda em `tests/js/opcoes_filtro.mjs`, que executa `cmpNome`,
-`recalcListasFiltro` e `_c2Fornecedores` RECORTADAS dos arquivos de produção.
+`recalcListasFiltro`, `_c2Fornecedores` e `_c2sel`/`_c2passa` RECORTADAS dos arquivos de
+produção. Provado por mutação: 9/9 detectadas.
 
 O que NÃO está coberto, e é preciso dizer: o DOM. `msRepintar` e `atualizarOpcoesFiltros`
 escrevem `innerHTML` e dependem dos nós `msb_<id>`/`ms-opts-<id>`; que a repintura
@@ -102,6 +110,19 @@ MUTACOES = [
      CUSTOS2,
      "const f = normForn(c.fornecedor); if (f) s.add(f);",
      "const f = c.fornecedor; if (f) s.add(f);"),
+    # Eixo Operador na tela de Custos: filtro que aparece e nao filtra e pior que ausente.
+    ("o eixo Operador aparece na barra e NAO recorta",
+     CUSTOS2,
+     "  if (conta !== undefined && sel.op && sel.op.size && !sel.op.has(_c2opDaConta(forn, casa, conta))) return false;",
+     "  // recorte por operador removido pela mutacao"),
+    ("o Operador passa a cortar tambem a tabela de precos, que nao tem conta",
+     CUSTOS2,
+     "  if (conta !== undefined && sel.op && sel.op.size",
+     "  if (sel.op && sel.op.size"),
+    ("o operador da conta deixa de vir do _contaVida e vira sempre vazio",
+     CUSTOS2,
+     "  return (v && v.op) || '';",
+     "  return '';"),
 ]
 
 

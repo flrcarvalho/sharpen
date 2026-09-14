@@ -579,6 +579,15 @@ function atualizarOpcoesFiltros(){
   if(typeof _c2Fornecedores==='function')msRepintar('fo_custos_v2',_c2Fornecedores());
 }
 
+// Esporte e Tipster entram JUNTOS em toda tela de P/L (s358). Os dois descrevem a
+// APOSTA, entao ou os dois recortam ou nenhum recorta -- ate aqui Esportes, Bookies,
+// Fornecedores e Metricas ofereciam Esporte e NAO Tipster, sem razao escrita em lugar
+// nenhum, e "o tenis do Arrudex" ou "a Bet365 so do LBB" eram perguntas que a tela nao
+// sabia responder. O eixo ja funcionava: `filtrarPagina` sempre leu `ti_<pagina>`; o que
+// faltava era a barra OFERECER.
+// O custo NAO segue junto, e isso e regra e nao esquecimento: `calcCostFiltered` recorta
+// so por Casa e Operador, que descrevem a CONTA. A conta Bet365 custou os mesmos R$ 900
+// quer se olhe tenis ou futebol -- e ja era assim para o Esporte, que a tela oferecia.
 function buildHTML(){
   const _L=recalcListasFiltro();
   const tipsters=_L.tipsters,sports=_L.sports,casas=_L.casas;
@@ -673,14 +682,14 @@ function buildHTML(){
 
       <!-- ESPORTES -->
       <div class="page" id="page-sports">
-        ${buildFilters('sports',sports,casas)}
+        ${buildFilters('sports',sports,casas,tipsters)}
         ${mkCard('sport_kpi','Resumo por Esporte','<div id="sportPortfolioKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:.75rem;margin-bottom:.75rem"></div><div class="tcard-sort"><span class="tcard-sort__lbl">Ordenar</span><div class="tcard-seg" id="sportSeg"><button data-k="pl" class="active" onclick="sportSortBy(this.dataset.k)">P/L</button><button data-k="roi" onclick="sportSortBy(this.dataset.k)">ROI</button><button data-k="to" onclick="sportSortBy(this.dataset.k)">Turnover</button><button data-k="wr" onclick="sportSortBy(this.dataset.k)">Win Rate</button><button data-k="vol" onclick="sportSortBy(this.dataset.k)">Volume</button></div><button class="tcard-dir" id="sportDir" onclick="sportSortDir()">↓</button></div><div class="tcard-grid" id="sportKpiCards"></div>')}
         ${mkCard('sport_chart','P/L por Esporte','<div id="sportTable"></div><div class="chart-wrap" style="min-height:300px;margin-top:.75rem"><canvas id="chartSport" role="img" aria-label="Esportes"></canvas></div>')}
       </div>
 
       <!-- CASAS DE APOSTAS -->
       <div class="page" id="page-casas">
-        ${buildFilters('casas',sports,casas)}
+        ${buildFilters('casas',sports,casas,tipsters)}
         ${mkCard('casa_kpi','Bookies — Visão Geral','<div id="casaPortfolioKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:.75rem;margin-bottom:.75rem"></div><div class="tcard-sort"><span class="tcard-sort__lbl">Ordenar</span><div class="tcard-seg" id="casaSeg"><button data-k="pl" class="active" onclick="casaSortBy(this.dataset.k)">P/L</button><button data-k="roi" onclick="casaSortBy(this.dataset.k)">ROI</button><button data-k="to" onclick="casaSortBy(this.dataset.k)">Turnover</button><button data-k="wr" onclick="casaSortBy(this.dataset.k)">Win Rate</button><button data-k="vol" onclick="casaSortBy(this.dataset.k)">Volume</button></div><button class="tcard-dir" id="casaDir" onclick="casaSortDir()">↓</button></div><div class="tcard-grid" id="casaKpiCards"></div>')}
         <!-- Atribuição por casa (s293): markup pintado por renderCasasFeudo (gestao.js).
              O CSS do pack é todo escopado em .tm-wrap — o wrapper é obrigatório.
@@ -755,7 +764,7 @@ function buildHTML(){
 
       <!-- FORNECEDORES & PARCEIROS -->
       <div class="page" id="page-parceiros">
-        ${buildFilters('parceiros',sports,casas)}
+        ${buildFilters('parceiros',sports,casas,tipsters)}
         <div id="parcKpiGrid"></div>
         ${mkCard('forn_custo_cards','Custo de Contas por Fornecedor','<div id="fornCustoCards"></div>')}
         <div class="row2">
@@ -805,7 +814,7 @@ function buildHTML(){
 
       <!-- MÉTRICAS -->
       <div class="page" id="page-metrics">
-        ${buildFilters('metrics',sports,casas)}
+        ${buildFilters('metrics',sports,casas,tipsters)}
         <div class="kpi-grid" id="metricsKPI"></div>
 
         <div class="metric-section">
@@ -1208,6 +1217,7 @@ const CT_KEY='custoTipsterData'; // {tipster: {YYYY-MM: value}, ...}
 const CG_KEY='custoGeralData';   // [{id, tipo, values: {YYYY-MM: value}}, ...]
 let ctData={}, cgData=[], ctMeta={};   // ctMeta: {tipster:{cobranca,parametro,ate}} (Fatia 3)
 let _ctServerBacked=false; // true quando o servidor já tem registro deste dono
+let _ctRepintou=false;     // o repaint da Visão Geral quando o custo chega roda UMA vez
 let _ctHadLegacy=false;    // true quando havia custo legado no localStorage no load
 
 function _ctHasVal(k,empty){const v=localStorage.getItem(k);return !!v&&v!==empty&&v!=='null';}
@@ -1228,6 +1238,20 @@ async function ctLoad(){
       else{_ctServerBacked=false;} // servidor vazio p/ este dono
     }
   }catch(e){/* offline: fica no cache local já carregado */}
+  // O custo chega DEPOIS do primeiro render (é fetch), e desde a s358 ele desce no P/L
+  // Líquido — sem repintar, quem abre a Visão Geral vê `Custo de Tipsters R$ 0`,
+  // `Custos Gerais` fora da tela e um P/L Líquido inflado, até mexer em algum filtro.
+  // Medido na demo: o card dizia "nenhuma assinatura no período" com 10 tipsters
+  // lançados. Mesmo tratamento que o `contasLoad` (gestao.js) já dá ao cadastro.
+  // UMA vez por sessão, e o flag é o que impede o laço: `renderKPI` chama `ctLoad`, e sem
+  // ele o repaint chamaria `renderKPI` de novo, para sempre.
+  if(!_ctRepintou){
+    _ctRepintou=true;
+    try{
+      if(typeof renderKPI==='function'&&typeof filtrarPagina==='function'&&document.getElementById('kpiGrid'))
+        renderKPI(filtrarPagina('overview'));
+    }catch(e){}
+  }
 }
 
 // Save: sempre grava o cache local; sobe pro servidor SÓ quando seguro:
