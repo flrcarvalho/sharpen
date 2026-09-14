@@ -241,6 +241,79 @@ só o Jonathan: germano tinha 20 linhas assim e Jaao26 uma.
 > A pista para reconhecer isto noutra casa: o comprimento do código varia entre linhas da
 > **mesma** casa. Id de casa é de tamanho fixo; leitura de imagem, não.
 
+### O código que a IA inventou, e o par que nasceu no mesmo lote — s356
+
+Relato do Feca, sobre a conta `marloncezar01 [Richard]`: *"fiz mtas extrações agora, pois
+a conta de 1 aposta em aberto e eu nao conseguia resolver essas duas do print… vi q elas
+sao duplicadas, ou seja, temos o resultado delas em outra linha"*. Duas linhas paradas em
+`AGUARDANDO RESULTADO` numa conta que não tinha pendente nenhuma.
+
+As duas tinham causas **diferentes**, e é isso que faz o caso valer:
+
+```
+#265501  TQ8770485441W  aberta      ← a IA trocou a última letra
+#265341  TQ8770485441I  resolvida L    o robô mandou `…I` nas SEIS capturas
+
+#265429  (sem código)   aberta      ← órfã, cópia de um bloco já coberto
+#265405  GQ9767190881I  resolvida L
+```
+
+**A prova de que o código foi inventado não veio de dedução, veio de duas tabelas que
+ninguém tinha usado para isso.** `sombra_rotulos` só grava a linha quando o código da IA
+existe no texto do robô (`parear_sombra`), e `bloco_visto` grava **todo** código do texto,
+tenha a IA acertado ou não. `TQ8770485441I` aparece seis vezes na sombra; `TQ8770485441W`,
+**zero**. Idem `JQ3249290491F` contra `JQ3249290491I`.
+
+Com `bloco_visto` como gabarito (desde 09/09), a taxa medida é **20 códigos inventados em
+9.475 bilhetes, 0,21%** — e não 3,3%, que foi o número da primeira medição, inflado porque
+a sombra só enxerga o que a IA acertou. Régua incompleta acusa vinte vezes mais.
+
+**A bet365 tem só TRÊS letras finais reais** — `I`, `W`, `F` —, e as contas reais usam
+exatamente essas três (`ndist=3`). As 23 letras restantes, quase uniformes, vinham todas
+da conta de demonstração `realtrial`, cujo export anonimizado randomiza o código: um
+artefato da demo contaminando a medição da base real. A troca medida é quase sempre
+`F ↔ I`: **22 pares em 26.609 códigos**.
+
+**O achado que mudou o conserto: 21 dos 22 pares nasceram no MESMO segundo.** Não era o
+código mudando entre capturas. Com o código falso na coluna 11, `conferir_cobertura` acha
+que o bilhete verdadeiro não voltou, **repesca**, e a linha repescada entra ao lado da
+inventada — o par sai pronto do mesmo lote. Por isso `_corrigir_codigos_fantasma` roda
+**antes** da cobertura; depois dela seria tarde.
+
+**A órfã tinha outro buraco, e ele era de lógica.** O descarte do `_reconciliar_orfas` só
+agia `if not livres` — isto é, se nenhum bilhete do texto tivesse ficado sem linha. A órfã
+#265429 era fiel ao bloco `GQ9767190881I`, que **já tinha linha própria**; o código não
+estava livre (logo não havia o que adotar) e o lote tinha outro código pendente (logo o
+descarte não rodou). Ela passou pelas duas portas e ficou `aberta` para sempre.
+
+**A varredura da base inteira, e o que ela isentou.** 170.306 linhas, agrupadas por
+conteúdo idêntico: 1.007 grupos, 1.084 linhas excedentes. **A maior parte não era
+defeito**, e separar isso foi metade do trabalho:
+
+| | linhas | |
+|---|---|---|
+| códigos distintos, os dois do robô | 412 | **aposta repetida de verdade** (166 grupos na mesma extração) |
+| repetição na planilha de origem | 191 | dado de origem |
+| conta de demonstração `realtrial` | 406 | código anonimizado randomizado |
+| descrição genérica ("Dupla", "Napoli") | 152 | não prova nada |
+| **defeito, fora da demo** | **126** | **−R$ 6.198,10 de P/L, R$ 24.672 de turnover** |
+
+O líquido esconde o tamanho: são **+R$ 8.185 de ganho falso e −R$ 14.383 de perda falsa**,
+em contas diferentes. Das 126, **120 duplicam com o mesmo resultado** (P/L em dobro), 3
+divergem no resultado e 3 deixaram linha aberta na grade. `archived` não protege nada
+disso: ele só controla a grade da extração, não o feed, os KPIs nem a Caixa.
+
+**Abertas fantasma na base inteira: 4.** As duas do print e duas da Betano do Tonelada
+(`Fluminense // Frances Tiafoe` contra `Todos ganham: Fluminense e Frances Tiafoe`, órfãs
+sem código). Das 1.274 abertas, 129 têm gêmea de mesma conta/data/stake/odd — e só essas 4
+têm a descrição batendo. As outras 125 são bilhetes diferentes com stake e odd repetidas:
+**a régua frouxa acusaria 32 vezes mais do que existe.**
+
+> O que este caso ensina sobre MEDIR: as duas vezes em que o número inicial estava errado,
+> o erro foi da régua, não do dado — a sombra incompleta inflando 20×, e a gêmea sem
+> descrição inflando 32×. Antes de reportar um número de defeito, procure a fonte que
+> prova o valor certo (aqui, `bloco_visto`) em vez da que apenas correlaciona.
+
 ### A assinatura que ficou para trás — s198 e s312
 
 `casa` e `parceiro` entram no hash de `_assinatura`. Trocar qualquer um dos dois sem

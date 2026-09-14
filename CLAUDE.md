@@ -734,10 +734,7 @@ e inteiro curto é achado dentro de qualquer odd (`2` vive dentro de `2,05`).
 > Os menus de esporte e mercado do editor de tipster **não** entram nesta lista: eles leem
 > o MASTER em tempo de execução (`/taxonomia`). Categoria criada aparece lá sozinha.
 
-> **Motivo:** categoria criada no MASTER e mapa de casa apontando para `Outros ⚠️`. A
-> **causa raiz era a DUPLICAÇÃO** — cada casa reescrevia a lista inteira de categorias.
-> Desde a camada fina, o §9 lista só o que a casa confirma, e a superfície de propagação
-> encolheu para as casas realmente afetadas.
+> **Motivo:** a causa raiz era a **DUPLICAÇÃO** — cada casa reescrevia a lista inteira.
 > → [o caso](docs/CASOS.md#as-três-categorias-que-ficaram-apontando-para-outros--13062026)
 
 **Checklist rápido ao criar/renomear/remover uma categoria:**
@@ -811,9 +808,14 @@ Três lugares seguram isso, e cada um cobre o que o outro não vê:
 
 - **`_reconciliar_orfas` (`app/main.py`)** — na extração. **Adota** (dá à órfã o código do
   bloco faltante de que ela é fiel, por `checar_fidelidade`, só com par único **nos dois
-  sentidos**) ou **descarta** (sobrou órfã e nenhum bilhete está sem linha própria → é
-  cópia). `conferir_cobertura` sozinha não resolve: ela cobra QUANTIDADE por código e a
-  repescagem só ACRESCENTA.
+  sentidos**) ou **descarta**. `conferir_cobertura` sozinha não resolve: ela cobra
+  QUANTIDADE por código e a repescagem só ACRESCENTA.
+  > **Dois** critérios de descarte. "Sobrou órfã e nenhum bilhete está sem linha própria"
+  > **exige que NADA tenha ficado livre**, e num lote grande quase sempre sobra um código:
+  > basta ele para a órfã atravessar as duas portas. O segundo a julga por si: fiel a
+  > **UM** único bloco do texto e aquele bloco **já tem linha própria** ⇒ segunda leitura
+  > do mesmo bilhete, e sai. Fiel a mais de um não decide nada — dois bilhetes idênticos
+  > existem de verdade, e descartar ali apagaria aposta real.
 - **Migração B do UPSERT** — no banco. A órfã já gravada é adotada quando o bilhete volta
   com código. **Compare a odd pela régua do sistema** (`chave_orfa` → `_norm_odd`): em
   string crua, `14` não é `14,00` e a adoção falha.
@@ -821,30 +823,41 @@ Três lugares seguram isso, e cada um cobre o que o outro não vê:
   texto colado) e texto com qualquer `[Código: ]` vazio — é o que a bet365 manda quando o
   detalhe não chegou, e descartar ali apagaria bilhete real.
 
-### Código lido de IMAGEM não é código. Marque a procedência.
+### Código ESCRITO PELA IA não é código — nem lendo texto. Confira contra o gabarito.
 
-O `codigo_bilhete` entra na assinatura, então um dígito trocado é um bilhete NOVO. Mas ele
-tem duas origens de confiabilidade oposta: da captura vem do `[Código: …]`, exato; do PRINT
-vem da IA lendo o card, e **em id longo ela erra quase sempre, diferente a cada leitura**
-(medido: 2 de 55 por print, contra 100% por captura).
-→ [o caso](docs/CASOS.md#o-mesmo-bilhete-com-5-códigos--blaze-s338)
+Um caractere trocado é um bilhete NOVO, e esta é a última coluna de identidade sem
+extração determinística: quem a escreve é a IA, copiando o `[Código: …]` do bloco. **Em
+lote de TEXTO ela erra 0,21%**; em id longo **de PRINT**, quase sempre e diferente a cada
+leitura. → [texto](docs/CASOS.md#o-código-que-a-ia-inventou-e-o-par-que-nasceu-no-mesmo-lote--s356)
+· [print](docs/CASOS.md#o-mesmo-bilhete-com-5-códigos--blaze-s338)
 
-**A coluna `codigo_ocr` carrega essa procedência**, e quem decide é o servidor: o
-`/extrair` sabe se o lote tinha imagem, o front só transporta o flag até o `/salvar`. No
-`ON CONFLICT` a fórmula é um **AND das duas pontas** — a confiança só DESCE. Uma leitura
-confiável limpa o código para sempre; nenhum print o rebaixa de volta.
+**O gabarito é o texto do robô, e sai de graça** (`codigos_do_texto`). Código que não está
+lá é inventado: `_corrigir_codigos_fantasma` (`app/main.py`) o troca pelo do bloco de que
+a linha é fiel — par único nos dois sentidos, nunca por semelhança de string, que em
+código sequencial (`…381I`/`…382I`) roubaria o vizinho. **Sem par único, ESVAZIA:** órfã
+tem três travas depois disso, código inventado não tem nenhuma.
 
-Com ela, a **Migração B'** adota a linha quando o mesmo bilhete volta pela captura com o
-código verdadeiro. Duas travas que a Migração B não precisa ter, porque aqui o candidato
-**carrega um código próprio** e adotar o errado não duplica, **sequestra** a identidade de
-outro bilhete: candidato **único**, e índice montado só quando o lote que chega é confiável
-(print não adota print). O que já está duplicado sai por
-`scripts/reparar_duplicatas_codigo_ocr.py`, com ensaio por padrão e olho humano.
+> ⚠️ **Roda ANTES da cobertura.** Com o código falso na coluna 11, `conferir_cobertura`
+> julga o bilhete verdadeiro faltante e **a repescagem entrega a segunda linha do par no
+> mesmo lote** — 21 dos 22 pares nasceram no mesmo segundo, não entre capturas.
+> **No-op onde o lote tem IMAGEM:** ali o código vem do card, legitimamente fora do texto.
+
+**A coluna `codigo_ocr` carrega a procedência do print**, e quem decide é o servidor. No
+`ON CONFLICT` a fórmula é um **AND das duas pontas** — a confiança só DESCE. Com ela, a
+**Migração B'** adota a linha quando o bilhete volta pela captura com o código verdadeiro:
+candidato **único** e índice montado só com lote confiável (print não adota print), porque
+aqui o candidato tem código próprio e adotar o errado não duplica, **sequestra** outro
+bilhete. O que já duplicou sai por `reparar_duplicatas_codigo_ocr.py` (print) e
+`reparar_duplicatas_codigo_fantasma.py` (texto), em `scripts/`, com ensaio e olho humano.
 
 > **Casa nova na captura = o histórico dela por print vira dívida.** Antes de ligar, meça o
 > comprimento dos códigos já gravados: variar entre linhas da MESMA casa é a assinatura do
 > defeito, e o backfill de `codigo_ocr` só é legítimo com prova de DATA (a captura não
 > existia), nunca por palpite de formato.
+
+> Sintoma para reconhecer isto noutro campo: uma coluna de IDENTIDADE que a IA transcreve.
+> Toda fonte que imprime o valor dá o gabarito de graça — comparar é uma linha, e sem ela
+> o erro não vira erro, vira registro novo.
 
 ### Fonte determinística manda; extração por IA congela.
 

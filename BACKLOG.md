@@ -384,6 +384,23 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 > Medido, com o número na mão, e parado esperando qual dos caminhos seguir. Nenhum destes é
 > dúvida técnica.
 
+**Duplicatas da s356 — os 2 grupos que o script se RECUSA a decidir sozinho:**
+- **Mbappe, Bet365/Feca/Taliacoelho01, 09/07.** `#48767` resolvida **W** (P/L +300,00) contra
+  `#48771` resolvida **L** (−100,00). Mesma stake, mesma odd, mesma descrição, mesma extração,
+  **as duas sem código** — não há no sistema nada que desempate, e escolher no escuro é
+  inventar dado. Precisa da memória do Feca ou do extrato da casa.
+  → `python scripts/reparar_duplicatas_codigo_fantasma.py --manter <id> --aplicar`
+- **Nathan Potter, Betfair/Jonathan/vanessadiasdevargas, 01/07.** `#45567` **W** (+160,42)
+  **sem** código contra `#47568` **L** (−200,53) **com** o código do robô
+  (`O/25272582/0000921`). Aqui a régua do repo aponta (*fonte determinística manda*, e a órfã
+  nunca dedupou), mas a escolha troca um W por um L e muda o P/L do Jonathan em **−R$ 360,95**:
+  é decisão do dono, não do script.
+- **A conta de demonstração `realtrial` tem 406 linhas excedentes** (−R$ 4.362,00). Elas não
+  saem limpando o banco: o export anonimizado (`scripts/realtrial/exportar.py`) **randomiza o
+  código**, então toda reimportação recria o problema — e foi esse randômico que contaminou a
+  primeira medição da bet365 (23 letras finais que a casa não usa). Corrigir o export vem
+  antes; `--incluir-demo` existe para o caso de o Feca querer só o banco limpo agora.
+
 **Badminton (s245) — medido, não aplicado (aguarda decisão do Feca):**
 - ~~2 bilhetes em `Outro`~~ **CORRIGIDO na própria sessão** (ids 125105/125106 → `Badminton`) via `scripts/corrigir_esporte_bilhete.py` (novo), que **reusa `atualizar_bilhete`** em vez de rodar UPDATE cru — assim a trilha em `correcoes` é gravada (2 linhas, `esporte: Outro → Badminton`) e a assinatura é reavaliada (não muda: `esporte` ∉ `_SIG_COLS`). Base do Feca: **19 → 21** bilhetes de badminton, P/L do tipster **Bad Milton** 169,67 → **547,17** (+377,50 = os dois W que estavam fora do esporte). Varredura por nome de atleta + faixa de mercado não achou **nenhum outro** badminton escondido em `Tênis`/`Outro` na base do Feca; os 18 "candidatos" que o filtro pegou são todos legítimos de **times** (eBasket, Rugby, Basquete) — a fronteira que a regra nova já declara.
 - **Superbet não emite esporte/liga no texto do bilhete. ✅ VIVA (s261).** `formatTicket` (`extensor/content.js:1034` — a linha `:911` que esta pendência citava é de outra função hoje) manda data, stake, odd, status e seleções, e **nenhum `Esporte (casa)`**; o grep dessa string no `content.js` só acha `:1292`, `:1457` e `:3148`, todos de outras casas. Fecharia o buraco de **todos** os esportes dessa casa, não só badminton — mas exige ler os nomes dos campos no JSON de `/user/{id}/tickets` (F12 → Network). Não há fixture de Superbet no harness.
@@ -724,6 +741,19 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 **Próximo passo (backlog vivo, um por vez):**
+- **O `CLAUDE.md` está 2,4 KB acima do teto e o `check_docs` está VERMELHO por isso (s356). VIVA, medida.**
+  67,4 KB contra o teto de 65. Já estava 1,3 KB acima desde a s353, que registrou e não
+  resolveu. A regra do invariante #10 é explícita: **não cortar regra, não cortar bloco de
+  sintoma, não subir o teto** — o que se move é **caso** para o `docs/CASOS.md`. Na s356 foram
+  movidos os casos da área tocada (dedup e propagação de categoria), o que só devolveu 0,5 KB.
+  O resto exige varrer seções que não estavam em jogo, e fazer isso no meio de uma correção
+  urgente arrisca mexer em regra sem estudar o caso dela. **É uma faxina própria**, com o
+  `CASOS.md` em 34 KB de 60 e espaço de sobra.
+- **`Backups/` guarda 223 cópias de `STATUS`/`HISTORICO` (28,7 MB) e o gate acusa isso a cada
+  rodada (s356). VIVA, medida.** O git já versiona os dois; o invariante #4 chama de peso puro
+  e manda podar além das últimas sessões / 90 dias. O FAIL é antigo e convive com todo commit,
+  o que é o pior estado possível para um gate: **vermelho que ninguém lê deixa de ser gate.**
+  Podar é ação destrutiva em arquivo do Feca, então não foi feito sem ele pedir.
 - **O `/casas` do `servidor_demo` não devolve o campo `captura` (s347). VIVA, medida.** A rota real passou a devolver `captura` na s345 (`GET /casas`), e o mock em `scripts/demo/servidor_demo.py` ficou com `{"casas": [...]}` só. Consequência: no demo o **selo de captura** e o **aviso antes de processar** nunca acendem sozinhos — todo harness que os exercite tem de alimentar `CASAS_CAPTURA` à mão, e um print de material de venda sai sem o selo sem que nada acuse. É uma linha no mock. **Sintoma para reconhecer isto noutro campo:** o demo serve o front REAL, então campo novo na rota é dívida silenciosa do lado dele.
 - **O `motivo` da lixeira carrega o número da sessão FIXO no script (s350). VIVA, medida.**
   `scripts/excluir_historico_fora_do_corte.py` monta o motivo com `s344` literal, então as 477

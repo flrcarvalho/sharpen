@@ -1202,7 +1202,7 @@ def _corrigir_codigos_fantasma(resultado: str, texto: str | None,
     nunca teve extração determinística, ao contrário da stake (`corrigir_stake_tsv`) e
     da 12ª (`anexar_sistema_tsv`).
 
-    Medido na s354 com `bloco_visto`/`sombra_rotulos`, que guardam o código que o robô
+    Medido na s356 com `bloco_visto`/`sombra_rotulos`, que guardam o código que o robô
     REALMENTE emitiu: 20 códigos inventados em 9.475 bilhetes (0,21%). Na bet365 a letra
     final real é só `I`, `W` ou `F`, e a troca é quase sempre `F ↔ I` — foi assim que
     `TQ8770485441I` (resolvido L) virou também `TQ8770485441W`, aberto para sempre, com
@@ -1342,7 +1342,7 @@ def _reconciliar_orfas(resultado: str, texto: str | None) -> tuple[str, dict]:
 
     # 2) Descarte — a órfã que sobrou é cópia de alguém que já tem a sua linha.
     #
-    # Dois critérios, e o segundo nasceu de um fantasma real (s354, a múltipla do
+    # Dois critérios, e o segundo nasceu de um fantasma real (s356, a múltipla do
     # Lankshear na bet365, id 265429): o primeiro exige que NENHUM bilhete do texto
     # tenha ficado sem linha, e num lote grande quase sempre sobra algum código livre —
     # basta um para a órfã atravessar as duas portas e ficar `aberta` para sempre.
@@ -1773,7 +1773,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
             accumulated = _reverse_tsv_rows(accumulated)
         # Cobertura: todo bilhete do texto virou linha? Roda DEPOIS da inversão para as
         # linhas repescadas entrarem na mesma ordem final.
-        # Código determinístico (s354): a 11ª coluna tem de ser um código que EXISTE no
+        # Código determinístico (s356): a 11ª coluna tem de ser um código que EXISTE no
         # texto do robô. Roda ANTES da cobertura de propósito — código inventado faz o
         # bilhete verdadeiro parecer faltante, e a repescagem então entrega a segunda
         # linha do par no mesmo lote.
@@ -1980,7 +1980,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
             logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
-        # Código determinístico (s354): ver a nota no seq. Antes da cobertura pelo mesmo
+        # Código determinístico (s356): ver a nota no seq. Antes da cobertura pelo mesmo
         # motivo — é a repescagem que transforma um código inventado em DUAS linhas.
         resultado, cod_fix = _corrigir_codigos_fantasma(resultado, texto, codigo_ocr)
         if cod_fix["fantasmas"]:
