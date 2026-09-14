@@ -746,35 +746,21 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   (Numeração própria do redesenho da RÉGUA — não confundir com as Fatias do
   [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md), que são da TELA.)
   Subiram as etapas 1 (custo de conta em regime de caixa), 2 (o parque na Visão Geral),
-  3 (o filtro de tipster recortando a assinatura), 4 (custos gerais descendo no P/L) e
-  5b (o `_c2num` lendo pelo `parseNum`). Falta a 5:
-  - **Etapa 5 — os resumos na régua velha.** `renderOvCusto` (`charts/overview.js`),
-    `_renderCustosKpi`/`renderCustoCards`/`renderCostPies` (`charts/gestao.js`) e o card de
-    custo do drill de tipster (`charts/performance.js`) calculam `custoData[par] × contagem`:
-    não enxergam custo próprio da conta nem preço por data (s348) e ignoram período. Ficam ao
-    lado de KPIs que usam `_custoDaConta`, medindo diferente na mesma tela. No mesmo balaio,
-    `renderMetrics` (`charts/gestao.js`) rotula de **"P/L Líquido"** um número que não desconta
-    custo nenhum.
-- **A extensão segue rotulando meia vitória como `Ganho → W` no bloco (s356). VIVA, medida.**
-  `_resultadoB3` (`extensor/content.js`) compara retorno com stake e chama de `W` tudo que
-  for maior — meia vitória inclusive. O backend deixou de se deixar enganar (o
-  `_veredito_do_retorno` agora testa as fórmulas com a odd do BLOCO antes da odd da linha),
-  então **o dado que entra hoje está certo**. O que continua errado é o TEXTO que a extensão
-  escreve, e ele é lido por uma IA que obedece rótulo. Corrigir na origem exigiria uma versão
-  nova da extensão e a distribuição manual para os testers, e a defesa do servidor já cobre o
-  caso — por isso ficou aqui, e não foi feito junto.
-  **Sintoma para reconhecer isto noutra casa:** o de-para de rótulo da extensão decide por
-  comparação de GRANDEZA (`retorno > stake`) em vez de pelas fórmulas. Onde houver meia
-  vitória, meia derrota ou linha asiática partida, essa comparação é sempre grosseira demais.
-- **O `CLAUDE.md` está 5,2 KB acima do teto e o `check_docs` está VERMELHO por isso (s358). VIVA, medida.**
-  70,3 KB contra o teto de 65. Era 67,4 na s356 e 66,3 na s353 — **cresce a cada sessão que
-  registra regra nova**, e a s358 somou 0,5 KB ao trocar a régua de custo (a seção já entrou
-  enxuta, com o caso inteiro no `CASOS.md`). A regra do invariante #10 é explícita: **não cortar regra, não cortar bloco de
-  sintoma, não subir o teto** — o que se move é **caso** para o `docs/CASOS.md`. Na s356 foram
-  movidos os casos da área tocada (dedup e propagação de categoria), o que só devolveu 0,5 KB.
-  O resto exige varrer seções que não estavam em jogo, e fazer isso no meio de uma correção
-  urgente arrisca mexer em regra sem estudar o caso dela. **É uma faxina própria**, com o
-  `CASOS.md` em 34 KB de 60 e espaço de sobra.
+  3 (o filtro de tipster recortando a assinatura), 4 (custos gerais descendo no P/L),
+  5b (o `_c2num` lendo pelo `parseNum`) e a parte da 5 que não depende de decisão:
+  - **O que sobrou da etapa 5 depende da Fatia 5 da TELA, que é decisão do Feca.** As três
+    telas que ainda somam `custoData × contagem` (sem custo próprio da conta, sem preço por
+    data, sem período) são exatamente as três que saem do menu na Fatia 5 do
+    [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md): **Custos de Contas**
+    (`_renderCustosKpi` / `renderCustoCards` / `renderCostPies` / `recalcCustos`),
+    **Custo de Tipsters** e **Fornecedores & Parceiros** (`renderParceiros`, que ainda põe
+    P/L filtrado ao lado de custo não filtrado). Consertar a régua delas é trabalho que a
+    remoção joga fora; por isso a etapa 5 parou aqui em vez de seguir. **Ou o Feca executa
+    a Fatia 5 e elas somem, ou ele decide mantê-las e aí a régua delas vira trabalho.**
+    O que sobrevivia em qualquer cenário já subiu na s358: o painel morto saiu, o custo do
+    drill de tipster passou a respeitar o período e a tela Métricas parou de chamar de
+    "P/L Líquido" um número sem custo.
+
 - **A Visão Geral tem largura mínima de ~844px e estoura abaixo de ~1100 de janela (s358). VIVA, medida.**
   Medido headless contra o `servidor_demo`, com a página carregada JÁ na largura (não por
   resize): com a janela em 1024 o iframe do dash fica com 760px e **45 elementos** passam

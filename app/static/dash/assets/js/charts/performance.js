@@ -273,7 +273,11 @@ function _seedDrillFromPage(p){
   return{qd:st.qd||0,qt:shifted?'':(st.qt||''),df:st.df||'',dt:st.dt||''};
 }
 
-function _sliceByPeriod(rows,st){
+// O intervalo {df,dt} do estado de período de um drill. Nasceu dentro do
+// `_sliceByPeriod` e saiu de lá na s358, quando o card de Custo passou a precisar do
+// MESMO intervalo: duas cópias da tradução divergiriam no primeiro atalho novo.
+// `df`/`dt` vazios = "Tudo".
+function _rangeDoPeriodo(st){
   const today=_today();
   let df='',dt='';
   if(st.qt==='hoje'){df=dt=today;}
@@ -282,6 +286,11 @@ function _sliceByPeriod(rows,st){
   else if(st.qt==='ytd'){df=new Date().getFullYear()+'-01-01';dt=today;}
   else if(st.qd>0){df=_ymd(new Date(Date.now()-st.qd*864e5));}
   else{df=st.df||'';dt=st.dt||'';}
+  return{df,dt};
+}
+
+function _sliceByPeriod(rows,st){
+  const{df,dt}=_rangeDoPeriodo(st);
   if(!df&&!dt)return rows;
   return rows.filter(r=>{
     if(df&&r.data<df)return false;
@@ -1170,10 +1179,19 @@ async function renderGestaoTipster(nome){
   const sorted=[...segs].sort((a,b)=>a.vigente_desde<b.vigente_desde?-1:1);
   let atual=null,desde=null;
   sorted.forEach(s=>{if(s.vigente_desde<=hoje){atual=s.valor;desde=s.vigente_desde;}});
-  // Custo do tipster = soma lançada na aba "Custo de Tipsters" (mesmo store, ctData).
+  // Custo do tipster no PERÍODO DO DRILL (s358). Somava todos os meses já lançados, então
+  // o card ficava parado enquanto o resto do drill mudava com o filtro de período logo
+  // acima dele — dois números da mesma tela medindo recortes diferentes, sem dizer.
+  // O valor vem do `parseNum` (app.js), a régua de número do projeto: um `replace(',','.')`
+  // lê `179.90` como 179,90 mas lê `1.200` como 1,2.
   if(typeof ctLoad==='function'){try{ctLoad();}catch(e){}}
   const ct=(typeof ctData!=='undefined'&&ctData[nome])?ctData[nome]:{};
-  const custo=Object.values(ct).reduce((a,v)=>a+(parseFloat((v||'').toString().replace(',','.'))||0),0);
+  const _rCusto=(typeof _rangeDoPeriodo==='function')?_rangeDoPeriodo(_drillPeriodSt||{}):{df:'',dt:''};
+  const _deM=_rCusto.df?_rCusto.df.slice(0,7):'0000-00';
+  const _ateM=_rCusto.dt?_rCusto.dt.slice(0,7):'9999-99';
+  const _num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);
+  const custo=Object.entries(ct).reduce((a,[m,v])=>(m>=_deM&&m<=_ateM)?a+_num(v):a,0);
+  const _custoCorte=(_rCusto.df||_rCusto.dt)?'no período do drill':'todos os meses';
   const money2=v=>window.MODO_PUBLICO
     ?`<span class="money"><span class="money-val">${(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}<span class="money-u">u</span></span></span>`
     :`<span class="money"><span class="money-sign">R$</span><span class="money-val">${(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></span>`;
@@ -1187,7 +1205,7 @@ async function renderGestaoTipster(nome){
     +`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.6rem">`
       +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Stake Atual</div><div class="kpi-val neu" style="${vS}">${atual!=null?money2(atual):dash}</div><div class="kpi-sub" style="${sbS}">valor de 1u vigente</div></div>`
       +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Última alteração</div><div class="kpi-val neu" style="${vS};font-family:var(--font-mono)">${fmtBR(desde)}</div><div class="kpi-sub" style="${sbS}">${desde?'da unidade':'sem escada definida'}</div></div>`
-      +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Custo</div><div class="kpi-val neu" style="${vS}">${custo>0?fmtR(custo):dash}</div><div class="kpi-sub" style="${sbS}">aba Custo de Tipsters</div></div>`
+      +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Custo</div><div class="kpi-val neu" style="${vS}">${custo>0?fmtR(custo):dash}</div><div class="kpi-sub" style="${sbS}">${_custoCorte}</div></div>`
     +`</div>`;
 }
 window.renderGestaoTipster=renderGestaoTipster;

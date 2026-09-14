@@ -43,8 +43,7 @@ async function loadCusto(){
     const r=await fetch('/custos/conta');
     if(r.ok){
       const d=await r.json();
-      if(d.existe){custoData=d.custo_conta||{};_custoServerBacked=true;_custoMirror();
-        if(typeof renderOvCusto==='function'){try{renderOvCusto();}catch(e){}}}
+      if(d.existe){custoData=d.custo_conta||{};_custoServerBacked=true;_custoMirror();}
       else{_custoServerBacked=false;} // servidor ainda sem custo por-conta deste dono
     }
   }catch(e){/* offline: fica no cache já carregado */}
@@ -61,8 +60,6 @@ function saveCusto(forn,casa,val){
   else if(!_custoHadLegacy){_custoServerBacked=true;_custoPush();}
   recalcCustos();
   renderCostPies();
-  // Atualiza card de custo na visão geral e na aba fornecedores
-  renderOvCusto();
   const{allForns,allCasas,contaCount}=_costState;
   if(allForns&&allForns.length)renderCustoCards(allForns,allCasas,contaCount);
 }
@@ -396,11 +393,10 @@ async function contasLoad(){
     _contasVida=todas;
     _contasCadastro=todas.filter(p=>!p.arquivado).map(p=>({casa:p.casa,conta:p.conta,fornecedor:p.fornecedor}));
   }catch(e){_contasCadastro=[];_contasVida=[];}   // offline: só bilhetes, como antes
-  // O cadastro chega DEPOIS do primeiro render (é um fetch): reconstrói o estado e
-  // repinta o card de custo da visão geral, igual ao que loadCusto() já faz.
+  // O cadastro chega DEPOIS do primeiro render (é um fetch): reconstrói o estado de
+  // custo para quem o lê depois (a aba Custos de Contas e o `_custoDaConta`).
   try{
     if(typeof DADOS!=='undefined')buildCostState(DADOS);
-    if(typeof renderOvCusto==='function')renderOvCusto();
   }catch(e){}
   return _contasCadastro;
 }
@@ -735,7 +731,11 @@ function renderMetrics(rows){
 
   const kpiEl=document.getElementById('metricsKPI');
   const kpiFixos=[
-    {l:'P/L Líquido',v:plTxt,c:pl>=0?'pos':'neg'},
+    // "P/L Bruto", não Líquido (s358): aqui é Σ lucro das apostas, sem custo nenhum. O
+    // card de mesmo nome na Visão Geral desconta contas, tipsters e gerais — mesmo nome
+    // com números diferentes em telas vizinhas é defeito de leitura, ainda que os dois
+    // números estejam certos. O número NÃO mudou; mudou o nome.
+    {l:'P/L Bruto',v:plTxt,c:pl>=0?'pos':'neg'},
     {l:'ROI',v:fmtPct(roi,2,true),c:roi>=0?'pos':'neg'},
     {l:'Win Rate',v:fmtPct(wr,1,false),c:'neu'},
     {l:'MDD Real',v:'R$ '+fmt(mddR,0),c:mddPct<15?'pos':mddPct<30?'neu':'neg'},
@@ -793,9 +793,9 @@ async function tipstersCadastroLoad(){
 //      apostas só em aberto sumia da aba inteira (feedback do João Henrique, 14/08/2026 —
 //      mesma família da aba Custos de Contas na s239).
 //   4. chaves de `ctData` com valor — INVARIANTE: custo lançado SEMPRE tem linha na tela.
-//      `renderOvCusto` (overview.js) soma `ctData` inteiro, sem olhar esta lista; sem a
-//      união o valor continuava batendo no KPI da visão geral com a linha para editá-lo
-//      fora da tela — cobrado e ineditável.
+//      O KPI da Visão Geral (`calcCustoTipsterFiltrado`) soma `ctData` sem olhar esta
+//      lista; sem a união o valor continuava batendo lá com a linha para editá-lo fora
+//      da tela — cobrado e ineditável.
 // localeCompare pt-BR porque `.sort()` é ASCII e jogava nome acentuado para o fim.
 function _ctTipsters(){
   const s=new Set();

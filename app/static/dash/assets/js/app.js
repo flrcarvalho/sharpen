@@ -849,8 +849,8 @@ function buildHTML(){
             <div class="metric-formula">Stake Média = Turnover <span class="op">÷</span> nº de apostas encerradas</div>
             <div class="metric-note">Mesmo critério do Turnover: Void fica fora do numerador e do denominador.</div>`,`<span class="metric-live neu" id="mv_stake">—</span>`)}
 
-          ${mkCard('m_pl','P/L Líquido',`
-            <div class="metric-desc">Resultado financeiro acumulado: a soma do lucro/prejuízo de cada aposta. É o número que mais importa no fim — entra em todas as métricas de risco abaixo.</div>
+          ${mkCard('m_pl','P/L Bruto',`
+            <div class="metric-desc">Resultado financeiro acumulado: a soma do lucro/prejuízo de cada aposta, <b>antes dos custos</b>. É o que entra em todas as métricas de risco abaixo — elas medem a curva das apostas, não a da operação. O <b>P/L Líquido</b>, que desconta contas, tipsters e gerais, fica na Visão Geral.</div>
             <div class="metric-formula">P/L = Σ lucro de cada aposta</div>
             <div class="metric-note">Como cada resultado vira lucro — W: +stake×(odd−1) · L: −stake · HW: +½·stake×(odd−1) · HL: −½·stake · V: 0 (devolvida).</div>`,`<span class="metric-live" id="mv_pl">—</span>`)}
         </div>

@@ -522,7 +522,10 @@ defeito.
 > alguém mexer num filtro. O flag `_ctRepintou` quebra o laço `renderKPI` → `ctLoad`.
 > Mesma família da chegada tardia do cadastro no `contasLoad`.
 
-> **Falta a etapa 5** (os resumos em `custoData × contagem`), no [`BACKLOG.md`](BACKLOG.md).
+> **As telas que ainda somam `custoData × contagem` são as TRÊS que saem do menu na
+> Fatia 5 do [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md)** (Custos de
+> Contas, Custo de Tipsters, Fornecedores & Parceiros). Consertar a régua delas é trabalho
+> que a remoção joga fora — e remover tela é decisão do Feca.
 
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 

@@ -30,6 +30,11 @@ Este arquivo o invoca e, em seguida, o prova por MUTAÇÃO — ver
 O que NÃO está coberto: o render (a legenda "N contas compradas no período", a cor do
 card e a Escada de Tinta ficam para o render headless), o `contasLoad` (fetch, dublado
 no .mjs) e o backfill SQL de `adquirida_em`, que só roda contra Postgres.
+
+Os três gates da etapa 5 (painel morto, custo do drill de tipster e rótulo das Métricas)
+são de RENDER e por isso provados por LEITURA de fonte, não por execução: o `.mjs` não
+monta DOM. Leitura de fonte pega a reversão, não pega o comportamento — o que confere o
+comportamento ali é o render headless contra o `servidor_demo`.
 """
 import re
 import shutil
@@ -127,6 +132,62 @@ def test_o_renderkpi_nao_reimplementa_a_regua_de_custo():
     )
     assert "replace(',','.')" not in ov.replace(" ", ""), (
         "voltou um parser de número caseiro ao renderKPI — o do projeto é o parseNum"
+    )
+
+
+def test_nao_sobrou_painel_de_custo_morto_na_visao_geral():
+    """`renderOvCusto` pintava `#ovCustoContent`, que saiu do HTML no commit 6e0399b e
+    nunca voltou: a função inteira (92 linhas, na régua velha `custoData × contagem`)
+    saía na primeira linha desde então, e três chamadas a mantinham viva no grep.
+
+    Código morto que CALCULA dinheiro é pior que código morto qualquer: ele aparece em
+    toda auditoria de custo como se fosse uma tela que discorda das outras."""
+    ov = OVERVIEW.read_text(encoding="utf-8")
+    ges = GESTAO.read_text(encoding="utf-8")
+    assert "ovCustoContent" not in ov, (
+        "voltou o `renderOvCusto`: ele pinta um elemento que não existe em HTML nenhum "
+        "e calcula custo pela régua velha (s358)"
+    )
+    assert "renderOvCusto()" not in ges, "sobrou chamada ao renderOvCusto no gestao.js"
+
+
+def test_o_custo_do_drill_de_tipster_respeita_o_periodo_do_drill():
+    """O card somava TODOS os meses lançados enquanto o resto do drill mudava com o
+    filtro de período logo acima dele. Dois números da mesma tela medindo recortes
+    diferentes, sem dizer qual é qual."""
+    perf = _sem_comentarios(PERFORMANCE.read_text(encoding="utf-8"))
+    m = re.search(r"^async function renderGestaoTipster\([^)]*\)\{.*?^\}", perf, re.S | re.M)
+    assert m, "renderGestaoTipster sumiu do performance.js"
+    corpo = m.group(0)
+    assert "_rangeDoPeriodo" in corpo, (
+        "o card de custo do drill voltou a ignorar o período do drill (s358)"
+    )
+    assert "parseNum" in corpo, (
+        "o card de custo do drill voltou a reparsear número por conta própria"
+    )
+    assert "_drillPeriodSt" in corpo, "o card não lê mais o período do drill"
+    # E a régua do período é UMA só: o slice das linhas usa a mesma função.
+    assert "_rangeDoPeriodo(st)" in perf, (
+        "o `_sliceByPeriod` parou de usar a mesma tradução de período do card de custo — "
+        "duas cópias divergem no primeiro atalho novo"
+    )
+
+
+def test_metricas_nao_chama_de_liquido_um_pl_sem_custo():
+    """A tela Métricas rotulava de "P/L Líquido" a soma do lucro das apostas, que não
+    desconta custo nenhum; o card de mesmo nome na Visão Geral desconta os três. Mesmo
+    nome com números diferentes em telas vizinhas é defeito de leitura, ainda que os dois
+    números estejam certos. O número não mudou — mudou o nome."""
+    ges = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
+    m = re.search(r"^function renderMetrics\([^)]*\)\{.*?^\}", ges, re.S | re.M)
+    assert m, "renderMetrics sumiu do gestao.js"
+    assert "'P/L Líquido'" not in m.group(0), (
+        "a tela Métricas voltou a chamar de 'P/L Líquido' um número que não desconta "
+        "custo nenhum (s358)"
+    )
+    app = (RAIZ / "app" / "static" / "dash" / "assets" / "js" / "app.js").read_text(encoding="utf-8")
+    assert "mkCard('m_pl','P/L Líquido'" not in app.replace(" ", ""), (
+        "o card da base de conhecimento voltou ao rótulo antigo"
     )
 
 
