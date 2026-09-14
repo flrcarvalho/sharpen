@@ -4,9 +4,17 @@
 // o render do item — e roda contra listas sintéticas. Nada aqui é reescrito à mão: uma
 // cópia do código no teste passaria verde enquanto a tela quebrava.
 //
-// Provado por MUTAÇÃO (7/7 detectadas): corte dos favoritos, inversão fav↔todos,
+// Provado por MUTAÇÃO (9/10 detectadas): corte dos favoritos, inversão fav↔todos,
 // contagem em mercado nunca usado, união perdendo a base, ordem não-alfabética, item
-// de tipster herdando a classe de mercado, e abreviação de milhar.
+// de tipster herdando a classe de mercado, abreviação de milhar, rodapé virando
+// `.ac-item` (selecionável) e rodapé voltando a cortar calado.
+//
+// A 10ª ESCAPOU e fica registrada em vez de virar asserção inventada: baixar o
+// `AC_TETO` de 200 para 50 não quebra nada aqui, porque o teto vive no `renderMenu` e
+// este harness recorta o `acSource` e o render do ITEM, não o `renderMenu`. Ela é
+// coberta do lado do pytest, por leitura do fonte
+// (`test_teto_do_menu_nao_morde_lista_de_NOMES`), que é onde a prova é honesta: aqui
+// seria preciso dublar o menu inteiro para provar um número.
 //
 // O que este teste NÃO cobre, e é preciso dizer: o gesto real no DOM (o duplo-clique
 // abrir o menu, o Enter aplicar, o blur salvar). Aqui só se prova que `isAC` reconhece
@@ -28,7 +36,10 @@ const corte = (ini, fim) => {
 };
 const src_carregar = corte('async function carregarMercados() {', LF + '}' + LF);
 const src_source = corte('  const _tem = (el, c)', '  };' + LF);
-const src_render = corte('    const mkt = isMkt(inp);', ").join('');");
+// Vai ate o fim da EXPRESSAO, incluindo o rodape "+N nomes" que a s358 pendurou no
+// `.join('')`. Parar no join deixaria o recorte com meia expressao e, pior, sem prova
+// nenhuma do rodape.
+const src_render = corte('    const mkt = isMkt(inp);', ": '');");
 
 // ── stubs ─────────────────────────────────────────────────────────────────
 const esportesList = ['Futebol', 'Tênis'], tipstersList = ['Peixe', 'LBB'];
@@ -55,13 +66,13 @@ const F = new Function('fetch', 'esc', 'esportesList', 'tipstersList', `
 `)(fetch, esc, esportesList, tipstersList);
 
 // Render do item: o trecho recortado escreve em menu.innerHTML e lê mercadosCont/isMkt/inp.
-const render = (classes, opts, cont) => new Function('esc', 'inp', 'opts', 'mercadosCont', `
+const render = (classes, opts, cont, cortou = 0) => new Function('esc', 'inp', 'opts', 'mercadosCont', 'cortou', `
   const menu = {};
   const _tem = (el, c) => el.classList.contains(c);
   const isMkt = el => _tem(el, 'js-ac-mercado') || _tem(el, 'js-ac-mercado-todos');
   ${src_render}
   return menu.innerHTML;
-`)(esc, { classList: { contains: c => classes.includes(c) } }, opts, cont);
+`)(esc, { classList: { contains: c => classes.includes(c) } }, opts, cont, cortou);
 
 const el = (...cs) => ({ classList: { contains: c => cs.includes(c) } });
 let ok = 0, ko = 0;
@@ -112,6 +123,17 @@ const hTip = render(['js-ac-tipster'], ['Peixe'], cont);
 t('item de tipster continua exatamente o de antes', hTip === '<div class="ac-item" data-i="0">Peixe</div>', hTip);
 const hMil = render(['js-ac-mercado'], ['Múltipla'], { 'Múltipla': 12345 });
 t('milhar em pt-BR, sem abreviar', hMil.indexOf('12.345') >= 0 && !/12,3k|12k/.test(hMil), hMil);
+
+console.log(LF + '5) lista truncada DIZ que truncou (s358)');
+// O teto era 50 e calado: com 76 tipsters, 26 nomes nao existiam para quem rolava. O
+// rodape nao pode ser `.ac-item` -- o clique e o teclado casam por essa classe, e um
+// rodape selecionavel aplicaria "+26 nomes" como se fosse um nome.
+const hCorte = render(['js-ac-tipster'], ['Peixe'], cont, 26);
+t('rodape aparece quando cortou', hCorte.indexOf('ac-mais') >= 0, hCorte);
+t('rodape diz QUANTOS ficaram de fora', hCorte.indexOf('+26') >= 0, hCorte);
+t('rodape NAO e selecionavel (sem a classe ac-item)', hCorte.split('ac-item').length === 2, hCorte);
+t('singular quando falta um so', render(['js-ac-tipster'], ['Peixe'], cont, 1).indexOf('+1 nome ') >= 0);
+t('sem corte, nenhum rodape', render(['js-ac-tipster'], ['Peixe'], cont, 0).indexOf('ac-mais') < 0);
 
 console.log(LF + ok + ' passaram · ' + ko + ' falharam');
 process.exit(ko ? 1 : 0);

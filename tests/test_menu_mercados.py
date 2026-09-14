@@ -78,6 +78,24 @@ def test_contagem_nao_usa_ink_mute(index: str):
     assert "font-size: 10px" in bloco, "a contagem saiu do piso de 10px"
 
 
+def test_teto_do_menu_nao_morde_lista_de_NOMES(index: str):
+    """O teto do autocomplete existe pela lista de MERCADOS (MASTER ∪ base, passa de
+    centena). Ele era 50 e CALADO: com 76 tipsters na base do Feca e 111 na `realtrial`,
+    dezenas de nomes não existiam para quem rolava a lista sem digitar — e lista truncada
+    em silêncio é indistinguível de nome que não existe.
+
+    O rodapé "+N nomes" (provado em `tests/js/menu_mercados.mjs`) já tira o silêncio; este
+    teste trava a outra metade, o VALOR. Abaixo de 200 o teto volta a morder lista de nome
+    próprio, que é o caso que originou a correção. O número não é mágico: é o maior
+    conjunto de nomes que o app mostra hoje (111 tipsters, 98 casas) com folga."""
+    m = re.search(r"const AC_TETO = (\d+);", index)
+    assert m, "a constante AC_TETO sumiu do autocomplete"
+    assert int(m.group(1)) >= 200, (
+        f"AC_TETO caiu para {m.group(1)}: nesse patamar o menu volta a cortar lista de "
+        "NOMES, e não só a de mercados"
+    )
+
+
 def test_contagem_nao_abrevia_milhar(index: str):
     """`toLocaleString('pt-BR')`, nunca `k`/`M` — a regra de milhar do check-tokens §d."""
     assert "n.toLocaleString('pt-BR')" in index

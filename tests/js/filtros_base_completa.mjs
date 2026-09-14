@@ -30,6 +30,7 @@ const lerJs = p => fs.readFileSync(p, 'utf8').split(CR + LF).join(LF);
 const APP = lerJs(process.env.ALVO_APP || path.join(RAIZ, 'app/static/dash/assets/js/app.js'));
 const SHARED = lerJs(process.env.ALVO_SHARED || path.join(RAIZ, 'app/static/dash/assets/js/charts/shared.js'));
 const APOSTAS = lerJs(process.env.ALVO_APOSTAS || path.join(RAIZ, 'app/static/dash/assets/js/charts/apostas.js'));
+const FILTERS = lerJs(process.env.ALVO_FILTERS || path.join(RAIZ, 'app/static/dash/assets/js/filters.js'));
 
 let falhas = 0;
 const ok = (cond, msg) => { if (!cond) { console.error('FALHOU: ' + msg); falhas++; } };
@@ -48,6 +49,9 @@ const linha = (src, ini, nome) => {
 // ── Sandbox: só código de produção, mais os dois stubs declarados acima ─────
 const pedacos = [
   recorte(APP, 'function parseNum(raw){', LF + '}', 'parseNum'),
+  // A dobra de busca vem do filters.js: o `_apostasColMatch` a chama, e recortar o
+  // chamador sem ela deixa o sandbox com a chamada e sem a definicao.
+  linha(FILTERS, 'function dobra(', 'dobra'),
   linha(SHARED, 'const APOSTAS_COLS=', 'APOSTAS_COLS'),
   linha(SHARED, 'const APOSTAS_NUM=', 'APOSTAS_NUM'),
   linha(APOSTAS, 'let apostasFiltered=[]', 'estado do sort'),
@@ -96,7 +100,9 @@ const L = (id, resultado, stake, odd, lucro, extra) => Object.assign(
   }, extra || {});
 const ENCERRADAS = [
   L(1, 'W', 100, 2.00, 100),
-  L(2, 'HW', 100, 3.00, 50),
+  // Mercado acentuado numa linha que JA existia: sem um acento na base a dobra nao morde
+  // e o teste fica verde a toa. Linha nova mudaria toda contagem do arquivo.
+  L(2, 'HW', 100, 3.00, 50, { aposta: 'Cart' + String.fromCharCode(0xF5) + 'es' }),
   L(3, 'L', 1000.5, 4.00, -1000.5),   // stake EXATAMENTE no limite (prova o >=, não o >)
   L(4, 'HL', 250, 1.50, -125),
   L(5, 'V', 300, 5.00, 0, { parceiro: 'conta2' }),
@@ -158,6 +164,18 @@ ok(F.estado().kpi === 3, 'odd entre 2 e 4 pega W(2,00), HW(3,00) e L(4,00) — b
 F.zerar(); F.setTexto(6, 'jogo 1'); F.reparte();
 ok(F.estado().kpi === 1, 'busca na descricao recorta sozinha (veio ' + F.estado().kpi + ')');
 ok(F.estado().abertas.length === 0, 'a busca vale tambem para as abertas');
+
+// A busca ignora ACENTO, nos dois sentidos. A descricao e o mercado sao o texto mais
+// acentuado da base ("Cartoes", "Nao", "Criquete"), e ate a s358 quem digitava sem acento
+// recebia ZERO linha -- que na tela nao se distingue de "nao existe".
+// As duas metades sao load-bearing: so a primeira passaria com um `dobra` aplicado apenas
+// na consulta, deixando o valor da linha acentuado e sem casar.
+F.zerar(); F.setTexto(5, 'cartoes'); F.reparte();
+ok(F.estado().kpi === 1, 'busca SEM acento acha o mercado COM acento (veio ' + F.estado().kpi + ')');
+F.zerar(); F.setTexto(5, 'CART' + String.fromCharCode(0xD5) + 'ES'); F.reparte();
+ok(F.estado().kpi === 1, 'busca COM acento e em MAIUSCULA acha o mesmo mercado (veio ' + F.estado().kpi + ')');
+F.zerar(); F.setTexto(5, 'cartoes x'); F.reparte();
+ok(F.estado().kpi === 0, 'a dobra nao afrouxa o resto do casamento: "cartoes x" nao existe');
 
 F.zerar(); F.setTexto(6, 'jogo 3'); F.setFaixa('stakeMin', '500'); F.reparte();
 ok(F.estado().kpi === 1, 'texto + faixa recortam juntos (veio ' + F.estado().kpi + ')');
