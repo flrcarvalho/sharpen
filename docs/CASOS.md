@@ -725,18 +725,51 @@ fora.
 
 ---
 
-## Custo de aquisição tem JANELA DE VIDA
+## Custo pertence ao dia em que o DINHEIRO SAIU
 
 ### A régua antiga: R$ 0 de custo com o parque inteiro em uso
 
-Antes, o custo da conta era lançado num **único dia** — o da **primeira aposta liquidada**.
-Filtrar qualquer outro dia dava **R$ 0**, mesmo com o parque de contas em pleno uso.
+Antes da s322, o custo da conta era lançado num **único dia** — o da **primeira aposta
+liquidada**. Filtrar qualquer outro dia dava **R$ 0**, mesmo com o parque de contas em
+pleno uso (vídeo do tester Jaao26: *"ele mostra que o meu custo de conta é zero, mas ele
+não necessariamente é zero porque eu ainda estou usando essas contas"*).
 
-A régua nova cobra o custo **cheio** em todo período que **cruza** a janela de vida da conta.
-Ela **não é aditiva**, e isso foi aceito com a conta na mesa: somar os dias de setembro dá
-muito mais que o custo de setembro. A alternativa — ratear pelos dias — foi **recusada de
-propósito**, porque rateio exige um horizonte arbitrário e a janela pelo uso não tem
-constante nenhuma.
+A s322 respondeu com a **janela de vida**: todo período que cruzasse `[ini, fim]` cobrava
+o custo cheio. Ela **não é aditiva**, e isso foi aceito com a conta na mesa. A alternativa
+— ratear pelos dias — foi **recusada de propósito**, porque rateio exige um horizonte
+arbitrário e a janela pelo uso não tem constante nenhuma.
+
+**O que a s358 mudou:** a janela de vida responde *"quanto vale o que está rodando"*, e
+essa não é a pergunta do P/L. Ela saiu do P/L e virou o **parque** — número de estoque,
+com rótulo próprio na tela. O pedido do Jaao26 continua atendido: no dia em que nada foi
+comprado, o card diz `R$ 0 · nenhuma compra no período` e o parque, logo abaixo, diz
+quantas contas estão rodando e quanto elas custaram.
+
+### As 10 contas que cobraram em setembro, e uma foi comprada — Jonathan, s358
+
+O tester relatou em áudio que o custo de contas *"puxou dobrado"*, foi atrás e não achou
+cadastro a mais: *"ele só esse mês está puxando com o custo contando 12 e foi uma só"*.
+
+Medido na base dele (setembro/2026): a tela cobrava **R$ 6.400 de 10 contas**; ele comprou
+**uma**, de **R$ 400**. E a prova aritmética, que é o que fecha o caso: somando os meses
+de maio a setembro, a régua de vida dava **R$ 39.800**; ele pagou **R$ 28.400**. Mesmo
+padrão nas outras bases medidas (realtrial: R$ 47.800 somados contra R$ 30.000 pagos).
+
+A régua não estava com defeito — ela respondia outra pergunta dentro do P/L. "Não posso
+pagar uma conta duas vezes: se paguei em agosto, ela pertence a agosto" (Feca). Daí a
+régua de **caixa**, que cobra a conta uma vez, no dia do pagamento, e por isso **soma**:
+os doze meses dão o ano, e dá para conferir na mão.
+
+**A armadilha que quase entrou junto:** datar o pagamento pelo `adquirida_em` sozinho.
+Em base migrada essa coluna foi **DEDUZIDA** por backfill (`LEAST(criado_em, 1ª aposta)`),
+não declarada — usá-la sem comparar com a 1ª aposta jogaria o custo de toda conta antiga
+no dia do **import**. Por isso a compra declarada só vence quando é **anterior** à 1ª
+aposta; fora disso quem paga é a 1ª aposta, que é piso medido.
+
+> Sintoma para reconhecer isto noutro número: um total que **não soma**. Se a parte de
+> cada mês somada não dá o ano, o número responde uma pergunta de ESTOQUE ("o que eu
+> tenho") disfarçada de pergunta de FLUXO ("o que eu gastei"). As duas são legítimas;
+> misturadas no mesmo card, uma cobra a outra.
 
 ---
 

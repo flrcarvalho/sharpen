@@ -152,7 +152,7 @@ function _buildContaVida(){
     const k=normForn(forn)+'||'+casa;
     if(!_contaVida[k])_contaVida[k]={};
     const c=conta||'__default__';
-    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:'',id:null,custo:0,adq:''};
+    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:'',id:null,custo:0,adq:'',pa:''};
     return _contaVida[k][c];
   };
   // 1) bilhetes — LIQUIDADOS e ABERTOS. Só `DADOS` deixaria de fora a conta que tem
@@ -164,6 +164,7 @@ function _buildContaVida(){
     if(!r.data)return;
     const v=_slot(r.fornecedor,r.casa,r.conta);
     if(!v.ini||r.data<v.ini)v.ini=r.data;
+    if(!v.pa||r.data<v.pa)v.pa=r.data;   // 1ª aposta PURA (sem o cadastro) — data do pagamento
     if(!v.fim||r.data>v.fim)v.fim=r.data;
     if(!v.op&&r.operador)v.op=r.operador;
   });
@@ -181,10 +182,42 @@ function _buildContaVida(){
   });
 }
 
-// Contas cujo custo vale no intervalo [de, ate] (ISO), com o custo já somado.
-// `casasSel`/`opsSel` são Sets vazios = "todas". Puro sobre `custoData` + `_contaVida`.
-function _custoNaJanela(de,ate,casasSel,opsSel,soCasa){
+// ── Data do PAGAMENTO da conta (s358) ────────────────────────────────────────
+// "Não posso pagar uma conta duas vezes. Se paguei em agosto, ela pertence a agosto"
+// (Feca). O custo de aquisição saiu do dinheiro no dia da compra, e é nesse dia que
+// ele entra no P/L. Qual dia é esse, na ordem que o Feca decidiu:
+//   1) `adquirida_em` DIGITADA, quando é anterior à 1ª aposta — é o dono declarando
+//      a compra, e ele sabe mais que a base;
+//   2) senão, a 1ª aposta (`pa`) — piso medido: a conta existia pelo menos ali. É o
+//      caso das contas migradas, cujo `adquirida_em` foi deduzido pelo backfill do
+//      `database.py` e portanto não declara nada que a 1ª aposta já não diga;
+//   3) conta cadastrada que nunca apostou: sobra o `adquirida_em` (= cadastro).
+// Sem nenhuma das três não há como datar o pagamento, e a conta não cobra em mês
+// nenhum. Ela continua existindo para o parque (`modo:'vivo'`), que é sobre ESTOQUE.
+function _dataPagamento(v){
+  if(!v)return'';
+  if(v.adq&&(!v.pa||v.adq<v.pa))return v.adq;
+  return v.pa||v.adq||'';
+}
+
+// Custo das contas no intervalo [de, ate] (ISO), já somado. `casasSel`/`opsSel` são
+// Sets vazios = "todas". Puro sobre `custoData` + `_contaVida`.
+//
+// `modo` decide a PERGUNTA, e as duas convivem de propósito (s358):
+//   'pago' (default) → "quanto saiu do bolso no recorte". É a régua do P/L: cobra a
+//        conta UMA vez, no mês do pagamento, e por isso SOMA (12 meses = o ano).
+//   'vivo'           → "quanto vale o que está rodando". É o parque: cobra toda conta
+//        viva no recorte, e NÃO soma (a mesma conta aparece em todo mês em que viveu).
+//        Número de estoque, nunca de gasto — fora do P/L, senão cobra duas vezes.
+//
+// A régua 'vivo' foi a única até a s358, inclusive no P/L: o Jonathan via 10 contas
+// cobrando em setembro tendo comprado uma ("ele só esse mês está puxando com o custo
+// contando 12 e foi uma só", em áudio). Medido na base dele: R$ 39.800 somando os
+// meses contra R$ 28.400 realmente pagos. Ver CLAUDE.md "Custo pertence ao dia em que
+// o dinheiro saiu".
+function _custoNaJanela(de,ate,casasSel,opsSel,soCasa,modo){
   if(!_contaVida)_buildContaVida();
+  const vivo=(modo==='vivo');
   let total=0,nContas=0;
   // Percorre CONTAS, não pares com preço (s348, Fatia 2): o custo agora pode ser da
   // conta, e uma conta com valor próprio num par sem preço de tabela existe. Com
@@ -196,9 +229,14 @@ function _custoNaJanela(de,ate,casasSel,opsSel,soCasa){
     if(soCasa&&casa!==soCasa)return;
     if(casasSel&&casasSel.size&&!casasSel.has(casa))return;
     Object.entries(contas).forEach(([nome,v])=>{
-      if(!v.ini||!v.fim)return;
       if(opsSel&&opsSel.size&&v.op&&!opsSel.has(v.op))return;
-      if(v.fim<de||v.ini>ate)return;   // janelas disjuntas → conta não vivia no período
+      if(vivo){
+        if(!v.ini||!v.fim)return;
+        if(v.fim<de||v.ini>ate)return;   // janelas disjuntas → conta não vivia no período
+      }else{
+        const pago=_dataPagamento(v);
+        if(!pago||pago<de||pago>ate)return;   // pagamento fora do recorte → não cobra aqui
+      }
       const c=_custoDaConta(forn,casa,nome);
       if(!(c>0))return;
       total+=c;nContas++;
@@ -207,29 +245,28 @@ function _custoNaJanela(de,ate,casasSel,opsSel,soCasa){
   return{total,nContas};
 }
 
-// Custo de contas do período SELECIONADO na página `p` (default 'overview').
+// Custo de contas PAGO no período selecionado da página `p` (default 'overview'). É o
+// número que desce no P/L Líquido, então é `modo:'pago'`: cada conta cobra uma vez só.
 //
-// Duas coisas mudaram de fonte junto com a régua (s322):
-//   · a janela vem do PERÍODO escolhido (`_selRange`), não do intervalo das linhas que
-//     sobraram. Recorte sem aposta nenhuma tinha custo 0 mesmo com o período na tela, e
-//     um mês filtrado encolhia até a última aposta dele;
-//   · o escopo vem do FILTRO, não das linhas. Casa e Operador descrevem a CONTA e seguem
-//     recortando; Esporte e Tipster descrevem a APOSTA e saíram — a conta Bet365 custou
-//     R$ 900 quer você olhe tênis ou futebol (decisão do Feca, s322).
+// A janela vem do PERÍODO escolhido (`_selRange`), não do intervalo das linhas que
+// sobraram (s322): recorte sem aposta nenhuma tinha custo 0 mesmo com o período na tela.
+// E o escopo vem do FILTRO, não das linhas: Casa e Operador descrevem a CONTA e recortam;
+// Esporte e Tipster descrevem a APOSTA e não recortam — a conta Bet365 custou R$ 900 quer
+// você olhe tênis ou futebol (decisão do Feca, s322, mantida na s358).
 function calcCostFiltered(p){
   const pag=p||'overview';
   const range=(typeof _selRange==='function')?_selRange(pag):null;
   const casasSel=(typeof msGet==='function')?msGet('ca_'+pag):null;
   const opsSel=(typeof msGet==='function')?msGet('op_'+pag):null;
   const{total,nContas}=_custoNaJanela(
-    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '');
+    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago');
   return{costConta:total,nContas};
 }
 
-// Custo de UMA casa no intervalo — popup drill-down de Bookies. Mesma régua de janela de
-// vida do KPI: duas contas de custo na mesma tela não podem medir coisas diferentes.
+// Custo de UMA casa no intervalo — popup drill-down de Bookies. Mesma régua do KPI da
+// Visão Geral: duas contas de custo na mesma tela não podem medir coisas diferentes.
 function calcCasaCost(nomeCasa,de,ate){
-  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa);
+  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa,'pago');
 }
 
 // ── Cadastro de contas (tabela `parceiros`) ───────────────────────────────────

@@ -413,9 +413,9 @@ function renderCasaDrill(rows){
   const avgOdd=stk>0?wt/stk:0;
   const plCls=pl>=0?'pos':'neg';
   const roiCls=roi>=0?'pos':'neg';
-  // Custo da casa no PERÍODO SELECIONADO — não no intervalo das linhas (s322). Com a
-  // janela de vida, uma conta viva custa no período mesmo sem ter apostado nele, e derivar
-  // das linhas encolhia o período até a última aposta que sobrou no recorte.
+  // Custo da casa PAGO no PERÍODO SELECIONADO — não no intervalo das linhas (s322), que
+  // encolhia o período até a última aposta que sobrou no recorte. Régua de caixa (s358):
+  // a conta cobra no mês em que foi comprada, uma vez só.
   const _sel=(typeof _selRange==='function')?_selRange('casas'):null;
   const _minDate=_sel?_sel.from:'0000-01-01';
   const _maxDate=_sel?_sel.to:'9999-12-31';
@@ -437,7 +437,7 @@ function renderCasaDrill(rows){
 
   const _custoCls=custoTotal>0?'neg':'neu';
   const _custoVal=custoTotal>0?fmtPL(-custoTotal):fmtR(0);
-  const _custoSub=custoTotal>0?`${nContasCusto} conta${nContasCusto!==1?'s':''} no período`:'sem custo configurado';
+  const _custoSub=custoTotal>0?`${nContasCusto} conta${nContasCusto!==1?'s':''} comprada${nContasCusto!==1?'s':''} no período`:'nenhuma compra no período';
   const _roiLiqCls=roiLiq>=0?'pos':'neg';
 
   body.innerHTML=

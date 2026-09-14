@@ -443,53 +443,54 @@ reformatado quebrar o CI em vez da tela.
 
 ---
 
-## Custo de aquisição tem JANELA DE VIDA. Um dia e um mês da mesma conta custam igual.
+## Custo pertence ao dia em que o DINHEIRO SAIU. A conta não se paga duas vezes.
 
-O custo da conta é **único, pago na compra**, e existe enquanto a conta existe. Todo
-período filtrado que **cruza** a janela cobra o custo **cheio** daquela conta:
+O custo de aquisição saiu do bolso na compra, e é lá que ele entra no P/L. Todo período
+cobra **o que foi pago dentro dele**, e só isso — por isso a régua **soma**: os doze meses
+dão o ano, e dá para conferir na mão.
+→ [o caso](docs/CASOS.md#as-10-contas-que-cobraram-em-setembro-e-uma-foi-comprada--jonathan-s358)
 
-```
-ini = menor(adquirida_em, 1ª aposta)
-fim = maior(última aposta, arquivada_em)   · HOJE p/ conta ativa ainda sem aposta
-```
+A data do pagamento, nesta ordem (`_dataPagamento`): **`adquirida_em` DIGITADA, quando
+anterior à 1ª aposta** (o dono declarando a compra) · **1ª aposta**, liquidada ou aberta
+(piso medido: a conta existia ali) · **`adquirida_em`** para conta cadastrada que nunca
+apostou · nenhuma das três: não dá para datar, e a conta não cobra em mês nenhum.
 
-Comprou dia 01 e usou até o 22: qualquer recorte dentro disso cobra, o dia 28 não cobra,
-o mês inteiro cobra uma vez.
-→ [a régua antiga, e por que mudou](docs/CASOS.md#a-régua-antiga-r-0-de-custo-com-o-parque-inteiro-em-uso)
+> ⚠️ **A 2ª camada é o que segura base importada.** O `adquirida_em` de conta migrada foi
+> **DEDUZIDO** por backfill (`LEAST(criado_em, 1ª aposta)`) e não declara nada; mandando
+> sozinho, toda conta antiga dataria o custo no dia do **import**.
 
-> ⚠️ **A régua NÃO é aditiva, e o preço foi aceito com a conta na mesa.** Somar os dias
-> de setembro dá muito mais que o custo de setembro, e o P/L Líquido de UM dia carrega o
-> custo cheio das contas vivas. Não "conserte" isso achando que é defeito. A alternativa
-> (ratear pelos dias) foi recusada de propósito: rateio exige um horizonte arbitrário, e
-> a janela pelo uso não tem constante nenhuma.
+**"Quanto vale o que está rodando" existe, FORA do P/L.** É o mesmo `_custoNaJanela` com
+`modo:'vivo'`: conta viva no recorte cobra cheio (`ini` = menor entre `adquirida_em` e a
+1ª aposta; `fim` = maior entre última aposta e `arquivada_em`, ou HOJE para conta ativa
+sem aposta). Foi a régua do P/L da s322 à s358 e **não soma** — a mesma conta reaparece em
+todo mês em que viveu. É **estoque**, nunca gasto: o **parque** na tela.
+→ [por que ela saiu do P/L](docs/CASOS.md#a-régua-antiga-r-0-de-custo-com-o-parque-inteiro-em-uso)
+
+> **Duas réguas na mesma tela pedem RÓTULO, não escolha.** "R$ 0 de custo" e "12 contas
+> rodando" são ambos verdadeiros no mesmo dia; sem a legenda dizendo qual é qual, o certo
+> parece defeito (família de "os dois números certos que pareciam defeito").
 
 **O escopo vem do FILTRO, não das linhas.** `Casa` e `Operador` descrevem a CONTA e
-recortam o custo; `Esporte` e `Tipster` descrevem a APOSTA e não recortam — a conta
-Bet365 custou R$ 900 quer se olhe tênis ou futebol. Pelo mesmo motivo `calcCostFiltered`
-não recebe mais `rows`: recorte sem aposta nenhuma tinha custo 0 com o período na tela, e
-um mês filtrado encolhia até a última aposta dele.
+recortam; `Esporte` e `Tipster` descrevem a APOSTA e não — a Bet365 custou R$ 900 quer se
+olhe tênis ou futebol. Por isso `calcCostFiltered` não recebe `rows`: recorte sem aposta
+dava custo 0 com o período na tela, e um mês filtrado encolhia até a última aposta dele.
 
-**O fim da janela vem do USO, então ele existe sem ninguém declarar nada.** `arquivada_em`
-só melhora o caso em que a conta foi encerrada de propósito. Arquivar carimba com
-`COALESCE` (arquivar duas vezes não empurra o fim); reativar **zera** o carimbo, senão a
-conta volta viva com o custo sumido dos dias em que já está em uso.
+**Arquivar não devolve dinheiro:** `arquivada_em` fecha a janela de **vida** (tira do
+parque) e não mexe no que já foi pago. Carimba com `COALESCE`; reativar **zera** o carimbo.
 
 **`bilhetes.data` guarda DD/MM/YYYY e ISO na MESMA coluna** (`_data_iso` converte só na
-saída). Todo backfill que leia data por SQL precisa dos dois ramos — ler só ISO acha quase
-nada e faz toda conta antiga nascer com a janela começando na data do **import**.
+saída). Backfill que leia data por SQL precisa dos dois ramos — só ISO acha quase nada e
+faz toda conta antiga nascer datada no **import**.
 
-**Fonte canônica:** `calcCostFiltered` / `_buildContaVida` / `_custoNaJanela`
-(`dash/assets/js/charts/gestao.js`) e `parceiros.adquirida_em` / `arquivada_em`
-(`database.py`). Gates: `tests/test_custo_janela_vida.py` (9 mutações, 9 detectadas) e os
-três testes de janela em `tests/test_repository_db.py`, que medem o RESULTADO do backfill
-— ele roda dentro de um `DO … EXCEPTION`, então erro sai como WARNING e o CI ficaria verde
-com a coluna vazia.
+**Fonte canônica:** `_dataPagamento` / `_custoNaJanela` / `calcCostFiltered` /
+`_buildContaVida` (`charts/gestao.js`) e `parceiros.adquirida_em` / `arquivada_em`
+(`database.py`). Gates: `tests/test_custo_janela_vida.py` (25 mutações, 25 detectadas, as
+DUAS réguas) e os três testes de janela em `tests/test_repository_db.py`, que medem o
+RESULTADO do backfill: ele roda num `DO … EXCEPTION`, então erro vira WARNING e o CI
+ficaria verde com a coluna vazia.
 
-> **Assimetria conhecida, ainda de pé:** o **Custo de Tipsters** (inline no `renderKPI`)
-> segue com a régua antiga — cobra o **mês inteiro** e **ignora todo filtro**, inclusive o
-> de tipster. Os dois cards ficam lado a lado medindo com réguas diferentes.
-
----
+> **Três telas ainda medem custo com a régua velha** (tipster, custos gerais e os resumos
+> em `custoData × contagem`): etapas 3 a 5 do redesenho da régua, no [`BACKLOG.md`](BACKLOG.md).
 
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 

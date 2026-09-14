@@ -742,6 +742,27 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 **Próximo passo (backlog vivo, um por vez):**
+- **Régua de caixa, etapas 3 a 5: três telas ainda medem custo com a régua velha (s358). VIVA, medida.**
+  (Numeração própria do redesenho da RÉGUA — não confundir com as Fatias do
+  [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md), que são da TELA.)
+  A etapa 1 (custo de conta em regime de caixa) subiu; a etapa 2 (parque) fecha a Visão
+  Geral; o resto do sistema segue como estava:
+  - **Etapa 3 — Custo de Tipsters.** `renderKPI` (`charts/overview.js`) soma `ctData` INTEIRO,
+    ignorando o filtro de tipster, e tira a janela de meses do intervalo das LINHAS em vez do
+    período (`_ymMin`/`_ymMax`). Consequência medida na base do germano: com 20 tipsters e
+    R$ 3.798 lançados, filtrar o Badminton mostra os R$ 3.798 de todos em vez dos R$ 2.000
+    dele. E recorte sem aposta nenhuma zera o custo de um mês que foi pago. **É o pedido do
+    tester Germano** (*"quando a gente filtrar só um tipster ficar os custos só dele"*).
+  - **Etapa 4 — Custos Gerais fora do P/L.** `cgData` (VPN, ferramentas, taxas) não entra em
+    `totalCost`. O Jonathan tem R$ 987/mai, R$ 1.468/jun e R$ 1.321/jul lançados que nunca
+    desceram no P/L Líquido dele. O Feca já aprovou a entrada.
+  - **Etapa 5 — os resumos na régua velha.** `renderOvCusto` (`charts/overview.js`),
+    `_renderCustosKpi`/`renderCustoCards`/`renderCostPies` (`charts/gestao.js`) e o card de
+    custo do drill de tipster (`charts/performance.js`) calculam `custoData[par] × contagem`:
+    não enxergam custo próprio da conta nem preço por data (s348) e ignoram período. Ficam ao
+    lado de KPIs que usam `_custoDaConta`, medindo diferente na mesma tela. No mesmo balaio,
+    `renderMetrics` (`charts/gestao.js`) rotula de **"P/L Líquido"** um número que não desconta
+    custo nenhum.
 - **A extensão segue rotulando meia vitória como `Ganho → W` no bloco (s356). VIVA, medida.**
   `_resultadoB3` (`extensor/content.js`) compara retorno com stake e chama de `W` tudo que
   for maior — meia vitória inclusive. O backend deixou de se deixar enganar (o
@@ -753,9 +774,10 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   **Sintoma para reconhecer isto noutra casa:** o de-para de rótulo da extensão decide por
   comparação de GRANDEZA (`retorno > stake`) em vez de pelas fórmulas. Onde houver meia
   vitória, meia derrota ou linha asiática partida, essa comparação é sempre grosseira demais.
-- **O `CLAUDE.md` está 2,4 KB acima do teto e o `check_docs` está VERMELHO por isso (s356). VIVA, medida.**
-  67,4 KB contra o teto de 65. Já estava 1,3 KB acima desde a s353, que registrou e não
-  resolveu. A regra do invariante #10 é explícita: **não cortar regra, não cortar bloco de
+- **O `CLAUDE.md` está 5,2 KB acima do teto e o `check_docs` está VERMELHO por isso (s358). VIVA, medida.**
+  70,3 KB contra o teto de 65. Era 67,4 na s356 e 66,3 na s353 — **cresce a cada sessão que
+  registra regra nova**, e a s358 somou 0,5 KB ao trocar a régua de custo (a seção já entrou
+  enxuta, com o caso inteiro no `CASOS.md`). A regra do invariante #10 é explícita: **não cortar regra, não cortar bloco de
   sintoma, não subir o teto** — o que se move é **caso** para o `docs/CASOS.md`. Na s356 foram
   movidos os casos da área tocada (dedup e propagação de categoria), o que só devolveu 0,5 KB.
   O resto exige varrer seções que não estavam em jogo, e fazer isso no meio de uma correção

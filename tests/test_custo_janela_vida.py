@@ -1,33 +1,35 @@
-"""Janela de vida da conta (s322) — o custo existe enquanto a conta existe.
+"""As DUAS réguas do custo de conta (s322 + s358).
 
-Reclamação do tester Jaao26, em vídeo: com o período em "Tudo" o KPI dizia
-`Custo de Contas −R$ 3.100,00` e, filtrando UM dia (05/09 → 05/09), virava `R$ 0` —
-com o parque inteiro de contas em uso. *"Ele mostra que o meu custo de conta é zero,
-mas ele não necessariamente é zero porque eu ainda estou usando essas contas."*
+Este arquivo nasceu na s322 provando a JANELA DE VIDA. Na s358 a régua do P/L virou
+CAIXA e a janela de vida continuou existindo para outra pergunta — as duas são
+provadas aqui.
 
-A causa: `calcCostFiltered` lançava o custo de aquisição num ÚNICO dia — o da primeira
-aposta LIQUIDADA — e só o cobrava quando o intervalo das LINHAS filtradas continha
-aquele dia. Qualquer outro recorte dava zero. E a conta comprada e ainda não usada não
-existia nesse mapa: ela entrava nos R$ 3.100 da aba Custos e nunca no KPI.
+    modo 'pago' (o P/L)  → o que saiu do bolso no recorte. Cada conta cobra UMA vez,
+        no dia do pagamento, e a régua SOMA: os 12 meses dão o ano.
+    modo 'vivo' (parque) → o que está rodando. Toda conta viva no recorte cobra cheio,
+        e a régua NÃO soma — por isso ela nunca entra no P/L.
 
-A régua nova (decisão do Feca): o custo é único, pago na compra, e todo período que
-cruzar `[ini, fim]` cobra o custo CHEIO da conta.
+O caso que virou a régua do P/L (Jonathan, em áudio, 14/09/2026): *"ele só esse mês
+está puxando com o custo contando 12 e foi uma só"*. Medido na base dele: setembro
+cobrava R$ 6.400 de 10 contas tendo ele comprado UMA, de R$ 400; e a soma dos meses
+dava R$ 39.800 contra R$ 28.400 realmente pagos. "Não posso pagar uma conta duas
+vezes: se paguei em agosto, ela pertence a agosto" (Feca).
 
-    ini = menor(adquirida_em, 1ª aposta)
-    fim = maior(última aposta, arquivada_em) — e HOJE p/ conta ativa ainda sem aposta
+A data do pagamento, na ordem decidida pelo Feca: `adquirida_em` DIGITADA quando é
+anterior à 1ª aposta; senão a 1ª aposta (piso medido, e o que vale para toda conta
+migrada, cujo `adquirida_em` foi DEDUZIDO pelo backfill); senão o cadastro.
 
-Consequência aceita e conhecida: a régua **não é aditiva** (somar os dias do mês dá
-muito mais que o custo do mês). É o preço de "o custo está lá enquanto a conta está
-viva", e o Feca confirmou o preço antes da implementação.
+O caso que criou a janela de vida (Jaao26, em vídeo) não sumiu: filtrar um dia dava
+R$ 0 com o parque em uso. Esse número deixou de ser custo e virou ESTOQUE.
 
-A prova de COMPORTAMENTO roda em `tests/js/custo_janela_vida.mjs`, que executa o
-`calcCostFiltered`, o `calcCasaCost` e o `_buildContaVida` RECORTADOS do arquivo de
-produção, mais o `_selRange` real do `filters.js`. Este arquivo o invoca e, em seguida,
-o prova por MUTAÇÃO — ver `test_mutacoes_sao_detectadas`.
+A prova de COMPORTAMENTO roda em `tests/js/custo_janela_vida.mjs`, que executa as
+funções RECORTADAS do arquivo de produção, mais o `_selRange` real do `filters.js`.
+Este arquivo o invoca e, em seguida, o prova por MUTAÇÃO — ver
+`test_mutacoes_sao_detectadas`.
 
-O que NÃO está coberto: o render (a legenda "N contas no período", a cor do card e a
-Escada de Tinta ficam para o render headless), o `contasLoad` (fetch, dublado no .mjs) e
-o backfill SQL de `adquirida_em`, que só roda contra Postgres.
+O que NÃO está coberto: o render (a legenda "N contas compradas no período", a cor do
+card e a Escada de Tinta ficam para o render headless), o `contasLoad` (fetch, dublado
+no .mjs) e o backfill SQL de `adquirida_em`, que só roda contra Postgres.
 """
 import re
 import shutil
@@ -53,13 +55,45 @@ def _sem_comentarios(codigo: str) -> str:
 # ── Gates baratos de leitura: apontam a linha exata se alguém reverter ────────
 
 def test_o_mapa_de_primeira_aposta_nao_voltou():
-    """`_firstBetMap` guardava só a 1ª aposta liquidada — é a régua velha inteira.
-    Enquanto ele não existir, ninguém reintroduz o lançamento em um dia só por engano."""
+    """`_firstBetMap` guardava só a 1ª aposta LIQUIDADA e lançava o custo naquele dia.
+    A régua de caixa data o pagamento pela 1ª aposta de QUALQUER estado (`v.pa`, que lê
+    `DADOS_ABERTAS` junto) e pela compra declarada — reintroduzir o mapa antigo devolveria
+    o ponto cego da s239 por baixo de uma régua que hoje parece a mesma coisa."""
     src = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
     assert "_firstBetMap" not in src, (
         "_firstBetMap voltou ao gestao.js: o custo volta a ser lançado no DIA da 1ª "
         "aposta e filtrar qualquer outro dia devolve R$ 0 (s322)"
     )
+
+
+def test_a_data_de_pagamento_tem_as_tres_camadas():
+    """Compra declarada ANTES da 1ª aposta manda; senão a 1ª aposta; senão o cadastro.
+    A ordem é a decisão do Feca (s358) e é o que impede base importada de datar o custo
+    inteiro no dia do import."""
+    src = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
+    m = re.search(r"^function _dataPagamento\([^)]*\)\{.*?^\}", src, re.S | re.M)
+    assert m, "_dataPagamento sumiu do gestao.js — o custo perdeu a régua de caixa"
+    corpo = m.group(0)
+    assert "v.adq" in corpo and "v.pa" in corpo, (
+        "_dataPagamento parou de olhar a compra declarada ou a 1ª aposta"
+    )
+    assert "v.adq<v.pa" in corpo, (
+        "a compra declarada voltou a mandar SEM ser comparada com a 1ª aposta: o "
+        "`adquirida_em` deduzido pelo backfill passa a datar o custo (s358)"
+    )
+
+
+def test_o_pl_usa_a_regua_de_caixa_e_nao_a_de_vida():
+    """As duas réguas convivem, e a de vida NÃO pode voltar ao P/L: é ela que cobrava a
+    mesma conta todo mês (10 contas em setembro, uma comprada — caso Jonathan)."""
+    src = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
+    for nome in ("calcCostFiltered", "calcCasaCost"):
+        m = re.search(r"^function " + nome + r"\([^)]*\)\{.*?^\}", src, re.S | re.M)
+        assert m, f"{nome} sumiu do gestao.js"
+        assert "'pago'" in m.group(0), (
+            f"{nome} parou de pedir o modo 'pago': o custo volta a ser cobrado em todo "
+            "mês em que a conta estiver viva (s358)"
+        )
 
 
 def test_a_janela_de_vida_le_liquidadas_e_abertas():
@@ -114,6 +148,58 @@ def test_prova_por_execucao_da_janela():
 # Cada par (de, para) é uma reversão plausível da mudança. Verde aqui sem esta lista
 # não provaria nada — foi assim que a s286/s287 pegaram dois falsos verdes.
 MUTACOES = [
+    # ── s358: a régua de CAIXA (o que o P/L cobra) ──────────────────────────
+    (
+        "o P/L volta a cobrar toda conta VIVA (a regua ate a s358)",
+        "        const pago=_dataPagamento(v);",
+        "        const pago=(v.fim<de||v.ini>ate)?'':de;",
+    ),
+    (
+        "a compra declarada deixa de mandar sobre a 1a aposta",
+        "  if(v.adq&&(!v.pa||v.adq<v.pa))return v.adq;",
+        "",
+    ),
+    (
+        "a compra DEDUZIDA passa a mandar (base importada data no dia do import)",
+        "  if(v.adq&&(!v.pa||v.adq<v.pa))return v.adq;",
+        "  if(v.adq)return v.adq;",
+    ),
+    (
+        "a 1a aposta deixa de datar o pagamento",
+        "  return v.pa||v.adq||'';",
+        "  return v.adq||'';",
+    ),
+    (
+        "o slot para de guardar a 1a aposta pura",
+        "    if(!v.pa||r.data<v.pa)v.pa=r.data;",
+        "",
+    ),
+    (
+        "a conta paga fora do recorte passa a entrar",
+        "        if(!pago||pago<de||pago>ate)return;",
+        "",
+    ),
+    (
+        "conta sem data de pagamento nenhuma passa a cobrar",
+        "if(!pago||pago<de||pago>ate)return;",
+        "if(pago&&(pago<de||pago>ate))return;",
+    ),
+    (
+        "o KPI da Visao Geral volta para o modo 'vivo'",
+        "range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago');",
+        "range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'vivo');",
+    ),
+    (
+        "o drill de casa fica com regua diferente do KPI",
+        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa,'pago');",
+        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa,'vivo');",
+    ),
+    (
+        "o modo 'vivo' (parque) passa a medir pagamento — as duas reguas viram uma so",
+        "  const vivo=(modo==='vivo');",
+        "  const vivo=false;",
+    ),
+    # ── s322: a janela de vida, que hoje sustenta o parque ──────────────────
     (
         "janela vira 'só o INÍCIO dentro do período' (a régua velha)",
         "if(v.fim<de||v.ini>ate)return;",
