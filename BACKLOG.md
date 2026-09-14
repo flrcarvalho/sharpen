@@ -421,11 +421,13 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
   (`O/25272582/0000921`). Aqui a régua do repo aponta (*fonte determinística manda*, e a órfã
   nunca dedupou), mas a escolha troca um W por um L e muda o P/L do Jonathan em **−R$ 360,95**:
   é decisão do dono, não do script.
-- **A conta de demonstração `realtrial` tem 406 linhas excedentes** (−R$ 4.362,00). Elas não
-  saem limpando o banco: o export anonimizado (`scripts/realtrial/exportar.py`) **randomiza o
-  código**, então toda reimportação recria o problema — e foi esse randômico que contaminou a
-  primeira medição da bet365 (23 letras finais que a casa não usa). Corrigir o export vem
-  antes; `--incluir-demo` existe para o caso de o Feca querer só o banco limpo agora.
+- ~~Duplicatas na conta de demonstração `realtrial`~~ **DECIDIDO na s356: fica como está**
+  (*"realtrial n tem importancia algumo, so deixar com esta"*). São 201 linhas que o
+  `--incluir-demo` removeria, e elas voltariam na próxima importação de qualquer jeito,
+  porque o export anonimizado randomiza o código. **A lição que fica, essa sim válida:** foi
+  esse randômico que contaminou a primeira medição da bet365 (23 letras finais que a casa
+  não usa, contra as 3 reais). Dado sintético na mesma tabela do dado real **entra em toda
+  medição que ninguém filtrou** — separe por `dono` antes de concluir qualquer coisa.
 
 **Badminton (s245) — medido, não aplicado (aguarda decisão do Feca):**
 - ~~2 bilhetes em `Outro`~~ **CORRIGIDO na própria sessão** (ids 125105/125106 → `Badminton`) via `scripts/corrigir_esporte_bilhete.py` (novo), que **reusa `atualizar_bilhete`** em vez de rodar UPDATE cru — assim a trilha em `correcoes` é gravada (2 linhas, `esporte: Outro → Badminton`) e a assinatura é reavaliada (não muda: `esporte` ∉ `_SIG_COLS`). Base do Feca: **19 → 21** bilhetes de badminton, P/L do tipster **Bad Milton** 169,67 → **547,17** (+377,50 = os dois W que estavam fora do esporte). Varredura por nome de atleta + faixa de mercado não achou **nenhum outro** badminton escondido em `Tênis`/`Outro` na base do Feca; os 18 "candidatos" que o filtro pegou são todos legítimos de **times** (eBasket, Rugby, Basquete) — a fronteira que a regra nova já declara.
