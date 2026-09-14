@@ -40,6 +40,7 @@ const lerJs = p => fs.readFileSync(p, 'utf8').split(CR + LF).join(LF);
 // do gestao.js e confere que este arquivo fica vermelho.
 const GESTAO = lerJs(process.env.ALVO_GESTAO || path.join(RAIZ, 'app/static/dash/assets/js/charts/gestao.js'));
 const FILTROS = lerJs(path.join(RAIZ, 'app/static/dash/assets/js/filters.js'));
+const APP = lerJs(path.join(RAIZ, 'app/static/dash/assets/js/app.js'));
 
 let falhas = 0;
 const ok = (cond, msg) => { if (!cond) { console.error('FALHOU: ' + msg); falhas++; } };
@@ -53,8 +54,12 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_custoDaConta',
-      '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcParqueFiltered', 'calcCasaCost']
+      '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcParqueFiltered',
+      'calcCustoTipsterFiltrado', 'calcCasaCost']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
+  // `parseNum` é o parser de número do projeto (app.js) e o custo de tipster depende dele:
+  // dublá-lo aqui esconderia justamente a regra de milhar que separa 179,90 de 17.990.
+  recorteFn(APP, 'parseNum', 'app.js'),
   // Dependências REAIS do filters.js: `_selRange` é quem traduz o período escolhido na tela
   // (datas digitadas, atalho 7d/30d/90d, "Tudo") em {from,to}. Dublá-lo esconderia
   // justamente a metade da mudança que trocou a janela das LINHAS pela do PERÍODO.
@@ -64,13 +69,13 @@ const FONTE = [
 const API = new Function(`
   const FS = {}, MSS = {};                 // recipientes de estado (filters.js), não lógica
   const window = { __dono: 'Feca' };
-  let DADOS = [], DADOS_ABERTAS = [], custoData = {};
+  let DADOS = [], DADOS_ABERTAS = [], custoData = {}, ctData = {};
   let _contaVida = null, _contasVida = null, _precosForn = null;
   ${FONTE}
   return {
     set(cfg) {
       DADOS = cfg.dados || []; DADOS_ABERTAS = cfg.abertas || [];
-      custoData = cfg.custos || {}; _contasVida = cfg.cadastro || null;
+      custoData = cfg.custos || {}; _contasVida = cfg.cadastro || null; ctData = cfg.tipsters || {};
       _precosForn = cfg.precos || [];
       _contaVida = null;
       for (const k of Object.keys(FS)) delete FS[k];
@@ -84,7 +89,7 @@ const API = new Function(`
     // Sem crase neste comentário de propósito: ele vive DENTRO da template literal do
     // new Function, e uma crase aqui fecha a string (o caso da s296).
     parque(de, ate) { return _custoNaJanela(de, ate, null, null, '', 'vivo'); },
-    calcCostFiltered, calcParqueFiltered, calcCasaCost,
+    calcCostFiltered, calcParqueFiltered, calcCustoTipsterFiltrado, calcCasaCost, parseNum,
   };
 `)();
 
@@ -402,6 +407,81 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   ok(API.parque('2026-09-05', '2026-09-05').total === 0, 'depois do arquivamento a conta sai do parque');
   ok(API.parque('2026-09-02', '2026-09-02').total === 1700, 'antes do arquivamento ela ainda está lá');
   ok(API.calcCostFiltered('overview').costConta === 1700, 'e o mês da compra segue cobrando o que foi pago');
+}
+
+// ── T. Custo de TIPSTER: o filtro de tipster recorta (etapa 3) ──────────────
+// Pedido do Germano: "quando a gente filtrar so um tipster ficar os custos so dele".
+{
+  const cfg = {
+    custos: {}, dados: [bilhete('C', 'Betano', 'GN', '2026-09-10')], cadastro: [],
+    tipsters: {
+      'Badminton': { '2026-09': '2000,00' },
+      'Latino': { '2026-09': '207,00' },
+      'Beta': { '2026-08': '164,00' },
+    },
+    periodo: periodo('2026-09-01', '2026-09-30'),
+  };
+  API.set(cfg);
+  let r = API.calcCustoTipsterFiltrado('overview');
+  ok(r.total === 2207 && r.nTips === 2, 'setembro inteiro soma os dois tipsters do mes, veio ' + r.total);
+  API.set({ ...cfg, ms: { ti_overview: ['Badminton'] } });
+  r = API.calcCustoTipsterFiltrado('overview');
+  ok(r.total === 2000 && r.nTips === 1, 'com o Badminton filtrado, so o custo dele, veio ' + r.total);
+  API.set({ ...cfg, ms: { ti_overview: ['Beta'] } });
+  ok(API.calcCustoTipsterFiltrado('overview').total === 0, 'tipster sem lancamento no periodo custa 0');
+  // Casa, esporte e operador NAO recortam: assinatura nao e de casa nenhuma.
+  API.set({ ...cfg, ms: { ca_overview: ['Bet365'], sp_overview: ['Tenis'], op_overview: ['Lava'] } });
+  ok(API.calcCustoTipsterFiltrado('overview').total === 2207, 'casa/esporte/operador nao recortam o custo de tipster');
+}
+
+// ── T2. A janela vem do PERIODO, nunca das linhas ──────────────────────────
+// Era o `_ymMin`/`_ymMax` tirado das apostas que sobraram: mes pago SEM aposta nenhuma
+// valia R$ 0, e um filtro de esporte encolhia a janela do custo de todo mundo.
+{
+  const cfg = {
+    custos: {}, dados: [], abertas: [], cadastro: [],
+    tipsters: { 'Latino': { '2026-08': '207,00', '2026-09': '207,00' } },
+  };
+  API.set({ ...cfg, periodo: periodo('2026-09-01', '2026-09-30') });
+  ok(API.calcCustoTipsterFiltrado('overview').total === 207, 'mes pago sem aposta nenhuma continua custando');
+  API.set({ ...cfg, periodo: periodo('2026-08-01', '2026-09-30') });
+  ok(API.calcCustoTipsterFiltrado('overview').total === 414, 'dois meses somam duas mensalidades');
+  API.set({ ...cfg });   // "Tudo"
+  ok(API.calcCustoTipsterFiltrado('overview').total === 414, '"Tudo" pega todos os meses');
+  API.set({ ...cfg, periodo: periodo('2026-07-01', '2026-07-31') });
+  ok(API.calcCustoTipsterFiltrado('overview').total === 0, 'mes sem lancamento custa 0');
+}
+
+// ── T3. Mensal: o mes entra INTEIRO se um dia dele estiver no recorte ──────
+// Meia mensalidade nao existe, e ratear inventaria um numero que ninguem pagou.
+{
+  const cfg = {
+    custos: {}, dados: [], abertas: [], cadastro: [],
+    tipsters: { 'Latino': { '2026-09': '207,00' } },
+  };
+  API.set({ ...cfg, periodo: periodo('2026-09-14', '2026-09-14') });
+  ok(API.calcCustoTipsterFiltrado('overview').total === 207, 'um dia do mes cobra a mensalidade inteira');
+  API.set({ ...cfg, periodo: periodo('2026-09-28', '2026-09-30') });
+  ok(API.calcCustoTipsterFiltrado('overview').total === 207, 'o fim do mes cobra a mesma mensalidade');
+}
+
+// ── T4. O valor vem do parseNum, e a regra de milhar e por FORMA ───────────
+// Ha valor gravado como "179.90" na base real (2 linhas). Um separador so, com menos de
+// tres digitos depois, e DECIMAL — um parser que apaga o ponto le 17.990 (CLAUDE.md,
+// "as duas armadilhas de reparsear o que a tela imprimiu").
+{
+  ok(API.parseNum('179.90') === 179.9, 'um separador com 2 digitos depois e decimal, veio ' + API.parseNum('179.90'));
+  ok(API.parseNum('1.234') === 1234, 'grupo de 3 digitos e milhar, veio ' + API.parseNum('1.234'));
+  ok(API.parseNum('1.234,56') === 1234.56, 'ponto de milhar com virgula decimal, veio ' + API.parseNum('1.234,56'));
+  ok(API.parseNum('250,00') === 250, 'virgula decimal, veio ' + API.parseNum('250,00'));
+  const cfg = {
+    custos: {}, dados: [], abertas: [], cadastro: [],
+    tipsters: { 'SoChutes': { '2026-07': '179.90' }, 'Outro': { '2026-07': '1.200' } },
+    periodo: periodo('2026-07-01', '2026-07-31'),
+  };
+  API.set(cfg);
+  const t = API.calcCustoTipsterFiltrado('overview').total;
+  ok(Math.abs(t - 1379.9) < 0.001, '179.90 + 1.200 deveria dar 1379,90; veio ' + t);
 }
 
 // ── N. As TRES camadas do custo de uma conta (s348, Fatia 2) ────────────────

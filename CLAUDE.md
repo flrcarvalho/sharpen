@@ -498,8 +498,22 @@ DUAS réguas) e os três testes de janela em `tests/test_repository_db.py`, que 
 RESULTADO do backfill: ele roda num `DO … EXCEPTION`, então erro vira WARNING e o CI
 ficaria verde com a coluna vazia.
 
-> **Três telas ainda medem custo com a régua velha** (tipster, custos gerais e os resumos
-> em `custoData × contagem`): etapas 3 a 5 da régua, no [`BACKLOG.md`](BACKLOG.md).
+**A assinatura de TIPSTER é do tipster, e ali o filtro de tipster RECORTA**
+(`calcCustoTipsterFiltrado`): `ctData` é chaveado pelo nome, a mesma chave do filtro. Casa,
+esporte e operador continuam sem recortar. É mensal, então o mês entra INTEIRO se qualquer
+dia dele estiver no recorte — meia mensalidade não existe, e ratear inventaria um número
+que ninguém pagou. **Com um tipster filtrado, a legenda do card de conta diz `· da
+carteira`**: dois números vizinhos medindo escopos diferentes sem dizer isso leem como
+defeito.
+
+> ⚠️ **Todo valor de custo passa pelo `parseNum` (`app.js`), nunca por um
+> `replace(',','.')` caseiro.** Há valor gravado como `179.90`, e a régua do projeto lê
+> **179,90** (um separador só, com menos de 3 dígitos depois, é DECIMAL); um parser que
+> apaga o ponto lê **17.990**. Os dois valores existem na base e a tela Custos (prévia)
+> ainda lê pelo segundo — está no [`BACKLOG.md`](BACKLOG.md).
+
+> **Duas telas ainda medem custo com a régua velha** (custos gerais fora do P/L e os
+> resumos em `custoData × contagem`): etapas 4 e 5 da régua, no [`BACKLOG.md`](BACKLOG.md).
 
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 

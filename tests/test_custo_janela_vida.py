@@ -96,6 +96,40 @@ def test_o_pl_usa_a_regua_de_caixa_e_nao_a_de_vida():
         )
 
 
+def test_o_custo_de_tipster_recorta_por_tipster_e_por_periodo():
+    """Pedido do tester Germano. `ctData` é chaveado pelo NOME do tipster, a mesma chave
+    do filtro — aqui o tipster recorta de verdade, ao contrário do custo de conta."""
+    src = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
+    m = re.search(r"^function calcCustoTipsterFiltrado\([^)]*\)\{.*?^\}", src, re.S | re.M)
+    assert m, "calcCustoTipsterFiltrado sumiu do gestao.js"
+    corpo = m.group(0)
+    assert "'ti_'" in corpo, "o custo de tipster parou de respeitar o filtro de tipster"
+    assert "'ca_'" not in corpo and "'sp_'" not in corpo and "'op_'" not in corpo, (
+        "casa/esporte/operador voltaram a recortar a assinatura: ela não é de casa nenhuma"
+    )
+    assert "_selRange" in corpo, (
+        "a janela do custo de tipster voltou a sair das LINHAS em vez do período (s358)"
+    )
+    assert "parseNum" in corpo, (
+        "o custo de tipster deixou de usar o parseNum: valor gravado como '179.90' passa a "
+        "ser lido como 17.990 por um parser que apaga o ponto (CLAUDE.md §6 da regra de UI)"
+    )
+
+
+def test_o_renderkpi_nao_reimplementa_a_regua_de_custo():
+    """O cálculo mora no gestao.js, junto do custo de conta. Uma segunda cópia inline no
+    overview.js divergiria no primeiro ajuste — foi assim que este card ficou duas
+    sessões medindo diferente do vizinho."""
+    ov = _sem_comentarios(OVERVIEW.read_text(encoding="utf-8"))
+    assert "calcCustoTipsterFiltrado" in ov, "renderKPI parou de usar a régua canônica"
+    assert "_ymMin" not in ov and "_ymMax" not in ov, (
+        "o span de meses tirado das LINHAS voltou ao renderKPI (s358)"
+    )
+    assert "replace(',','.')" not in ov.replace(" ", ""), (
+        "voltou um parser de número caseiro ao renderKPI — o do projeto é o parseNum"
+    )
+
+
 def test_o_parque_pergunta_por_hoje_e_nao_pelo_periodo():
     """Parque é ESTOQUE: o que o dono tem agora. Deixá-lo seguir o filtro o faria variar
     como se fosse gasto, que é a confusão que a s358 desfez."""
@@ -162,6 +196,32 @@ def test_prova_por_execucao_da_janela():
 # Cada par (de, para) é uma reversão plausível da mudança. Verde aqui sem esta lista
 # não provaria nada — foi assim que a s286/s287 pegaram dois falsos verdes.
 MUTACOES = [
+    # ── s358 etapa 3: o custo de TIPSTER ────────────────────────────────────
+    (
+        "o custo de tipster volta a somar TODO tipster (ignora o filtro)",
+        "    if(tipsSel&&tipsSel.size&&!tipsSel.has(nome))return;",
+        "",
+    ),
+    (
+        "a janela do custo de tipster deixa de vir do periodo",
+        "  const deM=range?range.from.slice(0,7):'0000-00';",
+        "  const deM='0000-00';",
+    ),
+    (
+        "o mes fora do recorte passa a contar",
+        "    Object.entries(meses||{}).forEach(([m,v])=>{if(m>=deM&&m<=ateM)t+=num(v);});",
+        "    Object.entries(meses||{}).forEach(([m,v])=>{t+=num(v);});",
+    ),
+    (
+        "casa ou operador passam a recortar a assinatura",
+        "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;",
+        "  const tipsSel=(typeof msGet==='function')?msGet('ca_'+pag):null;",
+    ),
+    (
+        "o parser caseiro volta no lugar do parseNum (179.90 vira 17.990)",
+        "  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);",
+        r"  const num=(v=>parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0);",
+    ),
     # ── s358: o PARQUE (estoque, fora do P/L) ───────────────────────────────
     (
         "o parque passa a seguir o periodo da tela (vira gasto disfarcado)",

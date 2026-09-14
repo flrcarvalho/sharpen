@@ -277,6 +277,42 @@ function calcCostFiltered(p){
   return{costConta:total,nContas};
 }
 
+// ── Custo de TIPSTER do período (s358, etapa 3) ──────────────────────────────
+// Pedido do tester Germano: *"quando a gente filtrar só um tipster ficar os custos só
+// dele"*. Até aqui o `renderKPI` somava `ctData` INTEIRO — com 20 tipsters lançados,
+// filtrar o Badminton mostrava os R$ 3.798 de todos em vez dos R$ 2.000 dele.
+//
+// Duas coisas mudam junto, e a segunda é a que ninguém via:
+//   · o TIPSTER recorta. Aqui ele recorta de verdade, ao contrário do custo de conta:
+//     `ctData` é chaveado pelo NOME do tipster, que é a mesma chave do filtro. Casa,
+//     esporte e operador continuam sem recortar — a assinatura não é de casa nenhuma.
+//   · a janela vem do PERÍODO, não das linhas. O `_ymMin`/`_ymMax` antigo saía das
+//     apostas que sobraram no recorte, então mês pago SEM aposta nenhuma valia R$ 0, e
+//     um filtro de esporte encolhia a janela do custo de todo mundo.
+//
+// Mensal: o mês entra INTEIRO se qualquer dia dele estiver no recorte. Meia mensalidade
+// não existe, e ratear inventaria um número que ninguém pagou.
+//
+// O valor vem do `parseNum` (app.js), nunca de um `replace(',','.')` caseiro: há valor
+// gravado como `179.90`, que a régua do projeto lê como 179,90 (um separador só, com
+// menos de 3 dígitos depois, é DECIMAL) e um parser que apaga o ponto lê como 17.990.
+function calcCustoTipsterFiltrado(p){
+  const pag=p||'overview';
+  const range=(typeof _selRange==='function')?_selRange(pag):null;
+  const deM=range?range.from.slice(0,7):'0000-00';
+  const ateM=range?range.to.slice(0,7):'9999-99';
+  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;
+  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);
+  let total=0,nTips=0;
+  Object.entries((typeof ctData!=='undefined'&&ctData)||{}).forEach(([nome,meses])=>{
+    if(tipsSel&&tipsSel.size&&!tipsSel.has(nome))return;
+    let t=0;
+    Object.entries(meses||{}).forEach(([m,v])=>{if(m>=deM&&m<=ateM)t+=num(v);});
+    if(t>0){total+=t;nTips++;}
+  });
+  return{total,nTips};
+}
+
 // ── O PARQUE (s358) ──────────────────────────────────────────────────────────
 // "Quanto vale o que está rodando AGORA", que é a pergunta do vídeo do Jaao26 e a única
 // coisa que a janela de vida sempre respondeu bem. Não é custo do período e **não entra
@@ -1110,8 +1146,9 @@ async function renderTipsterMetodo(){
   if(!nomes.length){
     corpo=`<div style="color:var(--ink-mute);font-size:12px;padding:20px">Nenhum tipster cadastrado ainda. Eles aparecem aqui automaticamente quando você atribui um nome na extração.</div>`;
   }else{
-    const filtro=_tmQ.trim().toLowerCase();
-    const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
+    // `dobra` (filters.js): busca sem acento. `Araújo` tem de aparecer para quem digita `araujo`.
+    const filtro=dobra(_tmQ).trim();
+    const vis=nomes.filter(n=>!filtro||dobra(n).includes(filtro));
     corpo=_tmListaHTML(vis,!!filtro);
   }
   // Contagem no `.meta` do cabeçalho, e não numa pill acima do painel: a tabbar saiu junto
@@ -1192,10 +1229,10 @@ function casasBusca(v){_casasQ=v;renderCasasLista();}
 function _casaEhFeudo(c){return c.modo==='dedicada'||(!c.modo&&c.sugestao_modo==='dedicada');}
 function renderCasasLista(){
   const box=document.getElementById('casasList');if(!box)return;
-  const q=_casasQ.trim().toLowerCase();
+  const q=dobra(_casasQ).trim();
   // Curadoria VENCIDA sobe ao topo, antes de qualquer outro critério. O contador no cabeçalho
   // diz quantas são; sem a linha ao lado dele, contar vira caça manual numa lista de 40 casas.
-  const vis=_casasVisao.filter(c=>!q||(c.casa||'').toLowerCase().includes(q)).slice().sort((a,b)=>{
+  const vis=_casasVisao.filter(c=>!q||dobra(c.casa||'').includes(q)).slice().sort((a,b)=>{
     const va=a.curadoria_vencida?0:1,vb=b.curadoria_vencida?0:1;
     if(va!==vb)return va-vb;
     const fa=_casaEhFeudo(a)?0:1,fb=_casaEhFeudo(b)?0:1;
@@ -1297,8 +1334,8 @@ function _casaMselBuild(msel,casa){
     +'<input placeholder="buscar tipster…" oninput="_casaMselFilter(this)" onclick="event.stopPropagation()"></div>'+hint+'<div class="msel__list">'+rows+'</div>';
 }
 function _casaMselFilter(inp){
-  const q=inp.value.toLowerCase();
-  inp.closest('.msel__pop').querySelectorAll('.msopt').forEach(o=>{o.style.display=o.dataset.name.toLowerCase().indexOf(q)>-1?'':'none';});
+  const q=dobra(inp.value);
+  inp.closest('.msel__pop').querySelectorAll('.msopt').forEach(o=>{o.style.display=dobra(o.dataset.name).indexOf(q)>-1?'':'none';});
 }
 function casaMselPick(casa,nome,ev){
   ev.stopPropagation();
@@ -1445,9 +1482,9 @@ function tmBusca(v){
   _tmQ=v;
   const lista=document.getElementById('tmLista');
   if(!lista)return;
-  const filtro=(v||'').trim().toLowerCase();
+  const filtro=dobra(v).trim();
   const nomes=_tmSortNomes(Object.keys(_tmCadastro||{}));
-  const vis=nomes.filter(n=>!filtro||n.toLowerCase().includes(filtro));
+  const vis=nomes.filter(n=>!filtro||dobra(n).includes(filtro));
   lista.innerHTML=_tmListaHTML(vis,!!filtro);
   if(_tmOpen&&vis.includes(_tmOpen))tmRenderEditor(_tmOpen);
 }

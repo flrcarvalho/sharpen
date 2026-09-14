@@ -14,20 +14,13 @@ function renderKPI(rows){
   // Custo de contas — o que foi PAGO no período (s358). Não deriva de `rows`: o período
   // da tela é que manda, tenha ou não sobrado aposta nele. Ver `calcCostFiltered`.
   const{costConta,nContas:nContasCusto}=calcCostFiltered('overview');
-  // Custo de tipster — soma SÓ os meses dentro do período filtrado (assinatura é mensal;
-  // espelha o custo de conta, que já respeita a data via calcCostFiltered). Mês "YYYY-MM"
-  // entra se estiver no intervalo [menor, maior] mês das apostas filtradas. Sem filtro (tudo),
-  // o span cobre todos os meses → mesmo número de antes; só as visões filtradas mudam (fim
-  // do double-count: filtrar "julho" descontava jan..jul do custo). Ver achado Turbo overview.js.
+  const _temFiltroTipster=(typeof msGet==='function')&&msGet('ti_overview').size>0;
+  // Custo de tipster — só os meses do PERÍODO, e só os tipsters SELECIONADOS (s358).
+  // A régua mora no `calcCustoTipsterFiltrado` (gestao.js), junto do custo de conta: as
+  // duas linhas do mesmo card não podem medir de jeitos diferentes.
   if(!window.MODO_PUBLICO)ctLoad();   // público: /custos/store é autenticada (daria 401)
-  const _ymMin=rows.length?rows.reduce((m,r)=>r.data<m?r.data:m,'9999-99-99').slice(0,7):null;
-  const _ymMax=rows.length?rows.reduce((m,r)=>r.data>m?r.data:m,'0000-00-00').slice(0,7):null;
-  const costTipster=!_ymMin?0:Object.values(ctData).reduce((total,monthsObj)=>{
-    return total+Object.entries(monthsObj||{}).reduce((a,[m,v])=>{
-      if(m<_ymMin||m>_ymMax)return a;   // mês fora do período filtrado → não conta
-      return a+(parseFloat((v||'').toString().replace(',','.'))||0);
-    },0);
-  },0);
+  const{total:costTipster,nTips:nTipsCusto}=(!window.MODO_PUBLICO&&typeof calcCustoTipsterFiltrado==='function')
+    ?calcCustoTipsterFiltrado('overview'):{total:0,nTips:0};
   const totalCost=costConta+costTipster;
   const lucroLiq=lucro-totalCost;
 
@@ -42,9 +35,14 @@ function renderKPI(rows){
     // A legenda CONTA as contas (s322) e diz o que elas são (s358): sem isso, "R$ 0 num
     // mês com o parque inteiro em uso" lê como defeito. Papel de metadado (contador) na
     // Escada de Tinta: `.kpi-sub` já é --ink-mute em 10px, exatamente o piso desse papel.
+    // Com um tipster filtrado, o card ao lado passa a ser SÓ dele e este continua sendo o
+    // da carteira inteira. Dois números vizinhos medindo escopos diferentes sem dizer isso
+    // lê como defeito, e a conta Bet365 custou R$ 900 quer se olhe um tipster ou todos.
     {l:'Custo de Contas',v:costConta>0?fmtPL(-costConta):fmtR(0),c:costConta>0?'neg':'neu',
-     s:nContasCusto?(nContasCusto===1?'1 conta comprada no período':nContasCusto+' contas compradas no período'):'nenhuma compra no período',accent:''},
-    {l:'Custo de Tipsters',v:costTipster>0?fmtPL(-costTipster):fmtR(0),c:costTipster>0?'neg':'neu',s:'assinaturas / serviços',accent:''},
+     s:(nContasCusto?(nContasCusto===1?'1 conta comprada no período':nContasCusto+' contas compradas no período'):'nenhuma compra no período')
+       +(_temFiltroTipster?' · da carteira':''),accent:''},
+    {l:'Custo de Tipsters',v:costTipster>0?fmtPL(-costTipster):fmtR(0),c:costTipster>0?'neg':'neu',
+     s:nTipsCusto?(nTipsCusto===1?'1 tipster no período':nTipsCusto+' tipsters no período'):'nenhuma assinatura no período',accent:''},
     {l:'P/L Líquido',v:fmtPL(lucroLiq),c:lucroLiq>=0?'pos':'neg',s:'resultado final',accent:'hero'},
   ];
   // ── Andar 2: Turnover → ROI → Odd Média → Win Rate ──────────────────────
