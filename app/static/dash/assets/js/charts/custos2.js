@@ -191,10 +191,24 @@ function _c2totais(){
 // Composta com as PEÇAS de filters.js, nunca reescrita: duas barras de Período na
 // mesma tela divergem no primeiro ajuste (regra da s317 no CLAUDE.md). Esporte e
 // Tipster ficam de fora de propósito — descrevem a APOSTA e não recortam custo.
-function buildFiltersCustos(p, casas){
+// Fornecedores que EXISTEM, que e cadastro uniao base -- nao so quem ja apareceu num
+// bilhete. Esta e uma tela de CUSTO, e conta comprada custa antes da primeira aposta:
+// ler so o bilhete some justamente com o caso que a tela existe para cobrar.
+// Medido na base: 26 contas ativas cadastradas sem nenhum bilhete, e 4 fornecedores
+// (`Fernanda`, `amigo`, `richard`, `xxxx`) que so existem no cadastro.
+// `_contasCadastro` (gestao.js) chega por fetch DEPOIS do primeiro paint, entao esta
+// lista nasce so com a base e se completa no `renderCustos2`, que roda depois do
+// `contasLoad()` -- ver o `msRepintar` la embaixo.
+function _c2Fornecedores(){
   const _todas = DADOS.concat(typeof DADOS_ABERTAS !== 'undefined' ? DADOS_ABERTAS : []);
-  const forns = [...new Set(_todas.map(r => normForn(r.fornecedor)).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const s = new Set(_todas.map(r => normForn(r.fornecedor)).filter(Boolean));
+  (typeof _contasCadastro !== 'undefined' && _contasCadastro ? _contasCadastro : [])
+    .forEach(c => { const f = normForn(c.fornecedor); if (f) s.add(f); });
+  return [...s].sort(cmpNome);
+}
+
+function buildFiltersCustos(p, casas){
+  const forns = _c2Fornecedores();
   return `<div class="filters">
 ${_grupoPeriodo(p)}
     ${_grupoCasa(p, casas)}
@@ -455,6 +469,10 @@ function _c2js(x){ return String(x).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 function renderCustos2(){
   const host = document.getElementById('c2Body');
   if (!host) return;
+  // O cadastro de contas so chega aqui (o `contasLoad()` do renderPage). E o unico ponto
+  // em que o seletor de Fornecedor pode ganhar quem foi comprado e ainda nao apostou.
+  // `msRepintar` preserva a selecao e a busca digitada, entao repintar sempre e barato.
+  if (typeof msRepintar === 'function') msRepintar('fo_custos_v2', _c2Fornecedores());
   const r = _c2range(), t = _c2totais();
   const mes = _c2mesRotulo(r.mesRef);
   const umMes = r.meses.length === 1;

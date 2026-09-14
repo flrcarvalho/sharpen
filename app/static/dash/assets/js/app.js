@@ -574,6 +574,9 @@ function atualizarOpcoesFiltros(){
     msRepintar('op_'+p,L.operadores);
   });
   msRepintar('pa_apostas',L.parceiros);  // Conta: eixo próprio da Base Completa
+  // Fornecedor (Custos): fonte própria — cadastro ∪ base, não `_LISTAS`. Conta comprada
+  // e ainda sem aposta existe para a tela de custo, e só o cadastro sabe dela.
+  if(typeof _c2Fornecedores==='function')msRepintar('fo_custos_v2',_c2Fornecedores());
 }
 
 function buildHTML(){
