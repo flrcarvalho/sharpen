@@ -548,6 +548,10 @@ def _financeiro_do_texto(texto: str | None) -> dict[str, dict]:
             "pl": pl.group(1) if pl else None,
             "retorno": ret.group(1) if ret else None,
             "status": stt,
+            # Num SISTEMA a odd da LINHA é a MÉDIA das apostas (`MASTER_RESULTADO §7.3`) e a
+            # do bloco é a do cupom: são grandezas diferentes, e deixar a do bloco mandar no
+            # veredito reescreveria a média correta. Só aqui o `odd_total` deixa de ser fonte.
+            "sistema": bool(_SISTEMA_TXT_RE.search(corpo)),
         }
     return mapa
 
@@ -601,7 +605,8 @@ def _odd_da_stake(info: dict, resultado: str, stake: float) -> str | None:
 
 
 def _veredito_do_retorno(stake: float, odd: float, retorno: float, descricao: str,
-                         odd_bloco: str | None) -> tuple[str, str | None]:
+                         odd_bloco: str | None,
+                         odd_bloco_manda: bool = True) -> tuple[str, str | None]:
     """(resultado, odd nova ou None) que o RETORNO do bloco determina. Determinístico.
 
     São as cinco fórmulas de `calcular_pl` lidas ao contrário — dado o retorno, qual código
@@ -622,6 +627,19 @@ def _veredito_do_retorno(stake: float, odd: float, retorno: float, descricao: st
     (`extensor/content.js`) escreve `Ganho → W` para QUALQUER retorno maior que a stake —
     meia vitória inclusive. Um gate que lesse o rótulo reescreveria como W os 14 bilhetes
     HW que estão certos (medido na s321).
+
+    ⚠️ **A ODD DO BLOCO É TESTADA PRIMEIRO, e é isso que fecha a meia vitória** (s356). A
+    odd da IA não é fonte: é transcrição, e numa meia vitória rotulada `Ganho → W` a IA
+    fecha a conta aplicando a regra de cashout (`odd = retorno ÷ stake`, `MASTER_RESULTADO
+    §5.6`). O resultado é internamente consistente — `retorno == stake × odd` bate exato —
+    e por isso o gate confirmava `W` e nunca chegava a testar `HW`. Medido: 39 bilhetes,
+    todos em linha asiática partida, com a odd gravada em `1,475…` onde a casa mandou
+    `1,95`. O P/L não muda (é o mesmo retorno); erram a odd, o rótulo e toda estatística
+    que derive deles. → [o caso](docs/CASOS.md#a-meia-vitória-que-a-odd-adulterada-escondia--s356)
+
+    `odd_bloco_manda=False` onde a odd do bloco **não** descreve a linha: hoje só o SISTEMA,
+    cuja odd é a MÉDIA das apostas (`MASTER_RESULTADO §7.3`) enquanto o bloco imprime a do
+    cupom. Ali a do bloco volta a valer só como grafia, no ramo de cashout.
     """
     def bate(a: float, b: float) -> bool:
         # R$ 0,10 ou 0,5%, o que for maior. Absoluta sozinha reprova odd de muitas casas
@@ -629,16 +647,35 @@ def _veredito_do_retorno(stake: float, odd: float, retorno: float, descricao: st
         # demais em valor baixo.
         return abs(a - b) <= max(0.10, abs(b) * 0.005)
 
-    if retorno == 0:
-        return "L", None
-    if bate(retorno, stake):
-        return "V", None
-    if odd > 0 and bate(retorno, stake * odd):
-        return "W", None
-    if odd > 0 and bate(retorno, (stake / 2) * odd + stake / 2):
-        return "HW", None
-    if bate(retorno, stake / 2) and _LINHA_PARTIDA_RE.search(descricao or ""):
-        return "HL", None
+    def _codigo_para(o: float) -> str | None:
+        """Qual código o retorno produz COM ESTA ODD. None = nenhuma fórmula fecha."""
+        if retorno == 0:
+            return "L"
+        if bate(retorno, stake):
+            return "V"
+        if o > 0 and bate(retorno, stake * o):
+            return "W"
+        if o > 0 and bate(retorno, (stake / 2) * o + stake / 2):
+            return "HW"
+        if bate(retorno, stake / 2) and _LINHA_PARTIDA_RE.search(descricao or ""):
+            return "HL"
+        return None
+
+    # 1) A odd que a CASA imprimiu, quando ela descreve esta linha. Fonte determinística
+    #    manda sobre transcrição — o mesmo princípio do `corrigir_stake_tsv`.
+    n_bloco = _num_bloco(odd_bloco) if (odd_bloco and odd_bloco_manda) else None
+    if n_bloco is not None and n_bloco > 0:
+        veredito = _codigo_para(n_bloco)
+        if veredito is not None:
+            # Só devolve odd nova quando ela de fato difere da gravada: trocar `1,95` por
+            # `1,950` seria ruído de estilo, que o congelamento do UPSERT existe para barrar.
+            muda = odd is None or odd <= 0 or abs(n_bloco - odd) > 0.005
+            return veredito, (odd_bloco if muda else None)
+
+    # 2) A odd da linha (a que a IA escreveu), como sempre foi.
+    veredito = _codigo_para(odd)
+    if veredito is not None:
+        return veredito, None
     # Nada bateu: ou houve cashout, ou a IA errou a odd. Nos dois casos a odd que vale é a
     # que o dinheiro provou (`MASTER_RESULTADO §5.6` e §7.1: em W, odd = Retorno ÷ Stake).
     calculada = retorno / stake
@@ -707,14 +744,26 @@ def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
         if stake_final and stake_final > 0 and retorno is not None:
             res_ia, odd_ia = parts[9].strip().upper(), _num_or_none(parts[8].strip())
             res_novo, odd_nova = _veredito_do_retorno(
-                stake_final, odd_ia or 0.0, retorno, parts[6], info.get("odd_total"))
-            # Só escreve quando o DINHEIRO muda. Onde o retorno é exatamente stake/2 o
-            # rótulo lê como HL ou como cashout de metade — ambíguo — mas o P/L é idêntico
-            # nos dois; trocar ali seria ruído por ruído. Mesmo motivo pelo qual o UPSERT
-            # congela a extração por IA em vez de reescrevê-la a cada releitura.
+                stake_final, odd_ia or 0.0, retorno, parts[6], info.get("odd_total"),
+                odd_bloco_manda=not info.get("sistema"))
+            # Escreve por DINHEIRO ou por PROCEDÊNCIA, e a segunda porta nasceu da s356.
+            #
+            # Dinheiro: onde o retorno é exatamente stake/2 o rótulo lê como HL ou como
+            # cashout de metade — ambíguo — mas o P/L é idêntico nos dois; trocar ali seria
+            # ruído por ruído. Mesmo motivo pelo qual o UPSERT congela a extração por IA.
+            #
+            # Procedência: `W @ retorno÷stake` e `HW @ odd da casa` pagam EXATAMENTE o mesmo,
+            # então a porta do dinheiro nunca abre — e era por ela que as 39 meias vitórias
+            # passavam. Aqui a ambiguidade tem juiz: uma das odds foi impressa pela casa e a
+            # outra a IA derivou. Exige as DUAS coisas (rótulo muda E odd muda) para não
+            # reabrir o caso do HL, onde o rótulo é o mesmo e não há fonte que desempate.
             pl_ia = calcular_pl(parts[7], parts[8], res_ia)
             pl_novo = calcular_pl(parts[7], odd_nova or parts[8], res_novo)
-            if pl_ia is not None and pl_novo is not None and abs(pl_novo - pl_ia) >= 0.01:
+            n_nova = _num_or_none(odd_nova) if odd_nova else None
+            restaura = (res_novo != res_ia and n_nova is not None
+                        and abs(n_nova - (odd_ia or 0.0)) > 0.005)
+            if pl_ia is not None and pl_novo is not None and (
+                    abs(pl_novo - pl_ia) >= 0.01 or restaura):
                 if len(exemplos_fin) < 5:
                     exemplos_fin.append({"codigo": codigo, "res_ia": res_ia,
                                          "res_bloco": res_novo, "odd_ia": parts[8].strip(),

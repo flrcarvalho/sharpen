@@ -18,12 +18,28 @@ Mutações provadas — cada uma foi APLICADA ao código e o teste ao lado ficou
   4. tirar a exigência de linha partida no HL    → test_meia_derrota_exige_linha_partida
   5. escrever mesmo sem mudar o P/L              → test_nao_mexe_quando_o_dinheiro_nao_muda
 
-Duas coisas que a rodada de mutação ensinou e que ficam registradas:
+E as da s356, quando a odd do BLOCO passou a ser testada antes da odd da IA (6 de 7):
+  6. a odd do bloco perde a preferência    → test_meia_vitoria_com_a_odd_ja_adulterada…
+  7. some a guarda de SISTEMA              → test_a_odd_do_bloco_nao_manda_em_bilhete_de_SISTEMA
+  8. some a porta da PROCEDÊNCIA           → test_meia_vitoria_com_a_odd_ja_adulterada…
+  9. a procedência não exige rótulo novo   → test_bilhete_PERDIDO_nao_tem_a_odd_reescrita…
+ 10. devolve a odd do bloco mesmo se igual → test_odd_igual_em_grafia_diferente_mantem…
+ 11. some o fallback para a odd da IA      → test_bloco_SEM_odd_cai_na_odd_da_linha
+
+Três coisas que as rodadas de mutação ensinaram e que ficam registradas:
 
   • A mutação 2 ESCAPOU na primeira tentativa, e o defeito era do teste. Eu tinha exercido
     o caso "a IA já acertou HW", onde remover a fórmula não muda nada — porque `HW @ o` e
     `W @ (1+o)/2` pagam o MESMO valor, e o gate só escreve quando o P/L muda. O caso que
     prova a fórmula é o inverso: a IA escreveu W e o bilhete pagou meia vitória.
+  • Na s356 escaparam QUATRO de uma vez, e três eram buraco de teste: faltavam o bilhete
+    perdido (onde o retorno zero não prova odd nenhuma), o bloco sem `Odd:` decidindo um
+    rótulo que não é W, e a grafia (`2,00` × `2`). A quarta, abaixo, é inócua de verdade.
+  • **Trocar a ordem de W e HW dentro de `_codigo_para` é MUTAÇÃO INÓCUA**, e o motivo é
+    aritmético: `stake × o` e `(stake/2) × o + stake/2` só dão o mesmo número quando
+    `o == 1,00`, e aí `retorno == stake` já devolveu `V` duas linhas antes — nenhuma das
+    duas chega a ser testada. A ordem continua como está porque descreve a intenção, mas
+    não inventei asserção para ela.
   • O lookbehind `(?<!potencial )` de `_RETORNO_TXT_RE` é MUTAÇÃO INÓCUA hoje: removê-lo
     não quebra nada, porque nenhum formato de casa escreve `retorno potencial <número>`
     colado. Não inventei asserção para ele — o porquê está em
@@ -139,6 +155,134 @@ def test_w_que_era_hw_recebe_o_rotulo_hw_e_mantem_a_odd():
     assert parts[9] == "HW", "o retorno é de meia vitória"
     assert parts[8] == "1,9", "a odd da aposta continua sendo a da casa, não retorno÷stake"
     assert info["financeiro"] == 1
+
+
+def test_meia_vitoria_com_a_odd_ja_adulterada_pela_ia():
+    """O caso da s356, e o que ele tem de diferente do teste acima: aqui a IA não escreveu
+    a odd da casa, escreveu `retorno ÷ stake`.
+
+    A extensão rotula meia vitória como `Ganho → W` (o `_resultadoB3` só compara retorno
+    com stake), a IA obedece o rótulo e fecha a conta pela regra de cashout do
+    `MASTER_RESULTADO §5.6`. O resultado é internamente CONSISTENTE — `99 × 1,50 = 148,50`
+    bate exato — então o veredito confirmava `W` e nunca chegava a testar `HW`.
+
+    Quem desempata é a procedência: `1,50` a IA derivou, `2` a casa imprimiu. Medido em
+    produção: 39 bilhetes, todos em linha asiática partida.
+    """
+    # stake 99,00 · odd da casa 2 → HW paga (49,50 × 2) + 49,50 = 148,50.
+    # A MESMA quantia é `W @ 1,50`, e é isso que torna o caso invisível para a régua do P/L.
+    tsv = _linha({6: "Under 3.25 Gols [Toyama Shinjo Club v Artista Asama]",
+                  7: "99,00", 8: "1,50", 9: "W"})
+    parts, info = _saida(tsv, _bloco(stake="99,00", odd="2",
+                                     status="Ganho → W (retorno R$ 148,50)"))
+    assert parts[9] == "HW", "o retorno é de meia vitória, não de vitória cheia"
+    assert parts[8] == "2", "a odd volta a ser a que a casa imprimiu"
+    assert info["financeiro"] == 1
+
+
+def test_a_odd_do_bloco_nao_manda_em_bilhete_de_SISTEMA():
+    """Num sistema a odd da linha é a MÉDIA das apostas (`MASTER_RESULTADO §7.3`) e a do
+    bloco é a do cupom: grandezas diferentes.
+
+    Sem esta guarda a preferência pela odd do bloco reescreveria a média correta — seria
+    trocar um número calculado certo por outro que descreve outra coisa.
+    """
+    bloco = ("[Código: KR4610093301I]\n"
+             "Data (encerramento): 05/09/2026\n"
+             "Stake: 99,00\n"
+             "Status: Ganho → W (retorno R$ 148,50)\n"
+             "Tipo: SISTEMA Duplas — 3 apostas de 2 seleção(ões), sobre 3 seleções\n"
+             "Odd: 2\n"
+             "Seleções:\n"
+             "  • A x B · Gols + - · Menos de 3.0 @ 2 · Liga\n")
+    tsv = _linha({6: "Under 3.25 Gols [A v B]", 7: "99,00", 8: "1,50", 9: "W"})
+    parts, info = _saida(tsv, bloco)
+    assert parts[8] == "1,50" and parts[9] == "W", "sistema não tem a odd reescrita pelo cupom"
+    assert info["financeiro"] == 0
+
+
+def test_cashout_de_verdade_continua_virando_W_com_o_quociente():
+    """A casa pagou um valor que não é nenhuma das cinco fórmulas, nem pela odd do bloco.
+
+    É o caminho que a preferência nova NÃO pode ter roubado: sem isto, todo cashout viraria
+    um rótulo errado em vez de `W` com a odd que o dinheiro provou.
+    """
+    # stake 99,00 · odd 2 → W pagaria 198,00 e HW 148,50. A casa pagou 120,00.
+    tsv = _linha({7: "99,00", 8: "2", 9: "W"})
+    parts, info = _saida(tsv, _bloco(stake="99,00", odd="2",
+                                     status="Ganho → W (retorno R$ 120,00)"))
+    assert parts[9] == "W"
+    assert parts[8] == "1,2121212121", "odd = retorno ÷ stake"
+    assert info["financeiro"] == 1
+
+
+def test_bilhete_PERDIDO_nao_tem_a_odd_reescrita_pelo_bloco():
+    """Retorno ZERO não prova odd nenhuma: qualquer odd paga zero num `L`.
+
+    É por isso que a porta da procedência exige que o RÓTULO mude. Sem essa exigência o
+    gate passaria a reescrever a odd de todo bilhete perdido cuja linha divergisse do
+    bloco — uma mudança de escopo que o retorno não autoriza, porque ali ele não é prova
+    de nada. Corrigir a odd de um `L` é assunto de outro gate, com outra fonte.
+    """
+    tsv = _linha({7: "99,00", 8: "1,50", 9: "L"})
+    parts, info = _saida(tsv, _bloco(stake="99,00", odd="2",
+                                     status="Perdido → L · Retorno R$ 0,00"))
+    assert parts[9] == "L"
+    assert parts[8] == "1,50", "o retorno zero não prova odd — a linha fica como está"
+    assert info["financeiro"] == 0
+
+
+def test_bloco_SEM_odd_cai_na_odd_da_linha():
+    """Nem toda casa imprime a odd no bloco. Sem o fallback para a odd da IA o gate ficaria
+    cego justamente nelas: `n_bloco` é None e nenhuma fórmula chegaria a ser testada."""
+    bloco = ("[Código: KR4610093301I]\n"
+             "Data (encerramento): 05/09/2026\n"
+             "Stake: 99,00\n"
+             "Status: Ganho → W (retorno R$ 148,50)\n"
+             "Seleções:\n"
+             "  • A x B · Gols + - · Menos de 4.0 · Liga\n")
+    # sem odd no bloco, quem decide é a da linha: 99 × 1,5 = 148,50 → W, e nada muda
+    parts, info = _saida(_linha({7: "99,00", 8: "1,5", 9: "W"}), bloco)
+    assert parts[9] == "W" and parts[8] == "1,5"
+    assert info["financeiro"] == 0
+    # e com a odd da linha ERRADA, é ela que o retorno desmente
+    parts, info = _saida(_linha({7: "99,00", 8: "148,50", 9: "W"}), bloco)
+    assert parts[9] == "W" and parts[8] == "1,5", "cashout: odd = retorno ÷ stake"
+    assert info["financeiro"] == 1
+
+    # O caso que prova o fallback: aqui ele decide um rótulo que NÃO é W, e o ramo de
+    # cashout (que devolve W com retorno÷stake) daria outra resposta. Sem o fallback, esta
+    # meia derrota viraria `W @ 0,5`, com o mesmo P/L e o rótulo errado.
+    meia = bloco.replace("Ganho → W (retorno R$ 148,50)",
+                         "Ganho/perda parcial (retorno R$ 49,50)")
+    parts, info = _saida(_linha({6: "Under 2,5/3,0 Gols [A v B]", 7: "99,00",
+                                 8: "1,875", 9: "W"}), meia)
+    assert parts[9] == "HL", "metade da stake de volta, em linha partida, é meia derrota"
+    assert parts[8] == "1,875", "a odd da aposta não é derivada do retorno"
+
+
+def test_odd_do_bloco_igual_a_da_linha_nao_reescreve_nada():
+    """Mesma odd dos dois lados: não há o que restaurar, e escrever seria o ruído de estilo
+    que o congelamento do UPSERT existe para barrar."""
+    tsv = _linha({6: "Under 3.0,3.5 Gols [A v B]", 7: "99,00", 8: "2", 9: "HW"})
+    parts, info = _saida(tsv, _bloco(stake="99,00", odd="2",
+                                     status="Ganho → W (retorno R$ 148,50)"))
+    assert parts[8] == "2" and parts[9] == "HW"
+    assert info["financeiro"] == 0
+
+
+def test_odd_igual_em_grafia_diferente_mantem_a_grafia_da_linha():
+    """`2,00` e `2` são o mesmo número, e trocar um pelo outro é ruído puro.
+
+    O rótulo aqui MUDA (a IA escreveu W numa meia vitória), então a linha É reescrita — e
+    é justamente por isso que o caso importa: o gate tem de corrigir o que estava errado
+    sem levar junto a grafia do que estava certo.
+    """
+    tsv = _linha({6: "Under 3.0,3.5 Gols [A v B]", 7: "99,00", 8: "2,00", 9: "W"})
+    parts, info = _saida(tsv, _bloco(stake="99,00", odd="2",
+                                     status="Ganho → W (retorno R$ 148,50)"))
+    assert parts[9] == "HW", "o rótulo estava errado e foi corrigido"
+    assert parts[8] == "2,00", "a odd já estava certa — a grafia da linha fica"
 
 
 def test_nao_mexe_quando_o_dinheiro_nao_muda():

@@ -310,6 +310,16 @@ linha asiática **partida**) · nenhuma → cashout, `W` com `odd = retorno ÷ s
 > stake — meia vitória inclusive, e um gate que lesse o rótulo reescreveria `HW` correto
 > como `W`. → [o caso](docs/CASOS.md#os-14-hw-que-um-gate-de-rótulo-teria-destruído)
 
+**As fórmulas são testadas com a odd do BLOCO antes da odd da linha**, e é isso que separa
+meia vitória de vitória cheia. A odd da linha não é fonte: obedecendo o `Ganho → W` acima,
+a IA fecha a conta por cashout (`odd = retorno ÷ stake`) e o resultado fica **internamente
+consistente** — `stake × odd` bate exato, o veredito confirma `W` e nunca chega a `HW`.
+**`W @ retorno÷stake` e `HW @ odd da casa` pagam o MESMO dinheiro**, então a régua do P/L
+também não vê: quem desempata é a PROCEDÊNCIA, e por isso a escrita tem uma segunda porta
+(rótulo muda **E** odd muda). Exceção: em SISTEMA a odd da linha é a MÉDIA das apostas e a
+do bloco é a do cupom — ali a do bloco não manda.
+→ [o caso](docs/CASOS.md#a-meia-vitória-que-a-odd-adulterada-escondia--s356)
+
 **A outra ponta: o que a extensão escreve no bloco é uma ORDEM, não um recado.** O de-para
 de rótulo sempre tem um `else`, e o `else` costuma dizer "a conferir — não liquidar
 automaticamente". A IA obedece. Rótulo que ninguém cadastrou deixa de virar resultado e a
