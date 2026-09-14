@@ -746,11 +746,8 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   (Numeração própria do redesenho da RÉGUA — não confundir com as Fatias do
   [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md), que são da TELA.)
   Subiram as etapas 1 (custo de conta em regime de caixa), 2 (o parque na Visão Geral),
-  3 (o filtro de tipster recortando a assinatura) e 5b (o `_c2num` lendo pelo `parseNum`);
-  o resto do sistema segue como estava:
-  - **Etapa 4 — Custos Gerais fora do P/L.** `cgData` (VPN, ferramentas, taxas) não entra em
-    `totalCost`. O Jonathan tem R$ 987/mai, R$ 1.468/jun e R$ 1.321/jul lançados que nunca
-    desceram no P/L Líquido dele. O Feca já aprovou a entrada.
+  3 (o filtro de tipster recortando a assinatura), 4 (custos gerais descendo no P/L) e
+  5b (o `_c2num` lendo pelo `parseNum`). Falta a 5:
   - **Etapa 5 — os resumos na régua velha.** `renderOvCusto` (`charts/overview.js`),
     `_renderCustosKpi`/`renderCustoCards`/`renderCostPies` (`charts/gestao.js`) e o card de
     custo do drill de tipster (`charts/performance.js`) calculam `custoData[par] × contagem`:

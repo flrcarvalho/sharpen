@@ -313,6 +313,31 @@ function calcCustoTipsterFiltrado(p){
   return{total,nTips};
 }
 
+// ── Custos GERAIS do período (s358, etapa 4) ─────────────────────────────────
+// VPN, ferramentas, taxas: `cgData` é `[{id, tipo, values:{"AAAA-MM": valor}}]`, uma
+// linha livre por categoria. Até aqui esse dinheiro era lançado e **não descia no P/L
+// Líquido** — o Jonathan tem R$ 987 em maio, R$ 1.468 em junho e R$ 1.321 em julho que
+// nunca entraram na conta dele. Lançado e invisível é a família de "cobrado e
+// ineditável" ao contrário, e as duas erram o resultado final.
+//
+// Mesma régua do custo de tipster, e de propósito: mensal, o mês entra INTEIRO se
+// qualquer dia dele estiver no recorte, e o valor vem do `parseNum`. Filtro nenhum
+// recorta — VPN não é de casa, de esporte nem de tipster; é da operação inteira.
+function calcCustoGeralFiltrado(p){
+  const pag=p||'overview';
+  const range=(typeof _selRange==='function')?_selRange(pag):null;
+  const deM=range?range.from.slice(0,7):'0000-00';
+  const ateM=range?range.to.slice(0,7):'9999-99';
+  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);
+  let total=0,nLinhas=0;
+  ((typeof cgData!=='undefined'&&cgData)||[]).forEach(linha=>{
+    let t=0;
+    Object.entries((linha&&linha.values)||{}).forEach(([m,v])=>{if(m>=deM&&m<=ateM)t+=num(v);});
+    if(t>0){total+=t;nLinhas++;}
+  });
+  return{total,nLinhas};
+}
+
 // ── O PARQUE (s358) ──────────────────────────────────────────────────────────
 // "Quanto vale o que está rodando AGORA", que é a pergunta do vídeo do Jaao26 e a única
 // coisa que a janela de vida sempre respondeu bem. Não é custo do período e **não entra

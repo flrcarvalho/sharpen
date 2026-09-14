@@ -21,7 +21,12 @@ function renderKPI(rows){
   if(!window.MODO_PUBLICO)ctLoad();   // público: /custos/store é autenticada (daria 401)
   const{total:costTipster,nTips:nTipsCusto}=(!window.MODO_PUBLICO&&typeof calcCustoTipsterFiltrado==='function')
     ?calcCustoTipsterFiltrado('overview'):{total:0,nTips:0};
-  const totalCost=costConta+costTipster;
+  // Custos gerais — VPN, ferramentas, taxas (s358, etapa 4). Eram lançados e NÃO desciam
+  // no P/L Líquido: o Jonathan tem R$ 987/mai, R$ 1.468/jun e R$ 1.321/jul que nunca
+  // entraram na conta dele. Filtro nenhum recorta: a VPN é da operação inteira.
+  const{total:costGeral,nLinhas:nGeralCusto}=(!window.MODO_PUBLICO&&typeof calcCustoGeralFiltrado==='function')
+    ?calcCustoGeralFiltrado('overview'):{total:0,nLinhas:0};
+  const totalCost=costConta+costTipster+costGeral;
   const lucroLiq=lucro-totalCost;
 
   // ── Andar 1: P/L Bruto → Custo Conta → Custo Tipster → P/L Líquido ────────
@@ -43,6 +48,12 @@ function renderKPI(rows){
        +(_temFiltroTipster?' · da carteira':''),accent:''},
     {l:'Custo de Tipsters',v:costTipster>0?fmtPL(-costTipster):fmtR(0),c:costTipster>0?'neg':'neu',
      s:nTipsCusto?(nTipsCusto===1?'1 tipster no período':nTipsCusto+' tipsters no período'):'nenhuma assinatura no período',accent:''},
+    // O card de GERAIS só existe quando há valor lançado. Sem ele o andar fica nos 4 de
+    // sempre; com ele são 5, e é preciso que ele apareça: o P/L Líquido desconta esse
+    // dinheiro, e KPI que desconta o que não está na tela é inauditável — é o sintoma de
+    // "o KPI não bate com a soma que está logo abaixo dele" (CLAUDE.md).
+    ...(costGeral>0?[{l:'Custos Gerais',v:fmtPL(-costGeral),c:'neg',
+      s:nGeralCusto===1?'1 categoria no período':nGeralCusto+' categorias no período',accent:''}]:[]),
     {l:'P/L Líquido',v:fmtPL(lucroLiq),c:lucroLiq>=0?'pos':'neg',s:'resultado final',accent:'hero'},
   ];
   // ── Andar 2: Turnover → ROI → Odd Média → Win Rate ──────────────────────
@@ -71,9 +82,16 @@ function renderKPI(rows){
       +`<span class="ov-parque-val">${fmtR(parque.total)} investidos</span>`
       +`<span class="ov-parque-nota">em uso hoje, já pago (não entra no P/L)</span>`
     +`</div>`:'';
+  // Os dois andares eram um grid só de 4 colunas, com os 8 cards fluindo em duas linhas.
+  // Com o 5º card do andar 1 isso quebraria (a 2ª linha passaria a misturar os dois
+  // andares), então cada andar tem o seu grid: o de cima segue o nº de cards, o de baixo
+  // fica nos 4 de sempre.
+  const gridCss=(n,mb)=>`display:grid;grid-template-columns:repeat(${n},1fr);gap:10px;align-items:stretch;margin-bottom:${mb}`;
   document.getElementById('kpiGrid').innerHTML=
-    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:stretch;margin-bottom:${parqueHTML?'10px':'1.25rem'}">`+
+    `<div style="${gridCss(row1.length,'10px')}">`+
     row1.map(k=>`<div class="kpi ${k.accent||''}"${k.span?' style="grid-column:1/-1"':''}><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('')+
+    `</div>`+
+    `<div style="${gridCss(4,parqueHTML?'10px':'1.25rem')}">`+
     row2.map(k=>`<div class="kpi"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div>${k.bar!==undefined?`<div class="wrc"><div class="t"><div class="f" style="width:${Math.min(100,Math.max(0,k.bar)).toFixed(1)}%"></div></div></div>`:''}<div class="kpi-sub">${k.s}</div></div>`).join('')+
     `</div>`+parqueHTML;
 }

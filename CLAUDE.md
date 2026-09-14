@@ -513,8 +513,16 @@ defeito.
 > de R$ 30.884 para R$ 66.504 conforme a tela que lia — o `_c2num` da tela Custos tinha
 > régua própria e hoje delega ao `parseNum`.
 
-> **Duas telas ainda medem custo com a régua velha** (custos gerais fora do P/L e os
-> resumos em `custoData × contagem`): etapas 4 e 5 da régua, no [`BACKLOG.md`](BACKLOG.md).
+**Custo GERAL (VPN, ferramentas, taxas) é da operação inteira: filtro nenhum recorta**
+(`calcCustoGeralFiltrado`), mesma régua mensal do tipster, e desce no P/L como os outros.
+
+> ⚠️ **KPI que desconta o que não está na tela é inauditável**, então o card de Gerais
+> aparece sempre que há valor (o andar de cima tem 4 ou 5 tiles). E **o custo chega DEPOIS
+> do 1º render** (`ctLoad` é fetch): sem repintar, a tela abre com `R$ 0` e P/L inflado até
+> alguém mexer num filtro. O flag `_ctRepintou` quebra o laço `renderKPI` → `ctLoad`.
+> Mesma família da chegada tardia do cadastro no `contasLoad`.
+
+> **Falta a etapa 5** (os resumos em `custoData × contagem`), no [`BACKLOG.md`](BACKLOG.md).
 
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 

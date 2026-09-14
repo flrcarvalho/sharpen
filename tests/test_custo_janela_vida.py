@@ -130,6 +130,27 @@ def test_o_renderkpi_nao_reimplementa_a_regua_de_custo():
     )
 
 
+def test_o_custo_repinta_a_visao_geral_quando_chega_do_servidor():
+    """`ctLoad` é fetch e chega DEPOIS do primeiro render. Sem repintar, quem abre a Visão
+    Geral vê `Custo de Tipsters R$ 0` com tipsters lançados e um P/L Líquido inflado, até
+    mexer em algum filtro. Medido na demo antes do conserto.
+
+    O flag é o que impede o laço: `renderKPI` chama `ctLoad`, e sem ele o repaint chamaria
+    `renderKPI` de novo, para sempre. NÃO é coberto por execução (o .mjs não monta DOM)."""
+    app = (RAIZ / "app" / "static" / "dash" / "assets" / "js" / "app.js").read_text(encoding="utf-8")
+    src = _sem_comentarios(app)
+    m = re.search(r"^async function ctLoad\(\)\{.*?^\}", src, re.S | re.M)
+    assert m, "ctLoad sumiu do app.js"
+    corpo = m.group(0)
+    assert "renderKPI" in corpo, (
+        "ctLoad parou de repintar a Visão Geral: o custo chega depois do 1º render e o "
+        "P/L Líquido fica inflado até o usuário mexer num filtro (s358)"
+    )
+    assert "_ctRepintou" in corpo, (
+        "sumiu o flag que impede o laço renderKPI → ctLoad → renderKPI (s358)"
+    )
+
+
 def test_o_parque_pergunta_por_hoje_e_nao_pelo_periodo():
     """Parque é ESTOQUE: o que o dono tem agora. Deixá-lo seguir o filtro o faria variar
     como se fosse gasto, que é a confusão que a s358 desfez."""
@@ -196,6 +217,27 @@ def test_prova_por_execucao_da_janela():
 # Cada par (de, para) é uma reversão plausível da mudança. Verde aqui sem esta lista
 # não provaria nada — foi assim que a s286/s287 pegaram dois falsos verdes.
 MUTACOES = [
+    # ── s358 etapa 4: os custos GERAIS ──────────────────────────────────────
+    (
+        "o mes fora do recorte passa a contar no custo geral",
+        "    Object.entries((linha&&linha.values)||{}).forEach(([m,v])=>{if(m>=deM&&m<=ateM)t+=num(v);});",
+        "    Object.entries((linha&&linha.values)||{}).forEach(([m,v])=>{t+=num(v);});",
+    ),
+    (
+        "a janela do custo geral deixa de vir do periodo",
+        "  const ateM=range?range.to.slice(0,7):'9999-99';\n  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);\n  let total=0,nLinhas=0;",
+        "  const ateM='9999-99';\n  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);\n  let total=0,nLinhas=0;",
+    ),
+    (
+        "linha sem valor passa a contar como categoria",
+        "    if(t>0){total+=t;nLinhas++;}",
+        "    total+=t;nLinhas++;",
+    ),
+    (
+        "o custo geral sai do P/L Liquido (volta ao estado anterior a s358)",
+        "  const totalCost=costConta+costTipster+costGeral;",
+        "  const totalCost=costConta+costTipster;",
+    ),
     # ── s358 etapa 3: o custo de TIPSTER ────────────────────────────────────
     (
         "o custo de tipster volta a somar TODO tipster (ignora o filtro)",
@@ -204,8 +246,12 @@ MUTACOES = [
     ),
     (
         "a janela do custo de tipster deixa de vir do periodo",
-        "  const deM=range?range.from.slice(0,7):'0000-00';",
-        "  const deM='0000-00';",
+        "  const deM=range?range.from.slice(0,7):'0000-00';\n"
+        "  const ateM=range?range.to.slice(0,7):'9999-99';\n"
+        "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;",
+        "  const deM='0000-00';\n"
+        "  const ateM=range?range.to.slice(0,7):'9999-99';\n"
+        "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;",
     ),
     (
         "o mes fora do recorte passa a contar",
@@ -219,7 +265,9 @@ MUTACOES = [
     ),
     (
         "o parser caseiro volta no lugar do parseNum (179.90 vira 17.990)",
+        "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;\n"
         "  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);",
+        "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;\n"
         r"  const num=(v=>parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0);",
     ),
     # ── s358: o PARQUE (estoque, fora do P/L) ───────────────────────────────
@@ -373,6 +421,31 @@ MUTACOES = [
         "  return 0;",
     ),
 ]
+
+
+# Mutações que moram no `overview.js` (render), não no `gestao.js` (régua). O `.mjs` não
+# monta DOM, então elas são provadas por LEITURA no teste logo abaixo — registrar aqui em
+# vez de inventar asserção é a regra do CLAUDE.md sobre mutação que o harness não alcança.
+MUTACOES_DE_RENDER = {
+    "o custo geral sai do P/L Liquido (volta ao estado anterior a s358)",
+}
+MUTACOES = [m for m in MUTACOES if m[0] not in MUTACOES_DE_RENDER]
+
+
+def test_o_pl_liquido_desconta_os_TRES_custos():
+    """Conta, tipster e geral. O geral ficou de fora até a s358: lançado e invisível, que
+    é a família de "cobrado e ineditável" ao contrário — as duas erram o resultado final.
+    E o card tem de APARECER quando há valor: KPI que desconta o que não está na tela é
+    inauditável."""
+    ov = _sem_comentarios(OVERVIEW.read_text(encoding="utf-8"))
+    assert "costConta+costTipster+costGeral" in ov.replace(" ", ""), (
+        "o P/L Líquido parou de descontar algum dos três custos (s358)"
+    )
+    assert "calcCustoGeralFiltrado" in ov, "renderKPI não lê mais o custo geral"
+    assert "Custos Gerais" in ov, (
+        "o card de Custos Gerais sumiu do render: o P/L desconta um valor que não está "
+        "na tela, e o leitor não tem como conferir a conta"
+    )
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node ausente")

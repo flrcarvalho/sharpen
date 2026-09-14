@@ -55,7 +55,7 @@ const recorteFn = (src, nome, arq) => {
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_custoDaConta',
       '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcParqueFiltered',
-      'calcCustoTipsterFiltrado', 'calcCasaCost']
+      'calcCustoTipsterFiltrado', 'calcCustoGeralFiltrado', 'calcCasaCost']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // `parseNum` é o parser de número do projeto (app.js) e o custo de tipster depende dele:
   // dublá-lo aqui esconderia justamente a regra de milhar que separa 179,90 de 17.990.
@@ -69,13 +69,14 @@ const FONTE = [
 const API = new Function(`
   const FS = {}, MSS = {};                 // recipientes de estado (filters.js), não lógica
   const window = { __dono: 'Feca' };
-  let DADOS = [], DADOS_ABERTAS = [], custoData = {}, ctData = {};
+  let DADOS = [], DADOS_ABERTAS = [], custoData = {}, ctData = {}, cgData = [];
   let _contaVida = null, _contasVida = null, _precosForn = null;
   ${FONTE}
   return {
     set(cfg) {
       DADOS = cfg.dados || []; DADOS_ABERTAS = cfg.abertas || [];
       custoData = cfg.custos || {}; _contasVida = cfg.cadastro || null; ctData = cfg.tipsters || {};
+      cgData = cfg.gerais || [];
       _precosForn = cfg.precos || [];
       _contaVida = null;
       for (const k of Object.keys(FS)) delete FS[k];
@@ -89,7 +90,8 @@ const API = new Function(`
     // Sem crase neste comentário de propósito: ele vive DENTRO da template literal do
     // new Function, e uma crase aqui fecha a string (o caso da s296).
     parque(de, ate) { return _custoNaJanela(de, ate, null, null, '', 'vivo'); },
-    calcCostFiltered, calcParqueFiltered, calcCustoTipsterFiltrado, calcCasaCost, parseNum,
+    calcCostFiltered, calcParqueFiltered, calcCustoTipsterFiltrado, calcCustoGeralFiltrado,
+    calcCasaCost, parseNum,
   };
 `)();
 
@@ -482,6 +484,38 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   API.set(cfg);
   const t = API.calcCustoTipsterFiltrado('overview').total;
   ok(Math.abs(t - 1379.9) < 0.001, '179.90 + 1.200 deveria dar 1379,90; veio ' + t);
+}
+
+// ── G. Custos GERAIS: mesma regua do tipster, e filtro nenhum recorta ──────
+// VPN, ferramentas e taxas sao da OPERACAO inteira. O Jonathan tem R$ 987/mai,
+// R$ 1.468/jun e R$ 1.321/jul lancados que nunca desceram no P/L Liquido dele.
+{
+  const cfg = {
+    custos: {}, dados: [bilhete('C', 'Betano', 'GN', '2026-09-10')], cadastro: [],
+    gerais: [
+      { id: 1, tipo: 'VPN', values: { '2026-08': '120,00', '2026-09': '120,00' } },
+      { id: 2, tipo: 'Ferramentas', values: { '2026-09': '1.480,00' } },
+      { id: 3, tipo: 'Taxas', values: {} },
+    ],
+  };
+  API.set({ ...cfg, periodo: periodo('2026-09-01', '2026-09-30') });
+  let r = API.calcCustoGeralFiltrado('overview');
+  ok(r.total === 1600 && r.nLinhas === 2, 'setembro soma VPN + Ferramentas (1600), veio ' + r.total + '/' + r.nLinhas);
+  API.set({ ...cfg, periodo: periodo('2026-08-01', '2026-09-30') });
+  ok(API.calcCustoGeralFiltrado('overview').total === 1720, 'dois meses somam as duas mensalidades da VPN');
+  API.set({ ...cfg, periodo: periodo('2026-07-01', '2026-07-31') });
+  ok(API.calcCustoGeralFiltrado('overview').total === 0, 'mes sem lancamento custa 0');
+  API.set({ ...cfg });
+  ok(API.calcCustoGeralFiltrado('overview').total === 1720, '"Tudo" pega todos os meses');
+  // Linha sem valor nenhum nao conta como categoria.
+  API.set({ ...cfg, periodo: periodo('2026-09-01', '2026-09-30') });
+  ok(API.calcCustoGeralFiltrado('overview').nLinhas === 2, 'linha vazia nao entra na contagem');
+  // Filtro NENHUM recorta: a VPN nao e de casa, de esporte nem de tipster.
+  API.set({ ...cfg, periodo: periodo('2026-09-01', '2026-09-30'),
+            ms: { ca_overview: ['Bet365'], sp_overview: ['Tenis'], ti_overview: ['LBB'], op_overview: ['Lava'] } });
+  ok(API.calcCustoGeralFiltrado('overview').total === 1600, 'filtro nenhum recorta custo geral');
+  // E o valor passa pelo parseNum: "1.480,00" e mil quatrocentos e oitenta.
+  ok(API.parseNum('1.480,00') === 1480, 'o geral le pela regua do projeto');
 }
 
 // ── N. As TRES camadas do custo de uma conta (s348, Fatia 2) ────────────────
