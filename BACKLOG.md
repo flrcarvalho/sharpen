@@ -742,6 +742,17 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 **Próximo passo (backlog vivo, um por vez):**
+- **A extensão segue rotulando meia vitória como `Ganho → W` no bloco (s356). VIVA, medida.**
+  `_resultadoB3` (`extensor/content.js`) compara retorno com stake e chama de `W` tudo que
+  for maior — meia vitória inclusive. O backend deixou de se deixar enganar (o
+  `_veredito_do_retorno` agora testa as fórmulas com a odd do BLOCO antes da odd da linha),
+  então **o dado que entra hoje está certo**. O que continua errado é o TEXTO que a extensão
+  escreve, e ele é lido por uma IA que obedece rótulo. Corrigir na origem exigiria uma versão
+  nova da extensão e a distribuição manual para os testers, e a defesa do servidor já cobre o
+  caso — por isso ficou aqui, e não foi feito junto.
+  **Sintoma para reconhecer isto noutra casa:** o de-para de rótulo da extensão decide por
+  comparação de GRANDEZA (`retorno > stake`) em vez de pelas fórmulas. Onde houver meia
+  vitória, meia derrota ou linha asiática partida, essa comparação é sempre grosseira demais.
 - **O `CLAUDE.md` está 2,4 KB acima do teto e o `check_docs` está VERMELHO por isso (s356). VIVA, medida.**
   67,4 KB contra o teto de 65. Já estava 1,3 KB acima desde a s353, que registrou e não
   resolveu. A regra do invariante #10 é explícita: **não cortar regra, não cortar bloco de
