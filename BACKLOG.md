@@ -220,6 +220,32 @@ casa. É a mesma pendência que a Betbra deixou na s344.
 > and lower(casa)='bolsa de aposta' and (data like '%/2025' or data like '2025-%')`.
 > Continuar **zero** depois da captura é o sinal.
 
+### 1.10 A base do `Ewanderson1` DUPLICA se ele capturar as casas do import (s357). **VIVA, medida**
+
+As 784 apostas importadas em 13/09 vêm de um CSV **sem ID de bilhete**, então a assinatura é
+de CONTEÚDO (`casa|parceiro|data|aposta|descricao|stake|odd`). Quando ele instalar o SharpenUp
+e capturar uma casa que já está na base, o mesmo bilhete volta **com código real** — e
+assinatura por ID nunca colide com assinatura por conteúdo. **Não deduplica, duplica.**
+
+Medido no próprio import: **383 linhas nos últimos 7 dias** e **32 nos últimos 2** (a base vai
+até 14/09). A Betano concentra 544 das 784, então é ela que decide o tamanho do estrago.
+
+> Não há conserto pelo import — é a 4ª linha da tabela de dedup do `CLAUDE.md`. As saídas são
+> humanas: deletar as sobrepostas pelo Painel de Contas depois da primeira captura, ou aceitar
+> a duplicação do período curto. Quem for medir: agrupar por (casa, data, stake, odd) dentro
+> do dono e olhar só onde uma das linhas tem `codigo_bilhete` e a outra não.
+
+### 1.11 `Esporte Da Sorte` e `Esportes da Sorte` seguem gêmeas na base (s357). **VIVA, medida**
+
+São duas casas DIFERENTES no sistema (`casa` é texto em 7 tabelas): 102 bilhetes em
+`Esporte Da Sorte` contra 87 em `Esportes da Sorte`. O import do `Ewanderson1` escolheu a
+segunda (decisão do Feca), mas **não unificou nada** — unificar é recalcular assinatura, com
+o laço de `_counter`, e tem script próprio (`scripts/unificar_casas.py`).
+
+> Ordem que importa, a mesma da s289: unificar ANTES de registrar a grafia em
+> `_CASA_DISPLAY`, nunca depois. Na ordem inversa o bilhete do outro dono fica numa casa que
+> a conta dele não enxerga, e a grade nasce vazia sem erro nenhum.
+
 ### 1.2 `golden_set/bilhetes/` está vazio — `TURBO 19/07 #21`. HUMANA. **VIVA (06/09)**
 
 Medido hoje: `golden_set/` tem só o `descricoes.jsonl` e o `README.md`. **Não existe
