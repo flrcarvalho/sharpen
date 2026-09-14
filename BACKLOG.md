@@ -745,18 +745,9 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
 - **Régua de caixa, etapas 3 a 5: três telas ainda medem custo com a régua velha (s358). VIVA, medida.**
   (Numeração própria do redesenho da RÉGUA — não confundir com as Fatias do
   [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md), que são da TELA.)
-  As etapas 1 (custo de conta em regime de caixa) e 2 (o parque na Visão Geral) subiram;
+  Subiram as etapas 1 (custo de conta em regime de caixa), 2 (o parque na Visão Geral),
+  3 (o filtro de tipster recortando a assinatura) e 5b (o `_c2num` lendo pelo `parseNum`);
   o resto do sistema segue como estava:
-  - **Etapa 5b — `179.90` vale 179,90 na Visão Geral e 17.990 na tela Custos (prévia). VIVA, medida.**
-    São **2 linhas** em toda a base (`Só Chutes` jul/26 do Jonathan e `Curva Rápida` jul/26
-    do realtrial), gravadas com PONTO. A etapa 3 pôs a Visão Geral no `parseNum` (`app.js`),
-    que aplica a régua do projeto: um separador só, com menos de 3 dígitos depois, é
-    **decimal**. O `_c2num` (`charts/custos2.js`) apaga todo ponto antes de converter e lê
-    **17.990,00** — o mesmo valor, cem vezes maior, em duas telas do mesmo sistema. No total
-    geral a diferença é de **R$ 35.620** (R$ 30.884 contra R$ 66.504). **Conserto: `_c2num`
-    passa a chamar o `parseNum`.** O valor REAL das duas linhas é decisão do Feca (R$ 179,90
-    de mensalidade é plausível; R$ 17.990 não), mas a régua já decide sozinha e não precisa
-    esperar por isso.
   - **Etapa 4 — Custos Gerais fora do P/L.** `cgData` (VPN, ferramentas, taxas) não entra em
     `totalCost`. O Jonathan tem R$ 987/mai, R$ 1.468/jun e R$ 1.321/jul lançados que nunca
     desceram no P/L Líquido dele. O Feca já aprovou a entrada.

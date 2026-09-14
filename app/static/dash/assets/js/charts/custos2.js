@@ -26,11 +26,21 @@ let _c2fornOpen = null;   // accordion da tabela de preços: um fornecedor abert
 
 // ── Peças de apoio ───────────────────────────────────────────────────────────
 
-// Parse de valor gravado como string BR ("250,00"). É PARSE, não display: a regra
-// de não usar .replace vale para a máscara de saída (UI_REFERENCE §5.2).
+// Parse de valor gravado como string BR ("250,00"). É PARSE, não display: a regra de
+// não usar .replace vale para a máscara de saída (UI_REFERENCE §5.2).
+//
+// Delega ao `parseNum` (app.js), que é o parser do projeto (UI_REFERENCE, item 6 da regra
+// de UI: "não escreva um segundo parser"). A régua própria daqui apagava TODO ponto antes
+// de converter, e com isso decidia milhar pela presença do separador em vez da FORMA do
+// número: `179.90` virava 17.990,00. São 2 linhas na base real — `Só Chutes` jul/26 e
+// `Curva Rápida` jul/26 — e mesmo assim o total de custo do sistema mudava de R$ 30.884
+// para R$ 66.504 conforme a tela que lia. A régua certa: ponto só é milhar em grupos de
+// três (`1.234`); um separador só, com outra contagem, é DECIMAL (s358).
 function _c2num(v){
-  const n = parseFloat((v == null ? '' : v).toString().replace(/\./g, '').replace(',', '.'));
-  return isNaN(n) ? 0 : n;
+  if (typeof parseNum === 'function') return parseNum(v);
+  // Sem o app.js (nenhum caminho de produção cai aqui): pior ser conservador que somar
+  // errado — devolve 0 e a tela mostra o valor faltando em vez de um número inventado.
+  return 0;
 }
 
 // Lista de meses "AAAA-MM" entre duas datas ISO, inclusive nas duas pontas.

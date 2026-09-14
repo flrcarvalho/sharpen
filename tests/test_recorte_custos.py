@@ -37,6 +37,17 @@ def test_prova_por_execucao_do_recorte():
 
 
 MUTACOES = [
+    # ── s358, etapa 5b: a leitura do NUMERO ─────────────────────────────────
+    (
+        "o _c2num volta a ter regua propria (179.90 vira 17.990)",
+        "  if (typeof parseNum === 'function') return parseNum(v);",
+        "  return parseFloat(String(v == null ? '' : v).replace(/[.]/g, '').replace(',', '.')) || 0;",
+    ),
+    (
+        "o _c2num passa a ignorar o milhar de verdade (1.234 vira 1,234)",
+        "  if (typeof parseNum === 'function') return parseNum(v);",
+        "  return parseFloat(String(v == null ? '' : v).replace(',', '.')) || 0;",
+    ),
     (
         "«Tudo» volta a cair no mes corrente (o defeito original)",
         "  const de = r ? r.from : (_c2primeiraData() || mesCorrente);",

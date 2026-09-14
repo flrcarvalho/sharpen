@@ -21,6 +21,7 @@ const BASE = join(RAIZ, 'app', 'static', 'dash', 'assets', 'js');
 // ALVO_CUSTOS2 existe para a prova por MUTAÇÃO.
 const CUSTOS2 = readFileSync(process.env.ALVO_CUSTOS2 || join(BASE, 'charts', 'custos2.js'), 'utf8');
 const FILTROS = readFileSync(join(BASE, 'filters.js'), 'utf8');
+const APP = readFileSync(join(BASE, 'app.js'), 'utf8');
 const LF = '\n';
 
 let falhas = 0;
@@ -33,8 +34,11 @@ const recorteFn = (src, nome, arq) => {
 };
 
 const FONTE = [
-  ...['_c2meses', '_c2primeiraData', '_c2range'].map(n => recorteFn(CUSTOS2, n, 'custos2.js')),
+  ...['_c2meses', '_c2primeiraData', '_c2range', '_c2num'].map(n => recorteFn(CUSTOS2, n, 'custos2.js')),
   ...['_ymd', '_today', 'gfs', '_selRange'].map(n => recorteFn(FILTROS, n, 'filters.js')),
+  // `parseNum` REAL do app.js: é ele que o `_c2num` passou a chamar (s358, etapa 5b).
+  // Dublar aqui esconderia justamente a régua de milhar que o caso 4 abaixo prova.
+  recorteFn(APP, 'parseNum', 'app.js'),
 ].join(LF);
 
 const API = new Function(`
@@ -47,7 +51,7 @@ const API = new Function(`
       for (const k of Object.keys(FS)) delete FS[k];
       if (cfg.periodo) FS.custos_v2 = Object.assign(gfs('custos_v2'), cfg.periodo);
     },
-    _c2range, _c2primeiraData,
+    _c2range, _c2primeiraData, _c2num,
   };
 `)();
 
@@ -126,6 +130,30 @@ const TUDO = { df: '', dt: '', qd: 0, qt: '' };
   const r = API._c2range();
   ok(r.mesRef === r.meses[r.meses.length - 1], 'mesRef tem de ser o último mês do recorte');
   ok(r.mesRef === hoje.slice(0, 7), 'com «Tudo» o mês de referência é o corrente, veio ' + r.mesRef);
+}
+
+// ── 4. `_c2num` lê pela régua do projeto, não por uma própria (s358, 5b) ────
+// A régua antiga apagava TODO ponto antes de converter, então decidia milhar pela
+// PRESENÇA do separador em vez da forma do número. Medido na base real: `179.90` em
+// 2 linhas (`Só Chutes` jul/26 e `Curva Rápida` jul/26) virava 17.990,00 aqui e valia
+// 179,90 na Visão Geral — o total do sistema mudava de R$ 30.884 para R$ 66.504
+// conforme a tela que lia.
+{
+  const casos = [
+    ['179.90', 179.9, 'um separador com 2 digitos depois e DECIMAL'],
+    ['1.234', 1234, 'grupo de 3 digitos e MILHAR'],
+    ['1.234,56', 1234.56, 'ponto de milhar com virgula decimal'],
+    ['250,00', 250, 'virgula decimal'],
+    ['1.234.567', 1234567, 'dois grupos de 3 seguem sendo milhar'],
+    ['600', 600, 'inteiro puro'],
+    ['', 0, 'vazio vale 0'],
+    [null, 0, 'null vale 0'],
+  ];
+  for (const [entrada, esperado, porque] of casos) {
+    const veio = API._c2num(entrada);
+    ok(Math.abs(veio - esperado) < 0.0001,
+       '_c2num(' + JSON.stringify(entrada) + ') deveria dar ' + esperado + ' (' + porque + '), veio ' + veio);
+  }
 }
 
 if (falhas) { console.error(LF + falhas + ' verificação(ões) falharam.'); process.exit(1); }

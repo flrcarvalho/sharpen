@@ -506,11 +506,12 @@ que ninguém pagou. **Com um tipster filtrado, a legenda do card de conta diz `�
 carteira`**: dois números vizinhos medindo escopos diferentes sem dizer isso leem como
 defeito.
 
-> ⚠️ **Todo valor de custo passa pelo `parseNum` (`app.js`), nunca por um
-> `replace(',','.')` caseiro.** Há valor gravado como `179.90`, e a régua do projeto lê
-> **179,90** (um separador só, com menos de 3 dígitos depois, é DECIMAL); um parser que
-> apaga o ponto lê **17.990**. Os dois valores existem na base e a tela Custos (prévia)
-> ainda lê pelo segundo — está no [`BACKLOG.md`](BACKLOG.md).
+> ⚠️ **Todo valor de custo passa pelo `parseNum` (`app.js`), nunca por um parser
+> caseiro.** Há valor gravado como `179.90`, e a régua do projeto lê **179,90** (um
+> separador só, com contagem diferente de 3 dígitos, é DECIMAL); um parser que apaga o
+> ponto lê **17.990**. Com duas linhas assim na base, o total de custo do sistema mudava
+> de R$ 30.884 para R$ 66.504 conforme a tela que lia — o `_c2num` da tela Custos tinha
+> régua própria e hoje delega ao `parseNum`.
 
 > **Duas telas ainda medem custo com a régua velha** (custos gerais fora do P/L e os
 > resumos em `custoData × contagem`): etapas 4 e 5 da régua, no [`BACKLOG.md`](BACKLOG.md).
