@@ -18,7 +18,7 @@ import taxonomia
 
 sys.path.insert(0, "app")
 import main  # noqa: E402
-from auth import dono_efetivo  # noqa: E402
+from auth import dono_efetivo, dono_leitura  # noqa: E402
 
 cliente = TestClient(main.app)
 
@@ -64,11 +64,17 @@ def test_valores_limpos_e_sem_duplicata():
 def test_rota_devolve_as_duas_listas():
     """A rota é o que o menu consome — se ela mudar de forma, o front cai no `||[]` e o
     menu esvazia calado. Trava o formato: duas chaves, listas não-vazias."""
+    # A rota passou a usar `dono_leitura` (s354): ele é igual ao `dono_efetivo`
+    # para conta normal e desvia para a base de demonstração quando o usuário é
+    # um visitante do /realtrial. Sobrescrever os DOIS mantém o teste válido
+    # qualquer que seja a dependency que a rota use.
     main.app.dependency_overrides[dono_efetivo] = lambda: "Teste"
+    main.app.dependency_overrides[dono_leitura] = lambda: "Teste"
     try:
         r = cliente.get("/taxonomia")
     finally:
         main.app.dependency_overrides.pop(dono_efetivo, None)
+        main.app.dependency_overrides.pop(dono_leitura, None)
     assert r.status_code == 200
     corpo = r.json()
     assert set(corpo) == {"esportes", "categorias"}

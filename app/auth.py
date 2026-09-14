@@ -334,6 +334,30 @@ def escopo_de_leitura(usuario: str) -> list[str]:
     return [usuario] + operadores_de(usuario)
 
 
+def dono_leitura(request: Request) -> str:
+    """Dependency das listas de CADASTRO e CONFIGURAÇÃO (só leitura).
+
+    Igual ao `dono_efetivo`, exceto para o visitante da demonstração: ele lê os
+    cadastros da base de demonstração. Sem isto, Painel de Contas, Fornecedores,
+    Tipsters, Custos e Caixa nascem **vazios** — medido: 270 contas e 110
+    tipsters existiam e a tela mostrava zero. O visitante veria os números e não
+    veria a gestão, que é metade do que a demonstração precisa mostrar.
+
+    NÃO usar em rota de ESCRITA. Escrita continua em `dono_efetivo`, presa ao
+    dono efêmero, e é isso que impede o visitante de editar a base comum.
+
+    LIMITE CONHECIDO e aceito: o que o visitante cadastrar por conta própria não
+    aparece nestas telas, porque elas leem a base da demonstração. O que ele
+    CAPTURA aparece na grade, que vem do feed (`escopo_de_leitura`, que é
+    união). Para um trial de 10 extrações isso basta; resolver de verdade
+    exigiria cada função do repository aceitar uma LISTA de donos.
+    """
+    real = usuario_do_request(request)
+    if real and eh_trial(real):
+        return DONO_DEMO
+    return dono_efetivo(request)
+
+
 def registrar_usuario_no_cache(username: str, entrada: dict) -> None:
     """Põe UMA entrada no cache agora, sem esperar o refresher de 60 s.
 

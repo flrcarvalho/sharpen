@@ -225,3 +225,54 @@ def test_so_o_trial_e_limitado():
     i = fonte.index("TRIAL_MAX_EXTRACOES")
     trecho = fonte[max(0, i - 600):i]
     assert "eh_trial(dono)" in trecho, "o teto nao esta atras do gate de trial"
+
+
+# ── dono_leitura: so LEITURA, nunca escrita ──────────────────────────────────
+def _rotas_do_main():
+    """Recorta do main.py REAL cada (metodo, rota, assinatura). Nunca uma copia
+    do trecho: copiar o codigo para o teste e' o 1o modo de falso verde."""
+    import re
+    fonte = (RAIZ / "app" / "main.py").read_text(encoding="utf-8")
+    pad = re.compile(
+        r'@app\.(get|post|patch|delete|put)\("([^"]+)"[^)]*\)\s*\n'
+        r'(?:async )?def [a-zA-Z_0-9]+\((.*?)\)\s*:', re.S)
+    return [(m.group(1), m.group(2), m.group(3)) for m in pad.finditer(fonte)]
+
+
+def test_NENHUMA_rota_de_escrita_usa_dono_leitura():
+    """`dono_leitura` faz o visitante ler a base de demonstracao. Numa rota de
+    ESCRITA isso o faria EDITAR e APAGAR a base que todo mundo ve -- de uma
+    tacada, e sem erro nenhum. E' o gate mais importante deste arquivo."""
+    ruins = [(m, r) for m, r, a in _rotas_do_main()
+             if m != "get" and "dono_leitura" in a]
+    assert not ruins, f"rota de escrita lendo a base compartilhada: {ruins}"
+
+
+def test_o_feed_e_os_eventos_NAO_usam_dono_leitura():
+    """Os dois montam a uniao por `escopo_de_leitura`. Com `dono_leitura` o
+    escopo viraria ['realtrial'] e o visitante perderia de vista o que ele
+    mesmo capturou -- justamente o que a demonstracao existe para provar."""
+    for metodo, rota, args in _rotas_do_main():
+        if rota in ("/dashboard/data", "/eventos"):
+            assert "dono_leitura" not in args, f"{rota} nao pode usar dono_leitura"
+            assert "dono_efetivo" in args, f"{rota} perdeu o dono_efetivo"
+
+
+def test_as_telas_de_gestao_leem_a_base_de_demonstracao():
+    """MEDIDO antes do conserto: 270 contas e 110 tipsters existiam e as telas
+    mostravam ZERO, porque filtravam pelo dono efemero do visitante."""
+    por_rota = {r: a for m, r, a in _rotas_do_main() if m == "get"}
+    for rota in ("/parceiros", "/tipsters/cadastro", "/caixa/visao",
+                 "/custos/store", "/custos/conta", "/casas/config"):
+        assert rota in por_rota, f"{rota} sumiu do main.py"
+        assert "dono_leitura" in por_rota[rota], f"{rota} voltou a nascer vazia"
+
+
+def test_dono_leitura_so_desvia_para_o_trial():
+    """Conta de verdade nao pode passar a ler a base de demonstracao: o
+    supervisor veria 48 mil bilhetes ficticios na propria tela."""
+    fonte = (RAIZ / "app" / "auth.py").read_text(encoding="utf-8")
+    corpo = fonte[fonte.index("def dono_leitura("):]
+    corpo = corpo[:corpo.index("def registrar_usuario_no_cache")]
+    assert "eh_trial(real)" in corpo, "o desvio nao esta atras do gate de trial"
+    assert "return dono_efetivo(request)" in corpo, "conta normal perdeu o caminho normal"

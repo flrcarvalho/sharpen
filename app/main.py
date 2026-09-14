@@ -33,6 +33,7 @@ from pydantic import BaseModel, field_validator
 from auth import (
     COOKIE_NAME, SESSION_MAX_AGE, VER_COMO_COOKIE, atualizar_cache_usuarios,
     coproprietarios, criar_token, criar_token_curto, dono_efetivo,
+    dono_leitura,
     escopo_de_leitura,
     dono_efetivo_ou_bot, eh_admin, email_de, gerar_hash_senha, operadores_de,
     planilha_ao_vivo, pode_ver_como, resultado_login, tem_senha, usuario_atual,
@@ -3046,7 +3047,7 @@ async def ver_como(body: VerComoRequest, request: Request):
 
 
 @app.get("/casas")
-async def listar_casas(dono: str = Depends(dono_efetivo)):
+async def listar_casas(dono: str = Depends(dono_leitura)):
     manuais = {
         _casa_display(p.stem.removeprefix("CASA_"))
         for p in CASAS_DIR.glob("CASA_*.md")
@@ -3701,7 +3702,7 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
 
 
 @app.get("/polymarket/dashboard")
-async def polymarket_dashboard(wallet: str, dono: str = Depends(dono_efetivo)):
+async def polymarket_dashboard(wallet: str, dono: str = Depends(dono_leitura)):
     """Estado ao vivo da carteira Polymarket: KPIs (posições ativas, portfólio, cash,
     total) + tabela de posições ativas, com o tipster salvo de cada uma mesclado."""
     wallet = (wallet or "").strip()
@@ -3835,7 +3836,7 @@ async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo), re
 
 
 @app.get("/exportar.csv")
-async def exportar_csv(dono: str = Depends(dono_efetivo)):
+async def exportar_csv(dono: str = Depends(dono_leitura)):
     """Backup completo da base do dono: todas as linhas, todas as colunas, em CSV
     (separador ';' + BOM → abre limpo no Excel pt-BR, decimal vírgula preservado).
 
@@ -3902,7 +3903,7 @@ async def restaurar_bilhetes_route(body: RestaurarRequest, dono: str = Depends(d
 
 @app.get("/conta/resumo")
 async def resumo_da_conta(
-    casa: str, parceiro: str, dono: str = Depends(dono_efetivo)
+    casa: str, parceiro: str, dono: str = Depends(dono_leitura)
 ):
     """KPIs agregados de UMA conta (casa+parceiro), para a faixa no topo do
     extrator: P/L, turnover, apostas, ROI, win rate, duração e dias ativos.
@@ -3924,7 +3925,7 @@ class CaixaLancarRequest(BaseModel):
 
 
 @app.get("/caixa/conta")
-async def caixa_conta_route(parceiro_id: int, dono: str = Depends(dono_efetivo)):
+async def caixa_conta_route(parceiro_id: int, dono: str = Depends(dono_leitura)):
     """Projeção + extrato da caixa de UMA conta (o box da tela de Extração)."""
     res = await caixa_conta(dono, parceiro_id)
     if res is None:
@@ -3933,7 +3934,7 @@ async def caixa_conta_route(parceiro_id: int, dono: str = Depends(dono_efetivo))
 
 
 @app.get("/caixa/visao")
-async def caixa_visao_route(dono: str = Depends(dono_efetivo)):
+async def caixa_visao_route(dono: str = Depends(dono_leitura)):
     """Banca consolidada: por casa, por conta e os totais (Painel de Contas)."""
     return await caixa_visao(dono)
 
@@ -3976,7 +3977,7 @@ async def caixa_excluir_mov_route(mov_id: int, dono: str = Depends(dono_efetivo)
 
 
 @app.get("/incompletos")
-async def listar_incompletos(dono: str = Depends(dono_efetivo)):
+async def listar_incompletos(dono: str = Depends(dono_leitura)):
     """Contagem de bilhetes INCOMPLETOS por parceiro/casa, para os badges da sidebar:
     azul = sem tipster; âmbar = abertos (sem resultado)."""
     linhas = await contar_incompletos(dono)
@@ -4002,7 +4003,7 @@ async def listar_pendencias(
     casa: Optional[str] = None,
     parceiro: Optional[str] = None,
     archived: str = "all",
-    dono: str = Depends(dono_efetivo),
+    dono: str = Depends(dono_leitura),
 ):
     """Contadores dos chips de pendência da conta ativa (sem odd / sem stake /
     categoria a confirmar / sem tipster). É a ponte do aviso do RAIO-X, que conta o
@@ -4197,17 +4198,17 @@ async def editar_bilhetes_lote(body: EditarLoteRequest, dono: str = Depends(dono
 
 
 @app.get("/tipsters")
-async def listar_tipsters(dono: str = Depends(dono_efetivo)):
+async def listar_tipsters(dono: str = Depends(dono_leitura)):
     return {"tipsters": await list_tipsters(dono)}
 
 
 @app.get("/esportes")
-async def listar_esportes(dono: str = Depends(dono_efetivo)):
+async def listar_esportes(dono: str = Depends(dono_leitura)):
     return {"esportes": await list_esportes(dono)}
 
 
 @app.get("/mercados")
-async def listar_mercados(dono: str = Depends(dono_efetivo)):
+async def listar_mercados(dono: str = Depends(dono_leitura)):
     """Mercados já usados por este dono, do mais para o menos frequente (com contagem).
 
     Alimenta o menu de duplo-clique da coluna `Aposta` na grade da Extração — ali o
@@ -4222,7 +4223,7 @@ async def listar_mercados(dono: str = Depends(dono_efetivo)):
 
 
 @app.get("/taxonomia")
-async def taxonomia(dono: str = Depends(dono_efetivo)):
+async def taxonomia(dono: str = Depends(dono_leitura)):
     """Esportes e categorias VÁLIDOS, lidos dos MASTERs (`app/taxonomia.py`).
 
     Complementa `/esportes`, que só devolve o que o dono já apostou: quem ainda não tem
@@ -4243,7 +4244,7 @@ class ParceiroCriarRequest(BaseModel):
 
 @app.get("/parceiros")
 async def listar_parceiros(casa: Optional[str] = None, arquivados: bool = False,
-                           dono: str = Depends(dono_efetivo)):
+                           dono: str = Depends(dono_leitura)):
     rows = await list_parceiros(dono, casa=casa or None, incluir_arquivados=arquivados)
     return {"parceiros": rows}
 
@@ -4341,7 +4342,7 @@ class ParceiroRenomearRequest(BaseModel):
 
 
 @app.get("/parceiros/{parceiro_id}/resumo")
-async def resumo_parceiro_route(parceiro_id: int, dono: str = Depends(dono_efetivo)):
+async def resumo_parceiro_route(parceiro_id: int, dono: str = Depends(dono_leitura)):
     """Identidade + nº de apostas da conta. Só o modal de exclusão consome: o número
     que a tela promete apagar tem de vir da mesma consulta que o DELETE usa."""
     res = await resumo_parceiro(parceiro_id, dono)
@@ -4442,7 +4443,7 @@ class TipsterRenomearRequest(BaseModel):
 
 
 @app.get("/tipsters/cadastro")
-async def listar_tipsters_cadastro(arquivados: bool = False, dono: str = Depends(dono_efetivo)):
+async def listar_tipsters_cadastro(arquivados: bool = False, dono: str = Depends(dono_leitura)):
     rows = await list_tipsters_cadastro(dono, incluir_arquivados=arquivados)
     return {"tipsters": rows}
 
@@ -4552,7 +4553,7 @@ class CasaConfigRequest(BaseModel):
 
 
 @app.get("/casas/config")
-async def listar_casas_config(dono: str = Depends(dono_efetivo)):
+async def listar_casas_config(dono: str = Depends(dono_leitura)):
     """Registro de Casas: evidência de pureza + sugestão de casa-feudo + config atual."""
     return {"casas": await casas_visao(dono)}
 
@@ -4577,7 +4578,7 @@ class CustoStoreRequest(BaseModel):
 
 
 @app.get("/custos/store")
-async def get_custo_store_route(dono: str = Depends(dono_efetivo)):
+async def get_custo_store_route(dono: str = Depends(dono_leitura)):
     """Custos do dono. `existe=False` = servidor ainda vazio p/ este dono → o front
     usa o cache local e a página de importação oferece semear a partir do navegador."""
     dados = await get_custo_store(dono)
@@ -4619,7 +4620,7 @@ async def salvar_cobranca_tipster_route(body: CobrancaTipsterRequest,
 
 
 @app.get("/custos/conta")
-async def get_custo_conta_route(dono: str = Depends(dono_efetivo)):
+async def get_custo_conta_route(dono: str = Depends(dono_leitura)):
     """`existe` = há custo por-conta de verdade no servidor (dict não-vazio). Uma linha
     criada só pelo import de tipster/geral tem custo_conta vazio → existe=False (o front
     ainda oferece importar o por-conta)."""
@@ -4644,7 +4645,7 @@ class PrecoFornecedorRequest(BaseModel):
 
 
 @app.get("/custos/fornecedor")
-async def listar_precos_fornecedor_route(dono: str = Depends(dono_efetivo)):
+async def listar_precos_fornecedor_route(dono: str = Depends(dono_leitura)):
     """Histórico completo. O front deriva o vigente de hoje — a régua de qual preço
     valia quando é a MESMA no servidor e na tela (`_preco_vigente_em`)."""
     return {"precos": await listar_precos_fornecedor(dono)}
@@ -4701,7 +4702,7 @@ async def reativar_tipster_route(tipster_id: int, dono: str = Depends(dono_efeti
 
 
 @app.get("/tipsters/{tipster_id}/resumo")
-async def resumo_tipster_route(tipster_id: int, dono: str = Depends(dono_efetivo)):
+async def resumo_tipster_route(tipster_id: int, dono: str = Depends(dono_leitura)):
     """Identidade + o que o rename vai tocar. Só o modal de confirmação consome: o número
     que a tela promete atualizar tem de vir da mesma consulta que o UPDATE usa."""
     res = await resumo_tipster(tipster_id, dono)
@@ -4738,7 +4739,7 @@ class UnidadeSegmentoRequest(BaseModel):
 
 
 @app.get("/tipsters/unidades")
-async def get_escada_route(tipster: str, dono: str = Depends(dono_efetivo)):
+async def get_escada_route(tipster: str, dono: str = Depends(dono_leitura)):
     return {"escada": await get_escada_unidade(dono, tipster)}
 
 
@@ -4759,12 +4760,12 @@ async def remover_unidade_route(unidade_id: int, dono: str = Depends(dono_efetiv
 
 
 @app.get("/tipsters/resultado-unidades")
-async def resultado_unidades_route(tipster: str, dono: str = Depends(dono_efetivo)):
+async def resultado_unidades_route(tipster: str, dono: str = Depends(dono_leitura)):
     return await resultado_em_unidades(dono, tipster)
 
 
 @app.get("/tipsters/escadas")
-async def escadas_todas_route(dono: str = Depends(dono_efetivo)):
+async def escadas_todas_route(dono: str = Depends(dono_leitura)):
     return {"escadas": await get_escadas_todas(dono)}
 
 
