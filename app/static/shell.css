@@ -162,17 +162,34 @@ button.sb-tipster__av:focus-visible .sb-tipster__ring,
   line-height: 1.1; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* Selo do plano: 10px e não 9px. `--text-nano` é o piso da escala e reprova o papel
-   LABEL da Escada de Tinta; o degrau seguinte é `--text-xxs` (mesma correção que a
-   .pagehead-eyebrow recebeu na s330). */
+/* Selo do plano: PILL solida, como o README do handoff pedia desde o comeco ("o `. VIP`
+   sai da mesma linha e vira pill ambar"). O `--text-xxs` e' 10px e nao 9px porque
+   `--text-nano` e' o piso da escala e reprova o papel LABEL da Escada de Tinta (mesma
+   correcao que a .pagehead-eyebrow recebeu na s330).
+
+   Tres estados, e quem os separa e' o FUNDO, nunca so o tom do texto — num corpo de 10px
+   a diferenca de tom some, e foi para isso que o Feca pediu badge em vez de rotulo:
+     · plano pago  -> --warn   (ambar)
+     · Tester      -> --accent (azul da marca) — o estado de TODA conta hoje
+     · vendo       -> --warn + a borda do bloco tambem, que e' o sinal forte
+
+   TINTA ESCURA sobre acento, nunca branca (Escada de Tinta): `var(--bg)` mede 5,8:1 sobre
+   --accent e 8,7:1 sobre --warn, enquanto `#fff` sobre --accent daria 3,36:1 e reprova.
+
+   `vendo` e plano pago dividem o ambar de proposito: os dois nao coexistem (tipster com
+   vitrine nao tem operador), e o TEXTO desempata ("Plano VIP" x "Vendo . Marina"). */
 .sb-tipster__plan {
+  align-self: flex-start;          /* a pill abraca o texto; esticada ela viraria faixa */
+  max-width: 100%;
+  padding: 2px 6px; border-radius: var(--r-xs);
   font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: var(--weight-bold);
-  letter-spacing: .12em; text-transform: uppercase; color: var(--warn);
+  letter-spacing: .1em; text-transform: uppercase;
+  background: var(--warn); color: var(--bg);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.sb-tipster__plan.sem   { color: var(--ink-soft); }   /* sem assinatura: some o âmbar, fica o rótulo */
-.sb-tipster__plan.vendo { color: var(--accent); }     /* "ver base de" ligado: o aviso mora aqui */
-.sb-tipster.vendo { border-color: var(--accent); }
+.sb-tipster__plan.tester { background: var(--accent); }
+.sb-tipster__plan.vendo  { background: var(--warn); }
+.sb-tipster.vendo { border-color: var(--warn); }
 .sb-tipster__chev {
   width: 14px; height: 14px; flex: none;
   stroke: var(--ink-soft); stroke-width: 1.8; fill: none; transition: transform .15s;

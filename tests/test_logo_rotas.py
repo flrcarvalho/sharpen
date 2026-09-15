@@ -183,5 +183,5 @@ def test_perfil_de_quem_nao_tem_vitrine_usa_o_username_e_fica_sem_plano(conta, m
     monkeypatch.setattr(main, "logo_donos", _donos)
     j = cliente.get("/conta/perfil", cookies=_cookie()).json()
     assert j["nome"] == "Testador"
-    assert j["plano"] is None       # a tela mostra "Sem plano", nunca um selo vazio
+    assert j["plano"] is None       # a tela mostra o badge "Tester", nunca um selo vazio
     assert j["tem_logo"] is False

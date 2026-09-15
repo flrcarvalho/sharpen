@@ -9,6 +9,7 @@ O que este arquivo NÃO cobre: `resumo_perfil` e as rotas `/conta/*` (precisam d
 Postgres, que só existe no CI) e a aparência do bloco (isso se mede renderizando).
 """
 import pathlib
+import re
 import sys
 
 import pytest
@@ -93,3 +94,28 @@ def test_bloco_da_sidebar_em_node():
     r = subprocess.run(["node", str(raiz / "tests" / "js" / "sb_tipster.mjs")],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
+
+# ── O badge do plano: tinta ESCURA sobre acento ──────────────────────────────
+
+def test_o_selo_do_plano_usa_tinta_escura_sobre_o_acento():
+    """A Escada de Tinta inverte quando o fundo vira o próprio acento: medido,
+    `#FFFFFF` sobre `--accent` dá 3,36:1 e reprova, enquanto `var(--bg)` dá 5,8:1
+    (e 8,7:1 sobre `--warn`). É a regra que a sidebar já quebrou uma vez — os
+    `.pend-badge`/`.open-badge` usam `#fff` literal e são desvio conhecido.
+
+    ⚠️ Este gate lê a DECLARAÇÃO no CSS, não o pixel. Contraste de verdade se mede
+    renderizando (foi assim que os 5,79:1 e 8,67:1 desta fatia foram conferidos);
+    o que ele impede é alguém copiar o `#fff` do desvio vizinho para cá.
+    """
+    css = (pathlib.Path(__file__).resolve().parent.parent
+           / "app" / "static" / "shell.css").read_text(encoding="utf-8")
+    ini = css.index(".sb-tipster__plan {")
+    regra = css[ini:css.index("}", ini)]
+    # Só as declarações de `color`, e não a regra inteira: o primeiro rascunho procurava
+    # a palavra "white" no bloco e reprovava no `white-space: nowrap`. Substring de CSS
+    # não é leitura de CSS.
+    tintas = [v.strip() for v in re.findall(r"(?<![-\w])color:\s*([^;]+)", regra)]
+    assert tintas == ["var(--bg)"], f"a tinta do selo devia ser var(--bg), e é {tintas}"
+    # E o fundo tem de ser sólido de token: badge sem fundo volta a ser rótulo, e foi
+    # justamente o rótulo que o Feca trocou por badge.
+    assert "background: var(--warn)" in regra

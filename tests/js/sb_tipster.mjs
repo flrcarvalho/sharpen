@@ -186,10 +186,19 @@ assert.ok(host.el.querySelector('input[type=file]'), 'no host há seletor de arq
 
 // ── 5. Plano, ausência de plano e "vendo base de" ────────────────────────────
 assert.strictEqual(plano(host), 'Plano VIP');
+// O TEXTO sozinho nao prova o badge: com a classe `tester` colada em todo mundo, o
+// plano pago continuaria escrito "Plano VIP" e sairia AZUL. Foi o que a mutacao mostrou.
+assert.ok(!host.el.querySelector('.sb-tipster__plan').classes.has('tester'),
+  'plano pago fica no ambar — o azul e do estado Tester');
 const sem = SbTipster.montar({ editavel: true, unidade: 'reais' });
 sem.aplicar({ nome: 'Fulano', plano: null, mes: {}, historico: {} });
-assert.strictEqual(plano(sem), 'Sem plano', 'sem assinatura o selo vira rótulo, nunca some calado');
-assert.ok(sem.el.querySelector('.sb-tipster__plan').classes.has('sem'), 'e perde o âmbar');
+// Conta sem assinatura e' conta de TESTE, e o selo diz o que ela E', nao o que lhe falta.
+// Um selo vazio (ou ausente) leria como defeito no lugar do estado.
+assert.strictEqual(plano(sem), 'Tester', 'sem assinatura o selo vira Tester, nunca some calado');
+assert.ok(sem.el.querySelector('.sb-tipster__plan').classes.has('tester'),
+  'e troca o ambar do plano pelo azul da marca — a cor e o que separa os estados num corpo de 10px');
+assert.ok(!sem.el.querySelector('.sb-tipster__plan').classes.has('vendo'),
+  'Tester nao pode carregar a classe de aviso junto');
 
 const vendo = SbTipster.montar({ editavel: true, unidade: 'reais' });
 vendo.aplicar({ nome: 'Marina', dono: 'Marina', vendo: true, plano: 'VIP', mes: {}, historico: {} });

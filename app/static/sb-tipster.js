@@ -199,8 +199,12 @@
         plan.className = 'sb-tipster__plan vendo';
         el.classList.add('vendo');
       } else {
-        plan.textContent = p.plano ? ('Plano ' + p.plano) : 'Sem plano';
-        plan.className = 'sb-tipster__plan' + (p.plano ? '' : ' sem');
+        // Sem assinatura NAO e' ausencia de estado: hoje toda conta do sistema e' de
+        // TESTE, e e' isso que o selo diz. O SPEC pedia "Sem plano" em tom apagado;
+        // o Feca trocou por "Tester" em badge azul da marca na s363, e a razao e' boa:
+        // "sem plano" descreve o que a conta NAO tem, e "Tester" descreve o que ela E'.
+        plan.textContent = p.plano ? ('Plano ' + p.plano) : 'Tester';
+        plan.className = 'sb-tipster__plan' + (p.plano ? '' : ' tester');
         el.classList.remove('vendo');
       }
       pintarStats(p);
