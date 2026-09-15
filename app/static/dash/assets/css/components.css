@@ -324,6 +324,104 @@
 }
 .kpi__head + .kpi-val { margin-top: 5px; }
 
+/* ── Ranking por dia da semana (Visão Geral + drills) ────────────────────────
+   A barra vive ATRÁS da linha, não como coluna: assim as três métricas ficam
+   com largura fixa e alinhadas verticalmente entre os sete dias. A anatomia
+   track+fill do `.abrt-bar` (exposição da tela Em Aberto) é o mesmo papel e foi
+   avaliada aqui — recusada porque come uma das quatro colunas e empurra
+   apostas+ROI para metadado empilhado (decisão do Feca, s361). Ao mexer numa
+   das duas, olhe a outra. */
+.dow { display:flex; flex-direction:column; gap:4px; }
+.dow__hdr, .dow__row {
+  display:grid; grid-template-columns:minmax(0,1fr) 96px 168px 96px;
+  align-items:center; gap:12px;
+}
+.dow__hdr { padding:0 12px 8px; }
+.dow__hdr span {
+  font-family:var(--font-mono); font-size:9.5px; font-weight:700;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft);
+  text-align:right;
+}
+.dow__hdr span:first-child { text-align:left; }
+.dow__row {
+  position:relative; height:40px; padding:0 12px 0 0; box-sizing:border-box;
+  border:1px solid var(--line-2); border-radius:var(--r-sm); overflow:hidden;
+}
+.dow__row.we { background-color:rgba(255,255,255,.02); }
+/* Volume no comprimento, sinal do P/L na cor. O alpha é fixo: variar os dois
+   canais junto daria duas leituras concorrentes na mesma barra.
+   A barra vive DENTRO da coluna do dia, nunca atrás da linha inteira: medido na
+   tela (s361), atravessando ela corta os números no meio e a borda da barra lê
+   como artefato de render — o ROI de um dia aparecia metade dentro, metade fora. */
+.dow__dia { position:relative; align-self:stretch; display:flex; align-items:center; min-width:0; }
+.dow__bar {
+  position:absolute; top:0; left:0; bottom:0;
+  background:rgba(var(--pos-rgb),.13); border-radius:var(--r-xs);
+  pointer-events:none;
+}
+.dow__bar.neg { background:rgba(var(--neg-rgb),.13); }
+.dow__nome {
+  position:relative; padding-left:12px;
+  font-size:var(--text-sm); font-weight:700; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.dow__n, .dow__pl, .dow__roi { min-width:0; }
+.dow__n {
+  font-family:var(--font-mono); font-size:var(--text-sm); color:var(--ink);
+  text-align:right; font-variant-numeric:tabular-nums;
+}
+.dow__pl .money { font-size:var(--text-sm); font-weight:700; }
+.dow__roi {
+  font-family:var(--font-mono); font-size:var(--text-sm); font-weight:700;
+  color:var(--ink); text-align:right; font-variant-numeric:tabular-nums;
+}
+.dow__roi.pos { color:var(--pos); }
+.dow__roi.neg { color:var(--neg); }
+/* Dia sem aposta: "—" em todas as colunas. Nunca R$ 0,00 — ausência não é zero. */
+.dow__row--vazio .dow__nome { color:var(--ink-soft); font-weight:600; }
+.dow__row--vazio .dow__n,
+.dow__row--vazio .dow__pl,
+.dow__row--vazio .dow__roi {
+  font-family:var(--font-mono); font-size:var(--text-sm);
+  color:var(--ink-mute); text-align:right;
+}
+.dow__legenda {
+  display:flex; align-items:center; gap:8px;
+  margin-top:14px; padding-top:12px; border-top:1px solid var(--line-2);
+}
+.dow__legenda i { width:14px; height:8px; border-radius:2px; background:rgba(var(--pos-rgb),.13); flex:none; }
+.dow__legenda span { font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-soft); letter-spacing:.02em; }
+@media(max-width:760px) {
+  .dow__hdr, .dow__row { grid-template-columns:minmax(0,1fr) 64px 132px 76px; gap:8px; }
+}
+
+/* ══ EM ABERTO (Minhas Apostas › Em Aberto) ═══════════════════════════════════
+   Tela das apostas AINDA NÃO LIQUIDADAS. Vocabulário visual próprio de propósito:
+   aqui não existe P/L (nada resolveu), então nada usa --pos/--neg. A cor da
+   exposição é o âmbar de "pendente" (--warn), a mesma que o Início já usa para
+   as abertas; o azul de acento fica para o retorno potencial (projeção).
+   Classes próprias (não .cal__/.btbl) porque aquelas carregam comportamento
+   global — o tooltip de P/L engancha em `.cal__cell.has` e o resize de coluna
+   em `.btbl-hdr-row .btbl-th` (querySelectorAll sem escopo de página). */
+
+/* O componente .money é obrigatório em todo R$ (UI_REFERENCE §5.1), mas o
+   `min-width:10ch` do .money-val existe para alinhar COLUNA de tabela larga —
+   dentro de célula de calendário (62px) ou de barra ele estoura. Relaxar a
+   largura mínima não afeta nenhuma regra de marca: o R$ segue menor/neutro,
+   a cor segue só no número e a fonte segue mono/tabular. */
+.abrt-cal__cell .money,
+.abrt-bar__val .money,
+.abrt-conta-count .money,
+.abrt-num .money { width:auto; gap:2px; }
+.abrt-cal__cell .money-val,
+.abrt-bar__val .money-val,
+.abrt-conta-count .money-val,
+.abrt-num .money-val { min-width:0; }
+.abrt-cal__cell .money-sign,
+.abrt-bar__val .money-sign,
+.abrt-conta-count .money-sign,
+.abrt-num .money-sign { min-width:0; }
+
 /* Card principal (P/L Líquido) — brilho de destaque */
 .kpi.hero {
   background: linear-gradient(150deg, rgba(var(--accent-rgb),.12), var(--surface) 62%);

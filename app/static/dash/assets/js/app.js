@@ -523,7 +523,7 @@ function renderPage(id){
   if(PUBLICO&&!PUB_PAGES.includes(id))return; // público: abas de gestão não existem
   _filterCache={};_lastPage=id;_lastPageSig=_pageSig(id);
   const rows=filtrarPagina(id);
-  if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(filtrarSemData('overview'),_refMonthKey('overview'));renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();}
+  if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(filtrarSemData('overview'),_refMonthKey('overview'));renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();renderOvDow(rows);}
   else if(id==='sports'){renderSport(rows);}
   // Bookies = performance (renderCasa) + Atribuição por casa (veio da aba "Casas" do
   // Tipster / Método na s293). A segunda carrega o cadastro de tipsters antes de pintar:
@@ -667,6 +667,7 @@ function buildHTML(){
         ${mkCard('ov_streaks','Cenário Atual','<div id="ovStreaksContent"></div>','<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)"><span style="width:5px;height:5px;border-radius:50%;background:var(--d-info)"></span>Dados reais · histórico</span>')}
         ${mkCard('ov_risco','Diagnóstico de Risco','<div id="ovRiscoContent"></div>','<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)"><span style="width:5px;height:5px;border-radius:50%;background:var(--d-proj)"></span>Simulado · Monte Carlo · 10.000</span>')}
         ${mkCard('ov_heatmap','Calendário','<div id="ovHeatmapContent"></div>')}
+        ${mkCard('ov_dow','Dia da Semana','<div id="ovDowContent"></div>','<span style="margin-left:auto;margin-right:8px;font-family:JetBrains Mono,monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft)">Segue o período do filtro</span>')}
         ${mkCard('roi_monthly','ROI Mensal (%)','<div class="chart-wrap" style="min-height:220px"><canvas id="chartROI" role="img" aria-label="ROI mensal"></canvas></div>')}
         ${mkCard('odds_dist','Distribuição de Odds — Apostas, Win Rate e ROI por faixa','<div class="chart-wrap" style="height:240px"><canvas id="chartOddsDist" role="img" aria-label="Odds dist"></canvas></div>')}
       </div>

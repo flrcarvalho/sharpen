@@ -309,6 +309,75 @@ function _rangeLabel(st){
 // Intervalo custom = herdado sem chip padrão equivalente (só df/dt)
 function _isCustomRange(st){return !!st&&!st.qt&&!st.qd&&!!(st.df||st.dt);}
 
+// ── Calendário + dia da semana dentro dos drills ─────────────────────────────
+// Os dois cartões existem na Visão Geral e agora também no folder do Tipster e no
+// da Casa, com as MESMAS duas réguas de lá, que são diferentes entre si:
+//
+//   Calendário  → base SEM o corte de período (tem navegação de mês própria; o
+//                 período do drill entra só como contorno azul, via `range`).
+//   Dia da semana → `rows`, o mesmo recorte dos KPIs do drill.
+//
+// Cada drill tem seu PRÓPRIO mês selecionado. Reusar `window._ovHeatMonth` (da
+// Visão Geral) faria a seta ‹ › de uma tela mexer no cartão da outra.
+let _tipCalMonth='',_casaCalMonth='';
+
+// Mesma régua do `_selRange` (filters.js), aplicada ao estado de período do
+// DRILL — o de lá lê `gfs(p)` e o drill tem estado próprio. Passa por
+// `_rangeDoPeriodo` para não existir uma segunda tradução de "que intervalo este
+// chip significa".
+function _drillSelRange(st){
+  const{df,dt}=_rangeDoPeriodo(st);
+  if(!df&&!dt)return null;
+  return{from:df||'0000-01-01',to:dt||'9999-12-31'};
+}
+
+// Meses navegáveis: espelha a lista do mkCalendarHeatmap (que inclui o mês
+// selecionado mesmo sem linha), senão a nav ‹ › e o cartão discordam das pontas.
+function _drillCalMeses(baseRows,sel){
+  return [...new Set([...baseRows.map(r=>r.data.slice(0,7)),sel].filter(Boolean))].sort().reverse();
+}
+
+function _renderDrillCal(elId,baseRows,sel,periodoSt,navPrefix){
+  const el=document.getElementById(elId);
+  if(!el)return sel;
+  if(!baseRows.length){el.innerHTML=mkEmpty('Sem apostas no filtro');return sel;}
+  if(!sel){
+    const m=[...new Set(baseRows.map(r=>r.data.slice(0,7)))].sort().reverse();
+    sel=m[0]||'';
+  }
+  window._calHeatCb=null;   // sem clique no dia aqui, como na Visão Geral
+  el.innerHTML=mkCalendarHeatmap(sel,baseRows,{
+    showNav:true,
+    onPrev:navPrefix+'Nav(1)',
+    onNext:navPrefix+'Nav(-1)',
+    onSelect:navPrefix+'Set(this.value)',
+    range:_drillSelRange(periodoSt)
+  });
+  return sel;
+}
+
+// A lista de meses vem ordenada do mais novo para o mais antigo, então ‹ (anterior)
+// anda +1 e › (próximo) anda −1 — igual ao par onPrev/onNext da Visão Geral.
+function _drillCalNav(meses,sel,step){
+  const i=meses.indexOf(sel)+step;
+  return (i>=0&&i<meses.length)?meses[i]:sel;
+}
+
+window._tipCalNav=function(step){
+  _tipCalMonth=_drillCalNav(_drillCalMeses(_drillBaseRows,_tipCalMonth),_tipCalMonth,step);
+  _tipCalMonth=_renderDrillCal('tipDrillCal',_drillBaseRows,_tipCalMonth,_drillPeriodSt,'_tipCal');
+};
+window._tipCalSet=function(v){
+  _tipCalMonth=_renderDrillCal('tipDrillCal',_drillBaseRows,v,_drillPeriodSt,'_tipCal');
+};
+window._casaCalNav=function(step){
+  _casaCalMonth=_drillCalNav(_drillCalMeses(_casaDrillBaseRows,_casaCalMonth),_casaCalMonth,step);
+  _casaCalMonth=_renderDrillCal('casaDrillCal',_casaDrillBaseRows,_casaCalMonth,_casaDrillPeriodSt,'_casaCal');
+};
+window._casaCalSet=function(v){
+  _casaCalMonth=_renderDrillCal('casaDrillCal',_casaDrillBaseRows,v,_casaDrillPeriodSt,'_casaCal');
+};
+
 function _updateDrillPeriodBar(barId,st,inh){
   const bar=document.getElementById(barId);
   if(!bar)return;
@@ -499,6 +568,14 @@ function renderCasaDrill(rows){
       `</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
+      `<div class="analise-popup-section-title">Calendário <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(mês inteiro · navegação própria)</span></div>`+
+      `<div id="casaDrillCal" style="margin-top:.75rem"></div>`+
+    `</div>`+
+    `<div class="analise-popup-section">`+
+      `<div class="analise-popup-section-title">Dia da Semana <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(segue o período do drill)</span></div>`+
+      `<div id="casaDrillDow" style="margin-top:.75rem"></div>`+
+    `</div>`+
+    `<div class="analise-popup-section">`+
       `<div class="analise-popup-section-title">Análise Mensal</div>`+
       `<div class="tbl-wrap drill-tbl"><table class="tbl" id="casaDrillTblMensal"><thead><tr>${mkTh('Mês','','l')+mkTh('Bets','','r')+mkTh('P/L','','r')+mkTh('Turnover','','r')+mkTh('ROI','','r')+mkTh('Win Rate','','r')+mkTh('Stake média','','r')+_mkOddMediaTh('r','88px')}</tr></thead><tbody>${_tipMonthTbody(rows)}</tbody></table></div>`+
     `</div>`+
@@ -549,6 +626,11 @@ function renderCasaDrill(rows){
     tip.style.display='none';
   });
 
+  // Calendário pela base SEM período (nav própria) · dia da semana pelo recorte.
+  _casaCalMonth=_renderDrillCal('casaDrillCal',_casaDrillBaseRows,_casaCalMonth,_casaDrillPeriodSt,'_casaCal');
+  const _casaDowEl=document.getElementById('casaDrillDow');
+  if(_casaDowEl)_casaDowEl.innerHTML=rows.length?mkDowRanking(rows):mkEmpty('Sem apostas no período');
+
   setTimeout(()=>{
     makeSortable('casaDrillTblMensal',[1,2,3,4,5,6,7]);
     makeSortable('casaDrillTblTipster',[1,2,3,4,5,6,7]);
@@ -573,6 +655,7 @@ function openCasaDrill(nome){
   });
   _casaDrillPeriodSt=_seedDrillFromPage('casas');
   _casaDrillInheritSt={..._casaDrillPeriodSt};
+  _casaCalMonth='';   // cada casa abre no mês mais recente DELA
   _updateCasaDrillChips();
 
   overlay.style.display='flex';
@@ -1049,6 +1132,14 @@ function renderTipsterDrill(rows){
       `<div id="tipDrillRisco" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem">${_tipRiscoHTML(null,kS,vS,sbS)}</div>`+
     `</div>`+
     `<div class="analise-popup-section">`+
+      `<div class="analise-popup-section-title">Calendário <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(mês inteiro · navegação própria)</span></div>`+
+      `<div id="tipDrillCal" style="margin-top:.75rem"></div>`+
+    `</div>`+
+    `<div class="analise-popup-section">`+
+      `<div class="analise-popup-section-title">Dia da Semana <span style="font-size:9.5px;color:var(--ink-soft);text-transform:none;letter-spacing:0">(segue o período do drill)</span></div>`+
+      `<div id="tipDrillDow" style="margin-top:.75rem"></div>`+
+    `</div>`+
+    `<div class="analise-popup-section">`+
       `<div class="analise-popup-section-title">Análise Mensal</div>`+
       `<div class="tbl-wrap drill-tbl"><table class="tbl" id="tipDrillTblMensal"><thead><tr>${mkTh('Mês','','l')+mkTh('Bets','','r')+mkTh('P/L','','r')+mkTh('Turnover','','r')+mkTh('ROI','','r')+mkTh('Win Rate','','r')+mkTh('Stake média','','r')+_mkOddMediaTh('r','88px')}</tr></thead><tbody>${_tipMonthTbody(rows)}</tbody></table></div>`+
     `</div>`+
@@ -1099,6 +1190,11 @@ function renderTipsterDrill(rows){
   // Distribuição de Odds — scoped ao tipster (mesmo gráfico da Visão Geral)
   renderOddsDist(rows,'tipsterDrillOdds');
 
+  // Calendário pela base SEM período (nav própria) · dia da semana pelo recorte.
+  _tipCalMonth=_renderDrillCal('tipDrillCal',_drillBaseRows,_tipCalMonth,_drillPeriodSt,'_tipCal');
+  const _dowEl=document.getElementById('tipDrillDow');
+  if(_dowEl)_dowEl.innerHTML=rows.length?mkDowRanking(rows):mkEmpty('Sem apostas no período');
+
   // ── Diagnóstico de Risco: Monte Carlo no Web Worker ────────────────────────
   // Dispara depois de o popup já estar pintado; os 4 cards ficam com "calculando…"
   // até a resposta. `_tipDrillReq` descarta resposta de um drill anterior — abrir o
@@ -1136,6 +1232,7 @@ function openTipsterDrill(nome){
   });
   _drillPeriodSt=_seedDrillFromPage('tipsters');
   _drillInheritSt={..._drillPeriodSt};
+  _tipCalMonth='';   // cada tipster abre no mês mais recente DELE
   _updateDrillChips();
 
   overlay.style.display='flex';

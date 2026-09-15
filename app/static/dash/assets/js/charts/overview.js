@@ -125,6 +125,20 @@ function renderKPI(rows){
     `</div>`;
 }
 
+// ── Dia da semana (Visão Geral) ───────────────────────────────────────────────
+// Ao contrário do calendário logo acima, este cartão SEGUE o período do filtro
+// (recebe `rows`, o mesmo recorte dos KPIs do topo). O calendário é do mês por
+// desenho e tem navegação própria; aqui a pergunta é "no que estou olhando, em
+// que dia da semana eu ganho dinheiro" — dois cartões vizinhos com réguas
+// diferentes, e é por isso que o calendário carrega a nota de escopo e este não.
+function renderOvDow(rows){
+  const el=document.getElementById('ovDowContent');
+  if(!el)return;
+  if(!rows.length){el.innerHTML=mkEmpty('Sem apostas no período/filtro');return;}
+  el.innerHTML=mkDowRanking(rows);
+}
+
+
 function renderBankroll(rows){
   const byDay={};rows.forEach(r=>{const k=r.data.slice(0,10);if(!byDay[k])byDay[k]=0;byDay[k]+=r.lucro;});
   const days=Object.keys(byDay).sort();

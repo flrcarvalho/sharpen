@@ -196,6 +196,68 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
   </div>`;
 }
 
+// ── Ranking por dia da semana ───────────────────────────────────────────────
+// Responde "em que dia da semana eu ganho dinheiro". Quem chama passa as linhas
+// JÁ recortadas — o cartão segue o período da tela, o mesmo dos KPIs ao lado,
+// então não há corte a explicar em nota (ao contrário do calendário, que é
+// sempre do MÊS inteiro e por isso avisa o que ficou de fora).
+//
+// ⚠️ O dia sai de `r.data`, a data do EVENTO — mesma régua do calendário logo
+// acima. E a Date é montada CAMPO A CAMPO: `new Date('2026-09-14')` é lido como
+// UTC e no Brasil volta 13/09, então todo sábado viraria sexta — calado, sem
+// erro em lugar nenhum. Mesma família do `_ymd` em filters.js.
+//
+// Dia sem aposta mostra "—", nunca R$ 0,00: zero é uma conta feita, e ausência
+// não é (CLAUDE.md, "Zero não é ausência").
+function mkDowRanking(rows){
+  const DIAS=['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+  const acc=DIAS.map(nome=>({nome:nome,n:0,pl:0,turnover:0}));
+  (rows||[]).forEach(r=>{
+    const iso=(r.data||'').slice(0,10);
+    if(iso.length!==10)return;
+    const p=iso.split('-');
+    const dt=new Date(+p[0],+p[1]-1,+p[2]);   // local, nunca UTC
+    if(isNaN(dt.getTime()))return;
+    const a=acc[(dt.getDay()+6)%7];           // 0=Seg … 6=Dom
+    a.n++;
+    a.pl+=r.lucro;
+    if(r.resultado!=='V')a.turnover+=(r.stake||0);   // turnover exclui Void
+  });
+  if(!acc.some(a=>a.n))return mkEmpty('Sem dados de apostas');
+
+  // A barra mede VOLUME (nº de apostas) contra o dia mais movimentado, e só a
+  // cor carrega o sinal do P/L. Duas grandezas, dois canais — misturar as duas
+  // no comprimento tornaria a barra ilegível nos dias de P/L próximo de zero.
+  const maxN=Math.max.apply(null,acc.map(a=>a.n));
+
+  const linhas=acc.map((a,i)=>{
+    const we=i>=5?' we':'';
+    if(!a.n){
+      return `<div class="dow__row dow__row--vazio${we}">`+
+        `<span class="dow__dia"><span class="dow__nome">${a.nome}</span></span>`+
+        `<span class="dow__n">—</span>`+
+        `<span class="dow__pl">—</span>`+
+        `<span class="dow__roi">—</span>`+
+      `</div>`;
+    }
+    const roi=a.turnover>0?a.pl/a.turnover*100:null;
+    const larg=maxN>0?(a.n/maxN*100):0;
+    const barCls=a.pl<0?' neg':'';
+    return `<div class="dow__row${we}">`+
+      `<span class="dow__dia"><span class="dow__bar${barCls}" style="width:${larg.toFixed(1)}%"></span><span class="dow__nome">${a.nome}</span></span>`+
+      `<span class="dow__n">${a.n.toLocaleString('pt-BR')}</span>`+
+      `<span class="dow__pl">${fmtPL(a.pl)}</span>`+
+      `<span class="dow__roi ${roi===null?'':(roi>=0?'pos':'neg')}">${roi===null?'—':fmtPct(roi,2)}</span>`+
+    `</div>`;
+  }).join('');
+
+  return `<div class="dow">`+
+    `<div class="dow__hdr"><span></span><span>Apostas</span><span>P/L</span><span>ROI</span></div>`+
+    linhas+
+    `<div class="dow__legenda"><i></i><span>largura da barra = volume de apostas · cor = sinal do P/L</span></div>`+
+  `</div>`;
+}
+
 // ── Shared KPI grid builder (2 rows × 4) ────────────────────────────────────
 function mkKpiGrid(rows,{plLabel,contextLabel,contextVal,contextSub}){
   const pl=rows.reduce((a,r)=>a+r.lucro,0);
