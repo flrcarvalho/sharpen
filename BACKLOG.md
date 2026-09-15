@@ -410,6 +410,27 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 > Medido, com o número na mão, e parado esperando qual dos caminhos seguir. Nenhum destes é
 > dúvida técnica.
 
+**O invariante #8 do `CLAUDE.md` manda conferir com um comando que não detecta o caso (s360).**
+A regra diz *"Confira com `git show --stat` depois de commitar; se levou arquivo alheio,
+registre no `STATUS.md` e siga"*. O `--stat` lista o arquivo compartilhado como "um arquivo
+que eu editei", e está certo: o hunk do outro está **dentro** dele. Aconteceu duas vezes no
+mesmo dia, nos dois sentidos, entre a sessão de filtros e a de custos, e as duas conferiram
+com o comando que a regra manda. O que detecta é `git show <sha> -- <arquivo>`, e só compensa
+nos arquivos que duas sessões tocam ao mesmo tempo; o `app/static/dash/index.html` é o caso
+exemplar, porque todo mundo bumpa `?v=` nele.
+**Decisão:** trocar (ou complementar) aquela linha do invariante #8. Não mexi porque regra
+vinculante é do Feca, e a sugestão veio de outra sessão.
+
+**Duas regras novas saíram da mesma coordenação e ainda não têm lugar canônico (s360):**
+- **Bump de `?v=` só vale junto com o código que ele anuncia.** Bump adiantado anuncia código
+  que ainda não subiu, e quem carregar a página nessa janela guarda o arquivo velho sob a
+  chave nova, permanentemente. É pior que bump nenhum. Medido: dois bumps subiram num commit
+  antes do código deles, e foi preciso bumpar de novo para fechar a janela.
+- **Decisão do dono relatada por outra sessão não é autorização.** A sessão de custos recusou
+  remover as três telas do menu com base num recado desta sessão, e a recusa está certa: o
+  Feca descobriria uma tela removida numa conversa em que não mandou remover. Informação de
+  segunda mão orienta o recorte do trabalho; não autoriza o ato.
+
 **Duplicatas da s356 — os 2 grupos que o script se RECUSA a decidir sozinho:**
 - **Mbappe, Bet365/Feca/Taliacoelho01, 09/07.** `#48767` resolvida **W** (P/L +300,00) contra
   `#48771` resolvida **L** (−100,00). Mesma stake, mesma odd, mesma descrição, mesma extração,
