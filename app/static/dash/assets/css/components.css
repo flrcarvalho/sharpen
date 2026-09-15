@@ -2930,3 +2930,118 @@ select.ap-inline-inp { padding: 2px 4px; }
 @media (max-width: 1180px) {
   .c2-raiox { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Aba CONTAS (s365) ───────────────────────────────────────────────────────
+   Nenhum componente novo onde já havia um: a barra reusa `.filters`/`.filter-group`,
+   o segmentado de População reusa `.tcard-seg`, os cards reusam `.card`, a tabela
+   reusa `.tbl` e a ajuda da mediana reusa `.tip-anchor`/`.metric-info`/`.metric-tip`.
+   O que está aqui é o que não existia: a régua, o drill e a máscara do múltiplo.
+
+   Escada de Tinta, papel a papel: identidade (nome de conta) e valor numérico em
+   `--ink`; label/eyebrow (`.cn-escopo`, `.cn-tile__lab`) em `--ink-soft` com piso de
+   9,5px; metadado (`.cn-split`, `.cn-popsub`, `.cn-nota`) em `--ink-mute` com piso de
+   10px. Nenhuma `opacity` sobre tom apagado — ela é multiplicador, não degrau. */
+
+.cn-popsub                 { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             letter-spacing: .04em; color: var(--ink-mute); margin-top: 2px; }
+
+/* A régua. Ela existe porque duração e turnover respondem a períodos DIFERENTES na
+   mesma linha, e dois números vizinhos sem legenda leem como defeito. */
+.cn-regua                  { display: flex; align-items: flex-start; gap: 9px;
+                             padding: 10px 14px; background: var(--surface);
+                             border: 1px solid var(--line-2); border-radius: var(--r-md);
+                             margin-bottom: var(--sp-4); font-size: 12px; line-height: 1.5;
+                             color: var(--ink-soft); }
+.cn-regua svg              { flex: none; margin-top: 2px; color: var(--ink-mute); }
+.cn-regua b                { color: var(--ink); font-weight: 600; }
+
+.cn-escopo                 { margin-left: auto; font-family: var(--font-mono);
+                             font-size: 9.5px; text-transform: uppercase;
+                             letter-spacing: .18em; color: var(--ink-soft); }
+
+.cn-row                    { cursor: pointer; }
+.cn-row--on td             { background: rgba(var(--accent-rgb), .05) !important; }
+.cn-casa                   { text-align: left; color: var(--ink); font-weight: 700; }
+.cn-chev                   { flex: none; color: var(--ink-mute); margin-right: 2px;
+                             transition: transform .18s var(--ease); }
+.cn-chev.on                { transform: rotate(90deg); color: var(--accent); }
+.cn-ink                    { color: var(--ink); }
+.cn-split                  { color: var(--ink-mute); font-size: var(--text-xxs); }
+.cn-vazio                  { text-align: center; color: var(--ink-mute); padding: 20px; }
+
+/* Drill: a tabela de contas da casa. Fundo `--bg` (mais escuro que a linha) para o
+   aninhamento se ler sem uma borda a mais. */
+.cn-drill > td             { padding: 0 !important; background: var(--bg); }
+.cn-drill-box              { padding: 12px 16px 14px 34px; }
+.cn-drill-box .tbl th      { background: transparent; position: static; }
+.cn-drill-foot             { display: flex; align-items: center; gap: 16px;
+                             margin-top: 10px; padding-left: 10px; flex-wrap: wrap; }
+.cn-nota                   { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             letter-spacing: .06em; color: var(--ink-mute); }
+.cn-alerta                 { display: inline-flex; align-items: center; gap: 6px;
+                             font-family: var(--font-mono); font-size: var(--text-xxs);
+                             letter-spacing: .06em; color: var(--warn); }
+
+.cn-est                    { display: inline-flex; align-items: center; gap: 6px;
+                             color: var(--ink-soft); }
+.cn-est::before            { content: ''; width: 6px; height: 6px; border-radius: 50%;
+                             background: var(--ink-mute); flex: none; }
+.cn-est--on                { color: var(--pos); }
+.cn-est--on::before        { background: var(--pos); }
+
+/* Os três estados de custo. "própria" e "sem preço" são coisas DIFERENTES: a primeira
+   custou zero de verdade e entra no múltiplo, a segunda tem custo não declarado e fica
+   fora. Trata-las igual seria a ausência se disfarçando de zero. */
+.cn-propria                { font-family: var(--font-mono); font-size: var(--text-xs);
+                             color: var(--ink-soft); }
+.cn-sem                    { font-family: var(--font-mono); font-size: 12px;
+                             color: var(--ink-mute); }
+
+.cn-tiles                  { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+                             gap: 10px; margin: 4px 0 var(--sp-4); }
+.cn-tile                   { background: var(--surface-2); border: 1px solid var(--line);
+                             border-radius: var(--r-md); padding: 13px 16px;
+                             display: flex; flex-direction: column; gap: 8px; }
+.cn-tile__lab              { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+                             color: var(--ink-soft); }
+.cn-tile__val              { font-family: var(--font-mono); font-size: var(--text-xl);
+                             font-weight: var(--weight-extrabold); letter-spacing: -.02em;
+                             color: var(--ink); font-variant-numeric: tabular-nums; }
+.cn-tile__val .money       { width: auto; }
+.cn-tile__val.warn .money-val { color: var(--warn); }
+.cn-tile__sub              { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             color: var(--ink-mute); }
+/* Carve-out do `UI_REFERENCE §5.5`: o `.money` é uma COLUNA (`width:100%` +
+   `min-width:10ch`, para alinhar tabela como planilha). Dentro de uma FRASE, sem isto,
+   ele joga o valor sozinho na borda direita e parte o parágrafo em duas linhas — o
+   sintoma não é número errado, é layout partido, e nenhum lint o vê. */
+.cn-tile__sub .money       { width: auto; gap: 3px; display: inline-flex; }
+.cn-tile__sub .money-val   { min-width: 0; }
+/* A OUTRA metade do §5.5, que o carve-out de largura não conserta: o `.money-sign` é
+   `0.76em` RELATIVO, e num hospedeiro de 10px ele sai a 7,6px — abaixo do piso de
+   qualquer papel da Escada. Aqui o número é CITADO dentro do texto ("após o custo:
+   R$ 219.764"), então a saída é a primeira da tabela do §5.5: pinar o corpo. */
+.cn-tile__sub .money-sign  { min-width: 0; font-size: 10px; }
+
+.cn-nota-box               { display: flex; align-items: flex-start; gap: 10px;
+                             margin-top: var(--sp-4); padding: 12px 14px;
+                             background: var(--surface-2); border: 1px solid var(--line-2);
+                             border-radius: var(--r-md); font-size: 12px; line-height: 1.55;
+                             color: var(--ink-soft); }
+.cn-nota-box svg           { flex: none; margin-top: 1px; color: var(--ink-mute); }
+.cn-nota-box b             { color: var(--ink); font-weight: 600; }
+
+/* MÚLTIPLO — razão P/L ÷ custo. O `UI_REFERENCE §5` cobre R$, %, odd e saldo; a razão
+   não é nenhum dos quatro, então ela ESPELHA a gramática do `.money` em vez de inventar
+   uma quinta: mono, 2 casas, o `×` neutro e menor como o `R$`, e cor só abaixo de 1,00
+   (a conta que não devolveu o que custou). Ver `UI_REFERENCE §5.6`. */
+.cn-mult                   { font-family: var(--font-mono); font-size: var(--text-sm);
+                             font-weight: var(--weight-bold); color: var(--ink);
+                             font-variant-numeric: tabular-nums; }
+.cn-mult.neg               { color: var(--neg); }
+.cn-mult__x                { color: var(--ink-soft); font-size: .76em; margin-left: 2px; }
+
+@media (max-width: 1180px) {
+  .cn-tiles { grid-template-columns: minmax(0, 1fr); }
+}

@@ -506,6 +506,10 @@ const PAGE_META={
   'overview':       ['Visão Geral',              'performance consolidada'],
   'sports':         ['Esportes',                 'performance por modalidade esportiva'],
   'casas':          ['Bookies',                  'performance, ROI e atribuição por bookmaker'],
+  // Contas (s365): a unidade aqui é a CONTA, não a aposta — é isso que a separa de
+  // Bookies, que mede performance e não sabe quantas contas geraram aquele P/L nem
+  // quanto tempo elas viveram.
+  'contas':         ['Contas',                   'duração, turnover e retorno por casa'],
   'apostas':        ['Base Completa',            'espelho completo da base de dados'],
   'abertas':        ['Em Aberto',                'apostas ainda não liquidadas — exposição viva'],
   'tipsters':       ['Tipsters',                 'análise comparativa e individual'],
@@ -560,6 +564,15 @@ function renderPage(id){
   // Tipster / Método na s293). A segunda carrega o cadastro de tipsters antes de pintar:
   // sem ele o multi-select nasce vazio quando esta é a primeira tela aberta.
   else if(id==='casas'){renderCasa(rows);renderCasasAtribuicao();}
+  // Contas (s365): precisa do cadastro (adquirida_em / arquivada_em, que é o que define
+  // a VIDA da conta) e dos preços com vigência ANTES de pintar — o render é síncrono e
+  // lê o cache que as duas cargas deixam. Sem o cadastro, toda conta leria como
+  // encerrada na última aposta e a duração das ativas nasceria curta, sem erro nenhum.
+  // ⚠️ O `.catch` de CADA carga é load-bearing, e o modo de falha foi medido: sem ele um
+  // 404 em qualquer das duas rejeita o `Promise.all`, o `.then` nunca roda e a aba fica
+  // EM BRANCO para sempre, sem erro na tela. Falhando, a tela pinta com o que tem (a
+  // vida sai de `DADOS`/`DADOS_ABERTAS`, que já estão em memória) em vez de não pintar.
+  else if(id==='contas'){Promise.all([contasLoad().catch(()=>{}),precosFornLoad().catch(()=>{})]).then(()=>_cnPintarQuandoPronto());}
   else if(id==='tipsters'){renderTipsters();}
   else if(id==='apostas'){renderApostas();}
   else if(id==='abertas'){renderAbertas();}
@@ -585,7 +598,7 @@ function renderPage(id){
 // Páginas que montam multiselect de filtro. Uma lista só, lida pelo `msInit` do
 // primeiro paint e pelo `atualizarOpcoesFiltros` de toda carga seguinte: duas listas
 // divergiriam e um seletor ficaria de fora da repintura sem ninguém notar.
-const _PAGS_FILTRO=['overview','sports','casas','apostas','abertas','tipsters','resultados','parceiros','custos','custos_v2','metrics'];
+const _PAGS_FILTRO=['overview','sports','casas','contas','apostas','abertas','tipsters','resultados','parceiros','custos','custos_v2','metrics'];
 
 // Opções dos filtros são um RETRATO do feed no instante em que a tela foi montada, e o
 // `buildHTML` roda só no primeiro paint. Com cache local ele monta as listas a partir do
@@ -608,6 +621,9 @@ function atualizarOpcoesFiltros(){
   // Fornecedor (Custos): fonte própria — cadastro ∪ base, não `_LISTAS`. Conta comprada
   // e ainda sem aposta existe para a tela de custo, e só o cadastro sabe dela.
   if(typeof _c2Fornecedores==='function')msRepintar('fo_custos_v2',_c2Fornecedores());
+  // Fornecedor (Contas): mesma razão da linha acima, fonte própria. Sai do `_contaVida`,
+  // que é cadastro ∪ base — e é lá que a conta PRÓPRIA aparece como `Eu`.
+  if(typeof _cnFornecedores==='function')msRepintar('fo_contas',_cnFornecedores());
 }
 
 // Esporte e Tipster entram JUNTOS em toda tela de P/L (s358). Os dois descrevem a
@@ -627,6 +643,7 @@ function buildHTML(){
   const parceiros=_L.parceiros;
   _PAGS_FILTRO.forEach(p=>{msInit('sp_'+p);msInit('ca_'+p);msInit('ti_'+p);});
   msInit('fo_custos_v2');   // Fornecedor: eixo próprio da tela de Custos (charts/custos2.js)
+  msInit('fo_contas');      // Fornecedor: eixo próprio da aba Contas (charts/contas.js)
   msInit('tipsters');
 
   document.getElementById('root').innerHTML=`
@@ -672,6 +689,7 @@ function buildHTML(){
         ${[
           ['tipster_metodo','Tipsters & Métodos','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12.5" cy="10.5" r="3"/><path d="M12.5 9v3M11 10.5h3"/>'],
           ['casas','Bookies','<rect x="1" y="3" width="14" height="10" rx="1"/><path d="M1 8h14M5 3v10"/>'],
+          ['contas','Contas','<rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/><circle cx="12" cy="12" r="1.2"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Custos</div>
         ${[
@@ -725,6 +743,15 @@ function buildHTML(){
              Sem crase nem cifrão neste comentário: ele vive DENTRO do template literal
              de buildHTML, e o node --check aceita a crase calada — quebra só no runtime. -->
         <div class="tm-wrap"><section class="pane" id="paneCasas"></section></div>
+      </div>
+
+      <!-- CONTAS (s365): duração, dias ativos, turnover e custo x retorno por casa.
+           A barra de filtros é montada pelo próprio render (buildFiltrosContas), e não
+           pelo buildFilters: esporte e tipster NÃO recortam esta tela, e oferecê-los
+           faria o número mudar por um eixo que não descreve a conta. -->
+      <div class="page" id="page-contas">
+        <div id="contasFiltros"></div>
+        <div id="contasContent"></div>
       </div>
 
       <!-- APOSTAS -->

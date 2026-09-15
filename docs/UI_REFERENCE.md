@@ -238,6 +238,41 @@ quebra".**
 > caíram neste mesmo buraco em telas diferentes (a Fatia 0 da tela de Custos e a faixa da
 > s360), que é o que trouxe a regra para cá em vez de ficar no plano de uma delas.
 
+### 5.6 — MÚLTIPLO (razão): a quinta máscara, e por que ela espelha o `.money`
+
+O §5.1 fecha em quatro contextos: P/L, agregado, stake e saldo. A aba **Contas** (s365)
+trouxe um número que não é nenhum dos quatro e também não é `%` nem odd: o **múltiplo do
+custo**, `P/L da casa ÷ custo das contas dela`. Ele responde *"cada R$ 1 gasto numa conta
+desta casa voltou quanto?"*, e abaixo de `1,00×` a conta **não devolveu o que custou**.
+
+A regra do `/nova-ui` para contexto novo é **perguntar, não inventar**. Perguntado, com as
+três opções na mesa (espelhar o `.money`; número neutro com barra de proporção; virar
+`%` pelo `fmtPct` já existente), a decisão foi **espelhar o `.money`** — a gramática que
+o app inteiro já lê:
+
+| Propriedade | Valor | Por quê |
+|---|---|---|
+| Fonte | mono, `tabular-nums`, à direita | §2, como todo número |
+| Casas | **2** | é uma razão, e a 2ª casa separa `0,98×` de `1,0×` |
+| Símbolo | `×` em `--ink-soft`, `0.76em` | **o mesmo papel do `R$`**: o símbolo é neutro e menor, a cor fica no número |
+| Cor | `--ink`; **`--neg` só abaixo de `1,00`** | prejuízo líquido é semântica de resultado, que é o único uso legítimo de vermelho (§1) |
+| Ausente | `·` em `--ink-mute` | sem preço lançado **não há múltiplo** — nem zero, nem infinito |
+
+**A última linha é a que importa.** Custo não lançado não é custo zero: devolver `0,00×`
+ali seria a ausência se disfarçando de conta feita — a mesma família do *"zero não é
+ausência"* do `CLAUDE.md`. Conta **própria** (fornecedor `Eu`) é o caso oposto e legítimo:
+custou zero de verdade, entra no P/L líquido com o valor cheio, e o múltiplo dela também
+sai como `·`, porque dividir por zero não produz número.
+
+**Fonte canônica:** `_cnMult` e `.cn-mult` / `.cn-mult__x`
+(`charts/contas.js`, `assets/css/components.css`). Gate:
+`tests/test_contas_vida.py::test_a_aba_nao_abrevia_dinheiro_nem_inventa_formatador`.
+
+> **Por que NÃO virou `%`.** O `fmtPct` já existe e não custaria helper novo, mas a mesma
+> tela mostra **ROI**, que também é `%` e mede outra coisa (retorno sobre turnover, não
+> sobre custo). Dois percentuais vizinhos medindo denominadores diferentes leem como
+> defeito — e `+652,00%` se lê pior que `7,52×` justamente onde a decisão é tomada.
+
 ---
 
 ## 6. Notas de migração (2026-06-28)

@@ -185,6 +185,60 @@ teste) passou despercebida até alguém abrir o log à mão.
 Conserto: o `check_docs.py` precisa tratar link que sai da raiz do repo como **fora de
 escopo**, não como quebrado. Um link para fora não é conferível de dentro.
 
+### 1.13 O custo total da aba Contas não bate com o número registrado na s364 (s366). **VIVA, medida**
+
+Medido read-only contra produção, somando cada conta uma vez pelas três camadas de preço,
+**sem recorte de período**: **R$ 76.600**. O registro da s364, que mediu pela tela, diz
+**R$ 59.600**.
+
+| Casa | s364 (tela) | s366 (banco) |
+|---|---|---|
+| Bet365 | 17.800 | **17.800** ✓ |
+| Betano | 20.300 | 22.300 |
+| Superbet | 21.500 | 36.500 |
+
+**Só a Bet365 bate**, e isso é o que torna o caso interessante: não é fator constante nem
+erro de soma. Quatro hipóteses foram testadas e **descartadas**:
+
+- **recorte por ano** — todo o custo datável cai em 2026, então filtrar o ano não muda nada;
+- **arquivadas × ativas** — 70.584 e 6.016, nenhuma das duas dá 59.600;
+- **só contas com bilhete** — dá os mesmos 76.600 (nenhuma conta precificada é só-cadastro);
+- **edição posterior do preço** — o `custo_store` foi gravado às 03:45 e o commit da s364 é
+  das 16:35, então o preço não mudou depois da medição.
+
+**O que falta, e é o método do repo:** rodar a `calcCostFiltered` REAL contra o banco, como
+o `tests/js/bookies_custo.mjs` já faz com o `renderCasa`, e diffar conta a conta. Deduzir
+não resolveu — as quatro hipóteses acima morreram medidas.
+
+> **Enquanto não fecha, o número está na tela e a divergência está registrada.** A aba mostra
+> o escopo no cabeçalho do card (`N casas com preço · N próprias · N sem preço`), que é a
+> régua de auditabilidade do projeto: KPI que desconta o que não está na tela é inauditável.
+
+### 1.14 O front não sabe dizer "custo zero" — a ausência e o zero caem no mesmo balde (s366). **VIVA, medida**
+
+`_custoDaConta` e `_buildContaVida` (`charts/gestao.js`) filtram por **`custo > 0`** nas três
+camadas (conta → preço vigente → par `fornecedor||casa`), e o fim da linha é `return 0`. O
+próprio comentário assume a mistura: *"Sem nenhuma das três: 0, e a conta aparece como sem
+preço"*. **Um zero digitado pelo dono é descartado no caminho.**
+
+É o **inverso** do caso já documentado no `CLAUDE.md` (*"Zero não é ausência. `0` se disfarça
+de conta feita"*): lá a ausência virava zero; aqui o zero verdadeiro não tem como ser dito.
+
+**Por ora a aba Contas contorna sem tocar no banco:** conta do fornecedor `Eu` (o que o
+`normForn` devolve quando não há `[Fornecedor]` no nome) é **própria**, e própria é custo zero
+por natureza — ela entra no múltiplo com P/L líquido cheio, enquanto a comprada sem preço fica
+de fora. Medido na base do Feca: **59 das 182 contas são próprias**, e delas saem **59 das 69
+contas sem preço**.
+
+**O contorno tem limite, e é onde ele quebra:** conta **comprada** que custou zero de verdade
+(cortesia, bônus, troca) não tem como ser declarada — ela lê como "sem preço lançado" e sai da
+comparação. Se isso aparecer, a saída é `parceiros.custo = 0` passar a significar zero
+declarado (a coluna é `NUMERIC` NULL, então o banco já distingue os dois) e os três `> 0` do
+front virarem `!= null`.
+
+> **Sintoma para reconhecer isto noutro campo:** um `> 0` usado como teste de existência.
+> Ele funciona enquanto zero for impossível, e a regra de negócio muda sem avisar o código.
+
 ### 1.12 A 0.7.13 está na home, e o grupo só é avisado na próxima versão (s365). **VIVA — só o aviso**
 
 O `manifest.json` foi para **0.7.13** no `fe29c2b` (o horizonte da Bolsa de Aposta). O Feca
