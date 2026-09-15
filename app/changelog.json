@@ -236,6 +236,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0713",
+      "v": "v0.7.13",
+      "data": "2026-09-15",
+      "texto": "**Bolsa de Aposta:** a captura ficou muito mais rápida. A primeira busca o último ano; as seguintes, só o que mudou desde a anterior.",
+      "itens": [
+        "Atualize a extensão em sharpen.bet/extensao."
+      ]
+    },
+    {
       "id": "su-0712",
       "v": "v0.7.12",
       "data": "2026-09-11",
