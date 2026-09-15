@@ -348,8 +348,9 @@
   border:1px solid var(--line-2); border-radius:var(--r-sm); overflow:hidden;
 }
 .dow__row.we { background-color:rgba(255,255,255,.02); }
-/* Volume no comprimento, sinal do P/L na cor. O alpha é fixo: variar os dois
-   canais junto daria duas leituras concorrentes na mesma barra.
+/* P/L no comprimento, sinal na cor — uma grandeza só, dois canais que concordam.
+   O alpha é fixo: variar os dois junto daria duas leituras concorrentes na mesma
+   barra. O porquê de ser P/L e não volume está no `mkDowRanking` (shared.js).
    A barra vive DENTRO da coluna do dia, nunca atrás da linha inteira: medido na
    tela (s361), atravessando ela corta os números no meio e a borda da barra lê
    como artefato de render — o ROI de um dia aparecia metade dentro, metade fora. */
@@ -360,6 +361,9 @@
   pointer-events:none;
 }
 .dow__bar.neg { background:rgba(var(--neg-rgb),.13); }
+/* P/L exatamente zero: o dia existe e não moveu dinheiro. Barra no piso e neutra —
+   verde ou vermelho ali afirmariam um sinal que o número não tem. */
+.dow__bar.zero { background:rgba(255,255,255,.06); }
 .dow__nome {
   position:relative; padding-left:12px;
   font-size:var(--text-sm); font-weight:700; color:var(--ink);

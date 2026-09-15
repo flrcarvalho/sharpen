@@ -225,10 +225,15 @@ function mkDowRanking(rows){
   });
   if(!acc.some(a=>a.n))return mkEmpty('Sem dados de apostas');
 
-  // A barra mede VOLUME (nº de apostas) contra o dia mais movimentado, e só a
-  // cor carrega o sinal do P/L. Duas grandezas, dois canais — misturar as duas
-  // no comprimento tornaria a barra ilegível nos dias de P/L próximo de zero.
-  const maxN=Math.max.apply(null,acc.map(a=>a.n));
+  // A barra mede o P/L — o dinheiro que o dia pôs no bolso — contra o melhor dia
+  // do recorte. Já mediu VOLUME, e enganava: o olho lê a barra mais longa como "o
+  // melhor dia", então o sábado (8.545 apostas, R$ 97 mil) passava na frente da
+  // quarta (5.494 apostas, R$ 135 mil) com o número certo ao lado dizendo o
+  // contrário. Volume não é mérito e ficou onde ele pesa certo: na coluna Apostas,
+  // como número. (s361, achado do Feca na tela — a legenda dizia o que a barra
+  // media e mesmo assim enganava: não basta a tela DIZER, o canal visual tem de
+  // medir a coisa certa.)
+  const maxAbs=Math.max(1,...acc.map(a=>Math.abs(a.pl)));
 
   const linhas=acc.map((a,i)=>{
     const we=i>=5?' we':'';
@@ -241,8 +246,11 @@ function mkDowRanking(rows){
       `</div>`;
     }
     const roi=a.turnover>0?a.pl/a.turnover*100:null;
-    const larg=maxN>0?(a.n/maxN*100):0;
-    const barCls=a.pl<0?' neg':'';
+    // Piso de 1,5%: o dia que apostou e não fez dinheiro (terça, R$ 1.136 contra
+    // R$ 135 mil) renderiza uma barra de ~0,8% que some — e barra ausente lê como
+    // defeito, não como "quase não rendeu". O piso mostra que o dia existe.
+    const larg=Math.max(1.5,Math.abs(a.pl)/maxAbs*100);
+    const barCls=a.pl<0?' neg':(a.pl>0?'':' zero');
     return `<div class="dow__row${we}">`+
       `<span class="dow__dia"><span class="dow__bar${barCls}" style="width:${larg.toFixed(1)}%"></span><span class="dow__nome">${a.nome}</span></span>`+
       `<span class="dow__n">${a.n.toLocaleString('pt-BR')}</span>`+
@@ -254,7 +262,7 @@ function mkDowRanking(rows){
   return `<div class="dow">`+
     `<div class="dow__hdr"><span></span><span>Apostas</span><span>P/L</span><span>ROI</span></div>`+
     linhas+
-    `<div class="dow__legenda"><i></i><span>largura da barra = volume de apostas · cor = sinal do P/L</span></div>`+
+    `<div class="dow__legenda"><i></i><span>comprimento da barra = P/L do dia, contra o melhor do período</span></div>`+
   `</div>`;
 }
 
