@@ -141,6 +141,7 @@
     var menu = el.querySelector('.sb-tipster__menu');
     var file = el.querySelector('.sb-tipster__file');
     var perfilAtual = null;
+    var logoVersao = 0;          // cache-bust da logo, memorizado (ver pintarLogo)
 
     function avisar(texto) {
       erro.textContent = texto || '';
@@ -149,14 +150,22 @@
 
     /* A logo entra com cache-bust pelo carimbo: a URL é estável (/conta/logo), então
      * sem isso a imagem nova ficaria escondida atrás da antiga no cache do navegador
-     * — o upload "não faria nada" aos olhos de quem clicou. */
+     * — o upload "não faria nada" aos olhos de quem clicou.
+     *
+     * O carimbo é MEMORIZADO, e isso é load-bearing desde a s366: `aplicar` voltou a
+     * rodar a cada recarga da base (a casca repinta os números quando o feed muda), e
+     * um `Date.now()` por repintura daria à logo uma URL inédita toda vez — request
+     * novo e piscada, sem nada ter mudado na imagem. Quem PRECISA furar o cache passa
+     * a versão explícita (o upload), e é ela que fica valendo daí em diante. */
     function pintarLogo(temLogo, versao) {
       if (!cfg.logoUrl || temLogo === false) { img.hidden = true; img.removeAttribute('src'); return; }
+      if (versao) logoVersao = versao;
+      else if (!logoVersao) logoVersao = Date.now();
       // `temLogo` indefinido = "tenta": a vitrine pública não recebe esse booleano (a
       // rota do perfil é autenticada) e descobre pela própria imagem. O onerror é o
       // que faz a conta sem logo cair no monograma em vez de mostrar ícone quebrado.
       img.onerror = function () { img.hidden = true; img.removeAttribute('src'); };
-      img.src = cfg.logoUrl + '?v=' + (versao || Date.now());
+      img.src = cfg.logoUrl + '?v=' + logoVersao;
       img.alt = 'Logo de ' + (perfilAtual && perfilAtual.nome ? perfilAtual.nome : 'tipster');
       img.hidden = false;
     }

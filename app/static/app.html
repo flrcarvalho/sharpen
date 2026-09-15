@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="/static/shell.css?v=4"><!-- casca compartilhada: .nav-group/.nav-item/.nav-icon/.nav-out/.sb-tipster/.money -->
 <!-- Bloco de tipster da sidebar (s362), compartilhado com a vitrine pública. Sem
      `defer`: o script inline lá embaixo chama SbTipster.montar na hora em que roda. -->
-<script src="/static/sb-tipster.js?v=2"></script>
+<script src="/static/sb-tipster.js?v=3"></script>
 <style>
 /* ── Host da casca única (/app) ──────────────────────────────────────────────
    Dono da sidebar (uma só, sempre viva) + 2 iframes (Planilhador + Dashboard).
@@ -447,6 +447,15 @@ body::before {
   // (forcar=false — dono Postgres já lê fresco; o ?refresh=1 fica só para o
   // clique porque reconstruir a planilha ao vivo custa ~10-20s).
   function executarRefresh(forcar){
+    // O bloco de tipster vive na CASCA, que por desenho nunca recarrega — então o
+    // ROI/PL dele congelava no instante do login enquanto os KPIs do iframe subiam a
+    // cada captura. Medido no Gabriel (s366): sidebar em +R$ 48.614,76 / +3,57% e KPI
+    // em +R$ 50.782,00 / +3,72%, que é a base das 11:00 contra a base de agora — dois
+    // números vizinhos medindo a MESMA coisa, um deles velho. O aviso sai daqui porque
+    // aqui chegam os três gatilhos de recarga (SSE, botão ↻ e volta de aba), e vem
+    // ANTES do early-return de propósito: o perfil é agregado no servidor e não depende
+    // de nenhum iframe ter base carregada.
+    document.dispatchEvent(new Event('base-recarregada'));
     var fila = refreshQueue();
     if (!fila.length) return;                                 // nenhum app com base carregado ainda
     setRefreshing(true);
@@ -590,15 +599,26 @@ body::before {
     bloco.aplicar(estado);
   }).catch(function(){});
 
-  fetch('/conta/perfil').then(function(r){ return r.ok ? r.json() : null; }).then(function(p){
-    if (!p) return;
-    estado.nome = p.nome || estado.nome || p.dono || '';
-    estado.plano = p.plano;
-    estado.tem_logo = !!p.tem_logo;
-    estado.mes = p.mes || {};
-    estado.historico = p.historico || {};
-    bloco.aplicar(estado);
-  }).catch(function(){});
+  /* Os números do bloco são CONTEXTO DA CONTA, mas não são um retrato do login: cada
+     captura muda a base, e a sidebar tem de acompanhar como os KPIs acompanham. Daí a
+     função nomeada — ela roda na carga e de novo a cada `base-recarregada`, o evento
+     que o IIFE da navegação dispara nos três gatilhos de recarga.
+
+     Falha de rede não apaga o que está na tela: o `catch` é silencioso e as células
+     seguem com o último valor bom, que é velho por segundos, não errado. */
+  function recarregarPerfil(){
+    return fetch('/conta/perfil').then(function(r){ return r.ok ? r.json() : null; }).then(function(p){
+      if (!p) return;
+      estado.nome = p.nome || estado.nome || p.dono || '';
+      estado.plano = p.plano;
+      estado.tem_logo = !!p.tem_logo;
+      estado.mes = p.mes || {};
+      estado.historico = p.historico || {};
+      bloco.aplicar(estado);
+    }).catch(function(){});
+  }
+  recarregarPerfil();
+  document.addEventListener('base-recarregada', function(){ recarregarPerfil(); });
   }   // fim do bloco de tipster (o modal abaixo segue no mesmo IIFE, de propósito)
 
   /* ── Modal "Minha conta" ───────────────────────────────────────────────────
