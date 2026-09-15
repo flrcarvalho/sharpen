@@ -2966,14 +2966,25 @@ select.ap-inline-inp { padding: 2px 4px; }
                              transition: transform .18s var(--ease); }
 .cn-chev.on                { transform: rotate(90deg); color: var(--accent); }
 .cn-ink                    { color: var(--ink); }
-.cn-split                  { color: var(--ink-mute); font-size: var(--text-xxs); }
 .cn-vazio                  { text-align: center; color: var(--ink-mute); padding: 20px; }
+/* ROI é `%`, não dinheiro: cor por sinal é legítima (UI_REFERENCE §5.3) e ele NÃO passa
+   pelo `.money`. Quem mede retorno sobre CUSTO é o Múltiplo, no card de baixo. */
+.cn-roi-pos                { color: var(--pos); }
+.cn-roi-neg                { color: var(--neg); }
 
 /* Drill: a tabela de contas da casa. Fundo `--bg` (mais escuro que a linha) para o
    aninhamento se ler sem uma borda a mais. */
-.cn-drill > td             { padding: 0 !important; background: var(--bg); }
-.cn-drill-box              { padding: 12px 16px 14px 34px; }
-.cn-drill-box .tbl th      { background: transparent; position: static; }
+/* ⚠️ `max-width: 0` é o que faz o drill ROLAR em vez de EMPURRAR, e sem ele a régua
+   acusa: medido em 1366px, a sub-tabela de 13 colunas alargava a tabela externa e a
+   PÁGINA inteira transbordava 332px (98px em 1600). Um `overflow-x` sozinho no filho
+   não resolve — a célula cresce com o conteúdo e leva a tabela junto, então o filho
+   nunca fica menor que o que tem para mostrar. Com a célula declarando largura zero, a
+   tabela para de contá-la no cálculo e o `.cn-drill-box` volta a ter um teto para
+   rolar dentro. */
+.cn-drill > td             { padding: 0 !important; background: var(--bg); max-width: 0; }
+.cn-drill-box              { padding: 12px 16px 14px 34px; overflow-x: auto; }
+.cn-drill-box .tbl th      { background: transparent; position: static; cursor: pointer; }
+.cn-drill-box .tbl th:hover { color: var(--ink); }
 .cn-drill-foot             { display: flex; align-items: center; gap: 16px;
                              margin-top: 10px; padding-left: 10px; flex-wrap: wrap; }
 .cn-nota                   { font-family: var(--font-mono); font-size: var(--text-xxs);

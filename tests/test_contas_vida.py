@@ -134,6 +134,63 @@ def test_a_aba_espera_o_dom_antes_de_pintar():
     )
 
 
+def test_o_drill_lista_TODAS_as_contas_da_casa():
+    """Recorte que não vem do filtro faz a tabela contradizer o próprio total.
+
+    O corte antigo em 12 linhas por turnover escondia a única conta **ativa** da Betano
+    (`cleisonglsports [Gustavo]`), que não estava entre as de maior giro: o cabeçalho
+    dizia `1 ativa` e a lista abaixo mostrava 12 encerradas. A tela parecia contar
+    errado, e não estava — o Feca leu isso como defeito na primeira vez que abriu.
+
+    O único recorte legítimo desta tela é o da barra de filtros.
+    """
+    src = CONTAS.read_text(encoding="utf-8")
+    m = re.search(r"^function _cnDrill\(.*?^\}", src, re.S | re.M)
+    assert m, "não achei a função _cnDrill no contas.js"
+    corpo = m.group(0)
+    assert ".slice(0," not in corpo, (
+        "o drill não pode truncar a lista: recorte que não é do filtro faz a sub-tabela "
+        "contradizer a contagem do cabeçalho da casa"
+    )
+
+
+def test_as_duas_tabelas_ordenam_por_estados_separados():
+    """A sub-tabela tem colunas que a de cima não tem (Conta, Fornecedor, Custo, Estado).
+
+    Com um estado de ordenação só, ordenar a de baixo por `Custo` deixaria a de cima com
+    uma chave inexistente — e `undefined` ordena tudo como zero, calado.
+    """
+    src = CONTAS.read_text(encoding="utf-8")
+    assert "_cnDrillCol" in src and "_cnDrillDir" in src
+    m = re.search(r"^function _cnDrill\(.*?^\}", src, re.S | re.M)
+    corpo = m.group(0)
+    assert "_cnSortCol" not in corpo, "o drill não pode ler o estado de ordenação da tabela de casas"
+    # E o clique no cabeçalho não pode fechar o painel: a linha da casa é o gatilho do toggle.
+    assert corpo.count("event.stopPropagation()") >= 2, (
+        "o `<th>` do drill e o `<td>` que o hospeda precisam de stopPropagation, senão "
+        "ordenar a sub-tabela fecha o drill"
+    )
+
+
+def test_nenhum_travessao_no_texto_que_vai_para_a_tela():
+    """Regra de escrita do Feca: travessão em frase é assinatura de IA, e não se usa.
+
+    Vale para o texto que o usuário LÊ (o `metric-tip` da mediana, a régua, as notas),
+    não para os comentários do código, que são para quem edita.
+    """
+    src = CONTAS.read_text(encoding="utf-8")
+    ruins = []
+    for n, linha in enumerate(src.split("\n"), 1):
+        s = linha.strip()
+        if s.startswith("//") or s.startswith("*") or s.startswith("/*"):
+            continue
+        for m in re.finditer(r"`([^`]*)`|'([^']*)'", linha):
+            txt = m.group(1) or m.group(2) or ""
+            if "—" in txt or "–" in txt:
+                ruins.append(f"L{n}: {txt[:80]}")
+    assert not ruins, "travessão em texto de tela:\n" + "\n".join(ruins)
+
+
 def test_a_aba_nao_abrevia_dinheiro_nem_inventa_formatador():
     """§5 do UI_REFERENCE: todo R$ passa por `fmtR`/`fmtPL`, nunca por string crua.
 

@@ -27,6 +27,11 @@ let _cnPop = 'ambas';     // 'ativas' | 'inativas' | 'ambas'
 let _cnAberta = '';       // casa expandida no drill ('' = nenhuma)
 let _cnSortCol = 'turn';
 let _cnSortDir = -1;
+// A sub-tabela do drill ordena por conta PRÓPRIA, independente da tabela de casas: as
+// duas têm colunas diferentes, e reusar um estado só faria a de baixo herdar uma chave
+// que ela não tem (e cair no `undefined`, que ordena tudo como zero, calado).
+let _cnDrillCol = 'turn';
+let _cnDrillDir = -1;
 
 // Mediana: o valor do MEIO da lista ordenada. Ela está na tela porque em TODA casa da
 // base a mediana é cerca de metade da média (Superbet 5d contra 11d, Betano 8d contra
@@ -121,18 +126,22 @@ function _cnPorCasa(contas){
   const by={};
   contas.forEach(c=>{
     const a=by[c.casa]||(by[c.casa]={casa:c.casa,n:0,ativas:0,inativas:0,proprias:0,semPreco:0,
-                                     durs:[],diasArr:[],turn:0,pl:0,custo:0,comPreco:0});
+                                     durs:[],diasArr:[],turn:0,pl:0,custo:0,comPreco:0,bets:0});
     a.n++;
     if(c.ativa)a.ativas++;else a.inativas++;
     if(c.propria)a.proprias++;
     if(c.custo>0)a.comPreco++;else if(!c.propria)a.semPreco++;
     if(c.dur>0)a.durs.push(c.dur);
     if(c.dias>0)a.diasArr.push(c.dias);
-    a.turn+=c.turn; a.pl+=c.pl; a.custo+=c.custo;
+    a.turn+=c.turn; a.pl+=c.pl; a.custo+=c.custo; a.bets+=c.bets;
   });
   return Object.values(by).map(a=>({
     ...a,
     dur:_cnMedia(a.durs), durMed:_cnMediana(a.durs), dias:_cnMedia(a.diasArr),
+    // ROI é sobre TURNOVER (a régua do app inteiro), e não sobre custo — quem mede
+    // retorno sobre custo é o Múltiplo, no card de baixo. Dois denominadores diferentes
+    // na mesma tela pedem nomes diferentes, não uma coluna só.
+    roi:a.turn>0?(a.pl/a.turn*100):0,
     // O múltiplo só existe onde há preço. Somar a conta sem preço como zero inflaria o
     // retorno com custo que EXISTE e não foi declarado — o zero se disfarçando de conta
     // feita, ao contrário da própria, cujo zero é declarado.
@@ -160,7 +169,11 @@ function cnSort(col){
   if(_cnSortCol===col)_cnSortDir=-_cnSortDir;else{_cnSortCol=col;_cnSortDir=-1;}
   renderContas();
 }
-window.cnPop=cnPop;window.cnToggle=cnToggle;window.cnSort=cnSort;
+function cnDrillSort(col){
+  if(_cnDrillCol===col)_cnDrillDir=-_cnDrillDir;else{_cnDrillCol=col;_cnDrillDir=-1;}
+  renderContas();
+}
+window.cnPop=cnPop;window.cnToggle=cnToggle;window.cnSort=cnSort;window.cnDrillSort=cnDrillSort;
 
 // Os filtros são montados UMA vez, no primeiro render da aba, e não no `buildHTML`: a
 // lista de fornecedores sai do `_contaVida`, que só existe depois do `contasLoad()`.
@@ -227,7 +240,8 @@ function _cnTipMediana(){
     +`<div class="metric-tip" role="tooltip" hidden><span class="metric-tip__caret"></span>`
     +`<div class="metric-tip__formula"><span class="lbl">metade durou menos</span><span class="op">·</span><span class="lbl">metade durou mais</span></div>`
     +`<div class="metric-tip__desc">O valor do <b>meio</b>, com as contas enfileiradas da mais curta para a mais longa. `
-    +`Quando a mediana é bem menor que a média, poucas contas longevas estão puxando a média — e a <b>mediana</b> é que descreve a conta típica.</div>`
+    +`Quando a mediana é bem menor que a média, poucas contas longevas estão puxando a média para cima, `
+    +`e é a <b>mediana</b> que descreve a conta típica.</div>`
     +`<div class="metric-tip__bench"><span>calculada no período do filtro</span></div></div></span>`;
 }
 
@@ -272,30 +286,42 @@ function renderContas(){
     const aberta=_cnAberta===a.casa;
     const plCls=a.pl>=0?'':'';
     const chev=`<svg class="cn-chev ${aberta?'on':''}" width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3l5 5-5 5"/></svg>`;
+    // "Ativas" é COLUNA PRÓPRIA, e não um sufixo do total. Como `50 1·49`, o par lia
+    // como INTERVALO ("contas 1 a 49") — reclamação do Feca na 1ª leitura da tela. Ela
+    // só aparece na população `Ambas`: com Ativas ou Inativas ligadas, o número seria o
+    // total repetido ou um zero constante.
+    const colAtivas=_cnPop==='ambas'?`<td class="td-num cn-ink">${a.ativas}</td>`:'';
     let html=`<tr class="cn-row ${aberta?'cn-row--on':''}" data-sort="${esc(a.casa)}" onclick="cnToggle('${esc(a.casa).replace(/'/g,"\\'")}')">`
       +`<td class="cn-casa">${chev}${casaCell(a.casa)}</td>`
-      +`<td class="td-num cn-ink">${a.n} <span class="cn-split">${a.ativas}·${a.inativas}</span></td>`
+      +`<td class="td-num cn-ink">${a.n}</td>`
+      +colAtivas
       +`<td class="td-num cn-ink">${Math.round(a.dur)}d</td>`
       +`<td class="td-num cn-ink">${Math.round(a.durMed)}d</td>`
       +`<td class="td-num">${Math.round(a.dias)}d</td>`
+      +`<td class="td-num">${a.bets.toLocaleString('pt-BR')}</td>`
       +`<td class="td-num">${fmtR(a.turn)}</td>`
       +`<td class="td-num">${fmtPL(a.pl)}</td>`
+      +`<td class="td-num ${a.roi>=0?'cn-roi-pos':'cn-roi-neg'}">${fmtPct(a.roi,2)}</td>`
       +`</tr>`;
     if(aberta)html+=_cnDrill(a,B.contas.filter(c=>c.casa===a.casa));
     return html;
   }).join('');
 
+  const nCols=_cnPop==='ambas'?10:9;
   const tabela=mkCardHTML('Vida das contas por casa',
     `<span class="cn-escopo">${_cnEscopoTxt(B)}</span>`,
     `<div class="tbl-wrap"><table class="tbl" id="tblContas"><thead><tr>`
     +th('casa','Casa','th-l')
     +th('n','Contas')
+    +(_cnPop==='ambas'?th('ativas','Ativas'):'')
     +th('dur','Duração')
     +`<th class="th-r ${_cnSortCol==='durMed'?'sort-'+(dir<0?'desc':'asc'):''}" onclick="cnSort('durMed')">${_cnTipMediana()}<span class="sort-icon"></span></th>`
     +th('dias','Dias ativos')
+    +th('bets','Apostas')
     +th('turn','Turnover')
-    +th('pl','P/L')
-    +`</tr></thead><tbody>${corpo||'<tr><td colspan="7" class="cn-vazio">Nenhuma conta no recorte.</td></tr>'}</tbody></table></div>`);
+    +th('pl','P/L bruto')
+    +th('roi','ROI')
+    +`</tr></thead><tbody>${corpo||'<tr><td colspan="'+nCols+'" class="cn-vazio">Nenhuma conta no recorte.</td></tr>'}</tbody></table></div>`);
 
   cont.innerHTML=kpis+regua+tabela+_cnCustoCard(B,linhas);
 }
@@ -314,9 +340,30 @@ function mkCardHTML(titulo,extra,corpo){
     +`<div class="card-body">${corpo}</div></div>`;
 }
 
+// O drill lista TODAS as contas da casa e ordena por qualquer coluna.
+//
+// ⚠️ O corte antigo em 12 linhas por turnover não era só incômodo: ele **escondia a
+// única conta ATIVA da Betano** (`cleisonglsports [Gustavo]`), porque ela não estava
+// entre as 12 de maior giro. O cabeçalho dizia `1 ativa` e a lista abaixo mostrava 12
+// encerradas, então a tela parecia estar contando errado — e não estava. **Recorte que
+// não é do filtro faz a tabela contradizer o próprio total.**
 function _cnDrill(agg,contas){
-  const rows=contas.slice().sort((a,b)=>b.turn-a.turn).slice(0,12).map(c=>{
+  const dir=_cnDrillDir, key=_cnDrillCol;
+  const txt=k=>k==='conta'||k==='forn';
+  const ord=contas.slice().sort((a,b)=>{
+    if(key==='estado')return ((a.ativa?1:0)-(b.ativa?1:0))*dir;
+    if(txt(key))return a[key].localeCompare(b[key],'pt-BR')*(-dir);
+    if(key==='ini'||key==='fim')return String(a[key]||'').localeCompare(String(b[key]||''))*dir;
+    if(key==='liq')return ((a.pl-a.custo)-(b.pl-b.custo))*dir;
+    if(key==='roi'){
+      const ra=a.turn>0?a.pl/a.turn:0, rb=b.turn>0?b.pl/b.turn:0;
+      return (ra-rb)*dir;
+    }
+    return ((a[key]||0)-(b[key]||0))*dir;
+  });
+  const rows=ord.map(c=>{
     const liq=c.pl-c.custo;
+    const roi=c.turn>0?(c.pl/c.turn*100):0;
     const est=c.ativa?'<span class="cn-est cn-est--on">ativa</span>':'<span class="cn-est">encerrada</span>';
     const custo=c.propria?'<span class="cn-propria">própria</span>'
               :c.custo>0?fmtR(c.custo)
@@ -332,23 +379,31 @@ function _cnDrill(agg,contas){
       +`<td class="td-num">${_cnData(c.fim)}</td>`
       +`<td class="td-num cn-ink">${c.dur}d</td>`
       +`<td class="td-num">${c.dias}d</td>`
+      +`<td class="td-num">${c.bets.toLocaleString('pt-BR')}</td>`
       +`<td class="td-num">${fmtR(c.turn)}</td>`
+      +`<td class="td-num">${fmtPL(c.pl)}</td>`
       +`<td class="td-num">${custo}</td>`
       +`<td class="td-num">${cliq}</td>`
+      +`<td class="td-num ${roi>=0?'cn-roi-pos':'cn-roi-neg'}">${fmtPct(roi,2)}</td>`
       +`</tr>`;
   }).join('');
-  const resto=contas.length>12?`<span class="cn-nota">… mais ${contas.length-12} contas</span>`:'';
+  const conta=`<span class="cn-nota">${contas.length} conta${contas.length===1?'':'s'}</span>`;
   const alerta=agg.semPreco>0
     ?`<span class="cn-alerta"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2l6 11H2z"/><path d="M8 6.5v3M8 11.2v.1"/></svg>`
      +`${agg.semPreco} conta${agg.semPreco===1?'':'s'} sem preço lançado fica${agg.semPreco===1?'':'m'} fora do múltiplo</span>`:'';
-  return`<tr class="cn-drill"><td colspan="7"><div class="cn-drill-box">`
+  // O `stopPropagation` em cada `<th>` é obrigatório: a LINHA DA CASA abre e fecha o
+  // drill no clique, e sem ele ordenar a sub-tabela fecharia o painel inteiro.
+  const dth=(col,lbl,cls)=>`<th class="${cls||'th-r'} ${key===col?'sort-'+(dir<0?'desc':'asc'):''}"`
+    +` onclick="event.stopPropagation();cnDrillSort('${col}')">${lbl}<span class="sort-icon"></span></th>`;
+  const nCols=_cnPop==='ambas'?10:9;
+  return`<tr class="cn-drill"><td colspan="${nCols}" onclick="event.stopPropagation()"><div class="cn-drill-box">`
     +`<table class="tbl"><thead><tr>`
-    +`<th class="th-l">Conta</th><th class="th-l">Fornecedor</th><th class="th-l">Estado</th>`
-    +`<th class="th-r">Comprada</th><th class="th-r">Última</th><th class="th-r">Duração</th>`
-    +`<th class="th-r">Dias at.</th><th class="th-r">Turnover</th><th class="th-r">Custo</th>`
-    +`<th class="th-r">P/L líquido</th>`
+    +dth('conta','Conta','th-l')+dth('forn','Fornecedor','th-l')+dth('estado','Estado','th-l')
+    +dth('ini','Data de compra')+dth('fim','Última')+dth('dur','Duração')
+    +dth('dias','Dias ativos')+dth('bets','Apostas')+dth('turn','Turnover')
+    +dth('pl','P/L bruto')+dth('custo','Custo')+dth('liq','P/L líquido')+dth('roi','ROI')
     +`</tr></thead><tbody>${rows}</tbody></table>`
-    +(resto||alerta?`<div class="cn-drill-foot">${resto}${alerta}</div>`:'')
+    +`<div class="cn-drill-foot">${conta}${alerta}</div>`
     +`</div></td></tr>`;
 }
 

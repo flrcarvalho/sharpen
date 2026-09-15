@@ -183,5 +183,22 @@ ok(Math.abs(alfa2.mult - (alfa2.pl / 1500)) < 1e-9, 'múltiplo da Alfa = P/L / c
 console.log('— 7. Conta própria NÃO é contada como "sem preço"');
 ok(beta.semPreco !== 2, 'própria e sem-preço não podem cair no mesmo balde');
 
+console.log('— 8. Apostas e ROI por casa, e o ROI é sobre TURNOVER (não sobre custo)');
+// Alfa no período de março: Longeva 1 aposta (200/20), Curta 1 (50/5), Media 2 (100/10).
+eq(alfa2.bets, 4, 'apostas da Alfa contam só as do período');
+eq(alfa2.turn, 350, 'turnover da Alfa no período');
+eq(alfa2.pl, 35, 'P/L da Alfa no período');
+ok(Math.abs(alfa2.roi - 10) < 1e-9, 'ROI da Alfa = P/L / TURNOVER (35/350 = 10%)');
+// O ROI não pode ser calculado sobre o custo: ali daria 35/1500 = 2,33%, e é o Múltiplo
+// que mede retorno sobre custo. Dois denominadores, dois nomes.
+ok(Math.abs(alfa2.roi - (alfa2.pl / alfa2.custo * 100)) > 1, 'ROI não é P/L sobre CUSTO');
+
+console.log('— 9. Casa sem turnover no período não divide por zero');
+api.setFiltro({ df: '2026-12-01', dt: '2026-12-31' });
+api.pop = 'ambas';
+const dez = api.porCasa(api.base().contas);
+dez.forEach(c => ok(Number.isFinite(c.roi), 'ROI de ' + c.casa + ' tem de ser finito'));
+api.setFiltro({ df: '2026-03-01', dt: '2026-03-31' });
+
 if (falhas) { console.error(falhas + ' falha(s)'); process.exit(1); }
 console.log('ok: contas_vida');

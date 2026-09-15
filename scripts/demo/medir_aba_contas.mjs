@@ -98,7 +98,7 @@ const casa1 = await fr.evaluate(() => {
 await espera(600);
 const drill = await fr.evaluate(() => {
   const d = document.querySelector(".cn-drill-box");
-  return { aberto: !!d, nContas: d ? d.querySelectorAll("tbody tr").length : 0,
+  return { aberto: !!d, nContas: d ? d.querySelectorAll(":scope > table > tbody > tr").length : 0,
            cabecalho: d ? [...d.querySelectorAll("th")].map(t => t.innerText.trim()).join(" | ") : "" };
 });
 console.log("-".repeat(76));
@@ -114,6 +114,65 @@ const depois = await fr.evaluate(() => document.querySelector("#tblContas tbody 
 console.log("-".repeat(76));
 console.log("Clique no 'i' da mediana: 1a linha antes =", antes, "| depois =", depois,
             "|", antes === depois ? "OK (nao reordenou)" : "FALHOU (reordenou)");
+
+
+// Drill: confere que lista TODAS as contas da casa (a contagem do cabecalho) e que
+// ordenar a sub-tabela nao fecha o painel.
+const drillFull = await fr.evaluate(() => {
+  const tr = [...document.querySelectorAll("#tblContas tbody tr.cn-row")][1];
+  const cab = tr ? [...tr.querySelectorAll("td")].map(td => td.innerText.trim()) : [];
+  if (tr) tr.click();
+  return { casa: cab[0] || "", contasNoCabecalho: cab[1] || "", ativasNoCabecalho: cab[2] || "" };
+});
+await espera(700);
+const drill2 = await fr.evaluate(() => {
+  const d = document.querySelector(".cn-drill-box");
+  if (!d) return { aberto: false };
+  const linhas = [...d.querySelectorAll(":scope > table > tbody > tr")];
+  return {
+    aberto: true,
+    nLinhas: linhas.length,
+    ativas: linhas.filter(tr => tr.innerText.includes("ativa") && !tr.innerText.includes("encerrada")).length,
+    colunas: [...d.querySelectorAll("th")].map(t => t.innerText.trim()).join(" | "),
+    rodape: d.querySelector(".cn-drill-foot") ? d.querySelector(".cn-drill-foot").innerText.replace(/\s+/g, " ") : "",
+  };
+});
+console.log("-".repeat(76));
+console.log("DRILL completo em", drillFull.casa, "| cabecalho diz", drillFull.contasNoCabecalho,
+            "contas /", drillFull.ativasNoCabecalho, "ativas");
+console.log("  linhas na sub-tabela:", drill2.nLinhas, "| com estado ATIVA:", drill2.ativas);
+console.log("  colunas:", drill2.colunas);
+console.log("  rodape:", drill2.rodape);
+// ordenar a sub-tabela NAO pode fechar o drill
+await fr.evaluate(() => { const th = [...document.querySelectorAll(".cn-drill-box th")].find(t => t.innerText.includes("Custo")); if (th) th.click(); });
+await espera(600);
+const aposSort = await fr.evaluate(() => !!document.querySelector(".cn-drill-box"));
+console.log("  apos ordenar por Custo, o drill continua aberto:", aposSort);
+
+
+// ── Transbordo por largura ──────────────────────────────────────────────────
+// A sub-tabela do drill tem 13 colunas e vive dentro de um `<td>`: sem `max-width:0`
+// na celula ela ALARGA a tabela externa e a PAGINA inteira transborda (medido: +332px
+// em 1366). O modo de falha e invisivel no codigo e obvio na regua.
+console.log("-".repeat(76));
+console.log("TRANSBORDO por largura (pagina tem de ser +0 em todas)");
+for (const w of [1366, 1440, 1600, 1920, 2560]) {
+  const pg = await browser.newPage();
+  await pg.setViewport({ width: w, height: 1100 });
+  await pg.goto(`${BASE}/app#dash/contas`, { waitUntil: "networkidle2" });
+  await espera(4000);
+  const f2 = pg.frames().find(f => f.url().includes("/dashboard"));
+  const a = await f2.evaluate(() => document.getElementById("tblContas")
+    ? document.documentElement.scrollWidth - document.documentElement.clientWidth : -1);
+  await f2.evaluate(() => { const tr = document.querySelector("#tblContas tbody tr.cn-row"); if (tr) tr.click(); });
+  await espera(600);
+  const b = await f2.evaluate(() => {
+    const de = document.documentElement, box = document.querySelector(".cn-drill-box");
+    return { pagina: de.scrollWidth - de.clientWidth, rola: box ? box.scrollWidth - box.clientWidth : -1 };
+  });
+  console.log(`  ${String(w).padStart(4)}px  fechado +${a}  |  drill aberto +${b.pagina} (a sub-tabela rola ${b.rola})  ${a === 0 && b.pagina === 0 ? "OK" : "TRANSBORDA"}`);
+  await pg.close();
+}
 
 console.log("=".repeat(76));
 if (erros.length) { console.log("ERROS DE JS:"); erros.forEach(e => console.log("  " + e)); }
