@@ -211,6 +211,27 @@ e o `check-tokens` são cegos a isso.
 Quem já faz isso, para copiar: `.kpi-sub .money`, `.kpi__cv .money` e
 `.c2-guardar__txt .money` (`assets/css/components.css`).
 
+**A outra metade: o `.money-sign` é `0.76em`, e isso é RELATIVO.** O carve-out acima não
+conserta este, porque mexe em LARGURA e não em CORPO. Num hospedeiro de 9,5px o sinal sai a
+**7,2px**; em `.c2-dt` (12px) dá 8,4px e em `.c2-meta` (10px), 7,6px — todos abaixo do piso
+de qualquer papel da Escada de Tinta.
+
+Há **duas** saídas legítimas, e a escolha é pelo PAPEL do número:
+
+| O número é | Faça | Exemplo no código |
+|---|---|---|
+| **CITADO** dentro do texto (metadado: *"fornecedor R$ 440"*) | largura de conteúdo **e** `font-size: 10px` no `.money-sign` | `.c2-dt`, `.c2-meta`, `.c2-tbl td`, `.c2-item__val`, `.c2-acc__preco`, `.c2-degrau__val`, `.c2-usar`, `.c2-ref-val` |
+| **O CONTEÚDO** (o valor é o assunto, não uma citação) | tira do hospedeiro pequeno e põe em papel próprio | `.c2-hdr-val` — *"o valor ao lado do rótulo, sem o valor virar label de 9,5px"* |
+
+> ⚠️ **`.c2-eyebrow` é armadilha latente.** Ele é 9,5px e o carve-out dele tem `min-width: 0`
+> **sem** pino de corpo: valor posto ali hoje sai a 7,2px, sem erro e sem aviso. Nenhum
+> `.c2-eyebrow` hospeda dinheiro no momento — a regra existe para o dia em que alguém puser.
+
+**Não pine onde a herança já acerta.** `.c2-guardar__txt` é 12,5px e o sinal sai a 9,5px,
+dentro do piso de `--ink-soft`; um pino ali viraria exceção decorativa e faria os outros oito
+— que são load-bearing — lerem como ruído. **O pino vale por ser o sinal de "aqui a herança
+quebra".**
+
 > **Sintoma para reconhecer isto noutro lugar:** um componente pensado para GRADE sendo
 > reusado em FLUXO de texto. `width:100%` e `min-width` em `ch` são a assinatura — os dois
 > são inofensivos numa célula e viram quebra de linha numa frase. Duas frentes diferentes
