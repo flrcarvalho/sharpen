@@ -836,7 +836,7 @@ function buildHTML(){
         <div id="custosKpi"></div>
         <div id="custosContent">
           ${mkCard('custos_table','Tabela de Custos por Casa × Fornecedor',`
-            <p style="font-size:11px;color:var(--ink-mute);margin-bottom:.75rem;font-family:var(--font-sans)">💡 Insira o custo de cada conta por fornecedor/casa. O total é calculado pelo nº de contas. Valores salvos permanentemente no navegador.</p>
+            <p style="font-size:11px;color:var(--ink-mute);margin-bottom:.75rem;font-family:var(--font-sans)">💡 Insira o custo de cada conta por fornecedor/casa. O total é calculado pelo nº de contas. Os valores ficam guardados na sua conta.</p>
             <div id="costTableWrap"></div>`)}
         </div>
       </div>
@@ -1295,7 +1295,9 @@ let _ctHadLegacy=false;    // true quando havia custo legado no localStorage no 
 
 function _ctHasVal(k,empty){const v=localStorage.getItem(k);return !!v&&v!==empty&&v!=='null';}
 function _ctMirror(){try{localStorage.setItem(CT_KEY,JSON.stringify(ctData));localStorage.setItem(CG_KEY,JSON.stringify(cgData));}catch(e){}}
-function _ctPush(){try{fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData})});}catch(e){}}
+// `semear` = 1º envio deste navegador para um servidor sem custo deste dono; ali o
+// servidor UNE em vez de substituir. Ver salvar_custo_store (repository.py).
+function _ctPush(semear){try{fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData,semear:!!semear})});}catch(e){}}
 
 // Carga: cache local (síncrono, p/ não perder o dado se o servidor cair) + servidor
 // (fonte de verdade, corrige ao chegar). Chamar UMA vez ao entrar na aba.
@@ -1337,15 +1339,16 @@ async function ctLoad(){
   }
 }
 
-// Save: sempre grava o cache local; sobe pro servidor SÓ quando seguro:
-//  - servidor já tem registro → atualiza (fluxo normal);
-//  - servidor vazio E sem custo legado no navegador → usuário novo, 1º save cria o registro;
-//  - servidor vazio E COM custo legado → NÃO cria sozinho (evita oficializar cópia parcial
-//    do aparelho errado — regra do Feca). A página de importação semeia do PC certo.
+// Save: grava o cache local e SOBE SEMPRE. A trava anti-semeadura-parcial que morava
+// aqui não subia no caso "servidor vazio + custo legado no navegador", e ali o valor
+// digitado ficava só na máquina, sem erro e sem aviso — o que a regra do `CLAUDE.md`
+// proíbe. O risco que ela cobria (a máquina com menos lançamentos virar a verdade)
+// passou para o servidor, como UNIÃO na semeadura, que nunca encolhe o conjunto.
 function ctSave(){
   _ctMirror();
-  if(_ctServerBacked){_ctPush();return;}
-  if(!_ctHadLegacy){_ctServerBacked=true;_ctPush();}
+  const semear=!_ctServerBacked;
+  _ctServerBacked=true;
+  _ctPush(semear);
 }
 
 // ── "Meu custo está só neste navegador" (s360) ──────────────────────────────
@@ -1369,7 +1372,7 @@ function ctPendente(){
 async function ctSubir(){
   if(!ctPendente())return false;
   const r=await fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData})});
+    body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData,semear:true})});
   if(!r.ok)throw new Error('HTTP '+r.status);
   _ctServerBacked=true;
   _ctMirror();

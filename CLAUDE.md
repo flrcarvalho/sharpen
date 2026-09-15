@@ -427,6 +427,40 @@ defeito.
 > (`app/static/app.html` e o array de nav do `dash/assets/js/app.js`); mexer num só deixa
 > dois menus discordando, e o gate é `tests/test_sidebar_dupla.py`.
 
+## Nada que o usuário DIGITA repousa no navegador. `localStorage` é cache descartável.
+
+**Campo preenchido pelo usuário grava no Postgres, escopado por dono, no mesmo gesto.**
+`localStorage` é conveniência daquele navegador (largura de coluna, aba lembrada, painel
+recolhido, marca d'água de throttle) e paint instantâneo. Nunca o dado em si.
+→ [o caso](docs/CASOS.md#o-custo-que-16-donos-tinham-e-o-servidor-nunca-viu--s360-s366)
+
+> Regra do Feca: *"JAMAIS, JAMAIS JAMAIS DEVEMOS ARMAZENAR CUSTO OU QUALQUER INFORMAÇÃO
+> LOCALMENTE NOS USUARIOS"*. **16 donos e 480 contas** tinham custo que o servidor nunca
+> viu, e a tela mostrava o número certo o tempo todo.
+
+**O modo de falha é não ter sintoma:** o valor some numa limpeza de dados, num perfil
+novo ou noutro aparelho, **sem erro**. E um seed cravado em código preenche o vazio e
+finge que há dado salvo (`CUSTO_SEED`).
+
+**Trava que BLOQUEIA escrita tem de oferecer a saída, senão ela É a perda.** A
+anti-semeadura-parcial (`if serverBacked push; else if !hadLegacy push`) existia por bom
+motivo — a máquina com menos chaves não pode virar a verdade — e o efeito era o
+**terceiro caso não subir NADA**. A defesa mudou de lugar: o front **sobe sempre**, e o
+1º envio para servidor sem registro manda `semear`, que **une** em vez de substituir
+(`salvar_custo_conta`/`salvar_custo_store`). Edição normal continua substituindo: apagar
+um lançamento é tirar a chave, e união nenhuma apaga chave.
+
+> Sintoma para reconhecer isto noutro campo: um `if` que decide **se grava**, em vez de
+> decidir **como**.
+
+**Chave sem namespace de dono vaza entre usuários** — `CT_KEY`/`CG_KEY` são globais,
+`costKey()` é por dono. Nenhuma tela promete "seu custo" antes de resolver isso.
+
+Gate: `tests/test_nada_local_no_usuario.py` (10 mutações, 10 detectadas, nas TRÊS telas
+de save) + `tests/js/dado_digitado_sobe_sempre.mjs`.
+
+---
+
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 
 O matcher (`_sugParaBilhete`, inline no `app/static/index.html`) só sugere com **folga ≥ 7**
@@ -699,15 +733,9 @@ e inteiro curto é achado dentro de qualquer odd (`2` vive dentro de `2,05`).
 
 ## Convenções de output
 
-> **Fonte canônica:** `global/MASTER_OUTPUT_2026.md` (TAB, 10 colunas, 11ª coluna interna `Código`, decimal vírgula, códigos de resultado). O resumo abaixo é um **espelho operacional** — ao mudar o formato, mude no MASTER primeiro.
-
-- Separador: **TAB real** (U+0009) — nunca espaços, ponto-e-vírgula ou pipe
-- **10 colunas para a planilha do usuário**: `Data | Esporte | Tipster | Casa | Parceiro | Aposta | Descrição | Stake | Odd | Resultado`
-- **11ª coluna interna** (`Código`): ID/código do bilhete visível no print — nunca vai para a planilha do usuário, só para o banco de dados. A AI sempre retorna essa coluna; se não houver ID visível, a célula fica vazia.
-- **12ª coluna interna** (`Sistema`, formato `3x Duplas`): estrutura de bilhete de sistema. **A IA NÃO a emite** — o backend a anexa depois de responder (`anexar_sistema_tsv`), lendo o `Tipo: SISTEMA …` do texto do robô e casando pelo código. Vira `sistema`/`sistema_linhas` no banco; ausente = bilhete de linha única. Existe porque a odd de sistema é a **média das linhas** (`MASTER_RESULTADO §7.3`) e nada mais no banco distinguia um `3 x Duplas` da tripla das mesmas seleções — a descrição dos dois é idêntica.
-- Decimal: **vírgula** (`2,35`) — nunca ponto
-- Resultado: `W · L · V · HW · HL` — ou **vazio** quando a aposta está aberta (não liquidada; ver `MASTER_OUTPUT §13.1` / `MASTER_RESULTADO §1.1`)
-- Odd sem limite de casas decimais (planilha usa a precisão completa)
+**Formato do TSV em [`docs/RUNBOOK_FORMATO_SAIDA.md`](docs/RUNBOOK_FORMATO_SAIDA.md)**
+(colunas, separador, decimal, códigos de resultado). A fonte canônica é o
+`global/MASTER_OUTPUT_2026.md`; ao mudar o formato, mude no MASTER primeiro.
 
 ---
 
@@ -729,19 +757,10 @@ captura na janela entre as duas metades desfaz a exclusão.
 
 ## Regras de deduplicação (sistema)
 
-O sistema determina se dois bilhetes são iguais ou diferentes na seguinte ordem de prioridade:
-
-| Situação | Comportamento |
-|---|---|
-| **ID/código do bilhete disponível e igual** | Mesmo bilhete — UPSERT (atualiza resultado/estado) |
-| **ID/código do bilhete disponível e diferente** | Bilhetes distintos — sempre INSERT (mesmo conteúdo idêntico) |
-| **Sem ID, conteúdo diferente** (odd, descrição, etc.) | Bilhetes distintos — INSERT |
-| **Sem ID, conteúdo idêntico, mesmo lote** | Possível sobreposição de prints — salva **ambas** as linhas (assinaturas distintas via `_counter`: `B`, `B\|2`, …) + aviso amarelo ao usuário; delete se for sobreposição real |
-| **Sem ID, conteúdo idêntico, lotes diferentes** | Re-processamento do mesmo bilhete — UPSERT silencioso |
-
-**Limitação:** onde o ID não é visível no print, dois bilhetes 100% idênticos não têm como ser distinguidos — é a 4ª linha da tabela, e ela vale por desenho: salvar ambos e avisar.
-
-**Fonte canônica (implementação):** `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. Esta tabela documenta o comportamento do código; ao mudar a lógica de dedup, **o código é a verdade** (atualize a tabela depois).
+**A tabela de prioridade está em [`docs/RUNBOOK_DEDUP.md`](docs/RUNBOOK_DEDUP.md)**
+(ID igual, ID diferente, sem ID no mesmo lote ou em lotes diferentes). A fonte canônica
+é `app/repository.py` — `_assinatura()` e `upsert_bilhetes()`. O que segue abaixo são as
+regras que **decidem escrita**, e por isso ficam aqui.
 
 ### Linha sem código, em casa que TEM código, é órfã. E órfã vira fantasma.
 

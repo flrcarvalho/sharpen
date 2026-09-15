@@ -20,7 +20,10 @@ let custoData={};
 let _custoServerBacked=false; // true quando o servidor já tem custo por-conta deste dono
 let _custoHadLegacy=false;    // true quando havia custo por-conta legado no localStorage no load
 function _custoMirror(){try{localStorage.setItem(costKey(),JSON.stringify(custoData));}catch(e){}}
-function _custoPush(){try{fetch('/custos/conta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_conta:custoData})});}catch(e){}}
+// `semear` = 1º envio deste navegador para um servidor que ainda não tinha custo deste
+// dono; ali o servidor UNE em vez de substituir, porque o mesmo dono pode ter conjuntos
+// diferentes em máquinas diferentes e a primeira a escrever não pode encolher a outra.
+function _custoPush(semear){try{fetch('/custos/conta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_conta:custoData,semear:!!semear})});}catch(e){}}
 
 // Carga do custo por-conta: fonte de verdade = Postgres (/custos/conta, por dono); o
 // localStorage dash_custos_v2::<dono> virou cache/paint. Chamado no feed (app.js) com o
@@ -53,11 +56,14 @@ function saveCusto(forn,casa,val){
   const n=parseFloat(val.replace(/\./g,'').replace(',','.'));
   if(!isNaN(n)&&n>0)custoData[k]=n; else delete custoData[k];
   _custoMirror();
-  // sobe pro servidor só quando seguro (mesma trava do CT/CG): servidor já tem registro,
-  // OU não há custo legado no navegador (usuário novo cria no 1º save). Servidor vazio +
-  // legado → NÃO semeia sozinho; só a página de importação sobe (do navegador certo).
-  if(_custoServerBacked)_custoPush();
-  else if(!_custoHadLegacy){_custoServerBacked=true;_custoPush();}
+  // SOBE SEMPRE. A trava anti-semeadura-parcial que morava aqui não subia no caso
+  // "servidor vazio + legado no navegador", e nesse caso o valor digitado ficava só na
+  // máquina, sem erro e sem aviso — que é exatamente o que a regra do `CLAUDE.md`
+  // proíbe. O risco que ela cobria (a máquina com menos chaves virar a verdade) passou
+  // a ser resolvido no servidor, pela UNIÃO na semeadura, que nunca encolhe o conjunto.
+  const semear=!_custoServerBacked;
+  _custoServerBacked=true;
+  _custoPush(semear);
   recalcCustos();
   renderCostPies();
   const{allForns,allCasas,contaCount}=_costState;
@@ -85,7 +91,7 @@ function custoContaPendente(){
 async function custoContaSubir(){
   if(!custoContaPendente())return false;
   const r=await fetch('/custos/conta',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({custo_conta:custoData})});
+    body:JSON.stringify({custo_conta:custoData,semear:true})});
   if(!r.ok)throw new Error('HTTP '+r.status);
   _custoServerBacked=true;
   _custoMirror();

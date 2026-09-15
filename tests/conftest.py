@@ -81,6 +81,16 @@ if not os.environ.get("TEST_DATABASE_URL"):
         async def atualizar_email_usuario(*a):  # pragma: no cover - o teste de troca de e-mail monkeypatcha main.*
             raise RuntimeError("DB indisponível nos testes de fórmula")
 
+        # A carteira do Polymarket é lida pelo /me, então este stub NÃO levanta: o
+        # teste da rota exercita o caminho inteiro e um RuntimeError aqui viraria 500
+        # num endpoint que não tem nada a ver com Polymarket. Vazio = não informada,
+        # que é o mesmo que o Postgres devolve para quem nunca digitou.
+        async def get_poly_wallet(*a):
+            return ""
+
+        async def salvar_poly_wallet(*a):  # pragma: no cover - importado por main, nunca chamado nos testes
+            raise RuntimeError("DB indisponível nos testes de fórmula")
+
         _fake_db.get_pool = get_pool
         _fake_db.dsn = dsn
         _fake_db.init_db = init_db
@@ -96,4 +106,6 @@ if not os.environ.get("TEST_DATABASE_URL"):
         _fake_db.definir_bot_habilitado = definir_bot_habilitado
         _fake_db.atualizar_senha_usuario = atualizar_senha_usuario
         _fake_db.atualizar_email_usuario = atualizar_email_usuario
+        _fake_db.get_poly_wallet = get_poly_wallet
+        _fake_db.salvar_poly_wallet = salvar_poly_wallet
         sys.modules["database"] = _fake_db

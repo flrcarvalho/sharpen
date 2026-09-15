@@ -860,6 +860,18 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   **E há um limite conhecido do aviso:** a faixa só aparece no navegador que TEM o dado. Quem
   lançou num computador e abrir noutro vê zero e faixa nenhuma, porque a tela não tem como
   saber que existe custo em outra máquina. Por isso a nota diz para abrir logo ao entrar.
+  **Desde a s368 o buraco parou de crescer:** a trava caiu nas três telas, então todo custo
+  digitado de agora em diante sobe na hora. O que resta é o acervo de quem ainda não abriu.
+
+- **Varrer o resto do produto contra a regra "nada local" (s368). VIVA, parcial.**
+  A s368 fechou o **custo** (três telas) e a **carteira do Polymarket**. A varredura de
+  `localStorage` no produto listou o resto, e ele não foi auditado item a item: `_actKey`
+  (`sharpen_activity`), `_histKey` (`sharpen_raiox_hist`) e `dash_tipunit::<dono>`.
+  **O corte para julgar cada um é "o usuário digitou isso?"** — se digitou, vai para o
+  Postgres escopado por dono; se é conveniência daquele navegador (largura de coluna, aba
+  lembrada, painel recolhido, marca d'água de throttle), fica. Os três acima parecem
+  histórico/preferência, mas **parecer não é medir**: `dash_tipunit` é escolha do dono e
+  hoje não atravessa máquina. Regra e gate em `CLAUDE.md` / `tests/test_nada_local_no_usuario.py`.
 
 - **O `.money` está definido em TRÊS arquivos (s362/s363). VIVA, medida.**
   `app/static/shell.css` (a base canônica, posta aqui pelo bloco de tipster),

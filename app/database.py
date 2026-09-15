@@ -466,6 +466,15 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- Nasce FALSE de propósito: conta aprovada não ganha escrita de robô de brinde.
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bot_habilitado BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- ── Carteira do Polymarket: dado do DONO, não do navegador (s366) ─────────────
+-- O endereço que ele digita vivia só no localStorage (`poly-wallet`), então
+-- trocar de máquina, limpar dados ou abrir um perfil novo significava digitar
+-- tudo de novo — e ninguém tinha como saber que o valor estava lá. É a mesma
+-- família do custo que viveu anos fora do servidor. Regra do Feca, s366: nada
+-- que o usuário digite repousa no navegador. `planilha_url` é a vizinha de
+-- prateleira (config por usuário na própria linha), e esta segue o mesmo molde.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS poly_wallet TEXT;
+
 -- ── Tempo real: aviso de mudança na base (s241) ───────────────────────────────
 -- Qualquer escrita em `bilhetes` (INSERT/UPDATE/DELETE — venha do app, da
 -- extensão, do sync da Polymarket ou de script de import) dispara
@@ -805,6 +814,31 @@ async def atualizar_email_usuario(username: str, email: str) -> str | None:
         except asyncpg.UniqueViolationError:
             return "email"  # corrida entre o SELECT e o UPDATE: perde educadamente
     return None
+
+
+async def get_poly_wallet(username: str) -> str:
+    """Carteira do Polymarket do dono. Vazio = nunca informada.
+
+    Antes isto vivia no `localStorage` (`poly-wallet`) e por isso não atravessava
+    máquina nenhuma. Regra do Feca (s366): nada que o usuário digite repousa no
+    navegador. Ver o ALTER em cima desta tabela."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        v = await conn.fetchval(
+            "SELECT poly_wallet FROM usuarios WHERE username = $1", username)
+    return (v or "").strip()
+
+
+async def salvar_poly_wallet(username: str, wallet: str) -> None:
+    """Grava (ou apaga, com string vazia) a carteira do dono. Endereço vazio vira
+    NULL em vez de '': a coluna passa a significar "não informada" em um valor só,
+    e não em dois que todo leitor precisaria conhecer."""
+    w = (wallet or "").strip() or None
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE usuarios SET poly_wallet = $2, atualizado_em = NOW() WHERE username = $1",
+            username, w)
 
 
 async def listar_usuarios() -> list[dict]:

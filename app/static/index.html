@@ -3372,6 +3372,11 @@ async function carregarUsuario() {
     const vendo = efetivo !== real;
     // isolamento do store de custos: escopa por dono efetivo + migra o legado uma vez.
     window.__donoEfetivo = efetivo; window.__donoReal = real;
+    // Carteira do Polymarket: vem do DONO, não do navegador (s366). Antes vivia só no
+    // localStorage, então trocar de máquina ou limpar dados obrigava a digitar de novo.
+    window.__polyWallet = data.poly_wallet || '';
+    try { const _w = document.getElementById('poly-wallet');
+          if (_w && !_w.value && window.__polyWallet) _w.value = window.__polyWallet; } catch (e) {}
   try { renderHist(); atualizarRaioxVazio(); } catch (e) {}   // rail: feed/histórico + estado do Raio-X
     _migrarCustoLegado(real);
     _syncCustoContaServidor();  // custo por-conta: puxa a verdade do Postgres p/ o cache
@@ -5697,7 +5702,7 @@ function aplicarModoCasa(casa) {
   }
   if (isPoly) {
     const w = document.getElementById('poly-wallet');
-    if (w && !w.value) w.value = localStorage.getItem('poly-wallet') || '';
+    if (w && !w.value) w.value = window.__polyWallet || '';
     setPolyStatus('', '');
     iniciarPollPoly();
     _polyAutoSyncSePreciso();   // ao ENTRAR na Poly: sincroniza se passou de 5 min do último
@@ -5715,7 +5720,7 @@ let polyActivosPrev = null;   // Set de códigos ativos no último poll (detecta
 async function carregarDashboardPoly() {
   if (casaSelecionada !== 'Polymarket') return;
   if (document.visibilityState !== 'visible') return;   // aba em 2º plano: não faz polling
-  const wallet = (document.getElementById('poly-wallet').value || localStorage.getItem('poly-wallet') || '').trim();
+  const wallet = (document.getElementById('poly-wallet').value || window.__polyWallet || '').trim();
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
     renderDashPoly(null);
     polyActivosPrev = null;
@@ -5823,7 +5828,11 @@ async function sincronizarPolymarket(opts = {}) {
     if (!silent) setPolyStatus('Carteira inválida — endereço 0x… com 42 caracteres.', 'err');
     return;
   }
-  localStorage.setItem('poly-wallet', wallet);
+  // A carteira vai para o DONO, não para o navegador (s366). Dispara-e-esquece: o
+  // sync abaixo não pode esperar a gravação de uma preferência, e o valor já está
+  // em memória para esta sessão.
+  window.__polyWallet = wallet;
+  try { fetch('/polymarket/carteira', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet }) }).catch(() => {}); } catch (e) {}
   polySyncing = true;
   const btn = document.getElementById('btn-poly-sync');
   if (btn) btn.disabled = true;
@@ -6981,11 +6990,13 @@ function _salvarCusto(forn, casa, val) {
     const n = parseFloat((val || '').toString().replace(/\./g, '').replace(',', '.'));
     if (!isNaN(n) && n > 0) o[forn + '||' + casa] = n; else delete o[forn + '||' + casa];
     localStorage.setItem(_custoKey(), JSON.stringify(o));
-    // sobe pro servidor só quando seguro: servidor já semeado, OU navegador sem legado.
-    if (_custoContaServerBacked || !_custoContaHadLegacy) {
-      _custoContaServerBacked = true;
-      fetch('/custos/conta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ custo_conta: o }) }).catch(() => {});
-    }
+    // SOBE SEMPRE. A trava que morava aqui não subia no caso "servidor vazio + legado no
+    // navegador", e ali o valor digitado ficava só na máquina, sem erro e sem aviso — o
+    // que a regra do `CLAUDE.md` proíbe. O risco que ela cobria (a máquina com menos
+    // chaves virar a verdade) passou para o servidor, como UNIÃO na semeadura.
+    const semear = !_custoContaServerBacked;
+    _custoContaServerBacked = true;
+    fetch('/custos/conta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ custo_conta: o, semear }) }).catch(() => {});
   } catch (e) {}
 }
 // Faixa de KPIs no padrão de marca (UI_REFERENCE §5). Dinheiro SEM abreviação,

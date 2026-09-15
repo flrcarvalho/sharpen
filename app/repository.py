@@ -3893,20 +3893,86 @@ async def get_custo_store(dono: str) -> dict | None:
             "custo_tipster_meta": meta or {}}
 
 
-async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list) -> None:
+def _unir_custo_tipster(velho: dict, novo: dict) -> dict:
+    """União MÊS A MÊS, não por tipster. `custo_tipster` é {tipster: {'AAAA-MM': v}};
+    unir só no primeiro nível trocaria o mapa inteiro de um tipster e apagaria meses
+    que só existem do outro lado — que é justamente o dado que a semeadura veio
+    salvar. O novo vence no mês que os dois têm."""
+    out = {t: dict(m or {}) for t, m in (velho or {}).items()}
+    for t, meses in (novo or {}).items():
+        out.setdefault(t, {}).update(meses or {})
+    return out
+
+
+def _unir_custo_geral(velho: list, novo: list) -> list:
+    """União por `id`. `custo_geral` é uma LISTA de {id, tipo, values}, então
+    concatenar duplicaria a linha 'VPS' em vez de uni-la. Quem não tem `id` entra
+    como linha nova: sem chave não há como decidir que é a mesma."""
+    out, por_id = [], {}
+    for linha in list(velho or []) + list(novo or []):
+        if not isinstance(linha, dict):
+            continue
+        chave = linha.get("id")
+        if chave is None:
+            out.append(linha)
+            continue
+        if chave in por_id:
+            alvo = por_id[chave]
+            vals = dict(alvo.get("values") or {})
+            vals.update(linha.get("values") or {})
+            alvo.update({k: v for k, v in linha.items() if k != "values"})
+            alvo["values"] = vals
+        else:
+            copia = dict(linha)
+            copia["values"] = dict(linha.get("values") or {})
+            por_id[chave] = copia
+            out.append(copia)
+    return out
+
+
+async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list,
+                             semear: bool = False) -> None:
     """Upsert do blob de custos do dono. Substitui o registro inteiro — o front
     sempre manda o estado completo (como o localStorage fazia). Espelha
-    salvar_casa_config. Passa JSON como texto + cast ::jsonb (sem codec global)."""
-    ct = json.dumps(custo_tipster if isinstance(custo_tipster, dict) else {})
-    cg = json.dumps(custo_geral if isinstance(custo_geral, list) else [])
+    salvar_casa_config. Passa JSON como texto + cast ::jsonb (sem codec global).
+
+    `semear=True` UNE com o que já está lá, pelo mesmo motivo do
+    `salvar_custo_conta`: o dono pode ter conjuntos diferentes em máquinas
+    diferentes, nenhum no servidor, e a primeira a escrever não pode encolher a
+    outra. A união é feita em Python, e não com `||`, porque nenhuma das duas
+    estruturas une corretamente no primeiro nível (ver as duas funções acima)."""
+    ct = custo_tipster if isinstance(custo_tipster, dict) else {}
+    cg = custo_geral if isinstance(custo_geral, list) else []
     pool = await get_pool()
     async with pool.acquire() as conn:
+        if semear:
+            # Lê e grava na MESMA conexão e transação: entre um e outro cabe a
+            # escrita de outra aba do mesmo dono, e a união perderia o que ela pôs.
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT custo_tipster, custo_geral FROM custo_store "
+                    "WHERE dono = $1 FOR UPDATE", dono)
+                if row is not None:
+                    v_ct, v_cg = row["custo_tipster"], row["custo_geral"]
+                    if isinstance(v_ct, str):
+                        v_ct = json.loads(v_ct)
+                    if isinstance(v_cg, str):
+                        v_cg = json.loads(v_cg)
+                    ct = _unir_custo_tipster(v_ct or {}, ct)
+                    cg = _unir_custo_geral(v_cg or [], cg)
+                await conn.execute(
+                    "INSERT INTO custo_store (dono, custo_tipster, custo_geral, atualizado_em) "
+                    "VALUES ($1, $2::jsonb, $3::jsonb, NOW()) "
+                    "ON CONFLICT (dono) DO UPDATE SET custo_tipster = EXCLUDED.custo_tipster, "
+                    "custo_geral = EXCLUDED.custo_geral, atualizado_em = NOW()",
+                    dono, json.dumps(ct), json.dumps(cg))
+            return
         await conn.execute(
             "INSERT INTO custo_store (dono, custo_tipster, custo_geral, atualizado_em) "
             "VALUES ($1, $2::jsonb, $3::jsonb, NOW()) "
             "ON CONFLICT (dono) DO UPDATE SET custo_tipster = EXCLUDED.custo_tipster, "
             "custo_geral = EXCLUDED.custo_geral, atualizado_em = NOW()",
-            dono, ct, cg)
+            dono, json.dumps(ct), json.dumps(cg))
 
 
 COBRANCAS = ("mensalidade", "staking", "temporada", "sem_cobranca")
@@ -3968,17 +4034,30 @@ async def get_custo_conta(dono: str) -> dict | None:
     return {"custo_conta": v or {}}
 
 
-async def salvar_custo_conta(dono: str, custo_conta: dict) -> None:
+async def salvar_custo_conta(dono: str, custo_conta: dict, semear: bool = False) -> None:
     """Upsert do custo por conta/fornecedor, tocando SÓ a coluna custo_conta (não
     mexe em custo_tipster/custo_geral). Front manda o estado completo. Linha nova
-    nasce com os outros custos no default da coluna ('{}'/'[]')."""
+    nasce com os outros custos no default da coluna ('{}'/'[]').
+
+    `semear=True` UNE em vez de substituir, e existe por um caso medido: o custo
+    viveu anos só no localStorage, então o mesmo dono pode ter conjuntos DIFERENTES
+    em máquinas diferentes, nenhum deles no servidor. Se a máquina com menos chaves
+    escrever primeiro, ela vira a verdade e a outra adota o conjunto menor na carga
+    seguinte — dado perdido sem erro nenhum. Na união o servidor só CRESCE.
+
+    A edição normal (`semear=False`) continua substituindo, e tem de continuar:
+    apagar um custo é tirar a chave do dict, e união nenhuma apaga chave."""
     cc = json.dumps(custo_conta if isinstance(custo_conta, dict) else {})
+    # `||` de jsonb é right-biased: mantém o que já estava e deixa o novo vencer
+    # onde as chaves coincidem.
+    fonte = ("COALESCE(custo_store.custo_conta, '{}'::jsonb) || EXCLUDED.custo_conta"
+             if semear else "EXCLUDED.custo_conta")
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute(
             "INSERT INTO custo_store (dono, custo_conta, atualizado_em) "
             "VALUES ($1, $2::jsonb, NOW()) "
-            "ON CONFLICT (dono) DO UPDATE SET custo_conta = EXCLUDED.custo_conta, atualizado_em = NOW()",
+            f"ON CONFLICT (dono) DO UPDATE SET custo_conta = {fonte}, atualizado_em = NOW()",
             dono, cc)
 
 

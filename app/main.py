@@ -54,7 +54,8 @@ from database import (
     atualizar_email_usuario, atualizar_senha_usuario,
     buscar_usuario_social, carregar_usuarios, criar_usuario,
     criar_usuario_social, definir_bot_habilitado, definir_status_usuario,
-    init_db, listar_usuarios, seed_usuarios, usernames_em_uso, vincular_social,
+    get_poly_wallet, init_db, listar_usuarios, salvar_poly_wallet,
+    seed_usuarios, usernames_em_uso, vincular_social,
 )
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
@@ -2918,7 +2919,28 @@ async def me(request: Request):
         # conta só-social, que não tem senha para trocar — o formulário some.
         "email": email_de(real),
         "tem_senha": tem_senha(real),
+        # Carteira do Polymarket (s366): vivia só no localStorage, então não
+        # atravessava máquina nenhuma. Vem pelo dono EFETIVO, porque a tela que a
+        # usa mostra a base que está sendo vista, não a credencial de quem olha.
+        "poly_wallet": await get_poly_wallet(dono_efetivo(request)),
     }
+
+
+class PolyWalletRequest(BaseModel):
+    wallet: str = ""
+
+
+@app.post("/polymarket/carteira")
+async def salvar_poly_wallet_route(body: PolyWalletRequest,
+                                   dono: str = Depends(dono_efetivo)):
+    """Guarda a carteira do Polymarket do dono. String vazia apaga.
+
+    `dono_efetivo` e não `usuario_atual`: isto é configuração da BASE (qual
+    carteira aquela operação acompanha), não credencial de quem está logado — ao
+    contrário das duas rotas de "Minha conta" logo abaixo, onde a distinção é
+    fronteira de privilégio."""
+    await salvar_poly_wallet(dono, body.wallet or "")
+    return {"salvo": True}
 
 
 # ── Minha conta: senha e e-mail do próprio usuário (s275) ────────────────────
@@ -4679,6 +4701,10 @@ class CustoStoreRequest(BaseModel):
     custo_geral = [{id, tipo, values}]. O front manda sempre o estado completo."""
     custo_tipster: dict = {}
     custo_geral: list = []
+    # `semear` = este é o PRIMEIRO envio deste navegador para um servidor que ainda
+    # não tinha custo deste dono. Só ele une; a edição normal substitui, senão
+    # apagar um lançamento deixaria de funcionar. Ver salvar_custo_store.
+    semear: bool = False
 
 
 @app.get("/custos/store")
@@ -4693,7 +4719,8 @@ async def get_custo_store_route(dono: str = Depends(dono_leitura)):
 
 @app.post("/custos/store")
 async def salvar_custo_store_route(body: CustoStoreRequest, dono: str = Depends(dono_efetivo)):
-    await salvar_custo_store(dono, body.custo_tipster or {}, body.custo_geral or [])
+    await salvar_custo_store(dono, body.custo_tipster or {}, body.custo_geral or [],
+                             semear=bool(body.semear))
     return {"salvo": True}
 
 
@@ -4702,6 +4729,8 @@ async def salvar_custo_store_route(body: CustoStoreRequest, dono: str = Depends(
 # de custo_store; endpoint PRÓPRIO p/ não colidir com o blob tipster/geral acima.
 class CustoContaRequest(BaseModel):
     custo_conta: dict = {}
+    # Ver CustoStoreRequest.semear — mesma regra, mesmo motivo.
+    semear: bool = False
 
 
 class CobrancaTipsterRequest(BaseModel):
@@ -4735,7 +4764,7 @@ async def get_custo_conta_route(dono: str = Depends(dono_leitura)):
 
 @app.post("/custos/conta")
 async def salvar_custo_conta_route(body: CustoContaRequest, dono: str = Depends(dono_efetivo)):
-    await salvar_custo_conta(dono, body.custo_conta or {})
+    await salvar_custo_conta(dono, body.custo_conta or {}, semear=bool(body.semear))
     return {"salvo": True}
 
 

@@ -918,3 +918,88 @@ não pela leitura:**
 está lá e quem o apagou foi o layout. E **o zoom do usuário é diagnóstico, não conserto**:
 "melhora quando diminuo o zoom" quer dizer que existe um breakpoint mentindo, não que a
 tela seja pequena demais.
+
+
+---
+
+## O custo que 16 donos tinham e o servidor nunca viu — s360, s366
+
+O Feca abriu a tela e o custo de conta dele tinha sumido: *"em algum momento vcs perderam
+meu custo de conta, pois ele estava preenchido ate minutos atras. Sempre esteve."*
+
+**Medido antes de mexer:** ele nao tinha linha em `custo_store`, `parceiros.custo` era
+NULL nas 181 contas e `fornecedor_preco` estava vazio. Nao era perda: **nunca tinha
+estado la.** O que ele via havia meses vinha do `localStorage` daquele navegador, e o
+numero fechava. **16 donos e 480 contas cadastradas estavam no mesmo estado.**
+
+### Por que ninguem percebeu: um seed preenchia o vazio
+
+O `CUSTO_SEED` (`charts/gestao.js`) sao 11 pares cravados no codigo que so valem para o
+username `Feca`, aplicados em memoria quando o navegador esta vazio. Com ele, uma base
+sem custo nenhum **renderiza R$ 59.600 e parece saudavel**. O print do dono mostrava
+R$ 79.300, que era o dado proprio dele, entao nem a divergencia denunciava.
+
+> **Seed cravado em codigo mascara ausencia melhor do que qualquer bug esconde.** Ele
+> passa por toda checagem de forma — a tela tem numero, o total soma, o grafico desenha.
+> Mesma familia do "zero se disfarca de conta feita".
+
+### A causa: uma trava que so sabia BLOQUEAR
+
+`saveCusto`/`ctSave` tinham a forma `if (serverBacked) push; else if (!hadLegacy) push;`.
+Tres estados, e o terceiro — **servidor vazio + legado no navegador** — nao subia nada.
+
+A trava existia por um motivo real e ele nao era invencao: o custo viveu anos so no
+`localStorage`, entao o mesmo dono podia ter conjuntos diferentes em maquinas diferentes,
+nenhum no servidor. Se a maquina com menos chaves escrevesse primeiro, ela viraria a
+verdade e a outra adotaria o conjunto menor na carga seguinte.
+
+**O erro nao foi ter a trava, foi ela nao ter contrapartida.** Ela bloqueava a escrita e
+nao oferecia caminho nenhum para subir, entao o dado ficava preso sem ninguem saber. A
+via de recuperacao ate existia — `/dashboard/importar-custos.html`, desde a s165 — mas
+era **URL avulsa, fora do menu de todo mundo, inclusive do dono**.
+
+### Dois defeitos vizinhos, achados no caminho
+
+**`existe` respondia sobre a LINHA, e era lido como resposta sobre o CONTEUDO.** A rota
+`/custos/store` devolvia `existe=True` quando havia linha do dono, e a linha nasce
+tambem pelo custo por CONTA (mesmo `upsert`, mesma tabela). Entao dava para o servidor
+dizer "tenho" com o blob de tipster/geral vazio, o `ctLoad` adotar o vazio e o
+`_ctMirror` **gravar o apagao por cima do cache local**. Perda silenciosa, sem erro.
+
+> **Existir nao e ter conteudo.** Vale para qualquer `SELECT` que responda presenca.
+
+**A tela prometia o contrario da regra.** `Valores salvos permanentemente no navegador`
+estava escrito na tela de Custos de Contas. O produto anunciava como recurso aquilo que
+era o defeito.
+
+### A saida: mover a defesa de lugar, nao remove-la
+
+1. **A tela passou a DIZER** (faixa `.c2-guardar`, com botao que sobe). Aviso sem acao
+   foi justamente o que tirou a `.c2-previa` daquele mesmo lugar uma sessao antes.
+2. **O front sobe SEMPRE**, nas tres telas de save.
+3. **O 1o envio de um navegador para um servidor sem registro manda `semear`, e o
+   servidor UNE em vez de substituir.** E o que impede a maquina com menos chaves de
+   encolher a outra. Edicao normal continua substituindo, senao apagar um custo para de
+   funcionar.
+4. A uniao de `custo_tipster` e **mes a mes**, nao por tipster: unir no primeiro nivel
+   trocaria o mapa inteiro e apagaria os meses que so existem de um lado — que e
+   exatamente o dado que a semeadura veio salvar. A de `custo_geral` e **por `id`**,
+   porque concatenar lista duplicaria a linha `VPS` em vez de uni-la.
+
+### A nota ao usuario, e por que a primeira foi recusada
+
+A 1a redacao abria com *"passam a ficar guardados na sua conta, e nao mais so no
+navegador"*. O Feca recusou: *"essa mensagem e uma merda, claramente a gnt fez cagada e
+esta postando o atestado dela."*
+
+> **Se a frase precisa descrever o estado ANTERIOR para a novidade fazer sentido, ela e
+> atestado, nao release.**
+
+O que destravou a reescrita foi medir o `changelog.json`: **zero notas de custo em 18
+novidades**. A leva inteira nunca tinha sido contada. Com isso a faixa deixou de ser o
+assunto e virou um passo de uma area nova, e quem nao tivesse faixa nenhuma leria a nota
+como release sem ficar sabendo que houve problema.
+
+**Sintoma para reconhecer isto noutro campo:** um `if` que decide **se grava**, em vez de
+decidir **como**. Bloquear escrita de dado do usuario so e legitimo com o caminho de
+subir oferecido na mesma tela — senao a trava nao previne a perda, ela **e** a perda.
