@@ -242,6 +242,7 @@ function mkDowRanking(rows){
         `<span class="dow__dia"><span class="dow__nome">${a.nome}</span></span>`+
         `<span class="dow__n">—</span>`+
         `<span class="dow__pl">—</span>`+
+        `<span class="dow__to">—</span>`+
         `<span class="dow__roi">—</span>`+
       `</div>`;
     }
@@ -255,12 +256,15 @@ function mkDowRanking(rows){
       `<span class="dow__dia"><span class="dow__bar${barCls}" style="width:${larg.toFixed(1)}%"></span><span class="dow__nome">${a.nome}</span></span>`+
       `<span class="dow__n">${a.n.toLocaleString('pt-BR')}</span>`+
       `<span class="dow__pl">${fmtPL(a.pl)}</span>`+
+      // Turnover é agregado: `fmtR` (inteiro, sem sinal, sem cor) — UI_REFERENCE §5.1.
+      // Verde/vermelho aqui seria semântica de resultado num número que não tem sinal.
+      `<span class="dow__to">${fmtR(a.turnover)}</span>`+
       `<span class="dow__roi ${roi===null?'':(roi>=0?'pos':'neg')}">${roi===null?'—':fmtPct(roi,2)}</span>`+
     `</div>`;
   }).join('');
 
   return `<div class="dow">`+
-    `<div class="dow__hdr"><span></span><span>Apostas</span><span>P/L</span><span>ROI</span></div>`+
+    `<div class="dow__hdr"><span></span><span>Apostas</span><span>P/L</span><span>Turnover</span><span>ROI</span></div>`+
     linhas+
     `<div class="dow__legenda"><i></i><span>comprimento da barra = P/L do dia, contra o melhor do período</span></div>`+
   `</div>`;

@@ -333,7 +333,7 @@
    das duas, olhe a outra. */
 .dow { display:flex; flex-direction:column; gap:4px; }
 .dow__hdr, .dow__row {
-  display:grid; grid-template-columns:minmax(0,1fr) 96px 168px 96px;
+  display:grid; grid-template-columns:minmax(0,1fr) 96px 168px 140px 96px;
   align-items:center; gap:12px;
 }
 .dow__hdr { padding:0 12px 8px; }
@@ -369,12 +369,21 @@
   font-size:var(--text-sm); font-weight:700; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.dow__n, .dow__pl, .dow__roi { min-width:0; }
+.dow__n, .dow__pl, .dow__to, .dow__roi { min-width:0; }
 .dow__n {
   font-family:var(--font-mono); font-size:var(--text-sm); color:var(--ink);
   text-align:right; font-variant-numeric:tabular-nums;
 }
 .dow__pl .money { font-size:var(--text-sm); font-weight:700; }
+/* Turnover: agregado, logo sem sinal e sem cor (UI_REFERENCE 5.1). Peso menor que o
+   P/L de proposito - e' contexto para julgar o ROI, nao o resultado do dia.
+   min-width de 9ch em vez dos 10ch do componente: os 10ch sao largura de coluna
+   dimensionada para valor COM centavos (o P/L, ao lado, preenche), e o `fmtR` e'
+   INTEIRO - nunca chega la, entao sobram ~3ch de vao entre o R$ e o numero, e o R$
+   solto no meio da celula le como se pertencesse ao P/L da coluna anterior. 9ch
+   cobre ate 9.999.999 sem vao e mantem as sete linhas alinhadas entre si. */
+.dow__to .money { font-size:var(--text-sm); font-weight:600; }
+.dow__to .money-val { min-width:9ch; }
 .dow__roi {
   font-family:var(--font-mono); font-size:var(--text-sm); font-weight:700;
   color:var(--ink); text-align:right; font-variant-numeric:tabular-nums;
@@ -385,6 +394,7 @@
 .dow__row--vazio .dow__nome { color:var(--ink-soft); font-weight:600; }
 .dow__row--vazio .dow__n,
 .dow__row--vazio .dow__pl,
+.dow__row--vazio .dow__to,
 .dow__row--vazio .dow__roi {
   font-family:var(--font-mono); font-size:var(--text-sm);
   color:var(--ink-mute); text-align:right;
@@ -396,7 +406,7 @@
 .dow__legenda i { width:14px; height:8px; border-radius:2px; background:rgba(var(--pos-rgb),.13); flex:none; }
 .dow__legenda span { font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-soft); letter-spacing:.02em; }
 @media(max-width:760px) {
-  .dow__hdr, .dow__row { grid-template-columns:minmax(0,1fr) 64px 132px 76px; gap:8px; }
+  .dow__hdr, .dow__row { grid-template-columns:minmax(0,1fr) 60px 124px 100px 72px; gap:8px; }
 }
 
 /* ══ EM ABERTO (Minhas Apostas › Em Aberto) ═══════════════════════════════════
