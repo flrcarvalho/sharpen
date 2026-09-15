@@ -13,7 +13,7 @@
 
 | Faixa | Arquivo | Tamanho | O que tem dentro |
 |---|---|---|---|
-| **Sessões 357 → 300** | [`historico/HISTORICO_s300-s327.md`](historico/HISTORICO_s300-s327.md) | 336 KB | Os blocos completos que saíram do `STATUS.md` (358, 357, 356, 354 e 353; 339 e 336 → 317), a Sessão 315 e a cadeia `_Anterior_` de 339 até 300. |
+| **Sessões 362 → 300** | [`historico/HISTORICO_s300-s327.md`](historico/HISTORICO_s300-s327.md) | 430 KB | Os blocos completos que saíram do `STATUS.md` (362, 360, 358, 357, 356, 354 e 353; 339 e 336 → 317), a Sessão 315 e a cadeia `_Anterior_` de 339 até 300. O nome do arquivo ficou para trás da faixa: renomeá-lo quebraria os links já espalhados pelo repo. |
 | **Sessões 299 → 243** | [`historico/HISTORICO_s243-s299.md`](historico/HISTORICO_s243-s299.md) | 304 KB | Cadeia `_Anterior_`. Inclui a entrada da Bolsa de Aposta (s299) e a da Jonbet (s249). |
 | **Sessões 242 → 150** | [`historico/HISTORICO_s150-s242.md`](historico/HISTORICO_s150-s242.md) | 298 KB | Cadeia `_Anterior_`. Inclui a paginação da Betfair (s199) e a Polymarket (s200). |
 | **Sessões 149 → 61** | [`historico/HISTORICO_s061-s149.md`](historico/HISTORICO_s061-s149.md) | 371 KB | Cadeia `_Anterior_`. Inclui a dedup da conta KingPanda (s100) e a moldura da marca (s99). |
