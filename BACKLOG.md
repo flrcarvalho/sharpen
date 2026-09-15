@@ -770,17 +770,20 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
     Tipster que a s360 pôs nele. A régua velha (`custoData × contagem`) dessas três não foi
     consertada de propósito. **Esperar o Feca confirmar que não sentiu falta.**
 
-- **Avisar TODOS os usuários para guardar o custo na conta, e só então remover o `CUSTO_SEED` (s360). VIVA, autorizada pelo Feca.**
+- **Remover o `CUSTO_SEED`, depois que os 16 donos tiverem guardado (s360). VIVA, medida.**
+  **O aviso já saiu** (15/09/2026, `message_id 4138` + home, `c2b9c6d`): a nota manda clicar
+  em *Guardar na minha conta* assim que entrar. Falta a outra metade.
   Medido em 15/09/2026 contra o Postgres de produção: **16 donos, 480 contas cadastradas,
   zero linha de custo em `custo_store`** — o custo deles vive só no `localStorage` daquele
-  navegador. A tela já avisa e oferece guardar (faixa `.c2-guardar`, tela de Custos), mas
-  quem não abrir a tela não vê. **O Feca autorizou o aviso e pediu o enquadramento:**
-  *"sem falar q eh uma falha e sim um upgrade"* — a mensagem é sobre o custo passar a viver
-  na conta e abrir em qualquer aparelho, não sobre o que estava errado. Vai pelo
-  `python scripts/avisar_testers.py` (o aviso e a home são o mesmo ato) e **só com o
-  "pode mandar"**. **Depois disso, e não antes, sai o `CUSTO_SEED`** (`gestao.js`, 11 pares
-  cravados que valem só para o username `Feca`): removê-lo enquanto o custo dele estiver só
-  no navegador zeraria a tela dele. Ele é a razão de a perda ter passado meses invisível.
+  navegador. **O `CUSTO_SEED`** (`gestao.js`, 11 pares cravados que valem só para o username
+  `Feca`) **só sai depois que o custo dele estiver no servidor**: removê-lo antes zeraria a
+  tela dele. Ele é a razão de a perda ter passado meses invisível, então a saída dele é o
+  fechamento do caso, não um detalhe de limpeza.
+  **Como saber que fechou, sem perguntar a ninguém:** `select dono from custo_store where
+  custo_conta <> '{}'::jsonb` contra a lista dos 16. Enquanto sobrar nome, o seed fica.
+  **E há um limite conhecido do aviso:** a faixa só aparece no navegador que TEM o dado. Quem
+  lançou num computador e abrir noutro vê zero e faixa nenhuma, porque a tela não tem como
+  saber que existe custo em outra máquina. Por isso a nota diz para abrir logo ao entrar.
 
 - **O `.money` está definido em TRÊS arquivos (s362/s363). VIVA, medida.**
   `app/static/shell.css` (a base canônica, posta aqui pelo bloco de tipster),
