@@ -13,6 +13,11 @@
 //   3. EXISTÊNCIA NÃO VEM DO BILHETE. O Fornecedor da tela de Custos é cadastro ∪ base:
 //      conta comprada custa antes da primeira aposta. Medido: 26 contas ativas
 //      cadastradas sem nenhum bilhete e 4 fornecedores só no cadastro.
+//   5. DUAS TELAS, A MESMA ENTIDADE. Tipsters & Métodos listava só o CADASTRO, enquanto
+//      Custo de Tipsters lista cadastro ∪ base. `garantir_tipster` cria o perfil sozinha
+//      quando o tipster é atribuído EDITANDO um bilhete, mas não roda no `/salvar` — por
+//      onde entram a IA, o bot e os imports. Um tipster vindo do bot dava para cobrar e
+//      não dava para configurar. Zero casos medidos hoje; isto é blindagem.
 //   4. EIXO QUE NÃO RECORTA. O Operador entrou na barra da tela de Custos, porque a regra
 //      do projeto diz que ele e a Casa descrevem a CONTA e por isso os dois recortam
 //      custo — a tela aplicava metade. Filtro que aparece e não filtra é PIOR que filtro
@@ -89,6 +94,8 @@ const DADOS = [
 // Só em ABERTO: é o caso que a leitura de `DADOS` sozinha perderia.
 const ABERTAS = [L({ tipster: 'Só Abertas', casa: 'Novibet', operador: 'Solo' })];
 
+// Ordem pt-BR da uniao usada na secao 5 (cadastro {Perfilado, Zora} + os da base).
+const _tmEsperado = 'Caçador Basquete|Cantos|deLucca|Perfilado|Só Abertas|T|Zora';
 const F = new Function('DADOS', 'DADOS_ABERTAS', '_contasCadastro', fonte);
 const comCadastro = (cad) => F(DADOS, ABERTAS, cad);
 
@@ -180,6 +187,27 @@ console.log('4) o eixo Operador RECORTA de verdade na tela de Custos');
   // fornecedor × casa, e preço não pertence a operador nenhum.
   ok(soFeca._c2passa(soFeca._c2sel(), 'KTO', 'Norte'),
     'sem `conta`, o eixo Operador nao corta (tabela de precos)');
+}
+
+console.log('5) Tipsters & Metodos lista cadastro UNIAO base');
+{
+  const T = new Function('DADOS', 'DADOS_ABERTAS', '_tmCadastro', [
+    recorte(GESTAO, 'function _tmSortNomes(nomes){', LF + '}', '_tmSortNomes'),
+    recorte(GESTAO, 'function _tmNomes(){', LF + '}', '_tmNomes'),
+  ].join(LF + LF) + LF + 'return { _tmNomes };');
+
+  // `Perfilado` só no cadastro (cadastrado e ainda sem aposta), `Zora` nos dois lados,
+  // `Só Abertas` só em aposta viva. As tres metades importam.
+  const nomes = T(DADOS, ABERTAS, { Perfilado: {}, Zora: {} })._tmNomes();
+  ok(nomes.includes('Perfilado'), 'quem esta so no cadastro continua na lista');
+  ok(nomes.includes('Zora'), 'quem esta nos dois lados aparece');
+  ok(nomes.filter(n => n === 'Zora').length === 1, 'e nao duplica');
+  ok(nomes.includes('Caçador Basquete'),
+    'TIPSTER QUE SO EXISTE EM BILHETE tem de aparecer - era o buraco do bot');
+  ok(nomes.includes('Só Abertas'),
+    'inclusive quem so tem aposta EM ABERTO (DADOS sozinho nao o veria)');
+  ok(!nomes.includes(''), 'nome vazio nao vira perfil');
+  ok(nomes.join('|') === _tmEsperado, 'ordem pt-BR, veio: ' + nomes.join('|'));
 }
 
 console.log(falhas ? LF + falhas + ' falha(s).' : 'opcoes_filtro: OK');

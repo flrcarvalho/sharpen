@@ -1158,10 +1158,14 @@ async function renderTipsterMetodo(){
   const cont=document.getElementById('tipsterMetodoContent');
   if(!cont)return;
   const lista=await _tmCadastroCarregar();
-  const nomes=_tmSortNomes(lista.map(t=>t.nome));
-  const nInc=lista.filter(t=>!t.completo&&!t.arquivado).length;   // só ativos incompletos
-
-  const nAtivos=lista.filter(t=>!t.arquivado).length;
+  const nomes=_tmNomes();
+  // "Sem info" conta os dois casos que precisam da mesma ação: o cadastrado que nunca foi
+  // preenchido e o que sequer tem linha no cadastro (só existe em bilhete).
+  const _semLinha=nomes.filter(n=>!(_tmCadastro||{})[n]).length;
+  const nInc=lista.filter(t=>!t.completo&&!t.arquivado).length+_semLinha;
+  // O contador conta o que está NA TELA. Ler `lista` aqui e a união abaixo faria o
+  // cabeçalho discordar da lista logo embaixo dele.
+  const nAtivos=nomes.length;
   const _sSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>`;
 
   const intro=`<div class="intro">Cada tipster tem um box abaixo. Clique para abrir e preencher <b>casas, mercados e a escada de unidade</b> — ou deixe o <b>Sharpen sugerir</b> a partir das apostas dele na base. Prepara o terreno para o Sharpen atribuir o tipster sozinho na extração <span class="em">em construção</span>.</div>`;
@@ -1432,6 +1436,27 @@ function _casaUpdMeta(){
 function _tmSortNomes(nomes){
   return nomes.slice().sort((a,b)=>a.localeCompare(b,'pt-BR'));
 }
+// Quem EXISTE para esta tela: cadastro ∪ base. Espelha o `_ctTipsters` do Custo de
+// Tipsters de propósito — as duas telas listam a mesma entidade e divergir é o defeito.
+//
+// Por que a divergência existia: `garantir_tipster` (repository.py) cria o perfil sozinha
+// quando o tipster é atribuído EDITANDO um bilhete, mas ela não roda no `/salvar`, que é
+// por onde entram a extração por IA, o bot de tipster e os imports. Então um tipster que
+// chegasse pelo bot dava para COBRAR (Custo de Tipsters, que usa a união) e não dava para
+// CONFIGURAR (esta tela, que lia só o cadastro), sem erro nenhum.
+// Medido em 14/09/2026: zero casos em toda a base, em todos os donos. Isto é blindagem
+// para o próximo tipster que entrar por bot, não conserto de um estrago em curso.
+//
+// O oposto — o `/salvar` cadastrar sozinho — foi recusado: nome que a IA leu errado
+// viraria perfil permanente. A união é só de LEITURA; a linha nasce no `tmToggle`, quando
+// alguém abre o box para configurar.
+function _tmNomes(){
+  const s=new Set(Object.keys(_tmCadastro||{}));
+  const _liq=(typeof DADOS!=='undefined'&&DADOS)?DADOS:[];
+  const _ab=(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[];
+  _liq.concat(_ab).forEach(r=>{if(r.tipster)s.add(r.tipster);});
+  return _tmSortNomes([...s]);
+}
 // Box do accordion. Colapsado: nome + tick "inativo" + sinal de completude + volume/P/L.
 // Expandido (_tmOpen===nome): injeta o editor 2-colunas em #tmEditor (via tmRenderEditor).
 function _tmBox(nome){
@@ -1508,14 +1533,35 @@ function tmBusca(v){
   const lista=document.getElementById('tmLista');
   if(!lista)return;
   const filtro=dobra(v).trim();
-  const nomes=_tmSortNomes(Object.keys(_tmCadastro||{}));
+  const nomes=_tmNomes();
   const vis=nomes.filter(n=>!filtro||dobra(n).includes(filtro));
   lista.innerHTML=_tmListaHTML(vis,!!filtro);
   if(_tmOpen&&vis.includes(_tmOpen))tmRenderEditor(_tmOpen);
 }
 window.tmBusca=tmBusca;
 
-function tmToggle(nome){_tmOpen=(_tmOpen===nome)?null:nome;tmBusca(_tmQ);}
+// Abrir o box é a declaração de intenção de configurar, e é aí que a linha nasce para
+// quem só existia em bilhete — o editor precisa de um `id` (ele salva por
+// `PATCH /tipsters/{id}/info`), e sem a linha a tela dizia "Tipster não encontrado no
+// cadastro", que é um beco sem saída. `POST /tipsters/cadastro` é UPSERT por (dono,nome),
+// então clicar duas vezes não duplica nem ressuscita arquivado por engano.
+async function tmToggle(nome){
+  const fechando=(_tmOpen===nome);
+  if(!fechando&&!(_tmCadastro||{})[nome]){
+    try{
+      const r=await fetch('/tipsters/cadastro',{method:'POST',headers:{'Content-Type':'application/json'},
+                                                body:JSON.stringify({nome:nome})});
+      if(!r.ok)throw 0;
+      _tmCadastro=null;                       // força a recarga: o box precisa do id novo
+      if(typeof _tipCadastro!=='undefined')_tipCadastro=null;
+      _tmOpen=nome;
+      await renderTipsterMetodo();
+      return;
+    }catch(e){alert('Não foi possível abrir o perfil deste tipster.');return;}
+  }
+  _tmOpen=fechando?null:nome;
+  tmBusca(_tmQ);
+}
 window.tmToggle=tmToggle;
 
 // Tick "inativo": arquiva (não sigo mais) ou reativa o tipster e reordena a lista (inativos

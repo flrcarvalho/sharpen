@@ -3,7 +3,7 @@
 Nasceu de um relato do Feca sobre a aba Tipsters: *"o filtro de Tipster está mto
 desatualizado. Falta dezenas de nomes"*. Medindo, eram três defeitos distintos, e
 nenhum deles gera erro — todos produzem uma lista que **parece** inteira. Depois, com a
-auditoria das outras abas, entrou um quarto, da mesma família:
+auditoria das outras abas, entraram mais dois da mesma família:
 
 1. **ORDEM.** `.sort()` puro ordena por código UTF-16, que joga minúscula e acento para
    depois do Z. Medido na base do Feca: **63 dos 76 tipsters fora do lugar** — `deLucca`,
@@ -27,9 +27,23 @@ auditoria das outras abas, entrou um quarto, da mesma família:
    ausente: é o defeito da s322 com outra roupa. O operador de uma conta não é campo do
    cadastro, sai do bilhete, e quem já o resolve é o `_contaVida`.
 
+5. **DUAS TELAS, A MESMA ENTIDADE.** Tipsters & Métodos listava só o CADASTRO, enquanto
+   Custo de Tipsters lista cadastro ∪ base. `garantir_tipster` (repository.py) cria o
+   perfil sozinha quando o tipster é atribuído EDITANDO um bilhete, mas ela **não roda no
+   `/salvar`**, que é por onde entram a IA, o bot de tipster e os imports. Um tipster
+   vindo do bot dava para **cobrar** e não dava para **configurar**, sem erro nenhum.
+   Medido em 14/09/2026: **zero casos** em toda a base. É blindagem, não conserto.
+   O oposto (o `/salvar` cadastrar sozinho) foi recusado: nome que a IA leu errado viraria
+   perfil permanente. A união é só de leitura; a linha nasce quando alguém abre o box.
+
 A prova de COMPORTAMENTO roda em `tests/js/opcoes_filtro.mjs`, que executa `cmpNome`,
 `recalcListasFiltro`, `_c2Fornecedores` e `_c2sel`/`_c2passa` RECORTADAS dos arquivos de
-produção. Provado por mutação: 9/9 detectadas.
+produção. Provado por mutação: 11/11 detectadas.
+
+Uma regra NÃO tem mutação própria, e fica dita em vez de inventada: o descarte de nome
+vazio dentro do `_tmNomes` mora numa linha IDÊNTICA à do `_ctTipsters`, então mutá-la
+cairia na função errada. A mesma regra tem mutação no caminho dos filtros (`nome vazio
+vira uma opcao do seletor`), e o comportamento é asserido na seção 5 do .mjs.
 
 O que NÃO está coberto, e é preciso dizer: o DOM. `msRepintar` e `atualizarOpcoesFiltros`
 escrevem `innerHTML` e dependem dos nós `msb_<id>`/`ms-opts-<id>`; que a repintura
@@ -54,6 +68,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 FILTERS = RAIZ / "app" / "static" / "dash" / "assets" / "js" / "filters.js"
 CUSTOS2 = RAIZ / "app" / "static" / "dash" / "assets" / "js" / "charts" / "custos2.js"
 APP_JS = RAIZ / "app" / "static" / "dash" / "assets" / "js" / "app.js"
+GESTAO = RAIZ / "app" / "static" / "dash" / "assets" / "js" / "charts" / "gestao.js"
 MJS = RAIZ / "tests" / "js" / "opcoes_filtro.mjs"
 
 
@@ -123,6 +138,19 @@ MUTACOES = [
      CUSTOS2,
      "  return (v && v.op) || '';",
      "  return '';"),
+    # Tipsters & Metodos: a uniao com a base.
+    # As ancoras saem de dentro do `_tmNomes` e nao da linha do `forEach`: aquela linha e
+    # IDENTICA a do `_ctTipsters`, e a mutacao cairia na funcao errada. Foi o proprio gate
+    # de unicidade que apontou isso.
+    ("Tipsters & Metodos volta a listar so o cadastro",
+     GESTAO,
+     "const s=new Set(Object.keys(_tmCadastro||{}));",
+     "const s=new Set(Object.keys(_tmCadastro||{}));return _tmSortNomes([...s]);"),
+    ("a lista deixa de somar as abertas e perde quem so tem aposta viva",
+     GESTAO,
+     "  return _tmSortNomes([...s]);",
+     "  _ab.forEach(r=>{if(r.tipster)s.delete(r.tipster);});\n"
+     "  return _tmSortNomes([...s]);"),
 ]
 
 
@@ -137,7 +165,8 @@ def test_mutacoes_sao_detectadas(tmp_path, titulo, alvo, de, para):
     )
     estragado = tmp_path / alvo.name
     estragado.write_text(src.replace(de, para, 1), encoding="utf-8")
-    env_var = "ALVO_FILTERS" if alvo is FILTERS else "ALVO_CUSTOS2"
+    env_var = ("ALVO_FILTERS" if alvo is FILTERS
+               else "ALVO_GESTAO" if alvo is GESTAO else "ALVO_CUSTOS2")
 
     r = subprocess.run(["node", str(MJS)], capture_output=True, text=True,
                        encoding="utf-8", cwd=str(RAIZ),
