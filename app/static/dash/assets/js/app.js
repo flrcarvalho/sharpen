@@ -483,9 +483,10 @@ const PAGE_META={
   'parceiros':      ['Fornecedores & Parceiros', 'turnover, lucro e período por conta'],
   'custos':         ['Custos de Contas',         'custo de aquisição por conta e fornecedor'],
   'custos_tipster': ['Custo de Tipsters',        'assinaturas, serviços e pagamentos'],
-  // Tela única de custos (Fatia 0): PRÉVIA só-leitura das três telas acima. Ver
-  // charts/custos2.js. As antigas seguem no menu até a Fatia 5, porque a prévia
-  // ainda não grava — tirá-las agora deixaria o Feca sem onde lançar.
+  // Tela única de custos — a ÚNICA no menu desde a s358. Ver charts/custos2.js. As
+  // três acima saíram do MENU, não do código: seguem alcançáveis por hash direto, o
+  // que mantém a volta a uma linha, e `_ctTipsters`/`_ctSituacao`/`_ctSugestao`/
+  // `buildCostState` são lidos pela tela nova. Remover o código é passo seguinte.
   'custos_v2':      ['Custos',                   'contas, tipsters e gerais num lugar só'],
   'tipster_metodo': ['Tipsters & Métodos',       'cadastro, unidades e detecção do tipster'],
   'metrics':        ['Métricas',                 'base de conhecimento e valores atuais'],
@@ -788,16 +789,19 @@ function buildHTML(){
         <div id="custoTipsterContent"></div>
       </div>
 
-      <!-- CUSTOS (tela única) — Fatia 0: prévia só-leitura. charts/custos2.js.
+      <!-- CUSTOS (tela única). charts/custos2.js.
            A barra de filtros é COMPOSTA com as peças de filters.js (Período +
            Casa + Fornecedor): Esporte e Tipster descrevem a APOSTA e não
-           recortam custo, então ficam de fora de propósito. -->
+           recortam custo, então ficam de fora de propósito.
+           A faixa .c2-previa saiu na s362: ela dizia que só a tabela de preços
+           gravava e mandava lançar em Custos de Contas / Custos de Tipsters —
+           as abas gravam desde as Fatias 3 e 4, e aquelas duas telas saíram do
+           menu na s358. Apontar para uma tela que não existe mais é pior que não
+           dizer nada.
+           (Sem crase aqui: este comentário vive DENTRO de um template literal, e
+           uma crase perdida derruba a página inteira — o caso da s296.) -->
       <div class="page" id="page-custos_v2">
         ${buildFiltersCustos('custos_v2',casas)}
-        <div class="c2-previa">
-          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="var(--accent-2)" stroke-width="1.6"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.9v.9" stroke-linecap="round"/></svg>
-          <div class="c2-previa__txt"><strong>Prévia.</strong> Só a <strong>tabela de preços por fornecedor</strong> grava; o resto ainda é leitura. O lançamento de conta e de tipster segue em <strong>Custos de Contas</strong> e <strong>Custos de Tipsters</strong>.</div>
-        </div>
         <div id="c2Kpi"></div>
         <div id="c2Cascata"></div>
         <div id="c2Aviso"></div>

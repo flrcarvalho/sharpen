@@ -1,25 +1,24 @@
-// ── custos2.js — Custos (tela única) · FATIA 0: PRÉVIA, SÓ LEITURA ───────────
+// ── custos2.js — Custos (tela única) ─────────────────────────────────────────
 //
-// Substitui, em prévia, as três telas de custo que o Feca não usava (Custos de
-// Contas, Custo de Tipsters, Fornecedores & Parceiros). O desenho está no canvas
-// "Custos e Retorno": topo fixo (filtros do sistema + KPIs + cascata + aviso do
-// que falta) e quatro abas — Contas · Tipsters · Gerais · Raio-X.
+// A ÚNICA tela de custo desde a s358: `Custos de Contas`, `Custo de Tipsters` e
+// `Fornecedores & Parceiros` saíram do menu. O desenho está no canvas "Custos e
+// Retorno": topo fixo (filtros do sistema + KPIs + cascata + aviso do que falta) e
+// quatro abas — Contas · Tipsters · Gerais · Raio-X.
 //
-// ⚠️ NADA AQUI GRAVA. A tela lê o que já está no ar e não cria estrutura nova:
-//   · custoData          (gestao.js)  custo por PAR `fornecedor||casa`
+// De onde vem o dado:
+//   · custoData          (gestao.js)  preço por PAR `fornecedor||casa`
 //   · ctData / cgData    (app.js)     custo de tipster e geral, por mês
-//   · _contasVida        (gestao.js)  cadastro com adquirida_em / arquivada_em
+//   · _contaVida         (gestao.js)  cadastro ∪ bilhete, com as datas da conta
 //   · DADOS / DADOS_ABERTAS          bilhetes
-// O lançamento segue nas telas antigas até a Fatia 2. É de propósito: a prévia
-// existe para o Feca navegar na base REAL antes de existir migração para desfazer.
 //
-// ⚠️ RÉGUA DIFERENTE DA VISÃO GERAL, e a tela diz isso na cara.
-//   Visão Geral  → JANELA DE VIDA: custo cheio de toda conta VIVA no recorte
-//                  (`calcCostFiltered`, CLAUDE.md "Custo de aquisição tem janela de vida").
-//   Custos (aqui)→ LANÇAMENTO: o que foi PAGO no mês, ou seja, conta comprada no mês.
-//   As duas estão certas e respondem perguntas diferentes. Sem o rótulo, uma
-//   pareceria defeito da outra — é o caso "os dois números certos que pareciam
-//   defeito" do CLAUDE.md. Qual vira a régua única é decisão da Fatia 2.
+// ✅ MESMA RÉGUA DA VISÃO GERAL desde a s358: LANÇAMENTO — o que saiu do bolso no
+// recorte, cada conta cobrando UMA vez, no mês do pagamento. A janela de vida não
+// morreu: virou `calcContasEmOperacao`, número de ESTOQUE, sempre em [hoje, hoje] e
+// FORA do P/L. Ver CLAUDE.md, "Custo pertence ao dia em que o DINHEIRO SAIU".
+//
+// Na s362 o `_c2contas` passou a derivar do `_contaVida` e do `_dataPagamento`, que
+// são os do KPI — antes ele tinha caminho próprio para a mesma pergunta e só não
+// divergia por sorte do dado. Duas derivações para um número são duas réguas.
 
 let _c2aba = 'contas';
 let _c2fornOpen = null;   // accordion da tabela de preços: um fornecedor aberto por vez
@@ -72,8 +71,15 @@ function _c2mesRotulo(ym){
 function _c2primeiraData(){
   let min = '';
   const marca = (d) => { if (d && (!min || d < min)) min = d; };
-  (typeof _contasVida !== 'undefined' && _contasVida ? _contasVida : [])
-    .forEach(p => marca(p.adquirida_em));
+  // O começo tem de sair da MESMA data que decide em que mês a conta cobra (s362):
+  // `_dataPagamento` pode ser anterior ao `adquirida_em` (é a 1ª aposta quando o
+  // cadastro chegou depois), e ler o cadastro aqui faria "Tudo" começar tarde demais
+  // e deixar de fora exatamente as contas mais antigas.
+  if (typeof _contaVida !== 'undefined'){
+    if (!_contaVida && typeof _buildContaVida === 'function') _buildContaVida();
+    Object.values(_contaVida || {}).forEach(contas =>
+      Object.values(contas).forEach(v => marca(_dataPagamento(v))));
+  }
   Object.values((typeof ctData !== 'undefined' && ctData) || {})
     .forEach(m => Object.keys(m || {}).forEach(ym => marca(ym + '-01')));
   ((typeof cgData !== 'undefined' && cgData) || [])
@@ -122,24 +128,47 @@ function _c2passa(sel, casa, forn, conta){
 
 // ── Os três blocos de custo do recorte ───────────────────────────────────────
 
-// CONTAS: comprada no período = `adquirida_em` dentro do recorte. O valor é o do
-// par (fornecedor||casa), que é tudo o que existe hoje; custo POR CONTA é Fatia 2.
+// CONTAS: as que PAGARAM dentro do recorte — a mesma pergunta, o mesmo universo e a
+// mesma data do `_custoNaJanela('pago')` que alimenta o KPI da Visão Geral (s362).
+//
+// Até aqui esta lista varria o CADASTRO (`_contasVida`) e datava por `adquirida_em`
+// cru, enquanto o KPI varria cadastro ∪ BILHETE (`_contaVida`) e datava por
+// `_dataPagamento`. As duas réguas davam o mesmo número em todos os donos medidos
+// (R$ 0 de diferença em 8 bases, a do Feca inclusive) — mas por sorte do dado, não
+// por construção: toda conta com custo hoje tem cadastro e tem `adquirida_em`
+// anterior à 1ª aposta, porque foi o backfill que a deduziu assim. Bastaria um
+// `adquirida_em` digitado DEPOIS da 1ª aposta, ou um preço numa das 130 contas que
+// só existem em bilhete, para os dois números discordarem sem erro nenhum.
+//
+// Por isso a lista agora sai do `_contaVida`: uma régua só, e a tela de lançamento
+// deixa de esconder conta que o KPI cobra. Conta sem cadastro chega com `id` null e a
+// coluna de ação já a marca como não-editável.
+//
+// Sem data de pagamento (nem `adquirida_em`, nem aposta) não há mês a que pertencer, e
+// a conta não cobra em recorte nenhum — nos dois lados, do mesmo jeito.
 function _c2contas(){
   const r = _c2range(), sel = _c2sel();
   const out = [];
-  (typeof _contasVida !== 'undefined' && _contasVida ? _contasVida : []).forEach(p => {
-    if (!p.adquirida_em || p.adquirida_em < r.de || p.adquirida_em > r.ate) return;
-    const forn = normForn(p.fornecedor);
-    if (!_c2passa(sel, p.casa, forn, p.conta)) return;
-    // As TRÊS camadas viajam separadas para a tela poder dizer de onde o número
-    // veio. O total sai de `_custoDaConta`, que é a mesma função do KPI.
-    const herdadoPar = (typeof custoData !== 'undefined' && custoData[forn + '||' + p.casa]) || 0;
-    const degrau = _precoVigenteEm(_degrausPreco(forn, p.casa), p.adquirida_em);
-    out.push({ id: p.id || null, casa: p.casa, conta: p.conta, forn: forn, data: p.adquirida_em,
-               proprio: p.custo > 0 ? p.custo : 0,
-               herdado: degrau ? degrau.valor : herdadoPar,
-               degrau: degrau || null,
-               custo: _custoDaConta(forn, p.casa, p.conta) });
+  if (typeof _contaVida === 'undefined') return out;
+  if (!_contaVida && typeof _buildContaVida === 'function') _buildContaVida();
+  Object.entries(_contaVida || {}).forEach(([k, contas]) => {
+    const i = k.indexOf('||');
+    const forn = k.slice(0, i), casa = k.slice(i + 2);
+    Object.entries(contas).forEach(([conta, v]) => {
+      const data = _dataPagamento(v);
+      if (!data || data < r.de || data > r.ate) return;
+      if (!_c2passa(sel, casa, forn, conta)) return;
+      // As TRÊS camadas viajam separadas para a tela poder dizer de onde o número
+      // veio. O total sai de `_custoDaConta`, que é a mesma função do KPI, e o degrau
+      // sai do `_dataDoPreco` que ELA usa — data da compra, não a do pagamento.
+      const herdadoPar = (typeof custoData !== 'undefined' && custoData[forn + '||' + casa]) || 0;
+      const degrau = _precoVigenteEm(_degrausPreco(forn, casa), _dataDoPreco(v));
+      out.push({ id: v.id || null, casa: casa, conta: conta, forn: forn, data: data,
+                 proprio: v.custo > 0 ? v.custo : 0,
+                 herdado: degrau ? degrau.valor : herdadoPar,
+                 degrau: degrau || null,
+                 custo: _custoDaConta(forn, casa, conta) });
+    });
   });
   out.sort((a, b) => (a.data === b.data ? a.casa.localeCompare(b.casa, 'pt-BR') : a.data.localeCompare(b.data)));
   return out;
@@ -557,8 +586,11 @@ function renderCustos2(){
       ${legenda('rgba(var(--accent-rgb),.40)', 'Gerais', t.tGer)}
       <div class="c2-leg c2-leg--fim"><span class="c2-leg__lbl">P/L Bruto</span><span class="c2-leg__val">${fmtPL(t.bruto)}</span></div>
     </div>
-    <div class="c2-corte">Custo <strong>lançado</strong> no recorte, ou seja, conta comprada aqui dentro. A Visão Geral mede pela <strong>janela de vida</strong> e cobra toda conta viva no período: os dois números são diferentes de propósito.</div>
   </div>`;
+  // A faixa `.c2-corte` saiu aqui (s362). Ela existia para explicar por que este total
+  // diferia do da Visão Geral, e desde a s358 ele não difere mais: as duas medem
+  // LANÇAMENTO. Aviso que explica uma divergência que acabou vira a própria divergência
+  // — a tela passa a afirmar um corte que o número não faz.
 
   // ── Aviso do que falta, e de qual mês ──
   const faltam = t.semCusto + t.tipsPend + t.gerPend;

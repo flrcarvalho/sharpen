@@ -102,12 +102,22 @@ function _precoVigenteEm(degraus,quando){
 //   3) o preço do par de HOJE (`custoData`) — o herdado, que é o que existia antes
 //      de o preço ter data. É esta camada que faz o total NÃO se mover na migração.
 // Sem nenhuma das três: 0, e a conta aparece como "sem preço" em vez de sumir.
+//
+// A data que escolhe o DEGRAU é a da COMPRA (`adq`, ou o início da janela quando não há
+// cadastro) — não a do pagamento. São perguntas diferentes: o degrau responde "que preço
+// valia quando comprei", e `_dataPagamento` responde "em que mês esse dinheiro saiu".
+// Está numa função só porque a tela de Custos precisa exibir o MESMO degrau que entrou
+// no número; derivá-lo de novo lá faria rótulo e valor divergirem no 1º caso de borda
+// (a lição da Fatia 1).
+function _dataDoPreco(v){
+  return (v&&(v.adq||v.ini))||'';
+}
 function _custoDaConta(forn,casa,conta){
   if(!_contaVida)_buildContaVida();
   const k=forn+'||'+casa;
   const v=(_contaVida[k]||{})[conta||'__default__'];
   if(v&&v.custo>0)return v.custo;
-  const quando=(v&&(v.adq||v.ini))||'';
+  const quando=_dataDoPreco(v);
   if(quando){
     const p=_precoVigenteEm(_degrausPreco(forn,casa),quando);
     if(p&&p.valor>0)return p.valor;

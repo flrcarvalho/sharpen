@@ -63,7 +63,12 @@ de ESTOQUE que aparece na Visão Geral com rótulo próprio e **fora do P/L**.
 |---|---|---|
 | Visão Geral (`calcCostFiltered`) | **lançamento** | quanto eu PAGUEI no recorte |
 | Custos (`charts/custos2.js`) | **lançamento** | idem |
-| Parque (`calcParqueFiltered`) | **janela de vida**, sempre HOJE | quanto vale o que está rodando |
+| Contas em operação (`calcContasEmOperacao`) | **janela de vida**, sempre HOJE | quanto vale o que está rodando |
+| Drill de Bookies (`calcCasaCost`) | **lançamento**, por casa | idem, recortado na casa |
+
+> "Parque" saiu do produto junto com a régua antiga (gate:
+> `test_o_vocabulario_proibido_nao_volta_ao_produto`). O nome da função é
+> `calcContasEmOperacao`; se você leu `calcParqueFiltered` em algum lugar, é doc velho.
 
 O que fez a decisão: a régua de vida **não somava**. Na base do Jonathan, os meses de maio a
 setembro davam R$ 39.800 contra R$ 28.400 realmente pagos — e setembro cobrava 10 contas
@@ -80,6 +85,47 @@ SAIU") e o caso em [CASOS.md](CASOS.md#as-10-contas-que-cobraram-em-setembro-e-u
 | **3** | Tipster ganha **tipo de cobrança** (`custo_store.custo_tipster_meta`) e o arrasto por tipo; a aba passa a gravar o valor do mês. Temporada tem prazo (`ate`). | **no ar (s352)** |
 | **4** | Gerais ganha **categoria** (três de fábrica mais as do dono, derivadas das próprias linhas) e **recorrência**, que decide o arrasto pela mesma `_arrasta` do tipster. A aba passa a gravar. | **no ar (s352)** |
 | **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | **menu feito (s358)**; Bookies aberta |
+
+## O que a s362 ensinou — mesma resposta não é mesma régua
+
+A s358 fez as duas telas responderem LANÇAMENTO, e os números passaram a bater. Só que
+cada uma continuava derivando a resposta por um caminho: `_c2contas` varria o CADASTRO
+e datava por `adquirida_em` cru; `calcCostFiltered` varria cadastro ∪ BILHETE e datava
+por `_dataPagamento`.
+
+Medido com o JS de produção rodando contra o Postgres real, antes de mexer: **R$ 0 de
+divergência em 8 bases** (Feca 59.600 · realtrial 30.000 · Jonathan 28.400 · Jaao26
+4.600 · germano 3.600 · Gabriel 540 · Diogo e arrudex 0), total e mês a mês.
+
+**E era sorte do dado, não construção.** Bate porque toda conta com custo hoje tem
+cadastro e tem `adquirida_em` anterior à 1ª aposta — foi o *backfill* que a deduziu
+assim. Um `adquirida_em` digitado depois da 1ª aposta, ou um preço numa das 130 contas
+que só existem em bilhete, e os dois discordam sem erro nenhum. Uma já estava
+desalinhada na base do Feca (`Faz1bet / ellennfreitas`, tela 09/09 × KPI 22/08) e só não
+aparecia porque custa R$ 0.
+
+- **Duas derivações para um número são duas réguas**, mesmo quando concordam. O
+  `_c2contas` passou a sair do `_contaVida` + `_dataPagamento`. Total parado (R$ 0 de
+  diferença nas 8 bases); o que mudou foi a tela deixar de **esconder** a conta
+  só-de-bilhete que o KPI já cobrava.
+- **Aviso que explica uma divergência que acabou vira a divergência.** A faixa
+  `.c2-corte` afirmava que a Visão Geral media pela janela de vida — falso desde a s358,
+  e a tela passou meses afirmando um corte que o número não fazia. Saiu inteira, junto
+  com a `.c2-previa`, que mandava lançar em duas telas que já não estão no menu.
+  **Toda frase de tela que explica o comportamento de OUTRA tela tem prazo de validade.**
+- **A data do PREÇO não é a do PAGAMENTO.** O degrau do fornecedor sai da data da
+  COMPRA (`_dataDoPreco`), o mês do custo sai da data do pagamento (`_dataPagamento`).
+  Estavam na mesma expressão e agora são duas funções, porque a tela precisa exibir o
+  mesmo degrau que gerou o número.
+- **Igualdade não prova regra.** Um gate que só compara aba × KPI nunca pega uma mutação
+  no `_dataPagamento`: ela move os DOIS para o mesmo mês errado. Por isso o
+  `custos_regua_unica.mjs` tem asserções **absolutas** de mês ao lado das de igualdade.
+- **Mensagem de teste que recalcula mente.** `ok(f() === x, 'veio ' + f())` chama `f`
+  duas vezes, e a 2ª já encontra o `_contaVida` construído preguiçosamente pela 1ª — o
+  gate imprimia "veio 900" num caso que reprovou com 0. Daí o `eq(obtido, esperado, msg)`.
+
+Gate: `tests/test_custos_regua_unica.py` + `tests/js/custos_regua_unica.mjs`, 10 de 10
+mutações detectadas, em `custos2.js` **e** `gestao.js`.
 
 ## O que a Fatia 0 já ensinou
 
@@ -137,12 +183,12 @@ SAIU") e o caso em [CASOS.md](CASOS.md#as-10-contas-que-cobraram-em-setembro-e-u
 
 Defeito **medido**, comparando a tela antiga com a nova sobre o mesmo dado: com
 «Tudo» ativo a aba Contas somava R$ 0 e a antiga somava R$ 29.400. A causa não era o
-dado, era o recorte —  caía no mês corrente quando  devolve
-, e  é justamente o que «Tudo» devolve. O rótulo prometia a série inteira
+dado, era o recorte — `_c2range` caía no mês corrente quando `_selRange` devolve
+`null`, e `null` é justamente o que «Tudo» devolve. O rótulo prometia a série inteira
 e o número entregava um mês, sem erro nenhum.
 
 Agora «Tudo» começa no **primeiro custo que existe** (compra de conta, mês de custo de
-tipster ou de geral) e vai até hoje. Gate: , 8 de 8
+tipster ou de geral) e vai até hoje. Gate: `tests/test_recorte_custos.py`, 13 de 13
 mutações detectadas.
 
 **Sintoma para reconhecer isto noutra tela:** um botão de período ativo cujo número não
@@ -168,6 +214,8 @@ P/L: rótulo e número discordando em silêncio.
 
 `app/database.py` (`fornecedor_preco`, `parceiros.custo`, `custo_store.custo_tipster_meta`) · `app/repository.py` (`_preco_vigente_em`, `registrar_preco_fornecedor`, `_espelhar_custo_conta`) · `app/main.py` (rotas `/custos/fornecedor`) · `tests/test_fornecedor_preco.py` (gate, 10/10 mutações) ·
 `app/static/dash/assets/js/charts/gestao.js` (`_custoDaConta`, `_precoVigenteEm`, `_custoNaJanela` — a derivação canônica do custo; `_arrasta` — a regra do arrasto, compartilhada; `_ctSugestao`/`_ctSituacao` e `_cgSugestao`/`_cgSituacao`/`_cgCategorias`) ·
-`app/static/dash/assets/js/charts/custos2.js` (render e regras do recorte) ·
+`app/static/dash/assets/js/charts/custos2.js` (render e regras do recorte; `_c2contas` e
+`_c2primeiraData` derivam do `_contaVida`/`_dataPagamento` do `gestao.js`, nunca de
+caminho próprio) · `tests/test_custos_regua_unica.py` (gate da régua única, 10/10) ·
 `app/static/dash/assets/css/components.css` (bloco `.c2-*`) · registro da página em
 `app/static/dash/assets/js/app.js` **e** `app/static/app.html`, que são as duas cascas.

@@ -60,8 +60,24 @@ MUTACOES = [
     ),
     (
         "a compra de conta deixa de abrir o periodo",
-        "    .forEach(p => marca(p.adquirida_em));",
-        "    .forEach(p => p);",
+        "      Object.values(contas).forEach(v => marca(_dataPagamento(v))));",
+        "      Object.values(contas).forEach(v => v));",
+    ),
+    # ── s362: a data do recorte passou a ser a do PAGAMENTO ──────────────
+    (
+        "a conta volta a ser datada pelo cadastro cru (o defeito da s362)",
+        "      Object.values(contas).forEach(v => marca(_dataPagamento(v))));",
+        "      Object.values(contas).forEach(v => marca(v.adq)));",
+    ),
+    (
+        "o universo volta a ser so o CADASTRO, e a conta so-de-bilhete some",
+        "    Object.values(_contaVida || {}).forEach(contas =>",
+        "    (_contasVida || []).map(p => ({})).forEach(contas =>",
+    ),
+    (
+        "o _contaVida deixa de ser construido e o recorte nasce vazio",
+        "    if (!_contaVida && typeof _buildContaVida === 'function') _buildContaVida();",
+        "    if (false) _buildContaVida();",
     ),
     (
         "o mes de custo de tipster deixa de abrir o periodo",

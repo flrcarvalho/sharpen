@@ -538,8 +538,10 @@ MUTACOES = [
     ),
     (
         "o preco do fornecedor passa a ser o de HOJE, e nao o da data de compra",
-        "  const quando=(v&&(v.adq||v.ini))||'';",
-        "  const quando='';",
+        # A expressao saiu do corpo do `_custoDaConta` e virou `_dataDoPreco` (s362),
+        # para a tela de Custos exibir o MESMO degrau que entrou no numero.
+        "  return (v&&(v.adq||v.ini))||'';",
+        "  return '';",
     ),
     (
         "a regua do vigente pega o PRIMEIRO degrau em vez do ultimo",

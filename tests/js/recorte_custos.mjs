@@ -22,6 +22,7 @@ const BASE = join(RAIZ, 'app', 'static', 'dash', 'assets', 'js');
 const CUSTOS2 = readFileSync(process.env.ALVO_CUSTOS2 || join(BASE, 'charts', 'custos2.js'), 'utf8');
 const FILTROS = readFileSync(join(BASE, 'filters.js'), 'utf8');
 const APP = readFileSync(join(BASE, 'app.js'), 'utf8');
+const GESTAO = readFileSync(join(BASE, 'charts', 'gestao.js'), 'utf8');
 const LF = '\n';
 
 let falhas = 0;
@@ -36,6 +37,10 @@ const recorteFn = (src, nome, arq) => {
 const FONTE = [
   ...['_c2meses', '_c2primeiraData', '_c2range', '_c2num'].map(n => recorteFn(CUSTOS2, n, 'custos2.js')),
   ...['_ymd', '_today', 'gfs', '_selRange'].map(n => recorteFn(FILTROS, n, 'filters.js')),
+  // REAIS do gestao.js (s362): o comeco de «Tudo» passou a sair do `_dataPagamento`
+  // sobre o `_contaVida`, que sao os do KPI. Dubla-los aqui esconderia justamente a
+  // camada que faz a 1a APOSTA abrir o periodo quando o cadastro chegou depois dela.
+  ...['normForn', '_buildContaVida', '_dataPagamento'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // `parseNum` REAL do app.js: é ele que o `_c2num` passou a chamar (s358, etapa 5b).
   // Dublar aqui esconderia justamente a régua de milhar que o caso 4 abaixo prova.
   recorteFn(APP, 'parseNum', 'app.js'),
@@ -43,11 +48,15 @@ const FONTE = [
 
 const API = new Function(`
   const FS = {};
-  let _contasVida = null, ctData = {}, cgData = [];
+  const window = { __dono: 'Feca' };
+  let _contasVida = null, _contaVida = null, ctData = {}, cgData = [];
+  let DADOS = [], DADOS_ABERTAS = [];
   ${FONTE}
   return {
     set(cfg) {
       _contasVida = cfg.cadastro || null; ctData = cfg.custos || {}; cgData = cfg.gerais || [];
+      DADOS = cfg.dados || []; DADOS_ABERTAS = cfg.abertas || [];
+      _contaVida = null;                  // refeito pelo _buildContaVida REAL
       for (const k of Object.keys(FS)) delete FS[k];
       if (cfg.periodo) FS.custos_v2 = Object.assign(gfs('custos_v2'), cfg.periodo);
     },
@@ -93,6 +102,34 @@ const TUDO = { df: '', dt: '', qd: 0, qt: '' };
     periodo: TUDO,
   });
   ok(API._c2primeiraData() === '2026-02-01', 'a mais antiga das três fontes manda, veio ' + API._c2primeiraData());
+}
+
+// ── 4b. A 1ª APOSTA abre o período quando o cadastro chegou depois (s362) ──
+// O comeco de «Tudo» passou a sair do `_dataPagamento` sobre o `_contaVida`, que sao
+// os do KPI. Lendo `adquirida_em` cru, como antes, a conta migrada -- cujo cadastro
+// nasceu de backfill DEPOIS da aposta -- fazia «Tudo» comecar tarde e deixava de fora
+// justamente os meses mais antigos, que sao os que so existem em bilhete.
+{
+  API.set({
+    cadastro: [{ casa: 'Bet365', conta: 'velha', fornecedor: 'GN',
+                 adquirida_em: '2026-06-01', arquivada_em: '', arquivado: false }],
+    dados: [{ casa: 'Bet365', conta: 'velha', fornecedor: 'GN', data: '2026-02-09', operador: 'Feca' }],
+    periodo: TUDO,
+  });
+  ok(API._c2primeiraData() === '2026-02-09',
+     'a 1ª aposta deveria abrir o período, veio ' + API._c2primeiraData());
+}
+
+// ── 4c. Conta que SÓ existe em bilhete também abre o período (s362) ──
+// Sao 130 na base do Feca. Varrendo so o cadastro elas nao existiam para o recorte,
+// e o KPI as cobrava -- o total dizia uma coisa e a janela que o produz, outra.
+{
+  API.set({
+    abertas: [{ casa: 'Superbet', conta: 'so-bilhete', fornecedor: 'JC', data: '2026-01-05', operador: 'Feca' }],
+    periodo: TUDO,
+  });
+  ok(API._c2primeiraData() === '2026-01-05',
+     'conta so-de-bilhete deveria abrir o período, veio ' + API._c2primeiraData());
 }
 
 // ── 5. Sem dado nenhum, "Tudo" é o mês corrente ──────────────────────────────
