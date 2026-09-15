@@ -185,31 +185,32 @@ teste) passou despercebida até alguém abrir o log à mão.
 Conserto: o `check_docs.py` precisa tratar link que sai da raiz do repo como **fora de
 escopo**, não como quebrado. Um link para fora não é conferível de dentro.
 
-### 1.12 A 0.7.13 está no repo sem nota, e o CI acusa isso até a próxima versão (s365). **VIVA — decisão tomada**
+### 1.12 A 0.7.13 está na home, e o grupo só é avisado na próxima versão (s365). **VIVA — só o aviso**
 
-O `manifest.json` foi para **0.7.13** no `fe29c2b` (o horizonte da Bolsa de Aposta) e a nota
-não foi publicada: o Feca decidiu **avisar o grupo só na próxima versão do SharpenUp**,
-juntando as duas. É decisão registrada, não decisão pendente.
+O `manifest.json` foi para **0.7.13** no `fe29c2b` (o horizonte da Bolsa de Aposta). O Feca
+decidiu **não avisar o grupo agora** e juntar o recado com a próxima versão do SharpenUp. A
+nota da home foi gravada por fora do aviso, com `--so-changelog` (`a040b8a`), e com ela os
+**3 vermelhos** do `tests/test_changelog.py` voltaram ao verde: **20 passed**.
 
-O preço combinado são **3 vermelhos** no `tests/test_changelog.py` até lá:
+Falta só o aviso ao grupo, e ele não tem data: sai quando a próxima versão sair. **Enquanto
+isso a 0.7.13 não chega a ninguém**, porque a distribuição da extensão é manual.
 
-```
-FALHOU: a versão publicada (v0.7.13) não aparece na caixa
-```
+**O que este item guarda, e é por isso que ele continua aqui.** Aquele vermelho circulou
+como órfão por três sessões: **360, 362 e 363** anotaram cada uma, no `STATUS.md`, que ele
+era "de outra frente" — e era da s351, parada no disco sem commit havia dois dias.
+**Vermelho que mais de uma sessão seguida descreve como sendo de outro não é ruído, é frente
+pendurada**, e ninguém a adota porque cada uma sabe que não é sua. A pista custa um comando:
+cruzar o vermelho com o `git status`, onde o arquivo acusado estava modificado o tempo todo.
+→ [o caso](docs/CASOS.md#o-vermelho-que-três-sessões-disseram-ser-de-outra-frente)
 
-Isto está escrito aqui porque esse vermelho **já circulou como órfão uma vez**: as sessões
-**360, 362 e 363** anotaram cada uma, no `STATUS.md`, que ele era "de outra frente" — e era
-da s351, parada no disco sem commit havia dois dias. **Vermelho que mais de uma sessão
-seguida descreve como sendo de outro não é ruído, é frente pendurada.** Com esta linha, a
-próxima sessão sabe de quem ele é sem gastar uma investigação.
-
-**Como fecha:** na próxima versão, um `scripts/avisar_testers.py` publica as duas notas no
-mesmo ato (grupo **e** home) e os três voltam ao verde. A da 0.7.13 já está redigida:
-*"Atualize o SharpenUp para a 0.7.13 e capture normalmente na Bolsa de Aposta e na Betbra"*,
-mais a varredura que busca só o período novo e o painel que diz em que ponto está.
-
-> Se a decisão mudar e a home precisar da nota **sem** mandar mensagem ao grupo, o script
-> tem `--so-changelog` exatamente para isso.
+> **E a correção deste item é um caso do invariante #8 numa forma nova.** Ele foi escrito
+> dizendo "sem nota, CI vermelho" e estava errado **oito minutos depois**: a sessão vizinha
+> tinha rodado o `--so-changelog` para a mesma pendência, quase no mesmo instante. Não foi
+> arquivo alheio no index nem edição dentro da minha linha: foi **a mesma pendência
+> trabalhada em paralelo**, sem colisão nenhuma no git. Com mais de uma sessão aberta, o
+> `BACKLOG.md` envelhece enquanto se escreve nele; **releia o `git log` antes de descrever
+> um estado que outra sessão também pode fechar.**
+> → [o caso](docs/CASOS.md#8--a-mesma-pendência-trabalhada-em-paralelo-15092026)
 
 ### 1.3 O `STATUS.md` está a 1,8 KB do teto — o próximo `/encerrar` estoura o gate. **VIVA (07/09)**
 

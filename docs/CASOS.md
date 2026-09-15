@@ -37,6 +37,22 @@ nos dois sentidos**:
 > `git show --stat`**. Confira as duas coisas, e quando uma mudança tem mais de um
 > arquivo, confira se TODOS saíram juntos antes de considerar que subiu.
 
+### #8 — a mesma pendência trabalhada em paralelo, 15/09/2026
+
+**s365.** Nenhum arquivo cruzado, nenhum index compartilhado, e ainda assim é a mesma
+família. Duas sessões atacaram a mesma pendência (a nota da 0.7.13) com **oito minutos de
+diferença**: uma escreveu no `BACKLOG.md` que a versão estava sem nota e o CI vermelho por
+causa disso; a outra rodou o `--so-changelog` e deixou os três testes verdes. O item de
+backlog **nasceu descrevendo um estado que deixou de existir enquanto era escrito**.
+
+O git não acusa: são arquivos diferentes, commits diferentes, zero conflito. O que envelhece
+é a **descrição do mundo**, não o código. Daí a regra prática: com mais de uma sessão aberta,
+releia o `git log` antes de escrever que algo está pendente — outra sessão pode ter acabado
+de fechar.
+
+> Sintoma para reconhecer isto noutro lugar: um documento seu (BACKLOG, STATUS, plano) que
+> afirma um estado do repo. Estado se mede na hora de publicar, não na hora de redigir.
+
 ### #10 — o inchaço que originou o gate
 
 O invariante #4 ("nunca copiar o `HISTORICO` para o backup, podar snapshots") estava
@@ -60,6 +76,25 @@ estava feita desde 26/07"*.
 a nota não era obrigatório para nada. Resultado: a caixa "SharpenUp — versão a versão" da
 home ficou 8 versões defasada nas duas ocasiões. Daí o `tests/test_changelog.py` ficar
 **vermelho** quando a versão do manifest não tem nota.
+
+### O vermelho que três sessões disseram ser de outra frente
+
+**s360, s362, s363 e o desfecho na s365.** O `test_changelog.py` acusava a 0.7.13 sem nota, e
+o `manifest.json` estava em 0.7.13 **no disco, sem commit, desde 13/09** — a frente do
+horizonte da Bolsa de Aposta, pronta e com o harness verde, que ninguém tinha commitado.
+
+Três sessões seguidas rodaram a suíte, viram os mesmos 3 vermelhos, e registraram cada uma no
+`STATUS.md` que eles eram *"o manifest 0.7.13 sem nota, **de outra frente**"*. Nenhuma estava
+errada: de fato não era delas. O defeito é que **"não é meu" não leva a "de quem é"**, e a
+frente ficou pendurada mais dois dias, custando três anotações e a confiança no verde.
+
+Ela só apareceu porque o computador desligou e alguém pediu para recuperar as janelas: o
+levantamento esbarrou num working tree com 8 arquivos modificados que não eram de nenhuma
+sessão viva.
+
+> **Vermelho que mais de uma sessão seguida descreve como sendo de outro não é ruído, é
+> frente pendurada.** A pista custa um comando: cruze o vermelho com o `git status`. O
+> arquivo que o teste acusa costuma estar ali, modificado e não commitado, o tempo todo.
 
 ### O teste de diagnóstico foi parar no grupo
 
