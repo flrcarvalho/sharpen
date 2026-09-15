@@ -185,6 +185,32 @@ teste) passou despercebida até alguém abrir o log à mão.
 Conserto: o `check_docs.py` precisa tratar link que sai da raiz do repo como **fora de
 escopo**, não como quebrado. Um link para fora não é conferível de dentro.
 
+### 1.12 A 0.7.13 está no repo sem nota, e o CI acusa isso até a próxima versão (s365). **VIVA — decisão tomada**
+
+O `manifest.json` foi para **0.7.13** no `fe29c2b` (o horizonte da Bolsa de Aposta) e a nota
+não foi publicada: o Feca decidiu **avisar o grupo só na próxima versão do SharpenUp**,
+juntando as duas. É decisão registrada, não decisão pendente.
+
+O preço combinado são **3 vermelhos** no `tests/test_changelog.py` até lá:
+
+```
+FALHOU: a versão publicada (v0.7.13) não aparece na caixa
+```
+
+Isto está escrito aqui porque esse vermelho **já circulou como órfão uma vez**: as sessões
+**360, 362 e 363** anotaram cada uma, no `STATUS.md`, que ele era "de outra frente" — e era
+da s351, parada no disco sem commit havia dois dias. **Vermelho que mais de uma sessão
+seguida descreve como sendo de outro não é ruído, é frente pendurada.** Com esta linha, a
+próxima sessão sabe de quem ele é sem gastar uma investigação.
+
+**Como fecha:** na próxima versão, um `scripts/avisar_testers.py` publica as duas notas no
+mesmo ato (grupo **e** home) e os três voltam ao verde. A da 0.7.13 já está redigida:
+*"Atualize o SharpenUp para a 0.7.13 e capture normalmente na Bolsa de Aposta e na Betbra"*,
+mais a varredura que busca só o período novo e o painel que diz em que ponto está.
+
+> Se a decisão mudar e a home precisar da nota **sem** mandar mensagem ao grupo, o script
+> tem `--so-changelog` exatamente para isso.
+
 ### 1.3 O `STATUS.md` está a 1,8 KB do teto — o próximo `/encerrar` estoura o gate. **VIVA (07/09)**
 
 Medido em 07/09: **48,2 KB** contra o teto de **50 KB** do `tools/check_docs.py`, com 3
@@ -204,9 +230,17 @@ uma segunda vez é como o arquivo chegou a 187 KB na primeira.
 O corte está no ar (`main._CORTE_HISTORICO`, par `("feca", "bolsa de aposta")` → 01/01/2026) e
 as **477** linhas de 2025 já saíram para `lixeira_bilhetes`. **Falta a única prova que fecha
 isto, e só o operador faz:** recapturar a Bolsa de Aposta e conferir que elas **não voltam**.
-A casa varre 3 anos por desenho (`DIAS_HISTORICO = 1095`), então a captura reencontra os mesmos
-códigos; se alguma linha de 2025 reaparecer, o corte não está sendo aplicado ao texto daquela
-casa. É a mesma pendência que a Betbra deixou na s344.
+A casa **varria** 3 anos por desenho (`DIAS_HISTORICO = 1095`), então a captura reencontrava
+os mesmos códigos sozinha. **Isso mudou na s351** (`fe29c2b`, SharpenUp 0.7.13): o horizonte
+virou 1 ano na 1ª captura desta casa neste navegador e **15 dias de liquidadas / 90 de
+abertas** nas recapturas (`_bolsaHorizonte`, `extensor/content.js`).
+
+**A prova continua possível, mas deixou de acontecer sozinha.** Uma recaptura comum não
+alcança mais 2025, então uma varredura que não traga as 477 linhas não prova nada. Para
+conferir, peça o histórico longo pelo `lookbackDias` do painel, que é a válvula do "quero
+tudo de novo" e **só manda quando pede MAIS** que a régua. Se alguma linha de 2025 reaparecer
+nessa varredura longa, o corte não está sendo aplicado ao texto daquela casa. É a mesma
+pendência que a Betbra deixou na s344.
 
 > A conferência é uma consulta: `select count(*) from bilhetes where lower(dono)='feca'
 > and lower(casa)='bolsa de aposta' and (data like '%/2025' or data like '2025-%')`.
