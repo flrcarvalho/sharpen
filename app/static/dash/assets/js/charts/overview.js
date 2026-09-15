@@ -1,36 +1,39 @@
 ﻿// ── overview.js — Gráficos e cards da Visão Geral ──────────────────────────────
 
 // ── Cartão "Custo de Contas": bloco de contas em operação (s358) ───────────
-// Duas células com divisor, mais a nota de pagamento. Quatro estados (referência
-// "Visão Geral 172px"):
-//   1. sem compra no período → nota `já pago · fora do P/L`
-//   2. houve compra          → nota `R$ X pagos neste período · já no P/L`
-//   3. filtro de tipster     → a 1ª célula vira `Deste tipster`. SEM badge: a célula
-//      já declara o escopo, e um badge repetiria a mesma informação em outro lugar.
-//   4. nenhuma conta com custo → o bloco NÃO aparece; o cartão usa a legenda simples.
-//      Nunca `0 contas · R$ 0`, que é ruído em vez de informação.
+// Três células, sem linha de nota embaixo. A nota repetia o número do topo — o que ela
+// dizia de útil era o CORTE de cada número, e corte cabe em RÓTULO, que não custa linha:
 //
-// O bloco IGNORA o filtro de período de propósito: é sempre "em operação hoje". Só o
-// valor do topo obedece ao intervalo. Navegar para um mês fechado não mexe aqui.
+//     CONTAS      JÁ PAGO        NO P/L
+//     1 conta     R$ 800         R$ 79.300
+//
+//   · CONTAS  — quantas estão em operação HOJE (o rótulo vira `DESTE TIPSTER` com filtro)
+//   · JÁ PAGO — o que elas custaram, acumulado. Saiu do bolso e NÃO está no P/L.
+//   · NO P/L  — quanto do custo entrou no resultado do período. É o número do topo, e
+//     só aparece quando houve compra: sem ela o topo já diz R$ 0 e a célula seria um zero
+//     a mais na tela.
+//
+// O bloco IGNORA o filtro de período: é sempre "em operação hoje". Só o topo (e a 3ª
+// célula, que é o mesmo número) obedecem ao intervalo.
 function _blocoContas(costConta){
   if(window.MODO_PUBLICO)return null;
   const op=(typeof calcContasEmOperacao==='function')?calcContasEmOperacao('overview'):{total:0,nContas:0};
-  if(!(op.total>0))return null;   // estado 4: quem responde é a legenda do cartão
+  if(!(op.total>0))return null;   // sem conta com custo: quem responde é a legenda do cartão
   const temTipster=(typeof msGet==='function')&&msGet('ti_overview').size>0;
-  // Sem centavos aqui (`fmtR`): o bloco é referência, não conferência de extrato.
-  // Uma linha, sempre: a segunda custava 13px de altura em TODOS os cartões da fileira,
-  // porque eles compartilham o piso. "neste período" saiu por ser redundante — o cartão
-  // inteiro já é do período selecionado.
-  const nota=costConta>0
-    ? `${fmtR(costConta)} pagos · já no P/L`
-    : 'já pago · fora do P/L';
-  return `<div class="kpi__duo">`
-      +`<div class="kpi__cell"><div class="kpi__cl">${temTipster?'Deste tipster':'Em operação'}</div>`
-        +`<div class="kpi__cv">${op.nContas}<span class="u">${op.nContas===1?'conta':'contas'}</span></div></div>`
-      +`<div class="kpi__cell"><div class="kpi__cl">Custo</div>`
-        +`<div class="kpi__cv is-cost">${fmtR(op.total)}</div></div>`
-    +`</div>`
-    +`<div class="kpi__pnote">${nota}</div>`;
+  const cel=(l,v,cls)=>`<div class="kpi__cell"><div class="kpi__cl">${l}</div>`
+    +`<div class="kpi__cv${cls||''}">${v}</div></div>`;
+  // DUAS células, não três: medido em 1366, com três a célula fica com 57px e o valor
+  // `R$ 29.400` (68px) é truncado. Duas cabem com folga em qualquer largura.
+  //
+  // E sem a linha de nota: ela repetia o número do topo. O que ela dizia de útil era o
+  // CORTE de cada número, e isso cabe no RÓTULO — "custo delas" amarra o valor às contas
+  // em operação, e por oposição deixa o topo como o custo do período.
+  const cels=[
+    cel(temTipster?'Deste tipster':'Em operação',`${op.nContas}<span class="u">${op.nContas===1?'conta':'contas'}</span>`),
+    // Sem centavos (`fmtR`): o bloco é referência, não conferência de extrato.
+    cel('Custo delas',fmtR(op.total),' is-cost'),
+  ];
+  return `<div class="kpi__duo">${cels.join('')}</div>`;
 }
 
 function renderKPI(rows){
