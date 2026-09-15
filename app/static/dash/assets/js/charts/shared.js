@@ -202,6 +202,8 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
 // então não há corte a explicar em nota (ao contrário do calendário, que é
 // sempre do MÊS inteiro e por isso avisa o que ficou de fora).
 //
+// Desenho: "Sharpen — Dia da Semana v3 (Opção 04)" (Claude Design, s361).
+//
 // ⚠️ O dia sai de `r.data`, a data do EVENTO — mesma régua do calendário logo
 // acima. E a Date é montada CAMPO A CAMPO: `new Date('2026-09-14')` é lido como
 // UTC e no Brasil volta 13/09, então todo sábado viraria sexta — calado, sem
@@ -209,9 +211,30 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
 //
 // Dia sem aposta mostra "—", nunca R$ 0,00: zero é uma conta feita, e ausência
 // não é (CLAUDE.md, "Zero não é ausência").
-function mkDowRanking(rows){
+
+// Métrica que a BARRA mede, por instância do cartão ('ov' | 'tip' | 'casa').
+// Por instância e não global: o drill abre POR CIMA da Visão Geral, e um estado
+// só faria o chip de um repintar a barra do outro.
+window._dowM = window._dowM || {};
+window._dowRows = window._dowRows || {};
+
+const DOW_METRICAS = {
+  pl: {rot:'P/L',      campo:'pl'},
+  roi:{rot:'ROI',      campo:'roi'},
+  to: {rot:'Turnover', campo:'turnover'},
+};
+
+// Ruído estatístico não é resultado: ganho com |ROI| abaixo deste corte sai em
+// CINZA, não em verde. A régua é deliberadamente ASSIMÉTRICA — perda continua
+// vermelha por menor que seja, porque o dinheiro saiu de verdade (decisão do
+// desenho: "Terça em cinza porque +0,10% é ruído; Segunda mantém o vermelho por
+// ser perda real"). O corte ficou no meio do vão medido entre o ruído da terça
+// (+0,10%) e o menor ganho de verdade, a quinta (+0,55%).
+const DOW_RUIDO_ROI = 0.25;
+
+function _dowAgrega(rows){
   const DIAS=['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
-  const acc=DIAS.map(nome=>({nome:nome,n:0,pl:0,turnover:0}));
+  const acc=DIAS.map(nome=>({nome:nome,n:0,pl:0,turnover:0,roi:null}));
   (rows||[]).forEach(r=>{
     const iso=(r.data||'').slice(0,10);
     if(iso.length!==10)return;
@@ -223,52 +246,117 @@ function mkDowRanking(rows){
     a.pl+=r.lucro;
     if(r.resultado!=='V')a.turnover+=(r.stake||0);   // turnover exclui Void
   });
+  acc.forEach(a=>{a.roi=a.turnover>0?a.pl/a.turnover*100:null;});
+  return acc;
+}
+
+// Verde, vermelho ou cinza — ver DOW_RUIDO_ROI.
+function _dowClasse(a){
+  if(!a.n)return 'nil';
+  if(a.pl<0)return 'neg';
+  if(a.pl===0)return 'nil';
+  if(a.roi!==null&&Math.abs(a.roi)<DOW_RUIDO_ROI)return 'nil';
+  return 'pos';
+}
+
+function mkDowRanking(rows,opts){
+  opts=opts||{};
+  const id=opts.id||'ov';
+  window._dowRows[id]=rows;
+  const met=window._dowM[id]||'pl';
+  const acc=_dowAgrega(rows);
   if(!acc.some(a=>a.n))return mkEmpty('Sem dados de apostas');
 
-  // A barra mede o P/L — o dinheiro que o dia pôs no bolso — contra o melhor dia
-  // do recorte. Já mediu VOLUME, e enganava: o olho lê a barra mais longa como "o
-  // melhor dia", então o sábado (8.545 apostas, R$ 97 mil) passava na frente da
-  // quarta (5.494 apostas, R$ 135 mil) com o número certo ao lado dizendo o
-  // contrário. Volume não é mérito e ficou onde ele pesa certo: na coluna Apostas,
-  // como número. (s361, achado do Feca na tela — a legenda dizia o que a barra
-  // media e mesmo assim enganava: não basta a tela DIZER, o canal visual tem de
-  // medir a coisa certa.)
-  const maxAbs=Math.max(1,...acc.map(a=>Math.abs(a.pl)));
+  // ESCALA COMPRIMIDA (raiz quadrada), e ela é load-bearing. Em proporção direta
+  // um dia campeão achata todos os outros: com o P/L do Feca, a terça (R$ 1.136
+  // contra R$ 135.911 da quarta) rende 0,8% de largura e SOME — e barra ausente
+  // lê como defeito, não como "quase não rendeu". A raiz puxa os pequenos para
+  // cima sem inverter nenhuma ordem, porque √ é monotônica: quem tem mais
+  // continua com a barra maior. Some a isso um piso de 62px, que garante o nome
+  // do dia legível dentro do bloco mesmo no menor deles.
+  const campo=(DOW_METRICAS[met]||DOW_METRICAS.pl).campo;
+  const valor=a=>{const v=a[campo];return (v===null||v===undefined)?0:v;};
+  const maxAbs=Math.max(1,...acc.map(a=>Math.abs(valor(a))));
 
-  const linhas=acc.map((a,i)=>{
-    const we=i>=5?' we':'';
+  const linhas=acc.map(a=>{
+    const cls=_dowClasse(a);
     if(!a.n){
-      return `<div class="dow__row dow__row--vazio${we}">`+
-        `<span class="dow__dia"><span class="dow__nome">${a.nome}</span></span>`+
-        `<span class="dow__n">—</span>`+
-        `<span class="dow__pl">—</span>`+
-        `<span class="dow__to">—</span>`+
-        `<span class="dow__roi">—</span>`+
+      return `<div class="dow__rw">`+
+        `<span class="dow__blk"><span class="dow__lab nil">${a.nome}</span></span>`+
+        `<span class="dow__v nil">—</span>`+
+        `<span class="dow__v nil">—</span>`+
+        `<span class="dow__v k nil">—</span>`+
+        `<span class="dow__v nil">—</span>`+
       `</div>`;
     }
-    const roi=a.turnover>0?a.pl/a.turnover*100:null;
-    // Piso de 1,5%: o dia que apostou e não fez dinheiro (terça, R$ 1.136 contra
-    // R$ 135 mil) renderiza uma barra de ~0,8% que some — e barra ausente lê como
-    // defeito, não como "quase não rendeu". O piso mostra que o dia existe.
-    const larg=Math.max(1.5,Math.abs(a.pl)/maxAbs*100);
-    const barCls=a.pl<0?' neg':(a.pl>0?'':' zero');
-    return `<div class="dow__row${we}">`+
-      `<span class="dow__dia"><span class="dow__bar${barCls}" style="width:${larg.toFixed(1)}%"></span><span class="dow__nome">${a.nome}</span></span>`+
-      `<span class="dow__n">${a.n.toLocaleString('pt-BR')}</span>`+
-      `<span class="dow__pl">${fmtPL(a.pl)}</span>`+
-      // Turnover é agregado: `fmtR` (inteiro, sem sinal, sem cor) — UI_REFERENCE §5.1.
-      // Verde/vermelho aqui seria semântica de resultado num número que não tem sinal.
-      `<span class="dow__to">${fmtR(a.turnover)}</span>`+
-      `<span class="dow__roi ${roi===null?'':(roi>=0?'pos':'neg')}">${roi===null?'—':fmtPct(roi,2)}</span>`+
+    const f=Math.sqrt(Math.abs(valor(a))/maxAbs);
+    const w=f>=1?'100%':`calc(62px + (100% - 62px) * ${f.toFixed(3)})`;
+    return `<div class="dow__rw">`+
+      `<span class="dow__blk">`+
+        `<span class="dow__fill ${cls}" style="width:${w}"></span>`+
+        `<span class="dow__lab ${cls}">${a.nome}</span>`+
+      `</span>`+
+      `<span class="dow__v">${a.n.toLocaleString('pt-BR')}</span>`+
+      `<span class="dow__v">${fmt(a.turnover,0)}</span>`+
+      `<span class="dow__v k ${cls}">${_dowPL(a.pl)}</span>`+
+      `<span class="dow__v ${cls}">${a.roi===null?'—':fmtPct(a.roi,2)}</span>`+
     `</div>`;
   }).join('');
 
-  return `<div class="dow">`+
-    `<div class="dow__hdr"><span></span><span>Apostas</span><span>P/L</span><span>Turnover</span><span>ROI</span></div>`+
-    linhas+
-    `<div class="dow__legenda"><i></i><span>comprimento da barra = P/L do dia, contra o melhor do período</span></div>`+
+  // Rodapé: o período inteiro. O ROI do total é Σ(P/L)÷Σ(turnover), nunca a
+  // média dos sete ROIs — média de razão com bases diferentes não é o ROI.
+  const tN=acc.reduce((x,a)=>x+a.n,0);
+  const tPL=acc.reduce((x,a)=>x+a.pl,0);
+  const tTO=acc.reduce((x,a)=>x+a.turnover,0);
+  const tROI=tTO>0?tPL/tTO*100:null;
+  const tCls=tPL>0?'pos':tPL<0?'neg':'nil';
+
+  const rot=(DOW_METRICAS[met]||DOW_METRICAS.pl).rot;
+  const chips=Object.keys(DOW_METRICAS).map(k=>
+    `<button type="button" class="dow__chip${k===met?' on':''}" onclick="dowSetMetrica('${id}','${k}')">`+
+    `${k==='pl'?'R$':DOW_METRICAS[k].rot}</button>`).join('');
+
+  return `<div class="dow" id="dow-${id}">`+
+    `<div class="dow__chips">${chips}</div>`+
+    `<div class="dow__tb">`+
+      `<div class="dow__hr">`+
+        `<span>Dia · largura = ${rot} (escala comprimida)</span>`+
+        `<span>Apostas</span><span>Turnover (R$)</span><span>P/L (R$)</span><span>ROI</span>`+
+      `</div>`+
+      linhas+
+      `<div class="dow__ft">`+
+        `<span class="lb">Período</span>`+
+        `<span>${tN.toLocaleString('pt-BR')}</span>`+
+        `<span>${fmt(tTO,0)}</span>`+
+        `<span class="${tCls}">${_dowPL(tPL)}</span>`+
+        `<span class="${tCls}">${tROI===null?'—':fmtPct(tROI,2)}</span>`+
+      `</div>`+
+    `</div>`+
+    `<div class="dow__lg">largura = ${rot} em escala comprimida (√) para não esconder dias pequenos · os chips no topo trocam a métrica da barra</div>`+
   `</div>`;
 }
+
+// P/L da tabela: 2 casas e sinal, SEM o `R$` — a unidade vive no cabeçalho da
+// coluna ("P/L (R$)"), porque com duas colunas de dinheiro lado a lado o cifrão
+// repetido 16 vezes é ruído. Desvio consciente do `UI_REFERENCE §5.1` (que manda
+// todo R$ passar pelo `.money`), vindo do desenho aprovado; o número em si segue
+// a régua — `fmt` canônico, pt-BR, 2 casas, minus U+2212, zero neutro.
+function _dowPL(v){
+  const sinal=v>0?'+':v<0?'−':'';
+  return sinal+fmt(v,2);
+}
+
+// Troca a métrica da barra e repinta SÓ aquele cartão.
+window.dowSetMetrica=function(id,m){
+  if(!DOW_METRICAS[m])return;
+  window._dowM[id]=m;
+  const el=document.getElementById('dow-'+id);
+  const rows=window._dowRows[id];
+  if(!el||!rows)return;
+  const novo=document.createElement('div');
+  novo.innerHTML=mkDowRanking(rows,{id:id});
+  el.replaceWith(novo.firstChild);
+};
 
 // ── Shared KPI grid builder (2 rows × 4) ────────────────────────────────────
 function mkKpiGrid(rows,{plLabel,contextLabel,contextVal,contextSub}){

@@ -629,7 +629,7 @@ function renderCasaDrill(rows){
   // Calendário pela base SEM período (nav própria) · dia da semana pelo recorte.
   _casaCalMonth=_renderDrillCal('casaDrillCal',_casaDrillBaseRows,_casaCalMonth,_casaDrillPeriodSt,'_casaCal');
   const _casaDowEl=document.getElementById('casaDrillDow');
-  if(_casaDowEl)_casaDowEl.innerHTML=rows.length?mkDowRanking(rows):mkEmpty('Sem apostas no período');
+  if(_casaDowEl)_casaDowEl.innerHTML=rows.length?mkDowRanking(rows,{id:'casa'}):mkEmpty('Sem apostas no período');
 
   setTimeout(()=>{
     makeSortable('casaDrillTblMensal',[1,2,3,4,5,6,7]);
@@ -1193,7 +1193,7 @@ function renderTipsterDrill(rows){
   // Calendário pela base SEM período (nav própria) · dia da semana pelo recorte.
   _tipCalMonth=_renderDrillCal('tipDrillCal',_drillBaseRows,_tipCalMonth,_drillPeriodSt,'_tipCal');
   const _dowEl=document.getElementById('tipDrillDow');
-  if(_dowEl)_dowEl.innerHTML=rows.length?mkDowRanking(rows):mkEmpty('Sem apostas no período');
+  if(_dowEl)_dowEl.innerHTML=rows.length?mkDowRanking(rows,{id:'tip'}):mkEmpty('Sem apostas no período');
 
   // ── Diagnóstico de Risco: Monte Carlo no Web Worker ────────────────────────
   // Dispara depois de o popup já estar pintado; os 4 cards ficam com "calculando…"

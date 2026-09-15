@@ -325,88 +325,109 @@
 #kpiGrid .kpi__duo ~ .kpi-sub { margin-top: 11px; }
 
 /* ── Ranking por dia da semana (Visão Geral + drills) ────────────────────────
-   A barra vive ATRÁS da linha, não como coluna: assim as três métricas ficam
-   com largura fixa e alinhadas verticalmente entre os sete dias. A anatomia
-   track+fill do `.abrt-bar` (exposição da tela Em Aberto) é o mesmo papel e foi
-   avaliada aqui — recusada porque come uma das quatro colunas e empurra
-   apostas+ROI para metadado empilhado (decisão do Feca, s361). Ao mexer numa
-   das duas, olhe a outra. */
-.dow { display:flex; flex-direction:column; gap:4px; }
-.dow__hdr, .dow__row {
-  display:grid; grid-template-columns:minmax(0,1fr) 96px 168px 140px 96px;
-  align-items:center; gap:12px;
+   Desenho: "Sharpen — Dia da Semana v3 (Opção 04)" (Claude Design, s361).
+
+   O bloco do dia é a BARRA: o nome vive dentro dela, sobre o preenchimento, e o
+   comprimento mede a métrica escolhida nos chips. Antes a barra era um fundo
+   atrás da coluna do dia; agora é o próprio elemento, com borda de acento à
+   esquerda e gradiente para a direita.
+
+   TRÊS DESVIOS DELIBERADOS do arquivo de desenho, cada um por regra medida
+   deste repo (CLAUDE.md, "Escada de Tinta"):
+     1. `opacity:.85` sobre `--ink-mute` no cabeçalho SAIU. Opacidade não é um
+        degrau da escada, é multiplicador: derruba o contraste sem aparecer em
+        grep de cor nenhum. O papel é label, então a cor certa é `--ink-soft`.
+     2. Legenda, rótulo do rodapé e chips estavam em `--ink-mute` a 9,5px, abaixo
+        do piso de 10px desse tom — e os três são LABEL, papel de `--ink-soft`.
+     3. O chip ativo era `#fff` sobre `--accent`: medido, 3,36:1, reprovado.
+        `var(--bg)` sobre `--accent` dá 5,8:1. Fundo sólido de acento pede tinta
+        escura — a escada se inverte ali. */
+.dow { display:flex; flex-direction:column; overflow-x:auto; }
+.dow__chips { display:flex; gap:6px; justify-content:flex-end; margin-bottom:12px; }
+.dow__chip {
+  font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-soft);
+  background:transparent; border:1px solid var(--line); border-radius:var(--r-pill);
+  padding:4px 10px; white-space:nowrap; cursor:pointer;
+  transition:border-color .16s var(--ease), color .16s var(--ease);
 }
-.dow__hdr { padding:0 12px 8px; }
-.dow__hdr span {
-  font-family:var(--font-mono); font-size:9.5px; font-weight:700;
-  letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft);
-  text-align:right;
+.dow__chip:hover { color:var(--ink); border-color:var(--border3); }
+.dow__chip.on { color:var(--bg); background:var(--accent); border-color:var(--accent); font-weight:700; }
+
+/* 800 e nao os 880px do desenho. O desenho foi feito para a Visao Geral, que e
+   larga; dentro do drill a coluna ROI — justo a que fecha a linha — caia fora da
+   vista e so aparecia com scroll horizontal. MEDIDO na tela: o container do drill
+   da 820px, nao os 872 que a conta pelo CSS sugere (modal de 920 menos os dois
+   paddings de 24). As cinco colunas somam 734px com os gaps, entao 800 ainda
+   deixa 296px para a barra e sobra folga para o container encolher. Gate: o teste
+   de chips mede `scrollWidth > clientWidth` nas duas superficies. */
+.dow__tb { min-width:800px; }
+.dow__hr, .dow__rw, .dow__ft {
+  display:grid; align-items:center; column-gap:16px;
+  grid-template-columns:minmax(230px,1fr) 84px 140px 136px 80px;
 }
-.dow__hdr span:first-child { text-align:left; }
-.dow__row {
-  position:relative; height:40px; padding:0 12px 0 0; box-sizing:border-box;
-  border:1px solid var(--line-2); border-radius:var(--r-sm); overflow:hidden;
+.dow__hr > * {
+  font-family:var(--font-mono); font-size:var(--text-xxs); letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-soft); text-align:right;
+  padding-bottom:9px; border-bottom:1px solid var(--line);
 }
-.dow__row.we { background-color:rgba(255,255,255,.02); }
-/* P/L no comprimento, sinal na cor — uma grandeza só, dois canais que concordam.
-   O alpha é fixo: variar os dois junto daria duas leituras concorrentes na mesma
-   barra. O porquê de ser P/L e não volume está no `mkDowRanking` (shared.js).
-   A barra vive DENTRO da coluna do dia, nunca atrás da linha inteira: medido na
-   tela (s361), atravessando ela corta os números no meio e a borda da barra lê
-   como artefato de render — o ROI de um dia aparecia metade dentro, metade fora. */
-.dow__dia { position:relative; align-self:stretch; display:flex; align-items:center; min-width:0; }
-.dow__bar {
-  position:absolute; top:0; left:0; bottom:0;
-  background:rgba(var(--pos-rgb),.13); border-radius:var(--r-xs);
+.dow__hr > *:first-child { text-align:left; }
+.dow__rw { height:46px; }
+.dow__rw > * { display:block; min-width:0; }
+
+.dow__v {
+  font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+  font-size:var(--text-sm); text-align:right; white-space:nowrap; color:var(--ink-soft);
+}
+/* O P/L é o valor-chave da linha: ele sobe um degrau na escada e ganha peso.
+   Os vizinhos (apostas, turnover) ficam em `--ink-soft` por hierarquia — 6,3:1,
+   bem acima do mínimo do papel. */
+.dow__v.k { font-weight:700; color:var(--ink); font-size:13.5px; }
+.dow__v.pos { color:var(--pos); }
+.dow__v.neg { color:var(--neg); }
+/* `nil` = ruído estatístico (ver DOW_RUIDO_ROI no shared.js) e dia sem aposta. */
+.dow__v.nil { color:var(--ink-mute); }
+
+.dow__ft { margin-top:10px; padding-top:11px; border-top:1px solid var(--line); }
+.dow__ft > * {
+  font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+  font-size:11.5px; text-align:right; color:var(--ink-soft);
+}
+.dow__ft .lb {
+  text-align:left; font-size:var(--text-xxs); letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink-soft);
+}
+.dow__ft .pos { color:var(--pos); font-weight:700; }
+.dow__ft .neg { color:var(--neg); font-weight:700; }
+.dow__ft .nil { color:var(--ink-mute); font-weight:700; }
+
+.dow__blk { position:relative; display:block; height:34px; }
+.dow__fill {
+  position:absolute; left:0; top:0; bottom:0; border-radius:var(--r-sm);
+  border-left:2px solid var(--pos);
+  background:linear-gradient(90deg, rgba(var(--pos-rgb),.26), rgba(var(--pos-rgb),.10));
   pointer-events:none;
 }
-.dow__bar.neg { background:rgba(var(--neg-rgb),.13); }
-/* P/L exatamente zero: o dia existe e não moveu dinheiro. Barra no piso e neutra —
-   verde ou vermelho ali afirmariam um sinal que o número não tem. */
-.dow__bar.zero { background:rgba(255,255,255,.06); }
-.dow__nome {
-  position:relative; padding-left:12px;
-  font-size:var(--text-sm); font-weight:700; color:var(--ink);
+.dow__fill.neg {
+  border-left-color:var(--neg);
+  background:linear-gradient(90deg, rgba(var(--neg-rgb),.26), rgba(var(--neg-rgb),.10));
+}
+.dow__fill.nil {
+  border-left-color:var(--ink-mute);
+  background:linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+}
+.dow__lab {
+  position:relative; display:flex; align-items:center; height:100%; gap:7px;
+  padding-left:13px; font-size:var(--text-sm); font-weight:600; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.dow__n, .dow__pl, .dow__to, .dow__roi { min-width:0; }
-.dow__n {
-  font-family:var(--font-mono); font-size:var(--text-sm); color:var(--ink);
-  text-align:right; font-variant-numeric:tabular-nums;
-}
-.dow__pl .money { font-size:var(--text-sm); font-weight:700; }
-/* Turnover: agregado, logo sem sinal e sem cor (UI_REFERENCE 5.1). Peso menor que o
-   P/L de proposito - e' contexto para julgar o ROI, nao o resultado do dia.
-   min-width de 9ch em vez dos 10ch do componente: os 10ch sao largura de coluna
-   dimensionada para valor COM centavos (o P/L, ao lado, preenche), e o `fmtR` e'
-   INTEIRO - nunca chega la, entao sobram ~3ch de vao entre o R$ e o numero, e o R$
-   solto no meio da celula le como se pertencesse ao P/L da coluna anterior. 9ch
-   cobre ate 9.999.999 sem vao e mantem as sete linhas alinhadas entre si. */
-.dow__to .money { font-size:var(--text-sm); font-weight:600; }
-.dow__to .money-val { min-width:9ch; }
-.dow__roi {
-  font-family:var(--font-mono); font-size:var(--text-sm); font-weight:700;
-  color:var(--ink); text-align:right; font-variant-numeric:tabular-nums;
-}
-.dow__roi.pos { color:var(--pos); }
-.dow__roi.neg { color:var(--neg); }
-/* Dia sem aposta: "—" em todas as colunas. Nunca R$ 0,00 — ausência não é zero. */
-.dow__row--vazio .dow__nome { color:var(--ink-soft); font-weight:600; }
-.dow__row--vazio .dow__n,
-.dow__row--vazio .dow__pl,
-.dow__row--vazio .dow__to,
-.dow__row--vazio .dow__roi {
-  font-family:var(--font-mono); font-size:var(--text-sm);
-  color:var(--ink-mute); text-align:right;
-}
-.dow__legenda {
-  display:flex; align-items:center; gap:8px;
+.dow__lab.neg { color:var(--neg); }
+.dow__lab.nil { color:var(--ink-soft); }
+
+.dow__lg {
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
   margin-top:14px; padding-top:12px; border-top:1px solid var(--line-2);
-}
-.dow__legenda i { width:14px; height:8px; border-radius:2px; background:rgba(var(--pos-rgb),.13); flex:none; }
-.dow__legenda span { font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-soft); letter-spacing:.02em; }
-@media(max-width:760px) {
-  .dow__hdr, .dow__row { grid-template-columns:minmax(0,1fr) 60px 124px 100px 72px; gap:8px; }
+  font-family:var(--font-mono); font-size:var(--text-xxs); color:var(--ink-soft);
+  letter-spacing:.05em;
 }
 
 /* ══ EM ABERTO (Minhas Apostas › Em Aberto) ═══════════════════════════════════

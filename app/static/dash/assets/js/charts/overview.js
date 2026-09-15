@@ -125,7 +125,7 @@ function renderOvDow(rows){
   const el=document.getElementById('ovDowContent');
   if(!el)return;
   if(!rows.length){el.innerHTML=mkEmpty('Sem apostas no período/filtro');return;}
-  el.innerHTML=mkDowRanking(rows);
+  el.innerHTML=mkDowRanking(rows,{id:'ov'});
 }
 
 
