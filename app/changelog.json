@@ -17,6 +17,17 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-dia-da-semana",
+      "data": "2026-09-15",
+      "tag": "Sharpen",
+      "titulo": "Dia da Semana",
+      "texto": "O dashboard passou a mostrar o seu resultado por dia da semana: apostas, turnover, P/L e ROI de segunda a domingo, com o total do período. Está na Visão Geral e também dentro de cada tipster e de cada casa.",
+      "itens": [
+        "É só abrir o dashboard e atualizar a página.",
+        "Os botões R$ / ROI / Turnover no topo do quadro trocam o que a barra mede."
+      ]
+    },
+    {
       "id": "sharpen-a-tela-de-extracao-agora-se-encaixa-melhor-no-se",
       "data": "2026-09-11",
       "tag": "Sharpen",
