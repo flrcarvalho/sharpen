@@ -250,16 +250,20 @@
 .kpi__duo {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin-top: 10px;
-  padding-top: 9px;
+  margin-top: 8px;
+  padding-top: 7px;
   border-top: 1px solid var(--line-2);
 }
-.kpi__cell { padding-right: 16px; min-width: 0; }
-.kpi__cell + .kpi__cell { padding-left: 16px; border-left: 1px solid var(--line-2); }
+/* 8px, não 16: com 16 a célula ficava com 68px úteis num tile de 200px, e ali o rótulo
+   "Em operação" (75px) saía com reticências e o valor "R$ 29.400" (68px) era TRUNCADO na
+   coluna de 51 — número de dinheiro cortado. Medido em 1366. */
+.kpi__cell { padding-right: 8px; min-width: 0; }
+.kpi__cell + .kpi__cell { padding-left: 8px; border-left: 1px solid var(--line-2); }
 .kpi__cl {
   font-family: var(--font-mono);
   font-size: 9.5px;
-  letter-spacing: .12em;
+  /* tracking curto: em caixa alta ele soma ~6px em "Em operação", e era parte do corte. */
+  letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--ink-soft);
   white-space: nowrap;
@@ -269,10 +273,10 @@
 .kpi__cv {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ink);
-  margin-top: 5px;
+  margin-top: 3px;
   letter-spacing: -.01em;
   white-space: nowrap;
 }
@@ -280,7 +284,7 @@
 /* Vermelho CLARO (`--neg-2`): é custo já pago, fora do P/L. O desenho reprova o `--neg`
    aqui — ele competiria com o número do topo, e o acumulado é secundário. */
 .kpi__cv.is-cost { color: var(--neg-2); }
-.kpi__pnote { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 9px; }
+.kpi__pnote { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 7px; }
 /* O `.money` padrão é largura de COLUNA de tabela (width:100% + min-width:10ch); dentro
    da célula e da nota ele empurraria o valor para fora. Mesmo carve-out do `.kpi-sub`. */
 /* `gap:4px` como o `.cur` da referência (`margin-right:4px`): com 2px o cifrão encosta
@@ -309,7 +313,10 @@
    aqui deixaria o 5º sozinho numa linha só dele. As media queries mandam nos dois. */
 @media (max-width: 1100px) { #kpiGrid { --kpi-cols: 2; } }
 @media (max-width: 560px)  { #kpiGrid { --kpi-cols: 1; } }
-#kpiGrid .kpi { min-height: 156px; padding: 13px 15px 12px; }
+#kpiGrid .kpi { min-height: 140px; padding: 12px 14px 11px; }
+/* 20px, não 22: o valor continua sendo o maior número do cartão (quase o dobro do valor
+   da célula e o quádruplo do rótulo), e devolve 3px para a fileira inteira. */
+#kpiGrid .kpi-val { font-size: 20px; line-height: 20px; }
 /* O valor desce para a base: com o bloco embaixo em um cartão e não no outro, alinhar
    pelo topo deixaria os números dos oito em alturas diferentes. */
 #kpiGrid .kpi-val { margin-top: auto; padding-top: 14px; }
