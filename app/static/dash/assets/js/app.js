@@ -131,6 +131,36 @@ function aplicarFeed(dados){
   DADOS=norm.filter(r=>ENCERRADAS.includes(r.resultado));
   DADOS_ABERTAS=norm.filter(r=>r.resultado==='ABERTA');
 }
+// ── Bloco de tipster da sidebar: os números (s362) ────────────────────────────
+// CONTEXTO DA CONTA, não da consulta: lê DADOS inteiro e não passa por filtro de tela
+// nenhum (nem período, nem esporte, nem casa). Se seguisse os filtros, a "prova viva"
+// do tipster mudaria conforme o visitante mexesse na tela, e deixaria de ser prova.
+//
+// Mesma régua do backend (`repository._resumir_apostas`, que serve o /conta/perfil do
+// host): `apostas` é a contagem de linhas RESOLVIDAS, e é ela que separa "não há o que
+// calcular" (a célula vira travessão) de "P/L zerado" — conta nova mostrando +0,00%
+// leria como desempenho neutro medido. DADOS já é só W/L/V/HW/HL (aplicarFeed).
+let _SB_TIPSTER=null;
+function _sbJanela(rows){
+  return {apostas:rows.length,pl:rows.reduce((a,r)=>a+r.lucro,0),roi:calcROI(rows)};
+}
+function sbTipsterPintar(){
+  if(!_SB_TIPSTER||!PUBLICO)return;
+  // Mês pela data LOCAL (_ymd), nunca por toISOString: em UTC o "mês corrente" vira o
+  // seguinte na virada, e o bloco passaria um dia inteiro zerado.
+  const mesAtual=_ymd(new Date()).slice(0,7);
+  const doMes=DADOS.filter(r=>String(r.data||'').slice(0,7)===mesAtual);
+  _SB_TIPSTER.aplicar({
+    nome:PUBLICO.nome,
+    dono:PUBLICO.nome,
+    plano:PUBLICO.plano,
+    // tem_logo omitido de propósito: a vitrine não chama a rota autenticada do perfil
+    // e descobre pela própria imagem (404 → monograma).
+    mes:_sbJanela(doMes),
+    historico:_sbJanela(DADOS),
+  });
+}
+
 function normalizeDados(dados){
   const fields=['tipster','casa','esporte'];
   const canonical={};
@@ -802,6 +832,7 @@ function buildHTML(){
            uma crase perdida derruba a página inteira — o caso da s296.) -->
       <div class="page" id="page-custos_v2">
         ${buildFiltersCustos('custos_v2',casas)}
+        <div id="c2Guardar"></div>
         <div id="c2Kpi"></div>
         <div id="c2Cascata"></div>
         <div id="c2Aviso"></div>
@@ -1198,9 +1229,22 @@ function buildHTML(){
     document.getElementById('apSelAll')?.remove();                             // "selecionar todas"
     document.getElementById('abrtSelAll')?.remove();
     document.querySelector('#page-tipsters .tip-unit-row')?.remove();          // switch R$⇄u (já é u)
+    // Bloco do tipster (s362): o nome saiu do selo mono caixa-alta colado no lockup
+    // (.pub-tipster) e virou entidade própria — avatar, nome em sans com a
+    // capitalização do registro, plano como selo e a matriz ROI/PL. Mesmo módulo e
+    // mesmo CSS do bloco da casca em /app; aqui só muda o que é do modo público:
+    // resultado em UNIDADES e nada editável (vitrine não tem sessão que autorize
+    // upload). Os números entram depois, no sbTipsterPintar.
     const brand=document.querySelector('.sidebar-brand');
-    if(brand&&PUBLICO.nome)brand.insertAdjacentHTML('afterend',
-      `<div class="pub-tipster">${esc(PUBLICO.nome)}</div>`);
+    if(brand&&PUBLICO.nome&&window.SbTipster){
+      _SB_TIPSTER=SbTipster.montar({
+        editavel:false,
+        unidade:'u',
+        logoUrl:'/tipsters/'+encodeURIComponent(PUBLICO.slug)+'/logo',
+      });
+      brand.after(_SB_TIPSTER.el);
+      sbTipsterPintar();
+    }
     document.title=(PUBLICO.nome||'Tipster')+' — Resultados | Sharpen';
   }
 
@@ -1236,7 +1280,17 @@ async function ctLoad(){
     const r=await fetch('/custos/store');
     if(r.ok){
       const d=await r.json();
-      if(d.existe){ctData=d.custo_tipster||{};cgData=d.custo_geral||[];ctMeta=d.custo_tipster_meta||{};_ctServerBacked=true;_ctMirror();}
+      if(d.existe){
+        ctMeta=d.custo_tipster_meta||{};
+        // `existe` aqui é "a LINHA do dono existe", e a linha nasce também pelo custo por
+        // CONTA (`salvar_custo_conta` faz upsert na mesma linha). Então dá para o servidor
+        // dizer existe=true com o blob tipster/geral vazio enquanto este navegador tem
+        // lançamento: adotar o vazio apagava o cache, e o `_ctMirror` gravava o apagão.
+        // Mantém o local e deixa a faixa da tela de Custos oferecer guardar (s360).
+        const vazioLa=!Object.keys(d.custo_tipster||{}).length&&!(d.custo_geral||[]).length;
+        if(vazioLa&&_ctHadLegacy){_ctServerBacked=false;}
+        else{ctData=d.custo_tipster||{};cgData=d.custo_geral||[];_ctServerBacked=true;_ctMirror();}
+      }
       else{_ctServerBacked=false;} // servidor vazio p/ este dono
     }
   }catch(e){/* offline: fica no cache local já carregado */}
@@ -1265,6 +1319,34 @@ function ctSave(){
   _ctMirror();
   if(_ctServerBacked){_ctPush();return;}
   if(!_ctHadLegacy){_ctServerBacked=true;_ctPush();}
+}
+
+// ── "Meu custo está só neste navegador" (s360) ──────────────────────────────
+// Irmão do `custoContaPendente` (gestao.js), para o custo de tipster e o geral.
+// Uma diferença muda o TEXTO da faixa: CT_KEY/CG_KEY são chaves GLOBAIS, sem
+// namespace de dono (o custo por conta tem, via `costKey()`). Num navegador onde
+// dois donos já entraram, o legado local pode ser do outro. Por isso a faixa manda
+// conferir as abas antes de guardar, em vez de prometer "o seu custo".
+function ctPendente(){
+  if(_ctServerBacked||!_ctHadLegacy)return null;
+  let ct={},cg=[];
+  try{ct=JSON.parse(localStorage.getItem(CT_KEY)||'{}')||{};}catch(e){ct={};}
+  try{cg=JSON.parse(localStorage.getItem(CG_KEY)||'[]')||[];}catch(e){cg=[];}
+  const temVal=(o)=>Object.values(o||{}).some(v=>parseNum(v)>0);
+  const nT=Object.keys(ct).filter(t=>temVal(ct[t])).length;
+  const nG=(Array.isArray(cg)?cg:[]).filter(r=>temVal((r||{}).values)).length;
+  if(!nT&&!nG)return null;
+  return{tipsters:nT,gerais:nG};
+}
+// Espera a resposta (o `_ctPush` é dispara-e-esquece, e faixa não pode mentir).
+async function ctSubir(){
+  if(!ctPendente())return false;
+  const r=await fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData})});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  _ctServerBacked=true;
+  _ctMirror();
+  return true;
 }
 
 function ctGetMonths(){
@@ -1452,6 +1534,7 @@ async function loadData(force){
     if(!PUBLICO&&typeof contasLoad==='function')contasLoad();
     aplicarFeed(json.data);
     auditCasas(DADOS);
+    sbTipsterPintar();   // feed fresco: a matriz ROI/PL do bloco acompanha
     // builtAt = quando o servidor reconstruiu o cache (fonte de verdade da frescura dos dados)
     window._dataBuiltMs=json.builtAt?Date.parse(json.builtAt):Date.now();
     _idbSetData({data:json.data,savedAt:Date.now(),builtAt:window._dataBuiltMs}).catch(()=>{}); // grava cache sem bloquear

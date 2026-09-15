@@ -21,6 +21,9 @@
 // divergia por sorte do dado. Duas derivações para um número são duas réguas.
 
 let _c2aba = 'contas';
+// Guardei o custo local no servidor NESTA sessão? Só serve para o recado de sucesso
+// sobreviver ao próximo render (mexer num filtro repinta a tela inteira).
+let _c2guardou = false;
 let _c2fornOpen = null;   // accordion da tabela de preços: um fornecedor aberto por vez
 
 // ── Peças de apoio ───────────────────────────────────────────────────────────
@@ -524,6 +527,73 @@ window.c2FornToggle = function(forn){ _c2fornOpen = (_c2fornOpen === forn) ? nul
 // nome dentro de onclick="…('…')" — escapa \ e ', como o _tmJs de gestao.js
 function _c2js(x){ return String(x).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
+// ── Faixa: o custo que ainda está só neste navegador (s360) ──────────────────
+// Até aqui o dono não tinha como saber. O custo nasceu no localStorage, virou coluna
+// no Postgres na s165, e a trava anti-semeadura só sobe no SAVE: quem preencheu antes
+// e nunca mais editou ficou com tudo na máquina, com a tela mostrando o número certo.
+// A página /dashboard/importar-custos.html já fazia isso, mas é URL avulsa, fora do
+// menu de todo mundo. O aviso passa a nascer na tela onde o dado mora.
+//
+// A faixa é ACIONÁVEL (tem botão). Aviso sem ação foi o que tirou a `.c2-previa` daqui.
+function _c2guardarHTML(){
+  if (_c2guardou) return `<div class="c2-guardar is-ok">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--pos)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      <div class="c2-guardar__txt"><strong>Pronto, seus custos estão na sua conta.</strong>
+        Agora eles abrem em qualquer aparelho e não dependem mais deste navegador.</div>
+    </div>`;
+  const c = (typeof custoContaPendente === 'function') ? custoContaPendente() : null;
+  const t = (typeof ctPendente === 'function') ? ctPendente() : null;
+  if (!c && !t) return '';
+  const partes = [];
+  if (c) partes.push(`${c.pares} ${c.pares === 1 ? 'preço de conta' : 'preços de conta'} (${fmtR(c.total)})`);
+  if (t && t.tipsters) partes.push(`${t.tipsters} ${t.tipsters === 1 ? 'tipster' : 'tipsters'}`);
+  if (t && t.gerais) partes.push(`${t.gerais} ${t.gerais === 1 ? 'custo geral' : 'custos gerais'}`);
+  const lista = partes.length > 1
+    ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1]
+    : partes[0];
+  // O aviso de conferência só aparece quando há tipster/geral em jogo: as chaves deles
+  // são globais no navegador, sem dono. O preço de conta tem namespace por dono.
+  const conferir = t
+    ? ' Confira as abas Tipsters e Gerais antes: é o que está nelas que vai subir.'
+    : '';
+  return `<div class="c2-guardar" id="c2GuardarBox">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M8 8l4-4 4 4"/><path d="M4 16v2.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V16"/></svg>
+      <div class="c2-guardar__txt" id="c2GuardarMsg">
+        <strong>Leve seus custos para a sua conta.</strong>
+        Hoje eles estão guardados só neste navegador: ${lista}. Na conta, eles abrem em
+        qualquer aparelho.${conferir}
+      </div>
+      <button class="c2-guardar__btn" id="c2GuardarBtn" onclick="c2Guardar()">Guardar na minha conta</button>
+    </div>`;
+}
+
+// ORDEM OBRIGATÓRIA: tipster/geral ANTES do preço de conta. `salvar_custo_conta` faz
+// upsert na MESMA linha de `custo_store`, e a partir daí `/custos/store` responde
+// existe=true. Na ordem inversa, a carga seguinte encontraria a linha criada com o blob
+// tipster/geral ainda vazio. (O `ctLoad` também passou a se defender disso na s360, mas
+// a ordem certa é o que faz a janela não existir.)
+window.c2Guardar = async function(){
+  const box = document.getElementById('c2GuardarBox');
+  const btn = document.getElementById('c2GuardarBtn');
+  const msg = document.getElementById('c2GuardarMsg');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  let fezCt = false, fezCc = false;
+  try {
+    if (typeof ctSubir === 'function') fezCt = await ctSubir();
+    if (typeof custoContaSubir === 'function') fezCc = await custoContaSubir();
+    _c2guardou = true;
+    renderCustos2();
+  } catch (e) {
+    const feito = [fezCt ? 'os tipsters e gerais' : '', fezCc ? 'os preços de conta' : ''].filter(Boolean).join(' e ');
+    if (box) box.classList.add('is-erro');
+    if (msg) msg.innerHTML = feito
+      ? `<strong>Guardei ${feito}, o resto não foi.</strong> Nada se perdeu: o que falta segue neste navegador. Tente de novo em instantes.`
+      : `<strong>Não consegui guardar agora.</strong> Nada se perdeu, seus custos seguem neste navegador. Tente de novo em instantes.`;
+    btn.disabled = false; btn.textContent = 'Tentar de novo';
+  }
+};
+
 function renderCustos2(){
   const host = document.getElementById('c2Body');
   if (!host) return;
@@ -535,6 +605,10 @@ function renderCustos2(){
   const mes = _c2mesRotulo(r.mesRef);
   const umMes = r.meses.length === 1;
   const rotuloPeriodo = umMes ? mes : (_c2mesRotulo(r.meses[0]) + ' a ' + mes);
+
+  // ── Faixa do custo que ainda está só neste navegador ──
+  const hostGuardar = document.getElementById('c2Guardar');
+  if (hostGuardar) hostGuardar.innerHTML = _c2guardarHTML();
 
   // ── KPIs ──
   const pend = (n) => n > 0

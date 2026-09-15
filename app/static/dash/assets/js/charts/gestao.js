@@ -63,6 +63,34 @@ function saveCusto(forn,casa,val){
   const{allForns,allCasas,contaCount}=_costState;
   if(allForns&&allForns.length)renderCustoCards(allForns,allCasas,contaCount);
 }
+
+// ── "Meu custo está só neste navegador" (s360) ───────────────────────────────
+// A trava anti-semeadura acima só sobe no SAVE. Quem preencheu custo antes do
+// multiusuário (s165) e nunca mais editou ficou com o dado só no localStorage, sem
+// aviso nenhum, e um navegador limpo apaga em silêncio. Medido em 2026-09-15: 16
+// donos, 480 contas cadastradas, zero linha de custo em `custo_store`.
+//
+// A leitura sai do CACHE e do `_custoHadLegacy` (medido no load, antes do seed),
+// NUNCA do `custoData`: o CUSTO_SEED entra em `custoData` como fallback em memória, e
+// subir seed cravado no código oficializaria exemplo como se fosse dado do dono.
+function custoContaPendente(){
+  if(_custoServerBacked||!_custoHadLegacy)return null;
+  let cache={};try{cache=JSON.parse(localStorage.getItem(costKey())||'null')||{};}catch(e){return null;}
+  const pares=Object.keys(cache).filter(k=>Number(cache[k])>0);
+  if(!pares.length)return null;
+  return{pares:pares.length,total:pares.reduce((s,k)=>s+Number(cache[k]),0)};
+}
+// Sobe e ESPERA a resposta, ao contrário do `_custoPush`, que é dispara-e-esquece.
+// Quem aperta um botão precisa saber se deu certo; a faixa mente se assumir sucesso.
+async function custoContaSubir(){
+  if(!custoContaPendente())return false;
+  const r=await fetch('/custos/conta',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({custo_conta:custoData})});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  _custoServerBacked=true;
+  _custoMirror();
+  return true;
+}
 let _costState={allForns:[],allCasas:[],contaCount:{}};
 // ── Preço do fornecedor, com vigência (s348, Fatia 1) ────────────────────────
 // Mora AQUI, e não na tela de Custos, porque o custo de conta deriva dele e o KPI

@@ -2078,12 +2078,11 @@ select.ap-inline-inp { padding: 2px 4px; }
 @media(max-width:1100px) { .abrt-row { grid-template-columns:30px 88px minmax(150px,1fr) 96px 108px 140px 80px 60px 90px 52px; } }
 
 /* ── Modo público (vitrine de tipster em /tipsters/<slug>) ─────────────────── */
-/* Selo com o nome do tipster sob a logo — assinatura FDC (mono/upper/track). */
-.pub-tipster {
-  font-family:var(--font-mono); font-size:10px; font-weight:700;
-  letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
-  padding:2px 18px 10px; border-bottom:1px solid var(--line); margin-bottom:8px;
-}
+/* O `.pub-tipster` saiu na s362. Ele punha o nome do tipster em mono caixa-alta
+   colado no lockup — a linguagem de RÓTULO do sistema (.nav-group, .page-sub) —, e
+   era isso que lia o nome como metadado da marca Sharpen em vez de dono da operação.
+   O lugar dele agora é o `.sb-tipster` do /static/shell.css, compartilhado com a
+   casca do /app e pintado pelo /static/sb-tipster.js. */
 
 /* ══ BASE COMPLETA — barra de filtros (s317) ═══════════════════════════════════
    UMA barra, não duas. Os filtros nasceram numa segunda caixa embaixo dos KPIs, com
@@ -2557,6 +2556,45 @@ select.ap-inline-inp { padding: 2px 4px; }
   font-variant-numeric: tabular-nums;
 }
 .c2-vazio-cel { color: var(--ink-mute); font-size: 12px; }
+
+/* Faixa "guardar na minha conta" (s360): o custo que ainda vive só no localStorage.
+   Herdou o desenho da .c2-previa, que saiu na s362 por ser aviso sem ação nenhuma.
+   Esta tem botão, e é por isso que ela fica. */
+.c2-guardar {
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-4);
+  background: linear-gradient(150deg, rgba(var(--accent-rgb), .10), var(--surface) 60%);
+  border: 1px solid rgba(var(--accent-rgb), .34); border-radius: var(--r-lg);
+}
+.c2-guardar svg { flex: none; }
+.c2-guardar__txt { flex: 1 1 auto; font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); }
+.c2-guardar__txt strong { display: block; color: var(--ink); font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+/* O .money é uma COLUNA de planilha: width:100%, alinhado à direita, money-val com
+   min-width:10ch. Dentro de uma frase ele estoura o parágrafo em três pedaços (medido
+   em 1366: "6 preços de conta (" numa linha, o valor jogado na borda direita e o ")"
+   na linha de baixo). Mesmo tratamento que o .kpi-sub já dá ao componente. */
+.c2-guardar__txt .money { display: inline-flex; width: auto; gap: 3px; }
+.c2-guardar__txt .money-val,
+.c2-guardar__txt .money-sign { min-width: 0; }
+/* Tinta ESCURA sobre fundo sólido de acento: #fff daria 3,36:1 e var(--bg) dá 5,8:1. */
+.c2-guardar__btn {
+  flex: none; cursor: pointer; white-space: nowrap;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  padding: 8px 16px; border-radius: var(--r-pill);
+  border: 1px solid transparent; background: var(--accent); color: var(--bg);
+}
+.c2-guardar__btn:hover { filter: brightness(1.08); }
+/* opacidade como ESTADO (desabilitado), não como degrau da escada de tinta. */
+.c2-guardar__btn:disabled { cursor: default; opacity: .6; }
+.c2-guardar.is-ok {
+  background: linear-gradient(150deg, rgba(var(--pos-rgb), .10), var(--surface) 60%);
+  border-color: rgba(var(--pos-rgb), .34);
+}
+.c2-guardar.is-erro { border-color: rgba(var(--warn-rgb), .44); }
+@media (max-width: 760px) {
+  .c2-guardar { flex-wrap: wrap; }
+  .c2-guardar__btn { width: 100%; }
+}
 
 /* KPI: legenda com o selo do bloco à direita. */
 .c2-kpi-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }

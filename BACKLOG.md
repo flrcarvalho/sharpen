@@ -770,6 +770,18 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
     Tipster que a s360 pôs nele. A régua velha (`custoData × contagem`) dessas três não foi
     consertada de propósito. **Esperar o Feca confirmar que não sentiu falta.**
 
+- **Avisar TODOS os usuários para guardar o custo na conta, e só então remover o `CUSTO_SEED` (s360). VIVA, autorizada pelo Feca.**
+  Medido em 15/09/2026 contra o Postgres de produção: **16 donos, 480 contas cadastradas,
+  zero linha de custo em `custo_store`** — o custo deles vive só no `localStorage` daquele
+  navegador. A tela já avisa e oferece guardar (faixa `.c2-guardar`, tela de Custos), mas
+  quem não abrir a tela não vê. **O Feca autorizou o aviso e pediu o enquadramento:**
+  *"sem falar q eh uma falha e sim um upgrade"* — a mensagem é sobre o custo passar a viver
+  na conta e abrir em qualquer aparelho, não sobre o que estava errado. Vai pelo
+  `python scripts/avisar_testers.py` (o aviso e a home são o mesmo ato) e **só com o
+  "pode mandar"**. **Depois disso, e não antes, sai o `CUSTO_SEED`** (`gestao.js`, 11 pares
+  cravados que valem só para o username `Feca`): removê-lo enquanto o custo dele estiver só
+  no navegador zeraria a tela dele. Ele é a razão de a perda ter passado meses invisível.
+
 - **A Visão Geral tem largura mínima de ~844px e estoura abaixo de ~1100 de janela (s358). VIVA, medida.**
   Medido headless contra o `servidor_demo`, com a página carregada JÁ na largura (não por
   resize): com a janela em 1024 o iframe do dash fica com 760px e **45 elementos** passam
