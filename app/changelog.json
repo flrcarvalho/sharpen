@@ -17,6 +17,18 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-sua-marca-na-sidebar",
+      "data": "2026-09-15",
+      "tag": "Sharpen",
+      "titulo": "Sua marca na sidebar",
+      "texto": "O seu nome agora tem **bloco proprio** na barra lateral, com **ROI e P/L do mes contra o historico** logo abaixo.",
+      "itens": [
+        "Clique no avatar (ou arraste uma imagem para cima dele) para por a **logo do seu canal** no lugar das iniciais.",
+        "PNG, JPG, WEBP ou SVG, ate 2 MB. A logo aparece tambem na sua pagina publica."
+      ],
+      "fecho": "Nada muda no que ja estava la: navegacao, dados e filtros seguem iguais."
+    },
+    {
       "id": "sharpen-a-area-de-custos-ficou-nova",
       "data": "2026-09-15",
       "tag": "Sharpen",
