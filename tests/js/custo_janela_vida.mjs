@@ -6,7 +6,7 @@
 //
 //   modo 'pago' (o P/L)  → "quanto saiu do bolso no recorte". Cada conta cobra UMA vez,
 //        no dia do pagamento. SOMA: os 12 meses dão o ano.
-//   modo 'vivo' (parque) → "quanto vale o que está rodando". Toda conta viva no recorte
+//   modo 'vivo' (em operação) → "quanto vale o que está rodando". Toda conta viva no recorte
 //        cobra cheio. NÃO soma, e por isso nunca entra no P/L.
 //
 // O caso que virou a régua do P/L (Jonathan, em áudio, 14/09/2026): *"ele só esse mês
@@ -54,7 +54,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_custoDaConta',
-      '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcParqueFiltered',
+      '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcContasEmOperacao',
       'calcCustoTipsterFiltrado', 'calcCustoGeralFiltrado', 'calcCasaCost']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // `parseNum` é o parser de número do projeto (app.js) e o custo de tipster depende dele:
@@ -85,12 +85,12 @@ const API = new Function(`
       if (cfg.ms) for (const k of Object.keys(cfg.ms)) MSS[k] = new Set(cfg.ms[k]);
     },
     vida() { if (!_contaVida) _buildContaVida(); return _contaVida; },
-    // O parque chama a mesma função com modo 'vivo'. O parque(de,ate) daqui exercita a
-    // janela em intervalo arbitrário; calcParqueFiltered é o que a tela usa (sempre HOJE).
+    // As contas em operação chamam a mesma função com modo 'vivo'. O parque(de,ate) daqui
+    // exercita a janela em intervalo arbitrario; calcContasEmOperacao e o que a tela usa.
     // Sem crase neste comentário de propósito: ele vive DENTRO da template literal do
     // new Function, e uma crase aqui fecha a string (o caso da s296).
     parque(de, ate) { return _custoNaJanela(de, ate, null, null, '', 'vivo'); },
-    calcCostFiltered, calcParqueFiltered, calcCustoTipsterFiltrado, calcCustoGeralFiltrado,
+    calcCostFiltered, calcContasEmOperacao, calcCustoTipsterFiltrado, calcCustoGeralFiltrado,
     calcCasaCost, parseNum,
   };
 `)();
@@ -350,7 +350,7 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   const v = API.vida()['GN||Betano']['Betano1'];
   ok(v.fim === hoje, 'conta cadastrada e ativa deveria viver até hoje (' + hoje + '), veio ' + v.fim);
   ok(API.parque(hoje, hoje).total === 1700, 'e ela tem de estar no parque de hoje');
-  ok(API.calcParqueFiltered('overview').total === 1700, 'calcParqueFiltered pergunta por HOJE sozinho');
+  ok(API.calcContasEmOperacao('overview').total === 1700, 'calcParqueFiltered pergunta por HOJE sozinho');
 }
 
 // ── M1c. Arquivada SEM carimbo não está no parque de hoje ────────────────
@@ -368,7 +368,7 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   ok(API.parque(hoje, hoje).total === 0, 'conta arquivada sem carimbo não pode estar no parque de hoje');
 }
 
-// ── M1d. O parque respeita CASA e OPERADOR, e ignora o período da tela ───
+// ── M1d. Contas em operação respeitam CASA e OPERADOR, e ignoram o período ──
 {
   const cfg = {
     custos: { 'GN||Betano': 1700, 'GN||Bet365': 900 },
@@ -380,13 +380,15 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
     periodo: periodo('2025-01-01', '2025-01-31'),
   };
   API.set(cfg);
-  ok(API.calcParqueFiltered('overview').total === 2600, 'o parque ignora o período da tela, veio ' + API.calcParqueFiltered('overview').total);
+  ok(API.calcContasEmOperacao('overview').total === 2600, 'o rodapé ignora o período da tela, veio ' + API.calcContasEmOperacao('overview').total);
   API.set({ ...cfg, ms: { ca_overview: ['Bet365'] } });
-  ok(API.calcParqueFiltered('overview').total === 900, 'filtro de CASA recorta o parque');
+  ok(API.calcContasEmOperacao('overview').total === 900, 'filtro de CASA recorta as contas em operação');
   API.set({ ...cfg, ms: { op_overview: ['Lava'] } });
-  ok(API.calcParqueFiltered('overview').total === 0, 'filtro de OPERADOR recorta o parque');
-  API.set({ ...cfg, ms: { sp_overview: ['Tenis'], ti_overview: ['LBB'] } });
-  ok(API.calcParqueFiltered('overview').total === 2600, 'esporte e tipster NÃO recortam o parque');
+  ok(API.calcContasEmOperacao('overview').total === 0, 'filtro de OPERADOR recorta as contas em operação');
+  // Esporte segue sem recortar (uma conta não pertence a um esporte). TIPSTER passou a
+  // recortar no desenho da s358 — a prova está no caso O, com a conta compartilhada.
+  API.set({ ...cfg, ms: { sp_overview: ['Tenis'] } });
+  ok(API.calcContasEmOperacao('overview').total === 2600, 'esporte NÃO recorta as contas em operação');
 }
 
 // ── M2. Conta ativa e sem aposta nenhuma fica viva até HOJE ──────────────
@@ -516,6 +518,40 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   ok(API.calcCustoGeralFiltrado('overview').total === 1600, 'filtro nenhum recorta custo geral');
   // E o valor passa pelo parseNum: "1.480,00" e mil quatrocentos e oitenta.
   ok(API.parseNum('1.480,00') === 1480, 'o geral le pela regua do projeto');
+}
+
+// ── O. Contas em operacao: o filtro de TIPSTER recorta pelas contas USADAS ──
+// Regra 6.4 do desenho. O vinculo conta->tipster nao existe no cadastro: existe no
+// BILHETE. Medido na base real, 96% das contas do Feca sao usadas por mais de um
+// tipster, entao a mesma conta entra no recorte de varios e os rodapes NAO somam —
+// e e por isso que o rotulo muda junto com o numero.
+{
+  const cfg = {
+    custos: { 'GN||Betano': 600, 'GN||Bet365': 900 },
+    dados: [
+      { conta: 'B1', casa: 'Betano', fornecedor: 'GN', data: '2026-09-02', operador: 'Feca', tipster: 'Zora', resultado: 'W', lucro: 0, stake: 10 },
+      { conta: 'B2', casa: 'Bet365', fornecedor: 'GN', data: '2026-09-03', operador: 'Feca', tipster: 'LBB', resultado: 'W', lucro: 0, stake: 10 },
+      // a MESMA conta usada por dois tipsters: ela entra nos dois recortes
+      { conta: 'B1', casa: 'Betano', fornecedor: 'GN', data: '2026-09-04', operador: 'Feca', tipster: 'LBB', resultado: 'W', lucro: 0, stake: 10 },
+    ],
+    cadastro: [cad('B1', 'Betano', 'GN', '2026-09-01'), cad('B2', 'Bet365', 'GN', '2026-09-01')],
+  };
+  API.set(cfg);
+  let r = API.calcContasEmOperacao('overview');
+  ok(r.nContas === 2 && r.total === 1500, 'sem filtro, as duas contas; veio ' + r.nContas + '/' + r.total);
+  API.set({ ...cfg, ms: { ti_overview: ['Zora'] } });
+  r = API.calcContasEmOperacao('overview');
+  ok(r.nContas === 1 && r.total === 600, 'o Zora so usou a Betano; veio ' + r.nContas + '/' + r.total);
+  API.set({ ...cfg, ms: { ti_overview: ['LBB'] } });
+  r = API.calcContasEmOperacao('overview');
+  ok(r.nContas === 2 && r.total === 1500, 'o LBB usou as duas; veio ' + r.nContas + '/' + r.total);
+  // A soma dos dois recortes (600 + 1500) e MAIOR que o total (1500): conta compartilhada
+  // entra nos dois. E medido, e e por isso que o rotulo do cartao muda.
+  API.set({ ...cfg, ms: { ti_overview: ['Ninguem'] } });
+  ok(API.calcContasEmOperacao('overview').nContas === 0, 'tipster sem conta nenhuma da zero');
+  // esporte e operador seguem sem recortar
+  API.set({ ...cfg, ms: { sp_overview: ['Tenis'] } });
+  ok(API.calcContasEmOperacao('overview').total === 1500, 'esporte nao recorta contas em operacao');
 }
 
 // ── N. As TRES camadas do custo de uma conta (s348, Fatia 2) ────────────────

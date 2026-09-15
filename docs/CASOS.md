@@ -745,14 +745,14 @@ com rótulo próprio na tela. O pedido do Jaao26 continua atendido: no dia em qu
 comprado, o card diz `R$ 0 · nenhuma compra no período` e o parque, logo abaixo, diz
 quantas contas estão rodando e quanto elas custaram.
 
-### As três armadilhas da régua do parque — s358
+### As três armadilhas da régua de contas em operação — s358
 
 A janela de vida respondia bem "o que está vivo" enquanto era a régua do P/L. Virando
-**parque** (estoque de hoje), três detalhes que não importavam passaram a importar, e os
-três foram achados por MEDIÇÃO na base real, não por leitura:
+**estoque de hoje** (as contas em operação), três detalhes que não importavam passaram a
+importar, e os três foram achados por MEDIÇÃO na base real, não por leitura:
 
-1. **`fim` = última aposta mostrava 1 conta de 6.** Na base do germano, com o parque
-   perguntando por `[hoje, hoje]`, quem não tinha apostado naquele dia saía. Conta
+1. **`fim` = última aposta mostrava 1 conta de 6.** Na base do germano, perguntando
+   por `[hoje, hoje]`, quem não tinha apostado naquele dia saía. Conta
    cadastrada e ATIVA passou a viver até HOJE; a última aposta só fecha a janela de quem
    **não tem cadastro**, de quem não se sabe mais nada. Depois disso o parque bateu exato
    com "comprada e não arquivada" nos quatro donos medidos (Jonathan 7 · R$ 5.200, germano
@@ -762,7 +762,7 @@ três foram achados por MEDIÇÃO na base real, não por leitura:
    `bilhetes.data` é a data do EVENTO, uma aposta em jogo de dezembro segurava a janela
    aberta. Eram 4 contas, do Jonathan e do realtrial, aparecendo no parque de hoje.
    Agora fecha ontem.
-3. **O parque seguindo o período da tela passa despercebido.** A mutação "o parque usa
+3. **O rodapé seguindo o período da tela passa despercebido.** A mutação "ele usa
    `_selRange`" passou VERDE na primeira rodada do gate, porque o período do caso era
    POSTERIOR à compra — ali as duas réguas dão o mesmo número. Só um período ANTERIOR à
    compra as separa. Buraco de teste, não do código.

@@ -135,6 +135,31 @@ def test_o_renderkpi_nao_reimplementa_a_regua_de_custo():
     )
 
 
+def test_o_vocabulario_proibido_nao_volta_ao_produto():
+    """O desenho tirou "parque" do produto inteiro: é jargão de frota, e não diz que o
+    número é custo JÁ PAGO. Junto saíram "investido", "imobilizado" e "0 contas · R$ 0",
+    que é ruído em vez de informação (o estado vazio tem copy própria).
+
+    Cobre o CÓDIGO servido (js/css/html do dash), não os docs: histórico registra o que
+    aconteceu, e lá a palavra é o nome do que existiu."""
+    import os as _os
+    proibidas = ("parque", "investido", "imobilizado")
+    base = RAIZ / "app" / "static"
+    achados = []
+    for dp, _dns, fns in _os.walk(base):
+        for fn in fns:
+            if not fn.endswith((".js", ".css", ".html")):
+                continue
+            caminho = Path(dp) / fn
+            txt = caminho.read_text(encoding="utf-8", errors="ignore").lower()
+            for palavra in proibidas:
+                if palavra in txt:
+                    achados.append(f"{caminho.relative_to(RAIZ)}: {palavra}")
+    assert not achados, (
+        "vocabulário proibido pelo desenho voltou ao produto:\n  " + "\n  ".join(achados[:8])
+    )
+
+
 def test_nao_sobrou_painel_de_custo_morto_na_visao_geral():
     """`renderOvCusto` pintava `#ovCustoContent`, que saiu do HTML no commit 6e0399b e
     nunca voltou: a função inteira (92 linhas, na régua velha `custoData × contagem`)
@@ -212,18 +237,21 @@ def test_o_custo_repinta_a_visao_geral_quando_chega_do_servidor():
     )
 
 
-def test_o_parque_pergunta_por_hoje_e_nao_pelo_periodo():
-    """Parque é ESTOQUE: o que o dono tem agora. Deixá-lo seguir o filtro o faria variar
+def test_contas_em_operacao_perguntam_por_hoje_e_nao_pelo_periodo():
+    """Contas em operação é ESTOQUE: o que o dono tem agora. Deixá-lo seguir o filtro o faria variar
     como se fosse gasto, que é a confusão que a s358 desfez."""
     src = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
-    m = re.search(r"^function calcParqueFiltered\([^)]*\)\{.*?^\}", src, re.S | re.M)
-    assert m, "calcParqueFiltered sumiu do gestao.js"
+    m = re.search(r"^function calcContasEmOperacao\([^)]*\)\{.*?^\}", src, re.S | re.M)
+    assert m, "calcContasEmOperacao sumiu do gestao.js"
     corpo = m.group(0)
-    assert "'vivo'" in corpo, "o parque parou de usar a janela de vida"
+    assert "'vivo'" in corpo, "as contas em operação pararam de usar a janela de vida"
     assert "_selRange" not in corpo, (
-        "o parque voltou a olhar o período da tela: ele é estoque de HOJE (s358)"
+        "as contas em operação voltaram a olhar o período da tela: é estoque de HOJE (s358)"
     )
-    assert "'ca_'" in corpo and "'op_'" in corpo, "o parque parou de respeitar casa/operador"
+    assert "'ca_'" in corpo and "'op_'" in corpo, "parou de respeitar casa/operador"
+    assert "'ti_'" in corpo, (
+        "o filtro de tipster parou de recortar as contas em operação (desenho §6.4)"
+    )
 
 
 def test_a_janela_de_vida_le_liquidadas_e_abertas():
@@ -321,8 +349,10 @@ MUTACOES = [
     ),
     (
         "casa ou operador passam a recortar a assinatura",
-        "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;",
-        "  const tipsSel=(typeof msGet==='function')?msGet('ca_'+pag):null;",
+        "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;\n"
+        "  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);",
+        "  const tipsSel=(typeof msGet==='function')?msGet('ca_'+pag):null;\n"
+        "  const num=(typeof parseNum==='function')?parseNum:(v=>parseFloat(v)||0);",
     ),
     (
         "o parser caseiro volta no lugar do parseNum (179.90 vira 17.990)",
@@ -333,19 +363,19 @@ MUTACOES = [
     ),
     # ── s358: o PARQUE (estoque, fora do P/L) ───────────────────────────────
     (
-        "o parque passa a seguir o periodo da tela (vira gasto disfarcado)",
-        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');",
+        "as contas em operacao passam a seguir o periodo da tela",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);",
         "  const r=(typeof _selRange==='function')?_selRange(pag):null;\n"
-        "  return _custoNaJanela(r?r.from:'0000-01-01',r?r.to:'9999-12-31',casasSel,opsSel,'','vivo');",
+        "  return _custoNaJanela(r?r.from:'0000-01-01',r?r.to:'9999-12-31',casasSel,opsSel,'','vivo',contasOk);",
     ),
     (
-        "o parque passa a medir PAGAMENTO em vez de estoque",
-        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');",
+        "as contas em operacao passam a medir PAGAMENTO em vez de estoque",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);",
         "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','pago');",
     ),
     (
-        "o parque deixa de respeitar casa e operador",
-        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');",
+        "as contas em operacao deixam de respeitar casa e operador",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);",
         "  return _custoNaJanela(hoje,hoje,null,null,'','vivo');",
     ),
     (
@@ -417,8 +447,12 @@ MUTACOES = [
     ),
     (
         "para de ler as apostas em aberto",
-        "(typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[]);",
-        "[]);",
+        "  const bilhetes=[].concat(\n"
+        "    (typeof DADOS!=='undefined'&&DADOS)?DADOS:[],\n"
+        "    (typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[]);",
+        "  const bilhetes=[].concat(\n"
+        "    (typeof DADOS!=='undefined'&&DADOS)?DADOS:[],\n"
+        "    []);",
     ),
     (
         "ignora a data de compra do cadastro",

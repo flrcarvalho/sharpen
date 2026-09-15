@@ -188,6 +188,7 @@
   display: flex;
   flex-direction: column;
   min-height: 120px;
+  position: relative;   /* âncora do `.kpi__chip` (badge de escopo) */
 }
 .kpi-label {
   font-size: var(--text-xs);
@@ -235,56 +236,93 @@
 .kpi-sub .money { width: auto; gap: 2px; }
 .kpi-sub .money-val,
 .kpi-sub .money-sign { min-width: 0; }
-/* ── Parque de contas (s358) — faixa de apoio ABAIXO dos KPIs ──────────────
-   O card "Custo de Contas" diz o que saiu do bolso no período; esta faixa diz o que
-   está rodando agora. Em dia sem compra o card é R$ 0 e é a faixa que impede o R$ 0 de
-   ser lido como defeito (reclamação do tester Jaao26, em vídeo).
+/* ── Rodapé do cartão "Custo de Contas" — contas em operação (s358) ─────────
+   Substituiu uma faixa full-width que era o único elemento da tela sem superfície de
+   cartão, sem tick de acento e sem hierarquia — e cujo rótulo era jargão de frota que
+   não dizia que o número é custo JÁ PAGO.
 
-   NÃO é um `.kpi`: um 9º tile quebraria o grid de 4. Papéis da Escada de Tinta:
-   label em --ink-soft, os dois VALORES em --ink 13px, e UM único --ink-mute na linha,
-   que é o corte ("em uso hoje, já pago"). O separador é uma barra de 1px em --line-2,
-   e não um "·" de texto, justamente para não gastar o segundo --ink-mute. */
-.ov-parque {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+   O rodapé responde o efeito colateral da régua de caixa: o `R$ 0` do topo, quando
+   não houve compra no período, parece defeito. Aqui embaixo ele ganha o contexto.
+
+   Dois pares rótulo→valor em GRID de 2 colunas, nunca `flex-wrap`: rótulo e número
+   não podem cair em linhas diferentes (spec §8). */
+.kpi__foot {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line-2);
+}
+.kpi__fr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
-  padding: 10px var(--sp-6);
-  margin-bottom: 1.25rem;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  align-items: baseline;
 }
-.ov-parque-lbl {
+.kpi__fr + .kpi__fr { margin-top: 5px; }
+.kpi__fl {
   font-family: var(--font-mono);
-  font-size: var(--text-xxs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.ov-parque-val {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.ov-parque-bar { width: 1px; height: 12px; background: var(--line-2); flex: none; }
-.ov-parque-nota {
-  font-family: var(--font-mono);
-  font-size: var(--text-xxs);
   color: var(--ink-mute);
-  margin-left: auto;
 }
-/* Mesmo carve-out do `.kpi-sub`: o `.money` padrão é largura de COLUNA de tabela
-   (width:100% + min-width:10ch) e numa linha corrida empurraria o resto para baixo. */
-.ov-parque .money { width: auto; gap: 2px; }
-.ov-parque .money-val,
-.ov-parque .money-sign { min-width: 0; }
-/* No estreito a nota desgruda da direita e vira a última linha da faixa. */
-@media (max-width: 560px) {
-  .ov-parque-nota { margin-left: 0; width: 100%; }
+.kpi__fv {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
 }
+/* Vermelho CLARO (`--neg-2`, token canônico): é custo já pago, fora do P/L — não é
+   resultado negativo, que é o papel do `--neg`. Nunca verde aqui. */
+.kpi__fv.is-cost { color: var(--neg-2); }
+.kpi__fnote {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-mute);
+  margin-top: 8px;
+}
+.kpi__fnote.is-solo { margin-top: 0; }
+/* O `.money` padrão é largura de COLUNA de tabela (width:100% + min-width:10ch);
+   numa linha de rótulo→valor ele empurraria o número para fora. Mesmo carve-out do
+   `.kpi-sub`, logo acima neste arquivo. */
+.kpi__fv .money, .kpi__fnote .money { width: auto; gap: 2px; display: inline-flex; }
+.kpi__fv .money-val, .kpi__fnote .money-val,
+.kpi__fv .money-sign, .kpi__fnote .money-sign { min-width: 0; }
+
+/* O rodapé inteiro é a superfície de clique para Custos → Contas. */
+.kpi__foot.is-link { cursor: pointer; border-radius: 0 0 var(--r-lg) var(--r-lg); }
+.kpi__foot.is-link:hover { background: var(--surface-2); }
+
+/* Badge de escopo — IRMÃO do rótulo, numa linha só com ele.
+   O desenho pedia `position:absolute` + `padding-right:104px` no rótulo. MEDIDO na tela:
+   o badge dá 118px e "CUSTO DE CONTAS" dá 112px, e o cartão tem 210px úteis quando o
+   andar mostra 5 tiles — não cabem lado a lado, e o título quebrava em duas linhas.
+   Aqui os dois dividem uma linha flex: enquanto couber, o badge fica no canto direito
+   como a pílula do desenho; quando não couber, ele DESCE inteiro em vez de espremer o
+   título. `flex:none` é o que impede o <span> de virar barra de largura total. */
+.kpi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kpi__head .kpi-label { margin-bottom: 0; }
+.kpi__chip {
+  flex: none;
+  margin-left: auto;   /* canto direito, tanto na linha do título quanto ao descer */
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.kpi__head + .kpi-val { margin-top: 5px; }
 
 /* Card principal (P/L Líquido) — brilho de destaque */
 .kpi.hero {

@@ -121,7 +121,7 @@ function _custoDaConta(forn,casa,conta){
 // O custo de aquisição é um valor ÚNICO, pago na compra, e ele EXISTE enquanto a conta
 // existe: todo período filtrado que cruzar [ini, fim] cobra o custo cheio dela. Até aqui a
 // Visão Geral lançava o custo num único DIA — o da primeira aposta liquidada —, então
-// filtrar qualquer outro dia dava R$ 0 com o parque inteiro em uso (vídeo do tester Jaao26:
+// filtrar qualquer outro dia dava R$ 0 com as contas todas em uso (vídeo do tester Jaao26:
 // *"ele mostra que o meu custo de conta é zero, mas ele não necessariamente é zero porque
 // eu ainda estou usando essas contas"*).
 //
@@ -179,13 +179,13 @@ function _buildContaVida(){
     // fechou, só que ela não está aberta HOJE — então a janela fecha ontem. Sem isto ela
     // ficava viva pelo `fim` da última aposta, e `bilhetes.data` é a data do EVENTO: quatro
     // contas arquivadas do Jonathan e do realtrial tinham aposta em dezembro e apareciam
-    // no parque de hoje (s358).
+    // entre as contas em operação de hoje (s358).
     else if(p.arquivado){if(!v.fim||v.fim>ontem)v.fim=ontem;}
     // Conta cadastrada e ATIVA está viva até HOJE, tenha apostado ou não (s358). Até aqui
     // o `hoje` só valia para quem nunca apostou, e o fim das demais era a última aposta —
     // uma heurística de "caiu em desuso" que fazia sentido quando este número era o custo
-    // do P/L. Hoje ele é o PARQUE, e parque é o que o dono TEM: conta que não aposta há
-    // três dias continua comprada. Medido: o parque do germano dava 1 conta de 6 com a
+    // do P/L. Hoje ele responde "o que está EM OPERAÇÃO", que é o que o dono TEM: conta
+    // que não aposta há três dias continua comprada. Medido: o germano via 1 conta de 6 com a
     // régua antiga em [hoje,hoje]. Quem declara o fim é o botão de arquivar; conta sem
     // cadastro (só bilhete) segue com o fim na última aposta, que é tudo o que se sabe dela.
     else if(!p.arquivado)v.fim=hoje;
@@ -204,7 +204,7 @@ function _buildContaVida(){
 //      `database.py` e portanto não declara nada que a 1ª aposta já não diga;
 //   3) conta cadastrada que nunca apostou: sobra o `adquirida_em` (= cadastro).
 // Sem nenhuma das três não há como datar o pagamento, e a conta não cobra em mês
-// nenhum. Ela continua existindo para o parque (`modo:'vivo'`), que é sobre ESTOQUE.
+// nenhum. Ela segue existindo para as contas em operação (`modo:'vivo'`), que é ESTOQUE.
 function _dataPagamento(v){
   if(!v)return'';
   if(v.adq&&(!v.pa||v.adq<v.pa))return v.adq;
@@ -217,7 +217,7 @@ function _dataPagamento(v){
 // `modo` decide a PERGUNTA, e as duas convivem de propósito (s358):
 //   'pago' (default) → "quanto saiu do bolso no recorte". É a régua do P/L: cobra a
 //        conta UMA vez, no mês do pagamento, e por isso SOMA (12 meses = o ano).
-//   'vivo'           → "quanto vale o que está rodando". É o parque: cobra toda conta
+//   'vivo'           → "quanto vale o que está rodando": cobra toda conta
 //        viva no recorte, e NÃO soma (a mesma conta aparece em todo mês em que viveu).
 //        Número de estoque, nunca de gasto — fora do P/L, senão cobra duas vezes.
 //
@@ -226,7 +226,10 @@ function _dataPagamento(v){
 // contando 12 e foi uma só", em áudio). Medido na base dele: R$ 39.800 somando os
 // meses contra R$ 28.400 realmente pagos. Ver CLAUDE.md "Custo pertence ao dia em que
 // o dinheiro saiu".
-function _custoNaJanela(de,ate,casasSel,opsSel,soCasa,modo){
+// `contasOk` (Set de "fornecedor||casa||conta") recorta a lista de contas; null = todas.
+// Existe para o filtro de TIPSTER das contas em operação, que não é um eixo da conta e
+// por isso não cabe nos `Set`s de casa/operador.
+function _custoNaJanela(de,ate,casasSel,opsSel,soCasa,modo,contasOk){
   if(!_contaVida)_buildContaVida();
   const vivo=(modo==='vivo');
   let total=0,nContas=0;
@@ -241,6 +244,7 @@ function _custoNaJanela(de,ate,casasSel,opsSel,soCasa,modo){
     if(casasSel&&casasSel.size&&!casasSel.has(casa))return;
     Object.entries(contas).forEach(([nome,v])=>{
       if(opsSel&&opsSel.size&&v.op&&!opsSel.has(v.op))return;
+      if(contasOk&&!contasOk.has(forn+'||'+casa+'||'+nome))return;
       if(vivo){
         if(!v.ini||!v.fim)return;
         if(v.fim<de||v.ini>ate)return;   // janelas disjuntas → conta não vivia no período
@@ -335,21 +339,38 @@ function calcCustoGeralFiltrado(p){
   return{total,nLinhas};
 }
 
-// ── O PARQUE (s358) ──────────────────────────────────────────────────────────
-// "Quanto vale o que está rodando AGORA", que é a pergunta do vídeo do Jaao26 e a única
-// coisa que a janela de vida sempre respondeu bem. Não é custo do período e **não entra
-// no P/L**: esse dinheiro já foi descontado no mês em que saiu (`calcCostFiltered`).
+// ── CONTAS EM OPERAÇÃO (s358) ────────────────────────────────────────────────
+// "O que está rodando AGORA e quanto já custou" — a pergunta do vídeo do Jaao26, e a
+// única que a janela de vida sempre respondeu bem. **Não entra no P/L**: esse dinheiro
+// foi descontado no mês em que saiu (`calcCostFiltered`), e somá-lo de novo cobraria a
+// conta duas vezes.
 //
-// Sempre HOJE, nunca o período da tela. Parque é estoque, e estoque é do instante em que
-// se olha — deixá-lo seguir o filtro o faria variar como se fosse gasto, que é justamente
-// a confusão que a s358 desfez. Casa e Operador recortam, porque descrevem a CONTA; a
-// legenda da tela diz que o número é de hoje.
-function calcParqueFiltered(p){
+// **Sempre HOJE, nunca o período da tela.** É estoque, e estoque é do instante em que se
+// olha; segui-lo pelo filtro o faria variar como se fosse gasto, que é a confusão que a
+// régua de caixa desfez. Navegar para um mês fechado não muda este número.
+//
+// Casa e Operador recortam porque descrevem a CONTA. **Tipster também recorta**, e aqui
+// isso quer dizer "as contas que ELE usou" — o vínculo não existe no cadastro, existe no
+// bilhete. Medido na base: 96% das contas do Feca são usadas por mais de um tipster, então
+// a mesma conta aparece no recorte de vários; os rodapés de tipsters diferentes **não
+// somam**. É por isso que o rótulo muda junto com o número (`Contas deste tipster`): sem
+// a troca, o número cai sem explicação.
+function calcContasEmOperacao(p){
   const pag=p||'overview';
   const hoje=(typeof _ymd==='function')?_ymd(new Date()):'9999-12-31';
   const casasSel=(typeof msGet==='function')?msGet('ca_'+pag):null;
   const opsSel=(typeof msGet==='function')?msGet('op_'+pag):null;
-  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo');
+  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;
+  let contasOk=null;
+  if(tipsSel&&tipsSel.size){
+    contasOk=new Set();
+    const _todas=[].concat(
+      (typeof DADOS!=='undefined'&&DADOS)?DADOS:[],
+      (typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[]);
+    _todas.forEach(r=>{if(r.tipster&&tipsSel.has(r.tipster))
+      contasOk.add(normForn(r.fornecedor)+'||'+r.casa+'||'+(r.conta||'__default__'));});
+  }
+  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);
 }
 
 // Custo de UMA casa no intervalo — popup drill-down de Bookies. Mesma régua do KPI da

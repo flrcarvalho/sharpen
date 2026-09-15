@@ -357,13 +357,20 @@ apostou · nenhuma das três: não dá para datar, e a conta não cobra em mês 
 > ⚠️ **A 2ª camada é o que segura base importada:** o `adquirida_em` de conta migrada foi
 > **DEDUZIDO** por backfill e não declara nada.
 
-**"Quanto vale o que está rodando" é o PARQUE, e ele fica FORA do P/L.** Mesmo
-`_custoNaJanela` com `modo:'vivo'`, sempre em [hoje, hoje] (`calcParqueFiltered`): conta
-viva cobra cheio e a régua **não soma** — é **estoque**, nunca gasto, e por isso **nunca
-segue o período da tela**. `ini` = menor entre `adquirida_em` e a 1ª aposta; `fim` = **HOJE
-para conta cadastrada e ativa**, o carimbo para a arquivada, e a última aposta só para quem
-**não tem cadastro**. Casa e Operador recortam; a legenda diz que o número é de hoje.
-→ [as três armadilhas da régua do parque](docs/CASOS.md#as-três-armadilhas-da-régua-do-parque--s358)
+**"Quanto vale o que está rodando" são as CONTAS EM OPERAÇÃO, e elas ficam FORA do P/L.**
+Mesmo `_custoNaJanela` com `modo:'vivo'`, sempre em [hoje, hoje]
+(`calcContasEmOperacao`): conta viva cobra cheio e a régua **não soma** — é **estoque**,
+nunca gasto, e por isso **nunca segue o período da tela**. `ini` = menor entre
+`adquirida_em` e a 1ª aposta; `fim` = **HOJE para conta cadastrada e ativa**, o carimbo
+para a arquivada, e a última aposta só para quem **não tem cadastro**.
+→ [as três armadilhas dessa régua](docs/CASOS.md#as-três-armadilhas-da-régua-de-contas-em-operação--s358)
+
+> **Casa e Operador recortam; Esporte não; TIPSTER recorta pelas contas que ele USOU** —
+> vínculo que não existe no cadastro, só no bilhete, e **96% das contas do Feca são usadas
+> por mais de um tipster**: a mesma conta entra no recorte de vários e os rodapés **não
+> somam**. Por isso o rótulo muda junto com o número (`Contas deste tipster`).
+> **"Parque", "investido" e "imobilizado" são proibidos no produto** (gate:
+> `test_o_vocabulario_proibido_nao_volta_ao_produto`).
 → [por que ela saiu do P/L](docs/CASOS.md#a-régua-antiga-r-0-de-custo-com-o-parque-inteiro-em-uso)
 
 > **Duas réguas na mesma tela pedem RÓTULO, não escolha.** "R$ 0 de custo" e "12 contas

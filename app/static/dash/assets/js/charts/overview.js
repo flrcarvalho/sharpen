@@ -1,5 +1,48 @@
 ﻿// ── overview.js — Gráficos e cards da Visão Geral ──────────────────────────────
 
+// ── Rodapé do cartão "Custo de Contas": contas em operação (s358) ───────────
+// Quatro estados, todos obrigatórios (desenho "Forma A"):
+//   1. sem compra no período, com contas rodando → `já pago · fora do P/L`
+//   2. houve compra                              → `R$ X pagos neste período · já no P/L`
+//   3. filtro de tipster                         → rótulo vira `Contas deste tipster`
+//   4. nenhuma conta com custo                   → uma linha só, sem zeros
+//
+// O rodapé IGNORA o filtro de período de propósito: é sempre "em operação hoje". Só o
+// valor do topo obedece ao intervalo. Navegar para um mês fechado não mexe aqui.
+function _rodapeContas(costConta){
+  if(window.MODO_PUBLICO)return '';
+  const op=(typeof calcContasEmOperacao==='function')?calcContasEmOperacao('overview'):{total:0,nContas:0};
+  const foot=h=>`<div class="kpi__foot is-link" onclick="irParaCustosContas()">${h}</div>`;
+  // Estado 4: sem conta com custo cadastrado. Uma linha, e nenhum zero na tela — "0
+  // contas · R$ 0" é ruído, não informação.
+  if(!(op.total>0))return foot(`<div class="kpi__fnote is-solo">nenhuma conta com custo cadastrado</div>`);
+  const temTipster=(typeof msGet==='function')&&msGet('ti_overview').size>0;
+  const par=(l,v,cls)=>`<div class="kpi__fr"><span class="kpi__fl">${l}</span><span class="kpi__fv${cls||''}">${v}</span></div>`;
+  // Sem centavos aqui (`fmtR`): o rodapé é referência, não conferência de extrato.
+  const nota=costConta>0
+    ? `${fmtR(costConta)} pagos neste período · já no P/L`
+    : 'já pago · fora do P/L';
+  return foot(
+    par(temTipster?'Contas deste tipster':'Contas em operação',op.nContas)
+    +par('Custo',fmtR(op.total),' is-cost')
+    +`<div class="kpi__fnote">${nota}</div>`);
+}
+
+// O rodapé inteiro leva para a tela de Custos, preservando os filtros que as duas telas
+// têm em comum. Sem tooltip por desenho: informação que precisa de hover tem copy errada.
+window.irParaCustosContas=function(){
+  try{
+    if(typeof msGet==='function'&&typeof MSS!=='undefined'){
+      [['ca_overview','ca_custos_v2'],['op_overview','op_custos_v2']].forEach(([de,para])=>{
+        const v=msGet(de);
+        if(v&&v.size)MSS[para]=new Set([...v]);
+      });
+    }
+    if(typeof _filterCache!=='undefined')delete _filterCache['custos_v2'];
+  }catch(e){}
+  if(typeof showPage==='function')showPage('custos_v2');
+};
+
 function renderKPI(rows){
   const lucro=rows.reduce((a,r)=>a+r.lucro,0),stake=calcTurnover(rows);
   const roi=calcROI(rows),n=rows.length;
@@ -37,15 +80,12 @@ function renderKPI(rows){
     {l:'P/L',v:fmtPL(lucro),c:lucro>=0?'pos':'neg',s:'resultado da carteira',accent:'hero',span:true},
   ]:[
     {l:'P/L Bruto',v:fmtPL(lucro),c:lucro>=0?'pos':'neg',s:'antes de custos',accent:''},
-    // A legenda CONTA as contas (s322) e diz o que elas são (s358): sem isso, "R$ 0 num
-    // mês com o parque inteiro em uso" lê como defeito. Papel de metadado (contador) na
-    // Escada de Tinta: `.kpi-sub` já é --ink-mute em 10px, exatamente o piso desse papel.
-    // Com um tipster filtrado, o card ao lado passa a ser SÓ dele e este continua sendo o
-    // da carteira inteira. Dois números vizinhos medindo escopos diferentes sem dizer isso
-    // lê como defeito, e a conta Bet365 custou R$ 900 quer se olhe um tipster ou todos.
+    // O rodapé faz o trabalho que a legenda fazia, e melhor: com a régua de caixa, um
+    // período sem compra mostra `R$ 0` no topo, e sozinho isso lê como defeito. Embaixo
+    // ficam as contas que estão rodando HOJE e o que elas já custaram — dinheiro que não
+    // entra no P/L, e a ressalva diz isso na própria linha.
     {l:'Custo de Contas',v:costConta>0?fmtPL(-costConta):fmtR(0),c:costConta>0?'neg':'neu',
-     s:(nContasCusto?(nContasCusto===1?'1 conta comprada no período':nContasCusto+' contas compradas no período'):'nenhuma compra no período')
-       +(_temFiltroTipster?' · da carteira':''),accent:''},
+     accent:'',chip:_temFiltroTipster?'escopo · Tipster':'',foot:_rodapeContas(costConta)},
     {l:'Custo de Tipsters',v:costTipster>0?fmtPL(-costTipster):fmtR(0),c:costTipster>0?'neg':'neu',
      s:nTipsCusto?(nTipsCusto===1?'1 tipster no período':nTipsCusto+' tipsters no período'):'nenhuma assinatura no período',accent:''},
     // O card de GERAIS só existe quando há valor lançado. Sem ele o andar fica nos 4 de
@@ -63,37 +103,26 @@ function renderKPI(rows){
     {l:'Odd Média',v:fmtOdd(calcAvgOdd(rows)),c:'neu',s:'ponderada'},
     {l:'Win Rate',v:fmtPct(wr,1,false),c:'neu',s:settled+' encerradas',bar:wr},
   ];
-  // ── Parque de contas (s358) ───────────────────────────────────────────────
-  // O card acima responde "quanto saiu do bolso no período"; este responde "quanto vale o
-  // que está rodando". Os dois são verdadeiros ao mesmo tempo, e num dia sem compra o
-  // primeiro é R$ 0 — foi exatamente disso que o tester Jaao26 reclamou em vídeo. A faixa
-  // existe para que esse R$ 0 seja LIDO como verdade e não como defeito, e ela diz na
-  // própria linha que o dinheiro já foi pago e não entra no P/L (senão o leitor soma os
-  // dois e cobra a conta duas vezes, que é o caso do Jonathan ao contrário).
-  //
-  // Não é card: card aqui viraria um 9º tile e quebraria o grid de 4. É faixa de apoio,
-  // com os valores em `--ink` (papel de VALOR na Escada de Tinta) e um único `--ink-mute`
-  // na linha, que é o corte ("em uso hoje, já pago").
-  const parque=(!window.MODO_PUBLICO&&typeof calcParqueFiltered==='function')?calcParqueFiltered('overview'):{total:0,nContas:0};
-  const parqueHTML=parque.total>0?`<div class="ov-parque">`
-      +`<span class="ov-parque-lbl">Parque de contas</span>`
-      +`<span class="ov-parque-val">${parque.nContas} ${parque.nContas===1?'conta com custo':'contas com custo'}</span>`
-      +`<span class="ov-parque-bar"></span>`
-      +`<span class="ov-parque-val">${fmtR(parque.total)} investidos</span>`
-      +`<span class="ov-parque-nota">em uso hoje, já pago (não entra no P/L)</span>`
-    +`</div>`:'';
-  // Os dois andares eram um grid só de 4 colunas, com os 8 cards fluindo em duas linhas.
-  // Com o 5º card do andar 1 isso quebraria (a 2ª linha passaria a misturar os dois
-  // andares), então cada andar tem o seu grid: o de cima segue o nº de cards, o de baixo
-  // fica nos 4 de sempre.
-  const gridCss=(n,mb)=>`display:grid;grid-template-columns:repeat(${n},1fr);gap:10px;align-items:stretch;margin-bottom:${mb}`;
+  // `auto-fit` com piso de 215px (desenho, §8) em vez de `repeat(N,1fr)` fixo: com o
+  // cartão de Custo de Contas mais alto que os irmãos e o 5º tile aparecendo só quando há
+  // custo geral, coluna fixa estourava o tile em tela estreita. `align-items:start` porque
+  // o cartão do rodapé é MAIS alto de propósito — esticar os irmãos para igualar deixaria
+  // quatro cartões com um vão morto embaixo.
+  const gridCss=(n,mb)=>`display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;align-items:start;margin-bottom:${mb}`;
   document.getElementById('kpiGrid').innerHTML=
     `<div style="${gridCss(row1.length,'10px')}">`+
-    row1.map(k=>`<div class="kpi ${k.accent||''}"${k.span?' style="grid-column:1/-1"':''}><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('')+
+    row1.map(k=>`<div class="kpi ${k.accent||''}"${k.span?' style="grid-column:1/-1"':''}>`
+      +(k.chip
+        ? `<div class="kpi__head"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><span class="kpi__chip">${k.chip}</span></div>`
+        : `<div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div>`)
+      +`<div class="kpi-val ${k.c}">${k.v}</div>`
+      +(k.s?`<div class="kpi-sub">${k.s}</div>`:'')
+      +(k.foot||'')
+      +`</div>`).join('')+
     `</div>`+
-    `<div style="${gridCss(4,parqueHTML?'10px':'1.25rem')}">`+
+    `<div style="${gridCss(4,'1.25rem')}">`+
     row2.map(k=>`<div class="kpi"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div>${k.bar!==undefined?`<div class="wrc"><div class="t"><div class="f" style="width:${Math.min(100,Math.max(0,k.bar)).toFixed(1)}%"></div></div></div>`:''}<div class="kpi-sub">${k.s}</div></div>`).join('')+
-    `</div>`+parqueHTML;
+    `</div>`;
 }
 
 function renderBankroll(rows){

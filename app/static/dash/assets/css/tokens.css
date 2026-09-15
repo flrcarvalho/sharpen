@@ -17,6 +17,9 @@
   --pos:  #2BC07E;
   --neg:  #E5524B;
   --warn: #E0A21A;
+  /* Vermelho CLARO, para custo em linha secundária (rodapé de KPI). Não é resultado
+     negativo: é dinheiro que já saiu e não entra no P/L, e por isso não usa o --neg. */
+  --neg-2: #EF8C86;
 
   /* ---- Triplets RGB (para rgba(var(--*-rgb), alpha)) ---- */
   --accent-rgb: 46,139,255;
