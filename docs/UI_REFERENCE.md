@@ -185,6 +185,38 @@ Alguns KPIs do `charts/gestao.js` e o `metricsKPI` montam dinheiro com
 cor do KPI pinta o `R$` junto do número. Devem migrar para `fmtR`/`fmtPL`. **Código
 novo não deve copiar** — é a origem histórica da confusão "qual padrão usar".
 
+### 5.5 — O `.money` é uma COLUNA. Dentro de uma frase ele precisa de carve-out.
+
+O componente foi desenhado para célula de tabela e para valor de cartão: ele é
+`display:inline-flex` com **`width:100%`**, `justify-content:flex-end` e
+**`.money-val { min-width:10ch }`**. É isso que alinha a coluna de dinheiro como
+planilha, e é exatamente isso que **estoura o parágrafo** quando o mesmo componente
+entra no meio de um texto corrido.
+
+**O sintoma não é o número errado, é o layout partido**, e ele só aparece na tela:
+medido em 1366px, `6 preços de conta (R$ 4.766)` saía como *"6 preços de conta ("* numa
+linha, o valor jogado sozinho na borda direita e o *")"* na linha de baixo. A frase
+continua legível o bastante para passar numa leitura rápida do código, e o `node --check`
+e o `check-tokens` são cegos a isso.
+
+**A saída NÃO é largar o `.money`** (nem montar `'R$ ' + x`, que é o desvio do §5.4):
+é anular as três propriedades de coluna no escopo de quem hospeda a frase.
+
+```css
+.<seu-bloco> .money      { display: inline-flex; width: auto; gap: 3px; }
+.<seu-bloco> .money-val,
+.<seu-bloco> .money-sign { min-width: 0; }
+```
+
+Quem já faz isso, para copiar: `.kpi-sub .money`, `.kpi__cv .money` e
+`.c2-guardar__txt .money` (`assets/css/components.css`).
+
+> **Sintoma para reconhecer isto noutro lugar:** um componente pensado para GRADE sendo
+> reusado em FLUXO de texto. `width:100%` e `min-width` em `ch` são a assinatura — os dois
+> são inofensivos numa célula e viram quebra de linha numa frase. Duas frentes diferentes
+> caíram neste mesmo buraco em telas diferentes (a Fatia 0 da tela de Custos e a faixa da
+> s360), que é o que trouxe a regra para cá em vez de ficar no plano de uma delas.
+
 ---
 
 ## 6. Notas de migração (2026-06-28)
