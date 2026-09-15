@@ -1052,11 +1052,19 @@
       // DA CASCA (`/b/exchange` · `/fbook`), não para o host do ambiente. Quem sabe montar
       // cada um, com a sessão que ele exige, é a casca; os hosts internos são versionados
       // (`mexchange2.` · `prod20454-176166000.msjxk.com`) e não são nossos para adivinhar.
+      //
+      // O HORIZONTE deixou de ser 3 anos fixos (s351) — ver `_bolsaHorizonte`. E os dois
+      // ambientes passaram a rodar em PARALELO: são iframes independentes, com endpoints
+      // independentes, e esperar um para começar o outro somava duas esperas de desistência
+      // (20 s cada) que podiam acontecer ao mesmo tempo.
+      const horiz = await _bolsaHorizonte(casa, N);
+      _bolsaEstado(ctx, "preparando os 2 ambientes…");
       const montados = await _bolsaMontarFaltantes();
       try {
-        const ex = await roboBDAPassive(ctx);
-        const sb = await roboBDSPassive(ctx);
+        _bolsaEstado(ctx, "varrendo " + horiz.rotulo + "…");
+        const [ex, sb] = await Promise.all([roboBDAPassive(ctx, horiz), roboBDSPassive(ctx, horiz)]);
         blocos = ex.concat(sb);
+        await _bolsaCarimbar(casa, ctx);
       } finally {
         for (const f of montados) { try { f.remove(); } catch (e) {} }
       }
@@ -2767,6 +2775,83 @@
   const BOLSA_ROTA_EX = "/b/exchange";
   const BOLSA_ROTA_SB = "/fbook";
 
+  // ── HORIZONTE DA VARREDURA (s351) ────────────────────────────────────────────
+  //
+  // Até aqui o robô varria 3 ANOS FIXOS a cada clique (`DIAS_HISTORICO = 1095`), e o
+  // resultado eram 26 requisições sequenciais no Exchange (13 fatias de 90 dias × 2 status)
+  // para reencontrar, toda vez, o mesmo histórico que já estava no banco. Na 1ª captura da Bolsa isso trouxe 477 bilhetes de 2025 que o dono
+  // nem queria — US$ 4,86 de IA numa extração só. O corte do backend
+  // (`main._CORTE_HISTORICO`) resolveu o custo, mas não o tempo: o bloco cortado viaja
+  // inteiro até lá para ser jogado fora.
+  //
+  // A régua nova tem duas metades, e a segunda só é segura por causa de uma medição:
+  //
+  //   1ª captura desta casa neste navegador → 1 ANO. Casa nenhuma varre mais que isso por
+  //   conta própria. O que for mais antigo entra por pedido explícito no painel.
+  //
+  //   Recapturas → 15 dias de LIQUIDADAS + 90 de ABERTAS, esticados até cobrir o tempo
+  //   parado (mais 3 dias de margem) quando o operador fica sem capturar.
+  //
+  // ⚠️ **POR QUE 15 DIAS NÃO PERDE A APOSTA ANTIGA QUE LIQUIDOU HOJE.** Medido na tela da
+  // casa em 13/09/2026: no Exchange o `after-day`/`before-day` recorta pela data que
+  // CORRESPONDE AO STATUS PEDIDO. Com o status das liquidadas, a data é a da LIQUIDAÇÃO.
+  // O bilhete `47658074` (colocado 31/12/2025, evento 03/01/2026, liquidado 04/01/2026)
+  // aparece na janela de 04/01 e **não** aparece na de 30–31/12, onde ele foi colocado.
+  // Então uma janela curta de liquidadas pega o que liquidou nela, não importa quando a
+  // aposta foi feita. No bundle da casa a função de relatório aceita só `after-day`,
+  // `before-day` e `status` — não há um terceiro parâmetro de data escondido.
+  //
+  // As ABERTAS são o oposto: não têm data de liquidação, então ali o recorte é pela
+  // colocação. Por isso elas têm janela própria e maior. Custa o mesmo: com fatias de 90
+  // dias, qualquer janela de 1 a 90 dias é UMA requisição.
+  const BOLSA_TETO_DIAS    = 365;   // teto de sanidade: nunca mais que 1 ano sem pedido
+  const BOLSA_DIAS_LIQ     = 15;    // recaptura, liquidadas (recorte pela liquidação)
+  const BOLSA_DIAS_ABERTAS = 90;    // recaptura, abertas (recorte pela colocação)
+  const BOLSA_MARGEM_DIAS  = 3;     // folga sobre o tempo parado
+  const _bolsaChaveCap = (casa) => "capUltima:" + casa;
+
+  // Escreve o estado no painel. Sem isto a tela fica em "0 bilhetes" durante a montagem
+  // dos ambientes e a varredura — que foi como o operador leu "travou" (s299 e de novo aqui).
+  function _bolsaEstado(ctx, txt) {
+    try { ctx.painel.contador.textContent = txt; } catch (e) {}
+  }
+
+  // Quanto varrer. `diasPainel` é o look-back do popup e só MANDA quando pede MAIS que a
+  // régua — é a válvula para "quero o histórico inteiro de novo", e é ela que substitui o
+  // horizonte fixo sem tirar o controle de quem opera.
+  async function _bolsaHorizonte(casa, diasPainel) {
+    let carimbo = 0;
+    try {
+      const g = await chrome.storage.local.get([_bolsaChaveCap(casa)]);
+      carimbo = Number(g[_bolsaChaveCap(casa)]) || 0;
+    } catch (e) {}
+    // Carimbo no futuro = relógio mexido. Trata como se não houvesse: varre o ano.
+    const primeira = !carimbo || carimbo > Date.now();
+    const parado = primeira ? BOLSA_TETO_DIAS
+                 : Math.ceil((Date.now() - carimbo) / 86400000) + BOLSA_MARGEM_DIAS;
+    const teto = (n) => Math.min(BOLSA_TETO_DIAS, Math.max(1, n));
+    let dias        = primeira ? BOLSA_TETO_DIAS : teto(Math.max(BOLSA_DIAS_LIQ, parado));
+    let diasAbertas = primeira ? BOLSA_TETO_DIAS : teto(Math.max(BOLSA_DIAS_ABERTAS, parado));
+    const n = Math.max(0, Number(diasPainel) || 0);
+    if (n > dias) dias = teto(n);
+    if (n > diasAbertas) diasAbertas = teto(n);
+    return { dias, diasAbertas, primeira,
+             rotulo: primeira ? "o histórico (1 ano)" : "os últimos " + dias + " dias" };
+  }
+
+  // Carimba a varredura COMPLETA. Só isso autoriza a próxima a ser curta: parada pelo
+  // operador, erro do replay ou ambiente que não deu o `fim` real significam que a
+  // varredura pode ter faltado pedaço, e aí a seguinte tem de voltar a ser longa.
+  async function _bolsaCarimbar(casa, ctx) {
+    if (ctx.parar() || bdaErro || bdsErro || !bdaFimReal || !bdsFimReal) {
+      console.log("[SharpenUp] Bolsa: varredura incompleta — o horizonte NÃO foi carimbado " +
+                  "(parar=" + ctx.parar() + " · erro=" + (bdaErro || bdsErro || "-") +
+                  " · fim=" + bdaFimReal + "/" + bdsFimReal + ")");
+      return;
+    }
+    try { await chrome.storage.local.set({ [_bolsaChaveCap(casa)]: Date.now() }); } catch (e) {}
+  }
+
   // Monta, oculto, o ambiente cujo inject ainda não deu sinal de vida. Devolve os elementos
   // criados para o chamador removê-los no fim — iframe esquecido no DOM da casa é lixo que
   // fica rodando na página do operador.
@@ -2798,8 +2883,8 @@
   // filho é a casca e o pedido morreria nela. `frames`/`length`/`postMessage` são as três
   // coisas legíveis entre origens, então a descida funciona sem acesso ao documento. A volta
   // não depende disso: o `enviar()` do inject responde direto ao `window.top`.
-  function _bdaPedir(chave, dias) {
-    const msg = { [chave]: true, dias: dias };
+  function _bdaPedir(chave, dias, diasAbertas) {
+    const msg = { [chave]: true, dias: dias, diasAbertas: diasAbertas };
     const entregar = (alvo, nivel) => {
       try { alvo.postMessage(msg, "*"); } catch (e) {}
       if (nivel >= 2) return;
@@ -2816,10 +2901,13 @@
 
   // Robô genérico dos dois ambientes: a mecânica é idêntica (pedir → esperar o `fim` real →
   // consumir o que chegou), só mudam o mapa, o formatador e o teste de "aberta".
-  async function _roboBolsa(ctx, cfg) {
+  async function _roboBolsa(ctx, cfg, horiz) {
     const blocos = [], usados = new Set();
     let travado = false;
-    const dias = Math.max(1, Math.ceil((Date.now() - ctx.cutoff) / 86400000));
+    // O horizonte vem do `_bolsaHorizonte`, não mais do `cutoff` do painel: aqui a régua é
+    // "o que pode ter mudado desde a última varredura completa", e não "os últimos N dias"
+    // que o operador escolheu para as casas que se raspam por scroll.
+    const dias = horiz.dias, diasAbertas = horiz.diasAbertas;
 
     const processar = () => {
       const todos = Array.from(cfg.mapa.values()).sort((a, b) =>
@@ -2841,7 +2929,7 @@
       }
     };
 
-    _bdaPedir(cfg.pedido, dias);
+    _bdaPedir(cfg.pedido, dias, diasAbertas);
     await sleep(400);
     processar();
 
@@ -2859,26 +2947,26 @@
     return blocos;
   }
 
-  async function roboBDAPassive(ctx) {
-    // Janela do corte pela data de COLOCAÇÃO (é o que "últimos N dias" significa para o
-    // operador); a coluna Data da planilha continua saindo do evento, no formatador.
+  async function roboBDAPassive(ctx, horiz) {
+    // A coluna Data da planilha continua saindo do EVENTO, no formatador — o `quando` daqui
+    // só ordena a lista, e o recorte de verdade quem faz é a casa (ver `_bolsaHorizonte`).
     const blocos = await _roboBolsa(ctx, {
       mapa: bdaById, fmt: formatTicketBDA, aberta: _abertaBDA,
       quando: (b) => b.colocada || b.inicio, pedido: "__sharpenupBDAReq",
       fim: () => bdaFimReal,
-    });
+    }, horiz);
     console.log("[SharpenUp] Bolsa/Exchange: " + blocos.length + " bilhete(s) · bdaById=" + bdaById.size +
                 " · hook=" + bdaHookVivo + " · respostas=" + bdaRespostas +
                 " · não casadas=" + bdaNaoCasadas + " · fimReal=" + bdaFimReal);
     return blocos;
   }
 
-  async function roboBDSPassive(ctx) {
+  async function roboBDSPassive(ctx, horiz) {
     const blocos = await _roboBolsa(ctx, {
       mapa: bdsById, fmt: formatTicketBDS, aberta: _abertaBDS,
       quando: (b) => b.criado, pedido: "__sharpenupBDSReq",
       fim: () => bdsFimReal,
-    });
+    }, horiz);
     console.log("[SharpenUp] Bolsa/Sportsbook: " + blocos.length + " bilhete(s) · bdsById=" + bdsById.size +
                 " · hook=" + bdsHookVivo + " · respostas=" + bdsRespostas + " · fimReal=" + bdsFimReal);
     return blocos;

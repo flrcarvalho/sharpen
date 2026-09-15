@@ -27,6 +27,15 @@
 // aposta em aberto, `lay` (418 bilhetes, todos `back`), cashout/Retirada, múltipla do
 // Sportsbook, e `push_win`/`push_lose` (existem no código da casa, sem bilhete real).
 //
+// E MAIS DUAS, do horizonte (s351), que ficam de fora por natureza:
+//   • **Os dois ambientes rodando em PARALELO** (`Promise.all` no `iniciarRobo`). Aqui cada
+//     inject é exercido isolado, então voltar a série passa verde. O que se mede é tempo de
+//     parede na captura real, não o harness.
+//   • **Qual data a casa usa em cada status.** É a premissa da janela curta e ela foi medida
+//     NA CASA, não aqui: a fixture responde a mesma coisa para qualquer `after-day`. O
+//     harness prova que pedimos a janela certa; que a casa recorta pela liquidação está na
+//     `CASA_BOLSADEAPOSTA §2.6`, com o bilhete e as duas telas que provaram.
+//
 // E DUAS REGRAS QUE O CÓDIGO APLICA MAS ESTE TESTE **NÃO DETECTA** — provado por mutação,
 // não suposto. Estão aqui escritas porque verde sem esta ressalva é promessa falsa:
 //
@@ -143,7 +152,10 @@ export async function rodar() {
     //     (o operador roda o robô outra vez).
     // Três varreduras no total, então a fatia mais recente tem de ser pedida 6× (2 por
     // varredura: liquidadas + abertas).
-    pedidoMsg: { __sharpenupBDAReq: true },
+    // O 2º pedido carrega a RÉGUA CURTA (s351). O 1º e o 3º vão sem `dias`, e por isso
+    // provam o padrão de quem não manda nada (1 ano) e que um pedido mudo não REBAIXA o
+    // horizonte já combinado.
+    pedidoMsg: { __sharpenupBDAReq: true, dias: 15, diasAbertas: 90 },
     pedidoTardio: { __sharpenupBDAReq: true },
     // A fixture traz `total: 4` e devolve 4 na primeira página → cada fatia encerra sozinha.
     responder: (url) => (url.includes("/offers/reportsv2") ? corpoEx : null),
@@ -168,23 +180,47 @@ export async function rodar() {
     if (!janelas.length) {
       falhas.push("EXCHANGE: o replay não fez nenhuma requisição com janela");
     } else {
-      // COBERTURA DO HISTÓRICO. Aqui mora a regressão que quebrou a 1ª captura ao vivo: o
-      // replay saía com os 30 dias do painel e parava na borda, trazendo 21 de 418 bilhetes.
-      // O horizonte é fixo (3 anos) e NÃO sai do `lookbackDias` — este teste é o que trava isso.
-      const maisAntiga = janelas.map((j) => j.de).sort()[0];
-      const cobertos = (Date.now() - Date.parse(maisAntiga)) / 86400000;
-      if (cobertos < 1000) {
-        falhas.push(`EXCHANGE: replay cobriu só ${Math.round(cobertos)} dias (mais antiga: ${maisAntiga}) — o horizonte é de ~3 anos`);
+      // COBERTURA. Até a s351 o horizonte era 3 anos FIXOS e este teste cobrava isso. Agora
+      // ele cobra a régua nova (`content._bolsaHorizonte`), e continua guardando a mesma
+      // regressão por baixo: a janela NÃO pode sair do `lookbackDias` do painel, que foi o
+      // que trouxe 21 de 418 bilhetes na 1ª captura ao vivo (s299). O que mudou é a régua,
+      // não o perigo — por isso o teto e o padrão são medidos, e não o número 1095.
+      const cobre = (j) => (Date.now() - Date.parse(j.de)) / 86400000;
+      const abertas = [], liquidadas = [];
+      for (let i = 0; i < replayEx.length; i++) {
+        const j = _janela(replayEx[i]);
+        if (j) (/status=matched/.test(replayEx[i]) ? abertas : liquidadas).push(j);
       }
-      // REPLAY REPETÍVEL. Cada fatia é pedida 2× por varredura (liquidadas + abertas), e o
-      // caso manda TRÊS pedidos (o inicial, um durante e um depois do `fim`) → a fatia mais
-      // recente tem de aparecer 6×. Menos que isso significa que algum pedido morreu: 4× = o
-      // tardio caiu no `fimReplay` travado; 4× também = o pedido de meio da varredura se
-      // perdeu. Os dois modos derrubam este teste, e os dois foram provados por mutação.
-      const maisNova = janelas.map((j) => j.de).sort().reverse()[0];
-      const vezes = janelas.filter((j) => j.de === maisNova).length;
+      // O pedido SEM `dias` usa o padrão de 1 ano, e nada jamais passa do teto.
+      const maisAntiga = Math.max(...janelas.map(cobre));
+      if (maisAntiga < 300) {
+        falhas.push(`EXCHANGE: o pedido sem \`dias\` tinha de varrer ~1 ano, cobriu ${Math.round(maisAntiga)} dias`);
+      }
+      if (maisAntiga > 370) {
+        falhas.push(`EXCHANGE: teto de 1 ano furado — o replay foi a ${Math.round(maisAntiga)} dias atrás`);
+      }
+      // E o pedido COM régua curta encolhe de verdade: 15 dias de liquidadas, 90 de abertas.
+      // As duas janelas são diferentes de propósito (a das liquidadas recorta pela data de
+      // LIQUIDAÇÃO, a das abertas pela colocação) — se alguém unificar, este par cai.
+      const curtaLiq = Math.min(...liquidadas.map(cobre));
+      if (!(curtaLiq <= 20)) {
+        falhas.push(`EXCHANGE: com \`dias:15\` a varredura de liquidadas tinha de encolher — a menor cobriu ${Math.round(curtaLiq)} dias`);
+      }
+      const curtaAb = Math.min(...abertas.map(cobre));
+      if (!(curtaAb >= 85 && curtaAb <= 95)) {
+        falhas.push(`EXCHANGE: com \`diasAbertas:90\` a janela das abertas tinha de ficar em ~90 dias, veio ${Math.round(curtaAb)}`);
+      }
+      // REPLAY REPETÍVEL. Cada varredura pede a fatia mais recente 2× (liquidadas + abertas),
+      // e o caso manda TRÊS pedidos (o inicial, um durante e um depois do `fim`) → a fatia que
+      // termina no dia mais novo tem de aparecer 6×. Menos que isso significa que algum pedido
+      // morreu: 4× = o tardio caiu no `fimReplay` travado, ou o pedido de meio se perdeu. Os
+      // dois modos derrubam este teste, e os dois foram provados por mutação.
+      // (Conta-se pelo FIM da fatia, não pelo começo: com horizontes diferentes cada varredura
+      // começa num dia diferente, mas todas terminam no mesmo.)
+      const ate = janelas.map((j) => j.ate).sort().reverse()[0];
+      const vezes = janelas.filter((j) => j.ate === ate).length;
       if (vezes < 6) {
-        falhas.push(`EXCHANGE: 3 pedidos deveriam render 3 varreduras — a fatia ${maisNova} foi pedida ${vezes}× (esperado 6)`);
+        falhas.push(`EXCHANGE: 3 pedidos deveriam render 3 varreduras — a fatia que termina em ${ate} foi pedida ${vezes}× (esperado 6)`);
       }
     }
 
@@ -259,10 +295,11 @@ export async function rodar() {
     parar: () => false,
     painel: { contador: { textContent: "" } },
   };
+  const HORIZ_TESTE = { dias: 15, diasAbertas: 90, primeira: false, rotulo: "teste" };
   const blocosJanela = await roboBolsa(ctxJanela, {
     mapa: mapaJanela, fmt: (b) => "[Código: " + b.ref + "]", aberta: () => false,
     quando: (b) => b.colocada, pedido: "__sharpenupBDAReq", fim: () => true,
-  });
+  }, HORIZ_TESTE);
   testes++;
   if (blocosJanela.length !== 3) {
     falhas.push(`JANELA: os 3 bilhetes são mais velhos que o lookback de 30 dias e TODOS têm de sair — saíram ${blocosJanela.length}`);
@@ -271,7 +308,7 @@ export async function rodar() {
   const blocosStop = await roboBolsa(
     { ...ctxJanela, stopId: "B" },
     { mapa: mapaJanela, fmt: (b) => "[Código: " + b.ref + "]", aberta: () => false,
-      quando: (b) => b.colocada, pedido: "__sharpenupBDAReq", fim: () => true });
+      quando: (b) => b.colocada, pedido: "__sharpenupBDAReq", fim: () => true }, HORIZ_TESTE);
   testes++;
   if (blocosStop.length !== 1) {
     falhas.push(`JANELA: com stopId=B o laço deveria parar depois de C (1 bloco) — saíram ${blocosStop.length}`);
@@ -315,6 +352,76 @@ export async function rodar() {
   }
   if (recebidos.some((r) => r.chave !== "__sharpenupBDSReq")) {
     falhas.push("FRAMES: algum frame recebeu uma mensagem com chave diferente da pedida");
+  }
+
+  // ── A RÉGUA DO HORIZONTE (s351) ────────────────────────────────────────────────────────
+  // O caso acima prova que o INJECT obedece o horizonte que recebe. Este prova quem DECIDE
+  // esse horizonte, que é outra função e tem outros modos de falha: o `_bolsaHorizonte` lê o
+  // carimbo da última varredura completa em `chrome.storage.local` e devolve as duas janelas.
+  //
+  // Por que isto precisa de gate próprio: o erro caro aqui não é varrer demais (custa tempo),
+  // é varrer de MENOS depois de um período parado — a captura fica curta, o buraco não dá
+  // erro nenhum, e o operador só descobre quando falta bilhete na planilha.
+  const horizonte = content.pegar("_bolsaHorizonte");
+  const CHAVE = "capUltima:bolsadeaposta";
+  const dia = 86400000;
+
+  delete content.storage[CHAVE];
+  const h1 = await horizonte("bolsadeaposta", 30);
+  testes++;
+  if (!h1.primeira || h1.dias !== 365 || h1.diasAbertas !== 365) {
+    falhas.push(`HORIZONTE: sem carimbo é a 1ª captura e varre 1 ano — veio ${h1.dias}/${h1.diasAbertas} (primeira=${h1.primeira})`);
+  }
+
+  // Recaptura no dia seguinte: as duas janelas curtas, e elas são DIFERENTES entre si porque
+  // as duas datas são diferentes (liquidação × colocação). Unificar as duas derruba isto.
+  content.storage[CHAVE] = Date.now() - 1 * dia;
+  const h2 = await horizonte("bolsadeaposta", 0);
+  testes++;
+  if (h2.dias !== 15 || h2.diasAbertas !== 90) {
+    falhas.push(`HORIZONTE: recaptura recente tinha de ser 15/90, veio ${h2.dias}/${h2.diasAbertas}`);
+  }
+
+  // Parado 200 dias: a janela ESTICA para cobrir o tempo sem capturar (+3 de margem). É o
+  // caso que uma régua de "sempre 15 dias" perderia inteiro, sem avisar.
+  content.storage[CHAVE] = Date.now() - 200 * dia;
+  const h3 = await horizonte("bolsadeaposta", 0);
+  testes++;
+  if (h3.dias < 200 || h3.dias > 210 || h3.diasAbertas < 200) {
+    falhas.push(`HORIZONTE: 200 dias parado tinham de esticar a janela, veio ${h3.dias}/${h3.diasAbertas}`);
+  }
+
+  // O painel só manda quando pede MAIS (é a válvula do "quero tudo de novo")…
+  content.storage[CHAVE] = Date.now() - 1 * dia;
+  const h4 = await horizonte("bolsadeaposta", 180);
+  testes++;
+  if (h4.dias !== 180 || h4.diasAbertas !== 180) {
+    falhas.push(`HORIZONTE: o painel pedindo 180 dias tinha de mandar, veio ${h4.dias}/${h4.diasAbertas}`);
+  }
+  // … e mesmo ele respeita o teto de 1 ano. Era daqui que saíam os 3 anos a cada clique.
+  const h5 = await horizonte("bolsadeaposta", 5000);
+  testes++;
+  if (h5.dias !== 365 || h5.diasAbertas !== 365) {
+    falhas.push(`HORIZONTE: o teto de 365 tinha de segurar um pedido de 5000 dias, veio ${h5.dias}/${h5.diasAbertas}`);
+  }
+
+  // Carimbo no futuro = relógio da máquina mexido. Vale como "não sei quando varri" e volta
+  // a ser primeira captura: o contrário faria a janela virar negativa e não varrer nada.
+  content.storage[CHAVE] = Date.now() + 30 * dia;
+  const h6 = await horizonte("bolsadeaposta", 0);
+  testes++;
+  if (!h6.primeira || h6.dias !== 365) {
+    falhas.push(`HORIZONTE: carimbo no futuro tinha de virar 1ª captura, veio ${h6.dias} (primeira=${h6.primeira})`);
+  }
+
+  // O CARIMBO SÓ VALE PARA VARREDURA COMPLETA. Se o operador parou no meio, a próxima tem de
+  // voltar a ser longa — carimbar aqui é o jeito de perder bilhete em silêncio.
+  const carimbar = content.pegar("_bolsaCarimbar");
+  delete content.storage[CHAVE];
+  await carimbar("bolsadeaposta", { parar: () => true, painel: { contador: {} } });
+  testes++;
+  if (CHAVE in content.storage) {
+    falhas.push("HORIZONTE: varredura PARADA pelo operador não pode carimbar — a próxima ficaria curta sem ter varrido tudo");
   }
 
   return { falhas, testes };

@@ -68,7 +68,8 @@
   const naoCasadas = new Set();
   let reqCtx = null;                           // {url, headers} de uma requisição real
   let pedido = false;                          // o robô já pediu → pode arrancar o replay
-  let diasPedidos = 0;                         // janela que o robô pediu (0 = padrão)
+  let diasPedidos = 0;                         // janela das LIQUIDADAS (0 = padrão)
+  let diasAbertasPedidos = 0;                  // janela das ABERTAS (0 = usa a de cima)
   let loopAtivo = false;
   let fimReplay = false;
   let repetir = false;                         // pedido chegou durante a varredura → roda de novo
@@ -81,14 +82,23 @@
   const PAGINA = 500;          // aceito e respeitado (500 pedidos → 213 devolvidos, sem corte)
   const FATIA = 90;            // dias por requisição — a casa recusa acima de 95
   const TETO_PAGINAS = 200;
-  // HORIZONTE FIXO — 3 anos, ~13 fatias × 2 chamadas ≈ 5 s. Não sai do `lookbackDias` do
-  // painel, e isso é deliberado: na 1ª captura ao vivo (s299) a janela padrão de 30 dias
-  // fez o robô varrer 27/07→26/08 e parar na borda exata, trazendo 21 de 418 bilhetes. O
-  // operador leu como "travou na primeira página", porque a data que ele tinha escolhido NA
-  // TELA nunca chegou até aqui — o robô não lê a tela, ele varre a API. Aqui a varredura
-  // completa é barata (uma chamada por fatia) e a recaptura não paga IA de novo: a casa está
-  // no pré-dedup por código do backend. O `dias` do painel só é respeitado quando pede MAIS.
-  const DIAS_HISTORICO = 1095;
+  // HORIZONTE — quem decide é o `_bolsaHorizonte` do `content.js` (s351), que manda `dias`
+  // (liquidadas) e `diasAbertas` na mensagem de pedido. Aqui ficam só o TETO de sanidade e
+  // o padrão de quem não mandou nada.
+  //
+  // Era 3 anos fixos, e o motivo está registrado porque ele continua válido pela metade: na
+  // 1ª captura ao vivo (s299) a janela de 30 dias do painel fez o robô parar na borda exata
+  // e trazer 21 de 418 bilhetes, e o operador leu como "travou na primeira página". A lição
+  // é que o horizonte não pode sair de um número que o operador escolheu para OUTRA coisa
+  // (o look-back das casas que se raspam por scroll). Ele continua não saindo: sai de quando
+  // esta casa foi varrida por completo pela última vez, e o painel só manda quando pede MAIS.
+  //
+  // O que mudou é o preço de varrer sempre tudo. "A recaptura não paga IA de novo" era
+  // verdade e continua sendo (pré-dedup por código + barreira de recaptura + o corte do
+  // `_CORTE_HISTORICO`), mas ninguém tinha contado o TEMPO: 13 fatias × 2 status = 26
+  // requisições sequenciais a cada clique, com a tela parada em "0 bilhetes".
+  const DIAS_TETO = 365;          // nunca mais que 1 ano sem pedido explícito
+  const DIAS_PADRAO = 365;        // content antigo (sem `dias` na mensagem) → 1 ano
 
   // Base da API. A casa deriva o domínio removendo o prefixo `mexchange<N>.` do próprio host —
   // é a regra dela, lida no bundle, não invenção nossa. `new URL` em vez de `location.host`
@@ -263,11 +273,18 @@
     if (fimReplay) return;
     loopAtivo = true;
     try {
-      const fatias = _fatias(Math.max(diasPedidos, DIAS_HISTORICO));
-      for (const f of fatias) {
-        await varrer(f, "");                      // liquidadas (o padrão da casa)
-        await varrer(f, "matched,unmatched");     // em aberto — a tela nunca pede as duas juntas
-      }
+      // AS DUAS JANELAS SÃO DIFERENTES PORQUE AS DUAS DATAS SÃO DIFERENTES. Medido na tela
+      // da casa em 13/09/2026: `after-day`/`before-day` recortam pela data que corresponde ao
+      // STATUS pedido. Nas liquidadas isso é a data da LIQUIDAÇÃO — o bilhete `47658074`
+      // (colocado 31/12/2025, liquidado 04/01/2026) aparece na janela de 04/01 e NÃO na de
+      // 30–31/12. É o que deixa a janela curta pegar a aposta velha que acabou de resolver.
+      // A aberta não tem data de liquidação, então ali o recorte é pela colocação e a janela
+      // precisa ser maior. Custa o mesmo: fatia é de 90 dias, e 1 a 90 dias é UMA chamada.
+      const diasLiq = Math.min(DIAS_TETO, diasPedidos > 0 ? diasPedidos : DIAS_PADRAO);
+      const diasAb  = Math.min(DIAS_TETO, diasAbertasPedidos > 0 ? diasAbertasPedidos : diasLiq);
+      LOG("horizonte: liquidadas " + diasLiq + "d · abertas " + diasAb + "d");
+      for (const f of _fatias(diasLiq)) await varrer(f, "");
+      for (const f of _fatias(diasAb)) await varrer(f, "matched,unmatched");
     } finally {
       loopAtivo = false;
       fimReplay = true;
@@ -283,6 +300,7 @@
     if (!d || !d.__sharpenupBDAReq) return;
     pedido = true;
     if (typeof d.dias === "number" && d.dias > 0) diasPedidos = d.dias;
+    if (typeof d.diasAbertas === "number" && d.diasAbertas > 0) diasAbertasPedidos = d.diasAbertas;
     // ⚠ DESTRAVA A SEGUNDA RODADA. `fimReplay` latchava em `true` para sempre: rodar o robô
     // outra vez na mesma aba devolvia o mesmo acumulado e não varria nada — indistinguível
     // de "a casa não tem mais bilhete". Pedido novo é rodada nova.

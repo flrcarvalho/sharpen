@@ -143,6 +143,55 @@ bilhete já resolvido não paga IA de novo numa recaptura.
 > **A data selecionada na tela da casa é irrelevante para a captura.** Ela muda só o que o
 > operador **vê**; o robô fala com a API por conta própria.
 
+### 2.6 O horizonte da varredura, e a data que o filtro usa (s351)
+
+**O horizonte deixou de ser 3 anos fixos.** Ele era, e a conta disso foi medida: **26
+requisições sequenciais** no Exchange a cada clique (13 fatias de 90 dias × 2 status) para
+reencontrar o mesmo histórico, com a tela parada em `0 bilhetes` o tempo todo, e a 1ª captura da casa trazendo 477 bilhetes de 2025 que o dono
+não queria (US$ 4,86 de IA numa extração só). A régua vive em `_bolsaHorizonte`
+(`extensor/content.js`) e chega ao inject na mensagem de pedido:
+
+| | liquidadas | abertas |
+|---|---|---|
+| 1ª captura desta casa neste navegador | 365 dias | 365 dias |
+| recapturas | **15 dias** | **90 dias** |
+| operador parado N dias | N + 3 | N + 3 |
+| teto, em qualquer caso | 365 | 365 |
+
+O `lookbackDias` do painel continua **só mandando quando pede MAIS** — é a válvula do "quero
+o histórico inteiro de novo" e não pode rebaixar a régua, que foi o defeito da s299. O
+carimbo da última varredura vive em `chrome.storage.local` (`capUltima:<casa>`) e **só é
+gravado quando a varredura termina inteira**: parada pelo operador, erro do replay ou
+ambiente sem `fim` real deixam a próxima captura longa, de propósito.
+
+**⚠️ A DATA DO FILTRO ACOMPANHA O STATUS PEDIDO — é isto que torna a janela curta segura.**
+Medido na tela da casa em 13/09/2026, com o bilhete `47658074` (colocado **31/12/2025**,
+evento **03/01/2026**, liquidado **04/01/2026**):
+
+| janela pedida | modo | ele aparece? |
+|---|---|---|
+| 02 a 04/01/2026 | Liquidadas | **sim** |
+| 30 a 31/12/2025 | Liquidadas | **não** |
+
+Ou seja: pedindo as liquidadas, `after-day`/`before-day` recortam pela data de **liquidação**,
+não pela de colocação. Uma janela de 15 dias traz tudo o que liquidou nela, **mesmo aposta
+feita há meses** — que é o caso que uma janela curta ingênua perderia em silêncio. A aposta
+ainda ABERTA não tem data de liquidação, então ali o recorte é pela colocação, e por isso ela
+tem janela própria e maior.
+
+No bundle da casa a função de relatório (`vl`, chunk `_next/static/chunks/0daz-0~_0l4rd.js`)
+monta a query com **apenas** `offset`, `per-page`, `after-day`, `before-day`, `timezone-offset`
+e `status`: não há um parâmetro de "tipo de data" escondido. Quem escolhe a data é o status.
+
+> Existe um segundo endpoint, `/markets/reports?settled-time-from=…&settled-time-to=…`, que
+> filtra por liquidação explicitamente — é o da tela **Lucros e Perdas**, e não devolve
+> bilhete no formato que a captura usa. Fica registrado para não ser redescoberto.
+
+**O Sportsbook não tem filtro de data nenhum** (`/api/master/my-bets/history?limit&offset`):
+ele pagina o histórico inteiro de 50 em 50. Hoje isso é 1 página (22 bilhetes na maior conta
+medida), então não ganhou freio. Quando crescer, o freio ali terá de ser por página, não por
+data. O `lastHours` que a casa aceita **não serve**: é um token (`12M`), e `8760` devolve zero.
+
 ## 3. ID do bilhete
 
 - Caso: **visível**

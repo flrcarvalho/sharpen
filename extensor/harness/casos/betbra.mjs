@@ -183,12 +183,19 @@ export async function rodar() {
       falhas.push("EXCHANGE: o replay não fez nenhuma requisição com janela");
     } else {
       // O histórico da Betbra vai de MAIO/2025 a hoje (403 ofertas, medidas). Um horizonte
-      // curto traria só a ponta e ninguém veria falta — o mesmo defeito que na Bolsa
-      // exportou 21 de 418.
+      // curto demais traria só a ponta e ninguém veria falta — o mesmo defeito que na Bolsa
+      // exportou 21 de 418. Desde a s351 o horizonte é declarado pelo `content.js` e a
+      // PRIMEIRA captura de uma casa varre 1 ANO; este caso manda o pedido sem `dias`, que
+      // é exatamente o padrão de quem não declarou nada. O teto é o que não pode furar.
+      // A régua completa (15 dias de liquidadas, 90 de abertas, esticadas pelo tempo parado)
+      // é exercida no caso da Bolsa de Aposta, que divide este mesmo inject.
       const maisAntiga = janelas.map((j) => j.de).sort()[0];
       const cobertos = (Date.now() - Date.parse(maisAntiga)) / 86400000;
-      if (cobertos < 1000) {
-        falhas.push(`EXCHANGE: replay cobriu só ${Math.round(cobertos)} dias (mais antiga: ${maisAntiga}) — o horizonte é de ~3 anos`);
+      if (cobertos < 300) {
+        falhas.push(`EXCHANGE: replay cobriu só ${Math.round(cobertos)} dias (mais antiga: ${maisAntiga}) — sem \`dias\` declarado o padrão é 1 ano`);
+      }
+      if (cobertos > 370) {
+        falhas.push(`EXCHANGE: teto de 1 ano furado — o replay foi a ${Math.round(cobertos)} dias atrás (mais antiga: ${maisAntiga})`);
       }
       // Sem `status` a casa devolve SÓ as liquidadas: a variante das abertas é obrigatória,
       // e é ela que traz as 9 ofertas `matched` vivas desta conta.

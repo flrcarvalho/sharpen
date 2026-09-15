@@ -288,9 +288,20 @@ export function carregarContent() {
     location: { href: "https://exemplo.test/", pathname: "/" },
   };
   janela.top = janela;
+  // `storage.local` com ESTADO, não um `{}` fixo: o horizonte da captura da Bolsa (s351) se
+  // lembra da última varredura completa por aqui, e um dublê que sempre devolve vazio faria
+  // todo caso parecer "primeira captura" — o gate passaria sem exercer a régua.
+  const storage = {};
   const chrome = {
-    storage: { local: { get: () => Promise.resolve({}), set: () => Promise.resolve(),
-                        remove: () => Promise.resolve() }, onChanged: { addListener: noop } },
+    storage: { local: {
+                 get: (ks) => Promise.resolve(
+                   (Array.isArray(ks) ? ks : [ks]).reduce((o, k) => {
+                     if (k in storage) o[k] = storage[k];
+                     return o;
+                   }, {})),
+                 set: (o) => { Object.assign(storage, o); return Promise.resolve(); },
+                 remove: (k) => { delete storage[k]; return Promise.resolve(); } },
+               onChanged: { addListener: noop } },
     runtime: { onMessage: { addListener: noop }, sendMessage: () => Promise.resolve({ ok: true }),
                getManifest: () => ({ version: "0.0.0-harness" }) },
   };
@@ -307,7 +318,7 @@ export function carregarContent() {
   vm.createContext(ctx);
   vm.runInContext(src, ctx, { filename: "content.js" });
   if (typeof ctx.__SUget !== "function") throw new Error("content.js: __SUget não foi exposto");
-  return { pegar: (nome) => ctx.__SUget(nome) };
+  return { pegar: (nome) => ctx.__SUget(nome), storage };
 }
 
 /** Linha `Rótulo: valor` de um bloco de texto do bilhete (o que a IA lê). */
