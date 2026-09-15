@@ -129,36 +129,28 @@ Não dá para backfillar por palpite de formato: `_CASAS_MARCADOR_CODIGO` docume
 de algumas casas em comentário, não em código, e errar aqui marca como suspeito um código
 que está certo.
 
-### 1.6 O `CLAUDE.md` ESTOUROU o teto (s338 previu, s339 aconteceu). **VIVA — gate vermelho**
+### 1.6 ~~O `CLAUDE.md` ESTOUROU o teto~~ **RESOLVIDO na s358 — gate verde**
 
-Estava em 64,4 KB contra 65 KB do `tools/check_docs.py`, e a s338 escreveu aqui que "a
-próxima regra que precisar entrar reprova o gate". Foi o que aconteceu: a regra da data por
-kickoff (s339) levou o arquivo a **65,4 KB**. O gate acusa desde o commit `db5b77c`.
+Ficou aberto da s339 à s358, e nesse intervalo o arquivo foi de 65,4 KB a **72,8 KB**:
+toda sessão que registrava regra nova somava, porque a saída conhecida ("mover caso para o
+`CASOS.md`") já estava esgotada — a s339 mediu e registrou aqui que **não havia mais
+duplicação para mover**, e concluiu que fechar o teto significaria "decidir qual regra sai".
 
-**O que já foi feito, para ninguém refazer:** movido o caso da Blaze (medição dos 55 códigos)
-para o `docs/CASOS.md`, encolhido o parágrafo "Limitação" que repetia a 4ª linha da tabela de
-dedup, e a própria regra nova comprimida ao núcleo. Rendeu ~0,8 KB e **não é suficiente**.
+**A medição estava certa e a conclusão não.** Havia uma terceira saída, que ninguém tinha
+olhado: o arquivo guardava **PROCEDIMENTO** junto com regra. Texto que se lê **ao fazer**
+(como diagnosticar um login que falha, como avisar os testers, como ligar o bot de um
+tipster) não precisa estar na bíblia que se obedece **ao escrever código** — e o próprio
+`CLAUDE.md` já apontava para `UI_REFERENCE`, `SHELL_SPEC` e os `MASTER_*`, então o padrão
+existia.
 
-**Medido: não há mais duplicação para mover.** Zero frases longas (> 45 caracteres) repetidas
-entre o `CLAUDE.md` e o `docs/CASOS.md`. O arquivo é regra pura, então fechar os 0,4 KB
-significa **decidir qual regra sai**, e isso é curadoria do Feca, não faxina mecânica.
+Saíram inteiras, com ponteiro e sem cortar uma linha:
+[`docs/RUNBOOK_CONTAS_E_ACESSO.md`](docs/RUNBOOK_CONTAS_E_ACESSO.md) (6,2 KB) e
+[`docs/RUNBOOK_AVISO_TESTERS.md`](docs/RUNBOOK_AVISO_TESTERS.md) (3,2 KB). Com mais 0,5 KB
+de caso movido para o `CASOS.md`, o arquivo fechou em **64,3 KB**.
 
-O candidato mais óbvio, se ele quiser um: a seção **`## Convenções de output`** (1,5 KB) se
-declara "espelho operacional" do `global/MASTER_OUTPUT_2026.md`, que é a fonte canônica.
-Virar um ponteiro de 3 linhas libera folga para esta regra e para as próximas. É a única
-duplicação **declarada** que restou no arquivo.
-
-> ⚠️ Não suba o teto. Foi assim que o `STATUS.md` chegou a 187 KB.
-
-**Atualização s344: 66,3 KB.** A regra do corte de histórico por casa entrou (casa que
-exporta o histórico inteiro não some só apagando o banco) e custou ~0,9 KB, já comprimida
-ao núcleo, com o caso inteiro escrito no `docs/CASOS.md`. Procurei de novo o que mover e
-**confirmo a medição da s339: não há caso solto no arquivo**, só regra. A dívida está em
-~1,3 KB.
-
-O candidato do parágrafo acima segue de pé e **depende de um "pode" do Feca**: virar
-`## Convenções de output` num ponteiro de 3 linhas para o `MASTER_OUTPUT_2026.md`, que ela
-mesma declara ser a fonte canônica.
+> **A lição, e ela vale para o próximo teto:** "não há mais nada para mover" costuma
+> significar "não há mais nada do TIPO que eu estava movendo". A pergunta que destravou não
+> foi *o que corto?*, foi *o que aqui não é regra?*. Está escrita no invariante #10.
 
 ### 1.8 Sobraram 21 linhas ARQUIVADAS datadas no futuro pela folga (s339). **VIVA, medida**
 
@@ -769,18 +761,14 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   Subiram as etapas 1 (custo de conta em regime de caixa), 2 (o parque na Visão Geral),
   3 (o filtro de tipster recortando a assinatura), 4 (custos gerais descendo no P/L),
   5b (o `_c2num` lendo pelo `parseNum`) e a parte da 5 que não depende de decisão:
-  - **O que sobrou da etapa 5 depende da Fatia 5 da TELA, que é decisão do Feca.** As três
-    telas que ainda somam `custoData × contagem` (sem custo próprio da conta, sem preço por
-    data, sem período) são exatamente as três que saem do menu na Fatia 5 do
-    [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md): **Custos de Contas**
-    (`_renderCustosKpi` / `renderCustoCards` / `renderCostPies` / `recalcCustos`),
-    **Custo de Tipsters** e **Fornecedores & Parceiros** (`renderParceiros`, que ainda põe
-    P/L filtrado ao lado de custo não filtrado). Consertar a régua delas é trabalho que a
-    remoção joga fora; por isso a etapa 5 parou aqui em vez de seguir. **Ou o Feca executa
-    a Fatia 5 e elas somem, ou ele decide mantê-las e aí a régua delas vira trabalho.**
-    O que sobrevivia em qualquer cenário já subiu na s358: o painel morto saiu, o custo do
-    drill de tipster passou a respeitar o período e a tela Métricas parou de chamar de
-    "P/L Líquido" um número sem custo.
+  - **As três telas antigas saíram do MENU (s358), e o código delas continua lá.** Decisão
+    do Feca em 14/09/2026. `Custos de Contas`, `Custos de Tipsters` e `Fornecedores &
+    Parceiros` não aparecem mais em nenhuma das duas sidebars, mas as páginas seguem
+    alcançáveis por hash direto (`#dash/custos`) — a volta é uma linha. **Remover o código
+    é o passo seguinte e não é mecânico:** `_ctTipsters`, `_ctSituacao`, `_ctSugestao` e
+    `buildCostState` são lidos pela tela nova, e `renderParceiros` leva junto o eixo
+    Tipster que a s360 pôs nele. A régua velha (`custoData × contagem`) dessas três não foi
+    consertada de propósito. **Esperar o Feca confirmar que não sentiu falta.**
 
 - **A Visão Geral tem largura mínima de ~844px e estoura abaixo de ~1100 de janela (s358). VIVA, medida.**
   Medido headless contra o `servidor_demo`, com a página carregada JÁ na largura (não por
@@ -791,11 +779,6 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   s357, que foi resolvido na Extração e no Painel de Contas e **não** na Visão Geral.
   **Sintoma para reconhecer isto:** medir por `setViewport` DEPOIS do render dá número
   errado (a página não reflui), e foi o que quase virou um falso positivo aqui.
-- **`Backups/` guarda 223 cópias de `STATUS`/`HISTORICO` (28,7 MB) e o gate acusa isso a cada
-  rodada (s356). VIVA, medida.** O git já versiona os dois; o invariante #4 chama de peso puro
-  e manda podar além das últimas sessões / 90 dias. O FAIL é antigo e convive com todo commit,
-  o que é o pior estado possível para um gate: **vermelho que ninguém lê deixa de ser gate.**
-  Podar é ação destrutiva em arquivo do Feca, então não foi feito sem ele pedir.
 - **O `/casas` do `servidor_demo` não devolve o campo `captura` (s347). VIVA, medida.** A rota real passou a devolver `captura` na s345 (`GET /casas`), e o mock em `scripts/demo/servidor_demo.py` ficou com `{"casas": [...]}` só. Consequência: no demo o **selo de captura** e o **aviso antes de processar** nunca acendem sozinhos — todo harness que os exercite tem de alimentar `CASAS_CAPTURA` à mão, e um print de material de venda sai sem o selo sem que nada acuse. É uma linha no mock. **Sintoma para reconhecer isto noutro campo:** o demo serve o front REAL, então campo novo na rota é dívida silenciosa do lado dele.
 - **O `motivo` da lixeira carrega o número da sessão FIXO no script (s350). VIVA, medida.**
   `scripts/excluir_historico_fora_do_corte.py` monta o motivo com `s344` literal, então as 477

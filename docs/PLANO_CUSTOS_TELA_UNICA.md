@@ -28,8 +28,13 @@ Decisões que vieram junto e não se rediscutem sem ele:
   percentual combinado fica registrado para a tela lembrar; o valor do mês é digitado.
 - **Contas e assinaturas nunca lado a lado**, mesmo na mesma página.
 - O antigo "Extrato da operação" chama-se **Raio-X**, no vocabulário da marca.
-- As três telas antigas **ficam no menu até a Fatia 5**. Da Fatia 1 em diante a tela nova
-  já grava a tabela de preços, mas o lançamento de conta e de tipster segue lá.
+- As três telas antigas **saíram do menu na s358** (decisão do Feca em 14/09/2026). Saíram
+  do MENU, não do código: seguem alcançáveis por hash direto (`#dash/custos`), o que mantém
+  a volta a uma linha. Remover o código é passo seguinte, quando ele confirmar que não
+  sentiu falta — e exige cuidado, porque `_ctTipsters`, `_ctSituacao`, `_ctSugestao` e
+  `buildCostState` são lidos pela tela nova.
+- **A tela nova deixou de se chamar "Custos (prévia)"**: com as outras fora do menu, ela é
+  a única de custo, e o rótulo "prévia" passaria a descrever o produto inteiro.
 
 ## Como o custo se comporta, por família
 
@@ -47,17 +52,23 @@ que passou a valer (*"em agosto subiu o preço, ou fiz um deal melhor"*). Conta 
 com o preço vigente na data da compra; **editar o valor de uma conta vale só para ela**, e
 a conta fica marcada como editada. Conta já comprada mantém o preço que tinha.
 
-## ⚠️ Duas réguas de custo convivem hoje
+## ✅ A régua única foi decidida: LANÇAMENTO (s358)
+
+Decisão do Feca, com os números na mesa: *"não posso pagar uma conta duas vezes; se paguei
+em agosto, ela pertence a agosto"*. **As duas telas medem a mesma coisa desde a s358** — o
+que saiu do bolso no recorte. A janela de vida não morreu: ela virou o **parque**, número
+de ESTOQUE que aparece na Visão Geral com rótulo próprio e **fora do P/L**.
 
 | Onde | Régua | Responde |
 |---|---|---|
-| Visão Geral (`calcCostFiltered`) | **janela de vida** | quanto de custo está VIVO no recorte |
-| Custos (`charts/custos2.js`) | **lançamento** | quanto eu PAGUEI no recorte |
+| Visão Geral (`calcCostFiltered`) | **lançamento** | quanto eu PAGUEI no recorte |
+| Custos (`charts/custos2.js`) | **lançamento** | idem |
+| Parque (`calcParqueFiltered`) | **janela de vida**, sempre HOJE | quanto vale o que está rodando |
 
-As duas estão certas. Sem rótulo, uma parece defeito da outra — é o caso
-[os dois números certos que pareciam defeito](CASOS.md#os-dois-números-certos-que-pareciam-defeito),
-e a saída foi a mesma: a tela **diz o corte** (`.c2-corte`). **Qual vira a régua única é
-decisão da Fatia 2**, e é decisão do Feca, não de implementação.
+O que fez a decisão: a régua de vida **não somava**. Na base do Jonathan, os meses de maio a
+setembro davam R$ 39.800 contra R$ 28.400 realmente pagos — e setembro cobrava 10 contas
+tendo ele comprado uma. Detalhe no `CLAUDE.md` ("Custo pertence ao dia em que o DINHEIRO
+SAIU") e o caso em [CASOS.md](CASOS.md#as-10-contas-que-cobraram-em-setembro-e-uma-foi-comprada--jonathan-s358).
 
 ## Fatias
 
@@ -68,7 +79,7 @@ decisão da Fatia 2**, e é decisão do Feca, não de implementação.
 | **2** | Custo sai do par `fornecedor\|\|casa` e vai para a **conta**: `parceiros.custo`, NULL = herda do fornecedor. Sem backfill, então o total não se move por construção (medido: 29.400 antes e depois). A derivação de três camadas mora no `gestao.js`. | **no ar (s352)** |
 | **3** | Tipster ganha **tipo de cobrança** (`custo_store.custo_tipster_meta`) e o arrasto por tipo; a aba passa a gravar o valor do mês. Temporada tem prazo (`ate`). | **no ar (s352)** |
 | **4** | Gerais ganha **categoria** (três de fábrica mais as do dono, derivadas das próprias linhas) e **recorrência**, que decide o arrasto pela mesma `_arrasta` do tipster. A aba passa a gravar. | **no ar (s352)** |
-| **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | aberta |
+| **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | **menu feito (s358)**; Bookies aberta |
 
 ## O que a Fatia 0 já ensinou
 

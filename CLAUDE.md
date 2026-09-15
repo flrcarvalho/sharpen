@@ -57,8 +57,12 @@ casa que parou → `/sharpenup-diagnostico`.
     conteúdo**: um `STATUS.md` de 49 KB só de história passa. Ele cobre tamanho, forma
     (≤3 blocos de sessão, ≤2 `_Anterior:`), cópia em `Backups/`, link quebrado e âncora.
     > **Os tetos travam CRESCIMENTO; não mandam cortar.** Ao encostar num deles, mova
-    > **caso** para o [`docs/CASOS.md`](docs/CASOS.md) ou **sessão** para o
-    > `docs/historico/`. **Nunca corte os blocos "sintoma para reconhecer isto noutro
+    > **caso** para o [`docs/CASOS.md`](docs/CASOS.md), **sessão** para o
+    > `docs/historico/`, ou **PROCEDIMENTO** para um runbook em `docs/`: o que se lê ao
+    > FAZER não precisa estar aqui. Foi essa terceira saída que devolveu 6,7 KB na s358,
+    > depois de duas sessões concluírem que "não havia mais nada para mover" — o que não
+    > havia era mais nada **do tipo** que se estava movendo. Ao mover, **reescreva os
+    > caminhos relativos**: de dentro de `docs/` um `docs/X` aponta para fora. **Nunca corte os blocos "sintoma para reconhecer isto noutro
     > campo"** — são eles que fazem uma sessão nova reconhecer a **família** de um defeito
     > antes de repeti-la (a s321 e a s327 são a mesma família, e é isso que está escrito
     > ali). Subir um teto para não cortar é pior ainda: foi assim que o `STATUS.md` chegou
@@ -68,137 +72,32 @@ casa que parou → `/sharpenup-diagnostico`.
 
 ## Aviso de versão ao grupo `Sharpen - Testers`
 
-O `@sharpenbetbot` é admin do grupo e serve de canal de **novas versões e atualizações**.
+**Procedimento em [`docs/RUNBOOK_AVISO_TESTERS.md`](docs/RUNBOOK_AVISO_TESTERS.md)** (chat
+id, `getChat`, o que nunca fazer com a Bot API). O que decide, e por isso fica aqui:
 
-**O aviso e a home são o MESMO ato — `python scripts/avisar_testers.py`.** Ele mostra a
-prévia (ensaio é o padrão; só envia com `--enviar`), confere o destino por `getChat`,
-publica no grupo e grava a mesma nota em `app/changelog.json`, que é o que a home lê pela
-rota `/changelog`. **Nunca edite o changelog à mão e nunca mande a mensagem por fora** —
-senão a home fica versões atrás em silêncio ([o caso](docs/CASOS.md#o-changelog-ficou-8-versões-atrás-duas-vezes)).
-`tests/test_changelog.py` fica **vermelho** quando a versão do manifest não tem nota
-(dispensa só declarada, em `sharpenup_sem_nota`). Gate manual: `python tools/audit_changelog.py`.
+- **O aviso e a home são o MESMO ato:** `python scripts/avisar_testers.py` publica no grupo
+  **e** grava em `app/changelog.json`. Editar o changelog à mão ou mandar a mensagem por
+  fora deixa a home versões atrás, em silêncio.
+  → [o caso](docs/CASOS.md#o-changelog-ficou-8-versões-atrás-duas-vezes)
+- **Toda atualização fechada = PERGUNTAR se avisa**, com a mensagem pronta. Nunca enviar
+  sem o "pode mandar". Mensagem em grupo não tem desfazer.
+- **Só informamos, sem detalhe:** uma linha do que mudou e o que o tester precisa fazer.
+- ⚠️ **`Sharpen` é o SISTEMA; `SharpenUp` é a EXTENSÃO** — a versão é da extensão.
+  → [o caso](docs/CASOS.md#sharpen-0646-versionou-o-produto-inteiro)
 
-**Só informamos. Não damos detalhes.** A mensagem diz o que mudou em **uma linha** e o que o
-tester precisa **fazer**. Ficam de fora: mecânica interna, nome de campo, causa raiz, número de
-bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STATUS.md`.
+## Conta de usuário nova, e o bot de tipster
 
-> ⚠️ **`Sharpen` é o SISTEMA; `SharpenUp` é a EXTENSÃO.** O número de versão é do
-> **SharpenUp** — é ele que o tester atualiza. Escrever "Sharpen 0.6.46" versiona o produto
-> inteiro. Vale para release note, changelog e qualquer texto voltado ao usuário.
-> → [o caso](docs/CASOS.md#sharpen-0646-versionou-o-produto-inteiro)
+**Procedimento em [`docs/RUNBOOK_CONTAS_E_ACESSO.md`](docs/RUNBOOK_CONTAS_E_ACESSO.md).**
+As duas regras que não se descobrem lendo código, e por isso ficam aqui:
 
-- `chat_id` = `-5172183099` · `BOT_TOKEN` no `.env` de `Downloads/BOTS/sharpen-bot`.
-- **Confirmar o destino com `getChat` antes de publicar.** Mensagem em grupo não tem desfazer.
-- **Nunca `getUpdates`** — briga com o polling do bot em produção.
-- **Nunca diagnostique envio chamando `sendMessage` de novo.** Grupo real não tem desfazer,
-  e a segunda chamada publica o teste. Na primeira falha, **imprima o `description` da
-  resposta**: ele já diz a causa ([o caso](docs/CASOS.md#o-teste-de-diagnóstico-foi-parar-no-grupo)).
-  Chame a API por Python, que controla o UTF-8 de ponta a ponta. Para testar de verdade, use
-  um chat seu, nunca o grupo.
-- **Identificar mensagem já enviada, sem `getUpdates`:** a Bot API não tem `getMessage`. Use
-  `editMessageText` com o texto **idêntico**. O erro `message is not modified` só aparece
-  quando o conteúdo bate exatamente, então ele confirma a identidade **sem alterar a
-  mensagem**. Faça isso antes de qualquer `deleteMessage` por id deduzido: id vizinho pode
-  ser a linha de um tester, e apagar mensagem de terceiro não tem volta.
-- É **grupo comum**, não supergrupo. Se for promovido, o id passa a `-100…` e o envio falha; o
-  `getChat` acusa antes.
-- Extensão: a ação do tester é sempre atualizar em `sharpen.bet/extensao` (distribuição manual).
-
----
-
-## Conta de usuário nova = duas metades, e a segunda é humana
-
-> **Antes de tudo: hoje quase toda conta nova NÃO passa por aqui.** Desde a Fase 2 quem
-> se cadastra pelo site cria a própria linha em `usuarios`, com o hash da senha que ele
-> mesmo escolheu; ao supervisor cabe **aprovar** (`status` → `ativo`). **Não há env var,
-> não há deploy, não há linha em `app/auth.py`** — o dict `USUARIOS` é *semente* das
-> contas anteriores ao autosserviço. Mande subir env var para quem se cadastrou sozinho
-> e você está resolvendo um problema que não existe. **Meça primeiro:**
-> `select username, status, length(senha_hash) from usuarios where …`.
->
-> **E o `dono` TEM de ser o username — não o nome de marca.** Os dois divergem com
-> frequência, e o isolamento por `dono` **falha em silêncio**: import feito sob o nome de
-> marca não dá erro nenhum, só entrega tela vazia para o usuário certo. Confirme o username
-> **na tabela**, nunca pelo nome do arquivo, do canal ou da planilha. A ponte entre os dois
-> nomes é o registro `TIPSTERS_PUBLICOS` (`app/main.py`), onde o **slug** é a marca e o
-> `dono` é o username. → [o caso](docs/CASOS.md#a-marca-não-é-o-username--fleury--flurray)
-
-O caminho abaixo vale só para as contas **antigas** (semente) ou criadas à mão.
-
-Criar login é 1 linha em `USUARIOS` (`app/auth.py`) + a env var `SENHA_<USER>_HASH` no
-Railway. **Não existe migration, seed nem import:** o isolamento é a coluna `dono` no
-Postgres, então a base nasce vazia e o primeiro bilhete capturado cria as linhas.
-
-O código sobe no push. A senha depende de alguém colar a variável no Railway — e
-**enquanto ela falta o login diz "usuário ou senha inválidos"**, igualzinho a senha
-errada (`USUARIOS[x] == ""` nunca autentica; fail-closed por desenho).
-
-**Antes de suspeitar do código, separe código de configuração medindo:** um asset que
-só existe no deploy novo responde 200 → o usuário está em `USUARIOS`; `POST /login`
-devolvendo **401** tem origem única (`verificar_credenciais` falso) — 429 é rate-limit,
-500 é erro do app. Usuário existindo + 401 = env var ausente, env var truncada **ou a
-senha simplesmente não é aquela**.
-
-**Essa terceira causa é a mais provável em conta de autosserviço.** O supervisor passa a
-senha que ele *planejou*; quem se cadastrou pelo site escolheu outra. **Não trate senha dita
-por terceiro como fato: prove contra o hash**, é uma linha e é leitura pura —
-`bcrypt.checkpw(b"<senha>", (select senha_hash from usuarios where username=…))`. Isso
-separa "senha errada" de "transporte quebrou" antes de mexer em qualquer coisa.
-→ [o caso](docs/CASOS.md#a-senha-simplesmente-não-era-aquela)
-
-**Resetar a senha de quem se cadastrou sozinho é decisão do dono da conta, não sua.** Não
-existe rota de troca no app (só `/admin/usuarios/{u}/aprovar` e `/suspender`), então
-mudar significa `UPDATE` cru em `senha_hash` e derrubar o acesso da pessoa. Pergunte.
-
-**Ao gravar senha em env var, confira o que CHEGOU, não o que você mandou:** comprimento
-e último caractere. `!`, `$` e `` ` `` são comidos por shell que interpola — o `$` do
-bcrypt é o caso clássico, e um `!` no fim de senha é o mesmo problema com outra roupa.
-
-**O `$` do hash bcrypt é a armadilha de transporte:** `$2b$12$…` passa mutilado por
-qualquer shell que interpole variável (PowerShell inclusive). Cole na caixa de Variables
-do Railway, confira **60 caracteres** e nenhum espaço nas pontas. Hash nunca vai para o
-git. Decidir também se a conta é **dono solo** ou entra em `OPERADORES` — solo é o
-default; operador significa que o supervisor vê a base dele e que a dedup cruzada passa
-a valer entre os dois.
-
----
-
-## Bot de tipster: NUNCA peça a senha dele. Aprove a conta e ligue o botão.
-
-É **um token de serviço só, para sempre** (`SHARPEN_BOT_TOKEN`, o mesmo valor nos
-dois serviços do Railway: o app e o `sharpen-bot`). O bot se identifica assim:
-
-```
-Authorization: Bearer <SHARPEN_BOT_TOKEN>
-X-Sharpen-Dono: <username do tipster>
-```
-
-**Tipster novo = aprovar a conta no `/admin` + clicar "Ligar bot".** Zero variável, zero
-deploy, zero senha de terceiro. As env vars do tenant (`<XX>_APOIO_ID`, `<XX>_DESTINO_ID`)
-seguem existindo porque são ids de Telegram, não credencial.
-
-**Três condições, todas obrigatórias** (`auth.dono_do_bot`): token confere · dono está
-`ativo` · dono tem `bot_habilitado`. A terceira é o que impede o token de virar
-chave-mestra: conta aprovada não ganha escrita de robô de brinde. Desligar o botão corta
-a escrita em ≤60s (TTL do cache), sem deploy e sem rotacionar o token.
-
-**Escopo:** a identidade do bot **não** entra em `usuario_atual` nem em `dono_efetivo`.
-Ela vive em `usuario_atual_ou_bot` / `dono_efetivo_ou_bot`, aplicadas só nas 4 rotas que o
-bot usa. `grep -n "_ou_bot" app/main.py` lista tudo o que o token alcança, e
-`tests/test_bot_token.py` **quebra** se alguém aplicar numa rota nova.
-
-> **Ao migrar um tenant, ligue o botão ANTES de o token existir no Railway.** Os tenants
-> trocam de caminho de autenticação **juntos**, e quem não tem botão passa a tomar 401 em
-> cada operação — sem perder bilhete (o `/salvar` é UPSERT por código), mas **a marcação de
-> resultado para de chegar**, sem erro nenhum.
-> → [o caso](docs/CASOS.md#o-token-subiu-antes-dos-botões)
-
-**Dado dessincronizado se conserta com `/ressincronizar [AAAA-MM]`** no apoio: o bot
-reempurra ao Sharpen o que já está no storage dele. Seguro de repetir (UPSERT por código,
-vazio nunca rebaixa). Deixa de fora anulado e bilhete **sem casa** — linha sem casa nasce
-invisível no Painel de Contas e reenvio não conserta, porque a casa entra na assinatura.
-
----
+- **Conta criada pelo site não precisa de env var nem de deploy** — o dict `USUARIOS`
+  (`app/auth.py`) é semente das contas anteriores ao autosserviço. **Meça antes de agir:**
+  `select username, status, length(senha_hash) from usuarios where …`.
+- **Bot de tipster: NUNCA peça a senha dele.** Aprove a conta no `/admin` e ligue o botão;
+  o token (`SHARPEN_BOT_TOKEN`) é de serviço, um só, para sempre.
+- **`dono` é o USERNAME, nunca o nome de marca.** O isolamento por `dono` falha em
+  silêncio: import sob a marca não dá erro, entrega tela vazia.
+  → [o caso](docs/CASOS.md#a-marca-não-é-o-username--fleury--flurray)
 
 ## Perfil de tipster: a casa é SAÍDA da leitura. Nunca nomeie uma no prompt.
 
@@ -455,24 +354,16 @@ anterior à 1ª aposta** (o dono declarando a compra) · **1ª aposta**, liquida
 (piso medido: a conta existia ali) · **`adquirida_em`** para conta cadastrada que nunca
 apostou · nenhuma das três: não dá para datar, e a conta não cobra em mês nenhum.
 
-> ⚠️ **A 2ª camada é o que segura base importada.** O `adquirida_em` de conta migrada foi
-> **DEDUZIDO** por backfill (`LEAST(criado_em, 1ª aposta)`) e não declara nada; mandando
-> sozinho, toda conta antiga dataria o custo no dia do **import**.
+> ⚠️ **A 2ª camada é o que segura base importada:** o `adquirida_em` de conta migrada foi
+> **DEDUZIDO** por backfill e não declara nada.
 
 **"Quanto vale o que está rodando" é o PARQUE, e ele fica FORA do P/L.** Mesmo
 `_custoNaJanela` com `modo:'vivo'`, sempre em [hoje, hoje] (`calcParqueFiltered`): conta
-viva cobra cheio, e a régua **não soma** — a mesma conta reaparece em todo mês em que
-viveu. É **estoque**, nunca gasto. `ini` = menor entre `adquirida_em` e a 1ª aposta;
-`fim` = **HOJE para conta cadastrada e ativa**, o carimbo para a arquivada, e a última
-aposta só para quem **não tem cadastro**, de quem não se sabe mais nada.
-
-> ⚠️ **Arquivada SEM carimbo fecha ONTEM.** `arquivado = true` com `arquivada_em` vazio é
-> quem foi arquivado antes de a coluna existir; como `bilhetes.data` é a data do EVENTO,
-> aposta em jogo futuro deixava a conta viva para sempre (4 contas, Jonathan e realtrial).
-
-> **Parque NUNCA segue o período da tela.** Estoque é do instante em que se olha; seguir o
-> filtro o faria variar como se fosse gasto, que é a confusão que a régua de caixa desfez.
-> Casa e Operador recortam; a legenda diz que o número é de hoje.
+viva cobra cheio e a régua **não soma** — é **estoque**, nunca gasto, e por isso **nunca
+segue o período da tela**. `ini` = menor entre `adquirida_em` e a 1ª aposta; `fim` = **HOJE
+para conta cadastrada e ativa**, o carimbo para a arquivada, e a última aposta só para quem
+**não tem cadastro**. Casa e Operador recortam; a legenda diz que o número é de hoje.
+→ [as três armadilhas da régua do parque](docs/CASOS.md#as-três-armadilhas-da-régua-do-parque--s358)
 → [por que ela saiu do P/L](docs/CASOS.md#a-régua-antiga-r-0-de-custo-com-o-parque-inteiro-em-uso)
 
 > **Duas réguas na mesma tela pedem RÓTULO, não escolha.** "R$ 0 de custo" e "12 contas
@@ -522,10 +413,12 @@ defeito.
 > alguém mexer num filtro. O flag `_ctRepintou` quebra o laço `renderKPI` → `ctLoad`.
 > Mesma família da chegada tardia do cadastro no `contasLoad`.
 
-> **As telas que ainda somam `custoData × contagem` são as TRÊS que saem do menu na
-> Fatia 5 do [`PLANO_CUSTOS_TELA_UNICA.md`](docs/PLANO_CUSTOS_TELA_UNICA.md)** (Custos de
-> Contas, Custo de Tipsters, Fornecedores & Parceiros). Consertar a régua delas é trabalho
-> que a remoção joga fora — e remover tela é decisão do Feca.
+> **As três telas antigas de custo saíram do MENU** (s358, decisão do Feca): Custos de
+> Contas, Custo de Tipsters e Fornecedores & Parceiros. Elas ainda somam `custoData ×
+> contagem` e seguem no código, alcançáveis por hash — a régua delas não foi consertada
+> **de propósito**, porque o passo seguinte é removê-las. **Menu é DUPLO**
+> (`app/static/app.html` e o array de nav do `dash/assets/js/app.js`); mexer num só deixa
+> dois menus discordando, e o gate é `tests/test_sidebar_dupla.py`.
 
 ## "Sugerir tipsters" parou? O suspeito é um perfil novo, não o código.
 

@@ -486,7 +486,7 @@ const PAGE_META={
   // Tela única de custos (Fatia 0): PRÉVIA só-leitura das três telas acima. Ver
   // charts/custos2.js. As antigas seguem no menu até a Fatia 5, porque a prévia
   // ainda não grava — tirá-las agora deixaria o Feca sem onde lançar.
-  'custos_v2':      ['Custos',                   'tela única — prévia, ainda não grava'],
+  'custos_v2':      ['Custos',                   'contas, tipsters e gerais num lugar só'],
   'tipster_metodo': ['Tipsters & Métodos',       'cadastro, unidades e detecção do tipster'],
   'metrics':        ['Métricas',                 'base de conhecimento e valores atuais'],
 };
@@ -641,13 +641,10 @@ function buildHTML(){
         ${[
           ['tipster_metodo','Tipsters & Métodos','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12.5" cy="10.5" r="3"/><path d="M12.5 9v3M11 10.5h3"/>'],
           ['casas','Bookies','<rect x="1" y="3" width="14" height="10" rx="1"/><path d="M1 8h14M5 3v10"/>'],
-          ['parceiros','Fornecedores & Parceiros','<rect x="2" y="4" width="12" height="9" rx="1"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Custos</div>
         ${[
-          ['custos','Custos de Contas','<path d="M8 2v12M5 5h4.5a2 2 0 010 4H5m0 0h5a2 2 0 010 4H5"/>'],
-          ['custos_tipster','Custos de Tipsters','<circle cx="6" cy="5" r="2.5"/><path d="M1 13.5C1 11 3 10 6 10s5 1 5 3.5"/><circle cx="12" cy="5" r="2"/><path d="M10 13.2c.6-.5 2-.7 2-.7"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="10" y1="10" x2="14" y2="10"/>'],
-          ['custos_v2','Custos (prévia)','<path d="M3 1.8h10v12.4l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2z"/><path d="M5.5 5.5h5M5.5 8.2h5M5.5 10.9h3"/>'],
+          ['custos_v2','Custos','<path d="M3 1.8h10v12.4l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2z"/><path d="M5.5 5.5h5M5.5 8.2h5M5.5 10.9h3"/>'],
         ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>${label}</div>`).join('')}
         <div class="nav-group">Configurações</div>
         ${[
