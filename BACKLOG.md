@@ -783,16 +783,6 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
   telas renderizadas — mecânico, mas precisa de medição, porque o `components.css` tem
   ajustes de contexto (`.kpi-val .money { width:auto }`) que a base não tem.
 
-- **Logo de tipster: o upload existe, mas a vitrine pública não tem por onde subir (s363). VIVA, por desenho.**
-  O tipster sobe a logo **logado na conta dele** (`/app`, clique ou arrastar no avatar da
-  sidebar) e a vitrine (`/tipsters/<slug>`) só exibe. É o desenho certo — vitrine não tem
-  sessão que autorize escrita —, mas **os 8 tipsters do registro precisam ser avisados de
-  que isso existe**, senão o recurso nasce sem uso. Entra no próximo aviso ao grupo, não
-  merece um só para ele.
-
-- **Aviso de upload pendente: nenhum tipster sabe que pode pôr a logo (s363). HUMANA.**
-  Ver o item acima. Decisão do Feca sobre avisar e quando.
-
 - **A Visão Geral tem largura mínima de ~844px e estoura abaixo de ~1100 de janela (s358). VIVA, medida.**
   Medido headless contra o `servidor_demo`, com a página carregada JÁ na largura (não por
   resize): com a janela em 1024 o iframe do dash fica com 760px e **45 elementos** passam
