@@ -17,6 +17,22 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-a-area-de-custos-ficou-nova",
+      "data": "2026-09-15",
+      "tag": "Sharpen",
+      "titulo": "A área de Custos ficou nova",
+      "texto": "**Assim que entrar, abra Custos no menu.** Se aparecer uma faixa azul no topo da tela, clique em **Guardar na minha conta** antes de mexer em qualquer outra coisa: é um clique só, e deixa seus lançamentos prontos para abrir em qualquer computador ou celular.",
+      "itens": [
+        "**Contas, tipsters e custos gerais numa tela só.** Eram três lugares diferentes. Agora é um, com o total do período, o que já está fechado e o que ainda falta lançar.",
+        "**Cada custo pesa no mês em que você pagou.** Conta comprada em agosto pesa em agosto e não volta a cobrar em setembro. Os doze meses somam o ano, e dá para conferir na mão.",
+        "**O P/L Líquido desconta tudo:** o preço das contas, a mensalidade dos tipsters e os custos gerais. É o seu lucro depois de todo mundo receber.",
+        "**Filtrou um tipster? O custo acompanha.** A tela mostra o que aquele tipster cobrou e o que custaram as contas que ele usou.",
+        "**Contas em operação**, na Visão Geral: quanto vale o que está rodando hoje, separado do que saiu do bolso no período.",
+        "**Tabela de preço por fornecedor, com data.** Preço novo não é retroativo: quem foi comprado antes mantém o que custou."
+      ],
+      "fecho": "E tem a fita **do bruto ao líquido**, que mostra de uma olhada quanto do seu resultado o custo levou. Não esqueça da faixa azul: clique nela logo ao entrar, e depois é só usar."
+    },
+    {
       "id": "sharpen-dia-da-semana",
       "data": "2026-09-15",
       "tag": "Sharpen",
