@@ -13,7 +13,10 @@
 <!-- Fontes da marca SELF-HOST (Manrope + JetBrains Mono) — sem dependência do Google Fonts. -->
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/tokens.css">
-<link rel="stylesheet" href="/static/shell.css?v=2"><!-- casca compartilhada: .nav-group/.nav-item/.nav-icon/.nav-out -->
+<link rel="stylesheet" href="/static/shell.css?v=3"><!-- casca compartilhada: .nav-group/.nav-item/.nav-icon/.nav-out/.sb-tipster/.money -->
+<!-- Bloco de tipster da sidebar (s362), compartilhado com a vitrine pública. Sem
+     `defer`: o script inline lá embaixo chama SbTipster.montar na hora em que roda. -->
+<script src="/static/sb-tipster.js?v=1"></script>
 <style>
 /* ── Host da casca única (/app) ──────────────────────────────────────────────
    Dono da sidebar (uma só, sempre viva) + 2 iframes (Planilhador + Dashboard).
@@ -120,28 +123,9 @@ body::before {
 }
 .sb-logout svg { width: 13px; height: 13px; flex-shrink: 0; }
 .sb-logout:hover { border-color: rgba(var(--neg-rgb),.45); color: var(--neg); }
-/* Operador (tier 1) — identidade + trocador "ver base de" (donos). O espaçamento
-   entre tiers vem do gap do .sidebar-bottom, sem separador próprio. */
-.sb-operador { position: relative; }
-.sb-op-trigger { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: default; text-align: left; color: var(--ink); font-family: var(--font-sans); }
-.sb-operador.has-switch .sb-op-trigger { cursor: pointer; }
-.sb-operador.has-switch .sb-op-trigger:hover { border-color: var(--ink-mute); }
-.sb-op-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); flex: none; }
-.sb-op-meta { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.sb-op-lbl { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
-.sb-op-nome { font-size: 12px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Caret: ÍCONE, não texto — fica em 9px --ink-mute por desenho (Escada de Tinta). */
-.sb-op-caret { font-size: 9px; color: var(--ink-mute); flex: none; display: none; transition: transform .15s; }
-.sb-operador.has-switch .sb-op-caret { display: block; }
-.sb-operador.open .sb-op-caret { transform: rotate(180deg); }
-.sb-op-menu { display: none; position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; background: var(--elevated); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 5px; box-shadow: var(--glow); z-index: 20; }
-.sb-operador.open .sb-op-menu { display: block; }
-.sb-op-head { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding: 6px 8px 4px; }
-.sb-op-menu button { width: 100%; text-align: left; padding: 8px 10px; background: transparent; border: 0; border-radius: var(--r-xs); color: var(--ink-soft); font-family: var(--font-sans); font-size: 12px; cursor: pointer; }
-.sb-op-menu button:hover { background: var(--surface-2); color: var(--ink); }
-.sb-op-menu button.ativo { color: var(--accent); }
-.sb-op-menu button.voltar { color: var(--ink-soft); border-top: 1px solid var(--line); margin-top: 4px; }
-.sb-operador.vendo .sb-op-trigger { border-color: var(--accent); }
+/* Tier 1 (operador) saiu na s362: identidade e trocador subiram para o .sb-tipster,
+   no topo da sidebar. O CSS dele vive no /static/shell.css, compartilhado com a
+   vitrine pública — o bloco é o mesmo nas duas cascas. */
 /* ── Modal "Minha conta" (s275) ──────────────────────────────────────────────
    Mora na CASCA, e não numa tela: a conta é do usuário, não da aba em que ele
    está. Estrutura e medidas espelham o modal canônico do index.html (a tela de
@@ -209,8 +193,6 @@ body::before {
 .mc-msg { font-family: var(--font-sans); font-size: 12px; font-weight: 600; flex: 1; }
 .mc-msg.erro { color: var(--neg); }
 .mc-msg.ok { color: var(--pos); }
-.sb-operador.vendo .sb-op-dot { background: var(--accent); }
-.sb-operador.vendo .sb-op-lbl { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -226,6 +208,11 @@ body::before {
       </svg>
       <div class="wm"><div class="w">Sharp<span class="e">en.</span></div></div>
     </div>
+    <!-- Bloco do tipster (s362): identidade da conta + prova (ROI/PL mês × histórico).
+         Pintado pelo /static/sb-tipster.js, o MESMO módulo da vitrine pública. Absorveu
+         o .sb-operador que ficava no rodapé: identidade + caret + "ver base de" em dois
+         lugares da mesma sidebar era uma superfície a mais para o mesmo papel. -->
+    <div id="sbTipsterSlot"></div>
     <nav class="sidebar-nav">
       <div class="nav-item" data-key="inicio" onclick="location.hash='inicio'" title="Início"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.2 8 2l6 5.2"/><path d="M3.3 6.4V14h9.4V6.4"/></svg>Início</div>
       <div class="nav-group">Operação</div>
@@ -269,19 +256,10 @@ body::before {
       <div class="nav-item" data-key="dash:metrics" onclick="location.hash='dash/metrics'"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v2M8 12v2M2 8h2m8 0h2"/><circle cx="8" cy="8" r="3"/></svg>Métricas</div>
     </nav>
     <div class="sidebar-bottom">
-      <!-- Tier 1 — Operador: identidade + trocador "ver base de" (só donos). Movido
-           da tela de Extração; o Sair vive no tier 4 abaixo. -->
-      <div class="sb-operador" id="sbOperador">
-        <button class="sb-op-trigger" id="sbOpTrigger" title="Operador" type="button">
-          <span class="sb-op-dot"></span>
-          <span class="sb-op-meta">
-            <span class="sb-op-lbl" id="sbOpLbl">Usuário</span>
-            <span class="sb-op-nome" id="sbOpNome">…</span>
-          </span>
-          <span class="sb-op-caret" id="sbOpCaret">▾</span>
-        </button>
-        <div class="sb-op-menu" id="sbOpMenu"><div id="sbOpSwitch"></div></div>
-      </div>
+      <!-- Tier 1 saiu daqui na s362: identidade e "ver base de" subiram para o
+           .sb-tipster, no topo da sidebar. Duas superfícies com o mesmo papel na mesma
+           tela é o sintoma de "fora do padrão" que a s317 mediu, e aqui a de cima
+           (o nome da conta) saía do campo de visão de quem mexia na de baixo. -->
       <!-- Tier 2 — Status de sync (centralizado): dot + rótulo na 1ª linha, data na 2ª (pintado por paintSync). -->
       <div class="last-update"><span class="sync-top"><span class="pulse-dot"></span>Dados sincronizados</span></div>
       <!-- Tier 3 — Ação utilitária: Atualizar (o "Baixar CSV" migrou p/ a toolbar da aba Apostas). -->
@@ -548,48 +526,79 @@ body::before {
   route();
 })();
 
-/* Operador no rodapé da sidebar: identidade + trocador "ver base de" (só donos com
-   operadores). Trocar = POST /ver-como + reload da casca (recria os iframes com o novo
-   dono efetivo → estado limpo em toda a base). O "Sair" continua sendo o #hostLogout. */
+/* Bloco do tipster no topo da sidebar (s362): identidade da conta, plano, ROI/PL e o
+   trocador "ver base de" (só donos com operadores). Absorveu o antigo .sb-operador do
+   rodapé. Trocar = POST /ver-como + reload da casca (recria os iframes com o novo dono
+   efetivo → estado limpo em toda a base). O "Sair" continua sendo o #hostLogout.
+
+   ⚠️ O bloco e o modal "Minha conta" dividem este IIFE porque os dois leem o MESMO
+   /me (`meDados`). Nada aqui pode dar `return` antecipado: quem sai cedo leva o modal
+   junto, e ele é a única porta para trocar senha e e-mail. */
 (function(){
-  var wrap = document.getElementById('sbOperador');
-  var trig = document.getElementById('sbOpTrigger');
-  if (!wrap || !trig) return;
+  var slot = document.getElementById('sbTipsterSlot');
   var meDados = null;            // última resposta do /me (identidade + perfil)
+  if (slot && window.SbTipster) {
+
   function verComo(alvo){
     fetch('/ver-como', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alvo: alvo }) })
       .catch(function(){}).then(function(){ window.location.reload(); });
   }
+
+  // Estado ÚNICO do bloco, preenchido por duas rotas com papéis diferentes, e
+  // repintado a cada chegada. Sem isso a segunda resposta apagaria o que a primeira
+  // escreveu — e qual chega antes depende da rede, não do código.
+  var estado = { nome: '', dono: '', vendo: false, plano: null, tem_logo: false, mes: {}, historico: {} };
+  var real = '', efetivo = '', ops = [];
+
+  var bloco = SbTipster.montar({
+    editavel: true,          // o dono está logado: pode trocar a própria logo
+    unidade: 'reais',        // o host é a base do usuário, em R$ (a vitrine é que fala em u)
+    logoUrl: '/conta/logo',
+    // O "Ver base de" entra por callback, e não dentro do módulo compartilhado: a
+    // vitrine pública não tem esse conceito, e cravá-lo lá levaria para ela um menu
+    // que nunca teria itens.
+    onMenu: function(menu, api){
+      if (!ops.length) return;
+      var hd = document.createElement('div');
+      hd.className = 'sb-tipster__mhd';
+      hd.textContent = 'Ver base de';
+      menu.appendChild(hd);
+      ops.forEach(function(op){
+        var b = api.item(op, function(){ verComo(op); });
+        if (op === efetivo) b.className = 'ativo';
+        menu.appendChild(b);
+      });
+      if (efetivo !== real) menu.appendChild(api.item('↩ Voltar para ' + real, function(){ verComo(''); }, 'sep'));
+    }
+  });
+  slot.appendChild(bloco.el);
+
+  // Duas chamadas, dois papéis: o /me responde QUEM é (barato, não toca em bilhetes)
+  // e o /conta/perfil responde QUANTO (agrega a base inteira). Pintar em dois passos
+  // evita a sidebar ficar em branco esperando o agregado — o nome aparece na hora e
+  // os números entram depois, nas células que até lá mostram travessão.
   fetch('/me').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
     if (!d) return;
     meDados = d;                 // guardado para o "Minha conta" da navegação
-    var real = d.usuario || '';
-    var efetivo = d.dono_efetivo || real;
-    var ops = d.operadores || [];
-    var vendo = efetivo !== real;
-    document.getElementById('sbOpNome').textContent = efetivo || 'operador';
-    document.getElementById('sbOpLbl').textContent = vendo ? 'Vendo' : 'Usuário';
-    wrap.classList.toggle('vendo', vendo);
-    if (ops.length) {
-      var sw = document.getElementById('sbOpSwitch');
-      var head = document.createElement('div'); head.className = 'sb-op-head'; head.textContent = 'Ver base de'; sw.appendChild(head);
-      ops.forEach(function(op){
-        var b = document.createElement('button'); b.textContent = op;
-        if (op === efetivo) b.className = 'ativo';
-        b.addEventListener('click', function(){ verComo(op); });
-        sw.appendChild(b);
-      });
-      if (vendo) {
-        var volta = document.createElement('button'); volta.className = 'voltar'; volta.textContent = '↩ Voltar para ' + real;
-        volta.addEventListener('click', function(){ verComo(''); });
-        sw.appendChild(volta);
-      }
-      wrap.classList.add('has-switch');
-    }
+    real = d.usuario || '';
+    efetivo = d.dono_efetivo || real;
+    ops = d.operadores || [];
+    estado.dono = efetivo;
+    estado.vendo = efetivo !== real;
+    if (!estado.nome) estado.nome = efetivo;
+    bloco.aplicar(estado);
   }).catch(function(){});
-  trig.addEventListener('click', function(e){ e.stopPropagation(); if (wrap.classList.contains('has-switch')) wrap.classList.toggle('open'); });
-  document.addEventListener('click', function(e){ if (!wrap.contains(e.target)) wrap.classList.remove('open'); });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') wrap.classList.remove('open'); });
+
+  fetch('/conta/perfil').then(function(r){ return r.ok ? r.json() : null; }).then(function(p){
+    if (!p) return;
+    estado.nome = p.nome || estado.nome || p.dono || '';
+    estado.plano = p.plano;
+    estado.tem_logo = !!p.tem_logo;
+    estado.mes = p.mes || {};
+    estado.historico = p.historico || {};
+    bloco.aplicar(estado);
+  }).catch(function(){});
+  }   // fim do bloco de tipster (o modal abaixo segue no mesmo IIFE, de propósito)
 
   /* ── Modal "Minha conta" ───────────────────────────────────────────────────
      Trocar a senha encerra as OUTRAS sessões (o cookie leva a impressão do hash;

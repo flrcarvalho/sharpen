@@ -5,6 +5,10 @@
 
    Escopo (cresce por fatias, cada uma validada nos 2 apps):
      • Fatia 1 — navegação da sidebar (.nav-group / .nav-item / .nav-icon).
+     • Fatia 2 — bloco de tipster (.sb-tipster) + base do componente monetário
+       (.money), s362. O bloco é o MESMO nas duas cascas e é pintado pelo
+       /static/sb-tipster.js, também compartilhado: markup copiado em dois lugares
+       diverge no primeiro ajuste, e aqui as duas telas mostram a mesma conta.
 
    Regras:
      - Só entram aqui componentes com MESMO nome de classe e valores reconciliados nos 2.
@@ -58,6 +62,210 @@
 /* Item que SAI do app (target=_blank): o glifo ↗ à direita avisa antes do clique que
    o destino abre fora. É ÍCONE, não texto — fica em --ink-mute abaixo do piso da
    Escada de Tinta POR DESENHO, mesma exceção já comentada para caret/seta
-   (.operador-caret, .casa-arrow, .sb-op-caret). Não usar esta classe em texto. */
+   (.operador-caret, .casa-arrow, .metric-info). Não usar esta classe em texto. */
 .nav-out { width: 11px; height: 11px; margin-left: auto; flex-shrink: 0; color: var(--ink-mute); transition: color .14s; }
 .nav-item:hover .nav-out { color: var(--ink-soft); }
+
+/* ── Fatia 2a — componente monetário (UI_REFERENCE §5) ──────────────────────────
+   Base canônica do `.money`: `R$`/sinal MENORES e NEUTROS, cor só no número, mono
+   com tabular-nums. Mora aqui porque as duas cascas precisam dele — o host (/app)
+   não carrega o components.css do Dashboard, e sem isto o bloco de tipster teria de
+   inventar uma máscara própria, que é exatamente o que o §5 proíbe.
+
+   Há duas cópias mais antigas (components.css do Dashboard e um bloco inline no
+   inicio.html). Elas carregam DEPOIS desta e, com a mesma specificity, continuam
+   vencendo — nada muda nas telas que já existiam. Unificar as três é dívida
+   registrada no BACKLOG, não trabalho desta fatia. */
+.money {
+  display: inline-flex; justify-content: flex-end; gap: 4px; width: 100%;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum";
+}
+.money-sign { min-width: 2ch; text-align: right; flex-shrink: 0; font-size: .76em; color: var(--ink-soft); }
+.money-val  { text-align: right; font-variant-numeric: tabular-nums; }
+.money.pos { color: var(--pos); }
+.money.neg { color: var(--neg); }
+.money.pos .money-sign, .money.neg .money-sign { color: var(--ink-soft); }
+.money-u { color: var(--ink-soft); font-size: .78em; }
+
+/* ── Fatia 2b — bloco de tipster na sidebar (.sb-tipster) ───────────────────────
+   O nome do tipster era metadado da marca: vivia em mono caixa-alta colado no
+   lockup (.logo-sub no Dashboard, .pub-tipster na vitrine), que é a linguagem de
+   RÓTULO do sistema (.nav-group, .page-sub). Aqui ele vira entidade própria: sans,
+   capitalização real do banco, com avatar e prova de resultado embaixo.
+
+   Uma superfície só: no host este bloco ABSORVEU o .sb-operador do rodapé, que era
+   o segundo lugar com identidade + caret + trocador na mesma sidebar. Dois blocos
+   com o mesmo papel é o sintoma barato de "fora do padrão" (s317).
+
+   Inset de 10px nas laterais = o mesmo do .nav-item, para o bloco alinhar com a
+   navegação em vez de abrir uma segunda margem. */
+.sb-tipster {
+  margin: 2px 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  overflow: visible;
+  position: relative;
+}
+.sb-tipster__top { display: flex; align-items: center; gap: 11px; padding: 10px; }
+/* SEM a barra de acento à esquerda que o mockup trazia (o "eco do .nav-item.active").
+   Duas razões, as duas vistas só depois de renderizar:
+     · nesta casca item ativo é uma PÍLULA DEGRADÊ, não uma barra — o eco importava
+       uma segunda gramática para o mesmo sinal;
+     · o bloco não é item de navegação, e marcá-lo de "ativo" promete um estado que
+       ele não tem (não dá para "sair" dele). */
+
+/* Avatar: 48px, o monograma atrás e a logo por cima cobrindo o box inteiro.
+   `contain` sobre --bg2 porque logo de tipster é quase sempre horizontal, e `cover`
+   cortaria o nome da marca fora. */
+.sb-tipster__av {
+  position: relative; width: 48px; height: 48px; flex: none;
+  border-radius: 13px; overflow: hidden;
+  display: grid; place-items: center;
+  padding: 0; border: 0;
+  background: linear-gradient(150deg, var(--accent-2), var(--accent));
+  font-family: inherit; color: inherit;
+}
+button.sb-tipster__av { cursor: pointer; }
+.sb-tipster__mono {
+  font-family: var(--font-mono); font-weight: 600; font-size: 16px;
+  letter-spacing: -.02em; color: var(--bg);
+}
+.sb-tipster__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--bg2); }
+.sb-tipster__img[hidden] { display: none; }
+/* Affordance de upload: anel tracejado só no hover/foco/arrasto. Estado vazio é o
+   monograma e MAIS NADA — sem ícone de câmera nem placeholder cinza, senão toda
+   conta nova nasce com um buraco visual no lugar da identidade. */
+.sb-tipster__ring {
+  position: absolute; inset: 3px; border-radius: 10px; pointer-events: none;
+  border: 1.2px dashed var(--accent-2); opacity: 0; transition: opacity .12s;
+}
+button.sb-tipster__av:hover .sb-tipster__ring,
+button.sb-tipster__av:focus-visible .sb-tipster__ring,
+.sb-tipster__av.is-drop .sb-tipster__ring { opacity: .85; }
+/* opacidade como ESTADO (carregando), não como degrau de hierarquia */
+.sb-tipster__av.is-loading { opacity: .55; }
+
+/* Identidade: o gatilho do menu. Ocupa o resto da linha para a área de clique não
+   ser só o texto. */
+.sb-tipster__id {
+  min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px;
+  padding: 2px 0; background: none; border: 0; text-align: left;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.sb-tipster__tx { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+/* Nome em SANS, nunca em mono caixa-alta, e sem text-transform: a capitalização vem
+   do banco (`Soh Props`). Mono uppercase é rótulo, e foi ela que rebaixava o nome. */
+.sb-tipster__nm {
+  font-size: var(--text-base); font-weight: var(--weight-bold); letter-spacing: -.03em;
+  line-height: 1.1; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Selo do plano: 10px e não 9px. `--text-nano` é o piso da escala e reprova o papel
+   LABEL da Escada de Tinta; o degrau seguinte é `--text-xxs` (mesma correção que a
+   .pagehead-eyebrow recebeu na s330). */
+.sb-tipster__plan {
+  font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: var(--weight-bold);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--warn);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-tipster__plan.sem   { color: var(--ink-soft); }   /* sem assinatura: some o âmbar, fica o rótulo */
+.sb-tipster__plan.vendo { color: var(--accent); }     /* "ver base de" ligado: o aviso mora aqui */
+.sb-tipster.vendo { border-color: var(--accent); }
+.sb-tipster__chev {
+  width: 14px; height: 14px; flex: none;
+  stroke: var(--ink-soft); stroke-width: 1.8; fill: none; transition: transform .15s;
+}
+.sb-tipster.open .sb-tipster__chev { transform: rotate(180deg); }
+.sb-tipster__id:hover .sb-tipster__nm { color: var(--ink); }
+.sb-tipster__id:hover .sb-tipster__chev { stroke: var(--ink); }
+
+/* Matriz ROI/PL: 3 colunas (rótulo, Mês, Histórico) por 3 linhas (cabeçalho, ROI, P/L). */
+.sb-tipster__stats {
+  display: grid; grid-template-columns: auto 1fr 1fr;
+  border-top: 1px solid var(--line);
+}
+/* `>` e não descendente: a regra é da CÉLULA. Sem o filho direto ela alcançava também
+   o `.money-val` e o `.money-sign` lá dentro e vencia as duas por specificity — o
+   número saía em --ink com o verde preso no container invisível (cor some) e o `R$`
+   saía do mesmo tamanho do valor (§5 pede menor e neutro). Medido em headless. */
+.sb-tipster__stats > span {
+  padding: 5px 6px; display: flex; align-items: center; justify-content: flex-end;
+  font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-semibold);
+  color: var(--ink); letter-spacing: -.02em;
+}
+/* Cabeçalho de coluna e rótulo de linha são LABEL: --ink-soft em 10px (6,3:1 sobre o
+   fundo efetivo). O mockup pedia --ink-mute em 9px, que mede 3,0:1 e reprova. */
+.sb-tipster__stats > .hd, .sb-tipster__stats > .rw {
+  font-size: var(--text-xxs); font-weight: var(--weight-bold);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+}
+.sb-tipster__stats > .hd { padding-top: 7px; padding-bottom: 3px; }
+.sb-tipster__stats > .rw { justify-content: flex-start; padding-left: 9px; padding-right: 2px; letter-spacing: .06em; }
+.sb-tipster__stats > .pb { padding-bottom: 8px; }
+.sb-tipster__stats > .vazio { color: var(--ink-mute); }   /* o travessão de conta sem aposta resolvida */
+/* A hierarquia entre as colunas é COR e PESO, não tom: o Mês carrega verde/vermelho
+   cheio, o Histórico fica neutro e mais leve. O mockup apagava o Histórico para
+   --ink-soft, mas ali ele é VALOR NUMÉRICO, e a Escada de Tinta pede --ink para esse
+   papel: número apagado vira textura, que é o defeito que a escada existe para
+   barrar. Trocar a diferença de TOM por diferença de COR mantém a leitura do mockup
+   (o mês salta) sem rebaixar o número do histórico. */
+.sb-tipster__stats > .lo { font-weight: var(--weight-medium); }
+.sb-tipster__stats > .lo,
+.sb-tipster__stats > .lo .money.pos,
+.sb-tipster__stats > .lo .money.neg { color: var(--ink); }
+/* O .money nasce com width:100% e min-width de 10ch (larguras de tabela). Numa
+   sidebar de 264px isso estoura a coluna. */
+.sb-tipster__stats .money { width: auto; gap: 1px; }
+.sb-tipster__stats .money-val,
+.sb-tipster__stats .money-sign { min-width: 0; }
+/* O `R$` e o `u` são UNIDADE, e a Escada de Tinta dá piso de 10px a esse papel. Como
+   o valor aqui é 11,5px, o 0,76em do componente levaria a unidade a 8,7px — abaixo do
+   piso. Crava-se o degrau da escala: continua menor que o número (é o que o §5 pede)
+   sem cair fora dela. */
+.sb-tipster__stats .money-sign,
+.sb-tipster__stats .money-u { font-size: var(--text-xxs); }
+/* Aperto: P/L de 7 dígitos (R$ 1 milhão) não cabe em duas colunas numa sidebar de
+   264px. A saída NÃO é encolher o número — 13px é o piso da Escada de Tinta para valor
+   numérico, e abaixo dele o dado vira textura. Ganha-se a folga no espaço em volta
+   (padding e tracking), que não é dado. A classe é posta pelo sb-tipster.js medindo o
+   scrollWidth depois de pintar, e não por palpite de quantos dígitos cabem: o mesmo
+   bloco serve base em R$ e em unidades, com larguras que não se parecem. */
+.sb-tipster__stats.apertado > span { padding-left: 3px; padding-right: 3px; letter-spacing: -.045em; }
+.sb-tipster__stats.apertado > .rw { padding-left: 5px; letter-spacing: 0; }
+/* Acima de R$ 1 milhão nas DUAS janelas o aperto não basta e o grid passa alguns pixels
+   da borda do bloco (ainda dentro dos 264px da sidebar). É de propósito: `overflow:hidden`
+   cortaria centavos em silêncio, e número cortado lê como número errado. Um número
+   apertado lê como apertado. */
+
+/* Menu do chevron: trocar/remover logo e, no host, o "Ver base de" que era do
+   .sb-operador. Abre PARA BAIXO, porque o bloco fica no topo da sidebar. */
+.sb-tipster__menu {
+  position: absolute; top: calc(100% - 4px); left: 6px; right: 6px; z-index: 30;
+  background: var(--elevated); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 5px; box-shadow: var(--glow);
+}
+.sb-tipster__menu[hidden] { display: none; }
+.sb-tipster__menu button {
+  width: 100%; text-align: left; padding: 7px 9px;
+  background: transparent; border: 0; border-radius: var(--r-xs);
+  color: var(--ink-soft); font-family: var(--font-sans); font-size: 12px; cursor: pointer;
+}
+.sb-tipster__menu button:hover { background: var(--surface-2); color: var(--ink); }
+.sb-tipster__menu button.ativo { color: var(--accent); }
+.sb-tipster__menu button.sep { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 9px; }
+.sb-tipster__mhd {
+  font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: var(--weight-bold);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding: 6px 9px 4px;
+}
+/* Erro do upload aparece NO bloco em que o clique foi dado, nunca numa barra de
+   status distante: da cadeira de quem clicou, erro longe do formulário lê como "não
+   aconteceu nada". `display` próprio exige o [hidden] explícito, porque o atributo
+   só vale pela folha do agente e `display:block` o vence. */
+.sb-tipster__erro {
+  display: block; padding: 6px 10px 8px; border-top: 1px solid var(--line);
+  font-size: var(--text-xs); line-height: 1.4; color: var(--neg);
+}
+.sb-tipster__erro[hidden] { display: none; }
+.sb-tipster[hidden] { display: none; }

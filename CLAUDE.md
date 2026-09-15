@@ -574,7 +574,7 @@ escada**, não aplique opacidade.
 **Duas exceções, ambas comentadas no CSS para não virarem precedente:**
 
 - **Ícone não é texto.** Caret, seta e o "i" de ajuda (`.operador-caret`, `.casa-arrow`,
-  `.sb-op-caret`, `.metric-info`) ficam abaixo do piso, em `--ink-mute`, por desenho.
+  `.metric-info`) ficam abaixo do piso, em `--ink-mute`, por desenho.
 - **`opacity` como ESTADO é legítima** — `.act-btn.off`, `.update-btn.is-loading`,
   `.host-refresh.is-loading`. Ali ela sinaliza desabilitado/carregando, não hierarquia.
 

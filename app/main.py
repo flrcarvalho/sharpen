@@ -86,7 +86,8 @@ from repository import (
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     casa_canonica, excluir_parceiro, get_parceiro, list_parceiros, parse_tsv,
     editar_parceiro, reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
-    resumo_parceiro, upsert_bilhetes,
+    resumo_parceiro, resumo_perfil, upsert_bilhetes,
+    logo_salvar, logo_ler, logo_apagar, logo_donos,
     CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_editar_mov, caixa_excluir_mov, caixa_visao,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
@@ -94,6 +95,7 @@ from repository import (
     conferir_cobertura, codigos_do_texto, codigos_do_tsv,
 )
 from descricao_check import checar_fidelidade
+import logo_imagem   # normalização/saneamento da logo da conta (s362)
 
 logger = logging.getLogger("scanner")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -3911,6 +3913,108 @@ async def resumo_da_conta(
     return await resumo_conta(dono, casa, parceiro)
 
 
+# ── Bloco de tipster na sidebar: perfil + logo da conta (s362) ────────────────
+# O bloco `.sb-tipster` vive nas DUAS cascas (o host em /app e a vitrine pública em
+# /tipsters/<slug>), e as duas leem daqui. Identidade e números numa rota, os bytes
+# da logo noutra: o JSON do perfil entra no caminho crítico do boot e carregar a
+# imagem junto dobraria o payload para dizer um booleano.
+
+
+def _resposta_logo(mime: str, dados: bytes, etag: str, request: Request) -> Response:
+    """Serve os bytes da logo com as três travas que um upload de terceiro exige.
+
+    · CSP `default-src 'none'` — SVG aberto DIRETO na barra de endereços vira
+      documento (dentro de `<img>` não viraria), e aí script rodaria na origem do
+      app. Esta CSP é MAIS restrita que a global do `_security_headers`, e vence
+      porque aquele middleware usa `setdefault`. O saneamento do `logo_imagem` é a
+      camada anterior; esta é a rede.
+    · ETag — a URL da logo é estável (não tem hash no caminho), então sem ele trocar
+      a logo deixaria a antiga na tela até o cache do navegador expirar.
+
+    `X-Content-Type-Options: nosniff` NÃO é repetido aqui: o `_security_headers`
+    já o põe em toda resposta. Repetir foi o primeiro impulso, e a mutação mostrou
+    que a linha era inócua — o teste continuava verde sem ela porque o middleware
+    cobria o caso.
+    """
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+    return Response(
+        content=dados,
+        media_type=mime,
+        headers={
+            "ETag": etag,
+            "Cache-Control": "private, max-age=60",
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+            "Content-Disposition": "inline",
+        },
+    )
+
+
+@app.get("/conta/perfil")
+async def perfil_da_conta(dono: str = Depends(dono_leitura)):
+    """Identidade + ROI/PL (mês × histórico) da conta, para o bloco da sidebar.
+
+    O escopo é `escopo_de_leitura` — o MESMO do /dashboard/data. Um supervisor vê o
+    feed consolidado dele e dos operadores; se a sidebar somasse só a base própria,
+    dois números vizinhos na mesma tela discordariam, e o certo pareceria defeito.
+
+    `nome`/`plano` saem do registro público quando o dono tem vitrine; senão o nome é
+    o próprio username (é o que o rodapé da sidebar já mostrava) e o plano é `None`.
+    """
+    escopo = escopo_de_leitura(dono)
+    pub = perfil_publico_do_dono(dono)
+    numeros = await resumo_perfil(escopo)
+    com_logo = await logo_donos([dono])
+    return {
+        "dono": dono,
+        "nome": (pub or {}).get("nome") or dono,
+        "plano": (pub or {}).get("plano"),
+        "slug": (pub or {}).get("slug"),
+        "tem_logo": dono in com_logo,
+        "mes": numeros["mes"],
+        "historico": numeros["historico"],
+    }
+
+
+@app.get("/conta/logo")
+async def ler_logo_da_conta(request: Request, dono: str = Depends(dono_leitura)):
+    """Logo da conta logada. 404 quando não há — a tela cai no monograma."""
+    achado = await logo_ler(dono)
+    if not achado:
+        raise HTTPException(404, "Esta conta não tem logo.")
+    mime, dados, etag = achado
+    return _resposta_logo(mime, dados, etag, request)
+
+
+@app.post("/conta/logo")
+async def subir_logo_da_conta(
+    arquivo: UploadFile = File(...), dono: str = Depends(dono_efetivo)
+):
+    """Sobe (ou substitui) a logo da conta.
+
+    A validação inteira vive em `logo_imagem.normalizar`, que lê o tipo dos BYTES e
+    ignora o content-type do multipart: o cabeçalho é dado do cliente, e vira o
+    Content-Type com que servimos o arquivo de volta.
+
+    Lê no máximo `LIMITE_BYTES + 1`: recusar depois de carregar 300 MB na memória é
+    recusar tarde demais, e o limite existe exatamente para isso.
+    """
+    bruto = await arquivo.read(logo_imagem.LIMITE_BYTES + 1)
+    try:
+        mime, dados = logo_imagem.normalizar(bruto)
+    except logo_imagem.LogoInvalida as e:
+        raise HTTPException(400, str(e))
+    await logo_salvar(dono, mime, dados)
+    return {"ok": True, "tem_logo": True, "bytes": len(dados)}
+
+
+@app.delete("/conta/logo")
+async def apagar_logo_da_conta(dono: str = Depends(dono_efetivo)):
+    """Remove a logo. Sem ela, o avatar volta ao monograma — nunca a um placeholder."""
+    apagou = await logo_apagar(dono)
+    return {"ok": True, "tem_logo": False, "apagou": apagou}
+
+
 # ── Caixa: auditoria de saldo por conta (s314) ────────────────────────────────
 # Escrita usa `dono_efetivo`, como TODA rota de dados: o supervisor que está vendo
 # a base de um operador escreve nela — é assim que renomear, excluir e editar conta
@@ -4779,22 +4883,29 @@ async def escadas_todas_route(dono: str = Depends(dono_leitura)):
 # por acidente). ORDEM IMPORTA: rotas de path dinâmico registradas DEPOIS de
 # todas as /tipsters/* de API (o Starlette casa na ordem de registro), e
 # /tipsters/{slug}/data ANTES de /tipsters/{slug} (mais específica primeiro).
+#
+# `plano` (s362) é o SELO do bloco de tipster na sidebar, e por isso saiu de dentro
+# do `nome`: "Soh Props - Vip" virou nome `Soh Props` + plano `VIP`. O nome é
+# IDENTIDADE e o plano é DIREITO DE ACESSO — coladas na mesma string, a tela não
+# consegue dar tipografia diferente a cada uma, e foi isso que rebaixou o nome do
+# tipster a metadado da marca Sharpen. `None` = conta sem assinatura: o selo âmbar
+# some e a tela diz "Sem plano" (nunca um selo vazio, que leria como defeito).
 TIPSTERS_PUBLICOS: dict[str, dict] = {
-    "sochutes": {"dono": "SoChutes", "nome": "Só Chutes"},
-    "zoraesports": {"dono": "ZoraEsports", "nome": "Zora eSports"},
+    "sochutes": {"dono": "SoChutes", "nome": "Só Chutes", "plano": None},
+    "zoraesports": {"dono": "ZoraEsports", "nome": "Zora eSports", "plano": None},
     # 3º tipster (s260). O slug é o nome de MARCA (`fleury`); o dono é o username
     # com que ele se cadastrou no site (`Flurray`) — os dois divergem de propósito
     # e é o registro que faz a ponte. Base 100 % em unidades, como o modo pede.
-    "fleury": {"dono": "Flurray", "nome": "Fleury"},
+    "fleury": {"dono": "Flurray", "nome": "Fleury", "plano": None},
     # 4º tipster (s264). Aqui marca e username COINCIDEM — conferido na tabela
     # `usuarios` (ativo, cadastro em autosserviço), não deduzido do nome da
     # planilha. Base multiesporte em unidades: escanteios, props e múltiplas.
-    "reidocriquete": {"dono": "reidocriquete", "nome": "Rei do Criquete"},
+    "reidocriquete": {"dono": "reidocriquete", "nome": "Rei do Criquete", "plano": None},
     # 5º tipster (s272). Marca e username DIVERGEM de novo, como no Fleury: a
     # marca é `PassaTips VIP` e o username é `passapano` (conferido na tabela
     # `usuarios` — ativo, cadastro em autosserviço em 17/08/2026). Base
     # MULTIESPORTE em unidades: 911 apostas em 20 esportes, 02/06 → 17/08/2026.
-    "passatipsvip": {"dono": "passapano", "nome": "PassaTips VIP"},
+    "passatipsvip": {"dono": "passapano", "nome": "PassaTips", "plano": "VIP"},
     # 6º tipster (s306). Marca e username DIVERGEM de novo: a marca é
     # `RogerinComeuMeuSaldo` e o username é `Rogeringambler` (conferido na tabela
     # `usuarios` — ativo, hash de 60 chars, cadastro em autosserviço em
@@ -4803,7 +4914,7 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # nem o nome do arquivo nem o apelido inicial são fonte de nada. Base de
     # 393 apostas em unidades, 10/04 → 31/08/2026, em DUAS eras que não se
     # parecem (props de NBA até 30/05; multiesporte a partir de 27/07).
-    "rogerincomeumeusaldo": {"dono": "Rogeringambler", "nome": "RogerinComeuMeuSaldo"},
+    "rogerincomeumeusaldo": {"dono": "Rogeringambler", "nome": "RogerinComeuMeuSaldo", "plano": None},
     # 7º tipster (s316). Marca, slug e username são TRÊS strings diferentes, e
     # nenhuma delas é o nome do arquivo: os CSV se chamam `SOH PROPS`, a marca
     # que o Feca fechou é `Soh Props - Vip`, o slug é `sohpropsvips` e o username
@@ -4814,7 +4925,7 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # carteira monomodal do registro. Duas eras de escrita, não de aposta: até
     # 31/03 o título traz o confronto por extenso, de 01/04 em diante é só
     # sobrenome + mercado em código (`olise shot3`).
-    "sohpropsvips": {"dono": "sohprops", "nome": "Soh Props - Vip"},
+    "sohpropsvips": {"dono": "sohprops", "nome": "Soh Props", "plano": "VIP"},
     # 8º tipster (s325). Marca e username DIVERGEM pela quinta vez: a marca é
     # `Grego Tips - VIP` (o nome do canal) e o username do cadastro é
     # `gregozxrd` (conferido na tabela `usuarios` — e-mail
@@ -4825,12 +4936,30 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # Soh Props. O fechamento de agosto que ele publicou no canal (924 apostas,
     # +127,84u, ROI 13,02%) reconcilia com o import: conferência contra fonte
     # externa, não só contra a própria planilha.
-    "gregotipsvip": {"dono": "gregozxrd", "nome": "Grego Tips - VIP"},
+    "gregotipsvip": {"dono": "gregozxrd", "nome": "Grego Tips", "plano": "VIP"},
 }
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres
 _publico_data_cache: dict[str, tuple[float, bytes, bytes]] = {}  # slug → (ts, json, gzip)
 _DASH_SHELL = Path(__file__).parent / "static" / "dash" / "index.html"
+
+
+def perfil_publico_do_dono(dono: str) -> dict | None:
+    """Índice REVERSO do registro: dono (username) → {slug, nome, plano}.
+
+    O registro é chaveado por slug porque é assim que a URL pública chega. O bloco
+    da sidebar faz a pergunta ao contrário — "quem é o dono logado?" — e é a MESMA
+    fonte que responde às duas, de propósito: um segundo cadastro de nome de marca
+    divergiria do primeiro no dia em que alguém renomeasse um só.
+
+    Montado a cada chamada (8 entradas, dicionário literal) em vez de cacheado: o
+    custo é nada e um cache aqui seria mais uma coisa a invalidar.
+    """
+    alvo = (dono or "").casefold()
+    for slug, cfg in TIPSTERS_PUBLICOS.items():
+        if cfg["dono"].casefold() == alvo:
+            return {"slug": slug, "nome": cfg["nome"], "plano": cfg.get("plano")}
+    return None
 
 
 @app.get("/tipsters/{slug}/data")
@@ -4866,6 +4995,24 @@ async def dados_publicos_tipster(slug: str, request: Request, refresh: bool = Fa
     return Response(content=hit[1], media_type="application/json")
 
 
+@app.get("/tipsters/{slug}/logo")
+async def logo_publica_tipster(slug: str, request: Request):
+    """Logo da vitrine pública. Registrada ANTES de `/tipsters/{slug}`: o Starlette
+    casa na ordem de registro, e o slug dinâmico engoliria este caminho.
+
+    Sem auth por desenho (a vitrine é pública) e SÓ para slug do registro — o dono
+    nunca vem da URL, o que impede pedir a logo de uma conta qualquer pelo username.
+    """
+    cfg = TIPSTERS_PUBLICOS.get(slug.lower())
+    if not cfg:
+        raise HTTPException(404, "Página não encontrada.")
+    achado = await logo_ler(cfg["dono"])
+    if not achado:
+        raise HTTPException(404, "Este tipster não tem logo.")
+    mime, dados, etag = achado
+    return _resposta_logo(mime, dados, etag, request)
+
+
 @app.get("/tipsters/{slug}")
 async def pagina_publica_tipster(slug: str):
     cfg = TIPSTERS_PUBLICOS.get(slug.lower())
@@ -4878,7 +5025,10 @@ async def pagina_publica_tipster(slug: str):
     # do REGISTRO entram no HTML — nada vindo de fora da caixa.
     inj = (
         "<script>window.MODO_PUBLICO="
-        + json.dumps({"slug": slug.lower(), "nome": cfg["nome"]}, ensure_ascii=False)
+        + json.dumps(
+            {"slug": slug.lower(), "nome": cfg["nome"], "plano": cfg.get("plano")},
+            ensure_ascii=False,
+        )
         + ';</script>\n  <base href="/dashboard/">'
     )
     html = html.replace("<head>", "<head>\n  " + inj, 1)

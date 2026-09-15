@@ -657,6 +657,28 @@ CREATE TABLE IF NOT EXISTS fornecedor_preco (
 );
 CREATE INDEX IF NOT EXISTS fornecedor_preco_dono_par
     ON fornecedor_preco (dono, fornecedor, casa, vigente_desde DESC);
+
+-- ── Logo da conta: o avatar do bloco de tipster na sidebar (s362) ────────────
+-- Uma linha por DONO (não por `tipsters.id`): a logo é da CONTA, que é o que a
+-- vitrine pública expõe (`TIPSTERS_PUBLICOS` mapeia slug → dono) e o que o
+-- usuário logado tem para editar. Tipster cadastrado dentro da base do dono é
+-- outra entidade e não tem página própria — dar logo a ele agora seria campo
+-- que ninguém preenche.
+--
+-- Os BYTES ficam aqui, não no filesystem: o Railway roda a partir do Dockerfile
+-- sem volume montado, então arquivo gravado em disco some no deploy seguinte, em
+-- silêncio — o avatar voltaria ao monograma sem ninguém ter mexido em nada.
+--
+-- `mime` guarda o tipo JÁ NORMALIZADO (image/png ou image/svg+xml), nunca o que o
+-- navegador declarou no upload: o Content-Type do multipart é dado do cliente e
+-- vira o Content-Type da resposta, então confiar nele é deixar o remetente
+-- escolher como o browser interpreta os bytes.
+CREATE TABLE IF NOT EXISTS conta_logo (
+    dono          TEXT PRIMARY KEY,
+    mime          TEXT NOT NULL,
+    bytes         BYTEA NOT NULL,
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 """
 
 

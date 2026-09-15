@@ -761,6 +761,31 @@ def conta_resumo(casa: str = "", parceiro: str = ""):
     return _resumir_apostas(GRADE_POR_CONTA.get((casa, parceiro), []))
 
 
+@app.get("/conta/perfil")
+def conta_perfil():
+    """Bloco de tipster da sidebar (s362): identidade + ROI/PL mes x historico.
+
+    Mesma regua da producao (`_resumir_apostas`), e o recorte do mes e' feito aqui
+    como o `repository.resumo_perfil` faz: em Python, sobre a data ja convertida --
+    a coluna guarda DD/MM/YYYY e ISO misturados, entao filtrar por string crua
+    acharia so metade.
+
+    `tem_logo` False de proposito: o print de venda mostra o estado que TODA conta
+    nova tem, o monograma sobre o gradiente da marca.
+    """
+    prefixo = datetime.now().strftime("%Y-%m")
+    do_mes = [b for b in LINHAS if str(b.get("data") or "").startswith(prefixo)]
+    return {
+        "dono": dados_demo.DONO,
+        "nome": dados_demo.DONO,
+        "plano": "VIP",
+        "slug": None,
+        "tem_logo": False,
+        "mes": _resumir_apostas(do_mes),
+        "historico": _resumir_apostas(LINHAS),
+    }
+
+
 @app.get("/polymarket/dashboard")
 def poly():
     return {"data": []}

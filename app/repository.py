@@ -1977,6 +1977,106 @@ async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
     return _resumir_apostas([dict(r) for r in rows])
 
 
+# ── Perfil da conta: os números do bloco de tipster na sidebar (s362) ─────────
+# O bloco mostra ROI e P/L em duas colunas — mês corrente contra vida inteira — e
+# é CONTEXTO DA CONTA, não da consulta: filtro de tela não o recorta (SPEC §3 do
+# handoff). Por isso ele não pode sair do `filtrarPagina` do dash.
+#
+# A matemática é `_resumir_apostas`, a MESMA de `resumo_conta` e com os mesmos
+# filtros de `dashboard_rows`. Isso é deliberado: o bloco fica na sidebar, ao lado
+# da KPI strip da Visão Geral, e dois números vizinhos medindo a mesma coisa com
+# réguas diferentes leem como defeito mesmo quando os dois estão certos.
+#
+# `donos` é o ESCOPO DE LEITURA (dono efetivo + operadores), não um dono só, senão
+# a sidebar de um supervisor discordaria do feed consolidado que ele vê ao lado.
+
+
+async def resumo_perfil(donos: list[str], hoje: date | None = None) -> dict:
+    """ROI/P/L de `donos` em duas janelas: mês corrente e histórico completo.
+
+    Devolve `{"mes": {...}, "historico": {...}}`, cada um no contrato de
+    `_resumir_apostas` (com `apostas`, `pl`, `roi`, …). Mês vazio não é zero: a
+    tela distingue "nenhuma aposta resolvida" (`apostas == 0`, célula vira `—`) de
+    "P/L zerado", e é `apostas` que carrega essa diferença.
+    """
+    if not donos:
+        vazio = _resumir_apostas([])
+        return {"mes": vazio, "historico": vazio}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT stake, odd, resultado, data FROM bilhetes WHERE dono = ANY($1::text[])",
+            list(donos),
+        )
+    linhas = [dict(r) for r in rows]
+    # O recorte do mês é feito AQUI, em Python, e não no WHERE: `bilhetes.data`
+    # guarda DD/MM/YYYY e ISO na MESMA coluna, então um filtro por SQL acharia só
+    # metade da base. `_data_iso` é o único lugar que sabe ler as duas formas.
+    prefixo = (hoje or date.today()).strftime("%Y-%m")
+    do_mes = [r for r in linhas if (_data_iso(r.get("data")) or "").startswith(prefixo)]
+    return {"mes": _resumir_apostas(do_mes), "historico": _resumir_apostas(linhas)}
+
+
+# ── Logo da conta (avatar do bloco de tipster) ───────────────────────────────
+# Bytes em `conta_logo` (ver o comentário da tabela no database.py). Ausência é
+# ausência: `logo_ler` devolve None e a tela cai no monograma — nunca um
+# placeholder cinza, que faria toda conta nova nascer com buraco visual.
+
+
+async def logo_salvar(dono: str, mime: str, dados: bytes) -> None:
+    """Grava (ou substitui) a logo do dono. `mime` já normalizado pelo chamador."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO conta_logo (dono, mime, bytes, atualizado_em) "
+            "VALUES ($1, $2, $3, NOW()) "
+            "ON CONFLICT (dono) DO UPDATE SET mime = EXCLUDED.mime, "
+            "bytes = EXCLUDED.bytes, atualizado_em = NOW()",
+            dono, mime, dados,
+        )
+
+
+async def logo_ler(dono: str) -> tuple[str, bytes, str] | None:
+    """(mime, bytes, etag) da logo do dono, ou None se ele não tem uma.
+
+    O etag sai do `atualizado_em`, não do conteúdo: a rota é servida com cache de
+    navegador e sem ele a logo trocada continuaria aparecendo a antiga.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT mime, bytes, atualizado_em FROM conta_logo WHERE dono = $1", dono
+        )
+    if not row:
+        return None
+    return row["mime"], bytes(row["bytes"]), f'W/"{row["atualizado_em"].timestamp():.0f}"'
+
+
+async def logo_apagar(dono: str) -> bool:
+    """Remove a logo do dono. True se havia uma."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        r = await conn.execute("DELETE FROM conta_logo WHERE dono = $1", dono)
+    return r.split()[-1] != "0"
+
+
+async def logo_donos(donos: list[str]) -> set[str]:
+    """Quais dos `donos` têm logo — uma ida ao banco, não N.
+
+    Existe para o `/conta/perfil` responder `tem_logo` sem carregar os bytes: o
+    front só precisa saber se pinta o `<img>` ou o monograma, e trazer a imagem
+    junto do JSON dobraria o payload de um boot que já é o caminho crítico.
+    """
+    if not donos:
+        return set()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT dono FROM conta_logo WHERE dono = ANY($1::text[])", list(donos)
+        )
+    return {r["dono"] for r in rows}
+
+
 # ── Caixa: auditoria de saldo por conta (s314) ────────────────────────────────
 # A pergunta que a Caixa responde é "quanto esta conta DEVERIA ter na casa hoje" —
 # e a resposta só vale confrontada com o que a casa mostra de verdade. É esse

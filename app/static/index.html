@@ -2711,7 +2711,7 @@ td.c-res.res-HL { color: var(--warn); }
   <div class="arow">
     <div class="idcard">
       <!-- Operador (identidade + trocador "ver base de" + Sair) MOVIDO para o rodapé da
-           sidebar da casca (app.html #sbOperador). Aqui o idcard foca em Casa | Parceiro. -->
+           sidebar da casca (app.html, bloco .sb-tipster). Aqui o idcard foca em Casa | Parceiro. -->
       <!-- Identidade da conta ativa (logo + nome da casa + usuário) -->
       <div class="idcard__main">
         <span class="ctx-hchip idcard__logo" id="ctx-hchip"></span>
@@ -3376,7 +3376,7 @@ async function carregarUsuario() {
     _migrarCustoLegado(real);
     _syncCustoContaServidor();  // custo por-conta: puxa a verdade do Postgres p/ o cache
 
-    // O UI do operador vive agora na casca (app.html #sbOperador). Aqui só resta o
+    // O UI do operador vive agora na casca (app.html, bloco .sb-tipster). Aqui só resta o
     // trabalho load-bearing (dono efetivo, histórico, custos). Os writes de DOM abaixo
     // são guardados: os elementos do operador não existem mais neste iframe.
     const _nomeEl = document.getElementById('user-nome'); if (_nomeEl) _nomeEl.textContent = efetivo;
@@ -9236,7 +9236,7 @@ function setupColResize(table, storageKey) {
   });
 }
 
-// Menu suspenso do Operador MOVIDO para a casca (app.html #sbOperador). O trigger/menu
+// Menu suspenso do Operador MOVIDO para a casca (app.html, bloco .sb-tipster). O trigger/menu
 // e o botão Sair não existem mais neste iframe.
 
 // 4.2.c — as abas Ativas/Inativas da sidebar foram removidas; a troca de aba vive
