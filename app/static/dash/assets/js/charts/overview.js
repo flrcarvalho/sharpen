@@ -1,31 +1,35 @@
 ﻿// ── overview.js — Gráficos e cards da Visão Geral ──────────────────────────────
 
-// ── Rodapé do cartão "Custo de Contas": contas em operação (s358) ───────────
-// Quatro estados, todos obrigatórios (desenho "Forma A"):
-//   1. sem compra no período, com contas rodando → `já pago · fora do P/L`
-//   2. houve compra                              → `R$ X pagos neste período · já no P/L`
-//   3. filtro de tipster                         → rótulo vira `Contas deste tipster`
-//   4. nenhuma conta com custo                   → uma linha só, sem zeros
+// ── Cartão "Custo de Contas": bloco de contas em operação (s358) ───────────
+// Duas células com divisor, mais a nota de pagamento. Quatro estados (referência
+// "Visão Geral 172px"):
+//   1. sem compra no período → nota `já pago · fora do P/L`
+//   2. houve compra          → nota `R$ X pagos neste período · já no P/L`
+//   3. filtro de tipster     → a 1ª célula vira `Deste tipster`. SEM badge: a célula
+//      já declara o escopo, e um badge repetiria a mesma informação em outro lugar.
+//   4. nenhuma conta com custo → o bloco NÃO aparece; o cartão usa a legenda simples.
+//      Nunca `0 contas · R$ 0`, que é ruído em vez de informação.
 //
-// O rodapé IGNORA o filtro de período de propósito: é sempre "em operação hoje". Só o
+// O bloco IGNORA o filtro de período de propósito: é sempre "em operação hoje". Só o
 // valor do topo obedece ao intervalo. Navegar para um mês fechado não mexe aqui.
-function _rodapeContas(costConta){
-  if(window.MODO_PUBLICO)return '';
+function _blocoContas(costConta){
+  if(window.MODO_PUBLICO)return null;
   const op=(typeof calcContasEmOperacao==='function')?calcContasEmOperacao('overview'):{total:0,nContas:0};
-  const foot=h=>`<div class="kpi__foot is-link" onclick="irParaCustosContas()">${h}</div>`;
-  // Estado 4: sem conta com custo cadastrado. Uma linha, e nenhum zero na tela — "0
-  // contas · R$ 0" é ruído, não informação.
-  if(!(op.total>0))return foot(`<div class="kpi__fnote is-solo">nenhuma conta com custo cadastrado</div>`);
+  if(!(op.total>0))return null;   // estado 4: quem responde é a legenda do cartão
   const temTipster=(typeof msGet==='function')&&msGet('ti_overview').size>0;
-  const par=(l,v,cls)=>`<div class="kpi__fr"><span class="kpi__fl">${l}</span><span class="kpi__fv${cls||''}">${v}</span></div>`;
-  // Sem centavos aqui (`fmtR`): o rodapé é referência, não conferência de extrato.
+  // Sem centavos aqui (`fmtR`): o bloco é referência, não conferência de extrato.
   const nota=costConta>0
     ? `${fmtR(costConta)} pagos neste período · já no P/L`
     : 'já pago · fora do P/L';
-  return foot(
-    par(temTipster?'Contas deste tipster':'Contas em operação',op.nContas)
-    +par('Custo',fmtR(op.total),' is-cost')
-    +`<div class="kpi__fnote">${nota}</div>`);
+  return `<div class="kpi__link" onclick="irParaCustosContas()">`
+    +`<div class="kpi__duo">`
+      +`<div class="kpi__cell"><div class="kpi__cl">${temTipster?'Deste tipster':'Em operação'}</div>`
+        +`<div class="kpi__cv">${op.nContas}<span class="u">${op.nContas===1?'conta':'contas'}</span></div></div>`
+      +`<div class="kpi__cell"><div class="kpi__cl">Custo</div>`
+        +`<div class="kpi__cv is-cost">${fmtR(op.total)}</div></div>`
+    +`</div>`
+    +`<div class="kpi__pnote">${nota}</div>`
+  +`</div>`;
 }
 
 // O rodapé inteiro leva para a tela de Custos, preservando os filtros que as duas telas
@@ -57,7 +61,7 @@ function renderKPI(rows){
   // Custo de contas — o que foi PAGO no período (s358). Não deriva de `rows`: o período
   // da tela é que manda, tenha ou não sobrado aposta nele. Ver `calcCostFiltered`.
   const{costConta,nContas:nContasCusto}=calcCostFiltered('overview');
-  const _temFiltroTipster=(typeof msGet==='function')&&msGet('ti_overview').size>0;
+  const _blocoCt=_blocoContas(costConta);
   // Custo de tipster — só os meses do PERÍODO, e só os tipsters SELECIONADOS (s358).
   // A régua mora no `calcCustoTipsterFiltrado` (gestao.js), junto do custo de conta: as
   // duas linhas do mesmo card não podem medir de jeitos diferentes.
@@ -84,8 +88,10 @@ function renderKPI(rows){
     // período sem compra mostra `R$ 0` no topo, e sozinho isso lê como defeito. Embaixo
     // ficam as contas que estão rodando HOJE e o que elas já custaram — dinheiro que não
     // entra no P/L, e a ressalva diz isso na própria linha.
+    // Sem bloco (nenhuma conta com custo), a legenda do cartão responde — e ela é a
+    // mesma linha que os outros sete usam, então o cartão não fica órfão de contexto.
     {l:'Custo de Contas',v:costConta>0?fmtPL(-costConta):fmtR(0),c:costConta>0?'neg':'neu',
-     accent:'',chip:_temFiltroTipster?'escopo · Tipster':'',foot:_rodapeContas(costConta)},
+     accent:'',foot:_blocoCt,s:_blocoCt?'':'nenhuma conta com custo cadastrado'},
     {l:'Custo de Tipsters',v:costTipster>0?fmtPL(-costTipster):fmtR(0),c:costTipster>0?'neg':'neu',
      s:nTipsCusto?(nTipsCusto===1?'1 tipster no período':nTipsCusto+' tipsters no período'):'nenhuma assinatura no período',accent:''},
     // O card de GERAIS só existe quando há valor lançado. Sem ele o andar fica nos 4 de
@@ -103,21 +109,19 @@ function renderKPI(rows){
     {l:'Odd Média',v:fmtOdd(calcAvgOdd(rows)),c:'neu',s:'ponderada'},
     {l:'Win Rate',v:fmtPct(wr,1,false),c:'neu',s:settled+' encerradas',bar:wr},
   ];
-  // `auto-fit` com piso de 215px (desenho, §8) em vez de `repeat(N,1fr)` fixo: com o
-  // cartão de Custo de Contas mais alto que os irmãos e o 5º tile aparecendo só quando há
-  // custo geral, coluna fixa estourava o tile em tela estreita. `align-items:start` porque
-  // o cartão do rodapé é MAIS alto de propósito — esticar os irmãos para igualar deixaria
-  // quatro cartões com um vão morto embaixo.
-  const gridCss=(n,mb)=>`display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;align-items:start;margin-bottom:${mb}`;
+  // Quatro colunas fixas, como a referência: os oito cartões em 4 + 4, todos com a mesma
+  // altura (o CSS põe `min-height` nos oito, não só no de custo — altura solta num deles
+  // esticaria a fileira). Os dois cortes vêm do desenho: 2 colunas abaixo de 1100px e
+  // 1 abaixo de 560px. Sem `auto-fit`, que subia para 5 colunas em tela larga e deixava
+  // buraco na 2ª linha.
+  const gridCss=(n,mb)=>`display:grid;grid-template-columns:repeat(var(--kpi-cols,${n}),minmax(0,1fr));gap:14px;margin-bottom:${mb}`;
   document.getElementById('kpiGrid').innerHTML=
     `<div style="${gridCss(row1.length,'10px')}">`+
-    row1.map(k=>`<div class="kpi ${k.accent||''}"${k.span?' style="grid-column:1/-1"':''}>`
-      +(k.chip
-        ? `<div class="kpi__head"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div><span class="kpi__chip">${k.chip}</span></div>`
-        : `<div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div>`)
+    row1.map(k=>`<div class="kpi ${k.accent||''}${k.foot?' has-duo':''}"${k.span?' style="grid-column:1/-1"':''}>`
+      +`<div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}</div>`
       +`<div class="kpi-val ${k.c}">${k.v}</div>`
-      +(k.s?`<div class="kpi-sub">${k.s}</div>`:'')
       +(k.foot||'')
+      +(k.s?`<div class="kpi-sub">${k.s}</div>`:'')
       +`</div>`).join('')+
     `</div>`+
     `<div style="${gridCss(4,'1.25rem')}">`+

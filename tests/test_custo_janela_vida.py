@@ -135,6 +135,41 @@ def test_o_renderkpi_nao_reimplementa_a_regua_de_custo():
     )
 
 
+def test_o_bloco_de_contas_segue_a_referencia_visual():
+    """Segunda iteração do desenho ("Visão Geral 172px"). Três coisas que ela mudou e que
+    reprovam na revisão se voltarem:
+
+    * o bloco é DUAS CÉLULAS com divisor (`.kpi__duo`), não pares empilhados;
+    * **sem badge de escopo** — a 1ª célula já declara (`Deste tipster`), e o badge
+      repetiria a mesma informação em outro canto do mesmo cartão;
+    * sem conta com custo, o bloco **não aparece**: nunca `0 contas · R$ 0`, que é ruído
+      em vez de informação.
+
+    Prova por LEITURA: o `.mjs` não monta DOM. Quem confere o comportamento é o render
+    headless — inclusive a altura igual dos oito cartões, que leitura não alcança."""
+    ov = _sem_comentarios(OVERVIEW.read_text(encoding="utf-8"))
+    css = (RAIZ / "app" / "static" / "dash" / "assets" / "css" / "components.css").read_text(encoding="utf-8")
+    assert "kpi__duo" in ov and "kpi__cell" in ov, "o bloco deixou de ser duas células"
+    assert "kpi__chip" not in ov and "kpi__head" not in ov, (
+        "o badge de escopo voltou: a 1ª célula já declara o escopo (2ª iteração do desenho)"
+    )
+    assert "Deste tipster" in ov and "Em operação" in ov, "os rótulos das células mudaram"
+    # estado 4: a função devolve null e o cartão cai na legenda simples
+    assert "return null;" in ov, (
+        "o bloco parou de sumir quando não há conta com custo — o desenho proíbe `0 contas · R$ 0`"
+    )
+    assert "nenhuma conta com custo cadastrado" in ov, "sumiu a legenda do estado vazio"
+    # a altura vale para os OITO, não só para o cartão de custo
+    assert "#kpiGrid .kpi { min-height: 180px" in css, (
+        "o `min-height` dos cartões da Visão Geral saiu do CSS: altura solta só no cartão "
+        "de custo estica a fileira inteira (o desenho reprova)"
+    )
+    assert "is-cost { color: var(--neg-2)" in css, (
+        "o custo do bloco voltou ao `--neg`: ele competiria com o número do topo, e o "
+        "acumulado é secundário"
+    )
+
+
 def test_o_vocabulario_proibido_nao_volta_ao_produto():
     """O desenho tirou "parque" do produto inteiro: é jargão de frota, e não diz que o
     número é custo JÁ PAGO. Junto saíram "investido", "imobilizado" e "0 contas · R$ 0",

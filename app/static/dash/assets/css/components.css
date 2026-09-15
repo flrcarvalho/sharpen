@@ -236,93 +236,95 @@
 .kpi-sub .money { width: auto; gap: 2px; }
 .kpi-sub .money-val,
 .kpi-sub .money-sign { min-width: 0; }
-/* ── Rodapé do cartão "Custo de Contas" — contas em operação (s358) ─────────
-   Substituiu uma faixa full-width que era o único elemento da tela sem superfície de
-   cartão, sem tick de acento e sem hierarquia — e cujo rótulo era jargão de frota que
-   não dizia que o número é custo JÁ PAGO.
+/* ── Cartão "Custo de Contas": bloco de contas em operação (s358) ───────────
+   Referência: "Sharpen — Visão Geral 172px". Substituiu a faixa full-width, que era o
+   único elemento da tela sem superfície de cartão — e o rótulo antigo, que era jargão de
+   frota e não dizia que o número é custo JÁ PAGO.
 
-   O rodapé responde o efeito colateral da régua de caixa: o `R$ 0` do topo, quando
-   não houve compra no período, parece defeito. Aqui embaixo ele ganha o contexto.
+   O bloco responde o efeito colateral da régua de caixa: o `R$ 0` do topo, quando não
+   houve compra no período, parece defeito. Aqui embaixo ele ganha o contexto.
 
-   Dois pares rótulo→valor em GRID de 2 colunas, nunca `flex-wrap`: rótulo e número
-   não podem cair em linhas diferentes (spec §8). */
-.kpi__foot {
-  margin-top: 12px;
-  padding-top: 11px;
+   DUAS CÉLULAS lado a lado com divisor, não dois pares empilhados: o desenho reprova
+   explicitamente o divisor forte (as células virariam dois mini-cartões dentro do
+   cartão) — daí `--line-2` nas duas bordas. */
+.kpi__duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 13px;
+  padding-top: 12px;
   border-top: 1px solid var(--line-2);
 }
-.kpi__fr {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: baseline;
-}
-.kpi__fr + .kpi__fr { margin-top: 5px; }
-.kpi__fl {
+.kpi__cell { padding-right: 16px; min-width: 0; }
+.kpi__cell + .kpi__cell { padding-left: 16px; border-left: 1px solid var(--line-2); }
+.kpi__cl {
   font-family: var(--font-mono);
   font-size: 9px;
-  letter-spacing: .08em;
+  letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--ink-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.kpi__fv {
+.kpi__cv {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--ink);
+  margin-top: 6px;
+  letter-spacing: -.01em;
   white-space: nowrap;
 }
-/* Vermelho CLARO (`--neg-2`, token canônico): é custo já pago, fora do P/L — não é
-   resultado negativo, que é o papel do `--neg`. Nunca verde aqui. */
-.kpi__fv.is-cost { color: var(--neg-2); }
-.kpi__fnote {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--ink-mute);
-  margin-top: 8px;
+.kpi__cv .u { font-size: 9.5px; font-weight: 500; color: var(--ink-mute); margin-left: 4px; }
+/* Vermelho CLARO (`--neg-2`): é custo já pago, fora do P/L. O desenho reprova o `--neg`
+   aqui — ele competiria com o número do topo, e o acumulado é secundário. */
+.kpi__cv.is-cost { color: var(--neg-2); }
+.kpi__pnote { font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute); margin-top: 11px; }
+.kpi__link { cursor: pointer; border-radius: var(--r-sm); transition: background .16s var(--ease); }
+.kpi__link:hover { background: var(--surface-2); }
+/* O `.money` padrão é largura de COLUNA de tabela (width:100% + min-width:10ch); dentro
+   da célula e da nota ele empurraria o valor para fora. Mesmo carve-out do `.kpi-sub`. */
+/* `gap:4px` como o `.cur` da referência (`margin-right:4px`): com 2px o cifrão encosta
+   no número em 15px e lê como uma palavra só. */
+.kpi__cv .money, .kpi__pnote .money { width: auto; gap: 4px; display: inline-flex; }
+.kpi__cv .money-val, .kpi__pnote .money-val,
+.kpi__cv .money-sign, .kpi__pnote .money-sign { min-width: 0; }
+/* Estreito: as células empilham e o divisor vira horizontal. */
+@media (max-width: 400px) {
+  .kpi__duo { grid-template-columns: 1fr; }
+  .kpi__cell + .kpi__cell {
+    padding-left: 0; border-left: 0;
+    border-top: 1px solid var(--line-2); margin-top: 11px; padding-top: 11px;
+  }
 }
-.kpi__fnote.is-solo { margin-top: 0; }
-/* O `.money` padrão é largura de COLUNA de tabela (width:100% + min-width:10ch);
-   numa linha de rótulo→valor ele empurraria o número para fora. Mesmo carve-out do
-   `.kpi-sub`, logo acima neste arquivo. */
-.kpi__fv .money, .kpi__fnote .money { width: auto; gap: 2px; display: inline-flex; }
-.kpi__fv .money-val, .kpi__fnote .money-val,
-.kpi__fv .money-sign, .kpi__fnote .money-sign { min-width: 0; }
 
-/* O rodapé inteiro é a superfície de clique para Custos → Contas. */
-.kpi__foot.is-link { cursor: pointer; border-radius: 0 0 var(--r-lg) var(--r-lg); }
-.kpi__foot.is-link:hover { background: var(--surface-2); }
-
-/* Badge de escopo — IRMÃO do rótulo, numa linha só com ele.
-   O desenho pedia `position:absolute` + `padding-right:104px` no rótulo. MEDIDO na tela:
-   o badge dá 118px e "CUSTO DE CONTAS" dá 112px, e o cartão tem 210px úteis quando o
-   andar mostra 5 tiles — não cabem lado a lado, e o título quebrava em duas linhas.
-   Aqui os dois dividem uma linha flex: enquanto couber, o badge fica no canto direito
-   como a pílula do desenho; quando não couber, ele DESCE inteiro em vez de espremer o
-   título. `flex:none` é o que impede o <span> de virar barra de largura total. */
-.kpi__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.kpi__head .kpi-label { margin-bottom: 0; }
-.kpi__chip {
-  flex: none;
-  margin-left: auto;   /* canto direito, tanto na linha do título quanto ao descer */
-  font-family: var(--font-mono);
-  font-size: 8.5px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  padding: 3px 9px;
-  white-space: nowrap;
-}
-.kpi__head + .kpi-val { margin-top: 5px; }
+/* ── Os OITO cartões da Visão Geral têm a MESMA altura ──────────────────────
+   O desenho reprova altura só no cartão de custo: ele estouraria o `min-height` e
+   esticaria a fileira inteira. Escopado em `#kpiGrid` de propósito — o `.kpi` é usado
+   nos drills, nas Métricas e na tela de Custos, onde 180px seria vão morto. */
+/* Os cortes vêm da referência: 4 colunas, 2 abaixo de 1100px, 1 abaixo de 560px. A
+   contagem viaja por variável porque o grid é montado em style inline pelo `renderKPI`,
+   e media query não alcança atributo `style`. */
+/* Sem valor no desktop de propósito: cada andar cai no próprio fallback (4 cartões → 4
+   colunas, como a referência; 5 → 5, quando o cartão de Custos Gerais existe). Fixar 4
+   aqui deixaria o 5º sozinho numa linha só dele. As media queries mandam nos dois. */
+@media (max-width: 1100px) { #kpiGrid { --kpi-cols: 2; } }
+@media (max-width: 560px)  { #kpiGrid { --kpi-cols: 1; } }
+#kpiGrid .kpi { min-height: 180px; padding: 15px 16px 14px; }
+/* O valor desce para a base: com o bloco embaixo em um cartão e não no outro, alinhar
+   pelo topo deixaria os números dos oito em alturas diferentes. */
+#kpiGrid .kpi-val { margin-top: auto; padding-top: 14px; }
+/* O cartão com bloco tem mais conteúdo e estourava os 180px — o desenho reprova
+   justamente isso ("estica a fileira"). O que cede é o RESPIRO (o vão acima do valor e
+   abaixo do rótulo), porque ali ele é folga; o bloco e a nota têm medida própria e a
+   copy não se encurta para caber em pixel. Em cinco colunas o cartão fica estreito e a
+   nota passa a duas linhas — é o pior caso, e é por ele que o respiro é medido.
+   Classe em vez de `:has()`, que ainda não é seguro em todo navegador. */
+#kpiGrid .kpi.has-duo .kpi-val { padding-top: 0; }
+#kpiGrid .kpi.has-duo .kpi-label { margin-bottom: 2px; }
+#kpiGrid .kpi-sub { margin-top: 11px; padding-top: 0; }
+#kpiGrid .kpi__duo ~ .kpi-sub { margin-top: 11px; }
 
 /* ── Ranking por dia da semana (Visão Geral + drills) ────────────────────────
    A barra vive ATRÁS da linha, não como coluna: assim as três métricas ficam
@@ -1769,37 +1771,42 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 
 /* Faixa de resumo */
-.cal__sum { display:flex; align-items:stretch; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+/* Resumo do calendario COMPACTO (s361, pedido do Feca): o hero e os 5 KPIs numa
+   LINHA so e menos chamativos. Dentro dos drills o conjunto quebrava em duas
+   linhas e empurrava a grade de dias - que e o conteudo do cartao - para baixo da
+   dobra; e o P/L do mes em 28px competia com ela. Os valores ficam em 18px (hero)
+   e 15px (KPIs), os dois acima do piso de 13px da Escada de Tinta para numero. */
+.cal__sum { display:flex; align-items:stretch; gap:8px; margin-bottom:14px; flex-wrap:nowrap; }
 .cal__hero {
-  flex:0 0 auto; min-width:200px;
-  border:1px solid var(--line); border-radius:var(--r-lg);
-  background:var(--surface); padding:var(--sp-5) var(--sp-6);
+  flex:1 1 0; min-width:0;
+  border:1px solid var(--line); border-radius:var(--r-md);
+  background:var(--surface); padding:var(--sp-3) var(--sp-4);
 }
 .cal__hero .k {
-  font-family:var(--font-mono); font-size:var(--text-xs); font-weight:700; letter-spacing:.08em;
+  font-family:var(--font-mono); font-size:var(--text-xs); font-weight:700; letter-spacing:.03em;
   text-transform:uppercase; color:var(--ink-mute);
-  display:flex; align-items:center; margin-bottom:5px;
+  display:flex; align-items:center; margin-bottom:5px; white-space:nowrap;
 }
 .cal__hero .v {
-  font-family:var(--font-mono); font-size:var(--text-2xl); font-weight:800;
+  font-family:var(--font-mono); font-size:var(--text-lg); font-weight:800;
   letter-spacing:-.03em; line-height:1; text-align:right;
 }
 .cal__hero .v .cur { font-size:.5em; color:var(--ink-soft); font-weight:600; margin-right:2px; }
 .cal__hero .v.pos { color:var(--pos); }
 .cal__hero .v.neg { color:var(--neg); }
-.cal__kpis { flex:1 1 400px; display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+.cal__kpis { flex:5 1 0; min-width:0; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
 .cal__kpi {
-  border:1px solid var(--line); border-radius:var(--r-lg);
-  background:var(--surface); padding:var(--sp-5) var(--sp-6);
+  border:1px solid var(--line); border-radius:var(--r-md);
+  background:var(--surface); padding:var(--sp-3) var(--sp-4);
   display:flex; flex-direction:column; min-height:0;
 }
 .cal__kpi .k {
-  font-family:var(--font-mono); font-size:var(--text-xs); font-weight:700; letter-spacing:.08em;
+  font-family:var(--font-mono); font-size:var(--text-xs); font-weight:700; letter-spacing:.03em;
   text-transform:uppercase; color:var(--ink-mute);
-  display:flex; align-items:center; margin-bottom:5px;
+  display:flex; align-items:center; margin-bottom:5px; white-space:nowrap;
 }
 .cal__kpi .v {
-  font-family:var(--font-mono); font-size:var(--text-2xl); font-weight:800;
+  font-family:var(--font-mono); font-size:var(--text-base); font-weight:800;
   letter-spacing:-.03em; line-height:1; text-align:right; margin-top:auto;
 }
 .cal__kpi .v .cur { font-size:.65em; color:var(--ink-soft); font-weight:600; margin-right:2px; }
@@ -1873,8 +1880,14 @@ select.ap-inline-inp { padding: 2px 4px; }
 .cal-tip .ct-item .val .l { color:var(--neg); }
 
 /* Responsivo */
-@media(max-width:900px) { .cal__kpis { grid-template-columns:repeat(3,1fr); } }
-@media(max-width:620px) { .cal__hero { flex:1 1 100%; } .cal__kpis { grid-template-columns:repeat(2,1fr); } }
+/* Abaixo de 900px a linha unica deixa de caber: volta a quebrar, que e o unico
+   jeito de o numero nao virar reticencia. */
+@media(max-width:900px) {
+  .cal__sum { flex-wrap:wrap; }
+  .cal__hero { flex:0 0 auto; min-width:200px; }
+  .cal__kpis { flex:1 1 400px; grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:620px) { .cal__hero { flex:1 1 100%; } .cal__kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
 /* ══ EM ABERTO (Minhas Apostas › Em Aberto) ═══════════════════════════════════
    Tela das apostas AINDA NÃO LIQUIDADAS. Vocabulário visual próprio de propósito:
