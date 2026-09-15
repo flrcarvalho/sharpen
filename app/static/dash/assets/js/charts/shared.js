@@ -251,11 +251,18 @@ function _dowAgrega(rows){
 }
 
 // Verde, vermelho ou cinza — ver DOW_RUIDO_ROI.
+//
+// O corte compara o ROI COMO A TELA O IMPRIME (2 casas), nunca o valor cru. Com o
+// cru, 0,249% e 0,251% saem os DOIS como "+0,25%" e ganham cores diferentes: dois
+// números idênticos lado a lado com cores distintas leem como defeito, e o que
+// decidiu a cor é justamente o dígito que o arredondamento apagou. Quem lê o
+// número não tem como saber por quê. (s361, decisão do Feca.)
 function _dowClasse(a){
   if(!a.n)return 'nil';
   if(a.pl<0)return 'neg';
   if(a.pl===0)return 'nil';
-  if(a.roi!==null&&Math.abs(a.roi)<DOW_RUIDO_ROI)return 'nil';
+  const roiTela=a.roi===null?null:Math.round(a.roi*100)/100;
+  if(roiTela!==null&&Math.abs(roiTela)<DOW_RUIDO_ROI)return 'nil';
   return 'pos';
 }
 
