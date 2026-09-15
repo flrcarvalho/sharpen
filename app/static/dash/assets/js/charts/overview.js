@@ -18,34 +18,20 @@ function _blocoContas(costConta){
   if(!(op.total>0))return null;   // estado 4: quem responde é a legenda do cartão
   const temTipster=(typeof msGet==='function')&&msGet('ti_overview').size>0;
   // Sem centavos aqui (`fmtR`): o bloco é referência, não conferência de extrato.
+  // Uma linha, sempre: a segunda custava 13px de altura em TODOS os cartões da fileira,
+  // porque eles compartilham o piso. "neste período" saiu por ser redundante — o cartão
+  // inteiro já é do período selecionado.
   const nota=costConta>0
-    ? `${fmtR(costConta)} pagos neste período · já no P/L`
+    ? `${fmtR(costConta)} pagos · já no P/L`
     : 'já pago · fora do P/L';
-  return `<div class="kpi__link" onclick="irParaCustosContas()">`
-    +`<div class="kpi__duo">`
+  return `<div class="kpi__duo">`
       +`<div class="kpi__cell"><div class="kpi__cl">${temTipster?'Deste tipster':'Em operação'}</div>`
         +`<div class="kpi__cv">${op.nContas}<span class="u">${op.nContas===1?'conta':'contas'}</span></div></div>`
       +`<div class="kpi__cell"><div class="kpi__cl">Custo</div>`
         +`<div class="kpi__cv is-cost">${fmtR(op.total)}</div></div>`
     +`</div>`
-    +`<div class="kpi__pnote">${nota}</div>`
-  +`</div>`;
+    +`<div class="kpi__pnote">${nota}</div>`;
 }
-
-// O rodapé inteiro leva para a tela de Custos, preservando os filtros que as duas telas
-// têm em comum. Sem tooltip por desenho: informação que precisa de hover tem copy errada.
-window.irParaCustosContas=function(){
-  try{
-    if(typeof msGet==='function'&&typeof MSS!=='undefined'){
-      [['ca_overview','ca_custos_v2'],['op_overview','op_custos_v2']].forEach(([de,para])=>{
-        const v=msGet(de);
-        if(v&&v.size)MSS[para]=new Set([...v]);
-      });
-    }
-    if(typeof _filterCache!=='undefined')delete _filterCache['custos_v2'];
-  }catch(e){}
-  if(typeof showPage==='function')showPage('custos_v2');
-};
 
 function renderKPI(rows){
   const lucro=rows.reduce((a,r)=>a+r.lucro,0),stake=calcTurnover(rows);

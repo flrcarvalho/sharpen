@@ -160,9 +160,15 @@ def test_o_bloco_de_contas_segue_a_referencia_visual():
     )
     assert "nenhuma conta com custo cadastrado" in ov, "sumiu a legenda do estado vazio"
     # a altura vale para os OITO, não só para o cartão de custo
-    assert "#kpiGrid .kpi { min-height: 180px" in css, (
+    # O NÚMERO é de desenho e muda (180 → 156 quando o Feca pediu cartões menores); o que
+    # o gate trava é a REGRA: existe um piso, e ele vale para todos os cartões do grid.
+    assert re.search(r"#kpiGrid \.kpi \{[^}]*min-height:\s*\d+px", css), (
         "o `min-height` dos cartões da Visão Geral saiu do CSS: altura solta só no cartão "
         "de custo estica a fileira inteira (o desenho reprova)"
+    )
+    assert "kpi__link" not in css and "kpi__link" not in ov, (
+        "o bloco voltou a ser clicável dentro do cartão — o Feca reprovou o hover ali "
+        "('não precisa linkar dentro do card, não ficou legal')"
     )
     assert "is-cost { color: var(--neg-2)" in css, (
         "o custo do bloco voltou ao `--neg`: ele competiria com o número do topo, e o "

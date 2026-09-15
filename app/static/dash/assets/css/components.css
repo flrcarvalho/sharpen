@@ -250,18 +250,18 @@
 .kpi__duo {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin-top: 13px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 9px;
   border-top: 1px solid var(--line-2);
 }
 .kpi__cell { padding-right: 16px; min-width: 0; }
 .kpi__cell + .kpi__cell { padding-left: 16px; border-left: 1px solid var(--line-2); }
 .kpi__cl {
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: .14em;
+  font-size: 9.5px;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--ink-mute);
+  color: var(--ink-soft);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -269,20 +269,18 @@
 .kpi__cv {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--ink);
-  margin-top: 6px;
+  margin-top: 5px;
   letter-spacing: -.01em;
   white-space: nowrap;
 }
-.kpi__cv .u { font-size: 9.5px; font-weight: 500; color: var(--ink-mute); margin-left: 4px; }
+.kpi__cv .u { font-size: 10px; font-weight: 500; color: var(--ink-mute); margin-left: 5px; }
 /* Vermelho CLARO (`--neg-2`): é custo já pago, fora do P/L. O desenho reprova o `--neg`
    aqui — ele competiria com o número do topo, e o acumulado é secundário. */
 .kpi__cv.is-cost { color: var(--neg-2); }
-.kpi__pnote { font-family: var(--font-mono); font-size: 9px; color: var(--ink-mute); margin-top: 11px; }
-.kpi__link { cursor: pointer; border-radius: var(--r-sm); transition: background .16s var(--ease); }
-.kpi__link:hover { background: var(--surface-2); }
+.kpi__pnote { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); margin-top: 9px; }
 /* O `.money` padrão é largura de COLUNA de tabela (width:100% + min-width:10ch); dentro
    da célula e da nota ele empurraria o valor para fora. Mesmo carve-out do `.kpi-sub`. */
 /* `gap:4px` como o `.cur` da referência (`margin-right:4px`): com 2px o cifrão encosta
@@ -311,7 +309,7 @@
    aqui deixaria o 5º sozinho numa linha só dele. As media queries mandam nos dois. */
 @media (max-width: 1100px) { #kpiGrid { --kpi-cols: 2; } }
 @media (max-width: 560px)  { #kpiGrid { --kpi-cols: 1; } }
-#kpiGrid .kpi { min-height: 180px; padding: 15px 16px 14px; }
+#kpiGrid .kpi { min-height: 156px; padding: 13px 15px 12px; }
 /* O valor desce para a base: com o bloco embaixo em um cartão e não no outro, alinhar
    pelo topo deixaria os números dos oito em alturas diferentes. */
 #kpiGrid .kpi-val { margin-top: auto; padding-top: 14px; }
