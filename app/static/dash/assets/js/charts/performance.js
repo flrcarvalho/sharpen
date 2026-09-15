@@ -180,13 +180,59 @@ function renderCasa(rows){
   const totalC=_casaEnts.length;
   const plCls=portPL>=0?'pos':'neg';
   const roiCls=portROI>=0?'pos':'neg';
+  // ── Custo e P/L Líquido do portfólio (s364, Fatia 5) ───────────────────────
+  // O drill de uma casa já trazia os três desde a s358; a LISTA não trazia nenhum, e
+  // era a tela em que se decide "a operação nesta casa vale a pena".
+  //
+  // O custo vem do `calcCostFiltered('casas')` — a MESMA função do KPI da Visão Geral,
+  // com a régua de lançamento (o que saiu do bolso no recorte). Não se soma
+  // `calcCasaCost` casa a casa: ele existe para o drill, que já tem o nome da casa em
+  // mãos, e somar N chamadas daria o mesmo número por um caminho novo — duas
+  // derivações para a mesma pergunta é o que a s362 acabou de desfazer.
+  //
+  // ⚠️ É só o custo de CONTAS, e por isso o tile se chama assim. Custo de tipster é do
+  // TIPSTER e custo geral é da operação inteira: nenhum dos dois pertence a uma casa, e
+  // somá-los aqui inventaria um rateio que ninguém pagou. A consequência é que este
+  // P/L Líquido **não é** o da Visão Geral, que desconta os três — daí o sub dizer
+  // "após o custo de contas" em vez de "após custos".
+  const{costConta,nContas:nContasCusto}=(typeof calcCostFiltered==='function')
+    ?calcCostFiltered('casas'):{costConta:0,nContas:0};
+  const portLiq=portPL-costConta;
+  // Mesmo aviso do drill: Esporte e Tipster descrevem a APOSTA e NÃO recortam custo
+  // (a conta Bet365 custou os mesmos R$ 900 quer se olhe tênis ou futebol). Com um
+  // deles ligado, o P/L é do recorte e o custo é das casas inteiras — dois números
+  // certos que se leem como um só. A tela DIZ o corte; não se muda número nenhum.
+  const _apFiltroP=[
+    (typeof msGet==='function'&&msGet('sp_casas').size)?'esporte':'',
+    (typeof msGet==='function'&&msGet('ti_casas').size)?'tipster':'',
+  ].filter(Boolean).join(' e ');
+  // Custo entra como contribuição NEGATIVA ao P/L, igual à Visão Geral e ao drill
+  // (`fmtPL(-x)`, 2 casas): é o que deixa a conta legível em coluna — bruto, menos
+  // custo, líquido. Zero é neutro e volta ao `fmtR`, porque aí não há o que subtrair.
+  const _custoClsP=costConta>0?'neg':'neu';
+  const _custoValP=costConta>0?fmtPL(-costConta):fmtR(0);
+  const _custoSubP=_apFiltroP
+    ? `das casas inteiras · não recorta por ${_apFiltroP}`
+    : (costConta>0
+        ? `${nContasCusto} conta${nContasCusto!==1?'s':''} comprada${nContasCusto!==1?'s':''} no período`
+        : 'nenhuma compra no período');
   const el=document.getElementById('casaPortfolioKPIs');
   if(el){
     el.innerHTML=
       `<div class="kpi">`+
-        `<div class="kpi-label"><span class="kpi-pipe"></span> P/L Total</div>`+
+        `<div class="kpi-label"><span class="kpi-pipe"></span> P/L Bruto</div>`+
         `<div class="kpi-val ${plCls}">${fmtPL(portPL)}</div>`+
-        `<div class="kpi-sub">resultado total</div>`+
+        `<div class="kpi-sub">antes dos custos</div>`+
+      `</div>`+
+      `<div class="kpi">`+
+        `<div class="kpi-label"><span class="kpi-pipe"></span> Custo de Contas</div>`+
+        `<div class="kpi-val ${_custoClsP}">${_custoValP}</div>`+
+        `<div class="kpi-sub">${_custoSubP}</div>`+
+      `</div>`+
+      `<div class="kpi">`+
+        `<div class="kpi-label"><span class="kpi-pipe"></span> P/L Líquido</div>`+
+        `<div class="kpi-val ${portLiq>=0?'pos':'neg'}">${fmtPL(portLiq)}</div>`+
+        `<div class="kpi-sub">${_apFiltroP?'P/L do recorte − custo das casas':'após o custo de contas'}</div>`+
       `</div>`+
       `<div class="kpi">`+
         `<div class="kpi-label"><span class="kpi-pipe"></span> ROI</div>`+

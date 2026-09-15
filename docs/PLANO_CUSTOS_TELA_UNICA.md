@@ -84,7 +84,46 @@ SAIU") e o caso em [CASOS.md](CASOS.md#as-10-contas-que-cobraram-em-setembro-e-u
 | **2** | Custo sai do par `fornecedor\|\|casa` e vai para a **conta**: `parceiros.custo`, NULL = herda do fornecedor. Sem backfill, então o total não se move por construção (medido: 29.400 antes e depois). A derivação de três camadas mora no `gestao.js`. | **no ar (s352)** |
 | **3** | Tipster ganha **tipo de cobrança** (`custo_store.custo_tipster_meta`) e o arrasto por tipo; a aba passa a gravar o valor do mês. Temporada tem prazo (`ate`). | **no ar (s352)** |
 | **4** | Gerais ganha **categoria** (três de fábrica mais as do dono, derivadas das próprias linhas) e **recorrência**, que decide o arrasto pela mesma `_arrasta` do tipster. A aba passa a gravar. | **no ar (s352)** |
-| **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | **menu feito (s358)**; Bookies aberta |
+| **5** | **Bookies** recebe custo e P/L líquido por casa. As três telas antigas saem do menu. | **no ar (s358 menu · s358 drill · s364 lista)** |
+
+## O que a Fatia 5 ensinou
+
+**Metade dela já estava pronta e o plano não sabia.** O drill de uma casa recebeu Custo,
+P/L Líquido e ROI Líquido na s358, de carona com a régua de lançamento. O que faltava era
+a **lista** — os KPIs de topo de Bookies —, que é onde se decide se a operação numa casa
+vale a pena. Antes de construir uma fatia, leia o que já está no ar: o plano descreve a
+intenção, não o estado.
+
+**Foi a medição que decidiu o desenho, e ela desautorizou a ideia óbvia.** Na base do
+Feca são **48 casas com aposta e 3 com custo** (Superbet R$ 21.500 · Betano R$ 20.300 ·
+Bet365 R$ 17.800 — os R$ 59.600 inteiros). Um stat de custo em cada card sairia `R$ 0` em
+45 deles, e ali zero não é "de graça", é "não há preço lançado" — o zero se disfarçando de
+conta feita. Decisão do Feca: **os cards ficam intactos**, o custo entra só nos KPIs de
+topo, onde o número é agregado e verdadeiro.
+
+- **Custo de tipster e custo geral NÃO pertencem a casa nenhuma**, então este P/L Líquido
+  não é o da Visão Geral. O tile se chama `Custo de Contas` e o sub diz `após o custo de
+  contas` — o nome carrega o escopo, e não sobra um parágrafo para explicar.
+- **Igualdade não prova regra, de novo.** Um gate que só comparasse a aritmética passaria
+  com um custo que não recorta por NADA. Por isso o gate prova as duas metades: Esporte e
+  Tipster **não** recortam (e a tela diz), Casa e Operador **recortam**.
+- **Dado sintético que não exerce a regra.** Com uma conta por casa, `nContas` e o número
+  de casas são iguais — trocar um pelo outro passava despercebido. O caso com duas contas
+  na MESMA casa separa os dois.
+- **Gate de FORMA para "uma régua só".** O de comportamento não distingue
+  `calcCostFiltered('casas')` de uma soma de `calcCasaCost` enquanto os dois concordarem,
+  que é justamente quando o defeito entra. E ele checa a **chamada** (`calcCasaCost(`),
+  não a menção: o comentário que explica a regra cita o nome, e a checagem por substring
+  reprovava o próprio texto que a documenta.
+- **Função de UMA linha quebra o recorte por regex** (`msGet`, `normForn`): o recorte vai
+  até o próximo `}` na coluna 0 e engole as declarações de topo do arquivo, que nascem
+  duplicadas no harness. Os gates desta frente tentam a one-liner primeiro.
+- **`msGet` devolve um Set DESCARTÁVEL** quando o id ainda não existe em `MSS`. Selecionar
+  filtro no teste com `msGet(id).add(v)` não seleciona nada — e o teste passa medindo o
+  estado sem filtro. O caminho real é o `msToggle`, que ainda zera o `_filterCache`.
+
+Gate: `tests/test_bookies_custo.py` + `tests/js/bookies_custo.mjs`, 12 de 12 mutações
+detectadas, em `performance.js` **e** `gestao.js`, mais o teste de forma da régua única.
 
 ## O que a s362 ensinou — mesma resposta não é mesma régua
 

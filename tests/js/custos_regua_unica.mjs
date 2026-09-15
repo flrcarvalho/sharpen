@@ -38,7 +38,13 @@ const ok = (cond, msg) => { if (!cond) { console.error('  ✗ ' + msg); falhas++
 // aconteceu com o `_contaVida` construido preguicosamente pela chamada anterior.
 const eq = (obtido, esperado, msg) => ok(obtido === esperado, msg + ', veio ' + obtido);
 
+// Função de UMA linha é tentada PRIMEIRO: o recorte multilinha vai até o próximo `}` na
+// coluna 0, então numa one-liner (`normForn`) ele engole tudo o que houver até a próxima
+// função multilinha — inclusive declarações de topo de arquivo, que nascem duplicadas no
+// harness. Aqui ainda não tinha mordido; no `bookies_custo.mjs` mordeu (s364).
 const recorteFn = (src, nome, arq) => {
+  const uma = src.match(new RegExp('^function ' + nome + '\\([^)]*\\)\\{.*\\}$', 'm'));
+  if (uma) return uma[0];
   const m = src.match(new RegExp('^function ' + nome + '\\([^)]*\\)\\{[\\s\\S]*?^\\}', 'm'));
   if (!m) throw new Error('não achei a função ' + nome + ' no ' + arq);
   return m[0];
