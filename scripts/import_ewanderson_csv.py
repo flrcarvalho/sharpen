@@ -1,27 +1,47 @@
 # -*- coding: utf-8 -*-
-"""Importa a base do usuário `Ewanderson1` (`01 a 11.csv`) para dono='Ewanderson1'.
+"""Importa a base do usuário `Ewanderson1` (`01 a 14.csv`) para dono='Ewanderson1'.
 
 ⚠️ O `dono` é o USERNAME, conferido na tabela `usuarios` ANTES de qualquer escrita,
-não deduzido do nome do arquivo nem do e-mail. Medido em 13/09/2026:
-username `Ewanderson1` · e-mail `ewanferreira962385@gmail.com` · status `ativo` ·
-hash de 60 chars · criado em 13/09/2026 16:24 UTC pelo PRÓPRIO usuário no site
+não deduzido do nome do arquivo nem do e-mail. Medido em 13/09/2026 e reconferido
+em 17/09/2026: username `Ewanderson1` · e-mail `ewanferreira962385@gmail.com` ·
+status `ativo` · criado em 13/09/2026 16:24 UTC pelo PRÓPRIO usuário no site
 (Fase 2 do onboarding), aprovado pelo Feca na mesma sessão. **Não existe env var
-nem linha em `app/auth.py` para esta conta.** Base ZERADA antes deste import
-(0 bilhetes, 0 contas) — é a primeira carga.
+nem linha em `app/auth.py` para esta conta.**
 
 É a regra da s260: `dono` errado não dá erro, dá **tela vazia** para o usuário certo.
 
+── Duas cargas, e o que mudou entre elas ─────────────────────────────────────
+
+**13/09/2026 (s357):** primeira carga, base zerada, 784 apostas. Foi DESFEITA em
+15/09 (s364) a pedido do Feca — ele capturou a Betano pelo SharpenUp sobre um
+import sem ID de bilhete e a base duplicou. Ver `scripts/zerar_base_ewanderson.py`
+e `Backups/s364-zerar-ewanderson/`.
+
+**17/09/2026 (s372):** esta carga, e o quadro agora é OUTRO — medido, não suposto:
+
+- a base dele tem **179 bilhetes, todos `origem='extracao'`, de 15/09 a 20/09**.
+  O CSV vai de 01/09 a 14/09: **sobreposição ZERO**. O risco que derrubou a
+  primeira carga não existe nesta janela — mas volta no dia em que ele capturar
+  uma casa com histórico longo (a Betano varre 3 anos). O corte por casa/dono
+  (`main._CORTE_HISTORICO`) é a régua para isso, se acontecer.
+- o export novo traz **1.104 linhas para o MESMO período** contra 784 do de 13/09.
+  O anterior estava incompleto; a fonte é a mesma planilha dele.
+- ele cadastrou **conta com nome real por casa** ao instalar a extensão. Daí a
+  conta `Planilha` — ver `PARCEIRO`, abaixo.
+- `Padovan` do tracker é `Padovan All Sports` na base dele — ver `_TIPSTER_MAP`.
+- `Rei do Pitaco` voltou a existir (conta criada à mão) e foi unificada em
+  `Pitaco` ANTES deste import, com recálculo de assinatura
+  (`scripts/unificar_casas.py --somente "Rei do Pitaco" --aplicar`).
+
 ── Fonte ─────────────────────────────────────────────────────────────────────
 
-CSV com `;`, 11 colunas, 784 apostas (01/09/2026 → 14/09/2026). O nome do arquivo
-diz "01 a 11", mas o conteúdo vai até o dia 14 — a data mandou, não o nome.
+CSV com `;`, 11 colunas, 1.104 apostas (01/09/2026 → 14/09/2026).
 
     DATE | SPORT | TIPSTER | GAME | BET | BOOKMAKER | TYPE | ODD | STAKE |
     STATUS | RESULT
 
-É um tracker de SEGUIDOR de tipsters, não de casa: 5 tipsters (Padovan 273,
-Arrudex 270, FEZINHA 108, PEI 96, Padovan NBA/NFL 37) em 22 casas. 461 simples
-e 323 múltiplas.
+É um tracker de SEGUIDOR de tipsters, não de casa: 5 tipsters (Padovan 378,
+Arrudex 374, FEZINHA 175, PEI 125, Padovan NBA/NFL 52) em 24 casas.
 
 **Uma única data por linha** (`DATE`). O arquivo não separa data da aposta de data
 do evento, então ela é a data do bilhete — não há o que estimar (`CLAUDE.md`:
@@ -34,8 +54,11 @@ data derivada por estimativa é dado inventado).
   R$ exigiria o tamanho da unidade dele, que o arquivo não traz: seria palpite.
   `RESULT` também é em unidades, e é o P/L já pronto — **não é gravado** (o P/L é
   derivado, nunca persistido), mas é o que audita os outros campos, abaixo.
-- **Uma conta `Padrão` por casa** — 22 linhas no Painel de Contas, cada uma com
-  custo próprio (mesmo desenho do `import_perereca_csv.py`).
+- **Uma conta `Planilha` por casa** (s372; na s357 era `Padrão`) — 24 linhas no
+  Painel de Contas. O histórico da planilha fica numa conta PRÓPRIA, ao lado das
+  contas reais que ele cadastrou depois: o CSV não diz de quem era a conta em
+  setembro, e casar o histórico com a conta capturada seria palpite gravado como
+  fato. Custo continua por conta.
 - **`Padovan` e `Padovan NBA/NFL` ficam SEPARADOS.** Ele separou no tracker e o
   P/L dos dois diverge de verdade (+59,19u contra −10,13u). Fundir apagaria uma
   medição que já existe.
@@ -46,26 +69,29 @@ data derivada por estimativa é dado inventado).
 
 `RESULT` é o P/L em unidades, então ele é conferível contra as fórmulas do
 `calcular_pl` lidas ao contrário (`CLAUDE.md`: a prova é o retorno, o rótulo não).
-Medido linha a linha:
+Medido linha a linha no export de 17/09 (1.104 linhas, **0 divergentes** no
+confronto final; a diferença de −0,10u no total é arredondamento do tracker, que
+grava o P/L ao centavo de unidade e a odd com 2 casas):
 
-- **230 `won` batem EXATOS** com `stake × (odd − 1)`, tolerância 0,02. Zero
+- **342 `won` batem EXATOS** com `stake × (odd − 1)`, tolerância 0,02. Zero
   divergência ⇒ não há meia-vitória escondida sob o rótulo `won`.
-- **542 `lost` batem** com `−stake`.
-- **2 `lost` com RESULT POSITIVO** (L476 e L779) batem exatamente com a fórmula de
-  VITÓRIA (0,20 × 4,50 = 0,90 · 1,50 × 0,72 = 1,08). São `W` mal rotuladas.
-- **3 `void` com RESULT = −stake** (L483, L704, L705). Void devolve o stake e dá
+- **753 `lost` batem** com `−stake`.
+- **2 `lost` com RESULT POSITIVO** (L796 e L1099) batem exatamente com a fórmula
+  de VITÓRIA (+0,90 e +1,08). São `W` mal rotuladas.
+- **3 `void` com RESULT = −stake** (L803, L1024, L1025). Void devolve o stake e dá
   P/L 0; retorno 0 é `L`. São `L` mal rotuladas.
-- **5 `pending` com RESULT 0** → resultado VAZIO (aberta, `MASTER_OUTPUT §13.1`).
+- **nenhuma `pending`** neste export — o período está todo liquidado.
 
-Fica `W` 232 · `L` 545 · `V` 2 · aberta 5. As 5 corrigidas saem NOMEADAS no
-relatório do DRY: correção automática que ninguém vê é correção que ninguém audita.
+Fica `W` 346 · `L` 756 · `V` 2. As 5 corrigidas saem NOMEADAS no relatório do DRY:
+correção automática que ninguém vê é correção que ninguém audita.
 
 ── Zero não é ausência ───────────────────────────────────────────────────────
 
-3 linhas trazem `ODD 0.00` (L169, L706, L709), todas perdidas. Zero é uma odd que
-não existe e passa por toda checagem de forma, então a odd entra **VAZIA**, nunca 0
-(`CLAUDE.md`: com odd 0 um bilhete ganho viraria −1u). Em `L` o P/L não depende da
-odd, e desde a s259 a odd só é exigida em `W`/`HW` — as três nascem `resolvida`.
+4 linhas trazem `ODD 0.00` (L258, L489, L1026, L1029), todas perdidas. Zero é uma
+odd que não existe e passa por toda checagem de forma, então a odd entra **VAZIA**,
+nunca 0 (`CLAUDE.md`: com odd 0 um bilhete ganho viraria −1u). Em `L` o P/L não
+depende da odd, e desde a s259 a odd só é exigida em `W`/`HW` — as quatro nascem
+`resolvida`.
 
 Odd alta NÃO é defeito: as múltiplas chegam a 16.946,72 (10+ pernas). Todas são
 perdidas e o RESULT confere com `−stake`; não há o que corrigir.
@@ -73,24 +99,28 @@ perdidas e o RESULT confere com `−stake`; não há o que corrigir.
 ── Casa: grafia do banco, nunca a do arquivo ─────────────────────────────────
 
 `casa` é TEXTO em 7 tabelas — cada grafia é uma casa DIFERENTE no sistema. As
-grafias abaixo foram MEDIDAS no banco em 13/09/2026, não supostas:
+grafias abaixo foram MEDIDAS no banco, uma a uma, e RECONFERIDAS em 17/09/2026
+(a contagem é a do sistema inteiro, nesta data):
 
-    TivoBet      → Tivo               (`_CASA_DISPLAY`; 272 bilhetes)
-    BetNacional  → Betnacional        (`_CASA_DISPLAY`; 2.186 bilhetes)
-    Rei do Pitaco→ Pitaco             (unificada na s270; 517 bilhetes)
-    Esportiva Bet→ Esportiva          (1.446 bilhetes)
-    BetEsporte   → BETesporte         (1.716 bilhetes)
-    Onabet       → OnaBet             (5 bilhetes)
+    TivoBet      → Tivo               (`_CASA_DISPLAY`; 282 bilhetes)
+    BetNacional  → Betnacional        (`_CASA_DISPLAY`; 2.232 bilhetes)
+    Rei do Pitaco→ Pitaco             (unificada na s270; 524 bilhetes. A grafia
+                 velha RESSUSCITOU na base dele — conta criada à mão — e foi
+                 refundida antes deste import, com assinatura recalculada.)
+    Esportiva Bet→ Esportiva          (1.453 bilhetes)
+    BetEsporte   → BETesporte         (1.720 bilhetes)
+    Onabet       → OnaBet             (8 bilhetes)
     Bateu Bet    → Bateu              (131 bilhetes, contra 1 em `Bateubet`)
+    King Panda   → KingPanda          (447 bilhetes; novo neste export)
     Esporte da Sorte → Esportes da Sorte  (a base tem as DUAS grafias já
-                 duplicadas: `Esporte Da Sorte` 102 × `Esportes da Sorte` 87.
+                 duplicadas: `Esporte Da Sorte` 102 × `Esportes da Sorte` 100.
                  Escolhida a da marca, decisão do Feca. Unificar as gêmeas é
                  trabalho à parte, com recálculo de assinatura — ver
                  `scripts/unificar_casas.py`.)
     Outras Casas → Outra              (casa fantasma que o sistema já usa, 189)
 
 `LottoLand` (16) e `Esporte 365` (11) **não existem na base** e entram VERBATIM —
-nunca title-casear, que mutila `BETesporte`/`VaideBet`/`KingPanda`. As outras 12
+nunca title-casear, que mutila `BETesporte`/`VaideBet`/`KingPanda`. As outras
 já batem com a grafia do banco.
 
 ── Categoria: o objeto apostado, não o tipo de mercado ───────────────────────
@@ -121,29 +151,37 @@ com o `GAME` convertido do separador do arquivo (` x ` ou ` - `). Nenhum nome é
 reescrito e nenhum acento é reposto: o tracker exportou sem acento
 (`Cartoes`, `Finalizacoes`) e "corrigir" isso inventaria texto que a fonte não tem.
 
-⚠️ **271 múltiplas chegam com `GAME = N/A` e `BET = Multipla`** — o tracker não
-exporta as pernas. A descrição delas é literalmente `Múltipla`, e mais 56 simples
-vêm sem confronto. Não há como recuperar: o detalhe nunca saiu da casa.
+⚠️ **As múltiplas chegam com `GAME = N/A` e `BET = Multipla`** — o tracker não
+exporta as pernas. A descrição delas é literalmente `Múltipla` (510 linhas neste
+export), e outras vêm sem confronto. Não há como recuperar: o detalhe nunca saiu
+da casa.
 
 ── Dedup: o CSV NÃO tem ID de bilhete ────────────────────────────────────────
 
 Sem código, `repository._assinatura` hasheia CONTEÚDO
 (`casa|parceiro|data|aposta|descricao|stake|odd`). Consequência a declarar:
 
-⚠️ Se o Ewanderson instalar a extensão e capturar uma casa que já está aqui, as
-   apostas recentes voltam COM código real. Assinatura por ID nunca colide com
-   assinatura por conteúdo → **não deduplica, duplica**. A base vai até 14/09,
-   então a sobreposição é imediata. A saída é capturar ANTES de continuar, ou
-   deletar as duplicadas pelo Painel.
+⚠️ Recaptura de casa que já esteja aqui traz a aposta COM código real. Assinatura
+   por ID nunca colide com assinatura por conteúdo → **não deduplica, duplica**.
+   Foi isso que derrubou a carga de 13/09.
+
+   **Nesta carga a janela está limpa, e isso foi MEDIDO, não suposto:** os 179
+   bilhetes que ele tem são de 15/09 em diante; o CSV para em 14/09. A conta
+   `Planilha` afasta ainda mais, porque `parceiro` entra no hash.
+
+   O que reabre o risco: casa que exporta histórico longo (a Betano varre 3 anos
+   por desenho). Se acontecer, a régua é o corte por (dono, casa)
+   — `main._CORTE_HISTORICO` —, aplicado no `/extrair` ANTES da IA. Apagar do
+   banco não basta: a linha volta inteira na varredura seguinte.
 
 Linhas de conteúdo 100% idêntico dentro do próprio CSV escalam com `_counter`
 (`B`, `B|2`, …) em vez de colidir — mesmo laço do `upsert_bilhetes`. Isso importa
-aqui: 271 múltiplas com a mesma descrição `Múltipla` só se distinguem por casa,
+aqui: as múltiplas com a mesma descrição `Múltipla` só se distinguem por casa,
 data, stake e odd.
 
 Uso:
-    python scripts/import_ewanderson_csv.py --csv "C:\\...\\01 a 11.csv"        # DRY
-    python scripts/import_ewanderson_csv.py --csv "C:\\...\\01 a 11.csv" --go   # escreve
+    python scripts/import_ewanderson_csv.py --csv "C:\\...\\01 a 14.csv"        # DRY
+    python scripts/import_ewanderson_csv.py --csv "C:\\...\\01 a 14.csv" --go   # escreve
 """
 import argparse
 import asyncio
@@ -158,7 +196,13 @@ from collections import Counter, defaultdict
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
 DONO = 'Ewanderson1'     # username conferido em `usuarios`, não deduzido do arquivo
-PARCEIRO = 'Padrão'
+# Conta `Planilha` (decisão do Feca, 17/09/2026): o histórico da planilha fica numa
+# conta PRÓPRIA, separada das contas reais que ele cadastrou ao instalar a extensão
+# (`Ykaro` na Betano, `Woshington` na Bet365, `Joao` na SportingBet…). O CSV é um
+# tracker de tipster e não diz de QUEM era a conta em setembro — atribuir o histórico
+# à conta capturada seria gravar um palpite como fato. `parceiro` entra na assinatura,
+# então a separação também é dedup: nada do import colide com nada da captura.
+PARCEIRO = 'Planilha'
 ORIGEM = 'import'
 VALID = {'W', 'L', 'V', 'HW', 'HL'}
 TOL = 0.02               # tolerância do confronto RESULT × fórmula (centavo de unidade)
@@ -201,6 +245,9 @@ _CASA_MAP = {
     'bateubet':       'Bateu',
     'esportedasorte': 'Esportes da Sorte',
     'outrascasas':    'Outra',
+    # Não vinha no export de 13/09. `KingPanda` é a grafia do banco (447 bilhetes) e
+    # title-casear mutilaria a marca — o mesmo caso de `BETesporte`/`VaideBet`.
+    'kingpanda':      'KingPanda',
     # já batem com a base, mapeados para travar a grafia contra variação do arquivo
     'betano':         'Betano',
     'bet365':         'Bet365',
@@ -233,6 +280,20 @@ _ESPORTE_MAP = {
 
 def norm_esporte(v) -> str:
     return _ESPORTE_MAP.get(_chave(v), limpa(v) or 'Outro')
+
+
+# ---------- tipster ----------
+# O tracker exporta `Padovan`; na base dele o mesmo tipster se chama `Padovan All
+# Sports` — está assim no cadastro (`tipsters`) E nos 65 bilhetes já capturados.
+# MEDIDO em 17/09/2026, não suposto: os outros quatro nomes batem caractere a
+# caractere. Sem o de-para, a carteira do Padovan nasce partida em dois tipsters
+# que a tela lê como pessoas diferentes — e o filtro de tipster recorta por NOME.
+_TIPSTER_MAP = {'padovan': 'Padovan All Sports'}
+
+
+def norm_tipster(v) -> str:
+    bruto = limpa(v)
+    return _TIPSTER_MAP.get(_chave(bruto), bruto)
 
 
 # ---------- categoria ----------
@@ -469,7 +530,7 @@ def ler(caminho: str):
             'parceiro': PARCEIRO,
             'data': data,
             'esporte': esporte,
-            'tipster': limpa(b['TIPSTER']),
+            'tipster': norm_tipster(b['TIPSTER']),
             'aposta': categoria,
             'descricao': norm_descricao(b['BET'], b['GAME'], categoria),
             'stake': stake_txt,
@@ -652,10 +713,23 @@ async def importar(rows: list[dict]):
                                ON CONFLICT (dono, casa, nome) DO NOTHING""",
                             DONO, casa, PARCEIRO)
                     # feed ordena por criado_em DESC; num import não existe "envio"
-                    # → ancora na data da aposta para sair cronológico
+                    # → ancora na data da aposta para sair cronológico.
+                    #
+                    # ⚠️ A âncora é o criado_em MAIS ANTIGO do que o dono já tem, não
+                    # `NOW()`. Em 13/09 a base estava vazia e `NOW()` servia; hoje ele
+                    # tem 179 bilhetes capturados (15→20/09) e ancorar em `NOW()` jogaria
+                    # as 1.104 linhas de 01→14/09 para o TOPO do feed, acima das mais
+                    # novas. A data da aposta continuaria certa na grade — só o feed
+                    # nasceria de cabeça para baixo, sem erro nenhum.
                     await conn.execute(
                         """
-                        WITH ordered AS (
+                        WITH base AS (
+                            SELECT COALESCE(
+                                     (SELECT MIN(criado_em) FROM bilhetes
+                                       WHERE dono=$1 AND origem IS DISTINCT FROM $2),
+                                     NOW()
+                                   ) - INTERVAL '1 second' AS ancora
+                        ), ordered AS (
                             SELECT id,
                                    ROW_NUMBER() OVER (ORDER BY to_date(data,'DD/MM/YYYY') ASC,
                                                                id ASC) AS rn,
@@ -663,16 +737,22 @@ async def importar(rows: list[dict]):
                             FROM bilhetes WHERE dono=$1 AND origem=$2
                         )
                         UPDATE bilhetes b
-                        SET criado_em = NOW() - ((o.total - o.rn) * INTERVAL '1 second')
+                        SET criado_em = (SELECT ancora FROM base)
+                                        - ((o.total - o.rn) * INTERVAL '1 second')
                         FROM ordered o WHERE b.id = o.id
                         """, DONO, ORIGEM)
-                n = await conn.fetchval('SELECT COUNT(*) FROM bilhetes WHERE dono=$1', DONO)
+                # ⚠️ A conferência é sobre o que ESTE import escreveu, não sobre o total
+                # do dono: a base já tem bilhete de outra origem (captura), e comparar o
+                # total com as linhas do CSV acusaria colisão que não houve.
+                n = await conn.fetchval(
+                    'SELECT COUNT(*) FROM bilhetes WHERE dono=$1 AND origem=$2', DONO, ORIGEM)
+                tot = await conn.fetchval('SELECT COUNT(*) FROM bilhetes WHERE dono=$1', DONO)
                 nc = await conn.fetchval(
                     'SELECT COUNT(DISTINCT casa) FROM parceiros WHERE dono=$1', DONO)
                 np = await conn.fetchval('SELECT COUNT(*) FROM parceiros WHERE dono=$1', DONO)
-                print(f'\nOK — bilhetes dono={DONO}={n} | casas={nc} | contas={np}')
+                print(f'\nOK — importados={n} | total do dono={tot} | casas={nc} | contas={np}')
                 if n != len(rows):
-                    print(f'  ⚠️ o CSV tinha {len(rows)} linhas e o banco ficou com {n} — '
+                    print(f'  ⚠️ o CSV tinha {len(rows)} linhas e o import gravou {n} — '
                           f'diferença = colisão de assinatura, confira antes de seguir')
                 return
             finally:

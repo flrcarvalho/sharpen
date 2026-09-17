@@ -259,6 +259,31 @@ bilhete dele confirma, e o log esperado é `[sharpen:passatips] bilhete #N` sem 
 > caminho deixa quando reserva identidade antes de terminar. Quem reserva cedo e sai por
 > `return` abre buraco, e buraco não dispara alarme nenhum.
 
+### 1.16 Grafia de casa já unificada volta pelo cadastro manual (s373). **VIVA, medida**
+
+`Rei do Pitaco` foi unificada em `Pitaco` na s270 (54 bilhetes, 2 donos, assinaturas
+recalculadas), e o comentário no `app/static/index.html` dizia, em 13/09, que *"não há mais
+linha alguma em `Rei do Pitaco` para traduzir"*. Em 17/09 havia **4** — do `Ewanderson1`, com
+código da casa e stake em R$, capturadas em 16/09 sob uma conta que ele criou à mão.
+
+**A captura não é a culpada:** `_CASA_DISPLAY["PITACO"] = "Pitaco"` e o round-trip do
+`/salvar` impõem a grafia registrada. Quem aceita nome livre é o **"+Nova conta"** — e aceitar
+verbatim é regra, não defeito: title-casear mutila `BETesporte`, `VaideBet`, `KingPanda`. O
+buraco é que **nada confere o nome digitado contra as grafias que já foram FUNDIDAS**.
+
+Refundida na s373 (`unificar_casas.py --somente "Rei do Pitaco" --aplicar`), mas isso é
+conserto, não trava: a próxima conta digitada assim recria a casa.
+
+**O que falta medir antes de decidir o conserto:** quantas das 13 grafias do `MAPA` voltaram
+a ter linha depois da unificação que as apagou (a `Faz1bet` já voltou uma vez, na s249, e foi
+o que originou o `--somente`). Um `SELECT casa, count(*) FROM bilhetes WHERE casa = ANY(<as
+13>)` responde, e é o mesmo que o `relatorio()` do script já imprime — **o script existe, o
+hábito de rodá-lo não.** Candidato barato: o `audit_casas.py` passar a chamá-lo.
+
+> **Sintoma para reconhecer isto noutro campo:** uma migração que se declara concluída num
+> comentário de código. O comentário congela a medição do dia em que foi escrito; o dado
+> continua andando. Regra sem gate não é cumprida — e aqui o gate seria uma linha de SQL.
+
 ### 1.12 A 0.7.13 está na home, e o grupo só é avisado na próxima versão (s365). **VIVA — só o aviso**
 
 O `manifest.json` foi para **0.7.13** no `fe29c2b` (o horizonte da Bolsa de Aposta). O Feca
