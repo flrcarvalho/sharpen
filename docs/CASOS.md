@@ -1003,3 +1003,74 @@ como release sem ficar sabendo que houve problema.
 **Sintoma para reconhecer isto noutro campo:** um `if` que decide **se grava**, em vez de
 decidir **como**. Bloquear escrita de dado do usuario so e legitimo com o caminho de
 subir oferecido na mesma tela — senao a trava nao previne a perda, ela **e** a perda.
+
+
+---
+
+## Dois numeros certos, e um colchete que apagou o custo de 13 bilhetes — s364, s366, s369
+
+Duas sessoes mediram o custo total do mesmo dono, no mesmo recorte, e acharam numeros
+diferentes: **R$ 59.600** (s364) contra **R$ 76.600** (s366). **So a Bet365 batia**
+(17.800 nas duas); Superbet e Betano divergiam. Quatro hipoteses foram levantadas e
+descartadas pela s366 — recorte por ano, arquivadas x ativas, so contas com bilhete,
+edicao posterior do preco — e a pendencia ficou aberta com a suspeita de defeito na regua.
+
+**Nao havia defeito na regua.** Os dois numeros estavam certos; o que mudava era a
+**TABELA DE PRECO** de onde cada um leu.
+
+### A primeira metade: seed x servidor
+
+O `CUSTO_SEED` sao 11 pares cravados no `gestao.js` que so valem para o username `Feca`,
+aplicados em memoria quando o navegador esta vazio. O `custo_store` do dono tem **14**.
+As duas tabelas concordam em **10 pares** e divergem em 4:
+
+| par | seed | servidor |
+|---|---|---|
+| `Richard\|\|Superbet` | 400 | **916** |
+| `Annderson\|\|Superbet` | — | **400** |
+| `Gustavo\|\|Betano` | — | **500** |
+| `Gustavo\|\|Superbet` | — | **500** |
+
+**Os tres pares de Bet365 sao identicos nas duas** — e e exatamente por isso que "so a
+Bet365 batia". O sintoma que parecia aleatorio tinha causa exata: a casa que bate e a
+casa onde as duas tabelas concordam.
+
+### A segunda metade: um colchete a mais
+
+Reproduzido o gap da tabela, sobrou um residuo **constante de R$ 500, so em Superbet,
+presente nas DUAS medicoes**. Offset constante em cima das duas leituras = uma conta que
+a regua nao contava e passou a contar.
+
+Era a conta `arthurbarbosabets`, com **13 bilhetes**, cujo nome estava gravado como
+`arthurbarbosabets [[JC]]` — **colchete duplo**. O `_splitParceiro` (mesmo regex do
+`repository.py`, `^(.+?)\s*\[(.+?)\]$`) parte isso como fornecedor **`[JC]`**, com os
+colchetes dentro. A chave vira `[JC]||Superbet`, que nao existe em tabela de preco
+nenhuma, e **o custo daquela conta simplesmente nao existia** — sem erro, sem zero
+visivel, sem linha faltando. Renomeada para `[JC]` simples entre as duas sessoes e esta,
+ela voltou a custar R$ 500.
+
+### Como isso foi provado, e nao deduzido
+
+Carregando a `calcCostFiltered` **recortada do `gestao.js` de producao** contra um dump
+do Postgres real, rodada duas vezes (uma com cada tabela de preco). Com o nome atual ela
+da 60.100 e 77.100; **devolvendo o colchete duplo ao dump, ela da 59.600 e 76.600,
+exatos, casa por casa**. Prova por remocao: desfaz-se a unica mudanca suspeita e os dois
+numeros historicos voltam.
+
+> **O produto ja denunciava, e ninguem leu como denuncia.** A tabela de precos da tela de
+> Custos mostrava uma linha de fornecedor chamada **`[JC]`**, com *FALTA 1 PRECO · 1 casa
+> · 1 conta*, ao lado do `JC` de verdade. Fornecedor fantasma com nome quase igual ao de
+> um real le como duplicata cosmetica, nao como custo sumindo.
+
+**Sintoma para reconhecer isto noutro campo:** dois numeros da mesma grandeza que diferem
+**em algumas dimensoes e batem exatamente em outras**. Diferenca uniforme e regua; batida
+exata em um subconjunto e **fonte** — as duas leituras concordam onde as fontes concordam.
+Antes de suspeitar do calculo, alinhe as entradas e veja se o padrao de divergencia
+coincide com o padrao das fontes.
+
+**E um resto constante em cima de uma diferenca ja explicada e outra coisa, nao mais da
+mesma.** Os R$ 500 nao eram "erro de arredondamento" da divergencia de tabela: eram um
+segundo defeito, de outra natureza, que so apareceu depois que o primeiro foi removido.
+
+Varrido depois em **1.025 contas de todos os donos: zero** nomes com artefato de parse no
+fornecedor. Era caso unico e ja esta corrigido, entao nao houve mudanca de codigo.
