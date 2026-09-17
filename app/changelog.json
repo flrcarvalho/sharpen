@@ -236,6 +236,16 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0714",
+      "v": "v0.7.14",
+      "data": "2026-09-17",
+      "texto": "**Betboo** entrou na captura automática.",
+      "itens": [
+        "Quem tem conta na Betboo já pode conectar pelo SharpenUp, como faz nas outras casas.",
+        "Atualize a extensão e dê Ctrl+Shift+R na aba da casa antes de capturar."
+      ]
+    },
+    {
       "id": "su-0713",
       "v": "v0.7.13",
       "data": "2026-09-15",
