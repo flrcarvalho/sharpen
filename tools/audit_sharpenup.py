@@ -59,6 +59,13 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Numérico de 7 dígitos, reconhecido pela regex GENÉRICA do repository.
     "LOTTU":      "6512222",
     "SPORTINGBET": "20PGTUNX29",
+    # Betboo (s372) — espelho da SportingBet, MESMO espaço de ids do motor bwin/Entain:
+    # alfanumérico de 10, sem separador, reconhecido pela regex GENÉRICA do repository. O id
+    # abaixo é o único W da conta (16/09/2026, múltipla de 2 pernas de MLB, stake 201 →
+    # R$ 1.524,59, conferido no card). ⚠ Como Betão/R7/7Games, um id sozinho NÃO diz de que
+    # casa é: as duas casas compartilham o formato. Não há colisão de dedup (`casa` entra na
+    # assinatura), mas a amarração casa↔site é o que impede gravar na casa errada.
+    "BETBOO":     "20RSMW9KJA",
     "SUPERBET":   "891L-YJ3VAH",
     "BETANO":     "20675937607",
     "BETESPORTE": "190989817",

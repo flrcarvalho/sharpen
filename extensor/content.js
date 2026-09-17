@@ -969,6 +969,11 @@
       stopId: (cfg.stopId || "").trim().toUpperCase(),
       parar: () => parar,
       painel,
+      // Nome de EXIBIÇÃO da casa, para log e toast do operador. Existe por causa das casas
+      // espelho: quem compartilha inject e formatador compartilhava a mensagem também, e o
+      // operador na Betboo lia "a SportingBet devolveu estado…" (s372). O `diag` já
+      // resolvia isso com a chave `nome`; aqui é o mesmo cuidado, fora do diag.
+      nomeCasa: cfg.casa || "",
     };
     // Betfair: histórico ILIMITADO (não corta como a Betano) → freio por QUANTIDADE
     // (padrão 100) + dias opcional + "varrer conta inteira". A lista é por POSTAGEM
@@ -1193,10 +1198,17 @@
       // sim no CORS do gateway — `credentials:"include"` é recusado para o tenant dela e
       // zeraria o replay inteiro; quem trata é o `pedirPagina` do `vb_inject.js`.
       blocos = await roboVBPassive(ctx);
-    } else if (casa === "sportingbet") {
+    } else if (casa === "sportingbet" || casa === "betboo") {
       // Passivo + replay paginado (spb_inject, motor bwin/Entain — o primeiro deste motor
-      // no Sharpen, sem espelho para reusar). A tela pede 6 bilhetes por vez e só busca
-      // mais na rolagem; o inject pagina por `index` nas duas abas com `maxItems` alto.
+      // no Sharpen). A tela pede 6 bilhetes por vez e só busca mais na rolagem; o inject
+      // pagina por `index` nas duas abas com `maxItems` alto.
+      //
+      // ⚠ A Betboo (s372) é ESPELHO e entra sem uma linha de inject própria: o `spb_inject`
+      // casa por PATH (`/mybets/betslips`) e monta a URL de `location.origin`. Medido na
+      // casa: mesmo corpo, mesmo topo de resposta, `index` é página, fim por lista vazia, e
+      // **sem os cabeçalhos do motor ela devolve 200 com o HTML da SPA** igual à gêmea. O
+      // caso `harness/casos/betboo.mjs` prova o contrato contra a fixture DELA, e tem
+      // asserção específica para pegar se alguém cravar o host da SportingBet aqui.
       //
       // SEM fallback de texto, e isso foi MEDIDO, não suposto: o `innerText` da lista tem
       // 6 bilhetes e ZERO linha em branco, então o roboScroll genérico juntaria tudo num
@@ -1357,6 +1369,13 @@
                        extra: spbRespostas === 0
                          ? " · a casa recusou a consulta: recarregue a página (Ctrl+Shift+R) e, se persistir, refaça o login"
                          : "" },
+        // Espelho da SportingBet: mesmo inject, mesmos contadores. Só o nome muda, para o
+        // operador não ler "SportingBet: 0 bilhetes" estando na Betboo — é o mesmo cuidado
+        // que a Esportiva tem em relação à VaideBet.
+        betboo:     { nome: "Betboo",      hook: spbHookVivo, resp: spbRespostas, vistos: spbById.size,
+                      extra: spbRespostas === 0
+                        ? " · a casa recusou a consulta: recarregue a página (Ctrl+Shift+R) e, se persistir, refaça o login"
+                        : "" },
         // Jogo de Ouro: mesmo inject/contadores das irmãs Altenar, mas com um extra que só
         // ela precisa. Esta casa tem DOIS widgets de histórico e o inject só casa o da tela
         // cheia; capturar a partir do painel lateral dá `respostas: 0` com o hook ATIVO —
@@ -5184,7 +5203,17 @@
   // "Beisebol" (id 23), que é SINÔNIMO DE ENTRADA do `MASTER_ESPORTES`; o valor oficial é
   // `Baseball`. A IA copia o rótulo verbatim — foi assim que a VaideBet gravou duas
   // grafias do mesmo esporte no banco (s210). Id fora do mapa sobe cru, marcado.
-  const _ESPORTE_SPB = { 4: "Futebol", 23: "Baseball" };
+  //
+  // Os ids 7 e 56 entraram com a Betboo (s372), que é espelho desta casa e trouxe esporte
+  // que a SportingBet nunca trouxe: 4 dos 8 bilhetes da amostra caíam em "id não mapeado".
+  // As duas grafias foram MEDIDAS no banco, não escolhidas pela marca (a lição da s289):
+  // `Basquete` tem 17.979 bilhetes / 17 donos e `Tênis de Mesa` tem 43 / 5 donos / 3 casas,
+  // as duas sem gêmea. ⚠ A casa escreve "Tênis de mesa", com `m` minúsculo.
+  //
+  // ⚠️ PENDÊNCIA declarada: `Tênis de Mesa` é a grafia de facto do projeto (é a que o
+  // matcher compara), mas NÃO tem seção própria no `MASTER_ESPORTES_2026.md`. Propagar é
+  // tarefa separada desta casa.
+  const _ESPORTE_SPB = { 4: "Futebol", 7: "Basquete", 23: "Baseball", 56: "Tênis de Mesa" };
 
   // ⚠️ Nomes de PROMOÇÃO que a casa põe no lugar do mercado. "BIG ODD" e "Múltiplas
   // Aumentadas" chegam em `market.name`, mas não são mercado: o mercado real vive em
@@ -5193,6 +5222,45 @@
   const _PROMO_SPB = new Set(["BIG ODD", "Múltiplas Aumentadas", "Odds Turbinadas", "Super Odds"]);
 
   const _RESULT_PERNA_SPB = { Open: "pendente", Won: "ganhou", Lost: "perdeu", Canceled: "anulada" };
+
+  // ⚠️ AccaBoost — o boost de MÚLTIPLA, que vive em `promoTokens`, no nível do BILHETE.
+  // NÃO confundir com o `priceBoostData` tratado mais abaixo, que é boost de odd por
+  // SELEÇÃO. São dois mecanismos diferentes e podem coexistir.
+  //
+  // Amostra veio da Betboo (s372), espelho desta casa; a SportingBet não tinha nenhuma.
+  // Está em 3 dos 8 bilhetes da conta, e o card estampa "Promoção usada ⚡ +5% Múltipla+".
+  //
+  // ⚠️ E o card NÃO mostra os dois números como equivalentes: com o boost ele TROCA o
+  // rótulo de "Possíveis ganhos" para **"Ganhos melhorados"** e **RISCA** o valor sem
+  // boost. Medido no 20RTRWRSKY: `R$ 2.595,92` riscado ao lado de `R$ 2.715,67`, e a conta
+  // fecha exata (`maxPayout 2595,92 + WinningsBoost 119,75 = BoostedWinnings 2715,67`).
+  // Logo o potencial que VALE é o com boost, e o `maxPayout` é o riscado — a mesma leitura
+  // que a odd pré-boost já recebe. Emitir o riscado como valor subestimaria o potencial.
+  //
+  // Em bilhete perdido a casa manda `BoostedWinnings: 0` e nem cria `WinningsBoost`: o
+  // token continua lá (a promoção foi usada) e só não há dinheiro para declarar.
+  //
+  // NÃO DECIDE dinheiro de bilhete GANHO: não há amostra de W com AccaBoost, então a odd
+  // segue saindo da régua global (`retorno ÷ stake` em `_oddSPB`), que fecha certo tanto
+  // se o boost vier somado no `payout` quanto se for creditado à parte.
+  function _accaBoostSPB(b) {
+    for (const t of (b.promoTokens || [])) {
+      if (String(t && t.tokenType) !== "AccaBoost") continue;
+      const itens = {};
+      const lista = (t.additionalInformation && t.additionalInformation.informationItems) || [];
+      for (const i of lista) { if (i && i.key != null) itens[i.key] = i.value; }
+      const ratio = Number(itens.AccaBoostRatio);
+      const ganhos = Number(itens.BoostedWinnings);
+      const acrescimo = Number(itens.WinningsBoost);
+      return {
+        // `0.0500` → `5`. Arredonda porque 0.05 × 10000 dá 500.00000000000006 em float.
+        pct: isFinite(ratio) ? Math.round(ratio * 10000) / 100 : null,
+        ganhos: isFinite(ganhos) && ganhos > 0 ? ganhos : null,
+        acrescimo: isFinite(acrescimo) && acrescimo > 0 ? acrescimo : null,
+      };
+    }
+    return null;
+  }
 
   // Data do EVENTO mais recente entre as seleções (`MASTER_OUTPUT §4`). `_msVB`/`_dhVB`
   // são reusados de propósito: converter ISO-UTC para America/Sao_Paulo é regra GLOBAL,
@@ -5292,8 +5360,17 @@
     }
 
     // Dinheiro: o de uma ABERTA é POTENCIAL e sai com esse rótulo, nunca como "Retorno".
+    //
+    // ⚠️ Com AccaBoost o `maxPayout` é o número RISCADO no card, não o que vale — ver o
+    // bloco do `_accaBoostSPB`. O potencial declarado só perde para o boost quando o boost
+    // é MAIOR: assim um token sem dinheiro (bilhete perdido manda `BoostedWinnings: 0`)
+    // nunca rebaixa o valor que a casa exibe.
+    const acca = _accaBoostSPB(b);
+    let potRiscado = null;
     if (_abertaSPB(b)) {
-      const pot = _valSPB(b.maxPayout) || _valSPB(b.grossPossibleWinnings);
+      const declarado = _valSPB(b.maxPayout) || _valSPB(b.grossPossibleWinnings);
+      let pot = declarado;
+      if (acca && acca.ganhos != null && acca.ganhos > declarado) { pot = acca.ganhos; potRiscado = declarado; }
       if (pot) L.push("Retorno potencial: R$ " + _brl(pot));
     } else if (_valSPB(b.payout)) {
       L.push("Retorno: R$ " + _brl(_valSPB(b.payout)));
@@ -5301,6 +5378,19 @@
 
     if (b.isFreeBet) L.push("Marcação da casa: aposta grátis (freebet) — o stake não saiu do saldo");
     if (b.isEditBet) L.push("Marcação da casa: aposta editada (Edit Bet)");
+
+    // AccaBoost: a promoção existe, então ela é dita — a Cota declarada não a inclui, e sem
+    // esta linha a IA não tem como saber que o retorno não sai de `stake × odd`.
+    if (acca) {
+      const p = [];
+      p.push("Marcação da casa: promoção de múltipla (AccaBoost" +
+             (acca.pct != null ? " +" + String(acca.pct).replace(".", ",") + "%" : "") + ")");
+      if (potRiscado != null) p.push("o card RISCA o potencial sem boost (R$ " + _brl(potRiscado) + ")");
+      else if (acca.ganhos != null) p.push("ganhos com boost R$ " + _brl(acca.ganhos));
+      if (acca.acrescimo != null) p.push("acréscimo R$ " + _brl(acca.acrescimo));
+      p.push("a Cota declarada NÃO inclui o boost");
+      L.push(p.join(" — ").replace(" — a Cota", " · a Cota"));
+    }
 
     // Boost: o card mostra "1.98 » 2.50" (o riscado é a odd ANTES do boost). Sai como
     // marcação para a IA não confundir com a odd válida, que é a de cima.
@@ -5383,10 +5473,11 @@
     }
     await sleep(400);
     processar();
-    console.log("[SharpenUp] SportingBet: " + blocos.length + " bilhete(s) · spbById=" + spbById.size +
+    const _nomeSPB = ctx.nomeCasa || "SportingBet";
+    console.log("[SharpenUp] " + _nomeSPB + ": " + blocos.length + " bilhete(s) · spbById=" + spbById.size +
                 " · hook=" + spbHookVivo + " · respostas=" + spbRespostas + " · abortos=" + spbAbortos +
                 " · fimReal=" + spbFimReal);
-    avisarEstadoNaoMapeadoSPB();
+    avisarEstadoNaoMapeadoSPB(_nomeSPB);
     return blocos;
   }
 
@@ -5581,7 +5672,8 @@
   // Mesmo aviso que a família Altenar ganhou na s285, pelo mesmo motivo: estado que o
   // formatador não traduz sobe "a conferir", a IA devolve resultado vazio e a linha nasce
   // "aguardando" — sem aviso, ela fica assim para sempre. O aviso APONTA os IDs.
-  function avisarEstadoNaoMapeadoSPB() {
+  function avisarEstadoNaoMapeadoSPB(nomeCasa) {
+    const nome = nomeCasa || "SportingBet";
     const conhecidos = new Set(["Open", "Won", "Lost", "Canceled"]);
     const porEstado = new Map();
     for (const b of spbById.values()) {
@@ -5591,11 +5683,11 @@
     }
     if (!porEstado.size) return;
     const partes = Array.from(porEstado.entries()).map(([s, ids]) => "state=" + s + " em " + ids.length + " bilhete(s): " + ids.join(", "));
-    console.warn("[SharpenUp] SportingBet · estado(s) não traduzido(s) — " + partes.join(" · "));
+    console.warn("[SharpenUp] " + nome + " · estado(s) não traduzido(s) — " + partes.join(" · "));
     const resumo = Array.from(porEstado.entries())
       .map(([s, ids]) => "state=" + s + " (" + ids.slice(0, 3).join(", ") + (ids.length > 3 ? "…" : "") + ")").join(" · ");
     try {
-      toastLocal("Atenção: a SportingBet devolveu estado que o SharpenUp ainda não traduz — " + resumo +
+      toastLocal("Atenção: a " + nome + " devolveu estado que o SharpenUp ainda não traduz — " + resumo +
                  ". Esses bilhetes sobem sem resultado. IDs completos no console (F12).", false, 56);
     } catch (e) {}
   }

@@ -56,7 +56,12 @@ const CASA_HOSTS = {
   // Plataforma própria (gateway BlueBrown). A API mora no MESMO host da casa (`/spt/api/…`).
   "Novibet":    ["novibet.bet.br"],
   "1xBet":      ["1xbet.bet.br"],
-  "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject PRÓPRIO, sem espelho
+  "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject próprio
+  // Betboo (s372) — 2ª casa bwin/Entain, ESPELHO da SportingBet (reusa o spb_inject).
+  // ⚠ NÃO é a Betboom (motor BetBy): os nomes diferem por uma letra, e `betboo` é substring
+  // de `betboom`. O `hostBate` compara host EXATO ou subdomínio, nunca substring — é isso
+  // que impede a extensão de aceitar a captura na casa errada.
+  "Betboo":     ["betboo.bet.br"],
   "Lottu":      ["lottu.bet.br"],         // motor NGBras (s290) · API em alpha-sb.ngbras.com
   // Bolsa de Aposta (s299) — DOIS ambientes em iframes de origens diferentes. Aqui vai só o
   // domínio da CASCA, que é a página em que o operador está; os hosts dos iframes
@@ -254,6 +259,10 @@ async function capturar() {
                 // SportingBet: 1º motor bwin/Entain do Sharpen — inject próprio.
                 // `spb_`, e não `sb_`, porque `sb_inject.js` já é da Superbet.
                 : casa === "SportingBet" ? "spb_inject.js"
+                // Betboo: espelho da SportingBet. O `spb_inject` casa por PATH
+                // (`/mybets/betslips`) e monta a URL de `location.origin`, então serve as
+                // duas sem uma linha de mudança (provado em harness/casos/betboo.mjs).
+                : casa === "Betboo" ? "spb_inject.js"
                 // Lottu: motor NGBras. `lt_`, e não `l_`, para não colidir com nada.
                 : casa === "Lottu" ? "lt_inject.js"
                 // Bolsa de Aposta: DOIS ambientes, DOIS injects, e nenhum deles roda no frame

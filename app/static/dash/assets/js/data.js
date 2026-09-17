@@ -39,7 +39,9 @@ const CASA_ICONS={
   'Blaze':'https://www.google.com/s2/favicons?sz=128&domain=blaze.bet.br',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
-  'Betboo':'https://www.google.com/s2/favicons?sz=128&domain=betboo.com',
+  // s372: `betboo.com` → `betboo.bet.br` (operação regulada), ao entrar na captura. Os dois
+  // devolvem o MESMO ícone (sha256 idêntico, 791 bytes) — o visual não muda.
+  'Betboo':'https://www.google.com/s2/favicons?sz=128&domain=betboo.bet.br',
   'Betbra':'https://www.google.com/s2/favicons?sz=128&domain=betbra.bet.br',
   'BETesporte':'https://www.google.com/s2/favicons?sz=128&domain=betesporte.bet.br',
   'Betfair':'https://www.google.com/s2/favicons?sz=128&domain=betfair.com',
@@ -132,7 +134,7 @@ const HOUSE_DOMAIN={
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo
   'Polymarket':'polymarket.com',
-  'Betboo':'betboo.com',
+  'Betboo':'betboo.bet.br',   // s372 — regulada, ao entrar na captura (era betboo.com)
   'Betbra':'betbra.bet.br',
   'BETesporte':'betesporte.bet.br',
   'Betfair':'betfair.com',

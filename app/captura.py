@@ -68,6 +68,9 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
 _MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
+                   # Betboo (s372) — espelho da SportingBet: mesmo inject, mesmo formatador,
+                   # logo o mesmo modo. So muda a marca.
+                   "BETBOO": "texto",
                    "BOLSADEAPOSTA": "texto",
                    # Betbra (s343) — casa ESPELHO da Bolsa: mesma plataforma, mesmas rotas de
                    # casca (`/b/exchange` · `/fbook`), os mesmos dois injects. So muda a marca.
@@ -106,6 +109,13 @@ _HOSTS_POR_CASA = {
     # há gateway separado para listar. O `.com` global NÃO entra: a operação regulada é a
     # `.bet.br` (mesmo critério da Pitaco).
     "SPORTINGBET": ("sportingbet.bet.br",),
+    # Betboo (s372) — 2a casa do motor bwin/Entain, espelho da SportingBet. Como na gemea,
+    # a API de bilhetes vive no MESMO host da casa, entao nao ha gateway separado para
+    # listar. ⚠ O `.com` global NAO entra: a operacao regulada e a `.bet.br`. E a amarracao
+    # casa<->site importa mais aqui do que de costume: `betboo` e substring de `betboom`
+    # (outra casa, motor BetBy), e o que separa as duas e o `casa_de_host` comparar host
+    # EXATO ou subdominio, nunca substring.
+    "BETBOO":     ("betboo.bet.br",),
     # Lottu (s290) — motor NGBras. Aqui vai o domínio da CASA (é a amarração casa<->site);
     # a API mora noutro host (`alpha-sb.ngbras.com`), que o inject alcança a partir desta
     # página e por isso não entra neste mapa.

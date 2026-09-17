@@ -312,6 +312,15 @@ _CASA_DISPLAY: dict[str, str] = {
     # grade vazia, sem erro nenhum — o defeito que matou a Jonbet na s249 (ver o aviso de
     # mudança RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5).
     "SPORTINGBET":    "SportingBet",
+    # Betboo (s372) — 2ª casa do motor bwin/Entain, espelho da SportingBet. Aqui a medição
+    # foi mais simples que a da gêmea: `Betboo` é grafia ÚNICA no banco (154 bilhetes /
+    # 5 contas / 4 donos), sem gêmea para unificar antes, então o round-trip
+    # `_casa_display(_display_to_key("Betboo"))` já era identidade e nenhuma conta deixa de
+    # casar com os bilhetes dela. ⚠ NÃO confundir com `BETBOOM` (motor BetBy, 523 bilhetes),
+    # que é outra casa: os dois nomes diferem por uma letra e o `betboo` é substring do
+    # `betboom` — a amarração casa↔site aqui é por host exato ou subdomínio, nunca por
+    # substring, e é isso que impede a confusão em runtime.
+    "BETBOO":         "Betboo",
     "SUPERBET":       "Superbet",
     "TIVO":           "Tivo",
     "VAIDEBET":       "VaideBet",
@@ -708,6 +717,10 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",
+    # Betboo (s372) — espelho da SportingBet, mesmo formatador e logo o mesmo marcador
+    # `[Código: …]`. Os ids são do MESMO espaço do motor bwin/Entain: alfanumérico de 10,
+    # sem separador (`20RSMW9KJA`), reconhecido pela regex GENÉRICA do repository.
+    "BETBOO",
     "LOTTU",
     "1XBET",
     # Bolsa de Aposta (s299) — vale para os DOIS ambientes: o Exchange emite
