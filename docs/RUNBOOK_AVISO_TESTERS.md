@@ -45,6 +45,19 @@ bilhete, arquivo, commit. O nível é o de nota de release curta, não o do `STA
 - É **grupo comum**, não supergrupo. Se for promovido, o id passa a `-100…` e o envio falha; o
   `getChat` acusa antes.
 - Extensão: a ação do tester é sempre atualizar em `sharpen.bet/extensao` (distribuição manual).
+- ⚠️ **Casa nova: o aviso tem de mandar recarregar o PAINEL, não só a aba da casa.** São dois
+  `Ctrl+Shift+R` e resolvem coisas diferentes: o da **casa** porque recarregar a extensão não
+  re-injeta em aba já aberta (a captura não arranca); o do **painel** porque
+  `CASAS_CONECTAVEIS` e `carregarCasas()` rodam **uma vez, no load**, então **o botão
+  "Conectar" nasce desabilitado** e a casa não aparece em "Nova conta". O painel é servido com
+  `no-cache`, mas `no-cache` obriga a revalidar no *carregamento* — aba aberta desde ontem roda
+  o JS antigo em memória. Sem essa linha o tester vê o botão travado e reporta como bug, que é
+  exatamente o que aconteceu na s272 (Novibet) e na s298 (seletor de contas), as duas vezes com
+  o registro completo e o `audit_sharpenup` verde.
+- **Só publique o aviso DEPOIS do deploy.** O `.zip` de `/extensao/download` é gerado
+  on-the-fly a partir do `extensor/` **que está no ar**, então avisar antes manda o tester
+  baixar a versão anterior pelo link — e o link é o único canal. Confira
+  `GET /extensao/versao` antes de `--enviar`.
 
 ---
 

@@ -47,6 +47,16 @@ Leia o diff (`git diff`) e confira item a item:
 - [ ] Janela de dias corta **so resolvidas**; aberta nunca corta.
 - [ ] Nenhuma decisao de W/L/V dentro da extensao (o de-para vive na `CASA_*.md`).
 - [ ] Casa nova tem entrada em `CODIGO_EXEMPLO` (`tools/audit_sharpenup.py`).
+- [ ] **Botao Conectar LIBERADO, provado em producao depois do deploy** — nao basta a casa
+      estar em `CASAS_CONECTAVEIS` (isso o `audit_sharpenup` ja confere; o que ele NAO ve e o
+      runtime). No console de `/app` logado: `document.getElementById('fr-plan')
+      .contentWindow._casaConectavel('<Casa>')` deve dar `true`, **com controle negativo**
+      numa casa inexistente dando `false`, e `GET /casas` deve trazer a casa em `captura`.
+      → `/sharpenup-casa` §7.1
+- [ ] **O aviso ao grupo manda recarregar o PAINEL, nao so a aba da casa** — sao dois
+      Ctrl+Shift+R, e e o do painel que faz o botao aparecer (`CASAS_CONECTAVEIS` e
+      `carregarCasas()` rodam uma vez, no load). Sem essa linha, o tester ve botao
+      desabilitado e reporta como bug (s272, s298).
 - [ ] Backup feito em `Backups/<nome-descritivo>/`, so dos arquivos editados.
 - [ ] Armadilha nova descoberta virou linha no caso do harness (senao ela volta).
 

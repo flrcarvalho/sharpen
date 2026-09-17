@@ -192,6 +192,14 @@ Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes*
 2. Commit + push (deploy Railway automático). `STATUS.md` na mesma sessão.
 3. Peça ao operador: **recarregar a extensão** e **Ctrl+Shift+R na aba da casa** — recarregar
    a extensão *não* re-injeta em aba já aberta (armadilha recorrente).
+
+   > ⚠️ **E PROVE EM PRODUÇÃO que o botão "Conectar" liberou.** Estar em `CASAS_CONECTAVEIS`
+   > é o que o `audit_sharpenup` confere; ele **não vê o runtime**. No console de `/app`
+   > logado: `document.getElementById('fr-plan').contentWindow._casaConectavel('<Casa>')`
+   > deve dar `true` — **com controle negativo** numa casa inexistente dando `false`, senão
+   > o `true` também sairia de uma função que aceita tudo. E `GET /casas` deve trazer a casa
+   > dentro de `captura`. Virou passo obrigatório na s372, a pedido do Feca, depois de ser
+   > esquecido vezes suficientes.
 3.1. **E um F5 na aba do DASHBOARD.** A casa nova não aparece no seletor de "Nova conta" numa
    aba que já estava aberta: `carregarCasas()` roda uma vez, no load, e guarda a lista do
    `GET /casas` em memória (`casasCarregadas`). O filtro do combo busca nessa lista, então ele
