@@ -439,8 +439,10 @@ recolhido, marca d'água de throttle) e paint instantâneo. Nunca o dado em si.
 > viu, e a tela mostrava o número certo o tempo todo.
 
 **O modo de falha é não ter sintoma:** o valor some numa limpeza de dados, num perfil
-novo ou noutro aparelho, **sem erro**. E um seed cravado em código preenche o vazio e
-finge que há dado salvo (`CUSTO_SEED`).
+novo ou noutro aparelho, **sem erro**. E **valor de exemplo cravado em código preenche o
+vazio e finge que há dado salvo** — o `CUSTO_SEED` mascarou por meses uma base sem custo
+nenhum e fez duas sessões medirem totais diferentes para o mesmo dono; removido na s369,
+e não volta. Ausência tem de aparecer como ausência.
 
 **Trava que BLOQUEIA escrita tem de oferecer a saída, senão ela É a perda.** A
 anti-semeadura-parcial (`if serverBacked push; else if !hadLegacy push`) existia por bom

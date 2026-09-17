@@ -185,34 +185,29 @@ teste) passou despercebida até alguém abrir o log à mão.
 Conserto: o `check_docs.py` precisa tratar link que sai da raiz do repo como **fora de
 escopo**, não como quebrado. Um link para fora não é conferível de dentro.
 
-### 1.13 O custo total da aba Contas não bate com o número registrado na s364 (s366). **VIVA, medida**
+### 1.13 O custo total da aba Contas não batia com o registrado na s364. **FECHADO (16/09, s369)**
 
-Medido read-only contra produção, somando cada conta uma vez pelas três camadas de preço,
-**sem recorte de período**: **R$ 76.600**. O registro da s364, que mediu pela tela, diz
-**R$ 59.600**.
+**Não havia defeito na régua: os dois números estavam certos e liam tabelas de preço
+diferentes.** R$ 59.600 era a régua com o `CUSTO_SEED` (11 pares cravados no `gestao.js`,
+só para o username `Feca`); R$ 76.600 é a MESMA régua com o `custo_store` (14 pares). As
+duas concordam em 10 pares, e **os três de Bet365 são idênticos** — que é a causa exata do
+"só a Bet365 bate": a casa que bate é onde as fontes concordam.
 
-| Casa | s364 (tela) | s366 (banco) |
-|---|---|---|
-| Bet365 | 17.800 | **17.800** ✓ |
-| Betano | 20.300 | 22.300 |
-| Superbet | 21.500 | 36.500 |
+Sobrou um resíduo **constante de R$ 500 em Superbet**, e era um **segundo defeito**: a conta
+`arthurbarbosabets`, com 13 bilhetes, estava gravada com **colchete duplo**
+(`arthurbarbosabets [[JC]]`). O `_splitParceiro` parte isso como fornecedor `[JC]`, a chave
+vira `[JC]||Superbet`, que não existe em tabela de preço nenhuma, e o custo daquela conta
+não existia — sem erro e sem zero visível. Ela foi renomeada entre a s366 e a s369.
 
-**Só a Bet365 bate**, e isso é o que torna o caso interessante: não é fator constante nem
-erro de soma. Quatro hipóteses foram testadas e **descartadas**:
+Provado por REMOÇÃO: a `calcCostFiltered` recortada de produção rodou contra um dump do
+Postgres real, duas vezes; devolvendo o colchete duplo ao dump ela dá **59.600 e 76.600,
+exatos, casa por casa**. Varrido depois em 1.025 contas de todos os donos: **zero** nomes
+com artefato de parse, então não houve mudança de código.
 
-- **recorte por ano** — todo o custo datável cai em 2026, então filtrar o ano não muda nada;
-- **arquivadas × ativas** — 70.584 e 6.016, nenhuma das duas dá 59.600;
-- **só contas com bilhete** — dá os mesmos 76.600 (nenhuma conta precificada é só-cadastro);
-- **edição posterior do preço** — o `custo_store` foi gravado às 03:45 e o commit da s364 é
-  das 16:35, então o preço não mudou depois da medição.
+**As quatro hipóteses anteriores estavam certas em serem descartadas** — o erro de método
+foi procurar UMA explicação para uma divergência que tinha DUAS.
 
-**O que falta, e é o método do repo:** rodar a `calcCostFiltered` REAL contra o banco, como
-o `tests/js/bookies_custo.mjs` já faz com o `renderCasa`, e diffar conta a conta. Deduzir
-não resolveu — as quatro hipóteses acima morreram medidas.
-
-> **Enquanto não fecha, o número está na tela e a divergência está registrada.** A aba mostra
-> o escopo no cabeçalho do card (`N casas com preço · N próprias · N sem preço`), que é a
-> régua de auditabilidade do projeto: KPI que desconta o que não está na tela é inauditável.
+→ [o caso](docs/CASOS.md#dois-numeros-certos-e-um-colchete-que-apagou-o-custo-de-13-bilhetes--s364-s366-s369)
 
 ### 1.14 O front não sabe dizer "custo zero" — a ausência e o zero caem no mesmo balde (s366). **VIVA, medida**
 
@@ -846,22 +841,30 @@ fechar, **não conte as 520 linhas de notação como divergência do tradutor** 
     Tipster que a s360 pôs nele. A régua velha (`custoData × contagem`) dessas três não foi
     consertada de propósito. **Esperar o Feca confirmar que não sentiu falta.**
 
-- **Remover o `CUSTO_SEED`, depois que os 16 donos tiverem guardado (s360). VIVA, medida.**
-  **O aviso já saiu** (15/09/2026, `message_id 4138` + home, `c2b9c6d`): a nota manda clicar
-  em *Guardar na minha conta* assim que entrar. Falta a outra metade.
-  Medido em 15/09/2026 contra o Postgres de produção: **16 donos, 480 contas cadastradas,
-  zero linha de custo em `custo_store`** — o custo deles vive só no `localStorage` daquele
-  navegador. **O `CUSTO_SEED`** (`gestao.js`, 11 pares cravados que valem só para o username
-  `Feca`) **só sai depois que o custo dele estiver no servidor**: removê-lo antes zeraria a
-  tela dele. Ele é a razão de a perda ter passado meses invisível, então a saída dele é o
-  fechamento do caso, não um detalhe de limpeza.
-  **Como saber que fechou, sem perguntar a ninguém:** `select dono from custo_store where
-  custo_conta <> '{}'::jsonb` contra a lista dos 16. Enquanto sobrar nome, o seed fica.
-  **E há um limite conhecido do aviso:** a faixa só aparece no navegador que TEM o dado. Quem
-  lançou num computador e abrir noutro vê zero e faixa nenhuma, porque a tela não tem como
-  saber que existe custo em outra máquina. Por isso a nota diz para abrir logo ao entrar.
-  **Desde a s368 o buraco parou de crescer:** a trava caiu nas três telas, então todo custo
-  digitado de agora em diante sobe na hora. O que resta é o acervo de quem ainda não abriu.
+- **~~Remover o `CUSTO_SEED`~~ (s360). FECHADO (16/09, s369).**
+  Saiu do `gestao.js`. A guarda dele era `window.__dono==='Feca' && custoData vazio`, ou
+  seja **um único usuário**, e ele passou a ter os 14 pares dele em `custo_store` — medido,
+  o fetch enche o `custoData` antes de qualquer fallback, então a remoção foi no-op. Com o
+  servidor fora do ar a tela agora mostra R$ 0, que é a verdade daquele instante.
+  **A condição que eu tinha escrito aqui ("depois que os 16 donos tiverem guardado") era
+  ampla demais** e teria segurado a remoção por meses sem motivo: o seed nunca alcançou
+  nenhum outro dono. Ao escrever condição de fechamento, ela tem de ser sobre quem o
+  código REALMENTE toca.
+  **O que continua aberto é outro item, logo abaixo:** os donos com custo só no navegador.
+
+- **Quatro harnesses de JS recortam função sem o ramo de UMA linha (s369). VIVA, medida.**
+  `tests/js/cobranca_tipster.mjs`, `recorrencia_gerais.mjs`, `recorte_custos.mjs` e
+  `topo_drawdown.mjs` têm o `recorteFn` só na forma multilinha, que vai até o próximo `}`
+  em **coluna zero**. Numa one-liner (`costKey`, `normForn`, `msGet`) ele engole tudo até
+  a próxima função multilinha, inclusive declarações de topo de arquivo, e o harness nasce
+  com identificador duplicado. **Os quatro passam hoje, e isso é sorte, não correção:** o
+  `custo_janela_vida.mjs` também passava, e quebrou no minuto em que o `CUSTO_SEED` saiu
+  do `gestao.js` — o `};` dele era a parada acidental do recorte do `costKey`. O conserto
+  é o mesmo em todos, três linhas (tentar a one-liner primeiro), mas **mexer em gate verde
+  sem falha na mesa é mudança sem prova**; fazer quando um deles quebrar, ou numa passada
+  dedicada com a suíte antes e depois.
+  **Sintoma para reconhecer isto noutro campo:** um teste que passa por causa de um detalhe
+  do código sob teste que ninguém escolheu — aqui, a posição de uma chave de fechamento.
 
 - **Varrer o resto do produto contra a regra "nada local" (s368). VIVA, parcial.**
   A s368 fechou o **custo** (três telas) e a **carteira do Polymarket**. A varredura de

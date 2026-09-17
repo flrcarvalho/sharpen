@@ -8,14 +8,20 @@ function normForn(f){return(!f||f==='—')?'Eu':f;}
 // window.__dono vem do feed /dashboard/data (app.js). Fallback '_' = namespace
 // vazio → nunca cai no store de outro dono.
 function costKey(){return 'dash_custos_v2::'+(window.__dono||'_');}
-// Seed histórico dos custos do FECA — aplicado SÓ para o dono 'Feca' (jamais semeia
-// outro usuário; global, era a fonte do vazamento — cada usuário preenche o seu).
-const CUSTO_SEED={
-  "Annderson||Bet365":900,"JC||Betano":600,"JC||Superbet":500,
-  "Move||Betano":600,"Move||Bet365":950,"Move||Superbet":600,
-  "P2Pro||Betano":600,"P2Pro||Superbet":600,
-  "Richard||Bet365":800,"Richard||Betano":500,"Richard||Superbet":400
-};
+// O `CUSTO_SEED` MORREU AQUI (s369). Eram 11 pares de custo cravados no código,
+// aplicados em memória só para `window.__dono==='Feca'` quando o navegador estava
+// vazio. Ele existia como rede para um dono cujo custo vivia fora do servidor, e o
+// preço foi alto: **ele mascarou por meses uma base sem custo nenhum**, porque a tela
+// renderizava um número plausível e nada denunciava a ausência. Foi também o que fez
+// duas sessões medirem totais diferentes para o mesmo dono.
+// → [o caso](../../../../../docs/CASOS.md#dois-numeros-certos-e-um-colchete-que-apagou-o-custo-de-13-bilhetes--s364-s366-s369)
+//
+// Saiu quando o dono passou a ter os 14 pares dele em `custo_store`: medido, o fetch
+// enche o `custoData` antes de qualquer fallback, então a remoção é no-op. Com o
+// servidor fora do ar a tela agora mostra R$ 0, que é a verdade daquele instante.
+//
+// **Valor de exemplo cravado em código não volta.** Dado que ninguém digitou não pode
+// ocupar o lugar de dado que ninguém tem — a ausência tem de aparecer como ausência.
 let custoData={};
 let _custoServerBacked=false; // true quando o servidor já tem custo por-conta deste dono
 let _custoHadLegacy=false;    // true quando havia custo por-conta legado no localStorage no load
@@ -40,8 +46,6 @@ async function loadCusto(){
   let cache={};try{cache=JSON.parse(localStorage.getItem(k)||'null')||{};}catch(e){cache={};}
   _custoHadLegacy=!!Object.keys(cache).length;
   custoData=cache;
-  // seed do Feca só como fallback EM MEMÓRIA (sem gravar nem subir): Feca sem nada ainda.
-  if(!Object.keys(custoData).length&&window.__dono==='Feca')custoData={...CUSTO_SEED};
   try{
     const r=await fetch('/custos/conta');
     if(r.ok){
@@ -71,14 +75,16 @@ function saveCusto(forn,casa,val){
 }
 
 // ── "Meu custo está só neste navegador" (s360) ───────────────────────────────
-// A trava anti-semeadura acima só sobe no SAVE. Quem preencheu custo antes do
-// multiusuário (s165) e nunca mais editou ficou com o dado só no localStorage, sem
-// aviso nenhum, e um navegador limpo apaga em silêncio. Medido em 2026-09-15: 16
-// donos, 480 contas cadastradas, zero linha de custo em `custo_store`.
+// Quem preencheu custo antes do multiusuário (s165) e nunca mais editou ficou com o
+// dado só no localStorage, sem aviso nenhum, e um navegador limpo apaga em silêncio.
+// Medido em 2026-09-15: 16 donos, 480 contas cadastradas, zero linha em `custo_store`.
+// A trava que causava isso caiu na s368 — hoje todo save sobe —, então esta faixa cobre
+// o ACERVO de quem ainda não abriu a tela, e não o que se digita de agora em diante.
 //
-// A leitura sai do CACHE e do `_custoHadLegacy` (medido no load, antes do seed),
-// NUNCA do `custoData`: o CUSTO_SEED entra em `custoData` como fallback em memória, e
-// subir seed cravado no código oficializaria exemplo como se fosse dado do dono.
+// A leitura sai do CACHE e do `_custoHadLegacy` (medido no load), NUNCA do `custoData`:
+// os dois divergem sempre que algo enche a memória sem passar pelo navegador — era o
+// `CUSTO_SEED` até a s369, e hoje é o espelho do preço por fornecedor (`_c2precos`).
+// Oferecer isso como "custo deste navegador" ofereceria o que ninguém digitou ali.
 function custoContaPendente(){
   if(_custoServerBacked||!_custoHadLegacy)return null;
   let cache={};try{cache=JSON.parse(localStorage.getItem(costKey())||'null')||{};}catch(e){return null;}

@@ -46,7 +46,17 @@ let falhas = 0;
 const ok = (cond, msg) => { if (!cond) { console.error('FALHOU: ' + msg); falhas++; } };
 
 // Recorta uma função de topo de nível: o `}` de fechamento é o único na coluna 0.
+// Função de UMA linha é tentada PRIMEIRO, e o ramo é load-bearing: o recorte multilinha
+// vai até o próximo `}` em coluna zero, então numa one-liner (`costKey`, `normForn`) ele
+// engole tudo o que houver até a próxima função multilinha — declarações de topo de
+// arquivo inclusive, que nascem duplicadas no harness. Isto ficou VISÍVEL quando o
+// `CUSTO_SEED` saiu do `gestao.js` (s369): até então o `};` dele servia de parada
+// acidental para o recorte do `costKey`, e sem ele o harness passou a engolir o
+// `let custoData={}` — `Identifier 'custoData' has already been declared`.
+// **O recorte não estava certo antes; estava com sorte.**
 const recorteFn = (src, nome, arq) => {
+  const uma = src.match(new RegExp('^function ' + nome + '\\([^)]*\\)\\{.*\\}$', 'm'));
+  if (uma) return uma[0];
   const m = src.match(new RegExp('^function ' + nome + '\\([^)]*\\)\\{[\\s\\S]*?^\\}', 'm'));
   if (!m) throw new Error('não achei a função ' + nome + ' no ' + arq);
   return m[0];

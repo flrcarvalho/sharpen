@@ -8,8 +8,9 @@
 //
 // Três regras que este arquivo trava, e cada uma nasceu de um jeito diferente de perder
 // dado:
-//   1. o CUSTO_SEED (11 pares cravados no código, só para o dono 'Feca') NÃO conta como
-//      dado do dono — subir seed oficializaria exemplo como se fosse lançamento;
+//   1. memória cheia NÃO é "custo deste navegador" — a detecção lê o cache, e não o
+//      `custoData`, que outras fontes enchem (o `CUSTO_SEED` até a s369, o espelho do
+//      preço por fornecedor hoje);
 //   2. o envio manda tipster/geral ANTES do preço de conta, porque `salvar_custo_conta`
 //      CRIA a linha de `custo_store` e a partir dali `/custos/store` responde existe=true;
 //   3. `ctLoad` não adota o blob vazio do servidor quando este navegador tem lançamento,
@@ -40,7 +41,7 @@ const eq = (obtido, esperado, msg) => ok(obtido === esperado, msg + ', veio ' + 
 
 // Função de UMA linha primeiro (o `costKey` é assim). Sem esse ramo o recorte
 // multilinha engole tudo até o próximo `}` em coluna zero — que no gestao.js é o fim
-// do CUSTO_SEED, e o harness nasce com o const declarado duas vezes.
+// de um bloco de topo de arquivo, e o harness nasce com declaração duplicada.
 const recorteFn = (src, nome, arq) => {
   const uma = src.match(new RegExp('^(?:async )?function ' + nome + '\\([^)]*\\)\\{.*\\}$', 'm'));
   if (uma) return uma[0];
@@ -54,16 +55,8 @@ const recorteWindowFn = (src, nome, arq) => {
   if (!m) throw new Error('não achei o window.' + nome + ' no ' + arq);
   return m[0];
 };
-// O CUSTO_SEED é um const de módulo: o teste do seed precisa do valor REAL, não de um
-// dublê — é justamente ele que não pode vazar para o servidor.
-const recorteConst = (src, nome, arq) => {
-  const m = src.match(new RegExp('^const ' + nome + '=\\{[\\s\\S]*?^\\};', 'm'));
-  if (!m) throw new Error('não achei o const ' + nome + ' no ' + arq);
-  return m[0];
-};
 
 const FONTE = [
-  recorteConst(GESTAO, 'CUSTO_SEED', 'gestao.js'),
   ...['costKey', 'loadCusto', 'custoContaPendente', 'custoContaSubir']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   ...['parseNum', '_ctHasVal', '_ctMirror', 'ctLoad', 'ctPendente', 'ctSubir']
@@ -113,6 +106,11 @@ const API = new Function(`
       for (const k of Object.keys(NOS)) delete NOS[k];
       window.__dono = cfg.dono === undefined ? 'Feca' : cfg.dono;
       if (cfg.carregar !== false) { await loadCusto(); await ctLoad(); }
+      // Enche a MEMORIA sem passar pelo navegador, como o _c2precos faz ao espelhar o
+      // preco por fornecedor (e como o CUSTO_SEED fazia ate a s369).
+      // (Sem crase: este comentario vive DENTRO de um template literal, e uma crase
+      // perdida derruba o harness inteiro — o caso da s296.)
+      if (cfg.memoria) custoData = { ...cfg.memoria };
     },
     contaPendente: () => custoContaPendente(),
     tipsPendente: () => ctPendente(),
@@ -152,12 +150,18 @@ console.log('A. o preço de conta que está só no navegador');
                             '/custos/store': { existe: false } } });
   eq(API.contaPendente(), null, 'A2. servidor JÁ tem o custo: nada a guardar, faixa muda');
 
-  // O caso que mascarou a perda por meses: o Feca com o navegador vazio via os R$ 59.600
-  // do CUSTO_SEED na tela e parecia ter dado salvo. Seed não é lançamento do dono.
-  await API.reset({ ls: {}, resp: VAZIO });
+  // Memória preenchida, navegador VAZIO: nada a oferecer. Enquanto existiu, quem enchia
+  // a memória sem passar pelo navegador era o `CUSTO_SEED` (11 pares cravados no código,
+  // só para o dono 'Feca'), e foi ele que mascarou a perda por meses — a tela mostrava
+  // R$ 59.600 de uma base que não tinha custo nenhum. O seed saiu na s369, mas a regra
+  // continua tendo dono: `_c2precos` também escreve em `custoData` a partir do preço por
+  // fornecedor, que é dado do SERVIDOR. Oferecer isso como "custo deste navegador"
+  // ofereceria o que ninguém digitou ali.
+  await API.reset({ ls: {}, resp: VAZIO, memoria: { 'Move||Bet365': 950, 'JC||Betano': 600 } });
   const est = API.estado();
-  ok(Object.keys(est.custoData).length > 0, 'A3. pré-condição: o seed entrou em custoData (dono Feca)');
-  eq(API.contaPendente(), null, 'A3. o CUSTO_SEED NÃO pode ser oferecido como custo do dono');
+  eq(Object.keys(est.custoData).length, 2, 'A3. pré-condição: a memória está cheia');
+  eq(est._custoHadLegacy, false, 'A3. pré-condição: e o navegador está vazio');
+  eq(API.contaPendente(), null, 'A3. memória cheia não vira "custo deste navegador"');
 
   await API.reset({ ls: { [K_CONTA]: JSON.stringify({ 'Move||Bet365': 0, 'JC||Betano': 0 }) },
                     resp: VAZIO });

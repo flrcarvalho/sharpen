@@ -7,9 +7,10 @@ máquina, **com a tela mostrando o número certo o tempo todo** — não havia s
 
 Medido em 2026-09-15, contra o Postgres de produção: 16 donos, 480 contas cadastradas,
 **zero linha de custo em `custo_store`**. O dono Feca era um deles, e o que ele via na
-Visão Geral saía do `CUSTO_SEED`, 11 pares cravados no `gestao.js` que só valem para o
-username dele. Seed mascarando ausência é a pior forma da ausência: ela some no dia em
-que o navegador é limpo, e o dono descobre pela tela zerada.
+Visão Geral saía do `CUSTO_SEED`, 11 pares cravados no `gestao.js` que só valiam para o
+username dele — **removido na s369**, quando o custo dele passou a estar no servidor.
+Seed mascarando ausência é a pior forma da ausência: ela some no dia em que o navegador
+é limpo, e o dono descobre pela tela zerada.
 
 A saída tem três partes, e as três estão travadas aqui:
 
@@ -61,12 +62,13 @@ def test_prova_por_execucao():
 MUTACOES = [
     # ── O SEED: exemplo cravado no código não é lançamento do dono ────────────
     # A versão INGÊNUA desta função: "servidor não tem, então ofereça o que está na
-    # memória". É a que qualquer um escreveria, e é a que sobe o CUSTO_SEED. As duas
-    # metades da real (o `_custoHadLegacy` e a leitura do cache) barram o seed cada uma
-    # por si — por isso a mutação troca AS DUAS: separadas, cada uma é inócua, e inócua
-    # não é buraco de teste. Ver a nota sobre redundância no fim deste arquivo.
+    # memória". É a que qualquer um escreveria, e ela oferece como "custo deste
+    # navegador" o que nunca passou pelo navegador. As duas metades da real (o
+    # `_custoHadLegacy` e a leitura do cache) barram isso cada uma por si — por isso a
+    # mutação troca AS DUAS: separadas, cada uma é inócua, e inócua não é buraco de
+    # teste. Ver a nota sobre redundância no fim deste arquivo.
     (
-        "a deteccao ingenua le a memoria e o CUSTO_SEED vira lancamento do dono",
+        "a deteccao ingenua le a memoria e oferece o que ninguem digitou ali",
         "gestao",
         "  if(_custoServerBacked||!_custoHadLegacy)return null;\n"
         "  let cache={};try{cache=JSON.parse(localStorage.getItem(costKey())||'null')||{};}catch(e){return null;}",
@@ -190,7 +192,8 @@ def test_mutacoes_sao_detectadas(tmp_path, titulo, arq, de, para):
 # espelha de volta antes de qualquer decisão, e o caminho em que o servidor manda
 # (`_ctServerBacked=true`) já devolve null no primeiro `if`. A leitura fica por
 # simetria com o lado do custo por conta, onde ela É load-bearing: lá o `custoData`
-# carrega o CUSTO_SEED em memória, e a mutação "detecção ingênua" acima prova isso.
+# recebe conteúdo que não veio do navegador (o `CUSTO_SEED` até a s369, o espelho do
+# preço por fornecedor hoje), e a mutação "detecção ingênua" acima prova isso.
 #
 # Pelo mesmo motivo, tirar só `!_custoHadLegacy` OU só a leitura do cache (uma de cada
 # vez) do `custoContaPendente` é inócuo: as duas metades barram o seed cada uma por si.
