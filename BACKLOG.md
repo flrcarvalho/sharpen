@@ -234,6 +234,31 @@ front virarem `!= null`.
 > **Sintoma para reconhecer isto noutro campo:** um `> 0` usado como teste de existência.
 > Ele funciona enquanto zero for impossível, e a regra de negócio muda sem avisar o código.
 
+### 1.15 O `#220` do PassaTips sumiu no mesmo dia do `fetch failed` (s371). **VIVA, não medida**
+
+Três coisas ficaram abertas depois da correção do download do print (`sharpen-bot`, `6493762`).
+
+**(a) Dois bilhetes não existem.** Os das 14:38 e 14:41 de 17/09 falharam no download e não
+foram publicados nem planilhados. Só voltam se o tipster reenviar o print. A correção evita o
+próximo, não recupera esses.
+
+**(b) O `#220` consumiu número e não tem desfecho no log.** Entre o `#219` (13:34) e o `#221`
+(14:44) chegaram três fotos ao apoio: as duas que falharam, que caem **antes** da reserva do
+número (`proximoNumero` roda depois da leitura do print), e uma às **14:38:14**, sem log de
+sucesso nem de erro. Sobra ela. Os caminhos que consomem número e não logam no servidor são os
+que avisam só no apoio: *"Li o print mas não consegui montar nenhuma aposta"* e *"todas as
+linhas da legenda são 0u"*. **A prova está no apoio do PassaTips, às 14:38, e é olho humano.**
+Enquanto ninguém olhar, isto é hipótese.
+
+**(c) O caminho SEM download não foi exercido em produção.** O `usaVisao: false` está provado
+no gate, com dublê de rede; o PassaTips não postou depois do deploy das 14:51. O próximo
+bilhete dele confirma, e o log esperado é `[sharpen:passatips] bilhete #N` sem nenhuma linha
+`[foto]` antes.
+
+> **Sintoma para reconhecer (b) noutro lugar:** lacuna na numeração é o único vestígio que um
+> caminho deixa quando reserva identidade antes de terminar. Quem reserva cedo e sai por
+> `return` abre buraco, e buraco não dispara alarme nenhum.
+
 ### 1.12 A 0.7.13 está na home, e o grupo só é avisado na próxima versão (s365). **VIVA — só o aviso**
 
 O `manifest.json` foi para **0.7.13** no `fe29c2b` (o horizonte da Bolsa de Aposta). O Feca
