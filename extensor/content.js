@@ -5898,6 +5898,31 @@
       if (dd) { const p = dd.split("/"); const ms = Date.UTC(+p[2], +p[1] - 1, +p[0]); if (ms > maxMs) { maxMs = ms; dataEv = dd; } }
     }
     if (dataEv) L.push("Data (evento): " + dataEv);
+    // ── Criar Aposta / bet builder de MESMO JOGO: sem kickoff em endpoint nenhum ──
+    // A bet365 manda a perna desses bilhetes com `TP=00010101000000`. Até a s373 o bloco
+    // saía SEM linha de data e o backend datava com a DATA DE REFERÊNCIA (= hoje), o que
+    // só acerta quem captura no mesmo dia: num lote de HISTÓRICO, 13 de 16 bilhetes
+    // nasceram com a data errada — jogos de 12, 13 e 17/09 datados de 18/09 (medido na
+    // s373, conta `Woshington [Eu]`; os 3 certos eram apostas simples, com kickoff).
+    //
+    // A COLOCAÇÃO é o instante que a casa PUBLICA: `DA` no cabeçalho do confirmation
+    // (`20260722233620`) e `TP` no `01` do summary (`20260722233620000`) — o mesmo
+    // instante, provado na fixture. Não é estimativa (`CLAUDE.md`: data derivada por
+    // estimativa é dado inventado), é outro campo real da fonte, e o RÓTULO diz qual é:
+    // quem lê o bloco é a IA, e mandá-la de `Data (evento):` seria mentir a procedência.
+    // O `CASA_BET365 §4` manda usar a linha quando ela vier.
+    //
+    // ⚠️ O que a colocação NÃO é: o kickoff. Ela erra o dia quando a aposta foi feita na
+    // véspera do jogo — contra os 6 dias de erro que "hoje" produzia no lote medido. E
+    // nunca substitui o kickoff: só entra quando ele não existe.
+    //
+    // ⚠️ Fuso ASSUMIDO, não medido: `DA`/`TP` saem da mesma API e no mesmo formato de 14
+    // dígitos do kickoff, então recebem a mesma conversão UK→Brasília. Se a casa gravar a
+    // colocação em outro fuso, o dia só muda para aposta feita entre 00:00 e 04:00 UK.
+    else {
+      const dataCol = _dataKickoffB3(t.da || t.tp);
+      if (dataCol) L.push("Data (colocação): " + dataCol);
+    }
     L.push("Stake: " + _brl(_numB3(t.ts != null ? t.ts : t.stake)));
     L.push("Status: " + _resultadoB3(t));
     // Sistema (BC > 1): as odds saem do SUMMARY quando houver — em bet builder as pernas do

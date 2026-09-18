@@ -100,20 +100,29 @@ export async function rodar() {
     if (!txt.includes(`– ${mercado} · ${sel}`)) falhas.push(`${COMPLETO}: perna de bet builder ausente: ${mercado} · ${sel}`);
   }
 
-  // ── 5. BURACO CONHECIDO, travado de propósito ───────────────────────────────
-  // Bet builder de MESMO JOGO vem com `TP=00010101000000` no confirmation (sem kickoff), então
-  // `_dataFimB3` devolve "" e o bloco sai SEM linha de data — e o backend cai na data de
-  // referência (= hoje). O bilhete tem `da=20260722233620` (confirmation) e `tp=20260722233620000`
-  // (summary), ambos data de COLOCAÇÃO e ambos sem uso hoje. Usá-los seria contrariar a
-  // `CASA_BET365.md §4` ("colocação nunca", decisão registrada) → mudança de REGRA, precisa de
-  // aprovação humana. Este teste trava o estado atual: se alguém mexer, ele falha e obriga a
-  // decisão consciente (e a atualizar o §4 junto).
-  const SEM_DATA = !linha(txt, "Data (");
-  if (!SEM_DATA) falhas.push(`${COMPLETO}: passou a emitir linha de data ("${linha(txt, "Data (")}") — ` +
-                             `se foi de propósito, atualize CASA_BET365 §4 e este caso; a regra vigente ` +
-                             `é "evento → informada → Brasília-hoje", colocação nunca`);
-  if (!c.da || !c.tp) falhas.push(`${COMPLETO}: da/tp sumiram do merge — são a única data disponível ` +
-                                  `neste bilhete se algum dia o §4 mudar`);
+  // ── 5. O BURACO FECHOU na s373: sem kickoff, a data vem da COLOCAÇÃO ────────
+  // Este bilhete é um Criar Aposta de mesmo jogo: o confirmation manda a perna com
+  // `TP=00010101000000`, sem kickoff. Até a s373 o bloco saía SEM linha de data e o backend
+  // datava com a data de referência (= hoje) — 13 de 16 bilhetes de um lote de histórico
+  // nasceram errados por isso. O Feca aprovou usar a COLOCAÇÃO (`da`/`tp`), que a casa
+  // publica; o §4 mudou junto, e agora é ESTE caso que trava a decisão nova.
+  //
+  // `da=20260722233620` → 22/07 23:36 UK, BST em julho (BR = UK−4) → **22/07/2026 19:36 BR**.
+  // A conversão é a mesma do kickoff de propósito: mesma API, mesmo formato de 14 dígitos.
+  const DATA_COL = linha(txt, "Data (colocação):");
+  if (DATA_COL !== "22/07/2026") {
+    falhas.push(`${COMPLETO}: bet builder sem kickoff devia emitir "Data (colocação): 22/07/2026" ` +
+                `(da=${c.da}, 23:36 UK em BST = 19:36 BR), veio "${DATA_COL || "(nada)"}". Sem essa ` +
+                `linha o backend usa a data de referência e todo bilhete de histórico nasce datado de hoje`);
+  }
+  // A procedência tem de aparecer no RÓTULO: quem lê o bloco é a IA, e colocação sob o rótulo
+  // de evento é mentira sobre a fonte — mesmo dando a data certa na maioria dos casos.
+  if (linha(txt, "Data (evento):")) {
+    falhas.push(`${COMPLETO}: a colocação saiu rotulada como "Data (evento):" — este bilhete não ` +
+                `tem kickoff nenhum (TP=00010101000000). O rótulo diz de onde o número veio`);
+  }
+  if (!c.da || !c.tp) falhas.push(`${COMPLETO}: da/tp sumiram do merge — são a ÚNICA data ` +
+                                  `disponível neste bilhete desde a s373`);
 
   // ── 6. SISTEMA: odd = MÉDIA das linhas, nunca o produto (s265) ──────────────
   // O bilhete 49633134678 da fixture é um `3 x Duplas` REAL: `BT=2 · BC=3 · ST=175 · TS=525`,
@@ -259,11 +268,37 @@ function dataDoEvento(fmt) {
                 "some do MTD (s339, 188 linhas medidas). Data = kickoff, decisão registrada");
   }
 
-  // Guarda antiga que NÃO pode cair junto: sem kickoff (`TP=00010101000000`) o bloco sai SEM
-  // linha de data, e o backend usa a data de referência. Data falsa é pior que data ausente.
+  // A guarda `y < 2000` continua de pé: `TP=00010101000000` NUNCA pode virar "01/01/0001".
+  // O que mudou na s373 é para onde ela cai — antes, nada; agora, a COLOCAÇÃO (bloco 5).
   if (dataDe("00010101000000")) {
-    falhas.push(`data: bilhete sem kickoff emitiu "${dataDe("00010101000000")}" — devia sair sem ` +
-                "linha de data nenhuma (a guarda `y < 2000`)");
+    falhas.push(`data: bilhete sem kickoff emitiu "Data (evento): ${dataDe("00010101000000")}" — ` +
+                "`TP=00010101000000` não é kickoff, é a ausência dele (a guarda `y < 2000`). " +
+                "Sem kickoff a data sai como `Data (colocação):`, nunca como evento");
+  }
+
+  // ── A colocação NUNCA compete com o kickoff ────────────────────────────────
+  // O bilhete abaixo tem os DOIS: kickoff da perna e `da` de colocação, em dias diferentes de
+  // propósito. Se alguém inverter a precedência (ou trocar o `else` por um `if` solto), a data
+  // do evento é substituída pela da aposta em TODO bilhete que tenha as duas — e o erro é
+  // invisível, porque os dois números são datas plausíveis do mesmo bilhete.
+  const comAmbos = { ...bilhete("20260910023500"), da: "20260705120000", tp: "20260705120000000" };
+  const txtAmbos = fmt(comAmbos);
+  if (linha(txtAmbos, "Data (evento):") !== "09/09/2026") {
+    falhas.push(`data: com kickoff E colocação, o evento tem de mandar — esperado ` +
+                `"Data (evento): 09/09/2026", veio "${linha(txtAmbos, "Data (evento):") || "(nada)"}"`);
+  }
+  if (linha(txtAmbos, "Data (colocação):")) {
+    falhas.push(`data: o bloco emitiu as DUAS linhas de data ("${linha(txtAmbos, "Data (colocação):")}"). ` +
+                "O tradutor casa a primeira chave que começa com `Data` (`app/tradutor.py`), então " +
+                "duas linhas deixam a escolha ao acaso da ordem");
+  }
+
+  // E sem NENHUM dos dois, o bloco continua saindo sem data — o backend decide.
+  // Data falsa é pior que data ausente, e é isto que impede a colocação de virar um "" datado.
+  const semNada = { ...bilhete("00010101000000"), da: "", tp: "" };
+  if (linha(fmt(semNada), "Data (")) {
+    falhas.push(`data: sem kickoff e sem colocação o bloco emitiu "${linha(fmt(semNada), "Data (")}" — ` +
+                "devia sair sem linha de data nenhuma e deixar o backend usar a data de referência");
   }
   return falhas;
 }

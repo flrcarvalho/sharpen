@@ -259,6 +259,48 @@ bilhete dele confirma, e o log esperado é `[sharpen:passatips] bilhete #N` sem 
 > caminho deixa quando reserva identidade antes de terminar. Quem reserva cedo e sai por
 > `return` abre buraco, e buraco não dispara alarme nenhum.
 
+### 1.17 Bilhete liquidado com data de evento no FUTURO (s373). **VIVA, medida**
+
+Múltipla com pernas em dias diferentes que a casa liquida assim que a primeira perna perde: o
+bilhete fica com a data do jogo mais tarde e nasce **resolvido no futuro**. Medido em 90 dias:
+
+| Casa | Bilhetes | Donos | Maior gap |
+|---|---|---|---|
+| Bet365 | **112** | 5 | 7d |
+| Pitaco | 25 | 1 | 3d |
+| Pinnacle | 13 | 1 | 6d |
+| Superbet | 13 | 3 | 138d |
+| SportingBet | 12 | 1 | 1d |
+| Estrela Bet | 11 | 1 | 1d |
+| 1xBet · Betfast · Betboo · Betano | 8 | 4 | — |
+
+Todos os exemplos conferidos são `L` — que é o esperado: a múltipla só resolve cedo quando
+**perde** cedo.
+
+**Não é defeito de casa nenhuma: é o `MASTER_OUTPUT §4`** ("em múltipla, a data é a da perna
+mais recente"), que vale para todas.
+
+**A proposta do Feca — "respeitar a data de liquidação" — NÃO é implementável hoje**, e isso
+está medido, não suposto: a varredura de todos os campos dos dois endpoints da Bet365
+(`summary` e `confirmation`, s373) achou **só** colocação (`DA`/`TP` do bilhete) e kickoff por
+perna. **Não existe instante de liquidação.** Derivá-lo de quando NÓS capturamos é a mesma
+estimativa que a s339 removeu, e que custou um mês fechando com o sinal trocado.
+
+**A saída que preserva o princípio sem inventar:** em bilhete **já liquidado**, a perna que
+manda é a mais recente **que já começou**. Um bilhete não pode ter sido resolvido por um jogo
+que não começou, então descartar essas pernas elimina o impossível em vez de estimar — e todos
+os kickoffs continuam vindo da casa. Na múltipla que perde é exato; na que ganha, o último jogo
+já aconteceu e a regra coincide com a atual.
+
+**O que fazer exige, nesta ordem:** escrever a regra no `MASTER_OUTPUT §4` (é lá que ela mora),
+propagar para as casas que já formatam data por perna, e um gate por casa — o `bet365.mjs`
+declara hoje, no bloco 9, que múltipla com pernas em dias diferentes **não é coberta** pelo
+harness.
+
+> **Sintoma para reconhecer isto noutro campo:** um registro cujo desfecho é anterior ao evento
+> que o causou. Ele não dispara erro nenhum — some do MTD por um lado e aparece por outro,
+> conforme o recorte da tela.
+
 ### 1.16 Grafia de casa já unificada volta pelo cadastro manual (s373). **VIVA, medida**
 
 `Rei do Pitaco` foi unificada em `Pitaco` na s270 (54 bilhetes, 2 donos, assinaturas

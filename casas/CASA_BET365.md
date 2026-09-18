@@ -97,11 +97,41 @@ A cadeia, em ordem:
 
 1. **Kickoff da perna mais recente**, do `confirmation` (`MASTER_OUTPUT §4`: em múltipla, a data
    é a da perna mais recente). Fonte primária desde a captura por API.
-2. **Data informada pela operação** — a app passa a data do lote na extração. Vale quando o
-   bloco não traz kickoff (print, texto colado, bet builder de mesmo jogo com `TP=00010101000000`).
-3. **Fallback:** **data atual no fuso de Brasília** (`America/Sao_Paulo`, UTC−3).
+2. **Data de COLOCAÇÃO da aposta**, quando o bilhete não tem kickoff nenhum — hoje só o
+   **Criar Aposta / bet builder de mesmo jogo**, que a casa manda com `TP=00010101000000`.
+   O bloco emite `Data (colocação): DD/MM/AAAA`, e **essa linha É a data do bilhete**:
+   quando ela vier, use-a, exatamente como se fosse `Data (evento):`.
+3. **Data informada pela operação** — a app passa a data do lote na extração. Vale para print
+   e texto colado, que não têm nenhum dos dois campos.
+4. **Fallback:** **data atual no fuso de Brasília** (`America/Sao_Paulo`, UTC−3).
 
-Nunca usar data de colocação/registro. Formato final: `DD/MM/AAAA`.
+Formato final: `DD/MM/AAAA`.
+
+### Por que a colocação entrou (s373) — e o que ela não é
+
+Até a s373 o degrau 2 não existia: sem kickoff o bloco saía **sem linha de data** e caía direto
+no degrau 4. Isso só acerta quem captura no mesmo dia do jogo. Num lote de **histórico**,
+**13 de 16 bilhetes nasceram com a data errada** — jogos de 12, 13 e 17/09 datados de 18/09,
+todos Criar Aposta; os 3 certos eram apostas simples, que têm kickoff.
+
+A colocação **é publicada pela casa**, em dois lugares que são o mesmo instante (provado na
+fixture): `DA` no cabeçalho do `confirmation` (`20260722233620`) e `TP` no `01` do `summary`
+(`20260722233620000`). Não é estimativa — é outro campo real, e por isso o rótulo muda junto.
+
+**Ela não substitui o kickoff e nunca compete com ele:** só entra quando não existe kickoff
+nenhum. Erra o dia quando a aposta foi feita na véspera do jogo, contra os até 6 dias de erro
+que o degrau 4 produzia no lote medido.
+
+> ⚠️ **Fuso assumido, não medido.** `DA`/`TP` vêm da mesma API e no mesmo formato de 14 dígitos
+> do kickoff, então levam a mesma conversão UK→Brasília. Se a casa gravar a colocação noutro
+> fuso, o dia só muda para aposta feita entre 00:00 e 04:00 UK.
+
+> **O que continua sem solução:** múltipla com pernas em dias diferentes que a casa liquida
+> quando a primeira perna perde. O bilhete fica com a data do jogo mais tarde e nasce
+> **liquidado no futuro** — 112 na Bet365, 5 donos, 90 dias (s373). **A bet365 não publica
+> instante de liquidação em nenhum dos dois endpoints** (varredura de campos na s373), então a
+> saída não é "usar a data de liquidação": é `MASTER_OUTPUT §4` passar a dizer que, em bilhete
+> já liquidado, a perna que manda é a mais recente **que já começou**. Decisão pendente do Feca.
 
 > ⚠️ O fallback é fixado no fuso de Brasília **de propósito**: o sistema roda em servidor
 > (Railway, provável UTC). Sem fixar o fuso, à noite a data sairia um dia adiantada.
