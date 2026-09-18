@@ -49,11 +49,16 @@ data derivada por estimativa é dado inventado).
 
 ── Decisões (confirmadas pelo Feca, 13/09/2026) ──────────────────────────────
 
-- **Stake em UNIDADES, verbatim** (0,10 a 2,50 — 0,25/0,50/1,00 dominam). O mesmo
-  desenho dos imports de tipster (SóChutes/Fleury/Rei do Criquete). Converter para
-  R$ exigiria o tamanho da unidade dele, que o arquivo não traz: seria palpite.
-  `RESULT` também é em unidades, e é o P/L já pronto — **não é gravado** (o P/L é
-  derivado, nunca persistido), mas é o que audita os outros campos, abaixo.
+- **Stake convertida para REAIS a 1u = R$ 50,00** (s373; na s357 era gravada em
+  unidades, verbatim, porque o tamanho da unidade dele não era conhecido e
+  supô-lo seria palpite). A planilha vai de 0,10u a 4,00u — R$ 5,00 a R$ 200,00,
+  com 0,5u/0,25u/1u dominando. O Feca declarou o valor em 17/09 e ele **confere
+  contra a própria base**: as stakes que a captura trouxe das casas, já em R$, são
+  12,50 · 25,00 · 37,50 · 50,00 · 100,00 — 0,25u · 0,5u · 0,75u · 1u · 2u. Ver
+  `UNIDADE_BRL`. Sem a conversão, a Caixa e o custo comparariam unidades com
+  reais na mesma tela, e as apostas de 01→14 pareceriam 50× menores que as de
+  15→20. `RESULT` continua em unidades, e é o P/L já pronto — **não é gravado**
+  (o P/L é derivado, nunca persistido), mas é o que audita os outros campos.
 - **Uma conta `Planilha` por casa** (s372; na s357 era `Padrão`) — 24 linhas no
   Painel de Contas. O histórico da planilha fica numa conta PRÓPRIA, ao lado das
   contas reais que ele cadastrou depois: o CSV não diz de quem era a conta em
@@ -206,6 +211,32 @@ PARCEIRO = 'Planilha'
 ORIGEM = 'import'
 VALID = {'W', 'L', 'V', 'HW', 'HL'}
 TOL = 0.02               # tolerância do confronto RESULT × fórmula (centavo de unidade)
+
+# ---------- a unidade ----------
+# O tracker exporta stake e RESULT em UNIDADES; o banco guarda REAIS. **1u = R$ 50,00**,
+# declarado pelo Feca em 17/09/2026 e CORROBORADO contra a própria base dele: as stakes
+# que a captura trouxe das casas (já em R$) são 12,50 · 25,00 · 37,50 · 50,00 · 100,00 —
+# exatamente 0,25u · 0,5u · 0,75u · 1u · 2u. Não é conversão por palpite: os dois lados
+# da mesma base concordam.
+#
+# ⚠️ **A auditoria continua em UNIDADES**, que é a moeda da fonte: o `RESULT` vem em
+# unidades e a `TOL` é centavo de unidade. Converter antes do confronto multiplicaria a
+# tolerância por 50 e deixaria passar erro de até R$ 1,00 por linha. A conversão é o
+# ÚLTIMO passo, só do que vai ao banco.
+UNIDADE_BRL = 50.0
+
+# Correção humana feita na grade ANTES desta recarga, a preservar. O import apaga e
+# regrava o que ele mesmo escreveu, então edição do dono se perderia em silêncio — e
+# **correção humana manda sobre a fonte** (`CLAUDE.md`). Chave: número da linha no CSV;
+# valor: a stake em UNIDADES, como se estivesse escrita no arquivo (a conversão para R$
+# acontece depois, igual para todo mundo).
+#
+#   L2 — Tivo, 14/09, múltipla @12,50: o Ewanderson trocou 2,33 → 0,25 no dashboard em
+#        17/09 18:42 BRT (`correcoes` id 44752). Decisão do Feca: vale como unidades,
+#        logo R$ 12,50. Ela DIVERGE do `RESULT` do arquivo (−2,33u) de propósito, e por
+#        isso o confronto do relatório continua usando a stake do CSV — o que se audita
+#        ali é a tradução, não a decisão do dono.
+_AJUSTES_STAKE = {2: '0,25'}
 
 
 # ---------- sanitização ----------
@@ -495,7 +526,7 @@ def ler(caminho: str):
     if faltando:
         raise SystemExit(f'colunas ausentes no CSV: {sorted(faltando)}')
 
-    rows, avisos, corrigidas, sem_odd = [], [], [], []
+    rows, avisos, corrigidas, sem_odd, ajustados = [], [], [], [], []
     for i, b in enumerate(brutas, start=2):
         estado = limpa(b['STATUS']).lower()
         if estado not in _RES:
@@ -522,6 +553,13 @@ def ler(caminho: str):
         if not odd_txt:
             sem_odd.append((i, limpa(b['ODD']), resultado))
 
+        # A correção humana entra DEPOIS da auditoria acima (que confronta o RESULT com
+        # a stake do arquivo) e ANTES da conversão para R$, que é igual para todo mundo.
+        stake_u = stake_txt
+        if i in _AJUSTES_STAKE:
+            stake_u = _AJUSTES_STAKE[i]
+            ajustados.append((i, stake_txt, stake_u))
+
         esporte = norm_esporte(b['SPORT'])
         categoria = norm_categoria(b['BET'], b['TYPE'], esporte)
         r = {
@@ -533,13 +571,18 @@ def ler(caminho: str):
             'tipster': norm_tipster(b['TIPSTER']),
             'aposta': categoria,
             'descricao': norm_descricao(b['BET'], b['GAME'], categoria),
-            'stake': stake_txt,
+            # `stake` é o que vai ao BANCO, em REAIS. As duas colunas em unidades ficam
+            # como `_`: `_stake_u_csv` é o que a planilha diz (e é contra ela que o
+            # RESULT é conferido), `_stake_u` é a efetiva, com a correção humana.
+            'stake': fmt_stake((_para_float(stake_u) or 0.0) * UNIDADE_BRL),
             'odd': odd_txt,
             'resultado': resultado,
             '_estado': estado,
             '_bet': limpa(b['BET']),
             '_game': limpa(b['GAME']),
             '_pl_arquivo': pl,
+            '_stake_u_csv': stake_txt,
+            '_stake_u': stake_u,
             '_dt': quando,
         }
         if categoria == 'Outros':
@@ -555,16 +598,26 @@ def ler(caminho: str):
         r['assinatura'] = assinatura(r, _counter=vistos[base])
         r['_colidiu'] = vistos[base] > 1
 
-    return rows, avisos, corrigidas, sem_odd
+    return rows, avisos, corrigidas, sem_odd, ajustados
 
 
 # ---------- relatório do DRY ----------
 def _pl(r: dict):
+    """P/L em REAIS — a moeda que vai para o banco."""
     return _pl_esperado(r['resultado'], _para_float(r['stake']) or 0.0,
                         _para_float(r['odd']))
 
 
-def relatorio(rows, avisos, corrigidas, sem_odd):
+def _pl_u(r: dict):
+    """P/L em UNIDADES pela stake do ARQUIVO — é este que confronta o `RESULT`.
+
+    Não é o `_pl` dividido por 50: a linha com correção humana tem stake diferente
+    da do CSV de propósito, e o confronto audita a TRADUÇÃO, não a decisão do dono."""
+    return _pl_esperado(r['resultado'], _para_float(r['_stake_u_csv']) or 0.0,
+                        _para_float(r['odd']))
+
+
+def relatorio(rows, avisos, corrigidas, sem_odd, ajustados):
     print(f'DONO={DONO} | conta={PARCEIRO!r} por casa | linhas: {len(rows)}')
     datas = sorted(r['_dt'] for r in rows)
     print(f'período: {datas[0]:%d/%m/%Y} → {datas[-1]:%d/%m/%Y}')
@@ -593,22 +646,38 @@ def relatorio(rows, avisos, corrigidas, sem_odd):
     liq = [r for r in rows if r['resultado']]
     turn = sum(_para_float(r['stake']) or 0 for r in liq)
     pl = sum(_pl(r) or 0 for r in liq)
-    print(f'\n— P/L (unidades) —\n  liquidadas {len(liq)} | turnover {turn:,.2f}u '
-          f'| P/L {pl:+,.2f}u | ROI {pl / turn * 100:.2f}%')
+    turn_u = sum(_para_float(r['_stake_u']) or 0 for r in liq)
+    pl_u = sum(_pl_esperado(r['resultado'], _para_float(r['_stake_u']) or 0.0,
+                            _para_float(r['odd'])) or 0 for r in liq)
+    print(f'\n— P/L (REAIS — 1u = R$ {UNIDADE_BRL:,.2f}) —\n'
+          f'  liquidadas {len(liq)} | turnover R$ {turn:,.2f} '
+          f'| P/L R$ {pl:+,.2f} | ROI {pl / turn * 100:.2f}%')
+    print(f'  nas unidades da planilha: turnover {turn_u:,.2f}u | P/L {pl_u:+,.2f}u')
 
     # A prova de que a tradução não perdeu dinheiro: o P/L calculado pelas nossas
-    # fórmulas contra o P/L que o arquivo já trazia pronto, linha a linha.
+    # fórmulas contra o P/L que o arquivo já trazia pronto, linha a linha. Fica em
+    # UNIDADES e com a stake do CSV — é a moeda em que o `RESULT` foi escrito, e a
+    # `TOL` de 0,02 só significa alguma coisa nela.
     pl_arq = sum(r['_pl_arquivo'] or 0 for r in liq)
+    pl_csv = sum(_pl_u(r) or 0 for r in liq)
     fora = [r for r in liq
-            if r['_pl_arquivo'] is not None and abs((_pl(r) or 0) - r['_pl_arquivo']) > TOL]
+            if r['_pl_arquivo'] is not None and abs((_pl_u(r) or 0) - r['_pl_arquivo']) > TOL]
     # A diferença que sobra com ZERO linhas divergentes é arredondamento do
     # tracker (ele grava o P/L já arredondado ao centavo de unidade, e a odd com
     # 2 casas). Só vira defeito se alguma linha estourar a TOL, e aí ela aparece.
-    print(f'  confronto com o RESULT do arquivo: {pl_arq:+,.2f}u '
-          f'| diferença {pl - pl_arq:+.2f}u | linhas divergentes: {len(fora)}')
+    print(f'  confronto com o RESULT do arquivo: calc {pl_csv:+,.2f}u × arquivo '
+          f'{pl_arq:+,.2f}u | diferença {pl_csv - pl_arq:+.2f}u '
+          f'| linhas divergentes: {len(fora)}')
     for r in fora[:10]:
-        print(f'    ⚠️ L{r["linha"]:<4} calc {(_pl(r) or 0):+.2f} × arquivo '
+        print(f'    ⚠️ L{r["linha"]:<4} calc {(_pl_u(r) or 0):+.2f} × arquivo '
               f'{r["_pl_arquivo"]:+.2f} | {r["descricao"][:52]}')
+
+    if ajustados:
+        print(f'\n⚠️ {len(ajustados)} correção(ões) HUMANA(S) preservada(s) sobre o CSV '
+              f'(`_AJUSTES_STAKE`):')
+        for i, de, para in ajustados:
+            em_reais = (_para_float(para) or 0.0) * UNIDADE_BRL
+            print(f'  L{i:<4} stake {de}u → {para}u  (R$ {em_reais:,.2f})')
 
     if corrigidas:
         print(f'\n⚠️ {len(corrigidas)} linha(s) em que o RÓTULO contradiz o DINHEIRO '
@@ -771,8 +840,8 @@ def main():
     ap.add_argument('--go', action='store_true', help='escreve no banco (sem isto = DRY)')
     a = ap.parse_args()
 
-    rows, avisos, corrigidas, sem_odd = ler(a.csv)
-    relatorio(rows, avisos, corrigidas, sem_odd)
+    rows, avisos, corrigidas, sem_odd, ajustados = ler(a.csv)
+    relatorio(rows, avisos, corrigidas, sem_odd, ajustados)
 
     if not a.go:
         print('\n(DRY — nada foi escrito. Use --go para gravar.)')
