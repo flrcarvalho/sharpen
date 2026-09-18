@@ -236,6 +236,16 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0715",
+      "v": "v0.7.15",
+      "data": "2026-09-18",
+      "texto": "**Bet365**: apostas do tipo **Criar Aposta** entravam com a data do dia da captura, e não a do jogo.",
+      "itens": [
+        "Corrigido. Bilhetes capturados antes desta versão continuam com a data antiga.",
+        "Atualize a extensão e dê Ctrl+Shift+R na aba da Bet365 antes de capturar."
+      ]
+    },
+    {
       "id": "su-0714",
       "v": "v0.7.14",
       "data": "2026-09-17",
