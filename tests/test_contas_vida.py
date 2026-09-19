@@ -196,6 +196,41 @@ def test_toda_classe_cn_usada_no_js_existe_no_css():
     assert not orfas, "classe usada no JS e sem regra no CSS: " + ", ".join(orfas)
 
 
+def test_a_tela_nao_aconselha_o_usuario():
+    """O produto INFORMA; quem conclui é o dono.
+
+    Regra do Feca, dada quando um rodapé meu terminou em *"Para estimar a próxima
+    compra, use 12, não 34"*: **"acho q não deveríamos sugerir ou concluir para o
+    cliente"**. É a mesma régua que ele já tinha cravado no handoff de design sobre não
+    comparar durabilidade entre fornecedores — *"nós não somos quem vai falar q joão
+    dura mais q francisco"*: a informação aparece, o veredito não.
+
+    A fronteira é útil e não é sutil: descrever o que o número MEDE é informação
+    ("abaixo de 1,00× a conta não devolveu o que custou" é definição da métrica);
+    dizer o que FAZER com ele é conselho.
+
+    O gate pega o verbo, que é onde o conselho se materializa em português. Ele não
+    cobre conselho escrito sem imperativo — para isso não há grep, só leitura.
+    """
+    src = CONTAS.read_text(encoding="utf-8")
+    verbos = re.compile(
+        r"\b(use|prefira|evite|considere|recomend\w*|sugerimos|deveria|aposte|compre|"
+        r"escolha|opte|invista|priorize)\b", re.I)
+    ruins = []
+    for n, linha in enumerate(src.splitlines(), 1):
+        s = linha.strip()
+        if s.startswith("//") or s.startswith("*") or s.startswith("/*"):
+            continue
+        for m in re.finditer(r"`([^`]*)`|'([^']*)'", linha):
+            txt = m.group(1) or m.group(2) or ""
+            if verbos.search(txt):
+                ruins.append(f"L{n}: {txt.strip()[:90]}")
+    assert not ruins, (
+        "texto de tela aconselhando o usuário (o produto informa, quem conclui é o "
+        "dono): " + " | ".join(ruins)
+    )
+
+
 def test_nenhum_travessao_no_texto_que_vai_para_a_tela():
     """Regra de escrita do Feca: travessão em frase é assinatura de IA, e não se usa.
 

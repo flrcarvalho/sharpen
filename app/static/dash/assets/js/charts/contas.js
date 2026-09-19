@@ -83,6 +83,36 @@ function _cnMediana(xs){
 }
 function _cnMedia(xs){return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:0;}
 
+// ── Concordância por contagem, num lugar só ──────────────────────────────────
+// Ela existe porque o erro foi MEDIDO na tela: o rodapé dizia *"25 contas PASSOU de 60
+// dias e puxam o número para cima"* — eu pluralizei o verbo vizinho e deixei este fixo,
+// na mesma frase. A varredura que veio depois achou outros três: com UMA conta, os
+// painéis diriam "As 1 próprias entram" e "As 1 sem preço ficam fora".
+//
+// O modo de falha é ser invisível no caso comum: toda base real tem dezenas de contas,
+// então o ramo do singular quase nunca roda e o texto errado só aparece no recorte
+// estreito — um fornecedor filtrado, uma casa com conta única.
+function _cnPl(n,sing,plur){return n===1?sing:plur;}
+
+// A base de cálculo do painel, escrita por extenso. Substantivo E adjetivo concordam:
+// "1 conta inativa" · "184 contas inativas".
+function _cnBaseTxt(n){
+  const base=n.toLocaleString('pt-BR')+' '+_cnPl(n,'conta','contas');
+  if(_cnPop==='ativas')return base+' '+_cnPl(n,'ativa','ativas');
+  if(_cnPop==='inativas')return base+' '+_cnPl(n,'inativa','inativas');
+  return base;
+}
+
+// A frase da longevidade é FUNÇÃO e não string solta porque é a única com três palavras
+// que concordam entre si (conta · passar · puxar), e é justamente aí que a concordância
+// escapa. Sendo função, o gate exerce as duas formas.
+function _cnFraseLongevas(n,media){
+  if(!n)return'';
+  return` A média fica em ${media} porque ${n} ${_cnPl(n,'conta','contas')} `
+    +`${_cnPl(n,'passou','passaram')} de 60 dias e ${_cnPl(n,'puxa','puxam')} `
+    +`o número para cima.`;
+}
+
 // Fornecedores do universo (cadastro ∪ base), para o multiselect. `normForn` manda:
 // conta sem `[Fornecedor]` no nome é PRÓPRIA e aparece como "Eu" — são 59 das 182
 // contas do Feca, um terço da base, e é o que distingue "custo zero de verdade" de
@@ -488,25 +518,36 @@ function _cnPaineis(B,G){
     +`<span class="rv">${l.n} · ${Math.round(l.pct)}%</span></div>`
   ).join('');
   const med=Math.round(G.durMed), media=Math.round(G.durMedia);
-  // ⚠️ O rodapé diz O QUE FAZER com os dois números, não o que eles SÃO. A redação
-  // anterior ("Mediana é a conta do meio… Média incorpora as exceções e mede o prêmio da
-  // cauda") era uma aula de estatística que não respondia nem *por que estou vendo isso*
-  // — o Feca leu e disse que nem ele entendia. A régua que ficou: cada frase cita um
-  // número DESTA base e termina numa consequência para quem lê.
+  // ⚠️ O rodapé conta O QUE OS NÚMEROS DIZEM sobre esta base, e PARA AÍ.
+  //
+  // Duas correções empilhadas, em duas rodadas do Feca. A redação original ("Mediana é a
+  // conta do meio… Média incorpora as exceções e mede o prêmio da cauda") era uma aula de
+  // estatística que não respondia nem *por que estou vendo isso* — ele leu e disse que
+  // nem ele entendia. A segunda tentativa consertou isso e foi longe demais: terminava em
+  // *"Para estimar a próxima compra, use 12, não 34"*, e ali o produto deixou de informar
+  // e passou a ACONSELHAR.
+  //
+  // **O produto informa; quem conclui é o dono.** É a mesma régua que ele já tinha
+  // cravado no handoff sobre não comparar durabilidade entre fornecedores ("nós não somos
+  // quem vai falar q joão dura mais q francisco"): a informação aparece, o veredito não.
+  // Gate: `test_a_tela_nao_aconselha_o_usuario`.
+  //
+  // A régua do texto, então: cada frase cita um número DESTA base e explica o que ele
+  // descreve. Nenhuma frase diz o que fazer com ele.
   const pctCurto=G.hist.length?Math.round(G.hist[0].pct):0;
   const p1=painel('Longevidade',
-    `${G.n.toLocaleString('pt-BR')} ${_cnPop==='ativas'?'ativas':_cnPop==='inativas'?'inativas':'contas'}`,
+    // O contexto do painel é a BASE DE CÁLCULO dele, então ele diz o que está contando:
+    // "184 contas inativas", nunca "184 inativas" (o Feca leu e precisou perguntar se
+    // era isso mesmo). O ADJETIVO concorda junto — escrevi "1 conta inativas" na
+    // primeira tentativa, que é o mesmo erro que ele tinha acabado de apontar.
+    _cnBaseTxt(G.n),
     'Quanto tempo uma conta permanece operacional?',
     [{valor:med+' dias',rotulo:'Mediana'},
      {valor:media+' dias',rotulo:'Média',fraca:true}],
     `<div class="cn-dist">${hist}</div>`,
     `<b>Metade das suas contas durou menos de ${med} dias</b>`
     +(pctCurto?`, e ${pctCurto}% não passou da primeira semana.`:'.')
-    +(media>med&&G.longevas
-      ? ` A média é maior (${media}) porque ${G.longevas} conta${G.longevas===1?'':'s'} `
-        +`passou de 60 dias e puxa${G.longevas===1?'':'m'} o número para cima. `
-        +`<b>Para estimar a próxima compra, use ${med}, não ${media}.</b>`
-      : ''));
+    +(media>med?_cnFraseLongevas(G.longevas,media):''));
 
   // ── 2 · VOLUME E MARGEM ──
   const rank=G.ranking.map(c=>
@@ -550,10 +591,16 @@ function _cnPaineis(B,G){
   // a frase do handoff viraria "As 0 próprias entram… As 0 sem preço ficam fora", que é
   // ruído com cara de explicação — e o handoff já prevê o caso ("a faixa âmbar some").
   const notaProp=G.nProprias
-    ? ` As ${G.nProprias} próprias entram com custo zero real.` : '';
+    ? (G.nProprias===1
+        ? ' A conta própria entra com custo zero real.'
+        : ` As ${G.nProprias} próprias entram com custo zero real.`)
+    : '';
   const notaSem=G.nSemPreco
-    ? ` As <span class="cn-warnc">${G.nSemPreco} sem preço</span> ficam fora do cálculo, `
-      +`porque tratá-las como zero inflaria o retorno.`
+    ? (G.nSemPreco===1
+        ? ` A <span class="cn-warnc">conta sem preço</span> fica fora do cálculo, porque `
+          +`tratá-la como zero inflaria o retorno.`
+        : ` As <span class="cn-warnc">${G.nSemPreco} sem preço</span> ficam fora do cálculo, `
+          +`porque tratá-las como zero inflaria o retorno.`)
     : ' Toda conta do recorte tem preço lançado.';
   const multTxt=mult===null?'·'
     :mult.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
@@ -607,7 +654,7 @@ function _cnBloco(B,linhas){
     const under=a.mult!==null&&a.mult<1;
     let html=`<div class="cn-ficha ${aberta?'open':''}" onclick="cnToggle('${esc(a.casa).replace(/'/g,"\\'")}')">`
       +`<div class="cn-fname">${casaCell(a.casa)}`
-      +`<span class="sub">${a.n} conta${a.n===1?'':'s'} · ${a.ativas} ativa${a.ativas===1?'':'s'}</span></div>`
+      +`<span class="sub">${a.n} ${_cnPl(a.n,'conta','contas')} · ${a.ativas} ${_cnPl(a.ativas,'ativa','ativas')}</span></div>`
       +`<div class="cn-life">`
       +  `<div class="cn-track"><i class="med" style="width:${pMed.toFixed(1)}%"></i>`
       +  `<i class="avg" style="left:${pAvg.toFixed(1)}%"></i></div>`
@@ -711,13 +758,13 @@ function _cnDrill(agg,contas){
   const dth=(col,lbl,cls)=>`<th class="${cls||''} ${key===col?'sort-'+(dir<0?'desc':'asc'):''}"`
     +` onclick="event.stopPropagation();cnDrillSort('${col}')">${lbl}<span class="sort-icon"></span></th>`;
   const aviso=agg.semPreco>0
-    ?`<span class="w">${agg.semPreco} conta${agg.semPreco===1?'':'s'} sem preço fora do múltiplo</span>`:'';
+    ?`<span class="w">${agg.semPreco} ${_cnPl(agg.semPreco,'conta','contas')} sem preço fora do múltiplo</span>`:'';
   return`<div class="cn-drill" onclick="event.stopPropagation()"><table class="cn-tbl"><thead><tr>`
     +dth('conta','Conta','l')+dth('forn','Fornecedor','l')+dth('estado','Estado','l')
     +dth('dur','Duração')+dth('dias','Dias ativos')+dth('bets','Apostas')+dth('turn','Turnover')
     +dth('pl','P/L bruto')+dth('custo','Custo')+dth('liq','P/L líquido')+dth('roiLiq','ROI líq.')
     +`</tr></thead><tbody>${rows}</tbody></table>`
-    +`<div class="cn-drillfoot"><span>${contas.length} conta${contas.length===1?'':'s'} nesta casa</span>`
+    +`<div class="cn-drillfoot"><span>${contas.length} ${_cnPl(contas.length,'conta','contas')} nesta casa</span>`
     +`<span>P/L líquido = bruto − custo · ROI líq. = líquido ÷ turnover</span>${aviso}</div>`
     +`</div>`;
 }

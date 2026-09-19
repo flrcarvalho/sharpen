@@ -59,7 +59,8 @@ const FONTE = [
   ...['normForn', '_buildContaVida', '_degrausPreco', '_precoVigenteEm', '_dataDoPreco',
       '_custoDaConta'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
   'let _cnPop="ambas";',
-  ...['_cnMediana', '_cnMedia', '_cnTemPreco', '_cnBase', '_cnPorCasa', '_cnHistograma', '_cnGeral']
+  ...['_cnMediana', '_cnMedia', '_cnPl', '_cnFraseLongevas', '_cnBaseTxt', '_cnTemPreco', '_cnBase',
+      '_cnPorCasa', '_cnHistograma', '_cnGeral']
       .map(n => recorteFn(CONTAS, n, 'contas.js')),
   // CN_FAIXAS vive fora de funcao: recortada por nome, ATE O `];` — ela nasceu numa
   // linha so e virou multilinha quando os rotulos foram escritos por extenso, e um
@@ -75,7 +76,9 @@ const FONTE = [
   '  setCasas(s){MSS["ca_contas"]=new Set(s||[]);},',
   '  base(){return _cnBase();}, porCasa(c){return _cnPorCasa(c);},',
   '  geral(c,l){return _cnGeral(c,l);}, hist(d){return _cnHistograma(d);},',
-  '  mediana(x){return _cnMediana(x);}, media(x){return _cnMedia(x);} };',
+  '  mediana(x){return _cnMediana(x);}, media(x){return _cnMedia(x);},',
+  '  fraseLongevas(n,m){return _cnFraseLongevas(n,m);},',
+  '  baseTxt(n){return _cnBaseTxt(n);} };',
 ].join(LF);
 
 const { runInNewContext } = await import('node:vm');
@@ -254,6 +257,33 @@ eq(g.n, B13.contas.length, 'a contagem do painel é a mesma da lista');
 eq(g.nProprias + g.nComPreco + g.nSemPreco, g.n, 'os três estados de custo particionam a base');
 eq(g.plEleg, B13.contas.filter(c => c.propria || c.custo > 0).reduce((a, c) => a + c.pl, 0),
    'P/L elegível exclui a conta sem preço');
+
+console.log('— 14. Concordancia: a frase do rodape fecha no SINGULAR e no PLURAL');
+// O erro que originou o caso saiu na tela do Feca: "25 contas PASSOU de 60 dias e puxam
+// o numero para cima" — verbo pluralizado ao lado de outro fixo, na MESMA frase.
+// Sem `\b` nos padrões de propósito: este arquivo já foi escrito por heredoc uma vez e
+// os escapes viraram BACKSPACE (0x08), com o teste falhando enquanto o texto na tela
+// estava certo. `includes` diz o mesmo e não tem escape para perder.
+const f1 = api.fraseLongevas(1, 30);
+const fN = api.fraseLongevas(25, 30);
+ok(f1.includes('1 conta passou'), 'singular: "1 conta passou", veio:' + f1);
+ok(f1.includes(' puxa ') && !f1.includes('puxam'), 'singular: " puxa ", veio:' + f1);
+ok(fN.includes('25 contas passaram'), 'plural: "25 contas passaram", veio:' + fN);
+ok(fN.includes('puxam'), 'plural: "puxam", veio:' + fN);
+// As TRES palavras concordam entre si: nenhuma pode ficar para tras.
+ok(!f1.includes('contas') && !f1.includes('passaram'), 'no singular nada vai para o plural');
+ok(!fN.includes('conta passou') && !fN.includes(' puxa '), 'no plural nada fica no singular');
+eq(api.fraseLongevas(0, 30), '', 'sem conta longeva, a frase nao aparece');
+// O contexto do painel e a BASE DE CALCULO: substantivo E adjetivo concordam. Escrever
+// "1 conta inativas" foi o primeiro erro da correcao do erro anterior.
+api.pop = 'inativas';
+eq(api.baseTxt(1), '1 conta inativa', 'singular: substantivo e adjetivo no singular');
+eq(api.baseTxt(184), '184 contas inativas', 'plural: os dois no plural');
+api.pop = 'ativas';
+eq(api.baseTxt(1), '1 conta ativa', 'singular em ativas');
+api.pop = 'ambas';
+eq(api.baseTxt(1), '1 conta', 'em ambas, sem adjetivo');
+eq(api.baseTxt(184), '184 contas', 'em ambas, plural sem adjetivo');
 
 if (falhas) { console.error(falhas + ' falha(s)'); process.exit(1); }
 console.log('ok: contas_vida');

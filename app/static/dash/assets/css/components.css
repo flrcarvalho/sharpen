@@ -3026,12 +3026,13 @@ select.ap-inline-inp { padding: 2px 4px; }
 
 /* Histograma de vida. A faixa 0-7 d vai em `--warn` porque ali mora 41% da base: é
    aviso, não decoração. */
-.cn-dist                   { display: flex; flex-direction: column; gap: 6px; }
+.cn-dist                   { display: flex; flex-direction: column; gap: 10px;
+                             margin: 2px 0 4px; }
 .cn-drow                   { display: grid; grid-template-columns: 104px minmax(0, 1fr) 72px;
                              align-items: center; gap: 10px; }
 .cn-drow .lb               { font-family: var(--font-mono); font-size: var(--text-xxs);
                              font-weight: 500; color: var(--ink-soft); }
-.cn-dbar                   { height: 14px; border-radius: var(--r-xs); background: var(--field);
+.cn-dbar                   { height: 17px; border-radius: var(--r-xs); background: var(--field);
                              border: 1px solid var(--line-2); overflow: hidden; }
 .cn-dbar i                 { display: block; height: 100%; background: rgba(var(--accent-rgb), .55); }
 .cn-dbar i.hot             { background: var(--warn); }
