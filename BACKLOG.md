@@ -234,6 +234,26 @@ front virarem `!= null`.
 > **Sintoma para reconhecer isto noutro campo:** um `> 0` usado como teste de existência.
 > Ele funciona enquanto zero for impossível, e a regra de negócio muda sem avisar o código.
 
+### 1.18 O drill-down do tipster ficou fora do switch R$/u (s374). **VIVA, decisão do Feca**
+
+A s374 levou o switch da tela Tipsters para a tela inteira (cards, sparkline, KPI de
+turnover e as colunas de dinheiro do Comparativo). **O modal que abre ao clicar no card
+não foi**: P/L, Stake Média, Topo Histórico, Drawdown, Max Drawdown e o Diagnóstico de
+Risco seguem em R$, mesmo com o switch em u.
+
+**Não é esquecimento, é escopo:** o drill roda `calcTopoDrawdown`, `calcDrawdownReal` e
+um Monte Carlo de 10.000 simulações sobre a série em reais. Levá-lo para u é converter
+as LINHAS na entrada (`lucro` e `stake` pela unidade vigente de cada uma, a régua que o
+`_tipsterUnidades` já tem) e trocar `fmtPL`/`fmtR` por `fmtU`/`fmtRU` em todo o modal,
+inclusive nos eixos dos gráficos.
+
+**A dúvida que decide, e que é do Feca:** drawdown e Monte Carlo em unidades respondem
+uma pergunta diferente da que respondem em reais, porque a unidade mudou de tamanho ao
+longo do histórico. Em u a queda é medida em risco assumido; em R$, em dinheiro perdido.
+As duas leituras são legítimas, e a escolha não é consequência técnica da s374.
+
+> Enquanto não for decidido, o modal é o único lugar da tela que não segue o switch.
+
 ### 1.15 O `#220` do PassaTips sumiu no mesmo dia do `fetch failed` (s371). **VIVA, não medida**
 
 Três coisas ficaram abertas depois da correção do download do print (`sharpen-bot`, `6493762`).
