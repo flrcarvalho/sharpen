@@ -179,6 +179,9 @@ function rqb(p){
     const mfwd=document.getElementById('monthNavFwd_'+p);
     if(mfwd)mfwd.disabled=(st.monthOff||0)>=0;
   }
+  // Todo setter de período passa por aqui, então é aqui que o "Limpar tudo" aparece e
+  // some. Pendurar isso em cada setter deixaria o próximo de fora, calado.
+  _syncLimparTudo(p);
 }
 
 // ── Listas de opção dos filtros ─────────────────────────────────────────────
@@ -394,6 +397,10 @@ function refreshMS(id){
     if(hs&&!cl){const d=document.createElement('div');d.className='ms-cl';d.textContent='Limpar seleção';d.onclick=()=>{msToggle(id,'__all__');refreshMS(id);renderPage(id.split('_').pop());};drop.appendChild(d);}
     else if(!hs&&cl)cl.remove();
   }
+  // Mesmo motivo do `rqb`: todo caminho que mexe na seleção termina aqui, inclusive o
+  // das telas que repintam só a si mesmas (`cb` próprio).
+  const pg=btn&&btn.dataset&&btn.dataset.page;
+  if(pg)_syncLimparTudo(pg);
 }
 
 // Ícone + abertura do SharpenCal nos inputs de período (o indicador nativo some no CSS)
@@ -456,6 +463,69 @@ function _grupoOperador(p,cb){
   return ops.length>1?`<div class="filter-group"><div class="filter-label">Operador</div>${buildMS('op_'+p,ops,'Todos os operadores',p,cb||'')}</div>`:'';
 }
 
+// ── "Limpar tudo" (s374, sugestão do tester João) ───────────────────────────
+// Ele existia só na Base Completa, e quem recortava a Visão Geral por três eixos tinha
+// de desfazer um por um. Aqui ele é peça da BARRA, então toda tela que monta a barra o
+// ganha de uma vez: copiar o botão tela a tela criaria N botões que divergem no
+// primeiro ajuste (a lição da s317).
+//
+// O botão só aparece com filtro LIGADO, como na Base Completa: botão morto numa tela
+// limpa é ruído, e a tela já nasce sem recorte.
+//
+// Período PADRÃO por página. "Tudo" em quase todas; a tela de Custos nasce em MTD de
+// propósito (é de fechamento mensal, e "Tudo" não fecha mês nenhum), então limpar ali é
+// voltar ao MÊS, não ao vazio. Sem isto, o botão levaria a tela a um estado que ela
+// nunca teve ao abrir.
+const _PERIODO_PADRAO={custos_v2:'mtd'};
+// Telas com filtro LOCAL (fora dos eixos da barra) registram aqui como perguntar se ele
+// está ligado e como zerá-lo. Sem esse registro o botão limparia metade e ainda assim
+// diria "Limpar tudo", e rótulo que mente é pior que botão que falta.
+const LIMPAR_EXTRA={};
+// Os eixos da página saem do próprio `MSS` (`sp_`, `ca_`, `ti_`, `op_`, `fo_`, `pa_`…).
+// Lista fixa por página envelheceria calada no dia em que uma tela ganhasse um eixo.
+// O prefixo de DUAS letras está no padrão de propósito: com `endsWith('_'+p)` a página
+// `tipster` levaria junto o `ca_custos_tipster`, que é de outra tela. Nome de página
+// aninhado em nome de página existe aqui (`custos`, `custos_tipster`, `custos_v2`).
+function _eixosDaPagina(p){const re=new RegExp('^[a-z]{2}_'+p+'$');return Object.keys(MSS).filter(id=>re.test(id));}
+function _periodoLigado(p){
+  const st=gfs(p);
+  const padrao=_PERIODO_PADRAO[p]||'';
+  if(padrao)return st.qt!==padrao||st.qd>0||(st.monthOff||0)!==0;
+  return !!(st.qd||st.qt||st.df||st.dt);
+}
+function temFiltroAtivo(p){
+  if(_periodoLigado(p))return true;
+  if(_eixosDaPagina(p).some(id=>MSS[id]&&MSS[id].size>0))return true;
+  const ex=LIMPAR_EXTRA[p];
+  return !!(ex&&ex.ativo&&ex.ativo());
+}
+// Mostra/esconde o botão. `hidden` sozinho não basta: o wrapper é `.filter-group`, que é
+// `display:flex`, e display próprio VENCE o atributo (por isso o CSS traz o
+// `[hidden]{display:none}` explícito).
+function _syncLimparTudo(p){
+  const el=document.getElementById('limparWrap_'+p);
+  if(el)el.hidden=!temFiltroAtivo(p);
+}
+// UM repaint só no fim: limpar quatro eixos com repaint em cada um pintaria a tela
+// quatro vezes, e a primeira (com o recorte pela metade) é a que o olho pega.
+function limparFiltrosPagina(p){
+  _eixosDaPagina(p).forEach(id=>{
+    if(!MSS[id]||!MSS[id].size)return;
+    msToggle(id,'__all__');
+    refreshMS(id);
+  });
+  const ex=LIMPAR_EXTRA[p];
+  if(ex&&ex.limpar)ex.limpar();
+  const padrao=_PERIODO_PADRAO[p];
+  if(padrao)setQuickType(p,padrao);else clearDate(p);   // os dois já repintam (debounced)
+  _syncLimparTudo(p);
+}
+function _grupoLimpar(p){
+  return`<div class="filter-group filters__limpar" id="limparWrap_${p}"${temFiltroAtivo(p)?'':' hidden'}>
+      <button type="button" class="apf-limpar" onclick="limparFiltrosPagina('${p}')">Limpar tudo</button>
+    </div>`;
+}
+
 function buildFilters(p,sports,casas,tipsters){
   return`<div class="filters">
 ${_grupoPeriodo(p)}
@@ -463,6 +533,7 @@ ${_grupoPeriodo(p)}
     ${_grupoCasa(p,casas)}
     ${_grupoTipster(p,tipsters)}
     ${_grupoOperador(p)}
+    ${_grupoLimpar(p)}
   </div>`;
 }
 
@@ -477,5 +548,6 @@ function buildFiltersSemData(p,sports,casas,tipsters){
     ${_grupoCasa(p,casas)}
     ${_grupoTipster(p,tipsters)}
     ${_grupoOperador(p)}
+    ${_grupoLimpar(p)}
   </div>`;
 }

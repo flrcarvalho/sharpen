@@ -274,6 +274,7 @@ ${_grupoPeriodo(p)}
     ${_grupoCasa(p, casas)}
     <div class="filter-group"><div class="filter-label">Fornecedor</div>${buildMS('fo_' + p, forns, 'Todos os fornecedores', p, '')}</div>
     ${_grupoOperador(p)}
+    ${_grupoLimpar(p)}
   </div>`;
 }
 

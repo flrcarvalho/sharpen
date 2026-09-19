@@ -2261,6 +2261,17 @@ select.ap-inline-inp { padding: 2px 4px; }
 }
 .apf-limpar:hover { border-color: rgba(var(--neg-rgb), 0.45); color: var(--neg); }
 
+/* "Limpar tudo" da barra de filtros (s374). O BOTÃO é o mesmo da Base Completa
+   (`.apf-limpar`); aqui só muda onde ele fica. Dois estilos para o mesmo papel é o
+   sintoma barato de "fora do padrão", e ele aparece mesmo quando as duas metades estão
+   certas isoladamente.
+   `margin-top` desce o botão até a linha dos CONTROLES: os outros grupos têm label em
+   cima (9,5px + 4px de gap) e este não tem, então sem isso ele flutuaria acima de todos.
+   O `[hidden]` explícito é obrigatório: `.filter-group` é `display:flex`, e display
+   próprio VENCE o atributo hidden (que só vale pela folha do agente). */
+.filters__limpar { margin-left: auto; align-self: flex-start; margin-top: 18px; }
+.filters__limpar[hidden] { display: none; }
+
 /* O aviso "os KPIs não seguem o filtro de resultado" usa a `.nota-escopo`
    compartilhada (definida junto da `.metric-note`) — era a `.apf-nota`. */
 

@@ -228,8 +228,17 @@ ${_grupoPeriodo('contas')}
       <div class="tcard-seg" id="cnSeg" style="padding-top:2px">${seg}</div>
       <div class="cn-popsub">${sub}</div>
     </div>
+    ${_grupoLimpar('contas')}
   </div>`;
 }
+
+// O seg de População é filtro LOCAL desta tela: o "Limpar tudo" da barra não o enxerga
+// pelo `MSS`, e um botão que limpa metade da tela mente no próprio rótulo. `ambas` é o
+// estado em que a tela nasce, então limpar aqui é voltar para ele.
+LIMPAR_EXTRA.contas={
+  ativo:()=>_cnPop!=='ambas',
+  limpar:()=>{_cnPop='ambas';},   // quem repinta é o `limparFiltrosPagina`, uma vez só
+};
 
 // O "i" da mediana reusa o padrão `.tip-anchor` + `.metric-info` + `.metric-tip` do
 // projeto (o `_gTip` global clona e posiciona, por delegação no `document`) — nenhum
