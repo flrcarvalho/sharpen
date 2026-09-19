@@ -1,0 +1,68 @@
+### audio 1 — 33s
+[00:00] Pera que essa semana eu coloquei uma feature nova, porque ele faz extração das casas individuais.
+[00:08] E aí com isso a lógica dele é ter todo o custo da sua conta, então por exemplo você coloca a conta,
+[00:17] tipo o nome da conta e o fornecedor, e aí o fornecedor já inseriu lá a tabela de preço dele
+[00:23] e aí ele vai pegando todo o seu custo.
+[00:29] E aí agora você eu coloquei uma feature.
+### audio 2 — 32s
+[00:00] que você coloca o saldo, pegou uma conta nova, você coloca o saldo dela
+[00:06] e aí você tem a opção de colocar saques e depósitos
+[00:10] só que durante todo o período que você vai postando as bets, vai extraindo
+[00:14] ele vai calculando o seu caixa, tá ligado?
+[00:18] e aí com o caixa de todas as contas ele calcula sua banca
+[00:22] e ele te informa o quanto que tem da banca, o quanto que tá do...
+[00:25] quanto da sua banca tá com saldo em aberto
+[00:28] e isso é um controle muito bom, tá ligado?
+### audio 3 — 32s
+[00:00] Porque eu já vi muita história de gente que tem laranja safada,
+[00:04] aí o cara vai entrando e sacando de pouquinho,
+[00:07] e aí o cara demora um tempasso para descobrir,
+[00:09] porque ele está ganhando nas bets,
+[00:11] ele demora um tempasso para descobrir que o cara está roubando ele.
+[00:14] Então, com um ou dois dias,
+[00:17] o Sharper já vai apontar a diferença que você tem na conta,
+[00:20] comparado ao tipo, ele faz seu caixa projetado
+[00:23] e que você bate com seu caixa atual,
+[00:25] e aí ele considera a betinha aberta, as resolvidas, tudo.
+[00:29] Então você tem, mano, um controle bizarro, véi.
+### audio 4 — 73s
+[00:00] E aí eu melhorei também o sistema de sugerir tipster, tá ligado?
+[00:04] Então ele é inteligente, o suficiente.
+[00:10] Aí aprendendo, tipo, você extrai as bets de uma casa e vai colocando todos os tipsters.
+[00:15] Aí quando você extrai de novo, de acordo com steak, mercado, etc.,
+[00:23] ele já entende de qual tipster é aquela aposta,
+[00:27] e aí ele já preenche isso pra você também.
+[00:30] Então, tipo, tá ficando muito inteligente, porque daí,
+[00:33] e aí tem uma parte de cadastro também pra você cadastrar o tipster e colocar algum detalhe.
+[00:39] Tipo, eu meio que eu assino as minhas bets.
+[00:44] Então, por exemplo, eu tenho três grupos GNB, aí o grupo 1,
+[00:48] daí vamos por que eles tem a mesma steak, vai, 400.
+[00:51] Aí o grupo 1 manda uma bet, eu pego 401.
+[00:55] Aí o grupo 2 manda uma bet, eu pego 402.
+[00:57] Aí o grupo 3 manda uma bet, eu pego 403.
+[01:00] Aí, tipo, ele já entende tudo.
+[01:02] Então, ele já extrai e já coloca o tipster, tá ligado?
+[01:05] Aí é um trabalho, assim, tipo, muito rápido, sabe, muito rápido.
+[01:10] Além, mas o principal, assim...
+### audio 5 — 69s
+[00:00] O principal é o controle que ele te dá,
+[00:05] porque ele é um sistema que ele meio que vai auto-seauditando,
+[00:10] e ele vai te mostrando diferenças que você consegue ver do tipo,
+[00:16] faltou colocar o resultado de uma bet,
+[00:19] ou os caixas não estão batendo,
+[00:22] eu estou faltando coisa, eu estou sobrando coisa,
+[00:23] eu estou tendo desvios de dinheiro.
+[00:26] Ele tem um mapa de onde está o dinheiro em todas as suas contas espalhadas.
+[00:34] Tem muita coisa que, para quem voluma muito, ele ajuda demais,
+[00:40] e aí a chave de ouro é o fato de você conseguir cadastrar operadores.
+[00:47] Então vamos dizer assim,
+[00:49] você cadastra um operador, o seu operador lá,
+[00:52] o seu operador usa o sharpen como se fosse dele,
+[00:56] e aí você usa também,
+[00:59] e aí você tem a sua visão,
+[01:00] aí você tem a sua visão,
+[01:01] a visão dele separada do que ele está fazendo,
+[01:04] e a visão de tudo consolidado,
+[01:06] e tipo todo o mapa do seu dinheiro.
+### audio 6 — 19s
+[00:01] Caraca, cara, eu acho que eu nunca tinha gravado uma áudio pra ninguém explicando o Sharp, mas ficou bonita a explicação, eu vou usar IA para fazer um vídeo, usando esses áudios, juro por Deus, vou ver isso essa semana, meio que um vídeo de apresentação, né?

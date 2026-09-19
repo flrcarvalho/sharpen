@@ -28,3 +28,6 @@ _backups/
 
 # Claude Code — permissões locais (não versionar); commands/ é versionado
 .claude/settings.local.json
+
+# Audios de depoimento (pesados; ficam locais)
+docs/marketing/depoimentos/audios/
