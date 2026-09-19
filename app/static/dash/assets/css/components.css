@@ -2942,128 +2942,329 @@ select.ap-inline-inp { padding: 2px 4px; }
   .c2-raiox { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ── Aba CONTAS (s365) ───────────────────────────────────────────────────────
-   Nenhum componente novo onde já havia um: a barra reusa `.filters`/`.filter-group`,
-   o segmentado de População reusa `.tcard-seg`, os cards reusam `.card`, a tabela
-   reusa `.tbl` e a ajuda da mediana reusa `.tip-anchor`/`.metric-info`/`.metric-tip`.
-   O que está aqui é o que não existia: a régua, o drill e a máscara do múltiplo.
+/* ── Aba CONTAS · v4 (s372) ──────────────────────────────────────────────────
+   Do handoff `design_handoff_contas_v4` entra o que é da TELA: régua, três painéis,
+   fichas por casa, drill e definições. A BARRA DE FILTROS continua sendo a do app
+   (`.filters`/`.filter-group`/multiselect): o protótipo desenha um campo próprio, e
+   adotá-lo só aqui criaria dois estilos para o mesmo papel — o item 8 do checklist.
 
-   Escada de Tinta, papel a papel: identidade (nome de conta) e valor numérico em
-   `--ink`; label/eyebrow (`.cn-escopo`, `.cn-tile__lab`) em `--ink-soft` com piso de
-   9,5px; metadado (`.cn-split`, `.cn-popsub`, `.cn-nota`) em `--ink-mute` com piso de
-   10px. Nenhuma `opacity` sobre tom apagado — ela é multiplicador, não degrau. */
+   Escada de Tinta, papel a papel: identidade (nome de casa, de conta) e valor numérico
+   em `--ink`; label/eyebrow em `--ink-soft` com piso de 9,5px; metadado em `--ink-soft`
+   também — o handoff mede `--ink-mute` em 3,4:1 a 10px e o exclui de texto de DADO
+   nesta tela, o que é mais restritivo que a nossa régua e portanto passa nela.
+   Nenhuma `opacity` sobre tom apagado: ela é multiplicador, não degrau. */
 
 .cn-popsub                 { font-family: var(--font-mono); font-size: var(--text-xxs);
-                             letter-spacing: .04em; color: var(--ink-mute); margin-top: 2px; }
-
-/* A régua. Ela existe porque duração e turnover respondem a períodos DIFERENTES na
-   mesma linha, e dois números vizinhos sem legenda leem como defeito. */
-.cn-regua                  { display: flex; align-items: flex-start; gap: 9px;
-                             padding: 10px 14px; background: var(--surface);
-                             border: 1px solid var(--line-2); border-radius: var(--r-md);
-                             margin-bottom: var(--sp-4); font-size: 12px; line-height: 1.5;
-                             color: var(--ink-soft); }
-.cn-regua svg              { flex: none; margin-top: 2px; color: var(--ink-mute); }
-.cn-regua b                { color: var(--ink); font-weight: 600; }
-
-.cn-escopo                 { margin-left: auto; font-family: var(--font-mono);
-                             font-size: 9.5px; text-transform: uppercase;
-                             letter-spacing: .18em; color: var(--ink-soft); }
-
-.cn-row                    { cursor: pointer; }
-.cn-row--on td             { background: rgba(var(--accent-rgb), .05) !important; }
-.cn-casa                   { text-align: left; color: var(--ink); font-weight: 700; }
-.cn-chev                   { flex: none; color: var(--ink-mute); margin-right: 2px;
-                             transition: transform .18s var(--ease); }
-.cn-chev.on                { transform: rotate(90deg); color: var(--accent); }
-.cn-ink                    { color: var(--ink); }
-.cn-vazio                  { text-align: center; color: var(--ink-mute); padding: 20px; }
-/* ROI é `%`, não dinheiro: cor por sinal é legítima (UI_REFERENCE §5.3) e ele NÃO passa
-   pelo `.money`. Quem mede retorno sobre CUSTO é o Múltiplo, no card de baixo. */
+                             letter-spacing: .04em; color: var(--ink-soft); margin-top: 2px; }
+.cn-fgpop                  { margin-left: auto; }
+.cn-sem                    { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); }
+.cn-warnc                  { color: var(--warn); }
+.cn-propria                { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-soft); }
 .cn-roi-pos                { color: var(--pos); }
 .cn-roi-neg                { color: var(--neg); }
+.cn-vazio                  { text-align: center; color: var(--ink-soft); padding: 20px;
+                             font-size: var(--text-xs); }
 
-/* Drill: a tabela de contas da casa. Fundo `--bg` (mais escuro que a linha) para o
-   aninhamento se ler sem uma borda a mais. */
-/* ⚠️ `max-width: 0` é o que faz o drill ROLAR em vez de EMPURRAR, e sem ele a régua
-   acusa: medido em 1366px, a sub-tabela de 13 colunas alargava a tabela externa e a
-   PÁGINA inteira transbordava 332px (98px em 1600). Um `overflow-x` sozinho no filho
-   não resolve — a célula cresce com o conteúdo e leva a tabela junto, então o filho
-   nunca fica menor que o que tem para mostrar. Com a célula declarando largura zero, a
-   tabela para de contá-la no cálculo e o `.cn-drill-box` volta a ter um teto para
-   rolar dentro. */
-.cn-drill > td             { padding: 0 !important; background: var(--bg); max-width: 0; }
-.cn-drill-box              { padding: 12px 16px 14px 34px; overflow-x: auto; }
-.cn-drill-box .tbl th      { background: transparent; position: static; cursor: pointer; }
-.cn-drill-box .tbl th:hover { color: var(--ink); }
-.cn-drill-foot             { display: flex; align-items: center; gap: 16px;
-                             margin-top: 10px; padding-left: 10px; flex-wrap: wrap; }
-.cn-nota                   { font-family: var(--font-mono); font-size: var(--text-xxs);
-                             letter-spacing: .06em; color: var(--ink-mute); }
-.cn-alerta                 { display: inline-flex; align-items: center; gap: 6px;
-                             font-family: var(--font-mono); font-size: var(--text-xxs);
-                             letter-spacing: .06em; color: var(--warn); }
+/* ── Régua de escopo ──────────────────────────────────────────────────────────
+   Ela existe porque duração e turnover respondem a períodos DIFERENTES na mesma tela,
+   e dois números vizinhos sem legenda leem como defeito. */
+.cn-regua                  { display: flex; align-items: center; gap: var(--sp-3);
+                             padding: 10px var(--sp-4); background: var(--surface-2);
+                             border: 1px solid var(--line-2); border-radius: var(--r-md);
+                             font-size: var(--text-xs); line-height: 1.5; color: var(--ink-soft);
+                             margin-bottom: var(--sp-4); flex-wrap: wrap; }
+.cn-regua b                { color: var(--ink); font-weight: 600; }
+.cn-regua__dot             { width: 5px; height: 5px; border-radius: var(--r-pill);
+                             background: var(--accent); flex: none; }
+.cn-regua__esc             { margin-left: auto; font-family: var(--font-mono);
+                             font-size: 9.5px; font-weight: 500; letter-spacing: .14em;
+                             text-transform: uppercase; color: var(--ink-soft); }
 
-.cn-est                    { display: inline-flex; align-items: center; gap: 6px;
-                             color: var(--ink-soft); }
-.cn-est::before            { content: ''; width: 6px; height: 6px; border-radius: 50%;
-                             background: var(--ink-mute); flex: none; }
-.cn-est--on                { color: var(--pos); }
-.cn-est--on::before        { background: var(--pos); }
+/* ── Os três painéis ─────────────────────────────────────────────────────────
+   `margin-top:auto` no `.cn-foot` alinha os rodapés dos três, mesmo com corpos de
+   alturas diferentes — é o que impede a fileira de parecer desmontada. */
+.cn-q3                     { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                             gap: var(--sp-3); margin-bottom: var(--sp-5); }
+.cn-qp                     { background: var(--surface-2); border: 1px solid var(--line);
+                             border-radius: var(--r-md); padding: var(--sp-4);
+                             display: flex; flex-direction: column; gap: var(--sp-3); }
+.cn-qh                     { display: flex; align-items: baseline; gap: var(--sp-2); }
+.cn-qh .t                  { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+                             color: var(--accent-2); }
+.cn-qh .s                  { font-family: var(--font-mono); font-size: var(--text-xs);
+                             font-weight: 500; color: var(--ink-soft); margin-left: auto; }
+.cn-qq                     { font-size: var(--text-sm); font-weight: 700; color: var(--ink);
+                             letter-spacing: -.02em; line-height: 1.4; }
+.cn-big                    { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+.cn-big .n                 { font-family: var(--font-mono); font-size: var(--text-2xl);
+                             font-weight: 700; letter-spacing: -.035em; color: var(--ink);
+                             font-variant-numeric: tabular-nums; line-height: 1; }
+.cn-big .n .u              { font-size: var(--text-xs); font-weight: 500; color: var(--ink-soft);
+                             margin-left: 5px; letter-spacing: 0; }
+.cn-big .side              { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 500; color: var(--ink-soft); line-height: 1.5;
+                             white-space: nowrap; }
+.cn-big .side b            { color: var(--ink); font-weight: 600; }
+.cn-foot                   { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.6;
+                             border-top: 1px solid var(--line-2); padding-top: 11px;
+                             margin-top: auto; text-wrap: pretty; }
+.cn-foot b                 { color: var(--ink); font-weight: 600; }
 
-/* Os três estados de custo. "própria" e "sem preço" são coisas DIFERENTES: a primeira
-   custou zero de verdade e entra no múltiplo, a segunda tem custo não declarado e fica
-   fora. Trata-las igual seria a ausência se disfarçando de zero. */
-.cn-propria                { font-family: var(--font-mono); font-size: var(--text-xs);
-                             color: var(--ink-soft); }
-.cn-sem                    { font-family: var(--font-mono); font-size: 12px;
-                             color: var(--ink-mute); }
-
-.cn-tiles                  { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-                             gap: 10px; margin: 4px 0 var(--sp-4); }
-.cn-tile                   { background: var(--surface-2); border: 1px solid var(--line);
-                             border-radius: var(--r-md); padding: 13px 16px;
-                             display: flex; flex-direction: column; gap: 8px; }
-.cn-tile__lab              { font-family: var(--font-mono); font-size: var(--text-xxs);
-                             font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-                             color: var(--ink-soft); }
-.cn-tile__val              { font-family: var(--font-mono); font-size: var(--text-xl);
-                             font-weight: var(--weight-extrabold); letter-spacing: -.02em;
-                             color: var(--ink); font-variant-numeric: tabular-nums; }
-.cn-tile__val .money       { width: auto; }
-.cn-tile__val.warn .money-val { color: var(--warn); }
-.cn-tile__sub              { font-family: var(--font-mono); font-size: var(--text-xxs);
-                             color: var(--ink-mute); }
-/* Carve-out do `UI_REFERENCE §5.5`: o `.money` é uma COLUNA (`width:100%` +
-   `min-width:10ch`, para alinhar tabela como planilha). Dentro de uma FRASE, sem isto,
-   ele joga o valor sozinho na borda direita e parte o parágrafo em duas linhas — o
-   sintoma não é número errado, é layout partido, e nenhum lint o vê. */
-.cn-tile__sub .money       { width: auto; gap: 3px; display: inline-flex; }
-.cn-tile__sub .money-val   { min-width: 0; }
-/* A OUTRA metade do §5.5, que o carve-out de largura não conserta: o `.money-sign` é
-   `0.76em` RELATIVO, e num hospedeiro de 10px ele sai a 7,6px — abaixo do piso de
-   qualquer papel da Escada. Aqui o número é CITADO dentro do texto ("após o custo:
-   R$ 219.764"), então a saída é a primeira da tabela do §5.5: pinar o corpo. */
-.cn-tile__sub .money-sign  { min-width: 0; font-size: 10px; }
-
-.cn-nota-box               { display: flex; align-items: flex-start; gap: 10px;
-                             margin-top: var(--sp-4); padding: 12px 14px;
-                             background: var(--surface-2); border: 1px solid var(--line-2);
-                             border-radius: var(--r-md); font-size: 12px; line-height: 1.55;
-                             color: var(--ink-soft); }
-.cn-nota-box svg           { flex: none; margin-top: 1px; color: var(--ink-mute); }
-.cn-nota-box b             { color: var(--ink); font-weight: 600; }
-
-/* MÚLTIPLO — razão P/L ÷ custo. O `UI_REFERENCE §5` cobre R$, %, odd e saldo; a razão
-   não é nenhum dos quatro, então ela ESPELHA a gramática do `.money` em vez de inventar
-   uma quinta: mono, 2 casas, o `×` neutro e menor como o `R$`, e cor só abaixo de 1,00
-   (a conta que não devolveu o que custou). Ver `UI_REFERENCE §5.6`. */
-.cn-mult                   { font-family: var(--font-mono); font-size: var(--text-sm);
-                             font-weight: var(--weight-bold); color: var(--ink);
+/* Histograma de vida. A faixa 0-7 d vai em `--warn` porque ali mora 41% da base: é
+   aviso, não decoração. */
+.cn-dist                   { display: flex; flex-direction: column; gap: 6px; }
+.cn-drow                   { display: grid; grid-template-columns: 60px minmax(0, 1fr) 68px;
+                             align-items: center; gap: 10px; }
+.cn-drow .lb               { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 500; color: var(--ink-soft); }
+.cn-dbar                   { height: 14px; border-radius: var(--r-xs); background: var(--field);
+                             border: 1px solid var(--line-2); overflow: hidden; }
+.cn-dbar i                 { display: block; height: 100%; background: rgba(var(--accent-rgb), .55); }
+.cn-dbar i.hot             { background: var(--warn); }
+.cn-drow .rv               { font-family: var(--font-mono); font-size: var(--text-xs);
+                             font-weight: 500; color: var(--ink-soft); text-align: right;
                              font-variant-numeric: tabular-nums; }
+
+/* Ranking do painel 2 */
+.cn-mini                   { display: flex; flex-direction: column; gap: 7px; }
+.cn-mrow                   { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+                             align-items: center; gap: var(--sp-3); font-size: var(--text-sm); }
+.cn-mrow .nm               { color: var(--ink); font-weight: 600; overflow: hidden;
+                             text-overflow: ellipsis; white-space: nowrap; }
+.cn-mrow .vv               { font-family: var(--font-mono); font-size: var(--text-xs);
+                             font-weight: 500; text-align: right; color: var(--ink-soft);
+                             font-variant-numeric: tabular-nums; white-space: nowrap;
+                             display: inline-flex; align-items: baseline; gap: 5px; }
+.cn-mrow .vv b             { color: var(--ink); font-weight: 600; }
+
+/* Composição e cobertura do painel 3 */
+.cn-comp                   { display: flex; flex-direction: column; gap: 9px; }
+.cn-crow                   { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+                             align-items: baseline; gap: var(--sp-3); font-size: var(--text-sm);
+                             padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
+.cn-crow:last-child        { border-bottom: none; padding-bottom: 0; }
+.cn-crow .cl               { color: var(--ink-soft); font-weight: 500; }
+.cn-crow .cn               { font-family: var(--font-mono); font-size: var(--text-sm);
+                             font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;
+                             white-space: nowrap; }
+.cn-covwrap                { display: flex; flex-direction: column; gap: 8px; }
+.cn-covbar                 { display: flex; gap: 2px; height: 10px; border-radius: var(--r-pill);
+                             overflow: hidden; }
+.cn-covbar i               { display: block; height: 100%; }
+.cn-covleg                 { display: flex; gap: var(--sp-3); flex-wrap: wrap;
+                             font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 500; color: var(--ink-soft); }
+.cn-covleg span            { display: inline-flex; align-items: center; gap: 6px; }
+.cn-covleg em              { width: 8px; height: 8px; border-radius: 2px; flex: none; font-style: normal; }
+
+/* ── Cabeçalho do bloco "Por casa" e a legenda mediana × média ────────────── */
+.cn-blockh                 { display: flex; align-items: baseline; gap: var(--sp-3);
+                             margin: 0 0 10px; flex-wrap: wrap; }
+.cn-blockh .t              { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+                             color: var(--ink-soft); }
+.cn-blockh .m              { font-family: var(--font-mono); font-size: var(--text-xs);
+                             font-weight: 500; color: var(--ink-soft); margin-left: auto; }
+.cn-why2                   { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap;
+                             padding: 11px var(--sp-4); border: 1px solid var(--line-2);
+                             border-radius: var(--r-md); background: var(--surface-2);
+                             margin-bottom: var(--sp-3); }
+.cn-mks                    { display: flex; align-items: center; gap: var(--sp-4); flex: none; }
+.cn-mk2                    { display: flex; align-items: center; gap: 7px;
+                             font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 500; color: var(--ink-soft); letter-spacing: .04em; }
+.cn-mk2 i                  { display: block; flex: none; }
+.cn-mk2 i.s                { width: 26px; height: 10px; border-radius: 2px;
+                             background: rgba(var(--accent-rgb), .45); border-right: 2px solid var(--accent); }
+.cn-mk2 i.d                { width: 0; height: 14px; border-left: 1px dashed var(--accent-2); }
+.cn-why2 p                 { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.6;
+                             flex: 1 1 320px; min-width: 0; text-wrap: pretty; }
+.cn-why2 p b               { color: var(--ink); font-weight: 600; }
+
+/* ── Fichas por casa ─────────────────────────────────────────────────────────
+   Uma grade só, compartilhada pelo cabeçalho e pelas linhas: duas grades separadas
+   desalinham no primeiro ajuste de coluna. */
+.cn-ovf                    { overflow-x: auto; }
+.cn-fichas                 { display: flex; flex-direction: column; gap: 9px; min-width: 780px; }
+.cn-fhead,
+.cn-ficha                  { display: grid;
+                             grid-template-columns: minmax(132px, 1fr) minmax(184px, 1.4fr)
+                                                    minmax(118px, .95fr) minmax(104px, .8fr) 104px;
+                             align-items: center; column-gap: var(--sp-4); }
+.cn-fhead > span           { font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
+                             letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft);
+                             padding-bottom: 8px; border-bottom: 1px solid var(--line);
+                             cursor: pointer; user-select: none; text-align: right; }
+.cn-fhead > span.l         { text-align: left; }
+.cn-fhead > span:hover     { color: var(--ink); }
+.cn-fhead .sort-icon       { display: inline-flex; align-items: center; justify-content: center;
+                             margin-left: 5px; width: 12px; height: 12px; opacity: .3;
+                             vertical-align: middle; }
+.cn-fhead .sort-icon::after{ content: ''; display: inline-block; width: 0; height: 0;
+                             border-left: 4px solid transparent; border-right: 4px solid transparent;
+                             border-bottom: 5px solid currentColor; }
+.cn-fhead .sort-asc .sort-icon,
+.cn-fhead .sort-desc .sort-icon { opacity: 1; color: var(--accent); }
+.cn-fhead .sort-desc .sort-icon::after { border-top: 5px solid currentColor;
+                             border-bottom: none; margin-top: 2px; }
+
+.cn-ficha                  { background: var(--surface-2); border: 1px solid var(--line-2);
+                             border-radius: var(--r-md); padding: 13px var(--sp-4); cursor: pointer;
+                             transition: border-color .15s var(--ease), background .15s var(--ease); }
+.cn-ficha:hover            { border-color: var(--border3); }
+.cn-ficha.open             { border-color: var(--border-blue); background: var(--elevated); }
+.cn-fname                  { display: flex; align-items: center; gap: 9px; min-width: 0;
+                             flex-wrap: wrap; color: var(--ink); font-size: var(--text-md);
+                             font-weight: 700; letter-spacing: -.02em; }
+.cn-fname .sub             { display: block; flex: 1 0 100%; font-family: var(--font-mono);
+                             font-size: var(--text-xxs); font-weight: 500; color: var(--ink-soft);
+                             margin-top: 2px; letter-spacing: 0; }
+
+/* A barra de duração, a peça central do redesenho. Régua FIXA de 0 a 30 dias em todas
+   as casas: com escala por linha, duas barras do mesmo tamanho significariam números
+   diferentes e a comparação entre fichas deixaria de valer. */
+.cn-life                   { min-width: 0; }
+.cn-track                  { position: relative; height: 22px; background: var(--field);
+                             border: 1px solid var(--line-2); border-radius: var(--r-sm);
+                             overflow: hidden; }
+.cn-track .med             { position: absolute; left: 0; top: 0; bottom: 0;
+                             background: rgba(var(--accent-rgb), .28); border-right: 2px solid var(--accent); }
+.cn-track .avg             { position: absolute; top: 0; bottom: 0; width: 0;
+                             border-left: 1px dashed var(--accent-2); }
+.cn-lifelab                { display: flex; align-items: center; gap: var(--sp-3); margin-top: 5px;
+                             font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 500; color: var(--ink-soft); flex-wrap: wrap; }
+.cn-lifelab b              { color: var(--ink); font-weight: 600; }
+
+.cn-fcell                  { text-align: right; min-width: 0; }
+.cn-fcell .n               { font-family: var(--font-mono); font-size: var(--text-md);
+                             font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;
+                             white-space: nowrap; }
+.cn-fcell .s               { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 500; color: var(--ink-soft); margin-top: 3px;
+                             white-space: nowrap; }
+
+.cn-multwrap               { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+/* MÚLTIPLO — razão P/L ÷ custo. O `UI_REFERENCE §5` cobre R$, %, odd e saldo; a razão
+   não é nenhum dos quatro, então ela ESPELHA a gramática do `.money`: mono, 2 casas, o
+   `×` neutro e menor como o `R$`, e cor só abaixo de 1,00. Ver `UI_REFERENCE §5.6`. */
+.cn-mult                   { font-family: var(--font-mono); font-size: var(--text-lg);
+                             font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums;
+                             letter-spacing: -.02em; }
 .cn-mult.neg               { color: var(--neg); }
-.cn-mult__x                { color: var(--ink-soft); font-size: .76em; margin-left: 2px; }
+.cn-mult__x                { color: var(--ink-soft); font-size: .7em; font-weight: 500; margin-left: 2px; }
+/* O medidor tem MARCA DE PISO em 1,00×: sem ela o preenchimento seria decoração, porque
+   nada na barra diria onde a conta passa a se pagar. */
+.cn-gauge                  { position: relative; width: 100%; height: 4px; border-radius: 2px;
+                             background: var(--line); }
+.cn-gauge i                { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px;
+                             background: var(--pos); }
+.cn-gauge i.under          { background: var(--neg); }
+.cn-gauge .th              { position: absolute; top: -3px; bottom: -3px; width: 1px;
+                             background: var(--ink-soft); }
+
+/* ── Drill ───────────────────────────────────────────────────────────────────
+   `margin-top:-9px` anula o gap da lista e cola o drill na ficha que o abriu: solto, ele
+   lê como bloco independente e perde o vínculo com a casa. */
+.cn-drill                  { border: 1px solid var(--border-blue); border-top: none;
+                             border-radius: 0 0 var(--r-md) var(--r-md); background: var(--bg);
+                             margin-top: -9px; padding: var(--sp-3) var(--sp-4); overflow-x: auto; }
+.cn-tbl                    { width: 100%; font-size: var(--text-sm); border-collapse: collapse;
+                             font-variant-numeric: tabular-nums; min-width: 880px; }
+.cn-tbl th                 { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+                             letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+                             text-align: right; padding: 0 10px 9px; border-bottom: 1px solid var(--line);
+                             white-space: nowrap; cursor: pointer; user-select: none; }
+.cn-tbl th:hover           { color: var(--ink); }
+.cn-tbl th.l               { text-align: left; }
+.cn-tbl th:first-child     { padding-left: 2px; }
+.cn-tbl th .sort-icon      { display: inline-flex; align-items: center; justify-content: center;
+                             margin-left: 5px; width: 12px; height: 12px; opacity: .3; vertical-align: middle; }
+.cn-tbl th .sort-icon::after { content: ''; display: inline-block; width: 0; height: 0;
+                             border-left: 4px solid transparent; border-right: 4px solid transparent;
+                             border-bottom: 5px solid currentColor; }
+.cn-tbl th.sort-asc .sort-icon,
+.cn-tbl th.sort-desc .sort-icon { opacity: 1; color: var(--accent); }
+.cn-tbl th.sort-desc .sort-icon::after { border-top: 5px solid currentColor; border-bottom: none;
+                             margin-top: 2px; }
+.cn-tbl td                 { font-family: var(--font-mono); font-weight: 500; padding: 9px 10px;
+                             border-bottom: 1px solid var(--line-2); text-align: right;
+                             white-space: nowrap; color: var(--ink-soft); }
+.cn-tbl td.l               { text-align: left; }
+.cn-tbl td:first-child     { text-align: left; padding-left: 2px; font-family: var(--font-sans);
+                             color: var(--ink); font-weight: 600; }
+.cn-tbl tr:last-child td   { border-bottom: none; }
+/* As duas colunas-chave (P/L líquido e ROI líq.) sobem um degrau na escada: são a
+   resposta da linha, e o resto é contexto. */
+.cn-tbl td.k               { color: var(--ink); font-weight: 600; }
+.cn-est                    { display: inline-flex; align-items: center; gap: 7px;
+                             font-family: var(--font-mono); font-size: var(--text-xs);
+                             font-weight: 500; color: var(--ink-soft); }
+.cn-est::before            { content: ''; width: 6px; height: 6px; border-radius: var(--r-pill);
+                             background: var(--ink-soft); flex: none; }
+.cn-est.on                 { color: var(--pos); }
+.cn-est.on::before         { background: var(--pos); }
+.cn-drillfoot              { display: flex; gap: var(--sp-4); flex-wrap: wrap; margin-top: 11px;
+                             font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 500; color: var(--ink-soft); }
+.cn-drillfoot .w           { color: var(--warn); }
+
+/* ── Definições ──────────────────────────────────────────────────────────────
+   O glossário fica NA TELA porque quatro destas métricas não existem em nenhuma outra
+   aba: quem abre a tela pela primeira vez precisa delas à mão, não atrás de hover. */
+.cn-defs                   { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+                             gap: var(--sp-3); margin-top: var(--sp-5); padding-top: var(--sp-4);
+                             border-top: 1px solid var(--line-2); }
+.cn-def .dt                { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+                             letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft);
+                             margin-bottom: 5px; }
+.cn-def p                  { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.6;
+                             text-wrap: pretty; }
+
+/* ── Carve-outs do `.money` (UI_REFERENCE §5.5) ──────────────────────────────
+   O `.money` é uma COLUNA: `width:100%`, `justify-content:flex-end` e `min-width:10ch`
+   no valor. Isso alinha tabela como planilha e PARTE o parágrafo quando o mesmo
+   componente entra numa frase ou numa célula estreita. Aqui ele aparece nos dois casos.
+   A outra metade da regra: o `.money-sign` é `0.76em` RELATIVO, e num hospedeiro de
+   10-11px ele cai abaixo do piso de qualquer papel da Escada — daí o pino de corpo. */
+.cn-mrow .money,
+.cn-crow .money,
+.cn-foot .money,
+.cn-fcell .money,
+.cn-tbl .money             { width: auto; gap: 3px; display: inline-flex; }
+.cn-mrow .money-val,
+.cn-crow .money-val,
+.cn-foot .money-val,
+.cn-fcell .money-val,
+.cn-tbl .money-val         { min-width: 0; }
+.cn-mrow .money-sign,
+.cn-crow .money-sign,
+.cn-foot .money-sign,
+.cn-fcell .money-sign,
+.cn-tbl .money-sign        { min-width: 0; font-size: 10px; }
 
 @media (max-width: 1180px) {
-  .cn-tiles { grid-template-columns: minmax(0, 1fr); }
+  .cn-fgpop { margin-left: 0; }
 }
+
+/* Estado VAZIO da aba Contas: recorte sem linha, com a saída junto. Ele existe porque o
+   default `inativas` pode nascer vazio para quem tem todas as contas vivas, e tela em
+   branco sem razão lê como defeito. */
+.cn-empty                  { background: var(--surface-2); border: 1px solid var(--line);
+                             border-radius: var(--r-md); padding: var(--sp-6) var(--sp-5);
+                             text-align: center; }
+.cn-empty__t               { font-size: var(--text-md); font-weight: 700; color: var(--ink);
+                             letter-spacing: -.02em; }
+.cn-empty__t b             { color: var(--accent-2); }
+.cn-empty p                { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.6;
+                             max-width: 62ch; margin: 8px auto 0; text-wrap: pretty; }
+.cn-empty p b              { color: var(--ink); font-weight: 600; }
+.cn-empty__acoes           { display: flex; gap: var(--sp-2); justify-content: center;
+                             margin-top: var(--sp-4); flex-wrap: wrap; }
+.cn-empty__btn             { font-family: var(--font-mono); font-size: var(--text-xs);
+                             font-weight: 500; color: var(--ink-soft); background: var(--field);
+                             border: 1px solid var(--line); border-radius: var(--r-sm);
+                             padding: 7px 14px; cursor: pointer;
+                             transition: border-color .15s var(--ease), color .15s var(--ease); }
+.cn-empty__btn:hover       { border-color: var(--accent); color: var(--accent); }

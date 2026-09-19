@@ -59,7 +59,10 @@ const FONTE = [
   ...['normForn', '_buildContaVida', '_degrausPreco', '_precoVigenteEm', '_dataDoPreco',
       '_custoDaConta'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
   'let _cnPop="ambas";',
-  ...['_cnMediana', '_cnMedia', '_cnBase', '_cnPorCasa'].map(n => recorteFn(CONTAS, n, 'contas.js')),
+  ...['_cnMediana', '_cnMedia', '_cnTemPreco', '_cnBase', '_cnPorCasa', '_cnHistograma', '_cnGeral']
+      .map(n => recorteFn(CONTAS, n, 'contas.js')),
+  // CN_FAIXAS e a regua do histograma vivem fora de funcao: recortadas por nome.
+  (CONTAS.match(/^const CN_FAIXAS=.*$/m) || [''])[0],
   'globalThis.__api={ set pop(v){_cnPop=v;}, get pop(){return _cnPop;},',
   '  setDados(d,a){DADOS=d;DADOS_ABERTAS=a||[];},',
   '  setCadastro(c){_contasVida=c;_contaVida=null;},',
@@ -67,6 +70,7 @@ const FONTE = [
   '  setFiltro(f){FS={contas:Object.assign({df:"",dt:"",qd:0,qt:""},f||{})};},',
   '  setCasas(s){MSS["ca_contas"]=new Set(s||[]);},',
   '  base(){return _cnBase();}, porCasa(c){return _cnPorCasa(c);},',
+  '  geral(c,l){return _cnGeral(c,l);}, hist(d){return _cnHistograma(d);},',
   '  mediana(x){return _cnMediana(x);}, media(x){return _cnMedia(x);} };',
 ].join(LF);
 
@@ -199,6 +203,47 @@ api.pop = 'ambas';
 const dez = api.porCasa(api.base().contas);
 dez.forEach(c => ok(Number.isFinite(c.roi), 'ROI de ' + c.casa + ' tem de ser finito'));
 api.setFiltro({ df: '2026-03-01', dt: '2026-03-31' });
+
+console.log('— 10. ROI LÍQUIDO sai do denominador ELEGÍVEL, e não do turnover inteiro');
+api.pop = 'ambas';
+api.setFiltro({ df: '2026-03-01', dt: '2026-03-31' });
+const pc = api.porCasa(api.base().contas);
+const alfaL = pc.find(c => c.casa === 'Alfa');
+// Alfa: 3 contas com preco (500 cada = 1500), turnover 350, P/L 35.
+ok(Math.abs(alfaL.roiLiq - ((35 - 1500) / 350 * 100)) < 1e-9,
+   'ROI líquido da Alfa = (P/L − custo) ÷ turnover elegível');
+const betaL = pc.find(c => c.casa === 'Beta');
+// Beta: Propria (300/90, elegivel) + SemPreco (300/60, NAO elegivel). Sem custo lancado,
+// o liquido e o P/L da propria e o denominador e SO o turnover dela.
+eq(betaL.turnEleg, 300, 'turnover elegível da Beta exclui a conta sem preço');
+eq(betaL.plEleg, 90, 'P/L elegível da Beta exclui a conta sem preço');
+ok(Math.abs(betaL.roiLiq - 30) < 1e-9, 'ROI líquido da Beta = 90 ÷ 300');
+ok(betaL.turnEleg !== betaL.turn, 'o caso precisa ter conta NÃO elegível, senão não exerce a regra');
+
+console.log('— 11. Custo por dia de vida usa a SOMA das durações, não a mediana');
+// Alfa: Longeva 157d + Media 31d + Curta 6d = 194 dias, custo 1500.
+eq(alfaL.somaDur, 194, 'soma das durações da Alfa');
+ok(Math.abs(alfaL.custoDia - (1500 / 194)) < 1e-9, 'custo/dia = custo ÷ SOMA das durações');
+ok(Math.abs(alfaL.custoDia - (1500 / alfaL.durMed)) > 1, 'custo/dia NÃO pode usar a mediana');
+eq(betaL.custoDia, null, 'casa sem custo lançado não tem custo por dia — nem zero');
+
+console.log('— 12. Histograma: 5 faixas, e a soma delas é o total');
+const h = api.hist([1, 3, 7, 8, 14, 20, 45, 90, 200]);
+eq(h.length, 5, 'são 5 faixas');
+eq(h.reduce((a, x) => a + x.n, 0), 9, 'a soma das faixas é o total de contas');
+eq(h[0].n, 3, 'faixa 0-7 d pega 1, 3 e 7 (limites INCLUSIVOS nas duas pontas)');
+eq(h[1].n, 2, 'faixa 8-14 d pega 8 e 14');
+eq(h[4].n, 2, 'faixa 60 d + pega 90 e 200');
+eq(h[0].larg, 100, 'a maior faixa vale 100% da largura');
+eq(api.hist([]).reduce((a, x) => a + x.n, 0), 0, 'histograma de lista vazia não quebra');
+
+console.log('— 13. O agregado dos painéis sai das MESMAS contas que as fichas');
+const B13 = api.base();
+const g = api.geral(B13.contas, api.porCasa(B13.contas));
+eq(g.n, B13.contas.length, 'a contagem do painel é a mesma da lista');
+eq(g.nProprias + g.nComPreco + g.nSemPreco, g.n, 'os três estados de custo particionam a base');
+eq(g.plEleg, B13.contas.filter(c => c.propria || c.custo > 0).reduce((a, c) => a + c.pl, 0),
+   'P/L elegível exclui a conta sem preço');
 
 if (falhas) { console.error(falhas + ' falha(s)'); process.exit(1); }
 console.log('ok: contas_vida');

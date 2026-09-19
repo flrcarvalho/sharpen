@@ -1,18 +1,27 @@
 /**
- * Mede a aba Contas (s365) renderizada DE VERDADE, contra o servidor_demo.
+ * Mede a aba Contas v4 (s372) renderizada DE VERDADE, contra o servidor_demo.
+ *
+ *   1) python scripts/demo/servidor_demo.py 8646
+ *   2) node scripts/demo/medir_aba_contas.mjs [porta] [pasta de saida]
  *
  * Existe porque `node --check` e' falso verde para tudo que vive dentro de template
- * literal: uma crase perdida no markup que entrou no `buildHTML` derruba a pagina
- * inteira e passa no check (o caso da s296). Medir a tela e' o unico gate que pega.
+ * literal: uma crase perdida no markup derruba a pagina inteira e passa no check (o caso
+ * da s296). Medir a tela e' o unico gate que pega.
  *
- * Confere, alem do print: zero erro de JS, a tabela pintou, o segmentado de Populacao
- * TROCA os numeros (se nao trocar, o filtro nao funciona), o tooltip da mediana existe
- * e o `stopPropagation` dele nao reordena a tabela, e transbordo horizontal zero.
+ * O que ele confere, alem do print:
+ *   · zero erro de JS e transbordo horizontal zero em cinco larguras;
+ *   · os TRES paineis pintaram, com histograma de 5 faixas e barra de cobertura;
+ *   · o segmentado de Populacao TROCA os numeros (default = Inativas);
+ *   · a ficha abre o drill, o drill lista TODAS as contas da casa, e ordenar a
+ *     sub-tabela NAO fecha o painel;
+ *   · a barra de duracao respeita a regua fixa de 30 dias (mediana <= media <= 100%);
+ *   · o "Limpar tudo" volta a Populacao ao default (era o que a s371 registrou no
+ *     LIMPAR_EXTRA e que a reescrita da v4 quase levou junto).
  */
 import fs from "node:fs";
 import puppeteer from "puppeteer-core";
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const PORTA = process.argv[2] || "8642";
+const PORTA = process.argv[2] || "8646";
 const SAIDA = process.argv[3] || "capturas-contas";
 const BASE = `http://127.0.0.1:${PORTA}`;
 const espera = ms => new Promise(r => setTimeout(r, ms));
@@ -20,161 +29,160 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
 fs.mkdirSync(SAIDA, { recursive: true });
 const erros = [];
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new",
-  defaultViewport: { width: 1600, height: 1400, deviceScaleFactor: 1 } });
+  defaultViewport: { width: 1680, height: 1400, deviceScaleFactor: 1 } });
 const page = await browser.newPage();
 page.on("pageerror", e => { erros.push("pageerror: " + e.message); });
 page.on("console", m => { if (m.type() === "error") erros.push("console: " + m.text()); });
 
 await page.goto(`${BASE}/app#dash/contas`, { waitUntil: "networkidle2" });
-await espera(4000);
+await espera(5000);
 
 const fr = page.frames().find(f => f.url().includes("/dashboard"));
 if (!fr) { console.log("FALHOU: iframe do dashboard nao encontrado"); await browser.close(); process.exit(1); }
 
 const leia = () => fr.evaluate(() => {
   const q = s => document.querySelector(s);
-  const linhas = [...document.querySelectorAll("#tblContas tbody tr.cn-row")].map(tr =>
-    [...tr.querySelectorAll("td")].map(td => td.innerText.trim().replace(/\s+/g, " ")));
+  const txt = s => (q(s) ? q(s).innerText.replace(/\s+/g, " ").trim() : null);
+  const paineis = [...document.querySelectorAll(".cn-qp")].map(p => ({
+    eyebrow: p.querySelector(".t") ? p.querySelector(".t").innerText.trim() : "",
+    figura: p.querySelector(".cn-big .n") ? p.querySelector(".cn-big .n").innerText.replace(/\s+/g, " ").trim() : "",
+  }));
   return {
-    pagina: !!q("#page-contas.active"),
-    titulo: q("#contasContent .card-title") ? q("#contasContent .card-title").innerText : null,
-    kpis: [...document.querySelectorAll("#contasContent .kpi")].map(k =>
-      (k.querySelector(".kpi-label")?.innerText || "") + " = " +
-      (k.querySelector(".kpi-val")?.innerText || "") + " (" +
-      (k.querySelector(".kpi-sub")?.innerText || "") + ")"),
-    nLinhas: linhas.length,
-    linhas: linhas.slice(0, 4),
-    escopo: q(".cn-escopo") ? q(".cn-escopo").innerText : null,
-    temRegua: !!q("#cnRegua"),
-    temTip: !!q("#tblContas .metric-info"),
-    temCusto: !!q("#tblContasCusto"),
-    mult: [...document.querySelectorAll(".cn-mult")].map(m => m.innerText),
-    segAtivo: q("#cnSeg button.active") ? q("#cnSeg button.active").innerText : null,
+    regua: !!q("#cnRegua"),
+    escopo: txt(".cn-regua__esc"),
+    paineis,
+    nFaixas: document.querySelectorAll(".cn-drow").length,
+    temCobertura: !!q(".cn-covbar"),
+    nCobertura: document.querySelectorAll(".cn-covbar i").length,
+    nRanking: document.querySelectorAll(".cn-mrow").length,
+    nFichas: document.querySelectorAll(".cn-ficha").length,
+    nDefs: document.querySelectorAll(".cn-def").length,
+    segAtivo: q("#cnSeg button.active") ? q("#cnSeg button.active").innerText.trim() : null,
+    temLimpar: !!q("#contasFiltros [onclick*='limparFiltrosPagina']"),
+    primeiraFicha: q(".cn-ficha") ? q(".cn-ficha").innerText.replace(/\s+/g, " ").trim().slice(0, 120) : null,
+    // Estado VAZIO: recorte sem linha tem de EXPLICAR e oferecer a saída, nunca ficar em
+    // branco. No dado do demo todas as contas são ativas, então a população default
+    // (Inativas) nasce vazia — é o caso real que este campo cobre.
+    vazio: q(".cn-empty") ? q(".cn-empty").innerText.replace(/\s+/g, " ").trim().slice(0, 150) : null,
+    vazioAcoes: document.querySelectorAll(".cn-empty__btn").length,
     overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
   };
 });
 
-const pop = async k => { await fr.evaluate(kk => window.cnPop(kk), k); await espera(600); };
+const pop = async k => { await fr.evaluate(kk => window.cnPop(kk), k); await espera(700); };
 
-console.log("=".repeat(76));
-const ambas = await leia();
-console.log("POPULACAO: Ambas (padrao)");
-console.log("  pagina ativa:", ambas.pagina, "| card:", ambas.titulo, "| regua:", ambas.temRegua,
-            "| tooltip:", ambas.temTip, "| card custo:", ambas.temCusto);
-console.log("  escopo:", ambas.escopo);
-ambas.kpis.forEach(k => console.log("   ", k));
-console.log("  linhas:", ambas.nLinhas);
-ambas.linhas.forEach(l => console.log("   ", l.join(" | ")));
-console.log("  multiplos:", ambas.mult.join("  "));
-console.log("  overflow-x:", ambas.overflowX);
-await page.screenshot({ path: `${SAIDA}/contas-ambas.png`, fullPage: true });
+console.log("=".repeat(78));
+const ini = await leia();
+console.log("ESTRUTURA v4");
+console.log("  regua:", ini.regua, "| escopo:", ini.escopo);
+console.log("  paineis:", ini.paineis.length);
+ini.paineis.forEach(p => console.log(`     ${p.eyebrow.padEnd(24)} -> ${p.figura}`));
+console.log("  histograma:", ini.nFaixas, "faixas | cobertura:", ini.temCobertura,
+            "(" + ini.nCobertura + " segmentos) | ranking:", ini.nRanking, "casas");
+console.log("  fichas:", ini.nFichas, "| definicoes:", ini.nDefs, "| Limpar tudo:", ini.temLimpar);
+console.log("  segmentado no boot:", ini.segAtivo, "(esperado: Inativas)");
+console.log("  1a ficha:", ini.primeiraFicha);
+console.log("  estado vazio:", ini.vazio, "| atalhos:", ini.vazioAcoes);
+await page.screenshot({ path: `${SAIDA}/v4-inativas.png`, fullPage: true });
 
-await pop("inativas");
-const ina = await leia();
-console.log("-".repeat(76));
-console.log("POPULACAO: Inativas  (segmentado =", ina.segAtivo + ")");
-console.log("  escopo:", ina.escopo);
-ina.kpis.forEach(k => console.log("   ", k));
-ina.linhas.forEach(l => console.log("   ", l.join(" | ")));
-await page.screenshot({ path: `${SAIDA}/contas-inativas.png`, fullPage: true });
+for (const k of ["ativas", "ambas"]) {
+  await pop(k);
+  const r = await leia();
+  console.log("-".repeat(78));
+  console.log(`POPULACAO ${k} (seg = ${r.segAtivo})`);
+  console.log("  escopo:", r.escopo);
+  r.paineis.forEach(p => console.log(`     ${p.eyebrow.padEnd(24)} -> ${p.figura}`));
+  await page.screenshot({ path: `${SAIDA}/v4-${k}.png`, fullPage: true });
+}
 
-await pop("ativas");
-const ati = await leia();
-console.log("-".repeat(76));
-console.log("POPULACAO: Ativas  (segmentado =", ati.segAtivo + ")");
-console.log("  escopo:", ati.escopo);
-ati.kpis.forEach(k => console.log("   ", k));
-ati.linhas.forEach(l => console.log("   ", l.join(" | ")));
-await page.screenshot({ path: `${SAIDA}/contas-ativas.png`, fullPage: true });
-
-// Drill: abre a 1a casa e confere que a sub-tabela aparece
+// A barra e o drill precisam de uma populacao COM contas. No dado do demo todas as
+// contas sao ativas, entao o default (Inativas) nasce vazio e nao serve de gate.
 await pop("ambas");
-const casa1 = await fr.evaluate(() => {
-  const tr = document.querySelector("#tblContas tbody tr.cn-row");
-  const nome = tr ? tr.querySelector("td").innerText.trim() : "";
-  if (tr) tr.click();
-  return nome;
+const barras = await fr.evaluate(() => [...document.querySelectorAll(".cn-ficha")].slice(0, 8).map(f => {
+  const med = f.querySelector(".cn-track .med"), avg = f.querySelector(".cn-track .avg");
+  const nome = f.querySelector(".cn-fname") ? f.querySelector(".cn-fname").innerText.split("\n")[0].trim() : "";
+  return { nome, med: med ? parseFloat(med.style.width) : -1, avg: avg ? parseFloat(avg.style.left) : -1 };
+}));
+console.log("-".repeat(78));
+console.log("BARRA DE DURACAO (regua fixa 0-30 d; mediana <= media, teto 100%)");
+let ruimBarra = 0;
+barras.forEach(b => {
+  const ok = b.med <= 100 && b.avg <= 100 && b.med <= b.avg + 0.05;
+  if (!ok) ruimBarra++;
+  console.log(`   ${b.nome.padEnd(22)} med ${String(b.med).padStart(6)}%  avg ${String(b.avg).padStart(6)}%  ${ok ? "ok" : "FORA DA REGUA"}`);
 });
-await espera(600);
-const drill = await fr.evaluate(() => {
-  const d = document.querySelector(".cn-drill-box");
-  return { aberto: !!d, nContas: d ? d.querySelectorAll(":scope > table > tbody > tr").length : 0,
-           cabecalho: d ? [...d.querySelectorAll("th")].map(t => t.innerText.trim()).join(" | ") : "" };
-});
-console.log("-".repeat(76));
-console.log("DRILL na 1a casa:", casa1, "| aberto:", drill.aberto, "| contas:", drill.nContas);
-console.log("  colunas:", drill.cabecalho);
-await page.screenshot({ path: `${SAIDA}/contas-drill.png`, fullPage: true });
 
-// O "i" da mediana nao pode reordenar a tabela (stopPropagation)
-const antes = await fr.evaluate(() => document.querySelector("#tblContas tbody tr.cn-row td").innerText.trim());
-await fr.evaluate(() => { const b = document.querySelector("#tblContas .metric-info"); if (b) b.click(); });
-await espera(400);
-const depois = await fr.evaluate(() => document.querySelector("#tblContas tbody tr.cn-row td").innerText.trim());
-console.log("-".repeat(76));
-console.log("Clique no 'i' da mediana: 1a linha antes =", antes, "| depois =", depois,
-            "|", antes === depois ? "OK (nao reordenou)" : "FALHOU (reordenou)");
-
-
-// Drill: confere que lista TODAS as contas da casa (a contagem do cabecalho) e que
-// ordenar a sub-tabela nao fecha o painel.
-const drillFull = await fr.evaluate(() => {
-  const tr = [...document.querySelectorAll("#tblContas tbody tr.cn-row")][1];
-  const cab = tr ? [...tr.querySelectorAll("td")].map(td => td.innerText.trim()) : [];
-  if (tr) tr.click();
-  return { casa: cab[0] || "", contasNoCabecalho: cab[1] || "", ativasNoCabecalho: cab[2] || "" };
-});
-await espera(700);
-const drill2 = await fr.evaluate(() => {
-  const d = document.querySelector(".cn-drill-box");
-  if (!d) return { aberto: false };
-  const linhas = [...d.querySelectorAll(":scope > table > tbody > tr")];
+// Drill
+const drill = await fr.evaluate(async () => {
+  const f = [...document.querySelectorAll(".cn-ficha")][0];
+  if (!f) return { casa: "(sem ficha nesta populacao)", sub: "", aberto: false, nLinhas: 0, colunas: "", rodape: "" };
+  const nome = f.querySelector(".cn-fname").innerText.split("\n")[0].trim();
+  const sub = f.querySelector(".cn-fname .sub").innerText.trim();
+  f.click();
+  await new Promise(r => setTimeout(r, 500));
+  const d = document.querySelector(".cn-drill");
   return {
-    aberto: true,
-    nLinhas: linhas.length,
-    ativas: linhas.filter(tr => tr.innerText.includes("ativa") && !tr.innerText.includes("encerrada")).length,
-    colunas: [...d.querySelectorAll("th")].map(t => t.innerText.trim()).join(" | "),
-    rodape: d.querySelector(".cn-drill-foot") ? d.querySelector(".cn-drill-foot").innerText.replace(/\s+/g, " ") : "",
+    casa: nome, sub,
+    aberto: !!d,
+    nLinhas: d ? d.querySelectorAll(":scope > table > tbody > tr").length : 0,
+    colunas: d ? [...d.querySelectorAll("th")].map(t => t.innerText.trim()).join(" | ") : "",
+    rodape: d ? d.querySelector(".cn-drillfoot").innerText.replace(/\s+/g, " ").trim() : "",
   };
 });
-console.log("-".repeat(76));
-console.log("DRILL completo em", drillFull.casa, "| cabecalho diz", drillFull.contasNoCabecalho,
-            "contas /", drillFull.ativasNoCabecalho, "ativas");
-console.log("  linhas na sub-tabela:", drill2.nLinhas, "| com estado ATIVA:", drill2.ativas);
-console.log("  colunas:", drill2.colunas);
-console.log("  rodape:", drill2.rodape);
-// ordenar a sub-tabela NAO pode fechar o drill
-await fr.evaluate(() => { const th = [...document.querySelectorAll(".cn-drill-box th")].find(t => t.innerText.includes("Custo")); if (th) th.click(); });
-await espera(600);
-const aposSort = await fr.evaluate(() => !!document.querySelector(".cn-drill-box"));
-console.log("  apos ordenar por Custo, o drill continua aberto:", aposSort);
+console.log("-".repeat(78));
+console.log("DRILL em", drill.casa, "|", drill.sub);
+console.log("  aberto:", drill.aberto, "| linhas:", drill.nLinhas);
+console.log("  colunas:", drill.colunas);
+console.log("  rodape:", drill.rodape);
 
+const aposSort = await fr.evaluate(async () => {
+  const th = [...document.querySelectorAll(".cn-drill th")].find(t => t.innerText.includes("Custo"));
+  if (th) th.click();
+  await new Promise(r => setTimeout(r, 500));
+  return !!document.querySelector(".cn-drill");
+});
+console.log("  ordenar a sub-tabela mantem o drill aberto:", aposSort);
+await page.screenshot({ path: `${SAIDA}/v4-drill.png`, fullPage: true });
 
-// ── Transbordo por largura ──────────────────────────────────────────────────
-// A sub-tabela do drill tem 13 colunas e vive dentro de um `<td>`: sem `max-width:0`
-// na celula ela ALARGA a tabela externa e a PAGINA inteira transborda (medido: +332px
-// em 1366). O modo de falha e invisivel no codigo e obvio na regua.
-console.log("-".repeat(76));
+// Limpar tudo volta a Populacao ao default
+const limpou = await fr.evaluate(async () => {
+  window.cnPop("ambas");
+  await new Promise(r => setTimeout(r, 300));
+  const antes = document.querySelector("#cnSeg button.active").innerText.trim();
+  const b = document.querySelector("#contasFiltros [onclick*='limparFiltrosPagina']");
+  if (b) b.click();
+  await new Promise(r => setTimeout(r, 700));
+  return { antes, depois: document.querySelector("#cnSeg button.active").innerText.trim() };
+});
+console.log("-".repeat(78));
+console.log("LIMPAR TUDO: Populacao", limpou.antes, "->", limpou.depois,
+            limpou.depois === "Inativas" ? "ok" : "FALHOU (nao voltou ao default)");
+
+// Transbordo por largura
+console.log("-".repeat(78));
 console.log("TRANSBORDO por largura (pagina tem de ser +0 em todas)");
 for (const w of [1366, 1440, 1600, 1920, 2560]) {
   const pg = await browser.newPage();
-  await pg.setViewport({ width: w, height: 1100 });
+  await pg.setViewport({ width: w, height: 1200 });
   await pg.goto(`${BASE}/app#dash/contas`, { waitUntil: "networkidle2" });
-  await espera(4000);
+  await espera(4500);
   const f2 = pg.frames().find(f => f.url().includes("/dashboard"));
-  const a = await f2.evaluate(() => document.getElementById("tblContas")
+  await f2.evaluate(() => window.cnPop("ambas"));
+  await espera(800);
+  const a = await f2.evaluate(() => document.querySelector(".cn-ficha")
     ? document.documentElement.scrollWidth - document.documentElement.clientWidth : -1);
-  await f2.evaluate(() => { const tr = document.querySelector("#tblContas tbody tr.cn-row"); if (tr) tr.click(); });
+  await f2.evaluate(() => { const f = document.querySelector(".cn-ficha"); if (f) f.click(); });
   await espera(600);
   const b = await f2.evaluate(() => {
-    const de = document.documentElement, box = document.querySelector(".cn-drill-box");
-    return { pagina: de.scrollWidth - de.clientWidth, rola: box ? box.scrollWidth - box.clientWidth : -1 };
+    const de = document.documentElement, d = document.querySelector(".cn-drill");
+    return { pagina: de.scrollWidth - de.clientWidth, rola: d ? d.scrollWidth - d.clientWidth : -1 };
   });
-  console.log(`  ${String(w).padStart(4)}px  fechado +${a}  |  drill aberto +${b.pagina} (a sub-tabela rola ${b.rola})  ${a === 0 && b.pagina === 0 ? "OK" : "TRANSBORDA"}`);
+  console.log(`  ${String(w).padStart(4)}px  fechado +${a}  |  drill +${b.pagina} (rola ${b.rola})  ${a === 0 && b.pagina === 0 ? "OK" : "TRANSBORDA"}`);
   await pg.close();
 }
 
-console.log("=".repeat(76));
+console.log("=".repeat(78));
+if (ruimBarra) console.log(`ATENCAO: ${ruimBarra} barra(s) fora da regua.`);
 if (erros.length) { console.log("ERROS DE JS:"); erros.forEach(e => console.log("  " + e)); }
 else console.log("ZERO erro de JS.");
 console.log("prints em", SAIDA);

@@ -60,11 +60,11 @@ def test_o_custo_total_sai_da_funcao_canonica_e_nao_de_uma_soma_propria():
     enquanto eles concordam, que é justamente quando o defeito entra.
     """
     src = CONTAS.read_text(encoding="utf-8")
-    m = re.search(r"^function _cnCustoCard\(.*?^\}", src, re.S | re.M)
-    assert m, "não achei a função _cnCustoCard no contas.js"
+    m = re.search(r"^function _cnCustoTotal\(.*?^\}", src, re.S | re.M)
+    assert m, "não achei a função _cnCustoTotal no contas.js"
     corpo = m.group(0)
     assert "_custoNaJanela(" in corpo, (
-        "o custo total do card tem de sair do `_custoNaJanela` — a mesma função que "
+        "o custo total tem de sair do `_custoNaJanela` — a mesma função que "
         "`calcCostFiltered` usa"
     )
 
@@ -172,6 +172,30 @@ def test_as_duas_tabelas_ordenam_por_estados_separados():
     )
 
 
+def test_toda_classe_cn_usada_no_js_existe_no_css():
+    """Classe escrita com DOIS nomes não quebra nada — ela só não tem estilo.
+
+    Aconteceu na v4: o botão do estado vazio saiu como `cn-vazio__btn` no JS e
+    `cn-empty__btn` no CSS. O `node --check` passa, o `check-tokens` passa, a suíte
+    passa, e o botão aparece na tela com a cara nativa do navegador, no meio de uma
+    superfície inteira estilizada. Só quem ABRE a tela vê — e foi o medidor headless,
+    procurando a classe, que acusou.
+
+    É gate de FORMA e custa um `grep`: o de comportamento nunca vai olhar para CSS.
+    """
+    js = CONTAS.read_text(encoding="utf-8")
+    css = (RAIZ / "app" / "static" / "dash" / "assets" / "css" / "components.css").read_text(
+        encoding="utf-8")
+    nomes = set()
+    for grupo in re.findall(r'class="([^"]*\bcn-[^"]*)"', js):
+        for n in grupo.split():
+            if n.startswith("cn-") and "${" not in n:
+                nomes.add(n)
+    assert len(nomes) > 30, "o recorte das classes falhou — esperava dezenas, achou poucas"
+    orfas = sorted(n for n in nomes if ("." + n) not in css)
+    assert not orfas, "classe usada no JS e sem regra no CSS: " + ", ".join(orfas)
+
+
 def test_nenhum_travessao_no_texto_que_vai_para_a_tela():
     """Regra de escrita do Feca: travessão em frase é assinatura de IA, e não se usa.
 
@@ -203,4 +227,15 @@ def test_a_aba_nao_abrevia_dinheiro_nem_inventa_formatador():
     assert "'R$ '+" not in src and '"R$ "+' not in src, (
         "R$ montado como string crua fora do `.money` — ver UI_REFERENCE §5.4"
     )
-    assert ".toFixed(" not in src, "R$ nunca usa .toFixed (UI_REFERENCE §5.3)"
+    # `.toFixed` é proibido em DINHEIRO (§5.3), não em largura de CSS: a v4 tem barras
+    # cuja largura é `width:${pct.toFixed(1)}%`, que não passa nem perto do `.money`.
+    # O gate olha a LINHA: se ela tem `.toFixed` e não é uma largura/posição em `%`,
+    # reprova. Um gate cego ao contexto reprovaria a régua de duração inteira.
+    ruins = []
+    for n, linha in enumerate(src.splitlines(), 1):
+        if ".toFixed(" not in linha:
+            continue
+        if "%" in linha and ("width:" in linha or "left:" in linha):
+            continue
+        ruins.append(f"L{n}: {linha.strip()[:90]}")
+    assert not ruins, "`.toFixed` fora de largura de CSS (UI_REFERENCE §5.3): " + " | ".join(ruins)
