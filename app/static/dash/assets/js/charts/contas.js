@@ -210,12 +210,24 @@ function _cnPorCasa(contas){
 // Ele existe porque a média sozinha não descreve nenhuma conta: 41% das contas do Feca
 // morrem em 7 dias ou menos, e são as poucas acima de 60 dias que puxam a média para o
 // dobro da mediana. A distribuição mostra isso de uma vez.
-const CN_FAIXAS=[['0-7 d',0,7],['8-14 d',8,14],['15-30 d',15,30],['31-60 d',31,60],['60 d +',61,Infinity]];
+// `dias` por extenso, e não `d`: a abreviação economiza 3 caracteres numa coluna que
+// tem espaço de sobra e cobra do leitor a tradução (pedido do Feca). A última faixa é
+// `mais de 60 dias` em vez de `60 d +`, porque `+` depois do número lê como soma.
+const CN_FAIXAS=[
+  ['0 a 7 dias',0,7],
+  ['8 a 14 dias',8,14],
+  ['15 a 30 dias',15,30],
+  ['31 a 60 dias',31,60],
+  ['mais de 60 dias',61,Infinity],
+];
 function _cnHistograma(durs){
   const total=durs.length||1;
-  const linhas=CN_FAIXAS.map(([rot,a,b])=>{
+  const linhas=CN_FAIXAS.map(([rot,a,b],i)=>{
     const n=durs.filter(d=>d>=a&&d<=b).length;
-    return {rot:rot, n:n, pct:n/total*100};
+    // `primeira` marca a faixa de alerta (0 a 7 dias) por POSIÇÃO, não comparando o
+    // rótulo: texto é copy e muda; índice é estrutura. Foi um `l.rot==='0-7 d'` que
+    // quase deixou a faixa sem o âmbar quando os rótulos foram reescritos.
+    return {rot:rot, n:n, pct:n/total*100, primeira:i===0};
   });
   const topo=Math.max(...linhas.map(l=>l.n),1);
   linhas.forEach(l=>{l.larg=l.n/topo*100;});
@@ -444,31 +456,57 @@ function _cnPaineis(B,G){
   // painéis vizinhos mostrarem custos diferentes se alguém mudasse um dos argumentos.
   const custo=_cnCustoTotal(B);
   const turnEleg=B.contas.filter(_cnTemPreco).reduce((a,c)=>a+c.turn,0);
-  const painel=(eyebrow,ctx,pergunta,figura,unidade,lado,corpo,rodape)=>
+  // ── Anatomia do painel ───────────────────────────────────────────────────
+  // O TÍTULO segue o `.kpi-label` + `.kpi-pipe` do produto (mono 11/700, `.08em`, com a
+  // barra azul de 4×13px). O handoff pedia um eyebrow em `--accent-2` sem barra, mas
+  // "título de painel" já tem forma no Sharpen e duas formas para o mesmo papel é o item
+  // 8 do checklist. O azul fica na barra, que é onde ele é sinal.
+  //
+  // A FIGURA virou um PAR ROTULADO, e essa é a correção que o Feca pediu: antes saía
+  // `12 dias · mediana  média 34 dias`, com o rótulo DEPOIS do valor e colado no vizinho,
+  // então os dois números se fundiam numa frase só e nada dizia qual era qual. Agora cada
+  // número tem o rótulo EMBAIXO dele, na mesma coluna, e um divisor separa os dois.
+  const painel=(eyebrow,ctx,pergunta,figs,corpo,rodape)=>
     `<div class="cn-qp">`
-    +`<div class="cn-qh"><span class="t">${eyebrow}</span><span class="s">${ctx}</span></div>`
+    +`<div class="cn-qh"><span class="kpi-pipe"></span><span class="t">${eyebrow}</span>`
+    +`<span class="s">${ctx}</span></div>`
     +`<div class="cn-qq">${pergunta}</div>`
-    +`<div class="cn-big"><span class="n">${figura}<span class="u">${unidade}</span></span>`
-    +`<span class="side">${lado}</span></div>`
+    +`<div class="cn-figs">`
+    +figs.map((f,i)=>
+      `<div class="cn-fig ${f.fraca?'fraca':''}">`
+      +`<span class="v">${f.valor}</span>`
+      +`<span class="lb">${f.rotulo}</span></div>`
+     ).join('<span class="cn-figsep"></span>')
+    +`</div>`
     +corpo
     +`<div class="cn-foot">${rodape}</div></div>`;
 
   // ── 1 · LONGEVIDADE ──
   const hist=G.hist.map(l=>
     `<div class="cn-drow"><span class="lb">${l.rot}</span>`
-    +`<span class="cn-dbar"><i class="${l.rot==='0-7 d'?'hot':''}" style="width:${l.larg.toFixed(1)}%"></i></span>`
+    +`<span class="cn-dbar"><i class="${l.primeira?'hot':''}" style="width:${l.larg.toFixed(1)}%"></i></span>`
     +`<span class="rv">${l.n} · ${Math.round(l.pct)}%</span></div>`
   ).join('');
-  const dif=Math.round(G.durMedia-G.durMed);
+  const med=Math.round(G.durMed), media=Math.round(G.durMedia);
+  // ⚠️ O rodapé diz O QUE FAZER com os dois números, não o que eles SÃO. A redação
+  // anterior ("Mediana é a conta do meio… Média incorpora as exceções e mede o prêmio da
+  // cauda") era uma aula de estatística que não respondia nem *por que estou vendo isso*
+  // — o Feca leu e disse que nem ele entendia. A régua que ficou: cada frase cita um
+  // número DESTA base e termina numa consequência para quem lê.
+  const pctCurto=G.hist.length?Math.round(G.hist[0].pct):0;
   const p1=painel('Longevidade',
     `${G.n.toLocaleString('pt-BR')} ${_cnPop==='ativas'?'ativas':_cnPop==='inativas'?'inativas':'contas'}`,
     'Quanto tempo uma conta permanece operacional?',
-    Math.round(G.durMed), 'dias · mediana',
-    `média <b>${Math.round(G.durMedia)} dias</b>`,
+    [{valor:med+' dias',rotulo:'Mediana'},
+     {valor:media+' dias',rotulo:'Média',fraca:true}],
     `<div class="cn-dist">${hist}</div>`,
-    `<b>Mediana</b> é a conta do meio, ou seja, o que esperar da próxima compra. `
-    +`<b>Média</b> incorpora as exceções e mede o prêmio da cauda.`
-    +(G.longevas&&dif>0?` As ${G.longevas} contas acima de 60 dias respondem pelos ${dif} dias de distância entre as duas.`:''));
+    `<b>Metade das suas contas durou menos de ${med} dias</b>`
+    +(pctCurto?`, e ${pctCurto}% não passou da primeira semana.`:'.')
+    +(media>med&&G.longevas
+      ? ` A média é maior (${media}) porque ${G.longevas} conta${G.longevas===1?'':'s'} `
+        +`passou de 60 dias e puxa${G.longevas===1?'':'m'} o número para cima. `
+        +`<b>Para estimar a próxima compra, use ${med}, não ${media}.</b>`
+      : ''));
 
   // ── 2 · VOLUME E MARGEM ──
   const rank=G.ranking.map(c=>
@@ -478,11 +516,12 @@ function _cnPaineis(B,G){
   const roiLiq=turnEleg>0?((G.plEleg-custo)/turnEleg*100):0;
   const p2=painel('Volume e margem', B.temPeriodo?'no período':'histórico',
     'Quanto cada conta movimenta e que margem sobra?',
-    fmtPct(roiLiq,2).replace('%',''), '% · ROI líquido',
-    `bruto <b>${fmtPct(G.roiBruto,2)}</b>`,
+    [{valor:fmtPct(roiLiq,2),rotulo:'ROI líquido'},
+     {valor:fmtPct(G.roiBruto,2),rotulo:'ROI bruto',fraca:true}],
     `<div class="cn-mini">${rank}</div>`,
-    `Turnover por conta e ROI líquido, por casa. Média de ${fmtR(G.turnConta)} movimentados `
-    +`por conta em ${Math.round(G.diasMedia)} dias ativos.`);
+    `Cada conta movimentou ${fmtR(G.turnConta)} em ${Math.round(G.diasMedia)} dias ativos, `
+    +`em média. <b>O líquido é o que sobra depois do custo da conta</b>; a diferença para o `
+    +`bruto é o quanto a aquisição come da margem.`);
 
   // ── 3 · RETORNO SOBRE AQUISIÇÃO ──
   const nEleg=G.nComPreco+G.nProprias;
@@ -516,13 +555,18 @@ function _cnPaineis(B,G){
     ? ` As <span class="cn-warnc">${G.nSemPreco} sem preço</span> ficam fora do cálculo, `
       +`porque tratá-las como zero inflaria o retorno.`
     : ' Toda conta do recorte tem preço lançado.';
+  const multTxt=mult===null?'·'
+    :mult.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
   const p3=painel('Retorno sobre aquisição', `${nEleg} de ${G.n} contas`,
     'Quanto o custo das contas devolveu?',
-    mult===null?'·':mult.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),
-    '× · múltiplo', 'piso <b>1,00×</b>',
+    [{valor:multTxt,rotulo:'Múltiplo'},
+     {valor:'1,00×',rotulo:'Piso',fraca:true}],
     `<div class="cn-comp">${comp}</div>${cov}`,
-    `O <b>ROI líquido</b> mede margem sobre o valor apostado; o <b>múltiplo</b> mede retorno sobre `
-    +`o valor pago na aquisição.${notaProp}${notaSem}`);
+    (mult!==null
+      ? `<b>Cada R$ 1 gasto em conta voltou ${multTxt.replace('×','')} reais.</b> `
+        +`Abaixo de 1,00× a conta não devolveu o que custou.`
+      : 'Sem preço lançado não há múltiplo: ele compara o P/L com o que foi pago.')
+    +notaProp+notaSem);
 
   return`<div class="cn-q3">${p1}${p2}${p3}</div>`;
 }

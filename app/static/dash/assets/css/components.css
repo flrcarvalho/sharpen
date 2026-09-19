@@ -2988,24 +2988,37 @@ select.ap-inline-inp { padding: 2px 4px; }
 .cn-qp                     { background: var(--surface-2); border: 1px solid var(--line);
                              border-radius: var(--r-md); padding: var(--sp-4);
                              display: flex; flex-direction: column; gap: var(--sp-3); }
-.cn-qh                     { display: flex; align-items: baseline; gap: var(--sp-2); }
-.cn-qh .t                  { font-family: var(--font-mono); font-size: var(--text-xxs);
-                             font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
-                             color: var(--accent-2); }
+.cn-qh                     { display: flex; align-items: center; gap: var(--sp-2); }
+/* TÍTULO do painel = o `.kpi-label` do produto, com a barra azul de 4x13 antes dele.
+   O handoff pedia um eyebrow em `--accent-2` sem barra; "título de painel" já tem forma
+   no Sharpen, e duas formas para o mesmo papel é o item 8 do checklist. O azul fica na
+   barra, que é onde ele é sinal. */
+.cn-qh .t                  { font-family: var(--font-mono); font-size: var(--text-xs);
+                             font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+                             color: var(--ink-mute); }
 .cn-qh .s                  { font-family: var(--font-mono); font-size: var(--text-xs);
                              font-weight: 500; color: var(--ink-soft); margin-left: auto; }
 .cn-qq                     { font-size: var(--text-sm); font-weight: 700; color: var(--ink);
                              letter-spacing: -.02em; line-height: 1.4; }
-.cn-big                    { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
-.cn-big .n                 { font-family: var(--font-mono); font-size: var(--text-2xl);
+
+/* FIGURAS: par rotulado, com o rótulo EMBAIXO do número.
+   Antes saía `12 dias · mediana  média 34 dias` — o rótulo vinha depois do valor e colado
+   no vizinho, então os dois números se fundiam numa frase e nada dizia qual era qual
+   (reclamação do Feca, com o print). Agora cada número é uma coluna com o seu rótulo, e
+   um divisor separa as duas. A segunda figura é `fraca`: mesma família, um degrau abaixo
+   na escada, porque ela é o CONTRASTE e não a resposta. */
+.cn-figs                   { display: flex; align-items: stretch; gap: var(--sp-4);
+                             flex-wrap: wrap; }
+.cn-fig                    { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cn-fig .v                 { font-family: var(--font-mono); font-size: var(--text-2xl);
                              font-weight: 700; letter-spacing: -.035em; color: var(--ink);
-                             font-variant-numeric: tabular-nums; line-height: 1; }
-.cn-big .n .u              { font-size: var(--text-xs); font-weight: 500; color: var(--ink-soft);
-                             margin-left: 5px; letter-spacing: 0; }
-.cn-big .side              { font-family: var(--font-mono); font-size: var(--text-xxs);
-                             font-weight: 500; color: var(--ink-soft); line-height: 1.5;
+                             font-variant-numeric: tabular-nums; line-height: 1;
                              white-space: nowrap; }
-.cn-big .side b            { color: var(--ink); font-weight: 600; }
+.cn-fig .lb                { font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+                             color: var(--ink-soft); }
+.cn-fig.fraca .v           { font-size: var(--text-lg); color: var(--ink-soft); }
+.cn-figsep                 { width: 1px; background: var(--line); flex: none; align-self: stretch; }
 .cn-foot                   { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.6;
                              border-top: 1px solid var(--line-2); padding-top: 11px;
                              margin-top: auto; text-wrap: pretty; }
@@ -3014,7 +3027,7 @@ select.ap-inline-inp { padding: 2px 4px; }
 /* Histograma de vida. A faixa 0-7 d vai em `--warn` porque ali mora 41% da base: é
    aviso, não decoração. */
 .cn-dist                   { display: flex; flex-direction: column; gap: 6px; }
-.cn-drow                   { display: grid; grid-template-columns: 60px minmax(0, 1fr) 68px;
+.cn-drow                   { display: grid; grid-template-columns: 104px minmax(0, 1fr) 72px;
                              align-items: center; gap: 10px; }
 .cn-drow .lb               { font-family: var(--font-mono); font-size: var(--text-xxs);
                              font-weight: 500; color: var(--ink-soft); }
@@ -3230,16 +3243,19 @@ select.ap-inline-inp { padding: 2px 4px; }
    10-11px ele cai abaixo do piso de qualquer papel da Escada — daí o pino de corpo. */
 .cn-mrow .money,
 .cn-crow .money,
+.cn-fig .money,
 .cn-foot .money,
 .cn-fcell .money,
 .cn-tbl .money             { width: auto; gap: 3px; display: inline-flex; }
 .cn-mrow .money-val,
 .cn-crow .money-val,
+.cn-fig .money-val,
 .cn-foot .money-val,
 .cn-fcell .money-val,
 .cn-tbl .money-val         { min-width: 0; }
 .cn-mrow .money-sign,
 .cn-crow .money-sign,
+.cn-fig .money-sign,
 .cn-foot .money-sign,
 .cn-fcell .money-sign,
 .cn-tbl .money-sign        { min-width: 0; font-size: 10px; }

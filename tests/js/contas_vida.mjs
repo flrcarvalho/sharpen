@@ -61,8 +61,12 @@ const FONTE = [
   'let _cnPop="ambas";',
   ...['_cnMediana', '_cnMedia', '_cnTemPreco', '_cnBase', '_cnPorCasa', '_cnHistograma', '_cnGeral']
       .map(n => recorteFn(CONTAS, n, 'contas.js')),
-  // CN_FAIXAS e a regua do histograma vivem fora de funcao: recortadas por nome.
-  (CONTAS.match(/^const CN_FAIXAS=.*$/m) || [''])[0],
+  // CN_FAIXAS vive fora de funcao: recortada por nome, ATE O `];` — ela nasceu numa
+  // linha so e virou multilinha quando os rotulos foram escritos por extenso, e um
+  // recorte ancorado em `.*$` pegaria a primeira linha e deixaria o array aberto
+  // (`SyntaxError: Unexpected token ';'`, sem dizer de onde). Mesma familia do recorte
+  // de funcao de UMA linha que este arquivo ja trata no `recorteFn`.
+  (CONTAS.match(/^const CN_FAIXAS=[\s\S]*?^\];$/m) || [''])[0],
   'globalThis.__api={ set pop(v){_cnPop=v;}, get pop(){return _cnPop;},',
   '  setDados(d,a){DADOS=d;DADOS_ABERTAS=a||[];},',
   '  setCadastro(c){_contasVida=c;_contaVida=null;},',
@@ -235,6 +239,12 @@ eq(h[0].n, 3, 'faixa 0-7 d pega 1, 3 e 7 (limites INCLUSIVOS nas duas pontas)');
 eq(h[1].n, 2, 'faixa 8-14 d pega 8 e 14');
 eq(h[4].n, 2, 'faixa 60 d + pega 90 e 200');
 eq(h[0].larg, 100, 'a maior faixa vale 100% da largura');
+// A faixa de ALERTA e marcada por POSICAO, nunca comparando o rotulo: texto e copy e
+// muda (os rotulos viraram "0 a 7 dias" na s376), indice e estrutura. Um
+// `l.rot === '0-7 d'` sobrevive ao rename em silencio, deixando a faixa sem o ambar.
+eq(h[0].primeira, true, 'a 1a faixa e a de alerta');
+eq(h.filter(x => x.primeira).length, 1, 'so UMA faixa pode ser a de alerta');
+ok(h.slice(1).every(x => !x.primeira), 'nenhuma outra faixa se marca como alerta');
 eq(api.hist([]).reduce((a, x) => a + x.n, 0), 0, 'histograma de lista vazia não quebra');
 
 console.log('— 13. O agregado dos painéis sai das MESMAS contas que as fichas');
