@@ -5210,9 +5210,11 @@
   // `Basquete` tem 17.979 bilhetes / 17 donos e `Tênis de Mesa` tem 43 / 5 donos / 3 casas,
   // as duas sem gêmea. ⚠ A casa escreve "Tênis de mesa", com `m` minúsculo.
   //
-  // ⚠️ PENDÊNCIA declarada: `Tênis de Mesa` é a grafia de facto do projeto (é a que o
-  // matcher compara), mas NÃO tem seção própria no `MASTER_ESPORTES_2026.md`. Propagar é
-  // tarefa separada desta casa.
+  // ✅ s375: `Tênis de Mesa` ganhou seção na `MASTER_ESPORTES_2026 §7`, então este
+  // de-para grava valor CANÔNICO (a `taxonomia.py` lê os H2 da §7 como o universo do
+  // que existe). A propagação mediu de quebra: os 43 bilhetes que já carregam o rótulo
+  // são badminton mal classificado pela IA — este de-para, que é determinístico por
+  // sportId, é a única fonte confiável dele hoje.
   const _ESPORTE_SPB = { 4: "Futebol", 7: "Basquete", 23: "Baseball", 56: "Tênis de Mesa" };
 
   // ⚠️ Nomes de PROMOÇÃO que a casa põe no lugar do mercado. "BIG ODD" e "Múltiplas

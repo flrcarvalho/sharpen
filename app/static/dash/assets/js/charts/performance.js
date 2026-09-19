@@ -365,6 +365,7 @@ function _isCustomRange(st){return !!st&&!st.qt&&!st.qd&&!!(st.df||st.dt);}
 //
 // Cada drill tem seu PRÓPRIO mês selecionado. Reusar `window._ovHeatMonth` (da
 // Visão Geral) faria a seta ‹ › de uma tela mexer no cartão da outra.
+let _tipCalBase=null;
 let _tipCalMonth='',_casaCalMonth='';
 
 // Mesma régua do `_selRange` (filters.js), aplicada ao estado de período do
@@ -411,10 +412,10 @@ function _drillCalNav(meses,sel,step){
 
 window._tipCalNav=function(step){
   _tipCalMonth=_drillCalNav(_drillCalMeses(_drillBaseRows,_tipCalMonth),_tipCalMonth,step);
-  _tipCalMonth=_renderDrillCal('tipDrillCal',_drillBaseRows,_tipCalMonth,_drillPeriodSt,'_tipCal');
+  _tipCalMonth=_renderDrillCal('tipDrillCal',_tipCalBase||_drillBaseRows,_tipCalMonth,_drillPeriodSt,'_tipCal');
 };
 window._tipCalSet=function(v){
-  _tipCalMonth=_renderDrillCal('tipDrillCal',_drillBaseRows,v,_drillPeriodSt,'_tipCal');
+  _tipCalMonth=_renderDrillCal('tipDrillCal',_tipCalBase||_drillBaseRows,v,_drillPeriodSt,'_tipCal');
 };
 window._casaCalNav=function(step){
   _casaCalMonth=_drillCalNav(_drillCalMeses(_casaDrillBaseRows,_casaCalMonth),_casaCalMonth,step);
@@ -722,6 +723,7 @@ function closeCasaDrill(e){
   const overlay=document.getElementById('casaDrillOverlay');
   if(overlay)overlay.style.display='none';
   document.body.style.overflow='';
+  _uEscopo=false;   // fora do modal, a tela volta a R$
   if(_casaDrillEscHandler){document.removeEventListener('keydown',_casaDrillEscHandler);_casaDrillEscHandler=null;}
 }
 window.closeCasaDrill=closeCasaDrill;
@@ -983,6 +985,9 @@ let _tipsterSort={k:'pl',dir:1};
 // não há `uMap` nenhum no escopo: sem guardar, reordenar devolveria os cards a R$ sem
 // que ninguém tivesse mexido no switch.
 let _tipsterEmU=false,_tipsterU=null;
+// Base do calendário do drill, já na unidade da tela. É de MÓDULO, e não local do
+// render, porque o calendário tem navegação PRÓPRIA (`_tipCalNav`/`_tipCalSet`) que
+// repinta depois — com a base local, trocar de mês voltava o número para reais.
 
 function _tipSparkSVG(dayMap,allDays){
   let cum=0;
@@ -1093,7 +1098,12 @@ let _tipDrillReq=0;
 // (spinner) enquanto o worker calcula; `d` = {mc,pv,sol} = valores. UMA função para os
 // dois estados de propósito: esqueleto e valor escritos em lugares diferentes divergem
 // no primeiro tooltip que alguém mexer.
-function _tipRiscoHTML(d,kS,vS,sbS){
+// `fPL` entra por parâmetro porque este bloco é pintado DUAS vezes: uma no render
+// (com as máscaras já trocadas, se o modal estiver em u) e outra quando o Monte Carlo
+// responde, de forma assíncrona — e aí as máscaras do módulo já voltaram ao normal.
+// Sem o parâmetro, o DD projetado voltaria em R$ num modal que está em u.
+function _tipRiscoHTML(d,kS,vS,sbS,fPL){
+  fPL=fPL||fmtPL;
   const spin=mcSpinner();
   const tipPV=_mkTipAnchor('P-Value','<span class="lbl">p</span> <span class="op">=</span> P(resultado <span class="lbl">|</span> acaso)','Indicador heurístico (bootstrap): quão improvável seria seu resultado por <b>acaso</b>, sem vantagem. Menor = destaca-se mais do acaso — <b>não é prova estatística nem recomendação</b>.',d?rodapePValue(d.pv):'');
   const tipDDmed=_mkTipAnchor('DD Médio','<span class="lbl">média</span> dos DD simulados','Queda <b>típica projetada</b> (média das 10.000 simulações de Monte Carlo). <b>Não aconteceu</b> — é estimativa.','<span class="lbl">projetado · média</span>');
@@ -1108,12 +1118,12 @@ function _tipRiscoHTML(d,kS,vS,sbS){
     `</div>`+
     `<div class="kpi" style="${kS}">`+
       `<div class="kpi-label"><span class="kpi-pipe"></span>DD Médio ${tipDDmed}</div>`+
-      `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${d?fmtPL(-d.mc.xmdd):spin}</div>`+
+      `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${d?fPL(-d.mc.xmdd):spin}</div>`+
       `<div class="kpi-sub" style="${sbS}">projetado · média</div>`+
     `</div>`+
     `<div class="kpi" style="${kS}">`+
       `<div class="kpi-label"><span class="kpi-pipe"></span>DD Extremo ${tipDDext}</div>`+
-      `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${d?fmtPL(-d.mc.p99):spin}</div>`+
+      `<div class="fdc-kpi__value" data-state="proj" style="${vS}">${d?fPL(-d.mc.p99):spin}</div>`+
       `<div class="kpi-sub" style="${sbS}">projetado · 1 em 100</div>`+
     `</div>`+
     `<div class="kpi" style="${kS}">`+
@@ -1131,6 +1141,38 @@ function _tipRiscoHTML(d,kS,vS,sbS){
 
 function renderTipsterDrill(rows){
   const nome=_drillBaseName;
+  // ── O switch R$ ⇄ u vale para o MODAL inteiro (decisão do Feca, s375) ──────
+  // A conversão é nas LINHAS, na entrada. Drawdown, Monte Carlo, curva acumulada,
+  // calendário e tabelas andam linha a linha; converter o total no fim misturaria
+  // eras, porque a unidade mudou de tamanho ao longo do histórico. Com as linhas em
+  // u a matemática segue intacta — e em u ela fica MAIS homogênea que em R$, que é o
+  // argumento que decidiu: uma stake de R$ 50 vale 2u numa época e 0,5u em outra.
+  const _emU=(typeof _tipUnit!=='undefined'&&_tipUnit==='u');
+  let _foraU=0;_tipCalBase=null;
+  if(_emU&&typeof _linhasEmU==='function'){
+    const _c=_linhasEmU(rows,(typeof _tipEscadas!=='undefined'&&_tipEscadas)||{});
+    rows=_c.linhas;_foraU=_c.fora;
+    // O calendário lê a base SEM período; sem converter também, ele ficaria em R$
+    // dentro de um modal em u.
+    _tipCalBase=_linhasEmU(_drillBaseRows,(typeof _tipEscadas!=='undefined'&&_tipEscadas)||{}).linhas;
+  }
+  // As máscaras trocam no ESCOPO do render, como o modo público faz: as funções que o
+  // modal chama (tabelas, calendário, Dia da Semana, eixos do gráfico) leem
+  // `fmtPL`/`fmtR`/`fmtK` do MÓDULO e não aceitam formatador por parâmetro.
+  // O `setTimeout` é a rede: ele já está agendado quando o corpo roda, então restaura
+  // mesmo se o corpo levantar — deixar o dashboard inteiro formatando "u" seria falha
+  // muito pior que um modal quebrado.
+  const _oPL=fmtPL,_oR=fmtR,_oK=fmtK;
+  const _restaura=()=>{fmtPL=_oPL;fmtR=_oR;fmtK=_oK;};
+  // O escopo de unidade acompanha o MODAL (o `closeTipsterDrill` o desliga), e não este
+  // render: calendário e Dia da Semana repintam sozinhos depois, por navegação e chips.
+  _uEscopo=_emU;
+  if(_emU){
+    fmtPL=v=>fmtU(v);fmtR=v=>fmtRU(v);
+    fmtK=v=>{const a=Math.abs(Math.round(v));return(v<0?'−':'')+a.toLocaleString('pt-BR')+'u';};
+    setTimeout(_restaura,0);
+  }
+  const _fPLu=fmtPL;   // cópia para o Monte Carlo, que responde depois da restauração
   const pl=rows.reduce((a,r)=>a+r.lucro,0);
   const s=calcTurnover(rows);   // turnover exclui Void
   const roi=s>0?pl/s*100:0;
@@ -1269,7 +1311,7 @@ function renderTipsterDrill(rows){
   renderOddsDist(rows,'tipsterDrillOdds');
 
   // Calendário pela base SEM período (nav própria) · dia da semana pelo recorte.
-  _tipCalMonth=_renderDrillCal('tipDrillCal',_drillBaseRows,_tipCalMonth,_drillPeriodSt,'_tipCal');
+  _tipCalMonth=_renderDrillCal('tipDrillCal',_tipCalBase||_drillBaseRows,_tipCalMonth,_drillPeriodSt,'_tipCal');
   const _dowEl=document.getElementById('tipDrillDow');
   if(_dowEl)_dowEl.innerHTML=rows.length?mkDowRanking(rows,{id:'tip'}):mkEmpty('Sem apostas no período');
 
@@ -1282,7 +1324,7 @@ function renderTipsterDrill(rows){
     const alvo=document.getElementById('tipDrillRisco');
     if(_req!==_tipDrillReq||!alvo)return;
     const _sol=calcSolidez({pValue:_pv,profitXmdd:_mc.xmdd>0?_profit/_mc.xmdd:0,nApostas:rows.length,oddMedia:calcAvgOdd(rows)});
-    alvo.innerHTML=_tipRiscoHTML({mc:_mc,pv:_pv,sol:_sol},kS,vS,sbS);
+    alvo.innerHTML=_tipRiscoHTML({mc:_mc,pv:_pv,sol:_sol},kS,vS,sbS,_fPLu);
   });
 
   setTimeout(()=>{
@@ -1291,6 +1333,7 @@ function renderTipsterDrill(rows){
     makeSortable('tipDrillTblEsporte',[1,2,3,4,5,6,7]);
   },0);
   renderGestaoTipster(nome);
+  _restaura();
 }
 
 function openTipsterDrill(nome){
@@ -1344,9 +1387,20 @@ window.closeTipsterDrill=closeTipsterDrill;
 // A edição (info + escada de unidade) mora na aba "Tipster / Método" (Gestão). Aqui o
 // extrato apenas EXIBE o que já foi configurado: Stake Atual (valor da unidade vigente),
 // Última alteração (data desse degrau) e Custo (soma lançada na aba Custo de Tipsters).
+// ⚠️ Este bloco fica em R$ mesmo com o modal em UNIDADES, e é deliberado.
+// `Stake Atual` é o TAMANHO da unidade ("quanto vale 1u"): em u ele seria sempre
+// `1,00u`, que não informa nada. E o `Custo` é a mensalidade do tipster, lançada em
+// reais POR MÊS, sem data por linha — convertê-la exigiria eleger uma unidade para o
+// mês inteiro, que é decisão de modelagem, não de formatação.
+// Pela regra da casa, duas réguas na mesma tela pedem RÓTULO, não escolha: com a tela
+// em u, o sub do Custo diz em que moeda ele está.
+// (Ele é `async`, então na prática já caía depois da restauração das máscaras — mas
+// depender disso seria correção por acidente, e um `await` a menos a desfaria.)
 async function renderGestaoTipster(nome){
   const box=document.getElementById('tipDrillGestao');
   if(!box)return;
+  const _emU=(typeof emUnidades==='function')&&emUnidades();
+  const _rs=v=>`<span class="money"><span class="money-sign">R$</span><span class="money-val">${Math.round(Number(v)||0).toLocaleString('pt-BR')}</span></span>`;
   let segs=[];
   try{const r=await fetch('/tipsters/unidades?tipster='+encodeURIComponent(nome));const d=await r.json();segs=d.escada||[];}catch(e){}
   const hoje=(typeof _today==='function')?_today():new Date().toISOString().slice(0,10);
@@ -1380,7 +1434,7 @@ async function renderGestaoTipster(nome){
     +`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.6rem">`
       +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Stake Atual</div><div class="kpi-val neu" style="${vS}">${atual!=null?money2(atual):dash}</div><div class="kpi-sub" style="${sbS}">valor de 1u vigente</div></div>`
       +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Última alteração</div><div class="kpi-val neu" style="${vS};font-family:var(--font-mono)">${fmtBR(desde)}</div><div class="kpi-sub" style="${sbS}">${desde?'da unidade':'sem escada definida'}</div></div>`
-      +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Custo</div><div class="kpi-val neu" style="${vS}">${custo>0?fmtR(custo):dash}</div><div class="kpi-sub" style="${sbS}">${_custoCorte}</div></div>`
+      +`<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Custo</div><div class="kpi-val neu" style="${vS}">${custo>0?_rs(custo):dash}</div><div class="kpi-sub" style="${sbS}">${_emU?'em R$ · '+_custoCorte:_custoCorte}</div></div>`
     +`</div>`;
 }
 window.renderGestaoTipster=renderGestaoTipster;

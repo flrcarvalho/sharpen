@@ -16,7 +16,9 @@
 //   · o KPI "Turnover Total" e as colunas do Comparativo, que vivem dentro do
 //     `renderTipsters` (função de ~90 linhas presa ao DOM e ao feed); o que se prova aqui é
 //     a RÉGUA que os alimenta (`_tipsterUnidades`) e o card, que é o que o tester viu;
-//   · o drill-down do tipster, que segue em R$ por decisão desta sessão;
+//   · o VISUAL do drill-down (posição, cor, quebra) — ele passou a seguir o switch na
+//     s375, e o que se prova aqui é a régua que o alimenta (`_linhasEmU`); a troca de
+//     máscara escopada e o não-vazamento só a medição no navegador pega;
 //   · o fetch de `/tipsters/escadas` e a preferência gravada no localStorage.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +36,10 @@ const LF = '\n';
 
 let falhas = 0;
 const ok = (cond, msg) => { if (!cond) { console.error('  ✗ ' + msg); falhas++; } };
+// `eq` imprime o valor que reprovou. `ok(f()===x, 'veio '+f())` chamaria `f` DUAS vezes,
+// e a 2ª pode já ver estado construído pela 1ª — foi assim que um gate vizinho imprimiu
+// um número que não era o do caso que falhou.
+const eq = (obtido, esperado, msg) => ok(obtido === esperado, msg + ', veio ' + JSON.stringify(obtido));
 const perto = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol;
 
 // Recorta uma função de topo de nível. A ordem das duas tentativas é load-bearing: o
@@ -47,7 +53,7 @@ const recorteFn = (src, nome, arquivo) => {
 };
 
 const FONTE = [
-  ...['fmt', 'fmtU', 'fmtRU', '_uVigente', '_tipsterUnidades', 'wrFrac']
+  ...['fmt', 'fmtU', 'fmtRU', '_uVigente', '_tipsterUnidades', '_linhasEmU', 'wrFrac']
     .map(n => recorteFn(APP, n, 'app.js')),
   ...['_tipSparkSVG', '_mkTipCard', '_renderTipCards']
     .map(n => recorteFn(PERF, n, 'performance.js')),
@@ -74,6 +80,7 @@ const API = new Function(`
   ${FONTE}
   return {
     _tipsterUnidades, _mkTipCard, fmtRU, fmtU,
+    linhasEmU: (rows, esc) => _linhasEmU(rows, esc),
     cards(cfg) {
       _tipsterEnts = cfg.ents;
       _tipsterDays = cfg.dias || {};
@@ -198,6 +205,38 @@ const linha = (o) => Object.assign(
   ok(API.fmtRU(0).includes('0,00'), 'zero em u é 0,00u, não "0u"');
   ok(!API.fmtRU(1234).includes('k') && !API.fmtRU(1234).includes('mil'),
     'nunca abreviar milhar (UI_REFERENCE §5.2)');
+}
+
+// ── 7. _linhasEmU: a SÉRIE em unidades (o que o drill consome) ───────────────
+// O `_tipsterUnidades` devolve TOTAIS; drawdown e Monte Carlo andam linha a linha, e
+// converter o total no fim misturaria eras.
+{
+  const esc = { Ze: [{ vigente_desde: '2026-01-01', valor: 10 },
+                     { vigente_desde: '2026-06-01', valor: 50 }] };
+  const rows = [
+    { tipster: 'Ze', data: '2026-03-10', lucro: 100, stake: 20, casa: 'Bet365' },
+    { tipster: 'Ze', data: '2026-07-10', lucro: 100, stake: 50, casa: 'Betano' },
+  ];
+  const r = API.linhasEmU(rows, esc);
+  eq(r.fora, 0, 'com escada, nenhuma linha fica de fora');
+  eq(r.linhas.length, 2, 'as duas linhas sobrevivem');
+  eq(r.linhas[0].lucro, 10, 'março divide por 10 (a unidade DAQUELA data)');
+  eq(r.linhas[1].lucro, 2, 'julho divide por 50 — a escada mudou, e a régua acompanha');
+  eq(r.linhas[0].stake, 2, 'a stake converte junto, senão turnover e P/L divergem');
+  eq(r.linhas[0].casa, 'Bet365', 'o resto da linha é preservado (o drill fatia por casa)');
+  eq(rows[0].lucro, 100, 'o array de entrada NÃO é mutado');
+
+  // Sem escada: fallback na stake média do próprio tipster (espelha o irmão).
+  const semEsc = API.linhasEmU(
+    [{ tipster: 'Bia', data: '2026-03-01', lucro: 60, stake: 20 },
+     { tipster: 'Bia', data: '2026-03-02', lucro: 30, stake: 40 }], {});
+  eq(semEsc.fora, 0, 'sem escada, a stake média resolve');
+  eq(semEsc.linhas[0].lucro, 2, 'média (20+40)/2 = 30; 60/30 = 2');
+
+  // Sem escada E sem stake: não dá para converter, e a linha SAI — nunca entra como 0.
+  const nada = API.linhasEmU([{ tipster: 'Xi', data: '2026-03-01', lucro: 99, stake: 0 }], {});
+  eq(nada.linhas.length, 0, 'linha sem unidade resolvível fica de fora');
+  eq(nada.fora, 1, 'e o contador diz quantas — numa CURVA, sumir linha encurta o traçado');
 }
 
 if (falhas) { console.error(LF + falhas + ' verificação(ões) falharam.'); process.exit(1); }

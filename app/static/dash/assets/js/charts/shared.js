@@ -92,7 +92,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
       const plCls  = dm.pl>0?'pos':dm.pl<0?'neg':'';
       const plAbs  = Math.abs(dm.pl);
       // público (unidades): P/L diário vive em 0.25–5u — inteiro achataria tudo em 0/1
-      const plFmt  = (window.MODO_PUBLICO&&plAbs<100)?fmt(plAbs,2):Math.round(plAbs).toLocaleString('pt-BR');
+      const plFmt  = (emUnidades()&&plAbs<100)?fmt(plAbs,2):Math.round(plAbs).toLocaleString('pt-BR');
       cells += `<div class="${cls}" style="${heatBg(dm.pl)}"
         data-date="${key}" data-pl="${dm.pl.toFixed(2)}" data-n="${dm.n}"
         data-turnover="${dm.turnover.toFixed(2)}" data-wins="${dm.wins}"
@@ -101,7 +101,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
         <div class="top">
           <span class="dn">${d}</span>${isToday?'<span class="hoje">hoje</span>':''}
         </div>
-        <div class="pl ${plCls}">${window.MODO_PUBLICO?`${plSign}${plFmt}<span class="cur">u</span>`:`<span class="cur">${plSign}R$</span>${plFmt}`}</div>
+        <div class="pl ${plCls}">${emUnidades()?`${plSign}${plFmt}<span class="cur">u</span>`:`<span class="cur">${plSign}R$</span>${plFmt}`}</div>
       </div>`;
     } else {
       cls += ' empty';
@@ -145,10 +145,10 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
   // Hero P/L
   const heroSign = mPL>0?'+':mPL<0?'−':'';
   const heroCls  = mPL>0?'pos':mPL<0?'neg':'';
-  const heroAbs  = (window.MODO_PUBLICO&&Math.abs(mPL)<100)?fmt(Math.abs(mPL),2):Math.abs(Math.round(mPL)).toLocaleString('pt-BR');
+  const heroAbs  = (emUnidades()&&Math.abs(mPL)<100)?fmt(Math.abs(mPL),2):Math.abs(Math.round(mPL)).toLocaleString('pt-BR');
   const heroHTML = `<div class="cal__hero">
     <div class="k"><span class="kpi-pipe"></span> P/L DO MÊS</div>
-    <div class="v ${heroCls}">${window.MODO_PUBLICO?`${heroSign}${heroAbs}<span class="cur">u</span>`:`<span class="cur">${heroSign}R$</span>${heroAbs}`}</div>
+    <div class="v ${heroCls}">${emUnidades()?`${heroSign}${heroAbs}<span class="cur">u</span>`:`<span class="cur">${heroSign}R$</span>${heroAbs}`}</div>
     <div class="cal__sub">${mN} apostas</div>
   </div>`;
 
@@ -168,7 +168,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
     </div>
     <div class="cal__kpi">
       <div class="k"><span class="kpi-pipe"></span> Turnover</div>
-      <div class="v">${window.MODO_PUBLICO?`${fmt(mTurnover,Math.abs(mTurnover)>=100?0:2)}<span class="cur">u</span>`:`<span class="cur">R$</span>${Math.round(mTurnover).toLocaleString('pt-BR')}`}</div>
+      <div class="v">${emUnidades()?`${fmt(mTurnover,Math.abs(mTurnover)>=100?0:2)}<span class="cur">u</span>`:`<span class="cur">R$</span>${Math.round(mTurnover).toLocaleString('pt-BR')}`}</div>
       <div class="cal__sub">no mês</div>
     </div>
     <div class="cal__kpi">
@@ -183,7 +183,7 @@ function mkCalendarHeatmap(selMonth, allDados, opts){
     </div>
     <div class="cal__kpi">
       <div class="k"><span class="kpi-pipe"></span> Stake Média</div>
-      <div class="v">${window.MODO_PUBLICO?`${mAvgStake>0?fmt(mAvgStake,Math.abs(mAvgStake)>=100?0:2):'—'}<span class="cur">u</span>`:`<span class="cur">R$</span>${mAvgStake>0?Math.round(mAvgStake).toLocaleString('pt-BR'):'—'}`}</div>
+      <div class="v">${emUnidades()?`${mAvgStake>0?fmt(mAvgStake,Math.abs(mAvgStake)>=100?0:2):'—'}<span class="cur">u</span>`:`<span class="cur">R$</span>${mAvgStake>0?Math.round(mAvgStake).toLocaleString('pt-BR'):'—'}`}</div>
       <div class="cal__sub">por aposta</div>
     </div>
   </div>` : '';
@@ -266,6 +266,12 @@ function _dowClasse(a){
   return 'pos';
 }
 
+// A unidade no rótulo. O cabeçalho da tabela e o chip têm `text-transform:uppercase`,
+// e `u` MAIÚSCULO não é a unidade — ela é minúscula por definição (`fmtU`/`fmtRU`).
+// O `text-transform:none` vai no próprio span, para o rótulo não depender de quem o
+// hospeda: este bloco é renderizado na Visão Geral, no drill de casa e no de tipster.
+function _dowUnid(){return emUnidades()?'<span style="text-transform:none">u</span>':'R$';}
+
 function mkDowRanking(rows,opts){
   opts=opts||{};
   const id=opts.id||'ov';
@@ -321,14 +327,14 @@ function mkDowRanking(rows,opts){
   const rot=(DOW_METRICAS[met]||DOW_METRICAS.pl).rot;
   const chips=Object.keys(DOW_METRICAS).map(k=>
     `<button type="button" class="dow__chip${k===met?' on':''}" onclick="dowSetMetrica('${id}','${k}')">`+
-    `${k==='pl'?'R$':DOW_METRICAS[k].rot}</button>`).join('');
+    `${k==='pl'?_dowUnid():DOW_METRICAS[k].rot}</button>`).join('');
 
   return `<div class="dow" id="dow-${id}">`+
     `<div class="dow__chips">${chips}</div>`+
     `<div class="dow__tb">`+
       `<div class="dow__hr">`+
         `<span>Dia · largura = ${rot} (escala comprimida)</span>`+
-        `<span>Apostas</span><span>Turnover (R$)</span><span>P/L (R$)</span><span>ROI</span>`+
+        `<span>Apostas</span><span>Turnover (${_dowUnid()})</span><span>P/L (${_dowUnid()})</span><span>ROI</span>`+
       `</div>`+
       linhas+
       `<div class="dow__ft">`+

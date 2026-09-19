@@ -68,6 +68,13 @@ ok(DATA_JS.includes(MESES_SRC), 'a constante MESES mudou de forma no data.js');
 const preludio = `
   ${MESES_SRC}
   const window = { MODO_PUBLICO: null };
+  // emUnidades() mora no app.js e decide R$ x u. Aqui ele e RECIPIENTE, nao regra:
+  // este gate mede o ESCOPO do calendario (quais linhas entram em qual mes), e a moeda
+  // do rotulo tem gate proprio no tipster_visao_u. Falso = o caminho em reais, que e o
+  // que os casos abaixo descrevem.
+  // (Sem crase: este comentario vive DENTRO de um template literal, e uma crase perdida
+  //  derruba o harness inteiro -- o caso da s296.)
+  const emUnidades = () => false;
   let DADOS = [];
   let _MSS = {};
   const msGet = id => _MSS[id] || new Set();

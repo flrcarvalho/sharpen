@@ -135,6 +135,37 @@ MUTACOES = [
         "    const avgStake=u?(u.t>0?u.s/u.t:0):(d.t>0?d.s/d.t:0);",
         "    const avgStake=d.t>0?d.s/d.t:0;",
     ),
+    # ── A SÉRIE em unidades (s375): o que o drill-down consome ───────────────
+    (
+        "app.js",
+        "a serie converte pelo total em vez da unidade vigente de cada linha",
+        "    let uu=_uVigente(escada,(r.data||'').slice(0,10));",
+        "    let uu=_uVigente(escada,'9999-12-31');",
+    ),
+    (
+        "app.js",
+        "a stake deixa de converter junto e turnover diverge do P/L",
+        "    linhas.push({...r,lucro:(r.lucro||0)/uu,stake:(r.stake||0)/uu});",
+        "    linhas.push({...r,lucro:(r.lucro||0)/uu,stake:(r.stake||0)});",
+    ),
+    (
+        "app.js",
+        "linha sem unidade resolvivel entra como ZERO em vez de ficar de fora",
+        "    if(!(uu>0)){fora++;return;}",
+        "    if(!(uu>0)){fora++;uu=1;}",
+    ),
+    (
+        "app.js",
+        "a conversao MUTA o array de entrada",
+        "    linhas.push({...r,lucro:(r.lucro||0)/uu,stake:(r.stake||0)/uu});",
+        "    r.lucro=(r.lucro||0)/uu;r.stake=(r.stake||0)/uu;linhas.push(r);",
+    ),
+    (
+        "app.js",
+        "o fallback sem escada deixa de existir e tudo cai fora",
+        "    if(uu==null)uu=fb[r.tipster];",
+        "    if(uu==null)uu=null;",
+    ),
 ]
 
 

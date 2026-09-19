@@ -218,7 +218,7 @@ O mapa é **compartilhado** com a gêmea (`_ESPORTE_SPB`, no `content.js`), e a 
 | 23 | `Beisebol` | `Baseball` | sinônimo de entrada × valor oficial · 1.901 × 4 bilhetes no banco |
 | **56** | `Tênis de mesa` | **`Tênis de Mesa`** | grafia única no banco (43 bilhetes / 5 donos / 3 casas) · ⚠ a casa usa `m` minúsculo |
 
-> ⚠️ **PENDÊNCIA declarada:** `Tênis de Mesa` é a grafia de facto do projeto (é a que o matcher compara, e a que `CASA_1XBET`, o `content.js` e o mapa de emojis usam), mas **não tem seção própria no `MASTER_ESPORTES_2026.md`**. Propagar é tarefa separada desta casa.
+> ✅ **RESOLVIDO (s375):** `Tênis de Mesa` ganhou seção própria na `MASTER_ESPORTES_2026 §7`, então este de-para passou a gravar um valor **canônico**. A seção nasceu sem lista de atletas de propósito: medido, os 43 bilhetes que hoje carregam o rótulo são **badminton mal classificado** (14 casam com a lista auxiliar de Badminton, nenhum com a de Tênis), e publicar lista tirada desse acervo viraria erro em referência.
 
 ### 12.2 DOIS catálogos de evento no mesmo bilhete
 
@@ -297,5 +297,5 @@ Conta do recon, 17/09/2026. Fixtures em `extensor/harness/fixtures/betboo.{settl
 
 ## Feedback para a camada global / MODELO
 
-- **`Tênis de Mesa` não existe no `MASTER_ESPORTES_2026`** como esporte canônico, apesar de ser a grafia usada no banco (43 bilhetes, 3 casas), no `CASA_1XBET`, no `content.js` e no mapa de emojis. Vale abrir seção própria, com os sinônimos de entrada medidos (`Tênis de mesa`, `Tenis de Mesa`, `Table Tennis`, `Ping Pong`).
+- ~~**`Tênis de Mesa` não existe no `MASTER_ESPORTES_2026`**~~ **FEITO na s375** — seção aberta na §7, com os sinônimos de entrada e os sinais positivos de circuito (`ITTF`, `WTT`, `Setka Cup`, `TT Cup`, `Liga Pro`). A propagação achou algo que a casa não via: **os 43 bilhetes do rótulo são badminton**, e a Regra Crítica de raquete passou a exigir sinal positivo para Tênis de Mesa, que **nunca** é desempate.
 - **Promoção que mexe no RETORNO, e não na odd, não tem tratamento no `MASTER_RESULTADO`.** O AccaBoost paga por fora da odd declarada, e a régua atual só sabe reconciliar isso porque em W a odd é derivada do retorno. Numa casa que aplicasse boost em bilhete **aberto** e publicasse só a odd, o potencial ficaria errado sem ninguém notar.

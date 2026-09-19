@@ -72,6 +72,33 @@ function _tipsterUnidades(rows,escadas){
   }
   return out;
 }
+// As LINHAS de um recorte convertidas para unidades, preservando a ORDEM e o resto do
+// objeto. O `_tipsterUnidades` acima devolve TOTAIS por tipster; quem anda linha a linha
+// — drawdown, Monte Carlo, curva acumulada, calendário — precisa da SÉRIE, e converter o
+// total no fim misturaria eras (a unidade mudou de tamanho ao longo do histórico).
+//
+// Mesma régua do irmão: divide pela unidade vigente na data DAQUELA linha, com fallback
+// na stake média das linhas do mesmo tipster quando não há escada.
+//
+// Devolve `fora` junto, e isso é load-bearing: numa CURVA, descartar linha encurta o
+// traçado sem dizer nada. Quem chama tem de poder declarar quantas ficaram de fora, em
+// vez de mostrar um desenho mais curto que o período.
+function _linhasEmU(rows,escadas){
+  const med={};
+  (rows||[]).forEach(r=>{if(!r.tipster||!(r.stake>0))return;(med[r.tipster]||(med[r.tipster]=[])).push(r.stake);});
+  const fb={};
+  for(const t in med)fb[t]=med[t].reduce((a,b)=>a+b,0)/med[t].length;
+  const linhas=[];let fora=0;
+  (rows||[]).forEach(r=>{
+    const escada=(escadas&&escadas[r.tipster])||[];
+    let uu=_uVigente(escada,(r.data||'').slice(0,10));
+    if(uu==null)uu=fb[r.tipster];
+    if(!(uu>0)){fora++;return;}
+    linhas.push({...r,lucro:(r.lucro||0)/uu,stake:(r.stake||0)/uu});
+  });
+  return{linhas,fora};
+}
+
 // ── MODO PÚBLICO (vitrine de tipster em /tipsters/<slug>) ────────────────────
 // `window.MODO_PUBLICO = {slug, nome}` é injetado pelo BACKEND no shell servido
 // em /tipsters/<slug> — nunca existe no dashboard privado (/dashboard | /app).
@@ -87,6 +114,19 @@ if(PUBLICO){
   fmtPL=v=>fmtU(v);
   fmtR=v=>fmtRU(v);
 }
+
+// "Esta superfície está em UNIDADES?" — predicado ÚNICO, e ele existe porque havia DOIS.
+// O modo público sempre renderiza u; o switch R$⇄u da tela Tipsters liga o mesmo modo no
+// dashboard privado. Os componentes COMPARTILHADOS (calendário do drill, Dia da Semana)
+// formatavam dinheiro com um ternário sobre `window.MODO_PUBLICO` e por isso ficavam em
+// R$ dentro de um modal em u — o mesmo defeito que a s374 consertou nos cards, um nível
+// abaixo. Medido na tela: 22 `R$` no calendário e os rótulos `Turnover (R$)`/`P/L (R$)`
+// do Dia da Semana, num modal cujos KPIs já diziam `+551,85u`.
+//
+// `_uEscopo` acompanha o MODAL, não o render: o calendário tem navegação própria e o Dia
+// da Semana tem chips, e os dois repintam depois que o render acabou.
+let _uEscopo=false;
+function emUnidades(){return !!(PUBLICO||_uEscopo);}
 
 // Switch R$ ⇄ u da página Tipsters (preferência por dono). Em modo público a
 // base JÁ é unidades — o switch some da UI e fica cravado no caminho "reais"

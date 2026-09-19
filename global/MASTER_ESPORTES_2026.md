@@ -898,6 +898,61 @@ games até 21. **Isso basta como sinal positivo** — não exige liga nem nome n
 
 ---
 
+## Tênis de Mesa
+
+Valor oficial:
+
+```text
+Tênis de Mesa
+```
+
+Sinônimos:
+- TÊNIS DE MESA
+- TENIS DE MESA
+- TÊNIS DE MESA (grafia da casa com `m` minúsculo: `Tênis de mesa`)
+- TABLE TENNIS
+- PING PONG
+- TT
+- ITTF
+- WTT
+- WTT CONTENDER
+- WTT STAR CONTENDER
+- WTT CHAMPIONS
+- WTT FEEDER
+- SETKA CUP
+- TT CUP
+- TT ELITE SERIES
+- LIGA PRO
+- CHALLENGER SERIES
+
+---
+
+### Referências auxiliares — Tênis de Mesa
+
+**⚠️ Esta seção nasceu de uma AUSÊNCIA, não de um acervo.** Ela existe porque
+`Tênis de Mesa` já era escrito por uma fonte **determinística** — o de‑para de
+`sportId` da SportingBet/Betboo (`_ESPORTE_SPB[56]`, `extensor/content.js`) — e por
+`CASA_1XBET §2`, sem que a §7 conhecesse o nome. Valor gravado fora da lista canônica
+é dívida: a `taxonomia.py` lê os H2 desta seção como o universo do que existe, então o
+esporte não aparecia em menu nenhum e só sobrevivia pela união com a base.
+
+**Não há lista de atletas aqui, e a ausência é deliberada.** Medido em 19/09/2026: os
+**43 bilhetes** do banco rotulados `Tênis de Mesa` são **badminton mal classificado** —
+14 deles casam com a lista auxiliar de **Badminton** desta mesma §7 (`Supanida
+Katethong`, `Nhat Nguyen`, `Jeon Hyeok-jin`, `Chou Tien-chen`, `Lee Chia-hao`…) e
+**nenhum** casa com a de Tênis. Publicar uma lista de mesatenistas construída a partir
+desse acervo seria transformar erro de classificação em referência canônica.
+
+**Sinais positivos de tênis de mesa** (usar como apoio até haver acervo medido):
+
+- Circuito: `ITTF`, `WTT` (Contender / Star Contender / Champions / Feeder),
+  `Setka Cup`, `TT Cup`, `TT Elite Series`, `Liga Pro`, `Challenger Series`
+- Vocabulário: `mesa`, `raquete`/`borracha`, `saque`/`serviço` alternado a cada 2 pontos
+- Ritmo do placar: sets curtos decididos em **11 pontos** (vantagem de 2), tipicamente
+  melhor de 5 ou 7 — contra os **21** do badminton (teto 30) e os `games` do tênis
+
+---
+
 ## Dardos
 
 Valor oficial:
@@ -1070,6 +1125,31 @@ Regras obrigatórias (em ordem de prioridade):
 Quando o confronto for entre dois individuais/duplas em ML/H2H, nenhum identificável, e NÃO houver sinal positivo de Dardos nem de Badminton, o esporte padrão é **Tênis** (o circuito ITF tem ordens de magnitude mais atletas de nicho que BWF ou PDC). **Nunca** usar Badminton nem Dardos como padrão de desempate — ambos exigem sinal positivo.
 
 **Notação de duplas `X/Y v W/Z`:** por padrão é **Tênis (duplas)** (ver Regra Crítica — Tênis vs Padel); só vira **Badminton (duplas)** com sinal positivo de badminton (BWF, torneio, dupla na lista) e só vira **Dardos** com sinal de dardos.
+
+> ⚠️ **QUARTO esporte na colisão: `Tênis de Mesa` (adicionado em 19/09/2026).** Ele
+> entrou na §7 porque uma fonte determinística já o escrevia, e a regra abaixo precisa
+> tratá-lo com a mesma exigência que Badminton e Dardos: **só com sinal positivo,
+> nunca como desempate.**
+>
+> - **Sinal positivo de Tênis de Mesa** (prioridade máxima, junto com os itens 1‑3):
+>   `ITTF` · `WTT` · `Setka Cup` · `TT Cup` · `TT Elite Series` · `Liga Pro` ·
+>   `Challenger Series` · placar de sets em **11 pontos**.
+> - **`Tênis de Mesa` NUNCA é o padrão de desempate.** Confronto de raquete sem sinal
+>   nenhum continua caindo em **Tênis**, pelo item de desempate abaixo. Medido: os 43
+>   bilhetes que hoje carregam o rótulo são badminton, e **zero** deles traz sinal de
+>   tênis de mesa — o rótulo foi escolhido sem evidência, que é exatamente o que esta
+>   linha existe para impedir.
+>
+> ⚠️ **O item 4 desta lista ficou AMBÍGUO e não foi alterado — é decisão do Feca.**
+> Ele trata "total ou handicap de **Pontos** num confronto entre pessoas" como sinal
+> positivo **sozinho** de Badminton, com a justificativa de que *"o tênis não tem
+> mercado de total de pontos e os dardos contam legs"*. **Tênis de mesa também conta
+> pontos**, então a justificativa deixou de cobrir o universo. Não mexer agora é
+> deliberado: medido em 19/09/2026, o item decide **1.294 de 2.813** bilhetes de
+> badminton (46%), e mudar o desempate de quase metade de um corpus é mudança própria,
+> com medição antes e depois — não efeito colateral de uma propagação.
+> **Enquanto isso, o item 4 segue valendo como está**, e a assimetria é conhecida:
+> na ausência de sinal de circuito, `Pontos` entre pessoas lê Badminton.
 
 **⛔ `Outro` NÃO é saída para confronto de raquete.** Um bilhete com dois participantes
 identificados (`[A v B]`, `[A/B v C/D]`) sempre tem esporte: os sinais acima decidem, e na

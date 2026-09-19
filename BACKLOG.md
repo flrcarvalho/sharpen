@@ -234,25 +234,77 @@ front virarem `!= null`.
 > **Sintoma para reconhecer isto noutro campo:** um `> 0` usado como teste de existência.
 > Ele funciona enquanto zero for impossível, e a regra de negócio muda sem avisar o código.
 
-### 1.18 O drill-down do tipster ficou fora do switch R$/u (s374). **VIVA, decisão do Feca**
+### 1.18 ~~O drill-down do tipster ficou fora do switch R$/u~~ (s374). **FECHADO (19/09, s375)**
 
-A s374 levou o switch da tela Tipsters para a tela inteira (cards, sparkline, KPI de
-turnover e as colunas de dinheiro do Comparativo). **O modal que abre ao clicar no card
-não foi**: P/L, Stake Média, Topo Histórico, Drawdown, Max Drawdown e o Diagnóstico de
-Risco seguem em R$, mesmo com o switch em u.
+**Decisão do Feca: o modal acompanha o switch.** O argumento que desempatou não foi só
+consistência de tela — foi a régua: a conversão é feita **linha a linha, pela unidade
+vigente na data de cada uma**, então a série em `u` é **normalizada por era** e a série
+em R$ não é (uma stake de R$ 50 vale 2u numa época e 0,5u em outra). Drawdown e Monte
+Carlo medem RISCO; para isso a série em unidades é a entrada mais honesta das duas.
 
-**Não é esquecimento, é escopo:** o drill roda `calcTopoDrawdown`, `calcDrawdownReal` e
-um Monte Carlo de 10.000 simulações sobre a série em reais. Levá-lo para u é converter
-as LINHAS na entrada (`lucro` e `stake` pela unidade vigente de cada uma, a régua que o
-`_tipsterUnidades` já tem) e trocar `fmtPL`/`fmtR` por `fmtU`/`fmtRU` em todo o modal,
-inclusive nos eixos dos gráficos.
+### 1.21 Aba Contas v4 no ar, esperando o Feca testar antes do aviso (s372). **VIVA, decisão do Feca**
 
-**A dúvida que decide, e que é do Feca:** drawdown e Monte Carlo em unidades respondem
-uma pergunta diferente da que respondem em reais, porque a unidade mudou de tamanho ao
-longo do histórico. Em u a queda é medida em risco assumido; em R$, em dinheiro perdido.
-As duas leituras são legítimas, e a escolha não é consequência técnica da s374.
+A tela foi reescrita inteira (`9e8e283`) e está em produção. O aviso ao grupo
+`Sharpen - Testers` **não sai** enquanto ele não abrir e validar — palavras dele:
+*"nao pq eu nem testei"*. A mensagem fica pronta, esperando o "pode mandar".
 
-> Enquanto não for decidido, o modal é o único lugar da tela que não segue o switch.
+**A conferência que ele precisa fazer ao abrir:** o card **Custo das contas** do painel 3
+contra a **tela de Custos**, que é a régua canônica. São duas superfícies lendo o mesmo
+dado, e é assim que se descobre se elas concordam.
+
+*(Registrado por mim a pedido da sessão vizinha, que estava com o `BACKLOG.md` bloqueado
+pela minha edição — `git add` dela levaria a minha junto, que é o caso 8 ao contrário.)*
+
+### 1.19 O front duplica a lista de casas com captura, que o servidor já devolve (s375). **VIVA, medida**
+
+`CASAS_CONECTAVEIS` (`app/static/index.html`) é um `Set` com **31 nomes escritos à mão**,
+e `_casaConectavel()` decide por ele se o botão "Conectar" nasce vivo. O `GET /casas`
+**já devolve** o campo `captura`, derivado do `_HOSTS_POR_CASA` (`app/captura.py`).
+
+**Medido em 19/09/2026: os dois concordam — 31 no front, 31 no servidor, diferença zero
+nos dois sentidos.** Ou seja, é duplicação que **ainda não** divergiu; não há número
+errado na tela hoje. O custo que ela já cobra é de PROCESSO, e é recorrente:
+
+- casa nova virou **ponto de registro** no [`GUIA_CASA_SHARPENUP`](docs/GUIA_CASA_SHARPENUP.md)
+  e item no `audit_sharpenup.py`, só para manter as duas listas iguais;
+- e obriga o aviso ao tester a mandar um **segundo `Ctrl+Shift+R`, no painel** — porque
+  a lista é literal no HTML e aba aberta roda o JS antigo em memória. Sem essa linha o
+  tester vê o botão travado e reporta como bug: aconteceu na s272 (Novibet), na s298
+  (seletor de contas) e de novo na s374 (Betboo, a nota saiu sem a linha).
+
+**O conserto** é `_casaConectavel` ler o `captura` do `/casas` em vez do `Set`, e a lista
+se atualizar junto com o refresh do painel. Some um ponto de registro e some a linha do
+aviso. **Não feito de propósito:** mexe no caminho que decide o botão de 31 casas, então
+é mudança própria, com gate e medição na tela — não carona numa outra tarefa.
+
+> **Sintoma para reconhecer isto noutro campo:** um fato que o servidor calcula e o front
+> reescreve à mão. Enquanto os dois concordam parece inofensivo, e o preço aparece no
+> PROCEDIMENTO — um passo a mais no guia, uma linha a mais em todo aviso.
+
+### 1.20 Os 43 bilhetes rotulados `Tênis de Mesa` são badminton (s375). **VIVA, medida — reparo é decisão dos donos**
+
+Medido ao propagar o esporte para a §7: dos 43 bilhetes que carregam o rótulo,
+**14 casam com a lista auxiliar de Badminton** da própria §7 (`Supanida Katethong`,
+`Nhat Nguyen`, `Jeon Hyeok-jin`, `Chou Tien-chen`, `Lee Chia-hao`…) e **nenhum** casa
+com a de Tênis. Os 29 restantes não casam com lista nenhuma — o que é esperado, as
+listas são top‑50 —, mas vários são badminton reconhecível (`Stoeva/Stoeva`,
+`Tanya Hemanth`, `Ishrani Baruah`, `Rithvik Sanjeevi Satish Kumar`).
+
+**Origem:** 41 dos 43 são **Bet365**, onde o esporte vem da IA lendo o bloco. O de‑para
+determinístico da SportingBet/Betboo (`_ESPORTE_SPB[56]`) **não gravou nenhum deles** —
+ele é a fonte confiável do rótulo e ainda não produziu linha.
+
+**Por que a §7 ganhou o esporte mesmo assim:** o de‑para determinístico vai gravar
+`Tênis de Mesa` na primeira aposta de tênis de mesa numa dessas casas, e valor fora da
+lista canônica é dívida. A seção nasceu **sem lista de atletas**, de propósito, e a
+Regra Crítica de raquete passou a exigir **sinal positivo** para o esporte, que nunca é
+desempate — é isso que ataca a causa.
+
+**O reparo dos 43 não foi feito:** são **5 donos**, e a decisão de não mexer em base de
+outro dono sem ele pedir é precedente do projeto (s234). Além disso, corrigir o rótulo
+agora repararia o sintoma antes de saber se a regra nova já evita a recaída — **medir
+de novo depois de alguns lotes** é o passo barato. `esporte` está fora do `_SIG_COLS`,
+então um UPDATE por id não mexe na dedup.
 
 ### 1.15 O `#220` do PassaTips sumiu no mesmo dia do `fetch failed` (s371). **VIVA, não medida**
 
