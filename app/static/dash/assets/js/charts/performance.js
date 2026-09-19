@@ -978,6 +978,11 @@ window.saveSportDrill=async function(){
 // ── tcard helpers (T-1) ─────────────────────────────────────────────────────
 let _tipsterEnts=null,_tipsterDays=null,_tipsterAllDays=null;
 let _tipsterSort={k:'pl',dir:1};
+// Retrato do switch R$⇄u no instante do último `renderTipsters`. Existe porque
+// `_renderTipCards` também é chamado por FORA dele (ordenar, inverter a direção), e ali
+// não há `uMap` nenhum no escopo: sem guardar, reordenar devolveria os cards a R$ sem
+// que ninguém tivesse mexido no switch.
+let _tipsterEmU=false,_tipsterU=null;
 
 function _tipSparkSVG(dayMap,allDays){
   let cum=0;
@@ -997,15 +1002,20 @@ function _tipSparkSVG(dayMap,allDays){
     +`</svg>`;
 }
 
-function _mkTipCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
+// `emU`: o card inteiro em unidades. Ele já sabia renderizar u pelo MODO PÚBLICO (onde
+// a base toda é u); o switch R$⇄u da página privada entra pela mesma porta, e os valores
+// chegam já convertidos por `_tipsterUnidades`. Card meio em u e meio em R$ seria a
+// família do "meio atualizado": os dois números certos, a leitura errada.
+function _mkTipCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd,emU){
+  const U=!!(emU||window.MODO_PUBLICO);
   const plSign=pl>=0?'+':'−';
   const plCls=pl>=0?'pos':'neg';
   const roiCls=roi>=0?'pos':'neg';
   const plAmt=Math.abs(pl).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  // Público (unidades): stake vive em 0.25–3u — arredondar para inteiro viraria "0u".
-  // Adaptativo: <100 → 2 casas; agregado grande segue inteiro (mesma régua do fmtR).
-  const stakeInt=(window.MODO_PUBLICO&&Math.abs(stake)<100)?fmt(stake,2):Math.round(stake).toLocaleString('pt-BR');
-  const avgStakeStr=(window.MODO_PUBLICO&&Math.abs(avgStake||0)<100)?fmt(avgStake||0,2):Math.round(avgStake||0).toLocaleString('pt-BR');
+  // Unidades: stake vive em 0.25–3u, e arredondar para inteiro viraria "0u".
+  // Adaptativo: <100 → 2 casas; agregado grande segue inteiro (mesma régua do fmtRU).
+  const stakeInt=(U&&Math.abs(stake)<100)?fmt(stake,2):Math.round(stake).toLocaleString('pt-BR');
+  const avgStakeStr=(U&&Math.abs(avgStake||0)<100)?fmt(avgStake||0,2):Math.round(avgStake||0).toLocaleString('pt-BR');
   const avgOddStr=fmtOdd(avgOdd);
   const betsStr=bets.toLocaleString('pt-BR');
   const roiStr=fmtPct(roi,1);
@@ -1014,11 +1024,11 @@ function _mkTipCard(name,pl,roi,stake,wr,bets,sparkSVG,avgStake,avgOdd){
   const escAttr=esc(name);
   return`<div class="tcard" data-name="${escAttr}">`
     +`<div class="tcard__top"><span class="nametag"><span class="nametag__nm" title="${escAttr}">${esc(name)}</span></span><span class="tcard__vol"><b>${betsStr}</b>apostas</span></div>`
-    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}">${window.MODO_PUBLICO?`${plSign}${plAmt}<span class="tcard__cur">u</span>`:`<span class="tcard__cur">${plSign} R$</span>${plAmt}`}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
+    +`<div class="tcard__hero"><span class="tcard__pl ${plCls}">${U?`${plSign}${plAmt}<span class="tcard__cur">u</span>`:`<span class="tcard__cur">${plSign} R$</span>${plAmt}`}</span><div class="tcard__roi"><span class="tcard__roi-lbl">ROI</span><span class="tcard__roi-val ${roiCls}">${roiStr}</span></div></div>`
     +sparkSVG
     +`<div class="tcard__foot">`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${stakeInt}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${stakeInt}`}</div></div>`
-      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val">${window.MODO_PUBLICO?`${avgStakeStr}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${avgStakeStr}`}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Turnover</div><div class="tcard__stat-val">${U?`${stakeInt}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${stakeInt}`}</div></div>`
+      +`<div class="tcard__stat"><div class="tcard__stat-lbl">Stake Média</div><div class="tcard__stat-val">${U?`${avgStakeStr}<span class="tcard__cur--sm">u</span>`:`<span class="tcard__cur--sm">R$</span>${avgStakeStr}`}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Odd Média ${_mkOddTip()}</div><div class="tcard__stat-val">${avgOddStr}</div></div>`
       +`<div class="tcard__stat"><div class="tcard__stat-lbl">Win Rate</div><div class="tcard__stat-val">${wrStr}</div><div class="tcard__wrbar"><div class="tcard__wrfill" style="width:${wrPct}%"></div></div></div>`
     +`</div>`
@@ -1029,14 +1039,36 @@ function _renderTipCards(){
   const el=document.getElementById('tipsterKpiCards');
   if(!el||!_tipsterEnts)return;
   if(!_tipsterEnts.length){el.innerHTML=mkEmpty('Nenhum tipster no período');return;}
+  const emU=_tipsterEmU;
+  // Tipster sem nenhuma linha convertível (sem escada e sem stake) não vira zero: fica
+  // com o objeto vazio, que soma 0 e mostra 0. Mas `_tipsterUnidades` já o deixou de
+  // fora das somas, então aqui é só leitura defensiva.
+  const emUdo=t=>(emU&&_tipsterU&&_tipsterU[t])||null;
   const {k,dir}=_tipsterSort;
-  const fns={pl:([,d])=>d.l,roi:([,d])=>d.s>0?d.l/d.s*100:0,to:([,d])=>d.s,wr:([,d])=>wrFrac(d.w,d.hw,d.hl,d.t),vol:([,d])=>d.n};
+  // ORDENAR PELO QUE ESTÁ NA TELA: em u, P/L e Turnover trocam de ordem (cada tipster tem
+  // sua unidade), e ordenar pelo valor em R$ deixaria a lista fora de ordem à vista de
+  // quem lê. ROI, Win Rate e Volume são adimensionais e não mudam.
+  const uv=(t,campo,fallback)=>{const u=emUdo(t);return u?u[campo]:fallback;};
+  const fns={
+    pl:([t,d])=>uv(t,'pl',d.l),
+    roi:([,d])=>d.s>0?d.l/d.s*100:0,
+    to:([t,d])=>uv(t,'s',d.s),
+    wr:([,d])=>wrFrac(d.w,d.hw,d.hl,d.t),
+    vol:([,d])=>d.n,
+  };
   const fn=fns[k]||fns.pl;
   const sorted=[..._tipsterEnts].sort((a,b)=>dir*(fn(b)-fn(a)));
   el.innerHTML=sorted.map(([t,d])=>{
+    const u=emUdo(t);
     const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
-    const avgStake=d.t>0?d.s/d.t:0,avgOdd=d.stk>0?d.wt/d.stk:0;
-    return _mkTipCard(t,d.l,roi,d.s,wr,d.n,_tipSparkSVG(_tipsterDays[t]||{},_tipsterAllDays),avgStake,avgOdd);
+    const avgOdd=d.stk>0?d.wt/d.stk:0;
+    // Stake média em u pelo MESMO denominador do R$ (encerradas), para os dois lados
+    // responderem a mesma pergunta.
+    const pl=u?u.pl:d.l;
+    const stake=u?u.s:d.s;
+    const avgStake=u?(u.t>0?u.s/u.t:0):(d.t>0?d.s/d.t:0);
+    const dias=u?u.dias:(_tipsterDays[t]||{});
+    return _mkTipCard(t,pl,roi,stake,wr,d.n,_tipSparkSVG(dias,_tipsterAllDays),avgStake,avgOdd,emU);
   }).join('');
   el.onclick=function(e){if(e.target.closest('.tip-anchor'))return;const card=e.target.closest('.tcard');if(card&&card.dataset.name)openTipsterDrill(card.dataset.name);};
   document.querySelectorAll('#tipsterSeg button').forEach(btn=>btn.classList.toggle('active',btn.dataset.k===k));
@@ -1575,6 +1607,10 @@ function renderTipsters(){
   }
   const emU=_tipUnit==='u';
   const uMap=emU?_tipsterUnidades(baseRows.filter(r=>activeT.includes(r.tipster)),_tipEscadas||{}):null;
+  // O switch vale para a TELA, não só para o KPI do topo: cards, sparkline e as colunas de
+  // dinheiro do Comparativo leem daqui. `_renderTipCards` roda também fora deste escopo
+  // (ordenação), por isso o retrato fica em variável de módulo.
+  _tipsterEmU=emU;_tipsterU=uMap;
   // Tipster KPI cards — .tcard design (T-1)
   {
     const tipMap={},tipDays={};
@@ -1600,7 +1636,8 @@ function renderTipsters(){
       const posCount=_tipsterEnts.filter(([,d])=>d.l>0).length;
       const negCount=_tipsterEnts.filter(([,d])=>d.l<0).length;
       const totalT=_tipsterEnts.length;
-      const portU=emU?activeT.reduce((a,t)=>a+((uMap&&uMap[t])||0),0):0;
+      const portU=emU?activeT.reduce((a,t)=>a+((uMap&&uMap[t]&&uMap[t].pl)||0),0):0;
+      const portUturn=emU?activeT.reduce((a,t)=>a+((uMap&&uMap[t]&&uMap[t].s)||0),0):0;
       const plCls=(emU?portU:portPL)>=0?'pos':'neg';
       const roiCls=portROI>=0?'pos':'neg';
       const roiStr=fmtPct(portROI,2);
@@ -1624,7 +1661,7 @@ function renderTipsters(){
           `</div>`+
           `<div class="kpi">`+
             `<div class="kpi-label"><span class="kpi-pipe"></span> Turnover Total</div>`+
-            `<div class="kpi-val neu">${fmtR(portStake)}</div>`+
+            `<div class="kpi-val neu">${emU?fmtRU(portUturn):fmtR(portStake)}</div>`+
             `<div class="kpi-sub">${portN.toLocaleString('pt-BR')} apostas</div>`+
           `</div>`;
       }
@@ -1639,10 +1676,16 @@ function renderTipsters(){
   const compRows=ents.map(([t,d])=>{
     const roi=d.s>0?(d.l/d.s*100):0,wr=wrFrac(d.w,d.hw,d.hl,d.t);
     const avgOdd=d.stk>0?d.wt/d.stk:0,avgStake=d.t>0?d.s/d.t:0;
-    const plVal=emU?((uMap&&uMap[t])||0):d.l;
+    // Em u, as TRÊS colunas de dinheiro viram u: P/L, Turnover e Stake média. Até a s374 só
+    // o P/L trocava, e a linha lia "turnover R$ 3.209" ao lado de "P/L −28,38u": cada
+    // metade certa, a razão entre elas impossível.
+    const u=emU?((uMap&&uMap[t])||null):null;
+    const plVal=u?u.pl:d.l;
     const lc=plVal>=0?'color:var(--pos)':'color:var(--neg)';
     const rc=roi>=0?'color:var(--pos)':'color:var(--neg)';
-    return`<tr><td style="font-weight:700;color:var(--ink)">${esc(t)}</td><td>${d.n}</td><td class="td-num">${mkWRC(wr)}</td><td>${fmtR(d.s)}</td><td style="${lc}">${emU?fmtU(plVal):fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td>${fmtOdd(avgOdd)}</td><td>${fmtR(avgStake)}</td></tr>`;
+    const turnCel=u?fmtRU(u.s):fmtR(d.s);
+    const avgCel=u?fmtRU(u.t>0?u.s/u.t:0):fmtR(avgStake);
+    return`<tr><td style="font-weight:700;color:var(--ink)">${esc(t)}</td><td>${d.n}</td><td class="td-num">${mkWRC(wr)}</td><td>${turnCel}</td><td style="${lc}">${emU?fmtU(plVal):fmtPL(d.l)}</td><td style="${rc}">${fmtPct(roi,2)}</td><td>${fmtOdd(avgOdd)}</td><td>${avgCel}</td></tr>`;
   }).join('');
   document.getElementById('tipsterCompTable').innerHTML=`<table class="tbl" id="tblTipComp"><thead><tr>${mkTh('Tipster','','l')+mkTh('Bets','','r')+mkTh('Win Rate','','r')+mkTh('Turnover','','r')+mkTh('P/L','','r')+mkTh('ROI','','r')+_mkOddMediaTh('r')+mkTh('Stake média','','r')}</tr></thead><tbody>${compRows}</tbody></table>`;
   setTimeout(()=>makeSortable('tblTipComp',[1,3,4,5,6,7]),100);

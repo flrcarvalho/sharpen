@@ -25,16 +25,51 @@ function fmtOdd(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDi
 // pelo Feca). Zero neutro (0,00u) — igual ao fmtPL acima: ambos tratam zero sem sinal e
 // sem cor (§5.1). Antes o fmtPL pintava zero de verde com '+'; corrigido na Onda 1.
 function fmtU(v){const n=Number(v)||0;const cls=n>0?'pos':(n<0?'neg':'');const sign=n>0?'+':(n<0?'−':'');return`<span class="money ${cls}"><span class="money-val">${sign}${fmt(Math.abs(n))}<span class="money-u">u</span></span></span>`;}
+// fmtRU: o AGREGADO em unidades (turnover, stake média, custo). Irmão do fmtR, que é
+// inteiro e em R$ (§5.1). Sem sinal e sem cor, como todo agregado.
+// ADAPTATIVO por desenho: agregado grande sai inteiro (12.182u), mas stake em unidades
+// vive em 0,25–3u e o inteiro o achataria em "0u". Abaixo de 100, 2 casas.
+// Uma régua só: o MODO PÚBLICO (onde a base já é u) aponta o fmtR para cá, em vez de
+// carregar uma segunda cópia da máscara. Duas cópias divergiriam no primeiro ajuste.
+function fmtRU(v){const n=Number(v)||0;return`<span class="money"><span class="money-val">${fmt(n,Math.abs(n)>=100?0:2)}<span class="money-u">u</span></span></span>`;}
 // unidade_vigente (mirror JS do backend): degrau + clamp à esquerda. escada ordenada por
 // data; null se vazia/data ilegível. Ver repository.py unidade_vigente.
 function _uVigente(escada,dataISO){if(!escada||!escada.length||!dataISO)return null;const s=[...escada].sort((a,b)=>a.vigente_desde<b.vigente_desde?-1:1);let ap=s[0].valor;for(const seg of s){if(seg.vigente_desde<=dataISO)ap=seg.valor;else break;}return ap;}
-// P/L em u por tipster sobre linhas JÁ FILTRADAS (respeita os filtros do dashboard).
-// Sem escada: fallback = stake média das linhas do tipster (espelha resultado_em_unidades).
+// Tipster em UNIDADES, sobre linhas JÁ FILTRADAS (respeita os filtros do dashboard).
+// Devolve por tipster `{pl, s, t, dias}`: P/L em u, turnover em u (exclui Void, como o
+// `calcTurnover`), quantas encerradas entraram (o mesmo denominador `t` do `bumpWR`, que
+// é quem dá a stake média) e o P/L em u por DIA (a sparkline do card).
+//
+// A conversão é POR LINHA, pela unidade vigente na data dela. A escada muda no tempo, e
+// dividir o total por uma unidade só misturaria eras. Sem escada: fallback = stake média
+// das linhas do tipster (espelha `resultado_em_unidades` do backend).
+//
+// Linha cuja unidade não dá para resolver (sem escada E sem stake) fica FORA das somas:
+// ausência viaja como ausência, nunca como zero disfarçado de conta feita.
+//
+// ROI, Win Rate e Odd Média NÃO entram aqui de propósito: são adimensionais, e o número
+// em u é o mesmo que em R$. Converter os três seria inventar uma segunda régua para o
+// mesmo valor.
 function _tipsterUnidades(rows,escadas){
   const by={};
-  rows.forEach(r=>{if(!r.tipster)return;const d=by[r.tipster]||(by[r.tipster]={lin:[],stk:[]});d.lin.push({pl:r.lucro,data:(r.data||'').slice(0,10)});if(r.stake>0)d.stk.push(r.stake);});
+  rows.forEach(r=>{if(!r.tipster)return;const d=by[r.tipster]||(by[r.tipster]={lin:[],stk:[]});d.lin.push({pl:r.lucro,stake:r.stake,res:r.resultado,data:(r.data||'').slice(0,10)});if(r.stake>0)d.stk.push(r.stake);});
   const out={};
-  for(const t in by){const esc=(escadas&&escadas[t])||[];const stk=by[t].stk;const fb=(!esc.length&&stk.length)?stk.reduce((a,b)=>a+b,0)/stk.length:null;let u=0;by[t].lin.forEach(ln=>{let uu=_uVigente(esc,ln.data);if(uu==null)uu=fb;if(uu&&uu>0)u+=ln.pl/uu;});out[t]=u;}
+  for(const t in by){
+    const escada=(escadas&&escadas[t])||[];
+    const stk=by[t].stk;
+    const fb=(!escada.length&&stk.length)?stk.reduce((a,b)=>a+b,0)/stk.length:null;
+    const o={pl:0,s:0,t:0,dias:{}};
+    by[t].lin.forEach(ln=>{
+      let uu=_uVigente(escada,ln.data);
+      if(uu==null)uu=fb;
+      if(!(uu>0))return;
+      const plU=ln.pl/uu;
+      o.pl+=plU;
+      if(ln.data)o.dias[ln.data]=(o.dias[ln.data]||0)+plU;
+      if(ln.res!=='V'){o.s+=(ln.stake||0)/uu;o.t++;}
+    });
+    out[t]=o;
+  }
   return out;
 }
 // ── MODO PÚBLICO (vitrine de tipster em /tipsters/<slug>) ────────────────────
@@ -46,11 +81,11 @@ function _tipsterUnidades(rows,escadas){
 const PUBLICO=window.MODO_PUBLICO||null;
 const PUB_PAGES=['overview','sports','casas','tipsters','apostas','abertas'];
 if(PUBLICO){
-  // fmtPL → fmtU (2 casas, sufixo u). fmtR ADAPTATIVO: agregado grande sai
-  // inteiro (12.182u), mas stake em unidades vive em 0.25–3u — inteiro viraria
-  // "0u"; abaixo de 100, 2 casas.
+  // fmtPL → fmtU (2 casas, sufixo u). fmtR → fmtRU, o agregado adaptativo definido
+  // acima (grande sai inteiro; abaixo de 100, 2 casas, senão stake em u viraria "0u").
+  // A máscara mora lá em cima porque o switch R$⇄u da página Tipsters usa a MESMA.
   fmtPL=v=>fmtU(v);
-  fmtR=v=>{const n=Number(v)||0;return`<span class="money"><span class="money-val">${fmt(n,Math.abs(n)>=100?0:2)}<span class="money-u">u</span></span></span>`;};
+  fmtR=v=>fmtRU(v);
 }
 
 // Switch R$ ⇄ u da página Tipsters (preferência por dono). Em modo público a
