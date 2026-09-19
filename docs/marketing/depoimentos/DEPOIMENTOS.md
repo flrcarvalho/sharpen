@@ -24,7 +24,7 @@
 
 | Quem | Tipo | Data | Duração | Autorização | Transcrição |
 |---|---|---|---|---|---|
-| Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ⏳ pendente | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
+| Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ✅ autorizado (19/09/2026, pelo Feca) | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
 
 > **Arquivo irmão:** [VOZ_DO_FUNDADOR.md](VOZ_DO_FUNDADOR.md) guarda o pitch do Feca
 > gravado sem roteiro. Voz de cliente é **prova**; voz de fundador é **copy**. Os dois
