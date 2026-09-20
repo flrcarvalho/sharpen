@@ -439,7 +439,7 @@ function renderContas(){
     cont.innerHTML=_cnRegua(B,G)+_cnVazio(B);
     return;
   }
-  cont.innerHTML=_cnRegua(B,G)+_cnPaineis(B,G)+_cnBloco(B,linhas)+_cnDefinicoes();
+  cont.innerHTML=_cnRegua(B,G)+_cnPaineis(B,B.contas,'')+_cnBloco(B,linhas)+_cnDefinicoes();
 }
 window.renderContas=renderContas;
 
@@ -480,12 +480,26 @@ function _cnRegua(B,G){
 }
 
 // ── Os três painéis ──────────────────────────────────────────────────────────
-function _cnPaineis(B,G){
+// Os três painéis servem DOIS níveis com o mesmo código: a base inteira no topo da tela
+// e UMA CASA dentro do drill.
+//
+// Foi o Feca quem pediu o segundo nível, e o motivo é de negócio: *"a limitação de uma
+// Superbet não tem nada a ver com a Betano e nada a ver com a 365"*. O agregado do topo
+// mistura durabilidades que não se comparam — a mediana geral não descreve casa nenhuma.
+// A alternativa que eu tinha proposto (chips de casa no painel) filtrava a TELA inteira e
+// fazia perder o contexto geral; os painéis por casa mostram os dois ao mesmo tempo.
+//
+// `casa` preenchido muda três coisas, e só elas: o custo é pedido ao `_custoNaJanela` com
+// `soCasa` (a régua única continua sendo a mesma função), o ranking deixa de ser de casas
+// e passa a ser das CONTAS daquela casa, e o bloco ganha `compacto`.
+function _cnPaineis(B,contas,casa){
+  const linhas=casa?[]:_cnPorCasa(contas);
+  const G=_cnGeral(contas,linhas);
   // UMA chamada de custo por render. `_custoNaJanela` percorre o `_contaVida` inteiro;
   // chamá-la por painel repetiria a varredura e, pior, abriria a porta para dois
   // painéis vizinhos mostrarem custos diferentes se alguém mudasse um dos argumentos.
-  const custo=_cnCustoTotal(B);
-  const turnEleg=B.contas.filter(_cnTemPreco).reduce((a,c)=>a+c.turn,0);
+  const custo=_cnCustoTotal(B,contas,casa);
+  const turnEleg=contas.filter(_cnTemPreco).reduce((a,c)=>a+c.turn,0);
   // ── Anatomia do painel ───────────────────────────────────────────────────
   // O TÍTULO segue o `.kpi-label` + `.kpi-pipe` do produto (mono 11/700, `.08em`, com a
   // barra azul de 4×13px). O handoff pedia um eyebrow em `--accent-2` sem barra, mas
@@ -545,15 +559,23 @@ function _cnPaineis(B,G){
     [{valor:med+' dias',rotulo:'Mediana'},
      {valor:media+' dias',rotulo:'Média',fraca:true}],
     `<div class="cn-dist">${hist}</div>`,
-    `<b>Metade das suas contas durou menos de ${med} dias</b>`
+    `<b>Metade ${casa?'das contas da '+esc(casa):'das suas contas'} durou menos de ${med} dias</b>`
     +(pctCurto?`, e ${pctCurto}% não passou da primeira semana.`:'.')
     +(media>med?_cnFraseLongevas(G.longevas,media):''));
 
   // ── 2 · VOLUME E MARGEM ──
-  const rank=G.ranking.map(c=>
-    `<div class="cn-mrow"><span class="nm">${esc(c.casa)}</span>`
-    +`<span class="vv"><b>${fmtR(c.turnConta)}</b> · ${_cnPctTxt(c.roiLiq)}</span></div>`
-  ).join('')||'<div class="cn-vazio">Sem casa no recorte.</div>';
+  // Dentro de uma casa o ranking de CASAS não diz nada (é sempre uma linha), então ali
+  // ele vira o ranking das CONTAS daquela casa por turnover. Mesma forma, outro eixo.
+  const rank=(casa
+    ? contas.slice().sort((a,b)=>b.turn-a.turn).slice(0,5).map(c=>{
+        const roiC=c.turn>0&&_cnTemPreco(c)?((c.pl-c.custo)/c.turn*100):null;
+        return`<div class="cn-mrow"><span class="nm">${esc(c.conta)}</span>`
+          +`<span class="vv"><b>${fmtR(c.turn)}</b> · ${_cnPctTxt(roiC)}</span></div>`;
+      })
+    : G.ranking.map(c=>
+        `<div class="cn-mrow"><span class="nm">${esc(c.casa)}</span>`
+        +`<span class="vv"><b>${fmtR(c.turnConta)}</b> · ${_cnPctTxt(c.roiLiq)}</span></div>`)
+    ).join('')||`<div class="cn-vazio">Sem ${casa?'conta':'casa'} no recorte.</div>`;
   const roiLiq=turnEleg>0?((G.plEleg-custo)/turnEleg*100):0;
   const p2=painel('Volume e margem', B.temPeriodo?'no período':'histórico',
     'Quanto cada conta movimenta e que margem sobra?',
@@ -604,7 +626,8 @@ function _cnPaineis(B,G){
     : ' Toda conta do recorte tem preço lançado.';
   const multTxt=mult===null?'·'
     :mult.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
-  const p3=painel('Retorno sobre aquisição', `${nEleg} de ${G.n} contas`,
+  const p3=painel('Retorno sobre aquisição',
+    `${nEleg} de ${G.n} ${_cnPl(G.n,'conta','contas')}`,
     'Quanto o custo das contas devolveu?',
     [{valor:multTxt,rotulo:'Múltiplo'},
      {valor:'1,00×',rotulo:'Piso',fraca:true}],
@@ -615,17 +638,20 @@ function _cnPaineis(B,G){
       : 'Sem preço lançado não há múltiplo: ele compara o P/L com o que foi pago.')
     +notaProp+notaSem);
 
-  return`<div class="cn-q3">${p1}${p2}${p3}</div>`;
+  return`<div class="cn-q3 ${casa?'compacto':''}">${p1}${p2}${p3}</div>`;
 }
 
 // O custo total sai do `_custoNaJanela` — régua ÚNICA com `calcCostFiltered`, com a
 // Visão Geral e com o drill de Bookies. Somar `_custoDaConta` linha a linha daria hoje
 // o mesmo número por um caminho novo, e duas derivações para a mesma pergunta divergem
 // no primeiro caso de borda.
-function _cnCustoTotal(B){
-  const contasOk=new Set(B.contas.map(c=>c.chave));
-  if(typeof _custoNaJanela!=='function')return B.contas.reduce((a,c)=>a+c.custo,0);
-  return _custoNaJanela(B.de,B.ate,B.casasSel,B.opsSel,'','pago',contasOk).total;
+function _cnCustoTotal(B,contas,soCasa){
+  const alvo=contas||B.contas;
+  const contasOk=new Set(alvo.map(c=>c.chave));
+  if(typeof _custoNaJanela!=='function')return alvo.reduce((a,c)=>a+c.custo,0);
+  // `soCasa` é parâmetro da PRÓPRIA `_custoNaJanela`: recortar por casa aqui continua
+  // sendo a régua única, e não uma soma paralela.
+  return _custoNaJanela(B.de,B.ate,B.casasSel,B.opsSel,soCasa||'','pago',contasOk).total;
 }
 
 // ── Bloco "Por casa": cabeçalho, legenda e as fichas ─────────────────────────
@@ -654,7 +680,9 @@ function _cnBloco(B,linhas){
     const under=a.mult!==null&&a.mult<1;
     let html=`<div class="cn-ficha ${aberta?'open':''}" onclick="cnToggle('${esc(a.casa).replace(/'/g,"\\'")}')">`
       +`<div class="cn-fname">${casaCell(a.casa)}`
-      +`<span class="sub">${a.n} ${_cnPl(a.n,'conta','contas')} · ${a.ativas} ${_cnPl(a.ativas,'ativa','ativas')}</span></div>`
+      +`<span class="sub">${a.ativas} ${_cnPl(a.ativas,'ativa','ativas')}</span></div>`
+      +`<div class="cn-fcell"><div class="n">${a.n}</div>`
+      +  `<div class="s">${_cnPl(a.n,'conta','contas')}</div></div>`
       +`<div class="cn-life">`
       +  `<div class="cn-track"><i class="med" style="width:${pMed.toFixed(1)}%"></i>`
       +  `<i class="avg" style="left:${pAvg.toFixed(1)}%"></i></div>`
@@ -670,7 +698,7 @@ function _cnBloco(B,linhas){
       +  `<div class="cn-gauge"><i class="${under?'under':''}" style="width:${gMult.toFixed(1)}%"></i>`
       +  `<span class="th" style="left:${100/CN_GAUGE_MAX}%"></span></div></div>`
       +`</div>`;
-    if(aberta)html+=_cnDrill(a,B.contas.filter(c=>c.casa===a.casa));
+    if(aberta)html+=_cnDrill(B,a,B.contas.filter(c=>c.casa===a.casa));
     return html;
   }).join('')||'<div class="cn-vazio">Nenhuma conta no recorte.</div>';
 
@@ -684,6 +712,7 @@ function _cnBloco(B,linhas){
     +`Ambas na mesma régua de 0 a ${CN_REGUA_DIAS} dias.</p></div>`
     +`<div class="cn-ovf"><div class="cn-fichas">`
     +`<div class="cn-fhead">${th('casa','Casa','l')}`
+    +`${th('n','Contas')}`
     +`${th('durMed','Duração: mediana e média (0 a '+CN_REGUA_DIAS+' dias) '+_cnTipMediana(),'l')}`
     +`${th('turnConta','Turnover e ROI líquido')}`
     +`${th('custoDia','Custo por dia de vida')}`
@@ -708,7 +737,7 @@ function _cnMoney2(v){
 // entre as 12 de maior giro. O cabeçalho dizia `1 ativa` e a lista abaixo mostrava 12
 // inativas, então a tela parecia estar contando errado — e não estava. **Recorte que
 // não é do filtro faz a tabela contradizer o próprio total.**
-function _cnDrill(agg,contas){
+function _cnDrill(B,agg,contas){
   const dir=_cnDrillDir, key=_cnDrillCol;
   const txt=k=>k==='conta'||k==='forn';
   const val=(c,k)=>{
@@ -731,7 +760,11 @@ function _cnDrill(agg,contas){
     const tem=_cnTemPreco(c);
     const liq=c.pl-c.custo;
     const roiLiq=c.turn>0?(liq/c.turn*100):null;
-    const est=c.ativa?'<span class="cn-est on">ativa</span>':'<span class="cn-est">inativa</span>';
+    // Tag, não texto com bolinha: "· inativa" ficava como sobra de linha, e o estado é
+    // o eixo que a tela inteira usa para separar população. Pedido do Feca.
+    const est=c.ativa
+      ? '<span class="cn-tag cn-tag--on">ativa</span>'
+      : '<span class="cn-tag">inativa</span>';
     // Os três estados de custo, visualmente distintos. `sem preço` em `--warn`, e o
     // líquido e o ROI líquido viram `·`: mostrar o P/L cru na coluna de líquido faria a
     // conta parecer mais lucrativa do que se sabe que ela é.
@@ -759,7 +792,12 @@ function _cnDrill(agg,contas){
     +` onclick="event.stopPropagation();cnDrillSort('${col}')">${lbl}<span class="sort-icon"></span></th>`;
   const aviso=agg.semPreco>0
     ?`<span class="w">${agg.semPreco} ${_cnPl(agg.semPreco,'conta','contas')} sem preço fora do múltiplo</span>`:'';
-  return`<div class="cn-drill" onclick="event.stopPropagation()"><table class="cn-tbl"><thead><tr>`
+  // Os TRÊS PAINÉIS da casa vêm antes da tabela: é o pedido do Feca de ter "isso dentro
+  // de cada casa seguido da tabela com a lista". O agregado do topo mistura casas que não
+  // se comparam; aqui cada uma responde por si, na mesma linguagem visual.
+  return`<div class="cn-drill" onclick="event.stopPropagation()">`
+    +_cnPaineis(B,contas,agg.casa)
+    +`<table class="cn-tbl"><thead><tr>`
     +dth('conta','Conta','l')+dth('forn','Fornecedor','l')+dth('estado','Estado','l')
     +dth('dur','Duração')+dth('dias','Dias ativos')+dth('bets','Apostas')+dth('turn','Turnover')
     +dth('pl','P/L bruto')+dth('custo','Custo')+dth('liq','P/L líquido')+dth('roiLiq','ROI líq.')

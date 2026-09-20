@@ -43,9 +43,9 @@ if (!fr) { console.log("FALHOU: iframe do dashboard nao encontrado"); await brow
 const leia = () => fr.evaluate(() => {
   const q = s => document.querySelector(s);
   const txt = s => (q(s) ? q(s).innerText.replace(/\s+/g, " ").trim() : null);
-  const paineis = [...document.querySelectorAll(".cn-qp")].map(p => ({
+  const paineis = [...document.querySelectorAll("#contasContent > .cn-q3 > .cn-qp")].map(p => ({
     eyebrow: p.querySelector(".t") ? p.querySelector(".t").innerText.trim() : "",
-    figura: p.querySelector(".cn-big .n") ? p.querySelector(".cn-big .n").innerText.replace(/\s+/g, " ").trim() : "",
+    figura: [...p.querySelectorAll(".cn-fig")].map(f => f.querySelector(".lb").innerText.trim() + " " + f.querySelector(".v").innerText.trim()).join("  |  "),
   }));
   return {
     regua: !!q("#cnRegua"),

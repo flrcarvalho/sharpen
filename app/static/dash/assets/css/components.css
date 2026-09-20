@@ -3100,10 +3100,10 @@ select.ap-inline-inp { padding: 2px 4px; }
    Uma grade só, compartilhada pelo cabeçalho e pelas linhas: duas grades separadas
    desalinham no primeiro ajuste de coluna. */
 .cn-ovf                    { overflow-x: auto; }
-.cn-fichas                 { display: flex; flex-direction: column; gap: 9px; min-width: 780px; }
+.cn-fichas                 { display: flex; flex-direction: column; gap: 9px; min-width: 860px; }
 .cn-fhead,
 .cn-ficha                  { display: grid;
-                             grid-template-columns: minmax(132px, 1fr) minmax(184px, 1.4fr)
+                             grid-template-columns: minmax(132px, 1fr) 76px minmax(184px, 1.4fr)
                                                     minmax(118px, .95fr) minmax(104px, .8fr) 104px;
                              align-items: center; column-gap: var(--sp-4); }
 .cn-fhead > span           { font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
@@ -3285,3 +3285,29 @@ select.ap-inline-inp { padding: 2px 4px; }
                              padding: 7px 14px; cursor: pointer;
                              transition: border-color .15s var(--ease), color .15s var(--ease); }
 .cn-empty__btn:hover       { border-color: var(--accent); color: var(--accent); }
+
+/* ── TAG de estado (drill) ───────────────────────────────────────────────────
+   O estado era "· inativa" — texto com uma bolinha, que lia como sobra de linha. Ele é
+   o eixo que a tela inteira usa para separar população, então ganhou forma de tag.
+   Tinta ESCURA sobre fundo de acento, nunca branca: `var(--bg)` sobre `--pos` passa a
+   régua de contraste, `#fff` não (Escada de Tinta). A tag de inativa é neutra de
+   propósito — inativa não é erro nem alerta, é o estado normal da maioria. */
+.cn-tag                    { display: inline-flex; align-items: center;
+                             font-family: var(--font-mono); font-size: var(--text-xxs);
+                             font-weight: 600; letter-spacing: .04em; padding: 3px 9px;
+                             border-radius: var(--r-pill); background: var(--field);
+                             border: 1px solid var(--line); color: var(--ink-soft);
+                             white-space: nowrap; }
+.cn-tag--on                { background: var(--pos); border-color: var(--pos);
+                             color: var(--bg); }
+
+/* Painéis DENTRO do drill: mesma peça, um degrau menor. O `compacto` não muda regra
+   nenhuma de cálculo — só densidade, porque aqui eles dividem espaço com a tabela. */
+.cn-q3.compacto            { margin-bottom: var(--sp-4); gap: var(--sp-2); }
+.cn-q3.compacto .cn-qp     { padding: var(--sp-3); gap: var(--sp-2); background: var(--surface); }
+.cn-q3.compacto .cn-fig .v { font-size: var(--text-xl); }
+.cn-q3.compacto .cn-fig.fraca .v { font-size: var(--text-md); }
+.cn-q3.compacto .cn-qq     { font-size: var(--text-xs); }
+.cn-q3.compacto .cn-foot   { padding-top: 9px; font-size: var(--text-xxs); line-height: 1.55; }
+.cn-q3.compacto .cn-dbar   { height: 13px; }
+.cn-q3.compacto .cn-dist   { gap: 7px; }
