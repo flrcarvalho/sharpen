@@ -1337,6 +1337,41 @@ reconciliação. É a próxima sessão desta frente.
 
 ---
 
+### 4.5 A aba Contas rola 18px na horizontal a 1366, com o drill aberto (s373). VIVA, medida.
+
+Sintoma: em 1366 de largura, abrir o drill de uma casa faz a pagina rolar 18px para o
+lado. Fechada ela da +0; a 1440 e acima da +0 nas duas situacoes. `document.scrollLeft`
+chega a 18 de verdade, entao nao e artefato de medicao.
+
+A mecanica, medida na cadeia de ancestrais:
+
+    main.main     rect 1120  scroll 1120  client 1120   display:block  min-width:auto
+    div.app       rect 1102  scroll 1120  client 1102   display:flex
+    div#root      rect 1102  scroll 1120  client 1102
+
+O `.main` e item flex (`layout.css:201`, `flex: 1`) e herda `min-width: auto`, que
+proibe um item flex de encolher abaixo do min-content do proprio conteudo. Com o drill
+aberto a pagina fica alta, aparece a barra de rolagem vertical, o util cai de 1120 para
+1102, e o `main` se recusa a acompanhar porque seu min-content e 1120,31.
+
+Quem cria o piso e o `#contasContent`, com min-content de 1075 (mais os 56 de padding do
+`.main-content` da 1131). Dentro dele o `div.cn-drill` mede 1041, entao ele sozinho nao
+explica: falta identificar qual dos cinco filhos (`cn-regua`, `cn-q3`, `cn-secao`,
+`cn-ovf`, `cn-defs`) contribui com o resto.
+
+**Por que nao foi corrigido junto:** a correcao canonica e `min-width: 0` no `.main`, e
+isso e CSS de casca, valendo para TODAS as telas. A aba Apostas ja transborda +194 em
+1366 por conta propria, e com `min-width: 0` o `main` passaria a encolher, trocando o
+transbordo com rolagem por conteudo vazando do container sem rolagem. Mexer ali exige
+medir as telas todas, e nao cabia numa mudanca de nome de painel (invariante 6).
+
+**Gate que ja cobre:** `scripts/demo/medir_aba_contas.mjs` mede transbordo em cinco
+larguras e acusa este caso hoje. Ele e quem encontrou.
+
+**Pista para quem pegar:** medir o min-content dos cinco filhos do `#contasContent` um a
+um (`el.style.width = 'min-content'` e ler o rect) antes de mexer em qualquer CSS. O
+culpado pode ser local, e ai a correcao nao precisa tocar a casca.
+
 ## 5. Planos com fase aberta
 
 > Um plano só sai daqui quando **todas** as fases dele fecham. Plano com uma fase aberta é

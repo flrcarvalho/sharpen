@@ -637,9 +637,22 @@ function _cnPaineis(B,contas,casa){
     : ' Toda conta do recorte tem preço lançado.';
   const multTxt=mult===null?'·'
     :mult.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
-  const p3=painel('Retorno sobre aquisição',
+  // Título do Feca. Ele resolve o português ruim de "quanto o CUSTO devolveu" (custo não
+  // devolve) sem tocar no vocabulário que o `test_o_vocabulario_proibido_nao_volta_ao_produto`
+  // barra desde a s358. A primeira sugestão dele caía numa VARIANTE de grafia de uma das
+  // três palavras de lá: o gate só lista a forma exata, e entrar pela variante seria
+  // driblar uma regra dele com um sinônimo. Por isso a palavra usada aqui é `custo`.
+  //
+  // Com o título dizendo "retorno sobre o custo", a pergunta antiga virava eco. Ela
+  // passa a ser a DECISÃO que o múltiplo informa, que é outra coisa: acima de 1,00× a
+  // conta se pagou, abaixo não.
+  //
+  // "das contas" saiu por MEDIDA, nao por gosto: em 1366 o titulo inteiro quebrava em
+  // duas linhas (28px contra os 14px dos vizinhos) e empurrava a figura 14px para baixo,
+  // desalinhando os tres paineis. O contexto a direita ja diz "N de N contas".
+  const p3=painel('Retorno sobre o custo',
     `${nEleg} de ${G.n} ${_cnPl(G.n,'conta','contas')}`,
-    'O que as contas devolveram sobre o que custaram?',
+    'As contas se pagaram?',
     [{valor:multTxt,rotulo:'Múltiplo'}],
     `<div class="cn-comp">${comp}</div>${cov}`,
     (mult!==null
