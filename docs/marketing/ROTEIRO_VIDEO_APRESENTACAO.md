@@ -1,79 +1,143 @@
-# Roteiro — vídeo de apresentação do Sharpen
+# Roteiro — "Onde está o meu dinheiro?"
 
-> **Duração alvo:** 2min20. **Narração:** a voz real do Feca, dos 6 áudios gravados em
-> 07/09/2026, mais dois inserts do depoimento do Jonathan (autorizado em 19/09/2026).
-> **Imagem:** gravação de tela real, nunca reconstrução em HTML.
+> **Formato:** história contada pela tela, com legenda e narração. Não é demonstração
+> de recurso: cada tela aparece quando a história precisa dela, e quem assiste não
+> percebe que viu oito recursos.
 >
-> **Por que esta peça vem antes da landing:** o assunto já está formado (temos as duas
-> vozes e os números medidos), e a narrativa que sair daqui é a que a landing e os
-> posts vão herdar. A landing ainda vai receber material de outros depoimentos.
+> **Arco escolhido (19/09/2026):** *A investigação*. O mês fechou positivo, o banco
+> discorda, e a peça é seguir o dinheiro até achar onde ele vaza.
 >
-> Fontes: [`depoimentos/VOZ_DO_FUNDADOR.md`](depoimentos/VOZ_DO_FUNDADOR.md) e
+> **Duração:** 2min25. **Voz:** narração em primeira pessoa (recomendo a do Feca, é o
+> material de origem e soa como gente, não como anúncio), mais dois inserts de voz
+> real do Jonathan e dois do próprio Feca, dos áudios já gravados.
+>
+> Fontes: [`depoimentos/VOZ_DO_FUNDADOR.md`](depoimentos/VOZ_DO_FUNDADOR.md) ·
 > [`depoimentos/DEPOIMENTOS.md`](depoimentos/DEPOIMENTOS.md).
 
-## A frase da peça
+## A regra que rege a peça inteira
 
-**"Onde está o meu dinheiro?"**
+**Número dito é número na tela.** Se a narração fala em 90 contas, a tela mostra 90.
+Nada de locução genérica sobre imagem específica, nem o contrário. É a mesma régua de
+fidelidade que o produto aplica ao dado, aplicada ao vídeo, e é o que separa esta peça
+de um anúncio qualquer.
 
-"Banca" fica reservada para a cena da Caixa, onde ela é literalmente a banca. A razão
-de a headline ser "dinheiro" e não "banca": o problema que o Jonathan descreve não é só
-o saldo nas casas, é o dinheiro que **vazou em custo** (contas compradas, tipsters,
-VPN, contador, navegador). "Banca" não cobre custo, e custo foi o tema número um dos
-dois áudios. Além disso "dinheiro" é a palavra que o cliente usou, verbatim.
+---
 
-## Cenas
+## ATO 1 — O desencontro · 0:00 → 0:35
 
-| # | Tempo | Áudio | Tela | Nota |
-|---|---|---|---|---|
-| **1** | 0:00 → 0:14 | **Jonathan**, 02:18: *"Esse mês eu ganhei 10 mil reais. Aí eu olhava no meu banco, olhava no saldo, mas não parece que eu ganhei tanto dinheiro assim. Onde é que está esse dinheiro?"* | Preto, só a legenda. Nada de interface ainda | Abre pela dor. Sem logo, sem trilha, sem nada. A voz de um cliente real na primeira frase |
-| **2** | 0:14 → 0:24 | **Feca**, áudio 5 · 00:26: *"Ele tem um mapa de onde está o dinheiro em todas as suas contas espalhadas."* | Título **Onde está o meu dinheiro?** resolvendo na marca, e a logo entra | O corte entre a pergunta do cliente e a resposta do fundador é o coração da peça |
-| **3** | 0:24 → 0:48 | **Feca**, áudio 1 · 00:00 → 00:23: extração das casas, conta, fornecedor, tabela de preço, custo acumulando | Tela **Extração e Captura**: captura rodando, bilhetes entrando em lote | Aqui entra o selo do eixo: **10, 200 ou 2.000 bilhetes, o mesmo tempo** |
-| **4** | 0:48 → 1:10 | **Feca**, áudio 4 · 00:39 → 01:05: *"Eu meio que assino as minhas bets. Três grupos, mesma stake, 400. O grupo 1 manda, eu pego 401. O grupo 2, 402. O grupo 3, 403. Aí ele já entende tudo."* | Zoom nas stakes 401 / 402 / 403 e a coluna de tipster preenchendo sozinha | O recurso que o fundador e o cliente explicam igual, sem terem combinado. Tem que ser vídeo, não texto |
-| **5** | 1:10 → 1:20 | **Jonathan**, 01:17 → 01:38 (trecho E) confirmando a mesma coisa com as palavras dele | Segue a tela da cena 4 | A confirmação logo depois da explicação é o que transforma recurso em prova |
-| **6** | 1:20 → 1:42 | **Feca**, áudio 2 · 00:00 → 00:28: saldo da conta, saque, depósito, e o caixa sendo calculado a cada extração | **Contas & Parceiros**, cartão da Caixa Inteligente: banca, em aberto, disponível | Título de apoio: **Onde está minha banca?** Aqui a palavra é exata |
-| **7** | 1:42 → 2:02 | **Feca**, áudio 3 (reescrito na gravação, ver nota) + áudio 5 · 00:05: *"é um sistema que vai se auto-auditando, e vai te mostrando as diferenças"* | Conferência de caixa: **projetado x atual**, com a divergência destacada | **Regravar essa fala.** A história é ótima, o termo "laranja safada" não vai para peça. Vira: *"quem opera conta para você"* |
-| **8** | 2:02 → 2:14 | **Feca**, áudio 5 · 00:40 → 01:06: operadores, a chave de ouro | Troca de visão: a do operador, a tua, e a consolidada | Diferencial que tracker global nenhum tem |
-| **9** | 2:14 → 2:26 | **Jonathan**, 04:52 (trecho G): *"Hoje, em menos tempo, eu faço mais coisas. Tenho mais informação sobre a saúde da minha banca do que eu tive ao longo de toda a minha jornada."* | **Cartão de prova** animado, com os números medidos dele | O cartão é renderizado com dado real do Postgres, não digitado |
-| **10** | 2:26 → 2:32 | Sem narração | **www.sharpen.bet/realtrial** · *"Entra e mexe. Sem cadastro."* | CTA é a demo, não o cadastro. É o ativo mais forte e já está no ar |
+| Tempo | Tela | Áudio | Legenda |
+|---|---|---|---|
+| 0:00 | KPI do mês fechando positivo, grande, sozinho na tela | *(silêncio, 2s)* | |
+| 0:04 | Sustenta o número | **Narração:** "Todo mês eu fechava a conta e o número era bom." | |
+| 0:09 | **Corte seco.** Saldo real, muito menor | **Narração:** "Aí eu olhava o dinheiro de verdade." | **"O mês fechou positivo. O saldo discorda."** |
+| 0:16 | Preto | **Insert, voz real do Jonathan:** *"Não parece que eu ganhei tanto dinheiro assim. Onde é que está esse dinheiro?"* | **"Jonathan · 13.715 apostas planilhadas no Sharpen"** |
+| 0:28 | Título na marca | *(silêncio)* | **ONDE ESTÁ O MEU DINHEIRO?** |
 
-## Cartão de prova da cena 9 (medido em 19/09/2026)
+> **Produção:** nada de marca de banco no corte de 0:09. Um saldo neutro, sem
+> instituição identificável. O contraste é entre dois números, não entre duas marcas.
 
-> **Jonathan · usuário desde julho/2026**
-> 13.715 apostas planilhadas · 4.612 nos últimos 30 dias · 29 casas · 90 contas ·
-> 22 tipsters · captura em 58 dos últimos 90 dias
+---
+
+## ATO 2 — A busca · 0:35 → 1:55
+
+A tela vira mapa. Quatro pistas, e a quarta é a virada.
+
+### Pista 1 · onde ele está parado · 0:35 → 0:52
+
+| Tela | Áudio | Legenda |
+|---|---|---|
+| **Contas & Parceiros**: a lista enchendo, conta por conta, casa por casa, com saldo | **Narração:** "A primeira coisa que eu não sabia era onde ele estava parado." | **"Pista 1 · o dinheiro está espalhado"** |
+| Captura rodando, bilhetes entrando em lote | **Narração:** "Uma passada, e tudo que aconteceu na semana entra." | **"10, 200 ou 2.000 bilhetes. O mesmo tempo."** |
+
+### Pista 2 · de quem era cada aposta · 0:52 → 1:15
+
+A cena mais visual da peça, e a que mais surpreende quem assiste.
+
+| Tela | Áudio | Legenda |
+|---|---|---|
+| Zoom nas stakes: **401**, **402**, **403** | **Insert, voz real do Feca:** *"Eu meio que assino as minhas bets. Três grupos, mesma stake, 400. O grupo 1 manda, eu pego 401. O grupo 2, 402. O grupo 3, 403."* | |
+| A coluna **Tipster** preenchendo sozinha, linha a linha | **Narração:** "E ele entende de quem é cada uma." | **"Pista 2 · cada aposta tem dono"** |
+| Tela de Tipsters: quanto entra em cada, quanto volta | **Narração:** "Aí dá para ver quem me dá retorno, e quem só me custa." | |
+
+### Pista 3 · o que saiu e ninguém somou · 1:15 → 1:35
+
+| Tela | Áudio | Legenda |
+|---|---|---|
+| **Custos**: preço por conta, fornecedor com tabela | **Narração:** "Cada conta teve um preço. Eu comprei, paguei, e nunca somei." | **"Pista 3 · o custo que ninguém lança"** |
+| Custos recorrentes: tipster, VPN, contador, navegador | **Narração:** "E tinha o que sai todo mês sem eu ver." | **"Lança uma vez. Ele cobra todo mês."** |
+
+### Pista 4 · a conta que não fecha · 1:35 → 1:55  ← **a virada**
+
+| Tela | Áudio | Legenda |
+|---|---|---|
+| Cartão da **Caixa** de uma conta: projetado x atual, a diferença destacada | **Narração:** "E aí uma conta não fechou." | **"Onde está minha banca?"** |
+| A diferença em destaque | **Narração:** "O projetado dizia um número. A casa mostrava outro." | **"Pista 4 · a diferença tem nome"** |
+| Segue na tela | **Insert, voz do Feca (REGRAVAR, ver produção):** *"Com um ou dois dias o Sharpen já aponta a diferença. Ele faz o teu caixa projetado e bate com o teu caixa atual."* | |
+
+> **Produção, cena 4:** esta é a única gravação nova da peça. A história original é a
+> do operador que saca de pouquinho e demora a ser descoberto, e ela é o argumento mais
+> forte de todo o material. O termo do áudio original não vai para peça pública: vira
+> **"quem opera conta para você"**. São 15 segundos de locução.
+
+---
+
+## ATO 3 — O mapa · 1:55 → 2:25
+
+| Tempo | Tela | Áudio | Legenda |
+|---|---|---|---|
+| 1:55 | A câmera abre: visão geral, tudo somando | **Narração:** "Não era memória, não era sorte. Era conta fechada." | |
+| 2:02 | Segue | **Insert, voz real do Feca:** *"Ele tem um mapa de onde está o dinheiro em todas as suas contas espalhadas."* | |
+| 2:10 | **Cartão de prova** do Jonathan, animado com dado real | **Insert, voz real do Jonathan:** *"Hoje eu tenho mais informação sobre a saúde da minha banca do que eu tive ao longo de toda a minha jornada."* | |
+| 2:20 | Marca + endereço | *(silêncio)* | **www.sharpen.bet/realtrial** · **"Entra e mexe. Sem cadastro."** |
+
+### Cartão de prova (medido em 19/09/2026)
+
+> **Jonathan · usuário desde julho de 2026**
+> 13.715 apostas · 4.612 nos últimos 30 dias · 29 casas · 90 contas · 22 tipsters
+> captura em 58 dos últimos 90 dias
 >
 > **Antes: 1 hora por dia. Hoje: 15 a 20 minutos.**
 
-## Cortes curtos que saem deste mestre
+---
 
-| Corte | Cenas | Duração | Onde |
+## Cortes curtos que saem desta peça
+
+| Corte | Origem | Duração | Onde |
 |---|---|---|---|
-| **A pergunta** | 1 + 2 | 24s | Post de abertura do X |
-| **A assinatura** | 4 + 5 | 32s | Post de recurso, e seção da landing |
-| **A divergência** | 7 | 20s | Post de caso |
-| **O depoimento** | 1 + 9 | 26s | Prova social, e topo da landing |
+| **O desencontro** | Ato 1 inteiro | 30s | Post de abertura do X |
+| **A assinatura** | Pista 2 | 25s | Recurso, e seção da landing |
+| **A diferença** | Pista 4 | 20s | Post de caso |
+| **A noite de domingo** | peça própria, ver abaixo | 30s | O eixo do tempo |
+
+> **"A noite de domingo" não foi descartada.** Era o segundo arco candidato, e o eixo
+> que ela carrega (o tempo não escala com o volume) não cabe nesta história sem desviá-la.
+> Vira peça curta e própria: domingo 21h, 400 bilhetes acumulados em 12 casas, relógio
+> correndo no canto, e ele para em 22 minutos. É o melhor material para quem **já
+> planilha** e desistiu por causa do acúmulo.
+
+---
 
 ## Notas de produção
 
-**Onde gravar a tela:** no **`/realtrial`**, não na base do Feca. A base da demo já é
-real e anonimizada (48.899 apostas, 270 contas, 110 tipsters, Caixa ligada com 201
-contas), então resolve realismo e privacidade no mesmo gesto, e o espectador pode
-repetir exatamente o que viu no vídeo.
+**Onde gravar:** no **`/realtrial`**. A base da demo é real e anonimizada, então resolve
+realismo e privacidade no mesmo gesto, e quem assistir pode repetir o que viu.
 
-> ⚠️ **Três armadilhas conhecidas dessa base, e elas aparecem em vídeo:** a Solidez da
-> demo está em **Baixa**, com MDD de 90,88%, porque o edge sintético ficou baixo. Se
-> alguma cena pegar esse painel, o vídeo mostra a nossa própria régua reprovando a
-> operação. Também há 21 bilhetes datados no futuro e o painel de Diagnóstico de Risco
-> demora a sair de "calculando". **Enquadrar fora, ou corrigir a base antes de gravar.**
+> ⚠️ **Três armadilhas dessa base, e todas aparecem em vídeo:** a Solidez está em
+> **"Baixa"** com MDD de 90,88%, há 21 bilhetes datados no futuro, e o Diagnóstico de
+> Risco demora a sair de "calculando". Enquadrar fora, ou ajustar a base antes de gravar.
+>
+> ⚠️ E a regra do topo vale aqui: a demo tem 270 contas e 110 tipsters, o Jonathan tem
+> 90 e 22. **Os números da narração e os da tela têm que ser os mesmos.** Ou grava com
+> recorte que bata, ou a narração não cita número e o cartão do fim faz esse trabalho.
 
 **Ferramentas:** gravação de tela por Playwright (o pipeline `scripts/demo/` já existe),
-cartões e títulos em Remotion (renderizam com o número vindo direto do Postgres, na
-tipografia e nas cores do `pack/tokens/tokens.css`), corte e legenda no ffmpeg local. A
-montagem final e o ritmo ficam na mão.
+cartões e títulos em Remotion (renderizam com dado vindo direto do Postgres, na
+tipografia e nas cores do `pack/tokens/tokens.css`), corte e legenda no ffmpeg local.
+Ritmo e montagem final na mão.
+
+**Legenda sempre queimada.** A primeira vez quase sempre é sem som.
 
 **O que não entra:** nome de grupo de tipster, e-mail, nome de fornecedor, valor de
-custo em R$ de qualquer usuário, e qualquer promessa de lucro. A peça fala de
-**controle e gestão**, nunca de acertar aposta. Isso não é preciosismo: é a fronteira
-que decide se um gateway de pagamento aceita a operação na Fase 4.
-
-**Legenda sempre queimada.** Quase todo mundo assiste sem som na primeira vez.
+custo em R$ de usuário, marca de banco, e qualquer promessa de lucro. A peça fala de
+**controle e gestão**, nunca de acertar aposta. Essa é a fronteira que decide se um
+gateway aceita a operação na Fase 4.
