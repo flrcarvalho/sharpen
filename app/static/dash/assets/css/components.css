@@ -3334,3 +3334,16 @@ select.ap-inline-inp { padding: 2px 4px; }
 .cn-fichas                 { padding-top: 0; }
 /* O favicon no ranking alinha com o nome sem empurrar a linha. */
 .cn-mrow .nm               { display: inline-flex; align-items: center; min-width: 0; }
+
+/* ── Ranking do painel: as três partes em COLUNAS, não em linha corrida ──────
+   `52 contas · +10,93%` seguido de `17 contas · +4,58%` desalinhava a palavra "contas",
+   porque cada número tem largura própria e tudo era empurrado da direita. Agora a
+   quantidade tem largura fixa e alinha à direita, a unidade tem a sua, e o percentual
+   fecha a linha: as três colunas caem no mesmo pixel em todas as linhas. */
+.cn-mrow .vv               { display: inline-grid; grid-template-columns: 3.5ch 6ch 8ch;
+                             align-items: baseline; gap: 6px; }
+.cn-mrow .vv .q            { text-align: right; color: var(--ink); font-weight: 600; }
+.cn-mrow .vv .u            { text-align: left; color: var(--ink-soft); }
+.cn-mrow .vv .p            { text-align: right; }
+/* O chip da casa no ranking é o mesmo componente da tabela, um degrau menor. */
+.cn-mrow .house-chip       { width: 18px; height: 18px; border-radius: 5px; margin-right: 8px; }

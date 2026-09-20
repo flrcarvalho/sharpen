@@ -582,9 +582,10 @@ function _cnPaineis(B,contas,casa){
           +`<span class="vv"><b>${fmtR(c.turn)}</b> · ${_cnPctTxt(roiC)}</span></div>`;
       })
     : linhas.filter(c=>c.comPreco>0).sort((a,b)=>b.comPreco-a.comPreco).slice(0,5).map(c=>
-        `<div class="cn-mrow"><span class="nm">${casaImg(c.casa,14)}${esc(c.casa)}</span>`
-        +`<span class="vv"><b>${c.comPreco}</b> ${_cnPl(c.comPreco,'conta','contas')} `
-        +`· ${_cnPctTxt(c.roiLiq)}</span></div>`)
+        `<div class="cn-mrow"><span class="nm">${mkHouseChip(c.casa)}${esc(c.casa)}</span>`
+        +`<span class="vv"><b class="q">${c.comPreco}</b>`
+        +`<span class="u">${_cnPl(c.comPreco,'conta','contas')}</span>`
+        +`<span class="p">${_cnPctTxt(c.roiLiq)}</span></span></div>`)
     ).join('')||`<div class="cn-vazio">Nenhuma conta comprada no recorte.</div>`;
   const roiLiq=turnEleg>0?((G.plEleg-custo)/turnEleg*100):0;
   const p2=painel('Volume e margem', B.temPeriodo?'no período':'histórico',
