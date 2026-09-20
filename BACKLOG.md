@@ -1038,6 +1038,54 @@ auditoria.
 
 ---
 
+### 3.13 Quanto o tipster CONSEGUIU passar, e não só quanto passou (s377). VIVA, medida.
+
+Pedido do **Germano** em depoimento gravado (20/09, áudio 5; transcrição em
+[`docs/marketing/depoimentos/`](docs/marketing/depoimentos/DEPOIMENTOS.md)). São **duas**
+frentes, e a medição diz que elas têm viabilidades diferentes.
+
+> *"Você diz que a stake era 300. A sua aposta média é 280. Então por que você não está
+> apostando a sua stake toda? Porque eu não estou conseguindo pegar a stake toda por causa
+> da liquidez. Aí você consegue medir a liquidez daquele grupo."*
+
+**(a) Liquidez do grupo: falta o DADO, não o cálculo.** A comparação é trivial (stake-alvo
+declarada × stake média efetiva por tipster), mas a stake-alvo **não existe na base**.
+`tipsters.stake_min`/`stake_max` estão no schema desde a Fase B da auto-atribuição e
+seguem **vazios em 100 % dos donos** — medido em 20/09: 0 preenchidos de 43 (realtrial),
+34 (Feca), 34 (arrudex), 22 (Jonathan), 21 (germano) e 20 (Diogo). Não há UI para
+preencher. Então o trabalho é: campo de stake-alvo no cadastro do tipster (em **unidade**,
+que é como o tipster publica, e a tela já tem o switch R$/u), e a métrica sai de graça.
+
+**(b) Juntar a mesma aposta feita em contas diferentes: o dado JÁ EXISTE e o fenômeno é
+frequente.** Medido por `(dono, data, descricao)` com mais de um `parceiro`:
+
+| Dono | Bilhetes | Grupos | Linhas envolvidas | % da base |
+|---|---|---|---|---|
+| germano | 1.670 | 49 | 103 | 6,2 % |
+| Jonathan | 13.715 | 652 | 1.387 | 10,1 % |
+| Feca | 37.296 | 1.580 | 3.315 | 8,9 % |
+
+**O problema não é agrupar, é o CRITÉRIO — e a amostra já mostra os três modos de errar.**
+Agrupando só por data e descrição aparecem grupos com **3 linhas em 2 contas** (duas na
+mesma conta: ou é reentrada legítima, ou é duplicata), com **odds distintas** (mesma
+seleção em Bet365, BigBet e icebet é o caso que o pedido quer somar; a mesma seleção
+apostada em dois momentos com odd diferente talvez não seja) e com stakes que não parecem
+da mesma ordem (`200,00 + 4,00`).
+
+> ⚠️ **Não é a régua de duplicata, é a inversa dela.** A dedup exige stake, odd e descrição
+> batendo os TRÊS; aqui o alvo é justamente juntar apostas de **stake diferente**
+> (R$ 250 + R$ 200 = R$ 450). Usar uma régua no lugar da outra soma aposta que não é a
+> mesma e infla o quanto o tipster "conseguiu passar".
+
+**O que segura o risco:** a métrica é **derivada, nunca persistida** — como o `calcular_pl`.
+Agrupar errado dá número errado na tela, e não escreve nada no banco.
+
+**Decisão do Feca:** vale construir? Se valer, (a) é pré-requisito de (b) para a leitura
+fazer sentido ("passou 450 de uma stake-alvo de 600"), e a ordem natural é campo primeiro,
+agrupamento depois, com o critério nascendo de uma amostra que ele mesmo olhe.
+
+---
+
 ## 4. Dívida técnica medida
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.

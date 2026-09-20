@@ -25,7 +25,7 @@
 | Quem | Tipo | Data | Duração | Autorização | Transcrição |
 |---|---|---|---|---|---|
 | Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ✅ autorizado (19/09/2026, pelo Feca) | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
-| Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ⏳ pendente | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
+| Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ✅ autorizado (20/09/2026, pelo Feca) | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
 
 > **Arquivo irmão:** [VOZ_DO_FUNDADOR.md](VOZ_DO_FUNDADOR.md) guarda o pitch do Feca
 > gravado sem roteiro. Voz de cliente é **prova**; voz de fundador é **copy**. Os dois
@@ -181,5 +181,8 @@ Dois pedidos concretos, e nenhum deles existe hoje:
    outra são **uma** aposta de R$ 450, e hoje contam como duas. Sem isso não dá para
    responder se vale a pena comprar mais uma conta para aquele tipster.
 
-> Os dois são de produto e vão para o `BACKLOG.md`, não para peça. **Pendente de
-> decisão do Feca**, porque o `BACKLOG.md` é arquivo compartilhado com a outra sessão.
+> **Registrados no [`BACKLOG.md §3.13`](../../../BACKLOG.md), com medição** (20/09). O
+> que a medição achou: a liquidez esbarra em dado que ninguém coleta (`stake_min`/`max`
+> existem no schema e estão vazios em 100% dos donos), e o agrupamento esbarra no
+> CRITÉRIO, não na falta de dado — a mesma aposta em contas diferentes cobre 6,2% da base
+> do Germano, 10,1% da do Jonathan e 8,9% da do Feca.
