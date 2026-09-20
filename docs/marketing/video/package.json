@@ -1,0 +1,16 @@
+{
+  "name": "sharpen-video",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cartoes e titulos do video de apresentacao do Sharpen (Remotion). Isolado do app.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.526",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.526"
+  }
+}

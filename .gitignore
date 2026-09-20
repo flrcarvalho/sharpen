@@ -31,3 +31,7 @@ _backups/
 
 # Audios de depoimento (pesados; ficam locais)
 docs/marketing/depoimentos/audios/
+
+# Remotion (toolchain de video, nao versionar)
+docs/marketing/video/node_modules/
+docs/marketing/video/out/
