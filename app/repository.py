@@ -4420,14 +4420,24 @@ async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | Non
 # estavam na conta órfã, invisível, e o operador poderia repetir a extração à vontade sem
 # nunca ver o lote aparecer. Casa+parceiro chegam como filtro OPCIONAL para não mudar os
 # chamadores que não têm a conta em mãos (o comportamento antigo é o fallback).
-def _filtro_conta(params: list, casa: str | None, parceiro: str | None) -> str:
+#
+# ⚠️ **`tabela` não é enfeite: sem ele, este filtro MATA em silêncio a query que tem JOIN.**
+# `bilhetes` e `bloco_visto` têm as duas colunas (`casa`, `parceiro`/`casa`), então um
+# ` AND casa = $3` cru vira `AmbiguousColumnError` dentro do `except` do chamador, que
+# devolve `{}` e segue "sem pular nada". Foi assim que a barreira de recaptura ficou MORTA
+# de 09/09 a 20/09 com o CI verde: ela nunca pulou um bloco sequer, e o modo de falha é
+# economia que não acontece — ninguém abre chamado por isso.
+# Quem usa UMA tabela não passa nada (o comportamento antigo); quem faz JOIN passa o alias.
+def _filtro_conta(params: list, casa: str | None, parceiro: str | None,
+                  tabela: str = "") -> str:
+    pfx = f"{tabela}." if tabela else ""
     sql = ""
     if casa:
         params.append(casa)
-        sql += f" AND casa = ${len(params)}"
+        sql += f" AND {pfx}casa = ${len(params)}"
     if parceiro:
         params.append(parceiro)
-        sql += f" AND parceiro = ${len(params)}"
+        sql += f" AND {pfx}parceiro = ${len(params)}"
     return sql
 
 
@@ -4611,7 +4621,9 @@ async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None 
                      ON v.dono = b.dono AND v.casa = b.casa AND v.codigo = b.codigo_bilhete
                   WHERE b.codigo_bilhete = ANY($1::text[])
                     AND b.dono = $2"""
-        sql += _filtro_conta(params, casa, parceiro)
+        # `tabela="b"` é obrigatório aqui: as DUAS tabelas do JOIN têm `casa`. Ver o
+        # aviso no `_filtro_conta` e `test_blocos_conhecidos_filtra_por_conta_no_banco`.
+        sql += _filtro_conta(params, casa, parceiro, tabela="b")
         pool = await get_pool()
         async with pool.acquire() as conn:
             linhas = await conn.fetch(sql, *params)

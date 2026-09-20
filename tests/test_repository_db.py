@@ -546,6 +546,65 @@ def test_sombra_purga_o_velho_e_preserva_o_novo():
     _run(body())
 
 
+# ── Barreira de recaptura: o JOIN, que é SQL e só o banco prova (s376) ───────
+#
+# `tests/test_barreira_recaptura.py` declara no cabeçalho que NÃO toca o banco e que o
+# JOIN de `blocos_conhecidos` "tem de ser conferido contra o Postgres real antes de a
+# barreira valer em produção". Ninguém foi conferir, e o limite declarado virou o buraco:
+# o `_filtro_conta` acrescentava ` AND casa = $3` sem qualificar a tabela, as DUAS do JOIN
+# têm essa coluna, e o `AmbiguousColumnError` caía no `except` que devolve `{}`. Resultado
+# medido em produção: de 09/09 a 20/09 a barreira NÃO pulou um bloco sequer, com o CI
+# verde o tempo todo, porque o modo de falha dela é economia que não acontece.
+#
+# Estes dois exercem `registrar_blocos_vistos` + `blocos_conhecidos` de ponta a ponta.
+
+async def _reset_barreira():
+    await _reset()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("TRUNCATE bloco_visto")
+
+
+def test_blocos_conhecidos_filtra_por_conta_no_banco():
+    """O caso que estava quebrado: COM casa e parceiro, o JOIN tem de devolver o hash.
+
+    Antes do conserto esta chamada levantava `AmbiguousColumnError` lá dentro e a função
+    devolvia `{}` — verde em teste de unidade, morta em produção."""
+    async def body():
+        await _reset_barreira()
+        texto = "[Código: BAR1]\nStake: R$ 10,00\nSeleções:\n  • Time A\n"
+        await repository.upsert_bilhetes(
+            [_row(casa="Bet365", parceiro="Feca [Eu]", codigo_bilhete="BAR1")], "TDonoA")
+        assert await repository.registrar_blocos_vistos("TDonoA", "Bet365", texto) == 1
+
+        esperado = repository.hash_bloco(repository.blocos_por_codigo(texto)["BAR1"])
+        # sem escopo de conta (comportamento antigo dos chamadores que não têm a conta)
+        assert await repository.blocos_conhecidos("TDonoA", None, ["BAR1"]) == {"BAR1": esperado}
+        # COM escopo de conta — é esta que a barreira usa, e é esta que morria
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["BAR1"], "Feca [Eu]") == {"BAR1": esperado}
+        # conta errada não pode entregar o hash: "já tenho" significa "nesta conta"
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["BAR1"], "Outra [Conta]") == {}
+        # dono errado idem (tenancy)
+        assert await repository.blocos_conhecidos(
+            "TDonoB", "Bet365", ["BAR1"], "Feca [Eu]") == {}
+    _run(body())
+
+
+def test_hash_sem_bilhete_no_banco_nao_e_conhecido():
+    """Costura 3 contra o banco: `/extrair` e `/salvar` são endpoints separados, então o
+    hash pode existir para bilhete que nunca chegou à tabela. Sem o JOIN ele ficaria
+    invisível para sempre — a barreira o pularia e a aposta nunca entraria."""
+    async def body():
+        await _reset_barreira()
+        texto = "[Código: ORFAO1]\nStake: R$ 10,00\nSeleções:\n  • Time A\n"
+        assert await repository.registrar_blocos_vistos("TDonoA", "Bet365", texto) == 1
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["ORFAO1"], "Feca [Eu]") == {}
+    _run(body())
+
+
 # ── Janela de vida da conta (s322/s323) ──────────────────────────────────────
 # Estes três exercem o SCHEMA_SQL de verdade. Sem eles o job de banco só provava que a
 # migração NÃO EXPLODE: o backfill roda dentro de um `DO ... EXCEPTION WHEN others` (um erro

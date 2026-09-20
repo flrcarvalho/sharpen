@@ -178,6 +178,38 @@ O harness **reescrevia** a ligação do listener em vez de recortá-la do arquiv
 que removia o guard passou **verde**: o teste estava exercitando a própria cópia, não o
 código.
 
+### O limite que o teste declarou e ninguém foi fechar — barreira de recaptura, s334 → s376
+
+O cabeçalho de `tests/test_barreira_recaptura.py` diz, por escrito: *"Não tocam o banco. O
+`JOIN` de `blocos_conhecidos` com `bilhetes` é SQL e não é exercido aqui. Ele tem de ser
+conferido contra o Postgres real antes de a barreira valer em produção."*
+
+Ninguém foi conferir. A Fase 1 subiu em **09/09** com 12 testes verdes e o harness verde, e
+**não pulou um bloco sequer até 20/09**. O `_filtro_conta` acrescentava ` AND casa = $3` sem
+qualificar a tabela; as duas do `JOIN` (`bilhetes` e `bloco_visto`) têm essa coluna, então
+vinha `AmbiguousColumnError`, que caía no `except` e devolvia `{}` — "segue sem pular nada",
+que é o lado seguro e por isso é invisível.
+
+Medido em produção antes do conserto: **399 de 400** blocos relidos já tinham o hash exato
+gravado em `bloco_visto`. A memória existia; quem não conseguia lê-la era a query.
+
+**Três coisas que este caso ensina, e a terceira é a que dói:**
+
+1. **Limite declarado é dívida, não documentação.** Declarar o que o teste não cobre
+   (regra do `CLAUDE.md`) é metade; a outra metade é alguém fechar, e a declaração tem de
+   vir com dono e data, senão vira álibi.
+2. **`except` largo em caminho de economia transforma defeito em silêncio.** O modo de
+   falha aqui não é erro, é conta que não baixa. Ninguém abre chamado por isso. Onde o
+   `except` protege o caminho quente, o log precisa ser conferido em produção uma vez,
+   nem que seja à mão.
+3. **Verde não é efeito.** Entre 09/09 e 20/09 o item constava como entregue no plano e no
+   `BACKLOG`, e a economia era zero. Item de custo só fecha com número medido em produção,
+   antes e depois.
+
+O conserto fechou a **classe**, não a instância: `_filtro_conta` passou a receber `tabela`,
+e quem usa uma tabela só não passa nada. O gate novo vive em `tests/test_repository_db.py`
+(CI, Postgres de teste), que é onde SQL se prova.
+
 ### O dado sintético que não exercia a regra — s287
 
 Um feed com 5 itens nunca atinge um corte de 12. Sem empate, o desempate não decide nada. E

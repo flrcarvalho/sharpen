@@ -981,6 +981,61 @@ positiva (hoje ele só reprova o que não está no bloco; não exige uma forma).
 fechar, **não conte as 520 linhas de notação como divergência do tradutor** — não são.
 → [`PLANO_TRADUTOR_DETERMINISTICO §II.8`](docs/PLANO_TRADUTOR_DETERMINISTICO.md#ii8-a-sombra-medida-s333-0909--e-os-três-achados-que-mudaram-o-desenho)
 
+### 3.11 O `_BILHETES_POR_CHUNK` trocou o pedaço GORDO pelo pedaço NUMEROSO (s376). VIVA, medida.
+
+A s301 mediu que chunk grande faz o modelo deliberar em voz alta e perder linha, e pôs o
+teto de 6 bilhetes por pedaço. O defeito que ela mirava era real e o conserto funcionou
+(saída por bilhete de 761 para 202 tokens).
+
+**O que ninguém mediu é o outro lado.** Antes, o `_MAX_CHUNKS = 4` travava o número de
+pedaços, então o pedágio do manual era **constante por lote**. Com o teto por bilhete ele
+virou **linear no tamanho do lote**: 100 bilhetes pagavam 4 manuais e hoje pagam 17.
+
+Medido nas três janelas do `ESTUDO_PRECIFICACAO`:
+
+| | Estudo | Agora |
+|---|---|---|
+| Pedaços por chamada | 3,28 | **4,85** (cauda até 103) |
+| `cache_read` por chamada | 157 k | **297 k** |
+| Chamadas de 17+ pedaços | 0 % da conta | **20 %** |
+
+O `cache_read` explica **93 %** do aumento de 31 % no custo por bilhete, e metade dele é
+este fator (a outra metade é o manual ter crescido, §3.12).
+
+**Os dois extremos têm defeito e ninguém mediu o meio.** A s301 comparou 6, 12 e 23
+bilhetes por pedaço olhando só saída e tempo; falta a mesma tabela com o `cache_read`
+dentro. **Decisão do Feca:** abrir a medição do ponto ótimo (é um experimento controlado
+sobre fixture congelada, não mexe em produção) ou esperar o tradutor, que tira a chamada
+do caminho e torna a pergunta irrelevante para a parte que ele cobrir.
+
+> Cuidado herdado da própria s332: toda otimização daqui precisa declarar **qual** custo
+> ela mira e medir o outro depois. Esta é a terceira vez que uma mira acerta e a vizinha
+> piora em silêncio.
+
+### 3.12 O manual cresceu 31 % e ninguém paga a conta explicitamente (s376). VIVA, medida.
+
+Todo pedaço de toda chamada relê os masters inteiros. Medido no `git`, masters mais
+`CASA_BET365`:
+
+| | Bytes |
+|---|---|
+| 26/07/2026 | 128.648 |
+| 26/08/2026 | 148.889 |
+| 20/09/2026 | **168.751** |
+
+O efeito aparece no `cache_read` **por pedaço**: 47,9 k → 61,2 k tokens (+28 %); na
+Bet365, 49,4 k → 65,4 k. Cada seção nova é correta em si, e é cobrada de todo usuário em
+toda extração.
+
+**Isto não é pedido para cortar MASTER.** O `§3.10` já mediu que eles estão densos, não
+inchados, e que as três hipóteses baratas de poda morreram. O que falta é o **orçamento**:
+hoje uma seção entra sem ninguém dizer quanto ela custa por mês.
+
+**Decisão do Feca:** adotar uma linha no gate de docs que imprima o tamanho somado dos
+masters e o custo mensal implícito (é aritmética sobre `uso_tokens`, já temos as duas
+pontas), para que o número apareça na hora de escrever, não três meses depois numa
+auditoria.
+
 ---
 
 ## 4. Dívida técnica medida
@@ -1380,7 +1435,7 @@ culpado pode ser local, e ai a correcao nao precisa tocar a casca.
 | Frente | Doc-fonte | O que falta | Horizonte |
 |---|---|---|---|
 | **SaaS multiusuário** | [`docs/PLANO_MULTIUSUARIO_2026.md`](docs/PLANO_MULTIUSUARIO_2026.md) | **Fase 4 (pagamento)**: gate `assinatura_ativa` + webhook. As Fases 1, 2 e 3 estão no ar (s233–s236). **Gateway decidido na s342: Asaas**, por levantamento de 21 provedores (Efí é o plano B). O critério que decidiu não foi preço, foi **quem leva o Pix até a assinatura** — Stripe e Pagar.me só fazem recorrência por cartão. Três gates ANTES de qualquer código, e nenhum é engenharia: **(1)** idade do CNPJ, porque o Pix Automático exige CNPJ ativo há 6 meses (Asaas e Cielo) e sem isso sobra QR mensal que o cliente paga à mão; **(2)** CNAE primário de software, nunca 92.00-3, porque o MCC deriva dele e é o MCC que cria o risco (a Pagar.me publica esse de-para); **(3)** ler o Anexo I de Bets dos Termos da Asaas logado (está atrás de 403, e é onde repousa todo o sinal positivo dela). **Não abrir a conta antes da Fase 4.1** — os 3 meses de tarifa promocional contam da criação, não da 1ª venda. E ligar cobrança de Pro/Operação só depois do tradutor: o `ESTUDO_PRECIFICACAO §7.5` mede os dois negativos com o custo de hoje | 🟡 |
-| **Barreira de recaptura** | [`docs/PLANO_BARREIRA_RECAPTURA.md`](docs/PLANO_BARREIRA_RECAPTURA.md) | **Fase 0 (registro escuro) no ar desde a s334** — mede sem filtrar. Faltam a **Fase 1** (ligar o filtro, com as 4 costuras do `§6`: cobertura, órfãs, bilhete sem código e lote vazio) e a **Fase 2** (medir 30 dias). Simulado: **−29,3 % da conta**, R$ 0,092 → R$ 0,065 por bilhete | 🔴 |
+| **Barreira de recaptura** | [`docs/PLANO_BARREIRA_RECAPTURA.md`](docs/PLANO_BARREIRA_RECAPTURA.md) | **Fases 0 e 1 no ar.** ⚠️ **A Fase 1 subiu MORTA em 09/09 e só foi descoberta em 20/09** (s376): o `_filtro_conta` não qualificava a tabela e o `JOIN` de `blocos_conhecidos` levantava `AmbiguousColumnError` dentro do `except`, que devolve `{}`. Ela não pulou **um bloco sequer** em 11 dias, com o CI verde. Consertado e provado contra produção. **Falta a Fase 2, e ela agora é obrigatória, não opcional:** comparar `uso_tokens` dos 7 dias anteriores ao deploy de 20/09 com os 7 seguintes. Corte esperado, medido sem hindsight sobre a sombra: **34,2 % das leituras** (Bet365 39,7 %), ~US$ 230/mês | 🟡 |
 | **Tradutor determinístico** | [`docs/PLANO_TRADUTOR_DETERMINISTICO.md`](docs/PLANO_TRADUTOR_DETERMINISTICO.md) | Fases 1 a 4. A Fase 0 roda em **modo sombra** (13.965 pares, 21 casas, em 13 dias). A correção **B** segue **bloqueada** (`§IV.6`). **Remedição de 08/09** ([`ESTUDO_PRECIFICACAO §7`](docs/ESTUDO_PRECIFICACAO_2026.md#7-revisão-de-08092026-s332--o-que-aconteceu-depois-de-a-e-c)): a pré-condição do preço virou **Bet365 + Betano**, não a Bet365 sozinha | 🔴 |
 | **Perfil de Tipster** | [`docs/PLANO_TIPSTER.md`](docs/PLANO_TIPSTER.md) | **P1** resultado em unidades (backend pronto; a UI trava no formato "u", passa pelo `/nova-ui`) · **P2** atribuição por watermark · **P3** Telegram como fonte. Fase 0 no ar (`origem_tipster`) | 🟢 / 🟡 / 🔵 |
 | **Resolvedor de atribuição** | [`docs/PLANO_INTELIGENCIA_TIPSTER.md`](docs/PLANO_INTELIGENCIA_TIPSTER.md) | ⚠️ **doc defasado** — descreve o matcher **v5, de 15/07**; ele mudou muito desde então (corte de valor redondo e `valores.size===1` na s221, peso declarativo na s289, volta do declarado onde a base é cega na s310). A tese (o resolvedor) segue aberta; o texto precisa de banner de data | 🟡 |
