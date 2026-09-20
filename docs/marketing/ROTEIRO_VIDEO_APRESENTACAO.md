@@ -117,27 +117,53 @@ A cena mais visual da peça, e a que mais surpreende quem assiste.
 
 ---
 
-## Notas de produção
+## Notas de produção — medidas no `/realtrial` em 20/09/2026
 
-**Onde gravar:** no **`/realtrial`**. A base da demo é real e anonimizada, então resolve
-realismo e privacidade no mesmo gesto, e quem assistir pode repetir o que viu.
+Reconhecimento feito com `scripts/demo/recon_realtrial.mjs` (abre a demo, navega, fotografa;
+o cookie é salvo e reusado, porque a rota tem teto de 3 sessões por IP por dia).
 
-> ⚠️ **Três armadilhas dessa base, e todas aparecem em vídeo:** a Solidez está em
-> **"Baixa"** com MDD de 90,88%, há 21 bilhetes datados no futuro, e o Diagnóstico de
-> Risco demora a sair de "calculando". Enquadrar fora, ou ajustar a base antes de gravar.
->
-> ⚠️ E a regra do topo vale aqui: a demo tem 270 contas e 110 tipsters, o Jonathan tem
-> 90 e 22. **Os números da narração e os da tela têm que ser os mesmos.** Ou grava com
-> recorte que bata, ou a narração não cita número e o cartão do fim faz esse trabalho.
+**Onde gravar:** no **`/realtrial`**. A base é real e anonimizada, então resolve realismo e
+privacidade no mesmo gesto, e quem assistir pode repetir o que viu.
 
-**Ferramentas:** gravação de tela por Playwright (o pipeline `scripts/demo/` já existe),
-cartões e títulos em Remotion (renderizam com dado vindo direto do Postgres, na
-tipografia e nas cores do `pack/tokens/tokens.css`), corte e legenda no ffmpeg local.
-Ritmo e montagem final na mão.
+### O que cada cena encontra hoje, já conferido na tela
+
+| Cena | Tela | Estado |
+|---|---|---|
+| Pista 1 | **Contas & Parceiros** | Pronta. Banca R$ 122.123,80, disponível R$ 103.920,00, em aberto R$ 18.203,80, 270 contas em 51 casas. O painel "Concentração de caixa" diz **"2 casas = 79% da banca"**, que é uma cena inteira de graça |
+| Pista 2 | **Tipsters** | Pronta. 109 cards com P/L, ROI, turnover, stake média e win rate, e o KPI **"56 / 109 positivos"** |
+| Pista 3 | **Custos** | Ver as duas ressalvas abaixo |
+| **Pista 4 (a virada)** | **Contas & Parceiros** | **Pronta, e melhor do que eu esperava:** a demo já tem uma conta com o chip vermelho **DIVERGÊNCIA**, ao lado de outras com `AGUARDANDO RESULTADO`, `PARADA HÁ 61 DIAS` e `SEM CAIXA` |
+| Ato 3 | **Visão Geral** | Pronta, e é a cena mais forte: a faixa **P/L bruto R$ 181.577,18 → contas −R$ 30.000 → tipsters −R$ 9.377,13 → gerais −R$ 3.777,87 → líquido R$ 138.422,18** conta a história toda numa tela |
+
+### Cinco armadilhas, todas medidas hoje
+
+1. **A tela de Custos abre VAZIA por link direto ou F5.** Só pinta quando se chega
+   **clicando no item Custos do menu**. É defeito de produto, está medido no
+   [`BACKLOG.md §4.6`](../../BACKLOG.md) e a correção é da Equipe 1. Para gravar: **navegue
+   pelo menu, nunca cole a URL**.
+2. **No período padrão (MTD) a tela de Custos fica coberta de pendência:** `0 de 3 blocos
+   fechados`, `FALTAM 3`, `FALTAM 110`, `FALTAM 5`, Tipsters e Gerais em `R$ 0` e um aviso
+   amarelo de 118 lançamentos em aberto. Gravar com o período em **Tudo**, que é onde os
+   custos aparecem.
+3. **O nome do visitante vaza como fornecedor.** Na lista de contas aparece
+   `EU (TRIAL_959DC91A3B)`. Enquadrar fora ou rolar até onde não apareça.
+4. **A odd média da demo é 12,25**, que é irreal para uma operação de verdade. Número da
+   base sintética: não citar em peça, e não deixar em quadro parado.
+5. **O aviso antigo sobre a Solidez está superado.** O `BACKLOG` registrava MDD de 90,88%
+   e Solidez "Baixa"; **hoje a demo mostra MDD 13,6%, Recovery Factor 5,81× e ROI +4,03%**.
+   Ainda assim, conferir o painel de Solidez na hora da gravação antes de deixá-lo entrar.
+
+### Ferramentas
+
+Gravação de tela com `scripts/demo/gravar.mjs`, que já resolve a parte difícil (screencast
+por CDP, ponteiro sintético desenhado na casca, ffmpeg vindo do `imageio_ffmpeg`). Ele hoje
+aponta para o `servidor_demo.py` local: para esta peça precisa apontar para o `/realtrial`
+e reusar o cookie salvo. Cartões e títulos em Remotion
+([`video/`](video/README.md)). Corte e legenda no ffmpeg local. Ritmo e montagem na mão.
 
 **Legenda sempre queimada.** A primeira vez quase sempre é sem som.
 
-**O que não entra:** nome de grupo de tipster, e-mail, nome de fornecedor, valor de
-custo em R$ de usuário, marca de banco, e qualquer promessa de lucro. A peça fala de
-**controle e gestão**, nunca de acertar aposta. Essa é a fronteira que decide se um
-gateway aceita a operação na Fase 4.
+**O que não entra:** nome de grupo de tipster, e-mail, nome de fornecedor, valor de custo
+em R$ de usuário, marca de banco, e qualquer promessa de lucro. A peça fala de **controle
+e gestão**, nunca de acertar aposta. Essa é a fronteira que decide se um gateway aceita a
+operação na Fase 4.

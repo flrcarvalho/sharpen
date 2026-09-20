@@ -1440,6 +1440,41 @@ reconciliação. É a próxima sessão desta frente.
 
 ---
 
+### 4.6 A tela de Custos abre VAZIA quando se chega por link direto ou F5 (s377). VIVA, medida.
+
+Medido em **produção**, na conta de demonstração `/realtrial`, em 20/09, com puppeteer.
+
+| Como se chega em Custos | `#c2Body` |
+|---|---|
+| Clicando no item **Custos** do menu | **10.622** caracteres (pinta certo) |
+| Abrindo `…/app#dash/custos_v2` direto, ou dando **F5** em cima da tela | **0** (só o cabeçalho e os filtros) |
+
+**Não é falta de dado e não é erro de JS.** As três rotas respondem 200 e com conteúdo
+(`/custos/store` 1.700 bytes, `/custos/conta` 8 chaves, `/parceiros` 10 KB); no frame do
+dash, `ctData` tem 50 chaves, `cgData` 5, `custoData` 8 e `DADOS` 48.546. Não há
+`onerror` nem `unhandledrejection` em frame nenhum, e as quatro cargas do roteador
+(`contasLoad`, `ctLoad`, `tipstersCadastroLoad`, `precosFornLoad`) **resolvem** quando
+chamadas à mão. Chamar `renderCustos2()` no console pinta a tela inteira na hora.
+
+**Mexer num filtro NÃO conserta** — então não é a família do "custo chega depois do 1º
+render" (o `_ctRepintou`, `CLAUDE.md`), em que a tela abre com `R$ 0` e se corrige ao
+tocar num controle. Aqui ela nunca pinta.
+
+**Hipótese, não confirmada:** `renderCustos2` começa com `if (!host) return`, onde `host`
+é `#c2Body` (`charts/custos2.js:598`). No deep link o `.then()` da linha
+`dash/assets/js/app.js:666` provavelmente roda antes de o HTML da página existir: a função
+é chamada uma vez, cai no `return`, e **ninguém a chama de novo**. Pelo menu o DOM já está
+montado, e por isso funciona. Confirmar é barato: logar `!!document.getElementById('c2Body')`
+na entrada dela nos dois caminhos.
+
+**Por que importa agora:** é a única tela do dash em que isso foi visto (Visão Geral,
+Tipsters e Contas abrem certo por deep link), e F5 em cima da própria tela é o caminho
+mais comum de todos. Na demonstração pública, o visitante que recarrega em Custos vê
+uma página em branco sem erro nenhum.
+
+> Achado pela Equipe 2 enquanto reconhecia as telas para o vídeo
+> (`scripts/demo/recon_realtrial.mjs`). **A correção é da Equipe 1** — é `app/**`.
+
 ### 4.5 A aba Contas rola 18px na horizontal a 1366, com o drill aberto (s373). VIVA, medida.
 
 Sintoma: em 1366 de largura, abrir o drill de uma casa faz a pagina rolar 18px para o
