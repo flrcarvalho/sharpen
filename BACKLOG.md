@@ -1012,6 +1012,34 @@ do caminho e torna a pergunta irrelevante para a parte que ele cobrir.
 > ela mira e medir o outro depois. Esta é a terceira vez que uma mira acerta e a vizinha
 > piora em silêncio.
 
+### 3.13 O Haiku 4.5 foi medido e REPROVADO (s377). FECHADA como medição.
+
+Fica registrado para ninguém tentar de novo sem dado novo. Sobre 253 blocos reais da
+sombra, 10 casas, pelo caminho de produção:
+
+| | Sonnet 4.6 | Sonnet 5 | **Haiku 4.5** |
+|---|---|---|---|
+| Bilhetes perdidos | 1 (0,4 %) | 6 (2,4 %)¹ | **22 (8,7 %)** |
+| Código inventado | 0 | 5¹ | **19** |
+| Descrição fora do MASTER | 35 (13,9 %) | 0 | 46 (19,9 %) |
+
+¹ artefato do harness, corrigido na 2ª rodada — ver o `STATUS` da s377.
+
+Ele é **67 % mais barato** e fecharia a escada de preço sozinho (R$ 0,024 por bilhete
+contra R$ 0,048 do Sonnet 5), **e quebra o dado**. Bilhete perdido some sem erro na tela;
+código inventado vira linha duplicada com identidade falsa. São os dois piores modos de
+falha deste projeto, e nenhuma economia paga nenhum dos dois.
+
+**A prova offline dispensou construir a sombra em produção** que estava planejada (rodar
+o Haiku em paralelo por um dia). Custou **US$ 1,46** e respondeu numa sessão, porque a
+`sombra_rotulos` já tinha 39.532 blocos reais guardados. Fica como método: **replay sobre
+a sombra antes de construir qualquer coisa que dependa de um modelo novo.**
+
+**O que ficaria de pé se alguém quiser reabrir:** depois do tradutor, o tráfego residual
+fica MAIS difícil (sobra mercado desconhecido e esporte não declarado), então a janela do
+Haiku não melhora com o tempo, piora. Reabrir só com um caminho separado e mais simples
+que o de hoje.
+
 ### 3.12 O manual cresceu 31 % e ninguém paga a conta explicitamente (s376). VIVA, medida.
 
 Todo pedaço de toda chamada relê os masters inteiros. Medido no `git`, masters mais

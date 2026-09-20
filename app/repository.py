@@ -4495,7 +4495,18 @@ async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None
 # O `usage` da API devolve a quebra (`cache_creation.ephemeral_1h_input_tokens` /
 # `ephemeral_5m_input_tokens`), mas o projeto usa um TTL só: um preço basta. Se algum dia
 # convivermos com os dois, a quebra é o caminho — não uma média.
+# ⚠️ **Trocar o modelo sem acrescentar a linha aqui faz este log MENTIR, e mentir para
+# o lado que esconde a economia.** O `_PRECO_PADRAO` é silencioso: um modelo fora da
+# tabela é cobrado ao preço do Sonnet 4.6, então uma troca para um modelo 33% mais
+# barato apareceria como custo idêntico e a conclusão seria "a troca não adiantou".
+# As duas constantes andam juntas com o `config.ALLOWED_MODELS`, e o gate que amarra
+# as duas é `tests/test_modelo_e_preco.py`.
 _PRECOS = {
+    "claude-sonnet-5":   {"input": 2.0, "output": 10.0, "cache_read": 0.20, "cache_write": 4.00},
+    "claude-opus-5":     {"input": 5.0, "output": 25.0, "cache_read": 0.50, "cache_write": 10.00},
+    # Geração anterior: fora do ALLOWED_MODELS desde a s377, mas a linha FICA. O
+    # `custo_usd` é chamado com o modelo que a linha registrou, e há 60 dias de
+    # `uso_tokens` em Sonnet 4.6 que qualquer remedição histórica vai reprecificar.
     "claude-sonnet-4-6": {"input": 3.0, "output": 15.0, "cache_read": 0.30, "cache_write": 6.00},
     "claude-opus-4-8":   {"input": 5.0, "output": 25.0, "cache_read": 0.50, "cache_write": 10.00},
 }
@@ -4504,7 +4515,15 @@ _PRECO_PADRAO = _PRECOS["claude-sonnet-4-6"]
 
 def custo_usd(modelo: str, tk: dict) -> float:
     """Custo em USD de um lote de tokens para um modelo (preço por MTok / 1e6)."""
-    p = _PRECOS.get(modelo, _PRECO_PADRAO)
+    p = _PRECOS.get(modelo)
+    if p is None:
+        # Nunca levanta: `registrar_uso` engole exceção, e aí o gasto sumiria do log
+        # inteiro em vez de sair aproximado. Mas grita, porque a partir daqui todo
+        # número de custo deste modelo está errado.
+        logger.warning("custo_usd: modelo %r fora de _PRECOS — cobrando ao preço do "
+                       "%s. O uso_tokens vai MENTIR até alguém acrescentar a linha.",
+                       modelo, "claude-sonnet-4-6")
+        p = _PRECO_PADRAO
     return (
         tk.get("input", 0) * p["input"]
         + tk.get("output", 0) * p["output"]
