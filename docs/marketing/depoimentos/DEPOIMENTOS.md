@@ -25,6 +25,7 @@
 | Quem | Tipo | Data | Duração | Autorização | Transcrição |
 |---|---|---|---|---|---|
 | Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ✅ autorizado (19/09/2026, pelo Feca) | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
+| Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ⏳ pendente | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
 
 > **Arquivo irmão:** [VOZ_DO_FUNDADOR.md](VOZ_DO_FUNDADOR.md) guarda o pitch do Feca
 > gravado sem roteiro. Voz de cliente é **prova**; voz de fundador é **copy**. Os dois
@@ -100,3 +101,85 @@ sobre custo é comportamento medido, não elogio.
   parece complexo e que o aprendizado é fluido. Isso vai ao lado da demo, não escondido.
 - **Custo é seção de primeira dobra, não de rodapé.** Foi nele que ele mais falou, e é
   onde ele mais usa o produto.
+
+---
+
+## Germano — 20/09/2026
+
+**Perfil:** o oposto do Jonathan, e é por isso que vale tanto. Usa há **três semanas**,
+e o depoimento dele responde a objeção que o do Jonathan não alcança: *"vou conseguir
+tirar valor disso rápido?"*. Também é o único que **compara com os concorrentes**,
+porque tentou vários antes.
+
+### Cartão de prova (medido em 20/09/2026)
+
+| Medida | Valor |
+|---|---|
+| Apostas planilhadas | 1.670, **todas nos últimos 30 dias** |
+| Casas | 13 |
+| Contas cadastradas | 18 (5 já arquivadas) |
+| Tipsters | 21 |
+| Turnover | R$ 347.203 |
+| Dias com captura | 9 |
+| Usa desde | 07/09/2026 |
+
+**O que o número prova sozinho:** em 13 dias ele cadastrou 21 tipsters, 18 contas, já
+arquivou 5 e lançou custo de tipster, de conta e geral. Não é alguém experimentando,
+é alguém que **montou a operação inteira dentro do produto na primeira semana**.
+
+### Trechos marcados para clipe
+
+| # | Áudio · tempo | Por quê | Fala |
+|---|---|---|---|
+| **G1** | 1 · 00:08 → 00:28 | **O comparativo, dito por cliente, sem nomear ninguém.** É a objeção número um de quem já tentou planilhar | *"Eu nunca tive saco. Já comprei alguns planilhadores para tentar, e nunca passou de três dias. Você tinha que ficar mandando foto de bet por bet, o planilhador dava bug, o jogo vinha por modalidade inexistente, stake errada. E isso falando dos maiores do mercado que tem hoje."* |
+| **G2** | 3 · 00:14 → 00:27 | **Repete a história do Jonathan, com outro número.** Dois usuários independentes, a mesma descoberta | *"No final do mês você acha que lucrou: rapaz, fiz 8 mil reais em apostas esse mês. Mas quando você vai ver quanto de conta queimou, quanto de tipster pagou, essa conta nem fecha direito."* |
+| **G3** | 3 · 01:07 → 01:14 | **O fecho mais duro de todo o material.** É a consequência dita em voz alta | *"Aquele mês em que eu não estava planilhando, que eu achava que tinha saído positivo, eu não saí positivo."* |
+| **G4** | 3 · 00:52 → 00:59 | Explica o **mecanismo** de por que o custo some. Nenhum texto nosso explica tão bem | *"Como a conta é comprada, quando você é limitado você está basicamente pegando do seu saldo. Você não tinha esse controle. E agora eu tenho."* |
+| **G5** | 1 · 00:46 → 01:04 | Precisão, no caso mais difícil (print, casa sem captura) | *"As casas que não têm extrator automático, você bate o print de seis apostas ao mesmo tempo. Eu nunca tive problema de pegar uma aposta errada, uma stake errada, de não entender qual é o evento. Sempre ele consegue entender."* |
+| **G6** | 2 · 00:23 → 01:03 | **Número honesto de quem tem 3 semanas**, e a projeção que ele mesmo faz | *"Hoje, com 13 casas, eu demoro basicamente 50 minutos para planilhar. Se eu usasse stake quebrada, o tempo cai de 50 minutos para 25, no máximo."* |
+| **G7** | 6 · 00:00 → 00:16 | Fecho | *"É o único planilhador que eu consegui usar a ponto de ter paciência. De não ser uma coisa exaustiva, de ficar batendo print sem parar, de ficar tendo que corrigir coisa toda hora porque está errada."* |
+
+> Correções de reconhecimento: "steak" = **stake**; "best"/"baita" = **bet**;
+> "casos" (áudio 2) = **casas**; "tips"/"tímpit" = **tipster**. O nome de grupo citado
+> no áudio 5 **não vai para peça nenhuma**.
+
+---
+
+## As convergências — o que mais de um usuário disse sozinho
+
+Isto é a parte mais valiosa do arquivo, e só aparece com dois ou mais depoimentos.
+Quando pessoas que não se falaram dizem a mesma coisa, aquilo deixa de ser opinião e
+vira **padrão**, e padrão decide o que entra na landing.
+
+| Convergência | Quem | O que decide |
+|---|---|---|
+| **"Achei que tinha lucrado, e não tinha"** | Jonathan (R$ 10 mil) · Germano (R$ 8 mil) | **Valida o arco do vídeo.** Dois usuários independentes contaram a MESMA história, com números diferentes. É a dor de abertura, não uma frase de efeito |
+| **Assinatura do tipster pela stake** | Feca (401/402/403) · Jonathan (centavos) · Germano (299 / 300 / 300,50) | **Três** vozes, sendo uma delas a de quem ainda NÃO usa e por isso gasta o dobro do tempo. Seção própria, com demonstração |
+| **Custo invisível de conta e tipster** | Jonathan · Germano | Primeira dobra da landing. Os dois abriram por aí |
+| **Precisão da leitura** | Germano (G5) · Jonathan (D) | Confiança é objeção silenciosa: ninguém pergunta, todo mundo pensa |
+
+### O que o Germano acrescenta e o Jonathan não tinha
+
+- **A comparação com o mercado.** O Jonathan fala do que ganhou; o Germano fala do que
+  os outros não entregaram, e ele tentou "os maiores do mercado". Isso é material que
+  nós não podemos escrever sem soar arrogantes, e ele entrega de graça.
+- **A prova de adoção.** Três semanas, 13 casas, operação montada. O medo de quem vê a
+  tela pela primeira vez é "isso vai me tomar um mês para configurar".
+- **Um número honesto que eu prefiro ao número bonito.** Ele leva **50 minutos para 13
+  casas, a cada dois dias**, e diz que cairia para 25 com a stake quebrada. A promessa
+  da página não deve ser um número fixo: o tempo depende da técnica e da quantidade de
+  casas. O que **não** varia é o que o eixo diz: não há dívida por ter deixado acumular.
+
+### Pedido de produto que saiu do áudio 5 (não é marketing)
+
+Dois pedidos concretos, e nenhum deles existe hoje:
+
+1. **Medir a liquidez do grupo.** Declarar a stake-alvo do tipster e comparar com a
+   stake média efetivamente aceita ("a stake é 300, a sua aposta média é 280"), para
+   saber quanto se deixou de ganhar por não conseguir passar o valor cheio.
+2. **Juntar a mesma aposta feita em contas diferentes.** R$ 250 numa conta e R$ 200 em
+   outra são **uma** aposta de R$ 450, e hoje contam como duas. Sem isso não dá para
+   responder se vale a pena comprar mais uma conta para aquele tipster.
+
+> Os dois são de produto e vão para o `BACKLOG.md`, não para peça. **Pendente de
+> decisão do Feca**, porque o `BACKLOG.md` é arquivo compartilhado com a outra sessão.

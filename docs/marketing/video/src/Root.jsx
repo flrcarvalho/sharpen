@@ -20,19 +20,26 @@ const fontes = `
   font-display: block;
 }`;
 
+// Uma composição por depoente, derivada do JSON. Depoente novo entra no `gerar_dados.py`
+// e aparece aqui sozinho: lista escrita à mão é lista que alguém esquece de atualizar.
+const idDe = (chave) => 'Cartao-' + chave.charAt(0).toUpperCase() + chave.slice(1);
+
 export const RemotionRoot = () => {
   return (
     <>
       <style>{fontes}</style>
-      <Composition
-        id="CartaoProva"
-        component={CartaoProva}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        defaultProps={{dados: dados.jonathan}}
-      />
+      {Object.entries(dados).map(([chave, d]) => (
+        <Composition
+          key={chave}
+          id={idDe(chave)}
+          component={CartaoProva}
+          durationInFrames={240}
+          fps={30}
+          width={1920}
+          height={1080}
+          defaultProps={{dados: d}}
+        />
+      ))}
     </>
   );
 };

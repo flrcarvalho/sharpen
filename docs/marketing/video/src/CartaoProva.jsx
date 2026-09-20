@@ -87,7 +87,14 @@ export const CartaoProva = ({dados}) => {
           }}
         >
           <Numero valor={dados.apostas} rotulo="apostas planilhadas" atraso={26} />
-          <Numero valor={dados.apostas_30d} rotulo="nos últimos 30 dias" atraso={32} />
+          {/* Em quem usa há pouco tempo, "total" e "nos últimos 30 dias" são o MESMO
+              número, e repetir um número é pior que mostrar um a menos: lê como erro.
+              Ali o que prova é há quantos dias ele captura. */}
+          {dados.apostas_30d === dados.apostas ? (
+            <Numero valor={dados.dias_90} rotulo="dias com captura" atraso={32} />
+          ) : (
+            <Numero valor={dados.apostas_30d} rotulo="nos últimos 30 dias" atraso={32} />
+          )}
           <Numero valor={dados.turnover} rotulo="movimentados" atraso={38} moeda />
           <Numero valor={dados.casas} rotulo="casas" atraso={44} />
           <Numero valor={dados.contas} rotulo="contas" atraso={50} />

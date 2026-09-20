@@ -33,9 +33,16 @@ MESES = ("janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
 FRASES = {
     # docs/marketing/depoimentos/transcricoes/jonathan-2026-09-19.txt, 00:26
     "Jonathan": {"antes": "Antes: 1 hora por dia.", "depois": "Hoje: 15 a 20 minutos."},
+    # germano-2026-09-20.txt, audio 1 (00:10) e audio 2 (00:16)
+    "germano": {"antes": "Nenhum planilhador durou 3 dias.",
+                "depois": "Este durou 3 semanas, com 13 casas."},
 }
 
-DONOS = ["Jonathan"]
+DONOS = ["Jonathan", "germano"]
+
+# O `dono` é o USERNAME; o cartão mostra o nome como a pessoa escreve o próprio nome.
+# Title-case automático mutilaria nome de marca, então isto é um mapa, não uma regra.
+NOMES = {"germano": "Germano"}
 
 
 def carregar_env() -> None:
@@ -77,7 +84,7 @@ async def do_dono(con, dono: str) -> dict:
     stakes = await con.fetch("select stake from bilhetes where dono = $1", dono)
 
     return {
-        "nome": dono,
+        "nome": NOMES.get(dono, dono),
         "desde": f"usa o Sharpen desde {MESES[primeira.month - 1]} de {primeira.year}",
         "medido_em": date.today().strftime("%d/%m/%Y"),
         "apostas": await val("select count(*) from bilhetes where dono = $1"),

@@ -2,9 +2,9 @@
   "jonathan": {
     "nome": "Jonathan",
     "desde": "usa o Sharpen desde julho de 2026",
-    "medido_em": "19/09/2026",
+    "medido_em": "20/09/2026",
     "apostas": 13715,
-    "apostas_30d": 4612,
+    "apostas_30d": 4541,
     "casas": 29,
     "contas": 90,
     "tipsters": 22,
@@ -12,5 +12,19 @@
     "turnover": 1994749,
     "antes": "Antes: 1 hora por dia.",
     "depois": "Hoje: 15 a 20 minutos."
+  },
+  "germano": {
+    "nome": "Germano",
+    "desde": "usa o Sharpen desde setembro de 2026",
+    "medido_em": "20/09/2026",
+    "apostas": 1670,
+    "apostas_30d": 1670,
+    "casas": 13,
+    "contas": 18,
+    "tipsters": 21,
+    "dias_90": 9,
+    "turnover": 347203,
+    "antes": "Nenhum planilhador durou 3 dias.",
+    "depois": "Este durou 3 semanas, com 13 casas."
   }
 }
