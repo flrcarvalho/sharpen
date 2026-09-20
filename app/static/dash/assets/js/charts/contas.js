@@ -56,7 +56,11 @@
 const CN_POP_PADRAO = 'inativas';
 let _cnPop = CN_POP_PADRAO;  // 'ativas' | 'inativas' | 'ambas'
 let _cnAberta = '';       // casa expandida no drill ('' = nenhuma)
-let _cnSortCol = 'mult';  // o handoff pede múltiplo decrescente como ordem de entrada
+// Ordem de entrada = QUANTIDADE DE CONTAS, decrescente (pedido do Feca). O handoff
+// pedia múltiplo, mas com 29 casas isso põe no topo a casa de UMA conta, cujo
+// múltiplo é ruído de amostra — e a pergunta de quem abre a tela é "onde eu tenho
+// contas", não "qual amostra de 1 rendeu mais".
+let _cnSortCol = 'n';
 let _cnSortDir = -1;
 // A sub-tabela do drill ordena por conta PRÓPRIA, independente da tabela de casas: as
 // duas têm colunas diferentes, e reusar um estado só faria a de baixo herdar uma chave
@@ -566,16 +570,22 @@ function _cnPaineis(B,contas,casa){
   // ── 2 · VOLUME E MARGEM ──
   // Dentro de uma casa o ranking de CASAS não diz nada (é sempre uma linha), então ali
   // ele vira o ranking das CONTAS daquela casa por turnover. Mesma forma, outro eixo.
+  // O ranking lista as casas onde MAIS CONTAS FORAM COMPRADAS, não as de maior
+  // turnover (pedido do Feca: "o importante é estar as casas q mais contas foram
+  // compradas"). Casa cujas contas são todas PRÓPRIAS fica de fora: ela não foi
+  // comprada, então não disputa esse lugar — era o caso da Polymarket, com 1 conta
+  // própria ocupando uma das cinco linhas.
   const rank=(casa
     ? contas.slice().sort((a,b)=>b.turn-a.turn).slice(0,5).map(c=>{
         const roiC=c.turn>0&&_cnTemPreco(c)?((c.pl-c.custo)/c.turn*100):null;
         return`<div class="cn-mrow"><span class="nm">${esc(c.conta)}</span>`
           +`<span class="vv"><b>${fmtR(c.turn)}</b> · ${_cnPctTxt(roiC)}</span></div>`;
       })
-    : G.ranking.map(c=>
-        `<div class="cn-mrow"><span class="nm">${esc(c.casa)}</span>`
-        +`<span class="vv"><b>${fmtR(c.turnConta)}</b> · ${_cnPctTxt(c.roiLiq)}</span></div>`)
-    ).join('')||`<div class="cn-vazio">Sem ${casa?'conta':'casa'} no recorte.</div>`;
+    : linhas.filter(c=>c.comPreco>0).sort((a,b)=>b.comPreco-a.comPreco).slice(0,5).map(c=>
+        `<div class="cn-mrow"><span class="nm">${casaImg(c.casa,14)}${esc(c.casa)}</span>`
+        +`<span class="vv"><b>${c.comPreco}</b> ${_cnPl(c.comPreco,'conta','contas')} `
+        +`· ${_cnPctTxt(c.roiLiq)}</span></div>`)
+    ).join('')||`<div class="cn-vazio">Nenhuma conta comprada no recorte.</div>`;
   const roiLiq=turnEleg>0?((G.plEleg-custo)/turnEleg*100):0;
   const p2=painel('Volume e margem', B.temPeriodo?'no período':'histórico',
     'Quanto cada conta movimenta e que margem sobra?',
@@ -628,9 +638,8 @@ function _cnPaineis(B,contas,casa){
     :mult.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
   const p3=painel('Retorno sobre aquisição',
     `${nEleg} de ${G.n} ${_cnPl(G.n,'conta','contas')}`,
-    'Quanto o custo das contas devolveu?',
-    [{valor:multTxt,rotulo:'Múltiplo'},
-     {valor:'1,00×',rotulo:'Piso',fraca:true}],
+    'O que as contas devolveram sobre o que custaram?',
+    [{valor:multTxt,rotulo:'Múltiplo'}],
     `<div class="cn-comp">${comp}</div>${cov}`,
     (mult!==null
       ? `<b>Cada R$ 1 gasto em conta voltou ${multTxt.replace('×','')} reais.</b> `
@@ -702,14 +711,19 @@ function _cnBloco(B,linhas){
     return html;
   }).join('')||'<div class="cn-vazio">Nenhuma conta no recorte.</div>';
 
-  return`<div class="cn-blockh"><span class="t">Por casa</span>`
+  // UMA faixa, não duas. O título "Por casa", a dica de clique e a legenda da barra
+  // eram três blocos soltos e liam como seções diferentes da tela (o Feca: "parece
+  // inclusive que são duas sessões"). Agora é um cabeçalho só, com a legenda dentro
+  // dele, encostado na tabela que ele apresenta.
+  return`<div class="cn-secao">`
+    +`<div class="cn-secao__top"><span class="kpi-pipe"></span><span class="t">Por casa</span>`
     +`<span class="m">clique na casa para abrir as contas · ordenável por qualquer coluna</span></div>`
-    +`<div class="cn-why2"><span class="cn-mks">`
+    +`<div class="cn-secao__leg"><span class="cn-mks">`
     +`<span class="cn-mk2"><i class="s"></i>mediana</span>`
     +`<span class="cn-mk2"><i class="d"></i>média</span></span>`
     +`<p>Barra sólida curta com o pontilhado distante indica <b>casa que depende de exceções</b>: `
     +`a conta típica encerra cedo e o resultado vem de poucas sobreviventes. `
-    +`Ambas na mesma régua de 0 a ${CN_REGUA_DIAS} dias.</p></div>`
+    +`Ambas na mesma régua de 0 a ${CN_REGUA_DIAS} dias.</p></div></div>`
     +`<div class="cn-ovf"><div class="cn-fichas">`
     +`<div class="cn-fhead">${th('casa','Casa','l')}`
     +`${th('n','Contas')}`
