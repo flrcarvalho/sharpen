@@ -60,7 +60,8 @@ const FONTE = [
       '_custoDaConta'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
   'let _cnPop="ambas";',
   ...['_cnMediana', '_cnMedia', '_cnPl', '_cnFraseLongevas', '_cnBaseTxt', '_cnTemPreco', '_cnBase',
-      '_cnPorCasa', '_cnHistograma', '_cnGeral', '_cnOrdenarDrill']
+      '_cnPorCasa', '_cnHistograma', '_cnGeral', '_cnOrdenarDrill', '_cnUltimas',
+      '_cnAgregadoRecente']
       .map(n => recorteFn(CONTAS, n, 'contas.js')),
   // CN_FAIXAS vive fora de funcao: recortada por nome, ATE O `];` — ela nasceu numa
   // linha so e virou multilinha quando os rotulos foram escritos por extenso, e um
@@ -68,7 +69,8 @@ const FONTE = [
   // (`SyntaxError: Unexpected token ';'`, sem dizer de onde). Mesma familia do recorte
   // de funcao de UMA linha que este arquivo ja trata no `recorteFn`.
   (CONTAS.match(/^const CN_FAIXAS=[\s\S]*?^\];$/m) || [''])[0],
-  'globalThis.__api={ ordenarDrill:_cnOrdenarDrill, set pop(v){_cnPop=v;}, get pop(){return _cnPop;},',
+  'globalThis.__api={ ordenarDrill:_cnOrdenarDrill, ultimas:_cnUltimas,',
+  '  agregadoRecente:_cnAgregadoRecente, set pop(v){_cnPop=v;}, get pop(){return _cnPop;},',
   '  setDados(d,a){DADOS=d;DADOS_ABERTAS=a||[];},',
   '  setCadastro(c){_contasVida=c;_contaVida=null;},',
   '  setCusto(c){custoData=c;},',
@@ -328,6 +330,69 @@ console.log('— 15. Ordem de entrada do drill: ativa em cima, depois a ultima l
     [{ ...c('a', false, '2026-01-01', '2026-02-01'), turn: 900 },
      { ...c('b', true, '2026-01-01', '2026-09-21'), turn: 100 }], 'turn', -1).map(x => x.conta);
   eq(porTurnDif.join(','), 'a,b', 'clicar em Turnover volta a ordenar por turnover');
+}
+
+// ── 16. O 4o painel: quais contas sao "as ultimas", e o que entra na mediana ────────
+// Pedido do Feca (21/09): *"o historico nao representa fielmente o momento"*. O painel
+// so vale se os dois lados forem comparaveis, e e ai que ele quebra em silencio.
+console.log('— 16. Ultimas contas: eixo pela 1a aposta, e a duracao CENSURADA fora da mediana');
+{
+  const c = (conta, ativa, pa, ini, dur, extra) => ({ conta, ativa, pa, ini, dur,
+    forn: 'F', casa: 'X', dias: 1, bets: 1, turn: 1000, pl: 100, custo: 100,
+    propria: false, fim: '2026-09-01', ...(extra || {}) });
+
+  // (a) O eixo e `pa` (1a aposta), NAO `ini`. A conta abaixo tem o `ini` mais ANTIGO de
+  //     todos (adquirida_em de backfill) e a aposta mais RECENTE: se o codigo ordenar
+  //     por `ini` ela cai para o fim e o caso falha.
+  const porPa = api.ultimas([
+    c('meio',    false, '2026-05-01', '2026-05-01', 10),
+    c('antiga',  false, '2026-01-01', '2026-01-01', 10),
+    c('nova',    false, '2026-08-01', '2020-01-01', 10),
+  ], 10).map(x => x.conta);
+  eq(porPa.join(','), 'nova,meio,antiga',
+     'ordena pela 1a APOSTA; a conta com `ini` de 2020 e aposta de agosto tem de vir 1a');
+
+  // (b) Sem `pa` cai no `ini`; sem nenhum dos dois fica FORA (posicao que o dado nao tem).
+  const semData = api.ultimas([
+    c('so_ini', false, '', '2026-07-01', 10),
+    c('sem_nada', false, '', '', 10),
+    c('com_pa', false, '2026-06-01', '2026-06-01', 10),
+  ], 10).map(x => x.conta);
+  eq(semData.join(','), 'so_ini,com_pa', 'conta sem data nenhuma NAO entra na lista');
+
+  // (c) Corta em N.
+  eq(api.ultimas([1, 2, 3, 4, 5].map((i) =>
+      c('c' + i, false, '2026-0' + i + '-01', '2026-0' + i + '-01', 10)), 3).length, 3,
+     'corta nas N mais recentes');
+
+  // (d) ⚠️ O caso que mais importa: a duracao de conta ATIVA e censurada (ainda vai
+  //     crescer) e nao pode entrar na mediana. Aqui a ativa tem dur=1: se ela entrar, a
+  //     mediana desaba de 20 para 1 e o painel diz que a casa piorou quando o que houve
+  //     foi a conta ser nova. As duas inativas dao mediana 20.
+  const comAtiva = api.agregadoRecente([
+    c('viva',  true,  '2026-09-01', '2026-09-01', 1),
+    c('morta1', false, '2026-08-01', '2026-08-01', 20),
+    c('morta2', false, '2026-07-01', '2026-07-01', 20),
+  ], 300);
+  eq(comAtiva.durMed, 20, 'a duracao da conta ATIVA fica fora da mediana');
+  eq(comAtiva.nAtivas, 1, 'e o painel conta quantas ficaram de fora');
+  eq(comAtiva.n, 3, 'mas as ativas CONTAM no total, no ROI e no multiplo');
+
+  // (e) Todas ativas: nao ha mediana. `null`, nunca 0 — zero e uma duracao que existe.
+  const sóAtivas = api.agregadoRecente([
+    c('a', true, '2026-09-01', '2026-09-01', 5),
+    c('b', true, '2026-08-01', '2026-08-01', 7),
+  ], 200);
+  eq(sóAtivas.durMed, null, 'sem conta encerrada a mediana e null, nunca 0');
+
+  // (f) O custo vem de FORA (a regua unica `_custoNaJanela`), e o multiplo o usa.
+  //     pl = 100+100 = 200 elegiveis, custo 50 -> 4x.
+  const m = api.agregadoRecente([
+    c('a', false, '2026-09-01', '2026-09-01', 5),
+    c('b', false, '2026-08-01', '2026-08-01', 7),
+  ], 50);
+  eq(m.mult, 4, 'o multiplo usa o custo que o chamador passou, nao uma soma propria');
+  eq(Math.round(m.roiLiq * 100) / 100, 7.5, 'ROI liquido = (pl - custo) / turnover');
 }
 
 console.log(falhas ? `\nFALHAS: ${falhas}` : '\nok: contas_vida');

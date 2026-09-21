@@ -18,7 +18,9 @@
  *   · o "Limpar tudo" volta a Populacao ao default (era o que a s371 registrou no
  *     LIMPAR_EXTRA e que a reescrita da v4 quase levou junto);
  *   · o bloco Geral recolhe, a REGUA DE ESCOPO continua visivel recolhida, e a
- *     preferencia sobrevive ao recarregar (s373).
+ *     preferencia sobrevive ao recarregar (s373);
+ *   · o 4o painel ("Ultimas contas") pinta so DENTRO da casa, com os quatro na mesma
+ *     linha de figura e sem orfao numa segunda fileira (s373).
  */
 import fs from "node:fs";
 import puppeteer from "puppeteer-core";
@@ -140,6 +142,36 @@ console.log("  aberto:", drill.aberto, "| linhas:", drill.nLinhas);
 console.log("  colunas:", drill.colunas);
 console.log("  rodape:", drill.rodape);
 
+// O 4o painel (Ultimas contas) so existe DENTRO da casa. Duas coisas que so a tela diz:
+// que os QUATRO ficam na mesma linha de figura (o titulo do 3o quebra em duas linhas
+// quando a coluna aperta, e so ele) e que o 4o nao deixa orfao numa segunda fileira.
+const p4 = await fr.evaluate(() => {
+  const ps = [...document.querySelectorAll(".cn-drill .cn-q3 > .cn-qp")];
+  if (ps.length < 4) return { n: ps.length };
+  const linhas = [...new Set(ps.map(p => Math.round(p.getBoundingClientRect().top)))];
+  const yFig = ps.map(p => Math.round(p.querySelector(".cn-fig .v").getBoundingClientRect().top));
+  const q = ps[3];
+  return {
+    n: ps.length,
+    titulo: q.querySelector(".t").innerText.trim(),
+    ctx: q.querySelector(".s").innerText.trim(),
+    nLista: q.querySelectorAll(".cn-urow").length,
+    nComp: q.querySelectorAll(".cn-crow--cmp").length,
+    grade: linhas.map(y => ps.filter(p => Math.round(p.getBoundingClientRect().top) === y).length).join("+"),
+    figAlinhada: [...new Set(yFig)].length === linhas.length,
+    foot: q.querySelector(".cn-foot").innerText.replace(/\s+/g, " ").trim().slice(0, 110),
+  };
+});
+console.log("-".repeat(78));
+console.log("4o PAINEL (so na casa):", p4.n, "paineis | grade", p4.grade,
+            "| figuras alinhadas por linha:", p4.figAlinhada);
+if (p4.n >= 4) {
+  console.log(`  "${p4.titulo}" · ${p4.ctx} | ${p4.nComp} linhas de comparativo | lista com ${p4.nLista}`);
+  console.log("  rodape:", p4.foot);
+}
+const p4Ok = p4.n === 4 && p4.figAlinhada && p4.nLista > 0 && p4.nComp >= 3;
+console.log("  " + (p4Ok ? "ok" : "FALHOU: o 4o painel nao pintou, desalinhou ou veio sem lista"));
+
 const aposSort = await fr.evaluate(async () => {
   const th = [...document.querySelectorAll(".cn-drill th")].find(t => t.innerText.includes("Custo"));
   if (th) th.click();
@@ -226,6 +258,7 @@ for (const w of [1366, 1440, 1600, 1920, 2560]) {
 console.log("=".repeat(78));
 if (ruimBarra) console.log(`ATENCAO: ${ruimBarra} barra(s) fora da regua.`);
 if (!geralOk) console.log("ATENCAO: o recolher do bloco Geral nao passou.");
+if (!p4Ok) console.log("ATENCAO: o 4o painel (Ultimas contas) nao passou.");
 if (erros.length) { console.log("ERROS DE JS:"); erros.forEach(e => console.log("  " + e)); }
 else console.log("ZERO erro de JS.");
 console.log("prints em", SAIDA);

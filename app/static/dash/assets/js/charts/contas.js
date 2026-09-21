@@ -192,7 +192,12 @@ function _cnBase(){
       out.push({
         casa:casa, forn:forn, conta:nome, chave:forn+'||'+casa+'||'+nome,
         ativa:ativa, propria:forn==='Eu',
-        ini:v.ini, fim:v.fim, adq:v.adq,
+        // `pa` = 1ª APOSTA pura, sem o cadastro. É o eixo do painel "Últimas contas", por
+        // decisão do Feca: *"ordenadas pela aposta 1"*. Difere do `ini`, que é a MENOR
+        // entre `adquirida_em` e a 1ª aposta — e `adquirida_em` de base migrada foi
+        // DEDUZIDO por backfill, então ordenar por ele misturaria data declarada com data
+        // inferida. Conta cadastrada que nunca apostou não tem `pa`, e cai no `ini`.
+        ini:v.ini, fim:v.fim, adq:v.adq, pa:v.pa,
         dur:dur, dias:m.dias.size, bets:m.bets,
         turn:m.turnPer, pl:m.plPer,
         custo:(typeof _custoDaConta==='function')?_custoDaConta(forn,casa,nome):0,
@@ -559,6 +564,109 @@ function _cnRegua(B,G){
 // `casa` preenchido muda três coisas, e só elas: o custo é pedido ao `_custoNaJanela` com
 // `soCasa` (a régua única continua sendo a mesma função), o ranking deixa de ser de casas
 // e passa a ser das CONTAS daquela casa, e o bloco ganha `compacto`.
+// ── 4º painel: as últimas contas, só DENTRO da casa ────────────────────────
+// Pedido do Feca (21/09): *"o histórico não representa fielmente o momento, então mostrar
+// o que tá acontecendo recentemente vai ser importante"*. Os três painéis irmãos leem a
+// vida inteira da casa; este lê só a ponta, e põe as duas leituras lado a lado — sem o
+// histórico ao lado, o número recente não diz se melhorou ou piorou.
+//
+// Só na casa, nunca no Geral (ele foi explícito: *"apenas dentro da visa da casa"*), e a
+// razão é a mesma que levou os três painéis a ganhar nível de casa: a durabilidade de
+// uma Superbet não se compara com a de uma Bet365, e uma "mediana recente" da base
+// inteira seria a média de coisas que não se comparam.
+const CN_RECENTE_N = 10;     // quantas contas entram na CONTA
+const CN_RECENTE_LISTA = 5;  // quantas aparecem na lista (ele: "não precisa ser as últimas 10")
+
+// Eixo = 1ª APOSTA (`pa`), com o `ini` de reserva para quem nunca apostou. Decisão dele:
+// *"as 10 ultimas compradas (ordenadas pela aposta 1) independente de estar on ou ja
+// limitada"*. Conta sem data nenhuma fica FORA: ordenar um vazio como se fosse antigo (ou
+// recente) inventaria uma posição que o dado não tem.
+function _cnUltimas(contas,n){
+  return contas.filter(c=>c.pa||c.ini)
+    .slice().sort((a,b)=>String(b.pa||b.ini).localeCompare(String(a.pa||a.ini)))
+    .slice(0,n);
+}
+
+// ⚠️ A mediana de duração sai SÓ das contas já ENCERRADAS. Duração de conta ativa é
+// CENSURADA: ela ainda vai crescer, e misturá-la puxa a mediana para baixo dizendo que a
+// casa piorou quando o que aconteceu foi só a conta ser nova — e o painél existe
+// justamente para responder se a casa piorou. Mesma família de "zero se disfarça de conta
+// feita": aqui um número incompleto se disfarçaria de número. Quando nenhuma das recentes
+// encerrou não há mediana, vai `·`, e o rodapé diz por quê.
+function _cnAgregadoRecente(recs,custo){
+  const durs=recs.filter(c=>!c.ativa&&c.dur>0).map(c=>c.dur);
+  const eleg=recs.filter(_cnTemPreco);
+  const turn=eleg.reduce((a,c)=>a+c.turn,0);
+  const pl=eleg.reduce((a,c)=>a+c.pl,0);
+  return {
+    n:recs.length, nAtivas:recs.filter(c=>c.ativa).length, nFechadas:durs.length,
+    durMed:durs.length?_cnMediana(durs):null,
+    roiLiq:turn>0?((pl-custo)/turn*100):null,
+    mult:custo>0?(pl/custo):null,
+    desde:recs.length?(recs[recs.length-1].pa||recs[recs.length-1].ini):'',
+  };
+}
+
+// `hist` chega PRONTO dos painéis irmãos, nunca recalculado aqui: dois caminhos para o
+// mesmo número é exatamente quando duas partes da tela começam a divergir, e a comparação
+// deste painel perde o sentido se o lado "casa" não for o mesmo que está ao lado.
+function _cnPainelRecente(B,contas,casa,hist,painel){
+  const recs=_cnUltimas(contas,CN_RECENTE_N);
+  if(!recs.length)return'';
+  // Custo pela RÉGUA ÚNICA (`_custoNaJanela`, via `_cnCustoTotal`), com as recentes como
+  // recorte. Somar `c.custo` à mão daria o mesmo número por um caminho novo.
+  const R=_cnAgregadoRecente(recs,_cnCustoTotal(B,recs,casa));
+  const dd=v=>v?v.slice(8,10)+'/'+v.slice(5,7):'';
+  const dias=v=>v===null?'<span class="cn-sem">·</span>':Math.round(v)+' dias';
+  const pct=v=>v===null?'<span class="cn-sem">·</span>':_cnPctTxt(v);
+  const mlt=v=>v===null?'<span class="cn-sem">·</span>'
+    :`<span class="${v>=1?'cn-roi-pos':'cn-roi-neg'}">`
+     +v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×</span>';
+
+  const cmp=(rot,a,b)=>`<div class="cn-crow cn-crow--cmp"><span class="cl">${rot}</span>`
+    +`<span class="cn">${a}</span><span class="ch">${b}</span></div>`;
+  const comp=`<div class="cn-crow cn-crow--cmp cn-crow--head"><span class="cl"></span>`
+    +`<span class="cn">recentes</span><span class="ch">casa</span></div>`
+    +cmp('ROI líquido',pct(R.roiLiq),pct(hist.roiLiq))
+    +cmp('Múltiplo',mlt(R.mult),mlt(hist.mult));
+
+  // A lista é curta de propósito: a tabela logo abaixo tem TODAS, e repetir dez linhas
+  // aqui deixaria o painel muito mais alto que os três irmãos, que é o defeito de
+  // composição do item 8 do checklist.
+  const lista=recs.slice(0,CN_RECENTE_LISTA).map(c=>
+    `<div class="cn-urow"><span class="nm">${esc(c.conta)}</span>`
+    +`<span class="du">${c.dur} d</span>`
+    +`<span class="es">${c.ativa?'<span class="cn-tag cn-tag--on">ativa</span>'
+                                :'<span class="cn-tag">inativa</span>'}</span></div>`).join('');
+
+  // O rodapé diz o que ficou FORA da conta. Sem isso, um `·` na mediana lê como defeito.
+  let foot;
+  if(R.durMed===null){
+    foot=`Nenhuma das ${R.n} ${_cnPl(R.n,'conta','contas')} mais `
+      +`${_cnPl(R.n,'recente','recentes')} encerrou, então ainda não há duração fechada `
+      +`para comparar com a casa.`;
+  }else{
+    const hm=Math.round(hist.durMed), rm=Math.round(R.durMed), dif=Math.abs(rm-hm);
+    foot=`As ${R.n} ${_cnPl(R.n,'conta','contas')} mais ${_cnPl(R.n,'recente','recentes')} `
+      +`${_cnPl(R.n,'durou','duraram')} `
+      +(rm===hm?'o mesmo que':`${dif} ${_cnPl(dif,'dia','dias')} `
+        +`${rm<hm?'a menos':'a mais'} que`)
+      +` a mediana da casa.`;
+    if(R.nAtivas)foot+=` ${R.nAtivas} ${_cnPl(R.nAtivas,'segue ativa','seguem ativas')} e `
+      +`${_cnPl(R.nAtivas,'fica','ficam')} fora da conta de duração.`;
+  }
+
+  return painel(`Últimas ${R.n} ${_cnPl(R.n,'conta','contas')}`,
+    R.desde?`desde ${dd(R.desde)}`:'',
+    'Está durando o mesmo de antes?',
+    [{valor:dias(R.durMed),rotulo:'Mediana recente'},
+     {valor:dias(hist.durMed),rotulo:'Mediana da casa',fraca:true}],
+    `<div class="cn-comp">${comp}</div>`
+    +`<div class="cn-ulist"><div class="cn-ulist__t">`
+    +`as ${Math.min(CN_RECENTE_LISTA,recs.length)} mais recentes</div>${lista}</div>`,
+    foot);
+}
+
 function _cnPaineis(B,contas,casa){
   const linhas=casa?[]:_cnPorCasa(contas);
   const G=_cnGeral(contas,linhas);
@@ -724,7 +832,13 @@ function _cnPaineis(B,contas,casa){
       : 'Sem preço lançado não há múltiplo: ele compara o P/L com o que foi pago.')
     +notaProp+notaSem);
 
-  return`<div class="cn-q3 ${casa?'compacto':''}">${p1}${p2}${p3}</div>`;
+  // O 4º painel só existe DENTRO da casa, e recebe os números históricos JÁ CALCULADOS
+  // pelos irmãos (`roiLiq` é o mesmo do p2, `mult` o mesmo do p3, `durMed` o mesmo do p1).
+  // Recalcular aqui criaria um segundo caminho para o mesmo número, e a comparação perde
+  // o sentido no dia em que os dois divergirem.
+  const p4=casa?_cnPainelRecente(B,contas,casa,
+    {durMed:G.durMed,roiLiq:roiLiq,mult:mult},painel):'';
+  return`<div class="cn-q3 ${casa?'compacto':''} ${p4?'q4':''}">${p1}${p2}${p3}${p4}</div>`;
 }
 
 // O custo total sai do `_custoNaJanela` — régua ÚNICA com `calcCostFiltered`, com a
