@@ -6008,6 +6008,26 @@
     // grande com memória cheia (114 vistos, só 2 novos detalhados, painel preso em "114").
     const pronto = (t) => !!(t.code || lembrados[String(t.bsid)]);
 
+    // Colhe o que ainda não está na memória. Só bilhete RESOLVIDO com código entra: aberto
+    // fica de fora de propósito, porque se resolver por cashout o bloco "Encerrar Aposta" só
+    // aparece no confirmation depois, e pular o detalhe dele na rodada seguinte perderia a
+    // data exata do encerramento.
+    //
+    // Marca em `lembrados` na hora de colher, para o lote seguinte não recolher o mesmo.
+    const b3Colher = () => {
+      const novos = {};
+      let n = 0;
+      for (const t of b3ById.values()) {
+        if (!t.code || t.aberta !== false) continue;
+        const k = String(t.bsid);
+        if (lembrados[k]) continue;
+        novos[k] = { code: t.code, da: t.da, legs: t.legs || [] };
+        lembrados[k] = novos[k];
+        n++;
+      }
+      return n ? novos : null;
+    };
+
     const contar = () => {
       let n = 0, c = 0;
       for (const t of b3ById.values()) {
@@ -6051,6 +6071,12 @@
       // Enquanto sobrar sem código, re-pede "detalhar" e REABRE a janela de `fim` (a próxima
       // passada precisa poder anunciar o seu próprio fim). Pega os bilhetes que chegaram depois.
       if (resta > 0 && voltas % 12 === 0) { b3FimReal = false; b3Pedir(N, "detalhar", Object.keys(lembrados)); }
+      // ⚠️ GRAVA EM LOTES, não só no fim. A gravação final só roda se o laço CHEGAR ao fim, e
+      // quem recarrega a página no meio (o gesto natural quando a captura parece travada) mata
+      // a rodada antes disso. Medido em 2026-09-20: **435 bilhetes detalhados, ~15 minutos de
+      // `confirmation` paga, tudo perdido** — a rodada seguinte recomeçou do zero. A cada ~10 s
+      // o que já foi aprendido está salvo, e travar passa a custar o último lote, não o dia.
+      if (voltas % 20 === 0) { const lote = b3Colher(); if (lote) await b3Lembrar(lote); }
       contar();
       if (travado) break;
       // Progresso = bilhetes/códigos crescendo OU qualquer sinal do inject (o driver manda um
@@ -6070,18 +6096,10 @@
       if (m) { t.code = m.code; t.da = m.da; t.legs = m.legs; }
     }
 
-    // Memória: só bilhete RESOLVIDO com código entra. Aberto fica de fora de propósito — se
-    // resolver por cashout, o bloco "Encerrar Aposta" só aparece no confirmation depois, e
-    // pular o detalhe dele na próxima rodada perderia a data exata do encerramento.
-    const paraLembrar = {};
-    let novos = 0;
-    for (const t of b3ById.values()) {
-      if (!t.code || t.aberta !== false) continue;
-      if (lembrados[String(t.bsid)]) continue;
-      paraLembrar[String(t.bsid)] = { code: t.code, da: t.da, legs: t.legs || [] };
-      novos++;
-    }
-    if (novos) await b3Lembrar(paraLembrar);
+    // Último lote. Os anteriores já foram salvos durante o laço (ver `b3Colher`), então aqui
+    // sobra só o que entrou depois da última volta múltipla de 20.
+    const ultimoLote = b3Colher();
+    if (ultimoLote) await b3Lembrar(ultimoLote);
 
     // Monta os blocos do ESTADO FINAL (os detalhes que chegaram por último já entraram).
     // Bilhete sem `confirmation` é RETIDO aqui, não emitido — ver `b3Emissivel`.
@@ -6101,10 +6119,15 @@
                 " · driver=" + (b3Driver ? JSON.stringify(b3Driver) : "não rodou"));
     if (b3Retidos) {
       console.log("[SharpenUp] Bet365: " + b3Retidos + " bilhete(s) RETIDOS (sem confirmation: sem " +
-                  "código BR, sem data e sem jogo/mercado). Desde a s279 a lista é expandida sozinha, " +
-                  "então a causa provável mudou: a `confirmation` dá 500 sob rajada no namespace D0 " +
-                  "(48h/Período) e o retry do inject não venceu. Rodar de novo tenta só os que " +
-                  "faltaram. Até a s244 estes bilhetes SUBIAM, datados de hoje e duplicados.");
+                  "código BR, sem data e sem jogo/mercado). CAUSA MEDIDA (2026-09-20): não é a casa. " +
+                  "Ela responde 200 em ~350ms o tempo todo — 473 confirmations numa sessão, nenhuma " +
+                  "recusa. O que trava é o MURO DE HISTÓRICO: cada detalhe navegava por " +
+                  "`location.hash =`, que empilha uma entrada, e passadas ~420 navegações (medido: " +
+                  "435 e 417 em sessões diferentes) a página da casa para de trocar de rota e passa a " +
+                  "devolver sempre o mesmo bilhete. Reconectar NÃO cura; só recarregar a página. " +
+                  "A navegação virou `location.replace` justamente para não empilhar. Se ainda houver " +
+                  "retidos, o número de navegações desta rodada é o primeiro lugar a olhar. " +
+                  "Até a s244 estes bilhetes SUBIAM, datados de hoje e duplicados.");
     }
     for (const [href, f] of b3PorFrame) {
       console.log("[SharpenUp] Bet365 frame " + (f.topo ? "TOPO" : "iframe") +

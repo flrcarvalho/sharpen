@@ -128,7 +128,7 @@ Regras que valem para todos:
 | **Pinnacle** | API + replay | `POST /member-service/v2/wager-filter` | `pn_inject.js` | `id` (array posicional!) | replay das 2 abas | data do evento |
 | **KTO** | API + replay | `GET /coupon/history.json` (Kambi) | `kto_inject.js` | `couponRef` | `range.more:false` | `placedDate` (UTC→BRT) |
 | **Stake** | API + replay (paginado) | `POST /restapi/v1/betslip/history` (Kambi atrás de REST próprio) | `stk_inject.js` | `internal_bet_id` (7 díg.) | `next_page_exists:false` | `ticket_placed_date` (UTC→SP) |
-| **Bet365** | rota (`location.hash`) + "Mostrar Mais" automático | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` (MAIN) + `b3_expand.js` (ISOLATED, clica) | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
+| **Bet365** | rota (`location.replace`, **nunca** `location.hash =` — ver o caso do muro) + "Mostrar Mais" automático | `/sportshistoryapi/summary` + `/confirmation` | `b3_inject.js` (MAIN) + `b3_expand.js` (ISOLATED, clica) | `BR` (do confirmation) | fim + 0 sem código | kickoff + folga, UK→BR |
 | **Tivo** | API + replay (1 chamada) | `POST /api/game/p/messagetosport` (`gethistory`) | `tv_inject.js` | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |
 | **Betfast** | **espelho da Tivo** — mesmo motor BetConstruct | idem | **`tv_inject.js`** (o mesmo) | `ID` | teto de 50 + varredura por `to` ⚠ | evento mais recente (UTC→SP) |
 | **Faz1bet** | **espelho da Tivo** — 3ª casa BetConstruct | idem ⚠ **sem iframe**: o sportsbook é a própria página | **`tv_inject.js`** (o mesmo) | `ID` | `Error:null` + `len == Count` | evento mais recente (UTC→SP) |

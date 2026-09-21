@@ -12,7 +12,8 @@
 //   • mesma URL, com um token VENCIDO      → HTML da página de 404
 // Não temos como gerar um token válido (vem de código ofuscado da casa). Quem consegue chamar
 // a API é a PRÓPRIA página → o content script pede ao inject que NAVEGUE por rota
-// (location.hash = #/HICO/BSSB/C<bsid>/D1/) até a confirmation de cada bilhete, e este arquivo
+// (location.replace("#/HICO/BSSB/C<bsid>/D1/"), NUNCA `location.hash =` — ver `navegarUm`)
+// até a confirmation de cada bilhete, e este arquivo
 // só escuta as respostas. Ver docs/PLANO_BET365_CAPTURA_API.md.
 //
 // DUAS COISAS ELE DIRIGE (o resto é escuta pura): expande a lista clicando "Mostrar Mais" até o
@@ -36,6 +37,45 @@
                                   // se isto for >0 com `respostas`=0, o endpoint mudou de nome.
   const LOG = (...a) => { try { console.log("[SharpenUp b3_inject]", ...a); } catch (e) {} };
   LOG("hook instalado em", location.href);
+
+  // ── GRAVADOR DA EXTRAÇÃO (diagnóstico) ────────────────────────────────────────
+  // Carimba cada evento da captura com hora e STATUS HTTP, e SOBREVIVE ao "reconectar"
+  // (persiste no localStorage desta origem). Existe para responder onde o tempo vai numa
+  // extração grande: quanto é expansão, quanto é detalhe, e em que instante exato a casa
+  // começa a recusar — 500, corpo vazio ou timeout são três causas diferentes e hoje o robô
+  // não distingue nenhuma. Medido antes dele existir: 26 bilhetes limpos a 2,0s e depois
+  // UMA resposta em 230s, sem ninguém saber o porquê.
+  //
+  // NUNCA decide nada: só observa, sempre dentro de try/catch. Zera com `acao:"limpar"`.
+  const REC_KEY = "__sharpenupB3Rec";
+  const REC_MAX = 4000;           // ~320 KB de JSON; o teto do localStorage é 5 MB
+  let rec = [];
+  try { const b = localStorage.getItem(REC_KEY); if (b) rec = JSON.parse(b) || []; } catch (e) { rec = []; }
+  let recSujo = false;
+  function gravar(tipo, d) {
+    try {
+      const ev = { t: Date.now(), tipo: tipo };
+      if (d) for (const k in d) if (d[k] !== undefined) ev[k] = d[k];
+      rec.push(ev);
+      if (rec.length > REC_MAX) rec.splice(0, rec.length - REC_MAX);
+      recSujo = true;
+    } catch (e) {}
+  }
+  // Salva em LOTE (1 escrita a cada 2s). Por evento seria uma serialização do buffer inteiro
+  // a cada requisição, e aí o gravador viraria parte do gargalo que ele veio medir.
+  //
+  // ⚠️ `setInterval` NÃO existe no sandbox do harness (só `setTimeout`), e chamá-lo solto
+  // derrubava o arquivo inteiro na carga — o caso Bet365 foi de 471 bilhetes para exceção.
+  // Persistência é conveniência do gravador; a captura não pode cair por causa dela.
+  try {
+    if (typeof setInterval === "function") {
+      setInterval(() => {
+        if (!recSujo) return;
+        recSujo = false;
+        try { localStorage.setItem(REC_KEY, JSON.stringify(rec)); } catch (e) {}
+      }, 2000);
+    }
+  } catch (e) {}
 
   const of = window.fetch;        // fetch ORIGINAL (o wrapper embrulha este)
 
@@ -167,6 +207,7 @@
   function forward(url, text) {
     const u = String(url);
     if (RX_SUM.test(u)) {
+      try { const rs = parseRecords(text); catalogarCampos("summary", rs); amostrar01(u, rs); } catch (e) {}   // diagnóstico, não decide nada
       const r = parseSummary(text);
       if (!r || !r.bets.length) return false;
       respostas++;
@@ -177,6 +218,7 @@
     }
     if (RX_CONF.test(u)) {
       const bsid = _param(u, "bsid");
+      try { catalogarCampos("confirmation", parseRecords(text)); } catch (e) {}   // diagnóstico
       const c = parseConfirmation(text);
       if (!c) { LOG("confirmation sem BR (resposta inválida) · bsid", bsid); return false; }
       respostas++;
@@ -225,6 +267,90 @@
     if (outrasHistory <= 5) LOG("URL com 'history' fora do padrão:", u.slice(0, 200));
   }
 
+  // ── CATÁLOGO DE ROTAS (diagnóstico sob demanda) ───────────────────────────────
+  // A pergunta que ele existe para responder: a casa tem alguma rota que devolva o DETALHE de
+  // vários bilhetes de uma vez? Hoje é UMA `confirmation` por bilhete, e a casa corta o acesso
+  // depois de ~26 seguidas (medido: 26 limpas a 2,0s, depois 1 resposta em 230s). Com corte por
+  // COTA, apertar o ritmo e paralelizar não ganham nada — o único ganho possível é fazer MENOS
+  // requisições. E só este arquivo pode responder: a origem `members` se recusa a rodar fora do
+  // iframe (redireciona para o wrapper) e nenhuma ferramenta de fora enxerga a rede dela.
+  //
+  // Guarda a FORMA (path + NOMES dos parâmetros), nunca os valores: valor carrega bsid, conta e
+  // sessão, e o que se procura é o desenho da rota. Só responde quando perguntado (`acao:"rotas"`),
+  // então o caminho quente da captura fica intocado.
+  const rotas = new Map();          // "path?a,b,c" → { n, metodo }
+  const CAT_MAX = 200;              // teto de formas distintas
+  function catalogar(url, metodo) {
+    try {
+      const u = new URL(String(url || ""), location.origin);
+      if (u.hostname !== location.hostname) return;      // só a própria casa
+      const ps = Array.from(u.searchParams.keys()).sort().join(",");
+      const chave = u.pathname + (ps ? "?" + ps : "");
+      const ex = rotas.get(chave);
+      if (ex) { ex.n++; return; }
+      if (rotas.size >= CAT_MAX) return;
+      rotas.set(chave, { n: 1, metodo: metodo || "GET" });
+    } catch (e) {}
+  }
+  // ── INVENTÁRIO DE CAMPOS (mesmo diagnóstico) ──────────────────────────────────
+  // O parser lê SEIS campos do registro `01` do summary (ID, BS, TP, PD, BC, BT) e descarta o
+  // resto sem nunca ter olhado o que era. A pergunta que isto responde: o summary já traz algo
+  // que dispense a `confirmation` de bilhete que já está no banco? Ele já dá status e retorno;
+  // se trouxer também identidade estável, a varredura de resolvidas (que reordena por data de
+  // COLOCAÇÃO, e por isso obriga a revarrer a janela inteira) fica quase de graça.
+  //
+  // Guarda só os NOMES dos campos, nunca os valores.
+  const campos = new Map();         // "summary·01" → Set de nomes
+  const CAMPOS_MAX = 40;            // pares endpoint·registro distintos
+  function catalogarCampos(tag, recs) {
+    for (const [code, kv] of recs) {
+      const chave = tag + "·" + code;
+      let s = campos.get(chave);
+      if (!s) { if (campos.size >= CAMPOS_MAX) continue; s = new Set(); campos.set(chave, s); }
+      for (const k in kv) if (s.size < 60) s.add(k);
+    }
+  }
+
+  // ── AMOSTRA DO REGISTRO DE BILHETE (`01` do summary) ──────────────────────────
+  // Responde UMA pergunta: existe campo ESTÁVEL entre visões? A memória `b3Detalhes` é indexada
+  // pelo `ID`, e o `ID` é da VISÃO, não da aposta (24h vem `D1`, 48h/Período vem `D0`). Então a
+  // MESMA aposta vista em dois filtros é duas apostas para a memória, e paga `confirmation` duas
+  // vezes. Medido na conta do Feca: `alvos 1038 · pulados 0` num período onde ~95% já estava no
+  // banco. Se `RA`, `UP` ou `UW` (três campos que o parser nunca leu) forem iguais nas duas
+  // visões, a memória troca de chave e o desperdício acaba.
+  //
+  // ⚠️ SÓ o registro `01` do summary, que é nível de BILHETE: id e estrutura, sem nome de
+  // seleção. Os registros 02/03/04 trazem seleção e a `confirmation` tem um bloco KYC
+  // (`01;TY=DI`) com nome, endereço e CPF. Nada disso entra aqui, em hipótese nenhuma.
+  const amostra01 = [];
+  const AM_MAX = 60;
+  function amostrar01(url, recs) {
+    try {
+      if (amostra01.length >= AM_MAX) return;
+      const u = String(url);
+      const marca = { _settled: _param(u, "settled"), _from: _param(u, "from") || "" };
+      let n = 0;
+      for (const [code, kv] of recs) {
+        if (code !== "01") continue;
+        if (n++ >= 6) break;                        // 6 bilhetes por resposta bastam
+        if (amostra01.length >= AM_MAX) break;
+        amostra01.push(Object.assign({}, marca, kv));
+      }
+    } catch (e) {}
+  }
+
+  function enviarRotas() {
+    const lista = Array.from(rotas, ([rota, v]) => ({ rota: rota, n: v.n, metodo: v.metodo }));
+    const campoLista = Array.from(campos, ([reg, s]) => ({ reg: reg, campos: Array.from(s).sort() }));
+    const msg = { __sharpenupB3Rotas: true, topo: window.top === window,
+                  host: location.hostname, rotas: lista, campos: campoLista, rec: rec,
+                  amostra01: amostra01 };
+    LOG("catálogo: " + lista.length + " forma(s) de rota · " + campoLista.length +
+        " registro(s) inventariado(s) · " + rec.length + " evento(s) gravado(s) em " + location.hostname);
+    try { window.postMessage(msg, "*"); } catch (e) {}
+    try { if (window.top && window.top !== window) window.top.postMessage(msg, "*"); } catch (e) {}
+  }
+
   // ── Helpers do detalhamento por ROTA (ver `detalharPorRota` abaixo) ────────────
   // O detalhamento por CLIQUE na lista (driver de UI, até a v0.6.13) foi REMOVIDO na s180: ao
   // voltar de um detalhe a lista reinicia no topo e perde as páginas já carregadas. O método por
@@ -241,6 +367,24 @@
                                   // deixa passadas novas pegarem o que chegou depois (período em lotes)
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // Folga entre bilhetes. 900 ms no D0 (48h/Período) e 300 ms no D1 (24h), assimetria criada
+  // na s184 para "não irritar a casa com rajada".
+  //
+  // ⚠️ **NÃO BAIXAR SEM MEDIR.** Em 2026-09-20 mediu-se que 473 `confirmation` seguidas voltam
+  // 200 sem degradação nenhuma (mediana 422 ms no primeiro bloco de 50, 391 ms no último).
+  // Isso derruba "punição por VOLUME acumulado". **Não derruba "limite por TAXA"**, porque a
+  // medição inteira foi feita COM os 900 ms: ~40 requisições por minuto. Baixar para 300 ms
+  // leva a ~66/min, uma taxa que ninguém nunca exerceu contra esta casa.
+  //
+  // O prêmio é grande (os 900 ms são **60% do custo por bilhete**: 1.523 ms medidos, sendo 617
+  // de navegação real e 906 de espera nossa) e o preço de errar também: a conta ficou com o
+  // histórico bloqueado por horas duas vezes no mesmo dia, **sem nenhum sinal no HTTP**.
+  //
+  // Então baixa-se em passo separado, depois de o muro do histórico (ver `navegarUm`) estar
+  // confirmado, com o gravador vigiando o primeiro status ≠ 200. Uma variável por vez.
+  const FOLGA_D0_MS = 900;
+  const FOLGA_D1_MS = 300;
+
   // Espera surgir um código NOVO (a confirmation navegada chegou), com teto. Retorna assim que
   // chega — a confirmation por rota sai em ~1s, não nos 8s.
   async function esperarCodigo(antes, limiteMs) {
@@ -255,10 +399,24 @@
 
   // Navega para UMA confirmation e espera o código chegar (ou o teto estourar). Isolado p/ o
   // ramo D0 poder repetir a MESMA navegação; o D1 (24h) usa igual, sem retry.
+  // ⚠️ `location.replace`, NUNCA `location.hash =`. Atribuir ao hash EMPILHA uma entrada no
+  // histórico do navegador a cada bilhete, e por volta de 420 entradas o roteador da bet365
+  // para de reagir à troca de rota: a `confirmation` continua voltando 200 em ~350 ms, mas
+  // sempre do MESMO bilhete, e o `esperarCodigo` estoura o teto de 9 s em cada um dali em
+  // diante. Medido duas vezes no mesmo dia, em sessões independentes: quebrou na **435ª**
+  // navegação de manhã e na **417ª** à tarde, com 100% de falha depois e zero recuperação —
+  // "reconectar" não cura, só recarregar a página. `replace` navega sem empilhar.
+  //
+  // O sintoma é traiçoeiro porque a casa parece culpada e não é: 606 requisições na sessão da
+  // manhã, TODAS 200, sem degradação nenhuma (o último bloco de 50 foi mais rápido que o
+  // primeiro). Foi esse mesmo engano que, na s184, virou "a confirmation dá 500 sob rajada".
   async function navegarUm(rota, teto) {
     let antes = 0; for (const b of byBsid.values()) if (b.code) antes++;
-    try { location.hash = rota; } catch (e) {}
-    return await esperarCodigo(antes, teto);
+    const t0 = Date.now();
+    try { location.replace(rota); } catch (e) { try { location.hash = rota; } catch (e2) {} }
+    const ok = await esperarCodigo(antes, teto);
+    gravar("nav", { ok: ok ? 1 : 0, ms: Date.now() - t0 });
+    return ok;
   }
 
   // ── EXPANSÃO DA LISTA — "Mostrar Mais" automático (s279) ──────────────────────
@@ -287,6 +445,7 @@
     if (!byBsid.size) return;   // frame sem summaries não é o da lista de membros
     expandindo = true;
     expansaoFeita = true;
+    gravar("exp0", { bilhetes: byBsid.size });
     let ack = false, pronto = null;
     const ouvir = (ev) => {
       const d = ev.data;
@@ -324,6 +483,8 @@
       LOG("expansão erro:", e && e.message);
     } finally {
       window.removeEventListener("message", ouvir);
+      gravar("exp1", { bilhetes: byBsid.size, ms: Date.now() - t0,
+                       cliques: pronto ? pronto.cliques : undefined });
       expandindo = false;
       // `expandindo:false` é o que LIBERA o fim do robô — inclusive nos caminhos de erro e de
       // ACK ausente. Por isso vive no `finally`, não no caminho feliz.
@@ -373,6 +534,11 @@
     rotaRodando = true;
     _volta.hash = location.hash || "";              // p/ voltar à lista no fim
     let feitos = 0, falhas = 0;
+    const tPasso = Date.now();
+    // `pulados` é o que a MEMÓRIA poupou. É o número que mede o desperdício da varredura de
+    // resolvidas: a lista reordena por data de COLOCAÇÃO, então revarrer a janela para achar
+    // um bilhete que resolveu ontem traz junto tudo que já está planilhado.
+    gravar("passo0", { alvos: alvos.length, pulados: pulados, vistos: byBsid.size });
     try {
       LOG("rota: detalhando " + alvos.length + " bilhete(s) por hash");
       for (const bsid of alvos) {
@@ -382,29 +548,41 @@
         // O namespace muda por janela (24h=D1, 48h/Período=D0); sem PD, cai no /D1/ legado.
         const rota = (t && t.pd) ? "#" + t.pd.replace(/#/g, "/") : "#/HICO/BSSB/C" + bsid + "/D1/";
         const isD0 = !!(t && t.pd && /#D0#/i.test(t.pd));
-        // D1 (24h) = caminho de sempre, INTOCADO: uma navegação, teto 8s, folga 300ms.
-        // D0 (48h/Período) = caminho novo: a confirmation dá 500 sob RAJADA (o 24h não). Espera
-        // mais, dá folga maior p/ o token `x-net-sync-term` rotacionar, e RETENTA com "bounce" no
-        // hash (volta à lista e retorna → força um hashchange NOVO = re-fetch com token fresco, que
-        // é o que faz o clique manual dar 200). Nenhum bilhete D1 entra aqui → 24h não pode quebrar.
+        // D1 (24h): uma navegação, teto 8s, folga 300ms. D0 (48h/Período): teto 9s, folga 900ms
+        // e 2 retries com bounce.
+        //
+        // ⚠️ **A JUSTIFICATIVA ORIGINAL DESTE RAMO ESTAVA ERRADA.** A s184 concluiu que "a
+        // confirmation dá 500 sob rajada no D0" e daí saíram a folga maior, o teto maior e o
+        // retry. Medição de 2026-09-20, com o gravador registrando o STATUS de cada resposta:
+        // **473 `confirmation` e 133 `summary` numa sessão, TODAS 200**, e mais 55 em outra, todas
+        // 200 — inclusive as que o driver contou como falha. Nunca houve 500 nenhum.
+        //
+        // O que existia era o muro de histórico (ver `navegarUm`): passadas ~420 navegações, a
+        // resposta continua 200 em ~350 ms mas traz sempre o MESMO bilhete, e o `esperarCodigo`
+        // estoura o teto. O retry com bounce nunca teve chance de funcionar, porque não havia
+        // token vencido para renovar. Ele fica aqui por ora **como rede**, até o `replace` provar
+        // que o muro sumiu; quando provar, este ramo inteiro pode ser simplificado.
         let ok = await navegarUm(rota, isD0 ? 9000 : 8000);
         if (isD0) {
           for (let tent = 0; !ok && tent < 2; tent++) {
             LOG("D0: retry " + (tent + 1) + " · bsid " + bsid);
-            try { location.hash = _volta.hash || "#/HISU/"; } catch (e) {}   // bounce → força hashchange novo
+            // bounce: volta à lista e retorna, forçando o roteador a tratar como rota nova.
+            // Também por `replace`, senão o próprio retry empilharia histórico (ver `navegarUm`).
+            try { location.replace(_volta.hash || "#/HISU/"); } catch (e) {}
             await espera(800);
             ok = await navegarUm(rota, 9000);
           }
         }
         if (ok) feitos++; else falhas++;
         enviar();
-        await espera(isD0 ? 900 : 300);
+        await espera(isD0 ? FOLGA_D0_MS : FOLGA_D1_MS);
       }
     } catch (e) {
       LOG("rota erro:", e && e.message);
     } finally {
-      try { location.hash = _volta.hash || "#/HISU/"; } catch (e) {}  // volta p/ a lista
+      try { location.replace(_volta.hash || "#/HISU/"); } catch (e) {}  // volta p/ a lista
       rotaRodando = false;
+      gravar("passo1", { feitos: feitos, falhas: falhas, ms: Date.now() - tPasso });
       LOG("driver(rota): " + feitos + " detalhe(s) · " + falhas + " falha(s) · tentados " + jaTentados.size);
       enviar(true, { feitos: feitos, pulados: pulados, falhas: falhas });
     }
@@ -423,6 +601,15 @@
                                              jaTem: d.jaTem, saltos: saltos }, "*"); } catch (e) {}
       }
     }
+    // Diagnóstico sob demanda: devolve o CATÁLOGO de rotas e sai. Nunca mexe no estado da
+    // captura (não reseta `expansaoFeita`, não chama `enviar`, não dispara driver nenhum).
+    if (d.acao === "rotas") { enviarRotas(); return; }
+    if (d.acao === "limpar") {
+      rec = []; recSujo = true;
+      try { localStorage.removeItem(REC_KEY); } catch (e) {}
+      LOG("gravador zerado");
+      return;
+    }
     // Pedido SEM ação = o content está abrindo uma rodada nova do robô (`b3Pedir(N)` é a 1ª
     // coisa que `roboBet365Passive` faz). É o único sinal de "começou de novo" que o inject
     // recebe — a página não recarrega entre rodadas. Sem este reset, rodar o robô 2× sem F5
@@ -438,9 +625,19 @@
   if (of && !of.__suB3W) {
     const w = function (...a) {
       const url = (a[0] && a[0].url) || a[0];
+      try { catalogar(url, (a[1] && a[1].method) || (a[0] && a[0].method) || "GET"); } catch (e) {}
       try { if (!RX_SUM.test(String(url))) contarHistory(url); } catch (e) {}
+      const t0 = Date.now();
       return of.apply(this, a).then((r) => {
-        try { if (RX_SUM.test(String(url)) || RX_CONF.test(String(url))) r.clone().text().then((t) => forward(url, t)); } catch (e) {}
+        try {
+          const s = String(url);
+          const ehSum = RX_SUM.test(s), ehConf = RX_CONF.test(s);
+          if (ehSum || ehConf) {
+            gravar(ehSum ? "sum" : "conf", { st: r.status, ms: Date.now() - t0,
+                                             bsid: _param(s, "bsid") || undefined });
+            r.clone().text().then((t) => forward(url, t));
+          }
+        } catch (e) {}
         return r;
       });
     };
@@ -451,13 +648,24 @@
   // ── XMLHttpRequest ──
   const oo = XMLHttpRequest.prototype.open, os = XMLHttpRequest.prototype.send;
   if (!os.__suB3W) {
-    XMLHttpRequest.prototype.open = function (m, u) { this.__suB3U = u; return oo.apply(this, arguments); };
+    XMLHttpRequest.prototype.open = function (m, u) { this.__suB3U = u; this.__suB3M = m; return oo.apply(this, arguments); };
     const s = function (body) {
       try {
         const u = this.__suB3U;
+        catalogar(u, this.__suB3M || "GET");
         if (!RX_SUM.test(String(u))) contarHistory(u);
-        if (RX_SUM.test(String(u)) || RX_CONF.test(String(u))) {
-          this.addEventListener("load", () => { try { forward(u, this.responseText); } catch (e) {} });
+        const ehSum = RX_SUM.test(String(u)), ehConf = RX_CONF.test(String(u));
+        if (ehSum || ehConf) {
+          const t0 = Date.now();
+          const marcar = (st) => { try { gravar(ehSum ? "sum" : "conf",
+            { st: st, ms: Date.now() - t0, bsid: _param(String(u), "bsid") || undefined }); } catch (e) {} };
+          this.addEventListener("load", () => {
+            marcar(this.status);
+            try { forward(u, this.responseText); } catch (e) {}
+          });
+          // Falha de REDE não tem status. Sem este ramo ela some do gravador e a análise
+          // confunde "a casa recusou" com "a requisição nem chegou".
+          this.addEventListener("error", () => marcar(0));
         }
       } catch (e) {}
       return os.apply(this, arguments);

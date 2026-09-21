@@ -1106,3 +1106,11 @@ segundo defeito, de outra natureza, que so apareceu depois que o primeiro foi re
 
 Varrido depois em **1.025 contas de todos os donos: zero** nomes com artefato de parse no
 fornecedor. Era caso unico e ja esta corrigido, entao nao houve mudanca de codigo.
+
+---
+
+## Casos de captura da bet365 → [`casos/CASOS_BET365.md`](casos/CASOS_BET365.md)
+
+O muro do histórico do navegador (a travada que o "reconectar" não curava) e a memória
+indexada pela visão em vez da aposta moram lá. Partição aberta em 2026-09-20, quando este
+arquivo encostou no teto de 60 KB.
