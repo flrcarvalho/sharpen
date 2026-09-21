@@ -59,8 +59,34 @@ import puppeteer from "puppeteer-core";
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const SAIDA = process.argv[2] || "clipes";
 const PORTA = process.argv[3] || "8011";
-const FILTRO = process.argv.slice(4);
+const FILTRO = process.argv.slice(4).filter((a) => !a.startsWith("--"));
 const BASE = `http://127.0.0.1:${PORTA}`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Perfil de qualidade  (`--4k` na linha de comando)
+// ─────────────────────────────────────────────────────────────────────────────
+// O `web` é o perfil de origem: nasceu para <video> de landing, onde peso é o
+// que manda. O `4k` nasceu de uma crítica direta do Feca em 21/09 — *"péssima
+// qualidade, parece que foi gravado dentro do aquário"* — e ela estava certa.
+//
+// A perda vinha de TRÊS pontos somados, e o primeiro é o que ninguém olha:
+//
+//  1. O screencast do CDP entrega **JPEG**, e em `quality: 82` o artefato já
+//     nasce ali, ANTES de qualquer codificação. Texto de 11 px em fundo escuro é
+//     o pior caso possível para JPEG, e nenhum CRF depois recupera isso.
+//  2. A captura a 2880×1800 era **reduzida para 1440** de largura. Metade da
+//     resolução linear jogada fora, justamente onde o clipe quer ser lido.
+//  3. CRF 36/38 no VP9 sobre um sinal que já tinha perdido duas vezes.
+//
+// No `4k` os três são desfeitos: JPEG sem perda visível, captura 1:1 em 3840 de
+// largura (DPR 2) e CRF baixo. O preço é peso: o master sai em dezenas de MB, e
+// é por isso que ele NÃO substitui o `web` — a landing continua servindo o leve,
+// e o master serve vídeo de apresentação, rede social e qualquer coisa que vá
+// para tela grande.
+const PERFIL_4K = process.argv.includes("--4k");
+const P = PERFIL_4K
+  ? { dpr: 2, fps: 30, jpeg: 100, crfWebm: 24, crfMp4: 17, escala: 1, teto: Infinity }
+  : { dpr: 1.5, fps: 15, jpeg: 82, crfWebm: null, crfMp4: 26, escala: 0.75, teto: 800 };
 
 // Grava em 1920x1200 e ENTREGA em 1440x900 — a mesma proporcao (1,6), entao a
 // reducao e' um scale limpo, sem corte e sem barra preta.
@@ -82,10 +108,12 @@ const BASE = `http://127.0.0.1:${PORTA}`;
 // `DPR` 1,5 captura em 2880x1800 e o ffmpeg reduz para 1440 — supersampling
 // barato, e e' o que salva a legibilidade da grade (fonte de 11 px reduzida 1:1
 // sai borrada depois da compressao VP9).
-const LARGURA = 1920, ALTURA = 1200, DPR = 1.5;
-const SAIDA_LARGURA = 1440;  // largura entregue (a altura sai da proporcao)
-const FPS = 15;              // captura de tela nao precisa de mais; e pesa menos
-const TETO_KB = 800;         // teto do .webm para a landing (pedido do Feca)
+const LARGURA = 1920, ALTURA = 1200, DPR = P.dpr;
+// Largura entregue (a altura sai da proporcao). No perfil 4k e' 1:1 com a
+// captura — 1920 x DPR 2 = 3840, sem reducao nenhuma.
+const SAIDA_LARGURA = Math.round(LARGURA * DPR * P.escala);
+const FPS = P.fps;
+const TETO_KB = P.teto;      // teto do .webm para a landing (pedido do Feca)
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -244,7 +272,7 @@ async function gravarCena(page, cdp, roteiro) {
   };
   cdp.on("Page.screencastFrame", onFrame);
   await cdp.send("Page.startScreencast", {
-    format: "jpeg", quality: 82, maxWidth: LARGURA * DPR, maxHeight: ALTURA * DPR,
+    format: "jpeg", quality: P.jpeg, maxWidth: LARGURA * DPR, maxHeight: ALTURA * DPR,
     everyNthFrame: 1,
   });
   try {
@@ -294,9 +322,13 @@ function filtro(recorte) {
   if (recorte) {
     partes.push(`crop=${par(recorte.w * DPR)}:${par(recorte.h * DPR)}`
       + `:${par(recorte.x * DPR)}:${par(recorte.y * DPR)}`);
-    // Recorte sai no tamanho LOGICO (1:1 em CSS px): ele ja e' pequeno, e ampliar
-    // ou reduzir de novo so tiraria nitidez do texto que o clipe existe para ler.
-    partes.push(`scale=${par(recorte.w)}:${par(recorte.h)}:flags=lanczos`);
+    // No perfil `web` o recorte sai no tamanho LOGICO (1:1 em CSS px): ele ja e'
+    // pequeno, e ampliar ou reduzir de novo so tiraria nitidez do texto que o
+    // clipe existe para ler.
+    // No `4k` isso seria o contrario do que se quer: reduzir para o tamanho
+    // logico jogaria fora exatamente o DPR 2 que foi capturado para o texto
+    // ficar nitido. La o recorte fica no tamanho de CAPTURA, sem nenhum scale.
+    if (!PERFIL_4K) partes.push(`scale=${par(recorte.w)}:${par(recorte.h)}:flags=lanczos`);
   } else {
     partes.push(`scale=${SAIDA_LARGURA}:${par(SAIDA_LARGURA * ALTURA / LARGURA)}:flags=lanczos`);
   }
@@ -314,11 +346,14 @@ function montar(nome, listaTxt, recorte, crf) {
   const poster = path.join(SAIDA, `${nome}.poster.jpg`);
   const entrada = ["-f", "concat", "-safe", "0", "-i", listaTxt];
 
-  ff([...entrada, "-vf", vf, "-c:v", "libvpx-vp9", "-crf", String(crf), "-b:v", "0",
-      "-row-mt", "1", "-deadline", "good", "-cpu-used", "2",
+  ff([...entrada, "-vf", vf, "-c:v", "libvpx-vp9", "-crf", String(P.crfWebm ?? crf),
+      "-b:v", "0", "-row-mt", "1", "-deadline", "good", "-cpu-used", "2",
       "-pix_fmt", "yuv420p", "-an", webm]);
   // `-pix_fmt yuv420p` no mp4 nao e' enfeite: sem ele o Safari nao toca o video.
-  ff([...entrada, "-vf", vf, "-c:v", "libx264", "-crf", "26", "-preset", "slow",
+  // No perfil 4k o preset sobe para `veryslow`: o clipe e' curto, a compressao
+  // roda uma vez so, e o ganho em texto fino paga os segundos a mais.
+  ff([...entrada, "-vf", vf, "-c:v", "libx264", "-crf", String(P.crfMp4),
+      "-preset", PERFIL_4K ? "veryslow" : "slow",
       "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", mp4]);
   return { webm, mp4, poster };
 }
