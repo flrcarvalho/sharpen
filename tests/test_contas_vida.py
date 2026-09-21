@@ -274,3 +274,61 @@ def test_a_aba_nao_abrevia_dinheiro_nem_inventa_formatador():
             continue
         ruins.append(f"L{n}: {linha.strip()[:90]}")
     assert not ruins, "`.toFixed` fora de largura de CSS (UI_REFERENCE §5.3): " + " | ".join(ruins)
+
+
+def test_a_regua_de_escopo_fica_FORA_do_que_o_bloco_Geral_recolhe():
+    """O aviso nao pode sumir junto com a resposta.
+
+    A `_cnRegua` diz que Duracao e dias ativos ignoram o filtro de periodo, e a tabela
+    "Por casa" logo abaixo TAMBEM tem coluna de duracao. Recolher o bloco Geral serve
+    justamente para ler casa a casa; se a regua se recolhesse junto, o aviso sumiria
+    exatamente no momento para o qual ele foi escrito, e a tela passaria a mentir sobre
+    o que o periodo corta sem erro nenhum.
+
+    E facil de desfazer sem perceber: basta mover uma linha para dentro do template do
+    corpo. Dai o gate ler a ORDEM do markup, e nao a existencia das duas pecas.
+    """
+    src = CONTAS.read_text(encoding="utf-8")
+    m = re.search(r"function _cnBlocoGeral\(.*?\n}", src, re.S)
+    assert m, "_cnBlocoGeral sumiu ou mudou de forma"
+    corpo = m.group(0)
+
+    i_regua = corpo.find("_cnRegua(")
+    i_corpo = corpo.find('id="cnGeralCorpo"')
+    assert i_regua > 0, "o bloco Geral parou de montar a regua"
+    assert i_corpo > 0, "o container recolhivel perdeu o id cnGeralCorpo"
+    assert i_regua < i_corpo, (
+        "a regua passou a ser montada DENTRO do container recolhivel: ao recolher o "
+        "bloco Geral o aviso de escopo some, e a tabela por casa fica sem ele"
+    )
+
+    css = (RAIZ / "app" / "static" / "dash" / "assets" / "css" / "components.css").read_text(encoding="utf-8")
+    # E o CSS nao pode esconder a regua por dentro do bloco fechado.
+    assert ".cn-geral__corpo           { display: none;" in css, (
+        "quem esconde o conteudo recolhido deixou de ser o .cn-geral__corpo; confira se "
+        "a regra nova nao pega a regua junto"
+    )
+
+
+def test_recolher_o_bloco_Geral_nao_repinta_a_tela():
+    """Trocar a classe, nunca chamar o render.
+
+    `renderContas` recalcula os agregados todos e reescreve o `innerHTML` do container.
+    Chama-lo para mudar um `display` jogaria fora o drill que estivesse aberto embaixo,
+    junto com a ordenacao da sub-tabela, e o usuario veria a tela piscar e voltar ao
+    inicio por ter clicado em "recolher".
+    """
+    src = CONTAS.read_text(encoding="utf-8")
+    m = re.search(r"window\.cnGeralToggle\s*=\s*function\(\)\{.*?\n\};", src, re.S)
+    assert m, "cnGeralToggle sumiu ou mudou de forma"
+    corpo = m.group(0)
+    assert "classList.toggle" in corpo, "o toggle deixou de trabalhar pela classe"
+    for proibido in ("renderContas(", "innerHTML"):
+        assert proibido not in corpo, (
+            f"cnGeralToggle passou a usar `{proibido}`: recolher deixou de ser uma troca "
+            "de classe e virou repintura, perdendo o drill aberto e a ordenacao"
+        )
+    # A preferencia e do NAVEGADOR, e o acessor lanca em janela anonima.
+    assert corpo.count("try{") >= 1 and "catch" in corpo, (
+        "escrita em localStorage sem try/catch: lanca em janela anonima e derruba o clique"
+    )

@@ -443,9 +443,60 @@ function renderContas(){
     cont.innerHTML=_cnRegua(B,G)+_cnVazio(B);
     return;
   }
-  cont.innerHTML=_cnRegua(B,G)+_cnPaineis(B,B.contas,'')+_cnBloco(B,linhas)+_cnDefinicoes();
+  cont.innerHTML=_cnBlocoGeral(B,G,_cnPaineis(B,B.contas,''))+_cnBloco(B,linhas)+_cnDefinicoes();
 }
 window.renderContas=renderContas;
+
+// ── O bloco Geral, e por que a régua NÃO se recolhe com ele ──────────────────
+// O Feca: *"essa parte, com o Geral das casas deveria ser um bloco só e possível de
+// minimizar para facilitar a leitura de casa a casa abaixo"*. Eram três coisas soltas
+// (a faixa de escopo, os três painéis, e a seção Por casa mais abaixo) lendo como três
+// seções irmãs da tela, quando as duas primeiras são UMA: o agregado da base inteira.
+//
+// O cabeçalho é o MESMO `.cn-secao__top` da seção "Por casa", de propósito: as duas
+// seções da tela são irmãs e um segundo estilo para o mesmo papel é o item 8 do
+// checklist. O acordeão também não é novo — `is-open` + caret que gira 90° é o idioma
+// que o `.c2-acc` (tela Custos) já usa, que por sua vez copiou o `_tmBox`.
+//
+// ⚠️ A RÉGUA FICA FORA DO QUE SE RECOLHE, e isso é decisão, não descuido. Ela existe
+// para impedir a tela de mentir sobre o que o filtro de período corta, e a tabela de
+// baixo TAMBÉM tem coluna de duração. Recolhê-la junto esconderia o aviso exatamente
+// na hora em que o usuário está lendo casa a casa, que é o momento para que o aviso
+// foi escrito. Some o que é resposta; fica o que é ressalva.
+function _cnBlocoGeral(B,G,corpo){
+  const ab=_cnGeralAberto();
+  return`<section class="cn-geral${ab?' is-open':''}" id="cnGeral">`
+    +`<div class="cn-secao__top cn-geral__top" onclick="cnGeralToggle()" role="button" `
+    +`tabindex="0" aria-expanded="${ab}" aria-controls="cnGeralCorpo" `
+    +`onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cnGeralToggle();}">`
+    +`<span class="kpi-pipe"></span><span class="t">Geral</span>`
+    +`<span class="m">${_cnBaseTxt(G.n)}</span>`
+    +`<span class="cn-geral__acao" aria-hidden="true"></span>`
+    +`<span class="cn-geral__caret" aria-hidden="true">▸</span></div>`
+    +_cnRegua(B,G)
+    +`<div class="cn-geral__corpo" id="cnGeralCorpo">${corpo}</div>`
+    +`</section>`;
+}
+
+// Recolher um painel é conveniência DAQUELE navegador, não dado do usuário: é o exemplo
+// que o `CLAUDE.md` cita como uso legítimo do `localStorage`. Nada aqui é digitado, nada
+// precisa voltar ao servidor, e perder a preferência numa limpeza de dados custa um
+// clique. Leitura e escrita em `try/catch` porque o acessor lança em janela anônima.
+const CN_GERAL_KEY='cn_geral_aberto';
+function _cnGeralAberto(){
+  try{return localStorage.getItem(CN_GERAL_KEY)!=='0';}catch(e){return true;}
+}
+// Troca a CLASSE, nunca repinta a tela: repintar aqui recalcularia os agregados todos
+// para mudar um `display`, e o estado do drill aberto embaixo se perderia junto.
+window.cnGeralToggle=function(){
+  const el=document.getElementById('cnGeral');
+  if(!el)return;
+  const ab=!el.classList.contains('is-open');
+  el.classList.toggle('is-open',ab);
+  const top=el.querySelector('.cn-geral__top');
+  if(top)top.setAttribute('aria-expanded',ab?'true':'false');
+  try{localStorage.setItem(CN_GERAL_KEY,ab?'1':'0');}catch(e){}
+};
 
 // A mensagem aponta o filtro MAIS PROVÁVEL de ter esvaziado a tela, e oferece o clique
 // que desfaz só ele. Botão que "limpa tudo" já existe na barra; repeti-lo aqui tiraria

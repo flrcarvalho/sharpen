@@ -16,7 +16,9 @@
  *     sub-tabela NAO fecha o painel;
  *   · a barra de duracao respeita a regua fixa de 30 dias (mediana <= media <= 100%);
  *   · o "Limpar tudo" volta a Populacao ao default (era o que a s371 registrou no
- *     LIMPAR_EXTRA e que a reescrita da v4 quase levou junto).
+ *     LIMPAR_EXTRA e que a reescrita da v4 quase levou junto);
+ *   · o bloco Geral recolhe, a REGUA DE ESCOPO continua visivel recolhida, e a
+ *     preferencia sobrevive ao recarregar (s373).
  */
 import fs from "node:fs";
 import puppeteer from "puppeteer-core";
@@ -158,6 +160,43 @@ console.log("-".repeat(78));
 console.log("LIMPAR TUDO: Populacao", limpou.antes, "->", limpou.depois,
             limpou.depois === "Inativas" ? "ok" : "FALHOU (nao voltou ao default)");
 
+// O "Limpar tudo" acima devolveu a Populacao ao default (Inativas), e no dado do demo
+// isso esvazia a tela: sem conta, nao ha bloco Geral nem secao "Por casa" para medir.
+await pop("ambas");
+
+// Bloco Geral: recolher. O gate de forma (test_a_regua_de_escopo_fica_FORA...) le a
+// ORDEM do markup; so a tela diz se a regua fica mesmo VISIVEL com o bloco fechado, se
+// o corpo some de verdade e quanto a tabela de baixo sobe, que e o motivo do pedido.
+const vis = sel => fr.evaluate(s => {
+  const el = document.querySelector(s);
+  return !!(el && el.offsetParent !== null && el.getBoundingClientRect().height > 0);
+}, sel);
+const yPorCasa = () => fr.evaluate(() => {
+  const s = document.querySelector(".cn-secao");
+  return s ? Math.round(s.getBoundingClientRect().top) : -1;
+});
+console.log("-".repeat(78));
+console.log("BLOCO GERAL (recolher)");
+const gAberto = { corpo: await vis("#cnGeralCorpo"), regua: await vis("#cnRegua"), y: await yPorCasa() };
+await fr.evaluate(() => window.cnGeralToggle());
+await espera(600);
+const gFechado = { corpo: await vis("#cnGeralCorpo"), regua: await vis("#cnRegua"), y: await yPorCasa() };
+const acao = await fr.evaluate(() => {
+  const a = document.querySelector(".cn-geral__acao");
+  const t = document.querySelector(".cn-geral__top");
+  return { rotulo: a ? getComputedStyle(a, "::after").content : null,
+           aria: t ? t.getAttribute("aria-expanded") : null };
+});
+console.log(`  aberto  -> corpo ${gAberto.corpo} · regua ${gAberto.regua} · "Por casa" em y=${gAberto.y}`);
+console.log(`  fechado -> corpo ${gFechado.corpo} · regua ${gFechado.regua} · "Por casa" em y=${gFechado.y}`);
+console.log(`  a tabela subiu ${gAberto.y - gFechado.y}px · rotulo ${acao.rotulo} · aria-expanded ${acao.aria}`);
+const geralOk = gAberto.corpo && !gFechado.corpo && gAberto.regua && gFechado.regua
+  && acao.aria === "false" && (gAberto.y - gFechado.y) > 200;
+console.log("  " + (geralOk ? "ok" : "FALHOU: recolher nao escondeu o corpo, escondeu a regua junto, ou nao subiu a tabela"));
+await page.screenshot({ path: `${SAIDA}/v4-geral-fechado.png`, fullPage: true });
+await fr.evaluate(() => window.cnGeralToggle());
+await espera(400);
+
 // Transbordo por largura
 console.log("-".repeat(78));
 console.log("TRANSBORDO por largura (pagina tem de ser +0 em todas)");
@@ -183,6 +222,7 @@ for (const w of [1366, 1440, 1600, 1920, 2560]) {
 
 console.log("=".repeat(78));
 if (ruimBarra) console.log(`ATENCAO: ${ruimBarra} barra(s) fora da regua.`);
+if (!geralOk) console.log("ATENCAO: o recolher do bloco Geral nao passou.");
 if (erros.length) { console.log("ERROS DE JS:"); erros.forEach(e => console.log("  " + e)); }
 else console.log("ZERO erro de JS.");
 console.log("prints em", SAIDA);
