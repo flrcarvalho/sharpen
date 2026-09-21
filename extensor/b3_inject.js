@@ -346,7 +346,7 @@
     // de alguém gastar uma hora de extração medindo a versão errada. A extensão é distribuída à
     // mão e o Feca roda um perfil por casa no Octo, então "recarreguei" não garante nada.
     // Muda junto com qualquer mudança de comportamento da captura.
-    const msg = { __sharpenupB3Rotas: true, topo: window.top === window, build: "s378-replace-h",
+    const msg = { __sharpenupB3Rotas: true, topo: window.top === window, build: "s378-folga300",
                   host: location.hostname, rotas: lista, campos: campoLista, rec: rec,
                   amostra01: amostra01 };
     LOG("catálogo: " + lista.length + " forma(s) de rota · " + campoLista.length +
@@ -371,22 +371,31 @@
                                   // deixa passadas novas pegarem o que chegou depois (período em lotes)
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // Folga entre bilhetes. 900 ms no D0 (48h/Período) e 300 ms no D1 (24h), assimetria criada
-  // na s184 para "não irritar a casa com rajada".
+  // Folga entre bilhetes. Era 900 ms no D0 (48h/Período) contra 300 ms no D1 (24h), assimetria
+  // criada na s184 para "não irritar a casa com rajada". **A razão da assimetria morreu**: o
+  // que travava a captura era o muro de histórico (ver `navegarUm`), não a casa, e isso está
+  // medido e provado. Os dois valem 300 agora.
   //
-  // ⚠️ **NÃO BAIXAR SEM MEDIR.** Em 2026-09-20 mediu-se que 473 `confirmation` seguidas voltam
-  // 200 sem degradação nenhuma (mediana 422 ms no primeiro bloco de 50, 391 ms no último).
-  // Isso derruba "punição por VOLUME acumulado". **Não derruba "limite por TAXA"**, porque a
-  // medição inteira foi feita COM os 900 ms: ~40 requisições por minuto. Baixar para 300 ms
-  // leva a ~66/min, uma taxa que ninguém nunca exerceu contra esta casa.
+  // As duas constantes continuam separadas de propósito, para uma volta atrás parcial custar
+  // um número e não um refactor.
   //
-  // O prêmio é grande (os 900 ms são **60% do custo por bilhete**: 1.523 ms medidos, sendo 617
-  // de navegação real e 906 de espera nossa) e o preço de errar também: a conta ficou com o
-  // histórico bloqueado por horas duas vezes no mesmo dia, **sem nenhum sinal no HTTP**.
+  // **O QUE ESTÁ MEDIDO:** 473 `confirmation` seguidas voltam 200 sem degradação (mediana
+  // 422 ms no primeiro bloco de 50, 391 ms no último), e outras 414 numa sessão posterior, todas
+  // 200. Não há punição por volume acumulado. Os 900 ms eram **59% do custo por bilhete**
+  // (1.540 ms medidos: 634 de trabalho real, 906 de espera nossa).
   //
-  // Então baixa-se em passo separado, depois de o muro do histórico (ver `navegarUm`) estar
-  // confirmado, com o gravador vigiando o primeiro status ≠ 200. Uma variável por vez.
-  const FOLGA_D0_MS = 900;
+  // ⚠️ **O QUE NÃO ESTÁ MEDIDO, e por isso este número é o que se mexe primeiro numa regressão:**
+  // toda aquela medição foi feita COM os 900 ms, ou seja a ~40 requisições por minuto. A 300 ms
+  // vai-se a ~66/min, taxa que ninguém nunca exerceu contra esta casa. O valor 300 não é chute
+  // (o ramo D1 sempre usou ele, sem um problema em produção), mas nunca foi exercido em
+  // varredura longa.
+  //
+  // **O risco que NÃO se manifesta no HTTP:** o histórico da conta ficou bloqueado por horas
+  // duas vezes em 2026-09-20, as duas depois de varredura GRANDE (1049 e 970 bilhetes), nunca
+  // depois de janela pequena, e **sem um único status ≠ 200 antes**. Então vigiar o gravador
+  // pega recusa da casa e **não** pega esse bloqueio. Se ele voltar, este é o primeiro número a
+  // devolver para 900, e o segundo suspeito é o TAMANHO da janela, não o ritmo.
+  const FOLGA_D0_MS = 300;
   const FOLGA_D1_MS = 300;
 
   // Espera surgir um código NOVO (a confirmation navegada chegou), com teto. Retorna assim que
