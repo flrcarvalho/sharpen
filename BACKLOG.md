@@ -1012,33 +1012,46 @@ do caminho e torna a pergunta irrelevante para a parte que ele cobrir.
 > ela mira e medir o outro depois. Esta é a terceira vez que uma mira acerta e a vizinha
 > piora em silêncio.
 
-### 3.13 O Haiku 4.5 foi medido e REPROVADO (s377). FECHADA como medição.
+### 3.13 O Haiku 4.5 — a reprovação da s377 foi RETIRADA. Reaberta, com caminho (s378).
 
-Fica registrado para ninguém tentar de novo sem dado novo. Sobre 253 blocos reais da
-sombra, 10 casas, pelo caminho de produção:
+> ⚠️ **Este item já esteve fechado com dois números FALSOS.** A versão anterior dizia que o
+> Haiku "perdeu 8,7 % dos bilhetes e inventou 19 códigos". **Os dois eram defeito da minha
+> bancada, não do modelo.** Remedido com a bancada corrigida: ele perde **zero** e inventa
+> **zero**. Fica registrado porque documento errado fecha porta para a próxima sessão.
 
-| | Sonnet 4.6 | Sonnet 5 | **Haiku 4.5** |
+Bancada corrigida (`scripts/bancada_modelos.py`): 300 blocos, lotes de 6 blocos
+**consecutivos de extrações reais**, `parceiro` real, juiz determinístico.
+
+| | Sonnet 5 | **Haiku 4.5** | Sonnet 4.6 |
 |---|---|---|---|
-| Bilhetes perdidos | 1 (0,4 %) | 6 (2,4 %)¹ | **22 (8,7 %)** |
-| Código inventado | 0 | 5¹ | **19** |
-| Descrição fora do MASTER | 35 (13,9 %) | 0 | 46 (19,9 %) |
+| Linhas devolvidas (de 300) | 300 | **300** | 294 |
+| **Bilhete perdido** | 0 | **0** | **6** |
+| **Código inventado** | 0 | **0** | 0 |
+| Coluna comida (TAB vazio) | 0 % | 6,0 % | 0,3 % |
+| **Descrição fora do MASTER** | 0 % | **25,7 %** | 0,7 % |
+| Descrição infiel | 9,0 % | 12,9 % | 10,9 % |
+| Custo do mesmo teste | US$ 4,83 | **US$ 0,75** | US$ 4,91 |
 
-¹ artefato do harness, corrigido na 2ª rodada — ver o `STATUS` da s377.
+**O único bloqueio real é a descrição, e ela é 97 % FORMATO.** Classificados os 37 erros de
+uma amostra: `over-under-pt` 24 (escreve *"Mais de 1.0 Cartões"* onde o MASTER manda
+*"Over"*), `decimal-virgula` 12, e **1** de conteúdo. Ele entende o bilhete; escreve no
+dialeto errado. É a mesma coisa que a IA fazia antes das decisões A e B da s336, quando a
+conformidade em produção era 58 % e foi para 99,2 % só com regra escrita no MASTER.
 
-Ele é **67 % mais barato** e fecharia a escada de preço sozinho (R$ 0,024 por bilhete
-contra R$ 0,048 do Sonnet 5), **e quebra o dado**. Bilhete perdido some sem erro na tela;
-código inventado vira linha duplicada com identidade falsa. São os dois piores modos de
-falha deste projeto, e nenhuma economia paga nenhum dos dois.
+**Duas correções determinísticas o colocam ao lado do Sonnet, a metade do preço (~R$ 1.000
+por mês), e as duas valem por si — ver `4.6`.** Nenhuma delas envolve modelo.
 
-**A prova offline dispensou construir a sombra em produção** que estava planejada (rodar
-o Haiku em paralelo por um dia). Custou **US$ 1,46** e respondeu numa sessão, porque a
-`sombra_rotulos` já tinha 39.532 blocos reais guardados. Fica como método: **replay sobre
-a sombra antes de construir qualquer coisa que dependa de um modelo novo.**
+> **O porém estratégico, e ele é o que decide a ORDEM:** o normalizador de descrição é 80 %
+> do que o tradutor faz. Se vamos escrever código determinístico para compor descrição,
+> isso **é** o tradutor — e ele custa **zero** token nas linhas que cobre, contra os 0,5x do
+> Haiku. Construir o normalizador para viabilizar o Haiku é fazer a parte difícil e ficar
+> com o prêmio pequeno.
 
-**O que ficaria de pé se alguém quiser reabrir:** depois do tradutor, o tráfego residual
-fica MAIS difícil (sobra mercado desconhecido e esporte não declarado), então a janela do
-Haiku não melhora com o tempo, piora. Reabrir só com um caminho separado e mais simples
-que o de hoje.
+**Decisão do Feca**, e ela só faz sentido depois do `4.6`: remedir os três modelos com os
+normalizadores no caminho e deixar o número decidir. Se o Haiku empatar, são R$ 1.000/mês.
+
+**NÃO MEDIDO em modelo nenhum: print e PDF.** É tarefa de visão, 70 % do custo dela é
+saída, e é justamente onde o Haiku economizaria mais. Volume medido em `4.7`.
 
 ### 3.12 O manual cresceu 31 % e ninguém paga a conta explicitamente (s376). VIVA, medida.
 
@@ -1601,6 +1614,78 @@ tem 11 colunas e o suspeito natural e ela, nao o `.main`. Medir antes de conclui
 **Pista para quem pegar:** medir o min-content dos cinco filhos do `#contasContent` um a
 um (`el.style.width = 'min-content'` e ler o rect) antes de mexer em qualquer CSS. O
 culpado pode ser local, e ai a correcao nao precisa tocar a casca.
+
+### 4.6 O modelo come a coluna vazia da aposta ABERTA, e vira órfã (s378). VIVA, medida.
+
+Bilhete **em aberto** não tem `resultado`, então a coluna 10 do TSV sai vazia. O modelo às
+vezes **omite o campo em vez de emitir o TAB**, a linha chega com 10 campos em vez de 11, e
+o `parse_tsv` (que lê o código em `parts[10]`) não acha código nenhum. A linha entra sem
+código = **órfã**, e órfã vira fantasma (ver o `CLAUDE.md`).
+
+É textualmente o defeito da s193, o mesmo que já engoliu 5 dias de Betfair: *"o `strip()`
+deslocava todas as colunas uma casa à esquerda: `resultado` recebia o código"*.
+
+| Medido na saída CRUA, 300 blocos | |
+|---|---|
+| Sonnet 5 | 0 % |
+| Sonnet 4.6 (até 20/09 em produção) | 0,3 % |
+| Haiku 4.5 | 6,0 % |
+
+**No banco o número é menor** (2 de 898 abertas da Bet365 = 0,2 %), porque a camada de
+reparo pega parte. Mas o mecanismo está vivo e não tem gate.
+
+**O conserto é determinístico e de uma linha de lógica:** linha com 10 campos cujo último
+campo é um código presente em `codigos_do_texto` = coluna faltando; reinsere o TAB antes de
+parsear. **Vale para TODOS os modelos de uma vez**, inclusive os que já gravaram órfãs.
+
+**Irmão dele: o normalizador de FORMATO.** O `checar_descricao` já **detecta**
+`over-under-pt` e `decimal-virgula`; fazer ele **corrigir** fecha 97 % dos desvios de
+descrição de qualquer modelo. Os dois juntos são o pré-requisito do `3.13` e valem
+independente dele — ver a ressalva estratégica lá (isto é 80 % do tradutor).
+
+### 4.7 Print e PDF: 3,2 % dos bilhetes, e dois donos concentram (s378). VIVA, medida.
+
+Medido pelo marcador definitivo (`bilhetes.codigo_ocr`, que marca código lido de imagem),
+30 dias: **1.283 de 39.741 bilhetes de extração = 3,23 %**.
+
+| Dono | Casa | Bilhetes por print |
+|---|---|---|
+| **Jaao26** | Betano | 641 |
+| **Jaao26** | Bet365 | 213 |
+| germano | icebet | 89 |
+| Jaao26 | Betnacional | 39 |
+
+**Jaao26 é 28,1 % dos bilhetes dele por print**; o resto da base está em 0 %. O Feca não
+usa print.
+
+> ⚠️ **O proxy do `ESTUDO_PRECIFICACAO §III.1` (`input > 25.000` = imagem) SUPERESTIMA.**
+> Ele acusa 43,8 % da conta em "imagem", mas pega junto todo lote grande de TEXTO — pelo
+> proxy o Feca teria 107 prints de Bet365, e ele não manda print. Use `codigo_ocr` para
+> contar bilhete e trate o proxy como TETO de custo, nunca como contagem.
+
+**Por que importa:** print é irredutível enquanto houver IA (70 % do custo dele é a IA
+escrevendo; não há cache que resolva) e é o único caminho que o tradutor **nunca** cobre.
+É também o que nenhum modelo foi testado fazendo.
+
+### 4.8 Um dono gastou US$ 13,42 e gravou ZERO bilhete (s378). VIVA, medida.
+
+`ricardo05`, em 12/09: **17 chamadas de imagem** na Betano (input médio 55 mil tokens),
+**US$ 13,33**. Mais uma no dia 18. Bilhetes gravados nos 30 dias: **0**. Na base inteira:
+**0**.
+
+A extração rodou e foi paga; o `/salvar` nunca recebeu, ou recebeu e recusou. Como
+`/extrair` e `/salvar` são endpoints separados, **pagar sem gravar não gera erro nenhum**.
+
+O custo por bilhete dele fica em **US$ 13,42**, contra US$ 0,02 da média — o número só
+aparece porque o denominador é zero, e é essa a informação.
+
+**Duas coisas para olhar, e a segunda é de produto:**
+
+1. **Isto não tem alarme.** Ninguém no sistema pergunta "houve chamada e não houve
+   gravação?", e a resposta está a um `JOIN` de distância. É irmão do
+   `_barreira_lembrar`: gasto real que nenhuma tela mostra.
+2. **Pode ser um usuário travado.** Alguém que tentou 17 prints num dia, não conseguiu, e
+   não voltou. Vale a conversa antes da métrica.
 
 ## 5. Planos com fase aberta
 

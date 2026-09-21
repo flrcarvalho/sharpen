@@ -210,6 +210,37 @@ O conserto fechou a **classe**, não a instância: `_filtro_conta` passou a rece
 e quem usa uma tabela só não passa nada. O gate novo vive em `tests/test_repository_db.py`
 (CI, Postgres de teste), que é onde SQL se prova.
 
+### A bancada que condenou o modelo errado — s377 → s378
+
+Uma bancada nova mediu três modelos sobre blocos reais e reprovou o Haiku 4.5: *"perdeu
+8,7 % dos bilhetes e inventou 19 códigos"*. O item foi fechado no `BACKLOG` no mesmo dia.
+
+**Os dois números eram da bancada, não do modelo.** Remedido: ele perde **zero** e inventa
+**zero** (300 blocos → 300 linhas). Dois defeitos meus, os dois no arranjo da entrada:
+
+1. **Lotes sorteados.** Eu montava o lote com 6 bilhetes tirados de dias diferentes.
+   Bilhete parecido lado a lado é o que faz um modelo fundir dois num só, e a instrução tem
+   uma seção inteira sobre isso. Produção nunca monta lote assim: são blocos consecutivos
+   de uma extração.
+2. **`parceiro = "(nao informado)"`.** O modelo emitia a coluna 5 vazia; com duas colunas
+   vazias seguidas ele perde a conta e come a terceira, que é o `resultado` vazio da aposta
+   aberta. Produção sempre manda o nome da conta.
+
+**A pista existia e eu usei metade dela.** No mesmo dia eu comparei a bancada com o banco,
+vi 3,6 % de coluna comida contra 0,2 % de órfãs em produção, e concluí corretamente *"o
+defeito é do meu harness"*. **Usei essa conclusão só para absolver o Sonnet 5.** Não voltei
+para reexaminar a condenação do Haiku, que tinha saído da mesma bancada, no mesmo dia, com
+o mesmo defeito.
+
+**A regra que faltava:** uma bancada nova é código não testado, e código não testado não
+condena ninguém. **Valide a régua contra um caso de resposta conhecida antes de usá-la para
+decidir** — aqui havia um de graça, o banco de produção. E quando a régua for desmentida
+uma vez, **todo veredito que ela emitiu volta para a fila**, não só o que incomoda.
+
+> Sintoma para reconhecer isto noutra medição: o resultado contradiz uma fonte que você já
+> tem. Não escolha qual acreditar por conveniência do argumento — a contradição é sobre a
+> RÉGUA, e vale para tudo que ela mediu.
+
 ### O dado sintético que não exercia a regra — s287
 
 Um feed com 5 itens nunca atinge um corte de 12. Sem empate, o desempate não decide nada. E
