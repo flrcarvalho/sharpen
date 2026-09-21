@@ -2,9 +2,9 @@
   "jonathan": {
     "nome": "Jonathan",
     "desde": "usa o Sharpen desde julho de 2026",
-    "medido_em": "20/09/2026",
+    "medido_em": "21/09/2026",
     "apostas": 13715,
-    "apostas_30d": 4541,
+    "apostas_30d": 4461,
     "casas": 29,
     "contas": 90,
     "tipsters": 22,
@@ -16,15 +16,29 @@
   "germano": {
     "nome": "Germano",
     "desde": "usa o Sharpen desde setembro de 2026",
-    "medido_em": "20/09/2026",
-    "apostas": 1670,
-    "apostas_30d": 1670,
-    "casas": 13,
-    "contas": 18,
-    "tipsters": 21,
-    "dias_90": 9,
-    "turnover": 347203,
+    "medido_em": "21/09/2026",
+    "apostas": 1935,
+    "apostas_30d": 1935,
+    "casas": 15,
+    "contas": 21,
+    "tipsters": 22,
+    "dias_90": 10,
+    "turnover": 400843,
     "antes": "Nenhum planilhador durou 3 dias.",
-    "depois": "Este durou 3 semanas, com 13 casas."
+    "depois": "Este durou 3 semanas."
+  },
+  "ewanderson1": {
+    "nome": "Ewanderson",
+    "desde": "usa o Sharpen desde setembro de 2026",
+    "medido_em": "21/09/2026",
+    "apostas": 1623,
+    "apostas_30d": 1623,
+    "casas": 26,
+    "contas": 39,
+    "tipsters": 5,
+    "dias_90": 7,
+    "turnover": 59179,
+    "antes": "Antes: uma manhã inteira, às vezes o dia todo.",
+    "depois": "Hoje: menos de uma hora."
   }
 }

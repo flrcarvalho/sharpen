@@ -26,6 +26,7 @@
 |---|---|---|---|---|---|
 | Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ✅ autorizado (19/09/2026, pelo Feca) | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
 | Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ✅ autorizado (20/09/2026, pelo Feca) | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
+| Ewanderson | usuário (6 dias de uso, alto volume) | 21/09/2026 | 3min23 | ⏳ pendente | [ewanderson-2026-09-21.txt](transcricoes/ewanderson-2026-09-21.txt) |
 
 > **Arquivo irmão:** [VOZ_DO_FUNDADOR.md](VOZ_DO_FUNDADOR.md) guarda o pitch do Feca
 > gravado sem roteiro. Voz de cliente é **prova**; voz de fundador é **copy**. Os dois
@@ -145,6 +146,54 @@ arquivou 5 e lançou custo de tipster, de conta e geral. Não é alguém experim
 
 ---
 
+## Ewanderson — 21/09/2026
+
+**Perfil:** o mais novo de todos, **seis dias de uso**, e o de maior volume relativo.
+Opera muitas casas ao mesmo tempo e segue vários grupos. É o depoente que traz o tema
+que nenhum outro tinha trazido: **a liquidação automática**.
+
+### Cartão de prova (medido em 21/09/2026)
+
+| Medida | Valor |
+|---|---|
+| Apostas planilhadas | 1.623, todas em **6 dias** |
+| Casas na base | 26 |
+| Contas cadastradas | 39 |
+| Tipsters | 5 |
+| Turnover | R$ 50.468 |
+| Dias com captura | 7 |
+| Usa desde | 15/09/2026 |
+
+### Trechos marcados para clipe
+
+| # | Áudio · tempo | Por quê | Fala |
+|---|---|---|---|
+| **E1** | 01 · 00:00 → 00:37 | **Tema inédito no material: a liquidação automática.** Ninguém mais falou disso, e é recurso que não está em peça nenhuma | *"O que eu mais curto no Sharpen é que não tem que fazer nada manual. Até as apostas pendentes ele lê de novo e resolve sozinho. No outro eu tinha que fazer isso manual, e às vezes tinha que voltar a procurar a aposta lá na casa, no dia, para poder colocar o resultado."* |
+| **E2** | 01 · 00:49 → 01:14 | **Terceira confirmação do acúmulo**, e a mais concreta de todas | *"Se eu deixasse sábado e domingo para planilhar na segunda, eu perdia uma manhã toda. Porque sábado e domingo é aposta demais."* |
+| **E3** | 01 · 01:40 → 02:10 | O custo real do acúmulo, no concorrente | *"No outro eu perdia uma manhã, às vezes mais de uma manhã, porque eu precisava sair, precisava fazer alguma coisa, e tinha que voltar à tarde para terminar. Isso mudou demais na minha rotina."* |
+| **E4** | 02 · 00:29 → 00:49 | Volume, e o público que ele descreve | *"Para planilhar 15 casas, aposta por aposta, meu irmão. Para a gente que trabalha com grupos é uma loucura. Por semana vai mais de mil apostas. Com o Sharpen estou gastando mais ou menos uma hora por dia, até menos. Dia de semana é muito menos."* |
+| **E5** | 01 · 01:14 → 01:40 | **Honestidade que vale ouro numa peça.** Ele mesmo diz que ainda está aprendendo | *"Como tudo é 99% automático, eu faço agora em menos de uma hora. Só não estou fazendo mais rápido porque ainda estou pegando alguns macetes, ainda estou revisando bastante, porque comecei a planilhar tem uns cinco dias só."* |
+
+> Correções de reconhecimento: "Sharpie", "Sharpim" e "chip" = **Sharpen**; "bets" =
+> apostas. O trecho E4 fala "tirava print de tudo", não "tirava a frente de tudo".
+
+### ⚠️ Uma divergência entre o declarado e o medido, e ela é da regra da casa
+
+Ele diz **"eu uso 15 casas de apostas diferentes"**. A base dele tem **26 casas**.
+
+Não é erro dele nem erro nosso: provavelmente são 15 casas que ele opera com regularidade
+contra 26 em que já houve aposta. Mas a peça segue a regra **número dito é número na
+tela** (ver o [roteiro](../ROTEIRO_VIDEO_APRESENTACAO.md)), então **os dois números não
+podem aparecer juntos**: ou se usa a fala dele com a imagem que a sustenta, ou se usa o
+cartão medido sem essa frase. Usar "15 casas" de legenda embaixo de uma tela que mostra 26
+é o tipo de detalhe que destrói a credibilidade da peça inteira.
+
+> O que **bate** e pode ir junto: ele diz *"mais de mil apostas por semana"*, e a base
+> mede 1.623 em 6 dias. O declarado é conservador diante do medido, que é o melhor caso
+> possível para uma peça.
+
+---
+
 ## As convergências — o que mais de um usuário disse sozinho
 
 Isto é a parte mais valiosa do arquivo, e só aparece com dois ou mais depoimentos.
@@ -153,10 +202,23 @@ vira **padrão**, e padrão decide o que entra na landing.
 
 | Convergência | Quem | O que decide |
 |---|---|---|
+| **A dívida do acúmulo** | Jonathan (pular 1 dia = 3h) · Ewanderson (sábado e domingo = uma manhã, às vezes o dia) · o eixo do Feca | **Três vozes.** Deixou de ser argumento secundário: é a dor de quem já tentou planilhar e desistiu, e nenhuma peça nossa falava disso |
 | **"Achei que tinha lucrado, e não tinha"** | Jonathan (R$ 10 mil) · Germano (R$ 8 mil) | **Valida o arco do vídeo.** Dois usuários independentes contaram a MESMA história, com números diferentes. É a dor de abertura, não uma frase de efeito |
 | **Assinatura do tipster pela stake** | Feca (401/402/403) · Jonathan (centavos) · Germano (299 / 300 / 300,50) | **Três** vozes, sendo uma delas a de quem ainda NÃO usa e por isso gasta o dobro do tempo. Seção própria, com demonstração |
+| **"O outro planilhador não deu conta"** | Germano (nunca durou 3 dias) · Ewanderson (grupo por grupo, aposta por aposta) | Comparativo dito por cliente, sem nomear ninguém. É o que nós não podemos escrever sem soar arrogantes |
 | **Custo invisível de conta e tipster** | Jonathan · Germano | Primeira dobra da landing. Os dois abriram por aí |
 | **Precisão da leitura** | Germano (G5) · Jonathan (D) | Confiança é objeção silenciosa: ninguém pergunta, todo mundo pensa |
+
+### O tema que só um trouxe, e que muda uma cena
+
+**A liquidação automática** (Ewanderson, E1). Ele abre o depoimento com isso, e é o que
+o fez trocar de ferramenta: no anterior, marcar o resultado exigia **voltar na casa,
+procurar a aposta do dia e lançar à mão**. Um voto só, mas é de quem tem seis dias de uso
+e portanto a lembrança fresca do que doía antes.
+
+O Jonathan diz o vizinho disso ("parei de perder aposta"), e os dois juntos formam o par:
+**a aposta entra sozinha e o resultado fecha sozinho.** Nenhuma peça nossa diz a segunda
+metade.
 
 ### O que o Germano acrescenta e o Jonathan não tinha
 

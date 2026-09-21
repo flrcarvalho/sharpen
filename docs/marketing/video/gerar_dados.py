@@ -30,19 +30,29 @@ MESES = ("janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
 
 # Falas que vêm do DEPOIMENTO, não do banco. Ficam aqui com a fonte anotada para
 # ninguém confundir número medido com número declarado.
+#
+# ⚠️ NENHUMA FRASE DAQUI PODE CONTER NÚMERO QUE O BANCO TAMBÉM MEDE. A base anda: em
+# 24 horas o Germano saiu de 13 para 15 casas — exatamente como ele dissera no áudio
+# ("tenho 13 casas, vou colocar mais duas"). Uma frase que cravasse "13 casas" passaria
+# a contradizer o tile de casas do mesmo cartão, e a peça se desmentiria sozinha. Número
+# vem do SELECT; a frase carrega só o que o banco não sabe (o tempo que ele gastava
+# antes, a ferramenta que ele largou).
 FRASES = {
     # docs/marketing/depoimentos/transcricoes/jonathan-2026-09-19.txt, 00:26
     "Jonathan": {"antes": "Antes: 1 hora por dia.", "depois": "Hoje: 15 a 20 minutos."},
     # germano-2026-09-20.txt, audio 1 (00:10) e audio 2 (00:16)
     "germano": {"antes": "Nenhum planilhador durou 3 dias.",
-                "depois": "Este durou 3 semanas, com 13 casas."},
+                "depois": "Este durou 3 semanas."},
+    # ewanderson-2026-09-21.txt, audio 1 (00:49 e 01:14)
+    "Ewanderson1": {"antes": "Antes: uma manhã inteira, às vezes o dia todo.",
+                    "depois": "Hoje: menos de uma hora."},
 }
 
-DONOS = ["Jonathan", "germano"]
+DONOS = ["Jonathan", "germano", "Ewanderson1"]
 
 # O `dono` é o USERNAME; o cartão mostra o nome como a pessoa escreve o próprio nome.
 # Title-case automático mutilaria nome de marca, então isto é um mapa, não uma regra.
-NOMES = {"germano": "Germano"}
+NOMES = {"germano": "Germano", "Ewanderson1": "Ewanderson"}
 
 
 def carregar_env() -> None:
