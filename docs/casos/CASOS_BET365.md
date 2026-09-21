@@ -54,6 +54,27 @@ e cada bilhete restante consumia 9 s para produzir nada. Só recarregar a págin
 O conserto é `location.replace(rota)`, que navega sem empilhar. Nos três lugares que mexiam no
 hash: a navegação, o bounce do retry e a volta para a lista.
 
+### E a prova do conserto é do MECANISMO, não do sintoma
+
+O jeito óbvio de validar seria repetir uma varredura grande e ver se passa das 435. Custa caro:
+foi exatamente esse tipo de varredura que bloqueou o histórico de duas contas no mesmo dia.
+
+Em vez disso o gravador passou a registrar `history.length` em cada `nav`. Medido na conta de
+maior movimentação, **83 navegações seguidas**:
+
+```
+H_primeira: 18 · H_ultima: 18 · H_max: 18
+navOk: 414 · navFalha: 0 · statusConf: {"200": 414}
+```
+
+**O contador não se mexeu.** Com `location.hash =` essas 83 navegações teriam empilhado 83
+entradas; com `replace`, zero. O muro se formava por acúmulo de entradas, então provar que o
+acúmulo parou prova que ele não pode mais se formar, **sem precisar chegar perto dele**.
+
+> **Método que vale para além deste caso:** quando o sintoma é caro de reproduzir, meça a
+> **grandeza intermediária** que o causa. Aqui o sintoma custava uma conta bloqueada por horas
+> e a grandeza custava uma linha de instrumentação.
+
 ### Os três defeitos que o diagnóstico errado escondia
 
 - **A folga de 900 ms virou 60% do custo por bilhete** (1.523 ms medidos: 617 de navegação
