@@ -7,19 +7,24 @@
 > **Arco escolhido (19/09/2026):** *A investigação*. O mês fechou positivo, o banco
 > discorda, e a peça é seguir o dinheiro até achar onde ele vaza.
 >
-> **Duração:** 2min25. **Voz:** narração em primeira pessoa (recomendo a do Feca, é o
-> material de origem e soa como gente, não como anúncio), mais dois inserts de voz
-> real do Jonathan e dois do próprio Feca, dos áudios já gravados.
+> **Duração:** 2min25. **Voz:** narração em primeira pessoa, **sintetizada** (decisão do
+> Feca, 21/09: nenhuma gravação dele na peça), mais dois inserts de **voz real do
+> Jonathan**, do depoimento autorizado.
 >
 > Fontes: [`depoimentos/VOZ_DO_FUNDADOR.md`](depoimentos/VOZ_DO_FUNDADOR.md) ·
 > [`depoimentos/DEPOIMENTOS.md`](depoimentos/DEPOIMENTOS.md).
 
-## A regra que rege a peça inteira
+## As duas regras que regem a peça inteira
 
-**Número dito é número na tela.** Se a narração fala em 90 contas, a tela mostra 90.
+**1. Número dito é número na tela.** Se a narração fala em 90 contas, a tela mostra 90.
 Nada de locução genérica sobre imagem específica, nem o contrário. É a mesma régua de
 fidelidade que o produto aplica ao dado, aplicada ao vídeo, e é o que separa esta peça
 de um anúncio qualquer.
+
+**2. Narração pode ser sintética. Depoimento, nunca.** A narração é a nossa voz contando
+a história, e tanto faz de onde ela saia. A fala do usuário é **prova**, e prova com voz
+sintetizada é fraude, mesmo com o texto verbatim. Então todo insert de cliente entra com
+a voz real dele, do jeito que gravou, e nenhuma linha de depoimento é lida por locução.
 
 ---
 
@@ -55,7 +60,7 @@ A cena mais visual da peça, e a que mais surpreende quem assiste.
 
 | Tela | Áudio | Legenda |
 |---|---|---|
-| Zoom nas stakes: **401**, **402**, **403** | **Insert, voz real do Feca:** *"Eu meio que assino as minhas bets. Três grupos, mesma stake, 400. O grupo 1 manda, eu pego 401. O grupo 2, 402. O grupo 3, 403."* | |
+| Zoom nas stakes: **401**, **402**, **403** | **Narração:** "Eu assino as minhas apostas. Três grupos, mesma stake de 400. Do primeiro eu aposto 401. Do segundo, 402. Do terceiro, 403." | |
 | A coluna **Tipster** preenchendo sozinha, linha a linha | **Narração:** "E ele entende de quem é cada uma." | **"Pista 2 · cada aposta tem dono"** |
 | Tela de Tipsters: quanto entra em cada, quanto volta | **Narração:** "Aí dá para ver quem me dá retorno, e quem só me custa." | |
 
@@ -72,12 +77,12 @@ A cena mais visual da peça, e a que mais surpreende quem assiste.
 |---|---|---|
 | Cartão da **Caixa** de uma conta: projetado x atual, a diferença destacada | **Narração:** "E aí uma conta não fechou." | **"Onde está minha banca?"** |
 | A diferença em destaque | **Narração:** "O projetado dizia um número. A casa mostrava outro." | **"Pista 4 · a diferença tem nome"** |
-| Segue na tela | **Insert, voz do Feca (REGRAVAR, ver produção):** *"Com um ou dois dias o Sharpen já aponta a diferença. Ele faz o teu caixa projetado e bate com o teu caixa atual."* | |
+| Segue na tela | **Narração:** "Quem opera as contas pode sacar de pouquinho, e enquanto as apostas ganham ninguém percebe. Em um ou dois dias o Sharpen aponta a diferença, porque ele compara o que deveria ter com o que a casa mostra." | |
 
-> **Produção, cena 4:** esta é a única gravação nova da peça. A história original é a
-> do operador que saca de pouquinho e demora a ser descoberto, e ela é o argumento mais
-> forte de todo o material. O termo do áudio original não vai para peça pública: vira
-> **"quem opera conta para você"**. São 15 segundos de locução.
+> **Produção, cena 4:** esta é a cena mais forte do material, e ela nasceu de uma
+> história real contada num áudio privado. O vocabulário do original **não** vai para
+> peça pública: quem sacava virou **"quem opera as contas para você"**, e o foco é a
+> detecção, nunca a acusação. Não há gravação a fazer: a narração é sintetizada.
 
 ---
 
@@ -86,7 +91,7 @@ A cena mais visual da peça, e a que mais surpreende quem assiste.
 | Tempo | Tela | Áudio | Legenda |
 |---|---|---|---|
 | 1:55 | A câmera abre: visão geral, tudo somando | **Narração:** "Não era memória, não era sorte. Era conta fechada." | |
-| 2:02 | Segue | **Insert, voz real do Feca:** *"Ele tem um mapa de onde está o dinheiro em todas as suas contas espalhadas."* | |
+| 2:02 | Segue | **Narração:** "Um mapa de onde está o dinheiro, em todas as contas espalhadas." | |
 | 2:10 | **Cartão de prova** do Jonathan, animado com dado real | **Insert, voz real do Jonathan:** *"Hoje eu tenho mais informação sobre a saúde da minha banca do que eu tive ao longo de toda a minha jornada."* | |
 | 2:20 | Marca + endereço | *(silêncio)* | **www.sharpen.bet/realtrial** · **"Entra e mexe. Sem cadastro."** |
 
@@ -152,6 +157,27 @@ privacidade no mesmo gesto, e quem assistir pode repetir o que viu.
 5. **O aviso antigo sobre a Solidez está superado.** O `BACKLOG` registrava MDD de 90,88%
    e Solidez "Baixa"; **hoje a demo mostra MDD 13,6%, Recovery Factor 5,81× e ROI +4,03%**.
    Ainda assim, conferir o painel de Solidez na hora da gravação antes de deixá-lo entrar.
+
+### A locução sintética, e o risco dela
+
+Decisão do Feca (21/09): **a peça inteira é narrada por IA, sem a voz dele.** Os inserts
+do Jonathan continuam sendo a voz real do Jonathan, pela regra 2 lá em cima.
+
+O risco de TTS em português não é sotaque, é **prosódia perfeita demais**: sai limpo,
+constante, sem hesitação, e o ouvido brasileiro lê isso como propaganda de banco. A peça
+inteira perde credibilidade justamente na parte que devia soar pessoal. Três defesas, e
+elas são de escrita, não de ferramenta:
+
+1. **Frase curta, uma ideia por frase.** O roteiro já está assim de propósito.
+2. **Pausa marcada onde teria pausa de verdade**, principalmente antes da virada e depois
+   da pergunta do ato 1. Silêncio de um segundo vale mais que ênfase.
+3. **Nada de adjetivo de vendedor.** "Poderoso", "revolucionário" e "completo" denunciam
+   a locução sintética mais que a voz em si. O texto acima não tem nenhum, e isso é para
+   manter.
+
+Ferramenta com melhor pt-BR hoje é o ElevenLabs. Ao escolher a voz, ouvir o **ato 1
+inteiro** antes de fechar, nunca uma frase solta: o defeito aparece na terceira frase
+seguida, não na primeira.
 
 ### Ferramentas
 
