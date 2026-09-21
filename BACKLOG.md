@@ -1594,6 +1594,10 @@ medir as telas todas, e nao cabia numa mudanca de nome de painel (invariante 6).
 **Gate que ja cobre:** `scripts/demo/medir_aba_contas.mjs` mede transbordo em cinco
 larguras e acusa este caso hoje. Ele e quem encontrou.
 
+**Remedido em 21/09, com o 4o painel no ar:** 1366 segue em +18 e **1280 da +104**. O
+1280 esta abaixo da faixa que o medidor cobre e nao foi investigado; a tabela do drill
+tem 11 colunas e o suspeito natural e ela, nao o `.main`. Medir antes de concluir.
+
 **Pista para quem pegar:** medir o min-content dos cinco filhos do `#contasContent` um a
 um (`el.style.width = 'min-content'` e ler o rect) antes de mexer em qualquer CSS. O
 culpado pode ser local, e ai a correcao nao precisa tocar a casca.
