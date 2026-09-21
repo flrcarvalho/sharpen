@@ -236,6 +236,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0716",
+      "v": "v0.7.16",
+      "data": "2026-09-21",
+      "texto": "A captura da **Bet365** deixou de travar no meio das extrações grandes e ficou mais rápida.",
+      "itens": [
+        "Atualize em sharpen.bet/extensao e dê **Ctrl+Shift+R** na aba da Bet365. Nas próximas extrações, conte pra gente se sentiu diferença no tempo e se ainda travou em algum ponto."
+      ]
+    },
+    {
       "id": "su-0715",
       "v": "v0.7.15",
       "data": "2026-09-18",
