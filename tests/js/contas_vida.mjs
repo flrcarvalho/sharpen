@@ -60,7 +60,7 @@ const FONTE = [
       '_custoDaConta'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
   'let _cnPop="ambas";',
   ...['_cnMediana', '_cnMedia', '_cnPl', '_cnFraseLongevas', '_cnBaseTxt', '_cnTemPreco', '_cnBase',
-      '_cnPorCasa', '_cnHistograma', '_cnGeral']
+      '_cnPorCasa', '_cnHistograma', '_cnGeral', '_cnOrdenarDrill']
       .map(n => recorteFn(CONTAS, n, 'contas.js')),
   // CN_FAIXAS vive fora de funcao: recortada por nome, ATE O `];` — ela nasceu numa
   // linha so e virou multilinha quando os rotulos foram escritos por extenso, e um
@@ -68,7 +68,7 @@ const FONTE = [
   // (`SyntaxError: Unexpected token ';'`, sem dizer de onde). Mesma familia do recorte
   // de funcao de UMA linha que este arquivo ja trata no `recorteFn`.
   (CONTAS.match(/^const CN_FAIXAS=[\s\S]*?^\];$/m) || [''])[0],
-  'globalThis.__api={ set pop(v){_cnPop=v;}, get pop(){return _cnPop;},',
+  'globalThis.__api={ ordenarDrill:_cnOrdenarDrill, set pop(v){_cnPop=v;}, get pop(){return _cnPop;},',
   '  setDados(d,a){DADOS=d;DADOS_ABERTAS=a||[];},',
   '  setCadastro(c){_contasVida=c;_contaVida=null;},',
   '  setCusto(c){custoData=c;},',
@@ -285,5 +285,50 @@ api.pop = 'ambas';
 eq(api.baseTxt(1), '1 conta', 'em ambas, sem adjetivo');
 eq(api.baseTxt(184), '184 contas', 'em ambas, plural sem adjetivo');
 
-if (falhas) { console.error(falhas + ' falha(s)'); process.exit(1); }
-console.log('ok: contas_vida');
+// ── 15. Ordem de entrada do drill: ativas em cima, inativas da ultima limitada ──────
+// Pedido do Feca (21/09): *"como default: ordenar primeiro as ativas depois inativas, e
+// ordenar da ultima inativada (ultima q foi limitada pra primeira)"*.
+//
+// O dado EXERCE a regra, que e o segundo modo de falso verde que o CLAUDE.md lista:
+//  · o array de entrada chega na ordem ERRADA de proposito (inativa velha primeiro,
+//    ativa por ultimo), senao o sort estavel do V8 "acertaria" sem criterio nenhum;
+//  · as tres inativas empatam no valor de estado (todas valem 0), que e o unico jeito
+//    de o desempate por recencia decidir alguma coisa;
+//  · duas ativas com o MESMO `fim` (hoje) forcam o segundo desempate, o `ini`.
+console.log('— 15. Ordem de entrada do drill: ativa em cima, depois a ultima limitada');
+{
+  const c = (conta, ativa, ini, fim) => ({ conta, ativa, ini, fim, forn: 'F', dur: 1,
+    dias: 1, bets: 1, turn: 100, pl: 0, custo: 100, propria: false, casa: 'X' });
+  const entrada = [
+    c('inativa_velha',  false, '2026-01-01', '2026-02-01'),
+    c('inativa_media',  false, '2026-03-01', '2026-05-10'),
+    c('ativa_antiga',   true,  '2026-04-01', '2026-09-21'),
+    c('inativa_recente',false, '2026-06-01', '2026-08-20'),
+    c('ativa_nova',     true,  '2026-07-15', '2026-09-21'),
+  ];
+  const nomes = api.ordenarDrill(entrada, 'estado', -1).map(x => x.conta);
+  eq(nomes.slice(0, 2).every(n => n.startsWith('ativa_')), true,
+     'as duas ativas tem de vir primeiro: ' + nomes.join(' > '));
+  eq(nomes[0], 'ativa_nova',
+     'entre ativas (mesmo fim) desempata pelo `ini`, a ultima comprada em cima');
+  eq(nomes.slice(2).join(','), 'inativa_recente,inativa_media,inativa_velha',
+     'as inativas saem da ULTIMA limitada para a primeira');
+  // A ordenacao manual por outra coluna nao pode herdar o desempate de recencia. Os dois
+  // itens tem o MESMO turnover de proposito: com valores diferentes o desempate nunca
+  // seria chamado e o caso passaria verde com o vazamento no lugar (medido -- esta era
+  // a versao que deixava a mutacao "o desempate vaza para TODA coluna" escapar).
+  // Entrada na ordem antiga->recente: sem vazamento o sort estavel a preserva; com
+  // vazamento a recente sobe.
+  const empate = [c('antiga', false, '2026-01-01', '2026-02-01'),
+                  c('recente', false, '2026-06-01', '2026-08-20')];
+  const porTurn = api.ordenarDrill(empate, 'turn', -1).map(x => x.conta);
+  eq(porTurn.join(','), 'antiga,recente',
+     'empate em Turnover NAO pode cair no desempate de recencia, que e so do Estado');
+  const porTurnDif = api.ordenarDrill(
+    [{ ...c('a', false, '2026-01-01', '2026-02-01'), turn: 900 },
+     { ...c('b', true, '2026-01-01', '2026-09-21'), turn: 100 }], 'turn', -1).map(x => x.conta);
+  eq(porTurnDif.join(','), 'a,b', 'clicar em Turnover volta a ordenar por turnover');
+}
+
+console.log(falhas ? `\nFALHAS: ${falhas}` : '\nok: contas_vida');
+process.exit(falhas ? 1 : 0);

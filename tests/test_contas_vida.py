@@ -332,3 +332,43 @@ def test_recolher_o_bloco_Geral_nao_repinta_a_tela():
     assert corpo.count("try{") >= 1 and "catch" in corpo, (
         "escrita em localStorage sem try/catch: lanca em janela anonima e derruba o clique"
     )
+
+
+def test_os_dois_defaults_com_que_a_aba_ABRE():
+    """Default e' comportamento, e o gate de execucao nao o alcanca.
+
+    O `contas_vida.mjs` chama `_cnOrdenarDrill(contas, 'estado', -1)` passando a chave na
+    mao, porque e assim que se testa a REGRA. Com isso ele nao ve de que valor a tela
+    parte -- e foi exatamente a mutacao que escapou: trocar `_cnDrillCol` de volta para
+    `'turn'` deixava os 15 blocos verdes.
+
+    Os dois defaults foram pedidos pelo Feca em 21/09:
+      · Populacao = `ambas` ("como padrao do filtro = sempre ambas");
+      · sub-tabela do drill = `estado` ("primeiro as ativas depois inativas, e da ultima
+        inativada para a primeira").
+    """
+    src = CONTAS.read_text(encoding="utf-8")
+
+    assert re.search(r"^const CN_POP_PADRAO = 'ambas';$", src, re.M), (
+        "a aba deixou de abrir em `ambas`: com `inativas` ela nasce escondendo as contas "
+        "vivas, e com `ativas` ela nasce sem a regua de durabilidade"
+    )
+    assert re.search(r"^let _cnDrillCol = 'estado';$", src, re.M), (
+        "a sub-tabela do drill deixou de entrar ordenada por Estado: volta a abrir com a "
+        "conta que mais girou DESDE SEMPRE no topo, que e pergunta de historico"
+    )
+    assert re.search(r"^let _cnDrillDir = -1;$", src, re.M), (
+        "a direcao de entrada do drill virou crescente: com `estado` isso poe as INATIVAS "
+        "em cima, o contrario do pedido"
+    )
+
+    # O "Limpar tudo" tem de voltar ao MESMO default, e nao a um literal proprio.
+    app_js = APP_JS.read_text(encoding="utf-8")
+    m = re.search(r"LIMPAR_EXTRA\s*=\s*\{.*?\n\}", app_js, re.S) or re.search(
+        r"LIMPAR_EXTRA\[.contas.\]\s*=.*", app_js)
+    alvo = m.group(0) if m else ""
+    if "contas" in alvo:
+        assert "'inativas'" not in alvo and '"inativas"' not in alvo, (
+            "o `Limpar tudo` voltou a cravar `inativas`: ele tem de usar CN_POP_PADRAO, "
+            "senao limpar leva a tela para um estado diferente do que ela nasce"
+        )

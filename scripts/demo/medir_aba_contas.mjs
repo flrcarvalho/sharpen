@@ -11,7 +11,7 @@
  * O que ele confere, alem do print:
  *   · zero erro de JS e transbordo horizontal zero em cinco larguras;
  *   · os TRES paineis pintaram, com histograma de 5 faixas e barra de cobertura;
- *   · o segmentado de Populacao TROCA os numeros (default = Inativas);
+ *   · o segmentado de Populacao TROCA os numeros (default = Ambas, desde 21/09);
  *   · a ficha abre o drill, o drill lista TODAS as contas da casa, e ordenar a
  *     sub-tabela NAO fecha o painel;
  *   · a barra de duracao respeita a regua fixa de 30 dias (mediana <= media <= 100%);
@@ -45,7 +45,10 @@ if (!fr) { console.log("FALHOU: iframe do dashboard nao encontrado"); await brow
 const leia = () => fr.evaluate(() => {
   const q = s => document.querySelector(s);
   const txt = s => (q(s) ? q(s).innerText.replace(/\s+/g, " ").trim() : null);
-  const paineis = [...document.querySelectorAll("#contasContent > .cn-q3 > .cn-qp")].map(p => ({
+  // Os paineis passaram a viver dentro do bloco Geral (s373); o seletor antigo
+  // (`#contasContent > .cn-q3`) devolvia ZERO calado, que e um verde falso disfarcado
+  // de "nao ha painel".
+  const paineis = [...document.querySelectorAll("#cnGeralCorpo > .cn-q3 > .cn-qp")].map(p => ({
     eyebrow: p.querySelector(".t") ? p.querySelector(".t").innerText.trim() : "",
     figura: [...p.querySelectorAll(".cn-fig")].map(f => f.querySelector(".lb").innerText.trim() + " " + f.querySelector(".v").innerText.trim()).join("  |  "),
   }));
@@ -63,8 +66,8 @@ const leia = () => fr.evaluate(() => {
     temLimpar: !!q("#contasFiltros [onclick*='limparFiltrosPagina']"),
     primeiraFicha: q(".cn-ficha") ? q(".cn-ficha").innerText.replace(/\s+/g, " ").trim().slice(0, 120) : null,
     // Estado VAZIO: recorte sem linha tem de EXPLICAR e oferecer a saída, nunca ficar em
-    // branco. No dado do demo todas as contas são ativas, então a população default
-    // (Inativas) nasce vazia — é o caso real que este campo cobre.
+    // branco. Com o default em `ambas` ele nao aparece mais no boot do demo, entao o
+    // caminho para exercita-lo e trocar para `inativas` (o bloco POPULACAO abaixo faz).
     vazio: q(".cn-empty") ? q(".cn-empty").innerText.replace(/\s+/g, " ").trim().slice(0, 150) : null,
     vazioAcoes: document.querySelectorAll(".cn-empty__btn").length,
     overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -77,17 +80,17 @@ console.log("=".repeat(78));
 const ini = await leia();
 console.log("ESTRUTURA v4");
 console.log("  regua:", ini.regua, "| escopo:", ini.escopo);
-console.log("  paineis:", ini.paineis.length);
+console.log("  paineis:", ini.paineis.length, ini.paineis.length === 3 ? "" : "<- ESPERADO 3");
 ini.paineis.forEach(p => console.log(`     ${p.eyebrow.padEnd(24)} -> ${p.figura}`));
 console.log("  histograma:", ini.nFaixas, "faixas | cobertura:", ini.temCobertura,
             "(" + ini.nCobertura + " segmentos) | ranking:", ini.nRanking, "casas");
 console.log("  fichas:", ini.nFichas, "| definicoes:", ini.nDefs, "| Limpar tudo:", ini.temLimpar);
-console.log("  segmentado no boot:", ini.segAtivo, "(esperado: Inativas)");
+console.log("  segmentado no boot:", ini.segAtivo, "(esperado: Ambas)");
 console.log("  1a ficha:", ini.primeiraFicha);
 console.log("  estado vazio:", ini.vazio, "| atalhos:", ini.vazioAcoes);
-await page.screenshot({ path: `${SAIDA}/v4-inativas.png`, fullPage: true });
+await page.screenshot({ path: `${SAIDA}/v4-boot.png`, fullPage: true });
 
-for (const k of ["ativas", "ambas"]) {
+for (const k of ["ativas", "inativas"]) {
   await pop(k);
   const r = await leia();
   console.log("-".repeat(78));
@@ -98,7 +101,7 @@ for (const k of ["ativas", "ambas"]) {
 }
 
 // A barra e o drill precisam de uma populacao COM contas. No dado do demo todas as
-// contas sao ativas, entao o default (Inativas) nasce vazio e nao serve de gate.
+// contas sao ativas, entao `inativas` (a ultima do laco acima) fica vazia.
 await pop("ambas");
 const barras = await fr.evaluate(() => [...document.querySelectorAll(".cn-ficha")].slice(0, 8).map(f => {
   const med = f.querySelector(".cn-track .med"), avg = f.querySelector(".cn-track .avg");
@@ -148,7 +151,7 @@ await page.screenshot({ path: `${SAIDA}/v4-drill.png`, fullPage: true });
 
 // Limpar tudo volta a Populacao ao default
 const limpou = await fr.evaluate(async () => {
-  window.cnPop("ambas");
+  window.cnPop("inativas");
   await new Promise(r => setTimeout(r, 300));
   const antes = document.querySelector("#cnSeg button.active").innerText.trim();
   const b = document.querySelector("#contasFiltros [onclick*='limparFiltrosPagina']");
@@ -158,10 +161,10 @@ const limpou = await fr.evaluate(async () => {
 });
 console.log("-".repeat(78));
 console.log("LIMPAR TUDO: Populacao", limpou.antes, "->", limpou.depois,
-            limpou.depois === "Inativas" ? "ok" : "FALHOU (nao voltou ao default)");
+            limpou.depois === "Ambas" ? "ok" : "FALHOU (nao voltou ao default)");
 
-// O "Limpar tudo" acima devolveu a Populacao ao default (Inativas), e no dado do demo
-// isso esvazia a tela: sem conta, nao ha bloco Geral nem secao "Por casa" para medir.
+// O "Limpar tudo" acima devolveu a Populacao ao default. Garante `ambas` de todo jeito:
+// num dono cujo default caia numa populacao vazia nao ha bloco Geral para medir.
 await pop("ambas");
 
 // Bloco Geral: recolher. O gate de forma (test_a_regua_de_escopo_fica_FORA...) le a

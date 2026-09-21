@@ -49,11 +49,18 @@
 // `_custoDaConta` à mão daria o mesmo número por um caminho novo, que é exatamente
 // quando as duas telas passam a divergir.
 
-// Default `inativas`: é a régua honesta de durabilidade. Conta ATIVA ainda não morreu,
-// e contá-la junto responde "quanto uma conta aguenta" com um número muito maior que a
-// verdade (medido na base do Feca: 103 dias contra 20). Uma constante, e não um literal
-// solto, porque o "Limpar tudo" precisa voltar ao MESMO estado em que a tela nasce.
-const CN_POP_PADRAO = 'inativas';
+// Default `ambas`, por decisão do Feca (21/09). A aba nasceu em `inativas` porque essa é
+// a régua honesta de DURABILIDADE — conta ativa ainda não morreu, e contá-la junto
+// responde "quanto uma conta aguenta" com um número muito maior que a verdade (medido na
+// base dele: 103 dias contra 20). Esse argumento continua verdadeiro e continua valendo
+// para o número; o que mudou foi a pergunta com que a tela ABRE.
+//
+// Abrir escondendo as contas vivas faz a tela nascer descrevendo só o que já morreu, e o
+// custo disso é maior que o ganho de precisão da mediana: o segmentado está ali, a um
+// clique, para quem quiser a régua de durabilidade pura.
+// Uma constante, e não um literal solto, porque o "Limpar tudo" precisa voltar ao MESMO
+// estado em que a tela nasce.
+const CN_POP_PADRAO = 'ambas';
 let _cnPop = CN_POP_PADRAO;  // 'ativas' | 'inativas' | 'ambas'
 let _cnAberta = '';       // casa expandida no drill ('' = nenhuma)
 // Ordem de entrada = QUANTIDADE DE CONTAS, decrescente (pedido do Feca). O handoff
@@ -65,7 +72,12 @@ let _cnSortDir = -1;
 // A sub-tabela do drill ordena por conta PRÓPRIA, independente da tabela de casas: as
 // duas têm colunas diferentes, e reusar um estado só faria a de baixo herdar uma chave
 // que ela não tem (e cair no `undefined`, que ordena tudo como zero, calado).
-let _cnDrillCol = 'turn';
+//
+// Ordem de entrada = ESTADO (pedido do Feca): as ativas em cima, e as inativas da ÚLTIMA
+// a ser limitada para a primeira. Era `turn` desc, que é uma pergunta de histórico ("qual
+// conta girou mais desde sempre") e põe no topo uma conta encerrada há meses. A pergunta
+// de quem abre uma casa é outra: *"o histórico não representa fielmente o momento"*.
+let _cnDrillCol = 'estado';
 let _cnDrillDir = -1;
 
 // Régua fixa das barras de duração, em dias. Fixa é o ponto: com escala por linha, duas
@@ -816,8 +828,22 @@ function _cnMoney2(v){
 // entre as 12 de maior giro. O cabeçalho dizia `1 ativa` e a lista abaixo mostrava 12
 // inativas, então a tela parecia estar contando errado — e não estava. **Recorte que
 // não é do filtro faz a tabela contradizer o próprio total.**
-function _cnDrill(B,agg,contas){
-  const dir=_cnDrillDir, key=_cnDrillCol;
+// Ordenação da sub-tabela do drill, FORA do `_cnDrill` para poder ser executada por
+// teste: recortar a função que monta o HTML arrastaria `fmtR`, `fmtPL`, `esc` e o
+// resto junto, e a alternativa (reimplementar o comparador no teste) é o primeiro
+// modo de falso verde que o `CLAUDE.md` lista.
+//
+// ⚠️ O desempate de ESTADO é explícito, e não herdado da ordem natural do array. O sort
+// do V8 é estável, então um empate "acerta" sozinho sempre que a ordem de entrada já for
+// a esperada — e aí o critério não está sendo exercido, só parecendo funcionar. Aqui o
+// grupo `inativa` empata SEMPRE (todas valem 0), então sem esta linha a ordem dentro
+// dele seria a de construção, que é a do cadastro.
+//
+// Recência = `fim` (a régua de `_buildContaVida`: a MAIOR entre a última aposta e o
+// `arquivada_em`). Para a conta ativa e cadastrada `fim` é HOJE, então as ativas também
+// empatam entre si e caem no segundo desempate, `ini` — a última comprada em cima, que é
+// a leitura certa para quem ainda não morreu.
+function _cnOrdenarDrill(contas,key,dir){
   const txt=k=>k==='conta'||k==='forn';
   const val=(c,k)=>{
     if(k==='estado')return c.ativa?1:0;
@@ -825,15 +851,25 @@ function _cnDrill(B,agg,contas){
     if(k==='roiLiq')return _cnTemPreco(c)&&c.turn>0?((c.pl-c.custo)/c.turn):null;
     return c[k];
   };
-  const ord=contas.slice().sort((a,b)=>{
+  const recente=(a,b)=>String(b.fim||'').localeCompare(String(a.fim||''))
+                     ||String(b.ini||'').localeCompare(String(a.ini||''));
+  return contas.slice().sort((a,b)=>{
     if(txt(key))return a[key].localeCompare(b[key],'pt-BR')*(-dir);
     if(key==='ini'||key==='fim')return String(a[key]||'').localeCompare(String(b[key]||''))*dir;
     const va=val(a,key), vb=val(b,key);
     if(va===null&&vb===null)return 0;
     if(va===null)return 1;
     if(vb===null)return -1;
+    if(va===vb&&key==='estado')return recente(a,b);
     return ((va||0)-(vb||0))*dir;
   });
+}
+
+function _cnDrill(B,agg,contas){
+  // `key`/`dir` continuam aqui porque o CABECALHO tambem os le (a seta de ordenacao no
+  // `<th>`), e nao so o comparador.
+  const dir=_cnDrillDir, key=_cnDrillCol;
+  const ord=_cnOrdenarDrill(contas,key,dir);
 
   const rows=ord.map(c=>{
     const tem=_cnTemPreco(c);
