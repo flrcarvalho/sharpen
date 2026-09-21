@@ -142,11 +142,42 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 
 ## 6. Boost / promoção
 
-- Tem boost individual: **aguarda amostra**
-- Rótulos `Odds Turbinadas` e `MEGA ODDS` aparecem no campo de tags (ex.: `Desafio - Internacional - Odds Turbinadas`) — são **campanhas de marketing da casa**, não indicadores de boost individual por bilhete. Ignorar para fins de cálculo de odd.
-- Nas amostras disponíveis: `Retorno = Stake × Odd exibida` exato — sem evidência de boost por bilhete.
+- Tem boost individual: **SIM**, medido na s371 (21/09/2026). Apareceu na conta em **13/09/2026**; antes disso não existia, e é por isso que este item dizia "aguarda amostra" até aqui.
+- **O bônus é pago POR FORA da odd, e nenhum dos dois campos de retorno o contém.** A API manda `return_value` e `gross_return_value` com `stake × odd` **nua**, e o extra sozinho em `promotions.odds_boost` (`{percentage, value}`). O card soma os dois:
 
-<!-- TODO confirmar se existe boost individual (odd exibida diferente do calculado Retorno÷Stake). -->
+  | Card | API |
+  |---|---|
+  | `Aposta R$ 100,00` | `value: 100` |
+  | `Simples de 7.38` ⚡ `Bônus +25%` | `extracted_odd: 7.38` · `odds_boost.percentage: 25` |
+  | `Bônus R$ 184,50` | `odds_boost.value: 184.5` |
+  | `Retorno R$ 922,50` | `return_value: 738` **+** `odds_boost.value: 184.5` |
+
+- **Retorno = `return_value + odds_boost.value`** · **Odd que vale na planilha = `Retorno ÷ Stake`** (9,225 no exemplo, não 7,38). Percentuais vistos: **25% e 50%**.
+- ⚠️ **`odds_boost.value` é POTENCIAL**, como todo dinheiro desta casa: vem preenchido na **perdida** também (medido, 2 de 2). Só entra no retorno quando `status = WON`.
+- **Só o Criador de Apostas teve boost** nesta conta: 8 de 8 bilhetes com boost são `is_custom_bet` (ver §6.1), e 0 dos demais.
+- Rótulos `Odds Turbinadas` e `MEGA ODDS` no campo de tags continuam sendo **campanha de marketing**, não boost. O boost individual se reconhece pelo campo `promotions.odds_boost`, nunca pela tag.
+
+> **O custo de ter ficado em "aguarda amostra":** 6 bilhetes ganhos subiram com a odd nua, **R$ 1.170,93** nunca chegaram ao P/L, e quem acusou foi a Caixa Inteligente (R$ 1.124,58 de divergência contra o saldo real). O erro é invisível na linha: `stake × odd` fecha exato, o resultado está certo e o P/L está errado.
+
+---
+
+## 6.1. Criador de Apostas (`is_custom_bet`) — a SEGUNDA forma de bilhete
+
+A Lottu vende duas coisas com formas de resposta **diferentes**, e o §2.2 só descrevia a primeira:
+
+| | Desafio | Criador de Apostas |
+|---|---|---|
+| `is_custom_bet` | `false` | `true` |
+| Descrição da perna | `answer` (frase pronta) | **não existe** — vem em `type` · `header` · `name` · `team` · `time` |
+| Confronto | `event.question` | **não existe** — vem em `event.home_team` / `away_team` |
+| Esporte | `event.__t = "Challenge"` (não é esporte) | `event.__t = "Soccer"` etc. — **a casa informa** |
+| Odd da perna | odd real da seleção | **a odd do CUPOM repetida em cada perna** |
+
+- **Todas as pernas são do MESMO jogo** (mesmo `event._id`) — é bet builder, e pelo `MASTER_APOSTAS` é `Múltipla`.
+- ⚠️ **Nunca multiplicar as pernas:** as três do `8410665` trazem `odd: 7.3779` cada, que é a odd do bilhete. O produto daria 401.
+- `events_qty` vale **1** mesmo com 3 seleções. Contar por `events.length`.
+
+> **O que custou:** o formatador antigo imprimia `answer || ""` e `event.question`. Nos 11 custom bets da conta a seleção saiu **vazia** e o confronto **sumiu** — **11 de 11** nasceram no banco com `Mercado Especial - REVISAR`, 100%.
 
 ---
 
@@ -162,10 +193,10 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 
 ## 8. Bônus
 
-- Tem bônus: **aguarda amostra**
-- Localizador: aguarda confirmação.
+- Aposta feita COM saldo de bônus: **aguarda amostra** — o campo existe (`using_bonus`, booleano no bilhete) e está `false` em **234 de 234** bilhetes medidos (s371). Quando aparecer `true`, conferir se a stake sai do saldo real antes de tratá-la como dinheiro.
+- **Não confundir com o boost** (`promotions.odds_boost`, §6), que é bônus de *odd turbinada* e existe desde 13/09/2026. São campos e naturezas diferentes: o boost aumenta o retorno de uma aposta paga com dinheiro real.
 
-<!-- TODO confirmar se há freebets ou apostas de bônus identificáveis no histórico. -->
+<!-- TODO confirmar o comportamento de `using_bonus: true` (freebet) quando houver amostra. -->
 
 ---
 
@@ -236,7 +267,9 @@ Apostas abertas → `extraction_state = aberta` — não incluir no TSV.
 - **Conector `E` = `&`:** `VINICIUS JR. E RAPHINHA PARA MARCAREM` → Múltipla, não uma única Player Props.
 - **Separador de times `x`:** `Uruguai x Cabo Verde` → normalizar para `Uruguai v Cabo Verde`.
 - **Tags no campo de categoria:** `Desafio - Internacional - Odds Turbinadas` → não inferir esporte a partir das tags; inferir do confronto.
-- **Odd exibida ≠ boost:** `Odds Turbinadas` é campanha; odd individual não foi majorada individualmente (verificar cruzando `Retorno ÷ Stake = Odd exibida`).
+- **Tag `Odds Turbinadas` ≠ boost:** a tag é campanha. O boost individual é o campo `promotions.odds_boost`, e quando ele existe o **card mostra `⚡ Bônus +25%` e uma linha `Bônus R$ …`** (ver §6).
+- **⚡ Bônus no card = retorno somado:** `Retorno` do card já inclui o bônus; `return_value` da API **não**. Sempre `return_value + odds_boost.value`, e a odd vira `Retorno ÷ Stake`.
+- **Criador de Apostas não tem `Resposta:`** — a perna vem em campos separados e o confronto em `home_team`/`away_team` (ver §6.1). Seleção sem descrição no bloco é sinal de que a captura não leu esse formato, nunca de bilhete sem mercado.
 
 ---
 

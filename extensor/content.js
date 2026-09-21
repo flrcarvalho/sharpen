@@ -5492,8 +5492,36 @@
   // preenchido, e em 114 de 114 ele é exatamente `stake × odd`. O card repete isso
   // ("Retorno R$ 125,00" numa aposta que perdeu). Lê-lo como dinheiro recebido viraria
   // lucro em 3 de cada 4 linhas. **Nesta casa só o `status` decide W/L; dinheiro não é régua.**
+  //
+  // ⚠️ A SEGUNDA ARMADILHA, medida na s371: o BOOST é pago POR FORA dos dois campos de
+  // retorno. `return_value` e `gross_return_value` trazem `stake × odd` NUA; o extra vive
+  // sozinho em `promotions.odds_boost.value`, e o card soma os dois ("Aposta R$ 100,00 ·
+  // Bônus R$ 184,50 · Retorno R$ 922,50" para odd 7,38 com +25%). Ler só `return_value`
+  // faz o bilhete GANHO pagar menos do que pagou — e o erro é invisível, porque a linha
+  // fica internamente coerente (`stake × odd` bate exato). Medido na conta do Feca:
+  // 6 ganhos com boost, R$ 1.170,93 que nunca chegaram ao P/L, e a Caixa acusou
+  // R$ 1.124,58 de divergência contra o saldo real da casa.
   const _valLT = (x) => (isFinite(x) ? Number(x) : 0);
   const _abertaLT = (b) => b && b.status === "OPEN";
+
+  // O boost, quando existe. `percentage` e `value` medidos: 25% e 50% nesta conta.
+  function _boostLT(b) {
+    const bo = b && b.promotions && b.promotions.odds_boost;
+    if (!bo) return null;
+    const pct = _valLT(bo.percentage), val = _valLT(bo.value);
+    if (pct <= 0 && val <= 0) return null;
+    return { pct: pct, val: val };
+  }
+
+  // O retorno de verdade. ⚠️ `odds_boost.value` é POTENCIAL como todo dinheiro desta casa:
+  // vem preenchido na PERDIDA também (medido, 2 de 2). Só entra no dinheiro em `WON` —
+  // somá-lo fora dali repetiria, com o bônus, o erro que o topo deste bloco evita com o
+  // `return_value`.
+  function _retornoLT(b) {
+    const base = _valLT(b && b.return_value);
+    const bst = (b && b.status === "WON") ? _boostLT(b) : null;
+    return base + (bst ? bst.val : 0);
+  }
 
   const _RESULT_PERNA_LT = { OPEN: "pendente", WON: "ganhou", LOST: "perdeu",
                              CANCELED: "anulada", VOID: "anulada", REFUNDED: "devolvida" };
@@ -5511,7 +5539,7 @@
 
   function _resultadoLT(b) {
     if (_abertaLT(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
-    const st = _valLT(b.value), ret = _valLT(b.return_value);
+    const st = _valLT(b.value), ret = _retornoLT(b);
     const pre = (_valLT(b.cashout_value) > 0) ? "Cash Out · " : "";
     if (b.status === "LOST") return pre + "Perdeu → L";
     if (b.status === "CANCELED" || b.status === "VOID" || b.status === "REFUNDED")
@@ -5530,10 +5558,55 @@
   // "Simples de X". O `&` na resposta é o que as denuncia ("PALMEIRAS PARA GANHAR UM DOS
   // TEMPOS & MAIS DE 2.5 GOLS" = duas condições). Pelo `MASTER_APOSTAS`, isso é Bet
   // Builder → Múltipla. Olhar só a estrutura da API classificaria tudo como Simples.
+  // ⚠️ O CRIADOR DE APOSTAS (`is_custom_bet`) é uma SEGUNDA forma de bilhete, que o
+  // formatador do Desafio não conhecia — apareceu na conta em 13/09/2026 e derrubou três
+  // coisas de uma vez, porque a perna dele NÃO tem `answer`:
+  //   • a descrição saía VAZIA (`e.answer || ""`) — medido: 11 de 11 custom bets nasceram
+  //     no banco com `Mercado Especial - REVISAR`, 100%;
+  //   • o JOGO sumia junto: o evento é esportivo de verdade (`__t: "Soccer"`) e traz
+  //     `home_team`/`away_team`, NÃO o `question` do Desafio;
+  //   • a odd da perna é a do CONJUNTO repetida em cada seleção (7,3779 nas três do
+  //     `8410665`), e imprimi-la por perna convida a IA a multiplicar — é o
+  //     "odd de conjunto ≠ odd de perna" do CLAUDE.md.
+  // O mercado vem em CAMPOS SEPARADOS (`type`, `time`, `header`, `name`, `team`). Subimos
+  // os campos CRUS: quem traduz rótulo é a IA com o `MASTER_APOSTAS`, e inventar um de-para
+  // aqui criaria um segundo dicionário fora do MASTER.
+  function _pernaCustomLT(e) {
+    const p = [];
+    if (e.type) p.push(String(e.type));
+    if (e.header) p.push(String(e.header));
+    if (e.name != null && String(e.name) !== "") p.push(String(e.name));
+    if (e.team && e.team !== "NONE") p.push("time: " + String(e.team));
+    if (e.time) p.push(String(e.time));
+    return p.join(" · ");
+  }
+
+  function _descPernaLT(e) {
+    if (e && e.answer) return String(e.answer);
+    const cru = _pernaCustomLT(e || {});
+    if (!cru) return "";
+    return cru + " (campos CRUS do Criador de Apostas — traduzir pelo MASTER_APOSTAS; " +
+           "a casa não manda a frase pronta neste formato)";
+  }
+
+  const _jogoLT = (ev) => (ev && ev.question) ||
+    ((ev && ev.home_team) ? (ev.home_team + " x " + (ev.away_team || "")) : "");
+
+  // Todas as pernas no MESMO evento? É o que separa Criador de Apostas (mesmo jogo) de
+  // múltipla de jogos diferentes — e o `MASTER_APOSTAS` trata os dois de formas distintas.
+  function _mesmoJogoLT(evs) {
+    const ids = new Set((evs || []).map((e) => String((e.event && e.event._id) || "")));
+    return ids.size === 1 && !ids.has("");
+  }
+
   function _tipoLT(b) {
     const evs = b.events || [];
     const n = evs.length || _valLT(b.events_qty);
-    if (n >= 2) return "Múltipla (" + n + " seleções)";
+    if (n >= 2) {
+      if (b.is_custom_bet && _mesmoJogoLT(evs))
+        return "Múltipla (Criador de Apostas · " + n + " seleções no MESMO jogo)";
+      return "Múltipla (" + n + " seleções)";
+    }
     const cond = evs.reduce((acc, e) => acc + String((e && e.answer) || "").split("&").length - 1, 0);
     if (n === 1 && cond > 0) return "Múltipla (Desafio · " + (cond + 1) + " condições no mesmo jogo)";
     return n === 1 ? "Simples" : "";
@@ -5554,52 +5627,91 @@
     L.push("Status: " + _resultadoLT(b));
     L.push("Status (API): status=" + b.status);
 
+    const bst = _boostLT(b);
+    const stake = _valLT(b.value);
     const odd = (b.extracted_odd != null && isFinite(b.extracted_odd)) ? Number(b.extracted_odd) : null;
-    if (odd != null) L.push("Odd: " + _oddTxtVB(odd));
+    if (odd != null) L.push("Odd: " + _oddTxtVB(odd) + (bst ? " (odd BASE da casa, SEM o boost)" : ""));
+    // Com boost, a odd que vale na planilha é a turbinada. No GANHO ela sai do DINHEIRO
+    // (`Retorno ÷ Stake`, a regra do `MASTER_RESULTADO §7.1`), nunca de `odd × (1+pct)`:
+    // `return_value` é calculado sobre a odd ARREDONDADA do card e só o dinheiro fecha
+    // exato. Fora do ganho ela é potencial, como todo o resto nesta casa.
+    if (bst && odd != null) {
+      if (b.status === "WON" && stake > 0) {
+        L.push("Odd efetiva (COM o boost de " + bst.pct + "%): " + _oddTxtVB(_retornoLT(b) / stake) +
+               " — é ESTA que vale na planilha (Retorno ÷ Stake)");
+      } else {
+        L.push("Odd efetiva potencial (COM o boost de " + bst.pct + "%): " +
+               _oddTxtVB(odd * (1 + bst.pct / 100)) + " (POTENCIAL — a aposta não ganhou)");
+      }
+    }
     const tipo = _tipoLT(b);
     if (tipo) L.push("Tipo: " + tipo);
 
-    // ⚠️ A casa NÃO tem campo de esporte — só `championship` e `country`. Declarar isso é
-    // obrigatório: sem a declaração a IA preenche a coluna Esporte por conta própria, em
-    // silêncio, e ninguém descobre.
-    L.push("Esporte: não informado pela casa — deduzir do campeonato/evento abaixo");
+    // ⚠️ No DESAFIO a casa não tem campo de esporte — só `championship` e `country`, e o
+    // `__t` vale "Challenge". Declarar isso é obrigatório: sem a declaração a IA preenche a
+    // coluna Esporte por conta própria, em silêncio, e ninguém descobre. No Criador de
+    // Apostas o evento é esportivo de verdade e o `__t` DIZ o esporte — usar o que a casa
+    // informa é sempre melhor que deduzir.
+    const tipos = [...new Set((b.events || []).map((e) => (e.event && e.event.__t) || "")
+                                               .filter((t) => t && t !== "Challenge"))];
+    if (tipos.length) L.push("Esporte (campo __t da casa): " + tipos.join(", ") +
+                             " — informado pela casa, não deduzir");
+    else L.push("Esporte: não informado pela casa — deduzir do campeonato/evento abaixo");
 
-    // Dinheiro: NUNCA "Retorno:" fora do W (ver a armadilha no topo deste bloco).
-    const ret = _valLT(b.return_value);
-    if (b.status === "WON" && ret) L.push("Retorno: R$ " + _brl(ret));
+    // Dinheiro: NUNCA "Retorno:" fora do W (ver a armadilha no topo deste bloco), e SEMPRE
+    // com o boost somado dentro do W (ver a segunda armadilha).
+    const ret = _retornoLT(b);
+    const base = _valLT(b.return_value);
+    const decomp = bst ? " (R$ " + _brl(base) + " da odd + R$ " + _brl(bst.val) +
+                         " de bônus da promoção, somados pela casa no card)" : "";
+    if (b.status === "WON" && ret) L.push("Retorno: R$ " + _brl(ret) + decomp);
     else if (ret) L.push("Retorno potencial: R$ " + _brl(ret) +
-                         " (valor POTENCIAL — a casa preenche mesmo em aposta perdida; não é ganho)");
+                         " (valor POTENCIAL — a casa preenche mesmo em aposta perdida; não é ganho)" +
+                         (bst ? " — o bônus de R$ " + _brl(bst.val) + " TAMBÉM é potencial e não foi somado aqui" : ""));
     if (_valLT(b.cashout_value) > 0) L.push("Cash Out: R$ " + _brl(_valLT(b.cashout_value)) +
                                             " — aplicar a regra de cashout (não é o retorno normal)");
     if (b.using_bonus) L.push("Marcação da casa: aposta com bônus");
-    if (b.is_custom_bet) L.push("Marcação da casa: aposta personalizada (custom bet)");
+    if (b.is_custom_bet) L.push("Marcação da casa: aposta personalizada (Criador de Apostas / custom bet)");
 
-    const bo = b.promotions && b.promotions.odds_boost;
-    if (bo && (_valLT(bo.percentage) > 0 || _valLT(bo.value) > 0))
-      L.push("Marcação da casa: odd turbinada (odds_boost " + _valLT(bo.percentage) + "%)");
+    if (bst) L.push("Marcação da casa: odd turbinada (odds_boost " + bst.pct + "% · bônus R$ " +
+                    _brl(bst.val) + ") — o bônus é pago POR FORA da odd, e a linha 'Retorno' acima já o inclui");
 
     const evs = b.events || [];
     if (!evs.length) {
       L.push("Seleções: NÃO DISPONÍVEIS neste bilhete (detalhe não carregado)");
       return L.join("\n");
     }
+    // Odd de CONJUNTO: no Criador de Apostas a casa repete a odd do bilhete em cada perna.
+    // Imprimi-la como "Odd da seleção" seria convite a multiplicar 7,3779 três vezes.
+    const oddDeConjunto = b.is_custom_bet && evs.length > 1 &&
+      evs.every((e) => e.odd != null && odd != null && Math.abs(_valLT(e.odd) - odd) < 0.02);
+    if (oddDeConjunto)
+      L.push("⚠️ As seleções abaixo NÃO têm odd própria: a casa repete a odd do CUPOM em " +
+             "cada uma. Nunca multiplicar as pernas — a odd do bilhete é a que está em 'Odd' acima.");
     L.push("Seleções:");
     for (const e of evs) {
       const ev = e.event || {};
       const rp = _RESULT_PERNA_LT[e.status];
-      // `answer` já vem como frase pronta ("PARA AMBOS OS TIMES MARCAREM & MAIS DE 9.5
-      // ESCANTEIOS") — é a descrição da aposta, e a casa não separa mercado de seleção.
-      L.push("- " + (e.answer || "") + " [" + (rp || ("status " + e.status + " — a conferir")) + "]");
+      // No Desafio, `answer` já vem como frase pronta ("PARA AMBOS OS TIMES MARCAREM & MAIS
+      // DE 9.5 ESCANTEIOS"). No Criador de Apostas ela NÃO existe, e a perna vira campos
+      // crus (ver `_descPernaLT`) — antes disso, a linha saía vazia.
+      const desc = _descPernaLT(e);
+      L.push("- " + (desc || "SEM DESCRIÇÃO na resposta da casa — conferir o bilhete na Lottu") +
+             " [" + (rp || ("status " + e.status + " — a conferir")) + "]");
       const ctx2 = [];
-      if (ev.question) ctx2.push("Jogo: " + ev.question);
+      const jogo = _jogoLT(ev);
+      if (jogo) ctx2.push("Jogo: " + jogo);
       const ini = _dhVB(_msVB(e.event_date || ev.date));
       if (ini) ctx2.push("Início: " + ini);
       if (ev.championship) ctx2.push("Competição: " + ev.championship);
       if (ev.country) ctx2.push("País: " + ev.country);
+      // `__t` é o único campo de esporte que esta casa tem, e só existe no evento
+      // esportivo de verdade — no Desafio ele vale "Challenge", que não é esporte nenhum.
+      if (ev.__t && ev.__t !== "Challenge") ctx2.push("Esporte (campo __t da casa): " + ev.__t);
       if (e.is_live) ctx2.push("Ao vivo");
       if (e.is_sgp) ctx2.push("Mesmo jogo (SGP)");
       if (ctx2.length) L.push("    " + ctx2.join(" · "));
-      if (e.odd != null && evs.length > 1) L.push("    Odd da seleção: " + _oddTxtVB(e.odd));
+      if (e.odd != null && evs.length > 1 && !oddDeConjunto) L.push("    Odd da seleção: " + _oddTxtVB(e.odd));
       if (e.original_odd != null && e.odd != null && Math.abs(e.original_odd - e.odd) > 0.0001)
         L.push("    Marcação da casa: odd alterada — original " + _oddTxtVB(e.original_odd) +
                " · valendo " + _oddTxtVB(e.odd));

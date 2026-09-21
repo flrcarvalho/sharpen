@@ -47,6 +47,22 @@ const ESPERADO = {
   "6585838": { evento: "01/08/2026 17:29:52", colocacao: "01/08/2026 15:45:55", odd: "5",
                stake: "25,00", status: /^Perdeu → L$/, tipo: /^Múltipla \(Desafio · 2 condições no mesmo jogo\)$/, potencialMentiroso: "125,00",
                jogo: "Vasco x Fluminense" },
+
+  // ⚠️ O CRIADOR DE APOSTAS COM BOOST (s371) — o bilhete que custou R$ 1.170,93 de P/L.
+  // Card: "8410665 · Simples de 7.38 · ⚡ Bônus +25% · Aposta R$ 100,00 · Bônus R$ 184,50 ·
+  // Retorno R$ 922,50". A API manda `return_value: 738` (a odd NUA) e o bônus separado em
+  // `promotions.odds_boost.value: 184.5`. O retorno é a SOMA, e a odd que vale na planilha
+  // é 9,225 (= 922,50 ÷ 100), não 7,38.
+  // O mesmo bilhete prova as outras três: a perna NÃO tem `answer` (vinha vazia), o evento
+  // NÃO tem `question` (o jogo sumia) e a odd 7,3779 se repete nas três pernas (é a do
+  // CUPOM, e multiplicá-las daria 401).
+  "8410665": { evento: "20/09/2026 18:30:00", colocacao: "20/09/2026 12:55:20", odd: "7,38",
+               stake: "100,00", status: /^Ganho → W/, tipo: /^Múltipla \(Criador de Apostas · 3 seleções no MESMO jogo\)$/,
+               retorno: "922,50", jogo: "Flamengo x RB Bragantino",
+               boost: { pct: 25, bonus: "184,50", base: "738,00", oddEfetiva: "9,225" },
+               esporteDaCasa: "Soccer",
+               pernasCruas: ["BOTH_TEAMS_TO_SCORE_YES", "GOALS_OVER_UNDER", "UNDER", "1.5",
+                             "CORNERS_OVER_UNDER", "9.5", "FIRST_TIME"] },
 };
 
 const HOST = "https://alpha-sb.ngbras.com";
@@ -106,7 +122,7 @@ export async function rodar() {
   if (!ultima.fim) falhas.push("não sinalizou 'fim' — o robô esperaria o teto");
 
   const bets = ultima.bets || [];
-  if (bets.length !== 2) falhas.push(`esperava 2 bilhetes na fixture, vieram ${bets.length}`);
+  if (bets.length !== 3) falhas.push(`esperava 3 bilhetes na fixture, vieram ${bets.length}`);
 
   // A LISTA tem de ser pedida por FAIXA DE DATAS. Sem `initial_date`/`final_date` a casa
   // responde 200 com `[]` — foi o que aconteceu no reconhecimento e me fez achar, por um
@@ -125,8 +141,8 @@ export async function rodar() {
   // detalhe não tem coluna Data.
   testes++;
   const detalhes = pedidos.filter((u) => /\/bet\/[a-f0-9]{24}/i.test(u));
-  if (detalhes.length !== 2)
-    falhas.push(`esperava 1 detalhe por bilhete (2), vieram ${detalhes.length}`);
+  if (detalhes.length !== 3)
+    falhas.push(`esperava 1 detalhe por bilhete (3), vieram ${detalhes.length}`);
 
   // ── Leitura bilhete a bilhete, contra o card ──────────────────────────────────
   const fmt = carregarContent().pegar("formatTicketLT");
@@ -164,13 +180,68 @@ export async function rodar() {
 
     // ⚠️ A casa NÃO informa esporte em campo nenhum (só `championship` e `country`). O bloco
     // tem de dizer isso explicitamente, senão a IA inventa a coluna Esporte em silêncio.
-    const esp = linha(txt, "Esporte:");
-    if (!/não informad/i.test(esp))
-      falhas.push(`${id}: "Esporte:" devia declarar que a casa não informa, veio "${esp}"`);
+    // (só no DESAFIO, onde `__t` vale "Challenge" e não há esporte nenhum na resposta. No
+    // Criador de Apostas a casa informa, e aí deduzir seria pior — ver `esporteDaCasa`.)
+    if (!e.esporteDaCasa) {
+      const esp = linha(txt, "Esporte:");
+      if (!/não informad/i.test(esp))
+        falhas.push(`${id}: "Esporte:" devia declarar que a casa não informa, veio "${esp}"`);
+    }
 
     if (e.retorno) {
       const r = linha(txt, "Retorno:");
-      if (r !== "R$ " + e.retorno) falhas.push(`${id}: retorno esperado R$ ${e.retorno}, veio "${r}"`);
+      if (!r.startsWith("R$ " + e.retorno)) falhas.push(`${id}: retorno esperado R$ ${e.retorno}, veio "${r}"`);
+    }
+
+    // ── BOOST: o dinheiro pago POR FORA da odd ────────────────────────────────
+    // O coração do caso da s371. Três asserções distintas, porque um gate que confere só o
+    // retorno deixaria a odd passar errada — e é a odd que vai para a coluna da planilha.
+    if (e.boost) {
+      // (a) o retorno TEM de ser a soma. Se sair 738,00, o P/L nasce R$ 184,50 curto.
+      const r = linha(txt, "Retorno:");
+      if (!r.startsWith("R$ " + e.retorno))
+        falhas.push(`${id}: com boost de ${e.boost.pct}%, o retorno tem de ser R$ ${e.retorno} ` +
+                    `(R$ ${e.boost.base} da odd + R$ ${e.boost.bonus} de bônus), veio "${r}"`);
+      // (b) a decomposição fica na MESMA linha: o número sozinho não deixa ninguém conferir.
+      if (!r.includes(e.boost.bonus) || !r.includes(e.boost.base))
+        falhas.push(`${id}: a linha do retorno não mostra a decomposição (R$ ${e.boost.base} + R$ ${e.boost.bonus}) — veio "${r}"`);
+      // (c) a ODD EFETIVA, que é a que vai para a planilha. Sem ela a IA escreve 7,38.
+      const oe = linha(txt, "Odd efetiva (COM o boost de " + e.boost.pct + "%):");
+      if (!oe.startsWith(e.boost.oddEfetiva))
+        falhas.push(`${id}: esperava a odd efetiva ${e.boost.oddEfetiva} (= retorno ÷ stake), veio "${oe}"`);
+      if (!/Retorno ÷ Stake/.test(oe))
+        falhas.push(`${id}: a odd efetiva não diz de onde vem — sem isso a IA não sabe qual das duas usar`);
+      // (d) a odd base tem de sair MARCADA, senão as duas odds no bloco viram ambiguidade.
+      if (!/SEM o boost/.test(linha(txt, "Odd:")))
+        falhas.push(`${id}: a linha "Odd:" não avisa que é a odd BASE — duas odds sem rótulo é pior que uma errada`);
+    }
+
+    // ── CRIADOR DE APOSTAS: a perna sem `answer` ──────────────────────────────
+    if (e.pernasCruas) {
+      for (const campo of e.pernasCruas)
+        if (!txt.includes(campo))
+          falhas.push(`${id}: o campo cru "${campo}" da perna não chegou ao bloco — a descrição nasce "Mercado Especial - REVISAR"`);
+      // A linha da seleção não pode sair VAZIA (era o defeito: `e.answer || ""`).
+      for (const ln of txt.split("\n"))
+        if (/^- \s*\[/.test(ln)) falhas.push(`${id}: seleção sem descrição nenhuma — "${ln}"`);
+      // A odd do CUPOM repetida por perna não pode ser impressa como odd da seleção.
+      if (/Odd da seleção/.test(txt))
+        falhas.push(`${id}: imprimiu "Odd da seleção" num Criador de Apostas — a odd é do CUPOM, e multiplicar as 3 daria 401`);
+      if (!/NÃO têm odd própria/.test(txt))
+        falhas.push(`${id}: faltou o aviso de que as pernas não têm odd própria`);
+    }
+
+    // ⚠️ `includes` NÃO serve aqui: a mesma frase aparece na linha da PERNA (indentada), e
+    // um teste feito com ela deixou passar a mutação que apagava o esporte do CABEÇALHO.
+    // `linha()` casa por início de linha, então só enxerga o cabeçalho — que é o que a IA
+    // lê para preencher a coluna Esporte.
+    if (e.esporteDaCasa) {
+      const cab = linha(txt, "Esporte (campo __t da casa):");
+      if (!cab.startsWith(e.esporteDaCasa))
+        falhas.push(`${id}: o CABEÇALHO devia declarar o esporte que a casa informa ` +
+                    `(__t = ${e.esporteDaCasa}), veio "${cab}"`);
+      if (/^Esporte: não informad/m.test(txt))
+        falhas.push(`${id}: a casa INFORMA o esporte e o bloco mandou deduzir assim mesmo`);
     }
 
     // O CORAÇÃO DO CASO: na PERDIDA, o campo de dinheiro é potencial e NÃO pode sair como
@@ -206,6 +277,29 @@ export async function rodar() {
     const inedito = fmt({ ...perdida, status: "CASHED_OUT" });
     if (!/a conferir/.test(inedito)) falhas.push("estado desconhecido não foi marcado 'a conferir' — vira chute");
     if (/Ganho → W|Perdeu → L/.test(inedito)) falhas.push("estado desconhecido foi convertido em resultado — proibido");
+
+    // (c) O BÔNUS É POTENCIAL COMO TODO O RESTO NESTA CASA. `odds_boost.value` vem
+    //     preenchido na PERDIDA também (medido: 2 de 2 na conta). Somá-lo fora do `WON`
+    //     repetiria, com o bônus, exatamente o erro que o `return_value` já ensinou —
+    //     e desta vez inflando o P/L em vez de encolhê-lo.
+    const comBoost = JSON.parse(fixture("lottu.detalhes.json")).find((b) => b.code === "8410665");
+    testes++;
+    const perdeuComBoost = fmt({ ...comBoost, status: "LOST" });
+    if (linha(perdeuComBoost, "Retorno:"))
+      falhas.push("controle negativo: PERDIDA com boost emitiu 'Retorno:' — o bônus não é dinheiro recebido");
+    if (/922,50/.test(perdeuComBoost))
+      falhas.push("controle negativo: o bônus foi somado numa aposta PERDIDA — R$ 184,50 de lucro fantasma");
+    if (!/TAMBÉM é potencial/.test(perdeuComBoost))
+      falhas.push("controle negativo: a perdida com boost não avisa que o bônus é potencial");
+
+    testes++;
+    // (d) O CAMINHO INVERSO, que prova que a asserção do ganho não é vácuo: sem boost, o
+    //     retorno é o `return_value` puro e NÃO pode aparecer odd efetiva nenhuma.
+    const semBoost = fmt({ ...comBoost, promotions: { odds_boost: { percentage: 0, value: 0 } } });
+    if (linha(semBoost, "Retorno:") !== "R$ 738,00")
+      falhas.push(`controle negativo: sem boost o retorno tem de ser R$ 738,00, veio "${linha(semBoost, "Retorno:")}"`);
+    if (/Odd efetiva/.test(semBoost))
+      falhas.push("controle negativo: bilhete SEM boost ganhou linha de odd efetiva — duas odds onde só há uma");
   }
 
   return { falhas, testes };

@@ -236,6 +236,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0717",
+      "v": "v0.7.17",
+      "data": "2026-09-21",
+      "texto": "**Lottu:** apostas com **Bônus (odd turbinada)** e as do **Criador de Apostas** estavam subindo com a odd e a descrição erradas. Corrigido.",
+      "itens": [
+        "Atualize a extensão. Vale para as capturas novas: bilhete antigo com Bônus continua com a odd sem o bônus e precisa de ajuste."
+      ]
+    },
+    {
       "id": "su-0716",
       "v": "v0.7.16",
       "data": "2026-09-21",
