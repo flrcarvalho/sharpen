@@ -17,8 +17,8 @@
 // só escuta as respostas. Ver docs/PLANO_BET365_CAPTURA_API.md.
 //
 // DUAS COISAS ELE DIRIGE (o resto é escuta pura): expande a lista clicando "Mostrar Mais" até o
-// fim (`expandirLista`, s279 — era o último gesto manual da casa) e navega por `location.hash`
-// até a confirmação de cada bilhete (`detalharPorRota`, s180). Nenhuma das duas chama a API por
+// fim (`expandirLista`, s279 — era o último gesto manual da casa) e navega por rota (sempre com
+// `location.replace`) até a confirmação de cada bilhete (`detalharPorRota`, s180). Nenhuma das duas chama a API por
 // conta própria — quem chama é sempre a página, com o token dela.
 //
 // POR QUE PRECISA DO DETALHE: o `summary` NÃO traz jogo/mercado/liga nem o código `BR` — só a
@@ -346,7 +346,7 @@
     // de alguém gastar uma hora de extração medindo a versão errada. A extensão é distribuída à
     // mão e o Feca roda um perfil por casa no Octo, então "recarreguei" não garante nada.
     // Muda junto com qualquer mudança de comportamento da captura.
-    const msg = { __sharpenupB3Rotas: true, topo: window.top === window, build: "s378-replace",
+    const msg = { __sharpenupB3Rotas: true, topo: window.top === window, build: "s378-replace-h",
                   host: location.hostname, rotas: lista, campos: campoLista, rec: rec,
                   amostra01: amostra01 };
     LOG("catálogo: " + lista.length + " forma(s) de rota · " + campoLista.length +
@@ -419,7 +419,12 @@
     const t0 = Date.now();
     try { location.replace(rota); } catch (e) { try { location.hash = rota; } catch (e2) {} }
     const ok = await esperarCodigo(antes, teto);
-    gravar("nav", { ok: ok ? 1 : 0, ms: Date.now() - t0 });
+    // `h` = `history.length` DEPOIS de navegar. É a prova direta de que o `replace` está
+    // fazendo o trabalho: com `location.hash =` esse número subia um por bilhete e o muro se
+    // formava perto de 420. Com `replace` ele fica parado. Medir isto dispensa repetir a
+    // varredura grande que bloqueou duas contas em 2026-09-20 só para ver se o muro voltou.
+    let h = 0; try { h = history.length; } catch (e) {}
+    gravar("nav", { ok: ok ? 1 : 0, ms: Date.now() - t0, h: h });
     return ok;
   }
 
