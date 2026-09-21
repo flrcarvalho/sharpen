@@ -261,6 +261,33 @@ section { padding: var(--sp-20) 0; border-top: 1px solid var(--line-2); }
 .etapas--quatro { grid-template-columns: repeat(4, 1fr); }
 
 /* ── KPIs do líquido: bruto − custos = líquido ──────────────────────────── */
+/* Contador ao vivo. O número é CONTAGEM, não dinheiro: não passa pelo `.money`
+   nem por `fmtR`, e por isso não tem `R$` nem cor por sinal. O que ele herda do
+   padrão é o que vale para todo número da marca — `.num` (mono, tabular, `--ink`)
+   e milhar em pt-BR SEM abreviar em "k"/"M". */
+.contador {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-4);
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+  text-align: center;
+}
+.contador-num { margin: 0; line-height: 1; }
+.contador-num .num { font-size: clamp(2.5rem, 7vw, 4.25rem); letter-spacing: -.02em; }
+/* Metadado: `--ink-soft` é o papel certo, e 13px fica acima do piso da escada.
+   Os números dentro dele sobem para `--ink` pelo `.num`, porque ali eles são
+   valor e não legenda. */
+.contador-meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+.contador-meta .num { font-size: inherit; }
+@media (max-width: 640px) { .contador { padding: var(--sp-5) var(--sp-3); } }
+
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
 .kpi {
   background: var(--surface);
@@ -465,6 +492,23 @@ footer img { height: 40px; width: auto; }
       <a class="btn btn-fantasma btn-grande" href="#como-funciona">Ver como funciona</a>
     </div>
     <p class="hero-nota">Não pedimos a senha das suas casas. O SharpenUp não aposta, não deposita e não movimenta saldo.</p>
+  </div>
+
+  <!-- ═══ CONTADOR AO VIVO ═══
+       Lê `/publico/metricas` (agregado, sem nome de ninguém, sem a base de
+       demonstração) e sobe sozinho. Não é enfeite: é a única prova na página que
+       não depende de a pessoa acreditar em nós — o número se move enquanto ela lê.
+       Some da página se a rota falhar, porque contador parado em zero é pior que
+       contador nenhum. -->
+  <div class="wrap">
+    <div class="contador" id="contador" hidden>
+      <!-- O rótulo diz "todos os usuários" porque o H1 logo acima fala de UMA
+           operação ("20 casas e mais de 2 mil apostas"). Sem essa palavra, os dois
+           números grandes na mesma dobra leem como contradição. -->
+      <p class="kpi-rot">Já planilhadas no Sharpen · todos os usuários</p>
+      <p class="contador-num"><span class="num" id="ct-apostas">0</span></p>
+      <p class="contador-meta" id="ct-meta"></p>
+    </div>
   </div>
 
   <!-- ═══ PRINT DE CAPA ═══ -->
@@ -967,5 +1011,74 @@ footer img { height: 40px; width: auto; }
   </div>
 </footer>
 
+<script>
+/* Contador ao vivo ────────────────────────────────────────────────────────────
+   Três decisões, e todas são sobre não mentir:
+
+   1. O número exibido SEMPRE veio do servidor. A animação só interpola entre
+      dois valores medidos (ou de 0 até o primeiro, que ninguém lê como "temos
+      zero apostas"). Contador que incrementa sozinho no relógio, sem consultar,
+      é número inventado com cara de tempo real.
+   2. Se a rota falhar, o bloco não aparece. Contador parado em zero desmente a
+      página inteira, e é pior que não ter contador.
+   3. Milhar em pt-BR, sem abreviar em "k"/"M" — a mesma régua do produto.
+   A página não atualiza em tempo real de verdade: são ~1.400 apostas por dia, e
+   com 20 s de intervalo o número sobe algumas vezes enquanto a pessoa lê. */
+(function () {
+  var elBloco = document.getElementById('contador');
+  var elNum   = document.getElementById('ct-apostas');
+  var elMeta  = document.getElementById('ct-meta');
+  if (!elBloco || !elNum || !elMeta) return;
+
+  var INTERVALO_MS = 20000;
+  var ANIM_MS = 900;
+  var atual = 0, anim = null;
+
+  var fmt = function (n) { return Math.round(n).toLocaleString('pt-BR'); };
+
+  function animarPara(destino) {
+    if (anim) cancelAnimationFrame(anim);
+    var de = atual, delta = destino - de, t0 = 0;
+    if (delta === 0) return;
+    // Movimento sem biblioteca: ease-out cúbico, que desacelera no fim e faz o
+    // número "assentar" em vez de travar de repente.
+    function passo(t) {
+      if (!t0) t0 = t;
+      var p = Math.min(1, (t - t0) / ANIM_MS);
+      var e = 1 - Math.pow(1 - p, 3);
+      elNum.textContent = fmt(de + delta * e);
+      if (p < 1) anim = requestAnimationFrame(passo);
+      else { atual = destino; elNum.textContent = fmt(destino); }
+    }
+    anim = requestAnimationFrame(passo);
+  }
+
+  function aplicar(d) {
+    if (!d || typeof d.apostas !== 'number' || d.apostas <= 0) return;
+    elBloco.hidden = false;
+    var partes = [];
+    if (d.casas)   partes.push('em <span class="num">' + fmt(d.casas) + '</span> casas');
+    if (d.contas)  partes.push('<span class="num">' + fmt(d.contas) + '</span> contas');
+    if (d.por_dia) partes.push('cerca de <span class="num">' + fmt(d.por_dia) + '</span> por dia');
+    elMeta.innerHTML = partes.join(' · ');
+    animarPara(d.apostas);
+  }
+
+  function buscar() {
+    fetch('/publico/metricas', { credentials: 'omit' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(aplicar)
+      .catch(function () { /* silêncio: o bloco fica como está, ou não aparece */ });
+  }
+
+  buscar();
+  // Aba em segundo plano não consulta: o navegador engasga os timers e, na volta,
+  // dispararia uma rajada de pedidos de uma vez.
+  setInterval(function () { if (!document.hidden) buscar(); }, INTERVALO_MS);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) buscar();
+  });
+})();
+</script>
 </body>
 </html>

@@ -2226,6 +2226,20 @@ def versao_desatualizada(v_ext: str) -> bool:
     return _versao_tupla(v_ext) < _versao_tupla(atual)
 
 
+@app.get("/publico/metricas")
+async def publico_metricas():
+    """Agregados públicos para o contador da landing. Sem sessão, de propósito.
+
+    Só contagem, sem nome de ninguém, e sem a base de demonstração — a régua e o
+    porquê estão em `metricas_publicas.py`. O cache é de lá (30 s); o
+    `Cache-Control` aqui repete o mesmo prazo para o navegador não pedir mais
+    rápido do que o número muda.
+    """
+    from metricas_publicas import metricas_publicas
+    dados = await metricas_publicas()
+    return JSONResponse(dados, headers={"Cache-Control": "public, max-age=30"})
+
+
 @app.get("/extensao")
 async def extensao_page():
     # Pública (sem login): página de instalação/atualização do SharpenUp. É o único
