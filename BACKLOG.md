@@ -1114,6 +1114,66 @@ agrupamento depois, com o critério nascendo de uma amostra que ele mesmo olhe.
 
 ---
 
+### 3.14 O boost da Lottu nos outros donos (s379). **FECHADA por medição: não há dívida.**
+
+Ficou aberta por vinte minutos, até a pergunta do Feca (*"quem mais vem usando a lottu?"*)
+obrigar a medir em vez de supor. **Ninguém além do Feca perdeu dinheiro com o boost**, e a
+prova é barata: o bloco antigo só imprimia a linha `odds_boost` **quando havia boost**, então
+a `sombra_rotulos` responde sozinha.
+
+| Dono | Blocos com boost | Ganhos | Dinheiro em jogo |
+|---|---|---|---|
+| Feca | 8 | 6 | R$ 1.170,93 — **já reparado** |
+| Jaao26 | 3 códigos | **0** | nenhum |
+| Ewanderson1 | 1 (`8077203`, e nem virou linha) | **0** | nenhum |
+
+**O bônus só vira dinheiro em `WON`**, e fora do Feca todos os bilhetes com boost perderam.
+
+**Os outros três donos não podem ter boost**, e a data prova: o boost aparece na casa em
+**13/09/2026**, e realtrial parou em **02/08**, Jonathan em **21/07** e WilliamOliveira em
+**26/08** — todos antes. A `sombra_rotulos` também não tem um bloco sequer deles.
+
+> A régua que fechou isto serve para a próxima casa: quando o bloco cru só imprime a marca
+> **na presença** do fenômeno, a sombra vira censo, e medir custa uma query.
+
+### 3.15 As 198 descrições `Mercado Especial - REVISAR` da Lottu (s379). VIVA — e são **dois** defeitos, não um.
+
+A soma fecha exata, e cada metade tem causa própria:
+
+**(a) 11, do Feca — seleção vazia no Criador de Apostas.** Nasceram com a perna sem texto (o
+defeito consertado na 0.7.17) e a IA preencheu os três campos com `REVISAR`.
+
+**(b) 187, do WilliamOliveira — o DETALHE nunca chegou.** Captura única de **26/08**, e as
+187 linhas estão **sem data, sem esporte, com `REVISAR` na descrição e todas travadas em
+`aberta`**, com `resultado` nulo. Têm código, stake e odd (que vêm da lista); falta
+exatamente o que só existe em `GET /bet/{_id}`. É a parte cara da Lottu, uma chamada por
+bilhete — e o `roboLTPassive` já avisa por toast quando isso acontece, mas o aviso morreu
+na tela de quem capturou. **São 187 de 205 abertas dele em toda a base**, ou seja, o
+contador de abertas desse dono é quase todo este defeito.
+
+**Recapturar não conserta (a):** o `ON CONFLICT` nunca atualiza `descricao` fora de
+`origem='sync'`. **Mas (b) é diferente e mais barato:** linha `aberta` tem `data`, `odd` e
+`stake` refrescados por qualquer reenvio, então **uma recaptura da conta dele, agora que o
+detalhe sobe certo, resolve a maior parte** — sobra só a `descricao`, que segue congelada.
+
+**O script de (a) não pode carregar um de-para de mercado** (`BOTH_TEAMS_TO_SCORE_YES` →
+"Ambos marcam"): isso é trabalho do `MASTER_APOSTAS`, e um dicionário escondido num script
+de reparo seria um segundo vocabulário fora dele. O caminho limpo é reapresentar os blocos à
+IA pelo caminho normal de extração e gravar por `PATCH`.
+
+### 3.16 Os R$ 46,35 que sobraram na Caixa da Lottu (s379). VIVA, do Feca.
+
+Depois do reparo do boost, a Caixa projeta R$ 5.272,98 e a casa mostra R$ 5.226,63.
+**Não é boost**: não há aposta aberta na Lottu (conferido na API), nem cashout, nem anulada
+na janela, e as 58 liquidadas batem uma a uma.
+
+Sobram duas explicações, e nenhuma é do Sharpen: movimento **fora do esportivo** (cassino,
+depósito ou saque não lançado) ou o **saldo inicial de R$ 500,00**, redondo, digitado à mão
+em 02/08 sem ter sido lido na tela. É o que o botão **Ajuste** existe para resolver, e a
+decisão é do Feca depois de olhar o extrato da casa naquela data.
+
+---
+
 ## 4. Dívida técnica medida
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
