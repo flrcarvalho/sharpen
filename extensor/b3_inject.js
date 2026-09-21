@@ -342,7 +342,11 @@
   function enviarRotas() {
     const lista = Array.from(rotas, ([rota, v]) => ({ rota: rota, n: v.n, metodo: v.metodo }));
     const campoLista = Array.from(campos, ([reg, s]) => ({ reg: reg, campos: Array.from(s).sort() }));
-    const msg = { __sharpenupB3Rotas: true, topo: window.top === window,
+    // `build` existe para uma coisa só: provar, em um segundo, QUAL código está carregado antes
+    // de alguém gastar uma hora de extração medindo a versão errada. A extensão é distribuída à
+    // mão e o Feca roda um perfil por casa no Octo, então "recarreguei" não garante nada.
+    // Muda junto com qualquer mudança de comportamento da captura.
+    const msg = { __sharpenupB3Rotas: true, topo: window.top === window, build: "s378-replace",
                   host: location.hostname, rotas: lista, campos: campoLista, rec: rec,
                   amostra01: amostra01 };
     LOG("catálogo: " + lista.length + " forma(s) de rota · " + campoLista.length +
