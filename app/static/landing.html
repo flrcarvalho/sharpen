@@ -680,10 +680,18 @@ footer img { height: 40px; width: auto; }
                alt="Painel da Caixa Inteligente de uma conta que confere, com o selo verde Confere e a diferença em R$ 0,00.">
           <figcaption class="legenda">Bate com a casa.</figcaption>
         </figure>
+        <!-- Estático à esquerda, movimento à direita: é aqui que o gesto importa.
+             O clipe mostra a conferência inteira (digitar o saldo da casa, clicar
+             em Conferir, a divergência aparecer com o valor e o que fazer), o que
+             uma imagem parada não conta. Gravado contra a base fictícia. -->
         <figure style="margin: 0">
-          <img src="/static/landing/img/r9-caixa-divergente.webp" width="600" height="1416"
-               loading="lazy" decoding="async"
-               alt="Painel da Caixa Inteligente de uma conta divergente, apontando que faltam R$ 850,00 e sugerindo conferir se houve saque não lançado.">
+          <video class="clipe" autoplay muted loop playsinline preload="metadata"
+                 width="1346" height="788"
+                 poster="/static/landing/video/caixa-divergencia.poster.jpg"
+                 aria-label="A conferência da Caixa Inteligente acontecendo: o saldo da casa é digitado, e o painel aponta que faltam R$ 638,68 e sugere conferir se houve saque não lançado.">
+            <source src="/static/landing/video/caixa-divergencia.webm" type="video/webm">
+            <source src="/static/landing/video/caixa-divergencia.mp4" type="video/mp4">
+          </video>
           <figcaption class="legenda">Não bate, e ele diz de quanto é a diferença.</figcaption>
         </figure>
       </div>
@@ -1078,6 +1086,30 @@ footer img { height: 40px; width: auto; }
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) buscar();
   });
+})();
+
+/* Clipes: tocar quando entram na tela ─────────────────────────────────────────
+   MEDIDO em 21/09, com a página aberta no Chrome: `autoplay muted loop` só faz
+   tocar o vídeo que já está na viewport quando a página carrega. Os demais o
+   navegador PAUSA na hora, e eles **nunca retomam sozinhos** — o visitante rola
+   até a seção e vê o poster parado, achando que é uma imagem. Era o que
+   acontecia com o clipe do "Sugerir tipsters" desde que ele entrou na página.
+
+   `IntersectionObserver` resolve nos dois sentidos: toca ao entrar, pausa ao
+   sair (vídeo rodando fora da tela é bateria e dado de graça). O `catch` existe
+   porque `play()` devolve promessa e o navegador pode recusar — e recusa de
+   autoplay não pode derrubar o resto do script. */
+(function () {
+  var clipes = document.querySelectorAll('video.clipe');
+  if (!clipes.length || !('IntersectionObserver' in window)) return;
+  var obs = new IntersectionObserver(function (entradas) {
+    entradas.forEach(function (e) {
+      var v = e.target;
+      if (e.isIntersecting) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+      else if (!v.paused) { v.pause(); }
+    });
+  }, { threshold: 0.25 });
+  Array.prototype.forEach.call(clipes, function (v) { obs.observe(v); });
 })();
 </script>
 </body>
