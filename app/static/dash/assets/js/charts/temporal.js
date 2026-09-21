@@ -291,7 +291,28 @@ function _resChartData(rows){
 // ── Render principal ─────────────────────────────────────────────────────────
 function renderResultados(){
   const cont=document.getElementById('resultadosContent'); if(!cont)return;
-  if(!DADOS||!DADOS.length){cont.innerHTML='<p style="color:var(--ink-mute);padding:2rem">Carregando dados…</p>';return;}
+  // `DADOS` vazio tem DUAS causas, e só UMA delas é "carregando". Até a s374 as duas
+  // caíam na mesma frase, e quem chegava novo lia "Carregando dados…" para sempre:
+  // `DADOS` só recebe W/L/V/HW/HL (`aplicarFeed`), então usuário novo — que por
+  // definição só tem aposta em aberto — nunca sai desse estado. Medido em Chrome
+  // headless com base zero E com base só-abertas: nos dois a tela ficava parada.
+  // → docs/CASOS.md#a-tela-em-branco-do-diogo--s239
+  //
+  // O discriminador é `window._dataBuiltMs`, gravado logo DEPOIS de `aplicarFeed`
+  // nos dois caminhos de carga (cache local, `app.js:1599`; rede, `app.js:1644`).
+  // Truthy ⇒ o feed já chegou pelo menos uma vez ⇒ vazio é ausência, não espera.
+  //
+  // ⚠️ LIMITE CONHECIDO: fetch que FALHA sem cache deixa `_dataBuiltMs` nulo, e aqui
+  // continua aparecendo "Carregando dados…". Isso é de propósito — o erro de conexão
+  // tem canal próprio (`_errBanner`, `app.js:1679`) e duplicá-lo no corpo da aba diria
+  // a mesma coisa em dois lugares. Trocar por "não há aposta encerrada" ali seria a
+  // mentira inversa: culpar a base do usuário por uma falha de rede.
+  if(!DADOS||!DADOS.length){
+    cont.innerHTML=mkEmpty(window._dataBuiltMs
+      ? 'Nenhuma aposta encerrada ainda. Os resultados aparecem quando a primeira liquidar.'
+      : 'Carregando dados…');
+    return;
+  }
   const rows=filtrarPagina('resultados');
   if(!rows.length){cont.innerHTML=mkEmpty('Sem apostas no período selecionado');return;}
   const nTip=[...new Set(rows.map(r=>r.tipster).filter(Boolean))].length;
