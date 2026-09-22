@@ -458,8 +458,8 @@ um lançamento é tirar a chave, e união nenhuma apaga chave.
 **Chave sem namespace de dono vaza entre usuários** — `CT_KEY`/`CG_KEY` são globais,
 `costKey()` é por dono. Nenhuma tela promete "seu custo" antes de resolver isso.
 
-Gate: `tests/test_nada_local_no_usuario.py` (10 mutações, 10 detectadas, nas TRÊS telas
-de save) + `tests/js/dado_digitado_sobe_sempre.mjs`.
+Gate: `tests/test_nada_local_no_usuario.py` (11 mutações, 11 detectadas) +
+`tests/js/dado_digitado_sobe_sempre.mjs`.
 
 ---
 

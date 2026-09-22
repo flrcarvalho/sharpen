@@ -137,16 +137,32 @@ MUTACOES = [
         "  if(_ctServerBacked){_ctPush();return;}\n"
         "  if(!_ctHadLegacy){_ctServerBacked=true;_ctPush();}",
     ),
+    # ── A EXTRAÇÃO grava a CONTA, nunca a tabela (s381) ──────────────────────
     (
-        "a trava volta a tela de Extracao",
+        "o card da Extracao volta a gravar no preco de TABELA",
         "extracao",
-        "    const semear = !_custoContaServerBacked;\n"
-        "    _custoContaServerBacked = true;\n"
-        "    fetch('/custos/conta',",
-        "    const semear = !_custoContaServerBacked;\n"
-        "    if (!_custoContaServerBacked && _custoContaHadLegacy) return;\n"
-        "    _custoContaServerBacked = true;\n"
-        "    fetch('/custos/conta',",
+        "    const r = await fetch('/parceiros/' + id + '/custo', {",
+        "    const r = await fetch('/custos/conta', {",
+    ),
+    (
+        "o card da Extracao para de mandar o valor digitado",
+        "extracao",
+        "      body: JSON.stringify({ custo }),",
+        "      body: JSON.stringify({ custo: null }),",
+    ),
+    (
+        "vazio vira ZERO em vez de devolver a conta a tabela",
+        "extracao",
+        "  if (!s) return null;\n  const neg",
+        "  if (!s) return 0;\n  const neg",
+    ),
+    (
+        "o parser volta a apagar todo ponto e le 179.90 como 17.990",
+        "extracao",
+        "  else if (/^\\d{1,3}(\\.\\d{3})+$/.test(s)) s = s.replace(/\\./g, '');\n"
+        "  const n = parseFloat(s);\n  return isNaN(n) ? NaN",
+        "  else s = s.replace(/\\./g, '');\n"
+        "  const n = parseFloat(s);\n  return isNaN(n) ? NaN",
     ),
     # ── A UNIÃO: sem ela, tirar a trava abre o outro buraco ──────────────────
     (
@@ -160,12 +176,6 @@ MUTACOES = [
         "app",
         "  const semear=!_ctServerBacked;",
         "  const semear=false;",
-    ),
-    (
-        "a Extracao para de pedir uniao no 1o envio",
-        "extracao",
-        "    const semear = !_custoContaServerBacked;",
-        "    const semear = false;",
     ),
     (
         "o semear e pedido SEMPRE, e apagar um custo deixa de funcionar",
@@ -191,12 +201,6 @@ MUTACOES = [
         "    if (w && !w.value) w.value = localStorage.getItem('poly-wallet') || '';",
     ),
     # ── O DADO EM SI ─────────────────────────────────────────────────────────
-    (
-        "a Extracao passa a mandar so a chave editada e poda o legado",
-        "extracao",
-        "body: JSON.stringify({ custo_conta: o, semear })",
-        "body: JSON.stringify({ custo_conta: { [forn + '||' + casa]: n }, semear })",
-    ),
 ]
 
 

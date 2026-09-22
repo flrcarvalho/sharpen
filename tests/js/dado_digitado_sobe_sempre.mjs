@@ -6,9 +6,11 @@
 // **servidor vazio + legado no navegador**, não subia NADA: a pessoa digitava um custo
 // e ele ficava só na máquina, sem erro e sem aviso.
 //
-// Este arquivo exercita as três funções de save RECORTADAS dos arquivos de produção e
+// Este arquivo exercita as funções de save RECORTADAS dos arquivos de produção e
 // exige um POST em TODOS os estados. O estado que importa é o terceiro; os outros dois
 // estão aqui para que uma mutação que quebre o caminho comum também apareça.
+// A Extração saiu da trava na s381: o card dela grava o custo DA CONTA direto no
+// cadastro, sem cache local, e a seção C prova isso (e que ela não toca a tabela).
 //
 // A outra metade da regra: o 1º envio de um navegador para um servidor sem custo vai
 // com `semear:true`, e o servidor UNE em vez de substituir. Sem isso, tirar a trava
@@ -46,7 +48,7 @@ const recorteFn = (src, nome, arq) => {
 // O `index.html` é HTML: as funções vivem indentadas dentro de <script>, então o
 // fecho em coluna zero não existe. Recorta pela indentação do próprio `function`.
 const recorteFnHtml = (src, nome, arq) => {
-  const m = src.match(new RegExp('^(\\s*)function ' + nome + '\\([^)]*\\) \\{[\\s\\S]*?^\\1\\}', 'm'));
+  const m = src.match(new RegExp('^(\\s*)(?:async )?function ' + nome + '\\([^)]*\\) \\{[\\s\\S]*?^\\1\\}', 'm'));
   if (!m) throw new Error('não achei a função ' + nome + ' no ' + arq);
   return m[0];
 };
@@ -95,19 +97,23 @@ const API_DASH = new Function(`
   };
 `)();
 
+// A Extração grava o custo DA CONTA, nunca a tabela (s381). O card escrevia em
+// `custo_conta[fornecedor||casa]`, e corrigir UMA conta do Richard para R$ 916 virou a
+// tabela das 25 contas dele na Superbet. Aqui não há trava de semeadura a provar: o
+// valor vai direto para a linha da conta no cadastro, sem cache no navegador.
+// Dublê próprio: este save ESPERA a resposta (o erro aparece no card), e o `fetch` do
+// AMBIENTE devolve um thenable que nunca resolve, feito para quem dispara e esquece.
 const API_EXTRACAO = new Function(`
-  ${AMBIENTE}
-  const DASH_COST_BASE = 'dash_custos_v2';
-  let _custoContaServerBacked = false, _custoContaHadLegacy = false;
-  ${recorteFnHtml(EXTRACAO, '_custoKey', 'index.html')}
-  ${recorteFnHtml(EXTRACAO, '_salvarCusto', 'index.html')}
+  let POSTS = [];
+  const fetch = async (url, opt) => {
+    if (opt && opt.method === 'POST') POSTS.push({ url, body: JSON.parse(opt.body) });
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  ${recorteFnHtml(EXTRACAO, '_custoDigitado', 'index.html')}
+  ${recorteFnHtml(EXTRACAO, '_salvarCustoDaConta', 'index.html')}
   return {
-    estado(cfg) {
-      LS = {}; POSTS = [];
-      _custoContaServerBacked = cfg.serverBacked; _custoContaHadLegacy = cfg.hadLegacy;
-      if (cfg.hadLegacy) LS[_custoKey()] = JSON.stringify({ 'JC||Betano': 600 });
-    },
-    salva: () => { _salvarCusto('Move', 'Bet365', '950'); return POSTS.slice(); },
+    async salva(id, bruto) { POSTS = []; const res = await _salvarCustoDaConta(id, bruto); return { res, posts: POSTS.slice() }; },
+    num: (v) => _custoDigitado(v),
   };
 `)();
 
@@ -145,21 +151,36 @@ for (const [nome, cfg] of ESTADOS) {
   }
 }
 
-console.log('C. a tela de Extracao tambem sobe em TODO estado (index.html)');
-for (const [nome, cfg] of ESTADOS) {
-  API_EXTRACAO.estado(cfg);
-  const posts = API_EXTRACAO.salva();
-  eq(posts.length, 1, 'C. ' + nome + ': tem de sair exatamente 1 POST');
+console.log('C. a Extracao grava o custo DA CONTA e nunca a tabela (index.html)');
+{
+  const { res, posts } = await API_EXTRACAO.salva(15, '916,00');
+  ok(res.ok, 'C. um custo valido grava');
+  eq(posts.length, 1, 'C. tem de sair exatamente 1 POST');
   if (posts.length) {
-    eq(posts[0].url, '/custos/conta', 'C. ' + nome + ': vai para a rota do custo por conta');
-    eq(posts[0].body.custo_conta['Move||Bet365'], 950, 'C. ' + nome + ': o valor digitado viaja');
-    eq(posts[0].body.semear, !cfg.serverBacked, 'C. ' + nome + ': semear = era a 1a vez?');
-    // Esta tela guarda o dict INTEIRO, e não só a chave editada: o legado que já
-    // estava no navegador precisa viajar junto, senão o save vira uma poda.
-    if (cfg.hadLegacy)
-      eq(posts[0].body.custo_conta['JC||Betano'], 600, 'C. ' + nome + ': o legado viaja junto');
+    eq(posts[0].url, '/parceiros/15/custo', 'C. vai para a rota da CONTA, pelo id');
+    eq(posts[0].body.custo, 916, 'C. o valor digitado viaja como numero');
   }
+  ok(!posts.some(p => p.url === '/custos/conta'),
+     'C. o card NAO pode escrever no preco de tabela (/custos/conta)');
+  ok(!/fetch\(\s*['"]\/custos\/conta['"]\s*,\s*\{\s*method:\s*['"]POST/.test(EXTRACAO),
+     'C. nenhum POST para /custos/conta pode voltar ao index.html');
 }
+{
+  // Vazio devolve a conta à tabela: null, que é diferente de zero (conta de graça).
+  const { res, posts } = await API_EXTRACAO.salva(15, '  ');
+  ok(res.ok, 'C. apagar o valor grava');
+  eq(posts.length && posts[0].body.custo, null, 'C. vazio viaja como null, nao como 0');
+}
+{
+  const { res, posts } = await API_EXTRACAO.salva(15, '0');
+  ok(!res.ok && res.erro, 'C. zero e recusado com mensagem');
+  eq(posts.length, 0, 'C. zero nao chega ao servidor');
+}
+// A régua do `parseNum`: o ponto sozinho só é milhar em grupos de 3.
+eq(API_EXTRACAO.num('1.200'), 1200, 'C. "1.200" e milhar');
+eq(API_EXTRACAO.num('179.90'), 179.9, 'C. "179.90" e decimal, nao 17.990');
+eq(API_EXTRACAO.num('1.200,50'), 1200.5, 'C. "1.200,50" e BR completo');
+eq(API_EXTRACAO.num('R$ 916'), 916, 'C. o R$ some');
 
 console.log('D. a tela nao promete mais que o dado mora no navegador');
 ok(!/permanentemente no navegador/.test(APP),

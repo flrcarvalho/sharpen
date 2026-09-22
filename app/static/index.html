@@ -719,8 +719,8 @@ html.embedded .sidebar { display: none; }
 .ctx-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* Faixa de KPIs da conta ativa (item 3) — mesma linguagem visual da ctxbar,
-   células separadas por divisor fino. Custo é um input editável (grava no
-   localStorage dash_custos_v2, compartilhado com o Betting Dashboard). */
+   células separadas por divisor fino. Custo é um input editável que grava o custo
+   PRÓPRIO da conta (`parceiros.custo`); o preço de tabela aparece só como placeholder. */
 .ctx-kpis { display: flex; align-items: stretch; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 6px; margin-bottom: 0; flex: none; }
 .ctx-kpi { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 14px; min-width: 0; }
 .ctx-kpi + .ctx-kpi::before { content: ""; position: absolute; left: 0; top: 22%; height: 56%; width: 1px; background: var(--line); }
@@ -732,6 +732,10 @@ html.embedded .sidebar { display: none; }
 .ctx-kpi-custo-wrap .money-sign { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); flex: none; }
 .ctx-kpi-custo-input { width: 82px; background: var(--field); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; color: var(--ink); font-family: var(--font-mono); font-size: 13px; font-weight: 700; outline: none; transition: border-color .12s; font-variant-numeric: tabular-nums; }
 .ctx-kpi-custo-input:focus { border-color: var(--accent); box-shadow: var(--glow); }
+/* s381: o placeholder é o preço de TABELA que a conta herda. Tom de placeholder da
+   Escada de Tinta (--ink-mute, 13px, acima do piso de 12px) e opacity:1 porque o
+   Chrome aplica opacidade própria ao placeholder e ela é multiplicador, não degrau. */
+.ctx-kpi-custo-input::placeholder { color: var(--ink-mute); opacity: 1; font-weight: 500; }
 .ctxbar .operador-bar { margin: 0; min-width: 190px; }
 .acct-row-actions { display: flex; align-items: center; gap: 8px; }
 .acct-quickacts { display: flex; align-items: center; gap: 6px; }
@@ -2762,7 +2766,7 @@ td.c-res.res-HL { color: var(--warn); }
       </div>
     </div>
     <!-- Tiles uniformes da conta ativa (P/L herói). Preenchido por atualizarResumoConta()
-         a cada carregarGrade(); custo lido do Dashboard (localStorage dash_custos_v2). -->
+         a cada carregarGrade(); custo = o da conta (cadastro), com a tabela como placeholder. -->
     <div class="ktiles" id="ctxKpis" style="display:none"></div>
   </div>
 
@@ -6965,12 +6969,11 @@ function _migrarCustoLegado(real) {
   } catch (e) {}
 }
 let _resumoToken = 0;
-// Custo por-conta agora vive no Postgres (/custos/conta, por dono); o localStorage
-// dash_custos_v2::<dono> virou cache. _lerCusto/_salvarCusto seguem lendo/gravando o
-// cache (síncrono, como antes); _syncCustoContaServidor puxa a verdade do servidor p/ o
-// cache no boot e _salvarCusto sobe a alteração. Mesma trava anti-semeadura-parcial do
-// CT/CG (ver [[custo_tipster_incidente_jonathan]]): navegador com custo legado + servidor
-// vazio NÃO semeia sozinho — só a página de importação sobe (do navegador certo).
+// Preço de TABELA (fornecedor||casa) vive no Postgres (/custos/conta, por dono); o
+// localStorage dash_custos_v2::<dono> é cache dele. Esta página só LÊ a tabela
+// (`_lerCusto`, placeholder do card): desde a s381 ela não a escreve mais, e o custo que
+// se digita aqui é o da conta (`_salvarCustoDaConta`). _syncCustoContaServidor puxa a
+// verdade do servidor p/ o cache no boot.
 let _custoContaServerBacked = false, _custoContaHadLegacy = false;
 async function _syncCustoContaServidor() {
   try { _custoContaHadLegacy = Object.keys(JSON.parse(localStorage.getItem(_custoKey()) || '{}')).length > 0; }
@@ -6992,20 +6995,42 @@ function _lerCusto(forn, casa) {
   try { const o = JSON.parse(localStorage.getItem(_custoKey()) || '{}'); return o[forn + '||' + casa] || 0; }
   catch (e) { return 0; }
 }
-function _salvarCusto(forn, casa, val) {
+// ── Custo DESTA conta (s381) ─────────────────────────────────────────────────
+// O card da conta ativa grava o custo PRÓPRIO dela (`parceiros.custo`, s348) e NUNCA o
+// preço de tabela. Até a s381 ele escrevia em `custo_conta[fornecedor||casa]` com o
+// rótulo "Custo · <fornecedor>": o Feca corrigiu UMA conta do Richard para R$ 916 e o
+// valor virou a tabela das 25 contas Richard na Superbet, sem aviso. A tabela só muda
+// na tela de Custos do Dashboard. Campo vazio = a conta volta a usar a tabela (null,
+// que é diferente de zero: zero seria conta de graça).
+//
+// Parser: a MESMA régua do `parseNum` (dash/assets/js/app.js), que esta página não
+// carrega. Com vírgula, o ponto é milhar; sem vírgula, só pontos em grupos de 3 são
+// milhar ("1.200"), e um ponto com outra contagem é decimal ("179.90" ≠ 17.990).
+function _custoDigitado(v) {
+  let s = String(v == null ? '' : v).replace(/[−‒–—―]/g, '-').replace(/[^\d.,\-]/g, '').trim();
+  if (!s) return null;
+  const neg = s.startsWith('-');
+  s = s.replace(/-/g, '');
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : (neg ? -n : n);
+}
+async function _salvarCustoDaConta(id, bruto) {
+  const custo = _custoDigitado(bruto);
+  if (custo !== null && !(custo > 0))
+    return { ok: false, erro: 'O custo tem de ser maior que zero. Deixe vazio para usar a tabela.' };
   try {
-    const o = JSON.parse(localStorage.getItem(_custoKey()) || '{}');
-    const n = parseFloat((val || '').toString().replace(/\./g, '').replace(',', '.'));
-    if (!isNaN(n) && n > 0) o[forn + '||' + casa] = n; else delete o[forn + '||' + casa];
-    localStorage.setItem(_custoKey(), JSON.stringify(o));
-    // SOBE SEMPRE. A trava que morava aqui não subia no caso "servidor vazio + legado no
-    // navegador", e ali o valor digitado ficava só na máquina, sem erro e sem aviso — o
-    // que a regra do `CLAUDE.md` proíbe. O risco que ela cobria (a máquina com menos
-    // chaves virar a verdade) passou para o servidor, como UNIÃO na semeadura.
-    const semear = !_custoContaServerBacked;
-    _custoContaServerBacked = true;
-    fetch('/custos/conta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ custo_conta: o, semear }) }).catch(() => {});
-  } catch (e) {}
+    const r = await fetch('/parceiros/' + id + '/custo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custo }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      return { ok: false, erro: d.detail || 'Não consegui gravar o custo desta conta.' };
+    }
+  } catch (e) { return { ok: false, erro: 'Falha de rede ao gravar o custo desta conta.' }; }
+  return { ok: true, custo };
 }
 // Faixa de KPIs no padrão de marca (UI_REFERENCE §5). Dinheiro SEM abreviação,
 // via componente .money (R$ menor/neutro, cor só no número). Casas por contexto:
@@ -7038,25 +7063,44 @@ async function atualizarResumoConta() {
   }
 }
 
-function _renderCtxKpis(d, casa, parceiro) {
+let _ctxUltimo = null;   // {d, casa, parceiro}: re-pinta o card depois de gravar o custo
+function _renderCtxKpis(d, casa, parceiro, erroCusto) {
   const bar = document.getElementById('ctxKpis');
   if (!bar) return;
+  _ctxUltimo = { d, casa, parceiro };
   const m = (parceiro || '').match(/\[(.+?)\]\s*$/);
   const forn = m ? m[1].trim() : '';
-  const custo = _lerCusto(forn, casa);
+  // Duas fontes, e o card diz qual está valendo: o custo PRÓPRIO da conta (cadastro) e
+  // o preço de TABELA do fornecedor naquela casa (conta sem fornecedor é "Eu", a mesma
+  // chave do `normForn` do Dashboard). A tabela só aparece como placeholder: é o que a
+  // conta herda, e nada aqui a edita.
+  const conta = (parceiroSelecionado && parceiroSelecionado.casa === casa
+                 && parceiroSelecionado.nome === parceiro) ? parceiroSelecionado : null;
+  const proprio = conta && Number(conta.custo) > 0 ? Number(conta.custo) : 0;
+  const tabela = _lerCusto(forn || 'Eu', casa);
   const roiCls = d.roi > 0 ? 'pos' : (d.roi < 0 ? 'neg' : '');
   // tile uniforme; herói (P/L) destaca só por acento. P/L usa fmtPL (cor no próprio
   // componente .money — não passar cls); demais valores são neutros salvo ROI.
   const tile = (lbl, val, cls, hero) =>
     `<div class="tile${hero ? ' hero' : ''}"><span class="lab">${lbl}</span><span class="val ${cls || ''}">${val}</span></div>`;
-  const custoStr = custo ? custo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
-  const custoTile = forn
-    ? `<div class="tile"><span class="lab">Custo · ${esc(forn)}</span>`
+  const dec2 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Rótulo curto de propósito: "Custo · tabela Norte" quebrava em duas linhas e
+  // desalinhava o card dos vizinhos (medido no demo). O fornecedor mora no title.
+  const origem = proprio ? 'próprio' : 'tabela';
+  const dica = proprio
+    ? `Custo próprio desta conta. A tabela${forn ? ' do ' + forn : ''} nesta casa`
+      + (tabela ? ` é R$ ${dec2(tabela)}` : ' não tem preço') + ' e não muda. Apague o valor para a conta voltar a usar a tabela.'
+    : (tabela
+      ? `Esta conta usa a tabela${forn ? ' do ' + forn : ''} nesta casa (R$ ${dec2(tabela)}). Digite um valor para dar a ESTA conta um custo próprio; a tabela não muda.`
+      : `Sem preço de tabela nesta casa. Digite o custo desta conta; a tabela se edita na tela de Custos do Dashboard.`);
+  const custoTile = conta
+    ? `<div class="tile"><span class="lab"${erroCusto ? ' style="color:var(--neg)"' : ''}>`
+      + (erroCusto ? 'Custo · erro' : 'Custo · ' + origem) + `</span>`
       + `<span class="val custo-wrap"><span class="money-sign">R$</span>`
       + `<input class="ctx-kpi-custo-input" id="ctxCustoInput" type="text" spellcheck="false" autocomplete="off"`
-      + ` value="${custoStr}" placeholder="0,00"`
-      + ` data-forn="${esc(forn)}" data-casa="${esc(casa)}"`
-      + ` title="Custo de aquisição da conta (compartilhado com o Dashboard). Edite se diferir do padrão."></span></div>`
+      + ` value="${proprio ? dec2(proprio) : ''}" placeholder="${tabela ? dec2(tabela) : '0,00'}"`
+      + ` data-id="${conta.id}" data-antes="${proprio ? dec2(proprio) : ''}"`
+      + ` title="${esc(erroCusto || dica)}"></span></div>`
     : `<div class="tile"><span class="lab">Custo</span><span class="val" style="color:var(--ink-mute)">—</span></div>`;
   // 2 andares de 4: P/L | Turnover | Apostas | Win Rate  /  ROI | Duração | Dias Ativos | Custo
   bar.innerHTML =
@@ -7070,7 +7114,16 @@ function _renderCtxKpis(d, casa, parceiro) {
     + custoTile;
   const inp = document.getElementById('ctxCustoInput');
   if (inp) {
-    inp.addEventListener('blur', () => _salvarCusto(inp.dataset.forn, inp.dataset.casa, inp.value));
+    inp.addEventListener('blur', async () => {
+      if (inp.value.trim() === inp.dataset.antes) return;   // nada mudou: nada a gravar
+      const res = await _salvarCustoDaConta(inp.dataset.id, inp.value);
+      if (conta && res.ok) conta.custo = res.custo;
+      const u = _ctxUltimo;
+      if (!u || u.casa !== casa || u.parceiro !== parceiro) return;   // trocou de conta no meio
+      // O erro aparece NO card onde se digitou, não na barra de status (CLAUDE.md).
+      if (!res.ok) { _renderCtxKpis(u.d, u.casa, u.parceiro, res.erro); return; }
+      _renderCtxKpis(u.d, u.casa, u.parceiro);
+    });
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   }
 }
