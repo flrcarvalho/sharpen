@@ -1,0 +1,14 @@
+import puppeteer from "puppeteer-core";
+const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+const DIR = process.argv[2].split("\\").join("/");
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new" });
+const page = await browser.newPage();
+await page.setViewport({ width: 1560, height: 2400, deviceScaleFactor: 2 });
+await page.goto("file:///" + DIR + "/folder.html", { waitUntil: "networkidle2" });
+await new Promise(r => setTimeout(r, 2500));
+const alt = Math.ceil(await page.evaluate(() => document.body.scrollHeight));
+await page.setViewport({ width: 1560, height: alt, deviceScaleFactor: 2 });
+await new Promise(r => setTimeout(r, 900));
+await page.screenshot({ path: DIR + "/folder-contas.png", fullPage: true });
+console.log("folder: 1560x" + alt + "  (PNG em 2x = 3120x" + alt * 2 + ")");
+await browser.close();

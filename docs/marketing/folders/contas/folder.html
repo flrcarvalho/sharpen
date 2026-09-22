@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>Contas — folder</title>
+<link rel="stylesheet" href="http://127.0.0.1:8655/static/fonts.css">
+<style>
+  :root{
+    --bg:#0A0D12; --surface:#12161D; --surface-2:#161B22;
+    --line:#232A35; --line-2:#1C222B;
+    --ink:#E6EDF3; --ink-soft:#9AA6B2; --ink-mute:#5E6775;
+    --accent:#2F81F7; --accent-rgb:47,129,247;
+    --pos:#3FB950; --warn:#D29922;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --sans:'Manrope',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    width:1560px; padding:56px 54px 44px;
+    /* grade sutil, a mesma textura de fundo do app */
+    background-image:
+      linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px);
+    background-size:64px 64px;
+  }
+
+  /* ── Cabecalho ─────────────────────────────────────────────── */
+  .topo{display:flex;align-items:flex-end;gap:22px;margin-bottom:8px}
+  .marca{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .marca i{color:var(--accent);font-style:normal}
+  .selo{
+    font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bg);background:var(--accent);
+    padding:5px 10px;border-radius:5px;margin-bottom:2px;
+  }
+  h1{font-size:46px;font-weight:800;letter-spacing:-.03em;line-height:1.05;margin:20px 0 10px}
+  .chamada{
+    font-size:17px;color:var(--ink-soft);line-height:1.6;max-width:1020px;
+    margin-bottom:34px;
+  }
+  .chamada b{color:var(--ink);font-weight:700}
+
+  /* ── Bloco de secao ────────────────────────────────────────── */
+  .sec{margin-bottom:34px}
+  .sec__t{
+    display:flex;align-items:center;gap:10px;margin-bottom:13px;
+  }
+  .pipe{width:4px;height:15px;background:var(--accent);border-radius:2px;flex:none}
+  .sec__t b{
+    font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-soft);
+  }
+  .sec__t span{font-size:14px;color:var(--ink-mute);margin-left:4px}
+
+  .shot{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+  .shot img{display:block;width:100%}
+  /* Chamada numerada: circulo de acento com tinta ESCURA (contraste 5,8:1;
+     branco sobre o acento daria 3,36:1 e reprovaria). */
+  .bolha{
+    position:absolute;width:32px;height:32px;border-radius:50%;
+    background:var(--accent);color:var(--bg);
+    font-family:var(--mono);font-size:15px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 4px rgba(10,13,18,.92), 0 3px 14px rgba(0,0,0,.5);
+    transform:translate(-50%,-50%);
+  }
+  .bolha.warn{background:var(--warn)}
+
+  /* ── Legendas ──────────────────────────────────────────────── */
+  .legs{display:grid;gap:12px;margin-top:16px}
+  .legs.tres{grid-template-columns:repeat(3,1fr)}
+  .legs.duas{grid-template-columns:repeat(2,1fr)}
+  .leg{
+    display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start;
+    background:var(--surface-2);border:1px solid var(--line-2);
+    border-radius:10px;padding:14px 16px;
+  }
+  .leg .n{
+    width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--bg);
+    font-family:var(--mono);font-size:13px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;margin-top:1px;
+  }
+  .leg .n.warn{background:var(--warn)}
+  .leg h3{font-size:15px;font-weight:700;margin-bottom:4px;letter-spacing:-.01em}
+  .leg p{font-size:13.5px;color:var(--ink-soft);line-height:1.62}
+  .leg p b{color:var(--ink);font-weight:600}
+
+  /* ── Rodape ────────────────────────────────────────────────── */
+  .pe{
+    margin-top:38px;padding-top:20px;border-top:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+  }
+  .pe p{font-size:13.5px;color:var(--ink-soft);line-height:1.6;max-width:1050px}
+  .pe p b{color:var(--ink);font-weight:600}
+  .pe .end{
+    font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ink-mute);
+    white-space:nowrap;
+  }
+  .aviso{
+    margin-top:14px;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+    color:var(--ink-mute);
+  }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <span class="marca">Sharp<i>en</i>.</span>
+  <span class="selo">novo no painel</span>
+</div>
+
+<h1>Contas</h1>
+<p class="chamada">
+  Quanto tempo as suas contas duram em cada casa, quanto cada uma gira, e se o que você
+  pagou por elas voltou. <b>Aqui a unidade é a conta, não a aposta:</b> Bookies mede o
+  resultado de uma casa; esta tela mede a vida de cada conta dentro dela.
+</p>
+
+<!-- ── 1. O bloco Geral ─────────────────────────────────────── -->
+<div class="sec">
+  <div class="sec__t"><span class="pipe"></span><b>Geral</b>
+    <span>a sua base inteira, em três perguntas</span></div>
+  <div class="shot">
+    <img src="recorte-geral.png" alt="">
+    <div class="bolha" style="left:1.2%;top:21.6%">1</div>
+    <div class="bolha" style="left:34.0%;top:21.6%">2</div>
+    <div class="bolha" style="left:66.8%;top:21.6%">3</div>
+  </div>
+  <div class="legs tres">
+    <div class="leg"><span class="n">1</span><div>
+      <h3>Quanto uma conta aguenta</h3>
+      <p>A mediana, a média e a faixa onde as suas contas morrem.
+      <b>Metade durou menos de 10 dias</b>, e 43% não passou da primeira semana.</p></div></div>
+    <div class="leg"><span class="n">2</span><div>
+      <h3>Quanto cada uma gira</h3>
+      <p>ROI líquido e bruto lado a lado. <b>A diferença entre os dois é o quanto a
+      aquisição come da margem.</b></p></div></div>
+    <div class="leg"><span class="n">3</span><div>
+      <h3>Se o custo voltou</h3>
+      <p>Cada R$ 1 gasto em conta voltou <b>4,65 reais</b>. Abaixo de 1,00× a conta não
+      devolveu o que custou.</p></div></div>
+  </div>
+</div>
+
+<!-- ── 2. Por casa ──────────────────────────────────────────── -->
+<div class="sec">
+  <div class="sec__t"><span class="pipe"></span><b>Por casa</b>
+    <span>porque a limitação de uma não diz nada sobre a outra</span></div>
+  <div class="shot">
+    <img src="recorte-lista.png" alt="">
+    <div class="bolha" style="left:1.2%;top:22.7%">4</div>
+  </div>
+  <div class="legs duas">
+    <div class="leg"><span class="n">4</span><div>
+      <h3>A barra compara duas réguas ao mesmo tempo</h3>
+      <p>A parte sólida é a <b>mediana</b>; o tracinho é a <b>média</b>, as duas na mesma
+      escala de 0 a 30 dias. Sólida curta com o tracinho longe significa
+      <b>casa que depende de exceções</b>: a conta típica encerra cedo e o resultado vem
+      de poucas sobreviventes.</p></div></div>
+    <div class="leg"><span class="n">4</span><div>
+      <h3>Ordenável por qualquer coluna</h3>
+      <p>Contas, duração, turnover, custo por dia de vida e múltiplo. <b>Clique na casa</b>
+      para abrir as contas dela.</p></div></div>
+  </div>
+</div>
+
+<!-- ── 3. Dentro de uma casa ────────────────────────────────── -->
+<div class="sec">
+  <div class="sec__t"><span class="pipe"></span><b>Dentro de uma casa</b>
+    <span>os mesmos números, só dela, mais a lista completa</span></div>
+  <div class="shot">
+    <img src="recorte-casa.png" alt="">
+    <div class="bolha" style="left:74.2%;top:10.2%">5</div>
+    <div class="bolha" style="left:1.1%;top:55.0%">6</div>
+  </div>
+  <div class="legs duas">
+    <div class="leg"><span class="n">5</span><div>
+      <h3>Últimas 10 contas: o que está acontecendo agora</h3>
+      <p><b>O histórico não representa o momento.</b> Este quadro põe as suas 10 contas
+      mais recentes contra a média histórica da casa. Aqui elas estão durando
+      <b>4 dias contra 6</b>: a casa está limitando mais rápido do que costumava.</p></div></div>
+    <div class="leg"><span class="n">6</span><div>
+      <h3>Todas as contas, as ativas primeiro</h3>
+      <p>Depois delas vêm as inativas, <b>da última que foi limitada para a primeira</b>.
+      Duração, dias ativos, apostas, turnover, P/L bruto, custo, P/L líquido e ROI
+      líquido, conta por conta.</p></div></div>
+  </div>
+</div>
+
+<div class="pe">
+  <p>
+    <b>Duração e dias ativos não são cortados pelo filtro de período</b>, porque a vida de
+    uma conta não cabe dentro de um mês; turnover, P/L e custo seguem o período que você
+    escolher. <b>Conta própria entra com custo zero</b>, que é verdade, e
+    <b>conta sem preço lançado fica fora do retorno</b>, porque tratá-la como zero
+    inflaria o resultado.
+  </p>
+  <span class="end">sharpen.bet &nbsp;·&nbsp; Gestão &gt; Contas</span>
+</div>
+<p class="aviso">Nomes de conta e de fornecedor são fictícios.</p>
+
+</body>
+</html>
