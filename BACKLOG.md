@@ -242,20 +242,12 @@ vigente na data de cada uma**, então a série em `u` é **normalizada por era**
 em R$ não é (uma stake de R$ 50 vale 2u numa época e 0,5u em outra). Drawdown e Monte
 Carlo medem RISCO; para isso a série em unidades é a entrada mais honesta das duas.
 
-### 1.22 A tabela Superbet do Richard está em R$ 916 por engano, e 25 contas herdam (s381). **VIVA, esperando o Feca**
+### 1.22 Custo de RENOVAÇÃO por conta (s381). **VIVA, decidido com o Feca, a construir**
 
-O card de custo da Extração gravava no preço de TABELA (`custo_conta["Richard||Superbet"]`),
-e uma correção feita em UMA conta virou o preço das 25. O código foi consertado na s381 (o
-card grava `parceiros.custo`); **o dado não**. O banco não guarda o valor anterior (nenhuma
-linha em `fornecedor_preco` do Richard), então o reparo depende de duas respostas do Feca:
-**qual era a tabela** e **qual conta custou os 916**. Com elas: a tabela volta pela tela de
-Custos e a conta recebe `parceiros.custo = 916`. Conferir depois o total de custo da tela
-de Custos antes e depois (só as 24 outras contas devem mudar).
-
-**Próximo da mesma frente, já decidido com ele (s381): custo de RENOVAÇÃO por conta.**
-Lista de (valor, data do pagamento), porque renovação é dinheiro que sai noutro dia e cobra
-no mês em que saiu, como a compra. Soma nas **Contas em operação** (decisão dele). **Sem prazo
-nem aviso de vencimento**: *"cada fornecedor trabalha de uma forma"*, o usuário controla.
+Lista de (valor, data do pagamento) por conta, no mesmo card de custo da Extração, porque
+renovação é dinheiro que sai noutro dia e cobra no mês em que saiu, como a compra. Soma nas
+**Contas em operação** (decisão dele). **Sem prazo nem aviso de vencimento**: *"cada
+fornecedor trabalha de uma forma"*, o usuário controla.
 
 ### 1.21 Aba Contas v4 no ar, esperando o Feca testar antes do aviso (s372). **VIVA, decisão do Feca**
 
