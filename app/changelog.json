@@ -17,6 +17,18 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-renovacao-e-custo-por-conta",
+      "data": "2026-09-22",
+      "tag": "Sharpen",
+      "titulo": "Renovação e custo por conta",
+      "texto": "Novidades no Sharpen:",
+      "itens": [
+        "Agora dá para lançar a **renovação** de uma conta. Na Extração, no card Custo, clique no ícone ao lado do valor e informe quanto pagou e quando. Cada renovação entra no custo do mês em que foi paga.",
+        "O custo digitado nesse card vale **só para aquela conta**, sem mudar a tabela do fornecedor.",
+        "As **contas arquivadas** agora também abrem na Extração pelo painel de Contas."
+      ]
+    },
+    {
       "id": "sharpen-chegou-a-tela-de-contas",
       "data": "2026-09-22",
       "tag": "Sharpen",
