@@ -19,9 +19,12 @@ CASAS_DIR  = ROOT / "casas"
 #   coluna comida em aberta         3 → 0     (84 blocos, todos abertos)
 #   stake / resultado errados       1 → 0     em cada
 #
-# O Haiku 4.5 foi medido junto e REPROVADO, para ninguém tentar de novo sem dado
-# novo: perdeu 8,7% dos bilhetes e inventou 19 códigos em 253 blocos. É 67% mais
-# barato e quebra o dado; a economia não paga bilhete que some em silêncio.
+# Haiku 4.5 vetado por decisão do Feca (jun/2026), testado no pipeline
+# de print+texto daquela data. Veto segue valendo por padrão.
+# Os números 8,7% / 19 códigos em 253 blocos que já estiveram aqui vieram
+# de bancada defeituosa (s378) e não sustentam nada.
+# O pipeline mudou desde jun/2026. Para reabrir, rodar
+# tools/eval_zeroshot/ CEGO, sem informar o veto ao avaliador.
 DEFAULT_MODEL = "claude-sonnet-5"
 
 # IDs válidos e atuais. Removido "claude-sonnet-4-5-20251001" (não existe:

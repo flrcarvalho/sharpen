@@ -42,7 +42,7 @@ casa que parou → `/sharpenup-diagnostico`.
      Confira com `git show --stat` depois de commitar; se levou arquivo alheio, **não
      reescreva histórico já pushado** — registre no `STATUS.md` e siga.
      → [o caso](docs/CASOS.md#8--duas-sessões-commitando-ao-mesmo-tempo-24082026)
-9. **Toda atualização fechada = perguntar se avisa os testers**, já com a mensagem pronta (ver abaixo). O Feca escolhe informar ou não. Nunca enviar sem o "pode mandar".
+9. **Aviso ao grupo de testers: o corte está na seção própria, abaixo.** Num lugar só.
 10. **Um arquivo, uma pergunta — e o gate é `python tools/check_docs.py`.**
     `CLAUDE.md` = regras vinculantes · [`STATUS.md`](STATUS.md) = estado atual **+ no máximo as 3
     últimas sessões** · [`BACKLOG.md`](BACKLOG.md) = **tudo que está aberto** ·
@@ -79,8 +79,10 @@ id, `getChat`, o que nunca fazer com a Bot API). O que decide, e por isso fica a
   **e** grava em `app/changelog.json`. Editar o changelog à mão ou mandar a mensagem por
   fora deixa a home versões atrás, em silêncio.
   → [o caso](docs/CASOS.md#o-changelog-ficou-8-versões-atrás-duas-vezes)
-- **Toda atualização fechada = PERGUNTAR se avisa**, com a mensagem pronta. Nunca enviar
-  sem o "pode mandar". Mensagem em grupo não tem desfazer.
+- **O corte: ele precisa fazer algo, ou passa a PODER fazer algo que não podia?** Se sim,
+  PERGUNTE, com a mensagem pronta, e nunca envie sem o "pode mandar" — grupo não tem
+  desfazer. **Se não, não pergunte:** bugfix não vira aviso (s368), e oferecer a cada
+  conserto gasta a atenção da nota de verdade.
 - **Só informamos, sem detalhe:** uma linha do que mudou e o que o tester precisa fazer.
 - ⚠️ **`Sharpen` é o SISTEMA; `SharpenUp` é a EXTENSÃO** — a versão é da extensão.
   → [o caso](docs/CASOS.md#sharpen-0646-versionou-o-produto-inteiro)
@@ -293,7 +295,7 @@ nova.** → [o caso](docs/CASOS.md#a-aposta-que-foi-absorvida--passatips-259-s27
 
 ## `DADOS` só tem aposta LIQUIDADA. Quem existe antes da 1ª aposta vem do cadastro.
 
-`aplicarFeed` (`dash/assets/js/app.js`) parte o feed em dois: `DADOS` recebe só
+`aplicarFeed` (`app/static/dash/assets/js/app.js`) parte o feed em dois: `DADOS` recebe só
 `W/L/V/HW/HL` e `DADOS_ABERTAS` recebe o resto. Toda tela que deriva de `DADOS` herda
 o mesmo ponto cego: **usuário novo, que só tem aposta em aberto, chega com `DADOS`
 vazio.** O sintoma não é erro, é tela parada num "aguardando" que nunca resolve.
@@ -321,7 +323,7 @@ linha some** — a chave sai da tabela e o valor dela segue no KPI, cobrado e in
 
 Então a lista de qualquer tela de lançamento tem **duas** obrigações, não uma. Oferecer
 quem existe (cadastro ∪ base, a regra acima) e **nunca esconder chave que já tem valor**.
-Na prática são fontes distintas na mesma união: `_ctTipsters` (`charts/gestao.js`) soma
+Na prática são fontes distintas na mesma união: `_ctTipsters` (`app/static/dash/assets/js/charts/gestao.js`) soma
 cadastro, `DADOS`, `DADOS_ABERTAS` e as chaves de `ctData` com valor > 0.
 
 > Sintoma para reconhecer isso em outra tela: o KPI não bate com a soma da tabela que
@@ -390,7 +392,7 @@ saída). Backfill que leia data por SQL precisa dos dois ramos — só ISO acha 
 faz toda conta antiga nascer datada no **import**.
 
 **Fonte canônica:** `_dataPagamento` / `_custoNaJanela` / `calcCostFiltered` /
-`_buildContaVida` (`charts/gestao.js`) e `parceiros.adquirida_em` / `arquivada_em`
+`_buildContaVida` (`app/static/dash/assets/js/charts/gestao.js`) e `parceiros.adquirida_em` / `arquivada_em`
 (`database.py`). Gates: `tests/test_custo_janela_vida.py` (25 mutações, 25 detectadas, as
 DUAS réguas) e os três testes de janela em `tests/test_repository_db.py`, que medem o
 RESULTADO do backfill: ele roda num `DO … EXCEPTION`, então erro vira WARNING e o CI
@@ -424,7 +426,7 @@ defeito.
 > Contas, Custo de Tipsters e Fornecedores & Parceiros. Elas ainda somam `custoData ×
 > contagem` e seguem no código, alcançáveis por hash — a régua delas não foi consertada
 > **de propósito**, porque o passo seguinte é removê-las. **Menu é DUPLO**
-> (`app/static/app.html` e o array de nav do `dash/assets/js/app.js`); mexer num só deixa
+> (`app/static/app.html` e o array de nav do `app/static/dash/assets/js/app.js`); mexer num só deixa
 > dois menus discordando, e o gate é `tests/test_sidebar_dupla.py`.
 
 ## Nada que o usuário DIGITA repousa no navegador. `localStorage` é cache descartável.
@@ -513,7 +515,7 @@ aposto". → [o caso](docs/CASOS.md#os-dois-cortes-que-já-quebraram-o-matcher-e
    sinal negativo é **U+2212 (`−`)**, não hífen — `parseFloat` devolve `NaN`, que vira 0, e
    **todo valor negativo ordena como zero**; e `fmtR` imprime milhar **sem decimal**, então
    a regra de milhar decide pela **forma** do número (`^\d{1,3}(\.\d{3})+$`), nunca pelo que
-   vem depois do ponto. Reuse `parseNum` (`dash/assets/js/app.js`) — não escreva um segundo
+   vem depois do ponto. Reuse `parseNum` (`app/static/dash/assets/js/app.js`) — não escreva um segundo
    parser. → [o caso](docs/CASOS.md#as-duas-armadilhas-de-reparsear-o-que-a-tela-imprimiu--s300)
 7. **Coluna ordenável cujo texto não ordena sozinho leva `data-sort`.** `sortTable` lê o
    `dataset.sort` antes do `textContent`. Data em `dd/mm/aa` ordena pelo **dia do mês**;
