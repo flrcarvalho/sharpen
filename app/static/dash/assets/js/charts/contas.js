@@ -751,9 +751,15 @@ function _cnPaineis(B,contas,casa){
   // própria ocupando uma das cinco linhas.
   const rank=(casa
     ? contas.slice().sort((a,b)=>b.turn-a.turn).slice(0,5).map(c=>{
-        const roiC=c.turn>0&&_cnTemPreco(c)?((c.pl-c.custo)/c.turn*100):null;
+        // Conta sem preço fica FORA do ROI (ausência não é zero) e a linha DIZ isso
+        // (s381). O "·" mudo leu como "não puxou o P/L" para o tester Gabriel, em duas
+        // contas arquivadas cujo P/L estava certo e só faltava o custo.
+        const semPreco=!_cnTemPreco(c);
+        const roiC=c.turn>0&&!semPreco?((c.pl-c.custo)/c.turn*100):null;
         return`<div class="cn-mrow"><span class="nm">${esc(c.conta)}</span>`
-          +`<span class="vv"><b>${fmtR(c.turn)}</b> · ${_cnPctTxt(roiC)}</span></div>`;
+          +`<span class="vv vv--conta"><b>${fmtR(c.turn)}</b> · ${semPreco
+            ?'<span class="cn-sem cn-warnc" title="Sem custo lançado: a conta fica fora do ROI até ter preço. Lance o custo no card Custo da conta, na Extração.">sem preço</span>'
+            :_cnPctTxt(roiC)}</span></div>`;
       })
     : linhas.filter(c=>c.comPreco>0).sort((a,b)=>b.comPreco-a.comPreco).slice(0,5).map(c=>
         `<div class="cn-mrow"><span class="nm">${mkHouseChip(c.casa)}${esc(c.casa)}</span>`
@@ -769,7 +775,14 @@ function _cnPaineis(B,contas,casa){
     `<div class="cn-mini">${rank}</div>`,
     `Cada conta movimentou ${fmtR(G.turnConta)} em ${Math.round(G.diasMedia)} dias ativos, `
     +`em média. <b>O líquido é o que sobra depois do custo da conta</b>; a diferença para o `
-    +`bruto é o quanto a aquisição come da margem.`);
+    +`bruto é o quanto a aquisição come da margem.`
+    // Os DOIS ROIs acima saem só das contas com preço (`turnEleg`/`plEleg`). Sem este
+    // aviso, uma conta lucrativa sem custo lançado some do número sem explicação (s381).
+    +(G.nSemPreco
+      ?(G.nSemPreco===1
+        ?` A <span class="cn-warnc">conta sem preço</span> fica fora dos dois ROIs.`
+        :` As <span class="cn-warnc">${G.nSemPreco} sem preço</span> ficam fora dos dois ROIs.`)
+      :''));
 
   // ── 3 · RETORNO SOBRE AQUISIÇÃO ──
   const nEleg=G.nComPreco+G.nProprias;

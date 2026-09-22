@@ -3051,6 +3051,14 @@ select.ap-inline-inp { padding: 2px 4px; }
                              font-variant-numeric: tabular-nums; white-space: nowrap;
                              display: inline-flex; align-items: baseline; gap: 5px; }
 .cn-mrow .vv b             { color: var(--ink); font-weight: 600; }
+/* "sem preço" na linha (s381): o .cn-sem é 12px para ficar sozinho numa célula; aqui ele
+   divide a coluna com o turnover e herda o corpo dela, senão estoura a borda do painel. */
+.cn-mrow .vv .cn-sem       { font-size: inherit; }
+/* Linha de CONTA (dentro da casa): o texto ja traz " · " entre as partes e nao precisa do
+   flex. Com flex, o grid media a coluna curta e ESPREMIA o ultimo item: "sem preço" saia
+   6px alem da borda das porcentagens (medido). O ranking de CASAS segue no flex: ali o
+   espacamento vem do `gap`, sem espaco no markup. */
+.cn-mrow .vv.vv--conta     { display: inline-block; }
 
 /* Composição e cobertura do painel 3 */
 .cn-comp                   { display: flex; flex-direction: column; gap: 9px; }
