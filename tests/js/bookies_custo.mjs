@@ -58,7 +58,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_dataDoPreco',
-      '_custoDaConta', '_dataPagamento', '_custoNaJanela', 'calcCostFiltered']
+      '_custoDaConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // Máscaras REAIS: é delas que sai o texto que o teste lê. Dublá-las esconderia a
   // troca de `fmtPL` por `fmtR` num valor de P/L, que muda o sinal e as casas.

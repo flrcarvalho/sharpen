@@ -200,7 +200,10 @@ function _cnBase(){
         ini:v.ini, fim:v.fim, adq:v.adq, pa:v.pa,
         dur:dur, dias:m.dias.size, bets:m.bets,
         turn:m.turnPer, pl:m.plPer,
-        custo:(typeof _custoDaConta==='function')?_custoDaConta(forn,casa,nome):0,
+        // Compra + renovações pagas até o fim do recorte (s381): é o que a conta custou
+        // de fato. A mesma soma que o `_custoNaJanela('vivo')` faz para o estoque.
+        custo:((typeof _custoDaConta==='function')?_custoDaConta(forn,casa,nome):0)
+          +((typeof _renovacoesNaJanela==='function')?_renovacoesNaJanela(v,'0000-01-01',ate).total:0),
       });
     });
   });

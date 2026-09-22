@@ -40,7 +40,7 @@ const FONTE = [
   // REAIS do gestao.js (s362): o comeco de «Tudo» passou a sair do `_dataPagamento`
   // sobre o `_contaVida`, que sao os do KPI. Dubla-los aqui esconderia justamente a
   // camada que faz a 1a APOSTA abrir o periodo quando o cadastro chegou depois dela.
-  ...['normForn', '_buildContaVida', '_dataPagamento'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
+  ...['normForn', '_buildContaVida', '_dataPagamento', '_renovacoesNaJanela'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // `parseNum` REAL do app.js: é ele que o `_c2num` passou a chamar (s358, etapa 5b).
   // Dublar aqui esconderia justamente a régua de milhar que o caso 4 abaixo prova.
   recorteFn(APP, 'parseNum', 'app.js'),

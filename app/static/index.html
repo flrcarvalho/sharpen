@@ -736,6 +736,13 @@ html.embedded .sidebar { display: none; }
    Escada de Tinta (--ink-mute, 13px, acima do piso de 12px) e opacity:1 porque o
    Chrome aplica opacidade própria ao placeholder e ela é multiplicador, não degrau. */
 .ctx-kpi-custo-input::placeholder { color: var(--ink-mute); opacity: 1; font-weight: 500; }
+/* Renovações (s381): o botão é o .cxe-edit do extrato da Caixa (mesmo papel, mesmo
+   estilo). O contador é um SELO no canto do ícone, e não texto ao lado dele: com o
+   número em linha o botão estourava o card de 160px (medido em 1600). Fundo de acento
+   pede tinta ESCURA (`--bg` sobre `--accent` = 5,8:1, Escada de Tinta), 10px = piso
+   de metadado. */
+.ctx-renov-btn { margin-right: 0; flex: none; padding: 4px 6px; position: relative; }
+.ctx-renov-n { position: absolute; top: -7px; right: -7px; min-width: 15px; height: 15px; padding: 0 3px; box-sizing: border-box; border-radius: var(--r-pill); background: var(--accent); color: var(--bg); font-family: var(--font-mono); font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; font-variant-numeric: tabular-nums; }
 .ctxbar .operador-bar { margin: 0; min-width: 190px; }
 .acct-row-actions { display: flex; align-items: center; gap: 8px; }
 .acct-quickacts { display: flex; align-items: center; gap: 6px; }
@@ -3254,6 +3261,42 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="cxm-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="cxm-ok" type="button">Lançar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Renovações da conta (s381): o fornecedor vende X dias e, em vez de devolver, o dono
+     paga de novo. Cada renovação é valor + DATA do pagamento, porque é a data que decide
+     o mês em que ela entra no P/L. Mesmo modal e mesma tabela da Caixa: dois estilos para
+     o mesmo papel (lançar valor datado numa conta) é o item 8 do checklist de UI. -->
+<div class="modal-overlay" id="renov-modal">
+  <div class="modal modal-narrow">
+    <div class="modal-head cxm-head">
+      <span class="cxm-head-txt">
+        <span class="modal-title">Renovações da conta</span>
+        <span class="cxm-sub" id="rnm-sub"></span>
+      </span>
+      <button class="modal-close" id="rnm-close" type="button">✕</button>
+    </div>
+    <div class="modal-body cxm-body">
+      <div class="cxe-wrap" id="rnm-lista"></div>
+      <div class="modal-field">
+        <label>Pago em</label>
+        <div class="cxm-datewrap">
+          <input type="text" id="rnm-data" placeholder="dd/mm/aaaa" autocomplete="off" spellcheck="false">
+          <button type="button" id="rnm-data-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Valor (R$)</label>
+        <input type="text" id="rnm-valor" placeholder="0,00" autocomplete="off" spellcheck="false" inputmode="decimal">
+      </div>
+      <div class="cxm-hint">Cada renovação entra no P/L no mês em que foi <b>paga</b> e soma no valor das <b>contas em operação</b>. O custo da compra não muda.</div>
+      <div class="cxm-erro" id="rnm-erro" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="rnm-cancel" type="button">Fechar</button>
+      <button class="btn btn-primary btn-sm" id="rnm-ok" type="button">Lançar renovação</button>
     </div>
   </div>
 </div>
@@ -7100,7 +7143,8 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
       + `<input class="ctx-kpi-custo-input" id="ctxCustoInput" type="text" spellcheck="false" autocomplete="off"`
       + ` value="${proprio ? dec2(proprio) : ''}" placeholder="${tabela ? dec2(tabela) : '0,00'}"`
       + ` data-id="${conta.id}" data-antes="${proprio ? dec2(proprio) : ''}"`
-      + ` title="${esc(erroCusto || dica)}"></span></div>`
+      + ` title="${esc(erroCusto || dica)}">`
+      + _renovBotao(conta) + `</span></div>`
     : `<div class="tile"><span class="lab">Custo</span><span class="val" style="color:var(--ink-mute)">—</span></div>`;
   // 2 andares de 4: P/L | Turnover | Apostas | Win Rate  /  ROI | Duração | Dias Ativos | Custo
   bar.innerHTML =
@@ -7126,7 +7170,146 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
     });
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   }
+  const rb = document.getElementById('ctxRenovBtn');
+  if (rb) rb.addEventListener('click', renovAbrirModal);
 }
+
+// ── Renovações da conta ativa (s381) ─────────────────────────────────────────
+// Lista de {id, valor, data} em `parceiros.renovacoes`, que chega no mesmo objeto do
+// cadastro (`parceiroSelecionado`). Cada item cobra no mês da DATA dele, no Dashboard
+// (`_renovacoesNaJanela`, gestao.js). Aqui só se lança e se apaga: editar é apagar e
+// lançar de novo, e o valor da compra (o campo ao lado) não é tocado.
+function _renovLista(conta) {
+  const c = conta || parceiroSelecionado;
+  return (c && Array.isArray(c.renovacoes)) ? c.renovacoes : [];
+}
+// Botão-ícone no card de custo, o mesmo `.cxe-edit` do extrato da Caixa. O número ao
+// lado do ícone é a QUANTIDADE, e o total vai no title: o card não tem largura para
+// um segundo valor em R$ ao lado do campo (medido em 1280).
+function _renovBotao(conta) {
+  const l = _renovLista(conta);
+  const tot = l.reduce((a, r) => a + (Number(r.valor) || 0), 0);
+  const dec2 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tit = l.length
+    ? `${l.length} ${l.length === 1 ? 'renovação' : 'renovações'} · R$ ${dec2(tot)}. Clique para ver ou lançar.`
+    : 'Lançar uma renovação desta conta';
+  return `<button type="button" class="cxe-edit ctx-renov-btn" id="ctxRenovBtn" title="${esc(tit)}" aria-label="${esc(tit)}">`
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/></svg>'
+    + (l.length ? `<span class="ctx-renov-n">${l.length}</span>` : '') + '</button>';
+}
+let _renovApagando = null;   // id armado para apagar: o 1º clique arma, o 2º apaga
+function _renovRenderLista() {
+  const host = document.getElementById('rnm-lista');
+  if (!host) return;
+  const l = _renovLista().slice().sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  if (!l.length) {
+    host.innerHTML = '<table class="cxe-tbl"><tbody><tr><td class="cxe-obs">Nenhuma renovação lançada nesta conta.</td></tr></tbody></table>';
+    return;
+  }
+  const tot = l.reduce((a, r) => a + (Number(r.valor) || 0), 0);
+  host.innerHTML = '<table class="cxe-tbl"><thead><tr><th>Pago em</th><th class="r">Valor</th><th></th></tr></thead><tbody>'
+    + l.map(r => `<tr><td class="mono">${_cxDataBR4(r.data)}</td><td class="r mono">${fmtSaldo(r.valor)}</td>`
+      + `<td class="r cxe-acoes"><button type="button" class="cxe-del" data-rid="${esc(r.id)}"`
+      + ` title="${_renovApagando === r.id ? 'Clique de novo para apagar' : 'Apagar esta renovação'}">`
+      + (_renovApagando === r.id ? 'Apagar?' : '✕') + '</button></td></tr>').join('')
+    + `<tr><td class="cxe-obs">Total renovado</td><td class="r mono">${fmtSaldo(tot)}</td><td></td></tr>`
+    + '</tbody></table>';
+}
+function _renovErro(msg) {
+  const el = document.getElementById('rnm-erro');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.hidden = !msg;
+}
+// Depois de gravar: o card de custo muda o número do botão, e o Dashboard lê a lista
+// nova na próxima carga do cadastro.
+function _renovRepintarCard() {
+  const u = _ctxUltimo;
+  if (u && parceiroSelecionado && u.casa === parceiroSelecionado.casa && u.parceiro === parceiroSelecionado.nome)
+    _renderCtxKpis(u.d, u.casa, u.parceiro);
+}
+function renovAbrirModal() {
+  if (!parceiroSelecionado) return;
+  _renovApagando = null;
+  document.getElementById('rnm-sub').textContent = _cxConta();
+  document.getElementById('rnm-data').value = _cxDataBR4(hojeISO());
+  document.getElementById('rnm-valor').value = '';
+  _renovErro('');
+  _renovRenderLista();
+  const ov = document.getElementById('renov-modal');
+  ov.classList.add('open');
+  _modalBaseline(ov);
+  setTimeout(() => document.getElementById('rnm-valor').focus(), 30);
+}
+function renovFecharModal() {
+  document.getElementById('renov-modal').classList.remove('open');
+  _renovApagando = null;
+}
+async function renovLancar() {
+  const conta = parceiroSelecionado;
+  if (!conta) return;
+  const valor = _custoDigitado(document.getElementById('rnm-valor').value);
+  const data = _cxIso(document.getElementById('rnm-data').value);
+  if (!(valor > 0)) { _renovErro('Informe o valor pago na renovação, maior que zero.'); return; }
+  if (!data) { _renovErro('Informe a data do pagamento (dd/mm/aaaa).'); return; }
+  const btn = document.getElementById('rnm-ok');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/parceiros/' + conta.id + '/renovacoes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valor, data }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.renovacao) { _renovErro(d.detail || 'Não consegui gravar a renovação.'); return; }
+    conta.renovacoes = _renovLista(conta).concat([d.renovacao]);
+  } catch (e) { _renovErro('Falha de rede ao gravar a renovação.'); return; }
+  finally { btn.disabled = false; }
+  _renovErro('');
+  document.getElementById('rnm-valor').value = '';
+  _renovRenderLista();
+  _modalBaseline(document.getElementById('renov-modal'));   // gravado: o modal volta a estar limpo
+  _renovRepintarCard();
+}
+async function renovApagar(rid) {
+  const conta = parceiroSelecionado;
+  if (!conta) return;
+  if (_renovApagando !== rid) { _renovApagando = rid; _renovRenderLista(); return; }
+  _renovApagando = null;
+  try {
+    const r = await fetch('/parceiros/' + conta.id + '/renovacoes/' + encodeURIComponent(rid), { method: 'DELETE' });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      _renovErro(d.detail || 'Não consegui apagar a renovação.');
+      _renovRenderLista(); return;
+    }
+    conta.renovacoes = _renovLista(conta).filter(x => x.id !== rid);
+  } catch (e) { _renovErro('Falha de rede ao apagar a renovação.'); _renovRenderLista(); return; }
+  _renovErro('');
+  _renovRenderLista();
+  _renovRepintarCard();
+}
+(function () {
+  const ov = document.getElementById('renov-modal');
+  if (!ov) return;
+  document.getElementById('rnm-close').addEventListener('click', renovFecharModal);
+  document.getElementById('rnm-cancel').addEventListener('click', renovFecharModal);
+  document.getElementById('rnm-ok').addEventListener('click', renovLancar);
+  document.getElementById('rnm-valor').addEventListener('keydown', e => { if (e.key === 'Enter') renovLancar(); });
+  document.getElementById('rnm-lista').addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('.cxe-del');
+    if (b) renovApagar(b.dataset.rid);
+  });
+  // Modal preenchido não fecha por clique fora nem por Esc (só ✕/Fechar).
+  ov.addEventListener('click', e => { if (e.target === ov) _modalFecharSeLimpo(ov, renovFecharModal); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && ov.classList.contains('open')) _modalFecharSeLimpo(ov, renovFecharModal);
+  });
+  // Data pelo SharpenCal (UI_REFERENCE §4): nunca o popup nativo do Chrome.
+  const dt = document.getElementById('rnm-data');
+  const abrirCal = () => SharpenCal.abrir(dt, _cxIso(dt.value), v => { dt.value = _cxDataBR4(v); }, { saida: 'iso' });
+  document.getElementById('rnm-data-btn').addEventListener('click', abrirCal);
+  dt.addEventListener('dblclick', abrirCal);
+})();
 
 // ── Caixa Inteligente (s314): auditoria de saldo da conta ───────────────────
 // Dinheiro aqui é SALDO — 3ª variação documentada do .money (UI_REFERENCE §5.1):

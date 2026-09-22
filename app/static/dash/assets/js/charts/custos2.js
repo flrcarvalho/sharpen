@@ -81,7 +81,10 @@ function _c2primeiraData(){
   if (typeof _contaVida !== 'undefined'){
     if (!_contaVida && typeof _buildContaVida === 'function') _buildContaVida();
     Object.values(_contaVida || {}).forEach(contas =>
-      Object.values(contas).forEach(v => marca(_dataPagamento(v))));
+      Object.values(contas).forEach(v => {
+        marca(_dataPagamento(v));
+        (v.ren || []).forEach(x => marca(x.data));   // renovação também é custo datado (s381)
+      }));
   }
   Object.values((typeof ctData !== 'undefined' && ctData) || {})
     .forEach(m => Object.keys(m || {}).forEach(ym => marca(ym + '-01')));
@@ -158,9 +161,18 @@ function _c2contas(){
     const i = k.indexOf('||');
     const forn = k.slice(0, i), casa = k.slice(i + 2);
     Object.entries(contas).forEach(([conta, v]) => {
+      if (!_c2passa(sel, casa, forn, conta)) return;
+      // Renovações (s381): uma LINHA por pagamento, datada no dia dela e independente da
+      // compra — conta comprada em julho e renovada em setembro aparece em setembro só
+      // pela renovação. É a mesma soma do `_custoNaJanela('pago')`, e é isso que mantém
+      // o total desta tabela igual ao KPI.
+      (v.ren || []).forEach(x => {
+        if (x.data < r.de || x.data > r.ate) return;
+        out.push({ id: v.id || null, casa: casa, conta: conta, forn: forn, data: x.data,
+                   renovacao: true, proprio: 0, herdado: 0, degrau: null, custo: x.valor });
+      });
       const data = _dataPagamento(v);
       if (!data || data < r.de || data > r.ate) return;
-      if (!_c2passa(sel, casa, forn, conta)) return;
       // As TRÊS camadas viajam separadas para a tela poder dizer de onde o número
       // veio. O total sai de `_custoDaConta`, que é a mesma função do KPI, e o degrau
       // sai do `_dataDoPreco` que ELA usa — data da compra, não a do pagamento.
@@ -216,6 +228,15 @@ function _c2gerais(){
       noPeriodo: r.meses.reduce((a, m) => a + _c2num(vals[m]), 0)
     };
   });
+}
+
+// "N contas compradas · M renovações": a lista de contas tem uma LINHA por renovação
+// (s381), e contá-las como conta comprada fazia o card dizer "3 contas compradas" num
+// mês em que só houve renovação (medido no demo).
+function _c2rotuloContas(t){
+  const nRen = t.contas.filter(c => c.renovacao).length, n = t.contas.length - nRen;
+  return n + (n === 1 ? ' conta comprada' : ' contas compradas')
+    + (nRen ? ' · ' + nRen + (nRen === 1 ? ' renovação' : ' renovações') : '');
 }
 
 // Totais do recorte + o P/L bruto que a cascata compara.
@@ -627,7 +648,7 @@ function renderCustos2(){
         `${blocosFechados} de 3 blocos fechados`,
         t.tipsPrev > 0 ? ` · previsto ${fmtR(previsto)}` : '', true)}
     ${mkK('Contas', fmtR(t.tContas),
-        `${t.contas.length} ${t.contas.length === 1 ? 'conta comprada' : 'contas compradas'}`, pend(t.semCusto))}
+        _c2rotuloContas(t), pend(t.semCusto))}
     ${mkK('Tipsters', fmtR(t.tTips),
         `${t.tips.length - t.tipsPend} de ${t.tips.length} resolvidos`, pend(t.tipsPend))}
     ${mkK('Gerais', fmtR(t.tGer),
@@ -707,8 +728,8 @@ function renderCustos2(){
 // Origem do valor · Valor.
 function _c2viewContas(t, rotulo){
   if (!t.contas.length){
-    return _c2card('Contas compradas em ' + rotulo, 'custo \u00fanico, pago na compra',
-      _c2vazio('Nenhuma conta comprada neste recorte. O cadastro guarda a data de compra em <strong>Comprada em</strong>, no Painel de Contas.'))
+    return _c2card('Contas pagas em ' + rotulo, 'compra e renova\u00e7\u00f5es, no m\u00eas em que foram pagas',
+      _c2vazio('Nenhuma conta comprada ou renovada neste recorte. O cadastro guarda a data de compra em <strong>Comprada em</strong>, no Painel de Contas.'))
       + _c2viewPrecos();
   }
   const linhas = t.contas.map(c => {
@@ -717,7 +738,9 @@ function _c2viewContas(t, rotulo){
     // A origem é derivada da MESMA cadeia que define o custo (`_custoDaConta`), nunca
     // de um flag à parte: flag e valor divergem no primeiro caso de borda.
     let origem, extra = '';
-    if (c.proprio > 0){
+    if (c.renovacao){
+      origem = '<span class="c2-orig">renovação</span>';
+    } else if (c.proprio > 0){
       origem = '<span class="c2-orig c2-orig--edit">editado nesta conta</span>';
       if (c.herdado > 0) extra = `<span class="c2-dt">fornecedor ${fmtR(c.herdado)}</span>`;
     } else if (c.degrau){
@@ -736,13 +759,18 @@ function _c2viewContas(t, rotulo){
       <td class="th-l c2-dt">${_c2dataBR(c.data)}</td>
       <td class="th-l">${origem}${extra ? ' ' + extra : ''}</td>
       <td class="td-num">${temCusto ? fmtR(c.custo) : '<span class="c2-vazio-cel">\u2014</span>'}</td>
-      <td class="td-num">${c.id
+      <td class="td-num">${c.renovacao
+        ? '<span class="c2-vazio-cel" title="Renovação se lança e se apaga no card de custo da conta, na Extração">—</span>'
+        : c.id
         ? `<button class="c2-preco__btn${editando ? ' is-on' : ''}" onclick="c2ContaEditar(${c.id})">${editando ? 'Fechar' : 'Editar'}</button>`
         : '<span class="c2-vazio-cel" title="Conta que s\u00f3 existe em bilhete, sem cadastro">\u2014</span>'}</td>
     </tr>${editando ? `<tr><td colspan="7" class="c2-conta-edit">${_c2contaEditor(c)}</td></tr>` : ''}`;
   }).join('');
 
   const proprios = t.contas.filter(c => c.proprio > 0).length;
+  // Renovação é linha, não conta: contá-la como conta inflaria o "N contas no recorte".
+  const nRen = t.contas.filter(c => c.renovacao).length;
+  const nContas = t.contas.length - nRen;
   const corpo = `<div class="tbl-wrap"><table class="tbl c2-tbl">
       <thead><tr>
         <th class="th-l">Casa</th><th class="th-l">Conta</th><th class="th-l">Fornecedor</th>
@@ -752,10 +780,10 @@ function _c2viewContas(t, rotulo){
       <tbody>${linhas}</tbody>
     </table></div>
     <div class="c2-rodape">
-      <span class="c2-meta">${t.contas.length} ${t.contas.length === 1 ? 'conta' : 'contas'} no recorte${t.semCusto ? ' \u00b7 ' + t.semCusto + ' sem pre\u00e7o' : ''}${proprios ? ' \u00b7 ' + proprios + ' com custo pr\u00f3prio' : ''}</span>
+      <span class="c2-meta">${nContas} ${nContas === 1 ? 'conta' : 'contas'} no recorte${nRen ? ' \u00b7 ' + nRen + (nRen === 1 ? ' renova\u00e7\u00e3o' : ' renova\u00e7\u00f5es') : ''}${t.semCusto ? ' \u00b7 ' + t.semCusto + ' sem pre\u00e7o' : ''}${proprios ? ' \u00b7 ' + proprios + ' com custo pr\u00f3prio' : ''}</span>
       <span class="c2-total">${fmtR(t.tContas)}</span>
     </div>`;
-  return _c2card('Contas compradas em ' + rotulo, 'custo \u00fanico, pago na compra', corpo) + _c2viewPrecos();
+  return _c2card('Contas pagas em ' + rotulo, 'compra e renova\u00e7\u00f5es, no m\u00eas em que foram pagas', corpo) + _c2viewPrecos();
 }
 
 // Editor do custo de UMA conta. O texto diz o que o campo vazio faz, porque
@@ -1137,7 +1165,7 @@ function _c2viewRaioX(t, r, rotulo){
         <div class="card-hdr"><div class="card-title">Onde o dinheiro foi</div>
           <span class="c2-hdr-val"><span class="c2-total">${fmtR(t.custo)}</span><span class="c2-eyebrow">em ${rotulo}</span></span></div>
         <div class="card-body">
-          ${barra('Contas', t.tContas, t.contas.length + (t.contas.length === 1 ? ' conta comprada' : ' contas compradas'))}
+          ${barra('Contas', t.tContas, _c2rotuloContas(t))}
           ${barra('Tipsters', t.tTips, (t.tips.length - t.tipsPend) + ' de ' + t.tips.length + ' resolvidos')}
           ${barra('Gerais', t.tGer, (t.ger.length - t.gerPend) + ' de ' + t.ger.length + ' confirmados')}
         </div>

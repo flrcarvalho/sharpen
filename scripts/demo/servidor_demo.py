@@ -417,7 +417,8 @@ def patch_bilhete(bid: int, body: _PatchBilhete):
 def _com_custo_proprio(lista):
     """Injeta o custo proprio POR REQUISICAO: PARCEIROS e montado uma vez, na carga
     do modulo, entao um valor gravado depois nunca apareceria."""
-    return [dict(p, custo=_CUSTO_PROPRIO.get(p["id"])) for p in lista]
+    return [dict(p, custo=_CUSTO_PROPRIO.get(p["id"]),
+                 renovacoes=list(_RENOVACOES.get(p["id"], []))) for p in lista]
 
 
 @app.get("/parceiros")
@@ -580,6 +581,38 @@ def definir_custo_conta_demo(parceiro_id: int, body: CustoContaPropriaDemo):
         return JSONResponse({"detail": "o custo tem de ser maior que zero"}, status_code=400)
     _CUSTO_PROPRIO[parceiro_id] = v
     return {"salvo": True, "custo": v}
+
+
+# Renovacoes por conta (s381). Em memoria, como o custo proprio: [{id, valor, data}].
+_RENOVACOES = {}
+
+
+class RenovacaoDemo(BaseModel):
+    valor: float | str
+    data: str
+
+
+@app.post("/parceiros/{parceiro_id}/renovacoes")
+def adicionar_renovacao_demo(parceiro_id: int, body: RenovacaoDemo):
+    try:
+        v = float(str(body.valor))
+        d = datetime.strptime(str(body.data), "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return JSONResponse({"detail": "valor ou data invalidos"}, status_code=400)
+    if v <= 0:
+        return JSONResponse({"detail": "o valor tem de ser maior que zero"}, status_code=400)
+    item = {"id": os.urandom(4).hex(), "valor": round(v, 2), "data": d}
+    _RENOVACOES.setdefault(parceiro_id, []).append(item)
+    return {"salvo": True, "renovacao": item}
+
+
+@app.delete("/parceiros/{parceiro_id}/renovacoes/{renovacao_id}")
+def remover_renovacao_demo(parceiro_id: int, renovacao_id: str):
+    lista = _RENOVACOES.get(parceiro_id, [])
+    if not any(r["id"] == renovacao_id for r in lista):
+        return JSONResponse({"detail": "renovacao nao encontrada"}, status_code=404)
+    _RENOVACOES[parceiro_id] = [r for r in lista if r["id"] != renovacao_id]
+    return {"removido": True}
 
 
 @app.get("/custos/fornecedor")

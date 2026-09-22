@@ -242,13 +242,6 @@ vigente na data de cada uma**, então a série em `u` é **normalizada por era**
 em R$ não é (uma stake de R$ 50 vale 2u numa época e 0,5u em outra). Drawdown e Monte
 Carlo medem RISCO; para isso a série em unidades é a entrada mais honesta das duas.
 
-### 1.22 Custo de RENOVAÇÃO por conta (s381). **VIVA, decidido com o Feca, a construir**
-
-Lista de (valor, data do pagamento) por conta, no mesmo card de custo da Extração, porque
-renovação é dinheiro que sai noutro dia e cobra no mês em que saiu, como a compra. Soma nas
-**Contas em operação** (decisão dele). **Sem prazo nem aviso de vencimento**: *"cada
-fornecedor trabalha de uma forma"*, o usuário controla.
-
 ### 1.21 Aba Contas: aviso ao grupo. **FECHADA em 22/09 — publicada.**
 
 O Feca testou, pediu os ajustes (nome do 3o painel, bloco Geral recolhivel, default

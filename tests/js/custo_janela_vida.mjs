@@ -64,7 +64,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_dataDoPreco', '_custoDaConta',
-      '_dataPagamento', '_custoNaJanela', 'calcCostFiltered', 'calcContasEmOperacao',
+      '_dataPagamento', '_renovacoesDoCadastro', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered', 'calcContasEmOperacao',
       'calcCustoTipsterFiltrado', 'calcCustoGeralFiltrado', 'calcCasaCost']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // `parseNum` é o parser de número do projeto (app.js) e o custo de tipster depende dele:
@@ -101,7 +101,7 @@ const API = new Function(`
     // new Function, e uma crase aqui fecha a string (o caso da s296).
     parque(de, ate) { return _custoNaJanela(de, ate, null, null, '', 'vivo'); },
     calcCostFiltered, calcContasEmOperacao, calcCustoTipsterFiltrado, calcCustoGeralFiltrado,
-    calcCasaCost, parseNum,
+    calcCasaCost, parseNum, _renovacoesDoCadastro,
   };
 `)();
 
@@ -661,6 +661,80 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   });
   ok(API.calcCostFiltered('overview').costConta === 500,
      'preco futuro nao pode encarecer conta ja comprada');
+}
+
+// ── R. RENOVAÇÕES (s381): cada pagamento cobra no mês DELE ──────────────────
+// Conta comprada em julho por 600 e renovada duas vezes em setembro: no DIA 1º (300) e
+// no dia 30 (50). As datas nas BORDAS do mês são de propósito: um `>` no lugar do `>=`
+// perderia a primeira, e um `<` no lugar do `<=`, a segunda.
+const comRen = (c, ren) => Object.assign(c, { ren });
+{
+  const cfg = {
+    custos: { 'GN||Betano': 600 },
+    dados: [bilhete('B1', 'Betano', 'GN', '2026-07-10'), bilhete('B1', 'Betano', 'GN', '2026-09-15')],
+    cadastro: [comRen(cad('B1', 'Betano', 'GN', '2026-07-10'),
+      [{ id: 'a', valor: 300, data: '2026-09-01' }, { id: 'b', valor: 50, data: '2026-09-30' }])],
+  };
+  const mes = (de, ate) => { API.set({ ...cfg, periodo: periodo(de, ate) }); return API.calcCostFiltered('overview'); };
+  const jul = mes('2026-07-01', '2026-07-31'), ago = mes('2026-08-01', '2026-08-31'), set = mes('2026-09-01', '2026-09-30');
+  ok(jul.costConta === 600, 'R1. julho cobra so a compra, veio ' + jul.costConta);
+  ok(ago.costConta === 0, 'R1. agosto nao tem pagamento nenhum, veio ' + ago.costConta);
+  ok(set.costConta === 350, 'R1. setembro cobra as DUAS renovacoes (bordas do mes), veio ' + set.costConta);
+  ok(set.nContas === 1, 'R1. a conta renovada conta como 1 conta no mes, veio ' + set.nContas);
+  const out = mes('2026-10-01', '2026-10-31');
+  ok(out.costConta === 0, 'R1. o mes SEGUINTE as renovacoes nao recobra nada, veio ' + out.costConta);
+  API.set({ ...cfg });
+  const tudo = API.calcCostFiltered('overview').costConta;
+  ok(tudo === 950 && jul.costConta + ago.costConta + set.costConta === tudo,
+     'R1. a regua continua SOMANDO: meses ' + (jul.costConta + ago.costConta + set.costConta) + ' x tudo ' + tudo);
+}
+
+// R2. Conta sem preco de compra, so com renovacao: o dinheiro da renovacao saiu e cobra.
+{
+  API.set({
+    custos: {},
+    dados: [bilhete('B1', 'Betano', 'GN', '2026-07-10')],
+    cadastro: [comRen(cad('B1', 'Betano', 'GN', '2026-07-10'), [{ id: 'a', valor: 200, data: '2026-09-05' }])],
+    periodo: periodo('2026-09-01', '2026-09-30'),
+  });
+  ok(API.calcCostFiltered('overview').costConta === 200, 'R2. renovacao cobra mesmo sem preco de compra');
+}
+
+// R3. Filtro de CASA recorta a renovacao junto com a conta.
+{
+  API.set({
+    custos: { 'GN||Betano': 600 },
+    dados: [bilhete('B1', 'Betano', 'GN', '2026-07-10')],
+    cadastro: [comRen(cad('B1', 'Betano', 'GN', '2026-07-10'), [{ id: 'a', valor: 300, data: '2026-09-05' }])],
+    periodo: periodo('2026-09-01', '2026-09-30'), ms: { ca_overview: ['Bet365'] },
+  });
+  ok(API.calcCostFiltered('overview').costConta === 0, 'R3. filtrar outra casa tira a renovacao desta');
+}
+
+// R4. ESTOQUE (contas em operacao): a conta viva vale compra + renovacoes JA pagas.
+// Renovacao agendada no futuro ainda nao saiu do bolso e nao entra.
+{
+  API.set({
+    custos: { 'GN||Betano': 600 },
+    dados: [bilhete('B1', 'Betano', 'GN', '2026-07-10')],
+    cadastro: [comRen(cad('B1', 'Betano', 'GN', '2026-07-10'),
+      [{ id: 'a', valor: 300, data: '2026-08-05' }, { id: 'f', valor: 999, data: '2099-01-01' }])],
+  });
+  const op = API.calcContasEmOperacao('overview');
+  ok(op.total === 900, 'R4. estoque = compra 600 + renovacao paga 300 (sem a futura), veio ' + op.total);
+}
+
+// R5. A carga do cadastro normaliza: valor em string passa pelo parseNum (1.200 e
+// milhar, nao 1,2) e item sem data ou sem valor fica de fora (nao ha mes a que pertencer).
+{
+  const r = API._renovacoesDoCadastro([
+    { id: 'a', valor: '1.200', data: '2026-09-10' },
+    { id: 'b', valor: 10 },
+    { id: 'c', valor: 0, data: '2026-09-10' },
+  ]);
+  ok(r.length === 1, 'R5. so a renovacao valida entra, vieram ' + r.length);
+  ok(r[0] && r[0].valor === 1200, 'R5. "1.200" e milhar, veio ' + (r[0] && r[0].valor));
+  ok(API._renovacoesDoCadastro(null).length === 0, 'R5. cadastro sem lista vira lista vazia');
 }
 
 if (falhas) { console.error(LF + falhas + ' verificação(ões) falharam.'); process.exit(1); }

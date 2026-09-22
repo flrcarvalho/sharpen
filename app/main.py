@@ -69,6 +69,7 @@ from repository import (
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
     get_custo_conta, salvar_custo_conta, definir_custo_conta, salvar_cobranca_tipster,
+    adicionar_renovacao, remover_renovacao,
     listar_precos_fornecedor, registrar_preco_fornecedor, remover_preco_fornecedor,
     calcular_pl,
     criar_parceiro, criar_sessao_trial, dashboard_rows, data_valida,
@@ -4435,6 +4436,33 @@ async def definir_custo_conta_route(parceiro_id: int, body: CustoContaPropriaReq
     if not ok:
         raise HTTPException(status_code=404, detail="conta não encontrada")
     return {"salvo": True, "custo": body.custo if body.custo not in ("", None) else None}
+
+
+class RenovacaoRequest(BaseModel):
+    """Renovação paga por uma conta: valor e DATA do pagamento (AAAA-MM-DD). A data
+    decide o mês em que o dinheiro entra no P/L, então não tem default."""
+    valor: float | str
+    data: str
+
+
+@app.post("/parceiros/{parceiro_id}/renovacoes")
+async def adicionar_renovacao_route(parceiro_id: int, body: RenovacaoRequest,
+                                    dono: str = Depends(dono_efetivo)):
+    try:
+        item = await adicionar_renovacao(parceiro_id, dono, body.valor, body.data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if item is None:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    return {"salvo": True, "renovacao": item}
+
+
+@app.delete("/parceiros/{parceiro_id}/renovacoes/{renovacao_id}")
+async def remover_renovacao_route(parceiro_id: int, renovacao_id: str,
+                                  dono: str = Depends(dono_efetivo)):
+    if not await remover_renovacao(parceiro_id, dono, renovacao_id):
+        raise HTTPException(status_code=404, detail="renovação não encontrada")
+    return {"removido": True}
 
 
 @app.post("/parceiros/{parceiro_id}/arquivar")

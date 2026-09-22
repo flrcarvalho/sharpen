@@ -59,15 +59,17 @@ MUTACOES = [
         "  const de = _c2primeiraData() || mesCorrente;",
     ),
     (
+        # s381: o laço ganhou corpo (a renovação também marca o começo). O defeito
+        # simulado continua o mesmo: a COMPRA deixa de marcar.
         "a compra de conta deixa de abrir o periodo",
-        "      Object.values(contas).forEach(v => marca(_dataPagamento(v))));",
-        "      Object.values(contas).forEach(v => v));",
+        "        marca(_dataPagamento(v));",
+        "        void v;",
     ),
     # ── s362: a data do recorte passou a ser a do PAGAMENTO ──────────────
     (
         "a conta volta a ser datada pelo cadastro cru (o defeito da s362)",
-        "      Object.values(contas).forEach(v => marca(_dataPagamento(v))));",
-        "      Object.values(contas).forEach(v => marca(v.adq)));",
+        "        marca(_dataPagamento(v));",
+        "        marca(v.adq);",
     ),
     (
         "o universo volta a ser so o CADASTRO, e a conta so-de-bilhete some",

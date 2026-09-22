@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import re
+import secrets
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
@@ -3602,13 +3603,59 @@ async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados:
     where = "WHERE " + " AND ".join(filters)
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            f"SELECT id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em, custo "
-            f"FROM parceiros {where} ORDER BY criado_em ASC",
+            f"SELECT id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em, custo, "
+            f"renovacoes FROM parceiros {where} ORDER BY criado_em ASC",
             *params,
         )
     # `custo` é NUMERIC → Decimal no asyncpg; o JSON da rota não serializa Decimal.
     # None segue None de propósito: é "herda do fornecedor", que é diferente de zero.
-    return [dict(r, custo=(float(r["custo"]) if r["custo"] is not None else None)) for r in rows]
+    # `renovacoes` é JSONB e volta como str (sem codec), igual ao `custo_store`.
+    return [dict(r, custo=(float(r["custo"]) if r["custo"] is not None else None),
+                 renovacoes=_renovacoes_de(r["renovacoes"])) for r in rows]
+
+
+def _renovacoes_de(blob) -> list[dict]:
+    lista = json.loads(blob) if isinstance(blob, str) else (blob or [])
+    return sorted((x for x in lista if isinstance(x, dict)), key=lambda x: str(x.get("data") or ""))
+
+
+async def adicionar_renovacao(parceiro_id: int, dono: str, valor, data) -> dict | None:
+    """Anexa uma renovação (valor pago + DATA do pagamento) à conta. A data é
+    obrigatória: é ela que decide em que mês o dinheiro entra no P/L, e renovação sem
+    data não teria mês a que pertencer. Devolve o item gravado, ou None se a conta não
+    é deste dono."""
+    try:
+        v = Decimal(str(valor).strip())
+    except (InvalidOperation, TypeError):
+        raise ValueError("valor inválido")
+    if v <= 0:
+        raise ValueError("o valor tem de ser maior que zero")
+    try:
+        d = date.fromisoformat(str(data).strip())
+    except (TypeError, ValueError):
+        raise ValueError("data inválida (use AAAA-MM-DD)")
+    item = {"id": secrets.token_hex(4), "valor": float(v.quantize(Decimal("0.01"))),
+            "data": d.isoformat()}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE parceiros SET renovacoes = renovacoes || $1::jsonb WHERE id = $2 AND dono = $3",
+            json.dumps([item]), parceiro_id, dono)
+    return item if result.split()[-1] == "1" else None
+
+
+async def remover_renovacao(parceiro_id: int, dono: str, renovacao_id: str) -> bool:
+    """Tira UMA renovação da lista pelo id. False se a conta não é deste dono ou se o
+    id não estava lá — apagar o que não existe não é sucesso."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "UPDATE parceiros p SET renovacoes = COALESCE((SELECT jsonb_agg(e) "
+            "FROM jsonb_array_elements(p.renovacoes) e WHERE e->>'id' <> $1), '[]'::jsonb) "
+            "WHERE p.id = $2 AND p.dono = $3 AND EXISTS (SELECT 1 FROM "
+            "jsonb_array_elements(p.renovacoes) e WHERE e->>'id' = $1) RETURNING p.id",
+            str(renovacao_id), parceiro_id, dono)
+    return row is not None
 
 
 async def definir_custo_conta(parceiro_id: int, dono: str, custo) -> bool:

@@ -200,7 +200,7 @@ function _buildContaVida(){
     const k=normForn(forn)+'||'+casa;
     if(!_contaVida[k])_contaVida[k]={};
     const c=conta||'__default__';
-    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:'',id:null,custo:0,adq:'',pa:''};
+    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:'',id:null,custo:0,adq:'',pa:'',ren:[]};
     return _contaVida[k][c];
   };
   // 1) bilhetes — LIQUIDADOS e ABERTOS. Só `DADOS` deixaria de fora a conta que tem
@@ -222,6 +222,7 @@ function _buildContaVida(){
     const v=_slot(p.fornecedor,p.casa,p.conta);
     if(p.id)v.id=p.id;
     if(p.custo>0)v.custo=p.custo;      // exceção da conta; 0/ausente = herda do fornecedor
+    if(p.ren&&p.ren.length)v.ren=p.ren; // renovações pagas (s381), cada uma com a sua data
     if(p.adquirida_em)v.adq=p.adquirida_em;
     if(p.adquirida_em&&(!v.ini||p.adquirida_em<v.ini))v.ini=p.adquirida_em;
     if(p.arquivada_em){if(!v.fim||p.arquivada_em>v.fim)v.fim=p.arquivada_em;}
@@ -261,6 +262,29 @@ function _dataPagamento(v){
   return v.pa||v.adq||'';
 }
 
+// ── Renovações da conta (s381) ───────────────────────────────────────────────
+// O fornecedor vende X dias de uso e, em vez de devolver, o dono paga de novo. É
+// dinheiro que saiu noutro DIA, então cada renovação tem a sua data e cobra no mês
+// dela — a mesma regra do pagamento da compra, e por isso a régua 'pago' continua
+// somando (12 meses = o ano). Nas contas em operação (estoque) a conta vale a compra
+// MAIS o que já se pagou para mantê-la (decisão do Feca). Sem prazo nem vencimento.
+//
+// O valor vem do servidor como número; o `parseNum` só entra por segurança, para
+// nunca haver um segundo parser de dinheiro no Dashboard.
+function _renovacoesDoCadastro(lista){
+  const num=(typeof parseNum==='function')?parseNum:(x=>parseFloat(x)||0);
+  return (Array.isArray(lista)?lista:[])
+    .map(r=>({id:String((r&&r.id)||''),data:String((r&&r.data)||''),
+              valor:(typeof(r&&r.valor)==='number')?r.valor:num(r&&r.valor)}))
+    .filter(r=>r.data&&r.valor>0);
+}
+// Renovações PAGAS em [de, ate] (ISO; comparação de string, como toda data aqui).
+function _renovacoesNaJanela(v,de,ate){
+  let total=0,n=0;
+  ((v&&v.ren)||[]).forEach(r=>{if(r.data>=de&&r.data<=ate){total+=r.valor;n++;}});
+  return{total,n};
+}
+
 // Custo das contas no intervalo [de, ate] (ISO), já somado. `casasSel`/`opsSel` são
 // Sets vazios = "todas". Puro sobre `custoData` + `_contaVida`.
 //
@@ -295,14 +319,19 @@ function _custoNaJanela(de,ate,casasSel,opsSel,soCasa,modo,contasOk){
     Object.entries(contas).forEach(([nome,v])=>{
       if(opsSel&&opsSel.size&&v.op&&!opsSel.has(v.op))return;
       if(contasOk&&!contasOk.has(forn+'||'+casa+'||'+nome))return;
+      let c=0;
       if(vivo){
         if(!v.ini||!v.fim)return;
         if(v.fim<de||v.ini>ate)return;   // janelas disjuntas → conta não vivia no período
+        // Estoque: a compra mais TUDO o que já se pagou para mantê-la até o fim do recorte.
+        c=_custoDaConta(forn,casa,nome)+_renovacoesNaJanela(v,'0000-01-01',ate).total;
       }else{
+        // A compra cobra no mês do pagamento; cada renovação, no mês DELA. As duas são
+        // independentes: conta comprada em julho e renovada em setembro cobra nos dois.
         const pago=_dataPagamento(v);
-        if(!pago||pago<de||pago>ate)return;   // pagamento fora do recorte → não cobra aqui
+        if(pago&&pago>=de&&pago<=ate)c=_custoDaConta(forn,casa,nome);
+        c+=_renovacoesNaJanela(v,de,ate).total;
       }
-      const c=_custoDaConta(forn,casa,nome);
       if(!(c>0))return;
       total+=c;nContas++;
     });
@@ -459,6 +488,7 @@ async function contasLoad(){
       .map(p=>({id:p.id,casa:(p.casa||'').trim(),arquivado:!!p.arquivado,
                 adquirida_em:p.adquirida_em||'',arquivada_em:p.arquivada_em||'',
                 custo:(p.custo==null?0:Number(p.custo)||0),
+                ren:_renovacoesDoCadastro(p.renovacoes),
                 ..._splitParceiro(p.nome)}))
       .filter(p=>p.casa&&p.conta);
     _contasVida=todas;

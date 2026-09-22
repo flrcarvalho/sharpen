@@ -52,7 +52,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_dataDoPreco',
-      '_custoDaConta', '_dataPagamento', '_custoNaJanela', 'calcCostFiltered']
+      '_custoDaConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   ...['_c2num', '_c2meses', '_c2primeiraData', '_c2range', '_c2sel', '_c2opDaConta',
       '_c2passa', '_c2contas'].map(n => recorteFn(CUSTOS2, n, 'custos2.js')),
@@ -258,6 +258,30 @@ const cad = (casa, conta, forn, adq, extra) => Object.assign(
     const a = API.totalAba(), k = API.totalKpi();
     ok(a === k, rotulo + '/26: aba ' + a + ' × KPI ' + k);
   }
+}
+
+// ── R. RENOVAÇÃO (s381): a tabela ganha uma LINHA por pagamento ─────────────
+// Conta comprada em março e renovada em setembro. Em setembro o KPI cobra só a
+// renovação, e a tabela tem de mostrar exatamente essa linha — sem ela, o KPI desconta
+// um valor que a tela de lançamento não mostra (o sintoma do CLAUDE.md).
+{
+  const cfg = {
+    cadastro: [cad('Bet365', 'c1', 'GN', '2026-03-01',
+      { ren: [{ id: 'a', valor: 350, data: '2026-09-10' }, { id: 'b', valor: 90, data: '2026-06-02' }] })],
+    dados: [bilhete('Bet365', 'c1', 'GN', '2026-03-05')],
+    custos: { 'GN||Bet365': 900 },
+  };
+  API.set(Object.assign({ periodo: { df: '2026-09-01', dt: '2026-09-30', qd: 0, qt: '' } }, cfg));
+  eq(API.totalKpi(), 350, 'set/26: o KPI cobra so a renovacao');
+  eq(API.totalAba(), 350, 'set/26: a aba soma o mesmo');
+  const ls = API.linhasAba();
+  eq(ls.length, 1, 'set/26: uma linha, a da renovacao');
+  ok(ls[0] && ls[0].renovacao === true && ls[0].data === '2026-09-10',
+     'set/26: a linha e a renovacao, datada no dia dela');
+  API.set(Object.assign({ periodo: TUDO }, cfg));
+  { const a = API.totalAba(), k = API.totalKpi();
+    ok(a === 1340 && a === k, 'Tudo: compra + duas renovacoes, aba ' + a + ' x KPI ' + k); }
+  eq(API.linhasAba().length, 3, 'Tudo: tres linhas (compra e duas renovacoes)');
 }
 
 if (falhas) { console.error(LF + falhas + ' verificação(ões) falharam.'); process.exit(1); }

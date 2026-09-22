@@ -456,14 +456,16 @@ MUTACOES = [
         "",
     ),
     (
+        # s381: a compra deixou de ser `return` (a renovação cobra independente dela) e
+        # virou condição da própria compra. Os dois defeitos são os MESMOS de antes.
         "a conta paga fora do recorte passa a entrar",
-        "        if(!pago||pago<de||pago>ate)return;",
-        "",
+        "        if(pago&&pago>=de&&pago<=ate)c=_custoDaConta(forn,casa,nome);",
+        "        c=_custoDaConta(forn,casa,nome);",
     ),
     (
         "conta sem data de pagamento nenhuma passa a cobrar",
-        "if(!pago||pago<de||pago>ate)return;",
-        "if(pago&&(pago<de||pago>ate))return;",
+        "        if(pago&&pago>=de&&pago<=ate)c=_custoDaConta(forn,casa,nome);",
+        "        if(!pago||(pago>=de&&pago<=ate))c=_custoDaConta(forn,casa,nome);",
     ),
     (
         "o KPI da Visao Geral volta para o modo 'vivo'",
@@ -558,6 +560,37 @@ MUTACOES = [
         "  return (typeof custoData!=='undefined'&&custoData[k])||0;",
         "  return 0;",
     ),
+    # ── Renovações (s381) ────────────────────────────────────────────────────
+    ("a renovacao deixa de cobrar no P/L",
+     "        c+=_renovacoesNaJanela(v,de,ate).total;",
+     ""),
+    ("a renovacao cobra em TODO recorte, e nao so no mes dela",
+     "        c+=_renovacoesNaJanela(v,de,ate).total;",
+     "        c+=_renovacoesNaJanela(v,'0000-01-01',ate).total;"),
+    ("a compra volta a condicionar a renovacao (mes so de renovacao zera)",
+     "        if(pago&&pago>=de&&pago<=ate)c=_custoDaConta(forn,casa,nome);",
+     "        if(!pago||pago<de||pago>ate)return;c=_custoDaConta(forn,casa,nome);"),
+    ("o estoque ignora as renovacoes",
+     "c=_custoDaConta(forn,casa,nome)+_renovacoesNaJanela(v,'0000-01-01',ate).total;",
+     "c=_custoDaConta(forn,casa,nome);"),
+    ("o estoque conta renovacao que ainda nao foi paga",
+     "c=_custoDaConta(forn,casa,nome)+_renovacoesNaJanela(v,'0000-01-01',ate).total;",
+     "c=_custoDaConta(forn,casa,nome)+_renovacoesNaJanela(v,'0000-01-01','9999-12-31').total;"),
+    ("a borda inicial do recorte perde a renovacao do dia 1",
+     "if(r.data>=de&&r.data<=ate)",
+     "if(r.data>de&&r.data<=ate)"),
+    ("a borda final do recorte perde a renovacao do ultimo dia",
+     "if(r.data>=de&&r.data<=ate)",
+     "if(r.data>=de&&r.data<ate)"),
+    ("a janela de vida deixa de carregar as renovacoes do cadastro",
+     "    if(p.ren&&p.ren.length)v.ren=p.ren;",
+     ""),
+    ("a carga aceita renovacao sem data ou sem valor",
+     "    .filter(r=>r.data&&r.valor>0);",
+     ";"),
+    ("a carga le valor em string com parser caseiro (1.200 vira 1,2)",
+     "valor:(typeof(r&&r.valor)==='number')?r.valor:num(r&&r.valor)",
+     "valor:(typeof(r&&r.valor)==='number')?r.valor:parseFloat(r&&r.valor)"),
 ]
 
 

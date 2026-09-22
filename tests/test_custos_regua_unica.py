@@ -115,6 +115,25 @@ MUTACOES = [
         "  return v.pa||v.adq||'';",
         "  return v.adq||'';",
     ),
+    # ── Renovação (s381): a tabela tem de mostrar o que o KPI cobra ─────────────
+    (
+        "a tabela esquece as renovacoes e o KPI desconta o que ela nao mostra",
+        "custos2",
+        "      (v.ren || []).forEach(x => {",
+        "      [].forEach(x => {",
+    ),
+    (
+        "a tabela lista renovacao de fora do recorte",
+        "custos2",
+        "        if (x.data < r.de || x.data > r.ate) return;",
+        "        if (!x.data) return;",
+    ),
+    (
+        "a renovacao so aparece quando a compra esta no recorte",
+        "custos2",
+        "      (v.ren || []).forEach(x => {",
+        "      const _pg = _dataPagamento(v);\n      if (!_pg || _pg < r.de || _pg > r.ate) return;\n      (v.ren || []).forEach(x => {",
+    ),
 ]
 
 

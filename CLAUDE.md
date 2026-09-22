@@ -393,7 +393,7 @@ faz toda conta antiga nascer datada no **import**.
 
 **Fonte canônica:** `_dataPagamento` / `_custoNaJanela` / `calcCostFiltered` /
 `_buildContaVida` (`app/static/dash/assets/js/charts/gestao.js`) e `parceiros.adquirida_em` / `arquivada_em`
-(`database.py`). Gates: `tests/test_custo_janela_vida.py` (25 mutações, 25 detectadas, as
+(`database.py`). Gates: `tests/test_custo_janela_vida.py` (47 mutações, 47 detectadas, as
 DUAS réguas) e os três testes de janela em `tests/test_repository_db.py`, que medem o
 RESULTADO do backfill: ele roda num `DO … EXCEPTION`, então erro vira WARNING e o CI
 ficaria verde com a coluna vazia.

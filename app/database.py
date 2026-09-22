@@ -156,6 +156,14 @@ ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS adquirida_em DATE;
 -- herança continua viva.
 ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS custo NUMERIC(12,2);
 ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS arquivada_em DATE;
+-- Renovações da conta (s381). O fornecedor vende X dias de uso e, em vez de devolver a
+-- conta, o dono paga de novo, quase sempre outro valor. Cada renovação é dinheiro que
+-- saiu noutro DIA, então não se soma ao `custo` da compra: é uma lista de
+-- [{id, valor, data}] e cada item cobra no mês em que foi pago (regra "custo pertence
+-- ao dia em que o dinheiro saiu"). Sem prazo nem vencimento, por decisão do Feca:
+-- "cada fornecedor trabalha de uma forma". JSONB na própria linha, e não tabela, porque
+-- a lista viaja junto com o cadastro que o Dashboard já carrega (`/parceiros`).
+ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS renovacoes JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- Backfill de `adquirida_em`: a MENOR entre o `criado_em` do cadastro e a 1ª aposta da
 -- conta. Em base importada o `criado_em` é a data do IMPORT, bem posterior às apostas que

@@ -657,6 +657,52 @@ def test_backfill_de_adquirida_em_le_a_data_no_formato_do_BANCO():
     _run(body())
 
 
+def test_renovacao_entra_na_lista_da_conta_e_sai_pelo_id():
+    """Renovação (s381) é valor + DATA do pagamento, anexada à conta. Cobre o que só o
+    banco prova: o JSONB volta como str e a listagem entrega lista, o `||` anexa sem
+    apagar a anterior, o DELETE tira só o item do id, e nada disso cruza dono."""
+    from datetime import date
+
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono IN ('TDonoRen', 'TOutroRen')")
+            pid = await conn.fetchval(
+                "INSERT INTO parceiros (dono, casa, nome, adquirida_em) "
+                "VALUES ('TDonoRen', 'Superbet', 'c1 [Richard]', CURRENT_DATE) RETURNING id")
+
+        antes = await repository.list_parceiros("TDonoRen")
+        assert antes[0]["renovacoes"] == [], "conta nova tem de nascer com lista vazia"
+
+        a = await repository.adicionar_renovacao(pid, "TDonoRen", "350.00", "2026-09-10")
+        b = await repository.adicionar_renovacao(pid, "TDonoRen", 90, date(2026, 8, 1).isoformat())
+        assert a and b and a["id"] != b["id"]
+        assert a == {"id": a["id"], "valor": 350.0, "data": "2026-09-10"}
+
+        ren = (await repository.list_parceiros("TDonoRen"))[0]["renovacoes"]
+        assert [r["data"] for r in ren] == ["2026-08-01", "2026-09-10"], "a lista volta ordenada pela data"
+
+        # Outro dono não anexa nem apaga na conta alheia.
+        assert await repository.adicionar_renovacao(pid, "TOutroRen", 10, "2026-09-10") is None
+        assert not await repository.remover_renovacao(pid, "TOutroRen", a["id"])
+
+        assert await repository.remover_renovacao(pid, "TDonoRen", a["id"])
+        ren = (await repository.list_parceiros("TDonoRen"))[0]["renovacoes"]
+        assert [r["id"] for r in ren] == [b["id"]], "apagar tirou mais (ou menos) que o item"
+        assert not await repository.remover_renovacao(pid, "TDonoRen", a["id"]), \
+            "apagar o que já não existe não é sucesso"
+
+        assert await repository.remover_renovacao(pid, "TDonoRen", b["id"])
+        ren = (await repository.list_parceiros("TDonoRen"))[0]["renovacoes"]
+        assert ren == [], "a lista vazia tem de voltar como [], nunca NULL"
+
+        for ruim in [(0, "2026-09-10"), ("-5", "2026-09-10"), ("abc", "2026-09-10"), (10, "10/09/2026")]:
+            with pytest.raises(ValueError):
+                await repository.adicionar_renovacao(pid, "TDonoRen", *ruim)
+    _run(body())
+
+
 def test_arquivar_carimba_o_fim_da_janela_e_reativar_apaga():
     """O carimbo é o que faz o custo parar nos períodos seguintes. Arquivar duas vezes não
     pode empurrar o fim para a frente (COALESCE), e reativar tem de reabrir a janela — senão
