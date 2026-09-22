@@ -52,7 +52,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_dataDoPreco',
-      '_custoDaConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered']
+      '_custoDaConta', '_temPrecoConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   ...['_c2num', '_c2meses', '_c2primeiraData', '_c2range', '_c2sel', '_c2opDaConta',
       '_c2passa', '_c2contas'].map(n => recorteFn(CUSTOS2, n, 'custos2.js')),
@@ -88,7 +88,7 @@ const API = new Function(`
 const TUDO = { df: '', dt: '', qd: 0, qt: '' };
 const bilhete = (casa, conta, forn, data) => ({ casa, conta, fornecedor: forn, data, operador: 'Feca' });
 const cad = (casa, conta, forn, adq, extra) => Object.assign(
-  { casa, conta, fornecedor: forn, adquirida_em: adq, arquivada_em: '', arquivado: false, custo: 0 }, extra || {});
+  { casa, conta, fornecedor: forn, adquirida_em: adq, arquivada_em: '', arquivado: false, custo: null }, extra || {});
 
 // ── 1. O caso normal: cadastro antes da 1ª aposta ────────────────────────────
 // A linha de base. Se os dois já discordassem aqui, nada abaixo teria sentido.

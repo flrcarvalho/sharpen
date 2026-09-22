@@ -172,9 +172,16 @@ console.log('C. a Extracao grava o custo DA CONTA e nunca a tabela (index.html)'
   eq(posts.length && posts[0].body.custo, null, 'C. vazio viaja como null, nao como 0');
 }
 {
+  // ZERO e preco (s381, decisao do Feca): conta de brinde custou zero, e isso se grava.
+  // E ele viaja como 0, nunca como null — null devolveria a conta a tabela.
   const { res, posts } = await API_EXTRACAO.salva(15, '0');
-  ok(!res.ok && res.erro, 'C. zero e recusado com mensagem');
-  eq(posts.length, 0, 'C. zero nao chega ao servidor');
+  ok(res.ok, 'C. zero grava');
+  eq(posts.length && posts[0].body.custo, 0, 'C. zero viaja como 0, e nao como null');
+}
+{
+  const { res, posts } = await API_EXTRACAO.salva(15, '-5');
+  ok(!res.ok && res.erro, 'C. negativo e recusado com mensagem');
+  eq(posts.length, 0, 'C. negativo nao chega ao servidor');
 }
 // A régua do `parseNum`: o ponto sozinho só é milhar em grupos de 3.
 eq(API_EXTRACAO.num('1.200'), 1200, 'C. "1.200" e milhar');

@@ -209,31 +209,6 @@ foi procurar UMA explicação para uma divergência que tinha DUAS.
 
 → [o caso](docs/CASOS.md#dois-numeros-certos-e-um-colchete-que-apagou-o-custo-de-13-bilhetes--s364-s366-s369)
 
-### 1.14 O front não sabe dizer "custo zero" — a ausência e o zero caem no mesmo balde (s366). **VIVA, medida**
-
-`_custoDaConta` e `_buildContaVida` (`charts/gestao.js`) filtram por **`custo > 0`** nas três
-camadas (conta → preço vigente → par `fornecedor||casa`), e o fim da linha é `return 0`. O
-próprio comentário assume a mistura: *"Sem nenhuma das três: 0, e a conta aparece como sem
-preço"*. **Um zero digitado pelo dono é descartado no caminho.**
-
-É o **inverso** do caso já documentado no `CLAUDE.md` (*"Zero não é ausência. `0` se disfarça
-de conta feita"*): lá a ausência virava zero; aqui o zero verdadeiro não tem como ser dito.
-
-**Por ora a aba Contas contorna sem tocar no banco:** conta do fornecedor `Eu` (o que o
-`normForn` devolve quando não há `[Fornecedor]` no nome) é **própria**, e própria é custo zero
-por natureza — ela entra no múltiplo com P/L líquido cheio, enquanto a comprada sem preço fica
-de fora. Medido na base do Feca: **59 das 182 contas são próprias**, e delas saem **59 das 69
-contas sem preço**.
-
-**O contorno tem limite, e é onde ele quebra:** conta **comprada** que custou zero de verdade
-(cortesia, bônus, troca) não tem como ser declarada — ela lê como "sem preço lançado" e sai da
-comparação. Se isso aparecer, a saída é `parceiros.custo = 0` passar a significar zero
-declarado (a coluna é `NUMERIC` NULL, então o banco já distingue os dois) e os três `> 0` do
-front virarem `!= null`.
-
-> **Sintoma para reconhecer isto noutro campo:** um `> 0` usado como teste de existência.
-> Ele funciona enquanto zero for impossível, e a regra de negócio muda sem avisar o código.
-
 ### 1.22 `/extrair` não tem teto por usuário, e o custo cresce com quem entra (s374). **VIVA, medida — ADIADA POR DECISÃO DO FECA**
 
 Só o **trial** tem teto (`TRIAL_MAX_EXTRACOES = 10`, `auth.py`, cobrado em `main.py:3361`).

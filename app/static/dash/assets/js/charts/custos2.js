@@ -169,7 +169,7 @@ function _c2contas(){
       (v.ren || []).forEach(x => {
         if (x.data < r.de || x.data > r.ate) return;
         out.push({ id: v.id || null, casa: casa, conta: conta, forn: forn, data: x.data,
-                   renovacao: true, proprio: 0, herdado: 0, degrau: null, custo: x.valor });
+                   renovacao: true, proprio: null, herdado: 0, degrau: null, temPreco: true, custo: x.valor });
       });
       const data = _dataPagamento(v);
       if (!data || data < r.de || data > r.ate) return;
@@ -179,7 +179,9 @@ function _c2contas(){
       const herdadoPar = (typeof custoData !== 'undefined' && custoData[forn + '||' + casa]) || 0;
       const degrau = _precoVigenteEm(_degrausPreco(forn, casa), _dataDoPreco(v));
       out.push({ id: v.id || null, casa: casa, conta: conta, forn: forn, data: data,
-                 proprio: v.custo > 0 ? v.custo : 0,
+                 // `null` = nada digitado (herda); 0 = custo ZERO digitado, que é preço (s381).
+                 proprio: v.custo != null ? v.custo : null,
+                 temPreco: _temPrecoConta(forn, casa, conta),
                  herdado: degrau ? degrau.valor : herdadoPar,
                  degrau: degrau || null,
                  custo: _custoDaConta(forn, casa, conta) });
@@ -254,7 +256,7 @@ function _c2totais(){
     custo: custo, bruto: bruto, liquido: bruto - custo,
     tTipsMes: tips.reduce((a, t) => a + t.valor, 0),
     tGerMes: ger.reduce((a, g) => a + g.valor, 0),
-    semCusto: contas.filter(c => !(c.custo > 0)).length,
+    semCusto: contas.filter(c => !c.temPreco).length,   // zero digitado TEM preço (s381)
     tipsPend: tips.filter(t => t.situacao === 'pendente').length,
     gerPend: ger.filter(g => !g.resolvido).length,
     // Previsto = só o que o arrasto REALMENTE preencheria. Somar o mês anterior de
@@ -395,8 +397,10 @@ window.c2ContaSalvar = async function(id, limpar){
   const bruto = limpar ? '' : ((el && el.value) || '').toString().trim();
   let custo = null;
   if (bruto){
-    const n = parseFloat(bruto.replace(/\./g, '').replace(',', '.'));
-    if (!(n > 0)) { _c2contaErro = 'O custo tem de ser maior que zero. Deixe vazio para herdar do fornecedor.'; renderCustos2(); return; }
+    // `parseNum` (app.js), a régua do projeto: o parser caseiro apagava todo ponto e lia
+    // "179.90" como 17.990. Zero é aceito (s381): conta de brinde custou zero, e isso é preço.
+    const n = /\d/.test(bruto) && typeof parseNum === 'function' ? parseNum(bruto) : NaN;
+    if (!(n >= 0)) { _c2contaErro = 'Informe um valor (R$ 0 se a conta foi de graça). Deixe vazio para herdar do fornecedor.'; renderCustos2(); return; }
     custo = n;
   }
   try {
@@ -733,14 +737,15 @@ function _c2viewContas(t, rotulo){
       + _c2viewPrecos();
   }
   const linhas = t.contas.map(c => {
-    const temCusto = c.custo > 0;
+    // "Tem preço" e não "custo > 0": R$ 0 digitado aparece como R$ 0, igual a R$ 500 (s381).
+    const temCusto = c.temPreco;
     const editando = c.id && _c2contaEditando === c.id;
     // A origem é derivada da MESMA cadeia que define o custo (`_custoDaConta`), nunca
     // de um flag à parte: flag e valor divergem no primeiro caso de borda.
     let origem, extra = '';
     if (c.renovacao){
       origem = '<span class="c2-orig">renovação</span>';
-    } else if (c.proprio > 0){
+    } else if (c.proprio != null){
       origem = '<span class="c2-orig c2-orig--edit">editado nesta conta</span>';
       if (c.herdado > 0) extra = `<span class="c2-dt">fornecedor ${fmtR(c.herdado)}</span>`;
     } else if (c.degrau){
@@ -767,7 +772,7 @@ function _c2viewContas(t, rotulo){
     </tr>${editando ? `<tr><td colspan="7" class="c2-conta-edit">${_c2contaEditor(c)}</td></tr>` : ''}`;
   }).join('');
 
-  const proprios = t.contas.filter(c => c.proprio > 0).length;
+  const proprios = t.contas.filter(c => c.proprio != null).length;
   // Renovação é linha, não conta: contá-la como conta inflaria o "N contas no recorte".
   const nRen = t.contas.filter(c => c.renovacao).length;
   const nContas = t.contas.length - nRen;
@@ -796,10 +801,10 @@ function _c2contaEditor(c){
     <div class="c2-preco__form">
       <label class="c2-preco__campo">
         <span class="c2-eyebrow">Custo desta conta</span>
-        <span class="c2-preco__inp"><span class="cur">R$</span><input id="c2cv" type="text" inputmode="decimal" placeholder="0,00" value="${c.proprio > 0 ? fmt(c.proprio, 2) : ''}" autocomplete="off"></span>
+        <span class="c2-preco__inp"><span class="cur">R$</span><input id="c2cv" type="text" inputmode="decimal" placeholder="0,00" value="${c.proprio != null ? fmt(c.proprio, 2) : ''}" autocomplete="off"></span>
       </label>
       <button class="c2-preco__ok" onclick="c2ContaSalvar(${c.id}, false)">Salvar</button>
-      ${c.proprio > 0 ? `<button class="c2-preco__btn" onclick="c2ContaSalvar(${c.id}, true)">Voltar a herdar</button>` : ''}
+      ${c.proprio != null ? `<button class="c2-preco__btn" onclick="c2ContaSalvar(${c.id}, true)">Voltar a herdar</button>` : ''}
     </div>
     ${_c2contaErro ? `<div class="c2-preco__erro">${esc(_c2contaErro)}</div>` : ''}
     <div class="c2-preco__hist">${herdado} <span class="c2-meta">Mudar aqui vale <strong>s\u00f3 para esta conta</strong>; o fornecedor n\u00e3o \u00e9 tocado.</span></div>

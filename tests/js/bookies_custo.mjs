@@ -121,7 +121,7 @@ const ap = (casa, esporte, tipster, data, stake, lucro) =>
   ({ casa, esporte, tipster, data, stake, lucro, odd: 2, resultado: lucro >= 0 ? 'W' : 'L',
      conta: 'c1', fornecedor: 'GN', operador: 'Feca' });
 const cad = (casa, conta, forn, adq) =>
-  ({ casa, conta, fornecedor: forn, adquirida_em: adq, arquivada_em: '', arquivado: false, custo: 0 });
+  ({ casa, conta, fornecedor: forn, adquirida_em: adq, arquivada_em: '', arquivado: false, custo: null });
 
 // ── 1. A cascata fecha: bruto − custo = líquido ──────────────────────────────
 // Sinal trocado aqui não dá erro: continua parecendo dinheiro e na cor certa.

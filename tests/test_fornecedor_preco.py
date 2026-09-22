@@ -306,14 +306,22 @@ def test_custo_proprio_vai_como_decimal():
 
 @pytest.mark.parametrize("vazio", [None, "", "   "])
 def test_custo_vazio_grava_NULL_e_a_conta_volta_a_herdar(vazio):
-    """Limpar o campo é a volta à herança, e por isso grava NULL e não 0: zero seria
-    uma conta de graça, que é o tipo de número inventado que o CLAUDE.md barra."""
+    """Limpar o campo é a volta à herança, e por isso grava NULL e não 0: zero é uma
+    conta de graça DECLARADA, e vazio não declara nada."""
     args = _definir(vazio)
     assert args[0] is None
 
 
-@pytest.mark.parametrize("ruim", [0, -1, "0", "abc"])
-def test_custo_proprio_nao_positivo_ou_ilegivel_e_recusado(ruim):
+@pytest.mark.parametrize("zero", [0, "0", "0.00"])
+def test_custo_zero_grava_ZERO_e_nao_null(zero):
+    """Decisão do Feca na s381: "zero é preço". A conta de brinde de um fornecedor que tem
+    tabela na casa é zerada e deixa de herdar a tabela — gravar NULL a devolveria à tabela."""
+    args = _definir(zero)
+    assert args[0] == Decimal("0") and args[0] is not None
+
+
+@pytest.mark.parametrize("ruim", [-1, "-0.01", "abc", "NaN"])
+def test_custo_proprio_negativo_ou_ilegivel_e_recusado(ruim):
     conn = _ContaConn()
     with pytest.raises(ValueError):
         _com_pool(conn, lambda: repository.definir_custo_conta(7, "Feca", ruim))

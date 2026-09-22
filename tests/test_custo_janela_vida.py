@@ -535,7 +535,7 @@ MUTACOES = [
     # ── Fatia 2: as tres camadas do custo da conta ───────────────────────────
     (
         "o custo PROPRIO da conta deixa de vencer o preco do par",
-        "  if(v&&v.custo>0)return v.custo;",
+        "  if(v&&v.custo!=null)return v.custo;",
         "",
     ),
     (

@@ -264,6 +264,12 @@ ausência"* do `CLAUDE.md`. Conta **própria** (fornecedor `Eu`) é o caso opost
 custou zero de verdade, entra no P/L líquido com o valor cheio, e o múltiplo dela também
 sai como `·`, porque dividir por zero não produz número.
 
+> **s381, decisão do Feca: "zero é preço; sem custo lançado é sem preço".** R$ 0 digitado
+> numa conta é preço como qualquer outro (aparece `R$ 0`, sem tag). A conta **sem preço**
+> passou a ENTRAR no ROI e no múltiplo com custo zero, "mesmo que infle", e a tela a
+> **marca** (tag `sem preço` em `--warn`) e **conta** no rodapé, dizendo que dá para lançar
+> R$ 0. O `·` acima segue valendo para o múltiplo da casa cujo custo somado é zero.
+
 **Fonte canônica:** `_cnMult` e `.cn-mult` / `.cn-mult__x`
 (`charts/contas.js`, `assets/css/components.css`). Gate:
 `tests/test_contas_vida.py::test_a_aba_nao_abrevia_dinheiro_nem_inventa_formatador`.

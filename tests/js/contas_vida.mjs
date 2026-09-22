@@ -57,7 +57,7 @@ const FONTE = [
   'let FS={};',
   ...['gfs', '_ymd', '_today', '_selRange', 'msGet'].map(n => recorteFn(FILTROS, n, 'filters.js')),
   ...['normForn', '_buildContaVida', '_degrausPreco', '_precoVigenteEm', '_dataDoPreco',
-      '_custoDaConta'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
+      '_custoDaConta', '_temPrecoConta'].map(n => recorteFn(GESTAO, n, 'gestao.js')),
   'let _cnPop="ambas";',
   ...['_cnMediana', '_cnMedia', '_cnPl', '_cnFraseLongevas', '_cnBaseTxt', '_cnTemPreco', '_cnBase',
       '_cnPorCasa', '_cnHistograma', '_cnGeral', '_cnOrdenarDrill', '_cnUltimas',
@@ -115,12 +115,12 @@ const DADOS = [
 // Cadastro: quem tem `arquivada_em` está encerrada; quem não tem e não está arquivado
 // vive até HOJE (é assim que `_buildContaVida` marca "ativa").
 const CADASTRO = [
-  { casa: 'Alfa', conta: 'Longeva', fornecedor: 'JC', adquirida_em: '2026-01-10', arquivada_em: '2026-06-15', arquivado: true, custo: 0 },
-  { casa: 'Alfa', conta: 'Curta', fornecedor: 'JC', adquirida_em: '2026-03-01', arquivada_em: '2026-03-06', arquivado: true, custo: 0 },
-  { casa: 'Alfa', conta: 'Media', fornecedor: 'JC', adquirida_em: '2026-03-01', arquivada_em: '2026-03-31', arquivado: true, custo: 0 },
-  { casa: 'Beta', conta: 'Propria', fornecedor: 'Eu', adquirida_em: '2026-03-01', arquivada_em: null, arquivado: false, custo: 0 },
-  { casa: 'Beta', conta: 'SemPreco', fornecedor: 'Novo', adquirida_em: '2026-03-01', arquivada_em: null, arquivado: false, custo: 0 },
-  { casa: 'Gama', conta: 'Velha', fornecedor: 'JC', adquirida_em: '2025-01-01', arquivada_em: '2025-02-10', arquivado: true, custo: 0 },
+  { casa: 'Alfa', conta: 'Longeva', fornecedor: 'JC', adquirida_em: '2026-01-10', arquivada_em: '2026-06-15', arquivado: true, custo: null },
+  { casa: 'Alfa', conta: 'Curta', fornecedor: 'JC', adquirida_em: '2026-03-01', arquivada_em: '2026-03-06', arquivado: true, custo: null },
+  { casa: 'Alfa', conta: 'Media', fornecedor: 'JC', adquirida_em: '2026-03-01', arquivada_em: '2026-03-31', arquivado: true, custo: null },
+  { casa: 'Beta', conta: 'Propria', fornecedor: 'Eu', adquirida_em: '2026-03-01', arquivada_em: null, arquivado: false, custo: null },
+  { casa: 'Beta', conta: 'SemPreco', fornecedor: 'Novo', adquirida_em: '2026-03-01', arquivada_em: null, arquivado: false, custo: null },
+  { casa: 'Gama', conta: 'Velha', fornecedor: 'JC', adquirida_em: '2025-01-01', arquivada_em: '2025-02-10', arquivado: true, custo: null },
 ];
 // Preço por par `fornecedor||casa`. `Eu||Beta` fica de fora de propósito: conta própria
 // não tem preço, e é isso que a distingue da comprada sem preço (`Novo||Beta`).
@@ -222,12 +222,13 @@ const alfaL = pc.find(c => c.casa === 'Alfa');
 ok(Math.abs(alfaL.roiLiq - ((35 - 1500) / 350 * 100)) < 1e-9,
    'ROI líquido da Alfa = (P/L − custo) ÷ turnover elegível');
 const betaL = pc.find(c => c.casa === 'Beta');
-// Beta: Propria (300/90, elegivel) + SemPreco (300/60, NAO elegivel). Sem custo lancado,
-// o liquido e o P/L da propria e o denominador e SO o turnover dela.
-eq(betaL.turnEleg, 300, 'turnover elegível da Beta exclui a conta sem preço');
-eq(betaL.plEleg, 90, 'P/L elegível da Beta exclui a conta sem preço');
-ok(Math.abs(betaL.roiLiq - 30) < 1e-9, 'ROI líquido da Beta = 90 ÷ 300');
-ok(betaL.turnEleg !== betaL.turn, 'o caso precisa ter conta NÃO elegível, senão não exerce a regra');
+// Beta: Propria (300/90) + SemPreco (300/60). Regra do Feca na s381: a sem preço ENTRA
+// no ROI com custo zero ("mesmo que infle") e é CONTADA para o aviso. Até a s381 ela saía.
+eq(betaL.turnEleg, 600, 'turnover do ROI da Beta inclui a conta sem preço');
+eq(betaL.plEleg, 150, 'P/L do ROI da Beta inclui a conta sem preço');
+ok(Math.abs(betaL.roiLiq - 25) < 1e-9, 'ROI líquido da Beta = 150 ÷ 600 (sem preço com custo zero)');
+eq(betaL.semPreco, 1, 'a sem preço é CONTADA, para o aviso');
+eq(betaL.comPreco, 0, 'e não conta como com preço');
 
 console.log('— 11. Custo por dia de vida usa a SOMA das durações, não a mediana');
 // Alfa: Longeva 157d + Media 31d + Curta 6d = 194 dias, custo 1500.
@@ -257,8 +258,9 @@ const B13 = api.base();
 const g = api.geral(B13.contas, api.porCasa(B13.contas));
 eq(g.n, B13.contas.length, 'a contagem do painel é a mesma da lista');
 eq(g.nProprias + g.nComPreco + g.nSemPreco, g.n, 'os três estados de custo particionam a base');
-eq(g.plEleg, B13.contas.filter(c => c.propria || c.custo > 0).reduce((a, c) => a + c.pl, 0),
-   'P/L elegível exclui a conta sem preço');
+eq(g.plEleg, B13.contas.reduce((a, c) => a + c.pl, 0),
+   'o P/L do ROI é o de TODAS as contas, sem preço incluída (s381)');
+ok(g.nSemPreco > 0, 'o caso precisa ter conta sem preço, senão a inclusão não é exercida');
 
 console.log('— 14. Concordancia: a frase do rodape fecha no SINGULAR e no PLURAL');
 // O erro que originou o caso saiu na tela do Feca: "25 contas PASSOU de 60 dias e puxam
@@ -393,6 +395,31 @@ console.log('— 16. Ultimas contas: eixo pela 1a aposta, e a duracao CENSURADA 
   ], 50);
   eq(m.mult, 4, 'o multiplo usa o custo que o chamador passou, nao uma soma propria');
   eq(Math.round(m.roiLiq * 100) / 100, 7.5, 'ROI liquido = (pl - custo) / turnover');
+}
+
+console.log('— 17. ZERO digitado é preço (s381, decisão do Feca)');
+// A conta de brinde: o fornecedor JC tem tabela de 500 na Alfa, e a `Curta` veio de
+// graça. O dono digita 0 no card. Ela passa a TER preço (sai do "sem preço") e NÃO herda
+// os 500 — é o caso que o Feca descreveu. A SemPreco (Novo||Beta, sem tabela) digitada 0
+// também deixa de ser "sem preço". `null` continua sendo "nada digitado".
+{
+  api.setFiltro({ df: '2026-03-01', dt: '2026-03-31' });
+  api.pop = 'ambas';
+  const zerada = CADASTRO.map(p => (p.conta === 'Curta' || p.conta === 'SemPreco') ? { ...p, custo: 0 } : p);
+  api.setCadastro(zerada);
+  const cs = api.base().contas;
+  const curta = cs.find(c => c.conta === 'Curta');
+  const semp = cs.find(c => c.conta === 'SemPreco');
+  eq(curta.custo, 0, 'R$ 0 digitado vence a tabela de 500 do fornecedor');
+  eq(curta.temPreco, true, 'R$ 0 digitado TEM preço');
+  eq(semp.temPreco, true, 'conta sem tabela com R$ 0 digitado deixa de ser sem preço');
+  const pcZ = api.porCasa(cs);
+  eq(pcZ.find(c => c.casa === 'Alfa').custo, 1000, 'a Alfa passa a custar 500 + 0 + 500');
+  eq(pcZ.find(c => c.casa === 'Beta').semPreco, 0, 'a Beta não tem mais conta sem preço');
+  api.setCadastro(CADASTRO);
+  const sempNula = api.base().contas.find(c => c.conta === 'SemPreco');
+  eq(sempNula.temPreco, false, 'custo null continua sendo SEM preço');
+  eq(api.base().contas.find(c => c.conta === 'Curta').custo, 500, 'e null herda a tabela');
 }
 
 console.log(falhas ? `\nFALHAS: ${falhas}` : '\nok: contas_vida');

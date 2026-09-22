@@ -156,13 +156,36 @@ function _custoDaConta(forn,casa,conta){
   if(!_contaVida)_buildContaVida();
   const k=forn+'||'+casa;
   const v=(_contaVida[k]||{})[conta||'__default__'];
-  if(v&&v.custo>0)return v.custo;
+  // Custo PRÓPRIO digitado vence tudo, e ZERO também é custo (s381, decisão do Feca:
+  // "zero é preço"). Conta que veio de brinde, com o fornecedor tendo tabela na casa,
+  // é zerada no card e NÃO herda a tabela. `null` = nada digitado = herda.
+  if(v&&v.custo!=null)return v.custo;
   const quando=_dataDoPreco(v);
   if(quando){
     const p=_precoVigenteEm(_degrausPreco(forn,casa),quando);
     if(p&&p.valor>0)return p.valor;
   }
   return (typeof custoData!=='undefined'&&custoData[k])||0;
+}
+
+// ── A conta TEM PREÇO? (s381, decisão do Feca) ─────────────────────────────
+// Pergunta diferente de "quanto custou", e as duas não se fundem: `_custoDaConta` devolve
+// 0 tanto para a conta que custou ZERO quanto para a que ninguém lançou. Regra do Feca:
+// "zero é preço; sem custo lançado é sem preço". Nas contas, as duas ENTRAM no P/L e no
+// ROI (a sem preço com custo zero, mesmo que infle), e a tela avisa quantas são SEM PREÇO
+// e marca cada uma — o aviso é o que impede o ROI otimista de passar por medido.
+// Mesmas três camadas do `_custoDaConta`, na mesma ordem.
+function _temPrecoConta(forn,casa,conta){
+  if(!_contaVida)_buildContaVida();
+  const k=forn+'||'+casa;
+  const v=(_contaVida[k]||{})[conta||'__default__'];
+  if(v&&v.custo!=null)return true;
+  const quando=_dataDoPreco(v);
+  if(quando){
+    const p=_precoVigenteEm(_degrausPreco(forn,casa),quando);
+    if(p&&p.valor>0)return true;
+  }
+  return ((typeof custoData!=='undefined'&&custoData[k])||0)>0;
 }
 
 // ── Janela de vida da conta (s322) ────────────────────────────────────────────
@@ -200,7 +223,7 @@ function _buildContaVida(){
     const k=normForn(forn)+'||'+casa;
     if(!_contaVida[k])_contaVida[k]={};
     const c=conta||'__default__';
-    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:'',id:null,custo:0,adq:'',pa:'',ren:[]};
+    if(!_contaVida[k][c])_contaVida[k][c]={ini:'',fim:'',op:'',id:null,custo:null,adq:'',pa:'',ren:[]};
     return _contaVida[k][c];
   };
   // 1) bilhetes — LIQUIDADOS e ABERTOS. Só `DADOS` deixaria de fora a conta que tem
@@ -221,7 +244,7 @@ function _buildContaVida(){
     if(!p.casa||!p.conta)return;
     const v=_slot(p.fornecedor,p.casa,p.conta);
     if(p.id)v.id=p.id;
-    if(p.custo>0)v.custo=p.custo;      // exceção da conta; 0/ausente = herda do fornecedor
+    if(p.custo!=null)v.custo=p.custo;  // exceção da conta, ZERO incluído; null = herda (s381)
     if(p.ren&&p.ren.length)v.ren=p.ren; // renovações pagas (s381), cada uma com a sua data
     if(p.adquirida_em)v.adq=p.adquirida_em;
     if(p.adquirida_em&&(!v.ini||p.adquirida_em<v.ini))v.ini=p.adquirida_em;
@@ -487,7 +510,7 @@ async function contasLoad(){
     const todas=(d.parceiros||[])
       .map(p=>({id:p.id,casa:(p.casa||'').trim(),arquivado:!!p.arquivado,
                 adquirida_em:p.adquirida_em||'',arquivada_em:p.arquivada_em||'',
-                custo:(p.custo==null?0:Number(p.custo)||0),
+                custo:(p.custo==null||p.custo===''?null:Number(p.custo)),   // null ≠ 0 (s381)
                 ren:_renovacoesDoCadastro(p.renovacoes),
                 ..._splitParceiro(p.nome)}))
       .filter(p=>p.casa&&p.conta);

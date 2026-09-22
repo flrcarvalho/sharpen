@@ -93,7 +93,7 @@ MUTACOES = [
     (
         "o custo PROPRIO da conta deixa de ganhar do preco do fornecedor",
         "gestao",
-        "  if(v&&v.custo>0)return v.custo;",
+        "  if(v&&v.custo!=null)return v.custo;",
         "  if(false)return v.custo;",
     ),
     (

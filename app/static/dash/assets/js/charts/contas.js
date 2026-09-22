@@ -202,6 +202,8 @@ function _cnBase(){
         turn:m.turnPer, pl:m.plPer,
         // Compra + renovações pagas até o fim do recorte (s381): é o que a conta custou
         // de fato. A mesma soma que o `_custoNaJanela('vivo')` faz para o estoque.
+        // "Tem preço" é outra pergunta que "quanto custou": R$ 0 digitado TEM preço (s381).
+        temPreco:(typeof _temPrecoConta==='function')?_temPrecoConta(forn,casa,nome):false,
         custo:((typeof _custoDaConta==='function')?_custoDaConta(forn,casa,nome):0)
           +((typeof _renovacoesNaJanela==='function')?_renovacoesNaJanela(v,'0000-01-01',ate).total:0),
       });
@@ -213,12 +215,24 @@ function _cnBase(){
 }
 
 // ── Os três estados de custo ─────────────────────────────────────────────────
-// Regra de negócio crítica do handoff, e a única que não pode ser perdida:
-// conta PRÓPRIA entra no cálculo com custo zero VERDADEIRO; conta SEM PREÇO lançado
-// fica FORA do múltiplo e do ROI líquido. São estados diferentes e nunca se fundem —
-// somar a segunda como zero inflaria o retorno com custo que existe e não foi
-// declarado (a ausência se disfarçando de zero).
-function _cnTemPreco(c){return c.propria||c.custo>0;}
+// Própria (custo zero por natureza), COM PREÇO (qualquer valor lançado, R$ 0 incluído) e
+// SEM PREÇO (nada lançado). Até a s381 a sem preço saía do ROI e do múltiplo. Decisão do
+// Feca na s381: "zero é preço; sem custo lançado é sem preço. Em ambos os casos não
+// tiraremos do PL e o ROI deve contá-las, mesmo que infle — porém deve-se informar o
+// usuário que tem X contas sem preço". Então TODA conta entra no cálculo (a sem preço com
+// custo zero) e a sem preço é MARCADA na linha e CONTADA no rodapé: o aviso é o que
+// impede o ROI otimista de passar por medido.
+function _cnTemPreco(c){return c.propria||!!c.temPreco;}
+
+// O aviso das contas sem preço, UMA fonte para os rodapés do painel 2 e do 3 (duas
+// cópias divergiriam no primeiro ajuste). Diz o que acontece com elas e o que fazer.
+function _cnAvisoSemPreco(n){
+  if(!n)return'';
+  return(n===1
+      ?` A <span class="cn-warnc">conta sem preço</span> entra com custo zero, e o retorno pode estar otimista.`
+      :` As <span class="cn-warnc">${n} sem preço</span> entram com custo zero, e o retorno pode estar otimista.`)
+    +` Lance o custo no card Custo da conta, na Extração (R$ 0 se foi grátis).`;
+}
 
 // Agrega por casa.
 function _cnPorCasa(contas){
@@ -230,13 +244,12 @@ function _cnPorCasa(contas){
     a.n++;
     if(c.ativa)a.ativas++;else a.inativas++;
     if(c.propria)a.proprias++;
-    if(c.custo>0)a.comPreco++;else if(!c.propria)a.semPreco++;
+    if(!c.propria){if(c.temPreco)a.comPreco++;else a.semPreco++;}
     if(c.dur>0){a.durs.push(c.dur);a.somaDur+=c.dur;}
     if(c.dias>0)a.diasArr.push(c.dias);
     a.turn+=c.turn; a.pl+=c.pl; a.custo+=c.custo; a.bets+=c.bets;
-    // Elegível = tem preço declarado (comprada com valor, ou própria a custo zero). É
-    // sobre ELE que o líquido e o múltiplo se calculam.
-    if(_cnTemPreco(c)){a.turnEleg+=c.turn;a.plEleg+=c.pl;}
+    // Toda conta entra no líquido e no múltiplo (s381); a sem preço entra com custo zero.
+    a.turnEleg+=c.turn;a.plEleg+=c.pl;
   });
   return Object.values(by).map(a=>{
     const plLiq=a.plEleg-a.custo;
@@ -293,7 +306,7 @@ function _cnHistograma(durs){
 function _cnGeral(contas,linhas){
   const durs=contas.filter(c=>c.dur>0).map(c=>c.dur);
   const dias=contas.filter(c=>c.dias>0).map(c=>c.dias);
-  const eleg=contas.filter(_cnTemPreco);
+  const eleg=contas;   // toda conta entra no ROI (s381); a sem preço é avisada, não excluída
   const turnEleg=eleg.reduce((a,c)=>a+c.turn,0);
   const plEleg=eleg.reduce((a,c)=>a+c.pl,0);
   const turnTot=contas.reduce((a,c)=>a+c.turn,0);
@@ -311,9 +324,9 @@ function _cnGeral(contas,linhas){
     // recortado com um bruto da base inteira faria a margem parecer menor do que é.
     roiBruto:turnEleg>0?(plEleg/turnEleg*100):0,
     ranking:linhas.slice().sort((a,b)=>b.turnConta-a.turnConta).slice(0,5),
-    nComPreco:contas.filter(c=>!c.propria&&c.custo>0).length,
+    nComPreco:contas.filter(c=>!c.propria&&c.temPreco).length,
     nProprias:contas.filter(c=>c.propria).length,
-    nSemPreco:contas.filter(c=>!c.propria&&c.custo<=0).length,
+    nSemPreco:contas.filter(c=>!c.propria&&!c.temPreco).length,
     plEleg:plEleg,
   };
 }
@@ -598,7 +611,7 @@ function _cnUltimas(contas,n){
 // encerrou não há mediana, vai `·`, e o rodapé diz por quê.
 function _cnAgregadoRecente(recs,custo){
   const durs=recs.filter(c=>!c.ativa&&c.dur>0).map(c=>c.dur);
-  const eleg=recs.filter(_cnTemPreco);
+  const eleg=recs;   // mesma régua do geral (s381)
   const turn=eleg.reduce((a,c)=>a+c.turn,0);
   const pl=eleg.reduce((a,c)=>a+c.pl,0);
   return {
@@ -677,7 +690,7 @@ function _cnPaineis(B,contas,casa){
   // chamá-la por painel repetiria a varredura e, pior, abriria a porta para dois
   // painéis vizinhos mostrarem custos diferentes se alguém mudasse um dos argumentos.
   const custo=_cnCustoTotal(B,contas,casa);
-  const turnEleg=contas.filter(_cnTemPreco).reduce((a,c)=>a+c.turn,0);
+  const turnEleg=contas.reduce((a,c)=>a+c.turn,0);   // toda conta entra (s381)
   // ── Anatomia do painel ───────────────────────────────────────────────────
   // O TÍTULO segue o `.kpi-label` + `.kpi-pipe` do produto (mono 11/700, `.08em`, com a
   // barra azul de 4×13px). O handoff pedia um eyebrow em `--accent-2` sem barra, mas
@@ -755,11 +768,11 @@ function _cnPaineis(B,contas,casa){
         // (s381). O "·" mudo leu como "não puxou o P/L" para o tester Gabriel, em duas
         // contas arquivadas cujo P/L estava certo e só faltava o custo.
         const semPreco=!_cnTemPreco(c);
-        const roiC=c.turn>0&&!semPreco?((c.pl-c.custo)/c.turn*100):null;
-        return`<div class="cn-mrow"><span class="nm">${esc(c.conta)}</span>`
-          +`<span class="vv vv--conta"><b>${fmtR(c.turn)}</b> · ${semPreco
-            ?'<span class="cn-sem cn-warnc" title="Sem custo lançado: a conta fica fora do ROI até ter preço. Lance o custo no card Custo da conta, na Extração.">sem preço</span>'
-            :_cnPctTxt(roiC)}</span></div>`;
+        const roiC=c.turn>0?((c.pl-c.custo)/c.turn*100):null;
+        return`<div class="cn-mrow"><span class="nm">${esc(c.conta)}${semPreco
+            ?' <span class="cn-sem cn-warnc" title="Sem custo lançado: a conta entra no ROI com custo zero. Lance o custo no card Custo da conta, na Extração (R$ 0 se foi grátis).">sem preço</span>'
+            :''}</span>`
+          +`<span class="vv vv--conta"><b>${fmtR(c.turn)}</b> · ${_cnPctTxt(roiC)}</span></div>`;
       })
     : linhas.filter(c=>c.comPreco>0).sort((a,b)=>b.comPreco-a.comPreco).slice(0,5).map(c=>
         `<div class="cn-mrow"><span class="nm">${mkHouseChip(c.casa)}${esc(c.casa)}</span>`
@@ -776,13 +789,8 @@ function _cnPaineis(B,contas,casa){
     `Cada conta movimentou ${fmtR(G.turnConta)} em ${Math.round(G.diasMedia)} dias ativos, `
     +`em média. <b>O líquido é o que sobra depois do custo da conta</b>; a diferença para o `
     +`bruto é o quanto a aquisição come da margem.`
-    // Os DOIS ROIs acima saem só das contas com preço (`turnEleg`/`plEleg`). Sem este
-    // aviso, uma conta lucrativa sem custo lançado some do número sem explicação (s381).
-    +(G.nSemPreco
-      ?(G.nSemPreco===1
-        ?` A <span class="cn-warnc">conta sem preço</span> fica fora dos dois ROIs.`
-        :` As <span class="cn-warnc">${G.nSemPreco} sem preço</span> ficam fora dos dois ROIs.`)
-      :''));
+    // As sem preço entram nos dois ROIs com custo zero (s381): o aviso diz quantas são.
+    +_cnAvisoSemPreco(G.nSemPreco));
 
   // ── 3 · RETORNO SOBRE AQUISIÇÃO ──
   const nEleg=G.nComPreco+G.nProprias;
@@ -815,13 +823,7 @@ function _cnPaineis(B,contas,casa){
         ? ' A conta própria entra com custo zero real.'
         : ` As ${G.nProprias} próprias entram com custo zero real.`)
     : '';
-  const notaSem=G.nSemPreco
-    ? (G.nSemPreco===1
-        ? ` A <span class="cn-warnc">conta sem preço</span> fica fora do cálculo, porque `
-          +`tratá-la como zero inflaria o retorno.`
-        : ` As <span class="cn-warnc">${G.nSemPreco} sem preço</span> ficam fora do cálculo, `
-          +`porque tratá-las como zero inflaria o retorno.`)
-    : ' Toda conta do recorte tem preço lançado.';
+  const notaSem=G.nSemPreco?_cnAvisoSemPreco(G.nSemPreco):' Toda conta do recorte tem preço lançado.';
   const multTxt=mult===null?'·'
     :mult.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
   // Título do Feca. Ele resolve o português ruim de "quanto o CUSTO devolveu" (custo não
@@ -909,7 +911,8 @@ function _cnBloco(B,linhas){
       +`<div class="cn-fcell"><div class="n">${fmtR(a.turnConta)}</div>`
       +  `<div class="s">líq. ${_cnPctTxt(a.roiLiq)} · bruto ${fmtPct(a.roi,2)}</div></div>`
       +`<div class="cn-fcell"><div class="n">${a.custoDia===null?'<span class="cn-sem">·</span>':_cnMoney2(a.custoDia)}</div>`
-      +  `<div class="s">${a.custo>0?'custo '+fmtR(a.custo):'<span class="cn-sem">sem custo lançado</span>'}</div></div>`
+      // Casa só com contas de R$ 0 digitado TEM custo lançado: ele é zero (s381).
+      +  `<div class="s">${a.custo>0||a.comPreco>0?'custo '+fmtR(a.custo):'<span class="cn-sem">sem custo lançado</span>'}</div></div>`
       +`<div class="cn-multwrap"><div class="n">${_cnMult(a.mult)}</div>`
       +  `<div class="cn-gauge"><i class="${under?'under':''}" style="width:${gMult.toFixed(1)}%"></i>`
       +  `<span class="th" style="left:${100/CN_GAUGE_MAX}%"></span></div></div>`
@@ -977,8 +980,8 @@ function _cnOrdenarDrill(contas,key,dir){
   const txt=k=>k==='conta'||k==='forn';
   const val=(c,k)=>{
     if(k==='estado')return c.ativa?1:0;
-    if(k==='liq')return _cnTemPreco(c)?(c.pl-c.custo):null;
-    if(k==='roiLiq')return _cnTemPreco(c)&&c.turn>0?((c.pl-c.custo)/c.turn):null;
+    if(k==='liq')return c.pl-c.custo;
+    if(k==='roiLiq')return c.turn>0?((c.pl-c.custo)/c.turn):null;
     return c[k];
   };
   const recente=(a,b)=>String(b.fim||'').localeCompare(String(a.fim||''))
@@ -1002,7 +1005,6 @@ function _cnDrill(B,agg,contas){
   const ord=_cnOrdenarDrill(contas,key,dir);
 
   const rows=ord.map(c=>{
-    const tem=_cnTemPreco(c);
     const liq=c.pl-c.custo;
     const roiLiq=c.turn>0?(liq/c.turn*100):null;
     // Tag, não texto com bolinha: "· inativa" ficava como sobra de linha, e o estado é
@@ -1010,11 +1012,11 @@ function _cnDrill(B,agg,contas){
     const est=c.ativa
       ? '<span class="cn-tag cn-tag--on">ativa</span>'
       : '<span class="cn-tag">inativa</span>';
-    // Os três estados de custo, visualmente distintos. `sem preço` em `--warn`, e o
-    // líquido e o ROI líquido viram `·`: mostrar o P/L cru na coluna de líquido faria a
-    // conta parecer mais lucrativa do que se sabe que ela é.
+    // Os três estados de custo, visualmente distintos. `sem preço` em `--warn`; o
+    // líquido e o ROI líquido saem com custo zero (s381) e o rodapé avisa. R$ 0 digitado
+    // é preço e aparece como R$ 0, igual a qualquer valor.
     const custo=c.propria?'<span class="cn-propria">própria</span>'
-              :c.custo>0?fmtR(c.custo)
+              :c.temPreco?fmtR(c.custo)
               :'<span class="cn-warnc">sem preço</span>';
     return`<tr>`
       +`<td class="l">${esc(c.conta)}</td>`
@@ -1026,8 +1028,8 @@ function _cnDrill(B,agg,contas){
       +`<td>${fmtR(c.turn)}</td>`
       +`<td>${fmtPL(c.pl)}</td>`
       +`<td>${custo}</td>`
-      +`<td class="k">${tem?fmtPL(liq):'<span class="cn-sem">·</span>'}</td>`
-      +`<td class="k">${tem&&roiLiq!==null?_cnPctTxt(roiLiq):'<span class="cn-sem">·</span>'}</td>`
+      +`<td class="k">${fmtPL(liq)}</td>`
+      +`<td class="k">${roiLiq!==null?_cnPctTxt(roiLiq):'<span class="cn-sem">·</span>'}</td>`
       +`</tr>`;
   }).join('');
 
@@ -1036,7 +1038,7 @@ function _cnDrill(B,agg,contas){
   const dth=(col,lbl,cls)=>`<th class="${cls||''} ${key===col?'sort-'+(dir<0?'desc':'asc'):''}"`
     +` onclick="event.stopPropagation();cnDrillSort('${col}')">${lbl}<span class="sort-icon"></span></th>`;
   const aviso=agg.semPreco>0
-    ?`<span class="w">${agg.semPreco} ${_cnPl(agg.semPreco,'conta','contas')} sem preço fora do múltiplo</span>`:'';
+    ?`<span class="w">${agg.semPreco} ${_cnPl(agg.semPreco,'conta','contas')} sem preço, com custo zero no cálculo</span>`:'';
   // Os TRÊS PAINÉIS da casa vêm antes da tabela: é o pedido do Feca de ter "isso dentro
   // de cada casa seguido da tabela com a lista". O agregado do topo mistura casas que não
   // se comparam; aqui cada uma responde por si, na mesma linguagem visual.

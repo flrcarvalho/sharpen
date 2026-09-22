@@ -7065,8 +7065,10 @@ function _custoDigitado(v) {
 }
 async function _salvarCustoDaConta(id, bruto) {
   const custo = _custoDigitado(bruto);
-  if (custo !== null && !(custo > 0))
-    return { ok: false, erro: 'O custo tem de ser maior que zero. Deixe vazio para usar a tabela.' };
+  // Zero é aceito (s381, "zero é preço"): conta de brinde custou zero. Só negativo e
+  // texto sem número são recusados.
+  if (custo !== null && !(custo >= 0))
+    return { ok: false, erro: 'Informe um valor (R$ 0 se a conta foi de graça). Deixe vazio para usar a tabela.' };
   try {
     const r = await fetch('/parceiros/' + id + '/custo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -7123,7 +7125,9 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
   // conta herda, e nada aqui a edita.
   const conta = (parceiroSelecionado && parceiroSelecionado.casa === casa
                  && parceiroSelecionado.nome === parceiro) ? parceiroSelecionado : null;
-  const proprio = conta && Number(conta.custo) > 0 ? Number(conta.custo) : 0;
+  // `null` = nada digitado (usa a tabela); 0 = custo ZERO digitado, que é preço (s381).
+  const temProprio = !!conta && conta.custo != null && conta.custo !== '';
+  const proprio = temProprio ? Number(conta.custo) : 0;
   const tabela = _lerCusto(forn || 'Eu', casa);
   const roiCls = d.roi > 0 ? 'pos' : (d.roi < 0 ? 'neg' : '');
   // tile uniforme; herói (P/L) destaca só por acento. P/L usa fmtPL (cor no próprio
@@ -7133,20 +7137,24 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
   const dec2 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   // Rótulo curto de propósito: "Custo · tabela Norte" quebrava em duas linhas e
   // desalinhava o card dos vizinhos (medido no demo). O fornecedor mora no title.
-  const origem = proprio ? 'próprio' : 'tabela';
-  const dica = proprio
+  // Três estados (s381): próprio (R$ 0 incluído), tabela, e SEM PREÇO — nada lançado e
+  // sem tabela. O último é o único que a tela marca, em --warn: é o que o Feca quer avisado.
+  const semPreco = !temProprio && !tabela;
+  const origem = temProprio ? 'próprio' : (tabela ? 'tabela' : 'sem preço');
+  const dica = temProprio
     ? `Custo próprio desta conta. A tabela${forn ? ' do ' + forn : ''} nesta casa`
       + (tabela ? ` é R$ ${dec2(tabela)}` : ' não tem preço') + ' e não muda. Apague o valor para a conta voltar a usar a tabela.'
     : (tabela
-      ? `Esta conta usa a tabela${forn ? ' do ' + forn : ''} nesta casa (R$ ${dec2(tabela)}). Digite um valor para dar a ESTA conta um custo próprio; a tabela não muda.`
-      : `Sem preço de tabela nesta casa. Digite o custo desta conta; a tabela se edita na tela de Custos do Dashboard.`);
+      ? `Esta conta usa a tabela${forn ? ' do ' + forn : ''} nesta casa (R$ ${dec2(tabela)}). Digite um valor para dar a ESTA conta um custo próprio (R$ 0 se foi grátis); a tabela não muda.`
+      : `Sem preço: nada lançado para esta conta e o fornecedor não tem tabela nesta casa. Digite o custo (R$ 0 se foi grátis).`);
   const custoTile = conta
-    ? `<div class="tile"><span class="lab"${erroCusto ? ' style="color:var(--neg)"' : ''}>`
+    ? `<div class="tile"><span class="lab"${erroCusto ? ' style="color:var(--neg)"' : (semPreco ? ' style="color:var(--warn)"' : '')}>`
       + (erroCusto ? 'Custo · erro' : 'Custo · ' + origem) + `</span>`
       + `<span class="val custo-wrap"><span class="money-sign">R$</span>`
       + `<input class="ctx-kpi-custo-input" id="ctxCustoInput" type="text" spellcheck="false" autocomplete="off"`
-      + ` value="${proprio ? dec2(proprio) : ''}" placeholder="${tabela ? dec2(tabela) : '0,00'}"`
-      + ` data-id="${conta.id}" data-antes="${proprio ? dec2(proprio) : ''}"`
+      // Placeholder "0,00" numa conta sem preço leria como R$ 0, que agora é um preço.
+      + ` value="${temProprio ? dec2(proprio) : ''}" placeholder="${tabela ? dec2(tabela) : '—'}"`
+      + ` data-id="${conta.id}" data-antes="${temProprio ? dec2(proprio) : ''}"`
       + ` title="${esc(erroCusto || dica)}">`
       + _renovBotao(conta) + `</span></div>`
     : `<div class="tile"><span class="lab">Custo</span><span class="val" style="color:var(--ink-mute)">—</span></div>`;

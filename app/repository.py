@@ -3661,7 +3661,9 @@ async def remover_renovacao(parceiro_id: int, dono: str, renovacao_id: str) -> b
 async def definir_custo_conta(parceiro_id: int, dono: str, custo) -> bool:
     """Grava o custo PRÓPRIO de uma conta, ou o apaga para ela voltar a herdar do
     fornecedor. `custo=None` é a volta à herança — e é por isso que ele não pode ser
-    confundido com zero, que seria uma conta de graça."""
+    confundido com zero, que é uma conta de graça DECLARADA. Zero é aceito desde a s381
+    (decisão do Feca, "zero é preço"): a conta de brinde de um fornecedor que tem tabela
+    na casa é zerada aqui e deixa de herdar a tabela."""
     if custo is None or (isinstance(custo, str) and not custo.strip()):
         v = None
     else:
@@ -3669,8 +3671,8 @@ async def definir_custo_conta(parceiro_id: int, dono: str, custo) -> bool:
             v = Decimal(str(custo))
         except (InvalidOperation, TypeError):
             raise ValueError("valor inválido")
-        if v <= 0:
-            raise ValueError("o custo tem de ser maior que zero")
+        if not v.is_finite() or v < 0:
+            raise ValueError("o custo não pode ser negativo")
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(

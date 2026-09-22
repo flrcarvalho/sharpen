@@ -577,8 +577,8 @@ def definir_custo_conta_demo(parceiro_id: int, body: CustoContaPropriaDemo):
         v = float(str(bruto).replace(",", "."))
     except ValueError:
         return JSONResponse({"detail": "valor invalido"}, status_code=400)
-    if v <= 0:
-        return JSONResponse({"detail": "o custo tem de ser maior que zero"}, status_code=400)
+    if v < 0:   # zero e preco (s381): conta de brinde
+        return JSONResponse({"detail": "o custo nao pode ser negativo"}, status_code=400)
     _CUSTO_PROPRIO[parceiro_id] = v
     return {"salvo": True, "custo": v}
 

@@ -3059,6 +3059,9 @@ select.ap-inline-inp { padding: 2px 4px; }
    6px alem da borda das porcentagens (medido). O ranking de CASAS segue no flex: ali o
    espacamento vem do `gap`, sem espaco no markup. */
 .cn-mrow .vv.vv--conta     { display: inline-block; }
+/* Tag "sem preço" ao lado do nome da conta (s381): margem própria, porque o espaço do
+   markup colapsa e a tag grudava no nome ("Murilosem preço", medido). Corpo da coluna. */
+.cn-mrow .nm .cn-sem       { margin-left: 6px; font-size: var(--text-xs); }
 
 /* Composição e cobertura do painel 3 */
 .cn-comp                   { display: flex; flex-direction: column; gap: 9px; }
