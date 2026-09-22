@@ -249,18 +249,21 @@ renovação é dinheiro que sai noutro dia e cobra no mês em que saiu, como a c
 **Contas em operação** (decisão dele). **Sem prazo nem aviso de vencimento**: *"cada
 fornecedor trabalha de uma forma"*, o usuário controla.
 
-### 1.21 Aba Contas v4 no ar, esperando o Feca testar antes do aviso (s372). **VIVA, decisão do Feca**
+### 1.21 Aba Contas: aviso ao grupo. **FECHADA em 22/09 — publicada.**
 
-A tela foi reescrita inteira (`9e8e283`) e está em produção. O aviso ao grupo
-`Sharpen - Testers` **não sai** enquanto ele não abrir e validar — palavras dele:
-*"nao pq eu nem testei"*. A mensagem fica pronta, esperando o "pode mandar".
+O Feca testou, pediu os ajustes (nome do 3o painel, bloco Geral recolhivel, default
+`Ambas`, ordem do drill e o 4o painel) e mandou publicar. Saiu em 22/09 no grupo
+`Sharpen - Testers`: **texto numerado** (message_id 4910) e **folder de uma pagina**
+(4911), com a nota gravada em `app/changelog.json` no mesmo ato (`8aaf2f4`).
 
-**A conferência que ele precisa fazer ao abrir:** o card **Custo das contas** do painel 3
-contra a **tela de Custos**, que é a régua canônica. São duas superfícies lendo o mesmo
-dado, e é assim que se descobre se elas concordam.
+O folder e o material em [`docs/marketing/folders/contas/`](docs/marketing/folders/contas/README.md):
+a tela REAL com os valores trocados para os da operacao do Feca e nomes ficticios. Ele
+ficou fora da legenda da foto de proposito (a Bot API corta legenda em 1024 caracteres e
+o texto tem 2.385), entao foram **dois envios**, o texto primeiro.
 
-*(Registrado por mim a pedido da sessão vizinha, que estava com o `BACKLOG.md` bloqueado
-pela minha edição — `git add` dela levaria a minha junto, que é o caso 8 ao contrário.)*
+**O que continua aberto e e do Feca:** conferir o card **Custo das contas** do painel 3
+contra a **tela de Custos**, que e a regua canonica. Sao duas superficies lendo o mesmo
+dado, e e assim que se descobre se elas concordam.
 
 ### 1.19 O front duplica a lista de casas com captura, que o servidor já devolve (s375). **VIVA, medida**
 
@@ -1086,7 +1089,7 @@ auditoria.
 
 ---
 
-### 3.13 Quanto o tipster CONSEGUIU passar, e não só quanto passou (s377). VIVA, medida.
+### 3.17 Quanto o tipster CONSEGUIU passar, e não só quanto passou (s377). VIVA, medida.
 
 Pedido do **Germano** em depoimento gravado (20/09, áudio 5; transcrição em
 [`docs/marketing/depoimentos/`](docs/marketing/depoimentos/DEPOIMENTOS.md)). São **duas**
