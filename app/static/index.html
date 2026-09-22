@@ -4390,19 +4390,23 @@ function renderPainelLista() {
       const forn = _painelParseForn(p.nome);
       const fornRot = temForn ? (forn || _painelRotuloEu()) : forn;
       const nomeLimpo = forn ? (p.nome || '').replace(/\s*\[[^\]]*\]\s*$/, '') : (p.nome || '');
-      const clic = contasTab === 'ativas';   // ativa = tem perfil na Extração → a linha abre lá
-      // Na aba Ativas a linha inteira abre a conta na Extração, então toda ação precisa
-      // parar a propagação. Excluir voltou para a linha (v2), em vermelho APAGADO:
-      // aceso em ~100 linhas o --neg cheio vira textura de fundo.
-      const stop = clic ? 'event.stopPropagation();' : '';
+      // `clic` escolhe a AÇÃO (Arquivar na aba Ativas, Reativar na Arquivadas). Abrir na
+      // Extração vale para as DUAS abas desde a s381 (pedido do Feca): conta arquivada
+      // também tem custo, renovação e histórico para conferir, e o `contasAbrir` já a
+      // procurava no `parceirosArquivadosCache` — só a linha é que não era clicável.
+      const clic = contasTab === 'ativas';
+      // A linha inteira abre a conta na Extração, então toda ação precisa parar a
+      // propagação. Excluir voltou para a linha (v2), em vermelho APAGADO: aceso em
+      // ~100 linhas o --neg cheio vira textura de fundo.
+      const stop = 'event.stopPropagation();';
       const ds = 'this.closest(\'.conta-row\').dataset.';
       const acoes =
         '<button class="btn-mini" type="button" onclick="' + stop + 'contasEditar(' + p.id + ',' + ds + 'casa,' + ds + 'nome)">' + _ICO_ACAO.editar + 'Editar</button>'
         + '<button class="btn-mini" type="button" onclick="' + stop + (clic ? 'contasArquivar' : 'contasReativar') + '(' + p.id + ',' + ds + 'casa)">'
           + (clic ? _ICO_ACAO.arquivar + 'Arquivar' : _ICO_ACAO.reativar + 'Reativar') + '</button>'
         + '<button class="btn-mini del" type="button" onclick="' + stop + 'contasExcluir(' + p.id + ',' + ds + 'casa)">' + _ICO_ACAO.excluir + 'Excluir</button>';
-      html += '<div class="conta-row' + (clic ? ' clickable' : '') + '" data-casa="' + esc(casa) + '" data-nome="' + esc(p.nome || '') + '"'
-        + (clic ? ' onclick="contasAbrir(' + p.id + ',this.dataset.casa)" title="Abrir na Extração"' : '')
+      html += '<div class="conta-row clickable" data-casa="' + esc(casa) + '" data-nome="' + esc(p.nome || '') + '"'
+        + ' onclick="contasAbrir(' + p.id + ',this.dataset.casa)" title="Abrir na Extração"'
         + '><span class="conta-nomewrap">'
           + '<span class="conta-nome">' + esc(nomeLimpo || '—') + '</span>'
           // `.acct-supplier-inline`: acima de 1500px de área de app o fornecedor sai

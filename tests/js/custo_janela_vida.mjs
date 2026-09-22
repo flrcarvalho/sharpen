@@ -724,6 +724,24 @@ const comRen = (c, ren) => Object.assign(c, { ren });
   ok(op.total === 900, 'R4. estoque = compra 600 + renovacao paga 300 (sem a futura), veio ' + op.total);
 }
 
+// R6. Conta ARQUIVADA com custo proprio e renovacao, editada depois de arquivar (s381,
+// pergunta do Feca). O dinheiro saiu: compra e renovacao cobram no mes delas como em
+// qualquer conta. O que o arquivamento muda e so o ESTOQUE: ela nao esta mais rodando.
+{
+  const cfg = {
+    custos: { 'GN||Betano': 600 },
+    dados: [bilhete('B1', 'Betano', 'GN', '2026-07-10')],
+    cadastro: [comRen(Object.assign(cad('B1', 'Betano', 'GN', '2026-07-10', '2026-08-20'), { custo: 777 }),
+      [{ id: 'a', valor: 250, data: '2026-08-15' }])],
+  };
+  API.set({ ...cfg, periodo: periodo('2026-07-01', '2026-07-31') });
+  ok(API.calcCostFiltered('overview').costConta === 777, 'R6. arquivada: a compra cobra com o custo PROPRIO (777), no mes dela');
+  API.set({ ...cfg, periodo: periodo('2026-08-01', '2026-08-31') });
+  ok(API.calcCostFiltered('overview').costConta === 250, 'R6. arquivada: a renovacao cobra no mes dela');
+  API.set({ ...cfg });
+  ok(API.calcContasEmOperacao('overview').total === 0, 'R6. arquivada nao entra nas contas em operacao');
+}
+
 // R5. A carga do cadastro normaliza: valor em string passa pelo parseNum (1.200 e
 // milhar, nao 1,2) e item sem data ou sem valor fica de fora (nao ha mes a que pertencer).
 {
