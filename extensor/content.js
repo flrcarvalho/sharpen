@@ -6037,6 +6037,30 @@
       const dataCol = _dataKickoffB3(t.da || t.tp);
       if (dataCol) L.push("Data (colocação): " + dataCol);
     }
+    // ── CARIMBO DE COLOCAÇÃO — a única identidade ESTÁVEL que esta casa dá ────────
+    // Sai em TODO bilhete, não só onde falta kickoff: aqui ele não é data, é CHAVE.
+    //
+    // POR QUE: o `ID` do summary é da VISÃO, não da aposta (24h vem no namespace `D1`,
+    // 48h e Intervalo de Datas vêm no `D0`), e muda de novo quando o bilhete resolve. O
+    // `TP` é o mesmo nas duas visões — 6 de 6 pares conferidos pelo código de comprovante
+    // (`docs/casos/CASOS_BET365.md`). É com ele que se reencontra, na LISTA de resolvidas,
+    // uma aposta que já está no banco como aberta, sem abrir o detalhe de ninguém.
+    //
+    // ⚠️ VERBATIM, em 14 dígitos, sem conversão de fuso. O `_dataKickoffB3` converte
+    // UK→Brasília por um fuso ASSUMIDO (ver o bloco acima); uma chave convertida obrigaria
+    // os dois lados do casamento a repetir a mesma suposição, e o dia erraria junto. Como
+    // chave, o fuso é irrelevante: o que importa é os dois lados lerem a MESMA string.
+    // `TP` vem com 17 dígitos (`…620000`) e `DA`, do confirmation, com 14 (`…620`) — o
+    // mesmo instante, provado na fixture. Cortar em 14 faz as duas fontes casarem.
+    //
+    // ⚠️ O RÓTULO DIZ "NÃO É DATA" de propósito: quem lê o bloco é a IA, e um carimbo de
+    // 14 dígitos ao lado de uma linha de data é convite para ela datar o bilhete por aqui.
+    // Quem consome isto é o servidor, lendo o TEXTO CRU (`_carimbos_do_texto`), nunca o
+    // TSV — o mesmo caminho determinístico do `codigos_do_texto` e do `Stake:`.
+    const _carimbo = String(t.tp || t.da || "").slice(0, 14);
+    if (/^\d{14}$/.test(_carimbo) && +_carimbo.slice(0, 4) >= 2000) {
+      L.push("Carimbo (colocação · uso interno — NÃO usar como data): " + _carimbo);
+    }
     L.push("Stake: " + _brl(_numB3(t.ts != null ? t.ts : t.stake)));
     L.push("Status: " + _resultadoB3(t));
     // Sistema (BC > 1): as odds saem do SUMMARY quando houver — em bet builder as pernas do

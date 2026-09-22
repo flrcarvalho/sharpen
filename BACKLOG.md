@@ -1696,6 +1696,43 @@ aparece porque o denominador é zero, e é essa a informação.
 2. **Pode ser um usuário travado.** Alguém que tentou 17 prints num dia, não conseguiu, e
    não voltou. Vale a conversa antes da métrica.
 
+### 4.9 82 bilhetes da Bet365 em que o DINHEIRO discorda do resultado gravado (s382). VIVA, medida.
+
+Medição feita para responder o §8.1 do [`PLANO_RESOLVER_ABERTAS`](docs/PLANO_RESOLVER_ABERTAS.md)
+(o `RT` da lista reproduz os cinco desfechos?). Ela respondeu que sim, e de quebra apontou
+para o banco: cruzando **13.115 bilhetes de Bet365** que têm bloco em `sombra_rotulos` com o
+veredito determinístico de `_veredito_do_retorno`, **82 linhas divergem**.
+
+| gravado | conferível | o retorno reproduz | taxa |
+|---|---|---|---|
+| W | 5.155 | 5.086 | 98,7 % |
+| L | 6.269 | 6.262 | 99,9 % |
+| V | 488 | 483 | 99,0 % |
+| HW | 124 | 124 | 100 % |
+| HL | 190 | 189 | 99,5 % |
+
+**A maior família são 69 `W` que o dinheiro diz `HW`** — todas em linha asiática partida
+(`Under 2.0,2.5`, `Under 3.25`), concentradas em `Gabriel` e `Feca`. É exatamente o caso da
+s356 (a meia vitória que a odd adulterada escondia), com 69 no lugar dos 39 de lá: ou
+escaparam da correção, ou nasceram depois dela. **Descobrir qual é o primeiro passo** — se
+nasceram depois, o defeito continua produzindo.
+
+As outras três famílias são pequenas e cada uma pede olho próprio, porque nenhuma delas é
+"a IA transcreveu errado":
+
+- **7 `L` com retorno positivo**, todos na conta `Jaao26` (ex.: stake R$ 50, retorno R$ 350).
+- **5 `V`** que o retorno diz `W` ou `L`; quatro são do mesmo jogo, Coritiba x Athletico-PR.
+- **1 `HL`** que o retorno diz `W`.
+
+**O reparo já tem script**: `scripts/corrigir_resultado_odd_s321.py` faz esse cruzamento com
+ensaio, piso de R$ 1,00 e respeito a `correcoes` (edição humana manda). O que falta é a
+decisão de rodá-lo com `--aplicar` e o olho humano nas quatro famílias — **não é aplicar em
+lote**: o `V` do Coritiba cheira a anulação da casa, e o `L` do `Jaao26` a correção manual.
+
+> **A medição tem circularidade parcial e isso é parte do achado:** o resultado gravado foi
+> decidido pela IA lendo o MESMO bloco de onde saiu o retorno. Onde os dois discordam é onde
+> a circularidade quebra, e é por isso que a divergência vale mais que a taxa.
+
 ## 5. Planos com fase aberta
 
 > Um plano só sai daqui quando **todas** as fases dele fecham. Plano com uma fase aberta é

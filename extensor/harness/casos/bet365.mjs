@@ -181,6 +181,50 @@ export async function rodar() {
     }
   }
 
+  // ── 6c. O CARIMBO DE COLOCAÇÃO sai VERBATIM, em todo bilhete ────────────────
+  // É a única identidade estável que esta casa dá: o `ID` do summary é da VISÃO (24h no
+  // namespace `D1`, 48h e Intervalo de Datas no `D0`) e muda outra vez quando a aposta
+  // resolve. Sem o carimbo, aposta gravada como aberta não tem como ser reencontrada na
+  // lista depois — sabe-se QUEM procurar e não ONDE.
+  //
+  // O que este teste trava é a parte que o olho não vê: que ele sai CRU. Passar pelo
+  // `_dataKickoffB3` daria `22/07/2026`, que parece certo e destrói a chave de duas
+  // maneiras — perde a hora (o desempate entre apostas do mesmo dia) e aplica uma
+  // conversão UK→Brasília por fuso ASSUMIDO, que o outro lado do casamento teria de
+  // repetir igual. Por isso o valor esperado é literal, tirado da fixture.
+  {
+    const esperado = { "49637455311": "20260722233620",    // tem `DA` (confirmation) e `TP`
+                       "49635244290": "20260722150124",    // só `TP` (summary)
+                       "49633134678": "20260721223826" };
+    for (const [bsid, carimbo] of Object.entries(esperado)) {
+      const b = por.get(bsid);
+      if (!b) continue;
+      const l = linha(fmt(b), "Carimbo");
+      if (!l) {
+        falhas.push(`${bsid}: o bloco saiu SEM a linha de carimbo. Sem ela o bilhete nasce ` +
+                    `sem \`aposta_em\` e fica fora do "Resolver apostas abertas"`);
+        continue;
+      }
+      const num = (l.match(/(\d{14})\s*$/) || [])[1];
+      if (num !== carimbo) {
+        falhas.push(`${bsid}: carimbo devia ser ${carimbo} (o TP/DA da casa, verbatim), veio ` +
+                    `"${l}". Se virou data formatada, a chave perdeu a hora e ganhou uma ` +
+                    `conversão de fuso que o outro lado do casamento não faz`);
+      }
+    }
+    // Sem TP legível (o `TP=00010101…` do bet builder de mesmo jogo) NÃO sai linha nenhuma:
+    // ausência viaja como ausência. Um carimbo falso aqui casaria a aposta errada.
+    const semTP = { bsid: "9", code: "X", bc: "1", bt: "1", aberta: false, stake: "10",
+                    ts: "10", rt: "0", oddFrac: "1/1", tp: "00010101000000",
+                    sels: [{ na: "A x B", od: "1/1", cl: "1" }],
+                    legs: [{ jogo: "A x B", na: "S", od: "1/1", cl: "1", res: "L" }] };
+    if (linha(fmt(semTP), "Carimbo")) {
+      falhas.push("bilhete com TP=00010101… (bet builder de mesmo jogo, sem carimbo real) " +
+                  "ganhou linha de carimbo — data falsa é pior que data ausente, e aqui " +
+                  "uma chave falsa casa a aposta errada");
+    }
+  }
+
   falhas.push(...duplaEEsportes(fmt));
   falhas.push(...dataDoEvento(fmt));
   falhas.push(...await expansao());

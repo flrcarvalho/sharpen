@@ -60,6 +60,24 @@ ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS sistema_linhas INTEGER;
 -- Uma vez confirmado por fonte confiável, nunca volta a TRUE (ver o ON CONFLICT).
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS codigo_ocr BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Carimbo de COLOCAÇÃO da aposta, verbatim da casa, 14 dígitos (`20260722233620`).
+-- Hoje só a bet365 preenche; coluna nula não quebra nada.
+--
+-- POR QUE ELA EXISTE: a bet365 não dá identidade estável. O `ID` do summary é da VISÃO
+-- (últimas 24h vêm no namespace `D1`; 48h e Intervalo de Datas, no `D0`) e muda de novo
+-- quando a aposta resolve, então uma aposta gravada como ABERTA não tem endereço para
+-- ser reencontrada depois — sabe-se QUEM procurar (o código) e não ONDE ele está. O `TP`
+-- é o mesmo nas duas visões (6 de 6 pares conferidos pelo código de comprovante) e é o
+-- campo pelo qual a casa FILTRA o histórico. Com ele, o resultado de uma aposta aberta
+-- sai da LISTA, sem abrir o detalhe de ninguém.
+--
+-- ⚠️ SEM CONVERSÃO DE FUSO, de propósito. O `_dataKickoffB3` converte UK→Brasília por um
+-- fuso ASSUMIDO, não medido; uma chave convertida obrigaria os dois lados do casamento a
+-- repetir a mesma suposição. Como chave, o fuso não importa: importa os dois lados lerem
+-- a mesma string. Por isso é TEXT e não TIMESTAMPTZ — não é data, é identidade, e quem
+-- tratá-la como data vai datar bilhete por aqui.
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS aposta_em TEXT;
+
 -- Backfill da Blaze — determinístico, não heurístico: a Blaze só entrou na captura em
 -- 09/09/2026 19:24 BRT (commit d3f2233). Toda linha de Blaze criada ANTES desse instante
 -- veio de print, porque não existia outro caminho. Não vale para Jonbet/Betboom, cuja

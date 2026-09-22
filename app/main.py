@@ -94,7 +94,7 @@ from repository import (
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
     blocos_por_codigo, blocos_conhecidos, hash_bloco, registrar_blocos_vistos,
-    conferir_cobertura, codigos_do_texto, codigos_do_tsv,
+    conferir_cobertura, codigos_do_texto, codigos_do_tsv, carimbos_do_texto,
 )
 from descricao_check import checar_fidelidade
 import logo_imagem   # normalização/saneamento da logo da conta (s362)
@@ -1841,7 +1841,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         _fire(registrar_sombra(dono, casa, texto, accumulated))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -2046,7 +2046,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_sombra(dono, casa, texto, resultado))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
@@ -3578,6 +3578,12 @@ class SalvarRequest(BaseModel):
     # linha quando o bilhete voltar pela captura. Ausente → False (import, bot,
     # Polymarket e /bilhetes/manual não passam por OCR de código).
     codigo_ocr: bool = False
+    # CARIMBO DE COLOCAÇÃO por bilhete (`{código: 20260722233620}`), lido do TEXTO CRU no
+    # /extrair e transportado pelo front, igual ao `codigo_ocr`. Vira a coluna `aposta_em`.
+    # Não passa pelo TSV de propósito: é campo de IDENTIDADE, e identidade transcrita por
+    # IA erra (é o que o `_corrigir_codigos_fantasma` existe para consertar). Ausente →
+    # `{}`, e a coluna fica nula (import, bot, Polymarket, print, casa sem carimbo).
+    carimbos: Optional[dict] = None
 
 
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
@@ -3630,6 +3636,7 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
         inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(
             rows, dono, confianca=body.confianca, criado_base=criado_base,
             coproprietarios=coproprietarios(dono), codigo_ocr=body.codigo_ocr,
+            carimbos=body.carimbos,
         )
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}

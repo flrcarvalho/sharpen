@@ -6714,9 +6714,13 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         // IMAGEM, e nesse caso o codigo da 11a coluna foi LIDO do card pela IA. O front
         // so transporta. Sem ele, o mesmo bilhete lido por print e depois pela captura
         // vira DUAS linhas -- o codigo torto nao bate com o verdadeiro e a dedup passa reto.
+        // `carimbos` vem do /extrair pelo mesmo caminho do `codigo_ocr`: e' o carimbo de
+        // COLOCACAO de cada bilhete (`{codigo: 20260722233620}`), lido do TEXTO CRU do robo,
+        // nunca do TSV -- identidade transcrita por IA erra. Vira a coluna `aposta_em`, que
+        // e' o que permite reencontrar na lista da casa uma aposta gravada como aberta.
         body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome,
                                parceiro_id: parceiro.id, submitted_at: submittedAt,
-                               codigo_ocr: !!data.codigo_ocr }),
+                               codigo_ocr: !!data.codigo_ocr, carimbos: data.carimbos || null }),
       });
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar (HTTP ${rs.status})`);

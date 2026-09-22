@@ -879,6 +879,52 @@ def codigos_do_texto(texto: str | None) -> list[str]:
     return ordem
 
 
+# Carimbo de colocação que o robô imprime no bloco (hoje só a bet365). Rótulo lido de
+# forma TOLERANTE (`Carimbo` + qualquer coisa + `:`) de propósito: o texto do rótulo é
+# prosa dirigida à IA e vai mudar; o que não muda é o nome do campo e os 14 dígitos.
+_CARIMBO_RE = re.compile(r"^Carimbo\b[^:\r\n]*:\s*(\d{14})\s*$", re.MULTILINE)
+
+
+def carimbos_do_texto(texto: str | None) -> dict[str, str]:
+    """`{código do bilhete: carimbo de colocação}` lido do TEXTO CRU do robô.
+
+    NASCEU DE: a bet365 não dá identidade estável. O `ID` do summary é da VISÃO (24h no
+    namespace `D1`, 48h e Intervalo de Datas no `D0`) e muda de novo quando o bilhete
+    resolve, então uma aposta que está no banco como ABERTA não tem endereço para ser
+    reencontrada depois. O `TP` (carimbo de colocação) é o mesmo nas duas visões — 6 de 6
+    pares conferidos pelo código de comprovante — e é ele que permite achar a aposta na
+    LISTA de resolvidas, sem abrir o detalhe de ninguém.
+
+    POR QUE NÃO PASSA PELO TSV, nem pela IA: este é um campo de IDENTIDADE, e a última
+    coluna de identidade que a IA transcreve (o código) erra 0,21% em lote de texto —
+    `_corrigir_codigos_fantasma` existe por causa disso. Aqui o dado está no texto que o
+    robô escreveu; lê-se de lá, pelo mesmo caminho determinístico do `codigos_do_texto` e
+    do `Stake:` do `corrigir_stake_tsv`. A IA nunca chega a ter oportunidade de errar.
+
+    O pareamento é POSICIONAL dentro do bloco: cada `[Código: …]` abre um bilhete e o
+    carimbo vale até o próximo marcador. Bloco sem carimbo (print, casa sem marcador,
+    extensão velha) simplesmente não entra no mapa — ausência viaja como ausência.
+    """
+    if not texto:
+        return {}
+    marcas = sorted(
+        [(m.start(), m.group(1).strip()) for rx in (_ID_TEXTO_RE, _ID_MARCADOR_RE)
+         for m in rx.finditer(texto)],
+        key=lambda p: p[0],
+    )
+    if not marcas:
+        return {}
+    out: dict[str, str] = {}
+    for i, (pos, cod) in enumerate(marcas):
+        if not cod or cod in out:
+            continue
+        fim = marcas[i + 1][0] if i + 1 < len(marcas) else len(texto)
+        achado = _CARIMBO_RE.search(texto, pos, fim)
+        if achado:
+            out[cod] = achado.group(1)
+    return out
+
+
 def codigos_do_tsv(tsv: str) -> set[str]:
     """Códigos presentes na 11ª coluna das linhas-bilhete do TSV."""
     out: set[str] = set()
@@ -1201,6 +1247,7 @@ async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
     origem: str = "extracao", criado_base: datetime | None = None,
     coproprietarios: list[str] | None = None, codigo_ocr: bool = False,
+    carimbos: dict[str, str] | None = None,
 ) -> tuple[int, int, list[int], list[str], dict]:
     """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
 
@@ -1210,6 +1257,13 @@ async def upsert_bilhetes(
     IMAGEM (a IA lendo o número no card) e não do `[Código: …]` da captura. É o que
     autoriza a Migração B' a adotar a linha depois, quando o mesmo bilhete voltar pela
     captura com o código verdadeiro. Ver a coluna `codigo_ocr` no `database.py`.
+
+    `carimbos` é `{código: carimbo de colocação}`, lido do texto cru pelo
+    `carimbos_do_texto` — nunca do TSV. Vira a coluna `aposta_em`, que é o que permite
+    reencontrar na LISTA da casa uma aposta que já está no banco como aberta. Só PREENCHE
+    (ver o `COALESCE` no ON CONFLICT): o instante em que uma aposta foi feita não muda, e
+    recaptura de bilhete antigo vira backfill de graça, inclusive em linha já resolvida —
+    o mesmo desenho de `sistema`/`sistema_linhas`.
     """
     pool = await get_pool()
     ids: list[int] = []
@@ -1476,9 +1530,9 @@ async def upsert_bilhetes(
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                          aposta, descricao, stake, odd, resultado,
                          extraction_state, confianca, stake_usd, origem, criado_em,
-                         sistema, sistema_linhas, codigo_ocr)
+                         sistema, sistema_linhas, codigo_ocr, aposta_em)
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-                            COALESCE($18::timestamptz, NOW()), $19, $20, $21)
+                            COALESCE($18::timestamptz, NOW()), $19, $20, $21, $22)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -1542,6 +1596,12 @@ async def upsert_bilhetes(
                         -- é confiança: basta uma leitura confiável para o código deixar de
                         -- ser suspeito, e nenhuma leitura de print o rebaixa de volta.
                         codigo_ocr       = bilhetes.codigo_ocr AND EXCLUDED.codigo_ocr,
+                        -- Carimbo de colocação: IMUTÁVEL (o instante em que a aposta foi
+                        -- feita não muda), então só PREENCHE. Assim a recaptura de um
+                        -- bilhete antigo faz backfill de graça, inclusive em linha já
+                        -- resolvida, sem violar o congelamento da extração por IA — o
+                        -- mesmo desenho de `sistema`/`sistema_linhas`.
+                        aposta_em        = COALESCE(bilhetes.aposta_em, EXCLUDED.aposta_em),
                         atualizado_em    = NOW()
                     RETURNING id, (xmax = 0) AS was_inserted
                     """,
@@ -1554,6 +1614,7 @@ async def upsert_bilhetes(
                     criado_em_val,
                     row.get("sistema") or None, row.get("sistema_linhas"),
                     bool(codigo) and codigo_ocr,
+                    (carimbos or {}).get(codigo) if codigo else None,
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
@@ -1589,6 +1650,8 @@ async def upsert_bilhetes(
                         sistema_linhas   = COALESCE(sistema_linhas, $17),
                         -- espelha o ON CONFLICT: confiança só desce, nunca sobe
                         codigo_ocr       = codigo_ocr AND $18,
+                        -- carimbo de colocação: imutável, só preenche (espelha o ON CONFLICT)
+                        aposta_em        = COALESCE(aposta_em, $19),
                         atualizado_em    = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
                     RETURNING id, FALSE AS was_inserted
@@ -1599,6 +1662,7 @@ async def upsert_bilhetes(
                     row.get("esporte"), row.get("aposta"), row.get("descricao"),
                     row.get("sistema") or None, row.get("sistema_linhas"),
                     bool(codigo) and codigo_ocr,
+                    (carimbos or {}).get(codigo) if codigo else None,
                 )
             if rec:
                 db_id = rec["id"]

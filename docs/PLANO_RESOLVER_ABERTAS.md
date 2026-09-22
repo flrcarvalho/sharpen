@@ -1,7 +1,13 @@
 # PLANO — "Resolver apostas abertas" (Bet365)
 
-> Estado: **desenho, nada implementado.** Escrito para ser aprovado ou recusado antes de
-> qualquer linha de código.
+> Estado (s382): **aprovado pelo Feca, e o primeiro passo está NO REPO.** O carimbo de
+> colocação (`bilhetes.aposta_em`) já viaja da casa até o banco — falta a extensão chegar
+> aos testers para o dado começar a entrar. O resto do desenho segue por implementar.
+>
+> **Escopo encolhido por decisão do Feca (22/09):** *"não tem problema não resolver as
+> abertas, e passar a resolver as próximas extrações"*. As 480 abertas que já existem
+> ficam de fora, e com elas sai o fallback de janela chutada (§6.3) — que era a parte mais
+> cara e mais imprecisa do plano.
 >
 > Depende do conserto da truncagem da expansão (fila, item 1). Sem ele, este plano lê uma
 > lista incompleta e conclui errado em silêncio.
@@ -178,20 +184,41 @@ descrição e da stake que vieram do vizinho. Por isso:
 
 Estes são os furos honestos do desenho. Nenhum é bloqueio, mas nenhum está provado.
 
-1. **O `RT` cobre todos os desfechos?** Meia vitória, void, cashout parcial e SISTEMA. A régua
-   trata os cinco casos, mas ela foi escrita para o retorno que vem no BLOCO da extração, não
-   para o `RT` cru do `summary`. **Medição barata:** pegar bilhetes já resolvidos com os cinco
-   códigos e conferir se o `RT` da lista reproduz o resultado gravado. Se reproduzir em 100%,
-   o desenho vale; se falhar em algum, esse desfecho sai do escopo e continua indo por
-   `confirmation`.
+1. ~~**O `RT` cobre todos os desfechos?**~~ **MEDIDO em 2026-09-22, e a resposta é sim.**
+
+   A medição era offline o tempo todo e ninguém tinha visto: o `_resultadoB3` (`content.js`)
+   **já deriva o Status do bloco a partir do `t.rt`**, que é o RT do summary, e a
+   `sombra_rotulos` guarda o bloco cru desde 26/08. Cruzando **13.115 bilhetes de Bet365**
+   com `_veredito_do_retorno`:
+
+   | gravado | conferível | o `RT` reproduz | taxa |
+   |---|---|---|---|
+   | W | 5.155 | 5.086 | 98,7 % |
+   | L | 6.269 | 6.262 | 99,9 % |
+   | V | 488 | 483 | 99,0 % |
+   | HW | 124 | 124 | **100 %** |
+   | HL | 190 | 189 | 99,5 % |
+
+   **Nenhum desfecho sai do escopo.** E **zero bilhetes em SISTEMA** entre os conferíveis,
+   então a ressalva do item 2 abaixo não morde na base de hoje.
+
+   As 82 divergências apontam para o **banco**, não para o `RT` — 69 são `W` que o dinheiro
+   diz `HW`, todas em linha asiática partida. Viraram item próprio: `BACKLOG 4.9`.
+
+   > A medição tem **circularidade parcial**: o resultado gravado foi decidido pela IA lendo
+   > o MESMO bloco de onde saiu o retorno. Onde os dois discordam é onde ela quebra, e é por
+   > isso que a divergência vale mais que a taxa.
 
 2. **A odd que a régua usa.** `_veredito_do_retorno` testa a **odd do bloco antes da odd da
    linha**, e é isso que separa meia vitória de vitória cheia. Aqui a "odd do bloco" seria o
    `OD` do `summary`, que é a odd da casa. Em tese é a fonte mais limpa que já tivemos. Em
    SISTEMA não vale (a odd do cupom não é a da linha), então **SISTEMA fica fora até medir**.
 
-3. **Quantos alvos sobram sem `TP`.** Toda aberta capturada antes desta mudança não tem
-   `aposta_em`. Elas caem no fallback de janela, que é mais caro e mais impreciso.
+3. ~~**Quantos alvos sobram sem `TP`.**~~ **FORA DO ESCOPO por decisão do Feca (22/09).**
+   Toda aberta capturada antes desta mudança não tem `aposta_em`, e ele decidiu que elas não
+   precisam ser resolvidas: o botão passa a valer para o que a captura vir daqui em diante.
+   O fallback de janela chutada, descrito no §6.3, **não será construído**. O que segue
+   abaixo fica como registro do que ele custaria.
 
    **MEDIDO em 2026-09-21: 505 abertas de Bet365 no total**, concentradas em poucos donos
    (`realtrial` 260, `Jonathan` 68, `perereca` 56, `arrudex` 52, `Gabriel` 33, `Feca` 25).
@@ -208,9 +235,18 @@ Estes são os furos honestos do desenho. Nenhum é bloqueio, mas nenhum está pr
    > **O alvo NUNCA filtra por `archived`.** Um `WHERE NOT archived` deixaria o botão cego
    > exatamente para o seu caso de uso, e o sintoma seria "não achou nada", sem erro nenhum.
 
-4. **Unicidade da chave em escala.** Os 3 `TP` repetidos apareceram em 269 entradas. Com stake
-   e odd juntos o risco cai muito, mas **não foi medido em base inteira**. Medição: varrer
-   `bilhetes` procurando trios `(aposta_em, stake, odd)` repetidos dentro da mesma conta.
+4. **Unicidade da chave em escala. NÃO resolvido, e agora com um número que assusta.**
+
+   Os 3 `TP` repetidos apareceram em 269 entradas. A medição direta ainda não é possível
+   (`aposta_em` acabou de nascer e está vazia), mas o **proxy pessimista** — trios
+   `(dia, stake, odd)` na mesma conta, medido em 2026-09-22 sobre os 103.920 bilhetes de
+   Bet365 — deu **11.792 trios repetidos**, com casos de **14 apostas idênticas no mesmo
+   dia** (`realtrial`).
+
+   O proxy é pessimista porque `data` tem precisão de DIA e o carimbo tem precisão de
+   SEGUNDO, que é justamente o que vai desempatar a maioria. Mas **11.792 não permite supor**:
+   a trava de par único nos dois sentidos (§7.1) deixa de ser formalidade e passa a ser o que
+   segura a funcionalidade. **Refazer a medição com `aposta_em` real assim que houver dado.**
 
 5. **A truncagem da expansão.** Se a lista vier cortada, a Fase A conclui que um bilhete
    resolveu quando ele só não foi carregado. **Este plano não pode ser ligado antes do item 1
@@ -234,8 +270,12 @@ gravada como vitória cheia (s356).
 
 ## 10. Ordem sugerida
 
-1. Consertar a truncagem da expansão (fila, item 1). **Pré-requisito.**
-2. Medir os quatro furos do §8. Nenhum exige conta de volume alto.
-3. Gravar o `TP` (`aposta_em`), que é aditivo e não muda comportamento nenhum.
-4. Fase A (descobrir o que resolveu), que já entrega valor sozinha e **não escreve nada**.
-5. Fase B (aplicar o resultado), com ensaio antes de gravar.
+1. ~~Medir o §8.1~~ **FEITO (s382).** O plano se sustenta nos cinco desfechos.
+2. ~~Gravar o `TP` (`aposta_em`)~~ **FEITO (s382), da casa ao banco.** Falta a extensão
+   chegar aos testers: enquanto a 0.7.17 não for distribuída, a coluna nasce vazia.
+3. **Medir a colisão real de `(aposta_em, stake, odd)`**, assim que houver dado — ver §8.4,
+   que é hoje o maior risco do desenho.
+4. **Fase A** (descobrir o que resolveu), que já entrega valor sozinha e **não escreve nada**.
+5. **O aviso de truncagem da expansão**, antes de a Fase A virar escrita: ela conclui
+   "resolveu" a partir da AUSÊNCIA na lista, e lista cortada mente sobre ausência.
+6. **Fase B** (aplicar o resultado), com ensaio antes de gravar.
