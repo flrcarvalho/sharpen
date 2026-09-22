@@ -17,6 +17,18 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-custo-zero-e-sem-preco",
+      "data": "2026-09-22",
+      "tag": "Sharpen",
+      "titulo": "Custo zero e \"sem preço\"",
+      "texto": "Novidades no Sharpen:",
+      "itens": [
+        "Conta que veio de graça agora pode ter **custo R$ 0**. Na Extração, no card Custo, digite 0. Ela passa a valer zero, mesmo que o fornecedor tenha preço de tabela naquela casa.",
+        "Conta **sem custo lançado** agora aparece com a marca **\"sem preço\"**. Ela continua contando no P/L e no ROI, mas com custo zero, então o resultado pode estar melhor do que o real.",
+        "Na aba Contas, o rodapé mostra quantas contas estão sem preço. Para corrigir, é só lançar o custo no card Custo de cada uma (R$ 0 se foi grátis)."
+      ]
+    },
+    {
       "id": "sharpen-renovacao-e-custo-por-conta",
       "data": "2026-09-22",
       "tag": "Sharpen",
