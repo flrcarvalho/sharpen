@@ -234,6 +234,37 @@ front virarem `!= null`.
 > **Sintoma para reconhecer isto noutro campo:** um `> 0` usado como teste de existência.
 > Ele funciona enquanto zero for impossível, e a regra de negócio muda sem avisar o código.
 
+### 1.22 `/extrair` não tem teto por usuário, e o custo cresce com quem entra (s374). **VIVA, medida — ADIADA POR DECISÃO DO FECA**
+
+Só o **trial** tem teto (`TRIAL_MAX_EXTRACOES = 10`, `auth.py`, cobrado em `main.py:3361`).
+**Usuário aprovado extrai sem limite e nada avisa ninguém.** O gasto só aparece no extrato.
+
+Medido em `uso_tokens`: **R$ 287 em julho, R$ 448 em agosto, R$ 761 em setembro**, a ~R$ 0,048
+por bilhete (Sonnet 5, depois da troca da s377). O número não cresce com o tempo, cresce com
+**quem entra**: uma pessoa nova importando anos de histórico de 20 casas é milhares de bilhetes
+num dia só.
+
+**A decisão do Feca (22/09) foi NÃO pôr teto agora, e a razão fica registrada porque ela tem
+prazo:** a fase é de testers, e o custo está em movimento (troca de modelo, IAs diferentes em
+teste, tradutor determinístico em construção). *"O ideal é que usem para a gente inclusive
+mapear e baratear esse custo. Ter um teto agora é um tiro no pé."* Travar um teto em cima de
+um número que está mudando congela a medição justamente quando ela é o produto do momento.
+
+**O que muda a decisão** (qualquer um destes é gatilho para reabrir):
+
+- a torneira abrir para quem **não é tester**;
+- o tradutor determinístico entrar e o custo por bilhete estabilizar;
+- um mês passar de um valor que o Feca considere fora da curva.
+
+**Quando reabrir, o desenho já está levantado e é barato:** teto configurável por usuário no
+mesmo lugar onde o do trial já é cobrado, mais aviso no Telegram reusando o `avisar_admin`
+(`main.py`), que já dispara em cadastro novo. Não é para impedir ninguém de usar; é para o dono
+**saber no dia**, em vez de no extrato.
+
+> **Sintoma para reconhecer isto noutro campo:** um limite que existe só no caminho de
+> demonstração. Ele foi escrito quando o risco era o visitante anônimo, e nunca revisto quando
+> o usuário real passou a poder o mesmo.
+
 ### 1.18 ~~O drill-down do tipster ficou fora do switch R$/u~~ (s374). **FECHADO (19/09, s375)**
 
 **Decisão do Feca: o modal acompanha o switch.** O argumento que desempatou não foi só
