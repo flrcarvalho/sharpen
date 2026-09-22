@@ -17,6 +17,22 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-chegou-a-tela-de-contas",
+      "data": "2026-09-22",
+      "tag": "Sharpen",
+      "titulo": "Chegou a tela de Contas",
+      "texto": "**Abra Contas no menu, em Gestão.** Ela responde três coisas que o dashboard nunca respondeu: quanto tempo as suas contas duram em cada casa, quanto cada uma gira, e se o que você pagou por elas voltou. **Aqui a unidade é a conta, não a aposta:** Bookies mede o resultado de uma casa; esta tela mede a vida de cada conta dentro dela. Os números abaixo são os mesmos da imagem a seguir.",
+      "itens": [
+        "**1 · Quanto uma conta aguenta.** A mediana, a média e a faixa onde as suas contas morrem (0 a 7 dias, 8 a 14, 15 a 30, 31 a 60, mais de 60). A frase embaixo do quadro já traduz: metade das suas contas durou menos de X dias.",
+        "**2 · Quanto cada uma gira.** ROI líquido e bruto lado a lado. A diferença entre os dois é o quanto a aquisição come da margem.",
+        "**3 · Se o custo voltou.** Cada R$ 1 gasto em conta voltou quanto. Acima de 1,00x a conta se pagou; abaixo, não. O quadro mostra o custo, o P/L bruto que as contas geraram, e o que sobrou dos dois.",
+        "**4 · Por casa, porque a limitação de uma não diz nada sobre a outra.** A tabela lista as casas pela quantidade de contas, com a barra de duração (a parte sólida é a mediana, o tracinho é a média, as duas na régua de 0 a 30 dias), o turnover por conta, o custo por dia de vida e o múltiplo. **Clique em qualquer casa** para abrir os mesmos números só dela.",
+        "**5 · Últimas 10 contas**, dentro de cada casa. O histórico não representa o momento: este quadro põe as suas 10 contas mais recentes contra a média histórica daquela casa, para você ver se ela está limitando mais rápido agora do que antes.",
+        "**6 · Todas as contas da casa, as ativas primeiro.** Depois delas vêm as inativas, da última que foi limitada para a primeira. Duração, dias ativos, apostas, turnover, P/L bruto, custo, P/L líquido e ROI líquido, conta por conta."
+      ],
+      "fecho": "Três coisas para não estranhar. **Duração e dias ativos não são cortados pelo filtro de período**, porque a vida de uma conta não cabe dentro de um mês; turnover, P/L e custo seguem o período que você escolher. **A tela abre em Ambas**, e para saber quanto uma conta aguenta de verdade você troca para Inativas: conta que ainda está viva não terminou de durar. E **conta sem preço lançado fica fora do retorno**, porque tratá-la como zero inflaria o resultado, enquanto conta própria entra com custo zero de verdade. Se vir **sem preço** em alguma conta, lance o valor em Custos: é a única coisa que falta para o retorno ficar completo."
+    },
+    {
       "id": "sharpen-sua-marca-na-sidebar",
       "data": "2026-09-15",
       "tag": "Sharpen",
