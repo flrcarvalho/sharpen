@@ -488,6 +488,36 @@ Replay em **5.316 blocos** da sombra (**20 casas**): mexe em **3** — exatament
 edição humana. **Zero falso positivo.** E o gate reproduziu, sozinho, as **33** correções
 que o script já tinha feito. Os testes: **5 mutações aplicadas e pegas**.
 
+### A IA que derruba pernas do produto — múltipla da bet365, s386
+
+A mesma família, no campo vizinho: aqui a odd não é outro campo do bloco, é uma CONTA
+sobre o bloco — e o modelo faz a conta com menos parcelas do que existem.
+
+A bet365 **não publica a odd combinada**: zero de 3.442 blocos `Tipo: Múltipla` traz linha
+de odd. Quem multiplica as pernas é a IA, e medido em 23/09 contra 5.386 bilhetes do banco
+ela acerta 96,5% e erra **154** — sempre para baixo, sempre por **deixar perna de fora**:
+
+| Bilhete | Pernas | Produto | O que a IA gravou |
+|---|---|---|---|
+| `LB9804921624I` | 1,8 · 1,775 · 1,7 | **5,4315** | `1,8` — uma perna só |
+| `FP1746791294I` | 1,8 · 1,8 · 1,95 | **6,318** | `3,24` — duas das três |
+| `DQ5129778651W` | doze, de 1,36 a 1,7 | **119,80** | `17,93` |
+
+Sobre isso vem uma folga de ~0,2% de aritmética, que faz o erro pequeno se confundir com
+arredondamento.
+
+**A prova de que o produto é a resposta é do DINHEIRO, não da IA.** Em múltipla ganha a
+casa publica o retorno: `stake × produto` bate **ao centavo em 479 de 529 (90,5%)**. Os 50
+que não batem são **perna ANULADA** (`GT8020619111I`: duas pernas @ 2,2 e retorno = 2,2 ×
+stake — a outra virou 1,00) e **meia vitória** de linha asiática. Os dois só se conhecem
+pelo dinheiro, e os dois são `W` — que é por onde o `_odd_estrutural` (`app/tradutor.py`)
+não passa.
+
+> **Em `L` o erro não move dinheiro nenhum** (P/L de `L` é −stake), e é por isso que ele
+> viveu 2.949 bilhetes sem ninguém ver. Ele envenena o turnover, o ROI e o retorno
+> potencial da tela — a mesma assinatura da stake do vizinho (s311), onde o P/L também
+> ficava intacto.
+
 ---
 
 ## REGRA DE UI / MARCA OBRIGATÓRIA

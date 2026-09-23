@@ -451,6 +451,89 @@ A **A** já estava aberta como [`BACKLOG §3.8`](../BACKLOG.md) e é de longe a 
 > (`CLAUDE.md`: *"sem ID, só é duplicata se stake+odd+descrição baterem os três"*). O
 > tradutor deixou de ser só uma frente de custo: **ele é o que dá formato único ao dado.**
 
+### II.10 A múltipla (s386, 23/09) — e o que o MOTIVO DO FALLBACK estava escondendo
+
+> Medição sobre **28.473 blocos** da Bet365 na `sombra_rotulos` (a sombra dobrou desde a
+> s333). `python scripts/diff_tradutor.py Bet365`, antes e depois.
+
+#### O estado na entrada, e uma inversão que ninguém tinha notado
+
+| | s333 (9.641) | **s386 (28.473)** |
+|---|---|---|
+| Cobertura | 70,7 % | **64,0 %** |
+| Conformidade — tradutor | — | **99,99 %** |
+| Conformidade — IA | 67,0 % | **85,9 %** |
+| `mercado desconhecido` | — | **14,3 %** (4.061) |
+| `esporte não declarado` | — | 12,7 % (3.621) |
+| `odd combinada` | — | 5,7 % (1.637) |
+
+A cobertura caiu porque a base de comparação mudou (mais casas, mais mercados no mesmo
+período), não porque o motor piorou. **A inversão é o que importa: o vocabulário já tinha
+passado o esporte como maior balde.**
+
+#### As três paredes da múltipla, e elas estavam empilhadas
+
+**81,4 % do balde do esporte (2.949 blocos) é múltipla de 2 pernas.** A Bet365 não escreve
+`Esporte (casa):` ali, porque não existe um esporte só. Mas a resposta está no bloco,
+noutra linha: quem emite `Tipo: Múltipla` é o `formatTicketB3`, sob
+`multiplo = jogos.size >= 3 || cls.length > 1` — que **é** o `MASTER_ESPORTES §2`.
+
+Prova sem a IA: mapa liga→esporte tirado dos blocos com esporte declarado (713 ligas, 713
+resolvidas com ≥ 95 % num esporte só) dá **1.295/1.295 = 100,00 %** com as duas pernas em
+esportes diferentes, zero contraexemplo. A IA discorda em 62 e erra nos 62.
+
+**E consertar o esporte entregou ZERO de cobertura.** Simulado antes de escrever: os 2.949
+só trocam de parede — 89,1 % caem por rótulo fora do mapa, 10,0 % pela odd. A cobertura de
+uma múltipla é o **E lógico** das pernas, e os esportes que só aparecem nela (MLB 799, NFL
+489) nunca tiveram vocabulário aprendido, porque nunca aparecem sozinhos.
+
+**A parede que manda é a odd: ZERO de 3.442 blocos `Tipo: Múltipla` traz linha de odd.** O
+`formatTicketB3` só imprime `Odd:` em `nSel === 1`. Nenhuma múltipla comum da casa era
+traduzível, **com dicionário nenhum** — os outros 89 % só batiam no rótulo antes.
+
+#### O efeito das três mudanças
+
+| | Antes | Esporte | **+ odd** | **+ `Gols +/-`** |
+|---|---|---|---|---|
+| Cobertura | 64,0 % | 64,0 % | 70,0 % | **71,0 %** |
+| Conformidade (tradutor) | 99,99 % | 99,99 % | 99,99 % | **99,99 %** |
+| `esporte não declarado` | 3.621 | **672** | 672 | 672 |
+| `mercado desconhecido` | 4.061 | 6.689 | 6.689 | **6.398** |
+| `odd combinada` | 1.637 | 1.931 | **203** | 203 |
+
+A odd estrutural é o produto das pernas (`MASTER_RESULTADO §7.2`), só onde o §7.1 manda
+usá-la (`L`, `V`, aberta). `W` fica de fora: ali o §7.1 manda `Retorno ÷ Stake`, que é a
+conta que **esconde meia vitória** (o caso da s356). Prova pelo dinheiro: `stake × produto`
+bate o retorno ao centavo em **479 de 529 múltiplas ganhas (90,5 %)**, e os 50 restantes são
+perna anulada e meia vitória — os dois só conhecíveis pelo dinheiro, os dois em `W`.
+
+#### As três lições, e nenhuma é sobre vocabulário
+
+1. **Motivo de recusa é DADO, não enfeite.** O tradutor dizia "esporte não declarado" para
+   2.949 bilhetes cujo esporte ele sabia decidir, e foi esse rótulo falso que escolheu o
+   alvo errado no começo desta sessão. Gate que recusa pelo motivo errado desorienta a
+   próxima medição.
+2. **Parede empilhada só se mede derrubando a primeira.** Enquanto o esporte barrava, a
+   parede da odd — que era 100 % do balde — não aparecia em relatório nenhum.
+3. **Meio conserto troca de motivo e parece progresso.** `Gols +/-` é a grafia gêmea de
+   `Gols + -` (291 blocos por um caractere), mas as 291 são **todas ao vivo**, com o placar
+   prefixando a seleção num formato novo. Só a linha de mapa move o bilhete de
+   `mercado desconhecido` para `seleção fora do template`, sem cobrir nada.
+
+#### O que ficou de fora, medido e nomeado
+
+**`Total de Cartões` (637 blocos) não entrou, pela segunda régua da s333.** 480 deles
+(75,4 %) chegam como `Time da Casa - …` ou `Time Visitante - …`, e a IA escreve esse escopo
+**na descrição** (`Under 2.0 Cartões - Time da Casa`). O `_QUALIFICADORES` do tradutor
+descarta — e o `CASA_BET365 §9` diz que qualificador *"entra na descrição conforme o master,
+mas não muda a categoria"*. O comentário do código confundiu as duas coisas, e o efeito **já
+existe** em rótulos que estão no mapa (`Time Visitante - Total de Escanteios - 3 Opções`
+resolve por `total de escanteios` e sai sem o escopo).
+
+> **É a gêmea ESPACIAL da decisão D** (escopo de tempo). As duas pedem a mesma coisa do
+> motor: um campo "o qualificador entra na descrição, nesta forma". Entram juntas, não como
+> linha de tabela.
+
 ---
 
 ## PARTE III — Estudo de custo

@@ -929,6 +929,22 @@ Isso tem duas consequências que valem mais que a economia de token:
 | **B** | O objeto (`Gols`, `Pontos`, `Escanteios`) é obrigatório na descrição? | ~700 | ✅ **FECHADA (s336)** |
 | **C** | Prop de SIM/NÃO: o rótulo entra na descrição, e em que forma | ~100 | aberta |
 | **D** | Escopo de tempo: onde e como o período aparece | ~60 | aberta |
+| **D′** | Escopo de TIME: `Time da Casa - …` / `Time Visitante - …` na descrição | **~480** | aberta (s386) |
+
+> **A D′ é a gêmea ESPACIAL da D, e ela é a maior das duas por quase dez vezes.** Medido em
+> 23/09: só em `Total de Cartões - 3 Opções` são **480 de 637 blocos (75,4 %)** com o
+> qualificador de time, e a IA escreve o escopo **na descrição** (`Under 2.0 Cartões - Time
+> da Casa`). O `_QUALIFICADORES` do tradutor **descarta**, e o `CASA_BET365 §9` diz que
+> qualificador *"entra na descrição conforme o master, mas não muda a categoria"* — o
+> comentário do código confundiu as duas coisas.
+>
+> ⚠️ **Isto já ESTÁ ACONTECENDO** em rótulos que estão no mapa: `Time Visitante - Total de
+> Escanteios - 3 Opções` resolve por `total de escanteios` e sai sem o escopo. Não é
+> pendência de cobertura, é descrição incompleta em produção.
+>
+> As duas pedem a mesma coisa do motor — um campo *"o qualificador entra na descrição,
+> nesta forma"* — e por isso entram juntas, nunca como linha de tabela.
+> → [`PLANO_TRADUTOR §II.10`](docs/PLANO_TRADUTOR_DETERMINISTICO.md#ii10-a-múltipla-s386-2309--e-o-que-o-motivo-do-fallback-estava-escondendo)
 
 #### A e B, como o Feca decidiu em 09/09
 
@@ -1781,7 +1797,7 @@ sempre coexistiram, para coisas diferentes.**
 |---|---|---|---|
 | **SaaS multiusuário** | [`docs/PLANO_MULTIUSUARIO_2026.md`](docs/PLANO_MULTIUSUARIO_2026.md) | **Fase 4 (pagamento)**: gate `assinatura_ativa` + webhook. As Fases 1, 2 e 3 estão no ar (s233–s236). **Gateway decidido na s342: Asaas**, por levantamento de 21 provedores (Efí é o plano B). O critério que decidiu não foi preço, foi **quem leva o Pix até a assinatura** — Stripe e Pagar.me só fazem recorrência por cartão. Três gates ANTES de qualquer código, e nenhum é engenharia: **(1)** idade do CNPJ, porque o Pix Automático exige CNPJ ativo há 6 meses (Asaas e Cielo) e sem isso sobra QR mensal que o cliente paga à mão; **(2)** CNAE primário de software, nunca 92.00-3, porque o MCC deriva dele e é o MCC que cria o risco (a Pagar.me publica esse de-para); **(3)** ler o Anexo I de Bets dos Termos da Asaas logado (está atrás de 403, e é onde repousa todo o sinal positivo dela). **Não abrir a conta antes da Fase 4.1** — os 3 meses de tarifa promocional contam da criação, não da 1ª venda. E ligar cobrança de Pro/Operação só depois do tradutor: o `ESTUDO_PRECIFICACAO §7.5` mede os dois negativos com o custo de hoje | 🟡 |
 | **Barreira de recaptura** | [`docs/PLANO_BARREIRA_RECAPTURA.md`](docs/PLANO_BARREIRA_RECAPTURA.md) | **Fases 0 e 1 no ar.** ⚠️ **A Fase 1 subiu MORTA em 09/09 e só foi descoberta em 20/09** (s376): o `_filtro_conta` não qualificava a tabela e o `JOIN` de `blocos_conhecidos` levantava `AmbiguousColumnError` dentro do `except`, que devolve `{}`. Ela não pulou **um bloco sequer** em 11 dias, com o CI verde. Consertado e provado contra produção. **Falta a Fase 2, e ela agora é obrigatória, não opcional:** comparar `uso_tokens` dos 7 dias anteriores ao deploy de 20/09 com os 7 seguintes. Corte esperado, medido sem hindsight sobre a sombra: **34,2 % das leituras** (Bet365 39,7 %), ~US$ 230/mês | 🟡 |
-| **Tradutor determinístico** | [`docs/PLANO_TRADUTOR_DETERMINISTICO.md`](docs/PLANO_TRADUTOR_DETERMINISTICO.md) | Fases 1 a 4. A Fase 0 roda em **modo sombra** (13.965 pares, 21 casas, em 13 dias). A correção **B** segue **bloqueada** (`§IV.6`). **Remedição de 08/09** ([`ESTUDO_PRECIFICACAO §7`](docs/ESTUDO_PRECIFICACAO_2026.md#7-revisão-de-08092026-s332--o-que-aconteceu-depois-de-a-e-c)): a pré-condição do preço virou **Bet365 + Betano**, não a Bet365 sozinha | 🔴 |
+| **Tradutor determinístico** | [`docs/PLANO_TRADUTOR_DETERMINISTICO.md`](docs/PLANO_TRADUTOR_DETERMINISTICO.md) | Fases 1 a 4. A Fase 0 roda em **modo sombra**. A correção **B** segue **bloqueada** (`§IV.6`). **Remedição de 08/09** ([`ESTUDO_PRECIFICACAO §7`](docs/ESTUDO_PRECIFICACAO_2026.md#7-revisão-de-08092026-s332--o-que-aconteceu-depois-de-a-e-c)): a pré-condição do preço virou **Bet365 + Betano**, não a Bet365 sozinha. **s386, sobre 28.473 blocos: a MÚLTIPLA entrou e a cobertura foi de 64,0 % a 71,0 %, com conformidade 99,99 %** — esporte pelo `Tipo: Múltipla`, odd estrutural pelo produto das pernas (`§7.2`) e a grafia gêmea `Gols +/-`. **O motor segue DESLIGADO** (a virada por casa é a Fase 3). O maior balde agora é `mercado desconhecido` (6.398), e dentro dele o **escopo** (tempo + time, `§3.8` C/D/D′) é o maior grupo nomeado → [`§II.10`](docs/PLANO_TRADUTOR_DETERMINISTICO.md#ii10-a-múltipla-s386-2309--e-o-que-o-motivo-do-fallback-estava-escondendo) | 🔴 |
 | **Perfil de Tipster** | [`docs/PLANO_TIPSTER.md`](docs/PLANO_TIPSTER.md) | **P1** resultado em unidades (backend pronto; a UI trava no formato "u", passa pelo `/nova-ui`) · **P2** atribuição por watermark · **P3** Telegram como fonte. Fase 0 no ar (`origem_tipster`) | 🟢 / 🟡 / 🔵 |
 | **Resolvedor de atribuição** | [`docs/PLANO_INTELIGENCIA_TIPSTER.md`](docs/PLANO_INTELIGENCIA_TIPSTER.md) | ⚠️ **doc defasado** — descreve o matcher **v5, de 15/07**; ele mudou muito desde então (corte de valor redondo e `valores.size===1` na s221, peso declarativo na s289, volta do declarado onde a base é cega na s310). A tese (o resolvedor) segue aberta; o texto precisa de banner de data | 🟡 |
 | **Extração worldwide** | [`docs/PLANO_EXTRACAO_WORLDWIDE.md`](docs/PLANO_EXTRACAO_WORLDWIDE.md) | Fases 1 a 5 (confidence da IA + guardrail de enum). Fase 0 validada | 🟡 |
