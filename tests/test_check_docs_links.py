@@ -105,6 +105,33 @@ def test_link_de_fora_que_nao_resolve_sai_NOMEADO(tmp_path, capsys):
     )
 
 
+def test_o_tamanho_nao_muda_com_a_quebra_de_linha(tmp_path):
+    """O mesmo arquivo tem de dar o MESMO tamanho no Windows e no runner do CI.
+
+    Medido na s385: o `CLAUDE.md` dava **64,03 KB no disco do Feca** (LF) e **65,04 KB no
+    checkout do CI** (CRLF), diferença de 1.035 bytes, exatamente um por linha. O teto é
+    65 KB, então o mesmo arquivo passava aqui e reprovava lá.
+
+    O efeito é o pior possível para um teto: quem edita local lê "sobra 1 KB" e não sobra.
+    O CI reprova depois, longe de quem escreveu, e a leitura natural é "o gate está maluco".
+    """
+    mod = _carregar(tmp_path)
+    corpo = "linha de exemplo\n" * 500
+    lf = tmp_path / "lf.md"
+    crlf = tmp_path / "crlf.md"
+    lf.write_bytes(corpo.encode("utf-8"))
+    crlf.write_bytes(corpo.replace("\n", "\r\n").encode("utf-8"))
+
+    assert crlf.stat().st_size > lf.stat().st_size, (
+        "o caso não foi montado: os dois arquivos precisam diferir em BYTES crus, "
+        "senão o teste passa sem exercer nada."
+    )
+    assert mod._kb(lf) == mod._kb(crlf), (
+        f"o gate mede {mod._kb(lf):.3f} KB com LF e {mod._kb(crlf):.3f} KB com CRLF. "
+        "O mesmo arquivo passa numa máquina e reprova na outra."
+    )
+
+
 def test_o_repo_de_verdade_passa_e_conta_os_links_de_fora(capsys):
     """No repo real, nenhum link quebrado, e os de fora aparecem NOMEADOS.
 

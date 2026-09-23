@@ -54,6 +54,27 @@ import unicodedata
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+def _kb(caminho: str) -> float:
+    """Tamanho em KB contando a quebra de linha SEMPRE como 1 byte (LF).
+
+    ⚠️ **O mesmo arquivo dava dois tamanhos, e o gate dava dois vereditos.** Medido na
+    s385 com o `CLAUDE.md`: **64,03 KB no disco do Feca** (LF) e **65,04 KB no checkout
+    do CI** (CRLF, porque o git converte na saida no Windows e o runner recebe o que o
+    repo guarda). A diferenca eram **1.035 bytes, exatamente um por linha** — e o teto e'
+    65 KB, entao o mesmo arquivo passava aqui e reprovava la.
+
+    O efeito pratico e' o pior possivel para um teto: quem edita local le "sobra 1 KB" e
+    **nao sobra**. O CI reprova depois, longe de quem escreveu, e a leitura natural e'
+    "o gate esta maluco".
+
+    Medimos o conteudo CANONICO, que e' o que o git guarda (LF). Assim o numero e' o
+    mesmo em qualquer maquina e o teto quer dizer uma coisa so.
+    """
+    with open(caminho, "rb") as fh:
+        bruto = fh.read()
+    return len(bruto.replace(b"\r\n", b"\n")) / 1024
+
 STATUS_MAX_KB = 50
 CLAUDE_MAX_KB = 65
 CASOS_MAX_KB = 60
@@ -91,7 +112,7 @@ def checar_tamanho_claude() -> None:
     if not os.path.exists(caminho):
         falhas.append("CLAUDE.md nao existe na raiz.")
         return
-    kb = os.path.getsize(caminho) / 1024
+    kb = _kb(caminho)
     if kb > CLAUDE_MAX_KB:
         falhas.append(
             f"CLAUDE.md tem {kb:.1f} KB — o teto e {CLAUDE_MAX_KB} KB.\n"
@@ -113,7 +134,7 @@ def checar_tamanho_casos() -> None:
     if not os.path.exists(caminho):
         avisos.append("docs/CASOS.md ainda nao existe — checagem de tamanho NAO exercida.")
         return
-    kb = os.path.getsize(caminho) / 1024
+    kb = _kb(caminho)
     if kb > CASOS_MAX_KB:
         falhas.append(
             f"docs/CASOS.md tem {kb:.1f} KB — o teto e {CASOS_MAX_KB} KB.\n"
