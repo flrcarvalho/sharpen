@@ -723,7 +723,6 @@ function closeCasaDrill(e){
   const overlay=document.getElementById('casaDrillOverlay');
   if(overlay)overlay.style.display='none';
   document.body.style.overflow='';
-  _uEscopo=false;   // fora do modal, a tela volta a R$
   if(_casaDrillEscHandler){document.removeEventListener('keydown',_casaDrillEscHandler);_casaDrillEscHandler=null;}
 }
 window.closeCasaDrill=closeCasaDrill;
@@ -1379,6 +1378,11 @@ function closeTipsterDrill(e){
   const overlay=document.getElementById('tipsterDrillOverlay');
   if(overlay)overlay.style.display='none';
   document.body.style.overflow='';
+  // Fora do modal, a tela volta a R$. Quem LIGA o escopo é o `renderTipsterDrill`, então
+  // é aqui que ele se desliga: a linha morava no `closeCasaDrill` (que nunca o liga) e o
+  // "u" vazava para o calendário e o Dia da Semana do dashboard inteiro, sobre valor em
+  // R$ (s383: "eu n fiz 2.041u no dia 15", Ewanderson1, 1u = R$ 50).
+  _uEscopo=false;
   if(_drillEscHandler){document.removeEventListener('keydown',_drillEscHandler);_drillEscHandler=null;}
 }
 window.closeTipsterDrill=closeTipsterDrill;

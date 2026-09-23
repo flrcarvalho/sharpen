@@ -631,6 +631,11 @@ function showPage(id){
 }
 function renderPage(id){
   if(PUBLICO&&!PUB_PAGES.includes(id))return; // público: abas de gestão não existem
+  // Rede do escopo de unidade: ele é do MODAL do tipster, e página pintada com o modal
+  // fechado é sempre R$. Sem isto, qualquer saída do modal que não passe pelo
+  // `closeTipsterDrill` deixa o "u" colado em valor que está em reais.
+  const _tdo=document.getElementById('tipsterDrillOverlay');
+  if(!_tdo||_tdo.style.display!=='flex')_uEscopo=false;
   _filterCache={};_lastPage=id;_lastPageSig=_pageSig(id);
   const rows=filtrarPagina(id);
   if(id==='overview'){renderKPI(rows);renderBankroll(rows);renderROIMonthly(filtrarSemData('overview'),_refMonthKey('overview'));renderOddsDist(rows);renderOvStreaks(rows);renderOvRisco(rows);renderOvHeatmap();renderOvDow(rows);}
