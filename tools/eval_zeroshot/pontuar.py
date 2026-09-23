@@ -10,6 +10,7 @@ Requer, ao lado deste script: pares.json (de extrair_pares.py) e preds.tsv.
 Grava RESULTADO.txt e imprime o resumo.
 """
 import json
+import os
 import re
 from pathlib import Path
 
@@ -45,9 +46,13 @@ def norm(cat: str) -> str:
     return cat.split("(")[0].replace("⚠️", "").strip()
 
 
-pares = json.loads((AQUI / "pares.json").read_text(encoding="utf-8"))
+# Sufixo do conjunto: `EVAL_SUFIXO=_v2` pontua `pares_v2.json` contra `preds_v2.tsv` e grava
+# `RESULTADO_v2.txt`. Sem sufixo, é o conjunto de julho. Os dois convivem de propósito.
+SUFIXO = os.environ.get("EVAL_SUFIXO", "")
+
+pares = json.loads((AQUI / f"pares{SUFIXO}.json").read_text(encoding="utf-8"))
 preds = {}
-for ln in (AQUI / "preds.tsv").read_text(encoding="utf-8").splitlines():
+for ln in (AQUI / f"preds{SUFIXO}.tsv").read_text(encoding="utf-8").splitlines():
     if "\t" in ln:
         i, cat = ln.split("\t", 1)
         preds[int(i)] = cat.strip()
@@ -86,7 +91,7 @@ for i, casa, rot, gold, pred in erros:
     tag = " [SEGURO]" if i in seguras else (" [ALUCINA]" if i in alucinacoes else "")
     L.append(f"  #{i:3d} [{casa}] {rot!r}  gold={gold!r} pred={pred!r}{tag}")
 
-(AQUI / "RESULTADO.txt").write_text("\n".join(L), encoding="utf-8")
+(AQUI / f"RESULTADO{SUFIXO}.txt").write_text("\n".join(L), encoding="utf-8")
 print(f"CATEGORIA {acertos_cat}/{total} = {100*acertos_cat/total:.1f}% "
       f"(cru {100*acertos_cru/total:.1f}%) | silenciosos {len(silenciosos)} | "
-      f"seguras {len(seguras)} | alucina {len(alucinacoes)} -> RESULTADO.txt")
+      f"seguras {len(seguras)} | alucina {len(alucinacoes)} -> RESULTADO{SUFIXO}.txt")

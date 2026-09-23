@@ -17,6 +17,7 @@ global/MASTER_*.md, proibido abrir casas/), salvar a saída como preds.tsv
 Contexto e resultado da 1ª rodada: docs/PLANO_EXTRACAO_WORLDWIDE.md §6.
 """
 import json
+import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -68,15 +69,21 @@ for f in sorted(CASAS.glob("CASA_*.md")):
             n += 1
     por_casa[casa] = n
 
-(AQUI / "pares.json").write_text(
+# Sufixo do gabarito: `EVAL_SUFIXO=_v2` grava `pares_v2.json`/`labels_input_v2.tsv`.
+# **O gabarito ANTIGO nunca é sobrescrito**, e isso é regra, não conveniência: o `pares.json`
+# de 2026-07-12 é a única prova de o que a bancada mediu naquele dia. Regerar por cima
+# apagaria o gabarito e o veredito junto, e ninguém veria (s384).
+SUFIXO = os.environ.get("EVAL_SUFIXO", "")
+
+(AQUI / f"pares{SUFIXO}.json").write_text(
     json.dumps(pares, ensure_ascii=False, indent=2), encoding="utf-8"
 )
 
 labels = [f"{i}\t[{p['casa']}]\t{p['rotulo']}" for i, p in enumerate(pares)]
-(AQUI / "labels_input.tsv").write_text("\n".join(labels), encoding="utf-8")
+(AQUI / f"labels_input{SUFIXO}.tsv").write_text("\n".join(labels), encoding="utf-8")
 
 # resumo ASCII-safe (Windows console pode ser cp1252)
 print(f"TOTAL de pares: {len(pares)}")
 print("Por casa:", {c: n for c, n in sorted(por_casa.items(), key=lambda x: -x[1])})
 print("Categorias-gold distintas:", len(Counter(p["gold"] for p in pares)))
-print("Gerados: pares.json, labels_input.tsv")
+print(f"Gerados: pares{SUFIXO}.json, labels_input{SUFIXO}.tsv")

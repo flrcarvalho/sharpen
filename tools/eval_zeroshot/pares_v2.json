@@ -1,0 +1,1412 @@
+[
+  {
+    "casa": "1XBET",
+    "rotulo": "V1 · V2",
+    "gold": "ML"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "1X · 2X",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Equipe 1 Vence · Equipe 2 Vence",
+    "gold": "ML"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Handicap 1 (X) · Handicap 2 (X)",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Handicap Europeu (1:0) V1",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Handiсap 1 (-2.5) Sets",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Se Qualifica - Equipe N",
+    "gold": "ML"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Acima de (X) · Total Abaixo de (X)",
+    "gold": "Gols"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Individual 1 Acima de (X) · Total Individual 2 Abaixo de (X)",
+    "gold": "Gols"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Equipe 1 Total Acima de X no 75° Minuto",
+    "gold": "Gols"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Acima de 3.5 no 75º Minuto",
+    "gold": "Gols"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Primeiro a Fazer (2) Gols - Nenhuma Equipe",
+    "gold": "Gols"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Primeiro a Fazer (5) Escanteios Equipe 1",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Acima de (X) · Total Abaixo de (X)",
+    "gold": "Games"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Individual N Acima de (X)",
+    "gold": "Games"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total de Sets Acima de (2.5)",
+    "gold": "Sets"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Tie Break - Sim",
+    "gold": "Sets"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Acima de (X) (basquete, vôlei, rúgbi, aussie)",
+    "gold": "Pontos"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Acima de (X) (handebol)",
+    "gold": "Gols"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Individual N (basquete, hóquei, rúgbi, FA)",
+    "gold": "Pontos"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total Abaixo de (1.5) · Total Acima de (X)",
+    "gold": "Rounds"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Equipe N Total de Batidas Acima de (X)",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Maioria Das Rebatidas - Equipe N",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Total de Batidas Abaixo de (14.5)",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "1 - Over, Total de Runs da Equipe N Acima de X",
+    "gold": "Corridas"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Duração do Mapa Acima de (X)",
+    "gold": "E-Sports Props"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Equipe N, Frags, Total Abaixo de (X)",
+    "gold": "E-Sports Props"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Primeiro a Fazer (10) Frags - V2",
+    "gold": "E-Sports Props"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "Handicap Equipe N (X) Frags",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "1XBET",
+    "rotulo": "180s do Jogo Jogador N Acima de (0.5)",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "7GAMES",
+    "rotulo": "Vencedor · FT Winner",
+    "gold": "ML"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Para Ganhar a Partida / Para Vencer a Partida",
+    "gold": "ML"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Handicap Asiático (\"Ao-Vivo - …\" = só ao vivo, ignorar p/ categoria)",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Handicap Asiático - Cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Total de Escanteios (Asiáticos) / \"Total de Escanteios - 3 Opções\"",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Total de cartões asiáticos",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Para o Jogador Receber Cartão",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Para Marcar a Qualquer Momento",
+    "gold": "Anytime"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Para Marcar 2 ou Mais / dois ou mais Gols",
+    "gold": "Anytime (descr. - 2+ Gols)"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Para Marcar um Hat-trick / três ou mais Gols",
+    "gold": "Anytime (descr. - Hat-trick)"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Para Marcar Primeiro / Primeiro Marcador de Gol",
+    "gold": "Anytime (descr. - Primeiro Marcador)"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Para Marcar Por Último / Último Marcador de Gol",
+    "gold": "Anytime (descr. - Último Marcador)"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Jogador a Dar Assistência",
+    "gold": "Assistência"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Totais do Jogo / Total - 2 Opções (Basquete / eBasket — total do jogo)",
+    "gold": "Pontos"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Total de Kills / Total de Dragons / Total de Torres (\"Mapa N - …\")",
+    "gold": "E-Sports Props"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Partida - Vencedor",
+    "gold": "ML"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Mais 180's (Dardos — comparativo entre dois jogadores)",
+    "gold": "H2H"
+  },
+  {
+    "casa": "BET365",
+    "rotulo": "Criar Aposta (container)",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Vencedor",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Handicap - Cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Tiros de meta Handicap 2-Way",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Receber um cartão",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Total de Cartões / Asiático (Mais/Menos) Total de Cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Total de escanteios / Escanteios Mais/Menos / 1.º Tempo Escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Total de chutes",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Total de Games no Set (Set N)",
+    "gold": "Games"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Chance Dupla / X2",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Total de tiros de meta (goal kicks)",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Total de Faltas",
+    "gold": "Faltas"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Tie Breaks",
+    "gold": "Outros ⚠️ (nicho tênis)"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Total de 180's / Mais de–Menos de N 180's (Over/Under de um jogador)",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Maioria de 180's / H2H 180's (comparativo: quem faz mais no confronto)",
+    "gold": "H2H"
+  },
+  {
+    "casa": "BETANO",
+    "rotulo": "Criar Aposta / N-seleções / Dupla / Tripla",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "BETAO",
+    "rotulo": "Vencedor · FT Winner",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETAO",
+    "rotulo": "Resultado Final · FT 1X2",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETBOO",
+    "rotulo": "Resultado da partida",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETBOO",
+    "rotulo": "Chance Dupla",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "BETBOO",
+    "rotulo": "Handicap",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BETBOO",
+    "rotulo": "2º tempo - total de escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "BETBOO",
+    "rotulo": "<Jogador> - Corridas",
+    "gold": "Corridas"
+  },
+  {
+    "casa": "BETBOOM",
+    "rotulo": "Vencedor",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETBOOM",
+    "rotulo": "Handicap pontos",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BETBRA",
+    "rotulo": "Resultado Final 1x2",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETBRA",
+    "rotulo": "Resultado do 1º Tempo",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETBRA",
+    "rotulo": "Total de Gols Acima/Abaixo · Primeiro Tempo Total de Gols Acima/Abaixo",
+    "gold": "Gols"
+  },
+  {
+    "casa": "BETBRA",
+    "rotulo": "Vencer Algum Tempo",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETBRA",
+    "rotulo": "<Time>: Não sofrer gol no 1º Tempo",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "BETBRA",
+    "rotulo": "Total de chutes na partida",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Resultado da partida",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Handicap / Handicap no escanteio / Handicap nos pontos da partida",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Marcador a qualquer momento",
+    "gold": "Anytime"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Escanteios do time da casa / \"N ou mais escanteios\"",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Total de cartões do time da casa",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Total de Inibidores/Torres/objetivos no Mapa N (E-Sports)",
+    "gold": "E-Sports Props"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Maioria de 180's (Dardos)",
+    "gold": "H2H"
+  },
+  {
+    "casa": "BETFAIR",
+    "rotulo": "Criar Aposta / Múltiplas do Criar Aposta",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "BETFAST",
+    "rotulo": "Total de desarmes",
+    "gold": "Desarmes"
+  },
+  {
+    "casa": "BETFAST",
+    "rotulo": "Total de tiros de meta · Time de fora total de tiro de meta",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "BETFAST",
+    "rotulo": "Dupla Chance",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "BETFAST",
+    "rotulo": "1ª Tempo - Para ganhar  - Empate não tem aposta",
+    "gold": "DNB"
+  },
+  {
+    "casa": "BETFAST",
+    "rotulo": "Handicap (incl. prorrogação) · 1º Tempo - Handicap",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BETFAST",
+    "rotulo": "Handicap de set",
+    "gold": "Sets"
+  },
+  {
+    "casa": "BETFAST",
+    "rotulo": "1º Mapa - Total de Abates",
+    "gold": "E-Sports Props"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "Ambos times marcam · Ambas equipes marcam (2ºT ou partida)",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "Cartão Vermelho Sim/Não - Sim · Cartão Amarelo Sim/Não - Sim",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "[Jogador] X+ Chutes ao Gol na Partida",
+    "gold": "Chutes no Gol"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "X+ Escanteios Para Cada Time · Escanteios Mais/Menos",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "[Time] marca X+ gols · Total de gols Mais/Menos X",
+    "gold": "Gols"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "Vencedor - [Time/Jogador]",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "Outros mercados sem categoria específica",
+    "gold": "Outros ⚠️"
+  },
+  {
+    "casa": "BETNACIONAL",
+    "rotulo": "[Time] Marca em Ambos os Tempos",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "1x2",
+    "gold": "ML"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "Total de gols · 1º tempo - total · <Time> total",
+    "gold": "Gols"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "Primeiro escanteio",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "Total cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "Ambas equipes marcam",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "<Time> para vencer um dos tempos",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "BetBuilder (isBetBuilder: true, 2+ pernas em bbOdds)",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "BETPIX365",
+    "rotulo": "(mercado não mapeado)",
+    "gold": "Outros"
+  },
+  {
+    "casa": "BLAZE",
+    "rotulo": "Vencedor · Winner",
+    "gold": "ML"
+  },
+  {
+    "casa": "BLAZE",
+    "rotulo": "Handicap · Handicap (incl. prorrogação)",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BLAZE",
+    "rotulo": "Handicap mapas · Map handicap",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BLAZE",
+    "rotulo": "1 map - round handicap · 2 map - round handicap",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "BLAZE",
+    "rotulo": "2 map - 1x2",
+    "gold": "ML"
+  },
+  {
+    "casa": "BLAZE",
+    "rotulo": "Placar exato (em mapas) · Correct score (in maps)",
+    "gold": "Outros ⚠️"
+  },
+  {
+    "casa": "BOLSADEAPOSTA",
+    "rotulo": "Both Score / Both Teams to Score",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "BOLSADEAPOSTA",
+    "rotulo": "Over X Goals / Under X Goals",
+    "gold": "Gols"
+  },
+  {
+    "casa": "BOLSADEAPOSTA",
+    "rotulo": "Nome de time como seleção (ex.: Alemanha) + mercado de resultado",
+    "gold": "ML"
+  },
+  {
+    "casa": "BOLSADEAPOSTA",
+    "rotulo": "Outros mercados sem categoria específica",
+    "gold": "Outros ⚠️"
+  },
+  {
+    "casa": "ESPORTIVA",
+    "rotulo": "Total de gols · Bahia - Total de Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "ESPORTIVA",
+    "rotulo": "Ambas equipes 2+ cartões cada uma",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "ESPORTIVA",
+    "rotulo": "Ambas equipes marcam",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "ESPORTIVA",
+    "rotulo": "Chance dupla",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "ESPORTIVA",
+    "rotulo": "Vencedor do encontro",
+    "gold": "ML"
+  },
+  {
+    "casa": "ESPORTIVA",
+    "rotulo": "Totais chutes a Gol",
+    "gold": "Chutes no Gol"
+  },
+  {
+    "casa": "ESPORTIVA",
+    "rotulo": "Total (mais/menos) Chutes Bahia",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Vencedor (incluindo Prorrogação)",
+    "gold": "ML"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Empate devolve aposta",
+    "gold": "DNB"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Handicap (incluindo Prorrogação)",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Total de Gols (incluindo linhas Asiáticas)",
+    "gold": "Gols"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "1º tempo - total (basquete)",
+    "gold": "Pontos"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Total de Escanteios · <Time> total de escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "1X2 de cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "1X2 de faltas",
+    "gold": "Faltas"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Total de Impedimentos · <Time> total de impedimentos",
+    "gold": "Impedimentos"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Total de chutes <Time>",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Total de chutes a Gol <Time>",
+    "gold": "Chutes no Gol"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "Hits Mais de/Menos de (incluindo innings extra)",
+    "gold": "Outros ⚠️"
+  },
+  {
+    "casa": "ESTRELABET",
+    "rotulo": "(mercado não mapeado)",
+    "gold": "Outros"
+  },
+  {
+    "casa": "FAZ1BET",
+    "rotulo": "Total de finalizações",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "FAZ1BET",
+    "rotulo": "Chutes a gol total",
+    "gold": "Chutes no Gol"
+  },
+  {
+    "casa": "FAZ1BET",
+    "rotulo": "Total de de impedimentos *(sic — a casa duplica o \"de\")*",
+    "gold": "Impedimentos"
+  },
+  {
+    "casa": "FAZ1BET",
+    "rotulo": "Total de faltas",
+    "gold": "Faltas"
+  },
+  {
+    "casa": "FAZ1BET",
+    "rotulo": "Mais cartões",
+    "gold": "H2H"
+  },
+  {
+    "casa": "JOGODEOURO",
+    "rotulo": "Total de escanteios · 1º tempo - total de escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "JOGODEOURO",
+    "rotulo": "Total de gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "JOGODEOURO",
+    "rotulo": "Vencedor do encontro",
+    "gold": "ML"
+  },
+  {
+    "casa": "JOGODEOURO",
+    "rotulo": "Criar Aposta (badge CA, 2+ seleções)",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "JOGODEOURO",
+    "rotulo": "(mercado não mapeado)",
+    "gold": "Outros"
+  },
+  {
+    "casa": "JONBET",
+    "rotulo": "Vencedor",
+    "gold": "ML"
+  },
+  {
+    "casa": "JONBET",
+    "rotulo": "Handicap pontos",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "JONBET",
+    "rotulo": "Total pontos",
+    "gold": "Pontos"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Ambas equipes Marcam",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Jogador a Marcar um Gol · Marcar a qualquer momento",
+    "gold": "Anytime"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Cartões · Equipe com Mais Cartões · Mais Cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Chance Dupla",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Escanteios Mais/Menos (2-Vias) · Escanteios Mais/Menos",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Total de Gols Mais/Menos · Total de Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Criador de apostas (múltiplas seleções)",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "Resultado Correto · Resultado Correto - 1º Tempo · mercado não mapeado",
+    "gold": "Outros"
+  },
+  {
+    "casa": "KINGPANDA",
+    "rotulo": "[Time]: Equipe Marca nos Dois Tempos · estatística coletiva de equipe",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "KTO",
+    "rotulo": "Para marcar: [Jogador] - Sim (em cupom Simples)",
+    "gold": "Anytime"
+  },
+  {
+    "casa": "KTO",
+    "rotulo": "Para receber um cartão: [Jogador] - Sim · mercados de cartão",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "KTO",
+    "rotulo": "Vencedor da partida: [Time/Jogador]",
+    "gold": "ML"
+  },
+  {
+    "casa": "KTO",
+    "rotulo": "Dupla · Quadrupla · Simples (N) · Duplas (X), Triplas (Y) (sistema)",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "KTO",
+    "rotulo": "Faltas concedidas/cometidas pelo jogador",
+    "gold": "Faltas"
+  },
+  {
+    "casa": "LOTTU",
+    "rotulo": "X PARA MARCAR A QUALQUER MOMENTO (simples)",
+    "gold": "Anytime"
+  },
+  {
+    "casa": "LOTTU",
+    "rotulo": "MAIS DE X ESCANTEIOS · MAIOR NÚMERO DE ESCANTEIOS",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "LOTTU",
+    "rotulo": "MAIS DE X GOLS · MAIS DE X GOLS NO Xº TEMPO",
+    "gold": "Gols"
+  },
+  {
+    "casa": "LOTTU",
+    "rotulo": "X PARA GANHAR",
+    "gold": "ML"
+  },
+  {
+    "casa": "LOTTU",
+    "rotulo": "Desafio com & na Resposta (2+ condições)",
+    "gold": "Múltipla"
+  },
+  {
+    "casa": "LOTTU",
+    "rotulo": "MAIS DE X [stat] [jogador] · [JOGADOR] MAIS DE X [stat]",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "LOTTU",
+    "rotulo": "X PARA GANHAR AMBOS OS TEMPOS · X PARA MARCAR EM AMBOS OS TEMPOS",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Total de Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Asiático Total de Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "1° Tempo - [Time] Total de Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "2° Tempo - [Time] Total de Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Total de Escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "[Time] Total de Escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Disputa até X Escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Escanteios Resultado Final",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Total de Cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "[Time] Total de Cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Cartões Resultado",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "[Time] - Total de Chutes no gol",
+    "gold": "Chutes no Gol"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Handicap Asiático",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Resultado ao Intervalo",
+    "gold": "ML"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Bola na trave",
+    "gold": "Outros ⚠️"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Vencedor do Jogo",
+    "gold": "ML"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Handicap (Adicional)",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "[Jogador] - Pontos",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "[Jogador] - Rebotes",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "[Time] Total de cestas de três pontos marcadas",
+    "gold": "Team Props ⚠️"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Total de Games",
+    "gold": "Games"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Handicap de Games",
+    "gold": "Games"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Total de Quebras de Serviço",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "[Jogador] Total de Quebras de Serviço",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "1° Set - [Jogador] Total de Breaks",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "1° Set Vencedor",
+    "gold": "ML ⚠️"
+  },
+  {
+    "casa": "NOVIBET",
+    "rotulo": "Handicap (hóquei)",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "PINNACLE",
+    "rotulo": "Partida Moneyline",
+    "gold": "ML"
+  },
+  {
+    "casa": "PINNACLE",
+    "rotulo": "Partida 1X2 (seleção = um time)",
+    "gold": "ML"
+  },
+  {
+    "casa": "PINNACLE",
+    "rotulo": "Partida Handicap / Partida HDP",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "PINNACLE",
+    "rotulo": "Props de Jogadores / Especiais",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Empate Anula a Aposta",
+    "gold": "DNB"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Total De Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "[Time] - Total De Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Time com Mais Escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "[Time] - Total de Escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Escanteios - Handicap de 3 Vias [placar]",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Vencedor",
+    "gold": "ML"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Resultado Final",
+    "gold": "ML"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Dupla chance",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Número Total de Quebras de Saque",
+    "gold": "Games"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Total 180s",
+    "gold": "Legs"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "Leg Handicap",
+    "gold": "Legs"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "[Jogador] Assistências - Jogador",
+    "gold": "Assistência"
+  },
+  {
+    "casa": "PITACO",
+    "rotulo": "[Jogador] - Total de Pontos",
+    "gold": "Pontos"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Vencedor da partida / outcome simples",
+    "gold": "ML"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Will X win by KO or TKO? (método de vitória, MMA)",
+    "gold": "ML"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Game Handicap / Map Handicap / spread",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Corners / escanteios (Futebol)",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Goals / gols / O/U 2.5 de gols (Futebol)",
+    "gold": "Gols"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Cards / cartões (Futebol)",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Both teams to score / BTTS (Futebol)",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "O/U 179.5 — total do jogo/time (Basquete)",
+    "gold": "Pontos"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "O/U 1.5 Rounds (MMA / Boxe)",
+    "gold": "Rounds"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "O/U 8.5 — corridas (Baseball)",
+    "gold": "Corridas"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Strikeouts O/U — estatística do arremessador",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Games Total (Tênis)",
+    "gold": "Games"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Sets (Tênis)",
+    "gold": "Sets"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Legs (Dardos)",
+    "gold": "Legs"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Total Kills / Map X Total Rounds / Games Total (E-Sports)",
+    "gold": "E-Sports Props"
+  },
+  {
+    "casa": "POLYMARKET",
+    "rotulo": "Estatística individual de jogador, sem categoria própria",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "R7",
+    "rotulo": "Vencedor · FT Winner",
+    "gold": "ML"
+  },
+  {
+    "casa": "R7",
+    "rotulo": "Vencedor 2 Vias · FT Winner 2 Way",
+    "gold": "ML"
+  },
+  {
+    "casa": "R7",
+    "rotulo": "Resultado Final · FT 1X2",
+    "gold": "ML"
+  },
+  {
+    "casa": "R7",
+    "rotulo": "Handicap · FT Spread",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "R7",
+    "rotulo": "Handicap de total de pontos - Set 2 Apostas ao Vivo · 2nd Set HC",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "SPORTINGBET",
+    "rotulo": "Marcador a qualquer momento",
+    "gold": "Anytime"
+  },
+  {
+    "casa": "SPORTINGBET",
+    "rotulo": "Total de Cartões - 1º Tempo",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "SPORTINGBET",
+    "rotulo": "<Time> - Total de Escanteios · <Time> - Total de Escanteios - 2º tempo",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "SPORTINGBET",
+    "rotulo": "<Jogador> - Corridas",
+    "gold": "Corridas"
+  },
+  {
+    "casa": "SPORTINGBET",
+    "rotulo": "<Jogador> - Player singles",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "STAKE",
+    "rotulo": "Total de Escanteio por [Time]",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "STAKE",
+    "rotulo": "Total de escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "STAKE",
+    "rotulo": "Total de Gols do [Time]",
+    "gold": "Gols"
+  },
+  {
+    "casa": "STAKE",
+    "rotulo": "Total asiático (linha asiática de gols)",
+    "gold": "Gols"
+  },
+  {
+    "casa": "STAKE",
+    "rotulo": "Resultado Final",
+    "gold": "ML"
+  },
+  {
+    "casa": "STAKE",
+    "rotulo": "Vencedor da partida",
+    "gold": "ML"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Resultado Final / Vencedor / 1 2 (na seleção)",
+    "gold": "ML"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Handicap / Handicap (Inc. prorrogação) / Handicap de Mapas",
+    "gold": "Handicap"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Empate Anula Aposta",
+    "gold": "DNB"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Gols",
+    "gold": "Gols"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Escanteios",
+    "gold": "Escanteios"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Finalizações",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Handicap - Finalizações / Handicap de Finalizações",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Chutes no Gol",
+    "gold": "Chutes no Gol"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Desarmes",
+    "gold": "Desarmes"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Handicap - Desarmes",
+    "gold": "Desarmes"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Games / Games Ímpar/Par",
+    "gold": "Games"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Quebras (tênis)",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de strikeouts do arremessador (MLB)",
+    "gold": "Player Props"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Total de Impedimentos",
+    "gold": "Impedimentos"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Empate ou 2 / Dupla Chance",
+    "gold": "Dupla Chance"
+  },
+  {
+    "casa": "SUPERBET",
+    "rotulo": "Tiros de Meta / Total de Tiros de Meta",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "TIVO",
+    "rotulo": "Total de Finalizações",
+    "gold": "Chutes"
+  },
+  {
+    "casa": "TIVO",
+    "rotulo": "Chutes a gol total",
+    "gold": "Chutes no Gol"
+  },
+  {
+    "casa": "TIVO",
+    "rotulo": "Total de de impedimentos *(sic — a casa duplica o \"de\")*",
+    "gold": "Impedimentos"
+  },
+  {
+    "casa": "TIVO",
+    "rotulo": "Total de Gols do Time de Casa",
+    "gold": "Gols"
+  },
+  {
+    "casa": "TIVO",
+    "rotulo": "Vencedor da partida",
+    "gold": "ML"
+  },
+  {
+    "casa": "VAIDEBET",
+    "rotulo": "Total cartões · 1º tempo - total cartões",
+    "gold": "Cartões"
+  },
+  {
+    "casa": "VAIDEBET",
+    "rotulo": "Vencedor do encontro · Vencedor (incluindo innings extra)",
+    "gold": "ML"
+  },
+  {
+    "casa": "VAIDEBET",
+    "rotulo": "Ambas equipes marcam",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "VAIDEBET",
+    "rotulo": "Marcador - <Jogador> (TIME), seleção Qualq. Altura ¹",
+    "gold": "Anytime"
+  },
+  {
+    "casa": "VAIDEBET",
+    "rotulo": "<Time> para marcar em ambos os tempos ¹",
+    "gold": "Team Props"
+  },
+  {
+    "casa": "VAIDEBET",
+    "rotulo": "<Time> Mais de/Menos de (incluindo innings extra) (beisebol) ¹",
+    "gold": "Corridas"
+  },
+  {
+    "casa": "VAIDEBET",
+    "rotulo": "Winner & total (incl. extra innings) (beisebol)",
+    "gold": "Outros"
+  },
+  {
+    "casa": "VITORIABET",
+    "rotulo": "Ambas as equipes marcarão",
+    "gold": "Ambas Marcam"
+  },
+  {
+    "casa": "VITORIABET",
+    "rotulo": "[Seleção] vencerá · Vencedores (1 confronto)",
+    "gold": "ML"
+  }
+]

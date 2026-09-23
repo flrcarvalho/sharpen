@@ -1,0 +1,282 @@
+0	[1XBET]	V1 · V2
+1	[1XBET]	1X · 2X
+2	[1XBET]	Equipe 1 Vence · Equipe 2 Vence
+3	[1XBET]	Handicap 1 (X) · Handicap 2 (X)
+4	[1XBET]	Handicap Europeu (1:0) V1
+5	[1XBET]	Handiсap 1 (-2.5) Sets
+6	[1XBET]	Se Qualifica - Equipe N
+7	[1XBET]	Total Acima de (X) · Total Abaixo de (X)
+8	[1XBET]	Total Individual 1 Acima de (X) · Total Individual 2 Abaixo de (X)
+9	[1XBET]	Equipe 1 Total Acima de X no 75° Minuto
+10	[1XBET]	Total Acima de 3.5 no 75º Minuto
+11	[1XBET]	Primeiro a Fazer (2) Gols - Nenhuma Equipe
+12	[1XBET]	Primeiro a Fazer (5) Escanteios Equipe 1
+13	[1XBET]	Total Acima de (X) · Total Abaixo de (X)
+14	[1XBET]	Total Individual N Acima de (X)
+15	[1XBET]	Total de Sets Acima de (2.5)
+16	[1XBET]	Tie Break - Sim
+17	[1XBET]	Total Acima de (X) (basquete, vôlei, rúgbi, aussie)
+18	[1XBET]	Total Acima de (X) (handebol)
+19	[1XBET]	Total Individual N (basquete, hóquei, rúgbi, FA)
+20	[1XBET]	Total Abaixo de (1.5) · Total Acima de (X)
+21	[1XBET]	Equipe N Total de Batidas Acima de (X)
+22	[1XBET]	Maioria Das Rebatidas - Equipe N
+23	[1XBET]	Total de Batidas Abaixo de (14.5)
+24	[1XBET]	1 - Over, Total de Runs da Equipe N Acima de X
+25	[1XBET]	Duração do Mapa Acima de (X)
+26	[1XBET]	Equipe N, Frags, Total Abaixo de (X)
+27	[1XBET]	Primeiro a Fazer (10) Frags - V2
+28	[1XBET]	Handicap Equipe N (X) Frags
+29	[1XBET]	180s do Jogo Jogador N Acima de (0.5)
+30	[7GAMES]	Vencedor · FT Winner
+31	[BET365]	Para Ganhar a Partida / Para Vencer a Partida
+32	[BET365]	Handicap Asiático ("Ao-Vivo - …" = só ao vivo, ignorar p/ categoria)
+33	[BET365]	Handicap Asiático - Cartões
+34	[BET365]	Total de Escanteios (Asiáticos) / "Total de Escanteios - 3 Opções"
+35	[BET365]	Total de cartões asiáticos
+36	[BET365]	Para o Jogador Receber Cartão
+37	[BET365]	Para Marcar a Qualquer Momento
+38	[BET365]	Para Marcar 2 ou Mais / dois ou mais Gols
+39	[BET365]	Para Marcar um Hat-trick / três ou mais Gols
+40	[BET365]	Para Marcar Primeiro / Primeiro Marcador de Gol
+41	[BET365]	Para Marcar Por Último / Último Marcador de Gol
+42	[BET365]	Jogador a Dar Assistência
+43	[BET365]	Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts
+44	[BET365]	Totais do Jogo / Total - 2 Opções (Basquete / eBasket — total do jogo)
+45	[BET365]	Total de Kills / Total de Dragons / Total de Torres ("Mapa N - …")
+46	[BET365]	Partida - Vencedor
+47	[BET365]	Mais 180's (Dardos — comparativo entre dois jogadores)
+48	[BET365]	Criar Aposta (container)
+49	[BETANO]	Vencedor
+50	[BETANO]	Handicap - Cartões
+51	[BETANO]	Tiros de meta Handicap 2-Way
+52	[BETANO]	Receber um cartão
+53	[BETANO]	Total de Cartões / Asiático (Mais/Menos) Total de Cartões
+54	[BETANO]	Total de escanteios / Escanteios Mais/Menos / 1.º Tempo Escanteios
+55	[BETANO]	Total de chutes
+56	[BETANO]	Total de Games no Set (Set N)
+57	[BETANO]	Chance Dupla / X2
+58	[BETANO]	Total de tiros de meta (goal kicks)
+59	[BETANO]	Total de Faltas
+60	[BETANO]	Tie Breaks
+61	[BETANO]	Total de 180's / Mais de–Menos de N 180's (Over/Under de um jogador)
+62	[BETANO]	Maioria de 180's / H2H 180's (comparativo: quem faz mais no confronto)
+63	[BETANO]	Criar Aposta / N-seleções / Dupla / Tripla
+64	[BETAO]	Vencedor · FT Winner
+65	[BETAO]	Resultado Final · FT 1X2
+66	[BETBOO]	Resultado da partida
+67	[BETBOO]	Chance Dupla
+68	[BETBOO]	Handicap
+69	[BETBOO]	2º tempo - total de escanteios
+70	[BETBOO]	<Jogador> - Corridas
+71	[BETBOOM]	Vencedor
+72	[BETBOOM]	Handicap pontos
+73	[BETBRA]	Resultado Final 1x2
+74	[BETBRA]	Resultado do 1º Tempo
+75	[BETBRA]	Total de Gols Acima/Abaixo · Primeiro Tempo Total de Gols Acima/Abaixo
+76	[BETBRA]	Vencer Algum Tempo
+77	[BETBRA]	<Time>: Não sofrer gol no 1º Tempo
+78	[BETBRA]	Total de chutes na partida
+79	[BETFAIR]	Resultado da partida
+80	[BETFAIR]	Handicap / Handicap no escanteio / Handicap nos pontos da partida
+81	[BETFAIR]	Marcador a qualquer momento
+82	[BETFAIR]	Escanteios do time da casa / "N ou mais escanteios"
+83	[BETFAIR]	Total de cartões do time da casa
+84	[BETFAIR]	Total de Inibidores/Torres/objetivos no Mapa N (E-Sports)
+85	[BETFAIR]	Maioria de 180's (Dardos)
+86	[BETFAIR]	Criar Aposta / Múltiplas do Criar Aposta
+87	[BETFAST]	Total de desarmes
+88	[BETFAST]	Total de tiros de meta · Time de fora total de tiro de meta
+89	[BETFAST]	Dupla Chance
+90	[BETFAST]	1ª Tempo - Para ganhar  - Empate não tem aposta
+91	[BETFAST]	Handicap (incl. prorrogação) · 1º Tempo - Handicap
+92	[BETFAST]	Handicap de set
+93	[BETFAST]	1º Mapa - Total de Abates
+94	[BETNACIONAL]	Ambos times marcam · Ambas equipes marcam (2ºT ou partida)
+95	[BETNACIONAL]	Cartão Vermelho Sim/Não - Sim · Cartão Amarelo Sim/Não - Sim
+96	[BETNACIONAL]	[Jogador] X+ Chutes ao Gol na Partida
+97	[BETNACIONAL]	X+ Escanteios Para Cada Time · Escanteios Mais/Menos
+98	[BETNACIONAL]	[Time] marca X+ gols · Total de gols Mais/Menos X
+99	[BETNACIONAL]	Vencedor - [Time/Jogador]
+100	[BETNACIONAL]	Outros mercados sem categoria específica
+101	[BETNACIONAL]	[Time] Marca em Ambos os Tempos
+102	[BETPIX365]	1x2
+103	[BETPIX365]	Total de gols · 1º tempo - total · <Time> total
+104	[BETPIX365]	Primeiro escanteio
+105	[BETPIX365]	Total cartões
+106	[BETPIX365]	Ambas equipes marcam
+107	[BETPIX365]	<Time> para vencer um dos tempos
+108	[BETPIX365]	BetBuilder (isBetBuilder: true, 2+ pernas em bbOdds)
+109	[BETPIX365]	(mercado não mapeado)
+110	[BLAZE]	Vencedor · Winner
+111	[BLAZE]	Handicap · Handicap (incl. prorrogação)
+112	[BLAZE]	Handicap mapas · Map handicap
+113	[BLAZE]	1 map - round handicap · 2 map - round handicap
+114	[BLAZE]	2 map - 1x2
+115	[BLAZE]	Placar exato (em mapas) · Correct score (in maps)
+116	[BOLSADEAPOSTA]	Both Score / Both Teams to Score
+117	[BOLSADEAPOSTA]	Over X Goals / Under X Goals
+118	[BOLSADEAPOSTA]	Nome de time como seleção (ex.: Alemanha) + mercado de resultado
+119	[BOLSADEAPOSTA]	Outros mercados sem categoria específica
+120	[ESPORTIVA]	Total de gols · Bahia - Total de Gols
+121	[ESPORTIVA]	Ambas equipes 2+ cartões cada uma
+122	[ESPORTIVA]	Ambas equipes marcam
+123	[ESPORTIVA]	Chance dupla
+124	[ESPORTIVA]	Vencedor do encontro
+125	[ESPORTIVA]	Totais chutes a Gol
+126	[ESPORTIVA]	Total (mais/menos) Chutes Bahia
+127	[ESTRELABET]	Vencedor (incluindo Prorrogação)
+128	[ESTRELABET]	Empate devolve aposta
+129	[ESTRELABET]	Handicap (incluindo Prorrogação)
+130	[ESTRELABET]	Total de Gols (incluindo linhas Asiáticas)
+131	[ESTRELABET]	1º tempo - total (basquete)
+132	[ESTRELABET]	Total de Escanteios · <Time> total de escanteios
+133	[ESTRELABET]	1X2 de cartões
+134	[ESTRELABET]	1X2 de faltas
+135	[ESTRELABET]	Total de Impedimentos · <Time> total de impedimentos
+136	[ESTRELABET]	Total de chutes <Time>
+137	[ESTRELABET]	Total de chutes a Gol <Time>
+138	[ESTRELABET]	Hits Mais de/Menos de (incluindo innings extra)
+139	[ESTRELABET]	(mercado não mapeado)
+140	[FAZ1BET]	Total de finalizações
+141	[FAZ1BET]	Chutes a gol total
+142	[FAZ1BET]	Total de de impedimentos *(sic — a casa duplica o "de")*
+143	[FAZ1BET]	Total de faltas
+144	[FAZ1BET]	Mais cartões
+145	[JOGODEOURO]	Total de escanteios · 1º tempo - total de escanteios
+146	[JOGODEOURO]	Total de gols
+147	[JOGODEOURO]	Vencedor do encontro
+148	[JOGODEOURO]	Criar Aposta (badge CA, 2+ seleções)
+149	[JOGODEOURO]	(mercado não mapeado)
+150	[JONBET]	Vencedor
+151	[JONBET]	Handicap pontos
+152	[JONBET]	Total pontos
+153	[KINGPANDA]	Ambas equipes Marcam
+154	[KINGPANDA]	Jogador a Marcar um Gol · Marcar a qualquer momento
+155	[KINGPANDA]	Cartões · Equipe com Mais Cartões · Mais Cartões
+156	[KINGPANDA]	Chance Dupla
+157	[KINGPANDA]	Escanteios Mais/Menos (2-Vias) · Escanteios Mais/Menos
+158	[KINGPANDA]	Total de Gols Mais/Menos · Total de Gols
+159	[KINGPANDA]	Criador de apostas (múltiplas seleções)
+160	[KINGPANDA]	Resultado Correto · Resultado Correto - 1º Tempo · mercado não mapeado
+161	[KINGPANDA]	[Time]: Equipe Marca nos Dois Tempos · estatística coletiva de equipe
+162	[KTO]	Para marcar: [Jogador] - Sim (em cupom Simples)
+163	[KTO]	Para receber um cartão: [Jogador] - Sim · mercados de cartão
+164	[KTO]	Vencedor da partida: [Time/Jogador]
+165	[KTO]	Dupla · Quadrupla · Simples (N) · Duplas (X), Triplas (Y) (sistema)
+166	[KTO]	Faltas concedidas/cometidas pelo jogador
+167	[LOTTU]	X PARA MARCAR A QUALQUER MOMENTO (simples)
+168	[LOTTU]	MAIS DE X ESCANTEIOS · MAIOR NÚMERO DE ESCANTEIOS
+169	[LOTTU]	MAIS DE X GOLS · MAIS DE X GOLS NO Xº TEMPO
+170	[LOTTU]	X PARA GANHAR
+171	[LOTTU]	Desafio com & na Resposta (2+ condições)
+172	[LOTTU]	MAIS DE X [stat] [jogador] · [JOGADOR] MAIS DE X [stat]
+173	[LOTTU]	X PARA GANHAR AMBOS OS TEMPOS · X PARA MARCAR EM AMBOS OS TEMPOS
+174	[NOVIBET]	Total de Gols
+175	[NOVIBET]	Asiático Total de Gols
+176	[NOVIBET]	1° Tempo - [Time] Total de Gols
+177	[NOVIBET]	2° Tempo - [Time] Total de Gols
+178	[NOVIBET]	Total de Escanteios
+179	[NOVIBET]	[Time] Total de Escanteios
+180	[NOVIBET]	Disputa até X Escanteios
+181	[NOVIBET]	Escanteios Resultado Final
+182	[NOVIBET]	Total de Cartões
+183	[NOVIBET]	[Time] Total de Cartões
+184	[NOVIBET]	Cartões Resultado
+185	[NOVIBET]	[Time] - Total de Chutes no gol
+186	[NOVIBET]	Handicap Asiático
+187	[NOVIBET]	Resultado ao Intervalo
+188	[NOVIBET]	Bola na trave
+189	[NOVIBET]	Vencedor do Jogo
+190	[NOVIBET]	Handicap (Adicional)
+191	[NOVIBET]	[Jogador] - Pontos
+192	[NOVIBET]	[Jogador] - Rebotes
+193	[NOVIBET]	[Time] Total de cestas de três pontos marcadas
+194	[NOVIBET]	Total de Games
+195	[NOVIBET]	Handicap de Games
+196	[NOVIBET]	Total de Quebras de Serviço
+197	[NOVIBET]	[Jogador] Total de Quebras de Serviço
+198	[NOVIBET]	1° Set - [Jogador] Total de Breaks
+199	[NOVIBET]	1° Set Vencedor
+200	[NOVIBET]	Handicap (hóquei)
+201	[PINNACLE]	Partida Moneyline
+202	[PINNACLE]	Partida 1X2 (seleção = um time)
+203	[PINNACLE]	Partida Handicap / Partida HDP
+204	[PINNACLE]	Props de Jogadores / Especiais
+205	[PITACO]	Empate Anula a Aposta
+206	[PITACO]	Total De Gols
+207	[PITACO]	[Time] - Total De Gols
+208	[PITACO]	Time com Mais Escanteios
+209	[PITACO]	[Time] - Total de Escanteios
+210	[PITACO]	Escanteios - Handicap de 3 Vias [placar]
+211	[PITACO]	Vencedor
+212	[PITACO]	Resultado Final
+213	[PITACO]	Dupla chance
+214	[PITACO]	Número Total de Quebras de Saque
+215	[PITACO]	Total 180s
+216	[PITACO]	Leg Handicap
+217	[PITACO]	[Jogador] Assistências - Jogador
+218	[PITACO]	[Jogador] - Total de Pontos
+219	[POLYMARKET]	Vencedor da partida / outcome simples
+220	[POLYMARKET]	Will X win by KO or TKO? (método de vitória, MMA)
+221	[POLYMARKET]	Game Handicap / Map Handicap / spread
+222	[POLYMARKET]	Corners / escanteios (Futebol)
+223	[POLYMARKET]	Goals / gols / O/U 2.5 de gols (Futebol)
+224	[POLYMARKET]	Cards / cartões (Futebol)
+225	[POLYMARKET]	Both teams to score / BTTS (Futebol)
+226	[POLYMARKET]	O/U 179.5 — total do jogo/time (Basquete)
+227	[POLYMARKET]	O/U 1.5 Rounds (MMA / Boxe)
+228	[POLYMARKET]	O/U 8.5 — corridas (Baseball)
+229	[POLYMARKET]	Strikeouts O/U — estatística do arremessador
+230	[POLYMARKET]	Games Total (Tênis)
+231	[POLYMARKET]	Sets (Tênis)
+232	[POLYMARKET]	Legs (Dardos)
+233	[POLYMARKET]	Total Kills / Map X Total Rounds / Games Total (E-Sports)
+234	[POLYMARKET]	Estatística individual de jogador, sem categoria própria
+235	[R7]	Vencedor · FT Winner
+236	[R7]	Vencedor 2 Vias · FT Winner 2 Way
+237	[R7]	Resultado Final · FT 1X2
+238	[R7]	Handicap · FT Spread
+239	[R7]	Handicap de total de pontos - Set 2 Apostas ao Vivo · 2nd Set HC
+240	[SPORTINGBET]	Marcador a qualquer momento
+241	[SPORTINGBET]	Total de Cartões - 1º Tempo
+242	[SPORTINGBET]	<Time> - Total de Escanteios · <Time> - Total de Escanteios - 2º tempo
+243	[SPORTINGBET]	<Jogador> - Corridas
+244	[SPORTINGBET]	<Jogador> - Player singles
+245	[STAKE]	Total de Escanteio por [Time]
+246	[STAKE]	Total de escanteios
+247	[STAKE]	Total de Gols do [Time]
+248	[STAKE]	Total asiático (linha asiática de gols)
+249	[STAKE]	Resultado Final
+250	[STAKE]	Vencedor da partida
+251	[SUPERBET]	Resultado Final / Vencedor / 1 2 (na seleção)
+252	[SUPERBET]	Handicap / Handicap (Inc. prorrogação) / Handicap de Mapas
+253	[SUPERBET]	Empate Anula Aposta
+254	[SUPERBET]	Total de Gols
+255	[SUPERBET]	Total de Escanteios
+256	[SUPERBET]	Total de Cartões
+257	[SUPERBET]	Total de Finalizações
+258	[SUPERBET]	Handicap - Finalizações / Handicap de Finalizações
+259	[SUPERBET]	Chutes no Gol
+260	[SUPERBET]	Total de Desarmes
+261	[SUPERBET]	Handicap - Desarmes
+262	[SUPERBET]	Total de Games / Games Ímpar/Par
+263	[SUPERBET]	Total de Quebras (tênis)
+264	[SUPERBET]	Total de strikeouts do arremessador (MLB)
+265	[SUPERBET]	Total de Impedimentos
+266	[SUPERBET]	Empate ou 2 / Dupla Chance
+267	[SUPERBET]	Tiros de Meta / Total de Tiros de Meta
+268	[TIVO]	Total de Finalizações
+269	[TIVO]	Chutes a gol total
+270	[TIVO]	Total de de impedimentos *(sic — a casa duplica o "de")*
+271	[TIVO]	Total de Gols do Time de Casa
+272	[TIVO]	Vencedor da partida
+273	[VAIDEBET]	Total cartões · 1º tempo - total cartões
+274	[VAIDEBET]	Vencedor do encontro · Vencedor (incluindo innings extra)
+275	[VAIDEBET]	Ambas equipes marcam
+276	[VAIDEBET]	Marcador - <Jogador> (TIME), seleção Qualq. Altura ¹
+277	[VAIDEBET]	<Time> para marcar em ambos os tempos ¹
+278	[VAIDEBET]	<Time> Mais de/Menos de (incluindo innings extra) (beisebol) ¹
+279	[VAIDEBET]	Winner & total (incl. extra innings) (beisebol)
+280	[VITORIABET]	Ambas as equipes marcarão
+281	[VITORIABET]	[Seleção] vencerá · Vencedores (1 confronto)

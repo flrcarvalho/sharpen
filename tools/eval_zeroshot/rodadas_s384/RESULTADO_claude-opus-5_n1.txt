@@ -1,0 +1,35 @@
+TOTAL: 282
+ACERTO de CATEGORIA (métrica-alvo): 256 (90.8%)
+  match exato de string (cru): 245 (86.9%)
+ERROS de categoria: 26 (9.2%)
+  dos quais falhas SEGURAS (pred=Outros, cai no amarelo): 4
+  dos quais erros SILENCIOSOS: 22 (7.8%)
+  alucinações (fora da §3): 0
+
+=== ERROS DE CATEGORIA ===
+  # 13 [1XBET] 'Total Acima de (X) · Total Abaixo de (X)'  gold='Games' pred='Gols'
+  # 14 [1XBET] 'Total Individual N Acima de (X)'  gold='Games' pred='Gols'
+  # 16 [1XBET] 'Tie Break - Sim'  gold='Sets' pred='Outros' [SEGURO]
+  # 20 [1XBET] 'Total Abaixo de (1.5) · Total Acima de (X)'  gold='Rounds' pred='Gols'
+  # 21 [1XBET] 'Equipe N Total de Batidas Acima de (X)'  gold='Team Props' pred='Corridas'
+  # 22 [1XBET] 'Maioria Das Rebatidas - Equipe N'  gold='Team Props' pred='Corridas'
+  # 23 [1XBET] 'Total de Batidas Abaixo de (14.5)'  gold='Team Props' pred='Corridas'
+  # 43 [BET365] 'Total de Hits, Runs e RBIs (Baseball) / Lançador - Strikeouts'  gold='Player Props' pred='Corridas'
+  # 76 [BETBRA] 'Vencer Algum Tempo'  gold='ML' pred='Outros' [SEGURO]
+  # 77 [BETBRA] '<Time>: Não sofrer gol no 1º Tempo'  gold='Team Props' pred='Gols'
+  # 92 [BETFAST] 'Handicap de set'  gold='Sets' pred='Handicap'
+  #101 [BETNACIONAL] '[Time] Marca em Ambos os Tempos'  gold='Team Props' pred='Gols'
+  #107 [BETPIX365] '<Time> para vencer um dos tempos'  gold='Team Props' pred='Outros' [SEGURO]
+  #138 [ESTRELABET] 'Hits Mais de/Menos de (incluindo innings extra)'  gold='Outros ⚠️' pred='Corridas'
+  #144 [FAZ1BET] 'Mais cartões'  gold='H2H' pred='Cartões'
+  #173 [LOTTU] 'X PARA GANHAR AMBOS OS TEMPOS · X PARA MARCAR EM AMBOS OS TEMPOS'  gold='Team Props' pred='Outros' [SEGURO]
+  #195 [NOVIBET] 'Handicap de Games'  gold='Games' pred='Handicap'
+  #214 [PITACO] 'Número Total de Quebras de Saque'  gold='Games' pred='Player Props'
+  #215 [PITACO] 'Total 180s'  gold='Legs' pred='Player Props'
+  #216 [PITACO] 'Leg Handicap'  gold='Legs' pred='Handicap'
+  #217 [PITACO] '[Jogador] Assistências - Jogador'  gold='Assistência' pred='Player Props'
+  #218 [PITACO] '[Jogador] - Total de Pontos'  gold='Pontos' pred='Player Props'
+  #258 [SUPERBET] 'Handicap - Finalizações / Handicap de Finalizações'  gold='Chutes' pred='Handicap'
+  #261 [SUPERBET] 'Handicap - Desarmes'  gold='Desarmes' pred='Handicap'
+  #277 [VAIDEBET] '<Time> para marcar em ambos os tempos ¹'  gold='Team Props' pred='Gols'
+  #279 [VAIDEBET] 'Winner & total (incl. extra innings) (beisebol)'  gold='Outros' pred='Múltipla'

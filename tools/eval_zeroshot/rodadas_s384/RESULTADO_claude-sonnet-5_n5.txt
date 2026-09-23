@@ -1,0 +1,42 @@
+TOTAL: 282
+ACERTO de CATEGORIA (métrica-alvo): 249 (88.3%)
+  match exato de string (cru): 238 (84.4%)
+ERROS de categoria: 33 (11.7%)
+  dos quais falhas SEGURAS (pred=Outros, cai no amarelo): 9
+  dos quais erros SILENCIOSOS: 24 (8.5%)
+  alucinações (fora da §3): 0
+
+=== ERROS DE CATEGORIA ===
+  #  6 [1XBET] 'Se Qualifica - Equipe N'  gold='ML' pred='Outros' [SEGURO]
+  # 11 [1XBET] 'Primeiro a Fazer (2) Gols - Nenhuma Equipe'  gold='Gols' pred='Anytime'
+  # 13 [1XBET] 'Total Acima de (X) · Total Abaixo de (X)'  gold='Games' pred='Gols'
+  # 14 [1XBET] 'Total Individual N Acima de (X)'  gold='Games' pred='Player Props'
+  # 16 [1XBET] 'Tie Break - Sim'  gold='Sets' pred='Outros' [SEGURO]
+  # 19 [1XBET] 'Total Individual N (basquete, hóquei, rúgbi, FA)'  gold='Pontos' pred='Player Props'
+  # 20 [1XBET] 'Total Abaixo de (1.5) · Total Acima de (X)'  gold='Rounds' pred='Gols'
+  # 21 [1XBET] 'Equipe N Total de Batidas Acima de (X)'  gold='Team Props' pred='Player Props'
+  # 22 [1XBET] 'Maioria Das Rebatidas - Equipe N'  gold='Team Props' pred='H2H'
+  # 23 [1XBET] 'Total de Batidas Abaixo de (14.5)'  gold='Team Props' pred='Player Props'
+  # 25 [1XBET] 'Duração do Mapa Acima de (X)'  gold='E-Sports Props' pred='Outros' [SEGURO]
+  # 33 [BET365] 'Handicap Asiático - Cartões'  gold='Cartões' pred='Handicap'
+  # 50 [BETANO] 'Handicap - Cartões'  gold='Cartões' pred='Handicap'
+  # 51 [BETANO] 'Tiros de meta Handicap 2-Way'  gold='Team Props' pred='Handicap'
+  # 76 [BETBRA] 'Vencer Algum Tempo'  gold='ML' pred='Outros' [SEGURO]
+  # 90 [BETFAST] '1ª Tempo - Para ganhar  - Empate não tem aposta'  gold='DNB' pred='ML'
+  # 92 [BETFAST] 'Handicap de set'  gold='Sets' pred='Handicap'
+  # 96 [BETNACIONAL] '[Jogador] X+ Chutes ao Gol na Partida'  gold='Chutes no Gol' pred='Player Props'
+  #107 [BETPIX365] '<Time> para vencer um dos tempos'  gold='Team Props' pred='Outros' [SEGURO]
+  #138 [ESTRELABET] 'Hits Mais de/Menos de (incluindo innings extra)'  gold='Outros ⚠️' pred='Player Props'
+  #144 [FAZ1BET] 'Mais cartões'  gold='H2H' pred='Cartões'
+  #173 [LOTTU] 'X PARA GANHAR AMBOS OS TEMPOS · X PARA MARCAR EM AMBOS OS TEMPOS'  gold='Team Props' pred='Outros' [SEGURO]
+  #195 [NOVIBET] 'Handicap de Games'  gold='Games' pred='Handicap'
+  #196 [NOVIBET] 'Total de Quebras de Serviço'  gold='Player Props' pred='Outros' [SEGURO]
+  #208 [PITACO] 'Time com Mais Escanteios'  gold='Escanteios' pred='H2H'
+  #214 [PITACO] 'Número Total de Quebras de Saque'  gold='Games' pred='Outros' [SEGURO]
+  #216 [PITACO] 'Leg Handicap'  gold='Legs' pred='Handicap'
+  #218 [PITACO] '[Jogador] - Total de Pontos'  gold='Pontos' pred='Player Props'
+  #258 [SUPERBET] 'Handicap - Finalizações / Handicap de Finalizações'  gold='Chutes' pred='Handicap'
+  #261 [SUPERBET] 'Handicap - Desarmes'  gold='Desarmes' pred='Handicap'
+  #263 [SUPERBET] 'Total de Quebras (tênis)'  gold='Player Props' pred='Outros' [SEGURO]
+  #278 [VAIDEBET] '<Time> Mais de/Menos de (incluindo innings extra) (beisebol) ¹'  gold='Corridas' pred='Gols'
+  #279 [VAIDEBET] 'Winner & total (incl. extra innings) (beisebol)'  gold='Outros' pred='ML'
