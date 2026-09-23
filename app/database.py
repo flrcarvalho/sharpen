@@ -559,6 +559,51 @@ CREATE TABLE IF NOT EXISTS sombra_rotulos (
 );
 CREATE INDEX IF NOT EXISTS sombra_rotulos_casa_criado ON sombra_rotulos (casa, criado_em);
 
+-- ── Sombra de MODELO: o candidato barato lendo o MESMO lote, em paralelo ─────
+-- Decisão do Feca (s383): *"tudo que o Sonnet fizer, o Haiku tem que receber
+-- EXATAMENTE a mesma instrução no background, com custo separado e documentado"*.
+--
+-- Uma linha por extração: o que o modelo candidato gastou e como ele se saiu,
+-- medido pelos MESMOS juízes determinísticos que já rodam em produção
+-- (`codigos_do_texto`, `checar_descricao`, `checar_fidelidade`). A IA nunca é
+-- juiz de si mesma: a s336 mediu que ela discorda dela própria em 76,7% das
+-- releituras.
+--
+-- POR QUE UMA TABELA NOVA e não uma flag em `uso_tokens`: aquela tabela responde
+-- "quanto a operação custou", e é lida pela tela de custo e por toda medição de
+-- preço. Misturar gasto de experimento com gasto de produção envenenaria os dois
+-- — é a mesma armadilha do `realtrial` contaminando a medição de formato (s356).
+-- O custo da sombra é REAL e sai do mesmo cartão, mas é investigação, não COGS.
+--
+-- ⚠️ A sombra é fire-and-forget e NUNCA pode afetar a extração do usuário: ela
+-- roda depois do `done`, com `except` próprio, e falha dela não vira erro dele.
+CREATE TABLE IF NOT EXISTS sombra_modelo (
+    id            BIGSERIAL PRIMARY KEY,
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono          TEXT NOT NULL,
+    casa          TEXT,
+    modelo        TEXT NOT NULL,     -- o candidato (o titular fica em uso_tokens)
+    modelo_titular TEXT,             -- contra quem ele está sendo comparado
+    lotes         INT  NOT NULL DEFAULT 0,   -- pedaços replicados (= os do titular)
+    tem_imagem    BOOLEAN NOT NULL DEFAULT FALSE,  -- print/PDF: a tarefa é outra
+    input         BIGINT NOT NULL DEFAULT 0,
+    output        BIGINT NOT NULL DEFAULT 0,
+    cache_read    BIGINT NOT NULL DEFAULT 0,
+    cache_write   BIGINT NOT NULL DEFAULT 0,
+    custo_usd     REAL   NOT NULL DEFAULT 0,
+    -- o placar, pelos juízes determinísticos
+    blocos        INT NOT NULL DEFAULT 0,    -- blocos com código que entraram
+    linhas        INT NOT NULL DEFAULT 0,    -- linhas TSV que voltaram
+    sem_codigo    INT NOT NULL DEFAULT 0,    -- bloco que não voltou com código
+    cod_inventado INT NOT NULL DEFAULT 0,    -- código que não existe no texto-fonte
+    coluna_comida INT NOT NULL DEFAULT 0,    -- linha com <11 campos (TAB vazio omitido)
+    fora_master   INT NOT NULL DEFAULT 0,    -- descrição que o MASTER reprova
+    infiel        INT NOT NULL DEFAULT 0,    -- nome/decimal que não existe no bloco
+    descricoes    INT NOT NULL DEFAULT 0,    -- denominador das duas de cima
+    erro          TEXT                       -- a sombra falhou; a extração não soube
+);
+CREATE INDEX IF NOT EXISTS sombra_modelo_criado ON sombra_modelo (criado_em);
+
 -- ── Barreira de recaptura (Fase 0 do `docs/PLANO_BARREIRA_RECAPTURA.md`) ──────
 -- O hash do último bloco cru que a IA leu para cada bilhete. Serve a UMA pergunta:
 -- "este bloco é byte a byte o mesmo que eu já paguei para ler?". Se for, não há o

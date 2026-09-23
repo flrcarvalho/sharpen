@@ -9,6 +9,7 @@ import json
 import logging
 import math
 import os
+import random
 import re
 import time
 import zipfile
@@ -93,6 +94,7 @@ from repository import (
     CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_editar_mov, caixa_excluir_mov, caixa_visao,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
+    registrar_sombra_modelo, pontuar_saida, custo_usd,
     blocos_por_codigo, blocos_conhecidos, hash_bloco, registrar_blocos_vistos,
     conferir_cobertura, codigos_do_texto, codigos_do_tsv, carimbos_do_texto,
 )
@@ -369,6 +371,82 @@ def _display_to_key(name: str) -> str:
 # em 41%. O valor real do aquecedor está no bloco dos 6 masters, que é comum a TODA casa —
 # o bloco `CASA_SUPERBET` vir junto é efeito colateral, não o objetivo.
 _WARMER_INTERVALO = 55 * 60
+
+
+# ── Sombra de MODELO: o candidato barato lendo o MESMO lote ───────────────────
+#
+# Decisão do Feca (s383): *"tudo que o Sonnet fizer, o Haiku tem que receber EXATAMENTE
+# a mesma instrução no background, com custo separado e documentado"*.
+#
+# Ela existe porque a bancada offline (`scripts/bancada_modelos.py`) é um RETRATO: 300
+# blocos, escolhidos por mim, num dia. Ela já errou duas vezes por defeito de arranjo da
+# entrada e reprovou um modelo por engano (ver `docs/CASOS.md`). A sombra em produção não
+# tem esse problema: a entrada é a real, na distribuição real, incluindo print e PDF, que
+# a bancada nunca cobriu.
+#
+# TRÊS REGRAS DE DESENHO, e as três são sobre não machucar o usuário:
+#   1. Roda DEPOIS do `done`, fire-and-forget. A extração já terminou quando ela começa.
+#   2. `except` próprio e largo: falha da sombra não vira erro de ninguém.
+#   3. NÃO entra em `uso_tokens`. Aquela tabela é a conta da operação e é lida por toda
+#      medição de preço; gasto de experimento ali envenenaria as duas leituras.
+#
+# ⚠️ **ELA CUSTA DINHEIRO DE VERDADE.** No ritmo atual são ~US$ 150 a 200/mês a mais
+# enquanto estiver ligada, e o cache dela é separado do titular (cada modelo tem o seu),
+# então as primeiras chamadas de cada casa pagam escrita. É investigação paga, com prazo:
+# desligar é pôr `_SOMBRA_MODELO = ""`.
+#
+# `SOMBRA_MODELO_PCT` permite amostrar sem deploy (100 = tudo, 0 = desligado).
+_SOMBRA_MODELO = os.environ.get("SOMBRA_MODELO", "claude-haiku-4-5").strip()
+_SOMBRA_MODELO_PCT = int(os.environ.get("SOMBRA_MODELO_PCT", "100") or 0)
+
+
+def _sombra_vale_agora() -> bool:
+    if not _SOMBRA_MODELO or _SOMBRA_MODELO_PCT <= 0:
+        return False
+    return _SOMBRA_MODELO_PCT >= 100 or random.randint(1, 100) <= _SOMBRA_MODELO_PCT
+
+
+async def _sombra_modelo(dono: str, casa: str, system: list[dict],
+                         lotes: list[list[dict]], texto: str | None,
+                         titular: str) -> None:
+    """Replica o lote no modelo candidato e guarda custo + placar determinístico.
+
+    `lotes` são os MESMOS pedaços que o titular recebeu (chunks no paralelo, o content
+    inteiro no sequencial), com o MESMO `system`. Fielmente a mesma pergunta: se a
+    entrada fosse diferente, o placar não compararia nada.
+    """
+    tk = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    partes: list[str] = []
+    erro = None
+    tem_imagem = any(b.get("type") == "image" for lote in lotes for b in lote
+                     if isinstance(b, dict))
+    try:
+        for lote in lotes:
+            async with _client.messages.stream(
+                model=_SOMBRA_MODELO, max_tokens=64000, system=system,
+                messages=[{"role": "user", "content": lote}],
+            ) as stream:
+                async for _ in stream.text_stream:
+                    pass
+                fin = await stream.get_final_message()
+            u = fin.usage
+            tk["input"] += u.input_tokens
+            tk["output"] += u.output_tokens
+            tk["cache_read"] += getattr(u, "cache_read_input_tokens", 0)
+            tk["cache_write"] += getattr(u, "cache_creation_input_tokens", 0)
+            partes.extend(_extract_tsv_rows(
+                "".join(b.text for b in fin.content if b.type == "text")))
+    except Exception as e:
+        erro = f"{type(e).__name__}: {e}"[:400]
+
+    placar = pontuar_saida("\n".join(partes), texto)
+    await registrar_sombra_modelo(dono, casa, _SOMBRA_MODELO, titular,
+                                  len(lotes), tem_imagem, tk, placar, erro)
+    logger.info("sombra-modelo %s: %d lote(s) · US$ %.4f · blocos=%d linhas=%d "
+                "sem_codigo=%d inventado=%d%s",
+                _SOMBRA_MODELO, len(lotes), custo_usd(_SOMBRA_MODELO, tk),
+                placar["blocos"], placar["linhas"], placar["sem_codigo"],
+                placar["cod_inventado"], f" ERRO={erro}" if erro else "")
 
 
 async def _cache_warmer():
@@ -1841,6 +1919,9 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         _fire(registrar_sombra(dono, casa, texto, accumulated))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
+        # Sombra de MODELO: o candidato lê o MESMO content, com o MESMO system.
+        if _sombra_vale_agora():
+            _fire(_sombra_modelo(dono, casa, system, [content], texto, modelo))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
@@ -2046,6 +2127,9 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(registrar_sombra(dono, casa, texto, resultado))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
+        # Sombra de MODELO: os MESMOS chunks, com o MESMO system. Ver `_sombra_modelo`.
+        if _sombra_vale_agora():
+            _fire(_sombra_modelo(dono, casa, system, chunks, texto, modelo))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("par-final error")

@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 import asyncpg
 
 from database import get_pool
-from descricao_check import resumo_lote
+from descricao_check import checar_descricao, checar_fidelidade, resumo_lote
 
 logger = logging.getLogger("scanner")
 
@@ -4617,6 +4617,11 @@ async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None
 _PRECOS = {
     "claude-sonnet-5":   {"input": 2.0, "output": 10.0, "cache_read": 0.20, "cache_write": 4.00},
     "claude-opus-5":     {"input": 5.0, "output": 25.0, "cache_read": 0.50, "cache_write": 10.00},
+    # Candidato da sombra de modelo (s383). Não está em `ALLOWED_MODELS` e NÃO atende
+    # usuário: entra aqui porque a `sombra_modelo` precisa precificar o que ele gastou,
+    # e sem a linha o custo dela sairia ao preço do Sonnet 4.6 — o experimento inteiro
+    # mentiria para o lado que favorece o candidato.
+    "claude-haiku-4-5":  {"input": 1.0, "output": 5.0, "cache_read": 0.10, "cache_write": 2.00},
     # Geração anterior: fora do ALLOWED_MODELS desde a s377, mas a linha FICA. O
     # `custo_usd` é chamado com o modelo que a linha registrou, e há 60 dias de
     # `uso_tokens` em Sonnet 4.6 que qualquer remedição histórica vai reprecificar.
@@ -4815,6 +4820,89 @@ def parear_sombra(dono: str, casa: str, texto: str | None, tsv: str) -> list[tup
                        row.get("esporte") or "", row.get("aposta") or "",
                        row.get("descricao") or ""))
     return linhas
+
+
+def pontuar_saida(tsv: str, texto: str | None) -> dict:
+    """Placar DETERMINÍSTICO de um TSV contra o texto-fonte. Função PURA.
+
+    É o juiz da sombra de modelo, e não usa IA em lugar nenhum — a s336 mediu que a IA
+    discorda dela mesma em 76,7% das releituras, então "concorda com o titular" não é
+    medida de qualidade. Aqui só entram conferências que o repo já usa em produção.
+
+    O que cada número quer dizer, do mais grave para o menos:
+
+      `sem_codigo`    bloco entrou e não voltou com código. É o pior: ou o bilhete sumiu,
+                      ou a linha nasce órfã (e órfã vira fantasma).
+      `cod_inventado` código que NÃO existe no texto-fonte. Identidade falsa = linha
+                      duplicada no banco.
+      `coluna_comida` linha com menos de 11 campos: o modelo omitiu o TAB do campo vazio
+                      (o `resultado` da aposta ABERTA) e o código escorregou de coluna.
+      `fora_master`   a descrição viola o MASTER (`checar_descricao`).
+      `infiel`        nome próprio ou decimal que não existe no bloco daquele código.
+    """
+    out = {"blocos": 0, "linhas": 0, "sem_codigo": 0, "cod_inventado": 0,
+           "coluna_comida": 0, "fora_master": 0, "infiel": 0, "descricoes": 0}
+    blocos = blocos_por_codigo(texto)
+    out["blocos"] = len(blocos)
+    linhas = [l for l in (tsv or "").splitlines() if l.strip()]
+    out["linhas"] = len(linhas)
+    for l in linhas:
+        if len(l.split("\t")) < 11:
+            out["coluna_comida"] += 1
+    validos = set(blocos)
+    devolvidos = set()
+    for row in parse_tsv(tsv or ""):
+        cod = (row.get("codigo_bilhete") or "").strip()
+        inventado = bool(cod) and cod not in validos
+        if inventado:
+            out["cod_inventado"] += 1
+        elif cod:
+            devolvidos.add(cod)
+        # A descrição é pontuada MESMO na linha de código inventado: senão um modelo que
+        # erra as duas coisas esconde a segunda atrás da primeira, e o placar o premia.
+        desc = (row.get("descricao") or "").strip()
+        if not desc:
+            continue
+        out["descricoes"] += 1
+        if [p for p in checar_descricao(row.get("aposta") or "", desc) if p[0] == "erro"]:
+            out["fora_master"] += 1
+        bruto = blocos.get(cod)
+        if bruto and [p for p in checar_fidelidade(desc, bruto) if p[0] == "erro"]:
+            out["infiel"] += 1
+    out["sem_codigo"] = len(validos - devolvidos)
+    return out
+
+
+async def registrar_sombra_modelo(dono: str, casa: str, modelo: str, titular: str,
+                                  lotes: int, tem_imagem: bool, tokens: dict,
+                                  placar: dict, erro: str | None = None) -> None:
+    """Grava uma linha da sombra de modelo. Fire-and-forget: NUNCA derruba o stream.
+
+    O custo vai calculado pelo `custo_usd` (mesma tabela de preços do titular), e
+    **separado do `uso_tokens` de propósito**: aquela tabela é a conta da operação e é
+    lida por toda medição de preço. Experimento não pode entrar nela.
+    """
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO sombra_modelo
+                     (dono, casa, modelo, modelo_titular, lotes, tem_imagem,
+                      input, output, cache_read, cache_write, custo_usd,
+                      blocos, linhas, sem_codigo, cod_inventado, coluna_comida,
+                      fora_master, infiel, descricoes, erro)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)""",
+                dono, casa, modelo, titular, int(lotes), bool(tem_imagem),
+                int(tokens.get("input", 0)), int(tokens.get("output", 0)),
+                int(tokens.get("cache_read", 0)), int(tokens.get("cache_write", 0)),
+                float(custo_usd(modelo, tokens)),
+                int(placar.get("blocos", 0)), int(placar.get("linhas", 0)),
+                int(placar.get("sem_codigo", 0)), int(placar.get("cod_inventado", 0)),
+                int(placar.get("coluna_comida", 0)), int(placar.get("fora_master", 0)),
+                int(placar.get("infiel", 0)), int(placar.get("descricoes", 0)),
+                erro)
+    except Exception:
+        logger.warning("sombra_modelo: nao gravada", exc_info=True)
 
 
 async def registrar_sombra(dono: str, casa: str, texto: str | None, tsv: str) -> int:
