@@ -78,14 +78,22 @@ elif THINKING == "adaptive":
 if os.environ.get("EVAL_TEMPERATURE"):    # só onde a API aceita (≤ Sonnet 4.6)
     kw["temperature"] = float(os.environ["EVAL_TEMPERATURE"])
 
+# ⚠️ **Streaming é obrigatório acima de ~16k de saída, e por isso a bancada streama SEMPRE.**
+# Medido na s384: com `EVAL_THINKING=adaptive` e teto de 32000, o SDK recusa antes de sair da
+# máquina — `ValueError: Streaming is required for operations that may take longer than 10
+# minutes`. A bancada de julho era `messages.create` puro, então ela **não conseguia medir um
+# modelo que pensa**: ou o teto é baixo e o pensamento trunca a resposta, ou é alto e o SDK
+# recusa. Um caminho só (`stream` + `get_final_message`) atende os dois regimes e devolve o
+# mesmo objeto `Message` de antes.
 client = anthropic.Anthropic()
-resp = client.messages.create(
+with client.messages.stream(
     model=MODELO,
     max_tokens=MAX_TOKENS,
     system=system,
     messages=[{"role": "user", "content": instrucao}],
     **kw,
-)
+) as _s:
+    resp = _s.get_final_message()
 texto = "".join(b.text for b in resp.content if b.type == "text")
 # mantém só linhas que começam com "indice<TAB>"
 linhas = [l for l in texto.splitlines() if "\t" in l and l.split("\t", 1)[0].strip().isdigit()]
