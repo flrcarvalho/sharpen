@@ -528,6 +528,74 @@ function duplaEEsportes(fmt) {
                 `conserto da dupla não pode atingir bilhete de 1 seleção`);
   }
 
+  // ── 8b. O STATUS SEPARA MEIA VITÓRIA DE VITÓRIA CHEIA (s382) ────────────────
+  // Até aqui o Status só comparava retorno com stake, e meia vitória PAGA MAIS QUE A STAKE —
+  // então saía como `Ganho → W`. O rótulo é uma ORDEM: a IA obedecia e fechava a conta pela
+  // regra de cashout (`odd = retorno ÷ stake`), gravando um W internamente consistente com
+  // uma odd que a casa nunca imprimiu. Foram 39 bilhetes na s356 e mais 65 na s382.
+  //
+  // Os números aqui são de bilhetes REAIS corrigidos na s382, não inventados: a meia vitória
+  // é o `#269465` (stake 180, odd 1,9, retorno 261) e a meia derrota é o `#213760`.
+  //
+  // Mutação provada, 4 de 5: some o ramo de HW · `V` deixa de vir antes de HW · `HL` deixa de
+  // exigir linha partida · a odd passa a valer em SISTEMA. Todas ficaram vermelhas.
+  //
+  // A 5ª ESCAPOU, e é INÓCUA — fica registrado em vez de virar asserção inventada (regra do
+  // `CLAUDE.md`). Desligar o ramo de `W` não muda resultado nenhum: `W` e `HW` só dão o mesmo
+  // número quando `odd = 1,00`, e aí o retorno é igual à stake, que o `V` já capturou uma
+  // linha acima. Sem o ramo de `W`, a vitória cheia cai no `rt > st` do fim e sai com o mesmo
+  // rótulo. A linha continua no código porque ela documenta a ordem do MASTER e volta a ser
+  // load-bearing se alguém mexer na posição do `V`.
+  {
+    const bilhete = (rt, oddFrac, sel, extra) => Object.assign({
+      bsid: "8", code: "MV", bc: "1", bt: "1", aberta: false,
+      stake: "180.00", ts: "180.00", rt, oddFrac,
+      sels: [{ na: sel, od: oddFrac, cl: "1" }],
+      legs: [perna("A x B", sel, oddFrac, "1", "LIGA")],
+    }, extra || {});
+    const status = (b) => linha(fmt(b), "Status:");
+    const casos = [
+      // retorno, odd, seleção, começo esperado do Status, porquê
+      ["261.00", "9/10", "Under 3.0,3.5 Gols", "Meia vitória → HW",
+       "(180/2 × 1,9) + 90 = 261 — a conta do HW fecha exata"],
+      ["342.00", "9/10", "Under 3.0,3.5 Gols", "Ganho → W",
+       "180 × 1,9 = 342 — vitória CHEIA não pode virar HW"],
+      ["180.00", "9/10", "Under 3.0,3.5 Gols", "Devolvida/void",
+       "retorno = stake é V, e V é testado ANTES de W e de HW"],
+      ["0", "9/10", "Under 3.0,3.5 Gols", "Perdeu → L", "retorno zero"],
+      ["90.00", "9/10", "Under 3.0,3.5 Gols", "Meia derrota → HL",
+       "metade da stake de volta, COM linha partida na seleção"],
+      ["90.00", "9/10", "Under 3.5 Gols", "Ganho/perda parcial",
+       "metade da stake SEM linha partida é cashout de metade, não HL — trocar isso é o " +
+       "ruído por ruído que o CLAUDE.md proíbe"],
+      ["180.00", "0/1", "Resultado Final", "Devolvida/void",
+       "odd 1,00: a fórmula de HW dá exatamente a stake, e só a ordem (V antes) evita que " +
+       "um void vire meia vitória — foi esse o erro da 1ª versão do script da s356"],
+    ];
+    for (const [rt, oddFrac, sel, esperado, porque] of casos) {
+      const s = status(bilhete(rt, oddFrac, sel));
+      if (!s.startsWith(esperado)) {
+        falhas.push(`Status com retorno ${rt} e odd ${oddFrac}: esperava "${esperado}…", veio ` +
+                    `"${s}" — ${porque}`);
+      }
+    }
+    // SISTEMA: a odd do bilhete é a MÉDIA das apostas, não a da linha. Testar a fórmula de HW
+    // com ela rotula errado — é a mesma exceção que o backend faz com `odd_bloco_manda=False`.
+    const sis = bilhete("261.00", "9/10", "Under 3.0,3.5 Gols", {
+      bc: "3", bt: "2",
+      sels: [{ na: "A x B", od: "9/10", cl: "1" }, { na: "C x D", od: "9/10", cl: "1" },
+             { na: "E x F", od: "9/10", cl: "1" }],
+      legs: [perna("A x B", "Under 3.0,3.5 Gols", "9/10", "1", "LIGA"),
+             perna("C x D", "Under 3.0,3.5 Gols", "9/10", "1", "LIGA"),
+             perna("E x F", "Under 3.0,3.5 Gols", "9/10", "1", "LIGA")],
+    });
+    const sSis = linha(fmt(sis), "Status:");
+    if (sSis.startsWith("Meia vitória")) {
+      falhas.push(`SISTEMA: o Status usou a odd do bilhete para decidir meia vitória ("${sSis}"). ` +
+                  `Num sistema essa odd é a MÉDIA das apostas e não descreve a linha`);
+    }
+  }
+
   // ── Esportes mapeados na s279 (nomes já canônicos no MASTER_ESPORTES §4) ────
   for (const [cl, nome] of [["151", "E-Sports"], ["162", "MMA"], ["8", "Rugby"]]) {
     const b = { bsid: "3", code: "Y", bc: "1", bt: "1", aberta: false, stake: "10", ts: "10",

@@ -5960,13 +5960,48 @@
   }
 
   // Resultado bruto p/ a IA (RT do summary vs stake). Cashout ≠ retorno cheio → W (regra do MASTER).
-  function _resultadoB3(t) {
+  // Linha asiática PARTIDA (`3.0,3.5` · `2,5/3,0` · `4.0-4.5`) ou quarter (`+0.25`). É o único
+  // lugar onde meia vitória/derrota existe — a mesma regex do gate do backend
+  // (`scripts/corrigir_resultado_odd_s321.py`), de propósito: as duas pontas têm de concordar
+  // sobre o que é linha partida, senão uma rotula HL e a outra desfaz.
+  const _PARTIDA_B3 = /\d+[.,]\d+\s*[,/\-]\s*[-+]?\d+[.,]\d+|[-+]?\d+[.,](?:25|75)\b/;
+
+  function _resultadoB3(t, oddBilhete) {
     if (t.aberta || t.rt == null) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
     const st = _numB3(t.ts != null ? t.ts : t.stake), rt = _numB3(t.rt);
+    const brl = (n) => n.toFixed(2).replace(".", ",");
+    // A MESMA tolerância do `_veredito_do_retorno` (R$ 0,10 ou 0,5%, o que for maior): absoluta
+    // sozinha reprova odd de muitas casas decimais, relativa sozinha é frouxa em valor baixo.
+    const bate = (a, b) => Math.abs(a - b) <= Math.max(0.10, Math.abs(b) * 0.005);
+    const odd = (typeof oddBilhete === "number" && isFinite(oddBilhete) && oddBilhete > 0)
+      ? oddBilhete : 0;
     if (rt === 0) return "Perdeu → L";
     if (Math.abs(rt - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
-    if (rt > st) return "Ganho → W (retorno R$ " + rt.toFixed(2).replace(".", ",") + ")";
-    return "Ganho/perda parcial (retorno R$ " + rt.toFixed(2).replace(".", ",") + " · a conferir HW/HL)";
+    // ── A ORDEM É A DO MASTER, e cada troca dela já produziu estrago medido ────────────────
+    // `V` antes de `W` porque cashout igual à stake é V, ainda que `stake × 1,00` dê o mesmo
+    // número. `W` antes de `HW` porque as duas fórmulas coincidem em odd 1,00 — foi assim que
+    // um void da Betboom virou meia vitória num script (s356). `HL` por último e SÓ com linha
+    // partida: sem ela, metade da stake de volta é cashout de metade, não meia derrota.
+    if (odd && bate(rt, st * odd)) return "Ganho → W (retorno R$ " + brl(rt) + ")";
+    // ── MEIA VITÓRIA NA ORIGEM (s382) ─────────────────────────────────────────────────────
+    // Até aqui esta função só comparava retorno com stake, e meia vitória PAGA MAIS QUE A
+    // STAKE — então caía em `Ganho → W`. O rótulo é uma ORDEM, não um recado: a IA obedecia e
+    // fechava a conta pela regra de cashout (`odd = retorno ÷ stake`, `MASTER_RESULTADO §5.6`),
+    // gravando um W internamente consistente com uma odd que a casa nunca imprimiu.
+    // Foram 65 bilhetes assim na bet365, corrigidos na s382 depois de a s356 já ter corrigido
+    // 39. O servidor pega (`_veredito_do_retorno` testa a odd do BLOCO primeiro), mas era uma
+    // camada remendando a outra: aqui a conta é feita com a odd que a própria casa mandou.
+    if (odd && bate(rt, (st / 2) * odd + st / 2)) return "Meia vitória → HW (retorno R$ " + brl(rt) + ")";
+    // A linha partida mora no nome da SELEÇÃO, e ela chega com nome diferente conforme a
+    // fonte: `sel` no confirmation, `na` no summary. Juntar as duas (mais o `jogo`) é o que
+    // faz o teste valer para bilhete detalhado e para bilhete que só tem o resumo.
+    const texto = [...(t.legs || []), ...(t.sels || [])]
+      .map((l) => (l && [l.sel, l.na, l.jogo].filter(Boolean).join(" ")) || "").join(" · ");
+    if (bate(rt, st / 2) && _PARTIDA_B3.test(texto)) return "Meia derrota → HL (retorno R$ " + brl(rt) + ")";
+    // Nenhuma fórmula fecha: é cashout. Acima da stake continua `W` (o MASTER manda W com
+    // `odd = Retorno ÷ Stake`); abaixo, o rótulo NÃO decide — a IA recebe o número e o aviso.
+    if (rt > st) return "Ganho → W (retorno R$ " + brl(rt) + ")";
+    return "Ganho/perda parcial (retorno R$ " + brl(rt) + " · a conferir HW/HL)";
   }
 
   // ── O bilhete só sobe se o `confirmation` chegou (s244) ───────────────────────
@@ -6062,10 +6097,17 @@
       L.push("Carimbo (colocação · uso interno — NÃO usar como data): " + _carimbo);
     }
     L.push("Stake: " + _brl(_numB3(t.ts != null ? t.ts : t.stake)));
-    L.push("Status: " + _resultadoB3(t));
     // Sistema (BC > 1): as odds saem do SUMMARY quando houver — em bet builder as pernas do
     // confirmation vêm com OD=0/1 e a odd real da perna só existe no `03` do summary.
+    //
+    // ⚠️ ESTA LINHA SUBIU (s382) porque o Status passou a precisar da odd do bilhete para
+    // separar meia vitória de vitória cheia. A odd só vale onde ela descreve a LINHA: uma
+    // seleção e fora de sistema — a mesma condição que decide se `Odd:` é impresso abaixo, e
+    // a mesma exceção que o `_veredito_do_retorno` faz com `odd_bloco_manda=False`. Em
+    // sistema a odd é a MÉDIA das apostas, e testar a fórmula de HW com ela rotularia errado.
     const sistema = _linhasSistemaB3(t, (t.sels && t.sels.length) ? t.sels : legs);
+    const oddBilhete = (nSel === 1 && !sistema.length && t.oddFrac) ? _oddNumB3(t.oddFrac) : NaN;
+    L.push("Status: " + _resultadoB3(t, oddBilhete));
     // `Odd:` (a do bilhete) só faz sentido em aposta de linha única. Num sistema ela é a odd de
     // UMA seleção e mandaria a IA para o número errado.
     // `Odd:` é a odd do BILHETE e só coincide com a da seleção quando há UMA seleção. Bet
