@@ -56,17 +56,31 @@ casa que parou → `/sharpenup-diagnostico`.
     ([o caso](docs/CASOS.md#10--o-inchaço-que-originou-o-gate)). O `check_docs.py` **não lê
     conteúdo**: um `STATUS.md` de 49 KB só de história passa. Ele cobre tamanho, forma
     (≤3 blocos de sessão, ≤2 `_Anterior:`), cópia em `Backups/`, link quebrado e âncora.
-    > **Os tetos travam CRESCIMENTO; não mandam cortar.** Ao encostar num deles, mova
-    > **caso** para o [`docs/CASOS.md`](docs/CASOS.md), **sessão** para o
-    > `docs/historico/`, ou **PROCEDIMENTO** para um runbook em `docs/`: o que se lê ao
-    > FAZER não precisa estar aqui. Foi essa terceira saída que devolveu 6,7 KB na s358,
-    > depois de duas sessões concluírem que "não havia mais nada para mover" — o que não
-    > havia era mais nada **do tipo** que se estava movendo. Ao mover, **reescreva os
-    > caminhos relativos**: de dentro de `docs/` um `docs/X` aponta para fora. **Nunca corte os blocos "sintoma para reconhecer isto noutro
-    > campo"** — são eles que fazem uma sessão nova reconhecer a **família** de um defeito
-    > antes de repeti-la (a s321 e a s327 são a mesma família, e é isso que está escrito
-    > ali). Subir um teto para não cortar é pior ainda: foi assim que o `STATUS.md` chegou
-    > a 187 KB.
+    > **Os tetos travam CRESCIMENTO; não mandam cortar** — a saída está na *Regra de
+    > morte* §5, abaixo. Ao mover, **reescreva os caminhos relativos**: de dentro de
+    > `docs/` um `docs/X` aponta para fora. **Nunca corte os blocos "sintoma para
+    > reconhecer isto noutro campo"** — são eles que fazem uma sessão nova reconhecer a
+    > **família** de um defeito antes de repeti-la (s321 e s327 são a mesma família).
+    > Subir um teto para não cortar é pior que cortar.
+    > → ["não há mais nada para mover" costuma ser "nada mais DO
+    > TIPO"](docs/historico/HISTORICO_s300-s327.md) (s358, s382)
+
+---
+
+## Regra de morte — vale para este arquivo e para `memory/`
+
+1. Afirmação empírica (alguém mediu) carrega **data, amostra e onde está o harness**. Sem
+   harness reexecutável é **placar, não regra** — e placar não veta nada sozinho.
+2. Decisão do dono **não precisa de evidência**, mas carrega **data e cenário**. Ela **não
+   cai** quando o cenário muda; quem for reavaliar é que precisa saber que ela existe e em
+   que contexto nasceu.
+3. Reavaliação de veredito roda **CEGA**: quem julga não recebe o veredito anterior no
+   contexto.
+4. Régua desmentida uma vez → **todo número que ela emitiu sai de onde estiver**, inclusive
+   de comentário de código.
+5. Arquivo no teto: antes de acrescentar linha, mova **caso** para
+   [`docs/CASOS.md`](docs/CASOS.md), **sessão** para `docs/historico/`, **procedimento**
+   para um runbook em `docs/`. **Nunca corte regra para caber.**
 
 ---
 
@@ -422,12 +436,11 @@ defeito.
 > alguém mexer num filtro. O flag `_ctRepintou` quebra o laço `renderKPI` → `ctLoad`.
 > Mesma família da chegada tardia do cadastro no `contasLoad`.
 
-> **As três telas antigas de custo saíram do MENU** (s358, decisão do Feca): Custos de
-> Contas, Custo de Tipsters e Fornecedores & Parceiros. Elas ainda somam `custoData ×
-> contagem` e seguem no código, alcançáveis por hash — a régua delas não foi consertada
-> **de propósito**, porque o passo seguinte é removê-las. **Menu é DUPLO**
-> (`app/static/app.html` e o array de nav do `app/static/dash/assets/js/app.js`); mexer num só deixa
-> dois menus discordando, e o gate é `tests/test_sidebar_dupla.py`.
+> **Menu é DUPLO** (`app/static/app.html` e o array de nav do
+> `app/static/dash/assets/js/app.js`); mexer num só deixa dois menus discordando, e o gate
+> é `tests/test_sidebar_dupla.py`. As três telas antigas de custo saíram do menu e seguem
+> no código, com a régua velha, alcançáveis por hash.
+> → [s358](docs/historico/HISTORICO_s300-s327.md)
 
 ## Nada que o usuário DIGITA repousa no navegador. `localStorage` é cache descartável.
 
@@ -475,14 +488,9 @@ Nada aparece no rail nem no console, só a coluna vazia. O parser deriva o **fin
 valor não-redondo (`49 → 9`, `99 → 9`), então dois perfis podem virar donos do mesmo final e
 se anularem. → [o caso](docs/CASOS.md#o-perfil-novo-que-matou-o-antigo--multilbb--lbb)
 
-**Diagnóstico, nesta ordem:**
-
-1. `select nome, criado_em from tipsters where dono = '<dono>' order by criado_em desc limit 5`
-   — perfil criado ou editado nos últimos dias é o primeiro suspeito.
-2. **Prove por remoção, não por dedução.** Extraia o bloco JS do `index.html`, rode em node
-   contra os perfis e bilhetes **reais** do banco, e compare com e sem o perfil suspeito.
-   Isola a causa sem editar nada.
-3. Só então mexa no peso. E **meça**: backtest contra bilhetes já rotulados, antes e depois.
+**Prove por remoção, não por dedução** — rode o matcher com e sem o perfil suspeito antes
+de tocar em peso nenhum. Diagnóstico completo, nesta ordem, em
+[`docs/RUNBOOK_MATCHER_TIPSTER.md`](docs/RUNBOOK_MATCHER_TIPSTER.md).
 
 **Ao calibrar peso de stake, dois cortes são load-bearing** — tirar qualquer um já quebrou o
 matcher em produção: valor **redondo** (50/100/250/800) não é digital, é valor comum; e
@@ -497,8 +505,7 @@ aposto". → [o caso](docs/CASOS.md#os-dois-cortes-que-já-quebraram-o-matcher-e
 
 ## ⚠️ REGRA DE UI / MARCA OBRIGATÓRIA (antes de criar QUALQUER visual novo)
 
-> **Motivo: regra escrita sem hábito de conferir = pulada.** Esta seção é um checklist
-> numerado, e não um texto, exatamente por isso.
+> **Regra escrita sem hábito de conferir = pulada** — por isso, checklist e não texto.
 > → [o caso](docs/CASOS.md#os-cards-de-kpi-com-formatador-caseiro--s83)
 
 **Antes de escrever qualquer render de número, dinheiro, cor, tipografia ou componente visual, NESTA ordem:**
@@ -702,36 +709,17 @@ e inteiro curto é achado dentro de qualquer odd (`2` vive dentro de `2,05`).
 
 ## ⚠️ REGRA DE PROPAGAÇÃO OBRIGATÓRIA
 
-**Toda vez que uma categoria for criada, renomeada ou removida do `MASTER_APOSTAS_2026.md`, os seguintes arquivos DEVEM ser atualizados na mesma sessão, sem exceção:**
+**Categoria criada, renomeada ou removida do `MASTER_APOSTAS_2026.md` propaga na MESMA
+sessão, sem exceção**, e o gate é `/audit-casas`: nenhum `§9` pode ficar apontando para
+categoria inexistente. O mapa completo do que tocar (tabela + checklist) está em
+[`.claude/commands/propagar-categoria.md`](.claude/commands/propagar-categoria.md), a skill
+que executa o procedimento.
 
-| O que atualizar | Onde | O quê |
-|---|---|---|
-| Tabela de categorias | `MASTER_APOSTAS_2026.md §3` | Adicionar / renomear / remover linha |
-| Sinônimos | `MASTER_APOSTAS_2026.md §4` | Adicionar bloco de sinônimos |
-| Regras por categoria | `MASTER_APOSTAS_2026.md §5` | Documentar casos especiais |
-| Regras por esporte | `MASTER_APOSTAS_2026.md §6` | Atualizar se o esporte for afetado |
-| Validação final | `MASTER_APOSTAS_2026.md §9` | Adicionar checagem da nova categoria |
-| **Mapa de mercados — só casas afetadas** | `casas/CASA_*.md §9` | **Apenas** as casas cujo §9 já referencia a categoria/rótulo afetado. Buscar com `grep -rl "<categoria>" casas/`. Sob a camada fina, o §9 lista só mercados confirmados — uma categoria nunca vista por uma casa **não** aparece lá e **não** precisa de update. |
-| Template de descrição | `MASTER_DESCRICAO_2026.md §12 ou §13` | Adicionar template se o formato for novo |
-| Prioridade semântica | `MASTER_APOSTAS_2026.md §7` | Atualizar se houver risco de confusão com Player Props / Outros |
+> Os menus de esporte e mercado do editor de tipster **não** entram: eles leem o MASTER em
+> tempo de execução (`/taxonomia`). Categoria criada aparece lá sozinha.
 
-> Os menus de esporte e mercado do editor de tipster **não** entram nesta lista: eles leem
-> o MASTER em tempo de execução (`/taxonomia`). Categoria criada aparece lá sozinha.
-
-> **Motivo:** a causa raiz era a **DUPLICAÇÃO** — cada casa reescrevia a lista inteira.
+> A causa raiz era a **DUPLICAÇÃO** — cada casa reescrevia a lista inteira.
 > → [o caso](docs/CASOS.md#as-três-categorias-que-ficaram-apontando-para-outros--13062026)
-
-**Checklist rápido ao criar/renomear/remover uma categoria:**
-
-- [ ] `MASTER_APOSTAS §3` (tabela) atualizado
-- [ ] `MASTER_APOSTAS §4` (sinônimos) atualizado
-- [ ] `MASTER_APOSTAS §9` (validação) atualizado
-- [ ] `MASTER_APOSTAS §7` (prioridade semântica) atualizado se houver risco de confusão
-- [ ] `MASTER_DESCRICAO §12/§13` atualizado se o formato de descrição for novo
-- [ ] `grep -rl "<categoria afetada>" casas/` → atualizar **só** os §9 que aparecerem (renomear/remover); novo nome quase nunca exige update de casa
-- [ ] Rodar `/audit-casas` para confirmar que nenhum §9 ficou apontando para categoria inexistente
-
-> Dica: use `/propagar-categoria` para automatizar este checklist.
 
 ---
 
