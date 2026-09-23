@@ -46,9 +46,17 @@ FRASES = {
     # ewanderson-2026-09-21.txt, audio 1 (00:49 e 01:14)
     "Ewanderson1": {"antes": "Antes: uma manhã inteira, às vezes o dia todo.",
                     "depois": "Hoje: menos de uma hora."},
+    # diogo-2026-09-23.txt, 00:43 e 01:16
+    "Diogo": {"antes": "Antes: print a print, casa por casa.",
+              "depois": "Hoje: aposta e esquece."},
 }
 
-DONOS = ["Jonathan", "germano", "Ewanderson1"]
+# ⚠️ E A FRASE TEM DE CABER EM UMA LINHA. As duas juntas dividem a faixa do rodapé
+# do cartão; passando disso elas quebram, desalinham e a peça fica torta. O teto
+# prático medido é ~46 caracteres cada. Frase de depoimento é para ser CURTA:
+# "Antes: print a print, casa por casa." diz o mesmo que a versão de duas linhas.
+
+DONOS = ["Jonathan", "germano", "Ewanderson1", "Diogo"]
 
 # O `dono` é o USERNAME; o cartão mostra o nome como a pessoa escreve o próprio nome.
 # Title-case automático mutilaria nome de marca, então isto é um mapa, não uma regra.

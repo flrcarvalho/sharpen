@@ -98,7 +98,14 @@ export const CartaoProva = ({dados}) => {
           <Numero valor={dados.turnover} rotulo="movimentados" atraso={38} moeda />
           <Numero valor={dados.casas} rotulo="casas" atraso={44} />
           <Numero valor={dados.contas} rotulo="contas" atraso={50} />
-          <Numero valor={dados.tipsters} rotulo="tipsters" atraso={56} />
+          {/* O 6o tile e o que MEDE ROTINA, que e a promessa do produto: quantos dos
+              ultimos 90 dias tiveram captura. So cede o lugar quando o tile 2 ja
+              mostra esse mesmo numero (usuario novo), porque repetir le como erro. */}
+          {dados.apostas_30d === dados.apostas ? (
+            <Numero valor={dados.tipsters} rotulo="tipsters" atraso={56} />
+          ) : (
+            <Numero valor={dados.dias_90} rotulo="dias com captura, em 90" atraso={56} />
+          )}
         </div>
 
         <div

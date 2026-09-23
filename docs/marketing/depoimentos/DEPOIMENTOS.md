@@ -27,6 +27,7 @@
 | Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ✅ autorizado (19/09/2026, pelo Feca) | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
 | Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ✅ autorizado (20/09/2026, pelo Feca) | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
 | Ewanderson | usuário (6 dias de uso, alto volume) | 21/09/2026 | 3min23 | ⏳ pendente | [ewanderson-2026-09-21.txt](transcricoes/ewanderson-2026-09-21.txt) |
+| Diogo | usuário (rotina — 86 dias de captura em 90) | 23/09/2026 | 2min19 | ⏳ pendente | [diogo-2026-09-23.txt](transcricoes/diogo-2026-09-23.txt) |
 
 > **Arquivo irmão:** [VOZ_DO_FUNDADOR.md](VOZ_DO_FUNDADOR.md) guarda o pitch do Feca
 > gravado sem roteiro. Voz de cliente é **prova**; voz de fundador é **copy**. Os dois
@@ -194,6 +195,63 @@ cartão medido sem essa frase. Usar "15 casas" de legenda embaixo de uma tela qu
 
 ---
 
+## Diogo — 23/09/2026
+
+**Perfil:** o mais constante da base inteira, **captura em 86 dos últimos 90 dias**.
+Nenhum outro depoente chega perto. Se o Jonathan é profundidade e o Germano é adoção
+rápida, o Diogo é **rotina**, e é dele que vem o ângulo mais novo do arquivo.
+
+### Cartão de prova (medido em 23/09/2026)
+
+| Medida | Valor |
+|---|---|
+| Apostas planilhadas | 7.918 |
+| Nos últimos 30 dias | 3.097 |
+| **Dias com captura, em 90** | **86** |
+| Casas | 28 |
+| Contas cadastradas | 52 (7 já arquivadas) |
+| Tipsters cadastrados | 20 (44 nomes distintos nos bilhetes) |
+| Usa desde | 24/06/2026 |
+
+### Trechos marcados para clipe
+
+| # | Tempo | Por quê | Fala |
+|---|---|---|---|
+| **D1** | 00:43 → 01:02 | **O ângulo mais novo do arquivo inteiro.** Os outros contam que o acúmulo deixou de doer; ele transformou o acúmulo em método | *"A principal mudança na minha rotina, e foi o ponto que eu mais gostei, é que eu posso literalmente esquecer. Só fazer as apostas. Não tiro print de nada, só vou fazendo, fazendo. Depois de 2, de 3, de 4, 5 dias eu vou lá e planilho."* |
+| **D2** | 01:16 → 01:31 | O antes, e é o trabalho manual inteiro numa frase | *"Antes era muito chato, porque eu tinha que ficar tirando print, depois ir lá aposta por aposta, ver se bateu, ver se não bateu, ver se foi void, ir em cada casa olhar o resultado. Isso me fazia ficar muito tempo nisso."* |
+| **D3** | 00:12 → 00:29 | **Confirma a Caixa por teste próprio**, e é o argumento do dinheiro que some | *"A Caixa Inteligente, que você acompanha ali: dificilmente você vai tomar o calote, porque ele acompanha o saldo até os centavos e é bem certinho. Eu já fiz o teste com todas as casas."* |
+| **D4** | 00:30 → 00:42 | **Posicionamento dito por cliente**, e é exatamente o que a marca precisa dizer | *"Ele não é só um planilhador. Ele basicamente te ajuda com toda a sua rotina de compra e venda de conta, pix pra cá, saque pra lá. É bem completo."* |
+| **D5** | 01:28 → 01:43 | Benefício que ninguém tinha citado, e é emocional, não funcional | *"Você fica um pouco viciado de acompanhar a aposta, querer ver o resultado. Hoje em dia eu só faço a aposta, depois eu vejo se bateu ou não bateu."* |
+
+> Correções de reconhecimento: "Charpen" = **Sharpen**; "a posta" = **a aposta**;
+> "Best 35" = **Bet365**; "tomar os cãs" = **tomar o calote**.
+
+> ⚠️ **O D5 é ótimo e exige cuidado.** Ele descreve passar menos tempo olhando aposta,
+> o que é verdade e é bom. Mas uma peça que sugira "aposte sem acompanhar" lê como
+> incentivo a apostar no escuro. Se for usado, a legenda precisa ser sobre **tempo de
+> tela**, nunca sobre despreocupação com o dinheiro.
+
+### O que ele pediu, e o que isso diz
+
+Perguntado sobre pontos a melhorar: *"não tem muito, tudo que eu dei de orientação já foi
+feito"*, e o único aberto é a **velocidade da Bet365**, que ele mesmo diz estar *"300%
+melhor"* depois de duas atualizações. Não é item de backlog novo; é prova de ritmo de
+resposta, e isso é material de venda por si.
+
+### Divergências entre o que ele diz e o que a base mede
+
+| Ele diz | A base mede |
+|---|---|
+| *"uso mais ou menos há um mês"* | desde **24/06**, três meses |
+| *"10 a 15 casas"* (e ele mesmo ressalva que não conta as contas) | **28 casas** |
+
+Nenhuma das duas é erro dele, e pela régua de 21/09 isso **não é para virar trabalho de
+ajuste fino**. Só vale a regra de sempre: os dois números não aparecem juntos na mesma
+peça. E há uma leitura simpática no primeiro: o uso virou rotina a ponto de ele perder a
+noção de quando começou.
+
+---
+
 ## As convergências — o que mais de um usuário disse sozinho
 
 Isto é a parte mais valiosa do arquivo, e só aparece com dois ou mais depoimentos.
@@ -202,7 +260,8 @@ vira **padrão**, e padrão decide o que entra na landing.
 
 | Convergência | Quem | O que decide |
 |---|---|---|
-| **A dívida do acúmulo** | Jonathan (pular 1 dia = 3h) · Ewanderson (sábado e domingo = uma manhã, às vezes o dia) · o eixo do Feca | **Três vozes.** Deixou de ser argumento secundário: é a dor de quem já tentou planilhar e desistiu, e nenhuma peça nossa falava disso |
+| **A dívida do acúmulo** | Jonathan (pular 1 dia = 3h) · Ewanderson (sábado e domingo = uma manhã, às vezes o dia) · **Diogo (acumula 5 dias de propósito)** · o eixo do Feca | **Quatro vozes, e a do Diogo fecha o argumento.** Os outros contam que a dívida deixou de doer; ele a transformou em método: aposta e esquece, planilha dias depois. Não é mais argumento secundário, é a promessa |
+| **A Caixa pega o dinheiro que sumiu** | Diogo (*"dificilmente você vai tomar o calote, testei em todas as casas"*) · o pitch do Feca (o operador que saca de pouquinho) | O fundador levantou a hipótese; um cliente **testou em todas as casas** e confirmou. É o par que sustenta a cena da virada do vídeo |
 | **"Achei que tinha lucrado, e não tinha"** | Jonathan (R$ 10 mil) · Germano (R$ 8 mil) | **Valida o arco do vídeo.** Dois usuários independentes contaram a MESMA história, com números diferentes. É a dor de abertura, não uma frase de efeito |
 | **Assinatura do tipster pela stake** | Feca (401/402/403) · Jonathan (centavos) · Germano (299 / 300 / 300,50) | **Três** vozes, sendo uma delas a de quem ainda NÃO usa e por isso gasta o dobro do tempo. Seção própria, com demonstração |
 | **"O outro planilhador não deu conta"** | Germano (nunca durou 3 dias) · Ewanderson (grupo por grupo, aposta por aposta) | Comparativo dito por cliente, sem nomear ninguém. É o que nós não podemos escrever sem soar arrogantes |
