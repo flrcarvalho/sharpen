@@ -925,6 +925,129 @@ def carimbos_do_texto(texto: str | None) -> dict[str, str]:
     return out
 
 
+# ── "Resolver apostas abertas" (bet365) — o casamento ─────────────────────────
+# Desenho em `docs/PLANO_RESOLVER_ABERTAS.md`. Aqui mora a única parte que decide
+# escrita, e ela é PURA de propósito: recebe as duas listas e devolve o que casou, o que
+# ficou ambíguo e o que sobrou. Sem banco, sem rede, sem IA — assim o gate exercita a
+# regra, e não um dublê dela.
+#
+# ⚠️ **Casamento errado não perde bilhete: CORROMPE.** Escreve o resultado de uma aposta em
+# outra, e o P/L fecha certo nas DUAS pontas porque os dois valores existem. É a mesma
+# família da descrição e da stake que vieram do vizinho. Daí a trava ser par ÚNICO NOS DOIS
+# SENTIDOS: a chave tem de casar UMA aberta com UM bilhete da lista da casa. Chave que
+# serve a dois não decide nada.
+
+def _chave_carimbo(carimbo, stake, odd) -> str | None:
+    """`carimbo|stake|odd` normalizados, ou None quando falta peça.
+
+    A odd passa pelo `_norm_odd`, a mesma régua da `chave_orfa`: em string crua `14` não é
+    `14,00` e o casamento falha em silêncio. A stake vira 2 casas porque é dinheiro — a
+    casa imprime `180.00` e o banco pode ter `180`.
+    """
+    c = str(carimbo or "").strip()
+    if not re.fullmatch(r"\d{14}", c):
+        return None
+    s = _num_or_none(stake)
+    o = _norm_odd(odd) if odd not in (None, "") else ""
+    if s is None or s <= 0 or not o:
+        return None
+    return f"{c}|{s:.2f}|{o}"
+
+
+def casar_abertas_por_carimbo(abertas: list[dict], encontrados: list[dict]) -> dict:
+    """Casa apostas ABERTAS no banco com o que a lista da casa devolveu.
+
+    `abertas`: dicts com `id`, `aposta_em`, `stake`, `odd` (o que o banco tem).
+    `encontrados`: dicts com `carimbo`, `stake`, `odd` e o que mais a casa mandar.
+
+    Devolve `{"pares": [(aberta, encontrado)], "ambiguos": [...], "sem_chave": [...],
+    "sem_par": [...]}`. Nada aqui escreve: quem decide gravar é o chamador, e só depois de
+    passar pelas travas do §7 do plano.
+    """
+    def indexar(itens, campo_carimbo):
+        por_chave: dict[str, list] = {}
+        sem_chave = []
+        for it in itens:
+            k = _chave_carimbo(it.get(campo_carimbo), it.get("stake"), it.get("odd"))
+            if k is None:
+                sem_chave.append(it)
+            else:
+                por_chave.setdefault(k, []).append(it)
+        return por_chave, sem_chave
+
+    idx_abertas, sem_chave_abertas = indexar(abertas or [], "aposta_em")
+    idx_casa, sem_chave_casa = indexar(encontrados or [], "carimbo")
+
+    pares, ambiguos, sem_par = [], [], []
+    for k, grupo in idx_abertas.items():
+        achados = idx_casa.get(k, [])
+        # Par único NOS DOIS SENTIDOS. Uma aberta e um bilhete da casa, e só.
+        if len(grupo) == 1 and len(achados) == 1:
+            pares.append((grupo[0], achados[0]))
+        elif not achados:
+            sem_par.extend(grupo)
+        else:
+            ambiguos.extend(grupo)
+    return {"pares": pares, "ambiguos": ambiguos, "sem_par": sem_par,
+            "sem_chave": sem_chave_abertas, "sem_chave_casa": sem_chave_casa}
+
+
+def resultado_da_aposta_encontrada(aberta: dict, encontrado: dict) -> tuple[str | None, str | None, str]:
+    """`(resultado, odd nova ou None, motivo)` que o RETORNO da casa determina.
+
+    Delega ao `_veredito_do_retorno` — as mesmas cinco fórmulas de `calcular_pl` lidas ao
+    contrário, a mesma função do gate de extração e do script de reparo. Não há régua nova
+    aqui, e é de propósito: régua duplicada é régua que diverge.
+
+    ⚠️ **Retorno AUSENTE não vira zero.** Zero é uma odd/retorno que existe e passa por toda
+    checagem de forma — com ele, o bilhete GANHO vira `L`. Ausência viaja como ausência: o
+    bilhete sai como "a conferir" e ninguém escreve nada.
+    """
+    stake = _num_or_none(aberta.get("stake"))
+    if stake is None or stake <= 0:
+        return None, None, "stake ilegível no banco"
+    bruto = encontrado.get("retorno")
+    if bruto is None or str(bruto).strip() == "":
+        return None, None, "a casa não devolveu retorno (aposta ainda aberta lá?)"
+    retorno = _num_bloco(bruto)
+    if retorno is None:
+        return None, None, f"retorno ilegível: {bruto!r}"
+    odd_linha = _num_or_none(aberta.get("odd")) or 0.0
+    # A odd da CASA vem no `OD` do summary e é a fonte mais limpa que existe para esta
+    # conta. Em SISTEMA ela não descreve a linha (é a do cupom), e ali não manda — a mesma
+    # exceção do `corrigir_stake_tsv`.
+    odd_casa = encontrado.get("odd")
+    e_sistema = bool(aberta.get("sistema"))
+    res, odd_nova = _veredito_do_retorno(
+        stake, odd_linha, retorno, aberta.get("descricao") or "",
+        None if e_sistema else (str(odd_casa) if odd_casa not in (None, "") else None),
+        odd_bloco_manda=not e_sistema,
+    )
+    return res, odd_nova, ""
+
+
+async def campos_corrigidos(ids: list[int], campos: tuple[str, ...]) -> set[int]:
+    """Ids que já têm correção HUMANA em algum destes campos.
+
+    Correção humana manda sobre captura, certa ou errada: é decisão do dono da conta. Quem
+    for escrever por robô consulta isto antes.
+
+    ⚠️ **A lista de campos tem de conter os que a régua LÊ, não só os que ela ESCREVE.**
+    Medido na s382 (`#262170`): o reparo travava em `resultado` e `odd`, mas a conta é
+    feita entre a **stake do banco** e o **retorno da casa** — com a stake editada à mão e a
+    fonte intacta, o veredito compara números de origens diferentes e erra de categoria, não
+    de margem. Eram R$ 307,50 escritos por cima de uma decisão do dono.
+    """
+    if not ids:
+        return set()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT DISTINCT bilhete_id FROM correcoes "
+            "WHERE bilhete_id = ANY($1) AND campo = ANY($2)", list(ids), list(campos))
+    return {r["bilhete_id"] for r in rows}
+
+
 def codigos_do_tsv(tsv: str) -> set[str]:
     """Códigos presentes na 11ª coluna das linhas-bilhete do TSV."""
     out: set[str] = set()

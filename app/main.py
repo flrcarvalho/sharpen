@@ -97,6 +97,7 @@ from repository import (
     registrar_sombra_modelo, pontuar_saida, custo_usd,
     blocos_por_codigo, blocos_conhecidos, hash_bloco, registrar_blocos_vistos,
     conferir_cobertura, codigos_do_texto, codigos_do_tsv, carimbos_do_texto,
+    casar_abertas_por_carimbo, resultado_da_aposta_encontrada, campos_corrigidos,
 )
 from descricao_check import checar_fidelidade
 import logo_imagem   # normalização/saneamento da logo da conta (s362)
@@ -4298,6 +4299,97 @@ async def listar_bilhetes(
     return {
         "bilhetes": rows, "total": total, "arquivados": arquivados_count,
         "limit": limit, "offset": offset,
+    }
+
+
+class ResolverAbertasRequest(BaseModel):
+    """"Resolver apostas abertas" (bet365) — ver `docs/PLANO_RESOLVER_ABERTAS.md`.
+
+    `encontrados` é o que a extensão leu da LISTA da casa (`/sportshistoryapi/summary`),
+    um item por bilhete: `carimbo` (o `TP`, 14 dígitos), `stake`, `odd`, `retorno` e,
+    quando houver, `codigo`. Nada aqui passa por IA: são os números que a casa publicou.
+    """
+    casa: Optional[str] = None
+    parceiro: Optional[str] = None
+    parceiro_id: Optional[int] = None
+    encontrados: list[dict] = []
+    # Ensaio é o PADRÃO, e o segundo clique é que grava. Grupo e banco não têm desfazer.
+    aplicar: bool = False
+
+
+@app.post("/bet365/resolver-abertas")
+async def bet365_resolver_abertas(
+    body: ResolverAbertasRequest,
+    dono: str = Depends(usuario_atual),
+    dono_view: str = Depends(dono_efetivo),
+):
+    """Liquida aposta ABERTA com o retorno que a LISTA da casa publicou.
+
+    Zero `confirmation`, zero IA: o resultado sai das cinco fórmulas de `calcular_pl` lidas
+    ao contrário (`_veredito_do_retorno`), a mesma função do gate de extração.
+
+    ⚠️ **O alvo NUNCA filtra por `archived`.** `arquivar_bilhetes_antigos` mantém sem
+    arquivar só os ~40 bilhetes mais recentes de cada (casa, parceiro, dono), então numa
+    conta movimentada **aposta aberta antiga está SEMPRE arquivada** — e são justamente as
+    plantadas que este caminho existe para resolver. Um `WHERE NOT archived` deixaria a
+    funcionalidade cega para o seu próprio caso de uso, e o sintoma seria "não achou nada".
+    """
+    casa_txt, parceiro_txt = body.casa, body.parceiro
+    if body.parceiro_id:
+        conta = await get_parceiro(body.parceiro_id, dono_view)
+        if conta:
+            casa_txt, parceiro_txt = conta["casa"], conta["nome"]
+    if not casa_txt or not parceiro_txt:
+        raise HTTPException(400, "Informe a conta (parceiro_id, ou casa e parceiro).")
+
+    abertas = await list_bilhetes(
+        dono, casa=casa_txt, parceiro=parceiro_txt,
+        extraction_state="aberta", archived="all", limit=1000,
+    )
+    casamento = casar_abertas_por_carimbo(abertas, body.encontrados or [])
+
+    # Correção humana manda sobre captura. A lista de campos inclui `stake` porque a régua
+    # LÊ a stake do banco contra o retorno da casa: editada uma e não o outro, o veredito
+    # compara números de origens diferentes e erra de categoria (medido na s382, #262170).
+    travados = await campos_corrigidos([a["id"] for a, _ in casamento["pares"]],
+                                       ("resultado", "odd", "stake"))
+
+    aplicados, a_conferir = [], []
+    for aberta, achado in casamento["pares"]:
+        res, odd_nova, motivo = resultado_da_aposta_encontrada(aberta, achado)
+        if not res:
+            a_conferir.append({"id": aberta["id"], "motivo": motivo})
+            continue
+        if aberta["id"] in travados:
+            a_conferir.append({"id": aberta["id"], "motivo": "tem correção humana — decisão do dono manda"})
+            continue
+        campos = {"resultado": res}
+        if odd_nova:
+            campos["odd"] = odd_nova
+        item = {"id": aberta["id"], "codigo": aberta.get("codigo_bilhete"),
+                "descricao": aberta.get("descricao"), "stake": aberta.get("stake"),
+                "odd_antes": aberta.get("odd"), "odd_depois": odd_nova or aberta.get("odd"),
+                "resultado": res, "retorno": achado.get("retorno"),
+                "pl_antes": calcular_pl(aberta.get("stake"), aberta.get("odd"), None),
+                "pl_depois": calcular_pl(aberta.get("stake"), odd_nova or aberta.get("odd"), res)}
+        if body.aplicar:
+            item["gravado"] = await atualizar_bilhete(aberta["id"], campos, dono)
+        aplicados.append(item)
+
+    return {
+        "ensaio": not body.aplicar,
+        "conta": {"casa": casa_txt, "parceiro": parceiro_txt},
+        "abertas_no_banco": len(abertas),
+        "recebidos_da_casa": len(body.encontrados or []),
+        "resolvidos": aplicados,
+        "a_conferir": a_conferir,
+        # Quem lê a resposta tem de conseguir explicar cada aposta que NÃO foi resolvida:
+        # ambígua (a chave serve a mais de uma), sem par na lista (não resolveu ainda, ou a
+        # janela não a cobriu) e sem chave (aposta anterior ao carimbo, ou sem odd/stake).
+        "ambiguos": [a["id"] for a in casamento["ambiguos"]],
+        "sem_par": [a["id"] for a in casamento["sem_par"]],
+        "sem_carimbo": [a["id"] for a in casamento["sem_chave"]],
+        "recebidos_sem_chave": len(casamento["sem_chave_casa"]),
     }
 
 

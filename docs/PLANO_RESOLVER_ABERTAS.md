@@ -196,10 +196,32 @@ extração manda ao servidor, e o servidor gravá-lo.
   primeira vez, logo a aposta já existia ali. Janelas que se sobrepõem são unidas antes de
   abrir, para não expandir duas vezes a mesma lista.
 
-**4. `app/main.py` — uma rota nova**
+**4. `app/main.py` — uma rota nova. FEITA (s382).**
 
-`POST /bet365/resolver-abertas`, que recebe os casamentos que a extensão fez e aplica. Reusa
-`atualizar_bilhete` e `_veredito_do_retorno`. Nada de lógica nova de resultado.
+`POST /bet365/resolver-abertas` recebe `encontrados` (o que a extensão leu da lista da casa:
+`carimbo`, `stake`, `odd`, `retorno`) e devolve o que faria. **Ensaio é o padrão**; só grava
+com `aplicar: true`.
+
+O miolo é puro e mora no `repository.py`, para o gate exercitar a regra e não um dublê dela:
+
+- **`casar_abertas_por_carimbo(abertas, encontrados)`** — par único NOS DOIS SENTIDOS, com a
+  chave normalizada (`_norm_odd`, a mesma régua da `chave_orfa`). Devolve os pares e, nomeados,
+  os que ficaram de fora: `ambiguos`, `sem_par`, `sem_chave`.
+- **`resultado_da_aposta_encontrada(aberta, encontrado)`** — delega ao `_veredito_do_retorno`.
+  Nenhuma régua nova; régua duplicada é régua que diverge. Retorno ausente devolve `None` e um
+  motivo, nunca `L`.
+- **`campos_corrigidos(ids, campos)`** — a trava de correção humana, com **`stake` na lista**
+  além de `resultado` e `odd`: a régua LÊ a stake do banco contra o retorno da casa, e stake
+  editada à mão com a fonte intacta faz o veredito errar de categoria (o `#262170` da s382).
+
+E a leitura das abertas **não precisou de rota nova**: `/bilhetes?extraction_state=aberta&archived=all`
+já serve, e o `SELECT *` já traz o `aposta_em`.
+
+**Gate:** `tests/test_resolver_abertas.py`, **7 mutações, 7 detectadas** (par único em cada um
+dos dois sentidos, a odd fora da chave, a odd crua sem `_norm_odd`, retorno ausente virando
+zero, a odd da casa mandando em SISTEMA, carimbo de qualquer tamanho). O teste do SISTEMA
+precisou ser refeito: a 1ª versão passava a MESMA odd nos dois lados e teria ficado verde com
+a exceção apagada.
 
 **5. Painel** — o botão, ao lado de "Reconectar SharpenUp".
 
