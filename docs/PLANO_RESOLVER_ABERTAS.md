@@ -68,6 +68,49 @@ detalhe de ninguém: casa-se pelo `TP` + stake + odd e deriva-se o resultado do 
 
 ---
 
+## 3.1 MEDIDO NA TELA (s382): a API aceita a JANELA, e isso encolhe o plano
+
+Medições feitas na conta do Feca, no caminho certo (**bonequinho → Histórico → Apostas
+Resolvidas / Pendentes**, `#/ME/X8020`, iframe de `members.bet365.bet.br`):
+
+**1. A casa aceita um intervalo de até SEIS MESES.** Está escrito na própria tela: *"Por
+favor note: o intervalo máximo é de seis meses."* Vale para Resolvidas e para Pendentes, que
+têm o mesmo seletor (`Últimas 24 horas` · `Últimas 48 horas` · `Intervalo de Datas`).
+
+**2. E a lista sai por API, com a janela nos parâmetros:**
+
+```
+GET /sportshistoryapi/summary?settled=1&lid=33&cid=28&csid=0
+      &from=2026-09-22T19:06:57.370Z&to=2026-09-23T19:06:57.370Z
+```
+
+**É o mesmo endpoint que a captura já escuta e o `parseSummary` já lê.** O que não se sabia é
+que ele aceita `from`/`to`.
+
+### O que isso muda
+
+O §4 abaixo continua verdadeiro: **não existe rota por código de comprovante.** Só que a
+pergunta deixa de ser essa. Com o carimbo de colocação, o que se tem é uma **data**, e por
+data a casa responde direto.
+
+- **A Fase B não precisa navegar pela tela nem clicar em "Mostrar Mais".** Uma chamada por
+  janela, com `from`/`to` no dia da aposta.
+- **A truncagem da expansão deixa de ser pré-requisito do botão** (segue valendo para a
+  captura normal, que é outra coisa). O que a lista traz não depende mais de a página ter
+  carregado tudo na tela.
+- **O custo cai mais uma vez:** sem cliques, sem expansão, sem esperar altura de página.
+
+### O que ainda NÃO foi medido
+
+- **Paginação.** A resposta traz a janela inteira ou vem em lotes? Na captura normal a página
+  pede mais ao rolar, então provavelmente há corte — falta ver qual parâmetro o controla.
+- **`settled=0` para as pendentes.** A tela de Pendentes usa o mesmo seletor; presume-se o
+  mesmo endpoint com `settled=0`, e presumir não vale. Medir na próxima aba aberta.
+- **Quantas requisições a janela larga custa**, contra o teto de volume por conta que
+  bloqueou três contas em 20/09.
+
+---
+
 ## 4. Por que não dá para "mergulhar direto" no bilhete
 
 A pergunta natural é: se eu sei qual bilhete quero, por que preciso da lista?
@@ -276,6 +319,7 @@ gravada como vitória cheia (s356).
 3. **Medir a colisão real de `(aposta_em, stake, odd)`**, assim que houver dado — ver §8.4,
    que é hoje o maior risco do desenho.
 4. **Fase A** (descobrir o que resolveu), que já entrega valor sozinha e **não escreve nada**.
-5. **O aviso de truncagem da expansão**, antes de a Fase A virar escrita: ela conclui
-   "resolveu" a partir da AUSÊNCIA na lista, e lista cortada mente sobre ausência.
+5. ~~O aviso de truncagem da expansão~~ **deixou de ser pré-requisito** (ver §3.1): a
+   lista passa a vir da API com `from`/`to`, sem depender do que carregou na tela. O conserto
+   da truncagem continua valendo para a CAPTURA normal, que é outra frente.
 6. **Fase B** (aplicar o resultado), com ensaio antes de gravar.

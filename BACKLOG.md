@@ -1747,45 +1747,30 @@ cashout de metade pagam igual, e o `CLAUDE.md` manda não escrever onde o dinhei
 > conserta é o servidor, uma camada remendando a outra. Consertar na origem (`_resultadoB3`,
 > `content.js`) está na fila junto com o botão "Resolver apostas abertas".
 
-### 4.10 A bet365 está servindo uma interface NOVA de "Minhas Apostas", e a captura não a enxerga (s382). VIVA, medida na tela.
+### 4.10 ~~A interface nova da bet365~~ **ALARME FALSO — eu medi a tela errada (s382).**
 
-**Medido em 23/09, na conta do Feca, com a aba aberta e logada:** "Minhas Apostas" abre em
-`#/MB/SB` e essa tela **não tem nada do que a captura procura**:
+**Registrado e desmentido no mesmo dia.** Eu abri "Minhas Apostas" pelo menu do topo, caí em
+`#/MB/SB`, não achei nenhuma das âncoras da captura e conclui que a casa estava migrando a
+tela por baixo da gente. O Feca corrigiu com prints: **`#/MB/SB` não é a tela do SharpenUp.**
 
-| o que a captura usa | existe em `#/MB/SB`? |
-|---|---|
-| `.h-BetSummary_BetDetails` (o card do bilhete) | **não** (0 elementos) |
-| `.hl-SummaryRenderer_ShowMore` (o "Mostrar Mais" que o `b3_expand` clica) | **não** |
-| `/sportshistoryapi/summary` (a API que o `b3_inject` escuta) | **não** — a tela conversa com `BetsWebAPI` |
+O caminho da captura é **bonequinho → Histórico → Apostas Resolvidas / Apostas Pendentes**,
+em `#/ME/X8020`, e o conteúdo vive num **iframe de `members.bet365.bet.br/home/mainpage.asp`**
+— que é justamente onde a extensão injeta (`all_frames: true`). Medido depois da correção: a
+tela certa chama `/sportshistoryapi/summary` normalmente. **Nada está migrando; as duas telas
+sempre coexistiram, para coisas diferentes.**
 
-As classes da tela nova são ofuscadas (`ruc-93ecde`), então nem dá para reancorar em nome
-estável. E `members.bet365.bet.br/members/` aberto direto devolve **página em branco**.
-
-**As duas interfaces convivem HOJE**, e dá para ver quem está em qual pelo carimbo, medido
-nas últimas 30 horas:
-
-```
-Jonathan      639 bilhetes · com carimbo 639   ← capturou normalmente, na interface ANTIGA
-Gabriel        53 bilhetes · com carimbo   0   ← extensão desatualizada (0.7.17 ou anterior)
-```
-
-Ou seja: **a captura está viva** e o problema não é de hoje. O risco é de amanhã — se a
-interface nova virar padrão para todos, a captura da bet365 (43% do custo de extração) para
-de funcionar **sem erro nenhum**, do mesmo jeito que o operador via a lista pela metade antes
-da s279: a tela abre, o robô não vê bilhete, e ninguém sabe por quê.
-
-**O que precisa ser medido, e nenhuma medida exige conta de volume alto:**
-
-1. **Quem vê qual.** A conta do Feca vê a nova; a do Jonathan, a antiga. Rollout por conta,
-   por região ou por A/B? Duas contas já respondem se é por conta.
-2. **A tela nova tem rota antiga alcançável?** `#/HI/` cai na home e `members/` vem em branco.
-3. **O que o `BetsWebAPI` devolve.** Se ela tiver os mesmos campos (`BS`, `RT`, `TP`, `ST`,
-   `OD`), a captura migra sem perder nada — e o carimbo continua existindo, que é o que o
-   "Resolver apostas abertas" precisa.
-
-> **Efeito no plano do botão:** a medição do filtro de intervalo de datas (`PLANO_RESOLVER_ABERTAS §8`)
-> **não pôde ser feita** na conta do Feca, porque a tela dele é a nova. Ela precisa de uma
-> conta que ainda veja a antiga, ou de fazer o item 3 acima primeiro.
+> **A lição, e é o motivo de este item ficar aqui em vez de ser apagado:** eu tinha uma
+> medição de banco que CONTRADIZIA a minha conclusão e segui mesmo assim. O Jonathan tinha
+> capturado 639 bilhetes naquele mesmo dia, com 639 carimbos. Isso já provava que a captura
+> achava a tela; em vez de perguntar "então qual tela é?", eu escrevi o alarme e só citei o
+> número como "as duas interfaces convivem".
+>
+> **Dado que contradiz a sua conclusão não é ruído para acomodar no texto — é a conclusão
+> que está errada.** Mesma família do *"o remoto responde 200 e rápido e mesmo assim o seu
+> laço conta falha"*: quando a medição e a teoria divergem, a teoria cede.
+>
+> E o gesto barato que faltou: **perguntar ao Feca qual é o caminho**, antes de concluir. Ele
+> respondeu com cinco prints em dois minutos.
 
 ## 5. Planos com fase aberta
 
