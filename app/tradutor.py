@@ -220,6 +220,46 @@ _OPCOES = re.compile(r"\s*-\s*\d+\s*op[çc][õo]es\s*$", re.I)
 
 _MAPAS: dict = {"BET365": _MERCADOS_BET365}
 
+# ── `Tipo: Múltipla` como VEREDITO de esporte — só onde a casa o emite assim ───
+#
+# A Bet365 não escreve `Esporte (casa):` em múltipla, porque não existe um esporte só, e
+# o tradutor recusava o bilhete inteiro por "esporte não declarado" — 2.949 blocos de
+# 28.473 na sombra de 23/09, 81,4% de todo aquele balde.
+#
+# A resposta estava no bloco, noutra linha. Quem escreve `Tipo: Múltipla` no bet365 é o
+# `formatTicketB3` (`extensor/content.js`), e ele a escreve sob
+# `multiplo = jogos.size >= 3 || cls.length > 1` — que É a regra do `MASTER_ESPORTES §2`
+# (3+ confrontos DIFERENTES **ou** mistura de esportes). A mesma condição suprime a linha
+# do esporte. Ou seja: a regra já tinha sido aplicada e nós é que não líamos a resposta.
+#
+# ⚠️ **O SINAL É DA CASA, NUNCA GLOBAL.** `formatTicketNV`, `formatTicketRG`,
+# `formatTicket1X` e `formatTicketPN` também emitem `Tipo: Múltipla`, mas por `n > 1` —
+# CONTAGEM DE PERNAS, não a regra do MASTER. Ler a linha como veredito numa dessas
+# marcaria dupla de 2 jogos do MESMO esporte como `Múltiplos`, que o §2 proíbe. Casa nova
+# só entra neste conjunto depois que alguém abrir o formatador dela e conferir a condição.
+#
+# DUAS PROVAS, e a segunda não passa pela IA (medição de 23/09, s383):
+#  1. **Código.** Com 2 pernas, `jogos.size <= 2`, então a marca só pode ter vindo de
+#     `cls.length > 1` = a casa viu mais de um CL = mistura de esportes.
+#  2. **Empírica.** Mapa liga→esporte montado a partir dos blocos em que a casa DECLARA o
+#     esporte (713 ligas, 713 resolvidas com >= 95% num esporte só) e aplicado aos 2.949:
+#     nos 1.295 julgáveis, **1.295 têm as duas ligas em esportes diferentes — 100,00%,
+#     zero contraexemplo.** Os 1.654 restantes são liga que nunca apareceu com esporte
+#     declarado, dominados por `MLB` (799) e `NFL` (489) — beisebol e futebol americano
+#     não têm CL no `_CL_B3`, e é por isso que eles nunca aparecem sozinhos.
+#
+# A IA discorda em 62 (2,1%) e está errada nos 62 — em vários o MESMO código foi lido
+# duas vezes, uma dizendo `Futebol` e outra `Múltiplos` (a instabilidade do §II.9).
+#
+# ⚠️ **ISTO NÃO ENTREGA COBERTURA SOZINHO, e é bom saber antes de medir.** Os 2.949 só
+# trocam de parede: 89,1% caem em seguida por rótulo fora do mapa, 10,0% pela odd
+# combinada. A cobertura de uma múltipla é o E LÓGICO das pernas, e os esportes que só
+# aparecem em múltipla (MLB, NFL) nunca tiveram o vocabulário aprendido. O que esta
+# entrada compra é o balde parar de MENTIR: "esporte não declarado" era motivo falso para
+# 2.949 bilhetes cujo esporte o tradutor sabe decidir.
+_TIPO_MULTIPLA_E_VEREDITO = frozenset({"BET365"})
+_TIPO_MULTIPLA = re.compile(r"^M[úu]ltipla\b", re.I)
+
 
 # ── Recorte do bloco ──────────────────────────────────────────────────────────
 
@@ -340,20 +380,29 @@ def _e_ebasket(pernas: list) -> bool:
     return True
 
 
-def _esporte(cab: dict, pernas: list) -> str:
+def _esporte(casa: str, cab: dict, pernas: list) -> str:
     """`Múltiplos` quando a acumulada tem 3+ confrontos distintos (`MASTER_ESPORTES §2`);
     senão o esporte que a casa declarou. `None` = não sei, vai para a IA.
 
     Bet builder (mesmo confronto em todas as pernas) NUNCA é `Múltiplos` — por isso a
-    conta é de confrontos DISTINTOS, não de pernas."""
+    conta é de confrontos DISTINTOS, não de pernas.
+
+    A OUTRA METADE DO §2 — a mistura de esportes — não é visível daqui: com o esporte
+    suprimido, nada no bloco diz de que esporte é cada perna. Quem a enxergou foi a
+    extensão, e em casa cujo formatador aplica o §2 ela deixa a resposta em
+    `Tipo: Múltipla`. Ver `_TIPO_MULTIPLA_E_VEREDITO`, que é onde mora o porquê e o
+    aviso de que essa linha significa outra coisa nas demais casas."""
     confrontos = {p.confronto for p in pernas}
     if len(pernas) >= 3 and len(confrontos) >= 3:
         return "Múltiplos"
     m = _CL_NOME.search(cab.get("Esporte (casa)", ""))
     if not m:
-        # Sem CL nomeado não há de onde tirar. E numa múltipla de 2 pernas o inject
-        # omite a linha quando os esportes DIVERGEM — mas "omitiu porque divergem" e
-        # "omitiu porque o CL é desconhecido" são indistinguíveis daqui.
+        if ((casa or "").upper() in _TIPO_MULTIPLA_E_VEREDITO
+                and _TIPO_MULTIPLA.match((cab.get("Tipo") or "").strip())):
+            return "Múltiplos"
+        # Sem CL nomeado e sem o veredito da casa não há de onde tirar: bilhete de uma
+        # seleção num esporte que o `_CL_B3` não mapeia (NFL e MLB são 672 dos blocos
+        # medidos em 23/09) cai aqui e vai para a IA, que é o certo.
         return None
     nome = m.group(1).strip()
     if nome == "Basquete" and _e_ebasket(pernas):
@@ -439,12 +488,15 @@ def traduzir(casa: str, bloco: str) -> Traducao:
         return Traducao(False, "nenhuma linha de seleção reconhecida")
 
     cab = _cabecalho(bloco)
-    esporte = _esporte(cab, pernas)
+    esporte = _esporte(casa, cab, pernas)
     if not esporte:
         return Traducao(False, "esporte não declarado pela casa", pernas=tuple(pernas))
 
     # O esporte que resolve o rótulo genérico é o do JOGO, não `Múltiplos` — numa
     # acumulada o objeto de cada perna segue o esporte dela, e daqui só se vê um CL.
+    # Na múltipla decidida por `Tipo: Múltipla` não se vê nem isso: `esporte_obj` fica
+    # vazio e todo rótulo genérico cai no fallback, de propósito. Deduzir o objeto pela
+    # grandeza da linha (`154.5` "parece" basquete) é o que este módulo não faz.
     esporte_obj = esporte
     if esporte == "Múltiplos":
         m = _CL_NOME.search(cab.get("Esporte (casa)", ""))

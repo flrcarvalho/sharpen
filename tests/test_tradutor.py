@@ -202,7 +202,7 @@ def test_tres_jogos_distintos_viram_multiplos():
     aparecer, este teste vira ponta a ponta e o de cima muda de motivo."""
     pernas = tradutor._pernas(SISTEMA_3_JOGOS)
     assert len(pernas) == 3
-    assert tradutor._esporte({}, pernas) == "Múltiplos", "MASTER_ESPORTES §2"
+    assert tradutor._esporte("BET365", {}, pernas) == "Múltiplos", "MASTER_ESPORTES §2"
 
 
 def test_familia_parametrizada_de_prop_de_jogador():
@@ -255,7 +255,7 @@ def test_bet_builder_nao_e_multiplos():
         tradutor.Perna(jogo, "Escanteios Asiáticos", "Menos de 7.5", "1,67", "ARG-CUP"),
     ]
     cab = {"Esporte (casa)": "CL=1 (Futebol)"}
-    assert tradutor._esporte(cab, pernas) == "Futebol"
+    assert tradutor._esporte("BET365", cab, pernas) == "Futebol"
 
 
 def test_multipla_traduz_quando_todos_os_rotulos_sao_conhecidos():
@@ -448,6 +448,112 @@ def test_mutacao_remover_escanteios_derruba_o_sufixo_opcoes():
         tradutor._MERCADOS_BET365.clear()
         tradutor._MERCADOS_BET365.update(original)
     assert tradutor.traduzir("BET365", ESCANTEIOS_2_OPCOES).ok
+
+
+# ── A múltipla de 2 pernas: o esporte vem do `Tipo:` (s383) ──────────────────
+#
+# Blocos reais da sombra (23/09/2026). A Bet365 não escreve `Esporte (casa):` em
+# múltipla, e o veredito do `MASTER_ESPORTES §2` fica na linha `Tipo: Múltipla`, que o
+# `formatTicketB3` só emite sob `jogos.size >= 3 || cls.length > 1`.
+
+MULTIPLA_DOIS_ESPORTES = """
+Data (encerramento): 03/09/2026
+Stake: 201,00
+Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
+Tipo: Múltipla (2 seleções)
+Seleções:
+  • Puerto Montt x CSD Colo Colo · Para Ganhar · CSD Colo Colo @ 2,85 · B-CHLNBM
+  • Al Feiha x Al Kholood · 1° Tempo - Escanteios · Mais de 4.0 @ 2,5 · SAUDI-PREM
+"""
+
+# `RT7832775711I`, o ramo `else if (nSel > 1)` do `formatTicketB3`: a casa diz
+# explicitamente que NÃO é múltipla pelo §2 (2 jogos, 1 CL só). São dois jogos de MLB —
+# mesmo esporte —, e o `CL=16` não tem nome no `_CL_B3` (é basquete não mapeado, ver o
+# comentário lá), então o esporte fica indecidível e o bilhete vai para a IA. Marcar
+# `Múltiplos` aqui seria o erro que o conjunto por casa existe para evitar.
+DUAS_SELECOES_SEM_VEREDITO = """
+Data (encerramento): 03/09/2026
+Stake: 201,00
+Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
+Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
+Esporte (casa): CL=16
+Seleções:
+  • SF Giants @ PIT Pirates · Lançador - Strikeouts · Lake Bachar: 3+ Strikeouts @ 2,9 · MLB
+  • BOS Red Sox @ BAL Orioles · Total de Bases · Caleb Durbin: 2+ Total de Bases @ 2,85 · MLB
+"""
+
+
+def test_multipla_de_2_pernas_tira_o_esporte_do_tipo():
+    """A decisão isolada. Duas pernas, dois confrontos: a regra dos 3+ NÃO alcança, e
+    quem responde é o `Tipo: Múltipla` — que nesta casa só existe quando a extensão já
+    aplicou o §2. Medido em 23/09 sobre 1.295 blocos julgáveis por um mapa liga→esporte
+    independente da IA: 1.295 de 1.295 têm as duas pernas em esportes diferentes."""
+    cab = tradutor._cabecalho(MULTIPLA_DOIS_ESPORTES)
+    pernas = tradutor._pernas(MULTIPLA_DOIS_ESPORTES)
+    assert len(pernas) == 2 and len({p.confronto for p in pernas}) == 2
+    assert tradutor._esporte("BET365", cab, pernas) == "Múltiplos"
+
+
+def test_o_veredito_do_tipo_e_por_CASA_nunca_global():
+    """`formatTicketNV`, `formatTicketRG`, `formatTicket1X` e `formatTicketPN` também
+    escrevem `Tipo: Múltipla`, mas por `n > 1` — contagem de pernas, não o §2. Numa
+    dessas, a mesma linha num bilhete de 2 jogos do MESMO esporte viraria `Múltiplos`,
+    que o §2 proíbe. O conjunto é a trava, e este teste é o que impede alguém de
+    'simplificar' tirando a checagem de casa."""
+    cab = tradutor._cabecalho(MULTIPLA_DOIS_ESPORTES)
+    pernas = tradutor._pernas(MULTIPLA_DOIS_ESPORTES)
+    assert tradutor._esporte("NOVIBET", cab, pernas) is None
+    assert tradutor._esporte("PINNACLE", cab, pernas) is None
+
+
+def test_tipo_N_selecoes_nao_e_veredito_de_multiplos():
+    """A outra metade, e a que separa o veredito da CONTAGEM: `Tipo: 2 seleções` é o
+    ramo em que a extensão diz explicitamente que não é múltipla pelo §2. Bloco real
+    com dois jogos de MLB — mesmo esporte — e `CL=16` sem nome. Tem de ir para a IA."""
+    cab = tradutor._cabecalho(DUAS_SELECOES_SEM_VEREDITO)
+    pernas = tradutor._pernas(DUAS_SELECOES_SEM_VEREDITO)
+    assert len(pernas) == 2
+    assert tradutor._esporte("BET365", cab, pernas) is None
+    t = tradutor.traduzir("BET365", DUAS_SELECOES_SEM_VEREDITO)
+    assert not t.ok and "esporte" in t.motivo
+
+
+def test_o_motivo_do_fallback_passa_a_ser_o_VERDADEIRO():
+    """Ponta a ponta, e é o que esta mudança realmente entrega. O bilhete continua indo
+    para a IA — `Para Ganhar` não está no mapa —, mas deixa de ir com o motivo FALSO
+    'esporte não declarado' para um bilhete cujo esporte o tradutor sabe decidir.
+
+    Era esse rótulo errado que fazia a múltipla parecer um problema de formato: medido
+    em 23/09, dos 2.949 blocos que ele libertava, 89,1% param no rótulo seguinte."""
+    t = tradutor.traduzir("BET365", MULTIPLA_DOIS_ESPORTES)
+    assert not t.ok
+    assert "esporte" not in t.motivo, "o motivo antigo era falso e não pode voltar"
+    assert "Para Ganhar" in t.motivo
+
+
+def test_mutacao_tirar_a_bet365_do_conjunto_devolve_o_motivo_falso():
+    """A prova exigida pelo CLAUDE.md. Sem a casa no conjunto, o bloco tem de voltar a
+    cair por 'esporte não declarado' — verde aqui com o conjunto vazio significaria que
+    quem decide é outra coisa, e a entrada não estaria sustentando nada."""
+    original = frozenset(tradutor._TIPO_MULTIPLA_E_VEREDITO)
+    try:
+        tradutor._TIPO_MULTIPLA_E_VEREDITO = frozenset()
+        t = tradutor.traduzir("BET365", MULTIPLA_DOIS_ESPORTES)
+        assert not t.ok, "conjunto vazio e o tradutor decidiu o esporte assim mesmo"
+        assert "esporte não declarado" in t.motivo
+    finally:
+        tradutor._TIPO_MULTIPLA_E_VEREDITO = original
+    assert "Para Ganhar" in tradutor.traduzir("BET365", MULTIPLA_DOIS_ESPORTES).motivo
+
+
+def test_mutacao_o_veredito_nao_atropela_o_esporte_declarado():
+    """A ordem é load-bearing: o `Esporte (casa):` da casa manda, e o `Tipo:` só entra
+    quando ele falta. Um bloco com os dois (não existe na Bet365, mas o código não
+    sabe disso) tem de sair com o esporte declarado, nunca com `Múltiplos`."""
+    cab = tradutor._cabecalho(MULTIPLA_DOIS_ESPORTES)
+    cab["Esporte (casa)"] = "CL=1 (Futebol)"
+    pernas = tradutor._pernas(MULTIPLA_DOIS_ESPORTES)
+    assert tradutor._esporte("BET365", cab, pernas) == "Futebol"
 
 
 # ── Linha asiática: o quarto de linha (MASTER_DESCRICAO §10.1.1, s336) ───────
