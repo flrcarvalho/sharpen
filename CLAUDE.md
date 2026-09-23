@@ -81,6 +81,12 @@ casa que parou → `/sharpenup-diagnostico`.
 5. Arquivo no teto: antes de acrescentar linha, mova **caso** para
    [`docs/CASOS.md`](docs/CASOS.md), **sessão** para `docs/historico/`, **procedimento**
    para um runbook em `docs/`. **Nunca corte regra para caber.**
+6. **O `CASOS.md` no teto PARTE, não move** — ele é o destino do §5 e não tem para onde
+   mandar. Parta por ASSUNTO em `docs/casos/CASOS_<TEMA>.md`, com ponteiro de uma linha na
+   seção que saiu, e **reescreva as âncoras de quem linkava** (`check_docs` cobra).
+   **Caso não se apaga, não vai para o histórico e não perde o relato: o relato É o caso.**
+   A lição já vive aqui; lá mora a prova de que ela é verdadeira, e é dela que o §3
+   precisa para reabrir qualquer veredito.
 
 ---
 
@@ -636,7 +642,7 @@ escada**, não aplique opacidade.
 Gate novo só vale depois de provado por **mutação**: quebre o código de propósito e
 confira que o teste falha. Verde sem essa prova não prova nada.
 
-Dois modos de falso verde, ambos medidos ([os casos](docs/CASOS.md#o-teste-que-reimplementava-o-código--s286)):
+Dois modos de falso verde, ambos medidos ([os casos](docs/casos/CASOS_TESTES.md#o-teste-que-reimplementava-o-código--s286)):
 
 1. **O teste reimplementa o código sob teste.** Recorte o código real do arquivo; nunca
    copie o trecho para o teste.
