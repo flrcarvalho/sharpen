@@ -1733,6 +1733,19 @@ lote**: o `V` do Coritiba cheira a anulação da casa, e o `L` do `Jaao26` a cor
 > decidido pela IA lendo o MESMO bloco de onde saiu o retorno. Onde os dois discordam é onde
 > a circularidade quebra, e é por isso que a divergência vale mais que a taxa.
 
+### 4.10 O "Tudo" da tela de Custos para em HOJE; o do KPI não tem fim (s381). VIVA, medida.
+
+Achado ao testar a renovação de conta (`tests/js/custos_regua_unica.mjs`, caso R): o
+`_c2range` da tela de Custos faz "Tudo" = do primeiro custo **até hoje**, e o
+`calcCostFiltered` da Visão Geral faz "Tudo" = `9999-12-31`. **Qualquer pagamento datado no
+FUTURO** (compra com `adquirida_em` à frente, ou renovação lançada com data futura) entra
+no KPI e não entra na tabela de Custos: o KPI deixa de bater com a soma da tabela logo
+abaixo, que é o sintoma que o `CLAUDE.md` manda procurar. Medido: compra 900 + renovação
+de hoje 350 + renovação futura 90 dá **1.340 no KPI e 1.250 na tabela**. Não é da
+renovação; a compra datada no futuro já divergia antes. **Decisão pendente:** qual das duas
+réguas é a certa para "Tudo" (pagamento futuro ainda não saiu do bolso, o que puxa para
+"até hoje" nas duas).
+
 ## 5. Planos com fase aberta
 
 > Um plano só sai daqui quando **todas** as fases dele fecham. Plano com uma fase aberta é
