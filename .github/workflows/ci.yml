@@ -64,6 +64,22 @@ jobs:
       - name: Auditoria casa × global
         run: python tools/audit_casas.py
 
+      # ── Os dois gates da CAPTURA (s385) ──────────────────────────────────────
+      # Ficaram de fora do CI desde sempre, e são justamente os que cobrem o robô que
+      # lê as casas. O `CLAUDE.md` manda rodar o harness "antes de todo commit que toque
+      # `extensor/`", e até aqui isso dependia de alguém LEMBRAR — numa semana em que o
+      # `extensor/` muda quase todo dia (bet365 `aposta_em`, Lottu, versão 0.7.18).
+      #
+      # O modo de falha que eles pegam não é o site cair: é a captura gravar dado ERRADO
+      # na base de um dono, em silêncio. Os dois já reprovam de verdade (`process.exit(1)`
+      # no `run.mjs`, `return 1` no `audit_sharpenup`), então basta chamá-los — conferido
+      # antes de ligar, porque gate que nunca reprova é enfeite.
+      - name: Regressão da captura (harness do extensor)
+        run: node extensor/harness/run.mjs
+
+      - name: Auditoria do SharpenUp (12 pontos de registro)
+        run: python tools/audit_sharpenup.py
+
       - name: Check de tokens de marca
         run: node scripts/tokens/check-tokens.mjs
 
