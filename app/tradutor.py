@@ -121,6 +121,13 @@ _MERCADOS_BET365: dict = {
     "vencedor da partida": _ML,                                        # sombra
     "resultado final": _ML,                                            # sombra
     "gols + -": _GOLS,                                                 # sombra
+    # A MESMA aposta, escrita de outro jeito pela casa — e o mapa só tinha uma das duas
+    # grafias, então 291 blocos caíam na IA por um caractere. Medido em 23/09: **as 291
+    # seleções são AO VIVO**, todas na forma `(5-0) - Mais de 6.5,7.0`, e é por isso que
+    # esta linha só vale acompanhada do `-\s+` no `_PLACAR_AO_VIVO`: sem ele o rótulo
+    # resolve e a seleção não, e o bilhete troca de motivo sem sair do fallback.
+    # Régua da s333: 265 amostras de 1 seleção, 98,5% `Gols`.
+    "gols +/-": _GOLS,                                                 # sombra 291
     "total de gols": _GOLS,                                            # sombra
     "partida - gols": _GOLS,                                           # sombra
     "partida - handicap (pontos)": _HANDICAP,                          # sombra
@@ -272,7 +279,14 @@ _OVER_UNDER = re.compile(r"^(mais de|menos de)\s+(.+)$", re.I)
 _JOGADOR_OU = re.compile(r"^(.+?)\s+-\s+(mais de|menos de)\s+(.+)$", re.I)
 _HANDLE = re.compile(r"\([A-Z0-9][A-Z0-9 _.-]*\)\s*$")
 _CL_NOME = re.compile(r"CL=\d+\s*\((.+?)\)")
-_PLACAR_AO_VIVO = re.compile(r"^\(\d+\s*[-x:]\s*\d+\)\s*")
+# Placar do momento, que o mercado ao vivo prefixa na seleção. A casa o separa de DUAS
+# formas: colado no nome (`(0-0) Independiente Rivadavia -0.5`) e com um travessão
+# (`(5-0) - Mais de 6.5,7.0`, que é como TODAS as 291 seleções de `Gols +/-` chegam).
+#
+# O `-\s+` final exige ESPAÇO depois do traço, e isso é load-bearing: sem ele,
+# `(1-0) -0.5` perderia o SINAL do handicap e viraria `0.5` — a aposta invertida, sem
+# erro em lugar nenhum. Com o espaço obrigatório, `-0.5` não casa e sobrevive inteiro.
+_PLACAR_AO_VIVO = re.compile(r"^\(\d+\s*[-x:]\s*\d+\)\s*(?:-\s+)?")
 # Linha asiática partida — ver `_quarto_de_linha`. Gêmeos dos de `descricao_check`.
 #
 # TRÊS padrões, um por separador, e o motivo é que dois caracteres acumulam papéis:

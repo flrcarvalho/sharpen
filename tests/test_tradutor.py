@@ -556,6 +556,62 @@ def test_mutacao_o_veredito_nao_atropela_o_esporte_declarado():
     assert tradutor._esporte("BET365", cab, pernas) == "Futebol"
 
 
+# ── `Gols +/-`: a mesma aposta com outra grafia, e ela é 100% AO VIVO (s386) ─
+
+AO_VIVO_GOLS_BARRA = """
+Data (encerramento): 29/08/2026
+Stake: 100,39
+Status: Ganho → W (retorno R$ 141,81)
+Odd: 1,825
+Esporte (casa): CL=1 (Futebol)
+Seleções:
+  • Johor Darul Ta'zim x Imigresen FC · Ao-Vivo - Gols +/- · (5-0) - Mais de 6.5,7.0 @ 1,825 · Malaysia SL
+"""
+
+
+def test_gols_barra_e_a_grafia_gemea_de_gols_mais_menos():
+    """O mapa tinha `Gols + -` e não tinha `Gols +/-`: 291 blocos iam para a IA por um
+    caractere. Medido em 23/09: 265 amostras de 1 seleção, 98,5% `Gols`.
+
+    E o placar do momento sai antes de qualquer template — é estado do jogo, não parte
+    da aposta. A linha partida vira o quarto de linha (`§10.1.1`), onde a IA deixou
+    `6.5,7.0`."""
+    t = tradutor.traduzir("BET365", AO_VIVO_GOLS_BARRA)
+    assert t.ok, t.motivo
+    assert t.aposta == "Gols"
+    assert t.descricao == "Over 6.75 Gols [Johor Darul Ta'zim v Imigresen FC]"
+
+
+def test_o_travessao_do_placar_nao_come_o_sinal_do_handicap():
+    """A trava do `-\\s+`. A casa separa o placar de dois jeitos — colado no nome
+    (`(0-0) Independiente Rivadavia -0.5,-1.0`) e com travessão (`(5-0) - Mais de …`).
+    Sem exigir ESPAÇO depois do traço, `(1-0) -0.5` perderia o sinal e viraria `0.5`:
+    a aposta invertida, sem erro em lugar nenhum."""
+    assert tradutor._PLACAR_AO_VIVO.sub("", "(5-0) - Mais de 6.5") == "Mais de 6.5"
+    assert tradutor._PLACAR_AO_VIVO.sub("", "(1-0) -0.5") == "-0.5"
+    assert tradutor._PLACAR_AO_VIVO.sub("", "(0-0) Time -0.5") == "Time -0.5"
+    # e o bloco real de handicap ao vivo continua saindo com o sinal
+    t = tradutor.traduzir("BET365", HANDICAP_AO_VIVO)
+    assert t.descricao == (
+        "Independiente Rivadavia -0.75 [Aldosivi v Independiente Rivadavia]")
+
+
+def test_mutacao_o_rotulo_sozinho_nao_basta():
+    """As duas metades desta entrada andam JUNTAS, e é isso que a mutação prova: com o
+    rótulo no mapa e sem o `-\\s+` no placar, o bilhete não é traduzido — ele só TROCA
+    de motivo, de 'mercado desconhecido' para 'seleção fora do template'. Meio conserto
+    aqui não aparece na cobertura e aparece como progresso no relatório."""
+    import re as _re
+    original = tradutor._PLACAR_AO_VIVO
+    try:
+        tradutor._PLACAR_AO_VIVO = _re.compile(r"^\(\d+\s*[-x:]\s*\d+\)\s*")
+        t = tradutor.traduzir("BET365", AO_VIVO_GOLS_BARRA)
+        assert not t.ok and "fora do template" in t.motivo
+    finally:
+        tradutor._PLACAR_AO_VIVO = original
+    assert tradutor.traduzir("BET365", AO_VIVO_GOLS_BARRA).ok
+
+
 # ── A odd estrutural da múltipla comum: o produto das pernas (s386) ──────────
 #
 # A Bet365 não publica a odd combinada — ZERO de 3.442 blocos `Tipo: Múltipla` traz
