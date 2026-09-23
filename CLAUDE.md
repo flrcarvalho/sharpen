@@ -63,7 +63,7 @@ casa que parou → `/sharpenup-diagnostico`.
     > **família** de um defeito antes de repeti-la (s321 e s327 são a mesma família).
     > Subir um teto para não cortar é pior que cortar.
     > → ["não há mais nada para mover" costuma ser "nada mais DO
-    > TIPO"](docs/historico/HISTORICO_s300-s327.md) (s358, s382)
+    > TIPO"](docs/historico/HISTORICO_s300-s327.md) (s358, s384)
 
 ---
 
