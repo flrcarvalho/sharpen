@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation, localcontext
 
 # ── Estruturas ────────────────────────────────────────────────────────────────
 
@@ -465,6 +466,75 @@ def _descricao_perna(p, spec: dict) -> str:
     return f"{sel}{' ' + sufixo if sufixo else ''} [{p.confronto}]"
 
 
+# ── Número lido do BLOCO CRU ──────────────────────────────────────────────────
+#
+# Veio do `repository` na s386, quando ganhou um segundo chamador (a odd estrutural
+# abaixo, que precisa de `Decimal`). A régua é UMA e mora aqui; o `repository` reexporta.
+
+
+def _sep_bloco(s) -> tuple:
+    """`(texto, decimal, milhar)` do número como o bloco o escreve. `None` se ilegível.
+
+    O ÚLTIMO separador é o decimal, decidido por TOKEN — a **Betfair mistura as duas
+    convenções no mesmo bloco**: stake e odd em BR (`300,00`, `5,4746`) e o retorno em EN
+    (`Retorno 1,642.38`). Uma régua BR-first leria 1,64238 e o gate "corrigiria" a odd
+    5,4746 para 0,0054, destruindo cinco linhas certas (medido na s321).
+
+    Um separador só é SEMPRE decimal, mesmo com 3 dígitos depois: a regra "3 dígitos =
+    milhar" serve a dinheiro e destrói ODD (`1,775` viraria 1775). Não há ambiguidade a
+    perder — todo valor monetário nos blocos sai do `_brl`, que sempre imprime 2 casas.
+
+    NÃO substitui o `_num_or_none` do `repository`: aquele é a convenção do BANCO e do TSV.
+    """
+    if s is None:
+        return None
+    s = str(s).strip()
+    if not s:
+        return None
+    i_ponto, i_virg = s.rfind("."), s.rfind(",")
+    if i_ponto >= 0 and i_virg >= 0:
+        return (s, ".", ",") if i_ponto > i_virg else (s, ",", ".")
+    if i_virg >= 0:
+        return s, ",", "."
+    if i_ponto >= 0:
+        return s, ".", ","
+    return s, None, None
+
+
+def _limpo_bloco(s) -> str:
+    """O número do bloco com o decimal em ponto e sem milhar — a forma que `float` e
+    `Decimal` leem igual."""
+    partes = _sep_bloco(s)
+    if partes is None:
+        return None
+    texto, dec, mil = partes
+    return texto if dec is None else texto.replace(mil, "").replace(dec, ".")
+
+
+def _num_bloco(s) -> float | None:
+    """Número lido do BLOCO CRU, em BR (`1.642,38`) ou EN (`1,642.38`). Ver `_sep_bloco`."""
+    t = _limpo_bloco(s)
+    if t is None:
+        return None
+    try:
+        return float(t)
+    except ValueError:
+        return None
+
+
+def _dec_bloco(s):
+    """O mesmo, em `Decimal`. Existe porque a odd estrutural é uma MULTIPLICAÇÃO, e em
+    `float` ela devolve lixo binário (`1.95 * 1.8 = 3.5100000000000002`) onde a conta
+    exata é `3,51`. Mesma régua de separador, nunca uma segunda."""
+    t = _limpo_bloco(s)
+    if t is None:
+        return None
+    try:
+        return Decimal(t)
+    except InvalidOperation:
+        return None
+
+
 _RESULTADO = re.compile(r"→\s*(HW|HL|W|L|V)\b")
 
 
@@ -473,6 +543,100 @@ def _resultado(status: str) -> str:
     Aberta não tem seta e sai vazio — que é o código de "não liquidada"."""
     m = _RESULTADO.search(status or "")
     return m.group(1) if m else ""
+
+
+# ── A odd da MÚLTIPLA COMUM: o produto das pernas (s386) ─────────────────────
+#
+# A Bet365 NÃO entrega a odd combinada: medido em 23/09, **zero de 3.442 blocos
+# `Tipo: Múltipla` traz linha de odd** (o `formatTicketB3` só imprime `Odd:` quando
+# `nSel === 1`, e `Odd total`/`Odd (estrutural do sistema)` só em SISTEMA). Sem isto o
+# guard da odd recusava TODA múltipla da casa — e recusava por último, depois do rótulo,
+# então a parede ficava escondida atrás do vocabulário.
+#
+# O `MASTER_RESULTADO §7.1` decide quando a odd estrutural é a resposta, e o §7.2 diz o
+# que ela é numa múltipla comum: **o produto das odds das pernas**. Só entram as três
+# linhas em que o §7.1 manda usá-la; `W` fica de FORA de propósito (ver abaixo).
+#
+# ⚠️ **SISTEMA NÃO É MÚLTIPLA, e confundir os dois é o caso da s265** (`3 x Duplas` lida
+# como tripla: odd 5,81 no lugar de 3,282, retorno potencial R$ 1.762 no lugar de R$ 994).
+# Aqui a confusão é impossível por construção: bloco de sistema TRAZ linha de odd (a média
+# das linhas, já calculada pela casa), então nunca chega a este caminho.
+#
+# A PROVA, e ela é do DINHEIRO, não da IA (23/09, sombra da Bet365): nas múltiplas GANHAS
+# a casa publica o retorno, e `stake × produto` bate o retorno **ao centavo em 479 de 529
+# (90,5%)**. Os 50 que não batem são perna ANULADA (`GT8020619111I`: duas pernas @ 2,2 e
+# retorno = 2,2 × stake — a outra virou 1,00) e meia vitória de linha asiática. Os dois
+# casos só se conhecem pelo dinheiro, e os dois são `W`.
+#
+# **Por que `W` fica de fora.** Ali o §7.1 manda `Retorno ÷ Stake`, e essa conta é
+# justamente a que ESCONDE meia vitória: o `_resultadoB3` escreve `Ganho → W` para
+# qualquer retorno maior que a stake, e fechar a conta por `retorno ÷ stake` deixa o
+# bilhete internamente consistente — `stake × odd` bate exato — sem nunca chegar a `HW`
+# (`CLAUDE.md`, o caso da s356). Quem separa os dois é o `_veredito_do_retorno`, no
+# servidor, e não este módulo. Então `W`, `HW` e `HL` continuam indo para a IA.
+#
+# **O que o produto NÃO enxerga, e a IA também não:** perna anulada em bilhete `L` ou
+# ABERTO. O bloco imprime a odd original de toda perna e não marca void, então a odd
+# estrutural sai alta. Em `L` isso não move dinheiro nenhum (P/L de `L` é −stake); em
+# aberto ele infla o retorno potencial da tela. Fica registrado porque é o limite honesto
+# da regra, não porque haja o que fazer com o dado de hoje.
+_ODD_E_O_PRODUTO_DAS_PERNAS = frozenset({"BET365"})
+# Os DOIS ramos do `formatTicketB3` que declaram "a odd é o produto das odds abaixo":
+# `Tipo: Múltipla (N seleções)` (múltipla pelo §2) e `Tipo: N seleções` (a dupla de mesmo
+# esporte, que é múltipla comum pelo §7.2 mesmo sem ser `Múltiplos` pelo §2).
+_TIPO_MULTIPLA_COMUM = re.compile(r"^(?:M[úu]ltipla\b|\d+\s+sele)", re.I)
+# `MASTER_RESULTADO §7.1`: L sem cashout, V e aberta usam a odd ESTRUTURAL.
+_RESULTADO_COM_ODD_ESTRUTURAL = frozenset({"", "L", "V"})
+# Precisão, em DUAS etapas, e a segunda existe por medição.
+#
+# A odd da perna chega como renderização de `float64` da fração da casa: 23/15 vira
+# `1,5333333333333332`. Multiplicar isso EXATO propaga o ruído — `1,5 × 1,5333333333333332`
+# dá `2,2999999999999998`, e a odd da casa é `2,3` (bilhete real `LP2437618471I`).
+#
+# Então: multiplica com folga (34 dígitos, para o produto de doze pernas não perder nada
+# no caminho) e **corta o resultado em 15 dígitos significativos, que é o piso de ruído do
+# `float64` da entrada**. Abaixo dali não há informação, só artefato binário.
+#
+# 15 dígitos é ordens de grandeza acima do que o `MASTER_RESULTADO §7.2` exige: o que ele
+# proíbe é arredondar para 2 casas, porque aí a planilha pt-BR corrompe a odd.
+_PRECISAO_PRODUTO = 34
+_PRECISAO_ODD = 15
+
+
+def _odd_estrutural(casa: str, cab: dict, pernas: list) -> str:
+    """O produto das odds das pernas, em vírgula decimal. `""` = não sei, vai para a IA.
+
+    Recusa em silêncio (devolvendo `""`) é o comportamento certo: o chamador transforma
+    isso no fallback nomeado. Perna sem odd legível, ou com odd <= 1, derruba o bilhete
+    INTEIRO — meia conta é pior que conta nenhuma."""
+    if (casa or "").upper() not in _ODD_E_O_PRODUTO_DAS_PERNAS:
+        return ""
+    if not _TIPO_MULTIPLA_COMUM.match((cab.get("Tipo") or "").strip()):
+        return ""
+    if _resultado(cab.get("Status", "")) not in _RESULTADO_COM_ODD_ESTRUTURAL:
+        return ""
+    with localcontext() as ctx:
+        ctx.prec = _PRECISAO_PRODUTO
+        produto = Decimal(1)
+        for p in pernas:
+            d = _dec_bloco(p.odd)
+            if d is None or d <= 1:
+                return ""
+            produto *= d
+    with localcontext() as ctx:
+        ctx.prec = _PRECISAO_ODD
+        produto = +produto          # `+` é o que aplica o corte do contexto
+    return _odd_br(produto)
+
+
+def _odd_br(valor) -> str:
+    """`Decimal` → o texto que o resto do sistema espera: vírgula decimal, sem expoente e
+    sem zero à toa. `MASTER_RESULTADO §7.2` — a planilha pt-BR lê o ponto como milhar e
+    corrompe a odd (`8.580978` viraria `8.580.978`)."""
+    n = valor.normalize()
+    if n == n.to_integral_value():
+        n = n.quantize(Decimal(1))
+    return format(n, "f").replace(".", ",")
 
 
 def traduzir(casa: str, bloco: str) -> Traducao:
@@ -521,6 +685,11 @@ def traduzir(casa: str, bloco: str) -> Traducao:
         if _ODD_LINHA.match(rotulo.strip()):
             odd = valor.split()[0] if valor else ""
             break
+    if not odd and len(pernas) > 1:
+        # A casa não publicou a combinada. Onde o `MASTER_RESULTADO §7.1` manda usar a
+        # odd ESTRUTURAL, ela é o produto das pernas e sai daqui — ver `_odd_estrutural`,
+        # que é quem conhece as três condições e recusa em todo o resto.
+        odd = _odd_estrutural(casa, cab, pernas)
     if not odd and len(pernas) > 1:
         return Traducao(False, "odd combinada não entregue pela casa", pernas=tuple(pernas))
 

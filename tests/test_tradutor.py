@@ -556,6 +556,199 @@ def test_mutacao_o_veredito_nao_atropela_o_esporte_declarado():
     assert tradutor._esporte("BET365", cab, pernas) == "Futebol"
 
 
+# ── A odd estrutural da múltipla comum: o produto das pernas (s386) ──────────
+#
+# A Bet365 não publica a odd combinada — ZERO de 3.442 blocos `Tipo: Múltipla` traz
+# linha de odd (medido em 23/09). O `MASTER_RESULTADO §7.1` diz quando a resposta é a odd
+# ESTRUTURAL e o §7.2 diz o que ela é: o produto. Blocos reais da sombra.
+
+MULTIPLA_L_TRES_PERNAS = """
+Data (evento): 13/09/2026
+Stake: 30,32
+Status: Perdeu → L
+Tipo: Múltipla (3 seleções)
+Seleções:
+  • RAMS Village Superstars x Cayon · Gols + - · Menos de 2.5,3.0 @ 1,8 · SKITTS-NEV-PREM
+  • Cieza x Elche Ilicitano · Gols + - · Mais de 2.0,2.5 @ 1,775 · Spain Seg B G3
+  • Pontevedra B x Gran Pena · Total de Gols · Mais de  2.5 @ 1,7 · Spain Ter Grp1
+"""
+
+DUPLA_L_MESMO_ESPORTE = """
+Data (encerramento): 27/08/2026
+Stake: 750,00
+Status: Perdeu → L
+Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
+Esporte (casa): CL=13 (Tênis)
+Seleções:
+  • Yunchaokete Bu x Federico Cina · Para Ganhar a Partida · Yunchaokete Bu @ 1,5 · Slam M Q-R3
+  • Francesca Jones x Joanna Garland · Para Ganhar a Partida · Francesca Jones @ 1,5 · Slam W Q-R3
+"""
+
+# O MESMO par de jogadores no dia seguinte, com a 2ª perna a `1,5333333333333332` — a
+# renderização `float64` de 23/15. O produto EXATO daria `2,2999999999999998`.
+DUPLA_COM_RUIDO_DE_FLOAT = """
+Data (encerramento): 27/08/2026
+Stake: 120,14
+Status: Perdeu → L
+Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
+Esporte (casa): CL=13 (Tênis)
+Seleções:
+  • Yunchaokete Bu x Federico Cina · Para Ganhar a Partida · Yunchaokete Bu @ 1,5 · Slam M Q-R3
+  • Francesca Jones x Joanna Garland · Para Ganhar a Partida · Francesca Jones @ 1,5333333333333332 · Slam W Q-R3
+"""
+
+# `W`, e por isso fica FORA. De quebra é meia vitória disfarçada: stake 35,36, retorno
+# 35,81 — as duas pernas são linha asiática partida.
+MULTIPLA_W_FICA_FORA = """
+Data (encerramento): 26/08/2026
+Stake: 35,36
+Status: Ganho → W (retorno R$ 35,81)
+Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
+Esporte (casa): CL=1 (Futebol)
+Seleções:
+  • Omiya Ardija x Vanraure Hachinohe · Gols + - · Mais de 2.0,2.5 @ 1,95 · SOC-JAP-CUP
+  • Ruch Radzionkow x GKS Katowice II · Gols + - · Menos de 2.5,3.0 @ 2,025 · POLAND-IV-LIGA
+"""
+
+
+def test_multipla_perdida_fecha_com_o_produto_das_pernas():
+    """`1,8 × 1,775 × 1,7 = 5,4315`. Bilhete real, e ele é tambem o retrato do defeito
+    que esta entrada conserta: **a IA gravou `1,8` nele** — a odd de UMA perna."""
+    t = tradutor.traduzir("BET365", MULTIPLA_L_TRES_PERNAS)
+    assert t.ok, t.motivo
+    assert t.esporte == "Múltiplos" and t.aposta == "Múltipla"
+    assert t.odd == "5,4315"
+
+
+def test_dupla_de_mesmo_esporte_tambem_e_multipla_comum():
+    """O §7.2 é sobre a FORMA da aposta, não sobre a categoria: uma dupla de dois jogos
+    de tênis não é `Múltiplos` pelo §2 (o esporte segue sendo Tênis) e a odd dela é o
+    produto do mesmo jeito. `1,5 × 1,5 = 2,25`."""
+    t = tradutor.traduzir("BET365", DUPLA_L_MESMO_ESPORTE)
+    assert t.ok, t.motivo
+    assert t.esporte == "Tênis", "dois jogos do mesmo esporte não são Múltiplos"
+    assert t.aposta == "Múltipla" and t.odd == "2,25"
+
+
+def test_o_ruido_do_float_da_perna_nao_vaza_para_a_odd():
+    """A perna chega como `1,5333333333333332`, que é 23/15 em `float64`. O produto
+    EXATO seria `2,2999999999999998`; a odd da casa é `2,3`. O corte em 15 dígitos
+    significativos é o piso de ruído da entrada — abaixo dele não há informação."""
+    t = tradutor.traduzir("BET365", DUPLA_COM_RUIDO_DE_FLOAT)
+    assert t.ok, t.motivo
+    assert t.odd == "2,3"
+
+
+def test_multipla_ganha_continua_indo_para_a_ia():
+    """`W` fica de fora de propósito. Ali o §7.1 manda `Retorno ÷ Stake`, e é exatamente
+    essa conta que ESCONDE meia vitória — o bilhete fecha internamente consistente e
+    nunca chega a `HW` (o caso da s356). Quem separa os dois é o `_veredito_do_retorno`,
+    no servidor. Este bloco é um desses: stake 35,36 e retorno 35,81."""
+    t = tradutor.traduzir("BET365", MULTIPLA_W_FICA_FORA)
+    assert not t.ok and "odd combinada" in t.motivo
+
+
+# Bloco real de SISTEMA, perdido. A odd dele é a MÉDIA das 3 linhas (3,7347916666666667);
+# o produto das pernas daria 7,20875 — quase o dobro. É o caso da s265 inteiro.
+SISTEMA_PERDIDO = """
+Data (encerramento): 30/08/2026
+Stake: 90,36
+Status: Perdeu → L
+Tipo: SISTEMA Duplas — 3 apostas de 2 seleção(ões), sobre 3 seleções · aposta unitária R$ 30,12 · total R$ 90,36 (a Stake acima é o TOTAL — é ela que vale)
+Odd (estrutural do sistema): 3,7347916666666667  ← JÁ CALCULADA (média das 3 linhas). Use esta odd; NÃO multiplique as odds das seleções — o produto é a odd da múltipla cheia, que este bilhete NÃO é. Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
+Seleções:
+  • Lions FC x Peninsula Power · Gols + - · Menos de 3.0 @ 1,975 · AUS-NPL-QUEENSL
+  • El Paso Locomotive FC x Loudoun United FC · Gols + - · Menos de 2.5,3.0 @ 2 · USA-USL-PRO
+  • Heidelberg United (F) x Bentleigh Greens (F) · Gols + - · Menos de 3.5 @ 1,825 · AUSNPLVICW
+"""
+
+
+def test_sistema_usa_a_media_da_casa_e_nunca_o_produto():
+    """SISTEMA não é múltipla, e trocar um pelo outro é a s265 (`3 x Duplas` lida como
+    tripla: retorno potencial R$ 1.762 no lugar de R$ 994). Aqui a média é
+    3,7347916666666667 e o produto seria 7,20875 — quase o dobro."""
+    t = tradutor.traduzir("BET365", SISTEMA_PERDIDO)
+    assert t.ok, t.motivo
+    assert t.odd == "3,7347916666666667", "a odd é a que a casa calculou, copiada"
+
+
+def test_sistema_sem_a_linha_de_odd_NAO_cai_no_produto():
+    """A trava que o `Tipo:` segura, e ela é a última linha de defesa contra a s265.
+
+    Hoje o sistema nunca chega ao produto porque TRAZ linha de odd — mas isso é defesa
+    de segunda mão: no dia em que o `Odd (estrutural do sistema)` faltar, é o `Tipo:`
+    que impede o produto de sobrescrever a média. Sem este caso a mutação
+    `_TIPO_MULTIPLA_COMUM = r""` passava verde (medido)."""
+    bloco = "\n".join(l for l in SISTEMA_PERDIDO.splitlines()
+                      if not l.startswith("Odd (estrutural do sistema):"))
+    assert "Odd (estrutural" not in bloco
+    t = tradutor.traduzir("BET365", bloco)
+    assert not t.ok and "odd combinada" in t.motivo, (
+        "sistema sem odd tem de ir para a IA, NUNCA receber o produto das pernas")
+
+
+def test_a_odd_estrutural_e_por_CASA():
+    """Mesma trava do veredito de esporte: a régua vale onde a casa imprime UMA odd por
+    perna e nenhuma combinada. Casa fora do conjunto não recebe conta nenhuma."""
+    cab = tradutor._cabecalho(MULTIPLA_L_TRES_PERNAS)
+    pernas = tradutor._pernas(MULTIPLA_L_TRES_PERNAS)
+    assert tradutor._odd_estrutural("BET365", cab, pernas) == "5,4315"
+    assert tradutor._odd_estrutural("NOVIBET", cab, pernas) == ""
+
+
+def test_perna_sem_odd_derruba_o_bilhete_inteiro():
+    """Meia conta é pior que conta nenhuma: sem a odd de UMA perna o produto está errado
+    e não há como saber para que lado. O bilhete inteiro vai para a IA."""
+    bloco = MULTIPLA_L_TRES_PERNAS.replace(" @ 1,775", "")
+    t = tradutor.traduzir("BET365", bloco)
+    assert not t.ok and "odd combinada" in t.motivo
+
+
+def test_mutacao_sem_o_produto_a_multipla_volta_para_a_ia():
+    """Prova por mutação: desligando a odd estrutural, os três bilhetes que ela libera
+    têm de voltar ao fallback. Verde aqui significaria que a cobertura veio de outro
+    lugar."""
+    original = tradutor._odd_estrutural
+    try:
+        tradutor._odd_estrutural = lambda casa, cab, pernas: ""
+        for bloco in (MULTIPLA_L_TRES_PERNAS, DUPLA_L_MESMO_ESPORTE,
+                      DUPLA_COM_RUIDO_DE_FLOAT):
+            t = tradutor.traduzir("BET365", bloco)
+            assert not t.ok and "odd combinada" in t.motivo
+    finally:
+        tradutor._odd_estrutural = original
+    assert tradutor.traduzir("BET365", MULTIPLA_L_TRES_PERNAS).ok
+
+
+def test_mutacao_o_corte_de_precisao_e_o_que_tira_o_ruido():
+    """A outra metade: com o corte em 34 dígitos (a precisão da multiplicação), o ruído
+    do `float64` da perna atravessa e a odd sai `2,2999999999999998`. Este teste é o que
+    impede alguém de 'simplificar' as duas etapas numa só."""
+    original = tradutor._PRECISAO_ODD
+    try:
+        tradutor._PRECISAO_ODD = tradutor._PRECISAO_PRODUTO
+        t = tradutor.traduzir("BET365", DUPLA_COM_RUIDO_DE_FLOAT)
+        assert t.odd == "2,2999999999999998", (
+            "sem o corte o ruido tinha de aparecer; se nao aparece, o corte nao e o que decide")
+    finally:
+        tradutor._PRECISAO_ODD = original
+    assert tradutor.traduzir("BET365", DUPLA_COM_RUIDO_DE_FLOAT).odd == "2,3"
+
+
+def test_a_regua_do_separador_e_UMA_e_mora_aqui():
+    """`_num_bloco` mudou de casa na s386 (veio do `repository`, que agora o reexporta)
+    porque ganhou um irmão em `Decimal`. Os dois leem o MESMO separador — e o caso que
+    obriga isso é a Betfair, que mistura BR e EN no mesmo bloco (s321)."""
+    import repository
+    assert repository._num_bloco is tradutor._num_bloco
+    assert tradutor._num_bloco("1,642.38") == 1642.38
+    assert tradutor._num_bloco("1.642,38") == 1642.38
+    assert tradutor._num_bloco("1,775") == 1.775, "um separador só é SEMPRE decimal"
+    assert str(tradutor._dec_bloco("1,775")) == "1.775"
+    assert str(tradutor._dec_bloco("1,642.38")) == "1642.38"
+    assert tradutor._dec_bloco("") is None and tradutor._num_bloco("") is None
+
+
 # ── Linha asiática: o quarto de linha (MASTER_DESCRICAO §10.1.1, s336) ───────
 
 

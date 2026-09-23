@@ -10,6 +10,7 @@ import asyncpg
 
 from database import get_pool
 from descricao_check import checar_descricao, checar_fidelidade, resumo_lote
+from tradutor import _num_bloco  # noqa: F401  (reexport — ver a nota no lugar antigo)
 
 logger = logging.getLogger("scanner")
 
@@ -474,42 +475,12 @@ _LINHA_PARTIDA_RE = re.compile(
     r"\d+[.,]\d+[ \t]*[,/\-][ \t]*[-+]?\d+[.,]\d+|[-+]?\d+[.,](?:25|75)\b")
 
 
-def _num_bloco(s) -> float | None:
-    """Número lido do BLOCO CRU, em BR (`1.642,38`) ou EN (`1,642.38`).
-
-    Existe separado do `_num_or_none` porque a **Betfair mistura as duas convenções no
-    mesmo bloco**: stake e odd saem em BR (`300,00`, `5,4746`) e o retorno em EN
-    (`Retorno 1,642.38`). O `_num_or_none` é BR-first ("se há vírgula, ela manda") e leria
-    1,64238 — o que faria o gate "corrigir" a odd 5,4746 para 0,0054 e destruir cinco
-    linhas certas (medido na s321). Aqui o ÚLTIMO separador é o decimal, decidido por token.
-
-    Um separador só é SEMPRE decimal, mesmo com 3 dígitos depois: a regra "3 dígitos =
-    milhar" serve a dinheiro e destrói ODD (`1,775` viraria 1775). Não há ambiguidade a
-    perder — todo valor monetário nos blocos sai do `_brl`, que sempre imprime 2 casas.
-
-    NÃO substitui o `_num_or_none` fora daqui: aquele é a convenção do BANCO e do TSV.
-    """
-    if s is None:
-        return None
-    s = str(s).strip()
-    if not s:
-        return None
-    i_ponto, i_virg = s.rfind("."), s.rfind(",")
-    if i_ponto >= 0 and i_virg >= 0:
-        dec, mil = (".", ",") if i_ponto > i_virg else (",", ".")
-    elif i_virg >= 0:
-        dec, mil = ",", "."
-    elif i_ponto >= 0:
-        dec, mil = ".", ","
-    else:
-        try:
-            return float(s)
-        except ValueError:
-            return None
-    try:
-        return float(s.replace(mil, "").replace(dec, "."))
-    except ValueError:
-        return None
+# `_num_bloco` MUDOU DE CASA na s386 e segue reexportado aqui (todo mundo que o usava
+# continua chamando `repository._num_bloco`). Ele foi para o `app/tradutor.py` porque
+# passou a ter um SEGUNDO chamador — a odd estrutural da múltipla, que precisa da MESMA
+# régua de separador em `Decimal` — e o `tradutor` é o módulo sem dependência nenhuma dos
+# dois. Duplicar a régua era o caminho que o `CLAUDE.md` proíbe: "reuse o `parseNum`, não
+# escreva um segundo parser". A régua em si não mudou uma vírgula.
 
 
 def _financeiro_do_texto(texto: str | None) -> dict[str, dict]:
