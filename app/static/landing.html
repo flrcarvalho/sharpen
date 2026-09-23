@@ -263,7 +263,7 @@ section { padding: var(--sp-20) 0; border-top: 1px solid var(--line-2); }
 /* ── KPIs do líquido: bruto − custos = líquido ──────────────────────────── */
 /* Contador ao vivo. O número é CONTAGEM, não dinheiro: não passa pelo `.money`
    nem por `fmtR`, e por isso não tem `R$` nem cor por sinal. O que ele herda do
-   padrão é o que vale para todo número da marca — `.num` (mono, tabular, `--ink`)
+   padrão é o que vale para todo número da marca: `.num` (mono, tabular, `--ink`)
    e milhar em pt-BR SEM abreviar em "k"/"M". */
 .contador {
   display: flex;
@@ -497,7 +497,7 @@ footer img { height: 40px; width: auto; }
   <!-- ═══ CONTADOR AO VIVO ═══
        Lê `/publico/metricas` (agregado, sem nome de ninguém, sem a base de
        demonstração) e sobe sozinho. Não é enfeite: é a única prova na página que
-       não depende de a pessoa acreditar em nós — o número se move enquanto ela lê.
+       não depende de a pessoa acreditar em nós: o número se move enquanto ela lê.
        Some da página se a rota falhar, porque contador parado em zero é pior que
        contador nenhum. -->
   <div class="wrap">
@@ -1029,7 +1029,7 @@ footer img { height: 40px; width: auto; }
       é número inventado com cara de tempo real.
    2. Se a rota falhar, o bloco não aparece. Contador parado em zero desmente a
       página inteira, e é pior que não ter contador.
-   3. Milhar em pt-BR, sem abreviar em "k"/"M" — a mesma régua do produto.
+   3. Milhar em pt-BR, sem abreviar em "k"/"M", a mesma régua do produto.
    A página não atualiza em tempo real de verdade: são ~1.400 apostas por dia, e
    com 20 s de intervalo o número sobe algumas vezes enquanto a pessoa lê. */
 (function () {
@@ -1091,13 +1091,13 @@ footer img { height: 40px; width: auto; }
 /* Clipes: tocar quando entram na tela ─────────────────────────────────────────
    MEDIDO em 21/09, com a página aberta no Chrome: `autoplay muted loop` só faz
    tocar o vídeo que já está na viewport quando a página carrega. Os demais o
-   navegador PAUSA na hora, e eles **nunca retomam sozinhos** — o visitante rola
+   navegador PAUSA na hora, e eles **nunca retomam sozinhos**. O visitante rola
    até a seção e vê o poster parado, achando que é uma imagem. Era o que
    acontecia com o clipe do "Sugerir tipsters" desde que ele entrou na página.
 
    `IntersectionObserver` resolve nos dois sentidos: toca ao entrar, pausa ao
    sair (vídeo rodando fora da tela é bateria e dado de graça). O `catch` existe
-   porque `play()` devolve promessa e o navegador pode recusar — e recusa de
+   porque `play()` devolve promessa e o navegador pode recusar, e recusa de
    autoplay não pode derrubar o resto do script. */
 (function () {
   var clipes = document.querySelectorAll('video.clipe');
