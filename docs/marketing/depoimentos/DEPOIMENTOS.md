@@ -16,18 +16,24 @@
    `small`, `language="pt"`). Voz de cliente não sai da máquina.
 3. **Citação publicada é verbatim.** Quando o reconhecedor erra uma palavra óbvia, a
    correção vai entre colchetes e o erro fica registrado na ficha.
-4. **Sem autorização escrita, não vira peça.** Nome, voz e número são dados dele.
-   A ficha registra o status, e `pendente` barra publicação.
+4. **Áudio que o Feca encaminha já vem autorizado.** Regra dele, 23/09/2026:
+   *"TODOS QUE EU TE MANDAR JÁ ESTÃO AUTORIZADOS."* Ele fala com a pessoa antes;
+   o encaminhamento é a autorização, e a ficha registra a data em que chegou.
+   Não há mais status `pendente` travando peça.
+   > O que isso **não** cobre, e continua valendo: dado de terceiro que aparece
+   > no áudio sem ser do depoente — nome de tipster, de fornecedor, de grupo,
+   > e-mail, valor de custo de outra pessoa. Isso não é dele para autorizar, e
+   > fica fora da peça como sempre esteve.
 5. **O número do cartão sai do Postgres**, medido na data da ficha, nunca estimado.
 
 ## Índice
 
-| Quem | Tipo | Data | Duração | Autorização | Transcrição |
+| Quem | Tipo | Data | Duração | Uso | Transcrição |
 |---|---|---|---|---|---|
-| Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ✅ autorizado (19/09/2026, pelo Feca) | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
-| Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ✅ autorizado (20/09/2026, pelo Feca) | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
-| Ewanderson | usuário (6 dias de uso, alto volume) | 21/09/2026 | 3min23 | ⏳ pendente | [ewanderson-2026-09-21.txt](transcricoes/ewanderson-2026-09-21.txt) |
-| Diogo | usuário (rotina — 86 dias de captura em 90) | 23/09/2026 | 2min19 | ⏳ pendente | [diogo-2026-09-23.txt](transcricoes/diogo-2026-09-23.txt) |
+| Jonathan | usuário (operação) | 19/09/2026 | 5min06 | ✅ liberado | [jonathan-2026-09-19.txt](transcricoes/jonathan-2026-09-19.txt) |
+| Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ✅ liberado | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
+| Ewanderson | usuário (6 dias de uso, alto volume) | 21/09/2026 | 3min23 | ✅ liberado | [ewanderson-2026-09-21.txt](transcricoes/ewanderson-2026-09-21.txt) |
+| Diogo | usuário (rotina — 86 dias de captura em 90) | 23/09/2026 | 2min19 | ✅ liberado | [diogo-2026-09-23.txt](transcricoes/diogo-2026-09-23.txt) |
 
 > **Arquivo irmão:** [VOZ_DO_FUNDADOR.md](VOZ_DO_FUNDADOR.md) guarda o pitch do Feca
 > gravado sem roteiro. Voz de cliente é **prova**; voz de fundador é **copy**. Os dois
