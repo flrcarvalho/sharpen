@@ -269,8 +269,46 @@ def _todos_md() -> list[str]:
     return mds
 
 
+def _dentro_da_raiz(absoluto: str) -> bool:
+    """O caminho resolvido ainda esta dentro do repositorio?
+
+    `os.path.commonpath` em vez de `startswith`: uma pasta irma chamada
+    `Planilhador_backup` comeca com a string do RAIZ e NAO esta dentro dele.
+    """
+    try:
+        return os.path.commonpath([os.path.abspath(absoluto), RAIZ]) == RAIZ
+    except ValueError:      # drives diferentes no Windows
+        return False
+
+
 def checar_links(mds: list[str]) -> None:
+    """Confere os links markdown, separando QUEBRADO de FORA DE ESCOPO.
+
+    ⚠️ Este gate deixou o CI VERMELHO por sessoes a fio, e o estrago nao foi cosmetico.
+    Os `../pack/CLAUDE.md` e `../pack/tokens/tokens.css` apontam para a pasta IRMA, que
+    existe na maquina do Feca e **nunca** existe no checkout: o repo publicado e' so o
+    `Planilhador/`. Cinco links legitimos reprovavam toda execucao.
+
+    **CI cronicamente vermelho nao e' gate.** Ninguem distingue a falha nova da de
+    sempre, e uma quebra REAL (um kwarg colidindo num teste) ja passou despercebida ate
+    alguem abrir o log a mao. Era o item 1.7 do BACKLOG.
+
+    A regra: **link que sai da raiz do repo so e' julgado quando da' para julgar.** O
+    criterio e' a PASTA do alvo, nao o arquivo:
+
+      · a pasta existe aqui (maquina de dev) ⇒ da' para julgar. Arquivo ausente e'
+        erro de digitacao de verdade, e REPROVA.
+      · a pasta nao existe (CI, onde a irma nem foi baixada) ⇒ nao da' para julgar
+        nada, e o link entra como fora de escopo.
+
+    A 1a versao deste conserto olhava so o ARQUIVO, e com isso um `../pack/CLAUDEE.md`
+    escrito errado passava em silencio em toda maquina: ausente virava "fora de escopo"
+    sempre. Ajustar o gate para parar de gritar nao pode transformá-lo em gate que nunca
+    fala.
+    """
     quebrados: list[str] = []
+    fora_ausentes = 0
+    fora_conferidos = 0
     for caminho in mds:
         try:
             txt = open(caminho, encoding="utf-8", errors="replace").read()
@@ -281,15 +319,29 @@ def checar_links(mds: list[str]) -> None:
             if not destino or destino.startswith(("http://", "https://", "mailto:", "#", "data:")):
                 continue
             absoluto = os.path.normpath(os.path.join(os.path.dirname(caminho), destino))
-            if not os.path.exists(absoluto):
-                origem = os.path.relpath(caminho, RAIZ).replace(os.sep, "/")
-                quebrados.append(f"{origem} -> {alvo}")
+            existe = os.path.exists(absoluto)
+            if _dentro_da_raiz(absoluto):
+                if not existe:
+                    origem = os.path.relpath(caminho, RAIZ).replace(os.sep, "/")
+                    quebrados.append(f"{origem} -> {alvo}")
+            elif os.path.isdir(os.path.dirname(absoluto)):
+                # A pasta irma existe nesta maquina: da' para julgar o arquivo.
+                if existe:
+                    fora_conferidos += 1
+                else:
+                    origem = os.path.relpath(caminho, RAIZ).replace(os.sep, "/")
+                    quebrados.append(f"{origem} -> {alvo}  (fora da raiz, mas a pasta existe aqui)")
+            else:
+                fora_ausentes += 1
 
     if quebrados:
         lista = "\n".join(f"         {q}" for q in quebrados)
         falhas.append(f"{len(quebrados)} link(s) markdown quebrado(s):\n{lista}")
     else:
         print(f"  OK   links markdown: {len(mds)} arquivos varridos, nenhum quebrado")
+    if fora_conferidos or fora_ausentes:
+        print(f"  OK   fora da raiz do repo: {fora_conferidos} conferido(s) nesta maquina, "
+              f"{fora_ausentes} nao conferivel(is) daqui (pasta irma ausente no checkout)")
 
 
 def main() -> int:

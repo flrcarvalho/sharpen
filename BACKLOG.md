@@ -171,7 +171,25 @@ O script já resolve: falta decidir o escopo. Ele exige `--dono` + `--tipster` d
 > não é reparável por aqui: sem o kickoff no banco, não há como provar o deslocamento de
 > uma linha cuja data já ficou no passado.
 
-### 1.7 O CI está VERMELHO por defeito do próprio gate, não do repo (s338). **VIVA**
+### 1.7 ~~O CI está VERMELHO por defeito do próprio gate, não do repo~~ (s338). **FECHADO (23/09, s385)**
+
+**Conserto:** `checar_links` (`tools/check_docs.py`) passou a julgar link que sai da raiz do
+repo **pela PASTA do alvo, não pelo arquivo**. Pasta existe na máquina (dev) ⇒ dá para
+julgar, e arquivo ausente vira erro de digitação que REPROVA; pasta não existe (CI, onde a
+irmã nem é baixada) ⇒ fora de escopo. A contagem sai NOMEADA na saída (`N conferido(s)
+nesta máquina, M não conferível(is) daqui`), porque ignorar em silêncio seria o defeito
+oposto.
+
+**A primeira versão do conserto olhava só o ARQUIVO**, e com ela um `../pack/CLAUDEE.md`
+escrito errado passaria em silêncio em toda máquina: ajustar um gate para parar de gritar
+não pode transformá-lo em gate que nunca fala. Gate: `tests/test_check_docs_links.py`, com
+as quatro situações (interno quebrado, externo sem a irmã, externo com a irmã e arquivo
+errado, externo com a irmã e arquivo certo).
+
+**Contexto:** fechado logo depois de os dois gates da captura entrarem no CI, e por causa
+disso. Alarme novo num painel que já pisca vermelho não alerta ninguém.
+
+> O texto original está abaixo, porque ele é quem explica o custo.
 
 `check_docs.py` acusa 5 links quebrados no CI e **nenhum deles é quebrado**: são links para
 `../pack/…`, que existe na máquina do Feca (é a pasta irmã) e **nunca** existe no checkout,
