@@ -404,6 +404,11 @@ recortam; `Esporte` e `Tipster` descrevem a APOSTA e não — a Bet365 custou R$
 olhe tênis ou futebol. Por isso `calcCostFiltered` não recebe `rows`: recorte sem aposta
 dava custo 0 com o período na tela, e um mês filtrado encolhia até a última aposta dele.
 
+**Zero é preço; sem custo lançado é "sem preço"** (Feca, s381). `parceiros.custo = 0` é
+brinde e vence a tabela; `NULL` herda. Os dois entram no P/L e no ROI, a sem preço com
+custo zero, e a tela **marca e conta** a sem preço. Renovação é lista com data e cobra no
+mês dela. Campo da conta nunca escreve na tabela do fornecedor.
+
 **Arquivar não devolve dinheiro:** `arquivada_em` fecha a janela de **vida** (tira do
 parque) e não mexe no que já foi pago. Carimba com `COALESCE`; reativar **zera** o carimbo.
 
