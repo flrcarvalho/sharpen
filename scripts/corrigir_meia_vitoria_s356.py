@@ -135,16 +135,31 @@ async def main() -> int:
                   FROM bilhetes WHERE {' AND '.join(filtros)}""", *params)
 
         # Correção humana manda: bilhete com registro em `correcoes` para estes campos sai.
+        #
+        # ⚠️ `stake` ENTRA NA LISTA, e não é zelo: a régua inteira é uma conta entre a stake
+        # do BANCO e o retorno do BLOCO. Stake editada à mão sem que o bloco mude quebra a
+        # correspondência entre os dois, e o veredito passa a comparar números de origens
+        # diferentes — não erra por pouco, erra de categoria.
+        #
+        # Medido na s382, bilhete #262170 (`Coreia do Sul -10.5`, Jaao26): o bloco diz
+        # `Stake: 100,00` e `Ganho → W (retorno R$ 205,00)`, conta exata com a odd 2,05 que
+        # a casa imprimiu. Alguém corrigiu a stake para 250 no dashboard. Com 250 contra um
+        # retorno de 205 o veredito conclui "cashout com prejuízo" e devolve `W @ 0,82` —
+        # **R$ 307,50 de P/L escritos em cima de uma linha que o dono já tinha ajustado.**
+        #
+        # É a mesma família do "gate que confere UM campo deixa os vizinhos livres": a
+        # trava olhava os campos que ESCREVE e não os que LÊ.
         travados = set()
         for r in await conn.fetch(
-                "SELECT DISTINCT bilhete_id FROM correcoes WHERE campo IN ('resultado','odd')"):
+                "SELECT DISTINCT bilhete_id FROM correcoes "
+                "WHERE campo IN ('resultado','odd','stake')"):
             travados.add(r["bilhete_id"])
 
         ids_pedidos = set(args.ids)
         if ids_pedidos:
             linhas = [l for l in linhas if l["id"] in ids_pedidos]
             print(f"restrito a {len(ids_pedidos)} id(s) pedido(s): {sorted(ids_pedidos)}")
-        alvos, pulados_humanos = [], 0
+        alvos, pulados_humanos, pulados_ambiguos = [], 0, 0
         for l in linhas:
             if l["sistema"]:
                 continue                      # odd de sistema é a MÉDIA, não a do cupom
@@ -173,13 +188,34 @@ async def main() -> int:
             n_final = R._num_or_none(odd_final) or 0.0
             if res_novo == l["resultado"] and _bate(n_final, odd_ia):
                 continue                      # já está certo
+            # ── A AMBIGUIDADE DO stake/2, e por que ela BARRA a escrita ───────────────
+            # Retorno igual a METADE da stake lê de dois jeitos que pagam o MESMO dinheiro:
+            # meia derrota (`HL`) ou cashout de metade (`W` com odd 0,50). O
+            # `_veredito_do_retorno` só devolve `HL` com LINHA PARTIDA na descrição; sem
+            # ela — e a casa nem sempre imprime a linha inteira (`Under 2,5 Gols` para uma
+            # asiática de 2,25/2,75) — ele cai no ramo de cashout e devolve `W @ 0,5`.
+            #
+            # Medido na s382, bilhete #213760 (`Under 2,5 Gols [Puskas Academy v
+            # Ferencvarosi TC]`, stake 80,36, retorno 40,18): o ensaio queria reescrever um
+            # `HL` CORRETO como `W @ 0,5`. O P/L é −40,18 nos dois, então nenhum número
+            # mudaria; só o rótulo passaria a mentir, e uma odd de 0,50 não existe.
+            #
+            # É a regra do `CLAUDE.md`: **só se escreve onde o DINHEIRO muda** — ali é
+            # ruído por ruído, a mesma razão do piso de R$ 1,00 do script irmão. O caminho
+            # para corrigir um `HL` que esteja de fato errado continua aberto pelo `--id`,
+            # que é onde a decisão passa por um humano.
+            if l["resultado"] == "HL" and _bate(retorno, stake / 2) and l["id"] not in ids_pedidos:
+                pulados_ambiguos += 1
+                continue
             if l["id"] in travados and l["id"] not in ids_pedidos:
                 pulados_humanos += 1
                 continue
             alvos.append((l, res_novo, odd_final, retorno))
 
         print(f"linhas conferidas: {len(linhas)} · a corrigir: {len(alvos)}"
-              + (f" · puladas por correção humana: {pulados_humanos}" if pulados_humanos else ""))
+              + (f" · puladas por correção humana: {pulados_humanos}" if pulados_humanos else "")
+              + (f" · puladas pela ambiguidade do stake/2: {pulados_ambiguos}"
+                 if pulados_ambiguos else ""))
         if not alvos:
             print("Nada a fazer.")
             return 0

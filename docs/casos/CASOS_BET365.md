@@ -122,3 +122,48 @@ que o projeto já usa para dedup sem id — stake e odd, ambos no `summary`, de 
 > **Sintoma para reconhecer isto noutro campo:** uma memória que nunca acerta, num universo
 > onde você sabe que quase tudo já foi visto. Antes de suspeitar da memória, pergunte se a
 > **chave** dela pertence ao dado ou à consulta que o trouxe. Id de listagem é da listagem.
+
+## A stake editada à mão que quase virou R$ 307,50 de P/L — reparo da meia vitória, s382
+
+O `corrigir_meia_vitoria_s356.py` pula bilhete com correção humana, e a lista de campos
+era `('resultado', 'odd')` — **os campos que ele ESCREVE**. O ensaio do reparo dos 65
+bilhetes da bet365 mostrou por que isso não basta.
+
+O bilhete **#262170** (`Coreia do Sul -10.5`, conta `Bet365 [Vinicius]`, dono `Jaao26`):
+
+```
+bloco da casa:  Stake: 100,00 · Odd: 2,05 · Ganho → W (retorno R$ 205,00)   ← 100 × 2,05 = 205
+banco:          stake 250 · odd 2,05 · W                                     ← stake EDITADA à mão
+```
+
+A régua é uma conta entre a **stake do banco** e o **retorno do bloco**. Com a stake
+editada e o bloco intacto, os dois números deixaram de descrever a mesma aposta: 250
+contra 205 fecha como "cashout com prejuízo", e o veredito devolvia `W @ 0,82`, trocando
+um P/L de +262,50 por −45,00. **R$ 307,50 escritos por cima de uma linha que o dono já
+tinha ajustado.**
+
+Não é erro de margem, é erro de categoria: o número certo de uma fonte comparado ao
+número certo de outra.
+
+**A trava passou a cobrir `stake` também.** É a mesma família do *"gate que confere UM
+campo deixa os vizinhos livres"* do `CLAUDE.md`, com o detalhe que faltava: a lista de
+campos travados tem de conter os que o script **LÊ**, não só os que ele escreve.
+
+> **Sintoma para reconhecer isto noutro reparo:** o script combina um valor do BANCO com
+> um valor de uma FONTE congelada (bloco, extrato, planilha). Todo campo do banco que
+> entra nessa conta é campo que uma edição humana pode ter mexido, e a fonte não
+> acompanha. Pergunte quais campos a conta LÊ antes de escrever a lista de travas.
+
+**A segunda trava da mesma rodada: a ambiguidade do `stake/2`.** O `#213760`
+(`Under 2,5 Gols`, retorno 40,18 sobre stake 80,36) está gravado como `HL`, e o veredito
+queria `W @ 0,50` — porque `HL` exige linha partida na descrição e a casa imprimiu a linha
+sem a partição. Os dois pagam o mesmo dinheiro, então trocar ali é ruído por ruído, e a
+regra do `CLAUDE.md` já dizia: **só se escreve onde o DINHEIRO muda.** O script agora pula
+esse caso e o caminho por `--id` continua aberto para decisão humana.
+
+**O que o reparo entregou (bet365, 23/09):** 63 linhas, 62 `W→HW` e 1 `L→V`. O P/L mexeu
+**R$ 178,76 no total**, e R$ 180 disso são de um único bilhete que a casa **devolveu**
+(`Status: Devolvida/void`) e estava gravado como perdido. Os 62 somam −R$ 1,24 de
+arredondamento. A taxa de `W` conferida contra o retorno subiu de **98,7% para 99,8%**, e
+os `HW` da base foram de **124 para 187**.
+

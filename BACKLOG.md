@@ -1714,55 +1714,38 @@ aparece porque o denominador é zero, e é essa a informação.
 2. **Pode ser um usuário travado.** Alguém que tentou 17 prints num dia, não conseguiu, e
    não voltou. Vale a conversa antes da métrica.
 
-### 4.9 82 bilhetes da Bet365 em que o DINHEIRO discorda do resultado gravado (s382). VIVA, medida.
+### 4.9 Os 82 bilhetes da Bet365 em que o dinheiro discordava do banco (s382). **FECHADA na bet365**; sobra uma varredura nas outras casas.
 
-Medição feita para responder o §8.1 do [`PLANO_RESOLVER_ABERTAS`](docs/PLANO_RESOLVER_ABERTAS.md)
-(o `RT` da lista reproduz os cinco desfechos?). Ela respondeu que sim, e de quebra apontou
-para o banco: cruzando **13.115 bilhetes de Bet365** que têm bloco em `sombra_rotulos` com o
-veredito determinístico de `_veredito_do_retorno`, **82 linhas divergem**.
+**Aplicado em 23/09:** `corrigir_meia_vitoria_s356.py --casa Bet365 --aplicar`, **63 linhas**
+(62 `W→HW` e 1 `L→V`), trilha em `correcoes`. A taxa de `W` conferida contra o retorno subiu
+de **98,7% para 99,8%** e os `HW` da base foram de **124 para 187**. O P/L mexeu **R$ 178,76**,
+sendo R$ 180 de um bilhete que a casa **devolveu** e estava gravado como perdido; os outros 62
+somam −R$ 1,24 de arredondamento, como se esperava (`W @ retorno÷stake` e `HW @ odd da casa`
+pagam o mesmo).
 
-| gravado | conferível | o retorno reproduz | taxa |
-|---|---|---|---|
-| W | 5.155 | 5.086 | 98,7 % |
-| L | 6.269 | 6.262 | 99,9 % |
-| V | 488 | 483 | 99,0 % |
-| HW | 124 | 124 | 100 % |
-| HL | 190 | 189 | 99,5 % |
+**O reparo ganhou duas travas antes de rodar, as duas nascidas de falso positivo medido** —
+[o caso](docs/casos/CASOS_BET365.md#a-stake-editada-à-mão-que-quase-virou-r-30750-de-pl--reparo-da-meia-vitória-s382):
+correção humana em **`stake`** (a régua LÊ a stake do banco contra o retorno do bloco; editada
+uma e não o outro, o veredito erra de categoria) e a **ambiguidade do `stake/2`** (`HL` e
+cashout de metade pagam igual, e o `CLAUDE.md` manda não escrever onde o dinheiro não muda).
 
-**A maior família são 69 `W` que o dinheiro diz `HW`** — todas em linha asiática partida
-(`Under 2.0,2.5`, `Under 3.25`), concentradas em `Gabriel` e `Feca`. É exatamente o caso da
-s356 (a meia vitória que a odd adulterada escondia), com 69 no lugar dos 39 de lá: ou
-escaparam da correção, ou nasceram depois dela. **Descobrir qual é o primeiro passo** — se
-nasceram depois, o defeito continua produzindo.
+**O que sobrou, e por que não foi tocado:**
 
-As outras três famílias são pequenas e cada uma pede olho próprio, porque nenhuma delas é
-"a IA transcreveu errado":
+- **19 bilhetes com correção humana** em `resultado`, `odd` ou `stake`. Decisão do dono manda
+  sobre captura. Se algum estiver errado, o caminho é `--id <n>`, com olho humano.
+- **1 bilhete ambíguo** (`#213760`), que fica como está por regra.
+- **34 linhas em OUTRAS casas**, medidas no mesmo dia e **não aplicadas**: o veredito não muda
+  o resultado (`L→L` 31 · `V→V` 3), só a **odd**, e o P/L não se move. É outra família (odd
+  divergente em bilhete perdido ou devolvido), fora do que foi analisado aqui, e merece a
+  mesma conferência caso a caso antes de qualquer escrita — o `#262170` mostrou o preço de
+  aplicar em lote sem olhar a procedência de cada campo.
 
-- **7 `L` com retorno positivo**, todos na conta `Jaao26` (ex.: stake R$ 50, retorno R$ 350).
-- **5 `V`** que o retorno diz `W` ou `L`; quatro são do mesmo jogo, Coritiba x Athletico-PR.
-- **1 `HL`** que o retorno diz `W`.
-
-**O reparo já tem script**: `scripts/corrigir_resultado_odd_s321.py` faz esse cruzamento com
-ensaio, piso de R$ 1,00 e respeito a `correcoes` (edição humana manda). O que falta é a
-decisão de rodá-lo com `--aplicar` e o olho humano nas quatro famílias — **não é aplicar em
-lote**: o `V` do Coritiba cheira a anulação da casa, e o `L` do `Jaao26` a correção manual.
-
-> **A medição tem circularidade parcial e isso é parte do achado:** o resultado gravado foi
-> decidido pela IA lendo o MESMO bloco de onde saiu o retorno. Onde os dois discordam é onde
-> a circularidade quebra, e é por isso que a divergência vale mais que a taxa.
-
-### 4.10 O "Tudo" da tela de Custos para em HOJE; o do KPI não tem fim (s381). VIVA, medida.
-
-Achado ao testar a renovação de conta (`tests/js/custos_regua_unica.mjs`, caso R): o
-`_c2range` da tela de Custos faz "Tudo" = do primeiro custo **até hoje**, e o
-`calcCostFiltered` da Visão Geral faz "Tudo" = `9999-12-31`. **Qualquer pagamento datado no
-FUTURO** (compra com `adquirida_em` à frente, ou renovação lançada com data futura) entra
-no KPI e não entra na tabela de Custos: o KPI deixa de bater com a soma da tabela logo
-abaixo, que é o sintoma que o `CLAUDE.md` manda procurar. Medido: compra 900 + renovação
-de hoje 350 + renovação futura 90 dá **1.340 no KPI e 1.250 na tabela**. Não é da
-renovação; a compra datada no futuro já divergia antes. **Decisão pendente:** qual das duas
-réguas é a certa para "Tudo" (pagamento futuro ainda não saiu do bolso, o que puxa para
-"até hoje" nas duas).
+> **O defeito que produzia os `W→HW` já estava morto antes deste reparo.** Medição por data:
+> **zero** dos 65 nasceu depois de 2026-09-13 23:12, quando o gate da s356 (`odd do BLOCO
+> antes da odd da IA`) entrou. Os 65 são de 28/08 a 13/09. O que segue aberto é de ROBUSTEZ,
+> não de vazamento: **a extensão continua escrevendo `Ganho → W` para meia vitória** e quem
+> conserta é o servidor, uma camada remendando a outra. Consertar na origem (`_resultadoB3`,
+> `content.js`) está na fila junto com o botão "Resolver apostas abertas".
 
 ## 5. Planos com fase aberta
 
