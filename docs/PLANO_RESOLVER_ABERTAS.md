@@ -278,18 +278,25 @@ Estes são os furos honestos do desenho. Nenhum é bloqueio, mas nenhum está pr
    > **O alvo NUNCA filtra por `archived`.** Um `WHERE NOT archived` deixaria o botão cego
    > exatamente para o seu caso de uso, e o sintoma seria "não achou nada", sem erro nenhum.
 
-4. **Unicidade da chave em escala. NÃO resolvido, e agora com um número que assusta.**
+4. ~~**Unicidade da chave em escala.**~~ **MEDIDO em 23/09, com carimbo REAL: zero colisão.**
 
-   Os 3 `TP` repetidos apareceram em 269 entradas. A medição direta ainda não é possível
-   (`aposta_em` acabou de nascer e está vazia), mas o **proxy pessimista** — trios
-   `(dia, stake, odd)` na mesma conta, medido em 2026-09-22 sobre os 103.920 bilhetes de
-   Bet365 — deu **11.792 trios repetidos**, com casos de **14 apostas idênticas no mesmo
-   dia** (`realtrial`).
+   O proxy pessimista (dia + stake + odd) tinha dado **11.792 trios repetidos** e não
+   autorizava supor nada. Com `aposta_em` gravado de verdade, nos **639 bilhetes** que a
+   captura do Jonathan trouxe no primeiro dia da 0.7.18:
 
-   O proxy é pessimista porque `data` tem precisão de DIA e o carimbo tem precisão de
-   SEGUNDO, que é justamente o que vai desempatar a maioria. Mas **11.792 não permite supor**:
-   a trava de par único nos dois sentidos (§7.1) deixa de ser formalidade e passa a ser o que
-   segura a funcionalidade. **Refazer a medição com `aposta_em` real assim que houver dado.**
+   | chave | chaves distintas | grupos com colisão | bilhetes ambíguos |
+   |---|---|---|---|
+   | carimbo sozinho | 630 | 4 | **13** (2,03%) |
+   | carimbo + stake | 633 | 4 | 10 (1,56%) |
+   | **carimbo + stake + odd** (a do plano) | **639** | **0** | **0** (0,00%) |
+
+   As duas primeiras linhas são a razão de a chave ter três partes: o carimbo sozinho erra
+   em 2% dos bilhetes, exatamente como o plano previa ao dizer que ele não é único (aposta
+   feita no mesmo segundo). **A terceira parte zera.**
+
+   > ⚠️ **É medição datada, de UM dono, num dia.** Ela autoriza o desenho, não dispensa a
+   > trava: par único nos dois sentidos continua obrigatório, e chave ambígua sai como "a
+   > conferir" em vez de decidir. Refazer quando houver mais donos com carimbo.
 
 5. **A truncagem da expansão.** Se a lista vier cortada, a Fase A conclui que um bilhete
    resolveu quando ele só não foi carregado. **Este plano não pode ser ligado antes do item 1
