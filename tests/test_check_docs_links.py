@@ -11,16 +11,24 @@ despercebida até alguém abrir o log à mão. Foi por isso que consertar isto v
 seguinte a ligar os dois gates da captura no CI: alarme novo num painel que já pisca
 vermelho não alerta ninguém.
 
-**A regra que ficou, e ela tem duas metades:** link que sai da raiz do repo só é julgado
-quando dá para julgar, e o critério é a PASTA do alvo, não o arquivo.
+**A regra que ficou:** link que sai da raiz do repo **nunca reprova, e sempre é RELATADO**.
+Resolve nesta máquina ⇒ conferido. Não resolve ⇒ sai NOMEADO na lista de "não conferíveis
+daqui". O gate deixa de depender de onde roda, e quem lê a saída vê quais links aquela
+máquina não pôde julgar.
 
-  · pasta existe aqui (dev)  ⇒ dá para julgar; arquivo ausente é erro de digitação e REPROVA
-  · pasta não existe (CI)    ⇒ não dá para julgar nada; entra como fora de escopo
+⚠️ **Duas tentativas mais espertas falharam antes desta, e as duas estão travadas aqui:**
 
-A segunda metade é o que impede o conserto de virar o defeito oposto. A primeira versão
-olhava só o ARQUIVO, e com ela um `../pack/CLAUDEE.md` escrito errado passava em silêncio
-em toda máquina. **Ajustar um gate para parar de gritar não pode transformá-lo em gate que
-nunca fala** — e este teste existe porque essa troca é fácil de fazer sem perceber.
+  1. Olhar só o ARQUIVO: ausente virava "fora de escopo" sempre, e um `../pack/CLAUDEE.md`
+     escrito errado passava em silêncio em toda máquina. Trocar um alarme que toca sempre
+     por um alarme mudo não é conserto.
+  2. Olhar a PASTA do alvo ("se a pasta existe, dá para julgar"): parece certo e quebra no
+     caso mais simples. `CLAUDE.md -> ../CLAUDE.md` tem como pasta o **diretório acima do
+     repo**, que existe em toda máquina, inclusive no runner do CI. O gate julgou, não
+     achou o arquivo e reprovou, que é exatamente o falso vermelho que ele existe para
+     acabar. **Foi este arquivo de teste que pegou, no CI, na primeira execução.**
+
+Detectar erro de digitação FORA do repo exige saber que aquela pasta irmã deveria estar
+ali, e isso o repo não sabe de dentro. Fica relatado, não adivinhado.
 
 **O que este teste NÃO cobre:** as âncoras (`#secao`), que têm checagem própria; os tetos
 de tamanho; e a varredura de `Backups/`.
@@ -63,17 +71,37 @@ def _montar(tmp_path: Path, alvo: str, com_irma: bool) -> tuple:
 
 @pytest.mark.parametrize("nome,alvo,com_irma,reprova", [
     ("link interno quebrado", "./naoexiste.md", False, True),
+    ("link interno certo", "./X.md", False, False),
     ("externo, pasta irmã AUSENTE (o caso do CI)", "../../pack/CLAUDE.md", False, False),
-    ("externo, pasta irmã PRESENTE, arquivo errado", "../../pack/CLAUDEE.md", True, True),
+    ("externo, pasta irmã PRESENTE, arquivo errado", "../../pack/CLAUDEE.md", True, False),
     ("externo, pasta irmã PRESENTE, arquivo certo", "../../pack/CLAUDE.md", True, False),
+    # O caso que derrubou o CI na 1a versão: a pasta do alvo é o diretório ACIMA do repo,
+    # que existe em TODA máquina. Qualquer heurística baseada na pasta reprova aqui.
+    ("externo um nível acima, arquivo ausente", "../../CLAUDE.md", False, False),
 ])
-def test_as_quatro_situacoes_de_link(tmp_path, capsys, nome, alvo, com_irma, reprova):
+def test_as_situacoes_de_link(tmp_path, capsys, nome, alvo, com_irma, reprova):
     mod, md = _montar(tmp_path, alvo, com_irma)
     mod.checar_links([md])
     capsys.readouterr()
     assert bool(mod.falhas) is reprova, (
         f"{nome}: esperava reprovar={reprova}, veio {bool(mod.falhas)}. "
         f"Falhas: {mod.falhas}"
+    )
+
+
+def test_link_de_fora_que_nao_resolve_sai_NOMEADO(tmp_path, capsys):
+    """Não reprovar não pode virar ignorar em silêncio.
+
+    O nome do link é a única pista que alguém tem de um `../pack/CLAUDEE.md` escrito
+    errado. Sem ele o conserto teria trocado o falso vermelho por um ponto cego.
+    """
+    mod, md = _montar(tmp_path, "../../pack/CLAUDEE.md", com_irma=True)
+    mod.checar_links([md])
+    saida = capsys.readouterr().out
+    assert not mod.falhas, "link de fora não pode reprovar o gate"
+    assert "CLAUDEE.md" in saida, (
+        "o link de fora que não resolve precisa aparecer NOMEADO na saída; "
+        "contagem sozinha vira ignorado em silêncio."
     )
 
 

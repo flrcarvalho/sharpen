@@ -293,21 +293,29 @@ def checar_links(mds: list[str]) -> None:
     sempre, e uma quebra REAL (um kwarg colidindo num teste) ja passou despercebida ate
     alguem abrir o log a mao. Era o item 1.7 do BACKLOG.
 
-    A regra: **link que sai da raiz do repo so e' julgado quando da' para julgar.** O
-    criterio e' a PASTA do alvo, nao o arquivo:
+    **A regra: link que sai da raiz do repo NUNCA reprova, e sempre e' RELATADO.** Se ele
+    resolve nesta maquina, sai como conferido; se nao resolve, sai NOMEADO na lista de
+    "nao conferiveis daqui". Quem le a saida ve exatamente quais links a maquina dele nao
+    pode julgar, e o gate nao depende de onde roda.
 
-      · a pasta existe aqui (maquina de dev) ⇒ da' para julgar. Arquivo ausente e'
-        erro de digitacao de verdade, e REPROVA.
-      · a pasta nao existe (CI, onde a irma nem foi baixada) ⇒ nao da' para julgar
-        nada, e o link entra como fora de escopo.
+    ⚠️ **Duas tentativas mais espertas falharam antes desta, e o registro delas e' o que
+    impede a terceira.**
 
-    A 1a versao deste conserto olhava so o ARQUIVO, e com isso um `../pack/CLAUDEE.md`
-    escrito errado passava em silencio em toda maquina: ausente virava "fora de escopo"
-    sempre. Ajustar o gate para parar de gritar nao pode transformá-lo em gate que nunca
-    fala.
+      1. Olhar so o ARQUIVO: ausente virava "fora de escopo" sempre, e um
+         `../pack/CLAUDEE.md` escrito errado passava em silencio em toda maquina. Trocar
+         um alarme que toca sempre por um alarme mudo nao e' conserto.
+      2. Olhar a PASTA do alvo ("se a pasta existe, da' para julgar"): parece certo e
+         quebra no caso mais simples. `CLAUDE.md -> ../CLAUDE.md` tem como pasta o
+         DIRETORIO ACIMA DO REPO, que existe em toda maquina, inclusive no runner do CI
+         (`/home/runner/work/sharpen/`). O gate julgou, nao achou o arquivo, e reprovou —
+         exatamente o falso vermelho que ele existe para acabar. Pego pelo proprio teste
+         novo, no CI, antes de virar problema de alguem.
+
+    Detectar erro de digitacao FORA do repo exige saber que aquela pasta irma deveria
+    estar ali, e isso o repo nao sabe de dentro. Fica relatado, nao adivinhado.
     """
     quebrados: list[str] = []
-    fora_ausentes = 0
+    fora_ausentes: list[str] = []
     fora_conferidos = 0
     for caminho in mds:
         try:
@@ -324,15 +332,11 @@ def checar_links(mds: list[str]) -> None:
                 if not existe:
                     origem = os.path.relpath(caminho, RAIZ).replace(os.sep, "/")
                     quebrados.append(f"{origem} -> {alvo}")
-            elif os.path.isdir(os.path.dirname(absoluto)):
-                # A pasta irma existe nesta maquina: da' para julgar o arquivo.
-                if existe:
-                    fora_conferidos += 1
-                else:
-                    origem = os.path.relpath(caminho, RAIZ).replace(os.sep, "/")
-                    quebrados.append(f"{origem} -> {alvo}  (fora da raiz, mas a pasta existe aqui)")
+            elif existe:
+                fora_conferidos += 1
             else:
-                fora_ausentes += 1
+                origem = os.path.relpath(caminho, RAIZ).replace(os.sep, "/")
+                fora_ausentes.append(f"{origem} -> {alvo}")
 
     if quebrados:
         lista = "\n".join(f"         {q}" for q in quebrados)
@@ -341,7 +345,11 @@ def checar_links(mds: list[str]) -> None:
         print(f"  OK   links markdown: {len(mds)} arquivos varridos, nenhum quebrado")
     if fora_conferidos or fora_ausentes:
         print(f"  OK   fora da raiz do repo: {fora_conferidos} conferido(s) nesta maquina, "
-              f"{fora_ausentes} nao conferivel(is) daqui (pasta irma ausente no checkout)")
+              f"{len(fora_ausentes)} nao conferivel(is) daqui")
+        # NOMEADOS, e nao so contados: e' a unica pista que alguem tem de um link de fora
+        # escrito errado. Contagem sozinha vira "ignorado em silencio".
+        for q in fora_ausentes:
+            print(f"         {q}")
 
 
 def main() -> int:
