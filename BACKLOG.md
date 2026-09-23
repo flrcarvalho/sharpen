@@ -1747,6 +1747,46 @@ cashout de metade pagam igual, e o `CLAUDE.md` manda não escrever onde o dinhei
 > conserta é o servidor, uma camada remendando a outra. Consertar na origem (`_resultadoB3`,
 > `content.js`) está na fila junto com o botão "Resolver apostas abertas".
 
+### 4.10 A bet365 está servindo uma interface NOVA de "Minhas Apostas", e a captura não a enxerga (s382). VIVA, medida na tela.
+
+**Medido em 23/09, na conta do Feca, com a aba aberta e logada:** "Minhas Apostas" abre em
+`#/MB/SB` e essa tela **não tem nada do que a captura procura**:
+
+| o que a captura usa | existe em `#/MB/SB`? |
+|---|---|
+| `.h-BetSummary_BetDetails` (o card do bilhete) | **não** (0 elementos) |
+| `.hl-SummaryRenderer_ShowMore` (o "Mostrar Mais" que o `b3_expand` clica) | **não** |
+| `/sportshistoryapi/summary` (a API que o `b3_inject` escuta) | **não** — a tela conversa com `BetsWebAPI` |
+
+As classes da tela nova são ofuscadas (`ruc-93ecde`), então nem dá para reancorar em nome
+estável. E `members.bet365.bet.br/members/` aberto direto devolve **página em branco**.
+
+**As duas interfaces convivem HOJE**, e dá para ver quem está em qual pelo carimbo, medido
+nas últimas 30 horas:
+
+```
+Jonathan      639 bilhetes · com carimbo 639   ← capturou normalmente, na interface ANTIGA
+Gabriel        53 bilhetes · com carimbo   0   ← extensão desatualizada (0.7.17 ou anterior)
+```
+
+Ou seja: **a captura está viva** e o problema não é de hoje. O risco é de amanhã — se a
+interface nova virar padrão para todos, a captura da bet365 (43% do custo de extração) para
+de funcionar **sem erro nenhum**, do mesmo jeito que o operador via a lista pela metade antes
+da s279: a tela abre, o robô não vê bilhete, e ninguém sabe por quê.
+
+**O que precisa ser medido, e nenhuma medida exige conta de volume alto:**
+
+1. **Quem vê qual.** A conta do Feca vê a nova; a do Jonathan, a antiga. Rollout por conta,
+   por região ou por A/B? Duas contas já respondem se é por conta.
+2. **A tela nova tem rota antiga alcançável?** `#/HI/` cai na home e `members/` vem em branco.
+3. **O que o `BetsWebAPI` devolve.** Se ela tiver os mesmos campos (`BS`, `RT`, `TP`, `ST`,
+   `OD`), a captura migra sem perder nada — e o carimbo continua existindo, que é o que o
+   "Resolver apostas abertas" precisa.
+
+> **Efeito no plano do botão:** a medição do filtro de intervalo de datas (`PLANO_RESOLVER_ABERTAS §8`)
+> **não pôde ser feita** na conta do Feca, porque a tela dele é a nova. Ela precisa de uma
+> conta que ainda veja a antiga, ou de fazer o item 3 acima primeiro.
+
 ## 5. Planos com fase aberta
 
 > Um plano só sai daqui quando **todas** as fases dele fecham. Plano com uma fase aberta é
