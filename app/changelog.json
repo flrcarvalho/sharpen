@@ -276,6 +276,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0726",
+      "v": "v0.7.26",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** o botão ficava parado em \"Procurando na casa…\" quando a extensão era atualizada com a aba aberta. Agora ele avisa para recarregar a página.",
+      "itens": [
+        "Depois de atualizar a extensão, **sempre dê F5** na aba da casa."
+      ]
+    },
+    {
       "id": "su-0725",
       "v": "v0.7.25",
       "data": "2026-09-24",

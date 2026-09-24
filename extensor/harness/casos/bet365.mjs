@@ -230,6 +230,7 @@ export async function rodar() {
   falhas.push(...await expansao());
   falhas.push(...await resolverAbertas());
   falhas.push(...chavesDoStorage());
+  falhas.push(...cliqueNuncaTrava());
   falhas.push(...respostaSobeParaOTopo());
   falhas.push(...repassePreservaOPedido());
   return { falhas, testes: bets.length };
@@ -850,6 +851,40 @@ function respostaSobeParaOTopo() {
                   `SÓ no topo (all_frames: false) e a lista vive num iframe do members — ` +
                   `mensagem que fica no frame não chega a ninguém, sem erro nenhum`);
     }
+  }
+  return falhas;
+}
+
+// ── 14. O botão NUNCA fica parado num estado que não diz nada (s382) ────────
+// Falar com o service worker LANÇA quando a extensão foi atualizada com a aba aberta
+// ("Extension context invalidated"). Promise rejeitada que ninguém pega deixa o botão
+// travado no último texto — medido: um "Procurando na casa…" que durou 10 minutos, e
+// o tester sem saber se esperava ou desistia.
+//
+// Estrutural: exercitar isto exigiria dublar o `chrome.runtime` inteiro, e o que se quer
+// travar são duas coisas pontuais.
+function cliqueNuncaTrava() {
+  const falhas = [];
+  const src = fs.readFileSync(path.join(EXT, "content.js"), "utf8");
+  const i = src.indexOf("async function resolverClique(");
+  if (i < 0) {
+    falhas.push("content.js: não achei `resolverClique` — se mudou de nome, este gate precisa " +
+                "acompanhar, senão vira falso verde");
+    return falhas;
+  }
+  const corpo = src.slice(i, src.indexOf("async function sync()", i));
+  if (!/\} catch \(/.test(corpo)) {
+    falhas.push("content.js: `resolverClique` não tem `catch`. Qualquer erro inesperado deixa " +
+                "o botão parado no último texto, sem dizer nada a quem clicou");
+  }
+  // ⚠️ Procura a MENSAGEM QUE O OPERADOR VÊ, não a expressão que a detecta. A 1ª versão
+  // deste gate buscava "context invalidated" no arquivo inteiro e passava verde com o
+  // tratamento desligado — porque a frase continuava no COMENTÁRIO logo acima. Gate que
+  // encontra a si mesmo não testa nada.
+  if (!src.includes("Recarregue esta página (F5)")) {
+    falhas.push("content.js: ninguém diz ao operador para recarregar a página quando a " +
+                "extensão foi atualizada com a aba aberta. Isso acontece SEMPRE que sai " +
+                "versão nova, e sem a mensagem o botão só trava");
   }
   return falhas;
 }

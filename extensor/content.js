@@ -679,8 +679,24 @@
   }
 
   /** `aplicar:false` = ENSAIO (o padrão). Devolve o relatório do servidor, ou `{erro}`. */
+  // ⚠️ `chrome.runtime.sendMessage` LANÇA quando a extensão foi atualizada com a aba
+  // aberta ("Extension context invalidated"): o código desta página ficou órfão do
+  // service worker. Sem tratar, a promise rejeita, ninguém pega, e o botão fica parado no
+  // último texto — foi o "Procurando na casa…" de 10 minutos que o tester viu.
+  async function _aoFundo(msg) {
+    try {
+      return await chrome.runtime.sendMessage(msg);
+    } catch (e) {
+      const txt = String((e && e.message) || e);
+      if (/context invalidated|receiving end does not exist/i.test(txt)) {
+        return { ok: false, erro: "A extensão foi atualizada. Recarregue esta página (F5)." };
+      }
+      return { ok: false, erro: "Não consegui falar com a extensão: " + txt };
+    }
+  }
+
   async function b3ResolverAbertas(aplicar) {
-    const r1 = await chrome.runtime.sendMessage({ type: "RESOLVER_ABERTAS", fase: "alvos" });
+    const r1 = await _aoFundo({ type: "RESOLVER_ABERTAS", fase: "alvos" });
     if (!r1 || !r1.ok) return { erro: (r1 && r1.erro) || "não consegui falar com a extensão" };
     const todas = (r1.dados && r1.dados.abertas) || [];
     // Aposta anterior ao carimbo não tem como ser procurada: ela NÃO some do relatório,
@@ -695,7 +711,7 @@
     // ⚠️ `confiavel:false` NÃO é detalhe: significa que "não achei" pode ser a casa ter
     // parado de responder, e não a aposta seguir aberta. Vai adiante para o relatório e
     // quem escreve na tela é obrigado a dizer isso.
-    const r2 = await chrome.runtime.sendMessage({
+    const r2 = await _aoFundo({
       type: "RESOLVER_ABERTAS", fase: "aplicar",
       encontrados: resp.encontrados || [], aplicar: !!aplicar,
     });
@@ -6610,6 +6626,11 @@
                       " · clique de novo");
         if (btnResolver) btnResolver.title = "Confira os detalhes no console antes de gravar.";
       }
+    } catch (e) {
+      // Qualquer coisa inesperada vira TEXTO no botão. Um botão parado num "Procurando…"
+      // que nunca termina é pior que um erro feio: quem clicou fica sem saber se espera.
+      resolverTexto("Falhou: " + String((e && e.message) || e).slice(0, 90));
+      resolverPronto = null;
     } finally {
       resolverOcupado = false;
     }
