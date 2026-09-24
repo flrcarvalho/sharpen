@@ -4,7 +4,7 @@
     "desde": "usa o Sharpen desde julho de 2026",
     "medido_em": "23/09/2026",
     "apostas": 14248,
-    "apostas_30d": 4306,
+    "apostas_30d": 4303,
     "casas": 29,
     "contas": 91,
     "tipsters": 23,
@@ -46,13 +46,27 @@
     "desde": "usa o Sharpen desde junho de 2026",
     "medido_em": "23/09/2026",
     "apostas": 7918,
-    "apostas_30d": 3097,
+    "apostas_30d": 3022,
     "casas": 28,
     "contas": 52,
     "tipsters": 20,
-    "dias_90": 86,
+    "dias_90": 85,
     "turnover": 2244797,
     "antes": "Antes: print a print, casa por casa.",
     "depois": "Hoje: aposta e esquece."
+  },
+  "gabriel": {
+    "nome": "Gabriel",
+    "desde": "usa o Sharpen desde julho de 2026",
+    "medido_em": "23/09/2026",
+    "apostas": 10124,
+    "apostas_30d": 6284,
+    "casas": 16,
+    "contas": 38,
+    "tipsters": 17,
+    "dias_90": 59,
+    "turnover": 1712690,
+    "antes": "Antes: mais volume, mais trabalho.",
+    "depois": "Hoje: um clique."
   }
 }

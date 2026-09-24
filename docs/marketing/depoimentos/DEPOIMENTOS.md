@@ -34,6 +34,7 @@
 | Germano | usuário (adoção recente) | 20/09/2026 | 7min09 | ✅ liberado | [germano-2026-09-20.txt](transcricoes/germano-2026-09-20.txt) |
 | Ewanderson | usuário (6 dias de uso, alto volume) | 21/09/2026 | 3min23 | ✅ liberado | [ewanderson-2026-09-21.txt](transcricoes/ewanderson-2026-09-21.txt) |
 | Diogo | usuário (rotina — 86 dias de captura em 90) | 23/09/2026 | 2min19 | ✅ liberado | [diogo-2026-09-23.txt](transcricoes/diogo-2026-09-23.txt) |
+| Gabriel | usuário (maior volume corrente da base) | 23/09/2026 | 4min13 | ✅ liberado | [gabriel-2026-09-23.txt](transcricoes/gabriel-2026-09-23.txt) |
 
 > **Arquivo irmão:** [VOZ_DO_FUNDADOR.md](VOZ_DO_FUNDADOR.md) guarda o pitch do Feca
 > gravado sem roteiro. Voz de cliente é **prova**; voz de fundador é **copy**. Os dois
@@ -258,6 +259,69 @@ noção de quando começou.
 
 ---
 
+## Gabriel — 23/09/2026
+
+**Perfil:** o **maior volume corrente da base**, 6.284 apostas nos últimos 30 dias, mais
+que o Jonathan. Curva de adoção subindo mês a mês, e alta rotatividade de conta: 16 das
+38 já arquivadas. É o caso em que custo e duração de conta mais pesam. Foi também o mais
+analítico dos cinco, e o único que questionou o próprio depoimento.
+
+### Cartão de prova (medido em 23/09/2026)
+
+| Medida | Valor |
+|---|---|
+| Apostas planilhadas | 10.124 |
+| Nos últimos 30 dias | **6.284** (o maior da base) |
+| Dias com captura, em 90 | 59 |
+| Casas | 16 |
+| Contas cadastradas | 38 (**16 já arquivadas**) |
+| Tipsters cadastrados | 17 |
+| Usa desde | 21/07/2026 |
+| Por mês | jul 1.324 → ago 3.830 → set 4.970 |
+
+### Trechos marcados para clipe
+
+| # | Áudio · tempo | Por quê | Fala |
+|---|---|---|---|
+| **B1** | 3 · 00:17 → 00:44 | **A dor "cadê o dinheiro" na forma mais literal que apareceu até hoje.** Não é conta de mês fechado, é dinheiro parado numa conta esquecida | *"Muitas vezes eu já esqueci conta que eu tinha, e deixei morrer saldo lá. Abri a conta seis meses depois e tinha saldo. Isso em conta minha; imagina em conta de terceiro. Quanto de dinheiro eu já acabei esquecendo por falta de controle."* |
+| **B2** | 2 · 00:01 → 00:26 | **Diz quando o produto passa a valer**, e é exatamente o eixo da promessa | *"A grande vantagem, para mim, começou a partir do momento em que eu aumentei o volume de apostas. Disparadamente, a melhor ferramenta é a do planilhamento automático."* |
+| **B3** | 2 · 00:26 → 00:45 | O gesto, em uma frase (o palavrão do original sai na peça) | *"Não precisar digitar, não precisar tirar print, só clicar no botão. Isso faz o processo da operação ficar absurdamente mais rápido, e mais seguro também."* |
+| **B4** | 2 · 00:45 → 01:20 | **Usa a MESMA palavra que o Feca usou no pitch: auto-auditoria** | *"Como você ativou as ferramentas de saldo, esse planilhamento já passa por uma auto-auditoria. Você planilha e, quando bate as informações, já sabe se planilhou certo ou não. Quando a gente planilha na mão, não está imune a erro: duplicar, esquecer uma aposta, esquecer uma conta."* |
+| **B5** | 3 · 00:00 → 00:16 e 00:44 → 01:03 | Posicionamento, e é a segunda voz a dizer isso | *"Um caminho muito interessante que o Sharpen está seguindo é, para além do planilhamento, ser uma ferramenta que ajuda na gestão também. Gestão dos custos, dos tipsters, das contas. Está unificando tudo isso num lugar só."* |
+| **B6** | 1 · 00:07 → 01:12 | Ritmo de resposta, com o motivo que ele mesmo dá | *"A principal coisa é a velocidade de implementar melhorias e escutar o pessoal. Coisas que tem hoje na ferramenta não tinham uma semana atrás. E o fato de você viver uma rotina de apostador de fato, e ser o principal usuário do seu sistema, ajuda muito."* |
+
+> Correções de reconhecimento: "Sharpie", "Sharp em cima" e "Sharpe" = **Sharpen**;
+> "planejamento automático" = **planilhamento automático** (conferir no áudio antes de
+> legendar, é a palavra que mais se repete); "posta" = aposta; "tifsters" = tipsters;
+> "presa de tecnologia" = **empresa de tecnologia**; "amorosidade" = **morosidade**.
+> O **B3 tem palavrão no original** e a citação acima já sai sem ele.
+
+### A ressalva que ele mesmo fez, e ela merece resposta
+
+No fim do áudio 1 ele levanta a própria dúvida, sem ninguém perguntar:
+
+> *"Não sei se eu estou falando isso pelo fato de a minha e a sua operação serem
+> parecidas. Não sei se as pessoas que você botou para testar têm perfil diferente, às
+> vezes um volume menor."*
+
+É uma advertência de **viés de amostra**, e é o tipo de coisa que destrói prova social
+quando alguém de fora percebe primeiro. Vale responder com o que está medido neste
+arquivo: os cinco depoentes **não** têm o mesmo perfil.
+
+| | Tempo de uso | Volume 30d | Casas | Perfil |
+|---|---|---|---|---|
+| Ewanderson | 6 dias | 1.743 | 26 | chegou agora, volume alto |
+| Germano | 3 semanas | 1.935 | 15 | adoção rápida, veio de concorrente |
+| Gabriel | 2 meses | 6.284 | 16 | maior volume, queima conta |
+| Jonathan | 3 meses | 4.612 | 29 | operação grande, custo preenchido |
+| Diogo | 3 meses | 3.097 | 28 | rotina, 86 de 90 dias |
+
+De 6 dias a 3 meses de uso, de 1.700 a 6.300 apostas por mês, de 15 a 29 casas. **A
+amostra é variada**, e isso pode ser dito em voz alta se alguém levantar a mesma dúvida
+que ele.
+
+---
+
 ## As convergências — o que mais de um usuário disse sozinho
 
 Isto é a parte mais valiosa do arquivo, e só aparece com dois ou mais depoimentos.
@@ -268,7 +332,10 @@ vira **padrão**, e padrão decide o que entra na landing.
 |---|---|---|
 | **A dívida do acúmulo** | Jonathan (pular 1 dia = 3h) · Ewanderson (sábado e domingo = uma manhã, às vezes o dia) · **Diogo (acumula 5 dias de propósito)** · o eixo do Feca | **Quatro vozes, e a do Diogo fecha o argumento.** Os outros contam que a dívida deixou de doer; ele a transformou em método: aposta e esquece, planilha dias depois. Não é mais argumento secundário, é a promessa |
 | **A Caixa pega o dinheiro que sumiu** | Diogo (*"dificilmente você vai tomar o calote, testei em todas as casas"*) · o pitch do Feca (o operador que saca de pouquinho) | O fundador levantou a hipótese; um cliente **testou em todas as casas** e confirmou. É o par que sustenta a cena da virada do vídeo |
-| **"Achei que tinha lucrado, e não tinha"** | Jonathan (R$ 10 mil) · Germano (R$ 8 mil) | **Valida o arco do vídeo.** Dois usuários independentes contaram a MESMA história, com números diferentes. É a dor de abertura, não uma frase de efeito |
+| **"Achei que tinha lucrado, e não tinha"** | Jonathan (R$ 10 mil) · Germano (R$ 8 mil) · **Gabriel (saldo esquecido numa conta por 6 meses)** | **Valida o arco do vídeo.** Três usuários independentes, a mesma descoberta. O Gabriel dá a versão mais literal: o dinheiro não sumiu numa conta de mês, ficou parado numa conta que ele esqueceu que tinha |
+| **"Isso se auto-audita"** | **Gabriel** (*"esse planilhamento já passa por uma auto-auditoria"*) · o pitch do Feca (*"um sistema que vai se auto-auditando"*) | Cliente e fundador escolheram **a mesma palavra**, sem se falarem. Quando isso acontece, a palavra é da categoria e não da marca: pode virar título de seção |
+| **"Não é só um planilhador"** | Diogo (*"ajuda na rotina de compra e venda de conta"*) · Gabriel (*"para além do planilhamento, gestão de custos, tipsters e contas"*) | O posicionamento que nós precisamos ter e não podemos reivindicar sozinhos. Duas vozes dizem que é **gestão**, e é isso que mantém o produto do lado seguro da fronteira de gateway |
+| **O ritmo de resposta** | Diogo (*"tudo que eu dei de orientação já foi feito"*) · Gabriel (*"coisas que tem hoje não tinham uma semana atrás"*) | Não é sobre recurso, é sobre confiança em produto novo. E o Gabriel dá a razão: o fundador é o principal usuário do próprio sistema |
 | **Assinatura do tipster pela stake** | Feca (401/402/403) · Jonathan (centavos) · Germano (299 / 300 / 300,50) | **Três** vozes, sendo uma delas a de quem ainda NÃO usa e por isso gasta o dobro do tempo. Seção própria, com demonstração |
 | **"O outro planilhador não deu conta"** | Germano (nunca durou 3 dias) · Ewanderson (grupo por grupo, aposta por aposta) | Comparativo dito por cliente, sem nomear ninguém. É o que nós não podemos escrever sem soar arrogantes |
 | **Custo invisível de conta e tipster** | Jonathan · Germano | Primeira dobra da landing. Os dois abriram por aí |
