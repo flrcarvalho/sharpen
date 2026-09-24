@@ -136,14 +136,39 @@ const FFMPEG = ffmpegExe();
 async function cursorInit(page) {
   await page.evaluate(() => {
     if (document.getElementById("__gravcursor")) return;
+    // ── O ponteiro é a LÂMINA DA MARCA, não uma bolinha branca ──────────────
+    // Pedido do Feca (23/09). O símbolo do Sharpen já é uma lâmina apontada, e
+    // um cursor é exatamente isso: uma ponta. Usar a marca faz o ponteiro do
+    // clipe deixar de ser um enfeite genérico e virar assinatura.
+    //
+    // A geometria, que é o que faz funcionar: no viewBox `40 10 40 100` a PONTA
+    // fica em (60,16) — metade da largura, 6% da altura. O `transform-origin`
+    // é cravado nela e a rotação acontece em torno dela, então a ponta NÃO se
+    // move ao girar; e as margens negativas põem essa mesma ponta exatamente na
+    // coordenada onde o `page.mouse` clica. Sem isso o clipe mostraria a seta a
+    // alguns pixels do botão que está sendo clicado, que é o tipo de detalhe
+    // que ninguém sabe nomear mas todo mundo estranha.
+    const ALT = 34;                      // altura do ponteiro, em px de CSS
+    const pontaX = ALT * (40 / 100) / 2; // metade da largura do viewBox
+    const pontaY = ALT * 0.06;           // 6% da altura
     const c = document.createElement("div");
     c.id = "__gravcursor";
+    c.innerHTML = `<svg viewBox="40 10 40 100" height="${ALT}"
+        style="display:block;overflow:visible;filter:drop-shadow(0 2px 7px rgba(0,0,0,.65))">
+        <defs><linearGradient id="gravBlade" x1="60" y1="16" x2="60" y2="104"
+          gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#5BA9FF"/><stop offset="1" stop-color="#1E7CF0"/>
+        </linearGradient></defs>
+        <path d="M60 16 L60 90 L42 104 Z" fill="url(#gravBlade)"/>
+        <path d="M60 16 L78 104 L60 90 Z" fill="#333B45"/>
+      </svg>`;
     c.style.cssText = [
-      "position:fixed", "left:0", "top:0", "width:22px", "height:22px",
-      "margin:-11px 0 0 -11px", "border-radius:50%", "pointer-events:none",
+      "position:fixed", "left:0", "top:0", "pointer-events:none",
       "z-index:2147483647", "opacity:0",
-      "background:radial-gradient(circle at 40% 38%, rgba(255,255,255,.95), rgba(255,255,255,.28) 55%, rgba(255,255,255,0) 70%)",
-      "box-shadow:0 0 0 1.5px rgba(255,255,255,.55), 0 2px 10px rgba(0,0,0,.55)",
+      `margin:${-pontaY}px 0 0 ${-pontaX}px`,
+      // Gira em torno da própria ponta: a lâmina nasce vertical e um cursor
+      // aponta para cima e para a esquerda.
+      `transform-origin:${pontaX}px ${pontaY}px`,
       "transition:opacity .25s linear",
     ].join(";");
     const r = document.createElement("div");
@@ -152,12 +177,16 @@ async function cursorInit(page) {
       "position:fixed", "left:0", "top:0", "width:14px", "height:14px",
       "margin:-7px 0 0 -7px", "border-radius:50%", "pointer-events:none",
       "z-index:2147483646", "opacity:0",
-      "border:2px solid rgba(255,255,255,.9)",
+      // O pulso do clique também vira da marca: o azul claro é o topo do
+      // gradiente da lâmina. Branco puro competia com a própria seta.
+      "border:2px solid #5BA9FF",
     ].join(";");
     document.body.appendChild(c);
     document.body.appendChild(r);
+    // `rotate` depois do `translate`: a ordem importa, e girar primeiro moveria
+    // o ponto de referência da translação.
     window.__gravPos = (x, y) => {
-      c.style.transform = `translate(${x}px,${y}px)`;
+      c.style.transform = `translate(${x}px,${y}px) rotate(-20deg)`;
       c.style.opacity = "1";
     };
     window.__gravPulso = (x, y) => {

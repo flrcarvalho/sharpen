@@ -31,6 +31,46 @@ por 1-3. Uma etapa por vez; parar e perguntar ao Feca em qualquer duvida de conv
 - Backup em `Backups/<nome-descritivo>/` antes de editar (invariante 4).
 - Arquivo completo, uma mudanca por vez (invariantes 5-6).
 
+## 3.5 A TELA TEM DE DIZER O QUE ELA E' E O QUE FAZER ALI
+
+Pedido do Feca (23/09). O checklist inteiro cuidava de COMO a tela parece — numero,
+cor, tom, componente, composicao — e nao cuidava do que ela **diz**. Tela bonita e
+muda reprova com quem chega.
+
+**A evidencia esta medida, e vem das duas pontas:** o Feca sobre a demonstracao
+publica (*"ele e' so uma pagina, sem instrucao, complexa para entender de cara"*) e o
+Jonathan, o 2o maior usuario, no depoimento de 19/09 (*"a primeira vista, para quem
+nao conhece, ele pode parecer complexo"*). Os dois estao falando da MESMA falta.
+
+**Tres perguntas, respondidas na propria tela, por escrito:**
+
+1. **O que e' isto?** Titulo e subtitulo que digam a funcao, nao o nome interno.
+   `Custos · contas, tipsters e gerais num lugar so` acerta; `Custos v2` nao.
+2. **O que eu faco aqui?** A acao principal visivel, escrita como verbo. Se a tela
+   espera um gesto antes de servir para algo (escolher conta, ligar a Caixa, subir
+   print), ela diz isso ANTES de o usuario procurar.
+3. **O que este numero significa?** Todo numero derivado (Solidez, drawdown, mediana,
+   projetado, percentil) leva explicacao ao alcance — e a regra ja existente e' que o
+   popup mostre o **numero REAL da base**, seguindo o periodo do filtro, nunca um
+   texto generico.
+
+**O ESTADO VAZIO e' onde isso mais falta, e e' a primeira tela de todo usuario novo.**
+Tela sem dado nao pode so sumir: ela diz por que esta vazia e qual e' o proximo passo.
+Caso real: `DADOS` so recebe aposta LIQUIDADA, entao quem acabou de capturar tem tudo
+em aberto e ve uma tela parada num "aguardando" que nunca resolve
+(`docs/CASOS.md#a-tela-em-branco-do-diogo--s239`).
+
+**O que NAO e':** tutorial, tour de boas-vindas, balao que aparece por cima. E' uma
+linha de texto no lugar certo. Se a tela precisa de um paragrafo para se explicar, o
+problema e' a tela, nao a falta de texto.
+
+**Reusar, nunca inventar:** o `.metric-info` (o "i" ao lado do KPI) ja e' o componente
+de ajuda do produto, e hoje so aparece em `charts/contas.js` e `charts/performance.js`
+— e' pouco, e esse e' justamente o ponto.
+
+**Como conferir:** abrir a tela e perguntar *"se eu nunca tivesse visto isto, eu saberia
+o que fazer?"*. Com base vazia tambem, que e' o caso que ninguem testa.
+
 ## 4. AUTO-AUDITAR antes do commit (obrigatorio)
 - Conferir item a item contra `UI_REFERENCE §5`: 2 casas? `R$` menor/neutro? cor so no numero? minus U+2212? zero neutro? sem abreviar? sem `.toFixed`/`.replace`? label PT-BR?
 - **Escada de Tinta** (`CLAUDE.md`): nenhum `--ink-mute` abaixo de 10px; nenhum nome
