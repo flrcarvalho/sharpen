@@ -632,6 +632,11 @@
     }
     window.postMessage({
       __sharpenupB3Resolver: true,
+      // ⚠️ APTO diz se ESTE frame é o que pode responder. O inject roda em TODOS os frames
+      // (`all_frames: true`) e a lista mora só no do `members` — o frame de cima nunca viu
+      // um `summary`, falha na hora e responde PRIMEIRO. Sem esta marca, quem pediu pega a
+      // resposta do frame errado e conclui que não dá para buscar, com a lista na tela.
+      apto: !!ultimaUrlSummary,
       encontrados: encontrados,
       pedidos: (carimbos || []).length,
       // `confiavel` é o que o servidor tem de olhar ANTES de concluir qualquer coisa sobre

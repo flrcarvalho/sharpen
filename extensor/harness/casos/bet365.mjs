@@ -601,6 +601,13 @@ async function resolverAbertas() {
       falhas.push(`resolver (sem referência): CHAMOU a casa ${msg.chamadas} vez(es) com URL ` +
                   `chutada. Recusar é não chamar — uma URL chutada dá 404 e o erro parece o ` +
                   `mesmo, que foi como a 1ª versão deste teste passou verde com o chute ligado`);
+    } else if (msg.apto !== false) {
+      // MEDIDO NA CASA (s382): o inject roda em TODOS os frames e o de cima responde
+      // PRIMEIRO, porque falha na hora. Quem pediu pegava essa resposta e dizia "abra o
+      // Histórico antes" com a lista aberta na tela. A marca `apto` é o que deixa o
+      // chamador esperar o frame que realmente pode buscar.
+      falhas.push("resolver (sem referência): a resposta não veio marcada como `apto:false`. " +
+                  "Sem essa marca, o frame que NÃO pode buscar responde primeiro e ganha");
     }
   }
 
@@ -623,6 +630,9 @@ async function resolverAbertas() {
     }
     if (msg && !msg.encontrados.length) {
       falhas.push("resolver: com token válido, devia ter achado o alvo");
+    } else if (msg && msg.apto !== true) {
+      falhas.push("resolver: o frame que ACHOU a aposta não se marcou como apto — quem pediu " +
+                  "vai descartar a resposta boa e esperar uma que nunca vem");
     }
   }
 

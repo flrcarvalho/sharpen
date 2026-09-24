@@ -651,9 +651,21 @@
     return new Promise((resolve) => {
       let pronto = false;
       const fim = (v) => { if (!pronto) { pronto = true; window.removeEventListener("message", ouvir); resolve(v); } };
+      // ⚠️ TODOS os frames respondem, e o que NÃO pode buscar responde primeiro (falha
+      // na hora). Por isso a primeira resposta não serve: espera-se a do frame APTO — o
+      // do `members`, único que enxerga a lista. A inapta fica guardada e só é usada se
+      // nenhuma apta aparecer, senão o operador ficaria olhando um botão parado.
+      let inapta = null, curto = null;
       const ouvir = (ev) => {
         const d = ev && ev.data;
-        if (d && d.__sharpenupB3Resolver) fim(d);
+        if (!d || !d.__sharpenupB3Resolver) return;
+        if (d.apto === false) {
+          inapta = d;
+          if (!curto) curto = setTimeout(() => fim(inapta), 6000);
+          return;
+        }
+        if (curto) clearTimeout(curto);
+        fim(d);
       };
       window.addEventListener("message", ouvir);
       setTimeout(() => fim({ erro: "o robô não respondeu a tempo", encontrados: [] }), B3_RESOLVER_TIMEOUT);

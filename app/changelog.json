@@ -276,6 +276,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0721",
+      "v": "v0.7.21",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** o botão **Resolver apostas abertas** dizia que precisava abrir o Histórico mesmo com o Histórico aberto. Corrigido.",
+      "itens": [
+        "O **primeiro clique é um ensaio**: mostra o que encontrou e **não grava nada**. Só o segundo grava."
+      ]
+    },
+    {
       "id": "su-0720",
       "v": "v0.7.20",
       "data": "2026-09-24",
