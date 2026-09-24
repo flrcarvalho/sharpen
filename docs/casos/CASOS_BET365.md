@@ -167,3 +167,51 @@ esse caso e o caminho por `--id` continua aberto para decisão humana.
 arredondamento. A taxa de `W` conferida contra o retorno subiu de **98,7% para 99,8%**, e
 os `HW` da base foram de **124 para 187**.
 
+## Oito defeitos num caminho novo, e seis eram da TUBULAÇÃO — "Resolver apostas abertas", s382
+
+O botão nasceu ao lado de uma captura que funciona há meses. Foi para a mão do tester oito
+vezes no mesmo dia. **Nenhum dos defeitos estava na ideia; todos estavam em coisas que o
+código antigo, a um palmo de distância, já resolvia.**
+
+| # | o que era | tinha a ver com o caminho escolhido? |
+|---|---|---|
+| 1 | `sync` lia `st.casa`, e `casa` não estava na lista do `chrome.storage.local.get` | não |
+| 2 | o frame de cima respondia primeiro e ganhava a corrida | não |
+| 3 | a resposta não era postada para `window.top`, e o content só roda lá | não |
+| 4 | o repasse entre frames copiava campo a campo e perdia o `pedido` | não |
+| 5 | o POST da extensão levava **403**: a rota não estava em `_CAPTURA_ISENTAS` | não |
+| 6 | o clique travava em "Procurando…" quando a extensão era atualizada com a aba aberta | não |
+| 7 | a URL saía com `%3A` no lugar dos dois-pontos | sim |
+| 8 | (em aberto) o termo gerado não é aceito pela casa | sim |
+
+**Seis de oito aconteceriam igual em QUALQUER forma de buscar.** Isso derruba o reflexo de
+"trocar de abordagem quando emperra": a abordagem não era o problema, e trocar teria jogado
+fora a tubulação já consertada para recomeçar com outra.
+
+> **A regra, e ela é de método:** código novo colado num mecanismo que já funciona **começa
+> copiando o mecanismo**, não reescrevendo o pedaço visível dele. Responder para o topo,
+> repassar o pedido inteiro, isentar a rota da ponte, montar a URL como a página monta —
+> tudo isso o `enviar()` e o `/captura/enviar` já faziam, e cada um virou um defeito por ter
+> sido reescrito do zero a poucas linhas do original.
+
+**O que o harness NÃO cobre, e por isso deixou os seis passarem verdes:** o sandbox tem **um
+documento só**. Hierarquia de frames, ciclo de vida da extensão e o `chrome.storage` real
+ficam de fora por construção. Os gates novos (§11 a §14 do caso da bet365) são **estruturais
+de propósito** — leem o texto do arquivo — porque é a única forma de travar algo que o
+andaime não consegue executar.
+
+> **Sintoma para reconhecer isto noutra frente:** a suíte inteira verde, o `node --check`
+> limpo, e o operador dizendo "não aparece nada". Quando o verde e a tela discordam, o
+> ambiente do teste é o suspeito, não o relato.
+
+### E duas armadilhas de FERRAMENTA que custaram duas rodadas
+
+1. **O heredoc do bash come barras invertidas** (já registrado na memória do projeto, e
+   repetido três vezes neste dia). Um `` de regex virou o caractere de controle `0x08`, e
+   o gate passou verde **sem testar nada** — a mutação é que denunciou. Onde houver escape,
+   use o editor de arquivo, não o heredoc.
+2. **Gate que encontra a si mesmo.** Um teste procurava `context invalidated` no arquivo
+   inteiro para provar que o erro era tratado; a frase continuava no **comentário** logo
+   acima do código desligado. Gate de presença de texto procura a **mensagem que o usuário
+   vê**, nunca a palavra que o programador escreveu.
+
