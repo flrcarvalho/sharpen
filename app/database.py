@@ -604,6 +604,19 @@ CREATE TABLE IF NOT EXISTS sombra_modelo (
 );
 CREATE INDEX IF NOT EXISTS sombra_modelo_criado ON sombra_modelo (criado_em);
 
+-- ── Contrato de TEXTO de 4 campos (s386, `app/contrato_texto.py`) ───────────────
+-- Duas colunas ANULÁVEIS e sem default: linha antiga fica NULL e nenhuma leitura
+-- existente muda. Só o caminho novo, quando LIGADO, escreve nelas.
+--   uso_tokens.caminho     NULL = extração de hoje · 'contrato4' = a chamada de 4
+--                          campos · 'atual_pos_contrato' = o caminho de hoje rodando
+--                          SÓ os bilhetes que o contrato encaminhou (antes ou depois
+--                          da IA). Somar os três dá o custo completo de um lote.
+--   sombra_modelo.contrato NULL = a sombra de hoje (TSV de 11 colunas) ·
+--                          'contrato4' = a sombra julgando a resposta de 4 campos.
+--                          O placar tem outro sentido nos dois: não se somam.
+ALTER TABLE uso_tokens    ADD COLUMN IF NOT EXISTS caminho  TEXT;
+ALTER TABLE sombra_modelo ADD COLUMN IF NOT EXISTS contrato TEXT;
+
 -- ── Barreira de recaptura (Fase 0 do `docs/PLANO_BARREIRA_RECAPTURA.md`) ──────
 -- O hash do último bloco cru que a IA leu para cada bilhete. Serve a UMA pergunta:
 -- "este bloco é byte a byte o mesmo que eu já paguei para ler?". Se for, não há o

@@ -4745,21 +4745,30 @@ def custo_usd(modelo: str, tk: dict) -> float:
 
 
 async def registrar_uso(dono: str, casa: str, modelo: str, chunks: int,
-                        n_itens: int, tokens: dict) -> None:
+                        n_itens: int, tokens: dict, caminho: str | None = None) -> None:
     """Grava uma linha de uso por extração. Fire-and-forget: nunca derruba o
-    stream (erros são só logados)."""
+    stream (erros são só logados).
+
+    `caminho` só vem do contrato de texto (s386, `contrato_texto.py`): `None` grava
+    exatamente o INSERT de sempre, e a coluna fica NULL."""
     try:
         custo = custo_usd(modelo, tokens)
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await conn.execute(
-                """INSERT INTO uso_tokens
-                     (dono, casa, modelo, chunks, n_itens, input, output, cache_read, cache_write, custo_usd)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
-                dono, casa, modelo, int(chunks or 1), int(n_itens or 0),
-                int(tokens.get("input", 0)), int(tokens.get("output", 0)),
-                int(tokens.get("cache_read", 0)), int(tokens.get("cache_write", 0)), custo,
-            )
+            args = (dono, casa, modelo, int(chunks or 1), int(n_itens or 0),
+                    int(tokens.get("input", 0)), int(tokens.get("output", 0)),
+                    int(tokens.get("cache_read", 0)), int(tokens.get("cache_write", 0)), custo)
+            if caminho is None:
+                await conn.execute(
+                    """INSERT INTO uso_tokens
+                         (dono, casa, modelo, chunks, n_itens, input, output, cache_read, cache_write, custo_usd)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""", *args)
+            else:
+                await conn.execute(
+                    """INSERT INTO uso_tokens
+                         (dono, casa, modelo, chunks, n_itens, input, output, cache_read, cache_write,
+                          custo_usd, caminho)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)""", *args, caminho)
     except Exception:
         logger.warning("registrar_uso falhou (uso não gravado)", exc_info=True)
 
@@ -4969,32 +4978,47 @@ def pontuar_saida(tsv: str, texto: str | None) -> dict:
 
 async def registrar_sombra_modelo(dono: str, casa: str, modelo: str, titular: str,
                                   lotes: int, tem_imagem: bool, tokens: dict,
-                                  placar: dict, erro: str | None = None) -> None:
+                                  placar: dict, erro: str | None = None,
+                                  contrato: str | None = None) -> None:
     """Grava uma linha da sombra de modelo. Fire-and-forget: NUNCA derruba o stream.
 
     O custo vai calculado pelo `custo_usd` (mesma tabela de preços do titular), e
     **separado do `uso_tokens` de propósito**: aquela tabela é a conta da operação e é
     lida por toda medição de preço. Experimento não pode entrar nela.
+
+    `contrato` (s386) marca a sombra que julgou a resposta de 4 campos; `None` grava o
+    INSERT de sempre. Os dois placares têm sentidos diferentes e não se somam.
     """
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await conn.execute(
-                """INSERT INTO sombra_modelo
-                     (dono, casa, modelo, modelo_titular, lotes, tem_imagem,
-                      input, output, cache_read, cache_write, custo_usd,
-                      blocos, linhas, sem_codigo, cod_inventado, coluna_comida,
-                      fora_master, infiel, descricoes, erro)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)""",
-                dono, casa, modelo, titular, int(lotes), bool(tem_imagem),
-                int(tokens.get("input", 0)), int(tokens.get("output", 0)),
-                int(tokens.get("cache_read", 0)), int(tokens.get("cache_write", 0)),
-                float(custo_usd(modelo, tokens)),
-                int(placar.get("blocos", 0)), int(placar.get("linhas", 0)),
-                int(placar.get("sem_codigo", 0)), int(placar.get("cod_inventado", 0)),
-                int(placar.get("coluna_comida", 0)), int(placar.get("fora_master", 0)),
-                int(placar.get("infiel", 0)), int(placar.get("descricoes", 0)),
-                erro)
+            args = (dono, casa, modelo, titular, int(lotes), bool(tem_imagem),
+                    int(tokens.get("input", 0)), int(tokens.get("output", 0)),
+                    int(tokens.get("cache_read", 0)), int(tokens.get("cache_write", 0)),
+                    float(custo_usd(modelo, tokens)),
+                    int(placar.get("blocos", 0)), int(placar.get("linhas", 0)),
+                    int(placar.get("sem_codigo", 0)), int(placar.get("cod_inventado", 0)),
+                    int(placar.get("coluna_comida", 0)), int(placar.get("fora_master", 0)),
+                    int(placar.get("infiel", 0)), int(placar.get("descricoes", 0)),
+                    erro)
+            if contrato is None:
+                await conn.execute(
+                    """INSERT INTO sombra_modelo
+                         (dono, casa, modelo, modelo_titular, lotes, tem_imagem,
+                          input, output, cache_read, cache_write, custo_usd,
+                          blocos, linhas, sem_codigo, cod_inventado, coluna_comida,
+                          fora_master, infiel, descricoes, erro)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)""",
+                    *args)
+            else:
+                await conn.execute(
+                    """INSERT INTO sombra_modelo
+                         (dono, casa, modelo, modelo_titular, lotes, tem_imagem,
+                          input, output, cache_read, cache_write, custo_usd,
+                          blocos, linhas, sem_codigo, cod_inventado, coluna_comida,
+                          fora_master, infiel, descricoes, erro, contrato)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)""",
+                    *args, contrato)
     except Exception:
         logger.warning("sombra_modelo: nao gravada", exc_info=True)
 
