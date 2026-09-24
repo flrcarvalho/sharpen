@@ -475,6 +475,13 @@ function casaComToken(opts) {
   return { janelaExtra, estado };
 }
 
+// As chamadas do LAÇO, que é o que os gates de custo abaixo medem: o total menos a sonda
+// de diagnóstico (s387), que é temporária e roda uma vez por aba. O campo entra em
+// `chamadas` de propósito — o custo contra a casa é real e o relatório não pode mentir
+// sobre ele — mas atribuir a sonda ao laço afrouxaria justamente o número que prova que o
+// cursor anda. Quando a sonda sair, `sonda` vem 0 e isto vira a identidade.
+const doLaco = (msg) => (msg ? msg.chamadas - (msg.sonda || 0) : 0);
+
 async function resolverAbertas() {
   const falhas = [];
 
@@ -521,9 +528,9 @@ async function resolverAbertas() {
       falhas.push("resolver: o inject não respondeu `__sharpenupB3Resolver`");
     } else if (msg.encontrados.length !== 1 || msg.encontrados[0].carimbo !== alvo) {
       falhas.push(`resolver: esperava achar o carimbo ${alvo} paginando, veio ` +
-                  `${JSON.stringify((msg.encontrados[0] || {}).carimbo)} em ${msg.chamadas} chamada(s)`);
-    } else if (msg.chamadas > 5) {
-      falhas.push(`resolver: ${msg.chamadas} chamadas para achar um bilhete a 3 páginas — o ` +
+                  `${JSON.stringify((msg.encontrados[0] || {}).carimbo)} em ${doLaco(msg)} chamada(s)`);
+    } else if (doLaco(msg) > 5) {
+      falhas.push(`resolver: ${doLaco(msg)} chamadas para achar um bilhete a 3 páginas — o ` +
                   `cursor não está andando, e cada chamada é uma ida à casa (teto medido: ` +
                   `600 a 1.000 por conta antes do bloqueio)`);
     }
@@ -550,14 +557,20 @@ async function resolverAbertas() {
   {
     const casa = casaDublada(40, { repetirDe: 12 });   // índices 12..25 no mesmo segundo
     const alvo = casa.todos[30].tp.slice(0, 14);       // abaixo do bloco repetido
-    const { msg } = await rodar(casa, [alvo]);
+    // ⚠️ `semFuso` NÃO é detalhe do cenário: é o que faz este caso testar alguma coisa.
+    // Com o fuso lido da casa a janela é de 1 SEGUNDO e a 1ª chamada já traz o alvo — o
+    // laço nunca pagina, e o cursor que este caso existe para proteger nunca é usado.
+    // Medido na s387: com a janela de 1s, a mutação `proximo = cursor` (cursor travado)
+    // passava VERDE aqui. A paginação só existe no caminho CEGO, então é nele que ela se
+    // prova. Mesmo modo de falso verde do `CLAUDE.md`: dado sintético que não exerce a regra.
+    const { msg } = await rodar(casa, [alvo], { semFuso: true });
     if (!msg) {
       falhas.push("resolver (carimbo repetido): o inject não respondeu — laço preso?");
     } else if (!msg.encontrados.length) {
-      falhas.push(`resolver (carimbo repetido): não achou o alvo em ${msg.chamadas} chamada(s); ` +
+      falhas.push(`resolver (carimbo repetido): não achou o alvo em ${doLaco(msg)} chamada(s); ` +
                   `o cursor parou de andar quando a página inteira caiu no mesmo segundo`);
-    } else if (msg.chamadas > 8) {
-      falhas.push(`resolver (carimbo repetido): ${msg.chamadas} chamadas — o cursor está ` +
+    } else if (doLaco(msg) > 8) {
+      falhas.push(`resolver (carimbo repetido): ${doLaco(msg)} chamadas — o cursor está ` +
                   `andando de 1 segundo em vez de pular o bloco`);
     }
   }
@@ -573,10 +586,34 @@ async function resolverAbertas() {
       falhas.push("resolver (alvo inexistente): o inject não respondeu — laço sem fim?");
     } else if (msg.encontrados.length) {
       falhas.push("resolver (alvo inexistente): inventou um casamento");
-    } else if (msg.chamadas > 5) {
-      falhas.push(`resolver (alvo inexistente): ${msg.chamadas} chamadas atrás de uma aposta ` +
+    } else if (doLaco(msg) > 5) {
+      falhas.push(`resolver (alvo inexistente): ${doLaco(msg)} chamadas atrás de uma aposta ` +
                   `que não existe — a parada tem de ser o PISO da janela (27h ÷ 10 por página ` +
                   `≈ 3 chamadas), nunca o teto de páginas`);
+    }
+  }
+
+  // ── 10d-bis. Página CURTA é fim, e isso tem de ENCERRAR o laço ──────────────
+  // Conta que só existe porque uma mutação escapou (s387): apagar o `bets.length < PAGINA`
+  // passava verde, porque nos outros casos quem encerra é o piso da janela e a conta de
+  // chamadas continuava dentro do teto. O cenário que separa os dois é o histórico que
+  // ACABA dentro da janela: 4 bilhetes, janela cega de 27h, alvo que não está lá. Com a
+  // parada certa é UMA chamada; sem ela o cursor continua descendo até o piso e cada volta
+  // é uma ida à casa, contra o teto de volume que já bloqueou três contas.
+  {
+    // 18:00, 17:30, 17:00 e 16:30 — o alvo 17:45 cai NO MEIO e não existe, para o laço
+    // não terminar por ter achado. (Com `20260923173000` ele existia: o caso acusou
+    // "inventou um casamento" e estava certo, era o alvo que estava errado.)
+    const casa = casaDublada(4, { passoMin: 30 });
+    const { msg } = await rodar(casa, ["20260923174500"], { semFuso: true });
+    if (!msg) {
+      falhas.push("resolver (histórico curto): o inject não respondeu");
+    } else if (msg.encontrados.length) {
+      falhas.push("resolver (histórico curto): inventou um casamento");
+    } else if (doLaco(msg) !== 1) {
+      falhas.push(`resolver (histórico curto): ${doLaco(msg)} chamadas. A casa devolveu ` +
+                  `menos de uma página cheia, e isso é FIM — insistir gasta requisição ` +
+                  `contra o teto de volume para reler um histórico que acabou`);
     }
   }
 
@@ -600,8 +637,8 @@ async function resolverAbertas() {
     } else if (!msg.erro) {
       falhas.push("resolver (sem referência): devia devolver ERRO explicando que falta abrir o " +
                   "histórico, e devolveu silêncio");
-    } else if (msg.chamadas > 0) {
-      falhas.push(`resolver (sem referência): CHAMOU a casa ${msg.chamadas} vez(es) com URL ` +
+    } else if (doLaco(msg) > 0) {
+      falhas.push(`resolver (sem referência): CHAMOU a casa ${doLaco(msg)} vez(es) com URL ` +
                   `chutada. Recusar é não chamar — uma URL chutada dá 404 e o erro parece o ` +
                   `mesmo, que foi como a 1ª versão deste teste passou verde com o chute ligado`);
     } else if (msg.apto !== false) {
@@ -705,8 +742,8 @@ async function resolverAbertas() {
     const controle = { carimbo: casa.todos[0].tp.slice(0, 14) };
     const alvo = casa.todos[2].tp.slice(0, 14);
     const { msg } = await rodar(casa, [alvo], { controle });
-    if (msg && msg.chamadas > 1) {
-      falhas.push(`resolver (tudo achado): ${msg.chamadas} chamadas para 1 aposta — o gate de ` +
+    if (msg && doLaco(msg) > 1) {
+      falhas.push(`resolver (tudo achado): ${doLaco(msg)} chamadas para 1 aposta — o gate de ` +
                   `controle só deve rodar quando alguém NÃO foi achado`);
     }
   }
@@ -722,8 +759,8 @@ async function resolverAbertas() {
     const semFuso = await rodar(casa, [alvo], { semFuso: true });
     if (!comFuso.msg || !comFuso.msg.encontrados.length) {
       falhas.push("resolver (com fuso): não achou o alvo com a janela de 1 segundo");
-    } else if (comFuso.msg.chamadas !== 1) {
-      falhas.push(`resolver (com fuso): ${comFuso.msg.chamadas} chamadas para achar UMA aposta ` +
+    } else if (doLaco(comFuso.msg) !== 1) {
+      falhas.push(`resolver (com fuso): ${doLaco(comFuso.msg)} chamadas para achar UMA aposta ` +
                   `cujo instante exato é conhecido — a janela devia ser de 1 segundo`);
     } else if (comFuso.msg.janelaCega) {
       falhas.push("resolver (com fuso): marcou janela cega com o ajuste disponível");
@@ -743,8 +780,8 @@ async function resolverAbertas() {
     const r = await rodar(denso, [alvoDenso]);
     if (!r.msg || !r.msg.encontrados.length) {
       falhas.push("resolver (lista densa): não achou o alvo");
-    } else if (r.msg.chamadas !== 1) {
-      falhas.push(`resolver (lista densa): ${r.msg.chamadas} chamadas. Com o instante exato ` +
+    } else if (doLaco(r.msg) !== 1) {
+      falhas.push(`resolver (lista densa): ${doLaco(r.msg)} chamadas. Com o instante exato ` +
                   `conhecido a janela é de 1 SEGUNDO e traz só aquela aposta; qualquer folga ` +
                   `a mais enche a página de vizinhos e paga páginas por nada`);
     }

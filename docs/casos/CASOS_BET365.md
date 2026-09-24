@@ -204,6 +204,60 @@ andaime não consegue executar.
 > limpo, e o operador dizendo "não aparece nada". Quando o verde e a tela discordam, o
 > ambiente do teste é o suspeito, não o relato.
 
+### O nono defeito, e ele estava ATRÁS de um gate verde — o cursor que andava 1 s por requisição (s387)
+
+O botão tinha oito defeitos conhecidos e um gate de paginação verde com três casos. O nono
+apareceu quando se perguntou, pela primeira vez, se aquele gate testava alguma coisa.
+
+**A mutação que revelou:** trocar `proximo = menorMs` por `proximo = cursor` (o cursor que
+não anda, exatamente o que o caso 10c existe para pegar) **passou VERDE**. O motivo é de
+arranjo, não de asserção: o caso rodava **com o fuso lido da casa**, e aí a janela é de 1
+segundo e a 1ª chamada já traz o alvo. **O laço nunca paginava.** A paginação só existe no
+caminho CEGO, e nenhum caso a exercia desde que o fuso passou a ser lido (s382).
+
+**O defeito que o gate consertado achou, e ele estava NO AR na 0.7.28:**
+
+```
+  cursor (o `to` que se pede)  → UTC
+  TP     (o carimbo que volta) → hora do REINO UNIDO
+  cursor = menorMs             → compara os dois CRUS
+```
+
+Com uma hora de diferença entre os dois, `menorMs` **nunca** fica abaixo do `cursor`
+enquanto a distância for menor que o offset. O ramo de desempate (`cursor - 1000`, escrito
+para dois bilhetes no mesmo segundo) ganhava **todas** as voltas, e o cursor descia **um
+segundo por requisição**. Medido no harness: **40 páginas, o teto, alvo não encontrado,
+zero erro em lugar nenhum.** Para atravessar uma hora nesse passo seriam 3.600 chamadas,
+contra um teto de volume que já bloqueou três contas.
+
+**E converter o carimbo NÃO resolve**, que foi a primeira tentativa: no caminho cego o
+offset é justamente o que não se conhece. A saída dispensa o fuso, porque **a DIFERENÇA
+entre dois carimbos é a mesma nos dois fusos**:
+
+```
+  cobertura = maior TP da página − menor TP da página
+  proximo   = cursor − cobertura − 1000
+```
+
+O cursor recua o intervalo que a página cobriu, mais um segundo para não repetir a
+fronteira. Vale com o fuso lido e sem ele.
+
+**Gate: 4 mutações, 4 detectadas** (a régua antiga, cobertura fixada em zero, o segundo de
+folga removido, e a página curta deixando de encerrar). A quarta só foi detectada depois
+que um caso novo nasceu para ela: apagar `bets.length < PAGINA` passava verde porque nos
+outros cenários quem encerrava era o piso da janela, e a conta de chamadas continuava
+dentro do teto. O caso que separa os dois é o **histórico que acaba dentro da janela**.
+
+> **Sintoma para reconhecer isto noutro laço:** um cursor cujo próximo valor vem de um
+> campo da RESPOSTA, enquanto o valor pedido vem de um cálculo NOSSO. São dois espaços
+> diferentes, e a conversão entre eles é fácil de esquecer porque o laço não dá erro: ele
+> anda devagar, gasta o teto e devolve "não achei".
+>
+> **E o de método, que é o mais caro:** o caso do harness foi escrito para um cenário
+> (janela cega) e continuou passando depois que o código mudou de cenário (janela de 1 s).
+> Gate que não falha quando o código quebra não é gate, é decoração — e este tinha três
+> casos, nome certo e comentário explicando a armadilha que ele não testava mais.
+
 ### E duas armadilhas de FERRAMENTA que custaram duas rodadas
 
 1. **O heredoc do bash come barras invertidas** (já registrado na memória do projeto, e

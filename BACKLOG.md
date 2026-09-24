@@ -1788,6 +1788,52 @@ sempre coexistiram, para coisas diferentes.**
 > E o gesto barato que faltou: **perguntar ao Feca qual é o caminho**, antes de concluir. Ele
 > respondeu com cinco prints em dois minutos.
 
+### 4.11 "Resolver apostas abertas" manda a odd da 1ª PERNA, e 30% das abertas são múltiplas (s387). VIVA, medida.
+
+O `resolverAbertas` (`extensor/b3_inject.js`) envia `odd: _oddDecimal(b.oddFrac)`, e o
+`oddFrac` do `parseSummary` é a odd da **primeira seleção** — a casa **não publica odd
+combinada**, e é por isso que o `formatTicketB3` só imprime `Odd:` quando `nSel === 1`. O
+banco, para múltipla, guarda o **produto**.
+
+Medido na base em 24/09, abertas de bet365 **com carimbo**:
+
+| | |
+|---|---|
+| abertas com carimbo | **113** |
+| com 1 perna (a odd do summary descreve o bilhete) | 79 |
+| com 2+ pernas | **34** (30%) |
+| dessas 34, odd do banco = odd da 1ª perna | **0** |
+| dessas 34, odd do banco = **produto** das pernas (2 casas) | **34** |
+| stake do banco ≠ stake do bloco | **0 de 113** |
+
+A odd entra na chave do casamento (`carimbo|stake|odd`, normalizada por `_norm_odd`), então
+**as 34 saem como `sem_par`** — falha segura, mas silenciosa, e com o **mesmo sintoma** do
+defeito do token. Dois donos concentram: `Gabriel` tem 46 múltiplas em 66 abertas.
+
+**Conserto:** calcular a odd do bilhete pela mesma régua do `content.js` (produto das odds
+das seleções quando houver mais de uma; `oddFrac` quando houver uma; SISTEMA é a média e
+fica fora). **Gate junto, senão não vale:** o `casaDublada` do harness gera todo bilhete com
+**uma seleção só** (`od: "4/5"`), então este defeito não podia ser detectado — é o falso
+verde nº 2 do `CLAUDE.md`, o dado sintético que não exerce a regra.
+
+### 4.12 Escrita de robô vira "correção humana" na tabela `correcoes` (s387). VIVA, medida.
+
+`atualizar_bilhete` chama `_registrar_correcoes` para todo campo alterado, e **sete scripts
+de reparo leem `correcoes` como decisão do dono** (`corrigir_meia_vitoria_s356.py`,
+`corrigir_resultado_odd_s321.py`, `corrigir_odd_infiel_s311.py`, `corrigir_stake_infiel_s311.py`,
+`corrigir_data_folga_s339.py`, `corrigir_boost_lottu_s371.py`, e o próprio
+`repository.campos_corrigidos`). A tabela **não tem coluna de origem**, então robô e humano
+são indistinguíveis depois do fato.
+
+Consequência: toda linha que o "Resolver apostas abertas" liquidar fica **blindada contra
+reparo futuro** como se o dono a tivesse editado. A dívida já existe pelo `PATCH` do bot de
+tipster; o que muda é a escala, porque o botão escreve em lote.
+
+**Decisão pendente do Feca** (é a régua de procedência, não código): coluna `origem` em
+`correcoes` com valor `humano`/`robo`, e os scripts passando a respeitar só o `humano`.
+Mesma família do *"correção humana MANDA sobre a captura"* do `CLAUDE.md`, com o detalhe de
+que hoje ninguém sabe qual correção é humana.
+
 ## 5. Planos com fase aberta
 
 > Um plano só sai daqui quando **todas** as fases dele fecham. Plano com uma fase aberta é

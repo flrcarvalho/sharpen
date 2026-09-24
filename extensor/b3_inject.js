@@ -365,7 +365,9 @@
   //   GET /sportshistoryapi/summary?settled=1&from=<ISO>&to=<ISO>&lid=33&cid=28
   //
   // • a lista vem ORDENADA por `TP` decrescente e a página é de **10 bilhetes**;
-  // • o `to` é INCLUSIVO e é o CURSOR: a página seguinte repete a chamada com `to` = o
+  // • o `to` é EXCLUSIVO (medido por tentativa com milissegundos — ver `_janelaDoCarimbo`;
+  //   este comentário dizia "inclusivo" por INFERÊNCIA e estava errado) e é o CURSOR: a
+  //   página seguinte repete a chamada com `to` = o
   //   carimbo do último bilhete recebido. Cada "Mostrar Mais" da tela é uma requisição.
   //
   // A consequência é que o cursor é um ENDEREÇO: pedir `to` perto do carimbo da aposta
@@ -445,6 +447,9 @@
   function _janelaDoCarimbo(ms) {
     const off = _offsetUK(ms);
     const base = ms + off.min * 60e3;
+    // ⚠️ A janela é o ÚNICO lugar onde o fuso entra. Quem pagina NÃO converte carimbo:
+    // o cursor anda por DIFERENÇA de carimbos, que é invariante ao fuso (ver a armadilha
+    // 2 em `buscarPorCarimbos`). Foi tentar converter que escondeu o defeito por uma hora.
     if (off.medido) return { de: base, ate: base + 1000, cega: false };
     return { de: base - JANELA_ABAIXO_H * 3600e3, ate: base + FOLGA_CEGA_H * 3600e3, cega: true };
   }
@@ -465,7 +470,7 @@
   // gate de controle (`_conferirMecanismo`) existe para impedir.
   const TERMO_TIMEOUT = 4000;
 
-  // ── ESPIÃO DO PEDIDO DE TERMO (diagnóstico, s382) ─────────────────────────────
+  // ── ESPIÃO DO PEDIDO DE TERMO (diagnóstico, s382 · refeito na s387) ───────────
   // Com a URL idêntica à da página e os MESMOS cabeçalhos, a casa segue devolvendo corpo
   // vazio. Sobrou uma hipótese: o que se escreve em `ns_gen5_net.url` antes de pedir o
   // termo não está no formato que a assinatura espera.
@@ -473,26 +478,91 @@
   // Em vez de adivinhar o formato (já foram oito tentativas), este ouvinte lê o valor no
   // instante em que QUALQUER UM pede um termo — inclusive a própria página. Não altera
   // nada: `xcftr` é o evento que ela mesma dispara, e aqui só se escuta.
-  let _espiaoLigado = false, _espiadas = 0, _pedindoNosso = false;
+  //
+  // ⚠️ DUAS CORREÇÕES DO PRÓPRIO DIAGNÓSTICO (s387), e sem elas a leitura voltaria MUDA:
+  //
+  // 1. **Ele filtrava por `RX_SUM` sobre o valor espiado.** A hipótese em teste é
+  //    exatamente que esse valor tem OUTRO formato — então o filtro descartaria a única
+  //    linha que interessa, e o silêncio pareceria "a página não pediu termo". Agora loga
+  //    TUDO o que passar, truncado, e diz se casa o regex ou não.
+  // 2. **Ele só era ligado no 1º `summary` que a página fizesse.** O pedido de termo
+  //    acontece ANTES da requisição, então o ouvinte nascia tarde e perdia justamente o
+  //    pedido que o trouxe. Agora liga na carga do arquivo.
+  //
+  // O inventário de chaves do `ns_gen5_net` vai junto: se o termo for assinado sobre algo
+  // além da URL (um id de requisição, um contador), é lá que esse campo aparece.
+  const _ESPIA_MAX = 240;   // corta o valor no log; o formato se vê no começo
+  let _espiaoLigado = false, _espiadasPagina = 0, _espiadasNossas = 0, _pedindoNosso = false;
+  function _inventario(o) {
+    try {
+      const ks = [];
+      for (const k in o) {
+        let t;
+        try { t = typeof o[k]; } catch (e) { t = "?"; }
+        ks.push(k + ":" + t);
+      }
+      return ks.sort().join(", ") || "(sem chaves enumeráveis)";
+    } catch (e) { return "(inacessível)"; }
+  }
   function _ligarEspiao() {
     if (_espiaoLigado) return;
     _espiaoLigado = true;
     try {
       window.addEventListener("xcftr", () => {
         try {
-          if (_espiadas >= 6) return;
-          const u = String((window.ns_gen5_net && window.ns_gen5_net.url) || "");
-          if (!RX_SUM.test(u)) return;          // só o que interessa: o summary
-          _espiadas++;
+          // Tetos separados: o nosso pedido não pode consumir a cota do pedido DELA, que é
+          // o que a leitura veio buscar.
+          if (_pedindoNosso) { if (_espiadasNossas++ >= 4) return; }
+          else { if (_espiadasPagina++ >= 4) return; }
+          const g = window.ns_gen5_net || {};
+          const u = String(g.url == null ? "" : g.url);
           LOG("termo pedido " + (_pedindoNosso ? "POR NÓS" : "PELA PÁGINA") +
-              " · ns_gen5_net.url = " + JSON.stringify(u) +
-              " · body = " + JSON.stringify(String((window.ns_gen5_net && window.ns_gen5_net.body) || "")));
+              " · casaOSummary=" + RX_SUM.test(u) +
+              " · ns_gen5_net.url = " + JSON.stringify(u.slice(0, _ESPIA_MAX)) +
+              " · body = " + JSON.stringify(String(g.body == null ? "" : g.body).slice(0, _ESPIA_MAX)) +
+              " · campos = { " + _inventario(g) + " }");
         } catch (e) {}
       });
+      LOG("espião do `xcftr` ligado (diagnóstico s387)");
     } catch (e) {}
   }
+  // Ligado JÁ, não no primeiro summary: o pedido de termo antecede a requisição.
+  _ligarEspiao();
 
-  function _pedirTermo(urlRelativa) {
+  // ⚠️ O QUE VOLTA NO EVENTO NUNCA TINHA SIDO OLHADO (s387). O código anterior fazia
+  // `fim(ev && ev.detail)` e mandava o valor direto para o header. Se `detail` não for uma
+  // string — um objeto `{termo, id}`, por exemplo — o `Headers` o converte em
+  // `"[object Object]"`, a casa devolve **200 com corpo 0** e o sintoma é EXATAMENTE o
+  // mesmo de "não há aposta nessa janela". Dezenove chamadas assim foram lidas como
+  // "o termo não é aceito" sem ninguém ter visto o termo.
+  //
+  // Agora: o valor é logado (tipo, e um prefixo do conteúdo), string é usada como está, e
+  // objeto é INVENTARIADO antes de qualquer tentativa. Sem string utilizável, devolve nulo
+  // com motivo — nunca lixo com cara de token.
+  let _termoDescrito = 0;
+  function _descreverTermo(v) {
+    let tipo;
+    try { tipo = v === null ? "null" : Array.isArray(v) ? "array" : typeof v; } catch (e) { tipo = "?"; }
+    if (typeof v === "string") {
+      return { tipo: tipo, len: v.length, usar: v, resumo: JSON.stringify(v.slice(0, 40)) };
+    }
+    if (v && typeof v === "object") {
+      // A propriedade string mais LONGA é a candidata a termo: o inventário vai no log
+      // junto, então a próxima leitura confere o nome em vez de adivinhar de novo.
+      let melhor = null, nome = "";
+      try {
+        for (const k in v) {
+          const x = v[k];
+          if (typeof x === "string" && (!melhor || x.length > melhor.length)) { melhor = x; nome = k; }
+        }
+      } catch (e) {}
+      return { tipo: tipo, campos: _inventario(v), usar: melhor, campoUsado: nome,
+               resumo: melhor ? nome + "=" + JSON.stringify(melhor.slice(0, 40)) : "(sem campo string)" };
+    }
+    return { tipo: tipo, usar: null, resumo: String(v).slice(0, 40) };
+  }
+
+  function _pedirTermo(urlEscrita) {
     return new Promise((resolve) => {
       let g;
       try { g = window.ns_gen5_net; } catch (e) { g = null; }
@@ -500,12 +570,27 @@
       _ligarEspiao();
       const id = 100000 + Math.floor(Math.random() * 1e6);
       let pronto = false;
-      const fim = (v) => { if (!pronto) { pronto = true; try { g.url = ""; } catch (e) {} resolve(v); } };
-      const t = setTimeout(() => fim(null), TERMO_TIMEOUT);
+      const fim = (v) => {
+        if (pronto) return;
+        pronto = true;
+        // ⚠️ Limpar o `ns_gen5_net.url` é escrever num objeto que é DA PÁGINA: se ela
+        // estiver no meio de um pedido dela, quem apaga é a gente. Só limpa o que a gente
+        // mesmo escreveu, e só se ninguém tiver escrito por cima no meio.
+        try { if (g.url === urlEscrita) g.url = ""; } catch (e) {}
+        const d = _descreverTermo(v);
+        if (_termoDescrito++ < 3) {
+          LOG("termo recebido · tipo=" + d.tipo + (d.len != null ? " · len=" + d.len : "") +
+              (d.campos ? " · campos = { " + d.campos + " }" : "") +
+              " · " + d.resumo +
+              " · ns_gen5_net depois = { " + _inventario(g) + " }");
+        }
+        resolve(typeof d.usar === "string" && d.usar ? d.usar : null);
+      };
+      const t = setTimeout(() => fim(undefined), TERMO_TIMEOUT);
       try {
         window.addEventListener("xcft" + id, (ev) => { clearTimeout(t); fim(ev && ev.detail); },
                                 { once: true });
-        g.url = urlRelativa;
+        g.url = urlEscrita;
         g.body = "";
         _pedindoNosso = true;
         window.dispatchEvent(new CustomEvent("xcftr", { detail: id }));
@@ -543,6 +628,48 @@
     return u.origin + u.pathname + "?" + partes.join("&");
   }
 
+  // Põe o cabeçalho pelo nome CANÔNICO, removendo antes qualquer variante de caixa.
+  //
+  // ⚠️ Não é preciosismo: os cabeçalhos copiados da página chegam em MINÚSCULAS quando ela
+  // usa `fetch` (é assim que `Headers.forEach` os entrega) e com a caixa original quando
+  // usa XHR. Um objeto com `x-request-id` E `X-Request-Id` não é sobrescrita: o `Headers`
+  // COMBINA os dois e manda `"a, b"` num campo só. O termo já era tratado assim; o id de
+  // requisição não era.
+  function _porNome(cab, nome, valor) {
+    const rx = new RegExp("^" + nome.replace(/[-]/g, "\\-") + "$", "i");
+    for (const k in cab) if (rx.test(k)) delete cab[k];
+    cab[nome] = valor;
+  }
+
+  /** Pede o termo e faz UMA chamada. `urlParaAssinar` é o que se escreve em
+   *  `ns_gen5_net.url` (o padrão é o caminho relativo, que é o que a página parece usar);
+   *  `url` é o endereço realmente chamado. Separar os dois é o que permite à sonda do
+   *  diagnóstico variar um sem variar o outro. */
+  async function _buscarComTermo(url, urlParaAssinar) {
+    let rel = urlParaAssinar;
+    if (!rel) {
+      rel = url;
+      try { const u = new URL(url, location.origin); rel = u.pathname + u.search; } catch (e) {}
+    }
+    const termo = await _pedirTermo(rel);
+    if (!termo) {
+      return { erro: "o mecanismo de token não respondeu (frame errado, ou a casa mudou)",
+               chamou: false, semTermo: true };
+    }
+    // Base: TUDO o que a página manda. Por cima, o nosso termo (uso único, assinado sobre
+    // a nossa URL) e o id de requisição, que também roda a cada chamada.
+    const cab = {};
+    if (ultimosCabecalhos) for (const k in ultimosCabecalhos) cab[k] = ultimosCabecalhos[k];
+    _porNome(cab, "X-Net-Sync-Term", termo);
+    let guid = "";
+    try { const L = window.Locator; if (L && L.Guid) guid = String(L.Guid); } catch (e) {}
+    if (guid) _porNome(cab, "X-Request-Id", guid);
+    const r = await of.call(window, url, { credentials: "include", headers: cab });
+    const txt = await r.text();
+    return { resp: r, txt: txt, status: r.status, len: String(txt || "").length,
+             erro: r.ok ? "" : "HTTP " + r.status, url: url, assinada: rel, guid: guid };
+  }
+
   async function _paginaSummary(settled, msDe, msAte) {
     const url = _urlSummary(settled, msDe, msAte);
     // `chamou:false` não é detalhe de contagem: RECUSAR É NÃO CHAMAR. Uma URL chutada
@@ -554,27 +681,11 @@
     // do `byBsid` da captura e chama `enviar()`. Buscar por carimbo com ele contaminaria a
     // extração em curso com bilhetes que ninguém pediu, e o operador veria a contagem subir
     // sozinha. A busca observa a casa; ela não participa da captura.
-    // O termo é assinado sobre a URL **relativa**, que é o que a página escreve em
-    // `ns_gen5_net.url`. Mandar a absoluta aqui devolve termo válido e resposta vazia.
-    let rel = url;
-    try { const u = new URL(url, location.origin); rel = u.pathname + u.search; } catch (e) {}
-    const termo = await _pedirTermo(rel);
-    if (!termo) {
-      return { erro: "o mecanismo de token não respondeu (frame errado, ou a casa mudou)",
-               chamou: false, semTermo: true };
-    }
-    // Base: TUDO o que a página manda. Por cima, o nosso termo (uso único, assinado sobre
-    // a nossa URL) e o id de requisição, que também roda a cada chamada.
-    const cab = {};
-    if (ultimosCabecalhos) for (const k in ultimosCabecalhos) cab[k] = ultimosCabecalhos[k];
-    for (const k in cab) {
-      if (/^x-net-sync-term$/i.test(k) && k !== "X-Net-Sync-Term") delete cab[k];
-    }
-    cab["X-Net-Sync-Term"] = termo;
-    try { const L = window.Locator; if (L && L.Guid) cab["X-Request-Id"] = L.Guid; } catch (e) {}
-    const r = await of.call(window, url, { credentials: "include", headers: cab });
-    if (!r.ok) return { erro: "HTTP " + r.status };
-    const txt = await r.text();
+    const r0 = await _buscarComTermo(url);
+    if (r0.semTermo) return r0;
+    if (r0.erro) return r0;
+    const r = r0.resp;
+    const txt = r0.txt;
     // ⚠️ CORPO VAZIO NÃO É "NÃO EXISTE". É o que a casa devolve quando o termo não serve —
     // e também o que ela devolve quando realmente não há aposta naquela janela. Os dois
     // casos têm exatamente o mesmo sintoma, então quem chama NÃO pode concluir daqui:
@@ -620,22 +731,42 @@
         paginas++;
         if (r.vazio) vazias++;
         const bets = r.bets;
-        let menorMs = Infinity;
+        let menorMs = Infinity, maiorMs = -Infinity;
         for (const b of bets) {
           if (b.bsid) vistos.set(String(b.bsid), b);
           const c14 = String(b.tp || "").slice(0, 14);
           if (c14) achados.set(c14, b);
           const ms = _msDoCarimbo(c14);
-          if (!isNaN(ms) && ms < menorMs) menorMs = ms;
+          if (!isNaN(ms)) {
+            if (ms < menorMs) menorMs = ms;
+            if (ms > maiorMs) maiorMs = ms;
+          }
         }
         if (achados.has(alvo)) break;          // achou o que procurava
         // ── AS TRÊS ARMADILHAS DA PAGINAÇÃO POR TEMPO ────────────────────────────
         // 1. Página CHEIA não é fim, e página curta é: só `bets.length < PAGINA` encerra.
         if (bets.length < PAGINA) break;
-        // 2. O cursor pode TRAVAR: se o menor carimbo da página não é menor que o cursor
-        //    (dois bilhetes no mesmo segundo — 2,03% dos bilhetes compartilham carimbo),
-        //    repetir a chamada devolveria a mesma página para sempre. Empurra 1 segundo.
-        const proximo = (menorMs < cursor) ? menorMs : (cursor - 1000);
+        // 2. ⚠️ **O CURSOR ANDA POR DIFERENÇA, NUNCA POR VALOR ABSOLUTO** — e esta é a
+        //    correção da s387, achada por mutação depois que o caso do harness passou a
+        //    exercer a paginação de verdade.
+        //
+        //    O `to` que se pede é UTC; o `TP` que volta é hora do REINO UNIDO. O código
+        //    anterior fazia `cursor = menorMs`, misturando os dois: com uma hora de
+        //    diferença entre eles, `menorMs` (UK) nunca ficava abaixo do `cursor` (UTC), o
+        //    ramo de desempate ganhava TODAS as voltas e o cursor descia **um segundo por
+        //    requisição**. Medido: 40 páginas (o teto), alvo não encontrado, zero erro em
+        //    lugar nenhum. E não bastava converter o carimbo, porque no caminho CEGO o
+        //    offset é exatamente o que não se conhece.
+        //
+        //    A saída não precisa do fuso: a DIFERENÇA entre dois carimbos é a mesma nos
+        //    dois fusos. Então o cursor recua o intervalo que a página cobriu, mais um
+        //    segundo para não repetir a fronteira. Funciona com o fuso lido e sem ele.
+        //
+        //    Página inteira no MESMO segundo (cobertura 0) recua 1 s, que é o mínimo
+        //    seguro: ali não há informação de quanto pular, e quem segura é o piso.
+        const cobertura = (isFinite(maiorMs) && isFinite(menorMs) && maiorMs > menorMs)
+          ? (maiorMs - menorMs) : 0;
+        const proximo = cursor - cobertura - 1000;
         // 3. E abaixo do piso não há mais o que procurar: a aposta não está nesta janela.
         if (proximo < piso) break;
         cursor = proximo;
@@ -676,6 +807,75 @@
              "de token parou de funcionar, e 'vazio' NÃO quer dizer que a aposta segue aberta" };
   }
 
+  // ── A SONDA QUE SEPARA AS DUAS CAUSAS (diagnóstico s387, temporária) ──────────
+  //
+  // O dia inteiro da s382 foi gasto num sintoma que tem DUAS causas possíveis e a mesma
+  // cara: a casa devolve 200 com corpo 0 quando o termo não serve **e** quando a janela
+  // pedida não tem aposta. Todos os consertos tentados mexiam na URL que NÓS montamos,
+  // e nenhum mediu se o mecanismo funciona com uma URL que a casa comprovadamente aceita.
+  //
+  // Esta sonda faz exatamente isso: repete a ÚLTIMA requisição que a PRÓPRIA PÁGINA fez,
+  // verbatim, com um termo novo. O resultado divide o problema ao meio:
+  //
+  //   • voltou payload  ⇒ termo, cabeçalhos e fetch estão certos. O defeito está na URL
+  //                        que `_urlSummary` monta (parâmetro descartado, ordem, janela).
+  //   • voltou vazio    ⇒ a URL nunca foi o problema. É o termo, ou algo que a página
+  //                        manda e nós não.
+  //
+  // Duas variantes, porque o que se escreve em `ns_gen5_net.url` é a outra incógnita: o
+  // caminho relativo (o que o código supõe) e a URL absoluta. O espião do `xcftr` mostra
+  // qual delas a página usa; a sonda mostra qual delas a casa ACEITA. Custa 2 requisições
+  // por rodada e SAI quando a resposta aparecer.
+  let _sondado = false;
+  function _cabecalhosDaResposta(r) {
+    try {
+      const out = [];
+      r.headers.forEach((v, k) => { out.push(k + ": " + String(v).slice(0, 80)); });
+      return out.sort().join(" · ") || "(nenhum legível)";
+    } catch (e) { return "(inacessíveis)"; }
+  }
+  async function _sonda() {
+    if (_sondado) return 0;
+    _sondado = true;
+    if (!ultimaUrlSummary) {
+      LOG("sonda: a página ainda não fez nenhum summary neste frame — abra o Histórico uma vez");
+      return 0;
+    }
+    const daPagina = String(ultimaUrlSummary);
+    let abs = daPagina, rel = daPagina;
+    try { const u = new URL(daPagina, location.origin); abs = u.href; rel = u.pathname + u.search; } catch (e) {}
+    LOG("sonda · URL da própria página = " + rel);
+    // Os VALORES, não só as chaves: se o `X-Request-Id` da página for diferente do
+    // `Locator.Guid` que nós mandamos, é candidato a causa e some da vista quando só se
+    // lista o nome do campo.
+    if (ultimosCabecalhos) {
+      const pares = [];
+      for (const k in ultimosCabecalhos) pares.push(k + ": " + String(ultimosCabecalhos[k]).slice(0, 60));
+      LOG("sonda · cabeçalhos da página = { " + pares.sort().join(" · ") + " }");
+    } else {
+      LOG("sonda · cabeçalhos da página = NENHUM capturado (os hooks de fetch e XHR não viram " +
+          "a requisição; ela pode estar sendo feita por outro mecanismo)");
+    }
+    try { const L = window.Locator; LOG("sonda · Locator.Guid = " + JSON.stringify(String((L && L.Guid) || ""))); } catch (e) {}
+    let n = 0;
+    for (const [nome, assinar] of [["caminho relativo", rel], ["URL absoluta", abs]]) {
+      try {
+        const r = await _buscarComTermo(abs, assinar);
+        n++;
+        if (r.semTermo) { LOG("sonda [" + nome + "]: o mecanismo de token não respondeu"); n--; continue; }
+        const bets = (parseSummary(r.txt || "") || {}).bets || [];
+        LOG("sonda [" + nome + "]: HTTP " + r.status + " · corpo " + r.len + " byte(s) · " +
+            bets.length + " bilhete(s)" +
+            (r.len ? "  ✅ A CASA ACEITOU — o defeito está na URL que nós montamos" : "  ❌ vazio") +
+            " · resposta { " + _cabecalhosDaResposta(r.resp) + " }");
+        if (r.len) break;     // achou o formato: não gasta a segunda chamada
+      } catch (e) {
+        LOG("sonda [" + nome + "]: estourou — " + (e && e.message));
+      }
+    }
+    return n;
+  }
+
   // ⚠️ RESPOSTA VAI PARA O PRÓPRIO FRAME **E PARA O TOPO**, como o `enviar()` faz — e não
   // é redundância: o `content.js` roda com `all_frames: false`, ou seja, **só no topo**.
   // Mensagem postada apenas no frame do `members` não chega a ninguém.
@@ -693,6 +893,9 @@
     const carimbos = Array.isArray(pedido) ? pedido : ((pedido && pedido.alvos) || []);
     const controle = (pedido && !Array.isArray(pedido)) ? pedido.controle : null;
     const t0 = Date.now();
+    // DIAGNÓSTICO s387, e sai daqui quando o botão fechar: uma vez por aba, antes do laço.
+    // Roda ANTES porque é ela que diz se vale ler o resto do log.
+    const gastoSonda = await _sonda();
     const r = await buscarPorCarimbos(carimbos, true);
     const encontrados = [];
     for (const c of (carimbos || [])) {
@@ -740,7 +943,13 @@
       confiavel: mecanismo.ok === true,
       mecanismo: mecanismo.motivo || "",
       janelaCega: r.cegas > 0,     // o fuso não pôde ser lido — janela larga, mais chamadas
-      paginas: r.paginas, chamadas: r.chamadas + (mecanismo.chamadas || 0), erro: r.erro,
+      // A sonda é uma ida à casa como qualquer outra e conta no mesmo teto de volume, por
+      // isso entra em `chamadas`. Mas ela é DIAGNÓSTICO temporário, e o gate de custo mede
+      // o LAÇO: daí o campo próprio, que o harness desconta. Quando a sonda sair, ele vira
+      // zero e o gate continua medindo a mesma coisa — sem afrouxar nada no meio.
+      paginas: r.paginas, chamadas: r.chamadas + (mecanismo.chamadas || 0) + gastoSonda,
+      sonda: gastoSonda,
+      erro: r.erro,
       ms: Date.now() - t0,
     });
     if (r.amostra) {
@@ -776,7 +985,7 @@
     // de alguém gastar uma hora de extração medindo a versão errada. A extensão é distribuída à
     // mão e o Feca roda um perfil por casa no Octo, então "recarreguei" não garante nada.
     // Muda junto com qualquer mudança de comportamento da captura.
-    const msg = { __sharpenupB3Rotas: true, topo: window.top === window, build: "s378-folga300",
+    const msg = { __sharpenupB3Rotas: true, topo: window.top === window, build: "s387-diag-termo",
                   host: location.hostname, rotas: lista, campos: campoLista, rec: rec,
                   amostra01: amostra01 };
     LOG("catálogo: " + lista.length + " forma(s) de rota · " + campoLista.length +
