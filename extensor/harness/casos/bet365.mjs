@@ -230,6 +230,7 @@ export async function rodar() {
   falhas.push(...await expansao());
   falhas.push(...await resolverAbertas());
   falhas.push(...chavesDoStorage());
+  falhas.push(...respostaSobeParaOTopo());
   return { falhas, testes: bets.length };
 }
 
@@ -755,6 +756,44 @@ async function resolverAbertas() {
 //
 // Este teste é ESTRUTURAL (lê o texto do `content.js`) de propósito: o que se quer travar
 // é a correspondência entre duas listas, não o comportamento de uma função.
+// ── 12. TODA resposta do inject sobe para o TOPO (s382) ──────────────────────
+// O `content.js` roda com `all_frames: false` — **só no topo**. O inject roda em TODOS os
+// frames, e a lista da bet365 mora num iframe do `members`. Mensagem postada apenas no
+// `window` daquele frame não chega a ninguém: quem escuta está noutro documento.
+//
+// O `enviar()` (a captura) sempre soube disso e posta nos dois. O "Resolver apostas
+// abertas" nasceu postando só no próprio frame, e o sintoma foi cruel: a ÚNICA resposta
+// que o content recebia era a do frame de cima, que é justamente o que não tem a lista.
+// O botão dizia "abra o Histórico uma vez antes" com o Histórico aberto na tela, e nem a
+// marca `apto` salvava — a resposta apta nunca chegava.
+//
+// Teste ESTRUTURAL porque o sandbox tem um documento só: hierarquia de frames é
+// exatamente o que ele não dubla, e é aqui que mora a armadilha.
+function respostaSobeParaOTopo() {
+  const falhas = [];
+  const src = fs.readFileSync(path.join(EXT, "b3_inject.js"), "utf8");
+  // Todo ponto que devolve dado ao content tem de passar por um caminho que também poste
+  // no topo. Hoje são dois: `enviar()` (captura) e `responder()` (resolver abertas).
+  const sobeAoTopo = (trecho) =>
+    /window\.top\s*&&\s*window\.top\s*!==\s*window/.test(trecho) &&
+    /window\.top\.postMessage/.test(trecho);
+  for (const [nome, marca] of [["enviar (captura)", "function enviar(fim, driver)"],
+                               ["responder (resolver abertas)", "function responder(msg)"]]) {
+    const i = src.indexOf(marca);
+    if (i < 0) {
+      falhas.push(`b3_inject.js: não achei \`${marca}\` — se a função mudou de nome, este ` +
+                  `gate precisa acompanhar, senão vira falso verde`);
+      continue;
+    }
+    if (!sobeAoTopo(src.slice(i, i + 900))) {
+      falhas.push(`b3_inject.js: \`${nome}\` não posta para \`window.top\`. O content roda ` +
+                  `SÓ no topo (all_frames: false) e a lista vive num iframe do members — ` +
+                  `mensagem que fica no frame não chega a ninguém, sem erro nenhum`);
+    }
+  }
+  return falhas;
+}
+
 function chavesDoStorage() {
   const falhas = [];
   const src = fs.readFileSync(path.join(EXT, "content.js"), "utf8");

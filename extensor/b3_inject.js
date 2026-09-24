@@ -593,6 +593,18 @@
              "de token parou de funcionar, e 'vazio' NÃO quer dizer que a aposta segue aberta" };
   }
 
+  // ⚠️ RESPOSTA VAI PARA O PRÓPRIO FRAME **E PARA O TOPO**, como o `enviar()` faz — e não
+  // é redundância: o `content.js` roda com `all_frames: false`, ou seja, **só no topo**.
+  // Mensagem postada apenas no frame do `members` não chega a ninguém.
+  //
+  // Medido na casa (s382): sem isto, a única resposta que o content via era a do frame de
+  // cima — justamente o que NÃO tem a lista. O botão dizia "abra o Histórico uma vez antes"
+  // com o Histórico aberto, e a marca `apto` não salvava, porque a apta nunca chegava.
+  function responder(msg) {
+    try { window.postMessage(msg, "*"); } catch (e) {}
+    try { if (window.top && window.top !== window) window.top.postMessage(msg, "*"); } catch (e) {}
+  }
+
   async function resolverAbertas(pedido) {
     // Aceita o formato antigo (array de carimbos) e o novo ({alvos, controle}).
     const carimbos = Array.isArray(pedido) ? pedido : ((pedido && pedido.alvos) || []);
@@ -630,7 +642,7 @@
                       "as que faltaram continuam abertas" };
       }
     }
-    window.postMessage({
+    responder({
       __sharpenupB3Resolver: true,
       // ⚠️ APTO diz se ESTE frame é o que pode responder. O inject roda em TODOS os frames
       // (`all_frames: true`) e a lista mora só no do `members` — o frame de cima nunca viu
@@ -647,7 +659,7 @@
       janelaCega: r.cegas > 0,     // o fuso não pôde ser lido — janela larga, mais chamadas
       paginas: r.paginas, chamadas: r.chamadas + (mecanismo.chamadas || 0), erro: r.erro,
       ms: Date.now() - t0,
-    }, "*");
+    });
     LOG("resolver: " + encontrados.length + "/" + (carimbos || []).length + " achado(s) · " +
         r.chamadas + " chamada(s) · " + (Date.now() - t0) + "ms" +
         (mecanismo.ok === true ? "" : " · ⚠ " + (mecanismo.motivo || "mecanismo incerto")) +
