@@ -276,6 +276,17 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0719",
+      "v": "v0.7.19",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** novo botão **Resolver apostas abertas**, no canto da tela da casa. Ele busca sozinho o resultado das suas apostas que ainda estão em aberto.",
+      "itens": [
+        "O **primeiro clique é um ensaio**: mostra o que encontrou e **não grava nada**. Só o segundo grava.",
+        "Vale para apostas capturadas a partir da versão anterior (0.7.18). As mais antigas ficam como estão.",
+        "É novo: se aparecer algo estranho, avise por aqui antes de gravar."
+      ]
+    },
+    {
       "id": "su-0718",
       "v": "v0.7.18",
       "data": "2026-09-22",
