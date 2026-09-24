@@ -613,6 +613,28 @@ async function resolverAbertas() {
     }
   }
 
+  // ── 10l. A URL sai com os DOIS-PONTOS LITERAIS, como a da página ───────────
+  // O token é assinado SOBRE A URL. `URLSearchParams` percent-encoda os dois-pontos do
+  // ISO (`14:35:09` → `14%3A35%3A09`) e a página da casa nunca manda assim, então a
+  // assinatura não bate e a resposta vem **200 com corpo de 0 byte** — idêntico, de fora,
+  // a "não há aposta nessa janela".
+  //
+  // Medido em 24/09 com o log de diagnóstico: 19 de 19 chamadas com corpo zero, e a URL
+  // no log saindo com `%3A`. Este teste olha a URL que o laço realmente pediu.
+  {
+    const casa = casaDublada(12);
+    const alvo = casa.todos[1].tp.slice(0, 14);
+    const { urls } = await rodar(casa, [alvo]);
+    const doResolver = (urls || []).filter((u) => /from=/.test(u));
+    if (!doResolver.length) {
+      falhas.push("resolver: nenhuma URL com janela foi pedida — o teste não mediu nada");
+    } else if (doResolver.some((u) => u.includes("%3A"))) {
+      falhas.push(`resolver: a URL saiu com dois-pontos ESCAPADOS (${doResolver[0].slice(0, 110)}). ` +
+                  `A casa assina a URL e a dela usa ':' literal — escapado, a resposta volta ` +
+                  `200 com corpo VAZIO, que parece "não achei" e não é`);
+    }
+  }
+
   // ── 10g. O TOKEN é pedido, e assinado sobre a URL RELATIVA ─────────────────
   // A casa devolve 200 com corpo VAZIO para quem não manda o token, e o termo é assinado
   // sobre a URL que se escreve no objeto dela. Mandar a absoluta devolve termo válido e

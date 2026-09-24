@@ -468,15 +468,25 @@
     if (!ultimaUrlSummary) return null;
     let u;
     try { u = new URL(ultimaUrlSummary, location.origin); } catch (e) { return null; }
-    const p = new URLSearchParams();
-    p.set("settled", settled ? "1" : "0");
-    p.set("from", new Date(msDe).toISOString());
-    p.set("to", new Date(msAte).toISOString());
+    // ⚠️ A QUERY É MONTADA À MÃO, e isso não é preciosismo. `URLSearchParams` percent-
+    // encoda os dois-pontos do ISO (`14:35:09` vira `14%3A35%3A09`), e a página da casa
+    // NUNCA manda assim. O token é assinado SOBRE A URL: escrita diferente, assinatura
+    // diferente, e a casa devolve **200 com corpo de 0 byte** — que de fora é idêntico a
+    // "não há aposta nessa janela".
+    //
+    // Medido em 24/09, com o log de diagnóstico: `HTTP 200 · corpo 0 byte(s)` em 19 de 19
+    // chamadas, com a URL saindo com `%3A`. A da própria página, capturada no F12, traz
+    // `from=2026-09-22T00:47:31.439Z` com os dois-pontos literais.
+    //
+    // A ORDEM também é a da página (`settled`, `from`, `to`, depois os identificadores).
+    const partes = ["settled=" + (settled ? "1" : "0"),
+                    "from=" + new Date(msDe).toISOString(),
+                    "to=" + new Date(msAte).toISOString()];
     for (const k of ["lid", "cid", "csid"]) {
       const v = u.searchParams.get(k);
-      if (v != null && v !== "") p.set(k, v);
+      if (v != null && v !== "") partes.push(k + "=" + v);
     }
-    return u.origin + u.pathname + "?" + p.toString();
+    return u.origin + u.pathname + "?" + partes.join("&");
   }
 
   async function _paginaSummary(settled, msDe, msAte) {

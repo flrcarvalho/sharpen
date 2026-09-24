@@ -276,6 +276,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0725",
+      "v": "v0.7.25",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** achei por que o **Resolver apostas abertas** não concluía. A casa recusava o pedido por causa de um detalhe de formato no endereço. Corrigido.",
+      "itens": [
+        "O **primeiro clique é um ensaio**: mostra o que encontrou e **não grava nada**. Só o segundo grava."
+      ]
+    },
+    {
       "id": "su-0724",
       "v": "v0.7.24",
       "data": "2026-09-24",
