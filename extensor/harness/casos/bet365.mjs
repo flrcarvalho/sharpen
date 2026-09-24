@@ -229,6 +229,7 @@ export async function rodar() {
   falhas.push(...dataDoEvento(fmt));
   falhas.push(...await expansao());
   falhas.push(...await resolverAbertas());
+  falhas.push(...chavesDoStorage());
   return { falhas, testes: bets.length };
 }
 
@@ -729,6 +730,52 @@ async function resolverAbertas() {
     }
   }
 
+  return falhas;
+}
+
+// ── 11. O `sync` só enxerga as chaves que o `get()` PEDE (s382) ──────────────
+// `chrome.storage.local.get([...])` devolve só o que está na lista, e chave ausente chega
+// como `undefined` — **sem erro, sem aviso, sem log**. O código roda inteiro e a condição
+// que depende dela é sempre falsa.
+//
+// Foi exatamente assim que o botão "Resolver apostas abertas" nasceu INVISÍVEL: o `sync`
+// testava `st.casa` para saber se a aba é da bet365, e `casa` não estava no `get()`. Tudo
+// passou — sintaxe, harness, suíte — e o tester atualizou, conectou na conta certa e não
+// viu botão nenhum. Nada em lugar nenhum acusou.
+//
+// Este teste é ESTRUTURAL (lê o texto do `content.js`) de propósito: o que se quer travar
+// é a correspondência entre duas listas, não o comportamento de uma função.
+function chavesDoStorage() {
+  const falhas = [];
+  const src = fs.readFileSync(path.join(EXT, "content.js"), "utf8");
+  const mGet = /chrome\.storage\.local\.get\(\s*\[([^\]]+)\]/.exec(src);
+  if (!mGet) {
+    falhas.push("content.js: não achei a lista de chaves do `chrome.storage.local.get` — se ela " +
+                "mudou de forma, este gate precisa acompanhar, senão vira falso verde");
+    return falhas;
+  }
+  const pedidas = new Set(
+    mGet[1].split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean));
+  // ⚠️ SÓ o trecho do `sync` e do que ele chama. Varrer o arquivo inteiro daria falso
+  // positivo em cima de outras variáveis chamadas `st` (há uma no `_resultadoB3`, e
+  // `st.scrollHeight` noutro ponto) — a 1ª versão deste gate fazia isso e teria ficado
+  // vermelha para sempre, por motivo nenhum.
+  const ini = src.indexOf("function ensureResolver(");
+  const fim = src.indexOf("chrome.storage.onChanged", ini);
+  if (ini < 0 || fim < 0) {
+    falhas.push("content.js: não achei o trecho do `sync` para conferir as chaves lidas");
+    return falhas;
+  }
+  const trecho = src.slice(ini, fim);
+  const usadas = new Set();
+  for (const m of trecho.matchAll(/\bst\.([A-Za-z_$][\w$]*)/g)) usadas.add(m[1]);
+  const faltando = [...usadas].filter((k) => !pedidas.has(k));
+  if (faltando.length) {
+    falhas.push(`content.js: o código lê ${faltando.map((k) => "st." + k).join(", ")} mas ` +
+                `\`get()\` não pede ${faltando.join(", ")}. Chave que não se pede chega ` +
+                `undefined SEM ERRO, e toda condição que depende dela fica falsa em silêncio ` +
+                `— foi o que deixou o botão da bet365 invisível na 0.7.19`);
+  }
   return falhas;
 }
 

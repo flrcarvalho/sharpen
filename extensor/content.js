@@ -15,7 +15,12 @@
       drawRoot = null, capturando = false, safety = null, rectAtual = null, roboRodando = false;
 
   const S = (el, m) => { for (const k in m) el.style.setProperty(k, m[k], "important"); };
-  const get = () => chrome.storage.local.get(["token", "modo", "frameAtivo", "frameRect", "frameCount"]);
+  // ⚠️ TODA chave que o `sync` lê tem de estar NESTA lista. `chrome.storage.local.get`
+  // devolve só o que se pede, e chave ausente chega como `undefined` — sem erro, sem
+  // aviso. Foi assim que o botão "Resolver apostas abertas" nasceu invisível: o `sync`
+  // testava `st.casa` e `casa` não estava aqui, então a condição era sempre falsa.
+  const get = () => chrome.storage.local.get(
+    ["token", "modo", "casa", "frameAtivo", "frameRect", "frameCount"]);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Tickets da Superbet capturados pelo sb_inject.js (mundo MAIN) — as RESPOSTAS
@@ -6614,7 +6619,7 @@
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area !== "local") return;
     if ("frameCount" in ch && frame && !("frameAtivo" in ch) && !("frameRect" in ch)) { atualizarContador(ch.frameCount.newValue); return; }
-    if ("token" in ch || "modo" in ch || "frameAtivo" in ch || "frameRect" in ch) sync();
+    if ("token" in ch || "modo" in ch || "casa" in ch || "frameAtivo" in ch || "frameRect" in ch) sync();
   });
   chrome.runtime.onMessage.addListener((msg) => {
     if (!msg) return;
