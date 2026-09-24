@@ -146,6 +146,38 @@ janela que se pede à casa.
 3. **Página cheia não é fim.** Vieram 10? Pode haver mais. Vieram menos de 10? Aí sim acabou.
    É a mesma família da truncagem da expansão: a diferença entre "parou" e "acabou".
 
+### E a consequência que barateia tudo: o cursor é um ENDEREÇO, não só uma paginação
+
+A lista vem **ordenada por `TP` decrescente** (confere na resposta medida: 15:01, 14:49,
+12:24, 11:49, 01:58, …) e o `to` é **inclusivo** — o bilhete cujo `TP` é igual ao `to`
+aparece na resposta.
+
+Junte isso com o carimbo que o banco agora guarda e o desenho vira outro:
+
+> **Pedir `to` = o carimbo da aposta que eu procuro faz ela ser o PRIMEIRO item da
+> resposta.**
+
+Não é varredura, é acesso direto. O §4 abaixo continua certo ao dizer que não existe rota
+por código de comprovante — só que, com o carimbo, a rota por TEMPO faz o mesmo serviço.
+
+**O laço da Fase B, então:**
+
+1. Ordena as abertas-alvo por carimbo, da mais recente para a mais antiga.
+2. Pede uma página com `to` = carimbo da primeira ainda não resolvida (convertido para UTC).
+3. A resposta traz ela e as **9 anteriores**. Casa tudo o que der — se houver outras alvo
+   nesse intervalo, elas saem de graça na mesma chamada.
+4. Repete a partir da próxima que sobrou.
+
+**Custo: no máximo uma requisição por aposta alvo, e tipicamente bem menos.** Contra o teto
+de volume que bloqueou três contas em 20/09 (600 a 1.000 requisições), resolver uma dezena
+de abertas plantadas custa uma dezena de chamadas. A varredura por dia que o plano desenhava
+antes custaria uma página a cada 10 bilhetes daquele dia, sem relação nenhuma com quantas
+apostas se quer resolver.
+
+> **O `from` continua obrigatório**, e é a rede de segurança: sem ele não há onde parar se o
+> casamento falhar. Um dia antes do carimbo basta, e o custo não muda — quem limita o
+> tamanho da resposta é a página de 10, não a largura da janela.
+
 ### O que ainda NÃO foi medido
 
 - **Quantas requisições a janela larga custa**, contra o teto de volume por conta que
