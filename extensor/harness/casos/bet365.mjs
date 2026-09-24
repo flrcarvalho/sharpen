@@ -231,6 +231,7 @@ export async function rodar() {
   falhas.push(...await resolverAbertas());
   falhas.push(...chavesDoStorage());
   falhas.push(...respostaSobeParaOTopo());
+  falhas.push(...repassePreservaOPedido());
   return { falhas, testes: bets.length };
 }
 
@@ -769,6 +770,43 @@ async function resolverAbertas() {
 //
 // Teste ESTRUTURAL porque o sandbox tem um documento só: hierarquia de frames é
 // exatamente o que ele não dubla, e é aqui que mora a armadilha.
+// ── 13. O REPASSE entre frames leva o PEDIDO inteiro (s382) ─────────────────
+// O inject repassa o pedido aos frames de dentro copiando CAMPO A CAMPO. Campo novo que
+// alguém esquecer de acrescentar chega `undefined` no frame que faz o trabalho — sem erro,
+// sem log, sem nada.
+//
+// Medido na casa: o frame de cima recebeu os 22 alvos e não tinha como buscar; o frame do
+// `members` tinha como buscar e recebeu ZERO. O console dizia `0/22` num e `0/0` no outro,
+// e as duas linhas pareciam normais.
+//
+// Estrutural, e pela mesma razão do gate 12: o sandbox tem um documento só.
+function repassePreservaOPedido() {
+  const falhas = [];
+  const src = fs.readFileSync(path.join(EXT, "b3_inject.js"), "utf8");
+  const i = src.indexOf("window.frames[i].postMessage({ __sharpenupB3Req");
+  if (i < 0) {
+    falhas.push("b3_inject.js: não achei o repasse do pedido aos frames — se ele mudou de " +
+                "forma, este gate precisa acompanhar");
+    return falhas;
+  }
+  const trecho = src.slice(i, i + 400);
+  // Todo campo que o CONTENT manda no pedido tem de aparecer no repasse.
+  const content = fs.readFileSync(path.join(EXT, "content.js"), "utf8");
+  const j = content.indexOf("__sharpenupB3Req: true, acao: \"resolver\"");
+  const doContent = j < 0 ? "" : content.slice(j, j + 200);
+  for (const campo of ["pedido", "acao", "jaTem"]) {
+    if (!trecho.includes(campo + ":")) {
+      falhas.push(`b3_inject.js: o repasse aos frames não leva \`${campo}\`. O frame de ` +
+                  `dentro é quem faz o trabalho e receberia esse campo vazio, sem erro nenhum`);
+    }
+  }
+  if (doContent && !doContent.includes("pedido:")) {
+    falhas.push("content.js: o pedido de `resolver` não manda `pedido` — o gate acima está " +
+                "conferindo um campo que ninguém envia, e viraria falso verde");
+  }
+  return falhas;
+}
+
 function respostaSobeParaOTopo() {
   const falhas = [];
   const src = fs.readFileSync(path.join(EXT, "b3_inject.js"), "utf8");

@@ -276,6 +276,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0723",
+      "v": "v0.7.23",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** o botão **Resolver apostas abertas** agora vai até o fim. Dois consertos: a lista de apostas não chegava na parte do robô que faz a busca, e o envio ao Sharpen era recusado.",
+      "itens": [
+        "O **primeiro clique é um ensaio**: mostra o que encontrou e **não grava nada**. Só o segundo grava."
+      ]
+    },
+    {
       "id": "su-0722",
       "v": "v0.7.22",
       "data": "2026-09-24",

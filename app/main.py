@@ -605,7 +605,13 @@ _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # própria extensão (chrome-extension://…), nunca do sharpen.bet, então bateriam
 # no guarda de origem. São isentas do guarda porque fazem a PRÓPRIA autenticação
 # — /conectar exige um código válido e curto; /enviar e /validar exigem o token de sessão.
-_CAPTURA_ISENTAS = {"/captura/conectar", "/captura/enviar", "/captura/validar"}
+# A ponte da extensão fala da ORIGEM DA CASA (bet365.bet.br), nunca do nosso host, e
+# por isso estas rotas ficam fora do guarda de origem — elas se autenticam pelo TOKEN
+# da sessão de captura, que é o que o guarda protegeria. `resolver-abertas` entrou
+# junto na s382: sem isso, o POST da extensão levava **403** e o operador via
+# "Erro ao aplicar (403)" sem nenhuma pista do motivo.
+_CAPTURA_ISENTAS = {"/captura/conectar", "/captura/enviar", "/captura/validar",
+                    "/captura/resolver-abertas"}
 _ALLOWED_ORIGIN_HOSTS = {
     h.strip().lower()
     for h in os.environ.get("ALLOWED_ORIGIN_HOSTS", "").split(",")

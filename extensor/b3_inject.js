@@ -952,8 +952,14 @@
     const saltos = (typeof d.saltos === "number" ? d.saltos : 0) + 1;
     if (saltos <= 4) {
       for (let i = 0; i < window.frames.length && i < 24; i++) {
+        // ⚠️ O repasse copia CAMPO A CAMPO, então todo campo novo do pedido precisa ser
+        // acrescentado aqui — senão ele chega vazio no frame de dentro, que é justamente
+        // quem faz o trabalho. Medido na casa (s382): o frame de cima recebeu os 22 alvos
+        // e não tinha como buscar; o do `members` tinha como buscar e recebeu ZERO alvos.
+        // O log dizia `0/22` num e `0/0` no outro, e nada disso era erro em lugar nenhum.
         try { window.frames[i].postMessage({ __sharpenupB3Req: true, acao: d.acao,
-                                             jaTem: d.jaTem, saltos: saltos }, "*"); } catch (e) {}
+                                             jaTem: d.jaTem, pedido: d.pedido,
+                                             carimbos: d.carimbos, saltos: saltos }, "*"); } catch (e) {}
       }
     }
     // Diagnóstico sob demanda: devolve o CATÁLOGO de rotas e sai. Nunca mexe no estado da
