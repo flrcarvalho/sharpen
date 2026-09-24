@@ -100,14 +100,57 @@ data a casa responde direto.
   carregado tudo na tela.
 - **O custo cai mais uma vez:** sem cliques, sem expansão, sem esperar altura de página.
 
+### O CONTRATO COMPLETO, medido em 23/09 (F12 do Feca, conta real)
+
+**3. A paginação é por CURSOR DE TEMPO, e o cursor é o próprio `to`.** Medido no "Mostrar
+Mais": a chamada seguinte repete tudo e só troca o `to`, que passa a ser o carimbo do
+ÚLTIMO bilhete já recebido.
+
+```
+2ª página:  ...&settled=1&from=2026-09-22T00:47:31.439Z&to=2026-09-23T14:01:44.717Z&lid=33&cid=28
+1º bilhete: |01;ID=49918935843;…;TP=20260923150144000
+                                     ↑ 15:01:44 UK  =  14:01:44 UTC do `to`
+```
+
+**Página de 10 bilhetes** (contados os `|01;ID=` nas duas respostas, resolvidas e pendentes).
+
+**E cada clique em "Mostrar Mais" gera UMA requisição nova, nas duas telas** — confirmado
+pelo Feca no F12, não deduzido. Ou seja: a lista NÃO vem inteira e o botão revela; cada
+página custa uma ida à casa. É isso que torna a janela estreita (o dia da aposta) a decisão
+certa, e não a janela de seis meses que a casa permite.
+
+**4. `settled=0` traz as PENDENTES**, no mesmo endpoint e no mesmo formato:
+
+```
+|01;ID=3152534307690781414;BT=2;BS=0;…;TP=20260923145342000;PD=#HICO#BSUB#C…#D1#
+|02;TY=ST;ST=57.00;          ← sem RT: aposta aberta não tem retorno
+```
+
+`BS=0`, `PD` com `BSUB` no lugar de `BSSB`, e **o `TP` está lá** — que é o que a Fase A
+precisa. A ausência de `RT` confirma a trava do §7.5: retorno ausente é ausência, não zero.
+
+**5. O `TP` está em hora do REINO UNIDO e o `from`/`to` em UTC.** Um delta de 1 hora exata
+no dia medido, que é BST (verão britânico). No inverno o delta é zero. O `content.js` já tem
+o `_ehBST` para isso — **e é por aqui que a conversão entra, nunca na chave**: o carimbo
+gravado em `aposta_em` continua verbatim, e a conversão acontece só na hora de montar a
+janela que se pede à casa.
+
+### As três armadilhas da paginação por tempo, que o laço tem de tratar
+
+1. **A fronteira REPETE.** O bilhete cujo `TP` vira o `to` volta como primeiro item da página
+   seguinte. A dedup por código absorve, mas quem contar "quantos vieram" vai contar a mais.
+2. **Dois bilhetes no MESMO segundo travam o cursor.** Se o último item da página tem o mesmo
+   `TP` do `to` que a pediu, o próximo pedido é idêntico e o laço gira para sempre. Medido:
+   **2,03% dos bilhetes compartilham carimbo com outro** (639 do Jonathan). O laço precisa
+   parar quando o cursor não anda, e não de um teto de páginas.
+3. **Página cheia não é fim.** Vieram 10? Pode haver mais. Vieram menos de 10? Aí sim acabou.
+   É a mesma família da truncagem da expansão: a diferença entre "parou" e "acabou".
+
 ### O que ainda NÃO foi medido
 
-- **Paginação.** A resposta traz a janela inteira ou vem em lotes? Na captura normal a página
-  pede mais ao rolar, então provavelmente há corte — falta ver qual parâmetro o controla.
-- **`settled=0` para as pendentes.** A tela de Pendentes usa o mesmo seletor; presume-se o
-  mesmo endpoint com `settled=0`, e presumir não vale. Medir na próxima aba aberta.
 - **Quantas requisições a janela larga custa**, contra o teto de volume por conta que
-  bloqueou três contas em 20/09.
+  bloqueou três contas em 20/09. Com página de 10, uma janela de 1.000 bilhetes são 100
+  chamadas — e é por isso que a janela do botão é o DIA da aposta, não os seis meses.
 
 ---
 
