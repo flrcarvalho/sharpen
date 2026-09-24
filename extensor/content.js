@@ -6563,7 +6563,7 @@
     resolverTexto(aplicar ? "Gravando…" : "Procurando na casa…");
     try {
       const r = await b3ResolverAbertas(aplicar);
-      if (r.erro) { resolverTexto("Não deu: " + r.erro); resolverPronto = null; return; }
+      if (r.erro) { resolverTexto(r.erro); resolverPronto = null; return; }
       if (r.nada) {
         resolverTexto(r.semCarimbo ? "Nenhuma aposta aberta com hora registrada"
                                    : "Nenhuma aposta aberta nesta conta");
@@ -6575,7 +6575,7 @@
       // não voltou". Aí NÃO se pode dizer que as outras seguem abertas — é a diferença
       // entre não achar e não conseguir perguntar, e ela tem de aparecer para quem clicou.
       if (!r.confiavel && n === 0) {
-        resolverTexto("Não consegui confirmar. " + (r.mecanismo || "Recarregue a página e tente de novo."));
+        resolverTexto("Não consegui confirmar: " + (r.mecanismo || "recarregue a página e tente de novo"));
         resolverPronto = null;
         return;
       }
@@ -6590,7 +6590,8 @@
       } else {
         resolverPronto = r;
         resolverTexto(n + (n === 1 ? " pronta para gravar" : " prontas para gravar") +
-                      " · clique de novo (detalhes no console)");
+                      " · clique de novo");
+        if (btnResolver) btnResolver.title = "Confira os detalhes no console antes de gravar.";
       }
     } finally {
       resolverOcupado = false;
