@@ -344,6 +344,23 @@
   }
 
   // ── "Resolver apostas abertas": buscar na LISTA, por carimbo ──────────────────
+  //
+  // ⛔ **NÃO LIGUE ISTO. A CHAMADA ATIVA NÃO FUNCIONA, e está PROVADO.** ⛔
+  //
+  // O aviso estava no topo deste arquivo desde a s178 e eu escrevi o laço por cima dele:
+  // a casa exige o header `x-net-sync-term`, que rotaciona a cada requisição e é gerado
+  // por código ofuscado dela. Requisição só com cookie devolve **200 com corpo VAZIO**.
+  //
+  // Reconfirmado em 23/09 (s382), colando a URL do summary na barra de endereços da conta
+  // logada: **página em branco**. A mesma URL, pedida PELA PÁGINA, devolve o payload.
+  //
+  // POR QUE O CÓDIGO FICA: o laço aqui é a parte que **não** depende de quem faz a
+  // chamada — a janela com folga, o cursor de tempo, as três armadilhas da paginação e o
+  // empacotamento do que viaja ao servidor. O caminho que funciona (dirigir a TELA:
+  // escolher Intervalo de Datas, preencher as datas, clicar em Mostrar Histórico e deixar
+  // o hook passivo colher, como o `b3_expand` já faz com o "Mostrar Mais") reusa tudo
+  // isso trocando só o `_paginaSummary`. O gate do harness prova a lógica, não a rede.
+  //
   // Desenho em `docs/PLANO_RESOLVER_ABERTAS.md`. Medido no F12 em 23/09, conta real:
   //
   //   GET /sportshistoryapi/summary?settled=1&from=<ISO>&to=<ISO>&lid=33&cid=28

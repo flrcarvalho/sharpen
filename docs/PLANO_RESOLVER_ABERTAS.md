@@ -146,6 +146,49 @@ janela que se pede à casa.
 3. **Página cheia não é fim.** Vieram 10? Pode haver mais. Vieram menos de 10? Aí sim acabou.
    É a mesma família da truncagem da expansão: a diferença entre "parou" e "acabou".
 
+### ⛔ A CHAMADA ATIVA NÃO FUNCIONA — medido em 23/09, e o aviso já existia
+
+**A casa recusa quem não é a página dela.** O topo do `b3_inject.js` registra isso desde a
+s178: o header `x-net-sync-term` rotaciona a cada requisição e o servidor o exige; pedido
+só com cookie devolve **200 com corpo VAZIO**.
+
+Reconfirmado agora, do jeito mais simples: a URL do summary colada na barra de endereços da
+conta logada devolve **página em branco**. A mesma URL, pedida PELA PÁGINA, devolve o
+payload inteiro.
+
+> **Isto é um erro de método, não um imprevisto.** A medição contrária estava nas primeiras
+> vinte linhas do arquivo que foi editado para escrever a chamada. Mesma família do alarme
+> falso da interface nova, no mesmo dia: **o dado que contradiz a hipótese já estava na
+> mesa.**
+
+**O que continua valendo de tudo o que foi medido:** o contrato da API (`from`/`to`, página
+de 10, cursor de tempo, `settled=0`, o delta de fuso) descreve o que a PÁGINA pede — e é
+exatamente isso que o hook passivo colhe hoje. Nada disso foi perdido; o que caiu foi a
+ideia de pedir por fora.
+
+**E o hash também não serve de atalho:** medido em 23/09, escolher aba, período ou Intervalo
+de Datas **não muda a URL** (`#/ME/X8020` do começo ao fim). Não há rota para navegar direto
+a uma janela, como existe para o detalhe (`#/HICO/BSSB/C<bsid>/D0/`).
+
+### O caminho que sobra, e ele é o que já funciona há meses
+
+**Dirigir a TELA e deixar o hook colher.** É o que o `b3_expand` faz desde a s279 com o
+"Mostrar Mais", e é o que a captura inteira faz. Para o botão:
+
+1. escolher **Intervalo de Datas**;
+2. preencher De/Até com a janela da aposta (o calendário é DOM, e clique sintético no mundo
+   ISOLATED funciona — provado pelo `b3_expand`);
+3. clicar em **Mostrar Histórico**;
+4. clicar em **Mostrar Mais** até achar o alvo ou a janela acabar.
+
+**Mais frágil que uma chamada direta** (depende de seletores da casa) e **mais lento** (cada
+página é um clique com espera). Em troca, é o único que a casa aceita.
+
+> **O que NÃO muda com isso:** o casamento por carimbo, o veredito pelo retorno, as travas
+> de escrita, a rota que grava e o laço de cursor. Tudo isso está pronto e testado, e é
+> independente de como a lista chega. O que muda é só a peça que busca — no código, trocar
+> o `_paginaSummary`.
+
 ### E a consequência que barateia tudo: o cursor é um ENDEREÇO, não só uma paginação
 
 A lista vem **ordenada por `TP` decrescente** (confere na resposta medida: 15:01, 14:49,
