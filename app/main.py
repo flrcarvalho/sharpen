@@ -60,6 +60,7 @@ from database import (
 )
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
 from prompts import build_system
+import contrato_texto as _contrato
 from repository import (
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
@@ -409,15 +410,21 @@ def _sombra_vale_agora() -> bool:
 
 async def _sombra_modelo(dono: str, casa: str, system: list[dict],
                          lotes: list[list[dict]], texto: str | None,
-                         titular: str) -> None:
+                         titular: str, contrato: str | None = None,
+                         particao=None) -> None:
     """Replica o lote no modelo candidato e guarda custo + placar determinístico.
 
     `lotes` são os MESMOS pedaços que o titular recebeu (chunks no paralelo, o content
     inteiro no sequencial), com o MESMO `system`. Fielmente a mesma pergunta: se a
     entrada fosse diferente, o placar não compararia nada.
+
+    `contrato` (s386): no contrato de 4 campos o titular recebeu o prompt ENXUTO e os
+    lotes de 4 campos, e a sombra recebe os mesmos; o juiz passa a ser o
+    `contrato_texto.pontuar_4campos`, com as mesmas chaves do `pontuar_saida`.
     """
     tk = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     partes: list[str] = []
+    respostas: list[str] = []
     erro = None
     tem_imagem = any(b.get("type") == "image" for lote in lotes for b in lote
                      if isinstance(b, dict))
@@ -435,14 +442,22 @@ async def _sombra_modelo(dono: str, casa: str, system: list[dict],
             tk["output"] += u.output_tokens
             tk["cache_read"] += getattr(u, "cache_read_input_tokens", 0)
             tk["cache_write"] += getattr(u, "cache_creation_input_tokens", 0)
-            partes.extend(_extract_tsv_rows(
-                "".join(b.text for b in fin.content if b.type == "text")))
+            txt = "".join(b.text for b in fin.content if b.type == "text")
+            if contrato:
+                respostas.append(txt)
+            else:
+                partes.extend(_extract_tsv_rows(txt))
     except Exception as e:
         erro = f"{type(e).__name__}: {e}"[:400]
 
-    placar = pontuar_saida("\n".join(partes), texto)
-    await registrar_sombra_modelo(dono, casa, _SOMBRA_MODELO, titular,
-                                  len(lotes), tem_imagem, tk, placar, erro)
+    if contrato and particao is not None:
+        placar = _contrato.pontuar_4campos("\n".join(respostas), particao)
+        await registrar_sombra_modelo(dono, casa, _SOMBRA_MODELO, titular, len(lotes),
+                                      tem_imagem, tk, placar, erro, contrato=contrato)
+    else:
+        placar = pontuar_saida("\n".join(partes), texto)
+        await registrar_sombra_modelo(dono, casa, _SOMBRA_MODELO, titular,
+                                      len(lotes), tem_imagem, tk, placar, erro)
     logger.info("sombra-modelo %s: %d lote(s) · US$ %.4f · blocos=%d linhas=%d "
                 "sem_codigo=%d inventado=%d%s",
                 _SOMBRA_MODELO, len(lotes), custo_usd(_SOMBRA_MODELO, tk),
@@ -1772,7 +1787,7 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows
 async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
                              dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False,
                              betfair_dates: dict | None = None, codigo_ocr: bool = False,
-                             fora_corte: int = 0):
+                             fora_corte: int = 0, caminho: str | None = None):
     t_start = time.perf_counter()
     try:
         accumulated = ""
@@ -1911,7 +1926,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         accumulated, sis_fix = anexar_sistema_tsv(accumulated, texto)
         if sis_fix["sistemas"]:
             logger.info("seq sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
-        _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens))
+        _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens, caminho=caminho))
         # Fase 0 do tradutor (modo sombra): guarda bruto×decisão para o mapa se
         # escrever sozinho. Vem DEPOIS de `anexar_sistema_tsv` porque o corpo de
         # treino tem de ser o TSV FINAL — o mesmo que foi para o banco, não um
@@ -1931,7 +1946,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
 
 async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None,
                            dono: str = "", casa: str = "", n_itens: int = 0, betfair_dates: dict | None = None,
-                           codigo_ocr: bool = False, fora_corte: int = 0):
+                           codigo_ocr: bool = False, fora_corte: int = 0, caminho: str | None = None):
     n_chunks = len(chunks)
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
@@ -2123,7 +2138,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         resultado, sis_fix = anexar_sistema_tsv(resultado, texto)
         if sis_fix["sistemas"]:
             logger.info("par sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
-        _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens))
+        _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens, caminho=caminho))
         # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
         _fire(registrar_sombra(dono, casa, texto, resultado))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
@@ -2134,6 +2149,193 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("par-final error")
+        yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
+
+
+# ── Contrato de texto de 4 campos (s386) — DESLIGADO por padrão ──────────────
+#
+# Só roda quando `_contrato.ligado(casa)` e o lote é SÓ texto (ver `/extrair`). Ver o
+# cabeçalho de `app/contrato_texto.py` para o desenho e as garantias.
+#
+#   texto ─► particionar ─► cobertos ─► IA de 4 campos (prompt enxuto) ─► montar
+#                 │                                                    └─ rejeitados ─┐
+#                 └─ encaminhados antes da IA ───────────────────────────────────────┤
+#                                                     caminho de HOJE, intacto ◄─────┘
+#   linhas do contrato + linhas do caminho de hoje ─► ordem final ─► um `done` só
+#
+# CUSTO, completo e separável em `uso_tokens.caminho`: 'contrato4' (as chamadas de 4
+# campos, com continuações) e 'atual_pos_contrato' (o caminho de hoje rodando os
+# encaminhados, com a repescagem e a fidelidade dele). A sombra fica na tabela dela, com
+# `contrato='contrato4'`. Tentativa que falhou antes do 1º token não devolve `usage`:
+# ela é CONTADA (`tentativas`) mas não tem tokens a registrar — o mesmo limite do caminho
+# de hoje.
+
+def _evento(ev: str) -> dict | None:
+    """O JSON de um evento SSE `data: {...}` (None se não for um)."""
+    if not ev.startswith("data: "):
+        return None
+    try:
+        return json.loads(ev[6:].strip())
+    except ValueError:
+        return None
+
+
+async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, modelo: str,
+                           dono: str, xls_skipped: int, fora_corte: int, gerador_de_hoje):
+    """Gerador SSE do contrato. `gerador_de_hoje(texto, caminho)` é o MESMO gerador que o
+    `/extrair` usa desligado, aplicado só ao texto encaminhado."""
+    t0 = time.perf_counter()
+    zero = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    try:
+        particao = _contrato.particionar(texto, casa_key)
+    except Exception:
+        logger.exception("contrato: particionar falhou — lote inteiro pelo caminho de hoje")
+        async for ev in gerador_de_hoje(texto, "atual_pos_contrato"):
+            yield ev
+        return
+
+    tk4 = dict(zero)
+    chamadas = tentativas = 0
+    lotes = _contrato.lotes_ia(particao, _BILHETES_POR_CHUNK)
+    system4 = _contrato.build_system_enxuto(casa_key) if lotes else []
+    instr = {"type": "text", "text": _contrato.INSTRUCAO.format(casa=casa)}
+    respostas: list[str] = ["" for _ in lotes]
+    falhos: set[int] = set()
+    sem = asyncio.Semaphore(_MAX_CONCURRENT)
+
+    async def _uma(i: int, txt: str):
+        nonlocal chamadas, tentativas
+        async with sem:
+            content = [{"type": "text", "text": txt}, instr]
+            messages = [{"role": "user", "content": content}]
+            acc = ""
+            while True:
+                attempt = 0
+                while True:
+                    parte = ""
+                    try:
+                        async with _client.messages.stream(
+                            model=modelo, max_tokens=64000, system=system4, messages=messages,
+                        ) as stream:
+                            async for pedaco in stream.text_stream:
+                                parte += pedaco
+                            fin = await stream.get_final_message()
+                        break
+                    except Exception as e:
+                        if _is_retryable(e) and not parte and attempt < _RETRY_MAX:
+                            attempt += 1
+                            tentativas += 1
+                            await asyncio.sleep(_RETRY_BASE * (2 ** (attempt - 1)))
+                            continue
+                        raise
+                acc += parte
+                chamadas += 1
+                u = fin.usage
+                tk4["input"] += u.input_tokens
+                tk4["output"] += u.output_tokens
+                tk4["cache_read"] += getattr(u, "cache_read_input_tokens", 0) or 0
+                tk4["cache_write"] += getattr(u, "cache_creation_input_tokens", 0) or 0
+                if fin.stop_reason != "max_tokens":
+                    break
+                messages = [{"role": "user", "content": content},
+                            {"role": "assistant", "content": acc},
+                            {"role": "user", "content": "Continue de onde parou."}]
+            respostas[i] = acc
+
+    tasks = [asyncio.create_task(_uma(i, t)) for i, t in enumerate(lotes)]
+    feitas = 0
+    pendentes = set(tasks)
+    while pendentes:
+        prontas, pendentes = await asyncio.wait(pendentes, timeout=20)
+        if not prontas:
+            yield f"data: {json.dumps({'keepalive': True})}\n\n"
+            continue
+        for t in prontas:
+            feitas += 1
+            if t.exception() is not None:
+                falhos.add(tasks.index(t))
+                logger.error("contrato: lote %d falhou (vai inteiro ao caminho de hoje): %s",
+                             tasks.index(t) + 1, t.exception())
+            yield f"data: {json.dumps({'chunk_progress': feitas, 'of': len(tasks)})}\n\n"
+
+    mt = _contrato.montar(particao, "\n".join(respostas), casa, parceiro)
+    if falhos:
+        cods_falhos = {m.group(1) for i in falhos
+                       for m in re.finditer(r"(?m)^\[Código:\s*([^\]\r\n]*?)\s*\]", lotes[i])}
+        mt.atual = [(c, b, (["chamada do contrato falhou"] if c in cods_falhos else ms))
+                    for c, b, ms in mt.atual]
+        mt.rejeitados = [(c, b, (["chamada do contrato falhou"] if c in cods_falhos else ms))
+                         for c, b, ms in mt.rejeitados]
+    if lotes:
+        _fire(registrar_uso(dono, casa, modelo, chamadas, len(particao.cobertos), tk4,
+                            caminho="contrato4"))
+        if _sombra_vale_agora():
+            _fire(_sombra_modelo(dono, casa, system4, [[{"type": "text", "text": t}, instr]
+                                                       for t in lotes],
+                                 particao.texto_ia, modelo, contrato="contrato4",
+                                 particao=particao))
+    aceitos = _contrato.texto_dos_aceitos(particao, mt)
+    if aceitos:
+        _fire(registrar_sombra(dono, casa, aceitos, mt.tsv))
+        _fire(_barreira_lembrar(dono, casa, aceitos))
+
+    # A outra metade: o caminho de hoje, sem alteração, só com os encaminhados.
+    antigo = None
+    resto = _contrato.texto_dos_encaminhados(mt.atual)
+    if resto.strip():
+        async for ev in gerador_de_hoje(resto, "atual_pos_contrato"):
+            obj = _evento(ev)
+            if obj is not None and obj.get("done"):
+                antigo = obj
+                continue
+            if obj is not None and obj.get("error"):
+                # Falha do caminho de hoje derruba o lote inteiro, como derrubaria
+                # desligado: entregar só a metade do contrato esconderia a perda.
+                yield ev
+                return
+            yield ev
+
+    try:
+        linhas_antigas = _extract_tsv_rows(antigo["resultado"]) if antigo else []
+        linhas_contrato = [l for l in (mt.tsv or "").split("\n") if l.strip()]
+        finais = _contrato.ordenar_final(texto, linhas_antigas, linhas_contrato)
+        resultado = _contrato.juntar_resultado(antigo["resultado"] if antigo else "",
+                                               finais, _TSV_HEADER)
+        tokens = dict(zero)
+        for k in tokens:
+            tokens[k] = int((antigo or {}).get("tokens", {}).get(k, 0)) + tk4[k]
+        info = _contrato.resumo(particao, mt)
+        info.update({"chamadas": chamadas, "tentativas": tentativas, "lotes_falhos": len(falhos),
+                     "tokens": tk4, "custo_usd": round(custo_usd(modelo, tk4), 6),
+                     "cobertura_final": conferir_cobertura(resultado, texto)})
+        payload = {
+            "stop_reason": "end_turn",
+            "id_fix": {"corrigidos": 0, "incertos": 0},
+            "cobertura": conferir_cobertura(resultado, texto),
+            "fidelidade": {"suspeitas": 0, "corrigidas": 0, "restantes": 0, "exemplos": []},
+            "stake_fix": {"stakes": 0, "exemplos": [], "financeiro": 0, "exemplos_fin": []},
+            "cod_fix": {"fantasmas": 0, "adotados": 0, "esvaziados": 0, "exemplos": []},
+            "chunks_falhos": 0,
+        }
+        if antigo:
+            payload.update({k: v for k, v in antigo.items() if k != "done"})
+        payload.update({
+            "done": True, "resultado": resultado, "modelo": modelo, "tokens": tokens,
+            "xls_skipped": xls_skipped, "fora_corte": fora_corte, "codigo_ocr": False,
+            # os índices de sobreposição eram das linhas do caminho antigo sozinho;
+            # depois da junção não apontam para nada (e casa com código nunca é marcada).
+            "scroll_overlap_indices": [],
+            "carimbos": carimbos_do_texto(texto),
+            "contrato": info,
+        })
+        logger.info("contrato: %.1fs | cobertos=%d linhas=%d antes=%d depois=%d "
+                    "chamadas=%d tentativas=%d US$ %.4f",
+                    time.perf_counter() - t0, info["cobertos"], info["linhas"],
+                    info["encaminhados_antes"], info["rejeitados_depois"],
+                    chamadas, tentativas, info["custo_usd"])
+        yield f"data: {json.dumps(payload)}\n\n"
+    except Exception:
+        logger.exception("contrato: erro ao juntar as duas metades")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
 
 
@@ -3599,36 +3801,50 @@ async def extrair(
         ),
     }
 
-    system = build_system(casa_key)
-    chunks = _build_chunks(base_content, instrucao_block, casa_key)
-    use_parallel = len(chunks) > 1
-
-    logger.info("extrair: casa=%s modelo=%s imgs=%d texts=%d chunks=%d parallel=%s",
-                casa_key, modelo,
-                sum(1 for b in base_content if b.get("type") == "image"),
-                sum(1 for b in base_content if b.get("type") == "text"),
-                len(chunks), use_parallel)
-
     _casa_disp = _casa_display(casa_key)
-    _n_itens = len(base_content)   # imagens + blocos de texto (proxy de itens do lote)
-    # PROCEDENCIA DO CODIGO (s338). Lote com imagem = o codigo da 11a coluna foi LIDO do
-    # card pela IA, e num id longo ela erra quase sempre (Blaze: 53 de 55 com comprimento
-    # errado). O flag viaja no `done` e volta no /salvar, onde vira a coluna `codigo_ocr`
-    # -- e e ela que autoriza a captura a ADOTAR a linha depois, em vez de duplicar.
-    # Lote misto (imagem + texto) conta como imagem: procedencia se decide pelo pior caso.
-    _codigo_ocr = any(b.get("type") == "image" for b in base_content)
-    if use_parallel:
-        generator = _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto,
-                                     dono=dono, casa=_casa_disp, n_itens=_n_itens, betfair_dates=betfair_dates,
-                                     codigo_ocr=_codigo_ocr, fora_corte=fora_corte)
-    else:
+
+    def _gerador_de_hoje(texto_x: str | None, base_x: list[dict], caminho: str | None = None):
+        """O caminho de sempre. Desligado o contrato, é chamado com (texto, base_content)
+        e faz EXATAMENTE o que fazia; o contrato o chama só com os encaminhados."""
+        system = build_system(casa_key)
+        chunks = _build_chunks(base_x, instrucao_block, casa_key)
+        use_parallel = len(chunks) > 1
+
+        logger.info("extrair: casa=%s modelo=%s imgs=%d texts=%d chunks=%d parallel=%s",
+                    casa_key, modelo,
+                    sum(1 for b in base_x if b.get("type") == "image"),
+                    sum(1 for b in base_x if b.get("type") == "text"),
+                    len(chunks), use_parallel)
+
+        _n_itens = len(base_x)   # imagens + blocos de texto (proxy de itens do lote)
+        # PROCEDENCIA DO CODIGO (s338). Lote com imagem = o codigo da 11a coluna foi LIDO do
+        # card pela IA, e num id longo ela erra quase sempre (Blaze: 53 de 55 com comprimento
+        # errado). O flag viaja no `done` e volta no /salvar, onde vira a coluna `codigo_ocr`
+        # -- e e ela que autoriza a captura a ADOTAR a linha depois, em vez de duplicar.
+        # Lote misto (imagem + texto) conta como imagem: procedencia se decide pelo pior caso.
+        _codigo_ocr = any(b.get("type") == "image" for b in base_x)
+        if use_parallel:
+            return _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto_x,
+                                    dono=dono, casa=_casa_disp, n_itens=_n_itens, betfair_dates=betfair_dates,
+                                    codigo_ocr=_codigo_ocr, fora_corte=fora_corte, caminho=caminho)
         # Bet365/Betano/Betfair são feed newest-first: no chunk único, o sistema inverte p/
         # oldest→newest (ex.: 1 bilhete só, ou o fallback de texto antigo em bloco único).
         seq_reverse = casa_key.upper() in ("BET365", "BETANO", "BETFAIR")
-        generator = _stream_sequential(system, base_content + [instrucao_block], modelo, xls_skipped, texto,
-                                       dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse,
-                                       betfair_dates=betfair_dates, codigo_ocr=_codigo_ocr,
-                                       fora_corte=fora_corte)
+        return _stream_sequential(system, base_x + [instrucao_block], modelo, xls_skipped, texto_x,
+                                  dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse,
+                                  betfair_dates=betfair_dates, codigo_ocr=_codigo_ocr,
+                                  fora_corte=fora_corte, caminho=caminho)
+
+    # Contrato de texto de 4 campos (s386): só com `CONTRATO_TEXTO_CASAS` ligando a casa
+    # E lote que é SÓ texto — imagem, PDF, CSV e XLS seguem o caminho de sempre.
+    so_texto = (bool(texto) and len(base_content) == 1
+                and base_content[0].get("type") == "text" and not betfair_dates)
+    if so_texto and _contrato.ligado(casa_key):
+        generator = _stream_contrato(
+            texto, casa_key, _casa_disp, parceiro, modelo, dono, xls_skipped, fora_corte,
+            lambda t, cam: _gerador_de_hoje(t, [{"type": "text", "text": t}], cam))
+    else:
+        generator = _gerador_de_hoje(texto, base_content)
 
     return StreamingResponse(
         generator,
@@ -4317,6 +4533,94 @@ class ResolverAbertasRequest(BaseModel):
     aplicar: bool = False
 
 
+async def _resolver_abertas(dono: str, casa_txt: str, parceiro_txt: str,
+                            encontrados: list[dict], aplicar: bool) -> dict:
+    """O miolo, compartilhado pelas DUAS portas (painel por sessão, extensão por token).
+
+    Uma função só porque são a mesma decisão: duplicar aqui seria duas réguas de escrita
+    que divergem no primeiro ajuste — e é escrita em cima de dinheiro.
+    """
+    abertas = await list_bilhetes(
+        dono, casa=casa_txt, parceiro=parceiro_txt,
+        extraction_state="aberta", archived="all", limit=1000,
+    )
+    casamento = casar_abertas_por_carimbo(abertas, encontrados or [])
+    travados = await campos_corrigidos([a["id"] for a, _ in casamento["pares"]],
+                                       ("resultado", "odd", "stake"))
+    aplicados, a_conferir = [], []
+    for aberta, achado in casamento["pares"]:
+        res, odd_nova, motivo = resultado_da_aposta_encontrada(aberta, achado)
+        if not res:
+            a_conferir.append({"id": aberta["id"], "motivo": motivo})
+            continue
+        if aberta["id"] in travados:
+            a_conferir.append({"id": aberta["id"],
+                               "motivo": "tem correção humana — decisão do dono manda"})
+            continue
+        campos = {"resultado": res}
+        if odd_nova:
+            campos["odd"] = odd_nova
+        item = {"id": aberta["id"], "codigo": aberta.get("codigo_bilhete"),
+                "descricao": aberta.get("descricao"), "stake": aberta.get("stake"),
+                "odd_antes": aberta.get("odd"), "odd_depois": odd_nova or aberta.get("odd"),
+                "resultado": res, "retorno": achado.get("retorno"),
+                "pl_antes": calcular_pl(aberta.get("stake"), aberta.get("odd"), None),
+                "pl_depois": calcular_pl(aberta.get("stake"), odd_nova or aberta.get("odd"), res)}
+        if aplicar:
+            item["gravado"] = await atualizar_bilhete(aberta["id"], campos, dono)
+        aplicados.append(item)
+    return {
+        "ensaio": not aplicar,
+        "conta": {"casa": casa_txt, "parceiro": parceiro_txt},
+        "abertas_no_banco": len(abertas),
+        "recebidos_da_casa": len(encontrados or []),
+        "resolvidos": aplicados,
+        "a_conferir": a_conferir,
+        "ambiguos": [a["id"] for a in casamento["ambiguos"]],
+        "sem_par": [a["id"] for a in casamento["sem_par"]],
+        "sem_carimbo": [a["id"] for a in casamento["sem_chave"]],
+        "recebidos_sem_chave": len(casamento["sem_chave_casa"]),
+    }
+
+
+@app.get("/captura/abertas")
+async def captura_abertas(token: str):
+    """As apostas ABERTAS da conta desta sessão de captura, para a extensão ir buscá-las.
+
+    Porta da EXTENSÃO, autenticada pelo token de captura — o mesmo do `/captura/enviar`.
+    Existe porque **não há canal do painel para a extensão**: a sessão só transporta no
+    sentido extensão → painel (`adicionar_captura` / `drenar_capturas`). Então quem começa
+    o trabalho é a extensão, que já se autentica por token.
+
+    Devolve só o que o casamento precisa. O `aposta_em` é o carimbo de colocação, e é por
+    ele que a extensão monta o `to` da chamada à casa.
+    """
+    sess = _captura.sessao_por_token(token)
+    if not sess:
+        raise HTTPException(401, "Token de captura inválido ou expirado.")
+    abertas = await list_bilhetes(
+        sess.dono, casa=sess.casa, parceiro=sess.parceiro,
+        extraction_state="aberta", archived="all", limit=1000,
+    )
+    # ⚠️ NUNCA filtra por `archived` (ver a nota na rota do painel): aposta aberta antiga
+    # está sempre arquivada, e são justamente as plantadas que isto existe para resolver.
+    return {"conta": {"casa": sess.casa, "parceiro": sess.parceiro},
+            "abertas": [{"id": b["id"], "aposta_em": b.get("aposta_em"),
+                         "stake": b.get("stake"), "odd": b.get("odd"),
+                         "data": b.get("data"), "codigo": b.get("codigo_bilhete")}
+                        for b in abertas]}
+
+
+@app.post("/captura/resolver-abertas")
+async def captura_resolver_abertas(body: ResolverAbertasRequest, token: str):
+    """Porta da EXTENSÃO para aplicar — mesmo miolo da porta do painel."""
+    sess = _captura.sessao_por_token(token)
+    if not sess:
+        raise HTTPException(401, "Token de captura inválido ou expirado.")
+    return await _resolver_abertas(sess.dono, sess.casa, sess.parceiro,
+                                   body.encontrados or [], body.aplicar)
+
+
 @app.post("/bet365/resolver-abertas")
 async def bet365_resolver_abertas(
     body: ResolverAbertasRequest,
@@ -4341,56 +4645,8 @@ async def bet365_resolver_abertas(
             casa_txt, parceiro_txt = conta["casa"], conta["nome"]
     if not casa_txt or not parceiro_txt:
         raise HTTPException(400, "Informe a conta (parceiro_id, ou casa e parceiro).")
-
-    abertas = await list_bilhetes(
-        dono, casa=casa_txt, parceiro=parceiro_txt,
-        extraction_state="aberta", archived="all", limit=1000,
-    )
-    casamento = casar_abertas_por_carimbo(abertas, body.encontrados or [])
-
-    # Correção humana manda sobre captura. A lista de campos inclui `stake` porque a régua
-    # LÊ a stake do banco contra o retorno da casa: editada uma e não o outro, o veredito
-    # compara números de origens diferentes e erra de categoria (medido na s382, #262170).
-    travados = await campos_corrigidos([a["id"] for a, _ in casamento["pares"]],
-                                       ("resultado", "odd", "stake"))
-
-    aplicados, a_conferir = [], []
-    for aberta, achado in casamento["pares"]:
-        res, odd_nova, motivo = resultado_da_aposta_encontrada(aberta, achado)
-        if not res:
-            a_conferir.append({"id": aberta["id"], "motivo": motivo})
-            continue
-        if aberta["id"] in travados:
-            a_conferir.append({"id": aberta["id"], "motivo": "tem correção humana — decisão do dono manda"})
-            continue
-        campos = {"resultado": res}
-        if odd_nova:
-            campos["odd"] = odd_nova
-        item = {"id": aberta["id"], "codigo": aberta.get("codigo_bilhete"),
-                "descricao": aberta.get("descricao"), "stake": aberta.get("stake"),
-                "odd_antes": aberta.get("odd"), "odd_depois": odd_nova or aberta.get("odd"),
-                "resultado": res, "retorno": achado.get("retorno"),
-                "pl_antes": calcular_pl(aberta.get("stake"), aberta.get("odd"), None),
-                "pl_depois": calcular_pl(aberta.get("stake"), odd_nova or aberta.get("odd"), res)}
-        if body.aplicar:
-            item["gravado"] = await atualizar_bilhete(aberta["id"], campos, dono)
-        aplicados.append(item)
-
-    return {
-        "ensaio": not body.aplicar,
-        "conta": {"casa": casa_txt, "parceiro": parceiro_txt},
-        "abertas_no_banco": len(abertas),
-        "recebidos_da_casa": len(body.encontrados or []),
-        "resolvidos": aplicados,
-        "a_conferir": a_conferir,
-        # Quem lê a resposta tem de conseguir explicar cada aposta que NÃO foi resolvida:
-        # ambígua (a chave serve a mais de uma), sem par na lista (não resolveu ainda, ou a
-        # janela não a cobriu) e sem chave (aposta anterior ao carimbo, ou sem odd/stake).
-        "ambiguos": [a["id"] for a in casamento["ambiguos"]],
-        "sem_par": [a["id"] for a in casamento["sem_par"]],
-        "sem_carimbo": [a["id"] for a in casamento["sem_chave"]],
-        "recebidos_sem_chave": len(casamento["sem_chave_casa"]),
-    }
+    return await _resolver_abertas(dono, casa_txt, parceiro_txt,
+                                   body.encontrados or [], body.aplicar)
 
 
 class _BilheteFinanceiroBase(BaseModel):

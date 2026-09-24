@@ -207,6 +207,10 @@
   function forward(url, text) {
     const u = String(url);
     if (RX_SUM.test(u)) {
+      // Referência para as chamadas ATIVAS do "Resolver apostas abertas": é daqui que saem
+      // `lid`/`cid`/`csid` (variam por país) e o ORIGIN certo — a lista mora no `members`,
+      // e este inject roda em todos os frames.
+      ultimaUrlSummary = u;
       try { const rs = parseRecords(text); catalogarCampos("summary", rs); amostrar01(u, rs); } catch (e) {}   // diagnóstico, não decide nada
       const r = parseSummary(text);
       if (!r || !r.bets.length) return false;
@@ -337,6 +341,160 @@
         amostra01.push(Object.assign({}, marca, kv));
       }
     } catch (e) {}
+  }
+
+  // ── "Resolver apostas abertas": buscar na LISTA, por carimbo ──────────────────
+  // Desenho em `docs/PLANO_RESOLVER_ABERTAS.md`. Medido no F12 em 23/09, conta real:
+  //
+  //   GET /sportshistoryapi/summary?settled=1&from=<ISO>&to=<ISO>&lid=33&cid=28
+  //
+  // • a lista vem ORDENADA por `TP` decrescente e a página é de **10 bilhetes**;
+  // • o `to` é INCLUSIVO e é o CURSOR: a página seguinte repete a chamada com `to` = o
+  //   carimbo do último bilhete recebido. Cada "Mostrar Mais" da tela é uma requisição.
+  //
+  // A consequência é que o cursor é um ENDEREÇO: pedir `to` perto do carimbo da aposta
+  // procurada a traz na primeira página, com as anteriores de graça. Não é varredura.
+  let ultimaUrlSummary = "";     // preenchida pelo hook — ver `forward`
+
+  // ⚠️ A JANELA TEM FOLGA DE PROPÓSITO, e a folga é o que dispensa o fuso.
+  // O `TP` vem em hora do REINO UNIDO e o `from`/`to` em UTC (delta medido: 1h em BST, 0 em
+  // GMT). O `content.js` tem o `_ehBST`, mas ele é uma suposição que o projeto já marcou
+  // como "assumida, não medida" — e uma chave/janela errada por uma hora faz a aposta
+  // simplesmente não aparecer, sem erro nenhum. Com +3h de folga para cima, a aposta cai
+  // dentro da janela com qualquer um dos dois fusos, e o preço é vir mais alguns vizinhos.
+  const FOLGA_ACIMA_H = 3;
+  const JANELA_ABAIXO_H = 27;    // 24h + a mesma folga: onde parar quando o casamento falha
+  const PAGINA = 10;             // medido; serve só para saber que "cheia" não é "fim"
+  const MAX_PAGINAS = 40;        // teto duro de segurança, NUNCA o critério de parada
+
+  function _msDoCarimbo(c) {
+    const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(c || ""));
+    if (!m) return NaN;
+    return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  }
+
+  function _urlSummary(settled, msDe, msAte) {
+    // A base sai da ÚLTIMA chamada que a PRÓPRIA página fez: é de lá que vêm `lid`/`cid`/
+    // `csid` (variam por país) e, sobretudo, o ORIGIN certo — este inject roda em todos os
+    // frames, e a lista mora no `members`, não no `www`. Sem essa referência a gente não
+    // chuta: devolve erro pedindo para abrir o histórico uma vez.
+    if (!ultimaUrlSummary) return null;
+    let u;
+    try { u = new URL(ultimaUrlSummary, location.origin); } catch (e) { return null; }
+    const p = new URLSearchParams();
+    p.set("settled", settled ? "1" : "0");
+    p.set("from", new Date(msDe).toISOString());
+    p.set("to", new Date(msAte).toISOString());
+    for (const k of ["lid", "cid", "csid"]) {
+      const v = u.searchParams.get(k);
+      if (v != null && v !== "") p.set(k, v);
+    }
+    return u.origin + u.pathname + "?" + p.toString();
+  }
+
+  async function _paginaSummary(settled, msDe, msAte) {
+    const url = _urlSummary(settled, msDe, msAte);
+    // `chamou:false` não é detalhe de contagem: RECUSAR É NÃO CHAMAR. Uma URL chutada
+    // devolveria 404 e o erro pareceria o mesmo, e aí ninguém distingue "não sei o
+    // endereço" de "a casa não tem esse bilhete".
+    if (!url) return { erro: "sem referência de URL — abra o Histórico uma vez antes", chamou: false };
+    // ⚠️ `of` é o fetch ORIGINAL, guardado ANTES do hook — e não é detalhe de estilo. O
+    // `window.fetch` daqui está embrulhado pelo `forward`, que joga tudo o que passa dentro
+    // do `byBsid` da captura e chama `enviar()`. Buscar por carimbo com ele contaminaria a
+    // extração em curso com bilhetes que ninguém pediu, e o operador veria a contagem subir
+    // sozinha. A busca observa a casa; ela não participa da captura.
+    const r = await of.call(window, url, { credentials: "include" });
+    if (!r.ok) return { erro: "HTTP " + r.status };
+    const txt = await r.text();
+    const parsed = parseSummary(txt);
+    return { bets: (parsed && parsed.bets) || [] };
+  }
+
+  /** Acha, na lista da casa, os bilhetes dos `carimbos` pedidos. Não escreve nada. */
+  async function buscarPorCarimbos(carimbos, settled) {
+    const alvos = Array.from(new Set((carimbos || []).map(String)))
+      .filter((c) => !isNaN(_msDoCarimbo(c)))
+      .sort().reverse();                       // do mais recente para o mais antigo
+    const achados = new Map();                 // carimbo(14) → bilhete da casa
+    const vistos = new Map();                  // bsid → bilhete (tudo o que passou)
+    let paginas = 0, chamadas = 0, erro = "";
+
+    for (const alvo of alvos) {
+      if (achados.has(alvo)) continue;         // veio de graça numa página anterior
+      const msAlvo = _msDoCarimbo(alvo);
+      let cursor = msAlvo + FOLGA_ACIMA_H * 3600e3;
+      const piso = msAlvo - JANELA_ABAIXO_H * 3600e3;
+      while (paginas < MAX_PAGINAS) {
+        const r = await _paginaSummary(settled, piso, cursor);
+        if (r.chamou !== false) chamadas++;
+        if (r.erro) { erro = r.erro; break; }
+        paginas++;
+        const bets = r.bets;
+        let menorMs = Infinity;
+        for (const b of bets) {
+          if (b.bsid) vistos.set(String(b.bsid), b);
+          const c14 = String(b.tp || "").slice(0, 14);
+          if (c14) achados.set(c14, b);
+          const ms = _msDoCarimbo(c14);
+          if (!isNaN(ms) && ms < menorMs) menorMs = ms;
+        }
+        if (achados.has(alvo)) break;          // achou o que procurava
+        // ── AS TRÊS ARMADILHAS DA PAGINAÇÃO POR TEMPO ────────────────────────────
+        // 1. Página CHEIA não é fim, e página curta é: só `bets.length < PAGINA` encerra.
+        if (bets.length < PAGINA) break;
+        // 2. O cursor pode TRAVAR: se o menor carimbo da página não é menor que o cursor
+        //    (dois bilhetes no mesmo segundo — 2,03% dos bilhetes compartilham carimbo),
+        //    repetir a chamada devolveria a mesma página para sempre. Empurra 1 segundo.
+        const proximo = (menorMs < cursor) ? menorMs : (cursor - 1000);
+        // 3. E abaixo do piso não há mais o que procurar: a aposta não está nesta janela.
+        if (proximo < piso) break;
+        cursor = proximo;
+      }
+      if (erro) break;
+    }
+    // A fronteira REPETE um item por página (o do carimbo igual ao `to`), então contar
+    // "quantos vieram" conta a mais. Quem responde é o mapa por bsid, não a soma.
+    return { achados: achados, vistos: vistos, paginas: paginas, chamadas: chamadas, erro: erro };
+  }
+
+  async function resolverAbertas(carimbos) {
+    const t0 = Date.now();
+    const r = await buscarPorCarimbos(carimbos, true);
+    const encontrados = [];
+    for (const c of (carimbos || [])) {
+      const b = r.achados.get(String(c).slice(0, 14));
+      if (!b) continue;
+      encontrados.push({
+        carimbo: String(b.tp || "").slice(0, 14),
+        stake: b.ts != null ? b.ts : b.stake,
+        // A odd da casa, em DECIMAL: o `oddFrac` é fracionário (`9/10`) e quem casa do
+        // outro lado é o `_norm_odd` do servidor, que fala decimal.
+        odd: _oddDecimal(b.oddFrac),
+        // ⚠️ `rt` AUSENTE viaja como ausência. Zero é uma conta feita: com ele, o bilhete
+        // GANHO vira `L` do outro lado e ninguém vê erro nenhum.
+        retorno: (b.rt == null || b.rt === "") ? null : b.rt,
+        bsid: b.bsid, bs: b.bs,
+      });
+    }
+    window.postMessage({
+      __sharpenupB3Resolver: true,
+      encontrados: encontrados,
+      pedidos: (carimbos || []).length,
+      paginas: r.paginas, chamadas: r.chamadas, erro: r.erro,
+      ms: Date.now() - t0,
+    }, "*");
+    LOG("resolver: " + encontrados.length + "/" + (carimbos || []).length + " achado(s) · " +
+        r.chamadas + " chamada(s) · " + (Date.now() - t0) + "ms" + (r.erro ? " · " + r.erro : ""));
+  }
+
+  // Fracionária ("9/10") → decimal com precisão completa. Mesma conta do `_oddNumB3` do
+  // content; aqui em string, porque é assim que viaja para o servidor.
+  function _oddDecimal(frac) {
+    const s = String(frac || ""); const i = s.indexOf("/");
+    if (i < 0) return "";
+    const a = parseFloat(s.slice(0, i)), b = parseFloat(s.slice(i + 1));
+    if (!isFinite(a) || !isFinite(b) || b === 0) return "";
+    return String(a / b + 1);
   }
 
   function enviarRotas() {
@@ -622,6 +780,9 @@
     // Diagnóstico sob demanda: devolve o CATÁLOGO de rotas e sai. Nunca mexe no estado da
     // captura (não reseta `expansaoFeita`, não chama `enviar`, não dispara driver nenhum).
     if (d.acao === "rotas") { enviarRotas(); return; }
+    // "Resolver apostas abertas": busca na LISTA e devolve. Não escreve, não navega, não
+    // mexe no estado da captura — sai antes de qualquer reset, como o catálogo de rotas.
+    if (d.acao === "resolver") { resolverAbertas(d.carimbos || []); return; }
     if (d.acao === "limpar") {
       rec = []; recSujo = true;
       try { localStorage.removeItem(REC_KEY); } catch (e) {}

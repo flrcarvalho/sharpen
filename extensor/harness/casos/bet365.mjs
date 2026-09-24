@@ -228,6 +228,7 @@ export async function rodar() {
   falhas.push(...duplaEEsportes(fmt));
   falhas.push(...dataDoEvento(fmt));
   falhas.push(...await expansao());
+  falhas.push(...await resolverAbertas());
   return { falhas, testes: bets.length };
 }
 
@@ -344,6 +345,227 @@ function dataDoEvento(fmt) {
     falhas.push(`data: sem kickoff e sem colocação o bloco emitiu "${linha(fmt(semNada), "Data (")}" — ` +
                 "devia sair sem linha de data nenhuma e deixar o backend usar a data de referência");
   }
+  return falhas;
+}
+
+// ── 10. "RESOLVER APOSTAS ABERTAS": a busca por carimbo na LISTA (s382) ───────
+// Desenho em `docs/PLANO_RESOLVER_ABERTAS.md`. O contrato abaixo foi MEDIDO no F12, em
+// conta real, 23/09: a lista vem ordenada por `TP` decrescente, a página é de 10, o `to` é
+// inclusivo e é o CURSOR — a página seguinte repete a chamada trocando só o `to`.
+//
+// O que se prova aqui é o LAÇO, contra uma casa dublada que pagina igual à de verdade. O
+// payload é montado no formato real (`F|00;…|01;…`), não um objeto conveniente: é o mesmo
+// `parseSummary` da captura que lê os dois.
+//
+// O QUE ISTO NÃO COBRE: se a casa se comporta como o dublê. Isso só a aba real responde, e
+// o contrato veio de lá — três chamadas reais, coladas do F12.
+//
+// Mutação provada, 5 de 6: o cursor deixa de ser empurrado quando trava · página cheia vira
+// fim de lista · a odd viaja fracionária · sem referência de URL o laço chuta em vez de
+// recusar · retorno ausente vira zero. Todas ficaram vermelhas.
+//
+// A 6ª ESCAPA e é INÓCUA **contra este dublê**: tirar o `if (proximo < piso) break` não muda
+// nada, porque o `from` da requisição JÁ É o piso e a casa dublada respeita o `from` — a
+// página seguinte vem curta e o laço para pelo outro critério. Ela deixa de ser inócua
+// contra uma casa que IGNORE o `from`, e é por isso que a linha fica: é defesa em
+// profundidade, não redundância. Registrado aqui em vez de virar asserção inventada.
+//
+// Duas coisas que a 1ª versão destes testes errou, e que valem mais que o verde de agora:
+// o dublê punha DOIS bilhetes no mesmo segundo (o cursor só trava quando a PÁGINA INTEIRA
+// cai no mesmo segundo), e o teste da URL chutada aceitava qualquer `erro` — mas uma URL
+// chutada dá 404, que também é `erro`. Nos dois casos a mutação passou verde primeiro.
+function payloadSummary(bilhetes) {
+  let s = "F|00;IT=betsummaries;TY=BS;PC=;PT=2026-09-23T12:00:00.0Z;";
+  for (const b of bilhetes) {
+    s += `|01;ID=${b.id};BT=1;BS=1;BC=1;RA=;TP=${b.tp};PD=#HICO#BSSB#C${b.id}#D0#;`;
+    s += "|02;TY=SR;";
+    s += `|03;NA=${b.na || "Sel"};FN=${b.na || "Sel"};OD=${b.od || "1/1"};CL=1;FP=0;BA=0;FA=1;FR=0;SY=a;`;
+    s += `|02;TY=SD;EW=0;BM=0;ST=${b.st};BC=1;BB=0;NA=Simples;BT=1;TS=${b.st};AB=0;AT=0;MB=0;FR=0;OD=${b.od || "1/1"};`;
+    // Aposta ainda aberta vem SEM `RT` — medido nas pendentes reais (settled=0).
+    s += b.rt == null ? `|02;TY=ST;ST=${b.st};` : `|02;TY=ST;ST=${b.st};RT=${b.rt};`;
+  }
+  return s + "|";
+}
+
+// Uma casa com N bilhetes servindo páginas de 10 por cursor de tempo, como a real.
+// `passoMin` espaça os bilhetes: com 10 min todos cabem na janela de 27h; com 60 min a
+// janela CORTA, que é o que prova o piso.
+function casaDublada(n, opts) {
+  const o = opts || {};
+  const passo = (o.passoMin || 10) * 60e3;
+  const base = Date.UTC(2026, 8, 23, 18, 0, 0);      // 23/09/2026 18:00, hora "da casa"
+  const todos = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(base - i * passo);
+    const p = (x) => String(x).padStart(2, "0");
+    const tp = `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}` +
+               `${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}000`;
+    todos.push({ id: String(49900000000 + i), tp, st: "100.00",
+                 rt: o.semRT ? null : "180.00", od: "4/5" });
+  }
+  // A armadilha nº 2 só morde quando a PÁGINA INTEIRA cai no mesmo segundo: aí o menor
+  // carimbo da página é igual ao `to` que a pediu, e repetir a chamada devolve a mesma
+  // página para sempre. Dois bilhetes soltos no mesmo segundo NÃO travam nada — foi o que
+  // a 1ª versão deste dublê fazia, e a mutação passou verde por isso.
+  // Com a folga de 3h e passo de 10 min, o cursor inicial cai 18 posições ACIMA do alvo —
+  // é nesse vão que o bloco repetido precisa estar para a página inteira sair no mesmo
+  // segundo. Posto em qualquer outro lugar ele fica fora da janela e não prova nada.
+  if (o.repetirDe != null) {
+    for (let i = o.repetirDe; i < o.repetirDe + 14 && i < todos.length; i++) {
+      todos[i].tp = todos[o.repetirDe].tp;
+    }
+  }
+  const chamadas = [];
+  return {
+    todos,
+    chamadas,
+    responder(url) {
+      if (!/\/sportshistoryapi\/summary/.test(url)) return null;
+      const u = new URL(url, "https://members.bet365.bet.br");
+      const to = u.searchParams.get("to"), from = u.searchParams.get("from");
+      if (!to) return payloadSummary(todos.slice(0, 10));   // 1ª carga da página
+      chamadas.push({ to, from });
+      const msTo = Date.parse(to), msFrom = Date.parse(from || "1970-01-01T00:00:00Z");
+      const ms = (b) => Date.parse(
+        `${b.tp.slice(0, 4)}-${b.tp.slice(4, 6)}-${b.tp.slice(6, 8)}T` +
+        `${b.tp.slice(8, 10)}:${b.tp.slice(10, 12)}:${b.tp.slice(12, 14)}Z`);
+      // `to` INCLUSIVO e ordenação decrescente — como a casa real.
+      const jan = todos.filter((b) => ms(b) <= msTo && ms(b) >= msFrom)
+                       .sort((a, b) => ms(b) - ms(a));
+      return payloadSummary(jan.slice(0, 10));
+    },
+  };
+}
+
+async function resolverAbertas() {
+  const falhas = [];
+
+  const rodar = async (casa, carimbos) => {
+    const { todas, urls } = await rodarInject({
+      inject: "b3_inject.js",
+      href: "https://members.bet365.bet.br/members/",
+      // A 1ª chamada da PÁGINA é o que dá ao inject a referência de URL (origin, lid, cid).
+      // Sem ela o laço se recusa a chutar — e isso é uma das coisas provadas abaixo.
+      urlInicial: "https://members.bet365.bet.br/sportshistoryapi/summary?settled=1&lid=33&cid=28",
+      relogio: "turbo",
+      pedidoMsg: { __sharpenupB3Req: true, acao: "resolver", carimbos },
+      responder: casa ? casa.responder : () => null,
+      ms: 1200,
+    });
+    const msg = (todas || []).filter((m) => m && m.__sharpenupB3Resolver).pop();
+    return { msg, urls };
+  };
+
+  // ── 10a. Acha o alvo que está a três páginas de distância ───────────────────
+  {
+    const casa = casaDublada(40);
+    const alvo = casa.todos[25].tp.slice(0, 14);          // 26º bilhete → 3ª página
+    const { msg } = await rodar(casa, [alvo]);
+    if (!msg) {
+      falhas.push("resolver: o inject não respondeu `__sharpenupB3Resolver`");
+    } else if (msg.encontrados.length !== 1 || msg.encontrados[0].carimbo !== alvo) {
+      falhas.push(`resolver: esperava achar o carimbo ${alvo} paginando, veio ` +
+                  `${JSON.stringify((msg.encontrados[0] || {}).carimbo)} em ${msg.chamadas} chamada(s)`);
+    } else if (msg.chamadas > 5) {
+      falhas.push(`resolver: ${msg.chamadas} chamadas para achar um bilhete a 3 páginas — o ` +
+                  `cursor não está andando, e cada chamada é uma ida à casa (teto medido: ` +
+                  `600 a 1.000 por conta antes do bloqueio)`);
+    }
+  }
+
+  // ── 10b. O RETORNO viaja, e é dele que sai o resultado ──────────────────────
+  {
+    const casa = casaDublada(12);
+    const alvo = casa.todos[2].tp.slice(0, 14);
+    const { msg } = await rodar(casa, [alvo]);
+    const e = msg && msg.encontrados[0];
+    if (!e || e.retorno !== "180.00" || e.stake !== "100.00") {
+      falhas.push(`resolver: o item devia trazer stake e RETORNO da casa, veio ${JSON.stringify(e)}`);
+    } else if (e.odd !== "1.8") {
+      falhas.push(`resolver: a odd tem de viajar em DECIMAL (4/5 → 1.8), veio "${e.odd}" — o ` +
+                  `casamento do outro lado normaliza decimal, e fracionária não casa nunca`);
+    }
+  }
+
+  // ── 10c. Carimbo REPETIDO não trava o laço ──────────────────────────────────
+  // Dois bilhetes no mesmo segundo fazem o menor `TP` da página ser igual ao `to` que a
+  // pediu. Sem empurrar o cursor, a chamada seguinte é idêntica e o laço gira para sempre.
+  // Medido: 2,03% dos bilhetes compartilham carimbo com outro (639 reais, s382).
+  {
+    const casa = casaDublada(40, { repetirDe: 12 });   // índices 12..25 no mesmo segundo
+    const alvo = casa.todos[30].tp.slice(0, 14);       // abaixo do bloco repetido
+    const { msg } = await rodar(casa, [alvo]);
+    if (!msg) {
+      falhas.push("resolver (carimbo repetido): o inject não respondeu — laço preso?");
+    } else if (!msg.encontrados.length) {
+      falhas.push(`resolver (carimbo repetido): não achou o alvo em ${msg.chamadas} chamada(s); ` +
+                  `o cursor parou de andar quando a página inteira caiu no mesmo segundo`);
+    } else if (msg.chamadas > 8) {
+      falhas.push(`resolver (carimbo repetido): ${msg.chamadas} chamadas — o cursor está ` +
+                  `andando de 1 segundo em vez de pular o bloco`);
+    }
+  }
+
+  // ── 10d. Alvo que NÃO existe termina, em vez de varrer para sempre ──────────
+  {
+    // 100 bilhetes de HORA em hora: a casa tem 100h de histórico e a janela do laço cobre 27h.
+    // O alvo é um carimbo que NÃO existe, no meio do primeiro dia — se a parada fosse o teto
+    // de páginas, o laço varreria os 100; com o piso, ele desiste ao sair da janela.
+    const casa = casaDublada(100, { passoMin: 60 });
+    const { msg } = await rodar(casa, ["20260923173000"]);
+    if (!msg) {
+      falhas.push("resolver (alvo inexistente): o inject não respondeu — laço sem fim?");
+    } else if (msg.encontrados.length) {
+      falhas.push("resolver (alvo inexistente): inventou um casamento");
+    } else if (msg.chamadas > 5) {
+      falhas.push(`resolver (alvo inexistente): ${msg.chamadas} chamadas atrás de uma aposta ` +
+                  `que não existe — a parada tem de ser o PISO da janela (27h ÷ 10 por página ` +
+                  `≈ 3 chamadas), nunca o teto de páginas`);
+    }
+  }
+
+  // ── 10e. Sem referência de URL, RECUSA em vez de chutar ─────────────────────
+  // O inject roda em todos os frames, e a lista mora no `members`. Sem ter visto uma
+  // chamada da própria página, ele não sabe o origin nem `lid`/`cid` — e chutar daria 404
+  // silencioso, que vira "não achou nada" para o operador.
+  {
+    const { todas } = await rodarInject({
+      inject: "b3_inject.js",
+      href: "https://www.bet365.bet.br/",
+      urlInicial: "https://www.bet365.bet.br/nada",     // nunca é um summary
+      relogio: "turbo",
+      pedidoMsg: { __sharpenupB3Req: true, acao: "resolver", carimbos: ["20260923180000"] },
+      responder: () => null,
+      ms: 600,
+    });
+    const msg = (todas || []).filter((m) => m && m.__sharpenupB3Resolver).pop();
+    if (!msg) {
+      falhas.push("resolver (sem referência): não respondeu nada — quem pediu fica esperando");
+    } else if (!msg.erro) {
+      falhas.push("resolver (sem referência): devia devolver ERRO explicando que falta abrir o " +
+                  "histórico, e devolveu silêncio");
+    } else if (msg.chamadas > 0) {
+      falhas.push(`resolver (sem referência): CHAMOU a casa ${msg.chamadas} vez(es) com URL ` +
+                  `chutada. Recusar é não chamar — uma URL chutada dá 404 e o erro parece o ` +
+                  `mesmo, que foi como a 1ª versão deste teste passou verde com o chute ligado`);
+    }
+  }
+
+  // ── 10f. RETORNO AUSENTE viaja como ausência, nunca como zero ──────────────
+  // A casa manda aposta ainda aberta SEM `RT` (medido nas pendentes). Achatar isso em "0"
+  // faz o bilhete GANHO virar `L` do outro lado, e ninguém vê erro nenhum.
+  {
+    const casa = casaDublada(12, { semRT: true });
+    const alvo = casa.todos[2].tp.slice(0, 14);
+    const { msg } = await rodar(casa, [alvo]);
+    const e = msg && msg.encontrados[0];
+    if (!e) {
+      falhas.push("resolver (sem RT): não achou o bilhete — sem retorno ele ainda EXISTE");
+    } else if (e.retorno !== null) {
+      falhas.push(`resolver (sem RT): retorno devia viajar como null, veio ${JSON.stringify(e.retorno)}`);
+    }
+  }
+
   return falhas;
 }
 

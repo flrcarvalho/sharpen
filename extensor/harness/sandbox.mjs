@@ -254,7 +254,11 @@ export async function rodarInject(cfg) {
   await espera(cfg.ms || 400);
 
   const meus = mensagens.filter((m) => m && Object.keys(m).some((k) => k.endsWith("Data")));
-  return { mensagens: meus, ultima: meus[meus.length - 1] || null, urls };
+  // `todas` existe porque nem toda resposta do inject é um lote de bilhetes: o "Resolver
+  // apostas abertas" devolve `__sharpenupB3Resolver`, que não casa o filtro de `…Data`.
+  // Filtrar aqui e só aqui manteria o teste refém do NOME da mensagem — e código que se
+  // renomeia para caber no teste é o começo do teste que testa a si mesmo.
+  return { mensagens: meus, ultima: meus[meus.length - 1] || null, urls, todas: mensagens };
 }
 
 /**
