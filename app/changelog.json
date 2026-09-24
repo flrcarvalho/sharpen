@@ -276,6 +276,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0727",
+      "v": "v0.7.27",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** mais uma tentativa no **Resolver apostas abertas**. A casa continua recusando o pedido, e agora a extensão copia os mesmos cabeçalhos que a própria página usa.",
+      "itens": [
+        "Se falhar de novo, o console diz o que foi copiado — é só me mandar."
+      ]
+    },
+    {
       "id": "su-0726",
       "v": "v0.7.26",
       "data": "2026-09-24",

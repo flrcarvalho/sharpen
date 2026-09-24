@@ -371,6 +371,27 @@
   // A consequência é que o cursor é um ENDEREÇO: pedir `to` perto do carimbo da aposta
   // procurada a traz na primeira página, com as anteriores de graça. Não é varredura.
   let ultimaUrlSummary = "";     // preenchida pelo hook — ver `forward`
+  let ultimosCabecalhos = null;  // os que a PRÓPRIA página manda no summary — ver abaixo
+
+  // O termo sozinho não bastou: com a URL idêntica à da página, a casa continuou devolvendo
+  // 200 com corpo 0. Então ela exige mais alguma coisa que a página manda e nós não. Em vez
+  // de descobrir QUAL (foram sete tentativas), copiamos todos e trocamos só o termo.
+  //
+  // ⚠️ O termo é de uso único e assinado sobre a URL: o da página **nunca** é reaproveitado,
+  // ele é sempre substituído pelo nosso.
+  function _guardarCabecalhos(h, req) {
+    const fonte = h || (req && req.headers);
+    if (!fonte) return;
+    const out = {};
+    try {
+      if (typeof fonte.forEach === "function" && !Array.isArray(fonte)) {
+        fonte.forEach((v, k) => { out[String(k)] = String(v); });
+      } else {
+        for (const k in fonte) out[String(k)] = String(fonte[k]);
+      }
+    } catch (e) { return; }
+    if (Object.keys(out).length) ultimosCabecalhos = out;
+  }
 
   const FOLGA_CEGA_H = 3;        // só quando o fuso NÃO pôde ser lido — ver `_offsetUK`
   const JANELA_ABAIXO_H = 27;    // 24h + a folga cega: onde parar quando o casamento falha
@@ -509,7 +530,14 @@
       return { erro: "o mecanismo de token não respondeu (frame errado, ou a casa mudou)",
                chamou: false, semTermo: true };
     }
-    const cab = { "X-Net-Sync-Term": termo };
+    // Base: TUDO o que a página manda. Por cima, o nosso termo (uso único, assinado sobre
+    // a nossa URL) e o id de requisição, que também roda a cada chamada.
+    const cab = {};
+    if (ultimosCabecalhos) for (const k in ultimosCabecalhos) cab[k] = ultimosCabecalhos[k];
+    for (const k in cab) {
+      if (/^x-net-sync-term$/i.test(k) && k !== "X-Net-Sync-Term") delete cab[k];
+    }
+    cab["X-Net-Sync-Term"] = termo;
     try { const L = window.Locator; if (L && L.Guid) cab["X-Request-Id"] = L.Guid; } catch (e) {}
     const r = await of.call(window, url, { credentials: "include", headers: cab });
     if (!r.ok) return { erro: "HTTP " + r.status };
@@ -685,6 +713,9 @@
     if (r.amostra) {
       // A janela pedida vai junto: se o `from`/`to` estiver uma hora fora, o alvo não cai
       // dentro e a resposta vem "vazia" sem nada de errado com o token.
+      LOG("resolver · cabeçalhos copiados da página: " +
+          (ultimosCabecalhos ? Object.keys(ultimosCabecalhos).join(", ") : "NENHUM (a página " +
+           "não passou pelo hook de fetch — ela deve usar XHR)"));
       LOG("resolver · 1ª resposta da casa: HTTP " + r.amostra.status + " · corpo " +
           r.amostra.len + " byte(s) · " + r.amostra.bets + " bilhete(s) · " +
           String(r.amostra.url || "").replace(/^https?:\/\/[^/]+/, ""));
@@ -1019,6 +1050,12 @@
     const w = function (...a) {
       const url = (a[0] && a[0].url) || a[0];
       try { catalogar(url, (a[1] && a[1].method) || (a[0] && a[0].method) || "GET"); } catch (e) {}
+      // Guarda os CABEÇALHOS que a página usa no summary. Montar os meus foi o que não
+      // funcionou: com a URL já idêntica à dela, a casa seguiu devolvendo corpo vazio, então
+      // a diferença está aqui. Copiar é mais seguro que adivinhar quais ela exige.
+      try {
+        if (RX_SUM.test(String(url))) _guardarCabecalhos(a[1] && a[1].headers, a[0]);
+      } catch (e) {}
       try { if (!RX_SUM.test(String(url))) contarHistory(url); } catch (e) {}
       const t0 = Date.now();
       return of.apply(this, a).then((r) => {
@@ -1042,6 +1079,18 @@
   const oo = XMLHttpRequest.prototype.open, os = XMLHttpRequest.prototype.send;
   if (!os.__suB3W) {
     XMLHttpRequest.prototype.open = function (m, u) { this.__suB3U = u; this.__suB3M = m; return oo.apply(this, arguments); };
+    // A página pode pedir o summary por XHR, e aí os cabeçalhos passam por aqui, um a um.
+    // Sem este hook, `ultimosCabecalhos` ficaria vazio e a cópia não teria o que copiar.
+    const osh = XMLHttpRequest.prototype.setRequestHeader;
+    XMLHttpRequest.prototype.setRequestHeader = function (k, v) {
+      try {
+        if (RX_SUM.test(String(this.__suB3U || ""))) {
+          this.__suB3H = this.__suB3H || {};
+          this.__suB3H[String(k)] = String(v);
+        }
+      } catch (e) {}
+      return osh.apply(this, arguments);
+    };
     const s = function (body) {
       try {
         const u = this.__suB3U;
@@ -1054,6 +1103,7 @@
             { st: st, ms: Date.now() - t0, bsid: _param(String(u), "bsid") || undefined }); } catch (e) {} };
           this.addEventListener("load", () => {
             marcar(this.status);
+            try { if (ehSum && this.__suB3H) _guardarCabecalhos(this.__suB3H, null); } catch (e) {}
             try { forward(u, this.responseText); } catch (e) {}
           });
           // Falha de REDE não tem status. Sem este ramo ela some do gravador e a análise
