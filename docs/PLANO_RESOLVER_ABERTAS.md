@@ -170,6 +170,65 @@ ideia de pedir por fora.
 de Datas **não muda a URL** (`#/ME/X8020` do começo ao fim). Não há rota para navegar direto
 a uma janela, como existe para o detalhe (`#/HICO/BSSB/C<bsid>/D0/`).
 
+### O que uma investigação INDEPENDENTE achou (s382)
+
+Depois de eu concluir que a chamada ativa era impossível, o Feca pediu uma segunda leitura
+**sem acesso a nada do que está escrito aqui** — outro modelo, só com o navegador, proibido
+de abrir `docs/`, `extensor/` e `app/`. O achado principal derruba a minha conclusão.
+
+> ⚠️ **O que segue é relatório de uma investigação, não medição nossa reconferida.** Está
+> registrado como pista forte e datada, com o método descrito para quem for reproduzir.
+
+**1. O token TEM como ser obtido: pede-se à própria página.** O mecanismo que gera o
+`X-Net-Sync-Term` está exposto no `window` do frame de membros (setar a URL alvo, disparar
+um evento, receber o termo assinado de volta). Com ele, a chamada funciona **de dentro do
+frame `members`, no mundo MAIN**. A parede que eu encontrei é real; o que eu não fiz foi
+procurar a porta.
+
+**2. Uma janela de 1 SEGUNDO devolve exatamente a aposta.** `from = carimbo`,
+`to = carimbo + 1s`. Sem paginação, sem varredura: **uma requisição por aposta**, e o `TP`
+da resposta confirma a identidade. Isso torna toda a conversa sobre cursor e páginas
+desnecessária para o botão.
+
+**3. O filtro é pela COLOCAÇÃO, e isso foi provado por contraexemplo** (o que a nossa
+medição não fez): uma aposta que **liquidou dentro** da janela mas foi **colocada antes**
+ficou de fora.
+
+**4. O fuso não precisa ser adivinhado.** A página publica o ajuste em minutos
+(`Locator.user.timeZoneAdjustment`: −240 em BST, −180 previsto em GMT). Dá para converter
+pelo valor que a casa informa, em vez da suposição de horário de verão que este projeto
+carrega desde a s373 — a mesma que me fez pôr 3h de folga na janela.
+
+**5. Dois avisos que valem por si:**
+
+- **`members` aberto como aba de topo faz frame-busting** e joga de volta no `www`. É a
+  explicação da tela em branco que eu vi ao tentar abrir o histórico direto.
+- **Não envolver o `WebSocket` da página de esportes.** Um wrapper ali pôs o app em laço de
+  reconexão (11 sockets em ~1 min) e esvaziou a lista de resolvidas. A lista de "Minhas
+  Apostas" do `www` vem por push, não por XHR — e é outra superfície, sem data de colocação
+  no DOM.
+
+**6. De-para novo, parcial:** no `confirmation`, `FP=1` = ganhou, `FP=3` = perdida (e o
+código da casa trata `3|4` como perdida). **Devolvida e meia vitória não apareceram na
+amostra**, então o resultado continua saindo do DINHEIRO, com o `FP` só como conferência.
+
+### A escolha que isso abre, e ela não é técnica
+
+| | dirigir a TELA | pedir o token à página |
+|---|---|---|
+| custo por aposta | várias páginas, cada uma um clique com espera | **1 requisição** |
+| fragilidade | seletores da tela | nomes de um bundle **ofuscado** |
+| como falha | visível (o clique não acontece) | **200 vazio**, igual a "não existe" |
+| perante a casa | indistinguível de um usuário | usa o mecanismo **anti-automação** dela |
+
+O segundo é melhor de engenharia e **mais leve em volume** — e volume foi o que bloqueou
+três contas em 20/09. O custo dele não é técnico: é usar a máquina interna da casa, na
+conta do dono. **Decisão do Feca, não minha.**
+
+> Se for por esse caminho, a mitigação da falha silenciosa é obrigatória: "vazio" passa a
+> significar **indeterminado**, e só vira "ainda pendente" depois de uma consulta de
+> controle a uma aposta que a extensão sabe que existe.
+
 ### O caminho que sobra, e ele é o que já funciona há meses
 
 **Dirigir a TELA e deixar o hook colher.** É o que o `b3_expand` faz desde a s279 com o
@@ -192,8 +251,17 @@ página é um clique com espera). Em troca, é o único que a casa aceita.
 ### E a consequência que barateia tudo: o cursor é um ENDEREÇO, não só uma paginação
 
 A lista vem **ordenada por `TP` decrescente** (confere na resposta medida: 15:01, 14:49,
-12:24, 11:49, 01:58, …) e o `to` é **inclusivo** — o bilhete cujo `TP` é igual ao `to`
-aparece na resposta.
+12:24, 11:49, 01:58, …).
+
+> **CORREÇÃO (s382):** eu havia escrito aqui que o `to` é **inclusivo**, por inferência —
+> o bilhete cujo `TP` casava o `to` apareceu na resposta. A investigação independente
+> mediu isso direito, por tentativa com milissegundos: `[T, T]` devolve **vazio**,
+> `[T, T+0.999s]` **acha**, `[T−1s, T]` devolve **vazio**. Ou seja, **`from` inclusivo e
+> `to` EXCLUSIVO** — use `to = carimbo + 1 s`.
+>
+> As duas observações são compatíveis (o `to` que eu vi trazia `.717` de milissegundos, e
+> o bilhete estava antes dele), e é exatamente por isso que a minha não provava nada: eu
+> li uma coincidência como regra. Inferência de uma amostra não é medição de fronteira.
 
 Junte isso com o carimbo que o banco agora guarda e o desenho vira outro:
 
