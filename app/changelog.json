@@ -276,6 +276,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0724",
+      "v": "v0.7.24",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** o botão **Resolver apostas abertas** ainda não conclui. Esta versão registra no console o que a casa responde, para eu achar a causa.",
+      "itens": [
+        "Nada mudou no resto da captura."
+      ]
+    },
+    {
       "id": "su-0723",
       "v": "v0.7.23",
       "data": "2026-09-24",

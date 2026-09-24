@@ -509,7 +509,12 @@
     // casos têm exatamente o mesmo sintoma, então quem chama NÃO pode concluir daqui:
     // é o `_conferirMecanismo` que desempata, com uma aposta que sabemos existir.
     const parsed = parseSummary(txt);
-    return { bets: (parsed && parsed.bets) || [], vazio: !String(txt || "").trim() };
+    return { bets: (parsed && parsed.bets) || [], vazio: !String(txt || "").trim(),
+             // DIAGNÓSTICO (s382): `status` e `len` são o que separa as DUAS causas de uma
+             // resposta vazia, que de fora são idênticas — token recusado (a casa devolve
+             // 200 com corpo 0) e janela no lugar errado (200 com só o cabeçalho, ~60
+             // bytes). Sem isso, consertar vira adivinhação, e já foram cinco defeitos.
+             status: r.status, len: String(txt || "").length, url: url };
   }
 
   /** Acha, na lista da casa, os bilhetes dos `carimbos` pedidos. Não escreve nada. */
@@ -520,6 +525,7 @@
     const achados = new Map();                 // carimbo(14) → bilhete da casa
     const vistos = new Map();                  // bsid → bilhete (tudo o que passou)
     let paginas = 0, chamadas = 0, erro = "", cegas = 0, vazias = 0, semTermo = false;
+    let amostra = null;   // a 1ª resposta da casa, inteira — ver o log
 
     for (const alvo of alvos) {
       if (achados.has(alvo)) continue;         // veio de graça numa página anterior
@@ -533,6 +539,11 @@
       while (paginas < MAX_PAGINAS) {
         const r = await _paginaSummary(settled, piso, cursor);
         if (r.chamou !== false) chamadas++;
+        // Guarda a PRIMEIRA resposta inteira para o log. Uma basta: se a 1ª voltou vazia,
+        // as 19 seguintes voltaram pelo mesmo motivo.
+        if (!amostra && r.chamou !== false) {
+          amostra = { status: r.status, len: r.len, bets: (r.bets || []).length, url: r.url };
+        }
         if (r.semTermo) semTermo = true;
         if (r.erro) { erro = r.erro; break; }
         paginas++;
@@ -563,7 +574,8 @@
     // A fronteira REPETE um item por página (o do carimbo igual ao `to`), então contar
     // "quantos vieram" conta a mais. Quem responde é o mapa por bsid, não a soma.
     return { achados: achados, vistos: vistos, paginas: paginas, chamadas: chamadas,
-             erro: erro, cegas: cegas, vazias: vazias, semTermo: semTermo };
+             erro: erro, cegas: cegas, vazias: vazias, semTermo: semTermo,
+             amostra: amostra };
   }
 
   // ── O GATE DA FALHA SILENCIOSA ────────────────────────────────────────────────
@@ -660,6 +672,13 @@
       paginas: r.paginas, chamadas: r.chamadas + (mecanismo.chamadas || 0), erro: r.erro,
       ms: Date.now() - t0,
     });
+    if (r.amostra) {
+      // A janela pedida vai junto: se o `from`/`to` estiver uma hora fora, o alvo não cai
+      // dentro e a resposta vem "vazia" sem nada de errado com o token.
+      LOG("resolver · 1ª resposta da casa: HTTP " + r.amostra.status + " · corpo " +
+          r.amostra.len + " byte(s) · " + r.amostra.bets + " bilhete(s) · " +
+          String(r.amostra.url || "").replace(/^https?:\/\/[^/]+/, ""));
+    }
     LOG("resolver: " + encontrados.length + "/" + (carimbos || []).length + " achado(s) · " +
         r.chamadas + " chamada(s) · " + (Date.now() - t0) + "ms" +
         (mecanismo.ok === true ? "" : " · ⚠ " + (mecanismo.motivo || "mecanismo incerto")) +
