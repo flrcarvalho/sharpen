@@ -379,7 +379,10 @@
   //
   // ⚠️ O termo é de uso único e assinado sobre a URL: o da página **nunca** é reaproveitado,
   // ele é sempre substituído pelo nosso.
+  // Ligado no primeiro summary que passar: é quando a página já está fazendo o trabalho
+  // dela, e é o pedido DELA que a gente quer ver.
   function _guardarCabecalhos(h, req) {
+    try { _ligarEspiao(); } catch (e) {}
     const fonte = h || (req && req.headers);
     if (!fonte) return;
     const out = {};
@@ -462,11 +465,39 @@
   // gate de controle (`_conferirMecanismo`) existe para impedir.
   const TERMO_TIMEOUT = 4000;
 
+  // ── ESPIÃO DO PEDIDO DE TERMO (diagnóstico, s382) ─────────────────────────────
+  // Com a URL idêntica à da página e os MESMOS cabeçalhos, a casa segue devolvendo corpo
+  // vazio. Sobrou uma hipótese: o que se escreve em `ns_gen5_net.url` antes de pedir o
+  // termo não está no formato que a assinatura espera.
+  //
+  // Em vez de adivinhar o formato (já foram oito tentativas), este ouvinte lê o valor no
+  // instante em que QUALQUER UM pede um termo — inclusive a própria página. Não altera
+  // nada: `xcftr` é o evento que ela mesma dispara, e aqui só se escuta.
+  let _espiaoLigado = false, _espiadas = 0, _pedindoNosso = false;
+  function _ligarEspiao() {
+    if (_espiaoLigado) return;
+    _espiaoLigado = true;
+    try {
+      window.addEventListener("xcftr", () => {
+        try {
+          if (_espiadas >= 6) return;
+          const u = String((window.ns_gen5_net && window.ns_gen5_net.url) || "");
+          if (!RX_SUM.test(u)) return;          // só o que interessa: o summary
+          _espiadas++;
+          LOG("termo pedido " + (_pedindoNosso ? "POR NÓS" : "PELA PÁGINA") +
+              " · ns_gen5_net.url = " + JSON.stringify(u) +
+              " · body = " + JSON.stringify(String((window.ns_gen5_net && window.ns_gen5_net.body) || "")));
+        } catch (e) {}
+      });
+    } catch (e) {}
+  }
+
   function _pedirTermo(urlRelativa) {
     return new Promise((resolve) => {
       let g;
       try { g = window.ns_gen5_net; } catch (e) { g = null; }
       if (!g) return resolve(null);
+      _ligarEspiao();
       const id = 100000 + Math.floor(Math.random() * 1e6);
       let pronto = false;
       const fim = (v) => { if (!pronto) { pronto = true; try { g.url = ""; } catch (e) {} resolve(v); } };
@@ -476,7 +507,9 @@
                                 { once: true });
         g.url = urlRelativa;
         g.body = "";
+        _pedindoNosso = true;
         window.dispatchEvent(new CustomEvent("xcftr", { detail: id }));
+        _pedindoNosso = false;
       } catch (e) { clearTimeout(t); fim(null); }
     });
   }

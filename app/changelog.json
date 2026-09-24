@@ -276,6 +276,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0728",
+      "v": "v0.7.28",
+      "data": "2026-09-24",
+      "texto": "**Bet365:** mais uma rodada de diagnóstico no **Resolver apostas abertas**. Esta versão registra no console como a própria página pede autorização à casa, para eu comparar com o que a extensão faz.",
+      "itens": [
+        "Nada mudou no resto da captura."
+      ]
+    },
+    {
       "id": "su-0727",
       "v": "v0.7.27",
       "data": "2026-09-24",
