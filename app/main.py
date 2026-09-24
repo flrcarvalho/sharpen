@@ -2274,10 +2274,11 @@ async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, 
                                                        for t in lotes],
                                  particao.texto_ia, modelo, contrato="contrato4",
                                  particao=particao))
+    # ⚠️ A barreira de recaptura dos ACEITOS só é gravada no fim, junto do `done` (ver lá
+    # embaixo). Gravar aqui, antes do caminho de hoje terminar, deixava um bilhete que
+    # mudou de aberto para liquidado marcado como LIDO mesmo quando a outra metade falha
+    # e nada é entregue: a próxima captura o pularia e a liquidação nunca chegaria.
     aceitos = _contrato.texto_dos_aceitos(particao, mt)
-    if aceitos:
-        _fire(registrar_sombra(dono, casa, aceitos, mt.tsv))
-        _fire(_barreira_lembrar(dono, casa, aceitos))
 
     # A outra metade: o caminho de hoje, sem alteração, só com os encaminhados.
     antigo = None
@@ -2328,6 +2329,11 @@ async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, 
             "carimbos": carimbos_do_texto(texto),
             "contrato": info,
         })
+        # As duas metades terminaram e o `done` vai sair: só AGORA os aceitos contam como
+        # lidos — o mesmo instante em que o caminho de hoje grava a barreira dele.
+        if aceitos:
+            _fire(registrar_sombra(dono, casa, aceitos, mt.tsv))
+            _fire(_barreira_lembrar(dono, casa, aceitos))
         logger.info("contrato: %.1fs | cobertos=%d linhas=%d antes=%d depois=%d "
                     "chamadas=%d tentativas=%d US$ %.4f",
                     time.perf_counter() - t0, info["cobertos"], info["linhas"],
@@ -4604,7 +4610,24 @@ async def captura_abertas(token: str):
     )
     # ⚠️ NUNCA filtra por `archived` (ver a nota na rota do painel): aposta aberta antiga
     # está sempre arquivada, e são justamente as plantadas que isto existe para resolver.
+    # ── A APOSTA DE CONTROLE, e ela é o que separa "não existe" de "quebrou" ─────
+    # A casa devolve corpo VAZIO nos dois casos: quando não há aposta na janela pedida e
+    # quando o token deixa de servir (o dia em que ela renomear qualquer peça do mecanismo).
+    # Sem desempate, o botão passaria a dizer "todas ainda abertas" para sempre, sem erro.
+    #
+    # O desempate é uma aposta desta mesma conta que JÁ RESOLVEU e tem carimbo: se nem ela
+    # voltar, não é a casa que está vazia. Vai a mais recente — quanto mais nova, mais perto
+    # da janela que a extensão vai consultar de qualquer jeito.
+    resolvidas = await list_bilhetes(
+        sess.dono, casa=sess.casa, parceiro=sess.parceiro,
+        extraction_state="resolvida", archived="all", limit=50, order="desc",
+    )
+    controle = next(({"carimbo": b["aposta_em"], "codigo": b.get("codigo_bilhete")}
+                     for b in resolvidas if b.get("aposta_em")), None)
     return {"conta": {"casa": sess.casa, "parceiro": sess.parceiro},
+            # `controle` ausente (conta nova, sem nenhuma resolvida com carimbo) NÃO é erro:
+            # a extensão reporta o resultado como não-confiável, e quem lê decide.
+            "controle": controle,
             "abertas": [{"id": b["id"], "aposta_em": b.get("aposta_em"),
                          "stake": b.get("stake"), "odd": b.get("odd"),
                          "data": b.get("data"), "codigo": b.get("codigo_bilhete")}

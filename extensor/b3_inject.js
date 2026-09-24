@@ -3,18 +3,24 @@
 // a própria página baixa, e repassa objetos limpos ao content script — para tratar igual às
 // outras casas passivas (Betfair/Pinnacle).
 //
-// SÓ PASSIVO — POR QUE NÃO HÁ REPLAY: até a v0.6.2 este arquivo re-emitia as buscas por conta
-// própria (replay), reaproveitando os headers da requisição que a página tinha feito. Não
-// funciona: o header `x-net-sync-term` rotaciona A CADA requisição e o servidor o exige.
+// A CAPTURA É PASSIVA — POR QUE NÃO HÁ REPLAY NELA: até a v0.6.2 este arquivo re-emitia as
+// buscas por conta própria, reaproveitando os headers da requisição que a página tinha feito.
+// Não funciona: o header `x-net-sync-term` rotaciona A CADA requisição e o servidor o exige.
 // Provado ao vivo na sessão 178, do frame `members.bet365.bet.br` e com a sessão logada:
 //   • mesma URL, com os headers da página  → 200 com o payload `F|…`
 //   • mesma URL, só com cookie (sem token) → 200 com corpo VAZIO (`len: 0`)
 //   • mesma URL, com um token VENCIDO      → HTML da página de 404
-// Não temos como gerar um token válido (vem de código ofuscado da casa). Quem consegue chamar
-// a API é a PRÓPRIA página → o content script pede ao inject que NAVEGUE por rota
-// (location.replace("#/HICO/BSSB/C<bsid>/D1/"), NUNCA `location.hash =` — ver `navegarUm`)
-// até a confirmation de cada bilhete, e este arquivo
-// só escuta as respostas. Ver docs/PLANO_BET365_CAPTURA_API.md.
+// Reconfirmado na s382: a URL colada na barra de endereços da conta logada volta EM BRANCO.
+// Quem consegue chamar a API é a PRÓPRIA página → o content script pede ao inject que NAVEGUE
+// por rota (location.replace("#/HICO/BSSB/C<bsid>/D1/"), NUNCA `location.hash =` — ver
+// `navegarUm`) até a confirmation de cada bilhete, e este arquivo só escuta as respostas.
+// Ver docs/PLANO_BET365_CAPTURA_API.md.
+//
+// ⚠️ **UMA EXCEÇÃO, E SÓ UMA: o "Resolver apostas abertas" (s382).** Lá embaixo há chamada
+// ATIVA, e ela funciona porque o token é PEDIDO À PRÓPRIA PÁGINA (`_pedirTermo`) em vez de
+// reaproveitado. É o mecanismo anti-automação da casa, e usá-lo foi decisão explícita do dono
+// da conta, tomada com os dois caminhos na mesa. A captura normal segue passiva, e a linha
+// entre as duas coisas é para ser mantida: o que a extração faz continua sendo escutar.
 //
 // DUAS COISAS ELE DIRIGE (o resto é escuta pura): expande a lista clicando "Mostrar Mais" até o
 // fim (`expandirLista`, s279 — era o último gesto manual da casa) e navega por rota (sempre com
@@ -345,21 +351,14 @@
 
   // ── "Resolver apostas abertas": buscar na LISTA, por carimbo ──────────────────
   //
-  // ⛔ **NÃO LIGUE ISTO. A CHAMADA ATIVA NÃO FUNCIONA, e está PROVADO.** ⛔
+  // ⚠️ **CHAMADA ATIVA — a única do arquivo.** Funciona porque o token é pedido à própria
+  // página (`_pedirTermo`); requisição sem ele devolve 200 com corpo vazio. É o mecanismo
+  // anti-automação da casa, e a decisão de usá-lo foi do dono da conta, com o caminho
+  // alternativo (dirigir a tela) medido e na mesa: 4× mais lento e com MAIS requisições.
   //
-  // O aviso estava no topo deste arquivo desde a s178 e eu escrevi o laço por cima dele:
-  // a casa exige o header `x-net-sync-term`, que rotaciona a cada requisição e é gerado
-  // por código ofuscado dela. Requisição só com cookie devolve **200 com corpo VAZIO**.
-  //
-  // Reconfirmado em 23/09 (s382), colando a URL do summary na barra de endereços da conta
-  // logada: **página em branco**. A mesma URL, pedida PELA PÁGINA, devolve o payload.
-  //
-  // POR QUE O CÓDIGO FICA: o laço aqui é a parte que **não** depende de quem faz a
-  // chamada — a janela com folga, o cursor de tempo, as três armadilhas da paginação e o
-  // empacotamento do que viaja ao servidor. O caminho que funciona (dirigir a TELA:
-  // escolher Intervalo de Datas, preencher as datas, clicar em Mostrar Histórico e deixar
-  // o hook passivo colher, como o `b3_expand` já faz com o "Mostrar Mais") reusa tudo
-  // isso trocando só o `_paginaSummary`. O gate do harness prova a lógica, não a rede.
+  // Nada aqui participa da captura: usa o fetch original, não toca no `byBsid` e não
+  // dispara `enviar()`. E nada aqui ESCREVE — quem decide gravar é o servidor, depois das
+  // travas do §7 do plano.
   //
   // Desenho em `docs/PLANO_RESOLVER_ABERTAS.md`. Medido no F12 em 23/09, conta real:
   //
@@ -373,14 +372,8 @@
   // procurada a traz na primeira página, com as anteriores de graça. Não é varredura.
   let ultimaUrlSummary = "";     // preenchida pelo hook — ver `forward`
 
-  // ⚠️ A JANELA TEM FOLGA DE PROPÓSITO, e a folga é o que dispensa o fuso.
-  // O `TP` vem em hora do REINO UNIDO e o `from`/`to` em UTC (delta medido: 1h em BST, 0 em
-  // GMT). O `content.js` tem o `_ehBST`, mas ele é uma suposição que o projeto já marcou
-  // como "assumida, não medida" — e uma chave/janela errada por uma hora faz a aposta
-  // simplesmente não aparecer, sem erro nenhum. Com +3h de folga para cima, a aposta cai
-  // dentro da janela com qualquer um dos dois fusos, e o preço é vir mais alguns vizinhos.
-  const FOLGA_ACIMA_H = 3;
-  const JANELA_ABAIXO_H = 27;    // 24h + a mesma folga: onde parar quando o casamento falha
+  const FOLGA_CEGA_H = 3;        // só quando o fuso NÃO pôde ser lido — ver `_offsetUK`
+  const JANELA_ABAIXO_H = 27;    // 24h + a folga cega: onde parar quando o casamento falha
   const PAGINA = 10;             // medido; serve só para saber que "cheia" não é "fim"
   const MAX_PAGINAS = 40;        // teto duro de segurança, NUNCA o critério de parada
 
@@ -388,6 +381,83 @@
     const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(c || ""));
     if (!m) return NaN;
     return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  }
+
+  // ── O FUSO, LIDO DA CASA EM VEZ DE ADIVINHADO ─────────────────────────────────
+  // O carimbo (`TP`/`DA`) é hora LOCAL DO REINO UNIDO e o `from`/`to` da API é UTC. Este
+  // projeto vinha supondo o horário de verão britânico (`_ehBST`, no content) e marcava a
+  // suposição como "assumida, não medida" desde a s373 — e errar por uma hora faz a aposta
+  // não aparecer, sem erro nenhum.
+  //
+  // A página publica o ajuste: `Locator.user.timeZoneAdjustment` é UK → hora local do
+  // usuário, em MINUTOS (medido: −240 em BST com o usuário em GMT-3). Somando o offset
+  // local → UTC do próprio navegador, sai UK → UTC sem supor nada:
+  //
+  //     UK + tza                      = local
+  //     local + getTimezoneOffset()   = UTC
+  //     ⇒ UK → UTC = tza + getTimezoneOffset()
+  //     (−240 + 180 = −60 min = −1h, que é BST. No inverno: −180 + 180 = 0, que é GMT.)
+  //
+  // `getTimezoneOffset` é chamado NA DATA DO CARIMBO, não em hoje: onde o fuso local tem
+  // horário de verão, o de hoje descreveria outro dia.
+  function _offsetUK(msCarimbo) {
+    try {
+      // `window.Locator`, nunca o global solto: fora do navegador (harness) o global não
+      // existe e o `try` engoliria a ausência como "sem fuso", deixando o teste medir a
+      // janela cega em vez do caminho real.
+      const L = window.Locator;
+      const tza = L && L.user && L.user.timeZoneAdjustment;
+      if (typeof tza === "number" && isFinite(tza)) {
+        return { min: tza + new Date(msCarimbo).getTimezoneOffset(), medido: true };
+      }
+    } catch (e) {}
+    return { min: 0, medido: false };
+  }
+
+  // A janela que se pede à casa para UM carimbo. Com o fuso lido, ela é de 1 SEGUNDO e a
+  // resposta traz exatamente aquela aposta (`from` inclusivo, `to` EXCLUSIVO — medido por
+  // tentativa com milissegundos). Sem o fuso, abre a folga cega e o laço pagina até achar;
+  // em nenhum dos dois casos o casamento afrouxa, porque quem decide é `TP === carimbo`.
+  function _janelaDoCarimbo(ms) {
+    const off = _offsetUK(ms);
+    const base = ms + off.min * 60e3;
+    if (off.medido) return { de: base, ate: base + 1000, cega: false };
+    return { de: base - JANELA_ABAIXO_H * 3600e3, ate: base + FOLGA_CEGA_H * 3600e3, cega: true };
+  }
+
+  // ── O TOKEN QUE A CASA EXIGE, pedido à PRÓPRIA PÁGINA ─────────────────────────
+  // Requisição sem `X-Net-Sync-Term` devolve **200 com corpo VAZIO** — medido na s178 e
+  // reconfirmado na s382 (a URL colada na barra de endereços da conta logada volta em
+  // branco). O termo é de uso único e assinado SOBRE A URL: reaproveitar um capturado
+  // também devolve vazio.
+  //
+  // O mecanismo que o gera está exposto no `window` do frame de membros: escreve-se a URL
+  // alvo em `ns_gen5_net.url`, dispara-se `xcftr` com um id, e o termo volta no evento
+  // `xcft<id>`. Por isso este caminho **só funciona no frame `members`, no mundo MAIN**.
+  //
+  // ⚠️ É o mecanismo ANTI-AUTOMAÇÃO da casa, e usá-lo foi decisão explícita do dono da
+  // conta. Se ela renomear qualquer uma dessas peças, a resposta passa a vir **vazia, sem
+  // erro** — que é o MESMO sintoma de "não há aposta nesse segundo". É essa confusão que o
+  // gate de controle (`_conferirMecanismo`) existe para impedir.
+  const TERMO_TIMEOUT = 4000;
+
+  function _pedirTermo(urlRelativa) {
+    return new Promise((resolve) => {
+      let g;
+      try { g = window.ns_gen5_net; } catch (e) { g = null; }
+      if (!g) return resolve(null);
+      const id = 100000 + Math.floor(Math.random() * 1e6);
+      let pronto = false;
+      const fim = (v) => { if (!pronto) { pronto = true; try { g.url = ""; } catch (e) {} resolve(v); } };
+      const t = setTimeout(() => fim(null), TERMO_TIMEOUT);
+      try {
+        window.addEventListener("xcft" + id, (ev) => { clearTimeout(t); fim(ev && ev.detail); },
+                                { once: true });
+        g.url = urlRelativa;
+        g.body = "";
+        window.dispatchEvent(new CustomEvent("xcftr", { detail: id }));
+      } catch (e) { clearTimeout(t); fim(null); }
+    });
   }
 
   function _urlSummary(settled, msDe, msAte) {
@@ -420,11 +490,26 @@
     // do `byBsid` da captura e chama `enviar()`. Buscar por carimbo com ele contaminaria a
     // extração em curso com bilhetes que ninguém pediu, e o operador veria a contagem subir
     // sozinha. A busca observa a casa; ela não participa da captura.
-    const r = await of.call(window, url, { credentials: "include" });
+    // O termo é assinado sobre a URL **relativa**, que é o que a página escreve em
+    // `ns_gen5_net.url`. Mandar a absoluta aqui devolve termo válido e resposta vazia.
+    let rel = url;
+    try { const u = new URL(url, location.origin); rel = u.pathname + u.search; } catch (e) {}
+    const termo = await _pedirTermo(rel);
+    if (!termo) {
+      return { erro: "o mecanismo de token não respondeu (frame errado, ou a casa mudou)",
+               chamou: false, semTermo: true };
+    }
+    const cab = { "X-Net-Sync-Term": termo };
+    try { const L = window.Locator; if (L && L.Guid) cab["X-Request-Id"] = L.Guid; } catch (e) {}
+    const r = await of.call(window, url, { credentials: "include", headers: cab });
     if (!r.ok) return { erro: "HTTP " + r.status };
     const txt = await r.text();
+    // ⚠️ CORPO VAZIO NÃO É "NÃO EXISTE". É o que a casa devolve quando o termo não serve —
+    // e também o que ela devolve quando realmente não há aposta naquela janela. Os dois
+    // casos têm exatamente o mesmo sintoma, então quem chama NÃO pode concluir daqui:
+    // é o `_conferirMecanismo` que desempata, com uma aposta que sabemos existir.
     const parsed = parseSummary(txt);
-    return { bets: (parsed && parsed.bets) || [] };
+    return { bets: (parsed && parsed.bets) || [], vazio: !String(txt || "").trim() };
   }
 
   /** Acha, na lista da casa, os bilhetes dos `carimbos` pedidos. Não escreve nada. */
@@ -434,18 +519,24 @@
       .sort().reverse();                       // do mais recente para o mais antigo
     const achados = new Map();                 // carimbo(14) → bilhete da casa
     const vistos = new Map();                  // bsid → bilhete (tudo o que passou)
-    let paginas = 0, chamadas = 0, erro = "";
+    let paginas = 0, chamadas = 0, erro = "", cegas = 0, vazias = 0, semTermo = false;
 
     for (const alvo of alvos) {
       if (achados.has(alvo)) continue;         // veio de graça numa página anterior
       const msAlvo = _msDoCarimbo(alvo);
-      let cursor = msAlvo + FOLGA_ACIMA_H * 3600e3;
-      const piso = msAlvo - JANELA_ABAIXO_H * 3600e3;
+      // Com o fuso lido da casa esta janela tem 1 SEGUNDO e a 1ª página já traz a aposta;
+      // sem ele, abre a folga cega e o laço abaixo pagina. O casamento não muda nos dois.
+      const jan = _janelaDoCarimbo(msAlvo);
+      let cursor = jan.ate;
+      const piso = jan.de;
+      if (jan.cega) cegas++;
       while (paginas < MAX_PAGINAS) {
         const r = await _paginaSummary(settled, piso, cursor);
         if (r.chamou !== false) chamadas++;
+        if (r.semTermo) semTermo = true;
         if (r.erro) { erro = r.erro; break; }
         paginas++;
+        if (r.vazio) vazias++;
         const bets = r.bets;
         let menorMs = Infinity;
         for (const b of bets) {
@@ -471,10 +562,41 @@
     }
     // A fronteira REPETE um item por página (o do carimbo igual ao `to`), então contar
     // "quantos vieram" conta a mais. Quem responde é o mapa por bsid, não a soma.
-    return { achados: achados, vistos: vistos, paginas: paginas, chamadas: chamadas, erro: erro };
+    return { achados: achados, vistos: vistos, paginas: paginas, chamadas: chamadas,
+             erro: erro, cegas: cegas, vazias: vazias, semTermo: semTermo };
   }
 
-  async function resolverAbertas(carimbos) {
+  // ── O GATE DA FALHA SILENCIOSA ────────────────────────────────────────────────
+  // Corpo vazio significa DUAS coisas que não se distinguem pela resposta: "não há aposta
+  // nessa janela" e "o token não serve mais". A segunda acontece sozinha, no dia em que a
+  // casa renomear qualquer peça do mecanismo — e aí o botão passaria a dizer "todas ainda
+  // abertas" para sempre, sem erro em lugar nenhum.
+  //
+  // O desempate é uma aposta que o SERVIDOR sabe que existe e já está resolvida: se nem
+  // ela aparece, não é a casa que está vazia, é o mecanismo que quebrou.
+  //
+  // ⚠️ Só se consulta o controle quando ALGUMA busca voltou vazia — senão seria uma
+  // requisição a mais por rodada, contra o teto de volume, para confirmar o que já se sabe.
+  async function _conferirMecanismo(controle) {
+    const ms = _msDoCarimbo(controle && controle.carimbo);
+    if (isNaN(ms)) return { ok: null, motivo: "sem aposta de controle", chamadas: 0 };
+    const jan = _janelaDoCarimbo(ms);
+    const r = await _paginaSummary(true, jan.de, jan.ate);
+    // A conferência é uma ida à casa como qualquer outra, e conta contra o mesmo teto de
+    // volume. Deixá-la fora do total faz o relatório mentir sobre o custo da rodada.
+    const gasto = r.chamou === false ? 0 : 1;
+    if (r.erro) return { ok: false, motivo: r.erro, chamadas: gasto };
+    const achou = (r.bets || []).some(
+      (b) => String(b.tp || "").slice(0, 14) === String(controle.carimbo).slice(0, 14));
+    return { ok: achou, chamadas: gasto,
+             motivo: achou ? "" : "a aposta de controle não voltou — o mecanismo " +
+             "de token parou de funcionar, e 'vazio' NÃO quer dizer que a aposta segue aberta" };
+  }
+
+  async function resolverAbertas(pedido) {
+    // Aceita o formato antigo (array de carimbos) e o novo ({alvos, controle}).
+    const carimbos = Array.isArray(pedido) ? pedido : ((pedido && pedido.alvos) || []);
+    const controle = (pedido && !Array.isArray(pedido)) ? pedido.controle : null;
     const t0 = Date.now();
     const r = await buscarPorCarimbos(carimbos, true);
     const encontrados = [];
@@ -493,15 +615,38 @@
         bsid: b.bsid, bs: b.bs,
       });
     }
+    // ── O GATE, e ele decide o SENTIDO do que não foi achado ────────────────────
+    // Só roda quando faltou alguém: com tudo achado, o mecanismo provou-se sozinho e uma
+    // consulta a mais seria requisição gasta contra o teto de volume da conta.
+    let mecanismo = { ok: true, motivo: "" };
+    const faltaram = (carimbos || []).length - encontrados.length;
+    if (faltaram > 0) {
+      if (r.semTermo) {
+        mecanismo = { ok: false, motivo: "o mecanismo de token não respondeu" };
+      } else if (controle) {
+        mecanismo = await _conferirMecanismo(controle);
+      } else {
+        mecanismo = { ok: null, motivo: "sem aposta de controle — não dá para afirmar que " +
+                      "as que faltaram continuam abertas" };
+      }
+    }
     window.postMessage({
       __sharpenupB3Resolver: true,
       encontrados: encontrados,
       pedidos: (carimbos || []).length,
-      paginas: r.paginas, chamadas: r.chamadas, erro: r.erro,
+      // `confiavel` é o que o servidor tem de olhar ANTES de concluir qualquer coisa sobre
+      // quem não apareceu. `false` ou `null` significa: não sabemos, não escreva nada e
+      // não diga ao operador que a aposta segue aberta.
+      confiavel: mecanismo.ok === true,
+      mecanismo: mecanismo.motivo || "",
+      janelaCega: r.cegas > 0,     // o fuso não pôde ser lido — janela larga, mais chamadas
+      paginas: r.paginas, chamadas: r.chamadas + (mecanismo.chamadas || 0), erro: r.erro,
       ms: Date.now() - t0,
     }, "*");
     LOG("resolver: " + encontrados.length + "/" + (carimbos || []).length + " achado(s) · " +
-        r.chamadas + " chamada(s) · " + (Date.now() - t0) + "ms" + (r.erro ? " · " + r.erro : ""));
+        r.chamadas + " chamada(s) · " + (Date.now() - t0) + "ms" +
+        (mecanismo.ok === true ? "" : " · ⚠ " + (mecanismo.motivo || "mecanismo incerto")) +
+        (r.erro ? " · " + r.erro : ""));
   }
 
   // Fracionária ("9/10") → decimal com precisão completa. Mesma conta do `_oddNumB3` do
@@ -799,7 +944,7 @@
     if (d.acao === "rotas") { enviarRotas(); return; }
     // "Resolver apostas abertas": busca na LISTA e devolve. Não escreve, não navega, não
     // mexe no estado da captura — sai antes de qualquer reset, como o catálogo de rotas.
-    if (d.acao === "resolver") { resolverAbertas(d.carimbos || []); return; }
+    if (d.acao === "resolver") { resolverAbertas(d.pedido || d.carimbos || []); return; }
     if (d.acao === "limpar") {
       rec = []; recSujo = true;
       try { localStorage.removeItem(REC_KEY); } catch (e) {}

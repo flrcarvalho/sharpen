@@ -426,9 +426,13 @@ function casaDublada(n, opts) {
       if (!to) return payloadSummary(todos.slice(0, 10));   // 1ª carga da página
       chamadas.push({ to, from });
       const msTo = Date.parse(to), msFrom = Date.parse(from || "1970-01-01T00:00:00Z");
+      // ⚠️ O `TP` é hora do REINO UNIDO e o `from`/`to` é UTC — a casa real converte, e o
+      // dublê tem de converter também. Sem isto o teste ficaria verde com um código que
+      // ignora o fuso, e na aba de verdade a janela erraria por uma hora em silêncio.
+      const OFF_UK_UTC = -60 * 60e3;              // BST (UTC+1), o dia medido
       const ms = (b) => Date.parse(
         `${b.tp.slice(0, 4)}-${b.tp.slice(4, 6)}-${b.tp.slice(6, 8)}T` +
-        `${b.tp.slice(8, 10)}:${b.tp.slice(10, 12)}:${b.tp.slice(12, 14)}Z`);
+        `${b.tp.slice(8, 10)}:${b.tp.slice(10, 12)}:${b.tp.slice(12, 14)}Z`) + OFF_UK_UTC;
       // `to` INCLUSIVO e ordenação decrescente — como a casa real.
       const jan = todos.filter((b) => ms(b) <= msTo && ms(b) >= msFrom)
                        .sort((a, b) => ms(b) - ms(a));
@@ -437,10 +441,42 @@ function casaDublada(n, opts) {
   };
 }
 
+// O mecanismo de TOKEN da casa, dublado. Medido: a página expõe um objeto onde se escreve
+// a URL alvo, dispara-se um evento com um id e o token assinado volta em `xcft<id>`. Sem
+// token a casa devolve **200 com corpo VAZIO** — que é o mesmo que ela devolve quando não há
+// aposta na janela. Este dublê reproduz as duas coisas, porque é a confusão entre elas que o
+// gate do código precisa desfazer.
+//
+// `tzaMin` é o ajuste UK → hora local que a casa publica (medido: −240 em BST). Com ele o
+// inject calcula a janela de 1 segundo; sem ele (undefined) cai na janela cega e pagina.
+function casaComToken(opts) {
+  const o = opts || {};
+  const estado = { termos: 0, semToken: 0, urlDoUltimoTermo: "" };
+  const janelaExtra = {
+    ns_gen5_net: { url: "", body: "" },
+    Locator: { Guid: "guid-de-teste",
+               user: o.tzaMin === undefined ? {} : { timeZoneAdjustment: o.tzaMin } },
+  };
+  // Quem responde ao pedido de token é a própria "página": escuta `xcftr` e devolve.
+  janelaExtra.__aoMontar = (janela) => {
+    janela.addEventListener("xcftr", (ev) => {
+      const id = ev && ev.detail;
+      if (o.tokenMorto) return;                       // a casa renomeou algo: ninguém responde
+      estado.termos++;
+      estado.urlDoUltimoTermo = janela.ns_gen5_net.url;
+      const termo = "T" + estado.urlDoUltimoTermo;    // assinado SOBRE a url, como a real
+      janela.dispatchEvent({ type: "xcft" + id, detail: termo });
+    });
+  };
+  return { janelaExtra, estado };
+}
+
 async function resolverAbertas() {
   const falhas = [];
 
-  const rodar = async (casa, carimbos) => {
+  const rodar = async (casa, carimbos, opts) => {
+    const o = opts || {};
+    const tok = casaComToken({ tzaMin: o.semFuso ? undefined : -240, tokenMorto: o.tokenMorto });
     const { todas, urls } = await rodarInject({
       inject: "b3_inject.js",
       href: "https://members.bet365.bet.br/members/",
@@ -448,12 +484,28 @@ async function resolverAbertas() {
       // Sem ela o laço se recusa a chutar — e isso é uma das coisas provadas abaixo.
       urlInicial: "https://members.bet365.bet.br/sportshistoryapi/summary?settled=1&lid=33&cid=28",
       relogio: "turbo",
-      pedidoMsg: { __sharpenupB3Req: true, acao: "resolver", carimbos },
-      responder: casa ? casa.responder : () => null,
+      janelaExtra: tok.janelaExtra,
+      pedidoMsg: { __sharpenupB3Req: true, acao: "resolver",
+                   pedido: { alvos: carimbos, controle: o.controle } },
+      // ⚠️ O dublê SÓ responde com token, como a casa real. Sem isso, um código que
+      // esquecesse o token passaria verde aqui e devolveria branco na aba de verdade —
+      // que foi exatamente o defeito que este caminho teve de corrigir.
+      // A requisição INICIAL é a da página (o harness a dispara para dar a referência de
+      // URL ao inject) e vem marcada: ela não conta como "o inject esqueceu o token".
+      optsInicial: { headers: { "X-Harness-Pagina": "1" } },
+      responder: (url, opt) => {
+        const daPagina = !!(opt && opt.headers && opt.headers["X-Harness-Pagina"]);
+        const temToken = !!(opt && opt.headers && opt.headers["X-Net-Sync-Term"]);
+        if (/\/sportshistoryapi\/summary/.test(url) && !temToken && !daPagina) {
+          tok.estado.semToken++;
+          return "";                       // 200 com corpo VAZIO, como a casa faz
+        }
+        return casa ? casa.responder(url) : null;
+      },
       ms: 1200,
     });
     const msg = (todas || []).filter((m) => m && m.__sharpenupB3Resolver).pop();
-    return { msg, urls };
+    return { msg, urls, tok: tok.estado };
   };
 
   // ── 10a. Acha o alvo que está a três páginas de distância ───────────────────
@@ -548,6 +600,117 @@ async function resolverAbertas() {
       falhas.push(`resolver (sem referência): CHAMOU a casa ${msg.chamadas} vez(es) com URL ` +
                   `chutada. Recusar é não chamar — uma URL chutada dá 404 e o erro parece o ` +
                   `mesmo, que foi como a 1ª versão deste teste passou verde com o chute ligado`);
+    }
+  }
+
+  // ── 10g. O TOKEN é pedido, e assinado sobre a URL RELATIVA ─────────────────
+  // A casa devolve 200 com corpo VAZIO para quem não manda o token, e o termo é assinado
+  // sobre a URL que se escreve no objeto dela. Mandar a absoluta devolve termo válido e
+  // resposta vazia — o pior dos mundos, porque parece funcionar.
+  {
+    const casa = casaDublada(12);
+    const alvo = casa.todos[1].tp.slice(0, 14);
+    const { msg, tok } = await rodar(casa, [alvo]);
+    if (!tok.termos) {
+      falhas.push("resolver: nenhum token foi pedido — a casa devolve vazio sem ele");
+    } else if (tok.semToken) {
+      falhas.push(`resolver: ${tok.semToken} requisição(ões) saíram SEM token`);
+    } else if (/^https?:/i.test(tok.urlDoUltimoTermo)) {
+      falhas.push(`resolver: o token foi pedido para a URL ABSOLUTA ("${tok.urlDoUltimoTermo}"). ` +
+                  `A casa assina a relativa, e a absoluta devolve termo válido com resposta ` +
+                  `vazia — parece que funciona e não funciona`);
+    }
+    if (msg && !msg.encontrados.length) {
+      falhas.push("resolver: com token válido, devia ter achado o alvo");
+    }
+  }
+
+  // ── 10h. O GATE: vazio NÃO quer dizer "a aposta segue aberta" ───────────────
+  // Se a casa renomear qualquer peça do mecanismo, a resposta passa a vir vazia — o MESMO
+  // sintoma de "não há aposta nessa janela". Sem o gate, o botão diria "todas ainda
+  // abertas" para sempre, sem erro em lugar nenhum. É a família de defeito mais cara aqui.
+  {
+    const casa = casaDublada(12);
+    const controle = { carimbo: casa.todos[0].tp.slice(0, 14) };
+    const { msg } = await rodar(casa, ["20250101120000"], { controle, tokenMorto: true });
+    if (!msg) {
+      falhas.push("resolver (token morto): o inject não respondeu");
+    } else if (msg.confiavel) {
+      falhas.push("resolver (token morto): devolveu `confiavel: true` sem o mecanismo " +
+                  "funcionar — quem ler isso vai concluir que as apostas seguem abertas");
+    } else if (!msg.mecanismo) {
+      falhas.push("resolver (token morto): marcou não-confiável sem dizer POR QUÊ");
+    }
+  }
+
+  // ── 10i. Falta alguém + controle VIVO ⇒ é confiável mesmo assim ─────────────
+  // O par do teste acima: sem ele, bastaria marcar tudo como não-confiável para ficar
+  // verde, e o botão nunca resolveria nada.
+  {
+    const casa = casaDublada(12);
+    const controle = { carimbo: casa.todos[0].tp.slice(0, 14) };
+    const alvo = casa.todos[3].tp.slice(0, 14);
+    const { msg } = await rodar(casa, [alvo, "20250101120000"], { controle });
+    if (!msg) {
+      falhas.push("resolver (controle vivo): o inject não respondeu");
+    } else if (!msg.confiavel) {
+      falhas.push(`resolver (controle vivo): marcou não-confiável ("${msg.mecanismo}") com a ` +
+                  `aposta de controle respondendo normalmente`);
+    } else if (msg.encontrados.length !== 1) {
+      falhas.push(`resolver (controle vivo): esperava 1 achado, veio ${msg.encontrados.length}`);
+    }
+  }
+
+  // ── 10j. Com tudo achado, NÃO gasta a requisição de controle ────────────────
+  // Cada chamada conta contra o teto de volume da conta (três foram bloqueadas em 20/09).
+  // Confirmar o que já se sabe é requisição jogada fora.
+  {
+    const casa = casaDublada(12);
+    const controle = { carimbo: casa.todos[0].tp.slice(0, 14) };
+    const alvo = casa.todos[2].tp.slice(0, 14);
+    const { msg } = await rodar(casa, [alvo], { controle });
+    if (msg && msg.chamadas > 1) {
+      falhas.push(`resolver (tudo achado): ${msg.chamadas} chamadas para 1 aposta — o gate de ` +
+                  `controle só deve rodar quando alguém NÃO foi achado`);
+    }
+  }
+
+  // ── 10k. Com o fuso LIDO da casa, é UMA chamada por aposta ─────────────────
+  // O carimbo é hora do Reino Unido e a janela é UTC. A casa publica o ajuste em minutos;
+  // com ele a janela tem 1 segundo e a aposta vem sozinha. Sem ele, o código abre a janela
+  // cega e pagina — funciona, mas custa mais chamadas, e é isso que se mede aqui.
+  {
+    const casa = casaDublada(40, { passoMin: 10 });
+    const alvo = casa.todos[25].tp.slice(0, 14);
+    const comFuso = await rodar(casa, [alvo]);
+    const semFuso = await rodar(casa, [alvo], { semFuso: true });
+    if (!comFuso.msg || !comFuso.msg.encontrados.length) {
+      falhas.push("resolver (com fuso): não achou o alvo com a janela de 1 segundo");
+    } else if (comFuso.msg.chamadas !== 1) {
+      falhas.push(`resolver (com fuso): ${comFuso.msg.chamadas} chamadas para achar UMA aposta ` +
+                  `cujo instante exato é conhecido — a janela devia ser de 1 segundo`);
+    } else if (comFuso.msg.janelaCega) {
+      falhas.push("resolver (com fuso): marcou janela cega com o ajuste disponível");
+    }
+    if (!semFuso.msg || !semFuso.msg.encontrados.length) {
+      falhas.push("resolver (sem fuso): a janela cega tem de achar o alvo mesmo assim");
+    } else if (!semFuso.msg.janelaCega) {
+      falhas.push("resolver (sem fuso): não avisou que a janela foi cega — quem lê o custo " +
+                  "precisa saber por que foram mais chamadas");
+    }
+    // O MESMO teste com apostas de MINUTO em minuto. Com 10 min entre elas, uma janela
+    // afrouxada para 1 hora ainda cabe numa página de 10 e ninguém percebe — foi assim que
+    // a mutação "a janela de 1s virou 1h" passou verde na 1ª rodada. Com 1 min, afrouxar
+    // empurra o alvo para a 7ª página e o custo aparece.
+    const denso = casaDublada(90, { passoMin: 1 });
+    const alvoDenso = denso.todos[70].tp.slice(0, 14);
+    const r = await rodar(denso, [alvoDenso]);
+    if (!r.msg || !r.msg.encontrados.length) {
+      falhas.push("resolver (lista densa): não achou o alvo");
+    } else if (r.msg.chamadas !== 1) {
+      falhas.push(`resolver (lista densa): ${r.msg.chamadas} chamadas. Com o instante exato ` +
+                  `conhecido a janela é de 1 SEGUNDO e traz só aquela aposta; qualquer folga ` +
+                  `a mais enche a página de vizinhos e paga páginas por nada`);
     }
   }
 

@@ -634,6 +634,62 @@
       try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
     }
   }
+  // ── "Resolver apostas abertas" (bet365, s382) ────────────────────────────────
+  // Três saltos, e cada um existe por um motivo: o SERVIDOR sabe quais apostas estão
+  // abertas (o content não tem sessão), o INJECT sabe falar com a casa (o content não
+  // alcança a API), e o BACKGROUND tem o token da ponte (o content nunca vê o token).
+  //
+  // Nada aqui decide resultado. O content transporta.
+  const B3_RESOLVER_TIMEOUT = 120000;   // teto de espera pelo inject (até 15 apostas × folga)
+
+  function b3PedirResolver(alvos, controle) {
+    return new Promise((resolve) => {
+      let pronto = false;
+      const fim = (v) => { if (!pronto) { pronto = true; window.removeEventListener("message", ouvir); resolve(v); } };
+      const ouvir = (ev) => {
+        const d = ev && ev.data;
+        if (d && d.__sharpenupB3Resolver) fim(d);
+      };
+      window.addEventListener("message", ouvir);
+      setTimeout(() => fim({ erro: "o robô não respondeu a tempo", encontrados: [] }), B3_RESOLVER_TIMEOUT);
+      const msg = { __sharpenupB3Req: true, acao: "resolver",
+                    pedido: { alvos: alvos, controle: controle }, saltos: 0 };
+      try { window.postMessage(msg, "*"); } catch (e) {}
+      for (let i = 0; i < window.frames.length && i < 24; i++) {
+        try { window.frames[i].postMessage(msg, "*"); } catch (e) {}
+      }
+    });
+  }
+
+  /** `aplicar:false` = ENSAIO (o padrão). Devolve o relatório do servidor, ou `{erro}`. */
+  async function b3ResolverAbertas(aplicar) {
+    const r1 = await chrome.runtime.sendMessage({ type: "RESOLVER_ABERTAS", fase: "alvos" });
+    if (!r1 || !r1.ok) return { erro: (r1 && r1.erro) || "não consegui falar com a extensão" };
+    const todas = (r1.dados && r1.dados.abertas) || [];
+    // Aposta anterior ao carimbo não tem como ser procurada: ela NÃO some do relatório,
+    // sai contada, para o operador saber por que ficou de fora.
+    const alvos = todas.filter((a) => a.aposta_em);
+    if (!alvos.length) {
+      return { nada: true, abertas: todas.length, semCarimbo: todas.length,
+               conta: r1.dados && r1.dados.conta };
+    }
+    const resp = await b3PedirResolver(alvos.map((a) => a.aposta_em), r1.dados.controle);
+    if (resp.erro && !(resp.encontrados || []).length) return { erro: resp.erro };
+    // ⚠️ `confiavel:false` NÃO é detalhe: significa que "não achei" pode ser a casa ter
+    // parado de responder, e não a aposta seguir aberta. Vai adiante para o relatório e
+    // quem escreve na tela é obrigado a dizer isso.
+    const r2 = await chrome.runtime.sendMessage({
+      type: "RESOLVER_ABERTAS", fase: "aplicar",
+      encontrados: resp.encontrados || [], aplicar: !!aplicar,
+    });
+    if (!r2 || !r2.ok) return { erro: (r2 && r2.erro) || "não consegui aplicar" };
+    return Object.assign({}, r2.dados, {
+      confiavel: !!resp.confiavel, mecanismo: resp.mecanismo || "",
+      chamadas: resp.chamadas, msCasa: resp.ms, janelaCega: !!resp.janelaCega,
+      semCarimbo: todas.length - alvos.length,
+    });
+  }
+
   // Memória do DETALHE já obtido, por bsid: { code, da, legs }. Guarda o CONTEÚDO, não só a
   // marca de "já visto" — pular o clique sem ter o código faria o bilhete sair com
   // `[Código: ]` vazio e sem mercado/liga na 2ª rodada, e o UPSERT trocaria dado bom por pior.
@@ -6461,9 +6517,90 @@
   }
 
   // ── Orquestração ────────────────────────────────────────────────────────────
+  // ── BOTÃO "Resolver apostas abertas" (bet365) ────────────────────────────────
+  // Vive na barra da extensão, na aba da casa, e não no painel do Sharpen: **não existe
+  // canal do painel para a extensão** — a sessão de captura só transporta no sentido
+  // contrário. Quem começa o trabalho é quem já está na página logada.
+  //
+  // CORES LITERAIS, como todo o resto desta barra: ela é injetada na página de TERCEIRO e
+  // não alcança os tokens do produto. O `/nova-ui` cobre a UI do Sharpen; aqui valem as
+  // partes que não dependem de token — PT-BR, contraste alto e nada de abreviar.
+  //
+  // DOIS CLIQUES, sempre: o primeiro é ENSAIO e não grava nada. Banco não tem desfazer.
+  let btnResolver = null, resolverOcupado = false, resolverPronto = null;
+
+  function removeResolver() {
+    if (btnResolver) { btnResolver.remove(); btnResolver = null; }
+    resolverPronto = null;
+  }
+
+  function ensureResolver(st) {
+    const eBet365 = /bet365/i.test(String(st.casa || ""));
+    if (!eBet365) { removeResolver(); return; }
+    if (btnResolver) return;
+    btnResolver = document.createElement("button");
+    S(btnResolver, {
+      position: "fixed", right: "22px", bottom: "84px", "z-index": Z,
+      background: "#0E1524", color: "#E6ECF5", border: "1px solid rgba(46,139,255,0.5)",
+      "border-radius": "10px", padding: "9px 14px", cursor: "pointer",
+      font: "600 13px/1.2 system-ui,sans-serif", "box-shadow": "0 8px 24px rgba(0,0,0,.5)",
+      "max-width": "320px", "text-align": "left",
+    });
+    btnResolver.textContent = "Resolver apostas abertas";
+    btnResolver.title = "Busca na casa o resultado das apostas que estão abertas nesta conta. " +
+                        "O primeiro clique é um ensaio: não grava nada.";
+    btnResolver.addEventListener("click", () => resolverClique());
+    document.documentElement.appendChild(btnResolver);
+  }
+
+  function resolverTexto(t) { if (btnResolver) btnResolver.textContent = t; }
+
+  async function resolverClique() {
+    if (resolverOcupado) return;
+    resolverOcupado = true;
+    // O 2º clique GRAVA, e só depois de um ensaio que achou alguma coisa.
+    const aplicar = !!(resolverPronto && resolverPronto.resolvidos && resolverPronto.resolvidos.length);
+    resolverTexto(aplicar ? "Gravando…" : "Procurando na casa…");
+    try {
+      const r = await b3ResolverAbertas(aplicar);
+      if (r.erro) { resolverTexto("Não deu: " + r.erro); resolverPronto = null; return; }
+      if (r.nada) {
+        resolverTexto(r.semCarimbo ? "Nenhuma aposta aberta com hora registrada"
+                                   : "Nenhuma aposta aberta nesta conta");
+        resolverPronto = null;
+        return;
+      }
+      const n = (r.resolvidos || []).length;
+      // ⚠️ `confiavel:false` vem de "a casa devolveu vazio E a aposta de controle também
+      // não voltou". Aí NÃO se pode dizer que as outras seguem abertas — é a diferença
+      // entre não achar e não conseguir perguntar, e ela tem de aparecer para quem clicou.
+      if (!r.confiavel && n === 0) {
+        resolverTexto("Não consegui confirmar. " + (r.mecanismo || "Recarregue a página e tente de novo."));
+        resolverPronto = null;
+        return;
+      }
+      console.log("[SharpenUp] Resolver abertas:", r);
+      if (aplicar) {
+        resolverTexto(n + (n === 1 ? " aposta gravada" : " apostas gravadas"));
+        resolverPronto = null;
+        toastLocal(n + (n === 1 ? " aposta resolvida" : " apostas resolvidas"), true, 60);
+      } else if (n === 0) {
+        resolverTexto("Nenhuma resolveu ainda" + (r.confiavel ? "" : " (sem confirmação)"));
+        resolverPronto = null;
+      } else {
+        resolverPronto = r;
+        resolverTexto(n + (n === 1 ? " pronta para gravar" : " prontas para gravar") +
+                      " · clique de novo (detalhes no console)");
+      }
+    } finally {
+      resolverOcupado = false;
+    }
+  }
+
   async function sync() {
     let st; try { st = await get(); } catch (_) { return; }
-    if (!st.token) { removeFab(); removeFrame(); removeDraw(); return; }
+    if (!st.token) { removeFab(); removeFrame(); removeDraw(); removeResolver(); return; }
+    ensureResolver(st);
     if (st.modo === "texto") { removeFrame(); removeDraw(); ensureFab("texto"); return; }
     // modo print
     if (st.frameAtivo) {

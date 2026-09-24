@@ -15,7 +15,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     enviarTexto(msg.texto, sender.tab).then((ok) => sendResponse({ ok })).catch(() => sendResponse({ ok: false }));
     return true;
   }
+  // ── "Resolver apostas abertas" (bet365) ────────────────────────────────────
+  // Passa por aqui, e não direto do content, por um motivo só: **o token da sessão vive
+  // neste service worker**. O content roda na página da casa e nunca vê o token — é o mesmo
+  // desenho do envio de captura.
+  if (msg && msg.type === "RESOLVER_ABERTAS") {
+    resolverAbertas(msg).then(sendResponse).catch((e) =>
+      sendResponse({ ok: false, erro: String((e && e.message) || e) }));
+    return true;
+  }
 });
+
+/** Ponte do "Resolver apostas abertas": busca os alvos, ou aplica o que a casa devolveu. */
+async function resolverAbertas(msg) {
+  const { token } = await chrome.storage.local.get("token");
+  if (!token) return { ok: false, erro: "Não conectado. Cole o código no popup da extensão." };
+  const base = await getApiBase();
+  const q = "token=" + encodeURIComponent(token);
+  try {
+    if (msg.fase === "alvos") {
+      const r = await fetch(`${base}/captura/abertas?${q}`);
+      if (r.status === 401) return { ok: false, erro: "Sessão expirou — reconecte no popup." };
+      if (!r.ok) return { ok: false, erro: "Erro ao buscar as abertas (" + r.status + ")." };
+      return { ok: true, dados: await r.json() };
+    }
+    // Fase "aplicar". `aplicar:false` é ENSAIO — o padrão, e o que o 1º clique manda.
+    const r = await fetch(`${base}/captura/resolver-abertas?${q}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ encontrados: msg.encontrados || [], aplicar: !!msg.aplicar }),
+    });
+    if (r.status === 401) return { ok: false, erro: "Sessão expirou — reconecte no popup." };
+    if (!r.ok) return { ok: false, erro: "Erro ao aplicar (" + r.status + ")." };
+    return { ok: true, dados: await r.json() };
+  } catch (e) {
+    return { ok: false, erro: "Falha de rede: " + String((e && e.message) || e) };
+  }
+}
 
 function avisarFim(tabId, ok) {
   try { chrome.tabs.sendMessage(tabId, { type: "CAPTURA_FIM", ok: !!ok }); } catch (_) {}

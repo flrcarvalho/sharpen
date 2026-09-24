@@ -94,6 +94,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 export async function rodarInject(cfg) {
   const mensagens = [];
   const urls = [];
+  const eventos = {};   // tipo → ouvintes (ver addEventListener)
   const ouvintes = [];
 
   // `opts` (method/headers/body) chega ao `responder` como 2º argumento: sem ele não dá para
@@ -132,14 +133,32 @@ export async function rodarInject(cfg) {
   const janela = {
     location: { href: cfg.href, origin: new URL(cfg.href).origin },
     frames: [],
-    addEventListener(tipo, cb) { if (tipo === "message") ouvintes.push(cb); },
+    // Eventos de QUALQUER tipo, não só `message`. A casa conversa com a página por eventos
+    // próprios (é assim que o token do histórico é pedido e devolvido), e sem isto o dublê
+    // não conseguiria reproduzir esse mecanismo — o teste passaria a medir a ausência dele.
+    addEventListener(tipo, cb, opts) {
+      if (tipo === "message") { ouvintes.push(cb); return; }
+      (eventos[tipo] = eventos[tipo] || []).push({ cb, once: !!(opts && opts.once) });
+    },
     // `removeEventListener` não é enfeite: o inject registra um ouvinte por rodada enquanto
     // espera a expansão e o solta no fim. Sem ele aqui, o harness quebrava com TypeError e
     // qualquer vazamento de ouvinte passaria despercebido.
     removeEventListener(tipo, cb) {
-      if (tipo !== "message") return;
+      if (tipo !== "message") {
+        const l = eventos[tipo];
+        if (l) { const i = l.findIndex((x) => x.cb === cb); if (i > -1) l.splice(i, 1); }
+        return;
+      }
       const i = ouvintes.indexOf(cb);
       if (i > -1) ouvintes.splice(i, 1);
+    },
+    dispatchEvent(ev) {
+      const l = eventos[ev && ev.type] || [];
+      for (const x of l.slice()) {
+        if (x.once) { const i = l.indexOf(x); if (i > -1) l.splice(i, 1); }
+        try { x.cb(ev); } catch (e) {}
+      }
+      return true;
     },
     postMessage(msg) {
       mensagens.push(msg);
@@ -192,8 +211,26 @@ export async function rodarInject(cfg) {
   // mexe em `Date.now()`: quem tem teto por relógio (`esperarCodigo`) continua medindo tempo real.
   const _st = cfg.relogio === "turbo" ? ((cb) => setTimeout(cb, 0)) : setTimeout;
 
+  // A casa pode expor objetos e eventos próprios no `window` — a bet365 pede o token do
+  // histórico assim. `janelaExtra` deixa o CASO montar esse dublê; sem ele, o inject que
+  // depende do mecanismo simplesmente não o encontra, e o teste mediria a ausência do
+  // andaime em vez do código.
+  if (cfg.janelaExtra) {
+    for (const k in cfg.janelaExtra) if (k !== "__aoMontar") janela[k] = cfg.janelaExtra[k];
+    // `__aoMontar(janela)` deixa o caso registrar OUVINTES no dublê — é o que permite
+    // reproduzir um mecanismo de pergunta-e-resposta por evento, em que a "página" responde.
+    if (typeof cfg.janelaExtra.__aoMontar === "function") cfg.janelaExtra.__aoMontar(janela);
+  }
+  // `CustomEvent` dublado: o mecanismo da casa é `dispatchEvent(new CustomEvent(...))` com a
+  // resposta voltando por outro evento. Só precisa carregar `type` e `detail`.
+  function CustomEventFake(type, init) {
+    this.type = type;
+    this.detail = init && init.detail;
+  }
+
   const ctx = {
     window: janela, location: janela.location, XMLHttpRequest: XHRFake, document: documento,
+    CustomEvent: CustomEventFake,
     console: { log: () => {}, warn: () => {}, error: () => {} },   // silencia o LOG do inject
     URL, URLSearchParams, JSON, Math, Date, Array, Number, String, Object, Boolean,
     Promise, Set, Map, isFinite, isNaN, parseFloat, parseInt, Intl, setTimeout: _st, clearTimeout,
