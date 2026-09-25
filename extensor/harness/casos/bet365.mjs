@@ -378,13 +378,22 @@ function dataDoEvento(fmt) {
 // o dublê punha DOIS bilhetes no mesmo segundo (o cursor só trava quando a PÁGINA INTEIRA
 // cai no mesmo segundo), e o teste da URL chutada aceitava qualquer `erro` — mas uma URL
 // chutada dá 404, que também é `erro`. Nos dois casos a mutação passou verde primeiro.
+// `b.pernas` (odds fracionárias) monta bilhete de VÁRIAS seleções e `b.bc` monta SISTEMA —
+// sem isso o dublê só sabia gerar aposta de uma perna, e a odd do bilhete (que em múltipla
+// é o produto, e em sistema é a média) não podia ser testada. Era o falso verde nº 2 do
+// `CLAUDE.md`, e ele escondeu um defeito que valia 30% das abertas reais (s387).
 function payloadSummary(bilhetes) {
   let s = "F|00;IT=betsummaries;TY=BS;PC=;PT=2026-09-23T12:00:00.0Z;";
   for (const b of bilhetes) {
-    s += `|01;ID=${b.id};BT=1;BS=1;BC=1;RA=;TP=${b.tp};PD=#HICO#BSSB#C${b.id}#D0#;`;
+    const pernas = (b.pernas && b.pernas.length) ? b.pernas : [b.od || "1/1"];
+    const bc = b.bc || 1;
+    const rotulo = bc > 1 ? "Duplas" : (pernas.length > 1 ? "Múltipla" : "Simples");
+    s += `|01;ID=${b.id};BT=${pernas.length};BS=1;BC=${bc};RA=;TP=${b.tp};PD=#HICO#BSSB#C${b.id}#D0#;`;
     s += "|02;TY=SR;";
-    s += `|03;NA=${b.na || "Sel"};FN=${b.na || "Sel"};OD=${b.od || "1/1"};CL=1;FP=0;BA=0;FA=1;FR=0;SY=a;`;
-    s += `|02;TY=SD;EW=0;BM=0;ST=${b.st};BC=1;BB=0;NA=Simples;BT=1;TS=${b.st};AB=0;AT=0;MB=0;FR=0;OD=${b.od || "1/1"};`;
+    for (let i = 0; i < pernas.length; i++) {
+      s += `|03;NA=${b.na || "Sel"}${i + 1};FN=${b.na || "Sel"}${i + 1};OD=${pernas[i]};CL=1;FP=0;BA=0;FA=1;FR=0;SY=a;`;
+    }
+    s += `|02;TY=SD;EW=0;BM=0;ST=${b.st};BC=${bc};BB=0;NA=${rotulo};BT=${pernas.length};TS=${b.st};AB=0;AT=0;MB=0;FR=0;OD=${pernas[0]};`;
     // Aposta ainda aberta vem SEM `RT` — medido nas pendentes reais (settled=0).
     s += b.rt == null ? `|02;TY=ST;ST=${b.st};` : `|02;TY=ST;ST=${b.st};RT=${b.rt};`;
   }
@@ -407,6 +416,10 @@ function casaDublada(n, opts) {
     todos.push({ id: String(49900000000 + i), tp, st: "100.00",
                  rt: o.semRT ? null : "180.00", od: "4/5" });
   }
+  // `moldar` troca a FORMA de um bilhete sem mexer no carimbo dele: é assim que os casos
+  // da odd do bilhete (múltipla, sistema, perna sem odd) reusam a mesma casa e a mesma
+  // janela, em vez de montarem um dublê paralelo que divergiria no 1º ajuste.
+  if (o.moldar) for (const k in o.moldar) Object.assign(todos[k], o.moldar[k]);
   // A armadilha nº 2 só morde quando a PÁGINA INTEIRA cai no mesmo segundo: aí o menor
   // carimbo da página é igual ao `to` que a pediu, e repetir a chamada devolve a mesma
   // página para sempre. Dois bilhetes soltos no mesmo segundo NÃO travam nada — foi o que
@@ -547,6 +560,50 @@ async function resolverAbertas() {
     } else if (e.odd !== "1.8") {
       falhas.push(`resolver: a odd tem de viajar em DECIMAL (4/5 → 1.8), veio "${e.odd}" — o ` +
                   `casamento do outro lado normaliza decimal, e fracionária não casa nunca`);
+    }
+  }
+
+  // ── 10b-bis. A odd que viaja é a DO BILHETE, não a da 1ª perna ──────────────
+  // A casa NÃO publica odd combinada: o `OD` de cada `03` é o da seleção, e em múltipla o
+  // banco guarda o produto. Mandar a 1ª perna faz a chave `carimbo|stake|odd` não bater e
+  // o bilhete sair como "sem par", em silêncio. Medido na base em 24/09: das 113 abertas
+  // de bet365 com carimbo, **34 têm 2+ pernas**, e nelas a odd do banco bate a 1ª perna em
+  // 0 de 34 e o produto em 34 de 34. São 30% do trabalho do botão.
+  {
+    const casa = casaDublada(12, { moldar: { 2: { pernas: ["12/5", "7/4"] } } });  // 3,4 × 2,75
+    const alvo = casa.todos[2].tp.slice(0, 14);
+    const { msg } = await rodar(casa, [alvo]);
+    const e = msg && msg.encontrados[0];
+    if (!e) {
+      falhas.push("resolver (múltipla): não achou o bilhete de duas pernas");
+    } else if (Math.abs(parseFloat(e.odd) - 9.35) > 0.005) {
+      falhas.push(`resolver (múltipla): a odd tem de ser a DO BILHETE (3,4 × 2,75 = 9,35), ` +
+                  `veio "${e.odd}". A odd da 1ª perna (3,4) não casa com o banco, que guarda ` +
+                  `o produto — e a casa não publica odd combinada`);
+    }
+  }
+
+  // ── 10b-ter. SISTEMA não tem produto, e perna sem odd não tem conta ─────────
+  // Em sistema (`BC > 1`) a odd é a MÉDIA das linhas (`MASTER_RESULTADO §7.3`): multiplicar
+  // daria quase o dobro, e um número errado que casa é pior que nenhum. Perna sem odd tem o
+  // mesmo destino: produto de PARTE das pernas passa em toda checagem de forma e mente.
+  // Nos dois casos a odd sai VAZIA, e vazia não forma chave — o bilhete vira "a conferir".
+  {
+    const casa = casaDublada(12, { moldar: {
+      2: { pernas: ["12/5", "7/4", "1/1"], bc: 3 },     // 3 x Duplas
+      4: { pernas: ["12/5", "0/0"] },                   // a 2ª perna não tem odd legível
+    } });
+    for (const [i, nome] of [[2, "sistema"], [4, "perna sem odd"]]) {
+      const alvo = casa.todos[i].tp.slice(0, 14);
+      const { msg } = await rodar(casa, [alvo]);
+      const e = msg && msg.encontrados[0];
+      if (!e) {
+        falhas.push(`resolver (${nome}): não achou o bilhete`);
+      } else if (e.odd !== "") {
+        falhas.push(`resolver (${nome}): a odd tinha de vir VAZIA e veio "${e.odd}" — ` +
+                    `número derivado de uma conta que não vale aqui casa a aposta errada, ` +
+                    `e casamento errado não perde bilhete, CORROMPE`);
+      }
     }
   }
 

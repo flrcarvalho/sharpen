@@ -204,6 +204,48 @@ andaime não consegue executar.
 > limpo, e o operador dizendo "não aparece nada". Quando o verde e a tela discordam, o
 > ambiente do teste é o suspeito, não o relato.
 
+### A odd que era a da PRIMEIRA PERNA, e ela valia 30% das abertas (s387)
+
+O "Resolver apostas abertas" casa a aposta por `carimbo | stake | odd`. A odd que a extensão
+mandava era `_oddDecimal(b.oddFrac)`, e o `oddFrac` do `parseSummary` é o `OD` da **primeira
+seleção** do bilhete.
+
+**A casa não publica odd combinada.** Isso estava escrito, medido e em produção desde sempre,
+a poucas linhas dali: o `formatTicketB3` só imprime `Odd:` quando `nSel === 1`, e a s386
+mediu que **zero de 3.442 blocos `Tipo: Múltipla` trazem linha de odd**. Em múltipla, quem
+calcula o produto é quem lê o bloco, e é o produto que fica no banco.
+
+**Medido na base em 24/09**, abertas de bet365 **com carimbo** (o universo do botão):
+
+| | |
+|---|---|
+| abertas com carimbo | **113** |
+| com 1 perna (a odd do summary descreve o bilhete) | 79 |
+| com 2+ pernas | **34** (30%) |
+| dessas 34, a odd do banco = odd da 1ª perna | **0** |
+| dessas 34, a odd do banco = **produto** das pernas (2 casas) | **34** |
+| stake do banco ≠ stake do bloco | **0 de 113** |
+
+Zero em 34 não é margem, é campo errado. E o modo de falha é o pior possível para quem está
+depurando: a chave não bate, o bilhete sai como `sem_par`, e **o sintoma é idêntico ao de "a
+casa não devolveu nada"** — que é exatamente o defeito que estava sendo caçado ao lado.
+
+**A régua certa é a do `content.js`, copiada e não reinventada**, com as duas exceções que
+ela já tinha: **SISTEMA (`BC > 1`) não tem produto** (a odd é a média das linhas,
+`MASTER_RESULTADO §7.3`; a mutação que tira esse guard produz `18,7` onde a média é bem
+menor) e **perna sem odd legível não tem conta** (produto de parte das pernas é um número
+que existe e passa em toda checagem de forma). Nos dois casos a odd sai **vazia**, e vazia
+não forma chave: o bilhete vira "a conferir" em vez de casar errado.
+
+**Por que nenhum gate pegava:** o `casaDublada` do harness gerava todo bilhete com **uma
+seleção** (`od: "4/5"`). Não havia múltipla, não havia sistema, não havia perna sem odd — o
+falso verde nº 2 do `CLAUDE.md`, o dado sintético que não exerce a regra. O dublê ganhou
+`pernas` e `bc`; **4 mutações, 4 detectadas.**
+
+> **Sintoma para reconhecer isto noutro casamento:** uma chave cujo campo tem, na fonte, um
+> significado mais ESTREITO do que no banco. `OD` é a odd de uma seleção; `odd` é a do
+> bilhete. O nome igual nos dois lados é o que faz ninguém conferir.
+
 ### O nono defeito, e ele estava ATRÁS de um gate verde — o cursor que andava 1 s por requisição (s387)
 
 O botão tinha oito defeitos conhecidos e um gate de paginação verde com três casos. O nono

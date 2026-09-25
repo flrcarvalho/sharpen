@@ -1788,33 +1788,10 @@ sempre coexistiram, para coisas diferentes.**
 > E o gesto barato que faltou: **perguntar ao Feca qual é o caminho**, antes de concluir. Ele
 > respondeu com cinco prints em dois minutos.
 
-### 4.11 "Resolver apostas abertas" manda a odd da 1ª PERNA, e 30% das abertas são múltiplas (s387). VIVA, medida.
+### 4.11 ~~"Resolver apostas abertas" manda a odd da 1ª PERNA~~ **FECHADA no mesmo dia (s387).**
 
-O `resolverAbertas` (`extensor/b3_inject.js`) envia `odd: _oddDecimal(b.oddFrac)`, e o
-`oddFrac` do `parseSummary` é a odd da **primeira seleção** — a casa **não publica odd
-combinada**, e é por isso que o `formatTicketB3` só imprime `Odd:` quando `nSel === 1`. O
-banco, para múltipla, guarda o **produto**.
-
-Medido na base em 24/09, abertas de bet365 **com carimbo**:
-
-| | |
-|---|---|
-| abertas com carimbo | **113** |
-| com 1 perna (a odd do summary descreve o bilhete) | 79 |
-| com 2+ pernas | **34** (30%) |
-| dessas 34, odd do banco = odd da 1ª perna | **0** |
-| dessas 34, odd do banco = **produto** das pernas (2 casas) | **34** |
-| stake do banco ≠ stake do bloco | **0 de 113** |
-
-A odd entra na chave do casamento (`carimbo|stake|odd`, normalizada por `_norm_odd`), então
-**as 34 saem como `sem_par`** — falha segura, mas silenciosa, e com o **mesmo sintoma** do
-defeito do token. Dois donos concentram: `Gabriel` tem 46 múltiplas em 66 abertas.
-
-**Conserto:** calcular a odd do bilhete pela mesma régua do `content.js` (produto das odds
-das seleções quando houver mais de uma; `oddFrac` quando houver uma; SISTEMA é a média e
-fica fora). **Gate junto, senão não vale:** o `casaDublada` do harness gera todo bilhete com
-**uma seleção só** (`od: "4/5"`), então este defeito não podia ser detectado — é o falso
-verde nº 2 do `CLAUDE.md`, o dado sintético que não exerce a regra.
+Medido e corrigido: a odd que viaja passou a ser a **do bilhete** (produto das pernas; vazia em SISTEMA e em perna sem odd), e o dublê do harness ganhou múltipla, sistema e perna sem odd — 4 mutações, 4 detectadas. Os números e a lição ficam no caso, que é onde mora a prova:
+[a odd que era a da primeira perna](docs/casos/CASOS_BET365.md#a-odd-que-era-a-da-primeira-perna-e-ela-valia-30-das-abertas-s387).
 
 ### 4.12 Escrita de robô vira "correção humana" na tabela `correcoes` (s387). VIVA, medida.
 

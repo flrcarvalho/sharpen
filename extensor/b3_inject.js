@@ -904,9 +904,10 @@
       encontrados.push({
         carimbo: String(b.tp || "").slice(0, 14),
         stake: b.ts != null ? b.ts : b.stake,
-        // A odd da casa, em DECIMAL: o `oddFrac` é fracionário (`9/10`) e quem casa do
-        // outro lado é o `_norm_odd` do servidor, que fala decimal.
-        odd: _oddDecimal(b.oddFrac),
+        // A odd DO BILHETE, em DECIMAL: o `OD` da casa é fracionário (`9/10`) e quem casa
+        // do outro lado é o `_norm_odd` do servidor, que fala decimal. Em múltipla é o
+        // PRODUTO das pernas, nunca o `oddFrac` (que é só a 1ª) — ver `_oddDoBilhete`.
+        odd: _oddDoBilhete(b),
         // ⚠️ `rt` AUSENTE viaja como ausência. Zero é uma conta feita: com ele, o bilhete
         // GANHO vira `L` do outro lado e ninguém vê erro nenhum.
         retorno: (b.rt == null || b.rt === "") ? null : b.rt,
@@ -966,6 +967,43 @@
         r.chamadas + " chamada(s) · " + (Date.now() - t0) + "ms" +
         (mecanismo.ok === true ? "" : " · ⚠ " + (mecanismo.motivo || "mecanismo incerto")) +
         (r.erro ? " · " + r.erro : ""));
+  }
+
+  // ── A ODD DO BILHETE, que NÃO é a odd da primeira perna ───────────────────────
+  //
+  // ⚠️ **A casa não publica odd combinada.** O `oddFrac` que o `parseSummary` guarda é o
+  // `OD` da PRIMEIRA seleção, e é por isso que o `formatTicketB3` (`content.js`) só imprime
+  // `Odd:` quando há **uma** seleção: em múltipla quem calcula o produto é quem lê o bloco,
+  // e é o produto que fica no banco.
+  //
+  // Mandar a odd da 1ª perna no casamento faz a chave (`carimbo|stake|odd`) não bater, e o
+  // bilhete sai como "sem par" — falha segura, mas silenciosa, e com o MESMO sintoma de
+  // "a casa não devolveu nada". Medido na base em 24/09, abertas de bet365 com carimbo:
+  // **113 no total, 34 com duas ou mais pernas**; nessas 34 a odd do banco bate a da 1ª
+  // perna em **0 de 34** e bate o PRODUTO em **34 de 34** (a 2 casas, que é a régua do
+  // `_norm_odd`). São 30% do trabalho do botão.
+  //
+  // As duas exceções, as duas copiadas do `content.js` em vez de reinventadas:
+  //
+  // • **SISTEMA (`BC > 1`) não tem produto.** A odd dele é a MÉDIA das linhas
+  //   (`MASTER_RESULTADO §7.3`), e multiplicar daria quase o dobro. Sai VAZIO, e vazio não
+  //   forma chave: o bilhete vira "a conferir" em vez de casar errado.
+  // • **Perna sem odd legível também sai vazio.** Produto de parte das pernas é um número
+  //   que existe, passa em toda checagem de forma e está errado — a família do "zero se
+  //   disfarça de conta feita".
+  function _oddDoBilhete(b) {
+    if ((parseInt(b.bc, 10) || 0) > 1) return "";
+    const sels = (b && b.sels) || [];
+    // Uma seleção (inclusive bet builder de mesmo jogo, que traz `subs`): a odd do bilhete
+    // É a da seleção, e é o que a casa imprime.
+    if (sels.length <= 1) return _oddDecimal(b.oddFrac);
+    let produto = 1;
+    for (const s of sels) {
+      const v = parseFloat(_oddDecimal(s.od));
+      if (!isFinite(v) || v <= 1) return "";
+      produto *= v;
+    }
+    return String(produto);
   }
 
   // Fracionária ("9/10") → decimal com precisão completa. Mesma conta do `_oddNumB3` do
