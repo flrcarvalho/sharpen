@@ -501,6 +501,7 @@ async function resolverAbertas() {
   const rodar = async (casa, carimbos, opts) => {
     const o = opts || {};
     const tok = casaComToken({ tzaMin: o.semFuso ? undefined : -240, tokenMorto: o.tokenMorto });
+    let _jaRespondeuPagina = false;   // ver `daPagina`, logo abaixo
     const { todas, urls } = await rodarInject({
       inject: "b3_inject.js",
       href: "https://members.bet365.bet.br/members/",
@@ -518,14 +519,26 @@ async function resolverAbertas() {
       // que foi exatamente o defeito que este caminho teve de corrigir.
       // A requisição INICIAL é a da página (o harness a dispara para dar a referência de
       // URL ao inject) e vem marcada: ela não conta como "o inject esqueceu o token".
-      optsInicial: { headers: { "X-Harness-Pagina": "1" } },
       responder: (url, opt) => {
-        const daPagina = !!(opt && opt.headers && opt.headers["X-Harness-Pagina"]);
+        // ⚠️ **A REQUISIÇÃO DA PÁGINA É A PRIMEIRA, e é assim que ela se identifica.**
+        // Antes vinha marcada por um cabeçalho (`X-Harness-Pagina`), e isso VAZAVA: desde
+        // que o inject passou a copiar todos os cabeçalhos da página (s382), o marcador
+        // ia junto em TODA chamada nossa — então tudo parecia "da página", o gate do
+        // "saiu sem token" deixou de poder acusar e um cenário novo (`termoRecusado`)
+        // simplesmente não acontecia. Marcador que o código sob teste copia não marca nada.
+        const ehSummary = /\/sportshistoryapi\/summary/.test(url);
+        const daPagina = ehSummary && !_jaRespondeuPagina && (_jaRespondeuPagina = true);
         const temToken = !!(opt && opt.headers && opt.headers["X-Net-Sync-Term"]);
-        if (/\/sportshistoryapi\/summary/.test(url) && !temToken && !daPagina) {
+        if (ehSummary && !temToken && !daPagina) {
           tok.estado.semToken++;
           return "";                       // 200 com corpo VAZIO, como a casa faz
         }
+        // ⚠️ `termoRecusado` é o caso REAL medido em 25/09, e ele NÃO é `tokenMorto`: o
+        // mecanismo responde, o termo sai bem formado, e a casa devolve **200 com corpo
+        // vazio** assim mesmo. Sem este cenário o dublê não tem como exercer o abort —
+        // com `tokenMorto` não há termo, logo não há requisição, e a mutação que apaga o
+        // abort passa verde por falta de chamada, não por economia de chamada.
+        if (o.termoRecusado && ehSummary && !daPagina) return "";
         return casa ? casa.responder(url) : null;
       },
       ms: 1200,
@@ -824,17 +837,53 @@ async function resolverAbertas() {
     }
   }
 
-  // ── 10j. Com tudo achado, NÃO gasta a requisição de controle ────────────────
-  // Cada chamada conta contra o teto de volume da conta (três foram bloqueadas em 20/09).
-  // Confirmar o que já se sabe é requisição jogada fora.
+  // ── 10j. O controle roda ANTES, e custa UMA requisição — nem mais, nem zero ──
+  //
+  // ⚠️ Este caso já foi o contrário: exigia que o controle **não** rodasse quando tudo
+  // fosse achado, para poupar uma ida à casa. O raciocínio está certo para o caso bom e é
+  // caro no ruim, que é o que acontece quando o mecanismo da casa quebra — e ele é
+  // anti-automação, então quebrar é o esperado, não o acidente. Medido na conta real em
+  // 25/09: **19 chamadas por clique** atrás de 22 apostas, todas vazias pelo mesmo motivo,
+  // para no fim o controle dizer o que a primeira já dizia.
+  //
+  // Invertido, o custo é +1 requisição no caso bom e −18 no ruim. O teto é o que já
+  // bloqueou três contas em 20/09, então quem paga a diferença é a conta do dono.
+  //
+  // O gate cobra os DOIS lados: mais de 2 chamadas é o controle rodando de novo no fim;
+  // menos de 2 é ele não ter rodado, e aí "não achei" volta a ser indistinguível de
+  // "o mecanismo morreu".
   {
     const casa = casaDublada(12);
     const controle = { carimbo: casa.todos[0].tp.slice(0, 14) };
     const alvo = casa.todos[2].tp.slice(0, 14);
     const { msg } = await rodar(casa, [alvo], { controle });
-    if (msg && doLaco(msg) > 1) {
-      falhas.push(`resolver (tudo achado): ${doLaco(msg)} chamadas para 1 aposta — o gate de ` +
-                  `controle só deve rodar quando alguém NÃO foi achado`);
+    if (!msg) {
+      falhas.push("resolver (controle antes): o inject não respondeu");
+    } else if (doLaco(msg) !== 2) {
+      falhas.push(`resolver (controle antes): ${doLaco(msg)} chamadas para 1 aposta com ` +
+                  `controle. Esperado exatamente 2 (o controle, uma vez, ANTES do laço; e a ` +
+                  `busca). Mais que isso é o controle rodando duas vezes; menos é ele não ` +
+                  `ter rodado, e aí "não achei" volta a valer por "o mecanismo morreu"`);
+    }
+  }
+
+  // ── 10j-bis. Controle MORTO aborta ANTES de procurar ────────────────────────
+  // A consequência da inversão acima, e é ela que economiza as 18: com o mecanismo já
+  // provado quebrado, procurar as apostas é gastar o teto de volume para colher o mesmo
+  // vazio. Uma chamada (o controle), zero achados, e o relatório dizendo o motivo.
+  {
+    const casa = casaDublada(12);
+    const controle = { carimbo: casa.todos[0].tp.slice(0, 14) };
+    const alvos = casa.todos.slice(2, 8).map((b) => b.tp.slice(0, 14));
+    const { msg } = await rodar(casa, alvos, { controle, termoRecusado: true });
+    if (!msg) {
+      falhas.push("resolver (controle morto): o inject não respondeu");
+    } else if (msg.confiavel) {
+      falhas.push("resolver (controle morto): marcou CONFIÁVEL com o mecanismo quebrado");
+    } else if (doLaco(msg) > 1) {
+      falhas.push(`resolver (controle morto): ${doLaco(msg)} chamadas depois de o controle ` +
+                  `provar que o mecanismo não serve — cada uma é requisição gasta contra o ` +
+                  `teto de volume para colher o mesmo corpo vazio`);
     }
   }
 

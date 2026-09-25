@@ -234,15 +234,60 @@ entrega a quem pede por fora a casa recusa — sem erro, sem status diferente, c
 vazio que se confunde com "não há aposta". É o desenho de um token marcado, e é por isso
 que nenhuma quantidade de conserto na requisição ia funcionar.
 
+**E a segunda rodada mediu a fronteira da assinatura**, que é o que decide se dá para
+reusar o termo dela em vez de gerar:
+
+| requisição, sempre com o termo DA PÁGINA | resposta |
+|---|---|
+| a URL dela, 2ª vez | **3.326 bytes, 10 bilhetes** ✅ |
+| a **nossa** janela de 1 segundo | corpo 0 ❌ |
+| a URL dela com um `&zz=1` a mais | corpo 0 ❌ |
+| a URL dela com `settled=0` | corpo 0 ❌ |
+
+**A assinatura cobre a URL EXATA**, e o reuso da mesma URL não tem cota. As duas metades
+fecham o caminho: **não dá para gerar** (o termo emitido a quem pede por fora nunca é
+aceito) e **não dá para reusar** (o dela só vale para a janela que ela pediu). Chamar a API
+por fora está encerrado por medição, e quem quiser reabrir começa por aqui.
+
 > **A lição de método, e ela vale para qualquer parede remota:** quando o sintoma de
 > "recusado" é idêntico ao de "não existe", **toda tentativa parece quase certa** e a
 > depuração vira adivinhação com custo. O que quebrou o impasse não foi mais uma tentativa,
 > foi montar um **controle**: repetir a requisição que comprovadamente funciona, mudando
-> uma variável por vez. Cinco chamadas responderam o que dezenove não responderam.
+> uma variável por vez. Nove chamadas responderam o que dezenove não responderam.
 >
 > **E o controle tem de existir ANTES da primeira tentativa de conserto.** A pergunta
 > "qual requisição eu sei que funciona, e o que a minha tem de diferente dela?" estava
 > disponível no primeiro minuto do primeiro dia.
+
+### O marcador que o código sob teste COPIAVA, e por isso não marcava nada (s387)
+
+O dublê da bet365 precisa separar a requisição que a **página** faz da que o **inject**
+faz: é assim que ele decide devolver payload ou o corpo vazio de quem não mandou token. A
+separação era um cabeçalho, `X-Harness-Pagina: 1`, posto na chamada inicial.
+
+Funcionou até a s382, quando o inject passou a **copiar todos os cabeçalhos da página**
+para reaproveitá-los. A partir dali o marcador viajava junto em **toda** chamada nossa, e o
+dublê passou a ver tudo como "da página".
+
+**O estrago é de gate, e é silencioso:**
+
+- o teste do `semToken` (*"N requisições saíram SEM token"*) **deixou de poder acusar**,
+  porque o ramo dele exige `!daPagina` e `daPagina` era sempre verdadeiro;
+- um cenário novo escrito para medir o abort (`termoRecusado`: a casa responde vazio mesmo
+  com termo) **simplesmente não acontecia**, e a mutação que apaga o abort passou verde.
+
+O conserto é não usar marcador nenhum: **a requisição da página é a PRIMEIRA**, e o dublê
+guarda um booleano. Nada que o código sob teste possa copiar.
+
+> **Sintoma para reconhecer isto em qualquer andaime:** o dublê distingue os atores por um
+> dado que ATRAVESSA o código sob teste. Cabeçalho, query, campo de payload, user-agent —
+> qualquer um deles pode ser copiado, encaminhado ou reemitido pelo próprio código que está
+> sendo medido, e a partir daí o dublê mede a si mesmo. Marca de ator mora no andaime,
+> nunca no dado.
+>
+> E o par disto é a **mutação que passa verde por falta de execução, não por acerto**: com
+> `tokenMorto` não havia termo, logo não havia requisição, logo apagar o abort "economizava"
+> zero. Quando uma mutação escapa, pergunte primeiro se o caminho foi sequer percorrido.
 
 ### A odd que era a da PRIMEIRA PERNA, e ela valia 30% das abertas (s387)
 

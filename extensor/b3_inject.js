@@ -84,13 +84,6 @@
   } catch (e) {}
 
   const of = window.fetch;        // fetch ORIGINAL (o wrapper embrulha este)
-  // XHR ORIGINAL, guardado pelo MESMO motivo que o fetch: lá embaixo o prototype é
-  // embrulhado para escutar a captura, e uma requisição nossa feita pelo wrapper entraria
-  // no `byBsid` e dispararia `enviar()` — a contagem do operador subiria sozinha. A busca
-  // observa a casa; ela não participa da captura.
-  const oxOpen = XMLHttpRequest.prototype.open;
-  const oxSend = XMLHttpRequest.prototype.send;
-  const oxHdr = XMLHttpRequest.prototype.setRequestHeader;
 
   // ── parser do formato F|… ──────────────────────────────────────────────────────
   function parseRecords(blob) {
@@ -831,182 +824,27 @@
              "de token parou de funcionar, e 'vazio' NÃO quer dizer que a aposta segue aberta" };
   }
 
-  // ── A SONDA QUE SEPARA AS DUAS CAUSAS (diagnóstico s387, temporária) ──────────
+  // ── A BATERIA DE DIAGNÓSTICO SAIU (s387), e o que ela mediu está no caso ─────
   //
-  // O dia inteiro da s382 foi gasto num sintoma que tem DUAS causas possíveis e a mesma
-  // cara: a casa devolve 200 com corpo 0 quando o termo não serve **e** quando a janela
-  // pedida não tem aposta. Todos os consertos tentados mexiam na URL que NÓS montamos,
-  // e nenhum mediu se o mecanismo funciona com uma URL que a casa comprovadamente aceita.
+  // Ela existiu por duas rodadas, custou nove requisições ao todo e respondeu a pergunta
+  // que dois dias de conserto não tinham respondido. O resultado, na conta real:
   //
-  // Esta sonda faz exatamente isso: repete a ÚLTIMA requisição que a PRÓPRIA PÁGINA fez,
-  // verbatim, com um termo novo. O resultado divide o problema ao meio:
+  //   • a URL VERBATIM da página, com termo NOSSO . . . . . . . . 200, corpo 0
+  //   • o termo DA PÁGINA, reusado, na URL dela . . . . . . . . . 200, 3.374 bytes ✅
+  //   • o termo DA PÁGINA, na NOSSA janela de 1 s  . . . . . . . . 200, corpo 0
+  //   • o termo DA PÁGINA, na URL dela com um `&zz=1` a mais . . . 200, corpo 0
+  //   • o termo DA PÁGINA, na URL dela com `settled=0` . . . . . . 200, corpo 0
+  //   • o termo DA PÁGINA, na URL dela, 2ª vez . . . . . . . . . . 200, 3.326 bytes ✅
   //
-  //   • voltou payload  ⇒ termo, cabeçalhos e fetch estão certos. O defeito está na URL
-  //                        que `_urlSummary` monta (parâmetro descartado, ordem, janela).
-  //   • voltou vazio    ⇒ a URL nunca foi o problema. É o termo, ou algo que a página
-  //                        manda e nós não.
+  // **A assinatura cobre a URL EXATA, e o termo emitido a quem pede por fora nunca é
+  // aceito** (mesmo input, mesmo tamanho, mesmo início, fim diferente do dela). As duas
+  // metades juntas fecham o caminho: não dá para gerar, e o dela só vale para a janela que
+  // ela pediu. Quem precisar reabrir isto começa pelo caso, não por outra tentativa.
+  // → docs/casos/CASOS_BET365.md
   //
-  // Duas variantes, porque o que se escreve em `ns_gen5_net.url` é a outra incógnita: o
-  // caminho relativo (o que o código supõe) e a URL absoluta. O espião do `xcftr` mostra
-  // qual delas a página usa; a sonda mostra qual delas a casa ACEITA. Custa 2 requisições
-  // por rodada e SAI quando a resposta aparecer.
-  let _sondado = false;
-  // Lê um cabeçalho copiado da página SEM depender da caixa: XHR preserva a original
-  // (`X-Request-Id`) e `Headers.forEach` entrega em minúsculas. Procurar pelo nome exato
-  // devolve `undefined` em metade dos casos, e `undefined` aqui leria como "a página não
-  // mandou" — que é conclusão, não ausência de dado.
-  function _doCab(cab, nome) {
-    if (!cab) return "";
-    for (const k in cab) if (String(k).toLowerCase() === nome) return String(cab[k]);
-    return "";
-  }
-  // O começo e o FIM: dois termos podem compartilhar um prefixo longo (identidade da
-  // sessão) e diferir só no que assina a URL. Comparar só o começo diria "iguais".
-  function _resumoTermo(t) {
-    const s = String(t || "");
-    if (!s) return "(vazio — a página não mandou, ou o hook não viu)";
-    return "len=" + s.length + " · início " + JSON.stringify(s.slice(0, 28)) +
-           " · fim " + JSON.stringify(s.slice(-20));
-  }
-  async function _viaFetch(url, cab) {
-    const r = await of.call(window, url, { credentials: "include", headers: cab });
-    return { status: r.status, txt: await r.text(), resp: r };
-  }
-  // ⚠️ Com o XHR ORIGINAL, guardado antes do hook: pelo wrapper, esta requisição cairia
-  // no `byBsid` e dispararia `enviar()`, contaminando a captura com bilhetes que ninguém
-  // pediu. Mesmo motivo do `of` para o fetch.
-  function _viaXHR(url, cab) {
-    return new Promise((resolve) => {
-      try {
-        const x = new XMLHttpRequest();
-        oxOpen.call(x, "GET", url, true);
-        try { x.withCredentials = true; } catch (e) {}
-        for (const k in cab) { try { oxHdr.call(x, k, cab[k]); } catch (e) {} }
-        // `addEventListener`, não `onload`: é o que o XHR dublado do harness implementa, e
-        // com o atalho a Promise nunca resolvia — o laço inteiro ficava pendurado e TODOS
-        // os casos da bet365 quebravam com "o inject não respondeu". No navegador os dois
-        // funcionam, então o que escolhe é quem tem o contrato mais estreito.
-        let feito = false;
-        const fim = (st, txt) => { if (!feito) { feito = true; resolve({ status: st, txt: txt }); } };
-        x.addEventListener("load", () => fim(x.status, x.responseText || ""));
-        x.addEventListener("error", () => fim(0, ""));
-        setTimeout(() => fim(-2, ""), 8000);
-        oxSend.call(x);
-      } catch (e) { resolve({ status: -1, txt: "" }); }
-    });
-  }
-  function _cabecalhosDaResposta(r) {
-    try {
-      const out = [];
-      r.headers.forEach((v, k) => { out.push(k + ": " + String(v).slice(0, 80)); });
-      return out.sort().join(" · ") || "(nenhum legível)";
-    } catch (e) { return "(inacessíveis)"; }
-  }
-  async function _sonda() {
-    if (_sondado) return 0;
-    _sondado = true;
-    if (!ultimaUrlSummary) {
-      LOG("sonda: a página ainda não fez nenhum summary neste frame — abra o Histórico uma vez");
-      return 0;
-    }
-    const daPagina = String(ultimaUrlSummary);
-    let abs = daPagina, rel = daPagina;
-    try { const u = new URL(daPagina, location.origin); abs = u.href; rel = u.pathname + u.search; } catch (e) {}
-    LOG("sonda · URL da própria página = " + rel);
-    // Os VALORES, não só as chaves: se o `X-Request-Id` da página for diferente do
-    // `Locator.Guid` que nós mandamos, é candidato a causa e some da vista quando só se
-    // lista o nome do campo.
-    if (ultimosCabecalhos) {
-      const pares = [];
-      for (const k in ultimosCabecalhos) pares.push(k + ": " + String(ultimosCabecalhos[k]).slice(0, 60));
-      LOG("sonda · cabeçalhos da página = { " + pares.sort().join(" · ") + " }");
-    } else {
-      LOG("sonda · cabeçalhos da página = NENHUM capturado (os hooks de fetch e XHR não viram " +
-          "a requisição; ela pode estar sendo feita por outro mecanismo)");
-    }
-    let guid = "";
-    try { const L = window.Locator; guid = String((L && L.Guid) || ""); } catch (e) {}
-    const idDaPagina = _doCab(ultimosCabecalhos, "x-request-id");
-    const termoDaPagina = _doCab(ultimosCabecalhos, "x-net-sync-term");
-    LOG("sonda · X-Request-Id: página = " + JSON.stringify(idDaPagina) +
-        " · Locator.Guid = " + JSON.stringify(guid) +
-        (idDaPagina && guid ? (idDaPagina === guid ? "  (IGUAIS)" : "  ⚠ DIFERENTES") : ""));
-    LOG("sonda · X-Net-Sync-Term da PÁGINA: " + _resumoTermo(termoDaPagina));
-
-    // ── A BATERIA ────────────────────────────────────────────────────────────
-    // A rodada anterior provou que a URL não é a causa: a chamada com a URL VERBATIM da
-    // página voltou vazia do mesmo jeito. Sobraram cinco diferenças entre o pedido dela e
-    // o nosso, e cada linha abaixo elimina UMA. Todas usam a URL da própria página, que é
-    // o controle: o que varia é só a coluna em teste.
-    //
-    // Custo: cinco requisições, uma vez por aba. Contra as 19 que uma rodada cega gasta
-    // para não concluir nada, é barato — e é a diferença entre medir e adivinhar.
-    const nosso = await _pedirTermo(rel);
-    LOG("sonda · X-Net-Sync-Term NOSSO (mesma URL): " + _resumoTermo(nosso) +
-        (termoDaPagina && nosso
-          ? (termoDaPagina.length === nosso.length ? "  (mesmo tamanho do dela)"
-             : "  ⚠ tamanho diferente do dela (" + termoDaPagina.length + " × " + nosso.length + ")")
-          : ""));
-
-    const base = {};
-    if (ultimosCabecalhos) for (const k in ultimosCabecalhos) base[k] = ultimosCabecalhos[k];
-
-    // ── RODADA 2 (s387): o termo DELA funciona. A pergunta virou OUTRA ───────
-    //
-    // A rodada 1 mediu, na conta real: o termo que a PÁGINA mandou, REUSADO, devolve
-    // payload (3.374 bytes, 10 bilhetes); o termo que o `xcftr` emite quando NÓS pedimos
-    // é recusado, sempre. Os dois têm o mesmo tamanho (1.536) e o mesmo começo, e diferem
-    // só no fim — mesmo input, assinatura diferente. O gerador tem estado, e o que ele
-    // entrega a quem pede por fora a casa não aceita. Gerar termo está descartado.
-    //
-    // Então: dá para REUSAR o dela? Só serve se ele valer para OUTRA janela, que é o que
-    // o botão precisa. O tamanho do termo cresce com o tamanho da URL (1.500 para a
-    // relativa e 1.576 para a absoluta, medido), então a URL está lá dentro e a resposta
-    // provavelmente é não. "Provavelmente" não decide nada: mede-se.
-    //
-    // As quatro linhas abaixo medem a GRANULARIDADE da assinatura, do mais útil para o
-    // menos: a nossa janela inteira, um parâmetro a mais, um valor trocado, e o reuso
-    // repetido. Onde parar de funcionar é onde está a fronteira.
-    const fromPag = Date.parse(_param(daPagina, "from") || "");
-    const nossaUrl = isNaN(fromPag) ? "" : _urlSummary(true, fromPag, fromPag + 1000);
-    const testes = [
-      // 1. O TESTE QUE DECIDE: o termo dela na NOSSA janela de 1 segundo. Se passar, o
-      //    botão inteiro está resolvido sem gerar termo nenhum.
-      ["termo DA PÁGINA + NOSSA janela de 1s", { termo: termoDaPagina, url: nossaUrl }],
-      // 2. Um parâmetro a mais, tudo o resto igual: a assinatura cobre a query inteira?
-      ["termo DA PÁGINA + a URL dela com &zz=1", { termo: termoDaPagina, url: abs + "&zz=1" }],
-      // 3. Um valor trocado (as pendentes em vez das resolvidas), mesmo formato.
-      ["termo DA PÁGINA + a URL dela com settled=0",
-       { termo: termoDaPagina, url: abs.replace("settled=1", "settled=0") }],
-      // 4. A mesma URL, de novo. Se o reuso cansar, ele tem cota ou prazo — e isso muda o
-      //    desenho de quem for usar o termo capturado.
-      ["termo DA PÁGINA + a URL dela, 2º reuso", { termo: termoDaPagina, url: abs }],
-    ];
-
-    let n = 0;
-    for (const [nome, cfg] of testes) {
-      try {
-        const termo = cfg.termo;
-        const alvo = cfg.url || abs;
-        if (!termo) { LOG("sonda [" + nome + "]: sem termo para testar — pulado"); continue; }
-        if (!alvo) { LOG("sonda [" + nome + "]: sem URL para testar — pulado"); continue; }
-        const cab = {};
-        for (const k in base) cab[k] = base[k];
-        _porNome(cab, "X-Net-Sync-Term", termo);
-        _porNome(cab, "X-Request-Id", cfg.reqId || idDaPagina || guid);
-        const r = cfg.xhr ? await _viaXHR(alvo, cab) : await _viaFetch(alvo, cab);
-        n++;
-        const len = String(r.txt || "").length;
-        const bets = len ? ((parseSummary(r.txt) || {}).bets || []).length : 0;
-        LOG("sonda [" + nome + "]: HTTP " + r.status + " · corpo " + len + " byte(s) · " +
-            bets + " bilhete(s)" + (len ? "  ✅ A CASA ACEITOU" : "  ❌ vazio") +
-            " · url " + String(alvo).replace(/^https?:\/\/[^/]+/, ""));
-      } catch (e) {
-        LOG("sonda [" + nome + "]: estourou — " + (e && e.message));
-      }
-    }
-    return n;
-  }
+  // O que FICA do diagnóstico é o barato e permanente: o espião do `xcftr` (zero
+  // requisições) e o log do termo recebido. É o que diz, no dia em que a casa mexer no
+  // mecanismo, se ele parou de responder ou passou a responder outra coisa.
 
   // ⚠️ RESPOSTA VAI PARA O PRÓPRIO FRAME **E PARA O TOPO**, como o `enviar()` faz — e não
   // é redundância: o `content.js` roda com `all_frames: false`, ou seja, **só no topo**.
@@ -1025,9 +863,34 @@
     const carimbos = Array.isArray(pedido) ? pedido : ((pedido && pedido.alvos) || []);
     const controle = (pedido && !Array.isArray(pedido)) ? pedido.controle : null;
     const t0 = Date.now();
-    // DIAGNÓSTICO s387, e sai daqui quando o botão fechar: uma vez por aba, antes do laço.
-    // Roda ANTES porque é ela que diz se vale ler o resto do log.
-    const gastoSonda = await _sonda();
+
+    // ── O CONTROLE VEM ANTES DO LAÇO (s387), e a ordem vale 18 requisições ──────
+    //
+    // Ele nasceu DEPOIS: só era consultado quando alguém não fosse achado, para não gastar
+    // uma ida à casa confirmando o que a busca já teria provado. O raciocínio está certo
+    // para o caso bom e é caro no caso ruim, que é o que acontece quando o mecanismo
+    // quebra: medido na conta real, **19 chamadas por clique** atrás de 22 apostas, todas
+    // voltando vazias pelo mesmo motivo, para no fim o controle dizer o que a primeira já
+    // dizia.
+    //
+    // Invertido, custa **uma** requisição a mais quando tudo vai bem e economiza todas as
+    // outras quando não vai. E o caso ruim deixou de ser hipótese: o termo é o mecanismo
+    // anti-automação da casa, e ele pode parar de servir a qualquer momento, sem aviso e
+    // sem erro — o corpo vazio é igual ao de "não há aposta".
+    let mecanismo = { ok: null, motivo: "sem aposta de controle — não dá para afirmar que " +
+                      "as que faltaram continuam abertas", chamadas: 0 };
+    if (controle) mecanismo = await _conferirMecanismo(controle);
+    if (mecanismo.ok === false) {
+      // Nada de procurar as 22: com o mecanismo provado quebrado, cada chamada seguinte é
+      // requisição gasta contra o teto de volume da conta para produzir o mesmo vazio.
+      responder({ __sharpenupB3Resolver: true, apto: !!ultimaUrlSummary, encontrados: [],
+                  pedidos: (carimbos || []).length, confiavel: false,
+                  mecanismo: mecanismo.motivo, janelaCega: false, paginas: 0,
+                  chamadas: mecanismo.chamadas || 0, sonda: 0, erro: "", ms: Date.now() - t0 });
+      LOG("resolver: ABORTADO antes do laço · " + (mecanismo.motivo || "mecanismo incerto") +
+          " · " + (mecanismo.chamadas || 0) + " chamada(s)");
+      return;
+    }
     const r = await buscarPorCarimbos(carimbos, true);
     const encontrados = [];
     for (const c of (carimbos || [])) {
@@ -1046,21 +909,12 @@
         bsid: b.bsid, bs: b.bs,
       });
     }
-    // ── O GATE, e ele decide o SENTIDO do que não foi achado ────────────────────
-    // Só roda quando faltou alguém: com tudo achado, o mecanismo provou-se sozinho e uma
-    // consulta a mais seria requisição gasta contra o teto de volume da conta.
-    let mecanismo = { ok: true, motivo: "" };
+    // O controle já rodou lá em cima e passou. O que sobra aqui é o caso em que o TERMO
+    // nem foi emitido durante o laço: isso não é "a casa está vazia", é o mecanismo tendo
+    // parado no meio, e o sentido do que não foi achado muda junto.
+    if (r.semTermo) mecanismo = { ok: false, motivo: "o mecanismo de token não respondeu" };
     const faltaram = (carimbos || []).length - encontrados.length;
-    if (faltaram > 0) {
-      if (r.semTermo) {
-        mecanismo = { ok: false, motivo: "o mecanismo de token não respondeu" };
-      } else if (controle) {
-        mecanismo = await _conferirMecanismo(controle);
-      } else {
-        mecanismo = { ok: null, motivo: "sem aposta de controle — não dá para afirmar que " +
-                      "as que faltaram continuam abertas" };
-      }
-    }
+    if (!faltaram && mecanismo.ok === null) mecanismo = { ok: true, motivo: "" };
     responder({
       __sharpenupB3Resolver: true,
       // ⚠️ APTO diz se ESTE frame é o que pode responder. O inject roda em TODOS os frames
@@ -1080,8 +934,8 @@
       // isso entra em `chamadas`. Mas ela é DIAGNÓSTICO temporário, e o gate de custo mede
       // o LAÇO: daí o campo próprio, que o harness desconta. Quando a sonda sair, ele vira
       // zero e o gate continua medindo a mesma coisa — sem afrouxar nada no meio.
-      paginas: r.paginas, chamadas: r.chamadas + (mecanismo.chamadas || 0) + gastoSonda,
-      sonda: gastoSonda,
+      paginas: r.paginas, chamadas: r.chamadas + (mecanismo.chamadas || 0),
+      sonda: 0,
       erro: r.erro,
       ms: Date.now() - t0,
     });
