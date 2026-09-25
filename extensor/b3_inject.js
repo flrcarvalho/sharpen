@@ -84,6 +84,13 @@
   } catch (e) {}
 
   const of = window.fetch;        // fetch ORIGINAL (o wrapper embrulha este)
+  // XHR ORIGINAL, guardado pelo MESMO motivo que o fetch: lá embaixo o prototype é
+  // embrulhado para escutar a captura, e uma requisição nossa feita pelo wrapper entraria
+  // no `byBsid` e dispararia `enviar()` — a contagem do operador subiria sozinha. A busca
+  // observa a casa; ela não participa da captura.
+  const oxOpen = XMLHttpRequest.prototype.open;
+  const oxSend = XMLHttpRequest.prototype.send;
+  const oxHdr = XMLHttpRequest.prototype.setRequestHeader;
 
   // ── parser do formato F|… ──────────────────────────────────────────────────────
   function parseRecords(blob) {
@@ -562,7 +569,7 @@
     return { tipo: tipo, usar: null, resumo: String(v).slice(0, 40) };
   }
 
-  function _pedirTermo(urlEscrita) {
+  function _pedirTermo(urlEscrita, naoLimpar) {
     return new Promise((resolve) => {
       let g;
       try { g = window.ns_gen5_net; } catch (e) { g = null; }
@@ -576,7 +583,7 @@
         // ⚠️ Limpar o `ns_gen5_net.url` é escrever num objeto que é DA PÁGINA: se ela
         // estiver no meio de um pedido dela, quem apaga é a gente. Só limpa o que a gente
         // mesmo escreveu, e só se ninguém tiver escrito por cima no meio.
-        try { if (g.url === urlEscrita) g.url = ""; } catch (e) {}
+        try { if (!naoLimpar && g.url === urlEscrita) g.url = ""; } catch (e) {}
         const d = _descreverTermo(v);
         if (_termoDescrito++ < 3) {
           LOG("termo recebido · tipo=" + d.tipo + (d.len != null ? " · len=" + d.len : "") +
@@ -617,14 +624,31 @@
     // chamadas, com a URL saindo com `%3A`. A da própria página, capturada no F12, traz
     // `from=2026-09-22T00:47:31.439Z` com os dois-pontos literais.
     //
-    // A ORDEM também é a da página (`settled`, `from`, `to`, depois os identificadores).
-    const partes = ["settled=" + (settled ? "1" : "0"),
-                    "from=" + new Date(msDe).toISOString(),
-                    "to=" + new Date(msAte).toISOString()];
-    for (const k of ["lid", "cid", "csid"]) {
-      const v = u.searchParams.get(k);
-      if (v != null && v !== "") partes.push(k + "=" + v);
-    }
+    // ⚠️ **A ORDEM É A DA PÁGINA, E ELA NÃO É A QUE ESTAVA AQUI.** O espião do `xcftr`
+    // capturou o pedido dela em 24/09, verbatim:
+    //
+    //   /sportshistoryapi/summary?settled=1&lid=33&cid=28&csid=0&from=…&to=…
+    //
+    // Os identificadores vêm ANTES da janela. O comentário anterior afirmava o contrário
+    // ("`settled`, `from`, `to`, depois os identificadores") e isso vinha de ter lido um
+    // exemplo de log, não o pedido. Não é a causa do corpo vazio (a chamada com a URL
+    // verbatim da página falha igual), mas escrita diferente é a única coisa que o termo
+    // assina, e não se deixa uma diferença dessas em pé num caminho que já tem outra.
+    //
+    // E os parâmetros que NÃO conhecemos são preservados, em vez de descartados: a query
+    // sai da URL da própria página e só `settled`/`from`/`to` são trocados. A versão
+    // anterior remontava do zero com seis nomes escolhidos a dedo, e qualquer parâmetro
+    // novo que a casa passasse a mandar sumia em silêncio.
+    const q = u.searchParams;
+    q.set("settled", settled ? "1" : "0");
+    q.delete("from");
+    q.delete("to");
+    const partes = [];
+    for (const [k, v] of q) partes.push(k + "=" + v);
+    // ⚠️ MONTADA À MÃO até o fim: `URLSearchParams.toString()` percent-encoda os
+    // dois-pontos do ISO, e a página nunca manda assim (o defeito da s382).
+    partes.push("from=" + new Date(msDe).toISOString());
+    partes.push("to=" + new Date(msAte).toISOString());
     return u.origin + u.pathname + "?" + partes.join("&");
   }
 
@@ -827,6 +851,50 @@
   // qual delas a página usa; a sonda mostra qual delas a casa ACEITA. Custa 2 requisições
   // por rodada e SAI quando a resposta aparecer.
   let _sondado = false;
+  // Lê um cabeçalho copiado da página SEM depender da caixa: XHR preserva a original
+  // (`X-Request-Id`) e `Headers.forEach` entrega em minúsculas. Procurar pelo nome exato
+  // devolve `undefined` em metade dos casos, e `undefined` aqui leria como "a página não
+  // mandou" — que é conclusão, não ausência de dado.
+  function _doCab(cab, nome) {
+    if (!cab) return "";
+    for (const k in cab) if (String(k).toLowerCase() === nome) return String(cab[k]);
+    return "";
+  }
+  // O começo e o FIM: dois termos podem compartilhar um prefixo longo (identidade da
+  // sessão) e diferir só no que assina a URL. Comparar só o começo diria "iguais".
+  function _resumoTermo(t) {
+    const s = String(t || "");
+    if (!s) return "(vazio — a página não mandou, ou o hook não viu)";
+    return "len=" + s.length + " · início " + JSON.stringify(s.slice(0, 28)) +
+           " · fim " + JSON.stringify(s.slice(-20));
+  }
+  async function _viaFetch(url, cab) {
+    const r = await of.call(window, url, { credentials: "include", headers: cab });
+    return { status: r.status, txt: await r.text(), resp: r };
+  }
+  // ⚠️ Com o XHR ORIGINAL, guardado antes do hook: pelo wrapper, esta requisição cairia
+  // no `byBsid` e dispararia `enviar()`, contaminando a captura com bilhetes que ninguém
+  // pediu. Mesmo motivo do `of` para o fetch.
+  function _viaXHR(url, cab) {
+    return new Promise((resolve) => {
+      try {
+        const x = new XMLHttpRequest();
+        oxOpen.call(x, "GET", url, true);
+        try { x.withCredentials = true; } catch (e) {}
+        for (const k in cab) { try { oxHdr.call(x, k, cab[k]); } catch (e) {} }
+        // `addEventListener`, não `onload`: é o que o XHR dublado do harness implementa, e
+        // com o atalho a Promise nunca resolvia — o laço inteiro ficava pendurado e TODOS
+        // os casos da bet365 quebravam com "o inject não respondeu". No navegador os dois
+        // funcionam, então o que escolhe é quem tem o contrato mais estreito.
+        let feito = false;
+        const fim = (st, txt) => { if (!feito) { feito = true; resolve({ status: st, txt: txt }); } };
+        x.addEventListener("load", () => fim(x.status, x.responseText || ""));
+        x.addEventListener("error", () => fim(0, ""));
+        setTimeout(() => fim(-2, ""), 8000);
+        oxSend.call(x);
+      } catch (e) { resolve({ status: -1, txt: "" }); }
+    });
+  }
   function _cabecalhosDaResposta(r) {
     try {
       const out = [];
@@ -856,19 +924,68 @@
       LOG("sonda · cabeçalhos da página = NENHUM capturado (os hooks de fetch e XHR não viram " +
           "a requisição; ela pode estar sendo feita por outro mecanismo)");
     }
-    try { const L = window.Locator; LOG("sonda · Locator.Guid = " + JSON.stringify(String((L && L.Guid) || ""))); } catch (e) {}
+    let guid = "";
+    try { const L = window.Locator; guid = String((L && L.Guid) || ""); } catch (e) {}
+    const idDaPagina = _doCab(ultimosCabecalhos, "x-request-id");
+    const termoDaPagina = _doCab(ultimosCabecalhos, "x-net-sync-term");
+    LOG("sonda · X-Request-Id: página = " + JSON.stringify(idDaPagina) +
+        " · Locator.Guid = " + JSON.stringify(guid) +
+        (idDaPagina && guid ? (idDaPagina === guid ? "  (IGUAIS)" : "  ⚠ DIFERENTES") : ""));
+    LOG("sonda · X-Net-Sync-Term da PÁGINA: " + _resumoTermo(termoDaPagina));
+
+    // ── A BATERIA ────────────────────────────────────────────────────────────
+    // A rodada anterior provou que a URL não é a causa: a chamada com a URL VERBATIM da
+    // página voltou vazia do mesmo jeito. Sobraram cinco diferenças entre o pedido dela e
+    // o nosso, e cada linha abaixo elimina UMA. Todas usam a URL da própria página, que é
+    // o controle: o que varia é só a coluna em teste.
+    //
+    // Custo: cinco requisições, uma vez por aba. Contra as 19 que uma rodada cega gasta
+    // para não concluir nada, é barato — e é a diferença entre medir e adivinhar.
+    const nosso = await _pedirTermo(rel);
+    LOG("sonda · X-Net-Sync-Term NOSSO (mesma URL): " + _resumoTermo(nosso) +
+        (termoDaPagina && nosso
+          ? (termoDaPagina.length === nosso.length ? "  (mesmo tamanho do dela)"
+             : "  ⚠ tamanho diferente do dela (" + termoDaPagina.length + " × " + nosso.length + ")")
+          : ""));
+
+    const base = {};
+    if (ultimosCabecalhos) for (const k in ultimosCabecalhos) base[k] = ultimosCabecalhos[k];
+
+    const testes = [
+      // 1. O termo DELA, reusado. Se passar, o mecanismo do `xcftr` gera outra coisa; se
+      //    falhar, o termo é de uso único e isso explica tudo o que veio antes.
+      ["termo DA PÁGINA reusado", { termo: termoDaPagina, reqId: idDaPagina }],
+      // 2. O nosso termo com o id de requisição DELA. Se o termo assina o par (url, id),
+      //    trocar o id depois de assinar é exatamente o que quebra.
+      ["nosso termo + X-Request-Id da página", { termo: nosso, reqId: idDaPagina }],
+      // 3. Sem id nenhum: separa "o id está errado" de "o id atrapalha".
+      ["nosso termo + SEM X-Request-Id", { termo: nosso, reqId: null }],
+      // 4. Por XHR, que é o que a página usa (os cabeçalhos vieram com a caixa original,
+      //    e `Headers.forEach` entregaria em minúsculas). `fetch` e XHR não mandam o
+      //    mesmo conjunto de cabeçalhos automáticos.
+      ["nosso termo via XMLHttpRequest", { termo: nosso, reqId: guid, xhr: true }],
+      // 5. Com o `ns_gen5_net.url` ainda preenchido. Nós limpamos antes de chamar; se o
+      //    mecanismo da casa lê de lá no momento da requisição, limpar é o defeito.
+      ["termo novo, sem limpar ns_gen5_net.url", { pedirDeNovo: true, reqId: guid }],
+    ];
+
     let n = 0;
-    for (const [nome, assinar] of [["caminho relativo", rel], ["URL absoluta", abs]]) {
+    for (const [nome, cfg] of testes) {
       try {
-        const r = await _buscarComTermo(abs, assinar);
+        let termo = cfg.termo;
+        if (cfg.pedirDeNovo) termo = await _pedirTermo(rel, true);
+        if (!termo) { LOG("sonda [" + nome + "]: sem termo para testar — pulado"); continue; }
+        const cab = {};
+        for (const k in base) cab[k] = base[k];
+        _porNome(cab, "X-Net-Sync-Term", termo);
+        for (const k in cab) if (/^x-request-id$/i.test(k)) delete cab[k];
+        if (cfg.reqId) cab["X-Request-Id"] = cfg.reqId;
+        const r = cfg.xhr ? await _viaXHR(abs, cab) : await _viaFetch(abs, cab);
         n++;
-        if (r.semTermo) { LOG("sonda [" + nome + "]: o mecanismo de token não respondeu"); n--; continue; }
-        const bets = (parseSummary(r.txt || "") || {}).bets || [];
-        LOG("sonda [" + nome + "]: HTTP " + r.status + " · corpo " + r.len + " byte(s) · " +
-            bets.length + " bilhete(s)" +
-            (r.len ? "  ✅ A CASA ACEITOU — o defeito está na URL que nós montamos" : "  ❌ vazio") +
-            " · resposta { " + _cabecalhosDaResposta(r.resp) + " }");
-        if (r.len) break;     // achou o formato: não gasta a segunda chamada
+        const len = String(r.txt || "").length;
+        const bets = len ? ((parseSummary(r.txt) || {}).bets || []).length : 0;
+        LOG("sonda [" + nome + "]: HTTP " + r.status + " · corpo " + len + " byte(s) · " +
+            bets + " bilhete(s)" + (len ? "  ✅ A CASA ACEITOU" : "  ❌ vazio"));
       } catch (e) {
         LOG("sonda [" + nome + "]: estourou — " + (e && e.message));
       }

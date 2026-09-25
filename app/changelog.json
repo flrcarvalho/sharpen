@@ -276,6 +276,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0730",
+      "v": "v0.7.30",
+      "data": "2026-09-24",
+      "texto": "Ajustes internos no Resolver apostas abertas da Bet365."
+    },
+    {
       "id": "su-0729",
       "v": "v0.7.29",
       "data": "2026-09-24",

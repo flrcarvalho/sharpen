@@ -504,9 +504,11 @@ async function resolverAbertas() {
     const { todas, urls } = await rodarInject({
       inject: "b3_inject.js",
       href: "https://members.bet365.bet.br/members/",
-      // A 1ª chamada da PÁGINA é o que dá ao inject a referência de URL (origin, lid, cid).
+      // A 1ª chamada da PÁGINA é o que dá ao inject a referência de URL (origin, lid, cid)
+      // e, desde a s387, a QUERY INTEIRA: é dela que a busca herda ordem e parâmetros.
       // Sem ela o laço se recusa a chutar — e isso é uma das coisas provadas abaixo.
-      urlInicial: "https://members.bet365.bet.br/sportshistoryapi/summary?settled=1&lid=33&cid=28",
+      urlInicial: o.urlInicial ||
+        "https://members.bet365.bet.br/sportshistoryapi/summary?settled=1&lid=33&cid=28",
       relogio: "turbo",
       janelaExtra: tok.janelaExtra,
       pedidoMsg: { __sharpenupB3Req: true, acao: "resolver",
@@ -727,6 +729,37 @@ async function resolverAbertas() {
       falhas.push(`resolver: a URL saiu com dois-pontos ESCAPADOS (${doResolver[0].slice(0, 110)}). ` +
                   `A casa assina a URL e a dela usa ':' literal — escapado, a resposta volta ` +
                   `200 com corpo VAZIO, que parece "não achei" e não é`);
+    }
+  }
+
+  // ── 10f-bis. A URL sai NA ORDEM DA PÁGINA e não perde parâmetro ────────────
+  // O termo assina a URL, então cada caractere dela importa. Duas coisas foram medidas em
+  // 24/09, com o espião do `xcftr` lendo o pedido que a PRÓPRIA página faz:
+  //
+  //   /sportshistoryapi/summary?settled=1&lid=33&cid=28&csid=0&from=…&to=…
+  //
+  // os identificadores vêm ANTES da janela (o comentário do código afirmava o contrário),
+  // e a query pode trazer parâmetros que nós não conhecemos. A montagem antiga recriava a
+  // query do zero com seis nomes escolhidos a dedo: tudo o mais sumia em silêncio, e no
+  // dia em que a casa acrescentasse um campo a busca pararia sem erro nenhum.
+  {
+    const casa = casaDublada(12);
+    const alvo = casa.todos[1].tp.slice(0, 14);
+    const { urls } = await rodar(casa, [alvo], {
+      urlInicial: "https://members.bet365.bet.br/sportshistoryapi/summary?settled=1&lid=33&cid=28&csid=0&zzz=9",
+    });
+    const u = (urls || []).filter((x) => /from=/.test(x)).pop() || "";
+    const q = u.slice(u.indexOf("?") + 1);
+    if (!u) {
+      falhas.push("resolver (forma da URL): nenhuma URL com janela foi pedida");
+    } else if (!/zzz=9/.test(q)) {
+      falhas.push(`resolver (forma da URL): o parâmetro que nós não conhecemos SUMIU (${q}). ` +
+                  `A query sai da URL da própria página; recriá-la do zero descarta o que ` +
+                  `a casa mandar amanhã, e o termo assina a URL`);
+    } else if (q.indexOf("lid=") > q.indexOf("from=")) {
+      falhas.push(`resolver (forma da URL): a ordem não é a da página (${q}). Medido no ` +
+                  `pedido dela: settled, lid, cid, csid, from, to — os identificadores ANTES ` +
+                  `da janela`);
     }
   }
 

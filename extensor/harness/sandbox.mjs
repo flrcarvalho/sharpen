@@ -180,10 +180,15 @@ export async function rodarInject(cfg) {
   function XHRFake() { this._ouvintes = {}; }
   XHRFake.prototype = {
     open(m, u) { this._m = m; this._u = u; },
-    setRequestHeader() {},
+    // ⚠️ **OS CABEÇALHOS CHEGAM AO `responder`, como no `fetch`.** Eles eram descartados
+    // aqui, e a diferença não é cosmética: a casa dublada da bet365 decide pelo
+    // `X-Net-Sync-Term` se devolve payload ou corpo vazio, então TODA requisição feita por
+    // XHR parecia "sem token" e o gate acusava um defeito que não existia. Andaime que
+    // perde um campo do contrato não mede o código, mede a si mesmo (s387).
+    setRequestHeader(k, v) { (this._h ||= {})[String(k)] = String(v); },
     addEventListener(t, cb) { (this._ouvintes[t] ||= []).push(cb); },
     send(body) {
-      const corpo = responder(this._u, { method: this._m, body: body });
+      const corpo = responder(this._u, { method: this._m, body: body, headers: this._h || {} });
       // Mesmo contrato do fetch: barrada pelo navegador dispara `error`, não `load` com 404.
       if (corpo === FALHA_DE_REDE) {
         this.status = 0; this.responseText = "";
