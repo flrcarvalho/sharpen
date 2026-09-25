@@ -951,41 +951,56 @@
     const base = {};
     if (ultimosCabecalhos) for (const k in ultimosCabecalhos) base[k] = ultimosCabecalhos[k];
 
+    // ── RODADA 2 (s387): o termo DELA funciona. A pergunta virou OUTRA ───────
+    //
+    // A rodada 1 mediu, na conta real: o termo que a PÁGINA mandou, REUSADO, devolve
+    // payload (3.374 bytes, 10 bilhetes); o termo que o `xcftr` emite quando NÓS pedimos
+    // é recusado, sempre. Os dois têm o mesmo tamanho (1.536) e o mesmo começo, e diferem
+    // só no fim — mesmo input, assinatura diferente. O gerador tem estado, e o que ele
+    // entrega a quem pede por fora a casa não aceita. Gerar termo está descartado.
+    //
+    // Então: dá para REUSAR o dela? Só serve se ele valer para OUTRA janela, que é o que
+    // o botão precisa. O tamanho do termo cresce com o tamanho da URL (1.500 para a
+    // relativa e 1.576 para a absoluta, medido), então a URL está lá dentro e a resposta
+    // provavelmente é não. "Provavelmente" não decide nada: mede-se.
+    //
+    // As quatro linhas abaixo medem a GRANULARIDADE da assinatura, do mais útil para o
+    // menos: a nossa janela inteira, um parâmetro a mais, um valor trocado, e o reuso
+    // repetido. Onde parar de funcionar é onde está a fronteira.
+    const fromPag = Date.parse(_param(daPagina, "from") || "");
+    const nossaUrl = isNaN(fromPag) ? "" : _urlSummary(true, fromPag, fromPag + 1000);
     const testes = [
-      // 1. O termo DELA, reusado. Se passar, o mecanismo do `xcftr` gera outra coisa; se
-      //    falhar, o termo é de uso único e isso explica tudo o que veio antes.
-      ["termo DA PÁGINA reusado", { termo: termoDaPagina, reqId: idDaPagina }],
-      // 2. O nosso termo com o id de requisição DELA. Se o termo assina o par (url, id),
-      //    trocar o id depois de assinar é exatamente o que quebra.
-      ["nosso termo + X-Request-Id da página", { termo: nosso, reqId: idDaPagina }],
-      // 3. Sem id nenhum: separa "o id está errado" de "o id atrapalha".
-      ["nosso termo + SEM X-Request-Id", { termo: nosso, reqId: null }],
-      // 4. Por XHR, que é o que a página usa (os cabeçalhos vieram com a caixa original,
-      //    e `Headers.forEach` entregaria em minúsculas). `fetch` e XHR não mandam o
-      //    mesmo conjunto de cabeçalhos automáticos.
-      ["nosso termo via XMLHttpRequest", { termo: nosso, reqId: guid, xhr: true }],
-      // 5. Com o `ns_gen5_net.url` ainda preenchido. Nós limpamos antes de chamar; se o
-      //    mecanismo da casa lê de lá no momento da requisição, limpar é o defeito.
-      ["termo novo, sem limpar ns_gen5_net.url", { pedirDeNovo: true, reqId: guid }],
+      // 1. O TESTE QUE DECIDE: o termo dela na NOSSA janela de 1 segundo. Se passar, o
+      //    botão inteiro está resolvido sem gerar termo nenhum.
+      ["termo DA PÁGINA + NOSSA janela de 1s", { termo: termoDaPagina, url: nossaUrl }],
+      // 2. Um parâmetro a mais, tudo o resto igual: a assinatura cobre a query inteira?
+      ["termo DA PÁGINA + a URL dela com &zz=1", { termo: termoDaPagina, url: abs + "&zz=1" }],
+      // 3. Um valor trocado (as pendentes em vez das resolvidas), mesmo formato.
+      ["termo DA PÁGINA + a URL dela com settled=0",
+       { termo: termoDaPagina, url: abs.replace("settled=1", "settled=0") }],
+      // 4. A mesma URL, de novo. Se o reuso cansar, ele tem cota ou prazo — e isso muda o
+      //    desenho de quem for usar o termo capturado.
+      ["termo DA PÁGINA + a URL dela, 2º reuso", { termo: termoDaPagina, url: abs }],
     ];
 
     let n = 0;
     for (const [nome, cfg] of testes) {
       try {
-        let termo = cfg.termo;
-        if (cfg.pedirDeNovo) termo = await _pedirTermo(rel, true);
+        const termo = cfg.termo;
+        const alvo = cfg.url || abs;
         if (!termo) { LOG("sonda [" + nome + "]: sem termo para testar — pulado"); continue; }
+        if (!alvo) { LOG("sonda [" + nome + "]: sem URL para testar — pulado"); continue; }
         const cab = {};
         for (const k in base) cab[k] = base[k];
         _porNome(cab, "X-Net-Sync-Term", termo);
-        for (const k in cab) if (/^x-request-id$/i.test(k)) delete cab[k];
-        if (cfg.reqId) cab["X-Request-Id"] = cfg.reqId;
-        const r = cfg.xhr ? await _viaXHR(abs, cab) : await _viaFetch(abs, cab);
+        _porNome(cab, "X-Request-Id", cfg.reqId || idDaPagina || guid);
+        const r = cfg.xhr ? await _viaXHR(alvo, cab) : await _viaFetch(alvo, cab);
         n++;
         const len = String(r.txt || "").length;
         const bets = len ? ((parseSummary(r.txt) || {}).bets || []).length : 0;
         LOG("sonda [" + nome + "]: HTTP " + r.status + " · corpo " + len + " byte(s) · " +
-            bets + " bilhete(s)" + (len ? "  ✅ A CASA ACEITOU" : "  ❌ vazio"));
+            bets + " bilhete(s)" + (len ? "  ✅ A CASA ACEITOU" : "  ❌ vazio") +
+            " · url " + String(alvo).replace(/^https?:\/\/[^/]+/, ""));
       } catch (e) {
         LOG("sonda [" + nome + "]: estourou — " + (e && e.message));
       }

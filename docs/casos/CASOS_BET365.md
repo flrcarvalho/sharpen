@@ -204,6 +204,46 @@ andaime não consegue executar.
 > limpo, e o operador dizendo "não aparece nada". Quando o verde e a tela discordam, o
 > ambiente do teste é o suspeito, não o relato.
 
+### O termo que a casa emite para quem pede por fora não serve, e o dela REUSADO serve (s387)
+
+Dois dias de conserto no "Resolver apostas abertas" foram gastos numa hipótese que ninguém
+tinha testado: a de que o `X-Net-Sync-Term` obtido pela máquina da própria página seria
+aceito. A casa devolvia **200 com corpo de 0 byte** em 19 de 19 chamadas, e como esse é o
+MESMO corpo que ela devolve quando não há aposta na janela, cada tentativa parecia "quase".
+
+**O que cada rodada de medição eliminou**, em duas idas à conta real:
+
+| medido | conclusão |
+|---|---|
+| a URL **verbatim da página**, com termo novo, volta vazia | **não é a URL.** As sete tentativas mexendo em ordem, escape e formato eram no lugar errado |
+| `termo recebido · tipo=string · len=1500` | **não é lixo no header.** A hipótese do `"[object Object]"` morre |
+| `X-Request-Id` da página **=** `Locator.Guid` | **não é o id de requisição** |
+| a mesma chamada por `XMLHttpRequest` volta vazia | **não é `fetch` × XHR** |
+| não limpar `ns_gen5_net.url` antes da chamada: vazia | **não é a limpeza do objeto da página** |
+| **o termo DA PÁGINA, reusado: `200 · 3.374 bytes · 10 bilhetes`** | **o termo dela FUNCIONA, e não é de uso único** |
+
+E a comparação que explica o resto, com os dois termos assinando **a mesma URL**:
+
+```
+da PÁGINA: len=1536 · início "AzQABAA6AAHqtTlN07OHiMwoDE99" · fim "uJWYM6x+W4gw2+jg47c="
+NOSSO:     len=1536 · início "AzQABAA6AAHqtTlN07OHiMwoDE99" · fim "f5AxS+CcWM11O3FkpPw="
+```
+
+**Mesmo input, mesma estrutura, assinatura diferente.** O gerador tem estado, e o que ele
+entrega a quem pede por fora a casa recusa — sem erro, sem status diferente, com o corpo
+vazio que se confunde com "não há aposta". É o desenho de um token marcado, e é por isso
+que nenhuma quantidade de conserto na requisição ia funcionar.
+
+> **A lição de método, e ela vale para qualquer parede remota:** quando o sintoma de
+> "recusado" é idêntico ao de "não existe", **toda tentativa parece quase certa** e a
+> depuração vira adivinhação com custo. O que quebrou o impasse não foi mais uma tentativa,
+> foi montar um **controle**: repetir a requisição que comprovadamente funciona, mudando
+> uma variável por vez. Cinco chamadas responderam o que dezenove não responderam.
+>
+> **E o controle tem de existir ANTES da primeira tentativa de conserto.** A pergunta
+> "qual requisição eu sei que funciona, e o que a minha tem de diferente dela?" estava
+> disponível no primeiro minuto do primeiro dia.
+
 ### A odd que era a da PRIMEIRA PERNA, e ela valia 30% das abertas (s387)
 
 O "Resolver apostas abertas" casa a aposta por `carimbo | stake | odd`. A odd que a extensão
