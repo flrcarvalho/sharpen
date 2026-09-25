@@ -77,6 +77,16 @@
     <label id="bf-full-wrap" class="chk" hidden><input id="bf-full" type="checkbox"> Varrer conta inteira (histórico)</label>
     <!-- Bet365 não tem controles extras: o robô detalha por rota e o backend pré-dedupa (pula
          os já resolvidos) e pagina — o antigo marco/teto virou obsoleto e saiu. -->
+
+    <!-- "Resolver apostas abertas" (só Bet365, e só com a aba NA bet365).
+         Morava flutuando na página da casa e aparecia sobre qualquer site, porque o guard
+         olhava a casa da SESSÃO e não o host da ABA. Aqui a régua é a mesma da captura
+         (`hostBate` + `CASA_HOSTS`), e a interface do Sharpen fica na superfície do
+         Sharpen. DOIS CLIQUES: o primeiro é ensaio e não grava nada. -->
+    <section id="resolver-wrap" class="resolver" hidden>
+      <button id="btn-resolver" class="btn btn--ghost btn--block btn--sm">Resolver apostas abertas</button>
+      <p id="resolver-msg" class="resolver-msg" hidden></p>
+    </section>
   </section>
 
   <p id="msg" class="msg"></p>

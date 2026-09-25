@@ -276,6 +276,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0733",
+      "v": "v0.7.33",
+      "data": "2026-09-25",
+      "texto": "O **Resolver apostas abertas** saiu da tela da casa e agora fica no popup da extensao, so na Bet365."
+    },
+    {
       "id": "su-0732",
       "v": "v0.7.32",
       "data": "2026-09-25",

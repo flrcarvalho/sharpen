@@ -231,6 +231,7 @@ export async function rodar() {
   falhas.push(...await resolverAbertas());
   falhas.push(...chavesDoStorage());
   falhas.push(...cliqueNuncaTrava());
+  falhas.push(...botaoOlhaAAba());
   falhas.push(...respostaSobeParaOTopo());
   falhas.push(...repassePreservaOPedido());
   return { falhas, testes: bets.length };
@@ -1042,16 +1043,34 @@ function respostaSobeParaOTopo() {
 function cliqueNuncaTrava() {
   const falhas = [];
   const src = fs.readFileSync(path.join(EXT, "content.js"), "utf8");
-  const i = src.indexOf("async function resolverClique(");
+  // O nome mudou na s387 (`resolverClique` → `resolverRodar`), quando o botão saiu da
+  // página da casa e foi para o POPUP: o que roda na aba é a máquina, e quem pinta é o
+  // popup. Este gate acusou a troca, que é exatamente o serviço dele.
+  const i = src.indexOf("async function resolverRodar(");
   if (i < 0) {
-    falhas.push("content.js: não achei `resolverClique` — se mudou de nome, este gate precisa " +
+    falhas.push("content.js: não achei `resolverRodar` — se mudou de nome, este gate precisa " +
                 "acompanhar, senão vira falso verde");
     return falhas;
   }
-  const corpo = src.slice(i, src.indexOf("async function sync()", i));
+  const corpo = src.slice(i, src.indexOf("function _fim(", i));
   if (!/\} catch \(/.test(corpo)) {
-    falhas.push("content.js: `resolverClique` não tem `catch`. Qualquer erro inesperado deixa " +
+    falhas.push("content.js: `resolverRodar` não tem `catch`. Qualquer erro inesperado deixa " +
                 "o botão parado no último texto, sem dizer nada a quem clicou");
+  }
+  // O popup também não pode ficar mudo: `chrome.tabs.sendMessage` LANÇA quando o content
+  // não está na aba (recarregada, ou extensão atualizada), e sem `catch` o botão dele fica
+  // em "Procurando…" para sempre. É o mesmo defeito, na superfície nova.
+  const pop = fs.readFileSync(path.join(EXT, "popup.js"), "utf8");
+  if (pop.indexOf("async function resolverAbertas(") < 0) {
+    falhas.push("popup.js: não achei `resolverAbertas` — o botão mora no popup desde a s387");
+  } else if (!pop.includes("Não consegui falar com a aba da casa")) {
+    // ⚠️ A MENSAGEM, não o `catch`. A 1ª versão deste trecho procurava `} catch (` entre
+    // duas funções e passou VERDE com o tratamento apagado — porque havia OUTRO catch no
+    // intervalo (o do `executeScript`, que é `catch (_) {}` de propósito). Contar catches
+    // não diz se alguém foi avisado; a frase que aparece na tela diz.
+    falhas.push("popup.js: ninguém avisa quem clicou quando `chrome.tabs.sendMessage` lança " +
+                "(content ausente: aba recarregada, extensão atualizada). Sem a mensagem o " +
+                "botão fica parado em \"Procurando…\" e o operador não sabe se espera");
   }
   // ⚠️ Procura a MENSAGEM QUE O OPERADOR VÊ, não a expressão que a detecta. A 1ª versão
   // deste gate buscava "context invalidated" no arquivo inteiro e passava verde com o
@@ -1061,6 +1080,50 @@ function cliqueNuncaTrava() {
     falhas.push("content.js: ninguém diz ao operador para recarregar a página quando a " +
                 "extensão foi atualizada com a aba aberta. Isso acontece SEMPRE que sai " +
                 "versão nova, e sem a mensagem o botão só trava");
+  }
+  return falhas;
+}
+
+// ── 14-bis. O botão do "Resolver" olha o HOST DA ABA, não só a casa conectada ──
+//
+// O defeito que originou este gate foi visto EM USO (s387): o botão aparecia sobre
+// qualquer site. O guard era `/bet365/i.test(st.casa)`, e `st.casa` é a casa da SESSÃO DE
+// CAPTURA — com a sessão pareada na Bet365, ele nascia em cima de tudo o que o operador
+// abrisse. As duas perguntas são diferentes e as duas são necessárias: a conta conectada é
+// da Bet365 (senão não há abertas a resolver) E a aba está na bet365 (senão o inject não
+// alcança a lista).
+//
+// Estrutural porque o sandbox não tem `chrome.tabs`: o que se trava é que a decisão passe
+// por `_abaResolver` (que é quem consulta `hostBate`, a mesma régua da captura), nas DUAS
+// portas — a que pinta o botão e a que o executa.
+function botaoOlhaAAba() {
+  const falhas = [];
+  const pop = fs.readFileSync(path.join(EXT, "popup.js"), "utf8");
+  const corpo = (nome) => {
+    const i = pop.indexOf("async function " + nome + "(");
+    if (i < 0) return null;
+    const j = pop.indexOf("\nasync function ", i + 10);
+    return pop.slice(i, j < 0 ? pop.length : j);
+  };
+  const aba = corpo("_abaResolver");
+  if (!aba) {
+    falhas.push("popup.js: não achei `_abaResolver` — é ela que separa 'a conta é da Bet365' " +
+                "de 'a aba está na bet365', e sem isso o botão volta a aparecer em qualquer site");
+    return falhas;
+  }
+  if (!/hostBate\(/.test(aba)) {
+    falhas.push("popup.js: `_abaResolver` não consulta `hostBate` — régua própria aqui é a " +
+                "segunda régua do mesmo papel, e a da captura já existe (CASA_HOSTS)");
+  }
+  for (const nome of ["renderResolver", "resolverAbertas"]) {
+    const c = corpo(nome);
+    if (!c) {
+      falhas.push(`popup.js: não achei \`${nome}\` — se mudou de nome, este gate precisa acompanhar`);
+    } else if (!/_abaResolver\(/.test(c)) {
+      falhas.push(`popup.js: \`${nome}\` decide sem chamar \`_abaResolver\`. A casa CONECTADA ` +
+                  `não diz em que site a aba está: foi assim que o botão apareceu sobre ` +
+                  `qualquer site com a sessão pareada na Bet365`);
+    }
   }
   return falhas;
 }
@@ -1080,7 +1143,7 @@ function chavesDoStorage() {
   // positivo em cima de outras variáveis chamadas `st` (há uma no `_resultadoB3`, e
   // `st.scrollHeight` noutro ponto) — a 1ª versão deste gate fazia isso e teria ficado
   // vermelha para sempre, por motivo nenhum.
-  const ini = src.indexOf("function ensureResolver(");
+  const ini = src.indexOf("async function sync() {");
   const fim = src.indexOf("chrome.storage.onChanged", ini);
   if (ini < 0 || fim < 0) {
     falhas.push("content.js: não achei o trecho do `sync` para conferir as chaves lidas");

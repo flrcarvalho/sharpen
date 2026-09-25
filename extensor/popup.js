@@ -140,6 +140,7 @@ function _bfToggleFull(on) {
   $("bf-dias-wrap").style.opacity = on ? ".45" : "";
 }
 
+$("btn-resolver").addEventListener("click", resolverAbertas);
 $("btn-conectar").addEventListener("click", conectar);
 $("btn-desconectar").addEventListener("click", desconectar);
 $("btn-capturar").addEventListener("click", capturar);
@@ -354,6 +355,84 @@ function renderAvisoVersao() {
   }
 }
 
+// ── "Resolver apostas abertas" (Bet365) ──────────────────────────────────────
+// Ele morava flutuando na página da casa e o Feca o viu aparecer sobre QUALQUER site: o
+// guard perguntava `st.casa` (a casa da SESSÃO DE CAPTURA), não o host da aba. A pergunta
+// certa já tinha resposta pronta aqui — `hostBate`, a mesma régua que impede capturar a
+// Betfair com um código da Superbet. Duas condições, e as duas são necessárias:
+//
+//   • a conta CONECTADA é da Bet365 (sem isso não há abertas a resolver);
+//   • a ABA ATIVA está na bet365 (sem isso o inject não alcança a lista da casa).
+//
+// O TRABALHO continua na aba, não aqui: é lá que o inject vive, e é lá que o ensaio dos
+// dois cliques sobrevive ao popup fechar (o popup do Chrome fecha ao clicar fora, e o
+// estado morreria no caminho até o 2º clique). Este arquivo pergunta e pinta.
+async function _abaResolver() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || /^(chrome|edge|about|chrome-extension):/.test(tab.url || "")) return null;
+  let host = "";
+  try { host = new URL(tab.url).hostname; } catch (_) { return null; }
+  return hostBate(host, "Bet365") ? tab : null;
+}
+
+function setResolverMsg(texto, tipo) {
+  const el = $("resolver-msg");
+  el.textContent = texto || "";
+  el.className = "resolver-msg" + (tipo ? " " + tipo : "");
+  el.hidden = !texto;
+}
+
+async function renderResolver(casa) {
+  const wrap = $("resolver-wrap");
+  const tab = casa === "Bet365" ? await _abaResolver() : null;
+  wrap.hidden = !tab;
+  if (!tab) return;
+  // O ensaio já feito vive na ABA. Sem perguntar, reabrir o popup mostraria "Resolver
+  // apostas abertas" com N apostas esperando o 2º clique, e o operador refaria o ensaio.
+  let est = null;
+  try { est = await chrome.tabs.sendMessage(tab.id, { type: "RESOLVER_ESTADO" }); } catch (_) {}
+  if (est && est.ocupado) {
+    $("btn-resolver").disabled = true;
+    $("btn-resolver").textContent = "Procurando na casa…";
+    setResolverMsg("", "");
+  } else {
+    $("btn-resolver").disabled = false;
+    $("btn-resolver").textContent = (est && est.prontas)
+      ? "Gravar " + est.prontas + (est.prontas === 1 ? " aposta" : " apostas")
+      : "Resolver apostas abertas";
+    if (est && est.texto) setResolverMsg(est.texto, est.prontas ? "aviso" : "");
+  }
+}
+
+async function resolverAbertas() {
+  const tab = await _abaResolver();
+  if (!tab) {
+    setResolverMsg("Abra a aba da bet365 antes de resolver.", "erro");
+    return;
+  }
+  const btn = $("btn-resolver");
+  const aplicar = /^Gravar /.test(btn.textContent);
+  btn.disabled = true;
+  btn.textContent = aplicar ? "Gravando…" : "Procurando na casa…";
+  setResolverMsg("Isto leva alguns segundos. Não feche este popup.", "");
+  try {
+    // A aba pode ter sido aberta antes da extensão: garante o content script.
+    try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }); } catch (_) {}
+    const r = await chrome.tabs.sendMessage(tab.id, { type: "RESOLVER_RODAR" });
+    setResolverMsg((r && r.texto) || "Sem resposta da aba.", (r && r.tipo) || "erro");
+    btn.textContent = (r && r.prontas)
+      ? "Gravar " + r.prontas + (r.prontas === 1 ? " aposta" : " apostas")
+      : "Resolver apostas abertas";
+  } catch (e) {
+    // `sendMessage` LANÇA quando o content não está lá (aba recarregada, extensão
+    // atualizada). Erro mudo aqui deixaria o botão parado em "Procurando…".
+    setResolverMsg("Não consegui falar com a aba da casa. Recarregue a página (F5) e tente de novo.", "erro");
+    btn.textContent = "Resolver apostas abertas";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function render() {
   renderAvisoVersao();
   const st = await chrome.storage.local.get(["token", "casa", "parceiro", "modo", "lastError", "envioPendente"]);
@@ -426,6 +505,7 @@ async function render() {
     $("bf-full").checked = !!cfg.bfFull;
     _bfToggleFull(!!cfg.bfFull);
   }
+  await renderResolver(st.casa);
   // Banner de reenvio: aparece quando há texto bancado de um envio que caiu. O botão só
   // funciona de fato com sessão viva; se estiver "offline", reenviar falha e mantém guardado.
   const pendEl = $("pendente");

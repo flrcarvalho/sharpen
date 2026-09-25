@@ -124,6 +124,16 @@ body {
 .nota { margin: 13px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.45;
   background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px; }
 .nota b { color: var(--ink); }
+/* "Resolver apostas abertas" (Bet365). Botão FANTASMA de propósito: a ação primária
+   deste popup é Capturar, e dois botões cheios disputariam o mesmo papel — o item 8 do
+   checklist de UI ("há dois estilos para o mesmo papel aqui?"). A mensagem segue a Escada
+   de Tinta: 12px em `--ink-soft` (metadado), e cor só nos estados. */
+.resolver { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line-2); }
+.resolver-msg { margin: 9px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-soft); }
+.resolver-msg.ok { color: var(--pos); }
+.resolver-msg.aviso { color: var(--warn); }
+.resolver-msg.erro { color: #E5484D; }
+
 .janela { display: flex; align-items: center; gap: 7px; margin-top: 10px;
   font-size: 12px; color: var(--ink-soft); }
 .janela input { width: 54px; background: #0A0D12; border: 1px solid var(--line);

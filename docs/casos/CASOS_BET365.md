@@ -259,6 +259,48 @@ por fora está encerrado por medição, e quem quiser reabrir começa por aqui.
 > "qual requisição eu sei que funciona, e o que a minha tem de diferente dela?" estava
 > disponível no primeiro minuto do primeiro dia.
 
+### O botão que perguntava pela casa da SESSÃO e aparecia sobre qualquer site (s387)
+
+O "Resolver apostas abertas" nasceu flutuando na página da casa, com guard:
+
+```js
+const eBet365 = /bet365/i.test(String(st.casa || ""));
+```
+
+`st.casa` é a casa da **sessão de captura**, não a da página aberta. Com a sessão pareada
+na Bet365, o botão nascia por cima de **qualquer site** que o operador visitasse. O Feca
+viu em uso, num site que não era a bet365.
+
+**A régua certa já existia, a um arquivo de distância:** `hostBate(host, casa)` com o mapa
+`CASA_HOSTS`, no `popup.js`, que é o que impede capturar a Betfair com um código da
+Superbet. São **duas perguntas diferentes** e as duas são necessárias:
+
+- a conta CONECTADA é da Bet365 — senão não há abertas a resolver;
+- a ABA ATIVA está na bet365 — senão o inject não alcança a lista da casa.
+
+**E o botão mudou de casa junto:** saiu da página de terceiro e foi para o **popup**. A
+barra de captura está sobre o site da casa porque precisa (a moldura, o estado do robô);
+um botão de AÇÃO sobre o banco do dono, não. Interface nossa mora na nossa superfície.
+
+O ESTADO dos dois cliques continua na aba, de propósito: o popup do Chrome fecha ao clicar
+fora, e um ensaio guardado nele se perderia no caminho até o 2º clique. A aba guarda, o
+popup pergunta ao abrir.
+
+**Três gates novos, e os três nasceram de mutação que escapou:**
+
+1. `renderResolver` e `resolverAbertas` têm de chamar `_abaResolver` — a mutação que
+   decide só por `casa` reproduz o defeito relatado, e passava verde.
+2. `_abaResolver` tem de consultar `hostBate` — régua própria ali seria a segunda régua do
+   mesmo papel.
+3. O popup tem de **avisar** quando `chrome.tabs.sendMessage` lança (content ausente: aba
+   recarregada, extensão atualizada).
+
+> ⚠️ **O gate 3 nasceu errado e a mutação mostrou.** A 1ª versão procurava `} catch (`
+> entre duas funções e passou VERDE com o tratamento apagado, porque havia **outro** catch
+> no intervalo — o `catch (_) {}` do `executeScript`, que é vazio de propósito. **Contar
+> catches não diz se alguém foi avisado.** Trocado pela frase que aparece na tela, que é a
+> regra que este mesmo arquivo já registrava e que eu repeti o erro de não seguir.
+
 ### O marcador que o código sob teste COPIAVA, e por isso não marcava nada (s387)
 
 O dublê da bet365 precisa separar a requisição que a **página** faz da que o **inject**

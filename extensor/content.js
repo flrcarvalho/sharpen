@@ -6550,96 +6550,89 @@
   }
 
   // ── Orquestração ────────────────────────────────────────────────────────────
-  // ── BOTÃO "Resolver apostas abertas" (bet365) ────────────────────────────────
-  // Vive na barra da extensão, na aba da casa, e não no painel do Sharpen: **não existe
-  // canal do painel para a extensão** — a sessão de captura só transporta no sentido
-  // contrário. Quem começa o trabalho é quem já está na página logada.
+  // ── "Resolver apostas abertas": o BOTÃO mora no POPUP, não nesta barra ───────
   //
-  // CORES LITERAIS, como todo o resto desta barra: ela é injetada na página de TERCEIRO e
-  // não alcança os tokens do produto. O `/nova-ui` cobre a UI do Sharpen; aqui valem as
-  // partes que não dependem de token — PT-BR, contraste alto e nada de abreviar.
+  // ⚠️ Ele já morou aqui, flutuando na página da casa, e saiu por dois defeitos que o
+  // Feca viu em uso (s387):
   //
-  // DOIS CLIQUES, sempre: o primeiro é ENSAIO e não grava nada. Banco não tem desfazer.
-  let btnResolver = null, resolverOcupado = false, resolverPronto = null;
+  // 1. **Aparecia em casa nenhuma e em casa qualquer.** O guard era
+  //    `/bet365/i.test(st.casa)`, e `st.casa` é a casa da SESSÃO DE CAPTURA, não a da
+  //    página aberta. Com a sessão pareada na Bet365, o botão nascia em cima de qualquer
+  //    site que o operador visitasse. A pergunta certa é sobre o HOST da aba, e quem já
+  //    sabia respondê-la era o popup (`hostBate`, com o mapa `CASA_HOSTS`) — a mesma
+  //    régua que impede capturar a Betfair com um código da Superbet.
+  // 2. **Era interface do Sharpen desenhada por cima da casa.** A barra de captura existe
+  //    ali porque precisa (a moldura, o estado do robô); um botão de AÇÃO sobre o banco do
+  //    dono, não. Interface nossa mora na nossa superfície.
+  //
+  // O que fica aqui é só a MÁQUINA (`b3ResolverAbertas` e o estado dos dois cliques), que
+  // precisa rodar na aba da casa para alcançar o inject. O popup pede e mostra.
+  //
+  // O ESTADO DOS DOIS CLIQUES VIVE NESTA PÁGINA, de propósito: o popup do Chrome fecha ao
+  // clicar fora, e um ensaio guardado nele se perderia no caminho até o 2º clique. Aqui
+  // ele sobrevive, e o popup pergunta o que existe quando abre.
+  let resolverOcupado = false, resolverPronto = null, resolverUltimo = "";
 
-  function removeResolver() {
-    if (btnResolver) { btnResolver.remove(); btnResolver = null; }
-    resolverPronto = null;
+  function _resolverEstado() {
+    return { ocupado: resolverOcupado, texto: resolverUltimo,
+             prontas: (resolverPronto && resolverPronto.resolvidos || []).length };
   }
 
-  function ensureResolver(st) {
-    const eBet365 = /bet365/i.test(String(st.casa || ""));
-    if (!eBet365) { removeResolver(); return; }
-    if (btnResolver) return;
-    btnResolver = document.createElement("button");
-    S(btnResolver, {
-      position: "fixed", right: "22px", bottom: "84px", "z-index": Z,
-      background: "#0E1524", color: "#E6ECF5", border: "1px solid rgba(46,139,255,0.5)",
-      "border-radius": "10px", padding: "9px 14px", cursor: "pointer",
-      font: "600 13px/1.2 system-ui,sans-serif", "box-shadow": "0 8px 24px rgba(0,0,0,.5)",
-      "max-width": "320px", "text-align": "left",
-    });
-    btnResolver.textContent = "Resolver apostas abertas";
-    btnResolver.title = "Busca na casa o resultado das apostas que estão abertas nesta conta. " +
-                        "O primeiro clique é um ensaio: não grava nada.";
-    btnResolver.addEventListener("click", () => resolverClique());
-    document.documentElement.appendChild(btnResolver);
-  }
-
-  function resolverTexto(t) { if (btnResolver) btnResolver.textContent = t; }
-
-  async function resolverClique() {
-    if (resolverOcupado) return;
+  /** Roda o ensaio (ou a gravação, quando já há ensaio pronto) e devolve o que MOSTRAR. */
+  async function resolverRodar() {
+    if (resolverOcupado) return _resolverEstado();
     resolverOcupado = true;
     // O 2º clique GRAVA, e só depois de um ensaio que achou alguma coisa.
     const aplicar = !!(resolverPronto && resolverPronto.resolvidos && resolverPronto.resolvidos.length);
-    resolverTexto(aplicar ? "Gravando…" : "Procurando na casa…");
     try {
       const r = await b3ResolverAbertas(aplicar);
-      if (r.erro) { resolverTexto(r.erro); resolverPronto = null; return; }
+      if (r.erro) { resolverPronto = null; return _fim(r.erro, "erro"); }
       if (r.nada) {
-        resolverTexto(r.semCarimbo ? "Nenhuma aposta aberta com hora registrada"
-                                   : "Nenhuma aposta aberta nesta conta");
         resolverPronto = null;
-        return;
+        return _fim(r.semCarimbo ? "Nenhuma aposta aberta com hora registrada"
+                                 : "Nenhuma aposta aberta nesta conta", "");
       }
       const n = (r.resolvidos || []).length;
       // ⚠️ `confiavel:false` vem de "a casa devolveu vazio E a aposta de controle também
       // não voltou". Aí NÃO se pode dizer que as outras seguem abertas — é a diferença
       // entre não achar e não conseguir perguntar, e ela tem de aparecer para quem clicou.
       if (!r.confiavel && n === 0) {
-        resolverTexto("Não consegui confirmar: " + (r.mecanismo || "recarregue a página e tente de novo"));
         resolverPronto = null;
-        return;
+        return _fim("Não consegui confirmar: " +
+                    (r.mecanismo || "recarregue a página e tente de novo"), "erro");
       }
       console.log("[SharpenUp] Resolver abertas:", r);
       if (aplicar) {
-        resolverTexto(n + (n === 1 ? " aposta gravada" : " apostas gravadas"));
         resolverPronto = null;
         toastLocal(n + (n === 1 ? " aposta resolvida" : " apostas resolvidas"), true, 60);
-      } else if (n === 0) {
-        resolverTexto("Nenhuma resolveu ainda" + (r.confiavel ? "" : " (sem confirmação)"));
-        resolverPronto = null;
-      } else {
-        resolverPronto = r;
-        resolverTexto(n + (n === 1 ? " pronta para gravar" : " prontas para gravar") +
-                      " · clique de novo");
-        if (btnResolver) btnResolver.title = "Confira os detalhes no console antes de gravar.";
+        return _fim(n + (n === 1 ? " aposta gravada" : " apostas gravadas"), "ok");
       }
+      if (n === 0) {
+        resolverPronto = null;
+        return _fim("Nenhuma resolveu ainda" + (r.confiavel ? "" : " (sem confirmação)"), "");
+      }
+      resolverPronto = r;
+      return _fim(n + (n === 1 ? " pronta para gravar" : " prontas para gravar") +
+                  " · clique de novo", "aviso");
     } catch (e) {
-      // Qualquer coisa inesperada vira TEXTO no botão. Um botão parado num "Procurando…"
-      // que nunca termina é pior que um erro feio: quem clicou fica sem saber se espera.
-      resolverTexto("Falhou: " + String((e && e.message) || e).slice(0, 90));
+      // Qualquer coisa inesperada vira TEXTO. Um botão parado num "Procurando…" que nunca
+      // termina é pior que um erro feio: quem clicou fica sem saber se espera.
       resolverPronto = null;
+      return _fim("Falhou: " + String((e && e.message) || e).slice(0, 90), "erro");
     } finally {
       resolverOcupado = false;
     }
   }
 
+  function _fim(texto, tipo) {
+    resolverUltimo = texto;
+    return { ocupado: false, texto: texto, tipo: tipo || "",
+             prontas: (resolverPronto && resolverPronto.resolvidos || []).length };
+  }
+
   async function sync() {
     let st; try { st = await get(); } catch (_) { return; }
-    if (!st.token) { removeFab(); removeFrame(); removeDraw(); removeResolver(); return; }
-    ensureResolver(st);
+    if (!st.token) { removeFab(); removeFrame(); removeDraw(); return; }
     if (st.modo === "texto") { removeFrame(); removeDraw(); ensureFab("texto"); return; }
     // modo print
     if (st.frameAtivo) {
@@ -6658,6 +6651,21 @@
     if (!msg) return;
     if (msg.type === "CAPTURA_FIM") fimCaptura(!!msg.ok);
     else if (msg.type === "START_ROBOT") iniciarRobo();
+  });
+
+  // ── O POPUP PERGUNTA, ESTA PÁGINA RESPONDE ("Resolver apostas abertas") ──────
+  // Listener PRÓPRIO, com `return true`: o de cima não responde nada e devolver uma
+  // promise dali fecharia o canal antes da hora. `ESTADO` é o que o popup pinta ao abrir
+  // (o ensaio guardado sobrevive ao popup fechar); `RODAR` faz o trabalho.
+  chrome.runtime.onMessage.addListener((msg, _sender, responder) => {
+    if (!msg) return;
+    if (msg.type === "RESOLVER_ESTADO") { responder(_resolverEstado()); return true; }
+    if (msg.type === "RESOLVER_RODAR") {
+      resolverRodar().then(responder).catch((e) =>
+        responder({ ocupado: false, tipo: "erro",
+                    texto: "Falhou: " + String((e && e.message) || e).slice(0, 90), prontas: 0 }));
+      return true;
+    }
   });
 
   sync();
