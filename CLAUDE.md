@@ -42,6 +42,9 @@ casa que parou → `/sharpenup-diagnostico`.
      Confira com `git show --stat` depois de commitar; se levou arquivo alheio, **não
      reescreva histórico já pushado** — registre no `STATUS.md` e siga.
      → [o caso](docs/CASOS.md#8--duas-sessões-commitando-ao-mesmo-tempo-24082026)
+   - **O `STATUS.md` é de UMA sessão por vez**, e quem é dono de qual arquivo está em
+     [`docs/ESTRUTURA_DO_TIME.md`](docs/ESTRUTURA_DO_TIME.md). Mover bloco enquanto a
+     outra escreve desloca os índices no meio da edição: a remoção sai errada, sem erro.
 9. **Aviso ao grupo de testers: o corte está na seção própria, abaixo.** Num lugar só.
 10. **Um arquivo, uma pergunta — e o gate é `python tools/check_docs.py`.**
     `CLAUDE.md` = regras vinculantes · [`STATUS.md`](STATUS.md) = estado atual **+ no máximo as 3
