@@ -1230,6 +1230,30 @@ decisão é do Feca depois de olhar o extrato da casa naquela data.
 
 ---
 
+### 3.18 Frente 01 (MASTERs): publicar ou não, e nove decisões de regra (s387/s389). VIVA.
+
+A auditoria dos MASTERs está pronta e **não publicada**: worktree `Planilhador-masters-s387`
+(branch local `auditoria/masters-s387`), entrega em `_backups/auditoria_masters_s387/`
+(comece por `06_resumo_para_fernando.md`). O patch `TUDO_contra_main_263ce9d.patch` aplica
+limpo no main de 29/09. Verificação independente: `_backups/frente01_verificacao_2026-09-25/`.
+
+**Para publicar, o Feca decide:**
+1. A camada s386 (`patches/00_…`), que é base da frente. Sem ela, o G11 sai.
+2. As mudanças de significado do `03_diff.md`: G01 (a Betano deixa de inverter), G04 (odd
+   ausente = coluna vazia), G05 (meia em múltipla = W), G12 (1º quarto = Pontos), G16
+   (`_INSTRUCAO`) e o código (gate de handicap partido, rótulo de meia, V exato, HW só com
+   linha partida, data de referência em Brasília).
+3. O replay do G16 e dos MASTERs, com teto (proposta: US$ 12). Mudança de prompt não se prova
+   por teste estático.
+4. Junto com o contrato de 4 campos, entra o `F01_teste_contrato_quarto_de_linha.patch`, ou o CI
+   quebra.
+
+**Decisões de regra (detalhe e exemplos em `05_decisoes_pendentes.md`):** D1 `Múltiplos` para
+3+ jogos do mesmo esporte · D2 handicap de sets (`Sets` × `Handicap`) · D3 comparativo entre
+times (objeto × `H2H`) · D4 `games` × badminton · D5 qual instante é a data · D6 forma do total
+de time, `3` × `3.0`, confronto por perna no bet builder · D7 props de jogador no futebol ·
+D8 `Boxe`, `Futsal`, `Hits` · D9 freebet. D1 e D6 travam o tradutor no fluxo.
+
 ## 4. Dívida técnica medida
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
@@ -1844,6 +1868,35 @@ O conserto e sempre manual e por script (`mover_bilhetes_entre_contas.py`,
 **Medicao de passagem (28/09), nao investigada:** codigo presente em duas contas do mesmo dono
 e casa em `Tonelada/BETesporte` (64), `Diogo/Novibet` (10) e `germano/Bet365` (8). Pode ser a
 mesma familia, pode ser codigo curto que se repete na casa: medir antes de chamar de intruso.
+
+### 4.14 Bot de tipster grava as mesmas colunas por regex, contra o MASTER (s389). VIVA.
+
+8 defeitos medidos pela verificação da frente 01, não corrigidos: `Total de Gols` vira
+`Anytime` (`grego.js:525`), odd arredondada a 3 casas (`arred`), combo de 2 esportes vira o
+esporte da 1ª perna (`reidocriquete.js:430`), mercado cru em português na descrição, e outros.
+Os testes do bot selam parte dos desvios. Detalhe em
+`_backups/frente01_verificacao_2026-09-25/ADENDO_F01.md`. Frente própria (ordem: B1, B6, B2).
+
+### 4.15 Pendências técnicas da frente 01 (s387). VIVAS, com impedimento.
+
+Detalhe, reprodução e impedimento de cada uma em `_backups/auditoria_masters_s387/02_achados_e_matriz.md`.
+
+- **P01, ALTA:** o gate de odd/resultado pelo retorno é cego em 8 formatadores (`Retorno:` em
+  linha própria) e na Pinnacle (só `P/L`). Odd = retorno passa. Exige replay com blocos reais
+  dessas casas antes de ampliar o que o gate escreve.
+- **P02:** cashout a menos de 0,5% do retorno cheio vira `W @ odd do bloco`. Mesmo impedimento.
+- **P03:** cashout abaixo da stake sai "a conferir HW/HL" do formatador e a linha fica aberta.
+  Conserto no `content.js`, com harness.
+- **P05:** a data não tem gate determinístico (a stake tem). Medir na sombra antes.
+- **P06:** `parse_tsv` descarta em silêncio linha com menos de 10 campos; o front não lê
+  `rejeitados`.
+- **P13:** stake `1.500` é 1,5 no backend e 1.500 no front.
+- **P16:** stake crua e odd mutável na assinatura sem código: aberta liquidada vira linha nova.
+- **P17:** `data_valida` aceita `31/02/2026` e `12/31/2026`.
+- **Odd de W gravada com `.10f`:** o código arredonda na 10ª casa; o MASTER pede 14 sem
+  arredondar. Decidir com o ADR-001.
+- **Exemplos da Betnacional 382 e 454:** o confronto não aparece na entrada mostrada
+  (`PIPELINE §5.3`). Conferir no card antes de mexer.
 
 ## 5. Planos com fase aberta
 
