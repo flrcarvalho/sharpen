@@ -139,11 +139,14 @@ def test_o_repo_de_verdade_passa_e_conta_os_links_de_fora(capsys):
     quem lê a saída precisa saber que existem links que aquela máquina não conferiu.
     """
     mod = _carregar(RAIZ)
-    mds = mod.listar_mds() if hasattr(mod, "listar_mds") else None
-    if mds is None:  # varredura própria, se o helper mudar de nome
-        mds = [str(p) for p in RAIZ.rglob("*.md")
-               if "Backups" not in p.parts and "node_modules" not in p.parts]
-    mod.checar_links(mds)
+    # ⚠️ A varredura sai do PRÓPRIO `check_docs` (`_todos_md`), nunca de uma cópia aqui.
+    # A 1ª versão deste teste tinha um fallback com `rglob` que pulava `Backups` e
+    # `node_modules` "na mão", e ele não conhecia o `_backups/`. Quando a s387 criou
+    # `_backups/auditoria_masters_s387/` com cópias de docs, o teste passou a varrer
+    # arquivos que o gate de verdade nunca olha e ficou VERMELHO sozinho por 2 links que
+    # não existem para ninguém. **Teste que reimplementa o código sob teste não mede o
+    # código sob teste** — é a armadilha da s286, e eu caí nela escrevendo o fallback.
+    mod.checar_links(mod._todos_md())
     saida = capsys.readouterr().out
     assert not mod.falhas, f"o repo tem link quebrado de verdade: {mod.falhas}"
     assert "fora da raiz do repo" in saida, (
