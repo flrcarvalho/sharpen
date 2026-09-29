@@ -1,0 +1,985 @@
+{
+ "origem": "s386: blocos reais da Bet365 (sombra_rotulos) e linhas de `bilhetes`, exportados so-leitura em 23/09/2026; sem dono e sem conta. `ia` = decisao ja gravada pela IA de producao para AQUELE bloco. `banco` so e' preenchido onde nao ha correcao registrada; `banco_odd_errada` = valor do banco que foi conferido a mao e esta errado. `lotes4` = respostas reais de 4 campos do prototipo (Sonnet 5).",
+ "itens": [
+  {
+   "tipo": "antes: Data (encerramento)",
+   "codigo": "AA1267411211W",
+   "bruto": "\r\nData (encerramento): 11/09/2026\r\nStake: 160,00\r\nStatus: Perdeu → L\r\nOdd: 29\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Coritiba x Athletico-PR · Resultado Final · Coritiba @ 29 · Campeonato Bras",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "ML",
+    "descricao": "Coritiba [Coritiba v Athletico-PR]"
+   },
+   "banco": {},
+   "banco_tem_correcao": [
+    "data",
+    "resultado"
+   ]
+  },
+  {
+   "tipo": "antes: Data (encerramento)",
+   "codigo": "AA1443258211I",
+   "bruto": "\r\nData (encerramento): 06/09/2026\r\nStake: 125,00\r\nStatus: Perdeu → L\r\nOdd: 5\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Málaga x Levante · Jogador - Desarmes - Mais Alternativas · Ivan Romero - Mais de 2.5 @ 5 · Spanish Primera",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Desarmes",
+    "descricao": "Ivan Romero - Over 2.5 Desarmes [Málaga v Levante]"
+   },
+   "banco": {
+    "data": "06/09/2026",
+    "stake": "125,00",
+    "odd": "5,00",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples L",
+   "codigo": "AA3140938791I",
+   "bruto": "\r\nData (evento): 12/09/2026\r\nStake: 100,00\r\nStatus: Perdeu → L\r\nOdd: 2,25\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Atlético-MG x Fluminense · Jogador - Chutes ao Gol · Agustin Canobbio - Mais de 0.5 @ 2,25 · Campeonato Bras",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Chutes no Gol",
+    "descricao": "Agustin Canobbio - Over 0.5 Chutes no Gol [Atlético-MG v Fluminense]"
+   },
+   "banco": {
+    "data": "12/09/2026",
+    "stake": "100,00",
+    "odd": "2,25",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples L",
+   "codigo": "AA3140938792I",
+   "bruto": "\r\nData (evento): 12/09/2026\r\nStake: 50,00\r\nStatus: Perdeu → L\r\nOdd: 9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Atlético-MG x Fluminense · Jogador - Chutes ao Gol · Agustin Canobbio - Mais de 1.5 @ 9 · Campeonato Bras",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Chutes no Gol",
+    "descricao": "Agustin Canobbio - Over 1.5 Chutes no Gol [Atlético-MG v Fluminense]"
+   },
+   "banco": {
+    "data": "12/09/2026",
+    "stake": "50,00",
+    "odd": "9",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "antes: sem data",
+   "codigo": "AA4489968131I",
+   "bruto": "\r\nStake: 100,00\r\nStatus: Ganho → W (retorno R$ 490,00)\r\nOdd: 4,9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Palmeiras x LDU Quito @ 4,9 · Copa Libertador\r\n      – Chutes · Michael Estrada: 3+ Chutes\r\n      – Chutes · Lucas Evangelista: 1+ Chutes",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Múltipla",
+    "descricao": "Michael Estrada - 3+ Chutes [Palmeiras v LDU Quito] // Lucas Evangelista - 1+ Chutes [Palmeiras v LDU Quito]"
+   },
+   "banco": {
+    "data": "09/09/2026",
+    "stake": "100,00",
+    "odd": "4,9",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": [
+    "aposta"
+   ]
+  },
+  {
+   "tipo": "simples L",
+   "codigo": "AA4507693521W",
+   "bruto": "\r\nData (evento): 12/09/2026\r\nStake: 150,00\r\nStatus: Perdeu → L\r\nOdd: 2,75\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Athletic Bilbao x Elche · Jogador - Desarmes - Mais Alternativas · Nico Williams - Mais de 1.5 @ 2,75 · Spanish Primera",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Player Props",
+    "descricao": "Nico Williams - Over 1.5 Desarmes [Athletic Bilbao v Elche]"
+   },
+   "banco": {
+    "data": "12/09/2026",
+    "stake": "150,00",
+    "odd": "2,75",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": [
+    "aposta"
+   ]
+  },
+  {
+   "tipo": "antes: sem data",
+   "codigo": "AA6197972391I",
+   "bruto": "\r\nStake: 15,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 276\r\nEsporte (casa): CL=12\r\nSeleções:\r\n  • NE Patriots @ SEA Seahawks @ 276 · NFL\r\n      – Marcador de Touchdown - A Qualquer Momento · Eli Raridon - Marcar um Touchdown\r\n      – Marcador de Touchdown - A Qualquer Momento · Kyle Williams - Marcar um Touchdown",
+   "ia": {
+    "esporte": "Futebol Americano",
+    "aposta": "Múltipla",
+    "descricao": "Eli Raridon - Anytime Touchdown [NE Patriots v SEA Seahawks] // Kyle Williams - Anytime Touchdown [NE Patriots v SEA Seahawks]"
+   },
+   "banco": {},
+   "banco_tem_correcao": [
+    "aposta",
+    "resultado"
+   ]
+  },
+  {
+   "tipo": "simples W",
+   "codigo": "AA8071670921I",
+   "bruto": "\r\nData (evento): 14/09/2026\r\nStake: 125,00\r\nStatus: Ganho → W (retorno R$ 262,50)\r\nOdd: 2,1\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Avaí x Vila Nova · Jogador - Chutes ao Gol · Andre Luis - Mais de 0.5 @ 2,1 · Camp Brasil B",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Chutes no Gol",
+    "descricao": "Andre Luis - Over 0.5 Chutes no Gol [Avaí v Vila Nova]"
+   },
+   "banco": {
+    "data": "14/09/2026",
+    "stake": "125,00",
+    "odd": "2,10",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples W",
+   "codigo": "AA8071670922I",
+   "bruto": "\r\nData (evento): 14/09/2026\r\nStake: 50,00\r\nStatus: Ganho → W (retorno R$ 350,00)\r\nOdd: 7\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Avaí x Vila Nova · Jogador - Chutes ao Gol · Andre Luis - Mais de 1.5 @ 7 · Camp Brasil B",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Chutes no Gol",
+    "descricao": "Andre Luis - Over 1.5 Chutes no Gol [Avaí v Vila Nova]"
+   },
+   "banco": {
+    "data": "14/09/2026",
+    "stake": "50,00",
+    "odd": "7,00",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "multipla L",
+   "codigo": "AA8674581941I",
+   "bruto": "\r\nData (evento): 20/09/2026\r\nStake: 50,00\r\nStatus: Perdeu → L\r\nTipo: Múltipla (5 seleções)\r\nSeleções:\r\n  • Arman Tsarukyan x Mauricio Ruffy · Para Ganhar a Luta · Mauricio Ruffy @ 3,55 · MMA-UFC\r\n  • Ryan Gandra x Ozzy Diaz · Para Ganhar a Luta · Ryan Gandra @ 1,1904761904761905 · MMA-UFC\r\n  • Alonzo Menifield x Iwo Baraniewski · Para Ganhar a Luta · Iwo Baraniewski @ 1,4081632653061225 · MMA-UFC\r\n  • Patricio Freire x Doo Ho Choi · Para Ganhar a Luta · Doo Ho Choi @ 1,3703703703703702 · MMA-UFC\r\n  • Joshua Van x Alexandre Pantoja · Para Ganhar a Luta · Alexandre Pantoja @ 2,15 · MMA-UFC",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Mauricio Ruffy [Arman Tsarukyan v Mauricio Ruffy] // Ryan Gandra [Ryan Gandra v Ozzy Diaz] // Iwo Baraniewski [Alonzo Menifield v Iwo Baraniewski] // Doo Ho Choi [Patricio Freire v Doo Ho Choi] // Alexandre Pantoja [Joshua Van v Alexandre Pantoja]"
+   },
+   "banco": {
+    "data": "20/09/2026",
+    "stake": "50,00",
+    "odd": "17,5338988770111",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": [
+    "esporte"
+   ],
+   "banco_odd_errada": "14,10312749732143"
+  },
+  {
+   "tipo": "simples W",
+   "codigo": "AA9695093821W",
+   "bruto": "\r\nData (evento): 21/09/2026\r\nStake: 76,00\r\nStatus: Ganho → W (retorno R$ 142,09)\r\nOdd: 1,8695652173913042\r\nEsporte (casa): CL=12\r\nSeleções:\r\n  • NY Giants @ LA Rams · Jardas de Recepção · Davante Adams: 60+ Jardas de Recepção @ 1,8695652173913042 · NFL",
+   "ia": {
+    "esporte": "Futebol Americano",
+    "aposta": "Jardas",
+    "descricao": "Davante Adams - 60+ Jardas de Recepção [NY Giants v LA Rams]"
+   },
+   "banco": {
+    "data": "21/09/2026",
+    "stake": "76,00",
+    "odd": "1,8695652173913042",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples W",
+   "codigo": "AB1209504161W",
+   "bruto": "\r\nData (evento): 09/09/2026\r\nStake: 200,87\r\nStatus: Ganho → W (retorno R$ 368,27)\r\nOdd: 1,8333333333333335\r\nEsporte (casa): CL=18 (Basquete)\r\nSeleções:\r\n  • CLE Cavaliers (SKIPPER) @ MIL Bucks (ZION) · Total - 2 Opções · Mais de 93.5 @ 1,8333333333333335 · B-EBASKBLITZ4X5",
+   "ia": {
+    "esporte": "eBasket",
+    "aposta": "Pontos",
+    "descricao": "Over 93.5 Pontos [CLE Cavaliers (SKIPPER) v MIL Bucks (ZION)]"
+   },
+   "banco": {
+    "data": "09/09/2026",
+    "stake": "200,87",
+    "odd": "1,8333333333333335",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "depois: descricao reprovada",
+   "codigo": "AB7445277651W",
+   "bruto": "\r\nData (evento): 12/09/2026\r\nStake: 50,00\r\nStatus: Perdeu → L\r\nTipo: Múltipla (7 seleções)\r\nSeleções:\r\n  • FC Dallas x Portland Timbers · Ambos Marcam · Sim @ 1,4444444444444444 · MLS\r\n  • Kansas City x LAFC · Ambos Marcam · Sim @ 1,5333333333333332 · MLS\r\n  • St. Louis City SC x Minnesota Utd · Ambos Marcam · Sim @ 1,5 · MLS\r\n  • Colorado Rapids x CF Montreal · Ambos Marcam · Sim @ 1,6666666666666665 · MLS\r\n  • Real Salt Lake x New York City · Ambos Marcam · Sim @ 1,5714285714285714 · MLS\r\n  • LA Galaxy x Seattle Sounders · Ambos Marcam · Sim @ 1,4444444444444444 · MLS\r\n  • San Jose x Houston Dynamo · Ambos Marcam · Sim @ 1,5714285714285714 · MLS",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Ambas Marcam - Sim [FC Dallas v Portland Timbers] // Ambas Marcam - Sim [Kansas City v LAFC] // Ambas Marcam - Sim [St. Louis City SC v Minnesota Utd] // Ambas Marcam - Sim [Colorado Rapids v CF Montreal] // Ambas Marcam - Sim [Real Salt Lake v New York City] // Ambas Marcam - Sim [LA Galaxy v Seattle Sounders] // Ambas Marcam - Sim [San Jose v Houston Dynamo]"
+   },
+   "banco": {
+    "data": "12/09/2026",
+    "stake": "50,00",
+    "odd": "14,97979797979798",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "multipla L",
+   "codigo": "AP1427378303I",
+   "bruto": "\r\nData (evento): 16/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260914194627\r\nStake: 30,36\r\nStatus: Perdeu → L\r\nTipo: Múltipla (3 seleções)\r\nSeleções:\r\n  • FC Ingolstadt x TSG Hoffenheim II · Escanteios - 2 Opções · Mais de 9.5 @ 1,8 · GER3-LIGA\r\n  • Lokomotiv Tashkent x Bunyodkor Tashkent · Gols + - · Mais de 2.0,2.5 @ 1,825 · Uzbek Cup\r\n  • Wurzburger Kickers x Alemannia Aachen · Escanteios - 2 Opções · Mais de 8.5 @ 1,7272727272727273 · GER3-LIGA",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Over 9.5 Escanteios [FC Ingolstadt v TSG Hoffenheim II] // Over 2.25 Gols [Lokomotiv Tashkent v Bunyodkor Tashkent] // Over 8.5 Escanteios [Wurzburger Kickers v Alemannia Aachen]"
+   },
+   "banco": {
+    "data": "16/09/2026",
+    "stake": "30,36",
+    "odd": "5,674090909090",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "multipla L",
+   "codigo": "AP9573984501I",
+   "bruto": "\r\nData (evento): 12/09/2026\r\nStake: 375,35\r\nStatus: Perdeu → L\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=18 (Basquete)\r\nSeleções:\r\n  • Qatar x Jordânia · Para Ganhar · Jordânia @ 1,2777777777777777 · ASIAN-GAMES\r\n  • Taipé da China x Irã · Para Ganhar · Taipé da China @ 1,3333333333333333 · ASIAN-GAMES",
+   "ia": {
+    "esporte": "Basquete",
+    "aposta": "Múltipla",
+    "descricao": "Jordânia [Qatar v Jordânia] // Taipé da China [Taipé da China v Irã]"
+   },
+   "banco": {
+    "data": "12/09/2026",
+    "stake": "375,35",
+    "odd": "1,7037037037037037",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "sistema W",
+   "codigo": "AQ7453671662I",
+   "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 600,00\r\nStatus: Ganho → W (retorno R$ 1352,00)\r\nTipo: SISTEMA Duplas — 3 apostas de 2 seleção(ões), sobre 3 seleções · aposta unitária R$ 200,00 · total R$ 600,00 (a Stake acima é o TOTAL — é ela que vale)\r\nOdd (estrutural do sistema): 5,893333333333334  ← JÁ CALCULADA (média das 3 linhas). Use esta odd; NÃO multiplique as odds das seleções — o produto é a odd da múltipla cheia, que este bilhete NÃO é. Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nSeleções:\r\n  • VfB Stuttgart x Borussia Dortmund · Para Marcar a Qualquer Momento · Serhou Guirassy @ 2,1 · GERM-BL-I\r\n  • Eintracht Frankfurt x SC Freiburg · Para Marcar a Qualquer Momento · Jonathan Burkardt @ 2,6 · GERM-BL-I\r\n  • Werder Bremen x Augsburg · Para Marcar a Qualquer Momento · Niclas Fullkrug @ 2,6 · GERM-BL-I",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Serhou Guirassy [VfB Stuttgart v Borussia Dortmund] // Jonathan Burkardt [Eintracht Frankfurt v SC Freiburg] // Niclas Fullkrug [Werder Bremen v Augsburg]"
+   },
+   "banco": {
+    "data": "19/09/2026",
+    "stake": "600,00",
+    "odd": "2,253333333333",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples V",
+   "codigo": "AR2635242031I",
+   "bruto": "\r\nData (evento): 16/09/2026\r\nStake: 99,00\r\nStatus: Devolvida/void (retorno = stake) → V\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Once Caldas x Deportes Tolima · Total de Escanteios Asiáticos · Menos de 9.0 @ 1,8 · COLOMBIA-PRIM-A",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Escanteios",
+    "descricao": "Under 9.0 Escanteios [Once Caldas v Deportes Tolima]"
+   },
+   "banco": {
+    "data": "16/09/2026",
+    "stake": "99,00",
+    "odd": "1,8",
+    "resultado": "V"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "depois: descricao reprovada",
+   "codigo": "AR2676960981I",
+   "bruto": "\r\nData (evento): 18/09/2026\r\nStake: 57,00\r\nStatus: Perdeu → L\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Real Sociedad x Bournemouth · Time da Casa - Total de Cartões - 3 Opções · Menos de 2.0 @ 3 · UEFA Europa\r\n  • Grenoble x Clermont Foot · Time Visitante - Total de Escanteios - 3 Opções · Mais de 4.0 @ 2,1 · France Ligue 2",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Múltipla",
+    "descricao": "Menos de 2.0 Cartões [Real Sociedad v Bournemouth] // Over 4.0 Escanteios [Grenoble v Clermont Foot]"
+   },
+   "banco": {
+    "data": "18/09/2026",
+    "stake": "57,00",
+    "odd": "6,3",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples aberta",
+   "codigo": "AR2911660841I",
+   "bruto": "\r\nData (evento): 23/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260922164630\r\nStake: 160,36\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,95\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Santa Cruz x APAFUT · Total de Escanteios Asiáticos · Menos de 9.0 @ 1,95 · Camp-Gauc-2",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Escanteios",
+    "descricao": "Under 9.0 Escanteios [Santa Cruz v APAFUT]"
+   },
+   "banco": {
+    "data": "23/09/2026",
+    "stake": "160,36",
+    "odd": "1,95",
+    "resultado": ""
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples V",
+   "codigo": "AR3087433951I",
+   "bruto": "\r\nData (evento): 12/09/2026\r\nStake: 120,87\r\nStatus: Devolvida/void (retorno = stake) → V\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Thap Luang United x Samut Songkhram City · Total de Escanteios Asiáticos · Mais de 8.0 @ 1,8 · THAI-LEAGUE-CUP",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Escanteios",
+    "descricao": "Over 8.0 Escanteios [Thap Luang United v Samut Songkhram City]"
+   },
+   "banco": {
+    "data": "12/09/2026",
+    "stake": "120,87",
+    "odd": "1,8",
+    "resultado": "V"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples HL",
+   "codigo": "AR3373155561I",
+   "bruto": "\r\nData (evento): 17/09/2026\r\nStake: 99,00\r\nStatus: Ganho/perda parcial (retorno R$ 49,50 · a conferir HW/HL)\r\nOdd: 2,025\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • SC Bastia x Cannes · Gols + - · Mais de 2.0,2.5 @ 2,025 · France Ligue3",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Gols",
+    "descricao": "Over 2.25 Gols [SC Bastia v Cannes]"
+   },
+   "banco": {
+    "data": "17/09/2026",
+    "stake": "99,00",
+    "odd": "2,025",
+    "resultado": "HL"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples HL",
+   "codigo": "AR3977917951I",
+   "bruto": "\r\nData (evento): 09/09/2026\r\nStake: 120,36\r\nStatus: Ganho/perda parcial (retorno R$ 60,18 · a conferir HW/HL)\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Victoria 1918 Jaworzno x Watra Bialka Tatrzanska · Gols + - · Mais de 3.0,3.5 @ 1,8 · POLAND-IV-LIGA",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Gols",
+    "descricao": "Over 3.25 Gols [Victoria 1918 Jaworzno v Watra Bialka Tatrzanska]"
+   },
+   "banco": {
+    "data": "09/09/2026",
+    "stake": "120,36",
+    "odd": "1,8",
+    "resultado": "HL"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "multipla W",
+   "codigo": "AR4324436381I",
+   "bruto": "\r\nData (evento): 13/09/2026\r\nStake: 57,00\r\nStatus: Ganho → W (retorno R$ 374,07)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • New York Red Bulls II x FC Cincinnati II · Total de Gols - 3 Opções · Menos de 4.0 @ 2,625 · USA-MLS-NPL\r\n  • Elfsborg x Kalmar FF · Time Visitante - Total de Escanteios - 3 Opções · Mais de 4.0 @ 2,5 · Swedish Allsven",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Under 4.0 Gols [New York Red Bulls II v FC Cincinnati II] // Over 4.0 Escanteios - Kalmar FF [Elfsborg v Kalmar FF]"
+   },
+   "banco": {
+    "data": "13/09/2026",
+    "stake": "57,00",
+    "odd": "6,5626315789473684",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "depois: descricao reprovada",
+   "codigo": "AR5020405101I",
+   "bruto": "\r\nData (evento): 13/09/2026\r\nStake: 99,00\r\nStatus: Perdeu → L\r\nOdd: 1,825\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Molde FK (F) x Honefoss (F) · Total de Escanteios Asiáticos · Mais de 9.0 @ 1,825 · SOC-NOR-TOPPW",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Escanteios",
+    "descricao": "Over 9,0 Escanteios [Molde FK (F) v Honefoss (F)]"
+   },
+   "banco": {
+    "data": "13/09/2026",
+    "stake": "99,00",
+    "odd": "1,825",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "multipla W",
+   "codigo": "AR6182647761I",
+   "bruto": "\r\nData (evento): 12/09/2026\r\nStake: 57,00\r\nStatus: Ganho → W (retorno R$ 532,95)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • FC Thun x Grasshoppers · Escanteios · Mais de 11.0 @ 3,4 · Switzerland Sup\r\n  • Al Khaleej Saihat x Al-Nassr Riyadh · Time da Casa - Total de Escanteios - 3 Opções · Mais de 3.0 @ 2,75 · SAUDI-PREM",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Múltipla",
+    "descricao": "Over 11.0 Escanteios [FC Thun v Grasshoppers] // Al Khaleej Saihat - Over 3.0 Escanteios [Al Khaleej Saihat v Al-Nassr Riyadh]"
+   },
+   "banco": {
+    "data": "12/09/2026",
+    "stake": "57,00",
+    "odd": "9,35",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples aberta",
+   "codigo": "AR6263391671I",
+   "bruto": "\r\nData (evento): 23/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260923015350\r\nStake: 160,36\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • IJsselmeervogels x VV Gemert · Total de Escanteios Asiáticos · Menos de 10.5 @ 1,975 · Dutch Cup",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Escanteios",
+    "descricao": "Under 10.5 Escanteios [IJsselmeervogels v VV Gemert]"
+   },
+   "banco": {
+    "data": "23/09/2026",
+    "stake": "160,36",
+    "odd": "1,975",
+    "resultado": ""
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "bet builder W",
+   "codigo": "AY9290616371W",
+   "bruto": "\r\nData (colocação): 19/09/2026\r\nStake: 300,00\r\nStatus: Ganho → W (retorno R$ 572,73)\r\nOdd: 1,9090909090909092\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Vasco da Gama x Coritiba @ 1,9090909090909092 · Campeonato Bras\r\n      – Time da Casa - Chutes · Vasco da Gama - Mais de 17.5 Chutes\r\n      – Time Visitante - Chutes · Coritiba - Menos de 13.5 Chutes",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Múltipla",
+    "descricao": "Vasco da Gama - Over 17.5 Chutes [Vasco da Gama v Coritiba] // Coritiba - Under 13.5 Chutes [Vasco da Gama v Coritiba]"
+   },
+   "banco": {
+    "data": "19/09/2026",
+    "stake": "300,00",
+    "odd": "1,9091",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "depois: descricao reprovada",
+   "codigo": "BA4334896252W",
+   "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 50,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 5\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Celta de Vigo x Racing Santander · Para Sofrer Falta · Sergio Canales - Mais de 2.5 @ 5 · Spanish Primera",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Faltas",
+    "descricao": "Sergio Canales - Mais de 2.5 Faltas [Celta de Vigo v Racing Santander]"
+   },
+   "banco": {},
+   "banco_tem_correcao": [
+    "resultado"
+   ]
+  },
+  {
+   "tipo": "multipla aberta",
+   "codigo": "BB1056729081I",
+   "bruto": "\r\nData (evento): 23/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260923144852\r\nStake: 201,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: Múltipla (2 seleções)\r\nSeleções:\r\n  • Dali Blanch x Matthew William Donald · 1º Set - Total de Games · Menos de 8.5 @ 3,75 · CH75-R2\r\n  • LA Angels @ Athletics · Total de Bases · Jose Siri: 2+ Total de Bases @ 2,55 · MLB",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Under 8.5 Games 1º Set [Dali Blanch v Matthew William Donald] // Jose Siri - 2+ Total de Bases [LA Angels v Athletics]"
+   },
+   "banco": {
+    "data": "23/09/2026",
+    "stake": "201,00",
+    "odd": "9,5625",
+    "resultado": ""
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "multipla aberta",
+   "codigo": "BB1311312031I",
+   "bruto": "\r\nData (evento): 24/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260923133213\r\nStake: 182,29\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=18 (Basquete)\r\nSeleções:\r\n  • Rytas x Shanghai Sharks · 1º Tempo - Total - Alternativas 6 · Mais de 94.5 @ 2,2 · B-FIBAINTCCM\r\n  • Slavia Praha ERA Nbk x BK Opava · Jogo - Total - Alternativas · Mais de 178.5 @ 2,2 · Czech NBL",
+   "ia": {
+    "esporte": "Basquete",
+    "aposta": "Múltipla",
+    "descricao": "Over 94.5 Pontos 1ª Metade [Rytas v Shanghai Sharks] // Over 178.5 Pontos [Slavia Praha ERA Nbk v BK Opava]"
+   },
+   "banco": {
+    "data": "24/09/2026",
+    "stake": "182,29",
+    "odd": "4,84",
+    "resultado": ""
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "sistema W",
+   "codigo": "BB3300516461F",
+   "bruto": "\r\nData (evento): 06/09/2026\r\nStake: 105,36\r\nStatus: Ganho/perda parcial (retorno R$ 103,96 · a conferir HW/HL)\r\nTipo: SISTEMA Duplas — 3 apostas de 2 seleção(ões), sobre 3 seleções · aposta unitária R$ 35,12 · total R$ 105,36 (a Stake acima é o TOTAL — é ela que vale)\r\nOdd (estrutural do sistema): 3,142916666666667  ← JÁ CALCULADA (média das 3 linhas). Use esta odd; NÃO multiplique as odds das seleções — o produto é a odd da múltipla cheia, que este bilhete NÃO é. Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nSeleções:\r\n  • Derry City x Dundalk · Gols + - · Mais de 2.5 @ 1,85 · FAI Cup\r\n  • Sevilha (F) x Barcelona (F) · Ao-Vivo - Gols +/- · (0-2) - Menos de 4.5,5.0 @ 1,6 · Spain W-Prime\r\n  • Orlando Pride (F) x Houston Dash (F) · Gols + - · Menos de 2.5,3.0 @ 1,875 · USA-NWSL-WOMEN",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Over 2.5 Gols [Derry City v Dundalk] // Under 4.75 Gols [Sevilha (F) v Barcelona (F)] // Under 2.75 Gols [Orlando Pride (F) v Houston Dash (F)]"
+   },
+   "banco": {
+    "data": "06/09/2026",
+    "stake": "105,36",
+    "odd": "0,9867122248",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "bet builder L",
+   "codigo": "BJ5970711921W",
+   "bruto": "\r\nData (colocação): 18/09/2026\r\nStake: 51,00\r\nStatus: Perdeu → L\r\nOdd: 1,8333333333333335\r\nEsporte (casa): CL=162 (MMA)\r\nSeleções:\r\n  • Michael Aswell x Joo Sang Yoo @ 1,8333333333333335 · MMA-UFC\r\n      – Rodadas - Total · Mais de 1.5 Assaltos\r\n      – Para Ganhar a Luta · Joo Sang Yoo - Para Ganhar a Luta",
+   "ia": {
+    "esporte": "MMA",
+    "aposta": "Múltipla",
+    "descricao": "Over 1.5 Rounds [Michael Aswell v Joo Sang Yoo] // Joo Sang Yoo [Michael Aswell v Joo Sang Yoo]"
+   },
+   "banco": {
+    "data": "18/09/2026",
+    "stake": "51,00",
+    "odd": "1,8333333333333335",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples HW",
+   "codigo": "BP9253211022I",
+   "bruto": "\r\nData (evento): 16/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260915145652\r\nStake: 120,36\r\nStatus: Ganho → W (retorno R$ 176,03)\r\nOdd: 1,925\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • FK Karvan x Zaqatala · Gols + - · Mais de 2.5,3.0 @ 1,925 · AZERB-DIV-1",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Gols",
+    "descricao": "Over 2.75 Gols [FK Karvan v Zaqatala]"
+   },
+   "banco": {
+    "data": "16/09/2026",
+    "stake": "120,36",
+    "odd": "1,925",
+    "resultado": "HW"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "simples HW",
+   "codigo": "BR6867045761I",
+   "bruto": "\r\nData (evento): 20/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260919151627\r\nStake: 160,36\r\nStatus: Ganho → W (retorno R$ 224,51)\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Stallion Laguna FC x Manila Digger FC · Gols + - · Menos de 3.0,3.5 @ 1,8 · PHIL-UFL",
+   "ia": {
+    "esporte": "Futebol",
+    "aposta": "Gols",
+    "descricao": "Under 3.25 Gols [Stallion Laguna FC v Manila Digger FC]"
+   },
+   "banco": {
+    "data": "20/09/2026",
+    "stake": "160,36",
+    "odd": "1,8",
+    "resultado": "HW"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "bet builder W",
+   "codigo": "CP5276937911I",
+   "bruto": "\r\nData (colocação): 17/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260917222555\r\nStake: 90,91\r\nStatus: Ganho → W (retorno R$ 221,60)\r\nOdd: 2,15\r\nEsporte (casa): CL=12\r\nSeleções:\r\n  • DET Lions @ BUF Bills @ 2,15 · NFL\r\n      – Para Ganhar · Partida - Resultado - BUF Bills\r\n      – Marcador de Touchdown - A Qualquer Momento · Jahmyr Gibbs - Marcar um Touchdown\r\n      – 1º Tempo - Total - 2 Opções · 1º Tempo - Mais de 9.5 Pontos",
+   "ia": {
+    "esporte": "Futebol Americano",
+    "aposta": "Múltipla",
+    "descricao": "BUF Bills [DET Lions v BUF Bills] // Jahmyr Gibbs [DET Lions v BUF Bills] // Over 9.5 Pontos 1º Tempo [DET Lions v BUF Bills]"
+   },
+   "banco": {
+    "data": "17/09/2026",
+    "stake": "90,91",
+    "odd": "2,437575624243",
+    "resultado": "W"
+   },
+   "banco_tem_correcao": []
+  },
+  {
+   "tipo": "multipla L",
+   "codigo": "CT4128372451I",
+   "bruto": "\r\nData (evento): 13/09/2026\r\nStake: 37,50\r\nStatus: Perdeu → L\r\nTipo: Múltipla (3 seleções)\r\nSeleções:\r\n  • Lille x Troyes · Para Marcar a Qualquer Momento · Ayase Ueda @ 2,1 · France Le Champ\r\n  • Neom SC x Al Fateh SC · Para Marcar a Qualquer Momento · Alexandre Lacazette @ 1,9523809523809523 · SAUDI-PREM\r\n  • FC Famalicão x Sporting · Para Marcar a Qualquer Momento · Luis Suarez @ 2,2 · PORT-PRIM-LIGA",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Ayase Ueda [Lille v Troyes] // Alexandre Lacazette [Neom SC v Al Fateh SC] // Luis Suarez [FC Famalicão v Sporting]"
+   },
+   "banco": {
+    "data": "13/09/2026",
+    "stake": "37,50",
+    "odd": "9,02",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": [],
+   "banco_odd_errada": "8,690476190476188"
+  },
+  {
+   "tipo": "sistema L",
+   "codigo": "DP6819915534I",
+   "bruto": "\r\nData (evento): 19/09/2026\r\nCarimbo (colocação · uso interno — NÃO usar como data): 20260917141347\r\nStake: 63,12\r\nStatus: Perdeu → L\r\nTipo: SISTEMA Duplas — 3 apostas de 2 seleção(ões), sobre 3 seleções · aposta unitária R$ 21,04 · total R$ 63,12 (a Stake acima é o TOTAL — é ela que vale)\r\nOdd (estrutural do sistema): 3,2914583333333334  ← JÁ CALCULADA (média das 3 linhas). Use esta odd; NÃO multiplique as odds das seleções — o produto é a odd da múltipla cheia, que este bilhete NÃO é. Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nSeleções:\r\n  • Avance x Subiza · Total de Gols · Mais de  2.5 @ 1,65 · Spain Ter G15\r\n  • IK Uppsala (F) x Brommapojkarna (F) · Gols + - · Mais de 3.5 @ 1,975 · Swedish Damall\r\n  • Alavés (F) x Barcelona (F) · Gols + - · Menos de 4.0,4.5 @ 1,825 · Spain W-Prime",
+   "ia": {
+    "esporte": "Múltiplos",
+    "aposta": "Múltipla",
+    "descricao": "Over 2.5 Gols [Avance v Subiza] // Over 3.5 Gols [IK Uppsala (F) v Brommapojkarna (F)] // Under 4.25 Gols [Alavés (F) v Barcelona (F)]"
+   },
+   "banco": {
+    "data": "19/09/2026",
+    "stake": "63,12",
+    "odd": "3,2914583333333334",
+    "resultado": "L"
+   },
+   "banco_tem_correcao": []
+  }
+ ],
+ "lotes4": [
+  {
+   "blocos": [
+    {
+     "codigo": "AR5842283611I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Ballyclare Comrades x Ballymacash Rangers · Gols + - · Mais de 3.5 @ 1,975 · NI-CONF-PREMIER"
+    },
+    {
+     "codigo": "CR5528051721I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • SalPa x Tampere Utd · Gols + - · Menos de 3.0,3.5 @ 2 · Finnish Ykk"
+    },
+    {
+     "codigo": "GR5911020201I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,825\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Ikorodu City FC x Barau FC · Gols + - · Mais de 1.5,2.0 @ 1,825 · NIGER-PREM-LEAG"
+    },
+    {
+     "codigo": "SR2108068901I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,925\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Nacka FC x Ragsveds IF · Gols + - · Menos de 3.0,3.5 @ 1,925 · SWE-2DIV-SS"
+    },
+    {
+     "codigo": "QR9548229671I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Redcar Athletic x Macclesfield FC · Gols + - · Menos de 3.0 @ 1,9 · SOC-FACUP-QUAL"
+    },
+    {
+     "codigo": "FR8458670081I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,85\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Saikhamakawn FC x Kanan FC · Total de Escanteios Asiáticos · Menos de 11.0 @ 1,85 · IND-MIZ-PREM-LG"
+    }
+   ],
+   "resposta": "```tsv\nAR5842283611I\tFutebol\tGols\tOver 3.5 Gols [Ballyclare Comrades v Ballymacash Rangers]\nCR5528051721I\tFutebol\tGols\tUnder 3.25 Gols [SalPa v Tampere Utd]\nGR5911020201I\tFutebol\tGols\tOver 1.75 Gols [Ikorodu City FC v Barau FC]\nSR2108068901I\tFutebol\tGols\tUnder 3.25 Gols [Nacka FC v Ragsveds IF]\nQR9548229671I\tFutebol\tGols\tUnder 3.0 Gols [Redcar Athletic v Macclesfield FC]\nFR8458670081I\tFutebol\tEscanteios\tUnder 11.0 Escanteios [Saikhamakawn FC v Kanan FC]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "LR3751605151I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 57,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Birmingham x Middlesbrough · Time Visitante - Total de Escanteios - 3 Opções · Mais de 5.0 @ 2,4 · NPower Champs\r\n  • Anderlecht x Zulte-Waregem · Escanteios · Mais de 11.0 @ 3,4 · Belgium Eerste"
+    },
+    {
+     "codigo": "PR1487796631I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • CD Getxo x JD Somorrostro · Gols + - · Mais de 2.5 @ 2 · SPAIN-REGION-LG"
+    },
+    {
+     "codigo": "ER1973486981I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • South Shields x Witton Albion · Gols + - · Menos de 3.5,4.0 @ 1,9 · SOC-FACUP-QUAL"
+    },
+    {
+     "codigo": "HR9658805611I",
+     "bruto": "\r\nData (evento): 18/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Western Springs AFC x Christchurch United · Gols + - · Menos de 3.5 @ 1,8 · NZ Champs"
+    },
+    {
+     "codigo": "ER9248707101I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Teteks Tetovo x Osogovo Kocani · Gols + - · Mais de 2.5 @ 1,975 · Mace 2nd league"
+    },
+    {
+     "codigo": "RR5521358991I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,95\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Walton & Hersham x Horsham · Gols + - · Menos de 3.0,3.5 @ 1,95 · SOC-FACUP-QUAL"
+    }
+   ],
+   "resposta": "```tsv\nLR3751605151I\tMúltiplos\tMúltipla\tMiddlesbrough - Over 5.0 Escanteios [Birmingham v Middlesbrough] // Over 11.0 Escanteios [Anderlecht v Zulte-Waregem]\nPR1487796631I\tFutebol\tGols\tOver 2.5 Gols [CD Getxo v JD Somorrostro]\nER1973486981I\tFutebol\tGols\tUnder 3.75 Gols [South Shields v Witton Albion]\nHR9658805611I\tFutebol\tGols\tUnder 3.5 Gols [Western Springs AFC v Christchurch United]\nER9248707101I\tFutebol\tGols\tOver 2.5 Gols [Teteks Tetovo v Osogovo Kocani]\nRR5521358991I\tFutebol\tGols\tUnder 3.25 Gols [Walton & Hersham v Horsham]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "KR4440711681I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Melita FC Saint Julian x Mgarr United · Gols + - · Menos de 3.0 @ 1,975 · MALTCL"
+    },
+    {
+     "codigo": "JR7482273111I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Azul Claro Numazu x Criacao Shinjuku · Total de Escanteios Asiáticos · Menos de 10.0 @ 2 · JAPAN-FL"
+    },
+    {
+     "codigo": "QR2240582421I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • FA Siauliai (F) x FK Zalgiris Vilnius (F) · Gols + - · Menos de 3.0 @ 1,9 · LITHU-ALYGA-WOM"
+    },
+    {
+     "codigo": "BR5426009571I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,825\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Juventus (F) x Roma (F) · Gols + - · Menos de 2.5,3.0 @ 1,825 · ITA-WOM-SERIE-A"
+    },
+    {
+     "codigo": "CR7058018691I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • DFK Dainava II x Nevezis · Gols + - · Mais de 3.5 @ 2 · LITHU-2-LIGA"
+    },
+    {
+     "codigo": "AR4432684791I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Kansas City x Philadelphia · Time da Casa - Total de Escanteios - 3 Opções · Mais de 4.0 @ 2,5 · MLS\r\n  • Roma x Inter de Milão · Time da Casa - Total de Cartões - 3 Opções · Menos de 2.0 @ 2,625 · Italy Serie A"
+    }
+   ],
+   "resposta": "```tsv\nKR4440711681I\tFutebol\tGols\tUnder 3.0 Gols [Melita FC Saint Julian v Mgarr United]\nJR7482273111I\tFutebol\tEscanteios\tUnder 10.0 Escanteios [Azul Claro Numazu v Criacao Shinjuku]\nQR2240582421I\tFutebol\tGols\tUnder 3.0 Gols [FA Siauliai (F) v FK Zalgiris Vilnius (F)]\nBR5426009571I\tFutebol\tGols\tUnder 2.75 Gols [Juventus (F) v Roma (F)]\nCR7058018691I\tFutebol\tGols\tOver 3.5 Gols [DFK Dainava II v Nevezis]\nAR4432684791I\tFutebol\tMúltipla\tOver 4.0 Escanteios [Kansas City v Philadelphia] // Under 2.0 Cartões [Roma v Inter de Milão]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "JR2425416031I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,85\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Hinna x Åkra · Gols + - · Mais de 3.5 @ 1,85 · SOC-NOR-D3G4"
+    },
+    {
+     "codigo": "SR9422447631I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,95\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Bedworth Utd x Boston Town · Gols + - · Menos de 2.5,3.0 @ 1,95 · Northern_Div1"
+    },
+    {
+     "codigo": "PR4547199881I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,95\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Puntarenas x Escorpiones de Belén FC · Total de Escanteios Asiáticos · Mais de 9.0 @ 1,95 · COSTARICA-PRI"
+    },
+    {
+     "codigo": "TR6689560811I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2,025\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • AFC Fylde x Altrincham · Total de Escanteios Asiáticos · Menos de 9.5 @ 2,025 · ENGLAND-NAT-LEA"
+    },
+    {
+     "codigo": "AR5530062251I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • New England x Orlando City · Time Visitante - Total de Escanteios - 3 Opções · Mais de 4.0 @ 2,375 · MLS\r\n  • Toulouse x Le Havre · Time da Casa - 1º Tempo - Cartões - 3 Opções · Mais de 0.0 @ 2,05 · France Le Champ"
+    },
+    {
+     "codigo": "TR1264010521I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,8333333333333335\r\nEsporte (casa): CL=18 (Basquete)\r\nSeleções:\r\n  • EN Paralimni x Apollon Limassol · Totais do Jogo · Mais de 150.5 @ 1,8333333333333335 · B-CLUBF"
+    }
+   ],
+   "resposta": "```tsv\nJR2425416031I\tFutebol\tGols\tOver 3.5 Gols [Hinna v Åkra]\nSR9422447631I\tFutebol\tGols\tUnder 2.75 Gols [Bedworth Utd v Boston Town]\nPR4547199881I\tFutebol\tEscanteios\tOver 9.0 Escanteios [Puntarenas v Escorpiones de Belén FC]\nTR6689560811I\tFutebol\tEscanteios\tUnder 9.5 Escanteios [AFC Fylde v Altrincham]\nAR5530062251I\tFutebol\tMúltipla\tOver 4.0 Escanteios [New England v Orlando City] // Over 0.0 Cartões 1º Tempo [Toulouse v Le Havre]\nTR1264010521I\tBasquete\tPontos\tOver 150.5 Pontos [EN Paralimni v Apollon Limassol]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "BR1518882311I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,775\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Dunav Ruse x Botev Vratsa · Total de Escanteios Asiáticos · Mais de 8.5 @ 1,775 · BUL A PFG"
+    },
+    {
+     "codigo": "QR7183070081I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,825\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • AD Castro Daire x Portimonense · Total de Escanteios Asiáticos · Menos de 10.0 @ 1,825 · Portuguese Cup"
+    },
+    {
+     "codigo": "SR5138026991I",
+     "bruto": "\r\nData (evento): 18/09/2026\r\nStake: 242,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,62\r\nEsporte (casa): CL=16\r\nSeleções:\r\n  • NY Yankees @ ARI Diamondbacks · Lançador - Strikeouts (Mais de/Menos de) · Eduardo Rodriguez - Menos de 5.5 @ 1,62 · MLB"
+    },
+    {
+     "codigo": "ER5284122581I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,875\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Pogon Grodzisk Mazowiecki x LKS Lodz · Total de Escanteios Asiáticos · Menos de 11.5 @ 1,875 · POL-I-LIGA"
+    },
+    {
+     "codigo": "JR9110206891I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,775\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Rayo Majadahonda x Teruel · Total de Escanteios Asiáticos · Menos de 9.0 @ 1,775 · SOC-SPPDRFEFG2"
+    },
+    {
+     "codigo": "XR5065574181I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,825\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • CD Mafra x FC Tirsense · Total de Escanteios Asiáticos · Menos de 10.0 @ 1,825 · Portuguese Cup"
+    }
+   ],
+   "resposta": "```tsv\nBR1518882311I\tFutebol\tEscanteios\tOver 8.5 Escanteios [Dunav Ruse v Botev Vratsa]\nQR7183070081I\tFutebol\tEscanteios\tUnder 10.0 Escanteios [AD Castro Daire v Portimonense]\nSR5138026991I\tBaseball\tPlayer Props\tEduardo Rodriguez - Under 5.5 Strikeouts [NY Yankees v ARI Diamondbacks]\nER5284122581I\tFutebol\tEscanteios\tUnder 11.5 Escanteios [Pogon Grodzisk Mazowiecki v LKS Lodz]\nJR9110206891I\tFutebol\tEscanteios\tUnder 9.0 Escanteios [Rayo Majadahonda v Teruel]\nXR5065574181I\tFutebol\tEscanteios\tUnder 10.0 Escanteios [CD Mafra v FC Tirsense]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "DR8773102171I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Doxa Katokopias x Anagennisi FC Deryneia · Gols + - · Mais de 2.5 @ 1,8 · CYPRUS-DIV-2"
+    },
+    {
+     "codigo": "TR6800673341I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • B68 Toftir x EB/Streymur · Total de Escanteios Asiáticos · Menos de 11.0 @ 1,8 · FAROE-PREM"
+    },
+    {
+     "codigo": "ER3829700931I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,8\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Defensor Sporting (F) x Canadian SC (F) · Gols + - · Mais de 3.5,4.0 @ 1,8 · URUGUAY-LGE-WOM"
+    },
+    {
+     "codigo": "TR8579699621I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • CPD Bangor 1876 x Mold Alexandra FC · Gols + - · Mais de 3.0 @ 1,9 · Welsh Cup"
+    },
+    {
+     "codigo": "HR2484694941I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,85\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Acassuso x Club Atlético Mitre · Total de Escanteios Asiáticos · Mais de 8.0 @ 1,85 · Arg Nac B"
+    },
+    {
+     "codigo": "JR8499514201I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Atlético Morelia x Universidad Guadalajara · Total de Escanteios Asiáticos · Menos de 10.0 @ 2 · MEXLIGADEEXP"
+    }
+   ],
+   "resposta": "```tsv\nDR8773102171I\tFutebol\tGols\tOver 2.5 Gols [Doxa Katokopias v Anagennisi FC Deryneia]\nTR6800673341I\tFutebol\tEscanteios\tUnder 11.0 Escanteios [B68 Toftir v EB/Streymur]\nER3829700931I\tFutebol\tGols\tOver 3.75 Gols [Defensor Sporting (F) v Canadian SC (F)]\nTR8579699621I\tFutebol\tGols\tOver 3.0 Gols [CPD Bangor 1876 v Mold Alexandra FC]\nHR2484694941I\tFutebol\tEscanteios\tOver 8.0 Escanteios [Acassuso v Club Atlético Mitre]\nJR8499514201I\tFutebol\tEscanteios\tUnder 10.0 Escanteios [Atlético Morelia v Universidad Guadalajara]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "CR7659971491I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Bhayangkara FC x Isenmulang Kalteng FC · Gols + - · Mais de 3.0 @ 2 · IDN-SUP-L"
+    },
+    {
+     "codigo": "JR1705008321I",
+     "bruto": "\r\nData (evento): 20/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,83\r\nEsporte (casa): CL=18 (Basquete)\r\nSeleções:\r\n  • Sydney Kings x Cairns Taipans · Totais do Jogo · Mais de 180.5 @ 1,83 · NBL"
+    },
+    {
+     "codigo": "JR3853504171I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 57,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: Múltipla (2 seleções)\r\nSeleções:\r\n  • Alex Knaff x Zsombor Piros · 1º Set - Total de Games · Mais de 9.5 @ 2,5 · D Cup-WGI\r\n  • Urawa Red Diamonds x Tokyo Verdy · Time da Casa - Total de Escanteios - 3 Opções · Mais de 5.0 @ 2,625 · Japan J-League"
+    },
+    {
+     "codigo": "TR9157888741I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 57,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Fagiano Okayama x Kyoto Sanga FC · Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0 @ 2,5 · Japan J-League\r\n  • Trabzonspor x Galatasaray SK · Time Visitante - Total de Escanteios - 3 Opções · Mais de 4.0 @ 2,3 · Turkey Super Li"
+    },
+    {
+     "codigo": "FR2526140851I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 57,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Osasuna x Rayo Vallecano · Time Visitante - Total de Escanteios - 3 Opções · Mais de 4.0 @ 2,375 · Spanish Primera\r\n  • Fram Reykjavik (F) x Vikingur Reykjavik (F) · Total de Gols - 3 Opções · Mais de 3.0 @ 2 · Iceland Wom Pre"
+    },
+    {
+     "codigo": "CR9794679601I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 57,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • River Plate x Huracán · Time da Casa - Total de Escanteios - 3 Opções · Mais de 5.0 @ 2,25 · ARGENTINA-PRIM\r\n  • Nacional x FC Famalicão · Time da Casa - Total de Escanteios - 3 Opções · Mais de 4.0 @ 2,5 · PORT-PRIM-LIGA"
+    }
+   ],
+   "resposta": "```tsv\nCR7659971491I\tFutebol\tGols\tOver 3.0 Gols [Bhayangkara FC v Isenmulang Kalteng FC]\nJR1705008321I\tBasquete\tPontos\tOver 180.5 Pontos [Sydney Kings v Cairns Taipans]\nJR3853504171I\tMúltiplos\tMúltipla\tOver 9.5 Games 1º Set [Alex Knaff v Zsombor Piros] // Urawa Red Diamonds Over 5.0 Escanteios [Urawa Red Diamonds v Tokyo Verdy]\nTR9157888741I\tFutebol\tMúltipla\tKyoto Sanga FC Over 3.0 Escanteios [Fagiano Okayama v Kyoto Sanga FC] // Galatasaray SK Over 4.0 Escanteios [Trabzonspor v Galatasaray SK]\nFR2526140851I\tFutebol\tMúltipla\tRayo Vallecano Over 4.0 Escanteios [Osasuna v Rayo Vallecano] // Over 3.0 Gols [Fram Reykjavik (F) v Vikingur Reykjavik (F)]\nCR9794679601I\tFutebol\tMúltipla\tRiver Plate Over 5.0 Escanteios [River Plate v Huracán] // Nacional Over 4.0 Escanteios [Nacional v FC Famalicão]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "ER8739986261I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: Múltipla (2 seleções)\r\nSeleções:\r\n  • Catania x Barletta · Ambos Marcam · Sim @ 2,2 · ITA-LEG-PRO-GPC\r\n  • Yu Hsiou Hsu x Olle Wallin · 1º Set - Total de Games · Mais de 10.5 @ 3,4 · D Cup-WGI"
+    },
+    {
+     "codigo": "PR5301560641I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 243,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,825\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Veroskronos Tsuno x KMG Holdings · Handicap Asiático · Veroskronos Tsuno -1.0,-1.5 @ 1,825 · JAP-REGION-LEAG"
+    },
+    {
+     "codigo": "AR9425002501I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Artsul x AA Carapebus · Gols + - · Mais de 2.0,2.5 @ 1,975 · Campe-Carioca-B"
+    },
+    {
+     "codigo": "AR1926868791I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Ørn Horten x Oppsal · Gols + - · Menos de 3.5,4.0 @ 1,9 · SOC-NOR-D3G6"
+    },
+    {
+     "codigo": "AR9524605771I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Osasuna x Rayo Vallecano · Total de Cartões - 3 Opções · Menos de 6 @ 2,25 · Spanish Primera\r\n  • Bristol City x Watford · Time da Casa - Total de Cartões - 3 Opções · Mais de 1.0 @ 2,1 · NPower Champs"
+    },
+    {
+     "codigo": "PR1877603521I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 199,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Imortal DC x CD Tondela · Total de Escanteios Asiáticos · Menos de 9.5 @ 1,975 · Portuguese Cup"
+    }
+   ],
+   "resposta": "```tsv\nER8739986261I\tMúltiplos\tMúltipla\tSim [Catania v Barletta] // Over 10.5 Games 1º Set [Yu Hsiou Hsu v Olle Wallin]\nPR5301560641I\tFutebol\tHandicap\tVeroskronos Tsuno -1.25 [Veroskronos Tsuno v KMG Holdings]\nAR9425002501I\tFutebol\tGols\tOver 2.25 Gols [Artsul v AA Carapebus]\nAR1926868791I\tFutebol\tGols\tUnder 3.75 Gols [Ørn Horten v Oppsal]\nAR9524605771I\tFutebol\tMúltipla\tUnder 6 Cartões [Osasuna v Rayo Vallecano] // Bristol City Over 1.0 Cartões [Bristol City v Watford]\nPR1877603521I\tFutebol\tEscanteios\tUnder 9.5 Escanteios [Imortal DC v CD Tondela]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "AR4310125971I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,825\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • NK Grobnican x NK Koprivnica · Total de Escanteios Asiáticos · Menos de 10.0 @ 1,825 · CROAT-2-HNL"
+    },
+    {
+     "codigo": "ER1834374471I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 52,09\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Salford City x Swindon · Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0 @ 2,5 · NPower 2\r\n  • Cultural de Durango x UD Aretxabaleta · Total de Gols · Menos de  2.5 @ 2,05 · Spain Ter G4"
+    },
+    {
+     "codigo": "BR9213410861I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 12,25\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Salford City x Swindon · Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0 @ 2,5 · NPower 2\r\n  • Cultural de Durango x UD Aretxabaleta · Total de Gols · Menos de  2.5 @ 1,85 · Spain Ter G4"
+    },
+    {
+     "codigo": "BR5447629081I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 12,25\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Salford City x Swindon · Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0 @ 2,5 · NPower 2\r\n  • Cultural de Durango x UD Aretxabaleta · Total de Gols · Menos de  2.5 @ 1,85 · Spain Ter G4"
+    },
+    {
+     "codigo": "RR6655570071I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2,025\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • CA San Telmo x CA Estudiantes Caseros · Total de Escanteios Asiáticos · Mais de 8.5 @ 2,025 · Arg Nac B"
+    },
+    {
+     "codigo": "GR7529190651I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Grimsby x Crawley Town · Escanteios · Menos de 11.0 @ 2,2 · NPower 2\r\n  • Nordstrand x Lokomotiv Oslo · Total de Gols - 3 Opções · Menos de 4.0 @ 2,5 · SOC-NOR-D3G1"
+    }
+   ],
+   "resposta": "```tsv\nAR4310125971I\tFutebol\tEscanteios\tUnder 10.0 Escanteios [NK Grobnican v NK Koprivnica]\nER1834374471I\tFutebol\tMúltipla\tSwindon - Over 3.0 Escanteios [Salford City v Swindon] // Under 2.5 Gols [Cultural de Durango v UD Aretxabaleta]\nBR9213410861I\tFutebol\tMúltipla\tSwindon - Over 3.0 Escanteios [Salford City v Swindon] // Under 2.5 Gols [Cultural de Durango v UD Aretxabaleta]\nBR5447629081I\tFutebol\tMúltipla\tSwindon - Over 3.0 Escanteios [Salford City v Swindon] // Under 2.5 Gols [Cultural de Durango v UD Aretxabaleta]\nRR6655570071I\tFutebol\tEscanteios\tOver 8.5 Escanteios [CA San Telmo v CA Estudiantes Caseros]\nGR7529190651I\tFutebol\tMúltipla\tUnder 11.0 Escanteios [Grimsby v Crawley Town] // Under 4.0 Gols [Nordstrand v Lokomotiv Oslo]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "GR4824317781I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: Múltipla (2 seleções)\r\nSeleções:\r\n  • FC Elva x FC Tallinn · Total de Gols - 3 Opções · Mais de 3.0 @ 2,625 · Estonia-Esil\r\n  • Wakefield Trinity x Leigh Leopards · 1º Tempo - Total de Pontos do Time · Leigh Leopards - Mais de 6.5 @ 2,5 · LSL"
+    },
+    {
+     "codigo": "RR5649603931I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,8333333333333335\r\nEsporte (casa): CL=18 (Basquete)\r\nSeleções:\r\n  • Apoel x Anorthosis Famagusta · Totais do Jogo · Mais de 148.5 @ 1,8333333333333335 · B-CLUBF"
+    },
+    {
+     "codigo": "FR2832839271I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Millwall x West Ham · Total de Cartões - 3 Opções · Menos de 5 @ 3,4 · NPower Champs\r\n  • Elfsborg (F) x Sandvikens IF (F) · Total de Gols - 3 Opções · Menos de 4.0 @ 2,075 · SWE-ELIETTAN"
+    },
+    {
+     "codigo": "PR8948139171I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • São Paulo x Internacional · Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0 @ 1,8333333333333335 · Campeonato Bras\r\n  • Birmingham x Middlesbrough · Time Visitante - Total de Cartões - 3 Opções · Menos de 2.0 @ 2 · NPower Champs"
+    },
+    {
+     "codigo": "RR1876261351I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,85\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Nippon Steel Oita x NIFS Kanoya FC · Gols + - · Menos de 3.0 @ 1,85 · JAP-REGION-LEAG"
+    },
+    {
+     "codigo": "AR3281892831I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,85\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • LSK Kvinner (F) x Lyn (F) · Gols + - · Menos de 3.0 @ 1,85 · SOC-NOR-TOPPW"
+    }
+   ],
+   "resposta": "```tsv\nGR4824317781I\tMúltiplos\tMúltipla\tOver 3.0 Gols [FC Elva v FC Tallinn] // Leigh Leopards Over 6.5 Pontos 1º Tempo [Wakefield Trinity v Leigh Leopards]\nRR5649603931I\tBasquete\tPontos\tOver 148.5 Pontos [Apoel v Anorthosis Famagusta]\nFR2832839271I\tFutebol\tMúltipla\tUnder 5 Cartões [Millwall v West Ham] // Under 4.0 Gols [Elfsborg (F) v Sandvikens IF (F)]\nPR8948139171I\tFutebol\tMúltipla\tInternacional Over 3.0 Escanteios [São Paulo v Internacional] // Middlesbrough Under 2.0 Cartões [Birmingham v Middlesbrough]\nRR1876261351I\tFutebol\tGols\tUnder 3.0 Gols [Nippon Steel Oita v NIFS Kanoya FC]\nAR3281892831I\tFutebol\tGols\tUnder 3.0 Gols [LSK Kvinner (F) v Lyn (F)]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "BR9183910131I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 54,69\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Udinese x Cagliari · Time Visitante - Total de Cartões - 3 Opções · Menos de 2.0 @ 2,375 · Italy Serie A\r\n  • UE Cornella x CE L'Hospitalet · Total de Gols · Menos de  2.5 @ 2 · Spain Ter G5"
+    },
+    {
+     "codigo": "HR6778099671I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 9,65\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Udinese x Cagliari · Time Visitante - Total de Cartões - 3 Opções · Menos de 2.0 @ 2,375 · Italy Serie A\r\n  • UE Cornella x CE L'Hospitalet · Total de Gols · Menos de  2.5 @ 1,85 · Spain Ter G5"
+    },
+    {
+     "codigo": "AR7160148631I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 9,65\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Udinese x Cagliari · Time Visitante - Total de Cartões - 3 Opções · Menos de 2.0 @ 2,375 · Italy Serie A\r\n  • UE Cornella x CE L'Hospitalet · Total de Gols · Menos de  2.5 @ 1,85 · Spain Ter G5"
+    },
+    {
+     "codigo": "CR8372768471I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: Múltipla (2 seleções)\r\nSeleções:\r\n  • Vila Nova x América-MG · Escanteios · Menos de 10.0 @ 3,25 · Camp Brasil B\r\n  • CHI Sky @ ATL Dream · Handicap · ATL Dream -12.5 @ 2,1 · WNBA"
+    },
+    {
+     "codigo": "GR6526401231I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Vila Nova x América-MG · Time da Casa - Total de Escanteios - 3 Opções · Menos de 7.0 @ 2 · Camp Brasil B\r\n  • Celta de Vigo x Racing Santander · Total de Cartões - 3 Opções · Mais de 4 @ 2,2 · Spanish Primera"
+    },
+    {
+     "codigo": "HR1379267851I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 107,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nTipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).\r\nEsporte (casa): CL=18 (Basquete)\r\nSeleções:\r\n  • USK Praha x Slavia Praha ERA Nbk · Handicap · USK Praha +21.5 @ 2,1 · Czech NBL\r\n  • NY Liberty @ MIN Lynx · Assistências (Mais de/Menos de) · Jonquel Jones - Mais de 2.5 @ 2,25 · WNBA"
+    }
+   ],
+   "resposta": "```tsv\nBR9183910131I\tFutebol\tMúltipla\tCagliari - Under 2.0 Cartões [Udinese v Cagliari] // Under 2.5 Gols [UE Cornella v CE L'Hospitalet]\nHR6778099671I\tFutebol\tMúltipla\tCagliari - Under 2.0 Cartões [Udinese v Cagliari] // Under 2.5 Gols [UE Cornella v CE L'Hospitalet]\nAR7160148631I\tFutebol\tMúltipla\tCagliari - Under 2.0 Cartões [Udinese v Cagliari] // Under 2.5 Gols [UE Cornella v CE L'Hospitalet]\nCR8372768471I\tMúltiplos\tMúltipla\tUnder 10.0 Escanteios [Vila Nova v América-MG] // ATL Dream -12.5 [CHI Sky v ATL Dream]\nGR6526401231I\tFutebol\tMúltipla\tVila Nova - Under 7.0 Escanteios [Vila Nova v América-MG] // Over 4 Cartões [Celta de Vigo v Racing Santander]\nHR1379267851I\tBasquete\tMúltipla\tUSK Praha +21.5 [USK Praha v Slavia Praha ERA Nbk] // Jonquel Jones - Over 2.5 Assistências [NY Liberty v MIN Lynx]\n```"
+  },
+  {
+   "blocos": [
+    {
+     "codigo": "AR7611023891I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Salgueiros x CD Feirense · Total de Escanteios Asiáticos · Menos de 10.0 @ 1,975 · Portuguese Cup"
+    },
+    {
+     "codigo": "TR8849223631I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,975\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Correcaminos II x ACF Zapotlanejo · Gols + - · Mais de 2.5,3.0 @ 1,975 · MEX-LIGA-PREMA"
+    },
+    {
+     "codigo": "QR6881744141I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,85\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Miedz Legnica x Stal Rzeszow · Total de Escanteios Asiáticos · Menos de 12.0 @ 1,85 · POL-I-LIGA"
+    },
+    {
+     "codigo": "BR3178449581I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 200,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 2\r\nEsporte (casa): CL=94 (Badminton)\r\nSeleções:\r\n  • Molin/Svensson x Guildea/Reynolds · Para Vencer a Partida · Molin/Svensson @ 2 · BAD-INSERIESMD"
+    },
+    {
+     "codigo": "ER2242556741I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 99,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,9\r\nEsporte (casa): CL=1 (Futebol)\r\nSeleções:\r\n  • Long An x Bac Ninh · Total de Escanteios Asiáticos · Mais de 8.0 @ 1,9 · VIETNAM-CUP"
+    },
+    {
+     "codigo": "PR3092773821I",
+     "bruto": "\r\nData (evento): 19/09/2026\r\nStake: 150,00\r\nStatus: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\r\nOdd: 1,8\r\nEsporte (casa): CL=94 (Badminton)\r\nSeleções:\r\n  • Bang/Pothuizen x Koriagina/Vantsarovska · Dupla Resultado e Total · Maria Koriagina/Yaroslava Vantsarovska & Menos de 73.5 @ 1,8 · BAD-INSERIESWD"
+    }
+   ],
+   "resposta": "```tsv\nAR7611023891I\tFutebol\tEscanteios\tUnder 10.0 Escanteios [Salgueiros v CD Feirense]\nTR8849223631I\tFutebol\tGols\tOver 2.75 Gols [Correcaminos II v ACF Zapotlanejo]\nQR6881744141I\tFutebol\tEscanteios\tUnder 12.0 Escanteios [Miedz Legnica v Stal Rzeszow]\nBR3178449581I\tBadminton\tML\tMolin/Svensson [Molin/Svensson v Guildea/Reynolds]\nER2242556741I\tFutebol\tEscanteios\tOver 8.0 Escanteios [Long An v Bac Ninh]\nPR3092773821I\tBadminton\tOutros\tKoriagina/Vantsarovska & Under 73.5 Pontos [Bang/Pothuizen v Koriagina/Vantsarovska]\n```"
+  }
+ ]
+}

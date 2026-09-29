@@ -257,8 +257,8 @@ Notas de reconstrução:
 - **eBasket (basquete virtual):** times da NBA com **handle do gamer entre parênteses** — `OKC Thunder (BRAZEN) v NY Knicks (EQUALIZER)` → Esporte `eBasket`, nunca `Basquete` nem `E-Sports` (`MASTER_ESPORTES_2026` — Regra Crítica Basquete vs eBasket). Confirmação: linha de pontos na faixa ~80–130 (NBA real ~220). ⚠️ **O handle é OBRIGATÓRIO na descrição** (`MASTER_DESCRICAO_2026 §13.3`): sem ele, `DAL Mavericks (TD24) v CHA Hornets (HYPER)` e `CHA Hornets (PROTOTYPE) v DAL Mavericks (GALAXY)` colapsam no mesmo confronto e bilhetes distintos viram duplicata.
 - **Placar do eBasket confirma o resultado:** os números à direita de cada time são pontos; a soma deve bater com a badge da barra de progresso (`OKC 49 + NY 52 = 101` vs `Mais de 92.5` → W).
 - **Handicap de objeto estatístico:** a categoria segue o **objeto** (`MASTER_APOSTAS §1`). `Handicap Asiático - Cartões` → `Cartões`; a linha de handicap (`+/-N`) vai só na descrição. Handicap sobre o resultado/gols continua `Handicap`.
-- Handicap asiático **split** aparece como linha dupla (`-1.0,-1.5`, `0.0,+0.5`) → manter a linha como exibida; pode gerar HW/HL/V (ver §5).
-- "Mapa N - …" / "Time Visitante - …" são qualificadores de contexto; entram na descrição conforme o master, mas não mudam a categoria.
+- Handicap asiático **split** aparece como linha dupla (`-1.0,-1.5`, `0.0,+0.5`) → na descrição vira o **quarto de linha** (`-1.25`, `+0.25`), como todo mercado asiático (`MASTER_DESCRICAO_2026 §10.1.1`); pode gerar HW/HL/V (ver §5). Linha **inteira** (`Mais de 3.0`) se copia como está: nunca vira `.5` (`§10.1`).
+- "Mapa N - …" é qualificador de contexto e não muda a categoria. **`Time da Casa - …` / `Time Visitante - …` também não mudam a categoria, mas o TIME entra na descrição, sempre** (`MASTER_DESCRICAO_2026 §12.5.1`): no confronto `A x B`, Casa é o `A` e Visitante o `B` → `Swindon Over 3.0 Escanteios [Salford City v Swindon]`. Sem o time, a aposta vira o total do jogo.
 
 ---
 

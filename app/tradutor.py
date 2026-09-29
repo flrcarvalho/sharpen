@@ -88,6 +88,10 @@ _ML = {"cat": "ML", "objeto": None}
 _HANDICAP = {"cat": "Handicap", "objeto": None}
 _ANYTIME = {"cat": "Anytime", "objeto": None}
 _FALTAS = {"cat": "Faltas", "objeto": "Faltas"}
+# Falta SOFRIDA não é `Faltas`: no MASTER_APOSTAS §3 `Faltas` = faltas COMETIDAS, e o
+# CASA_BET365 §9 põe `Para Sofrer Falta` em Player Props. Gravar como `Faltas` invertia o
+# sentido da aposta (achado do experimento s386: 4 blocos, todos com a descrição errada).
+_FALTAS_SOFRIDAS = {"cat": "Player Props", "objeto": "Faltas Sofridas"}
 
 # Handicap carrega a UNIDADE no texto quando ela não é o placar do jogo:
 # `Alcaraz -2.5 Games` (`MASTER_DESCRICAO §12.6`) e `Shi Yuqi -1.5 Sets` (§13.4, que diz
@@ -148,7 +152,8 @@ _MERCADOS_BET365: dict = {
     "escanteios": _ESCANTEIOS,                                         # sombra 194
     "total de pontos - 2 opções": _PONTOS,                             # sombra  63
     "para ganhar a luta": _ML,                                         # sombra  26
-    "para sofrer falta": _FALTAS,                                      # sombra  25
+    "para sofrer falta": _FALTAS_SOFRIDAS,                             # sombra  25
+    "jogador - para sofrer falta": _FALTAS_SOFRIDAS,
     "total de 180s": {"cat": "Player Props", "objeto": "180s"},        # sombra  11
     "total de jogos": {"cat": "Legs", "objeto": "Legs"},               # sombra  11
     # ── ABSOLVIDOS na s336, depois que a régua deixou de ser "concorda com a IA" ──
@@ -219,7 +224,8 @@ _REGRAS_BET365 = [
 ]
 
 # Qualificadores de contexto: mudam QUANDO/ONDE a aposta vale, nunca a categoria
-# (`CASA_BET365 §9`). Saem antes da consulta ao mapa.
+# (`CASA_BET365 §9`). Saem antes da consulta ao mapa, e SÓ dela: o escopo de time
+# (`Time da Casa -`/`Time Visitante -`) volta na descrição pelo `_time_do_escopo`.
 _QUALIFICADORES = ("ao-vivo - ", "prorrogação - ", "time visitante - ", "time da casa - ")
 _QUALIF_MAPA = re.compile(r"^mapa \d+ - ", re.I)
 # Sufixo de CONTAGEM DE SAÍDAS (`- 2 Opções` = sem empate, `- 3 Opções` = com empate).
@@ -277,8 +283,20 @@ _CAMPO = re.compile(r"^([^:]+):\s*(.*)$")
 _SEL_ODD = re.compile(r"^(.*?)\s+@\s+([\d.,]+)\s*$")
 _OVER_UNDER = re.compile(r"^(mais de|menos de)\s+(.+)$", re.I)
 _JOGADOR_OU = re.compile(r"^(.+?)\s+-\s+(mais de|menos de)\s+(.+)$", re.I)
-_HANDLE = re.compile(r"\([A-Z0-9][A-Z0-9 _.-]*\)\s*$")
+_HANDLE = re.compile(r"\(([A-Z0-9][A-Z0-9 _.-]*)\)\s*$")
+# O parêntese no fim do nome NÃO é sempre o handle do gamer: a casa marca ali o time
+# feminino com UMA letra (`(F)`, `(W)`). Medido na s386: `Flammes Carolo Basket (F) v
+# KP Brno (F)` saía eBasket, e todo jogo feminino de basquete junto. Handle de gamer
+# tem 2+ caracteres. Outros marcadores entre parênteses (base, reserva) não apareceram
+# na amostra; entram quando forem medidos, não por palpite.
 _CL_NOME = re.compile(r"CL=\d+\s*\((.+?)\)")
+# CL numérico que a extensão manda SEM nome (o `_CL_B3` dela não tem a entrada). Só entra
+# aqui o que a base provou: em 30 dias (medido em 24/09, `sombra_rotulos`), bilhete de UM
+# esporte com CL=12 foi Futebol Americano 441 de 441 vezes e CL=16 foi Baseball 265 de 265
+# (os "Múltiplos" do mesmo CL são acumuladas de 3+ jogos, §2). CL=19 (5) e CL=78 (1) ficam
+# de fora: amostra pequena não autoriza escrever sem IA.
+_CL_NUM = re.compile(r"^\s*CL=(\d+)\s*$")
+_CL_SEM_NOME = {"12": "Futebol Americano", "16": "Baseball"}
 # Placar do momento, que o mercado ao vivo prefixa na seleção. A casa o separa de DUAS
 # formas: colado no nome (`(0-0) Independiente Rivadavia -0.5`) e com um travessão
 # (`(5-0) - Mais de 6.5,7.0`, que é como TODAS as 291 seleções de `Gols +/-` chegam).
@@ -390,9 +408,14 @@ def _e_ebasket(pernas: list) -> bool:
         return False
     for p in pernas:
         lados = _CONFRONTO_SEP.split(p.jogo)
-        if len(lados) != 2 or not all(_HANDLE.search(lado.strip()) for lado in lados):
+        if len(lados) != 2 or not all(_tem_handle(lado) for lado in lados):
             return False
     return True
+
+
+def _tem_handle(lado: str) -> bool:
+    m = _HANDLE.search(lado.strip())
+    return bool(m) and len(m.group(1).strip()) >= 2
 
 
 def _esporte(casa: str, cab: dict, pernas: list) -> str:
@@ -411,6 +434,9 @@ def _esporte(casa: str, cab: dict, pernas: list) -> str:
     if len(pernas) >= 3 and len(confrontos) >= 3:
         return "Múltiplos"
     m = _CL_NOME.search(cab.get("Esporte (casa)", ""))
+    num = _CL_NUM.match(cab.get("Esporte (casa)", "") or "")
+    if not m and num and num.group(1) in _CL_SEM_NOME:
+        return _CL_SEM_NOME[num.group(1)]
     if not m:
         if ((casa or "").upper() in _TIPO_MULTIPLA_E_VEREDITO
                 and _TIPO_MULTIPLA.match((cab.get("Tipo") or "").strip())):
@@ -454,9 +480,32 @@ def _quarto_de_linha(texto: str) -> str:
     return texto
 
 
+_ESCOPO_TIME = re.compile(r"^\s*(time da casa|time visitante)\s+-\s+", re.I)
+_MANDANTE_PRIMEIRO = re.compile(r"\s+(?:x|v|vs)\s+", re.I)
+
+
+def _time_do_escopo(p) -> str | None:
+    """A qual time o mercado se refere (`MASTER_DESCRICAO §12.5.1`), ou `None` quando o
+    rótulo não tem escopo de time. O qualificador `Time da Casa -`/`Time Visitante -`
+    NÃO é descartável: sem ele `Over 3.0 Escanteios` passa a valer para o JOGO, outra
+    aposta. O nome sai do confronto quando o separador garante o mandante primeiro
+    (` x `, ` v `, ` vs `). O corte NÃO parte no ` @ ` (visitante primeiro), e aí, como
+    em todo confronto que não parte em dois, fica o rótulo da casa: é o que dá para
+    afirmar com segurança."""
+    m = _ESCOPO_TIME.match(p.mercado or "")
+    if not m:
+        return None
+    casa = m.group(1).lower() == "time da casa"
+    lados = _MANDANTE_PRIMEIRO.split(p.jogo.strip())
+    if len(lados) == 2 and all(l.strip() for l in lados):
+        return lados[0 if casa else 1].strip()
+    return "Time da Casa" if casa else "Time Visitante"
+
+
 def _descricao_perna(p, spec: dict) -> str:
     """Descrição de UMA perna, no formato do `MASTER_DESCRICAO`. `None` = não sei."""
     objeto = spec.get("objeto")
+    time_escopo = _time_do_escopo(p)
     # Mercado ao vivo prefixa a seleção com o placar do momento (`(0-0) Time -0.5`). É
     # estado do jogo, não parte da aposta: sai antes de qualquer template.
     sel = _PLACAR_AO_VIVO.sub("", re.sub(r"\s+", " ", p.selecao).strip()).strip()
@@ -466,16 +515,21 @@ def _descricao_perna(p, spec: dict) -> str:
     if objeto:
         # Player prop: "Fulano - Menos de 15.5" -> "Fulano - Under 15.5 Pontos"
         mj = _JOGADOR_OU.match(sel)
+        if mj and time_escopo:
+            return None             # jogador E escopo de time: não há template, vai à IA
         if mj:
             lado = "Over" if mj.group(2).lower() == "mais de" else "Under"
             return f"{mj.group(1).strip()} - {lado} {mj.group(3).strip()} {objeto} [{p.confronto}]"
         mo = _OVER_UNDER.match(sel)
         if mo:
             lado = "Over" if mo.group(1).lower() == "mais de" else "Under"
-            return f"{lado} {mo.group(2).strip()} {objeto} [{p.confronto}]"
+            quem = f"{time_escopo} " if time_escopo else ""
+            return f"{quem}{lado} {mo.group(2).strip()} {objeto} [{p.confronto}]"
         # Mercado contínuo cuja seleção não é Mais/Menos (ex.: "3 Opções", com empate):
         # o template não se aplica, e adivinhar seria inventar.
         return None
+    if time_escopo:
+        return None                 # sem objeto (handicap, ML…) com escopo de time: à IA
     sufixo = spec.get("sufixo")
     return f"{sel}{' ' + sufixo if sufixo else ''} [{p.confronto}]"
 
@@ -707,13 +761,22 @@ def traduzir(casa: str, bloco: str) -> Traducao:
     if not odd and len(pernas) > 1:
         return Traducao(False, "odd combinada não entregue pela casa", pernas=tuple(pernas))
 
+    # DATA: só a que a casa PUBLICA (`Data (evento)`, ou `Data (colocação)` no Criar Aposta,
+    # CASA_BET365 §4). `Data (encerramento)` é kickoff + folga ESTIMADA pela extensão antiga
+    # (CLAUDE.md, "data derivada por estimativa é dado inventado"): o leitor de números do
+    # contrato já a recusava e o tradutor a aceitava calado. Agora os dois concordam.
+    data = cab.get("Data (evento)") or cab.get("Data (colocação)") or ""
+    if not data:
+        estimada = any(k.startswith("Data (encerramento)") for k in cab)
+        return Traducao(False, "data estimada (Data (encerramento))" if estimada
+                        else "sem data publicada pela casa", pernas=tuple(pernas))
     return Traducao(
         True,
         esporte=esporte,
         aposta=aposta,
         descricao=" // ".join(descricoes),
         codigo=cab.get("Código", ""),
-        data=next((v for k, v in cab.items() if k.startswith("Data")), ""),
+        data=data,
         stake=cab.get("Stake", ""),
         odd=odd,
         resultado=_resultado(cab.get("Status", "")),

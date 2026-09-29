@@ -2180,6 +2180,12 @@ def _evento(ev: str) -> dict | None:
         return None
 
 
+# Parâmetros EXTRAS da chamada do contrato de 4 campos. Vazio = o regime da produção
+# (Sonnet 5 pensa por padrão). O experimento da s386 usa `{"thinking": {"type": "disabled"}}`
+# para medir o custo e a qualidade sem pensamento com TODO o resto igual.
+_CONTRATO_KW: dict = {}
+
+
 async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, modelo: str,
                            dono: str, xls_skipped: int, fora_corte: int, gerador_de_hoje):
     """Gerador SSE do contrato. `gerador_de_hoje(texto, caminho)` é o MESMO gerador que o
@@ -2216,6 +2222,7 @@ async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, 
                     try:
                         async with _client.messages.stream(
                             model=modelo, max_tokens=64000, system=system4, messages=messages,
+                            **_CONTRATO_KW,
                         ) as stream:
                             async for pedaco in stream.text_stream:
                                 parte += pedaco

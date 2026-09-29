@@ -184,14 +184,18 @@ Quando houver dúvida:
 
 ## 10.1 Mercado Contínuo (Over / Under)
 
-Mercados contínuos utilizam linhas fracionadas.
-
 Formato oficial:
 
 ```text
-Over X.5 Mercado
-Under X.5 Mercado
+Over Linha Mercado
+Under Linha Mercado
 ```
+
+**A linha é COPIADA da casa, nunca ajustada.** Ela pode ser meia (`2.5`), inteira
+(`3.0`, em mercado asiático ou de 3 opções, onde existe devolução) ou quarto de linha
+(`2.25`, ver §10.1.1). Trocar `3.0` por `3.5` muda a aposta: na linha inteira o 3 exato
+devolve a stake, na meia ele perde. Copie também a forma: a casa escreveu `3.0`, a
+descrição diz `3.0`, nunca `3`. A única conversão é a da linha partida em quarto (§10.1.1).
 
 Exemplos:
 
@@ -199,6 +203,8 @@ Exemplos:
 Over 2.5 Gols
 Under 7.5 Assistências
 Over 22.5 Pontos
+Over 3.0 Gols            ← casa: "Mais de 3.0"  (NUNCA Over 3.5)
+Under 2.0 Cartões        ← casa: "Menos de 2.0" (NUNCA Under 2.5)
 ```
 
 ### Duas regras fechadas na s336, e as duas são obrigatórias
@@ -381,6 +387,31 @@ Kevin De Bruyne [Manchester City v Arsenal]
 
 ---
 
+## 12.2.1 Outros mercados de SIM/NÃO do jogador — o mercado vai na descrição
+
+Sem o mercado, `Jogador [Confronto]` lê como **gol a qualquer momento** (§12.1): outra
+aposta, que existe. Todo mercado de sim/não do jogador que NÃO é o anytime carrega o
+nome do mercado:
+
+```text
+Jogador - Mercado [Confronto]
+```
+
+| A casa exibe | Descrição |
+|---|---|
+| Marcar de Cabeça | `Jogador - Gol de Cabeça [Confronto]` |
+| Marcar de Fora da Área | `Jogador - Gol de Fora da Área [Confronto]` |
+| Jogador a Marcar ou Dar Assistência | `Jogador - Gol ou Assistência [Confronto]` |
+| Para o Jogador Receber Cartão | `Jogador - Cartão [Confronto]` |
+| O Jogador Será Expulso | `Jogador - Expulsão [Confronto]` |
+| Jogador a Dar Assistência, **como perna de Múltipla** | `Jogador - Assistência [Confronto]` |
+
+Em aposta **simples** de assistência continua valendo o §12.2 (`Jogador [Confronto]`): a
+categoria `Assistência` carrega o mercado. Na Múltipla a categoria vira `Múltipla`, e sem
+o mercado na perna a aposta vira anytime. A categoria de cada um segue o MASTER_APOSTAS.
+
+---
+
 ## 12.3 Player Props
 
 Formato:
@@ -445,6 +476,37 @@ Over 1.5 Rounds [Ramazan Temirov v Steve Erceg]
 
 > O total de **rounds** de uma luta (MMA / Boxe) usa este mesmo template — o formato
 > não muda por esporte, só o objeto contado (ver `MASTER_APOSTAS §5 Rounds`).
+
+---
+
+## 12.5.1 Total de UM time
+
+Quando o mercado conta só um dos times (a casa escreve `Time da Casa - …`,
+`Time Visitante - …`, ou o nome do time antes do mercado), **o time é parte da aposta e
+nunca sai da descrição**. Sem ele, `Over 3.0 Escanteios` passa a valer para o JOGO, que é
+outra aposta.
+
+Formato:
+
+```text
+Time Over/Under Linha Mercado [Confronto]
+```
+
+**Qual nome escrever:** o do time, tirado do confronto, quando a fonte permite
+identificar com segurança. No confronto `A x B` (ou `A v B`) da casa, `Time da Casa` é o
+`A` e `Time Visitante` é o `B`. Se o confronto não permitir saber quem é quem (ordem
+`visitante @ mandante`, ou confronto ausente), escreva `Time da Casa` / `Time Visitante`
+literalmente. **Nunca apague a informação.**
+
+Exemplos:
+
+```text
+Swindon Over 3.0 Escanteios [Salford City v Swindon]     ← casa: Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0
+Roma Under 2.0 Cartões [Roma v Inter de Milão]           ← casa: Time da Casa - Total de Cartões - 3 Opções · Menos de 2.0
+Time da Casa Over 1.5 Gols [Lakers @ Celtics]            ← ordem visitante @ mandante: não afirmar o nome
+```
+
+É o mesmo template do total de time do eBasket (§13.3), agora válido para todo esporte.
 
 ---
 

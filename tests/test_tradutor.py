@@ -27,7 +27,7 @@ import tradutor  # noqa: E402
 # ── Blocos reais (sombra de produção, 28/08/2026) ─────────────────────────────
 
 SIMPLES_ML = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 300,00
 Status: Perdeu → L
 Odd: 1,9090909090909092
@@ -37,7 +37,7 @@ Seleções:
 """
 
 SIMPLES_TOTAL_GOLS = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 150,00
 Status: Ganho → W (retorno R$ 262,50)
 Odd: 1,75
@@ -47,7 +47,7 @@ Seleções:
 """
 
 EBASKET = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 200,87
 Status: Perdeu → L
 Odd: 1,8333333333333335
@@ -57,7 +57,7 @@ Seleções:
 """
 
 HANDICAP_AO_VIVO = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 100,00
 Status: Ganho → W (retorno R$ 177,50)
 Odd: 1,775
@@ -67,7 +67,7 @@ Seleções:
 """
 
 HANDICAP_SETS = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 120,00
 Status: Perdeu → L
 Odd: 2,25
@@ -77,7 +77,7 @@ Seleções:
 """
 
 PLAYER_PROP = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 80,00
 Status: Perdeu → L
 Odd: 1,6896551724137931
@@ -87,7 +87,7 @@ Seleções:
 """
 
 SISTEMA_3_JOGOS = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 90,36
 Status: Ganho → W (retorno R$ 94,88)
 Tipo: SISTEMA Duplas — 3 apostas de 2 seleção(ões), sobre 3 seleções · aposta unitária R$ 30,12 · total R$ 90,36 (a Stake acima é o TOTAL — é ela que vale)
@@ -101,7 +101,7 @@ Seleções:
 # Cai no fallback de propósito: `Apostas no Set` não está no mapa. É o caso exigido pela
 # regra "todo caso de casa portada precisa de uma linha que exercite o fallback".
 MERCADO_DESCONHECIDO = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 500,00
 Status: Perdeu → L
 Odd: 1,3
@@ -115,7 +115,7 @@ Seleções:
 
 
 SIMPLES_TOTAL_GOLS_PARTIDA = """
-Data (encerramento): 05/09/2026
+Data (evento): 05/09/2026
 Stake: 99,00
 Status: em aberto (aguardando resultado)
 Odd: 1,8
@@ -351,13 +351,90 @@ def test_mutacao_handle_de_um_lado_so_nao_e_ebasket():
     assert t.esporte == "Basquete"
 
 
+# ── (F) não é handle, e o escopo de time não se descarta (s386) ───────────────
+#
+# Blocos reais da validação de 24/09. Antes: o `(F)` dos dois lados fazia o jogo feminino
+# virar eBasket, e `Time Visitante - Total de Escanteios` saía `Over 3.0 Escanteios`,
+# que é o total do JOGO, outra aposta.
+
+FEMININO_F = """
+Data (evento): 23/09/2026
+Stake: 115,61
+Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
+Odd: 1,8333333333333335
+Esporte (casa): CL=18 (Basquete)
+Seleções:
+  • Flammes Carolo Basket (F) x KP Brno (F) · Handicap de Pontos · Flammes Carolo Basket (F) -21.5 @ 1,8333333333333335 · B-EURLQW
+"""
+
+TOTAL_DO_VISITANTE = """
+Data (evento): 19/09/2026
+Stake: 12,25
+Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
+Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
+Esporte (casa): CL=1 (Futebol)
+Seleções:
+  • Salford City x Swindon · Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0 @ 2,5 · NPower 2
+  • Cultural de Durango x UD Aretxabaleta · Total de Gols · Menos de  2.5 @ 1,85 · Spain Ter G4
+"""
+
+
+def test_time_feminino_F_nao_e_handle_de_ebasket():
+    t = tradutor.traduzir("BET365", FEMININO_F)
+    assert t.ok, t.motivo
+    assert t.esporte == "Basquete"
+
+
+def test_ebasket_de_verdade_continua_ebasket():
+    t = tradutor.traduzir("BET365", EBASKET)
+    assert t.ok, t.motivo
+    assert t.esporte == "eBasket"
+
+
+def test_escopo_de_time_vira_o_nome_do_time_e_a_linha_inteira_fica():
+    t = tradutor.traduzir("BET365", TOTAL_DO_VISITANTE)
+    assert t.ok, t.motivo
+    assert t.descricao.split(" // ")[0] == "Swindon Over 3.0 Escanteios [Salford City v Swindon]"
+    # a perna SEM escopo não ganha time nenhum
+    assert t.descricao.split(" // ")[1] == "Under 2.5 Gols [Cultural de Durango v UD Aretxabaleta]"
+
+
+def test_escopo_da_casa_e_o_primeiro_lado():
+    bloco = TOTAL_DO_VISITANTE.replace("Time Visitante -", "Time da Casa -")
+    t = tradutor.traduzir("BET365", bloco)
+    assert t.descricao.startswith("Salford City Over 3.0 Escanteios ")
+
+
+def test_sem_mandante_garantido_fica_o_rotulo_da_casa():
+    """Com ` @ ` o visitante vem primeiro (convenção americana): afirmar o nome seria
+    chute. Fica `Time Visitante`, que é o que a casa disse."""
+    bloco = TOTAL_DO_VISITANTE.replace("Salford City x Swindon", "Salford City @ Swindon")
+    t = tradutor.traduzir("BET365", bloco)
+    assert t.descricao.startswith("Time Visitante Over 3.0 Escanteios ")
+
+
+def test_escopo_de_time_sem_template_vai_para_a_ia():
+    """Escopo de time em rótulo SEM objeto (`Resultado Final`) ou de JOGADOR não tem
+    template no MASTER: escrever a seleção pura apagaria a qual time ela se refere."""
+    sem_objeto = TOTAL_DO_VISITANTE.replace(
+        "Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0",
+        "Time Visitante - Resultado Final · Empate")
+    assert not tradutor.traduzir("BET365", sem_objeto).ok
+    jogador = TOTAL_DO_VISITANTE.replace(
+        "Time Visitante - Total de Escanteios - 3 Opções · Mais de 3.0",
+        "Time Visitante - Para Sofrer Falta · Fulano de Tal - Mais de 1.5")
+    assert not tradutor.traduzir("BET365", jogador).ok
+    # a mesma perna sem o escopo traduz: é o escopo, e só ele, que manda para a IA
+    assert tradutor.traduzir("BET365", jogador.replace("Time Visitante - ", "")).ok
+
+
 # ── Sufixo `- N Opções` e os rótulos medidos na sombra de 09/09 (s333) ────────
 #
 # Blocos reais da `sombra_rotulos`, como os de cima. O `\r\n` original é artefato de
 # transporte e `splitlines()` o normaliza, então aqui vão com `\n` só.
 
 ESCANTEIOS_2_OPCOES = """
-Data (encerramento): 05/09/2026
+Data (evento): 05/09/2026
 Stake: 300,00
 Status: Devolvida/void (retorno = stake) → V
 Odd: 1,8
@@ -367,7 +444,7 @@ Seleções:
 """
 
 TOTAL_2_OPCOES_EBASKET = """
-Data (encerramento): 26/08/2026
+Data (evento): 26/08/2026
 Stake: 200,87
 Status: Ganho → W (retorno R$ 368,27)
 Odd: 1,8333333333333335
@@ -377,7 +454,7 @@ Seleções:
 """
 
 FALTA_DO_JOGADOR = """
-Data (encerramento): 01/09/2026
+Data (evento): 01/09/2026
 Stake: 200,00
 Status: Devolvida/void (retorno = stake) → V
 Odd: 4,5
@@ -411,12 +488,30 @@ def test_rotulo_inteiro_vence_o_corte_do_sufixo():
 
 
 def test_falta_sofrida_e_prop_com_objeto():
-    """`Para Sofrer Falta` traz jogador e linha na mesma seleção; o objeto `Faltas`
-    fecha a descrição."""
+    """`Para Sofrer Falta` traz jogador e linha na mesma seleção.
+
+    INVERTIDO na s386 (24/09), de propósito: este teste cravava `Faltas`, e no MASTER_APOSTAS
+    §3 `Faltas` é falta COMETIDA — o sentido da aposta saía invertido. O CASA_BET365 §9 põe
+    `Para Sofrer Falta` em Player Props, e o objeto diz qual falta é."""
     t = tradutor.traduzir("BET365", FALTA_DO_JOGADOR)
     assert t.ok, t.motivo
-    assert t.aposta == "Faltas"
-    assert t.descricao == "Maycon Barberan - Over 1.5 Faltas [Atlético-MG v Cruzeiro]"
+    assert t.aposta == "Player Props"
+    assert t.descricao == "Maycon Barberan - Over 1.5 Faltas Sofridas [Atlético-MG v Cruzeiro]"
+
+
+def test_data_estimada_nao_se_traduz():
+    """`Data (encerramento)` é kickoff + folga estimada pela extensão antiga: dado
+    inventado (CLAUDE.md). O tradutor recusa, como o leitor de números do contrato."""
+    t = tradutor.traduzir("BET365", FALTA_DO_JOGADOR.replace("Data (evento)", "Data (encerramento)"))
+    assert not t.ok
+    assert "estimada" in t.motivo
+
+
+def test_data_de_colocacao_vale():
+    """Criar Aposta sem kickoff traz `Data (colocação)` (CASA_BET365 §4): data publicada."""
+    t = tradutor.traduzir("BET365", FALTA_DO_JOGADOR.replace("Data (evento)", "Data (colocação)"))
+    assert t.ok, t.motivo
+    assert t.data
 
 
 def test_mutacao_o_corte_do_sufixo_e_o_ultimo_recurso():
@@ -457,7 +552,7 @@ def test_mutacao_remover_escanteios_derruba_o_sufixo_opcoes():
 # `formatTicketB3` só emite sob `jogos.size >= 3 || cls.length > 1`.
 
 MULTIPLA_DOIS_ESPORTES = """
-Data (encerramento): 03/09/2026
+Data (evento): 03/09/2026
 Stake: 201,00
 Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
 Tipo: Múltipla (2 seleções)
@@ -472,7 +567,7 @@ Seleções:
 # comentário lá), então o esporte fica indecidível e o bilhete vai para a IA. Marcar
 # `Múltiplos` aqui seria o erro que o conjunto por casa existe para evitar.
 DUAS_SELECOES_SEM_VEREDITO = """
-Data (encerramento): 03/09/2026
+Data (evento): 03/09/2026
 Stake: 201,00
 Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
 Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
@@ -513,9 +608,11 @@ def test_tipo_N_selecoes_nao_e_veredito_de_multiplos():
     cab = tradutor._cabecalho(DUAS_SELECOES_SEM_VEREDITO)
     pernas = tradutor._pernas(DUAS_SELECOES_SEM_VEREDITO)
     assert len(pernas) == 2
-    assert tradutor._esporte("BET365", cab, pernas) is None
+    # s386: `CL=16` sem nome passou a ser Baseball (265/265 medido). O que este teste
+    # guarda continua guardado: 2 jogos do MESMO esporte nunca viram `Múltiplos`.
+    assert tradutor._esporte("BET365", cab, pernas) == "Baseball"
     t = tradutor.traduzir("BET365", DUAS_SELECOES_SEM_VEREDITO)
-    assert not t.ok and "esporte" in t.motivo
+    assert t.esporte != "Múltiplos"
 
 
 def test_o_motivo_do_fallback_passa_a_ser_o_VERDADEIRO():
@@ -559,7 +656,7 @@ def test_mutacao_o_veredito_nao_atropela_o_esporte_declarado():
 # ── `Gols +/-`: a mesma aposta com outra grafia, e ela é 100% AO VIVO (s386) ─
 
 AO_VIVO_GOLS_BARRA = """
-Data (encerramento): 29/08/2026
+Data (evento): 29/08/2026
 Stake: 100,39
 Status: Ganho → W (retorno R$ 141,81)
 Odd: 1,825
@@ -630,7 +727,7 @@ Seleções:
 """
 
 DUPLA_L_MESMO_ESPORTE = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 750,00
 Status: Perdeu → L
 Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
@@ -643,7 +740,7 @@ Seleções:
 # O MESMO par de jogadores no dia seguinte, com a 2ª perna a `1,5333333333333332` — a
 # renderização `float64` de 23/15. O produto EXATO daria `2,2999999999999998`.
 DUPLA_COM_RUIDO_DE_FLOAT = """
-Data (encerramento): 27/08/2026
+Data (evento): 27/08/2026
 Stake: 120,14
 Status: Perdeu → L
 Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
@@ -656,7 +753,7 @@ Seleções:
 # `W`, e por isso fica FORA. De quebra é meia vitória disfarçada: stake 35,36, retorno
 # 35,81 — as duas pernas são linha asiática partida.
 MULTIPLA_W_FICA_FORA = """
-Data (encerramento): 26/08/2026
+Data (evento): 26/08/2026
 Stake: 35,36
 Status: Ganho → W (retorno R$ 35,81)
 Tipo: 2 seleções — a odd do bilhete é o PRODUTO das odds abaixo (a casa não entrega a odd combinada). Em bilhete ganho vale Retorno ÷ Aposta (MASTER_RESULTADO §7.1).
@@ -707,7 +804,7 @@ def test_multipla_ganha_continua_indo_para_a_ia():
 # Bloco real de SISTEMA, perdido. A odd dele é a MÉDIA das 3 linhas (3,7347916666666667);
 # o produto das pernas daria 7,20875 — quase o dobro. É o caso da s265 inteiro.
 SISTEMA_PERDIDO = """
-Data (encerramento): 30/08/2026
+Data (evento): 30/08/2026
 Stake: 90,36
 Status: Perdeu → L
 Tipo: SISTEMA Duplas — 3 apostas de 2 seleção(ões), sobre 3 seleções · aposta unitária R$ 30,12 · total R$ 90,36 (a Stake acima é o TOTAL — é ela que vale)
@@ -842,3 +939,12 @@ def test_mutacao_sem_a_conversao_a_descricao_sai_fora_do_MASTER():
     t = tradutor.traduzir("BET365", SIMPLES_TOTAL_GOLS_PARTIDA)
     assert descricao_check.checar_descricao("Gols", t.descricao) == []
     assert "Over 4.25 Gols" in t.descricao
+
+
+def test_cl_numerico_sem_nome_so_o_que_a_base_provou():
+    """A extensão manda `CL=12`/`CL=16` sem nome. Medido em 24/09 (30 dias de sombra):
+    CL=12 foi Futebol Americano 441/441 e CL=16 Baseball 265/265 em bilhete de um esporte.
+    CL=19 (5 casos) não tem amostra: continua indo para a IA."""
+    assert tradutor._esporte("BET365", {"Esporte (casa)": "CL=12"}, []) == "Futebol Americano"
+    assert tradutor._esporte("BET365", {"Esporte (casa)": "CL=16"}, []) == "Baseball"
+    assert tradutor._esporte("BET365", {"Esporte (casa)": "CL=19"}, []) is None

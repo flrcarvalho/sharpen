@@ -397,6 +397,98 @@ def _linhas_resposta(resposta: str) -> list[str]:
     return [l for l in (resposta or "").splitlines() if "\t" in l]
 
 
+_COLCHETE = re.compile(r"\[[^\]]*\]")
+_OU_PT = re.compile(r"\b(Mais de|Menos de)\b")
+
+
+def normalizar_forma(descricao: str) -> str:
+    """Só FORMA, sem mudar o sentido, o que o MASTER já decide sozinho: o separador do
+    confronto é ` v ` (§5; a casa manda ` @ `, e o tradutor já troca pelo mesmo
+    `_CONFRONTO_SEP`) e Over/Under é em inglês (§11). Medido na s386: sem pensamento, o
+    Sonnet deixava a forma da casa e 25 de 55 retornos ao caminho atual eram SÓ isso — o
+    bloco pagava a leitura cara por um separador."""
+    d = _COLCHETE.sub(lambda m: trad._CONFRONTO_SEP.sub(" v ", m.group(0)), descricao or "")
+    fora = _COLCHETE.split(d)
+    dentro = _COLCHETE.findall(d)
+    fora = [_OU_PT.sub(lambda m: "Over" if m.group(1) == "Mais de" else "Under", f) for f in fora]
+    return "".join(f + (dentro[i] if i < len(dentro) else "") for i, f in enumerate(fora))
+
+
+_JOGO_DA_PERNA = re.compile(r"^\s*•\s+(.+?)(?:\s+@\s+[\d.,]+)?\s+·\s")
+
+
+def _esporte_estrutural(lt: "Leitura") -> str | None:
+    """O esporte que o §2 do MASTER_ESPORTES decide pela ESTRUTURA, ou `None` (a IA decide).
+
+    3+ jogos DIFERENTES → `Múltiplos`, mesmo do mesmo esporte. 1 ou 2 jogos com a casa
+    declarando UM esporte (`CL=`) → nunca `Múltiplos`: o esporte declarado. Medido no
+    experimento da s386: com a regra só em `Tipo: Múltipla`, os dois modelos erravam os
+    dois lados (acumulada de 3 jogos de futebol como `Futebol`, dupla como `Múltiplos`)."""
+    jogos = set()
+    for ln in (lt.bruto or "").splitlines():
+        m = _JOGO_DA_PERNA.match(ln)
+        if m:
+            jogos.add(re.sub(r"\s+", " ", trad._CONFRONTO_SEP.sub(" v ", m.group(1))).strip().lower())
+    if len(jogos) >= 3:
+        return "Múltiplos"
+    cl = trad._CL_NOME.search(trad._cabecalho(lt.bruto or "").get("Esporte (casa)", "") or "")
+    if cl and len(jogos) >= 1:
+        nome = cl.group(1).strip()
+        if nome == "Basquete" and jogos and all(
+                len(trad._CONFRONTO_SEP.split(j)) == 2
+                and all(trad._tem_handle(l) for l in trad._CONFRONTO_SEP.split(j.upper()))
+                for j in jogos):
+            return None                  # eBasket x Basquete: a IA decide (handle no nome)
+        return nome
+    return None
+
+
+def aceitar_4campos(lt: "Leitura", esporte: str, aposta: str, descricao: str,
+                    esportes: set, categorias: set) -> tuple:
+    """O portão de UMA resposta de 4 campos: `(esporte, aposta, ajustes, motivo)`.
+    `motivo` não vazio = recusada (vai ao caminho atual). Não depende dos números do
+    bloco, só da estrutura e do texto — por isso serve também a quem mede o significado
+    em bloco que o leitor de números não cobre (experimento da s386)."""
+    ajustes = []
+    d2 = normalizar_forma(descricao)
+    if d2 != descricao:
+        ajustes.append(("descricao", descricao, d2))
+        descricao = d2
+    # O que a ESTRUTURA do bloco já decide, o código decide (MASTER_ESPORTES §2 e
+    # MASTER_APOSTAS "Bet Builder = Múltipla"); a IA é conferida contra isso.
+    estrutural = _esporte_estrutural(lt)
+    # Só as duas trocas que o §2 decide sozinho: 3+ jogos → Múltiplos; e um `Múltiplos`
+    # que a estrutura desmente (1-2 jogos de um esporte declarado). O esporte que a IA deu
+    # a um bilhete de um esporte só não é tocado (grafia canônica, eBasket…).
+    if estrutural == "Múltiplos" and esporte != "Múltiplos":
+        ajustes.append(("esporte", esporte, "Múltiplos"))
+        esporte = "Múltiplos"
+    elif (estrutural and esporte == "Múltiplos" and estrutural in esportes
+          and not trad._TIPO_MULTIPLA.match(lt.tipo)):
+        ajustes.append(("esporte", esporte, estrutural))
+        esporte = estrutural
+    elif trad._TIPO_MULTIPLA.match(lt.tipo) and esporte != "Múltiplos":
+        ajustes.append(("esporte", esporte, "Múltiplos"))
+        esporte = "Múltiplos"
+    if (lt.n_pernas > 1 or lt.forma == "bet builder") and aposta != "Múltipla":
+        ajustes.append(("aposta", aposta, "Múltipla"))
+        aposta = "Múltipla"
+    if esporte not in esportes:
+        return esporte, aposta, ajustes, f"esporte fora do MASTER: {esporte!r}"
+    if aposta not in categorias:
+        return esporte, aposta, ajustes, f"categoria fora do MASTER: {aposta!r}"
+    # Linha CORTADA (stop por max_tokens, conexão que cai no meio): `[Independi`, perna
+    # sumida. Passava nos gates de forma (achado do experimento s386): todo confronto
+    # aberto tem de fechar.
+    if descricao.count("[") != descricao.count("]") or not descricao.rstrip().endswith("]"):
+        return esporte, aposta, ajustes, "descrição truncada (confronto sem fechar)"
+    erros = [x for x in checar_descricao(aposta, descricao) if x[0] == "erro"]
+    erros += [x for x in checar_fidelidade(descricao, lt.bruto) if x[0] == "erro"]
+    if erros:
+        return esporte, aposta, ajustes, "descrição reprovada: " + "; ".join(e[2][:80] for e in erros)
+    return esporte, aposta, ajustes, None
+
+
 def montar(particao: Particao, resposta_ia: str, casa_display: str, parceiro: str) -> Montagem:
     """Associa a resposta de 4 campos aos blocos cobertos e monta a linha final.
 
@@ -428,24 +520,12 @@ def montar(particao: Particao, resposta_ia: str, casa_display: str, parceiro: st
                        else f"IA devolveu {len(achadas)} linhas para o mesmo código")
             continue
         _, esporte, aposta, descricao = achadas[0]
-        # O que a ESTRUTURA do bloco já decide, o código decide (MASTER_ESPORTES §2 e
-        # MASTER_APOSTAS "Bet Builder = Múltipla"); a IA é conferida contra isso.
-        if trad._TIPO_MULTIPLA.match(lt.tipo) and esporte != "Múltiplos":
-            mt.ajustes.append((cod, "esporte", esporte, "Múltiplos"))
-            esporte = "Múltiplos"
-        if (lt.n_pernas > 1 or lt.forma == "bet builder") and aposta != "Múltipla":
-            mt.ajustes.append((cod, "aposta", aposta, "Múltipla"))
-            aposta = "Múltipla"
-        if esporte not in esportes:
-            para_atual(cod, f"esporte fora do MASTER: {esporte!r}")
-            continue
-        if aposta not in categorias:
-            para_atual(cod, f"categoria fora do MASTER: {aposta!r}")
-            continue
-        erros = [x for x in checar_descricao(aposta, descricao) if x[0] == "erro"]
-        erros += [x for x in checar_fidelidade(descricao, lt.bruto) if x[0] == "erro"]
-        if erros:
-            para_atual(cod, "descrição reprovada: " + "; ".join(e[2][:80] for e in erros))
+        esporte, aposta, ajustes, motivo = aceitar_4campos(lt, esporte, aposta, descricao,
+                                                           esportes, categorias)
+        mt.ajustes += [(cod, *a) for a in ajustes]
+        descricao = next((a[2] for a in ajustes if a[0] == "descricao"), descricao)
+        if motivo:
+            para_atual(cod, motivo)
             continue
         c = lt.campos
         linha = "\t".join([
