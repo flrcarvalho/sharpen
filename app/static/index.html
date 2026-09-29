@@ -4226,6 +4226,10 @@ const _TAG_STATUS = {
   aguardando: { cls: 'aguard', txt: (n) => 'Aguardando resultado <b>' + n + '</b>' },
   tipster:    { cls: 'tips',  txt: (n) => 'Aguardando tipster <b>' + n + '</b>' },
   divergencia:{ cls: 'dive',  txt: () => 'Divergência' },
+  // s388: divergência sem Ajuste, mas com lançamento depois. Tinha virado "+1" dentro
+  // do "Aguardando resultado", e a Lottu exibia uma aposta que não existia. É conta
+  // para conferir, não aposta em espera: pílula própria, âmbar (pede ação do dono).
+  reconferir: { cls: 'aguard', txt: () => 'Reconferir' },
   // Abandono, não erro: CINZA. Âmbar diria "confira" e competiria com pendência de
   // verdade — e o que esta conta tem não é item a resolver, é falta de uso.
   parada:     { cls: 'parada', txt: (n) => 'Parada há <b>' + n + '</b> dias' },
@@ -4237,6 +4241,7 @@ const _TAG_TITULO = {
   aguardando: 'Apostas ainda não liquidadas — o resultado do evento não saiu.',
   tipster: 'Bilhetes sem tipster — falta informação de terceiro, não é erro.',
   divergencia: 'A casa mostrou saldo diferente do projetado.',
+  reconferir: 'A última conferência deu diferença e não foi ajustada; houve lançamento depois. Confira o saldo na casa de novo.',
   parada: 'Conta ativa sem captura há mais de 30 dias — limpa porque ninguém a usa.',
   semcaixa: 'Caixa Inteligente não ligada — nada a conciliar aqui.',
   arquivada: 'Conta fora de operação.',
@@ -4258,7 +4263,7 @@ function tagStatus(estado, n) {
 }
 
 // Estado de UMA conta. Precedência do handoff:
-//   Divergência › Aguardando resultado › Aguardando tipster › Parada há N dias ›
+//   Divergência › Reconferir › Aguardando resultado › Aguardando tipster › Parada há N dias ›
 //   Sem caixa › Conciliada
 // Divergência ganha porque erro realizado é mais urgente que espera. Entre as duas
 // esperas, a de RESULTADO vem primeiro: ela resolve sozinha com o tempo, a de
@@ -4268,10 +4273,12 @@ function tagStatus(estado, n) {
 function _statusDaConta(cx, abertas, semTipster) {
   if (contasTab !== 'ativas') return ['arquivada', 0];
   if (cx && cx.estado === 'divergente') return ['divergencia', 0];
-  // `reconferir` = divergência endereçada que ainda não foi rebatida: entra como
-  // mais um item em espera, não como erro em aberto.
-  const pend = (abertas || 0) + (cx && cx.estado === 'reconferir' ? 1 : 0);
-  if (pend > 0) return ['aguardando', pend];
+  // s388: `reconferir` tem pílula PRÓPRIA. Somado às abertas, ele escrevia
+  // "Aguardando resultado 1" em conta sem aposta nenhuma — o número da pílula tem
+  // de ser o de apostas, e só dele. (A conta que o dono AJUSTOU nem chega aqui: o
+  // servidor já a devolve `confere` — decisão do Feca, 29/09/2026.)
+  if (cx && cx.estado === 'reconferir') return ['reconferir', 0];
+  if (abertas > 0) return ['aguardando', abertas];
   if (semTipster > 0) return ['tipster', semTipster];
   // Parada: conta ATIVA que parou de produzir bilhete. Sem esta tag ela se disfarça
   // de `Conciliada` — está limpa porque ninguém a usa, e a tela lia abandono como
@@ -7572,6 +7579,10 @@ function _cxDiver(d) {
   const c = d.conferencia;
   if (!c) return '<div class="cx__diver nt">Nunca conferida. Abra a casa, veja o saldo disponível e digite acima — é esse confronto que denuncia dinheiro saindo sem registro.</div>';
   const quando = _cxDataBR(c.data);
+  // s388: conciliada por Ajuste diz o valor ajustado — "diferença R$ 0,00" esconderia
+  // que houve uma, e ela está no extrato.
+  if (d.estado === 'confere' && c.ajuste != null)
+    return `<div class="cx__diver ok"><b>Conciliada</b>ajuste de ${_cxTxt(c.ajuste)} · conferido em ${quando}</div>`;
   if (d.estado === 'confere')
     return `<div class="cx__diver ok"><b>Bate com a casa</b>diferença ${_cxTxt(0)} · conferido em ${quando}</div>`;
   if (d.estado === 'reconferir')

@@ -119,10 +119,21 @@ ok(_statusDaConta({ ligada: false, banca: 0, estado: 'sem_caixa', ultima_captura
    'conta sem captura nenhuma não é parada');
 ok(_statusDaConta({ ...velha, ligada: false, banca: 0 }, 0, 0)[0] === 'parada',
    'parada ganha de sem caixa: abandono é a leitura mais forte');
-// `reconferir` = divergência endereçada, ainda não rebatida. Entra como um item em
-// espera, e por isso NÃO pode cair em `parada`.
-ok(_statusDaConta({ ...velha, estado: 'reconferir' }, 0, 0)[0] === 'aguardando',
-   'reconferir conta como item em espera');
+// `reconferir` = divergência sem Ajuste, com lançamento depois. s388: pílula PRÓPRIA.
+// Antes ela virava "+1" no "Aguardando resultado" e a Lottu exibia uma aposta que não
+// existia. Continua não podendo cair em `parada`.
+ok(_statusDaConta({ ...velha, estado: 'reconferir' }, 0, 0)[0] === 'reconferir',
+   'reconferir tem pílula própria');
+ok(_statusDaConta({ ...velha, estado: 'reconferir' }, 3, 0)[0] === 'reconferir',
+   'reconferir ganha de aguardando resultado (pede ação do dono)');
+ok(_statusDaConta({ ...nova, estado: 'reconferir' }, 0, 0)[1] === 0,
+   'reconferir não inventa número de apostas');
+ok(_statusDaConta(nova, 2, 0)[0] === 'aguardando' && _statusDaConta(nova, 2, 0)[1] === 2,
+   'o número de Aguardando resultado é o de apostas, e só dele');
+ok(_statusDaConta({ ...nova, estado: 'confere' }, 0, 0)[0] === 'conciliada',
+   'conta conciliada por Ajuste (servidor devolve confere) fica conciliada');
+ok(/Reconferir/.test(tagStatus('reconferir', 0)) && !/Aguardando/.test(tagStatus('reconferir', 0)),
+   'a pílula de reconferir não fala em aguardando');
 P.set({ tab: 'arquivadas' });
 ok(_statusDaConta(velha, 0, 0)[0] === 'arquivada', 'na aba Arquivadas o estado é sempre arquivada');
 P.set({ tab: 'ativas' });

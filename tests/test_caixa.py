@@ -302,6 +302,54 @@ def test_lancamento_posterior_transforma_divergencia_em_reconferir():
     assert r["estado"] == "reconferir"
 
 
+def test_ajuste_que_fecha_a_divergencia_concilia_a_conta():
+    """Decisão do Feca (29/09/2026): conferiu, deu divergência, clicou em ajustar —
+    ele conciliou aquele valor. O Ajuste do botão é um lançamento posterior e, sem
+    esta regra, a conta pedia reconferência para sempre (a Lottu por R$ 0,01)."""
+    movs = [mov("inicial", "2026-08-01", 1000.0, id=1),
+            mov("conferencia", "2026-08-15", 900.0, id=2, projetado=1000.0,
+                criado_em="2026-08-15T10:00:00"),
+            mov("ajuste", "2026-08-15", -100.0, id=3, criado_em="2026-08-15T10:00:05",
+                obs="Ajuste da conferência de 15/08/26")]
+    r = _caixa_projetar(movs, [])
+    assert r["estado"] == "confere"
+    assert r["divergencia"] == -100.0                 # a medição não some
+    assert r["conferencia"]["ajuste"] == -100.0       # e a tela sabe que houve ajuste
+
+
+def test_depois_do_ajuste_que_concilia_saque_e_operacao_normal():
+    """Conciliada pelo Ajuste, a conta segue como a que bateu: um saque depois não a
+    devolve para "reconferir" (Gleice: Ajuste de 431,86 e dois saques depois)."""
+    movs = [mov("inicial", "2026-08-01", 1000.0, id=1),
+            mov("conferencia", "2026-08-15", 1200.0, id=2, projetado=1000.0,
+                criado_em="2026-08-15T10:00:00"),
+            mov("ajuste", "2026-08-15", 200.0, id=3, criado_em="2026-08-15T10:00:05"),
+            mov("saque", "2026-08-16", 500.0, id=4, criado_em="2026-08-16T10:00:00")]
+    assert _caixa_projetar(movs, [])["estado"] == "confere"
+
+
+def test_ajuste_de_outro_valor_nao_concilia():
+    """Só o Ajuste do MESMO valor fecha. Um ajuste qualquer depois de uma divergência
+    é o operador mexendo no número, não aceitando a diferença medida — a conta segue
+    para conferir. O sinal conta: −100 não fecha uma divergência de +100."""
+    base = [mov("inicial", "2026-08-01", 1000.0, id=1),
+            mov("conferencia", "2026-08-15", 1100.0, id=2, projetado=1000.0,
+                criado_em="2026-08-15T10:00:00")]
+    for valor in (40.0, -100.0):
+        movs = base + [mov("ajuste", "2026-08-15", valor, id=3, criado_em="2026-08-15T11:00:00")]
+        assert _caixa_projetar(movs, [])["estado"] == "reconferir", valor
+
+
+def test_ajuste_anterior_a_conferencia_nao_concilia():
+    """O Ajuste tem de vir DEPOIS da conferência: um de mesmo valor lançado antes não
+    respondeu a divergência nenhuma."""
+    movs = [mov("inicial", "2026-08-01", 1000.0, id=1),
+            mov("ajuste", "2026-08-10", -100.0, id=2, criado_em="2026-08-10T09:00:00"),
+            mov("conferencia", "2026-08-15", 800.0, id=3, projetado=900.0,
+                criado_em="2026-08-15T10:00:00")]
+    assert _caixa_projetar(movs, [])["estado"] == "divergente"
+
+
 def test_lancamento_anterior_a_conferencia_nao_apaga_o_alerta():
     """Só lançamento feito DEPOIS da conferência a torna obsoleta."""
     movs = [mov("inicial", "2026-08-01", 1000.0, id=1),

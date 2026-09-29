@@ -2398,11 +2398,24 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
     if div is None or abs(div) < CAIXA_TOL:
         out["estado"] = "confere"
         return out
-    # Divergência endereçada depois (o operador lançou o que faltava) deixa de gritar
-    # e passa a pedir uma reconferência — o número antigo já não descreve a conta.
     depois = [m for m in movs
               if m.get("tipo") in _CAIXA_LANCAMENTOS
               and (m.get("criado_em") or "") > (ult.get("criado_em") or "")]
+    # Decisão do Feca (29/09/2026): o Ajuste que FECHA a divergência medida — mesmo
+    # valor, lançado depois da conferência — É a conciliação. O dono viu a diferença e
+    # a aceitou pelo nome; a conta fica `confere`, e o que vem depois é operação
+    # normal, como depois de uma conferência que bateu. Antes o próprio Ajuste contava
+    # como "lançamento posterior" e a conta pedia reconferência para sempre (a Lottu
+    # por R$ 0,01). A divergência não some: continua em `conferencia.divergencia` e o
+    # Ajuste continua no extrato.
+    fechou = next((m for m in depois if m.get("tipo") == "ajuste"
+                   and abs(float(m.get("valor") or 0.0) - div) < CAIXA_TOL), None)
+    if fechou is not None:
+        out["conferencia"]["ajuste"] = div
+        out["estado"] = "confere"
+        return out
+    # Divergência endereçada de outro jeito (o operador lançou o que faltava) deixa de
+    # gritar e passa a pedir uma reconferência — o número antigo já não descreve a conta.
     out["estado"] = "reconferir" if depois else "divergente"
     return out
 
