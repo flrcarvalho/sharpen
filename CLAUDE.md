@@ -932,6 +932,11 @@ nunca o recalcula: a projeção de hoje já inclui aposta que não existia lá a
 recalcular reescreveria o passado, apagando a divergência que foi medida. O box
 continua acusando até alguém lançar o que faltava ou pedir o ajuste nomeado.
 
+**Ajustou, conciliou** (decisão do Feca, 29/09/2026). Ajuste de MESMO valor e sinal da
+divergência, lançado depois da conferência, devolve `confere`; sem ele, a conta é para
+conferir. O que vem depois é operação normal, como depois de conferência que bateu.
+Pílula de conta só conta APOSTA: `reconferir` tem a dela, nunca "+1" no Aguardando.
+
 **Conta sem caixa não vira zero:** entra como "—", fica fora de toda soma, e a tela
 diz quantas faltam. Total que engole conta desconhecida mente com cara de exatidão.
 
