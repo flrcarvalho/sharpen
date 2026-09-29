@@ -1811,6 +1811,36 @@ tipster; o que muda é a escala, porque o botão escreve em lote.
 Mesma família do *"correção humana MANDA sobre a captura"* do `CLAUDE.md`, com o detalhe de
 que hoje ninguém sabe qual correção é humana.
 
+### 4.13 Captura na conta ERRADA: quarta vez, e nenhuma trava a impede (s388). VIVA, medida.
+
+A conta de destino vem do **pareamento** (`popup.js`), e nenhum inject olha quem esta logado
+na casa. Capturar com a conta X selecionada e a casa logada na Y grava o historico de Y dentro
+de X, sem erro. Casa com codigo nao sobrescreve nada (a assinatura inclui `parceiro`), entao o
+sintoma nao e dado estragado, e **a Caixa de X parar de fechar**.
+
+| Sessao | Casa | Lote intruso |
+|---|---|---|
+| s266 | Bet365 | 72 (`Taliacoelho01` -> `marloncezar01`) |
+| s267 | Betano | 213 (`elianemaria12233`, origem nunca achada) |
+| s370 | Bet365 | 235 (`BrunnoAD` -> `matheushds62`) |
+| s388 | Superbet | 73 (`erick_vilanova` -> `mamapaul03`) |
+
+O conserto e sempre manual e por script (`mover_bilhetes_entre_contas.py`,
+`remover_lote_conta_errada.py`, `podar_conta_para_lista.py`), depois que alguem percebe.
+
+**Duas travas possiveis, e elas se completam:**
+
+1. **No servidor, sem tocar na extensao, vale para toda casa com codigo:** lote cujos codigos
+   ja pertencem a OUTRA conta do mesmo dono e casa. Na s388 foram 73 de 73; na s370, 229 de
+   235. Nao pega a 1a captura da conta Y (Y ainda nao tem nada gravado).
+2. **Na extensao, por identidade da casa:** a Superbet imprime o id do usuario na URL que o
+   inject ja escuta (`/user/<id>/tickets`, `sb_inject.js`). Gravar o id na 1a captura da conta
+   e recusar id diferente depois. Pega tambem a 1a captura, mas e casa a casa.
+
+**Medicao de passagem (28/09), nao investigada:** codigo presente em duas contas do mesmo dono
+e casa em `Tonelada/BETesporte` (64), `Diogo/Novibet` (10) e `germano/Bet365` (8). Pode ser a
+mesma familia, pode ser codigo curto que se repete na casa: medir antes de chamar de intruso.
+
 ## 5. Planos com fase aberta
 
 > Um plano só sai daqui quando **todas** as fases dele fecham. Plano com uma fase aberta é
