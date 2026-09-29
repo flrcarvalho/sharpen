@@ -1055,7 +1055,19 @@ do caminho e torna a pergunta irrelevante para a parte que ele cobrir.
 > ela mira e medir o outro depois. Esta é a terceira vez que uma mira acerta e a vizinha
 > piora em silêncio.
 
-### 3.13 O Haiku 4.5 — a reprovação da s377 foi RETIRADA. Reaberta, com caminho (s378).
+### 3.13 O Haiku 4.5 — **ENCERRADO por medição nos dois papéis testados (s386, 24/09).**
+> **Fechamento (s386, 24/09, US$ ~10 de experimento, worktree `exp/s386-custo-haiku`).**
+> Critério gravado ANTES de rodar: o Haiku serve num papel se a diferença PAREADA de erro
+> de significado contra o Sonnet, nos mesmos blocos, tiver teto de 95% <= 1 p.p. Medido em
+> 720 blocos NOVOS de 10 donos, erros confirmados à mão contra o texto:
+> - lendo tudo: **+3,5 p.p. [1,9; 5,0]**;
+> - lendo só o que o tradutor não resolve: **+7,8 p.p. [5,2; 10,6]**.
+> Com o Sonnet refazendo o que o Haiku errou, o fluxo fica em 5,1% de erro e poupa só
+> US$ 0,0024/bloco. Os erros que nenhum gate pega são de sentido: time trocado, confronto
+> inventado, perna perdida, "jardas de recepção" virando "jardas". A hipótese só reabre com
+> fato novo (outro modelo, outra tarefa, como print).
+> → registros em `_backups/experimento_s386/teste_73c526267066/`, runner
+> `scripts/experimento_s386.py` (no branch).
 
 > ⚠️ **Este item já esteve fechado com dois números FALSOS.** A versão anterior dizia que o
 > Haiku "perdeu 8,7 % dos bilhetes e inventou 19 códigos". **Os dois eram defeito da minha
@@ -1253,6 +1265,63 @@ limpo no main de 29/09. Verificação independente: `_backups/frente01_verificac
 times (objeto × `H2H`) · D4 `games` × badminton · D5 qual instante é a data · D6 forma do total
 de time, `3` × `3.0`, confronto por perna no bet builder · D7 props de jogador no futebol ·
 D8 `Boxe`, `Futsal`, `Hits` · D9 freebet. D1 e D6 travam o tradutor no fluxo.
+
+### 3.19 Viabilidade econômica do fluxo de IA: tradutor + Sonnet sem pensamento (s386, 24–29/09). VIVA, medida.
+
+**Tudo no worktree `Planilhador-exp-s386`, branch `exp/s386-custo-haiku`. Nada na main.**
+
+**Medido (Bet365, 902 blocos NOVOS, 7 donos, fluxo completo pelo `/extrair` real):**
+
+| | Sonnet com pensamento (produção) | Sonnet sem pensamento |
+|---|---|---|
+| Erro de significado, confirmado à mão | 0,7% [0,2–1,4] | 0,9% [0,4–1,7] |
+| Falso negativo em 30 "sem erro detectado" | 0 | 0 |
+| Retorno ao caminho atual | 16 blocos | 55 blocos |
+| **Custo por bloco** | **US$ 0,00397** | **US$ 0,00308** |
+
+Sem pensamento é ACEITÁVEL pelo critério pré-registrado (diferença pareada -0,3 a +0,8 p.p.).
+`normalizar_forma` no portão (` @ `→` v `, Mais/Menos de→Over/Under) derruba o retorno para 21
+blocos: **projeção** de US$ 0,00193/bloco, sem erro novo.
+
+**Por usuário, 30 dias (25/08–24/09), R$/mês:** Feca 798 hoje → 377 no fluxo novo; Gabriel
+739 → 425; Jonathan 487 → 202. A projeção só troca a Bet365 (tradutor rodado nos blocos reais
+de cada um); as outras casas ficam com o gasto histórico, e são **60–75% do que sobra**.
+Ninguém passa de 6.420 apostas/mês: as faixas de 8 e 10 mil são extrapolação linear
+(R$ 498–529 e R$ 622–662). **Com o fluxo novo, um usuário de 6 mil custa mais que qualquer
+plano do estudo** (o maior, R$ 149, cobre 15 contas; eles têm 29–44).
+
+**A maior alavanca que sobrou, grátis de medir:** 42–67% das leituras Bet365 dos usuários
+pesados são RELEITURAS de código já gravado, e o UPSERT descarta o significado que elas
+produzem (não atualiza esporte/aposta/descrição fora de `sync`). Reusar o significado gravado
+e ler só os números por código: projeção de mais 42–67% na Bet365 deles. Não implementado.
+
+**Decisão do Feca já tomada (24/09, no experimento):** o mercado de total de UM time preserva
+a qual time se refere; nome do time quando a fonte permite identificar, senão Casa/Visitante,
+nunca apagar. Está no `MASTER_DESCRICAO §12.5.1` do branch.
+
+**Decisões do Feca pendentes:**
+1. Integrar à main as mudanças do branch. As de MASTER/CASA mudam também o caminho de hoje:
+   §10.1 (a linha é copiada), §12.5.1, §12.2.1 (prop de sim/não do jogador), CASA_BET365 §9.
+   ⚠️ A s387 tem patch de MASTER próprio (`Planilhador-masters-s387`): conciliar os dois.
+2. `Chutes no Gol`/`Desarmes`/`Faltas` × `Player Props` (MASTER_APOSTAS §3 x CASA_BET365 §9).
+3. Múltiplos do §2 × as correções manuais do dono (7 de 7 foram Múltiplos → esporte único).
+4. Categoria das props de NFL/MLB "X (Mais de/Menos de)": é a maior família que o tradutor
+   ainda manda ao modelo no formato atual.
+
+**Próximos passos (em ordem):**
+1. Ligar o tradutor ANTES do contrato no `/extrair` (hoje ele só roda em sombra) e medir em
+   sombra na produção.
+2. Releitura sem IA na Bet365: medir em sombra, grátis.
+3. Betano no mesmo desenho: é a maior das outras casas.
+4. Custo real dos bots de tipster: não está no `uso_tokens` (sohprops, SoChutes e outros
+   aparecem com US$ 0).
+
+**Lacunas declaradas:** print e texto sem código não se separam no `uso_tokens` (sem marca de
+imagem); o `realtrial` (6,6 mil apostas/mês, US$ 0 de IA, parado em 13/09) tem origem
+desconhecida; a primeira captura de cliente novo (histórico de até 3 anos) não entra no custo
+mensal; impostos, infra, suporte e preço não medidos ou não decididos.
+→ registros em `_backups/experimento_s386/` (`fluxo_6488ed625136`, `teste_73c526267066`),
+runners `scripts/experimento_fluxo_s386.py` e `scripts/reavaliar_s386.py` (no branch).
 
 ## 4. Dívida técnica medida
 
