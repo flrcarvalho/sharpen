@@ -1018,3 +1018,35 @@ def test_confianca_do_codigo_so_desce():
         r = await _get("TOcrF", "COD9")
         assert r["codigo_ocr"] is False
     _run(body())
+
+
+def test_codigos_em_outra_conta_so_conta_o_que_esta_la_e_nao_aqui():
+    """A consulta da trava de conta errada (s388), contra o Postgres.
+
+    Três fronteiras: o código tem de estar noutra conta do MESMO dono e casa; código que
+    também está nesta conta não conta (herança de captura errada antiga, senão a
+    recaptura certa seria recusada); e casa/dono diferentes não se misturam."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([
+            _row(casa="Superbet", parceiro="erick [A]", codigo_bilhete="SB1"),
+            _row(casa="Superbet", parceiro="erick [A]", codigo_bilhete="SB2"),
+            _row(casa="Superbet", parceiro="erick [A]", codigo_bilhete="SB3"),
+            # SB3 também mora na conta que captura: não pode contar contra ela
+            _row(casa="Superbet", parceiro="mama [R]", codigo_bilhete="SB3"),
+            # mesmo código noutra CASA não é a mesma aposta
+            _row(casa="Betano", parceiro="erick [A]", codigo_bilhete="SB4"),
+        ], "TDonoA")
+        # mesmo código noutro DONO: tenancy
+        await repository.upsert_bilhetes(
+            [_row(casa="Superbet", parceiro="erick [A]", codigo_bilhete="SB5")], "TDonoB")
+
+        lote = ["SB1", "SB2", "SB3", "SB4", "SB5", "NOVO"]
+        assert await repository.codigos_em_outra_conta(
+            lote, "TDonoA", "Superbet", "mama [R]") == {"erick [A]": 2}
+        # da própria conta que tem os códigos, nada é "de outra conta"
+        assert await repository.codigos_em_outra_conta(
+            ["SB1", "SB2"], "TDonoA", "Superbet", "erick [A]") == {}
+        assert await repository.codigos_em_outra_conta(
+            [], "TDonoA", "Superbet", "mama [R]") == {}
+    _run(body())

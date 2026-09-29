@@ -1811,7 +1811,7 @@ tipster; o que muda é a escala, porque o botão escreve em lote.
 Mesma família do *"correção humana MANDA sobre a captura"* do `CLAUDE.md`, com o detalhe de
 que hoje ninguém sabe qual correção é humana.
 
-### 4.13 Captura na conta ERRADA: quarta vez, e nenhuma trava a impede (s388). VIVA, medida.
+### 4.13 Captura na conta ERRADA: quarta vez. **Trava do servidor NO AR (s388)**; falta a da extensão.
 
 A conta de destino vem do **pareamento** (`popup.js`), e nenhum inject olha quem esta logado
 na casa. Capturar com a conta X selecionada e a casa logada na Y grava o historico de Y dentro
@@ -1830,12 +1830,16 @@ O conserto e sempre manual e por script (`mover_bilhetes_entre_contas.py`,
 
 **Duas travas possiveis, e elas se completam:**
 
-1. **No servidor, sem tocar na extensao, vale para toda casa com codigo:** lote cujos codigos
-   ja pertencem a OUTRA conta do mesmo dono e casa. Na s388 foram 73 de 73; na s370, 229 de
-   235. Nao pega a 1a captura da conta Y (Y ainda nao tem nada gravado).
+1. ~~No servidor~~ **FEITA na s388**: `/captura/enviar` recusa com 409 o lote cuja MAIORIA
+   de codigos ja mora noutra conta do mesmo dono e casa (`main._conta_errada`). Nao pega a 1a
+   captura da conta Y (Y ainda nao tem nada gravado).
 2. **Na extensao, por identidade da casa:** a Superbet imprime o id do usuario na URL que o
    inject ja escuta (`/user/<id>/tickets`, `sb_inject.js`). Gravar o id na 1a captura da conta
    e recusar id diferente depois. Pega tambem a 1a captura, mas e casa a casa.
+3. **O texto do 409 na extensao.** `background.js` mostra texto FIXO para 409 ("Casa
+   incompativel — o site nao corresponde a conexao") e o content emenda "a conexao caiu no
+   envio". O servidor ja manda o nome da conta no `detail`; falta a extensao ler e mostrar.
+   Pede versao nova do SharpenUp.
 
 **Medicao de passagem (28/09), nao investigada:** codigo presente em duas contas do mesmo dono
 e casa em `Tonelada/BETesporte` (64), `Diogo/Novibet` (10) e `germano/Bet365` (8). Pode ser a

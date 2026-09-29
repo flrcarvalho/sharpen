@@ -4688,6 +4688,35 @@ async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None
     return {row["codigo_bilhete"] for row in rows}
 
 
+async def codigos_em_outra_conta(codigos: list[str], dono: str, casa: str,
+                                 parceiro: str) -> dict[str, int]:
+    """Quantos destes códigos já estão gravados em OUTRA conta do mesmo dono e casa.
+
+    Devolve `{parceiro: n}`. É o insumo da trava de captura na conta errada
+    (`main._conta_errada`): código de bilhete é único na casa, então um lote cujos
+    códigos já moram noutra conta foi capturado com a casa logada nela.
+
+    Código que TAMBÉM está nesta conta não conta. Há bases com o mesmo código nas
+    duas contas, herança de captura errada nunca limpa (medido em 28/09: Tonelada,
+    Diogo, germano); contá-lo faria a recaptura LEGÍTIMA de qualquer das duas ser
+    recusada, e a trava viraria a perda.
+    """
+    if not codigos or not casa or not parceiro:
+        return {}
+    sql = """SELECT o.parceiro, COUNT(DISTINCT o.codigo_bilhete) AS n
+               FROM bilhetes o
+              WHERE o.codigo_bilhete = ANY($1::text[])
+                AND o.dono = $2 AND o.casa = $3 AND o.parceiro <> $4
+                AND NOT EXISTS (SELECT 1 FROM bilhetes p
+                                 WHERE p.dono = $2 AND p.casa = $3 AND p.parceiro = $4
+                                   AND p.codigo_bilhete = o.codigo_bilhete)
+              GROUP BY o.parceiro"""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(sql, list(codigos), dono, casa, parceiro)
+    return {row["parceiro"]: int(row["n"]) for row in rows}
+
+
 # ── Log de uso de tokens (observabilidade de custo) ───────────────────────────
 # Preço USD por MTok (input, output, cache write, cache read). Fonte: tabela de
 # preços da API Anthropic. Ao mudar o preço, atualize aqui — o custo já gravado

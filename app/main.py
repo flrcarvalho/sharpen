@@ -79,6 +79,7 @@ from repository import (
     deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
+    codigos_em_outra_conta,
     flags_pos_edicao, flags_pos_edicao_lote, atualizar_bilhetes_lote,
     flags_pos_edicao, limpar_ativos_tipster, list_bilhetes, list_esportes,
     list_mercados, list_tipsters,
@@ -3526,6 +3527,60 @@ async def captura_validar(req: ValidarRequest):
             "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
 
 
+# ── Trava de captura na conta ERRADA (s388) ────────────────────────────────────
+# A conta de destino vem do PAREAMENTO, e nenhum inject olha quem está logado na casa.
+# Capturar com a conta X pareada e a casa logada na Y gravava o histórico de Y dentro de
+# X, sem erro: com código, a assinatura inclui `parceiro`, então nada é sobrescrito e o
+# único sintoma é a Caixa de X parar de fechar. Quatro vezes medidas (s266, s267, s370,
+# s388; `BACKLOG 4.13`), todas consertadas à mão depois que alguém percebeu.
+#
+# O sinal é o código, que é único na casa: se a MAIORIA dos códigos do lote já mora
+# noutra conta do mesmo dono e casa, o lote é daquela conta. Na s388 foram 73 de 73; na
+# s370, 229 de 235. Maioria, e não "qualquer um", porque há bases com código gravado nas
+# duas contas por captura errada antiga (28/09: germano/Bet365, 4 de 11 num lote); ali o
+# lote é da conta que capturou, e recusá-lo impediria justamente a captura certa.
+#
+# ⚠️ Limite conhecido: não pega a 1ª captura da conta Y (ela ainda não tem nada gravado
+# para comparar). Essa metade é da extensão, por identidade da casa (`BACKLOG 4.13`).
+#
+# Fail-OPEN: se a consulta falhar, o lote passa. A trava protege contra erro de operação
+# raro; derrubar toda captura quando o banco soluça seria trocar um defeito por outro.
+def _conta_errada(total: int, por_conta: dict[str, int]) -> tuple[str, int] | None:
+    """`(conta, n)` quando a maioria dos `total` códigos do lote é de outra conta."""
+    if total <= 0 or not por_conta:
+        return None
+    conta, n = max(por_conta.items(), key=lambda kv: kv[1])
+    return (conta, n) if 2 * n > total else None
+
+
+async def _checar_conta_errada(sess, texto: str) -> None:
+    """Levanta 409 quando o lote de texto é de outra conta (ver `_conta_errada`)."""
+    codigos = codigos_do_texto(texto)
+    if not codigos:
+        return   # print, texto sem marcador: não há o que comparar
+    try:
+        por_conta = await codigos_em_outra_conta(codigos, sess.dono, sess.casa, sess.parceiro)
+    except Exception:
+        logger.exception("trava de conta errada: consulta falhou, lote segue · %s/%s/%s",
+                         sess.dono, sess.casa, sess.parceiro)
+        return
+    achado = _conta_errada(len(codigos), por_conta)
+    if not achado:
+        return
+    conta, n = achado
+    logger.warning("trava de conta errada: %d de %d códigos já são da conta %r · lote "
+                   "recusado para %s/%s/%s", n, len(codigos), conta,
+                   sess.dono, sess.casa, sess.parceiro)
+    # A extensão até a 0.7.33 mostra texto fixo para 409 ("Casa incompatível"), e o texto
+    # capturado fica guardado: reparear na conta certa e clicar Reenviar grava no lugar certo.
+    raise HTTPException(
+        409,
+        f"Conta incompatível: {n} de {len(codigos)} bilhetes desta captura já são da "
+        f"conta {conta}, não da {sess.parceiro}. Confira qual conta está logada na "
+        f"{sess.casa}, gere o código da conta certa e clique em Reenviar.",
+    )
+
+
 @app.post("/captura/enviar")
 async def captura_enviar(
     token: str = Form(...),
@@ -3563,6 +3618,7 @@ async def captura_enviar(
     if tipo == "texto":
         if not (texto and texto.strip()):
             raise HTTPException(400, "Texto vazio.")
+        await _checar_conta_errada(sess, texto)
         ok = _captura.adicionar_captura(sess, "texto", "", texto)
     else:
         if imagem is None:
