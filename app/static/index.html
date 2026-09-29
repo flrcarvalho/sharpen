@@ -2503,12 +2503,17 @@ td.c-res.res-HL { color: var(--warn); }
   /* Os pisos são MEDIDOS no headless contra a base real, não copiados do handoff:
        228px  nome  — favicon 24 + a casa mais longa + a pílula de contagem = 220
        196px  status— a MAIOR pílula ("Aguardando resultado 199"), não a média
-       130px  caixa — `R$ 100.000,00` em mono tabular
+       130px  disponível — `R$ 100.000,00` em mono tabular
+       120px  em aberto  — `R$ 10.000,00` em mono tabular, um corpo menor
        210px  ações — os três botões com ícone medem 208 juntos
      O handoff pedia 170/176 nas pontas; nos dois a trilha ficava menor que o
      conteúdo, e `justify-content:flex-end` transborda para a ESQUERDA — some do
-     `scrollWidth` e o defeito não aparece em medição nenhuma (s331d). */
-  grid-template-columns: minmax(228px, 1fr) 0 0 196px 130px 210px;
+     `scrollWidth` e o defeito não aparece em medição nenhuma (s331d).
+     s388: "Em aberto" é FIXA, não opcional. A coluna única mostrava a BANCA, que soma
+     o stake preso em aposta aberta, e a casa mostra o DISPONÍVEL: o Marlon lia 4.082
+     onde a Bet365 dizia 3.478. Os dois números são a pergunta da tela, então nenhum
+     dos dois pode sumir num degrau de largura. */
+  grid-template-columns: minmax(228px, 1fr) 0 0 196px 130px 120px 210px;
   align-items: center; gap: 10px; padding: 0 14px;
 }
 /* As duas opcionais, colapsadas por padrão. `overflow:hidden` é OBRIGATÓRIO: uma
@@ -2517,20 +2522,20 @@ td.c-res.res-HL { color: var(--warn); }
    nenhuma medição automática. */
 .acct-col-fornecedor,
 .acct-col-ultima { opacity: 0; width: 0; overflow: hidden; pointer-events: none; white-space: nowrap; }
-/* 990px = 228+132+196+130+210 (trilhas) + 50 (gaps) + 28 (padding) + folga. */
-@container acct (min-width: 990px) {
+/* 1120px = 228+132+196+130+120+210 (trilhas) + 60 (gaps) + 28 (padding) + folga. */
+@container acct (min-width: 1120px) {
   .acct-head, .contas-casa-head, .conta-row, .acct-foot {
-    grid-template-columns: minmax(228px, 1fr) 132px 0 196px 130px 210px;
+    grid-template-columns: minmax(228px, 1fr) 132px 0 196px 130px 120px 210px;
   }
   .acct-col-fornecedor { opacity: 1; width: auto; overflow: visible; pointer-events: auto; }
   /* O fornecedor não aparece DUAS vezes: acima deste corte ele sai de dentro da
      célula de nome e passa a ser coluna própria. Abaixo, o contrário. */
   .acct-supplier-inline { display: none; }
 }
-/* 1150px = a conta acima + a trilha de 152 da última captura + folga. */
-@container acct (min-width: 1150px) {
+/* 1280px = a conta acima + a trilha de 152 da última captura + folga. */
+@container acct (min-width: 1280px) {
   .acct-head, .contas-casa-head, .conta-row, .acct-foot {
-    grid-template-columns: minmax(228px, 1fr) 132px 152px 196px 130px 210px;
+    grid-template-columns: minmax(228px, 1fr) 132px 152px 196px 130px 120px 210px;
   }
   .acct-col-ultima { opacity: 1; width: auto; overflow: visible; pointer-events: auto; }
 }
@@ -2597,6 +2602,16 @@ td.c-res.res-HL { color: var(--warn); }
    alvo. A comparação aqui é tipográfica — mesma coluna, mesma fonte tabular. */
 .conta-caixa { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .conta-caixa.vazio { color: var(--ink-mute); font-weight: 400; }
+/* s388 · Em aberto: stake preso em aposta não liquidada. Valor numérico → --ink, mas
+   um degrau abaixo do Disponível em corpo e peso: o disponível é o que se confere com
+   a casa, o aberto é o que ainda pode voltar. Zero vira --ink-mute (13px passa o piso
+   de 12px do papel "desabilitado") — é valor medido, então imprime R$ 0,00, mas não
+   disputa o olho com o que tem dinheiro. */
+.conta-aberto { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.conta-aberto.zero,
+.conta-aberto.vazio { color: var(--ink-mute); font-weight: 400; }
+/* Total de aberto na linha da CASA: trilha 6, a mesma das contas logo abaixo. */
+.contas-casa-head .conta-aberto { grid-column: 6; }
 
 /* ── s333 · Linha de total no rodapé (Fase 8.4) ───────────────────────────────
    Herda a MESMA grade das linhas (está na lista de seletores da Fase 7.1): o total
@@ -2608,6 +2623,8 @@ td.c-res.res-HL { color: var(--warn); }
 .acct-foot .lbl { grid-column: 1 / 5; font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .acct-foot .val { grid-column: 5; text-align: right; font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
 .acct-foot .val.vazio { color: var(--ink-mute); font-weight: 400; }
+.acct-foot .val-ab { grid-column: 6; text-align: right; font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.acct-foot .val-ab.zero { color: var(--ink-mute); font-weight: 400; }
 
 /* ── Colunas opcionais (Fase 7) ───────────────────────────────────────────────
    Fornecedor como COLUNA (≥1500) e Última captura (≥1900). O conteúdo é o mesmo dado
@@ -2633,7 +2650,7 @@ td.c-res.res-HL { color: var(--warn); }
 /* Tabela larga — espaço não falta: os botões ficam sempre visíveis. Precisa vir
    DEPOIS da declaração base: mesma especificidade, e aí quem ganha é a ordem no
    arquivo. */
-@container acct (min-width: 1150px) { .conta-acoes { opacity: 1; } }
+@container acct (min-width: 1280px) { .conta-acoes { opacity: 1; } }
 .btn-mini { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-sans); font-size: 10.5px; font-weight: 500; color: var(--ink-soft); background: transparent; border: 1px solid var(--line); border-radius: var(--r-xs); padding: 5px 7px; cursor: pointer; white-space: nowrap; }
 .btn-mini svg { width: 11px; height: 11px; flex: none; }
 .btn-mini:hover { color: var(--ink); border-color: var(--ink-mute); }
@@ -4261,7 +4278,8 @@ function _statusDaConta(cx, abertas, semTipster) {
   // saúde. Conta que nunca capturou nada não entra aqui: nunca começou, não parou.
   const dias = _diasDesde(cx && cx.ultima_captura);
   if (dias !== null && dias > _PARADA_DIAS) return ['parada', dias];
-  if (!cx || !cx.ligada || !cx.banca) return ['semcaixa', 0];
+  // s388: `ligada`, não o saldo. Conta sacada até zero continua com caixa.
+  if (!cx || !cx.ligada) return ['semcaixa', 0];
   return ['conciliada', 0];
 }
 
@@ -4302,12 +4320,20 @@ function _colUltima(cx) {
 // Chip `TOTAL` da linha da casa. É a 3ª célula da grade (a trilha da Caixa), então o
 // total e os saldos das contas encostam na MESMA borda direita — comparar não exige
 // procurar. Casa sem caixa ligada mostra travessão, nunca zero.
+//
+// s388: o chip soma o DISPONÍVEL (o que se confere com a casa) e o aberto vem ao lado,
+// na trilha dele. "Tem caixa" é `ligadas`, nunca o saldo: conta ligada com R$ 0,00 é
+// saldo MEDIDO, e o teste antigo (`c.banca`) a lia como "sem caixa".
+function _valAberto(v) {
+  return '<span class="conta-aberto' + (Math.abs(v || 0) < 0.005 ? ' zero' : '') + '">' + fmtSaldo(v) + '</span>';
+}
 function _totalDaCasa(casa) {
   const c = caixaVisaoCache && (caixaVisaoCache.casas || []).find(x => x.casa === casa);
-  const tem = contasTab === 'ativas' && c && c.ligadas && c.banca;
+  const tem = contasTab === 'ativas' && c && c.ligadas;
   return '<span class="acct-total' + (tem ? '' : ' vazio') + '">'
     + '<span class="lbl">total</span>'
-    + '<span class="val">' + (tem ? fmtSaldo(c.banca) : '—') + '</span></span>';
+    + '<span class="val">' + (tem ? fmtSaldo(c.disponivel) : '—') + '</span></span>'
+    + (tem ? _valAberto(c.aberto) : '<span class="conta-aberto vazio">—</span>');
 }
 
 // Ícones das ações da linha. SVG em `currentColor`, não emoji: emoji é glifo COLORIDO
@@ -4335,7 +4361,7 @@ function renderPainelLista() {
   // numa base solo ela imprimiria "EU" em toda linha, que é rótulo sem contraste.
   const temForn = _painelTemFornecedor();
   const cxMap = _caixaPorConta() || {};
-  let html = '', total = 0, somaCaixa = 0, casasComCaixa = 0;
+  let html = '', total = 0, somaCaixa = 0, somaAberto = 0, nComCaixa = 0, casasComCaixa = 0;
   (casasCarregadas || []).forEach(casa => {
     if (soCasa && casa !== soCasa) return;
     const nomeCasa = casaDisplay(NOMES[casa] || casa);
@@ -4347,7 +4373,7 @@ function renderPainelLista() {
     if (!ps.length) return;
     total += ps.length;
     const casaTotal = _totalDaCasa(casa);
-    let caixaDaCasa = 0;
+    let casaTemCaixa = false;
     // Linha da casa: as MESMAS 6 trilhas da conta, e as opcionais/ações ficam
     // reservadas mesmo vazias — é o que impede a lista de dançar no hover e nos
     // degraus de largura. NENHUMA tag aqui: a casa é totalizadora, e pendência mora
@@ -4380,11 +4406,15 @@ function renderPainelLista() {
       const tag = tagStatus(estado, nPend);
       // Caixa da conta: sem caixa entra como "—", nunca como zero. Total que engole
       // conta desconhecida mente com cara de exatidão.
-      const temCaixa = !!(cx && cx.ligada && cx.banca);
-      if (temCaixa) { somaCaixa += cx.banca; caixaDaCasa += cx.banca; }
+      // s388: DISPONÍVEL (o número que a casa mostra) e EM ABERTO em colunas próprias.
+      // A coluna única mostrava a banca, que soma o stake preso: a BetBoom com R$ 0,60
+      // na casa aparecia com R$ 29,92. E "tem caixa" é `ligada`, não saldo ≠ 0.
+      const temCaixa = !!(cx && cx.ligada);
+      if (temCaixa) { somaCaixa += cx.disponivel; somaAberto += cx.aberto; nComCaixa++; casaTemCaixa = true; }
       const caixa = temCaixa
-        ? '<span class="conta-caixa">' + fmtSaldo(cx.banca) + '</span>'
-        : '<span class="conta-caixa vazio" title="Caixa Inteligente não ligada nesta conta">—</span>';
+        ? '<span class="conta-caixa">' + fmtSaldo(cx.disponivel) + '</span>' + _valAberto(cx.aberto)
+        : '<span class="conta-caixa vazio" title="Caixa Inteligente não ligada nesta conta">—</span>'
+          + '<span class="conta-aberto vazio">—</span>';
       // Nome e fornecedor deixam de ser uma string só ("Davi [Norte]"): o nome é
       // identidade (--ink 12,5px) e o fornecedor é label (--ink-soft 9,5px mono).
       const forn = _painelParseForn(p.nome);
@@ -4418,7 +4448,7 @@ function renderPainelLista() {
         + tag + caixa
         + '<span class="conta-acoes">' + acoes + '</span></div>';
     });
-    if (caixaDaCasa > 0) casasComCaixa++;
+    if (casaTemCaixa) casasComCaixa++;
     html += '</div></div>';
   });
   // ── Linha de total no rodapé (Fase 8.4) ────────────────────────────────────
@@ -4428,8 +4458,9 @@ function renderPainelLista() {
     const rotulo = total + (total === 1 ? ' conta' : ' contas') + (contasTab === 'ativas' ? ' ativas' : ' arquivadas')
       + ' · ' + casasComCaixa + (casasComCaixa === 1 ? ' casa com caixa' : ' casas com caixa');
     html += '<div class="acct-foot"><span class="lbl">' + esc(rotulo) + '</span>'
-      + (somaCaixa > 0
+      + (nComCaixa > 0
           ? '<span class="val">' + fmtSaldo(somaCaixa) + '</span>'
+            + '<span class="val-ab' + (Math.abs(somaAberto) < 0.005 ? ' zero' : '') + '">' + fmtSaldo(somaAberto) + '</span>'
           : '<span class="val vazio" title="Nenhuma conta desta lista tem a Caixa Inteligente ligada">—</span>')
       + '</div>';
   }
@@ -4443,16 +4474,51 @@ function renderPainelLista() {
 // feed de atividade: pedir conta a conta seria a armadilha do câmbio da Polymarket
 // (s247) — latência e chance de falha crescendo com o número de contas.
 let caixaVisaoCache = null, _caixaVisaoPromise = null;
+//
+// s388: `force` NÃO apaga o cache antes da resposta. O número velho fica na tela até o
+// novo chegar e é TROCADO: apagar antes pintava "—" em toda linha durante o fetch (o
+// `atualizarIncompletos` re-renderiza a lista no meio), e a cada 30 s a tela piscaria.
+// Falha de rede num refresco também mantém o último número bom; só a 1ª carga, que
+// não tem nada para mostrar, cai no vazio.
 function ensureCaixaVisao(force) {
-  if (force) { caixaVisaoCache = null; _caixaVisaoPromise = null; }
-  if (caixaVisaoCache) return Promise.resolve(caixaVisaoCache);
+  if (!force && caixaVisaoCache) return Promise.resolve(caixaVisaoCache);
   if (_caixaVisaoPromise) return _caixaVisaoPromise;
-  _caixaVisaoPromise = fetch('/caixa/visao')
-    .then(r => r.ok ? r.json() : { casas: [], contas: [], totais: {} })
+  const vazio = { casas: [], contas: [], totais: {} };
+  _caixaVisaoPromise = fetch('/caixa/visao', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('caixa/visao ' + r.status); return r.json(); })
     .then(j => { caixaVisaoCache = j; return j; })
-    .catch(() => { caixaVisaoCache = { casas: [], contas: [], totais: {} }; return caixaVisaoCache; });
+    .catch(() => { if (!caixaVisaoCache) caixaVisaoCache = vazio; return caixaVisaoCache; })
+    .finally(() => { _caixaVisaoPromise = null; });
   return _caixaVisaoPromise;
 }
+
+// ── s388 · Painel de Contas AO VIVO ──────────────────────────────────────────
+// O cache acima durava a SESSÃO: saque lançado, captura do SharpenUp e aposta
+// liquidada só apareciam com o ↻ ou um F5 (a Gleice seguiu com 11k depois de dois
+// saques). Três gatilhos, todos só com o painel NA TELA e a aba visível:
+//   1. abrir o painel (renderPainelContas) → busca na hora;
+//   2. a cada 30 s → /caixa/visao (saldos) + /incompletos (pílula "Aguardando");
+//   3. a aba voltar a ter foco → mesma coisa, sem esperar o próximo tique.
+// É UMA chamada para todas as contas (a armadilha do "por item" da s247 não volta).
+const _PAINEL_VIVO_MS = 30000;
+let _painelVivoTimer = null;
+function _painelNaTela() {
+  const es = document.getElementById('empty-state');
+  return !!document.getElementById('painelGestaoList') && !!es && es.style.display !== 'none'
+    && document.visibilityState === 'visible';
+}
+function painelAtualizarAoVivo() {
+  if (!_painelNaTela()) return;
+  atualizarIncompletos();                         // re-renderiza a lista ao chegar
+  renderPainelBanca(true).catch(function () {});  // KPIs, concentração, fornecedores e lista
+}
+function _painelVivoLigar() {
+  if (_painelVivoTimer) return;
+  _painelVivoTimer = setInterval(painelAtualizarAoVivo, _PAINEL_VIVO_MS);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') painelAtualizarAoVivo();
+});
 
 async function renderPainelBanca(force) {
   const v = await ensureCaixaVisao(force);
@@ -5596,7 +5662,9 @@ function renderPainelContas() {
         '<span>Conta</span>' +
         '<span class="acct-col-fornecedor">Fornecedor</span>' +
         '<span class="acct-col-ultima">Última captura</span>' +
-        '<span>Status</span><span class="r">Caixa</span><span></span>' +
+        // s388: "Caixa" virou DUAS colunas. A casa mostra o disponível; o stake preso
+        // em aposta aberta mora ao lado, nunca somado a ele.
+        '<span>Status</span><span class="r">Disponível</span><span class="r">Em aberto</span><span></span>' +
       '</div>' +
       '<div id="painelGestaoList"></div>' +
     '</div>';
@@ -5647,8 +5715,11 @@ function renderPainelContas() {
     '</div>';
 
   renderPainelLista();       // preenche a lista de gestão (grupos por casa + ações)
-  renderPainelBanca();       // KPIs + concentração de caixa — /caixa/visao
+  // s388: abrir o painel busca de novo. Sem o `true` ele reusava o /caixa/visao da
+  // 1ª abertura da sessão, e o saque lançado na Caixa da conta nunca chegava aqui.
+  renderPainelBanca(true).catch(function () {});   // KPIs + concentração — /caixa/visao
   renderPainelLog();         // últimas ações (log local, sem o rail da casca)
+  _painelVivoLigar();        // e daqui em diante, a cada 30 s enquanto estiver na tela
 }
 
 // Base de apostas resolvidas, buscada UMA vez e cacheada na sessão (feed do
@@ -5682,11 +5753,13 @@ window.loadData = function (force) {
   // o `force` só decide se o backend reconstrói a planilha (`?refresh=1`) ou serve o
   // cache de 120s que o 1º da fila acabou de encher.
   painelDashRows = null; _painelDashPromise = null;
-  caixaVisaoCache = null; _caixaVisaoPromise = null;   // s314: a banca também envelhece
+  // s388: a banca não é mais apagada aqui — `renderPainelBanca(true)` busca e TROCA,
+  // e a abertura do painel já força a busca, então painel fechado não precisa de nada.
   // s330 (revisão 2): o portão passou a ser a LISTA. O `#painelAtividade` era o card
   // que saiu — deixá-lo aqui faria o ↻ virar no-op silencioso no painel inteiro.
   if (!document.getElementById('painelGestaoList')) return Promise.resolve();  // painel fechado
-  renderPainelBanca(force).catch(function () {});
+  atualizarIncompletos();
+  renderPainelBanca(true).catch(function () {});
   renderPainelLog();
   return Promise.resolve();
 };
