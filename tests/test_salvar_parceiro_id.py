@@ -21,14 +21,17 @@ TSV = "26/07/2026\tFutebol\t\tTivo\tX\tML\tFlamengo [Flamengo v Santos]\t100,00\
 CONTA = {"id": 351, "casa": "Tivo", "nome": "Feca [Eu]", "arquivado": False}
 
 
-def _salvar(body, conta, casa_no_banco=None):
+def _salvar(body, conta, casa_no_banco=None, moeda_texto="BRL"):
     """Chama a rota direto (sem TestClient): as Depends viram argumentos normais.
 
     `casa_no_banco`: grafia com que a casa já existe (o que `casa_canonica` devolveria).
     None = casa nova, entra como veio.
+    `moeda_texto`: o que `moeda_da_conta` devolveria no caminho sem ID (s390).
     """
     canonica = AsyncMock(side_effect=lambda nome: casa_no_banco or nome)
     with patch.object(main, "get_parceiro", AsyncMock(return_value=conta)), \
+         patch.object(main, "moeda_da_conta", AsyncMock(return_value=moeda_texto)), \
+         patch.object(main._cambio, "carregar", AsyncMock(return_value=None)), \
          patch.object(main, "casa_canonica", canonica), \
          patch.object(main, "upsert_bilhetes", AsyncMock(return_value=(1, 0, [9], [], {}))) as up, \
          patch.object(main, "auto_arquivar", AsyncMock(return_value=0)):
@@ -73,3 +76,39 @@ def test_sem_parceiro_id_a_casa_passa_pela_trava_de_grafia():
     canonica.assert_awaited_once_with("Pixbet")
     assert rows[0]["casa"] == "PixBet"
     assert res["casa"] == "PixBet"
+
+
+# ── s390: a moeda da conta chega ao upsert pela rota ─────────────────────────
+
+def test_conta_usdt_pelo_id_converte_a_stake_antes_do_upsert():
+    main._cambio._USDT_MAPA["2026-07-26"] = 5.0
+    body = SalvarRequest(tsv=TSV, casa="Tivo", parceiro="Feca [Eu]", parceiro_id=351)
+    res, rows, _ = _salvar(body, dict(CONTA, moeda="USDT"))
+    assert rows[0]["stake"] == "500,00"          # 100 USDT × 5,00
+    assert rows[0]["moeda"] == "USDT" and rows[0]["stake_orig"] == 100.0
+    assert "_linha" not in rows[0]               # marcador interno não vai ao banco
+    assert res["moeda"] == "USDT"
+
+
+def test_conta_usdt_pelo_texto_tambem_converte():
+    """A extensão manda o par em texto, sem ID: a moeda vem do cadastro por (casa, nome)."""
+    main._cambio._USDT_MAPA["2026-07-26"] = 5.0
+    body = SalvarRequest(tsv=TSV, casa="Tivo", parceiro="Feca [Eu]")
+    res, rows, _ = _salvar(body, None, moeda_texto="USDT")
+    assert rows[0]["stake"] == "500,00"
+    assert res["moeda"] == "USDT"
+
+
+def test_conta_usdt_sem_cotacao_recusa_em_vez_de_gravar_como_real():
+    main._cambio._USDT_MAPA.clear()
+    body = SalvarRequest(tsv=TSV, casa="Tivo", parceiro="Feca [Eu]", parceiro_id=351)
+    canonica = AsyncMock(side_effect=lambda nome: nome)
+    with patch.object(main, "get_parceiro", AsyncMock(return_value=dict(CONTA, moeda="USDT"))), \
+         patch.object(main._cambio, "carregar", AsyncMock(return_value=None)), \
+         patch.object(main, "casa_canonica", canonica), \
+         patch.object(main, "upsert_bilhetes", AsyncMock()) as up, \
+         patch.object(main, "auto_arquivar", AsyncMock(return_value=0)):
+        res = asyncio.run(main.salvar(body, dono="Feca", dono_view="Feca"))
+    up.assert_not_called()
+    assert res["rejeitados"][0]["linha"] == 1
+    assert "sem cotação USDT" in res["rejeitados"][0]["erro"]

@@ -59,6 +59,7 @@ from database import (
     seed_usuarios, usernames_em_uso, vincular_social,
 )
 from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
+import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
@@ -90,6 +91,7 @@ from repository import (
     get_escadas_todas, sugerir_tipster,
     resultado_valido, set_ativo_tipster, set_tipster_bulk,
     casa_canonica, excluir_parceiro, get_parceiro, list_parceiros, parse_tsv,
+    moeda_da_conta, _num_or_none,
     editar_parceiro, reativar_parceiro, renomear_parceiro, restaurar_bilhetes, resumo_conta,
     resumo_parceiro, resumo_perfil, upsert_bilhetes,
     logo_salvar, logo_ler, logo_apagar, logo_donos,
@@ -3968,10 +3970,12 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
     # EFETIVO porque é por ele que as contas são listadas ("ver como"); a gravação
     # do bilhete segue no dono REAL, como antes. Sem match, nada muda.
     casa_txt, parceiro_txt = body.casa, body.parceiro
+    moeda = None
     if body.parceiro_id:
         conta = await get_parceiro(body.parceiro_id, dono_view)
         if conta:
             casa_txt, parceiro_txt = conta["casa"], conta["nome"]
+            moeda = conta.get("moeda") or _cambio.BRL
     elif casa_txt:
         # Sem conta pela qual resolver (extensão, import, /salvar direto): pelo menos não
         # deixa nascer uma gêmea por caixa/espaço de uma casa já existente.
@@ -3985,11 +3989,40 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
             row["parceiro"] = parceiro_txt
         row["tipster"] = ""
 
+    # Moeda da CONTA (s390). Pelo ID quando veio; senão pelo par (casa, nome) que a
+    # extensão manda em texto. Lote sem casa única (import misto) fica em R$.
+    if moeda is None and casa_key and parceiro_txt:
+        moeda = await moeda_da_conta(dono_view, rows[0]["casa"], parceiro_txt)
+    moeda = moeda or _cambio.BRL
+
+    # Posição de cada linha no TSV PARSEADO, antes de qualquer filtro: as recusas da
+    # conversão de moeda (abaixo) precisam da mesma numeração do `validar_linhas`, que o
+    # front usa para remontar o mapa código→id pelas linhas aceitas.
+    for i, row in enumerate(rows, 1):
+        row["_linha"] = i
+
     # Validação de fronteira: grava só as linhas com campo financeiro válido; as
     # malformadas (stake/odd/resultado/data presentes e ilegíveis) voltam à UI para
     # correção, sem bloquear as boas nem contaminar o P/L. Incompleta (campo vazio)
     # NÃO é rejeitada — é aposta aberta/leitura parcial, tratada como aviso.
     rows, rejeitadas = validar_linhas(rows)
+
+    # Conta em outra moeda: a stake chega como a casa mostrou e sai em R$, pela cotação
+    # do dia da aposta (`app/cambio.py`). DEPOIS da validação, que confere o número cru.
+    # Sem cotação a linha é recusada pelo mesmo caminho das malformadas: gravar USDT como
+    # se fosse R$ é o erro caro, e a recaptura seguinte grava o que faltou.
+    alertas_cambio: list[str] = []
+    if moeda != _cambio.BRL and rows:
+        try:
+            await _cambio.carregar(moeda, _cambio.datas_do_lote(rows, body.carimbos))
+        except CambioIndisponivel as exc:
+            alertas_cambio.append(str(exc))
+        rows, recusadas_cambio = _cambio.converter_linhas(
+            rows, moeda, body.carimbos, _num_or_none)
+        if recusadas_cambio:
+            rejeitadas = sorted(rejeitadas + recusadas_cambio, key=lambda r: r["linha"])
+    for row in rows:
+        row.pop("_linha", None)
 
     # Converte o instante de envio do cliente em datetime aware. `fromisoformat` de
     # versões antigas não aceita o sufixo 'Z' → normaliza para +00:00. Qualquer falha
@@ -4009,6 +4042,7 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
         )
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}
+    alertas = alertas_cambio + alertas
 
     for r in rejeitadas:
         detalhe = f" · {r['resumo']}" if r["resumo"] else ""
@@ -4039,7 +4073,7 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
             "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados,
             "analise": analise, "rejeitados": rejeitadas,
-            "casa": gravado_casa, "parceiro": gravado_parceiro}
+            "casa": gravado_casa, "parceiro": gravado_parceiro, "moeda": moeda}
 
 
 class PolymarketSyncRequest(BaseModel):

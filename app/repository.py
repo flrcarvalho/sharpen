@@ -94,6 +94,14 @@ def _num(v) -> float:
     return n if n is not None else 0.0
 
 
+def _dec(v) -> Decimal | None:
+    """Número para coluna NUMERIC. O asyncpg não converte: float levanta `DataError`
+    dentro do driver. `str()` antes, para não levar o lixo binário do float."""
+    if v is None or v == "":
+        return None
+    return Decimal(str(v))
+
+
 def calcular_pl(stake, odd, resultado) -> float | None:
     """P/L líquido da aposta (= coluna L da planilha de origem).
 
@@ -1624,9 +1632,11 @@ async def upsert_bilhetes(
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                          aposta, descricao, stake, odd, resultado,
                          extraction_state, confianca, stake_usd, origem, criado_em,
-                         sistema, sistema_linhas, codigo_ocr, aposta_em)
+                         sistema, sistema_linhas, codigo_ocr, aposta_em,
+                         moeda, stake_orig, cotacao)
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-                            COALESCE($18::timestamptz, NOW()), $19, $20, $21, $22)
+                            COALESCE($18::timestamptz, NOW()), $19, $20, $21, $22,
+                            $23, $24, $25)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -1663,6 +1673,23 @@ async def upsert_bilhetes(
                                           OR EXCLUDED.origem = 'sync'
                                      THEN COALESCE(NULLIF(EXCLUDED.stake, ''), bilhetes.stake)
                                      ELSE bilhetes.stake END,
+                        -- A ORIGEM da stake (moeda, valor na moeda, taxa) anda JUNTO com a
+                        -- stake: troca EXATAMENTE quando a stake troca, inclusive para NULL
+                        -- (conta que deixou de ser USDT grava stake em R$ e larga a origem
+                        -- velha). Atualizar uma sem as outras deixaria `stake ≠ stake_orig ×
+                        -- cotacao`, o UPSERT meio-atualizado da stake.
+                        moeda = CASE WHEN (bilhetes.extraction_state = 'aberta'
+                                           OR EXCLUDED.origem = 'sync')
+                                          AND NULLIF(EXCLUDED.stake, '') IS NOT NULL
+                                     THEN EXCLUDED.moeda ELSE bilhetes.moeda END,
+                        stake_orig = CASE WHEN (bilhetes.extraction_state = 'aberta'
+                                                OR EXCLUDED.origem = 'sync')
+                                               AND NULLIF(EXCLUDED.stake, '') IS NOT NULL
+                                          THEN EXCLUDED.stake_orig ELSE bilhetes.stake_orig END,
+                        cotacao = CASE WHEN (bilhetes.extraction_state = 'aberta'
+                                             OR EXCLUDED.origem = 'sync')
+                                            AND NULLIF(EXCLUDED.stake, '') IS NOT NULL
+                                       THEN EXCLUDED.cotacao ELSE bilhetes.cotacao END,
                         -- Classificação (esporte/aposta/descrição) NUNCA foi atualizada:
                         -- só entrava no INSERT. Com fonte determinística isso trava a
                         -- correção do classificador fora do banco — foi o que segurou 40
@@ -1709,6 +1736,7 @@ async def upsert_bilhetes(
                     row.get("sistema") or None, row.get("sistema_linhas"),
                     bool(codigo) and codigo_ocr,
                     (carimbos or {}).get(codigo) if codigo else None,
+                    row.get("moeda"), _dec(row.get("stake_orig")), _dec(row.get("cotacao")),
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
@@ -1733,6 +1761,16 @@ async def upsert_bilhetes(
                                      THEN COALESCE(NULLIF($10, ''), data)  ELSE data  END,
                         stake = CASE WHEN extraction_state = 'aberta' OR $12 = 'sync'
                                      THEN COALESCE(NULLIF($11, ''), stake) ELSE stake END,
+                        -- origem da stake anda junto com ela (espelha o ON CONFLICT)
+                        moeda = CASE WHEN (extraction_state = 'aberta' OR $12 = 'sync')
+                                          AND NULLIF($11, '') IS NOT NULL
+                                     THEN $20 ELSE moeda END,
+                        stake_orig = CASE WHEN (extraction_state = 'aberta' OR $12 = 'sync')
+                                               AND NULLIF($11, '') IS NOT NULL
+                                          THEN $21 ELSE stake_orig END,
+                        cotacao = CASE WHEN (extraction_state = 'aberta' OR $12 = 'sync')
+                                            AND NULLIF($11, '') IS NOT NULL
+                                       THEN $22 ELSE cotacao END,
                         esporte   = CASE WHEN $12 = 'sync'
                                          THEN COALESCE(NULLIF($13, ''), esporte)   ELSE esporte   END,
                         aposta    = CASE WHEN $12 = 'sync'
@@ -1757,6 +1795,7 @@ async def upsert_bilhetes(
                     row.get("sistema") or None, row.get("sistema_linhas"),
                     bool(codigo) and codigo_ocr,
                     (carimbos or {}).get(codigo) if codigo else None,
+                    row.get("moeda"), _dec(row.get("stake_orig")), _dec(row.get("cotacao")),
                 )
             if rec:
                 db_id = rec["id"]
@@ -1795,7 +1834,7 @@ async def upsert_bilhetes(
 _COLS_RESTAURAR = (
     "casa", "parceiro", "assinatura", "codigo_bilhete", "data", "esporte", "tipster",
     "aposta", "descricao", "stake", "odd", "resultado", "extraction_state",
-    "confianca", "stake_usd", "origem",
+    "confianca", "stake_usd", "origem", "moeda", "stake_orig", "cotacao",
 )
 
 
@@ -1828,8 +1867,9 @@ async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
                 INSERT INTO bilhetes
                     (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                      aposta, descricao, stake, odd, resultado, extraction_state, confianca,
-                     stake_usd, origem)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                     stake_usd, origem, moeda, stake_orig, cotacao)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+                        $18,$19,$20)
                 ON CONFLICT (dono, casa, parceiro, assinatura) DO NOTHING
                 RETURNING id
                 """,
@@ -1838,6 +1878,7 @@ async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
                 l.get("aposta"), l.get("descricao"), l.get("stake"), l.get("odd"),
                 l.get("resultado"), l.get("extraction_state") or "aberta",
                 l.get("confianca"), l.get("stake_usd"), l.get("origem") or "restauracao",
+                l.get("moeda"), _dec(l.get("stake_orig")), _dec(l.get("cotacao")),
             )
             if rec:
                 restaurados += 1
@@ -3756,10 +3797,23 @@ async def get_parceiro(parceiro_id: int, dono: str) -> dict | None:
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT id, casa, nome, arquivado FROM parceiros WHERE id = $1 AND dono = $2",
+            "SELECT id, casa, nome, arquivado, moeda FROM parceiros WHERE id = $1 AND dono = $2",
             parceiro_id, dono,
         )
     return dict(row) if row else None
+
+
+async def moeda_da_conta(dono: str, casa: str, nome: str) -> str:
+    """A moeda cadastrada da conta (casa, nome), para o caminho que não manda o ID (a
+    extensão manda o par em texto). Conta não cadastrada aposta em R$: é o que valia
+    antes da moeda existir, e uma conta nova nasce BRL de qualquer jeito."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        moeda = await conn.fetchval(
+            "SELECT moeda FROM parceiros WHERE dono = $1 AND casa = $2 AND nome = $3",
+            dono, casa, nome,
+        )
+    return moeda or "BRL"
 
 
 async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados: bool = False) -> list[dict]:

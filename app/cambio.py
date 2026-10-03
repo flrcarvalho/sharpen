@@ -1,0 +1,207 @@
+"""Câmbio das contas que apostam em outra moeda (s390).
+
+A moeda é da CONTA (`parceiros.moeda`), nunca da casa nem do que a API manda: a Bet Panda
+devolve `currency: "$"` e pede `currency=USD` na URL com a carteira em Tether. A API não
+distingue USD de USDT, o cadastro distingue.
+
+Só a STAKE converte. A odd não tem moeda, e o P/L é derivado de stake × odd na leitura
+(`calcular_pl`), então converter a stake leva o P/L junto, sem um segundo caminho.
+
+Uma fonte por moeda, cada uma com a régua dela:
+
+- **USD** → PTAX/BCB, o MESMO mapa e a MESMA escolha de data do Polymarket
+  (`polymarket._cotacao_para`). Duas réguas de dólar no sistema dariam dois números para
+  a mesma aposta.
+- **USDT** → USDT/BRL da Binance, candle diário, preço de **ABERTURA**. A abertura do dia
+  D é fixa desde 00:00 UTC de D; o fechamento só existe no fim do dia. Com o fechamento,
+  a aposta de hoje gravaria uma stake que muda a cada reenvio, e o UPSERT CONGELA a stake
+  quando a aposta liquida: o número final dependeria da hora da liquidação.
+
+Sem cotação a linha NÃO grava (vira rejeitada no `/salvar`). Gravar USDT como se fosse
+R$ é o erro caro; recusar é recuperável, basta reenviar.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import httpx
+
+import polymarket as _poly
+
+# A moeda nativa do sistema. Conta sem moeda cadastrada é BRL, e aí nada converte.
+BRL = "BRL"
+# Moedas que a conta pode escolher. A ordem é a do seletor.
+MOEDAS = ("BRL", "USD", "USDT")
+
+# Binance: o espelho público de dados de mercado primeiro (é só leitura de candle e não
+# passa pelo bloqueio geográfico da api.binance.com), a API principal como reserva.
+# Medido em 03/10/2026: os dois devolvem o mesmo candle, byte a byte.
+_BINANCE_HOSTS = ("https://data-api.binance.vision", "https://api.binance.com")
+_BINANCE_KLINES = "/api/v3/klines"
+_BINANCE_LIMITE = 1000          # teto de candles por chamada da API
+
+# Mapa de MÓDULO, igual ao `_PTAX_MAPA`: o candle de um dia passado nunca muda, e a
+# abertura do dia corrente também não. ISO 'YYYY-MM-DD' (dia UTC do candle) → abertura.
+_USDT_MAPA: dict[str, float] = {}
+# PTAX "de hoje" da última carga: o fallback do Polymarket para aposta dos últimos 7 dias.
+_HOJE_USD: dict[str, float | None] = {"v": None}
+
+
+def _iso_utc(ms: int) -> str:
+    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%d")
+
+
+def _ms_utc(iso: str) -> int:
+    d = datetime.strptime(iso, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    return int(d.timestamp() * 1000)
+
+
+async def _klines(client: httpx.AsyncClient, inicio_ms: int) -> list:
+    """Uma página de candles diários a partir de `inicio_ms`, tentando os hosts em ordem.
+    Levanta quando os dois falham: falha de rede NÃO pode virar "não há cotação"."""
+    params = {"symbol": "USDTBRL", "interval": "1d", "startTime": inicio_ms,
+              "limit": _BINANCE_LIMITE}
+    ultimo: Exception | None = None
+    for host in _BINANCE_HOSTS:
+        try:
+            r = await _poly._get_retry(client, host + _BINANCE_KLINES, params)
+            dados = r.json()
+            if isinstance(dados, list):
+                return dados
+            ultimo = RuntimeError(f"resposta inesperada da Binance ({host})")
+        except Exception as exc:   # noqa: BLE001 — tenta o próximo host
+            ultimo = exc
+    raise ultimo or RuntimeError("Binance indisponível")
+
+
+async def _carregar_usdt(client: httpx.AsyncClient, de_iso: str) -> None:
+    """Carrega no mapa os candles de `de_iso` até hoje, paginando de 1000 em 1000.
+    Uma chamada cobre ~2 anos e 9 meses; o histórico inteiro sai em uma ou duas."""
+    inicio = _ms_utc(de_iso)
+    while True:
+        pagina = await _klines(client, inicio)
+        for k in pagina:
+            # [abertura_ms, open, high, low, close, ...]
+            _USDT_MAPA.setdefault(_iso_utc(int(k[0])), float(k[1]))
+        if len(pagina) < _BINANCE_LIMITE:
+            return
+        inicio = int(pagina[-1][0]) + 1
+
+
+async def carregar(moeda: str, isos: list[str]) -> None:
+    """Garante no mapa da moeda a cotação de todas as datas pedidas, em chamada de FAIXA.
+    Levanta `CambioIndisponivel` se a fonte não responde."""
+    datas = sorted(i for i in isos if i)
+    if not datas or moeda == BRL:
+        return
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            if moeda == "USD":
+                # O `_garantir_cobertura` do Polymarket já pede a faixa [data − 10 .. hoje].
+                await _poly._garantir_cobertura(client, datas[0])
+                # A "cotação de hoje" é o fallback das apostas dos últimos 7 dias.
+                _HOJE_USD["v"] = await _poly._ptax_hoje(client)
+            elif moeda == "USDT":
+                faltando = [i for i in datas if i not in _USDT_MAPA]
+                if faltando:
+                    await _carregar_usdt(client, faltando[0])
+        except _poly.CambioIndisponivel:
+            raise
+        except Exception as exc:
+            raise _poly.CambioIndisponivel(
+                f"Câmbio {moeda}→BRL indisponível agora. Tente de novo em alguns minutos."
+            ) from exc
+
+
+def cotacao(moeda: str, iso: str) -> float | None:
+    """Cotação moeda→BRL do dia `iso`, já carregada por `carregar`. None = não há.
+    Nunca vai à rede: quem chama carrega a faixa antes, uma vez por lote."""
+    if moeda == BRL:
+        return 1.0
+    if not iso:
+        return None
+    if moeda == "USD":
+        val = _poly._cotacao_do_mapa(iso)
+        if val:
+            return val
+        # Mesma regra do Polymarket: só aposta recente cai na cotação de hoje.
+        idade = (datetime.now(_poly.BRT).date()
+                 - datetime.strptime(iso, "%Y-%m-%d").date()).days
+        return _HOJE_USD["v"] if idade <= _poly._COTACAO_FALLBACK_DIAS else None
+    if moeda == "USDT":
+        return _USDT_MAPA.get(iso)
+    return None
+
+
+# ── Conversão das linhas do /salvar ──────────────────────────────────────────
+
+def _iso_da_linha(row: dict, carimbo: str | None) -> str:
+    """A data em que o DINHEIRO SAIU: o carimbo de colocação quando o robô manda
+    (`AAAAMMDDhhmmss`), senão a data do bilhete (`DD/MM/AAAA` ou ISO). É a data da
+    aposta, a mesma escolha do Polymarket (data da compra). Sem nenhuma das duas, ''."""
+    if carimbo and len(carimbo) >= 8 and carimbo[:8].isdigit():
+        return f"{carimbo[:4]}-{carimbo[4:6]}-{carimbo[6:8]}"
+    d = (row.get("data") or "").strip()
+    if len(d) == 10 and d[2] == "/" and d[5] == "/":
+        return f"{d[6:10]}-{d[3:5]}-{d[0:2]}"
+    if len(d) >= 10 and d[4] == "-" and d[7] == "-":
+        return d[:10]
+    return ""
+
+
+def datas_do_lote(rows: list[dict], carimbos: dict | None) -> list[str]:
+    """As datas de cotação que o lote vai precisar, para `carregar` pedir a faixa."""
+    carimbos = carimbos or {}
+    return [_iso_da_linha(r, carimbos.get((r.get("codigo_bilhete") or "").strip()))
+            for r in rows]
+
+
+def _fmt_money(x: float) -> str:
+    return f"{x:.2f}".replace(".", ",")
+
+
+def converter_linhas(rows: list[dict], moeda: str, carimbos: dict | None,
+                     num) -> tuple[list[dict], list[dict]]:
+    """Converte a stake de cada linha da moeda da conta para BRL.
+
+    Devolve (linhas_ok, rejeitadas) no formato do `validar_linhas`, para o `/salvar`
+    tratar as duas recusas pelo mesmo caminho. `num` é o parser de número do sistema
+    (`repository._num_or_none`), passado de fora para não haver uma segunda régua.
+
+    - Conta em BRL: no-op, nada muda e nenhuma coluna nova é preenchida.
+    - Stake vazia (aposta aberta lida pela metade): passa sem conversão e sem moeda —
+      ausência viaja como ausência, e o `validar_linhas` já a trata como aviso.
+    - Sem cotação para a data: a linha é RECUSADA. Nunca grava a moeda como se fosse R$.
+    """
+    if moeda == BRL:
+        return rows, []
+    carimbos = carimbos or {}
+    ok: list[dict] = []
+    rejeitadas: list[dict] = []
+    for i, row in enumerate(rows):
+        bruto = (row.get("stake") or "").strip()
+        valor = num(bruto) if bruto else None
+        if valor is None:
+            ok.append(row)
+            continue
+        iso = _iso_da_linha(row, carimbos.get((row.get("codigo_bilhete") or "").strip()))
+        taxa = cotacao(moeda, iso)
+        if not taxa:
+            # `linha` é a posição 1-based no TSV PARSEADO (a mesma do `validar_linhas`),
+            # que o `/salvar` marca em `_linha` antes de validar: o front remonta o mapa
+            # código→id pelas linhas aceitas, e uma posição errada tiraria o id da boa.
+            rejeitadas.append({
+                "linha": row.get("_linha", i + 1),
+                "campo": "stake",
+                "valor": bruto,
+                "erro": f"sem cotação {moeda}→BRL para {iso or 'data ausente'}",
+                "resumo": " · ".join(x for x in [row.get("data"), row.get("aposta"),
+                                                 row.get("descricao")] if x)[:80],
+            })
+            continue
+        row["moeda"] = moeda
+        row["stake_orig"] = round(valor, 2)
+        row["cotacao"] = taxa
+        row["stake"] = _fmt_money(valor * taxa)
+        ok.append(row)
+    return ok, rejeitadas

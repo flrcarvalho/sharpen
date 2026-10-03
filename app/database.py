@@ -182,6 +182,10 @@ ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS arquivada_em DATE;
 -- "cada fornecedor trabalha de uma forma". JSONB na própria linha, e não tabela, porque
 -- a lista viaja junto com o cadastro que o Dashboard já carrega (`/parceiros`).
 ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS renovacoes JSONB NOT NULL DEFAULT '[]'::jsonb;
+-- Moeda em que a CONTA aposta (s390): BRL | USD | USDT. É do cadastro, e não da casa nem
+-- da API, porque a API não distingue: a Bet Panda manda `currency: "$"` com a carteira em
+-- Tether. O `/salvar` lê daqui e converte a stake para BRL (`app/cambio.py`).
+ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS moeda TEXT NOT NULL DEFAULT 'BRL';
 
 -- Backfill de `adquirida_em`: a MENOR entre o `criado_em` do cadastro e a 1ª aposta da
 -- conta. Em base importada o `criado_em` é a data do IMPORT, bem posterior às apostas que
@@ -227,6 +231,17 @@ ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS origem TEXT NOT NULL DEFAULT 'extr
 -- Stake original em USD (só Polymarket: o valor que saiu da conta, antes da conversão
 -- USD→BRL). NULL para casas em R$ nativo. Número cru; a máscara é responsabilidade da UI.
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS stake_usd REAL;
+
+-- Aposta feita em OUTRA moeda (s390, `app/cambio.py`). A coluna `stake` continua sempre
+-- em BRL, para nenhuma tela, KPI, dedup ou P/L precisar saber que moeda existe; estas três
+-- guardam a ORIGEM do número, para a tela mostrar o valor na moeda da conta e para a
+-- conversão ser auditável. NULL nas três = aposta em R$ nativo.
+--   moeda      → a da conta no instante da gravação (USD | USDT)
+--   stake_orig → a stake como a casa mostrou, na moeda acima
+--   cotacao    → a taxa moeda→BRL usada (`stake = stake_orig × cotacao`)
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS moeda TEXT;
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS stake_orig NUMERIC(14,2);
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS cotacao NUMERIC(14,6);
 
 -- Procedência do RÓTULO de tipster (Fase 0 do PLANO_INTELIGENCIA_TIPSTER): humano |
 -- sugerido | telegram | importado | extracao. NULL = legado (linha anterior ao rastreio).

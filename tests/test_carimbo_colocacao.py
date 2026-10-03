@@ -127,6 +127,7 @@ def test_o_insert_declara_a_coluna_e_o_placeholder():
     e sai como 500 na rota."""
     insert = _SQL[_SQL.index("INSERT INTO bilhetes\n                        (dono"):]
     insert = insert[:insert.index("ON CONFLICT")]
-    assert "aposta_em)" in insert
-    assert "$22)" in insert
-    assert re.search(r"VALUES \(\$1,.*\$19, \$20, \$21, \$22\)", insert, re.S)
+    # s390: `moeda, stake_orig, cotacao` entraram DEPOIS do carimbo ($23..$25); o carimbo
+    # continua sendo a 22ª coluna e o `$22`.
+    assert "codigo_ocr, aposta_em," in insert
+    assert re.search(r"VALUES \(\$1,.*\$19, \$20, \$21, \$22,\s*\$23, \$24, \$25\)", insert, re.S)

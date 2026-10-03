@@ -163,6 +163,80 @@ def test_upsert_aberta_para_resolvida_nao_rebaixa():
     _run(body())
 
 
+# ── Conta em outra moeda (s390, `app/cambio.py`) ─────────────────────────────
+#
+# A stake vai ao banco SEMPRE em R$; `moeda`/`stake_orig`/`cotacao` guardam a origem. A
+# regra que só o Postgres prova: a origem ANDA JUNTO com a stake, na mesma condição do
+# congelamento. Atualizar uma sem as outras deixaria `stake ≠ stake_orig × cotacao`.
+
+def _usdt(**kw):
+    base = dict(casa="Dex Sport", moeda="USDT", stake="130,00", stake_orig=25.0, cotacao=5.2)
+    base.update(kw)
+    return _row(**base)
+
+
+def test_moeda_grava_a_origem_da_stake_com_os_tipos_da_coluna():
+    """NUMERIC exige Decimal no asyncpg: um float aqui estoura DataError no driver."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_usdt()], "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert r["stake"] == "130,00"
+        assert r["moeda"] == "USDT"
+        assert str(r["stake_orig"]) == "25.00"
+        assert str(r["cotacao"]) == "5.200000"
+    _run(body())
+
+
+def test_moeda_segue_a_stake_ao_liquidar_e_congela_depois():
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_usdt(resultado="", stake_orig=20.0,
+                                                stake="104,00")], "TDonoA")
+        # Liquida: a linha estava 'aberta', stake e origem refrescam JUNTAS.
+        await repository.upsert_bilhetes([_usdt(resultado="W")], "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert (r["stake"], str(r["stake_orig"])) == ("130,00", "25.00")
+        # Resolvida: re-leitura com outra cotação não mexe em NENHUMA das quatro.
+        await repository.upsert_bilhetes([_usdt(resultado="W", stake="250,00",
+                                                stake_orig=50.0, cotacao=5.0)], "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert (r["stake"], str(r["stake_orig"]), str(r["cotacao"])) == \
+            ("130,00", "25.00", "5.200000")
+    _run(body())
+
+
+def test_lote_em_reais_numa_aberta_larga_a_origem_velha():
+    """Conta que deixou de ser USDT: a stake nova está em R$, e a origem USDT não pode
+    ficar ao lado dela dizendo outra coisa."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_usdt(resultado="")], "TDonoA")
+        await repository.upsert_bilhetes([_row(casa="Dex Sport", resultado="",
+                                               stake="90,00")], "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert r["stake"] == "90,00"
+        assert r["moeda"] is None and r["stake_orig"] is None and r["cotacao"] is None
+    _run(body())
+
+
+def test_moeda_da_conta_vem_do_cadastro_e_o_padrao_e_real():
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoA'")
+            await conn.execute(
+                "INSERT INTO parceiros (dono, casa, nome, moeda) VALUES "
+                "('TDonoA', 'Dex Sport', 'Feca', 'USDT'), ('TDonoA', 'Betano', 'Feca', DEFAULT)")
+        assert await repository.moeda_da_conta("TDonoA", "Dex Sport", "Feca") == "USDT"
+        assert await repository.moeda_da_conta("TDonoA", "Betano", "Feca") == "BRL"
+        assert await repository.moeda_da_conta("TDonoA", "Nenhuma", "Feca") == "BRL"
+        # Isolamento por dono: a conta USDT de um não vale para o outro.
+        assert await repository.moeda_da_conta("TDonoB", "Dex Sport", "Feca") == "BRL"
+    _run(body())
+
+
 # ── Fantasma do código cru (Polymarket: mercado ganha a 2ª compra) ────────────
 #
 # O código do bilhete depende de QUANTAS compras o mercado tem: 1 compra grava
