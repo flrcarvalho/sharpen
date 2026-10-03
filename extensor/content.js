@@ -1315,7 +1315,7 @@
       // ⚠ É a casa mais LENTA da base por desenho: o detalhe é sequencial. A janela de dias
       // é o freio que impede isso virar 152 chamadas toda vez.
       blocos = await roboLTPassive(ctx);
-    } else if (casa === "jonbet" || casa === "betboom" || casa === "blaze") {
+    } else if (casa === "jonbet" || casa === "betboom" || casa === "blaze" || casa === "betpanda") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
       // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
       // de texto: os cards da Jonbet ficam num grid de 3 colunas, sem linha em branco entre
@@ -1333,6 +1333,10 @@
       // atrapalha o inject (ele engancha `window.fetch` no mundo MAIN, antes do DOM) mas
       // mataria qualquer leitura por `innerText` — mais um motivo para não haver fallback
       // de texto neste ramo.
+      //
+      // A BET PANDA é a 4ª (s391): mesmo hash de operador (`api-a-c7818b61-600`), renderer em
+      // `betpanda.sptpub.com` na própria página. A novidade é a MOEDA: a casa mede em dólar
+      // (`currency: "$"`), e o formatador rotula o dinheiro na moeda do bilhete (`_dinJB`).
       blocos = await roboJBPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
@@ -1496,6 +1500,7 @@
         // 3ª casa BetBy (s336) — mesma razão da Betboom: contadores compartilhados, nome
         // próprio, para o operador não ler "Jonbet: 0 bilhetes" estando na Blaze.
         blaze:      { nome: "Blaze",      hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
+        betpanda:   { nome: "Betpanda",   hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -4268,6 +4273,16 @@
   // CASA_JONBET.md traduz. Ponto fino: retorno zero só vira "L" quando o status cru CONCORDA
   // (`lost`). Um enum novo — `canceled`, `refund`, `rejected`, `useless` — que devolva zero
   // jamais pode virar derrota por chute; vai para conferência.
+  // Dinheiro rotulado na moeda que a CASA informou no bilhete (s391). Real (`R$`, `BRL` ou
+  // vazio) sai EXATAMENTE como sempre ("R$ 126,00") — é o que mantém o texto da Jonbet, da
+  // Betboom e da Blaze byte a byte igual e o hash do `bloco_visto` intacto. Outra moeda sai
+  // com o código depois do número ("126,00 $"), como o card da Bet Panda estampa: "R$" numa
+  // conta em dólar seria rótulo errado na frente da IA. Quem converte é o servidor.
+  function _dinJB(b, v) {
+    const m = _moedaNaoReal(b && b.moeda);
+    return m ? _brl(v) + " " + m : "R$ " + _brl(v);
+  }
+
   function _resultadoJB(b) {
     if (_abertaJB(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
     const st = b.stake, pay = _retornoJB(b);
@@ -4277,8 +4292,8 @@
         : "retorno zero com status \"" + b.status + "\" (a conferir — não liquidar automaticamente)";
     }
     if (Math.abs(pay - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
-    if (pay > st) return "Ganho → W (retorno R$ " + _brl(pay) + ")";
-    return "Retorno parcial (R$ " + _brl(pay) + " · conferir HW/HL ou cashout)";
+    if (pay > st) return "Ganho → W (retorno " + _dinJB(b, pay) + ")";
+    return "Retorno parcial (" + _dinJB(b, pay) + " · conferir HW/HL ou cashout)";
   }
 
   function _tipoJB(b) {
@@ -4319,12 +4334,12 @@
     if (odd != null) L.push("Odd: " + _odd(odd));
     const tipo = _tipoJB(b);
     if (tipo) L.push("Tipo: " + tipo + (b.tipo && b.tipo !== "1/1" ? " · combinação da casa: " + b.tipo : ""));
-    if (_abertaJB(b) && b.potencial > 0) L.push("Retorno potencial: R$ " + _brl(b.potencial));
+    if (_abertaJB(b) && b.potencial > 0) L.push("Retorno potencial: " + _dinJB(b, b.potencial));
     // Cashout só aparece quando FOI EXECUTADO. Numa aberta, `cashout_amount` é a oferta de
     // venda antecipada — mostrar isso ao lado do bilhete seria pedir uma vitória fantasma.
     if (!_abertaJB(b) && b.cashout != null && b.cashout > 0) {
-      L.push("Cashout executado: R$ " + _brl(b.cashoutLiq != null ? b.cashoutLiq : b.cashout) +
-             (b.imposto ? " (imposto retido R$ " + _brl(b.imposto) + ")" : ""));
+      L.push("Cashout executado: " + _dinJB(b, b.cashoutLiq != null ? b.cashoutLiq : b.cashout) +
+             (b.imposto ? " (imposto retido " + _dinJB(b, b.imposto) + ")" : ""));
     }
     if (b.freebet) L.push("Freebet: " + (typeof b.freebet === "string" ? b.freebet : "sim") + " (conferir regra de stake devolvida)");
     if (b.bonus) L.push("Bônus aplicado: " + (typeof b.bonus === "object" ? JSON.stringify(b.bonus) : String(b.bonus)));
@@ -4393,7 +4408,7 @@
     }
     await sleep(400);
     processar();   // consome o que chegou por último
-    console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze): " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
+    console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze/Betpanda): " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
                 " · hook=" + jbHookVivo + " · respostas=" + jbRespostas + " · fimReal=" + jbFimReal);
     return blocos;
   }

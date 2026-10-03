@@ -230,6 +230,11 @@ _CASA_DISPLAY: dict[str, str] = {
     # (10) e tipsters.casas. Round-trip `_casa_display(_display_to_key("Blaze"))` fecha em
     # identidade — nenhuma conta muda de casa por causa deste registro.
     "BLAZE":          "Blaze",
+    # 4ª casa BetBy (s391). Grafia da MARCA (o site escreve `Betpanda` no logo e no título),
+    # porque a base não tinha nenhuma: medido em 03/10/2026, zero conta e zero bilhete com
+    # `panda` fora a KingPanda. `casa_canonica` ignora espaço e caixa, então quem digitar
+    # "Bet Panda" cai aqui, sem gêmea. SIGILO: fora de aviso aos testers, changelog e home.
+    "BETPANDA":       "Betpanda",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -814,6 +819,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Blaze (s336) — 3ª casa BetBy. Mesmo espaço de IDs do motor da Jonbet/Betboom:
     # numérico de 19 dígitos, o mesmo número que o card estampa em "ID da aposta".
     "BLAZE",
+    # Bet Panda (s391) — 4ª casa BetBy. Mesmo espaço de IDs: numérico de 19 dígitos, o
+    # mesmo número que o card estampa em "ID da aposta".
+    "BETPANDA",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

@@ -119,6 +119,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # card). 3a casa do motor: mesmo formato numerico de 19 digitos e, pelo mesmo motivo
     # da Jonbet/Betboom, FORA do snap por edit-distance de `corrigir_codigos_tsv`.
     "BLAZE":      "2550618250014765290",
+    # id real do BetBy na Bet Panda (a ganha de 02/10/2026, 70,00 $ @1,80 -> 126,00 $,
+    # conferida no card). 4a casa do motor: mesmo formato numerico de 19 digitos.
+    "BETPANDA":   "2717948654752248251",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

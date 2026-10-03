@@ -20,7 +20,8 @@
 | 2a | Moeda no cadastro da conta (rota + modal) | **NO AR (s391)** |
 | 2b | Aviso quando a captura contradiz o cadastro (extensão + `/extrair` + `/salvar`) | **NO AR (s391)** |
 | 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | **NO AR (s391)** |
-| 4 | Captura: Bet Panda → SapphireBet + PariPesa → Dex Sport | aberto |
+| 4a | Captura: **Bet Panda** | **NO AR (s391)**, falta validar ao vivo |
+| 4b | Captura: SapphireBet + PariPesa → Dex Sport | aberto |
 
 ### O que o passo 1 fez
 
@@ -107,6 +108,21 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
   detectadas) e `test_moeda_original_no_feed_e_a_edicao_que_limpa` (só no CI).
 - **Fica como estava:** o `$ 10,00` do Polymarket (`fmtUSD`, sem milhar, exceção do
   `UI_REFERENCE §5.3`), a home (`inicio.html`) e o modal de edição, que segue em R$.
+
+### O que o passo 4a fez (s391): Bet Panda
+
+- 4ª casa BetBy, espelho da Jonbet/Betboom/Blaze: **zero linha nova de captura** (mesmo
+  `jb_inject.js`, `formatTicketJB`, `roboJBPassive`). Registro nos 12 pontos com a chave
+  `BETPANDA` e a grafia da marca `Betpanda` (a base não tinha nenhuma). Tradução em
+  [`casas/CASA_BETPANDA.md`](../casas/CASA_BETPANDA.md).
+- O formatador da BetBy deixou de escrever "R$" fixo: `_dinJB` rotula o dinheiro na moeda
+  do bilhete (`retorno 126,00 $`) e mantém as casas em real byte a byte iguais.
+- Harness `casos/betpanda.mjs` com a conta inteira do Feca (45 bilhetes), 10 cards lidos na
+  tela; 4 mutações de controle, todas detectadas.
+- SharpenUp **0.7.34** com nota genérica só na home (`--so-changelog`, decisão do Feca):
+  a nota não nomeia a casa e o grupo **não** foi avisado.
+- **Não validado ao vivo:** a captura pela extensão na conta do Feca, a conversão USDT no
+  `/salvar` em produção (a Binance nunca foi medida a partir do Railway) e o botão Conectar.
 
 ### Limites conhecidos do passo 1
 
