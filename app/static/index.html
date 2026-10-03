@@ -8180,10 +8180,11 @@ let _grVer = 'BRL';   // 'BRL' | 'orig'. Por sessão: troca de conta em R$ volta
 function _num2BR(n) {
   return Math.abs(Number(n)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-function fmtMoedaOrig(v, moeda) {
+// `comSinal` (P/L): "+" no positivo, zero sem sinal. Sem ele, só o negativo leva "−".
+function fmtMoedaOrig(v, moeda, comSinal) {
   const f = _MOEDA_ORIG[moeda], n = Number(v);
   if (v == null || v === '' || !f || !isFinite(n)) return '';
-  const t = _num2BR(n), sinal = n < 0 ? '−' : '';
+  const t = _num2BR(n), sinal = n < 0 ? '−' : (comSinal && n > 0 ? '+' : '');
   return f.pre ? `${sinal}${f.pre} ${t}` : `${sinal}${t} ${f.pos}`;
 }
 // `.money` na moeda da conta. `pl=true` liga cor e sinal (zero neutro), como o fmtPL.
@@ -8236,10 +8237,25 @@ function _celStake(b) {
   }
   return `<div class="btbl-cell btbl-num ap-edit" data-field="stake">${moneyStake(b.stake) || _faltando(b.id, 'Stake ausente — dê duplo-clique para preencher')}${_subMoeda(b)}</div>`;
 }
+// Sub-linha do P/L (pedido do Feca, 03/10/2026): o mesmo desenho da stake, a OUTRA
+// moeda embaixo, neutra (a cor fica só no número de cima). Aposta aberta não tem P/L e
+// não ganha sub-linha.
+function _subPL(b) {
+  if (!_temOrig(b) || b.pl_orig == null || b.pl == null) return '';
+  let txt;
+  if (_grVer === 'orig') {
+    const n = Number(b.pl);
+    if (!isFinite(n)) return '';
+    txt = (n > 0 ? '+' : (n < 0 ? '−' : '')) + 'R$ ' + _num2BR(n);
+  } else {
+    txt = fmtMoedaOrig(b.pl_orig, b.moeda, true);
+  }
+  return txt ? `<span class="btbl-stake-usd" title="P/L na outra moeda desta conta">${esc(txt)}</span>` : '';
+}
 // Conteúdo da célula de P/L. Aberta (pl_orig nulo) segue o travessão neutro do fmtPL.
 function _celPL(b) {
-  if (_grVer === 'orig' && _temOrig(b)) return b.pl_orig != null ? moneyOrig(b.pl_orig, b.moeda, true) : fmtPL(null);
-  return fmtPL(b.pl);
+  if (_grVer === 'orig' && _temOrig(b)) return (b.pl_orig != null ? moneyOrig(b.pl_orig, b.moeda, true) : fmtPL(null)) + _subPL(b);
+  return fmtPL(b.pl) + _subPL(b);
 }
 
 function renderGrade() {

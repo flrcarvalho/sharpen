@@ -287,7 +287,9 @@ def test_moeda_original_no_feed_e_a_edicao_que_limpa():
                                          "TDonoA")
         feed = {l["casa"]: l for l in await repository.dashboard_rows(["TDonoA"])}
         assert feed["Dex Sport"]["moeda"] == "USDT" and feed["Dex Sport"]["stake_orig"] == 25.0
+        assert feed["Dex Sport"]["lucro_orig"] is not None
         assert "moeda" not in feed["Betano"] and "stake_orig" not in feed["Betano"]
+        assert "lucro_orig" not in feed["Betano"]
 
         grade = {l["codigo_bilhete"]: l for l in await repository.list_bilhetes("TDonoA")}
         assert grade["BET1"]["pl_orig"] is not None

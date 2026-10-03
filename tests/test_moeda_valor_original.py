@@ -113,6 +113,7 @@ def test_a_edicao_usa_a_regra_e_o_feed_leva_a_origem():
     assert 'if _limpa_origem(antes, safe):\n' in src.replace("\r\n", "\n")
     assert 'd["pl_orig"] = _pl_na_moeda_original(d)' in src
     assert 'linha["stake_orig"] = float(r["stake_orig"])' in src
+    assert 'linha["lucro_orig"] = _pl_na_moeda_original(r)' in src
 
 
 # ── Front ────────────────────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ MUTACOES_FRONT = [
      "    const txt = _grVer === 'orig' ? (b.stake ? 'R$ ' + b.stake : '') : fmtMoedaOrig(b.stake_orig, b.moeda);",
      "    const txt = _grVer === 'orig' ? (b.stake ? 'R$ ' + b.stake : '') : '';"),
     ("o P/L não troca de moeda", "index",
-     "  if (_grVer === 'orig' && _temOrig(b)) return b.pl_orig != null ? moneyOrig(b.pl_orig, b.moeda, true) : fmtPL(null);",
+     "  if (_grVer === 'orig' && _temOrig(b)) return (b.pl_orig != null ? moneyOrig(b.pl_orig, b.moeda, true) : fmtPL(null)) + _subPL(b);",
      "  if (false) return null;"),
     ("o P/L original perde a cor", "index",
      "  const cls = pl ? (n > 0 ? ' pos' : (n < 0 ? ' neg' : '')) : '';",
@@ -161,6 +162,22 @@ MUTACOES_FRONT = [
     ("o dashboard escreve diferente da grade", "app",
      "const _MOEDA_ORIG={USD:{pre:'US$'},USDT:{pos:'USDT'}};",
      "const _MOEDA_ORIG={USD:{pre:'USD'},USDT:{pos:'USDT'}};"),
+    ("o P/L perde a sub-linha", "index",
+     "  return fmtPL(b.pl) + _subPL(b);", "  return fmtPL(b.pl);"),
+    ("a sub-linha do P/L perde o sinal de mais", "index",
+     "  const t = _num2BR(n), sinal = n < 0 ? '−' : (comSinal && n > 0 ? '+' : '');",
+     "  const t = _num2BR(n), sinal = n < 0 ? '−' : '';"),
+    ("a sub-linha do P/L aparece na aberta", "index",
+     "  if (!_temOrig(b) || b.pl_orig == null || b.pl == null) return '';",
+     "  if (!_temOrig(b)) return '';"),
+    ("no modo moeda da conta o R$ do P/L não desce", "index",
+     "    txt = (n > 0 ? '+' : (n < 0 ? '−' : '')) + 'R$ ' + _num2BR(n);",
+     "    txt = '';"),
+    ("o dashboard perde o sinal do P/L original", "app",
+     "s=n<0?'−':(comSinal&&n>0?'+':'');", "s=n<0?'−':'';"),
+    ("a Base Completa perde a sub-linha do P/L", "apostas",
+     "fmtPL(r.lucro)+(r.lucro_orig!=null&&fmtMoedaOrig(r.lucro_orig,r.moeda,true)?",
+     "fmtPL(r.lucro)+(false&&fmtMoedaOrig(r.lucro_orig,r.moeda,true)?"),
     ("a Base Completa perde a sub-linha", "apostas",
      "${fmtR(r.stake)}${r.stake_orig!=null&&fmtMoedaOrig(r.stake_orig,r.moeda)?",
      "${fmtR(r.stake)}${false&&fmtMoedaOrig(r.stake_orig,r.moeda)?"),

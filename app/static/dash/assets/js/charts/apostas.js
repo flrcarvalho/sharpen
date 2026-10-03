@@ -260,7 +260,7 @@ function renderApostasVirt(){
       <div class="btbl-cell${ec}"${df('resultado')} style="display:flex;align-items:center;justify-content:center">
         <span class="bet-res-pill ${resClass}">${resLabel}</span>
       </div>
-      <div class="btbl-cell btbl-pl">${r.resultado==='ABERTA'?'<span style="color:var(--ink-mute)">—</span>':fmtPL(r.lucro)}</div>
+      <div class="btbl-cell btbl-pl">${r.resultado==='ABERTA'?'<span style="color:var(--ink-mute)">—</span>':fmtPL(r.lucro)+(r.lucro_orig!=null&&fmtMoedaOrig(r.lucro_orig,r.moeda,true)?`<span class="btbl-stake-orig" title="P/L na moeda da conta (${esc(r.moeda)})">${fmtMoedaOrig(r.lucro_orig,r.moeda,true)}</span>`:'')}</div>
       <div class="btbl-cell btbl-acts">${window.MODO_PUBLICO?'':(editavel
         ? `<button class="act-btn" title="Editar aposta" onclick="abrirEdicaoApostas(${r.id})">✎</button><button class="act-btn del" title="Deletar aposta" onclick="deletarApostas(${r.id})">✕</button>`
         : `<span class="act-btn off" title="Linha da planilha ao vivo ou de um operador — edite na origem">✎</span>`)}</div>

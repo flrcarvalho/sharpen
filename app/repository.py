@@ -2964,6 +2964,9 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
             if r.get("moeda") and r.get("stake_orig") is not None:
                 linha["moeda"] = r["moeda"]
                 linha["stake_orig"] = float(r["stake_orig"])
+                # Mesma régua da grade (`_pl_na_moeda_original`); aberta não tem P/L.
+                if not aberta:
+                    linha["lucro_orig"] = _pl_na_moeda_original(r)
             # `criado_em` SÓ nas abertas: a tela "Em Aberto" mede há quanto tempo a
             # aposta está parada (o mesmo sinal de 48h+ do Início). Carimbar as ~30k
             # encerradas custaria ~1MB de feed sem nenhum consumidor.

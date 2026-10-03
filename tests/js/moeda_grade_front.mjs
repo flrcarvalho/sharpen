@@ -8,7 +8,8 @@
 // C. a célula da stake: vendo em R$, o R$ editável e o original embaixo; vendo na moeda
 //    da conta, o original SEM `data-field` (não editável) e o R$ embaixo; linha sem
 //    origem segue em R$ e editável; o USD do Polymarket segue como era;
-// D. a célula de P/L troca para o `pl_orig` só no modo moeda da conta;
+// D. a célula de P/L troca para o `pl_orig` só no modo moeda da conta, e leva a OUTRA
+//    moeda embaixo, neutra e com sinal, como a stake (pedido do Feca, 03/10/2026);
 // E. o seletor só aparece em conta USD/USDT, volta a R$ em conta BRL e põe a moeda nos
 //    cabeçalhos;
 // F. a Base Completa (`apostas.js`) desenha a sub-linha com o helper do dashboard.
@@ -72,7 +73,7 @@ function montarGrade() {
   `;
   const codigo = [recorteConst(INDEX, '_MOEDA_ORIG'), 'let _grVer = \'BRL\';',
     ...['_num2BR', 'fmtMoedaOrig', 'moneyOrig', '_temOrig', '_subMoeda', '_grMoedaSync',
-        '_celStake', '_celPL'].map(n => recorteFn(INDEX, n))].join('\n');
+        '_celStake', '_subPL', '_celPL'].map(n => recorteFn(INDEX, n))].join('\n');
   vm.runInContext(dubles + codigo + `
     this.api = { fmtMoedaOrig, moneyOrig, _subMoeda, _grMoedaSync, _celStake, _celPL,
       ver: v => { _grVer = v; }, verAtual: () => _grVer, conta: p => { parceiroSelecionado = p; } };`, ctx);
@@ -130,11 +131,19 @@ A.ver('orig');
 
 // ── D. célula de P/L ─────────────────────────────────────────────────────────
 A.ver('BRL');
-eq(A._celPL(conv), '[PL 524]', 'D: vendo em R$, o P/L em R$');
+ok(A._celPL(conv).startsWith('[PL 524]'), 'D: vendo em R$, o P/L em R$ por cima');
+ok(A._celPL(conv).includes('>+100,75 USDT<'), 'D: vendo em R$, o P/L em USDT embaixo, com sinal: ' + A._celPL(conv));
+ok(A._celPL({ ...conv, pl: -130, pl_orig: -25 }).includes('>−25,00 USDT<'), 'D: P/L negativo embaixo com minus');
+ok(A._celPL({ ...conv, pl: 0, pl_orig: 0 }).includes('>0,00 USDT<'), 'D: P/L zero embaixo sem sinal');
 A.ver('orig');
 ok(A._celPL(conv).includes('100,75') && A._celPL(conv).includes('USDT'), 'D: vendo na moeda da conta, o pl_orig');
+ok(A._celPL(conv).includes('>+R$ 524,00<'), 'D: vendo na moeda da conta, o R$ desce para baixo: ' + A._celPL(conv));
 eq(A._celPL({ ...conv, pl_orig: null }), '[—]', 'D: aposta aberta segue o travessão');
-eq(A._celPL(real), '[PL 10]', 'D: linha sem origem segue em R$');
+eq(A._celPL(real), '[PL 10]', 'D: linha sem origem segue em R$, sem sub-linha');
+A.ver('BRL');
+eq(A._celPL({ ...conv, pl: null, pl_orig: null }), '[—]', 'D: aposta aberta sem sub-linha');
+eq(A._celPL(real), '[PL 10]', 'D: em R$, linha sem origem sem sub-linha');
+A.ver('orig');
 
 // ── E. o seletor ─────────────────────────────────────────────────────────────
 {
@@ -166,11 +175,16 @@ eq(A._celPL(real), '[PL 10]', 'D: linha sem origem segue em R$');
   vm.createContext(ctx);
   vm.runInContext([recorteFn(APP, 'fmt'), recorteConst(APP, '_MOEDA_ORIG'), recorteFn(APP, 'fmtMoedaOrig')].join('\n') +
     '\nthis.f = fmtMoedaOrig;', ctx);
-  for (const [v, m] of [[1234.5, 'USD'], [1234.5, 'USDT'], [-3, 'USDT'], [0.5, 'USD'], [10, 'BRL'], [null, 'USD']]) {
+  for (const [v, m] of [[1234.5, 'USD'], [1234.5, 'USDT'], [-3, 'USDT'], [0.5, 'USD'], [10, 'BRL'], [null, 'USD'], [0, 'USDT']]) {
     eq(ctx.f(v, m), A.fmtMoedaOrig(v, m), `F: dashboard e grade escrevem igual (${v} ${m})`);
+    eq(ctx.f(v, m, true), A.fmtMoedaOrig(v, m, true), `F: com sinal, dashboard e grade escrevem igual (${v} ${m})`);
   }
+  eq(A.fmtMoedaOrig(100.75, 'USDT', true), '+100,75 USDT', 'F: P/L positivo com +');
+  eq(A.fmtMoedaOrig(0, 'USDT', true), '0,00 USDT', 'F: P/L zero sem sinal');
   ok(/\$\{fmtR\(r\.stake\)\}\$\{r\.stake_orig!=null&&fmtMoedaOrig\(r\.stake_orig,r\.moeda\)/.test(APOSTAS),
      'F: a Base Completa põe o original sob a stake');
+  ok(/fmtPL\(r\.lucro\)\+\(r\.lucro_orig!=null&&fmtMoedaOrig\(r\.lucro_orig,r\.moeda,true\)/.test(APOSTAS),
+     'F: a Base Completa põe o P/L original sob o P/L');
 }
 
 if (falhas) { console.error(`\n${falhas} falha(s)`); process.exit(1); }

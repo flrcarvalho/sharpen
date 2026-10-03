@@ -94,6 +94,9 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
 - **P/L na moeda da conta** (`pl_orig`, na listagem da grade): `calcular_pl` aplicado à
   `stake_orig`, nunca `pl ÷ cotacao`. A stake em R$ foi arredondada ao centavo, e o erro
   cresce com a odd: 1 US$ a 5,0049 @ 101 dá 100,00 pelo certo e 99,90 pela divisão.
+- **P/L com sub-linha** (pedido do Feca, 03/10/2026): o mesmo desenho da stake, R$ colorido
+  em cima e a outra moeda neutra embaixo, com sinal (`+1.188,49 USDT`); na grade e na Base
+  Completa (o feed leva `lucro_orig` só nas linhas convertidas e liquidadas). Aberta não ganha.
 - **Base Completa:** só a sub-linha, sem seletor (as contas se misturam ali). O feed leva
   `moeda`/`stake_orig` **só** nas linhas convertidas. A tabela é virtualizada com altura
   fixa de linha (68 px), medida igual com e sem a sub-linha.
