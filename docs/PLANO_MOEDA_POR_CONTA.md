@@ -121,8 +121,10 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
   tela; 4 mutações de controle, todas detectadas.
 - SharpenUp **0.7.34** com nota genérica só na home (`--so-changelog`, decisão do Feca):
   a nota não nomeia a casa e o grupo **não** foi avisado.
-- **Não validado ao vivo:** a captura pela extensão na conta do Feca, a conversão USDT no
-  `/salvar` em produção (a Binance nunca foi medida a partir do Railway) e o botão Conectar.
+- **Botão Conectar provado em produção** (`_casaConectavel('Betpanda')` true, controle negativo
+  false, `Betpanda` em `captura` no `/casas`).
+- **Não validado ao vivo:** a captura pela extensão na conta do Feca e a conversão USDT no
+  `/salvar` em produção (a Binance nunca foi medida a partir do Railway).
 
 ### Limites conhecidos do passo 1
 
