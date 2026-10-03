@@ -17,7 +17,8 @@
 | # | O quê | Estado |
 |---|---|---|
 | 1 | Banco + cotação + conversão no `/salvar` | **NO AR (s390)** |
-| 2 | Moeda no cadastro da conta (rota + modal) + aviso quando a captura contradiz o cadastro | aberto |
+| 2a | Moeda no cadastro da conta (rota + modal) | **NO AR (s391)** |
+| 2b | Aviso quando a captura contradiz o cadastro (extensão + `/extrair` + `/salvar`) | aberto |
 | 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | aberto |
 | 4 | Captura: Bet Panda → SapphireBet + PariPesa → Dex Sport | aberto |
 
@@ -37,10 +38,39 @@
   `tests/test_salvar_parceiro_id.py` (4 mutações na rota, 4 detectadas) e 4 casos em
   `tests/test_repository_db.py` (só no CI).
 
+### O que o passo 2a fez (s391)
+
+- `POST /parceiros` e `POST /parceiros/{id}/editar` aceitam `moeda`, validada na fronteira
+  contra `cambio.MOEDAS` (minúscula vira maiúscula; fora da lista dá 400). `GET /parceiros`
+  devolve a `moeda` de cada conta.
+- **Ausente = não mexe.** Na edição e na reativação de conta arquivada pelo `ON CONFLICT`
+  do `criar_parceiro`: recriar pelo campo inline (que só tem o nome) uma conta USDT
+  arquivada não a devolve em BRL. Conta nova sem escolha nasce BRL.
+- Modal de conta: seletor BRL / USD / USDT (o `.cxm-seg` da Caixa), na criação e na edição.
+  A criação inline da lista lateral continua só com o nome, então nasce BRL.
+- **Trocar a moeda vale daqui para frente** (decisão do Feca, 03/10/2026): nenhum bilhete é
+  reconvertido, e o modal avisa quantas apostas da conta ficam como estão. A aposta
+  liquidada tem a stake congelada pelo UPSERT; a aberta é refrescada pela recaptura e passa
+  a converter pela moeda nova, que é a leitura certa do que a casa mostra.
+- Gates: `tests/test_moeda_conta.py` (rota: 4 mutações à mão, 4 detectadas; front:
+  13 mutações automáticas sobre `tests/js/moeda_conta_front.mjs`, 13 detectadas) e
+  `test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder` no `test_repository_db.py`
+  (só no CI).
+
+### O que falta no passo 2b (achado da s391)
+
+Os injects leem a moeda da casa (`moeda:` no jb, x1, kto, rg, stk, tv e bda), mas **nenhum
+formatador do `content.js` a escreve no bloco**: ela morre dentro da extensão e nunca chega
+ao servidor. O desenho aprovado: os formatadores escrevem `Moeda: X` **só quando X não é
+BRL** (`BRL`, `R$` e vazio não geram linha, então o texto das casas em real fica byte a
+byte igual, e o hash do `bloco_visto` também); o `/extrair` devolve as moedas no `done`
+pelo mesmo caminho do `carimbos`; o `/salvar` compara com a da conta. `$` é compatível com
+USD e com USDT; qualquer outra divergência vira alerta apontando a conta, sem bloquear.
+
 ### Limites conhecidos do passo 1
 
-- **Nada grava `parceiros.moeda` ainda:** toda conta é BRL até o passo 2. O passo 1 sozinho
-  não muda nenhum número no ar.
+- ~~Nada grava `parceiros.moeda` ainda~~: resolvido no passo 2a (s391). Até alguém escolher
+  outra moeda numa conta, nenhum número no ar muda.
 - USD de aposta de hoje usa a PTAX mais recente como proxy (regra do Polymarket). Em
   bilhete **sem código** isso pode mudar a assinatura entre dois envios; as 4 casas têm código.
 - Edição manual da stake na grade (`PATCH /bilhetes/{id}`) grava R$ e não toca na origem.

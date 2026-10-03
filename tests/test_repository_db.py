@@ -237,6 +237,45 @@ def test_moeda_da_conta_vem_do_cadastro_e_o_padrao_e_real():
     _run(body())
 
 
+def test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder():
+    """Passo 2 da moeda (s391): o cadastro grava, a listagem devolve e a edição troca.
+
+    As duas regras que só o Postgres prova: `None` NÃO MEXE (na edição e na reativação de
+    conta arquivada pelo ON CONFLICT do `criar_parceiro`) e a moeda é escrita ANTES do
+    atalho de "nada mudou" (trocar só a moeda é edição legítima). Sem o COALESCE, recriar
+    pelo campo inline uma conta USDT arquivada a devolveria em BRL."""
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoMoeda'")
+
+        c = await repository.criar_parceiro("Dex Sport", "Feca", "TDonoMoeda", "USDT")
+        assert c["moeda"] == "USDT"
+        b = await repository.criar_parceiro("Betano", "Feca", "TDonoMoeda")
+        assert b["moeda"] == "BRL", "conta sem moeda escolhida nasce em real"
+        lista = {p["casa"]: p["moeda"] for p in await repository.list_parceiros("TDonoMoeda")}
+        assert lista == {"Dex Sport": "USDT", "Betano": "BRL"}
+
+        # Só a moeda muda: nome e casa iguais, e mesmo assim grava.
+        assert (await repository.editar_parceiro(b["id"], "Feca", None, "TDonoMoeda",
+                                                 None, "USD"))["ok"]
+        assert await repository.moeda_da_conta("TDonoMoeda", "Betano", "Feca") == "USD"
+        # None = não mexe.
+        assert (await repository.editar_parceiro(b["id"], "Feca", None, "TDonoMoeda"))["ok"]
+        assert await repository.moeda_da_conta("TDonoMoeda", "Betano", "Feca") == "USD"
+
+        # Reativação pelo ON CONFLICT sem moeda: mantém a que a conta tinha.
+        async with pool.acquire() as conn:
+            await conn.execute("UPDATE parceiros SET arquivado = TRUE WHERE id = $1", c["id"])
+        r = await repository.criar_parceiro("Dex Sport", "Feca", "TDonoMoeda")
+        assert r["id"] == c["id"] and r["moeda"] == "USDT", "a reativação apagou a moeda"
+        # Com moeda escolhida, a reativação adota a escolhida.
+        r = await repository.criar_parceiro("Dex Sport", "Feca", "TDonoMoeda", "USD")
+        assert r["moeda"] == "USD"
+    _run(body())
+
+
 # ── Fantasma do código cru (Polymarket: mercado ganha a 2ª compra) ────────────
 #
 # O código do bilhete depende de QUANTAS compras o mercado tem: 1 compra grava

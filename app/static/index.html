@@ -3205,6 +3205,21 @@ td.c-res.res-HL { color: var(--warn); }
         <label>Fornecedor <span class="nc-opt">(opcional)</span></label>
         <input type="text" id="nc-forn" placeholder="Ex.: JoãoContas" autocomplete="off" spellcheck="false">
       </div>
+      <!-- Moeda da CONTA (s391): a API da casa não distingue USD de USDT (a Bet Panda manda
+           "$" com carteira em Tether), o cadastro distingue. Mesmo seletor de três do Tipo
+           da Caixa (.cxm-seg): dois estilos para o mesmo papel é o item 8 do checklist.
+           O valor mora num hidden marcado `data-modal-campo`, para a guarda de fechamento
+           acidental contar a escolha como preenchimento. -->
+      <div class="modal-field">
+        <label>Moeda da conta</label>
+        <input type="hidden" id="nc-moeda" value="BRL" data-modal-campo>
+        <div class="cxm-seg" id="nc-moeda-seg">
+          <button type="button" data-moeda="BRL" class="on">BRL</button>
+          <button type="button" data-moeda="USD">USD</button>
+          <button type="button" data-moeda="USDT">USDT</button>
+        </div>
+        <div class="cxm-hint">A moeda em que a casa mostra o saldo desta conta. A stake é gravada em R$ pela cotação do dia da aposta.</div>
+      </div>
       <!-- Só no modo EDIÇÃO (s322): na criação a data é hoje, que é o caso normal. Ela abre
            a janela de vida da conta — o custo de aquisição aparece na Visão Geral em todo
            período que cruzar [esta data, arquivamento/última aposta]. Contas antigas vieram
@@ -3224,6 +3239,12 @@ td.c-res.res-HL { color: var(--warn); }
       <div class="nc-hint warn nc-off" id="nc-mover">
         <span class="nc-hint-icon">⚠️</span>
         <span class="nc-hint-txt">Mover para <b id="nc-mover-casa">—</b> leva junto <b id="nc-mover-n">—</b> desta conta.</span>
+      </div>
+      <!-- Só no modo edição, quando a moeda escolhida difere da salva e a conta tem aposta.
+           Trocar vale DAQUI PARA FRENTE (decisão do Feca, 03/10/2026): nada é reconvertido. -->
+      <div class="nc-hint warn nc-off" id="nc-moeda-troca">
+        <span class="nc-hint-icon">⚠️</span>
+        <span class="nc-hint-txt">A troca para <b id="nc-moeda-nova">—</b> vale para as próximas capturas. <b id="nc-moeda-n">—</b> já gravadas não são reconvertidas.</span>
       </div>
     </div>
     <div class="modal-foot">
@@ -3383,8 +3404,12 @@ td.c-res.res-HL { color: var(--warn); }
 function _modalCampos(ov) {
   // Campo escondido (o Nome/URL da casa quando a casa escolhida já existe) não conta:
   // senão o modal ficaria "sujo" por um texto que o operador nem está vendo.
+  // Hidden marcado `data-modal-campo` guarda o valor de um controle sem <input> visível
+  // (o seletor de moeda): conta quando o campo que o contém está à vista.
   return Array.from(ov.querySelectorAll('input, textarea, select'))
-    .filter(el => el.type !== 'hidden' && !el.disabled && !el.hasAttribute('data-modal-ignore') && el.offsetParent !== null);
+    .filter(el => el.hasAttribute('data-modal-campo')
+      ? (!!el.parentElement && el.parentElement.offsetParent !== null)
+      : (el.type !== 'hidden' && !el.disabled && !el.hasAttribute('data-modal-ignore') && el.offsetParent !== null));
 }
 function _modalValor(el) { return (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value; }
 function _modalBaseline(ov) {
@@ -5268,6 +5293,7 @@ function abrirModalNovaConta(origem) {
   // Data de compra só na edição: conta criada agora foi comprada hoje (o backend carimba
   // CURRENT_DATE). Comprada antes e cadastrada hoje se ajusta abrindo a edição.
   const adqF = document.getElementById('nc-adq-field'); if (adqF) adqF.classList.add('nc-off');
+  _ncMoedaSet('BRL');
   const def = (casasCarregadas && casasCarregadas.length) ? casasCarregadas[0] : '__nova__';
   _ncComboOpen(false);
   _ncComboSet(def);   // preenche label + hidden + dispara ncOnCasaChange
@@ -5284,7 +5310,7 @@ function abrirModalEditarConta(id, casa, nome) {
   const ov = document.getElementById('novaconta-modal');
   if (!ov) return;
   _ncModo = 'editar';
-  _ncAlvo = { id, casa, nome, bilhetes: null };
+  _ncAlvo = { id, casa, nome, bilhetes: null, moeda: 'BRL' };
   const partes = _ncParteNome(nome);
   ['nc-casa-nome', 'nc-casa-url'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
   document.getElementById('nc-parceiro').value = partes.parceiro;
@@ -5295,6 +5321,8 @@ function abrirModalEditarConta(id, casa, nome) {
   const adqEl = document.getElementById('nc-adq');
   if (adqEl) adqEl.value = _cxDataBR4((_pAdq && _pAdq.adquirida_em) || '');
   const adqF = document.getElementById('nc-adq-field'); if (adqF) adqF.classList.remove('nc-off');
+  _ncAlvo.moeda = (_pAdq && _pAdq.moeda) || 'BRL';
+  _ncMoedaSet(_ncAlvo.moeda);
   _ncComboOpen(false);
   _ncComboSet(casa);   // preenche label + hidden + dispara ncOnCasaChange (rótulos + aviso)
   const wrap = document.getElementById('acctSelWrap'); if (wrap) wrap.classList.remove('open');
@@ -5343,6 +5371,30 @@ function ncOnCasaChange() {
         n == null ? 'as apostas' : (n === 1 ? '1 aposta' : n.toLocaleString('pt-BR') + ' apostas');
     }
   }
+  _ncAvisoMoeda();
+}
+// Seletor de moeda: o hidden é a fonte do valor, os botões só o espelham.
+function _ncMoedaSet(m) {
+  const hid = document.getElementById('nc-moeda');
+  if (hid) hid.value = m || 'BRL';
+  document.querySelectorAll('#nc-moeda-seg button').forEach(b => b.classList.toggle('on', b.dataset.moeda === (m || 'BRL')));
+  _ncAvisoMoeda();
+}
+// Aviso de troca de moeda: só na edição, moeda diferente da salva e conta com aposta.
+// Contagem desconhecida (o /resumo falhou ou não chegou) mostra o aviso sem o número;
+// conta sem aposta nenhuma não tem o que avisar.
+function _ncAvisoMoeda() {
+  const av = document.getElementById('nc-moeda-troca');
+  if (!av) return;
+  const m = (document.getElementById('nc-moeda') || {}).value || 'BRL';
+  const n = _ncAlvo ? _ncAlvo.bilhetes : null;
+  const mostra = _ncModo === 'editar' && !!_ncAlvo && m !== _ncAlvo.moeda && n !== 0;
+  av.classList.toggle('nc-off', !mostra);
+  if (!mostra) return;
+  document.getElementById('nc-moeda-nova').textContent = m;
+  // Contagem de apostas = unidades, não dinheiro → milhar pt-BR, nunca abreviado.
+  document.getElementById('nc-moeda-n').textContent =
+    n == null ? 'As apostas' : (n === 1 ? 'A aposta' : 'As ' + n.toLocaleString('pt-BR') + ' apostas');
 }
 // Lê e valida o formulário (comum aos dois modos). Devolve null se algo falta —
 // já tendo avisado e posto o foco no campo culpado.
@@ -5365,7 +5417,8 @@ function _ncLerForm() {
   if (novo && !url) { alert('Informe a URL da casa (ex.: novacasa.bet.br).'); const u = document.getElementById('nc-casa-url'); if (u) u.focus(); return null; }
   if (!parceiro) { const pi = document.getElementById('nc-parceiro'); if (pi) pi.focus(); return null; }
   if (adqTxt.trim() && !adq) { alert('Data de compra inválida — use dd/mm/aaaa.'); const a = document.getElementById('nc-adq'); if (a) a.focus(); return null; }
-  return { novo, casa, url, parceiro, forn, nome, adq };
+  const moeda = (document.getElementById('nc-moeda') || {}).value || 'BRL';
+  return { novo, casa, url, parceiro, forn, nome, adq, moeda };
 }
 
 // Casa nova com URL → domínio p/ o favicon (chip padrão em todo o sistema). `casaFinal` é
@@ -5387,7 +5440,7 @@ async function ncCriarConta() {
   if (!f) return;
   const btn = document.getElementById('nc-criar'); if (btn) btn.disabled = true;
   try {
-    const r = await fetch('/parceiros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa: f.casa, nome: f.nome }) });
+    const r = await fetch('/parceiros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ casa: f.casa, nome: f.nome, moeda: f.moeda }) });
     if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao criar conta'); return; }
     const p = await r.json();
     _actPush('criacao', p.casa, f.nome);
@@ -5423,7 +5476,7 @@ async function ncEditarConta() {
   try {
     const r = await fetch('/parceiros/' + alvo.id + '/editar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome: f.nome, casa: f.casa, adquirida_em: f.adq || undefined }),
+      body: JSON.stringify({ nome: f.nome, casa: f.casa, adquirida_em: f.adq || undefined, moeda: f.moeda }),
     });
     if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.detail || 'Erro ao salvar a conta.'); return; }
     const res = await r.json();
@@ -5439,6 +5492,7 @@ async function ncEditarConta() {
     if (parceiroSelecionado && parceiroSelecionado.id === alvo.id) {
       parceiroSelecionado.nome = res.nome || f.nome;
       parceiroSelecionado.casa = casaNova;
+      parceiroSelecionado.moeda = f.moeda;
       casaSelecionada = casaNova;
       if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
       // Mover de casa muda o que a Extração oferece (upload × sync da Polymarket, botão
@@ -5465,6 +5519,7 @@ async function ncEditarConta() {
   if (close) close.addEventListener('click', fecharModalNovaConta);
   if (cancel) cancel.addEventListener('click', fecharModalNovaConta);
   if (criar) criar.addEventListener('click', ncSalvarConta);
+  document.querySelectorAll('#nc-moeda-seg button').forEach(b => b.addEventListener('click', () => _ncMoedaSet(b.dataset.moeda)));
   // combo custom da casa
   const trig = document.getElementById('nc-combo-trigger'), srch = document.getElementById('nc-combo-srch'), list = document.getElementById('nc-combo-list');
   if (trig) trig.addEventListener('click', () => {

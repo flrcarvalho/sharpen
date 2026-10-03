@@ -3736,18 +3736,26 @@ async def get_escadas_todas(dono: str) -> dict:
 
 # ── Parceiros ─────────────────────────────────────────────────────────────────
 
-async def criar_parceiro(casa: str, nome: str, dono: str) -> dict:
+async def criar_parceiro(casa: str, nome: str, dono: str, moeda: str | None = None) -> dict:
+    """Cria a conta, ou REATIVA a arquivada de mesmo (casa, nome).
+
+    `moeda` (s391) é a da conta: BRL, USD ou USDT, validada por quem chama. `None` = não
+    escolheu (a criação inline da lista lateral só tem o nome): a conta nova nasce BRL e a
+    reativada MANTÉM a que tinha. Sem o COALESCE, recriar pelo campo inline uma conta USDT
+    arquivada a devolveria em BRL, e a captura seguinte gravaria USDT como se fosse R$.
+    """
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO parceiros (dono, casa, nome, adquirida_em)
-            VALUES ($1, $2, $3, CURRENT_DATE)
+            INSERT INTO parceiros (dono, casa, nome, adquirida_em, moeda)
+            VALUES ($1, $2, $3, CURRENT_DATE, COALESCE($4, 'BRL'))
             ON CONFLICT (dono, casa, nome) DO UPDATE
-                SET arquivado = FALSE, arquivada_em = NULL
-            RETURNING id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em
+                SET arquivado = FALSE, arquivada_em = NULL,
+                    moeda = COALESCE($4, parceiros.moeda)
+            RETURNING id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em, moeda
             """,
-            dono, casa, nome,
+            dono, casa, nome, moeda,
         )
     return dict(row)
 
@@ -3829,7 +3837,7 @@ async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"SELECT id, casa, nome, arquivado, criado_em, adquirida_em, arquivada_em, custo, "
-            f"renovacoes FROM parceiros {where} ORDER BY criado_em ASC",
+            f"renovacoes, moeda FROM parceiros {where} ORDER BY criado_em ASC",
             *params,
         )
     # `custo` é NUMERIC → Decimal no asyncpg; o JSON da rota não serializa Decimal.
@@ -4591,7 +4599,8 @@ async def renomear_parceiro(parceiro_id: int, novo_nome: str, dono: str) -> dict
 
 
 async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | None,
-                          dono: str, adquirida_em: date | None = None) -> dict:
+                          dono: str, adquirida_em: date | None = None,
+                          moeda: str | None = None) -> dict:
     """Edita a conta (nome e/ou casa), propaga aos bilhetes E recalcula a assinatura.
 
     Os bilhetes referenciam o parceiro por TEXTO (`bilhetes.casa + bilhetes.parceiro`), então
@@ -4613,6 +4622,12 @@ async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | Non
     menor entre `criado_em` e a 1ª aposta) erra sempre que a conta foi comprada bem antes de
     apostar — é o único jeito de corrigir isso à mão. Escrita ANTES da checagem de "nada
     mudou": trocar só a data é uma edição legítima, e o atalho de saída a engoliria.
+
+    `moeda` (s391) segue a mesma regra: `None` = não mexe, gravada antes do atalho. Trocar a
+    moeda vale DAQUI PARA FRENTE (decisão do Feca, 03/10/2026): nenhum bilhete é
+    reconvertido. A aposta liquidada tem a stake congelada pelo UPSERT; a aberta é refrescada
+    pela recaptura e passa a converter pela moeda nova, que é a leitura certa do que a casa
+    mostra.
 
     Tudo numa transação. Retorna {ok, motivo?, casa, nome, bilhetes_atualizados,
     assinaturas_recalculadas}.
@@ -4636,6 +4651,11 @@ async def editar_parceiro(parceiro_id: int, novo_nome: str, nova_casa: str | Non
                 await conn.execute(
                     "UPDATE parceiros SET adquirida_em = $1 WHERE id = $2 AND dono = $3",
                     adquirida_em, parceiro_id, dono,
+                )
+            if moeda is not None:
+                await conn.execute(
+                    "UPDATE parceiros SET moeda = $1 WHERE id = $2 AND dono = $3",
+                    moeda, parceiro_id, dono,
                 )
             destino = nova_casa or casa
             if antigo == novo_nome and destino == casa:

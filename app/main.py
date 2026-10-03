@@ -4952,6 +4952,21 @@ async def taxonomia(dono: str = Depends(dono_leitura)):
 class ParceiroCriarRequest(BaseModel):
     casa: str
     nome: str
+    # Moeda da CONTA (s391): BRL, USD ou USDT. Ausente = BRL na conta nova e "mantém" na
+    # arquivada que o ON CONFLICT reativa (ver `criar_parceiro`).
+    moeda: Optional[str] = None
+
+
+def _moeda_da_rota(valor: Optional[str]) -> Optional[str]:
+    """Valida a moeda na FRONTEIRA. Vazio/ausente = None ("não mexe"); fora da lista do
+    `cambio.MOEDAS` = 400. Gravar uma moeda que o câmbio não conhece faria toda captura
+    da conta ser recusada no `/salvar` por "sem cotação", com a conta parecendo normal."""
+    m = (valor or "").strip().upper()
+    if not m:
+        return None
+    if m not in _cambio.MOEDAS:
+        raise HTTPException(400, f"Moeda inválida: use {', '.join(_cambio.MOEDAS)}.")
+    return m
 
 
 @app.get("/parceiros")
@@ -4969,12 +4984,13 @@ async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(d
         raise HTTPException(400, "Nome do parceiro não pode ser vazio.")
     if not casa_key.strip():
         raise HTTPException(400, "Casa não informada.")
+    moeda = _moeda_da_rota(body.moeda)
     # Casa nova (Fase 2 worldwide): não exige mais CASA_*.md. A casa passa a
     # existir pelo uso (parceiro + bilhetes) e a extração roda em modo cego.
     # A casa NASCE aqui — é o ponto certo para impedir uma gêmea por caixa/espaço de uma
     # casa que já existe ("Pixbet" quando o sistema já tem "PixBet"). Casa realmente nova
     # segue entrando verbatim (ver `casa_canonica`).
-    row = await criar_parceiro(await casa_canonica(_casa_display(casa_key)), nome, dono)
+    row = await criar_parceiro(await casa_canonica(_casa_display(casa_key)), nome, dono, moeda)
     return row
 
 
@@ -5127,6 +5143,9 @@ class ParceiroEditarRequest(BaseModel):
     # Data de compra da conta (AAAA-MM-DD). Ausente = não mexe. Abre a janela de vida que
     # decide em quais períodos o custo de aquisição aparece na Visão Geral (s322).
     adquirida_em: Optional[str] = None
+    # Moeda da conta (s391). Ausente = não mexe. Trocar vale daqui para frente: nenhum
+    # bilhete já gravado é reconvertido (decisão do Feca, 03/10/2026).
+    moeda: Optional[str] = None
 
 
 @app.post("/parceiros/{parceiro_id}/editar")
@@ -5148,7 +5167,8 @@ async def editar_parceiro_route(parceiro_id: int, body: ParceiroEditarRequest,
             adquirida_dt = _date.fromisoformat(adquirida)
         except ValueError:
             raise HTTPException(400, "Data de aquisição inválida (use AAAA-MM-DD).")
-    res = await editar_parceiro(parceiro_id, body.nome, casa or None, dono, adquirida_dt)
+    moeda = _moeda_da_rota(body.moeda)
+    res = await editar_parceiro(parceiro_id, body.nome, casa or None, dono, adquirida_dt, moeda)
     if not res.get("ok"):
         motivo = res.get("motivo", "Não foi possível editar a conta.")
         raise HTTPException(404 if "não encontrada" in motivo else 400, motivo)
