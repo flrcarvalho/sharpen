@@ -80,6 +80,23 @@ def test_o_carimbo_de_colocacao_manda_sobre_a_data_do_evento():
     assert ok[0]["stake"] == "125,00"
 
 
+def test_aberta_com_jogo_futuro_usa_a_cotacao_de_hoje():
+    """s391: a data do bilhete é a do EVENTO. Aberta em jogo de amanhã pedia a cotação de
+    um dia que não existe e era RECUSADA (10 de 12 abertas da DEX Sport). O dinheiro saiu
+    no máximo hoje: vale a cotação de hoje."""
+    _limpa()
+    hoje = datetime.now(P.BRT).date()
+    amanha = hoje + timedelta(days=1)
+    C._USDT_MAPA[hoje.isoformat()] = 5.4
+    rows = [_row(data=amanha.strftime("%d/%m/%Y"), resultado="")]
+    ok, rej = C.converter_linhas(rows, "USDT", {}, R._num_or_none)
+    assert rej == [], rej
+    assert ok[0]["cotacao"] == 5.4 and ok[0]["stake"] == "135,00"
+    # ISO e passado distante seguem como estavam.
+    assert C._iso_da_linha(_row(data=amanha.isoformat()), None) == hoje.isoformat()
+    assert C._iso_da_linha(_row(data="02/10/2026"), None) == "2026-10-02"
+
+
 def test_data_iso_tambem_vale():
     _limpa()
     C._USDT_MAPA["2026-10-02"] = 5.0

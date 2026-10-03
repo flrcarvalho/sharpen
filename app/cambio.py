@@ -139,15 +139,26 @@ def cotacao(moeda: str, iso: str) -> float | None:
 def _iso_da_linha(row: dict, carimbo: str | None) -> str:
     """A data em que o DINHEIRO SAIU: o carimbo de colocação quando o robô manda
     (`AAAAMMDDhhmmss`), senão a data do bilhete (`DD/MM/AAAA` ou ISO). É a data da
-    aposta, a mesma escolha do Polymarket (data da compra). Sem nenhuma das duas, ''."""
+    aposta, a mesma escolha do Polymarket (data da compra). Sem nenhuma das duas, ''.
+
+    ⚠️ **A data do bilhete é a do EVENTO, e o evento pode ser amanhã** (s391): aposta
+    ABERTA em jogo futuro pedia a cotação de um dia que ainda não existe, e a linha era
+    RECUSADA — na 1ª captura da DEX Sport, 10 das 12 abertas sumiram assim. O dinheiro
+    saiu no máximo HOJE, então data posterior a hoje vira hoje: a cotação mais próxima
+    que existe (no USDT, a abertura do dia, fixa desde 00:00 UTC). Com o carimbo de
+    colocação a data é exata; isto é o piso para quem não manda carimbo."""
     if carimbo and len(carimbo) >= 8 and carimbo[:8].isdigit():
-        return f"{carimbo[:4]}-{carimbo[4:6]}-{carimbo[6:8]}"
-    d = (row.get("data") or "").strip()
-    if len(d) == 10 and d[2] == "/" and d[5] == "/":
-        return f"{d[6:10]}-{d[3:5]}-{d[0:2]}"
-    if len(d) >= 10 and d[4] == "-" and d[7] == "-":
-        return d[:10]
-    return ""
+        iso = f"{carimbo[:4]}-{carimbo[4:6]}-{carimbo[6:8]}"
+    else:
+        d = (row.get("data") or "").strip()
+        if len(d) == 10 and d[2] == "/" and d[5] == "/":
+            iso = f"{d[6:10]}-{d[3:5]}-{d[0:2]}"
+        elif len(d) >= 10 and d[4] == "-" and d[7] == "-":
+            iso = d[:10]
+        else:
+            return ""
+    hoje = datetime.now(_poly.BRT).date().isoformat()
+    return hoje if iso > hoje else iso
 
 
 def datas_do_lote(rows: list[dict], carimbos: dict | None) -> list[str]:

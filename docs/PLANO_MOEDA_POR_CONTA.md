@@ -159,6 +159,17 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
 - Gates: `tests/test_caixa_moeda.py` (projeção 5/5 e tela 6/6 mutações) e os testes de forma
   do INSERT e das queries. **Não validado ao vivo** com a conta do Feca.
 
+### Correção pós-validação (s391): aberta com jogo futuro
+
+- Na 1ª captura real da DEX Sport, **10 das 12 abertas foram recusadas** no `/salvar` por
+  "sem cotação": sem carimbo de colocação, a cotação usava a data do bilhete, que é a do
+  EVENTO (amanhã), e a Binance não tem candle de amanhã. Agora data posterior a hoje vira hoje
+  (`cambio._iso_da_linha`): o dinheiro saiu no máximo hoje.
+- A barreira de recaptura não segura os recusados (o JOIN com `bilhetes` só pula bilhete
+  gravado): a próxima captura traz os 10.
+- **Pendente (próxima versão da extensão):** Dex e Betpanda mandarem o carimbo de colocação
+  (`placedAt`/`timestamp`), para a cotação ser a do dia exato da aposta.
+
 ### Limites conhecidos do passo 1
 
 - ~~Nada grava `parceiros.moeda` ainda~~: resolvido no passo 2a (s391). Até alguém escolher
