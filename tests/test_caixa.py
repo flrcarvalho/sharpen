@@ -452,7 +452,8 @@ def test_o_gate_detecta_saldo_colorido(tmp_path):
     """Pintar o saldo de verde/vermelho quebra a regra de cor da marca (verde e
     vermelho são semântica de RESULTADO). O gate tem de pegar."""
     src = INDEX.read_text(encoding="utf-8")
-    alvo = "  const sg = (v < 0 ? '−' : (sinal && v > 0 ? '+' : '')) + 'R$';   // minus U+2212"
+    # s391: o `fmtSaldo` ganhou a moeda da conta; a linha do sinal em R$ é esta.
+    alvo = "  const sg = s + (f ? f.pre : 'R$');"
     assert src.count(alvo) == 1
     mutante = tmp_path / "index_cor.html"
     io.open(mutante, "w", encoding="utf-8", newline="").write(
@@ -517,8 +518,10 @@ def test_as_duas_queries_de_bilhetes_da_caixa_trazem_criado_em():
     src = (RAIZ / "app" / "repository.py").read_text(encoding="utf-8")
     # Casa contra as duas queries REAIS do arquivo de produção, sem reimplementá-las.
     alvos = [
-        "SELECT id, stake, odd, resultado, data, criado_em FROM bilhetes ",   # _caixa_apostas
-        "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em ",  # caixa_visao
+        # s391: as duas trazem também `stake_orig` e `moeda` — a caixa de conta USD/USDT roda
+        # na moeda da conta e precisa da stake ORIGINAL de cada aposta.
+        "SELECT id, stake, odd, resultado, data, criado_em, stake_orig, moeda FROM bilhetes ",   # _caixa_apostas
+        "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em, stake_orig, moeda ",  # caixa_visao
     ]
     for a in alvos:
         assert src.count(a) == 1, f"query da caixa mudou de forma (ou perdeu criado_em): {a!r}"

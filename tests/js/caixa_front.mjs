@@ -34,7 +34,7 @@ const recorte = (ini, fim, nome) => {
   return HTML.slice(a, b + fim.length);
 };
 
-const fmtSaldo   = eval('(' + recorte('function fmtSaldo(n, sinal) {', LF + '}', 'fmtSaldo') + ')');
+const fmtSaldo   = eval('(' + recorte('function fmtSaldo(n, sinal, moeda) {', LF + '}', 'fmtSaldo') + ')');
 const _cxDataBR  = eval('(' + recorte('function _cxDataBR(iso) {', LF + '}', '_cxDataBR') + ')');
 const _cxDataBR4 = eval('(' + recorte('function _cxDataBR4(iso) {', LF + '}', '_cxDataBR4') + ')');
 const _cxIso     = eval('(' + recorte('function _cxIso(txt) {', LF + '}', '_cxIso') + ')');

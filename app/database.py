@@ -707,6 +707,11 @@ CREATE TABLE IF NOT EXISTS caixa_mov (
 CREATE INDEX IF NOT EXISTS caixa_mov_dono_parceiro ON caixa_mov (dono, parceiro_id, data);
 CREATE UNIQUE INDEX IF NOT EXISTS caixa_mov_um_inicial ON caixa_mov (parceiro_id)
     WHERE tipo = 'inicial';
+-- Moeda do lançamento (s391): a da CONTA no instante em que foi lançado. NULL = a moeda da
+-- conta (todo lançamento anterior a esta coluna, e o caso normal). Existe para a conta que
+-- um dia trocar de moeda: lançamento numa moeda que já não é a da conta fica FORA da caixa,
+-- e a tela diz quantos, em vez de somar USDT como se fosse real.
+ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS moeda TEXT;
 
 -- A exclusão de conta é hard delete com snapshot (ver `lixeira_contas` acima). Os
 -- lançamentos da caixa saem junto pelo ON DELETE CASCADE, então precisam entrar no

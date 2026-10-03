@@ -2330,8 +2330,19 @@ def _caixa_criado_iso(criado) -> str:
     return str(criado)[:10]
 
 
-def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
+def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -> dict:
     """Projeção da caixa de UMA conta. PURA (sem DB) — é o núcleo testável.
+
+    `moeda` (s391) é a da CONTA. Em conta USD/USDT a caixa inteira roda NA MOEDA DA CONTA:
+    o saldo que se confere é o que a casa mostra, em USDT, e converter lançamentos para R$
+    faria a divergência nunca zerar (a cotação muda todo dia). Por isso:
+      · a stake de cada aposta é a ORIGINAL (`stake_orig`, gravada pelo `/salvar`), e o P/L
+        sai do `calcular_pl` sobre ela — a mesma régua do `pl_orig` da grade;
+      · aposta SEM origem nessa moeda (editada à mão, que limpa a origem) fica FORA e é
+        contada em `n_sem_origem`: somar R$ como USDT é o erro caro;
+      · lançamento com `moeda` gravada e diferente da conta fica FORA e é contado em
+        `n_mov_outra_moeda`; `moeda` vazia é a da conta (todo lançamento anterior a ela).
+    Conta em BRL: nada muda, byte a byte.
 
     `movs`   : lançamentos, cada um {tipo, data (ISO), valor, obs, projetado,
                abertas_corte, criado_em, id}.
@@ -2356,7 +2367,25 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict]) -> dict:
         "aberto": 0.0, "n_abertas": 0,
         "banca": 0.0, "disponivel": 0.0,
         "conferencia": None, "divergencia": None,
+        "moeda": moeda, "n_sem_origem": 0, "n_mov_outra_moeda": 0,
     }
+    n_mov_outra = sum(1 for m in movs if m.get("moeda") and m.get("moeda") != moeda)
+    if n_mov_outra:
+        movs = [m for m in movs if not (m.get("moeda") and m.get("moeda") != moeda)]
+    n_sem_origem = 0
+    if moeda != "BRL":
+        convertidas = []
+        for a in apostas:
+            orig = a.get("stake_orig")
+            if orig is not None and (a.get("moeda") or "").upper() == moeda:
+                b = dict(a)
+                b["stake"] = f"{float(orig):.2f}".replace(".", ",")
+                convertidas.append(b)
+            elif _num(a.get("stake")) > 0:
+                n_sem_origem += 1
+        apostas = convertidas
+    vazio["n_sem_origem"] = n_sem_origem
+    vazio["n_mov_outra_moeda"] = n_mov_outra
     ini = next((m for m in movs if m.get("tipo") == "inicial"), None)
     if not ini:
         return vazio
@@ -2487,21 +2516,30 @@ def _caixa_mov_dict(r) -> dict:
         "projetado": None if r["projetado"] is None else float(r["projetado"]),
         "abertas_corte": list(r["abertas_corte"] or []),
         "criado_em": criado.isoformat() if hasattr(criado, "isoformat") else str(criado),
+        "moeda": r.get("moeda"),
     }
 
 
 async def _caixa_conta_row(conn, parceiro_id: int, dono: str):
     return await conn.fetchrow(
-        "SELECT id, casa, nome, arquivado FROM parceiros WHERE id = $1 AND dono = $2",
+        "SELECT id, casa, nome, arquivado, moeda FROM parceiros WHERE id = $1 AND dono = $2",
         parceiro_id, dono,
     )
+
+
+def _moeda_conta(p) -> str:
+    """Moeda da conta numa linha de `parceiros` (Record ou dict de teste). Vazio = BRL."""
+    try:
+        return (p.get("moeda") or "BRL").upper()
+    except Exception:
+        return "BRL"
 
 
 async def _caixa_apostas(conn, dono: str, casa: str, parceiro: str) -> list[dict]:
     # `criado_em` entra porque `_caixa_abertas_no_corte` precisa saber o que o Sharpen
     # JÁ CONHECIA antes do corte — a data do bilhete é a do EVENTO, não a da aposta.
     rows = await conn.fetch(
-        "SELECT id, stake, odd, resultado, data, criado_em FROM bilhetes "
+        "SELECT id, stake, odd, resultado, data, criado_em, stake_orig, moeda FROM bilhetes "
         "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
         dono, casa, parceiro,
     )
@@ -2519,7 +2557,7 @@ async def caixa_conta(dono: str, parceiro_id: int) -> dict | None:
             "SELECT * FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 "
             "ORDER BY data, id", dono, parceiro_id)]
         apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
-    res = _caixa_projetar(movs, apostas)
+    res = _caixa_projetar(movs, apostas, _moeda_conta(p))
     res["parceiro_id"] = parceiro_id
     res["casa"] = p["casa"]
     res["parceiro"] = p["nome"]
@@ -2565,7 +2603,7 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
                 if not any(m["tipo"] == "inicial" for m in movs):
                     return {"ok": False, "motivo": "Informe o saldo inicial antes de conferir."}
                 apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
-                projetado = _caixa_projetar(movs, apostas)["disponivel"]
+                projetado = _caixa_projetar(movs, apostas, _moeda_conta(p))["disponivel"]
 
             # NUMERIC do Postgres é Decimal no asyncpg: passar float aqui levanta
             # DataError e a rota devolve 500. Foi assim que o primeiro "Ativar" da
@@ -2583,10 +2621,12 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
             # trava a lista inteira de uma vez, para não haver uma terceira rodada.
             await conn.execute(
                 "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, "
-                "projetado, abertas_corte) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+                "projetado, abertas_corte, moeda) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
                 dono, parceiro_id, tipo, date.fromisoformat(data), Decimal(str(valor)),
                 (obs or "").strip()[:280],
                 None if projetado is None else Decimal(str(projetado)), abertas,
+                # A moeda da conta NESTE instante (s391): o valor foi digitado nela.
+                _moeda_conta(p),
             )
     logger.info("caixa: %s dono=%s conta=%s valor=%.2f data=%s",
                 tipo, dono, parceiro_id, valor, data)
@@ -2787,6 +2827,25 @@ async def caixa_excluir_mov(dono: str, mov_id: int) -> dict:
     return {"ok": True, "tipo": row["tipo"], "caixa": res}
 
 
+async def _caixa_taxas_hoje(moedas: set[str]) -> dict[str, float | None]:
+    """Cotação de HOJE de cada moeda → R$, para somar contas em outra moeda no total em
+    reais. BRL é 1. Falha de rede ou moeda sem cotação devolve None para ela — quem chama
+    deixa a conta FORA da soma, nunca a soma como se fosse real."""
+    import cambio as _cambio
+    hoje = datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
+    out: dict[str, float | None] = {"BRL": 1.0}
+    for m in moedas:
+        if m == "BRL":
+            continue
+        try:
+            await _cambio.carregar(m, [hoje])
+            out[m] = _cambio.cotacao(m, hoje)
+        except Exception:
+            logger.warning("caixa: sem cotação %s→BRL para %s", m, hoje)
+            out[m] = None
+    return out
+
+
 async def caixa_visao(dono: str) -> dict:
     """Caixa de TODAS as contas do dono, agregada por casa — o Painel de Contas.
 
@@ -2801,14 +2860,14 @@ async def caixa_visao(dono: str) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         parceiros = await conn.fetch(
-            "SELECT id, casa, nome, arquivado FROM parceiros WHERE dono = $1", dono)
+            "SELECT id, casa, nome, arquivado, moeda FROM parceiros WHERE dono = $1", dono)
         movs = [(_caixa_mov_dict(r), r["parceiro_id"]) for r in await conn.fetch(
             "SELECT * FROM caixa_mov WHERE dono = $1 ORDER BY data, id", dono)]
         # `criado_em` é obrigatório: `_caixa_projetar` o usa como data efetiva quando a
         # aposta não tem data (aberta de casa cuja Data é a de resolução). Omiti-lo aqui
         # faria o Painel de Contas projetar DIFERENTE da tela da conta, com a mesma conta.
         apostas = await conn.fetch(
-            "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em "
+            "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em, stake_orig, moeda "
             "FROM bilhetes WHERE dono = $1", dono)
 
     por_conta: dict[int, list[dict]] = {}
@@ -2840,12 +2899,21 @@ async def caixa_visao(dono: str) -> dict:
         if k not in ultima or ts > ultima[k]:
             ultima[k] = ts
 
+    # Conta em outra moeda (s391): a caixa dela roda na moeda DELA, e cada linha leva o valor
+    # nessa moeda. As SOMAS (por casa e total) são em R$, então a conta entra nelas convertida
+    # pela cotação de HOJE — aproximação, e a tela diz isso (`aproximado`). Sem cotação, a
+    # conta fica FORA da soma e é contada em `sem_cotacao`: nunca somar USDT como real.
+    taxas = await _caixa_taxas_hoje({_moeda_conta(p) for p in parceiros})
+
     contas, casas = [], {}
     tot = {"banca": 0.0, "disponivel": 0.0, "aberto": 0.0,
-           "contas": 0, "ligadas": 0, "sem_caixa": 0, "a_conferir": 0, "batidas": 0}
+           "contas": 0, "ligadas": 0, "sem_caixa": 0, "a_conferir": 0, "batidas": 0,
+           "aproximado": 0, "sem_cotacao": 0}
     for p in parceiros:
+        moeda = _moeda_conta(p)
         res = _caixa_projetar(por_conta.get(p["id"], []),
-                              por_chave.get((p["casa"], p["nome"]), []))
+                              por_chave.get((p["casa"], p["nome"]), []), moeda)
+        taxa = taxas.get(moeda)
         uc = ultima.get((p["casa"], p["nome"]))
         linha = {
             "parceiro_id": p["id"], "casa": p["casa"], "parceiro": p["nome"],
@@ -2854,6 +2922,11 @@ async def caixa_visao(dono: str) -> dict:
             "aberto": res["aberto"], "divergencia": res["divergencia"],
             "conferencia": res["conferencia"],
             "ultima_captura": uc.isoformat() if uc else None,
+            "moeda": moeda,
+            # Valores em R$ para as somas. Em BRL são os mesmos; em outra moeda, convertidos
+            # pela cotação de hoje; sem cotação, None (a conta não entra na soma).
+            **{k + "_brl": (round(res[k] * taxa, 2) if taxa else None)
+               for k in ("banca", "disponivel", "aberto")},
         }
         contas.append(linha)
         if p["arquivado"]:
@@ -2870,8 +2943,14 @@ async def caixa_visao(dono: str) -> dict:
             c["sem_caixa"] += 1; tot["sem_caixa"] += 1
             continue
         c["ligadas"] += 1; tot["ligadas"] += 1
-        for k in ("banca", "disponivel", "aberto"):
-            c[k] += res[k]; tot[k] += res[k]
+        if not taxa:
+            c["sem_cotacao"] = c.get("sem_cotacao", 0) + 1; tot["sem_cotacao"] += 1
+        else:
+            if moeda != "BRL":
+                c["aproximado"] = c.get("aproximado", 0) + 1; tot["aproximado"] += 1
+            for k in ("banca", "disponivel", "aberto"):
+                v = res[k] * taxa
+                c[k] += v; tot[k] += v
         if res["estado"] == "divergente":
             c["a_conferir"] += 1; tot["a_conferir"] += 1
         if res["estado"] == "confere":

@@ -145,12 +145,14 @@ def test_cada_argumento_do_insert_vai_no_tipo_da_coluna():
     derrubou a rota antes de qualquer SQL; olhar um argumento por vez foi o que
     deixou o segundo passar. Aqui a tabela inteira é conferida de uma vez.
 
-    Ordem do INSERT: dono, parceiro_id, tipo, data, valor, obs, projetado, abertas_corte.
+    Ordem do INSERT: dono, parceiro_id, tipo, data, valor, obs, projetado, abertas_corte,
+    moeda (s391: a moeda da conta no instante do lançamento).
     """
     esperado = [
         ("dono", str), ("parceiro_id", int), ("tipo", str), ("data", date),
         ("valor", Decimal), ("obs", str),
         ("projetado", (Decimal, type(None))), ("abertas_corte", (list, type(None))),
+        ("moeda", str),
     ]
     conn = _FakeConn(CONTA, movs=[_mov("inicial", "2026-08-01", Decimal("1000"))])
     _lancar(conn, tipo="conferencia", valor=900.0)          # preenche `projetado`

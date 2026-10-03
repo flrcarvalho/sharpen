@@ -23,7 +23,7 @@
 | 4a | Captura: **Bet Panda** | **NO AR e validada ao vivo (s391)**: 45 de 45 |
 | 4b | Captura: **Dexsport** (escolha do Feca, antes das 1xBet) | **NO AR (s391)**, falta validar ao vivo |
 | 4c | Captura: SapphireBet + PariPesa | aberto |
-| 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | aberto |
+| 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | **NO AR (s391)** |
 
 ### O que o passo 1 fez
 
@@ -145,6 +145,20 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
   avisado. **Botão Conectar provado em produção** (true, controle negativo false, casa em
   `captura`). **Não validado ao vivo:** a captura pela extensão na conta do Feca.
 
+### O que o item 5 fez (s391): Caixa na moeda da conta
+
+- Decisão do Feca: em conta USD/USDT a Caixa roda INTEIRA na moeda da conta. Saldo inicial,
+  depósitos, saques, ajustes e conferência são digitados e mostrados nela; as apostas entram pela
+  `stake_orig` e o P/L sai do `calcular_pl` sobre ela. A conferência compara USDT com USDT, sem
+  cotação no meio (converter faria a divergência nunca zerar).
+- `caixa_mov.moeda`: a moeda da conta no instante do lançamento; vazia = moeda da conta (todo
+  lançamento anterior, inclusive os que o Feca já tinha feito, que passaram a valer em USDT).
+  Lançamento de outra moeda e aposta sem origem ficam FORA e a tela diz quantos.
+- Painel de Contas: cada conta na moeda dela; as somas em R$ convertem pela cotação de hoje,
+  marcadas com ≈; sem cotação, a conta fica fora da soma.
+- Gates: `tests/test_caixa_moeda.py` (projeção 5/5 e tela 6/6 mutações) e os testes de forma
+  do INSERT e das queries. **Não validado ao vivo** com a conta do Feca.
+
 ### Limites conhecidos do passo 1
 
 - ~~Nada grava `parceiros.moeda` ainda~~: resolvido no passo 2a (s391). Até alguém escolher
@@ -154,7 +168,7 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
 - ~~Edição manual da stake grava R$ e não toca na origem~~: desde o passo 3 (s391) ela
   limpa a origem quando o número muda.
 - A **Caixa** soma depósitos e stakes em R$; conta em USDT vai precisar de depósito em
-  USDT convertido. **Visto em uso real (03/10/2026):** o Feca lançou os depósitos da Betpanda
+  USDT convertido. ~~Não tratado~~ (resolvido no item 5, s391). **Visto em uso real (03/10/2026):** o Feca lançou os depósitos da Betpanda
   em USDT e a Caixa os leu como R$. Pendência no `BACKLOG` (moeda, item 5).
 - ~~Do Railway não foi medida~~: **medida em produção em 03/10/2026**, a 1ª captura da
   Betpanda converteu os 45 bilhetes. Texto original: Binance medida acessível de casa (03/10). Do Railway **não foi medida**: o primeiro

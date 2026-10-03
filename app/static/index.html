@@ -3307,7 +3307,7 @@ td.c-res.res-HL { color: var(--warn); }
         </div>
       </div>
       <div class="modal-field">
-        <label>Valor (R$)</label>
+        <label id="cxm-valor-lbl">Valor (R$)</label>
         <input type="text" id="cxm-valor" placeholder="0,00" autocomplete="off" spellcheck="false" inputmode="decimal">
       </div>
       <div class="modal-field full">
@@ -4385,15 +4385,24 @@ function _colUltima(cx) {
 // s388: o chip soma o DISPONÍVEL (o que se confere com a casa) e o aberto vem ao lado,
 // na trilha dele. "Tem caixa" é `ligadas`, nunca o saldo: conta ligada com R$ 0,00 é
 // saldo MEDIDO, e o teste antigo (`c.banca`) a lia como "sem caixa".
-function _valAberto(v) {
-  return '<span class="conta-aberto' + (Math.abs(v || 0) < 0.005 ? ' zero' : '') + '">' + fmtSaldo(v) + '</span>';
+function _valAberto(v, moeda) {
+  return '<span class="conta-aberto' + (Math.abs(v || 0) < 0.005 ? ' zero' : '') + '">' + fmtSaldo(v, false, moeda) + '</span>';
+}
+// Valor da conta para SOMAR em reais (s391). Conta em R$: o próprio. Em USD/USDT: o
+// convertido pela cotação de hoje que o servidor manda (`*_brl`); sem cotação, null — a
+// conta fica fora da soma, nunca somada como se fosse real.
+function _cxBrl(cx, k) {
+  if (!cx.moeda || cx.moeda === 'BRL') return cx[k];
+  const v = cx[k + '_brl'];
+  return (v == null) ? null : v;
 }
 function _totalDaCasa(casa) {
   const c = caixaVisaoCache && (caixaVisaoCache.casas || []).find(x => x.casa === casa);
   const tem = contasTab === 'ativas' && c && c.ligadas;
   return '<span class="acct-total' + (tem ? '' : ' vazio') + '">'
     + '<span class="lbl">total</span>'
-    + '<span class="val">' + (tem ? fmtSaldo(c.disponivel) : '—') + '</span></span>'
+    + '<span class="val"' + (tem && c.aproximado ? ' title="≈ inclui conta em outra moeda convertida pela cotação de hoje"' : '') + '>'
+    + (tem ? (c.aproximado ? '≈ ' : '') + fmtSaldo(c.disponivel) : '—') + '</span></span>'
     + (tem ? _valAberto(c.aberto) : '<span class="conta-aberto vazio">—</span>');
 }
 
@@ -4423,6 +4432,7 @@ function renderPainelLista() {
   const temForn = _painelTemFornecedor();
   const cxMap = _caixaPorConta() || {};
   let html = '', total = 0, somaCaixa = 0, somaAberto = 0, nComCaixa = 0, casasComCaixa = 0;
+  let nAprox = 0, nSemCotacao = 0;   // contas em USD/USDT na soma em R$ (s391)
   (casasCarregadas || []).forEach(casa => {
     if (soCasa && casa !== soCasa) return;
     const nomeCasa = casaDisplay(NOMES[casa] || casa);
@@ -4471,9 +4481,14 @@ function renderPainelLista() {
       // A coluna única mostrava a banca, que soma o stake preso: a BetBoom com R$ 0,60
       // na casa aparecia com R$ 29,92. E "tem caixa" é `ligada`, não saldo ≠ 0.
       const temCaixa = !!(cx && cx.ligada);
-      if (temCaixa) { somaCaixa += cx.disponivel; somaAberto += cx.aberto; nComCaixa++; casaTemCaixa = true; }
+      if (temCaixa) {
+        const dBrl = _cxBrl(cx, 'disponivel'), aBrl = _cxBrl(cx, 'aberto');
+        if (dBrl != null) { somaCaixa += dBrl; somaAberto += aBrl || 0; } else nSemCotacao++;
+        if (cx.moeda && cx.moeda !== 'BRL' && dBrl != null) nAprox++;
+        nComCaixa++; casaTemCaixa = true;
+      }
       const caixa = temCaixa
-        ? '<span class="conta-caixa">' + fmtSaldo(cx.disponivel) + '</span>' + _valAberto(cx.aberto)
+        ? '<span class="conta-caixa">' + fmtSaldo(cx.disponivel, false, cx.moeda) + '</span>' + _valAberto(cx.aberto, cx.moeda)
         : '<span class="conta-caixa vazio" title="Caixa Inteligente não ligada nesta conta">—</span>'
           + '<span class="conta-aberto vazio">—</span>';
       // Nome e fornecedor deixam de ser uma string só ("Davi [Norte]"): o nome é
@@ -4518,7 +4533,9 @@ function renderPainelLista() {
   if (total) {
     const rotulo = total + (total === 1 ? ' conta' : ' contas') + (contasTab === 'ativas' ? ' ativas' : ' arquivadas')
       + ' · ' + casasComCaixa + (casasComCaixa === 1 ? ' casa com caixa' : ' casas com caixa');
-    html += '<div class="acct-foot"><span class="lbl">' + esc(rotulo) + '</span>'
+    const avisoMoeda = (nAprox ? ' · ≈ ' + nAprox + (nAprox === 1 ? ' conta em outra moeda convertida' : ' contas em outra moeda convertidas') + ' pela cotação de hoje' : '')
+      + (nSemCotacao ? ' · ' + nSemCotacao + (nSemCotacao === 1 ? ' conta fora da soma' : ' contas fora da soma') + ' (sem cotação)' : '');
+    html += '<div class="acct-foot"><span class="lbl">' + esc(rotulo + avisoMoeda) + '</span>'
       + (nComCaixa > 0
           ? '<span class="val">' + fmtSaldo(somaCaixa) + '</span>'
             + '<span class="val-ab' + (Math.abs(somaAberto) < 0.005 ? ' zero' : '') + '">' + fmtSaldo(somaAberto) + '</span>'
@@ -4643,8 +4660,9 @@ async function renderPainelBanca(force) {
   // Ordem OBRIGATÓRIA, da esquerda para a direita: disponível → aberto → total →
   // exposição a fornecedor. É a ordem da CERTEZA DO DINHEIRO.
   kh.innerHTML =
-    kpi('livre', 'Saldo disponível', fmtSaldo(t.disponivel),
-        'é seu agora · ' + nf(t.ligadas) + (t.ligadas === 1 ? ' conta com caixa' : ' contas com caixa'))
+    kpi('livre', 'Saldo disponível', (t.aproximado ? '≈ ' : '') + fmtSaldo(t.disponivel),
+        'é seu agora · ' + nf(t.ligadas) + (t.ligadas === 1 ? ' conta com caixa' : ' contas com caixa')
+        + (t.aproximado ? ' · ≈ ' + nf(t.aproximado) + ' em outra moeda, pela cotação de hoje' : ''))
     + kpi('aberto', 'Em aberto', fmtSaldo(t.aberto),
           nf(nAbertas) + (nAbertas === 1 ? ' aposta não liquidada' : ' apostas não liquidadas') + ' · pode não voltar')
     + kpi('total', 'Banca total', fmtSaldo(t.banca),
@@ -7503,11 +7521,25 @@ async function renovApagar(rid) {
 // da casa e o centavo é justamente a divergência que se procura; e SEM cor, porque
 // verde/vermelho é semântica de resultado e saque não é prejuízo. A única linha
 // colorida da caixa é o "Resultado", que é P/L de verdade e usa o fmtPL.
-function fmtSaldo(n, sinal) {
+// `moeda` (s391): conta em USD/USDT tem a caixa inteira na moeda DELA (o saldo que se
+// confere é o que a casa mostra). Mesmo formato da grade: "US$ 1.234,50" e "1.234,50 USDT",
+// com o sinal colado ao número. Sem moeda, ou BRL, a saída é exatamente a de sempre.
+function fmtSaldo(n, sinal, moeda) {
   const v = Number(n) || 0;
   const abs = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const sg = (v < 0 ? '−' : (sinal && v > 0 ? '+' : '')) + 'R$';   // minus U+2212
+  const f = moeda && _MOEDA_ORIG[moeda];
+  const s = v < 0 ? '−' : (sinal && v > 0 ? '+' : '');   // minus U+2212
+  if (f && f.pos) {
+    const num = s ? `<span><span class="money-sign">${s}</span><span class="money-val">${abs}</span></span>` : `<span class="money-val">${abs}</span>`;
+    return `<span class="money">${num}<span class="money-sign">${f.pos}</span></span>`;
+  }
+  const sg = s + (f ? f.pre : 'R$');
   return `<span class="money"><span class="money-sign">${sg}</span><span class="money-val">${abs}</span></span>`;
+}
+// Sigla da moeda para rótulo de campo ("Valor (USDT)") e prefixo de input.
+function _cxSigla(moeda) {
+  const f = moeda && _MOEDA_ORIG[moeda];
+  return f ? (f.pre || f.pos) : 'R$';
 }
 // Duas grafias, de propósito: a LEITURA é compacta (dd/mm/aa, cabe na coluna de
 // 300px) e o CAMPO é por extenso (dd/mm/aaaa, que é o que o operador digita e o
@@ -7578,6 +7610,9 @@ const _CX_PILL = {
 };
 
 function renderCaixa(d) {
+  // Caixa na moeda da CONTA (s391): os atalhos passam `d.moeda` a cada valor.
+  const _fs = (v, sg) => fmtSaldo(v, sg, d && d.moeda);
+  const _ft = (v) => _cxTxt(v, d && d.moeda);
   const box = document.getElementById('caixaBox');
   if (!box || !d) return;
   box.classList.toggle('alerta', d.estado === 'divergente');
@@ -7610,17 +7645,18 @@ function renderCaixa(d) {
     + '<svg class="cx__lapis" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
     + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
     + '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'
-    + '<span class="v">' + fmtSaldo(d.inicial) + '</span></div>';
+    + '<span class="v">' + _fs(d.inicial) + '</span></div>';
   if (d.preso_corte > 0)
     corpo += linha('Abertas no corte', n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta' : ' apostas'),
-                   fmtSaldo(d.preso_corte, true));
-  corpo += linha('Depósitos', n(d.n_depositos), fmtSaldo(d.depositos, true));
-  corpo += linha('Saques', n(d.n_saques), fmtSaldo(-d.saques, true));
-  if (d.n_ajustes) corpo += linha('Ajustes', n(d.n_ajustes), fmtSaldo(d.ajustes, true));
+                   _fs(d.preso_corte, true));
+  corpo += linha('Depósitos', n(d.n_depositos), _fs(d.depositos, true));
+  corpo += linha('Saques', n(d.n_saques), _fs(-d.saques, true));
+  if (d.n_ajustes) corpo += linha('Ajustes', n(d.n_ajustes), _fs(d.ajustes, true));
   corpo += linha('Resultado', 'desde ' + _cxDataBR(d.data_corte) + ' · ' + n(d.n_liquidadas)
-                 + (d.n_liquidadas === 1 ? ' liquidada' : ' liquidadas'), fmtPL(d.pl));
-  corpo += linha('Em aberto', n(d.n_abertas) + (d.n_abertas === 1 ? ' aposta' : ' apostas'), fmtSaldo(-d.aberto, true));
-  corpo += linha('Saldo disponível', '', fmtSaldo(d.disponivel), 'sum');
+                 + (d.n_liquidadas === 1 ? ' liquidada' : ' liquidadas'),
+                 (d.moeda && _MOEDA_ORIG[d.moeda]) ? moneyOrig(d.pl, d.moeda, true) : fmtPL(d.pl));
+  corpo += linha('Em aberto', n(d.n_abertas) + (d.n_abertas === 1 ? ' aposta' : ' apostas'), _fs(-d.aberto, true));
+  corpo += linha('Saldo disponível', '', _fs(d.disponivel), 'sum');
 
   // Por que o "Resultado" da caixa não é o P/L da conta: as apostas anteriores ao
   // corte já estão DENTRO do saldo informado. Sem dizer isso, o operador compara o
@@ -7628,22 +7664,30 @@ function renderCaixa(d) {
   const notas = [];
   if (d.n_anteriores)
     notas.push(n(d.n_anteriores) + (d.n_anteriores === 1 ? ' aposta anterior a ' : ' apostas anteriores a ')
-      + _cxDataBR(d.data_corte) + ' (' + _cxTxt(d.pl_anterior) + ') já estão dentro do saldo informado — por isso ficam fora desta conta.');
+      + _cxDataBR(d.data_corte) + ' (' + _ft(d.pl_anterior) + ') já estão dentro do saldo informado — por isso ficam fora desta conta.');
   if (d.n_preso_corte)
     notas.push(n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta estava aberta' : ' apostas estavam abertas')
       + ' nesse dia: o stake saiu da casa antes do corte e volta inteiro ao liquidar.');
+  if (d.moeda && d.moeda !== 'BRL')
+    notas.push('Caixa em ' + _cxSigla(d.moeda) + ': saldo, lançamentos e apostas na moeda da conta, sem conversão.');
+  if (d.n_sem_origem)
+    notas.push(n(d.n_sem_origem) + (d.n_sem_origem === 1 ? ' aposta ficou' : ' apostas ficaram')
+      + ' de fora: a stake foi editada à mão em R$ e o valor em ' + _cxSigla(d.moeda) + ' se perdeu.');
+  if (d.n_mov_outra_moeda)
+    notas.push(n(d.n_mov_outra_moeda) + (d.n_mov_outra_moeda === 1 ? ' lançamento ficou' : ' lançamentos ficaram')
+      + ' de fora: foram lançados quando a conta tinha outra moeda.');
   const nota = notas.length ? '<div class="cx__nota">' + notas.join(' ') + '</div>' : '';
 
   // Saldo projetado negativo não é prejuízo — é lançamento faltando. Âmbar (aviso).
   const heroCls = d.disponivel < 0 ? ' aviso' : '';
   const hero = '<div class="cx__hero"><span class="k">Saldo disponível projetado</span>'
-    + `<span class="v${heroCls}">${fmtSaldo(d.disponivel)}</span>`
-    + `<span class="s">Banca ${_cxTxt(d.banca)} · ${_cxTxt(d.aberto)} em aberto</span></div>`;
+    + `<span class="v${heroCls}">${_fs(d.disponivel)}</span>`
+    + `<span class="s">Banca ${_ft(d.banca)} · ${_ft(d.aberto)} em aberto</span></div>`;
 
   const hoje = hojeISO();
   const conf = '<div class="cx__conf"><span class="k">Conferência</span>'
     + '<div class="cx__inrow">'
-    + '<span class="cx__inp"><span class="sg">R$</span>'
+    + '<span class="cx__inp"><span class="sg">' + _cxSigla(d.moeda) + '</span>'
     + '<input id="cx-conf-val" type="text" inputmode="decimal" placeholder="saldo na casa" autocomplete="off" spellcheck="false"></span>'
     + `<span class="cx__inp"><input id="cx-conf-data" type="text" value="${_cxDataBR4(hoje)}" autocomplete="off" spellcheck="false" title="Data da conferência"></span>`
     + '<button class="cx__go" type="button" onclick="caixaConferir()">Conferir</button>'
@@ -7660,28 +7704,32 @@ function renderCaixa(d) {
 
 // Dinheiro em texto corrido (subtítulo do herói) — sem o componente .money, que é
 // inline-flex e não emenda dentro de uma frase. Mesma máscara de 2 casas.
-function _cxTxt(v) {
+function _cxTxt(v, moeda) {
   const n = Number(v) || 0;
+  if (moeda && _MOEDA_ORIG[moeda]) return fmtMoedaOrig(n, moeda);
   return (n < 0 ? '−R$ ' : 'R$ ') + Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function _cxDiver(d) {
+  // Caixa na moeda da CONTA (s391): os atalhos passam `d.moeda` a cada valor.
+  const _fs = (v, sg) => fmtSaldo(v, sg, d && d.moeda);
+  const _ft = (v) => _cxTxt(v, d && d.moeda);
   const c = d.conferencia;
   if (!c) return '<div class="cx__diver nt">Nunca conferida. Abra a casa, veja o saldo disponível e digite acima — é esse confronto que denuncia dinheiro saindo sem registro.</div>';
   const quando = _cxDataBR(c.data);
   // s388: conciliada por Ajuste diz o valor ajustado — "diferença R$ 0,00" esconderia
   // que houve uma, e ela está no extrato.
   if (d.estado === 'confere' && c.ajuste != null)
-    return `<div class="cx__diver ok"><b>Conciliada</b>ajuste de ${_cxTxt(c.ajuste)} · conferido em ${quando}</div>`;
+    return `<div class="cx__diver ok"><b>Conciliada</b>ajuste de ${_ft(c.ajuste)} · conferido em ${quando}</div>`;
   if (d.estado === 'confere')
-    return `<div class="cx__diver ok"><b>Bate com a casa</b>diferença ${_cxTxt(0)} · conferido em ${quando}</div>`;
+    return `<div class="cx__diver ok"><b>Bate com a casa</b>diferença ${_ft(0)} · conferido em ${quando}</div>`;
   if (d.estado === 'reconferir')
     return `<div class="cx__diver nt">Houve lançamento depois da conferência de ${quando}. Confira de novo para fechar.</div>`;
   const div = c.divergencia || 0;
   const falta = div < 0;
   return '<div class="cx__diver al">'
-    + `<b>${falta ? 'Faltam' : 'Sobram'} ${_cxTxt(Math.abs(div))} na conta</b>`
-    + `a casa mostrava ${_cxTxt(c.valor)} em ${quando} e o Sharpen projetava ${_cxTxt(c.projetado)}.`
+    + `<b>${falta ? 'Faltam' : 'Sobram'} ${_ft(Math.abs(div))} na conta</b>`
+    + `a casa mostrava ${_ft(c.valor)} em ${quando} e o Sharpen projetava ${_ft(c.projetado)}.`
     + ` ${falta ? 'Confira se houve saque não lançado.' : 'Confira se houve depósito ou aposta não capturada.'}`
     + '<button class="cx__aceitar" type="button" onclick="caixaAceitarDivergencia()">Lançar como ajuste</button>'
     + '</div>';
@@ -7729,6 +7777,8 @@ function caixaAbrirModal(tipo, mov) {
   // A conta inteira (casa · parceiro [fornecedor]) fica no subtítulo: com dois
   // parceiros na mesma casa, só o nome da casa não diz em qual conta se está lançando.
   document.getElementById('cxm-sub').textContent = _cxConta();
+  // Conta em USD/USDT: o valor é digitado na moeda da conta (s391).
+  document.getElementById('cxm-valor-lbl').textContent = 'Valor (' + _cxSigla(caixaAtual && caixaAtual.moeda) + ')';
   // No modo edição o segmento some: o tipo é o fato, e ele não se troca por aqui.
   document.getElementById('cxm-tipo-field').style.display = (ini || editando) ? 'none' : '';
   document.getElementById('cxm-hint').innerHTML = (_CX_HINT[tipo] || '')
@@ -7857,6 +7907,9 @@ async function caixaAceitarDivergencia() {
 // ── Extrato ──────────────────────────────────────────────────────────────────
 
 function caixaAbrirExtrato() {
+  // Caixa na moeda da CONTA (s391): os atalhos passam `d.moeda` a cada valor.
+  const _fs = (v, sg) => fmtSaldo(v, sg, d && d.moeda);
+  const _ft = (v) => _cxTxt(v, d && d.moeda);
   const d = caixaAtual;
   if (!d) return;
   document.getElementById('cxe-title').textContent =
@@ -7876,10 +7929,10 @@ function caixaAbrirExtrato() {
           let tag = '';
           if (div != null) tag = Math.abs(div) < 0.005
             ? '<span class="cxe-tag ok">bateu</span>'
-            : '<span class="cxe-tag al">' + esc(_cxTxt(div)) + '</span>';
-          const valor = conf ? fmtSaldo(m.valor) : fmtSaldo(sinal * m.valor, m.tipo !== 'inicial');
+            : '<span class="cxe-tag al">' + esc(_ft(div)) + '</span>';
+          const valor = conf ? _fs(m.valor) : _fs(sinal * m.valor, m.tipo !== 'inicial');
           const obs = conf && m.projetado != null
-            ? 'projetado ' + _cxTxt(m.projetado)
+            ? 'projetado ' + _ft(m.projetado)
             : (m.obs || '');
           return '<tr><td class="mono">' + _cxDataBR(m.data) + '</td>'
             + '<td>' + (_CX_NOME[m.tipo] || m.tipo) + tag + '</td>'
