@@ -235,10 +235,11 @@ _CASA_DISPLAY: dict[str, str] = {
     # `panda` fora a KingPanda. `casa_canonica` ignora espaço e caixa, então quem digitar
     # "Bet Panda" cai aqui, sem gêmea. SIGILO: fora de aviso aos testers, changelog e home.
     "BETPANDA":       "Betpanda",
-    # Plataforma PRÓPRIA (s391). Grafia da MARCA (`Dexsport` no logo e no título), porque a
-    # base não tinha nenhuma (medido em 03/10/2026). `casa_canonica` ignora espaço e caixa:
-    # "Dex Sport" cai aqui. SIGILO: fora de aviso aos testers, changelog e home.
-    "DEXSPORT":       "Dexsport",
+    # Plataforma PRÓPRIA (s391). Grafia = a da CONTA que já existia (`DEX Sport`, criada pelo
+    # Feca em 03/10/2026), por decisão dele: a base manda, não a marca. A 1ª versão registrou
+    # `Dexsport` e a conta `DEX Sport` caiu em modo print, porque o round-trip compara a caixa
+    # mas NÃO ignora espaço. SIGILO: fora de aviso aos testers, changelog e home.
+    "DEXSPORT":       "DEX Sport",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",

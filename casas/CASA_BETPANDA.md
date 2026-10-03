@@ -25,8 +25,10 @@
 
 > **Grafia (s391):** a base não tinha nenhuma (medido em 03/10/2026: zero conta e zero bilhete
 > com `panda` fora a KingPanda), então vale a da **marca**, que o site escreve `Betpanda` no logo
-> e no título. Quem digitar "Bet Panda" ao criar a conta cai aqui: `casa_canonica` ignora espaço
-> e caixa.
+> e no título. ⚠️ **Quem digitar "Bet Panda" (com espaço) cria uma casa à parte, sem captura**:
+> o `casa_canonica` só reconhece grafia que já existe em `parceiros`, e o `_display_to_key`
+> compara a caixa mas não ignora espaço. Foi o que aconteceu com a DEX Sport
+> ([`CASA_DEXSPORT §1`](CASA_DEXSPORT.md)). Escolha a casa na lista.
 
 ### 1.1 A MOEDA é da conta, não da casa  ⭐
 

@@ -1,5 +1,5 @@
 # CASA_DEXSPORT
-## Camada de tradução — Dexsport → padrão global (FDC Capital)
+## Camada de tradução — DEX Sport → padrão global (FDC Capital)
 
 > Este arquivo descreve **apenas** as particularidades da Dexsport.
 > Toda regra de estrutura, taxonomia, descrição, resultado e **cálculo** de odd vive nos masters globais. Este arquivo **traduz**; não redefine.
@@ -16,16 +16,18 @@
 
 ## 1. Identidade
 
-- Casa canônica: `Dexsport` · site: `dexsport.io` · esportes em `/pt/sports/`
+- Casa canônica: `DEX Sport` · site: `dexsport.io` · esportes em `/pt/sports/`
 - Locale: pt-BR no SDK de esportes (`locale=pt`) · Moeda: **USDT** (`currency: "usdt"`, minúsculo)
 - **Números JSON** (`25`, `93.75`, `3.76`) — nada de string, nada de milésimos.
 - Plataforma **PRÓPRIA** (primeira casa do motor). O SDK de esportes (`sportsbook.…`) roda num
   **shadow DOM na própria página**, sem iframe, e fala com `prod.dexsport.work`.
 - `Parceiro` / `Tipster`: não preenchidos na extração — vêm do workspace da app.
 
-> **Grafia (s391):** a base não tinha nenhuma (medido em 03/10/2026), então vale a da **marca**,
-> que o site escreve `Dexsport`. Quem digitar "Dex Sport" ao criar a conta cai aqui:
-> `casa_canonica` ignora espaço e caixa.
+> **Grafia (s391, decisão do Feca):** `DEX Sport`, a da conta que ele criou em 03/10/2026. A 1ª
+> versão registrou a da marca (`Dexsport`) e a conta caiu em **modo print** (o Snap abriu na
+> casa): o round-trip `_display_to_key` compara a caixa, mas **não ignora espaço**, então
+> `DEX Sport` não casava com `Dexsport`. E o `casa_canonica` só reconhece grafia que **já existe
+> em `parceiros`** — com a base vazia, o que se digita entra verbatim. **A base manda.**
 
 ### 1.1 A moeda é da conta
 

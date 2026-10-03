@@ -1530,7 +1530,7 @@
         // próprio, para o operador não ler "Jonbet: 0 bilhetes" estando na Blaze.
         blaze:      { nome: "Blaze",      hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         betpanda:   { nome: "Betpanda",   hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
-        dexsport:   { nome: "Dexsport",   hook: dxHookVivo, resp: dxRespostas, vistos: dxById.size,
+        dexsport:   { nome: "DEX Sport",  hook: dxHookVivo, resp: dxRespostas, vistos: dxById.size,
                       extra: dxRespostas === 0 ? " · abra Esportes → Minhas apostas e rode de novo" : "" },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de

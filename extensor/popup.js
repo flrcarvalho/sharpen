@@ -54,7 +54,7 @@ const CASA_HOSTS = {
   // em `/pt/sportsbook/?bt-path=%2Fbets`.
   "Betpanda":   ["betpandacasino.io"],
   // Plataforma própria (s391). O histórico vive no SDK de esportes: Esportes → Minhas apostas.
-  "Dexsport":   ["dexsport.io"],
+  "DEX Sport":  ["dexsport.io"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -254,7 +254,7 @@ async function capturar() {
                 // Bet Panda: 4ª casa BetBy (s391) — MESMO inject, linha própria pelo mesmo
                 // motivo da Blaze (o audit lê a forma `casa === "X" ? "y.js"`).
                 : casa === "Betpanda" ? "jb_inject.js"
-                : casa === "Dexsport" ? "dx_inject.js"
+                : casa === "DEX Sport" ? "dx_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.
