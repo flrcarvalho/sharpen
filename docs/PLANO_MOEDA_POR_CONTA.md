@@ -20,8 +20,10 @@
 | 2a | Moeda no cadastro da conta (rota + modal) | **NO AR (s391)** |
 | 2b | Aviso quando a captura contradiz o cadastro (extensão + `/extrair` + `/salvar`) | **NO AR (s391)** |
 | 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | **NO AR (s391)** |
-| 4a | Captura: **Bet Panda** | **NO AR (s391)**, falta validar ao vivo |
-| 4b | Captura: SapphireBet + PariPesa → Dex Sport | aberto |
+| 4a | Captura: **Bet Panda** | **NO AR e validada ao vivo (s391)**: 45 de 45 |
+| 4b | Captura: **Dex Sport** (escolha do Feca, antes das 1xBet) | em curso |
+| 4c | Captura: SapphireBet + PariPesa | aberto |
+| 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | aberto |
 
 ### O que o passo 1 fez
 
@@ -135,8 +137,10 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
 - ~~Edição manual da stake grava R$ e não toca na origem~~: desde o passo 3 (s391) ela
   limpa a origem quando o número muda.
 - A **Caixa** soma depósitos e stakes em R$; conta em USDT vai precisar de depósito em
-  USDT convertido. Não tratado.
-- Binance medida acessível de casa (03/10). Do Railway **não foi medida**: o primeiro
+  USDT convertido. **Visto em uso real (03/10/2026):** o Feca lançou os depósitos da Betpanda
+  em USDT e a Caixa os leu como R$. Pendência no `BACKLOG` (moeda, item 5).
+- ~~Do Railway não foi medida~~: **medida em produção em 03/10/2026**, a 1ª captura da
+  Betpanda converteu os 45 bilhetes. Texto original: Binance medida acessível de casa (03/10). Do Railway **não foi medida**: o primeiro
   `/salvar` de conta USDT em produção é a prova; se o host falhar, cai no segundo.
 
 ## Recon das casas (03/10/2026, contas do Feca, Chrome)
