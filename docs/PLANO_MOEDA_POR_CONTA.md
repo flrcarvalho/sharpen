@@ -18,7 +18,7 @@
 |---|---|---|
 | 1 | Banco + cotação + conversão no `/salvar` | **NO AR (s390)** |
 | 2a | Moeda no cadastro da conta (rota + modal) | **NO AR (s391)** |
-| 2b | Aviso quando a captura contradiz o cadastro (extensão + `/extrair` + `/salvar`) | aberto |
+| 2b | Aviso quando a captura contradiz o cadastro (extensão + `/extrair` + `/salvar`) | **NO AR (s391)** |
 | 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | aberto |
 | 4 | Captura: Bet Panda → SapphireBet + PariPesa → Dex Sport | aberto |
 
@@ -57,15 +57,27 @@
   `test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder` no `test_repository_db.py`
   (só no CI).
 
-### O que falta no passo 2b (achado da s391)
+### O que o passo 2b fez (s391)
 
-Os injects leem a moeda da casa (`moeda:` no jb, x1, kto, rg, stk, tv e bda), mas **nenhum
-formatador do `content.js` a escreve no bloco**: ela morre dentro da extensão e nunca chega
-ao servidor. O desenho aprovado: os formatadores escrevem `Moeda: X` **só quando X não é
-BRL** (`BRL`, `R$` e vazio não geram linha, então o texto das casas em real fica byte a
-byte igual, e o hash do `bloco_visto` também); o `/extrair` devolve as moedas no `done`
-pelo mesmo caminho do `carimbos`; o `/salvar` compara com a da conta. `$` é compatível com
-USD e com USDT; qualquer outra divergência vira alerta apontando a conta, sem bloquear.
+O achado que o originou: os injects sempre leram a moeda da casa (`moeda:` no jb, x1, kto,
+rg, stk, tv e bda), mas **nenhum formatador do `content.js` a escrevia no bloco**. Ela
+morria dentro da extensão e o servidor nunca soube em que moeda a casa falou.
+
+- `content.js`: `_linhaMoeda` escreve `Moeda: X` logo depois do `Stake:` nos 7
+  formatadores, **só quando X não é real** (`BRL`, `R$` e vazio, sem caixa, não geram
+  linha). O texto das casas em real fica byte a byte igual, o hash do `bloco_visto` também,
+  e o harness segue verde sem tocar em fixture. O valor sai verbatim (`$`, `usdt`).
+- `cambio.moedas_do_texto` lê do texto cru (início de linha) e o `/extrair` devolve
+  `moedas` no `done` dos três caminhos (sequencial, chunks e contrato de 4 campos). O front
+  transporta ao `/salvar`, igual ao `carimbos`.
+- `/salvar`: `cambio.moedas_contraditorias` compara com a moeda da conta. `$` cabe em USD e
+  em USDT, `US$` em USD, sem caixa. Divergência vira **alerta apontando a conta** (nome e
+  casa) e a gravação segue pela moeda cadastrada.
+- **Versão da extensão não subiu:** nenhuma casa capturada hoje manda moeda diferente de
+  real, então nada muda para ninguém até o passo 4, que sobe a versão com as casas novas.
+- Gates: `tests/test_moeda_captura.py` (`cambio`: 8 mutações automáticas, 8 detectadas;
+  `content.js`: 9 automáticas sobre `tests/js/moeda_captura_content.mjs`, 9 detectadas;
+  rota: 4 à mão, 4 detectadas).
 
 ### Limites conhecidos do passo 1
 

@@ -1947,7 +1947,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # Sombra de MODELO: o candidato lê o MESMO content, com o MESMO system.
         if _sombra_vale_agora():
             _fire(_sombra_modelo(dono, casa, system, [content], texto, modelo))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto)})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -2155,7 +2155,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         # Sombra de MODELO: os MESMOS chunks, com o MESMO system. Ver `_sombra_modelo`.
         if _sombra_vale_agora():
             _fire(_sombra_modelo(dono, casa, system, chunks, texto, modelo))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto)})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
@@ -2336,6 +2336,7 @@ async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, 
             # depois da junção não apontam para nada (e casa com código nunca é marcada).
             "scroll_overlap_indices": [],
             "carimbos": carimbos_do_texto(texto),
+            "moedas": _cambio.moedas_do_texto(texto),
             "contrato": info,
         })
         # As duas metades terminaram e o `done` vai sair: só AGORA os aceitos contam como
@@ -3955,6 +3956,10 @@ class SalvarRequest(BaseModel):
     # IA erra (é o que o `_corrigir_codigos_fantasma` existe para consertar). Ausente →
     # `{}`, e a coluna fica nula (import, bot, Polymarket, print, casa sem carimbo).
     carimbos: Optional[dict] = None
+    # MOEDAS que a casa informou no lote (s391), lidas do texto cru no /extrair
+    # (`cambio.moedas_do_texto`) e transportadas pelo front, igual ao `carimbos`. Só
+    # avisam: a moeda da CONTA continua mandando na conversão. Ausente → `[]`.
+    moedas: Optional[list[str]] = None
 
 
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
@@ -4012,6 +4017,18 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
     # Sem cotação a linha é recusada pelo mesmo caminho das malformadas: gravar USDT como
     # se fosse R$ é o erro caro, e a recaptura seguinte grava o que faltou.
     alertas_cambio: list[str] = []
+    # A casa disse uma moeda que não cabe na da conta: AVISA apontando a conta e grava
+    # assim mesmo, pela moeda cadastrada. Bloquear deixaria a captura parada por uma
+    # divergência que só o dono resolve; calar deixaria USDT gravado como R$ sem rastro.
+    contra = _cambio.moedas_contraditorias(moeda, body.moedas)
+    if contra and parceiro_txt:
+        casa_nome = rows[0].get("casa") or casa_txt or ""
+        alertas_cambio.append(
+            f"A casa informou {', '.join(contra)} nesta captura, mas a conta "
+            f"{parceiro_txt} ({casa_nome}) está cadastrada em {moeda}. As stakes foram "
+            f"gravadas como {moeda}. Se a conta é em outra moeda, ajuste no Painel de "
+            "Contas: a troca vale para as próximas capturas."
+        )
     if moeda != _cambio.BRL and rows:
         try:
             await _cambio.carregar(moeda, _cambio.datas_do_lote(rows, body.carimbos))

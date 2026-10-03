@@ -22,6 +22,7 @@ R$ é o erro caro; recusar é recuperável, basta reenviar.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -205,3 +206,40 @@ def converter_linhas(rows: list[dict], moeda: str, carimbos: dict | None,
         row["stake"] = _fmt_money(valor * taxa)
         ok.append(row)
     return ok, rejeitadas
+
+
+# ── A moeda que a CASA disse × a moeda da CONTA (s391, passo 2b) ──────────────
+#
+# O `content.js` escreve `Moeda: X` no bloco só quando X não é real (`_linhaMoeda`). Lido
+# do TEXTO CRU, como o carimbo: é dado da casa, não da IA. A moeda da conta continua
+# mandando na conversão; isto só AVISA quando as duas discordam, sem bloquear a gravação.
+_MOEDA_RE = re.compile(r"^Moeda:\s*(\S[^\r\n]*?)\s*$", re.MULTILINE)
+
+# O que a casa pode dizer sem contradizer cada moeda de conta. `$` cabe nas duas de
+# dólar: a Bet Panda manda `$` com carteira em Tether, então a API não distingue USD de
+# USDT e o cadastro é quem decide. Fora daqui, toda moeda diferente da conta é contradição.
+_COMPATIVEIS = {
+    "BRL": {"BRL", "R$"},
+    "USD": {"USD", "US$", "$"},
+    "USDT": {"USDT", "$"},
+}
+
+
+def moedas_do_texto(texto: str | None) -> list[str]:
+    """As moedas distintas que a casa informou no lote, na ordem em que aparecem.
+    Lote sem linha `Moeda:` (casa em real, print, extensão antiga) devolve `[]`."""
+    if not texto:
+        return []
+    vistas: list[str] = []
+    for m in _MOEDA_RE.finditer(texto):
+        v = m.group(1).strip()
+        if v and v not in vistas:
+            vistas.append(v)
+    return vistas
+
+
+def moedas_contraditorias(moeda_conta: str, vistas: list[str] | None) -> list[str]:
+    """As moedas que a casa informou e que NÃO cabem na moeda cadastrada da conta.
+    Comparação sem caixa: a Dex Sport manda `usdt`."""
+    ok = _COMPATIVEIS.get(moeda_conta, {moeda_conta})
+    return [v for v in (vistas or []) if str(v).strip().upper() not in ok]

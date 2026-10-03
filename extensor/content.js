@@ -1607,6 +1607,17 @@
     return g("day") + "/" + g("month") + "/" + g("year");
   };
   const _brl = (x) => (typeof x === "number") ? x.toFixed(2).replace(".", ",") : (x != null ? String(x) : "");
+  // MOEDA que a casa informa no bilhete (s391). O inject sempre a leu e o formatador a
+  // jogava fora: o servidor nunca soube em que moeda a casa falou. A linha sai SÓ quando
+  // NÃO é real (`BRL`, `R$` e vazio não escrevem nada), e isso é load-bearing: o texto das
+  // casas em real fica byte a byte igual, o hash do `bloco_visto` não muda e a barreira de
+  // recaptura não manda reler a base inteira. Quem decide se a moeda contradiz a CONTA é o
+  // servidor (`cambio.moedas_do_texto` + `/salvar`); aqui só se transporta o que a casa disse.
+  const _moedaNaoReal = (m) => {
+    const t = String(m == null ? "" : m).trim();
+    return (!t || /^(brl|r\$)$/i.test(t)) ? "" : t;
+  };
+  const _linhaMoeda = (L, m) => { const t = _moedaNaoReal(m); if (t) L.push("Moeda: " + t); };
   // Odd SEMPRE completa (regra primordial: nunca encurtar). Só tira ruído de float
   // (ex.: 2.2700000000000002 → 2,27), mantendo toda a precisão real.
   const _odd = (x) => (x == null) ? "" : (Math.round(x * 1e8) / 1e8).toString().replace(".", ",");
@@ -2592,6 +2603,7 @@
     const dh = _dhKTO(c.colocada);
     if (dh) L.push("Data (colocação): " + dh);
     L.push("Stake: " + _brl(_somaKTO(c.bets, "stake")));
+    _linhaMoeda(L, c.moeda);
     L.push("Status: " + _resultadoKTO(c));
     // Status CRU da API — é ele que a CASA_KTO.md traduz. Sem isso, um enum novo (cashout,
     // recusado, meio-ganho) viraria chute a partir do dinheiro.
@@ -2734,6 +2746,7 @@
     if (dCol) L.push("Data (colocação): " + dCol);
     // ⚠ `stake-matched`, nunca `stake`: só o que CASOU esteve em risco.
     if (typeof b.stake === "number") L.push("Stake: " + _brl(b.stake));
+    _linhaMoeda(L, b.moeda);
     L.push("Status: " + _resultadoBDA(b));
     L.push("Status (API): " + (b.status || ""));
     const o = _oddBDA(b);
@@ -3162,6 +3175,7 @@
     const dh = _dhKTO(b.colocada);
     if (dh) L.push("Data (colocação): " + dh);
     L.push("Stake: " + _brl(_stakeSTK(b)));
+    _linhaMoeda(L, b.moeda);
     L.push("Status: " + _resultadoSTK(b));
     // Status CRU da API — é ele que a CASA_STAKE.md traduz. Sem isso, um enum novo (cashout,
     // meio-ganho, recusado) viraria chute a partir do dinheiro.
@@ -3580,6 +3594,7 @@
     const dco = _dhKTO(b.colocada);
     if (dco) L.push("Data (colocação): " + dco);
     L.push("Stake: " + _brl(b.stake));
+    _linhaMoeda(L, b.moeda);
     L.push("Status: " + _statusRG(b));
     // Enums CRUS — é o que as CASA_*.md traduzem, e o que permite reconhecer um status novo
     // em vez de chutá-lo. `PurchaseStatusId` acompanhou `BetStatusId` em 27/27, mas os dois
@@ -3819,6 +3834,7 @@
     const dcol = _dhJB(b.colocada);
     if (dcol) L.push("Colocada: " + dcol);
     L.push("Stake: " + _brl(b.stake));
+    _linhaMoeda(L, b.moeda);
 
     const n = (b.sels || []).length;
     if (n === 1) L.push("Tipo: Simples");
@@ -4296,6 +4312,7 @@
     const dh = _dhJB(b.ts);
     if (dh) L.push("Data (colocação): " + dh);
     L.push("Stake: " + _brl(b.stake));
+    _linhaMoeda(L, b.moeda);
     L.push("Status: " + _resultadoJB(b));
     L.push("Status (API): " + (b.status || "(vazio)"));
     const odd = _oddJB(b);
@@ -4665,6 +4682,7 @@
     const dh = _dhTV(t.colocada);
     if (dh) L.push("Data (colocação): " + dh);
     if (t.stake != null) L.push("Stake: R$ " + _brl(t.stake));
+    _linhaMoeda(L, t.moeda);
     L.push("Status: " + _resultadoTV(t));
     // Enum CRU da API — é ele que a CASA_TIVO.md traduz. Sem isso, um estado novo (cashout,
     // recusado, meio-ganho) viraria chute a partir do dinheiro.
