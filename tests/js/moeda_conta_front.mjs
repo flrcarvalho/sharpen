@@ -91,7 +91,7 @@ function montar() {
     const _actPush = () => {}, carregarParceiros = async () => {}, renderCasaList = () => {};
     const renderPainelContas = () => {}, fecharModalNovaConta = () => {};
     const _ncRegistrarDominio = () => {}, aplicarModoCasa = () => {}, atualizarBotaoConta = () => {};
-    const selecionarParceiro = () => {}, abrirAcctPop = () => {};
+    const selecionarParceiro = () => {}, abrirAcctPop = () => {}, renderGrade = () => {};
     let acctPopAba = 'ativas';
   `;
   const fns = ['_ncMoedaSet', '_ncAvisoMoeda', '_ncLerForm', 'ncCriarConta', 'ncEditarConta',

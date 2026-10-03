@@ -18,6 +18,11 @@ function fmtR(v){return`<span class="money"><span class="money-sign">R$</span><s
 // Stake / valor unitário: .money com 2 casas e SEM sinal (UI_REFERENCE §5.1). Mesma
 // máscara do moneyStake do index.html — aqui o valor chega como número, não string.
 function moneyStake(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(v,2)}</span></span>`;}
+// Valor na MOEDA DA CONTA (s391): "US$ 1.234,50" e "1.234,50 USDT" (decisão do Feca,
+// 03/10/2026), milhar pt-BR pelo `fmt`. Texto puro, para a sub-linha sob a stake em R$.
+// Mesma régua do `fmtMoedaOrig` do index.html. Moeda que não conhece devolve ''.
+const _MOEDA_ORIG={USD:{pre:'US$'},USDT:{pos:'USDT'}};
+function fmtMoedaOrig(v,moeda){const f=_MOEDA_ORIG[moeda],n=Number(v);if(v==null||v===''||!f||!isFinite(n))return'';const t=fmt(n,2),s=n<0?'−':'';return f.pre?`${s}${f.pre} ${t}`:`${s}${t} ${f.pos}`;}
 function fmtPct(v,d=2,signed=true){const abs=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});if(!signed)return abs+'%';return(v>=0?'+':'−')+abs+'%';}
 function fmtOdd(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 // fmtU — resultado em UNIDADES (Perfil de Tipster). Espelha fmtPL trocando R$→"u" como

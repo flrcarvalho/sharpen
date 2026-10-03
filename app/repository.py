@@ -2052,8 +2052,22 @@ async def list_bilhetes(
         d = dict(r)
         # Campo derivado (não persistido): P/L líquido para o Dashboard.
         d["pl"] = calcular_pl(d.get("stake"), d.get("odd"), d.get("resultado"))
+        d["pl_orig"] = _pl_na_moeda_original(d)
         out.append(d)
     return out
+
+
+def _pl_na_moeda_original(d: dict) -> float | None:
+    """P/L na moeda da conta (s391, passo 3), para o seletor R$ / moeda original da grade.
+
+    Sai do `calcular_pl` aplicado à `stake_orig`, a MESMA fórmula do P/L em R$. Nunca
+    `pl ÷ cotacao`: a stake em R$ foi arredondada ao centavo na conversão, e dividir de
+    volta devolveria um P/L que difere do da casa por centavos. Sem origem (conta em R$,
+    linha editada à mão, Polymarket), None: ausência viaja como ausência."""
+    orig = d.get("stake_orig")
+    if orig is None or not d.get("moeda"):
+        return None
+    return calcular_pl(f"{float(orig):.2f}".replace(".", ","), d.get("odd"), d.get("resultado"))
 
 
 async def contar_bilhetes(
@@ -2944,6 +2958,12 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
                 "lucro": lucro,
                 "operador": dono,
             }
+            # Moeda da CONTA (s391): só nas linhas convertidas, para a Base Completa
+            # mostrar o valor original sob o R$. Linha em real não carrega nada, e o feed
+            # (~toda a base) não engorda por uma coluna que quase ninguém tem.
+            if r.get("moeda") and r.get("stake_orig") is not None:
+                linha["moeda"] = r["moeda"]
+                linha["stake_orig"] = float(r["stake_orig"])
             # `criado_em` SÓ nas abertas: a tela "Em Aberto" mede há quanto tempo a
             # aposta está parada (o mesmo sinal de 48h+ do Início). Carimbar as ~30k
             # encerradas custaria ~1MB de feed sem nenhum consumidor.
@@ -3973,6 +3993,21 @@ def _campos_editaveis(campos: dict) -> dict:
     return safe
 
 
+def _limpa_origem(antes, safe: dict) -> bool:
+    """A edição à mão apaga a ORIGEM da stake (`moeda`/`stake_orig`/`cotacao`)? (s391)
+
+    Decisão do Feca (03/10/2026): a edição grava R$ e a origem deixa de ser conhecida.
+    Sem limpar, a grade mostraria sob a stake nova o valor original da stake velha.
+    Só quando o NÚMERO muda: o modal de edição reenvia todos os campos, e regravar a mesma
+    stake (`130,00` × `130`) não pode apagar a origem. Sem snapshot (`antes` None) não há
+    como comparar, e limpa: origem errada é pior que origem ausente."""
+    if "stake" not in safe:
+        return False
+    if antes is None:
+        return True
+    return _num_or_none(antes["stake"]) != _num_or_none(safe["stake"])
+
+
 async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
     safe = _campos_editaveis(campos)
     if not safe:
@@ -4084,6 +4119,9 @@ async def _atualizar_bilhete_conn(conn, bilhete_id: int, campos: dict,
     elif "resultado" in safe:  # snapshot falhou: regra antiga (só resultado)
         params.append("resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta")
         sets.append(f"extraction_state = ${len(params)}")
+
+    if _limpa_origem(antes, safe):
+        sets += ["moeda = NULL", "stake_orig = NULL", "cotacao = NULL"]
 
     # Procedência do rótulo de tipster (Fase 0): grava origem_tipster quando o tipster
     # muda. Sem origem declarada → 'humano' (só o botão de sugestão manda 'sugerido').

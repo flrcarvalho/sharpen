@@ -255,7 +255,7 @@ function renderApostasVirt(){
           ${parceiro?`<span class="btbl-casa-conta${ec}"${df('parceiro')}>${esc(parceiro)}</span>`:''}
         </div>
       </div>
-      <div class="btbl-cell btbl-num${ec}"${df('stake')}>${fmtR(r.stake)}</div>
+      <div class="btbl-cell btbl-num${ec}"${df('stake')}>${fmtR(r.stake)}${r.stake_orig!=null&&fmtMoedaOrig(r.stake_orig,r.moeda)?`<span class="btbl-stake-orig" title="Valor original na moeda da conta (${esc(r.moeda)})">${fmtMoedaOrig(r.stake_orig,r.moeda)}</span>`:''}</div>
       <div class="btbl-cell btbl-num${ec}"${df('odd')}>${fmtOdd(r.odd)}</div>
       <div class="btbl-cell${ec}"${df('resultado')} style="display:flex;align-items:center;justify-content:center">
         <span class="bet-res-pill ${resClass}">${resLabel}</span>

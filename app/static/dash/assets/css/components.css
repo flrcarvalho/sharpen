@@ -1396,6 +1396,11 @@ select.ap-inline-inp { padding: 2px 4px; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Sub-linha da stake (s391): o valor na moeda da conta (USD/USDT) sob o R$. Metadado
+   secundário da Escada de Tinta: --ink-mute no piso de 10px. Espelha o .btbl-stake-usd
+   da grade da Extração. */
+.btbl-stake-orig { display: block; margin-top: 2px; font-family: var(--font-mono);
+  font-size: 10px; font-variant-numeric: tabular-nums; color: var(--ink-mute); }
 .btbl-num {
   font-family: var(--font-mono);
   font-size: 12px;

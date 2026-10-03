@@ -969,6 +969,16 @@ body.cap-off .cx__body { display: none; }
 .cxm-seg button { font-family: var(--font-mono); font-size: 11px; padding: 8px 0; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer; transition: border-color .15s, color .15s; }
 .cxm-seg button:hover { color: var(--ink); }
 .cxm-seg button.on { border-color: rgba(var(--accent-rgb),.5); background: rgba(var(--accent-rgb),.10); color: var(--accent-2); font-weight: 700; }
+/* Variante de DUAS posições, compacta (s391): o seletor R$ / moeda da conta no título da
+   grade. Mesmo componente do Tipo da Caixa e da moeda no modal de conta, só encolhido para
+   caber na linha do título: dois estilos para o mesmo papel é o item 8 do checklist. */
+.cxm-seg.seg-2 { grid-template-columns: repeat(2, auto); gap: 4px; }
+.cxm-seg.seg-2 button { padding: 5px 10px; }
+.grade-moeda { display: inline-flex; align-items: center; gap: 8px; }
+.grade-moeda[hidden] { display: none; }
+/* Label = --ink-soft (Escada de Tinta), nunca --ink-mute. */
+.grade-moeda-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-soft); }
 .cxm-hint { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); line-height: 1.55; }
 .cxm-hint b { color: var(--ink-soft); font-weight: 700; }
 .cxm-head { align-items: flex-start; }
@@ -1896,7 +1906,9 @@ body.cap-off .cx__body { display: none; }
 .money.neg .money-val { color: var(--neg); }
 .btbl-pl .money { width: auto; }   /* encolhe p/ o cell text-align:right alinhar à direita */
 .btbl-pl-empty { color: var(--ink-mute); }
-/* Sub-linha do stake: valor original em USD (só Polymarket) sob o R$ convertido */
+/* Sub-linha do stake: o valor na OUTRA moeda sob o principal. Nasceu para o USD do
+   Polymarket; desde a s391 serve também à conta em USD/USDT (o original sob o R$, ou o
+   R$ sob o original quando a grade está vendo na moeda da conta). */
 .btbl-stake-usd { display: block; width: 100%; text-align: right; margin-top: 2px;
   font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums;
   color: var(--ink-mute); }
@@ -2918,6 +2930,18 @@ td.c-res.res-HL { color: var(--warn); }
                   Aguardando resultado<span class="sb-n">0</span></button>
                 <span id="exp-status" class="exp-status"></span>
               </div>
+              <!-- Ver a grade na MOEDA DA CONTA (s391, passo 3). Só aparece quando a conta
+                   ativa não é BRL. Troca a stake e o P/L das linhas; tudo o que soma
+                   (KPI, Caixa, dashboard) continua em R$. Os cabeçalhos das duas colunas
+                   ganham a moeda, para a tela dizer o que está mostrando. -->
+              <div class="grade-moeda" id="grade-moeda" hidden
+                   title="Ver a stake e o P/L na moeda em que a casa mostra esta conta. Totais e KPIs seguem em R$.">
+                <span class="grade-moeda-lbl">Ver em</span>
+                <div class="cxm-seg seg-2" id="grade-moeda-seg">
+                  <button type="button" data-ver="BRL" class="on">R$</button>
+                  <button type="button" data-ver="orig" id="grade-moeda-orig">USDT</button>
+                </div>
+              </div>
             </div>
             <div class="grade-actions">
               <!-- Inserir aposta manual (item 6): abre o modal em modo inserção. -->
@@ -2953,10 +2977,10 @@ td.c-res.res-HL { color: var(--warn); }
                   <div class="btbl-th">Esporte</div>
                   <div class="btbl-th th-tip">Tipster</div>
                   <div class="btbl-th">Casa · Parceiro</div>
-                  <div class="btbl-th right">Stake</div>
+                  <div class="btbl-th right" id="th-stake">Stake</div>
                   <div class="btbl-th right">Odd</div>
                   <div class="btbl-th center">Resultado</div>
-                  <div class="btbl-th right">P/L</div>
+                  <div class="btbl-th right" id="th-pl">P/L</div>
                   <div class="btbl-th right">Ações</div>
                 </div>
                 <div class="btbl-body" id="grade-body">
@@ -5493,6 +5517,7 @@ async function ncEditarConta() {
       parceiroSelecionado.nome = res.nome || f.nome;
       parceiroSelecionado.casa = casaNova;
       parceiroSelecionado.moeda = f.moeda;
+      renderGrade();   // o seletor de moeda da grade depende da moeda da conta ativa (s391)
       casaSelecionada = casaNova;
       if (typeof atualizarBotaoConta === 'function') atualizarBotaoConta();
       // Mover de casa muda o que a Extração oferece (upload × sync da Polymarket, botão
@@ -5510,6 +5535,8 @@ async function ncEditarConta() {
   } catch { alert('Erro de rede.'); }
   finally { if (btn) btn.disabled = false; }
 }
+
+document.querySelectorAll('#grade-moeda-seg button').forEach(b => b.addEventListener('click', () => _grMoedaVer(b.dataset.ver)));
 
 (function initModalNovaConta() {
   const ov = document.getElementById('novaconta-modal');
@@ -8143,8 +8170,81 @@ function _faltando(id, dica) {
   return `<span class="cell-missing" title="${esc(dica)}" onclick="abrirEdicao(${id})">—</span>`;
 }
 
+// ── Moeda da conta na grade (s391, passo 3) ─────────────────────────────────
+// Formato decidido pelo Feca (03/10/2026): "US$ 1.234,50" e "1.234,50 USDT", milhar pt-BR.
+// Não é R$, então não passa pelo moneyStake/fmtPL, mas usa o MESMO componente `.money`
+// (sinal e código neutros, cor só no número). Nada de `.toFixed().replace()`: o `fmtUSD`
+// do Polymarket faz isso e perde o milhar, e é exceção a não replicar (UI_REFERENCE §5.3).
+const _MOEDA_ORIG = { USD: { pre: 'US$' }, USDT: { pos: 'USDT' } };
+let _grVer = 'BRL';   // 'BRL' | 'orig'. Por sessão: troca de conta em R$ volta a BRL.
+function _num2BR(n) {
+  return Math.abs(Number(n)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtMoedaOrig(v, moeda) {
+  const f = _MOEDA_ORIG[moeda], n = Number(v);
+  if (v == null || v === '' || !f || !isFinite(n)) return '';
+  const t = _num2BR(n), sinal = n < 0 ? '−' : '';
+  return f.pre ? `${sinal}${f.pre} ${t}` : `${sinal}${t} ${f.pos}`;
+}
+// `.money` na moeda da conta. `pl=true` liga cor e sinal (zero neutro), como o fmtPL.
+function moneyOrig(v, moeda, pl) {
+  const f = _MOEDA_ORIG[moeda], n = Number(v);
+  if (v == null || v === '' || !f || !isFinite(n)) return '';
+  const cls = pl ? (n > 0 ? ' pos' : (n < 0 ? ' neg' : '')) : '';
+  const sinal = pl ? (n > 0 ? '+' : (n < 0 ? '−' : '')) : '';
+  const val = `<span class="money-val">${_num2BR(n)}</span>`;
+  return f.pre
+    ? `<span class="money${cls}"><span class="money-sign">${sinal}${f.pre}</span>${val}</span>`
+    // Sinal e número num span interno: o `.money` é inline-flex com `gap`, e o sinal solto
+    // ficaria descolado ("+ 1.188,49"). Por dentro não há gap, e o sinal segue neutro.
+    : `<span class="money${cls}">${sinal ? `<span><span class="money-sign">${sinal}</span>${val}</span>` : val}<span class="money-sign">${f.pos}</span></span>`;
+}
+// A linha tem origem em outra moeda? (conta USD/USDT, gravada pela conversão do /salvar)
+function _temOrig(b) { return b && b.stake_orig != null && !!_MOEDA_ORIG[b.moeda]; }
+// Sub-linha da stake: a OUTRA moeda. Vendo em R$, o original; vendo no original, o R$.
+function _subMoeda(b) {
+  if (_temOrig(b)) {
+    const cot = Number(b.cotacao);
+    const dica = `Valor original na moeda da conta (${b.moeda})` +
+      (isFinite(cot) && cot > 0 ? `, convertido a ${cot.toLocaleString('pt-BR', { maximumFractionDigits: 4 })}` : '');
+    const txt = _grVer === 'orig' ? (b.stake ? 'R$ ' + b.stake : '') : fmtMoedaOrig(b.stake_orig, b.moeda);
+    return txt ? `<span class="btbl-stake-usd" title="${esc(dica)}">${esc(txt)}</span>` : '';
+  }
+  return b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : '';
+}
+// Mostra/esconde o seletor conforme a moeda da conta ativa e põe a moeda nos cabeçalhos.
+function _grMoedaSync() {
+  const m = (parceiroSelecionado && parceiroSelecionado.moeda) || 'BRL';
+  const tem = !!_MOEDA_ORIG[m];
+  if (!tem) _grVer = 'BRL';
+  const box = document.getElementById('grade-moeda');
+  if (box) box.hidden = !tem;
+  const ob = document.getElementById('grade-moeda-orig');
+  if (ob) ob.textContent = m;
+  document.querySelectorAll('#grade-moeda-seg button').forEach(b => b.classList.toggle('on', b.dataset.ver === _grVer));
+  const suf = _grVer === 'orig' ? ' · ' + m : '';
+  const ts = document.getElementById('th-stake'), tp = document.getElementById('th-pl');
+  if (ts) ts.textContent = 'Stake' + suf;
+  if (tp) tp.textContent = 'P/L' + suf;
+}
+function _grMoedaVer(v) { _grVer = v === 'orig' ? 'orig' : 'BRL'; renderGrade(); }
+// Célula da stake. Vendo na moeda da conta, a stake convertida NÃO é editável: o campo
+// grava R$, e quem lê USDT na tela digitaria USDT. Sem `data-field` o duplo-clique não abre.
+function _celStake(b) {
+  if (_grVer === 'orig' && _temOrig(b)) {
+    return `<div class="btbl-cell btbl-num" title="Para editar a stake, volte a ver em R$">${moneyOrig(b.stake_orig, b.moeda)}${_subMoeda(b)}</div>`;
+  }
+  return `<div class="btbl-cell btbl-num ap-edit" data-field="stake">${moneyStake(b.stake) || _faltando(b.id, 'Stake ausente — dê duplo-clique para preencher')}${_subMoeda(b)}</div>`;
+}
+// Conteúdo da célula de P/L. Aberta (pl_orig nulo) segue o travessão neutro do fmtPL.
+function _celPL(b) {
+  if (_grVer === 'orig' && _temOrig(b)) return b.pl_orig != null ? moneyOrig(b.pl_orig, b.moeda, true) : fmtPL(null);
+  return fmtPL(b.pl);
+}
+
 function renderGrade() {
   const body = document.getElementById('grade-body');
+  _grMoedaSync();
   if (!bilhetes.length) {
     body.innerHTML = filtroGrade
       ? '<div class="grade-empty">Nenhuma aposta nesse filtro — clique no badge de novo para ver a conta inteira.</div>'
@@ -8178,10 +8278,10 @@ function renderGrade() {
         <span class="casa-chip" data-casa="${esc(b.casa)}"><img src="${faviconUrl(b.casa)}" alt="${esc(nomeCasa)}" loading="lazy"></span>
         <div class="btbl-casa-sub"><span class="btbl-casa-nome ap-edit" data-field="casa">${esc(nomeCasa)}</span>${contaHtml}</div>
       </div>
-      <div class="btbl-cell btbl-num ap-edit" data-field="stake">${moneyStake(b.stake) || _faltando(b.id, 'Stake ausente — dê duplo-clique para preencher')}${b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : ''}</div>
+      ${_celStake(b)}
       <div class="btbl-cell btbl-num ap-edit" data-field="odd">${_fmtOddDisplay(b.odd) || _faltando(b.id, 'Odd ausente ou ilegível no print — dê duplo-clique para preencher')}</div>
       <div class="btbl-cell btbl-res ap-edit" data-field="resultado">${resPill(b.resultado)}</div>
-      <div class="btbl-cell btbl-num btbl-pl">${fmtPL(b.pl)}</div>
+      <div class="btbl-cell btbl-num btbl-pl">${_celPL(b)}</div>
       <div class="btbl-cell btbl-acts">
         <button class="act-btn" title="Editar aposta" onclick="abrirEdicao(${b.id})">✎</button>
         <button class="act-btn del" title="Deletar" onclick="deletarBilhete(${b.id})">✕</button>

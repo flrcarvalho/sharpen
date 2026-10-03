@@ -19,7 +19,7 @@
 | 1 | Banco + cotação + conversão no `/salvar` | **NO AR (s390)** |
 | 2a | Moeda no cadastro da conta (rota + modal) | **NO AR (s391)** |
 | 2b | Aviso quando a captura contradiz o cadastro (extensão + `/extrair` + `/salvar`) | **NO AR (s391)** |
-| 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | aberto |
+| 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | **NO AR (s391)** |
 | 4 | Captura: Bet Panda → SapphireBet + PariPesa → Dex Sport | aberto |
 
 ### O que o passo 1 fez
@@ -79,14 +79,40 @@ morria dentro da extensão e o servidor nunca soube em que moeda a casa falou.
   `content.js`: 9 automáticas sobre `tests/js/moeda_captura_content.mjs`, 9 detectadas;
   rota: 4 à mão, 4 detectadas).
 
+### O que o passo 3 fez (s391)
+
+Decisões do Feca (03/10/2026): o formato é **`US$ 1.234,50`** e **`1.234,50 USDT`**, com milhar
+pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão **limpa a origem**.
+
+- **Grade da Extração:** sob a stake em R$, o valor na moeda da conta (o mesmo
+  `.btbl-stake-usd` do Polymarket). Com a conta ativa em USD/USDT aparece no título o
+  seletor `Ver em R$ | USDT` (o `.cxm-seg`, variante `seg-2`). Vendo na moeda da conta: a
+  stake e o P/L das linhas convertidas trocam de moeda, o R$ desce para a sub-linha, os
+  cabeçalhos viram `Stake · USDT` e `P/L · USDT`, e a linha sem origem segue em R$. A stake
+  convertida **não é editável** nesse modo (sem `data-field`): o campo grava R$, e quem lê
+  USDT digitaria USDT.
+- **P/L na moeda da conta** (`pl_orig`, na listagem da grade): `calcular_pl` aplicado à
+  `stake_orig`, nunca `pl ÷ cotacao`. A stake em R$ foi arredondada ao centavo, e o erro
+  cresce com a odd: 1 US$ a 5,0049 @ 101 dá 100,00 pelo certo e 99,90 pela divisão.
+- **Base Completa:** só a sub-linha, sem seletor (as contas se misturam ali). O feed leva
+  `moeda`/`stake_orig` **só** nas linhas convertidas. A tabela é virtualizada com altura
+  fixa de linha (68 px), medida igual com e sem a sub-linha.
+- **Edição à mão da stake** (`PATCH`, modal, lote) limpa `moeda`/`stake_orig`/`cotacao`
+  quando o NÚMERO muda (`_limpa_origem`); regravar a mesma stake mantém.
+- Gates: `tests/test_moeda_valor_original.py` (repositório: 6 mutações automáticas sobre
+  uma cópia do módulo, 6 detectadas; front: 14 sobre `tests/js/moeda_grade_front.mjs`, 14
+  detectadas) e `test_moeda_original_no_feed_e_a_edicao_que_limpa` (só no CI).
+- **Fica como estava:** o `$ 10,00` do Polymarket (`fmtUSD`, sem milhar, exceção do
+  `UI_REFERENCE §5.3`), a home (`inicio.html`) e o modal de edição, que segue em R$.
+
 ### Limites conhecidos do passo 1
 
 - ~~Nada grava `parceiros.moeda` ainda~~: resolvido no passo 2a (s391). Até alguém escolher
   outra moeda numa conta, nenhum número no ar muda.
 - USD de aposta de hoje usa a PTAX mais recente como proxy (regra do Polymarket). Em
   bilhete **sem código** isso pode mudar a assinatura entre dois envios; as 4 casas têm código.
-- Edição manual da stake na grade (`PATCH /bilhetes/{id}`) grava R$ e não toca na origem.
-  O passo 3 decide o que a grade faz em conta de outra moeda.
+- ~~Edição manual da stake grava R$ e não toca na origem~~: desde o passo 3 (s391) ela
+  limpa a origem quando o número muda.
 - A **Caixa** soma depósitos e stakes em R$; conta em USDT vai precisar de depósito em
   USDT convertido. Não tratado.
 - Binance medida acessível de casa (03/10). Do Railway **não foi medida**: o primeiro

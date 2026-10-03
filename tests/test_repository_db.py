@@ -276,6 +276,34 @@ def test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder():
     _run(body())
 
 
+def test_moeda_original_no_feed_e_a_edicao_que_limpa():
+    """Passo 3 da moeda (s391). O feed do dashboard leva `moeda`/`stake_orig` SÓ na linha
+    convertida, e a listagem da grade traz o `pl_orig`. A edição à mão da stake limpa as
+    três colunas da origem, mas só quando o número muda: regravar a mesma stake (o modal
+    reenvia todos os campos) mantém."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_usdt(), _row(codigo_bilhete="BET2", casa="Betano")],
+                                         "TDonoA")
+        feed = {l["casa"]: l for l in await repository.dashboard_rows(["TDonoA"])}
+        assert feed["Dex Sport"]["moeda"] == "USDT" and feed["Dex Sport"]["stake_orig"] == 25.0
+        assert "moeda" not in feed["Betano"] and "stake_orig" not in feed["Betano"]
+
+        grade = {l["codigo_bilhete"]: l for l in await repository.list_bilhetes("TDonoA")}
+        assert grade["BET1"]["pl_orig"] is not None
+        assert grade["BET2"]["pl_orig"] is None
+
+        bid = grade["BET1"]["id"]
+        assert await repository.atualizar_bilhete(bid, {"stake": "130"}, "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert r["moeda"] == "USDT", "regravar o mesmo número não pode apagar a origem"
+        assert await repository.atualizar_bilhete(bid, {"stake": "150,00"}, "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert r["stake"] == "150,00"
+        assert r["moeda"] is None and r["stake_orig"] is None and r["cotacao"] is None
+    _run(body())
+
+
 # ── Fantasma do código cru (Polymarket: mercado ganha a 2ª compra) ────────────
 #
 # O código do bilhete depende de QUANTAS compras o mercado tem: 1 compra grava
