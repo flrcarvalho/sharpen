@@ -142,7 +142,8 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
   conferidos; perna anulada (odd 3,75 e não 12,56), `payout` 0 na aberta, evento em UTC.
   8 mutações de controle, todas detectadas (uma escapou e virou linha nova do caso).
 - SharpenUp **0.7.35** com a mesma nota genérica só na home (`--so-changelog`); grupo não
-  avisado. **Não validado ao vivo:** a captura pela extensão na conta do Feca.
+  avisado. **Botão Conectar provado em produção** (true, controle negativo false, casa em
+  `captura`). **Não validado ao vivo:** a captura pela extensão na conta do Feca.
 
 ### Limites conhecidos do passo 1
 
