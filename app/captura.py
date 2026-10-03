@@ -67,7 +67,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "DEXSPORT": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto",
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "DEXSPORT": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto",
                    # Betboo (s372) — espelho da SportingBet: mesmo inject, mesmo formatador,
                    # logo o mesmo modo. So muda a marca.
                    "BETBOO": "texto",
@@ -104,6 +104,12 @@ _HOSTS_POR_CASA = {
     # de bilhetes vive no MESMO host da casa, então não há gateway separado para listar. O
     # `.com` global NÃO entra: a operação regulada é a `.bet.br` (mesmo critério da Pitaco).
     "1XBET":      ("1xbet.bet.br",),
+    # Espelhos da 1xBet (s391). SapphireBet e MegaPari trocam de DOMÍNIO (a MegaPari
+    # redireciona `megapari.com` para espelhos como `2479527mp.pro`): ficam aqui os conhecidos,
+    # e domínio novo passa (`casa_de_host` só barra domínio de OUTRA casa conhecida).
+    "SAPPHIREBET": ("sbethub2365.com",),
+    "PARIPESA":   ("paripesa.com",),
+    "MEGAPARI":   ("megapari.com", "2479527mp.pro"),
     # SportingBet (s289) — motor bwin/Entain, o primeiro deste motor aqui. A API de
     # bilhetes vive no MESMO host da casa (`/pt-br/sports/api/mybets/betslips`), então não
     # há gateway separado para listar. O `.com` global NÃO entra: a operação regulada é a

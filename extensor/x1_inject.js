@@ -57,7 +57,10 @@
 //     "evento mais recente". Epoch em SEGUNDOS.
 
 (function () {
-  const RX = /\/service\/bethistory\/GetBetInfoHistoryWithSummaryByDates/i;
+  // Dois caminhos, o MESMO endpoint e o MESMO JSON (s391, medido nas três): a 1xBet usa
+  // `/service/bethistory/`; as espelho SapphireBet, PariPesa e MegaPari usam
+  // `/bethistory-api/Web/`. O corpo e a resposta são idênticos.
+  const RX = /\/(?:service\/bethistory|bethistory-api\/Web)\/GetBetInfoHistoryWithSummaryByDates/i;
   const byRef = new Map();                     // BetId(string) → bilhete normalizado
   let respostas = 0;                           // respostas do endpoint (passivas + replay)
   let reqCtx = null;                           // {url, headers} de uma requisição real

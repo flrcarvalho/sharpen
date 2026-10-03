@@ -71,6 +71,10 @@ const CASA_ICONS={
   'MultiBet':'https://www.google.com/s2/favicons?sz=128&domain=multi.bet.br',
   'Novibet':'https://www.google.com/s2/favicons?sz=128&domain=novibet.com',
   '1xBet':'https://www.google.com/s2/favicons?sz=128&domain=1xbet.com',
+  // Espelhos da 1xBet (s391).
+  'SapphireBet':'https://www.google.com/s2/favicons?sz=128&domain=sbethub2365.com',
+  'PariPesa':'https://www.google.com/s2/favicons?sz=128&domain=paripesa.com',
+  'MegaPari':'https://www.google.com/s2/favicons?sz=128&domain=megapari.com',
   // Faltavam SÓ aqui (os outros dois mapas já tinham) — o dash caía no fallback.
   'Aposta Ganha':'https://www.google.com/s2/favicons?sz=128&domain=apostaganha.bet.br',
   'Pagol':'https://www.google.com/s2/favicons?sz=128&domain=pagol.bet.br',
@@ -164,6 +168,9 @@ const HOUSE_DOMAIN={
   'MultiBet':'multi.bet.br',
   'Novibet':'novibet.com',
   '1xBet':'1xbet.com',
+  'SapphireBet':'sbethub2365.com',
+  'PariPesa':'paripesa.com',
+  'MegaPari':'megapari.com',
   'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br',   // faltavam só aqui
   'Pinnacle':'pinnacle.com',
   'PixBet':'pix.bet.br',

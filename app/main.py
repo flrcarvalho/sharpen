@@ -302,6 +302,12 @@ _CASA_DISPLAY: dict[str, str] = {
     # nenhuma (s298). Round-trip conferido antes de registrar. Ver o aviso de mudança
     # RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5 — é o defeito que matou a Jonbet na s249.
     "1XBET":          "1xBet",
+    # Espelhos da 1xBet (s391): MESMO endpoint e JSON, caminho `/bethistory-api/Web/`.
+    # Grafias = as do Feca (a base não tinha nenhuma, medido em 03/10/2026). SIGILO: fora de
+    # aviso aos testers, changelog e home (nota genérica).
+    "SAPPHIREBET":    "SapphireBet",
+    "PARIPESA":       "PariPesa",
+    "MEGAPARI":       "MegaPari",
     "POLYMARKET":     "Polymarket",
     # 2ª e 3ª casas do motor Rogue (s335), espelho do Betão acima.
     #
@@ -843,6 +849,8 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "BETBOO",
     "LOTTU",
     "1XBET",
+    # Espelhos da 1xBet (s391): o mesmo `BetId` numérico que o card estampa.
+    "SAPPHIREBET", "PARIPESA", "MEGAPARI",
     # Bolsa de Aposta (s299) — vale para os DOIS ambientes: o Exchange emite
     # `[Código: 119530135]` (9 dígitos) e o Sportsbook `[Código: 867908924308574209]`
     # (18). Séries distintas, sem risco de colisão, e o marcador é o mesmo — então uma

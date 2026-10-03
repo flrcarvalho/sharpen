@@ -1223,7 +1223,9 @@
       // entre bilhetes, então o roboScroll genérico viraria um bloco só e a IA perderia o
       // resto em silêncio (lição da KTO, s192).
       blocos = await roboRGPassive(ctx);
-    } else if (casa === "1xbet") {
+    } else if (casa === "1xbet" || casa === "sapphirebet" || casa === "paripesa" || casa === "megapari") {
+      // As três espelho (s391) caem aqui: MESMO endpoint e MESMO JSON da 1xBet, só o caminho
+      // muda (`/bethistory-api/Web/`), e o `RX` do x1_inject casa os dois.
       // PASSIVO + REPLAY (x1_inject). Plataforma própria da casa (app Vue, API em
       // `/service/`), sem parentesco com Altenar/BetBy/Kambi/BetConstruct/BlueBrown.
       //
@@ -1441,6 +1443,9 @@
         // ATIVO com 0 respostas significa que o inject nunca viu a requisição — quase sempre
         // a página de histórico não foi aberta, e sem uma requisição real o replay não tem o
         // corpo para aprender (`PartnerId`, `Whence`, `BonusUserId` são da conta).
+        sapphirebet: { nome: "SapphireBet", hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size },
+        paripesa:   { nome: "PariPesa",   hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size },
+        megapari:   { nome: "MegaPari",   hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size },
         "1xbet":    { nome: "1xBet",      hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size,
                       extra: x1Erro ? " · " + x1Erro
                            : (x1Respostas === 0 ? " · abra Minhas apostas (Histórico de apostas) e rode de novo" : "") },
@@ -1654,6 +1659,21 @@
     return (!t || /^(brl|r\$)$/i.test(t)) ? "" : t;
   };
   const _linhaMoeda = (L, m) => { const t = _moedaNaoReal(m); if (t) L.push("Moeda: " + t); };
+  // CARIMBO DE COLOCAÇÃO (s391), `AAAAMMDDhhmmss` em São Paulo — a mesma linha que a Bet365
+  // manda e que o servidor lê do texto cru (`carimbos_do_texto`). Em conta de outra moeda ele
+  // decide o DIA DA COTAÇÃO: sem ele, o `/salvar` usava a data do EVENTO, e aberta com jogo
+  // amanhã ficava sem cotação (DEX Sport, 10 de 12). Só sai quando a moeda NÃO é real, pelo
+  // mesmo motivo da linha `Moeda:`: casa em real fica byte a byte igual.
+  const _linhaCarimbo = (L, epochS, m) => {
+    if (!_moedaNaoReal(m) || epochS == null || !isFinite(epochS)) return;
+    const p = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    }).formatToParts(new Date(epochS * 1000));
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    const hh = g("hour") === "24" ? "00" : g("hour");
+    L.push("Carimbo de colocação: " + g("year") + g("month") + g("day") + hh + g("minute") + g("second"));
+  };
   // Odd SEMPRE completa (regra primordial: nunca encurtar). Só tira ruído de float
   // (ex.: 2.2700000000000002 → 2,27), mantendo toda a precisão real.
   const _odd = (x) => (x == null) ? "" : (Math.round(x * 1e8) / 1e8).toString().replace(".", ",");
@@ -3799,6 +3819,9 @@
   function _oddEstruturalX1(b) {
     const decl = (typeof b.odd === "number" && b.odd > 0) ? b.odd : null;
     const prod = (typeof b.oddProduto === "number" && b.oddProduto > 0) ? b.oddProduto : null;
+    // Sistema sem `Coef` declarado (s391): o produto das pernas NÃO é a odd de um sistema.
+    // Sem número da casa, a odd fica AUSENTE — zero ou produto seriam conta inventada.
+    if (decl == null && b.tipoId === 2) return null;
     if (decl == null) return prod;
     if (prod == null || !b.temAnulada) return decl;
     return (Math.abs(decl - prod) / prod > 0.01) ? prod : decl;
@@ -3871,15 +3894,24 @@
     if (dcol) L.push("Colocada: " + dcol);
     L.push("Stake: " + _brl(b.stake));
     _linhaMoeda(L, b.moeda);
+    _linhaCarimbo(L, b.colocada, b.moeda);
 
     const n = (b.sels || []).length;
-    if (n === 1) L.push("Tipo: Simples");
+    // SISTEMA (`BetTypeId` 2, s391 — SapphireBet): não é múltipla. O `Coef` dele não é o
+    // produto das pernas, e a casa pode nem mandá-lo (o sistema perdido vem sem `Coef`).
+    if (b.tipoId === 2) L.push("Tipo: Sistema (" + n + " seleções · " + String(b.tipoNome || "") + " · BetSystemType " + String(b.sistema) + ")");
+    else if (n === 1) L.push("Tipo: Simples");
     else if (n > 1) L.push("Tipo: Múltipla (" + n + " seleções)");
 
     const odd = _oddX1(b);
     if (odd != null) {
       const porDinheiro = b.status === 4 && !_anuladaX1(b);
       L.push("Odd: " + _oddTxtKTO(odd) + (porDinheiro ? " (= Retorno ÷ Stake)" : ""));
+    }
+    else if (b.tipoId === 2) {
+      // Ausência viaja como ausência (CLAUDE.md, "Zero não é ausência"): o bloco DIZ que a
+      // casa não mandou a cotação, senão a IA preenche com o produto das pernas.
+      L.push("Odd: (a casa não informa a cotação deste sistema — deixe a odd VAZIA; não use o produto das pernas nem zero)");
     }
     L.push("Status: " + _statusX1(b));
     // Status CRU da API — é ele que a CASA_1XBET.md traduz, e é o que permite reconhecer um
@@ -3894,10 +3926,10 @@
     // rótulo é explícito: o guarda custa nada e a casa pode mudar.
     if (_abertaX1(b)) {
       if (typeof b.potencial === "number" && b.potencial > 0) {
-        L.push("Retorno potencial: R$ " + _brl(b.potencial) + " (POTENCIAL — a aposta não liquidou)");
+        L.push("Retorno potencial: " + _dinJB(b, b.potencial) + " (POTENCIAL — a aposta não liquidou)");
       }
     } else if (typeof b.pagou === "number") {
-      L.push("Retorno: R$ " + _brl(b.pagou));
+      L.push("Retorno: " + _dinJB(b, b.pagou));
     }
 
     if (_anuladaX1(b)) {
@@ -4359,6 +4391,7 @@
     if (dh) L.push("Data (colocação): " + dh);
     L.push("Stake: " + _brl(b.stake));
     _linhaMoeda(L, b.moeda);
+    _linhaCarimbo(L, b.ts, b.moeda);
     L.push("Status: " + _resultadoJB(b));
     L.push("Status (API): " + (b.status || "(vazio)"));
     const odd = _oddJB(b);
@@ -4510,6 +4543,7 @@
     if (dh) L.push("Data (colocação): " + dh);
     L.push("Stake: " + _brl(b.stake));
     _linhaMoeda(L, b.moeda);
+    _linhaCarimbo(L, b.ts, b.moeda);
     L.push("Status: " + _resultadoDX(b));
     L.push("Status (API): result " + b.resultado + " · status " + b.status + " · settlementStatus " + b.liquidacao);
     const odd = _oddDX(b);

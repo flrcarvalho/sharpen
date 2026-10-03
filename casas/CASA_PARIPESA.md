@@ -1,45 +1,60 @@
-# CASA_1XBET
-## Camada de tradução — 1xBet → padrão global (FDC Capital)
+# CASA_PARIPESA
+## Camada de tradução — PariPesa → padrão global (FDC Capital)
 
-> **Esta é a camada FINA.** Ela só descreve o que a 1xBet faz de diferente. Cálculo, resultado,
+> **Esta é a camada FINA.** Ela só descreve o que a PariPesa faz de diferente. Cálculo, resultado,
 > descrição e output são **globais** — `global/MASTER_*`. Arquivo de casa **traduz**, nunca
 > redefine regra global (invariante 2 do `CLAUDE.md`).
 >
-> Reconhecida na **sessão 298**, pelo `tools/recon_casa.js` — **a primeira casa ligada sem
-> ninguém aqui ter conta nela**. O payload veio de um tester; a sessão nunca saiu do navegador
-> dele. Ver [`docs/GUIA_RECON_TESTER.md`](../docs/GUIA_RECON_TESTER.md).
->
-> Base da medição: **91 bilhetes / 271 pernas** de uma conta real (21→26/08/2026), mais três
-> consultas ao vivo de 365 dias (95 bilhetes). Tudo o que está abaixo foi **medido**; o que não
-> foi, está marcado como não medido.
+> **Espelho da 1xBet** (§1.2): o corpo deste arquivo é o da [`CASA_1XBET`](CASA_1XBET.md), medido
+> lá, e o recon desta casa confirmou cada campo. Base da medição aqui: **37 bilhetes** na conta (`BetsSummaryInfo.Count`), 4 na fixture.
 
 ---
 
 ## 1. Identidade
 
-- **Marca:** `1xBet` · **domínio regulado:** `1xbet.bet.br`
-- **Chave no sistema:** `1XBET` → display `1xBet`
-- **Motor:** **PRÓPRIO**. App Vue, API toda em `/service/` no host da casa. **Não é**
-  Altenar/BIA, **não é** BetBy/sptpub, **não é** Kambi, **não é** BetConstruct, **não é**
-  BlueBrown (Novibet). Inject próprio (`extensor/x1_inject.js`), formatador próprio.
-- ⚠️ **A grafia `1xBet` já existia na base antes do registro:** 267 bilhetes e 1 conta (dono
-  `arrudex`, conta `Eu`, `origem='import'`, todos sem `codigo_bilhete`). Grafia **única** — a
-  varredura das 7 tabelas onde `casa` é texto não achou `1XBET`, `1x Bet` nem variante. O
-  round-trip `_casa_display(_display_to_key("1xBet"))` fecha em identidade. Ver o aviso de
-  mudança RETROATIVA em `docs/SHARPENUP_ARQUITETURA.md §5`.
-- **Espelhos no sistema (s391):** SapphireBet, PariPesa e MegaPari — o mesmo endpoint e o mesmo
-  JSON em `/bethistory-api/Web/`, com conta em dólar. Cada uma tem o próprio `CASA_*.md`. Para a
-  próxima (Melbet, 22bet e afins), **prove o motor antes** pelo padrão da Betfast: mesmo caminho
-  de API, mesmos nomes de campo num payload real.
+- **Marca:** `PariPesa` · **domínio:** `paripesa.com` (estável; está no `CASA_HOSTS`).
+- **Chave no sistema:** `PARIPESA` → display `PariPesa`
+- **Motor:** o da **1xBet** (§1.2). Inject `extensor/x1_inject.js`, formatador `formatTicket1X`.
+- **Grafia (s391):** a base não tinha nenhuma (medido em 03/10/2026), então vale a da marca.
+  Escolha a casa **na lista** ao criar a conta: grafia digitada diferente (`paripesa`
+  com espaço, por exemplo) cria uma casa à parte, sem captura.
+- **Moeda:** **USDT** (§1.1).
+
+### 1.1 A MOEDA é da conta  ⭐
+
+A API diz `CurrencyCode: "USDT"` em todo bilhete, e o bloco capturado leva `Moeda: USDT`
+com o dinheiro rotulado na moeda da casa (`Retorno: 57,27 USDT`), nunca "R$".
+
+- Cadastre a conta com a moeda **USDT** antes da 1ª captura
+  ([`docs/PLANO_MOEDA_POR_CONTA.md`](../docs/PLANO_MOEDA_POR_CONTA.md)). Conta cadastrada em outra
+  moeda gera o aviso de contradição no `/salvar`.
+- O bloco também leva `Carimbo de colocação: AAAAMMDDhhmmss` (São Paulo): é a data da cotação.
+  Sem ele, aberta com jogo amanhã pedia a cotação de um dia que ainda não existe.
+
+### 1.2 Espelho da 1xBet
+
+Mesmo motor, provado no recon de 03/10/2026 com conta do Feca: `POST
+/bethistory-api/Web/GetBetInfoHistoryWithSummaryByDates`, corpo com `DateFrom`/`DateTo`/`Count`/
+`CfView`/`PartnerId`, resposta `{BetInfos, BetsSummaryInfo}`, `BetStatus` 1/2/4. **Muda só o
+caminho** (`/bethistory-api/Web/` no lugar de `/service/bethistory/`). Inject, formatador e robô
+são os da 1xBet. Irmãs no mesmo caminho: SapphireBet, PariPesa e MegaPari.
+
+> **Ao mexer numa das quatro, rode o harness das quatro.**
+
+> ⚠️ **SIGILO (decisão do Feca, 03/10/2026):** casa normal no seletor, mas **fora** de aviso ao
+> grupo de testers, do `changelog.json` e da home. Nenhum passo desta casa roda
+> `scripts/avisar_testers.py` (versão sai com nota genérica, `--so-changelog`).
 
 ---
 
 ## 2. Modo de ingestão e layout
 
-**Captura por API — passivo + replay** (`x1_inject.js`, mundo MAIN):
+**Captura por API — passivo + replay** (`x1_inject.js`, o MESMO da 1xBet, mundo MAIN).
+O que segue nesta seção foi medido na 1xBet (s298) e o recon desta casa confirmou o
+mesmo corpo e o mesmo JSON:
 
 ```
-POST /service/bethistory/GetBetInfoHistoryWithSummaryByDates
+POST /bethistory-api/Web/GetBetInfoHistoryWithSummaryByDates   (na 1xBet: /service/bethistory/)
 ```
 
 - **Auth por COOKIE.** Não há `Authorization`. Os headers são só de canal (`accept`,
@@ -278,8 +293,8 @@ bilhete da amostra trouxe freebet ou crédito promocional.
 
 ## 10. Stake
 
-`BetSum`, em **reais**, como número (`150` = R$ 150,00). **Não há milésimos** (ao contrário da
-KTO). Não há stake por linha — não apareceu bilhete de sistema na amostra.
+`BetSum`, como número, **em Tether (USDT)** (`CurrencyCode: "USDT"`). **Os números do TSV são os da casa**, na moeda dela: quem converte para
+R$ é o servidor, pela moeda da conta e pela cotação do dia da colocação (§1.1). Nunca a IA.
 
 ---
 
@@ -332,6 +347,16 @@ divergem entre 47% e 311%, enquanto o produto em float erra na 7ª casa (o `1609
 sem interseção. **A vitória fantasma da VaideBet/Novibet/Betpix365 não é risco nesta casa.**
 Ainda assim o bloco rotula o potencial explicitamente: o guarda custa nada e a casa pode mudar.
 
+### 11.5 Sistema (`BetTypeId` 2) — medido na SapphireBet, s391
+
+Não apareceu na 1xBet. `BetTypeName: "Sistema"`, `BetSystemType: 20203` (2 de 3). O bloco diz
+`Tipo: Sistema (…)`, nunca múltipla.
+
+- **Ganho:** a odd é `WinSum ÷ BetSum`, como todo `W` (o `88105563743`: 156,96 ÷ 60 = 2,616).
+- **Perdido:** a casa pode mandar **sem `Coef`** (`CoefView: ""`, o `88092600919`). A odd fica
+  **VAZIA**: o produto das pernas não é a odd de um sistema, e zero é uma odd que não existe
+  (`CLAUDE.md`, "Zero não é ausência"). O P/L de `L` é `−stake` e não depende dela.
+
 ---
 
 ## 12. Ruído a ignorar
@@ -357,6 +382,8 @@ Ainda assim o bloco rotula o potencial explicitamente: o guarda custa nada e a c
 6. **A tela pede só ~5,2 dias**, para sempre. Sem replay, faltam bilhetes em silêncio.
 7. **`Badminton `** com espaço final e **`Tenis de Mesa`** sem acento.
 8. **Não há paginação** — só `Count` e janela. O fim é o `BetsSummaryInfo.Count`.
+9. **Dinheiro em USDT**: o bloco leva `Moeda: USDT` e nenhum "R$" (§1.1).
+10. **Sistema perdido pode vir SEM `Coef`**: odd vazia, nunca produto nem zero (§11.5).
 
 ---
 
@@ -375,37 +402,33 @@ Específico desta casa:
 - [ ] Bilhete aberto **não** emitiu linha `Retorno:` — só `Retorno potencial:`.
 - [ ] Em `W`, a odd é `WinSum ÷ BetSum`.
 
-**Gate executável:** `node extensor/harness/run.mjs 1xbet` — 12 conferências travadas contra o
-payload real, com as 9 mutações da s298 provadas (cada uma quebra o caso).
+**Gate executável:** `node extensor/harness/run.mjs paripesa` (conferência comum em
+`extensor/harness/x1_espelho.mjs`), com 7 mutações da s391 provadas. As regras herdadas
+seguem travadas pelo caso da 1xBet.
 
 ---
 
-## 15. Exemplos golden (bilhetes reais — captura por API, 21→26/08/2026)
+## 15. Exemplos golden (bilhetes reais — recon de 03/10/2026, valores em USDT)
+
+Fixture: `extensor/harness/fixtures/paripesa.bethistory.json` (4 bilhetes, sem dado de conta).
 
 | BetId | Situação | Stake | Odd correta | Resultado | Por que está aqui |
 |---|---|---|---|---|---|
-| `16108953` | ganha com perna anulada | 150,00 | **4,14166667** | `W` | a casa recalculou o `Coef`; a odd sai do dinheiro (621,25 ÷ 150) |
-| `16101007` | perdida com perna anulada | 150,00 | **4,5787** | `L` | o `Coef` declarado diz 8,607956 — **pré-anulação** |
-| `16061009` | perdida com **duas** anuladas | 150,00 | **2,375** | `L` | `Coef` 9,771938 → 4× a estrutura real |
-| `16100981` | perdida com uma anulada | 120,00 | **7,74** | `L` | `Coef` 23,0652 → 3× |
-| `16001193` | **anulada disfarçada de ganha** | 10,00 | **1** | `V` | `BetStatus=4`, `WinSum == BetSum` |
-| `16119951` | perdida limpa | 150,00 | **14,704694** | `L` | guarda contra "corrigir" o que não está quebrado |
-| `16131833` | em aberto | 180,00 | **7,7224** | *(vazio)* | `PossibleWinSum` 1390,03 confirmado no card (`7,722`) |
+| `88194620599` | **anulada disfarçada de ganha** | 7,00 | **1** | `V` (7,00) | `BetStatus=4`, `WinSum == BetSum`, perna "Formato do jogo alterado" |
+| `88194577145` | simples perdida | 8,40 | **2** | `L` | |
+| `88195014537` | acumulada perdida | 10,00 | **12,9536** | `L` | acumulador aqui vem com `BetSystemType` **2** (na 1xBet, 3) |
+| `88237452875` | em aberto | 5,20 | **2,08** | *(vazio)* | potencial 10,82 |
 
 ---
 
 ## Feedback para a camada global / MODELO
 
-- **Lição nova, generalizável:** *antes de derivar resultado do ENUM, prove que o enum separa os
-  casos*. O `MASTER` já pedia isso do dinheiro (lição da Stake, s257); esta casa mostra o mesmo
-  defeito com os papéis trocados. Vale como par simétrico no livro de armadilhas.
-- **Família de PII nova:** geolocalização em header (`x-location-latitude`/`-longitude`). Não é
-  credencial e não é campo de identidade — escapava dos dois crivos do coletor de recon. Já
-  corrigido em `tools/recon_casa.js` na mesma sessão.
-- **Homóglifo cirílico** é uma classe de defeito que nenhuma casa anterior mostrou. Se aparecer
-  em outra casa, o normalizador do `content.js` (`_latinX1`) é reusável como está.
+- **Espelho que só troca o CAMINHO.** O corpo, o JSON e o enum são os da 1xBet; o inject passou
+  a casar os dois caminhos e nenhuma linha de formatação nova foi preciso, além da moeda.
+- **Sistema sem `Coef`** é a 2ª casa em que a odd do conjunto simplesmente não existe no dado
+  (a 1ª foi o mesmo jogo da s318). A ausência viaja como ausência.
 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-26 (sessão 298 — nasce da 1ª captura reconhecida sem conta nossa)
+ATUALIZADO: 2026-10-03 (sessão 391 — espelho da 1xBet, recon com conta do Feca)

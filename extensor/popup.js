@@ -61,6 +61,11 @@ const CASA_HOSTS = {
   // Plataforma própria (gateway BlueBrown). A API mora no MESMO host da casa (`/spt/api/…`).
   "Novibet":    ["novibet.bet.br"],
   "1xBet":      ["1xbet.bet.br"],
+  // Espelhos da 1xBet (s391). Só a PariPesa tem domínio estável. SapphireBet e MegaPari
+  // FICAM FORA de propósito: trocam de domínio (MegaPari → `2479527mp.pro`), e casa sem
+  // domínio listado não é checada aqui — senão o espelho novo travaria a captura. A
+  // amarração casa↔site continua no servidor (`casa_de_host`).
+  "PariPesa":   ["paripesa.com"],
   "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject próprio
   // Betboo (s372) — 2ª casa bwin/Entain, ESPELHO da SportingBet (reusa o spb_inject).
   // ⚠ NÃO é a Betboom (motor BetBy): os nomes diferem por uma letra, e `betboo` é substring
@@ -266,6 +271,9 @@ async function capturar() {
                 // 1xBet: plataforma própria (app Vue, API em `/service/`). `x1_`, e não
                 // `1x_`, para o nome não começar por dígito.
                 : casa === "1xBet" ? "x1_inject.js"
+                : casa === "SapphireBet" ? "x1_inject.js"
+                : casa === "PariPesa" ? "x1_inject.js"
+                : casa === "MegaPari" ? "x1_inject.js"
                 // SportingBet: 1º motor bwin/Entain do Sharpen — inject próprio.
                 // `spb_`, e não `sb_`, porque `sb_inject.js` já é da Superbet.
                 : casa === "SportingBet" ? "spb_inject.js"
