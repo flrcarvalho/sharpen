@@ -122,6 +122,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # id real do BetBy na Bet Panda (a ganha de 02/10/2026, 70,00 $ @1,80 -> 126,00 $,
     # conferida no card). 4a casa do motor: mesmo formato numerico de 19 digitos.
     "BETPANDA":   "2717948654752248251",
+    # UUID real da Dexsport (a ganha de 01/10/2026, 25 usdt @5,03 -> 125,75, conferida no card
+    # do SDK). Plataforma propria: o id e o UUID inteiro, sem prefixo.
+    "DEXSPORT":   "3345134c-ef5a-4dac-a4cd-1c4344961467",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

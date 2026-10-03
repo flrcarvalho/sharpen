@@ -235,6 +235,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # `panda` fora a KingPanda. `casa_canonica` ignora espaço e caixa, então quem digitar
     # "Bet Panda" cai aqui, sem gêmea. SIGILO: fora de aviso aos testers, changelog e home.
     "BETPANDA":       "Betpanda",
+    # Plataforma PRÓPRIA (s391). Grafia da MARCA (`Dexsport` no logo e no título), porque a
+    # base não tinha nenhuma (medido em 03/10/2026). `casa_canonica` ignora espaço e caixa:
+    # "Dex Sport" cai aqui. SIGILO: fora de aviso aos testers, changelog e home.
+    "DEXSPORT":       "Dexsport",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -822,6 +826,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Bet Panda (s391) — 4ª casa BetBy. Mesmo espaço de IDs: numérico de 19 dígitos, o
     # mesmo número que o card estampa em "ID da aposta".
     "BETPANDA",
+    # Dexsport (s391) — plataforma própria. ID = UUID, o mesmo que o card estampa inteiro em
+    # "ID da aposta".
+    "DEXSPORT",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

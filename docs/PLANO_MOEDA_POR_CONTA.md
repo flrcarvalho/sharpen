@@ -21,7 +21,7 @@
 | 2b | Aviso quando a captura contradiz o cadastro (extensão + `/extrair` + `/salvar`) | **NO AR (s391)** |
 | 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | **NO AR (s391)** |
 | 4a | Captura: **Bet Panda** | **NO AR e validada ao vivo (s391)**: 45 de 45 |
-| 4b | Captura: **Dex Sport** (escolha do Feca, antes das 1xBet) | em curso |
+| 4b | Captura: **Dexsport** (escolha do Feca, antes das 1xBet) | **NO AR (s391)**, falta validar ao vivo |
 | 4c | Captura: SapphireBet + PariPesa | aberto |
 | 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | aberto |
 
@@ -127,6 +127,22 @@ pt-BR; o seletor fica **só na grade da Extração**; e a stake editada à mão 
   false, `Betpanda` em `captura` no `/casas`).
 - **Não validado ao vivo:** a captura pela extensão na conta do Feca e a conversão USDT no
   `/salvar` em produção (a Binance nunca foi medida a partir do Railway).
+
+### O que o passo 4b fez (s391): Dexsport
+
+- Plataforma PRÓPRIA, primeira casa do motor: `extensor/dx_inject.js` (novo), `formatTicketDX`
+  e `roboDXPassive`. Lista do SDK de esportes, `GET prod.dexsport.work//api/sportsbook/history/
+  tickets?status=placed|finished&page=N`, por XHR, com o `Authorization` aprendido da chamada
+  real e replay por XHR até `meta.totalPages`. Tradução em
+  [`casas/CASA_DEXSPORT.md`](../casas/CASA_DEXSPORT.md).
+- **O recon achou duas listas.** A do perfil (`txs_list`) carrega `token`, `ip` e `userId` no
+  corpo e lê o retorno de um campo que guarda o potencial na perdida: descartada. O inject só
+  casa o caminho do SDK, e o token nunca sai do inject (o harness confere).
+- Harness `casos/dexsport.mjs` com a conta inteira do Feca (41 bilhetes, sem `nickname`), 10
+  conferidos; perna anulada (odd 3,75 e não 12,56), `payout` 0 na aberta, evento em UTC.
+  8 mutações de controle, todas detectadas (uma escapou e virou linha nova do caso).
+- SharpenUp **0.7.35** com a mesma nota genérica só na home (`--so-changelog`); grupo não
+  avisado. **Não validado ao vivo:** a captura pela extensão na conta do Feca.
 
 ### Limites conhecidos do passo 1
 

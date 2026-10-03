@@ -396,6 +396,29 @@
     }
   });
 
+  // Bilhetes da DEXSPORT capturados pelo dx_inject.js (mundo MAIN) — as RESPOSTAS do
+  // histórico do SDK de esportes (`/api/sportsbook/history/tickets`), já normalizadas. O
+  // inject repagina `placed` e `finished` por `page` até `meta.totalPages`. `dxById` guarda 1
+  // bilhete por UUID; a versão CONCLUÍDA (`status` 3) vence a aberta.
+  const dxById = new Map();          // id(UUID) → bilhete
+  let dxFimReal = false;
+  let dxHookVivo = false, dxRespostas = 0;
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupDXData) {
+      if (d.hook) dxHookVivo = true;
+      if (typeof d.respostas === "number") dxRespostas = d.respostas;
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = dxById.get(b.id);
+          if (!ex || (ex.status !== 3 && b.status === 3)) dxById.set(b.id, b);
+        }
+      }
+      if (d.fim) dxFimReal = true;
+    }
+  });
+
   // Bilhetes da TIVO capturados pelo tv_inject.js (mundo MAIN) — as RESPOSTAS do proxy
   // /api/game/p/messagetosport com {name:"gethistory"}, já normalizadas pelo inject. A Tivo
   // NÃO pagina: uma única chamada devolve a conta inteira e a própria casa carimba `Count`,
@@ -1338,6 +1361,12 @@
       // `betpanda.sptpub.com` na própria página. A novidade é a MOEDA: a casa mede em dólar
       // (`currency: "$"`), e o formatador rotula o dinheiro na moeda do bilhete (`_dinJB`).
       blocos = await roboJBPassive(ctx);
+    } else if (casa === "dexsport") {
+      // Passivo + replay (dx_inject, plataforma PRÓPRIA — s391). O SDK de esportes roda em
+      // shadow DOM e pede a lista por XHR; o inject aprende o `Authorization` da chamada real e
+      // repagina `placed` e `finished` até `meta.totalPages`. SEM fallback de texto: o shadow
+      // DOM esconde os cards do `innerText`, e o robô genérico mandaria a casca para a IA.
+      blocos = await roboDXPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -1501,6 +1530,8 @@
         // próprio, para o operador não ler "Jonbet: 0 bilhetes" estando na Blaze.
         blaze:      { nome: "Blaze",      hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         betpanda:   { nome: "Betpanda",   hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
+        dexsport:   { nome: "Dexsport",   hook: dxHookVivo, resp: dxRespostas, vistos: dxById.size,
+                      extra: dxRespostas === 0 ? " · abra Esportes → Minhas apostas e rode de novo" : "" },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -4410,6 +4441,140 @@
     processar();   // consome o que chegou por último
     console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze/Betpanda): " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
                 " · hook=" + jbHookVivo + " · respostas=" + jbRespostas + " · fimReal=" + jbFimReal);
+    return blocos;
+  }
+
+  // ── Dexsport (plataforma própria, s391) ───────────────────────────────────────
+  // Formata 1 bilhete do histórico do SDK (`/api/sportsbook/history/tickets`, normalizado pelo
+  // dx_inject) no bloco que a IA lê. Mapeamentos VALIDADOS contra o card (recon de 03/10/2026):
+  //   • dinheiro e odd em NÚMERO, na moeda da casa (`usdt`); o rótulo vem do `_dinJB`.
+  //   • `coefficient` é a odd da COLOCAÇÃO e `payoutCoefficient` a LIQUIDADA. Com perna anulada
+  //     elas divergem (12,56 × 3,75 no `b4836669`, card 3.75 / +93.75): no W manda o dinheiro.
+  //   • `payout` vem 0 na perdida E na aberta; quem separa as duas é `status`/`result`.
+  //   • `placedAt` em epoch (o card mostra São Paulo); `eventDate` em ISO UTC, que o inject já
+  //     transformou em epoch — aqui sai em São Paulo pelo `_dhJB`, a régua da BetBy.
+  // O que NÃO se decide aqui: enum desconhecido sobe cru, "a conferir". O de-para vive na
+  // CASA_DEXSPORT.md.
+  const _abertaDX = (b) => b.status !== 3;
+  const _PERNA_DX = { 0: "não decidida", 1: "ganha", 2: "perdida", 6: "anulada" };
+
+  function _dataEventoDX(b) {
+    let max = null;
+    for (const s of (b.sels || [])) {
+      if (s.inicio != null && isFinite(s.inicio) && (max == null || s.inicio > max)) max = s.inicio;
+    }
+    return max;
+  }
+
+  // Odd: W → retorno ÷ stake, conciliado com a LIQUIDADA (`oddPaga`); aberta → potencial ÷
+  // stake conciliado com a da colocação; perdida → a da colocação, que é a do card.
+  function _oddDX(b) {
+    const st = b.stake, pay = b.retorno;
+    if (!_abertaDX(b) && st > 0 && pay > 0 && Math.abs(pay - st) >= 0.005) {
+      return _conciliaJB(pay, st, b.oddPaga > 0 ? b.oddPaga : b.odd);
+    }
+    if (_abertaDX(b) && st > 0 && b.potencial > 0) return _conciliaJB(b.potencial, st, b.odd);
+    return b.odd > 0 ? b.odd : null;
+  }
+
+  // Leitura pelo DINHEIRO + o enum cru. Retorno zero só vira L com `result` 2 (a aberta também
+  // vem com `payout` 0); ganho só com `result` 1.
+  function _resultadoDX(b) {
+    const cru = "status " + b.status + " · result " + b.resultado;
+    if (b.status === 2 && b.resultado === 0) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (b.status !== 3) return cru + " (a conferir — não liquidar automaticamente)";
+    const st = b.stake, pay = b.retorno;
+    if (pay == null) return cru + " sem valor de retorno (a conferir — não liquidar automaticamente)";
+    if (pay === 0) {
+      return b.resultado === 2 ? "Perdeu → L" : "retorno zero com " + cru + " (a conferir — não liquidar automaticamente)";
+    }
+    if (Math.abs(pay - st) < 0.005) return "Devolvida/void (retorno = stake) → V";
+    if (pay > st && b.resultado === 1) return "Ganhou → W (retorno " + _dinJB(b, pay) + ")";
+    return "Retorno " + _dinJB(b, pay) + " com " + cru + " (a conferir — HW/HL ou cashout; não liquidar automaticamente)";
+  }
+
+  function _tipoDX(b) {
+    const sels = b.sels || [], n = sels.length;
+    if (sels.some((s) => s.betBuilder)) return "Bet Builder (mesmo jogo · " + n + " seleções)";
+    if (n >= 2) return "Múltipla (" + n + " seleções)";
+    if (n === 1) return "Simples";
+    return "";
+  }
+
+  function formatTicketDX(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhJB(_dataEventoDX(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dh = _dhJB(b.ts);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    _linhaMoeda(L, b.moeda);
+    L.push("Status: " + _resultadoDX(b));
+    L.push("Status (API): result " + b.resultado + " · status " + b.status + " · settlementStatus " + b.liquidacao);
+    const odd = _oddDX(b);
+    if (odd != null) L.push("Odd: " + _odd(odd));
+    const tipo = _tipoDX(b);
+    if (tipo) L.push("Tipo: " + tipo);
+    if (_abertaDX(b) && b.potencial > 0) L.push("Retorno potencial: " + _dinJB(b, b.potencial));
+    if (b.boost != null && b.boost !== 1) L.push("Boost: ×" + _odd(b.boost) + " (conferir regra da odd)");
+    if (b.bonus) L.push("Bônus: tipo " + b.bonus + " (conferir regra de stake)");
+    L.push("Seleções:");
+    const sels = b.sels || [];
+    for (const s of sels) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.label || "");
+      const st = _PERNA_DX[s.status];
+      bits.push("[perna " + (st || "status " + s.status) + (s.status === 6 ? " — odd paga 1" : "") + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.inicio) ctx2.push("Início: " + _dhJB(s.inicio));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null && sels.length > 1) L.push("    Odd da seleção: " + _odd(s.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboDXPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      const todos = Array.from(dxById.values()).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as CONCLUÍDAS (pela colocação); aberta nunca corta.
+        const dt = (b.ts != null && isFinite(b.ts)) ? b.ts * 1000 : NaN;
+        const passou = !_abertaDX(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketDX(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    try { window.postMessage({ __sharpenupDXReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !dxFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (dxById.size > ultTotal) { ultTotal = dxById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Dexsport: " + blocos.length + " bilhete(s) · dxById=" + dxById.size +
+                " · hook=" + dxHookVivo + " · respostas=" + dxRespostas + " · fimReal=" + dxFimReal);
     return blocos;
   }
 
