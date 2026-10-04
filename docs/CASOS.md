@@ -1096,6 +1096,28 @@ fornecedor. Era caso unico e ja esta corrigido, entao nao houve mudanca de codig
 
 ---
 
+## Duas autoridades para o nome da casa — Megapari e DEX Sport, s391
+
+Criar e editar conta resolviam a grafia pela BASE (`casa_canonica`); o `/salvar` gravava a do
+REGISTRO (`_casa_display`). Enquanto as duas concordavam, nada aparecia.
+
+- **Megapari:** registrada como `MegaPari` (a marca) depois de uma medição que procurou a
+  grafia EXATA; a base já tinha `Megapari` (2 contas). A conta do Feca nasceu `Megapari` e os
+  20 bilhetes da 1ª captura foram gravados como `MegaPari`: "20 salvos, não aparecem na conta".
+- **DEX Sport:** o registro dizia `Dexsport`, a conta era `DEX Sport`. Editar a casa para
+  `Dexsport` voltava `DEX Sport` (a base venceu), o servidor respondia "nada mudou" e o modal
+  fechava em silêncio: "editar a casa não funciona".
+
+Correção: `main.casa_oficial` (registro sem caixa e sem espaço, senão a base, senão verbatim)
+em criar, editar e `/salvar` sem conta; com conta, o `/salvar` grava na casa DA conta.
+Gates: `tests/test_casa_oficial.py` (8 mutações) e `tools/audit_grafias.py`, que achou ainda
+a gêmea antiga `Bingoplus`/`BingoPlus`. 30 bilhetes movidos por `unificar_casas.py`.
+
+> Sintoma para reconhecer isto noutro campo: dois caminhos que normalizam o MESMO valor por
+> fontes diferentes. Cada um é coerente sozinho; o defeito só existe na fronteira entre eles,
+> e ali ele não dá erro, dá registro que a outra metade não enxerga. Mesma família do bug da
+> s249 e da [assinatura que ficou para trás](#a-assinatura-que-ficou-para-trás--s198-e-s312).
+
 ## Casos de captura da bet365 → [`casos/CASOS_BET365.md`](casos/CASOS_BET365.md)
 
 O muro do histórico do navegador (a travada que o "reconectar" não curava) e a memória
