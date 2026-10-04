@@ -1445,7 +1445,7 @@
         // corpo para aprender (`PartnerId`, `Whence`, `BonusUserId` são da conta).
         sapphirebet: { nome: "SapphireBet", hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size },
         paripesa:   { nome: "PariPesa",   hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size },
-        megapari:   { nome: "MegaPari",   hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size },
+        megapari:   { nome: "Megapari",   hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size },
         "1xbet":    { nome: "1xBet",      hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size,
                       extra: x1Erro ? " · " + x1Erro
                            : (x1Respostas === 0 ? " · abra Minhas apostas (Histórico de apostas) e rode de novo" : "") },

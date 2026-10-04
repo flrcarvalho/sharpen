@@ -27,7 +27,7 @@
   varredura das 7 tabelas onde `casa` é texto não achou `1XBET`, `1x Bet` nem variante. O
   round-trip `_casa_display(_display_to_key("1xBet"))` fecha em identidade. Ver o aviso de
   mudança RETROATIVA em `docs/SHARPENUP_ARQUITETURA.md §5`.
-- **Espelhos no sistema (s391):** SapphireBet, PariPesa e MegaPari — o mesmo endpoint e o mesmo
+- **Espelhos no sistema (s391):** SapphireBet, PariPesa e Megapari — o mesmo endpoint e o mesmo
   JSON em `/bethistory-api/Web/`, com conta em dólar. Cada uma tem o próprio `CASA_*.md`. Para a
   próxima (Melbet, 22bet e afins), **prove o motor antes** pelo padrão da Betfast: mesmo caminho
   de API, mesmos nomes de campo num payload real.

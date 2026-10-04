@@ -104,7 +104,7 @@ _HOSTS_POR_CASA = {
     # de bilhetes vive no MESMO host da casa, então não há gateway separado para listar. O
     # `.com` global NÃO entra: a operação regulada é a `.bet.br` (mesmo critério da Pitaco).
     "1XBET":      ("1xbet.bet.br",),
-    # Espelhos da 1xBet (s391). SapphireBet e MegaPari trocam de DOMÍNIO (a MegaPari
+    # Espelhos da 1xBet (s391). SapphireBet e Megapari trocam de DOMÍNIO (a Megapari
     # redireciona `megapari.com` para espelhos como `2479527mp.pro`): ficam aqui os conhecidos,
     # e domínio novo passa (`casa_de_host` só barra domínio de OUTRA casa conhecida).
     "SAPPHIREBET": ("sbethub2365.com",),

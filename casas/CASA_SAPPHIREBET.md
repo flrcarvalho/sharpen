@@ -38,7 +38,7 @@ Mesmo motor, provado no recon de 03/10/2026 com conta do Feca: `POST
 /bethistory-api/Web/GetBetInfoHistoryWithSummaryByDates`, corpo com `DateFrom`/`DateTo`/`Count`/
 `CfView`/`PartnerId`, resposta `{BetInfos, BetsSummaryInfo}`, `BetStatus` 1/2/4. **Muda só o
 caminho** (`/bethistory-api/Web/` no lugar de `/service/bethistory/`). Inject, formatador e robô
-são os da 1xBet. Irmãs no mesmo caminho: SapphireBet, PariPesa e MegaPari.
+são os da 1xBet. Irmãs no mesmo caminho: SapphireBet, PariPesa e Megapari.
 
 > **Ao mexer numa das quatro, rode o harness das quatro.**
 

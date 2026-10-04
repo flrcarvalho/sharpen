@@ -1,7 +1,7 @@
 # CASA_MEGAPARI
-## Camada de tradução — MegaPari → padrão global (FDC Capital)
+## Camada de tradução — Megapari → padrão global (FDC Capital)
 
-> **Esta é a camada FINA.** Ela só descreve o que a MegaPari faz de diferente. Cálculo, resultado,
+> **Esta é a camada FINA.** Ela só descreve o que a Megapari faz de diferente. Cálculo, resultado,
 > descrição e output são **globais** — `global/MASTER_*`. Arquivo de casa **traduz**, nunca
 > redefine regra global (invariante 2 do `CLAUDE.md`).
 >
@@ -12,13 +12,15 @@
 
 ## 1. Identidade
 
-- **Marca:** `MegaPari` · **domínio:** `megapari.com`, que **redireciona para espelhos que
+- **Marca:** `Megapari` · **domínio:** `megapari.com`, que **redireciona para espelhos que
   trocam de endereço** (`2479527mp.pro` no recon) — por isso fica fora do `CASA_HOSTS` do popup.
-- **Chave no sistema:** `MEGAPARI` → display `MegaPari`
+- **Chave no sistema:** `MEGAPARI` → display `Megapari`
 - **Motor:** o da **1xBet** (§1.2). Inject `extensor/x1_inject.js`, formatador `formatTicket1X`.
-- **Grafia (s391):** a base não tinha nenhuma (medido em 03/10/2026), então vale a da marca.
-  Escolha a casa **na lista** ao criar a conta: grafia digitada diferente (`megapari`
-  com espaço, por exemplo) cria uma casa à parte, sem captura.
+- **Grafia `Megapari` (s391): a BASE decidiu.** A 1ª versão registrou `MegaPari` (a marca)
+  depois de uma medição que só procurou essa grafia: `Megapari` já existia em duas contas (uma
+  de outro dono, anterior ao registro). O `/salvar` impõe a grafia registrada, e os 20 bilhetes
+  da 1ª captura caíram numa casa que a conta não enxergava (o bug da s249). Registro trocado e
+  bilhetes movidos por `scripts/unificar_casas.py`. **Meça grafia com `lower()`, nunca exata.**
 - **Moeda:** **USDT** (§1.1).
 
 ### 1.1 A MOEDA é da conta  ⭐
@@ -38,7 +40,7 @@ Mesmo motor, provado no recon de 03/10/2026 com conta do Feca: `POST
 /bethistory-api/Web/GetBetInfoHistoryWithSummaryByDates`, corpo com `DateFrom`/`DateTo`/`Count`/
 `CfView`/`PartnerId`, resposta `{BetInfos, BetsSummaryInfo}`, `BetStatus` 1/2/4. **Muda só o
 caminho** (`/bethistory-api/Web/` no lugar de `/service/bethistory/`). Inject, formatador e robô
-são os da 1xBet. Irmãs no mesmo caminho: SapphireBet, PariPesa e MegaPari.
+são os da 1xBet. Irmãs no mesmo caminho: SapphireBet, PariPesa e Megapari.
 
 > **Ao mexer numa das quatro, rode o harness das quatro.**
 

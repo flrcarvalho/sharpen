@@ -93,6 +93,16 @@ MAPA = {
     # do cadastro à mão. Sem esta linha, o bilhete do Jaao26 continuaria gravado numa casa
     # que a conta dele não enxerga: grade vazia, sem erro nenhum, o bug da s249.
     "r7.bet":        "R7",
+    # s391 — a mesma família, causada por NÓS: a Megapari entrou no `_CASA_DISPLAY` como
+    # `MegaPari` (a marca), mas `Megapari` já existia em duas contas (Gabriel e Feca), e a
+    # medição que dizia "a base não tem nenhuma" procurou a grafia exata. A 1ª captura do
+    # Feca (20 bilhetes, USDT) foi gravada como `MegaPari`, invisível na conta dele. O registro
+    # passou a `Megapari` (0.7.37) e esta linha move os 20, recalculando a assinatura.
+    "MegaPari":      "Megapari",
+    # s391 — gêmea antiga, fora do registro, achada pelo `tools/audit_grafias.py`: `Bingoplus`
+    # (Feca, realtrial; 10 bilhetes) × `BingoPlus` (LavaPessoal, Diogo; 7). Escolha do Feca:
+    # `BingoPlus`, como a marca escreve.
+    "Bingoplus":     "BingoPlus",
 }
 
 # Contas de typo que ficaram vazias. Só some se tiver ZERO bilhete (conferido em tempo de execução).

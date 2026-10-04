@@ -22,7 +22,7 @@
 | 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | **NO AR (s391)** |
 | 4a | Captura: **Bet Panda** | **NO AR e validada ao vivo (s391)**: 45 de 45 |
 | 4b | Captura: **Dexsport** (escolha do Feca, antes das 1xBet) | **NO AR (s391)**, falta validar ao vivo |
-| 4c | Captura: **SapphireBet + PariPesa + MegaPari** (espelhos da 1xBet) | **NO AR (s391)**, falta validar ao vivo |
+| 4c | Captura: **SapphireBet + PariPesa + Megapari** (espelhos da 1xBet) | **NO AR (s391)**, falta validar ao vivo |
 | 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | **NO AR (s391)** |
 
 ### O que o passo 1 fez
@@ -204,7 +204,7 @@ o que a página pediu. Bilhete: `id` (19 díg.), `sum`, `k`, `result_sum`, `stat
 
 ### O que o passo 4c fez (s391)
 
-- **Três casas, não duas:** o Feca acrescentou a **MegaPari** (USDT), que `megapari.com`
+- **Três casas, não duas:** o Feca acrescentou a **Megapari** (USDT), que `megapari.com`
   redireciona para espelhos de domínio variável (`2479527mp.pro` no recon). Recon com a conta
   dele nas três: mesmo corpo, mesmo JSON e mesmo enum da 1xBet, caminho `/bethistory-api/Web/`.
 - `x1_inject.js` casa os dois caminhos. `formatTicket1X` ganhou a moeda no dinheiro (`_dinJB`),
@@ -214,8 +214,10 @@ o que a página pediu. Bilhete: `id` (19 díg.), `sum`, `k`, `result_sum`, `stat
   servidor já o lia (`carimbos_do_texto`) e ele decide o **dia da cotação**. Fecha a pendência
   da DEX Sport (aberta com jogo amanhã cotada pela data do evento). Casa em real fica byte a byte
   igual (controle negativo no harness).
-- Grafias da marca (`SapphireBet`, `PariPesa`, `MegaPari`; a base não tinha nenhuma).
-  **SapphireBet e MegaPari ficam fora do `CASA_HOSTS` do popup** de propósito: trocam de domínio,
+- Grafias `SapphireBet`, `PariPesa` e `Megapari`. ⚠️ A 1ª versão registrou `MegaPari` e a base já
+  tinha `Megapari` (medição feita sem `lower()`): os 20 bilhetes da 1ª captura caíram numa casa
+  gêmea, invisível na conta. Corrigido na 0.7.37 + `unificar_casas.py` (o bug da s249).
+  **SapphireBet e Megapari ficam fora do `CASA_HOSTS` do popup** de propósito: trocam de domínio,
   e domínio listado travaria o espelho novo. A PariPesa (domínio estável) entra.
 - Harness: um caso por casa sobre `x1_espelho.mjs` (12 + 4 + 4 bilhetes reais), 7 mutações
   detectadas. SharpenUp **0.7.36**, nota genérica só na home.

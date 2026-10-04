@@ -58,7 +58,7 @@
 
 (function () {
   // Dois caminhos, o MESMO endpoint e o MESMO JSON (s391, medido nas três): a 1xBet usa
-  // `/service/bethistory/`; as espelho SapphireBet, PariPesa e MegaPari usam
+  // `/service/bethistory/`; as espelho SapphireBet, PariPesa e Megapari usam
   // `/bethistory-api/Web/`. O corpo e a resposta são idênticos.
   const RX = /\/(?:service\/bethistory|bethistory-api\/Web)\/GetBetInfoHistoryWithSummaryByDates/i;
   const byRef = new Map();                     // BetId(string) → bilhete normalizado

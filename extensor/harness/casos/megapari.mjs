@@ -1,4 +1,4 @@
-// MegaPari — ESPELHO da 1xBet (s391). `megapari.com` redireciona para espelhos que trocam de
+// Megapari — ESPELHO da 1xBet (s391). `megapari.com` redireciona para espelhos que trocam de
 // domínio (`2479527mp.pro` no recon); o endpoint é o mesmo `GetBetInfoHistoryWithSummaryByDates`
 // em `/bethistory-api/Web/`, conta em USDT. A conferência comum está em `../x1_espelho.mjs`.
 //
@@ -7,7 +7,7 @@
 // NÃO coberto: anulada, sistema, cashout, boost.
 import { conferirEspelho } from "../x1_espelho.mjs";
 
-export const casa = "MegaPari";
+export const casa = "Megapari";
 
 const ESPERADO = {
   "88192410319": { stake: "12,00", odd: "20,77", status: /^Ganhou → W$/, retorno: "249,24" },

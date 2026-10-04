@@ -1,4 +1,4 @@
-// Conferência comum das casas ESPELHO da 1xBet (s391): SapphireBet, PariPesa e MegaPari.
+// Conferência comum das casas ESPELHO da 1xBet (s391): SapphireBet, PariPesa e Megapari.
 //
 // As três servem o MESMO `GetBetInfoHistoryWithSummaryByDates` da 1xBet, com o MESMO JSON
 // (`{BetInfos, BetsSummaryInfo}`), num caminho diferente: `/bethistory-api/Web/` no lugar de

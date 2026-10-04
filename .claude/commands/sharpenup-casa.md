@@ -50,6 +50,12 @@ tela da casa**, nunca afrouxe o teste para o codigo passar.
 
 ## Fase 5 — Registro (12 pontos)
 
+**ANTES de escrever a grafia em qualquer ponto, rode `python tools/audit_grafias.py` e procure
+a casa na base sem caixa e sem espaco.** Se ela ja existe, a grafia registrada e a DA BASE,
+nao a da marca. O registro manda em toda gravacao (`main.casa_oficial`), entao registrar uma
+grafia que a base nao usa grava a captura numa casa que a conta nao enxerga (s391: a Megapari
+registrada como `MegaPari`, 20 bilhetes invisiveis; o mesmo bug da s249).
+
 Percorra a tabela de `ARQUITETURA §5`. Depois **prove**:
 
 ```

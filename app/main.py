@@ -303,11 +303,13 @@ _CASA_DISPLAY: dict[str, str] = {
     # RETROATIVA em docs/SHARPENUP_ARQUITETURA.md §5 — é o defeito que matou a Jonbet na s249.
     "1XBET":          "1xBet",
     # Espelhos da 1xBet (s391): MESMO endpoint e JSON, caminho `/bethistory-api/Web/`.
-    # Grafias = as do Feca (a base não tinha nenhuma, medido em 03/10/2026). SIGILO: fora de
+    # Grafias = as da BASE. `Megapari` já existia (2 contas) e a 1ª versão registrou
+    # `MegaPari`: o round-trip abaixo gravou a captura numa casa que a conta não via (s249).
+    # SIGILO: fora de
     # aviso aos testers, changelog e home (nota genérica).
     "SAPPHIREBET":    "SapphireBet",
     "PARIPESA":       "PariPesa",
-    "MEGAPARI":       "MegaPari",
+    "MEGAPARI":       "Megapari",
     "POLYMARKET":     "Polymarket",
     # 2ª e 3ª casas do motor Rogue (s335), espelho do Betão acima.
     #
@@ -374,6 +376,38 @@ def _display_to_key(name: str) -> str:
         if display.upper() == upper:
             return key
     return name.strip()
+
+
+def _norm_casa(nome: str) -> str:
+    return "".join(str(nome or "").split()).lower()
+
+
+def _casa_registrada(nome: str) -> str | None:
+    """A grafia OFICIAL quando a casa está no registro, comparando sem caixa e sem espaço
+    ("megapari", "Mega Pari", "MEGAPARI" → "Megapari"). Casa fora do registro: None.
+
+    NASCEU DE (s391, Megapari): havia DUAS autoridades para o nome da casa. Criar/editar
+    conta usava a grafia da BASE (`casa_canonica`); o `/salvar` usava a do REGISTRO
+    (`_casa_display`). Quando divergiam, a conta ficava numa grafia e os bilhetes noutra,
+    sem erro (a grade filtra `casa = $1` exato). Agora todos os caminhos passam por aqui, e
+    `tools/audit_grafias.py` acusa base e registro fora de linha."""
+    n = _norm_casa(nome)
+    if not n:
+        return None
+    for key, display in _CASA_DISPLAY.items():
+        if n == _norm_casa(key) or n == _norm_casa(display):
+            return display
+    return None
+
+
+async def casa_oficial(nome: str) -> str:
+    """O nome com que a casa é GRAVADA, em qualquer caminho (criar conta, editar conta,
+    `/salvar` sem conta): registro primeiro; fora dele, a grafia que já existe na base
+    (`casa_canonica`); casa nova entra verbatim."""
+    nome = (nome or "").strip()
+    if not nome:
+        return nome
+    return _casa_registrada(nome) or await casa_canonica(nome)
 
 
 # ── Cache warmer ──────────────────────────────────────────────────────────────
@@ -4008,12 +4042,17 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
     elif casa_txt:
         # Sem conta pela qual resolver (extensão, import, /salvar direto): pelo menos não
         # deixa nascer uma gêmea por caixa/espaço de uma casa já existente.
-        casa_txt = await casa_canonica(casa_txt)
+        casa_txt = await casa_oficial(casa_txt)
 
+    # A casa gravada é a DA CONTA quando ela veio pelo ID, verbatim, e a da regra única
+    # (`casa_oficial`) quando não veio (s391). Nunca o round-trip pelo registro: era ele que
+    # gravava a 1ª captura da Megapari como `MegaPari`, numa casa que a conta não via. Conta
+    # em grafia variante não nasce mais (criar/editar usam a regra única); a que já existia,
+    # o `tools/audit_grafias.py` acusa — e enquanto existir, os bilhetes ficam VISÍVEIS nela.
     casa_key = _display_to_key(casa_txt) if casa_txt else None
     for row in rows:
         if casa_key:
-            row["casa"] = _casa_display(casa_key)
+            row["casa"] = casa_txt
         if parceiro_txt:
             row["parceiro"] = parceiro_txt
         row["tipster"] = ""
@@ -5031,7 +5070,7 @@ async def criar_parceiro_route(body: ParceiroCriarRequest, dono: str = Depends(d
     # A casa NASCE aqui — é o ponto certo para impedir uma gêmea por caixa/espaço de uma
     # casa que já existe ("Pixbet" quando o sistema já tem "PixBet"). Casa realmente nova
     # segue entrando verbatim (ver `casa_canonica`).
-    row = await criar_parceiro(await casa_canonica(_casa_display(casa_key)), nome, dono, moeda)
+    row = await criar_parceiro(await casa_oficial(body.casa), nome, dono, moeda)
     return row
 
 
@@ -5198,7 +5237,7 @@ async def editar_parceiro_route(parceiro_id: int, body: ParceiroEditarRequest,
     if casa:
         # Mesma trava do POST /parceiros: a casa é texto, e uma gêmea por caixa/espaço
         # ("Pixbet" quando já existe "PixBet") nasceria aqui se passasse verbatim.
-        casa = await casa_canonica(_casa_display(_display_to_key(casa)))
+        casa = await casa_oficial(casa)
     # Converte na FRONTEIRA: a coluna é DATE e o asyncpg exige datetime.date — string
     # crua estoura dentro do driver e vira 500 na rota (s314).
     adquirida = (body.adquirida_em or "").strip()
