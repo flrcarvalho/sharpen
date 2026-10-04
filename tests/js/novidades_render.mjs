@@ -68,8 +68,14 @@ const dias = n => new Date(hoje.getTime() - n * 864e5).toISOString().slice(0, 10
   // A versão publicada tem de estar VISÍVEL, não só existir no arquivo: é o corte SU_MAX
   // que já escondeu itens recuperados antes (s254).
   const manifesto = JSON.parse(fs.readFileSync(path.join(RAIZ, 'extensor', 'manifest.json'), 'utf8')).version;
-  ok(nos['su-list'].innerHTML.includes('v' + manifesto),
-     `a versão publicada (v${manifesto}) não aparece na caixa — SU_MAX está cortando cedo demais`);
+  // Versão DISPENSADA de nota (`sharpenup_sem_nota`, a mesma régua do `audit_changelog`) não
+  // tem item para aparecer: aí quem tem de estar visível é a nota mais recente que existe
+  // (s392: a 0.7.39 da MyStake saiu sem nota por decisão do Feca). Sem isso o gate de render
+  // e o audit discordam, e a dispensa que o audit aceita deixa o CI vermelho.
+  const dispensada = (CHANGELOG.sharpenup_sem_nota || {})[manifesto] != null;
+  const alvo = dispensada ? String(CHANGELOG.sharpenup[0].v).replace(/^v/, '') : manifesto;
+  ok(nos['su-list'].innerHTML.includes('v' + alvo),
+     `a versão publicada (v${alvo}${dispensada ? ', a última com nota' : ''}) não aparece na caixa — SU_MAX está cortando cedo demais`);
 }
 
 // ── 2. **negrito** vira <b>, e HTML do dado é ESCAPADO (XSS) ──────────────
