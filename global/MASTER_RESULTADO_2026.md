@@ -474,6 +474,47 @@ Quando houver cashout parcial combinado com settlement posterior:
 
 ---
 
+## 5.8 Freebet (aposta com dinheiro da casa)
+
+> Decisão do Feca, 03/10/2026, vale para TODAS as casas: freebet é dinheiro da casa.
+> Ela não entra no bolso do apostador em nenhum sentido: não é perda quando perde, não
+> é turnover, e a Caixa Inteligente não a desconta do saldo.
+
+O TSV **NÃO muda**: `Stake` continua **CHEIO** (o valor apostado, freebet incluída) e
+`Odd`/`Resultado` seguem as regras acima. A freebet viaja **fora do TSV**: a captura marca o
+bloco com `Freebet incluído: <valor>` e o **sistema** guarda esse valor ao lado da aposta.
+A IA nunca desconta nada do stake.
+
+```text
+dinheiro real = Stake − Freebet
+retorno       = o que a régua já registra (Stake × Odd, ver §5.2 e §5.6)
+P/L           = retorno − dinheiro real
+```
+
+| Resultado | P/L com freebet | Por quê |
+|---|---|---|
+| L | −(Stake − Freebet) — freebet INTEIRA: 0 | a parte da casa não era do apostador |
+| W | Stake × Odd − (Stake − Freebet) | vale para a casa que paga só o lucro e para a que devolve o stake: a régua usa o retorno REAL |
+| V | 0 | a casa devolve a freebet como CRÉDITO, e a parte real em dinheiro |
+| Cashout de freebet INTEIRA | 0 | o valor volta como NOVA freebet, não como dinheiro; o que conta é o resultado da aposta feita com ela |
+| HW / HL / cashout de freebet PARCIAL | sem amostra: subir "a conferir", não liquidar | — |
+
+Turnover e ROI usam o dinheiro real (`Stake − Freebet`), nunca o stake cheio.
+
+Exemplos (bilhetes reais):
+
+```text
+MyStake 306558902 · Stake 45,00 · Freebet 45,00 · L        → P/L 0,00    (antes: −45,00)
+Superbet 890Y-QHQ8VF · Stake 200,00 · Freebet 10,00 · L    → P/L −190,00 (antes: −200,00)
+SportingBet 20NWTMBZYW · Stake 17,00 · Freebet 17,00 · W @ 1,35 (retorno 22,95)
+                                                           → P/L +22,95  (antes: +5,95)
+```
+
+> A SportingBet informa retorno `stake × odd` na freebet ganha; não foi conferido no saldo
+> se a casa credita esse valor ou só o lucro. Segue-se a API (decisão do Feca, 04/10/2026).
+
+---
+
 # 6. Promoções e Odds Boost
 
 Regra universal:
@@ -752,6 +793,7 @@ Antes de retornar a saída, o extrator deve validar:
 10. múltiplas perdedoras preservam odd estrutural
 11. cashout igual à stake gera `V`; cashout diferente da stake gera `W` com Odd = Cashout ÷ Stake
 12. odd calculada por divisão preserva precisão total (sem arredondamento)
+13. freebet nunca é descontada do Stake no TSV — o Stake é cheio e o desconto é do sistema (§5.8)
 
 ---
 
