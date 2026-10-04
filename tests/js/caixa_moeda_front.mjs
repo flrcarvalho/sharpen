@@ -6,7 +6,8 @@
 // C. `_cxTxt` (texto corrido) idem;
 // D. `_cxBrl`: conta em R$ soma o próprio valor; em USD/USDT soma o convertido (`*_brl`);
 //    sem cotação devolve null (a conta fica FORA da soma, nunca somada como real);
-// E. `_cxSigla` dá o rótulo do campo ("Valor (USDT)").
+// E. `_cxSigla` dá o rótulo do campo ("Valor (USDT)");
+// F. `_cxHintMoeda` diz na ativação em que moeda a conta está (s392).
 //
 // O que NÃO está coberto: a montagem das telas (renderCaixa, painel) e o visual — medidos
 // no navegador.
@@ -36,8 +37,8 @@ const cst = (nome) => {
 
 const ctx = {};
 vm.createContext(ctx);
-vm.runInContext([cst('_MOEDA_ORIG'), fn('_num2BR'), fn('fmtMoedaOrig'), fn('fmtSaldo'), fn('_cxSigla'), fn('_cxTxt'), fn('_cxBrl')].join('\n')
-  + '\nthis.api = { fmtSaldo, _cxTxt, _cxBrl, _cxSigla };', ctx);
+vm.runInContext([cst('_MOEDA_ORIG'), fn('_num2BR'), fn('fmtMoedaOrig'), fn('fmtSaldo'), fn('_cxSigla'), fn('_cxHintMoeda'), fn('_cxTxt'), fn('_cxBrl')].join('\n')
+  + '\nthis.api = { fmtSaldo, _cxTxt, _cxBrl, _cxSigla, _cxHintMoeda };', ctx);
 const A = ctx.api;
 const txt = (h) => h.replace(/<[^>]+>/g, '');
 
@@ -65,6 +66,11 @@ eq(A._cxBrl({ moeda: 'USDT', disponivel: 100, disponivel_brl: null }, 'disponive
 
 // E. rótulo
 eq(A._cxSigla('USDT'), 'USDT', 'E: USDT'); eq(A._cxSigla('USD'), 'US$', 'E: USD'); eq(A._cxSigla('BRL'), 'R$', 'E: BRL'); eq(A._cxSigla(null), 'R$', 'E: sem moeda');
+
+// F. a ativação diz a moeda da conta (s392): em R$ aponta onde trocar, fora confirma
+ok(txt(A._cxHintMoeda('BRL')).includes('Conta em R$') && A._cxHintMoeda('BRL').includes('edição da conta'), 'F: conta em R$ aponta a edição da conta');
+ok(txt(A._cxHintMoeda(null)).includes('Conta em R$'), 'F: sem moeda é R$');
+ok(txt(A._cxHintMoeda('AUD')).includes('Conta em A$') && !A._cxHintMoeda('AUD').includes('edição da conta'), 'F: conta em AUD confirma A$ e não manda trocar');
 
 if (falhas) { console.error(`\n${falhas} falha(s)`); process.exit(1); }
 console.log('ok: caixa na moeda da conta (tela)');

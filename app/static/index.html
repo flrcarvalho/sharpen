@@ -7544,6 +7544,16 @@ function _cxSigla(moeda) {
   const f = moeda && _MOEDA_ORIG[moeda];
   return f ? (f.pre || f.pos) : 'R$';
 }
+// Linha da ATIVAÇÃO que diz em que moeda a conta está (s392, pedido do Feca). Conta
+// estrangeira cadastrada em BRL ativava a Caixa com o saldo em A$ lido como R$, sem nada na
+// tela dizendo que a moeda vem do cadastro. Em R$ a linha aponta onde trocar; fora dele,
+// confirma que o valor é digitado na moeda da conta.
+function _cxHintMoeda(moeda) {
+  const sg = _cxSigla(moeda);
+  return sg === 'R$'
+    ? '<br><b>Conta em R$.</b> Se a casa mostra o saldo em outra moeda, troque a moeda na edição da conta antes de ativar.'
+    : '<br><b>Conta em ' + sg + '.</b> Digite o saldo em ' + sg + ', como a casa mostra: a Caixa desta conta roda inteira nessa moeda.';
+}
 // Duas grafias, de propósito: a LEITURA é compacta (dd/mm/aa, cabe na coluna de
 // 300px) e o CAMPO é por extenso (dd/mm/aaaa, que é o que o operador digita e o
 // que o parser aceita sem adivinhar século). Foi exatamente aqui que o primeiro
@@ -7785,7 +7795,8 @@ function caixaAbrirModal(tipo, mov) {
   // No modo edição o segmento some: o tipo é o fato, e ele não se troca por aqui.
   document.getElementById('cxm-tipo-field').style.display = (ini || editando) ? 'none' : '';
   document.getElementById('cxm-hint').innerHTML = (_CX_HINT[tipo] || '')
-    + (editando && ini ? _CX_HINT.editando : '');
+    + (editando && ini ? _CX_HINT.editando : '')
+    + (ini && !editando ? _cxHintMoeda(caixaAtual && caixaAtual.moeda) : '');
   _cxErro('');
   document.getElementById('cxm-ok').textContent =
     editando ? 'Salvar' : (ini ? 'Ativar Caixa Inteligente' : 'Lançar');

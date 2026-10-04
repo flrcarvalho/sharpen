@@ -115,6 +115,10 @@ MUTACOES_TELA = [
     ("a conta USDT soma o valor cru", "  const v = cx[k + '_brl'];", "  const v = cx[k];"),
     ("sem cotação vira zero na soma", "  return (v == null) ? null : v;", "  return (v == null) ? 0 : v;"),
     ("o texto ignora a moeda", "  if (moeda && _MOEDA_ORIG[moeda]) return fmtMoedaOrig(n, moeda);\n", ""),
+    # s392: a ativação diz a moeda da conta e, em R$, onde trocá-la.
+    ("a ativação manda trocar a moeda de toda conta", "  return sg === 'R$'\n", "  return true\n"),
+    ("a ativação de conta em R$ não aponta onde trocar",
+     "troque a moeda na edição da conta antes de ativar.", "confira o saldo."),
 ]
 
 
