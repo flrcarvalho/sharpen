@@ -1265,7 +1265,7 @@
       // então o roboScroll genérico viraria um bloco só e a IA perderia o resto em silêncio
       // (lição da KTO, s192).
       blocos = await roboBNCPassive(ctx);
-    } else if (casa === "tivo" || casa === "betfast" || casa === "faz1bet") {
+    } else if (casa === "tivo" || casa === "betfast" || casa === "faz1bet" || casa === "mystake") {
       // Passivo + replay de UMA chamada (tv_inject). O histórico não tem paginação: a casa
       // devolve a conta inteira com `Count`. SEM fallback de texto — a lista da Tivo é uma
       // tabela sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
@@ -1477,6 +1477,7 @@
         // 3ª casa do mesmo motor (s284). Mesma razão da linha acima: o nome no toast é o da
         // casa em que o operador está, não o da primeira que usou o inject.
         faz1bet:    { nome: "Faz1bet",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
+        mystake:    { nome: "MyStake",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.
@@ -4875,7 +4876,10 @@
   //     mas WinKoef = 2,67 (só a que valeu) e WinAmount = 151 × 2,67 = 403,17 AO CENTAVO.
   // A casa recalculou o bilhete sem a perna void. A odd efetiva sai da régua global
   // (`retorno ÷ stake`), que o `_oddTV` já aplica quando o Koef não explica o retorno.
-  const _RESULT_PERNA_TV = { 0: "pendente", 1: "anulada/devolvida", 2: "ganhou", 3: "perdeu" };
+  // `6` = MEIA DERROTA (s392, MyStake): duas pernas de handicap asiático partido conferidas
+  // contra o placar (−0,25 no empate · +0,75 perdendo por 1). A tela pinta de vermelho, igual
+  // à derrota cheia; só a API distingue. O P/L vem do bilhete, isto é só a descrição da perna.
+  const _RESULT_PERNA_TV = { 0: "pendente", 1: "anulada/devolvida", 2: "ganhou", 3: "perdeu", 6: "meia derrota" };
 
   function formatTicketTV(t) {
     const L = [];
@@ -4907,6 +4911,12 @@
     if (tipo) L.push("Tipo: " + tipo);
     if (_abertaTV(t) && t.potencial != null) L.push("Retorno potencial: R$ " + _brl(t.potencial));
     if (t.bonus) L.push("Marcação da casa: aposta com bônus (IsBonus)");
+    // FREEBET (`TicketType 3`, s392): a aposta INTEIRA foi com dinheiro da casa. O rótulo é o
+    // mesmo que a Superbet já emite para freebet parcial, para a regra global de freebet ler
+    // UM rótulo só. O `Stake:` acima continua cheio — quem desconta é a regra, nunca a IA.
+    if (t.tipoBilhete === 3 && t.stake != null) {
+      L.push("Freebet incluído: " + _brl(t.stake) + " (dinheiro real = stake − freebet)");
+    }
     if (t.cashout) L.push("Marcação da casa: cashout (CashOut) — conferir valor no card");
 
     // Sinal para a IA classificar Múltipla × Bet Builder pelo MASTER_ESPORTES, sem que o

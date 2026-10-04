@@ -80,6 +80,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # payload mostram a mesma odd). 3ª casa do motor BetConstruct: mesmo espaço de IDs,
     # numérico de 9 dígitos, como Tivo e Betfast.
     "FAZ1BET":    "301526505",
+    # id real da conta (a 1ª perdida de 02/10, Koef 12,235). 4ª casa BetConstruct: mesmo
+    # espaço de IDs, numérico de 9 dígitos.
+    "MYSTAKE":    "306558258",
     "VAIDEBET":   "5234878919",
     # id real da conta (o W de 09/08 na Bahia × Vasco, stake 124 → retorno 198,40). A
     # Esportiva é espelho da VaideBet e compartilha o espaço de IDs do motor Altenar:

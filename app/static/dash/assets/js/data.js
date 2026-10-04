@@ -42,6 +42,7 @@ const CASA_ICONS={
   // Plataforma propria (s391).
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
+  'MyStake':'https://www.google.com/s2/favicons?sz=128&domain=mystake.bet',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
   // s372: `betboo.com` → `betboo.bet.br` (operação regulada), ao entrar na captura. Os dois
   // devolvem o MESMO ícone (sha256 idêntico, 791 bytes) — o visual não muda.
@@ -143,6 +144,7 @@ const HOUSE_DOMAIN={
   'DEX Sport':'dexsport.io',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo
+  'MyStake':'mystake.bet',     // 4ª casa BetConstruct (s392)
   'Polymarket':'polymarket.com',
   'Betboo':'betboo.bet.br',   // s372 — regulada, ao entrar na captura (era betboo.com)
   'Betbra':'betbra.bet.br',

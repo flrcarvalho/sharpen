@@ -177,6 +177,9 @@
       cashoutPossivel: _n(t.PossibleCashout),
       sistema: !!t.IsSystem,
       bonus: !!t.IsBonus,
+      // `TicketType` cru: 0 = normal · 3 = FREEBET (badge "F" no card da MyStake, s392 —
+      // confirmado pelo dono). Outros valores sobem como vieram; quem decide é o content.
+      tipoBilhete: t.TicketType != null ? t.TicketType : null,
       moeda: t.CurrencySTR || "",
       itens: (t.Items || []).map(parseItem).filter(Boolean),
     };

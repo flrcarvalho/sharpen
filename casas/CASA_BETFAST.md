@@ -193,6 +193,7 @@ Quem decide W/V/HW/HL é a régua financeira do `MASTER_RESULTADO_2026`, não o 
 | **1** | **anulada / devolvida (void)** |
 | 2 | ganhou |
 | 3 | perdeu |
+| **6** | **meia derrota** — provado na MyStake (s392), mesmo motor: 2 pernas de handicap asiático partido conferidas contra o placar. A tela pinta de vermelho, igual à derrota cheia ([`CASA_MYSTAKE §5.2`](CASA_MYSTAKE.md)) |
 
 ### 5.2 ⭐ Perna anulada (`Result: 1`) — a casa recalcula o bilhete
 
@@ -251,6 +252,8 @@ Os campos existem (`CashOut: false`, `PossibleCashout: null` em 50 de 50) mas **
 
 `IsBonus` existe no payload; **`false` em 50 de 50**. O bloco capturado emite `Marcação da casa: aposta com bônus` quando a flag vier true, para a IA decidir pelo global.
 `IsSystem` idem — nenhuma aposta de sistema na amostra.
+
+**Freebet = `TicketType: 3`** (provado na MyStake, s392 — mesmo motor, vale para as quatro casas). O bloco emite `Freebet incluído: <stake> (dinheiro real = stake − freebet)`, o mesmo rótulo da Superbet. Ver [`CASA_MYSTAKE §8`](CASA_MYSTAKE.md).
 
 ---
 

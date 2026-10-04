@@ -1327,6 +1327,41 @@ runners `scripts/experimento_fluxo_s386.py` e `scripts/reavaliar_s386.py` (no br
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
 
+### 4.0a Freebet = dinheiro da casa, em TODAS as casas — decidido, NÃO implementado (s392). **VIVA, medida**
+
+**Decisão do Feca, 03/10/2026** (memória `freebet_dinheiro_da_casa`): aposta feita com freebet
+entra no P/L como dinheiro da casa — **perda = 0**, ganho = lucro sem o stake (a casa paga só
+o lucro), fora do turnover/ROI, e **a Caixa Inteligente não desconta o stake**. Hoje o Feca
+lança Ajuste à mão na Caixa da Betfast/Tivo para a conferência bater; é esse ajuste que some.
+
+O que existe: a captura BetConstruct (Tivo/Betfast/Faz1bet/MyStake) emite
+`Freebet incluído: <valor> (dinheiro real = stake − freebet)` quando `TicketType 3` — o MESMO
+rótulo da Superbet (freebet parcial). O que falta, um por vez:
+
+1. Texto da regra no `MASTER_RESULTADO` (diff para o Feca aprovar) — hoje não há regra global;
+   Blaze manda "a IA decidir pelo global", Bet365/Betano/KTO estão como TODO.
+2. Coluna `stake_freebet` (R$, não booleano: cobre freebet parcial e inteira) preenchida pelo
+   servidor a partir do bloco do mesmo código, como `corrigir_stake_tsv` — o TSV é imutável em
+   10 colunas (`MASTER_OUTPUT §2`), então a IA fica fora disso.
+3. `calcular_pl` + espelho no front, Caixa (`_caixa_projetar`), turnover/ROI. P/L é derivado
+   na leitura: marcada a coluna, o histórico se corrige sem script de P/L.
+4. A marca precisa sobreviver ao UPSERT em linha **resolvida** (stake congela; a marca vem da
+   fonte e tem de refrescar).
+5. Sem amostra de **freebet ganha** em payload: conferir `WinAmount` campo a campo antes de
+   escrever a conta do ganho.
+
+Bilhete de prova: MyStake `306558902` (R$ 45,00, perdido) — hoje conta −R$ 45.
+
+### 4.0b `hisminus: true` inverte o sinal do handicap na descrição — família BetConstruct (s392). **VIVA, medida**
+
+A tela da MyStake mostra `Escolher: 2 (0.75)` para `h: -0.75, hisminus: true` e
+`Escolher: 1 (-0.75)` para `h: -0.75, hisminus: false`. O `formatTicketTV` (`content.js`,
+`(linha …)` a partir de `i.linha`) emite o `h` **cru** e ignora o `hisminus`: a perna sai com o
+handicap de **sinal trocado**. Não afeta P/L (vem do bilhete). Fixtures: 5 pernas com
+`hisminus:true` em Tivo+Betfast, 4 na MyStake. Linha já gravada **não** se conserta por
+recaptura (o UPSERT congela `descricao`): precisa de script com ensaio. Prova no harness da
+MyStake (bilhete `306558758`, Dorking × Chatam).
+
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 **Próximo passo (backlog vivo, um por vez):**

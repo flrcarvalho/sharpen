@@ -54,6 +54,8 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # BETFAST: ESPELHO da Tivo (s211) — mesmo motor BetConstruct, mesmo caminho de API, mesmos
 # nomes de campo; muda o domínio e a cor. Usa o MESMO `tv_inject.js`, sem código duplicado.
 # FAZ1BET: 3ª casa do mesmo motor (s284), espelho das duas acima. Também usa o `tv_inject.js`.
+# MYSTAKE: 4ª casa do mesmo motor (s392). Reviews públicas atribuíam o sportsbook à Upgaming;
+# o F12 logado provou BetConstruct (mesmo `gethistory`, mesmas chaves, `Company: 28`).
 # O motor foi provado ANTES de registrar: 401 no `messagetosport` contra 404 numa rota falsa,
 # `sbloader.js` 200, e os 118 campos do payload real são subconjunto exato dos das outras
 # duas. O harness roda a fixture dela pelos TRÊS hosts e compara os blocos byte a byte.
@@ -67,7 +69,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "DEXSPORT": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto",
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "DEXSPORT": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "MYSTAKE": "texto",
                    # Betboo (s372) — espelho da SportingBet: mesmo inject, mesmo formatador,
                    # logo o mesmo modo. So muda a marca.
                    "BETBOO": "texto",
@@ -185,6 +187,12 @@ _HOSTS_POR_CASA = {
     # subconjunto exato dos das outras duas, sem nenhum campo novo. Só `faz1.bet.br` (o
     # site não usa `www`), e o `casa_de_host` casa subdomínio se um dia usar.
     "FAZ1BET":    ("faz1.bet.br",),
+    # 4ª casa BetConstruct (s392). Só `mystake.bet` foi provado logado (sportsbook em
+    # `/br/sportsbook`); `mystake.com` e `mystake2.com` são a mesma marca atrás do mesmo
+    # desafio Cloudflare, registrados para o espelho não exigir versão nova da extensão.
+    # Fora do `.bet.br`: a casa não é regulada no Brasil. `stake.bet.br` (casa Stake) NÃO
+    # colide: o `casa_de_host` casa host exato ou subdomínio, nunca substring.
+    "MYSTAKE":    ("mystake.bet", "mystake.com", "mystake2.com"),
     # A API vive em prod-betnacional-bets.bet6.com.br, mas a ABA (origem da captura) é o
     # site da casa — o backstop casa↔site olha o host da aba, não o da API.
     "BETNACIONAL": ("betnacional.bet.br",),
