@@ -91,7 +91,11 @@ def modo_da_casa(casa_key: str) -> str:
 _HOSTS_POR_CASA = {
     "SUPERBET":   ("superbet.bet.br", "superbet.com"),
     "BETANO":     ("betano.bet.br",),
-    "BET365":     ("bet365.com", "bet365.bet.br"),
+    # Bet365 fora do Brasil (s392): a mesma plataforma, só muda o domínio do país. Medido em
+    # 03/10/2026: `bet365.com.au` (Austrália) e `bet365.bet.ar` (Argentina) respondem; a
+    # Guatemala não tem domínio próprio e usa o `bet365.com`. País novo = domínio aqui, no
+    # `CASA_HOSTS` do popup e nos dois `matches` da Bet365 no manifest.
+    "BET365":     ("bet365.com", "bet365.bet.br", "bet365.com.au", "bet365.bet.ar"),
     "BETESPORTE": ("betesporte.bet.br",),
     "BETFAIR":    ("betfair.bet.br",),
     "PINNACLE":   ("pinnacle.bet.br",),

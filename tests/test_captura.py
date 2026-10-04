@@ -14,6 +14,9 @@ def test_casa_de_host_reconhece_dominio_exato_e_subdominio():
     assert captura.casa_de_host("superbet.com") == "SUPERBET"
     assert captura.casa_de_host("betano.bet.br") == "BETANO"
     assert captura.casa_de_host("bet365.com") == "BET365"
+    # Bet365 de outros países (s392): mesma casa, domínio do país.
+    assert captura.casa_de_host("members.bet365.com.au") == "BET365"
+    assert captura.casa_de_host("www.bet365.bet.ar") == "BET365"
     assert captura.casa_de_host("betesporte.bet.br") == "BETESPORTE"
     # Casas de captura que entraram depois (s170 Pinnacle, s190 KTO): o backstop tem de
     # protegê-las igual. Antes só a KTO era citada, e como EXEMPLO DE DESCONHECIDA no teste

@@ -26,7 +26,9 @@ const DOMINIOS = {
 const CASA_HOSTS = {
   "Superbet":   ["superbet.bet.br", "superbet.com"],
   "Betano":     ["betano.bet.br"],
-  "Bet365":     ["bet365.com", "bet365.bet.br"],
+  // Bet365 fora do Brasil (s392): Austrália e Argentina têm domínio próprio; a Guatemala
+  // usa o `bet365.com`. Espelha o `_HOSTS_POR_CASA` do captura.py.
+  "Bet365":     ["bet365.com", "bet365.bet.br", "bet365.com.au", "bet365.bet.ar"],
   "BETesporte": ["betesporte.bet.br"],
   "Betfair":    ["betfair.bet.br"],
   "Pinnacle":   ["pinnacle.bet.br"],
