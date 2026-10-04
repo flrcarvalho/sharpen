@@ -276,6 +276,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0740",
+      "v": "v0.7.40",
+      "data": "2026-10-04",
+      "texto": "**Ajustes internos na captura.** Nada muda no seu uso: é só atualizar a extensão."
+    },
+    {
       "id": "su-0738",
       "v": "v0.7.38",
       "data": "2026-10-03",

@@ -69,7 +69,7 @@ Idênticos aos da `CASA_BETFAST §2.5`. O que **esta** amostra acrescentou:
 |---|---|
 | `TicketType` | **0** normal · **3 = FREEBET** (§8). O inject repassa cru como `tipoBilhete` (s392) |
 | `Items[].Result` | 0 · 1 · 2 · 3 · **6 = meia derrota** (§5.2) |
-| `Items[].FinalPosition.hisminus` | `true` em 5 pernas — **o sinal exibido é o oposto do `h`** (§12) |
+| `Items[].FinalPosition.hisminus` | `true` em 4 pernas — **o sinal exibido é o oposto do `h`** (§12) |
 | `Company` | 28 |
 | `euba` / `eubs` | presentes em 6 dos 9 bilhetes, ausentes em 3 — internos, ignorados |
 
@@ -199,7 +199,7 @@ Só os mercados **confirmados no dado real desta casa** (27 pernas, 17 rótulos)
 
 Mesmo conjunto das irmãs (`CASA_BETFAST §12`): placeholder `{p1_r}` (resolver com `FinalPosition.p1`), `Team1Score`/`Team2Score` (estatística, não placar), `CalculatedBetAmount`, `Price`, `Company`, `Player.*`.
 
-⚠ **`hisminus: true` inverte o sinal da linha.** A tela mostra `Escolher: 2 (0.75)` para `h: -0.75, hisminus: true`, e `Escolher: 1 (-0.75)` para `h: -0.75, hisminus: false`. O formatador hoje emite o `h` cru, então o **handicap sai com sinal trocado na descrição** — em toda a família (Tivo e Betfast têm 5 pernas assim nas fixtures; a MyStake, 4). Não afeta P/L. **Pacote próprio no `BACKLOG.md`**, não corrigido aqui.
+⚠ **`hisminus: true` inverte o sinal da linha.** A tela mostra `Escolher: 2 (0.75)` para `h: -0.75, hisminus: true`, e `Escolher: 1 (-0.75)` para `h: -0.75, hisminus: false`. Desde a 0.7.40 o formatador emite a linha **com o sinal da tela** (`(linha 0,75)` no Dorking), travado no harness com o controle `hisminus:false`. Além da tela, o resultado da casa prova a leitura em três pernas que a linha crua não explica (meia derrota em −0,25 no 2:2; meia derrota em +0,75 perdendo por 1; vitória da BetFast em +3,5 com 7×8 faltas). Não afeta P/L. **Linha gravada antes da 0.7.40 continua com o sinal trocado** (o UPSERT congela `descricao`): `BACKLOG 4.0b`.
 
 ---
 
@@ -238,7 +238,7 @@ Mesmo conjunto das irmãs (`CASA_BETFAST §12`): placeholder `{p1_r}` (resolver 
 ## Feedback para a camada global / MODELO
 
 1. **Regra global de freebet** — decidida pelo Feca em 03/10/2026, não implementada (`BACKLOG.md`).
-2. **`hisminus`** inverte o sinal em toda a família BetConstruct (§12) — `BACKLOG.md`.
+2. **`hisminus`** inverte o sinal em toda a família BetConstruct (§12) — corrigido na captura (0.7.40); o histórico gravado antes segue no `BACKLOG 4.0b`.
 3. **`Company` identifica a casa dentro do motor** — é o sinal que um detector automático de casa espelho usaria.
 
 ---

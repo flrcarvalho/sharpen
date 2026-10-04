@@ -127,7 +127,7 @@ Lista tabular: `Status · Id · Data · Tipo · Valor apostado · ODDS · Quanti
 | `Items[].OfferedOddObject` | conteúdo real da odd oferecida | só no `ItemType 6` · rótulos **em inglês** |
 | `Items[].Market.Name` | mercado, já em pt-BR | pode conter placeholder `{p1_r}` (ver §12) |
 | `Items[].Position.Name` | seleção (`Mais de`, `Abaixo`, `Casa`, `Sim`) | |
-| `Items[].FinalPosition.h` | linha do mercado | `-1.5` com `hisminus:true` em handicap |
+| `Items[].FinalPosition.h` | linha do mercado | `-1.5` com `hisminus:true` em handicap — **`hisminus:true` inverte o sinal** (provado na MyStake, s392; o formatador aplica desde a 0.7.40) |
 | `Items[].LiveScore` | **placar** do jogo (`"4:2"`) | |
 | `Items[].Team1Score/Team2Score` | ⚠ **estatística do mercado**, não placar | `9.0` = 9 escanteios |
 | `Items[].CalculatedBetAmount` | ⚠ **rateio** da stake por perna | não é stake |

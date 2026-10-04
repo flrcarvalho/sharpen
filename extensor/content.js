@@ -4969,7 +4969,17 @@
         const m = _mercadoTV(i);
         if (m) bits.push(m + ":");
         bits.push(i.selecao || "");
-        if (i.linha != null) bits.push("(linha " + _numTxtTV(i.linha) + ")");
+        // `hisminus: true` INVERTE o sinal da linha (s392, BACKLOG 4.0b). Provado na tela da
+        // MyStake — `h: -0.75, hisminus: true` aparece como `Escolher: 2 (0.75)` e
+        // `h: -0.75, hisminus: false` como `1 (-0.75)` — e pelo resultado que a casa deu em
+        // três pernas que só a leitura invertida explica (meia derrota em −0,25 no 2:2;
+        // meia derrota em +0,75 perdendo por 1; vitória em +3,5 com 7×8 faltas). Sem isto a
+        // descrição gravava o handicap de sinal trocado, sem erro nenhum.
+        // (Linha 0 com `hisminus` vira −0, e `String(-0)` já é "0": não precisa de guarda.)
+        if (i.linha != null) {
+          const ln = i.hisminus ? -i.linha : i.linha;
+          bits.push("(linha " + _numTxtTV(ln) + ")");
+        }
       }
       const rp = _RESULT_PERNA_TV[i.resultado];
       bits.push("[" + (rp || ("Result " + i.resultado + " — a conferir")) + "]");

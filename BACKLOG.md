@@ -1375,15 +1375,16 @@ Falta, um por vez:
 
 Bilhetes de prova: MyStake `306558902` e `306690190` (R$ 45,00 cada).
 
-### 4.0b `hisminus: true` inverte o sinal do handicap na descrição — família BetConstruct (s392). **VIVA, medida**
+### 4.0b `hisminus: true` — o HISTÓRICO gravado antes da 0.7.40 tem o sinal trocado (s392). **VIVA, medida**
 
-A tela da MyStake mostra `Escolher: 2 (0.75)` para `h: -0.75, hisminus: true` e
-`Escolher: 1 (-0.75)` para `h: -0.75, hisminus: false`. O `formatTicketTV` (`content.js`,
-`(linha …)` a partir de `i.linha`) emite o `h` **cru** e ignora o `hisminus`: a perna sai com o
-handicap de **sinal trocado**. Não afeta P/L (vem do bilhete). Fixtures: 5 pernas com
-`hisminus:true` em Tivo+Betfast, 4 na MyStake. Linha já gravada **não** se conserta por
-recaptura (o UPSERT congela `descricao`): precisa de script com ensaio. Prova no harness da
-MyStake (bilhete `306558758`, Dorking × Chatam).
+A captura foi corrigida na 0.7.40 (`formatTicketTV` inverte a linha quando `hisminus: true`,
+travado no harness da MyStake e da BetFast, com controle negativo). O que falta é o que já foi
+gravado: o UPSERT congela `descricao`, então a recaptura **não** conserta. Confirmado no banco
+em 04/10: MyStake `306558636` (`Scarborough Athletic +0.25`, era −0,25) e `306558758`
+(`Chatam Town -0.75`, era +0,75). Tivo/Betfast/Faz1bet: não medido — a sombra não guarda o
+`hisminus`, então achar as linhas exige comparar a descrição gravada com o bloco NOVO da
+recaptura. Não afeta P/L (vem do bilhete). Saída: editar na grade (os 2 da MyStake) ou um
+script com ensaio que case bloco novo × descrição gravada.
 
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 

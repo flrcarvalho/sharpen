@@ -35,8 +35,9 @@
 //   Aberta, ganha (W), simples, sistema, cashout, `ItemType 6` e FREEBET GANHA (o dono diz que a
 //   casa paga só o lucro; sem payload para conferir o `WinAmount`). Aberta/ganha/ItemType 6 já
 //   estão travados pelos casos da Faz1bet e da Betfast, que exercitam o mesmo código.
-//   O sinal do handicap com `hisminus:true` (a tela mostra `2 (0.75)` para `h:-0.75`) NÃO é
-//   travado aqui: é defeito da família inteira e tem pacote próprio (BACKLOG).
+//   `hisminus: true` INVERTE o sinal da linha (s392): a tela mostra `2 (0.75)` para
+//   `h:-0.75` e `1 (-0.75)` para `h:-0.75, hisminus:false`. Travado no §4b abaixo, com o
+//   controle negativo (Buxton, `hisminus:false`) e a linha 0 (que não pode virar `-0`).
 //
 // ── Como os valores abaixo foram obtidos ─────────────────────────────────────────────────
 // Print da tela "Minhas Apostas" de 03/10/2026 (colunas `Status · ID · Data · Tipo · Valor
@@ -168,6 +169,25 @@ export async function rodar() {
     const m = marcaDaPerna(fmt(t), p.trecho);
     if (m !== p.marca) {
       falhas.push(`${p.bilhete} / ${p.trecho}: perna esperada ${p.marca}, veio "${m}"`);
+    }
+  }
+
+  // ── 4b. O SINAL da linha, como a tela mostra (`hisminus`) ────────────────────────────
+  const LINHAS = [
+    { bilhete: "306558636", trecho: "Macclesfield FC - Scarborough Athletic", linha: "-0,25" },  // h 0.25, hisminus
+    { bilhete: "306558758", trecho: "Dorking Wanderers - Chatam Town",       linha: "0,75" },   // h -0.75, hisminus
+    { bilhete: "306558758", trecho: "Macclesfield FC - Scarborough Athletic", linha: "0" },     // h 0, hisminus: nunca "-0"
+    { bilhete: "306558885", trecho: "Buxton FC - South Shields",             linha: "-0,75" },  // h -0.75, SEM hisminus
+  ];
+  for (const p of LINHAS) {
+    const t = porId.get(p.bilhete);
+    if (!t) continue;
+    testes++;
+    const ls = fmt(t).split("\n");
+    const i = ls.findIndex((l) => l.includes("Jogo: " + p.trecho));
+    const perna = i > 0 ? ls[i - 1] : "";
+    if (!perna.includes(`(linha ${p.linha})`)) {
+      falhas.push(`${p.bilhete} / ${p.trecho}: linha esperada (linha ${p.linha}) — a tela da casa — veio "${perna}"`);
     }
   }
 

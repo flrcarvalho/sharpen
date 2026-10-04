@@ -348,5 +348,17 @@ export async function rodar() {
     if (!r3.ultima.fim) falhas.push("varredura: não sinalizou `fim` — o robô ficaria esperando o teto de tempo");
   }
 
+  // ── `hisminus: true` inverte o sinal da linha (s392, provado na MyStake) ──────────
+  // A perna de faltas do 298304861: `Fora`, `h: -3.5`, `hisminus: true`, 7×8 faltas, e a
+  // casa deu GANHOU. Só a linha invertida (+3,5: 8 + 3,5 > 7) explica; a crua (−3,5) perdia.
+  {
+    const t = porId.get("298304861");
+    testes++;
+    const perna = t ? fmt(t).split("\n").find((l) => l.startsWith("- Handicap Asiático de faltas:") && l.includes("[ganhou]")) : "";
+    if (!perna || !perna.includes("(linha 3,5)")) {
+      falhas.push(`298304861: a perna de faltas ganha tem de sair com (linha 3,5) — veio "${perna}"`);
+    }
+  }
+
   return { falhas, testes };
 }
