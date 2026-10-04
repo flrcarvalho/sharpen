@@ -878,9 +878,9 @@ que não corresponde a bilhete nenhum. Pelo mesmo motivo a colisão de nome é c
 casa de **destino**, nunca na de origem.
 
 `casa` é **texto** em `bilhetes`, `parceiros`, `casas_meta`, `casa_config`, `correcoes`,
-`uso_tokens` e `tipsters.casas`: cada grafia é uma casa **diferente** no sistema. Ao criar
-conta, `repository.casa_canonica()` reusa a grafia que já existe; casa nova entra
-**verbatim** (nunca title-casear — mutilar nome cria conta paralela).
+`uso_tokens` e `tipsters.casas`: cada grafia é uma casa **diferente** no sistema. Criar,
+editar e `/salvar` sem conta usam `main.casa_oficial` (registro, senão a base; nova
+**verbatim**, nunca title-case). Gate: `tools/audit_grafias.py`.
 
 ---
 
