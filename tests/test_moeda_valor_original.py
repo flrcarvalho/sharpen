@@ -186,8 +186,9 @@ MUTACOES_FRONT = [
      "fmtPL(r.lucro)+(r.lucro_orig!=null&&fmtMoedaOrig(r.lucro_orig,r.moeda,true)?",
      "fmtPL(r.lucro)+(false&&fmtMoedaOrig(r.lucro_orig,r.moeda,true)?"),
     ("a Base Completa perde a sub-linha", "apostas",
-     "${fmtR(r.stake)}${r.stake_orig!=null&&fmtMoedaOrig(r.stake_orig,r.moeda)?",
-     "${fmtR(r.stake)}${false&&fmtMoedaOrig(r.stake_orig,r.moeda)?"),
+     # s392: a célula exibe o valor APOSTADO (`stakeCheio`), que difere do `stake` na freebet.
+     "${fmtR(stakeCheio(r))}${r.stake_orig!=null&&fmtMoedaOrig(r.stake_orig,r.moeda)?",
+     "${fmtR(stakeCheio(r))}${false&&fmtMoedaOrig(r.stake_orig,r.moeda)?"),
 ]
 
 

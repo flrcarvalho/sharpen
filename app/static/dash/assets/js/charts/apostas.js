@@ -90,7 +90,7 @@ function _apostasColMatch(r){
     // acento devolvia zero linha.
     const f=dobra(apostasColFilters[i]||'').trim();
     if(!f)return true;
-    const v=col==='lucro'?r.lucro.toFixed(2):col==='stake'?r.stake.toString():col==='odd'?r.odd.toString():(r[col]||'').toString();
+    const v=col==='lucro'?r.lucro.toFixed(2):col==='stake'?stakeCheio(r).toString():col==='odd'?r.odd.toString():(r[col]||'').toString();
     return dobra(v).includes(f);
   });
 }
@@ -102,8 +102,8 @@ function _apostasParcMatch(r){const pa=msGet('pa_apostas');return pa.size===0||p
 // e tratar "sem valor" como zero a colocaria dentro de toda faixa que cruze o zero.
 function _apostasFaixaMatch(r,aberta){
   const sMin=_apFaixa('stakeMin'),sMax=_apFaixa('stakeMax');
-  if(sMin!==null&&!(r.stake>=sMin))return false;
-  if(sMax!==null&&!(r.stake<=sMax))return false;
+  if(sMin!==null&&!(stakeCheio(r)>=sMin))return false;
+  if(sMax!==null&&!(stakeCheio(r)<=sMax))return false;
   const oMin=_apFaixa('oddMin'),oMax=_apFaixa('oddMax');
   if(oMin!==null&&!(r.odd>=oMin))return false;
   if(oMax!==null&&!(r.odd<=oMax))return false;
@@ -255,7 +255,7 @@ function renderApostasVirt(){
           ${parceiro?`<span class="btbl-casa-conta${ec}"${df('parceiro')}>${esc(parceiro)}</span>`:''}
         </div>
       </div>
-      <div class="btbl-cell btbl-num${ec}"${df('stake')}>${fmtR(r.stake)}${r.stake_orig!=null&&fmtMoedaOrig(r.stake_orig,r.moeda)?`<span class="btbl-stake-orig" title="Valor original na moeda da conta (${esc(r.moeda)})">${fmtMoedaOrig(r.stake_orig,r.moeda)}</span>`:''}</div>
+      <div class="btbl-cell btbl-num${ec}"${df('stake')}>${fmtR(stakeCheio(r))}${r.stake_orig!=null&&fmtMoedaOrig(r.stake_orig,r.moeda)?`<span class="btbl-stake-orig" title="Valor original na moeda da conta (${esc(r.moeda)})">${fmtMoedaOrig(r.stake_orig,r.moeda)}</span>`:''}</div>
       <div class="btbl-cell btbl-num${ec}"${df('odd')}>${fmtOdd(r.odd)}</div>
       <div class="btbl-cell${ec}"${df('resultado')} style="display:flex;align-items:center;justify-content:center">
         <span class="bet-res-pill ${resClass}">${resLabel}</span>
@@ -920,6 +920,9 @@ function _apIsoToBR(s){const m=(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return 
 function _apEditVal(r,c){
   if(c==='data')return _apIsoToBR(r.data);
   if(c==='resultado')return r.resultado==='ABERTA'?'':(r.resultado||'');
+  // Freebet (s392): o input mostra e compara o valor APOSTADO; o `stake` da linha e o
+  // dinheiro real, e mandar ele de volta gravaria R$ 0 numa freebet inteira.
+  if(c==='stake')return String(stakeCheio(r));
   return r[c]!=null?String(r[c]):'';
 }
 // Botão de calendário do campo Data do modal: abre o SharpenCal (calendário da

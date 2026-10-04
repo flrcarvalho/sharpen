@@ -265,7 +265,7 @@ function _abrtLista(rows) {
   // junto do motor compartilhado pelas duas telas.
   _abrtUltimas = rows;
   if (!rows.length) { host.innerHTML = mkEmpty('Nenhuma aposta em aberto no filtro'); apSelBarra('abertas'); return; }
-  const ord = rows.slice().sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : b.stake - a.stake));
+  const ord = rows.slice().sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : stakeCheio(b) - stakeCheio(a)));
   host.innerHTML = ord.map(r => {
     const q = _abrtQuando(r.data);
     const parceiro = r.parceiro && r.parceiro !== '—' ? r.parceiro : '';
@@ -289,7 +289,7 @@ function _abrtLista(rows) {
       `<div class="abrt-casa-cel">${mkHouseChip(r.casa)}<div class="abrt-conta">` +
         `<span class="nome${ec}"${df('casa')}>${esc(r.casa || '—')}</span>` +
         `${parceiro ? `<span class="sub${ec}"${df('parceiro')}>${esc(parceiro)}</span>` : ''}</div></div>` +
-      `<div class="abrt-num${ec}"${df('stake')}>${fmtR(r.stake)}</div>` +
+      `<div class="abrt-num${ec}"${df('stake')}>${fmtR(stakeCheio(r))}</div>` +
       `<div class="abrt-num${ec}"${df('odd')}>${Number(r.odd) > 0 ? fmtOdd(r.odd) : '—'}</div>` +
       `<div class="abrt-num abrt-ret">${ret > 0 ? fmtR(ret) : '<span style="color:var(--ink-mute)">—</span>'}</div>` +
       `<div class="abrt-acts">${window.MODO_PUBLICO ? '' : (editavel

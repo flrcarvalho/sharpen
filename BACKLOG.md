@@ -1351,10 +1351,17 @@ cotação. O "Desfazer" da exclusão leva a coluna. Os gates do TSV (`corrigir_s
 `contrato_texto`) ficam sem freebet de propósito: rodam antes do banco e decidem rótulo, não
 P/L. Gate: `tests/test_freebet_pl.py` (8 mutações; regressão sem freebet nos 5 resultados).
 **Lacuna declarada:** cashout de freebet INTEIRA (P/L 0 pela §5.8) chega como W e é
-indistinguível de vitória sem a captura marcar o cashout. Falta, um por vez:
+indistinguível de vitória sem a captura marcar o cashout.
 
-2. **2c:** turnover e ROI no front (`calcTurnover` e cia.) pelo dinheiro real. O stake EXIBIDO
-   continua cheio, e a assinatura de stake do matcher não muda.
+**Passo 2c (dashboard):** o feed manda `stake_freebet` só nas linhas que têm; o `aplicarFeed`
+(`_aplicarFreebet`, um ponto só) troca o `stake` pelo dinheiro real e guarda o apostado em
+`stake_cheio`. Turnover, ROI, odd média, exposição e Monte Carlo leem o real sem mudar de
+código; exibição, ordenação, filtro de faixa, EDIÇÃO (`_apEditVal`) e tamanho de aposta
+(unidade inferida e assinatura de stakes do tipster) leem `stakeCheio`. Linha sem freebet não
+muda. Gate: `tests/test_freebet_front.py` (8 mutações) + tela medida em headless no demo com
+uma freebet injetada (turnover −R$ 430 exato, input de edição com 430, zero PAGEERROR).
+Falta, um por vez:
+
 3. **Cashout de freebet:** a captura marcar o cashout para o `calcular_pl` dar 0 (§5.8).
 4. **Backfill** do que a casa já não devolve na recaptura, pela `sombra_rotulos` (os 20, desde
    26/08), com ensaio. Print não tem bloco: fica de fora.

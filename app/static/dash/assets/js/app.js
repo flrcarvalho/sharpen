@@ -57,7 +57,7 @@ function _uVigente(escada,dataISO){if(!escada||!escada.length||!dataISO)return n
 // mesmo valor.
 function _tipsterUnidades(rows,escadas){
   const by={};
-  rows.forEach(r=>{if(!r.tipster)return;const d=by[r.tipster]||(by[r.tipster]={lin:[],stk:[]});d.lin.push({pl:r.lucro,stake:r.stake,res:r.resultado,data:(r.data||'').slice(0,10)});if(r.stake>0)d.stk.push(r.stake);});
+  rows.forEach(r=>{if(!r.tipster)return;const d=by[r.tipster]||(by[r.tipster]={lin:[],stk:[]});d.lin.push({pl:r.lucro,stake:r.stake,res:r.resultado,data:(r.data||'').slice(0,10)});if(stakeCheio(r)>0)d.stk.push(stakeCheio(r));});
   const out={};
   for(const t in by){
     const escada=(escadas&&escadas[t])||[];
@@ -90,7 +90,7 @@ function _tipsterUnidades(rows,escadas){
 // vez de mostrar um desenho mais curto que o período.
 function _linhasEmU(rows,escadas){
   const med={};
-  (rows||[]).forEach(r=>{if(!r.tipster||!(r.stake>0))return;(med[r.tipster]||(med[r.tipster]=[])).push(r.stake);});
+  (rows||[]).forEach(r=>{if(!r.tipster||!(stakeCheio(r)>0))return;(med[r.tipster]||(med[r.tipster]=[])).push(stakeCheio(r));});
   const fb={};
   for(const t in med)fb[t]=med[t].reduce((a,b)=>a+b,0)/med[t].length;
   const linhas=[];let fora=0;
@@ -205,8 +205,20 @@ function getMostFrequentName(names){
 // Aplica o feed cru: normaliza nomes e SEPARA encerradas (→DADOS, base de todas
 // as métricas) de abertas (→DADOS_ABERTAS, só listagem). Chamado nos 2 caminhos
 // de loadData (cache local e fetch fresco) para o split ser único.
+// FREEBET (s392, MASTER_RESULTADO 5.8): a parte da casa nao e volume do apostador. Linha com
+// `stake_freebet` passa a ter `stake` = dinheiro real (turnover, ROI, odd media, exposicao,
+// Monte Carlo leem daqui sem mudar) e `stake_cheio` = o valor apostado, que e o que se EXIBE,
+// se EDITA, se filtra e o que mede o tamanho da aposta (unidade e assinatura do tipster).
+// Linha sem freebet nao muda em nada. Freebet maior que a stake nao e freebet de nada.
+function _aplicarFreebet(r){
+  const fb=+r.stake_freebet||0,s=+r.stake||0;
+  if(fb>0&&fb<=s+0.005){r.stake_cheio=s;r.stake=Math.round((s-fb)*100)/100;}
+  return r;
+}
+// O valor APOSTADO, com ou sem freebet. Exibicao, edicao, filtro e tamanho de aposta.
+function stakeCheio(r){return r.stake_cheio!=null?r.stake_cheio:r.stake;}
 function aplicarFeed(dados){
-  const norm=normalizeDados(dados);
+  const norm=normalizeDados(dados).map(_aplicarFreebet);
   const ENCERRADAS=['W','L','V','HW','HL'];
   DADOS=norm.filter(r=>ENCERRADAS.includes(r.resultado));
   DADOS_ABERTAS=norm.filter(r=>r.resultado==='ABERTA');

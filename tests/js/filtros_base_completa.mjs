@@ -49,6 +49,8 @@ const linha = (src, ini, nome) => {
 // ── Sandbox: só código de produção, mais os dois stubs declarados acima ─────
 const pedacos = [
   recorte(APP, 'function parseNum(raw){', LF + '}', 'parseNum'),
+  // s392: a faixa de stake filtra pelo valor APOSTADO (freebet), via `stakeCheio`.
+  linha(APP, 'function stakeCheio(r){', 'stakeCheio'),
   // A dobra de busca vem do filters.js: o `_apostasColMatch` a chama, e recortar o
   // chamador sem ela deixa o sandbox com a chamada e sem a definicao.
   linha(FILTERS, 'function dobra(', 'dobra'),

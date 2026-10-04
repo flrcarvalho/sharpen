@@ -3196,6 +3196,12 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
                 "lucro": lucro,
                 "operador": dono,
             }
+            # FREEBET (s392, `MASTER_RESULTADO §5.8`): só nas linhas que têm, como a moeda
+            # abaixo. O front transforma `stake` em dinheiro real para turnover/ROI e guarda o
+            # valor apostado em `stake_cheio` para exibir e editar (`aplicarFeed`).
+            _fb = _freebet_valida(r.get("stake_freebet"), stake)
+            if _fb:
+                linha["stake_freebet"] = _fb
             # Moeda da CONTA (s391): só nas linhas convertidas, para a Base Completa
             # mostrar o valor original sob o R$. Linha em real não carrega nada, e o feed
             # (~toda a base) não engorda por uma coluna que quase ninguém tem.

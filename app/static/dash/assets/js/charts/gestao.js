@@ -1221,7 +1221,7 @@ function _tmBuildAgg(){
     if(r.casa)a.casas[r.casa]=(a.casas[r.casa]||0)+1;
     if(r.aposta)a.mkts[r.aposta]=(a.mkts[r.aposta]||0)+1;
     if(r.esporte)a.esp[r.esporte]=(a.esp[r.esporte]||0)+1;
-    if(r.resultado!=='V'&&r.stake>0)a.stakes[r.stake]=(a.stakes[r.stake]||0)+1;
+    if(r.resultado!=='V'&&stakeCheio(r)>0)a.stakes[stakeCheio(r)]=(a.stakes[stakeCheio(r)]||0)+1;
   });
   _tmAllCasas=[...casaSet].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   _tmAllMkts=[...mktSet].sort((a,b)=>a.localeCompare(b,'pt-BR'));

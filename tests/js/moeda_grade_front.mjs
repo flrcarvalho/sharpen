@@ -185,7 +185,7 @@ A.ver('orig');
   }
   eq(A.fmtMoedaOrig(100.75, 'USDT', true), '+100,75 USDT', 'F: P/L positivo com +');
   eq(A.fmtMoedaOrig(0, 'USDT', true), '0,00 USDT', 'F: P/L zero sem sinal');
-  ok(/\$\{fmtR\(r\.stake\)\}\$\{r\.stake_orig!=null&&fmtMoedaOrig\(r\.stake_orig,r\.moeda\)/.test(APOSTAS),
+  ok(/\$\{fmtR\(stakeCheio\(r\)\)\}\$\{r\.stake_orig!=null&&fmtMoedaOrig\(r\.stake_orig,r\.moeda\)/.test(APOSTAS),
      'F: a Base Completa põe o original sob a stake');
   ok(/fmtPL\(r\.lucro\)\+\(r\.lucro_orig!=null&&fmtMoedaOrig\(r\.lucro_orig,r\.moeda,true\)/.test(APOSTAS),
      'F: a Base Completa põe o P/L original sob o P/L');

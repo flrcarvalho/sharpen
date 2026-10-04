@@ -53,7 +53,7 @@ const recorteFn = (src, nome, arquivo) => {
 };
 
 const FONTE = [
-  ...['fmt', 'fmtU', 'fmtRU', '_uVigente', '_tipsterUnidades', '_linhasEmU', 'wrFrac']
+  ...['fmt', 'fmtU', 'fmtRU', '_uVigente', 'stakeCheio', '_tipsterUnidades', '_linhasEmU', 'wrFrac']
     .map(n => recorteFn(APP, n, 'app.js')),
   ...['_tipSparkSVG', '_mkTipCard', '_renderTipCards']
     .map(n => recorteFn(PERF, n, 'performance.js')),
