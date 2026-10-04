@@ -3241,6 +3241,9 @@ td.c-res.res-HL { color: var(--warn); }
           <button type="button" data-moeda="BRL" class="on">BRL</button>
           <button type="button" data-moeda="USD">USD</button>
           <button type="button" data-moeda="USDT">USDT</button>
+          <button type="button" data-moeda="EUR">EUR</button>
+          <button type="button" data-moeda="AUD">AUD</button>
+          <button type="button" data-moeda="ARS">ARS</button>
         </div>
         <div class="cxm-hint">A moeda em que a casa mostra o saldo desta conta. A stake é gravada em R$ pela cotação do dia da aposta.</div>
       </div>
@@ -8233,7 +8236,9 @@ function _faltando(id, dica) {
 // Não é R$, então não passa pelo moneyStake/fmtPL, mas usa o MESMO componente `.money`
 // (sinal e código neutros, cor só no número). Nada de `.toFixed().replace()`: o `fmtUSD`
 // do Polymarket faz isso e perde o milhar, e é exceção a não replicar (UI_REFERENCE §5.3).
-const _MOEDA_ORIG = { USD: { pre: 'US$' }, USDT: { pos: 'USDT' } };
+// s392: euro, dólar australiano e peso argentino seguem o desenho do US$ (símbolo antes,
+// e o do peso leva o país porque `$` sozinho é a grafia do dólar nas casas cripto).
+const _MOEDA_ORIG = { USD: { pre: 'US$' }, USDT: { pos: 'USDT' }, EUR: { pre: '€' }, AUD: { pre: 'A$' }, ARS: { pre: 'AR$' } };
 let _grVer = 'BRL';   // 'BRL' | 'orig'. Por sessão: troca de conta em R$ volta a BRL.
 function _num2BR(n) {
   return Math.abs(Number(n)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

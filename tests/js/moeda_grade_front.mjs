@@ -90,6 +90,10 @@ eq(A.fmtMoedaOrig(-3, 'USDT'), '−3,00 USDT', 'A: negativo com minus U+2212');
 eq(A.fmtMoedaOrig('25.5', 'USD'), 'US$ 25,50', 'A: número em string');
 eq(A.fmtMoedaOrig(10, 'BRL'), '', 'A: real não é moeda original');
 eq(A.fmtMoedaOrig(null, 'USD'), '', 'A: valor ausente fica vazio');
+// s392: Bet365 da Austrália e da Argentina, e conta em euro. Símbolo antes, como o US$.
+eq(A.fmtMoedaOrig(1234.5, 'EUR'), '€ 1.234,50', 'A: euro com € na frente');
+eq(A.fmtMoedaOrig(1234.5, 'AUD'), 'A$ 1.234,50', 'A: dólar australiano com A$');
+eq(A.fmtMoedaOrig(-250000, 'ARS', true), '−AR$ 250.000,00', 'A: peso com AR$ (nunca o $ solto do dólar cripto)');
 
 // ── B. componente .money ─────────────────────────────────────────────────────
 {
@@ -175,7 +179,7 @@ A.ver('orig');
   vm.createContext(ctx);
   vm.runInContext([recorteFn(APP, 'fmt'), recorteConst(APP, '_MOEDA_ORIG'), recorteFn(APP, 'fmtMoedaOrig')].join('\n') +
     '\nthis.f = fmtMoedaOrig;', ctx);
-  for (const [v, m] of [[1234.5, 'USD'], [1234.5, 'USDT'], [-3, 'USDT'], [0.5, 'USD'], [10, 'BRL'], [null, 'USD'], [0, 'USDT']]) {
+  for (const [v, m] of [[1234.5, 'USD'], [1234.5, 'USDT'], [-3, 'USDT'], [0.5, 'USD'], [10, 'BRL'], [null, 'USD'], [0, 'USDT'], [1234.5, 'EUR'], [-9, 'AUD'], [250000, 'ARS']]) {
     eq(ctx.f(v, m), A.fmtMoedaOrig(v, m), `F: dashboard e grade escrevem igual (${v} ${m})`);
     eq(ctx.f(v, m, true), A.fmtMoedaOrig(v, m, true), `F: com sinal, dashboard e grade escrevem igual (${v} ${m})`);
   }

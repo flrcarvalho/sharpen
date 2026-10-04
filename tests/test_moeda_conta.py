@@ -63,6 +63,10 @@ def _editar(moeda):
 def test_criar_repassa_a_moeda_normalizada():
     assert _criar("usdt")[3] == "USDT"
     assert _criar("USD")[3] == "USD"
+    # s392: Bet365 da Austrália e da Argentina, e conta em euro.
+    assert _criar("aud")[3] == "AUD"
+    assert _criar("EUR")[3] == "EUR"
+    assert _editar("ars")[5] == "ARS"
 
 
 def test_criar_sem_moeda_repassa_none():
@@ -76,7 +80,7 @@ def test_editar_repassa_a_moeda_e_ausente_nao_mexe():
     assert _editar(None)[5] is None
 
 
-@pytest.mark.parametrize("ruim", ["EUR", "R$", "$", "Tether"])
+@pytest.mark.parametrize("ruim", ["JPY", "GTQ", "R$", "$", "Tether"])
 def test_moeda_fora_da_lista_e_400_nas_duas_rotas(ruim):
     for chamada in (_criar, _editar):
         with pytest.raises(HTTPException) as e:
@@ -185,3 +189,20 @@ def test_mutacoes_do_front_sao_detectadas(tmp_path, titulo, de, para):
         f"a mutação «{titulo}» passou despercebida, o gate não cobre esta regra.\n"
         + (r.stdout or "")
     )
+
+
+def test_seletor_cambio_e_formato_oferecem_as_mesmas_moedas():
+    """s392: as três pontas da moeda andam juntas. Botão sem fonte de câmbio faz toda
+    captura da conta ser recusada; moeda sem formato na tela some da sub-linha sem aviso
+    (o `fmtMoedaOrig` devolve '' para a moeda que não conhece)."""
+    import re
+    import cambio
+    src = INDEX.read_text(encoding="utf-8")
+    seletor = src[src.index('id="nc-moeda-seg"'):]
+    seletor = seletor[:seletor.index("</div>")]
+    assert tuple(re.findall(r'data-moeda="([A-Z]+)"', seletor)) == cambio.MOEDAS
+    linha = re.search(r"const _MOEDA_ORIG = \{(.*?)\};", src).group(1)
+    assert set(re.findall(r"([A-Z]{3,4}): \{", linha)) == set(cambio.MOEDAS) - {"BRL"}
+    app = (RAIZ / "app" / "static" / "dash" / "assets" / "js" / "app.js").read_text(encoding="utf-8")
+    linha_app = re.search(r"const _MOEDA_ORIG=\{(.*?)\};", app).group(1)
+    assert set(re.findall(r"([A-Z]{3,4}):\{", linha_app)) == set(cambio.MOEDAS) - {"BRL"}
