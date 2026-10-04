@@ -22,7 +22,7 @@
 | 3 | Tela: valor original ao lado da stake e seletor BRL/moeda original (`/nova-ui`) | **NO AR (s391)** |
 | 4a | Captura: **Bet Panda** | **NO AR e validada ao vivo (s391)**: 45 de 45 |
 | 4b | Captura: **Dexsport** (escolha do Feca, antes das 1xBet) | **NO AR (s391)**, falta validar ao vivo |
-| 4c | Captura: **SapphireBet + PariPesa + Megapari** (espelhos da 1xBet) | **NO AR (s391)**, falta validar ao vivo |
+| 4c | Captura: **SapphireBet + PariPesa + Megapari** (espelhos da 1xBet) | **NO AR e validadas ao vivo (s391)** |
 | 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | **NO AR (s391)** |
 
 ### O que o passo 1 fez
