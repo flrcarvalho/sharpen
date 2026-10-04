@@ -130,9 +130,13 @@ def calcular_pl(stake, odd, resultado, freebet=None) -> float | None:
         HW / HL com freebet → None            sem amostra: "a conferir", não liquidar
 
     Sem freebet (None, 0, ilegível ou maior que a stake) o P/L é o de sempre, ao centavo.
-    LACUNA CONHECIDA: o cashout de freebet INTEIRA vale 0 pela §5.8 (volta como nova
-    freebet), mas aqui ele chega como W com `odd = cashout ÷ stake` e não há como
-    distingui-lo de uma vitória comum sem a captura marcar o cashout (BACKLOG 4.0a).
+
+    CASHOUT de freebet INTEIRA vale 0 pela §5.8 (volta como NOVA freebet). Ele chega como W
+    com `odd = cashout ÷ stake` (§5.6), e só é reconhecível quando a odd fica ABAIXO DE 1:
+    vitória nenhuma paga menos que o stake, então W com odd < 1 é cashout por construção —
+    prova, não estimativa (Jonathan, Superbet `899Z-EBX0V7`: R$ 30 → R$ 23,83, odd 0,794).
+    LACUNA CONHECIDA: cashout de freebet ACIMA do stake segue indistinguível de vitória sem
+    a captura marcar o cashout (BACKLOG 4.0a).
     """
     res = (resultado or "").strip().upper()
     if res not in _RESULTADOS_VALIDOS:
@@ -161,6 +165,8 @@ def calcular_pl(stake, odd, resultado, freebet=None) -> float | None:
             return 0.0
         if res in ("HW", "HL"):
             return None
+        if res == "W" and o < 1 and fb >= s - 0.005:
+            return 0.0                          # cashout de freebet inteira (ver acima)
         return round(valor - (s - fb), 2)
     return round(valor - s, 2)
 

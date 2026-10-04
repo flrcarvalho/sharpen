@@ -19,6 +19,7 @@ Mutações provadas (04/10/2026), cada uma APLICADA e com teste vermelho:
   1. ignorar a freebet no W/L (`valor − s`)        → test_os_exemplos_reais_da_secao_5_8
   2. tirar o `V → 0`                               → test_void_com_freebet_e_zero
   3. tirar o `HW/HL → None`                        → test_meia_com_freebet_fica_a_conferir
+  9. tirar o cashout de freebet inteira abaixo do stake → test_cashout_de_freebet_inteira_abaixo_do_stake_e_zero
   4. aceitar freebet maior que a stake             → test_freebet_invalida_nao_muda_nada
   5. Caixa: `aberto += stake`                      → test_caixa_freebet_aberta_nao_sai_do_saldo
   6. Caixa: `preso_corte += stake`                 → test_caixa_freebet_aberta_no_corte_e_perdida_zera
@@ -56,6 +57,18 @@ def test_os_exemplos_reais_da_secao_5_8():
 def test_vitoria_com_freebet_parcial_desconta_so_o_dinheiro_real():
     # 200 apostados, 10 de freebet, ganhou a 2,0: retorno 400, do bolso saíram 190.
     assert calcular_pl("200,00", "2,0", "W", "10.00") == 210.0
+
+
+def test_cashout_de_freebet_inteira_abaixo_do_stake_e_zero():
+    """W com odd < 1 só existe por cashout; numa freebet inteira o valor volta como nova
+    freebet (§5.8). O caso real: Jonathan, Superbet 899Z-EBX0V7 (R$ 30 → R$ 23,83)."""
+    assert calcular_pl("30,00", "0,79433333333333", "W", "30.00") == 0.0
+    # sem freebet, o mesmo cashout é perda parcial de dinheiro real (§5.6), como sempre
+    assert calcular_pl("30,00", "0,79433333333333", "W") == -6.17
+    # freebet PARCIAL com cashout: a parte real conta, regra de sempre (sem amostra)
+    assert calcular_pl("30,00", "0,8", "W", "10.00") == round(24 - 20, 2)
+    # vitória de verdade numa freebet inteira continua sendo lucro
+    assert calcular_pl("17,00", "1,35", "W", "17.00") == 22.95
 
 
 def test_void_com_freebet_e_zero():

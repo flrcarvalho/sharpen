@@ -1362,9 +1362,13 @@ muda. Gate: `tests/test_freebet_front.py` (8 mutações) + tela medida em headle
 uma freebet injetada (turnover −R$ 430 exato, input de edição com 430, zero PAGEERROR).
 Falta, um por vez:
 
-3. **Cashout de freebet:** a captura marcar o cashout para o `calcular_pl` dar 0 (§5.8).
-4. **Backfill** do que a casa já não devolve na recaptura, pela `sombra_rotulos` (os 20, desde
-   26/08), com ensaio. Print não tem bloco: fica de fora.
+3. **Cashout de freebet ACIMA do stake:** o abaixo do stake já dá 0 (W com odd < 1 é cashout
+   por construção, `calcular_pl`); o acima segue indistinguível de vitória até a captura
+   marcar o cashout. Nenhum caso conhecido.
+4. **Backfill: APLICAR (ação do Feca).** `scripts/backfill_freebet_sombra.py` pronto; ensaio de
+   04/10/2026 (só leitura): 18 bilhetes de 6 donos a marcar, **+R$ 292,50** de P/L (2 dos 20
+   blocos não têm linha no banco). Rodar com `--aplicar` depois do deploy do 2b. Só preenche;
+   print fica de fora.
 5. **Casas que marcam freebet SEM valor**, de propósito não lidas: Betbra (`aposta grátis
    (freebet)` sem a frase do saldo) e BetBy (`Freebet: sim (conferir …)`). Precisa de amostra
    que diga quanto do stake foi freebet.
