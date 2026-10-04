@@ -1327,30 +1327,34 @@ runners `scripts/experimento_fluxo_s386.py` e `scripts/reavaliar_s386.py` (no br
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
 
-### 4.0a Freebet = dinheiro da casa, em TODAS as casas — decidido, NÃO implementado (s392). **VIVA, medida**
+### 4.0a Freebet = dinheiro da casa, em TODAS as casas — regra no MASTER, P/L ainda NÃO (s392). **VIVA, medida**
 
-**Decisão do Feca, 03/10/2026** (memória `freebet_dinheiro_da_casa`): aposta feita com freebet
-entra no P/L como dinheiro da casa — **perda = 0**, ganho = lucro sem o stake (a casa paga só
-o lucro), fora do turnover/ROI, e **a Caixa Inteligente não desconta o stake**. Hoje o Feca
-lança Ajuste à mão na Caixa da Betfast/Tivo para a conferência bater; é esse ajuste que some.
+**Decisão do Feca, 03 e 04/10/2026**, escrita no `MASTER_RESULTADO §5.8`: `P/L = retorno −
+(stake − freebet)`; V e cashout de freebet inteira = 0 (volta crédito); HW/HL e cashout de
+freebet parcial = a conferir. A Caixa não desconta o stake da freebet; turnover e ROI usam o
+dinheiro real. Hoje o Feca lança Ajuste à mão na Caixa para a conferência bater (Betfast,
+Tivo, MyStake); é esse ajuste que some.
 
-O que existe: a captura BetConstruct (Tivo/Betfast/Faz1bet/MyStake) emite
-`Freebet incluído: <valor> (dinheiro real = stake − freebet)` quando `TicketType 3` — o MESMO
-rótulo da Superbet (freebet parcial). O que falta, um por vez:
+**Feito:** a regra no MASTER e o **passo 2a**: `freebets_do_texto` lê o valor do bloco
+(`Freebet incluído: X` e o `aposta grátis (freebet) — o stake não saiu do saldo` da
+SportingBet), o `/extrair` devolve `freebets`, o front transporta, e o `/salvar` grava
+`bilhetes.stake_freebet` em R$ (pela cotação da stake), **só preenchendo** — a recaptura marca
+o histórico, inclusive em linha resolvida. Gate: `tests/test_freebet_captura.py` (6 mutações) +
+2 casos no `test_repository_db.py` (só no CI). Medido na sombra: 20 de 20 lidos, 0 falso
+positivo em 3.000 blocos. **Nenhum número do produto mudou ainda.** Falta, um por vez:
 
-1. Texto da regra no `MASTER_RESULTADO` (diff para o Feca aprovar) — hoje não há regra global;
-   Blaze manda "a IA decidir pelo global", Bet365/Betano/KTO estão como TODO.
-2. Coluna `stake_freebet` (R$, não booleano: cobre freebet parcial e inteira) preenchida pelo
-   servidor a partir do bloco do mesmo código, como `corrigir_stake_tsv` — o TSV é imutável em
-   10 colunas (`MASTER_OUTPUT §2`), então a IA fica fora disso.
-3. `calcular_pl` + espelho no front, Caixa (`_caixa_projetar`), turnover/ROI. P/L é derivado
-   na leitura: marcada a coluna, o histórico se corrige sem script de P/L.
-4. A marca precisa sobreviver ao UPSERT em linha **resolvida** (stake congela; a marca vem da
-   fonte e tem de refrescar).
-5. Sem amostra de **freebet ganha** em payload: conferir `WinAmount` campo a campo antes de
-   escrever a conta do ganho.
+1. **2b:** `calcular_pl(stake, odd, resultado, freebet)` pela §5.8, nas 11 chamadas do
+   servidor (grade, feed, Caixa, tipster, contrato, gates de correção).
+2. **2c:** turnover e ROI no front (`calcTurnover` e cia.) pelo dinheiro real. O stake EXIBIDO
+   continua cheio, e a assinatura de stake do matcher não muda.
+3. **2d:** Caixa (`_caixa_projetar`): o stake da freebet não sai do saldo ao apostar.
+4. **Backfill** do que a casa já não devolve na recaptura, pela `sombra_rotulos` (os 20, desde
+   26/08), com ensaio. Print não tem bloco: fica de fora.
+5. **Casas que marcam freebet SEM valor**, de propósito não lidas: Betbra (`aposta grátis
+   (freebet)` sem a frase do saldo) e BetBy (`Freebet: sim (conferir …)`). Precisa de amostra
+   que diga quanto do stake foi freebet.
 
-Bilhete de prova: MyStake `306558902` (R$ 45,00, perdido) — hoje conta −R$ 45.
+Bilhetes de prova: MyStake `306558902` e `306690190` (R$ 45,00 cada).
 
 ### 4.0b `hisminus: true` inverte o sinal do handicap na descrição — família BetConstruct (s392). **VIVA, medida**
 

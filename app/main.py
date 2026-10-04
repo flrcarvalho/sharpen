@@ -100,7 +100,7 @@ from repository import (
     registrar_uso, uso_resumo, registrar_sombra,
     registrar_sombra_modelo, pontuar_saida, custo_usd,
     blocos_por_codigo, blocos_conhecidos, hash_bloco, registrar_blocos_vistos,
-    conferir_cobertura, codigos_do_texto, codigos_do_tsv, carimbos_do_texto,
+    conferir_cobertura, codigos_do_texto, codigos_do_tsv, carimbos_do_texto, freebets_do_texto,
     casar_abertas_por_carimbo, resultado_da_aposta_encontrada, campos_corrigidos,
 )
 from descricao_check import checar_fidelidade
@@ -2008,7 +2008,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # Sombra de MODELO: o candidato lê o MESMO content, com o MESMO system.
         if _sombra_vale_agora():
             _fire(_sombra_modelo(dono, casa, system, [content], texto, modelo))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto)})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -2216,7 +2216,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         # Sombra de MODELO: os MESMOS chunks, com o MESMO system. Ver `_sombra_modelo`.
         if _sombra_vale_agora():
             _fire(_sombra_modelo(dono, casa, system, chunks, texto, modelo))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto)})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
@@ -2398,6 +2398,7 @@ async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, 
             "scroll_overlap_indices": [],
             "carimbos": carimbos_do_texto(texto),
             "moedas": _cambio.moedas_do_texto(texto),
+            "freebets": freebets_do_texto(texto),
             "contrato": info,
         })
         # As duas metades terminaram e o `done` vai sair: só AGORA os aceitos contam como
@@ -4021,6 +4022,10 @@ class SalvarRequest(BaseModel):
     # (`cambio.moedas_do_texto`) e transportadas pelo front, igual ao `carimbos`. Só
     # avisam: a moeda da CONTA continua mandando na conversão. Ausente → `[]`.
     moedas: Optional[list[str]] = None
+    # FREEBET por bilhete (s392, `MASTER_RESULTADO §5.8`): `{código: valor}`, lido do texto
+    # cru no /extrair (`freebets_do_texto`) e transportado pelo front, igual ao `carimbos`.
+    # Vira a coluna `stake_freebet`. Ausente → nenhuma linha marcada (import, bot, print).
+    freebets: Optional[dict] = None
 
 
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
@@ -4121,7 +4126,7 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
         inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(
             rows, dono, confianca=body.confianca, criado_base=criado_base,
             coproprietarios=coproprietarios(dono), codigo_ocr=body.codigo_ocr,
-            carimbos=body.carimbos,
+            carimbos=body.carimbos, freebets=body.freebets,
         )
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}

@@ -904,6 +904,68 @@ def carimbos_do_texto(texto: str | None) -> dict[str, str]:
     return out
 
 
+# Freebet com VALOR: Superbet, Betfair e BetConstruct (Tivo/Betfast/Faz1bet/MyStake).
+_FREEBET_VALOR_RE = re.compile(r"^Freebet inclu[íi]do:\s*(?:R\$\s*)?([\d.,]+)", re.MULTILINE)
+# Freebet SEM valor, mas que diz que o stake inteiro não saiu do saldo: SportingBet/Betboo.
+_FREEBET_INTEIRA_RE = re.compile(
+    r"^Marca[çc][ãa]o da casa: aposta gr[áa]tis \(freebet\) .{0,3}o stake n[ãa]o saiu do saldo",
+    re.MULTILINE)
+_STAKE_BLOCO_RE = re.compile(r"^Stake:\s*(?:R\$\s*)?([\d.,]+)", re.MULTILINE)
+
+
+def freebets_do_texto(texto: str | None) -> dict[str, str]:
+    """`{código do bilhete: valor da freebet}` lido do TEXTO CRU do robô (s392).
+
+    `MASTER_RESULTADO §5.8` (decisão do Feca, 03/10/2026): freebet é dinheiro da casa, e o
+    P/L de uma aposta com freebet é `retorno − (stake − freebet)`. O TSV não tem coluna para
+    isso (`MASTER_OUTPUT §2`, 10 colunas imutáveis) e a IA nunca desconta nada do stake: o
+    valor vem daqui, pelo mesmo caminho determinístico do `carimbos_do_texto`, e vira a
+    coluna `stake_freebet`.
+
+    Dois rótulos são lidos:
+      • `Freebet incluído: X` — o valor está escrito (freebet parcial ou inteira);
+      • `Marcação da casa: aposta grátis (freebet) — o stake não saiu do saldo` — sem valor,
+        mas a própria frase diz que é o stake INTEIRO, então o valor é o `Stake:` do bloco.
+
+    NÃO lidos, de propósito (BACKLOG): a Betbra (`aposta grátis (freebet)` sem a frase do
+    saldo) e as casas BetBy (`Freebet: sim (conferir …)`). Nenhum dos dois diz QUANTO do
+    stake foi freebet, e deduzir "inteira" seria chute com cara de dado.
+
+    Bloco com dois valores de freebet diferentes, ou freebet maior que o stake do bloco, é
+    ambíguo e fica fora do mapa — ausência viaja como ausência, e o bilhete conta como
+    aposta normal (o comportamento de antes da regra).
+    """
+    if not texto:
+        return {}
+    marcas = sorted(
+        [(m.start(), m.group(1).strip()) for rx in (_ID_TEXTO_RE, _ID_MARCADOR_RE)
+         for m in rx.finditer(texto)],
+        key=lambda p: p[0],
+    )
+    out: dict[str, str] = {}
+    for i, (pos, cod) in enumerate(marcas):
+        if not cod or cod in out:
+            continue
+        fim = marcas[i + 1][0] if i + 1 < len(marcas) else len(texto)
+        bloco = texto[pos:fim]
+        stakes = {_num_or_none(s) for s in _STAKE_BLOCO_RE.findall(bloco)}
+        stake = next(iter(stakes)) if len(stakes) == 1 else None
+        valores = {v.rstrip(".,") for v in _FREEBET_VALOR_RE.findall(bloco)}
+        if len(valores) > 1:
+            continue                                   # ambíguo: não escreve nada
+        if valores:
+            valor = valores.pop()
+        elif _FREEBET_INTEIRA_RE.search(bloco) and stake:
+            valor = _STAKE_BLOCO_RE.search(bloco).group(1).rstrip(".,")
+        else:
+            continue
+        n = _num_or_none(valor)
+        if n is None or n <= 0 or (stake is not None and n > stake + 0.005):
+            continue
+        out[cod] = valor
+    return out
+
+
 # ── "Resolver apostas abertas" (bet365) — o casamento ─────────────────────────
 # Desenho em `docs/PLANO_RESOLVER_ABERTAS.md`. Aqui mora a única parte que decide
 # escrita, e ela é PURA de propósito: recebe as duas listas e devolve o que casou, o que
@@ -1345,11 +1407,34 @@ async def _assinatura_pos_edicao(conn, antes, safe: dict, dono: str,
 _ORIGEM_AUTORITATIVA = "sync"
 
 
+def _freebet_da_linha(row: dict, codigo: str, freebets: dict | None) -> Decimal | None:
+    """O valor da coluna `stake_freebet` desta linha, em R$ (s392).
+
+    O mapa traz o valor como a casa escreveu, na moeda do bloco. Em conta de outra moeda
+    o `/salvar` já converteu a stake (`stake = stake_orig × cotacao`), e a freebet anda
+    pela MESMA cotação — senão `stake − freebet` misturaria R$ com USDT. Freebet maior que
+    a stake gravada não é freebet de nada: fica nula, e a linha conta como aposta normal.
+    """
+    if not codigo or not freebets:
+        return None
+    fb = _num_or_none(freebets.get(codigo))
+    if fb is None or fb <= 0:
+        return None
+    cot = _num_or_none(row.get("cotacao"))
+    if cot:
+        fb = fb * cot
+    stake = _num_or_none(row.get("stake"))
+    if stake is None or fb > stake + 0.005:
+        return None
+    return _dec(round(fb, 2))
+
+
 async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
     origem: str = "extracao", criado_base: datetime | None = None,
     coproprietarios: list[str] | None = None, codigo_ocr: bool = False,
     carimbos: dict[str, str] | None = None,
+    freebets: dict[str, str] | None = None,
 ) -> tuple[int, int, list[int], list[str], dict]:
     """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
 
@@ -1366,6 +1451,12 @@ async def upsert_bilhetes(
     (ver o `COALESCE` no ON CONFLICT): o instante em que uma aposta foi feita não muda, e
     recaptura de bilhete antigo vira backfill de graça, inclusive em linha já resolvida —
     o mesmo desenho de `sistema`/`sistema_linhas`.
+
+    `freebets` é `{código: valor da freebet}`, lido do texto cru pelo `freebets_do_texto`
+    (s392, `MASTER_RESULTADO §5.8`). Vira a coluna `stake_freebet`, em R$: em conta de
+    outra moeda o valor é convertido pela MESMA `cotacao` da stake. Também só PREENCHE —
+    a parte da casa numa aposta não muda depois de feita, e assim a recaptura marca o
+    histórico de graça, inclusive em linha já resolvida.
     """
     pool = await get_pool()
     ids: list[int] = []
@@ -1633,10 +1724,10 @@ async def upsert_bilhetes(
                          aposta, descricao, stake, odd, resultado,
                          extraction_state, confianca, stake_usd, origem, criado_em,
                          sistema, sistema_linhas, codigo_ocr, aposta_em,
-                         moeda, stake_orig, cotacao)
+                         moeda, stake_orig, cotacao, stake_freebet)
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
                             COALESCE($18::timestamptz, NOW()), $19, $20, $21, $22,
-                            $23, $24, $25)
+                            $23, $24, $25, $26)
                     ON CONFLICT (dono, casa, parceiro, assinatura) DO UPDATE SET
                         -- preserva o tipster existente quando o lote vier sem tipster
                         -- (extração/sync sempre mandam ''); só sobrescreve com valor real
@@ -1723,6 +1814,9 @@ async def upsert_bilhetes(
                         -- resolvida, sem violar o congelamento da extração por IA — o
                         -- mesmo desenho de `sistema`/`sistema_linhas`.
                         aposta_em        = COALESCE(bilhetes.aposta_em, EXCLUDED.aposta_em),
+                        -- Freebet (s392): a parte da casa não muda depois de feita a aposta,
+                        -- então só PREENCHE, como o carimbo — e vale em linha resolvida.
+                        stake_freebet    = COALESCE(bilhetes.stake_freebet, EXCLUDED.stake_freebet),
                         atualizado_em    = NOW()
                     RETURNING id, (xmax = 0) AS was_inserted
                     """,
@@ -1737,6 +1831,7 @@ async def upsert_bilhetes(
                     bool(codigo) and codigo_ocr,
                     (carimbos or {}).get(codigo) if codigo else None,
                     row.get("moeda"), _dec(row.get("stake_orig")), _dec(row.get("cotacao")),
+                    _freebet_da_linha(row, codigo, freebets),
                 )
             except asyncpg.UniqueViolationError:
                 # Defesa: o ON CONFLICT acima absorve a colisão na quase totalidade dos
@@ -1784,6 +1879,8 @@ async def upsert_bilhetes(
                         codigo_ocr       = codigo_ocr AND $18,
                         -- carimbo de colocação: imutável, só preenche (espelha o ON CONFLICT)
                         aposta_em        = COALESCE(aposta_em, $19),
+                        -- freebet: só preenche (espelha o ON CONFLICT)
+                        stake_freebet    = COALESCE(stake_freebet, $23),
                         atualizado_em    = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
                     RETURNING id, FALSE AS was_inserted
@@ -1796,6 +1893,7 @@ async def upsert_bilhetes(
                     bool(codigo) and codigo_ocr,
                     (carimbos or {}).get(codigo) if codigo else None,
                     row.get("moeda"), _dec(row.get("stake_orig")), _dec(row.get("cotacao")),
+                    _freebet_da_linha(row, codigo, freebets),
                 )
             if rec:
                 db_id = rec["id"]

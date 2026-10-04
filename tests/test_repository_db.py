@@ -1193,3 +1193,40 @@ def test_codigos_em_outra_conta_so_conta_o_que_esta_la_e_nao_aqui():
         assert await repository.codigos_em_outra_conta(
             [], "TDonoA", "Superbet", "mama [R]") == {}
     _run(body())
+
+
+# ── Freebet (s392, `MASTER_RESULTADO §5.8`) ───────────────────────────────────
+#
+# A coluna `stake_freebet` só PREENCHE: a parte da casa numa aposta não muda depois de feita.
+# Duas coisas que só o Postgres prova: o NUMERIC aceita o que o `_freebet_da_linha` manda
+# (Decimal), e o COALESCE vale em linha JÁ RESOLVIDA — é assim que a recaptura marca o
+# histórico — sem que uma recaptura sem a marca (extensão velha, print) a apague.
+
+def test_freebet_grava_e_recaptura_sem_marca_nao_apaga():
+    async def body():
+        await _reset()
+        fb = {"FB1": "45,00"}
+        await repository.upsert_bilhetes([_row(codigo_bilhete="FB1", stake="45,00",
+                                               resultado="L")], "TDonoA", freebets=fb)
+        r = await _get("TDonoA", "FB1")
+        assert str(r["stake_freebet"]) == "45.00"
+        await repository.upsert_bilhetes([_row(codigo_bilhete="FB1", stake="45,00",
+                                               resultado="L")], "TDonoA")
+        r = await _get("TDonoA", "FB1")
+        assert str(r["stake_freebet"]) == "45.00"
+        assert r["stake"] == "45,00"                        # o stake continua CHEIO
+    _run(body())
+
+
+def test_freebet_marca_linha_ja_resolvida_na_recaptura():
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(codigo_bilhete="FB2", stake="45,00",
+                                               resultado="L")], "TDonoA")
+        assert (await _get("TDonoA", "FB2"))["stake_freebet"] is None
+        await repository.upsert_bilhetes([_row(codigo_bilhete="FB2", stake="45,00",
+                                               resultado="L")], "TDonoA",
+                                         freebets={"FB2": "45,00"})
+        assert str((await _get("TDonoA", "FB2"))["stake_freebet"]) == "45.00"
+        assert await _count("TDonoA") == 1
+    _run(body())

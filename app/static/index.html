@@ -6908,10 +6908,12 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         // e' o que permite reencontrar na lista da casa uma aposta gravada como aberta.
         // `moedas` (s391) vem pelo mesmo caminho: a moeda que a CASA informou, para o
         // servidor avisar quando ela contradiz a moeda cadastrada da conta.
+        // `freebets` (s392) tambem: `{codigo: valor}` da parte da aposta que foi dinheiro
+        // da CASA, lido do texto cru. Vira a coluna `stake_freebet` (MASTER_RESULTADO 5.8).
         body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome,
                                parceiro_id: parceiro.id, submitted_at: submittedAt,
                                codigo_ocr: !!data.codigo_ocr, carimbos: data.carimbos || null,
-                               moedas: data.moedas || null }),
+                               moedas: data.moedas || null, freebets: data.freebets || null }),
       });
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar (HTTP ${rs.status})`);

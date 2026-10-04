@@ -243,6 +243,12 @@ ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS moeda TEXT;
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS stake_orig NUMERIC(14,2);
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS cotacao NUMERIC(14,6);
 
+-- FREEBET (s392, `MASTER_RESULTADO §5.8`, decisão do Feca de 03/10/2026): quanto do stake
+-- foi dinheiro da CASA, em R$ (a mesma unidade da coluna `stake`). NULL = sem freebet.
+-- Dinheiro real = stake − stake_freebet. Vem do bloco da captura (`freebets_do_texto`),
+-- nunca da IA: o TSV não tem coluna para isso e o stake continua CHEIO nele.
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS stake_freebet NUMERIC(14,2);
+
 -- Procedência do RÓTULO de tipster (Fase 0 do PLANO_INTELIGENCIA_TIPSTER): humano |
 -- sugerido | telegram | importado | extracao. NULL = legado (linha anterior ao rastreio).
 -- Separa verdade (humano/import/telegram) de chute do sistema (sugerido) → o treino
