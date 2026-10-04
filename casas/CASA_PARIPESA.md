@@ -26,8 +26,8 @@ A API diz `CurrencyCode: "USDT"` em todo bilhete, e o bloco capturado leva `Moed
 com o dinheiro rotulado na moeda da casa (`Retorno: 57,27 USDT`), nunca "R$".
 
 - Cadastre a conta com a moeda **USDT** antes da 1ª captura
-  ([`docs/PLANO_MOEDA_POR_CONTA.md`](../docs/PLANO_MOEDA_POR_CONTA.md)). Conta cadastrada em outra
-  moeda gera o aviso de contradição no `/salvar`.
+  ([`docs/PLANO_MOEDA_POR_CONTA.md`](../docs/PLANO_MOEDA_POR_CONTA.md)). Conta em real gera o aviso de
+  contradição no `/salvar`; USD × USDT não (a casa não distingue, decisão do Feca, 04/10/2026).
 - O bloco também leva `Carimbo de colocação: AAAAMMDDhhmmss` (São Paulo): é a data da cotação.
   Sem ele, aberta com jogo amanhã pedia a cotação de um dia que ainda não existe.
 

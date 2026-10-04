@@ -226,13 +226,16 @@ def converter_linhas(rows: list[dict], moeda: str, carimbos: dict | None,
 # mandando na conversão; isto só AVISA quando as duas discordam, sem bloquear a gravação.
 _MOEDA_RE = re.compile(r"^Moeda:\s*(\S[^\r\n]*?)\s*$", re.MULTILINE)
 
-# O que a casa pode dizer sem contradizer cada moeda de conta. `$` cabe nas duas de
-# dólar: a Bet Panda manda `$` com carteira em Tether, então a API não distingue USD de
-# USDT e o cadastro é quem decide. Fora daqui, toda moeda diferente da conta é contradição.
+# O que a casa pode dizer sem contradizer cada moeda de conta. **USD e USDT cabem um no
+# outro** (decisão do Feca, 04/10/2026: "usdt e usd não devem causar problemas"): a casa
+# não distingue as duas — a Bet Panda manda `$` com carteira em Tether, a SapphireBet manda
+# `USD` com a conta do Feca em USDT —, então o cadastro decide e o aviso viraria ruído a
+# cada captura. O aviso continua para o que muda a ordem de grandeza: dólar numa conta em
+# real, real numa conta em dólar, moeda fora da tabela.
 _COMPATIVEIS = {
     "BRL": {"BRL", "R$"},
-    "USD": {"USD", "US$", "$"},
-    "USDT": {"USDT", "$"},
+    "USD": {"USD", "US$", "$", "USDT"},
+    "USDT": {"USDT", "$", "USD", "US$"},
 }
 
 

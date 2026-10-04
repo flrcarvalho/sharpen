@@ -73,8 +73,9 @@ morria dentro da extensão e o servidor nunca soube em que moeda a casa falou.
 - `cambio.moedas_do_texto` lê do texto cru (início de linha) e o `/extrair` devolve
   `moedas` no `done` dos três caminhos (sequencial, chunks e contrato de 4 campos). O front
   transporta ao `/salvar`, igual ao `carimbos`.
-- `/salvar`: `cambio.moedas_contraditorias` compara com a moeda da conta. `$` cabe em USD e
-  em USDT, `US$` em USD, sem caixa. Divergência vira **alerta apontando a conta** (nome e
+- `/salvar`: `cambio.moedas_contraditorias` compara com a moeda da conta. `$`, `US$`, USD e
+  USDT cabem um no outro, sem caixa (**decisão do Feca, 04/10/2026**: a casa não distingue
+  dólar de Tether, e o cadastro decide). O aviso fica para real × dólar e moeda fora da tabela. Divergência vira **alerta apontando a conta** (nome e
   casa) e a gravação segue pela moeda cadastrada.
 - **Versão da extensão não subiu:** nenhuma casa capturada hoje manda moeda diferente de
   real, então nada muda para ninguém até o passo 4, que sobe a versão com as casas novas.

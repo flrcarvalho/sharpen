@@ -67,8 +67,10 @@ def _falhas_cambio(mod) -> list[str]:
     chk(c("USDT", ["$"]) == [] and c("USD", ["$"]) == [], "'$' cabe em USD e em USDT")
     chk(c("USDT", ["usdt"]) == [] and c("USDT", ["USDT"]) == [], "comparação sem caixa")
     chk(c("USD", ["US$"]) == [], "'US$' é dólar")
-    chk(c("USDT", ["USD"]) == ["USD"], "USD numa conta USDT contradiz")
-    chk(c("USD", ["USDT"]) == ["USDT"], "USDT numa conta USD contradiz")
+    # Decisão do Feca (04/10/2026): USD e USDT não se contradizem.
+    chk(c("USDT", ["USD"]) == [] and c("USDT", ["US$"]) == [], "USD numa conta USDT não avisa")
+    chk(c("USD", ["USDT"]) == [], "USDT numa conta USD não avisa")
+    chk(c("USDT", ["R$"]) == ["R$"] and c("USD", ["BRL"]) == ["BRL"], "real numa conta em dólar avisa")
     chk(c("BRL", ["$"]) == ["$"], "'$' numa conta em real contradiz")
     chk(c("BRL", ["USD", "R$"]) == ["USD"], "R$ numa conta em real não contradiz")
     chk(c("USD", ["EUR"]) == ["EUR"], "moeda fora da tabela contradiz")
@@ -83,13 +85,17 @@ def test_funcoes_puras_do_cambio():
 
 MUTACOES_CAMBIO = [
     ("'$' deixa de caber em USDT",
-     '    "USDT": {"USDT", "$"},', '    "USDT": {"USDT"},'),
+     '    "USDT": {"USDT", "$", "USD", "US$"},', '    "USDT": {"USDT", "USD", "US$"},'),
     ("'$' deixa de caber em USD",
-     '    "USD": {"USD", "US$", "$"},', '    "USD": {"USD", "US$"},'),
+     '    "USD": {"USD", "US$", "$", "USDT"},', '    "USD": {"USD", "US$", "USDT"},'),
     ("a comparação passa a ter caixa",
      "if str(v).strip().upper() not in ok]", "if str(v).strip() not in ok]"),
-    ("USD e USDT viram a mesma coisa",
-     '    "USDT": {"USDT", "$"},', '    "USDT": {"USDT", "USD", "$"},'),
+    ("USD volta a contradizer USDT",
+     '    "USDT": {"USDT", "$", "USD", "US$"},', '    "USDT": {"USDT", "$"},'),
+    ("USDT volta a contradizer USD",
+     '    "USD": {"USD", "US$", "$", "USDT"},', '    "USD": {"USD", "US$", "$"},'),
+    ("real passa a caber em dólar",
+     '    "USDT": {"USDT", "$", "USD", "US$"},', '    "USDT": {"USDT", "$", "USD", "US$", "R$"},'),
     ("a leitura deixa de exigir o início da linha",
      '_MOEDA_RE = re.compile(r"^Moeda:', '_MOEDA_RE = re.compile(r"Moeda:'),
     ("a leitura repete moedas",
@@ -169,9 +175,11 @@ def test_dolar_sem_distincao_numa_conta_usdt_nao_avisa():
     assert gravadas[0]["stake"] == "125,00", "a conversão da conta USDT segue normal"
 
 
-def test_usd_numa_conta_usdt_avisa():
-    res, _ = _salvar("USDT", ["USD"])
-    assert len(_avisos(res)) == 1
+def test_usd_numa_conta_usdt_nao_avisa():
+    # Decisão do Feca (04/10/2026): a SapphireBet manda `USD` e a conta dele é USDT.
+    res, gravadas = _salvar("USDT", ["USD"])
+    assert _avisos(res) == []
+    assert gravadas[0]["stake"] == "125,00", "converte pela moeda da CONTA"
 
 
 def test_lote_sem_moeda_informada_nao_avisa():

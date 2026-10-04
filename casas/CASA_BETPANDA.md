@@ -39,7 +39,7 @@ API não distingue USD de USDT; o **cadastro da conta** distingue
 - Cadastre a conta com a moeda que ela usa (USDT no caso do Feca). O `/salvar` converte a stake
   para R$ pela cotação do dia da aposta; a tela mostra o valor original embaixo.
 - O bloco capturado leva `Moeda: $` e os rótulos de dinheiro na moeda da casa
-  (`retorno 126,00 $`). `$` é compatível com USD **e** com USDT: não gera aviso.
+  (`retorno 126,00 $`). `$`, USD e USDT não se contradizem (decisão do Feca, 04/10/2026): não gera aviso.
 - **Os números do TSV são os da casa, em dólar.** Quem converte é o servidor, nunca a IA.
 
 ### 1.2 Espelho da Jonbet/Betboom/Blaze
