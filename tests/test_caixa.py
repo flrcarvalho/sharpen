@@ -519,9 +519,10 @@ def test_as_duas_queries_de_bilhetes_da_caixa_trazem_criado_em():
     # Casa contra as duas queries REAIS do arquivo de produção, sem reimplementá-las.
     alvos = [
         # s391: as duas trazem também `stake_orig` e `moeda` — a caixa de conta USD/USDT roda
-        # na moeda da conta e precisa da stake ORIGINAL de cada aposta.
-        "SELECT id, stake, odd, resultado, data, criado_em, stake_orig, moeda FROM bilhetes ",   # _caixa_apostas
-        "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em, stake_orig, moeda ",  # caixa_visao
+        # na moeda da conta e precisa da stake ORIGINAL de cada aposta. s392: e `cotacao` +
+        # `stake_freebet` — a freebet não sai do saldo e volta à moeda da conta pela cotação.
+        "SELECT id, stake, odd, resultado, data, criado_em, stake_orig, moeda, cotacao, ",   # _caixa_apostas
+        "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em, stake_orig, moeda, ",  # caixa_visao
     ]
     for a in alvos:
         assert src.count(a) == 1, f"query da caixa mudou de forma (ou perdeu criado_em): {a!r}"

@@ -4404,7 +4404,8 @@ async def exportar_csv(dono: str = Depends(dono_leitura)):
         w.writeheader()
         for r in rows:
             linha = {k: ("" if v is None else str(v)) for k, v in r.items()}
-            pl = calcular_pl(r.get("stake"), r.get("odd"), r.get("resultado"))
+            pl = calcular_pl(r.get("stake"), r.get("odd"), r.get("resultado"),
+                             r.get("stake_freebet"))
             # Decimal vírgula, como o resto do arquivo. Hífen comum no negativo — o
             # minus U+2212 do padrão de tela viraria texto no Excel.
             linha["pl"] = "" if pl is None else f"{pl:.2f}".replace(".", ",")
@@ -4755,7 +4756,8 @@ async def _resolver_abertas(dono: str, casa_txt: str, parceiro_txt: str,
                 "odd_antes": aberta.get("odd"), "odd_depois": odd_nova or aberta.get("odd"),
                 "resultado": res, "retorno": achado.get("retorno"),
                 "pl_antes": calcular_pl(aberta.get("stake"), aberta.get("odd"), None),
-                "pl_depois": calcular_pl(aberta.get("stake"), odd_nova or aberta.get("odd"), res)}
+                "pl_depois": calcular_pl(aberta.get("stake"), odd_nova or aberta.get("odd"), res,
+                                         aberta.get("stake_freebet"))}
         if aplicar:
             item["gravado"] = await atualizar_bilhete(aberta["id"], campos, dono)
         aplicados.append(item)

@@ -78,7 +78,9 @@ def test_funcoes_puras_do_repositorio():
 
 MUTACOES_REPO = [
     ("o P/L original vira R$ ÷ cotação",
-     '    return calcular_pl(f"{float(orig):.2f}".replace(".", ","), d.get("odd"), d.get("resultado"))',
+     # s392: a chamada ganhou a freebet na moeda original (`_freebet_na_origem`).
+     '    return calcular_pl(f"{float(orig):.2f}".replace(".", ","), d.get("odd"), d.get("resultado"),\n'
+     '                       _freebet_na_origem(d))',
      '    _p = calcular_pl(d.get("stake"), d.get("odd"), d.get("resultado"))\n'
      '    return None if _p is None else round(_p / float(d.get("cotacao") or 1), 2)'),
     ("o P/L original ignora a falta de moeda",

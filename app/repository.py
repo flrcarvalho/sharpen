@@ -102,7 +102,7 @@ def _dec(v) -> Decimal | None:
     return Decimal(str(v))
 
 
-def calcular_pl(stake, odd, resultado) -> float | None:
+def calcular_pl(stake, odd, resultado, freebet=None) -> float | None:
     """P/L líquido da aposta (= coluna L da planilha de origem).
 
     Campo DERIVADO — calculado sob demanda na leitura, nunca persistido. Assim
@@ -120,6 +120,19 @@ def calcular_pl(stake, odd, resultado) -> float | None:
     cashout≠stake: cashout÷stake), então `stake × odd` reproduz o retorno real
     sem tratamento extra. Retorna None enquanto a aposta está aberta (sem
     resultado), equivalente ao "-" da planilha.
+
+    FREEBET (`MASTER_RESULTADO §5.8`, decisão do Feca de 03-04/10/2026): `freebet` é a
+    parte do stake que foi dinheiro da CASA (coluna `stake_freebet`, mesma unidade da
+    stake). O retorno não muda; muda o que saiu do bolso:
+
+        P/L = retorno − (stake − freebet)     em W e L
+        V   → 0                               a casa devolve a freebet como CRÉDITO
+        HW / HL com freebet → None            sem amostra: "a conferir", não liquidar
+
+    Sem freebet (None, 0, ilegível ou maior que a stake) o P/L é o de sempre, ao centavo.
+    LACUNA CONHECIDA: o cashout de freebet INTEIRA vale 0 pela §5.8 (volta como nova
+    freebet), mas aqui ele chega como W com `odd = cashout ÷ stake` e não há como
+    distingui-lo de uma vitória comum sem a captura marcar o cashout (BACKLOG 4.0a).
     """
     res = (resultado or "").strip().upper()
     if res not in _RESULTADOS_VALIDOS:
@@ -142,7 +155,32 @@ def calcular_pl(stake, odd, resultado) -> float | None:
         "HW": (s / 2) * o + (s / 2),
         "HL": s / 2,
     }[res]
+    fb = _freebet_valida(freebet, s)
+    if fb:
+        if res == "V":
+            return 0.0
+        if res in ("HW", "HL"):
+            return None
+        return round(valor - (s - fb), 2)
     return round(valor - s, 2)
+
+
+def _freebet_valida(freebet, stake: float) -> float:
+    """A freebet que vale para a conta, ou 0. Ausente, ilegível, ≤ 0 ou MAIOR que a stake
+    não é freebet de nada: a aposta conta como normal (o comportamento de antes da regra)."""
+    if freebet is None or freebet == "":
+        return 0.0
+    fb = _num_or_none(freebet)
+    if fb is None or fb <= 0 or fb > stake + 0.005:
+        return 0.0
+    return fb
+
+
+def dinheiro_real(stake, freebet=None) -> float:
+    """O que saiu do BOLSO do apostador: `stake − freebet` (§5.8). É o que conta como
+    turnover e o que a Caixa desconta do saldo quando a aposta é feita."""
+    s = _num(stake)
+    return round(s - _freebet_valida(freebet, s), 2)
 
 
 def unidade_vigente(escada, data_iso: str | None) -> float | None:
@@ -1933,6 +1971,8 @@ _COLS_RESTAURAR = (
     "casa", "parceiro", "assinatura", "codigo_bilhete", "data", "esporte", "tipster",
     "aposta", "descricao", "stake", "odd", "resultado", "extraction_state",
     "confianca", "stake_usd", "origem", "moeda", "stake_orig", "cotacao",
+    # s392: a freebet também volta no undo — sem ela, excluir e desfazer apagaria a marca.
+    "stake_freebet",
 )
 
 
@@ -1965,9 +2005,9 @@ async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
                 INSERT INTO bilhetes
                     (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,
                      aposta, descricao, stake, odd, resultado, extraction_state, confianca,
-                     stake_usd, origem, moeda, stake_orig, cotacao)
+                     stake_usd, origem, moeda, stake_orig, cotacao, stake_freebet)
                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-                        $18,$19,$20)
+                        $18,$19,$20,$21)
                 ON CONFLICT (dono, casa, parceiro, assinatura) DO NOTHING
                 RETURNING id
                 """,
@@ -1977,6 +2017,7 @@ async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
                 l.get("resultado"), l.get("extraction_state") or "aberta",
                 l.get("confianca"), l.get("stake_usd"), l.get("origem") or "restauracao",
                 l.get("moeda"), _dec(l.get("stake_orig")), _dec(l.get("cotacao")),
+                _dec(l.get("stake_freebet")),
             )
             if rec:
                 restaurados += 1
@@ -2149,7 +2190,8 @@ async def list_bilhetes(
     for r in rows:
         d = dict(r)
         # Campo derivado (não persistido): P/L líquido para o Dashboard.
-        d["pl"] = calcular_pl(d.get("stake"), d.get("odd"), d.get("resultado"))
+        d["pl"] = calcular_pl(d.get("stake"), d.get("odd"), d.get("resultado"),
+                              d.get("stake_freebet"))
         d["pl_orig"] = _pl_na_moeda_original(d)
         out.append(d)
     return out
@@ -2165,7 +2207,16 @@ def _pl_na_moeda_original(d: dict) -> float | None:
     orig = d.get("stake_orig")
     if orig is None or not d.get("moeda"):
         return None
-    return calcular_pl(f"{float(orig):.2f}".replace(".", ","), d.get("odd"), d.get("resultado"))
+    return calcular_pl(f"{float(orig):.2f}".replace(".", ","), d.get("odd"), d.get("resultado"),
+                       _freebet_na_origem(d))
+
+
+def _freebet_na_origem(d: dict) -> float | None:
+    """A `stake_freebet` (em R$) levada à moeda da `stake_orig`, pela mesma cotação."""
+    fb, cot = d.get("stake_freebet"), _num_or_none(d.get("cotacao"))
+    if fb is None or not cot:
+        return None
+    return round(float(fb) / cot, 2)
 
 
 async def contar_bilhetes(
@@ -2230,7 +2281,7 @@ def _resumir_apostas(rows: list[dict]) -> dict:
         stake = _num(r.get("stake"))
         if stake <= 0:
             continue
-        lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
+        lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado, r.get("stake_freebet"))
         if lucro is None:
             continue
         data_iso = _data_iso(r.get("data"))
@@ -2239,7 +2290,8 @@ def _resumir_apostas(rows: list[dict]) -> dict:
         pl += lucro
         n += 1
         if resultado != "V":
-            turn += stake
+            # turnover = dinheiro do apostador (§5.8): a freebet não é volume dele
+            turn += dinheiro_real(r.get("stake"), r.get("stake_freebet"))
             settled += 1
             if resultado in ("W", "HW"):
                 wins += 1
@@ -2478,6 +2530,7 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -
             if orig is not None and (a.get("moeda") or "").upper() == moeda:
                 b = dict(a)
                 b["stake"] = f"{float(orig):.2f}".replace(".", ",")
+                b["stake_freebet"] = _freebet_na_origem(a)
                 convertidas.append(b)
             elif _num(a.get("stake")) > 0:
                 n_sem_origem += 1
@@ -2516,6 +2569,11 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -
         stake = _num(a.get("stake"))
         if stake <= 0:
             continue
+        # Freebet (§5.8): a parte da casa NUNCA saiu do saldo. Aberto e preso no corte
+        # descontam só o dinheiro real; o P/L abaixo já é `retorno − dinheiro real`. As três
+        # pontas mudam JUNTAS — só o P/L deixaria a projeção errada pelo valor da freebet.
+        fb = a.get("stake_freebet")
+        real = dinheiro_real(a.get("stake"), fb)
         bid = a.get("id")
         no_corte = bid is not None and int(bid) in abertas_corte
         # Aposta ABERTA pode não ter data nenhuma, e isso não é defeito: onde a coluna
@@ -2532,7 +2590,7 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -
             # poder DIZER isso na tela (ver `pl_anterior` no dicionário acima).
             res_ant = (a.get("resultado") or "").strip().upper()
             if res_ant in _RESULTADOS_VALIDOS:
-                lucro_ant = calcular_pl(a.get("stake"), a.get("odd"), res_ant)
+                lucro_ant = calcular_pl(a.get("stake"), a.get("odd"), res_ant, fb)
                 if lucro_ant is not None:
                     out["pl_anterior"] += lucro_ant
                     out["n_anteriores"] += 1
@@ -2540,15 +2598,15 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -
         if no_corte:
             # O stake saiu da conta ANTES do corte: entra na banca inicial, e sai de
             # novo em "em aberto" enquanto a aposta não liquidar.
-            out["preso_corte"] += stake
+            out["preso_corte"] += real
             out["n_preso_corte"] += 1
         resultado = (a.get("resultado") or "").strip().upper()
         if not resultado:
-            out["aberto"] += stake; out["n_abertas"] += 1
+            out["aberto"] += real; out["n_abertas"] += 1
             continue
         if resultado not in _RESULTADOS_VALIDOS:
             continue
-        lucro = calcular_pl(a.get("stake"), a.get("odd"), resultado)
+        lucro = calcular_pl(a.get("stake"), a.get("odd"), resultado, fb)
         if lucro is None:
             continue
         out["pl"] += lucro; out["n_liquidadas"] += 1
@@ -2637,7 +2695,8 @@ async def _caixa_apostas(conn, dono: str, casa: str, parceiro: str) -> list[dict
     # `criado_em` entra porque `_caixa_abertas_no_corte` precisa saber o que o Sharpen
     # JÁ CONHECIA antes do corte — a data do bilhete é a do EVENTO, não a da aposta.
     rows = await conn.fetch(
-        "SELECT id, stake, odd, resultado, data, criado_em, stake_orig, moeda FROM bilhetes "
+        "SELECT id, stake, odd, resultado, data, criado_em, stake_orig, moeda, cotacao, "
+        "stake_freebet FROM bilhetes "
         "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
         dono, casa, parceiro,
     )
@@ -2965,7 +3024,8 @@ async def caixa_visao(dono: str) -> dict:
         # aposta não tem data (aberta de casa cuja Data é a de resolução). Omiti-lo aqui
         # faria o Painel de Contas projetar DIFERENTE da tela da conta, com a mesma conta.
         apostas = await conn.fetch(
-            "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em, stake_orig, moeda "
+            "SELECT id, casa, parceiro, stake, odd, resultado, data, criado_em, stake_orig, moeda, "
+            "cotacao, stake_freebet "
             "FROM bilhetes WHERE dono = $1", dono)
 
     por_conta: dict[int, list[dict]] = {}
@@ -3103,7 +3163,8 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
             if aberta:
                 resultado, lucro = "ABERTA", 0.0
             else:
-                lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado)
+                lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado,
+                                    r.get("stake_freebet"))
                 if lucro is None:
                     continue
             data_iso = _data_iso(r.get("data"))
@@ -3890,7 +3951,7 @@ async def resultado_em_unidades(dono: str, tipster: str) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT data, stake, odd, resultado FROM bilhetes "
+            "SELECT data, stake, odd, resultado, stake_freebet FROM bilhetes "
             "WHERE dono = $1 AND tipster = $2", dono, tipster,
         )
         esc = await conn.fetch(
@@ -3900,7 +3961,7 @@ async def resultado_em_unidades(dono: str, tipster: str) -> dict:
     escada = [dict(r) for r in esc]
     linhas, stakes = [], []
     for r in rows:
-        pl = calcular_pl(r["stake"], r["odd"], r["resultado"])
+        pl = calcular_pl(r["stake"], r["odd"], r["resultado"], r["stake_freebet"])
         if pl is None:
             continue
         di = _data_iso(r["data"])

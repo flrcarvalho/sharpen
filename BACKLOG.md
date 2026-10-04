@@ -1341,13 +1341,21 @@ SportingBet), o `/extrair` devolve `freebets`, o front transporta, e o `/salvar`
 `bilhetes.stake_freebet` em R$ (pela cotação da stake), **só preenchendo** — a recaptura marca
 o histórico, inclusive em linha resolvida. Gate: `tests/test_freebet_captura.py` (6 mutações) +
 2 casos no `test_repository_db.py` (só no CI). Medido na sombra: 20 de 20 lidos, 0 falso
-positivo em 3.000 blocos. **Nenhum número do produto mudou ainda.** Falta, um por vez:
+positivo em 3.000 blocos.
 
-1. **2b:** `calcular_pl(stake, odd, resultado, freebet)` pela §5.8, nas 11 chamadas do
-   servidor (grade, feed, Caixa, tipster, contrato, gates de correção).
+**Passo 2b (+ o 2d, no mesmo commit):** `calcular_pl(stake, odd, resultado, freebet)` pela §5.8
+em todo leitor do banco (grade, feed, resumo por conta, CSV, unidades do tipster, "Resolver
+abertas") e a Caixa nas TRÊS pontas juntas (P/L, em aberto, preso no corte — só o P/L deixaria
+a projeção errada pelo valor da freebet), com a freebet voltando à moeda da conta USD/USDT pela
+cotação. O "Desfazer" da exclusão leva a coluna. Os gates do TSV (`corrigir_stake_tsv`,
+`contrato_texto`) ficam sem freebet de propósito: rodam antes do banco e decidem rótulo, não
+P/L. Gate: `tests/test_freebet_pl.py` (8 mutações; regressão sem freebet nos 5 resultados).
+**Lacuna declarada:** cashout de freebet INTEIRA (P/L 0 pela §5.8) chega como W e é
+indistinguível de vitória sem a captura marcar o cashout. Falta, um por vez:
+
 2. **2c:** turnover e ROI no front (`calcTurnover` e cia.) pelo dinheiro real. O stake EXIBIDO
    continua cheio, e a assinatura de stake do matcher não muda.
-3. **2d:** Caixa (`_caixa_projetar`): o stake da freebet não sai do saldo ao apostar.
+3. **Cashout de freebet:** a captura marcar o cashout para o `calcular_pl` dar 0 (§5.8).
 4. **Backfill** do que a casa já não devolve na recaptura, pela `sombra_rotulos` (os 20, desde
    26/08), com ensaio. Print não tem bloco: fica de fora.
 5. **Casas que marcam freebet SEM valor**, de propósito não lidas: Betbra (`aposta grátis
