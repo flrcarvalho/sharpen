@@ -31,6 +31,7 @@
   let pedido = false;                          // o robô já pediu → pode arrancar o replay
   let loopAtivo = false;                       // trava: um replay por vez
   let fimReplay = false;                       // as duas listas já foram repaginadas
+  let repetir = false;                         // pedido chegou durante a varredura → roda de novo
   const LOG = (...a) => { try { console.log("[SharpenUp dx_inject]", ...a); } catch (e) {} };
   LOG("hook instalado em", location.href);
 
@@ -203,6 +204,7 @@
       loopAtivo = false;
       fimReplay = true;
       enviar();
+      if (repetir) { repetir = false; fimReplay = false; arrancarReplay(); }
     }
   }
 
@@ -210,6 +212,17 @@
     const d = ev.data;
     if (!d || !d.__sharpenupDXReq) return;
     pedido = true;
+    // ⚠ DESTRAVA A SEGUNDA RODADA (s393). `fimReplay` latchava em `true` para sempre: rodar o
+    // robô outra vez na mesma aba reenviava o acumulado da 1ª varredura sem perguntar nada à
+    // casa. A aposta liquidada depois disso subia como "em aberto" (b779a93a, Feca, 04/10).
+    //
+    // Pedido novo é rodada NOVA, a partir do zero: o acumulado velho não é reenviado, porque o
+    // content formata cada bilhete na 1ª vez que o vê e corta a espera no 1º bilhete antigo —
+    // com o mapa velho, as duas coisas aconteceriam antes de a casa responder. Só zera quando
+    // há requisição autenticada para repaginar; sem ela, o que o SDK já entregou é tudo o que há.
+    // Pedido que chega com a varredura em curso não se perde: fica marcado e roda ao fim.
+    if (loopAtivo) repetir = true;
+    else { fimReplay = false; if (reqCtx) byId.clear(); }
     enviar();
     arrancarReplay();
   });

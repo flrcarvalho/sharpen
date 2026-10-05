@@ -4600,6 +4600,11 @@
       }
     };
 
+    // Rodada nova começa do zero (s393). Sem isto, `dxFimReal` ficava `true` desde a 1ª rodada
+    // na aba e a 2ª devolvia o mapa velho sem esperar a casa: aposta já liquidada subia como
+    // "em aberto". O inject zera o lado dele no mesmo pedido (`dx_inject.js`).
+    dxById.clear();
+    dxFimReal = false;
     try { window.postMessage({ __sharpenupDXReq: true }, "*"); } catch (e) {}
     await sleep(400);
     processar();

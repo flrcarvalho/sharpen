@@ -180,5 +180,92 @@ export async function rodar() {
   }
   if (urls.length < 4) falhas.push(`replay não repaginou o bastante (só ${urls.length} requisição(ões))`);
   void servidas;
+
+  testes += await segundaRodada(fx, falhas, fmt);
   return { falhas, testes };
+}
+
+// Armadilha 8 (s393): a SEGUNDA rodada do robô na mesma aba. O `fimReplay` do inject e o
+// `dxFimReal` do content latchavam em `true` na 1ª rodada; a 2ª reenviava o acumulado velho
+// sem perguntar nada à casa, e a aposta liquidada entre as duas subia como "em aberto"
+// (`b779a93a`, conta do Feca, 04/10/2026). Aqui a casa LIQUIDA a aberta `bf7feb3c` entre as
+// rodadas, e as duas metades precisam enxergar isso:
+//   · inject: o pedido tardio (com o `fim` já dado) repagina, e a última mensagem traz W;
+//   · content: com o mapa velho carregado e o `fim` velho ligado, o robô espera a casa e
+//     formata a versão NOVA — sem o reset ele formata a aberta em 400 ms e encerra.
+const ABERTA_QUE_LIQUIDA = "bf7feb3c";
+
+async function segundaRodada(fx, falhas, fmt) {
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const antes = { placed: fx.placed.map((p) => p.resposta), finished: fx.finished.map((p) => p.resposta) };
+  // O estado da casa DEPOIS: a aberta saiu de `placed` e entrou em `finished`, ganha.
+  const depois = { placed: clone(antes.placed), finished: clone(antes.finished) };
+  let liquidada = null;
+  for (const r of depois.placed) {
+    const i = r.data.findIndex((t) => String(t.id).startsWith(ABERTA_QUE_LIQUIDA));
+    if (i >= 0) { liquidada = r.data.splice(i, 1)[0]; r.meta.totalRows--; }
+  }
+  if (!liquidada) { falhas.push(`2ª rodada: ${ABERTA_QUE_LIQUIDA} não está em placed na fixture`); return 0; }
+  Object.assign(liquidada, { status: 3, result: 1, settlementStatus: 1,
+                             payout: 171.5, payoutCoefficient: liquidada.coefficient });
+  depois.finished[0].data.unshift(liquidada);
+
+  // A casa vira de estado no 1º pedido que chegar depois que a 1ª varredura terminou.
+  let primeira = true, fimVisto = false;
+  const responder = (url) => {
+    if (!/\/api\/sportsbook\/history\/tickets/.test(url)) return null;
+    let st = "placed", pg = 1;
+    try { const u = new URL(url); st = u.searchParams.get("status") || st; pg = Number(u.searchParams.get("page")) || 1; } catch (e) {}
+    if (fimVisto) primeira = false;
+    const lista = (primeira ? antes : depois)[st] || [];
+    if (st === "finished" && pg >= lista.length) fimVisto = true;
+    return JSON.stringify(lista[pg - 1] || { data: [], meta: { pageNumber: pg, pageSize: 25, totalPages: lista.length, totalRows: 0 } });
+  };
+  const { ultima, mensagens } = await rodarInject({
+    inject: "dx_inject.js",
+    href: "https://dexsport.io/pt/sports/",
+    urlInicial: "https://prod.dexsport.work//api/sportsbook/history/tickets?status=placed&page=1&locale=pt",
+    optsInicial: { method: "GET", headers: { Authorization: "Bearer harness.token.falso" } },
+    pedido: "__sharpenupDXReq",
+    pedidoTardio: { __sharpenupDXReq: true },
+    responder, ms: 600,
+  });
+  const bs = (ultima && ultima.bilhetes) || [];
+  const b = bs.filter((x) => String(x.id).startsWith(ABERTA_QUE_LIQUIDA));
+  if (primeira) falhas.push("2ª rodada (inject): o pedido tardio não tocou a rede — devolveu o acumulado velho");
+  if (!ultima || !ultima.fim) falhas.push("2ª rodada (inject): a última mensagem não sinalizou `fim`");
+  if (b.length !== 1) falhas.push(`2ª rodada (inject): esperava 1 ${ABERTA_QUE_LIQUIDA}, vieram ${b.length}`);
+  else if (!W.test(linha(fmt(b[0]), "Status:"))) falhas.push(`2ª rodada (inject): ${ABERTA_QUE_LIQUIDA} liquidou na casa e subiu "${linha(fmt(b[0]), "Status:")}"`);
+  // Depois do 1º `fim`, NENHUMA mensagem pode trazer a aberta velha: o content formata cada
+  // bilhete na 1ª vez que o vê, então reenviar o acumulado antes de a casa responder é o
+  // mesmo defeito por outro caminho (o `fim` destravado, mas o mapa velho na frente).
+  const iFim = mensagens.findIndex((m) => m && m.fim);
+  const velhaDepois = mensagens.slice(iFim + 1).some((m) => (m.bilhetes || [])
+    .some((x) => String(x.id).startsWith(ABERTA_QUE_LIQUIDA) && x.status !== 3));
+  if (iFim >= 0 && velhaDepois) falhas.push(`2ª rodada (inject): reenviou a ${ABERTA_QUE_LIQUIDA} ABERTA antes de a casa responder (acumulado velho não foi zerado)`);
+  if (bs.length !== antes.placed.concat(antes.finished).flatMap((r) => r.data).length) {
+    falhas.push(`2ª rodada (inject): ${bs.length} bilhetes no acumulado (bilhete perdido ou duplicado entre as rodadas)`);
+  }
+
+  // Metade do content: roda o `roboDXPassive` real com o estado que a 1ª rodada deixa na aba.
+  const { pegar } = carregarContent();
+  const parse = (raw) => ({ id: String(raw.id), resultado: raw.result, status: raw.status, liquidacao: raw.settlementStatus,
+    tipo: raw.ticketType, moeda: String(raw.currency || ""), stake: raw.amount, odd: raw.coefficient,
+    oddPaga: raw.payoutCoefficient, retorno: raw.payout, potencial: raw.possiblePayout, ts: raw.placedAt, fim: raw.finishedAt,
+    sels: [] });
+  const abertaRaw = antes.placed.flatMap((r) => r.data).find((t) => String(t.id).startsWith(ABERTA_QUE_LIQUIDA));
+  const mapa = pegar("dxById");
+  mapa.set(String(abertaRaw.id), parse(abertaRaw));     // o que a 1ª rodada deixou
+  pegar("dxFimReal = true");
+  // A "casa" responde 1,2 s depois do pedido: DEPOIS da 1ª leitura do robô (400 ms), onde o
+  // mapa velho era formatado, e depois da saída rápida (~800 ms) de quem não destrava o `fim`.
+  // Com 700 ms a mutação "não zera o dxFimReal" passava por sorte de relógio (medido, s393).
+  setTimeout(() => { mapa.set(String(liquidada.id), parse(liquidada)); pegar("dxFimReal = true"); }, 1200);
+  const blocos = await pegar("roboDXPassive")({
+    parar: () => false, stopId: null, cutoff: 0, pisoSanidade: 0, painel: { contador: {} },
+  });
+  const meu = blocos.filter((t) => t.startsWith(`[Código: ${liquidada.id}]`));
+  if (meu.length !== 1) falhas.push(`2ª rodada (content): esperava 1 bloco de ${ABERTA_QUE_LIQUIDA}, vieram ${meu.length}`);
+  else if (!W.test(linha(meu[0], "Status:"))) falhas.push(`2ª rodada (content): formatou a versão VELHA — "${linha(meu[0], "Status:")}"`);
+  return 2;
 }
