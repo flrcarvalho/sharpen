@@ -1386,6 +1386,19 @@ em 04/10: MyStake `306558636` (`Scarborough Athletic +0.25`, era −0,25) e `306
 recaptura. Não afeta P/L (vem do bilhete). Saída: editar na grade (os 2 da MyStake) ou um
 script com ensaio que case bloco novo × descrição gravada.
 
+### 4.0c A trava de `fim` do replay que nunca destrava — a 2ª captura na mesma aba devolve o acumulado velho (s393). **VIVA na família, medida só na DEX**
+
+Corrigida na DEX Sport (0.7.42, `53b7e11`): o `fimReplay` do inject e o `<casa>FimReal` do
+`content.js` latchavam em `true` na 1ª rodada, e a 2ª captura na mesma aba reenviava o mapa
+velho sem tocar a rede — aposta liquidada entre as duas subia `em aberto` (`b779a93a`, Feca).
+A Bolsa destrava só o lado do inject (`bda_inject.js`, s299); o `bdaFimReal` do content segue
+latchado. Pelo grep (s393), o `fimReplay` sem reset no pedido existe em `kto_inject`, `stk_inject`,
+`pn_inject`, `nv_inject`, `jb_inject`, `pt_inject`, `rg_inject`, `bnc_inject` e `tv_inject` — **não medido** se cada um cai no
+mesmo sintoma (depende de o content formatar na 1ª leitura e de o mapa guardar a versão velha).
+Saída: o padrão da DEX (pedido novo = rodada do zero nos dois lados) com o caso de 2ª rodada
+no harness de cada casa, mutação nas duas metades. **Também falta:** validar a DEX ao vivo com
+duas capturas seguidas sem fechar a aba.
+
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 **Próximo passo (backlog vivo, um por vez):**
