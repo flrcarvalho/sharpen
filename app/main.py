@@ -235,6 +235,11 @@ _CASA_DISPLAY: dict[str, str] = {
     # `panda` fora a KingPanda. `casa_canonica` ignora espaço e caixa, então quem digitar
     # "Bet Panda" cai aqui, sem gêmea. SIGILO: fora de aviso aos testers, changelog e home.
     "BETPANDA":       "Betpanda",
+    # 5ª e 6ª casas BetBy (s393). Grafia da BASE, não da marca (o site escreve `BetFury`):
+    # medido em 04/10/2026, já havia 1 conta `Betfury` e 1 `Duel` em `parceiros`, zero
+    # bilhete. Com a da marca, a 1ª captura abriria conta paralela.
+    "BETFURY":        "Betfury",
+    "DUEL":           "Duel",
     # Plataforma PRÓPRIA (s391). Grafia = a da CONTA que já existia (`DEX Sport`, criada pelo
     # Feca em 03/10/2026), por decisão dele: a base manda, não a marca. A 1ª versão registrou
     # `Dexsport` e a conta `DEX Sport` caiu em modo print, porque o round-trip compara a caixa
@@ -870,6 +875,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Bet Panda (s391) — 4ª casa BetBy. Mesmo espaço de IDs: numérico de 19 dígitos, o
     # mesmo número que o card estampa em "ID da aposta".
     "BETPANDA",
+    # BetFury e Duel (s393) — 5ª e 6ª casas BetBy. Mesmo espaço de IDs: numérico de 19 dígitos.
+    "BETFURY",
+    "DUEL",
     # Dexsport (s391) — plataforma própria. ID = UUID, o mesmo que o card estampa inteiro em
     # "ID da aposta".
     "DEXSPORT",

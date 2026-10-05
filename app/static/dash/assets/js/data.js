@@ -39,6 +39,9 @@ const CASA_ICONS={
   'Blaze':'https://www.google.com/s2/favicons?sz=128&domain=blaze.bet.br',
   // 4a casa BetBy (s391).
   'Betpanda':'https://www.google.com/s2/favicons?sz=128&domain=betpandacasino.io',
+  // 5a e 6a casas BetBy (s393).
+  'Betfury':'https://www.google.com/s2/favicons?sz=128&domain=betfury.com',
+  'Duel':'https://www.google.com/s2/favicons?sz=128&domain=duel.com',
   // Plataforma propria (s391).
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
@@ -141,6 +144,8 @@ const HOUSE_DOMAIN={
   'Betboom':'betboom.bet.br',
   'Blaze':'blaze.bet.br',
   'Betpanda':'betpandacasino.io',
+  'Betfury':'betfury.com',
+  'Duel':'duel.com',
   'DEX Sport':'dexsport.io',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo

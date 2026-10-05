@@ -1340,7 +1340,8 @@
       // ⚠ É a casa mais LENTA da base por desenho: o detalhe é sequencial. A janela de dias
       // é o freio que impede isso virar 152 chamadas toda vez.
       blocos = await roboLTPassive(ctx);
-    } else if (casa === "jonbet" || casa === "betboom" || casa === "blaze" || casa === "betpanda") {
+    } else if (casa === "jonbet" || casa === "betboom" || casa === "blaze" || casa === "betpanda" ||
+               casa === "betfury" || casa === "duel") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
       // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
       // de texto: os cards da Jonbet ficam num grid de 3 colunas, sem linha em branco entre
@@ -1362,6 +1363,10 @@
       // A BET PANDA é a 4ª (s391): mesmo hash de operador (`api-a-c7818b61-600`), renderer em
       // `betpanda.sptpub.com` na própria página. A novidade é a MOEDA: a casa mede em dólar
       // (`currency: "$"`), e o formatador rotula o dinheiro na moeda do bilhete (`_dinJB`).
+      //
+      // BETFURY e DUEL são a 5ª e a 6ª (s393), espelhos sem linha nova: mesmo hash de operador,
+      // renderer na própria página (`sports.betfury.ai` · `duel.sptpub.com`), API em
+      // `api-g-c7818b61-607` e `api-a-c7818b61-600`. Casas cripto: a moeda vem do bilhete.
       blocos = await roboJBPassive(ctx);
     } else if (casa === "dexsport") {
       // Passivo + replay (dx_inject, plataforma PRÓPRIA — s391). O SDK de esportes roda em
@@ -1536,6 +1541,8 @@
         // próprio, para o operador não ler "Jonbet: 0 bilhetes" estando na Blaze.
         blaze:      { nome: "Blaze",      hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         betpanda:   { nome: "Betpanda",   hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
+        betfury:    { nome: "Betfury",    hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
+        duel:       { nome: "Duel",       hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         dexsport:   { nome: "DEX Sport",  hook: dxHookVivo, resp: dxRespostas, vistos: dxById.size,
                       extra: dxRespostas === 0 ? " · abra Esportes → Minhas apostas e rode de novo" : "" },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
@@ -4473,7 +4480,7 @@
     }
     await sleep(400);
     processar();   // consome o que chegou por último
-    console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze/Betpanda): " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
+    console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze/Betpanda/Betfury/Duel): " + blocos.length + " bilhete(s) · jbById=" + jbById.size +
                 " · hook=" + jbHookVivo + " · respostas=" + jbRespostas + " · fimReal=" + jbFimReal);
     return blocos;
   }
