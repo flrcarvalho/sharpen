@@ -61,6 +61,9 @@ const CASA_HOSTS = {
   // da Betpanda), sportsbook em `/sports`.
   "Betfury":    ["betfury.com"],
   "Duel":       ["duel.com"],
+  // 7ª casa BetBy (s395) · MESMO hash de operador (`c7818b61`). API em `api-i-c7818b61-624`,
+  // sportsbook em `/sportbook/` (sem o "s": `/sports` dá 404).
+  "Betcoin":    ["betcoin.ag"],
   // Plataforma própria (s391). O histórico vive no SDK de esportes: Esportes → Minhas apostas.
   "DEX Sport":  ["dexsport.io"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
@@ -273,6 +276,8 @@ async function capturar() {
                 // cada uma, pelo motivo da Blaze.
                 : casa === "Betfury" ? "jb_inject.js"
                 : casa === "Duel" ? "jb_inject.js"
+                // Betcoin: 7ª casa BetBy (s395) — MESMO inject, linha própria.
+                : casa === "Betcoin" ? "jb_inject.js"
                 : casa === "DEX Sport" ? "dx_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"

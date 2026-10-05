@@ -3668,6 +3668,8 @@ const NOMES = {
   // 5ª e 6ª casas BetBy (s393). Grafia da BASE (1 conta `Betfury` e 1 `Duel`, 04/10/2026). Sem aviso aos testers.
   BETFURY: 'Betfury',
   DUEL: 'Duel',
+  // 7ª casa BetBy (s395). Grafia da BASE (1 conta `Betcoin`, 05/10/2026). Sem aviso aos testers.
+  BETCOIN: 'Betcoin',
   // Plataforma própria (s391). Grafia da CONTA que já existia, `DEX Sport` (decisão do Feca).
   DEXSPORT: 'DEX Sport',
 };
@@ -3852,7 +3854,7 @@ const DOMINIOS = {
   // muda é o mapa deixar de apontar para o site global.
   'Betão': 'betao.bet.br', 'Betboo': 'betboo.bet.br', 'Betboom': 'betboom.bet.br',
   'Blaze': 'blaze.bet.br', 'Betpanda': 'betpandacasino.io',
-  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'DEX Sport': 'dexsport.io',
+  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'Betcoin': 'betcoin.ag', 'DEX Sport': 'dexsport.io',
   'Betfusion': 'betfusion.bet.br', 'Liderbet': 'lider.bet.br',
   'SportingBet': 'sportingbet.bet.br',
   // Casas da base do Soh Props - Vip (s316). Domínio MEDIDO, não deduzido: o
@@ -5925,7 +5927,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'DEXSPORT', 'FAZ1BET', 'MYSTAKE', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'BETCOIN', 'DEXSPORT', 'FAZ1BET', 'MYSTAKE', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o

@@ -69,7 +69,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "DEXSPORT": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "MYSTAKE": "texto",
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "BETCOIN": "texto","DEXSPORT": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "MYSTAKE": "texto",
                    # Betboo (s372) — espelho da SportingBet: mesmo inject, mesmo formatador,
                    # logo o mesmo modo. So muda a marca.
                    "BETBOO": "texto",
@@ -214,6 +214,9 @@ _HOSTS_POR_CASA = {
     # o renderer monta na própria página (sem iframe) e a ABA é o site da casa.
     "BETFURY":    ("betfury.com",),
     "DUEL":       ("duel.com",),
+    # 7ª casa BetBy (s395), espelho sem linha nova. Renderer em `betcoin.sptpub.com`, API em
+    # `api-i-c7818b61-624.sptpub.com`, sportsbook em `/sportbook/`; a ABA é o site da casa.
+    "BETCOIN":    ("betcoin.ag",),
     # Plataforma própria (s391). A API sai de `prod.dexsport.work`; a ABA é o site da casa.
     "DEXSPORT":   ("dexsport.io",),
 }

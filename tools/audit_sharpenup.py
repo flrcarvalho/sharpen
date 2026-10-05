@@ -130,6 +130,8 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # numerico de 19 digitos do motor e reconhecido. Trocar pelo id real na 1a captura.
     "BETFURY":    "2717948654752248251",
     "DUEL":       "2717948654752248251",
+    # 7a casa BetBy (s395), mesma situacao: sem conta de teste, id da Betpanda declarado.
+    "BETCOIN":    "2717948654752248251",
     # UUID real da Dexsport (a ganha de 01/10/2026, 25 usdt @5,03 -> 125,75, conferida no card
     # do SDK). Plataforma propria: o id e o UUID inteiro, sem prefixo.
     "DEXSPORT":   "3345134c-ef5a-4dac-a4cd-1c4344961467",

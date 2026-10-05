@@ -240,6 +240,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # bilhete. Com a da marca, a 1ª captura abriria conta paralela.
     "BETFURY":        "Betfury",
     "DUEL":           "Duel",
+    # 7ª casa BetBy (s395). Grafia da BASE: medido em 05/10/2026, 1 conta `Betcoin` em
+    # `parceiros` e em `casas_meta`, zero bilhete.
+    "BETCOIN":        "Betcoin",
     # Plataforma PRÓPRIA (s391). Grafia = a da CONTA que já existia (`DEX Sport`, criada pelo
     # Feca em 03/10/2026), por decisão dele: a base manda, não a marca. A 1ª versão registrou
     # `Dexsport` e a conta `DEX Sport` caiu em modo print, porque o round-trip compara a caixa
@@ -878,6 +881,8 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # BetFury e Duel (s393) — 5ª e 6ª casas BetBy. Mesmo espaço de IDs: numérico de 19 dígitos.
     "BETFURY",
     "DUEL",
+    # Betcoin (s395) — 7ª casa BetBy. Mesmo espaço de IDs: numérico de 19 dígitos.
+    "BETCOIN",
     # Dexsport (s391) — plataforma própria. ID = UUID, o mesmo que o card estampa inteiro em
     # "ID da aposta".
     "DEXSPORT",
