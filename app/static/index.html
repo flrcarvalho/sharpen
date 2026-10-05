@@ -4655,10 +4655,11 @@ async function renderPainelBanca(force) {
     const pctEu = Math.max(0, 100 - pctTerc);
     kpiTerc =
       '<div class="painel-kpi terc"><span class="painel-kpi-lbl">Em contas de fornecedores</span>'
-      + '<span class="painel-kpi-val">' + fmtSaldo(agg.terceiros)
+      + '<span class="painel-kpi-val">' + (agg.aproxTerc ? '≈ ' : '') + fmtSaldo(agg.terceiros)
         + '<span class="sfx"> · ' + pctTerc.toFixed(0) + '%</span></span>'
       + '<span class="painel-kpi-sub">' + nf(agg.nForn) + (agg.nForn === 1 ? ' fornecedor' : ' fornecedores')
-        + ' · ' + pctEu.toFixed(0) + '% em contas suas</span>'
+        + ' · ' + pctEu.toFixed(0) + '% em contas suas'
+        + (agg.aproxTerc ? ' · ≈ ' + nf(agg.aproxTerc) + ' em outra moeda, pela cotação de hoje' : '') + '</span>'
       + (stack ? '<span class="mini-stack">' + stack + '</span>' : '')
       + '</div>';
   }
@@ -4829,6 +4830,9 @@ function renderPainelConcentracao(v) {
 function _painelAggForn(v) {
   const cxMap = _caixaPorConta() || {};
   const map = {};   // chave -> { chave, nome, eu, caixa, contas, espera }
+  // s394: o saldo entra em R$ (`_cxBrl`), como nos outros três KPIs. Somar `cx.banca`
+  // cru punha USD/ARS na conta como se fosse real. `aproxTerc` conta as de fornecedor convertidas.
+  let aproxTerc = 0;
   (casasCarregadas || []).forEach(casa => {
     (parceirosCache[casa] || []).forEach(p => {
       const k = _painelFornDe(p.nome);
@@ -4839,13 +4843,17 @@ function _painelAggForn(v) {
       a.contas++;
       a.espera += abertasDe(casa, p.nome) || 0;
       const cx = cxMap[p.id];
-      if (cx && cx.ligada && cx.banca) a.caixa += cx.banca;
+      const b = (cx && cx.ligada) ? _cxBrl(cx, 'banca') : null;
+      if (b) {
+        a.caixa += b;
+        if (!a.eu && cx.moeda && cx.moeda !== 'BRL') aproxTerc++;
+      }
     });
   });
   const linhas = Object.values(map).sort((a, b) => b.caixa - a.caixa || a.nome.localeCompare(b.nome));
   const banca = ((v && v.totais) || {}).banca || 0;
   const terceiros = linhas.filter(l => !l.eu).reduce((s, l) => s + l.caixa, 0);
-  return { linhas, banca, terceiros, nForn: linhas.filter(l => !l.eu).length };
+  return { linhas, banca, terceiros, nForn: linhas.filter(l => !l.eu).length, aproxTerc };
 }
 
 // Iniciais do avatar. Duas letras no máximo, e sempre do NOME — nunca um índice ou
