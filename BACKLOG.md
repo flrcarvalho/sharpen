@@ -1365,15 +1365,13 @@ Falta, um por vez:
 3. **Cashout de freebet ACIMA do stake:** o abaixo do stake já dá 0 (W com odd < 1 é cashout
    por construção, `calcular_pl`); o acima segue indistinguível de vitória até a captura
    marcar o cashout. Nenhum caso conhecido.
-4. **Backfill: APLICAR (ação do Feca).** `scripts/backfill_freebet_sombra.py` pronto; ensaio de
-   04/10/2026 (só leitura): 18 bilhetes de 6 donos a marcar, **+R$ 292,50** de P/L (2 dos 20
-   blocos não têm linha no banco). Rodar com `--aplicar` depois do deploy do 2b. Só preenche;
-   print fica de fora.
-5. **Casas que marcam freebet SEM valor**, de propósito não lidas: Betbra (`aposta grátis
+4. **Casas que marcam freebet SEM valor**, de propósito não lidas: Betbra (`aposta grátis
    (freebet)` sem a frase do saldo) e BetBy (`Freebet: sim (conferir …)`). Precisa de amostra
    que diga quanto do stake foi freebet.
 
-Bilhetes de prova: MyStake `306558902` e `306690190` (R$ 45,00 cada).
+Bilhetes de prova: MyStake `306558902` e `306690190` (R$ 45,00 cada). Backfill pela sombra
+APLICADO pelo Feca em 04/10/2026 (`scripts/backfill_freebet_sombra.py`): 18 linhas, conferidas
+no banco, +R$ 292,50 de P/L. Falta conferir ao vivo a Caixa da MyStake.
 
 ### 4.0b `hisminus: true` — o HISTÓRICO gravado antes da 0.7.40 tem o sinal trocado (s392). **VIVA, medida**
 
