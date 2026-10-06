@@ -17,6 +17,18 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-caixa-inteligente-na-polymarket",
+      "data": "2026-10-06",
+      "tag": "Sharpen",
+      "titulo": "Caixa Inteligente na Polymarket",
+      "texto": "Novidades no Sharpen:",
+      "itens": [
+        "A **Caixa Inteligente** agora funciona na conta da Polymarket, sozinha. Depósitos, saques e o saldo vêm da carteira: é só clicar em Sincronizar.",
+        "A conta da Polymarket passa a ser em **dólar**. A grade mostra o valor original de cada aposta.",
+        "As apostas agora incluem a **taxa** da Polymarket e as **combos**. O P/L passa a bater com o que saiu da carteira."
+      ]
+    },
+    {
       "id": "sharpen-custo-zero-e-sem-preco",
       "data": "2026-09-22",
       "tag": "Sharpen",
