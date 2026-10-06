@@ -49,6 +49,16 @@ abas (`statuses`), paginação (`pageNumber` até `isLastPage`) e autenticação
 widget expandido ou só o compacto, e se o gateway aceita `credentials:"include"` para este
 tenant. O inject cobre os dois casos (molde do compacto e fallback sem credencial).
 
+### 2.1 ⚠️ Janela larga volta VAZIA, não com erro
+
+Medido ao vivo em 06/10/2026 (conta do Feca, 7 abertas na tela): a requisição de **abertas**
+com `dateFrom` a **730 dias** respondeu `200 · {"isLastPage":true,"bets":[]}`; a mesma com
+**365, 90 e 30 dias** trouxe as 7. A 1ª captura real subiu as 8 processadas e **nenhuma
+aberta**, sem erro em lugar nenhum. Conserto no `vb_inject.js` (SharpenUp 0.7.46): 1ª página
+vazia numa janela acima de 365 dias refaz a aba com 365. Aditivo: casa que responde à janela
+larga nunca recua. Harness: `casos/betrebels.mjs` §4. **Não medido:** o limite exato entre
+365 e 730 dias.
+
 ---
 
 ## 3. ID do bilhete

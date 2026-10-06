@@ -158,12 +158,21 @@
   // de propósito — uma aposta colocada há meses pode ter jogo amanhã, e cortá-la pelo filtro
   // do servidor a faria sumir do lote (o corte por dias no content preserva aberta pelo mesmo
   // motivo).
-  function corpoPara(abertas, pagina) {
+  //
+  // ⚠ JANELA LARGA PODE VOLTAR **VAZIA**, não com erro. Medido na Betrebels (s395, 06/10/2026,
+  // 7 abertas na tela): a requisição de abertas com 730 dias respondeu `200 ·
+  // {"isLastPage":true,"bets":[]}`, e a mesma com 365, 90 e 30 dias trouxe as 7. Lida ao pé
+  // da letra, a lista vazia diz "conta sem aberta" e o replay parava — a 1ª captura real subiu
+  // as processadas e NENHUMA aberta, sem erro em lugar nenhum. Daí o recuo em `paginarAba`:
+  // 1ª página VAZIA numa janela acima de `JANELA_RECUO` refaz a aba com `JANELA_RECUO` dias.
+  // É ADITIVO: casa que responde à janela larga nunca dispara o recuo. O limite exato do
+  // gateway (entre 365 e 730) não foi medido.
+  const JANELA_RECUO = 365;
+  function corpoPara(abertas, pagina, dias) {
     let o = null;
     try { o = JSON.parse(reqCtx.body); } catch (e) { o = null; }
     if (!o || typeof o !== "object") o = {};
     const agora = Date.now();
-    const dias = abertas ? 730 : Math.max(1, janelaDias);
     o.statuses = abertas ? ST_ABERTAS.slice() : ST_RESOLVIDAS.slice();
     o.pageNumber = pagina;
     if (typeof o.pageSize !== "number" || o.pageSize < 1) o.pageSize = 10;
@@ -207,26 +216,40 @@
   // Pagina UMA aba até o fim autoritativo (`isLastPage:true`). Nunca desiste no 1º obstáculo:
   // só para por fim declarado, página sem bilhete novo (anti-loop) ou teto.
   async function paginarAba(abertas) {
+    const larga = abertas ? 730 : Math.max(1, janelaDias);
+    const vazia = await paginarJanela(abertas, larga);
+    if (vazia && larga > JANELA_RECUO) {
+      LOG(abertas ? "ABERTAS" : "RESOLVIDAS", ": janela de", larga, "dias voltou VAZIA → refazendo com",
+          JANELA_RECUO, "(o gateway de alguns tenants esvazia janela larga)");
+      await paginarJanela(abertas, JANELA_RECUO);
+    }
+  }
+
+  // Devolve `true` só quando a 1ª página veio sem bilhete nenhum — o único caso em que vale
+  // perguntar de novo com janela menor.
+  async function paginarJanela(abertas, dias) {
     const rotulo = abertas ? "ABERTAS" : "RESOLVIDAS";
     let semNovos = 0;
     for (let pagina = 1; pagina <= TETO_PAGINAS; pagina++) {
       let info = null;
       try {
-        const r = await pedirPagina(corpoPara(abertas, pagina));
+        const r = await pedirPagina(corpoPara(abertas, pagina, dias));
         info = forward(reqCtx.url, await r.text());
-      } catch (e) { LOG("erro no replay", rotulo, "pág", pagina, ":", e && e.message); return; }
-      if (!info) { LOG(rotulo, "pág", pagina, ": resposta inesperada → para"); return; }
-      if (info.isLastPage) { LOG(rotulo, ": fim autoritativo na pág", pagina); return; }
-      if (info.n === 0) { LOG(rotulo, "pág", pagina, ": página vazia → para"); return; }
+      } catch (e) { LOG("erro no replay", rotulo, "pág", pagina, ":", e && e.message); return false; }
+      if (!info) { LOG(rotulo, "pág", pagina, ": resposta inesperada → para"); return false; }
+      if (pagina === 1 && info.n === 0) { LOG(rotulo, ": pág 1 vazia (janela", dias, "dias)"); return true; }
+      if (info.isLastPage) { LOG(rotulo, ": fim autoritativo na pág", pagina); return false; }
+      if (info.n === 0) { LOG(rotulo, "pág", pagina, ": página vazia → para"); return false; }
       // "0 bilhete NOVO" não é fim: a página 1 costuma já ter chegado passivamente (a própria
       // tela a pediu ao abrir), e cortar aqui deixava o lote nos 10 primeiros. Só depois de
       // DUAS páginas seguidas sem novidade a gente assume que a casa está repetindo a mesma
       // página e sai — o fim de verdade é o `isLastPage`, e o teto é a rede de segurança.
       if (info.novos === 0) {
-        if (++semNovos >= 2) { LOG(rotulo, "pág", pagina, ": 2 páginas seguidas sem bilhete novo → para"); return; }
+        if (++semNovos >= 2) { LOG(rotulo, "pág", pagina, ": 2 páginas seguidas sem bilhete novo → para"); return false; }
       } else semNovos = 0;
     }
     LOG(rotulo, ": teto de", TETO_PAGINAS, "páginas atingido");
+    return false;
   }
 
   // As DUAS abas a partir de UMA requisição, não importa qual o operador abriu primeiro.

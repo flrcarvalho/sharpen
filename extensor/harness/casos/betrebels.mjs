@@ -37,7 +37,15 @@ const URL_API = "https://sb2bethistory-gateway-altenar2.biahosted.com/api/Widget
 const HREF = "https://www.betrebels.gr/sports";
 const HEADERS_PAGINA = { Authorization: "Bearer harness-token-betrebels", "Content-Type": "application/json" };
 
-function servidor() {
+// ⚠ O GATEWAY DESTE TENANT DEVOLVE VAZIO PARA JANELA LARGA — medido ao vivo (06/10/2026, conta
+// do Feca, 7 abertas na tela): a MESMA requisição de abertas com `dateFrom` a 730 dias voltou
+// `200 · {"isLastPage":true,"bets":[]}`, e com 365, 90 e 30 dias voltou as 7. Não é erro, é
+// lista vazia "válida": o replay lia "conta sem aberta" e parava, e a 1ª captura real subiu
+// as 8 processadas e NENHUMA aberta. `tetoDias` reproduz isso; a seção 4 trava o conserto.
+// O limite exato entre 365 e 730 não foi medido.
+const TETO_MEDIDO = 365;
+
+function servidor({ tetoDias = null } = {}) {
   const resolvidas = fixture("estrelabet.settled.json");   // 8 bilhetes · isLastPage:true
   const abertas = fixture("estrelabet.open.json");         // 4 bilhetes · isLastPage:true
   const pedidos = [];
@@ -47,6 +55,10 @@ function servidor() {
     pedidos.push(body);
     let o = null;
     try { o = JSON.parse(body); } catch (e) { return null; }
+    if (tetoDias != null) {
+      const span = (Date.parse(o.dateTo) - Date.parse(o.dateFrom)) / 86400000;
+      if (span > tetoDias + 1) return JSON.stringify({ isLastPage: true, bets: [] });
+    }
     const sts = Array.isArray(o.statuses) ? o.statuses : [];
     const pag = Number(o.pageNumber) || 1;
     if (sts.includes(0)) return pag === 1 ? abertas : JSON.stringify({ isLastPage: true, bets: [] });
@@ -56,8 +68,8 @@ function servidor() {
   return { resp, pedidos };
 }
 
-async function umClique(corpoInicial, href = HREF) {
-  const srv = servidor();
+async function umClique(corpoInicial, href = HREF, opcoes = {}) {
+  const srv = servidor(opcoes);
   const { ultima } = await rodarInject({
     inject: "vb_inject.js",          // ← o MESMO das outras Altenar
     href,
@@ -121,6 +133,31 @@ export async function rodar() {
       const dif = colhido.filter((b) => { const o = vb.get(String(b.id)); return !o || fmt(o) !== fmt(b); });
       if (dif.length) falhas.push(`espelho: ${dif.length} bloco(s) diferem entre os dois hosts`);
     }
+  }
+
+  // ── 4. Janela larga que volta VAZIA não pode virar "conta sem aberta" ──
+  // Dois lados: (a) com o gateway cortando acima de 365 dias, as 4 abertas TÊM de chegar, e a
+  // janela que as trouxe tem de ser ≤ 365; (b) num gateway que responde à janela larga (as 5
+  // irmãs, hoje), nenhuma requisição de recuo pode sair — o conserto é aditivo.
+  {
+    testes++;
+    const { ultima } = await umClique(CORPO_RESOLVIDAS, HREF, { tetoDias: TETO_MEDIDO });
+    const bets = (ultima && ultima.bets) || [];
+    const abertas = bets.filter((b) => b.status === 0).length;
+    if (abertas !== 4)
+      falhas.push(`janela: com o gateway devolvendo vazio acima de ${TETO_MEDIDO} dias, vieram ${abertas} de 4 abertas — ` +
+                  `a lista vazia da janela larga foi lida como "conta sem aberta"`);
+    if (bets.length !== 12) falhas.push(`janela: esperava 12 bilhetes no total, vieram ${bets.length}`);
+    if (!ultima || !ultima.fim) falhas.push('janela: não sinalizou "fim" no caminho do recuo');
+
+    testes++;
+    const { pedidos: p2 } = await umClique(CORPO_RESOLVIDAS);   // gateway sem teto
+    const curtas = p2.slice(1).filter((b) => {
+      try { const o = JSON.parse(b); return o.statuses.includes(0) && (Date.parse(o.dateTo) - Date.parse(o.dateFrom)) / 86400000 <= TETO_MEDIDO + 1; }
+      catch (e) { return false; }
+    });
+    if (curtas.length)
+      falhas.push(`janela: ${curtas.length} pedido(s) de abertas com janela recuada num gateway que respondeu à larga — o recuo tem de ser só para lista vazia`);
   }
 
   return { falhas, testes };
