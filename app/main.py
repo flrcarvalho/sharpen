@@ -80,6 +80,7 @@ from repository import (
     deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
+    polymarket_conta_em_usd,
     codigos_em_outra_conta,
     flags_pos_edicao, flags_pos_edicao_lote, atualizar_bilhetes_lote,
     flags_pos_edicao, limpar_ativos_tipster, list_bilhetes, list_esportes,
@@ -4263,6 +4264,12 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
     if salvos:
         await limpar_ativos_tipster(dono, list(salvos.keys()))
     arquivados = await auto_arquivar("Polymarket", parceiro, len(ids), dono)
+    # A carteira é em dólar e o lote acima gravou a origem em dólar de cada aposta: a
+    # conta passa a USD (grade com o valor original, Caixa em dólar). Depois do upsert,
+    # para a conta nunca ficar em USD com apostas sem a origem.
+    if await polymarket_conta_em_usd(dono, parceiro):
+        alertas.append(f"A conta {parceiro} passou a ser em dólar (USD), a moeda da carteira: "
+                       "a grade mostra o valor original de cada aposta.")
 
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
             "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados,

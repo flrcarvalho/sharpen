@@ -3364,6 +3364,24 @@ async def get_tipster_por_codigo(dono: str, casa: str, parceiro: str,
     return {r["codigo_bilhete"]: r["tipster"] for r in rows}
 
 
+async def polymarket_conta_em_usd(dono: str, parceiro: str) -> bool:
+    """Põe em USD a conta Polymarket que o sync está gravando. True se mudou agora.
+
+    A carteira é em dólar e o sync grava a origem em dólar de toda aposta
+    (`polymarket._origem_usd`), então a conta é USD por fato, não por escolha: a grade
+    passa a mostrar o valor original e a Caixa roda em dólar (s397). Ao contrário da
+    troca de moeda feita à mão (s391, "vale daqui para frente"), aqui nada fica para
+    trás: o mesmo sync refresca a origem do histórico inteiro."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        st = await conn.execute(
+            "UPDATE parceiros SET moeda = 'USD' "
+            "WHERE dono = $1 AND casa = 'Polymarket' AND nome = $2 AND moeda <> 'USD'",
+            dono, parceiro,
+        )
+    return int(st.split()[-1]) > 0          # "UPDATE n"
+
+
 async def remover_bilhetes_supersedidos(dono: str, casa: str, parceiro: str,
                                         cids: list[str]) -> list[dict]:
     """Apaga a linha de código CRU (`cid`) de um mercado que passou a ser fatiado

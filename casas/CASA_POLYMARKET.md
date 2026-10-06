@@ -36,6 +36,11 @@
   A faixa inteira vem em **uma** chamada (`CotacaoDolarPeriodo`) e fica num mapa de
   módulo — nunca uma chamada por data (s247; ver `CLAUDE.md`, "API externa por item").
 - **Sem upload:** o painel da casa troca o drag-and-drop por **carteira + Sincronizar**.
+- **Conta em USD (s397):** toda linha grava a origem em dólar (`moeda = USD`,
+  `stake_orig` = o que saiu da carteira, `cotacao` = a PTAX usada; `stake` segue em R$),
+  e o sync põe a conta em USD (`polymarket_conta_em_usd`). A grade mostra o valor
+  original e a Caixa roda em dólar. O mesmo sync refresca a origem do histórico
+  inteiro, então nada fica "antes da troca".
 
 ---
 

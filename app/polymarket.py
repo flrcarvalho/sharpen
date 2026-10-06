@@ -1029,10 +1029,20 @@ def _montar_linha(pos: dict, parceiro: str, iso: str, cotacao: float, resultado:
         "descricao": desc,
         "stake": _fmt_money(stake_brl),
         "stake_usd": round(stake_usd, 2),   # valor original (saiu da conta) p/ referência na grade
+        **_origem_usd(stake_usd, cotacao),
         "odd": _fmt_odd(_calc_odd(pos)),     # odd de entrada, ou a efetiva na liquidação
         "resultado": resultado,
         "codigo_bilhete": pos.get("_splitId") or pos.get("conditionId") or "",
     }
+
+
+def _origem_usd(stake_usd: float, cotacao: float) -> dict:
+    """A ORIGEM da stake em dólar, nas colunas que a conta em outra moeda já usa (s391):
+    `moeda`, `stake_orig` e `cotacao` (`stake = stake_orig × cotacao`). É o que deixa a
+    Caixa da Polymarket rodar em DÓLAR, a moeda da carteira (s397): em reais a cotação
+    muda todo dia e a divergência nunca zeraria. O UPSERT refresca as três junto com a
+    stake quando a origem é `sync`."""
+    return {"moeda": "USD", "stake_orig": round(stake_usd, 2), "cotacao": round(cotacao, 6)}
 
 
 # ── Combos (apostas combinadas) ─────────────────────────────────────────────
@@ -1277,6 +1287,7 @@ async def _derivar_combos(client: httpx.AsyncClient, combos: list, activity: lis
                 "parceiro": parceiro,
                 "stake": _fmt_money(stake_usd * cotacao),
                 "stake_usd": round(stake_usd, 2),
+                **_origem_usd(stake_usd, cotacao),
             })
             (resolvidas if resultado else ativas).append(linha)
     return _ordenar_por_sort(resolvidas), _ordenar_por_sort(ativas)

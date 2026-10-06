@@ -808,6 +808,30 @@ def test_sem_taxa_a_odd_continua_a_mesma_string():
     assert polymarket._odd_de_entrada(u2) == 1 / 0.57
 
 
+def test_linha_simples_e_combo_levam_a_origem_em_dolar():
+    # s397: a Caixa da Polymarket roda em dólar, então toda linha leva `moeda`,
+    # `stake_orig` (o que saiu da carteira, com a taxa) e a `cotacao` usada.
+    pos = {"conditionId": "0xU", "asset": "A1", "size": 640, "avgPrice": 0.25,
+           "initialValue": 160, "grossInitialValue": 166, "title": "UFC: X vs Y"}
+    [u] = polymarket._split_multibuys([pos], [_buy_s("0xU", 1, 640, 0.25, 166)])
+    linha = polymarket._montar_linha(u, "P", "2026-08-01", 5.4321, "L")
+    assert (linha["moeda"], linha["stake_orig"], linha["cotacao"]) == ("USD", 166, 5.4321)
+    assert linha["stake"] == polymarket._fmt_money(166 * 5.4321)
+
+    async def cot(client, iso, cache, hoje):
+        return 5.0
+    import pytest as _pt
+    mp = _pt.MonkeyPatch()
+    mp.setattr(polymarket, "_cotacao_para", cot)
+    try:
+        _, [aberta] = asyncio.run(polymarket._derivar_combos(
+            None, [_combo("0xA", "OPEN", bruto="26.0", saldo="125")],
+            [_buy("0xA", 1791000000, 125, 26.0)], "P", 5.0, {}))
+    finally:
+        mp.undo()
+    assert (aberta["moeda"], aberta["stake_orig"], aberta["cotacao"]) == ("USD", 26.0, 5.0)
+
+
 def test_anulada_com_taxa_perde_a_taxa():
     # Dado real (SPARTA vs Bebop): anulada, devolveu US$ 100 de US$ 101,50. Era V com
     # P/L 0; a taxa não volta, então é cashout abaixo da stake: W com odd < 1.

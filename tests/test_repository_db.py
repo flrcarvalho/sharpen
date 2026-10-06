@@ -237,6 +237,25 @@ def test_moeda_da_conta_vem_do_cadastro_e_o_padrao_e_real():
     _run(body())
 
 
+def test_polymarket_conta_passa_a_usd_so_a_dela():
+    """s397: o sync põe em USD a conta Polymarket que gravou; nenhuma outra conta muda."""
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono IN ('TDonoA', 'TDonoB')")
+            await conn.execute(
+                "INSERT INTO parceiros (dono, casa, nome) VALUES "
+                "('TDonoA', 'Polymarket', 'Feca [Eu]'), ('TDonoA', 'Betano', 'Feca [Eu]'), "
+                "('TDonoB', 'Polymarket', 'Feca [Eu]')")
+        assert await repository.polymarket_conta_em_usd("TDonoA", "Feca [Eu]") is True
+        assert await repository.polymarket_conta_em_usd("TDonoA", "Feca [Eu]") is False
+        assert await repository.moeda_da_conta("TDonoA", "Polymarket", "Feca [Eu]") == "USD"
+        assert await repository.moeda_da_conta("TDonoA", "Betano", "Feca [Eu]") == "BRL"
+        assert await repository.moeda_da_conta("TDonoB", "Polymarket", "Feca [Eu]") == "BRL"
+    _run(body())
+
+
 def test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder():
     """Passo 2 da moeda (s391): o cadastro grava, a listagem devolve e a edição troca.
 
