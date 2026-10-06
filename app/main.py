@@ -4921,7 +4921,7 @@ class _BilheteFinanceiroBase(BaseModel):
     opcional ou "limpar"); quando preenchido, tem de ser válido. Erro → 422.
     `check_fields=False`: os campos vivem nas subclasses."""
 
-    @field_validator("stake", "odd", check_fields=False)
+    @field_validator("stake", "odd", "stake_orig", check_fields=False)
     @classmethod
     def _valida_monetario(cls, v, info):
         if not valor_monetario_valido(v):
@@ -5204,6 +5204,9 @@ class AtualizarBilheteRequest(_BilheteFinanceiroBase):
     stake: Optional[str] = None
     odd: Optional[str] = None
     resultado: Optional[str] = None
+    # Stake na MOEDA DA CONTA (s398): a grade vendo em USDT edita o valor que a casa mostra,
+    # e o R$ é refeito pela cotação gravada na linha (`repository._origem_pos_edicao`).
+    stake_orig: Optional[str] = None
     # Procedência do rótulo de tipster (Fase 0). O front manda 'sugerido' quando vem do
     # botão de auto-atribuição; ausência num set de tipster → 'humano' (default no repo).
     origem_tipster: Optional[str] = None
@@ -5226,6 +5229,9 @@ async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest
     # fonte automática são desfeitos pelo próximo envio do robô. Os dois falham em
     # silêncio — a tela aceita e salva —, então o aviso é na hora, para quem está olhando.
     # Uma consulta só, e apenas quando os campos editados interessam.
+    # A stake na moeda da conta é uma edição de STAKE para os avisos (s398).
+    if "stake_orig" in campos:
+        campos = {**campos, "stake": campos["stake_orig"]}
     extra = await flags_pos_edicao(bilhete_id, dono, set(campos))
     return {"atualizado": True, **extra}
 

@@ -3,14 +3,16 @@
 Decisões do Feca (03/10/2026): o formato é "US$ 1.234,50" e "1.234,50 USDT"; o seletor
 R$ / moeda da conta fica SÓ na grade da Extração (lá a conta é uma só, e a coluna inteira
 troca de moeda sem misturar nada); a Base Completa mostra só a sub-linha; e a stake
-editada à mão LIMPA a origem.
+editada à mão LIMPAVA a origem. **s398 (passo 6.1):** a verdade passou a ser a moeda da
+conta, e a edição RECALCULA a origem pela cotação gravada em vez de apagá-la.
 
 Gates:
 
 1. **Funções puras do `repository.py`** (este arquivo, mutação automática sobre uma cópia
    do módulo): `_pl_na_moeda_original` (o P/L sai do `calcular_pl` aplicado à
-   `stake_orig`, nunca de `pl ÷ cotacao`) e `_limpa_origem` (só quando o NÚMERO da stake
-   muda: o modal reenvia todos os campos).
+   `stake_orig`, nunca de `pl ÷ cotacao`) e `_origem_pos_edicao` (s398: a stake em R$
+   editada refaz a `stake_orig` pela cotação da linha, a digitada na moeda refaz o R$, e
+   nada muda quando o NÚMERO não muda, porque o modal reenvia todos os campos).
 2. **Front** (`tests/js/moeda_grade_front.mjs`, mutação automática sobre cópias do
    `index.html`, `app.js` e `apostas.js`).
 3. **Banco** (`test_repository_db.py::test_moeda_original_no_feed_e_a_edicao_que_limpa`,
@@ -62,12 +64,28 @@ def _falhas_repo(mod) -> list[str]:
             "stake": "5,00", "cotacao": Decimal("5.0049")}) == 100.0,
         "P/L sai da stake original, nunca do R$ ÷ cotação")
 
-    lo = mod._limpa_origem
-    chk(lo({"stake": "130,00"}, {"stake": "150,00"}) is True, "stake mudou: limpa")
-    chk(lo({"stake": "130,00"}, {"stake": "130"}) is False, "mesmo número noutra grafia: mantém")
-    chk(lo({"stake": "130,00"}, {"stake": "130,00"}) is False, "mesma stake reenviada: mantém")
-    chk(lo({"stake": "130,00"}, {"odd": "2,00"}) is False, "edição sem stake: mantém")
-    chk(lo(None, {"stake": "130,00"}) is True, "sem snapshot: limpa")
+    def op(*a):
+        # Erro também é falha: mutação que divide por cotação nula levanta, não devolve.
+        try:
+            return mod._origem_pos_edicao(*a)
+        except Exception as e:
+            return ("erro", repr(e))
+    conv = {"stake": "130,00", "moeda": "USDT", "cotacao": Decimal("5.200000")}
+    real = {"stake": "130,00", "moeda": None, "cotacao": None}
+    chk(op(conv, {"stake": "156,00"}) == {"stake_orig": 30.0},
+        "stake em R$ mudou: a origem é refeita pela cotação da linha (156 ÷ 5,2)")
+    chk(op(conv, {"stake": "130"}) == {}, "mesmo número noutra grafia: nada muda")
+    chk(op(conv, {"stake": "130,00"}) == {}, "mesma stake reenviada: nada muda")
+    chk(op(conv, {"odd": "2,00"}) == {}, "edição sem stake: nada muda")
+    chk(op(real, {"stake": "150,00"}) == {}, "linha em real: não inventa origem")
+    chk(op(None, {"stake": "130,00"}) == {"limpa": True}, "sem snapshot: limpa")
+    chk(op(conv, {}, "30,00") == {"stake": "156,00", "stake_orig": 30.0},
+        "stake na moeda: o R$ sai da cotação da linha (30 × 5,2)")
+    chk(op(conv, {"stake": "999,00"}, "30,00").get("stake") == "156,00",
+        "stake na moeda manda sobre o R$ do mesmo envio")
+    chk(op(real, {}, "30,00") == {"recusa": True},
+        "stake na moeda em linha sem cotação: recusa, nunca grava USDT como R$")
+    chk(op(conv, {}, "0") == {"recusa": True}, "stake na moeda zero: recusa")
     return f
 
 
@@ -85,15 +103,22 @@ MUTACOES_REPO = [
      '    return None if _p is None else round(_p / float(d.get("cotacao") or 1), 2)'),
     ("o P/L original ignora a falta de moeda",
      '    if orig is None or not d.get("moeda"):', '    if orig is None:'),
-    ("a edição limpa a origem mesmo sem mudar o número",
-     '    return _num_or_none(antes["stake"]) != _num_or_none(safe["stake"])', '    return True'),
+    ("a edição volta a apagar a origem",
+     '    return {"stake_orig": round(novo / cot, 2)}', '    return {"limpa": True}'),
     ("a edição compara a grafia em vez do número",
-     '    return _num_or_none(antes["stake"]) != _num_or_none(safe["stake"])',
-     '    return (antes["stake"] or "") != (safe["stake"] or "")'),
-    ("a edição nunca limpa a origem",
-     '    if "stake" not in safe:\n        return False', '    if True:\n        return False'),
+     '    if novo == _num_or_none(antes.get("stake")) or not tem:',
+     '    if safe["stake"] == antes["stake"] or not tem:'),
+    ("a edição inventa origem em linha de real",
+     '    if novo == _num_or_none(antes.get("stake")) or not tem:',
+     '    if novo == _num_or_none(antes.get("stake")):'),
     ("sem snapshot a origem fica",
-     '    if antes is None:\n        return True', '    if antes is None:\n        return False'),
+     '        return {"limpa": True} if ("stake" in safe or stake_orig is not None) else {}',
+     '        return {}'),
+    ("a stake na moeda é gravada como R$",
+     '        return {"stake": f"{v * cot:.2f}".replace(".", ","), "stake_orig": round(v, 2)}',
+     '        return {"stake": f"{v:.2f}".replace(".", ","), "stake_orig": round(v, 2)}'),
+    ("a stake na moeda passa sem cotação",
+     '        if not tem or v is None or v <= 0:', '        if v is None or v <= 0:'),
 ]
 
 
@@ -112,7 +137,10 @@ def test_mutacoes_do_repositorio_sao_detectadas(tmp_path, titulo, de, para):
 def test_a_edicao_usa_a_regra_e_o_feed_leva_a_origem():
     """Presença: a regra pura tem de ser a que o UPDATE e o feed chamam."""
     src = REPO.read_text(encoding="utf-8")
-    assert 'if _limpa_origem(antes, safe):\n' in src.replace("\r\n", "\n")
+    s = src.replace("\r\n", "\n")
+    assert 'origem = _origem_pos_edicao(antes, safe, campos.get("stake_orig"))\n' in s
+    assert '    if origem.get("limpa"):\n' in s
+    assert '        safe = {**safe, "stake": origem["stake"]}\n' in s
     assert 'd["pl_orig"] = _pl_na_moeda_original(d)' in src
     assert 'linha["stake_orig"] = float(r["stake_orig"])' in src
     assert 'linha["lucro_orig"] = _pl_na_moeda_original(r)' in src
@@ -140,9 +168,12 @@ MUTACOES_FRONT = [
     ("o milhar some (toFixed, como o fmtUSD)", "index",
      "  return Math.abs(Number(n)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });",
      "  return Math.abs(Number(n)).toFixed(2).replace('.', ',');"),
-    ("a stake convertida volta a ser editável no modo moeda da conta", "index",
-     '    return `<div class="btbl-cell btbl-num" title="Para editar a stake, volte a ver em R$">',
-     '    return `<div class="btbl-cell btbl-num" data-field="stake" title="Para editar a stake, volte a ver em R$">'),
+    ("a stake na moeda da conta grava em R$ (s398)", "index",
+     '    return `<div class="btbl-cell btbl-num ap-edit" data-field="stake_orig" title=',
+     '    return `<div class="btbl-cell btbl-num ap-edit" data-field="stake" title='),
+    ("a stake na moeda da conta deixa de ser editável", "index",
+     '    return `<div class="btbl-cell btbl-num ap-edit" data-field="stake_orig" title=',
+     '    return `<div class="btbl-cell btbl-num" title='),
     ("a sub-linha some no modo R$", "index",
      "    const txt = _grVer === 'orig' ? (b.stake ? 'R$ ' + b.stake : '') : fmtMoedaOrig(b.stake_orig, b.moeda);",
      "    const txt = _grVer === 'orig' ? (b.stake ? 'R$ ' + b.stake : '') : '';"),

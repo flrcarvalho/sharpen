@@ -339,9 +339,9 @@ def test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder():
 
 def test_moeda_original_no_feed_e_a_edicao_que_limpa():
     """Passo 3 da moeda (s391). O feed do dashboard leva `moeda`/`stake_orig` SÓ na linha
-    convertida, e a listagem da grade traz o `pl_orig`. A edição à mão da stake limpa as
-    três colunas da origem, mas só quando o número muda: regravar a mesma stake (o modal
-    reenvia todos os campos) mantém."""
+    convertida, e a listagem da grade traz o `pl_orig`. s398 (passo 6.1): a edição à mão da
+    stake RECALCULA a origem pela cotação da linha em vez de apagá-la, e a stake digitada
+    na moeda refaz o R$. Regravar o mesmo número (o modal reenvia tudo) não mexe."""
     async def body():
         await _reset()
         await repository.upsert_bilhetes([_usdt(), _row(codigo_bilhete="BET2", casa="Betano")],
@@ -360,10 +360,17 @@ def test_moeda_original_no_feed_e_a_edicao_que_limpa():
         assert await repository.atualizar_bilhete(bid, {"stake": "130"}, "TDonoA")
         r = await _get("TDonoA", "BET1")
         assert r["moeda"] == "USDT", "regravar o mesmo número não pode apagar a origem"
-        assert await repository.atualizar_bilhete(bid, {"stake": "150,00"}, "TDonoA")
+        assert await repository.atualizar_bilhete(bid, {"stake": "156,00"}, "TDonoA")
         r = await _get("TDonoA", "BET1")
-        assert r["stake"] == "150,00"
-        assert r["moeda"] is None and r["stake_orig"] is None and r["cotacao"] is None
+        assert r["stake"] == "156,00"
+        assert r["moeda"] == "USDT" and float(r["stake_orig"]) == 30.0
+        assert float(r["cotacao"]) == 5.2, "a cotação é a do dia da aposta e não muda"
+        assert await repository.atualizar_bilhete(bid, {"stake_orig": "40,00"}, "TDonoA")
+        r = await _get("TDonoA", "BET1")
+        assert r["stake"] == "208,00" and float(r["stake_orig"]) == 40.0
+        bet2 = grade["BET2"]["id"]
+        assert not await repository.atualizar_bilhete(bet2, {"stake_orig": "40,00"}, "TDonoA"), \
+            "linha em real não aceita stake em moeda: não há cotação para converter"
     _run(body())
 
 

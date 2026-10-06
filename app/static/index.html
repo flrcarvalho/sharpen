@@ -8348,11 +8348,12 @@ function _grMoedaSync() {
   if (tp) tp.textContent = 'P/L' + suf;
 }
 function _grMoedaVer(v) { _grVer = v === 'orig' ? 'orig' : 'BRL'; renderGrade(); }
-// Célula da stake. Vendo na moeda da conta, a stake convertida NÃO é editável: o campo
-// grava R$, e quem lê USDT na tela digitaria USDT. Sem `data-field` o duplo-clique não abre.
+// Célula da stake. Vendo na moeda da conta, edita-se a stake NA MOEDA (s398, a verdade é
+// a moeda da conta): o campo é `stake_orig`, e o servidor refaz o R$ pela cotação gravada
+// na linha, a do dia da aposta. Antes a célula não abria, porque o único campo gravava R$.
 function _celStake(b) {
   if (_grVer === 'orig' && _temOrig(b)) {
-    return `<div class="btbl-cell btbl-num" title="Para editar a stake, volte a ver em R$">${moneyOrig(b.stake_orig, b.moeda)}${_subMoeda(b)}</div>`;
+    return `<div class="btbl-cell btbl-num ap-edit" data-field="stake_orig" title="Duplo-clique para editar em ${esc(b.moeda)}">${moneyOrig(b.stake_orig, b.moeda)}${_subMoeda(b)}</div>`;
   }
   return `<div class="btbl-cell btbl-num ap-edit" data-field="stake">${moneyStake(b.stake) || _faltando(b.id, 'Stake ausente — dê duplo-clique para preencher')}${_subMoeda(b)}</div>`;
 }
@@ -8557,7 +8558,10 @@ function _exInlineStart(cell) {
   const id = parseInt(rowEl.dataset.id, 10);
   const b = bilhetes.find(x => x.id === id);
   if (!b) return;
-  const cur = (field === 'resultado') ? (b.resultado || '') : (b[field] != null ? String(b[field]) : '');
+  // `stake_orig` chega como número (40) e se digita como a casa mostra (40,00).
+  const cur = (field === 'resultado') ? (b.resultado || '')
+    : (field === 'stake_orig' && b.stake_orig != null) ? _num2BR(b.stake_orig)
+    : (b[field] != null ? String(b[field]) : '');
   const orig = cell.innerHTML;
   _exInlineEditing = true;
   let editor;
@@ -8587,7 +8591,7 @@ function _exInlineStart(cell) {
       if (!r.ok) throw new Error();
       const resp = await r.json().catch(() => ({}));
       b[field] = val;
-      const pesado = ['stake', 'odd', 'resultado', 'casa', 'parceiro'].includes(field);
+      const pesado = ['stake', 'stake_orig', 'odd', 'resultado', 'casa', 'parceiro'].includes(field);
       if (pesado) { await carregarGrade(); }
       else { renderGrade(); atualizarStats(); }
       atualizarIncompletos();

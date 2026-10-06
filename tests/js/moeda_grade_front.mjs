@@ -6,7 +6,7 @@
 //    milhar pt-BR, e a versão do dashboard (`app.js`) dá o MESMO texto que a da grade;
 // B. `moneyOrig` usa o componente `.money`: cor e sinal só com `pl`, zero neutro;
 // C. a célula da stake: vendo em R$, o R$ editável e o original embaixo; vendo na moeda
-//    da conta, o original SEM `data-field` (não editável) e o R$ embaixo; linha sem
+//    da conta, o original editável como `stake_orig` (s398) e o R$ embaixo; linha sem
 //    origem segue em R$ e editável; o USD do Polymarket segue como era;
 // D. a célula de P/L troca para o `pl_orig` só no modo moeda da conta, e leva a OUTRA
 //    moeda embaixo, neutra e com sinal, como a stake (pedido do Feca, 03/10/2026);
@@ -126,7 +126,8 @@ A.ver('BRL');
 A.ver('orig');
 {
   const c = A._celStake(conv);
-  ok(!c.includes('data-field'), 'C: vendo na moeda da conta, a stake convertida NÃO é editável');
+  ok(c.includes('data-field="stake_orig"') && !c.includes('data-field="stake"'),
+     'C: vendo na moeda da conta, edita-se a stake NA MOEDA (s398)');
   ok(c.includes('25,00') && c.includes('>USDT<'), 'C: vendo na moeda da conta, o original é o principal');
   ok(c.includes('>R$ 130,00<'), 'C: e o R$ desce para a sub-linha: ' + c);
   ok(A._celStake(real).includes('data-field="stake"') && A._celStake(real).includes('[R$ 50,00]'),

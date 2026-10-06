@@ -2495,7 +2495,8 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL",
     faria a divergência nunca zerar (a cotação muda todo dia). Por isso:
       · a stake de cada aposta é a ORIGINAL (`stake_orig`, gravada pelo `/salvar`), e o P/L
         sai do `calcular_pl` sobre ela — a mesma régua do `pl_orig` da grade;
-      · aposta SEM origem nessa moeda (editada à mão, que limpa a origem) fica FORA e é
+      · aposta SEM origem nessa moeda (editada à mão antes da s398, quando a edição ainda
+        limpava a origem; hoje ela recalcula) fica FORA e é
         contada em `n_sem_origem`: somar R$ como USDT é o erro caro;
       · lançamento com `moeda` gravada e diferente da conta fica FORA e é contado em
         `n_mov_outra_moeda`; `moeda` vazia é a da conta (todo lançamento anterior a ela).
@@ -4359,24 +4360,49 @@ def _campos_editaveis(campos: dict) -> dict:
     return safe
 
 
-def _limpa_origem(antes, safe: dict) -> bool:
-    """A edição à mão apaga a ORIGEM da stake (`moeda`/`stake_orig`/`cotacao`)? (s391)
+def _origem_pos_edicao(antes, safe: dict, stake_orig=None) -> dict:
+    """O que a edição à mão faz com a ORIGEM da stake (`moeda`/`stake_orig`/`cotacao`).
 
-    Decisão do Feca (03/10/2026): a edição grava R$ e a origem deixa de ser conhecida.
-    Sem limpar, a grade mostraria sob a stake nova o valor original da stake velha.
-    Só quando o NÚMERO muda: o modal de edição reenvia todos os campos, e regravar a mesma
-    stake (`130,00` × `130`) não pode apagar a origem. Sem snapshot (`antes` None) não há
-    como comparar, e limpa: origem errada é pior que origem ausente."""
-    if "stake" not in safe:
-        return False
+    s398 (passo 6.1 do `docs/PLANO_MOEDA_POR_CONTA.md`, decisão do Feca com o Gabriel em
+    06/10/2026): **a verdade é a moeda da conta**. A edição não apaga mais a origem (era a
+    regra de 03/10, que tirava a aposta da Caixa em USDT e do câmbio): ela RECALCULA, pela
+    MESMA `cotacao` gravada, que é a do dia em que a aposta foi feita.
+
+      · `stake_orig` digitada (a grade vendo na moeda da conta) → grava ela e refaz o R$:
+        `stake = stake_orig × cotacao`, a mesma conta do `/salvar`. Linha sem origem
+        RECUSA: não há cotação para converter, e gravar USDT como R$ é o erro caro;
+      · `stake` em R$ que MUDOU de número numa linha com origem → refaz `stake_orig =
+        stake ÷ cotacao`. Mesmo número noutra grafia (`130,00` × `130`) não mexe: o modal
+        reenvia todos os campos;
+      · sem snapshot (`antes` None) não há cotação para recalcular: limpa, porque origem
+        errada é pior que origem ausente.
+
+    Devolve {} (nada), {"limpa": True}, {"recusa": True}, ou as colunas a gravar."""
     if antes is None:
-        return True
-    return _num_or_none(antes["stake"]) != _num_or_none(safe["stake"])
+        return {"limpa": True} if ("stake" in safe or stake_orig is not None) else {}
+    cot = antes.get("cotacao")
+    cot = float(cot) if cot is not None else 0.0
+    tem = cot > 0 and bool(antes.get("moeda"))
+    if stake_orig is not None:
+        v = _num_or_none(stake_orig)
+        if not tem or v is None or v <= 0:
+            return {"recusa": True}
+        return {"stake": f"{v * cot:.2f}".replace(".", ","), "stake_orig": round(v, 2)}
+    if "stake" not in safe:
+        return {}
+    novo = _num_or_none(safe["stake"])
+    if novo == _num_or_none(antes.get("stake")) or not tem:
+        return {}
+    if novo is None:
+        return {"limpa": True}
+    return {"stake_orig": round(novo / cot, 2)}
 
 
 async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
     safe = _campos_editaveis(campos)
-    if not safe:
+    # `stake_orig` (s398) não é coluna editável direta: ela vira `stake` + `stake_orig` lá
+    # dentro, depois de ler a cotação da linha. Sozinha ela também é uma edição.
+    if not safe and campos.get("stake_orig") is None:
         return False
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -4470,6 +4496,13 @@ async def _atualizar_bilhete_conn(conn, bilhete_id: int, campos: dict,
             "SELECT * FROM bilhetes WHERE id = $1 AND dono = $2", bilhete_id, dono)
     except Exception:
         logger.exception("snapshot p/ correção falhou (não-fatal)")
+    # Origem da stake ANTES de montar o SET: a stake digitada na moeda da conta vira a
+    # `stake` em R$ aqui, e daí em diante segue o caminho de toda stake (correção, estado).
+    origem = _origem_pos_edicao(antes, safe, campos.get("stake_orig"))
+    if origem.get("recusa"):
+        return False
+    if "stake" in origem:
+        safe = {**safe, "stake": origem["stake"]}
     sets, params = [], []
     for col, val in safe.items():
         params.append(val)
@@ -4486,8 +4519,11 @@ async def _atualizar_bilhete_conn(conn, bilhete_id: int, campos: dict,
         params.append("resolvida" if safe["resultado"] in _RESULTADOS_VALIDOS else "aberta")
         sets.append(f"extraction_state = ${len(params)}")
 
-    if _limpa_origem(antes, safe):
+    if origem.get("limpa"):
         sets += ["moeda = NULL", "stake_orig = NULL", "cotacao = NULL"]
+    elif "stake_orig" in origem:
+        params.append(Decimal(str(origem["stake_orig"])))
+        sets.append(f"stake_orig = ${len(params)}")
 
     # Procedência do rótulo de tipster (Fase 0): grava origem_tipster quando o tipster
     # muda. Sem origem declarada → 'humano' (só o botão de sugestão manda 'sugerido').
