@@ -24,7 +24,7 @@
 | 4b | Captura: **Dexsport** (escolha do Feca, antes das 1xBet) | **NO AR (s391)**, falta validar ao vivo |
 | 4c | Captura: **SapphireBet + PariPesa + Megapari** (espelhos da 1xBet) | **NO AR e validadas ao vivo (s391)** |
 | 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | **NO AR (s391)** |
-| 6 | Câmbio, corretoras e realização (8 etapas) | **DESENHADO (s398)**, ver [a seção](#passo-6-câmbio-corretoras-e-realização-desenho-s398) |
+| 6 | Câmbio, corretoras e realização (8 etapas) | **NO AR (s398)**, ver [a seção](#passo-6-câmbio-corretoras-e-realização-desenho-s398) |
 
 ### O que o passo 1 fez
 
@@ -309,3 +309,49 @@ muda todo dia e fica FORA do P/L do período, rotulado, como as Contas em opera�
 | 6.6 | **Telas** (`/nova-ui`): Contas & Parceiros com saldo na moeda, ≈ R$ de hoje e o câmbio do bolso; Dashboard com apostas, câmbio realizado, taxas e câmbio no papel rotulados; a cotação usada visível com data e fonte | Número que se mexe sozinho sem dizer a cotação lê como defeito |
 | 6.7 | **Polymarket** no mesmo modelo, como bolso em USD | Hoje a Caixa dela (s397) usa a PTAX da compra, uma régua própria |
 | 6.8 | **Backfill** das contas que já existem: cotação do dia em cada lançamento, saldo inicial pela cotação do corte | Depende da medição da 6.0 |
+
+### O que foi feito (s398, 06/10/2026, execução autorizada pelo Feca)
+
+- **6.0, medido:** fora do real só o Feca (1 conta USD, a Polymarket, com 596 apostas; 6 USDT
+  com 230) e o Gabriel (8 USDT com 218; 1 AUD com 108). 31 lançamentos de Caixa nessas
+  contas, zero aposta em conta estrangeira sem origem.
+- **6.1:** `_origem_pos_edicao` substitui o `_limpa_origem`. A stake editada em R$ refaz a
+  `stake_orig` pela `cotacao` gravada; a grade vendo na moeda edita a `stake_orig` e o
+  servidor refaz o R$; linha sem cotação recusa stake em moeda. A decisão de 03/10 ("a
+  edição limpa a origem") foi substituída pela da verdade na moeda da conta.
+- **6.2, corretora em tabela própria** (`corretoras`, `corretora_mov`), e não em `parceiros`:
+  ali ela viraria casa sem aposta em filtros, custo e matcher. Arquivar não mexe no saldo;
+  excluir só sem lançamento nenhum.
+- **6.3, a transferência é UM lançamento de Caixa** (`caixa_mov.corretora_id` + `taxa`),
+  visto pelos dois lados: o saque com destino entra na corretora como `valor − taxa`; o
+  depósito com origem sai dela como `valor + taxa`. Na edição, só com `transferencia:true`
+  o destino é regravado: um cliente antigo editando a data não apaga o destino.
+- **6.4:** compra e venda em `corretora_mov` com `valor_brl`.
+- **6.5:** `app/bolso.py`, puro. `_caixa_projetar(..., eventos=[])` entrega ao bolso a MESMA
+  janela da projeção. A transferência é pareada quando os dois lados estão dentro das suas
+  janelas (o corte da Caixa e o saldo inicial da corretora naquela moeda); com um lado só,
+  o dinheiro entra ou sai do bolso por ele. O bolso confere `qtd = Σ banca + Σ corretoras`
+  (`fecha`).
+- **6.6:** card "Câmbio e corretoras" no Painel de Contas (só para quem tem conta em moeda
+  ou corretora), modais de corretora e extrato, destino/origem e taxa na Caixa, e o card
+  "Câmbio" no dashboard (vendas por real e taxas do período), descendo no P/L Líquido sem
+  filtro que recorte. Saldo, custo e taxa em `fmtSaldo`; papel e realizado em `fmtPL`;
+  cotação e custo médio como taxa, sem `R$`.
+- **6.7, sem código:** a Polymarket já entra (conta USD, apostas com a `cotacao` PTAX da
+  compra, depósitos automáticos sem origem pela cotação do dia).
+- **6.8, dispensado:** a cotação dos lançamentos é lida na hora (`cambio.carregar`, cache de
+  módulo, dado histórico imutável) em vez de gravada. Nada a preencher nas contas antigas.
+
+**Medido em produção (06/10/2026, `cambio_visao` contra o banco):** todos os bolsos fecham.
+Feca USDT 1.449,66 (custo R$ 7.560,80, no papel −R$ 263,65); Gabriel USDT 1.497,83 (−R$ 271,58)
+e AUD 2.171,13 (−R$ 377,62). **Pendências de uso, não de código:** o Feca tem 6 saques em USDT
+sem destino (1.136,31 USDT) e o Gabriel 1 (500 USDT): cadastrar a corretora e informar o
+destino no extrato de cada conta. O Gabriel tem 5 contas USDT sem Caixa, fora do bolso.
+
+Gates: `test_bolso_cambio.py` (14 mutações), `test_caixa_lancar.py` (transferência, 4 à
+mão), `test_moeda_valor_original.py` (6.1), `test_cambio_front.py` (8) e
+`test_cambio_corretora_transferencia_venda_e_bolso` no `test_repository_db.py` (verde no CI).
+Medição no navegador: `DEMO_CAMBIO=1 python scripts/demo/servidor_demo.py`.
+
+**Sigilo (decisão de 02/10):** esta frente não vai para o aviso aos testers, para o changelog
+nem para a home.
