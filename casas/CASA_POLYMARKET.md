@@ -267,19 +267,22 @@ saldo on-chain já é o medido". Era por isso que nada conferia nada: o saldo ba
 construção enquanto as apostas estavam erradas. Agora a Caixa dela confronta o Sharpen
 com a blockchain, sozinha, a cada Sincronizar (inclusive o automático de 5 min).
 
-- **Depósito, saque e ajuste** = transferência de pUSD/USDC.e da carteira cujo hash
-  **não** é de aposta no `/activity` (nem no `/v1/activity/combos`). Líquido > 0 →
-  depósito; < 0 → saque; zero → nada (a conversão USDC.e → pUSD de um depósito em
-  USDC.e); tipo de rebate/recompensa do `/activity` → ajuste. Gravados em `caixa_mov`
-  com `ref` = hash (índice único: o sync regrava sem duplicar).
-- **A API da Polymarket não tem esse dado:** `type=DEPOSIT` volta vazio para uma
-  carteira com 8 depósitos (medido 06/10/2026).
-- **Fonte = Blockscout + TRAVA.** O `eth_getLogs` direto é exato mas leva 12-22 s por
-  pedido de 10 mil blocos nos RPCs gratuitos (mais de uma hora para 5 meses). O
-  Blockscout entrega tudo de uma vez, mas **perde transação grande** (5 resgates de
-  32-214 eventos, US$ 941,22, na carteira do Feca). A trava: tudo o que ele lista + as
-  apostas que ele não listou (o `/activity` sabe quanto) = saldo on-chain. Se ele
-  perder um DEPÓSITO a soma não fecha, a Caixa **não confere** e o sync avisa.
+- **Depósito, saque e ajuste** = o EXTRATO da própria Polymarket (`/v2/activity`, s398):
+  `DEPOSIT` → depósito, `WITHDRAWAL` → saque, rebate/recompensa → ajuste. Gravados em
+  `caixa_mov` com `ref` = hash da transação (índice único: o sync regrava sem duplicar).
+- ⚠️ **Depósito e saque vêm EXCLUÍDOS por padrão** e só aparecem com
+  `exclude_deposits_withdrawals=false`; `start=1` pede o histórico inteiro (sem ele, 3
+  anos). O `/activity` v1 não tem o parâmetro, e por isso a s397 registrou que "a API
+  não tem esse dado". Estava errado.
+- **TRAVA:** o extrato inteiro, cada linha com o sinal do que fez na carteira
+  (`_SINAL_EXTRATO`), tem de dar o saldo on-chain. Tipo desconhecido conta zero: se ele
+  movia dinheiro, a soma não fecha, a Caixa **não confere** e o sync avisa. Medido em
+  06/10/2026 na carteira do Feca: 872 linhas, 8 depósitos + 1 rebate, diferença
+  US$ 0,0000.
+- **Por que não é mais o Blockscout:** em 06/10/2026 ele passou a responder 403 (desafio
+  do Cloudflare) a qualquer cliente que não seja navegador, e a Caixa parou. Ele também
+  perdia transação grande (5 resgates, US$ 941,22). O `eth_getLogs` direto nos RPCs
+  gratuitos passa de uma hora para 5 meses de histórico.
 - **Saldo observado** = on-chain + o que ganhou e não resgatou (o P/L já conta).
 - **Inicial** = 0 no 1º dia da carteira (ela nasceu vazia e a blockchain tem tudo).
 - **Moeda:** USD (§2). **Margem:** a carteira tem 6 casas e o Sharpen centavos, então

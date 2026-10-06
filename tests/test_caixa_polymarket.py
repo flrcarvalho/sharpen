@@ -1,23 +1,24 @@
 """Caixa Inteligente da Polymarket (s397) — a conta, a leitura da carteira e a tela.
 
-A Caixa da Polymarket é AUTOMÁTICA: depósitos, saques e ajustes vêm das transferências
-de pUSD/USDC.e que NÃO são aposta, e o saldo observado é o da blockchain (+ o que já
-ganhou e não foi resgatado). Na carteira do Feca, em 06/10/2026, ela achou no 1º uso
+A Caixa da Polymarket é AUTOMÁTICA: depósitos, saques e ajustes vêm do extrato da
+própria Polymarket (`/v2/activity` com depósito e saque incluídos, s398), e o saldo
+observado é o da blockchain (+ o que já ganhou e não foi resgatado). Na carteira do Feca, em 06/10/2026, ela achou no 1º uso
 US$ 260,42 de mercado anulado gravado como vitória (conserto em `test_polymarket.py`) e,
 corrigido isso, fecha em US$ 0,13 — arredondamento de centavos.
 
 Cobre, sem rede e sem banco:
-1. `_caixa_movimentos`: o hash decide aposta × caixa; rebate vira ajuste; a conversão
-   USDC.e → pUSD (líquido zero) não vira nada; entrada = depósito, saída = saque;
-2. `_caixa_trava`: a lista do Blockscout + as apostas que ela não listou têm de dar o
-   saldo on-chain, senão a Caixa não confere;
+1. `_caixa_movimentos`: DEPOSIT = depósito, WITHDRAWAL = saque, rebate = ajuste; aposta,
+   resgate e conversão não viram nada;
+2. `_caixa_trava`: o extrato inteiro, cada linha com o seu sinal, tem de dar o saldo
+   on-chain, senão a Caixa não confere (um depósito faltando não fecha);
 3. `_a_resgatar`, `coletar_sync` (falha da Caixa NÃO derruba o sync das apostas);
 4. `_caixa_tol`/`_caixa_projetar`: a margem de arredondamento vale SÓ na Polymarket;
 5. a tela, por execução (`tests/js/caixa_polymarket_front.mjs`), e mutações dos dois lados.
 
 NÃO cobre: a gravação (`caixa_polymarket_sync`) toca o Postgres — foi ensaiada contra a
 base real dentro de uma transação desfeita (ROLLBACK) em 06/10/2026: 9 lançamentos, o
-2º sync sem duplicar nada, estado `confere`. E o Blockscout de verdade (rede).
+2º sync sem duplicar nada, estado `confere`. E a API de verdade (rede): a s398 rodou a
+coleta contra a carteira do Feca, 872 linhas, trava com diferença US$ 0,0000.
 """
 import asyncio
 import importlib.util
@@ -41,56 +42,52 @@ FORA = "0x1111111111111111111111111111111111111111"
 ZERO = "0x0000000000000000000000000000000000000000"
 
 
-def _tr(h, de, para, valor, token="PUSD", ts="1778000000"):
-    return {"hash": h, "from": de, "to": para, "value": str(int(round(valor * 1e6))),
-            "tokenDecimal": "6", "tokenSymbol": token, "timeStamp": ts}
+def _ex(h, tipo, valor, lado="", ts=1778000000):
+    """Uma linha do `/v2/activity`, com os campos em snake_case como a API devolve."""
+    return {"transaction_hash": h, "type": tipo, "usdc_size": valor, "side": lado,
+            "timestamp": ts, "proxy_wallet": W}
 
 
-TRANSFERS = [
-    _tr("0xdep", ZERO, W, 281.82),                         # depósito (pUSD cunhado na carteira)
-    _tr("0xbuy", W, FORA, 25.0),                           # compra: aposta
-    _tr("0xred", ZERO, W, 50.0),                           # resgate: aposta
-    _tr("0xreb", FORA, W, 2.88),                           # rebate: ajuste
-    _tr("0xusdc", FORA, W, 499.99, "USDC.E", "1791200000"),  # depósito em USDC.e
-    _tr("0xwrap", W, FORA, 499.99, "USDC.E", "1791200500"),  # … convertido em pUSD:
-    _tr("0xwrap", ZERO, W, 499.99, "PUSD", "1791200500"),    #   líquido zero na mesma tx
-    _tr("0xcombo", W, FORA, 26.0),                         # compra de combo: aposta
-    _tr("0xsaq", W, FORA, 100.0),                          # saque
+EXTRATO = [
+    _ex("0xDEP", "DEPOSIT", 281.82),                        # depósito
+    _ex("0xbuy", "TRADE", 25.0, "BUY"),                     # compra: aposta
+    _ex("0xred", "REDEEM", 50.0),                           # resgate: aposta
+    _ex("0xreb", "TAKER_REBATE", 2.88, ts=1783000000),     # rebate: ajuste
+    _ex("0xsell", "TRADE", 10.0, "SELL"),                   # venda: aposta
+    _ex("0xconv", "CONVERSION", 499.99),                    # USDC.e → pUSD: não muda o saldo
+    _ex("0xsplit", "SPLIT", 5.0),                           # split: sai dinheiro
+    _ex("0xmerge", "MERGE", 5.0),                           # merge: volta
+    _ex("0xsaq", "WITHDRAWAL", 100.0, ts=1791200000),       # saque
 ]
-ACTIVITY = [
-    {"type": "TRADE", "side": "BUY", "transactionHash": "0xbuy", "usdcSize": 25.0},
-    {"type": "REDEEM", "transactionHash": "0xred", "usdcSize": 50.0},
-    {"type": "TAKER_REBATE", "transactionHash": "0xreb", "usdcSize": 2.88},
-]
-COMBO_ATIV = [{"type": "SPLIT", "tx_hash": "0xcombo"}]
+SALDO = 281.82 - 25.0 + 50.0 + 2.88 + 10.0 - 5.0 + 5.0 - 100.0
+MOVS_ESPERADOS = {
+    "0xdep": ("deposito", 281.82),
+    "0xreb": ("ajuste", 2.88),
+    "0xsaq": ("saque", 100.0),
+}
 
 
-def test_movimentos_o_hash_decide_aposta_ou_caixa():
-    movs = polymarket._caixa_movimentos(TRANSFERS, ACTIVITY, COMBO_ATIV, W)
+def test_movimentos_so_deposito_saque_e_ajuste():
+    movs = polymarket._caixa_movimentos(EXTRATO)
     por = {m["ref"]: (m["tipo"], m["valor"]) for m in movs}
-    assert por == {
-        "0xdep": ("deposito", 281.82),
-        "0xreb": ("ajuste", 2.88),
-        "0xusdc": ("deposito", 499.99),
-        "0xsaq": ("saque", 100.0),
-    }
+    assert por == MOVS_ESPERADOS
     rebate = next(m for m in movs if m["ref"] == "0xreb")
     assert "Taker Rebate" in rebate["obs"]
     dep = next(m for m in movs if m["ref"] == "0xdep")
     assert dep["data"] == polymarket._iso_brt(1778000000)
+    assert [m["ref"] for m in movs] == ["0xdep", "0xreb", "0xsaq"]   # em ordem de data
 
 
 def test_trava_fecha_e_nao_fecha():
-    # Saldo real = tudo o que se moveu. O Blockscout PERDEU o resgate 0xred (como os 5
-    # resgates grandes da carteira do Feca); o /activity sabe que ele valeu 50.
-    sem_resgate = [t for t in TRANSFERS if t["hash"] != "0xred"]
-    saldo = 281.82 - 25.0 + 50.0 + 2.88 + 499.99 - 499.99 + 499.99 - 26.0 - 100.0
-    t = polymarket._caixa_trava(sem_resgate, ACTIVITY, W, saldo)
-    assert t["ok"] and abs(t["faltou_listar"] - 50.0) < 1e-9
-    # Se o que ele perdeu fosse um DEPÓSITO, a soma não fecha: a Caixa não confere.
-    sem_deposito = [t for t in TRANSFERS if t["hash"] != "0xdep"]
-    t2 = polymarket._caixa_trava(sem_deposito, ACTIVITY, W, saldo)
+    t = polymarket._caixa_trava(EXTRATO, SALDO)
+    assert t["ok"] and abs(t["diferenca"]) < 1e-9 and t["linhas"] == len(EXTRATO)
+    # Um depósito fora do extrato: a soma não fecha e a Caixa não confere.
+    sem_deposito = [a for a in EXTRATO if a["type"] != "DEPOSIT"]
+    t2 = polymarket._caixa_trava(sem_deposito, SALDO)
     assert not t2["ok"] and abs(t2["diferenca"] - 281.82) < 0.01
+    # Tipo que ninguém cadastrou conta zero, e se ele movia dinheiro a trava acusa.
+    estranho = EXTRATO + [_ex("0xnovo", "TIPO_NOVO", 7.0)]
+    assert not polymarket._caixa_trava(estranho, SALDO + 7.0)["ok"]
 
 
 def test_a_resgatar_soma_simples_e_combo_ganha():
@@ -107,13 +104,13 @@ def test_falha_da_caixa_nao_derruba_o_sync(monkeypatch):
         return [{"codigo_bilhete": "R"}], [{"codigo_bilhete": "A"}], {"activity": [], "positions": [], "combos": []}
 
     async def caixa(client, wallet, bruto):
-        raise RuntimeError("Blockscout fora do ar")
+        raise RuntimeError("extrato fora do ar")
 
     monkeypatch.setattr(polymarket, "_coletar", coletar)
     monkeypatch.setattr(polymarket, "coletar_caixa", caixa)
     res, atv, cx = asyncio.run(polymarket.coletar_sync("0xW", "P"))
     assert res == [{"codigo_bilhete": "R"}] and atv == [{"codigo_bilhete": "A"}]
-    assert "Blockscout fora do ar" in cx["erro"]
+    assert "extrato fora do ar" in cx["erro"]
 
 
 # ── a projeção: a margem de arredondamento é SÓ da Polymarket ─────────────────
@@ -186,29 +183,30 @@ def test_mutacoes_da_projecao(tmp_path, titulo, de, para):
 def _falhas_coletor(mod) -> list[str]:
     f = []
     try:
-        movs = mod._caixa_movimentos(TRANSFERS, ACTIVITY, COMBO_ATIV, W)
+        movs = mod._caixa_movimentos(EXTRATO)
         por = {m["ref"]: (m["tipo"], m["valor"]) for m in movs}
-        if por != {"0xdep": ("deposito", 281.82), "0xreb": ("ajuste", 2.88),
-                   "0xusdc": ("deposito", 499.99), "0xsaq": ("saque", 100.0)}:
+        if por != MOVS_ESPERADOS:
             f.append(f"movimentos errados: {por}")
-        sem_dep = [t for t in TRANSFERS if t["hash"] != "0xdep"]
-        saldo = 281.82 - 25.0 + 50.0 + 2.88 + 499.99 - 26.0 - 100.0
-        if mod._caixa_trava(sem_dep, ACTIVITY, W, saldo)["ok"]:
+        if not mod._caixa_trava(EXTRATO, SALDO)["ok"]:
+            f.append("trava não fechou com o extrato completo")
+        if mod._caixa_trava([a for a in EXTRATO if a["type"] != "DEPOSIT"], SALDO)["ok"]:
             f.append("trava fechou sem o depósito")
-        if not mod._caixa_trava([t for t in TRANSFERS if t["hash"] != "0xred"], ACTIVITY, W, saldo)["ok"]:
-            f.append("trava não fechou com o resgate perdido pelo Blockscout")
     except Exception as exc:  # noqa: BLE001
         f.append(f"quebrou: {exc}")
     return f
 
 
 MUTACOES_COLETOR = [
-    ("compra de combo vira saque", '    aposta |= {str(a.get("tx_hash") or "").lower() for a in combo_atividade}\n', ""),
-    ("rebate vira depósito", '            tipo, obs, valor_mov = "ajuste", f"{tipo_at.replace(\'_\', \' \').title()} (Polymarket)", valor',
-     '            tipo, obs, valor_mov = "deposito", "x", valor'),
-    ("a conversão vira dois movimentos", '        liquido[h] = liquido.get(h, 0.0) + v', '        liquido[h + str(v > 0)] = liquido.get(h + str(v > 0), 0.0) + v'),
-    ("o sinal da saída se perde", '        if str(t.get("from") or "").lower() == wallet:\n            v = -v\n        liquido', '        liquido'),
-    ("a trava não completa com a activity", '    faltou = sum(v for h, v in _fluxo_da_atividade(activity).items() if h not in hashes)', '    faltou = 0.0'),
+    ("rebate vira depósito", "            tipo, obs = \"ajuste\", f\"{tipo_at.replace('_', ' ').title()} (Polymarket)\"",
+     '            tipo, obs = "deposito", "x"'),
+    ("o saque vira depósito", '            tipo, obs = "saque", "Saída da carteira"', '            tipo, obs = "deposito", "x"'),
+    ("aposta vira movimento",
+     '        if tipo_at not in ("DEPOSIT", "WITHDRAWAL") and tipo_at not in _AJUSTE_POR_TIPO:\n            continue\n', ""),
+    ("o hash perde a caixa", '        h = str(a.get("transaction_hash") or "").lower()', '        h = str(a.get("transaction_hash") or "")'),
+    ("a compra entra somando", '        return -u if lado == "BUY" else u', '        return u'),
+    ("o saque soma no saldo", '_SINAL_EXTRATO = {"DEPOSIT": 1, "WITHDRAWAL": -1,', '_SINAL_EXTRATO = {"DEPOSIT": 1, "WITHDRAWAL": 1,'),
+    ("a conversão conta como entrada", '"CONVERSION": 0,', '"CONVERSION": 1,'),
+    ("o split não tira dinheiro", '"SPLIT": -1,', '"SPLIT": 0,'),
     ("a trava aceita qualquer coisa", '    return {"ok": abs(diferenca) <= _TRAVA_TOL,', '    return {"ok": True,'),
 ]
 

@@ -1403,15 +1403,19 @@ pulados. Decidir se é só o teste ou o código: o resolver roda no navegador do
 e a Bet365 AU (s392) tem usuário fora do fuso de Brasília. **Não mascarar com `TZ` no
 workflow antes de saber qual dos dois é.**
 
-### 4.0e Caixa da Polymarket: o que acontece quando a trava não fecha (s397). **VIVA, não medida**
+### 4.0e Caixa da Polymarket: o que acontece quando a trava não fecha (s397, fonte trocada na s398). **VIVA, não medida**
 
-A Caixa automática lê as transferências pelo Blockscout e só confere se a soma fecha com
-o saldo on-chain (`CASA_POLYMARKET §17`). Se o Blockscout perder um depósito, a Caixa
-para de conferir e o sync avisa, mas **não há segundo caminho**: o `eth_getLogs` direto
-é lento demais para o histórico inteiro (12-22 s por pedido nos RPCs gratuitos). Saída
-possível: varredura incremental só dos blocos novos desde a última trava que fechou, com
-marca d'água no banco. Também em aberto: lançamento automático apagado no extrato
-**volta** no próximo sync (o `ref` deixa de existir e o INSERT entra de novo).
+Desde a s398 a Caixa automática lê depósitos e saques do extrato da própria Polymarket
+(`/v2/activity`), e não mais do Blockscout, que passou a responder 403 em 06/10/2026
+(`CASA_POLYMARKET §17`). A trava continua: o extrato somado tem de dar o saldo on-chain.
+Se não fechar, a Caixa para de conferir e o sync avisa, e **não há segundo caminho**: o
+`eth_getLogs` direto é lento demais para o histórico inteiro (12-22 s por pedido nos
+RPCs gratuitos). Nenhum caso de trava aberta foi visto ainda. Também em aberto:
+lançamento automático apagado no extrato **volta** no próximo sync (o `ref` deixa de
+existir e o INSERT entra de novo). E os textos que ainda falam em "blockchain" e
+"transferências" no aviso do sync (`main._polymarket_caixa`) e no motivo da trava
+(`repository.caixa_polymarket_sync`) ficaram para depois, porque os dois arquivos
+estavam com a outra sessão aberta.
 
 ### 4.0c A trava de `fim` do replay que nunca destrava — a 2ª captura na mesma aba devolve o acumulado velho (s393). **VIVA na família, medida só na DEX**
 
