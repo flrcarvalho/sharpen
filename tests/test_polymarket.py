@@ -226,6 +226,27 @@ def test_indice_999_com_metade_e_anulado():
     assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 0.5}}
 
 
+def test_anulado_com_indice_informado_e_metade_do_dinheiro():
+    # Dado real (s397, Svrcina vs Darderi): 266,75 cotas a 0,60; o resgate traz o
+    # índice do lado COMPRADO (1), `size` = 266,75 cotas e `usdcSize` = 133,375, metade.
+    # Confiar só no índice gravava vitória cheia: 3 bilhetes do Feca, US$ 260,42 a
+    # mais no P/L, achados pela Caixa da Polymarket.
+    activity = [_act(size=266.75, price=0.5998, outcomeIndex=1),
+                {"type": "REDEEM", "conditionId": "0xC", "outcomeIndex": 1, "size": 266.75,
+                 "usdcSize": 133.375, "timestamp": 200}]
+    mov = polymarket._movimento_por_lado(activity)
+    assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 0.5}}
+
+
+def test_indice_informado_com_cota_cheia_continua_vitoria():
+    # O caso comum (258 de 261 resgates medidos): `usdcSize` = `size`, $1 por cota.
+    activity = [_act(size=100.0, price=0.5, outcomeIndex=1),
+                {"type": "REDEEM", "conditionId": "0xC", "outcomeIndex": 1, "size": 100.0,
+                 "usdcSize": 100.0, "timestamp": 200}]
+    mov = polymarket._movimento_por_lado(activity)
+    assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 1.0}}
+
+
 def test_indice_999_com_total_do_lado_e_vitoria_cheia():
     # negative-risk: o resgate passa pelo adaptador e o índice vem 999, mas pagou $1/cota.
     # Ler 999 como "anulado" cortava a vitória pela metade (regressão pega no gate real).

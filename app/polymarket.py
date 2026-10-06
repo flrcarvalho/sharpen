@@ -683,8 +683,12 @@ def _payouts_por_lado(positions: list, activity: list, mov: dict) -> dict:
         cid = a.get("conditionId")
         if not cid:
             continue
-        slot = resgates.setdefault(cid, {"usd": 0.0, "indices": set()})
-        slot["usd"] += _f(a, "size", "amount")
+        slot = resgates.setdefault(cid, {"usd": 0.0, "cotas": 0.0, "indices": set()})
+        # O DINHEIRO do resgate é o `usdcSize`; o `size` é a quantidade de COTAS
+        # resgatadas. Na vitória cheia os dois coincidem ($1 por cota), e por isso
+        # ler `size` passou despercebido; no mercado anulado o `usdcSize` é metade.
+        slot["usd"] += _f(a, "usdcSize", "size", "amount")
+        slot["cotas"] += _f(a, "size")
         slot["indices"].add(a.get("outcomeIndex"))
 
     for cid, rg in resgates.items():
@@ -693,6 +697,15 @@ def _payouts_por_lado(positions: list, activity: list, mov: dict) -> dict:
         if total <= 0:
             continue
         informados = {i for i in rg["indices"] if i != _OUTCOME_NAO_INFORMADO}
+        # Quanto CADA COTA resgatada pagou, lido do dinheiro. O índice diz QUAL lado,
+        # mas não QUANTO: mercado anulado chega com o índice do lado resgatado e
+        # metade do dinheiro, e confiar só no índice gravava vitória cheia (s397, 3
+        # bilhetes do Feca, US$ 260,42 a mais no P/L — achado pela Caixa da Polymarket).
+        por_cota = (_payout_de_liquidacao(rg["usd"] / rg["cotas"])
+                    if rg["cotas"] > _DUST_COTAS else None)
+        if por_cota == 0.5:
+            tab[cid] = {a: 0.5 for a in cotas}          # anulado: metade para todo lado
+            continue
         if informados:
             tab[cid] = {a: (1.0 if lados[cid].get(a) in informados else 0.0) for a in cotas}
             continue

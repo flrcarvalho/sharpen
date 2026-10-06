@@ -188,6 +188,11 @@ vir de tipsters diferentes) e uma ganha enquanto a outra perde.
   número e sai como `1 ÷ preço` literal, para não reescrever odd antiga.
 - **Mercado anulado com taxa:** devolve 0,5 por cota e a taxa não volta, então é
   cashout abaixo da stake: `W` com odd < 1 e P/L do tamanho da taxa.
+- **Quanto o resgate pagou se lê no DINHEIRO, não no índice.** No REDEEM, `size` é a
+  quantidade de cotas resgatadas e `usdcSize` é o dinheiro. Mercado anulado chega com
+  o `outcomeIndex` do lado comprado e `usdcSize` = metade do `size`; confiar no índice
+  gravava vitória cheia (s397: 3 de 261 resgates do Feca, US$ 260,42 a mais no P/L,
+  achados pela Caixa). `_payouts_por_lado` lê `usdcSize ÷ size` antes do índice.
 - Sem arredondamento; a grade recebe a precisão cheia.
 
 ---
