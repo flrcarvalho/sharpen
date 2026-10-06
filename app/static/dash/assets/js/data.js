@@ -44,6 +44,8 @@ const CASA_ICONS={
   'Duel':'https://www.google.com/s2/favicons?sz=128&domain=duel.com',
   // 7a casa BetBy (s395).
   'Betcoin':'https://www.google.com/s2/favicons?sz=128&domain=betcoin.ag',
+  // 6a casa Altenar (s395).
+  'Betrebels':'https://www.google.com/s2/favicons?sz=128&domain=betrebels.gr',
   // Plataforma propria (s391).
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
@@ -149,6 +151,7 @@ const HOUSE_DOMAIN={
   'Betfury':'betfury.com',
   'Duel':'duel.com',
   'Betcoin':'betcoin.ag',
+  'Betrebels':'betrebels.gr',
   'DEX Sport':'dexsport.io',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo

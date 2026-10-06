@@ -289,6 +289,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # é o defeito que matou a Jonbet na s249. A casa já era usada por PRINT, então isto é
     # upgrade de print para API, não cadastro.
     "ESTRELABET":     "Estrela Bet",
+    # 6ª casa Altenar (s395). Grafia da BASE: medido em 05/10/2026, 1 conta `Betrebels` em
+    # `parceiros` e em `casas_meta`, zero bilhete (a marca escreve `BetRebels`).
+    "BETREBELS":      "Betrebels",
     "JOGODEOURO":     "Jogo de Ouro",
     "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
@@ -890,6 +893,8 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.
     "ESTRELABET",
+    # Betrebels (s395) — 6ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos.
+    "BETREBELS",
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",

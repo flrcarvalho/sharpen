@@ -44,6 +44,8 @@ const CASA_HOSTS = {
   // 5ª casa Altenar (s303) · a tela cheia do histórico já dispara o expandido sozinha; o que
   // ela tem de próprio é o gateway recusar `credentials:"include"` (tratado no vb_inject).
   "Estrela Bet": ["estrelabet.bet.br"],
+  // 6ª casa Altenar (s395), grega · `integration=betrebels`, SDK em `/sports`.
+  "Betrebels":  ["betrebels.gr"],
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Faz1bet":    ["faz1.bet.br"],      // 3ª casa BetConstruct (s284) · o domínio não tem o "bet"
   "MyStake":    ["mystake.bet", "mystake.com", "mystake2.com"],   // 4ª BetConstruct (s392)
@@ -260,6 +262,8 @@ async function capturar() {
                 // Espelho da VaideBet (Altenar/BIA, mesmo gateway): MESMO inject.
                 : casa === "Esportiva" ? "vb_inject.js"
                 : casa === "Jogo de Ouro" ? "vb_inject.js"
+                // Betrebels: 6ª casa Altenar (s395) — MESMO inject.
+                : casa === "Betrebels" ? "vb_inject.js"
                 : casa === "Betnacional" ? "bnc_inject.js"
                 // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
                 // `/api/v1/my_bets/list`): MESMO inject, de propósito.

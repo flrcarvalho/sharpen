@@ -1283,7 +1283,7 @@
       // hosts e exige bloco idêntico; amarrar o domínio deixa o caso vermelho.
       blocos = await roboTVPassive(ctx);
     } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" ||
-               casa === "betpix365" || casa === "estrelabet") {
+               casa === "betpix365" || casa === "estrelabet" || casa === "betrebels") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
@@ -1311,6 +1311,9 @@
       // em iframe), e o clone passivo resolve. O que ela tem de próprio não está na tela e
       // sim no CORS do gateway — `credentials:"include"` é recusado para o tenant dela e
       // zeraria o replay inteiro; quem trata é o `pedirPagina` do `vb_inject.js`.
+      //
+      // A Betrebels (s395) é a 6ª, grega: SDK na própria página `betrebels.gr/sports`,
+      // `integration=betrebels`, mesmo cluster `altenar2`. A moeda é da CONTA (real ou USDT).
       blocos = await roboVBPassive(ctx);
     } else if (casa === "sportingbet" || casa === "betboo") {
       // Passivo + replay paginado (spb_inject, motor bwin/Entain — o primeiro deste motor
@@ -1535,6 +1538,11 @@
         estrelabet: { nome: "Estrela Bet", hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
                       extra: vbRespostas === 0
                         ? " · clique em \"Ver minhas apostas\" e capture com o histórico na tela; se persistir, refaça o login"
+                        : "" },
+        // Betrebels: 6ª casa Altenar (s395), mesmo inject/contadores.
+        betrebels:  { nome: "Betrebels",  hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
+                      extra: vbRespostas === 0
+                        ? " · abra o histórico de apostas na tela e capture de novo; se persistir, refaça o login"
                         : "" },
         jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o
