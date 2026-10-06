@@ -22,6 +22,8 @@ Decisões (sessão Polymarket-1):
   Ver `casas/CASA_POLYMARKET.md §5` — é onde mora a régua, e o que ela conserta.
 - Paginação SEM teto fixo (corrige o achado #4 da auditoria do Polymarket):
   busca até a página vir vazia, garantindo histórico desde a 1ª aposta.
+- COMBO (aposta combinada) não existe em `/positions`: vem do `/v1/positions/combos`
+  e vira bilhete `Múltipla` pelo caminho próprio (`_derivar_combos`, s397).
 
 A detecção de esporte/categoria é determinística (regex sobre o título), depois
 normalizada para a taxonomia global. É menos completa que a IA dos masters;
@@ -990,6 +992,253 @@ def _montar_linha(pos: dict, parceiro: str, iso: str, cotacao: float, resultado:
     }
 
 
+# ── Combos (apostas combinadas) ─────────────────────────────────────────────
+#
+# A Polymarket vende COMBO: várias pernas numa cota só, que paga $1 se todas
+# acertarem (a "múltipla" dela). A combo NÃO aparece em `/positions` — só no
+# `/activity`, com `isCombo: true` e `outcomeIndex` 999 —, e o coletor inteiro era
+# montado sobre `/positions`. Resultado medido na carteira de referência (05/10/2026):
+# das 27 combos, só as 7 GANHAS entravam, e por acidente (o REDEEM caía no
+# `_reconciliar_saidas` com stake sem taxa); as 6 perdidas e as 14 abertas não
+# deixam resgate e não entravam nunca. O sync rodava verde e a grade parava em 13/09.
+#
+# A fonte é o endpoint próprio, `/v1/positions/combos`. Duas pegadinhas medidas:
+#   - sem filtro de status ele ESCONDE a combo ganha já resgatada (veio 14 + 6, e só
+#     `status=RESOLVED_WIN` devolve as 7). Por isso pedimos status por status;
+#   - a resposta é `{"combos": [...], "pagination": {...}}` e pagina por CURSOR.
+#
+# O `combo_condition_id` é o mesmo `conditionId` das linhas `isCombo` do `/activity`,
+# então o código do bilhete é o mesmo que as 7 ganhas já gravaram: o UPSERT casa a
+# linha antiga, não duplica.
+
+_COMBO_PATH = "v1/positions/combos"
+_COMBO_STATUS = ("OPEN", "PARTIAL", "RESOLVED_WIN", "RESOLVED_LOSS", "RESOLVED_PARTIAL")
+_COMBO_PAGE = 100
+_COMBO_MAX_PAGINAS = 500   # teto de sanidade, mesma ideia do `_MAX_ITENS_PAGINACAO`
+
+
+async def _fetch_combos(client: httpx.AsyncClient, wallet: str) -> list[dict]:
+    """Todas as combos da carteira, de todos os status, sem repetir id.
+
+    Falha ALTO (como o `_paginate`): engolir a falha apagaria as combos do sync em
+    silêncio, e as ganhas, que hoje saem pelo `_reconciliar_saidas`, também, porque
+    elas deixam aquele caminho (ver `_separar_combos`)."""
+    vistos: dict[str, dict] = {}
+    for status in _COMBO_STATUS:
+        cursor = None
+        for _ in range(_COMBO_MAX_PAGINAS):
+            params = {"user": wallet, "status": status, "limit": _COMBO_PAGE}
+            if cursor:
+                params["cursor"] = cursor
+            r = await _get_retry(client, f"{POLY_BASE}/{_COMBO_PATH}", params)
+            data = r.json()
+            if not isinstance(data, dict) or not isinstance(data.get("combos"), list):
+                raise PolymarketRespostaInesperada(f"Resposta inesperada de /{_COMBO_PATH}")
+            for c in data["combos"]:
+                cid = c.get("combo_condition_id")
+                if cid:
+                    vistos.setdefault(cid, c)
+            pag = data.get("pagination") or {}
+            cursor = pag.get("next_cursor")
+            if not pag.get("has_more") or not cursor:
+                break
+        else:
+            raise PolymarketRespostaInesperada(
+                f"Paginação de /{_COMBO_PATH} passou de {_COMBO_MAX_PAGINAS} páginas — o proxy "
+                "pode estar preso. Tente sincronizar de novo em minutos.")
+    return list(vistos.values())
+
+
+def _separar_combos(combos: list, activity: list, positions: list) -> tuple[list, list]:
+    """Tira as combos do caminho das apostas simples. Devolve (activity, positions) sem elas.
+
+    Sem isso a combo ganha sairia DUAS vezes no mesmo lote: uma pelo `_reconciliar_saidas`
+    (que a lê do REDEEM como se fosse aposta simples) e outra pelo caminho de combo."""
+    cids = {c.get("combo_condition_id") for c in combos if c.get("combo_condition_id")}
+    cids |= {a.get("conditionId") for a in activity if a.get("isCombo") and a.get("conditionId")}
+    return ([a for a in activity if a.get("conditionId") not in cids],
+            [p for p in positions if p.get("conditionId") not in cids])
+
+
+def _iso_brt(ts) -> str:
+    """Epoch (int) ou RFC3339 → data ISO no fuso de Brasília. '' se ilegível."""
+    if not ts:
+        return ""
+    try:
+        if isinstance(ts, (int, float)) or str(ts).isdigit():
+            d = datetime.fromtimestamp(int(ts), BRT)
+        else:
+            d = datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(BRT)
+        return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
+    except Exception:
+        return ""
+
+
+def _combo_retorno_total(combo: dict) -> float | None:
+    """USD que a combo inteira devolveu, ou None se ela ainda não liquidou.
+
+    Ganha: o que já foi resgatado + as cotas que sobraram, cada uma valendo $1 (ganha e
+    ainda não resgatada continua valendo dinheiro, igual à vitória simples). Perdida: 0.
+    `RESOLVED_PARTIAL` (perna anulada) só fecha quando o resgate já disse quanto pagou e
+    não sobrou cota; antes disso fica aberta — gravar um W/L inventado é pior, porque o
+    UPSERT não rebaixa resolvida para aberta."""
+    status = str(combo.get("status") or "").upper()
+    pago = _f(combo, "realized_payout_usdc")
+    saldo = _f(combo, "shares_balance")
+    if status == "RESOLVED_LOSS":
+        return 0.0
+    if status == "RESOLVED_WIN":
+        return pago + saldo
+    if status == "RESOLVED_PARTIAL" and pago > 0 and saldo <= _DUST_COTAS:
+        return pago
+    return None
+
+
+def _combo_unidades(combo: dict, activity: list) -> list[dict]:
+    """Uma unidade por COMPRA, como nas apostas simples (`_split_multibuys`).
+
+    Cada unidade: código, stake em USD **com a taxa** (decisão do Feca, 05/10/2026: é o
+    que saiu da carteira), cotas e o instante da compra. Com uma compra só o código é o
+    id cru da combo; com N, `id__i` em ordem cronológica. A stake de cada compra é a
+    fatia proporcional do custo bruto da combo, para a soma fechar com o que a API diz."""
+    cid = combo.get("combo_condition_id") or ""
+    buys = sorted((a for a in activity if a.get("conditionId") == cid and _e_buy(a)),
+                  key=lambda a: int(a.get("timestamp") or 0))
+    bruto = _f(combo, "gross_entry_cost_usdc", "total_cost_usdc", "entry_cost_usdc")
+    if len(buys) <= 1:
+        cotas = _f(buys[0], "size") if buys else 0.0
+        if cotas <= 0:
+            cotas = _f(combo, "shares_balance")
+        ts = int(buys[0].get("timestamp") or 0) if buys else 0
+        return [{"codigo": cid, "indice": 0, "total": 1, "stake": bruto or (_f(buys[0], "usdcSize") if buys else 0.0),
+                 "cotas": cotas, "ts": ts}]
+    soma_usd = sum(_f(b, "usdcSize") for b in buys)
+    unidades = []
+    for i, b in enumerate(buys):
+        usd = _f(b, "usdcSize")
+        stake = (bruto * usd / soma_usd) if (bruto and soma_usd) else usd
+        unidades.append({"codigo": f"{cid}__{i}", "indice": i, "total": len(buys), "stake": stake,
+                         "cotas": _f(b, "size"), "ts": int(b.get("timestamp") or 0)})
+    return unidades
+
+
+def _combo_perna_desc(leg: dict) -> str:
+    """'Evento - Mercado: Escolha'. O mercado só entra quando difere do evento (moneyline
+    tem os dois iguais) e a escolha é o que diz QUAL lado a perna comprou."""
+    mkt = leg.get("market") or {}
+    evento = ((mkt.get("event") or {}).get("event_title") or "").strip()
+    # "More Markets" é o nome do sub-evento da Polymarket que agrupa mercados avulsos
+    # de um jogo; não diz nada sobre a aposta.
+    evento = re.sub(r"\s+-\s+More Markets$", "", evento, flags=re.I)
+    mercado = (mkt.get("title") or "").strip()
+    escolha = (leg.get("leg_outcome_label") or mkt.get("outcome") or "").strip()
+    base = evento or mercado
+    if mercado and evento and mercado.lower() not in evento.lower():
+        # Mercado que já repete o evento no começo ("Villena: A vs B Set 1 O/U 8.5")
+        # vai sozinho; senão o confronto sai duas vezes na mesma perna.
+        base = mercado if mercado.lower().startswith(evento.lower()) else f"{evento} - {mercado}"
+    return f"{base}: {escolha}" if escolha else base
+
+
+def _combo_esporte_categoria(legs: list) -> tuple[str, str]:
+    """Esporte e categoria da combo pela regra global (`MASTER_ESPORTES §2`,
+    `MASTER_APOSTAS` Múltipla/Bet Builder):
+      - categoria: duas ou mais pernas → `Múltipla` (bet builder inclusive);
+      - esporte: esportes diferentes, ou 3+ JOGOS diferentes → `Múltiplos`; senão o
+        esporte das pernas. O jogo é o evento da perna (mesmo evento = bet builder)."""
+    esportes, jogos = set(), set()
+    for leg in legs:
+        mkt = leg.get("market") or {}
+        ev = mkt.get("event") or {}
+        slug = ev.get("event_slug") or mkt.get("slug") or ""
+        titulo = " ".join(t for t in (ev.get("event_title"), mkt.get("title")) if t)
+        esportes.add(_norm_esporte(_detes_raw(titulo, slug)))
+        jogos.add(ev.get("event_id") or slug or titulo)
+    if len(legs) == 1:
+        leg = legs[0]
+        mkt = leg.get("market") or {}
+        ev = mkt.get("event") or {}
+        raw = _detes_raw(" ".join(t for t in (ev.get("event_title"), mkt.get("title")) if t),
+                         ev.get("event_slug") or mkt.get("slug") or "")
+        return _norm_esporte(raw), _categoria(mkt.get("title") or "", raw)
+    if len(esportes) > 1 or len(jogos) >= 3:
+        return "Múltiplos", "Múltipla"
+    return (next(iter(esportes)) if esportes else "Outro"), "Múltipla"
+
+
+def _combo_linhas_base(combo: dict, activity: list) -> list[tuple[dict, str, str]]:
+    """(linha sem data/câmbio, iso da data, resultado) por unidade da combo.
+
+    Data: liquidada → o instante em que a combo resolveu (`resolved_at`, publicado pela
+    fonte); aberta → a compra. Resultado pela régua global de cashout, igual à
+    `_liquidacao` das simples: retorno 0 → L; = stake → V; ≠ stake → W com
+    odd = retorno ÷ stake. Na L e na aberta a odd é a do possível resultado,
+    cotas ÷ stake (com a taxa, coerente com a stake)."""
+    legs = sorted(combo.get("legs") or [], key=lambda l: int(l.get("leg_index") or 0))
+    desc_base = " // ".join(_combo_perna_desc(l) for l in legs) or "Combo Polymarket"
+    esporte, aposta = _combo_esporte_categoria(legs) if legs else ("Outro", "Múltipla")
+    unidades = _combo_unidades(combo, activity)
+    total_cotas = sum(u["cotas"] for u in unidades)
+    retorno_total = _combo_retorno_total(combo)
+
+    out = []
+    for u in unidades:
+        stake = u["stake"]
+        odd = (u["cotas"] / stake) if stake > 0 and u["cotas"] > 0 else 1.0
+        resultado = ""
+        if retorno_total is not None:
+            frac = (u["cotas"] / total_cotas) if total_cotas > 0 else 1.0 / len(unidades)
+            retorno = retorno_total * frac
+            if retorno <= _EPS_USD:
+                resultado = "L"
+            elif abs(retorno - stake) <= _EPS_USD or stake <= 0:
+                resultado = "V"
+            else:
+                resultado, odd = "W", retorno / stake
+        if resultado:
+            iso = _iso_brt(combo.get("resolved_at")) or _iso_brt(u["ts"]) or _iso_brt(combo.get("first_entry_at"))
+        else:
+            iso = _iso_brt(u["ts"]) or _iso_brt(combo.get("first_entry_at"))
+        desc = desc_base if u["total"] == 1 else f"{desc_base} [{u['indice'] + 1}/{u['total']}]"
+        linha = {
+            "_sort": (iso or "9999-12-31", u["ts"]),
+            "esporte": esporte,
+            "tipster": "",
+            "casa": "Polymarket",
+            "aposta": aposta,
+            "descricao": desc,
+            "stake_usd_cru": stake,
+            "odd": _fmt_odd(odd),
+            "resultado": resultado,
+            "codigo_bilhete": u["codigo"],
+        }
+        out.append((linha, iso, resultado))
+    return out
+
+
+async def _derivar_combos(client: httpx.AsyncClient, combos: list, activity: list,
+                          parceiro: str, hoje: float | None,
+                          cot_cache: dict) -> tuple[list[dict], list[dict]]:
+    """(resolvidas, ativas) das combos, no mesmo formato de `_montar_linha`. O câmbio é o
+    PTAX da data da linha — a mesma régua das simples (resgate/resolução para a
+    liquidada, compra para a aberta)."""
+    resolvidas, ativas = [], []
+    for combo in combos:
+        for linha, iso, resultado in _combo_linhas_base(combo, activity):
+            cotacao = await _cotacao_para(client, iso, cot_cache, hoje)
+            if not cotacao:
+                raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG)
+            stake_usd = linha.pop("stake_usd_cru")
+            linha.update({
+                "data": _iso_to_br(iso),
+                "parceiro": parceiro,
+                "stake": _fmt_money(stake_usd * cotacao),
+                "stake_usd": round(stake_usd, 2),
+            })
+            (resolvidas if resultado else ativas).append(linha)
+    return _ordenar_por_sort(resolvidas), _ordenar_por_sort(ativas)
+
+
 async def _ptax_hoje(client: httpx.AsyncClient) -> float | None:
     """Cotação PTAX 'de hoje', recuando até 6 dias (PTAX não publica fim de semana/feriado).
 
@@ -1082,15 +1331,18 @@ async def coletar_tudo(wallet: str, parceiro: str) -> tuple[list[dict], list[dic
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
         positions, activity = await _fetch_carteira(client, wallet)
+        combos = await _fetch_combos(client, wallet)
         # Uma carga de PTAX cobrindo da 1ª compra até hoje ANTES de derivar: as datas
         # dos bilhetes acertam todas em memória. Se o BCB estiver fora, falha aqui em
         # segundos — não depois de moer o histórico inteiro.
         await _garantir_cobertura(client, _inicio_hint(activity))
         hoje = await _ptax_hoje(client)
         cot_cache: dict = {}
-        resolvidas = await _derivar_resolvidas(client, positions, activity, parceiro, hoje, cot_cache)
-        ativas = await _derivar_ativas(client, positions, activity, parceiro, hoje, cot_cache)
-    return resolvidas, ativas
+        act_s, pos_s = _separar_combos(combos, activity, positions)
+        resolvidas = await _derivar_resolvidas(client, pos_s, act_s, parceiro, hoje, cot_cache)
+        ativas = await _derivar_ativas(client, pos_s, act_s, parceiro, hoje, cot_cache)
+        combo_res, combo_atv = await _derivar_combos(client, combos, activity, parceiro, hoje, cot_cache)
+    return resolvidas + combo_res, ativas + combo_atv
 
 
 async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
@@ -1099,9 +1351,14 @@ async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
         positions, activity = await _fetch_carteira(client, wallet)
+        combos = await _fetch_combos(client, wallet)
         await _garantir_cobertura(client, _inicio_hint(activity))
         hoje = await _ptax_hoje(client)
-        return await _derivar_resolvidas(client, positions, activity, parceiro, hoje, {})
+        cot_cache: dict = {}
+        act_s, pos_s = _separar_combos(combos, activity, positions)
+        resolvidas = await _derivar_resolvidas(client, pos_s, act_s, parceiro, hoje, cot_cache)
+        combo_res, _ = await _derivar_combos(client, combos, activity, parceiro, hoje, cot_cache)
+        return resolvidas + combo_res
 
 
 async def coletar_ativas(wallet: str, parceiro: str) -> list[dict]:
@@ -1126,9 +1383,14 @@ async def coletar_ativas(wallet: str, parceiro: str) -> list[dict]:
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
         positions, activity = await _fetch_carteira(client, wallet)
+        combos = await _fetch_combos(client, wallet)
         await _garantir_cobertura(client, _inicio_hint(activity))
         hoje = await _ptax_hoje(client)
-        return await _derivar_ativas(client, positions, activity, parceiro, hoje, {})
+        cot_cache: dict = {}
+        act_s, pos_s = _separar_combos(combos, activity, positions)
+        ativas = await _derivar_ativas(client, pos_s, act_s, parceiro, hoje, cot_cache)
+        _, combo_atv = await _derivar_combos(client, combos, activity, parceiro, hoje, cot_cache)
+        return ativas + combo_atv
 
 
 # ── Dashboard ao vivo: posições ativas + saldos da carteira ─────────────────

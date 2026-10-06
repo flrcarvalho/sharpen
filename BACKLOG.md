@@ -1384,6 +1384,14 @@ em 04/10: MyStake `306558636` (`Scarborough Athletic +0.25`, era −0,25) e `306
 recaptura. Não afeta P/L (vem do bilhete). Saída: editar na grade (os 2 da MyStake) ou um
 script com ensaio que case bloco novo × descrição gravada.
 
+### 4.0d O painel ao vivo do Polymarket não lista combo aberta (s397). **VIVA, medida**
+
+O sync passou a gravar combo (`CASA_POLYMARKET §16`), mas o `coletar_dashboard` ainda
+monta a lista de posições ativas só de `/positions`, onde combo não existe. Na carteira do
+Feca em 05/10/2026 eram 14 combos abertas fora da lista e da contagem. O cash e o
+portfólio (`/value`) não dependem disso. Saída: o painel usar o mesmo `_fetch_combos` só
+com `status=OPEN`. Também sem prova: combo vendida antes de liquidar (nenhuma medida).
+
 ### 4.0c A trava de `fim` do replay que nunca destrava — a 2ª captura na mesma aba devolve o acumulado velho (s393). **VIVA na família, medida só na DEX**
 
 Corrigida na DEX Sport (0.7.42, `53b7e11`): o `fimReplay` do inject e o `<casa>FimReal` do

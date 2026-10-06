@@ -27,6 +27,8 @@
   Tamanho de página **por endpoint** (espelha o app standalone): `/positions` pede
   `limit=100` (a API limita a página deste endpoint — pedir mais faria a parada
   `len < limit` truncar o histórico em silêncio); `/activity` pede `limit=500`.
+- **Combo** (aposta combinada) **não aparece em `/positions`**: vem de
+  `/v1/positions/combos`, status por status e por cursor. Ver §16.
 - **Cotação USD→BRL:** `olinda.bcb.gov.br` (PTAX, `cotacaoVenda`), pela data da
   aposta, recuando até **10 dias** para atravessar fim de semana/feriado. Cai para a
   cotação de hoje **só** se a aposta tiver ≤ 7 dias; aposta antiga sem PTAX na janela
@@ -235,3 +237,41 @@ vir de tipsters diferentes) e uma ganha enquanto a outra perde.
 | 28/05/2026 | E-Sports | ML | LoL: Galions vs TLN Pirates (BO5) - LFL Playoffs | 409,19 | 5,2631… | L | 0x317b…83b0c |
 | 16/06/2026 | E-Sports | Handicap | Game Handicap: TR (-1.5) vs Team Refuser (+1.5) [1/2] | 264,06 | 3,0303… | W | 0xf4a3…7da84__0 |
 | 11/06/2026 | Tênis | Player Props | Games Total: O/U 2.5 | 617,73 | 2,2727… | L | 0x9986…3009b |
+
+---
+
+## 16. Combos (aposta combinada)
+
+A Polymarket vende **combo**: várias pernas numa cota só, que paga $1 se todas
+acertarem. **Ela não existe em `/positions`.** No `/activity` aparece com
+`isCombo: true`, `outcomeIndex: 999` e `slug` vazio.
+
+> **O caso (05/10/2026, carteira `0x2b3c…9f22`):** o sync rodava verde e a grade parava
+> em 13/09, porque toda aposta nova era combo. Das 27 combos da carteira, só as **7
+> ganhas** entravam, e por acidente: o REDEEM caía no `_reconciliar_saidas` como se
+> fosse aposta simples, com a stake sem taxa. As 6 perdidas e as 14 abertas não deixam
+> resgate e nunca entravam.
+
+- **Fonte:** `/v1/positions/combos`, resposta `{"combos": […], "pagination": {…}}`,
+  paginada por **cursor**. **Sem filtro de status a API esconde a combo ganha já
+  resgatada**; por isso o coletor pede cada status (`OPEN`, `PARTIAL`, `RESOLVED_WIN`,
+  `RESOLVED_LOSS`, `RESOLVED_PARTIAL`).
+- **Código** = `combo_condition_id`, o mesmo `conditionId` das linhas `isCombo` do
+  `/activity`. Compra repetida da mesma combo vira `id__i`, como nas simples.
+- **As combos saem do caminho das simples** (`_separar_combos`), senão a ganha
+  sairia duas vezes no mesmo lote.
+- **Stake = custo COM a taxa** (`gross_entry_cost_usdc`), decisão do Feca de
+  05/10/2026: é o que saiu da carteira. Com N compras, cada uma leva a fatia
+  proporcional ao `usdcSize` dela.
+- **Resultado:** ganha = resgatado + cotas restantes × $1; perdida = 0;
+  `RESOLVED_PARTIAL` só fecha com resgate feito e sem cota sobrando, senão fica
+  aberta. Depois aplica a régua de cashout de sempre (0 → L; = stake → V; ≠ → W com
+  `odd = retorno ÷ stake`). Na L e na aberta a odd é `cotas ÷ stake`.
+- **Data:** liquidada → `resolved_at` (BRT); aberta → a compra.
+- **Esporte e categoria** (`MASTER_ESPORTES §2`): `aposta = Múltipla` sempre;
+  `esporte = Múltiplos` com esportes diferentes ou 3+ jogos diferentes, senão o
+  esporte das pernas (bet builder, mesmo evento, fica com o esporte do jogo).
+- **Descrição:** as pernas `Evento - Mercado: Escolha` unidas por ` // `; o mercado
+  que já começa com o evento vai sozinho, e o sufixo `- More Markets` sai.
+- **Não coberto:** combo vendida antes de liquidar (não apareceu na carteira
+  medida) e o painel ao vivo (`coletar_dashboard`), que ainda não lista combo aberta.

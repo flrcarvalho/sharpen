@@ -350,7 +350,11 @@ def test_coletar_tudo_paridade_com_funcoes_separadas(monkeypatch):
     async def fake_cobertura(client, iso):
         return None  # a carga em massa também é rede — sem isto o teste sai para o BCB
 
+    async def fake_combos(client, wallet):
+        return []   # combo tem teste próprio, abaixo; aqui só a paridade das simples
+
     monkeypatch.setattr(polymarket, "_paginate", fake_paginate)
+    monkeypatch.setattr(polymarket, "_fetch_combos", fake_combos)
     monkeypatch.setattr(polymarket, "_ptax_hoje", fake_ptax_hoje)
     monkeypatch.setattr(polymarket, "_cotacao_para", fake_cotacao)
     monkeypatch.setattr(polymarket, "_garantir_cobertura", fake_cobertura)
@@ -477,3 +481,217 @@ def test_inicio_hint_pega_a_compra_mais_antiga():
     activity = [{"timestamp": ts_junho}, {"timestamp": ts_maio}, {"timestamp": 0}]
     assert polymarket._inicio_hint(activity) == "2026-05-01"
     assert polymarket._inicio_hint([]) == polymarket._hoje_iso()
+
+
+# ── Combos (s397) ─────────────────────────────────────────────────────────────
+#
+# A combo não aparece em /positions, então o coletor nunca a via: na carteira de
+# referência (05/10/2026) só as 7 GANHAS entravam, e por acidente, pelo REDEEM no
+# `_reconciliar_saidas`; 6 perdidas e 14 abertas ficavam de fora, com o sync verde.
+#
+# NÃO cobre: combo vendida antes de liquidar (nenhuma na carteira medida; a venda
+# por RFQ não apareceu no /activity) e o painel ao vivo (`coletar_dashboard`), que
+# continua sem listar combo aberta.
+
+def _leg(i, evento, slug, mercado, escolha, event_id=None):
+    return {"leg_index": i, "leg_outcome_label": escolha,
+            "market": {"title": mercado, "slug": slug,
+                       "event": {"event_id": event_id or slug, "event_slug": slug,
+                                 "event_title": evento}}}
+
+
+def _combo(cid="0xC1", status="OPEN", bruto="51.613988", pago="0.00", saldo="150.699708",
+           legs=None, resolved_at=None):
+    return {"combo_condition_id": cid, "status": status, "gross_entry_cost_usdc": bruto,
+            "total_cost_usdc": "50.00", "realized_payout_usdc": pago, "shares_balance": saldo,
+            "first_entry_at": "2026-10-06T01:08:43Z", "resolved_at": resolved_at,
+            "legs": legs if legs is not None else [
+                _leg(0, "Blues vs. Blackhawks", "nhl-stl-chi-2026-10-06", "Blues vs. Blackhawks", "Blackhawks"),
+                _leg(1, "Wuning 3 (Doubles): Friend/Sueoka vs Ichikawa/Matsuda",
+                     "atp-doubles-friesue-ichimat-2026-10-05",
+                     "Wuning 3 (Doubles): Friend/Sueoka vs Ichikawa/Matsuda", "Ichikawa/Matsuda"),
+            ]}
+
+
+def _buy(cid, ts, size, usdc):
+    return {"type": "TRADE", "side": "BUY", "conditionId": cid, "timestamp": ts,
+            "size": size, "usdcSize": usdc, "isCombo": True, "asset": "A" + cid}
+
+
+def test_separar_combos_tira_combo_do_caminho_das_simples():
+    act = [_buy("0xC1", 1, 10, 5), {"type": "REDEEM", "conditionId": "0xC1", "isCombo": True},
+           {"type": "TRADE", "side": "BUY", "conditionId": "0xS1"},
+           # combo que a API de combos não listou: o `isCombo` do /activity também tira
+           {"type": "TRADE", "side": "BUY", "conditionId": "0xC2", "isCombo": True}]
+    pos = [{"conditionId": "0xC1"}, {"conditionId": "0xS1"}]
+    a, p = polymarket._separar_combos([_combo("0xC1")], act, pos)
+    assert [x["conditionId"] for x in a] == ["0xS1"]
+    assert [x["conditionId"] for x in p] == ["0xS1"]
+
+
+def test_combo_retorno_por_status():
+    r = polymarket._combo_retorno_total
+    assert r(_combo(status="OPEN")) is None
+    assert r(_combo(status="PARTIAL")) is None
+    assert r(_combo(status="RESOLVED_LOSS", saldo="274.7")) == 0.0
+    # ganha e resgatada: o saldo zera e o pago é o retorno
+    assert r(_combo(status="RESOLVED_WIN", pago="90.54", saldo="0")) == 90.54
+    # ganha e NÃO resgatada: cada cota vale $1
+    assert r(_combo(status="RESOLVED_WIN", pago="0", saldo="90.54")) == 90.54
+    # perna anulada sem resgate ainda: aberta, não um W/L inventado
+    assert r(_combo(status="RESOLVED_PARTIAL", pago="0", saldo="10")) is None
+    assert r(_combo(status="RESOLVED_PARTIAL", pago="30", saldo="0")) == 30.0
+
+
+def test_combo_ganha_l_e_aberta_viram_linhas_certas():
+    act = [_buy("0xW", 100, 90.54, 63.958)]
+    ganha = _combo("0xW", "RESOLVED_WIN", bruto="63.958100", pago="90.54", saldo="0",
+                   resolved_at="2026-08-09T21:44:30Z")
+    [(linha, iso, res)] = polymarket._combo_linhas_base(ganha, act)
+    assert res == "W" and iso == "2026-08-09"
+    assert linha["codigo_bilhete"] == "0xW"
+    assert abs(linha["stake_usd_cru"] - 63.9581) < 1e-9            # COM a taxa
+    assert linha["odd"] == polymarket._fmt_odd(90.54 / 63.9581)     # retorno ÷ stake
+    assert linha["aposta"] == "Múltipla"
+
+    perdida = _combo("0xL", "RESOLVED_LOSS", bruto="163.340789", saldo="274.725274",
+                     resolved_at="2026-08-04T23:36:44Z")
+    [(linha, iso, res)] = polymarket._combo_linhas_base(perdida, [_buy("0xL", 50, 274.725274, 163.340789)])
+    assert res == "L"
+    assert linha["odd"] == polymarket._fmt_odd(274.725274 / 163.340789)  # odd do possível resultado
+
+    aberta = _combo("0xA", "OPEN", bruto="26.0", saldo="125")
+    [(linha, iso, res)] = polymarket._combo_linhas_base(aberta, [_buy("0xA", 1791000000, 125, 26.0)])
+    assert res == "" and iso == polymarket._iso_brt(1791000000)    # data da COMPRA
+
+
+def test_combo_comprada_duas_vezes_parte_por_compra():
+    # Dado real: 0x038925aa…, duas compras de ~US$ 26 dois minutos uma da outra.
+    act = [_buy("0xC1", 1791248923, 56.315565, 25.695089),   # fora de ordem de propósito
+           _buy("0xC1", 1791248843, 94.384143, 25.918899)]
+    combo = _combo("0xC1", "RESOLVED_WIN", pago="150.699708", saldo="0",
+                   resolved_at="2026-10-06T05:00:00Z")
+    linhas = polymarket._combo_linhas_base(combo, act)
+    assert [l["codigo_bilhete"] for l, _, _ in linhas] == ["0xC1__0", "0xC1__1"]
+    assert [l["descricao"][-5:] for l, _, _ in linhas] == ["[1/2]", "[2/2]"]
+    # a 1ª é a compra mais antiga (94,38 cotas), e as stakes fecham com o custo bruto
+    assert abs(linhas[0][0]["stake_usd_cru"] - 25.918899) < 1e-6
+    assert abs(sum(l["stake_usd_cru"] for l, _, _ in linhas) - 51.613988) < 1e-6
+    # o retorno vai na proporção das cotas: cada compra recebe as suas
+    assert linhas[0][0]["odd"] == polymarket._fmt_odd(94.384143 / 25.918899)
+
+
+def test_combo_esporte_pela_regra_global():
+    ec = polymarket._combo_esporte_categoria
+    nhl = _leg(0, "Blues vs. Blackhawks", "nhl-stl-chi-2026-10-06", "Blues vs. Blackhawks", "Blackhawks")
+    atp1 = _leg(1, "Suzhou: A vs B", "atp-a-b-2026-10-05", "Suzhou: A vs B", "A")
+    atp2 = _leg(2, "Antofagasta: C vs D", "atp-c-d-2026-10-05", "Antofagasta: C vs D", "C")
+    atp3 = _leg(3, "Villena: E vs F", "atp-e-f-2026-10-05", "Villena: E vs F", "E")
+    assert ec([nhl, atp1]) == ("Múltiplos", "Múltipla")            # esportes diferentes
+    assert ec([atp1, atp2]) == ("Tênis", "Múltipla")               # 2 jogos do mesmo esporte
+    assert ec([atp1, atp2, atp3]) == ("Múltiplos", "Múltipla")     # 3+ jogos diferentes
+    bb = [_leg(i, "LoL: Fluxo vs FURIA (BO3)", "lol-fxw7-fur-2026-08-09", m, "x", event_id="803535")
+          for i, m in enumerate(["Game 1 Winner", "Total Kills Over/Under 30.5 in Game 1?", "Game 2 Winner"])]
+    assert ec(bb) == ("E-Sports", "Múltipla")                       # bet builder: esporte do jogo
+
+
+def test_combo_descricao_nao_repete_o_confronto():
+    d = polymarket._combo_perna_desc
+    assert d(_leg(0, "Villena: A vs B", "atp-x", "Villena: A vs B Set 1 O/U 8.5", "Under")) \
+        == "Villena: A vs B Set 1 O/U 8.5: Under"
+    assert d(_leg(0, "Vila Nova vs. Cuiabá - More Markets", "bra-x", "Vila Nova O/U 0.5", "Under")) \
+        == "Vila Nova vs. Cuiabá - Vila Nova O/U 0.5: Under"
+    assert d(_leg(0, "Blues vs. Blackhawks", "nhl-x", "Blues vs. Blackhawks", "Blackhawks")) \
+        == "Blues vs. Blackhawks: Blackhawks"
+
+
+class _Resp:
+    def __init__(self, data):
+        self._d = data
+
+    def json(self):
+        return self._d
+
+
+def test_fetch_combos_pede_cada_status_e_segue_o_cursor(monkeypatch):
+    # Sem filtro de status a API ESCONDE a ganha resgatada: a busca tem de pedir a
+    # RESOLVED_WIN explicitamente. E pagina por cursor, não por offset.
+    pedidos = []
+
+    async def fake_get(client, url, params):
+        pedidos.append((params["status"], params.get("cursor")))
+        assert url.endswith("/v1/positions/combos")
+        if params["status"] == "RESOLVED_WIN":
+            if not params.get("cursor"):
+                return _Resp({"combos": [_combo("0xW1", "RESOLVED_WIN")],
+                              "pagination": {"has_more": True, "next_cursor": "c2"}})
+            return _Resp({"combos": [_combo("0xW2", "RESOLVED_WIN")],
+                          "pagination": {"has_more": False, "next_cursor": None}})
+        if params["status"] == "OPEN":
+            return _Resp({"combos": [_combo("0xO1")], "pagination": {"has_more": False}})
+        return _Resp({"combos": [], "pagination": {"has_more": False}})
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    out = asyncio.run(polymarket._fetch_combos(None, "0xw"))
+    assert sorted(c["combo_condition_id"] for c in out) == ["0xO1", "0xW1", "0xW2"]
+    assert ("RESOLVED_WIN", "c2") in pedidos
+    assert {s for s, _ in pedidos} == set(polymarket._COMBO_STATUS)
+
+
+def test_fetch_combos_resposta_estranha_falha_alto(monkeypatch):
+    async def fake_get(client, url, params):
+        return _Resp({"error": "rate limited"})
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    with pytest.raises(polymarket.PolymarketRespostaInesperada):
+        asyncio.run(polymarket._fetch_combos(None, "0xw"))
+
+
+def test_coletar_tudo_combo_ganha_sai_uma_vez_e_aberta_entra(monkeypatch):
+    # O caso que motivou a mudança, ponta a ponta: a ganha tem REDEEM no /activity e
+    # saía pelo `_reconciliar_saidas` (stake sem taxa); a perdida e a aberta não saíam.
+    ts = int(datetime(2026, 8, 9, 12, 0, tzinfo=polymarket.BRT).timestamp())
+    activity = [
+        _buy("0xW", ts, 90.54, 63.958),
+        {"type": "REDEEM", "conditionId": "0xW", "timestamp": ts + 3600, "size": 90.54,
+         "outcomeIndex": 999, "isCombo": True},
+        _buy("0xL", ts, 274.7, 163.34),
+        _buy("0xA", ts + 86400 * 50, 125, 26.0),
+    ]
+    combos = [
+        _combo("0xW", "RESOLVED_WIN", bruto="63.958", pago="90.54", saldo="0",
+               resolved_at="2026-08-09T21:44:30Z"),
+        _combo("0xL", "RESOLVED_LOSS", bruto="163.34", saldo="274.7",
+               resolved_at="2026-08-04T23:36:44Z"),
+        _combo("0xA", "OPEN", bruto="26.0", saldo="125"),
+    ]
+
+    async def fake_paginate(client, path, wallet, extra, page_size):
+        return [dict(a) for a in activity] if path == "activity" else []
+
+    async def fake_combos(client, wallet):
+        return combos
+
+    async def fake_cotacao(client, iso, cache, hoje):
+        return 5.0
+
+    async def nada(*a, **k):
+        return None
+
+    async def fake_ptax_hoje(client):
+        return 5.0
+
+    monkeypatch.setattr(polymarket, "_paginate", fake_paginate)
+    monkeypatch.setattr(polymarket, "_fetch_combos", fake_combos)
+    monkeypatch.setattr(polymarket, "_cotacao_para", fake_cotacao)
+    monkeypatch.setattr(polymarket, "_garantir_cobertura", nada)
+    monkeypatch.setattr(polymarket, "_ptax_hoje", fake_ptax_hoje)
+
+    res, atv = asyncio.run(polymarket.coletar_tudo("0xWALLET", "P [x]"))
+    assert sorted(r["codigo_bilhete"] for r in res) == ["0xL", "0xW"]   # a ganha UMA vez
+    assert [r["codigo_bilhete"] for r in atv] == ["0xA"]
+    w = next(r for r in res if r["codigo_bilhete"] == "0xW")
+    assert w["resultado"] == "W" and w["stake"] == polymarket._fmt_money(63.958 * 5.0)
+    assert w["data"] == "09/08/2026" and w["parceiro"] == "P [x]" and "stake_usd_cru" not in w
+    assert next(r for r in res if r["codigo_bilhete"] == "0xL")["resultado"] == "L"
+    assert atv[0]["resultado"] == "" and atv[0]["esporte"] == "Múltiplos"
