@@ -60,6 +60,9 @@ const CODIGO = [
   recorte('function _painelRotuloEu() {', LF + '}', '_painelRotuloEu'),
   recorte('function _iniciais(nome) {', LF + '}', '_iniciais'),
   recorte('function _caixaPorConta() {', LF + '}', '_caixaPorConta'),
+  // s394: o agregado soma o saldo em R$ pelo `_cxBrl` (conta em outra moeda entra
+  // convertida). Sem este recorte o `_painelAggForn` quebrava com ReferenceError.
+  recorte('function _cxBrl(cx, k) {', LF + '}', '_cxBrl'),
   recorte('function _painelAggForn(v) {', LF + '}', '_painelAggForn'),
   `return {
      tagStatus, _statusDaConta, _diasDesde, _PARADA_DIAS, _TAG_STATUS, _TAG_TITULO,

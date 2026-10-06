@@ -85,8 +85,10 @@ def test_detecta_fornecedor_ordenado_por_nome(tmp_path):
 def test_detecta_conta_sem_caixa_entrando_na_soma(tmp_path):
     """Conta sem a Caixa ligada não vira zero nem entra na soma: total que engole
     conta desconhecida mente com cara de exatidão."""
-    alvo = "      if (cx && cx.ligada && cx.banca) a.caixa += cx.banca;"
-    m = _mutar(tmp_path, alvo, "      if (cx) a.caixa += cx.banca;")
+    # s394 mudou a forma: a soma passa pelo `_cxBrl` (saldo em R$). A guarda que importa
+    # continua a mesma, `cx.ligada`.
+    alvo = "      const b = (cx && cx.ligada) ? _cxBrl(cx, 'banca') : null;"
+    m = _mutar(tmp_path, alvo, "      const b = cx ? (cx.banca || 0) : null;")
     assert _node(m).returncode != 0, "o gate passou somando conta sem caixa ligada"
 
 
