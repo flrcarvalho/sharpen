@@ -24,6 +24,7 @@
 | 4b | Captura: **Dexsport** (escolha do Feca, antes das 1xBet) | **NO AR (s391)**, falta validar ao vivo |
 | 4c | Captura: **SapphireBet + PariPesa + Megapari** (espelhos da 1xBet) | **NO AR e validadas ao vivo (s391)** |
 | 5 | Caixa em conta USD/USDT (depósito/saque/ajuste na moeda da conta) | **NO AR (s391)** |
+| 6 | Câmbio, corretoras e realização (8 etapas) | **DESENHADO (s398)**, ver [a seção](#passo-6-câmbio-corretoras-e-realização-desenho-s398) |
 
 ### O que o passo 1 fez
 
@@ -238,3 +239,73 @@ Bilhete: `id` (UUID), `amount`, `coefficient`, `currency`, `ticketType` (0/1),
 Uma perna pode ficar `0` num bilhete já perdido (a outra perdeu antes). **Void e cashout
 não apareceram na amostra (11 concluídas):** o de-para nasce com W/L e o resto sobe como
 "a conferir" até haver caso real.
+
+## Passo 6: câmbio, corretoras e realização (desenho, s398)
+
+**Origem:** pergunta do Gabriel (Los Panas, 06/10/2026). Duas apostas de 40 USDT apareciam
+como R$ 201,35 e R$ 208,53. O número estava certo (cotações de 5,034 e 5,213, dias
+diferentes), mas a conversa expôs o defeito de fundo: **o P/L em R$ ignora o câmbio.** 100 USD
+apostados com o dólar a 5, ganhos com odd 2 e com o dólar a 4,5 na liquidação: o sistema mostra
++R$ 500, e no bolso há R$ 400 a mais.
+
+### Decisões do Feca, confirmadas com o Gabriel (06/10/2026)
+
+Cenário: contas em USDT nas casas cripto (passo 4), dinheiro circulando entre casas por
+corretora (Binance, Bybit), câmbio para real feito fora do Sharpen.
+
+1. **A verdade é a moeda da conta.** Aposta, lucro, saldo, depósito e saque nascem e ficam
+   na moeda dela. O R$ é visão derivada. Hoje é o contrário (`stake` em R$ é a verdade e
+   `stake_orig` é anotação), e é isso que este passo inverte.
+2. **Resultado das apostas não sofre com o câmbio.** ROI de tipster e de método leem só o P/L
+   de apostas. Cada aposta vale em R$ pela cotação do **dia em que foi FEITA**, para a stake e
+   o lucro usarem a mesma cotação: com a da liquidação, a mesma aposta de odd 2 daria ROI de
+   90% em vez de 100%, câmbio disfarçado de resultado.
+3. **Corretoras entram no sistema**, quantas o dono tiver. Saque de casa informa o DESTINO,
+   depósito em casa informa a ORIGEM, e o saldo aparece na corretora.
+4. **Taxas de transferência são informáveis** (saíram 100, chegaram 99) e entram como custo.
+5. **Enquanto o dinheiro está na moeda, o câmbio é "no papel".** Mudar de casa ou ir para a
+   corretora não é evento de câmbio: o dinheiro continua em USDT.
+6. **O câmbio só realiza na troca por real**, declarada pelo dono na corretora ("vendi 200
+   USDT, recebi R$ 900"). Daí em diante o valor trava.
+
+### O modelo
+
+O câmbio é da **MOEDA do dono**, não da casa: um "bolso" por moeda e por dono, somando todas
+as casas e corretoras daquela moeda. USD e USDT são bolsos separados (a tolerância de
+04/10/2026, em que `$`/USD/USDT cabem um no outro, vale só para o aviso de captura).
+
+Cada bolso guarda **quantidade** e **custo em R$**, por custo médio:
+
+| Evento | Quantidade | Custo em R$ |
+|---|---|---|
+| Compra declarada (paguei R$ X, recebi Y) | + Y | + X |
+| Dinheiro que entra no bolso sem compra declarada (saldo inicial, depósito sem origem) | + valor | + valor × cotação do dia |
+| Aposta liquidada | + P/L na moeda | + P/L × cotação do dia da aposta |
+| Transferência entre casas e corretoras do mesmo bolso | nada | nada |
+| Taxa de transferência | − taxa | − taxa × custo médio (vira custo no mês) |
+| Venda declarada (vendi Y, recebi R$ X) | − Y | − Y × custo médio; **realizado = X − Y × custo médio** |
+
+    câmbio no papel = quantidade × cotação de hoje − custo em R$
+    resultado       = P/L de apostas + câmbio realizado + câmbio no papel − taxas
+
+Conferência do exemplo: depósito de 100 a 5 (custo 500), aposta de odd 2 ganha +100 a 5
+(custo 1.000, 200 no bolso), dólar a 4,5: o bolso vale 900, câmbio no papel −100, resultado
++400 = +500 de apostas − 100 de câmbio.
+
+**No Dashboard, as duas réguas de sempre:** câmbio **realizado** e **taxas** são fluxo e
+entram no mês em que aconteceram (a régua soma, como o custo). Câmbio **no papel** é estoque,
+muda todo dia e fica FORA do P/L do período, rotulado, como as Contas em operação.
+
+### Etapas (uma por vez, cada uma com gate por mutação)
+
+| # | O quê | Observação |
+|---|---|---|
+| 6.0 | **Medir** a base: contas fora do real por dono, bilhetes com `stake_orig`, lançamentos da Caixa nessas contas | Dimensiona o backfill antes de qualquer código |
+| 6.1 | **Inverter a verdade:** edição manual em conta de outra moeda grava na moeda e refaz o R$ pela `cotacao` gravada (hoje limpa a origem); P/L em R$ derivado do P/L na moeda | Reabre a decisão de 03/10 de "stake editada limpa a origem": levar ao Feca antes |
+| 6.2 | **Corretoras:** cadastro, Caixa própria, conferência de saldo | Decidir na etapa: `parceiros` com tipo ou tabela própria. `parceiros` é lido por 15 queries só em `app/*.py` (filtros, custo, matcher, Contas em operação): corretora ali vaza como casa sem aposta. Medir antes |
+| 6.3 | **Transferência:** saque com destino e depósito com origem, gravados como UMA operação (dois lançamentos ligados), taxa opcional | O par nasce e morre junto; apagar um lado sozinho deixa saldo fantasma |
+| 6.4 | **Compra e venda** de moeda na corretora | É a venda que realiza o câmbio |
+| 6.5 | **Bolso por moeda:** custo médio, realizado e no papel, função pura | Núcleo testável, como o `_caixa_projetar` |
+| 6.6 | **Telas** (`/nova-ui`): Contas & Parceiros com saldo na moeda, ≈ R$ de hoje e o câmbio do bolso; Dashboard com apostas, câmbio realizado, taxas e câmbio no papel rotulados; a cotação usada visível com data e fonte | Número que se mexe sozinho sem dizer a cotação lê como defeito |
+| 6.7 | **Polymarket** no mesmo modelo, como bolso em USD | Hoje a Caixa dela (s397) usa a PTAX da compra, uma régua própria |
+| 6.8 | **Backfill** das contas que já existem: cotação do dia em cada lançamento, saldo inicial pela cotação do corte | Depende da medição da 6.0 |
