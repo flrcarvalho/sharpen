@@ -611,6 +611,41 @@ html.embedded .sidebar { display: none; }
 .painel-hint { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-mute); }
 .painel-empty { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); padding: 6px 0; }
 
+/* ── Câmbio e corretoras (s398, passo 6 do PLANO_MOEDA_POR_CONTA) ──────────────
+   O bolso de cada moeda e as corretoras. Os números moram em GRADE (o `.money` é coluna,
+   UI_REFERENCE §5.5) e a frase de contexto em linha própria, sem valor dentro. Saldo,
+   custo e taxa são `fmtSaldo` (2 casas, sem cor: conferência, como a Caixa); câmbio no
+   papel e realizado são P/L (`fmtPL`). Labels em --ink-soft (Escada de Tinta). */
+.cb-intro { padding: 12px 18px 2px; font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+.cb-wrap { overflow-x: auto; }
+.cb-grid { display: grid; grid-template-columns: 74px repeat(6, minmax(112px, 1fr)); align-items: center;
+  column-gap: 14px; min-width: 840px; padding: 0 18px; }
+.cb-head { padding-top: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
+.cb-head span { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+.cb-head span.r, .cb-row .r { text-align: right; }
+.cb-row { padding-top: 11px; padding-bottom: 4px; font-size: 13px; }
+.cb-row .moeda { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ink); }
+.cb-row .vazio { font-family: var(--font-mono); color: var(--ink-soft); }
+.cb-meta { min-width: 840px; padding: 0 18px 11px; border-bottom: 1px solid var(--line-2); font-family: var(--font-mono);
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-soft); }
+.cb-meta .av { display: block; color: var(--warn); }
+.cb-sec { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px 8px; }
+.cb-eb { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-soft); }
+.cb-corr { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto; align-items: center;
+  gap: 12px; padding: 9px 18px; border-top: 1px solid var(--line-2); }
+.cb-corr .nome { font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-corr .saldos { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: flex-end; font-size: 13px; }
+.cb-corr .saldos .money { width: auto; }
+.cb-corr .saldos .money-val { min-width: 0; }
+.cb-corr .vazio { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
+.cb-corr .acoes { display: flex; gap: 6px; }
+.cb-corr.arq .nome { color: var(--ink-soft); }
+.cb-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-soft); margin-left: 8px; font-weight: 500; }
+.cb-vazio { padding: 2px 18px 16px; font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+
 /* Toolbar do hero (busca + abas + nova conta) e seção de gestão (lista) */
 .painel-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .painel-gestao-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
@@ -973,6 +1008,13 @@ body.cap-off .cx__body { display: none; }
    grade. Mesmo componente do Tipo da Caixa e da moeda no modal de conta, só encolhido para
    caber na linha do título: dois estilos para o mesmo papel é o item 8 do checklist. */
 .cxm-seg.seg-2 { grid-template-columns: repeat(2, auto); gap: 4px; }
+/* Quatro tipos da corretora (s398): saldo inicial, compra, venda e ajuste. */
+.cxm-seg.seg-4 { grid-template-columns: repeat(4, 1fr); }
+.cxm-seg.seg-4 button { padding: 8px 4px; }
+#corretora-modal .modal { width: 460px; }
+/* `.modal-field` é flex, e flex VENCE o atributo `hidden` (CLAUDE.md, asyncpg): os campos
+   que aparecem só em saque/depósito de conta em moeda precisam desta regra. */
+.cxm-body .modal-field[hidden] { display: none; }
 .cxm-seg.seg-2 button { padding: 5px 10px; }
 .grade-moeda { display: inline-flex; align-items: center; gap: 8px; }
 .grade-moeda[hidden] { display: none; }
@@ -3313,6 +3355,17 @@ td.c-res.res-HL { color: var(--warn); }
         <label id="cxm-valor-lbl">Valor (R$)</label>
         <input type="text" id="cxm-valor" placeholder="0,00" autocomplete="off" spellcheck="false" inputmode="decimal">
       </div>
+      <!-- s398: saque com DESTINO / depósito com ORIGEM numa corretora, e a taxa da rede.
+           Só em conta de outra moeda: é o que leva o saldo para a corretora e separa
+           transferência (não é câmbio) de dinheiro que saiu do Sharpen. -->
+      <div class="modal-field" id="cxm-corr-field" hidden>
+        <label id="cxm-corr-lbl">Destino</label>
+        <select id="cxm-corr"></select>
+      </div>
+      <div class="modal-field" id="cxm-taxa-field" hidden>
+        <label id="cxm-taxa-lbl">Taxa</label>
+        <input type="text" id="cxm-taxa" placeholder="0,00" autocomplete="off" spellcheck="false" inputmode="decimal">
+      </div>
       <div class="modal-field full">
         <label>Observação <span class="nc-opt">(opcional)</span></label>
         <input type="text" id="cxm-obs" placeholder="Ex.: PIX do fornecedor" autocomplete="off" spellcheck="false" maxlength="280">
@@ -3379,6 +3432,83 @@ td.c-res.res-HL { color: var(--warn); }
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="cxe-fechar" type="button">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Corretora (s398): o mesmo formulário da Caixa (.cxm-*), em dois modos: o NOME (nova
+     corretora, renomear) e o LANÇAMENTO (saldo inicial, compra, venda, ajuste) numa moeda.
+     A venda por real é o que realiza o câmbio. -->
+<div class="modal-overlay" id="corretora-modal">
+  <div class="modal modal-narrow">
+    <div class="modal-head cxm-head">
+      <span class="cxm-head-txt">
+        <span class="modal-title" id="crm-title">Nova corretora</span>
+        <span class="cxm-sub" id="crm-sub"></span>
+      </span>
+      <button class="modal-close" id="crm-close" type="button">✕</button>
+    </div>
+    <div class="modal-body cxm-body">
+      <div class="modal-field full" id="crm-nome-field">
+        <label>Nome</label>
+        <input type="text" id="crm-nome" placeholder="Ex.: Binance" autocomplete="off" spellcheck="false" maxlength="60">
+      </div>
+      <div class="modal-field full" id="crm-tipo-field">
+        <label>Tipo</label>
+        <div class="cxm-seg seg-4" id="crm-seg">
+          <button type="button" data-tipo="inicial">Saldo inicial</button>
+          <button type="button" data-tipo="compra">Compra</button>
+          <button type="button" data-tipo="venda">Venda</button>
+          <button type="button" data-tipo="ajuste">Ajuste</button>
+        </div>
+      </div>
+      <div class="modal-field" id="crm-moeda-field">
+        <label>Moeda</label>
+        <select id="crm-moeda"></select>
+      </div>
+      <div class="modal-field" id="crm-data-field">
+        <label>Data</label>
+        <div class="cxm-datewrap">
+          <input type="text" id="crm-data" placeholder="dd/mm/aaaa" autocomplete="off" spellcheck="false">
+          <button type="button" id="crm-data-btn" class="ed-data-btn" title="Abrir calendário" aria-label="Abrir calendário"><svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="12" height="11" rx="2"/><path d="M1.5 6.5h12"/><path d="M4.5 1v3"/><path d="M10.5 1v3"/></svg></button>
+        </div>
+      </div>
+      <div class="modal-field" id="crm-valor-field">
+        <label id="crm-valor-lbl">Quantidade</label>
+        <input type="text" id="crm-valor" placeholder="0,00" autocomplete="off" spellcheck="false" inputmode="decimal">
+      </div>
+      <div class="modal-field" id="crm-brl-field">
+        <label id="crm-brl-lbl">Valor em R$</label>
+        <input type="text" id="crm-brl" placeholder="0,00" autocomplete="off" spellcheck="false" inputmode="decimal">
+      </div>
+      <div class="modal-field full" id="crm-obs-field">
+        <label>Observação <span class="nc-opt">(opcional)</span></label>
+        <input type="text" id="crm-obs" autocomplete="off" spellcheck="false" maxlength="280">
+      </div>
+      <div class="cxm-hint" id="crm-hint"></div>
+      <div class="cxm-erro" id="crm-erro" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="crm-cancel" type="button">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="crm-ok" type="button">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Extrato da corretora (s398): os lançamentos dela e as transferências das casas, que
+     são os MESMOS lançamentos da Caixa vistos do outro lado (editam-se lá). -->
+<div class="modal-overlay" id="corretora-extrato">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="cre-title">Extrato da corretora</span>
+      <button class="modal-close" id="cre-close" type="button">✕</button>
+    </div>
+    <div class="modal-body cxe-body">
+      <div class="cxe-wrap" id="cre-wrap"></div>
+      <div class="cxm-hint" id="cre-nota"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="cre-fechar" type="button">Fechar</button>
     </div>
   </div>
 </div>
@@ -4600,6 +4730,7 @@ function painelAtualizarAoVivo() {
   if (!_painelNaTela()) return;
   atualizarIncompletos();                         // re-renderiza a lista ao chegar
   renderPainelBanca(true).catch(function () {});  // KPIs, concentração, fornecedores e lista
+  renderPainelCambio(true).catch(function () {}); // câmbio e corretoras
 }
 function _painelVivoLigar() {
   if (_painelVivoTimer) return;
@@ -5841,6 +5972,9 @@ function renderPainelContas() {
         // explícita (CSS), então a zona de Fornecedores DESCE para baixo da
         // Concentração quando não há largura para as três — nunca some.
         '<div class="pc-tri' + (temFornBase ? '' : ' sem-sup') + '">' + concPanel + listaPanel + supPanel + '</div>' +
+        // s398: câmbio e corretoras. Só aparece para quem tem conta em outra moeda ou
+        // corretora (renderPainelCambio); base só em real não vê card nenhum.
+        '<div class="painel-card" id="painelCambio" hidden></div>' +
       '</div>' +
       '<div class="pc-logcol">' + logPanel + '</div>' +
     '</div>';
@@ -5849,6 +5983,7 @@ function renderPainelContas() {
   // s388: abrir o painel busca de novo. Sem o `true` ele reusava o /caixa/visao da
   // 1ª abertura da sessão, e o saque lançado na Caixa da conta nunca chegava aqui.
   renderPainelBanca(true).catch(function () {});   // KPIs + concentração — /caixa/visao
+  renderPainelCambio(true).catch(function () {});  // câmbio e corretoras — /cambio/visao
   renderPainelLog();         // últimas ações (log local, sem o rail da casca)
   _painelVivoLigar();        // e daqui em diante, a cada 30 s enquanto estiver na tela
 }
@@ -7854,6 +7989,9 @@ function caixaAbrirModal(tipo, mov) {
     ? valorEdit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '';
   document.getElementById('cxm-obs').value = (movIni && movIni.obs) || '';
+  // s398: destino/origem e taxa (só saque/depósito em conta de outra moeda).
+  _cxCorrSync(mov || null, true);
+  if (!cambioCache && _cxCorrVisivelPara(tipo)) ensureCambio().then(() => _cxCorrSync(mov || null, true));
   ov.classList.add('open');
   _modalBaseline(ov);
   setTimeout(() => document.getElementById('cxm-valor').focus(), 30);
@@ -7892,20 +8030,26 @@ async function caixaSalvar() {
   btn.disabled = true;
   try {
     const obs = document.getElementById('cxm-obs').value.trim();
+    // s398: a transferência viaja junto. Na edição, `transferencia:true` diz ao servidor
+    // que o formulário MANDOU os dois campos (sem ele, nada muda no destino).
+    const tr = _cxCorrLer();
+    if (tr && tr.erro) throw new Error(tr.erro);
     const r = _cxEditId
       ? await fetch('/caixa/movimento/' + _cxEditId, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data, valor, obs }),
+          body: JSON.stringify(Object.assign({ data, valor, obs },
+            tr ? { transferencia: true, corretora_id: tr.corretora_id, taxa: tr.taxa } : {})),
         })
       : await fetch('/caixa/lancar', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          body: JSON.stringify(Object.assign({
             parceiro_id: parceiroSelecionado.id, tipo: _cxModo, data, valor, obs,
-          }),
+          }, tr ? { corretora_id: tr.corretora_id, taxa: tr.taxa } : {})),
         });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || 'Não foi possível lançar.');
     const editou = !!_cxEditId;
+    if (tr) cambioCache = null;   // o saldo da corretora e o bolso mudaram
     caixaAtual = j.caixa; renderCaixa(j.caixa);
     caixaFecharModal();
     setStatus(editou ? 'Lançamento atualizado.'
@@ -7971,6 +8115,12 @@ function caixaAbrirExtrato() {
   const _ft = (v) => _cxTxt(v, d && d.moeda);
   const d = caixaAtual;
   if (!d) return;
+  // s398: o nome da corretora da transferência vem do /cambio/visao. Sem cache, busca e
+  // redesenha UMA vez (o cache vazio também conta, então não há laço).
+  if (!cambioCache && d.moeda && d.moeda !== 'BRL')
+    ensureCambio().then(() => {
+      if (document.getElementById('extrato-modal').classList.contains('open')) caixaAbrirExtrato();
+    });
   document.getElementById('cxe-title').textContent =
     'Extrato · ' + (NOMES[d.casa] || d.casa) + ' · ' + d.parceiro;
   const movs = (d.movimentos || []).slice().sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : b.id - a.id));
@@ -7990,9 +8140,13 @@ function caixaAbrirExtrato() {
             ? '<span class="cxe-tag ok">bateu</span>'
             : '<span class="cxe-tag al">' + esc(_ft(div)) + '</span>';
           const valor = conf ? _fs(m.valor) : _fs(sinal * m.valor, m.tipo !== 'inicial');
+          // s398: saque com destino / depósito com origem numa corretora, e a taxa.
+          const cn = m.corretora_id ? _cbNomeCorr(m.corretora_id) : '';
+          const transf = cn ? (m.tipo === 'saque' ? 'para ' : 'de ') + cn
+            + (m.taxa ? ' · taxa ' + _ft(m.taxa) : '') : '';
           const obs = conf && m.projetado != null
             ? 'projetado ' + _ft(m.projetado)
-            : (m.obs || '');
+            : [transf, m.obs || ''].filter(Boolean).join(' · ');
           return '<tr><td class="mono">' + _cxDataBR(m.data) + '</td>'
             + '<td>' + (_CX_NOME[m.tipo] || m.tipo) + tag + '</td>'
             + '<td class="cxe-obs">' + esc(obs) + '</td>'
@@ -8038,6 +8192,7 @@ async function caixaExcluirMov(id, tipo) {
     document.querySelectorAll('#cxm-seg button').forEach(o => o.classList.toggle('on', o === b));
     document.getElementById('cxm-title').textContent = _CX_TITULO[_cxModo] || 'Novo movimento';
     document.getElementById('cxm-hint').innerHTML = _CX_HINT[_cxModo] || '';
+    _cxCorrSync(null, false);
     _cxErro('');
   }));
   document.getElementById('cxm-valor').addEventListener('keydown', e => { if (e.key === 'Enter') caixaSalvar(); });
@@ -8056,6 +8211,395 @@ async function caixaExcluirMov(id, tipo) {
   const fechar = () => ex.classList.remove('open');
   document.getElementById('cxe-close').addEventListener('click', fechar);
   document.getElementById('cxe-fechar').addEventListener('click', fechar);
+  ex.addEventListener('click', e => { if (e.target === ex) fechar(); });
+})();
+
+// ── Câmbio e corretoras (s398, passo 6 do docs/PLANO_MOEDA_POR_CONTA.md) ──────────
+// Decisões do Feca com o Gabriel (06/10/2026): a verdade é a moeda da conta; o câmbio é da
+// MOEDA do dono (casas e corretoras numa moeda formam um bolso só); transferência entre
+// casa e corretora não é câmbio, só a taxa dela; e o câmbio só se realiza na VENDA por
+// real, declarada na corretora. A conta inteira mora no servidor (`app/bolso.py`); aqui
+// só se desenha e se lança.
+let cambioCache = null, _cambioPromise = null;
+function ensureCambio(force) {
+  if (!force && cambioCache) return Promise.resolve(cambioCache);
+  if (_cambioPromise) return _cambioPromise;
+  const vazio = { bolsos: {}, corretoras: [], cotacoes_hoje: {} };
+  _cambioPromise = fetch('/cambio/visao', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('cambio/visao ' + r.status); return r.json(); })
+    .then(j => { cambioCache = j; return j; })
+    .catch(() => { if (!cambioCache) cambioCache = vazio; return cambioCache; })
+    .finally(() => { _cambioPromise = null; });
+  return _cambioPromise;
+}
+function _cbCorretoras(soAtivas) {
+  return ((cambioCache || {}).corretoras || []).filter(c => !soAtivas || !c.arquivada);
+}
+function _cbNomeCorr(id) {
+  const c = ((cambioCache || {}).corretoras || []).find(x => x.id === id);
+  return c ? c.nome : 'corretora';
+}
+// Cotação e custo médio são TAXA (R$ por unidade), não dinheiro: quatro casas e sem o
+// `.money`, como a odd (UI_REFERENCE §5.3). Nunca `'R$ ' + x`.
+function _cbTaxa(v) {
+  return v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+const _CB_FONTE = { USDT: 'Binance, abertura do dia', USD: 'PTAX do BCB', EUR: 'PTAX do BCB',
+                    AUD: 'PTAX do BCB', ARS: 'Binance, USDT/BRL ÷ USDT/ARS' };
+const _cbPl = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
+
+async function renderPainelCambio(force) {
+  if (!document.getElementById('painelCambio')) return;
+  const v = await ensureCambio(force);
+  const host = document.getElementById('painelCambio');
+  if (!host) return;   // o painel pode ter re-renderizado durante o fetch
+  const bolsos = Object.values(v.bolsos || {}).sort((a, b) => a.moeda.localeCompare(b.moeda));
+  const corrs = (v.corretoras || []).slice().sort((a, b) => (a.arquivada - b.arquivada) || a.nome.localeCompare(b.nome));
+  if (!bolsos.length && !corrs.length) { host.hidden = true; host.innerHTML = ''; return; }
+  host.hidden = false;
+  const nMoedas = bolsos.length, nCorr = corrs.filter(c => !c.arquivada).length;
+  const head = '<div class="painel-card-head">'
+    + '<span class="painel-card-titulo">Câmbio e corretoras</span>'
+    + '<span class="painel-card-count">' + _cbPl(nMoedas, 'moeda', 'moedas') + ' · ' + _cbPl(nCorr, 'corretora', 'corretoras') + '</span>'
+    + '<button class="btn btn-primary btn-sm painel-nova" type="button" onclick="corretoraNome(null)">+ Nova corretora</button>'
+    + '</div>';
+  // O que a tela é e o que o número significa (item 3.5 do /nova-ui), numa linha só.
+  const intro = '<div class="cb-intro">O resultado das apostas já está em R$ pela cotação do dia em que cada uma foi feita. '
+    + 'Aqui fica só o efeito da moeda: <b>no papel</b> enquanto o dinheiro está em moeda (muda todo dia), '
+    + '<b>realizado</b> quando você vende por real numa corretora.</div>';
+  let tabela = '';
+  if (bolsos.length) {
+    const cel = x => '<span class="r">' + x + '</span>';
+    const vz = '<span class="vazio">—</span>';
+    tabela = '<div class="cb-wrap"><div class="cb-grid cb-head">'
+      + '<span>Moeda</span>'
+      + '<span class="r" title="Casas com Caixa ligada + corretoras, na moeda">Saldo</span>'
+      + '<span class="r" title="O saldo pela cotação de hoje">Vale hoje</span>'
+      + '<span class="r" title="Quanto esse saldo custou em R$: depósitos e saldos pela cotação do dia em que entraram, apostas pela cotação do dia em que foram feitas, compras pelo que você pagou">Custo em R$</span>'
+      + '<span class="r" title="Vale hoje menos o custo. Não entra no resultado do mês: muda todo dia e só vira resultado na venda por real">No papel</span>'
+      + '<span class="r" title="Vendas por real na corretora menos o custo médio do que foi vendido. Entra no resultado do mês da venda">Realizado</span>'
+      + '<span class="r" title="Taxas de transferência entre casa e corretora, pelo custo médio">Taxas</span>'
+      + '</div>'
+      + bolsos.map(b => {
+          const semHoje = b.cot_hoje == null;
+          const row = '<div class="cb-grid cb-row">'
+            + '<span class="moeda">' + esc(b.moeda) + '</span>'
+            + cel(fmtSaldo(b.qtd, false, b.moeda))
+            + cel(semHoje ? vz : fmtSaldo(b.valor_brl))
+            + cel(fmtSaldo(b.custo_brl))
+            + cel(semHoje ? vz : fmtPL(b.papel_brl))
+            + cel(fmtPL(b.realizado_brl))
+            + cel(b.taxas_brl ? fmtSaldo(-b.taxas_brl, true) : fmtSaldo(0))
+            + '</div>';
+          const meta = [];
+          meta.push(semHoje ? 'Sem cotação de hoje: o valor em R$ fica em branco.'
+            : esc(b.moeda) + ' a ' + _cbTaxa(b.cot_hoje) + ' hoje (' + esc(_CB_FONTE[b.moeda] || 'cotação do dia') + ')');
+          if (b.medio != null) meta.push('custo médio ' + _cbTaxa(b.medio));
+          meta.push(_cbPl(b.contas, 'conta com Caixa', 'contas com Caixa'));
+          const av = [];
+          if (b.contas_sem_caixa)
+            av.push(_cbPl(b.contas_sem_caixa, 'conta', 'contas') + ' em ' + esc(b.moeda) + ' sem Caixa ' + (b.contas_sem_caixa === 1 ? 'fica' : 'ficam') + ' de fora: ligue a Caixa para o saldo entrar.');
+          if (b.n_sem_destino)
+            av.push(_cbPl(b.n_sem_destino, 'saque', 'saques') + ' sem destino (' + esc(fmtMoedaOrig(b.qtd_sem_destino, b.moeda)) + ') '
+              + (b.n_sem_destino === 1 ? 'saiu' : 'saíram') + ' pelo custo médio, e o câmbio dessa parte não se mede. Informe a corretora no extrato da conta.');
+          if (b.n_sem_cotacao)
+            av.push(_cbPl(b.n_sem_cotacao, 'lançamento', 'lançamentos') + ' sem cotação do dia ' + (b.n_sem_cotacao === 1 ? 'entrou' : 'entraram') + ' pelo custo médio.');
+          if (!b.fecha)
+            av.push('O bolso (' + esc(fmtMoedaOrig(b.qtd, b.moeda)) + ') não bate com casas + corretoras ('
+              + esc(fmtMoedaOrig(b.saldo_casas + b.saldo_corretoras, b.moeda)) + '): algum lançamento ficou fora da janela de uma Caixa ou de uma corretora.');
+          return row + '<div class="cb-meta">' + meta.join(' · ')
+            + av.map(t => '<span class="av">' + t + '</span>').join('') + '</div>';
+        }).join('')
+      + '</div>';
+  }
+  const linhasCorr = corrs.map(c => {
+    const saldos = Object.entries(c.saldos || {}).filter(([, x]) => Math.abs(x) >= 0.005)
+      .map(([m, x]) => fmtSaldo(x, false, m)).join('');
+    const temHist = (c.movimentos || []).length || (c.transferencias || []).length;
+    const id = c.id;
+    const acoes = c.arquivada
+      ? '<button class="btn-mini" type="button" onclick="corretoraArquivar(' + id + ',false)">' + _ICO_ACAO.reativar + 'Reativar</button>'
+      : '<button class="btn-mini" type="button" onclick="corretoraLancar(' + id + ',&quot;inicial&quot;)">Lançar</button>'
+        + '<button class="btn-mini" type="button" onclick="corretoraExtrato(' + id + ')">Extrato</button>'
+        + '<button class="btn-mini" type="button" onclick="corretoraNome(' + id + ')">' + _ICO_ACAO.editar + 'Renomear</button>'
+        + (temHist
+            ? '<button class="btn-mini" type="button" onclick="corretoraArquivar(' + id + ',true)">' + _ICO_ACAO.arquivar + 'Arquivar</button>'
+            : '<button class="btn-mini del" type="button" onclick="corretoraExcluir(' + id + ')">' + _ICO_ACAO.excluir + 'Excluir</button>');
+    return '<div class="cb-corr' + (c.arquivada ? ' arq' : '') + '">'
+      + '<span class="nome" title="' + esc(c.nome) + '">' + esc(c.nome) + (c.arquivada ? '<span class="cb-tag">arquivada</span>' : '') + '</span>'
+      + '<span class="saldos">' + (saldos || '<span class="vazio">sem saldo</span>') + '</span>'
+      + '<span class="acoes">' + acoes + '</span></div>';
+  }).join('');
+  const secCorr = '<div class="cb-sec"><span class="cb-eb">Corretoras</span></div>'
+    + (linhasCorr || '<div class="cb-vazio">Nenhuma corretora ainda. Cadastre a Binance, a Bybit ou onde o dinheiro fica entre uma casa e outra: '
+      + 'o saque com destino leva o saldo para lá, e a venda por real é o que fecha o câmbio.</div>');
+  host.innerHTML = head + intro + tabela + secCorr;
+}
+
+// ── Modal da corretora: nome e lançamento ────────────────────────────────────
+let _crCtx = null;        // { modo:'nome'|'mov', id (corretora), mov (edição) }
+let _crTipo = 'inicial';
+const _CR_HINT = {
+  inicial: 'O saldo que a corretora tinha nessa data, nessa moeda. A data é o <b>corte</b>: transferências e lançamentos a partir dela entram na conta. Informar de novo substitui.',
+  compra: 'Você trocou real por moeda: <b>pagou</b> o valor em R$ e <b>recebeu</b> a quantidade. É o custo de verdade desse dinheiro.',
+  venda: 'Você trocou moeda por real: <b>vendeu</b> a quantidade e <b>recebeu</b> o valor em R$. É aqui que o câmbio deixa de ser papel e vira resultado.',
+  ajuste: 'Tudo que muda o saldo e não é transferência, compra nem venda: rendimento, correção. Aceita valor negativo.',
+};
+function _crMoedas() { return Object.keys(_MOEDA_ORIG); }
+function _crErro(msg) { const el = document.getElementById('crm-erro'); el.textContent = msg || ''; el.hidden = !msg; }
+function _crCampos() {
+  const mov = _crCtx && _crCtx.modo === 'mov';
+  const cv = _crTipo === 'compra' || _crTipo === 'venda';
+  document.getElementById('crm-nome-field').hidden = mov;
+  ['crm-tipo-field', 'crm-moeda-field', 'crm-data-field', 'crm-valor-field', 'crm-obs-field']
+    .forEach(i => { document.getElementById(i).hidden = !mov; });
+  document.getElementById('crm-brl-field').hidden = !mov || !cv;
+  // Na edição o TIPO e a MOEDA são o fato: não se trocam por aqui.
+  const edit = mov && !!_crCtx.mov;
+  document.getElementById('crm-tipo-field').hidden = !mov || edit;
+  document.getElementById('crm-moeda').disabled = edit;
+  document.querySelectorAll('#crm-seg button').forEach(b => b.classList.toggle('on', b.dataset.tipo === _crTipo));
+  const m = document.getElementById('crm-moeda').value;
+  document.getElementById('crm-valor-lbl').textContent = (_crTipo === 'venda' ? 'Vendeu' : _crTipo === 'compra' ? 'Recebeu' : 'Quantidade') + ' (' + _cxSigla(m) + ')';
+  document.getElementById('crm-brl-lbl').textContent = _crTipo === 'venda' ? 'Recebeu (R$)' : 'Pagou (R$)';
+  document.getElementById('crm-hint').innerHTML = mov ? (_CR_HINT[_crTipo] || '')
+    : 'A corretora guarda moeda entre uma casa e outra. Depois de criar, lance o saldo que ela tem hoje.';
+}
+function corretoraNome(id) {
+  const c = id ? _cbCorretoras(false).find(x => x.id === id) : null;
+  _crCtx = { modo: 'nome', id: id || null };
+  document.getElementById('crm-title').textContent = c ? 'Renomear corretora' : 'Nova corretora';
+  document.getElementById('crm-sub').textContent = c ? c.nome : '';
+  document.getElementById('crm-nome').value = c ? c.nome : '';
+  document.getElementById('crm-ok').textContent = c ? 'Salvar' : 'Criar';
+  _crErro(''); _crCampos();
+  const ov = document.getElementById('corretora-modal');
+  ov.classList.add('open'); _modalBaseline(ov);
+  setTimeout(() => document.getElementById('crm-nome').focus(), 30);
+}
+function corretoraLancar(id, tipo, mov) {
+  const c = _cbCorretoras(false).find(x => x.id === id);
+  if (!c) return;
+  _crCtx = { modo: 'mov', id, mov: mov || null };
+  _crTipo = mov ? mov.tipo : (tipo || 'inicial');
+  const sel = document.getElementById('crm-moeda');
+  // A moeda padrão é a que a corretora já guarda; sem saldo, a do primeiro bolso do dono.
+  const jaTem = Object.keys(c.saldos || {})[0] || Object.keys((cambioCache || {}).bolsos || {})[0] || 'USDT';
+  sel.innerHTML = _crMoedas().map(m => '<option value="' + m + '">' + m + '</option>').join('');
+  sel.value = mov ? mov.moeda : jaTem;
+  document.getElementById('crm-title').textContent = mov ? 'Editar lançamento' : 'Lançar na corretora';
+  document.getElementById('crm-sub').textContent = c.nome;
+  document.getElementById('crm-data').value = _cxDataBR4(mov ? mov.data : hojeISO());
+  const br = x => (x == null ? '' : Number(x).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  document.getElementById('crm-valor').value = mov ? br(mov.valor) : '';
+  document.getElementById('crm-brl').value = mov ? br(mov.valor_brl) : '';
+  document.getElementById('crm-obs').value = mov ? (mov.obs || '') : '';
+  document.getElementById('crm-ok').textContent = mov ? 'Salvar' : 'Lançar';
+  _crErro(''); _crCampos();
+  const ov = document.getElementById('corretora-modal');
+  ov.classList.add('open'); _modalBaseline(ov);
+  setTimeout(() => document.getElementById('crm-valor').focus(), 30);
+}
+let _crVoltarExtrato = null;
+function corretoraFecharModal() {
+  document.getElementById('corretora-modal').classList.remove('open');
+  if (_crVoltarExtrato) { const id = _crVoltarExtrato; _crVoltarExtrato = null; corretoraExtrato(id); }
+}
+async function _crPedir(url, metodo, corpo) {
+  const r = await fetch(url, { method: metodo, headers: { 'Content-Type': 'application/json' },
+                               body: corpo ? JSON.stringify(corpo) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || 'Não foi possível salvar.');
+  return j;
+}
+async function corretoraSalvar() {
+  const btn = document.getElementById('crm-ok');
+  _crErro('');
+  btn.disabled = true;
+  try {
+    if (_crCtx.modo === 'nome') {
+      const nome = document.getElementById('crm-nome').value.trim();
+      if (!nome) throw new Error('Informe o nome da corretora.');
+      await (_crCtx.id ? _crPedir('/corretoras/' + _crCtx.id + '/editar', 'POST', { nome })
+                       : _crPedir('/corretoras', 'POST', { nome }));
+    } else {
+      const data = _cxIso(document.getElementById('crm-data').value);
+      if (!data) throw new Error('Data inválida — use dd/mm/aaaa.');
+      const bruto = document.getElementById('crm-valor').value.trim();
+      const valor = _numBR(bruto);
+      if (!bruto || (!valor && _crTipo !== 'ajuste' && _crTipo !== 'inicial')) throw new Error('Informe a quantidade.');
+      const cv = _crTipo === 'compra' || _crTipo === 'venda';
+      const brl = cv ? _numBR(document.getElementById('crm-brl').value.trim()) : null;
+      if (cv && !brl) throw new Error('Informe o valor em R$.');
+      const obs = document.getElementById('crm-obs').value.trim();
+      if (_crCtx.mov) {
+        await _crPedir('/corretoras/movimento/' + _crCtx.mov.id, 'PATCH', { data, valor, valor_brl: brl, obs });
+      } else {
+        await _crPedir('/corretoras/' + _crCtx.id + '/lancar', 'POST', {
+          tipo: _crTipo, data, moeda: document.getElementById('crm-moeda').value, valor, valor_brl: brl, obs });
+      }
+    }
+    await ensureCambio(true);
+    corretoraFecharModal();
+    renderPainelCambio(false).catch(function () {});
+    setStatus('Corretora atualizada.', 'ok');
+  } catch (e) {
+    _crErro(e.message || 'Não foi possível salvar.');
+  } finally { btn.disabled = false; }
+}
+async function corretoraArquivar(id, arquivar) {
+  try {
+    await _crPedir('/corretoras/' + id + (arquivar ? '/arquivar' : '/reativar'), 'POST');
+    await ensureCambio(true);
+    renderPainelCambio(false).catch(function () {});
+    setStatus(arquivar ? 'Corretora arquivada: o saldo dela continua no câmbio.' : 'Corretora reativada.', 'ok');
+  } catch (e) { setStatus(e.message, 'err'); }
+}
+async function corretoraExcluir(id) {
+  if (!confirm('Excluir esta corretora? Ela não tem nenhum lançamento.')) return;
+  try {
+    await _crPedir('/corretoras/' + id, 'DELETE');
+    await ensureCambio(true);
+    renderPainelCambio(false).catch(function () {});
+    setStatus('Corretora excluída.', 'ok');
+  } catch (e) { setStatus(e.message, 'err'); }
+}
+
+// ── Extrato da corretora ─────────────────────────────────────────────────────
+const _CR_NOME = { inicial: 'Saldo inicial', compra: 'Compra', venda: 'Venda', ajuste: 'Ajuste' };
+function corretoraExtrato(id) {
+  const c = _cbCorretoras(false).find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('cre-title').textContent = 'Extrato · ' + c.nome;
+  const linhas = (c.movimentos || []).map(m => ({ m, data: m.data, id: m.id, tr: false }))
+    .concat((c.transferencias || []).map(t => ({ m: t, data: t.data, id: t.mov_id, tr: true })))
+    .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : b.id - a.id));
+  const host = document.getElementById('cre-wrap');
+  if (!linhas.length) {
+    host.innerHTML = '<div class="painel-empty">Nenhum lançamento ainda. Comece pelo saldo inicial.</div>';
+  } else {
+    host.innerHTML = '<table class="cxe-tbl"><thead><tr>'
+      + '<th>Data</th><th>Movimento</th><th>Observação</th><th class="r">Quantidade</th><th class="r">R$</th><th></th>'
+      + '</tr></thead><tbody>'
+      + linhas.map(({ m, tr }) => {
+          let nome, qtd, obs, acoes = '';
+          if (tr) {
+            const saque = m.tipo === 'saque';
+            const taxa = Number(m.taxa) || 0;
+            nome = saque ? 'Da casa' : 'Para a casa';
+            qtd = saque ? m.valor - taxa : -(m.valor + taxa);
+            obs = m.rotulo + (taxa ? ' · taxa ' + fmtMoedaOrig(taxa, m.moeda) : '');
+          } else {
+            nome = _CR_NOME[m.tipo] || m.tipo;
+            qtd = m.tipo === 'venda' ? -m.valor : m.valor;
+            obs = m.obs || '';
+            acoes = '<button class="cxe-edit" type="button" title="Editar lançamento" onclick="corretoraEditarMov(' + m.id + ',' + c.id + ')">'
+              + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>'
+              + '<button class="cxe-del" type="button" title="Excluir lançamento" onclick="corretoraExcluirMov(' + m.id + ',' + c.id + ')">✕</button>';
+          }
+          return '<tr><td class="mono">' + _cxDataBR(m.data) + '</td>'
+            + '<td>' + esc(nome) + '</td>'
+            + '<td class="cxe-obs">' + esc(obs) + '</td>'
+            + '<td class="r mono">' + fmtSaldo(qtd, m.tipo !== 'inicial', m.moeda) + '</td>'
+            + '<td class="r mono">' + (m.valor_brl != null ? fmtSaldo(m.valor_brl) : '') + '</td>'
+            + '<td class="r cxe-acoes">' + acoes + '</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+  }
+  document.getElementById('cre-nota').innerHTML =
+    'As transferências são os saques e depósitos das casas com esta corretora como destino ou origem: o mesmo lançamento, visto daqui. Para mudar, edite na Caixa da conta.';
+  document.getElementById('corretora-extrato').classList.add('open');
+}
+function corretoraEditarMov(movId, cid) {
+  const c = _cbCorretoras(false).find(x => x.id === cid);
+  const m = c && (c.movimentos || []).find(x => x.id === movId);
+  if (!m) return;
+  document.getElementById('corretora-extrato').classList.remove('open');
+  _crVoltarExtrato = cid;
+  corretoraLancar(cid, m.tipo, m);
+}
+async function corretoraExcluirMov(movId, cid) {
+  if (!confirm('Excluir este lançamento da corretora?')) return;
+  try {
+    await _crPedir('/corretoras/movimento/' + movId, 'DELETE');
+    await ensureCambio(true);
+    corretoraExtrato(cid);
+    renderPainelCambio(false).catch(function () {});
+  } catch (e) { setStatus(e.message, 'err'); }
+}
+
+// ── A transferência no modal da Caixa ────────────────────────────────────────
+function _cxCorrVisivelPara(tipo) {
+  const d = caixaAtual;
+  return !!d && d.casa !== 'Polymarket' && !!d.moeda && d.moeda !== 'BRL'
+    && (tipo === 'saque' || tipo === 'deposito');
+}
+const _CX_HINT_TRANSF = {
+  saque: ' Saque para corretora <b>não é câmbio</b>: o dinheiro continua em moeda e o saldo aparece na corretora. Sem destino, ele sai do Sharpen.',
+  deposito: ' Depósito vindo de corretora <b>não é câmbio</b>: o dinheiro já estava em moeda. Sem origem, ele entra pela cotação do dia.',
+};
+// `reset`: abrir o modal limpa (ou preenche com o lançamento editado); trocar de tipo
+// só re-rotula e mantém o que já foi escolhido.
+function _cxCorrSync(mov, reset) {
+  const fc = document.getElementById('cxm-corr-field'), ft = document.getElementById('cxm-taxa-field');
+  if (!fc || !ft) return;
+  const vis = _cxCorrVisivelPara(_cxModo);
+  fc.hidden = ft.hidden = !vis;
+  if (!vis) return;
+  const saque = _cxModo === 'saque';
+  const sel = document.getElementById('cxm-corr');
+  const antes = reset ? (mov && mov.corretora_id ? String(mov.corretora_id) : '') : sel.value;
+  document.getElementById('cxm-corr-lbl').textContent = saque ? 'Destino' : 'Origem';
+  document.getElementById('cxm-taxa-lbl').innerHTML = 'Taxa (' + esc(_cxSigla(caixaAtual.moeda)) + ') <span class="nc-opt">(opcional)</span>';
+  const lista = _cbCorretoras(true).slice();
+  if (antes && !lista.some(c => String(c.id) === antes)) {
+    const arq = _cbCorretoras(false).find(c => String(c.id) === antes);
+    if (arq) lista.push(arq);
+  }
+  sel.innerHTML = '<option value="">' + (saque ? 'Não informar: saiu do Sharpen' : 'Não informar: veio de fora') + '</option>'
+    + lista.map(c => '<option value="' + c.id + '">' + esc(c.nome) + (c.arquivada ? ' (arquivada)' : '') + '</option>').join('');
+  sel.value = antes;
+  if (reset) {
+    document.getElementById('cxm-taxa').value = mov && mov.taxa
+      ? Number(mov.taxa).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  }
+  document.getElementById('cxm-hint').innerHTML = (_CX_HINT[_cxModo] || '') + (_CX_HINT_TRANSF[_cxModo] || '')
+    + (lista.length ? '' : ' Para ter destino, cadastre a corretora em Contas &amp; Parceiros.');
+}
+// O que o formulário manda da transferência: null quando os campos não estão na tela.
+function _cxCorrLer() {
+  if (!_cxCorrVisivelPara(_cxModo)) return null;
+  const id = Number(document.getElementById('cxm-corr').value) || null;
+  const txt = document.getElementById('cxm-taxa').value.trim();
+  const taxa = txt ? _numBR(txt) : null;
+  if (!id && taxa) return { erro: 'A taxa só existe com ' + (_cxModo === 'saque' ? 'destino' : 'origem') + ' numa corretora.' };
+  return { corretora_id: id, taxa: taxa || null };
+}
+
+(function setupCorretoraModais() {
+  const ov = document.getElementById('corretora-modal');
+  if (!ov) return;
+  document.getElementById('crm-close').addEventListener('click', corretoraFecharModal);
+  document.getElementById('crm-cancel').addEventListener('click', corretoraFecharModal);
+  document.getElementById('crm-ok').addEventListener('click', corretoraSalvar);
+  ov.addEventListener('click', e => { if (e.target === ov) _modalFecharSeLimpo(ov, corretoraFecharModal); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && ov.classList.contains('open')) _modalFecharSeLimpo(ov, corretoraFecharModal);
+  });
+  document.querySelectorAll('#crm-seg button').forEach(b => b.addEventListener('click', () => {
+    _crTipo = b.dataset.tipo; _crErro(''); _crCampos();
+  }));
+  document.getElementById('crm-moeda').addEventListener('change', _crCampos);
+  ['crm-nome', 'crm-valor', 'crm-brl'].forEach(i =>
+    document.getElementById(i).addEventListener('keydown', e => { if (e.key === 'Enter') corretoraSalvar(); }));
+  const dt = document.getElementById('crm-data');
+  const abrirCal = () => SharpenCal.abrir(dt, _cxIso(dt.value), v => { dt.value = _cxDataBR4(v); }, { saida: 'iso' });
+  document.getElementById('crm-data-btn').addEventListener('click', abrirCal);
+  dt.addEventListener('dblclick', abrirCal);
+  const ex = document.getElementById('corretora-extrato');
+  const fechar = () => ex.classList.remove('open');
+  document.getElementById('cre-close').addEventListener('click', fechar);
+  document.getElementById('cre-fechar').addEventListener('click', fechar);
   ex.addEventListener('click', e => { if (e.target === ex) fechar(); });
 })();
 

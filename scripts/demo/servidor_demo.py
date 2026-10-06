@@ -1052,6 +1052,46 @@ def caixa_visao_demo():
             "contas": contas, "totais": tot}
 
 
+# ── Câmbio e corretoras (s398) ───────────────────────────────────────────────
+# A base fictícia é toda em real, então o card de câmbio NÃO aparece (os prints de
+# venda seguem iguais). Com DEMO_CAMBIO=1 o demo serve um bolso em USDT e uma corretora,
+# para o card e os modais poderem ser medidos num navegador antes do commit.
+_CAMBIO_DEMO = {
+    "bolsos": {"USDT": {
+        "moeda": "USDT", "qtd": 1840.5, "custo_brl": 9512.4, "realizado_brl": -62.3,
+        "taxas_brl": 15.2, "realizados": [{"data": "2026-10-04", "brl": -62.3, "qtd": 500.0,
+                                           "recebido": 2530.0, "origem": "Binance"}],
+        "taxas": [{"data": "2026-10-03", "brl": 15.2, "qtd": 3.0, "origem": "Betpanda"}],
+        "n_sem_destino": 1, "qtd_sem_destino": 40.0, "n_sem_cotacao": 0,
+        "contas": 3, "contas_sem_caixa": 1, "saldo_casas": 1340.5, "saldo_corretoras": 500.0,
+        "cot_hoje": 5.213, "medio": 5.168378, "valor_brl": 9594.53, "papel_brl": 82.13,
+        "fecha": True}},
+    "corretoras": [
+        {"id": 1, "nome": "Binance", "arquivada": False, "arquivada_em": None,
+         "saldos": {"USDT": 500.0},
+         "movimentos": [{"id": 11, "corretora_id": 1, "tipo": "inicial", "data": "2026-10-01",
+                         "moeda": "USDT", "valor": 1003.0, "valor_brl": None, "obs": "",
+                         "criado_em": "2026-10-01T10:00:00"},
+                        {"id": 12, "corretora_id": 1, "tipo": "venda", "data": "2026-10-04",
+                         "moeda": "USDT", "valor": 500.0, "valor_brl": 2530.0, "obs": "PIX",
+                         "criado_em": "2026-10-04T10:00:00"}],
+         "transferencias": [{"mov_id": 900, "corretora_id": 1, "tipo": "deposito",
+                             "data": "2026-10-02", "valor": 0.0, "taxa": 3.0, "moeda": "USDT",
+                             "parceiro_id": 1, "rotulo": "Betpanda · Feca"}]},
+        {"id": 2, "nome": "Bybit", "arquivada": False, "arquivada_em": None, "saldos": {},
+         "movimentos": [], "transferencias": []},
+    ],
+    "cotacoes_hoje": {"USDT": 5.213},
+}
+
+
+@app.get("/cambio/visao")
+def cambio_visao_demo():
+    if os.environ.get("DEMO_CAMBIO") == "1":
+        return _CAMBIO_DEMO
+    return {"bolsos": {}, "corretoras": [], "cotacoes_hoje": {}}
+
+
 # ── Paginas ──────────────────────────────────────────────────────────────────
 @app.get("/")
 def raiz():

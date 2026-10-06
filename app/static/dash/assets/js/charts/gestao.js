@@ -441,6 +441,45 @@ function calcCustoGeralFiltrado(p){
   return{total,nLinhas};
 }
 
+// ── CÂMBIO do período (s398, passo 6 do PLANO_MOEDA_POR_CONTA) ───────────────
+// Decisão do Feca com o Gabriel (06/10/2026): o câmbio só vira resultado na VENDA por real
+// (declarada na corretora), e a taxa de transferência é custo. Os dois entram no P/L
+// Líquido no DIA em que aconteceram, como o custo: a régua soma e o mês fechado não muda.
+// O câmbio "no papel" é ESTOQUE (muda todo dia) e fica FORA do P/L do período: ele mora
+// no card de Câmbio do Painel de Contas. Filtro nenhum recorta: o câmbio é da moeda do
+// dono, não de casa, esporte nem tipster, igual ao custo geral.
+// A conta inteira é do servidor (`app/bolso.py`); aqui só se soma o que caiu no recorte.
+let cbData=null,_cbPromessa=null,_cbRepintou=false;
+function cbLoad(){
+  if(window.MODO_PUBLICO||cbData||_cbPromessa)return;
+  _cbPromessa=fetch('/cambio/visao',{cache:'no-store'})
+    .then(r=>r.ok?r.json():null)
+    .then(j=>{cbData=j||{bolsos:{}};})
+    .catch(()=>{cbData={bolsos:{}};})
+    .finally(()=>{
+      _cbPromessa=null;
+      // Chega DEPOIS do 1º render, como o custo (`_ctRepintou`): sem repintar, o P/L
+      // Líquido abriria sem o câmbio até alguém mexer num filtro. UMA vez: o flag é o que
+      // impede o laço `renderKPI` → `cbLoad` → `renderKPI`.
+      if(_cbRepintou)return;
+      _cbRepintou=true;
+      try{
+        if(typeof renderKPI==='function'&&typeof filtrarPagina==='function'&&document.getElementById('kpiGrid'))
+          renderKPI(filtrarPagina('overview'));
+      }catch(e){}
+    });
+}
+function calcCambioFiltrado(p){
+  const range=(typeof _selRange==='function')?_selRange(p||'overview'):null;
+  const de=range?range.from:'0000-00-00',ate=range?range.to:'9999-99-99';
+  let realizado=0,taxas=0,nVendas=0,nTaxas=0;
+  Object.values((cbData&&cbData.bolsos)||{}).forEach(b=>{
+    (b.realizados||[]).forEach(x=>{if(x.data>=de&&x.data<=ate){realizado+=Number(x.brl)||0;nVendas++;}});
+    (b.taxas||[]).forEach(x=>{if(x.data>=de&&x.data<=ate){taxas+=Number(x.brl)||0;nTaxas++;}});
+  });
+  return{realizado,taxas,total:realizado-taxas,nVendas,nTaxas,n:nVendas+nTaxas};
+}
+
 // ── CONTAS EM OPERAÇÃO (s358) ────────────────────────────────────────────────
 // "O que está rodando AGORA e quanto já custou" — a pergunta do vídeo do Jaao26, e a
 // única que a janela de vida sempre respondeu bem. **Não entra no P/L**: esse dinheiro

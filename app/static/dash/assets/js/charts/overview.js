@@ -63,7 +63,12 @@ function renderKPI(rows){
   const{total:costGeral,nLinhas:nGeralCusto}=(!window.MODO_PUBLICO&&typeof calcCustoGeralFiltrado==='function')
     ?calcCustoGeralFiltrado('overview'):{total:0,nLinhas:0};
   const totalCost=costConta+costTipster+costGeral;
-  const lucroLiq=lucro-totalCost;
+  // Câmbio (s398): vendas por real e taxas de transferência do período, da moeda do dono.
+  // Filtro nenhum recorta, como o custo geral; o "no papel" não entra (é estoque).
+  if(!window.MODO_PUBLICO&&typeof cbLoad==='function')cbLoad();
+  const cb=(!window.MODO_PUBLICO&&typeof calcCambioFiltrado==='function')
+    ?calcCambioFiltrado('overview'):{total:0,realizado:0,taxas:0,nVendas:0,nTaxas:0,n:0};
+  const lucroLiq=lucro-totalCost+cb.total;
 
   // ── Andar 1: P/L Bruto → Custo Conta → Custo Tipster → P/L Líquido ────────
   // Público (vitrine de tipster): custo é conceito do DONO, não do cliente do
@@ -89,6 +94,12 @@ function renderKPI(rows){
     // "o KPI não bate com a soma que está logo abaixo dele" (CLAUDE.md).
     ...(costGeral>0?[{l:'Custos Gerais',v:fmtPL(-costGeral),c:'neg',
       s:nGeralCusto===1?'1 categoria no período':nGeralCusto+' categorias no período',accent:''}]:[]),
+    // Câmbio (s398): só existe quando houve venda por real ou taxa no período, pela mesma
+    // regra do card de Gerais (KPI que desconta o que não está na tela é inauditável).
+    ...(cb.n>0?[{l:'Câmbio',v:fmtPL(cb.total),c:cb.total>0?'pos':(cb.total<0?'neg':'neu'),
+      s:[cb.nVendas?(cb.nVendas===1?'1 venda':cb.nVendas+' vendas'):'',
+         cb.nTaxas?(cb.nTaxas===1?'1 taxa':cb.nTaxas+' taxas'):'']
+        .filter(Boolean).join(' · ')+' no período',accent:''}]:[]),
     {l:'P/L Líquido',v:fmtPL(lucroLiq),c:lucroLiq>=0?'pos':'neg',s:'resultado final',accent:'hero'},
   ];
   // ── Andar 2: Turnover → ROI → Odd Média → Win Rate ──────────────────────

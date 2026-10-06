@@ -73,7 +73,10 @@ def test_o_feed_manda_a_freebet_so_nas_linhas_que_tem():
 
 def test_o_cache_dos_scripts_foi_renovado():
     """Sem o `?v=` novo, o navegador segue com o app.js velho e a freebet não chega à tela."""
+    import re
     html = (RAIZ / "app" / "static" / "dash" / "index.html").read_text(encoding="utf-8")
-    for s in ("charts/gestao.js?v=55", "charts/apostas.js?v=28", "charts/abertas.js?v=5",
-              "assets/js/app.js?v=67"):
-        assert s in html
+    # PELO MENOS a versão da s392: um bump posterior (s398 subiu o gestao.js) também serve.
+    for arq, minimo in (("charts/gestao.js", 55), ("charts/apostas.js", 28),
+                        ("charts/abertas.js", 5), ("assets/js/app.js", 67)):
+        m = re.search(re.escape(arq) + r"\?v=(\d+)", html)
+        assert m and int(m.group(1)) >= minimo, f"{arq} abaixo de ?v={minimo}"
