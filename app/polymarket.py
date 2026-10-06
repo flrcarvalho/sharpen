@@ -840,6 +840,7 @@ def _split_multibuys(fechados: list, activity: list) -> list:
                 if 0 < bp < 1:
                     pos["avgPrice"] = bp
                 pos["_cotas"] = _f(match[0], "size")
+                pos["_stakeBruto"] = _f(match[0], "usdcSize") or _f(pos, "_stakeBruto")
                 pos.setdefault("_lado", match[0].get("asset") or "")
             else:
                 pos["_cotas"] = _f(pos, "size")
@@ -865,6 +866,7 @@ def _split_multibuys(fechados: list, activity: list) -> list:
                 "_cotas": shares,
                 "_lado": buy.get("asset") or (pos.get("asset") or ""),
                 "initialValue": this_stake,
+                "_stakeBruto": _f(buy, "usdcSize") or this_stake,
                 "avgPrice": price,
                 "currentValue": (pos_cv * this_stake / total_stake) if total_stake else pos_cv,
                 "conditionId": cid,
@@ -884,12 +886,39 @@ def _fmt_odd(x: float) -> str:
     return s.replace(".", ",") if s else "1"
 
 
+def _stake_usd(pos: dict) -> float:
+    """USD que saiu da carteira por esta unidade, COM a taxa de entrada.
+
+    A fonte é o `usdcSize` das compras no `/activity` (`_stakeBruto`, posto pelo
+    `_split_multibuys`, por onde passa também a aposta reconciliada). Provado na blockchain em 06/10/2026: na
+    compra `0x6ae41b0c…` saíram 166,00 pUSD da carteira — 160 para as cotas e 6,00 para o
+    coletor de taxa — e o `usdcSize` é 166. Antes a stake vinha do `initialValue`, que é
+    o valor SEM a taxa, e isso errava de dois jeitos (s397, carteira do Feca):
+      - as 564 compras simples pagaram taxa (US$ 730,94 de maio a agosto) e nenhuma
+        entrou na stake → P/L acima do real;
+      - em 10 posições a API devolve `initialValue = 0` e a derrota gravava stake 0,
+        P/L 0: a perda sumia. Zero não é ausência (`CLAUDE.md`).
+    Sem compra na atividade, cai no `grossInitialValue` da API e só então no valor sem
+    taxa. `initialValue` zero nunca é escolhido: `_f` aceita 0, por isso o laço aqui."""
+    for v in (_f(pos, "_stakeBruto"), _f(pos, "grossInitialValue"), _f(pos, "initialValue"),
+              _f(pos, "size") * _f(pos, "avgPrice")):
+        if v > 0:
+            return v
+    return 0.0
+
+
 def _odd_de_entrada(pos: dict) -> float:
-    """Odd apostada = 1/preço médio de compra. É a odd do POSSÍVEL resultado — a que
-    fica na linha quando a aposta perdeu, foi anulada devolvendo o stake, ou segue
-    aberta (decisão do Feca). Não usa (stake+lucro)/stake: o cashPnl carrega
-    taxa/slippage, e a odd da planilha é a limpa."""
+    """Odd do POSSÍVEL resultado: cotas ÷ stake com taxa — o que a aposta paga se acertar
+    ($1 por cota) sobre o que saiu da carteira. É a que fica na linha quando a aposta
+    perdeu ou segue aberta, e é a mesma que a vitória cheia fecha (retorno ÷ stake).
+
+    Sem taxa (stake = cotas × preço) devolve `1/preço` literal, que é o mesmo número e
+    mantém dígito por dígito a odd que os bilhetes antigos sem taxa já gravaram."""
     pr = _f(pos, "avgPrice", "price")
+    cotas = _f(pos, "_cotas") or _f(pos, "size")
+    stake = _stake_usd(pos)
+    if 0 < pr < 1 and cotas > 0 and stake > 0 and abs(stake - cotas * pr) > _EPS_USD:
+        return cotas / stake
     return (1 / pr) if 0 < pr < 1 else 1.0
 
 
@@ -937,14 +966,15 @@ def _liquidacao(pos: dict, payouts: dict, mov: dict) -> tuple[str, float] | None
         retorno == stake      → V   (anulada devolvendo o stake; P/L zero)
         retorno != stake      → W   com odd = retorno ÷ stake
 
-    Na vitória cheia cada cota paga $1, então `retorno ÷ stake` é exatamente `1/preço`
-    — a odd de entrada. Nesse caso devolvemos a própria odd de entrada para preservar
-    dígito por dígito a odd já gravada no histórico (o `initialValue` da API arredonda
-    e a divisão daria uma string de odd diferente para os ~370 bilhetes já salvos)."""
+    A stake é a COM taxa (`_stake_usd`). Na vitória cheia cada cota paga $1, então
+    `retorno ÷ stake` é `cotas ÷ stake` — a odd de entrada. Nesse caso devolvemos a
+    própria odd de entrada para a vitória sem taxa preservar dígito por dígito o `1/preço`
+    já gravado. Mercado anulado (0,5 por cota) não devolve a taxa: cai em W com odd < 1
+    e P/L negativo do tamanho da taxa, que é o dinheiro que de fato se perdeu."""
     retorno = _retorno_usd(pos, payouts, mov)
     if retorno is None:
         return None
-    stake = _f(pos, "initialValue", "size")
+    stake = _stake_usd(pos)
     if retorno <= _EPS_USD:
         return "L", _odd_de_entrada(pos)
     if abs(retorno - stake) <= _EPS_USD or stake <= 0:
@@ -969,7 +999,7 @@ def _montar_linha(pos: dict, parceiro: str, iso: str, cotacao: float, resultado:
     O `_sort` = (data, timestamp da compra) dá ordem cronológica estável (o chamador remove)."""
     title = pos.get("title") or ""
     raw_sport = _detes_raw(title, pos.get("eventSlug") or pos.get("slug") or "")
-    stake_usd = _f(pos, "initialValue", "size")
+    stake_usd = _stake_usd(pos)
     stake_brl = stake_usd * cotacao
     split_total = int(pos.get("_splitTotal") or 1)
     desc = title
@@ -1509,7 +1539,7 @@ async def coletar_dashboard(wallet: str) -> dict:
         mercado = title
         if split_total > 1:
             mercado = f"{title} [{int(pos.get('_splitIndex', 0)) + 1}/{split_total}]"
-        stake_usd = _f(pos, "initialValue", "size")
+        stake_usd = _stake_usd(pos)
         valor_atual = _f(pos, "currentValue")
         pnl_pct = ((valor_atual - stake_usd) / stake_usd * 100) if stake_usd else 0.0
         # Odd da ativa = SEMPRE a odd de entrada (1/preço de compra), nunca o valor de

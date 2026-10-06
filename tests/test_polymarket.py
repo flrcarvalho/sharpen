@@ -695,3 +695,105 @@ def test_coletar_tudo_combo_ganha_sai_uma_vez_e_aberta_entra(monkeypatch):
     assert w["data"] == "09/08/2026" and w["parceiro"] == "P [x]" and "stake_usd_cru" not in w
     assert next(r for r in res if r["codigo_bilhete"] == "0xL")["resultado"] == "L"
     assert atv[0]["resultado"] == "" and atv[0]["esporte"] == "Múltiplos"
+
+
+# ── Taxa de entrada nas apostas SIMPLES (s397) ───────────────────────────────
+#
+# Provado na blockchain (06/10/2026): na compra 0x6ae41b0c… saíram 166,00 pUSD da
+# carteira, 160 para as cotas e 6,00 para o coletor de taxa; o `usdcSize` da activity
+# é 166 e o `initialValue` da API é 160. A stake vinha do `initialValue`: as 564
+# compras simples do Feca perderam US$ 730,94 de taxa, e em 10 posições a API manda
+# `initialValue = 0` e a derrota gravava stake ZERO (P/L 0, a perda sumia).
+#
+# NÃO cobre: o painel ao vivo (`coletar_dashboard`) usa o mesmo `_stake_usd`, mas não
+# tem teste próprio aqui.
+
+def _buy_s(cid, ts, size, price, usdc, asset="A1"):
+    return {"type": "TRADE", "side": "BUY", "conditionId": cid, "asset": asset,
+            "timestamp": ts, "size": size, "price": price, "usdcSize": usdc}
+
+
+def test_stake_usd_prefere_o_que_saiu_da_carteira():
+    s = polymarket._stake_usd
+    assert s({"_stakeBruto": 166.0, "grossInitialValue": 166, "initialValue": 160}) == 166.0
+    # sem compra na activity: o bruto da API, nunca o valor sem taxa
+    assert s({"grossInitialValue": 166, "initialValue": 160}) == 166
+    # `initialValue` ZERO não é stake: cai para o que houver (aqui, cotas × preço)
+    assert s({"initialValue": 0, "grossInitialValue": 0, "size": 213.65, "avgPrice": 0.25}) \
+        == 213.65 * 0.25
+
+
+def test_compra_unica_com_taxa_grava_stake_bruta_e_odd_sobre_ela():
+    # Dado real: UFC, 640 cotas a 0,25, US$ 160 + US$ 6 de taxa, perdida.
+    pos = {"conditionId": "0xU", "asset": "A1", "size": 640, "avgPrice": 0.25,
+           "initialValue": 160, "grossInitialValue": 166, "entryFeesUsdc": 6,
+           "redeemable": True, "curPrice": 0.0, "title": "UFC Fight Night: X vs Y",
+           "eventSlug": "ufc-x-y-2026-08-01"}
+    [u] = polymarket._split_multibuys([pos], [_buy_s("0xU", 1, 640, 0.25, 166)])
+    assert polymarket._stake_usd(u) == 166
+    assert polymarket._odd_de_entrada(u) == 640 / 166          # e não 1/0,25 = 4
+    res, odd = polymarket._liquidacao(u, {"0xU": {"A1": 0.0}}, polymarket._movimento_por_lado(
+        [_buy_s("0xU", 1, 640, 0.25, 166)]))
+    assert res == "L"
+    linha = polymarket._montar_linha(u, "P", "2026-08-01", 1.0, "L")
+    assert linha["stake"] == "166,00" and linha["stake_usd"] == 166
+
+
+def test_initial_value_zero_nao_vira_stake_zero():
+    # Dado real (Karmine Corp GC vs Joblife GC): a API manda initialValue/gross 0; a
+    # activity diz que saíram US$ 54,99. Antes: derrota com stake 0,00.
+    pos = {"conditionId": "0xK", "asset": "A1", "size": 213.65, "avgPrice": 0.2481,
+           "initialValue": 0, "grossInitialValue": 0, "entryFeesUsdc": 0,
+           "redeemable": True, "curPrice": 0.0, "title": "Valorant: KC GC vs Joblife GC (BO3)"}
+    [u] = polymarket._split_multibuys([pos], [_buy_s("0xK", 1, 213.65, 0.2481, 54.9926)])
+    linha = polymarket._montar_linha(u, "P", "2026-08-08", 1.0, "L")
+    assert linha["stake"] == "54,99"
+
+
+def test_compra_repetida_cada_fatia_leva_a_propria_taxa():
+    act = [_buy_s("0xM", 2, 100, 0.40, 41.5), _buy_s("0xM", 1, 50, 0.50, 26.25)]
+    pos = {"conditionId": "0xM", "asset": "A1", "size": 150, "avgPrice": 0.433,
+           "initialValue": 65, "grossInitialValue": 67.75, "redeemable": False, "curPrice": 0.5}
+    fatias = polymarket._split_multibuys([pos], act)
+    assert [polymarket._stake_usd(f) for f in fatias] == [26.25, 41.5]   # ordem cronológica
+    assert polymarket._odd_de_entrada(fatias[0]) == 50 / 26.25
+
+
+def test_reconciliada_soma_o_bruto_das_compras():
+    # Vitória resgatada some de /positions e volta pela activity: a stake é o bruto.
+    act = [_buy_s("0xR", 1, 100, 0.5, 52.5),
+           {"type": "REDEEM", "conditionId": "0xR", "timestamp": 9, "size": 100, "outcomeIndex": 0}]
+    act[0]["outcomeIndex"] = 0
+    mov = polymarket._movimento_por_lado(act)
+    payouts = polymarket._payouts_por_lado([], act, mov)
+    [u] = polymarket._split_multibuys(polymarket._reconciliar_saidas([], act, [], payouts), act)
+    assert polymarket._stake_usd(u) == 52.5
+    res, odd = polymarket._liquidacao(u, payouts, mov)
+    assert res == "W" and odd == 100 / 52.5                     # retorno ÷ o que saiu
+
+
+def test_sem_taxa_a_odd_continua_a_mesma_string():
+    # Bilhete antigo sem taxa: usdcSize = cotas × preço → odd = 1/preço literal, para o
+    # re-sync não reescrever a odd já gravada por diferença de arredondamento.
+    pos = {"conditionId": "0xN", "asset": "A1", "size": 80, "avgPrice": 0.5,
+           "initialValue": 40, "redeemable": True, "curPrice": 1.0}
+    [u] = polymarket._split_multibuys([pos], [_buy_s("0xN", 1, 80, 0.5, 40.0)])
+    assert polymarket._odd_de_entrada(u) == 1 / 0.5
+    # Aqui `cotas ÷ stake` dá 1,7543859649122806 e `1/preço` dá …808: só o literal
+    # preserva a string gravada.
+    pos2 = {"conditionId": "0xN2", "asset": "A1", "size": 121.4285, "avgPrice": 0.57,
+            "initialValue": 69.214245, "redeemable": False, "curPrice": 0.6}
+    [u2] = polymarket._split_multibuys([pos2], [_buy_s("0xN2", 1, 121.4285, 0.57, 69.214245)])
+    assert polymarket._odd_de_entrada(u2) == 1 / 0.57
+
+
+def test_anulada_com_taxa_perde_a_taxa():
+    # Dado real (SPARTA vs Bebop): anulada, devolveu US$ 100 de US$ 101,50. Era V com
+    # P/L 0; a taxa não volta, então é cashout abaixo da stake: W com odd < 1.
+    act = [_buy_s("0xV", 1, 200, 0.5, 101.5)]
+    pos = {"conditionId": "0xV", "asset": "A1", "size": 200, "avgPrice": 0.5,
+           "initialValue": 100, "grossInitialValue": 101.5, "redeemable": True, "curPrice": 0.5}
+    [u] = polymarket._split_multibuys([pos], act)
+    mov = polymarket._movimento_por_lado(act)
+    res, odd = polymarket._liquidacao(u, polymarket._payouts_por_lado([pos], act, mov), mov)
+    assert res == "W" and abs(odd - 100 / 101.5) < 1e-12

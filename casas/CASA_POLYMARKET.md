@@ -176,8 +176,18 @@ vir de tipsters diferentes) e uma ganha enquanto a outra perde.
 ## 11. Odd
 
 - **Vírgula, nunca ponto; precisão preservada** (regra global, sessão 50).
-- **W:** `odd = retorno ÷ stake = (stake + cashPnl) ÷ stake`.
-- **L / posição sem lucro:** `odd = 1 ÷ preço de compra` (preço on-chain < 1).
+- **Stake = o que saiu da carteira, COM a taxa de entrada**: o `usdcSize` de cada
+  compra no `/activity` (`_stake_usd`), nunca o `initialValue` da API, que é sem taxa
+  e em algumas posições vem **0**. Provado na blockchain em 06/10/2026 (compra
+  `0x6ae41b0c…`: 166 pUSD saíram, 160 para as cotas e 6 para o coletor de taxa).
+  Medido na carteira do Feca: as 564 compras simples de maio a agosto pagaram taxa
+  (US$ 730,94), e 10 derrotas estavam gravadas com stake 0. A taxa varia por mercado:
+  não use fórmula, use o valor pago.
+- **W:** `odd = retorno ÷ stake` (stake com taxa).
+- **L / aberta:** `odd = cotas ÷ stake` (o que paga se acertar). Sem taxa é o mesmo
+  número e sai como `1 ÷ preço` literal, para não reescrever odd antiga.
+- **Mercado anulado com taxa:** devolve 0,5 por cota e a taxa não volta, então é
+  cashout abaixo da stake: `W` com odd < 1 e P/L do tamanho da taxa.
 - Sem arredondamento; a grade recebe a precisão cheia.
 
 ---
