@@ -6127,6 +6127,7 @@ async function sincronizarPolymarket(opts = {}) {
     paginaAtual = 0;   // posições recém-sincronizadas são as mais recentes → 1ª página
     await carregarGrade();
     atualizarIncompletos();
+    carregarCaixa();   // s397: o sync acabou de conferir a Caixa da Polymarket
     if (!silent) carregarDashboardPoly();        // no modo silencioso o poll já cuida do refresh
   } catch (e) {
     if (timer) clearInterval(timer);
@@ -7605,10 +7606,12 @@ let _cxEditId = null;       // id do lançamento em edição (null = lançamento
 async function carregarCaixa() {
   const box = document.getElementById('caixaBox');
   const col = document.querySelector('.colmain');
-  // Polymarket fica de fora: ela lê o saldo REAL on-chain no /polymarket/sync — tem a
-  // resposta que aqui é estimada, e em dólar. Estimar por cima do medido só cria um
-  // segundo número para a mesma pergunta.
-  const fora = !parceiroSelecionado || casaSelecionada === 'Polymarket';
+  // Polymarket ENTRA (s397, pedido do Feca). Antes ficava de fora porque "o saldo
+  // on-chain já é o medido" — e era justamente por isso que nada conferia nada: o
+  // saldo batia por construção enquanto as apostas estavam erradas (taxa fora da
+  // stake, stake zero, anulado como vitória). A Caixa dela é AUTOMÁTICA: depósitos,
+  // saques e a conferência vêm da blockchain a cada Sincronizar.
+  const fora = !parceiroSelecionado;
   if (!box || fora) {
     caixaAtual = null;
     if (box) box.style.display = 'none';
@@ -7646,6 +7649,9 @@ function renderCaixa(d) {
   const _ft = (v) => _cxTxt(v, d && d.moeda);
   const box = document.getElementById('caixaBox');
   if (!box || !d) return;
+  // Polymarket (s397): a Caixa é AUTOMÁTICA — sem saldo a digitar, sem conferência
+  // à mão, sem depósito/saque lançado pelo dono (viriam em dobro com os da blockchain).
+  const poly = d.casa === 'Polymarket';
   box.classList.toggle('alerta', d.estado === 'divergente');
   const [pcls, ptxt] = _CX_PILL[d.estado] || ['', ''];
   const head = '<div class="cx__hd"><span class="t">Caixa Inteligente</span>'
@@ -7653,6 +7659,13 @@ function renderCaixa(d) {
     + (d.ligada ? `<span class="cx__pill ${pcls}"><span class="dot"></span>${ptxt}</span>` : '')
     + '</div>';
 
+  if (!d.ligada && poly) {
+    box.innerHTML = head
+      + '<div class="cx__empty">'
+      + '<p>A Caixa da Polymarket liga sozinha no próximo Sincronizar. Depósitos, saques e o saldo vêm da carteira na blockchain, e o Sharpen confere as apostas contra eles.</p>'
+      + '</div>';
+    return;
+  }
   if (!d.ligada) {
     box.innerHTML = head
       + '<div class="cx__empty">'
@@ -7670,7 +7683,9 @@ function renderCaixa(d) {
 
   // O corte é editável: quem informa o saldo de hoje e depois lembra que ele era de
   // ontem não pode ficar sem saída a não ser desligar a caixa pelo extrato.
-  let corpo = '<div class="cx__row cx__row--edit" role="button" tabindex="0"'
+  let corpo = poly
+    ? linha('Início da carteira', _cxDataBR(d.data_corte), _fs(d.inicial))
+    : '<div class="cx__row cx__row--edit" role="button" tabindex="0"'
     + ' title="Editar o saldo inicial e a data do corte" onclick="caixaAbrirModal(&quot;inicial&quot;)">'
     + '<span class="k">Saldo inicial <i>' + _cxDataBR(d.data_corte) + '</i>'
     + '<svg class="cx__lapis" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
@@ -7701,6 +7716,8 @@ function renderCaixa(d) {
       + ' nesse dia: o stake saiu da casa antes do corte e volta inteiro ao liquidar.');
   if (d.moeda && d.moeda !== 'BRL')
     notas.push('Caixa em ' + _cxSigla(d.moeda) + ': saldo, lançamentos e apostas na moeda da conta, sem conversão.');
+  if (poly)
+    notas.push('Automática: depósitos, saques e a conferência vêm da carteira na blockchain a cada Sincronizar. Não lance à mão, ou entra em dobro.');
   if (d.n_sem_origem)
     notas.push(n(d.n_sem_origem) + (d.n_sem_origem === 1 ? ' aposta ficou' : ' apostas ficaram')
       + ' de fora: a stake foi editada à mão em R$ e o valor em ' + _cxSigla(d.moeda) + ' se perdeu.');
@@ -7716,7 +7733,9 @@ function renderCaixa(d) {
     + `<span class="s">Banca ${_ft(d.banca)} · ${_ft(d.aberto)} em aberto</span></div>`;
 
   const hoje = hojeISO();
-  const conf = '<div class="cx__conf"><span class="k">Conferência</span>'
+  const conf = poly
+    ? '<div class="cx__conf"><span class="k">Conferência automática</span>' + _cxDiver(d) + '</div>'
+    : '<div class="cx__conf"><span class="k">Conferência</span>'
     + '<div class="cx__inrow">'
     + '<span class="cx__inp"><span class="sg">' + _cxSigla(d.moeda) + '</span>'
     + '<input id="cx-conf-val" type="text" inputmode="decimal" placeholder="saldo na casa" autocomplete="off" spellcheck="false"></span>'
@@ -7725,8 +7744,8 @@ function renderCaixa(d) {
     + '</div>' + _cxDiver(d) + '</div>';
 
   const foot = '<div class="cx__foot">'
-    + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;deposito&quot;)">+ Depósito</button>'
-    + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;saque&quot;)">− Saque</button>'
+    + (poly ? '' : '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;deposito&quot;)">+ Depósito</button>'
+    + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;saque&quot;)">− Saque</button>')
     + '<button class="cx__act" type="button" onclick="caixaAbrirModal(&quot;ajuste&quot;)">Ajuste</button>'
     + '</div>';
 
@@ -7746,22 +7765,30 @@ function _cxDiver(d) {
   const _fs = (v, sg) => fmtSaldo(v, sg, d && d.moeda);
   const _ft = (v) => _cxTxt(v, d && d.moeda);
   const c = d.conferencia;
+  const poly = d.casa === 'Polymarket';
+  if (!c && poly) return '<div class="cx__diver nt">Ainda não conferida: a conferência roda sozinha no próximo Sincronizar.</div>';
   if (!c) return '<div class="cx__diver nt">Nunca conferida. Abra a casa, veja o saldo disponível e digite acima — é esse confronto que denuncia dinheiro saindo sem registro.</div>';
   const quando = _cxDataBR(c.data);
   // s388: conciliada por Ajuste diz o valor ajustado — "diferença R$ 0,00" esconderia
   // que houve uma, e ela está no extrato.
   if (d.estado === 'confere' && c.ajuste != null)
     return `<div class="cx__diver ok"><b>Conciliada</b>ajuste de ${_ft(c.ajuste)} · conferido em ${quando}</div>`;
+  // Polymarket (s397): a carteira tem 6 casas decimais e o Sharpen centavos, então
+  // "bate" aceita o arredondamento (`tolerancia`) — e a tela diz a diferença REAL,
+  // nunca um zero que não houve.
+  if (d.estado === 'confere' && d.tolerancia && c.divergencia)
+    return `<div class="cx__diver ok"><b>Bate com a carteira</b>diferença ${_ft(c.divergencia)}, arredondamento de centavos · conferido em ${quando}</div>`;
   if (d.estado === 'confere')
-    return `<div class="cx__diver ok"><b>Bate com a casa</b>diferença ${_ft(0)} · conferido em ${quando}</div>`;
+    return `<div class="cx__diver ok"><b>Bate com a ${poly ? 'carteira' : 'casa'}</b>diferença ${_ft(0)} · conferido em ${quando}</div>`;
   if (d.estado === 'reconferir')
     return `<div class="cx__diver nt">Houve lançamento depois da conferência de ${quando}. Confira de novo para fechar.</div>`;
   const div = c.divergencia || 0;
   const falta = div < 0;
   return '<div class="cx__diver al">'
     + `<b>${falta ? 'Faltam' : 'Sobram'} ${_ft(Math.abs(div))} na conta</b>`
-    + `a casa mostrava ${_ft(c.valor)} em ${quando} e o Sharpen projetava ${_ft(c.projetado)}.`
-    + ` ${falta ? 'Confira se houve saque não lançado.' : 'Confira se houve depósito ou aposta não capturada.'}`
+    + `a ${poly ? 'carteira tinha' : 'casa mostrava'} ${_ft(c.valor)} em ${quando} e o Sharpen projetava ${_ft(c.projetado)}.`
+    + ` ${poly ? 'Depósitos e saques já vêm da carteira: a diferença está nas apostas (stake, odd ou resultado diferente do que a carteira pagou).'
+         : falta ? 'Confira se houve saque não lançado.' : 'Confira se houve depósito ou aposta não capturada.'}`
     + '<button class="cx__aceitar" type="button" onclick="caixaAceitarDivergencia()">Lançar como ajuste</button>'
     + '</div>';
 }

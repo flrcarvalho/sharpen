@@ -2486,7 +2486,8 @@ def _caixa_criado_iso(criado) -> str:
     return str(criado)[:10]
 
 
-def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -> dict:
+def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL",
+                    casa: str = "") -> dict:
     """Projeção da caixa de UMA conta. PURA (sem DB) — é o núcleo testável.
 
     `moeda` (s391) é a da CONTA. Em conta USD/USDT a caixa inteira roda NA MOEDA DA CONTA:
@@ -2523,7 +2524,7 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -
         "aberto": 0.0, "n_abertas": 0,
         "banca": 0.0, "disponivel": 0.0,
         "conferencia": None, "divergencia": None,
-        "moeda": moeda, "n_sem_origem": 0, "n_mov_outra_moeda": 0,
+        "moeda": moeda, "n_sem_origem": 0, "n_mov_outra_moeda": 0, "tolerancia": 0.0,
     }
     n_mov_outra = sum(1 for m in movs if m.get("moeda") and m.get("moeda") != moeda)
     if n_mov_outra:
@@ -2641,7 +2642,9 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -
         "projetado": None if proj is None else round(float(proj), 2), "divergencia": div,
     }
     out["divergencia"] = div
-    if div is None or abs(div) < CAIXA_TOL:
+    tol = _caixa_tol(casa, out["n_liquidadas"] + out["n_abertas"])
+    out["tolerancia"] = round(tol, 2) if tol > CAIXA_TOL else 0.0
+    if div is None or abs(div) < tol:
         out["estado"] = "confere"
         return out
     depois = [m for m in movs
@@ -2666,6 +2669,23 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL") -
     return out
 
 
+def _caixa_tol(casa: str, n_apostas: int) -> float:
+    """Até onde a diferença da conferência ainda é "bate". Meio centavo em toda casa.
+
+    Exceção: a Polymarket (s397). Ali a conferência compara o Sharpen com a BLOCKCHAIN,
+    que guarda 6 casas decimais, e o Sharpen guarda centavos: cada aposta arredonda
+    stake e P/L ao centavo, e o erro soma como passeio aleatório (cresce com √n, não com
+    n). Medido em 06/10/2026 na carteira do Feca (596 apostas, `coletar_sync` contra o
+    saldo on-chain): US$ 0,12 de diferença depois de corrigidos os defeitos reais. A
+    margem é 1,25 centavo × √n (~3 desvios-padrão de um erro uniforme de meio centavo
+    em duas pontas): ~US$ 0,30 hoje, ~US$ 1,25 com 10 mil apostas. Os defeitos que a
+    Caixa existe para pegar eram de centenas de dólares (taxa US$ 730, stake zero
+    US$ 544, anulado US$ 260). É PLACAR, não prova: o harness é o `coletar_sync`."""
+    if casa == "Polymarket":
+        return max(CAIXA_TOL, 0.0125 * (max(n_apostas, 0) ** 0.5))
+    return CAIXA_TOL
+
+
 def _caixa_mov_dict(r) -> dict:
     """Linha de `caixa_mov` → dict JSON-serializável (DATE→ISO, NUMERIC→float)."""
     data = r["data"]
@@ -2679,6 +2699,8 @@ def _caixa_mov_dict(r) -> dict:
         "abertas_corte": list(r["abertas_corte"] or []),
         "criado_em": criado.isoformat() if hasattr(criado, "isoformat") else str(criado),
         "moeda": r.get("moeda"),
+        # s397: hash da transação do lançamento AUTOMÁTICO (Caixa da Polymarket); "" à mão.
+        "ref": r.get("ref") or "",
     }
 
 
@@ -2720,7 +2742,7 @@ async def caixa_conta(dono: str, parceiro_id: int) -> dict | None:
             "SELECT * FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 "
             "ORDER BY data, id", dono, parceiro_id)]
         apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
-    res = _caixa_projetar(movs, apostas, _moeda_conta(p))
+    res = _caixa_projetar(movs, apostas, _moeda_conta(p), p["casa"])
     res["parceiro_id"] = parceiro_id
     res["casa"] = p["casa"]
     res["parceiro"] = p["nome"]
@@ -2766,7 +2788,7 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
                 if not any(m["tipo"] == "inicial" for m in movs):
                     return {"ok": False, "motivo": "Informe o saldo inicial antes de conferir."}
                 apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
-                projetado = _caixa_projetar(movs, apostas, _moeda_conta(p))["disponivel"]
+                projetado = _caixa_projetar(movs, apostas, _moeda_conta(p), p["casa"])["disponivel"]
 
             # NUMERIC do Postgres é Decimal no asyncpg: passar float aqui levanta
             # DataError e a rota devolve 500. Foi assim que o primeiro "Ativar" da
@@ -2795,6 +2817,79 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
                 tipo, dono, parceiro_id, valor, data)
     res = await caixa_conta(dono, parceiro_id)
     return {"ok": True, "caixa": res}
+
+
+async def caixa_polymarket_sync(dono: str, parceiro: str, dados: dict) -> dict:
+    """Atualiza a Caixa da conta Polymarket com o que o sync leu da carteira (s397).
+
+    Três escritas, numa transação:
+      1. depósitos/saques/ajustes lidos na blockchain (`polymarket._caixa_movimentos`),
+         cada um com o hash da transação em `ref`: o índice único `caixa_mov_ref` faz
+         o sync regravar a lista inteira sem duplicar;
+      2. o `inicial` (R$ 0 no 1º dia da carteira), só se a conta ainda não tem. A
+         carteira nasceu vazia e a blockchain tem o histórico inteiro, então não há
+         saldo a digitar nem aposta "presa no corte";
+      3. a CONFERÊNCIA: o saldo observado (on-chain + a resgatar) contra o projetado,
+         só quando um dos dois mudou desde a última (sem isso cada sync empilharia uma
+         conferência igual). Se a TRAVA não fechou, a lista de transferências pode ter
+         perdido um depósito: grava os movimentos que leu (são reais), mas NÃO confere.
+
+    A conferência registra, não absorve (regra da Caixa): grava o projetado daquele
+    momento e nunca o recalcula."""
+    brt = timezone(timedelta(hours=-3))
+    hoje = datetime.now(brt).date()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            p = await conn.fetchrow(
+                "SELECT id, casa, nome, arquivado, moeda FROM parceiros "
+                "WHERE dono = $1 AND casa = 'Polymarket' AND nome = $2", dono, parceiro)
+            if not p:
+                return {"ok": False, "motivo": f"a conta {parceiro} não está cadastrada"}
+            pid = p["id"]
+            moeda = _moeda_conta(p)
+            novos = 0
+            for m in dados.get("movimentos") or []:
+                st = await conn.execute(
+                    "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, moeda, ref) "
+                    "VALUES ($1,$2,$3,$4,$5,$6,$7,$8) "
+                    "ON CONFLICT (parceiro_id, ref) WHERE ref IS NOT NULL DO NOTHING",
+                    dono, pid, m["tipo"], date.fromisoformat(m["data"]),
+                    Decimal(str(m["valor"])), (m.get("obs") or "")[:280], moeda, m["ref"])
+                novos += int(st.split()[-1])
+            if not await conn.fetchval(
+                    "SELECT 1 FROM caixa_mov WHERE parceiro_id = $1 AND tipo = 'inicial'", pid):
+                await conn.execute(
+                    "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, "
+                    "abertas_corte, moeda) VALUES ($1,$2,'inicial',$3,$4,$5,$6,$7)",
+                    dono, pid, date.fromisoformat(dados["inicio"]), Decimal("0"),
+                    "Início da carteira (automático)", [], moeda)
+            trava = dados.get("trava") or {}
+            if not trava.get("ok"):
+                return {"ok": False, "novos": novos, "trava": trava,
+                        "motivo": "a lista de transferências da blockchain não fechou com o "
+                                  f"saldo da carteira (diferença US$ {trava.get('diferenca')})"}
+            movs = [_caixa_mov_dict(r) for r in await conn.fetch(
+                "SELECT * FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 "
+                "ORDER BY data, id", dono, pid)]
+            apostas = await _caixa_apostas(conn, dono, p["casa"], p["nome"])
+            projetado = round(_caixa_projetar(movs, apostas, moeda, p["casa"])["disponivel"], 2)
+            valor = round(float(dados["saldo"]), 2)
+            ult = await conn.fetchrow(
+                "SELECT valor, projetado FROM caixa_mov WHERE parceiro_id = $1 "
+                "AND tipo = 'conferencia' ORDER BY criado_em DESC, id DESC LIMIT 1", pid)
+            if not (ult and ult["projetado"] is not None
+                    and float(ult["valor"]) == valor and float(ult["projetado"]) == projetado):
+                await conn.execute(
+                    "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, "
+                    "projetado, moeda) VALUES ($1,$2,'conferencia',$3,$4,$5,$6,$7)",
+                    dono, pid, hoje, Decimal(str(valor)),
+                    "Automática: saldo da carteira na blockchain + a resgatar",
+                    Decimal(str(projetado)), moeda)
+    res = await caixa_conta(dono, pid)
+    logger.info("caixa polymarket: dono=%s conta=%s novos=%d estado=%s div=%s",
+                dono, pid, novos, res and res.get("estado"), res and res.get("divergencia"))
+    return {"ok": True, "novos": novos, "trava": trava, "caixa": res}
 
 
 def _caixa_valida(tipo: str, data: str, valor) -> tuple[str, float] | dict:
@@ -3076,7 +3171,7 @@ async def caixa_visao(dono: str) -> dict:
     for p in parceiros:
         moeda = _moeda_conta(p)
         res = _caixa_projetar(por_conta.get(p["id"], []),
-                              por_chave.get((p["casa"], p["nome"]), []), moeda)
+                              por_chave.get((p["casa"], p["nome"]), []), moeda, p["casa"])
         taxa = taxas.get(moeda)
         uc = ultima.get((p["casa"], p["nome"]))
         linha = {

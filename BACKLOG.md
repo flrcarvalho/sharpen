@@ -1392,6 +1392,16 @@ Feca em 05/10/2026 eram 14 combos abertas fora da lista e da contagem. O cash e 
 portfólio (`/value`) não dependem disso. Saída: o painel usar o mesmo `_fetch_combos` só
 com `status=OPEN`. Também sem prova: combo vendida antes de liquidar (nenhuma medida).
 
+### 4.0e Caixa da Polymarket: o que acontece quando a trava não fecha (s397). **VIVA, não medida**
+
+A Caixa automática lê as transferências pelo Blockscout e só confere se a soma fecha com
+o saldo on-chain (`CASA_POLYMARKET §17`). Se o Blockscout perder um depósito, a Caixa
+para de conferir e o sync avisa, mas **não há segundo caminho**: o `eth_getLogs` direto
+é lento demais para o histórico inteiro (12-22 s por pedido nos RPCs gratuitos). Saída
+possível: varredura incremental só dos blocos novos desde a última trava que fechou, com
+marca d'água no banco. Também em aberto: lançamento automático apagado no extrato
+**volta** no próximo sync (o `ref` deixa de existir e o INSERT entra de novo).
+
 ### 4.0c A trava de `fim` do replay que nunca destrava — a 2ª captura na mesma aba devolve o acumulado velho (s393). **VIVA na família, medida só na DEX**
 
 Corrigida na DEX Sport (0.7.42, `53b7e11`): o `fimReplay` do inject e o `<casa>FimReal` do

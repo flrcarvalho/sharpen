@@ -1384,19 +1384,253 @@ async def coletar_tudo(wallet: str, parceiro: str) -> tuple[list[dict], list[dic
     Retorna (resolvidas, ativas) — exatamente a mesma saída das duas funções separadas."""
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
-        positions, activity = await _fetch_carteira(client, wallet)
-        combos = await _fetch_combos(client, wallet)
-        # Uma carga de PTAX cobrindo da 1ª compra até hoje ANTES de derivar: as datas
-        # dos bilhetes acertam todas em memória. Se o BCB estiver fora, falha aqui em
-        # segundos — não depois de moer o histórico inteiro.
-        await _garantir_cobertura(client, _inicio_hint(activity))
-        hoje = await _ptax_hoje(client)
-        cot_cache: dict = {}
-        act_s, pos_s = _separar_combos(combos, activity, positions)
-        resolvidas = await _derivar_resolvidas(client, pos_s, act_s, parceiro, hoje, cot_cache)
-        ativas = await _derivar_ativas(client, pos_s, act_s, parceiro, hoje, cot_cache)
-        combo_res, combo_atv = await _derivar_combos(client, combos, activity, parceiro, hoje, cot_cache)
-    return resolvidas + combo_res, ativas + combo_atv
+        resolvidas, ativas, _bruto = await _coletar(client, wallet, parceiro)
+    return resolvidas, ativas
+
+
+async def _coletar(client: httpx.AsyncClient, wallet: str,
+                   parceiro: str) -> tuple[list[dict], list[dict], dict]:
+    """O miolo do `coletar_tudo`: (resolvidas, ativas, bruto). O `bruto` (positions,
+    activity, combos) volta para a Caixa reusar o MESMO retrato da carteira — buscar de
+    novo abriria uma janela em que uma aposta nova entra numa leitura e não na outra."""
+    positions, activity = await _fetch_carteira(client, wallet)
+    combos = await _fetch_combos(client, wallet)
+    # Uma carga de PTAX cobrindo da 1ª compra até hoje ANTES de derivar: as datas
+    # dos bilhetes acertam todas em memória. Se o BCB estiver fora, falha aqui em
+    # segundos — não depois de moer o histórico inteiro.
+    await _garantir_cobertura(client, _inicio_hint(activity))
+    hoje = await _ptax_hoje(client)
+    cot_cache: dict = {}
+    act_s, pos_s = _separar_combos(combos, activity, positions)
+    resolvidas = await _derivar_resolvidas(client, pos_s, act_s, parceiro, hoje, cot_cache)
+    ativas = await _derivar_ativas(client, pos_s, act_s, parceiro, hoje, cot_cache)
+    combo_res, combo_atv = await _derivar_combos(client, combos, activity, parceiro, hoje, cot_cache)
+    bruto = {"positions": positions, "activity": activity, "combos": combos}
+    return resolvidas + combo_res, ativas + combo_atv, bruto
+
+
+async def coletar_sync(wallet: str, parceiro: str) -> tuple[list[dict], list[dict], dict]:
+    """O que o `/polymarket/sync` usa: as apostas (como `coletar_tudo`) + os dados da
+    Caixa (`coletar_caixa`), do mesmo retrato da carteira.
+
+    A Caixa NUNCA derruba o sync das apostas: se a leitura dela falhar, o terceiro item
+    é `{"erro": "..."}` e a rota avisa. Engolir a falha seria pior (a tela ficaria com a
+    conferência velha, sem dizer por quê); derrubar o sync por ela também."""
+    wallet = wallet.strip().lower()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resolvidas, ativas, bruto = await _coletar(client, wallet, parceiro)
+        try:
+            caixa = await coletar_caixa(client, wallet, bruto)
+        except Exception as exc:   # noqa: BLE001 — vira aviso na rota, nunca silêncio
+            caixa = {"erro": f"{type(exc).__name__}: {exc}"[:300]}
+    return resolvidas, ativas, caixa
+
+
+# ── Caixa da Polymarket (s397) ──────────────────────────────────────────────
+#
+# A Caixa das outras casas confronta o saldo DERIVADO das apostas com o saldo que o
+# dono lê na casa e digita. Aqui as duas pontas vêm sozinhas:
+#   - depósitos, saques e ajustes: as transferências de pUSD/USDC.e da carteira que NÃO
+#     são de aposta (o hash da transação não está no /activity). A API da Polymarket não
+#     tem esse dado (`type=DEPOSIT` volta vazio para uma carteira com 8 depósitos);
+#   - o saldo observado: o que a blockchain diz que a carteira tem (+ o que já ganhou
+#     e ainda não foi resgatado, que o P/L já conta e o saldo ainda não).
+#
+# A FONTE das transferências é o Blockscout (uma consulta paginada). O `eth_getLogs`
+# direto é exato mas não serve: os RPCs gratuitos aceitam 10 mil blocos por pedido e
+# levam 12-22 s em bloco antigo — o histórico de 5 meses passava de uma hora (medido em
+# 06/10/2026). O Blockscout, em troca, PERDE transação grande: 5 resgates de 32 a 214
+# eventos (US$ 941,22) não estavam na lista dele. Daí a TRAVA (`_caixa_trava`): tudo o
+# que ele lista + as apostas que ele não listou (o /activity sabe quanto) tem de dar o
+# saldo on-chain. Se ele perder um DEPÓSITO a soma não fecha e a Caixa avisa, em vez
+# de calcular errado. Na carteira do Feca: −931,3256 + 941,2245 = 9,8989 = on-chain.
+
+_BLOCKSCOUT = "https://polygon.blockscout.com/api"
+_COMBO_ACTIVITY_PATH = "v1/activity/combos"
+_TRAVA_TOL = 0.02          # US$: o /activity arredonda a 6 casas, a soma de centenas de linhas também
+# Tipo do /activity que mexe na carteira sem ser aposta: entra na Caixa como AJUSTE
+# (dinheiro que a Polymarket paga ou cobra), com o tipo no histórico.
+_ATIVIDADE_DE_APOSTA = ("TRADE", "REDEEM")
+
+
+async def _fetch_transferencias(client: httpx.AsyncClient, wallet: str) -> list[dict]:
+    """Todas as transferências de pUSD e USDC.e da carteira, pelo Blockscout."""
+    out: list[dict] = []
+    for token in (_PUSD, _USDC_E):
+        page = 1
+        while True:
+            r = await _get_retry(client, _BLOCKSCOUT, {
+                "module": "account", "action": "tokentx", "address": wallet,
+                "contractaddress": token, "page": page, "offset": 1000, "sort": "asc"})
+            data = r.json()
+            res = data.get("result") if isinstance(data, dict) else None
+            if res is None or (not isinstance(res, list) and data.get("message") != "No token transfers found"):
+                raise PolymarketRespostaInesperada("Resposta inesperada do Blockscout")
+            if not isinstance(res, list):
+                break
+            out.extend(res)
+            if len(res) < 1000:
+                break
+            page += 1
+            if page > 200:
+                raise PolymarketRespostaInesperada("Paginação do Blockscout passou de 200 páginas")
+    return out
+
+
+async def _fetch_combo_atividade(client: httpx.AsyncClient, wallet: str) -> list[dict]:
+    """Eventos de combo (SPLIT/REDEEM…). Só servem para reconhecer o HASH da transação
+    como aposta; o dinheiro delas já está no /activity comum (TRADE/REDEEM `isCombo`)."""
+    out: list[dict] = []
+    cursor = None
+    for _ in range(_COMBO_MAX_PAGINAS):
+        params = {"user": wallet, "limit": 100}
+        if cursor:
+            params["cursor"] = cursor
+        data = (await _get_retry(client, f"{POLY_BASE}/{_COMBO_ACTIVITY_PATH}", params)).json()
+        if not isinstance(data, dict) or not isinstance(data.get("activity"), list):
+            raise PolymarketRespostaInesperada(f"Resposta inesperada de /{_COMBO_ACTIVITY_PATH}")
+        out.extend(data["activity"])
+        pag = data.get("pagination") or {}
+        cursor = pag.get("next_cursor")
+        if not pag.get("has_more") or not cursor:
+            return out
+    raise PolymarketRespostaInesperada(f"Paginação de /{_COMBO_ACTIVITY_PATH} não terminou")
+
+
+def _valor_transfer(t: dict) -> float:
+    try:
+        return int(t.get("value") or 0) / 10 ** int(t.get("tokenDecimal") or 6)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _fluxo_da_atividade(activity: list) -> dict:
+    """hash → dinheiro que a transação moveu na carteira, segundo o /activity."""
+    fluxo: dict = {}
+    for a in activity:
+        h = str(a.get("transactionHash") or "").lower()
+        if not h:
+            continue
+        u = _f(a, "usdcSize")
+        tipo = a.get("type")
+        if tipo == "TRADE":
+            u = -u if _e_buy(a) else u
+        elif tipo not in ("REDEEM",) and tipo not in _AJUSTE_POR_TIPO:
+            continue
+        fluxo[h] = fluxo.get(h, 0.0) + u
+    return fluxo
+
+
+# Tipos do /activity que movem dinheiro sem ser aposta, e o sinal deles na carteira.
+_AJUSTE_POR_TIPO = {"TAKER_REBATE": 1, "MAKER_REBATE": 1, "REWARD": 1, "REFERRAL_REWARD": 1,
+                    "YIELD": 1}
+
+
+def _caixa_movimentos(transfers: list, activity: list, combo_atividade: list,
+                      wallet: str) -> list[dict]:
+    """Transferências que NÃO são de aposta, uma linha por transação. PURA.
+
+    O hash decide: transação que o /activity (ou o de combos) conhece como TRADE/REDEEM
+    é aposta e já está no P/L. Das outras, rebate/recompensa (tipo conhecido no
+    /activity) vira `ajuste`; o resto, pelo saldo líquido da transação somando os dois
+    tokens: entrou → `deposito`, saiu → `saque`, zero → nada (é a conversão USDC.e →
+    pUSD que acompanha um depósito em USDC.e: sai um, entra o outro, na mesma tx).
+
+    Risco declarado: aposta que o /activity NÃO listar vira depósito/saque aqui. Ela
+    aparece no extrato com o hash, para o dono reconhecer."""
+    wallet = wallet.lower()
+    aposta = {str(a.get("transactionHash") or "").lower() for a in activity
+              if a.get("type") in _ATIVIDADE_DE_APOSTA}
+    aposta |= {str(a.get("tx_hash") or "").lower() for a in combo_atividade}
+    aposta.discard("")
+    ajuste_tipo = {str(a.get("transactionHash") or "").lower(): a.get("type") for a in activity
+                   if a.get("type") in _AJUSTE_POR_TIPO}
+    liquido: dict = {}
+    quando: dict = {}
+    for t in transfers:
+        h = str(t.get("hash") or "").lower()
+        if not h or h in aposta:
+            continue
+        v = _valor_transfer(t)
+        if str(t.get("from") or "").lower() == wallet:
+            v = -v
+        liquido[h] = liquido.get(h, 0.0) + v
+        quando.setdefault(h, t.get("timeStamp"))
+    out = []
+    for h, v in liquido.items():
+        valor = round(v, 2)
+        if abs(valor) < 0.01:
+            continue
+        tipo_at = ajuste_tipo.get(h)
+        if tipo_at:
+            tipo, obs, valor_mov = "ajuste", f"{tipo_at.replace('_', ' ').title()} (Polymarket)", valor
+        elif valor > 0:
+            tipo, obs, valor_mov = "deposito", "Depósito na carteira", valor
+        else:
+            tipo, obs, valor_mov = "saque", "Saída da carteira", -valor
+        out.append({"ref": h, "tipo": tipo, "valor": valor_mov,
+                    "data": _iso_brt(quando.get(h)), "obs": f"{obs} · {h[:10]}…"})
+    out.sort(key=lambda m: (m["data"], m["ref"]))
+    return out
+
+
+def _caixa_trava(transfers: list, activity: list, wallet: str, saldo_onchain: float) -> dict:
+    """A prova de que a lista de transferências está completa. PURA.
+
+    Soma tudo o que o Blockscout listou, acrescenta o dinheiro das transações de aposta
+    que ele NÃO listou (o /activity diz quanto) e compara com o saldo on-chain. Fecha →
+    nenhuma transferência que não seja de aposta ficou de fora, e os depósitos/saques
+    derivados dela são completos. Não fecha → `ok: False` e a Caixa não confere."""
+    wallet = wallet.lower()
+    soma = 0.0
+    hashes = set()
+    for t in transfers:
+        v = _valor_transfer(t)
+        soma += -v if str(t.get("from") or "").lower() == wallet else v
+        hashes.add(str(t.get("hash") or "").lower())
+    faltou = sum(v for h, v in _fluxo_da_atividade(activity).items() if h not in hashes)
+    diferenca = round(saldo_onchain - (soma + faltou), 4)
+    return {"ok": abs(diferenca) <= _TRAVA_TOL, "diferenca": diferenca,
+            "listado": round(soma, 4), "faltou_listar": round(faltou, 4)}
+
+
+def _a_resgatar(positions: list, combos: list) -> float:
+    """O que já ganhou (ou foi anulado) e ainda não foi resgatado: o P/L do Sharpen já
+    conta, o saldo da carteira ainda não. Mesma régua do painel ao vivo."""
+    simples = sum(_f(p, "currentValue") for p in positions
+                  if _posicao_resolvida(p) and _f(p, "currentValue") > 0.01)
+    combo = sum(_f(c, "shares_balance") for c in combos
+                if str(c.get("status") or "").upper() == "RESOLVED_WIN")
+    return simples + combo
+
+
+async def coletar_caixa(client: httpx.AsyncClient, wallet: str, bruto: dict) -> dict:
+    """Os dados da Caixa da Polymarket: movimentos que não são aposta, o saldo observado
+    (on-chain + a resgatar), o início da carteira e a trava. Levanta em falha de rede —
+    quem chama decide como avisar (`coletar_sync`)."""
+    activity, positions, combos = bruto["activity"], bruto["positions"], bruto["combos"]
+    pusd = await _rpc_balance(client, _PUSD, wallet)
+    usdce = await _rpc_balance(client, _USDC_E, wallet)
+    if pusd is None and usdce is None:
+        raise PolymarketRespostaInesperada("Nenhum RPC da Polygon respondeu o saldo da carteira")
+    onchain = (pusd or 0.0) + (usdce or 0.0)
+    transfers = await _fetch_transferencias(client, wallet)
+    combo_atividade = await _fetch_combo_atividade(client, wallet)
+    trava = _caixa_trava(transfers, activity, wallet, onchain)
+    movimentos = _caixa_movimentos(transfers, activity, combo_atividade, wallet)
+    datas = [m["data"] for m in movimentos if m["data"]]
+    ts = [int(a.get("timestamp") or 0) for a in activity if a.get("timestamp")]
+    if ts:
+        datas.append(_iso_brt(min(ts)))
+    a_resgatar = _a_resgatar(positions, combos)
+    return {
+        "movimentos": movimentos,
+        "onchain": round(onchain, 4),
+        "a_resgatar": round(a_resgatar, 4),
+        "saldo": round(onchain + a_resgatar, 2),
+        "inicio": min(datas) if datas else _hoje_iso(),
+        "trava": trava,
+    }
 
 
 async def coletar_bilhetes(wallet: str, parceiro: str) -> list[dict]:

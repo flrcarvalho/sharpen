@@ -58,7 +58,7 @@ from database import (
     get_poly_wallet, init_db, listar_usuarios, salvar_poly_wallet,
     seed_usuarios, usernames_em_uso, vincular_social,
 )
-from polymarket import CambioIndisponivel, coletar_dashboard, coletar_tudo
+from polymarket import CambioIndisponivel, coletar_dashboard, coletar_sync
 import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
@@ -80,7 +80,7 @@ from repository import (
     deletar_bilhetes,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
-    polymarket_conta_em_usd,
+    polymarket_conta_em_usd, caixa_polymarket_sync,
     codigos_em_outra_conta,
     flags_pos_edicao, flags_pos_edicao_lote, atualizar_bilhetes_lote,
     flags_pos_edicao, limpar_ativos_tipster, list_bilhetes, list_esportes,
@@ -4207,7 +4207,7 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
         raise HTTPException(400, "Selecione um parceiro antes de sincronizar.")
 
     try:
-        resolvidas, ativas = await coletar_tudo(wallet, parceiro)
+        resolvidas, ativas, caixa_dados = await coletar_sync(wallet, parceiro)
     except CambioIndisponivel as exc:
         # Mensagem controlada por nós (não vaza internals); 503 = tente de novo depois.
         raise HTTPException(503, str(exc))
@@ -4270,10 +4270,41 @@ async def polymarket_sync(body: PolymarketSyncRequest, dono: str = Depends(usuar
     if await polymarket_conta_em_usd(dono, parceiro):
         alertas.append(f"A conta {parceiro} passou a ser em dólar (USD), a moeda da carteira: "
                        "a grade mostra o valor original de cada aposta.")
+    caixa = await _polymarket_caixa(dono, parceiro, caixa_dados, alertas)
 
     return {"salvos": inseridos + atualizados, "inseridos": inseridos, "atualizados": atualizados,
             "ids": ids, "alertas": alertas, "duplicatas": duplicatas, "arquivados": arquivados,
-            "coletados": len(rows)}
+            "coletados": len(rows), "caixa": caixa}
+
+
+async def _polymarket_caixa(dono: str, parceiro: str, dados: dict, alertas: list) -> dict | None:
+    """Caixa da Polymarket depois do sync (s397). Nunca derruba o sync: o que der errado
+    vira ALERTA na resposta, apontando o motivo — a conferência velha continuando na tela
+    sem explicação seria o silêncio que a Caixa existe para acabar."""
+    if dados.get("erro"):
+        logger.warning("caixa polymarket: leitura falhou: %s", dados["erro"])
+        alertas.append("Caixa da Polymarket não atualizada: a leitura da carteira na blockchain "
+                       "falhou. As apostas foram sincronizadas; tente de novo em alguns minutos.")
+        return None
+    try:
+        res = await caixa_polymarket_sync(dono, parceiro, dados)
+    except Exception:
+        logger.exception("caixa polymarket: gravação falhou")
+        alertas.append("Caixa da Polymarket não atualizada: erro ao gravar. As apostas foram "
+                       "sincronizadas.")
+        return None
+    if not res.get("ok"):
+        alertas.append(f"Caixa da Polymarket não conferida: {res.get('motivo')}.")
+        return None
+    cx = res.get("caixa") or {}
+    if cx.get("estado") == "divergente" and cx.get("divergencia") is not None:
+        d = cx["divergencia"]
+        lado = "a mais na carteira" if d > 0 else "a menos na carteira"
+        valor = f"{abs(d):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        alertas.append(f"Caixa da Polymarket: US$ {valor} {lado} do que o Sharpen calcula. "
+                       "Confira no extrato da Caixa.")
+    return {"estado": cx.get("estado"), "divergencia": cx.get("divergencia"),
+            "novos": res.get("novos", 0)}
 
 
 @app.get("/polymarket/dashboard")

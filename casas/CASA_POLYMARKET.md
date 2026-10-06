@@ -260,6 +260,38 @@ vir de tipsters diferentes) e uma ganha enquanto a outra perde.
 
 ---
 
+## 17. Caixa Inteligente automática (s397)
+
+Pedido do Feca (06/10/2026). Antes a Polymarket ficava **fora** da Caixa porque "o
+saldo on-chain já é o medido". Era por isso que nada conferia nada: o saldo batia por
+construção enquanto as apostas estavam erradas. Agora a Caixa dela confronta o Sharpen
+com a blockchain, sozinha, a cada Sincronizar (inclusive o automático de 5 min).
+
+- **Depósito, saque e ajuste** = transferência de pUSD/USDC.e da carteira cujo hash
+  **não** é de aposta no `/activity` (nem no `/v1/activity/combos`). Líquido > 0 →
+  depósito; < 0 → saque; zero → nada (a conversão USDC.e → pUSD de um depósito em
+  USDC.e); tipo de rebate/recompensa do `/activity` → ajuste. Gravados em `caixa_mov`
+  com `ref` = hash (índice único: o sync regrava sem duplicar).
+- **A API da Polymarket não tem esse dado:** `type=DEPOSIT` volta vazio para uma
+  carteira com 8 depósitos (medido 06/10/2026).
+- **Fonte = Blockscout + TRAVA.** O `eth_getLogs` direto é exato mas leva 12-22 s por
+  pedido de 10 mil blocos nos RPCs gratuitos (mais de uma hora para 5 meses). O
+  Blockscout entrega tudo de uma vez, mas **perde transação grande** (5 resgates de
+  32-214 eventos, US$ 941,22, na carteira do Feca). A trava: tudo o que ele lista + as
+  apostas que ele não listou (o `/activity` sabe quanto) = saldo on-chain. Se ele
+  perder um DEPÓSITO a soma não fecha, a Caixa **não confere** e o sync avisa.
+- **Saldo observado** = on-chain + o que ganhou e não resgatou (o P/L já conta).
+- **Inicial** = 0 no 1º dia da carteira (ela nasceu vazia e a blockchain tem tudo).
+- **Moeda:** USD (§2). **Margem:** a carteira tem 6 casas e o Sharpen centavos, então
+  "bate" aceita até 1,25 centavo × √(nº de apostas) (`repository._caixa_tol`; ~US$ 0,30
+  com 600 apostas). Só na Polymarket; a tela mostra a diferença real.
+- **Tela:** sem campo de conferência, sem + Depósito/− Saque, inicial não editável
+  (entrariam em dobro); o Ajuste fica.
+- **O 1º uso já achou defeito:** US$ 260,42 de mercado anulado gravado como vitória
+  cheia (§11). Corrigido isso, fechou em US$ 0,13 de arredondamento.
+
+---
+
 ## 16. Combos (aposta combinada)
 
 A Polymarket vende **combo**: várias pernas numa cota só, que paga $1 se todas

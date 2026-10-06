@@ -718,6 +718,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS caixa_mov_um_inicial ON caixa_mov (parceiro_id
 -- um dia trocar de moeda: lançamento numa moeda que já não é a da conta fica FORA da caixa,
 -- e a tela diz quantos, em vez de somar USDT como se fosse real.
 ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS moeda TEXT;
+-- Lançamento AUTOMÁTICO (s397, Caixa da Polymarket): `ref` = o hash da transação na
+-- blockchain de onde o depósito/saque/ajuste saiu. Único por conta, para o sync poder
+-- regravar a lista inteira a cada rodada sem duplicar. NULL = lançamento à mão.
+ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS ref TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS caixa_mov_ref ON caixa_mov (parceiro_id, ref)
+    WHERE ref IS NOT NULL;
 
 -- A exclusão de conta é hard delete com snapshot (ver `lixeira_contas` acima). Os
 -- lançamentos da caixa saem junto pelo ON DELETE CASCADE, então precisam entrar no

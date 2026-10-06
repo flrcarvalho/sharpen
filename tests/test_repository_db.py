@@ -256,6 +256,46 @@ def test_polymarket_conta_passa_a_usd_so_a_dela():
     _run(body())
 
 
+def test_caixa_polymarket_lanca_confere_e_nao_duplica():
+    """s397: o sync grava depósitos/ajustes da blockchain (um por hash), o inicial
+    automático e a conferência; rodar de novo não duplica nada. Trava aberta: grava os
+    movimentos (são reais), mas não confere."""
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoA'")
+            await conn.execute("INSERT INTO parceiros (dono, casa, nome, moeda) VALUES "
+                               "('TDonoA', 'Polymarket', 'Feca [Eu]', 'USD')")
+        await repository.upsert_bilhetes([_poly(
+            codigo_bilhete="0xL", resultado="L", stake="500,00", odd="2,00", data="07/05/2026",
+            moeda="USD", stake_orig=100.0, cotacao=5.0)], "TDonoA", origem="sync")
+        dados = {
+            "movimentos": [
+                {"ref": "0xdep", "tipo": "deposito", "valor": 300.0, "data": "2026-05-06", "obs": "Depósito"},
+                {"ref": "0xreb", "tipo": "ajuste", "valor": 2.5, "data": "2026-05-08", "obs": "Rebate"},
+            ],
+            "saldo": 202.5, "inicio": "2026-05-06", "trava": {"ok": True, "diferenca": 0.0},
+        }
+        r1 = await repository.caixa_polymarket_sync("TDonoA", "Feca [Eu]", dados)
+        assert r1["ok"] and r1["novos"] == 2
+        cx = r1["caixa"]
+        # 0 + 300 + 2,5 − 100 (a L em DÓLAR, pela stake_orig) = 202,5 → confere
+        assert cx["ligada"] and cx["moeda"] == "USD" and cx["disponivel"] == 202.5
+        assert cx["estado"] == "confere" and cx["data_corte"] == "2026-05-06"
+        r2 = await repository.caixa_polymarket_sync("TDonoA", "Feca [Eu]", dados)
+        assert r2["novos"] == 0
+        async with pool.acquire() as conn:
+            n = await conn.fetch("SELECT tipo, count(*) c FROM caixa_mov WHERE dono = 'TDonoA' GROUP BY tipo")
+        assert {x["tipo"]: x["c"] for x in n} == {"inicial": 1, "deposito": 1, "ajuste": 1, "conferencia": 1}
+        trava_aberta = {**dados, "movimentos": [], "trava": {"ok": False, "diferenca": 281.82}}
+        r3 = await repository.caixa_polymarket_sync("TDonoA", "Feca [Eu]", trava_aberta)
+        assert not r3["ok"] and "não fechou" in r3["motivo"]
+        sem_conta = await repository.caixa_polymarket_sync("TDonoB", "Feca [Eu]", dados)
+        assert not sem_conta["ok"]
+    _run(body())
+
+
 def test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder():
     """Passo 2 da moeda (s391): o cadastro grava, a listagem devolve e a edição troca.
 
