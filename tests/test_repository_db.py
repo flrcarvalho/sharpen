@@ -298,6 +298,65 @@ def test_caixa_polymarket_lanca_confere_e_nao_duplica():
     _run(body())
 
 
+def test_cambio_corretora_transferencia_venda_e_bolso():
+    """s398 (passo 6): a corretora, o saque com destino e taxa, a venda que realiza e o
+    bolso pelo `cambio_visao`, no SQL de verdade. Cotação fixa (5,00 em todo dia, 4,50
+    hoje) para o teste não depender da Binance."""
+    from unittest.mock import patch
+    import cambio
+
+    async def _nada(*a, **k):
+        return None
+
+    async def _hoje(moedas):
+        return {"BRL": 1.0, **{m: 4.5 for m in moedas if m != "BRL"}}
+
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM caixa_mov WHERE dono = 'TDonoC'")
+            await conn.execute("DELETE FROM corretoras WHERE dono = 'TDonoC'")
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoC'")
+        await repository.criar_parceiro("Betpanda", "Feca", "TDonoC", "USDT")
+        async with pool.acquire() as conn:
+            pid = await conn.fetchval("SELECT id FROM parceiros WHERE dono = 'TDonoC'")
+        assert (await repository.caixa_lancar("TDonoC", pid, "inicial", "2026-10-01", 200.0))["ok"]
+        cr = await repository.corretora_criar("TDonoC", "Binance")
+        assert cr["ok"]
+        assert not (await repository.corretora_criar("TDonoC", "binance"))["ok"], "nome único sem caixa"
+        cid = cr["id"]
+        r = await repository.caixa_lancar("TDonoC", pid, "saque", "2026-10-03", 50.0, "",
+                                          cid, 1.0)
+        assert r["ok"]
+        assert (await repository.corretora_lancar("TDonoC", cid, "venda", "2026-10-04", "USDT",
+                                                  49.0, 230.0))["ok"]
+        with patch.object(cambio, "carregar", _nada), \
+             patch.object(cambio, "cotacao", lambda m, iso: 5.0), \
+             patch.object(repository, "_caixa_taxas_hoje", _hoje):
+            v = await repository.cambio_visao("TDonoC")
+            b = v["bolsos"]["USDT"]
+            assert b["qtd"] == 150.0 and b["custo_brl"] == 750.0
+            assert b["taxas_brl"] == 5.0 and b["realizado_brl"] == -15.0
+            assert b["papel_brl"] == -75.0 and b["fecha"]
+            corr = v["corretoras"][0]
+            assert corr["nome"] == "Binance" and corr["saldos"] == {"USDT": 0.0}
+            assert not (await repository.corretora_excluir("TDonoC", cid))["ok"], \
+                "com lançamento a corretora não se apaga"
+            assert (await repository.corretora_arquivar("TDonoC", cid, True))["ok"]
+            async with pool.acquire() as conn:
+                mid = await conn.fetchval(
+                    "SELECT id FROM caixa_mov WHERE dono = 'TDonoC' AND tipo = 'saque'")
+            # Editar a data sem `transferencia` não apaga o destino…
+            assert (await repository.caixa_editar_mov("TDonoC", mid, "2026-10-03", 50.0))["ok"]
+            assert (await repository.cambio_visao("TDonoC"))["bolsos"]["USDT"]["n_sem_destino"] == 0
+            # …e com `transferencia` sem corretora, o saque passa a não ter destino.
+            assert (await repository.caixa_editar_mov("TDonoC", mid, "2026-10-03", 50.0, "",
+                                                      True, None, None))["ok"]
+            assert (await repository.cambio_visao("TDonoC"))["bolsos"]["USDT"]["n_sem_destino"] == 1
+    _run(body())
+
+
 def test_moeda_no_cadastro_cria_lista_edita_e_reativa_sem_perder():
     """Passo 2 da moeda (s391): o cadastro grava, a listagem devolve e a edição troca.
 

@@ -2487,8 +2487,14 @@ def _caixa_criado_iso(criado) -> str:
 
 
 def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL",
-                    casa: str = "") -> dict:
+                    casa: str = "", eventos: list | None = None) -> dict:
     """Projeção da caixa de UMA conta. PURA (sem DB) — é o núcleo testável.
+
+    `eventos` (s398): lista que, quando passada, recebe o que mexeu no saldo DENTRO da janela
+    da Caixa, na moeda da conta, para o bolso de câmbio (`app/bolso.py`): o saldo do corte
+    (inicial + o que estava preso), cada depósito/saque/ajuste (com a corretora e a taxa da
+    transferência) e o P/L de cada aposta liquidada com a cotação dela. É a MESMA janela e a
+    MESMA conta da projeção, para o bolso nunca discordar do saldo da casa.
 
     `moeda` (s391) é a da CONTA. Em conta USD/USDT a caixa inteira roda NA MOEDA DA CONTA:
     o saldo que se confere é o que a casa mostra, em USDT, e converter lançamentos para R$
@@ -2566,6 +2572,10 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL",
         if corte and (m.get("data") or "") < corte:
             continue
         v = float(m.get("valor") or 0.0)
+        if eventos is not None:
+            eventos.append({"tipo": tipo, "data": m.get("data"), "valor": v,
+                            "mov_id": m.get("id"), "corretora_id": m.get("corretora_id"),
+                            "taxa": m.get("taxa")})
         if tipo == "deposito":
             out["depositos"] += v; out["n_depositos"] += 1
         elif tipo == "saque":
@@ -2618,7 +2628,15 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL",
         if lucro is None:
             continue
         out["pl"] += lucro; out["n_liquidadas"] += 1
+        if eventos is not None:
+            eventos.append({"tipo": "pl", "data": data_iso, "valor": lucro,
+                            "cot": a.get("cotacao")})
 
+    if eventos is not None:
+        # O saldo do corte entra no bolso pela cotação do DIA do corte: o informado mais o
+        # que estava preso em aposta aberta (que é dinheiro da conta, só não disponível).
+        eventos.append({"tipo": "inicial", "data": corte,
+                        "valor": out["inicial"] + out["preso_corte"]})
     banca = (out["inicial"] + out["preso_corte"] + out["depositos"]
              - out["saques"] + out["ajustes"] + out["pl"])
     out["banca"] = round(banca, 2)
@@ -2702,6 +2720,10 @@ def _caixa_mov_dict(r) -> dict:
         "moeda": r.get("moeda"),
         # s397: hash da transação do lançamento AUTOMÁTICO (Caixa da Polymarket); "" à mão.
         "ref": r.get("ref") or "",
+        # s398: transferência com uma corretora (destino do saque / origem do depósito) e a
+        # taxa que a rede cobrou. None = lançamento comum.
+        "corretora_id": r.get("corretora_id"),
+        "taxa": None if r.get("taxa") is None else float(r["taxa"]),
     }
 
 
@@ -2752,7 +2774,7 @@ async def caixa_conta(dono: str, parceiro_id: int) -> dict | None:
 
 
 async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
-                       valor: float, obs: str = "") -> dict:
+                       valor: float, obs: str = "", corretora_id=None, taxa=None) -> dict:
     """Grava um lançamento e devolve a caixa recalculada.
 
     Dois tipos carregam dado que só existe NO MOMENTO do lançamento e por isso é
@@ -2772,6 +2794,11 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
             p = await _caixa_conta_row(conn, parceiro_id, dono)
             if not p:
                 return {"ok": False, "motivo": "Conta não encontrada."}
+            # s398: saque com destino / depósito com origem numa corretora, e a taxa.
+            tr = await _caixa_transf_valida(conn, dono, p, tipo, corretora_id, taxa, valor)
+            if isinstance(tr, dict):
+                return tr
+            corretora_id, taxa = tr
 
             abertas: list[int] | None = None
             projetado: float | None = None
@@ -2807,12 +2834,15 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
             # trava a lista inteira de uma vez, para não haver uma terceira rodada.
             await conn.execute(
                 "INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, obs, "
-                "projetado, abertas_corte, moeda) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+                "projetado, abertas_corte, moeda, corretora_id, taxa) "
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
                 dono, parceiro_id, tipo, date.fromisoformat(data), Decimal(str(valor)),
                 (obs or "").strip()[:280],
                 None if projetado is None else Decimal(str(projetado)), abertas,
                 # A moeda da conta NESTE instante (s391): o valor foi digitado nela.
                 _moeda_conta(p),
+                # s398: BIGINT → int; NUMERIC → Decimal; ausência viaja como NULL.
+                corretora_id, None if taxa is None else Decimal(str(taxa)),
             )
     logger.info("caixa: %s dono=%s conta=%s valor=%.2f data=%s",
                 tipo, dono, parceiro_id, valor, data)
@@ -3028,7 +3058,8 @@ async def _caixa_abertas_no_corte(conn, dono: str, casa: str, parceiro: str,
 
 
 async def caixa_editar_mov(dono: str, mov_id: int, data: str, valor: float,
-                           obs: str = "") -> dict:
+                           obs: str = "", transferencia: bool = False,
+                           corretora_id=None, taxa=None) -> dict:
     """Edita um lançamento já gravado (data, valor e observação).
 
     O TIPO não muda: trocar um depósito em saque é apagar um fato e criar outro, e a
@@ -3045,7 +3076,7 @@ async def caixa_editar_mov(dono: str, mov_id: int, data: str, valor: float,
     async with pool.acquire() as conn:
         async with conn.transaction():
             row = await conn.fetchrow(
-                "SELECT c.tipo, c.parceiro_id, p.casa, p.nome FROM caixa_mov c "
+                "SELECT c.tipo, c.parceiro_id, p.casa, p.nome, p.moeda FROM caixa_mov c "
                 "JOIN parceiros p ON p.id = c.parceiro_id "
                 "WHERE c.id = $1 AND c.dono = $2", mov_id, dono)
             if not row:
@@ -3054,6 +3085,17 @@ async def caixa_editar_mov(dono: str, mov_id: int, data: str, valor: float,
             if isinstance(v, dict):
                 return v
             iso, valor = v
+            # s398: a corretora e a taxa só mudam quando o formulário as manda
+            # (`transferencia`). Um cliente antigo, sem esses campos, não pode apagar o
+            # destino de um saque só por editar a data.
+            if transferencia:
+                tr = await _caixa_transf_valida(conn, dono, row, row["tipo"],
+                                                corretora_id, taxa, valor)
+                if isinstance(tr, dict):
+                    return tr
+                await conn.execute(
+                    "UPDATE caixa_mov SET corretora_id = $1, taxa = $2 WHERE id = $3 AND dono = $4",
+                    tr[0], None if tr[1] is None else Decimal(str(tr[1])), mov_id, dono)
             abertas = None
             if row["tipo"] == "inicial":
                 abertas = await _caixa_abertas_no_corte(
@@ -3226,6 +3268,330 @@ async def caixa_visao(dono: str) -> dict:
         tot[k] = round(tot[k], 2)
     lista = sorted(casas.values(), key=lambda c: (-c["banca"], c["casa"]))
     return {"casas": lista, "contas": contas, "totais": tot}
+
+
+# ── Corretoras e câmbio (s398, passo 6 do `docs/PLANO_MOEDA_POR_CONTA.md`) ──────────────
+#
+# A corretora guarda moeda (USDT, USD…) entre uma casa e outra, e é nela que o dono troca a
+# moeda por real. O saldo dela é DERIVADO, como o da Caixa: saldo inicial por moeda +
+# transferências das casas (o mesmo lançamento de Caixa, visto do outro lado) + compras −
+# vendas ± ajustes. O câmbio do dono sai do `app/bolso.py`.
+
+CORRETORA_TIPOS = ("inicial", "compra", "venda", "ajuste")
+
+
+def _corretora_valida(tipo: str, data: str, moeda: str, valor,
+                      valor_brl=None) -> tuple | dict:
+    """Fronteira comum de lançar e editar na corretora."""
+    import cambio as _cambio
+    if tipo not in CORRETORA_TIPOS:
+        return {"ok": False, "motivo": "Tipo de lançamento inválido."}
+    iso = _data_iso(data)
+    if not iso:
+        return {"ok": False, "motivo": "Data inválida."}
+    moeda = (moeda or "").strip().upper()
+    if moeda not in _cambio.MOEDAS or moeda == "BRL":
+        return {"ok": False, "motivo": "Moeda inválida: a corretora guarda moeda estrangeira."}
+    try:
+        valor = round(float(valor), 2)
+    except (TypeError, ValueError):
+        return {"ok": False, "motivo": "Valor inválido."}
+    if tipo != "ajuste" and valor < 0:
+        return {"ok": False, "motivo": "Valor não pode ser negativo."}
+    if tipo in ("compra", "venda") and valor == 0:
+        return {"ok": False, "motivo": "Informe a quantidade."}
+    brl = None
+    if tipo in ("compra", "venda"):
+        try:
+            brl = round(float(valor_brl), 2)
+        except (TypeError, ValueError):
+            return {"ok": False, "motivo": "Informe o valor em R$."}
+        if brl <= 0:
+            return {"ok": False, "motivo": "Informe o valor em R$."}
+    if abs(valor) > 100_000_000 or (brl or 0) > 1_000_000_000:
+        return {"ok": False, "motivo": "Valor fora da faixa."}
+    return iso, moeda, valor, brl
+
+
+def _corretora_dict(r) -> dict:
+    arq = r["arquivada_em"]
+    return {"id": r["id"], "nome": r["nome"],
+            "arquivada": arq is not None,
+            "arquivada_em": arq.isoformat() if arq is not None else None}
+
+
+def _corretora_mov_dict(r) -> dict:
+    d, criado = r["data"], r["criado_em"]
+    return {"id": r["id"], "corretora_id": r["corretora_id"], "tipo": r["tipo"],
+            "data": d.isoformat() if hasattr(d, "isoformat") else str(d),
+            "moeda": r["moeda"], "valor": float(r["valor"]),
+            "valor_brl": None if r["valor_brl"] is None else float(r["valor_brl"]),
+            "obs": r["obs"] or "",
+            "criado_em": criado.isoformat() if hasattr(criado, "isoformat") else str(criado)}
+
+
+async def corretora_criar(dono: str, nome: str) -> dict:
+    nome = (nome or "").strip()[:60]
+    if not nome:
+        return {"ok": False, "motivo": "Informe o nome da corretora."}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        ja = await conn.fetchrow(
+            "SELECT id, arquivada_em FROM corretoras WHERE dono = $1 AND lower(nome) = lower($2)",
+            dono, nome)
+        if ja:
+            if ja["arquivada_em"] is not None:
+                # Recriar uma arquivada a devolve, com o saldo dela: é a mesma corretora.
+                await conn.execute("UPDATE corretoras SET arquivada_em = NULL WHERE id = $1", ja["id"])
+                return {"ok": True, "id": ja["id"], "reativada": True}
+            return {"ok": False, "motivo": "Já existe uma corretora com esse nome."}
+        cid = await conn.fetchval(
+            "INSERT INTO corretoras (dono, nome) VALUES ($1, $2) RETURNING id", dono, nome)
+    return {"ok": True, "id": cid}
+
+
+async def corretora_editar(dono: str, corretora_id: int, nome: str) -> dict:
+    nome = (nome or "").strip()[:60]
+    if not nome:
+        return {"ok": False, "motivo": "Informe o nome da corretora."}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        outra = await conn.fetchval(
+            "SELECT id FROM corretoras WHERE dono = $1 AND lower(nome) = lower($2) AND id <> $3",
+            dono, nome, corretora_id)
+        if outra:
+            return {"ok": False, "motivo": "Já existe uma corretora com esse nome."}
+        st = await conn.execute("UPDATE corretoras SET nome = $1 WHERE id = $2 AND dono = $3",
+                                nome, corretora_id, dono)
+    if st.split()[-1] != "1":
+        return {"ok": False, "motivo": "Corretora não encontrada."}
+    return {"ok": True}
+
+
+async def corretora_arquivar(dono: str, corretora_id: int, arquivar: bool) -> dict:
+    """Arquivar tira a corretora da tela e dos destinos de saque; não mexe no saldo."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        st = await conn.execute(
+            "UPDATE corretoras SET arquivada_em = CASE WHEN $1 THEN COALESCE(arquivada_em, NOW()) "
+            "ELSE NULL END WHERE id = $2 AND dono = $3", arquivar, corretora_id, dono)
+    if st.split()[-1] != "1":
+        return {"ok": False, "motivo": "Corretora não encontrada."}
+    return {"ok": True}
+
+
+async def corretora_excluir(dono: str, corretora_id: int) -> dict:
+    """Só sem movimento nenhum: o saldo de uma corretora é feito dos lançamentos dela e das
+    transferências das casas. Com histórico, o caminho é arquivar."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            n = await conn.fetchval(
+                "SELECT (SELECT COUNT(*) FROM corretora_mov WHERE corretora_id = $1 AND dono = $2)"
+                " + (SELECT COUNT(*) FROM caixa_mov WHERE corretora_id = $1 AND dono = $2)",
+                corretora_id, dono)
+            if n:
+                return {"ok": False, "motivo": f"A corretora tem {n} lançamento(s). Arquive em vez de excluir."}
+            st = await conn.execute("DELETE FROM corretoras WHERE id = $1 AND dono = $2",
+                                    corretora_id, dono)
+    if st.split()[-1] != "1":
+        return {"ok": False, "motivo": "Corretora não encontrada."}
+    return {"ok": True}
+
+
+async def corretora_lancar(dono: str, corretora_id: int, tipo: str, data: str, moeda: str,
+                           valor, valor_brl=None, obs: str = "") -> dict:
+    tipo = (tipo or "").strip().lower()
+    v = _corretora_valida(tipo, data, moeda, valor, valor_brl)
+    if isinstance(v, dict):
+        return v
+    iso, moeda, valor, brl = v
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            ok = await conn.fetchval("SELECT 1 FROM corretoras WHERE id = $1 AND dono = $2",
+                                     corretora_id, dono)
+            if not ok:
+                return {"ok": False, "motivo": "Corretora não encontrada."}
+            if tipo == "inicial":
+                # Um saldo inicial por moeda: informar de novo SUBSTITUI (é o corte dela).
+                await conn.execute(
+                    "DELETE FROM corretora_mov WHERE corretora_id = $1 AND dono = $2 "
+                    "AND tipo = 'inicial' AND moeda = $3", corretora_id, dono, moeda)
+            # Argumento no TIPO da coluna (o asyncpg não converte): DATE e NUMERIC.
+            await conn.execute(
+                "INSERT INTO corretora_mov (dono, corretora_id, tipo, data, moeda, valor, "
+                "valor_brl, obs) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+                dono, corretora_id, tipo, date.fromisoformat(iso), moeda, Decimal(str(valor)),
+                None if brl is None else Decimal(str(brl)), (obs or "").strip()[:280])
+    logger.info("corretora: %s dono=%s corretora=%s %s %.2f brl=%s data=%s",
+                tipo, dono, corretora_id, moeda, valor, brl, iso)
+    return {"ok": True}
+
+
+async def corretora_editar_mov(dono: str, mov_id: int, data: str, valor,
+                               valor_brl=None, obs: str = "") -> dict:
+    """Edita data, quantidade, R$ e observação. Tipo e moeda não mudam (são o fato)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT tipo, moeda FROM corretora_mov WHERE id = $1 AND dono = $2", mov_id, dono)
+        if not row:
+            return {"ok": False, "motivo": "Lançamento não encontrado."}
+        v = _corretora_valida(row["tipo"], data, row["moeda"], valor, valor_brl)
+        if isinstance(v, dict):
+            return v
+        iso, _m, valor, brl = v
+        await conn.execute(
+            "UPDATE corretora_mov SET data = $1, valor = $2, valor_brl = $3, obs = $4 "
+            "WHERE id = $5 AND dono = $6",
+            date.fromisoformat(iso), Decimal(str(valor)),
+            None if brl is None else Decimal(str(brl)), (obs or "").strip()[:280], mov_id, dono)
+    return {"ok": True}
+
+
+async def corretora_excluir_mov(dono: str, mov_id: int) -> dict:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        st = await conn.execute("DELETE FROM corretora_mov WHERE id = $1 AND dono = $2",
+                                mov_id, dono)
+    if st.split()[-1] != "1":
+        return {"ok": False, "motivo": "Lançamento não encontrado."}
+    return {"ok": True}
+
+
+async def _caixa_transf_valida(conn, dono: str, p, tipo: str, corretora_id, taxa,
+                               valor: float) -> tuple | dict:
+    """Destino do saque / origem do depósito e a taxa da transferência (s398).
+
+    Só em conta de outra moeda (a corretora guarda moeda estrangeira) e só em saque ou
+    depósito. A taxa é opcional e só existe com corretora: sem corretora não há
+    transferência, e a taxa não teria de onde sair."""
+    if corretora_id in (None, "", 0):
+        return None, None
+    if tipo not in ("saque", "deposito"):
+        return {"ok": False, "motivo": "Só saque e depósito têm corretora."}
+    if _moeda_conta(p) == "BRL":
+        return {"ok": False, "motivo": "Conta em R$ não transfere para corretora."}
+    try:
+        corretora_id = int(corretora_id)
+    except (TypeError, ValueError):
+        return {"ok": False, "motivo": "Corretora inválida."}
+    ok = await conn.fetchval("SELECT 1 FROM corretoras WHERE id = $1 AND dono = $2",
+                             corretora_id, dono)
+    if not ok:
+        return {"ok": False, "motivo": "Corretora não encontrada."}
+    if taxa in (None, ""):
+        return corretora_id, None
+    try:
+        taxa = round(float(taxa), 2)
+    except (TypeError, ValueError):
+        return {"ok": False, "motivo": "Taxa inválida."}
+    if taxa < 0:
+        return {"ok": False, "motivo": "A taxa não pode ser negativa."}
+    if tipo == "saque" and taxa >= valor:
+        return {"ok": False, "motivo": "A taxa não pode ser maior que o saque."}
+    return corretora_id, (taxa or None)
+
+
+async def cambio_visao(dono: str) -> dict:
+    """Bolsos de câmbio + corretoras do dono, numa varredura só (a regra da s247).
+
+    Para cada conta de casa em outra moeda, a MESMA projeção da Caixa (`_caixa_projetar`)
+    devolve os eventos que mexeram no saldo; as corretoras somam os lançamentos delas e as
+    transferências; o `bolso.montar_bolsos` aplica o custo médio. Cotação que falta (rede,
+    dia sem candle) não vira zero: o bolso conta e a tela diz."""
+    import bolso as _bolso
+    import cambio as _cambio
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        parceiros = await conn.fetch(
+            "SELECT id, casa, nome, arquivado, moeda FROM parceiros WHERE dono = $1 "
+            "AND COALESCE(moeda, 'BRL') <> 'BRL'", dono)
+        movs = [_caixa_mov_dict(r) | {"parceiro_id": r["parceiro_id"]} for r in await conn.fetch(
+            "SELECT * FROM caixa_mov WHERE dono = $1 ORDER BY data, id", dono)]
+        apostas = await conn.fetch(
+            "SELECT b.id, b.casa, b.parceiro, b.stake, b.odd, b.resultado, b.data, b.criado_em, "
+            "b.stake_orig, b.moeda, b.cotacao, b.stake_freebet FROM bilhetes b "
+            "JOIN parceiros p ON p.dono = b.dono AND p.casa = b.casa AND p.nome = b.parceiro "
+            "WHERE b.dono = $1 AND COALESCE(p.moeda, 'BRL') <> 'BRL'", dono)
+        corretoras = [_corretora_dict(r) for r in await conn.fetch(
+            "SELECT * FROM corretoras WHERE dono = $1 ORDER BY lower(nome)", dono)]
+        cmovs = [_corretora_mov_dict(r) for r in await conn.fetch(
+            "SELECT * FROM corretora_mov WHERE dono = $1 ORDER BY data, id", dono)]
+
+    pmap = {p["id"]: p for p in parceiros}
+    por_conta: dict[int, list] = {}
+    for m in movs:
+        por_conta.setdefault(m["parceiro_id"], []).append(m)
+    por_chave: dict[tuple, list] = {}
+    for a in apostas:
+        por_chave.setdefault((a["casa"], a["parceiro"]), []).append(dict(a))
+
+    contas = []
+    for p in parceiros:
+        moeda = _moeda_conta(p)
+        ev: list = []
+        res = _caixa_projetar(por_conta.get(p["id"], []),
+                              por_chave.get((p["casa"], p["nome"]), []), moeda, p["casa"], ev)
+        contas.append({"parceiro_id": p["id"], "casa": p["casa"], "parceiro": p["nome"],
+                       "arquivado": p["arquivado"], "moeda": moeda, "ligada": res["ligada"],
+                       "banca": res["banca"], "eventos": ev,
+                       "rotulo": f'{p["casa"]} · {p["nome"]}'})
+
+    nomes = {c["id"]: c["nome"] for c in corretoras}
+    transf = []
+    for m in movs:
+        if m.get("corretora_id") is None:
+            continue
+        p = pmap.get(m["parceiro_id"])
+        if not p:
+            continue
+        transf.append({"mov_id": m["id"], "corretora_id": m["corretora_id"], "tipo": m["tipo"],
+                       "data": m["data"], "valor": m["valor"], "taxa": m.get("taxa"),
+                       "moeda": (m.get("moeda") or _moeda_conta(p)).upper(),
+                       "parceiro_id": p["id"],
+                       "rotulo": f'{p["casa"]} · {p["nome"]}'})
+    for m in cmovs:
+        m["rotulo"] = nomes.get(m["corretora_id"], "")
+
+    # Cotações: as datas que o bolso vai pedir, por moeda, carregadas UMA vez por moeda.
+    datas: dict[str, set] = {}
+    for c in contas:
+        if not c["ligada"]:
+            continue
+        for e in c["eventos"]:
+            if e.get("data"):
+                datas.setdefault(c["moeda"], set()).add(str(e["data"])[:10])
+    for t in transf:
+        datas.setdefault(t["moeda"], set()).add(str(t["data"])[:10])
+    for m in cmovs:
+        datas.setdefault(m["moeda"], set()).add(m["data"])
+    falhou: set = set()
+    for moeda, isos in datas.items():
+        try:
+            await _cambio.carregar(moeda, sorted(isos))
+        except Exception:
+            logger.warning("cambio: sem cotações %s para o bolso de %s", moeda, dono)
+            falhou.add(moeda)
+
+    def cot_dia(moeda, iso):
+        if moeda in falhou or not iso:
+            return None
+        try:
+            return _cambio.cotacao(moeda, str(iso)[:10])
+        except Exception:
+            return None
+
+    hoje = await _caixa_taxas_hoje(set(datas) | {c["moeda"] for c in contas})
+    bolsos = _bolso.montar_bolsos(contas, cmovs, transf, cot_dia, hoje)
+    saldos = _bolso.saldos_corretoras(cmovs, transf)
+    for c in corretoras:
+        c["saldos"] = {m: v for (cid, m), v in saldos.items() if cid == c["id"]}
+        c["movimentos"] = [m for m in cmovs if m["corretora_id"] == c["id"]]
+        c["transferencias"] = [t for t in transf if t["corretora_id"] == c["id"]]
+    return {"bolsos": bolsos, "corretoras": corretoras,
+            "cotacoes_hoje": {m: v for m, v in hoje.items() if m != "BRL"}}
 
 
 async def dashboard_rows(donos: list[str]) -> list[dict]:

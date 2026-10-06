@@ -725,6 +725,48 @@ ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS ref TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS caixa_mov_ref ON caixa_mov (parceiro_id, ref)
     WHERE ref IS NOT NULL;
 
+-- CORRETORAS E CÂMBIO (s398, passo 6 do `docs/PLANO_MOEDA_POR_CONTA.md`). Decisão do Feca
+-- com o Gabriel (06/10/2026): o dinheiro em USDT circula entre casas por corretora
+-- (Binance, Bybit), e o câmbio só se REALIZA quando o dono troca a moeda por real. A
+-- corretora não é casa: não tem aposta, não tem custo de conta e não entra em filtro, por
+-- isso tabela própria e não `parceiros` (lido por dezenas de queries que a tratariam como
+-- casa sem aposta).
+--   · `corretoras`     → o cadastro. Arquivar tira da tela; excluir só sem movimento.
+--   · `corretora_mov`  → o que acontece DENTRO da corretora, por moeda: `inicial` (saldo
+--                        numa data, o corte dela naquela moeda), `compra` (paguei R$
+--                        `valor_brl`, recebi `valor`), `venda` (vendi `valor`, recebi R$
+--                        `valor_brl`: é ESTA que realiza o câmbio) e `ajuste`.
+--   · `caixa_mov.corretora_id` + `taxa` → a TRANSFERÊNCIA entre casa e corretora é UM
+--                        lançamento só, visto pelos dois lados: o saque da casa com destino
+--                        é a entrada da corretora (`valor − taxa`), e o depósito na casa com
+--                        origem é a saída da corretora (`valor + taxa`). Dois lançamentos
+--                        ligados poderiam morrer separados e deixar saldo fantasma.
+CREATE TABLE IF NOT EXISTS corretoras (
+    id            BIGSERIAL PRIMARY KEY,
+    dono          TEXT NOT NULL,
+    nome          TEXT NOT NULL,
+    arquivada_em  TIMESTAMPTZ,
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS corretoras_dono_nome ON corretoras (dono, lower(nome));
+CREATE TABLE IF NOT EXISTS corretora_mov (
+    id            BIGSERIAL PRIMARY KEY,
+    dono          TEXT NOT NULL,
+    corretora_id  BIGINT NOT NULL REFERENCES corretoras(id) ON DELETE CASCADE,
+    tipo          TEXT NOT NULL CHECK (tipo IN ('inicial','compra','venda','ajuste')),
+    data          DATE NOT NULL,
+    moeda         TEXT NOT NULL,
+    valor         NUMERIC(14,2) NOT NULL,
+    valor_brl     NUMERIC(14,2),
+    obs           TEXT,
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS corretora_mov_dono ON corretora_mov (dono, corretora_id, data);
+-- RESTRICT: corretora com transferência gravada não se apaga (o saldo dela é feito delas).
+ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS corretora_id BIGINT
+    REFERENCES corretoras(id) ON DELETE RESTRICT;
+ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS taxa NUMERIC(14,2);
+
 -- A exclusão de conta é hard delete com snapshot (ver `lixeira_contas` acima). Os
 -- lançamentos da caixa saem junto pelo ON DELETE CASCADE, então precisam entrar no
 -- MESMO snapshot — senão restaurar a conta devolveria as apostas e perderia o

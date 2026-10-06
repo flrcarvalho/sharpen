@@ -59,6 +59,10 @@ class _FakeConn:
             return self.movs
         return []
 
+    async def fetchval(self, sql, *a):
+        # s398: a corretora existe e é do dono (`_caixa_transf_valida`).
+        return 1 if "FROM corretoras" in sql else None
+
     async def execute(self, sql, *a):
         self.execs.append((sql, a))
         if sql.strip().upper().startswith("INSERT"):
@@ -84,6 +88,7 @@ class _FakePool:
 
 
 CONTA = {"id": 7, "casa": "Superbet", "nome": "nicoleel01 [Richard]", "arquivado": False}
+CONTA_USDT = {**CONTA, "casa": "Betpanda", "moeda": "USDT"}
 
 
 def _lancar(conn, **kw):
@@ -146,13 +151,14 @@ def test_cada_argumento_do_insert_vai_no_tipo_da_coluna():
     deixou o segundo passar. Aqui a tabela inteira é conferida de uma vez.
 
     Ordem do INSERT: dono, parceiro_id, tipo, data, valor, obs, projetado, abertas_corte,
-    moeda (s391: a moeda da conta no instante do lançamento).
+    moeda (s391: a moeda da conta no instante do lançamento), corretora_id e taxa (s398: a
+    transferência com uma corretora).
     """
     esperado = [
         ("dono", str), ("parceiro_id", int), ("tipo", str), ("data", date),
         ("valor", Decimal), ("obs", str),
         ("projetado", (Decimal, type(None))), ("abertas_corte", (list, type(None))),
-        ("moeda", str),
+        ("moeda", str), ("corretora_id", (int, type(None))), ("taxa", (Decimal, type(None))),
     ]
     conn = _FakeConn(CONTA, movs=[_mov("inicial", "2026-08-01", Decimal("1000"))])
     _lancar(conn, tipo="conferencia", valor=900.0)          # preenche `projetado`
@@ -160,7 +166,11 @@ def test_cada_argumento_do_insert_vai_no_tipo_da_coluna():
         {"id": 11, "data": "28/07/2026", "stake": "400,00", "odd": None, "resultado": ""}])
     _lancar(conn2, tipo="inicial", data="01/08/2026", valor=3000.0)   # preenche `abertas_corte`
 
-    for args in (conn.inserts[0][1], conn2.inserts[0][1]):
+    conn3 = _FakeConn(CONTA_USDT)
+    _lancar(conn3, tipo="saque", valor=100.0, corretora_id=3, taxa=1.0)  # preenche os dois
+    assert conn3.inserts[0][1][9] == 3 and conn3.inserts[0][1][10] == Decimal("1.00")
+
+    for args in (conn.inserts[0][1], conn2.inserts[0][1], conn3.inserts[0][1]):
         assert len(args) == len(esperado), "o INSERT mudou de forma — reveja esta lista"
         for valor_arg, (nome, tipo_ok) in zip(args, esperado):
             assert isinstance(valor_arg, tipo_ok), (
@@ -168,6 +178,29 @@ def test_cada_argumento_do_insert_vai_no_tipo_da_coluna():
                 f"{getattr(tipo_ok, '__name__', tipo_ok)}")
     # bool é subclasse de int: parceiro_id nunca pode chegar como True/False
     assert not isinstance(conn.inserts[0][1][1], bool)
+
+
+# ── Transferência com corretora (s398) ────────────────────────────────────────
+
+def test_transferencia_so_em_conta_de_outra_moeda_e_so_em_saque_ou_deposito():
+    """A corretora guarda moeda estrangeira: conta em R$ não transfere para ela, e
+    ajuste/inicial não têm destino. A taxa não pode engolir o saque."""
+    assert _lancar(_FakeConn(CONTA), tipo="saque", corretora_id=3)["ok"] is False
+    assert _lancar(_FakeConn(CONTA_USDT), tipo="ajuste", corretora_id=3)["ok"] is False
+    assert _lancar(_FakeConn(CONTA_USDT), tipo="saque", valor=10.0, corretora_id=3,
+                   taxa=10.0)["ok"] is False
+    assert _lancar(_FakeConn(CONTA_USDT), tipo="saque", valor=10.0, corretora_id=3,
+                   taxa=-1.0)["ok"] is False
+    ok = _FakeConn(CONTA_USDT)
+    assert _lancar(ok, tipo="deposito", valor=50.0, corretora_id=3, taxa=0)["ok"] is True
+    assert ok.inserts[0][1][9] == 3 and ok.inserts[0][1][10] is None, "taxa zero vira ausência"
+
+
+def test_sem_corretora_a_taxa_e_ignorada():
+    """Sem corretora não há transferência, e a taxa não teria de onde sair."""
+    conn = _FakeConn(CONTA_USDT)
+    assert _lancar(conn, tipo="saque", valor=50.0, taxa=2.0)["ok"] is True
+    assert conn.inserts[0][1][9] is None and conn.inserts[0][1][10] is None
 
 
 # ── Regras de gravação ────────────────────────────────────────────────────────

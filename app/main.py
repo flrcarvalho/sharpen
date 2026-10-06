@@ -97,6 +97,8 @@ from repository import (
     resumo_parceiro, resumo_perfil, upsert_bilhetes,
     logo_salvar, logo_ler, logo_apagar, logo_donos,
     CAIXA_TIPOS, caixa_conta, caixa_lancar, caixa_editar_mov, caixa_excluir_mov, caixa_visao,
+    cambio_visao, corretora_criar, corretora_editar, corretora_arquivar, corretora_excluir,
+    corretora_lancar, corretora_editar_mov, corretora_excluir_mov,
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
     registrar_sombra_modelo, pontuar_saida, custo_usd,
@@ -4631,6 +4633,9 @@ class CaixaLancarRequest(BaseModel):
     data: str
     valor: float
     obs: Optional[str] = None
+    # s398: saque com destino / depósito com origem numa corretora, e a taxa da rede.
+    corretora_id: Optional[int] = None
+    taxa: Optional[float] = None
 
 
 @app.get("/caixa/conta")
@@ -4653,7 +4658,7 @@ async def caixa_lancar_route(body: CaixaLancarRequest, dono: str = Depends(dono_
     if body.tipo not in CAIXA_TIPOS:
         raise HTTPException(400, "Tipo de lançamento inválido.")
     res = await caixa_lancar(dono, body.parceiro_id, body.tipo, body.data,
-                             body.valor, body.obs or "")
+                             body.valor, body.obs or "", body.corretora_id, body.taxa)
     if not res.get("ok"):
         raise HTTPException(400, res.get("motivo", "Não foi possível lançar."))
     return res
@@ -4663,6 +4668,11 @@ class CaixaEditarRequest(BaseModel):
     data: str
     valor: float
     obs: Optional[str] = None
+    # s398: só com `transferencia` a corretora e a taxa são regravadas (None limpa). Sem
+    # ela, um cliente antigo editando a data não apaga o destino de um saque.
+    transferencia: bool = False
+    corretora_id: Optional[int] = None
+    taxa: Optional[float] = None
 
 
 @app.patch("/caixa/movimento/{mov_id}")
@@ -4670,7 +4680,8 @@ async def caixa_editar_mov_route(mov_id: int, body: CaixaEditarRequest,
                                  dono: str = Depends(dono_efetivo)):
     """Edita data, valor e observação de um lançamento. O TIPO não muda: trocar um
     depósito em saque é apagar um fato e criar outro."""
-    res = await caixa_editar_mov(dono, mov_id, body.data, body.valor, body.obs or "")
+    res = await caixa_editar_mov(dono, mov_id, body.data, body.valor, body.obs or "",
+                                 body.transferencia, body.corretora_id, body.taxa)
     if not res.get("ok"):
         motivo = res.get("motivo", "Não foi possível editar.")
         raise HTTPException(404 if "não encontrado" in motivo else 400, motivo)
@@ -4683,6 +4694,88 @@ async def caixa_excluir_mov_route(mov_id: int, dono: str = Depends(dono_efetivo)
     if not res.get("ok"):
         raise HTTPException(404, res.get("motivo", "Lançamento não encontrado."))
     return res
+
+
+# ── Corretoras e câmbio (s398, passo 6 do `docs/PLANO_MOEDA_POR_CONTA.md`) ─────────────
+# Mesmas regras de acesso da Caixa: leitura por `dono_leitura`, escrita por `dono_efetivo`.
+def _ou_400(res: dict, padrao: str) -> dict:
+    if not res.get("ok"):
+        motivo = res.get("motivo", padrao)
+        raise HTTPException(404 if "não encontrad" in motivo else 400, motivo)
+    return res
+
+
+@app.get("/cambio/visao")
+async def cambio_visao_route(dono: str = Depends(dono_leitura)):
+    """Bolso de câmbio por moeda + corretoras com saldo e extrato (Contas & Parceiros)."""
+    return await cambio_visao(dono)
+
+
+class CorretoraRequest(BaseModel):
+    nome: str
+
+
+@app.post("/corretoras")
+async def corretora_criar_route(body: CorretoraRequest, dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_criar(dono, body.nome), "Não foi possível criar.")
+
+
+@app.post("/corretoras/{corretora_id}/editar")
+async def corretora_editar_route(corretora_id: int, body: CorretoraRequest,
+                                 dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_editar(dono, corretora_id, body.nome), "Não foi possível editar.")
+
+
+@app.post("/corretoras/{corretora_id}/arquivar")
+async def corretora_arquivar_route(corretora_id: int, dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_arquivar(dono, corretora_id, True), "Não foi possível arquivar.")
+
+
+@app.post("/corretoras/{corretora_id}/reativar")
+async def corretora_reativar_route(corretora_id: int, dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_arquivar(dono, corretora_id, False), "Não foi possível reativar.")
+
+
+@app.delete("/corretoras/{corretora_id}")
+async def corretora_excluir_route(corretora_id: int, dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_excluir(dono, corretora_id), "Não foi possível excluir.")
+
+
+class CorretoraMovRequest(BaseModel):
+    tipo: str
+    data: str
+    moeda: str
+    valor: float
+    valor_brl: Optional[float] = None
+    obs: Optional[str] = None
+
+
+@app.post("/corretoras/{corretora_id}/lancar")
+async def corretora_lancar_route(corretora_id: int, body: CorretoraMovRequest,
+                                 dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_lancar(dono, corretora_id, body.tipo, body.data, body.moeda,
+                                          body.valor, body.valor_brl, body.obs or ""),
+                   "Não foi possível lançar.")
+
+
+class CorretoraMovEditarRequest(BaseModel):
+    data: str
+    valor: float
+    valor_brl: Optional[float] = None
+    obs: Optional[str] = None
+
+
+@app.patch("/corretoras/movimento/{mov_id}")
+async def corretora_editar_mov_route(mov_id: int, body: CorretoraMovEditarRequest,
+                                     dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_editar_mov(dono, mov_id, body.data, body.valor,
+                                              body.valor_brl, body.obs or ""),
+                   "Não foi possível editar.")
+
+
+@app.delete("/corretoras/movimento/{mov_id}")
+async def corretora_excluir_mov_route(mov_id: int, dono: str = Depends(dono_efetivo)):
+    return _ou_400(await corretora_excluir_mov(dono, mov_id), "Não foi possível excluir.")
 
 
 @app.get("/incompletos")
