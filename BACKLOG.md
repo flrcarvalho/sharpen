@@ -1392,6 +1392,17 @@ Feca em 05/10/2026 eram 14 combos abertas fora da lista e da contagem. O cash e 
 portfólio (`/value`) não dependem disso. Saída: o painel usar o mesmo `_fetch_combos` só
 com `status=OPEN`. Também sem prova: combo vendida antes de liquidar (nenhuma medida).
 
+### 4.0f O harness da Bet365 falha em UTC: o CI para nele (s397). **VIVA, reproduzida**
+
+`TZ=UTC node extensor/harness/run.mjs` → `FALHA Bet365` (resolver: "não achou o
+bilhete", "esperava achar o carimbo 20260923135000 paginando"); no fuso de Brasília
+passa. O CI roda em UTC e estava vermelho desde 04/10 por outro motivo (o
+`test_contas_status`, consertado na s397), então este passo nem rodava; agora é ele que
+para o CI, e os passos seguintes (auditoria do SharpenUp, tokens, gate de docs) seguem
+pulados. Decidir se é só o teste ou o código: o resolver roda no navegador do usuário,
+e a Bet365 AU (s392) tem usuário fora do fuso de Brasília. **Não mascarar com `TZ` no
+workflow antes de saber qual dos dois é.**
+
 ### 4.0e Caixa da Polymarket: o que acontece quando a trava não fecha (s397). **VIVA, não medida**
 
 A Caixa automática lê as transferências pelo Blockscout e só confere se a soma fecha com
