@@ -1,53 +1,73 @@
-# CASA_1XBET
-## Camada de tradução — 1xBet → padrão global (FDC Capital)
+# CASA_1XBIT
+## Camada de tradução — 1xBit → padrão global (FDC Capital)
 
-> **Esta é a camada FINA.** Ela só descreve o que a 1xBet faz de diferente. Cálculo, resultado,
+> **Esta é a camada FINA.** Ela só descreve o que a 1xBit faz de diferente. Cálculo, resultado,
 > descrição e output são **globais** — `global/MASTER_*`. Arquivo de casa **traduz**, nunca
 > redefine regra global (invariante 2 do `CLAUDE.md`).
 >
-> Reconhecida na **sessão 298**, pelo `tools/recon_casa.js` — **a primeira casa ligada sem
-> ninguém aqui ter conta nela**. O payload veio de um tester; a sessão nunca saiu do navegador
-> dele. Ver [`docs/GUIA_RECON_TESTER.md`](../docs/GUIA_RECON_TESTER.md).
->
-> Base da medição: **91 bilhetes / 271 pernas** de uma conta real (21→26/08/2026), mais três
-> consultas ao vivo de 365 dias (95 bilhetes). Tudo o que está abaixo foi **medido**; o que não
-> foi, está marcado como não medido.
+> **Espelho da 1xBet** (§1.2): o corpo deste arquivo é o da [`CASA_1XBET`](CASA_1XBET.md), medido
+> lá, e o recon desta casa confirmou cada campo. Base da medição aqui: **8 bilhetes** na conta (`BetsSummaryInfo.Count`, 12 meses), os 8 na fixture e os 8 cards conferidos na tela, **todos perdidos**. Ganho, aberta, anulada e sistema **não foram vistos nesta casa**: valem os da 1xBet e das outras espelho.
 
 ---
 
 ## 1. Identidade
 
-- **Marca:** `1xBet` · **domínio regulado:** `1xbet.bet.br`
-- **Chave no sistema:** `1XBET` → display `1xBet`
-- **Motor:** **PRÓPRIO**. App Vue, API toda em `/service/` no host da casa. **Não é**
-  Altenar/BIA, **não é** BetBy/sptpub, **não é** Kambi, **não é** BetConstruct, **não é**
-  BlueBrown (Novibet). Inject próprio (`extensor/x1_inject.js`), formatador próprio.
-- ⚠️ **A grafia `1xBet` já existia na base antes do registro:** 267 bilhetes e 1 conta (dono
-  `arrudex`, conta `Eu`, `origem='import'`, todos sem `codigo_bilhete`). Grafia **única** — a
-  varredura das 7 tabelas onde `casa` é texto não achou `1XBET`, `1x Bet` nem variante. O
-  round-trip `_casa_display(_display_to_key("1xBet"))` fecha em identidade. Ver o aviso de
-  mudança RETROATIVA em `docs/SHARPENUP_ARQUITETURA.md §5`.
-- **Espelhos no sistema (s391):** SapphireBet, PariPesa e Megapari, e a 1xBit (s399) — o mesmo
-  endpoint e o mesmo JSON em `/bethistory-api/Web/`, com conta em dólar. Cada uma tem o próprio
-  `CASA_*.md`. ⚠️ A 1xBit mostrou que o espelho pode mudar o **protocolo** sem mudar o JSON:
-  header `x-auth` obrigatório e teto de `Count` em 500 (`CASA_1XBIT §2.2`). Para a
-  próxima (Melbet, 22bet e afins), **prove o motor antes** pelo padrão da Betfast: mesmo caminho
-  de API, mesmos nomes de campo num payload real.
+- **Marca:** `1xBit` · **domínio:** `1xbit1.com` (o do recon, 06/10/2026). ⚠️ **Roda em espelho
+  numerado** (`1xbit1.com`, `1xbit2.com`…), por isso a casa fica fora do `CASA_HOSTS` do popup
+  (domínio novo não trava). O `manifest.json` injeta em `1xbit.com` e `1xbit1.com`: **espelho
+  com outro número não recebe o inject no load**; o popup ainda o injeta na aba aberta.
+- **Chave no sistema:** `1XBIT` → display `1xBit`
+- **Motor:** o da **1xBet** (§1.2). Inject `extensor/x1_inject.js`, formatador `formatTicket1X`.
+- **Grafia (s399):** a base não tinha nenhuma (medido em 06/10/2026, `parceiros` e `bilhetes`),
+  então vale a da marca. ⚠️ **Uma letra da `1xBet`** (`1XBIT` × `1XBET`): escolha a casa **na
+  lista** ao criar a conta.
+- **Moeda:** **USDT** (§1.1). A casa é só cripto.
+
+### 1.1 A MOEDA é da conta  ⭐
+
+A API diz `CurrencyCode: "USDT"` em todo bilhete, e o bloco capturado leva `Moeda: USDT`
+com o dinheiro rotulado na moeda da casa, nunca "R$".
+
+- Cadastre a conta com a moeda **USDT** antes da 1ª captura
+  ([`docs/PLANO_MOEDA_POR_CONTA.md`](../docs/PLANO_MOEDA_POR_CONTA.md)). Conta em real gera o aviso de
+  contradição no `/salvar`; USD × USDT não (a casa não distingue, decisão do Feca, 04/10/2026).
+- O bloco também leva `Carimbo de colocação: AAAAMMDDhhmmss` (São Paulo): é a data da cotação.
+
+### 1.2 Espelho da 1xBet
+
+Mesmo motor, provado no recon de 06/10/2026 com conta do Feca: `POST
+/bethistory-api/Web/GetBetInfoHistoryWithSummaryByDates`, corpo com `DateFrom`/`DateTo`/`Count`/
+`CfView`/`PartnerId`, resposta `{BetInfos, BetsSummaryInfo}`, `BetStatus` 1/2/4. **Muda só o
+caminho** (`/bethistory-api/Web/` no lugar de `/service/bethistory/`). Inject, formatador e robô
+são os da 1xBet. Irmãs no mesmo caminho: SapphireBet, PariPesa, Megapari e 1xBit.
+
+> **Ao mexer numa das cinco, rode o harness das cinco.**
+
+> ⚠️ **SIGILO**, aplicado por analogia com as outras espelho (decisão do Feca de 03/10/2026
+> para SapphireBet, PariPesa e Megapari; **a 1xBit não foi decidida nominalmente**): casa normal no seletor, mas **fora** de aviso ao
+> grupo de testers, do `changelog.json` e da home. Nenhum passo desta casa roda
+> `scripts/avisar_testers.py` (versão sai com nota genérica, `--so-changelog`).
 
 ---
 
 ## 2. Modo de ingestão e layout
 
-**Captura por API — passivo + replay** (`x1_inject.js`, mundo MAIN):
+**Captura por API — passivo + replay** (`x1_inject.js`, o MESMO da 1xBet, mundo MAIN).
+O que segue nesta seção foi medido na 1xBet (s298) e o recon desta casa confirmou o
+mesmo corpo e o mesmo JSON:
 
 ```
-POST /service/bethistory/GetBetInfoHistoryWithSummaryByDates
+POST /bethistory-api/Web/GetBetInfoHistoryWithSummaryByDates   (na 1xBet: /service/bethistory/)
 ```
 
-- **Auth por COOKIE.** Não há `Authorization`. Os headers são só de canal (`accept`,
-  `content-type`, `x-language`) — mas o inject **aprende de uma requisição real** mesmo assim,
-  porque o **corpo** carrega `PartnerId`, `PartnerGroupId`, `Whence`, `CfView` e `BonusUserId`,
-  que são do tenant e da conta.
+- **Auth NÃO é só cookie, ao contrário da 1xBet** (medido ao vivo, s399). A chamada leva o header
+  `x-auth` (mais `x-hd`, `x-app-n`, `x-svc-source`, `is-srv`, `x-requested-with`), e sem ele a
+  casa responde **401**. O inject **aprende os headers da requisição real** e os reenvia no replay,
+  então nada muda no código. É por isso que **a página de histórico tem de abrir antes** do
+  robô: sem uma requisição real não há header para aprender.
+- **O app guarda a referência do `fetch` no load.** Um gancho instalado depois do carregamento
+  não vê a chamada; só o `document_start` do inject (ou um iframe ganchado cedo, como no recon)
+  enxerga. Recarregar a extensão sem recarregar a aba da casa deixa a captura muda.
 - **Uma chamada traz ABERTAS e FECHADAS juntas.** Não há aba nem filtro de estado a alternar —
   diferente da Novibet, que exigiu `result:null`.
 - **O passivo FUNCIONA** (o `clone().text()` resolve; 34 de 34 no recon), ao contrário de
@@ -60,14 +80,24 @@ e reconsulta **essa mesma janela a cada ~5 segundos**, para sempre. Um passivo p
 capturaria 91 bilhetes de 95 e pareceria completo. O replay pede **12 meses**.
 
 **Não há paginação.** Não existe `skip`, `page`, `offset` nem cursor: os únicos controles são
-`Count` e a janela. Quando o lote volta menor que o total, o único movimento é **pedir um
-`Count` maior** — o inject escala (1000 → 5000 → …) até alcançar.
+`Count` e a janela.
 
-**Fim autoritativo de verdade:** `BetsSummaryInfo.Count` é o total da **janela** e **não muda**
-com o `Count` pedido. Medido ao vivo: `Count:10` devolveu 10 bilhetes e seguiu dizendo
-`Count: 95`; `Count:1000` e `Count:5000` devolveram os 95. Isso distingue *"acabou"* de *"a
-consulta encheu"* — exatamente o que o `Count` da Tivo **não** distinguia (s211), e por isso
-aqui não é preciso o segundo eixo de varrer a janela para trás.
+### 2.2 ⚠️ TETO DE `Count` = 500, o que só esta casa tem (s399)
+
+Medido ao vivo: `Count:500` passa e `Count:501` volta **HTTP 400**
+`{"ErrorCode":25,"ErrorName":"InvalidArgument","ErrorMessage":"Requested count must be less or
+equal 500"}`. O replay da 1xBet começava em `Count:1000` e **morria no primeiro pedido**: a
+captura entregava só a janela da tela, sem acusar bilhete faltante.
+
+O inject agora lê o teto **do texto da recusa** e passa a pedir nele; se o lote ainda vier menor
+que o total, **parte a janela ao meio** e varre cada metade (até 20 níveis).
+
+- **Fim autoritativo continua valendo:** `Count:3` devolveu 3 bilhetes e o
+  `BetsSummaryInfo.Count` seguiu dizendo 8.
+- **O filtro é por `BetDate`, inclusivo nas DUAS pontas:** `[ini, meio]` e `[meio, fim]`
+  devolvem o bilhete colocado exatamente em `meio` duas vezes (medido: 6 + 3 = 9 para 8). A
+  repetição sai por `BetId`; a fronteira nunca se perde.
+- **Janelas de 365 e 730 dias passam** com `Count:500`: não há teto de janela.
 
 **Não medido:** a profundidade real do histórico. A casa devolveu 95 em 365 dias, mas a conta
 só tinha 95 — não se provou se existe corte mais atrás. `UseArchive: true` já vem no corpo da
@@ -280,8 +310,8 @@ bilhete da amostra trouxe freebet ou crédito promocional.
 
 ## 10. Stake
 
-`BetSum`, em **reais**, como número (`150` = R$ 150,00). **Não há milésimos** (ao contrário da
-KTO). Não há stake por linha — não apareceu bilhete de sistema na amostra.
+`BetSum`, como número, **em USDT** (`CurrencyCode: "USDT"`). **Os números do TSV são os da casa**, na moeda dela: quem converte para
+R$ é o servidor, pela moeda da conta e pela cotação do dia da colocação (§1.1). Nunca a IA.
 
 ---
 
@@ -334,6 +364,16 @@ divergem entre 47% e 311%, enquanto o produto em float erra na 7ª casa (o `1609
 sem interseção. **A vitória fantasma da VaideBet/Novibet/Betpix365 não é risco nesta casa.**
 Ainda assim o bloco rotula o potencial explicitamente: o guarda custa nada e a casa pode mudar.
 
+### 11.5 Sistema (`BetTypeId` 2) — medido na SapphireBet, s391
+
+Não apareceu na 1xBet. `BetTypeName: "Sistema"`, `BetSystemType: 20203` (2 de 3). O bloco diz
+`Tipo: Sistema (…)`, nunca múltipla.
+
+- **Ganho:** a odd é `WinSum ÷ BetSum`, como todo `W` (o `88105563743`: 156,96 ÷ 60 = 2,616).
+- **Perdido:** a casa pode mandar **sem `Coef`** (`CoefView: ""`, o `88092600919`). A odd fica
+  **VAZIA**: o produto das pernas não é a odd de um sistema, e zero é uma odd que não existe
+  (`CLAUDE.md`, "Zero não é ausência"). O P/L de `L` é `−stake` e não depende dela.
+
 ---
 
 ## 12. Ruído a ignorar
@@ -359,6 +399,10 @@ Ainda assim o bloco rotula o potencial explicitamente: o guarda custa nada e a c
 6. **A tela pede só ~5,2 dias**, para sempre. Sem replay, faltam bilhetes em silêncio.
 7. **`Badminton `** com espaço final e **`Tenis de Mesa`** sem acento.
 8. **Não há paginação** — só `Count` e janela. O fim é o `BetsSummaryInfo.Count`.
+9. **Dinheiro em USDT**: o bloco leva `Moeda: USDT` e nenhum "R$" (§1.1).
+10. **Sistema perdido pode vir SEM `Coef`**: odd vazia, nunca produto nem zero (§11.5).
+11. **`Count` acima de 500 é HTTP 400** (§2.2): o inject recua para o teto e parte a janela.
+12. **Header `x-auth` obrigatório** (§2): abra o Histórico de apostas antes de capturar.
 
 ---
 
@@ -377,37 +421,39 @@ Específico desta casa:
 - [ ] Bilhete aberto **não** emitiu linha `Retorno:` — só `Retorno potencial:`.
 - [ ] Em `W`, a odd é `WinSum ÷ BetSum`.
 
-**Gate executável:** `node extensor/harness/run.mjs 1xbet` — 12 conferências travadas contra o
-payload real, com as 9 mutações da s298 provadas (cada uma quebra o caso).
+**Gate executável:** `node extensor/harness/run.mjs 1xbit` (conferência comum em
+`extensor/harness/x1_espelho.mjs`). Roda com o teto real (500) e com teto 3, que força a
+partição da janela; 6 mutações do inject da s399 provadas. As regras herdadas seguem travadas
+pelo caso da 1xBet.
 
 ---
 
-## 15. Exemplos golden (bilhetes reais — captura por API, 21→26/08/2026)
+## 15. Exemplos golden (bilhetes reais, recon de 06/10/2026, valores em USDT)
 
-| BetId | Situação | Stake | Odd correta | Resultado | Por que está aqui |
+Fixture: `extensor/harness/fixtures/1xbit.bethistory.json` (8 bilhetes, só os campos que o
+inject lê: sem id de conta, sem header).
+
+| BetId | Situação | Stake | Odd correta | Resultado | Fonte |
 |---|---|---|---|---|---|
-| `16108953` | ganha com perna anulada | 150,00 | **4,14166667** | `W` | a casa recalculou o `Coef`; a odd sai do dinheiro (621,25 ÷ 150) |
-| `16101007` | perdida com perna anulada | 150,00 | **4,5787** | `L` | o `Coef` declarado diz 8,607956 — **pré-anulação** |
-| `16061009` | perdida com **duas** anuladas | 150,00 | **2,375** | `L` | `Coef` 9,771938 → 4× a estrutura real |
-| `16100981` | perdida com uma anulada | 120,00 | **7,74** | `L` | `Coef` 23,0652 → 3× |
-| `16001193` | **anulada disfarçada de ganha** | 10,00 | **1** | `V` | `BetStatus=4`, `WinSum == BetSum` |
-| `16119951` | perdida limpa | 150,00 | **14,704694** | `L` | guarda contra "corrigir" o que não está quebrado |
-| `16131833` | em aberto | 180,00 | **7,7224** | *(vazio)* | `PossibleWinSum` 1390,03 confirmado no card (`7,722`) |
+| `88346311263` | acumulada perdida com perna anulada (desistência, `Coef` 1) | 24,50 | **8,9179** | `L` | json (card declara 33,175, pré-anulação) |
+| `88345477545` | simples perdida, "Handiсap" cirílico | 50,00 | **2,1** | `L` | card |
+| `88344024423` | simples perdida | 40,00 | **2,375** | `L` | card |
+| `88343782199` | simples perdida | 25,00 | **2,75** | `L` | card |
+| `88342809691` | acumulada perdida (3) | 20,00 | **25,13049** | `L` | card (`25.13`) |
+| `88342710499` | acumulada perdida (3) | 20,00 | **17,4105** | `L` | card (`17.41`) |
+| `88342557245` | acumulada perdida (3) | 20,00 | **31,455** | `L` | card |
+| `88342462855` | acumulada perdida (3) | 20,00 | **11,85597** | `L` | card (`11.856`) |
 
 ---
 
 ## Feedback para a camada global / MODELO
 
-- **Lição nova, generalizável:** *antes de derivar resultado do ENUM, prove que o enum separa os
-  casos*. O `MASTER` já pedia isso do dinheiro (lição da Stake, s257); esta casa mostra o mesmo
-  defeito com os papéis trocados. Vale como par simétrico no livro de armadilhas.
-- **Família de PII nova:** geolocalização em header (`x-location-latitude`/`-longitude`). Não é
-  credencial e não é campo de identidade — escapava dos dois crivos do coletor de recon. Já
-  corrigido em `tools/recon_casa.js` na mesma sessão.
-- **Homóglifo cirílico** é uma classe de defeito que nenhuma casa anterior mostrou. Se aparecer
-  em outra casa, o normalizador do `content.js` (`_latinX1`) é reusável como está.
+- **O espelho pode mudar o PROTOCOLO sem mudar o JSON.** Mesmo caminho e mesma resposta das
+  outras espelho, e ainda assim: header `x-auth` obrigatório e teto de `Count`. As docs das
+  outras três copiaram a medição da 1xBet (`Count:5000` devolvendo 95) sem repeti-la no caminho
+  `/bethistory-api/Web/`, e o teto pode existir nelas também. O inject agora cobre os dois casos.
 
 ---
 
 VERSÃO: 2026
-ATUALIZADO: 2026-08-26 (sessão 298 — nasce da 1ª captura reconhecida sem conta nossa)
+ATUALIZADO: 2026-10-06 (sessão 399, espelho da 1xBet, recon com conta do Feca)

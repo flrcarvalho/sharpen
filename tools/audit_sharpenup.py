@@ -163,6 +163,7 @@ CODIGO_EXEMPLO: dict[str, str] = {
     "SAPPHIREBET": "88153060447",
     "PARIPESA":   "88194577145",
     "MEGAPARI":   "88192410319",
+    "1XBIT":      "88342462855",
     # Bolsa de Aposta: o Exchange usa 9 dígitos e o Sportsbook 18. Séries distintas na mesma
     # casa — o gabarito aqui é o do Exchange, que é onde estão 418 dos 435 bilhetes.
     "BOLSADEAPOSTA": "119530135",

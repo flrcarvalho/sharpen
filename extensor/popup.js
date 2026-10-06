@@ -77,7 +77,8 @@ const CASA_HOSTS = {
   // Espelhos da 1xBet (s391). Só a PariPesa tem domínio estável. SapphireBet e Megapari
   // FICAM FORA de propósito: trocam de domínio (Megapari → `2479527mp.pro`), e casa sem
   // domínio listado não é checada aqui — senão o espelho novo travaria a captura. A
-  // amarração casa↔site continua no servidor (`casa_de_host`).
+  // amarração casa↔site continua no servidor (`casa_de_host`). A 1xBit (s399) fica fora pelo
+  // mesmo motivo: roda em espelho numerado (`1xbit1.com`, `1xbit2.com`…).
   "PariPesa":   ["paripesa.com"],
   "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject próprio
   // Betboo (s372) — 2ª casa bwin/Entain, ESPELHO da SportingBet (reusa o spb_inject).
@@ -297,6 +298,7 @@ async function capturar() {
                 : casa === "SapphireBet" ? "x1_inject.js"
                 : casa === "PariPesa" ? "x1_inject.js"
                 : casa === "Megapari" ? "x1_inject.js"
+                : casa === "1xBit" ? "x1_inject.js"
                 // SportingBet: 1º motor bwin/Entain do Sharpen — inject próprio.
                 // `spb_`, e não `sb_`, porque `sb_inject.js` já é da Superbet.
                 : casa === "SportingBet" ? "spb_inject.js"

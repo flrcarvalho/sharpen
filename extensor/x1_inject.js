@@ -23,6 +23,14 @@
 //     são `Count` e a janela. Quando o lote volta menor que o total, o único movimento
 //     possível é PEDIR UM `Count` MAIOR — é o que `arrancarReplay` escala.
 //
+//   • ⚠ NEM TODA ESPELHO ACEITA `Count` GRANDE (s399, medido ao vivo na 1xBit). Lá `Count:501`
+//     volta **HTTP 400** `{"ErrorCode":25,"ErrorMessage":"Requested count must be less or equal
+//     500"}`, e o `Count:1000` inicial matava o replay: a captura entregava só a janela da tela,
+//     sem erro de bilhete faltante. Por isso o teto que a casa DECLARA na recusa vira o `Count`,
+//     e quando nem ele basta a JANELA É PARTIDA AO MEIO. O filtro é por `BetDate`, inclusivo
+//     nas duas pontas (medido: `[ini, meio]` e `[meio, fim]` repetem o bilhete da fronteira), e
+//     a repetição sai no `byRef` por `BetId` — nenhuma das metades perde a fronteira.
+//
 // FIM AUTORITATIVO DE VERDADE: `BetsSummaryInfo.Count` é o total da JANELA e **não muda** com
 // o `Count` pedido. Medido ao vivo na conta real: `Count:10` devolveu 10 bilhetes e seguiu
 // dizendo `Count: 95`; `Count:1000` e `Count:5000` devolveram os 95. Isso distingue "acabou"
@@ -79,6 +87,12 @@
   const COUNT_INICIAL = 1000;
   const COUNT_TETO = 25000;
   const TENTATIVAS = 6;
+  // Partição da janela quando a casa tem teto de `Count` (s399). 20 níveis = fatias de ~30 s
+  // num ano. Só a fatia CHEIA desce de nível (a vazia ou a que coube volta na hora), então o
+  // custo cresce com a densidade de apostas, não com a profundidade. Quem chegar ao fundo vê o
+  // erro no autodiagnóstico em vez de bilhete faltando calado.
+  const PROF_MAX = 20;
+  let tetoCasa = null;                         // teto de `Count` que a casa declarou na recusa
 
   // ── normalização ────────────────────────────────────────────────────────────────────────
   // Dinheiro e odds vêm em REAIS, como número (150 = R$ 150,00). Não há milésimos.
@@ -230,7 +244,8 @@
     return { DateFrom: Math.floor(de.getTime() / 1000), DateTo: agora + 3600 };
   }
 
-  // Uma tentativa com um `Count`. Devolve `{total, veio}` ou null.
+  // Uma tentativa com um `Count`. Devolve `{total, veio}`, `{teto}` quando a casa recusou o
+  // tamanho dizendo o máximo, ou null.
   async function pedir(count, jan) {
     const corpo = JSON.stringify(Object.assign({}, corpoBase, jan, { Count: count }));
     let r;
@@ -240,7 +255,15 @@
         credentials: "include", body: corpo,
       });
     } catch (e) { erro = "replay falhou: " + (e && e.message); LOG(erro); return null; }
-    if (!r || !r.ok) { erro = "replay parou · HTTP " + (r && r.status); LOG(erro); return null; }
+    if (!r || !r.ok) {
+      // A recusa de tamanho NÃO é erro: é a casa dizendo o teto dela. Só o texto da recusa
+      // autoriza recuar — qualquer outro 4xx/5xx continua parando e sendo reportado.
+      let txt = "";
+      try { txt = await r.text(); } catch (e) {}
+      const m = /count must be less or equal\s+(\d+)/i.exec(txt);
+      if (m && Number(m[1]) > 0) return { teto: Number(m[1]) };
+      erro = "replay parou · HTTP " + (r && r.status); LOG(erro); return null;
+    }
     try { return forward(r.url || reqCtx.url, await r.text()); } catch (e) { return null; }
   }
 
@@ -248,24 +271,56 @@
   // própria casa declara. Medido: `Count:1000` já basta para 95 bilhetes — a escalada é a
   // rede de segurança de uma conta grande, e para no `BetsSummaryInfo.Count`, que é fim
   // autoritativo de verdade (não muda com o tamanho pedido).
+  //
+  // Casa com teto de `Count` (1xBit, s399): pede o teto, e se o lote ainda vier curto parte a
+  // janela ao meio e varre cada metade. Devolve o `total` da janela pedida, ou null em erro.
+  async function varrer(jan, prof) {
+    let count = tetoCasa ? Math.min(COUNT_INICIAL, tetoCasa) : COUNT_INICIAL;
+    for (let i = 0; i < TENTATIVAS; i++) {
+      const st = await pedir(count, jan);
+      if (!st) return null;                              // erro de rede/HTTP: para e reporta
+      if (st.teto) {
+        if (count <= st.teto) {                          // recusou o que cabia: não converge
+          erro = "replay recusado com Count=" + count + " (teto " + st.teto + ")"; LOG(erro);
+          return null;
+        }
+        tetoCasa = st.teto; count = st.teto;
+        LOG("a casa limita Count a", st.teto);
+        continue;
+      }
+      if (st.veio >= st.total || st.total === 0) return st.total;   // fim AUTORITATIVO
+      if (tetoCasa && count >= tetoCasa) {
+        if (prof >= PROF_MAX || jan.DateTo - jan.DateFrom < 2) {
+          erro = "lote incompleto: " + st.veio + " de " + st.total + " numa janela indivisível";
+          LOG(erro);
+          return null;
+        }
+        const meio = Math.floor((jan.DateFrom + jan.DateTo) / 2);
+        LOG("lote curto (" + st.veio + "/" + st.total + ") no teto · partindo a janela");
+        if (await varrer({ DateFrom: jan.DateFrom, DateTo: meio }, prof + 1) == null) return null;
+        if (await varrer({ DateFrom: meio, DateTo: jan.DateTo }, prof + 1) == null) return null;
+        return st.total;
+      }
+      if (count >= COUNT_TETO) {
+        erro = "lote incompleto: " + st.veio + " de " + st.total + " com Count=" + count;
+        LOG(erro);
+        return null;
+      }
+      count = Math.min(count * 5, COUNT_TETO);
+      if (tetoCasa) count = Math.min(count, tetoCasa);
+      LOG("lote curto (" + st.veio + "/" + st.total + ") · escalando Count para", count);
+    }
+    return null;
+  }
+
   async function arrancarReplay() {
     if (loopAtivo || fimReplay || !reqCtx || !corpoBase) return;
     loopAtivo = true;
     try {
-      const jan = _janela();
-      let count = COUNT_INICIAL;
-      for (let i = 0; i < TENTATIVAS; i++) {
-        const st = await pedir(count, jan);
-        if (!st) break;                                   // erro de rede/HTTP: para e reporta
-        if (st.veio >= st.total || st.total === 0) break;  // fim AUTORITATIVO
-        if (count >= COUNT_TETO) {
-          erro = "lote incompleto: " + st.veio + " de " + st.total + " com Count=" + count;
-          LOG(erro);
-          break;
-        }
-        count = Math.min(count * 5, COUNT_TETO);
-        LOG("lote curto (" + st.veio + "/" + st.total + ") · escalando Count para", count);
-      }
+      // O `total` que sobe é o da janela INTEIRA: as fatias sobrescrevem `totalCasa` no
+      // `forward`, e o autodiagnóstico mostraria o total da última metade.
+      const total = await varrer(_janela(), 0);
+      if (total != null) totalCasa = total;
     } finally {
       loopAtivo = false;
       fimReplay = true;

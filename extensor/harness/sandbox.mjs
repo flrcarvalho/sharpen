@@ -60,6 +60,21 @@ export function cloneAbortado(corpo) {
   return { __cloneAborta: true, corpo: corpo };
 }
 
+/**
+ * Envelope de RESPOSTA COM STATUS. O `responder` de um caso pode devolver
+ * `respostaHttp(400, corpo)` para que a resposta chegue com aquele status e aquele corpo
+ * (`ok` falso a partir de 400). `null` continua sendo "404 vazio".
+ *
+ * Existe porque a 1xBit (s399, medido ao vivo) recusa `Count` acima de 500 com **HTTP 400** e
+ * o teto escrito no corpo, e o inject lê esse corpo para recuar. Sem isto o harness só sabia
+ * dizer 200 ou 404, e a recusa nunca seria exercitada.
+ *
+ * Aditiva: quem não usa a função enxerga o sandbox de antes.
+ */
+export function respostaHttp(status, corpo) {
+  return { __status: status, corpo: corpo };
+}
+
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -113,7 +128,9 @@ export async function rodarInject(cfg) {
   const resposta = (url, corpoOuEnvelope) => {
     // Envelope de clone abortado (ver `cloneAbortado`): a resposta é normal, só o CLONE morre.
     const aborta = !!(corpoOuEnvelope && corpoOuEnvelope.__cloneAborta);
-    const corpo = aborta ? corpoOuEnvelope.corpo : corpoOuEnvelope;
+    // Envelope de status (ver `respostaHttp`).
+    const st = (corpoOuEnvelope && corpoOuEnvelope.__status) || null;
+    const corpo = (aborta || st) ? corpoOuEnvelope.corpo : corpoOuEnvelope;
     const bin = corpo != null && typeof corpo !== "string";
     const buf = () => (corpo == null ? Buffer.alloc(0) : (bin ? Buffer.from(corpo) : Buffer.from(corpo, "utf8")));
     const text = () => Promise.resolve(corpo == null ? "" : (bin ? buf().toString("utf8") : corpo));
@@ -124,7 +141,7 @@ export async function rodarInject(cfg) {
       return Promise.reject(e);
     };
     return {
-      ok: corpo != null, status: corpo == null ? 404 : 200, url: String(url),
+      ok: st ? st < 400 : corpo != null, status: st || (corpo == null ? 404 : 200), url: String(url),
       text, arrayBuffer,
       clone: () => (aborta ? { text: abortErr, arrayBuffer: abortErr } : { text, arrayBuffer }),
     };

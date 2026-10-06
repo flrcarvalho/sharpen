@@ -17,9 +17,14 @@
 //
 // NÃO coberto: troca de domínio do espelho (é o popup e o manifest, não o inject) e a
 // conversão em R$ (é do servidor, `tests/test_moeda_captura.py`).
-import { rodarInject, carregarContent, fixture, linha } from "./sandbox.mjs";
+import { rodarInject, carregarContent, fixture, linha, respostaHttp } from "./sandbox.mjs";
 
-export async function conferirEspelho({ arquivo, href, url, moeda, esperado, carimbo }) {
+// `tetoCount` (s399, 1xBit): a casa dublada passa a se comportar como a 1xBit medida ao vivo —
+// `Count` acima do teto volta HTTP 400 com o teto no corpo, e o lote respeita a janela por
+// `BetDate` (inclusiva nas duas pontas) e o `Count`, com `BetsSummaryInfo.Count` = total da
+// janela. Sem `tetoCount`, a casa devolve tudo em toda chamada, como antes.
+// Devolve também `pedidos` (os corpos enviados), para o caso conferir COMO o inject varreu.
+export async function conferirEspelho({ arquivo, href, url, moeda, esperado, carimbo, tetoCount }) {
   const payload = JSON.parse(fixture(arquivo));
   const TODOS = payload.BetInfos;
   const DIA = 86400;
@@ -29,12 +34,27 @@ export async function conferirEspelho({ arquivo, href, url, moeda, esperado, car
     DateFrom: AGORA - 7 * DIA, DateTo: AGORA, Language: "br", PartnerGroupId: 1, PartnerId: 1,
     SortType: 0,
   });
+  // O replay pede "12 meses até agora" pelo relógio REAL. Para a fixture nunca envelhecer para
+  // fora da janela, a casa dublada filtra pelo `BetDate` deslocado: o bilhete mais novo fica
+  // a 2 dias de hoje. O bilhete que sai na resposta é o da fixture, intacto.
+  const maisNovo = Math.max(...TODOS.map((b) => b.BetDate));
+  const desloc = Math.floor(Date.now() / 1000) - 2 * DIA - maisNovo;
 
   const pedidos = [];
-  const responder = (u) => {
+  const corpos = [];
+  const responder = (u, opts) => {
     if (!/\/bethistory-api\/Web\/GetBetInfoHistoryWithSummaryByDates/.test(String(u))) return null;
     pedidos.push(String(u));
-    return JSON.stringify({ BetsSummaryInfo: { Count: TODOS.length }, BetInfos: TODOS });
+    if (!tetoCount) return JSON.stringify({ BetsSummaryInfo: { Count: TODOS.length }, BetInfos: TODOS });
+    let c = {};
+    try { c = JSON.parse((opts && opts.body) || "{}"); } catch (e) {}
+    corpos.push(c);
+    if (c.Count > tetoCount) {
+      return respostaHttp(400, JSON.stringify({ ErrorCode: 25, ErrorName: "InvalidArgument",
+        ErrorMessage: "Requested count must be less or equal " + tetoCount }));
+    }
+    const naJanela = TODOS.filter((b) => b.BetDate + desloc >= c.DateFrom && b.BetDate + desloc <= c.DateTo);
+    return JSON.stringify({ BetsSummaryInfo: { Count: naJanela.length }, BetInfos: naJanela.slice(0, c.Count) });
   };
 
   const { ultima } = await rodarInject({
@@ -53,6 +73,14 @@ export async function conferirEspelho({ arquivo, href, url, moeda, esperado, car
   if (!ultima.fim) falhas.push("o inject não sinalizou `fim`");
   const bilhetes = ultima.bilhetes || [];
   if (bilhetes.length !== TODOS.length) falhas.push(`esperava ${TODOS.length} bilhetes, vieram ${bilhetes.length}`);
+  if (tetoCount) {
+    // ── teto de Count: a recusa vira o tamanho pedido, e nada fica faltando calado ──
+    if (ultima.erro) falhas.push(`teto ${tetoCount}: o replay terminou em erro "${ultima.erro}"`);
+    if (ultima.total !== TODOS.length) falhas.push(`teto ${tetoCount}: total da janela ${TODOS.length}, subiu ${ultima.total}`);
+    // `corpos[0]` é a requisição da PÁGINA (Count 300), não do replay.
+    const recusas = corpos.slice(1).filter((c) => c.Count > tetoCount).length;
+    if (recusas > 1) falhas.push(`teto ${tetoCount}: ${recusas} pedidos acima do teto — o inject não aprendeu com a 1ª recusa`);
+  }
 
   const fmt = carregarContent().pegar("formatTicket1X");
   let testes = 0;
@@ -101,7 +129,9 @@ export async function conferirEspelho({ arquivo, href, url, moeda, esperado, car
     const real = fmt(Object.assign({}, alvo, { moeda: "BRL" }));
     if (linha(real, "Moeda:")) falhas.push("bilhete em BRL ganhou linha \"Moeda:\"");
     if (linha(real, "Carimbo de colocação:")) falhas.push("bilhete em BRL ganhou carimbo — casa em real deixaria de ser byte a byte igual");
-    if (!/R\$/.test(real)) falhas.push("bilhete em BRL perdeu o \"R$\"");
+    // Só há "R$" onde há linha de dinheiro: o perdido não tem retorno (1xBit, s399, só perdidos).
+    const temDinheiro = (alvo.pagou > 0) || (alvo.potencial > 0);
+    if (temDinheiro && !/R\$/.test(real)) falhas.push("bilhete em BRL perdeu o \"R$\"");
   }
   testes++;
 
