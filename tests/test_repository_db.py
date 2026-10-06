@@ -264,7 +264,9 @@ def test_caixa_polymarket_lanca_confere_e_nao_duplica():
         await _reset()
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoA'")
+            # TDonoB também: outro teste deste módulo cria conta Polymarket para ele, e a
+            # asserção "dono sem conta não grava" dependeria da ordem dos testes.
+            await conn.execute("DELETE FROM parceiros WHERE dono IN ('TDonoA', 'TDonoB')")
             await conn.execute("INSERT INTO parceiros (dono, casa, nome, moeda) VALUES "
                                "('TDonoA', 'Polymarket', 'Feca [Eu]', 'USD')")
         await repository.upsert_bilhetes([_poly(
