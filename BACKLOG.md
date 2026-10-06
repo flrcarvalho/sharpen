@@ -1403,6 +1403,20 @@ pulados. Decidir se é só o teste ou o código: o resolver roda no navegador do
 e a Bet365 AU (s392) tem usuário fora do fuso de Brasília. **Não mascarar com `TZ` no
 workflow antes de saber qual dos dois é.**
 
+### 4.0g 1xBit: validar ao vivo, e medir o teto de `Count` nas outras espelho (s399). **VIVA, não medida nas outras**
+
+A 1xBit recusa `Count` acima de 500 (HTTP 400, `CASA_1XBIT §2.2`) e o `x1_inject` passou a
+recuar para o teto e partir a janela. Duas coisas abertas:
+
+- **1ª captura ao vivo** na conta do Feca (cadastrada em USDT): esperado 8 de 8, todos `L`, a
+  `88346311263` com odd 8,9179 (não os 33,175 do card).
+- **SapphireBet, PariPesa e Megapari** têm na `CASA_*.md` a medição COPIADA da 1xBet
+  (`Count:5000` devolvendo 95), nunca repetida no caminho `/bethistory-api/Web/`. Se tiverem o
+  mesmo teto, a captura delas morria no 1º pedido do replay desde a s391 e só entregava a janela
+  da tela (as validações de 04/10 tinham poucas apostas, dentro da janela). A 0.7.45 já cobre;
+  falta medir para corrigir as docs e saber se houve bilhete perdido: `Count:501` no console da
+  casa, com os headers da requisição real.
+
 ### 4.0e Caixa da Polymarket: o que acontece quando a trava não fecha (s397, fonte trocada na s398). **VIVA, não medida**
 
 Desde a s398 a Caixa automática lê depósitos e saques do extrato da própria Polymarket
