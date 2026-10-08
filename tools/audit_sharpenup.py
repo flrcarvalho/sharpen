@@ -101,6 +101,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # 6a casa Altenar (s395). Entrou sem conta de teste: o exemplo e o id da Estrela Bet,
     # declarado. Prova o formato numerico de 10 digitos do motor. Trocar na 1a captura.
     "BETREBELS":  "5346391363",
+    # 7a casa Altenar (s402). Sem conta de teste: mesmo id declarado da Estrela Bet, que prova
+    # o formato numerico de 10 digitos do motor. Trocar na 1a captura.
+    "BETMARTINI": "5346391363",
     "BET365":     "JR8714690761I",
     # Motor Rogue (s335) — ids reais das três contas, todos `PurchaseTicketId` numérico de
     # 18 dígitos, reconhecidos pela regex GENÉRICA do repository (não há regex por casa).

@@ -288,6 +288,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0748",
+      "v": "v0.7.48",
+      "data": "2026-10-08",
+      "texto": "Nova casa: **BetMartini**. Atualize a extensão e recarregue a aba do painel (Ctrl+Shift+R) antes de conectar."
+    },
+    {
       "id": "su-0747",
       "v": "v0.7.47",
       "data": "2026-10-08",

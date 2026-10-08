@@ -298,6 +298,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # 6ª casa Altenar (s395). Grafia da BASE: medido em 05/10/2026, 1 conta `Betrebels` em
     # `parceiros` e em `casas_meta`, zero bilhete (a marca escreve `BetRebels`).
     "BETREBELS":      "Betrebels",
+    # 7ª casa Altenar (s402). Base sem grafia nenhuma (medido em 08/10/2026: zero em `parceiros`,
+    # `bilhetes` e `casas_meta`), então vale a da marca.
+    "BETMARTINI":     "BetMartini",
     "JOGODEOURO":     "Jogo de Ouro",
     "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
@@ -906,6 +909,8 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "ESTRELABET",
     # Betrebels (s395) — 6ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos.
     "BETREBELS",
+    # BetMartini (s402) — 7ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos.
+    "BETMARTINI",
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",

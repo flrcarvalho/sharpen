@@ -46,6 +46,8 @@ const CASA_ICONS={
   'Betcoin':'https://www.google.com/s2/favicons?sz=128&domain=betcoin.ag',
   // 6a casa Altenar (s395).
   'Betrebels':'https://www.google.com/s2/favicons?sz=128&domain=betrebels.gr',
+  // 7a casa Altenar (s402).
+  'BetMartini':'https://www.google.com/s2/favicons?sz=128&domain=betmartini.com',
   // Plataforma propria (s391).
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Shuffle':'https://www.google.com/s2/favicons?sz=128&domain=shuffle.com',
@@ -154,6 +156,7 @@ const HOUSE_DOMAIN={
   'Duel':'duel.com',
   'Betcoin':'betcoin.ag',
   'Betrebels':'betrebels.gr',
+  'BetMartini':'betmartini.com',
   'DEX Sport':'dexsport.io',
   'Shuffle':'shuffle.com',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
