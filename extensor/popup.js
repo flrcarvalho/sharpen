@@ -68,6 +68,8 @@ const CASA_HOSTS = {
   "Betcoin":    ["betcoin.ag"],
   // Plataforma própria (s391). O histórico vive no SDK de esportes: Esportes → Minhas apostas.
   "DEX Sport":  ["dexsport.io"],
+  // Plataforma própria, GraphQL (s401). O histórico: Esportes → Minhas Apostas.
+  "Shuffle":    ["shuffle.com"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -284,6 +286,7 @@ async function capturar() {
                 // Betcoin: 7ª casa BetBy (s395) — MESMO inject, linha própria.
                 : casa === "Betcoin" ? "jb_inject.js"
                 : casa === "DEX Sport" ? "dx_inject.js"
+                : casa === "Shuffle" ? "shf_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.

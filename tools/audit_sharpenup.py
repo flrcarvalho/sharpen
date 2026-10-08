@@ -138,6 +138,10 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # UUID real da Dexsport (a ganha de 01/10/2026, 25 usdt @5,03 -> 125,75, conferida no card
     # do SDK). Plataforma propria: o id e o UUID inteiro, sem prefixo.
     "DEXSPORT":   "3345134c-ef5a-4dac-a4cd-1c4344961467",
+    # Shuffle (s401): nanoid de 21 (alfanumérico + `_`/`-`), o id do bilhete da conta do
+    # Feca (a múltipla de 3 do Padres × Brewers, perdida, odd 14,93856). Reconhecido pela
+    # regex GENÉRICA do repository.
+    "SHUFFLE":    "Cfn16FgUcNikYecjCrA4j",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

@@ -141,6 +141,18 @@ Regras que valem para todos:
 | **Jonbet** | API + replay (paginado) | `GET /api/v1/my_bets/list` (BetBy/sptpub) | `jb_inject.js` | `id` (19 díg.) | `skip >= count` ou lista vazia | evento mais recente (epoch **s**→SP) |
 | **Pitaco** | **replay puro** (o passivo é impossível) | `POST /…UiMyBetsService/GetUiMyBetsTabContent` — **gRPC-Web / protobuf binário** | `pt_inject.js` | `.4.1.1` (17 díg.) | campo `.5` ausente na resposta | evento mais recente ⚠ **sem ano** — derivado da colocação |
 | **Novibet** | **replay puro** (o passivo é impossível) | `POST /spt/api/historytickets/search` (gateway BlueBrown, host da casa) | `nv_inject.js` | `ticketId` (9 díg.) | `skip >= statistics.count` | `placedAt` (colocação, UTC→SP) ⚠ **não há data de evento** |
+| **Shuffle** | API + replay (cursor) — **1ª casa GraphQL** | `POST /main-api/graphql/sports-main/graphql-sports-main` (`GetSportsBets` · `sportsBetsV3`) | `shf_inject.js` | `id` (nanoid de 21) | `nextCursor: null` | evento mais recente (UTC→SP) |
+
+> ⚠️ **Shuffle (s401) — três coisas que nenhuma outra casa tinha mostrado.** (1) **GraphQL
+> com escalar JSON**: a query não escolhe campos, então o replay reusa a da página (e tem uma
+> cópia literal para a partida a frio). (2) **O token se aprende de QUALQUER chamada GraphQL
+> autenticada** (o `authorization` é o mesmo em `sports-main`, `sports` e `api`, medido por
+> hash), e a captura arranca sem a tela de apostas aberta. (3) **A mesma página lista apostas
+> de OUTROS usuários** (`Grandes apostadores`): o inject só consome a resposta de
+> `GetSportsBets` e descarta nó com `user` preenchido. Outros achados: o `WON` cobre retorno
+> menor que a stake em sistema (54,996 sobre 60) · `totalOddsDecimal` não muda com perna
+> `PUSHED` (card 11,52, pagou 5,1192) · em sistema ele já é a média das linhas · dinheiro de
+> cripto com 3+ casas sai com todas no bloco. Ver `CASA_SHUFFLE.md`.
 
 > ⚠ **BetNacional — divergência de rótulo NÃO medida (anotada na s248, ao preencher esta tabela).**
 > `formatTicketBNC` emite só `Data (colocação):` (de `t.colocada`), enquanto `CASA_BETNACIONAL §4`

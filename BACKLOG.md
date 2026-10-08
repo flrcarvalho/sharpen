@@ -1403,6 +1403,21 @@ pulados. Decidir se é só o teste ou o código: o resolver roda no navegador do
 e a Bet365 AU (s392) tem usuário fora do fuso de Brasília. **Não mascarar com `TZ` no
 workflow antes de saber qual dos dois é.**
 
+### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
+
+A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde
+sobre a conta inteira do Feca (31 bilhetes). Nada rodou na casa pela extensão ainda.
+
+- **1ª captura ao vivo** na conta do Feca, **cadastrada em USDT antes**: esperado 31+ bilhetes,
+  o sistema de 54,996 sobre 60 como `W` @ 0,9166, a múltipla com perna PUSHED como `W` @
+  5,1192 (não 11,52). Conferir no console da aba que o token foi aprendido sem abrir Minhas
+  Apostas (`[SharpenUp shf_inject] token aprendido de …`).
+- **Provar o botão Conectar em produção** (`_casaConectavel('Shuffle')` true, controle negativo
+  false, `Shuffle` em `GET /casas` → `captura`), passo 7.1 da skill.
+- **Aviso ao grupo:** é capacidade nova; a nota da home saiu genérica. Falta a decisão do Feca
+  (anunciar a Shuffle pelo nome ou manter sigilo como as casas cripto).
+- Sem amostra: cashout executado, anulada/cancelada, `PARTIAL`, boost, bet builder, outra moeda.
+
 ### 4.0g 1xBit: validar ao vivo, e medir o teto de `Count` nas outras espelho (s399). **VIVA, não medida nas outras**
 
 A 1xBit recusa `Count` acima de 500 (HTTP 400, `CASA_1XBIT §2.2`) e o `x1_inject` passou a

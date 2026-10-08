@@ -251,6 +251,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # `Dexsport` e a conta `DEX Sport` caiu em modo print, porque o round-trip compara a caixa
     # mas NÃO ignora espaço. SIGILO: fora de aviso aos testers, changelog e home.
     "DEXSPORT":       "DEX Sport",
+    # Plataforma PRÓPRIA, 1ª casa GraphQL (s401). A base não tinha a casa em grafia
+    # nenhuma (medido em 08/10/2026, 7 tabelas), então vale a da marca.
+    "SHUFFLE":        "Shuffle",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -895,6 +898,8 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Dexsport (s391) — plataforma própria. ID = UUID, o mesmo que o card estampa inteiro em
     # "ID da aposta".
     "DEXSPORT",
+    # Shuffle (s401) — plataforma própria (GraphQL). ID = nanoid de 21 caracteres.
+    "SHUFFLE",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

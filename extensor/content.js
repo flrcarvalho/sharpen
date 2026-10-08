@@ -419,6 +419,33 @@
     }
   });
 
+  // Bilhetes da SHUFFLE capturados pelo shf_inject.js (mundo MAIN) — o GraphQL `GetSportsBets`
+  // (`sportsBetsV3`), já normalizado. Plataforma PRÓPRIA (s401), a 1ª casa GraphQL. O inject
+  // aprende o `authorization` de qualquer chamada GraphQL autenticada da página e pede a lista
+  // SEM filtro de status (abertas + liquidadas), andando pelo cursor até `nextCursor: null`.
+  // `shfById` guarda 1 bilhete por id (nanoid de 21); a versão LIQUIDADA vence a aberta.
+  const shfById = new Map();         // id(string) → bilhete
+  let shfFimReal = false;
+  let shfHookVivo = false, shfRespostas = 0;
+  let shfSemToken = false, shfErro = "";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupSHFData) {
+      if (d.hook) shfHookVivo = true;
+      if (typeof d.respostas === "number") shfRespostas = d.respostas;
+      shfSemToken = !!d.semToken;
+      shfErro = d.erro ? String(d.erro) : "";
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = shfById.get(b.id);
+          if (!ex || (ex.pagou == null && b.pagou != null)) shfById.set(b.id, b);
+        }
+      }
+      if (d.fim) shfFimReal = true;
+    }
+  });
+
   // Bilhetes da TIVO capturados pelo tv_inject.js (mundo MAIN) — as RESPOSTAS do proxy
   // /api/game/p/messagetosport com {name:"gethistory"}, já normalizadas pelo inject. A Tivo
   // NÃO pagina: uma única chamada devolve a conta inteira e a própria casa carimba `Count`,
@@ -1380,6 +1407,12 @@
       // repagina `placed` e `finished` até `meta.totalPages`. SEM fallback de texto: o shadow
       // DOM esconde os cards do `innerText`, e o robô genérico mandaria a casca para a IA.
       blocos = await roboDXPassive(ctx);
+    } else if (casa === "shuffle") {
+      // Passivo + replay (shf_inject, plataforma PRÓPRIA — s401), a 1ª casa GraphQL. A TELA É
+      // ESTREITA: pede `first: 9` com o filtro de uma aba. O replay pede a lista SEM filtro e
+      // anda pelo cursor até `nextCursor: null`. SEM fallback de texto: os cards ficam colados
+      // na lista, sem linha em branco entre bilhetes (lição da KTO, s192).
+      blocos = await roboSHFPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -1561,6 +1594,11 @@
         betcoin:    { nome: "Betcoin",    hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         dexsport:   { nome: "DEX Sport",  hook: dxHookVivo, resp: dxRespostas, vistos: dxById.size,
                       extra: dxRespostas === 0 ? " · abra Esportes → Minhas apostas e rode de novo" : "" },
+        // Shuffle (s401): o token sai de qualquer chamada GraphQL autenticada da página. Sem
+        // ele (`semToken`) a sessão não está logada ou a página não carregou os esportes.
+        shuffle:    { nome: "Shuffle",    hook: shfHookVivo, resp: shfRespostas, vistos: shfById.size,
+                      extra: shfErro ? " · " + shfErro
+                           : (shfSemToken ? " · faça login e abra Esportes → Minhas Apostas; rode de novo" : "") },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -4638,6 +4676,223 @@
     processar();
     console.log("[SharpenUp] Dexsport: " + blocos.length + " bilhete(s) · dxById=" + dxById.size +
                 " · hook=" + dxHookVivo + " · respostas=" + dxRespostas + " · fimReal=" + dxFimReal);
+    return blocos;
+  }
+
+  // ── Shuffle (plataforma própria, GraphQL — s401) ─────────────────────────────
+  // Formata 1 bilhete do `sportsBetsV3` (normalizado pelo shf_inject) no bloco que a IA lê.
+  // Leituras VALIDADAS contra o card (recon s401, 31 bilhetes):
+  //   • a odd da COLOCAÇÃO (`oddColocacao`) não muda com perna anulada: múltipla com perna
+  //     PUSHED, card "11,52" e "Você ganhou US$ 51,19" sobre 10. No W manda o dinheiro.
+  //   • SISTEMA: a odd da colocação já é a MÉDIA das linhas, e a stake é o TOTAL.
+  //   • `WON` não diz se houve lucro: sistema "VITÓRIA" pagou 54,996 sobre 60.
+  //   • o retorno tem casas de cripto (54,996): sai com TODAS, senão o gate do retorno lê outro
+  //     número e reescreve a odd. A stake idem (conta em BTC teria 0,00123).
+  // O que NÃO se decide aqui: enum desconhecido sobe cru, "a conferir". O de-para vive na
+  // CASA_SHUFFLE.md §5.
+  const _PERNA_SHF = { WON: "ganha", LOST: "perdida", PUSHED: "anulada (push — odd paga 1)", PENDING: "em aberto" };
+  // Só os enums VISTOS na amostra. Enum novo sobe cru; a tradução é da CASA_SHUFFLE §1.2.
+  const _SPORT_SHF = {
+    SOCCER: "Futebol", TENNIS: "Tênis", BASKETBALL: "Basquete", BASEBALL: "Baseball",
+    BADMINTON: "Badminton", F1: "F1",
+  };
+  // `systemBetType` → tamanho de cada linha. Só o que foi visto; tipo novo vai cru.
+  const _SIS_SHF = { DOUBLES: { k: 2, rotulo: "Duplas" } };
+  const _abertaSHF = (b) => b.status === "PENDING";
+
+  // Dinheiro na moeda da conta, SEM perder casa: até 2 casas sai com 2 ("35,00", como o card);
+  // com mais, sai com todas ("54,996"). Nunca arredonda dinheiro de cripto.
+  function _dinSHF(v) {
+    if (typeof v !== "number" || !isFinite(v)) return "";
+    const r = Math.round(v * 1e8) / 1e8;
+    return Math.abs(r * 100 - Math.round(r * 100)) < 1e-6 ? r.toFixed(2).replace(".", ",")
+                                                          : String(r).replace(".", ",");
+  }
+
+  function _dataEventoSHF(b) {
+    let max = null;
+    for (const p of (b.pernas || [])) for (const s of (p.sels || [])) {
+      const t = Date.parse(s.inicio || "");
+      if (isFinite(t) && (max == null || t > max)) max = t;
+    }
+    return max == null ? "" : new Date(max).toISOString();
+  }
+
+  // Leitura pelo DINHEIRO, com o enum cru ao lado. Só se decide onde o número prova.
+  function _resultadoSHF(b) {
+    const st = b.stake, pay = b.pagou, moeda = b.moeda || "";
+    const cru = "status " + (b.status || "(vazio)");
+    if (_abertaSHF(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (pay == null || !(st > 0)) return cru + " sem valor de retorno (a conferir — não liquidar automaticamente)";
+    const ret = "retorno " + _dinSHF(pay) + " " + moeda;
+    const igual = Math.abs(pay - st) < 1e-9;
+    if (b.status === "LOST") {
+      return pay === 0 ? "Perdeu → L" : cru + " com " + ret + " (a conferir — não liquidar automaticamente)";
+    }
+    if (b.status === "WON") {
+      if (igual) return "Ganhou com retorno = stake (" + ret + ") → V";
+      if (pay > 0) {
+        return "Ganhou → W (" + ret + (pay < st
+          ? " — MENOR que a stake: só parte das linhas pagou; o P/L negativo é o certo)"
+          : ")");
+      }
+      return cru + " com retorno zero (a conferir — não liquidar automaticamente)";
+    }
+    if (b.status === "VOIDED" || b.status === "CANCELLED") {
+      return igual ? "Anulada (" + ret + " = stake) → V" : cru + " com " + ret + " (a conferir — não liquidar automaticamente)";
+    }
+    if (b.status === "CASHED_OUT") {
+      // Regra global do cashout (MASTER_RESULTADO §5.1.2 e §5.6): = stake → V; ≠ stake → W.
+      return igual ? "Cashout com retorno = stake (" + ret + ") → V"
+                   : "Cashout → W (" + ret + "; odd = retorno ÷ stake)";
+    }
+    // PARTIAL e qualquer enum novo: o dinheiro está aqui, mas o significado não foi medido.
+    return cru + " com " + ret + " (a conferir — não liquidar automaticamente)";
+  }
+
+  // W e cashout pagam pelo DINHEIRO (retorno ÷ stake, precisão total); o resto usa a odd da
+  // colocação, que em sistema já é a média das linhas.
+  function _oddSHF(b) {
+    const r = _resultadoSHF(b);
+    if (/→ W\b/.test(r) && b.stake > 0 && b.pagou > 0) return { odd: b.pagou / b.stake, porDinheiro: true };
+    return { odd: b.oddColocacao > 0 ? b.oddColocacao : null, porDinheiro: false };
+  }
+
+  function formatTicketSHF(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhKTO(_dataEventoSHF(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dcol = _dhKTO(b.colocada);
+    if (dcol) L.push("Data (colocação): " + dcol);
+    L.push("Stake: " + _dinSHF(b.stake));
+    _linhaMoeda(L, b.moeda);
+    const tsCol = Date.parse(b.colocada || "");
+    _linhaCarimbo(L, isFinite(tsCol) ? tsCol / 1000 : null, b.moeda);
+    L.push("Status: " + _resultadoSHF(b));
+    L.push("Status (API): status=" + String(b.status) + " · type=" + String(b.tipo) +
+           " · systemBetType=" + String(b.sistema || "null"));
+
+    const pernas = b.pernas || [];
+    const n = pernas.length;
+    if (b.tipo === "SYSTEM_BET") {
+      const sis = _SIS_SHF[b.sistema];
+      const linhas = sis ? _cnkB3(n, sis.k) : 0;
+      if (sis && linhas > 1) {
+        // Formato lido pelo backend (`sistemas_do_texto`) para a 12ª coluna `Sistema`.
+        L.push("Tipo: SISTEMA " + sis.rotulo + " — " + linhas + " apostas de " + sis.k +
+               " seleção(ões), sobre " + n + " seleções · aposta unitária " + _dinSHF(b.stake / linhas) +
+               " " + (b.moeda || "") + " · total " + _dinSHF(b.stake) + " " + (b.moeda || "") +
+               " (a Stake acima é o TOTAL — é ela que vale)");
+      } else {
+        L.push("Tipo: Sistema (" + n + " seleções · systemBetType " + String(b.sistema) +
+               ") — calcule pela MASTER_RESULTADO §7; NUNCA o produto simples das odds");
+      }
+    } else if (n === 1 && (pernas[0].sels || []).length <= 1) {
+      L.push("Tipo: Simples");
+    } else if (n >= 1) {
+      L.push("Tipo: Múltipla (" + n + " seleções)");
+    }
+
+    const o = _oddSHF(b);
+    if (o.odd != null) {
+      L.push("Odd: " + _oddTxtKTO(o.odd) + (o.porDinheiro ? " (= Retorno ÷ Stake)" : ""));
+    } else {
+      L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
+    }
+    if (b.tipo === "SYSTEM_BET" && !o.porDinheiro && o.odd != null) {
+      L.push("Obs.: em sistema a odd acima JÁ É a média das linhas (MASTER_RESULTADO §7.3) — " +
+             "não multiplique as odds das seleções.");
+    }
+    if (o.porDinheiro && b.oddColocacao != null && Math.abs(b.oddColocacao - o.odd) > 1e-6 &&
+        b.tipo !== "SYSTEM_BET") {
+      L.push("Obs.: a odd da colocação era " + _oddTxtKTO(b.oddColocacao) + " (é a que o card mostra); " +
+             "a casa pagou menos porque alguma perna foi anulada — ver as pernas.");
+    }
+    if (b.stakeOriginal != null && b.stakeOriginal !== b.stake) {
+      L.push("Stake original (dado cru da casa): " + _dinSHF(b.stakeOriginal));
+    }
+    if (b.liquidada) L.push("Liquidado em: " + _dhKTO(b.liquidada));
+
+    L.push("Seleções:");
+    for (const p of pernas) {
+      const sels = p.sels || [];
+      const stP = _PERNA_SHF[p.status] || ("status " + p.status);
+      if (sels.length > 1) {
+        // Perna com várias seleções = aposta de mesmo jogo: a casa precifica o CONJUNTO, e
+        // as seleções não têm odd própria (CLAUDE.md: zero não é ausência).
+        L.push("- Criar aposta (mesmo jogo, " + sels.length + " seleções) [perna " + stP + "]");
+      }
+      for (const s of sels) {
+        const bits = [];
+        if (s.mercado) bits.push(s.mercado + ":");
+        bits.push(s.selecao || "");
+        if (sels.length <= 1) bits.push("[perna " + stP + "]");
+        L.push((sels.length > 1 ? "    · " : "- ") + bits.join(" ").trim());
+        const ctx2 = [];
+        if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+        if (s.liga) ctx2.push("Liga: " + s.liga);
+        if (s.esporte) {
+          const can = _SPORT_SHF[s.esporte];
+          ctx2.push("Esporte: " + s.esporte + (can ? " (" + can + ")" : ""));
+        }
+        if (s.inicio) ctx2.push("Início: " + _dhKTO(s.inicio));
+        if (ctx2.length) L.push("    " + ctx2.join(" · "));
+        const marcas = [];
+        if (s.aoVivo) marcas.push("ao vivo");
+        if (s.oddSemBoost != null) marcas.push("odd turbinada pela casa (sem boost: " + _oddTxtKTO(s.oddSemBoost) + ")");
+        if (marcas.length) L.push("    " + marcas.join(" · "));
+      }
+      if (p.odd != null && (n > 1 || sels.length > 1)) L.push("    Odd da perna: " + _oddTxtKTO(p.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboSHFPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Mais recente primeiro (a lista da casa é por `createdAt` decrescente), para o corte
+      // da janela de dias cair no lugar certo.
+      const todos = Array.from(shfById.values()).sort((a, b) =>
+        (Date.parse(b.colocada) || 0) - (Date.parse(a.colocada) || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as LIQUIDADAS (pela colocação); aberta nunca corta.
+        const dt = b.colocada ? Date.parse(b.colocada) : NaN;
+        const passou = !_abertaSHF(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketSHF(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport): o inject zera o lado dele no
+    // mesmo pedido, e o mapa velho daqui não pode responder antes da casa.
+    shfById.clear();
+    shfFimReal = false;
+    try { window.postMessage({ __sharpenupSHFReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !shfFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (shfById.size > ultTotal) { ultTotal = shfById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;   // 15s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Shuffle: " + blocos.length + " bilhete(s) · shfById=" + shfById.size +
+                " · hook=" + shfHookVivo + " · respostas=" + shfRespostas + " · fimReal=" + shfFimReal +
+                (shfErro ? " · erro=" + shfErro : ""));
     return blocos;
   }
 
