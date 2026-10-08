@@ -1412,8 +1412,8 @@ sobre a conta inteira do Feca (31 bilhetes). Nada rodou na casa pela extensão a
   o sistema de 54,996 sobre 60 como `W` @ 0,9166, a múltipla com perna PUSHED como `W` @
   5,1192 (não 11,52). Conferir no console da aba que o token foi aprendido sem abrir Minhas
   Apostas (`[SharpenUp shf_inject] token aprendido de …`).
-- **Provar o botão Conectar em produção** (`_casaConectavel('Shuffle')` true, controle negativo
-  false, `Shuffle` em `GET /casas` → `captura`), passo 7.1 da skill.
+- ~~Provar o botão Conectar em produção~~ **feito em 08/10/2026**: `_casaConectavel('Shuffle')`
+  true, controle negativo false, `Shuffle` em `GET /casas` → `captura`.
 - **Aviso ao grupo:** é capacidade nova; a nota da home saiu genérica. Falta a decisão do Feca
   (anunciar a Shuffle pelo nome ou manter sigilo como as casas cripto).
 - Sem amostra: cashout executado, anulada/cancelada, `PARTIAL`, boost, bet builder, outra moeda.
