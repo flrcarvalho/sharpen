@@ -132,7 +132,7 @@ async def _carregar_ptax_moeda(client: httpx.AsyncClient, moeda: str, de_iso: st
         "@moeda": f"'{moeda}'",
         "@dataInicial": f"'{_poly._mdy(de)}'",
         "@dataFinalCotacao": f"'{_poly._mdy(hoje)}'",
-        "$select": "cotacaoVenda,dataHoraCotacao,tipoBoletim",
+        # Sem `$select`: o BCB passou a devolver 403 a ele (s404, ver `_carregar_periodo`).
         "$format": "json",
     }
     r = await _poly._get_retry(client, _BCB_MOEDA_PERIODO, params)

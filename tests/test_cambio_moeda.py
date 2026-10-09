@@ -270,6 +270,30 @@ def test_usd_continua_no_mapa_do_polymarket():
     assert C.cotacao("USD", "2026-10-02") == 5.22
 
 
+def test_ptax_nunca_pede_select():
+    """s404: desde 09/10/2026 o BCB devolve 403 a qualquer `$select` (medido: o mesmo pedido
+    sem ele dá 200). Com ele, toda conta em USD/EUR/AUD caía em "câmbio indisponível" e o
+    `/salvar` recusava as linhas: a 1ª captura da Shuffle do Gabriel gravou 0 de 7."""
+    _limpa()
+    eur = _carrega_ptax("EUR", _boletins("2026-10-02", 5.8, 5.9))
+    usd = []
+
+    async def fake_get(client, url, params):
+        usd.append((url, params))
+        return _Resp([{"cotacaoCompra": 5.0, "cotacaoVenda": 5.01,
+                       "dataHoraCotacao": "2026-10-08 13:08:16.8"}])
+
+    original = P._get_retry
+    P._get_retry = fake_get
+    try:
+        asyncio.run(P._carregar_periodo(None, "2026-10-01", "2026-10-09"))
+    finally:
+        P._get_retry = original
+    assert P._PTAX_MAPA["2026-10-08"] == 5.01        # venda, não compra
+    for _url, params in eur + usd:
+        assert not any(k.lower() == "$select" for k in params), params
+
+
 def test_ars_cruza_usdtbrl_por_usdtars_do_mesmo_dia():
     _limpa()
     C._USDT_MAPA["2026-10-02"] = 5.2266

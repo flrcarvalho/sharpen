@@ -200,10 +200,13 @@ async def _carregar_periodo(client: httpx.AsyncClient, de_iso: str, ate_iso: str
     de rede é distinguível de "dia sem boletim", que é justamente o que faltava no
     caminho por data."""
     global _PTAX_DE, _PTAX_ATE
+    # SEM `$select`, de propósito: desde 09/10/2026 o BCB devolve 403 a qualquer `$select`
+    # nesta API (medido: o mesmo pedido sem ele dá 200). Com ele, toda conversão de dólar
+    # virava "câmbio indisponível" e as linhas eram recusadas (s404, Shuffle do Gabriel).
+    # A resposta só ganha `cotacaoCompra`, que a leitura abaixo ignora.
     params = {
         "@dataInicial": f"'{_mdy(de_iso)}'",
         "@dataFinalCotacao": f"'{_mdy(ate_iso)}'",
-        "$select": "cotacaoVenda,dataHoraCotacao",
         "$format": "json",
     }
     r = await _get_retry(client, BCB_PTAX_PERIODO, params)
