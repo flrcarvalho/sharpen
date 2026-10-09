@@ -50,6 +50,8 @@ const CASA_ICONS={
   'BetMartini':'https://www.google.com/s2/favicons?sz=128&domain=betmartini.com',
   // 8a casa Altenar (s403).
   'Vavada':'https://www.google.com/s2/favicons?sz=128&domain=vavada.com',
+  // 9a casa Altenar (s404). Dominio canonico, nao o espelho numerado.
+  'Kikobet':'https://www.google.com/s2/favicons?sz=128&domain=kikobet.com',
   // Plataforma propria (s391).
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Shuffle':'https://www.google.com/s2/favicons?sz=128&domain=shuffle.com',
@@ -160,6 +162,7 @@ const HOUSE_DOMAIN={
   'Betrebels':'betrebels.gr',
   'BetMartini':'betmartini.com',
   'Vavada':'vavada.com',
+  'Kikobet':'kikobet.com',
   'DEX Sport':'dexsport.io',
   'Shuffle':'shuffle.com',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',

@@ -1432,6 +1432,18 @@ host dela e `CODIGO_EXEMPLO` emprestado.
 - Casa cripto: a moeda da conta depende do cadastro (ver **Moeda no Altenar** em 4.0i).
 - Só `vavada.com` está registrado; domínio espelho não engancha.
 
+### 4.0k Kikobet: validar ao vivo, trocar a fixture emprestada e o espelho numerado (s404). **VIVA, só no harness**
+
+9ª casa Altenar (`integration=kikobet`, `altenar2`, SDK em `/en-gb/sportsbook`, recon de
+09/10/2026 sem login). `kikobet.com` redireciona para o espelho numerado `kikobet23.com`; os dois
+estão registrados. Entrou sem conta de teste: fixture da Estrela Bet e `CODIGO_EXEMPLO` emprestados.
+
+- Medir a grafia na base antes da 1ª conta (`parceiros`, `bilhetes`, `casas_meta`): não medida.
+- 1ª captura ao vivo, provar o botão Conectar em produção e trocar fixture e `CODIGO_EXEMPLO`.
+- Quando o número do espelho trocar, o domínio novo entra no manifest, no `popup.js` e no
+  `_HOSTS_POR_CASA`, com versão nova. Decidir se vale um registro por família de domínio.
+- Mercados provavelmente em inglês (`culture=en-GB`), moeda da conta não medida.
+
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
 
 A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde

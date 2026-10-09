@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.7.49",
+  "version": "0.7.50",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -162,6 +162,14 @@
     },
     {
       "matches": ["*://*.vavada.com/*", "*://vavada.com/*"],
+      "js": ["vb_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.kikobet.com/*", "*://kikobet.com/*",
+                  "*://*.kikobet23.com/*", "*://kikobet23.com/*"],
       "js": ["vb_inject.js"],
       "run_at": "document_start",
       "world": "MAIN",

@@ -304,6 +304,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # 8ª casa Altenar (s403). Nenhuma menção a `vavada` no repo; a base NÃO foi medida
     # (sem acesso ao banco nesta sessão). Grafia da marca em title case.
     "VAVADA":         "Vavada",
+    # 9ª casa Altenar (s404). Nenhuma menção a `kikobet` no repo; a base NÃO foi medida.
+    # Grafia da marca em title case.
+    "KIKOBET":        "Kikobet",
     "JOGODEOURO":     "Jogo de Ouro",
     "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
@@ -916,6 +919,8 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "BETMARTINI",
     # Vavada (s403) — 8ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos.
     "VAVADA",
+    # Kikobet (s404) — 9ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos.
+    "KIKOBET",
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",
@@ -5088,6 +5093,21 @@ async def inserir_bilhete_manual(body: BilheteManualRequest, dono: str = Depends
         "resultado": resultado,
         "codigo_bilhete": "",
     }
+    # Conta em outra moeda (s404): a stake digitada é a que a casa mostra, e sai em R$
+    # pelo MESMO conversor do /salvar, com a origem guardada ao lado. Antes esta rota
+    # pulava a conversão e 40 € viravam R$ 40,00, sem moeda e sem cotação (Kiko, EUR).
+    # Sem cotação a aposta NÃO entra: gravar euro como real é o erro caro.
+    moeda = await moeda_da_conta(dono, row["casa"], row["parceiro"])
+    if moeda != _cambio.BRL:
+        try:
+            await _cambio.carregar(moeda, _cambio.datas_do_lote([row], None))
+        except CambioIndisponivel as exc:
+            raise HTTPException(503, str(exc))
+        ok, recusadas = _cambio.converter_linhas([row], moeda, None, _num_or_none)
+        if recusadas:
+            raise HTTPException(422, f"Aposta não salva: {recusadas[0]['erro']}. "
+                                     "Confira a data e tente de novo.")
+        row = ok[0]
     inseridos, atualizados, ids, _alertas, _dup = await upsert_bilhetes(
         [row], dono, origem="manual",
     )

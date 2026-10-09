@@ -3155,7 +3155,7 @@ td.c-res.res-HL { color: var(--warn); }
       <div class="modal-field"><label>Parceiro</label><input type="text" id="ed-parceiro" spellcheck="false"></div>
       <div class="modal-field"><label>Tipster</label><input type="text" id="ed-tipster" class="js-ac-tipster" spellcheck="false" autocomplete="off"></div>
       <div class="modal-field"><label>Resultado</label><select id="ed-resultado"><option value="">— aberta —</option><option value="W">W</option><option value="L">L</option><option value="V">V</option><option value="HW">HW</option><option value="HL">HL</option></select></div>
-      <div class="modal-field"><label>Stake</label><input type="text" id="ed-stake" spellcheck="false"></div>
+      <div class="modal-field"><label id="ed-stake-label">Stake</label><input type="text" id="ed-stake" spellcheck="false"></div>
       <div class="modal-field"><label>Odd</label><input type="text" id="ed-odd" spellcheck="false"></div>
       <div class="modal-field full"><label>Aposta (tipo)</label><input type="text" id="ed-aposta" class="js-ac-mercado-todos" spellcheck="false" autocomplete="off"></div>
       <div class="modal-field full"><label>Descrição</label><textarea id="ed-descricao" spellcheck="false"></textarea></div>
@@ -3816,6 +3816,8 @@ const NOMES = {
   BETMARTINI: 'BetMartini',
   // 8ª casa Altenar (s403). Grafia da marca em title case.
   VAVADA: 'Vavada',
+  // 9ª casa Altenar (s404). Grafia da marca em title case.
+  KIKOBET: 'Kikobet',
   // Antiga "Rei do Pitaco". `Pitaco` é o nome padrão desde a s270, e a grafia velha foi
   // unificada NO BANCO na mesma sessão — por isso o alias de exibição que existia aqui saiu:
   // não há mais linha alguma em `Rei do Pitaco` para traduzir.
@@ -4022,7 +4024,7 @@ const DOMINIOS = {
   // muda é o mapa deixar de apontar para o site global.
   'Betão': 'betao.bet.br', 'Betboo': 'betboo.bet.br', 'Betboom': 'betboom.bet.br',
   'Blaze': 'blaze.bet.br', 'Betpanda': 'betpandacasino.io',
-  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'Betcoin': 'betcoin.ag', 'Betrebels': 'betrebels.gr', 'BetMartini': 'betmartini.com', 'Vavada': 'vavada.com', 'DEX Sport': 'dexsport.io', 'Shuffle': 'shuffle.com',
+  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'Betcoin': 'betcoin.ag', 'Betrebels': 'betrebels.gr', 'BetMartini': 'betmartini.com', 'Vavada': 'vavada.com', 'Kikobet': 'kikobet.com', 'DEX Sport': 'dexsport.io', 'Shuffle': 'shuffle.com',
   'Betfusion': 'betfusion.bet.br', 'Liderbet': 'lider.bet.br',
   'SportingBet': 'sportingbet.bet.br',
   // Casas da base do Soh Props - Vip (s316). Domínio MEDIDO, não deduzido: o
@@ -6107,7 +6109,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'BETCOIN', 'DEXSPORT', 'SHUFFLE', 'FAZ1BET', 'MYSTAKE', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'BETREBELS', 'BETMARTINI', 'VAVADA', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', '1XBIT', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'BETCOIN', 'DEXSPORT', 'SHUFFLE', 'FAZ1BET', 'MYSTAKE', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'BETREBELS', 'BETMARTINI', 'VAVADA', 'KIKOBET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', '1XBIT', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o
@@ -9049,6 +9051,7 @@ function abrirEdicao(id) {
   });
   // Modo edição: título/rótulo padrão e casa/parceiro editáveis.
   document.querySelector('#edit-modal .modal-title').textContent = 'Editar aposta';
+  document.getElementById('ed-stake-label').textContent = 'Stake';
   document.getElementById('edit-save').textContent = 'Salvar';
   document.getElementById('ed-casa').readOnly = false;
   document.getElementById('ed-parceiro').readOnly = false;
@@ -9069,6 +9072,10 @@ function abrirInsercao() {
   document.getElementById('ed-casa').readOnly = true;
   document.getElementById('ed-parceiro').readOnly = true;
   document.querySelector('#edit-modal .modal-title').textContent = 'Nova aposta';
+  // Conta em outra moeda (s404): a stake se digita como a casa mostra, e o servidor
+  // converte para R$ pela cotação do dia. O rótulo diz em qual moeda se está escrevendo.
+  const moedaConta = parceiroSelecionado.moeda || 'BRL';
+  document.getElementById('ed-stake-label').textContent = moedaConta === 'BRL' ? 'Stake' : `Stake (${moedaConta})`;
   document.getElementById('edit-save').textContent = 'Adicionar';
   document.getElementById('edit-modal').classList.add('open');
   _modalBaseline(document.getElementById('edit-modal'));   // data/casa/parceiro pré-preenchidos não contam como digitação

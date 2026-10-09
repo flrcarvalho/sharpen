@@ -288,6 +288,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0750",
+      "v": "v0.7.50",
+      "data": "2026-10-09",
+      "texto": "Nova casa: **Kikobet**. Atualize a extensão e recarregue a aba do painel (Ctrl+Shift+R) antes de conectar."
+    },
+    {
       "id": "su-0749",
       "v": "v0.7.49",
       "data": "2026-10-08",
