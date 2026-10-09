@@ -8076,6 +8076,16 @@ function _cxErro(msg) {
   el.hidden = !msg;
 }
 
+// Recusa do valor no formulário: a MESMA régua do servidor (`repository._caixa_valida`).
+// Zero só é barrado em depósito e saque. Saldo inicial ZERO é conta nova, vazia (s404,
+// pedido do Feca), e a tela barrava o que o servidor aceitava. Campo sem dígito nenhum é
+// recusado à parte: o `_numBR` lê lixo como 0, e lixo não pode virar saldo zero.
+function _cxValorRecusa(modo, bruto) {
+  if (!/\d/.test(bruto || '')) return 'Informe um valor.';
+  if ((modo === 'deposito' || modo === 'saque') && !_numBR(bruto)) return 'Informe um valor maior que zero.';
+  return '';
+}
+
 async function caixaSalvar() {
   if (!parceiroSelecionado) return;
   const data = _cxIso(document.getElementById('cxm-data').value);
@@ -8083,7 +8093,8 @@ async function caixaSalvar() {
   const valor = _numBR(bruto);
   const btn = document.getElementById('cxm-ok');
   if (!data) { _cxErro('Data inválida — use dd/mm/aaaa.'); return; }
-  if (!bruto || (!valor && _cxModo !== 'ajuste')) { _cxErro('Informe um valor maior que zero.'); return; }
+  const recusa = _cxValorRecusa(_cxModo, bruto);
+  if (recusa) { _cxErro(recusa); return; }
   _cxErro('');
   btn.disabled = true;
   try {

@@ -79,5 +79,22 @@ ok(val(fmtSaldo('')) === '0,00' && val(fmtSaldo(undefined)) === '0,00', 'vazio n
 ok(/Resultado[^;]*fmtPL\(d\.pl\)/.test(HTML.replace(/\n/g, ' ')),
    'a linha Resultado tem de usar fmtPL (é P/L de verdade)');
 
+// ── C. A recusa do valor no formulário (s404) ──────────────────────────────
+// Mesma régua do servidor (`_caixa_valida`): zero só é barrado em depósito e saque. A
+// tela barrava zero em tudo que não era ajuste, e conta nova não ligava a Caixa.
+const _numBR = eval('(' + recorte('function _numBR(v) {', LF + '}', '_numBR') + ')');
+const _cxValorRecusa = eval('(' + recorte('function _cxValorRecusa(modo, bruto) {', LF + '}', '_cxValorRecusa') + ')');
+ok(_cxValorRecusa('inicial', '0') === '' && _cxValorRecusa('inicial', '0,00') === '',
+   'saldo inicial ZERO é aceito (conta nova)');
+ok(_cxValorRecusa('inicial', '150,00') === '', 'saldo inicial positivo segue aceito');
+ok(_cxValorRecusa('ajuste', '0') === '' && _cxValorRecusa('ajuste', '-12,50') === '',
+   'ajuste aceita zero e negativo, como no servidor');
+ok(_cxValorRecusa('deposito', '0') !== '' && _cxValorRecusa('saque', '0,00') !== '',
+   'depósito e saque ZERO continuam recusados');
+ok(_cxValorRecusa('deposito', '50') === '' && _cxValorRecusa('saque', '50') === '',
+   'depósito e saque positivos passam');
+ok(['', '   ', 'abc', 'R$'].every(b => _cxValorRecusa('inicial', b) !== ''),
+   'campo sem dígito nunca vira saldo zero');
+
 if (falhas) { console.error(falhas + ' falha(s)'); process.exit(1); }
 console.log('caixa_front.mjs OK');

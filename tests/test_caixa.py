@@ -464,6 +464,40 @@ def test_o_gate_detecta_saldo_colorido(tmp_path):
     assert _node(mutante).returncode != 0, "o gate passou com o saldo colorido"
 
 
+# ── Saldo inicial ZERO (s404, pedido do Feca) ─────────────────────────────────
+# Conta nova começa vazia. O servidor sempre aceitou zero no saldo inicial; a tela é que
+# barrava zero em tudo que não fosse ajuste. As duas réguas têm de ser a mesma.
+
+def test_servidor_aceita_saldo_inicial_zero_e_recusa_deposito_zero():
+    from repository import _caixa_valida
+    assert _caixa_valida("inicial", "09/10/2026", 0) == ("2026-10-09", 0.0)
+    assert _caixa_valida("ajuste", "09/10/2026", 0) == ("2026-10-09", 0.0)
+    for tipo in ("deposito", "saque"):
+        assert isinstance(_caixa_valida(tipo, "09/10/2026", 0), dict)
+
+
+def _mutar_recusa(tmp_path, alvo, troca, nome):
+    src = INDEX.read_text(encoding="utf-8")
+    assert src.count(alvo) == 1, "a recusa do valor mudou de forma — reveja esta mutação"
+    mutante = tmp_path / nome
+    io.open(mutante, "w", encoding="utf-8", newline="").write(src.replace(alvo, troca))
+    return _node(mutante).returncode
+
+
+def test_o_gate_detecta_a_regra_antiga_que_barrava_zero(tmp_path):
+    """A régua de antes: zero recusado em tudo que não é ajuste."""
+    alvo = "if ((modo === 'deposito' || modo === 'saque') && !_numBR(bruto))"
+    assert _mutar_recusa(tmp_path, alvo, "if (modo !== 'ajuste' && !_numBR(bruto))",
+                         "index_zero.html") != 0, "o gate passou barrando saldo inicial zero"
+
+
+def test_o_gate_detecta_lixo_virando_saldo_zero(tmp_path):
+    """Sem a checagem de dígito, `abc` vira 0 pelo `_numBR` e liga a Caixa com zero."""
+    alvo = "  if (!/\\d/.test(bruto || '')) return 'Informe um valor.';\n"
+    assert _mutar_recusa(tmp_path, alvo, "", "index_lixo.html") != 0, \
+        "o gate passou com lixo aceito como saldo"
+
+
 # ── O que o corte deixou de fora (s314, depois do relato do Feca) ─────────────
 # O tile de cima diz "P/L · conta −R$ 1.608,00" e a Caixa dizia "Resultado R$ 0,00".
 # Os dois estavam certos — as 12 apostas eram anteriores ao corte, logo já estavam
