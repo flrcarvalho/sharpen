@@ -1311,7 +1311,7 @@
       blocos = await roboTVPassive(ctx);
     } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" ||
                casa === "betpix365" || casa === "estrelabet" || casa === "betrebels" ||
-               casa === "betmartini") {
+               casa === "betmartini" || casa === "vavada") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
@@ -1345,6 +1345,9 @@
       //
       // A BetMartini (s402) é a 7ª: SDK na própria página `betmartini.com/en-gb/sports`,
       // `integration=betmartini`, mesmo cluster. Site internacional, abre em inglês.
+      //
+      // A Vavada (s403) é a 8ª: SDK na própria página `vavada.com/pt-br/sports`,
+      // `integration=vavada`, mesmo cluster. Cassino cripto, abre em pt-BR.
       blocos = await roboVBPassive(ctx);
     } else if (casa === "sportingbet" || casa === "betboo") {
       // Passivo + replay paginado (spb_inject, motor bwin/Entain — o primeiro deste motor
@@ -1587,6 +1590,11 @@
                         : "" },
         // BetMartini: 7ª casa Altenar (s402), mesmo inject/contadores.
         betmartini: { nome: "BetMartini", hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
+                      extra: vbRespostas === 0
+                        ? " · abra o histórico de apostas na tela e capture de novo; se persistir, refaça o login"
+                        : "" },
+        // Vavada: 8ª casa Altenar (s403), mesmo inject/contadores.
+        vavada:     { nome: "Vavada",     hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
                       extra: vbRespostas === 0
                         ? " · abra o histórico de apostas na tela e capture de novo; se persistir, refaça o login"
                         : "" },

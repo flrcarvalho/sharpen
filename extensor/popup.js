@@ -48,6 +48,8 @@ const CASA_HOSTS = {
   "Betrebels":  ["betrebels.gr"],
   // 7ª casa Altenar (s402) · `integration=betmartini`, SDK em `/en-gb/sports`.
   "BetMartini": ["betmartini.com"],
+  // 8ª casa Altenar (s403) · `integration=vavada`, SDK em `/pt-br/sports`.
+  "Vavada":     ["vavada.com"],
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Faz1bet":    ["faz1.bet.br"],      // 3ª casa BetConstruct (s284) · o domínio não tem o "bet"
   "MyStake":    ["mystake.bet", "mystake.com", "mystake2.com"],   // 4ª BetConstruct (s392)
@@ -270,6 +272,7 @@ async function capturar() {
                 // Betrebels: 6ª casa Altenar (s395) — MESMO inject.
                 : casa === "Betrebels" ? "vb_inject.js"
                 : casa === "BetMartini" ? "vb_inject.js"
+                : casa === "Vavada" ? "vb_inject.js"
                 : casa === "Betnacional" ? "bnc_inject.js"
                 // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
                 // `/api/v1/my_bets/list`): MESMO inject, de propósito.

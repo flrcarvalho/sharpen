@@ -1421,6 +1421,17 @@ host delas (Betpanda e Estrela Bet), e `CODIGO_EXEMPLO` também emprestado.
   conta em USDT (a do parceiro do Feca na Betrebels) e a BetMartini dependem do cadastro certo.
   Proposto, não aprovado.
 
+### 4.0j Vavada: validar ao vivo e trocar a fixture emprestada (s403). **VIVA, só no harness**
+
+8ª casa Altenar (`integration=vavada`, `altenar2`, SDK em `vavada.com/pt-br/sports`, recon de
+08/10/2026 sem login). Entrou sem conta de teste: harness com a fixture da Estrela Bet servida no
+host dela e `CODIGO_EXEMPLO` emprestado.
+
+- Medir a grafia na base antes da 1ª conta (`parceiros`, `bilhetes`, `casas_meta`): não medida.
+- 1ª captura ao vivo, provar o botão Conectar em produção e trocar fixture e `CODIGO_EXEMPLO`.
+- Casa cripto: a moeda da conta depende do cadastro (ver **Moeda no Altenar** em 4.0i).
+- Só `vavada.com` está registrado; domínio espelho não engancha.
+
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
 
 A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde
