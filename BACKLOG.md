@@ -400,6 +400,24 @@ harness.
 > que o causou. Ele não dispara erro nenhum — some do MTD por um lado e aparece por outro,
 > conforme o recorte da tela.
 
+### 1.23 Apostas MANUAIS em conta de outra moeda gravadas como R$ (s404, câmbio). **VIVA, não medida**
+
+Relato de tester (09/10/2026): a Kiko lançava à mão as apostas de uma conta cadastrada em
+EUR e elas entravam como reais. O `/bilhetes/manual` pulava o `cambio.converter_linhas` do
+`/salvar`: 40 € viravam R$ 40,00, com `moeda`, `stake_orig` e `cotacao` nulos. **Conserto no
+ar desde o `a09aa01`** (a rota converte pela moeda da conta e recusa sem cotação; modal diz
+`Stake (EUR)`), gate `tests/test_aposta_manual_moeda.py`, 3 mutações detectadas.
+
+**O que ficou aberto:**
+- **As linhas já gravadas.** Toda aposta `origem='manual'` de conta com `moeda <> 'BRL'` e
+  `moeda` nula na linha tem a stake na moeda da casa lida como R$. Medir primeiro:
+  `select p.dono, p.casa, p.nome, p.moeda, count(*) from bilhetes b join parceiros p on
+  p.dono=b.dono and p.casa=b.casa and p.nome=b.parceiro where b.origem='manual' and
+  p.moeda<>'BRL' and b.moeda is null group by 1,2,3,4`. Reparo por script com ensaio
+  (reconverter pela cotação da data), ou o dono apaga e relança.
+- **Editar a stake pelo MODAL** numa linha em outra moeda manda `stake` (R$), não
+  `stake_orig`. Pela grade (duplo clique) já edita na moeda da conta; o modal não.
+
 ### 1.16 Grafia de casa já unificada volta pelo cadastro manual (s373). **VIVA, medida**
 
 `Rei do Pitaco` foi unificada em `Pitaco` na s270 (54 bilhetes, 2 donos, assinaturas
