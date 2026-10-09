@@ -1403,6 +1403,24 @@ pulados. Decidir se é só o teste ou o código: o resolver roda no navegador do
 e a Bet365 AU (s392) tem usuário fora do fuso de Brasília. **Não mascarar com `TZ` no
 workflow antes de saber qual dos dois é.**
 
+### 4.0i Betcoin e Betrebels: validar ao vivo e trocar a fixture emprestada (s395). **VIVA, só no harness**
+
+A Betcoin entrou na 0.7.43 (7ª casa BetBy, `CASA_BETCOIN.md`) e a Betrebels na 0.7.44 (6ª
+Altenar, `CASA_BETREBELS.md`). As duas passam no harness com fixture de outra casa servida no
+host delas (Betpanda e Estrela Bet), e `CODIGO_EXEMPLO` também emprestado.
+
+- **Betrebels, abertas:** a 0.7.46 recua a janela para 365 dias quando a de 730 volta vazia
+  (`CASA_BETREBELS §2.1`, medido ao vivo pelo Feca em 08/10: 730 → 0, 365/90/30 → 7). Falta
+  a captura pela extensão trazer as 7, incluindo 5497736946, 5497732293, 5497640668 e
+  5497621320.
+- **Betcoin:** 1ª captura ao vivo.
+- Trocar fixture e `CODIGO_EXEMPLO` das duas pelos da conta real, e provar o botão Conectar em
+  produção (`_casaConectavel`).
+- **Moeda no Altenar:** o `formatTicketVB` escreve `R$` em todo valor e não emite `Moeda:` nem o
+  carimbo que os formatadores cripto têm. A conversão segue a moeda do cadastro da conta, então
+  conta em USDT (a do parceiro do Feca na Betrebels) e a BetMartini dependem do cadastro certo.
+  Proposto, não aprovado.
+
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
 
 A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde
