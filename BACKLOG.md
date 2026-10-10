@@ -400,6 +400,22 @@ harness.
 > que o causou. Ele não dispara erro nenhum — some do MTD por um lado e aparece por outro,
 > conforme o recorte da tela.
 
+**Remedido em 09-10/10/2026 (s405), pelo sintoma que os testers veem:** a sidebar ("MÊS" =
+mês inteiro) não bate com o MTD da tela (que corta em hoje). Feca, outubro: **15** liquidadas
+datadas 10-11/10, **−R$ 1.107,63** só na sidebar (Duel, BetMartini, Vavada, Shuffle, DEX
+Sport, MyStake). Gabriel: **7**, **−R$ 1.639,16** (Duel, Betcoin, DEX Sport, Megapari). A
+diferença **cresce a cada dia do mês** e, no dia 31, a múltipla vai para o mês seguinte. Na
+base inteira, ao menos **289** liquidadas têm data posterior ao último `atualizado_em`. As
+casas novas (Altenar, BetBy, Duel) entraram na lista depois da medição de 90 dias acima.
+
+**Contradiz o "todos são `L`":** três múltiplas da Duel do Feca (378266, 378284, 378286) estão
+como `W` com odd **exatamente 0,92**, datadas no futuro. Pela régua, W com odd < 1 é
+cashout, e três a 92% cravado é suspeito. Investigar à parte, antes de julgar a regra.
+
+Decisão do Feca, 09/10/2026: múltipla que resolve cedo pertence ao dia em que foi
+**processada**, e não ao dia da última perna. A "perna mais recente que já começou" acima
+realiza isso sem estimar.
+
 ### 1.23 Apostas MANUAIS em conta de outra moeda gravadas como R$ (s404, câmbio). **VIVA, não medida**
 
 Relato de tester (09/10/2026): a Kiko lançava à mão as apostas de uma conta cadastrada em

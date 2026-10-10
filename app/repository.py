@@ -2372,10 +2372,15 @@ async def resumo_perfil(donos: list[str], hoje: date | None = None) -> dict:
     if not donos:
         vazio = _resumir_apostas([])
         return {"mes": vazio, "historico": vazio}
+    # `stake_freebet` é load-bearing: `_resumir_apostas` lê a coluna, e linha que chega
+    # sem ela vira dinheiro do apostador (§5.8). Ficou fora deste SELECT desde a s392 e
+    # a sidebar cobrava cada freebet perdida inteira, enquanto o feed ao lado dava 0
+    # (s405: −R$ 668,78 no Feca e −R$ 271,83 no Gabriel em outubro).
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT stake, odd, resultado, data FROM bilhetes WHERE dono = ANY($1::text[])",
+            "SELECT stake, odd, resultado, data, stake_freebet FROM bilhetes "
+            "WHERE dono = ANY($1::text[])",
             list(donos),
         )
     linhas = [dict(r) for r in rows]
