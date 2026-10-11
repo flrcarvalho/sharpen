@@ -64,7 +64,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_dataDoPreco', '_custoDaConta',
-      '_dataPagamento', '_renovacoesDoCadastro', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered', 'calcContasEmOperacao',
+      '_dataPagamento', '_renovacoesDoCadastro', '_renovacoesNaJanela', '_custoNaJanela', '_contasDoTipster', 'calcCostFiltered', 'calcContasEmOperacao',
       'calcCustoTipsterFiltrado', 'calcCustoGeralFiltrado', 'calcCasaCost']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // `parseNum` é o parser de número do projeto (app.js) e o custo de tipster depende dele:
@@ -266,9 +266,10 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   ok(API.calcCostFiltered('overview').costConta === 0, 'o mês do import não pode virar o mês do pagamento');
 }
 
-// ── I. Escopo: Casa e Operador recortam; Esporte e Tipster NÃO ────────────
+// ── I. Escopo: Casa e Operador recortam; Esporte NÃO ──────────────────────
 // "A conta Bet365 custou R$ 900 quer você olhe tênis ou futebol." Casa e Operador
-// descrevem a CONTA; esporte e tipster descrevem a APOSTA.
+// descrevem a CONTA; esporte descreve a APOSTA. Tipster recorta pelas contas que
+// usou (s406) — a prova está no caso P, com a conta compartilhada.
 {
   const cfg = {
     custos: { 'GN||Betano': 1700, 'GN||Bet365': 900 },
@@ -278,8 +279,8 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   };
   API.set({ ...cfg, ms: { ca_overview: ['Bet365'] } });
   ok(API.calcCostFiltered('overview').costConta === 900, 'filtro de CASA tem de recortar o custo');
-  API.set({ ...cfg, ms: { sp_overview: ['Tênis'], ti_overview: ['LBB'] } });
-  ok(API.calcCostFiltered('overview').costConta === 2600, 'filtro de esporte/tipster NÃO pode mexer no custo de contas');
+  API.set({ ...cfg, ms: { sp_overview: ['Tênis'] } });
+  ok(API.calcCostFiltered('overview').costConta === 2600, 'filtro de esporte NÃO pode mexer no custo de contas');
   API.set({ ...cfg, ms: { op_overview: ['Lava'] } });
   ok(API.calcCostFiltered('overview').costConta === 0, 'filtro de OPERADOR tem de recortar o custo');
 }
@@ -562,6 +563,58 @@ const periodo = (df, dt) => ({ df, dt, qd: 0 });
   // esporte e operador seguem sem recortar
   API.set({ ...cfg, ms: { sp_overview: ['Tenis'] } });
   ok(API.calcContasEmOperacao('overview').total === 1500, 'esporte nao recorta contas em operacao');
+}
+
+// ── P. Custo PAGO e drill de casa: TIPSTER recorta pelas contas USADAS (s406) ─
+// "Filtrei 1 tipster e o custo de contas e o P/L liquido nao foram filtrados" (Feca).
+// Era o bruto de UM tipster contra o custo da operacao inteira. Mesmo vinculo das
+// contas em operacao (caso O): conta compartilhada entra CHEIA nos dois recortes, e
+// aposta so em ABERTO tambem prova o uso (o vinculo le DADOS_ABERTAS).
+{
+  const cfg = {
+    custos: { 'GN||Betano': 600, 'GN||Bet365': 900, 'GN||KTO': 300 },
+    dados: [
+      { conta: 'B1', casa: 'Betano', fornecedor: 'GN', data: '2026-09-02', operador: 'Feca', tipster: 'Zora', resultado: 'W', lucro: 0, stake: 10 },
+      { conta: 'B2', casa: 'Bet365', fornecedor: 'GN', data: '2026-09-03', operador: 'Feca', tipster: 'LBB', resultado: 'W', lucro: 0, stake: 10 },
+      { conta: 'B1', casa: 'Betano', fornecedor: 'GN', data: '2026-09-04', operador: 'Feca', tipster: 'LBB', resultado: 'W', lucro: 0, stake: 10 },
+    ],
+    // a KTO so tem aposta ABERTA, e do Zora: ela e dele tambem
+    abertas: [
+      { conta: 'K1', casa: 'KTO', fornecedor: 'GN', data: '2026-09-05', operador: 'Lava', tipster: 'Zora', resultado: '', lucro: 0, stake: 10 },
+    ],
+    cadastro: [cad('B1', 'Betano', 'GN', '2026-09-01'), cad('B2', 'Bet365', 'GN', '2026-09-01'),
+               cad('K1', 'KTO', 'GN', '2026-09-01')],
+    periodo: periodo('2026-09-01', '2026-09-30'),
+  };
+  API.set(cfg);
+  let r = API.calcCostFiltered('overview');
+  ok(r.costConta === 1800 && r.nContas === 3, 'sem filtro, as tres contas; veio ' + r.nContas + '/' + r.costConta);
+  API.set({ ...cfg, ms: { ti_overview: ['Zora'] } });
+  r = API.calcCostFiltered('overview');
+  ok(r.costConta === 900 && r.nContas === 2, 'o Zora usou Betano e KTO (aberta); veio ' + r.nContas + '/' + r.costConta);
+  API.set({ ...cfg, ms: { ti_overview: ['LBB'] } });
+  r = API.calcCostFiltered('overview');
+  ok(r.costConta === 1500 && r.nContas === 2, 'o LBB usou Betano e Bet365; veio ' + r.nContas + '/' + r.costConta);
+  API.set({ ...cfg, ms: { ti_overview: ['Ninguem'] } });
+  ok(API.calcCostFiltered('overview').costConta === 0, 'tipster sem conta nenhuma nao cobra nada');
+  // tipster + casa: as duas restricoes valem juntas
+  API.set({ ...cfg, ms: { ti_overview: ['LBB'], ca_overview: ['Betano'] } });
+  ok(API.calcCostFiltered('overview').costConta === 600, 'tipster e casa recortam juntos');
+  // o periodo continua mandando: conta usada pelo tipster, paga em outro mes, nao cobra
+  API.set({ ...cfg, periodo: periodo('2026-10-01', '2026-10-31'), ms: { ti_overview: ['LBB'] } });
+  ok(API.calcCostFiltered('overview').costConta === 0, 'com tipster, o mes sem compra segue custando 0');
+
+  // O drill de UMA casa le os mesmos filtros da pagina (tipster e operador)
+  API.set({ ...cfg, ms: { ti_overview: ['Zora'] } });
+  ok(API.calcCasaCost('Bet365', '2026-09-01', '2026-09-30', 'overview').total === 0,
+     'drill: o Zora nunca usou a Bet365');
+  ok(API.calcCasaCost('Betano', '2026-09-01', '2026-09-30', 'overview').total === 600,
+     'drill: o Zora usou a Betano');
+  ok(API.calcCasaCost('Bet365', '2026-09-01', '2026-09-30').total === 900,
+     'drill sem pagina: a casa inteira');
+  API.set({ ...cfg, ms: { op_overview: ['Feca'] } });
+  ok(API.calcCasaCost('KTO', '2026-09-01', '2026-09-30', 'overview').total === 0,
+     'drill: o filtro de OPERADOR recorta (a K1 e do Lava)');
 }
 
 // ── N. As TRES camadas do custo de uma conta (s348, Fatia 2) ────────────────

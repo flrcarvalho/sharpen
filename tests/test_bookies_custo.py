@@ -1,5 +1,9 @@
 """BOOKIES com custo e P/L Líquido (s364, Fatia 5) — a MESMA régua das outras telas.
 
+s406: o filtro de TIPSTER passou a recortar o custo pelas contas que ele usou (antes o
+P/L Líquido de um tipster descontava o custo da operação inteira). Esporte segue sem
+recortar, e a tela diz.
+
 A lista de Bookies só tinha P/L bruto, ROI, Casas Positivas e Turnover. O drill de uma
 casa já trazia Custo / P/L Líquido / ROI Líquido desde a s358; a LISTA, que é onde se
 decide "a operação nesta casa vale a pena", não trazia nada.
@@ -108,39 +112,37 @@ MUTACOES = [
         "  const _custoClsP=costConta>0?'neg':'neu';",
         "  const _custoClsP='neg';",
     ),
-    # ── O AVISO: esporte e tipster NAO recortam, e a tela DIZ ───────────────
+    # ── O AVISO: esporte NAO recorta, e a tela DIZ ──────────────────────────
     (
-        "o aviso de que o custo nao recorta some da tela",
+        "o aviso de que o custo nao recorta por esporte some da tela",
         "perf",
-        "  const _apFiltroP=[",
-        "  const _apFiltroP=''&&[",
+        "  const _espP=typeof msGet==='function'&&msGet('sp_casas').size>0;",
+        "  const _espP=false;",
     ),
-    # As duas ancoras abaixo levam o `const _apFiltroP=[` junto: as MESMAS linhas
-    # existem no `renderCasaDrill` (o `_apFiltro` dele), e sem o prefixo o trecho
-    # aparece duas vezes no arquivo.
     (
         "o aviso passa a olhar o filtro de ESPORTE da pagina errada",
         "perf",
-        "  const _apFiltroP=[\n"
-        "    (typeof msGet==='function'&&msGet('sp_casas').size)?'esporte':'',",
-        "  const _apFiltroP=[\n"
-        "    (typeof msGet==='function'&&msGet('sp_overview').size)?'esporte':'',",
+        "  const _espP=typeof msGet==='function'&&msGet('sp_casas').size>0;",
+        "  const _espP=typeof msGet==='function'&&msGet('sp_overview').size>0;",
     ),
+    # ── TIPSTER recorta pelas contas usadas, e o rotulo DIZ (s406) ─────────
     (
-        "o aviso esquece o filtro de TIPSTER",
+        "o rotulo esquece o filtro de TIPSTER",
         "perf",
-        "  const _apFiltroP=[\n"
-        "    (typeof msGet==='function'&&msGet('sp_casas').size)?'esporte':'',\n"
-        "    (typeof msGet==='function'&&msGet('ti_casas').size)?'tipster':'',",
-        "  const _apFiltroP=[\n"
-        "    (typeof msGet==='function'&&msGet('sp_casas').size)?'esporte':'',\n"
-        "    '',",
+        "  const _nTipP=typeof msGet==='function'?msGet('ti_casas').size:0;",
+        "  const _nTipP=0;",
     ),
     (
         "o sub do P/L Liquido deixa de avisar o corte",
         "perf",
-        "`<div class=\"kpi-sub\">${_apFiltroP?'P/L do recorte − custo das casas':'após o custo de contas'}</div>`",
+        "`<div class=\"kpi-sub\">${_liqSubP}</div>`",
         "`<div class=\"kpi-sub\">após o custo de contas</div>`",
+    ),
+    (
+        "o custo de contas volta a ignorar o tipster (o caso do SindicateX)",
+        "gestao",
+        "    _contasDoTipster(pag));",
+        "    null);",
     ),
     # ── A CONTAGEM ──────────────────────────────────────────────────────────
     (
@@ -153,8 +155,8 @@ MUTACOES = [
     (
         "o custo volta a cobrar toda conta VIVA no periodo, nao a paga",
         "gestao",
-        "    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago');",
-        "    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'vivo');",
+        "    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago',",
+        "    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'vivo',",
     ),
 ]
 

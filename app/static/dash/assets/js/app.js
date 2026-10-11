@@ -729,9 +729,9 @@ function atualizarOpcoesFiltros(){
 // nenhum, e "o tenis do Arrudex" ou "a Bet365 so do LBB" eram perguntas que a tela nao
 // sabia responder. O eixo ja funcionava: `filtrarPagina` sempre leu `ti_<pagina>`; o que
 // faltava era a barra OFERECER.
-// O custo NAO segue junto, e isso e regra e nao esquecimento: `calcCostFiltered` recorta
-// so por Casa e Operador, que descrevem a CONTA. A conta Bet365 custou os mesmos R$ 900
-// quer se olhe tenis ou futebol -- e ja era assim para o Esporte, que a tela oferecia.
+// O custo de conta recorta por Casa e Operador (descrevem a CONTA) e, desde a s406, por
+// TIPSTER pelas contas que ele usou (`_contasDoTipster`, gestao.js). Esporte segue sem
+// recortar: a conta Bet365 custou os mesmos R$ 900 quer se olhe tenis ou futebol.
 function buildHTML(){
   const _L=recalcListasFiltro();
   const tipsters=_L.tipsters,sports=_L.sports,casas=_L.casas;

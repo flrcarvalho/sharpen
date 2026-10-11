@@ -11,12 +11,15 @@
 //      derivações para a mesma pergunta é o que a s362 acabou de desfazer.
 //   2. `P/L Líquido = P/L bruto − custo`, exato. Um sinal trocado aqui é um número
 //      plausível: continua parecendo dinheiro e continua na cor certa.
-//   3. **Esporte e Tipster NÃO recortam o custo, e a tela DIZ isso.** Eles descrevem a
-//      APOSTA — a conta Bet365 custou os mesmos R$ 900 quer se olhe tênis ou futebol.
-//      Com um deles ligado o P/L é do recorte e o custo é das casas inteiras, e sem o
-//      rótulo isso lê como defeito: medido na demo, filtrar Tênis leva o líquido de
-//      +R$ 237.602,47 para −R$ 38.992,93 sem que nada tenha piorado.
+//   3. **Esporte NÃO recorta o custo, e a tela DIZ isso.** Ele descreve a APOSTA — a
+//      conta Bet365 custou os mesmos R$ 900 quer se olhe tênis ou futebol. Com ele
+//      ligado o P/L é do recorte e o custo é das casas inteiras, e sem o rótulo isso lê
+//      como defeito: medido na demo, filtrar Tênis leva o líquido de +R$ 237.602,47
+//      para −R$ 38.992,93 sem que nada tenha piorado.
 //      Casa e Operador, ao contrário, RECORTAM — eles descrevem a CONTA.
+//   4. **Tipster recorta pelas contas que ele USOU (s406), e o rótulo diz isso.** Até a
+//      s406 ele não recortava: o Feca filtrou o SindicateX e viu −R$ 6.854 de bruto
+//      contra R$ 69.400 de custo da operação inteira.
 //
 // Executa `renderCasa` RECORTADA do `performance.js` de produção, com o
 // `calcCostFiltered` REAL do `gestao.js` e os `fmtPL`/`fmtR`/`fmtPct` REAIS do `app.js`.
@@ -58,7 +61,8 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_dataDoPreco',
-      '_custoDaConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered']
+      '_custoDaConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', '_contasDoTipster',
+      'calcCostFiltered']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   // Máscaras REAIS: é delas que sai o texto que o teste lê. Dublá-las esconderia a
   // troca de `fmtPL` por `fmtR` num valor de P/L, que muda o sinal e as casas.
@@ -117,9 +121,9 @@ const tile = (html, label) => {
 };
 
 const TUDO = { df: '', dt: '', qd: 0, qt: '' };
-const ap = (casa, esporte, tipster, data, stake, lucro) =>
+const ap = (casa, esporte, tipster, data, stake, lucro, conta) =>
   ({ casa, esporte, tipster, data, stake, lucro, odd: 2, resultado: lucro >= 0 ? 'W' : 'L',
-     conta: 'c1', fornecedor: 'GN', operador: 'Feca' });
+     conta: conta || 'c1', fornecedor: 'GN', operador: 'Feca' });
 const cad = (casa, conta, forn, adq) =>
   ({ casa, conta, fornecedor: forn, adquirida_em: adq, arquivada_em: '', arquivado: false, custo: null });
 
@@ -190,20 +194,38 @@ const cad = (casa, conta, forn, adq) =>
   eq(tile(h, 'P/L Líquido').sub, 'P/L do recorte − custo das casas', 'o sub do líquido também muda');
 }
 
-// ── 5. TIPSTER também não recorta, e os dois juntos aparecem na frase ────────
+// ── 5. TIPSTER recorta pelas contas que ele USOU, e o rótulo diz (s406) ─────
+// A conta da Ana é só a Betano: o custo dela é 600, não os 1.500 da operação. Esporte
+// junto continua sem recortar, e a frase diz as duas coisas.
 {
   const cfg = {
-    dados: [ap('Bet365', 'Futebol', 'Ze', '2026-03-10', 100, 1000),
-            ap('Bet365', 'Tênis', 'Ana', '2026-03-11', 100, 200)],
-    cadastro: [cad('Bet365', 'c1', 'GN', '2026-03-01')],
-    custos: { 'GN||Bet365': 900 }, periodo: TUDO,
+    dados: [ap('Bet365', 'Futebol', 'Ze', '2026-03-10', 100, 1000, 'c1'),
+            ap('Betano', 'Tênis', 'Ana', '2026-03-11', 100, 200, 'c2')],
+    cadastro: [cad('Bet365', 'c1', 'GN', '2026-03-01'), cad('Betano', 'c2', 'GN', '2026-03-01')],
+    custos: { 'GN||Bet365': 900, 'GN||Betano': 600 }, periodo: TUDO,
   };
+  API.set(Object.assign({}, cfg));
+  eq(tile(API.html(), 'Custo de Contas').val, '1.500,00', 'sem filtro, as duas contas');
+
   API.set(Object.assign({ tipsters: ['Ana'] }, cfg));
-  eq(tile(API.html(), 'Custo de Contas').sub, 'das casas inteiras · não recorta por tipster',
-     'com tipster ligado');
+  let h = API.html();
+  eq(tile(h, 'P/L Bruto').val, '200,00', 'com a Ana, o P/L recorta');
+  eq(tile(h, 'Custo de Contas').val, '600,00', 'e o custo também: só a conta que ela usou');
+  eq(tile(h, 'Custo de Contas').sub, '1 conta do tipster no período', 'o rótulo diz de quem é a conta');
+  eq(tile(h, 'P/L Líquido').val, '400,00', 'líquido = 200 − 600');
+  eq(tile(h, 'P/L Líquido').sign, '−R$', 'negativo');
+  eq(tile(h, 'P/L Líquido').sub, 'após o custo das contas do tipster', 'o sub do líquido diz o corte');
+
   API.set(Object.assign({ esportes: ['Tênis'], tipsters: ['Ana'] }, cfg));
-  eq(tile(API.html(), 'Custo de Contas').sub, 'das casas inteiras · não recorta por esporte e tipster',
-     'com os dois ligados');
+  h = API.html();
+  eq(tile(h, 'Custo de Contas').sub, '1 conta do tipster no período · não recorta por esporte',
+     'com esporte junto, a frase diz as duas coisas');
+  eq(tile(h, 'P/L Líquido').sub, 'P/L do recorte − contas do tipster', 'e o líquido também');
+
+  API.set(Object.assign({ tipsters: ['Ana', 'Ze'] }, cfg));
+  h = API.html();
+  eq(tile(h, 'Custo de Contas').val, '1.500,00', 'dois tipsters: as contas dos dois');
+  eq(tile(h, 'Custo de Contas').sub, '2 contas dos tipsters no período', 'no plural');
 }
 
 // ── 6. CASA recorta o custo — ela descreve a CONTA ───────────────────────────

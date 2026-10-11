@@ -198,24 +198,29 @@ function renderCasa(rows){
   const{costConta,nContas:nContasCusto}=(typeof calcCostFiltered==='function')
     ?calcCostFiltered('casas'):{costConta:0,nContas:0};
   const portLiq=portPL-costConta;
-  // Mesmo aviso do drill: Esporte e Tipster descrevem a APOSTA e NÃO recortam custo
-  // (a conta Bet365 custou os mesmos R$ 900 quer se olhe tênis ou futebol). Com um
-  // deles ligado, o P/L é do recorte e o custo é das casas inteiras — dois números
-  // certos que se leem como um só. A tela DIZ o corte; não se muda número nenhum.
-  const _apFiltroP=[
-    (typeof msGet==='function'&&msGet('sp_casas').size)?'esporte':'',
-    (typeof msGet==='function'&&msGet('ti_casas').size)?'tipster':'',
-  ].filter(Boolean).join(' e ');
+  // Mesmo aviso do drill. ESPORTE descreve a APOSTA e não recorta custo (a conta Bet365
+  // custou os mesmos R$ 900 quer se olhe tênis ou futebol): com ele ligado o P/L é do
+  // recorte e o custo é das casas inteiras, e a tela DIZ o corte. TIPSTER recorta pelas
+  // contas que ele USOU (s406) — e o rótulo diz isso, porque conta compartilhada entra
+  // cheia no recorte de cada tipster e os recortes de tipsters diferentes não somam.
+  const _espP=typeof msGet==='function'&&msGet('sp_casas').size>0;
+  const _nTipP=typeof msGet==='function'?msGet('ti_casas').size:0;
+  const _doTipP=_nTipP>1?'dos tipsters':'do tipster';
   // Custo entra como contribuição NEGATIVA ao P/L, igual à Visão Geral e ao drill
   // (`fmtPL(-x)`, 2 casas): é o que deixa a conta legível em coluna — bruto, menos
   // custo, líquido. Zero é neutro e volta ao `fmtR`, porque aí não há o que subtrair.
   const _custoClsP=costConta>0?'neg':'neu';
   const _custoValP=costConta>0?fmtPL(-costConta):fmtR(0);
-  const _custoSubP=_apFiltroP
-    ? `das casas inteiras · não recorta por ${_apFiltroP}`
+  const _custoSubP=_nTipP
+    ? `${nContasCusto} conta${nContasCusto!==1?'s':''} ${_doTipP} no período`+(_espP?' · não recorta por esporte':'')
+    : _espP
+    ? 'das casas inteiras · não recorta por esporte'
     : (costConta>0
         ? `${nContasCusto} conta${nContasCusto!==1?'s':''} comprada${nContasCusto!==1?'s':''} no período`
         : 'nenhuma compra no período');
+  const _liqSubP=_espP
+    ? (_nTipP?`P/L do recorte − contas ${_doTipP}`:'P/L do recorte − custo das casas')
+    : (_nTipP?`após o custo das contas ${_doTipP}`:'após o custo de contas');
   const el=document.getElementById('casaPortfolioKPIs');
   if(el){
     el.innerHTML=
@@ -232,7 +237,7 @@ function renderCasa(rows){
       `<div class="kpi">`+
         `<div class="kpi-label"><span class="kpi-pipe"></span> P/L Líquido</div>`+
         `<div class="kpi-val ${portLiq>=0?'pos':'neg'}">${fmtPL(portLiq)}</div>`+
-        `<div class="kpi-sub">${_apFiltroP?'P/L do recorte − custo das casas':'após o custo de contas'}</div>`+
+        `<div class="kpi-sub">${_liqSubP}</div>`+
       `</div>`+
       `<div class="kpi">`+
         `<div class="kpi-label"><span class="kpi-pipe"></span> ROI</div>`+
@@ -544,7 +549,7 @@ function renderCasaDrill(rows){
   const _sel=(typeof _selRange==='function')?_selRange('casas'):null;
   const _minDate=_sel?_sel.from:'0000-01-01';
   const _maxDate=_sel?_sel.to:'9999-12-31';
-  const{total:custoTotal,nContas:nContasCusto}=(typeof calcCasaCost==='function')?calcCasaCost(nome,_minDate,_maxDate):{total:0,nContas:0};
+  const{total:custoTotal,nContas:nContasCusto}=(typeof calcCasaCost==='function')?calcCasaCost(nome,_minDate,_maxDate,'casas'):{total:0,nContas:0};
   const plLiq=pl-custoTotal;
   const roiLiq=s>0?plLiq/s*100:0;
 
@@ -562,20 +567,23 @@ function renderCasaDrill(rows){
 
   const _custoCls=custoTotal>0?'neg':'neu';
   const _custoVal=custoTotal>0?fmtPL(-custoTotal):fmtR(0);
-  // ⚠ O custo NÃO recorta por esporte nem por tipster, e é regra: os dois descrevem a
-  // APOSTA, e a conta Bet365 custou os mesmos R$ 900 quer se olhe tênis ou futebol
-  // (`calcCasaCost` só olha casa e período). Com um desses filtros ligado, o P/L aqui é
-  // do recorte e o custo é da casa INTEIRA — dois números certos que se leem como um só.
-  // A saída é a mesma da Caixa: não mudar número nenhum, e a TELA DIZER o corte. Sem
-  // isso, ver P/L Líquido afundar ao filtrar um tipster parece defeito. (s358, com o
-  // eixo Tipster entrando nesta tela.)
-  const _apFiltro=[
-    (typeof msGet==='function'&&msGet('sp_casas').size)?'esporte':'',
-    (typeof msGet==='function'&&msGet('ti_casas').size)?'tipster':'',
-  ].filter(Boolean).join(' e ');
-  const _custoSub=_apFiltro
-    ? `da casa inteira · não recorta por ${_apFiltro}`
+  // ⚠ O custo NÃO recorta por esporte, e é regra: esporte descreve a APOSTA, e a conta
+  // Bet365 custou os mesmos R$ 900 quer se olhe tênis ou futebol. Com ele ligado, o P/L
+  // aqui é do recorte e o custo é da casa INTEIRA — dois números certos que se leem como
+  // um só; a TELA DIZ o corte. TIPSTER recorta pelas contas desta casa que ele USOU
+  // (s406, `calcCasaCost(…,'casas')`), e o rótulo diz isso: conta compartilhada entra
+  // cheia no recorte de cada tipster.
+  const _esp=typeof msGet==='function'&&msGet('sp_casas').size>0;
+  const _nTip=typeof msGet==='function'?msGet('ti_casas').size:0;
+  const _doTip=_nTip>1?'dos tipsters':'do tipster';
+  const _custoSub=_nTip
+    ? `${nContasCusto} conta${nContasCusto!==1?'s':''} ${_doTip} no período`+(_esp?' · não recorta por esporte':'')
+    : _esp
+    ? 'da casa inteira · não recorta por esporte'
     : (custoTotal>0?`${nContasCusto} conta${nContasCusto!==1?'s':''} comprada${nContasCusto!==1?'s':''} no período`:'nenhuma compra no período');
+  const _liqSub=_esp
+    ? (_nTip?`P/L do recorte − contas ${_doTip}`:'P/L do recorte − custo da casa')
+    : (_nTip?`após o custo das contas ${_doTip}`:'após custos');
   const _roiLiqCls=roiLiq>=0?'pos':'neg';
 
   body.innerHTML=
@@ -585,7 +593,7 @@ function renderCasaDrill(rows){
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>P/L Bruto</div><div class="kpi-val ${plCls}" style="${vS}">${fmtPL(pl)}</div><div class="kpi-sub" style="${sbS}">antes dos custos</div></div>`+
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>ROI Bruto</div><div class="kpi-val ${roiCls}" style="${vS}">${fmtPct(roi,2)}</div><div class="kpi-sub" style="${sbS}">Σ(P/L)/Σ(turnover)</div></div>`+
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>Custo</div><div class="kpi-val ${_custoCls}" style="${vS}">${_custoVal}</div><div class="kpi-sub" style="${sbS}">${_custoSub}</div></div>`+
-        `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>P/L Líquido</div><div class="kpi-val ${plLiq>=0?'pos':'neg'}" style="${vS}">${fmtPL(plLiq)}</div><div class="kpi-sub" style="${sbS}">${_apFiltro?'P/L do recorte − custo da casa':'após custos'}</div></div>`+
+        `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>P/L Líquido</div><div class="kpi-val ${plLiq>=0?'pos':'neg'}" style="${vS}">${fmtPL(plLiq)}</div><div class="kpi-sub" style="${sbS}">${_liqSub}</div></div>`+
         `<div class="kpi" style="${kS}"><div class="kpi-label"><span class="kpi-pipe"></span>ROI Líquido</div><div class="kpi-val ${_roiLiqCls}" style="${vS}">${fmtPct(roiLiq,2)}</div><div class="kpi-sub" style="${sbS}">Σ(P/L líq)/Σ(turnover)</div></div>`+
       `</div>`+
       `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:stretch;width:100%">`+

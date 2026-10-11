@@ -290,7 +290,7 @@ def test_contas_em_operacao_perguntam_por_hoje_e_nao_pelo_periodo():
         "as contas em operação voltaram a olhar o período da tela: é estoque de HOJE (s358)"
     )
     assert "'ca_'" in corpo and "'op_'" in corpo, "parou de respeitar casa/operador"
-    assert "'ti_'" in corpo, (
+    assert "_contasDoTipster(pag)" in corpo, (
         "o filtro de tipster parou de recortar as contas em operação (desenho §6.4)"
     )
 
@@ -321,17 +321,28 @@ def test_o_custo_nao_deriva_mais_das_linhas_filtradas():
     )
 
 
-def test_escopo_do_custo_ignora_esporte_e_tipster():
-    """Casa e Operador descrevem a CONTA e recortam; Esporte e Tipster descrevem a
-    APOSTA e não. A conta Bet365 custou R$ 900 quer se olhe tênis ou futebol."""
+def test_escopo_do_custo_ignora_esporte_e_recorta_tipster_pelas_contas_usadas():
+    """Casa e Operador descrevem a CONTA e recortam; Esporte descreve a APOSTA e não —
+    a conta Bet365 custou R$ 900 quer se olhe tênis ou futebol (s322). Tipster recorta
+    pelas contas que ele USOU (s406, decisão do Feca): sem isso o P/L Líquido de um
+    tipster descontava o custo da operação inteira."""
     src = _sem_comentarios(GESTAO.read_text(encoding="utf-8"))
     m = re.search(r"^function calcCostFiltered\([^)]*\)\{.*?^\}", src, re.S | re.M)
     assert m, "calcCostFiltered sumiu do gestao.js"
     corpo = m.group(0)
     assert "'ca_'" in corpo and "'op_'" in corpo, "o custo parou de respeitar casa/operador"
-    assert "'sp_'" not in corpo and "'ti_'" not in corpo, (
-        "esporte/tipster voltaram a recortar o custo de contas: filtrar 'Tênis' faz a "
+    assert "'sp_'" not in corpo, (
+        "esporte voltou a recortar o custo de contas: filtrar 'Tênis' faz a "
         "conta deixar de custar (s322)"
+    )
+    assert "_contasDoTipster(pag)" in corpo, (
+        "o custo de contas parou de recortar pelo tipster: o P/L Líquido de UM tipster "
+        "volta a descontar o custo da operação inteira (s406)"
+    )
+    m = re.search(r"^function calcCasaCost\([^)]*\)\{.*?^\}", src, re.S | re.M)
+    assert m, "calcCasaCost sumiu do gestao.js"
+    assert "_contasDoTipster(pag)" in m.group(0) and "'op_'" in m.group(0), (
+        "o drill de casa voltou a ignorar tipster/operador da página (s406)"
     )
 
 
@@ -402,21 +413,46 @@ MUTACOES = [
         "  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;\n"
         r"  const num=(v=>parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0);",
     ),
+    # ── s406: TIPSTER recorta o custo PAGO pelas contas que ele usou ────────
+    (
+        "o custo pago volta a ignorar o filtro de tipster",
+        "    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago',\n"
+        "    _contasDoTipster(pag));",
+        "    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago',\n"
+        "    null);",
+    ),
+    (
+        "o vinculo conta-tipster deixa de ler as apostas ABERTAS",
+        "    (typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[]\n  ).forEach(",
+        "    []\n  ).forEach(",
+    ),
+    (
+        "o drill de casa volta a ignorar o tipster",
+        "    pag?_contasDoTipster(pag):null);",
+        "    null);",
+    ),
+    (
+        "o drill de casa volta a ignorar o operador",
+        "  const opsSel=(pag&&typeof msGet==='function')?msGet('op_'+pag):null;\n"
+        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,opsSel,",
+        "  const opsSel=(pag&&typeof msGet==='function')?msGet('op_'+pag):null;\n"
+        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,",
+    ),
     # ── s358: o PARQUE (estoque, fora do P/L) ───────────────────────────────
     (
         "as contas em operacao passam a seguir o periodo da tela",
-        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',_contasDoTipster(pag));",
         "  const r=(typeof _selRange==='function')?_selRange(pag):null;\n"
-        "  return _custoNaJanela(r?r.from:'0000-01-01',r?r.to:'9999-12-31',casasSel,opsSel,'','vivo',contasOk);",
+        "  return _custoNaJanela(r?r.from:'0000-01-01',r?r.to:'9999-12-31',casasSel,opsSel,'','vivo',_contasDoTipster(pag));",
     ),
     (
         "as contas em operacao passam a medir PAGAMENTO em vez de estoque",
-        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',_contasDoTipster(pag));",
         "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','pago');",
     ),
     (
         "as contas em operacao deixam de respeitar casa e operador",
-        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);",
+        "  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',_contasDoTipster(pag));",
         "  return _custoNaJanela(hoje,hoje,null,null,'','vivo');",
     ),
     (
@@ -469,13 +505,13 @@ MUTACOES = [
     ),
     (
         "o KPI da Visao Geral volta para o modo 'vivo'",
-        "range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago');",
-        "range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'vivo');",
+        "range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago',",
+        "range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'vivo',",
     ),
     (
         "o drill de casa fica com regua diferente do KPI",
-        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa,'pago');",
-        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa,'vivo');",
+        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,opsSel,nomeCasa,'pago',",
+        "  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,opsSel,nomeCasa,'vivo',",
     ),
     (
         "o modo 'vivo' (parque) passa a medir pagamento — as duas reguas viram uma so",

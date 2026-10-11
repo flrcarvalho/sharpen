@@ -362,21 +362,46 @@ function _custoNaJanela(de,ate,casasSel,opsSel,soCasa,modo,contasOk){
   return{total,nContas};
 }
 
+// ── Contas que o TIPSTER filtrado USOU (s406) ────────────────────────────────
+// O vínculo conta↔tipster não existe no cadastro, só no bilhete — liquidado OU aberto,
+// pela mesma razão do `_buildContaVida`. Devolve o Set de "fornecedor||casa||conta" que
+// o `_custoNaJanela` recebe em `contasOk`; `null` (sem tipster no filtro) = todas.
+// Não olha o período: a conta é do tipster que a usou, tenha ele apostado no mês ou não.
+// Um lugar só para as três réguas (P/L, drill de casa e contas em operação): duas
+// derivações do mesmo recorte divergem no primeiro caso de borda.
+function _contasDoTipster(pag){
+  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;
+  if(!tipsSel||!tipsSel.size)return null;
+  const ok=new Set();
+  [].concat(
+    (typeof DADOS!=='undefined'&&DADOS)?DADOS:[],
+    (typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[]
+  ).forEach(r=>{if(r.tipster&&tipsSel.has(r.tipster))
+    ok.add(normForn(r.fornecedor)+'||'+r.casa+'||'+(r.conta||'__default__'));});
+  return ok;
+}
+
 // Custo de contas PAGO no período selecionado da página `p` (default 'overview'). É o
 // número que desce no P/L Líquido, então é `modo:'pago'`: cada conta cobra uma vez só.
 //
 // A janela vem do PERÍODO escolhido (`_selRange`), não do intervalo das linhas que
 // sobraram (s322): recorte sem aposta nenhuma tinha custo 0 mesmo com o período na tela.
 // E o escopo vem do FILTRO, não das linhas: Casa e Operador descrevem a CONTA e recortam;
-// Esporte e Tipster descrevem a APOSTA e não recortam — a conta Bet365 custou R$ 900 quer
-// você olhe tênis ou futebol (decisão do Feca, s322, mantida na s358).
+// Esporte não recorta — a conta Bet365 custou R$ 900 quer você olhe tênis ou futebol
+// (decisão do Feca, s322). **TIPSTER recorta pelas contas que ele USOU** (decisão do Feca,
+// s406: "filtrei 1 tipster e o custo de contas e o P/L líquido não foram filtrados"). Era
+// P/L bruto de UM tipster contra o custo da operação inteira: −R$ 6.854 de bruto virava
+// −R$ 76.254 de líquido. Conta usada por vários tipsters entra CHEIA no recorte de cada
+// um (96% das contas do Feca são compartilhadas): os recortes de tipsters diferentes
+// NÃO somam, e ratear inventaria um número que ninguém pagou.
 function calcCostFiltered(p){
   const pag=p||'overview';
   const range=(typeof _selRange==='function')?_selRange(pag):null;
   const casasSel=(typeof msGet==='function')?msGet('ca_'+pag):null;
   const opsSel=(typeof msGet==='function')?msGet('op_'+pag):null;
   const{total,nContas}=_custoNaJanela(
-    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago');
+    range?range.from:'0000-01-01', range?range.to:'9999-12-31', casasSel, opsSel, '', 'pago',
+    _contasDoTipster(pag));
   return{costConta:total,nContas};
 }
 
@@ -501,23 +526,18 @@ function calcContasEmOperacao(p){
   const hoje=(typeof _ymd==='function')?_ymd(new Date()):'9999-12-31';
   const casasSel=(typeof msGet==='function')?msGet('ca_'+pag):null;
   const opsSel=(typeof msGet==='function')?msGet('op_'+pag):null;
-  const tipsSel=(typeof msGet==='function')?msGet('ti_'+pag):null;
-  let contasOk=null;
-  if(tipsSel&&tipsSel.size){
-    contasOk=new Set();
-    const _todas=[].concat(
-      (typeof DADOS!=='undefined'&&DADOS)?DADOS:[],
-      (typeof DADOS_ABERTAS!=='undefined'&&DADOS_ABERTAS)?DADOS_ABERTAS:[]);
-    _todas.forEach(r=>{if(r.tipster&&tipsSel.has(r.tipster))
-      contasOk.add(normForn(r.fornecedor)+'||'+r.casa+'||'+(r.conta||'__default__'));});
-  }
-  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',contasOk);
+  return _custoNaJanela(hoje,hoje,casasSel,opsSel,'','vivo',_contasDoTipster(pag));
 }
 
 // Custo de UMA casa no intervalo — popup drill-down de Bookies. Mesma régua do KPI da
 // Visão Geral: duas contas de custo na mesma tela não podem medir coisas diferentes.
-function calcCasaCost(nomeCasa,de,ate){
-  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,null,nomeCasa,'pago');
+// `pag` (s406) traz os filtros da página que descrevem a CONTA: Operador e Tipster (pelas
+// contas que ele usou), os mesmos do `calcCostFiltered`. Sem `pag`, a casa inteira. Até a
+// s406 o drill ignorava os dois, e a lista de Bookies logo atrás respeitava o Operador.
+function calcCasaCost(nomeCasa,de,ate,pag){
+  const opsSel=(pag&&typeof msGet==='function')?msGet('op_'+pag):null;
+  return _custoNaJanela(de||'0000-01-01',ate||'9999-12-31',null,opsSel,nomeCasa,'pago',
+    pag?_contasDoTipster(pag):null);
 }
 
 // ── Cadastro de contas (tabela `parceiros`) ───────────────────────────────────

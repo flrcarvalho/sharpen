@@ -52,7 +52,7 @@ const recorteFn = (src, nome, arq) => {
 
 const FONTE = [
   ...['normForn', '_buildContaVida', '_precoVigenteEm', '_degrausPreco', '_dataDoPreco',
-      '_custoDaConta', '_temPrecoConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', 'calcCostFiltered']
+      '_custoDaConta', '_temPrecoConta', '_dataPagamento', '_renovacoesNaJanela', '_custoNaJanela', '_contasDoTipster', 'calcCostFiltered']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
   ...['_c2num', '_c2meses', '_c2primeiraData', '_c2range', '_c2sel', '_c2opDaConta',
       '_c2passa', '_c2contas'].map(n => recorteFn(CUSTOS2, n, 'custos2.js')),

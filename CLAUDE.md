@@ -403,8 +403,9 @@ para a arquivada, e a última aposta só para quem **não tem cadastro**.
 > parece defeito (família de "os dois números certos que pareciam defeito").
 
 **O escopo vem do FILTRO, não das linhas.** `Casa` e `Operador` descrevem a CONTA e
-recortam; `Esporte` e `Tipster` descrevem a APOSTA e não — a Bet365 custou R$ 900 quer se
-olhe tênis ou futebol. Por isso `calcCostFiltered` não recebe `rows`: recorte sem aposta
+recortam, `Tipster` pelas contas que usou (s406); `Esporte` descreve a APOSTA e não — a
+Bet365 custou R$ 900 quer se olhe tênis ou futebol. Por isso `calcCostFiltered` não recebe
+`rows`: recorte sem aposta
 dava custo 0 com o período na tela, e um mês filtrado encolhia até a última aposta dele.
 
 **Zero é preço; sem custo lançado é "sem preço"** (Feca, s381). `parceiros.custo = 0` é
