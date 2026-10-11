@@ -69,6 +69,7 @@ from repository import (
     anexar_sistema_tsv,
     corrigir_codigos_tsv,
     corrigir_stake_tsv,
+    corrigir_data_tsv,
     set_casa_dominio, get_casas_dominios,
     get_custo_store, salvar_custo_store,
     get_custo_conta, salvar_custo_conta, definir_custo_conta, salvar_cobranca_tipster,
@@ -2034,6 +2035,12 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
             logger.warning("seq financeiro: %d linha(s) com odd/resultado que o RETORNO do "
                            "bloco desmente — corrigidas: %s",
                            stake_fix["financeiro"], stake_fix["exemplos_fin"])
+        # Data da múltipla que perdeu cedo (s405, `MASTER_OUTPUT §4.0.1`): depois da stake,
+        # porque o resultado final pode ter sido corrigido lá.
+        accumulated, data_fix = corrigir_data_tsv(accumulated, texto)
+        if data_fix["datas"]:
+            logger.warning("seq data: %d múltipla(s) perdida(s) datada(s) pela perna perdida: %s",
+                           data_fix["datas"], data_fix["exemplos"])
         # 12ª coluna (estrutura de SISTEMA) — determinística, lida do texto do robô e casada
         # pelo código. POR ÚLTIMO de propósito: depois da repesca de cobertura e da inversão,
         # senão linha nascida ali ficaria sem a coluna, em silêncio.
@@ -2248,6 +2255,12 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             logger.warning("par financeiro: %d linha(s) com odd/resultado que o RETORNO do "
                            "bloco desmente — corrigidas: %s",
                            stake_fix["financeiro"], stake_fix["exemplos_fin"])
+        # Data da múltipla que perdeu cedo (s405, `MASTER_OUTPUT §4.0.1`): depois da stake,
+        # porque o resultado final pode ter sido corrigido lá.
+        resultado, data_fix = corrigir_data_tsv(resultado, texto)
+        if data_fix["datas"]:
+            logger.warning("par data: %d múltipla(s) perdida(s) datada(s) pela perna perdida: %s",
+                           data_fix["datas"], data_fix["exemplos"])
         # 12ª coluna (estrutura de SISTEMA) — ver nota no caminho sequencial.
         resultado, sis_fix = anexar_sistema_tsv(resultado, texto)
         if sis_fix["sistemas"]:

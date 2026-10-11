@@ -416,6 +416,39 @@ Decisão do Feca, 09/10/2026: múltipla que resolve cedo pertence ao dia em que 
 **processada**, e não ao dia da última perna. A "perna mais recente que já começou" acima
 realiza isso sem estimar.
 
+**Levantamento por casa (s405, 10/10/2026), feito sobre o bloco cru da `sombra_rotulos`.**
+Base: 291 liquidadas com data posterior ao último `atualizado_em`; 228 ainda têm bloco (a
+sombra guarda 120 dias). O que cada casa manda **por perna**:
+
+| Grupo | Por perna | Casas | Bilhetes | Resolve |
+|---|---|---|---|---|
+| A | início **e** resultado | Duel, Estrela Bet, SportingBet, Betboo, Betfast, Betrebels, BetMartini, Vavada, Betfury, DEX Sport, MyStake, Betcoin, Betpanda, Pitaco | 95 | **56**, exato: data do início da perna perdida |
+| B | início, sem resultado | Superbet, Pinnacle | 26 | só pela "perna que já começou" |
+| C | placar na perna jogada, sem data | Megapari, 1xBet, PariPesa | 18 | não, sem mexer na captura |
+| D | só a data mais tarde | **Bet365** | **159** | não, sem mexer na captura |
+
+- **Cashout** não tem data em casa nenhuma (os três 0,92 da Duel são cashouts negativos,
+  confirmado pelo Feca em 10/10: o número está certo, só a data erra).
+- **O UPSERT congela `data` em linha resolvida**: a regra nova vale para captura nova e
+  para linha que liquida depois de gravada aberta. O que já foi gravado resolvido só sai
+  por script de reparo. 63 das 291 não têm mais bloco e ficam como estão.
+- **Bet365 fica de fora por decisão do Feca (11/10/2026):** a operação não está na Bet365, e
+  mexer na captura sem base nova para validar é erro. Precisa ser feito no futuro: a API já
+  traz o kickoff de cada perna (`content.js`, laço do `Data (evento)`), falta imprimir todos
+  e medir se há resultado por perna.
+
+**Aplicado na s405 (11/10/2026):** `MASTER_OUTPUT §4.0.1` + `repository.corrigir_data_tsv` nos
+dois caminhos do `/extrair`, gate `tests/test_data_multipla_perdida.py`, e o reparo do que já
+está gravado em `scripts/reparar_data_multipla_s405.py` (ensaio: 281 linhas em 16 casas, 1
+pulada por edição manual; **aplicação aguarda o Feca**). O que falta desta frente:
+
+- **Camada de cima, a data de LIQUIDAÇÃO publicada:** Shuffle, Betnacional e as casas das
+  linhas 3574/3787 do `content.js` já imprimem `Liquidado em:`/`Liquidada em:`. É exata e
+  cobre cashout, que a perna perdida não cobre. Medido na Shuffle 379788: bate com a regra.
+- **"Perna que já começou"** (grupo B, Superbet e Pinnacle): não aplicada. Depende do
+  instante da captura e erra quando a captura atrasa; fica para quando houver gate.
+- Bet365 e o grupo C, como acima.
+
 ### 1.23 Apostas MANUAIS em conta de outra moeda gravadas como R$ (s404, câmbio). **VIVA, não medida**
 
 Relato de tester (09/10/2026): a Kiko lançava à mão as apostas de uma conta cadastrada em

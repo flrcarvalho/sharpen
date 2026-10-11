@@ -805,6 +805,79 @@ def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
                                "financeiro": n_fin, "exemplos_fin": exemplos_fin}
 
 
+# ── Data da múltipla que perdeu antes da última perna (s405, `MASTER_OUTPUT §4.0.1`) ──
+# A regra geral data a múltipla pela perna mais recente, e a casa liquida assim que a
+# primeira perna perde: o bilhete nascia RESOLVIDO NO FUTURO, saía do MTD e só aparecia na
+# sidebar ("MÊS" = mês inteiro). Medido em 10/10/2026: 291 bilhetes, 56 resolvíveis pelo
+# que o bloco já traz (BACKLOG 1.17).
+#
+# Só o que a casa PUBLICA decide: a perna marcada perdida e o `Início:` dela. Os quatro
+# rótulos são os que a extensão escreve nas casas do grupo A (Altenar, Kambi/Entain,
+# Betfast/MyStake: `[perdeu]`; BetBy: `[lost]`; DEX: `[perna perdida]`; Pitaco:
+# `[sel_status=4]`). Rótulo que não está aqui não move data nenhuma: chutar a semântica de
+# um código de casa é estimativa. `[meia derrota]` fica de fora de propósito, porque meia
+# derrota não encerra a múltipla.
+_PERNA_PERDIDA_RE = re.compile(r"\[(?:perdeu|lost|perna perdida|sel_status=4)(?:\]| ·)")
+_INICIO_PERNA_RE = re.compile(r"Início:\s*(\d{2})/(\d{2})/(\d{4})")
+# A perna começa numa linha "- " no nível de cima; `Jogo:`/`Início:` vêm indentados abaixo.
+_PERNA_SPLIT_RE = re.compile(r"\n(?=- )")
+
+
+def data_da_perna_perdida(bloco: str | None) -> str | None:
+    """ISO (`YYYY-MM-DD`) do início da perna perdida mais cedo, ou None. Função PURA.
+
+    None quando nenhuma perna traz os dois sinais juntos (rótulo de perdida E `Início:`
+    próprio). O cabeçalho (antes da 1ª perna) nunca conta: o `Status (API): lost` dele
+    descreve o bilhete, não uma perna.
+    """
+    if not bloco:
+        return None
+    datas = []
+    for perna in _PERNA_SPLIT_RE.split(bloco)[1:]:
+        if not _PERNA_PERDIDA_RE.search(perna):
+            continue
+        m = _INICIO_PERNA_RE.search(perna)
+        if m:
+            datas.append(f"{m.group(3)}-{m.group(2)}-{m.group(1)}")
+    return min(datas) if datas else None
+
+
+def corrigir_data_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
+    """Reescreve a coluna 1 (Data) da múltipla PERDIDA com o início da perna perdida.
+
+    Irmão do `corrigir_stake_tsv`: determinístico, casado pelo código, sem IA no caminho.
+    Roda depois dele, porque o `resultado` final (coluna 10) pode ter sido corrigido lá.
+
+    Só move a data PARA TRÁS. Data que já é igual ou anterior à da perna perdida fica: a
+    regra existe para tirar o bilhete do futuro, não para reescrever datas que a IA acertou.
+    Linha sem código, código ausente do texto, resultado ≠ L ou data ilegível passam intactos.
+    """
+    blocos = blocos_por_codigo(texto)
+    vazio = {"datas": 0, "exemplos": []}
+    if not blocos:
+        return tsv, vazio
+    linhas = tsv.split("\n")
+    n, exemplos = 0, []
+    for i, line in enumerate(linhas):
+        parts = line.split("\t")
+        if len(parts) < 11:
+            continue
+        codigo = parts[10].strip()
+        if not codigo or parts[9].strip().upper() != "L":
+            continue
+        red = data_da_perna_perdida(blocos.get(codigo))
+        atual = _data_iso(parts[0].strip())
+        if not red or not atual or red >= atual:
+            continue
+        nova = f"{red[8:10]}/{red[5:7]}/{red[0:4]}"
+        if len(exemplos) < 5:
+            exemplos.append({"codigo": codigo, "ia": parts[0].strip(), "perna_perdida": nova})
+        parts[0] = nova
+        linhas[i] = "\t".join(parts)
+        n += 1
+    return "\n".join(linhas), {"datas": n, "exemplos": exemplos}
+
+
 # ── Correção determinística do ID contra o texto-fonte ────────────────────────
 # O ID do bilhete é a IDENTIDADE (dedup por ID; regra do CLAUDE.md). Porém a IA
 # NÃO reproduz um número de 18–19 dígitos com fidelidade: transpõe/inventa dígitos

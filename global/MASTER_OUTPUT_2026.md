@@ -154,7 +154,24 @@ Regras:
 - ignorar horário
 - nunca usar ISO
 - nunca usar formato americano
-- em apostas múltiplas: usar a data da perna mais recente
+- em apostas múltiplas: usar a data da perna mais recente, com a exceção abaixo
+
+## 4.0.1 Múltipla que perdeu antes da última perna
+
+> Decisão do Feca, 09/10/2026: a múltipla que a casa liquida cedo pertence ao dia em que
+> foi processada, não ao dia da última perna.
+
+Quando o bilhete está **perdido (L)** e o bloco marca uma ou mais pernas como **perdidas**,
+cada uma com o seu **início**, a data é a do **início da perna perdida mais cedo**.
+
+- Vale só para o que a casa publica: perna marcada perdida (`[perdeu]`, `[lost]`,
+  `[perna perdida]`, `[sel_status=4]`) e com `Início:` próprio. Sem os dois, vale a regra
+  geral (perna mais recente). Nunca estimar.
+- A data nunca anda para frente: se a perna perdida não for anterior à data geral, fica a geral.
+- Como na regra geral, conta o dia do **início** do jogo, não o do fim.
+- Cashout não entra: nenhuma casa publica o dia em que ele foi feito.
+
+Aplicada também pelo sistema, de forma determinística (`repository.corrigir_data_tsv`).
 
 ---
 
