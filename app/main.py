@@ -12,6 +12,7 @@ import os
 import random
 import re
 import time
+import uuid
 import zipfile
 from contextlib import asynccontextmanager
 from datetime import date as _date, datetime, timezone
@@ -103,12 +104,14 @@ from repository import (
     validar_linhas, valor_monetario_valido,
     registrar_uso, uso_resumo, registrar_sombra,
     registrar_sombra_modelo, pontuar_saida, custo_usd,
+    registrar_sombra_numeros, custo_usd_chamada,
     blocos_por_codigo, blocos_conhecidos, hash_bloco, registrar_blocos_vistos,
     conferir_cobertura, codigos_do_texto, codigos_do_tsv, carimbos_do_texto, freebets_do_texto,
     casar_abertas_por_carimbo, resultado_da_aposta_encontrada, campos_corrigidos,
 )
 from descricao_check import checar_fidelidade
 import logo_imagem   # normalização/saneamento da logo da conta (s362)
+import sombra_numeros as _sombra_numeros   # odd/stake/resultado do candidato × titular (s407)
 
 logger = logging.getLogger("scanner")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -484,7 +487,7 @@ _WARMER_INTERVALO = 55 * 60
 # desligar é pôr `_SOMBRA_MODELO = ""`.
 #
 # `SOMBRA_MODELO_PCT` permite amostrar sem deploy (100 = tudo, 0 = desligado).
-_SOMBRA_MODELO = os.environ.get("SOMBRA_MODELO", "claude-haiku-4-5").strip()
+_SOMBRA_MODELO = os.environ.get("SOMBRA_MODELO", "claude-haiku-5-5").strip()
 _SOMBRA_MODELO_PCT = int(os.environ.get("SOMBRA_MODELO_PCT", "100") or 0)
 
 
@@ -497,7 +500,12 @@ def _sombra_vale_agora() -> bool:
 async def _sombra_modelo(dono: str, casa: str, system: list[dict],
                          lotes: list[list[dict]], texto: str | None,
                          titular: str, contrato: str | None = None,
-                         particao=None) -> None:
+                         particao=None, titular_bruto: str | None = None,
+                         titular_final: str | None = None,
+                         titular_tk: dict | None = None,
+                         titular_tk_total: dict | None = None,
+                         codigo_ocr: bool = False, betfair_dates: dict | None = None,
+                         continuou: bool = False) -> None:
     """Replica o lote no modelo candidato e guarda custo + placar determinístico.
 
     `lotes` são os MESMOS pedaços que o titular recebeu (chunks no paralelo, o content
@@ -507,8 +515,17 @@ async def _sombra_modelo(dono: str, casa: str, system: list[dict],
     `contrato` (s386): no contrato de 4 campos o titular recebeu o prompt ENXUTO e os
     lotes de 4 campos, e a sombra recebe os mesmos; o juiz passa a ser o
     `contrato_texto.pontuar_4campos`, com as mesmas chaves do `pontuar_saida`.
+
+    Sombra de NÚMEROS (s407): com `titular_final` presente, a resposta do candidato
+    passa pelos MESMOS fiscais determinísticos do titular (`_fiscais_da_sombra`) e as
+    quatro versões de stake/odd/resultado vão para a `sombra_numeros`. Nenhuma chamada
+    nova: é a mesma resposta que o placar já lia. No contrato de 4 campos ela não roda
+    (não há TSV de 11 colunas para comparar), e os parâmetros ficam no default.
     """
     tk = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    custo = 0.0
+    paradas: list[str] = []
+    extracao_id = uuid.uuid4()
     partes: list[str] = []
     respostas: list[str] = []
     erro = None
@@ -524,10 +541,14 @@ async def _sombra_modelo(dono: str, casa: str, system: list[dict],
                     pass
                 fin = await stream.get_final_message()
             u = fin.usage
-            tk["input"] += u.input_tokens
-            tk["output"] += u.output_tokens
-            tk["cache_read"] += getattr(u, "cache_read_input_tokens", 0)
-            tk["cache_write"] += getattr(u, "cache_creation_input_tokens", 0)
+            tk_lote = {"input": u.input_tokens, "output": u.output_tokens,
+                       "cache_read": getattr(u, "cache_read_input_tokens", 0) or 0,
+                       "cache_write": getattr(u, "cache_creation_input_tokens", 0) or 0}
+            for k in tk:
+                tk[k] += tk_lote[k]
+            # Por chamada: o preço do candidato muda com o tamanho do prompt de CADA uma.
+            custo += custo_usd_chamada(_SOMBRA_MODELO, tk_lote)
+            paradas.append(str(fin.stop_reason))
             txt = "".join(b.text for b in fin.content if b.type == "text")
             if contrato:
                 respostas.append(txt)
@@ -539,16 +560,67 @@ async def _sombra_modelo(dono: str, casa: str, system: list[dict],
     if contrato and particao is not None:
         placar = _contrato.pontuar_4campos("\n".join(respostas), particao)
         await registrar_sombra_modelo(dono, casa, _SOMBRA_MODELO, titular, len(lotes),
-                                      tem_imagem, tk, placar, erro, contrato=contrato)
+                                      tem_imagem, tk, placar, erro, contrato=contrato,
+                                      custo=custo)
     else:
         placar = pontuar_saida("\n".join(partes), texto)
         await registrar_sombra_modelo(dono, casa, _SOMBRA_MODELO, titular,
-                                      len(lotes), tem_imagem, tk, placar, erro)
+                                      len(lotes), tem_imagem, tk, placar, erro,
+                                      custo=custo, extracao_id=extracao_id)
+        # `try` PRÓPRIO: falha aqui não pode apagar o placar, que já foi gravado acima.
+        # Com a chamada do candidato quebrada (`erro`) não há o que comparar: as apostas
+        # sairiam todas "faltando" e o relatório culparia o modelo por uma queda de rede.
+        if titular_final is not None and erro is None:
+            try:
+                bruto = f"```tsv\n{_TSV_HEADER}\n" + "\n".join(partes) + "\n```"
+                final, repescaria = _fiscais_da_sombra(bruto, texto, codigo_ocr, betfair_dates)
+                cmp = _sombra_numeros.comparar(titular_bruto, titular_final, bruto, final,
+                                               texto, codigo_ocr)
+                await registrar_sombra_numeros(
+                    extracao_id, dono, casa, _SOMBRA_MODELO, titular,
+                    {"titular_bruto": titular_bruto, "titular_final": titular_final,
+                     "candidato_bruto": bruto, "candidato_final": final},
+                    cmp["linhas"], titular_tk or {}, titular_tk_total or titular_tk or {},
+                    custo, ",".join(paradas), repescaria, continuou)
+                r = cmp["resumo"]
+                logger.info("sombra-números %s: comparadas=%d iguais(stake/odd/res/3)="
+                            "%d/%d/%d/%d faltou=%d sobrou=%d inventado=%d repescaria=%d",
+                            _SOMBRA_MODELO, r["comparadas"], r["iguais_stake"],
+                            r["iguais_odd"], r["iguais_res"], r["iguais_tres"],
+                            r["faltou"], r["sobrou"], r["inventado"], repescaria)
+            except Exception:
+                logger.warning("sombra-números: falhou", exc_info=True)
     logger.info("sombra-modelo %s: %d lote(s) · US$ %.4f · blocos=%d linhas=%d "
                 "sem_codigo=%d inventado=%d%s",
-                _SOMBRA_MODELO, len(lotes), custo_usd(_SOMBRA_MODELO, tk),
+                _SOMBRA_MODELO, len(lotes), custo,
                 placar["blocos"], placar["linhas"], placar["sem_codigo"],
                 placar["cod_inventado"], f" ERRO={erro}" if erro else "")
+
+
+def _fiscais_da_sombra(tsv: str, texto: str | None, codigo_ocr: bool,
+                       betfair_dates: dict | None) -> tuple[str, int]:
+    """Os fiscais DETERMINÍSTICOS do titular, na MESMA ordem, aplicados ao candidato.
+
+    Ficam de fora os dois que chamam a IA (`_garantir_cobertura` e
+    `_garantir_fidelidade`): custam dinheiro, e a sombra não faz chamada nova. Da
+    cobertura entra só a parte sem IA, que é a reconciliação de órfãs; o que ela
+    teria repescado é CONTADO e devolvido, nunca buscado.
+
+    Ordem do caminho paralelo (`_stream_parallel`): código contra o texto → código
+    fantasma → [cobertura: órfãs] → [fidelidade] → datas Betfair → stake → data da
+    múltipla → 12ª coluna. O sequencial difere só na inversão de linhas, que não muda
+    nenhum número (a comparação é por código, não por posição).
+    """
+    tsv, _ = corrigir_codigos_tsv(tsv, texto)
+    tsv, _ = _corrigir_codigos_fantasma(tsv, texto, codigo_ocr)
+    tsv, _ = _reconciliar_orfas(tsv, texto)
+    repescaria = len(conferir_cobertura(tsv, texto)["faltantes"])
+    if betfair_dates:
+        tsv = _apply_betfair_dates(tsv, betfair_dates)
+    tsv, _ = corrigir_stake_tsv(tsv, texto)
+    tsv, _ = corrigir_data_tsv(tsv, texto)
+    tsv, _ = anexar_sistema_tsv(tsv, texto)
+    return tsv, repescaria
 
 
 async def _cache_warmer():
@@ -1995,6 +2067,9 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
 
         logger.info("seq total: %.1fs | parts=%d | out=%d",
                     time.perf_counter() - t_start, part, total_tokens["output"])
+        # Para a sombra de números (s407): o titular ANTES de qualquer fiscal e o custo
+        # só da leitura principal, sem a repescagem que a sombra não faz.
+        titular_bruto, tk_base = accumulated, dict(total_tokens)
         # Correção determinística do ID contra o texto colado (o ID é a identidade;
         # a IA não copia números de 18 dígitos com fidelidade). No-op sem texto.
         accumulated, id_fix = corrigir_codigos_tsv(accumulated, texto)
@@ -2064,7 +2139,11 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         _fire(_barreira_lembrar(dono, casa, texto))
         # Sombra de MODELO: o candidato lê o MESMO content, com o MESMO system.
         if _sombra_vale_agora():
-            _fire(_sombra_modelo(dono, casa, system, [content], texto, modelo))
+            _fire(_sombra_modelo(dono, casa, system, [content], texto, modelo,
+                                 titular_bruto=titular_bruto, titular_final=accumulated,
+                                 titular_tk=tk_base, titular_tk_total=dict(total_tokens),
+                                 codigo_ocr=codigo_ocr, betfair_dates=betfair_dates,
+                                 continuou=part > 1))
         yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
@@ -2218,6 +2297,8 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed)
         logger.info("par total: %.1fs | chunks=%d | out=%d",
                     time.perf_counter() - t_start, n_chunks, total_tokens["output"])
+        # Para a sombra de números (s407) — ver a nota no caminho sequencial.
+        titular_bruto, tk_base = resultado, dict(total_tokens)
         # Correção determinística do ID contra o texto colado (ver nota no seq).
         resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
@@ -2278,7 +2359,10 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         _fire(_barreira_lembrar(dono, casa, texto))
         # Sombra de MODELO: os MESMOS chunks, com o MESMO system. Ver `_sombra_modelo`.
         if _sombra_vale_agora():
-            _fire(_sombra_modelo(dono, casa, system, chunks, texto, modelo))
+            _fire(_sombra_modelo(dono, casa, system, chunks, texto, modelo,
+                                 titular_bruto=titular_bruto, titular_final=resultado,
+                                 titular_tk=tk_base, titular_tk_total=dict(total_tokens),
+                                 codigo_ocr=codigo_ocr, betfair_dates=betfair_dates))
         yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("par-final error")
