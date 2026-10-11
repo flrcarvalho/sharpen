@@ -68,8 +68,13 @@ Status: Ganho → W (retorno R$ 180,00)
 
 def _hashes(texto):
     """A memória que a barreira teria depois de ler `texto`. Usa o MESMO recorte do
-    gravador (`blocos_por_codigo`), que é o ponto do mecanismo."""
-    return {c.upper(): repository.hash_bloco(b)
+    gravador (`blocos_por_codigo`), que é o ponto do mecanismo.
+
+    Código na caixa em que veio, como o `registrar_blocos_vistos` grava. Até a s407
+    este helper fazia `.upper()`, a mesma premissa do código sob teste, e com códigos
+    só numéricos ninguém via a diferença: o verde escondia a barreira morta da DEX Sport
+    e da Shuffle."""
+    return {c: repository.hash_bloco(b)
             for c, b in repository.blocos_por_codigo(texto).items()}
 
 
@@ -195,7 +200,7 @@ def test_mutacao_hash_do_recorte_errado_nao_pula_nada():
     for b in main._split_superbet_bilhetes(NOVIBET_ABERTA):
         m = main._SUPERBET_ID_RE.search(b)
         if m:
-            memoria_errada[m.group(1).strip().upper()] = repository.hash_bloco(b)
+            memoria_errada[m.group(1).strip()] = repository.hash_bloco(b)
     saida, skipped = _rodar(NOVIBET_ABERTA, memoria=memoria_errada)
     assert skipped == 0, "hash do recorte errado não pode pular nada"
     assert _codigos(saida) == {"475962111", "475962999"}
@@ -213,13 +218,99 @@ def test_mutacao_hash_sem_strip_deixaria_de_pular():
         repository.hash_bloco = lambda b: hashlib.sha1(
             (b or "").encode("utf-8", "replace")).hexdigest()
         main.hash_bloco = repository.hash_bloco
-        memoria = {c.upper(): repository.hash_bloco(b + "\n")   # borda diferente
+        memoria = {c: repository.hash_bloco(b + "\n")   # borda diferente
                    for c, b in repository.blocos_por_codigo(NOVIBET_ABERTA).items()}
         assert _rodar(NOVIBET_ABERTA, memoria=memoria)[1] == 0
     finally:
         repository.hash_bloco = original
         main.hash_bloco = original
     # restaurado: a mesma borda diferente volta a bater
-    memoria = {c.upper(): repository.hash_bloco(b + "\n")
+    memoria = {c: repository.hash_bloco(b + "\n")
                for c, b in repository.blocos_por_codigo(NOVIBET_ABERTA).items()}
     assert _rodar(NOVIBET_ABERTA, memoria=memoria)[1] == 2
+
+
+# ── Código com minúscula: DEX Sport (UUID) e Shuffle (nanoid), s407 ──────────
+#
+# O banco compara código por IGUALDADE EXATA (`codigo_bilhete = ANY($1)` e o JOIN com
+# `bloco_visto`), e os dublês de `_rodar` fazem o mesmo (`c in set(...)`). Por isso
+# estes casos pegam a barreira que passa o código para maiúsculas: o código gravado
+# (minúsculo) nunca casa, e nada é pulado. Foi o que aconteceu em produção até a s407:
+# Feca × Shuffle mandou 60 bilhetes já liquidados de 63 à IA, e na DEX Sport cada
+# bilhete era pago 6,44 vezes em média.
+#
+# Blocos no formato do `formatTicketDX` e do `formatTicketSHF` (`extensor/content.js`),
+# com códigos na forma real das duas casas.
+
+DEX_LOTE = """[Código: 4b836669-0c1e-4f2a-9d3b-7a51e2c08f14]
+Data (evento mais recente): 09/10/2026 15:00
+Stake: 25,00
+Status: Perdeu → L
+Status (API): result 2 · status 3 · settlementStatus 2
+Odd: 1,85
+Tipo: Simples
+Seleções:
+- Total: Under 1.5 [perna perdida]
+
+[Código: e91f03a2-55d7-4c8b-b0a6-1f2d3c4b5a69]
+Data (evento mais recente): 12/10/2026 21:00
+Stake: 10,00
+Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
+Status (API): result 0 · status 2 · settlementStatus 0
+Odd: 2,40
+Tipo: Simples
+Seleções:
+- 1x2: Zamalek [perna não decidida]
+"""
+
+SHF_LOTE = """[Código: V1StGXR8_Z5jdHi6B-myT]
+Data (evento mais recente): 10/10/2026 16:00
+Stake: 35,00
+Status: Ganhou → W (retorno 64,75 USDT)
+Odd: 1,85 (= Retorno ÷ Stake)
+Tipo: Simples
+Seleções:
+- Resultado: Flamengo [perna ganha]
+
+[Código: aB3xQ9kLm2Pz7Rt0Yw4Ue]
+Data (evento mais recente): 12/10/2026 20:00
+Stake: 20,00
+Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)
+Odd: 3,10
+Tipo: Simples
+Seleções:
+- Resultado: Empate [perna em aberto]
+"""
+
+
+def test_dex_resolvido_com_minuscula_sai_pelo_estado():
+    """O caso da DEX Sport: bilhete liquidado no banco, código UUID minúsculo. Tem de
+    sair antes da IA; com `.upper()` na barreira ele voltava a cada captura."""
+    resolvido = "4b836669-0c1e-4f2a-9d3b-7a51e2c08f14"
+    saida, skipped = _rodar(DEX_LOTE, resolvidos=[resolvido])
+    assert skipped == 1
+    assert _codigos(saida) == {"e91f03a2-55d7-4c8b-b0a6-1f2d3c4b5a69"}
+
+
+def test_shuffle_aberta_identica_sai_pelo_hash():
+    """O caso da Shuffle: aposta aberta relida sem mudar nada. O hash gravado tem a
+    chave com caixa mista do nanoid, e tem de casar."""
+    saida, skipped = _rodar(SHF_LOTE, resolvidos=["V1StGXR8_Z5jdHi6B-myT"],
+                            memoria=_hashes(SHF_LOTE))
+    assert skipped == 2
+    assert saida == ""
+
+
+def test_shuffle_nanoid_e_sensivel_a_caixa():
+    """A outra metade: no nanoid `aB3…` e `Ab3…` são bilhetes DIFERENTES. Bilhete
+    resolvido com outra caixa não pode pular o do lote; pular o errado some com
+    aposta. A barreira compara como o banco compara, por igualdade exata.
+
+    Limite: este caso NÃO detecta a volta do `.upper()` (os dois anteriores detectam,
+    medido por mutação na s407). Ele trava a outra correção errada possível, comparar
+    sem caixa, só no lado Python; uma comparação sem caixa feita no SQL passaria aqui,
+    porque o dublê do banco não roda SQL."""
+    outra_caixa = "Ab3xQ9kLm2Pz7Rt0Yw4Ue"
+    saida, skipped = _rodar(SHF_LOTE, resolvidos=[outra_caixa])
+    assert skipped == 0
+    assert "aB3xQ9kLm2Pz7Rt0Yw4Ue" in _codigos(saida)
