@@ -27,6 +27,15 @@ E as da s356, quando a odd do BLOCO passou a ser testada antes da odd da IA (7 d
  11. some o fallback para a odd da IA      → test_bloco_SEM_odd_cai_na_odd_da_linha
  12. `V` deixa de ser testado antes de HW  → test_void_com_odd_1_nao_vira_meia_vitoria
 
+E as da s409, o desempate pelo RETORNO dentro da folga de 0,005 da odd (7 de 7):
+ 13. sem o desempate                       → test_produto_das_pernas_dentro_da_folga…
+ 14. a odd da casa sempre manda na folga   → test_casa_que_arredonda_a_odd_na_tela…
+ 15. HW medido com a fórmula de W          → test_meia_vitoria_dentro_da_folga_usa_a_formula_de_HW
+ 16. desempate só em W                     → test_meia_vitoria_dentro_da_folga_usa_a_formula_de_HW
+ 17. não exige que a da casa feche         → test_nenhuma_das_duas_fecha_o_retorno_nada_muda
+ 18. não exige que a da linha NÃO feche    → test_odd_igual_em_grafia_diferente_mantem…
+ 19. "fecha" com folga de R$ 0,20          → test_produto_das_pernas_dentro_da_folga…
+
 Três coisas que as rodadas de mutação ensinaram e que ficam registradas:
 
   • A mutação 2 ESCAPOU na primeira tentativa, e o defeito era do teste. Eu tinha exercido
@@ -404,6 +413,73 @@ def test_perdido_sem_valor_vira_L():
 def test_devolvida_vira_V():
     parts, _ = _saida(_linha({9: "W"}), _bloco(status="Devolvida/void (retorno = stake) → V"))
     assert parts[9] == "V"
+
+
+# ── dentro da folga de 0,005, quem desempata é o RETORNO (s409) ─────────────────────
+
+# Recorte do bloco REAL (DEX Sport, sombra de 06/10). A medição do pensamento do Sonnet 5
+# (Projeto Ficha Sharpen, D1) gravou `3,9672` aqui: o produto das pernas (2,28 × 1,74),
+# numa múltipla GANHA cujo retorno prova `3,97`.
+_DEX = ("[Código: 1d15646f-c666-4fe6-a4c9-f73545f59ebd]\n"
+        "Data (evento mais recente): 06/10/2026 11:00:00\n"
+        "Data (colocação): 06/10/2026 10:23:30\n"
+        "Stake: 40,00\n"
+        "Moeda: usdt\n"
+        "Status: Ganhou → W (retorno 158,80 usdt)\n"
+        "Status (API): result 1 · status 3 · settlementStatus 1\n"
+        "Odd: 3,97\n"
+        "Tipo: Múltipla (2 seleções)\n"
+        "Seleções:\n"
+        "- Total. 2da mitad: Debajo 1.5 [perna ganha]\n"
+        "    Odd da seleção: 2,28\n"
+        "- Total de Uruguay. 2da mitad: Encima 1.5 [perna ganha]\n"
+        "    Odd da seleção: 1,74\n")
+_DEX_LINHA = "\t".join(["06/10/2026", "Futebol", "", "DEX Sport", "Feca [Eu]", "Múltipla",
+                        "Under 1.5 Gols 2º Tempo [A v B] // Over 1.5 Gols 2º Tempo [C v D]",
+                        "40,00", "3,9672", "W", "1d15646f-c666-4fe6-a4c9-f73545f59ebd"])
+
+
+def test_produto_das_pernas_dentro_da_folga_volta_para_a_odd_que_fecha_o_retorno():
+    """`3,97 − 3,9672 = 0,0028` cabia na folga de grafia (0,005) e o gate confirmava o W
+    sem trocar a odd: R$ 118,69 de P/L onde a casa pagou R$ 118,80.
+
+    MUTAÇÃO: remover o desempate pelo retorno faz este teste falhar.
+    """
+    parts, info = _saida(_DEX_LINHA, _DEX)
+    assert parts[8] == "3,97", "40 × 3,97 = 158,80 fecha o retorno; 40 × 3,9672 não"
+    assert parts[9] == "W"
+    assert info["financeiro"] == 1
+    # e a função CRUA, que os scripts e o contrato de texto chamam por fora do TSV
+    assert R._veredito_do_retorno(40.0, 3.9672, 158.80, "", "3,97") == ("W", "3,97")
+
+
+def test_casa_que_arredonda_a_odd_na_tela_nao_reescreve_a_da_linha():
+    """O inverso: a casa mostra `3,97` arredondado e PAGOU pela odd cheia (158,69). Aí é a
+    odd da linha que fecha o retorno, e trocar pela da casa inventaria R$ 0,11.
+
+    MUTAÇÃO: "a odd da casa sempre manda dentro da folga" faz este teste falhar.
+    """
+    assert R._veredito_do_retorno(40.0, 3.9672, 158.69, "", "3,97") == ("W", None)
+
+
+def test_nenhuma_das_duas_fecha_o_retorno_nada_muda():
+    """Retorno 158,75: nem `40 × 3,97` (158,80) nem `40 × 3,9672` (158,69) fecham. Sem
+    prova de nenhum lado, a linha fica — trocar ali seria palpite.
+
+    MUTAÇÃO: exigir só que a da linha NÃO feche (sem exigir que a da casa feche) faz este
+    teste falhar.
+    """
+    assert R._veredito_do_retorno(40.0, 3.9672, 158.75, "", "3,97") == ("W", None)
+
+
+def test_meia_vitoria_dentro_da_folga_usa_a_formula_de_HW():
+    """Mesmo desempate em HW, com a fórmula DELE: `(100/2) × 1,95 + 50 = 147,50`.
+
+    MUTAÇÃO: medir o HW com a fórmula de W faz este teste falhar (as duas odds pagariam
+    195 e 194,7 contra um retorno de 147,50, e nenhuma fecharia melhor que a outra).
+    """
+    desc = "Under 3.0,3.5 Gols [A v B]"
+    assert R._veredito_do_retorno(100.0, 1.947, 147.50, desc, "1,95") == ("HW", "1,95")
 
 
 # ── fail-closed ──────────────────────────────────────────────────────────────────────

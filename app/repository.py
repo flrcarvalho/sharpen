@@ -694,6 +694,17 @@ def _veredito_do_retorno(stake: float, odd: float, retorno: float, descricao: st
             # Só devolve odd nova quando ela de fato difere da gravada: trocar `1,95` por
             # `1,950` seria ruído de estilo, que o congelamento do UPSERT existe para barrar.
             muda = odd is None or odd <= 0 or abs(n_bloco - odd) > 0.005
+            # A folga de 0,005 é sobre a ODD, e a stake a multiplica: `3,9672` contra `3,97`
+            # passava como grafia e custava R$ 0,11 numa stake de 40 (DEX, s409 — a IA sem
+            # pensamento multiplicou as pernas de uma múltipla GANHA). Dentro da folga, quem
+            # desempata é o RETORNO: a odd da casa entra quando ELA fecha o retorno no
+            # centavo e a da linha não. Não é "a casa sempre manda": onde a casa arredonda a
+            # odd na tela, é a da linha que fecha e fica; onde nenhuma fecha, nada prova nada.
+            if not muda and veredito in ("W", "HW"):
+                def _fecha(o: float) -> bool:
+                    paga = stake * o if veredito == "W" else (stake / 2) * o + stake / 2
+                    return abs(paga - retorno) <= 0.005 + 1e-9
+                muda = _fecha(n_bloco) and not _fecha(odd)
             return veredito, (odd_bloco if muda else None)
 
     # 2) A odd da linha (a que a IA escreveu), como sempre foi.
