@@ -1398,12 +1398,11 @@ bruto/final, o Haiku passado pelos MESMOS fiscais determinísticos) em `sombra_n
 os TSVs inteiros em `sombra_tsv`. Leitura: `python scripts/relatorio_sombra_numeros.py
 --desde <data>`. Candidato trocado para `claude-haiku-5-5` a pedido do Feca (11/10), com
 preço novo em `_PRECOS` e a tabela de prompt longo (> 100K tokens, 5x) cobrada por chamada.
-**Falta:**
-1. **Conferir a variável `SOMBRA_MODELO` no Railway.** Se ela existir com
-   `claude-haiku-4-5`, o default novo do código não vale: trocar para `claude-haiku-5-5`
-   ou apagar a variável.
-2. **O relatório só roda quando o Feca pedir** (decisão dele, 11/10: *"eu peço o
-   relatorio quando for hora. apenas armazene."*). Até lá a sombra só grava.
+Railway conferido pelo Feca em 11/10 (print das 21 variáveis do serviço `extrator`): não
+existe `SOMBRA_MODELO` nem `SOMBRA_MODELO_PCT`, então vale o default do código, Haiku 5.5 em
+100% das extrações.
+**Falta:** só o relatório, e ele **roda quando o Feca pedir** (decisão dele, 11/10: *"eu peço
+o relatorio quando for hora. apenas armazene."*). Até lá a sombra só grava.
 **Lacunas declaradas:** linha sem código não é comparada (contada à parte); a sombra não
 repesca, então o custo real do Haiku fica entre o dele e o dele mais a repescagem; no
 sequencial com continuação a sombra lê uma vez só (marcado em `titular_continuou`).
