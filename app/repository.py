@@ -5716,6 +5716,9 @@ _PRECOS = {
     # e sem a linha o custo dela sairia ao preço do Sonnet 4.6 — o experimento inteiro
     # mentiria para o lado que favorece o candidato.
     "claude-haiku-4-5":  {"input": 1.0, "output": 5.0, "cache_read": 0.10, "cache_write": 2.00},
+    # Candidato da sombra desde a s407. Tabela de prompt ATÉ 100K tokens; acima disso o
+    # preço é 5x e mora em `_PRECOS_PROMPT_LONGO`, que só o `custo_usd_chamada` lê.
+    "claude-haiku-5-5":  {"input": 0.10, "output": 0.50, "cache_read": 0.01, "cache_write": 0.20},
     # Geração anterior: fora do ALLOWED_MODELS desde a s377, mas a linha FICA. O
     # `custo_usd` é chamado com o modelo que a linha registrou, e há 60 dias de
     # `uso_tokens` em Sonnet 4.6 que qualquer remedição histórica vai reprecificar.
@@ -5741,6 +5744,30 @@ def custo_usd(modelo: str, tk: dict) -> float:
         + tk.get("output", 0) * p["output"]
         + tk.get("cache_read", 0) * p["cache_read"]
         + tk.get("cache_write", 0) * p["cache_write"]
+    ) / 1_000_000
+
+
+# Modelos com DUAS tabelas de preço, escolhidas pelo tamanho do prompt de cada chamada
+# (entrada + cache lido + cache escrito). O `custo_usd` recebe tokens SOMADOS de várias
+# chamadas e não tem como saber qual passou do limiar; por isso a régua por chamada é
+# outra função, e só a sombra a usa (o titular não tem modelo de duas tabelas).
+_LIMIAR_PROMPT_LONGO = 100_000
+_PRECOS_PROMPT_LONGO = {
+    "claude-haiku-5-5":  {"input": 0.50, "output": 2.50, "cache_read": 0.05, "cache_write": 1.00},
+}
+
+
+def custo_usd_chamada(modelo: str, tk: dict) -> float:
+    """Custo de UMA chamada, com a tabela de prompt longo quando ela se aplica."""
+    longo = _PRECOS_PROMPT_LONGO.get(modelo)
+    prompt = tk.get("input", 0) + tk.get("cache_read", 0) + tk.get("cache_write", 0)
+    if longo is None or prompt <= _LIMIAR_PROMPT_LONGO:
+        return custo_usd(modelo, tk)
+    return (
+        tk.get("input", 0) * longo["input"]
+        + tk.get("output", 0) * longo["output"]
+        + tk.get("cache_read", 0) * longo["cache_read"]
+        + tk.get("cache_write", 0) * longo["cache_write"]
     ) / 1_000_000
 
 
@@ -5979,7 +6006,9 @@ def pontuar_saida(tsv: str, texto: str | None) -> dict:
 async def registrar_sombra_modelo(dono: str, casa: str, modelo: str, titular: str,
                                   lotes: int, tem_imagem: bool, tokens: dict,
                                   placar: dict, erro: str | None = None,
-                                  contrato: str | None = None) -> None:
+                                  contrato: str | None = None,
+                                  custo: float | None = None,
+                                  extracao_id=None) -> None:
     """Grava uma linha da sombra de modelo. Fire-and-forget: NUNCA derruba o stream.
 
     O custo vai calculado pelo `custo_usd` (mesma tabela de preços do titular), e
@@ -5988,6 +6017,10 @@ async def registrar_sombra_modelo(dono: str, casa: str, modelo: str, titular: st
 
     `contrato` (s386) marca a sombra que julgou a resposta de 4 campos; `None` grava o
     INSERT de sempre. Os dois placares têm sentidos diferentes e não se somam.
+
+    `custo` (s407): quando vem, já foi somado chamada a chamada (`custo_usd_chamada`),
+    que é o único jeito de cobrar a tabela de prompt longo. `extracao_id` amarra esta
+    linha às da `sombra_numeros` e da `sombra_tsv`.
     """
     try:
         pool = await get_pool()
@@ -5995,32 +6028,86 @@ async def registrar_sombra_modelo(dono: str, casa: str, modelo: str, titular: st
             args = (dono, casa, modelo, titular, int(lotes), bool(tem_imagem),
                     int(tokens.get("input", 0)), int(tokens.get("output", 0)),
                     int(tokens.get("cache_read", 0)), int(tokens.get("cache_write", 0)),
-                    float(custo_usd(modelo, tokens)),
+                    float(custo if custo is not None else custo_usd(modelo, tokens)),
                     int(placar.get("blocos", 0)), int(placar.get("linhas", 0)),
                     int(placar.get("sem_codigo", 0)), int(placar.get("cod_inventado", 0)),
                     int(placar.get("coluna_comida", 0)), int(placar.get("fora_master", 0)),
                     int(placar.get("infiel", 0)), int(placar.get("descricoes", 0)),
-                    erro)
-            if contrato is None:
-                await conn.execute(
-                    """INSERT INTO sombra_modelo
-                         (dono, casa, modelo, modelo_titular, lotes, tem_imagem,
-                          input, output, cache_read, cache_write, custo_usd,
-                          blocos, linhas, sem_codigo, cod_inventado, coluna_comida,
-                          fora_master, infiel, descricoes, erro)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)""",
-                    *args)
-            else:
-                await conn.execute(
-                    """INSERT INTO sombra_modelo
-                         (dono, casa, modelo, modelo_titular, lotes, tem_imagem,
-                          input, output, cache_read, cache_write, custo_usd,
-                          blocos, linhas, sem_codigo, cod_inventado, coluna_comida,
-                          fora_master, infiel, descricoes, erro, contrato)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)""",
-                    *args, contrato)
+                    erro, contrato, extracao_id)
+            # `contrato` e `extracao_id` são anuláveis e sem default: mandar NULL é o
+            # mesmo que não mandar, então um INSERT só serve aos três casos.
+            await conn.execute(
+                """INSERT INTO sombra_modelo
+                     (dono, casa, modelo, modelo_titular, lotes, tem_imagem,
+                      input, output, cache_read, cache_write, custo_usd,
+                      blocos, linhas, sem_codigo, cod_inventado, coluna_comida,
+                      fora_master, infiel, descricoes, erro, contrato, extracao_id)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)""",
+                *args)
     except Exception:
         logger.warning("sombra_modelo: nao gravada", exc_info=True)
+
+
+async def registrar_sombra_numeros(extracao_id, dono: str, casa: str, modelo: str,
+                                   titular: str, tsvs: dict, linhas: list[dict],
+                                   titular_tk: dict, titular_tk_total: dict,
+                                   candidato_custo: float, candidato_stop: str,
+                                   repescaria: int, continuou: bool) -> None:
+    """Grava a sombra de NÚMEROS (s407). Fire-and-forget: NUNCA derruba o stream.
+
+    `tsvs` = {titular_bruto, titular_final, candidato_bruto, candidato_final}.
+    `linhas` = `sombra_numeros.comparar(...)["linhas"]`. Uma transação só: a extração
+    entra inteira ou não entra, para o relatório nunca ler meia comparação.
+    """
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """INSERT INTO sombra_tsv
+                         (extracao_id, dono, casa, modelo, modelo_titular,
+                          titular_bruto, titular_final, candidato_bruto, candidato_final,
+                          titular_input, titular_output, titular_cache_read,
+                          titular_cache_write, titular_custo_base, titular_custo_total,
+                          candidato_custo, candidato_stop, candidato_repescaria,
+                          titular_continuou)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)""",
+                    extracao_id, dono, casa, modelo, titular,
+                    tsvs.get("titular_bruto"), tsvs.get("titular_final"),
+                    tsvs.get("candidato_bruto"), tsvs.get("candidato_final"),
+                    int(titular_tk.get("input", 0)), int(titular_tk.get("output", 0)),
+                    int(titular_tk.get("cache_read", 0)), int(titular_tk.get("cache_write", 0)),
+                    float(custo_usd(titular, titular_tk)),
+                    float(custo_usd(titular, titular_tk_total)),
+                    float(candidato_custo), candidato_stop, int(repescaria), bool(continuou))
+                if linhas:
+                    await conn.executemany(
+                        """INSERT INTO sombra_numeros
+                             (extracao_id, dono, casa, codigo, ocorrencia,
+                              stake_tb, stake_tf, stake_cb, stake_cf,
+                              odd_tb, odd_tf, odd_cb, odd_cf,
+                              res_tb, res_tf, res_cb, res_cf,
+                              faltou, sobrou, inventado, igual_stake, igual_odd, igual_res)
+                           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+                                   $16,$17,$18,$19,$20,$21,$22,$23)""",
+                        [(extracao_id, dono, casa, l["codigo"], int(l["ocorrencia"]),
+                          l["stake_tb"], l["stake_tf"], l["stake_cb"], l["stake_cf"],
+                          l["odd_tb"], l["odd_tf"], l["odd_cb"], l["odd_cf"],
+                          l["res_tb"], l["res_tf"], l["res_cb"], l["res_cf"],
+                          bool(l["faltou"]), bool(l["sobrou"]), bool(l["inventado"]),
+                          l["igual_stake"], l["igual_odd"], l["igual_res"])
+                         for l in linhas])
+            # Purga preguiçosa, FORA da transação e com `try` próprio: a escrita acima
+            # já commitou, e faxina nunca pode desmentir a escrita (ver `registrar_sombra`).
+            try:
+                for tabela in ("sombra_tsv", "sombra_numeros"):
+                    await conn.execute(
+                        f"DELETE FROM {tabela} WHERE criado_em < NOW() - ($1 || ' days')::interval",
+                        str(_SOMBRA_DIAS))
+            except Exception:
+                logger.warning("sombra_numeros: purga falhou", exc_info=True)
+    except Exception:
+        logger.warning("sombra_numeros: nao gravada", exc_info=True)
 
 
 async def registrar_sombra(dono: str, casa: str, texto: str | None, tsv: str) -> int:

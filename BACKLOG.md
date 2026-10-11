@@ -1390,6 +1390,24 @@ mensal; impostos, infra, suporte e preço não medidos ou não decididos.
 → registros em `_backups/experimento_s386/` (`fluxo_6488ed625136`, `teste_73c526267066`),
 runners `scripts/experimento_fluxo_s386.py` e `scripts/reavaliar_s386.py` (no branch).
 
+### 3.20 A sombra de NÚMEROS com o Haiku 5.5 (s407). **VIVA — no ar, só armazenando.**
+Pergunta do Feca: *"se eu trocar o Sonnet pelo Haiku, o que vai para o banco continua
+certo?"*, com o critério *"stake, odd e resultado 100% iguais; descrição não importa"*.
+A sombra agora guarda, por aposta, as quatro versões (Sonnet bruto/final, Haiku
+bruto/final, o Haiku passado pelos MESMOS fiscais determinísticos) em `sombra_numeros`, e
+os TSVs inteiros em `sombra_tsv`. Leitura: `python scripts/relatorio_sombra_numeros.py
+--desde <data>`. Candidato trocado para `claude-haiku-5-5` a pedido do Feca (11/10), com
+preço novo em `_PRECOS` e a tabela de prompt longo (> 100K tokens, 5x) cobrada por chamada.
+**Falta:**
+1. **Conferir a variável `SOMBRA_MODELO` no Railway.** Se ela existir com
+   `claude-haiku-4-5`, o default novo do código não vale: trocar para `claude-haiku-5-5`
+   ou apagar a variável.
+2. **O relatório só roda quando o Feca pedir** (decisão dele, 11/10: *"eu peço o
+   relatorio quando for hora. apenas armazene."*). Até lá a sombra só grava.
+**Lacunas declaradas:** linha sem código não é comparada (contada à parte); a sombra não
+repesca, então o custo real do Haiku fica entre o dele e o dele mais a repescagem; no
+sequencial com continuação a sombra lê uma vez só (marcado em `titular_continuou`).
+
 ## 4. Dívida técnica medida
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.

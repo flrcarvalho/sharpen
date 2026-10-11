@@ -638,6 +638,66 @@ CREATE INDEX IF NOT EXISTS sombra_modelo_criado ON sombra_modelo (criado_em);
 ALTER TABLE uso_tokens    ADD COLUMN IF NOT EXISTS caminho  TEXT;
 ALTER TABLE sombra_modelo ADD COLUMN IF NOT EXISTS contrato TEXT;
 
+-- ── Sombra de NÚMEROS (s407): o candidato gravaria a MESMA stake, odd e resultado? ──
+-- O placar da `sombra_modelo` confere código, colunas e descrição; ele nunca olhou
+-- número. Critério do Feca: *"a única coisa que não pode errar é número"*. Aqui fica,
+-- por aposta, o que cada modelo escreveu ANTES e DEPOIS dos fiscais determinísticos.
+--   `extracao_id` amarra as três tabelas: a linha da `sombra_modelo` (custo + placar),
+--   a da `sombra_tsv` (os TSVs inteiros, para reanalisar sem chamada nova) e as N de
+--   `sombra_numeros`. Linha antiga da `sombra_modelo` fica NULL.
+--   Os números vão NORMALIZADOS como texto (`str(Decimal)`; `!<cru>` quando ilegível;
+--   NULL quando o lado não tem a aposta ou o campo veio vazio). Texto e não NUMERIC
+--   porque "ilegível" é um valor que precisa ser comparado e contado.
+--   Retenção: a mesma da `sombra_rotulos` (`_SOMBRA_DIAS`), purga preguiçosa.
+ALTER TABLE sombra_modelo ADD COLUMN IF NOT EXISTS extracao_id UUID;
+
+CREATE TABLE IF NOT EXISTS sombra_tsv (
+    extracao_id     UUID PRIMARY KEY,
+    criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono            TEXT NOT NULL,
+    casa            TEXT,
+    modelo          TEXT NOT NULL,
+    modelo_titular  TEXT,
+    titular_bruto   TEXT,            -- o Sonnet antes de qualquer fiscal
+    titular_final   TEXT,            -- o que voltou para a tela
+    candidato_bruto TEXT,            -- o Haiku como veio
+    candidato_final TEXT,            -- o Haiku depois dos MESMOS fiscais determinísticos
+    -- custo do titular NA MESMA extração. `base` = só a leitura principal; `total` =
+    -- com a repescagem de cobertura e fidelidade, que a sombra NÃO roda (custa IA).
+    titular_input        BIGINT NOT NULL DEFAULT 0,
+    titular_output       BIGINT NOT NULL DEFAULT 0,
+    titular_cache_read   BIGINT NOT NULL DEFAULT 0,
+    titular_cache_write  BIGINT NOT NULL DEFAULT 0,
+    titular_custo_base   REAL NOT NULL DEFAULT 0,
+    titular_custo_total  REAL NOT NULL DEFAULT 0,
+    candidato_custo      REAL NOT NULL DEFAULT 0,
+    candidato_stop       TEXT,       -- stop_reason de cada chamada (refusal aparece aqui)
+    candidato_repescaria INT NOT NULL DEFAULT 0,  -- bilhetes que a cobertura repescaria
+    titular_continuou    BOOLEAN NOT NULL DEFAULT FALSE  -- seq com continuação: a sombra só leu 1 vez
+);
+CREATE INDEX IF NOT EXISTS sombra_tsv_criado ON sombra_tsv (criado_em);
+
+CREATE TABLE IF NOT EXISTS sombra_numeros (
+    id              BIGSERIAL PRIMARY KEY,
+    extracao_id     UUID NOT NULL,
+    criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono            TEXT NOT NULL,
+    casa            TEXT,
+    codigo          TEXT NOT NULL,
+    ocorrencia      INT  NOT NULL DEFAULT 1,  -- o mesmo código 2x no lote pareia pela ordem
+    stake_tb TEXT, stake_tf TEXT, stake_cb TEXT, stake_cf TEXT,  -- t=titular c=candidato
+    odd_tb   TEXT, odd_tf   TEXT, odd_cb   TEXT, odd_cf   TEXT,  -- b=bruto  f=final
+    res_tb   TEXT, res_tf   TEXT, res_cb   TEXT, res_cf   TEXT,
+    faltou          BOOLEAN NOT NULL DEFAULT FALSE,  -- o titular tem, o candidato não
+    sobrou          BOOLEAN NOT NULL DEFAULT FALSE,  -- o candidato tem, o titular não
+    inventado       BOOLEAN NOT NULL DEFAULT FALSE,  -- código do candidato fora do texto
+    igual_stake     BOOLEAN,         -- NULL quando falta um dos lados
+    igual_odd       BOOLEAN,
+    igual_res       BOOLEAN
+);
+CREATE INDEX IF NOT EXISTS sombra_numeros_criado ON sombra_numeros (criado_em);
+CREATE INDEX IF NOT EXISTS sombra_numeros_extracao ON sombra_numeros (extracao_id);
+
 -- ── Barreira de recaptura (Fase 0 do `docs/PLANO_BARREIRA_RECAPTURA.md`) ──────
 -- O hash do último bloco cru que a IA leu para cada bilhete. Serve a UMA pergunta:
 -- "este bloco é byte a byte o mesmo que eu já paguei para ler?". Se for, não há o

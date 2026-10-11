@@ -99,10 +99,21 @@ def test_a_sombra_recebe_a_MESMA_entrada_do_titular():
     e o defeito seria invisível, porque o número sairia igual."""
     import inspect
     src = inspect.getsource(main)
-    seq = "_sombra_modelo(dono, casa, system, [content], texto, modelo)"
-    par = "_sombra_modelo(dono, casa, system, chunks, texto, modelo)"
+    # Os argumentos nomeados que vêm depois (s407, sombra de números) não mudam a
+    # entrada: o que se confere aqui é o começo da chamada, que é o que vai à API.
+    seq = "_sombra_modelo(dono, casa, system, [content], texto, modelo,"
+    par = "_sombra_modelo(dono, casa, system, chunks, texto, modelo,"
     assert seq in src, "o caminho sequencial tem de replicar o MESMO content"
     assert par in src, "o caminho paralelo tem de replicar os MESMOS chunks"
+
+
+def test_a_sombra_de_numeros_recebe_o_FINAL_do_titular():
+    """Sem o final, a comparação mediria o candidato contra o Sonnet ANTES dos fiscais,
+    e não contra o que de fato foi para o banco (s407)."""
+    import inspect
+    src = inspect.getsource(main)
+    assert "titular_final=accumulated," in src, "seq: o final é o `accumulated` pós-fiscais"
+    assert "titular_final=resultado," in src, "par: o final é o `resultado` pós-fiscais"
 
 
 def test_desligar_a_sombra_e_uma_variavel_de_ambiente():
