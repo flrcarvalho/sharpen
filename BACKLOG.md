@@ -582,6 +582,18 @@ outro caminho: *"a extração print→TSV nunca é verificada ponta a ponta"*.
 > um rótulo que ninguém viu — e chutar aqui é o mesmo que o `else` do formatador: cria linha
 > `aberta` para sempre, sem erro em lugar nenhum.
 
+### 2.1 DEX Sport: aposta ABERTA volta à IA quando a casa muda idioma ou ordem das pernas (s408). **VIVA, medida**
+
+A barreira de recaptura voltou a funcionar na DEX e na Shuffle na s408 (o código ia em
+maiúsculas e nunca casava). O liquidado sai pelo estado, sempre. A aposta **aberta** só sai
+se o bloco for byte a byte igual ao da última leitura, e a DEX devolve o mesmo bilhete em
+outro idioma e com as pernas em outra ordem (medido no mapa da blueprint, Gabriel × DEX
+11/10: `El Zamalek total: Under 1.5` → `Total de Zamalek: Debajo 1.5`; só 8 de 72 blocos
+idênticos). Cada captura repaga essas abertas. É o lado seguro (custa, não perde).
+**Para resolver falta amostra:** recon da DEX para saber se a API aceita idioma fixo e se a
+ordem das pernas tem chave estável (`formatTicketDX`, `extensor/content.js`). Mudança na
+extensão: `node extensor/harness/run.mjs` antes do commit.
+
 *(bloco herdado do `STATUS §5`, verbatim — a varredura de 10/08, s261.)*
 
 > **Varrido em 10/08/2026 (s261), contra o código e o git.** Motivo: a primeira pendência
