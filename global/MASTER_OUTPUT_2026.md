@@ -164,11 +164,20 @@ Regras:
 Quando o bilhete está **perdido (L)** e o bloco marca uma ou mais pernas como **perdidas**,
 cada uma com o seu **início**, a data é a do **início da perna perdida mais cedo**.
 
-- Vale só para o que a casa publica: perna marcada perdida (`[perdeu]`, `[lost]`,
-  `[perna perdida]`, `[sel_status=4]`) e com `Início:` próprio. Sem os dois, vale a regra
-  geral (perna mais recente). Nunca estimar.
+- Vale só para o que a casa publica: perna marcada perdida (`[perdeu]`, `[lost]`/`[LOST]`,
+  `[perna perdida]`; na Pitaco `[sel_status=4]`, na Stake `[sel_status=3]`) e com `Início:`
+  próprio. `Data do evento (casa):` não é início. Sem os dois, vale a regra geral (perna
+  mais recente). Nunca estimar.
+- `sel_status` é número cru da casa e muda de sentido entre elas: na Stake o `4` é
+  **anulada**, não perdida. Fora da Pitaco e da Stake, `sel_status` não decide nada.
+- **Aposta de sistema fica fora:** uma perna perdida não encerra o bilhete, as outras
+  combinações seguem vivas. Vale a regra geral.
+- **Bet365 fica fora** (decisão do Feca, 11/10/2026: a casa não está sendo operada, e mexer
+  sem base nova seria erro). Vale a regra geral até haver captura nova para medir.
 - A data nunca anda para frente: se a perna perdida não for anterior à data geral, fica a geral.
-- Como na regra geral, conta o dia do **início** do jogo, não o do fim.
+- Como na regra geral, conta o dia do **início** do jogo, não o do fim, mesmo quando a casa
+  publica o instante da liquidação (a mesma régua para simples e múltipla; proposta
+  aprovada pelo Feca em 11/10/2026).
 - Cashout não entra: nenhuma casa publica o dia em que ele foi feito.
 
 Aplicada também pelo sistema, de forma determinística (`repository.corrigir_data_tsv`).

@@ -12,18 +12,21 @@ resolvido só muda por aqui.
 
 O QUE ELE USA: o bloco cru da `sombra_rotulos` (120 dias de retenção), casado por
 (dono, casa, código), e a MESMA função da extração (`data_da_perna_perdida`). Nada é
-reimplementado aqui.
+reimplementado aqui: aposta de sistema, `sel_status` por casa e o resto das travas da
+regra valem igual.
 
 TRAVAS:
   1. Só `L`, só linha com código, só para TRÁS (a perna perdida antes da data gravada).
   2. Correção humana manda: bilhete com registro de `data` em `correcoes` é pulado.
   3. O UPDATE confere a data antiga no WHERE: se alguém mexeu entre o ensaio e a escrita,
      a linha não é tocada.
-  4. `data` não entra na assinatura de linha COM código (`_assinatura`), então redatar não
+  4. Tudo numa TRANSAÇÃO só, e o snapshot do ANTES é gravado em disco antes do primeiro
+     UPDATE. Qualquer UPDATE que não pegue exatamente 1 linha desfaz a transação inteira.
+  5. `data` não entra na assinatura de linha COM código (`_assinatura`), então redatar não
      duplica nada na próxima captura.
 
-FORA DE ALCANCE: Bet365, Superbet, Pinnacle, Megapari, 1xBet e PariPesa (o bloco não traz
-a perna perdida com início; BACKLOG 1.17) e linha cujo bloco já saiu da sombra.
+FORA DE ALCANCE: Bet365, Superbet, Pinnacle, Megapari, 1xBet, PariPesa e Novibet (o bloco
+não traz a perna perdida com início; BACKLOG 1.17) e linha cujo bloco já saiu da sombra.
 
 Uso:
     python scripts/reparar_data_multipla_s405.py              # ensaio (não escreve)
@@ -41,17 +44,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-sys.stdout.reconfigure(encoding="utf-8")
-
-if "DATABASE_URL" not in os.environ:
-    for linha in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
-        if linha.startswith("DATABASE_URL="):
-            os.environ["DATABASE_URL"] = linha.split("=", 1)[1].strip().strip('"').strip("'")
-
 from database import get_pool  # noqa: E402
 from repository import _data_iso, calcular_pl, data_da_perna_perdida  # noqa: E402
 
 DESTINO = ROOT / "Backups" / "s405-data-multipla" / "bilhetes_antes.json"
+
+
+class _UpdateNaoAplicou(Exception):
+    """Um UPDATE não pegou exatamente 1 linha: a transação inteira é desfeita."""
+
+
+def _carregar_env() -> None:
+    if "DATABASE_URL" not in os.environ:
+        for linha in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
+            if linha.startswith("DATABASE_URL="):
+                os.environ["DATABASE_URL"] = linha.split("=", 1)[1].strip().strip('"').strip("'")
 
 
 def _arg(nome: str) -> str | None:
@@ -81,7 +88,22 @@ def candidatos(linhas, travados) -> tuple[list[dict], list[dict]]:
     return mudar, pulados
 
 
+def _gravar_snapshot(mudar: list[dict]) -> None:
+    """Acrescenta o ANTES ao snapshot. Levanta erro (e nada é escrito no banco) se o
+    snapshot anterior estiver ilegível: gravar por cima apagaria o backup de outra rodada."""
+    DESTINO.parent.mkdir(parents=True, exist_ok=True)
+    anterior = []
+    if DESTINO.exists():
+        anterior = json.loads(DESTINO.read_text(encoding="utf-8"))
+    carimbo = datetime.now(timezone.utc).isoformat()
+    DESTINO.write_text(json.dumps(
+        anterior + [dict(m, snapshot_em=carimbo) for m in mudar],
+        ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 async def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8")
+    _carregar_env()
     aplicar = "--aplicar" in sys.argv
     dono = _arg("--dono")
     pool = await get_pool()
@@ -102,9 +124,10 @@ async def main() -> None:
             "AND bilhete_id IS NOT NULL")}
 
         mudar, pulados = candidatos([dict(r) for r in linhas], travados)
+        mudar.sort(key=lambda x: (x["dono"], x["iso_antes"]))
 
         por_casa, por_mes = defaultdict(int), defaultdict(float)
-        for m in sorted(mudar, key=lambda x: (x["dono"], x["iso_antes"])):
+        for m in mudar:
             por_casa[m["casa"]] += 1
             if m["iso_antes"][:7] != m["iso_depois"][:7]:
                 pl = m["pl"] or 0.0
@@ -112,42 +135,41 @@ async def main() -> None:
                 por_mes[(m["dono"], m["iso_depois"][:7])] += pl
             print(f'{m["id"]:>7} {m["dono"]:<12} {m["casa"]:<12} {m["codigo"][:22]:<22} '
                   f'{m["data_antes"]} → {m["data_depois"]}  P/L {m["pl"] or 0:>9,.2f}')
-            if aplicar:
-                r = await conn.execute(
-                    "UPDATE bilhetes SET data = $1, atualizado_em = NOW() "
-                    "WHERE id = $2 AND dono = $3 AND data = $4 AND resultado = 'L'",
-                    m["data_depois"], m["id"], m["dono"], m["data_antes"])
-                if r.split()[-1] != "1":
-                    print(f'        ⚠ UPDATE não aplicou no bilhete {m["id"]} (mudou desde a leitura)')
 
-    print("\n" + "=" * 96)
-    print(f"conferidos (L com bloco na sombra): {len(linhas)} · a redatar: {len(mudar)} · "
-          f"pulados por correção humana: {len(pulados)}")
-    print("por casa:", dict(sorted(por_casa.items(), key=lambda x: -x[1])))
-    if por_mes:
-        print("P/L que troca de MÊS (dono, mês): " + ", ".join(
-            f"{d} {m}: {v:+,.2f}" for (d, m), v in sorted(por_mes.items())))
-    for p in pulados:
-        print(f'  PULADO (data editada à mão): {p["id"]} {p["dono"]} {p["casa"]} '
-              f'{p["data_antes"]} → seria {p["data_depois"]}')
+        print("\n" + "=" * 96)
+        print(f"conferidos (L com bloco na sombra): {len(linhas)} · a redatar: {len(mudar)} · "
+              f"pulados por correção humana: {len(pulados)}")
+        print("por casa:", dict(sorted(por_casa.items(), key=lambda x: -x[1])))
+        if por_mes:
+            print("P/L que troca de MÊS (dono, mês): " + ", ".join(
+                f"{d} {m}: {v:+,.2f}" for (d, m), v in sorted(por_mes.items())))
+        for p in pulados:
+            print(f'  PULADO (data editada à mão): {p["id"]} {p["dono"]} {p["casa"]} '
+                  f'{p["data_antes"]} → seria {p["data_depois"]}')
 
-    if aplicar:
-        DESTINO.parent.mkdir(parents=True, exist_ok=True)
-        anterior = []
-        if DESTINO.exists():
-            try:
-                anterior = json.loads(DESTINO.read_text(encoding="utf-8"))
-            except (ValueError, OSError):
-                print("⚠ snapshot anterior ilegível — o novo NÃO será gravado por cima")
-                anterior = None
-        if anterior is not None:
-            carimbo = datetime.now(timezone.utc).isoformat()
-            DESTINO.write_text(json.dumps(
-                anterior + [dict(m, aplicado_em=carimbo) for m in mudar],
-                ensure_ascii=False, indent=1), encoding="utf-8")
-            print(f"\n✔ aplicado. Snapshot do ANTES em {DESTINO}")
-    else:
-        print("\nENSAIO — nada foi escrito. Rode com --aplicar para gravar.")
+        if not aplicar:
+            print("\nENSAIO — nada foi escrito. Rode com --aplicar para gravar.")
+            return
+        if not mudar:
+            print("\nNada a aplicar.")
+            return
+
+        _gravar_snapshot(mudar)
+        print(f"\nSnapshot do ANTES gravado em {DESTINO}")
+        try:
+            async with conn.transaction():
+                for m in mudar:
+                    r = await conn.execute(
+                        "UPDATE bilhetes SET data = $1, atualizado_em = NOW() "
+                        "WHERE id = $2 AND dono = $3 AND data = $4 AND resultado = 'L'",
+                        m["data_depois"], m["id"], m["dono"], m["data_antes"])
+                    if r.split()[-1] != "1":
+                        raise _UpdateNaoAplicou(m["id"])
+        except _UpdateNaoAplicou as e:
+            print(f"⚠ o bilhete {e} mudou desde a leitura. NADA foi aplicado (transação "
+                  f"desfeita). Rode o ensaio de novo.")
+            sys.exit(1)
+        print(f"✔ aplicado: {len(mudar)} bilhetes redatados numa transação só.")
 
 
 if __name__ == "__main__":

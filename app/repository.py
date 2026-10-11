@@ -811,13 +811,29 @@ def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
 # sidebar ("MÊS" = mês inteiro). Medido em 10/10/2026: 291 bilhetes, 56 resolvíveis pelo
 # que o bloco já traz (BACKLOG 1.17).
 #
-# Só o que a casa PUBLICA decide: a perna marcada perdida e o `Início:` dela. Os quatro
-# rótulos são os que a extensão escreve nas casas do grupo A (Altenar, Kambi/Entain,
-# Betfast/MyStake: `[perdeu]`; BetBy: `[lost]`; DEX: `[perna perdida]`; Pitaco:
-# `[sel_status=4]`). Rótulo que não está aqui não move data nenhuma: chutar a semântica de
-# um código de casa é estimativa. `[meia derrota]` fica de fora de propósito, porque meia
-# derrota não encerra a múltipla.
-_PERNA_PERDIDA_RE = re.compile(r"\[(?:perdeu|lost|perna perdida|sel_status=4)(?:\]| ·)")
+# Só o que a casa PUBLICA decide: a perna marcada perdida e o `Início:` dela. Os rótulos
+# são os que a extensão escreve: `[perdeu]` (Altenar, Kambi/Entain, Betfast/MyStake),
+# `[lost]` (BetBy), `[LOST]` (KTO) e `[perna perdida]` (DEX/Shuffle). Rótulo que não está
+# aqui não move data nenhuma: chutar a semântica de um código de casa é estimativa.
+# `[meia derrota]` fica de fora de propósito, porque meia derrota não encerra a múltipla.
+# A Novibet escreve `[Lost]` e passa no mesmo padrão, mas não move nada: a perna dela não
+# traz `Início:` (medido em 11/10/2026 na sombra: 0 de 2.914 pernas).
+_PERNA_PERDIDA_RE = re.compile(r"\[(?:perdeu|lost|perna perdida)(?:\]| ·)", re.I)
+# `sel_status=N` é o número CRU da API, e o mesmo número muda de sentido por casa: na
+# Pitaco 4 é perdeu (`CASA_PITACO`); na Stake 3 é perdida e 4 é anulada (`CASA_STAKE`).
+# A casa é reconhecida pelo `Status (API):` do cabeçalho, que cada formatador escreve do
+# seu jeito (Pitaco `status=4`; Stake `bet_status=3 · ticket_status=…`; a Shuffle escreve
+# `status=LOST · …`, que não casa). Casa nova com `sel_status=` fora daqui não move data.
+_SEL_PERDIDA_POR_CASA = (
+    (re.compile(r"^Status \(API\): status=\d+\r?$", re.M), "4"),                  # Pitaco
+    (re.compile(r"^Status \(API\): bet_status=\d+ · ticket_status=", re.M), "3"),   # Stake
+)
+# Aposta de SISTEMA não acaba quando uma perna perde: as outras combinações seguem vivas
+# (Duel 378272, sistema 2/3, ficou aberto até a última perna). Cada formatador marca o
+# sistema no cabeçalho: `Tipo: Sistema…`/`Tipo: SISTEMA…` (Betfast, BetBy, KTO, Shuffle,
+# Bet365, Novibet, R7), `type=SYSTEM_BET` (Shuffle), `BetTypeName=Sistema` (1xBet e cia.).
+_SISTEMA_RE = re.compile(r"^Tipo:\s*sistema\b|type=SYSTEM_BET|BetTypeName=(?:Sistema|System)\b",
+                         re.M | re.I)
 _INICIO_PERNA_RE = re.compile(r"Início:\s*(\d{2})/(\d{2})/(\d{4})")
 # A perna começa numa linha "- " no nível de cima; `Jogo:`/`Início:` vêm indentados abaixo.
 _PERNA_SPLIT_RE = re.compile(r"\n(?=- )")
@@ -827,14 +843,19 @@ def data_da_perna_perdida(bloco: str | None) -> str | None:
     """ISO (`YYYY-MM-DD`) do início da perna perdida mais cedo, ou None. Função PURA.
 
     None quando nenhuma perna traz os dois sinais juntos (rótulo de perdida E `Início:`
-    próprio). O cabeçalho (antes da 1ª perna) nunca conta: o `Status (API): lost` dele
-    descreve o bilhete, não uma perna.
+    próprio), e sempre em aposta de sistema. O cabeçalho (antes da 1ª perna) nunca conta
+    como perna: o `Status (API): lost` dele descreve o bilhete, não uma perna.
     """
     if not bloco:
         return None
+    cabecalho, *pernas = _PERNA_SPLIT_RE.split(bloco)
+    if _SISTEMA_RE.search(cabecalho):
+        return None
+    sel = next((n for casa, n in _SEL_PERDIDA_POR_CASA if casa.search(cabecalho)), None)
+    sel_re = re.compile(rf"\[sel_status={sel}(?:\]| ·)") if sel else None
     datas = []
-    for perna in _PERNA_SPLIT_RE.split(bloco)[1:]:
-        if not _PERNA_PERDIDA_RE.search(perna):
+    for perna in pernas:
+        if not (_PERNA_PERDIDA_RE.search(perna) or (sel_re and sel_re.search(perna))):
             continue
         m = _INICIO_PERNA_RE.search(perna)
         if m:

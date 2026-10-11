@@ -439,12 +439,23 @@ sombra guarda 120 dias). O que cada casa manda **por perna**:
 
 **Aplicado na s405 (11/10/2026):** `MASTER_OUTPUT §4.0.1` + `repository.corrigir_data_tsv` nos
 dois caminhos do `/extrair`, gate `tests/test_data_multipla_perdida.py`, e o reparo do que já
-está gravado em `scripts/reparar_data_multipla_s405.py` (ensaio: 281 linhas em 16 casas, 1
-pulada por edição manual; **aplicação aguarda o Feca**). O que falta desta frente:
+está gravado em `scripts/reparar_data_multipla_s405.py` (**aplicação aguarda o Feca**).
 
-- **Camada de cima, a data de LIQUIDAÇÃO publicada:** Shuffle, Betnacional e as casas das
-  linhas 3574/3787 do `content.js` já imprimem `Liquidado em:`/`Liquidada em:`. É exata e
-  cobre cashout, que a perna perdida não cobre. Medido na Shuffle 379788: bate com a regra.
+**Auditoria independente (11/10/2026) e correção:** a 1ª versão redatava **aposta de
+sistema** (10 no ensaio; Duel 378272, sistema 2/3, vivo até 10/10, ia para 08/10) e lia
+`sel_status=4` como perdida também na **Stake**, onde é anulada (a fixture "Pitaco" do teste
+era formato Stake). Corrigido: sistema fica fora, `sel_status` é lido por casa (Pitaco 4,
+Stake 3), KTO `[LOST]` entrou, o MASTER diz "Bet365 fora", e o script roda numa transação só
+com o snapshot gravado antes. Ensaio depois da correção: **271** linhas em 16 casas, 1
+pulada. Novibet `[Lost]` não entra porque a perna não traz `Início:` (0 de 2.914). Shuffle
+com `Liquidado em` no dia seguinte ao início (5 de 11): fica o dia do **início**, a mesma
+régua da simples (proposta aprovada em 11/10). O que falta desta frente:
+
+- **Órfã com data mudada:** `chave_orfa` inclui a data, então a Migração B/B' pode não adotar
+  a órfã de um bilhete redatado (14 órfãs abertas em casas do grupo A, 103 linhas
+  `codigo_ocr`). Medir ponta a ponta antes de mexer.
+- **`Liquidado em:` publicado** (Shuffle, Betnacional, `content.js` 3574/3787): pela régua do
+  início ele não muda a data da perna perdida, mas é a única data que cobre **cashout**.
 - **"Perna que já começou"** (grupo B, Superbet e Pinnacle): não aplicada. Depende do
   instante da captura e erra quando a captura atrasa; fica para quando houver gate.
 - Bet365 e o grupo C, como acima.
