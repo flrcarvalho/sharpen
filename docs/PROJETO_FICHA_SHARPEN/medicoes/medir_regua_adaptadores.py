@@ -13,6 +13,11 @@ Estados por cru:
 
 P/L em moeda da CONTA (stake_orig quando a conta não é em real). Retorno da IA derivado
 de stake × odd pela fórmula do resultado, como o `calcular_pl`.
+
+Liquidadas comparadas (D12, decisão do Feca de 11/10: a casa só vira com 30 por casa):
+aposta (código distinto) em que a Ficha E a IA têm resultado liquidado (W, L, V, HW, HL).
+Aberta de qualquer lado não conta. Sai por casa e por DONO (Feca e Gabriel separados,
+sempre listados, mesmo sem cru), com quantas delas batem, só a odd ou divergem.
 """
 import asyncio
 import collections
@@ -29,6 +34,9 @@ import ficha  # noqa: E402
 from database import get_pool  # noqa: E402
 
 C = Decimal("0.005")
+LIQUIDADO = {"W", "L", "V", "HW", "HL"}
+DONOS_SEMPRE = ("Feca", "Gabriel")   # D12 conta por dono; quem não mandou cru aparece com 0
+VIRADA = 30
 
 
 def _carregar_env() -> None:
@@ -58,7 +66,7 @@ def retorno(res, stake, odd):
 
 
 def comparar(c: dict, bilhetes: list) -> dict:
-    r = {"casa": c["casa"], "familia": c["familia"], "codigo": c["codigo"]}
+    r = {"casa": c["casa"], "familia": c["familia"], "codigo": c["codigo"], "dono": c["dono"]}
     f, motivos = ficha.montar_ficha(c["familia"], c["cru"], c["casa"])
     if f is None:
         return dict(r, estado="sem adaptador")
@@ -92,7 +100,8 @@ def comparar(c: dict, bilhetes: list) -> dict:
     estado = ("bate" if not dif else
               "odd sem dinheiro" if so_odd and (pl is None or abs(pl) < Decimal("0.01")) else
               "diverge")
-    return dict(r, estado=estado, dif=dif, status=f["status"], fonte_odd=d["fonte_odd"],
+    liq = d["resultado"] in LIQUIDADO and res_ia in LIQUIDADO
+    return dict(r, estado=estado, dif=dif, status=f["status"], fonte_odd=d["fonte_odd"], liq=liq,
                 stake_pedida=f.get("stake_pedida"),
                 pl=None if pl is None else str(round(pl, 4)), n_bilhetes=len(bilhetes))
 
@@ -126,6 +135,25 @@ async def main() -> None:
     for casa, cnt in sorted(tab.items()):
         print(f"{casa:10} {sum(cnt.values()):4} crus · " +
               " · ".join(f"{k} {v}" for k, v in sorted(cnt.items())))
+    # liquidadas comparadas por casa × dono, contando a APOSTA (código), não o cru
+    liq = collections.defaultdict(dict)
+    for r in linhas:
+        if r.get("liq"):
+            liq[(r["casa"], r["dono"])][r["codigo"]] = r["estado"]
+    donos = sorted({r["dono"] for r in linhas} | set(DONOS_SEMPRE))
+    print()
+    print(f"Liquidadas comparadas (virada: {VIRADA} por casa, aberta não conta)")
+    for casa in sorted(tab):
+        total = 0
+        for dono in donos:
+            est = collections.Counter(liq.get((casa, dono), {}).values())
+            n = sum(est.values())
+            total += n
+            print(f"{casa:10} {dono:10} {n:4} liquidadas · bate {est['bate']} · "
+                  f"odd sem dinheiro {est['odd sem dinheiro']} · diverge {est['diverge']}")
+        # o número só diz se a casa ATINGE o piso; a virada continua sendo o "pode" do Feca
+        print(f"{casa:10} {'casa':10} {total:4} liquidadas · "
+              + (f"atinge {VIRADA}" if total >= VIRADA else f"faltam {VIRADA - total}"))
     for r in linhas:
         if r["estado"] in ("diverge", "recusada", "sem bilhete") or r.get("stake_pedida"):
             print(" ", r["casa"], r["codigo"], r["estado"], r.get("dif") or r.get("motivos") or "",

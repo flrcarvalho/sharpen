@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-10-12 · D4 · régua conta as liquidadas por casa e por dono; cópias com dado pessoal até 19/10
+
+**Onde está:** sombra ligada em 6 casas, 559 Fichas aceitas (conferido pelo Feca). **Próxima ação:**
+quando o Feca e o Gabriel instalarem a 0.7.51, conferir a 1ª Ficha de cada casa vinda da captura normal.
+Só depois disso: a virada do `03_REGUA_NUMEROS §7`, construída DESLIGADA, com o teste dos 3 bilhetes
+(aceito, recusado e sem cru, os três chegando ao banco). Candidatas à 1ª virada: DEX e MyStake. Cada
+virada só com o "pode" do Feca.
+
+- **Decisões do Feca (12/10):** arredondar retorno ÷ stake em 10 casas está ok. As cópias
+  `captura_crua_copia_filtro` (192, todas com `Player` ou `nickname`) e `ficha_sombra_copia_filtro` (55)
+  ficam até **19/10** e então são apagadas, se nada tiver dado errado (BACKLOG §1, STATUS).
+- **Liquidadas comparadas (D12)**, no `medir_regua_adaptadores.py`: aposta em que a Ficha e a IA estão
+  liquidadas; aberta não conta; Feca e Gabriel separados. Feca: Bet Panda 163, Duel 60, DEX 52, MyStake
+  135, Shuffle 63, Vavada 45, nenhuma diverge com dinheiro. Gabriel: 0 (sem cru). Conferido por SELECT
+  independente. Todas vêm da varredura de histórico de 12/10. Tabela em `medicoes/REGUA_ADAPTADORES_s409.md`.
+
+---
+
 ## 2026-10-12 · D2-D4 · 0.7.51 no ar, adaptadores jb/shf/tv/vb na main, sombra em 6 casas
 
 **Onde está:** `FICHA_SOMBRA_CASAS=DEXSPORT,BETPANDA,DUEL,MYSTAKE,SHUFFLE,VAVADA` (deploy `a74bb4ad`,

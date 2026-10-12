@@ -28,6 +28,28 @@ sem bilhete. As 28 freebets da MyStake batem dos dois lados.
 e **2 eram recusadas**. As 4 eram defeito do `derivar`; as 2, leitura errada minha no `shf`.
 As duas seções abaixo dizem o que era e como ficou.
 
+## Liquidadas comparadas, por casa e por dono (D12)
+
+A virada exige **30 liquidadas comparadas por casa** (decisão do Feca, 11/10). Conta a aposta
+(código distinto, não o cru) em que a Ficha **e** a IA estão liquidadas (W, L, V, HW, HL);
+aberta de qualquer lado não conta. Feca e Gabriel separados. Mesmo harness, seção
+"Liquidadas comparadas"; conferido por SELECT independente (mesmos números nas 6 casas).
+Medição de 12/10, ~14h UTC.
+
+| Casa | Feca | Gabriel | Casa | Das do Feca: batem / só odd / divergem | Ganhas na Ficha | Piso de 30 |
+|---|---:|---:|---:|---|---:|---|
+| Bet Panda | 163 | 0 | 163 | 115 / 48 / 0 | 46 | atinge |
+| Duel | 60 | 0 | 60 | 39 / 21 / 0 | 7 + 5 cashout | atinge |
+| DEX Sport | 52 | 0 | 52 | 52 / 0 / 0 | 10 | atinge |
+| MyStake | 135 | 0 | 135 | 135 / 0 / 0 | 13 | atinge |
+| Shuffle | 63 | 0 | 63 | 63 / 0 / 0 | 25 | atinge |
+| Vavada | 45 | 0 | 45 | 37 / 8 / 0 | 9 | atinge |
+
+O Gabriel ainda não mandou cru (a 0.7.51 não estava instalada na máquina dele). Todas as
+liquidadas do Feca vêm da varredura de histórico de 12/10, não de aposta nova. Atingir o piso
+não vira a casa: a virada de cada uma só acontece com o "pode" do Feca. Onde a odd e o retorno
+pesam é na ganha, e há poucas em algumas casas (DEX 10, Duel 7, Vavada 9).
+
 ## As 4 divergências com dinheiro: a IA estava certa, e o `derivar` foi corrigido
 
 As quatro são **sistema ganho**. O adaptador dá a odd estrutural (média das linhas,

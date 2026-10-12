@@ -49,6 +49,18 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
 
 ### Bloqueado por ação humana (não é bilhete)
 
+- **Ficha (s409): apagar as cópias com dado pessoal em 19/10/2026.** `captura_crua_copia_filtro`
+  (192 linhas, todas ainda com `Player` da MyStake ou `nickname` da DEX) e
+  `ficha_sombra_copia_filtro` (55) são o seguro da limpeza de 12/10 (`scripts/limpar_cru_filtro.py`).
+  Decisão do Feca (12/10): em 19/10, se nada tiver dado errado, `DROP TABLE` nas duas. Antes,
+  conferir que `captura_crua` segue sem `Player`/`nickname` e com o hash igual a
+  `cru.impressao(cru)`.
+- **Ficha (s409): a 1ª Ficha de cada casa vinda da captura normal.** Até 12/10 ~14h UTC, as 559
+  Fichas foram montadas pelo reprocesso; nenhum cru chegou depois das chaves. Quando o Feca e o
+  Gabriel instalarem a 0.7.51 (F5 nas abas), conferir no banco, por casa (DEX, Bet Panda, Duel,
+  MyStake, Shuffle, Vavada) e por dono, o 1º cru novo e a Ficha dele gravada no mesmo envio.
+  Só depois disso começa a virada desligada do `03_REGUA_NUMEROS §7`.
+
 - ~~Login `ZoraEsports` 401~~ **RESOLVIDO na própria s238** — mas a lição fica: **conta nova deployada ANTES da env var de senha nasce com hash vazio na tabela `usuarios`, e o seed (`ON CONFLICT DO NOTHING`) nunca conserta** — colar a env var depois não basta (desde o Deploy B da s233 quem autentica é a TABELA via cache; a docstring do seed ainda descreve a Fase 1). Medido: `length(senha_hash)=0` na linha. Fix: UPDATE manual do hash (o Feca rodou o script via `!`; o classificador do Claude Code barra mexida direta em credencial de produção) → login 200 na primeira tentativa. **Ordem certa daqui em diante: env var no Railway PRIMEIRO, push da conta depois.**
 - **Env vars de senha no Railway (s216, s218, s220) — estado NÃO instrumentado.** `SENHA_LAVAPESSOAL_HASH` **está no ar e o Lava entra** (confirmado pelo Feca em 31/07, s222). `SENHA_WILLIAMOLIVEIRA_HASH` e `SENHA_VINICIUSOLIVEIRA_HASH`: **não confirmadas** — podem já ter sido coladas; ninguém atualiza esta linha quando a ação acontece fora do repo.
 - **Login por Telegram: o botão saiu da tela, a causa raiz continua aberta (s324). HUMANA + NÃO-MEDIDA.** O relato foi de uso: aperta e nada acontece. O `Entrar com Telegram` foi retirado do `/login`; o backend segue inteiro (`/auth/telegram/*`, `/auth/metodos`, `tests/test_login_social.py`). **Ninguém mediu por que o clique morre.** Suspeito principal: o `/setdomain` do BotFather nunca apontou para `www.sharpen.bet`, e o `oauth.telegram.org` recusa domínio não registrado sem sair do lugar. **Como medir, sem tocar em código:** abrir `/auth/telegram/ir` com o console aberto e ler o que o `oauth.telegram.org` responde. Se for isso, o conserto é no BotFather, fora do repo. Para devolver o botão: repor o `<a id="btn-telegram">` no `login.html`, voltar `temSocial` a olhar `m.telegram` e apagar `test_botao_telegram_esta_fora_da_tela` (o próprio teste diz isso).
