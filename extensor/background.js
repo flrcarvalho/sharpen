@@ -32,6 +32,33 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
+// ── Retomada do robô depois do recarregamento automático (s410) ─────────────────────────
+// O popup recarregou a aba de um espelho da 1xBet em domínio novo para o `x1_inject` entrar
+// cedo (ver `x1RecarregarSeAtrasado` no popup.js) e fechou. Quem dispara o robô é este
+// ouvinte, UMA vez: a pendência sai do storage antes do envio, vale 90 s e só na mesma aba
+// e no mesmo host (o operador pode ter navegado para outro site enquanto isso).
+chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  if (info.status !== "complete") return;
+  retomarRobo(tabId, tab).catch(() => {});
+});
+
+async function retomarRobo(tabId, tab) {
+  const { roboPendente: p } = await chrome.storage.local.get("roboPendente");
+  if (!p || p.tabId !== tabId) return false;
+  await chrome.storage.local.remove("roboPendente");
+  if (Date.now() > p.ate) return false;
+  let host = "";
+  try { host = new URL((tab && tab.url) || "").hostname; } catch (_) {}
+  if (host !== p.host) return false;
+  // O content.js entra em `document_idle`; no `complete` ele quase sempre já ouve, mas não é
+  // garantido. Tenta por até 5 s.
+  for (let i = 0; i < 10; i++) {
+    try { await chrome.tabs.sendMessage(tabId, { type: "START_ROBOT" }); return true; } catch (_) {}
+    await new Promise((ok) => setTimeout(ok, 500));
+  }
+  return false;
+}
+
 /** Ponte do "Resolver apostas abertas": busca os alvos, ou aplica o que a casa devolveu. */
 async function resolverAbertas(msg) {
   const { token } = await chrome.storage.local.get("token");

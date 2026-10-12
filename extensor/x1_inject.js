@@ -106,6 +106,12 @@
   let erro = "";
   const LOG = (...a) => { try { console.log("[SharpenUp x1_inject]", ...a); } catch (e) {} };
   LOG("hook instalado em", location.href);
+  // CEDO = instalado com a página ainda carregando (manifest ou registro dinâmico do popup).
+  // ATRASADO = injetado pelo popup depois do load, quando a busca do histórico já passou: sem
+  // requisição real o replay não tem o corpo para copiar e a captura dá 0 calada (s410,
+  // Megapari em `4569421mp.pro`). O popup lê esta marca para decidir se recarrega a aba.
+  // Só a 1ª instalação marca: a injeção tardia por cima de uma cedo não apaga a cedo.
+  if (window.__suX1Cedo == null) window.__suX1Cedo = document.readyState === "loading";
 
   const of = window.fetch;                     // fetch ORIGINAL — o replay usa este
 

@@ -14,6 +14,11 @@
 
 - **Marca:** `Megapari` · **domínio:** `megapari.com`, que **redireciona para espelhos que
   trocam de endereço** (`2479527mp.pro` no recon, `4569421mp.pro` em 12/10/2026) — por isso fica fora do `CASA_HOSTS` do popup.
+- **Domínio novo se ajusta sozinho (s410, SharpenUp 0.7.52).** Fora do manifest o `x1_inject` entrava
+  tarde e a captura dava `respostas 0` calada. Agora o popup registra o domínio para o carregamento,
+  recarrega a aba e o background retoma o robô (`x1RecarregarSeAtrasado` / `retomarRobo`; gate
+  `tests/test_x1_dominio_novo.py`). Vale para Megapari, SapphireBet e 1xBit. Pôr o domínio no
+  manifest continua valendo: poupa o recarregamento da 1ª vez.
 - **Chave no sistema:** `MEGAPARI` → display `Megapari`
 - **Motor:** o da **1xBet** (§1.2). Inject `extensor/x1_inject.js`, formatador `formatTicket1X`.
 - **Grafia `Megapari` (s391): a BASE decidiu.** A 1ª versão registrou `MegaPari` (a marca)

@@ -121,6 +121,64 @@ function hostBate(host, casa) {
   return hosts.some((x) => h === x || h.endsWith("." + x));
 }
 
+// ── Espelho da 1xBet em domínio NOVO (s410) ─────────────────────────────────────────────
+// Megapari, SapphireBet e 1xBit trocam de endereço (`2479527mp.pro` → `4569421mp.pro`). Num
+// domínio fora do manifest o `x1_inject` só entra pelo popup, DEPOIS que a página buscou o
+// histórico, e o replay não tem o que copiar: "hook ATIVO · respostas 0", sem erro. Em vez
+// de esperar alguém pôr o domínio no manifest, o popup registra o domínio para o inject
+// entrar no CARREGAMENTO (`document_start`), recarrega a aba e o background retoma o robô.
+const X1_ESPELHOS_MOVEIS = new Set(["Megapari", "SapphireBet", "1xBit"]);
+const X1_DINAMICO_ID = "x1-espelho-dinamico";
+
+// O host já está nos `matches` do `x1_inject` no manifest? (mesma semântica do Chrome:
+// `*.x` cobre `x` e qualquer subdomínio dele, nunca substring.)
+function x1NoManifest(host) {
+  const h = (host || "").toLowerCase();
+  const cs = (chrome.runtime.getManifest().content_scripts || [])
+    .filter((c) => (c.js || []).includes("x1_inject.js"));
+  return cs.some((c) => (c.matches || []).some((m) => {
+    const p = ((m.match(/^[^:]+:\/\/([^/]+)\//) || [])[1] || "").toLowerCase();
+    if (p.startsWith("*.")) { const base = p.slice(2); return h === base || h.endsWith("." + base); }
+    return h === p;
+  }));
+}
+
+async function x1Registrar(host) {
+  const novos = ["*://" + host + "/*"];
+  const [atual] = await chrome.scripting.getRegisteredContentScripts({ ids: [X1_DINAMICO_ID] });
+  if (atual) {
+    const matches = Array.from(new Set([...(atual.matches || []), ...novos]));
+    if (matches.length !== (atual.matches || []).length) {
+      await chrome.scripting.updateContentScripts([{ id: X1_DINAMICO_ID, matches }]);
+    }
+  } else {
+    await chrome.scripting.registerContentScripts([{
+      id: X1_DINAMICO_ID, matches: novos, js: ["x1_inject.js"],
+      runAt: "document_start", world: "MAIN", persistAcrossSessions: true,
+    }]);
+  }
+}
+
+// true = a aba vai recarregar e o background retoma o robô; o popup não faz mais nada.
+// false = o hook entrou cedo (ou a casa não é espelho móvel): segue o caminho de sempre.
+async function x1RecarregarSeAtrasado(tab, host, casa) {
+  if (!X1_ESPELHOS_MOVEIS.has(casa) || !host) return false;
+  let cedo = false;
+  try {
+    const [r] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id }, world: "MAIN", func: () => window.__suX1Cedo === true,
+    });
+    cedo = !!(r && r.result);
+  } catch (_) {}
+  if (cedo) return false;
+  if (!x1NoManifest(host)) {
+    try { await x1Registrar(host); } catch (_) { return false; }   // sem registro, recarregar não adianta
+  }
+  await chrome.storage.local.set({ roboPendente: { tabId: tab.id, host, ate: Date.now() + 90000 } });
+  await chrome.tabs.reload(tab.id);
+  return true;
+}
+
 function setMsg(texto, tipo) {
   msg.textContent = texto || "";
   msg.className = "msg" + (tipo ? " " + tipo : "");
@@ -329,6 +387,9 @@ async function capturar() {
       // Frame de topo (onde vivem os bilhetes na Betfair — confirmado). O manifest cobre os
       // sub-frames betfair.bet.br no carregamento (all_frames); aqui é o backup p/ aba já aberta.
       // Casa cujo inject vive em SUB-FRAME entra como lista e vai com `allFrames: true`.
+      // Espelho da 1xBet em domínio novo (s410): recarrega com o hook cedo e o background
+      // dispara o robô quando a página terminar de carregar.
+      if (await x1RecarregarSeAtrasado(tab, host, casa)) { window.close(); return; }
       if (inj) {
         const arquivos = Array.isArray(inj) ? inj : [inj];
         const emFrames = Array.isArray(inj);
