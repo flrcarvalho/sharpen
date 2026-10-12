@@ -71,8 +71,14 @@ async def main() -> None:
             d = await conn.fetchrow(
                 "SELECT count(*) AS n, coalesce(sum(capturadas), 0) AS cap, "
                 "coalesce(sum(para_ia), 0) AS ia, coalesce(sum(pela_ficha), 0) AS f, "
-                "coalesce(avg(espera_s), 0) AS esp FROM virada_log "
+                "coalesce(avg(espera_s), 0) AS esp, "
+                "sum(ficha_recusada) AS \"Ficha recusada\", sum(termo_fora) AS \"termo fora\", "
+                "sum(fora_do_master) AS \"fora do Master\", "
+                "sum(recusada_salvar) AS \"recusada no /salvar\", "
+                "sum(cru_nao_chegou) AS \"cru não chegou\", "
+                "sum(sem_cru_novo) AS \"texto mudou sem cru novo\" FROM virada_log "
                 "WHERE casa = $1 AND criado_em >= $2", key, desde)
+            motivos = ", ".join(f"{k} {d[k]}" for k in list(d.keys())[5:] if d[k])
             custo_d = await conn.fetchval(
                 "SELECT coalesce(sum(custo_usd), 0) FROM uso_tokens WHERE casa = $1 "
                 "AND criado_em >= $2", nome, desde)
@@ -82,7 +88,8 @@ async def main() -> None:
             if d["n"]:
                 depois = (f"depois: {d['n']} capturas, {d['cap']} capturadas, IA não leu "
                           f"{d['cap'] - d['ia']} (pela Ficha {d['f']}), US$ {custo_d:.2f} "
-                          f"(US$ {custo_d / d['n']:.3f}/captura), espera média {d['esp']:.1f} s")
+                          f"(US$ {custo_d / d['n']:.3f}/captura), espera média {d['esp']:.1f} s"
+                          + (f"\n{'':11} à IA por motivo (desde s412): {motivos}" if motivos else ""))
             else:
                 depois = "depois: nenhuma captura ainda"
             print(f"{nome:11} {antes}\n{'':11} {depois}")

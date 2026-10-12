@@ -33,6 +33,17 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  19. cru igual já gravado é regravado                     → test_cru_igual_ja_gravado_pela_ficha…
  20. recusada no /salvar conta como resolvida pela Ficha  → test_recusada_no_salvar_fica_com_a_ia
  16. texto de múltipla com um `Esporte:` só vota         → test_esportes_do_texto_so_quando_a_perna_e_clara
+  s412 (furo N3, D24, R27; 13/10/2026):
+  P2. sem a checagem do cru velho (N3)                   → test_extrair_cru_velho_so_vale_com_o_texto_igual
+  R.  sem conferir o Master antes de gravar              → test_categoria_fora_do_master_fica_com_a_ia
+  T.  `Total` pelo dicionário, não pela regra            → test_total_sem_qualificador_e_a_categoria…
+  U.  Tênis sem olhar a linha                            → test_total_sem_qualificador_e_a_categoria…
+  V.  termo vago traduz                                  → test_termo_vago_nunca_traduz_nem_vota
+  W.  termo vago vota                                    → test_termo_vago_nunca_traduz_nem_vota
+  X.  semente aprende valor fora do Master               → test_semente_so_aprende_valor_do_master
+  Z.  a semente da casa vence a correção do Feca         → test_correcao_do_feca_vence_a_semente
+  AF. `Total` com a descrição geral                      → test_descricao_propria_do_feca
+  AG. `Winner. Quarter N` sem a descrição própria        → test_descricao_propria_do_feca
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
 
@@ -135,20 +146,22 @@ def test_semente_so_guarda_o_unanime():
     def simples(merc, sel="1"):
         return {"tipo": "simples", "pernas": [_perna("Futebol", "A vs B", merc, sel)]}
     tres = {"tipo": "multipla", "pernas": [_perna("Futebol", j) for j in ("A", "B", "C")]}
-    pares = [("MYSTAKE", simples("Total"), "Futebol", "Over/Under"),
-             ("MYSTAKE", simples("Total"), "Futebol", "Over/Under"),
-             ("MYSTAKE", simples("Handicap"), "Futebol", "Handicap Asiático"),
-             ("MYSTAKE", simples("Handicap"), "Futebol", "Handicap Asiático"),
-             ("MYSTAKE", simples("Handicap", "2"), "Futebol", "Handicap Europeu"),
+    pares = [("MYSTAKE", simples("Total de gols"), "Futebol", "Gols"),
+             ("MYSTAKE", simples("Total de gols"), "Futebol", "Gols"),
+             ("MYSTAKE", simples("Handicap"), "Futebol", "Handicap"),
+             ("MYSTAKE", simples("Handicap"), "Futebol", "Handicap"),
+             ("MYSTAKE", simples("Handicap", "2"), "Futebol", "Outros"),
+             ("MYSTAKE", simples("Total"), "Futebol", "Gols"),          # regra, não termo
              ("DEX", tres, "Múltiplos", "Múltipla")]
     unanimes, contraditos = dicionario.votar(pares)
-    assert unanimes[("MYSTAKE", "categoria", "total")] == ("Over/Under", 2)
-    assert unanimes[("MYSTAKE", "esporte", "futebol")] == ("Futebol", 5)
+    assert unanimes[("MYSTAKE", "categoria", "total de gols")] == ("Gols", 2)
+    assert unanimes[("MYSTAKE", "esporte", "futebol")] == ("Futebol", 6)
     assert ("MYSTAKE", "categoria", "handicap") not in unanimes
     assert contraditos[("MYSTAKE", "categoria", "handicap")] == Counter(
-        {"Handicap Asiático": 2, "Handicap Europeu": 1})
+        {"Handicap": 2, "Outros": 1})
     # o par mercado + seleção desempata o mercado contraditório
-    assert unanimes[("MYSTAKE", "categoria", "handicap | 2")] == ("Handicap Europeu", 1)
+    assert unanimes[("MYSTAKE", "categoria", "handicap | 2")] == ("Outros", 1)
+    assert ("MYSTAKE", "categoria", "total") not in unanimes
     assert not any(k[0] == "DEX" for k in unanimes)
 
 
@@ -194,9 +207,92 @@ def test_linha_da_planilha_de_uma_ficha_real():
 def test_descricao_traz_a_linha_uma_vez_so():
     f = {"pernas": [_perna("Futebol", "A vs B", "Time de casa total de escanteios", "Abaixo",
                            "3.5"),
-                    _perna("Futebol", "C vs D", "Total", "Mais de 2.5", "2.5")]}
+                    _perna("Futebol", "C vs D", "Total sets", "Mais de 2.5", "2.5")]}
     assert virada._descricao(f) == ("Abaixo 3.5 Time de casa total de escanteios [A vs B] // "
-                                    "Mais de 2.5 Total [C vs D]")
+                                    "Mais de 2.5 Total sets [C vs D]")
+
+
+def test_descricao_propria_do_feca():
+    """s412: `Total` sem qualificador = `Over/Under X.X [A v B]`; `Winner. Quarter N` (DEX) =
+    `Time - NQ [A v B]`; volta mais rápida = `<piloto> volta mais rápida [<prova>]`."""
+    def d(*pernas):
+        return virada._descricao({"pernas": list(pernas)})
+    assert d(_perna("football", "Nasarawa United vs Doma United FC", "Total", "Under 3.5")) \
+        == "Under 3.5 [Nasarawa United v Doma United FC]"
+    assert d(_perna("Soccer", "OGC Nice vs Strasbourg", "Total", "over 3")) == "Over 3 [OGC Nice v Strasbourg]"
+    assert d(_perna("Futebol", "A vs. B", "Total", "Mais de 2.5", "2.5")) == "Over 2.5 [A v B]"
+    assert d(_perna("basketball", "Galatasaray vs Bursaspor", "Winner. Quarter 1", "Bursaspor")) \
+        == "Bursaspor - 1Q [Galatasaray v Bursaspor]"
+    assert d(_perna("Fórmula 1", "Bahrain Grand Prix 2026 - Race", "Fastest lap", "Norris, Lando")) \
+        == "Norris, Lando volta mais rápida [Bahrain Grand Prix 2026 - Race]"
+    assert d(_perna("Fórmula 1", "Singapore GP", "Volta mais rápida", "Leclerc, Charles")) \
+        == "Leclerc, Charles volta mais rápida [Singapore GP]"
+    # `Total` com seleção que não é Over/Under: a forma geral
+    assert d(_perna("Futebol", "A vs B", "Total", "Ímpar")) == "Ímpar Total [A vs B]"
+
+
+def test_total_sem_qualificador_e_a_categoria_principal_do_esporte():
+    """s412 (Feca): Futebol, Hóquei, Handebol = Gols; Basquete, Futebol Americano = Pontos;
+    Tênis até 4,5 = Sets, acima = Games; Vôlei até 4,5 = Sets, acima = Pontos; outro = IA.
+    Vale mesmo que a semente tenha aprendido outra coisa para `total`."""
+    termos = {("esporte", e.lower()): e for e in
+              ("Futebol", "Hóquei", "Handebol", "Basquete", "Futebol Americano", "Tênis",
+               "Vôlei", "MMA")}
+    termos[("categoria", "total")] = "Escanteios"           # semente errada: a regra manda
+
+    def cat(esporte, sel, linha=None):
+        f = {"tipo": "simples", "pernas": [_perna(esporte, "A vs B", "Total", sel, linha)]}
+        return dicionario.traduzir(f, termos)[1:]
+    for e in ("Futebol", "Hóquei", "Handebol"):
+        assert cat(e, "Over 2.5") == ("Gols", [])
+    for e in ("Basquete", "Futebol Americano"):
+        assert cat(e, "Under 210.5") == ("Pontos", [])
+    assert cat("Tênis", "Over 3.5") == ("Sets", []) and cat("Tênis", "Under 4.5") == ("Sets", [])
+    assert cat("Tênis", "Over 21.5") == ("Games", [])
+    assert cat("Vôlei", "Over 4.5") == ("Sets", []) and cat("Vôlei", "Over 180.5") == ("Pontos", [])
+    assert cat("Tênis", "Over", "22.5") == ("Games", [])                  # linha em campo próprio
+    assert cat("MMA", "Over 1.5") == (None, [("categoria", "total")])     # fora da lista: IA
+    assert cat("Tênis", "Over") == (None, [("categoria", "total")])       # sem linha: IA
+
+
+def test_termo_vago_nunca_traduz_nem_vota():
+    """s412: `especiais` nunca entra no dicionário e sempre vai para a IA."""
+    termos = {("esporte", "especiais"): "Futebol", ("esporte", "futebol"): "Futebol",
+              ("categoria", "especiais"): "Outros"}
+    f = {"tipo": "simples", "pernas": [_perna("Especiais", "A vs B", "Vencedor")]}
+    assert dicionario.traduzir(f, termos)[2][0] == ("esporte", "especiais")
+    f = {"tipo": "simples", "pernas": [_perna("Futebol", "A vs B", "Especiais")]}
+    assert dicionario.traduzir(f, termos)[1:] == (None, [("categoria", "especiais")])
+    um = {"tipo": "simples", "pernas": [_perna("Especiais", "A vs B", "Especiais")]}
+    unanimes, _ = dicionario.votar([("7GAMES", um, "Futebol", "Outros")] * 3,
+                                   [("7GAMES", ["Especiais"], "Futebol")])
+    assert unanimes == {}
+
+
+def test_semente_so_aprende_valor_do_master():
+    """R27: a IA às vezes escreve categoria ou esporte que o Master não tem; não vota."""
+    um = {"tipo": "simples", "pernas": [_perna("Futebol", "A vs B", "Vencedor")]}
+    unanimes, _ = dicionario.votar([("MYSTAKE", um, "Futebal", "Vencedor da partida")] * 2)
+    assert unanimes == {}
+    unanimes, _ = dicionario.votar([("MYSTAKE", um, "Futebol", "ML")] * 2)
+    assert unanimes[("MYSTAKE", "categoria", "vencedor")] == ("ML", 2)
+
+
+def test_correcao_do_feca_vence_a_semente():
+    """`carregar`: a correção (`feca`) vence a semente, inclusive a semente DA CASA contra a
+    correção geral (`*`); termo vago nunca sai do banco para a tradução."""
+    class _C:
+        async def fetch(self, sql, *a):
+            assert "ORDER BY (origem = 'feca'), (casa <> '*')" in sql
+            linhas = [("*", "semente", "x", "A"), ("BETPANDA", "semente", "volta mais rápida", "Outros"),
+                      ("*", "feca", "volta mais rápida", "Player Props"),
+                      ("*", "semente", "especiais", "Futebol")]
+            ordem = sorted(linhas, key=lambda r: (r[1] == "feca", r[0] != "*"))
+            return [{"casa": c, "tipo": "categoria", "termo_casa": t, "termo_sharpen": v}
+                    for c, _, t, v in ordem]
+    termos = asyncio.run(dicionario.carregar(_C(), "BETPANDA"))
+    assert termos[("categoria", "volta mais rápida")] == "Player Props"
+    assert ("categoria", "especiais") not in termos
 
 
 def test_tv_linha_com_hisminus_inverte_o_sinal():
@@ -346,7 +442,7 @@ def test_casa_nao_virada_nao_grava(monkeypatch):
     monkeypatch.setattr(virada, "_pool_conn", falso)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0
     assert asyncio.run(virada.resolver_no_extrair("TDono", "VAVADA", "Vavada", "c", ["1"])) \
-        == (set(), 0.0)
+        == (set(), 0.0, {})
 
 
 def test_falha_ao_gravar_nao_derruba_a_rota(monkeypatch):
@@ -368,12 +464,45 @@ def test_extrair_resolve_pelo_cru_guardado(monkeypatch):
     da virada passa para a Ficha pelo cru GUARDADO. O que não tem cru fica com a IA."""
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
     monkeypatch.setattr(virada, "FOLGA", 0.0)
-    _banco(monkeypatch, crus=[{"codigo": "5508528206", "familia": "vb",
+    _banco(monkeypatch, crus=[{"codigo": "5508528206", "familia": "vb", "fresco": True,
                                "cru": json.dumps(CRUS["5508528206"])}])
     vistos = _gravador(monkeypatch)
-    feitos, _ = asyncio.run(virada.resolver_no_extrair(
+    feitos, _, fica = asyncio.run(virada.resolver_no_extrair(
         "TDono", "VAVADA", "Vavada", "c", ["5508528206", "5500000003"]))
     assert feitos == {"5508528206"} and [v[0] for v in vistos] == ["5508528206"]
+    assert fica == {"5500000003": "cru não chegou"}
+
+
+def test_extrair_cru_velho_so_vale_com_o_texto_igual(monkeypatch):
+    """N3 (parecer 012): cru de captura ANTERIOR só resolve se o bloco de texto não mudou desde
+    a última leitura. Texto mudado + cru velho = a liquidação que o cru esconderia: vai à IA."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    cru = {"codigo": "5508528206", "familia": "vb", "fresco": False,
+           "cru": json.dumps(CRUS["5508528206"])}
+    conn = _banco(monkeypatch, crus=[cru])
+    vistos = _gravador(monkeypatch)
+    feitos, _, fica = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", ["5508528206"]))
+    assert feitos == set() and vistos == []
+    assert fica == {"5508528206": "texto mudou sem cru novo"}
+    assert conn.motivos["5508528206"] == "texto mudou sem cru novo"
+    feitos, _, fica = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", ["5508528206"], {"5508528206"}))
+    assert feitos == {"5508528206"} and fica == {}
+
+
+def test_categoria_fora_do_master_fica_com_a_ia(monkeypatch):
+    """R27: a Ficha confere o Master antes de gravar. Categoria que o Master não tem vai à IA."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    conn = _banco(monkeypatch)
+    vistos = _gravador(monkeypatch)
+    assert virada.no_master("Futebol", "Múltipla") and not virada.no_master("Futebol", "Especiais")
+    assert not virada.no_master("Futebal", "Múltipla")
+    # a aceita é múltipla (categoria `Múltipla`, do Master): o esporte é que sai do Master
+    conn.termos = {k: "Futebal" for k in conn.termos}
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0 and vistos == []
+    assert conn.motivos["5508528206"] == "fora do Master"
 
 
 # ── corrida: o `/extrair` espera o cru da mesma captura ─────────────────────────────────

@@ -1443,6 +1443,18 @@ def test_captura_crua_grava_uma_vez_e_cru_mudado_vira_linha_nova():
 #   H. o pré-dedup não corta o que a Ficha resolveu               → aberta_sai_da_ia vermelho
 #   I. o /extrair não lê o cru guardado (só a rota grava)         → cru_guardado vermelho
 #   O. a semente vota na linha gravada pela Ficha                 → virada_semente_nao_vota vermelho
+#   s412 (furo N3, motivos, dicionário; 13/10/2026). O teste do N3 foi escrito ANTES da correção
+#   e falhava (a IA recebia `[]`):
+#   P. sem a checagem do cru velho (N3)                         → n3_texto_mudou vermelho
+#   Q. a Ficha não grava o `bloco_visto` do que resolveu        → n3_texto_igual vermelho
+#   S. o motivo não vai ao `virada_log`                         → n3_texto_mudou vermelho
+#   Y. a aposta editada à mão vota                              → semente_ignora_aposta_editada vermelho
+#   AH. o texto (`sombra_rotulos`) da aposta editada vota       → semente_ignora_aposta_editada vermelho
+#   AA. o conserto mexe no mês passado                          → corrigir_termo vermelho
+#   AB. o conserto passa por cima da correção manual            → corrigir_termo vermelho
+#   AC. o conserto aceita valor fora do Master                  → corrigir_termo vermelho
+#   AD. a semente não roda depois da IA                         → semente_roda_logo_depois vermelho
+#   AE. sem `semente_log`                                       → semente_ignora + semente_roda vermelhos
 
 _VIRADA = ("5508528206", "5504514128", "5500000003")     # aceita, recusada, sem cru
 
@@ -1493,7 +1505,7 @@ async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extra
     pool = await get_pool()
     async with pool.acquire() as conn:
         for t in ("captura_crua", "ficha_sombra", "bloco_visto", "dicionario_termos",
-                  "ficha_virada", "virada_log"):
+                  "ficha_virada", "virada_log", "sombra_rotulos"):
             await conn.execute(f"TRUNCATE {t}")
         for casa, tipo, termo, sharpen in getattr(sess, "termos", []):
             await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
@@ -1608,6 +1620,209 @@ def test_virada_d10_liquidada_nao_e_reescrita(monkeypatch):
     assert resp["na_planilha"] == 0
     assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
     assert banco[aceita] == ("extracao", "L")
+
+
+async def _virada_segunda_captura(sess, texto, envelhecer=True):
+    """2ª captura da mesma casa SEM cru novo (a extensão recarregada sem F5 na aba da casa:
+    o texto chega, o cru não). `envelhecer` = o cru guardado é de uma captura anterior."""
+    import main
+    await asyncio.sleep(0.1)          # o `bloco_visto` da 1ª vai por `_fire`
+    pool = await get_pool()
+    if envelhecer:
+        async with pool.acquire() as conn:
+            await conn.execute("UPDATE captura_crua SET recebido_em = recebido_em - "
+                               "interval '1 hour'")
+    para_ia, _ = await main._dedup_superbet_text(texto, sess.dono, sess.casa, sess.parceiro)
+    await asyncio.sleep(0.1)
+    async with pool.acquire() as conn:
+        log = await conn.fetchrow("SELECT pela_ficha, para_ia, sem_cru_novo FROM virada_log "
+                                  "ORDER BY id DESC LIMIT 1")
+    return repository.codigos_do_texto(para_ia), dict(log)
+
+
+def test_virada_n3_texto_mudou_sem_cru_novo_vai_para_a_ia(monkeypatch):
+    """Furo N3 (parecer 012): aposta aberta com Ficha; o texto chega RESOLVIDO e nenhum cru
+    novo chega. O cru guardado (aberto) não pode esconder a liquidação: a IA lê o bloco."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Ganho")
+    assert mudou != texto
+    lidos, log = _run(_virada_segunda_captura(sess, mudou))
+    assert aceita in lidos
+    assert log == {"pela_ficha": 0, "para_ia": 1, "sem_cru_novo": 1}
+
+
+def test_virada_n3_texto_igual_sem_cru_novo_fica_com_a_ficha(monkeypatch):
+    """A outra metade da regra: bloco igual ao da última leitura, cru antigo → a Ficha segura
+    o código (é a barreira de hoje). Prova também que a Ficha grava o `bloco_visto` do que
+    resolveu: sem ele, toda captura seguinte mandaria a aberta de volta à IA."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    lidos, log = _run(_virada_segunda_captura(sess, texto))
+    assert aceita not in lidos
+    assert log["sem_cru_novo"] == 0
+
+
+from pathlib import Path  # noqa: E402
+
+_SIMPLES = "CfqYSukd8DqCGMcrVfm4x"     # Shuffle real: simples, BADMINTON, `Handicap pontos`
+
+
+async def _simples_no_banco(conn, sess, pela_ficha=False):
+    """Põe o cru simples real em `captura_crua` e a aposta em `bilhetes`: pela IA (Badminton,
+    Handicap) ou, com `pela_ficha`, pela virada (`aplicar`, com os termos no dicionário)."""
+    import json as _json
+
+    import ficha
+    import main
+    import virada
+    crus = _json.loads((Path(__file__).resolve().parent / "ficha_crus_familias.json")
+                       .read_text(encoding="utf-8"))
+    await conn.execute("INSERT INTO captura_crua (dono, casa, parceiro, familia, codigo, hash, cru) "
+                       "VALUES ($1, 'VAVADA', $2, 'shf', $3, 'h', $4::jsonb)", sess.dono,
+                       sess.parceiro, _SIMPLES, _json.dumps(crus[_SIMPLES]))
+    if pela_ficha:
+        for t, k, v in (("esporte", "badminton", "Badminton"),
+                        ("categoria", "handicap pontos", "Handicap")):
+            await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
+                               "termo_sharpen) VALUES ('VAVADA', $1, $2, $3) "
+                               "ON CONFLICT DO NOTHING", t, k, v)
+        f = ficha.montar_ficha("shf", crus[_SIMPLES], "VAVADA")
+        feitos, fica = await virada.aplicar(conn, sess.dono, "VAVADA", sess.casa, sess.parceiro,
+                                            {_SIMPLES: f})
+        assert feitos == {_SIMPLES}, fica
+    else:
+        await main.gravar_tsv(main.SalvarRequest(
+            tsv=f"10/10/2026\tBadminton\t\t{sess.casa}\t{sess.parceiro}\tHandicap\t"
+                f"A +2.5 [A v B]\t10\t2\tL\t{_SIMPLES}", casa=sess.casa,
+            parceiro=sess.parceiro), sess.dono, sess.dono)
+
+
+def test_semente_ignora_aposta_editada_a_mao_e_grava_o_log(monkeypatch):
+    """R27: com 1 voto, uma edição manual viraria regra para todos os usuários da casa. A
+    aposta com `correcoes` em `esporte`/`aposta` não vota; cada rodada vai ao `semente_log`."""
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "", sombra="VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    termo = "badminton"
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await _simples_no_banco(conn, sess)
+            # o texto do SharpenUp também vota no esporte (`sombra_rotulos`): a edição à mão
+            # tira os DOIS votos, senão o texto reporia o termo sozinho
+            await conn.execute(
+                "INSERT INTO sombra_rotulos (dono, casa, codigo, bruto, ia_esporte, ia_aposta) "
+                "VALUES ($1, 'Vavada', $2, $3, 'Badminton', 'Handicap')", sess.dono, _SIMPLES,
+                "Tipo: Simples\nSeleções:\n- X\n    Jogo: A vs B · Esporte: badminton · Início: x\n")
+            await conn.execute("TRUNCATE semente_log")
+            r1 = await dicionario.semear(conn, "teste")
+            d1 = await conn.fetchval("SELECT termo_sharpen FROM dicionario_termos WHERE "
+                                     "casa = 'VAVADA' AND tipo = 'esporte' AND termo_casa = $1", termo)
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE codigo_bilhete = $1", _SIMPLES)
+            await conn.execute("INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                               "valor_novo) VALUES ($1, 'TDonoV', 'Vavada', 'esporte', 'Futebol', "
+                               "'Futebol')", bid)
+            r2 = await dicionario.semear(conn, "teste")
+            d2 = await conn.fetchval("SELECT termo_sharpen FROM dicionario_termos WHERE "
+                                     "casa = 'VAVADA' AND tipo = 'esporte' AND termo_casa = $1", termo)
+            await conn.execute("TRUNCATE captura_crua")
+            log = [dict(r) for r in await conn.fetch(
+                "SELECT gatilho, termos, novos, fontes FROM semente_log ORDER BY id")]
+            await conn.execute("TRUNCATE correcoes")
+            return r1, d1, r2, d2, log
+    r1, d1, r2, d2, log = _run(rodar())
+    assert d1 == "Badminton" and d2 is None
+    assert r2["fontes"].get("editada à mão") == 1
+    assert [l["gatilho"] for l in log] == ["teste", "teste"]
+    import json as _json
+    assert {"casa": "VAVADA", "tipo": "esporte", "termo": termo, "para": "Badminton"} \
+        in _json.loads(log[0]["novos"])
+
+
+def test_semente_roda_logo_depois_da_ia_quando_o_termo_era_novo(monkeypatch):
+    """s412: `/extrair` de casa virada que mandou termo fora do dicionário à IA → a semente
+    roda logo depois de a decisão da IA ser gravada (`_sombra_e_semente`), não só às 04h."""
+    import main
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", termos=False)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    tsv = "\n".join(f"10/10/2026\tFutebol\t\t{sess.casa}\t{sess.parceiro}\tML\t"
+                    f"Time A [A vs B]\t10\t2\tL\t{c}" for c in _VIRADA)
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE semente_log")
+        await main._sombra_e_semente(sess.dono, sess.casa, texto, tsv)
+        await main._sombra_e_semente(sess.dono, sess.casa, texto, tsv)   # só a 1ª semeia
+        async with pool.acquire() as conn:
+            g = [r["gatilho"] for r in await conn.fetch("SELECT gatilho FROM semente_log")]
+            n = await conn.fetchval("SELECT count(*) FROM sombra_rotulos")
+        return g, n
+    g, n = _run(rodar())
+    assert g == ["extrair"] and n > 0
+
+
+def test_corrigir_termo_regrava_so_a_ficha_do_mes_corrente(monkeypatch):
+    """D24: a correção do Feca (`origem='feca'`) regrava as apostas da Ficha do MÊS CORRENTE
+    que usaram o termo. Mês passado (D10/D23) e campo editado à mão ficam como estão."""
+    from datetime import datetime
+
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    termo, cod = "handicap pontos", _SIMPLES
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await _simples_no_banco(conn, sess, pela_ficha=True)
+            data = await conn.fetchval("SELECT data FROM bilhetes WHERE codigo_bilhete = $1", cod)
+            d, m, a = (data.split("/") if "/" in data else data[:10].split("-")[::-1])
+            mes = datetime(int(a), int(m), 15)
+            fora = datetime(int(a) + 1, int(m), 15)
+            ensaio = await dicionario.corrigir_termo(conn, "VAVADA", "categoria", termo, "Pontos",
+                                                     hoje=mes)
+            nada = await dicionario.corrigir_termo(conn, "VAVADA", "categoria", termo, "Pontos",
+                                                   aplicar=True, hoje=fora)
+            esp_fora = await conn.fetchval("SELECT aposta FROM bilhetes WHERE codigo_bilhete = $1",
+                                           cod)
+            feito = await dicionario.corrigir_termo(conn, "VAVADA", "categoria", termo, "Pontos",
+                                                    aplicar=True, hoje=mes)
+            linha = await conn.fetchrow("SELECT aposta, origem FROM bilhetes WHERE "
+                                        "codigo_bilhete = $1", cod)
+            dic = await conn.fetchrow("SELECT termo_sharpen, origem FROM dicionario_termos WHERE "
+                                      "casa = 'VAVADA' AND tipo = 'categoria' AND termo_casa = $1", termo)
+            # campo editado à mão não é tocado
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE codigo_bilhete = $1", cod)
+            await conn.execute("INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                               "valor_novo) VALUES ($1, 'TDonoV', 'Vavada', 'aposta', 'x', 'y')", bid)
+            editada = await dicionario.corrigir_termo(conn, "VAVADA", "categoria", termo, "Gols",
+                                                      aplicar=True, hoje=mes)
+            await conn.execute("TRUNCATE correcoes")
+            outra = await conn.fetchval("SELECT count(*) FROM bilhetes WHERE codigo_bilhete "
+                                        "<> $1 AND aposta = 'Pontos'", cod)
+        return ensaio, nada, esp_fora, feito, dict(linha), dict(dic), editada, outra
+    ensaio, nada, esp_fora, feito, linha, dic, editada, outra = _run(rodar())
+    assert [m["depois"]["aposta"] for m in ensaio] == ["Pontos"]
+    assert nada == [] and esp_fora == "Handicap"
+    assert [m["depois"] for m in feito] == [{"aposta": "Pontos"}]
+    assert linha == {"aposta": "Pontos", "origem": "ficha"}
+    assert dic == {"termo_sharpen": "Pontos", "origem": "feca"}
+    assert editada == [] and outra == 0
+    with pytest.raises(ValueError):
+        _run(_corrigir_fora_do_master())
+
+
+async def _corrigir_fora_do_master():
+    import dicionario
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await dicionario.corrigir_termo(conn, "VAVADA", "categoria", "x", "Especiais")
 
 
 @pytest.mark.parametrize("sombra", ["VAVADA", ""])

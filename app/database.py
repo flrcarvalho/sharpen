@@ -1013,6 +1013,29 @@ CREATE TABLE IF NOT EXISTS virada_log (
     espera_s    REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS virada_log_casa ON virada_log (casa, criado_em);
+-- s412: o MOTIVO de cada código que foi para a IA (um código, um motivo). `sem_cru_novo` = o
+-- bloco de texto mudou desde a última leitura e nenhum cru desta captura chegou (furo N3,
+-- parecer 012): o cru guardado é anterior e não pode esconder a liquidação.
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS ficha_recusada INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS termo_fora     INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS fora_do_master INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS recusada_salvar INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS cru_nao_chegou INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS sem_cru_novo   INTEGER NOT NULL DEFAULT 0;
+
+-- Uma linha por rodada da semente do dicionário (s412): `gatilho` = diaria (04h de Brasília),
+-- extrair (logo depois de um `/extrair` de casa virada que mandou termo novo à IA) ou manual.
+-- `novos` = termos que não estavam na semente anterior (os "novos do dia" somam as rodadas).
+CREATE TABLE IF NOT EXISTS semente_log (
+    id              BIGSERIAL PRIMARY KEY,
+    criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    gatilho         TEXT NOT NULL,
+    termos          INTEGER NOT NULL,
+    termos_por_casa JSONB NOT NULL DEFAULT '{}',
+    contraditos     JSONB NOT NULL DEFAULT '[]',
+    novos           JSONB NOT NULL DEFAULT '[]',
+    fontes          JSONB NOT NULL DEFAULT '{}'
+);
 """
 
 

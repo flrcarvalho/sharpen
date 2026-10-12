@@ -55,7 +55,8 @@ async def main() -> None:
         if not aplicar:
             print("\nensaio: nada gravado (use --aplicar)")
             return
-        await dicionario.gravar_semente(conn, unanimes)
+        r = await dicionario.semear(conn, "manual")       # grava e registra no semente_log
+        print("novos nesta rodada:", r["novos"])
         total = await conn.fetchval("SELECT count(*) FROM dicionario_termos")
         print(f"\ngravado: {len(unanimes)} termos de semente; {total} no dicionário")
 

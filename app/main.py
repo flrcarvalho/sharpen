@@ -686,6 +686,18 @@ def _variantes_do_aquecedor() -> list[dict]:
     return [{}] + ([dict(_SEM_PENSAMENTO)] if _casas_sem_pensamento() else [])
 
 
+async def _sombra_e_semente(dono: str, casa: str, texto: str | None, tsv: str) -> None:
+    """Grava a sombra (bruto × decisão da IA) e, se este `/extrair` de casa virada mandou termo
+    fora do dicionário para a IA, roda a semente LOGO DEPOIS (s412): a decisão que a IA acabou
+    de tomar já vota (`dicionario.pares` lê a `sombra_rotulos` quando o bilhete ainda não foi
+    salvo), e o termo não espera a rodada das 04h."""
+    await registrar_sombra(dono, casa, texto, tsv)
+    import virada as _virada
+    if _virada.tomar_termo_novo(dono, casa):
+        import dicionario as _dicionario
+        await _dicionario.semear_agora("extrair")
+
+
 async def _barreira_lembrar(dono: str, casa: str, texto: str | None) -> None:
     """Grava o hash dos blocos que ACABARAM de ser lidos pela IA. A leitura da barreira
     é lá no `_dedup_superbet_text`; aqui só a memória.
@@ -1272,11 +1284,15 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     # O de-para de hash usa o MESMO recorte do gravador. Ver o aviso do docstring.
     por_codigo = {k: hash_bloco(v) for k, v in blocos_por_codigo(text).items()}
     pela_ficha: set[str] = set()
-    espera = 0.0
+    espera, fica_ia = 0.0, {}
     if virou:
-        pela_ficha, espera = await _virada.resolver_no_extrair(
+        # N3 (parecer 012): a Ficha só tira o código se o cru é desta captura OU se o bloco
+        # não mudou desde a última leitura. Texto mudado com cru velho vai para a IA.
+        iguais = {c for c in codigos if por_codigo.get(c) is not None
+                  and conhecidos.get(c) == por_codigo[c]}
+        pela_ficha, espera, fica_ia = await _virada.resolver_no_extrair(
             dono, casa_key, casa, parceiro, [c for c in dict.fromkeys(codigos)
-                                             if c not in ja_resolvidos])
+                                             if c not in ja_resolvidos], iguais)
 
     mantidos: list[str] = []
     vistos: set[str] = set()
@@ -1303,11 +1319,23 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         logger.info("barreira: %d bilhete(s) sem nenhuma mudança desde a última leitura "
                     "· %s/%s", inalterados, dono, casa)
     if virou:
-        logger.info("virada: %s/%s · %d capturada(s), %d pela Ficha, %d à IA (espera %.1f s)",
-                    dono, casa, len(set(codigos)), n_ficha, len(mantidos), espera)
+        # O motivo de cada código que de fato seguiu para a IA (um código, um motivo).
+        motivos: dict[str, int] = {}
+        for bid in vistos - pela_ficha:
+            if (m := fica_ia.get(bid)):
+                motivos[m] = motivos.get(m, 0) + 1
+        logger.info("virada: %s/%s · %d capturada(s), %d pela Ficha, %d à IA (espera %.1f s) %s",
+                    dono, casa, len(set(codigos)), n_ficha, len(mantidos), espera, motivos)
         _fire(_virada.registrar(dono, casa_key, len(set(codigos)),
                                 len(set(codigos) & ja_resolvidos), n_ficha, inalterados,
-                                len(mantidos), espera))
+                                len(mantidos), espera, motivos))
+        if motivos.get("termo fora do dicionário"):
+            _virada.marcar_termo_novo(dono, casa)
+        # A Ficha LEU estes blocos: sem o `bloco_visto` deles, a captura seguinte (texto igual,
+        # cru não reenviado) acharia o texto "mudado" e mandaria a aposta de volta à IA.
+        if pela_ficha:
+            _fire(_barreira_lembrar(dono, casa, "\n\n".join(
+                b for b, i in zip(blocks, ids) if i in pela_ficha)))
 
     if not mantidos:
         return "", skipped
@@ -2215,7 +2243,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # treino tem de ser o TSV FINAL — o mesmo que foi para o banco, não um
         # intermediário. Fire-and-forget, igual ao uso: observar não pode custar
         # a extração de ninguém.
-        _fire(registrar_sombra(dono, casa, texto, accumulated))
+        _fire(_sombra_e_semente(dono, casa, texto, accumulated))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
         # Sombra de MODELO: o candidato lê o MESMO content, com o MESMO system.
@@ -2436,7 +2464,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             logger.info("par sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
         _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens, caminho=caminho))
         # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
-        _fire(registrar_sombra(dono, casa, texto, resultado))
+        _fire(_sombra_e_semente(dono, casa, texto, resultado))
         # Memória da barreira de recaptura — ver `_barreira_lembrar`.
         _fire(_barreira_lembrar(dono, casa, texto))
         # Sombra de MODELO: os MESMOS chunks, com o MESMO system. Ver `_sombra_modelo`.
@@ -2633,7 +2661,7 @@ async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, 
         # As duas metades terminaram e o `done` vai sair: só AGORA os aceitos contam como
         # lidos — o mesmo instante em que o caminho de hoje grava a barreira dele.
         if aceitos:
-            _fire(registrar_sombra(dono, casa, aceitos, mt.tsv))
+            _fire(_sombra_e_semente(dono, casa, aceitos, mt.tsv))
             _fire(_barreira_lembrar(dono, casa, aceitos))
         logger.info("contrato: %.1fs | cobertos=%d linhas=%d antes=%d depois=%d "
                     "chamadas=%d tentativas=%d US$ %.4f",
