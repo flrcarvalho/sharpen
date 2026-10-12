@@ -66,7 +66,7 @@ flutuante, para não perder centavo. Datas em **ISO 8601 com fuso** (`"2026-10-0
 |---|---|---|
 | **Data** | simples: dia do `inicio` da perna; múltipla: dia do `inicio` da perna mais recente; múltipla perdida com perna marcada perdida e com início: dia do início da perna perdida mais cedo (nunca anda para frente); sem `inicio`: dia da `colocada_em`. Sempre no fuso de Brasília **na exibição** | `MASTER_OUTPUT §4` e `§4.0.1` |
 | **Resultado** | `ganha`→W · `perdida`→L · `anulada`→V · `meio_ganha`→HW · `meio_perdida`→HL · `aberta`→vazio · `cashout`→W ou V conforme retorno × stake | `MASTER_RESULTADO §1, §4, §5` |
-| **Odd** | tabela de decisão: W com retorno → retorno ÷ stake; W com cashout ≠ stake → cashout ÷ stake; demais → `odd` do bilhete | `MASTER_RESULTADO §2` |
+| **Odd** | **decidido pelo Feca (11/10):** aberta → odd calculada pelas pernas; resolvida → retorno ÷ stake. **Em aberto** (ajustes a, b, c da consultoria, medidos em `DIARIO.md`, entrada "regra da odd"): qual odd quando as duas fecham o retorno, L/V e cashout | `MASTER_RESULTADO §2, §5.6, §7.1` |
 | **Stake** | `stake` | — |
 | **Esporte** | dicionário (`casa` + `esporte_casa`); várias pernas de esportes diferentes → `Múltiplos` | `04_DICIONARIO.md` |
 | **Aposta (categoria)** | simples: dicionário (`casa` + `mercado_casa`); múltipla → `Múltipla` | `04_DICIONARIO.md` |

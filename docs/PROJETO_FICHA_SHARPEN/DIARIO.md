@@ -5,10 +5,54 @@
 
 ---
 
+## 2026-10-11 · D1 · decisões do Feca, aquecedor, qualidade por casa e regra da odd
+
+**Onde está:** decisões registradas; três propostas esperando o Feca (abaixo). Nada de código novo.
+
+**Decisões do Feca** (`README.md §3`, itens 8 a 12): Ficha antes da Fase 2 da blueprint (`STATUS.md`
+atualizado); só esta sessão mexe em `main.py`/`repository.py` (`docs/ESTRUTURA_DO_TIME.md`); virada só com
+30 apostas **liquidadas** comparadas (`03_REGUA_NUMEROS.md §4`); odd: aberta pelas pernas, resolvida por
+retorno ÷ stake; as 249 apostas antigas ficam como estão (item fechado).
+
+**1. Aquecedor de cache.** A `SUPERBET` **não** está na chave. Confirmado no código: os 6 manuais gerais
+são um prefixo de cache comum a todas as casas (`app/prompts.py`, `build_system`, breakpoint no 6º master),
+e o aquecedor (`app/main.py`, `_cache_warmer`) só aquece a versão com pensamento. Proposta: com a chave
+não vazia, aquecer **as duas** versões (com pensamento para print, PDF e casas fora da lista; sem, para as
+listadas). Custo: uma leitura de cache a mais a cada 55 min. Amanhã: `cache esc.` por extração depois
+de 21:10 no `medicoes/medir_qualidade_por_casa.py`.
+
+**2. Qualidade por casa.** `medicoes/medir_qualidade_por_casa.py` pronto (uso_tokens, repescagem pela
+`sombra_tsv`, fiscal mexeu pela `sombra_numeros`, liquidadas × abertas). Rodado às 21:4x: **nenhuma
+extração depois da chave ainda**. O "antes" da sombra é fino (ela grava desde 11/10 19:57: 1 a 3
+extrações por casa).
+- **Achado, e ele pesa:** em **1xBet (Megapari, PariPesa, SapphireBet, 1xBit) e Altenar (BetMartini,
+  Betrebels, Vavada, Kikobet)** o retorno vem numa linha `Retorno:` própria, e o fiscal só lê o retorno
+  dentro do `Status:` (`repository._financeiro_do_texto`, `_RETORNO_TXT_RE` sobre o status). Medido com a
+  função real em blocos ganhos de outubro: **0 de 40** Megapari, 0/40 BetMartini, 0/40 Betrebels, 0/40
+  Vavada, 0/30 SapphireBet, 0/27 PariPesa. Nessas 8 casas o fiscal da odd **nunca roda**, com ou sem
+  pensamento, e o erro que a medição da DEX achou passaria direto.
+
+**3. Regra da odd** (`medicoes/medir_regra_odd.py`; 1.547 apostas de outubro das 15 casas, 1.347
+comparáveis; sistema e HL fora; odd gravada × odd pela regra, igualdade exata):
+- **Mudariam 527 de 1.347.** Por causa: **499 são só precisão** (diferença < 0,5%: `6,169904` ×
+  `6,169904352`, `5,5648` × `5,565`), **28 são diferença grande**. P/L: 33 apostas mudariam ≥ R$ 0,01,
+  saldo líquido R$ 0,31.
+- **As 28 grandes são casos em que o produto das pernas NÃO é a odd que a casa pagou:** ComboBOOST da
+  Betpanda (casa `8,918` = produto `8,494` × 1,05), perna anulada (8), mesmo jogo/Bet Builder (2) e
+  múltiplas Altenar em que o produto passa do dobro da odd da casa (BetMartini `6,02` × produto `14,25`;
+  Betrebels `3,56` × `6,67`; Vavada `6,69` × `15,79`), causa ainda não explicada.
+- **(c) cashout pela regra da aberta quebra o P/L:** o P/L de W é `stake × (odd − 1)`; com a odd das
+  pernas, um cashout de R$ 50 numa aposta de odd 4 grava lucro de odd 4. Hoje o `MASTER_RESULTADO §5.6`
+  manda retorno ÷ stake.
+
+---
+
 ## 2026-10-11 · D1 · etapa 2: pensamento atrás de chave (no código, chave desligada)
 
-**Onde está:** código publicado com a chave **vazia** (nada muda). Próxima ação: o Feca liga
-`EXTRACAO_SEM_PENSAMENTO` no Railway; depois, conferir no `uso_tokens` a saída por pedaço caindo.
+**Onde está:** **chave LIGADA** para as 15 casas de outubro em 11/10, 21:10 (o Feca rodou o
+`railway variables --set`; o modo auto do Claude Code barra a escrita). Deploy `97387a25` SUCCESS, app no
+ar (`www.sharpen.bet` responde, startup limpo no log). Próxima ação: depois de um dia de extrações,
+conferir no `uso_tokens` a saída por pedaço nessas casas e os números na régua.
 
 - **Chave:** `EXTRACAO_SEM_PENSAMENTO` = lista de casas ou `*`. Vazia = como sempre. Só lote de **texto**
   (print e PDF seguem pensando: não foram medidos sem). Lida a cada chamada.

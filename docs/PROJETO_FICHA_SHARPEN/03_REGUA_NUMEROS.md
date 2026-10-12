@@ -42,8 +42,11 @@ Também conta:
 Uma casa vira quando, ao mesmo tempo:
 
 1. **zero divergências sem explicação** em stake, odd, resultado, código e moeda;
-2. pelo menos **30 apostas comparadas ou 3 dias de captura real**, o que vier primeiro. Para casa de volume
-   pequeno (1xBit, Kikobet), vale também a fixture da bancada com caso de mutação;
+2. pelo menos **30 apostas LIQUIDADAS comparadas** (decisão do Feca, 11/10/2026). **Aberta não conta**: o
+   resultado dela é vazio dos dois lados, e a régua de hoje (`sombra_numeros`) conta vazio contra vazio
+   como resultado igual. Em 11/10, eram 4 de 10. Por isso a régua **separa liquidadas e abertas** em todo
+   relatório. Casa de volume pequeno (1xBit, Kikobet) espera chegar às 30; a fixture da bancada é
+   pré-requisito (item 3), não substituto;
 3. o harness da família está verde, e fica vermelho quando se remove uma regra (prova por mutação);
 4. o Feca leu a lista de divergências e aprovou.
 
@@ -56,5 +59,5 @@ daquela casa só para comparação. Depois disso, desliga.
 
 ## 6. Relatório
 
-Um script só de leitura imprime, por casa: apostas comparadas, % idênticas por campo, % com os cinco
+Um script só de leitura imprime, por casa e **separando liquidadas de abertas**: apostas comparadas, % idênticas por campo, % com os cinco
 campos de bloqueio idênticos, sumiços, duplicatas e a lista de divergências. Usuário só pelo `dono`.

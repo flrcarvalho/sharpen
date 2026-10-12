@@ -63,6 +63,15 @@ Detalhe e prova de tudo: `Auditorias\mapa_2026-10\claude\MAPA.md` e a página "V
 5. **DEX Sport e Shuffle:** as correções do porteiro (maiúsculas) já estão em andamento em outra frente.
 6. **Base antiga importada** é necessária e fica como histórico fora do padrão.
 7. **Ritmo:** não temos meses. Tudo acelerado ao máximo.
+8. **Prioridade (11/10):** a Ficha vem **antes** da Fase 2 da blueprint.
+9. **Arquivos centrais (11/10):** enquanto o projeto estiver ativo, só a sessão dele mexe em `app/main.py` e
+   `app/repository.py` (`docs/ESTRUTURA_DO_TIME.md`). A Ficha entra em módulo novo, com um único ponto de
+   registro da rota.
+10. **Critério de virada (11/10):** pelo menos 30 apostas **liquidadas** comparadas; aberta não conta
+    (`03_REGUA_NUMEROS.md §4`).
+11. **Odd (11/10):** aberta usa a odd calculada pelas pernas; resolvida usa retorno ÷ stake. Ajustes em
+    discussão no `DIARIO.md`.
+12. **As 249 apostas antigas do furo de 0,005 não serão corrigidas (11/10).** Item fechado.
 
 ---
 

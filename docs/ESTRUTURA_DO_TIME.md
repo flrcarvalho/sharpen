@@ -38,6 +38,15 @@ entre um `add` e um `commit` é levado por quem commitar primeiro.
 > O caso original das duas sessões commitando ao mesmo tempo está em
 > [`CASOS.md`](CASOS.md#8--duas-sessões-commitando-ao-mesmo-tempo-24082026).
 
+## Projeto Ficha Sharpen: `main.py` e `repository.py` têm dono
+
+Decisão do Feca em 11/10/2026: **enquanto o Projeto Ficha Sharpen estiver ativo**
+(`docs/PROJETO_FICHA_SHARPEN/`), **só a sessão desse projeto mexe em `app/main.py` e
+`app/repository.py`**. Outra frente que precise deles registra o pedido no `BACKLOG.md` e
+leva ao Feca. A Ficha entra em **módulo novo**, e no `main.py` só um ponto de registro da
+rota. Nasceu do incidente da s407, em que um commit gravou o `main.py` inteiro de outra
+sessão e tirou a sombra de números do ar sem erro.
+
 ## Coordenação
 
 Quem coordena é o Feca. As equipes não conversam entre si: cada uma reporta a ele, e ele
