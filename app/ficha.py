@@ -17,7 +17,12 @@ Decisões do Feca (11/10) que moram aqui:
   • **Cru vindo do site de OUTRA casa é 409, resposta final:** não grava, conta no log, e a
     extensão marca como tratado e não reenvia.
   • **`FICHA_SOMBRA_CASAS` liga o ADAPTADOR casa por casa** (vazia = só guarda o cru).
-    `CRU_CAPTURA_DESLIGADA=1` desliga a rota inteira, sem deploy de código.
+    `CRU_CAPTURA_DESLIGADA=1` desliga a rota inteira, sem deploy de código, e ela responde
+    **503**: a extensão só marca o cru como enviado depois do 200, então com 503 ela guarda e
+    reenvia quando a rota voltar. Com 200 o cru desligado se perderia em silêncio.
+  • **Erro QUALQUER do adaptador vira Ficha recusada** (`erro do adaptador: …`), nunca 500.
+    O cru já foi gravado antes da Ficha: um 500 ali faz o reenvio cair em "cru igual" e a
+    Ficha daquele cru nunca é montada.
 
 Token inválido NÃO grava: sem sessão não há dono, e gravar requisição anônima abriria o banco
 para lixo. A rota responde 401 e a extensão reenvia depois do novo pareamento.
@@ -299,6 +304,10 @@ def montar_ficha(familia: str, cru: dict, casa_key: str) -> tuple[dict | None, l
         f = mod.adaptar(cru, casa_key)
     except Recusa as e:
         return {"codigo": str((cru or {}).get("id") or ""), "cru_recusado": True}, [str(e)]
+    except Exception as e:  # noqa: BLE001 — defeito do adaptador é recusa gravada, nunca 500
+        logger.exception("ficha: adaptador %s quebrou em %s", familia, casa_key)
+        return ({"codigo": str((cru or {}).get("id") or ""), "cru_recusado": True},
+                [f"erro do adaptador: {type(e).__name__}: {e}"[:300]])
     # A impressão é do SERVIDOR, sobre o cru que ficou guardado (já filtrado): o adaptador
     # só copia o que é da aposta.
     f = dict(f, impressao=_cru.impressao(cru))
@@ -318,7 +327,8 @@ async def receber(payload: dict = Body(...)):
     versao = str(payload.get("versao") or "")
     _captura.registrar_versao(sess, versao)
     if _desligada():
-        return {"guardado": False}
+        # 503, nunca 200: com 200 a extensão marcaria o cru como enviado e não reenviaria.
+        raise HTTPException(503, "Captura do cru desligada no servidor; reenvie depois.")
     origem = str(payload.get("origem") or "")
     casa_origem = _captura.casa_de_host(origem) if origem else None
     if casa_origem and casa_origem != (sess.casa_key or "").upper():

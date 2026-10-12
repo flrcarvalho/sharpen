@@ -25,6 +25,10 @@ Mutações provadas (aplicadas ao `ficha.py`, teste ao lado vermelho):
  11. moeda ausente recusada                                 → test_moeda_ausente_nao_recusa
  12. `derivar` sem a trava de status desconhecido           → test_derivar_recusa_status…
 
+ 13. erro do adaptador que não é Recusa sobe (500)          → test_erro_qualquer_do_adaptador…
+ 14. rota desligada responde 200                           → test_rota_desligada_e_503…
+ 15. reprocesso grava a Ficha sem o `cru_id`              → test_reprocesso_usa_a_mesma…
+
 MUTAÇÃO INÓCUA, registrada e sem asserção inventada: tirar o `< d` da perna perdida
 (`_data`). A data geral é a da perna MAIS RECENTE e a perdida é uma das pernas, então ela
 nunca é posterior: o "nunca anda para frente" do MASTER_OUTPUT §4.0.1 já vale pela
@@ -264,10 +268,11 @@ def test_cru_e_guardado_mesmo_com_a_chave_desligada(cliente, monkeypatch):
     assert len(g["cru"]) == 1 and g["fichas"] == []
 
 
-def test_rota_desligada_nao_grava_nada(cliente, monkeypatch):
+def test_rota_desligada_e_503_e_nao_grava_nada(cliente, monkeypatch):
+    """503, nunca 200: a extensão marca como enviado no 200 e não reenviaria o cru."""
     c, g = cliente
     monkeypatch.setenv("CRU_CAPTURA_DESLIGADA", "1")
-    assert _post(c).json() == {"guardado": False} and g["cru"] == []
+    assert _post(c).status_code == 503 and g["cru"] == []
 
 
 def test_com_a_chave_a_ficha_e_montada_pelo_adaptador(cliente):
@@ -295,6 +300,22 @@ def test_recusa_do_adaptador_e_gravada_com_o_motivo(cliente):
     assert r["fichas"] == {"aceitas": 0, "recusadas": 1}
     reg = g["fichas"][0]["registros"][0]
     assert reg["aceita"] is False and any("status 7" in m for m in reg["motivos"])
+
+
+def test_erro_qualquer_do_adaptador_vira_recusa_gravada_e_nao_500(cliente, monkeypatch):
+    """O cru já foi gravado quando a Ficha é montada: um 500 aqui faria o reenvio cair em
+    "cru igual" e a Ficha daquele cru nunca seria montada."""
+    from adaptadores import dx
+
+    def _quebra(cru, casa_key):
+        raise KeyError("legs")
+    monkeypatch.setattr(dx, "adaptar", _quebra)
+    c, g = cliente
+    r = _post(c)
+    assert r.status_code == 200 and r.json()["fichas"] == {"aceitas": 0, "recusadas": 1}
+    reg = g["fichas"][0]["registros"][0]
+    assert reg["aceita"] is False and reg["cru_id"] == 1
+    assert reg["motivos"][0].startswith("erro do adaptador: KeyError")
 
 
 def test_casa_e_conta_sao_da_sessao(cliente):
@@ -334,3 +355,21 @@ def test_main_registra_a_rota_e_a_isencao_de_csrf():
     import main
     assert "/captura/ficha" in main._CAPTURA_ISENTAS
     assert any(getattr(r, "path", "") == "/captura/ficha" for r in main.app.routes)
+
+
+def test_reprocesso_usa_a_mesma_montagem_da_rota_e_aponta_o_cru():
+    """`scripts/reprocessar_ficha_cru.py`: aceita, recusada e família sem adaptador, cada uma
+    no seu lugar, com o `cru_id` da linha de `captura_crua` (é ele que torna o script idempotente)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "reprocessar_ficha_cru", _Path(__file__).resolve().parent.parent / "scripts" / "reprocessar_ficha_cru.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    base = {"dono": "Feca", "casa": "DEXSPORT", "parceiro": "Feca [Eu]", "versao_ext": "0.7.51",
+            "origem": "https://dexsport.io"}
+    linhas = [dict(base, id=10, familia="dx", cru=_json.dumps(_DEX_CRU[0])),
+              dict(base, id=11, familia="dx", cru=dict(_DEX_CRU[1], status=7)),
+              dict(base, id=12, familia="zz", cru={"id": "x"})]
+    lotes, sem = mod.registros_por_lote(linhas)
+    regs = [r for rs in lotes.values() for r in rs]
+    assert sem == 1 and [(r["cru_id"], r["aceita"]) for r in regs] == [(10, True), (11, False)]
