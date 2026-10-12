@@ -51,21 +51,48 @@ Também conta:
 
 ## 4. Quando uma casa vira
 
-Uma casa vira quando, ao mesmo tempo:
+**Critério em vigor (decisão do Feca, 12/10/2026, s411). Substitui o piso de 30 liquidadas (D12) e a
+proposta das 10 ganhas, que caíram.**
 
-1. **zero divergências sem explicação** em stake, odd, resultado, código e moeda;
-2. pelo menos **30 apostas LIQUIDADAS comparadas** (decisão do Feca, 11/10/2026). **Aberta não conta**: o
-   resultado dela é vazio dos dois lados, e a régua de hoje (`sombra_numeros`) conta vazio contra vazio
-   como resultado igual. Em 11/10, eram 4 de 10. Por isso a régua **separa liquidadas e abertas** em todo
-   relatório. Casa de volume pequeno (1xBit, Kikobet) espera chegar às 30; a fixture da bancada é
-   pré-requisito (item 3), não substituto;
-3. o harness da família está verde, e fica vermelho quando se remove uma regra (prova por mutação);
-4. o Feca leu a lista de divergências e aprovou.
+- **Toda casa que pode virar, vira na hora.** Sem pausa entre uma e outra.
+- **Backtest com o cru que já chegou.** As capturas do Feca já mandam o histórico que a casa mostra,
+  então não precisa de exportação nova. A Ficha é comparada com o banco em TODAS as apostas com cru.
+- **A casa vira se nenhum DINHEIRO divergir sem explicação:** stake, resultado e retorno (e a
+  freebet, que é stake). Odd diferente com P/L igual não trava (é a regra da odd, §3).
+- **O histórico não é reescrito pela Ficha (D10):** na casa virada, código que o banco já tem por
+  outro caminho fica com quem o gravou. A Ficha grava aposta nova e a que ela mesma gravou.
+- **O Gabriel é só usuário:** não trava nada e não é critério de nada. Cru dele entra no backtest
+  como qualquer outro.
+- **Cobertura parcial não trava:** a régua mostra o número (apostas do dono com cru ÷ apostas da
+  casa no banco) e segue.
+- **Termo fora do dicionário vai para a IA, como hoje** (`04_DICIONARIO`, `app/dicionario.py`). A
+  cobertura do dicionário sai na mesma linha do backtest.
 
-**Proposta (12/10, AGUARDANDO o Feca):** além das 30 liquidadas, **pelo menos 10 GANHAS comparadas** por
-casa (Ficha ou IA em W/HW). É na ganha que a odd e o retorno pesam; na perdida a Ficha só precisa acertar
-stake e resultado. A régua já mostra a contagem (`medir_regua_adaptadores.py`). Em 12/10, Feca: DEX 11,
-MyStake 14, Vavada 10, Duel 12, BetMartini 20, Shuffle 25, Bet Panda 47; Gabriel 0 em todas.
+Harness: `medicoes/medir_backtest_virada.py [CASA ...]` (banco só com SELECT; uma linha por casa:
+comparadas, dinheiro divergente, "IA ainda aberta", só odd, recusadas, cobertura, dicionário).
+**"IA ainda aberta"** é explicada: a casa liquidou e a linha da IA está aberta até a próxima leitura
+do texto; é o tempo, não o número.
+
+**Backtest de 12/10 (~19h30 UTC), que virou as 8 casas:**
+
+| Casa | Comparadas | Dinheiro divergente | Cobertura (Feca) | Dicionário (in-sample) |
+|---|---:|---:|---:|---:|
+| MyStake | 146 | 0 | 146/155 | 144/146 |
+| DEX Sport | 60 | 0 (3 "IA ainda aberta") | 62/118 | 52/60 |
+| Bet Panda | 168 | 0 | 168/168 | 149/168 |
+| Duel | 70 | 0 | 70/70 | 66/70 |
+| Shuffle | 80 | 0 | 80/80 | 78/80 |
+| Vavada | 57 | 0 | 57/57 | 40/57 |
+| BetMartini | 97 | 0 | 97/97 | 79/97 |
+| Megapari | 19 | 0 | 19/39 | 18/19 |
+
+Todas com a Ficha aceita (0 recusadas). Onde a tradução discorda da IA (13 apostas), em 12 a IA errou a
+regra do `Múltiplos` (`MASTER_ESPORTES §2`) e a Ficha seguiu (BACKLOG §1); 1 Megapari é mercado
+combinado (`Equipa 1 para vencer e Total`), que a IA chama de `Múltipla` e o dicionário de `Outros`.
+
+*Histórico do critério:* 11/10 o Feca pôs 30 liquidadas por casa (D12; aberta não conta, porque a
+régua antiga contava vazio contra vazio como resultado igual); 12/10 de manhã a proposta das 10
+ganhas; 12/10 à tarde as duas caíram pelo backtest acima.
 
 A virada é uma chave por casa. Desligar a chave volta a casa ao caminho de hoje na hora, sem deploy.
 
@@ -103,15 +130,19 @@ Regra do Feca: **recusada nunca pode significar aposta perdida.** Desenho, para 
 6. **Gate antes de ligar:** teste que monta um lote com 3 bilhetes (Ficha aceita, Ficha recusada, sem cru) e
    prova que os 3 terminam em `bilhetes`, 1 pela Ficha e 2 pela IA, com mutação de cada ramo.
 
-**Construído e no ar, DESLIGADO (12/10, s409).** `app/virada.py` + `FICHA_CASAS_VIRADAS` (vazia; `*` não
+**LIGADO em 8 casas (12/10 ~19h40 UTC, s411):** `FICHA_CASAS_VIRADAS=MYSTAKE,DEXSPORT,BETPANDA,DUEL,SHUFFLE,VAVADA,BETMARTINI,MEGAPARI`. Antes, construído e no ar desligado (12/10, s409). `app/virada.py` + `FICHA_CASAS_VIRADAS` (vazia; `*` não
 vale). Como ficou cada ponto:
 - **2:** a aceita grava pelo `/salvar` de hoje (`main.gravar_tsv`, o corpo do `/salvar`), `origem='ficha'`.
   Esporte e categoria com o **termo da casa** (`04_DICIONARIO §4.1`), descrição `mercado · seleção [jogo]`.
-  ⚠ **Pré-requisito da 1ª virada:** o termo de cada casa no dicionário, senão a grade mostra `football`
-  (DEX) e `sportTypeId 4` (Altenar) onde hoje mostra Futebol e Tênis. A MyStake já manda em português.
+  **s411:** esporte e categoria TRADUZIDOS pelo dicionário (`app/dicionario.py`, tabela
+  `dicionario_termos`); termo sem par, e código que o banco já tem por outro caminho (D10), ficam
+  com a IA. Descrição `<seleção> <linha> <mercado> [jogo]` (a linha só quando a casa a manda em campo
+  próprio e ela não está no texto; `tv` inverte o sinal com `hisminus`). Sistema da Altenar com a
+  12ª coluna (`3x Duplas`).
 - **3:** não precisou de código novo no `/extrair`. O pré-dedup por código (`_dedup_superbet_text`) já tira
   do lote, antes da IA, o código RESOLVIDO no banco naquela conta. **Diferença do desenho, a favor da
   segurança:** a aceita ABERTA continua indo para a IA (como hoje, até liquidar); só a liquidada sai.
 - **6:** `tests/test_repository_db.py::test_virada_tres_bilhetes_chegam_ao_banco` (Postgres real) e o caso
   desligado com a sombra ligada (o estado de produção); 9 mutações, 9 detectadas, 1 inócua registrada
-  (`tests/test_virada.py`).
+  (`tests/test_virada.py`). s411: termo fora do dicionário e D10 no mesmo harness de banco (mutações E e F,
+  detectadas) e 15 mutações unitárias novas, todas detectadas.

@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-10-12 · D5-D10 · as 8 casas viraram: dicionário, D10 e o critério novo do Feca
+
+**Onde está:** `FICHA_CASAS_VIRADAS=MYSTAKE,DEXSPORT,BETPANDA,DUEL,SHUFFLE,VAVADA,BETMARTINI,MEGAPARI`
+(12/10 ~19h40 UTC, deploys `6ec6baf8` só MyStake e `ea08a265` as oito); sombra em 8 casas (Megapari
+entrou). **Próxima ação:** conferir no banco a 1ª captura de cada casa virada (aposta nova com
+`origem='ficha'`, recusada e D10 pela IA); casas novas quando o cru delas chegar (BACKLOG §1).
+
+**Regras novas do Feca (12/10):** toda casa que pode virar vira na hora; o Gabriel é só usuário e não
+é critério; critério = backtest com o cru que já chegou, a casa vira se nenhum dinheiro (stake,
+resultado, retorno) divergir sem explicação; caem as 30 liquidadas e as 10 ganhas; o histórico não é
+reescrito pela Ficha (D10). Registrado em `03_REGUA_NUMEROS §4`.
+
+**O que entrou (commit `3660701`, CI e deploy `e073bd36`):**
+- **Dicionário** (`app/dicionario.py`, tabela `dicionario_termos`, `scripts/semear_dicionario.py`).
+  Semente dos pares cru × banco (697 apostas, todas com bilhete) e, para o esporte, do texto da
+  `sombra_rotulos` (linha `Esporte:` por perna, desde 03/10). Entra só o unânime; o esporte vale para
+  todas as casas (`*`) quando a decisão mais votada é a mesma em cada casa. 318 termos; 1 contradição
+  (Betnacional `tênis`: Tênis ×10, Futebol ×1). Dois cuidados medidos: o número fica no termo de
+  esporte (a Altenar escreve `sportTypeId 4`; com `{n}` os 8 esportes viraram um termo só, com 8
+  decisões) e na seleção (`1`/`2` viravam o mesmo `{n}`).
+- **Virada:** esporte e categoria traduzidos; termo sem par e código já gravado por outro caminho (D10)
+  ficam com a IA. Descrição `<seleção> <linha> <mercado> [jogo]`. Coluna `sistema` da Altenar pela
+  Ficha (`3x Duplas`).
+- **`tv` (MyStake) inverte a linha com `hisminus`**, como a extensão faz desde a s392: sem isso a
+  descrição gravaria o handicap de sinal trocado (306726935: `h -2.5, hisminus` = +2,5).
+- **Backtest** (`medicoes/medir_backtest_virada.py`): zero dinheiro divergente nas 8 casas (tabela em
+  `03 §4`). As 3 da DEX que apareceram no meio da tarde são crus que acabaram de chegar, já liquidados,
+  com a linha da IA ainda aberta: o script separa como "IA ainda aberta".
+- **Ensaio antes de ligar:** as 628 linhas que a virada montaria (8 casas) passam no `validar_linhas`
+  real do `/salvar`, 0 recusadas.
+- Megapari: 19 crus (`x1`, 0.7.52), nomes de campo varridos (79 caminhos, só aposta e evento),
+  ligada na sombra, reprocesso 19 aceitas, backtest 19 comparadas, 0 divergem.
+
+**Gates:** `tests/test_virada.py` 20 testes, 15 mutações novas + 3 antigas reconferidas, todas
+detectadas; harness de banco com termo fora do dicionário e D10 (mutações E e F, detectadas no
+Postgres local); pytest tests 1863 verde, banco 58 verde.
+
+**Achado:** a IA erra a regra do `Múltiplos` nos dois sentidos (12 apostas na régua); a Ficha segue o
+`MASTER_ESPORTES §2`. Histórico fica como está (D10); BACKLOG §1.
+
 ## 2026-10-12 · D4-D5 · caminho normal provado, BetMartini na sombra, 6 casas sem pensamento, virada construída desligada, adaptador x1
 
 **Onde está:** sombra em 7 casas; virada no ar e DESLIGADA (`FICHA_CASAS_VIRADAS` vazia). **Próxima ação:**

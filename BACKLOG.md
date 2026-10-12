@@ -55,28 +55,42 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   Decisão do Feca (12/10): em 19/10, se nada tiver dado errado, `DROP TABLE` nas duas. Antes,
   conferir que `captura_crua` segue sem `Player`/`nickname` e com o hash igual a
   `cru.impressao(cru)`.
-- **Ficha (s409): o Gabriel na 0.7.51.** O caminho normal está provado no Feca (12/10, 16h40 UTC:
-  133 crus novos nas 6 casas da sombra, 133 Fichas aceitas pela rota). Falta o Gabriel instalar
-  (F5 nas abas). No dia em que o cru dele chegar: conferir a 1ª Ficha de cada casa dele e rodar
-  a régua (`medir_regua_adaptadores.py`) no mesmo dia, inclusive a família `x1` (Megapari), cujo
-  adaptador foi escrito das fixtures e nunca viu cru real. Antes de LIGAR a `x1` na sombra,
-  varrer os nomes de campo dos crus dela.
 - **Ficha (s409): 1xBit e Kikobet fora da `EXTRACAO_SEM_PENSAMENTO`.** Sem amostra para provar o
   fiscal: a 1xBit tem 8 apostas, todas perdidas; a Kikobet tem 3 ganhas, sem bloco na
   `sombra_rotulos`. Quando houver ganha com bloco, rodar
   `docs/PROJETO_FICHA_SHARPEN/medicoes/medir_fiscal_acha_retorno.py 1XBIT KIKOBET`; passou, entra.
-- **Ficha (s409): antes da 1ª virada (`FICHA_CASAS_VIRADAS`), três coisas.** (1) O "pode" do Feca
-  casa por casa e a resposta à proposta das 10 ganhas (`03_REGUA_NUMEROS §4`). (2) O termo de
-  esporte e categoria da casa no dicionário (`04_DICIONARIO §3`): sem ele a grade mostra
-  `football`/`sportTypeId 4`. (3) Conferir no banco a 1ª aposta gravada pela Ficha
-  (`origem='ficha'`) e que o lote seguinte da IA não a trouxe de novo.
+- **Ficha (s411): conferir a 1ª captura de cada casa VIRADA.** Em 12/10 ~19h40 UTC viraram
+  MyStake, DEX, Bet Panda, Duel, Shuffle, Vavada, BetMartini e Megapari
+  (`FICHA_CASAS_VIRADAS`, critério novo do Feca, `03_REGUA_NUMEROS §4`). Na 1ª captura de cada
+  uma, conferir no banco: aposta nova com `origem='ficha'`; recusada, termo fora do dicionário
+  e código que a IA já tinha (D10) pela IA (`origem='extracao'`); e que o lote seguinte da IA
+  não trouxe de novo a liquidada que a Ficha gravou. PariPesa, SapphireBet, Betrebels, Betfury,
+  Betcoin e Kikobet entram quando o cru delas chegar: varrer os nomes de campo, ligar na sombra,
+  `scripts/reprocessar_ficha_cru.py`, `semear_dicionario.py --aplicar` e
+  `medicoes/medir_backtest_virada.py CASA`; zero dinheiro divergente sem explicação = vira.
+- **Ficha (s411): o dicionário só aprende quando a semente roda.** `scripts/semear_dicionario.py
+  --aplicar` refaz a semente a partir dos pares cru × banco; termo novo de casa virada vai para a
+  IA e só entra no dicionário na próxima rodada. Falta rodar sozinho (cron ou a cada N crus) e a
+  fila `termos_pendentes` com a classificação em lote (`04_DICIONARIO §4`). Hoje, cobertura
+  in-sample: MyStake 144/146, Shuffle 78/80, Megapari 18/19, Duel 66/70, Bet Panda 149/168,
+  DEX 52/60, BetMartini 79/97, Vavada 40/57 (a Altenar numera esporte que só apareceu em
+  múltipla mista: `sportTypeId 13/19/34/40` sem par).
+- **Ficha (s411): a IA erra a regra do `Múltiplos`, a Ficha não (medido, 12/10).** Na régua, a IA
+  gravou `Futebol` em múltipla de 3 jogos de futebol (MyStake 307597971 e mais 6), `Múltiplos` em
+  dupla de 2 jogos de futebol (DEX fab8990b e mais 2) e `Futebol`/`Tênis` em dupla de esportes
+  misturados (BetMartini 5505421133, Shuffle CfxToF6T). A Ficha segue o `MASTER_ESPORTES §2`.
+  Nas casas viradas a aposta nova sai certa; o histórico não é reescrito (D10). Corrigir o
+  histórico é decisão do Feca.
+- **Ficha (s411): `03_REGUA §5` (régua por uma semana depois da virada) não foi construída.** Hoje
+  a IA continua lendo a aposta ABERTA e tudo que a Ficha não grava; a régua sobre o cru
+  (`medir_backtest_virada.py`) roda quando chamada. Falta a amostra automática.
 - **Texto da Altenar escreve SISTEMA como `Múltipla` (s409, medido).** `_tipoVB`
   (`extensor/content.js`) olha só a quantidade de pernas; `type` 2 e `combLength` não vão para o
   texto. A IA grava sistema 2 de 3 como múltipla, sem a coluna `sistema` (BetMartini 5501503684,
   Vavada 5504107339, Betrebels 5499580342; P/L certo nos três, que perderam). Conserto é
   atualização da extensão: decisão do Feca. A Ficha sabe que é sistema (odd = média das linhas),
-  mas a virada ainda não preenche a 12ª coluna (`sistema`, formato `3x Duplas`): fica para antes
-  da 1ª virada de casa Altenar.
+  e desde a s411 a virada preenche a 12ª coluna (`sistema`, `3x Duplas`) a partir da Ficha.
+  Continua sem a coluna o sistema Altenar que vai pela IA (termo fora do dicionário, D10).
 
 - ~~Login `ZoraEsports` 401~~ **RESOLVIDO na própria s238** — mas a lição fica: **conta nova deployada ANTES da env var de senha nasce com hash vazio na tabela `usuarios`, e o seed (`ON CONFLICT DO NOTHING`) nunca conserta** — colar a env var depois não basta (desde o Deploy B da s233 quem autentica é a TABELA via cache; a docstring do seed ainda descreve a Fase 1). Medido: `length(senha_hash)=0` na linha. Fix: UPDATE manual do hash (o Feca rodou o script via `!`; o classificador do Claude Code barra mexida direta em credencial de produção) → login 200 na primeira tentativa. **Ordem certa daqui em diante: env var no Railway PRIMEIRO, push da conta depois.**
 - **Env vars de senha no Railway (s216, s218, s220) — estado NÃO instrumentado.** `SENHA_LAVAPESSOAL_HASH` **está no ar e o Lava entra** (confirmado pelo Feca em 31/07, s222). `SENHA_WILLIAMOLIVEIRA_HASH` e `SENHA_VINICIUSOLIVEIRA_HASH`: **não confirmadas** — podem já ter sido coladas; ninguém atualiza esta linha quando a ação acontece fora do repo.

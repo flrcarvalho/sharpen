@@ -1,5 +1,14 @@
 # 04 · O dicionário (a IA vira compiladora de vocabulário, não leitora de aposta)
 
+> **Estado (12/10/2026, s411):** §2 e §3 construídos. `dicionario_termos` no ar, semeada por
+> `scripts/semear_dicionario.py --aplicar` (pares cru × `bilhetes`; esporte também do texto da
+> `sombra_rotulos`; só o UNÂNIME entra; esporte vale para todas as casas pela maioria de cada uma).
+> Quem lê é a virada (`app/virada.py`), por `app/dicionario.traduzir`. **Diferença do §4, por decisão
+> do Feca (12/10): termo nunca visto NÃO grava com o termo da casa; a aposta vai para a IA, como hoje.**
+> `termos_pendentes` e a classificação em lote (§4.3) não foram construídos (BACKLOG §1). Chave do
+> termo: categoria pelo mercado normalizado (`{n}` no número) e, se o mercado tem duas decisões,
+> pelo par mercado + seleção (seleção sem trocar número: `1` e `2` são seleções diferentes).
+
 ## 1. O problema que ele resolve
 
 A única coisa que a IA faz hoje e o código ainda não faz é **traduzir vocabulário**: "Basketball" vira
