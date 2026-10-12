@@ -1435,11 +1435,14 @@ def test_captura_crua_grava_uma_vez_e_cru_mudado_vira_linha_nova():
 #   D. a virada ignora a chave (grava sempre)                     → desligada[VAVADA] vermelho
 #      (escapava enquanto o caso "desligada" rodava com a sombra também desligada: a Ficha
 #      nem era montada. O estado de produção é sombra LIGADA e virada desligada.)
+#   s411 (dicionário e D10, mesmo Postgres local):
+#   E. a virada grava mesmo com termo fora do dicionário          → termo_fora vermelho
+#   F. a virada reescreve código que a IA já gravou (sem D10)     → d10 vermelho
 
 _VIRADA = ("5508528206", "5504514128", "5500000003")     # aceita, recusada, sem cru
 
 
-def _virada_cenario(monkeypatch, chave, sombra=""):
+def _virada_cenario(monkeypatch, chave, sombra="", termos=True):
     import json as _json
     from pathlib import Path
     from types import SimpleNamespace
@@ -1462,19 +1465,37 @@ def _virada_cenario(monkeypatch, chave, sombra=""):
         {"codigo": recusada, "cru": dict(crus[recusada], status=7)}]}   # status 7: recusa
     # O lote de TEXTO da mesma captura: os 3 bilhetes, como o SharpenUp manda sempre.
     texto = "\n\n".join(f"[Código: {c}]\nStake: 10\nStatus: Perdido\n" for c in _VIRADA)
+    # Dicionário (s411): os termos da aceita, com o par que a semente daria. Sem eles, a
+    # aceita vai para a IA (termo fora do dicionário).
+    import dicionario
+    from adaptadores import vb
+    chaves = dicionario.chaves(vb.adaptar(crus[aceita], "VAVADA")) if termos else []
+    sess.termos = [("VAVADA", t, k, "Futebol" if t == "esporte" else "Total de Escanteios")
+                   for t, k in chaves]
     return sess, payload, texto
 
 
-async def _virada_ponta_a_ponta(sess, payload, texto):
-    """Rota da Ficha → `/extrair` (o pré-dedup de sempre) → IA dublê → `/salvar`."""
+async def _virada_ponta_a_ponta(sess, payload, texto, antes=None):
+    """Rota da Ficha → `/extrair` (o pré-dedup de sempre) → IA dublê → `/salvar`.
+    `antes` = linha que a IA já tinha gravado (código, resultado), para o D10."""
     import ficha
     import main
 
     await _reset()
     pool = await get_pool()
     async with pool.acquire() as conn:
-        for t in ("captura_crua", "ficha_sombra", "bloco_visto"):
+        for t in ("captura_crua", "ficha_sombra", "bloco_visto", "dicionario_termos"):
             await conn.execute(f"TRUNCATE {t}")
+        for casa, tipo, termo, sharpen in getattr(sess, "termos", []):
+            await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
+                               "termo_sharpen) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+                               casa, tipo, termo, sharpen)
+    if antes:
+        cod, res = antes
+        await main.gravar_tsv(main.SalvarRequest(
+            tsv=f"10/10/2026\tFutebol\t\t{sess.casa}\t{sess.parceiro}\tML\tTime A [A vs B]"
+                f"\t10\t2\t{res}\t{cod}", casa=sess.casa, parceiro=sess.parceiro),
+            sess.dono, sess.dono)
     resp = await ficha.receber(payload)
     para_ia, cortados = await main._dedup_superbet_text(texto, sess.dono, sess.casa,
                                                         sess.parceiro)
@@ -1499,6 +1520,27 @@ def test_virada_tres_bilhetes_chegam_ao_banco(monkeypatch):
     assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
     assert banco == {aceita: ("ficha", "W"), recusada: ("extracao", "L"),
                      sem_cru: ("extracao", "L")}
+
+
+def test_virada_termo_fora_do_dicionario_vai_para_a_ia(monkeypatch):
+    """Regra do Feca (12/10): termo sem par conhecido vai para a IA, como hoje. A Ficha é
+    aceita e guardada, mas não vai à planilha; a IA lê os três."""
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
+        *_virada_cenario(monkeypatch, "VAVADA", termos=False)))
+    assert resp["fichas"] == {"aceitas": 1, "recusadas": 1} and resp["na_planilha"] == 0
+    assert (lidos, cortados) == (sorted(_VIRADA), 0)
+    assert {o for o, _ in banco.values()} == {"extracao"} and len(banco) == 3
+
+
+def test_virada_d10_nao_reescreve_o_que_a_ia_gravou(monkeypatch):
+    """D10: a aposta que a IA já gravou (aberta) fica com a IA. A Ficha liquidada não a
+    reescreve, e o pré-dedup não a corta (aberta no banco): a IA a liquida pelo texto."""
+    aceita = _VIRADA[0]
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
+        *_virada_cenario(monkeypatch, "VAVADA"), antes=(aceita, "")))
+    assert resp["fichas"]["aceitas"] == 1 and resp["na_planilha"] == 0
+    assert (lidos, cortados) == (sorted(_VIRADA), 0)
+    assert banco[aceita] == ("extracao", "L") and len(banco) == 3
 
 
 @pytest.mark.parametrize("sombra", ["VAVADA", ""])

@@ -82,6 +82,16 @@ def _mercado(it: dict) -> str:
     return re.sub(r"\s+", " ", m).strip()
 
 
+def _linha(fp: dict) -> str | None:
+    """`hisminus: true` INVERTE o sinal da linha (s392, provado na tela da MyStake: `h: -0.75,
+    hisminus: true` aparece como `2 (0.75)`), a mesma regra do `_textoTV` da extensão. Sem
+    isto a descrição da casa virada gravaria o handicap de sinal trocado."""
+    h = fp.get("h")
+    if isinstance(h, (int, float)) and not isinstance(h, bool) and h and fp.get("hisminus"):
+        h = -h
+    return numero(h)
+
+
 def adaptar(t: dict, casa_key: str) -> dict:
     if not isinstance(t, dict) or t.get("ID") is None:
         raise Recusa("bilhete sem ID")
@@ -115,7 +125,7 @@ def adaptar(t: dict, casa_key: str) -> dict:
             "evento": evento,
             "mercado_casa": _mercado(it),
             "selecao_casa": _nome(it.get("Position")) or _nome(og.get("Team1")),
-            "linha": numero(fp.get("h")),
+            "linha": _linha(fp),
             "odd": numero(it.get("Value")),
             "inicio": inicio,
             "status_perna": _PERNA[it.get("Result")],

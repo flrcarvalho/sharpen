@@ -962,6 +962,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS captura_crua_unica
 CREATE INDEX IF NOT EXISTS captura_crua_casa ON captura_crua (casa, recebido_em);
 -- A Ficha montada aponta o cru de onde saiu.
 ALTER TABLE ficha_sombra ADD COLUMN IF NOT EXISTS cru_id BIGINT;
+
+-- Dicionário de termos da casa (`04_DICIONARIO.md`; s411, 12/10/2026): o termo como a casa o
+-- escreve (normalizado, `app/dicionario.normalizar`) → o esporte ou a categoria do Sharpen.
+-- Quem lê é a virada (`app/virada.py`); termo que não está aqui vai para a IA, como hoje.
+--   `origem`: `semente` (par cru × decisão da IA no banco, só os unânimes;
+--   `scripts/semear_dicionario.py`) · `feca` (escrito à mão, a semente nunca sobrescreve).
+--   `casa` = casa_key, ou `*` quando o termo vale para todas.
+CREATE TABLE IF NOT EXISTS dicionario_termos (
+    casa          TEXT NOT NULL,
+    tipo          TEXT NOT NULL CHECK (tipo IN ('esporte', 'categoria')),
+    termo_casa    TEXT NOT NULL,
+    termo_sharpen TEXT NOT NULL,
+    origem        TEXT NOT NULL DEFAULT 'semente',
+    confirmado    BOOLEAN NOT NULL DEFAULT FALSE,
+    ocorrencias   INTEGER NOT NULL DEFAULT 0,
+    criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (casa, tipo, termo_casa)
+);
 """
 
 
