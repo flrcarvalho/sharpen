@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-10-12 (noite) · D10 · a aposta sai da IA na origem; D10 corrigido; dicionário diário
+
+**Onde está:** commit `53f4609` no ar; as 8 casas seguem viradas. **Próxima ação:** na 1ª captura depois
+do deploy, rodar `medicoes/medir_virada_custo.py` e conferir no banco (`ficha_virada`, `virada_log`,
+`origem='ficha'`).
+
+**Pedido do Feca (12/10, noite):**
+- **D10 corrigido:** "não mexer no passado é não ir futricar as apostas de mês passado". A 1ª versão
+  travava todo código gravado pela IA (`_de_outro_caminho`); agora só a LIQUIDADA no banco fica intocada.
+- **A aposta sai da IA enquanto aberta:** a Ficha grava a aberta, o pré-dedup tira todo código resolvido
+  pela Ficha, e a liquidação vem pela Ficha. A aberta que a IA gravou antes da virada passa para a Ficha
+  pelo cru guardado (a extensão não reenvia cru igual; `extensor/cru.js`, registro de "já enviado").
+- **Corrida:** o `/extrair` da casa virada espera o cru (em voo + folga 1,5 s, teto 8 s).
+- **Métrica:** `virada_log` por captura + `medir_virada_custo.py` (antes: 7 dias de `uso_tokens` e
+  `sombra_rotulos`; depois: `virada_log` + `uso_tokens`). Antes da virada, 7 dias: MyStake 16 capturas
+  com IA, 242 lidas, US$ 5,65; DEX 33, 1.087, US$ 20,65; Bet Panda 12, 204, US$ 3,22 (o resto no script).
+- **Dicionário diário:** a semente roda no app às 07h UTC (`dicionario.diario`); a linha gravada pela
+  própria Ficha não vota.
+
+**Gates:** 26 testes em `tests/test_virada.py` e 63 no harness de banco (aberta sai da IA, aberta da IA
+passa para a Ficha, liquidada não é reescrita, cru guardado antes da virada, métrica, semente sem a
+linha da Ficha). Mutações G a O, todas detectadas (K travava em vez de falhar: o teste ganhou
+`wait_for`). pytest tests 1869 verde.
+
 ## 2026-10-12 · D5-D10 · as 8 casas viraram: dicionário, D10 e o critério novo do Feca
 
 **Onde está:** `FICHA_CASAS_VIRADAS=MYSTAKE,DEXSPORT,BETPANDA,DUEL,SHUFFLE,VAVADA,BETMARTINI,MEGAPARI`

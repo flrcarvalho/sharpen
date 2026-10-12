@@ -62,16 +62,15 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
 - **Ficha (s411): conferir a 1ª captura de cada casa VIRADA.** Em 12/10 ~19h40 UTC viraram
   MyStake, DEX, Bet Panda, Duel, Shuffle, Vavada, BetMartini e Megapari
   (`FICHA_CASAS_VIRADAS`, critério novo do Feca, `03_REGUA_NUMEROS §4`). Na 1ª captura de cada
-  uma, conferir no banco: aposta nova com `origem='ficha'`; recusada, termo fora do dicionário
-  e código que a IA já tinha (D10) pela IA (`origem='extracao'`); e que o lote seguinte da IA
-  não trouxe de novo a liquidada que a Ficha gravou. PariPesa, SapphireBet, Betrebels, Betfury,
+  uma, conferir no banco: `ficha_virada` (decisão por código), `virada_log` (capturadas, pela
+  Ficha, à IA, espera) e `medicoes/medir_virada_custo.py` (antes × depois); aposta nova com
+  `origem='ficha'`; recusada e termo fora do dicionário pela IA. PariPesa, SapphireBet, Betrebels, Betfury,
   Betcoin e Kikobet entram quando o cru delas chegar: varrer os nomes de campo, ligar na sombra,
   `scripts/reprocessar_ficha_cru.py`, `semear_dicionario.py --aplicar` e
   `medicoes/medir_backtest_virada.py CASA`; zero dinheiro divergente sem explicação = vira.
-- **Ficha (s411): o dicionário só aprende quando a semente roda.** `scripts/semear_dicionario.py
-  --aplicar` refaz a semente a partir dos pares cru × banco; termo novo de casa virada vai para a
-  IA e só entra no dicionário na próxima rodada. Falta rodar sozinho (cron ou a cada N crus) e a
-  fila `termos_pendentes` com a classificação em lote (`04_DICIONARIO §4`). Hoje, cobertura
+- **Ficha (s411): o dicionário aprende uma vez por dia** (`dicionario.diario`, 07h UTC): termo
+  novo de casa virada vai para a IA e entra no dicionário na rodada seguinte. Falta a fila
+  `termos_pendentes` com a classificação em lote (`04_DICIONARIO §4`). Hoje, cobertura
   in-sample: MyStake 144/146, Shuffle 78/80, Megapari 18/19, Duel 66/70, Bet Panda 149/168,
   DEX 52/60, BetMartini 79/97, Vavada 40/57 (a Altenar numera esporte que só apareceu em
   múltipla mista: `sportTypeId 13/19/34/40` sem par).
@@ -79,8 +78,9 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   gravou `Futebol` em múltipla de 3 jogos de futebol (MyStake 307597971 e mais 6), `Múltiplos` em
   dupla de 2 jogos de futebol (DEX fab8990b e mais 2) e `Futebol`/`Tênis` em dupla de esportes
   misturados (BetMartini 5505421133, Shuffle CfxToF6T). A Ficha segue o `MASTER_ESPORTES §2`.
-  Nas casas viradas a aposta nova sai certa; o histórico não é reescrito (D10). Corrigir o
-  histórico é decisão do Feca.
+  Nas casas viradas a aposta nova sai certa; a liquidada não é reescrita (D10). Corrigir o
+  histórico é decisão do Feca. Nota: na aberta da IA que passa para a Ficha, o UPSERT mantém
+  esporte, categoria e descrição de quem criou a linha (só `sync` os troca).
 - **Ficha (s411): `03_REGUA §5` (régua por uma semana depois da virada) não foi construída.** Hoje
   a IA continua lendo a aposta ABERTA e tudo que a Ficha não grava; a régua sobre o cru
   (`medir_backtest_virada.py`) roda quando chamada. Falta a amostra automática.

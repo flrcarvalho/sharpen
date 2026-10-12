@@ -59,8 +59,10 @@ proposta das 10 ganhas, que caíram.**
   então não precisa de exportação nova. A Ficha é comparada com o banco em TODAS as apostas com cru.
 - **A casa vira se nenhum DINHEIRO divergir sem explicação:** stake, resultado e retorno (e a
   freebet, que é stake). Odd diferente com P/L igual não trava (é a regra da odd, §3).
-- **O histórico não é reescrito pela Ficha (D10):** na casa virada, código que o banco já tem por
-  outro caminho fica com quem o gravou. A Ficha grava aposta nova e a que ela mesma gravou.
+- **O histórico não é reescrito pela Ficha (D10).** Nas palavras do Feca (12/10): "não mexer no passado
+  é não ir futricar as apostas de mês passado". Aposta já LIQUIDADA no banco nunca é reescrita (o
+  dinheiro já bateu no backtest; não há ganho). Aposta ABERTA, de qualquer origem, passa para a Ficha.
+  (Na 1ª versão, de 12/10 à tarde, o D10 travava todo código gravado pela IA; corrigido à noite.)
 - **O Gabriel é só usuário:** não trava nada e não é critério de nada. Cru dele entra no backtest
   como qualquer outro.
 - **Cobertura parcial não trava:** a régua mostra o número (apostas do dono com cru ÷ apostas da
@@ -139,9 +141,15 @@ vale). Como ficou cada ponto:
   com a IA. Descrição `<seleção> <linha> <mercado> [jogo]` (a linha só quando a casa a manda em campo
   próprio e ela não está no texto; `tv` inverte o sinal com `hisminus`). Sistema da Altenar com a
   12ª coluna (`3x Duplas`).
-- **3:** não precisou de código novo no `/extrair`. O pré-dedup por código (`_dedup_superbet_text`) já tira
-  do lote, antes da IA, o código RESOLVIDO no banco naquela conta. **Diferença do desenho, a favor da
-  segurança:** a aceita ABERTA continua indo para a IA (como hoje, até liquidar); só a liquidada sai.
+- **3 (refeito em 12/10 à noite, pedido do Feca: a aposta sai da IA na ORIGEM, enquanto aberta):** o
+  `/extrair` da casa virada ESPERA o cru da mesma captura (o texto é postado antes e o cru chega menos
+  de 1 s antes do extrair; `virada.esperar_cru`: enquanto houver cru em processamento, mais 1,5 s de
+  folga se nenhum chegou há pouco, teto 8 s), monta a Ficha do cru GUARDADO de cada código não
+  liquidado (a extensão não reenvia cru igual: é assim que a aberta gravada pela IA antes da virada
+  passa para a Ficha) e o pré-dedup tira do lote todo código que a Ficha resolveu, aberto ou
+  liquidado. Quando a aposta liquida, é a Ficha que grava o resultado. A IA só recebe Ficha recusada,
+  termo fora do dicionário ou cru que não chegou. `ficha_virada` guarda a decisão por código;
+  `virada_log` uma linha por captura (métrica: `medicoes/medir_virada_custo.py`).
 - **6:** `tests/test_repository_db.py::test_virada_tres_bilhetes_chegam_ao_banco` (Postgres real) e o caso
   desligado com a sombra ligada (o estado de produção); 9 mutações, 9 detectadas, 1 inócua registrada
   (`tests/test_virada.py`). s411: termo fora do dicionário e D10 no mesmo harness de banco (mutações E e F,
