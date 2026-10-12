@@ -51,9 +51,9 @@ def iso_de_epoch(s) -> str | None:
         return None
 
 
-from . import dx  # noqa: E402  (depois dos helpers que ele usa)
+from . import dx, jb, shf, tv, vb  # noqa: E402  (depois dos helpers que eles usam)
 
-ADAPTADORES = {"dx": dx}
+ADAPTADORES = {"dx": dx, "jb": jb, "shf": shf, "tv": tv, "vb": vb}
 
 
 def adaptador(familia: str):

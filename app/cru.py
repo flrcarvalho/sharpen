@@ -25,12 +25,19 @@ import re
 # quatro do fim (s409) identificam o CLIENTE na casa, e nenhum inject nem formatador os usa:
 # `CurrentBalanceDetails` (Bolsa de Aposta), `CustomerId` (7Games/Betão/R7), `CustomerCode`
 # (Betbra/Bolsa) e `playerId` (Novibet, número real de cliente).
+#
+# `Player` (MyStake/Tivo: login e id externo da conta) e `nickname` (DEX, no topo do bilhete)
+# entraram SÓ AQUI (Feca, 12/10), sem atualizar a extensão: o servidor filtra de novo antes
+# de gravar, então a lista dele pode ser MAIOR que a do `extensor/cru.js`, nunca menor.
+# Achados pela varredura dos nomes de campo dos 545 crus; família nova passa pela mesma
+# varredura antes de o adaptador dela ser ligado.
 NOMES_FILTRADOS = frozenset(n.casefold() for n in (
     "client_ip", "ip_address", "user", "username", "login-id", "loginDomainId",
     "BonusUserId", "CurrentBalance",
     "email", "password", "cpf", "phone", "cookie", "authorization", "access_token",
     "refresh_token",
     "CurrentBalanceDetails", "CustomerId", "CustomerCode", "playerId",
+    "Player", "nickname",
 ))
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 MAX_BYTES = 64 * 1024

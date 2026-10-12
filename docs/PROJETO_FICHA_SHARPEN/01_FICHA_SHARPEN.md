@@ -35,7 +35,8 @@ flutuante, para não perder centavo. Datas em **ISO 8601 com fuso** (`"2026-10-0
 | `status` | `aberta` · `ganha` · `perdida` · `anulada` · `meio_ganha` · `meio_perdida` · `cashout` | sim | de-para fixo por adaptador; status desconhecido = **erro visível**, nunca chute |
 | `status_casa` | texto | sim | o status cru da casa, para auditoria |
 | `moeda` | `BRL`, `USD`, `USDT`... | sim | a da conta na casa; ausência é erro, não "real por padrão" |
-| `stake` | decimal | sim | valor apostado |
+| `stake` | decimal | sim | valor apostado: o **ACEITO** pela casa, nunca o pedido (Feca, 12/10: a Shuffle aceita menos que o pedido e a tela mostra o aceito em "Sua Aposta") |
+| `stake_pedida` | decimal ou nulo | não | só informação: o valor pedido, quando a casa aceitou menos (Shuffle `originalAmount`). **Nunca vira stake** |
 | `stake_freebet` | decimal | não | parte paga com dinheiro da casa |
 | `odd` | decimal | sim | odd do bilhete como a casa mostra |
 | `odd_calculada` | booleano | sim | `true` quando a casa não dá a odd combinada e o adaptador multiplicou as pernas |
@@ -67,7 +68,7 @@ flutuante, para não perder centavo. Datas em **ISO 8601 com fuso** (`"2026-10-0
 |---|---|---|
 | **Data** | simples: dia do `inicio` da perna; múltipla: dia do `inicio` da perna mais recente; múltipla perdida com perna marcada perdida e com início: dia do início da perna perdida mais cedo (nunca anda para frente); sem `inicio`: dia da `colocada_em`. Sempre no fuso de Brasília **na exibição** | `MASTER_OUTPUT §4` e `§4.0.1` |
 | **Resultado** | `ganha`→W · `perdida`→L · `anulada`→V · `meio_ganha`→HW · `meio_perdida`→HL · `aberta`→vazio · `cashout`→W ou V conforme retorno × stake | `MASTER_RESULTADO §1, §4, §5` |
-| **Odd** | **Aprovado pelo Feca (11/10), daqui para frente, nada retroativo.** Aberta, perdida, anulada → a **odd da casa**; produto das pernas só quando a casa não dá a combinada (`odd_calculada = true`). Ganha e meia vitória → a odd que **fecha o retorno no centavo** pela fórmula do resultado; se a da casa e a calculada fecham, vale a **da casa**. Cashout → retorno ÷ stake. "Odd da casa" = o campo **exato** de cada família, nunca o de tela (Megapari: `Coef` 20,770335, não `CoefView` 20,77), inclusive no desempate da ganha: tabela por família no adaptador. Medição que decidiu: `DIARIO.md`, entrada "regra da odd" | `MASTER_RESULTADO §2, §5.6, §7.1` |
+| **Odd** | **Aprovado pelo Feca (11/10), daqui para frente, nada retroativo.** Aberta, perdida, anulada → a **odd da casa**; produto das pernas só quando a casa não dá a combinada (`odd_calculada = true`). Ganha e meia vitória → a odd que **fecha o retorno no centavo** pela fórmula do resultado; se a da casa e a calculada fecham, vale a **da casa**. Cashout → retorno ÷ stake. **Sistema ganho → retorno ÷ stake** (`MASTER_RESULTADO §7.1`; o sistema paga só as linhas que ganharam e a média sobre a stake inteira lançaria todas como ganhas; Feca, 12/10). "Odd da casa" = o campo **exato** de cada família, nunca o de tela (Megapari: `Coef` 20,770335, não `CoefView` 20,77), inclusive no desempate da ganha: tabela por família no adaptador. Medição que decidiu: `DIARIO.md`, entrada "regra da odd" | `MASTER_RESULTADO §2, §5.6, §7.1` |
 | **Stake** | `stake` | — |
 | **Esporte** | dicionário (`casa` + `esporte_casa`); várias pernas de esportes diferentes → `Múltiplos` | `04_DICIONARIO.md` |
 | **Aposta (categoria)** | simples: dicionário (`casa` + `mercado_casa`); múltipla → `Múltipla` | `04_DICIONARIO.md` |

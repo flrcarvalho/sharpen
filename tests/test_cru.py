@@ -21,6 +21,8 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   5. dx: retorno zero vira perdida sem `result` 2         → test_dex_recusa_o_que_hoje_sobe_a_conferir
   6. dx: `amount` float sem cortar o ruído                → test_numero_corta_o_ruido_do_float
   7. adaptador registrado sem fixture no teste obrigatório → test_todo_adaptador_tem_fixture
+  8. lista do servidor sem `Player`/`nickname`             → test_player_da_mystake_e_nickname…
+  9. lista do servidor sem um nome da extensão            → test_filtro_do_servidor_contem…
 """
 import copy
 import json
@@ -37,7 +39,14 @@ from adaptadores import ADAPTADORES, Recusa, dx, numero  # noqa: E402
 
 FIX = Path(__file__).resolve().parent.parent / "extensor" / "harness" / "fixtures"
 # Família → fixtures da bancada. Adaptador novo entra aqui junto (test_todo_adaptador_tem_fixture).
-FIXTURES_POR_FAMILIA = {"dx": ["dexsport.tickets.json"]}
+FIXTURES_POR_FAMILIA = {
+    "dx": ["dexsport.tickets.json"],
+    "jb": ["betpanda.my_bets.json", "jonbet.my_bets_all.json", "jonbet.my_bets_open.json"],
+    "shf": ["shuffle.sportsbets.json"],
+    "tv": ["mystake.gethistory.json", "tivo.gethistory.json", "betfast.gethistory.json"],
+    "vb": ["esportiva.settled.json", "esportiva.anuladas.json", "esportiva.cashout.json",
+           "estrelabet.settled.json", "vaidebet.settled.json"],
+}
 
 
 def _respostas(fx):
@@ -54,7 +63,8 @@ def _respostas(fx):
             for x in o:
                 walk(x)
     walk(fx)
-    return out
+    # Fixture gravada sem o envelope `resposta` (a maioria da bancada): ela É a resposta.
+    return out or [fx]
 
 
 def _bilhetes(familia):
@@ -220,13 +230,26 @@ def test_numero_corta_o_ruido_do_float():
     assert numero(25) == "25" and numero(29.45) == "29.45" and numero(None) is None
 
 
-# ── a lista do filtro é UMA só: a da extensão é igual à do servidor ───────────────────
+# ── a lista do servidor CONTÉM a da extensão ─────────────────────────────────────────
 
-def test_filtro_da_extensao_e_o_mesmo_do_servidor():
-    """`extensor/cru.js` filtra antes de o cru sair do navegador; `app/cru.py` filtra de novo.
-    As duas listas têm de ser a MESMA, senão um lado guarda o que o outro jogaria fora."""
+def test_filtro_do_servidor_contem_o_da_extensao():
+    """`extensor/cru.js` filtra antes de o cru sair do navegador; `app/cru.py` filtra de novo
+    antes de gravar. A do servidor pode ser MAIOR (campo novo entra sem atualizar a extensão,
+    Feca 12/10), nunca menor: o que a extensão jogaria fora, o servidor também joga."""
     import re as _re
     fonte = (Path(__file__).resolve().parent.parent / "extensor" / "cru.js").read_text(encoding="utf-8")
     bloco = fonte.split("const CRU_NOMES_FILTRADOS = new Set([", 1)[1].split("]", 1)[0]
     js = {n.casefold() for n in _re.findall(r'"([^"]+)"', bloco)}
-    assert js == set(cru.NOMES_FILTRADOS)
+    assert js and js <= set(cru.NOMES_FILTRADOS)
+
+
+def test_player_da_mystake_e_nickname_da_dex_saem():
+    """Os dois campos de pessoa que a varredura dos 545 crus achou (s409): o login e o id
+    externo da conta na MyStake, e o apelido da conta no topo do bilhete da DEX."""
+    tv = {"ID": 307310722, "Amount": 100, "Player": {"ID": 1, "Name": "fulano.de.tal",
+                                                     "Company": 2, "ExternalID": "123"}}
+    dx = {"id": "0826db2e", "amount": 25, "nickname": "ApelidoQualquer"}
+    f_tv, rem_tv = cru.filtrar(tv)
+    f_dx, rem_dx = cru.filtrar(dx)
+    assert f_tv == {"ID": 307310722, "Amount": 100} and rem_tv == ["Player"]
+    assert f_dx == {"id": "0826db2e", "amount": 25} and rem_dx == ["nickname"]
