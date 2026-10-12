@@ -1,0 +1,800 @@
+<title>Viagem de uma aposta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: um trilho vertical (a viagem da aposta), dividido em 5 atos; cada parada é um passo.
+   Cor = quem está agindo naquele passo (você, extensão, servidor, IA, banco). Tema escuro primeiro, como o Sharpen. */
+:root {
+  --bg: #0A0D12;
+  --surface: #12161D;
+  --surface-2: #181E27;
+  --line: rgba(255,255,255,0.09);
+  --ink: #EEF2F7;
+  --ink-soft: #A3AEBC;
+  --ink-mute: #6B7584;
+  --accent: #2E8BFF;
+  --accent-soft: rgba(46,139,255,0.14);
+  --c-voce: #C9D1DB;
+  --c-ext: #7FB2FF;
+  --c-srv: #2E8BFF;
+  --c-ia: #B38CFF;
+  --c-db: #2BC07E;
+  --furo: #E5524B;
+  --furo-bg: rgba(229,82,75,0.10);
+  --obs: #E0A21A;
+  --obs-bg: rgba(224,162,26,0.10);
+  --code-bg: #0E1218;
+  --font-sans: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F4F6F9; --surface: #FFFFFF; --surface-2: #EEF1F5; --line: rgba(10,13,18,0.10);
+    --ink: #0E131A; --ink-soft: #4A5565; --ink-mute: #7A8494;
+    --accent: #1F6FD6; --accent-soft: rgba(31,111,214,0.10);
+    --c-voce: #5A6575; --c-ext: #2F78D8; --c-srv: #1450A8; --c-ia: #7A4FD1; --c-db: #17905A;
+    --furo: #C63C35; --furo-bg: rgba(198,60,53,0.08); --obs: #A9750A; --obs-bg: rgba(169,117,10,0.10);
+    --code-bg: #F0F3F7; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #F4F6F9; --surface: #FFFFFF; --surface-2: #EEF1F5; --line: rgba(10,13,18,0.10);
+  --ink: #0E131A; --ink-soft: #4A5565; --ink-mute: #7A8494;
+  --accent: #1F6FD6; --accent-soft: rgba(31,111,214,0.10);
+  --c-voce: #5A6575; --c-ext: #2F78D8; --c-srv: #1450A8; --c-ia: #7A4FD1; --c-db: #17905A;
+  --furo: #C63C35; --furo-bg: rgba(198,60,53,0.08); --obs: #A9750A; --obs-bg: rgba(169,117,10,0.10);
+  --code-bg: #F0F3F7; color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 16px; line-height: 1.6; margin: 0; }
+.wrap { max-width: 920px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(22px, 3.4vw, 30px); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 19px; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.lead { font-size: 18px; color: var(--ink-soft); max-width: 62ch; }
+.mono { font-family: var(--font-mono); }
+section { margin-top: 64px; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+
+/* ---- Topo ---- */
+.hero { display: grid; gap: 18px; }
+.hero .meta { font-size: 13px; color: var(--ink-mute); }
+
+/* ---- Elenco ---- */
+.cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 20px; }
+.who-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: 38px 1fr; gap: 12px; align-items: start; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 15px; color: var(--bg); }
+.who-card b { display: block; font-size: 15px; }
+.who-card span { font-size: 14px; color: var(--ink-soft); line-height: 1.45; display: block; }
+.a-voce { background: var(--c-voce); } .a-ext { background: var(--c-ext); } .a-srv { background: var(--c-srv); }
+.a-ia { background: var(--c-ia); } .a-db { background: var(--c-db); } .a-casa { background: var(--ink-mute); }
+
+/* ---- Formas do dado ---- */
+.shapes { display: grid; gap: 0; margin-top: 22px; }
+.shape { display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: start; padding: 16px 0; border-top: 1px solid var(--line); }
+.shape:last-child { border-bottom: 1px solid var(--line); }
+.shape .lbl b { display: block; font-size: 15px; }
+.shape .lbl small { color: var(--ink-mute); font-size: 13px; line-height: 1.4; display: block; margin-top: 2px; }
+.turn { font-family: var(--font-mono); font-size: 12px; color: var(--obs); padding: 6px 0 0 166px; }
+pre.dado { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; overflow-x: auto; color: var(--ink); min-width: 0; }
+pre.dado .k { color: var(--c-ext); } pre.dado .t { color: var(--ink-mute); } pre.dado .hl { color: var(--obs); }
+.tsv { display: block; overflow-x: auto; }
+.tsv table { border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+.tsv th, .tsv td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; }
+.tsv th { color: var(--ink-mute); font-weight: 500; background: var(--surface-2); }
+.tsv td.ia { color: var(--c-ia); font-weight: 600; }
+.note { font-size: 13px; color: var(--ink-mute); }
+
+/* ---- Índice dos atos ---- */
+.acts-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.acts-nav a { text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 600; }
+.acts-nav a span { color: var(--ink-mute); font-family: var(--font-mono); font-size: 12px; margin-right: 6px; }
+.acts-nav a:hover, .acts-nav a:focus-visible { border-color: var(--accent); outline: none; }
+
+/* ---- Trilho ---- */
+.act { margin-top: 56px; }
+.act-head { display: grid; gap: 6px; margin-bottom: 18px; }
+.act-head p { color: var(--ink-soft); max-width: 62ch; }
+ol.track { list-style: none; margin: 0; padding: 0; position: relative; }
+ol.track::before { content: ""; position: absolute; left: 21px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+.step { display: grid; grid-template-columns: 44px 1fr; gap: 16px; padding-bottom: 26px; position: relative; }
+.num { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 600; font-size: 15px; background: var(--bg); border: 2px solid var(--actor); color: var(--actor); position: relative; z-index: 1; }
+.step[data-a="voce"] { --actor: var(--c-voce); } .step[data-a="ext"] { --actor: var(--c-ext); }
+.step[data-a="srv"] { --actor: var(--c-srv); } .step[data-a="ia"] { --actor: var(--c-ia); }
+.step[data-a="db"] { --actor: var(--c-db); } .step[data-a="casa"] { --actor: var(--ink-mute); }
+.step .body { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
+.who { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--actor); font-weight: 600; }
+.step p { color: var(--ink-soft); max-width: 66ch; }
+.step p b, .step p strong { color: var(--ink); }
+.callout { border-radius: 10px; padding: 11px 14px; font-size: 14.5px; line-height: 1.5; max-width: 66ch; }
+.callout b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; font-family: var(--font-mono); }
+.furo { background: var(--furo-bg); border: 1px solid color-mix(in srgb, var(--furo) 35%, transparent); color: var(--ink); }
+.furo b { color: var(--furo); }
+.obs { background: var(--obs-bg); border: 1px solid color-mix(in srgb, var(--obs) 35%, transparent); color: var(--ink); }
+.obs b { color: var(--obs); }
+details.prova { font-size: 13px; color: var(--ink-mute); }
+details.prova summary { cursor: pointer; width: fit-content; }
+details.prova summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+details.prova code { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); white-space: pre-wrap; word-break: break-word; }
+
+/* ---- Fiscais ---- */
+.fiscais { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-width: 66ch; }
+.fiscais div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.4; }
+.fiscais div i { font-style: normal; font-family: var(--font-mono); color: var(--c-srv); font-size: 12px; margin-right: 4px; }
+.fiscais div.chama { border-color: color-mix(in srgb, var(--c-ia) 45%, transparent); }
+
+/* ---- Barra de tokens ---- */
+.tokbar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); margin-top: 6px; }
+.tokbar div { height: 100%; }
+.tok-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; margin-top: 10px; font-size: 13.5px; }
+.tok-legend span { display: flex; gap: 8px; align-items: center; color: var(--ink-soft); }
+.tok-legend i { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.tok-legend b { color: var(--ink); font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-weight: 500; font-size: 12.5px; }
+
+/* ---- Recaptura ---- */
+.recap { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 20px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel h3 { font-size: 17px; }
+.panel p { color: var(--ink-soft); font-size: 14.5px; }
+.dots { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; max-width: 260px; }
+.dots i { aspect-ratio: 1; border-radius: 50%; background: var(--accent); display: block; }
+.dots i.off { background: var(--surface-2); border: 1px solid var(--line); }
+.dots i.bad { background: var(--furo); }
+.dots i.new { background: var(--c-db); }
+.dots i.open { background: var(--obs); }
+.legend-row { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-soft); }
+.legend-row span { display: inline-flex; align-items: center; gap: 6px; }
+.legend-row i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.bignum { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.bignum div { display: flex; flex-direction: column; }
+.bignum b { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.bignum small { color: var(--ink-mute); font-size: 12.5px; }
+.caps { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 14px; }
+.caps span { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.caps .x { color: var(--furo); font-weight: 700; background: none; border: 0; padding: 0; }
+
+/* ---- Revisão com o dono ---- */
+.status { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; font-size: 14.5px; color: var(--ink-soft); }
+.status b { color: var(--ink); }
+.status .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); }
+.tag.v { color: var(--c-voce); } .tag.r { color: var(--c-db); } .tag.q { color: var(--obs); }
+.rev { display: grid; gap: 8px; max-width: 66ch; }
+.voz, .resp, .pergunta { border-radius: 10px; padding: 11px 14px; font-size: 14.5px; line-height: 1.55; }
+.voz { border-left: 3px solid var(--c-voce); background: var(--surface-2); color: var(--ink); font-style: italic; border-radius: 0 10px 10px 0; }
+.resp { background: var(--surface); border: 1px solid color-mix(in srgb, var(--c-db) 40%, transparent); color: var(--ink-soft); }
+.resp b, .resp strong { color: var(--ink); }
+.pergunta { border: 1px dashed color-mix(in srgb, var(--obs) 60%, transparent); color: var(--ink); }
+.voz > span, .resp > span, .pergunta > span { display: block; font-style: normal; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; font-weight: 600; }
+.voz > span { color: var(--c-voce); } .resp > span { color: var(--c-db); } .pergunta > span { color: var(--obs); }
+.resp p + p { margin-top: 6px; }
+.resp small { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-mute); word-break: break-word; }
+.costbar { display: flex; height: 30px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); margin-top: 8px; }
+.costbar div { height: 100%; }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; margin-top: 18px; }
+.qlist { display: grid; gap: 10px; margin: 16px 0 0; padding: 0; list-style: none; counter-reset: q; }
+.qlist li { counter-increment: q; display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; color: var(--ink-soft); max-width: 70ch; }
+.qlist li::before { content: counter(q); font-family: var(--font-mono); font-weight: 600; color: var(--obs); border: 1px dashed color-mix(in srgb, var(--obs) 60%, transparent); border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; font-size: 13px; }
+.qlist li b { color: var(--ink); }
+
+footer { margin-top: 72px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-mute); display: grid; gap: 6px; }
+
+@media (max-width: 620px) {
+  .shape { grid-template-columns: 1fr; gap: 8px; }
+  .turn { padding-left: 0; }
+  .step { grid-template-columns: 36px 1fr; gap: 12px; }
+  .num { width: 36px; height: 36px; font-size: 13px; }
+  ol.track::before { left: 17px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .acts-nav a { transition: border-color .15s ease; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Sharpen · captura pela extensão</div>
+  <h1>A viagem de uma aposta, do site da casa até a sua planilha</h1>
+  <p class="lead">Este é o caminho principal por onde as apostas entram no Sharpen: a extensão SharpenUp. Vamos seguir <b>uma aposta só</b>, parada por parada, como se ela fosse uma cartinha viajando. Em cada parada você vê quem mexe nela, o que acontece e como ela está naquele momento. Onde o caminho tem um furo, aparece um aviso vermelho.</p>
+  <p class="meta">Baseado no código que está no ar hoje (versão 1beca31) e no banco de produção, medidos em 11/10/2026. Os números de linha ficam escondidos em "Onde isso está no código", para quem quiser conferir.</p>
+  <div class="status" role="note">
+    <div><b>Versão final, revisada com o Feca em 11/10/2026.</b> Duas gravações cobriram todos os passos. Cada observação dele aparece dentro do passo correspondente, com a resposta e a prova logo abaixo.</div>
+    <div class="tags"><span class="tag v">Você disse</span><span class="tag r">Resposta com prova</span><span class="tag q">Pergunta em aberto</span></div>
+  </div>
+</header>
+
+<section aria-labelledby="achados">
+  <div class="eyebrow">O que a sua revisão já respondeu</div>
+  <h2 id="achados">Quatro respostas que mudam a leitura</h2>
+  <div class="findings">
+    <div class="panel">
+      <h3>1. O que a IA faz que a casa ainda não entregou</h3>
+      <p>Das 11 colunas, o código já <b>passa por cima</b> do que a IA escreve em 6: valor, odd, resultado e código (os fiscais releem do bloco) e casa e conta (o servidor troca pelas da conta). O que sobra só para a IA são 4 decisões: <b>qual data</b> usar, o <b>esporte</b>, a <b>categoria</b> e a <b>descrição</b> no padrão do Sharpen.</p>
+      <p>A casa geralmente manda o esporte e o mercado, mas no vocabulário dela ("Ambas as equipes marcam", "Both Teams To Score", um código numérico na Pinnacle). O trabalho real da IA é <b>traduzir o vocabulário de cada casa para o vocabulário do Sharpen</b>, seguindo os manuais.</p>
+      <details class="prova"><summary>Prova</summary><code>Fiscais: app/repository.py:717 (valor, odd, resultado), :1241 (código); casa e conta: app/main.py:4100-4123; só a IA decide data, esporte, categoria e descrição: frente F3, passo 1.14. Já existe no código um tradutor sem IA para a Polymarket (ligado, 619 apostas) e outro para a Bet365 (desligado): app/tradutor.py, app/main.py:4232</code></details>
+    </div>
+    <div class="panel">
+      <h3>2. Onde o dinheiro vai de fato</h3>
+      <p>Desde a troca para o Sonnet 5 (579 extrações, US$ 262,84), a maior parte da conta é a <b>IA escrevendo</b>, não lendo o manual:</p>
+      <div class="costbar" role="img" aria-label="Custo desde a troca para o Sonnet 5: escrita da IA 181,80 dólares, leitura do manual em cache 46,67, entrada sem cache 25,30, gravação do cache 9,04">
+        <div style="width:69.2%;background:var(--c-ia)"></div>
+        <div style="width:17.8%;background:var(--c-srv)"></div>
+        <div style="width:9.6%;background:var(--ink-mute)"></div>
+        <div style="width:3.4%;background:var(--obs)"></div>
+      </div>
+      <div class="tok-legend">
+        <span><i style="background:var(--c-ia)"></i>IA escrevendo <b>US$ 181,80</b></span>
+        <span><i style="background:var(--c-srv)"></i>manual lido do cache <b>US$ 46,67</b></span>
+        <span><i style="background:var(--ink-mute)"></i>entrada sem cache <b>US$ 25,30</b></span>
+        <span><i style="background:var(--obs)"></i>gravar o cache <b>US$ 9,04</b></span>
+      </div>
+      <p>Cada pedaço do Sonnet 5 escreve em média <b>6.103 tokens</b>; no Sonnet 4.6 eram 1.509. A tabela de 6 apostas é uma fração disso. O código não configura o "pensamento" da IA, e o Sonnet 5 pensa por padrão, e esse pensamento é cobrado como escrita.</p>
+      <details class="prova"><summary>Prova</summary><code>Banco (só leitura, 11/10): uso_tokens por modelo. claude-sonnet-5: 12,65 mi entrada, 233,37 mi lidos do cache, 2,26 mi gravados, 18,18 mi escritos, US$ 262,84. Tokens × preço de tabela (US$ 2 / 0,20 / 4 / 10 por milhão) somam US$ 262,81, o que confirma a conta. Chamada sem parâmetro de pensamento: app/main.py:2113-2116. Que os 4,6 mil tokens a mais por pedaço são pensamento é INFERIDO; confirmaria o campo de uso detalhado de uma resposta real.</code></details>
+    </div>
+    <div class="panel">
+      <h3>3. O manual e o cache de 1 hora</h3>
+      <p><b>1 hora é o máximo que a Anthropic oferece.</b> Não existe cache permanente: os prazos possíveis são 5 minutos ou 1 hora, e cada uso renova o prazo de graça. Para não deixar esfriar, o Sharpen já tem um <b>aquecedor</b> que relê o manual a cada 55 minutos.</p>
+      <p>Ler do cache custa 10% do preço normal. Por isso, apesar de o livro de ~150 páginas ser relido a cada pedaço (<b>17.843 pedaços desde 05/07</b>, sua estimativa de "dezenas de milhares" está perto), essa leitura é a segunda linha da conta, não a primeira.</p>
+      <p><b>Aquecer e ler são coisas diferentes.</b> O aquecedor só impede o livro de ser guardado: no máximo uma leitura a cada 55 minutos, cerca de 1.230 desde 25/08, quando esse ritmo começou. Os 17.843 são outra coisa: a cada pedaço de extração, a IA lê o livro inteiro de novo, do cache. Pense no livro aberto em cima da mesa: o aquecedor só passa a mão nele de hora em hora para ninguém guardar; cada pedaço é uma pessoa que senta e lê o livro do começo ao fim.</p>
+      <p>Os 6 manuais gerais mudaram 4 vezes desde 01/09 (o último hoje, 11:26). Os manuais de casa mudaram 36 vezes. Cada mudança obriga a gravar o cache de novo.</p>
+      <details class="prova"><summary>Prova</summary><code>Prazo de 1 h: app/prompts.py:44 (com o motivo medido em :28-43); aquecedor: app/main.py:455-461, 554-573; documentação de prompt caching da Anthropic (5 min ou 1 h; leitura ~0,1×; gravação 2× no prazo de 1 h); pedaços: SELECT sum(chunks) FROM uso_tokens = 17.843; histórico: git log --since=2026-09-01 -- global (4) e -- casas (36)</code></details>
+    </div>
+    <div class="panel">
+      <h3>4. As 104.744 apostas sem código</h3>
+      <p>Sua hipótese se confirma: quase todas vêm de antes da extensão.</p>
+      <p><b>74.446</b> vieram de planilhas importadas por script. <b>27.708</b> são da base de demonstração <span class="mono">realtrial</span>. O resto é pequeno: 2.541 de extrações antigas e 49 manuais.</p>
+      <p>Desde 01/09, só <b>221 de 37.635</b> apostas extraídas ficaram sem código (0,6%).</p>
+      <details class="prova"><summary>Prova</summary><code>Banco (só leitura, 11/10): bilhetes agrupados por origem, contando codigo_bilhete nulo ou vazio; recorte origem='extracao' a partir de 2026-09-01</code></details>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="elenco">
+  <div class="eyebrow">Antes de começar</div>
+  <h2 id="elenco">Os personagens</h2>
+  <div class="cast">
+    <div class="who-card"><div class="avatar a-voce">V</div><div><b>Você</b><span>Quem abre a casa, clica em Extrair e depois em Salvar. Nada anda sem esses cliques.</span></div></div>
+    <div class="who-card"><div class="avatar a-casa">C</div><div><b>O site da casa</b><span>Betano, Bet365, Superbet... Ele já tem todas as suas apostas, organizadinhas.</span></div></div>
+    <div class="who-card"><div class="avatar a-ext">E</div><div><b>A extensão SharpenUp</b><span>Mora no seu navegador. Tem três ajudantes: o <b style="display:inline">ouvinte</b>, o <b style="display:inline">redator</b> e o <b style="display:inline">carteiro</b>.</span></div></div>
+    <div class="who-card"><div class="avatar a-srv">S</div><div><b>O servidor do Sharpen</b><span>O "escritório" na nuvem. Tem um porteiro, uma tesoura, fiscais e um arquivista.</span></div></div>
+    <div class="who-card"><div class="avatar a-ia">IA</div><div><b>A IA (Claude Sonnet 5)</b><span>O escriba pago. Lê a aposta e a reescreve no formato da planilha. Tem um gêmeo, o Haiku, que repete tudo.</span></div></div>
+    <div class="who-card"><div class="avatar a-db">B</div><div><b>O banco</b><span>A gaveta onde cada aposta fica guardada. É de lá que saem o Dashboard e a planilha.</span></div></div>
+  </div>
+</section>
+
+<section aria-labelledby="formas">
+  <div class="eyebrow">O resumo em uma imagem</div>
+  <h2 id="formas">A mesma aposta muda de forma 5 vezes</h2>
+  <p class="lead" style="margin-top:10px">Repare: ela nasce organizada, vira texto corrido, volta a ser tabela pela mão da IA, e só no fim é guardada. A aposta abaixo é um <b>exemplo inventado</b>, com o formato simplificado.</p>
+  <div class="shapes">
+    <div class="shape">
+      <div class="lbl"><b>1. Ficha da casa</b><small>como o site da Betano guarda</small></div>
+      <pre class="dado">{ <span class="k">"BetId"</span>: 1234567890,
+  <span class="k">"PlacedAt"</span>: "2026-10-05T21:42:00Z",
+  <span class="k">"evento"</span>: "Flamengo x Palmeiras",
+  <span class="k">"mercado"</span>: "Ambas as equipes marcam",
+  <span class="k">"escolha"</span>: "Sim",
+  <span class="k">"stake"</span>: 50.00, <span class="k">"odd"</span>: 1.85, <span class="k">"status"</span>: "aberta" }</pre>
+    </div>
+    <div class="turn">↓ a extensão transforma em texto (aqui o dado organizado vira texto corrido)</div>
+    <div class="shape">
+      <div class="lbl"><b>2. Bloco de texto</b><small>o que a extensão manda ao servidor</small></div>
+      <pre class="dado"><span class="hl">[Código: 1234567890]</span>
+Data: 05/10/2026 18:42
+Flamengo x Palmeiras
+Ambas as equipes marcam - Sim @ 1.85   <span class="t">← mercado colado na escolha</span>
+Stake: 50,00
+Status: Em aberto
+Odd total: 1,85</pre>
+    </div>
+    <div class="turn">↓ a IA lê o texto e reescreve como tabela (aqui o texto volta a ser organizado)</div>
+    <div class="shape">
+      <div class="lbl"><b>3. Linha de tabela</b><small>o que a IA devolve (colunas separadas por TAB)</small></div>
+      <div class="tsv"><table>
+        <tr><th>Data</th><th>Esporte</th><th>Tipster</th><th>Casa</th><th>Parceiro</th><th>Aposta</th><th>Descrição</th><th>Stake</th><th>Odd</th><th>Resultado</th><th>Código</th></tr>
+        <tr><td class="ia">05/10/2026</td><td class="ia">Futebol</td><td></td><td>Betano</td><td>conta1</td><td class="ia">Ambas Marcam</td><td class="ia">Ambas marcam: Sim [Flamengo v Palmeiras]</td><td>50,00</td><td>1,85</td><td></td><td>1234567890</td></tr>
+      </table></div>
+    </div>
+    <p class="note" style="padding:6px 0 0 166px">Em roxo: o que <b>só a IA decide</b> e nenhum código refaz (data, esporte, categoria e descrição).</p>
+    <div class="turn">↓ os fiscais conferem, você clica Salvar, o servidor lê a tabela de volta</div>
+    <div class="shape">
+      <div class="lbl"><b>4. Ficha do servidor</b><small>a tabela lida campo por campo</small></div>
+      <pre class="dado">data="05/10/2026"  esporte="Futebol"  casa=<span class="t">(trocada pela da conta)</span>
+stake="50,00"  odd="1,85"  resultado=<span class="t">(vazio = aberta)</span>  tipster=<span class="t">(zerado)</span></pre>
+    </div>
+    <div class="turn">↓ o arquivista grava</div>
+    <div class="shape">
+      <div class="lbl"><b>5. Linha no banco</b><small>gaveta "bilhetes"</small></div>
+      <pre class="dado">dono=<span class="k">seu_usuario</span>  casa=<span class="k">Betano</span>  parceiro=<span class="k">conta1</span>  codigo_bilhete=<span class="k">1234567890</span>
+data=<span class="hl">"05/10/2026"</span> <span class="t">(texto)</span>  stake=<span class="hl">"50,00"</span> <span class="t">(texto com vírgula)</span>  odd=<span class="hl">"1,85"</span>
+estado=aberta  origem=extracao  assinatura=<span class="t">impressão digital de dono+casa+conta+código</span></pre>
+    </div>
+  </div>
+  <div class="rev" style="margin-top:18px">
+    <div class="voz"><span>Você disse</span>A ficha da casa parece ter todas as informações. Por que ela vira texto e depois volta a ser tabela? Minha suspeita: no começo eu selecionava o texto da tela, dava Ctrl C e Ctrl V na caixa, e o sistema processava esse texto. A extensão lê a API por trás do site, então já traz tudo organizado e não precisaria virar texto. Me parece retrabalho, e é onde a gente gasta de forma irresponsável: pagando a IA para organizar o que já estava organizado.</div>
+    <div class="resp"><span>Resposta com prova</span>
+      <p>O código confirma a ordem histórica que você descreveu. A caixa de texto e o caminho "texto → IA → tabela" são a porta de entrada mais antiga e continuam sendo a <b>única</b> porta da extensão: o servidor <b>nunca recebe a ficha da casa</b>, só o texto montado pelo redator. Tudo que vem depois (porteiro, IA, fiscais) trabalha em cima desse texto.</p>
+      <p>Medido: a mesma aposta é escrita uma vez (redator) e lida três vezes (IA, fiscais, leitor do Salvar). O que a IA acrescenta de fato são 4 decisões de vocabulário (ver "Quatro respostas", item 1). E o maior gasto hoje é a IA escrevendo e pensando, mais do que lendo o manual (item 2).</p>
+      <small>extensor/content.js:1660-1664 e extensor/background.js:139-170 (só texto vai ao servidor); app/static/index.html:6434-6443 (o texto cai na mesma caixa onde se cola à mão); app/main.py:3917-3950 (texto colado e texto da extensão seguem pelo mesmo /extrair)</small>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="viagem">
+  <div class="eyebrow">Agora, devagar</div>
+  <h2 id="viagem">A viagem, parada por parada</h2>
+  <nav class="acts-nav" aria-label="Atos da viagem">
+    <a href="#ato1"><span>1</span>Ligar a extensão</a>
+    <a href="#ato2"><span>2</span>Na casa de apostas</a>
+    <a href="#ato3"><span>3</span>Chegada no Sharpen</a>
+    <a href="#ato4"><span>4</span>O clique em Extrair</a>
+    <a href="#ato5"><span>5</span>Salvar</a>
+  </nav>
+
+  <!-- ATO 1 -->
+  <div class="act" id="ato1">
+    <div class="act-head">
+      <div class="eyebrow">Ato 1</div>
+      <h3 style="font-size:22px">Ligar a extensão ao Sharpen</h3>
+      <p>Antes de qualquer aposta viajar, a extensão precisa provar ao Sharpen que está trabalhando para você, naquela casa, naquela conta.</p>
+    </div>
+    <ol class="track">
+      <li class="step" data-a="voce"><div class="num">1</div><div class="body">
+        <div class="who">Você + tela do Sharpen</div>
+        <h3>Você escolhe a casa e a conta e pede para capturar</h3>
+        <p>Na tela do Planilhador você diz: "quero capturar a <b>Betano</b>, da <b>conta1</b>". A tela pede ao servidor um <b>código de pareamento</b>, como a senha de uma fila. O servidor anota esse pedido (você, casa, conta) num caderninho.</p>
+        <div class="callout furo"><b>Furo</b>O caderninho fica só na memória do servidor, que é uma máquina só. Toda vez que o servidor reinicia (foram 42 vezes em 7 dias), ele esquece tudo. Resultado: 351 de 1.106 pedidos de validação da extensão voltaram "não autorizado" nesses 7 dias.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/static/index.html:6385-6404 → app/main.py:3573-3580; caderninho em memória app/captura.py:294 e :318; contagem dos 401 nos logs HTTP de 04/10 a 11/10</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Quero entender esses 42 reinícios em 7 dias: o que foi isso e por que apareceu em vermelho. Parece um ponto que pode ser melhorado.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p><b>O que foi:</b> quase todos são <b>publicações de versão nova do código</b>. No Railway, cada vez que uma versão nova vai ao ar, o servidor é desligado e ligado de novo. Na mesma semana houve 56 publicações e 42 partidas do servidor (algumas publicações foram substituídas antes de subir). O ritmo é alto o ano todo: 340 publicações em junho, 553 em julho, 179 em agosto, 400 em setembro e 71 até 11/10.</p>
+            <p><b>Por que vermelho:</b> o caderninho do pareamento (passo 1) e a caixa de correio com os textos que chegaram (passo 9) ficam só na memória. A cada partida, os dois são apagados. Quem estava no meio de uma captura perde o pareamento, e o que tinha chegado e ainda não fora extraído some. Na semana, 351 de 1.106 validações da extensão voltaram "não autorizado".</p>
+            <small>42 "Starting Container" no log do servidor, 04/10 a 11/10; 56 deploys na mesma janela; deploys por mês: dados\railway_deploys.json (frente F8); memória: app/captura.py:29, 294. Que as partidas vêm das publicações é INFERIDO pela coincidência das contagens. Que os 351 "não autorizado" vêm dos reinícios é INFERIDO; confirmaria cruzar o horário de cada 401 com o horário de cada partida.</small>
+          </div>
+        </div>
+      </div></li>
+      <li class="step" data-a="ext"><div class="num">2</div><div class="body">
+        <div class="who">Extensão</div>
+        <h3>A extensão troca o código por um crachá</h3>
+        <p>A extensão entrega o código de pareamento e recebe de volta um <b>crachá</b> (um token). Com ele, tudo o que ela mandar depois cai direto no seu nome, nessa casa e nessa conta.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:3619-3629</code></details>
+      </div></li>
+    </ol>
+  </div>
+
+  <!-- ATO 2 -->
+  <div class="act" id="ato2">
+    <div class="act-head">
+      <div class="eyebrow">Ato 2</div>
+      <h3 style="font-size:22px">Na casa de apostas</h3>
+      <p>Tudo aqui acontece dentro do seu navegador, na página da casa. O Sharpen ainda não sabe de nada.</p>
+    </div>
+    <ol class="track">
+      <li class="step" data-a="casa"><div class="num">3</div><div class="body">
+        <div class="who">Site da casa</div>
+        <h3>Você abre o histórico de apostas da casa</h3>
+        <p>Para desenhar a tela do histórico, o site da Betano pede ao servidor dele a lista das suas apostas. Essa lista chega como uma <b>ficha organizada</b>: cada aposta com código, valor, odd, situação e data, cada coisa no seu campinho (forma 1 do resumo lá em cima).</p>
+      </div></li>
+      <li class="step" data-a="ext"><div class="num">4</div><div class="body">
+        <div class="who">Extensão · o ouvinte</div>
+        <h3>O ouvinte copia a ficha no caminho</h3>
+        <p>A extensão tem um <b>ouvinte</b> para cada família de casa (são 22 ouvintes, cobrindo 46 casas). Ele fica escutando a conversa entre a página e o servidor da casa e tira uma cópia da ficha quando ela passa. Na Betano, ele escuta o endereço do histórico duas vezes: apostas liquidadas e apostas abertas.</p>
+        <p>Cada casa tem seu jeito. Na Betano o ouvinte só escuta: as páginas seguintes só chegam se a tela rolar. Na Betfair ele mesmo pede página por página. Se a casa não entrega ficha nenhuma, entra o <b>robô de rolagem</b>, que lê o texto que aparece na tela.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>extensor/bn_inject.js:22 (Betano, bet-history-v3?settled=true|false); extensor/bf_inject.js:74-90,169-237 (Betfair pede as páginas); robô de rolagem extensor/content.js:1141-1148, 1687-1723</code></details>
+      </div></li>
+      <li class="step" data-a="ext"><div class="num">5</div><div class="body">
+        <div class="who">Extensão · o robô</div>
+        <h3>O robô junta 30 dias de apostas, abertas e fechadas</h3>
+        <p>O robô reúne <b>todas</b> as apostas dos últimos 30 dias (é o padrão; dá para mudar). Ele não tem memória: não sabe quais apostas já mandou ontem ou uma hora atrás. Só para antes se você preencher um código de parada.</p>
+        <div class="callout furo"><b>Furo</b>Se você captura a mesma casa duas vezes no mesmo dia, as mesmas apostas viajam de novo. Quem tenta evitar pagar de novo é o porteiro, lá no passo 13.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>extensor/content.js:1093-1095; padrão de 30 dias extensor/popup.js:554 (lookbackDias || 30)</code></details>
+      </div></li>
+      <li class="step" data-a="ext"><div class="num">6</div><div class="body">
+        <div class="who">Extensão · o redator</div>
+        <h3>O redator transforma cada ficha em texto</h3>
+        <p>Aqui acontece a primeira grande virada: a ficha organizada vira <b>texto corrido</b>. Cada aposta vira um bloco que começa com <span class="mono">[Código: …]</span> e segue com linhas como <span class="mono">Stake:</span>, <span class="mono">Status:</span>, <span class="mono">Odd total:</span> (forma 2 do resumo).</p>
+        <p>Na Betano o tipo de aposta ("Ambas as equipes marcam") vai <b>colado</b> na mesma linha da escolha ("Sim"). E a "Data" que entra no bloco da Betano é a hora em que você <b>apostou</b>, não a hora do jogo. Em outras casas a "Data" quer dizer outra coisa: na Betfair é quando a aposta foi liquidada.</p>
+        <div class="callout furo"><b>Furo</b>O valor, a odd e o código já estavam certinhos na ficha. Depois de virar texto, alguém vai ter que ler tudo de novo para tirar de volta: primeiro a IA, depois os fiscais. Nas 11 casas com mercado colado estão 81% das apostas criadas de agosto a outubro.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>Betano vira texto: extensor/content.js:1988-2097 ([Código: na linha 2007, data PlacedAt :2008, mercado colado :2082); Betfair usa a data de liquidação :2111</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Pelo que entendi, transformar em texto não tem custo: faz parte da extensão. Então essa parte poderia entregar em tabela em vez de texto, e aí a gente poderia ter uma redução muito grande do uso da IA. O jeito de capturar é específico de cada casa.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Correto: o redator roda no seu navegador e não custa nada. Cada casa tem o seu redator escrito à mão dentro da extensão (são formatadores separados para as 46 casas com captura automática), e cada um escolhe as linhas, os rótulos e até o que "Data" quer dizer.</p>
+            <small>Formatadores por casa em extensor/content.js (ex.: Betano :1988, Betfair :2100, Superbet :1806, BetConstruct :5193, Altenar :5655); 22 ouvintes para 46 casas (frente F6)</small>
+          </div>
+        </div>
+      </div></li>
+      <li class="step" data-a="ext"><div class="num">7</div><div class="body">
+        <div class="who">Extensão · o carteiro</div>
+        <h3>O carteiro leva tudo numa única entrega</h3>
+        <p>Todos os blocos são grudados num texto só, um embaixo do outro. O <b>carteiro</b> da extensão leva esse texto ao servidor do Sharpen numa entrega só, mostrando o crachá do passo 2.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>extensor/content.js:1660-1664; extensor/background.js:139-170 (POST /captura/enviar)</code></details>
+      </div></li>
+    </ol>
+  </div>
+
+  <!-- ATO 3 -->
+  <div class="act" id="ato3">
+    <div class="act-head">
+      <div class="eyebrow">Ato 3</div>
+      <h3 style="font-size:22px">Chegada no Sharpen</h3>
+      <p>O texto chega ao servidor. Ainda não passou por IA nenhuma: só é conferido e guardado à espera de você.</p>
+    </div>
+    <ol class="track">
+      <li class="step" data-a="srv"><div class="num">8</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>O servidor confere se a entrega faz sentido</h3>
+        <p>Duas perguntas: essa entrega veio mesmo do site da casa que você escolheu? E a maioria desses códigos de aposta já não pertence a <b>outra</b> conta sua? Se sim, ele trava com o aviso de "conta errada", para não misturar contas.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:3725-3738 (site × casa), 3743 e 3670-3703 (trava de conta errada)</code></details>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">9</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>O texto vai para uma caixa de correio</h3>
+        <p>O texto fica guardado numa <b>caixa de correio</b> na memória do servidor, que cabe até 60 entregas. Ele espera ali até a sua tela vir buscar.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/captura.py:29, 388-402</code></details>
+      </div></li>
+      <li class="step" data-a="voce"><div class="num">10</div><div class="body">
+        <div class="who">Tela do Sharpen</div>
+        <h3>A tela pergunta "chegou?" a cada 2,5 segundos</h3>
+        <p>Enquanto você está na casa, a tela do Planilhador fica perguntando ao servidor, a cada 2,5 segundos: "chegou alguma coisa?". Quando chega, ela cola o texto inteiro na caixa de texto da tela, como se você mesmo tivesse colado.</p>
+        <div class="callout obs"><b>Curiosidade</b>Essas perguntas são 42% de todo o tráfego do site: 26.182 de 62.085 acessos em 7 dias.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/static/index.html:6404 (intervalo de 2,5 s), 6434-6443 (cola o texto); contagem nos logs HTTP de 04/10 a 11/10</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>42% do tráfego perguntando se chegou. A extensão já sabe a hora em que copiou e mandou. Não vejo por que ficar perguntando; parece tráfego à toa. Nem sei se esse tráfego tem custo.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Cada pergunta é rápida (2 a 8 milésimos de segundo) e a resposta é quase sempre "nada ainda". O custo em dinheiro tende a ser pequeno, porque o Railway cobra por processamento, memória e rede usados, mas não dá para medir sem a fatura.</p>
+            <p>Um fato do código: o Sharpen já tem um canal de aviso em tempo real, em que o servidor avisa a tela sem ela perguntar. Hoje ele é usado para avisar o Dashboard quando a base muda, e não para a captura.</p>
+            <small>Tempos de 2 a 8 ms nos logs HTTP de 11/10; canal de aviso: app/eventos.py:54-71, gatilho no banco app/database.py:533-543. Custo em dinheiro: NÃO VERIFICÁVEL; resolveria a tela de uso (Usage) do Railway do projeto victorious-generosity.</small>
+          </div>
+          <div class="voz"><span>Você disse (2ª gravação)</span>Sinceramente, o Railway é um custo irrelevante. Vejo isso depois. O foco aqui é reduzir o custo de inteligência artificial; esse é o nosso objetivo principal.</div>
+          <div class="resp"><span>Registrado</span>O custo do Railway fica fora deste documento, por decisão sua. O objetivo declarado da revisão é reduzir o custo de IA.</div>
+        </div>
+      </div></li>
+    </ol>
+  </div>
+
+  <!-- ATO 4 -->
+  <div class="act" id="ato4">
+    <div class="act-head">
+      <div class="eyebrow">Ato 4</div>
+      <h3 style="font-size:22px">O clique em Extrair</h3>
+      <p>Esta é a parte cara. É aqui que a IA entra e que o dinheiro é gasto.</p>
+    </div>
+    <ol class="track">
+      <li class="step" data-a="voce"><div class="num">11</div><div class="body">
+        <div class="who">Você</div>
+        <h3>Você clica "Extrair"</h3>
+        <p>Nada dispara sozinho. O texto fica parado na caixa até você clicar em <b>Extrair</b>. Só então a tela manda o texto de volta ao servidor, agora pedindo: "transforma isso em planilha".</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/static/index.html:7272-7291 → fetch('/extrair') na linha 7042; nenhum clique automático no arquivo</code></details>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">12</div><div class="body">
+        <div class="who">Servidor · a tesoura</div>
+        <h3>A tesoura do histórico (quase sempre não faz nada)</h3>
+        <p>Existe uma tesoura que corta apostas antigas, mas ela só está ligada para 2 combinações escritas à mão: Feca na Betbra e Feca na Bolsa de Aposta. Para todo o resto, o texto passa inteiro.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:979-990, 3917-3923</code></details>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">13</div><div class="body">
+        <div class="who">Servidor · o porteiro</div>
+        <h3>O porteiro barra o que já conhece</h3>
+        <p>Para cada aposta, o porteiro pega o código e pergunta ao banco duas coisas:</p>
+        <p>1. "Essa aposta já está <b>fechada</b> nesta conta?" Se sim, barra: aposta fechada não muda mais.<br>2. "Esse bloco é <b>idêntico, letra por letra</b>, ao que eu li da última vez, e a aposta já está salva?" Se sim, barra: nada mudou.</p>
+        <p>Quem passa segue para a IA. Se ninguém passar, ele nem chama a IA e responde "nada novo".</p>
+        <div class="callout furo"><b>Furo</b>O porteiro escreve o código em LETRAS MAIÚSCULAS antes de perguntar, mas o banco guardou o código do jeito que veio. Na Shuffle e na DEX Sport os códigos têm letras minúsculas, então o porteiro <b>nunca reconhece ninguém</b> nessas duas casas e tudo vai para a IA de novo. Ele também deixa passar: entrega com uma aposta só; extração anterior que você ainda não salvou; e bloco que mudou só de idioma (a DEX alterna o idioma entre capturas).</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:1099-1160 (maiúsculas em :1127); busca exata no banco app/repository.py:5651-5654 e 5858-5863; lote de 1 bloco app/main.py:1121-1122; 246 de 246 códigos DEX e 74 de 74 Shuffle com minúscula (consulta ao banco, 11/10)</code></details>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">14</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>Monta o manual que a IA vai ler</h3>
+        <p>A IA não sabe nada de apostas sozinha. Antes de cada leitura ela recebe um <b>manual</b>: 6 manuais gerais (como escrever data, esporte, categoria, descrição, resultado...) mais o manual daquela casa (o da Betano). Esse manual fica guardado por 1 hora num "cache", para sair mais barato nas leituras seguintes.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/prompts.py:47-78; ordem dos manuais app/config.py:135-142; arquivos global/MASTER_*.md e casas/CASA_*.md</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Por que o cache dura uma hora e não para sempre, até o arquivo mudar? Nem lembro dos últimos commits nos manuais gerais; em teoria é o mesmo arquivo. O Sharpen deve ter lido o mesmo livro de 150 páginas dezenas de milhares de vezes. Eu me vejo queimando dinheiro.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p><b>Uma hora é o teto da Anthropic.</b> Não existe opção "para sempre". Cada uso renova o prazo, e o Sharpen já tem um aquecedor que relê o manual a cada 55 minutos para ele não esfriar. Na prática, 93% de tudo que entra na IA já vem do cache.</p>
+            <p><b>Quantas vezes:</b> 17.843 pedaços desde 05/07, cada um com o manual inteiro, mais as repescagens e os aquecimentos. Sua estimativa está perto.</p>
+            <p><b>Quanto isso pesa:</b> ler do cache custa 10% do preço. Num pedaço típico do Sonnet 5, ler o manual sai por cerca de US$ 0,015, e a IA escrever e pensar sai por cerca de US$ 0,06, quatro vezes mais. O manual repetido é real, mas hoje a conta maior está na escrita (ver "Quatro respostas", item 2).</p>
+            <p><b>Mudanças nos manuais:</b> os 6 gerais mudaram 4 vezes desde 01/09 (último hoje, 11:26); os de casa, 36 vezes.</p>
+          </div>
+          <div class="voz"><span>Você disse (2ª gravação)</span>Se o cache é relido para aquecer a cada 55 minutos desde 05/07, deveriam ser umas 2.566 leituras, não 17.843. Parece uma discrepância grande.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Sua conta está certa para o aquecedor, e os dois números medem coisas diferentes. O aquecedor a cada 55 minutos começou em 25/08 (antes havia outro ritmo), então são no máximo cerca de 1.230 aquecimentos. Os 17.843 são as leituras feitas pelas extrações de verdade: cada pedaço manda o manual inteiro para a IA, que o lê do cache. O total de leituras do livro é a soma das duas, cerca de 19 mil.</p>
+            <small>Aquecedor a 55 min: commit 667a45a de 25/08/2026 ("cache com TTL de 1h + aquecedor a cada 55min"), app/main.py:461; o primeiro aquecedor é de 20/06 (commit 36d185a); pedaços: SELECT sum(chunks) FROM uso_tokens = 17.843 (05/07 a 11/10). Os ~1.230 são o teto teórico: cada reinício do servidor zera o relógio do aquecedor (INFERIDO).</small>
+            <small>app/prompts.py:28-44 (prazo de 1 h e o motivo); aquecedor app/main.py:455-461, 554-573; 93,4% da entrada vinda do cache em 575 extrações desde 21/09 (frente F3, Q27); uso_tokens: 17.843 pedaços; preço por pedaço = 73 mil tokens × US$ 0,20/milhão e 6.103 tokens × US$ 10/milhão (INFERIDO a partir das médias); git log -- global e -- casas</small>
+          </div>
+        </div>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">15</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>Fatia as apostas em pedaços de até 6</h3>
+        <p>As apostas que passaram pelo porteiro são divididas em pedaços de no máximo 6. Se forem 4 apostas ou mais, sempre vira pelo menos 4 pedaços (para a resposta sair mais rápido). Exemplo: 40 apostas viram 7 pedaços; 2 apostas viram 2 pedaços de 1.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:1246-1316 (até 6 por pedaço na linha 156, mínimo de 4 pedaços na linha 126)</code></details>
+      </div></li>
+      <li class="step" data-a="ia"><div class="num">16</div><div class="body">
+        <div class="who">IA · Claude Sonnet 5</div>
+        <h3>A IA lê cada pedaço e escreve a tabela</h3>
+        <p>Cada pedaço vai para a IA, até 8 ao mesmo tempo. Cada envio leva <b>o manual inteiro</b> + as apostas do pedaço + uma instrução. A IA devolve uma tabela em texto, uma linha por aposta (forma 3 do resumo).</p>
+        <p>A IA é a única que decide o <b>esporte</b>, a <b>categoria</b>, a <b>descrição</b> e, quase sempre, a <b>data</b>. Valor, odd, resultado e código ela também escreve, mas os fiscais conferem depois.</p>
+        <div>
+          <p style="font-size:14px"><b>O que vai em cada envio à IA</b> (pedaço de 6 apostas da Shuffle, medido):</p>
+          <div class="tokbar" role="img" aria-label="76.396 tokens: manuais gerais 63.907, manual da casa 6.817, instrução 2.694, apostas 2.971">
+            <div style="width:83.65%;background:var(--c-ia)"></div>
+            <div style="width:8.92%;background:color-mix(in srgb, var(--c-ia) 55%, var(--bg))"></div>
+            <div style="width:3.53%;background:var(--ink-mute)"></div>
+            <div style="width:3.89%;background:var(--c-db)"></div>
+          </div>
+          <div class="tok-legend">
+            <span><i style="background:var(--c-ia)"></i>6 manuais gerais <b>63.907</b></span>
+            <span><i style="background:color-mix(in srgb, var(--c-ia) 55%, var(--bg))"></i>manual da casa <b>6.817</b></span>
+            <span><i style="background:var(--ink-mute)"></i>instrução <b>2.694</b></span>
+            <span><i style="background:var(--c-db)"></i>as 6 apostas <b>2.971</b></span>
+          </div>
+        </div>
+        <div class="callout furo"><b>Furo</b>São cerca de 76 mil "tokens" por envio (algo como um livro de 150 páginas), e <b>96% disso é manual repetido</b>. As apostas são só 4%. Um pedaço com 1 aposta custa quase o mesmo que um pedaço com 6.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:2068-2156 (chamada na linha 2113); instrução app/main.py:1165-1241; medição com count_tokens: 76.396 tokens; mediana real de 81.082 por pedaço em 575 extrações desde 21/09</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Essa é a grande pergunta: o que já foi extraído poderia ser uma tabela com 90 a 95% do que a gente precisa gravar. O que tanto a IA faz? No que exatamente ela é usada que já não estaria pronto na casa? E escalando para centenas de apostas por dia por usuário, isso fica uma loucura.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Das 11 colunas que a IA escreve, 6 são sobrescritas pelo código depois (valor, odd, resultado, código, casa, conta). Ficam com ela: <b>data</b> (qual data usar e o formato), <b>esporte</b>, <b>categoria</b> e <b>descrição</b>. Em todas, o trabalho é traduzir o vocabulário da casa para o padrão dos manuais do Sharpen. Os seus 90 a 95% batem com a contagem de colunas, mas essas 4 são justamente as que os manuais regulam.</p>
+            <p>Sobre escala: o custo cresce com o número de <b>pedaços</b>, e não com o número de apostas, porque cada pedaço leva o manual e uma resposta inteira. Hoje, 2 apostas viram 2 pedaços; 40 apostas viram 7.</p>
+            <small>Sobrescritas: app/repository.py:717, :1241; app/main.py:4100-4123. Decisões só da IA: frente F3, passo 1.14. Pedaços: app/main.py:1306-1316</small>
+          </div>
+          <div class="voz"><span>Você disse (2ª gravação)</span>Me dá mais detalhe do passo 16, porque talvez aí esteja o grande vazamento de custo. Uma casa manda "Ambas marcam", outra "Os dois times marcam", outra "Os dois fazem gol", e a gente gasta para colocar tudo no mesmo padrão. É muito legal ter um padrão para tudo, mas a que preço? Pode ser um ralo de dinheiro sem tamanho. E no fim, eu e os apostadores mais próximos mal lemos essas descrições. Quanto custa esse padrão?</div>
+          <div class="resp"><span>Resposta com prova: o que a casa manda e o que a IA devolve</span>
+            <p>Três casos reais de setembro (só a parte do mercado; valores e donos omitidos). A coluna da esquerda é o que o redator da extensão escreveu a partir da ficha da casa; a da direita é o que a IA devolveu.</p>
+            <div class="tsv"><table>
+              <tr><th>Casa</th><th>O que a casa manda (no bloco)</th><th>Esporte</th><th>Categoria</th><th>Descrição da IA</th></tr>
+              <tr><td>Pinnacle</td><td>Esporte (casa): Basketball · Europa - Euroliga<br>Fenerbahce -8,5 · Fenerbahce v Virtus Bologna</td><td class="ia">Basquete</td><td class="ia">Handicap</td><td class="ia">Fenerbahce -8.5 [Fenerbahce v Virtus Bologna]</td></tr>
+              <tr><td>Betfair</td><td>Esporte (casa): MMA/UFC · UFC Matches<br>Alonzo Menifield x Iwo Baraniewski · Cotações Aumentadas · Iwo Baraniewski vence por KO/TKO no Round 1</td><td class="ia">MMA</td><td class="ia">ML</td><td class="ia">Iwo Baraniewski - Vence por KO/TKO no Round 1 [Alonzo Menifield v Iwo Baraniewski]</td></tr>
+              <tr><td>Betano</td><td>Beisebol · Seattle Mariners - Houston Astros · [Yainer Diaz] Simples · Menos de 0.5</td><td class="ia">(múltipla)</td><td class="ia">Múltipla</td><td class="ia">Yainer Diaz - Under 0.5 Simples [Seattle Mariners v Houston Astros]</td></tr>
+            </table></div>
+            <p>O que a IA faz: traduz o esporte da casa ("Basketball" vira "Basquete"), escolhe uma categoria da lista do Sharpen ("Handicap", "ML") e reescreve a descrição na ordem e no formato do manual ("Menos de" vira "Under", jogo entre colchetes, ponto decimal). A informação já estava no bloco; o que muda é a forma.</p>
+            <p><b>Quanto do manual existe só para isso:</b> dos 63.907 tokens dos 6 manuais gerais, <b>46.482 (73%)</b> são os três manuais do padrão. Os manuais de casa também têm regras do padrão (o da Bet365 tem 16.107 tokens).</p>
+            <div class="tokbar" role="img" aria-label="Manuais gerais: Esportes 22.154, Apostas 14.192, Descrição 10.136, Resultado 8.225, Formato 5.468, Pipeline 3.732">
+              <div style="width:34.67%;background:var(--c-ia)"></div>
+              <div style="width:22.21%;background:color-mix(in srgb, var(--c-ia) 75%, var(--bg))"></div>
+              <div style="width:15.86%;background:color-mix(in srgb, var(--c-ia) 50%, var(--bg))"></div>
+              <div style="width:12.87%;background:var(--c-db)"></div>
+              <div style="width:8.56%;background:var(--ink-mute)"></div>
+              <div style="width:5.84%;background:color-mix(in srgb, var(--ink-mute) 55%, var(--bg))"></div>
+            </div>
+            <div class="tok-legend">
+              <span><i style="background:var(--c-ia)"></i>Esportes <b>22.154</b></span>
+              <span><i style="background:color-mix(in srgb, var(--c-ia) 75%, var(--bg))"></i>Apostas (categorias) <b>14.192</b></span>
+              <span><i style="background:color-mix(in srgb, var(--c-ia) 50%, var(--bg))"></i>Descrição <b>10.136</b></span>
+              <span><i style="background:var(--c-db)"></i>Resultado <b>8.225</b></span>
+              <span><i style="background:var(--ink-mute)"></i>Formato da tabela <b>5.468</b></span>
+              <span><i style="background:color-mix(in srgb, var(--ink-mute) 55%, var(--bg))"></i>Pipeline <b>3.732</b></span>
+            </div>
+            <p><b>Quanto custa, no que dá para medir:</b></p>
+            <p>1. <b>Leitura do manual do padrão.</b> Os 46.482 tokens são cerca de 61% de toda a entrada de cada pedaço. Desde a troca para o Sonnet 5, a entrada custou US$ 81,01, então a parte do padrão fica em torno de <b>US$ 49 em 20 dias</b>.</p>
+            <p>2. <b>Escrita da descrição em si.</b> É pequena: em média 109 caracteres por aposta (cerca de 35 tokens), contra um bloco de 478.</p>
+            <p>3. <b>O "pensamento" da IA.</b> É a maior linha da conta (cerca de 5,6 mil dos 6,1 mil tokens escritos por pedaço). Não dá para separar quanto dele é gasto decidindo esporte, categoria e descrição e quanto é gasto com os números.</p>
+            <p>4. <b>Chamadas extras só pela descrição.</b> O fiscal 4 (passo 18) chama a IA de novo quando a descrição tem um nome ou número que não está no bloco. Essas repescagens existem apenas por causa da descrição.</p>
+            <small>Exemplos: sombra_rotulos (bloco cru + esporte, categoria e descrição da IA), consulta só leitura de 11/10, linhas de 21/09 a 29/09. Tokens por manual: scripts\REV_tokens_masters.py (count_tokens, gratuito, modelo claude-sonnet-5). Custo da entrada desde o Sonnet 5: 12,65 mi × US$ 2 + 233,37 mi × US$ 0,20 + 2,26 mi × US$ 4 = US$ 81,01; a fatia de 61% é INFERIDA pela proporção de tokens. Tamanho médio de descrição e bloco: 12.725 linhas de sombra_rotulos desde 21/09. Pensamento: NÃO VERIFICÁVEL por função; resolveria registrar o detalhamento de uso de uma resposta real. Repescagem de descrição: app/main.py:1732-1787.</small>
+          </div>
+        </div>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">17</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>Junta as respostas na ordem certa</h3>
+        <p>As respostas dos pedaços chegam em tempos diferentes. O servidor costura tudo numa tabela só, na ordem (em algumas casas ele inverte a ordem).</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:2183-2212</code></details>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">18</div><div class="body">
+        <div class="who">Servidor · os fiscais</div>
+        <h3>Os fiscais conferem o que a IA escreveu</h3>
+        <p>São 8 conferentes automáticos (sem IA). Cada um relê o <b>texto original</b> do passo 6 e corrige um tipo de erro da IA. Dois deles, quando acham problema, chamam a IA de novo (borda roxa).</p>
+        <div class="fiscais">
+          <div><i>1</i>Código cortado pela metade: troca pelo código real mais parecido.</div>
+          <div><i>2</i>Código inventado, que não existe no texto: adota o certo ou apaga.</div>
+          <div class="chama"><i>3</i>Aposta que sumiu na resposta: <b>pede à IA de novo</b> só as que faltaram.</div>
+          <div class="chama"><i>4</i>Descrição com nome ou número que não está no bloco: <b>pergunta à IA de novo</b>.</div>
+          <div><i>5</i>Datas da Betfair pelo extrato (só um caso antigo).</div>
+          <div><i>6</i>Valor apostado lido do bloco; odd e resultado conferidos pelo retorno.</div>
+          <div><i>7</i>Data da múltipla perdida = início do jogo que perdeu.</div>
+          <div><i>8</i>Coluna extra de "aposta sistema" (ex.: 3x Duplas).</div>
+        </div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:2215-2267; 1: repository.py:1241-1299; 2: main.py:1422-1506; 3: main.py:1606-1673 e 1509-1603; 4: main.py:1732-1787; 5: main.py:1790-1834; 6: repository.py:717; 7: repository.py:845; 8: repository.py:457</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Os fiscais parecem bons. Mas, olhando por cima, eles poderiam conferir não o que a IA escreveu, e sim o que foi extraído lá atrás, antes de virar texto, e só pedir ajuda à IA no que não foi resolvido.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Registrado como hipótese sua para a Fase 3. O fato de hoje: os fiscais não têm acesso à ficha da casa, porque ela não chega ao servidor. Eles reconstroem com regras de texto o que a ficha já tinha (valor, odd, retorno, código) e, em 2 dos 8 casos, chamam a IA de novo.</p>
+            <small>Só texto chega ao servidor: extensor/content.js:1660-1664; fiscais releem o texto: app/repository.py:717, :845, :1241; chamadas extras à IA: app/main.py:1385-1414 (repescagem)</small>
+          </div>
+        </div>
+      </div></li>
+      <li class="step" data-a="ia"><div class="num">19</div><div class="body">
+        <div class="who">Servidor + IA gêmea (Haiku)</div>
+        <h3>Nos bastidores: anotações e o gêmeo-sombra</h3>
+        <p>Sem você ver, o servidor faz quatro coisas: anota quanto custou; guarda uma cópia do que foi lido (para treino); anota a "impressão digital" de cada bloco, que o porteiro do passo 13 vai usar da próxima vez; e chama o <b>gêmeo-sombra</b>.</p>
+        <p>O gêmeo-sombra é outra IA (Claude Haiku), que faz <b>a mesma leitura inteira de novo</b>, só para comparar. O resultado dele é guardado numa gaveta que nenhuma parte do sistema abre.</p>
+        <div class="callout furo"><b>Furo</b>Desde 23/09, toda extração é paga duas vezes. Nenhuma configuração liga o gêmeo: ele está ligado porque esse é o padrão escrito no código. Custo do gêmeo até agora: US$ 34,93 em 18 dias.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:2268-2275 (bastidores), 487-494 (padrão Haiku a 100%), 519 (chamada do gêmeo); variáveis SOMBRA_MODELO e SOMBRA_MODELO_PCT ausentes no Railway; gaveta sombra_modelo só recebe gravação (repository.py:6006, 6015)</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Fui eu que criei a sombra do Haiku em 23/09, para testar se ele faz o mesmo trabalho do Sonnet; se fizesse, a gente trocava, porque é mais barato. Rodar em paralelo foi escolha. Não vou desligar ainda, sei que está ligada, só preciso ver o que ela fez e comparar. Mas pelo que vimos até aqui, a redução de custo não passa pela escolha do modelo, Sonnet ou Haiku: o processo é que parece errado. Dá para ganhar muita velocidade e muita economia.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Registrado: a sombra é um experimento intencional, decidido por você, e continua ligada por decisão sua. O próprio código registra essa decisão. Até hoje: 414 leituras do Haiku, US$ 34,93. O comentário no código estimava US$ 150 a 200 por mês; o ritmo medido é menor (cerca de US$ 58 por mês).</p>
+            <p>Um detalhe para a comparação: nada no sistema lê a gaveta da sombra. A comparação vai precisar ser feita à parte.</p>
+            <small>Decisão registrada em app/main.py:466-467 (s383); estimativa no comentário :481; banco: SELECT count(*), sum(custo_usd) FROM sombra_modelo = 414 e US$ 34,93 desde 23/09 (18 dias, ritmo INFERIDO)</small>
+          </div>
+          <div class="voz"><span>Você disse (2ª gravação)</span>Quero saber se o Haiku entrega a mesma coisa que o Sonnet. A única coisa que não pode errar é número: odd, stake e resultado têm que ser 100% iguais. Se ele entregar uma palavra diferente na descrição, não importa nada; se for mais barato, ele está dentro. O Sharpen é um sistema financeiro das apostas e não pode errar no valor, na odd, na stake. Na descrição, não importa.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p><b>A sombra hoje não mede o que você definiu como critério.</b> O "placar" que o sistema grava para o Haiku confere apenas: se cada aposta voltou com código, se ele inventou código, se a tabela veio com colunas faltando, e se a <b>descrição</b> segue o manual e é fiel ao bloco. Ele <b>não compara odd, stake nem resultado</b>, nem com o Sonnet nem com o bloco. E a tabela que o Haiku escreveu é descartada depois do placar, então não dá para fazer essa comparação depois com o que está guardado.</p>
+            <p>O placar acumulado do Haiku, em 414 extrações e 8.367 apostas:</p>
+            <div class="tsv"><table>
+              <tr><th>O que o placar confere</th><th>Ocorrências</th><th>Sobre</th></tr>
+              <tr><td>Aposta que voltou sem código</td><td>507</td><td>8.367 apostas (6,1%)</td></tr>
+              <tr><td>Código inventado</td><td>241</td><td>8.640 linhas (2,8%)</td></tr>
+              <tr><td>Linha com coluna faltando</td><td>434</td><td>8.640 linhas (5,0%)</td></tr>
+              <tr><td>Descrição fora do manual</td><td>1.794</td><td>8.632 descrições (20,8%)</td></tr>
+              <tr><td>Descrição com nome ou número que não está no bloco</td><td>670</td><td>8.632 descrições (7,8%)</td></tr>
+              <tr><td>Odd, stake ou resultado diferentes</td><td colspan="2">não medido</td></tr>
+            </table></div>
+            <p>Não há placar equivalente guardado para o Sonnet, então nem esses números têm com o que ser comparados.</p>
+            <small>Placar: app/repository.py:5928-5976 (pontuar_saida; confere código, colunas e descrição); a sombra só extrai a tabela para pontuar: app/main.py:531-546; colunas de sombra_modelo sem odd, stake ou resultado (information_schema); totais: SELECT sum(...) FROM sombra_modelo, só leitura, 11/10. Que o titular não tem placar gravado: uso_tokens não tem essas colunas (frente F4).</small>
+          </div>
+        </div>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">20</div><div class="body">
+        <div class="who">Servidor → tela</div>
+        <h3>A tabela aparece na sua tela</h3>
+        <p>A tabela pronta volta para a tela do Planilhador. Neste momento <b>nada foi guardado ainda</b>: a aposta só existe na sua tela.</p>
+        <div class="callout obs"><b>Quanto tempo leva</b>A menor extração medida (6 apostas, 3 pedaços) levou 62 segundos. Uma da Shuffle com 63 apostas levou 190 segundos do clique até salvar.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:2276; tempos pelos logs do servidor de 11/10 (16:01:50 → 16:02:52 e 17:02:56 → 17:06:06)</code></details>
+      </div></li>
+    </ol>
+  </div>
+
+  <!-- ATO 5 -->
+  <div class="act" id="ato5">
+    <div class="act-head">
+      <div class="eyebrow">Ato 5</div>
+      <h3 style="font-size:22px">Salvar</h3>
+      <p>A tabela vira registro guardado. É a partir daqui que ela aparece no Dashboard.</p>
+    </div>
+    <ol class="track">
+      <li class="step" data-a="voce"><div class="num">21</div><div class="body">
+        <div class="who">Você</div>
+        <h3>Você clica "Salvar"</h3>
+        <p>A tela manda a tabela para o servidor, junto com a conta escolhida.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/static/index.html:7096-7120 (POST /salvar)</code></details>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">22</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>A tabela volta a ser ficha</h3>
+        <p>O servidor lê a tabela linha por linha e separa cada coluna num campinho (forma 4 do resumo). É a terceira vez que alguém lê essa aposta: a IA, os fiscais e agora este leitor.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:4093; app/repository.py:377-418</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Aqui também parece ter uma redundância muito grande no mesmo processo: é a terceira vez que alguém lê essa aposta.</div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Confirmado pela contagem: a aposta é escrita uma vez como texto (passo 6) e lida três vezes (IA no passo 16, fiscais no 18, leitor do Salvar aqui). No meio do caminho, a tabela ainda vai do servidor para a sua tela e volta (passos 20 e 21).</p>
+            <small>Passo 6: extensor/content.js:1988-2097; passo 16: app/main.py:2113; passo 18: app/main.py:2215-2267; passo 22: app/repository.py:377-418; ida e volta da tela: app/main.py:2276 e app/static/index.html:7096-7120</small>
+          </div>
+        </div>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">23</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>Troca casa e conta pelas oficiais</h3>
+        <p>O que a IA escreveu em "Casa" e "Parceiro" é jogado fora: valem a casa e a conta que você escolheu no passo 1. O campo de tipster é zerado.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:4100-4123</code></details>
+      </div></li>
+      <li class="step" data-a="srv"><div class="num">24</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>Última checagem e câmbio</h3>
+        <p>Recusa linha com valor ou odd zerados, resultado fora da lista (W, L, V, meia vitória, meia derrota) ou data inválida. Se a conta for em outra moeda, converte.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:4141-4170; app/repository.py:1302-1335</code></details>
+      </div></li>
+      <li class="step" data-a="db"><div class="num">25</div><div class="body">
+        <div class="who">Servidor · o arquivista → banco</div>
+        <h3>O arquivista guarda na gaveta</h3>
+        <p>Cada aposta ganha uma <b>impressão digital</b>. Se ela tem código, a impressão é feita de dono + casa + conta + código. Se não tem código, é feita de uma mistura de data, tipo de aposta, descrição, valor e odd.</p>
+        <p>Se já existe uma aposta com a mesma impressão, ele <b>atualiza</b> (é assim que uma aposta aberta vira ganha ou perdida). Se a aposta já estava fechada, ele não deixa mudar odd, data e valor.</p>
+        <div class="callout furo"><b>Furo</b>Valor e odd vão para a gaveta como <b>texto com vírgula</b> ("50,00"), e a data como texto "05/10/2026" no horário de Brasília. Todo cálculo depois precisa reler esse texto. E 104.744 apostas não têm código; para elas, qualquer mudança de descrição ou odd gera outra impressão digital.</div>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:4182-4187 → app/repository.py:1549-2044; impressão digital repository.py:1443-1461; chave única :1848; congelamento :1866-1914; formatos medidos no banco em 11/10</code></details>
+        <div class="rev">
+          <div class="voz"><span>Você disse</span>Essas 104.744 sem código devem ser das bases que os usuários tinham antes de usar o Sharpen, então obviamente não têm essa impressão. A partir do momento em que ele começa a usar, tudo passa a ser configurado corretamente. Mas isso é algo que a gente nunca vai conseguir reduzir, porque o usuário, para aceitar e querer usar... <i>(a gravação parou aqui)</i></div>
+          <div class="resp"><span>Resposta com prova</span>
+            <p>Confirmado. Das 104.744: <b>74.446</b> vieram de planilhas antigas importadas por script; <b>27.708</b> são da base de demonstração <span class="mono">realtrial</span> (e são exatamente as gravadas com código "vazio" em vez de "nulo"); <b>2.541</b> são de extrações antigas; <b>49</b> manuais. Desde 01/09, só 221 de 37.635 apostas extraídas ficaram sem código (0,6%).</p>
+            <small>Banco (só leitura, 11/10): bilhetes por origem com codigo_bilhete nulo ou vazio; texto vazio = 27.708 (frente F4)</small>
+          </div>
+          <div class="voz"><span>Você disse (2ª gravação)</span>...para aceitar e querer usar o Sharpen, ele vai querer trazer a base de apostas dele de algum lugar. Importar e deixar essa base lá é uma necessidade. É como um arquivo morto: não segue o padrão de extração e organização do Sharpen, mas tem valor financeiro para o usuário, que passa a ter a base dele ali e, a partir daí, tudo entra no nosso padrão. A base antiga vai ser sempre assim; não tem muito o que fazer.</div>
+          <div class="resp"><span>Registrado</span>Requisito de produto declarado: a importação da base antiga do usuário é necessária, e essa base fica como histórico fora do padrão. Os números confirmam que o padrão vale para o que entra depois: 0,6% das apostas extraídas desde 01/09 ficaram sem código.</div>
+        </div>
+      </div></li>
+      <li class="step" data-a="db"><div class="num">26</div><div class="body">
+        <div class="who">Servidor</div>
+        <h3>Arruma a vitrine</h3>
+        <p>Na tela de extração ficam visíveis só as 40 apostas mais recentes daquela conta. As outras são arquivadas (continuam no banco e no Dashboard). A viagem termina aqui.</p>
+        <details class="prova"><summary>Onde isso está no código</summary><code>app/main.py:4199-4207; app/repository.py:2106-2111</code></details>
+        <div class="rev"><div class="voz"><span>Você disse (2ª gravação)</span>Arruma a vitrine, fica visível só para ele. Sem observação.</div></div>
+      </div></li>
+    </ol>
+  </div>
+</section>
+
+<section aria-labelledby="recaptura">
+  <div class="eyebrow">E se eu capturar de novo?</div>
+  <h2 id="recaptura">10h: 40 apostas. 11h: só 2 mudaram.</h2>
+  <p class="lead" style="margin-top:10px">Às 10h você captura uma casa com 40 apostas. Às 11h captura de novo, e só 2 delas mudaram (foram liquidadas). Veja o que acontece numa casa normal e o que acontece na Shuffle.</p>
+  <div class="recap">
+    <div class="panel">
+      <h3>Casa normal (ex.: Betano)</h3>
+      <div class="dots" aria-label="40 apostas: 38 barradas pelo porteiro, 2 passam">
+        <i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i>
+        <i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i>
+        <i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i>
+        <i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i></i><i></i>
+      </div>
+      <div class="legend-row"><span><i style="background:var(--surface-2);border:1px solid var(--line)"></i>barrada pelo porteiro</span><span><i style="background:var(--accent)"></i>vai à IA</span></div>
+      <div class="bignum">
+        <div><b>40</b><small>a extensão manda</small></div>
+        <div><b>40</b><small>o porteiro confere</small></div>
+        <div><b>2</b><small>vão à IA</small></div>
+        <div><b>4</b><small>envios pagos</small></div>
+      </div>
+      <p>As 2 apostas viram 2 pedaços de 1, cada um com o manual inteiro, e o gêmeo-sombra repete os 2. São cerca de 290 mil tokens para atualizar 2 apostas, em mais ou menos 1 minuto.</p>
+    </div>
+    <div class="panel">
+      <h3>Shuffle (caso real, Feca, 11/10 17:06)</h3>
+      <div class="dots" aria-label="63 apostas foram à IA: 60 já estavam fechadas, 2 abertas, 1 nova">
+        <i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i>
+        <i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i>
+        <i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i>
+        <i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i>
+        <i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i>
+        <i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i><i class="bad"></i>
+        <i class="open"></i><i class="open"></i><i class="new"></i>
+      </div>
+      <div class="legend-row"><span><i style="background:var(--furo)"></i>já estava fechada (60)</span><span><i style="background:var(--obs)"></i>aberta (2)</span><span><i style="background:var(--c-db)"></i>nova (1)</span></div>
+      <div class="bignum">
+        <div><b>63</b><small>foram à IA</small></div>
+        <div><b>60</b><small>já estavam fechadas</small></div>
+        <div><b>12</b><small>envios à IA, fora o gêmeo</small></div>
+        <div><b>190 s</b><small>do clique ao salvar</small></div>
+      </div>
+      <p>O porteiro não reconhece nenhuma, por causa das maiúsculas:</p>
+      <div class="caps"><span>banco: q7Kx2mPa</span><span class="x">≠</span><span>porteiro: Q7KX2MPA</span></div>
+      <p>Na DEX Sport, cada aposta já foi lida e paga em média 6,44 vezes (máximo 17). Na Betano, 1,15.</p>
+    </div>
+  </div>
+  <details class="prova" style="margin-top:14px"><summary>Onde isso está no código e no banco</summary><code>Reenvio de 30 dias extensor/content.js:1093-1095, 1660-1664; porteiro app/main.py:1120-1150; pedaços app/main.py:1306-1316; gêmeo app/main.py:2274-2275; caso Shuffle: consultas Q20 a Q24 do mapa (frente F3); leituras por código: consulta Q33. O código "q7Kx2mPa" acima é ilustrativo.</code></details>
+  <div class="rev" style="margin-top:16px">
+    <div class="voz"><span>Você disse (2ª gravação)</span>Claramente a gente tem um problema na Shuffle e na DEX. A gente trabalha isso depois, mas seria bom deixar mais detalhado. Deve ser algum detalhe na construção da extensão para essas casas, porque são duas casas 100% novas, que não vêm de um espelho.</div>
+    <div class="resp"><span>Resposta com prova: o detalhe para trabalhar depois</span>
+      <p><b>As duas casas têm ouvinte e redator próprios</b>, escritos do zero: a DEX Sport lê o histórico em <span class="mono">/api/sportsbook/history/tickets</span> e a Shuffle por uma consulta GraphQL. Nenhuma das duas reaproveita a família de outra casa.</p>
+      <p><b>O furo não está na extensão: está no porteiro, no servidor.</b> A extensão manda o código como a casa entrega (a DEX usa um identificador longo com letras minúsculas; a Shuffle, um código curto com maiúsculas e minúsculas). O porteiro escreve o código em maiúsculas antes de comparar, e o banco guardou o original. São 4 pontos no código: onde o código é lido do bloco (app/main.py:1127), onde o mapa de impressões é montado (:1135), e as duas comparações (:1143 e :1147), contra duas buscas exatas no banco (app/repository.py:5651-5654 e 5858-5863).</p>
+      <p><b>Outras casas são atingidas em parte</b>, nos códigos que têm minúscula: Bet365 (370 de 52.196 códigos), Superbet (21), Betano (4), Betnacional (2), Betão (1).</p>
+      <p><b>A DEX tem um segundo problema:</b> ela devolve o mesmo bilhete em idioma e ordem de pernas diferentes de uma captura para outra (ex.: "El Zamalek total: Under 1.5" vira "Total de Zamalek: Debajo 1.5"), o que muda a impressão digital do bloco mesmo sem nada ter mudado na aposta.</p>
+      <p><b>Custo medido:</b> na Shuffle do Feca, as 5 capturas de 08/10 a 11/10 mandaram à IA 36, 39, 47, 62 e 63 apostas, quase todas já fechadas. Na DEX, cada aposta já foi lida e paga 6,44 vezes em média.</p>
+      <small>Ouvintes: extensor/dx_inject.js:27,43 e extensor/shf_inject.js (frente F6); formato dos códigos: app/main.py:908-912; porteiro e banco: linhas citadas acima; casas atingidas em parte: consulta Q13 da frente F3; idioma da DEX: consultas Q31, Q32 e Q43; custos: Q20 a Q24 e Q33.</small>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="perguntas">
+  <div class="eyebrow">Fechamento</div>
+  <h2 id="perguntas">O que ficou decidido</h2>
+  <p class="lead" style="margin-top:10px">Declarações do Feca registradas durante a revisão:</p>
+  <ol class="qlist">
+    <li><div><b>Objetivo da revisão:</b> reduzir o custo de IA. O custo do Railway fica fora.</div></li>
+    <li><div><b>O que não pode errar:</b> números (odd, stake e resultado têm que ser 100% exatos). A descrição pode variar.</div></li>
+    <li><div><b>Base antiga do usuário:</b> importar é necessário; ela fica como histórico fora do padrão.</div></li>
+    <li><div><b>Shuffle e DEX Sport:</b> serão tratadas depois; o detalhe para isso está na seção da recaptura.</div></li>
+    <li><div><b>Passos 2, 12, 13, 23 e 24:</b> sem observação.</div></li>
+  </ol>
+</section>
+
+<footer>
+  <span>Fonte: Mapa do Sharpen, Fase 1 (Claude Code), frente F3 "Fluxos de dado ponta a ponta", código no ar 1beca31, banco de produção consultado só para leitura em 11/10/2026.</span>
+  <span>Esta página descreve o que existe. Não propõe mudanças.</span>
+</footer>
+
+</div>
