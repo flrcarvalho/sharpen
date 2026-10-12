@@ -36,6 +36,12 @@ Também conta:
 - Toda divergência sai numa lista com: casa, código, campo, valor de hoje, valor da Ficha e o valor **cru da
   casa** (da Ficha guardada). Isso diz quem errou. Quando o caminho de hoje erra (a IA copiou errado e
   nenhum fiscal pegou), a divergência conta **a favor** da Ficha, desde que o valor cru prove.
+- **Diferença só de precisão é explicada** (decisão do Feca, 11/10) quando a Ficha traz o valor **cru** da
+  casa e o valor de hoje é o mesmo número com menos ou mais casas (`6,169904` × `6,169904352`). Sem isso as
+  499 diferenças de precisão medidas em outubro travariam toda virada. Diferença que muda o P/L em R$ 0,01
+  ou mais nunca é "só precisão".
+- **Altenar:** antes da virada da família, explicar o caso em que o produto das pernas passa do dobro da odd
+  da casa (BetMartini `6,02` × `14,25`, Betrebels `3,56` × `6,67`, Vavada `6,69` × `15,79`).
 
 ## 4. Quando uma casa vira
 

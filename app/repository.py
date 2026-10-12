@@ -519,6 +519,12 @@ _PL_TXT_RE = re.compile(r"P/L\s*(-?[\d.,]+)")
 # liquidaria aposta VIVA pelo valor que ela ainda poderia pagar.
 _RETORNO_TXT_RE = re.compile(r"(?<!potencial )\bretornos?\b[: ]*(?:R\$[ \t]*)?([\d][\d.,]*)",
                              re.IGNORECASE)
+# O mesmo retorno numa LINHA PRÓPRIA (`Retorno: 183,30 USD`, `Retorno: R$ 145,00`), que é como
+# 1xBet, Altenar, Novibet, Bolsa de Aposta e outras o imprimem (s409). Sem ela o gate nunca
+# rodava nessas casas: medido em blocos ganhos de outubro, 0 de 40 na Megapari, 0 de 40 na
+# BetMartini. Coluna ZERO de propósito, e só `Retorno:` com dois-pontos colados: `Retorno
+# potencial:` (aposta aberta) não casa, e linha recuada é de perna, não do bilhete.
+_RETORNO_LINHA_RE = re.compile(r"^Retorno:[ \t]*(?:R\$[ \t]*)?([\d][\d.,]*)", re.MULTILINE)
 _STATUS_TXT_RE = re.compile(r"^[ \t]*Status:[ \t]*(.+)$", re.MULTILINE)
 # Linha asiática PARTIDA (`3.0,3.5` · `2,5/3,0` · `4.0-4.5`) ou quarter (`+0.25`). É o
 # ÚNICO lugar onde meia vitória/derrota existe: sem ela, retorno = stake/2 é cashout de
@@ -566,6 +572,9 @@ def _financeiro_do_texto(texto: str | None) -> dict[str, dict]:
         status = _STATUS_TXT_RE.search(corpo)
         stt = status.group(1) if status else None
         ret = _RETORNO_TXT_RE.search(stt) if stt else None
+        # O `Status:` manda quando traz o número; a linha própria é a segunda fonte.
+        if ret is None:
+            ret = _RETORNO_LINHA_RE.search(corpo)
         mapa[codigo] = {
             "stake": valores[0],
             "odd_total": odd.group(1) if odd else None,

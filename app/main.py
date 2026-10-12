@@ -660,20 +660,30 @@ async def _cache_warmer():
     """
     await asyncio.sleep(30)
     while True:
-        try:
-            # Com `EXTRACAO_SEM_PENSAMENTO` ligada para a Superbet (ou `*`) o aquecimento
-            # acompanha: medido (s409), a chamada sem pensamento NÃO leu o cache escrito
-            # pela chamada com ele.
-            await _client.messages.create(
-                model=DEFAULT_MODEL,
-                max_tokens=0,
-                system=build_system("SUPERBET"),
-                messages=[{"role": "user", "content": "warmup"}],
-                **_pensamento_kw("SUPERBET", [{"type": "text"}]),
-            )
-        except Exception:
-            pass
+        for variante in _variantes_do_aquecedor():
+            try:
+                await _client.messages.create(
+                    model=DEFAULT_MODEL,
+                    max_tokens=0,
+                    system=build_system("SUPERBET"),
+                    messages=[{"role": "user", "content": "warmup"}],
+                    **variante,
+                )
+            except Exception:
+                pass
         await asyncio.sleep(_WARMER_INTERVALO)
+
+
+def _variantes_do_aquecedor() -> list[dict]:
+    """Quais versões do prefixo dos 6 manuais gerais o aquecedor mantém vivas.
+
+    O pensamento entra na chave do cache (medido na s409: a chamada sem pensamento NÃO leu
+    o cache escrito pela chamada com ele). O aquecedor usa a Superbet, que não está na
+    `EXTRACAO_SEM_PENSAMENTO`, então sem isto as casas da lista perdiam o cache dos manuais
+    gerais e pagavam a escrita (~US$ 0,26) no lugar da leitura (~US$ 0,013). Com a chave
+    não vazia aquecem as DUAS: a padrão segue valendo para print, PDF e casa fora da lista.
+    """
+    return [{}] + ([dict(_SEM_PENSAMENTO)] if _casas_sem_pensamento() else [])
 
 
 async def _barreira_lembrar(dono: str, casa: str, texto: str | None) -> None:

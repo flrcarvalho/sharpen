@@ -5,9 +5,45 @@
 
 ---
 
+## 2026-10-11 · D1 · fiscal lê `Retorno:` + aquecedor nas duas versões (um deploy)
+
+**Onde está:** fiscal e aquecedor no código, testados; vão num commit e num deploy só. Próxima ação: a
+rota da Ficha em modo sombra. As 8 casas seguem **fora** da chave até o Feca decidir a volta.
+
+**Respostas do Feca:** 8 casas fora (feito 21:59); medir o fiscal nas 7 que ficam; fiscal lendo
+`Retorno:` aprovado, com mutação obrigatória da aberta com `Retorno potencial:`; aquecedor nas duas
+aprovado; desenho da odd aprovado com 3 complementos (Ficha §3 e `03_REGUA_NUMEROS.md §3`). Vale daqui
+para frente, nada retroativo.
+
+- **As 7 que ficam na chave:** o fiscal acha o retorno em **213 de 213** apostas ganhas de outubro
+  (DEX 64/64, MyStake 20/20, Shuffle 27/27, Duel 30/30, Betpanda 57/57, Betfury 12/12, Betcoin 3/3;
+  `Status:` com `→ W`/`→ HW`, último bloco de cada código). Nenhuma sai.
+- **Fiscal** (`app/repository.py`, `_RETORNO_LINHA_RE` + 2ª fonte no `_financeiro_do_texto`): lê
+  `Retorno:` em coluna zero, só quando o `Status:` não traz o número. `Retorno potencial:` e linha recuada
+  não casam. Em 60 dias de `sombra_rotulos`, nenhuma casa escreve `Retorno:` em aposta aberta.
+- **Alcance medido antes de publicar** (`medicoes/medir_fiscal_retorno_linha.py`, função antiga × nova
+  sobre as apostas gravadas): 1.588 resolvidas com a linha, em 19 casas; **21 mudariam**, nenhuma das 8
+  casas do projeto (lá a IA tinha acertado as 135). Fora do projeto: Lottu 6 (odd `7,455` onde a casa
+  pagou `4,97`; P/L R$ 1.170 inflado), SportingBet 8, Betboo 2, Esportiva 2, Estrela Bet 2: odd que não
+  fechava o retorno. **1 discutível:** Novibet `347813`, W @ 1,001 com retorno R$ 51,05 sobre stake 51
+  vira V, porque o fiscal testa V antes de W com folga de R$ 0,10 (regra antiga, agora alcançando a
+  Novibet). P/L −R$ 0,05. Resolvida é congelada no banco: nada disso é retroativo.
+- **Aquecedor** (`app/main.py`, `_variantes_do_aquecedor`): com a chave não vazia, aquece a versão padrão
+  e a sem pensamento do mesmo prefixo.
+- **Gate:** 5 testes novos no `test_odd_resultado_determinista.py` (blocos reais Megapari e BetMartini) e
+  2 no `test_extracao_sem_pensamento.py`; **6 mutações, 6 detectadas**. `pytest tests`: **1.739 passed**.
+- Backup: `Backups/s409b_fiscal_retorno_e_aquecedor/`.
+
+---
+
 ## 2026-10-11 · D1 · decisões do Feca, aquecedor, qualidade por casa e regra da odd
 
 **Onde está:** decisões registradas; três propostas esperando o Feca (abaixo). Nada de código novo.
+
+**21:59: as 8 casas sem rede do fiscal saíram da chave** (o Feca rodou o `railway variables --set`).
+`EXTRACAO_SEM_PENSAMENTO=DEXSPORT,MYSTAKE,SHUFFLE,DUEL,BETPANDA,BETFURY,BETCOIN`, deploy `88011cb8`
+SUCCESS. Entre 21:10 e 21:59 o `uso_tokens` não tem **nenhuma** extração, de casa nenhuma: nenhuma das 8
+extraiu sem pensamento.
 
 **Decisões do Feca** (`README.md §3`, itens 8 a 12): Ficha antes da Fase 2 da blueprint (`STATUS.md`
 atualizado); só esta sessão mexe em `main.py`/`repository.py` (`docs/ESTRUTURA_DO_TIME.md`); virada só com

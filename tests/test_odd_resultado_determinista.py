@@ -36,6 +36,12 @@ E as da s409, o desempate pelo RETORNO dentro da folga de 0,005 da odd (7 de 7):
  18. não exige que a da linha NÃO feche    → test_odd_igual_em_grafia_diferente_mantem…
  19. "fecha" com folga de R$ 0,20          → test_produto_das_pernas_dentro_da_folga…
 
+E as do retorno em LINHA PRÓPRIA, também s409 (4 de 4):
+ 20. não ler a linha `Retorno:`            → test_retorno_em_linha_propria_fecha_o_gate
+ 21. aceitar `Retorno potencial:`          → test_aposta_aberta_com_retorno_potencial…
+ 22. aceitar `Retorno:` recuado (perna)    → test_linha_de_perna_recuada_nao_e_o_retorno…
+ 23. a linha antes do `Status:`            → test_retorno_no_status_manda_sobre_a_linha…
+
 Três coisas que as rodadas de mutação ensinaram e que ficam registradas:
 
   • A mutação 2 ESCAPOU na primeira tentativa, e o defeito era do teste. Eu tinha exercido
@@ -480,6 +486,105 @@ def test_meia_vitoria_dentro_da_folga_usa_a_formula_de_HW():
     """
     desc = "Under 3.0,3.5 Gols [A v B]"
     assert R._veredito_do_retorno(100.0, 1.947, 147.50, desc, "1,95") == ("HW", "1,95")
+
+
+# ── retorno em LINHA PRÓPRIA (`Retorno:`), como 1xBet e Altenar imprimem (s409) ──────
+
+# Recortes de blocos REAIS da sombra de outubro (Megapari = família 1xBet; BetMartini =
+# Altenar). Antes da s409 o fiscal só lia o retorno dentro do `Status:`, e nessas casas
+# ele nunca rodava: 0 de 40 blocos ganhos na Megapari, 0 de 40 na BetMartini.
+_MEGA_W = ("[Código: 88586497359]\n"
+           "Data (evento): 11/10/2026 14:00:00\n"
+           "Stake: 30,00\n"
+           "Moeda: USD\n"
+           "Tipo: Múltipla (3 seleções)\n"
+           "Odd: 6,11 (= Retorno ÷ Stake)\n"
+           "Status: Ganhou → W\n"
+           "Status (API): BetStatus=4 · BetTypeName=Accumulator · BetSystemType=3\n"
+           "Retorno: 183,30 USD\n"
+           "Seleções:\n")
+_MEGA_ABERTA = ("[Código: 88598093601]\n"
+                "Data (evento): 11/10/2026 21:00:00\n"
+                "Stake: 30,00\n"
+                "Moeda: USD\n"
+                "Tipo: Múltipla (3 seleções)\n"
+                "Odd: 4,73892\n"
+                "Status: Em aberto (aguardando resultado — NÃO liquidar; sem resultado)\n"
+                "Status (API): BetStatus=1 · BetTypeName=Accumulator · BetSystemType=3\n"
+                "Retorno potencial: 322,72 USD (POTENCIAL — a aposta não liquidou)\n"
+                "Seleções:\n")
+_MARTINI_PARCIAL = ("[Código: 5507615169]\n"
+                    "Data (evento mais recente): 10/10/2026 17:30:00\n"
+                    "Stake: R$ 30,00\n"
+                    "Status: Retorno parcial (R$ 28,77 · conferir HW/HL ou cashout)\n"
+                    "Status (API): status=1\n"
+                    "Odd: 0,959\n"
+                    "Tipo: Múltipla (3 seleções)\n"
+                    "Retorno: R$ 28,77\n"
+                    "Seleções:\n")
+
+
+def _linha_de(codigo, stake, odd, res, desc="A [X v Y] // B [Z v W]"):
+    return "\t".join(["11/10/2026", "Futebol", "", "Megapari", "conta [Op]", "Múltipla", desc,
+                      stake, odd, res, codigo])
+
+
+def test_retorno_em_linha_propria_fecha_o_gate():
+    """A IA gravou o RETORNO na coluna Odd (o erro da s321) numa casa 1xBet. O retorno só
+    existe na linha `Retorno:`; sem lê-la, o gate não tinha com o que conferir.
+
+    MUTAÇÃO: não ler a linha própria faz este teste falhar.
+    """
+    assert R._financeiro_do_texto(_MEGA_W)["88586497359"]["retorno"] == "183,30"
+    parts, info = _saida(_linha_de("88586497359", "30,00", "183,30", "W"), _MEGA_W)
+    assert parts[8] == "6,11" and parts[9] == "W"
+    assert info["financeiro"] == 1
+
+
+def test_aposta_aberta_com_retorno_potencial_continua_sem_retorno():
+    """Caso obrigatório (Feca, 11/10): `Retorno potencial:` é o que a aposta AINDA pode
+    pagar. Lido como retorno, liquidaria aposta viva.
+
+    É a função de leitura que se testa, e não só o TSV: no caminho do TSV o `em aberto` do
+    status já barra (`_retorno_do_bloco`), e uma mutação que deixasse o potencial entrar
+    passaria verde por ali.
+
+    MUTAÇÃO: a linha aceitar qualquer `Retorno…:` (sem os dois-pontos colados) faz este
+    teste falhar.
+    """
+    assert R._financeiro_do_texto(_MEGA_ABERTA)["88598093601"]["retorno"] is None
+    tsv = _linha_de("88598093601", "30,00", "4,73892", "")
+    parts, info = _saida(tsv, _MEGA_ABERTA)
+    assert parts[9] == "" and parts[8] == "4,73892"
+    assert info["financeiro"] == 0
+
+
+def test_linha_de_perna_recuada_nao_e_o_retorno_do_bilhete():
+    """`Retorno:` recuado é de perna (ou de qualquer sub-bloco), não do bilhete.
+
+    MUTAÇÃO: aceitar espaço antes de `Retorno:` faz este teste falhar.
+    """
+    bloco = _MEGA_ABERTA.replace("Seleções:\n", "Seleções:\n    Retorno: 999,00\n")
+    assert R._financeiro_do_texto(bloco)["88598093601"]["retorno"] is None
+
+
+def test_retorno_no_status_manda_sobre_a_linha_propria():
+    """Com os dois, vale o do `Status:`, que é a fonte de sempre nas casas que já
+    funcionavam. A linha própria é a segunda fonte, nunca a primeira.
+
+    MUTAÇÃO: ler a linha antes do status faz este teste falhar.
+    """
+    bloco = _bloco().replace("Odd: 1,975\n", "Odd: 1,975\nRetorno: R$ 1,00\n")
+    assert R._financeiro_do_texto(bloco)["KR4610093301I"]["retorno"] == "195,53"
+
+
+def test_retorno_parcial_da_altenar_vira_cashout_pelo_dinheiro():
+    """BetMartini: o status diz `Retorno parcial (R$ 28,77 …)`, com o número longe da
+    palavra, e só a linha própria o entrega. 28,77 de 30 não fecha nenhuma fórmula sem
+    linha partida: é cashout, W com odd = retorno ÷ stake (`MASTER_RESULTADO §5.6`)."""
+    parts, info = _saida(_linha_de("5507615169", "30,00", "0,959", "HL"), _MARTINI_PARCIAL)
+    assert parts[9] == "W" and parts[8] == "0,959"
+    assert info["financeiro"] == 1
 
 
 # ── fail-closed ──────────────────────────────────────────────────────────────────────

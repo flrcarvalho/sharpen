@@ -16,6 +16,8 @@ Mutações provadas (aplicadas ao `main.py`, teste ao lado vermelho):
   3. a repescagem não repassa o `pensamento`                 → test_a_repescagem_da_cobertura…
   4. o paralelo esquece o `**(pensamento or {})` no stream     → test_toda_chamada_do_titular…
   5. o gerador não passa `pensamento=` ao sequencial           → test_o_gerador_passa_a_decisao…
+  6. aquecedor só pela decisão da Superbet (o código anterior)  → test_aquecedor_com_chave_aquece…
+  7. aquecedor sempre nas duas, mesmo com a chave vazia        → test_aquecedor_com_chave_vazia…
 
 O QUE ESTE GATE NÃO COBRE: não chama a API (custo e qualidade sem pensamento são
 medidos pela régua de números, `app/sombra_numeros.py`, e pelo harness do projeto), e não
@@ -159,6 +161,58 @@ def test_cobertura_e_fidelidade_recebem_a_decisao_de_quem_chama():
         for c in alvos:
             nomes = [ast.unparse(a) for a in c.args] + [ast.unparse(k.value) for k in c.keywords]
             assert "pensamento" in nomes, f"{nome} chama {c.func.id} sem repassar o pensamento"
+
+
+class _Para(BaseException):
+    """Sai do laço infinito do aquecedor (o `except Exception` dele não pega isto)."""
+
+
+def _uma_volta_do_aquecedor(monkeypatch):
+    feitas = []
+
+    class _Msgs:
+        async def create(self, **kw):
+            feitas.append(kw)
+
+    class _Cli:
+        messages = _Msgs()
+
+    esperas = []
+
+    async def _sleep(s):
+        esperas.append(s)
+        if len(esperas) > 1:
+            raise _Para()
+
+    monkeypatch.setattr(main, "_client", _Cli())
+    monkeypatch.setattr(main.asyncio, "sleep", _sleep)
+    try:
+        asyncio.run(main._cache_warmer())
+    except _Para:
+        pass
+    return feitas
+
+
+def test_aquecedor_com_chave_vazia_aquece_so_a_versao_de_sempre(monkeypatch):
+    monkeypatch.delenv("EXTRACAO_SEM_PENSAMENTO", raising=False)
+    feitas = _uma_volta_do_aquecedor(monkeypatch)
+    assert len(feitas) == 1 and "thinking" not in feitas[0]
+
+
+def test_aquecedor_com_chave_aquece_as_duas_versoes(monkeypatch):
+    """A Superbet (casa do aquecedor) não está na lista, e mesmo assim a versão sem
+    pensamento tem de ser aquecida: o prefixo dos 6 manuais gerais é o mesmo para todas
+    as casas, e o pensamento entra na chave do cache.
+
+    MUTAÇÃO: aquecer só pela decisão da Superbet (o código anterior) faz este teste falhar.
+    """
+    monkeypatch.setenv("EXTRACAO_SEM_PENSAMENTO", "DEXSPORT,MYSTAKE")
+    feitas = _uma_volta_do_aquecedor(monkeypatch)
+    assert len(feitas) == 2
+    assert "thinking" not in feitas[0]
+    assert feitas[1].get("thinking") == {"type": "disabled"}
+    assert feitas[0]["system"] == feitas[1]["system"], "o mesmo prefixo nas duas"
+    assert all(f["max_tokens"] == 0 for f in feitas)
 
 
 def test_o_gerador_passa_a_decisao_aos_dois_caminhos():
