@@ -1357,3 +1357,34 @@ def test_freebet_marca_linha_ja_resolvida_na_recaptura():
         assert str((await _get("TDonoA", "FB2"))["stake_freebet"]) == "45.00"
         assert await _count("TDonoA") == 1
     _run(body())
+
+
+def test_ficha_sombra_grava_aceita_e_recusada_e_nao_duplica():
+    """Ficha Sharpen em modo sombra (s409): o INSERT real, com os tipos que o asyncpg exige
+    (`TEXT[]` como lista, `JSONB` como texto). Mesma Ficha duas vezes não duplica; impressão
+    nova entra como linha nova; recusada fica gravada com o motivo e também não duplica."""
+    import ficha
+
+    async def body():
+        await init_db()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE ficha_sombra RESTART IDENTITY")
+        boa = {"codigo": "C1", "impressao": "i1", "status": "ganha"}
+        ruim = {"codigo": "C2", "status": "won"}
+        regs = [ficha._registro(boa, []), ficha._registro(ruim, ["status desconhecido: 'won'"])]
+        assert await ficha.gravar("TDonoA", "DEXSPORT", "conta [Op]", "0.7.51", "dexsport.io",
+                                  regs) == 2
+        assert await ficha.gravar("TDonoA", "DEXSPORT", "conta [Op]", "0.7.51", "dexsport.io",
+                                  regs) == 0
+        nova = ficha._registro(dict(boa, impressao="i2"), [])
+        assert await ficha.gravar("TDonoA", "DEXSPORT", "conta [Op]", "", "", [nova]) == 1
+        async with pool.acquire() as conn:
+            linhas = await conn.fetch(
+                "SELECT casa, parceiro, codigo, aceita, motivos, ficha->>'status' st "
+                "FROM ficha_sombra ORDER BY id")
+        assert [(l["codigo"], l["aceita"]) for l in linhas] == [("C1", True), ("C2", False),
+                                                                ("C1", True)]
+        assert linhas[1]["motivos"] == ["status desconhecido: 'won'"]
+        assert linhas[1]["st"] == "won" and linhas[0]["parceiro"] == "conta [Op]"
+    _run(body())

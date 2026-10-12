@@ -1430,6 +1430,17 @@ o relatorio quando for hora. apenas armazene."*). Até lá a sombra só grava.
 repesca, então o custo real do Haiku fica entre o dele e o dele mais a repescagem; no
 sequencial com continuação a sombra lê uma vez só (marcado em `titular_continuou`).
 
+### 3.21 (*) Fica para depois, por decisão do Feca (s409, 11/10). **NÃO mexer, NÃO medir.**
+Os dois saíram do replay do fiscal que passou a ler a linha `Retorno:`
+(`docs/PROJETO_FICHA_SHARPEN/medicoes/medir_fiscal_retorno_linha.py`).
+- **(*) Lottu:** 6 apostas com odd que não fecha o retorno (ex.: `7,455` gravada, casa pagou
+  `4,97`; P/L R$ 1.170 acima do pago). Eram o boost de 30% a 50% que a casa calculava errado na
+  época; **o Feca já corrigiu na conta**, e a casa está fora do ar. **Rever só se a Lottu voltar
+  a ser usada.**
+- **(*) Folga de 0,5% do fiscal (`bate()` em `repository._veredito_do_retorno`) e o caso
+  Novibet `347813`:** W @ 1,001, stake 51,00, retorno 51,05, que o fiscal lê como V porque testa
+  V antes de W com folga de R$ 0,10 (P/L −R$ 0,05). **Rever depois da Ficha.**
+
 ## 4. Dívida técnica medida
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.

@@ -740,6 +740,12 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Sharpen — Scanner de Bets", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
+# Ficha Sharpen em MODO SOMBRA (s409). Único ponto de registro: a rota, as regras e a
+# gravação moram em `app/ficha.py` (decisão do Feca, 11/10). A isenção de CSRF dela está
+# em `_CAPTURA_ISENTAS`, como a das outras rotas da extensão.
+from ficha import router as _ficha_router  # noqa: E402
+app.include_router(_ficha_router)
+
 
 # ── Cabeçalhos de segurança (CSP + hardening) ─────────────────────────────────
 # Defesa em profundidade junto do escaping do frontend. A CSP restringe as origens
@@ -810,7 +816,8 @@ _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # junto na s382: sem isso, o POST da extensão levava **403** e o operador via
 # "Erro ao aplicar (403)" sem nenhuma pista do motivo.
 _CAPTURA_ISENTAS = {"/captura/conectar", "/captura/enviar", "/captura/validar",
-                    "/captura/resolver-abertas"}
+                    "/captura/resolver-abertas",
+                    "/captura/ficha"}   # Ficha Sharpen, modo sombra (s409): `app/ficha.py`
 _ALLOWED_ORIGIN_HOSTS = {
     h.strip().lower()
     for h in os.environ.get("ALLOWED_ORIGIN_HOSTS", "").split(",")

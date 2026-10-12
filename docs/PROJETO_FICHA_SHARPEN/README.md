@@ -146,6 +146,7 @@ Atraso não muda a ordem: muda a data. Cada virada é uma chave por casa, revers
 - [x] Revisão do processo com o Feca · 11/10
 - [x] D0: Ficha aprovada · 11/10 (respostas no §9 de `01_FICHA_SHARPEN.md`)
 - [x] Sombra no Haiku 5.5 · 11/10, feita por outra frente (s407, commit `e2427d4`)
-- [ ] D1: pensamento reduzido + rota sombra
+- [x] D1: pensamento desligado atrás de chave (7 casas) + fiscal lendo `Retorno:` + aquecedor · 11/10
+- [x] D1: rota da Ficha em modo sombra, no ar e desligada · 11/10
 - [ ] Adaptadores: DEX · 1xBet · BetConstruct · BetBy · Altenar · Shuffle
 - [ ] Viradas: DEX · Megapari · MyStake · Betpanda · Duel · BetMartini · Shuffle · demais

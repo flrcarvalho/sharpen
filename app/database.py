@@ -906,6 +906,35 @@ CREATE TABLE IF NOT EXISTS conta_logo (
     bytes         BYTEA NOT NULL,
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ── Ficha Sharpen em MODO SOMBRA (Projeto Ficha Sharpen, D1; s409) ─────────────────
+-- A Ficha crua que a extensão manda (`app/ficha.py`), ACEITA ou RECUSADA com o motivo:
+-- recusada nunca some, senão vira "faltou" sem causa na régua (decisão do Feca, 11/10).
+-- Nada no sistema lê esta tabela além da régua: ela não toca `bilhetes`.
+--   `casa` = casa_key e `parceiro` = conta, ambos da SESSÃO de captura, nunca da Ficha.
+--   Aceita dedupa por (dono, casa, conta, código, impressão): a mesma Ficha duas vezes não
+--   duplica, e impressão nova (a casa mudou o bilhete) entra como linha nova.
+--   Recusada dedupa pelo conteúdo (`hash_bruto`).
+CREATE TABLE IF NOT EXISTS ficha_sombra (
+    id          BIGSERIAL PRIMARY KEY,
+    recebido_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono        TEXT NOT NULL,
+    casa        TEXT NOT NULL,
+    parceiro    TEXT NOT NULL DEFAULT '',
+    codigo      TEXT NOT NULL DEFAULT '',
+    impressao   TEXT NOT NULL DEFAULT '',
+    aceita      BOOLEAN NOT NULL,
+    motivos     TEXT[] NOT NULL DEFAULT '{}',
+    ficha       JSONB NOT NULL,
+    hash_bruto  TEXT NOT NULL,
+    versao_ext  TEXT NOT NULL DEFAULT '',
+    origem      TEXT NOT NULL DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ficha_sombra_aceita
+    ON ficha_sombra (dono, casa, parceiro, codigo, impressao) WHERE aceita;
+CREATE UNIQUE INDEX IF NOT EXISTS ficha_sombra_recusada
+    ON ficha_sombra (dono, casa, hash_bruto) WHERE NOT aceita;
+CREATE INDEX IF NOT EXISTS ficha_sombra_codigo ON ficha_sombra (dono, casa, codigo);
 """
 
 

@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-10-11 · D1 · rota da Ficha em modo sombra (no ar, desligada)
+
+**Onde está:** rota pronta, testada e publicada com a chave **vazia** (`FICHA_SOMBRA_CASAS`), então
+nada é gravado ainda. Próxima ação: o adaptador da DEX na extensão (envio separado do
+`/captura/enviar`, sem esperar resposta), que precisa de aprovação.
+
+**Aprovado pelo Feca com 3 ajustes:** (a) recusada gravada com o motivo; (b) dizer antes de onde saem
+casa e conta; (c) no adaptador, envio separado e sem esperar. Fica para depois, com asterisco no
+`BACKLOG.md §3.21`: Lottu e a folga de 0,5% / Novibet 1,001.
+
+- **(b) Casa e conta** saem da **sessão de captura** (`app/captura.py`, `Sessao`): o
+  `POST /captura/parear` grava dono logado + casa + conta escolhidas no dashboard, e o token da
+  extensão aponta para essa sessão. Ficha com outra casa é recusada (motivo gravado); conta vazia
+  grava `parceiro = ''`; token inválido responde 401 e não grava (sem dono, gravar seria abrir o
+  banco para requisição anônima).
+- **Código:** `app/ficha.py` (rota `POST /captura/ficha`, `validar`, `derivar`, `gravar`); tabela
+  `ficha_sombra` no `app/database.py` (aceita dedupa por dono+casa+conta+código+impressão;
+  recusada por hash do conteúdo); no `app/main.py` só o registro (`include_router` + a isenção de
+  CSRF em `_CAPTURA_ISENTAS`).
+- **`derivar`** segue a regra da odd aprovada e a data do MASTER_OUTPUT §4/§4.0.1 em Brasília. Roda
+  na hora do relatório, não na gravação.
+- **Gate:** `tests/test_ficha.py`, 28 testes com valores reais da DEX; **11 mutações, 11
+  detectadas**, 1 inócua registrada (a trava "nunca anda para frente" da perna perdida, que a
+  aritmética já garante). Uma mutação escapou na 1ª rodada por defeito do teste (HW e W davam a
+  mesma resposta no caso montado). Um erro de digitação no teste (`meia_ganha`) mostrou que
+  `derivar` tratava status desconhecido como cashout: agora levanta erro. O INSERT real ganhou
+  teste em `tests/test_repository_db.py` (só roda no CI). `pytest tests`: **1.767 passed**.
+
+---
+
 ## 2026-10-11 · D1 · fiscal lê `Retorno:` + aquecedor nas duas versões (um deploy)
 
 **Onde está:** fiscal e aquecedor no código, testados; vão num commit e num deploy só. Próxima ação: a
