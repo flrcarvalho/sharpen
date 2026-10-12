@@ -1,0 +1,637 @@
+{
+ "2718383996802310522": {
+  "id": "2718383996802310522",
+  "k": "4.367",
+  "sum": "25",
+  "type": "2/2",
+  "status": "won",
+  "total_k": "4.367",
+  "currency": "$",
+  "timestamp": 1791087558.6697145,
+  "result_sum": "109.18",
+  "selections": [
+   {
+    "k": "2.12",
+    "status": "won",
+    "market_name": "Innings 1 a 5 - 1x2",
+    "outcome_name": "Kiwoom Heroes",
+    "desc": {
+     "scheduled": 1791090000,
+     "sport": {
+      "name": "Basebol"
+     },
+     "competitors": [
+      {
+       "id": "249963",
+       "name": "Hanwha Eagles"
+      },
+      {
+       "id": "249975",
+       "name": "Kiwoom Heroes"
+      }
+     ]
+    }
+   },
+   {
+    "k": "2.06",
+    "status": "won",
+    "market_name": "1ª parte - Áustria total de cartões",
+    "outcome_name": "menos de 0.5",
+    "desc": {
+     "scheduled": 1791129600,
+     "sport": {
+      "name": "Futebol"
+     },
+     "competitors": [
+      {
+       "id": "154426",
+       "name": "Kosovo"
+      },
+      {
+       "id": "4718",
+       "name": "Áustria"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "2720423703182713770": {
+  "id": "2720423703182713770",
+  "k": "2.02",
+  "sum": "25",
+  "type": "2/2",
+  "status": "won",
+  "total_k": "2.02",
+  "currency": "$",
+  "timestamp": 1791573804.8689601,
+  "result_sum": "50.5",
+  "selections": [
+   {
+    "k": "1.8",
+    "status": "refund",
+    "market_name": "Empate anula aposta",
+    "outcome_name": "Onnereds HK",
+    "desc": {
+     "scheduled": 1791644400,
+     "sport": {
+      "name": "Andebol"
+     },
+     "competitors": [
+      {
+       "id": "7302",
+       "name": "IF Hallby HK"
+      },
+      {
+       "id": "5610",
+       "name": "Onnereds HK"
+      }
+     ]
+    }
+   },
+   {
+    "k": "2.02",
+    "status": "won",
+    "market_name": "1ª parte - BC Andorra total",
+    "outcome_name": "menos de 39.5",
+    "desc": {
+     "scheduled": 1791653400,
+     "sport": {
+      "name": "Basquetebol"
+     },
+     "competitors": [
+      {
+       "id": "3556",
+       "name": "Málaga"
+      },
+      {
+       "id": "124534",
+       "name": "BC Andorra"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "2719374078761902184": {
+  "id": "2719374078761902184",
+  "k": "5.671",
+  "sum": "25",
+  "type": "2/2",
+  "status": "lost",
+  "total_k": "5.671",
+  "currency": "$",
+  "timestamp": 1791323547.762006,
+  "result_sum": "0",
+  "selections": [
+   {
+    "k": "2.14",
+    "status": "lost",
+    "market_name": "1ª parte - Argentina total",
+    "outcome_name": "mais de 2.5",
+    "desc": {
+     "scheduled": 1791327600,
+     "sport": {
+      "name": "Futebol"
+     },
+     "competitors": [
+      {
+       "id": "4819",
+       "name": "Argentina"
+      },
+      {
+       "id": "4744",
+       "name": "Benin"
+      }
+     ]
+    }
+   },
+   {
+    "k": "2.65",
+    "status": "refund",
+    "market_name": "Puerto Montt ímpar/par",
+    "outcome_name": "impar",
+    "desc": {
+     "scheduled": 1791329400,
+     "sport": {
+      "name": "Futebol"
+     },
+     "competitors": [
+      {
+       "id": "3155",
+       "name": "Colo Colo"
+      },
+      {
+       "id": "3158",
+       "name": "Puerto Montt"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "2717463857143615814": {
+  "id": "2717463857143615814",
+  "k": "12.608",
+  "sum": "36",
+  "type": "2/3",
+  "status": "won",
+  "total_k": "37.825",
+  "currency": "$",
+  "timestamp": 1790868131.2079773,
+  "result_sum": "151.3",
+  "combinations": [
+   {
+    "odd": "4.6104",
+    "combo": [
+     1,
+     2
+    ],
+    "stake": "12",
+    "status": "won"
+   },
+   {
+    "odd": "4.2036",
+    "combo": [
+     1,
+     3
+    ],
+    "stake": "12",
+    "status": "won"
+   },
+   {
+    "odd": "3.7944",
+    "combo": [
+     2,
+     3
+    ],
+    "stake": "12",
+    "status": "won"
+   }
+  ],
+  "selections": [
+   {
+    "k": "2.26",
+    "status": "won",
+    "market_name": "1st half - total",
+    "outcome_name": "under 75.5",
+    "desc": {
+     "scheduled": 1790874000,
+     "sport": {
+      "name": "Basquetebol"
+     },
+     "competitors": [
+      {
+       "id": "5537",
+       "name": "TV Saarlouis"
+      },
+      {
+       "id": "841874",
+       "name": "Geneve Elite Basket"
+      }
+     ]
+    }
+   },
+   {
+    "k": "2.04",
+    "status": "won",
+    "market_name": "Total",
+    "outcome_name": "over 6.5",
+    "desc": {
+     "scheduled": 1790906400,
+     "sport": {
+      "name": "Hóquei no Gelo"
+     },
+     "competitors": [
+      {
+       "id": "3692",
+       "name": "Vancouver Canucks"
+      },
+      {
+       "id": "3686",
+       "name": "Edmonton Oilers"
+      }
+     ]
+    }
+   },
+   {
+    "k": "1.86",
+    "status": "won",
+    "market_name": "Theo Maledon total points + rebounds + assists (incl. overtime)",
+    "outcome_name": "over 16.5",
+    "desc": {
+     "scheduled": 1790870400,
+     "sport": {
+      "name": "Basquetebol"
+     },
+     "competitors": [
+      {
+       "id": "82179",
+       "name": "Hapoel Tel-Aviv"
+      },
+      {
+       "id": "3540",
+       "name": "Real Madrid"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "2717464096248308141": {
+  "id": "2717464096248308141",
+  "k": "9.004",
+  "sum": "2.66",
+  "type": "3/3",
+  "status": "won",
+  "total_k": "9.004",
+  "currency": "$",
+  "timestamp": 1790868185.7945306,
+  "result_sum": "23.95",
+  "bonus": {
+   "id": "2717464277379325952",
+   "name": "ComboBOOST-BP",
+   "type": "comboboost",
+   "total_multiplier": "1.05"
+  },
+  "selections": [
+   {
+    "k": "2.26",
+    "status": "won",
+    "market_name": "1st half - total",
+    "outcome_name": "under 75.5",
+    "desc": {
+     "scheduled": 1790874000,
+     "sport": {
+      "name": "Basquetebol"
+     },
+     "competitors": [
+      {
+       "id": "5537",
+       "name": "TV Saarlouis"
+      },
+      {
+       "id": "841874",
+       "name": "Geneve Elite Basket"
+      }
+     ]
+    }
+   },
+   {
+    "k": "2.04",
+    "status": "won",
+    "market_name": "Total",
+    "outcome_name": "over 6.5",
+    "desc": {
+     "scheduled": 1790906400,
+     "sport": {
+      "name": "Hóquei no Gelo"
+     },
+     "competitors": [
+      {
+       "id": "3692",
+       "name": "Vancouver Canucks"
+      },
+      {
+       "id": "3686",
+       "name": "Edmonton Oilers"
+      }
+     ]
+    }
+   },
+   {
+    "k": "1.86",
+    "status": "won",
+    "market_name": "Theo Maledon total points + rebounds + assists (incl. overtime)",
+    "outcome_name": "over 16.5",
+    "desc": {
+     "scheduled": 1790870400,
+     "sport": {
+      "name": "Basquetebol"
+     },
+     "competitors": [
+      {
+       "id": "82179",
+       "name": "Hapoel Tel-Aviv"
+      },
+      {
+       "id": "3540",
+       "name": "Real Madrid"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CfqYSukd8DqCGMcrVfm4x": {
+  "id": "CfqYSukd8DqCGMcrVfm4x",
+  "type": "REGULAR",
+  "amount": "59.56171948",
+  "status": "WON",
+  "currency": "USDT",
+  "createdAt": "2026-10-08T22:16:19.410Z",
+  "settlement": {
+   "id": "01a12023-bc2e-727e-99e7-bb0d01c50fef",
+   "payout": "108.40232945",
+   "createdAt": "2026-10-09T10:09:35.278Z",
+   "payoutOddsDecimal": "1.82"
+  },
+  "systemBetType": null,
+  "originalAmount": "90",
+  "totalOddsDecimal": "1.82",
+  "legs": [
+   {
+    "oddsDecimal": "1.82",
+    "displayStatus": "WON",
+    "selections": [
+     {
+      "sports": "BADMINTON",
+      "fixture": {
+       "name": "Golubeva, Mariia vs Ryberg, Anna Siess",
+       "startTime": "2026-10-09T09:20:00.000Z"
+      },
+      "market": {
+       "name": "Handicap pontos",
+       "lineValue": "-12.5"
+      },
+      "marketSelection": {
+       "formattedName": "Golubeva, Mariia (+12.5)"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "307310722": {
+  "ID": 307310722,
+  "Koef": 9.0288,
+  "Amount": 100,
+  "Result": 2,
+  "Status": 10,
+  "CashOut": false,
+  "WinKoef": 4.104,
+  "WinAmount": 410.4,
+  "ActionTime": 1791623668310,
+  "TicketType": 0,
+  "CurrencySTR": "BRL",
+  "IsSystem": false,
+  "Items": [
+   {
+    "Value": 2.2,
+    "Result": 1,
+    "ItemType": 0,
+    "Game": {
+     "Team1": {
+      "Name": "Rayo Vallecano"
+     },
+     "Team2": {
+      "Name": "Atlético de Bilbao"
+     },
+     "StartTime": 1791633600000
+    },
+    "Market": {
+     "Name": "Time de casa total de chutes"
+    },
+    "Position": {
+     "Name": "Abaixo"
+    },
+    "Sport": {
+     "Name": "Futebol"
+    }
+   },
+   {
+    "Value": 2.4,
+    "Result": 2,
+    "ItemType": 0,
+    "Game": {
+     "Team1": {
+      "Name": "Real Madrid CF"
+     },
+     "Team2": {
+      "Name": "CF Villarreal"
+     },
+     "StartTime": 1791658800000
+    },
+    "Market": {
+     "Name": "Time de casa chutes a gol"
+    },
+    "Position": {
+     "Name": "Abaixo"
+    },
+    "Sport": {
+     "Name": "Futebol"
+    }
+   },
+   {
+    "Value": 1.71,
+    "Result": 2,
+    "ItemType": 0,
+    "Game": {
+     "Team1": {
+      "Name": "Ipswich Town FC"
+     },
+     "Team2": {
+      "Name": "Fulham FC"
+     },
+     "StartTime": 1791640800000
+    },
+    "Market": {
+     "Name": "Time de casa chutes a gol"
+    },
+    "Position": {
+     "Name": "Acima"
+    },
+    "Sport": {
+     "Name": "Futebol"
+    }
+   }
+  ]
+ },
+ "5504514128": {
+  "id": 5504514128,
+  "type": 2,
+  "status": 1,
+  "currency": "USD",
+  "totalWin": 69,
+  "totalOdds": 5.12,
+  "totalStake": 43.5,
+  "finalStake": 43.5,
+  "createdDate": "2026-10-09T02:51:57.5Z",
+  "combLength": 2,
+  "linesCount": 3,
+  "bonusPart": 0,
+  "partialCashouts": [],
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "selections": [
+   {
+    "name": "Menos de 1.5",
+    "price": 2.4,
+    "status": 2,
+    "eventDate": "2026-10-10T14:00:00Z",
+    "eventName": "Chelsea vs. Bournemouth",
+    "marketName": "1º tempo - Bournemouth total cantos",
+    "sportTypeId": 1,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Malik Washington (MIA) mais 41.5",
+    "price": 1.8696,
+    "status": 1,
+    "eventDate": "2026-10-11T17:00:00Z",
+    "eventName": "Miami Dolphins vs. CIN Bengals",
+    "marketName": "Jogador - Jardas de Recepção Mais/Menos (incl. Prorrogação)",
+    "sportTypeId": 20,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Mais de 0.5",
+    "price": 2.5455,
+    "status": 1,
+    "eventDate": "2026-10-11T00:00:00Z",
+    "eventName": "Universitario de Deportes vs. FBC Melgar",
+    "marketName": "2º tempo - FBC Melgar total",
+    "sportTypeId": 1,
+    "isBetBuilder": false
+   }
+  ]
+ },
+ "5508528206": {
+  "id": 5508528206,
+  "type": 1,
+  "status": 1,
+  "currency": "USD",
+  "totalWin": 190.48,
+  "totalOdds": 7.619486,
+  "totalStake": 25,
+  "finalStake": 25,
+  "createdDate": "2026-10-10T10:40:00.59Z",
+  "combLength": 2,
+  "linesCount": 1,
+  "bonusPart": 0,
+  "partialCashouts": [],
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "selections": [
+   {
+    "name": "Mais de 11.5",
+    "price": 3.3334,
+    "status": 1,
+    "eventDate": "2026-10-10T15:00:00Z",
+    "eventName": "Vicenza vs. Pisa",
+    "marketName": "Total cantos",
+    "sportTypeId": 1,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Haro Rioja (F) (+1.5)",
+    "price": 2.2858,
+    "status": 1,
+    "eventDate": "2026-10-10T16:00:00Z",
+    "eventName": "Haro Rioja (F) vs. Haris (F)",
+    "marketName": "Handicap de sets",
+    "sportTypeId": 19,
+    "isBetBuilder": false
+   }
+  ]
+ },
+ "CfqDUmZMEHCsrWs6k6UGK": {
+  "id": "CfqDUmZMEHCsrWs6k6UGK",
+  "type": "REGULAR",
+  "amount": "25",
+  "status": "WON",
+  "currency": "USDT",
+  "createdAt": "2026-10-08T18:07:35.107Z",
+  "settlement": {
+   "id": "01a121cf-777a-771b-8f88-49b6fc134503",
+   "payout": "67.5",
+   "createdAt": "2026-10-09T17:56:47.098Z",
+   "payoutOddsDecimal": "2.7"
+  },
+  "systemBetType": null,
+  "originalAmount": null,
+  "totalOddsDecimal": "5.454",
+  "legs": [
+   {
+    "oddsDecimal": "2.7",
+    "displayStatus": "WON",
+    "selections": [
+     {
+      "sports": "TENNIS",
+      "fixture": {
+       "name": "Waltert, Simona vs Sakatsume, Himeno",
+       "startTime": "2026-10-09T14:00:00.000Z"
+      },
+      "market": {
+       "name": "Total sets",
+       "lineValue": "2.5"
+      },
+      "marketSelection": {
+       "formattedName": "Mais de 2.5"
+      }
+     }
+    ]
+   },
+   {
+    "oddsDecimal": "2.02",
+    "displayStatus": "PUSHED",
+    "selections": [
+     {
+      "sports": "SOCCER",
+      "fixture": {
+       "name": "Kosovo vs Áustria",
+       "startTime": "2026-10-09T16:00:00.000Z"
+      },
+      "market": {
+       "name": "Total",
+       "lineValue": "3"
+      },
+      "marketSelection": {
+       "formattedName": "Menos de 3"
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

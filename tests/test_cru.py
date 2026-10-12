@@ -37,7 +37,14 @@ from adaptadores import ADAPTADORES, Recusa, dx, numero  # noqa: E402
 
 FIX = Path(__file__).resolve().parent.parent / "extensor" / "harness" / "fixtures"
 # Família → fixtures da bancada. Adaptador novo entra aqui junto (test_todo_adaptador_tem_fixture).
-FIXTURES_POR_FAMILIA = {"dx": ["dexsport.tickets.json"]}
+FIXTURES_POR_FAMILIA = {
+    "dx": ["dexsport.tickets.json"],
+    "jb": ["betpanda.my_bets.json", "jonbet.my_bets_all.json", "jonbet.my_bets_open.json"],
+    "shf": ["shuffle.sportsbets.json"],
+    "tv": ["mystake.gethistory.json", "tivo.gethistory.json", "betfast.gethistory.json"],
+    "vb": ["esportiva.settled.json", "esportiva.anuladas.json", "esportiva.cashout.json",
+           "estrelabet.settled.json", "vaidebet.settled.json"],
+}
 
 
 def _respostas(fx):
@@ -54,7 +61,8 @@ def _respostas(fx):
             for x in o:
                 walk(x)
     walk(fx)
-    return out
+    # Fixture gravada sem o envelope `resposta` (a maioria da bancada): ela É a resposta.
+    return out or [fx]
 
 
 def _bilhetes(familia):
