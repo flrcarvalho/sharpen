@@ -204,7 +204,7 @@ def _linha(c):
 
 
 def _dublar_repescagem(monkeypatch, devolve):
-    async def _fake(system, texto, faltantes, modelo, instrucao_block):
+    async def _fake(system, texto, faltantes, modelo, instrucao_block, pensamento=None):
         # o recorte tem de conter só os faltantes — o barato da repescagem depende disso
         recorte = main._blocos_dos_codigos(texto, faltantes)
         assert all(c in recorte for c in faltantes)

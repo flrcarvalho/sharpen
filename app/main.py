@@ -490,6 +490,33 @@ _WARMER_INTERVALO = 55 * 60
 _SOMBRA_MODELO = os.environ.get("SOMBRA_MODELO", "claude-haiku-5-5").strip()
 _SOMBRA_MODELO_PCT = int(os.environ.get("SOMBRA_MODELO_PCT", "100") or 0)
 
+# ── Pensamento do titular (s409, Projeto Ficha Sharpen D1) ─────────────────────────────
+# O Sonnet 5 pensa por padrão quando a chamada não diz nada, e o pensamento é faturado como
+# saída: medido em 5 lotes reais da DEX Sport, 11.407 tokens de saída por pedaço com ele
+# contra 1.545 sem (`docs/PROJETO_FICHA_SHARPEN/DIARIO.md`, 11/10). Na mesma medição, sem
+# pensamento a IA errou 1 odd em 30 apostas, e é o fiscal (`_veredito_do_retorno`, s409) que
+# a corrige; com ele, 30 de 30.
+#
+# CHAVE: `EXTRACAO_SEM_PENSAMENTO` = lista de casas (`DEXSPORT,MEGAPARI`) ou `*` para
+# todas. Vazia = como sempre. Vale SÓ para lote de TEXTO: print e PDF não foram medidos sem
+# pensamento e seguem como sempre. Lida a cada chamada, como a `CONTRATO_TEXTO_CASAS`.
+_SEM_PENSAMENTO = {"thinking": {"type": "disabled"}}
+
+
+def _casas_sem_pensamento() -> set[str]:
+    return {c.strip().upper() for c in os.environ.get("EXTRACAO_SEM_PENSAMENTO", "").split(",")
+            if c.strip()}
+
+
+def _pensamento_kw(casa_key: str, blocos: list[dict]) -> dict:
+    """Os kwargs de `thinking` da chamada do titular. `{}` = o padrão do modelo."""
+    casas = _casas_sem_pensamento()
+    if not casas or ("*" not in casas and (casa_key or "").upper() not in casas):
+        return {}
+    if any(isinstance(b, dict) and b.get("type") != "text" for b in blocos):
+        return {}
+    return dict(_SEM_PENSAMENTO)
+
 
 def _sombra_vale_agora() -> bool:
     if not _SOMBRA_MODELO or _SOMBRA_MODELO_PCT <= 0:
@@ -634,11 +661,15 @@ async def _cache_warmer():
     await asyncio.sleep(30)
     while True:
         try:
+            # Com `EXTRACAO_SEM_PENSAMENTO` ligada para a Superbet (ou `*`) o aquecimento
+            # acompanha: medido (s409), a chamada sem pensamento NÃO leu o cache escrito
+            # pela chamada com ele.
             await _client.messages.create(
                 model=DEFAULT_MODEL,
                 max_tokens=0,
                 system=build_system("SUPERBET"),
                 messages=[{"role": "user", "content": "warmup"}],
+                **_pensamento_kw("SUPERBET", [{"type": "text"}]),
             )
         except Exception:
             pass
@@ -1461,7 +1492,8 @@ def _blocos_dos_codigos(texto: str, codigos: list[str]) -> str:
 
 
 async def _repescar_faltantes(system: list[dict], texto: str, faltantes: list[str],
-                              modelo: str, instrucao_block: dict) -> tuple[list[str], dict]:
+                              modelo: str, instrucao_block: dict,
+                              pensamento: dict | None = None) -> tuple[list[str], dict]:
     """Reprocessa SÓ os bilhetes que não voltaram, num chunk único.
 
     Barato por construção: manda apenas os blocos faltantes (o system, que é o caro,
@@ -1476,7 +1508,7 @@ async def _repescar_faltantes(system: list[dict], texto: str, faltantes: list[st
         acc = ""
         async with _client.messages.stream(
             model=modelo, max_tokens=64000, system=system,
-            messages=[{"role": "user", "content": conteudo}],
+            messages=[{"role": "user", "content": conteudo}], **(pensamento or {}),
         ) as stream:
             async for pedaco in stream.text_stream:
                 acc += pedaco
@@ -1683,7 +1715,8 @@ def _reconciliar_orfas(resultado: str, texto: str | None) -> tuple[str, dict]:
 
 async def _garantir_cobertura(system: list[dict], resultado: str, texto: str | None,
                               modelo: str, instrucao_block: dict | None,
-                              reverse_rows: bool) -> tuple[str, dict, dict]:
+                              reverse_rows: bool, pensamento: dict | None = None
+                              ) -> tuple[str, dict, dict]:
     """Confere se todo bilhete do texto-fonte virou linha; repesca o que faltou.
 
     Sessão 179: um chunk que responde SEM o bloco ```tsv contribui com zero linhas e
@@ -1737,7 +1770,8 @@ async def _garantir_cobertura(system: list[dict], resultado: str, texto: str | N
 
     logger.warning("cobertura: %d de %d bilhete(s) não voltaram — repescando: %s",
                    len(faltantes), cobertura["esperados"], ", ".join(faltantes[:10]))
-    novas, tokens = await _repescar_faltantes(system, texto, faltantes, modelo, instrucao_block)
+    novas, tokens = await _repescar_faltantes(system, texto, faltantes, modelo, instrucao_block,
+                                              pensamento)
     if not novas:
         return _fechar(resultado, cobertura, faltantes)
 
@@ -1808,8 +1842,8 @@ def _linhas_infieis(resultado: str, blocos: dict[str, str]) -> dict[str, list]:
 
 
 async def _garantir_fidelidade(system: list[dict], resultado: str, texto: str | None,
-                               modelo: str, instrucao_block: dict | None
-                               ) -> tuple[str, dict, dict]:
+                               modelo: str, instrucao_block: dict | None,
+                               pensamento: dict | None = None) -> tuple[str, dict, dict]:
     """Repesca a linha que não pertence ao próprio bilhete. Retorna
     (resultado, fidelidade, tokens_extras).
 
@@ -1832,7 +1866,7 @@ async def _garantir_fidelidade(system: list[dict], resultado: str, texto: str | 
     logger.warning("fidelidade: %d linha(s) não batem com o próprio bloco — repescando: %s",
                    len(suspeitos), ", ".join(list(suspeitos)[:10]))
     novas, tokens = await _repescar_faltantes(system, texto, list(suspeitos), modelo,
-                                              instrucao_block)
+                                              instrucao_block, pensamento)
 
     # Indexa a repescagem por código e troca SÓ o que passa a valer.
     nova_por_codigo: dict[str, str] = {}
@@ -1980,7 +2014,8 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows
 async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
                              dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False,
                              betfair_dates: dict | None = None, codigo_ocr: bool = False,
-                             fora_corte: int = 0, caminho: str | None = None):
+                             fora_corte: int = 0, caminho: str | None = None,
+                             pensamento: dict | None = None):
     t_start = time.perf_counter()
     try:
         accumulated = ""
@@ -2009,7 +2044,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
                     try:
                         async with _client.messages.stream(
                             model=modelo, max_tokens=64000,
-                            system=system, messages=_m,
+                            system=system, messages=_m, **(pensamento or {}),
                         ) as stream:
                             async for chunk in stream.text_stream:
                                 emitted = True
@@ -2092,14 +2127,15 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
                            cod_fix["fantasmas"], cod_fix["adotados"],
                            cod_fix["esvaziados"], cod_fix["exemplos"])
         accumulated, cobertura, tk_extra = await _garantir_cobertura(
-            system, accumulated, texto, modelo, content[-1] if content else None, reverse_rows)
+            system, accumulated, texto, modelo, content[-1] if content else None, reverse_rows,
+            pensamento)
         for k in total_tokens:
             total_tokens[k] += tk_extra.get(k, 0)
         # Fidelidade: a linha do código X saiu do bloco do código X? Roda DEPOIS da
         # cobertura porque a repescagem de lá acrescenta linhas — que também precisam
         # passar por aqui.
         accumulated, fidelidade, tk_fid = await _garantir_fidelidade(
-            system, accumulated, texto, modelo, content[-1] if content else None)
+            system, accumulated, texto, modelo, content[-1] if content else None, pensamento)
         for k in total_tokens:
             total_tokens[k] += tk_fid.get(k, 0)
         # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
@@ -2152,7 +2188,8 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
 
 async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None,
                            dono: str = "", casa: str = "", n_itens: int = 0, betfair_dates: dict | None = None,
-                           codigo_ocr: bool = False, fora_corte: int = 0, caminho: str | None = None):
+                           codigo_ocr: bool = False, fora_corte: int = 0, caminho: str | None = None,
+                           pensamento: dict | None = None):
     n_chunks = len(chunks)
     t_start = time.perf_counter()
     sem = asyncio.Semaphore(_MAX_CONCURRENT)
@@ -2197,7 +2234,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                         try:
                             async with _client.messages.stream(
                                 model=modelo, max_tokens=64000,
-                                system=system, messages=messages,
+                                system=system, messages=messages, **(pensamento or {}),
                             ) as stream:
                                 async for chunk in stream.text_stream:
                                     # 1º token do chunk 0 = prefill terminou = o cache do
@@ -2315,13 +2352,13 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
         # `chunks_falhos` só conta exceção). Confere pelo gabarito de códigos e repesca.
         resultado, cobertura, tk_extra = await _garantir_cobertura(
             system, resultado, texto, modelo,
-            chunks[0][-1] if chunks and chunks[0] else None, reverse_rows_casa)
+            chunks[0][-1] if chunks and chunks[0] else None, reverse_rows_casa, pensamento)
         for k in total_tokens:
             total_tokens[k] += tk_extra.get(k, 0)
         # Fidelidade: a linha do código X saiu do bloco do código X? Ver a nota no seq.
         resultado, fidelidade, tk_fid = await _garantir_fidelidade(
             system, resultado, texto, modelo,
-            chunks[0][-1] if chunks and chunks[0] else None)
+            chunks[0][-1] if chunks and chunks[0] else None, pensamento)
         for k in total_tokens:
             total_tokens[k] += tk_fid.get(k, 0)
         if cobertura.get("recuperados") or fidelidade.get("corrigidas"):
@@ -4103,17 +4140,21 @@ async def extrair(
         # -- e e ela que autoriza a captura a ADOTAR a linha depois, em vez de duplicar.
         # Lote misto (imagem + texto) conta como imagem: procedencia se decide pelo pior caso.
         _codigo_ocr = any(b.get("type") == "image" for b in base_x)
+        _pensamento = _pensamento_kw(casa_key, base_x)
+        if _pensamento:
+            logger.info("extrair: casa=%s sem pensamento (EXTRACAO_SEM_PENSAMENTO)", casa_key)
         if use_parallel:
             return _stream_parallel(system, chunks, modelo, xls_skipped, casa_key, texto_x,
                                     dono=dono, casa=_casa_disp, n_itens=_n_itens, betfair_dates=betfair_dates,
-                                    codigo_ocr=_codigo_ocr, fora_corte=fora_corte, caminho=caminho)
+                                    codigo_ocr=_codigo_ocr, fora_corte=fora_corte, caminho=caminho,
+                                    pensamento=_pensamento)
         # Bet365/Betano/Betfair são feed newest-first: no chunk único, o sistema inverte p/
         # oldest→newest (ex.: 1 bilhete só, ou o fallback de texto antigo em bloco único).
         seq_reverse = casa_key.upper() in ("BET365", "BETANO", "BETFAIR")
         return _stream_sequential(system, base_x + [instrucao_block], modelo, xls_skipped, texto_x,
                                   dono=dono, casa=_casa_disp, n_itens=_n_itens, reverse_rows=seq_reverse,
                                   betfair_dates=betfair_dates, codigo_ocr=_codigo_ocr,
-                                  fora_corte=fora_corte, caminho=caminho)
+                                  fora_corte=fora_corte, caminho=caminho, pensamento=_pensamento)
 
     # Contrato de texto de 4 campos (s386): só com `CONTRATO_TEXTO_CASAS` ligando a casa
     # E lote que é SÓ texto — imagem, PDF, CSV e XLS seguem o caminho de sempre.

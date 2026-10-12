@@ -277,7 +277,7 @@ BOA_1943 = _linha("O/25146258/0001943",
 
 def _rodar(tsv, resposta_da_repescagem, monkeypatch):
     """Roda o gate com a chamada ao modelo substituída por um roteiro fixo."""
-    async def _fake(system, texto, faltantes, modelo, instrucao_block):
+    async def _fake(system, texto, faltantes, modelo, instrucao_block, pensamento=None):
         _fake.pedidos = list(faltantes)
         return list(resposta_da_repescagem), {"input": 0, "output": 0,
                                               "cache_read": 0, "cache_write": 0}
