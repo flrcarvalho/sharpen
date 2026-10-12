@@ -20,24 +20,57 @@ if (!arquivos.length) {
   process.exit(1);
 }
 
-let totalFalhas = 0, totalTestes = 0;
+// FALHAS CONHECIDAS (s409, decisão do Feca, 11/10/2026). Cada entrada absorve só as falhas
+// de UM caso cujo texto começa pelo prefixo dado; qualquer outra falha do mesmo caso continua
+// derrubando o gate. Elas são IMPRESSAS, nunca escondidas, e o executor avisa quando uma
+// conhecida deixa de aparecer (aí ela sai daqui).
+//
+// Bet365, resolvedor de abertas: falha só em UTC (o CI). Aqui, com o fuso de Brasília, passa;
+// com `TZ=UTC node extensor/harness/run.mjs bet365`, as 11 checagens do `resolverAbertas`
+// falham. Vermelho desde a s407 e travando os passos seguintes do CI (auditoria do SharpenUp,
+// tokens de marca, gate de documentação). Conserto quando a Bet365 migrar para a Ficha:
+// BACKLOG §4 "Bet365: resolvedor de abertas depende do fuso".
+const CONHECIDAS = [
+  { caso: "Bet365", prefixo: "resolver", soEmUTC: true,
+    motivo: "depende do fuso (falha em UTC); BACKLOG §4" },
+];
+
+let totalFalhas = 0, totalTestes = 0, totalConhecidas = 0;
+const conhecidasVistas = new Set(), casosRodados = new Set();
 for (const f of arquivos) {
   const mod = await import(pathToFileURL(path.join(RAIZ, "casos", f)).href);
   const nome = mod.casa || path.basename(f, ".mjs");
+  casosRodados.add(nome);
   let res;
   try {
     res = await mod.rodar();
   } catch (e) {
     res = { falhas: ["exceção: " + (e && e.stack || e)], testes: 0 };
   }
-  const falhas = res.falhas || [];
+  const regras = CONHECIDAS.filter((k) => k.caso === nome);
+  const conhecidas = [], falhas = [];
+  for (const x of res.falhas || []) {
+    const k = regras.find((r) => String(x).startsWith(r.prefixo));
+    if (k) { conhecidas.push([x, k]); conhecidasVistas.add(k); } else falhas.push(x);
+  }
   totalFalhas += falhas.length;
+  totalConhecidas += conhecidas.length;
   totalTestes += res.testes || 0;
-  console.log(`${falhas.length ? "  FALHA" : "  OK   "} ${nome}  (${res.testes || 0} bilhete(s) conferido(s))`);
+  const rotulo = falhas.length ? "  FALHA" : conhecidas.length ? "  CONH." : "  OK   ";
+  console.log(`${rotulo} ${nome}  (${res.testes || 0} bilhete(s) conferido(s))`);
   for (const x of falhas) console.log("         → " + x);
+  for (const [x, k] of conhecidas) console.log(`         ~ falha CONHECIDA (${k.motivo}): ${x}`);
 }
 
 console.log();
+for (const k of CONHECIDAS) {
+  const esperada = !k.soEmUTC || new Date().getTimezoneOffset() === 0;
+  if (esperada && casosRodados.has(k.caso) && !conhecidasVistas.has(k)) {
+    console.log(`AVISO: a falha conhecida de ${k.caso} ("${k.prefixo}…") não apareceu. ` +
+                `Se ela foi consertada, tire-a de CONHECIDAS em run.mjs.`);
+  }
+}
+if (totalConhecidas) console.log(`(${totalConhecidas} falha(s) CONHECIDA(S) impressa(s) acima, fora da conta.)`);
 if (totalFalhas) {
   console.log(`RESULTADO: ${totalFalhas} falha(s) em ${arquivos.length} caso(s).`);
   process.exit(1);

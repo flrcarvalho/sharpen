@@ -1445,6 +1445,21 @@ Os dois saíram do replay do fiscal que passou a ler a linha `Retorno:`
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
 
+### 4.16 Bet365: resolvedor de abertas depende do fuso (s409). **VIVA, medida — falha CONHECIDA no harness**
+O caso `extensor/harness/casos/bet365.mjs` (`resolverAbertas`) falha nas **11 checagens do
+resolvedor** quando o harness roda em UTC, que é o fuso do CI, e passa no fuso de Brasília.
+Reproduzir: `TZ=UTC node extensor/harness/run.mjs bet365`. O CI estava vermelho por isso desde a
+s407 (`0b7a671`), e o passo vermelho TRAVAVA os seguintes (auditoria do SharpenUp, tokens de
+marca, gate de documentação), que deixaram de rodar no CI.
+**Isolado, sem mexer na Bet365** (decisão do Feca, 11/10): `CONHECIDAS` em
+`extensor/harness/run.mjs` absorve só as falhas do caso Bet365 que começam por `resolver`; elas
+são impressas como `~ falha CONHECIDA`, e qualquer outra falha (inclusive outra da Bet365)
+continua derrubando o gate (provado por mutação). Em UTC, se a conhecida deixar de aparecer, o
+executor avisa para tirá-la da lista.
+**Consertar quando a Bet365 migrar para a Ficha**, e tirar a entrada de `CONHECIDAS` junto.
+Ainda não se sabe se o defeito é do teste (data montada em hora local) ou do `b3_inject.js`
+(carimbo convertido pelo fuso da máquina): descobrir isso é o 1º passo.
+
 ### 4.0a Freebet = dinheiro da casa, em TODAS as casas — regra no MASTER, P/L ainda NÃO (s392). **VIVA, medida**
 
 **Decisão do Feca, 03 e 04/10/2026**, escrita no `MASTER_RESULTADO §5.8`: `P/L = retorno −
