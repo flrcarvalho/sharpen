@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-10-12 · D2 · teste real do Feca: 545 crus, 545 batem com o banco
+
+O Feca instalou a extensão da branch `sharpenup-cru` e capturou 6 casas de 5 famílias. Conferido no banco
+(só leitura), tabela `captura_crua` contra `bilhetes`, mesma conta:
+
+| Casa | Família | Cru | Batem |
+|---|---|---|---|
+| Betpanda | jb | 167 | 167 |
+| MyStake | tv | 137 | 137 |
+| Shuffle | shf | 72 | 72 |
+| Duel | jb | 65 | 65 |
+| DEX Sport | dx | 55 | 55 |
+| Vavada | vb | 49 | 49 |
+
+O filtro removeu 0 campos nessas casas. O texto e a extração saíram como sempre. Condição (c) cumprida.
+
+**Shuffle e Duel na 1ª vez:** o texto chegou e o cru não. A aba estava aberta antes da troca da extensão, e o
+Chrome não injeta o content script novo em aba já aberta. Com F5, o cru chegou. Não é defeito; o aviso aos
+testers pede o F5.
+
+**Próxima ação:** com o "pode mandar" do Feca, merge na main + bump 0.7.51 + aviso
+(`scripts/avisar_testers.py`) + push. Mensagem pronta no STATUS.
+
+---
+
 ## 2026-10-12 · D1-D2 · atualização única do SharpenUp (as 22 casas mandam o cru), esperando o teste do Feca
 
 **Onde está:** pronta e provada na branch `sharpenup-cru` (commit `e919499`, **sem push**), na cópia isolada
