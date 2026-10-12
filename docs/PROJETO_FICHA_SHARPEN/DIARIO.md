@@ -5,6 +5,48 @@
 
 ---
 
+## 2026-10-11 · D1 · o cru vai ao servidor; filtro por nome exato; adaptador da DEX; CI verde
+
+**Onde está:** servidor pronto para receber o cru (tabela, filtro, adaptador da DEX), testado. A
+extensão ainda NÃO manda o cru. Próxima ação: a atualização única do SharpenUp (as 22 casas
+mandando o cru), que será mostrada ao Feca antes de distribuir.
+
+**Rumo do Feca:** primeiro as casas de outubro rodando perfeito; depois Bet365, Betano e as demais,
+até virar a chave de vez. **Mudança de desenho:** os adaptadores saem da extensão e vão para o
+servidor (Python, um por família); a extensão manda o cru de **todas** as casas que já escuta, numa
+atualização só. Cru guardado de todas as casas desde o 1º dia (aprovado).
+
+- **CI (item 5):** o resolvedor de abertas da Bet365 falha só em UTC (`TZ=UTC node
+  extensor/harness/run.mjs bet365` reproduz); vermelho desde a s407, travava 3 passos. Isolado como
+  falha CONHECIDA no `extensor/harness/run.mjs` (só as do caso Bet365 com prefixo `resolver`; outra
+  falha, até da Bet365, derruba, provado por mutação). `BACKLOG.md §4.16`. **CI verde** em `0f09b63`,
+  todos os passos.
+- **Filtro** (`app/cru.py`), refeito como o Feca mandou: **nome exato**, igualdade sem caixa, lista
+  fechada; e-mail pelo valor. Lista: a de partida da consultoria + `CurrentBalanceDetails`,
+  `CustomerId`, `CustomerCode`, `playerId` (identificam o cliente; nenhum inject usa; o `playerId`
+  da Novibet é número real de cliente). Varredura das 61 fixtures: a lista pega o que a
+  consultoria achou em 12 fixtures, e e-mail pelo valor em 3 pontos da Lottu.
+- **Tabela `captura_crua`** (`app/database.py`): cru filtrado em JSONB, caminhos removidos, hash
+  recalculado no servidor; cru igual não grava de novo. `ficha_sombra.cru_id` aponta a origem.
+- **Rota** (`app/ficha.py`): recebe `{token, versao, origem, familia, itens:[{codigo, hash, cru}]}`
+  (até 200); filtra de novo; guarda o cru de toda casa; com `FICHA_SOMBRA_CASAS` ligando a casa,
+  monta a Ficha pelo adaptador e grava aceita ou recusada com motivo. Cru do site de outra casa:
+  **409 final**, não grava, conta no log. `CRU_CAPTURA_DESLIGADA=1` desliga tudo.
+- **Adaptador DEX** (`app/adaptadores/dx.py`): bate com o **gabarito lido na tela** (10 bilhetes do
+  recon de 03/10: odd, resultado, stake e data, incluindo perna anulada e perdida com perna
+  aberta) e monta os 41 da fixture sem recusa. O que hoje sobe "a conferir" é **recusado com
+  motivo**. A `impressao` é calculada pelo servidor sobre o cru guardado, não pelo adaptador.
+- **Teste obrigatório do Feca:** Ficha do cru filtrado = Ficha do cru sem filtro, em toda fixture
+  com adaptador; adaptador novo sem fixture registrada quebra o teste.
+- **Gate:** `tests/test_cru.py` (15) e `tests/test_ficha.py` (rota refeita); **11 mutações, 11
+  detectadas** (a da odd da ganha escapou na 1ª rodada: o `derivar` chega a 3,75 pelo dinheiro, então
+  o teste passou a conferir o campo da Ficha). INSERT do cru no harness de DB. `pytest tests`:
+  **1.786 passed**.
+- **Régua (item 4):** moeda e código bloqueiam; contar ganhas em "nenhuma fecha"
+  (`03_REGUA_NUMEROS.md §6`).
+
+---
+
 ## 2026-10-11 · D1 · rota da Ficha em modo sombra (no ar, desligada)
 
 **Onde está:** rota pronta, testada e publicada com a chave **vazia** (`FICHA_SOMBRA_CASAS`), então

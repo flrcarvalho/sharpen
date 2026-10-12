@@ -1388,3 +1388,39 @@ def test_ficha_sombra_grava_aceita_e_recusada_e_nao_duplica():
         assert linhas[1]["motivos"] == ["status desconhecido: 'won'"]
         assert linhas[1]["st"] == "won" and linhas[0]["parceiro"] == "conta [Op]"
     _run(body())
+
+
+def test_captura_crua_grava_uma_vez_e_cru_mudado_vira_linha_nova():
+    """O cru da casa (s409): JSONB como texto, `removidos` como lista; cru igual não grava de
+    novo (devolve None), cru mudado entra como linha nova, e a Ficha aponta o `cru_id`."""
+    import cru as _cru
+    import ficha
+
+    async def body():
+        await init_db()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE captura_crua RESTART IDENTITY")
+            await conn.execute("TRUNCATE ficha_sombra RESTART IDENTITY")
+        bilhete = {"id": "1d15646f-c666", "amount": 40, "payout": 158.8}
+        item = {"codigo": bilhete["id"], "cru": bilhete, "hash": _cru.impressao(bilhete),
+                "removidos": ["user"]}
+        ids = await ficha.gravar_cru("TDonoA", "DEXSPORT", "conta [Op]", "dx", "0.7.52",
+                                     "dexsport.io", [item])
+        assert ids[0] is not None
+        assert await ficha.gravar_cru("TDonoA", "DEXSPORT", "conta [Op]", "dx", "", "",
+                                      [item]) == [None]
+        mudado = dict(bilhete, payout=0)
+        ids2 = await ficha.gravar_cru("TDonoA", "DEXSPORT", "conta [Op]", "dx", "", "",
+                                      [dict(item, cru=mudado, hash=_cru.impressao(mudado))])
+        assert ids2[0] is not None and ids2[0] != ids[0]
+        reg = ficha._registro({"codigo": bilhete["id"], "impressao": "i"}, [], ids[0])
+        assert await ficha.gravar("TDonoA", "DEXSPORT", "conta [Op]", "", "", [reg]) == 1
+        async with pool.acquire() as conn:
+            linhas = await conn.fetch("SELECT codigo, removidos, cru->>'payout' p "
+                                      "FROM captura_crua ORDER BY id")
+            cru_id = await conn.fetchval("SELECT cru_id FROM ficha_sombra")
+        assert [(l["codigo"], l["p"]) for l in linhas] == [("1d15646f-c666", "158.8"),
+                                                          ("1d15646f-c666", "0")]
+        assert linhas[0]["removidos"] == ["user"] and cru_id == ids[0]
+    _run(body())

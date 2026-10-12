@@ -13,7 +13,8 @@ Separação de responsabilidades:
 
 | Quem | Faz | Nunca faz |
 |---|---|---|
-| **Extensão (adaptador por casa)** | copia da casa, **sem interpretar**: valores, datas, status, textos de mercado e seleção como a casa escreve | traduzir vocabulário, decidir data da planilha, calcular resultado |
+| **Extensão** | manda o **JSON cru** de cada bilhete, como a casa devolveu, já sem os campos de pessoa e de sessão (filtro por nome exato) | montar a Ficha, interpretar qualquer campo |
+| **Servidor: adaptador por família** (`app/adaptadores/`, decisão do Feca 11/10) | copia do cru, **sem interpretar**: valores, datas, status, textos de mercado e seleção como a casa escreve | traduzir vocabulário, decidir data da planilha, calcular resultado |
 | **Servidor (regras fixas)** | deriva o que a planilha mostra: data, resultado W/L/V/HW/HL, odd da planilha, descrição por modelo | chamar IA no caminho da aposta |
 | **Dicionário + IA em lote** | traduz termo da casa para termo do Sharpen (esporte, categoria), **uma vez por termo** | tocar em número |
 

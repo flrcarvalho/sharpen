@@ -935,6 +935,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS ficha_sombra_aceita
 CREATE UNIQUE INDEX IF NOT EXISTS ficha_sombra_recusada
     ON ficha_sombra (dono, casa, hash_bruto) WHERE NOT aceita;
 CREATE INDEX IF NOT EXISTS ficha_sombra_codigo ON ficha_sombra (dono, casa, codigo);
+
+-- O CRU de cada bilhete, como a casa devolveu (s409, desenho aprovado pelo Feca em 11/10): a
+-- extensão manda o objeto e o SERVIDOR monta a Ficha com o adaptador da família
+-- (`app/adaptadores/`). Guardado para TODAS as casas desde o 1º dia, para que adaptador novo
+-- ou corrigido possa ser rodado sobre o que já chegou, sem atualizar a extensão.
+--   `cru` já passou pelo filtro de nome exato (`app/cru.py`); `removidos` são os CAMINHOS
+--   cortados, nunca os valores. `hash` é recalculado aqui, sobre o cru filtrado.
+--   Cru igual não grava de novo; cru mudado (aberta que liquidou) entra como linha nova.
+CREATE TABLE IF NOT EXISTS captura_crua (
+    id          BIGSERIAL PRIMARY KEY,
+    recebido_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono        TEXT NOT NULL,
+    casa        TEXT NOT NULL,
+    parceiro    TEXT NOT NULL DEFAULT '',
+    familia     TEXT NOT NULL,
+    codigo      TEXT NOT NULL,
+    hash        TEXT NOT NULL,
+    cru         JSONB NOT NULL,
+    removidos   TEXT[] NOT NULL DEFAULT '{}',
+    versao_ext  TEXT NOT NULL DEFAULT '',
+    origem      TEXT NOT NULL DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS captura_crua_unica
+    ON captura_crua (dono, casa, parceiro, codigo, hash);
+CREATE INDEX IF NOT EXISTS captura_crua_casa ON captura_crua (casa, recebido_em);
+-- A Ficha montada aponta o cru de onde saiu.
+ALTER TABLE ficha_sombra ADD COLUMN IF NOT EXISTS cru_id BIGINT;
 """
 
 

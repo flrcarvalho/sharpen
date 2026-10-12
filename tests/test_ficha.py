@@ -3,8 +3,8 @@
 O que tem de ser verdade:
   1. **Ficha recusada é GRAVADA com o motivo** (decisão do Feca, 11/10). Descartada, ela vira
      "faltou" sem causa na régua.
-  2. **Casa e conta vêm da SESSÃO**, nunca do corpo. Ficha que diz outra casa é recusada.
-  3. **Chave vazia = nada acontece**: a rota responde `ligada: false` e não grava.
+  2. **Casa e conta vêm da SESSÃO**, nunca do corpo; cru do site de outra casa é 409 final.
+  3. **O cru de toda casa é guardado**; `FICHA_SOMBRA_CASAS` liga só o adaptador.
   4. **`derivar` segue a regra da odd aprovada** (Ficha §3): aberta/L/V pela odd da casa;
      W/HW pela odd que fecha o retorno no centavo, a da casa primeiro; nenhuma fecha → retorno
      ÷ stake; cashout pelo dinheiro. E a data pelo MASTER_OUTPUT §4 e §4.0.1, em Brasília.
@@ -13,9 +13,9 @@ Os números das Fichas abaixo são de bilhetes REAIS da DEX Sport (o `1d15646f�
 do pensamento, D1), não inventados.
 
 Mutações provadas (aplicadas ao `ficha.py`, teste ao lado vermelho):
-  1. recusada não é gravada (só aceitas vão ao `gravar`)    → test_ficha_recusada_e_gravada…
-  2. a casa vem da Ficha e não da sessão                    → test_a_casa_e_a_da_sessao…
-  3. chave ignorada (grava sempre)                          → test_chave_desligada_nao_grava
+  1. recusada não é gravada (só aceitas vão ao `gravar`)    → test_recusa_do_adaptador_e_gravada…
+  2. o filtro não roda de novo no servidor                  → test_o_servidor_filtra_de_novo…
+  3. a chave ignorada (monta Ficha sem a casa ligada)       → test_cru_e_guardado_mesmo_com_a_chave…
   4. desempate da ganha prefere o produto à odd da casa     → test_quando_as_duas_fecham…
   5. W que nenhuma odd fecha fica com a odd da casa         → test_ganha_que_nenhuma_odd_fecha…
   6. HW medido com a fórmula de W                           → test_meia_vitoria_usa_a_formula…
@@ -32,7 +32,8 @@ aritmética. A trava fica porque descreve a regra; o teste da data que fica é c
 A mutação 6 escapou na 1ª rodada, e o defeito era do teste: as duas fórmulas davam a mesma
 resposta no caso montado.
 
-O QUE NÃO COBRE: o INSERT (SQL; o `gravar` é dublado) e a extensão, que ainda não manda Ficha.
+O QUE NÃO COBRE: o INSERT (SQL; `gravar` e `gravar_cru` são dublados aqui e provados no harness
+de DB do CI) e a extensão, que ainda não manda o cru.
 """
 import asyncio
 import copy
@@ -200,77 +201,131 @@ def test_sem_inicio_e_a_colocacao():
     assert ficha.derivar(f)["data"] == "06/10/2026"
 
 
-# ── a rota ────────────────────────────────────────────────────────────────────────────
+# ── a rota (recebe o CRU; o servidor monta a Ficha) ───────────────────────────────────
+
+import json as _json  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+
+_FIX = _Path(__file__).resolve().parent.parent / "extensor" / "harness" / "fixtures"
+_DEX_CRU = [t for p in _json.loads((_FIX / "dexsport.tickets.json").read_text(encoding="utf-8"))
+            ["finished"] for t in p["resposta"]["data"]]
+
+
+def _item(t):
+    return {"codigo": t["id"], "hash": "da-extensao", "cru": t}
+
 
 class _Sessao:
-    dono, casa_key, parceiro = "Feca", "DEXSPORT", "Feca [Eu]"
+    dono, casa, casa_key, parceiro = "Feca", "DEX Sport", "DEXSPORT", "Feca [Eu]"
 
 
 @pytest.fixture
 def cliente(monkeypatch):
-    gravados = []
+    g = {"cru": [], "fichas": []}
+
+    async def _gravar_cru(dono, casa_key, parceiro, familia, versao, origem, itens):
+        g["cru"].append({"dono": dono, "casa": casa_key, "parceiro": parceiro,
+                         "familia": familia, "itens": itens})
+        return list(range(1, len(itens) + 1))       # tudo novo
 
     async def _gravar(dono, casa_key, parceiro, versao, origem, registros):
-        gravados.append({"dono": dono, "casa": casa_key, "parceiro": parceiro,
-                         "registros": registros})
+        g["fichas"].append({"casa": casa_key, "parceiro": parceiro, "registros": registros})
         return len(registros)
 
+    monkeypatch.setattr(ficha, "gravar_cru", _gravar_cru)
     monkeypatch.setattr(ficha, "gravar", _gravar)
     monkeypatch.setattr(ficha._captura, "sessao_por_token",
                         lambda t: _Sessao() if t == "ok" else None)
     monkeypatch.setattr(ficha._captura, "registrar_versao", lambda s, v: None)
     monkeypatch.setenv("FICHA_SOMBRA_CASAS", "DEXSPORT")
+    monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
     app = FastAPI()
     app.include_router(ficha.router)
-    return TestClient(app), gravados
+    return TestClient(app), g
+
+
+def _post(c, **kw):
+    corpo = {"token": "ok", "familia": "dx", "itens": [_item(_DEX_CRU[0])]}
+    corpo.update(kw)
+    return c.post("/captura/ficha", json=corpo)
 
 
 def test_token_invalido_e_401_e_nao_grava(cliente):
-    c, gravados = cliente
-    r = c.post("/captura/ficha", json={"token": "x", "fichas": [_DEX]})
-    assert r.status_code == 401 and gravados == []
+    c, g = cliente
+    assert _post(c, token="x").status_code == 401 and g["cru"] == []
 
 
-def test_chave_desligada_nao_grava(cliente, monkeypatch):
-    c, gravados = cliente
+def test_cru_e_guardado_mesmo_com_a_chave_desligada(cliente, monkeypatch):
+    """`FICHA_SOMBRA_CASAS` liga o ADAPTADOR; o cru de toda casa é guardado desde o 1º dia."""
+    c, g = cliente
     monkeypatch.setenv("FICHA_SOMBRA_CASAS", "")
-    r = c.post("/captura/ficha", json={"token": "ok", "fichas": [_DEX]})
-    assert r.json() == {"ligada": False} and gravados == []
+    r = _post(c).json()
+    assert r["guardado"] is True and r["novos"] == 1
+    assert len(g["cru"]) == 1 and g["fichas"] == []
 
 
-def test_ficha_aceita_e_gravada(cliente):
-    c, gravados = cliente
-    r = c.post("/captura/ficha", json={"token": "ok", "fichas": [_DEX]}).json()
-    assert r["aceitas"] == 1 and r["recusadas"] == 0
-    assert gravados[0]["registros"][0]["aceita"] is True
+def test_rota_desligada_nao_grava_nada(cliente, monkeypatch):
+    c, g = cliente
+    monkeypatch.setenv("CRU_CAPTURA_DESLIGADA", "1")
+    assert _post(c).json() == {"guardado": False} and g["cru"] == []
 
 
-def test_ficha_recusada_e_gravada_com_o_motivo(cliente):
-    c, gravados = cliente
-    r = c.post("/captura/ficha", json={"token": "ok", "fichas": [_f(status="won")]}).json()
-    assert r["recusadas"] == 1
-    reg = gravados[0]["registros"][0]
-    assert reg["aceita"] is False and any("status" in m for m in reg["motivos"])
+def test_com_a_chave_a_ficha_e_montada_pelo_adaptador(cliente):
+    c, g = cliente
+    r = _post(c, itens=[_item(t) for t in _DEX_CRU[:5]]).json()
+    assert r["fichas"] == {"aceitas": 5, "recusadas": 0}
+    reg = g["fichas"][0]["registros"][0]
+    assert reg["aceita"] and reg["cru_id"] == 1
 
 
-def test_a_casa_e_a_da_sessao_nunca_a_da_ficha(cliente):
-    c, gravados = cliente
-    r = c.post("/captura/ficha", json={"token": "ok", "fichas": [_f(casa="MEGAPARI")]}).json()
-    assert r["recusadas"] == 1
-    assert gravados[0]["casa"] == "DEXSPORT" and gravados[0]["parceiro"] == "Feca [Eu]"
+def test_o_servidor_filtra_de_novo_e_recalcula_o_hash(cliente):
+    c, g = cliente
+    sujo = dict(_DEX_CRU[0], CurrentBalance=999, user={"nome": "x"})
+    _post(c, itens=[{"codigo": sujo["id"], "hash": "da-extensao", "cru": sujo}])
+    it = g["cru"][0]["itens"][0]
+    assert "CurrentBalance" not in it["cru"] and "user" not in it["cru"]
+    assert sorted(it["removidos"]) == ["CurrentBalance", "user"]
+    assert it["hash"] == ficha._cru.impressao(_DEX_CRU[0]) != "da-extensao"
 
 
-def test_ficha_vinda_do_site_de_outra_casa_e_recusada(cliente):
-    c, gravados = cliente
-    r = c.post("/captura/ficha", json={"token": "ok", "origem": "megapari.com",
-                                       "fichas": [_DEX]}).json()
-    assert r["recusadas"] == 1
-    assert any("site" in m for m in gravados[0]["registros"][0]["motivos"])
+def test_recusa_do_adaptador_e_gravada_com_o_motivo(cliente):
+    c, g = cliente
+    ruim = dict(_DEX_CRU[0], status=7)
+    r = _post(c, itens=[_item(ruim)]).json()
+    assert r["fichas"] == {"aceitas": 0, "recusadas": 1}
+    reg = g["fichas"][0]["registros"][0]
+    assert reg["aceita"] is False and any("status 7" in m for m in reg["motivos"])
 
 
-def test_lote_que_nao_e_lista_e_400(cliente):
+def test_casa_e_conta_sao_da_sessao(cliente):
+    c, g = cliente
+    _post(c)
+    assert (g["cru"][0]["casa"], g["cru"][0]["parceiro"]) == ("DEXSPORT", "Feca [Eu]")
+
+
+def test_cru_do_site_de_outra_casa_e_409_e_nao_grava(cliente):
+    """Resposta FINAL (decisão do Feca): a extensão marca como tratado e não reenvia."""
+    c, g = cliente
+    assert _post(c, origem="megapari.com").status_code == 409 and g["cru"] == []
+
+
+def test_familia_sem_adaptador_guarda_so_o_cru(cliente, monkeypatch):
+    c, g = cliente
+    monkeypatch.setenv("FICHA_SOMBRA_CASAS", "*")
+    r = _post(c, familia="zz").json()
+    assert r["novos"] == 1 and g["fichas"] == []
+
+
+def test_item_sem_codigo_e_descartado_e_contado(cliente):
+    c, g = cliente
+    r = _post(c, itens=[{"codigo": "", "cru": {}}, _item(_DEX_CRU[0])]).json()
+    assert r["descartados"] == 1 and r["novos"] == 1
+
+
+def test_lote_sem_familia_ou_grande_demais_e_400(cliente):
     c, _ = cliente
-    assert c.post("/captura/ficha", json={"token": "ok", "fichas": {}}).status_code == 400
+    assert _post(c, familia="").status_code == 400
+    assert _post(c, itens=[_item(_DEX_CRU[0])] * 201).status_code == 400
 
 
 # ── o registro no main.py ─────────────────────────────────────────────────────────────

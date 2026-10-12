@@ -67,3 +67,7 @@ daquela casa só para comparação. Depois disso, desliga.
 
 Um script só de leitura imprime, por casa e **separando liquidadas de abertas**: apostas comparadas, % idênticas por campo, % com os cinco
 campos de bloqueio idênticos, sumiços, duplicatas e a lista de divergências. Usuário só pelo `dono`.
+
+Decisão do Feca (11/10): o relatório compara também **moeda** e **código** (os dois bloqueiam) e conta, por
+casa, quantas **ganhas caem em "nenhuma odd fecha o retorno"** (`ficha.derivar`, `fonte_odd`): é o sinal
+de cashout ou de odd da casa mal escolhida pelo adaptador.

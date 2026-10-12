@@ -1,19 +1,23 @@
 """Ficha Sharpen, em MODO SOMBRA (Projeto Ficha Sharpen, D1; s409).
 
-A extensão monta a Ficha (o formato único de `docs/PROJETO_FICHA_SHARPEN/01_FICHA_SHARPEN.md`)
-a partir do JSON da casa e manda aqui, SEPARADA do `/captura/enviar` e sem esperar resposta. O
-caminho de hoje continua mandando no banco: esta rota grava na `ficha_sombra`, uma tabela que
-nada mais lê, e NUNCA toca em `bilhetes`. A régua compara as duas depois.
+A extensão manda aqui o JSON CRU de cada bilhete, como a casa devolveu, SEPARADO do
+`/captura/enviar` e sem esperar resposta. O servidor filtra o cru (`app/cru.py`), guarda em
+`captura_crua` para TODAS as casas e, onde a chave liga a casa, monta a Ficha com o adaptador
+da família (`app/adaptadores/`) e grava em `ficha_sombra`. O caminho de hoje continua mandando
+no banco: nada aqui toca em `bilhetes`. A régua compara depois.
 
-Três decisões do Feca (11/10) que moram aqui:
+Decisões do Feca (11/10) que moram aqui:
 
+  • **O adaptador mora no servidor**, não na extensão: casa nova migra sem atualizar o
+    SharpenUp, e adaptador corrigido roda de novo sobre o cru já guardado.
   • **Ficha recusada é gravada com o motivo, nunca descartada.** Descartada, ela viraria
-    "faltou" na régua, sem causa.
-  • **Casa e conta saem da SESSÃO de captura**, nunca do corpo da Ficha. O token aponta para
-    o pareamento feito no dashboard (dono logado + casa + conta escolhidas ali). Ficha que
-    diz outra casa é recusada, e o motivo fica gravado.
-  • **Chave por casa (`FICHA_SOMBRA_CASAS`), vazia = desligada.** Desligada, a rota responde
-    `ligada: false` e não grava nada: é o estado de antes, não uma recusa.
+    "faltou" na régua, sem causa. Vale para recusa do adaptador e da validação.
+  • **Casa e conta saem da SESSÃO de captura**, nunca do corpo. O token aponta para o
+    pareamento feito no dashboard (dono logado + casa + conta escolhidas ali).
+  • **Cru vindo do site de OUTRA casa é 409, resposta final:** não grava, conta no log, e a
+    extensão marca como tratado e não reenvia.
+  • **`FICHA_SOMBRA_CASAS` liga o ADAPTADOR casa por casa** (vazia = só guarda o cru).
+    `CRU_CAPTURA_DESLIGADA=1` desliga a rota inteira, sem deploy de código.
 
 Token inválido NÃO grava: sem sessão não há dono, e gravar requisição anônima abriria o banco
 para lixo. A rota responde 401 e a extensão reenvia depois do novo pareamento.
@@ -35,6 +39,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Body, HTTPException
 
 import captura as _captura
+import cru as _cru
 from tradutor import _PRECISAO_ODD, _PRECISAO_PRODUTO, _odd_br
 
 logger = logging.getLogger("scanner")
@@ -48,7 +53,6 @@ _TIPOS = {"simples", "multipla", "sistema"}
 _NUMERO = re.compile(r"^\d+(?:\.\d+)?$")       # Ficha §2: texto com PONTO decimal, sem sinal
 _BRT = ZoneInfo("America/Sao_Paulo")
 _CENTAVO = Decimal("0.005")                     # "fecha no centavo": arredonda para o mesmo
-MAX_FICHAS = 500
 
 
 def casas_ligadas() -> frozenset:
@@ -227,7 +231,10 @@ def derivar(f: dict) -> dict:
 
 # ── gravação ─────────────────────────────────────────────────────────────────────────
 
-def _registro(f, motivos: list[str]) -> dict:
+MAX_ITENS = 200
+
+
+def _registro(f, motivos: list[str], cru_id: int | None = None) -> dict:
     bruto = json.dumps(f, ensure_ascii=False, sort_keys=True, default=str)
     ok = not motivos
     return {
@@ -238,12 +245,13 @@ def _registro(f, motivos: list[str]) -> dict:
         "ficha": bruto,
         # recusada dedupa pelo conteúdo: a mesma ficha ruim a cada captura não enche a tabela
         "hash_bruto": hashlib.sha256(bruto.encode("utf-8")).hexdigest(),
+        "cru_id": cru_id,
     }
 
 
 async def gravar(dono: str, casa_key: str, parceiro: str, versao_ext: str, origem: str,
                  registros: list[dict]) -> int:
-    """Grava e devolve quantas linhas entraram (o resto já existia)."""
+    """Grava Fichas (aceitas e recusadas) e devolve quantas linhas entraram."""
     from database import get_pool
     pool = await get_pool()
     novas = 0
@@ -252,46 +260,114 @@ async def gravar(dono: str, casa_key: str, parceiro: str, versao_ext: str, orige
             st = await conn.execute(
                 """INSERT INTO ficha_sombra
                      (dono, casa, parceiro, codigo, impressao, aceita, motivos, ficha,
-                      hash_bruto, versao_ext, origem)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                      hash_bruto, versao_ext, origem, cru_id)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                    ON CONFLICT DO NOTHING""",
                 dono, casa_key, parceiro or "", r["codigo"], r["impressao"], r["aceita"],
-                r["motivos"], r["ficha"], r["hash_bruto"], versao_ext or "", origem or "")
+                r["motivos"], r["ficha"], r["hash_bruto"], versao_ext or "", origem or "",
+                r.get("cru_id"))
             novas += st.endswith(" 1")
     return novas
 
 
+async def gravar_cru(dono: str, casa_key: str, parceiro: str, familia: str, versao_ext: str,
+                     origem: str, itens: list[dict]) -> list[int | None]:
+    """Grava o cru e devolve, por item, o id da linha NOVA (None = já existia igual)."""
+    from database import get_pool
+    pool = await get_pool()
+    ids: list[int | None] = []
+    async with pool.acquire() as conn:
+        for it in itens:
+            ids.append(await conn.fetchval(
+                """INSERT INTO captura_crua
+                     (dono, casa, parceiro, familia, codigo, hash, cru, removidos,
+                      versao_ext, origem)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                   ON CONFLICT DO NOTHING RETURNING id""",
+                dono, casa_key, parceiro or "", familia, it["codigo"], it["hash"],
+                _cru.canonico(it["cru"]), it["removidos"], versao_ext or "", origem or ""))
+    return ids
+
+
+def montar_ficha(familia: str, cru: dict, casa_key: str) -> tuple[dict | None, list[str]]:
+    """(Ficha, motivos de recusa) pelo adaptador da família. Sem adaptador = (None, [])."""
+    from adaptadores import Recusa, adaptador
+    mod = adaptador(familia)
+    if mod is None:
+        return None, []
+    try:
+        f = mod.adaptar(cru, casa_key)
+    except Recusa as e:
+        return {"codigo": str((cru or {}).get("id") or ""), "cru_recusado": True}, [str(e)]
+    # A impressão é do SERVIDOR, sobre o cru que ficou guardado (já filtrado): o adaptador
+    # só copia o que é da aposta.
+    f = dict(f, impressao=_cru.impressao(cru))
+    return f, validar(f, casa_key)
+
+
+def _desligada() -> bool:
+    return os.environ.get("CRU_CAPTURA_DESLIGADA", "").strip() in ("1", "true", "sim")
+
+
 @router.post("/captura/ficha")
 async def receber(payload: dict = Body(...)):
-    """A extensão manda um lote de Fichas. Responde contagens; a extensão não espera."""
+    """A extensão manda o cru de um lote de bilhetes. Responde contagens; ela não espera."""
     sess = _captura.sessao_por_token(payload.get("token") or "")
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
     versao = str(payload.get("versao") or "")
     _captura.registrar_versao(sess, versao)
-    if not ligada(sess.casa_key):
-        return {"ligada": False}
-    fichas = payload.get("fichas")
-    if not isinstance(fichas, list) or len(fichas) > MAX_FICHAS:
-        raise HTTPException(400, f"`fichas` deve ser uma lista de até {MAX_FICHAS}.")
+    if _desligada():
+        return {"guardado": False}
     origem = str(payload.get("origem") or "")
-    # Amarração casa↔site, a mesma do `/captura/enviar`. Aqui não se rejeita o lote: cada
-    # ficha é gravada RECUSADA com o motivo (decisão do Feca: recusada nunca some).
     casa_origem = _captura.casa_de_host(origem) if origem else None
-    fora_do_site = bool(casa_origem and casa_origem != (sess.casa_key or "").upper())
-    registros = []
-    for f in fichas:
-        motivos = validar(f, sess.casa_key)
-        if fora_do_site:
-            motivos.append(f"veio do site de {casa_origem}, a sessão é {sess.casa_key}")
-        # Conta vazia (pareamento sem conta) NÃO recusa: grava com `parceiro = ''` e a régua
-        # aponta, porque compara por dono + casa + código.
-        registros.append(_registro(f, motivos))
-    novas = await gravar(sess.dono, sess.casa_key, sess.parceiro, versao, origem, registros)
-    aceitas = sum(1 for r in registros if r["aceita"])
-    if len(registros) - aceitas:
-        logger.warning("ficha: %s %s — %d de %d recusada(s): %s", sess.dono, sess.casa_key,
-                       len(registros) - aceitas, len(registros),
-                       next(r["motivos"] for r in registros if not r["aceita"])[:3])
-    return {"ligada": True, "recebidas": len(registros), "aceitas": aceitas,
-            "recusadas": len(registros) - aceitas, "novas": novas}
+    if casa_origem and casa_origem != (sess.casa_key or "").upper():
+        # Resposta FINAL (decisão do Feca): não grava, conta no log, a extensão não reenvia.
+        logger.warning("ficha: cru de %s numa sessão de %s (dono %s) — 409, não gravado",
+                       casa_origem, sess.casa_key, sess.dono)
+        raise HTTPException(409, f"Cru do site de {casa_origem}; a conexão é {sess.casa}.")
+    familia = str(payload.get("familia") or "").strip().lower()
+    itens = payload.get("itens")
+    if not familia or not isinstance(itens, list) or len(itens) > MAX_ITENS:
+        raise HTTPException(400, f"`familia` e `itens` (lista de até {MAX_ITENS}) são obrigatórios.")
+
+    aceitos, descartados = [], 0
+    for it in itens:
+        cod = it.get("codigo") if isinstance(it, dict) else None
+        if not (isinstance(cod, str) and cod.strip()) or not isinstance(it.get("cru"), dict):
+            descartados += 1
+            continue
+        # O filtro roda DE NOVO aqui (a extensão já filtrou): segunda trava, e o hash é o
+        # do cru que de fato fica guardado.
+        filtrado, removidos = _cru.filtrar(it["cru"])
+        if len(_cru.canonico(filtrado).encode("utf-8")) > _cru.MAX_BYTES:
+            descartados += 1
+            logger.warning("ficha: cru de %s %s acima de %d bytes — descartado",
+                           sess.casa_key, cod, _cru.MAX_BYTES)
+            continue
+        aceitos.append({"codigo": cod.strip(), "cru": filtrado,
+                        "hash": _cru.impressao(filtrado), "removidos": removidos})
+    ids = await gravar_cru(sess.dono, sess.casa_key, sess.parceiro, familia, versao, origem,
+                           aceitos)
+
+    fichas_aceitas = fichas_recusadas = 0
+    if ligada(sess.casa_key):
+        registros = []
+        for it, cru_id in zip(aceitos, ids):
+            if cru_id is None:
+                continue          # cru igual ao já guardado: a Ficha dele já foi montada
+            f, motivos = montar_ficha(familia, it["cru"], sess.casa_key)
+            if f is None:
+                continue          # família sem adaptador ainda: fica só o cru
+            registros.append(_registro(f, motivos, cru_id))
+        if registros:
+            await gravar(sess.dono, sess.casa_key, sess.parceiro, versao, origem, registros)
+        fichas_aceitas = sum(1 for r in registros if r["aceita"])
+        fichas_recusadas = len(registros) - fichas_aceitas
+        if fichas_recusadas:
+            logger.warning("ficha: %s %s — %d Ficha(s) recusada(s): %s", sess.dono,
+                           sess.casa_key, fichas_recusadas,
+                           next(r["motivos"] for r in registros if not r["aceita"])[:3])
+    return {"guardado": True, "recebidos": len(itens), "descartados": descartados,
+            "novos": sum(1 for i in ids if i is not None),
+            "fichas": {"aceitas": fichas_aceitas, "recusadas": fichas_recusadas}}
