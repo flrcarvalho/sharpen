@@ -71,3 +71,23 @@ campos de bloqueio idênticos, sumiços, duplicatas e a lista de divergências. 
 Decisão do Feca (11/10): o relatório compara também **moeda** e **código** (os dois bloqueiam) e conta, por
 casa, quantas **ganhas caem em "nenhuma odd fecha o retorno"** (`ficha.derivar`, `fonte_odd`): é o sinal
 de cashout ou de odd da casa mal escolhida pelo adaptador.
+
+## 7. Na casa virada, Ficha recusada volta sozinha ao caminho de hoje (desenho, 12/10)
+
+Regra do Feca: **recusada nunca pode significar aposta perdida.** Desenho, para aprovar antes da 1ª virada:
+
+1. **O texto continua indo sempre**, também na casa virada. O SharpenUp manda o texto e o cru em toda
+   varredura (já é assim na atualização única). O texto é a rede de segurança: nada depende de o cru chegar.
+2. **Virar uma casa = uma chave** (`FICHA_CASAS_VIRADAS`, por casa, reversível sem deploy). Na casa virada, a
+   Ficha **aceita** grava em `bilhetes` pelo mesmo `/salvar` de hoje (mesma dedup, mesmo UPSERT), com
+   procedência própria, e o código entra na lista de "já gravado pela Ficha" daquela conta.
+3. **No `/extrair` da casa virada, o texto é recortado por código, antes da IA:** bloco cujo código já tem
+   Ficha aceita e gravada sai do lote (a IA não paga por ele). **Todo o resto vai para a IA como hoje:** Ficha
+   recusada (pelo adaptador ou pela validação), cru que ainda não chegou, cru que nunca chegou, bilhete sem
+   código. Não existe um caminho em que o bilhete fica sem nenhum dos dois.
+4. **A ordem favorece a segurança:** o cru sai depois do texto e chega em segundos; se o `/extrair` rodar
+   antes, o código não está na lista e o bilhete vai para a IA. Custa uma leitura, nunca uma aposta.
+5. **A recusa aparece:** contagem de recusadas por casa e por dia no relatório da régua, com o motivo. Recusa
+   que se repete vira conserto de adaptador, não fila silenciosa.
+6. **Gate antes de ligar:** teste que monta um lote com 3 bilhetes (Ficha aceita, Ficha recusada, sem cru) e
+   prova que os 3 terminam em `bilhetes`, 1 pela Ficha e 2 pela IA, com mutação de cada ramo.

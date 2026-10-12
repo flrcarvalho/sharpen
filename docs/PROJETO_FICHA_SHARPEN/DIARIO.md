@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-10-12 · D1-D2 · atualização única do SharpenUp (as 22 casas mandam o cru), esperando o teste do Feca
+
+**Onde está:** pronta e provada na branch `sharpenup-cru` (commit `e919499`, **sem push**), na cópia isolada
+`../Planilhador-sharpenup-cru`. A `main` e o link dos testers seguem na 0.7.50 de hoje: o
+`/extensao/download` empacota a pasta `extensor/` da `main` na hora, então qualquer push dela publicaria
+a versão nova antes do teste. **Próxima ação: o Feca instala e testa 2 ou 3 casas reais (condição c).**
+
+- **Pacote atual guardado** para voltar: `Backups/sharpenup_0.7.50_antes_do_cru/` (pasta e zip).
+- **Pacote de teste:** `Backups/sharpenup_cru_teste_feca/sharpenup-0.7.50-cru.zip` (a versão segue 0.7.50;
+  o bump vai junto com o aviso aos testers, porque o gate do changelog exige as duas coisas no mesmo ato).
+- **O que mudou:** cada um dos 22 injects guarda o objeto da casa ao lado do bilhete e manda num campo
+  NOVO `cru` da mesma mensagem (lista de sempre intacta); 7 casas já mandavam o objeto da casa (Betano,
+  Superbet, Betfair, Altenar, SportingBet, Lottu, `bn`); Betnacional manda as pernas cruas; Pitaco, os
+  bytes do protobuf em base64; Bet365, o par summary + confirmation. O `content.js` junta e, DEPOIS do
+  texto e sem esperar, pede o envio; `extensor/cru.js` (no background) filtra por nome exato, só marca no
+  200, trata o 409 como final e poda o registro (60 dias, 20 mil entradas).
+- **(a) Diferença zero:** fotografia do harness (toda mensagem dos injects sem o `cru` + toda saída dos
+  formatadores), 2.231 registros em 44 casos, antes × depois: **diferença zero**. Única variação tolerada:
+  o cronômetro `"ms"` das mensagens do resolvedor da Bet365, que varia entre duas rodadas do mesmo código.
+- **(b) Cru quebrado, texto igual:** `extensor/harness/cru_mutacao.mjs` (no CI da branch) roda o harness
+  normal e o quebrado (cada ponto do cru lança erro, 6 alvos, todos casaram): texto idêntico. Prova das
+  proteções: tirar o `try` do `_marcarCru`, tirar o do `_crus` e tirar o `cru` da DEX, **3 de 3
+  detectadas**.
+- **(d) Registro com limite:** caso `cru_envio` (20 conferências; 200/409/401/500/rede, lotes de 200, poda
+  por idade e por teto, filtro, ordem texto→cru): **6 mutações, 6 detectadas**.
+- **Cobertura medida:** em 33 de 44 casos todo código do texto tem cru e todo cru tem código no texto; as
+  exceções são objetos montados pelo próprio teste (Esportiva anuladas/cashout, sintéticos da Bet365 e da
+  Betnacional), sem passar pelo inject. Trava permanente: casa que imprime código e não manda cru derruba
+  o harness.
+- **Gates na branch:** harness 45 casos verde em Brasília e em UTC; `audit_sharpenup` sem FAIL; `pytest
+  tests` 1.787 verde; teste novo trava a lista do filtro da extensão igual à do servidor.
+- **Virada (pedido do Feca):** desenho de "recusada volta ao caminho de hoje" em `03_REGUA_NUMEROS.md §7`.
+
+---
+
 ## 2026-10-11 · D1 · o cru vai ao servidor; filtro por nome exato; adaptador da DEX; CI verde
 
 **Onde está:** servidor pronto para receber o cru (tabela, filtro, adaptador da DEX), testado. A
