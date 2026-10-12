@@ -115,7 +115,7 @@ _HOSTS_POR_CASA = {
     # e domínio novo passa (`casa_de_host` só barra domínio de OUTRA casa conhecida).
     "SAPPHIREBET": ("sbethub2365.com",),
     "PARIPESA":   ("paripesa.com",),
-    "MEGAPARI":   ("megapari.com", "2479527mp.pro"),
+    "MEGAPARI":   ("megapari.com", "2479527mp.pro", "4569421mp.pro"),  # 4569421mp: 12/10/2026
     # 1xBit (s399): também roda em espelho numerado (`1xbit1.com` é o do recon).
     "1XBIT":      ("1xbit.com", "1xbit1.com"),
     # SportingBet (s289) — motor bwin/Entain, o primeiro deste motor aqui. A API de

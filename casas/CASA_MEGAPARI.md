@@ -13,7 +13,7 @@
 ## 1. Identidade
 
 - **Marca:** `Megapari` · **domínio:** `megapari.com`, que **redireciona para espelhos que
-  trocam de endereço** (`2479527mp.pro` no recon) — por isso fica fora do `CASA_HOSTS` do popup.
+  trocam de endereço** (`2479527mp.pro` no recon, `4569421mp.pro` em 12/10/2026) — por isso fica fora do `CASA_HOSTS` do popup.
 - **Chave no sistema:** `MEGAPARI` → display `Megapari`
 - **Motor:** o da **1xBet** (§1.2). Inject `extensor/x1_inject.js`, formatador `formatTicket1X`.
 - **Grafia `Megapari` (s391): a BASE decidiu.** A 1ª versão registrou `MegaPari` (a marca)
