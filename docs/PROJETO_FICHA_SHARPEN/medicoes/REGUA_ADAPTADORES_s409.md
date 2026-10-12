@@ -28,27 +28,60 @@ sem bilhete. As 28 freebets da MyStake batem dos dois lados.
 e **2 eram recusadas**. As 4 eram defeito do `derivar`; as 2, leitura errada minha no `shf`.
 As duas seções abaixo dizem o que era e como ficou.
 
-## Liquidadas comparadas, por casa e por dono (D12)
+## Liquidadas e ganhas comparadas, por casa e por dono (D12) · 3ª rodada
 
-A virada exige **30 liquidadas comparadas por casa** (decisão do Feca, 11/10). Conta a aposta
-(código distinto, não o cru) em que a Ficha **e** a IA estão liquidadas (W, L, V, HW, HL);
-aberta de qualquer lado não conta. Feca e Gabriel separados. Mesmo harness, seção
-"Liquidadas comparadas"; conferido por SELECT independente (mesmos números nas 6 casas).
-Medição de 12/10, ~14h UTC.
+A virada exige **30 liquidadas comparadas por casa** (decisão do Feca, 11/10). Conta a APOSTA
+(código distinto) em que a Ficha **e** a IA estão liquidadas (W, L, V, HW, HL); aberta de
+qualquer lado não conta. **Ganhas** = a liquidada em que a Ficha ou a IA dá W ou HW: a
+**proposta** de 12/10 (aguardando o Feca) é exigir também 10 por casa. Feca e Gabriel separados.
 
-| Casa | Feca | Gabriel | Casa | Das do Feca: batem / só odd / divergem | Ganhas na Ficha | Piso de 30 |
-|---|---:|---:|---:|---|---:|---|
-| Bet Panda | 163 | 0 | 163 | 115 / 48 / 0 | 46 | atinge |
-| Duel | 60 | 0 | 60 | 39 / 21 / 0 | 7 + 5 cashout | atinge |
-| DEX Sport | 52 | 0 | 52 | 52 / 0 / 0 | 10 | atinge |
-| MyStake | 135 | 0 | 135 | 135 / 0 / 0 | 13 | atinge |
-| Shuffle | 63 | 0 | 63 | 63 / 0 / 0 | 25 | atinge |
-| Vavada | 45 | 0 | 45 | 37 / 8 / 0 | 9 | atinge |
+Desde a 3ª rodada o harness compara **só o cru mais recente de cada aposta**: o cru antigo de uma
+aposta que estava aberta, comparado com o bilhete já liquidado, acusava 17 "divergências" que
+eram só a foto velha (`resultado F=- IA=L`).
 
-O Gabriel ainda não mandou cru (a 0.7.51 não estava instalada na máquina dele). Todas as
-liquidadas do Feca vêm da varredura de histórico de 12/10, não de aposta nova. Atingir o piso
-não vira a casa: a virada de cada uma só acontece com o "pode" do Feca. Onde a odd e o retorno
-pesam é na ganha, e há poucas em algumas casas (DEX 10, Duel 7, Vavada 9).
+Medição de 12/10, ~17h30 UTC: 789 crus, 678 apostas, 7 casas (a BetMartini entrou; a captura do
+Feca das 16h40 trouxe 133 crus novos às 6 que já estavam, todos com Ficha aceita pela rota).
+
+| Casa | Apostas | Batem | Só odd | Divergem | Recusadas | Liquidadas (Feca) | Ganhas (Feca) | Gabriel |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| BetMartini | 97 | 82 | 15 | 0 | 0 | 88 | 20 | 0 |
+| Bet Panda | 168 | 119 | 49 | 0 | 0 | 164 | 47 | 0 |
+| DEX Sport | 60 | 60 | 0 | 0 | 0 | 55 | 11 | 0 |
+| Duel | 70 | 48 | 22 | 0 | 0 | 62 | 12 | 0 |
+| MyStake | 146 | 146 | 0 | 0 | 0 | 136 | 14 | 0 |
+| Shuffle | 80 | 80 | 0 | 0 | 0 | 68 | 25 | 0 |
+| Vavada | 57 | 48 | 9 | 0 | 0 | 47 | 10 | 0 |
+
+Todas atingem as 30 liquidadas e as 10 ganhas da proposta, só com o Feca. O Gabriel ainda não
+mandou cru (a 0.7.51 não estava instalada na máquina dele). Quase todas as liquidadas vêm da
+varredura de histórico de 12/10. Atingir o piso não vira a casa: cada uma só vira com o "pode"
+do Feca.
+
+## BetMartini (família `vb`, a mesma da Vavada) · 12/10
+
+97 crus da captura das 16h40. **Varredura de nomes de campo antes de ligar:** só campos de
+aposta e de evento; o único nome de pessoa é o `pitcherInfo` (arremessador de beisebol, 1 perna),
+público, não da conta. `removidos` vazio. Ligada em `FICHA_SOMBRA_CASAS` às 17h36 UTC
+(deploy `3b1854f1`); reprocesso: 97 Fichas, todas aceitas.
+
+A 1ª passada do `vb` recusou 3; as três eram leitura incompleta do adaptador, e a IA estava certa
+nas três:
+
+| Código | O que era | Ficha agora | IA |
+|---|---|---|---|
+| 5501645421 | sistema de duplas com 4 pernas, 2 do MESMO combate: a casa não combina as duas, 5 linhas (`linesCount` 5), não 6 | L, média 12,6 | L, 9,08 |
+| 5501645422 | o mesmo bilhete em triplas: 2 linhas, não 4 | L, média 42,075 | L, 28,05 |
+| 5501637823 | sistema de 3 duplas, uma perna anulada: a dupla dela com a ganha pagou 13,09 × 2,2 = 28,79, menos que os 39,27. A casa diz `status 1` (ganha) | W, 28,79 ÷ 39,27 = 0,7331296155 | W, 0,73312962 |
+
+Nos dois perdidos o `totalOdds` da casa (9,08 e 28,05) não é a média das linhas válidas; não
+muda o P/L (perderam) e o sistema ganho usa retorno ÷ stake. Fica anotado, sem explicação ainda.
+
+**O R16 (`03_REGUA_NUMEROS §3`, BetMartini `6,02` × `14,25`):** 5501503684 é um **sistema 2 de 3**.
+O produto das três pernas (14,25) é a odd da tripla, que não está no bilhete; a odd é a média das
+3 duplas, (1,787×2,9 + 1,787×2,75 + 2,9×2,75) ÷ 3 = **6,02385**, e a casa manda `6,02`. Perdeu:
+P/L igual. Os outros dois exemplos da régua são o mesmo caso (Vavada 5504107339, 6,6896; Betrebels
+5499580342, 3,5556). A causa da confusão é o texto: o `_tipoVB` da extensão escreve `Múltipla (3
+seleções)` para qualquer bilhete de 2+ pernas, sem dizer que é sistema.
 
 ## As 4 divergências com dinheiro: a IA estava certa, e o `derivar` foi corrigido
 
@@ -97,6 +130,7 @@ gravou o centavo da tela; P/L igual a menos de 0,004 USDT). Gate:
 | `tv` (Tivo: MyStake) | `Amount` | `Items[].CalculatedBetAmount` não soma a stake (0 de 137): é conta interna por perna |
 | `vb` (Altenar: Vavada) | `totalStake` | `finalStake` = `totalStake` nos 49 (se diferir, o adaptador recusa); `unitStake` é por linha; `openStake` é a parte ainda aberta (= stake só nas 4 abertas) |
 | `shf` (Shuffle) | `amount` | `originalAmount` é o PEDIDO (nulo em 84 de 86; 90 e 60 nos 2 aceites parciais) e fica em `stake_pedida` |
+| `x1` (1xBet: Megapari, PariPesa, SapphireBet, 1xBit; 12/10, das fixtures, sem cru real ainda) | `BetSum` | nenhum outro valor de aposta; `PossibleWinSum` é o potencial da aberta e `PayoutSum` não entra |
 
 Prova de que é o aceito: a stake bate com a IA no centavo nos 559, e nos ganhos o retorno da
 casa fecha sobre ela.

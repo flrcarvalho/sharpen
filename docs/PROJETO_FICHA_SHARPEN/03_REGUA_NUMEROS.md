@@ -40,8 +40,14 @@ Também conta:
   casa e o valor de hoje é o mesmo número com menos ou mais casas (`6,169904` × `6,169904352`). Sem isso as
   499 diferenças de precisão medidas em outubro travariam toda virada. Diferença que muda o P/L em R$ 0,01
   ou mais nunca é "só precisão".
-- **Altenar:** antes da virada da família, explicar o caso em que o produto das pernas passa do dobro da odd
-  da casa (BetMartini `6,02` × `14,25`, Betrebels `3,56` × `6,67`, Vavada `6,69` × `15,79`).
+- **Altenar:** ~~antes da virada da família, explicar o caso em que o produto das pernas passa do dobro da
+  odd da casa~~ **explicado (12/10):** os três são **SISTEMA 2 de 3** (`type` 2, `combLength` 2). O produto
+  das três pernas é a odd da TRIPLA, que não está no bilhete; a odd da casa é a média das 3 duplas
+  (`MASTER_RESULTADO §7.3`). BetMartini 5501503684: (1,787×2,9 + 1,787×2,75 + 2,9×2,75) ÷ 3 = **6,02385**
+  (a casa manda `6,02`); Vavada 5504107339: 6,6896 (`6,69`); Betrebels 5499580342: (3,3334 + 3,3334 + 4) ÷
+  3 = 3,5556 (`3,56`). Os três perderam: P/L igual dos dois lados. A Ficha sabe que é sistema; o TEXTO da
+  extensão não diz (`_tipoVB` escreve `Múltipla (3 seleções)` para qualquer bilhete de 2+ pernas), então a
+  IA grava sistema como múltipla, sem a coluna `sistema` (BACKLOG).
 
 ## 4. Quando uma casa vira
 
@@ -55,6 +61,11 @@ Uma casa vira quando, ao mesmo tempo:
    pré-requisito (item 3), não substituto;
 3. o harness da família está verde, e fica vermelho quando se remove uma regra (prova por mutação);
 4. o Feca leu a lista de divergências e aprovou.
+
+**Proposta (12/10, AGUARDANDO o Feca):** além das 30 liquidadas, **pelo menos 10 GANHAS comparadas** por
+casa (Ficha ou IA em W/HW). É na ganha que a odd e o retorno pesam; na perdida a Ficha só precisa acertar
+stake e resultado. A régua já mostra a contagem (`medir_regua_adaptadores.py`). Em 12/10, Feca: DEX 11,
+MyStake 14, Vavada 10, Duel 12, BetMartini 20, Shuffle 25, Bet Panda 47; Gabriel 0 em todas.
 
 A virada é uma chave por casa. Desligar a chave volta a casa ao caminho de hoje na hora, sem deploy.
 
@@ -91,3 +102,16 @@ Regra do Feca: **recusada nunca pode significar aposta perdida.** Desenho, para 
    que se repete vira conserto de adaptador, não fila silenciosa.
 6. **Gate antes de ligar:** teste que monta um lote com 3 bilhetes (Ficha aceita, Ficha recusada, sem cru) e
    prova que os 3 terminam em `bilhetes`, 1 pela Ficha e 2 pela IA, com mutação de cada ramo.
+
+**Construído e no ar, DESLIGADO (12/10, s409).** `app/virada.py` + `FICHA_CASAS_VIRADAS` (vazia; `*` não
+vale). Como ficou cada ponto:
+- **2:** a aceita grava pelo `/salvar` de hoje (`main.gravar_tsv`, o corpo do `/salvar`), `origem='ficha'`.
+  Esporte e categoria com o **termo da casa** (`04_DICIONARIO §4.1`), descrição `mercado · seleção [jogo]`.
+  ⚠ **Pré-requisito da 1ª virada:** o termo de cada casa no dicionário, senão a grade mostra `football`
+  (DEX) e `sportTypeId 4` (Altenar) onde hoje mostra Futebol e Tênis. A MyStake já manda em português.
+- **3:** não precisou de código novo no `/extrair`. O pré-dedup por código (`_dedup_superbet_text`) já tira
+  do lote, antes da IA, o código RESOLVIDO no banco naquela conta. **Diferença do desenho, a favor da
+  segurança:** a aceita ABERTA continua indo para a IA (como hoje, até liquidar); só a liquidada sai.
+- **6:** `tests/test_repository_db.py::test_virada_tres_bilhetes_chegam_ao_banco` (Postgres real) e o caso
+  desligado com a sombra ligada (o estado de produção); 9 mutações, 9 detectadas, 1 inócua registrada
+  (`tests/test_virada.py`).

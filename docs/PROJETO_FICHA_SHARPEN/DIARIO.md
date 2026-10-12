@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-10-12 · D4-D5 · caminho normal provado, BetMartini na sombra, 6 casas sem pensamento, virada construída desligada, adaptador x1
+
+**Onde está:** sombra em 7 casas; virada no ar e DESLIGADA (`FICHA_CASAS_VIRADAS` vazia). **Próxima ação:**
+o Gabriel instalar a 0.7.51 e a régua rodar no dia do cru dele (inclusive Megapari, `x1`); resposta do
+Feca à proposta das 10 ganhas; o "pode" de cada virada (candidatas DEX e MyStake).
+
+- **Caminho normal provado (Feca, 16h40 UTC):** 133 crus novos nas 6 casas, 133 Fichas aceitas pela rota.
+- **Fiscal nas 8 casas 1xBet/Altenar** (`medicoes/medir_fiscal_acha_retorno.py`, código real do fiscal
+  `e8ce01f`, ganhas de outubro, bloco mais recente de cada código): Megapari 36/36 (Gabriel 33, Feca 3),
+  SapphireBet 13/13, PariPesa 4/4, BetMartini 26/26, Vavada 10/10, Betrebels 18/20; o retorno achado é o
+  dinheiro da linha em todas, e o gate não mudaria nenhuma. As 2 da Betrebels não são falha: o bloco
+  mais recente está em aberto e o W veio de correção manual (2 registros em `correcoes` cada). **Entraram
+  em `EXTRACAO_SEM_PENSAMENTO`: MEGAPARI, PARIPESA, SAPPHIREBET, BETMARTINI, BETREBELS, VAVADA** (17h36
+  UTC, deploy `3b1854f1`). **Ficaram fora:** 1xBit (8 apostas, todas perdidas) e Kikobet (3 ganhas, sem
+  bloco na sombra): sem amostra para provar (BACKLOG §1).
+- **BetMartini na sombra:** varredura de campos limpa; o `vb` recusava 3 (sistema com pernas do mesmo
+  jogo; sistema ganho abaixo da stake): corrigido, IA certa nas três; 97 Fichas aceitas. Régua: 82 batem,
+  15 só na odd, 0 divergem. **O R16 é sistema 2 de 3** (odd = média das duplas, 6,02385; 14,25 é a tripla),
+  e os outros dois exemplos da Altenar também; o texto da extensão escreve sistema como `Múltipla`
+  (BACKLOG). Gate: 4 crus reais, 3 mutações, 3 detectadas.
+- **Régua:** coluna de ganhas e só o cru mais recente de cada aposta (o antigo, aberto, dava 17 falsas
+  divergências). 3ª rodada: 678 apostas, 0 divergem, 0 recusadas; todas as casas com 30+ liquidadas e
+  10+ ganhas, só com o Feca. Tabela em `medicoes/REGUA_ADAPTADORES_s409.md`.
+- **Virada do §7, desligada** (`app/virada.py`): a aceita grava pelo `/salvar` (`main.gravar_tsv`,
+  `origem='ficha'`); o pré-dedup de sempre a tira do lote da IA quando liquidada; recusada, sem cru e
+  aberta vão para a IA. Teste dos 3 bilhetes no Postgres real (instalado local nesta sessão, no
+  scratchpad: o harness de banco deixou de ser "só no CI" para mutação), 9 mutações, 9 detectadas, 1
+  inócua. Pré-requisito anotado: dicionário (`04 §3`) antes da 1ª virada.
+- **Adaptador `x1`** (1xBet e espelhos) das fixtures da bancada: 119 apostas, 118 Fichas, 1 recusa (sistema
+  sem `Coef`, vai para a IA); 6 mutações, 6 detectadas. Não ligado.
+- `pytest tests` 1831 verde; harness de banco 56 verde.
+
+---
+
 ## 2026-10-12 · D4 · régua conta as liquidadas por casa e por dono; cópias com dado pessoal até 19/10
 
 **Onde está:** sombra ligada em 6 casas, 559 Fichas aceitas (conferido pelo Feca). **Próxima ação:**
