@@ -1424,3 +1424,89 @@ def test_captura_crua_grava_uma_vez_e_cru_mudado_vira_linha_nova():
                                                           ("1d15646f-c666", "0")]
         assert linhas[0]["removidos"] == ["user"] and cru_id == ids[0]
     _run(body())
+
+
+# ── Virada da Ficha (`03_REGUA_NUMEROS §7`, s409): os 3 bilhetes chegam ao banco ──────────
+# Mutações provadas contra este harness (Postgres local de teste, 12/10/2026; ver o
+# cabeçalho de `tests/test_virada.py`):
+#   A. a virada não grava a aceita (`gravar_aceitas` devolve 0)  → tres_bilhetes vermelho
+#   B. a rota só monta a Ficha com a sombra ligada (sem o `or`)  → tres_bilhetes vermelho
+#   C. o `/salvar` sem a `origem` da Ficha                        → tres_bilhetes vermelho
+#   D. a virada ignora a chave (grava sempre)                     → desligada[VAVADA] vermelho
+#      (escapava enquanto o caso "desligada" rodava com a sombra também desligada: a Ficha
+#      nem era montada. O estado de produção é sombra LIGADA e virada desligada.)
+
+_VIRADA = ("5508528206", "5504514128", "5500000003")     # aceita, recusada, sem cru
+
+
+def _virada_cenario(monkeypatch, chave, sombra=""):
+    import json as _json
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    import ficha
+    import main
+
+    crus = _json.loads((Path(__file__).resolve().parent / "ficha_crus_familias.json")
+                       .read_text(encoding="utf-8"))
+    sess = SimpleNamespace(dono="TDonoV", casa_key="VAVADA", casa=main._casa_display("VAVADA"),
+                           parceiro="conta [Op]")
+    monkeypatch.setattr(ficha._captura, "sessao_por_token", lambda t: sess)
+    monkeypatch.setattr(ficha._captura, "registrar_versao", lambda s, v: None)
+    monkeypatch.setenv("FICHA_SOMBRA_CASAS", sombra)
+    monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", chave)
+    aceita, recusada, _ = _VIRADA
+    payload = {"token": "t", "versao": "0.7.51", "familia": "vb", "itens": [
+        {"codigo": aceita, "cru": crus[aceita]},
+        {"codigo": recusada, "cru": dict(crus[recusada], status=7)}]}   # status 7: recusa
+    # O lote de TEXTO da mesma captura: os 3 bilhetes, como o SharpenUp manda sempre.
+    texto = "\n\n".join(f"[Código: {c}]\nStake: 10\nStatus: Perdido\n" for c in _VIRADA)
+    return sess, payload, texto
+
+
+async def _virada_ponta_a_ponta(sess, payload, texto):
+    """Rota da Ficha → `/extrair` (o pré-dedup de sempre) → IA dublê → `/salvar`."""
+    import ficha
+    import main
+
+    await _reset()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        for t in ("captura_crua", "ficha_sombra", "bloco_visto"):
+            await conn.execute(f"TRUNCATE {t}")
+    resp = await ficha.receber(payload)
+    para_ia, cortados = await main._dedup_superbet_text(texto, sess.dono, sess.casa,
+                                                        sess.parceiro)
+    lidos = repository.codigos_do_texto(para_ia)
+    tsv = "\n".join(f"10/10/2026\tFutebol\t\t{sess.casa}\t{sess.parceiro}\tML\t"
+                    f"Time A [A vs B]\t10\t2\tL\t{c}" for c in lidos)
+    await main.gravar_tsv(main.SalvarRequest(tsv=tsv, casa=sess.casa, parceiro=sess.parceiro),
+                          sess.dono, sess.dono)
+    async with pool.acquire() as conn:
+        banco = {r["codigo_bilhete"]: (r["origem"], r["resultado"]) for r in await conn.fetch(
+            "SELECT codigo_bilhete, origem, resultado FROM bilhetes WHERE dono = $1", sess.dono)}
+    return resp, sorted(lidos), cortados, banco
+
+
+def test_virada_tres_bilhetes_chegam_ao_banco(monkeypatch):
+    """Casa virada: a Ficha aceita grava pela Ficha e SAI do lote da IA; a recusada e a sem
+    cru vão para a IA pelo texto. Os três terminam em `bilhetes`, nenhum some."""
+    aceita, recusada, sem_cru = _VIRADA
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
+        *_virada_cenario(monkeypatch, "VAVADA")))
+    assert resp["fichas"] == {"aceitas": 1, "recusadas": 1} and resp["na_planilha"] == 1
+    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
+    assert banco == {aceita: ("ficha", "W"), recusada: ("extracao", "L"),
+                     sem_cru: ("extracao", "L")}
+
+
+@pytest.mark.parametrize("sombra", ["VAVADA", ""])
+def test_virada_desligada_e_o_caminho_de_hoje(monkeypatch, sombra):
+    """Chave vazia, com a sombra ligada (o estado de produção em 12/10) ou não: a Ficha só
+    vai à `ficha_sombra`, nada vai à planilha por ela, e a IA lê os três bilhetes."""
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
+        *_virada_cenario(monkeypatch, "", sombra)))
+    assert resp["fichas"]["aceitas"] == (1 if sombra else 0) and resp["na_planilha"] == 0
+    assert (lidos, cortados) == (sorted(_VIRADA), 0)
+    assert {o for o, _ in banco.values()} == {"extracao"} and len(banco) == 3

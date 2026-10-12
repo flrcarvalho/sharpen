@@ -57,7 +57,8 @@ def _falhas(src: str) -> list[str]:
     editar = _funcao(src, "async def editar_parceiro_route(")
     if "casa_oficial(" not in editar or "_casa_display(" in editar:
         f.append("/parceiros/{id}/editar não usa `casa_oficial`")
-    salvar = _funcao(src, "async def salvar(")
+    # o corpo do `/salvar` mora no `gravar_tsv` desde a virada da Ficha (s409)
+    salvar = _funcao(src, "async def gravar_tsv(")
     if "casa_txt = await casa_oficial(casa_txt)" not in salvar:
         f.append("/salvar sem conta não passa a casa pela regra única")
     if "_casa_registrada(" in salvar:

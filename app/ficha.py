@@ -4,7 +4,9 @@ A extensão manda aqui o JSON CRU de cada bilhete, como a casa devolveu, SEPARAD
 `/captura/enviar` e sem esperar resposta. O servidor filtra o cru (`app/cru.py`), guarda em
 `captura_crua` para TODAS as casas e, onde a chave liga a casa, monta a Ficha com o adaptador
 da família (`app/adaptadores/`) e grava em `ficha_sombra`. O caminho de hoje continua mandando
-no banco: nada aqui toca em `bilhetes`. A régua compara depois.
+no banco: nada aqui toca em `bilhetes`, EXCETO na casa VIRADA (`FICHA_CASAS_VIRADAS`, vazia
+até o "pode" do Feca), onde a Ficha aceita vai à planilha pelo `/salvar` (`app/virada.py`).
+A régua compara depois.
 
 Decisões do Feca (11/10) que moram aqui:
 
@@ -371,8 +373,9 @@ async def receber(payload: dict = Body(...)):
     ids = await gravar_cru(sess.dono, sess.casa_key, sess.parceiro, familia, versao, origem,
                            aceitos)
 
-    fichas_aceitas = fichas_recusadas = 0
-    if ligada(sess.casa_key):
+    import virada as _virada      # tardio: a virada importa este módulo
+    fichas_aceitas = fichas_recusadas = na_planilha = 0
+    if ligada(sess.casa_key) or _virada.virada(sess.casa_key):
         registros = []
         for it, cru_id in zip(aceitos, ids):
             if cru_id is None:
@@ -383,6 +386,8 @@ async def receber(payload: dict = Body(...)):
             registros.append(_registro(f, motivos, cru_id))
         if registros:
             await gravar(sess.dono, sess.casa_key, sess.parceiro, versao, origem, registros)
+            # Casa VIRADA (§7): a aceita vai à planilha; a recusada fica para a IA, pelo texto.
+            na_planilha = await _virada.gravar_aceitas(sess, registros)
         fichas_aceitas = sum(1 for r in registros if r["aceita"])
         fichas_recusadas = len(registros) - fichas_aceitas
         if fichas_recusadas:
@@ -391,4 +396,5 @@ async def receber(payload: dict = Body(...)):
                            next(r["motivos"] for r in registros if not r["aceita"])[:3])
     return {"guardado": True, "recebidos": len(itens), "descartados": descartados,
             "novos": sum(1 for i in ids if i is not None),
-            "fichas": {"aceitas": fichas_aceitas, "recusadas": fichas_recusadas}}
+            "fichas": {"aceitas": fichas_aceitas, "recusadas": fichas_recusadas},
+            "na_planilha": na_planilha}

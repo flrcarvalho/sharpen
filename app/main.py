@@ -4238,6 +4238,14 @@ class SalvarRequest(BaseModel):
 @app.post("/salvar")
 async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
                  dono_view: str = Depends(dono_efetivo_ou_bot)):
+    return await gravar_tsv(body, dono, dono_view)
+
+
+async def gravar_tsv(body: SalvarRequest, dono: str, dono_view: str,
+                     origem: str = "extracao") -> dict:
+    """O `/salvar` inteiro, chamável por dentro. `origem` NÃO vem do corpo de propósito: é
+    procedência, e `sync` é autoritativa no UPSERT; só código do servidor a escolhe (a
+    virada da Ficha grava `ficha`, `app/virada.py`)."""
     rows = parse_tsv(body.tsv)
     if not rows:
         raise HTTPException(400, "Nenhuma linha válida encontrada no TSV.")
@@ -4329,7 +4337,7 @@ async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
 
     if rows:
         inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(
-            rows, dono, confianca=body.confianca, criado_base=criado_base,
+            rows, dono, confianca=body.confianca, criado_base=criado_base, origem=origem,
             coproprietarios=coproprietarios(dono), codigo_ocr=body.codigo_ocr,
             carimbos=body.carimbos, freebets=body.freebets,
         )
