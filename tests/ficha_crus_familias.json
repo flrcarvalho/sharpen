@@ -878,5 +878,235 @@
   "systemBetType": null,
   "originalAmount": "60",
   "totalOddsDecimal": "1.84"
+ },
+ "5501645422": {
+  "id": 5501645422,
+  "type": 2,
+  "status": 2,
+  "currency": "USD",
+  "totalWin": 0,
+  "bonusPart": 0,
+  "totalOdds": 28.05,
+  "combLength": 3,
+  "finalStake": 20,
+  "linesCount": 2,
+  "selections": [
+   {
+    "name": "Over 7.5",
+    "price": 3.4,
+    "status": 2,
+    "eventId": 17883478,
+    "eventDate": "2026-10-07T23:00:00Z",
+    "eventName": "Flint Firebirds vs. Kitchener Rangers",
+    "marketName": "Total (incl. overtime and penalties)",
+    "sportTypeId": 16,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Over 1.5",
+    "price": 2.75,
+    "status": 2,
+    "eventId": 17904344,
+    "eventDate": "2026-10-10T22:00:00Z",
+    "eventName": "Felipe Franco vs. Brendson Ribeiro",
+    "marketName": "Total",
+    "sportTypeId": 40,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Yes",
+    "price": 5.5,
+    "status": 2,
+    "eventId": 17904344,
+    "eventDate": "2026-10-10T22:00:00Z",
+    "eventName": "Felipe Franco vs. Brendson Ribeiro",
+    "marketName": "Will the fight go the distance",
+    "sportTypeId": 40,
+    "isBetBuilder": false
+   },
+   {
+    "name": "WIN Jets",
+    "price": 3,
+    "status": 1,
+    "eventId": 17687918,
+    "eventDate": "2026-10-07T23:30:00Z",
+    "eventName": "WIN Jets vs. COL Avalanche",
+    "marketName": "Draw no bet",
+    "sportTypeId": 16,
+    "isBetBuilder": false
+   }
+  ],
+  "totalStake": 20,
+  "createdDate": "2026-10-07T22:17:54.53Z",
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "partialCashouts": []
+ },
+ "5501645421": {
+  "id": 5501645421,
+  "type": 2,
+  "status": 2,
+  "currency": "USD",
+  "totalWin": 0,
+  "bonusPart": 0,
+  "totalOdds": 9.08,
+  "combLength": 2,
+  "finalStake": 100,
+  "linesCount": 5,
+  "selections": [
+   {
+    "name": "Over 7.5",
+    "price": 3.4,
+    "status": 2,
+    "eventId": 17883478,
+    "eventDate": "2026-10-07T23:00:00Z",
+    "eventName": "Flint Firebirds vs. Kitchener Rangers",
+    "marketName": "Total (incl. overtime and penalties)",
+    "sportTypeId": 16,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Over 1.5",
+    "price": 2.75,
+    "status": 2,
+    "eventId": 17904344,
+    "eventDate": "2026-10-10T22:00:00Z",
+    "eventName": "Felipe Franco vs. Brendson Ribeiro",
+    "marketName": "Total",
+    "sportTypeId": 40,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Yes",
+    "price": 5.5,
+    "status": 2,
+    "eventId": 17904344,
+    "eventDate": "2026-10-10T22:00:00Z",
+    "eventName": "Felipe Franco vs. Brendson Ribeiro",
+    "marketName": "Will the fight go the distance",
+    "sportTypeId": 40,
+    "isBetBuilder": false
+   },
+   {
+    "name": "WIN Jets",
+    "price": 3,
+    "status": 1,
+    "eventId": 17687918,
+    "eventDate": "2026-10-07T23:30:00Z",
+    "eventName": "WIN Jets vs. COL Avalanche",
+    "marketName": "Draw no bet",
+    "sportTypeId": 16,
+    "isBetBuilder": false
+   }
+  ],
+  "totalStake": 100,
+  "createdDate": "2026-10-07T22:17:54.53Z",
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "partialCashouts": []
+ },
+ "5501637823": {
+  "id": 5501637823,
+  "type": 2,
+  "status": 1,
+  "currency": "USD",
+  "totalWin": 28.79,
+  "bonusPart": 0,
+  "totalOdds": 7.57,
+  "combLength": 2,
+  "finalStake": 39.27,
+  "linesCount": 3,
+  "selections": [
+   {
+    "name": "Stella Sports Saint-Maur  (W)",
+    "price": 3.2,
+    "status": 8,
+    "eventId": 17705143,
+    "eventDate": "2026-10-09T18:30:00Z",
+    "eventName": "Stella Sports Saint-Maur  (W) vs. Achenheim Truchtersheim (W)",
+    "marketName": "Draw no bet",
+    "sportTypeId": 17,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Over 6.5",
+    "price": 2.9,
+    "status": 2,
+    "eventId": 17905360,
+    "eventDate": "2026-10-09T17:45:00Z",
+    "eventName": "SCL Tigers vs. Rapperswil",
+    "marketName": "Total",
+    "sportTypeId": 16,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Over 43.5",
+    "price": 2.2,
+    "status": 1,
+    "eventId": 17878977,
+    "eventDate": "2026-10-08T16:00:00Z",
+    "eventName": "Maccabi Tel-Aviv vs. Olimpia Milano",
+    "marketName": "First quarter - total",
+    "sportTypeId": 12,
+    "isBetBuilder": false
+   }
+  ],
+  "totalStake": 39.27,
+  "createdDate": "2026-10-07T22:14:37.77Z",
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "partialCashouts": []
+ },
+ "5501503684": {
+  "id": 5501503684,
+  "type": 2,
+  "status": 2,
+  "currency": "USD",
+  "totalWin": 0,
+  "bonusPart": 0,
+  "totalOdds": 6.02,
+  "combLength": 2,
+  "finalStake": 27.42,
+  "linesCount": 3,
+  "selections": [
+   {
+    "name": "Stanford Cardinal (+7.5)",
+    "price": 1.787,
+    "status": 2,
+    "eventId": 17724272,
+    "eventDate": "2026-10-10T19:30:00Z",
+    "eventName": "Notre Dame Fighting Irish vs. Stanford Cardinal",
+    "marketName": "Fourth quarter - handicap (incl. OT)",
+    "sportTypeId": 20,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Ostersund",
+    "price": 2.9,
+    "status": 2,
+    "eventId": 17905434,
+    "eventDate": "2026-10-09T17:00:00Z",
+    "eventName": "Ostersund vs. Modo",
+    "marketName": "Winner (incl. overtime and penalties)",
+    "sportTypeId": 16,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Ryan Nijboer",
+    "price": 2.75,
+    "status": 2,
+    "eventId": 17966424,
+    "eventDate": "2026-10-08T11:40:00Z",
+    "eventName": "Ryan Nijboer vs. Marvin Moeller",
+    "marketName": "First set - winner",
+    "sportTypeId": 4,
+    "isBetBuilder": false
+   }
+  ],
+  "totalStake": 27.42,
+  "createdDate": "2026-10-07T21:17:12.43Z",
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "partialCashouts": []
  }
 }

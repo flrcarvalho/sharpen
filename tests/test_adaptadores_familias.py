@@ -18,6 +18,9 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  10. derivar: sistema ganho pela odd da casa (média)        → test_sistema_ganho_e_retorno_sobre_stake
  11. shf: `originalAmount` diferente volta a recusar         → test_shf_aceite_parcial…
  12. derivar: retorno ÷ stake sem as 10 casas               → test_sistema_ganho_e_retorno_sobre_stake
+ 13. vb: sistema combina duas pernas do mesmo jogo          → test_vb_sistema_nao_combina_pernas…
+ 14. vb: sistema que pagou abaixo da stake volta a recusar  → test_vb_sistema_ganho_abaixo_da_stake…
+ 15. vb: "abaixo da stake = ganha" vale fora do sistema     → test_vb_sistema_ganho_abaixo_da_stake…
 
 O QUE NÃO COBRE: sistema em meia vitória (sem amostra; fica com a odd da casa, §7.1), bet
 builder da Altenar e odd oferecida da Tivo (recusados por falta de amostra), e qualquer cru
@@ -143,3 +146,36 @@ def test_vb_ganha_que_a_casa_pagou_truncado_fica_com_o_dinheiro():
     f, d = _montar(vb, "5508528206")
     assert f["odd"] == "7.619486"
     assert (d["odd"], d["fonte_odd"]) == ("7,6192", "nenhuma fecha: retorno ÷ stake")
+
+
+@pytest.mark.parametrize("cod, linhas, odd", [
+    ("5501645421", "5 x 2 de 4", "12.6"),      # duplas: 6 menos a do jogo repetido
+    ("5501645422", "2 x 3 de 4", "42.075"),    # triplas: 4 menos as 2 com o jogo repetido
+])
+def test_vb_sistema_nao_combina_pernas_do_mesmo_jogo(cod, linhas, odd):
+    """BetMartini, 12/10: duas pernas do mesmo combate (Over 1.5 e "vai à decisão"). A casa
+    não monta linha com as duas, e o `linesCount` dela diz isso (5 e 2). Antes: recusa."""
+    f, d = _montar(vb, cod, "BETMARTINI")
+    assert (f["sistema"], f["odd"]) == (linhas, odd)
+    assert d["resultado"] == "L"
+
+
+def test_vb_sistema_ganho_abaixo_da_stake_e_retorno_sobre_stake():
+    """BetMartini 5501637823: 3 duplas de 13,09; uma perna anulou, a dupla dela com a ganha
+    pagou 13,09 × 2,2 = 28,79, menos que os 39,27. A casa diz `status 1`; W com odd
+    retorno ÷ stake (§7.1), o que a IA gravou. Antes: recusa "a conferir"."""
+    f, d = _montar(vb, "5501637823", "BETMARTINI")
+    assert (f["status"], f["retorno"]) == ("ganha", "28.79")
+    assert (d["resultado"], d["odd"]) == ("W", "0,7331296155")
+    simples = dict(CRUS["5501637823"], type=1)       # fora do sistema, segue recusando
+    with pytest.raises(Recusa, match="a conferir"):
+        vb.adaptar(simples, "BETMARTINI")
+
+
+def test_vb_r16_sistema_perdido_e_a_media_das_duplas_nao_o_produto():
+    """O R16 do Feca (BetMartini 5501503684): 2 de 3 com 1,787, 2,9 e 2,75. O produto das três
+    (14,25) é a tripla, que não está no bilhete; a odd é a média das 3 duplas (5,1823 +
+    4,91425 + 7,975) ÷ 3 = 6,02385, que a casa manda arredondada (6,02)."""
+    f, d = _montar(vb, "5501503684", "BETMARTINI")
+    assert (f["sistema"], f["odd"]) == ("3 x 2 de 3", "6.02385")
+    assert (d["resultado"], d["odd"]) == ("L", "6,02385")

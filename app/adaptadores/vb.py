@@ -7,12 +7,16 @@ escuta. A leitura de cada campo é a do `formatTicketVB` do `content.js` e da
   • `totalStake` é a stake (no sistema, o TOTAL das linhas); `totalWin` é o retorno no
     bilhete processado e o POTENCIAL no aberto, onde não vira retorno.
   • `status` 0 aberta · 2 perdida (retorno zero) · 1 ganha (retorno acima da stake; igual =
-    anulada) · 8 anulada (retorno = stake, s285) · 4 e 18 cashout (o valor encerrado mora no
+    anulada; no SISTEMA também abaixo da stake, quando só parte das linhas paga: BetMartini
+    5501637823, 39,27 em 3 duplas, uma paga 13,09 × 2,2 = 28,79) · 8 anulada (retorno = stake, s285) · 4 e 18 cashout (o valor encerrado mora no
     `totalWin`, s310; o dinheiro decide W/V no `derivar`). Qualquer outro, RECUSA.
   • odd da casa: `totalOdds`, que na múltipla é o produto EXATO das pernas (49 de 49 crus de
     12/10). No SISTEMA (`type` 2) a casa manda a média das linhas ARREDONDADA em 2 casas
     (5,12 contra 5,118436): a odd sai da média exata das linhas (`MASTER_RESULTADO §7.3`),
-    `combLength` = tamanho de cada linha, e `odd_calculada` = true.
+    `combLength` = tamanho de cada linha, e `odd_calculada` = true. Linha com DUAS pernas do
+    mesmo jogo (`eventId`) não existe: a casa não combina seleções do mesmo jogo, e o
+    `linesCount` confirma (BetMartini 5501645421: duplas de 4 pernas com um jogo repetido =
+    5 linhas, não 6; 5501645422: triplas = 2, não 4).
   • perna: `price` é a odd; `status` 0 aberta · 1 ganha · 2 perdida · 8 anulada. O esporte vem
     só como id (`sportTypeId`), e vai assim: traduzir é do dicionário, não do adaptador.
   • Bet builder (`isBetBuilder`), bônus (`bonusPart`), cashout parcial (`partialCashouts`) e
@@ -57,6 +61,8 @@ def _status(t: dict) -> str:
         return "anulada"
     if st == 1 and ret > stake:
         return "ganha"
+    if st == 1 and 0 < ret < stake and t.get("type") == 2:
+        return "ganha"          # sistema em que só parte das linhas pagou (W = retorno ÷ stake)
     if st == 8 and igual:
         return "anulada"
     if st in _CASHOUT:
@@ -77,7 +83,7 @@ def adaptar(t: dict, casa_key: str) -> dict:
     sels = t.get("selections") or []
     if not sels:
         raise Recusa("bilhete sem selections")
-    pernas, precos = [], []
+    pernas, precos, jogos = [], [], []
     for s in sels:
         if s.get("isBetBuilder"):
             raise Recusa("bet builder ainda não medido na Altenar (a conferir)")
@@ -87,6 +93,7 @@ def adaptar(t: dict, casa_key: str) -> dict:
         if p is None or p <= 0:
             raise Recusa("perna sem price")
         precos.append(p)
+        jogos.append(s.get("eventId"))
         pernas.append({
             "esporte_casa": f"sportTypeId {s.get('sportTypeId')}" if s.get("sportTypeId") is not None else None,
             "evento": " ".join(str(s.get("eventName") or "").split()),
@@ -102,12 +109,15 @@ def adaptar(t: dict, casa_key: str) -> dict:
         if not isinstance(k, int) or not 1 <= k < len(precos):
             raise Recusa(f"sistema com combLength {k!r} ilegível")
         linhas = []
-        for c in combinations(precos, k):
+        for c in combinations(range(len(precos)), k):
+            ids = [jogos[i] for i in c if jogos[i] is not None]
+            if len(set(ids)) < len(ids):
+                continue        # duas pernas do mesmo jogo: a casa não monta essa linha
             x = Decimal(1)
-            for p in c:
-                x *= p
+            for i in c:
+                x *= precos[i]
             linhas.append(x)
-        if t.get("linesCount") not in (None, len(linhas)):
+        if not linhas or t.get("linesCount") not in (None, len(linhas)):
             raise Recusa(f"sistema com linesCount {t.get('linesCount')} ≠ {len(linhas)} combinações")
         odd, calculada = numero(str(sum(linhas) / len(linhas))), True
         rotulo = f"{len(linhas)} x {k} de {len(precos)}"

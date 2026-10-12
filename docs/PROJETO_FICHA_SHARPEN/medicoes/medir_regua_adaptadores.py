@@ -18,6 +18,10 @@ Liquidadas comparadas (D12, decisão do Feca de 11/10: a casa só vira com 30 po
 aposta (código distinto) em que a Ficha E a IA têm resultado liquidado (W, L, V, HW, HL).
 Aberta de qualquer lado não conta. Sai por casa e por DONO (Feca e Gabriel separados,
 sempre listados, mesmo sem cru), com quantas delas batem, só a odd ou divergem.
+
+Ganhas comparadas (PROPOSTA para o Feca aprovar, 12/10: além das 30 liquidadas, 10 ganhas
+por casa): a liquidada comparada em que a Ficha OU a IA dá W ou HW. É onde a odd e o
+retorno pesam; na perdida a Ficha só precisa acertar stake e resultado.
 """
 import asyncio
 import collections
@@ -37,6 +41,8 @@ C = Decimal("0.005")
 LIQUIDADO = {"W", "L", "V", "HW", "HL"}
 DONOS_SEMPRE = ("Feca", "Gabriel")   # D12 conta por dono; quem não mandou cru aparece com 0
 VIRADA = 30
+GANHAS_PROPOSTA = 10                 # proposta, ainda NÃO aprovada pelo Feca
+GANHO = {"W", "HW"}
 
 
 def _carregar_env() -> None:
@@ -101,7 +107,9 @@ def comparar(c: dict, bilhetes: list) -> dict:
               "odd sem dinheiro" if so_odd and (pl is None or abs(pl) < Decimal("0.01")) else
               "diverge")
     liq = d["resultado"] in LIQUIDADO and res_ia in LIQUIDADO
+    ganha = liq and (d["resultado"] in GANHO or res_ia in GANHO)
     return dict(r, estado=estado, dif=dif, status=f["status"], fonte_odd=d["fonte_odd"], liq=liq,
+                ganha=ganha,
                 stake_pedida=f.get("stake_pedida"),
                 pl=None if pl is None else str(round(pl, 4)), n_bilhetes=len(bilhetes))
 
@@ -124,8 +132,14 @@ async def main() -> None:
                 "stake_orig::text, stake_freebet::text FROM bilhetes "
                 "WHERE codigo_bilhete = ANY($1::text[])", [c["codigo"] for c in crus]):
             bil[(b["dono"], b["casa"], b["parceiro"], b["codigo_bilhete"])].append(dict(b))
+    # Só o cru MAIS RECENTE de cada aposta: o da varredura anterior (aberta) comparado com o
+    # bilhete já liquidado acusaria "resultado F=- IA=L", que é só a foto velha.
+    ultimo = {}
+    for c in crus:                                  # vem por id, crescente
+        ultimo[(c["dono"], c["casa"], c["parceiro"], c["codigo"])] = c
+    print(f"{len(crus)} crus, {len(ultimo)} apostas (o cru mais recente de cada uma)")
     linhas = []
-    for c in crus:
+    for c in ultimo.values():
         c["cru"] = json.loads(c["cru"])
         chave = (c["dono"], nomes.get(c["casa"], c["casa"]), c["parceiro"], c["codigo"])
         linhas.append(comparar(c, bil.get(chave, [])))
@@ -139,21 +153,25 @@ async def main() -> None:
     liq = collections.defaultdict(dict)
     for r in linhas:
         if r.get("liq"):
-            liq[(r["casa"], r["dono"])][r["codigo"]] = r["estado"]
+            liq[(r["casa"], r["dono"])][r["codigo"]] = (r["estado"], r["ganha"])
     donos = sorted({r["dono"] for r in linhas} | set(DONOS_SEMPRE))
     print()
-    print(f"Liquidadas comparadas (virada: {VIRADA} por casa, aberta não conta)")
+    print(f"Liquidadas comparadas (virada: {VIRADA} por casa, aberta não conta; "
+          f"proposta: {GANHAS_PROPOSTA} ganhas)")
     for casa in sorted(tab):
-        total = 0
+        total = total_g = 0
         for dono in donos:
-            est = collections.Counter(liq.get((casa, dono), {}).values())
-            n = sum(est.values())
-            total += n
-            print(f"{casa:10} {dono:10} {n:4} liquidadas · bate {est['bate']} · "
+            vals = list(liq.get((casa, dono), {}).values())
+            est = collections.Counter(e for e, _ in vals)
+            n, g = len(vals), sum(1 for _, gg in vals if gg)
+            total, total_g = total + n, total_g + g
+            print(f"{casa:10} {dono:10} {n:4} liquidadas · {g:3} ganhas · bate {est['bate']} · "
                   f"odd sem dinheiro {est['odd sem dinheiro']} · diverge {est['diverge']}")
         # o número só diz se a casa ATINGE o piso; a virada continua sendo o "pode" do Feca
-        print(f"{casa:10} {'casa':10} {total:4} liquidadas · "
-              + (f"atinge {VIRADA}" if total >= VIRADA else f"faltam {VIRADA - total}"))
+        print(f"{casa:10} {'casa':10} {total:4} liquidadas · {total_g:3} ganhas · "
+              + (f"atinge {VIRADA}" if total >= VIRADA else f"faltam {VIRADA - total}") + " · "
+              + (f"ganhas atinge {GANHAS_PROPOSTA}" if total_g >= GANHAS_PROPOSTA
+                 else f"ganhas faltam {GANHAS_PROPOSTA - total_g}"))
     for r in linhas:
         if r["estado"] in ("diverge", "recusada", "sem bilhete") or r.get("stake_pedida"):
             print(" ", r["casa"], r["codigo"], r["estado"], r.get("dif") or r.get("motivos") or "",
