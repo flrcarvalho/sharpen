@@ -45,6 +45,32 @@
 // SEM AMOSTRA (a conta do recon não tinha): aposta em aberto, múltipla (`ComboSize > 0`),
 // cashout/Retirada (`IsPartialCashOut`) e freebet. Os campos são lidos e sobem crus.
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   // TRAVA DE HOST — ver a nota gêmea no `bda_inject.js`. O popup injeta os dois arquivos em
   // todos os frames; sem isto o Sportsbook daria `hook:true` de dentro do Exchange.
   try { if (!/(^|\.)msjxk\.com$/i.test(new URL(location.href).host)) return; } catch (e) { return; }
@@ -224,6 +250,7 @@
     const msg = {
       __sharpenupBDSData: true, hook: true,
       bilhetes: Array.from(byRef.values()), respostas: respostas, fim: fimReplay, erro: erro,
+        cru: _crus(Array.from(byRef.values()), "ref"),
     };
     try { window.postMessage(msg, "*"); } catch (e) {}
     // ⚠ SEM ESTA LINHA A CAPTURA NÃO EXISTE — ver a nota gêmea no `bda_inject.js`. O iframe
@@ -248,7 +275,7 @@
     if (!j || !Array.isArray(j.data)) return null;      // corpo de erro / formato mudou
     respostas++;
     const novos = [];
-    for (const t of j.data) parseTicket(t, novos);
+    for (const t of j.data) { const _n0 = novos.length; parseTicket(t, novos); for (let _i = _n0; _i < novos.length; _i++) _marcarCru(novos[_i], t); }
     for (const b of novos) guardar(b);
     LOG("bilhetes na resposta:", j.data.length, "· total:", byRef.size,
         "· totalCount:", j.totalCount);

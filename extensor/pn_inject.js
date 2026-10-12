@@ -17,6 +17,32 @@
 // mesma auth. Se o replay falhar (formato de body inesperado), o modo passivo ainda entrega
 // o que a página já baixou.
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   const RX = /\/wager-filter/i;                 // endpoint da LISTA de bilhetes
   const all = [];
   const seen = new Set();                        // chave: id|A (aberta) ou id|S (settled)
@@ -101,7 +127,7 @@
   // Emite SEMPRE hook:true + respostas (heartbeat), mesmo com 0 bilhetes — o content
   // distingue "hook não carregou" de "endpoint respondeu, lemos 0" (autodiagnóstico, achado #13).
   function enviar() {
-    try { window.postMessage({ __sharpenupPNData: true, hook: true, bets: all, respostas: respostas, fim: fimReplay }, "*"); } catch (e) {}
+    try { window.postMessage({ __sharpenupPNData: true, hook: true, bets: all, respostas: respostas, fim: fimReplay, cru: _crus(all, "id") }, "*"); } catch (e) {}
   }
 
   function forward(url, text) {
@@ -118,6 +144,7 @@
     for (const raw of arr) {
       const b = parseBet(raw);
       if (!b) continue;
+      _marcarCru(b, raw);
       const k = b.id + "|" + (b.aberta ? "A" : "S");
       if (seen.has(k)) continue;
       seen.add(k);

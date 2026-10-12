@@ -65,6 +65,32 @@
 //     "evento mais recente". Epoch em SEGUNDOS.
 
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   // Dois caminhos, o MESMO endpoint e o MESMO JSON (s391, medido nas três): a 1xBet usa
   // `/service/bethistory/`; as espelho SapphireBet, PariPesa e Megapari usam
   // `/bethistory-api/Web/`. O corpo e a resposta são idênticos.
@@ -158,6 +184,7 @@
       window.postMessage({
         __sharpenupX1Data: true, hook: true,
         bilhetes: Array.from(byRef.values()), respostas: respostas, fim: fimReplay,
+        cru: _crus(Array.from(byRef.values()), "ref"),
         total: totalCasa, erro: erro,
       }, "*");
     } catch (e) {}
@@ -179,7 +206,7 @@
     if (!j || !Array.isArray(j.BetInfos)) return null;    // corpo de erro / formato mudou
     respostas++;
     const novos = [];
-    for (const t of j.BetInfos) parseBet(t, novos);
+    for (const t of j.BetInfos) { const _n0 = novos.length; parseBet(t, novos); for (let _i = _n0; _i < novos.length; _i++) _marcarCru(novos[_i], t); }
     for (const b of novos) guardar(b);
     const si = j.BetsSummaryInfo || {};
     if (typeof si.Count === "number") totalCasa = si.Count;

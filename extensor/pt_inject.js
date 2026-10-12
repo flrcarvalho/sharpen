@@ -27,6 +27,32 @@
 //    se role, enquanto a API tem 38. O fim autoritativo é o campo `.5` da resposta, que só
 //    aparece quando a página encheu E há mais — some quando a lista acabou.
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   const RX = /UiMyBetsService\/GetUiMyBetsTabContent/i;   // endpoint que CONSUMIMOS
   // Aprende de QUALQUER método do serviço: o `GetUiMyBetsPage` sai no load com o mesmo pacote
   // de headers, e aprender só do TabContent perderia o molde se a tela mudasse de chamada.
@@ -190,6 +216,7 @@
       window.postMessage({
         __sharpenupPTCData: true, hook: true,
         bilhetes: Array.from(byRef.values()), respostas: respostas, fim: fimReplay,
+        cru: _crus(Array.from(byRef.values()), "ref"),
         erro: ultimoErro,
       }, "*");
     } catch (e) {}
@@ -213,6 +240,7 @@
     const itens = _todos(cs, 2);
     for (const c of itens) {
       const b = _bilhete(c.v);
+      if (b) { try { let s = ""; for (const x of c.v) s += String.fromCharCode(x); _marcarCru(b, { protobuf_b64: btoa(s) }); } catch (e) {} }
       if (b) guardar(b);
     }
     // `.5` = "tem mais" — presente só quando a página encheu E sobrou. Ausente = fim.

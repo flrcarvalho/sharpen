@@ -18,6 +18,32 @@
 // resposta com Bets mas SEM LastId = fim real daquela lista → sinaliza `fimSettled`/
 // `fimOpen` p/ o robô parar de verdade a paginação da aba ativa (nunca no 1º obstáculo).
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   const RX = /\/api\/ma\/bet\/bet-history-v3/i;   // endpoint da LISTA de bilhetes
   const all = [];
   const seen = new Set();                          // chave: BetId|A (aberta) ou BetId|S (liquidada)
@@ -28,7 +54,7 @@
   // distingue "hook não carregou" de "endpoint respondeu mas lemos 0" (achado #13). Espelha o
   // bf_inject; mantém `fimSettled`/`fimOpen` p/ o robô saber o fim autoritativo de cada lista.
   function postAll() {
-    try { window.postMessage({ __sharpenupBNData: true, bets: all, fimSettled, fimOpen, hook: true, respostas: respostas }, "*"); } catch (e) {}
+    try { window.postMessage({ __sharpenupBNData: true, bets: all, fimSettled, fimOpen, hook: true, respostas: respostas, cru: _crus(all, "BetId", true) }, "*"); } catch (e) {}
   }
 
   function forward(url, text) {

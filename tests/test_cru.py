@@ -218,3 +218,15 @@ def test_dex_odd_da_casa_na_ganha_e_a_liquidada():
 def test_numero_corta_o_ruido_do_float():
     assert numero(123.50000000000001) == "123.5"
     assert numero(25) == "25" and numero(29.45) == "29.45" and numero(None) is None
+
+
+# ── a lista do filtro é UMA só: a da extensão é igual à do servidor ───────────────────
+
+def test_filtro_da_extensao_e_o_mesmo_do_servidor():
+    """`extensor/cru.js` filtra antes de o cru sair do navegador; `app/cru.py` filtra de novo.
+    As duas listas têm de ser a MESMA, senão um lado guarda o que o outro jogaria fora."""
+    import re as _re
+    fonte = (Path(__file__).resolve().parent.parent / "extensor" / "cru.js").read_text(encoding="utf-8")
+    bloco = fonte.split("const CRU_NOMES_FILTRADOS = new Set([", 1)[1].split("]", 1)[0]
+    js = {n.casefold() for n in _re.findall(r'"([^"]+)"', bloco)}
+    assert js == set(cru.NOMES_FILTRADOS)

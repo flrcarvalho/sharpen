@@ -52,6 +52,32 @@
 //   • `push_win` / `push_lose` existem no código da casa (meia-vitória / meia-derrota) mas
 //     não houve amostra. Sobem CRUS — nunca viram HW/HL por chute.
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   // TRAVA DE HOST. O popup injeta os DOIS arquivos em TODOS os frames (é o único jeito de
   // alcançar aba já aberta, onde o manifest declarativo não roda de novo). Sem esta linha,
   // este inject também carregaria dentro do frame do Sportsbook e mandaria `hook:true` de
@@ -162,6 +188,7 @@
     const msg = {
       __sharpenupBDAData: true, hook: true,
       bilhetes: Array.from(byRef.values()), respostas: respostas, fim: fimReplay,
+        cru: _crus(Array.from(byRef.values()), "ref"),
       naoCasadas: naoCasadas.size, erro: erro,
     };
     try { window.postMessage(msg, "*"); } catch (e) {}
@@ -187,7 +214,7 @@
     if (!j || !Array.isArray(j.offers)) return null;   // corpo de erro (400/401) ou formato mudou
     respostas++;
     const novos = [];
-    for (const o of j.offers) parseOferta(o, novos);
+    for (const o of j.offers) { const _n0 = novos.length; parseOferta(o, novos); for (let _i = _n0; _i < novos.length; _i++) _marcarCru(novos[_i], o); }
     for (const b of novos) guardar(b);
     LOG("ofertas na resposta:", j.offers.length, "· bilhetes:", byRef.size,
         "· não casadas:", naoCasadas.size, "· total da janela:", j.total);

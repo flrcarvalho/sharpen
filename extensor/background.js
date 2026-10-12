@@ -2,7 +2,7 @@
 // visível, recorta e envia para a ponte (/captura/enviar) autenticado pelo token.
 // Ao fim avisa o content.js (CAPTURA_FIM {ok}) pra a moldura reaparecer e o
 // contador subir só em envio real.
-importScripts("config.js");
+importScripts("config.js", "cru.js");   // cru.js: o cru da casa para o servidor (s409)
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === "CAPTURAR_REGIAO") {
@@ -10,6 +10,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then((ok) => { sendResponse({ ok }); avisarFim(sender.tab.id, ok); })
       .catch((e) => { sendResponse({ ok: false, erro: String(e && e.message || e) }); avisarFim(sender.tab.id, false); });
     return true; // resposta assíncrona
+  }
+  // CRU (s409): responde NA HORA e envia por trás. Nunca afeta o texto nem a sessão.
+  if (msg && msg.type === "ENVIAR_CRU") {
+    try { sendResponse({ ok: true }); } catch (e) {}
+    try { enviarCru(msg.familia, msg.itens, sender.tab).catch(() => {}); } catch (e) {}
+    return false;
   }
   if (msg && msg.type === "ENVIAR_TEXTO") {
     enviarTexto(msg.texto, sender.tab).then((ok) => sendResponse({ ok })).catch(() => sendResponse({ ok: false }));

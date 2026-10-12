@@ -41,6 +41,7 @@ for (const f of arquivos) {
   const mod = await import(pathToFileURL(path.join(RAIZ, "casos", f)).href);
   const nome = mod.casa || path.basename(f, ".mjs");
   casosRodados.add(nome);
+  globalThis.__casoHarness = nome;
   let res;
   try {
     res = await mod.rodar();
@@ -62,6 +63,35 @@ for (const f of arquivos) {
   for (const [x, k] of conhecidas) console.log(`         ~ falha CONHECIDA (${k.motivo}): ${x}`);
 }
 
+// TRAVA DO CRU (s409): toda casa que imprimiu `[Código: …]` tem de ter mandado cru pelo
+// inject, e todo cru tem de virar JSON (é o que vai no corpo do POST). Não cobra "código do
+// texto sem cru": vários casos chamam o formatador direto com objeto montado no teste, sem
+// passar pelo inject (Esportiva anuladas/cashout, os sintéticos da Bet365 e da Betnacional).
+// No modo quebrado (`SHARPENUP_CRU_QUEBRADO`) o cru some de propósito e a trava não roda.
+{
+  const { CRU } = await import(pathToFileURL(path.join(RAIZ, "sandbox.mjs")).href);
+  if (!process.env.SHARPENUP_CRU_QUEBRADO) {
+    for (const [caso, r] of Object.entries(CRU)) {
+      const f = [];
+      if (r.naoJson) f.push(`${r.naoJson} cru(s) que não viram JSON`);
+      if (r.texto.size && !r.itens) f.push(`imprimiu ${r.texto.size} código(s) e o inject não mandou cru nenhum`);
+      if (f.length) {
+        totalFalhas += f.length;
+        console.log(`  FALHA ${caso} (cru)`);
+        for (const x of f) console.log("         → " + x);
+      }
+    }
+  }
+}
+if (process.env.SHARPENUP_FOTO) {
+  const { FOTO, QUEBRAS } = await import(pathToFileURL(path.join(RAIZ, "sandbox.mjs")).href);
+  if (process.env.SHARPENUP_CRU_QUEBRADO) {
+    fs.writeFileSync(process.env.SHARPENUP_FOTO + ".quebras.json", JSON.stringify(QUEBRAS));
+  }
+  fs.writeFileSync(process.env.SHARPENUP_FOTO, JSON.stringify(FOTO, null, 0));
+  console.log(`
+fotografia: ${FOTO.length} registro(s) em ${process.env.SHARPENUP_FOTO}`);
+}
 console.log();
 for (const k of CONHECIDAS) {
   const esperada = !k.soEmUTC || new Date().getTimezoneOffset() === 0;
