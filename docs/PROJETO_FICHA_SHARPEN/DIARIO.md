@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-10-12 · D2-D4 · 0.7.51 no ar, adaptadores jb/shf/tv/vb na main, sombra em 6 casas
+
+**Onde está:** `FICHA_SOMBRA_CASAS=DEXSPORT,BETPANDA,DUEL,MYSTAKE,SHUFFLE,VAVADA` (deploy `a74bb4ad`,
+12/10 ~14h19 UTC). Banco: 559 crus nas 6 casas, 559 com Ficha, 0 recusadas, 0 sem. **Próxima ação:**
+conferir que o cru NOVO de cada casa ganha Ficha pela rota (nenhum chegou depois das chaves) e, com 30
+liquidadas por casa, a virada pela régua (`03_REGUA_NUMEROS.md`).
+
+- **SharpenUp 0.7.51 publicada em silêncio** (Feca): `sharpenup-cru` na main, declarada em
+  `sharpenup_sem_nota`, deploy `ac4526ac`, pacote do `/extensao/download` conferido.
+- **Rota endurecida:** erro qualquer do adaptador vira recusa gravada; `CRU_CAPTURA_DESLIGADA` responde 503;
+  `scripts/reprocessar_ficha_cru.py` monta a Ficha do cru sem nenhuma.
+- **Adaptadores `jb` (Bet Panda, Duel), `shf`, `tv` (MyStake) e `vb` (Vavada)**, medidos offline contra a IA:
+  [`medicoes/REGUA_ADAPTADORES_s409.md`](medicoes/REGUA_ADAPTADORES_s409.md). 1ª rodada (545): 4 divergiam com
+  dinheiro e 2 eram recusadas. Correções do Feca (12/10), todas aplicadas:
+  - **sistema ganho = retorno ÷ stake** (`MASTER_RESULTADO §7.1`); o `derivar` usava a média sobre a stake
+    inteira, +650,77 USDT em 4 bilhetes. A IA estava certa.
+  - **Shuffle: aceite parcial, não venda parcial** (Feca, na tela da casa). A stake é o `amount` aceito; o
+    `originalAmount` fica em `stake_pedida`, só informação. A IA estava certa; eu tinha lido errado.
+  - **filtro:** `Player` (MyStake, login da conta) e `nickname` (DEX) só no servidor; a lista do servidor
+    CONTÉM a da extensão. 192 crus limpos com hash recalculado (`scripts/limpar_cru_filtro.py`), cópia em
+    `captura_crua_copia_filtro` (192) e `ficha_sombra_copia_filtro` (55). Hash = impressão do cru nos 559.
+  - 2ª rodada (559): 481 batem, 78 só na odd sem dinheiro (Ficha certa ou empate), **0 divergem, 0 recusadas**.
+- **Varredura de nomes de campo** antes de ligar as 5 casas (banco de 12/10 ~14h): nenhum campo de pessoa
+  além dos dois filtrados. Família nova passa pela mesma varredura.
+
+---
+
 ## 2026-10-12 · D2 · teste real do Feca: 545 crus, 545 batem com o banco
 
 O Feca instalou a extensão da branch `sharpenup-cru` e capturou 6 casas de 5 famílias. Conferido no banco
