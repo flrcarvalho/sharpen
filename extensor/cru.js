@@ -68,10 +68,15 @@ function cruPodar(reg, agora) {
 
 /** Envia o cru de um lote. Devolve um resumo (só para log e teste); NUNCA lança. */
 async function enviarCru(familia, itens, tab) {
-  const resumo = { enviados: 0, iguais: 0, falhas: 0, tratados409: 0 };
+  const resumo = { enviados: 0, iguais: 0, falhas: 0, tratados409: 0,
+                   familia: familia, itens: Array.isArray(itens) ? itens.length : -1, http: [], erro: "" };
   try {
     const { token } = await chrome.storage.local.get("token");
-    if (!token || !familia || !Array.isArray(itens) || !itens.length) return resumo;
+    if (!token || !familia || !Array.isArray(itens) || !itens.length) {
+      resumo.erro = !token ? "sem token" : "lote vazio ou sem família";
+      await cruDiagnostico(resumo);
+      return resumo;
+    }
     const origem = hostDaAba(tab);
     const agora = Date.now();
     const guardado = (await chrome.storage.local.get(CRU_CHAVE))[CRU_CHAVE] || {};
@@ -98,7 +103,8 @@ async function enviarCru(familia, itens, tab) {
           body: JSON.stringify({ token, versao: chrome.runtime.getManifest().version, origem,
                                  familia, itens: lote.map((p) => p.item) }),
         });
-      } catch (e) { resumo.falhas += lote.length; continue; }
+      } catch (e) { resumo.falhas += lote.length; resumo.erro = "rede: " + String(e && e.message || e); continue; }
+      resumo.http.push(r.status);
       if (r.ok || r.status === 409) {
         for (const p of lote) reg[p.chave] = { h: p.item.hash, t: agora };
         if (r.ok) resumo.enviados += lote.length; else resumo.tratados409 += lote.length;
@@ -110,6 +116,20 @@ async function enviarCru(familia, itens, tab) {
     await chrome.storage.local.set({ [CRU_CHAVE]: reg });
   } catch (e) {
     resumo.falhas++;
+    resumo.erro = String(e && e.stack || e).slice(0, 500);
   }
+  await cruDiagnostico(resumo);
   return resumo;
+}
+
+// DIAGNÓSTICO (s409): o envio do cru engole todo erro para não atrapalhar a captura, e por
+// isso precisa deixar rastro. Os últimos 20 envios ficam em `cruDiag` (chrome.storage.local) e
+// toda falha sai no console do service worker. Nunca lança.
+async function cruDiagnostico(resumo) {
+  try {
+    if (resumo.falhas || resumo.erro) console.warn("[SharpenUp] cru:", JSON.stringify(resumo));
+    const atual = ((await chrome.storage.local.get("cruDiag")) || {}).cruDiag || [];
+    atual.push(Object.assign({ t: new Date().toISOString() }, resumo));
+    await chrome.storage.local.set({ cruDiag: atual.slice(-20) });
+  } catch (e) {}
 }

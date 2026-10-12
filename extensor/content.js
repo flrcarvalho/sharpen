@@ -46,6 +46,8 @@
   });
   function _enviarCruDaRodada() {
     try {
+      // Diagnóstico (s409): o que esta aba juntou de cru, no console da página.
+      try { console.info("[SharpenUp] cru da rodada:", Array.from(_cruPorFamilia, ([f, m]) => f + "=" + m.size).join(" ") || "nenhum"); } catch (e) {}
       for (const [familia, m] of _cruPorFamilia) {
         const itens = Array.from(m, ([codigo, cru]) => ({ codigo: codigo, cru: cru }));
         if (!itens.length) continue;
