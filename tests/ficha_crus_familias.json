@@ -633,5 +633,250 @@
     ]
    }
   ]
+ },
+ "2719953703015690358": {
+  "k": "4.447",
+  "id": "2719953703015690358",
+  "sum": "60",
+  "type": "2/3",
+  "status": "won",
+  "total_k": "13.341",
+  "currency": "$",
+  "timestamp": 1791461784.505935,
+  "result_sum": "88.94",
+  "selections": [
+   {
+    "k": "2.04",
+    "desc": {
+     "sport": {
+      "name": "Artes Marciais Mistas"
+     },
+     "scheduled": 1791660000,
+     "competitors": [
+      {
+       "id": "748863",
+       "name": "Zerhouni, Laid"
+      },
+      {
+       "id": "727343",
+       "name": "Grzebyk, Andrzej"
+      }
+     ]
+    },
+    "status": "won",
+    "market_name": "Winner",
+    "outcome_name": "Grzebyk, Andrzej"
+   },
+   {
+    "k": "1.91",
+    "desc": {
+     "sport": {
+      "name": "Hóquei no Gelo"
+     },
+     "scheduled": 1791570600,
+     "competitors": [
+      {
+       "id": "178424",
+       "name": "Spartiates de Marselha"
+      },
+      {
+       "id": "36984",
+       "name": "Gap HC"
+      }
+     ]
+    },
+    "status": "lost",
+    "market_name": "Total (incl. overtime and penalties)",
+    "outcome_name": "under 5.5"
+   },
+   {
+    "k": "2.18",
+    "desc": {
+     "sport": {
+      "name": "Hóquei no Gelo"
+     },
+     "scheduled": 1791480600,
+     "competitors": [
+      {
+       "id": "171908",
+       "name": "EC Die Adler Kitzbuhel"
+      },
+      {
+       "id": "303466",
+       "name": "KHL Sisak"
+      }
+     ]
+    },
+    "status": "won",
+    "market_name": "Total (incl. overtime and penalties)",
+    "outcome_name": "under 6.5"
+   }
+  ],
+  "combinations": [
+   {
+    "odd": "0.0000",
+    "combo": [
+     1,
+     2
+    ],
+    "stake": "20",
+    "status": "lost"
+   },
+   {
+    "odd": "4.4472",
+    "combo": [
+     1,
+     3
+    ],
+    "stake": "20",
+    "status": "won"
+   },
+   {
+    "odd": "0.0000",
+    "combo": [
+     2,
+     3
+    ],
+    "stake": "20",
+    "status": "lost"
+   }
+  ]
+ },
+ "5504503270": {
+  "id": 5504503270,
+  "type": 2,
+  "status": 1,
+  "currency": "USD",
+  "totalWin": 84,
+  "bonusPart": 0,
+  "totalOdds": 3.96,
+  "combLength": 2,
+  "finalStake": 60,
+  "linesCount": 3,
+  "selections": [
+   {
+    "name": "Menos de 3.5",
+    "price": 2,
+    "status": 1,
+    "eventDate": "2026-10-11T17:00:00Z",
+    "eventName": "NO Saints vs. MIN Vikings",
+    "marketName": "Total field goals made (incl. overtime)",
+    "sportTypeId": 20,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Drake Maye (NE) mais 5.5",
+    "price": 2.1,
+    "status": 1,
+    "eventDate": "2026-10-11T17:00:00Z",
+    "eventName": "NE Patriots vs. LV Raiders",
+    "marketName": "Tentativas de corrida do jogador Mais / Menos (incluindo prorrogação)",
+    "sportTypeId": 20,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Brock Purdy (SF) mais 19.5",
+    "price": 1.8696,
+    "status": 2,
+    "eventDate": "2026-10-11T20:25:00Z",
+    "eventName": "SEA Seahawks vs. SF 49ers",
+    "marketName": "Jogador - Jardas de Corrida Mais/Menos (incl. Prorrogação)",
+    "sportTypeId": 20,
+    "isBetBuilder": false
+   }
+  ],
+  "totalStake": 60,
+  "createdDate": "2026-10-09T02:44:31.35Z",
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "partialCashouts": []
+ },
+ "5504412582": {
+  "id": 5504412582,
+  "type": 2,
+  "status": 1,
+  "currency": "USD",
+  "totalWin": 86.1,
+  "bonusPart": 0,
+  "totalOdds": 4.48,
+  "combLength": 2,
+  "finalStake": 60,
+  "linesCount": 3,
+  "selections": [
+   {
+    "name": "Mais de 119.5",
+    "price": 2.2,
+    "status": 2,
+    "eventDate": "2026-10-09T02:30:00Z",
+    "eventName": "Los Angeles Lakers vs. Sacramento Kings",
+    "marketName": "1º tempo - total",
+    "sportTypeId": 12,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Menos de 45.5",
+    "price": 2.05,
+    "status": 1,
+    "eventDate": "2026-10-09T18:30:00Z",
+    "eventName": "Budowlani Lodz (F) vs. Commerceon Lodz (F)",
+    "marketName": "Primeiro set - total pontos",
+    "sportTypeId": 19,
+    "isBetBuilder": false
+   },
+   {
+    "name": "Menos de 22.5",
+    "price": 2.1,
+    "status": 1,
+    "eventDate": "2026-10-10T04:00:00Z",
+    "eventName": "Bu Yunchaokete vs. Casper Ruud",
+    "marketName": "Total jogos",
+    "sportTypeId": 4,
+    "isBetBuilder": false
+   }
+  ],
+  "totalStake": 60,
+  "createdDate": "2026-10-09T01:52:43.29Z",
+  "cashOutValue": 0,
+  "partialCashOut": 0,
+  "partialCashouts": []
+ },
+ "CfqYLyfrUE83UiEDGEHR8": {
+  "id": "CfqYLyfrUE83UiEDGEHR8",
+  "legs": [
+   {
+    "selections": [
+     {
+      "market": {
+       "name": "Handicap pontos",
+       "lineValue": "-12.5"
+      },
+      "sports": "BADMINTON",
+      "fixture": {
+       "name": "Wakhevitsch, Arthur vs Christophersen, Mads",
+       "startTime": "2026-10-09T08:35:00.000Z"
+      },
+      "marketSelection": {
+       "formattedName": "Wakhevitsch, Arthur (+12.5)"
+      }
+     }
+    ],
+    "oddsDecimal": "1.84",
+    "displayStatus": "LOST"
+   }
+  ],
+  "type": "REGULAR",
+  "amount": "58.1435833",
+  "status": "LOST",
+  "currency": "USDT",
+  "createdAt": "2026-10-08T22:14:58.926Z",
+  "settlement": {
+   "id": "01a11ff2-933a-7484-b494-d3a30d9b6c3a",
+   "payout": "0",
+   "createdAt": "2026-10-09T09:15:53.530Z",
+   "payoutOddsDecimal": "0"
+  },
+  "systemBetType": null,
+  "originalAmount": "60",
+  "totalOddsDecimal": "1.84"
  }
 }

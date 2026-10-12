@@ -5,7 +5,7 @@ MESMA conta: stake, odd, resultado, retorno e freebet. Banco: só SELECT. Sem IA
     python docs/PROJETO_FICHA_SHARPEN/medicoes/medir_regua_adaptadores.py [familia]
 
 Estados por cru:
-  bate              os cinco campos iguais (retorno no centavo; odd idêntica)
+  bate              os cinco campos iguais (stake e retorno no centavo; odd idêntica)
   odd sem dinheiro  só a odd difere, e o P/L das duas leituras difere menos de 0,01
   diverge           qualquer outra diferença (o P/L de cada lado sai na coluna PL)
   recusada          o adaptador ou a validação recusou (motivo ao lado)
@@ -74,7 +74,7 @@ def comparar(c: dict, bilhetes: list) -> dict:
     ret_f = Decimal(f["retorno"]) if f.get("retorno") and d["resultado"] else None
     ret_ia = retorno(res_ia, s_ia, o_ia)
     dif = []
-    if s_f != s_ia:
+    if s_f is None or s_ia is None or abs(s_f - s_ia) > C:   # Shuffle: 59,56171948 × IA 59,56
         dif.append(f"stake F={s_f} IA={s_ia}")
     if o_f != o_ia:
         dif.append(f"odd F={o_f} IA={o_ia}")
@@ -93,6 +93,7 @@ def comparar(c: dict, bilhetes: list) -> dict:
               "odd sem dinheiro" if so_odd and (pl is None or abs(pl) < Decimal("0.01")) else
               "diverge")
     return dict(r, estado=estado, dif=dif, status=f["status"], fonte_odd=d["fonte_odd"],
+                stake_pedida=f.get("stake_pedida"),
                 pl=None if pl is None else str(round(pl, 4)), n_bilhetes=len(bilhetes))
 
 
@@ -126,9 +127,10 @@ async def main() -> None:
         print(f"{casa:10} {sum(cnt.values()):4} crus · " +
               " · ".join(f"{k} {v}" for k, v in sorted(cnt.items())))
     for r in linhas:
-        if r["estado"] in ("diverge", "recusada", "sem bilhete"):
+        if r["estado"] in ("diverge", "recusada", "sem bilhete") or r.get("stake_pedida"):
             print(" ", r["casa"], r["codigo"], r["estado"], r.get("dif") or r.get("motivos") or "",
-                  "PL", r.get("pl"), r.get("fonte_odd") or "")
+                  "PL", r.get("pl"), r.get("fonte_odd") or "",
+                  f"pedida {r['stake_pedida']}" if r.get("stake_pedida") else "")
 
 
 if __name__ == "__main__":

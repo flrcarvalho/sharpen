@@ -14,7 +14,11 @@ A leitura de cada campo é a do `formatTicketSHF` do `content.js` (recon s401, 3
     a LIQUIDADA: com perna `PUSHED` a da colocação não muda (11,5182 × paga 5,1192).
   • TRÊS odds por seleção: a da perna é `legs[].oddsDecimal` (a apostada). A do
     `marketSelection` é a ATUAL do mercado e nunca entra.
-  • `originalAmount` veio nulo nos 72 crus; se vier diferente da stake, RECUSA.
+  • `amount` é a stake ACEITA pela casa, e é ela a stake. `originalAmount` é o valor PEDIDO:
+    nulo em 70 dos 72 crus, e maior que `amount` quando a casa aceitou menos (pediu 90 e
+    60, a casa aceitou 59,56 e 58,14, o "Sua Aposta" da tela; o ganho 108,40 = 59,56 × 1,82).
+    Não é venda parcial, conferido pelo Feca na tela (12/10). Vai à Ficha só como
+    `stake_pedida`, e nunca vira stake.
 """
 from __future__ import annotations
 
@@ -67,9 +71,6 @@ def _status(t: dict) -> str:
 def adaptar(t: dict, casa_key: str) -> dict:
     if not isinstance(t, dict) or not t.get("id"):
         raise Recusa("bilhete sem id")
-    orig = _d(t.get("originalAmount"))
-    if orig is not None and orig != _d(t.get("amount")):
-        raise Recusa(f"originalAmount {orig} difere de amount {t.get('amount')} (a conferir)")
     status = _status(t)
     legs = t.get("legs") or []
     if not legs:
@@ -109,6 +110,7 @@ def adaptar(t: dict, casa_key: str) -> dict:
         "status_casa": f"status {t.get('status')} · type {t.get('type')}",
         "moeda": (t.get("currency") or "").upper() or None,
         "stake": numero(t.get("amount")),
+        "stake_pedida": numero(t.get("originalAmount")),   # só informação, nunca a stake
         "stake_freebet": None,
         "odd": odd,
         "odd_calculada": False,

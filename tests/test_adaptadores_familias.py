@@ -12,14 +12,16 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   4. jb: ComboBOOST sem o `total_multiplier`                → test_jb_comboboost_multiplica
   5. jb: sistema pelo `k` (soma das linhas ganhas)          → test_jb_sistema_e_a_media_das_linhas
   6. shf: ganha pela odd da colocação, não a liquidada      → test_shf_ganha_com_perna_pushed…
-  7. shf: `originalAmount` diferente aceito                 → test_shf_cashout_parcial_e_recusado
+  7. shf: stake pelo `originalAmount` (o pedido)            → test_shf_aceite_parcial…
   8. tv: ganha pelo `Koef`, não o `WinKoef`                 → test_tv_ganha_com_perna_anulada…
   9. vb: sistema pelo `totalOdds` arredondado               → test_vb_sistema_e_a_media_exata
+ 10. derivar: sistema ganho pela odd da casa (média)        → test_sistema_ganho_e_retorno_sobre_stake
+ 11. shf: `originalAmount` diferente volta a recusar         → test_shf_aceite_parcial…
+ 12. derivar: retorno ÷ stake sem as 10 casas               → test_sistema_ganho_e_retorno_sobre_stake
 
-O QUE NÃO COBRE: sistema GANHO na `derivar` (regra "sistema: odd da casa" mesmo em W, que a
-régua mostrou errada contra o `MASTER_RESULTADO §7.1`: está fora destes adaptadores e fica
-como pendência), bet builder da Altenar e odd oferecida da Tivo (recusados por falta de
-amostra), e qualquer cru de casa que não esteja nas fixtures.
+O QUE NÃO COBRE: sistema em meia vitória (sem amostra; fica com a odd da casa, §7.1), bet
+builder da Altenar e odd oferecida da Tivo (recusados por falta de amostra), e qualquer cru
+de casa que não esteja nas fixtures.
 """
 import json
 import sys
@@ -78,11 +80,40 @@ def test_shf_ganha_com_perna_pushed_usa_a_odd_liquidada():
     assert f["odd"] == "2.7" and (d["resultado"], d["odd"]) == ("W", "2,7")
 
 
-def test_shf_cashout_parcial_e_recusado():
-    """`originalAmount` 90 e `amount` 59,56: vendeu parte antes, e o valor da venda não está
-    no cru. A IA gravou só a parte que sobrou; a Ficha recusa em vez de perder dinheiro."""
-    with pytest.raises(Recusa, match="originalAmount"):
-        shf.adaptar(CRUS["CfqYSukd8DqCGMcrVfm4x"], "CASA")
+def test_shf_aceite_parcial_a_stake_e_o_amount_aceito():
+    """Pediu 90 e 60; a casa ACEITOU 59,56 e 58,14 (o "Sua Aposta" da tela, Feca 12/10). Não
+    é venda parcial: o ganho é 59,56171948 × 1,82 = 108,40232945, no centavo do `payout`. A
+    stake é o `amount`; o `originalAmount` fica só como `stake_pedida`."""
+    f, d = _montar(shf, "CfqYSukd8DqCGMcrVfm4x")
+    assert (f["stake"], f["stake_pedida"]) == ("59.56171948", "90")
+    assert (d["resultado"], d["odd"], d["stake"]) == ("W", "1,82", "59,56171948")
+    f, d = _montar(shf, "CfqYLyfrUE83UiEDGEHR8")
+    assert (f["stake"], f["stake_pedida"]) == ("58.1435833", "60")
+    assert (d["resultado"], d["odd"]) == ("L", "1,84")
+    # bilhete sem pedido diferente: stake_pedida nula
+    assert shf.adaptar(CRUS["CfqDUmZMEHCsrWs6k6UGK"], "CASA")["stake_pedida"] is None
+
+
+@pytest.mark.parametrize("familia, cod, stake, retorno, odd", [
+    (jb, "2719953703015690358", "60", "88.94", "1,4823333333"),   # 1 de 3 duplas pagou
+    (vb, "5504514128", "43.5", "69", "1,5862068966"),
+    (vb, "5504503270", "60", "84", "1,4"),
+    (vb, "5504412582", "60", "86.1", "1,435"),
+])
+def test_sistema_ganho_e_retorno_sobre_stake(familia, cod, stake, retorno, odd):
+    """Os 4 sistemas ganhos da régua (s409). A odd média sobre a stake inteira lançaria todas
+    as linhas como ganhas (+650,77 USDT nos 4); `MASTER_RESULTADO §7.1`: W = Retorno ÷ Stake."""
+    f, d = _montar(familia, cod)
+    assert f["tipo"] == "sistema" and (f["stake"], f["retorno"]) == (stake, retorno)
+    assert (d["resultado"], d["odd"]) == ("W", odd)
+    assert d["fonte_odd"].startswith("sistema ganho")
+
+
+def test_sistema_perdido_segue_com_a_media():
+    """A regra nova é só do W: perdido e aberto continuam com a odd estrutural (§7.3)."""
+    f = dict(CRUS["5504514128"], status=2, totalWin=0)
+    f = dict(vb.adaptar(f, "CASA"), impressao="x")
+    assert ficha.derivar(f)["odd"] == "5,1184356" and ficha.derivar(f)["resultado"] == "L"
 
 
 def test_tv_ganha_com_perna_anulada_usa_o_winkoef():

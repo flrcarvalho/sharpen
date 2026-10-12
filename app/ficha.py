@@ -175,16 +175,27 @@ def _paga(resultado: str, stake: Decimal, odd: Decimal) -> Decimal:
     return stake * odd if resultado == "W" else (stake / 2) * odd + stake / 2
 
 
+def _razao(retorno: Decimal, stake: Decimal) -> Decimal:
+    """Retorno ÷ Stake em 10 casas, a régua do `repository._veredito_do_retorno`: a dízima
+    do retorno arredondado ao centavo não ganha 28 casas na planilha."""
+    return (retorno / stake).quantize(Decimal("1e-10"))
+
+
 def _odd(f: dict, resultado: str, stake: Decimal, retorno: Decimal | None) -> tuple[Decimal | None, str]:
     """A odd pela regra aprovada (Feca, 11/10). Devolve (odd, de onde veio)."""
     casa = _dec(f.get("odd"))
     if f.get("status") == "cashout":
         if resultado == "V":
             return casa, "cashout = stake: odd da casa"
-        return retorno / stake, "cashout: retorno ÷ stake"
+        return _razao(retorno, stake), "cashout: retorno ÷ stake"
     if resultado in ("", "L", "V", "HL"):
         return casa, "odd da casa" + (" (calculada pelo adaptador)" if f.get("odd_calculada") else "")
     if f.get("tipo") == "sistema":
+        # Sistema ganho paga só as linhas que ganharam: a odd média sobre a stake inteira
+        # lançaria como se todas tivessem ganho (s409: +650 USDT em 4 bilhetes). W com
+        # retorno é Retorno ÷ Stake (MASTER_RESULTADO §7.1); HW fica com a odd da casa.
+        if resultado == "W":
+            return _razao(retorno, stake), "sistema ganho: retorno ÷ stake (MASTER_RESULTADO §7.1)"
         return casa, "sistema: odd da casa (régua própria, MASTER_RESULTADO §7.3)"
     calc = None if f.get("odd_calculada") else _produto(f.get("pernas") or [])
 
@@ -196,7 +207,7 @@ def _odd(f: dict, resultado: str, stake: Decimal, retorno: Decimal | None) -> tu
     if fecha(calc):
         return calc, "fecha o retorno: produto das pernas"
     if resultado == "W":
-        return retorno / stake, "nenhuma fecha: retorno ÷ stake"
+        return _razao(retorno, stake), "nenhuma fecha: retorno ÷ stake"
     return casa, "meia vitória que nenhuma odd fecha: odd da casa (conferir)"
 
 
